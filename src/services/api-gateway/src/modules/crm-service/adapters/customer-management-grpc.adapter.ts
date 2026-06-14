@@ -1,12 +1,16 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
 import {
+  ArchiveCrmAccountRequest,
+  ArchiveCrmAccountResponse,
   ConvertLeadToProspectCustomerRequest,
   ConvertLeadToProspectCustomerResponse,
   CreateLeadRequest,
   CreateLeadResponse,
   CUSTOMER_MANAGEMENT_SERVICE_NAME,
-  CustomerManagementServiceClient
+  CustomerManagementServiceClient,
+  RestoreCrmAccountRequest,
+  RestoreCrmAccountResponse
 } from '@oes/common/generated/crm_service'
 import {
   GRPC_METADATA_PROPAGATION_FACTORY,
@@ -64,6 +68,52 @@ export class CustomerManagementGrpcAdapter implements OnModuleInit {
           auditContext: buildCrmAuditContext(
             source,
             input.auditReason ?? 'create crm lead from api-gateway'
+          )
+        },
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
+  /** archiveCrmAccount forwards one CRM P1 soft-archive command. */
+  archiveCrmAccount(
+    input: Omit<ArchiveCrmAccountRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
+      ManagementInputBase,
+    source: DownstreamRequestSource
+  ): Promise<ArchiveCrmAccountResponse> {
+    return this.call(
+      'archiveCrmAccount',
+      this.svc.archiveCrmAccount(
+        {
+          ...input,
+          operatorContext: buildCrmOperatorContext(source),
+          traceContext: buildCrmTraceContext(source),
+          auditContext: buildCrmAuditContext(
+            source,
+            input.auditReason ?? 'archive crm account from api-gateway'
+          )
+        },
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
+  /** restoreCrmAccount forwards one CRM P1 soft-restore command. */
+  restoreCrmAccount(
+    input: Omit<RestoreCrmAccountRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
+      ManagementInputBase,
+    source: DownstreamRequestSource
+  ): Promise<RestoreCrmAccountResponse> {
+    return this.call(
+      'restoreCrmAccount',
+      this.svc.restoreCrmAccount(
+        {
+          ...input,
+          operatorContext: buildCrmOperatorContext(source),
+          traceContext: buildCrmTraceContext(source),
+          auditContext: buildCrmAuditContext(
+            source,
+            input.auditReason ?? 'restore crm account from api-gateway'
           )
         },
         this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))

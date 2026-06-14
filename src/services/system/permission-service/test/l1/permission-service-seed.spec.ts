@@ -29,7 +29,7 @@ describe('permission service seed source', () => {
     const seed = buildPermissionServiceSeed()
 
     expect(validatePermissionServiceSeed(seed)).toEqual([])
-    expect(seed.permissionCodes).toHaveLength(235)
+    expect(seed.permissionCodes).toHaveLength(237)
     expect(Object.values(TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES)).toEqual([
       ...EXPECTED_TERMINAL_DEVICE_PERMISSION_CODES
     ])
@@ -40,7 +40,9 @@ describe('permission service seed source', () => {
       expect.arrayContaining([
         CRM_MANAGEMENT_PERMISSION_CODES.READ_CRM_ACCOUNT,
         CRM_MANAGEMENT_PERMISSION_CODES.CREATE_CRM_ACCOUNT,
+        CRM_MANAGEMENT_PERMISSION_CODES.UPDATE_CRM_ACCOUNT,
         CRM_MANAGEMENT_PERMISSION_CODES.CONVERT_CRM_ACCOUNT,
+        CRM_MANAGEMENT_PERMISSION_CODES.ARCHIVE_CRM_ACCOUNT,
         CRM_MANAGEMENT_PERMISSION_CODES.VIEW_RESTRICTED_DUPLICATE,
         IDENTITY_ACCOUNT_PERMISSION_CODES.ASSIGN_CONTACT_ASSET,
         IDENTITY_ACCOUNT_PERMISSION_CODES.UPDATE_CONTACT_ASSET,
@@ -81,7 +83,7 @@ describe('permission service seed source', () => {
       'item_master.product_data_manager',
       'extension.designer'
     ])
-    expect(seed.rolePermissions).toHaveLength(193)
+    expect(seed.rolePermissions).toHaveLength(199)
     expect(seed.navigationEntries).toHaveLength(31)
     expect(seed.roleNavigationVisibility).toHaveLength(33)
     expect(seed.roleLandingPolicies).toHaveLength(7)
@@ -91,10 +93,10 @@ describe('permission service seed source', () => {
 
   it('renders a stable dry-run summary for audit output', () => {
     expect(renderPermissionServiceSeedDryRunSummary(buildPermissionServiceSeed())).toEqual({
-      permissionCodeCount: 235,
+      permissionCodeCount: 237,
       deprecatedPermissionCodeCount: 14,
       roleCount: 7,
-      rolePermissionCount: 193,
+      rolePermissionCount: 199,
       navigationEntryCount: 31,
       deprecatedNavigationEntryCount: 1,
       roleNavigationVisibilityCount: 33,

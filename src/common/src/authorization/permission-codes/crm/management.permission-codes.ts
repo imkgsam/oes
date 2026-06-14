@@ -2,7 +2,9 @@
 export const CRM_MANAGEMENT_PERMISSION_CODES = {
   READ_CRM_ACCOUNT: 'crm.account.read',
   CREATE_CRM_ACCOUNT: 'crm.account.create',
+  UPDATE_CRM_ACCOUNT: 'crm.account.update',
   CONVERT_CRM_ACCOUNT: 'crm.account.convert',
+  ARCHIVE_CRM_ACCOUNT: 'crm.account.archive',
   VIEW_RESTRICTED_DUPLICATE: 'crm.duplicate.viewRestricted',
   MANAGE_CRM_CONTACT: 'crm.contact.manage',
   MANAGE_CRM_SOURCE: 'crm.source.manage',

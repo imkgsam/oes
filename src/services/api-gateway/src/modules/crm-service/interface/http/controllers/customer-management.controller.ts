@@ -77,4 +77,38 @@ export class CustomerManagementController {
       source
     )
   }
+
+  @Post('crm-accounts/:crmAccountId/archive')
+  @RequirePermissions({
+    all: [CRM_MANAGEMENT_PERMISSION_CODES.ARCHIVE_CRM_ACCOUNT]
+  })
+  @ApiOperation({ summary: 'Archive one CRM P1 lead or prospect customer' })
+  async archiveCrmAccount(
+    @Param('tenantId') tenantId: string,
+    @Param('crmAccountId') crmAccountId: string,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.customerManagementService.archiveCrmAccount(
+      tenantId,
+      crmAccountId,
+      source
+    )
+  }
+
+  @Post('crm-accounts/:crmAccountId/restore')
+  @RequirePermissions({
+    all: [CRM_MANAGEMENT_PERMISSION_CODES.ARCHIVE_CRM_ACCOUNT]
+  })
+  @ApiOperation({ summary: 'Restore one archived CRM P1 lead or prospect customer' })
+  async restoreCrmAccount(
+    @Param('tenantId') tenantId: string,
+    @Param('crmAccountId') crmAccountId: string,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.customerManagementService.restoreCrmAccount(
+      tenantId,
+      crmAccountId,
+      source
+    )
+  }
 }

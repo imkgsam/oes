@@ -13,6 +13,8 @@ service CustomerQueryService {
 service CustomerManagementService {
   rpc CreateLead(CreateLeadRequest) returns (CreateLeadResponse);
   rpc ConvertLeadToProspectCustomer(ConvertLeadToProspectCustomerRequest) returns (ConvertLeadToProspectCustomerResponse);
+  rpc ArchiveCrmAccount(ArchiveCrmAccountRequest) returns (ArchiveCrmAccountResponse);
+  rpc RestoreCrmAccount(RestoreCrmAccountRequest) returns (RestoreCrmAccountResponse);
 }
 
 message OperatorContext {
@@ -136,6 +138,30 @@ message ConvertLeadToProspectCustomerResponse {
   CrmAccountP1 crm_account = 2;
   repeated CrmPartyCandidate candidates = 3;
   string existing_crm_account_id = 4;
+}
+
+message ArchiveCrmAccountRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string crm_account_id = 5;
+}
+
+message ArchiveCrmAccountResponse {
+  CrmAccountP1 crm_account = 1;
+}
+
+message RestoreCrmAccountRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string crm_account_id = 5;
+}
+
+message RestoreCrmAccountResponse {
+  CrmAccountP1 crm_account = 1;
 }
 
 message ListCrmAccountsRequest {

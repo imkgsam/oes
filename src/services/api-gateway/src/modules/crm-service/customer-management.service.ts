@@ -128,6 +128,40 @@ export class CustomerManagementService {
     return mapCreateLeadResponse(result)
   }
 
+  /** archiveCrmAccount soft-archives one CRM P1 lead or prospect customer. */
+  async archiveCrmAccount(
+    tenantId: string,
+    crmAccountId: string,
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.customerManagementAdapter.archiveCrmAccount(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        crmAccountId: requireNonBlank(crmAccountId, 'crmAccountId')
+      },
+      source
+    )
+
+    return mapCrmAccountP1Detail(result)
+  }
+
+  /** restoreCrmAccount restores one archived CRM P1 lead or prospect customer. */
+  async restoreCrmAccount(
+    tenantId: string,
+    crmAccountId: string,
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.customerManagementAdapter.restoreCrmAccount(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        crmAccountId: requireNonBlank(crmAccountId, 'crmAccountId')
+      },
+      source
+    )
+
+    return mapCrmAccountP1Detail(result)
+  }
+
   /** convertLeadToProspectCustomer formalizes one CRM P1 lead through crm-service and party-service rules. */
   async convertLeadToProspectCustomer(
     tenantId: string,

@@ -8,10 +8,12 @@ import { CustomerManagementController } from './customer-management.controller'
 // Verifies the customer-management gateway controller exposes only the CRM P1 BFF surface.
 describe('CustomerManagementController', () => {
   const customerManagementService = {
+    archiveCrmAccount: jest.fn(),
     convertLeadToProspectCustomer: jest.fn(),
     createLead: jest.fn(),
     getCrmAccount: jest.fn(),
-    listCrmAccounts: jest.fn()
+    listCrmAccounts: jest.fn(),
+    restoreCrmAccount: jest.fn()
   }
 
   const controller = new CustomerManagementController(customerManagementService as any)
@@ -47,6 +49,18 @@ describe('CustomerManagementController', () => {
         CustomerManagementController.prototype.convertLeadToProspectCustomer
       )
     ).toEqual({ all: [CRM_MANAGEMENT_PERMISSION_CODES.CONVERT_CRM_ACCOUNT] })
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        CustomerManagementController.prototype.archiveCrmAccount
+      )
+    ).toEqual({ all: [CRM_MANAGEMENT_PERMISSION_CODES.ARCHIVE_CRM_ACCOUNT] })
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        CustomerManagementController.prototype.restoreCrmAccount
+      )
+    ).toEqual({ all: [CRM_MANAGEMENT_PERMISSION_CODES.ARCHIVE_CRM_ACCOUNT] })
   })
 
   it('forwards CRM P1 list, detail, lead creation, and conversion requests', async () => {
@@ -71,6 +85,14 @@ describe('CustomerManagementController', () => {
       crmAccount: { crmAccountId: 'crm-account-1', tenantPartyId: 'tenant-party-1' },
       candidates: [],
       existingCrmAccountId: ''
+    })
+    customerManagementService.archiveCrmAccount.mockResolvedValue({
+      crmAccountId: 'crm-account-1',
+      recordStatus: 'ARCHIVED'
+    })
+    customerManagementService.restoreCrmAccount.mockResolvedValue({
+      crmAccountId: 'crm-account-1',
+      recordStatus: 'ACTIVE'
     })
 
     await controller.listCrmAccounts(
@@ -99,6 +121,8 @@ describe('CustomerManagementController', () => {
       source as any
     )
     await controller.convertLeadToProspectCustomer('tenant-1', 'crm-account-1', source as any)
+    await controller.archiveCrmAccount('tenant-1', 'crm-account-1', source as any)
+    await controller.restoreCrmAccount('tenant-1', 'crm-account-1', source as any)
 
     expect(customerManagementService.listCrmAccounts).toHaveBeenCalledWith(
       'tenant-1',
@@ -130,6 +154,16 @@ describe('CustomerManagementController', () => {
       source
     )
     expect(customerManagementService.convertLeadToProspectCustomer).toHaveBeenCalledWith(
+      'tenant-1',
+      'crm-account-1',
+      source
+    )
+    expect(customerManagementService.archiveCrmAccount).toHaveBeenCalledWith(
+      'tenant-1',
+      'crm-account-1',
+      source
+    )
+    expect(customerManagementService.restoreCrmAccount).toHaveBeenCalledWith(
       'tenant-1',
       'crm-account-1',
       source

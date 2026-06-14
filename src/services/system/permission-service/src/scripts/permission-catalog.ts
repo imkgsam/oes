@@ -394,9 +394,17 @@ const crmManagement = definePermissionGroup(Modules.CRM_SERVICE, {
     code: 'crm.account.create',
     description: '创建 CRM P1 Lead 客户关系账户'
   },
+  UPDATE_CRM_ACCOUNT: {
+    code: 'crm.account.update',
+    description: '更新 CRM P1 客户关系账户'
+  },
   CONVERT_CRM_ACCOUNT: {
     code: 'crm.account.convert',
     description: '将 CRM P1 Lead 转为 Prospect Customer'
+  },
+  ARCHIVE_CRM_ACCOUNT: {
+    code: 'crm.account.archive',
+    description: '归档 CRM P1 Lead 或 Prospect Customer'
   },
   VIEW_RESTRICTED_DUPLICATE: {
     code: 'crm.duplicate.viewRestricted',

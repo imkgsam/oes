@@ -1,6 +1,10 @@
 import { randomUUID } from 'node:crypto'
+import { ArchiveCrmAccountCommand } from '../../src/application/commands/archive-crm-account.command'
+import { ArchiveCrmAccountHandler } from '../../src/application/commands/archive-crm-account.handler'
 import { CreateLeadCommand } from '../../src/application/commands/create-lead.command'
 import { CreateLeadHandler } from '../../src/application/commands/create-lead.handler'
+import { RestoreCrmAccountCommand } from '../../src/application/commands/restore-crm-account.command'
+import { RestoreCrmAccountHandler } from '../../src/application/commands/restore-crm-account.handler'
 import { CheckLeadDuplicateHandler } from '../../src/application/queries/check-lead-duplicate.handler'
 import { CheckLeadDuplicateQuery } from '../../src/application/queries/check-lead-duplicate.query'
 import {
@@ -43,7 +47,12 @@ class FakeCrmAccountRepository implements CrmAccountRepository {
   }
 
   async saveAccount(account: CrmAccountRecord): Promise<CrmAccountRecord> {
-    this.accounts.push(account)
+    const existingIndex = this.accounts.findIndex((existing) => existing.id === account.id && existing.tenantId === account.tenantId)
+    if (existingIndex >= 0) {
+      this.accounts[existingIndex] = account
+    } else {
+      this.accounts.push(account)
+    }
     return account
   }
 
@@ -63,7 +72,9 @@ function createHarness() {
   return {
     repository,
     checkLeadDuplicate,
-    createLead: new CreateLeadHandler(repository, checkLeadDuplicate)
+    archiveCrmAccount: new ArchiveCrmAccountHandler(repository),
+    createLead: new CreateLeadHandler(repository, checkLeadDuplicate),
+    restoreCrmAccount: new RestoreCrmAccountHandler(repository)
   }
 }
 
@@ -182,5 +193,93 @@ describe('CRM P1 lead use cases L1', () => {
     expect(result.account).toBeNull()
     expect(harness.repository.accounts).toHaveLength(0)
     expect(harness.repository.sources).toHaveLength(0)
+  })
+
+  it('ArchiveCrmAccount / should archive active lead and keep lifecycle stage unchanged', async () => {
+    const harness = createHarness()
+    harness.repository.accounts.push({
+      id: 'crm-account-1',
+      tenantId: 'tenant-1',
+      tenantPartyId: null,
+      recordStatus: CrmAccountRecordStatus.ACTIVE,
+      lifecycleStage: CrmAccountLifecycleStage.LEAD,
+      partyTypeHint: CrmAccountTypeHint.ORGANIZATION,
+      displayName: 'Retired Lead',
+      leadCompanyName: null,
+      leadPersonName: null,
+      leadDomain: 'retired.example',
+      leadEmail: null,
+      leadPhone: null,
+      leadWhatsapp: null,
+      leadCountry: 'US',
+      leadIdentifiers: [],
+      ownerAccountId: 'sales-1',
+      priority: CrmPriority.B,
+      lastActivityAt: null,
+      nextFollowUpAt: null,
+      createdBy: 'sales-1'
+    })
+
+    const result = await harness.archiveCrmAccount.execute(
+      new ArchiveCrmAccountCommand({
+        tenantId: 'tenant-1',
+        crmAccountId: 'crm-account-1',
+        operatorAccountId: 'sales-1'
+      })
+    )
+
+    expect(result.account).toEqual(
+      expect.objectContaining({
+        id: 'crm-account-1',
+        recordStatus: CrmAccountRecordStatus.ARCHIVED,
+        lifecycleStage: CrmAccountLifecycleStage.LEAD
+      })
+    )
+    expect(harness.repository.accounts[0]).toEqual(result.account)
+  })
+
+  it('RestoreCrmAccount / should restore archived lead to active without changing lifecycle stage', async () => {
+    const harness = createHarness()
+    harness.repository.accounts.push({
+      id: 'crm-account-1',
+      tenantId: 'tenant-1',
+      tenantPartyId: null,
+      recordStatus: CrmAccountRecordStatus.ARCHIVED,
+      lifecycleStage: CrmAccountLifecycleStage.LEAD,
+      partyTypeHint: CrmAccountTypeHint.ORGANIZATION,
+      displayName: 'Restorable Lead',
+      leadCompanyName: null,
+      leadPersonName: null,
+      leadDomain: 'restorable.example',
+      leadEmail: null,
+      leadPhone: null,
+      leadWhatsapp: null,
+      leadCountry: 'US',
+      leadIdentifiers: [],
+      ownerAccountId: 'sales-1',
+      priority: CrmPriority.B,
+      lastActivityAt: null,
+      nextFollowUpAt: null,
+      createdBy: 'sales-1',
+      archivedAt: new Date('2026-06-14T10:00:00.000Z')
+    })
+
+    const result = await harness.restoreCrmAccount.execute(
+      new RestoreCrmAccountCommand({
+        tenantId: 'tenant-1',
+        crmAccountId: 'crm-account-1',
+        operatorAccountId: 'sales-1'
+      })
+    )
+
+    expect(result.account).toEqual(
+      expect.objectContaining({
+        id: 'crm-account-1',
+        recordStatus: CrmAccountRecordStatus.ACTIVE,
+        lifecycleStage: CrmAccountLifecycleStage.LEAD,
+        archivedAt: null
+      })
+    )
+    expect(harness.repository.accounts[0]).toEqual(result.account)
   })
 })

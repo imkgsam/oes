@@ -1,6 +1,8 @@
 import { validate } from 'class-validator'
+import { ArchiveCrmAccountCommand } from '../../src/application/commands/archive-crm-account.command'
 import { ConvertLeadToProspectCustomerCommand } from '../../src/application/commands/convert-lead-to-prospect-customer.command'
 import { CreateLeadCommand } from '../../src/application/commands/create-lead.command'
+import { RestoreCrmAccountCommand } from '../../src/application/commands/restore-crm-account.command'
 import { CheckLeadDuplicateQuery } from '../../src/application/queries/check-lead-duplicate.query'
 import { GetCrmAccountQuery } from '../../src/application/queries/get-crm-account.query'
 import { ListCrmAccountsQuery } from '../../src/application/queries/list-crm-accounts.query'
@@ -33,6 +35,16 @@ describe('crm-service cqrs validation L3', () => {
         }
       }),
       new ConvertLeadToProspectCustomerCommand({
+        tenantId: 'tenant-1',
+        crmAccountId: 'crm-account-1',
+        operatorAccountId: 'operator-1'
+      }),
+      new ArchiveCrmAccountCommand({
+        tenantId: 'tenant-1',
+        crmAccountId: 'crm-account-1',
+        operatorAccountId: 'operator-1'
+      }),
+      new RestoreCrmAccountCommand({
         tenantId: 'tenant-1',
         crmAccountId: 'crm-account-1',
         operatorAccountId: 'operator-1'
