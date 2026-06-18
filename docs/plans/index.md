@@ -19,53 +19,59 @@
    - 已确认后置事项与从活跃 feature 派生、但当前不做的 sidecar work
 2. `features/README.md`
    - 跨线程 feature 的协作面板模板与使用规则
-3. `ideas.md`
+3. `oes-global-roadmap.md`
+   - OES 全局能力层级、优先方向与新功能 intake 模板；只能由 Global Command Thread 写入
+4. `oes-thread-control-board.md`
+   - OES Codex thread 调度状态、受保护共享文件与 handoff 模板；实时状态以 Command Hub 为准
+5. `ideas.md`
    - 随时记录的灵感池，目标是防遗忘，不直接进入实现
-4. `candidates.md`
+6. `candidates.md`
    - 候选功能与候选设计议题，位于灵感与正式 feature 之间
-5. `designs/README.md`
+7. `designs/README.md`
    - 长周期设计过程工作台规则与模板入口；仅在大服务、长设计或暂不能直接进入 feature packet 时使用
-6. `frontend-planning-summary.md`
+8. `frontend-planning-summary.md`
    - 前端高层结论与阅读导航，不承载正式架构正文
-7. `tenant-web-frontend-architecture.md`
+9. `tenant-web-frontend-architecture.md`
    - `tenant-web` 前端工程架构主文档
-8. `tenant-web-information-architecture.md`
+10. `tenant-web-information-architecture.md`
    - `tenant-web` 产品级信息架构主文档
-9. `tenant-web-code-refactor-checklist.md`
+11. `tenant-web-code-refactor-checklist.md`
    - `tenant-web` 当前阶段代码改造、验证状态与后置测试任务
-10. `tenant-web-vben-implementation-plan.md`
+12. `tenant-web-vben-implementation-plan.md`
    - `tenant-web` 对 `vue-vben-admin` 底座的适配与本地化说明
-11. `authorization-layering-implementation-plan.md`
+13. `authorization-layering-implementation-plan.md`
    - 粗粒度权限、`checkResource`、`buildQueryScope`、policy 分类、`common/authorization` 迁移与跨服务派生协作授权实施计划
-12. `ai-platform-foundation-plan.md`
+14. `ai-platform-foundation-plan.md`
    - AI 平台基础能力实施计划
-13. `machine-principal-foundation-alignment.md`
+15. `machine-principal-foundation-alignment.md`
    - 机器主体基础对齐计划
-14. `notification-service-foundation-plan.md`
+16. `notification-service-foundation-plan.md`
    - Notification Service 平台基础实施计划
-15. `communication-mailbox-foundation-plan.md`
+17. `communication-mailbox-foundation-plan.md`
    - Communication And Mailbox 平台基础实施计划
-16. `notification-service-contract-draft.md`
+18. `notification-service-contract-draft.md`
    - Notification Service 第一版契约草案
-17. `communication-service-contract-draft.md`
+19. `communication-service-contract-draft.md`
    - Communication Service 第一版契约草案
-18. `observability-and-audit-foundation-plan.md`
+20. `observability-and-audit-foundation-plan.md`
    - 可观测性与审计基础实施计划
-19. `mfa-login-policy-and-factor-orchestration-implementation-plan.md`
+21. `mfa-login-policy-and-factor-orchestration-implementation-plan.md`
    - 登录场景 MFA 策略、因子优先级与登录续流编排实施计划
-20. `features/hr-service-foundation.md`
+22. `features/codex-command-hub-mvp.md`
+   - Codex Command Hub 第一版 CLI feature packet
+23. `features/hr-service-foundation.md`
    - HR Service minimum 第一阶段 feature packet
-21. `features/sales-quote-order-core.md`
+24. `features/sales-quote-order-core.md`
     - Sales Service 第一阶段报价、正式版本、订单成立与 fulfillment handoff feature packet
-22. `features/finance-ar-credit-core.md`
+25. `features/finance-ar-credit-core.md`
     - Finance Service 第一阶段 AR、invoice、collection、allocation、credit、finance release 与 standard FX feature packet
-23. `features/object-activity-foundation.md`
+26. `features/object-activity-foundation.md`
     - 平台级 ObjectActivity / ObjectTimeline 第一阶段 foundation feature packet
-24. `features/crm-customer-master-foundation.md`
+27. `features/crm-customer-master-foundation.md`
     - CRM Service 最小客户主档闭环与 Sales selector 边界 feature packet
-25. `features/procurement-pr-po-foundation.md`
+28. `features/procurement-pr-po-foundation.md`
     - Procurement Service 第一阶段 PR、PO、allocation、收货预期与采购差异摘要 feature packet
-26. `pda-phase-1-foundation-implementation-plan.md`
+29. `pda-phase-1-foundation-implementation-plan.md`
     - PDA Android 设备端第一阶段系统基础能力、Android Shell、Vue3 Web、JS Bridge、PDA BFF 与真机验收实施计划
 
 ## 3. 使用规则

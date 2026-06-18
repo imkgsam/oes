@@ -59,6 +59,8 @@
     "backend:business:db:sync": "pnpm --filter sales-service prisma:push && pnpm --filter crm-service prisma:push && pnpm --filter srm-service prisma:push && pnpm --filter finance-service prisma:push && pnpm --filter procurement-service prisma:push && pnpm --filter wms-service prisma:push && pnpm --filter mes-service prisma:push",
     "backend:db:sync": "pnpm backend:system:db:sync && pnpm backend:business:db:sync",
     "backend:foundation:sync": "pnpm --filter permission-service seed:apply -- --apply",
+    "oes:hub": "node scripts/oes-hub.mjs",
+    "oes:hub:test": "node --test scripts/oes-hub/*.spec.mjs",
     "seed:system-admin": "node scripts/local/seed-system-admin.mjs",
     "reset:sysadmin": "node scripts/local/reset-to-system-admin.mjs --apply",
     "pms": "pnpm --filter permission-service dev",
