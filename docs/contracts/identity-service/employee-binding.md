@@ -24,14 +24,14 @@
   - `tenant_id`
 - 绑定前置校验：
   - 账号与员工属于同一 tenant
-  - `identity.User.partyId` 与该 `Employee` 上游 person party 一致
+  - `UserAccount.tenantPartyId` 与该 `Employee.tenantPartyId` 一致
 - 成功语义：
   - 绑定结果由 `identity-service` 持久化
   - 绑定成功不代表 permission grant 已成功
   - 若后续 permission grant 失败，binding 保留，但 account 不得被视为已完成 onboarding access
 - 失败语义：
   - tenant mismatch
-  - party mismatch
+  - tenant party mismatch
   - account not found
   - employee not found
 

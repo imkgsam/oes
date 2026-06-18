@@ -1,0 +1,10 @@
+{
+  "name": "@oes/external-site-template",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Production-shaped external site template for OES Site Runtime and Nuxt storefront.",
+  "license": "UNLICENSED",
+  "scripts": {
+    "verify:boundaries": "node scripts/verify-template-boundaries.mjs"
+  }
+}

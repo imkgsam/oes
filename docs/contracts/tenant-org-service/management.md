@@ -107,8 +107,8 @@
   - `name`
   - `type`
   - optional `sort_order`
-  - optional `organization_party_id`
-- `organization_party_id` 语义：
+  - optional `organization_tenant_party_id`
+- `organization_tenant_party_id` 语义：
   - 表示该 `OrgUnit` 对 `party-service` 组织主体的可选正式引用；组织主体边界以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准
   - 当前第一阶段仅允许 `type = ROOT | BRANCH` 时传入
   - `DEPARTMENT`、`TEAM`、`OTHER` 传入该字段时应返回 validation failure
@@ -127,14 +127,14 @@
   - optional `name`
   - optional `type`
   - optional `sort_order`
-  - optional `organization_party_id`
-- `organization_party_id` 语义：
+  - optional `organization_tenant_party_id`
+- `organization_tenant_party_id` 语义：
   - 未提供时表示“不修改当前关联”
-  - 提供非空值时表示“设置或替换当前 organization party 引用”
-  - 提供空值时表示“显式清空当前 organization party 引用”
+  - 提供非空值时表示“设置或替换当前 organizationTenantPartyId 引用”
+  - 提供空值时表示“显式清空当前 organizationTenantPartyId 引用”
 - 更新约束：
-  - 若节点当前类型或更新后类型不属于 `ROOT | BRANCH`，则不得保留或写入 `organization_party_id`
-  - 若本次更新同时修改 `type` 与 `organization_party_id`，以更新后的节点类型判断是否合法
+  - 若节点当前类型或更新后类型不属于 `ROOT | BRANCH`，则不得保留或写入 `organization_tenant_party_id`
+  - 若本次更新同时修改 `type` 与 `organization_tenant_party_id`，以更新后的节点类型判断是否合法
   - 非空写入时沿用 `CreateOrgUnit` 的 party existence / type / status 校验
 
 ### `MoveOrgUnit`
@@ -172,7 +172,7 @@
   - tenant 或 org 不存在
 - domain errors
   - 例如 code 冲突、根节点非法移动、形成环、状态不允许变更
-  - organization party 不存在、类型不匹配、状态不可引用、或当前 org type 不允许持有该引用
+  - organizationTenantPartyId 不存在、类型不是 `ORGANIZATION`、状态不可引用、或当前 org type 不允许持有该引用
 
 ## 6. 第一阶段明确不做
 

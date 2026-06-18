@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { createSmokeSeed, runProcurementSmokeFlow } from './procurement-smoke-lib.mjs';
+import { createPurchasableSmokeItem } from '../../../../../scripts/local/item-master-smoke-fixture.mjs';
 
 // Verifies the mandatory procurement smoke path can search an empty tenant, create one PR, submit it, and approve it.
 test('procurement smoke flow / should create submit and approve one purchase request when conversion is unavailable', async () => {
@@ -242,4 +243,44 @@ test('procurement smoke flow / should convert one approved standard-item purchas
   assert.ok(convertCall);
   assert.equal(convertCall[1].sourceLines[0].purchaseRequestId, 'pr-item-1');
   assert.equal(convertCall[1].sourceLines[0].purchaseRequestLineId, 'pr-item-line-1');
+});
+
+// Verifies the shared Item Master bootstrap used by procurement creates a Contract V2 model before creating the item.
+test('item-master smoke fixture / should create a model before creating a procurement conversion item', async () => {
+  const calls = [];
+  const seed = createSmokeSeed(1700000000202);
+
+  const result = await createPurchasableSmokeItem(
+    {
+      createItemModel: async (request) => {
+        calls.push(['createItemModel', request]);
+        return { itemModelId: 'proc-item-model-1' };
+      },
+      createItem: async (request) => {
+        calls.push(['createItem', request]);
+        return { itemId: 'proc-item-1', item: { itemId: 'proc-item-1' } };
+      },
+      setItemCapabilities: async (request) => {
+        calls.push(['setItemCapabilities', request]);
+        return {
+          item: {
+            itemId: request.itemId,
+            capabilities: { purchasable: true }
+          }
+        };
+      }
+    },
+    seed,
+    {
+      modelCode: 'PROC-SMOKE-MODEL-0202',
+      modelName: `Procurement Smoke Model ${seed.title}`,
+      itemCode: 'PROC-SMOKE-ITEM-0202',
+      itemName: `Procurement Smoke Item ${seed.title}`
+    }
+  );
+
+  assert.deepEqual(calls.map(([name]) => name), ['createItemModel', 'createItem', 'setItemCapabilities']);
+  assert.equal(calls[1][1].itemModelId, 'proc-item-model-1');
+  assert.equal(result.itemModelId, 'proc-item-model-1');
+  assert.equal(result.itemId, 'proc-item-1');
 });

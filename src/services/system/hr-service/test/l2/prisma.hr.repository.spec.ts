@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException } from '@nestjs/common'
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common'
 import { PrismaService } from '../../src/infrastructure/prisma/prisma.service'
 import { PrismaEmployeeRepository } from '../../src/infrastructure/repositories/prisma-employee.repository'
 import { PrismaEmploymentRepository } from '../../src/infrastructure/repositories/prisma-employment.repository'
@@ -47,7 +47,6 @@ describe('HR Prisma repositories L2', () => {
     await employeeRepository.create({
       tenantId: `${prefix}_tenant`,
       tenantPartyId: `${prefix}_tenant_party`,
-      partyId: `${prefix}_party`,
       employeeCode: '0001',
       lifecycleStatus: EmployeeLifecycleStatus.PREBOARDING
     })
@@ -56,11 +55,82 @@ describe('HR Prisma repositories L2', () => {
       employeeRepository.create({
         tenantId: `${prefix}_tenant`,
         tenantPartyId: `${prefix}_tenant_party`,
-        partyId: `${prefix}_party`,
         employeeCode: '0002',
         lifecycleStatus: EmployeeLifecycleStatus.PREBOARDING
       })
     ).rejects.toBeInstanceOf(ConflictException)
+  })
+
+  it('EmployeeOfficialPhoto / should persist and return official photo fields', async () => {
+    const employee = await employeeRepository.create({
+      tenantId: `${prefix}_tenant`,
+      tenantPartyId: `${prefix}_tenant_party`,
+      employeeCode: '0001',
+      lifecycleStatus: EmployeeLifecycleStatus.PREBOARDING
+    })
+
+    const updated = await employeeRepository.updateOfficialPhoto({
+      tenantId: employee.tenantId,
+      employeeId: employee.id,
+      officialPhotoAssetId: `${prefix}_asset`,
+      officialPhotoUrl: `https://assets.example.com/${prefix}/official.webp`
+    })
+    const persisted = await employeeRepository.findById(employee.id)
+
+    expect(updated.officialPhotoAssetId).toBe(`${prefix}_asset`)
+    expect(updated.officialPhotoUrl).toBe(`https://assets.example.com/${prefix}/official.webp`)
+    expect(persisted?.officialPhotoAssetId).toBe(`${prefix}_asset`)
+    expect(persisted?.officialPhotoUrl).toBe(`https://assets.example.com/${prefix}/official.webp`)
+  })
+
+  it('EmployeeOfficialPhoto / should clear persisted official photo fields', async () => {
+    const employee = await employeeRepository.create({
+      tenantId: `${prefix}_tenant`,
+      tenantPartyId: `${prefix}_tenant_party`,
+      employeeCode: '0001',
+      lifecycleStatus: EmployeeLifecycleStatus.PREBOARDING
+    })
+    await employeeRepository.updateOfficialPhoto({
+      tenantId: employee.tenantId,
+      employeeId: employee.id,
+      officialPhotoAssetId: `${prefix}_asset`,
+      officialPhotoUrl: `https://assets.example.com/${prefix}/official.webp`
+    })
+
+    const removed = await employeeRepository.removeOfficialPhoto({
+      tenantId: employee.tenantId,
+      employeeId: employee.id
+    })
+    const persisted = await employeeRepository.findById(employee.id)
+
+    expect(removed.officialPhotoAssetId).toBeNull()
+    expect(removed.officialPhotoUrl).toBeNull()
+    expect(persisted?.officialPhotoAssetId).toBeNull()
+    expect(persisted?.officialPhotoUrl).toBeNull()
+  })
+
+  it('EmployeeOfficialPhoto / should return not found for wrong tenant bindings', async () => {
+    const employee = await employeeRepository.create({
+      tenantId: `${prefix}_tenant`,
+      tenantPartyId: `${prefix}_tenant_party`,
+      employeeCode: '0001',
+      lifecycleStatus: EmployeeLifecycleStatus.PREBOARDING
+    })
+
+    await expect(
+      employeeRepository.updateOfficialPhoto({
+        tenantId: `${prefix}_other_tenant`,
+        employeeId: employee.id,
+        officialPhotoAssetId: `${prefix}_asset`,
+        officialPhotoUrl: `https://assets.example.com/${prefix}/official.webp`
+      })
+    ).rejects.toBeInstanceOf(NotFoundException)
+    await expect(
+      employeeRepository.removeOfficialPhoto({
+        tenantId: `${prefix}_other_tenant`,
+        employeeId: employee.id
+      })
+    ).rejects.toBeInstanceOf(NotFoundException)
   })
 
   it('Employment / should enforce one ACTIVE employment per employee', async () => {

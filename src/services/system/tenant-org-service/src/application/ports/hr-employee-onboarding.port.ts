@@ -8,7 +8,6 @@ export interface HrEmployeeOnboardingPort {
     employeeCode: string
     idempotencyKey: string
     person: {
-      existingPartyId?: string
       existingTenantPartyId: string
       legalName: string
     }

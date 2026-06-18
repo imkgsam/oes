@@ -169,7 +169,7 @@ function mapOrgUnit(orgUnit: {
   path: string
   depth: number
   sortOrder: number
-  organizationPartyId: string | null
+  organizationTenantPartyId: string | null
 }) {
   return {
     id: orgUnit.id,
@@ -181,7 +181,7 @@ function mapOrgUnit(orgUnit: {
     path: orgUnit.path,
     depth: orgUnit.depth,
     sortOrder: orgUnit.sortOrder,
-    organizationPartyId: orgUnit.organizationPartyId ?? ''
+    organizationTenantPartyId: orgUnit.organizationTenantPartyId ?? ''
   }
 }
 

@@ -26,6 +26,8 @@ import { PermissionServiceProxyModule } from './modules/permission-service/permi
 import { ProcurementServiceProxyModule } from './modules/procurement-service/procurement-service.module'
 import { PublicEntryServiceProxyModule } from './modules/public-entry-service/public-entry-service.module'
 import { SalesServiceProxyModule } from './modules/sales-service/sales-service.module'
+import { SiteManagementBffModule } from './modules/site-management-bff/site-management-bff.module'
+import { SiteRuntimeBffModule } from './modules/site-runtime-bff/site-runtime-bff.module'
 import { SrmServiceProxyModule } from './modules/srm-service/srm-service.module'
 import { TenantOrgServiceProxyModule } from './modules/tenant-org-service/tenant-org-service.module'
 import { WmsServiceProxyModule } from './modules/wms-service/wms-service.module'
@@ -100,6 +102,18 @@ export function resolvePublicEntryGrpcUrl() {
   return process.env.PUBLIC_ENTRY_SERVICE_HOST && process.env.PUBLIC_ENTRY_SERVICE_PORT
     ? `${process.env.PUBLIC_ENTRY_SERVICE_HOST}:${process.env.PUBLIC_ENTRY_SERVICE_PORT}`
     : 'localhost:50067'
+}
+
+/** resolveSiteGrpcUrl centralizes the local site-service endpoint used by Admin and Site-facing BFFs. */
+export function resolveSiteGrpcUrl() {
+  const host = process.env.SITE_SERVICE_HOST?.trim()
+  const port = process.env.SITE_SERVICE_PORT?.trim()
+
+  if (host && port) {
+    return `${normalizeLocalhostGrpcHost(host)}:${port}`
+  }
+
+  return (process.env.NODE_ENV ?? 'development') !== 'production' ? '127.0.0.1:50069' : undefined
 }
 
 /** normalizeLocalhostGrpcHost maps local gRPC clients to IPv4 when services bind IPv4-only sockets. */
@@ -227,6 +241,12 @@ export const permissionGrpcProtoPaths = [
           packageName: 'public_entry_service',
           url: resolvePublicEntryGrpcUrl()
         },
+        [SERVICE_NAMES.SITE]: {
+          serviceName: SERVICE_NAMES.SITE,
+          protoPath: resolveCommonProtoPath('site_service/site.proto'),
+          packageName: 'site_service',
+          url: resolveSiteGrpcUrl()
+        },
         [SERVICE_NAMES.SRM]: {
           serviceName: SERVICE_NAMES.SRM,
           protoPath: resolveCommonProtoPath('srm_service/srm.proto'),
@@ -299,6 +319,8 @@ export const permissionGrpcProtoPaths = [
     ProcurementServiceProxyModule,
     PublicEntryServiceProxyModule,
     SalesServiceProxyModule,
+    SiteManagementBffModule,
+    SiteRuntimeBffModule,
     SrmServiceProxyModule,
     TenantOrgServiceProxyModule,
     WmsServiceProxyModule

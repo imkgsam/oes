@@ -27,7 +27,14 @@ export type BusinessCardCompanyDisplaySummary = {
 export type ContactActionPublicSafeValue = {
   targetRefType: ContactActionTargetRefType
   targetRefId?: string | null
-  contactAssetKind?: 'WORK_PHONE' | 'WORK_EMAIL' | 'WECHAT' | 'WHATSAPP' | 'TENANT_WEBSITE'
+  contactAssetKind?:
+    | 'WORK_PHONE'
+    | 'WORK_EMAIL'
+    | 'WECHAT'
+    | 'WHATSAPP'
+    | 'EXTERNAL_COMMUNICATION_ACCOUNT'
+    | 'OTHER_SOCIAL'
+    | 'TENANT_WEBSITE'
   displayValue?: string | null
   actionUrl?: string | null
   available: boolean

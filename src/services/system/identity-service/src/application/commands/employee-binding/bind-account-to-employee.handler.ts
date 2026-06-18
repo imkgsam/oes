@@ -11,7 +11,7 @@ import {
   IDENTITY_ACCOUNT_TENANT_MISMATCH,
   IDENTITY_EMPLOYEE_ALREADY_BOUND_TO_ANOTHER_ACCOUNT,
   IDENTITY_EMPLOYEE_NOT_FOUND,
-  IDENTITY_EMPLOYEE_PARTY_MISMATCH,
+  IDENTITY_EMPLOYEE_TENANT_PARTY_MISMATCH,
   IDENTITY_EMPLOYEE_TENANT_MISMATCH,
   IDENTITY_USER_NOT_FOUND
 } from '../../../common/constants/exceptions'
@@ -21,7 +21,7 @@ import { EmployeeBindingRepository } from '../../../domain/repositories/employee
 import { UserRepository } from '../../../domain/repositories/user.repository'
 import { BindAccountToEmployeeCommand } from './bind-account-to-employee.command'
 
-/** BindAccountToEmployeeHandler validates tenant and party consistency before persisting the binding fact. */
+/** BindAccountToEmployeeHandler validates tenant and tenant-party consistency before persisting the binding fact. */
 @CommandHandler(BindAccountToEmployeeCommand)
 export class BindAccountToEmployeeHandler
   implements ICommandHandler<BindAccountToEmployeeCommand, EmployeeBindingSummaryEntity>
@@ -76,12 +76,12 @@ export class BindAccountToEmployeeHandler
       })
     }
 
-    if (!user.partyId || !employee.partyId || user.partyId !== employee.partyId) {
-      throw ExceptionFactory.domain(IDENTITY_EMPLOYEE_PARTY_MISMATCH, {
+    if (!account.tenantPartyId || !employee.tenantPartyId || account.tenantPartyId !== employee.tenantPartyId) {
+      throw ExceptionFactory.domain(IDENTITY_EMPLOYEE_TENANT_PARTY_MISMATCH, {
         userId: account.userId,
         employeeId: command.employeeId,
-        accountPartyId: user.partyId,
-        employeePartyId: employee.partyId
+        accountTenantPartyId: account.tenantPartyId,
+        employeeTenantPartyId: employee.tenantPartyId
       })
     }
 

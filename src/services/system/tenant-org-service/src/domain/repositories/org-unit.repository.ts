@@ -12,7 +12,7 @@ export interface OrgUnitSummary {
   path: string
   depth: number
   sortOrder: number
-  organizationPartyId: string | null
+  organizationTenantPartyId: string | null
 }
 
 export interface OrgNode {
@@ -26,7 +26,7 @@ export interface CreateOrgUnitInput {
   name: string
   type: OrgUnitType | string
   sortOrder?: number
-  organizationPartyId?: string
+  organizationTenantPartyId?: string
 }
 
 export interface UpdateOrgUnitInput {
@@ -35,7 +35,7 @@ export interface UpdateOrgUnitInput {
   name?: string
   type?: OrgUnitType | string
   sortOrder?: number
-  organizationPartyId?: string | null
+  organizationTenantPartyId?: string | null
 }
 
 export interface OrgUnitRepository {

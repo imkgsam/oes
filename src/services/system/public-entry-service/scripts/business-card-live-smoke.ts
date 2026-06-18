@@ -36,6 +36,8 @@ import { lastValueFrom } from 'rxjs'
 export type BusinessCardLiveSmokeInput = {
   tenantId: string
   employeeId: string
+  accountAvatarUrl?: string
+  hrOfficialPhotoUrl?: string
   operatorAccountId: string
   selfAccountId: string
   workEmailContactAssetId: string
@@ -49,6 +51,7 @@ export type BusinessCardLiveSmokeReport = {
   shortCode: string
   publicUrl: string
   publicRenderState: string
+  publicRenderOfficialPhotoUrl: string
   selfPreviewState: string
   redirectLocation: string
   vCardContentType: string
@@ -97,6 +100,8 @@ export function buildBusinessCardLiveSmokeInputFromEnv(
   return {
     tenantId: requireEnv(env, 'BUSINESS_CARD_LIVE_TENANT_ID'),
     employeeId: requireEnv(env, 'BUSINESS_CARD_LIVE_EMPLOYEE_ID'),
+    accountAvatarUrl: optionalEnv(env, 'BUSINESS_CARD_LIVE_ACCOUNT_AVATAR_URL'),
+    hrOfficialPhotoUrl: optionalExpectedEnv(env, 'BUSINESS_CARD_LIVE_HR_OFFICIAL_PHOTO_URL'),
     operatorAccountId: requireEnv(env, 'BUSINESS_CARD_LIVE_OPERATOR_ACCOUNT_ID'),
     selfAccountId: requireEnv(env, 'BUSINESS_CARD_LIVE_SELF_ACCOUNT_ID'),
     workEmailContactAssetId: requireEnv(env, 'BUSINESS_CARD_LIVE_WORK_EMAIL_CONTACT_ASSET_ID'),
@@ -202,6 +207,15 @@ export async function runBusinessCardLiveSmokeFlow(
     if (publicRender.state !== 'AVAILABLE' || !publicRender.view?.businessCardId) {
       throw new Error(`BusinessCard live smoke failed: public render state=${publicRender.state}`)
     }
+    const publicRenderOfficialPhotoUrl = publicRender.view.person?.officialPhotoUrl ?? ''
+    if (typeof input.hrOfficialPhotoUrl === 'string' && publicRenderOfficialPhotoUrl !== input.hrOfficialPhotoUrl) {
+      throw new Error(
+        `BusinessCard live smoke failed: official photo mismatch expected=${input.hrOfficialPhotoUrl} actual=${publicRenderOfficialPhotoUrl}`
+      )
+    }
+    if (input.accountAvatarUrl && publicRenderOfficialPhotoUrl === input.accountAvatarUrl) {
+      throw new Error('BusinessCard live smoke failed: public render used account avatar as official photo')
+    }
 
     const vcard = await client.generateBusinessCardVCard({
       tenantId: input.tenantId,
@@ -250,6 +264,7 @@ export async function runBusinessCardLiveSmokeFlow(
       shortCode,
       publicUrl,
       publicRenderState: publicRender.state ?? '',
+      publicRenderOfficialPhotoUrl,
       selfPreviewState: selfPreview.preview?.state ?? '',
       redirectLocation: redirect.location,
       vCardContentType: vcard.contentType ?? '',
@@ -309,6 +324,7 @@ export function renderBusinessCardLiveSmokeReport(report: BusinessCardLiveSmokeR
     `[business-card-live-smoke] shortCode=${report.shortCode}`,
     `[business-card-live-smoke] publicUrl=${report.publicUrl}`,
     `[business-card-live-smoke] publicRenderState=${report.publicRenderState}`,
+    `[business-card-live-smoke] publicRenderOfficialPhotoUrl=${report.publicRenderOfficialPhotoUrl}`,
     `[business-card-live-smoke] selfPreviewState=${report.selfPreviewState}`,
     `[business-card-live-smoke] redirectLocation=${report.redirectLocation}`,
     `[business-card-live-smoke] vCardContentType=${report.vCardContentType}`,
@@ -333,6 +349,14 @@ function requireEnv(env: NodeJS.ProcessEnv | Record<string, string | undefined>,
 function optionalEnv(env: NodeJS.ProcessEnv | Record<string, string | undefined>, name: string): string | undefined {
   const value = env[name]?.trim()
   return value ? value : undefined
+}
+
+function optionalExpectedEnv(
+  env: NodeJS.ProcessEnv | Record<string, string | undefined>,
+  name: string
+): string | undefined {
+  if (!Object.prototype.hasOwnProperty.call(env, name)) return undefined
+  return env[name]?.trim() ?? ''
 }
 
 if (require.main === module) {

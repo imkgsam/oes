@@ -394,9 +394,17 @@ const crmManagement = definePermissionGroup(Modules.CRM_SERVICE, {
     code: 'crm.account.create',
     description: '创建 CRM P1 Lead 客户关系账户'
   },
+  UPDATE_CRM_ACCOUNT: {
+    code: 'crm.account.update',
+    description: '更新 CRM P1 客户关系账户'
+  },
   CONVERT_CRM_ACCOUNT: {
     code: 'crm.account.convert',
     description: '将 CRM P1 Lead 转为 Prospect Customer'
+  },
+  ARCHIVE_CRM_ACCOUNT: {
+    code: 'crm.account.archive',
+    description: '归档 CRM P1 Lead 或 Prospect Customer'
   },
   VIEW_RESTRICTED_DUPLICATE: {
     code: 'crm.duplicate.viewRestricted',
@@ -842,6 +850,17 @@ const collaborationTask = definePermissionGroup(Modules.COLLABORATION_SERVICE, {
   }
 })
 
+const collaborationAnnotation = definePermissionGroup(Modules.COLLABORATION_SERVICE, {
+  CREATE: {
+    code: 'collaboration.annotation.create',
+    description: '在支持的业务对象上创建协作备注'
+  },
+  MANAGE: {
+    code: 'collaboration.annotation.manage',
+    description: '治理协作备注，包括置顶、取消置顶或删除他人备注'
+  }
+})
+
 const terminalDeviceManagement = definePermissionGroup(Modules.TERMINAL_DEVICE_SERVICE, {
   CREATE_ENROLLMENT: {
     code: 'terminal-device.enrollment.create',
@@ -900,6 +919,18 @@ const browserExtensionDesigner = definePermissionGroup(Modules.PERMISSION_SERVIC
   }
 })
 
+const siteManagement = definePermissionGroup(Modules.SITE_SERVICE, {
+  READ: { code: 'site.management.read', description: '查看站点治理工作台、站点卡片与运行状态' },
+  MANAGE: { code: 'site.management.manage', description: '创建、更新或禁用站点配置' },
+  LOCALE_MANAGE: { code: 'site.management.locale.manage', description: '维护站点语言生命周期' },
+  PRODUCT_MANAGE: { code: 'site.management.product.manage', description: '维护站点产品发布配置' },
+  CONTENT_MANAGE: { code: 'site.management.content.manage', description: '维护站点 Blog / News 内容' },
+  SYNC: { code: 'site.management.sync', description: '执行站点 public view 同步和 webhook 重投递' },
+  CREDENTIAL_MANAGE: { code: 'site.management.credential.manage', description: '生成、轮换或吊销站点 runtime credential' },
+  AUDIT_READ: { code: 'site.management.audit.read', description: '查看站点治理审计日志' },
+  PREVIEW: { code: 'site.management.preview', description: '签发站点草稿预览 token' }
+})
+
 export const PERMISSION_MANAGEMENT_PERMISSION_CODES = permissionManagement.codes
 export const ROLE_TEMPLATE_PERMISSION_CODES = roleTemplateManagement.codes
 export const ROLE_INSTANCE_PERMISSION_CODES = roleInstanceManagement.codes
@@ -925,8 +956,10 @@ export const AUTH_MANAGEMENT_PERMISSION_CODES = authManagement.codes
 export const AUTH_SELF_PERMISSION_CODES = authSelfManagement.codes
 export const AUTH_SESSION_PERMISSION_CODES = authSessionManagement.codes
 export const COLLABORATION_TASK_PERMISSION_CODES = collaborationTask.codes
+export const COLLABORATION_ANNOTATION_PERMISSION_CODES = collaborationAnnotation.codes
 export const TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES = terminalDeviceManagement.codes
 export const BROWSER_EXTENSION_DESIGNER_PERMISSION_CODES = browserExtensionDesigner.codes
+export const SITE_MANAGEMENT_PERMISSION_CODES = siteManagement.codes
 
 /** DEPRECATED_PERMISSION_CODES tracks legacy permission rows that should be cleaned from local/dev seed data. */
 export const DEPRECATED_PERMISSION_CODES = [
@@ -972,6 +1005,8 @@ export const PERMISSION_CODE_SEED_ITEMS: PermissionSeedItem[] = [
   ...authSelfManagement.items,
   ...authSessionManagement.items,
   ...collaborationTask.items,
+  ...collaborationAnnotation.items,
   ...terminalDeviceManagement.items,
-  ...browserExtensionDesigner.items
+  ...browserExtensionDesigner.items,
+  ...siteManagement.items
 ]

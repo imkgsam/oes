@@ -43,6 +43,7 @@ BusinessCard 只保存配置和引用，不保存展示字段真相。
   - [public-entry-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/public-entry-service.md)
   - [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md)
   - [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)
+  - [asset-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/asset-service.md)
   - [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md)
   - [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md)
   - [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md)
@@ -58,6 +59,7 @@ BusinessCard 只保存配置和引用，不保存展示字段真相。
   - [business-card-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/public-entry-service/business-card-management.md)
   - [business-card-self-view.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/public-entry-service/business-card-self-view.md)
   - [business-card-public-render.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/public-entry-service/business-card-public-render.md)
+  - [employee-official-photo.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/asset-service/employee-official-photo.md)
 
 ## 4. 当前结论
 
@@ -65,6 +67,10 @@ BusinessCard 只保存配置和引用，不保存展示字段真相。
 - BusinessCard owns what is shown.
 - ShortLink owns how the public entry is reached, governed, tracked, expired, and redirected.
 - BusinessCard 不拥有员工、任职、姓名、英文名、职位文案、公司名、头像、联系方式资产、登录标识、ShortLink 生命周期或 CRM 客户回流真相。
+- 员工数字名片头像来源固定为 HR Employee 公开展示头像：`officialPhotoUrl`。
+- 账号头像 / 个人中心头像属于账号资料，不得作为员工数字名片头像 fallback。
+- 员工公开展示头像为空时，名片 renderer 必须展示正式占位或姓名首字母占位。
+- Phase 1.1 员工公开展示头像由 HR / 租户管理员在员工管理内维护，员工本人不能在个人中心修改该头像。
 - Phase 1 每个 active employee 最多一张 primary BusinessCard。
 - 系统可为符合条件员工自动生成 `DRAFT / DISABLED` 名片，但公开启用必须由管理员逐张确认。
 - Phase 1 只绑定一个主 Public Entry / 主二维码。
@@ -76,6 +82,7 @@ BusinessCard 只保存配置和引用，不保存展示字段真相。
   - `visibilityConfig`
   - audit metadata
 - 公开展示字段实时来自 HR、Identity / Contact Asset、Tenant Org / tenant profile、Party 摘要和 ShortLink。
+- 其中头像字段只来自 HR Employee 摘要的 `officialPhotoUrl`；Public Entry、tenant-web 与公开页不得从 `identity-service` account avatar 拼装或补齐。
 - Phase 1 默认租户名片，不引入 brand。
 - Phase 1 使用系统内置统一模板 `TENANT_STANDARD` 与租户级最小模板 token。
 - Phase 1 支持系统预置 Contact Actions：
@@ -257,6 +264,48 @@ VisitEvent mapping:
 
 vCard or individual Contact Action unavailability does not by itself block public page redirect; BusinessCard public render should hide unavailable optional actions unless required display data or safe public render readiness fails.
 
+### 5.2 员工公开展示头像边界
+
+本节冻结员工数字名片头像来源，用于关闭“账号头像是否可作为 fallback”的歧义。
+
+Owner 边界：
+
+- `hr-service` owns 员工公开展示头像引用与展示 URL，字段口径以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准。
+- Asset 服务 owns 图片文件、对象存储、文件校验、URL 生成与资产生命周期；HR 只保存 `officialPhotoAssetId` 与 `officialPhotoUrl`。
+- `identity-service` owns account avatar / 个人中心头像；该头像不参与 BusinessCard public render。
+- `public-entry-service` BusinessCard module 只消费 HR Employee 摘要中的 `officialPhotoUrl`。
+- `tenant-web` 只展示后端返回的 `officialPhotoUrl` 或正式占位，不在前端混用账号头像。
+
+字段与展示规则：
+
+- HR Employee summary exposes:
+  - optional `officialPhotoAssetId`
+  - optional `officialPhotoUrl`
+- PublicBusinessCardView exposes:
+  - optional `officialPhotoUrl`
+- 当 `officialPhotoUrl` 为空：
+  - 员工详情 BusinessCard tab 预览显示正式占位。
+  - 个人中心“我的名片”显示正式占位。
+  - 匿名公开页显示正式占位。
+  - vCard 不输出账号头像。
+- 当 `visibilityConfig.showOfficialPhoto = false` 时，PublicBusinessCardView 不返回 `officialPhotoUrl`，即使 HR 已配置公开展示头像。
+
+管理入口：
+
+- 租户管理员在员工管理 / 员工详情 / 名片 tab 内维护公开展示头像。
+- tab layout:
+  - 左侧：当前电子名片预览。
+  - 右侧：紧凑的公开展示头像设置。
+  - 上传或移除后立即更新左侧预览。
+  - 文案：`该头像将用于员工数字名片和公开展示页面`。
+- 员工个人中心只展示自己的名片，不提供公开展示头像编辑能力。
+
+禁止规则：
+
+- 禁止 public-entry-service adapter 从 `accountProfile.avatarUrl` 映射 `officialPhotoUrl`。
+- 禁止 API Gateway / tenant-web 在 HR 头像为空时读取 account avatar 作为替代。
+- 禁止 BusinessCard 持久化头像文件、账号头像或 HR 公开头像以外的头像真相。
+
 Permission 线程已确认 BusinessCard Phase 1 权限口径；BusinessCard contracts 只引用权限码与授权边界，不重新定义 permission-service 模型。
 
 Confirmed admin permission codes:
@@ -363,6 +412,8 @@ Public anonymous render and vCard download do not call permission-service.
 - Blocker-Later:
   - HR / Party / Tenant Org 需要明确英文名、title、companyDisplayName 多语言字段的上游可用性；缺失时 Phase 1 fallback default，不阻塞名片基础能力。
   - Tenant template token 的 owner 需要在实现交接前明确，是 BusinessCard module 本地 tenant config，还是消费 tenant profile / future public profile。
+- Active Follow-up:
+  - 员工公开展示头像已冻结为 HR-owned `officialPhotoUrl`，需要按实施计划补齐 HR schema / proto / gateway / Public Entry adapter / tenant-web 员工详情 UI。
 - Sidecar:
   - CRM 回流 / LeadDraft。
   - Campaign / source / event attribution。
@@ -398,6 +449,7 @@ Public anonymous render and vCard download do not call permission-service.
 | 2026-06-08 | tenant-web 管理页缺少组件级管理闭环验收证据 | Resolved Implementation Issue | 管理页初版已有 API client 与 route 覆盖，但没有组件测试直接证明 Contact Action 配置只提交引用、不提交电话/邮箱/WeChat/WhatsApp 正文，也没有证明 public entry / stats / enable / disable 调用保持 tenant-scoped | 补充 `business-card-management.spec.ts`，覆盖初始 list/detail/stats 加载、Contact Action ref-only save payload、public entry bind、enable/disable，以及缺少 tenant context 时跳过管理 API | tenant-web admin BusinessCard management page | resolved |
 | 2026-06-08 | Public Entry 启动时 `BusinessCardResolverRegistration` 依赖注入为空 | Resolved Implementation Issue | live stack 启动 public-entry-service 时触发 `Cannot read properties of undefined (reading 'register')`，根因是该 resolver registration provider 缺少 Nest injectable metadata，导致构造函数依赖未注入 | 将 `BusinessCardResolverRegistration` 标记为 `@Injectable()` 并导出以便测试；补充 `business-card.module.spec.ts` 直接断言 resolver registration 构造函数注入 metadata；重新 build 后 public-entry-service 可启动 | public-entry-service BusinessCard module | resolved |
 | 2026-06-08 | 全 live stack BusinessCard smoke 已通过 | Resolved Integration Issue | 已启动 Permission / Identity / Tenant Org / HR / Public Entry / API Gateway，并用 tenant-web auth / HR / Identity seed 推导 BusinessCard live fixture env；live smoke 通过 public-entry-service gRPC 走真实下游服务链路 | 新增 `business-card-live-smoke.ts`、l1 harness tests 与 `test/live/business-card-live-smoke.live.spec.ts`；`public-entry-service smoke:live-preflight` 现在同时执行端点/fixture preflight 与全链路 BusinessCard live smoke | full live-stack smoke / integration fixture | resolved |
+| 2026-06-16 | 员工数字名片头像来源与账号头像混用风险 | Boundary Fix | 当前实现曾从 account profile avatar 映射 `officialPhotoUrl`，会把用户自维护账号头像误用为员工正式公开照片 | 冻结 HR Employee 公开展示头像字段；Public Entry 只消费 HR `officialPhotoUrl`；前端只展示 `officialPhotoUrl` 或正式占位；员工详情名片 tab 提供管理员维护入口 | [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) / [management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/hr-service/management.md) / [query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/hr-service/query.md) / implementation plan | planned |
 | 2026-06-08 | CRM 回流 / LeadDraft | Sidecar | 不进入 Phase 1，不阻塞名片展示 | 后续单独设计，不在当前 feature 中定义字段或流程 | future CRM collaboration | deferred |
 | 2026-06-08 | 多入口 source / event / campaign tracking | Sidecar | 不进入 Phase 1；当前只显示主入口基础统计 | 由 ShortLink / Campaign 设计，不由 BusinessCard 管理 | future ShortLink / Campaign design | deferred |
 
@@ -411,6 +463,8 @@ Phase 1 设计与实现完成时应满足：
 - 员工本人只能查看自己的名片预览、public URL、主二维码、启用状态和当前展示动作。
 - 员工本人不能编辑、启停名片、调整 Contact Actions 或查看访问统计。
 - BusinessCard 只保存配置和引用，不保存姓名、英文名、title、公司名、电话、邮箱、WeChat、WhatsApp 或头像真相。
+- 员工数字名片头像只来自 HR Employee `officialPhotoUrl`；为空时显示正式占位，不回退到账号头像。
+- 管理员可在员工详情名片 tab 中上传 / 移除员工公开展示头像，上传后预览立即更新。
 - 公开名片通过实时 `PublicBusinessCardView` 组装。
 - 上游可选字段缺失时隐藏字段或 action。
 - 必填字段缺失、名片未启用、员工非 active、上游临时不可用时，公开页显示受控不可访问状态。

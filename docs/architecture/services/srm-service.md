@@ -117,9 +117,9 @@ Last Updated: 2026-05-18
 - SRM 的第一优先级是供应商主档闭环，不是采购分析平台。
 - 正式主体引用统一使用 `tenantPartyId`。
 - 建供应商时必须先通过 `party-service` resolve / create 主体事实与租户主体引用，再创建 `SupplierProfile`；强标识命中与复用规则以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准。
-- `Party Selector` 只用于主体去重 / 复用；`Supplier Selector` 只返回可被采购采用的 `SupplierProfile`。
+- `TenantParty Selector` 只用于当前租户内主体选择；`Supplier Selector` 只返回可被采购采用的 `SupplierProfile`。
 - `SupplierProfile.status` 建议最小集合为 `DRAFT / PENDING_REVIEW / ACTIVE / SUSPENDED / BLACKLISTED / ARCHIVED`。
-- `SupplierProfile.displayName / shortName / supplierCode` 归 SRM；`Party.legalName` 归 Party。创建时可从 legal name 初始化 display name，但后续 legal name 变化不能覆盖 SRM 角色显示名。
+- `SupplierProfile.displayName / shortName / supplierCode` 归 SRM；`TenantParty.legalName` 归 Party。创建时可从 legal name 初始化 display name，但后续 legal name 变化不能覆盖 SRM 角色显示名。
 - `SupplierTaxProfile` 第一阶段最小字段为 `invoiceTitle / taxRegistrationNo / taxpayerType / defaultInvoiceType / canIssueVatSpecialInvoice / defaultTaxTreatment / invoiceAddressUsageId / financeContactUsageId`。
 - `defaultCurrency / defaultPaymentTermId` 只作为采购默认值；PurchaseOrder / supplier invoice / Payable 必须保存自己的交易币种与付款条款 snapshot。
 - 第一阶段不实现 `SupplierOffering`，也不在采购保存时强制校验 `SupplierOffering`。

@@ -32,6 +32,7 @@ describe('BusinessCard upstream gRPC adapters', () => {
           employee: {
             id: 'emp_001',
             tenantId: 'tenant_001',
+            officialPhotoUrl: 'https://hr.example.com/alex-official.jpg',
             lifecycleStatus: EmployeeLifecycleStatus.EMPLOYEE_LIFECYCLE_STATUS_ACTIVE
           }
         })
@@ -64,7 +65,7 @@ describe('BusinessCard upstream gRPC adapters', () => {
             id: 'acc_001',
             tenantId: 'tenant_001',
             displayName: 'Alex Chen',
-            avatarUrl: 'https://cdn.example.com/alex.jpg',
+            avatarUrl: 'https://cdn.example.com/alex-account-avatar.jpg',
             isEnabled: true
           }
         })
@@ -97,8 +98,117 @@ describe('BusinessCard upstream gRPC adapters', () => {
       englishName: null,
       title: 'Sales Manager',
       department: 'Enterprise Sales',
-      officialPhotoUrl: 'https://cdn.example.com/alex.jpg',
+      officialPhotoUrl: 'https://hr.example.com/alex-official.jpg',
       status: 'ACTIVE'
+    })
+  })
+
+  it('does not use Identity account avatar when HR has no employee official photo', async () => {
+    const hrQuery = {
+      getEmployeeById: jest.fn(() =>
+        of({
+          employee: {
+            id: 'emp_001',
+            tenantId: 'tenant_001',
+            lifecycleStatus: EmployeeLifecycleStatus.EMPLOYEE_LIFECYCLE_STATUS_ACTIVE
+          }
+        })
+      ),
+      getActiveEmployment: jest.fn(() => of({}))
+    }
+    const identityQuery = {
+      resolveEmployeeLoginAccount: jest.fn(() =>
+        of({
+          account: {
+            accountId: 'acc_001',
+            tenantId: 'tenant_001',
+            displayName: 'Alex Chen',
+            accountEnabled: true
+          }
+        })
+      ),
+      getAccountById: jest.fn(() =>
+        of({
+          account: {
+            id: 'acc_001',
+            tenantId: 'tenant_001',
+            displayName: 'Alex Chen',
+            avatarUrl: 'https://cdn.example.com/account-avatar.jpg',
+            isEnabled: true
+          }
+        })
+      )
+    }
+    const adapter = new BusinessCardEmployeeGrpcAdapter(
+      buildGrpcClient(hrQuery) as any,
+      buildGrpcClient(identityQuery) as any,
+      buildGrpcClient({}) as any,
+      metadataFactory as any
+    )
+    adapter.onModuleInit()
+
+    await expect(
+      adapter.getEmployeeSummary({
+        tenantId: 'tenant_001',
+        employeeId: 'emp_001'
+      })
+    ).resolves.toMatchObject({
+      officialPhotoUrl: null
+    })
+  })
+
+  it('uses HR employee official photo instead of a different Identity account avatar', async () => {
+    const hrQuery = {
+      getEmployeeById: jest.fn(() =>
+        of({
+          employee: {
+            id: 'emp_001',
+            tenantId: 'tenant_001',
+            officialPhotoUrl: 'https://hr.example.com/official-photo.jpg',
+            lifecycleStatus: EmployeeLifecycleStatus.EMPLOYEE_LIFECYCLE_STATUS_ACTIVE
+          }
+        })
+      ),
+      getActiveEmployment: jest.fn(() => of({}))
+    }
+    const identityQuery = {
+      resolveEmployeeLoginAccount: jest.fn(() =>
+        of({
+          account: {
+            accountId: 'acc_001',
+            tenantId: 'tenant_001',
+            displayName: 'Alex Chen',
+            accountEnabled: true
+          }
+        })
+      ),
+      getAccountById: jest.fn(() =>
+        of({
+          account: {
+            id: 'acc_001',
+            tenantId: 'tenant_001',
+            displayName: 'Alex Chen',
+            avatarUrl: 'https://cdn.example.com/account-avatar.jpg',
+            isEnabled: true
+          }
+        })
+      )
+    }
+    const adapter = new BusinessCardEmployeeGrpcAdapter(
+      buildGrpcClient(hrQuery) as any,
+      buildGrpcClient(identityQuery) as any,
+      buildGrpcClient({}) as any,
+      metadataFactory as any
+    )
+    adapter.onModuleInit()
+
+    await expect(
+      adapter.getEmployeeSummary({
+        tenantId: 'tenant_001',
+        employeeId: 'emp_001'
+      })
+    ).resolves.toMatchObject({
+      officialPhotoUrl: 'https://hr.example.com/official-photo.jpg'
     })
   })
 
@@ -152,36 +262,43 @@ describe('BusinessCard upstream gRPC adapters', () => {
       resolveEmployeeLoginAccount: jest.fn(() =>
         of({ account: { accountId: 'acc_001', tenantId: 'tenant_001', accountEnabled: true } })
       ),
-      listAccountWorkEmailAssets: jest.fn(() =>
+      resolveContactActionTargets: jest.fn(() =>
         of({
-          assets: [
+          targets: [
             {
-              id: 'email_001',
-              tenantId: 'tenant_001',
-              accountId: 'acc_001',
-              type: 'WORK_EMAIL',
-              value: 'alex.chen@example.com',
-              status: 'ACTIVE',
-              isPrimary: true
+              contactActionType: 'SEND_EMAIL',
+              targetRefType: 'CONTACT_ASSET',
+              targetRefId: 'email_001',
+              renderable: true,
+              publicValueSummary: {
+                type: 'WORK_EMAIL',
+                displayValue: 'alex.chen@example.com',
+                actionUri: 'mailto:alex.chen@example.com'
+              }
+            },
+            {
+              contactActionType: 'CALL_PHONE',
+              targetRefType: 'CONTACT_ASSET',
+              targetRefId: 'phone_disabled',
+              renderable: false,
+              hiddenReason: 'CONTACT_ASSET_NOT_ACTIVE'
+            },
+            {
+              contactActionType: 'OPEN_WHATSAPP',
+              targetRefType: 'CONTACT_ASSET',
+              targetRefId: 'whatsapp_001',
+              renderable: true,
+              publicValueSummary: {
+                type: 'WHATSAPP',
+                displayValue: '+44 20 7946 0321',
+                actionUri: 'https://wa.me/442079460321'
+              }
             }
           ]
         })
       ),
-      listAccountWorkPhoneAssets: jest.fn(() =>
-        of({
-          assets: [
-            {
-              id: 'phone_disabled',
-              tenantId: 'tenant_001',
-              accountId: 'acc_001',
-              type: 'WORK_PHONE',
-              value: '+1 555 0101',
-              status: 'DISABLED',
-              isPrimary: true
-            }
-          ]
-        })
-      )
+      listAccountWorkEmailAssets: jest.fn(),
+      listAccountWorkPhoneAssets: jest.fn()
     }
     const adapter = new BusinessCardContactAssetGrpcAdapter(
       buildGrpcClient(identityQuery) as any,
@@ -196,7 +313,7 @@ describe('BusinessCard upstream gRPC adapters', () => {
         actionRefs: [
           { contactActionType: 'SEND_EMAIL', targetRefType: 'CONTACT_ASSET', targetRefId: 'email_001' },
           { contactActionType: 'CALL_PHONE', targetRefType: 'CONTACT_ASSET', targetRefId: 'phone_disabled' },
-          { contactActionType: 'ADD_WECHAT', targetRefType: 'CONTACT_ASSET', targetRefId: 'wechat_001' }
+          { contactActionType: 'OPEN_WHATSAPP', targetRefType: 'CONTACT_ASSET', targetRefId: 'whatsapp_001' }
         ]
       })
     ).resolves.toEqual([
@@ -207,8 +324,31 @@ describe('BusinessCard upstream gRPC adapters', () => {
         displayValue: 'alex.chen@example.com',
         actionUrl: 'mailto:alex.chen@example.com',
         available: true
+      },
+      {
+        targetRefType: 'CONTACT_ASSET',
+        targetRefId: 'whatsapp_001',
+        contactAssetKind: 'WHATSAPP',
+        displayValue: '+44 20 7946 0321',
+        actionUrl: 'https://wa.me/442079460321',
+        available: true
       }
     ])
+    expect(identityQuery.resolveContactActionTargets).toHaveBeenCalledWith(
+      {
+        tenantId: 'tenant_001',
+        accountId: 'acc_001',
+        employeeId: 'emp_001',
+        targetRefs: [
+          { contactActionType: 'SEND_EMAIL', targetRefType: 'CONTACT_ASSET', targetRefId: 'email_001' },
+          { contactActionType: 'CALL_PHONE', targetRefType: 'CONTACT_ASSET', targetRefId: 'phone_disabled' },
+          { contactActionType: 'OPEN_WHATSAPP', targetRefType: 'CONTACT_ASSET', targetRefId: 'whatsapp_001' }
+        ]
+      },
+      { internal: true }
+    )
+    expect(identityQuery.listAccountWorkEmailAssets).not.toHaveBeenCalled()
+    expect(identityQuery.listAccountWorkPhoneAssets).not.toHaveBeenCalled()
   })
 
   it('returns null instead of leaking upstream failures', async () => {

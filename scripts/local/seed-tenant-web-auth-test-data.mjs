@@ -16,9 +16,6 @@ import {
   buildSeedIdentityOrgs,
   buildSeedIdentityTenants,
   buildSeedOnboardingAccesses,
-  buildSeedOrganizationParties,
-  buildSeedParties,
-  buildSeedPersonParties,
   buildPdaLoginSmokeSeed,
   buildSeedSummary,
   buildSeedTenantOrgTenants,
@@ -80,8 +77,6 @@ const {
 ));
 const {
   PrismaClient: PartyPrismaClient,
-  PartyStatus,
-  PartyType,
   TenantPartyStatus,
 } = require(path.join(
   ROOT,
@@ -110,9 +105,6 @@ const SEEDED_IDENTITY_ORG_MEMBERSHIPS = buildSeedIdentityOrgMemberships();
 const SEEDED_IDENTITY_ORGS = buildSeedIdentityOrgs();
 const SEEDED_IDENTITY_TENANTS = buildSeedIdentityTenants();
 const SEEDED_ONBOARDING_ACCESSES = buildSeedOnboardingAccesses();
-const SEEDED_ORGANIZATION_PARTIES = buildSeedOrganizationParties();
-const SEEDED_PARTIES = buildSeedParties();
-const SEEDED_PERSON_PARTIES = buildSeedPersonParties();
 const SEEDED_TENANT_ORG_TENANTS = buildSeedTenantOrgTenants();
 const SEEDED_TENANT_ORG_UNITS = buildSeedTenantOrgUnits();
 const SEEDED_TENANT_PARTIES = buildSeedTenantParties();
@@ -273,6 +265,7 @@ async function seedIdentity(identity) {
         isEnable: true,
         scopeLevel: UserAccountScopeLevel[account.scopeLevel],
         tenantId: account.tenantId,
+        tenantPartyId: account.tenantPartyId,
         userId: account.userId,
       })),
     });
@@ -776,47 +769,28 @@ async function seedTenantOrg(tenantOrg) {
         path: orgUnit.path,
         depth: orgUnit.depth,
         sortOrder: orgUnit.sortOrder,
-        organizationPartyId: orgUnit.organizationPartyId,
+        organizationTenantPartyId: orgUnit.organizationTenantPartyId,
       })),
     });
   });
 }
 
-// Rebuilds party-service person, organization, and tenant-party facts so names come from the proper owner.
+// Rebuilds party-service tenant-scoped subject facts so names come from the proper owner.
 async function seedParty(party) {
   await party.$transaction(async (tx) => {
-    await tx.partyRelationship.deleteMany({});
     await tx.partyRegistrationIdempotency.deleteMany({});
-    await tx.partyIdentifier.deleteMany({});
+    await tx.tenantPartyIdentifier.deleteMany({});
     await tx.tenantParty.deleteMany({});
-    await tx.personParty.deleteMany({});
-    await tx.organizationParty.deleteMany({});
-    await tx.party.deleteMany({});
-
-    await tx.party.createMany({
-      data: SEEDED_PARTIES.map((seed) => ({
-        id: seed.id,
-        type: PartyType[seed.type],
-        status: PartyStatus[seed.status],
-        legalName: seed.legalName ?? seed.canonicalName ?? seed.displayName,
-      })),
-    });
-
-    await tx.organizationParty.createMany({
-      data: SEEDED_ORGANIZATION_PARTIES.map(({ legalName: _legalName, ...seed }) => seed),
-    });
-
-    await tx.personParty.createMany({
-      data: SEEDED_PERSON_PARTIES.map(({ legalName: _legalName, ...seed }) => seed),
-    });
 
     await tx.tenantParty.createMany({
       data: SEEDED_TENANT_PARTIES.map((seed) => ({
         id: seed.id,
         tenantId: seed.tenantId,
-        partyId: seed.partyId,
-        localDisplayName: seed.localDisplayName,
+        type: seed.type,
+        legalName: seed.legalName,
+        displayName: seed.displayName,
         localCode: seed.localCode,
+        registeredCountry: seed.registeredCountry,
         tags: seed.tags,
         status: TenantPartyStatus[seed.status],
       })),
@@ -836,7 +810,6 @@ async function seedHr(hr) {
         id: employee.id,
         tenantId: employee.tenantId,
         tenantPartyId: employee.tenantPartyId,
-        partyId: employee.partyId,
         employeeCode: employee.employeeCode,
         lifecycleStatus: EmployeeLifecycleStatus[employee.lifecycleStatus],
       })),

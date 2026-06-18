@@ -37,7 +37,7 @@ export class TenantOnboardingIdentifierDto {
   issuerCountryOrRegion?: string
 }
 
-export class TenantOnboardingOrganizationPartyDto {
+export class TenantOnboardingOrganizationTenantPartyDto {
   @ApiProperty({ example: 'Alpha Inc.' })
   @IsString()
   legalName!: string
@@ -104,10 +104,10 @@ export class CreateTenantOnboardingDto {
   @Type(() => TenantOnboardingTenantDto)
   tenant!: TenantOnboardingTenantDto
 
-  @ApiProperty({ type: TenantOnboardingOrganizationPartyDto })
+  @ApiProperty({ type: TenantOnboardingOrganizationTenantPartyDto })
   @ValidateNested()
-  @Type(() => TenantOnboardingOrganizationPartyDto)
-  organizationParty!: TenantOnboardingOrganizationPartyDto
+  @Type(() => TenantOnboardingOrganizationTenantPartyDto)
+  organizationTenantParty!: TenantOnboardingOrganizationTenantPartyDto
 
   @ApiProperty({ type: TenantOnboardingRootOrgDto })
   @ValidateNested()

@@ -1,5 +1,7 @@
 import {
   AUTH_SELF_PERMISSION_CODES,
+  COLLABORATION_ANNOTATION_PERMISSION_CODES,
+  COLLABORATION_TASK_PERMISSION_CODES,
   CRM_MANAGEMENT_PERMISSION_CODES,
   FINANCE_MANAGEMENT_PERMISSION_CODES,
   HR_MANAGEMENT_PERMISSION_CODES,
@@ -30,6 +32,7 @@ describe('permission foundation seed', () => {
 
     expect(new Set(seedCodes).size).toBe(seedCodes.length)
     expect(seedCodes).not.toEqual(expect.arrayContaining([...DEPRECATED_PERMISSION_CODES]))
+    expect(seedCodes).toContain('collaboration.task.assign')
   })
 
   it('publishes owner-service modules for every migrated permission group', () => {
@@ -69,7 +72,14 @@ describe('permission foundation seed', () => {
           ...Object.values(PERMISSION_ACCOUNT_SELF_PERMISSION_CODES)
         ]
       ],
-      [Modules.AUTH_SERVICE, Object.values(AUTH_SELF_PERMISSION_CODES)]
+      [Modules.AUTH_SERVICE, Object.values(AUTH_SELF_PERMISSION_CODES)],
+      [
+        Modules.COLLABORATION_SERVICE,
+        [
+          ...Object.values(COLLABORATION_TASK_PERMISSION_CODES),
+          ...Object.values(COLLABORATION_ANNOTATION_PERMISSION_CODES)
+        ]
+      ]
     ]
 
     for (const [module, codes] of groups) {

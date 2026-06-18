@@ -598,7 +598,6 @@ describe('AdminSecurityUseCase', () => {
           {
             accountId: 'account-1',
             userId: 'user-1',
-            userPartyId: 'party-1',
             tenantId: 'tenant-1',
             displayName: 'Alpha Admin',
             userDisplayName: 'legacy-janny',
@@ -608,7 +607,6 @@ describe('AdminSecurityUseCase', () => {
           {
             accountId: 'account-2',
             userId: 'user-2',
-            userPartyId: 'party-2',
             tenantId: 'tenant-1',
             displayName: 'Legacy Account / Alpha Tenant tenant-1',
             scopeLevel: 'TENANT',
@@ -619,7 +617,7 @@ describe('AdminSecurityUseCase', () => {
       })
     }
     const partyAdapter = {
-      getPartyById: jest
+      getOrganizationTenantPartyById: jest
         .fn()
         .mockResolvedValueOnce({ party: { id: 'party-1', legalName: '张三' } })
         .mockResolvedValueOnce({ party: { id: 'party-2', legalName: '李四' } }),
@@ -668,7 +666,7 @@ describe('AdminSecurityUseCase', () => {
           tenantId: 'tenant-1',
           tenantName: 'Alpha Tenant',
           accountDisplayName: 'Alpha Admin',
-          userDisplayName: '张三',
+          userDisplayName: 'legacy-janny',
           scopeLevel: 'TENANT',
           isEnabled: true
         },
@@ -678,7 +676,7 @@ describe('AdminSecurityUseCase', () => {
           tenantId: 'tenant-1',
           tenantName: 'Alpha Tenant',
           accountDisplayName: 'Legacy Account / Alpha Tenant tenant-1',
-          userDisplayName: '李四',
+          userDisplayName: undefined,
           scopeLevel: 'TENANT',
           isEnabled: true
         }
@@ -717,7 +715,6 @@ describe('AdminSecurityUseCase', () => {
       getUserByEmail: jest.fn().mockResolvedValue({
         user: {
           id: 'user-1',
-          partyId: 'party-1',
           username: 'legacy-handle',
           personalEmail: 'victor@example.com',
           personalPhone: '+15550000001',
@@ -745,7 +742,7 @@ describe('AdminSecurityUseCase', () => {
       })
     }
     const partyAdapter = {
-      getPartyById: jest.fn().mockResolvedValue({
+      getOrganizationTenantPartyById: jest.fn().mockResolvedValue({
         party: {
           id: 'party-1',
           legalName: 'Victor Chen'
@@ -773,7 +770,7 @@ describe('AdminSecurityUseCase', () => {
       items: [
         {
           userId: 'user-1',
-          displayName: 'Victor Chen',
+          displayName: 'Victor / Tenant',
           emailMasked: 'v***@example.com',
           phoneMasked: '+1*******001',
           accountSummaries: [
@@ -981,7 +978,6 @@ describe('AdminSecurityUseCase', () => {
       getUserById: jest.fn().mockResolvedValue({
         user: {
           userId: 'user-1',
-          partyId: 'party-1',
           username: 'legacy-vic'
         }
       })
@@ -1003,7 +999,7 @@ describe('AdminSecurityUseCase', () => {
         })
     }
     const partyAdapter = {
-      getPartyById: jest.fn().mockResolvedValue({
+      getOrganizationTenantPartyById: jest.fn().mockResolvedValue({
         party: {
           id: 'party-1',
           legalName: '陈双鹏',
@@ -1031,7 +1027,7 @@ describe('AdminSecurityUseCase', () => {
       items: [
         expect.objectContaining({
           userId: 'user-1',
-          displayName: '陈双鹏',
+          displayName: 'legacy-vic',
           activeSessionCount: 3,
           activeAccountCount: 2,
           visibleTenantCount: 2,

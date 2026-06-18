@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException } from '@nestjs/common'
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common'
 import { HrManagementService } from '../../src/application/services/hr-management.service'
 import { EmployeeLifecycleStatus, EmploymentStatus } from '../../src/domain/value-objects'
 
@@ -9,7 +9,9 @@ function createEmployeeRepositoryMock() {
     findById: jest.fn(),
     findMaxEmployeeCodeSuffix: jest.fn(),
     findByTenantPartyId: jest.fn(),
-    setLifecycleStatus: jest.fn()
+    setLifecycleStatus: jest.fn(),
+    updateOfficialPhoto: jest.fn(),
+    removeOfficialPhoto: jest.fn()
   }
 }
 
@@ -46,7 +48,6 @@ describe('HrManagementService L1', () => {
       id: 'employee-1',
       tenantId: 'tenant-1',
       tenantPartyId: 'tenant-party-1',
-      partyId: 'party-1',
       employeeCode: '0001',
       lifecycleStatus: EmployeeLifecycleStatus.PREBOARDING
     })
@@ -60,7 +61,6 @@ describe('HrManagementService L1', () => {
     const employee = await service.createEmployee({
       tenantId: 'tenant-1',
       tenantPartyId: 'tenant-party-1',
-      partyId: 'party-1'
     })
 
     expect(employee.id).toBe('employee-1')
@@ -70,7 +70,6 @@ describe('HrManagementService L1', () => {
     expect(employeeRepository.create).toHaveBeenCalledWith({
       tenantId: 'tenant-1',
       tenantPartyId: 'tenant-party-1',
-      partyId: 'party-1',
       employeeCode: '0001',
       lifecycleStatus: EmployeeLifecycleStatus.PREBOARDING
     })
@@ -85,7 +84,6 @@ describe('HrManagementService L1', () => {
       id: 'employee-1',
       tenantId: 'tenant-1',
       tenantPartyId: 'tenant-party-1',
-      partyId: 'party-1',
       employeeCode: '000A',
       lifecycleStatus: EmployeeLifecycleStatus.PREBOARDING
     })
@@ -98,7 +96,6 @@ describe('HrManagementService L1', () => {
     const employee = await service.createEmployee({
       tenantId: 'tenant-1',
       tenantPartyId: 'tenant-party-1',
-      partyId: 'party-1',
       employeeCode: 'EMP-0AF-000A'
     })
 
@@ -275,5 +272,109 @@ describe('HrManagementService L1', () => {
       })
     ).rejects.toBeInstanceOf(BadRequestException)
     expect(employmentRepository.createActive).not.toHaveBeenCalled()
+  })
+
+  it('UpdateEmployeeOfficialPhoto / should validate and persist the HR-owned official photo binding', async () => {
+    const employeeRepository = createEmployeeRepositoryMock()
+    employeeRepository.updateOfficialPhoto.mockResolvedValue({
+      id: 'employee-1',
+      tenantId: 'tenant-1',
+      tenantPartyId: 'tenant-party-1',
+      employeeCode: '0001',
+      lifecycleStatus: EmployeeLifecycleStatus.ACTIVE,
+      officialPhotoAssetId: 'asset-1',
+      officialPhotoUrl: 'https://assets.example.com/photo.webp'
+    })
+    const service = new HrManagementService(
+      employeeRepository as never,
+      createEmploymentRepositoryMock() as never,
+      createTenantOrgPortMock() as never
+    )
+
+    const employee = await (service as any).updateEmployeeOfficialPhoto({
+      tenantId: ' tenant-1 ',
+      employeeId: ' employee-1 ',
+      officialPhotoAssetId: ' asset-1 ',
+      officialPhotoUrl: ' https://assets.example.com/photo.webp '
+    })
+
+    expect(employee.officialPhotoAssetId).toBe('asset-1')
+    expect(employee.officialPhotoUrl).toBe('https://assets.example.com/photo.webp')
+    expect(employeeRepository.updateOfficialPhoto).toHaveBeenCalledWith({
+      tenantId: 'tenant-1',
+      employeeId: 'employee-1',
+      officialPhotoAssetId: 'asset-1',
+      officialPhotoUrl: 'https://assets.example.com/photo.webp'
+    })
+  })
+
+  it('UpdateEmployeeOfficialPhoto / should reject blank official photo urls before writing HR truth', async () => {
+    const employeeRepository = createEmployeeRepositoryMock()
+    const service = new HrManagementService(
+      employeeRepository as never,
+      createEmploymentRepositoryMock() as never,
+      createTenantOrgPortMock() as never
+    )
+
+    await expect(
+      (service as any).updateEmployeeOfficialPhoto({
+        tenantId: 'tenant-1',
+        employeeId: 'employee-1',
+        officialPhotoAssetId: 'asset-1',
+        officialPhotoUrl: ' '
+      })
+    ).rejects.toBeInstanceOf(BadRequestException)
+    expect(employeeRepository.updateOfficialPhoto).not.toHaveBeenCalled()
+  })
+
+  it('UpdateEmployeeOfficialPhoto / should surface tenant-scoped not found from the repository', async () => {
+    const employeeRepository = createEmployeeRepositoryMock()
+    employeeRepository.updateOfficialPhoto.mockRejectedValue(
+      new NotFoundException('Employee employee-1 not found')
+    )
+    const service = new HrManagementService(
+      employeeRepository as never,
+      createEmploymentRepositoryMock() as never,
+      createTenantOrgPortMock() as never
+    )
+
+    await expect(
+      (service as any).updateEmployeeOfficialPhoto({
+        tenantId: 'tenant-2',
+        employeeId: 'employee-1',
+        officialPhotoAssetId: 'asset-1',
+        officialPhotoUrl: 'https://assets.example.com/photo.webp'
+      })
+    ).rejects.toBeInstanceOf(NotFoundException)
+  })
+
+  it('RemoveEmployeeOfficialPhoto / should clear the HR-owned official photo binding', async () => {
+    const employeeRepository = createEmployeeRepositoryMock()
+    employeeRepository.removeOfficialPhoto.mockResolvedValue({
+      id: 'employee-1',
+      tenantId: 'tenant-1',
+      tenantPartyId: 'tenant-party-1',
+      employeeCode: '0001',
+      lifecycleStatus: EmployeeLifecycleStatus.ACTIVE,
+      officialPhotoAssetId: null,
+      officialPhotoUrl: null
+    })
+    const service = new HrManagementService(
+      employeeRepository as never,
+      createEmploymentRepositoryMock() as never,
+      createTenantOrgPortMock() as never
+    )
+
+    const employee = await (service as any).removeEmployeeOfficialPhoto({
+      tenantId: ' tenant-1 ',
+      employeeId: ' employee-1 '
+    })
+
+    expect(employee.officialPhotoAssetId).toBeNull()
+    expect(employee.officialPhotoUrl).toBeNull()
+    expect(employeeRepository.removeOfficialPhoto).toHaveBeenCalledWith({
+      tenantId: 'tenant-1',
+      employeeId: 'employee-1'
+    })
   })
 })

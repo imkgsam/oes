@@ -11,6 +11,7 @@ type CreateUserAccountInput = {
   phone?: string
   scopeLevel: 'SYSTEM' | 'TENANT'
   tenantId?: string
+  tenantPartyId?: string
   username?: string
   idempotencyKey?: string
 }
@@ -23,6 +24,10 @@ export class CreateUserAccountCommand implements ICommand {
   @IsOptional()
   @IsString()
   readonly tenantId?: string
+
+  @IsOptional()
+  @IsString()
+  readonly tenantPartyId?: string
 
   @IsOptional()
   @IsString()
@@ -59,6 +64,7 @@ export class CreateUserAccountCommand implements ICommand {
   constructor(input: CreateUserAccountInput) {
     this.scopeLevel = input.scopeLevel
     this.tenantId = input.tenantId
+    this.tenantPartyId = input.tenantPartyId
     this.displayName = input.displayName
     this.username = input.username
     this.email = input.email

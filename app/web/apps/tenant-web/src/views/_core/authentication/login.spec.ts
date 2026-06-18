@@ -8,6 +8,8 @@ const routerPush = vi.fn()
 const routerReplace = vi.fn()
 const setFieldValue = vi.fn()
 const storageState = vi.hoisted(() => new Map<string, string>())
+const authLoginMock = vi.hoisted(() => vi.fn())
+const authPhonePasswordLoginMock = vi.hoisted(() => vi.fn())
 const loginFormValues = vi.hoisted(() => ({
   values: {} as Record<string, any>
 }))
@@ -62,13 +64,23 @@ vi.mock('@vben/common-ui', () => ({
           forgot-phone
         </button>
         <slot name="submit-prepend" />
+        <button
+          class="submit-email"
+          type="button"
+          @click="$emit('submit', { username: 'user@example.com', password: 'imkgsam6593' })"
+        >
+          submit-email
+        </button>
+        <button
+          class="submit-phone"
+          type="button"
+          @click="$emit('submit', { phoneNumber: '+8613800138000', password: 'imkgsam6593' })"
+        >
+          submit-phone
+        </button>
         <slot name="third-party-login" />
       </section>
     `
-  }),
-  SliderCaptcha: defineComponent({
-    name: 'SliderCaptcha',
-    template: '<div />'
   }),
   VbenButton: defineComponent({
     name: 'VbenButton',
@@ -99,8 +111,8 @@ vi.mock('ant-design-vue', () => ({
 
 vi.mock('#/store', () => ({
   useAuthStore: () => ({
-    authLogin: vi.fn(),
-    authPhonePasswordLogin: vi.fn(),
+    authLogin: authLoginMock,
+    authPhonePasswordLogin: authPhonePasswordLoginMock,
     loginLoading: false
   })
 }))
@@ -122,8 +134,22 @@ describe('password login recovery navigation', () => {
     routerPush.mockReset()
     routerReplace.mockReset()
     setFieldValue.mockReset()
+    authLoginMock.mockReset()
+    authPhonePasswordLoginMock.mockReset()
     routeState.query = {}
     loginFormValues.values = {}
+  })
+
+  it('submits email password login without requiring an extra gate', async () => {
+    const view = await import('./login.vue')
+    const wrapper = mount(view.default)
+
+    await wrapper.get('.submit-email').trigger('click')
+
+    expect(authLoginMock).toHaveBeenCalledWith({
+      username: 'user@example.com',
+      password: 'imkgsam6593'
+    })
   })
 
   it('passes the email identifier to the forget password page', async () => {

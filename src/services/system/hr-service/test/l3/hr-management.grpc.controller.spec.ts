@@ -11,7 +11,9 @@ function createHrManagementServiceMock() {
     createEmployment: jest.fn(),
     endEmployment: jest.fn(),
     changePrimaryEmployment: jest.fn(),
-    completeEmployeeAccess: jest.fn()
+    completeEmployeeAccess: jest.fn(),
+    updateEmployeeOfficialPhoto: jest.fn(),
+    removeEmployeeOfficialPhoto: jest.fn()
   }
 }
 
@@ -63,7 +65,6 @@ describe('HrManagementGrpcController L3', () => {
       id: 'employee-1',
       tenantId: 'tenant-1',
       tenantPartyId: 'tenant-party-1',
-      partyId: 'party-1',
       employeeCode: 'EMP-0AF-0001',
       lifecycleStatus: 'PREBOARDING'
     })
@@ -77,7 +78,6 @@ describe('HrManagementGrpcController L3', () => {
       {
         tenantId: 'tenant-1',
         tenantPartyId: 'tenant-party-1',
-        partyId: 'party-1',
         employeeCode: 'EMP-0AF-0001'
       },
       createOperatorMetadata()
@@ -86,7 +86,6 @@ describe('HrManagementGrpcController L3', () => {
     expect(service.createEmployee).toHaveBeenCalledWith({
       tenantId: 'tenant-1',
       tenantPartyId: 'tenant-party-1',
-      partyId: 'party-1',
       employeeCode: 'EMP-0AF-0001'
     })
     expect(result.employee?.id).toBe('employee-1')
@@ -220,7 +219,6 @@ describe('HrManagementGrpcController L3', () => {
         id: 'employee-1',
         tenantId: 'tenant-1',
         tenantPartyId: 'tenant-party-1',
-        partyId: 'party-1',
         employeeCode: 'EMP-0AF-0001',
         lifecycleStatus: 'ACTIVE'
       },
@@ -335,6 +333,101 @@ describe('HrManagementGrpcController L3', () => {
       })
     ).rejects.toBeInstanceOf(BadRequestException)
     expect(service.createEmployee).not.toHaveBeenCalled()
+  })
+
+  it('UpdateEmployeeOfficialPhoto / should require operator metadata and map the official photo binding', async () => {
+    const service = createHrManagementServiceMock()
+    const onboardingService = createHrOnboardingAccessServiceMock()
+    const employeeOnboardingService = createHrEmployeeOnboardingServiceMock()
+    service.updateEmployeeOfficialPhoto.mockResolvedValue({
+      id: 'employee-1',
+      tenantId: 'tenant-1',
+      tenantPartyId: 'tenant-party-1',
+      employeeCode: 'EMP-0AF-0001',
+      lifecycleStatus: 'ACTIVE',
+      officialPhotoAssetId: 'asset-1',
+      officialPhotoUrl: 'https://assets.example.com/photo.webp'
+    })
+    const controller = new HrManagementGrpcController(
+      service as unknown as HrManagementService,
+      employeeOnboardingService as any,
+      onboardingService as any
+    )
+
+    const result = await (controller as any).updateEmployeeOfficialPhoto(
+      {
+        tenantId: 'tenant-1',
+        employeeId: 'employee-1',
+        officialPhotoAssetId: 'asset-1',
+        officialPhotoUrl: 'https://assets.example.com/photo.webp'
+      },
+      createOperatorMetadata()
+    )
+
+    expect(service.updateEmployeeOfficialPhoto).toHaveBeenCalledWith({
+      tenantId: 'tenant-1',
+      employeeId: 'employee-1',
+      officialPhotoAssetId: 'asset-1',
+      officialPhotoUrl: 'https://assets.example.com/photo.webp'
+    })
+    expect(result.employee?.officialPhotoAssetId).toBe('asset-1')
+    expect(result.employee?.officialPhotoUrl).toBe('https://assets.example.com/photo.webp')
+  })
+
+  it('RemoveEmployeeOfficialPhoto / should require operator metadata and map empty official photo fields', async () => {
+    const service = createHrManagementServiceMock()
+    const onboardingService = createHrOnboardingAccessServiceMock()
+    const employeeOnboardingService = createHrEmployeeOnboardingServiceMock()
+    service.removeEmployeeOfficialPhoto.mockResolvedValue({
+      id: 'employee-1',
+      tenantId: 'tenant-1',
+      tenantPartyId: 'tenant-party-1',
+      employeeCode: 'EMP-0AF-0001',
+      lifecycleStatus: 'ACTIVE',
+      officialPhotoAssetId: null,
+      officialPhotoUrl: null
+    })
+    const controller = new HrManagementGrpcController(
+      service as unknown as HrManagementService,
+      employeeOnboardingService as any,
+      onboardingService as any
+    )
+
+    const result = await (controller as any).removeEmployeeOfficialPhoto(
+      {
+        tenantId: 'tenant-1',
+        employeeId: 'employee-1'
+      },
+      createOperatorMetadata()
+    )
+
+    expect(service.removeEmployeeOfficialPhoto).toHaveBeenCalledWith({
+      tenantId: 'tenant-1',
+      employeeId: 'employee-1'
+    })
+    expect(result.employee?.officialPhotoAssetId).toBe('')
+    expect(result.employee?.officialPhotoUrl).toBe('')
+  })
+
+  it('UpdateEmployeeOfficialPhoto / should reject missing operator metadata before application writes', async () => {
+    const service = createHrManagementServiceMock()
+    const onboardingService = createHrOnboardingAccessServiceMock()
+    const employeeOnboardingService = createHrEmployeeOnboardingServiceMock()
+    const controller = new HrManagementGrpcController(
+      service as unknown as HrManagementService,
+      employeeOnboardingService as any,
+      onboardingService as any
+    )
+
+    await expect(
+      (controller as any).updateEmployeeOfficialPhoto({
+        tenantId: 'tenant-1',
+        employeeId: 'employee-1',
+        officialPhotoAssetId: 'asset-1',
+        officialPhotoUrl: 'https://assets.example.com/photo.webp'
+      })
+    ).rejects.toBeInstanceOf(BadRequestException)
+    expect(service.updateEmployeeOfficialPhoto).not.toHaveBeenCalled()
   })
 
   it('CompleteEmployeeAccess / should accept either a new account payload or an existing account id and map pending status', async () => {

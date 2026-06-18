@@ -13,6 +13,16 @@ export default defineConfig(async () => {
             target: 'http://localhost:9101/api/v1',
             ws: true,
           },
+          '/c': {
+            changeOrigin: true,
+            // 本地联调公开短链时直连 api-gateway 的匿名重定向入口
+            target: 'http://localhost:9101/api/v1',
+          },
+          '/public-entry/public': {
+            changeOrigin: true,
+            // 只代理匿名公开名片 API，避免接管 /public-entry 管理页面路由
+            target: 'http://localhost:9101/api/v1',
+          },
         },
       },
     },

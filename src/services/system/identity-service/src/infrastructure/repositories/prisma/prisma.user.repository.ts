@@ -9,7 +9,6 @@ export class PrismaUserRepository implements UserRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(input: {
-    partyId?: string | null
     username?: string | null
     email?: string | null
     phone?: string | null
@@ -17,7 +16,6 @@ export class PrismaUserRepository implements UserRepository {
   }): Promise<UserSummaryEntity> {
     const record = await this.prisma.user.create({
       data: {
-        partyId: input.partyId?.trim() ?? null,
         username: input.username ?? null,
         email: input.email?.trim().toLowerCase() ?? null,
         phone: input.phone?.trim() ?? null,

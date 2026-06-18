@@ -58,7 +58,7 @@ describe('TenantOrgQueryService', () => {
       path: '/org-1',
       depth: 0,
       sortOrder: 0,
-      organizationPartyId: null
+      organizationTenantPartyId: null
     })
     const service = new TenantOrgQueryService(tenantRepository as never, orgUnitRepository as never)
 

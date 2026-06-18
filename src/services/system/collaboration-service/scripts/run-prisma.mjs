@@ -1,5 +1,7 @@
 import { spawnSync } from 'node:child_process'
 
+const DEFAULT_LOCAL_DATABASE_URL = 'postgres://imkgsam:imkgsam@localhost:5432/mydb'
+
 /** withCollaborationSchema returns a DATABASE_URL scoped to collaboration-service storage. */
 function withCollaborationSchema(rawUrl) {
   const parsed = new URL(rawUrl)
@@ -9,10 +11,15 @@ function withCollaborationSchema(rawUrl) {
   return parsed.toString()
 }
 
-const rawDatabaseUrl = process.env.COLLABORATION_DATABASE_URL || process.env.DATABASE_URL
+const rawDatabaseUrl =
+  process.env.COLLABORATION_DATABASE_URL ||
+  process.env.DATABASE_URL ||
+  (process.env.NODE_ENV !== 'production' ? DEFAULT_LOCAL_DATABASE_URL : '')
 
 if (!rawDatabaseUrl) {
-  console.error('COLLABORATION_DATABASE_URL or DATABASE_URL is required for collaboration-service Prisma commands.')
+  console.error(
+    'COLLABORATION_DATABASE_URL or DATABASE_URL is required for production collaboration-service Prisma commands.'
+  )
   process.exit(1)
 }
 

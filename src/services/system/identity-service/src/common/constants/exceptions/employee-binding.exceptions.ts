@@ -22,11 +22,11 @@ export const IDENTITY_EMPLOYEE_TENANT_MISMATCH: ExceptionDefinition = {
   messageKey: 'identity.employee.tenant.mismatch'
 }
 
-export const IDENTITY_EMPLOYEE_PARTY_MISMATCH: ExceptionDefinition = {
-  code: 'IDENTITY_EMPLOYEE_PARTY_MISMATCH',
-  message: 'Employee party mismatch',
+export const IDENTITY_EMPLOYEE_TENANT_PARTY_MISMATCH: ExceptionDefinition = {
+  code: 'IDENTITY_EMPLOYEE_TENANT_PARTY_MISMATCH',
+  message: 'Employee tenant party mismatch',
   rpcStatus: status.FAILED_PRECONDITION,
-  messageKey: 'identity.employee.party.mismatch'
+  messageKey: 'identity.employee.tenant_party.mismatch'
 }
 
 export const IDENTITY_ACCOUNT_ALREADY_BOUND_TO_ANOTHER_EMPLOYEE: ExceptionDefinition = {

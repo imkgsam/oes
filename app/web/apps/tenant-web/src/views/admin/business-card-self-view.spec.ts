@@ -1,6 +1,7 @@
 /* @vitest-environment happy-dom */
 
 import { flushPromises, mount } from '@vue/test-utils'
+import { defineComponent } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const getOwnBusinessCardPreviewApi = vi.fn()
@@ -36,6 +37,17 @@ vi.mock('@vben/icons', () => ({
   }
 }))
 
+const MenuStub = defineComponent({
+  name: 'AMenu',
+  template: '<div><slot /></div>'
+}) as ReturnType<typeof defineComponent> & { Item?: ReturnType<typeof defineComponent> }
+
+MenuStub.Item = defineComponent({
+  name: 'AMenuItem',
+  props: ['disabled'],
+  template: '<div :aria-disabled="disabled"><slot /></div>'
+})
+
 vi.mock('ant-design-vue', () => ({
   Alert: {
     name: 'AAlert',
@@ -47,15 +59,24 @@ vi.mock('ant-design-vue', () => ({
     props: ['disabled', 'href', 'target'],
     template: '<a :href="href"><slot /></a>'
   },
+  Card: {
+    name: 'ACard',
+    template: '<section><slot /></section>'
+  },
+  Dropdown: {
+    name: 'ADropdown',
+    template: '<div><slot /><slot name="overlay" /></div>'
+  },
   Empty: {
     name: 'AEmpty',
     props: ['description'],
     template: '<div>{{ description }}</div>'
   },
+  Menu: MenuStub,
   QRCode: {
     name: 'AQrCode',
-    props: ['value'],
-    template: '<div data-testid="self-card-qr">{{ value }}</div>'
+    props: ['size', 'value'],
+    template: '<div data-testid="self-card-qr" :data-value="value" />'
   },
   Skeleton: {
     name: 'ASkeleton',
@@ -112,7 +133,9 @@ describe('employee BusinessCard self-view page', () => {
     expect(JSON.stringify(getOwnBusinessCardPreviewApi.mock.calls)).not.toContain('employeeId')
     expect(JSON.stringify(getOwnBusinessCardPreviewApi.mock.calls)).not.toContain('businessCardId')
     expect(wrapper.text()).toContain('Alex Chen')
-    expect(wrapper.text()).toContain('https://go.oes.local/c/ABC1234')
+    expect(wrapper.text()).toContain('/c/ABC1234')
+    expect(wrapper.text()).not.toContain('https://go.oes.local/c/ABC1234')
+    expect(wrapper.find('a[href="https://go.oes.local/c/ABC1234"]').exists()).toBe(true)
     expect(wrapper.find('a[href="mailto:alex.chen@example.com"]').exists()).toBe(true)
   })
 

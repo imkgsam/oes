@@ -18,6 +18,8 @@ service HrQueryService {
 service HrManagementService {
   rpc CreateEmployee(CreateEmployeeRequest) returns (CreateEmployeeResponse);
   rpc CreateEmployeeOnboarding(CreateEmployeeOnboardingRequest) returns (CreateEmployeeOnboardingResponse);
+  rpc UpdateEmployeeOfficialPhoto(UpdateEmployeeOfficialPhotoRequest) returns (UpdateEmployeeOfficialPhotoResponse);
+  rpc RemoveEmployeeOfficialPhoto(RemoveEmployeeOfficialPhotoRequest) returns (RemoveEmployeeOfficialPhotoResponse);
   rpc CreateEmployment(CreateEmploymentRequest) returns (CreateEmploymentResponse);
   rpc EndEmployment(EndEmploymentRequest) returns (EndEmploymentResponse);
   rpc ChangePrimaryEmployment(ChangePrimaryEmploymentRequest) returns (ChangePrimaryEmploymentResponse);
@@ -48,9 +50,12 @@ message EmployeeSummary {
   string id = 1;
   string tenant_id = 2;
   string tenant_party_id = 3;
-  string party_id = 4;
+  reserved 4;
+  reserved "party_id";
   string employee_code = 5;
   EmployeeLifecycleStatus lifecycle_status = 6;
+  string official_photo_asset_id = 7;
+  string official_photo_url = 8;
 }
 
 message EmploymentSummary {
@@ -147,7 +152,8 @@ message GetLatestOnboardingAccessResponse {
 message CreateEmployeeRequest {
   string tenant_id = 1;
   string tenant_party_id = 2;
-  string party_id = 3;
+  reserved 3;
+  reserved "party_id";
   string employee_code = 4;
 }
 
@@ -155,7 +161,27 @@ message CreateEmployeeResponse {
   EmployeeSummary employee = 1;
 }
 
-message EmployeePartyIdentifierInput {
+message UpdateEmployeeOfficialPhotoRequest {
+  string tenant_id = 1;
+  string employee_id = 2;
+  string official_photo_asset_id = 3;
+  string official_photo_url = 4;
+}
+
+message UpdateEmployeeOfficialPhotoResponse {
+  EmployeeSummary employee = 1;
+}
+
+message RemoveEmployeeOfficialPhotoRequest {
+  string tenant_id = 1;
+  string employee_id = 2;
+}
+
+message RemoveEmployeeOfficialPhotoResponse {
+  EmployeeSummary employee = 1;
+}
+
+message EmployeeTenantPartyIdentifierInput {
   string identifier_type = 1;
   string normalized_value = 2;
   string raw_value = 3;
@@ -164,8 +190,9 @@ message EmployeePartyIdentifierInput {
 
 message EmployeeOnboardingPersonInput {
   string legal_name = 1;
-  repeated EmployeePartyIdentifierInput identifiers = 2;
-  string existing_party_id = 3;
+  repeated EmployeeTenantPartyIdentifierInput identifiers = 2;
+  reserved 3;
+  reserved "existing_party_id";
   string existing_tenant_party_id = 4;
 }
 

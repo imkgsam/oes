@@ -9,8 +9,8 @@ import {
   HrQueryServiceClient
 } from '@oes/common/generated/hr_service'
 import {
-  AccountContactAsset,
   IDENTITY_QUERY_SERVICE_NAME,
+  ResolvedContactActionTarget,
   IdentityQueryServiceClient
 } from '@oes/common/generated/identity_service'
 import {
@@ -102,7 +102,7 @@ export class BusinessCardEmployeeGrpcAdapter implements BusinessCardEmployeePort
         englishName: null,
         title: normalizeOptional(employment?.positionName) ?? null,
         department,
-        officialPhotoUrl: normalizeOptional(accountProfile?.avatarUrl) ?? null,
+        officialPhotoUrl: normalizeOptional(employee.officialPhotoUrl) ?? null,
         status: mapEmployeeStatus(employee.lifecycleStatus)
       }
     } catch {
@@ -271,65 +271,33 @@ export class BusinessCardContactAssetGrpcAdapter implements BusinessCardContactA
         return []
       }
 
-      const [emailAssets, phoneAssets] = await Promise.all([
-        this.listWorkEmailAssets(accountId, input.traceId),
-        this.listWorkPhoneAssets(accountId, input.traceId)
-      ])
-      return input.actionRefs.flatMap((ref) =>
-        this.resolveActionRef(input.tenantId, ref, emailAssets, phoneAssets)
-      )
-    } catch {
-      return []
-    }
-  }
-
-  private async listWorkEmailAssets(accountId: string, traceId?: string): Promise<AccountContactAsset[]> {
-    try {
       const response = await safeGrpcCall(
-        this.identityQueryService.listAccountWorkEmailAssets({ accountId }, this.metadata({ traceId })),
+        this.identityQueryService.resolveContactActionTargets(
+          {
+            tenantId: input.tenantId,
+            accountId,
+            employeeId: input.employeeId,
+            targetRefs: input.actionRefs.map((ref) => ({
+              contactActionType: ref.contactActionType,
+              targetRefType: ref.targetRefType,
+              targetRefId: ref.targetRefId ?? ''
+            }))
+          },
+          this.metadata(input)
+        ),
         {
           caller: SERVICE_NAMES.PUBLIC_ENTRY,
-          method: 'IdentityQueryService.listAccountWorkEmailAssets'
+          method: 'IdentityQueryService.resolveContactActionTargets'
         }
       )
-      return response.assets ?? []
+
+      return (response.targets ?? [])
+        .filter((target) => target.renderable && target.publicValueSummary)
+        .map((target) => toPublicSafeContactValue(target))
+        .filter((value): value is ContactActionPublicSafeValue => Boolean(value))
     } catch {
       return []
     }
-  }
-
-  private async listWorkPhoneAssets(accountId: string, traceId?: string): Promise<AccountContactAsset[]> {
-    try {
-      const response = await safeGrpcCall(
-        this.identityQueryService.listAccountWorkPhoneAssets({ accountId }, this.metadata({ traceId })),
-        {
-          caller: SERVICE_NAMES.PUBLIC_ENTRY,
-          method: 'IdentityQueryService.listAccountWorkPhoneAssets'
-        }
-      )
-      return response.assets ?? []
-    } catch {
-      return []
-    }
-  }
-
-  private resolveActionRef(
-    tenantId: string,
-    ref: ContactActionResolveRef,
-    emailAssets: AccountContactAsset[],
-    phoneAssets: AccountContactAsset[]
-  ): ContactActionPublicSafeValue[] {
-    if (ref.contactActionType === 'SEND_EMAIL') {
-      const asset = findAvailableAsset(tenantId, emailAssets, ref.targetRefId)
-      if (!asset) return []
-      return [toPublicSafeEmailValue(ref, asset)]
-    }
-    if (ref.contactActionType === 'CALL_PHONE') {
-      const asset = findAvailableAsset(tenantId, phoneAssets, ref.targetRefId)
-      if (!asset) return []
-      return [toPublicSafePhoneValue(ref, asset)]
-    }
-    return []
   }
 
   private metadata(input: MetadataInput) {
@@ -340,6 +308,48 @@ export class BusinessCardContactAssetGrpcAdapter implements BusinessCardContactA
   }
 }
 
+// toPublicSafeContactValue maps identity public-safe resolver output into BusinessCard action values.
+function toPublicSafeContactValue(
+  target: ResolvedContactActionTarget
+): ContactActionPublicSafeValue | null {
+  const summary = target.publicValueSummary
+  if (!summary?.type || !summary.actionUri || !summary.displayValue) {
+    return null
+  }
+
+  return {
+    targetRefType: normalizeTargetRefType(target.targetRefType),
+    targetRefId: normalizeOptional(target.targetRefId) ?? null,
+    contactAssetKind: normalizeContactAssetKind(summary.type),
+    displayValue: summary.displayValue,
+    actionUrl: summary.actionUri,
+    available: true
+  }
+}
+
+// normalizeTargetRefType keeps transport strings inside the BusinessCard target ref union.
+function normalizeTargetRefType(value?: string | null): ContactActionResolveRef['targetRefType'] {
+  if (value === 'TENANT_PUBLIC_PROFILE') return 'TENANT_PUBLIC_PROFILE'
+  if (value === 'NONE') return 'NONE'
+  return 'CONTACT_ASSET'
+}
+
+// normalizeContactAssetKind keeps identity Contact Asset types inside the BusinessCard public value union.
+function normalizeContactAssetKind(
+  value: string
+): NonNullable<ContactActionPublicSafeValue['contactAssetKind']> {
+  if (
+    value === 'WORK_PHONE' ||
+    value === 'WORK_EMAIL' ||
+    value === 'WECHAT' ||
+    value === 'WHATSAPP' ||
+    value === 'EXTERNAL_COMMUNICATION_ACCOUNT' ||
+    value === 'OTHER_SOCIAL'
+  ) {
+    return value
+  }
+  return 'OTHER_SOCIAL'
+}
 // BusinessCardTenantProfileGrpcAdapter reads tenant display references without making BusinessCard own them.
 @Injectable()
 export class BusinessCardTenantProfileGrpcAdapter implements BusinessCardTenantProfilePort, OnModuleInit {
@@ -403,49 +413,4 @@ function mapEmployeeStatus(status?: EmployeeLifecycleStatus): BusinessCardEmploy
 function normalizeOptional(value?: string | null): string | undefined {
   const normalized = value?.trim()
   return normalized ? normalized : undefined
-}
-
-// findAvailableAsset selects only tenant-matching active Contact Assets by explicit target ref.
-function findAvailableAsset(
-  tenantId: string,
-  assets: AccountContactAsset[],
-  targetRefId?: string | null
-): AccountContactAsset | null {
-  const asset = assets.find((item) => item.id === targetRefId)
-  if (!asset || asset.tenantId !== tenantId || asset.status !== 'ACTIVE' || !asset.value?.trim()) {
-    return null
-  }
-  return asset
-}
-
-// toPublicSafeEmailValue maps a work email Contact Asset into the public action contract.
-function toPublicSafeEmailValue(
-  ref: ContactActionResolveRef,
-  asset: AccountContactAsset
-): ContactActionPublicSafeValue {
-  const value = asset.value?.trim() ?? ''
-  return {
-    targetRefType: ref.targetRefType,
-    targetRefId: ref.targetRefId ?? null,
-    contactAssetKind: 'WORK_EMAIL',
-    displayValue: value,
-    actionUrl: `mailto:${value}`,
-    available: true
-  }
-}
-
-// toPublicSafePhoneValue maps a work phone Contact Asset into the public action contract.
-function toPublicSafePhoneValue(
-  ref: ContactActionResolveRef,
-  asset: AccountContactAsset
-): ContactActionPublicSafeValue {
-  const value = asset.value?.trim() ?? ''
-  return {
-    targetRefType: ref.targetRefType,
-    targetRefId: ref.targetRefId ?? null,
-    contactAssetKind: 'WORK_PHONE',
-    displayValue: value,
-    actionUrl: `tel:${value.replace(/[^\d+]/g, '')}`,
-    available: true
-  }
 }

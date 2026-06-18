@@ -1,6 +1,6 @@
 # OES 契约文档索引
 
-更新时间：2026-06-08
+更新时间：2026-06-18
 
 > 涉及 permission-service 的服务职责、核心对象或 owner 边界时，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准；本索引只导航黑盒 contract。
 
@@ -13,12 +13,15 @@
 | API Gateway / BFF | [api-gateway/README.md](./api-gateway/README.md) |
 | asset-service | [asset-service/README.md](./asset-service/README.md) |
 | auth-service | [auth-service/README.md](./auth-service/README.md) |
+| collaboration-service | [collaboration-service/README.md](./collaboration-service/README.md) |
+| crm-service | [crm-service/README.md](./crm-service/README.md) |
 | hr-service | [hr-service/README.md](./hr-service/README.md)，服务设计以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准 |
 | identity-service | [identity-service/README.md](./identity-service/README.md) |
 | mes-service | [mes-service/README.md](./mes-service/README.md) |
 | permission-service | [permission-service/README.md](./permission-service/README.md) |
 | party-service | [party-service/README.md](./party-service/README.md) |
 | public-entry-service | [public-entry-service/README.md](./public-entry-service/README.md) |
+| site-service | [site-service/README.md](./site-service/README.md)，服务设计以 [site-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/site-service.md) 为准 |
 | tenant-org-service | [tenant-org-service/README.md](./tenant-org-service/README.md) |
 | wms-service | [wms-service/README.md](./wms-service/README.md) |
 

@@ -1,4 +1,10 @@
-import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common'
+import {
+  BadGatewayException,
+  BadRequestException,
+  ForbiddenException,
+  Logger,
+  NotFoundException
+} from '@nestjs/common'
 import { HrManagementService } from './hr-management.service'
 
 // Verifies the gateway HR management service keeps tenant-admin access tenant-scoped while composing employee and employment read models.
@@ -15,7 +21,13 @@ describe('HrManagementService', () => {
     changePrimaryEmployment: jest.fn(),
     createEmployee: jest.fn(),
     createEmployment: jest.fn(),
-    endEmployment: jest.fn()
+    endEmployment: jest.fn(),
+    removeEmployeeOfficialPhoto: jest.fn(),
+    updateEmployeeOfficialPhoto: jest.fn()
+  }
+  const assetAdapter = {
+    bindEmployeeOfficialPhoto: jest.fn(),
+    uploadEmployeeOfficialPhoto: jest.fn()
   }
   const identityQueryAdapter = {
     getAccountById: jest.fn(),
@@ -35,9 +47,10 @@ describe('HrManagementService', () => {
     getOrgUnitDetail: jest.fn()
   }
 
-  const service = new HrManagementService(
+  const service = new (HrManagementService as any)(
     hrQueryAdapter as any,
     hrMutationAdapter as any,
+    assetAdapter as any,
     identityQueryAdapter as any,
     authAdapter as any,
     partyTenantQueryAdapter as any,
@@ -56,6 +69,10 @@ describe('HrManagementService', () => {
     hrMutationAdapter.createEmployee.mockReset()
     hrMutationAdapter.createEmployment.mockReset()
     hrMutationAdapter.endEmployment.mockReset()
+    hrMutationAdapter.removeEmployeeOfficialPhoto.mockReset()
+    hrMutationAdapter.updateEmployeeOfficialPhoto.mockReset()
+    assetAdapter.bindEmployeeOfficialPhoto.mockReset()
+    assetAdapter.uploadEmployeeOfficialPhoto.mockReset()
     identityQueryAdapter.getAccountById.mockReset()
     identityQueryAdapter.getEmployeeBindingByAccountId.mockReset()
     authAdapter.listLoginMethods.mockReset()
@@ -98,7 +115,6 @@ describe('HrManagementService', () => {
           id: 'employee-preboarding',
           tenantId: 'tenant-1',
           tenantPartyId: 'tenant-party-1',
-          partyId: 'party-1',
           employeeCode: 'EMP-0AF-0001',
           lifecycleStatus: 'PREBOARDING'
         },
@@ -106,7 +122,6 @@ describe('HrManagementService', () => {
           id: 'employee-active',
           tenantId: 'tenant-1',
           tenantPartyId: 'tenant-party-2',
-          partyId: 'party-2',
           employeeCode: 'EMP-0AF-0002',
           lifecycleStatus: 'ACTIVE'
         }
@@ -137,8 +152,8 @@ describe('HrManagementService', () => {
         path: '/org-root-1/org-1',
         depth: 1,
         sortOrder: 10,
-        organizationPartyId: null,
-        organizationParty: null
+        organizationTenantPartyId: null,
+        organizationTenantParty: null
       }
     })
 
@@ -160,7 +175,6 @@ describe('HrManagementService', () => {
             id: 'employee-preboarding',
             tenantId: 'tenant-1',
             tenantPartyId: 'tenant-party-1',
-            partyId: 'party-1',
             employeeCode: 'EMP-0AF-0001',
             lifecycleStatus: 'PREBOARDING'
           }
@@ -185,15 +199,14 @@ describe('HrManagementService', () => {
               path: '/org-root-1/org-1',
               depth: 1,
               sortOrder: 10,
-              organizationPartyId: null,
-              organizationParty: null
+              organizationTenantPartyId: null,
+              organizationTenantParty: null
             }
           },
           employee: {
             id: 'employee-active',
             tenantId: 'tenant-1',
             tenantPartyId: 'tenant-party-2',
-            partyId: 'party-2',
             employeeCode: 'EMP-0AF-0002',
             lifecycleStatus: 'ACTIVE'
           }
@@ -230,7 +243,6 @@ describe('HrManagementService', () => {
       id: 'employee-1',
       tenantId: 'tenant-1',
       tenantPartyId: 'tenant-party-1',
-      partyId: 'party-1',
       employeeCode: 'EMP-0AF-0001',
       lifecycleStatus: 'ACTIVE'
     })
@@ -268,8 +280,8 @@ describe('HrManagementService', () => {
           path: '/org-root-1/org-1',
           depth: 1,
           sortOrder: 10,
-          organizationPartyId: null,
-          organizationParty: null
+          organizationTenantPartyId: null,
+          organizationTenantParty: null
         }
       })
       .mockResolvedValueOnce({
@@ -283,8 +295,8 @@ describe('HrManagementService', () => {
           path: '/org-root-1/org-legacy',
           depth: 1,
           sortOrder: 20,
-          organizationPartyId: 'party-legacy',
-          organizationParty: {
+          organizationTenantPartyId: 'party-legacy',
+          organizationTenantParty: {
             id: 'party-legacy',
             type: 'ORGANIZATION',
             status: 'ACTIVE',
@@ -298,7 +310,6 @@ describe('HrManagementService', () => {
         id: 'employee-1',
         tenantId: 'tenant-1',
         tenantPartyId: 'tenant-party-1',
-        partyId: 'party-1',
         employeeCode: 'EMP-0AF-0001',
         lifecycleStatus: 'ACTIVE'
       },
@@ -321,8 +332,8 @@ describe('HrManagementService', () => {
           path: '/org-root-1/org-1',
           depth: 1,
           sortOrder: 10,
-          organizationPartyId: null,
-          organizationParty: null
+          organizationTenantPartyId: null,
+          organizationTenantParty: null
         }
       },
       employments: [
@@ -345,8 +356,8 @@ describe('HrManagementService', () => {
             path: '/org-root-1/org-legacy',
             depth: 1,
             sortOrder: 20,
-            organizationPartyId: 'party-legacy',
-            organizationParty: {
+            organizationTenantPartyId: 'party-legacy',
+            organizationTenantParty: {
               id: 'party-legacy',
               type: 'ORGANIZATION',
               status: 'ACTIVE',
@@ -565,6 +576,401 @@ describe('HrManagementService', () => {
       source
     )
     expect(permissionService.listAccountRoles).toHaveBeenCalled()
+  })
+
+  it('uploads an employee official photo by asserting HR tenant ownership before asset upload, HR update, and asset bind', async () => {
+    const source = {
+      requestId: 'req-1',
+      traceId: 'trace-1',
+      user: { aid: 'admin-account-1', scopeLevel: 'TENANT', tid: 'tenant-1' }
+    }
+    const file = {
+      buffer: Buffer.from('png-bytes'),
+      mimetype: 'image/png',
+      originalname: 'official.png',
+      size: 9
+    }
+    const updatedEmployee = {
+      id: 'employee-1',
+      tenantId: 'tenant-1',
+      tenantPartyId: 'tenant-party-1',
+      employeeCode: 'EMP-0AF-0001',
+      lifecycleStatus: 'ACTIVE',
+      officialPhotoAssetId: 'asset-1',
+      officialPhotoUrl: 'https://assets.example.com/official.webp'
+    }
+    hrQueryAdapter.getEmployeeById.mockResolvedValue({
+      id: 'employee-1',
+      tenantId: 'tenant-1',
+      tenantPartyId: 'tenant-party-1',
+      employeeCode: 'EMP-0AF-0001',
+      lifecycleStatus: 'ACTIVE',
+      officialPhotoAssetId: 'asset-old'
+    })
+    assetAdapter.uploadEmployeeOfficialPhoto.mockResolvedValue({
+      asset: {
+        assetId: 'asset-1',
+        publicUrl: 'https://assets.example.com/official.webp'
+      }
+    })
+    hrMutationAdapter.updateEmployeeOfficialPhoto.mockResolvedValue({
+      employee: updatedEmployee
+    })
+    assetAdapter.bindEmployeeOfficialPhoto.mockResolvedValue({
+      activeAsset: {
+        assetId: 'asset-1',
+        publicUrl: 'https://assets.example.com/official.webp'
+      }
+    })
+
+    await expect(
+      service.uploadEmployeeOfficialPhoto('tenant-1', 'employee-1', file, source as any)
+    ).resolves.toEqual({ employee: updatedEmployee })
+
+    expect(assetAdapter.uploadEmployeeOfficialPhoto).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: 'tenant-1',
+        employeeId: 'employee-1',
+        operatorId: 'admin-account-1',
+        contentType: 'image/png'
+      }),
+      source
+    )
+    expect(hrMutationAdapter.updateEmployeeOfficialPhoto).toHaveBeenCalledWith(
+      {
+        tenantId: 'tenant-1',
+        employeeId: 'employee-1',
+        officialPhotoAssetId: 'asset-1',
+        officialPhotoUrl: 'https://assets.example.com/official.webp'
+      },
+      source
+    )
+    expect(assetAdapter.bindEmployeeOfficialPhoto).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: 'tenant-1',
+        employeeId: 'employee-1',
+        newAssetId: 'asset-1'
+      }),
+      source
+    )
+    expect(hrQueryAdapter.getEmployeeById.mock.invocationCallOrder[0]).toBeLessThan(
+      assetAdapter.uploadEmployeeOfficialPhoto.mock.invocationCallOrder[0]
+    )
+    expect(assetAdapter.uploadEmployeeOfficialPhoto.mock.invocationCallOrder[0]).toBeLessThan(
+      hrMutationAdapter.updateEmployeeOfficialPhoto.mock.invocationCallOrder[0]
+    )
+    expect(hrMutationAdapter.updateEmployeeOfficialPhoto.mock.invocationCallOrder[0]).toBeLessThan(
+      assetAdapter.bindEmployeeOfficialPhoto.mock.invocationCallOrder[0]
+    )
+  })
+
+  it('does not bind the uploaded employee official photo when the HR update fails', async () => {
+    const source = {
+      requestId: 'req-1',
+      traceId: 'trace-1',
+      user: { aid: 'admin-account-1', scopeLevel: 'TENANT', tid: 'tenant-1' }
+    }
+    hrQueryAdapter.getEmployeeById.mockResolvedValue({
+      id: 'employee-1',
+      tenantId: 'tenant-1',
+      tenantPartyId: 'tenant-party-1',
+      employeeCode: 'EMP-0AF-0001',
+      lifecycleStatus: 'ACTIVE'
+    })
+    assetAdapter.uploadEmployeeOfficialPhoto.mockResolvedValue({
+      asset: {
+        assetId: 'asset-1',
+        publicUrl: 'https://assets.example.com/official.webp'
+      }
+    })
+    hrMutationAdapter.updateEmployeeOfficialPhoto.mockRejectedValue(new Error('hr unavailable'))
+
+    await expect(
+      service.uploadEmployeeOfficialPhoto(
+        'tenant-1',
+        'employee-1',
+        {
+          buffer: Buffer.from('png-bytes'),
+          mimetype: 'image/png',
+          originalname: 'official.png',
+          size: 9
+        },
+        source as any
+      )
+    ).rejects.toThrow('hr unavailable')
+
+    expect(assetAdapter.bindEmployeeOfficialPhoto).not.toHaveBeenCalled()
+  })
+
+  it('restores the previous HR official photo and rejects when asset bind fails after HR update', async () => {
+    const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation()
+    const source = {
+      requestId: 'req-1',
+      traceId: 'trace-1',
+      user: { aid: 'admin-account-1', scopeLevel: 'TENANT', tid: 'tenant-1' }
+    }
+    const updatedEmployee = {
+      id: 'employee-1',
+      tenantId: 'tenant-1',
+      tenantPartyId: 'tenant-party-1',
+      employeeCode: 'EMP-0AF-0001',
+      lifecycleStatus: 'ACTIVE',
+      officialPhotoAssetId: 'asset-1',
+      officialPhotoUrl: 'https://assets.example.com/official.webp'
+    }
+    const previousEmployee = {
+      id: 'employee-1',
+      tenantId: 'tenant-1',
+      tenantPartyId: 'tenant-party-1',
+      employeeCode: 'EMP-0AF-0001',
+      lifecycleStatus: 'ACTIVE',
+      officialPhotoAssetId: 'asset-old',
+      officialPhotoUrl: 'https://assets.example.com/previous.webp'
+    }
+    hrQueryAdapter.getEmployeeById.mockResolvedValue({
+      ...previousEmployee
+    })
+    assetAdapter.uploadEmployeeOfficialPhoto.mockResolvedValue({
+      asset: {
+        assetId: 'asset-1',
+        publicUrl: 'https://assets.example.com/official.webp'
+      }
+    })
+    hrMutationAdapter.updateEmployeeOfficialPhoto.mockResolvedValue({
+      employee: updatedEmployee
+    })
+    assetAdapter.bindEmployeeOfficialPhoto.mockRejectedValue(new Error('asset bind unavailable'))
+
+    await expect(
+      service.uploadEmployeeOfficialPhoto(
+        'tenant-1',
+        'employee-1',
+        {
+          buffer: Buffer.from('png-bytes'),
+          mimetype: 'image/png',
+          originalname: 'official.png',
+          size: 9
+        },
+        source as any
+      )
+    ).rejects.toBeInstanceOf(BadGatewayException)
+
+    expect(hrMutationAdapter.updateEmployeeOfficialPhoto).toHaveBeenNthCalledWith(
+      1,
+      {
+        tenantId: 'tenant-1',
+        employeeId: 'employee-1',
+        officialPhotoAssetId: 'asset-1',
+        officialPhotoUrl: 'https://assets.example.com/official.webp'
+      },
+      source
+    )
+    expect(hrMutationAdapter.updateEmployeeOfficialPhoto).toHaveBeenNthCalledWith(
+      2,
+      {
+        tenantId: 'tenant-1',
+        employeeId: 'employee-1',
+        officialPhotoAssetId: 'asset-old',
+        officialPhotoUrl: 'https://assets.example.com/previous.webp'
+      },
+      source
+    )
+    expect(hrMutationAdapter.removeEmployeeOfficialPhoto).not.toHaveBeenCalled()
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: 'tenant-1',
+        employeeId: 'employee-1',
+        officialPhotoAssetId: 'asset-1',
+        error: expect.any(Error)
+      }),
+      'Failed to bind employee official photo asset after HR update'
+    )
+    warnSpy.mockRestore()
+  })
+
+  it('removes the HR official photo and rejects when asset bind fails without previous HR photo state', async () => {
+    const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation()
+    const source = {
+      requestId: 'req-1',
+      traceId: 'trace-1',
+      user: { aid: 'admin-account-1', scopeLevel: 'TENANT', tid: 'tenant-1' }
+    }
+    hrQueryAdapter.getEmployeeById.mockResolvedValue({
+      id: 'employee-1',
+      tenantId: 'tenant-1',
+      tenantPartyId: 'tenant-party-1',
+      employeeCode: 'EMP-0AF-0001',
+      lifecycleStatus: 'ACTIVE',
+      officialPhotoAssetId: null,
+      officialPhotoUrl: null
+    })
+    assetAdapter.uploadEmployeeOfficialPhoto.mockResolvedValue({
+      asset: {
+        assetId: 'asset-1',
+        publicUrl: 'https://assets.example.com/official.webp'
+      }
+    })
+    hrMutationAdapter.updateEmployeeOfficialPhoto.mockResolvedValue({
+      employee: {
+        id: 'employee-1',
+        tenantId: 'tenant-1',
+        tenantPartyId: 'tenant-party-1',
+        employeeCode: 'EMP-0AF-0001',
+        lifecycleStatus: 'ACTIVE',
+        officialPhotoAssetId: 'asset-1',
+        officialPhotoUrl: 'https://assets.example.com/official.webp'
+      }
+    })
+    assetAdapter.bindEmployeeOfficialPhoto.mockRejectedValue(new Error('asset bind unavailable'))
+    hrMutationAdapter.removeEmployeeOfficialPhoto.mockResolvedValue({
+      employee: {
+        id: 'employee-1',
+        tenantId: 'tenant-1',
+        tenantPartyId: 'tenant-party-1',
+        employeeCode: 'EMP-0AF-0001',
+        lifecycleStatus: 'ACTIVE',
+        officialPhotoAssetId: null,
+        officialPhotoUrl: null
+      }
+    })
+
+    await expect(
+      service.uploadEmployeeOfficialPhoto(
+        'tenant-1',
+        'employee-1',
+        {
+          buffer: Buffer.from('png-bytes'),
+          mimetype: 'image/png',
+          originalname: 'official.png',
+          size: 9
+        },
+        source as any
+      )
+    ).rejects.toBeInstanceOf(BadGatewayException)
+
+    expect(hrMutationAdapter.removeEmployeeOfficialPhoto).toHaveBeenCalledWith(
+      {
+        tenantId: 'tenant-1',
+        employeeId: 'employee-1'
+      },
+      source
+    )
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: 'tenant-1',
+        employeeId: 'employee-1',
+        officialPhotoAssetId: 'asset-1',
+        error: expect.any(Error)
+      }),
+      'Failed to bind employee official photo asset after HR update'
+    )
+    warnSpy.mockRestore()
+  })
+
+  it('logs rollback failure and rejects when restoring previous HR official photo also fails', async () => {
+    const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation()
+    const source = {
+      requestId: 'req-1',
+      traceId: 'trace-1',
+      user: { aid: 'admin-account-1', scopeLevel: 'TENANT', tid: 'tenant-1' }
+    }
+    hrQueryAdapter.getEmployeeById.mockResolvedValue({
+      id: 'employee-1',
+      tenantId: 'tenant-1',
+      tenantPartyId: 'tenant-party-1',
+      employeeCode: 'EMP-0AF-0001',
+      lifecycleStatus: 'ACTIVE',
+      officialPhotoAssetId: 'asset-old',
+      officialPhotoUrl: 'https://assets.example.com/previous.webp'
+    })
+    assetAdapter.uploadEmployeeOfficialPhoto.mockResolvedValue({
+      asset: {
+        assetId: 'asset-1',
+        publicUrl: 'https://assets.example.com/official.webp'
+      }
+    })
+    hrMutationAdapter.updateEmployeeOfficialPhoto
+      .mockResolvedValueOnce({
+        employee: {
+          id: 'employee-1',
+          tenantId: 'tenant-1',
+          tenantPartyId: 'tenant-party-1',
+          employeeCode: 'EMP-0AF-0001',
+          lifecycleStatus: 'ACTIVE',
+          officialPhotoAssetId: 'asset-1',
+          officialPhotoUrl: 'https://assets.example.com/official.webp'
+        }
+      })
+      .mockRejectedValueOnce(new Error('hr rollback unavailable'))
+    assetAdapter.bindEmployeeOfficialPhoto.mockRejectedValue(new Error('asset bind unavailable'))
+
+    await expect(
+      service.uploadEmployeeOfficialPhoto(
+        'tenant-1',
+        'employee-1',
+        {
+          buffer: Buffer.from('png-bytes'),
+          mimetype: 'image/png',
+          originalname: 'official.png',
+          size: 9
+        },
+        source as any
+      )
+    ).rejects.toBeInstanceOf(BadGatewayException)
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: 'tenant-1',
+        employeeId: 'employee-1',
+        officialPhotoAssetId: 'asset-1',
+        error: expect.any(Error)
+      }),
+      'Failed to bind employee official photo asset after HR update'
+    )
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: 'tenant-1',
+        employeeId: 'employee-1',
+        previousOfficialPhotoAssetId: 'asset-old',
+        error: expect.any(Error)
+      }),
+      'Failed to restore HR official photo state after asset bind failure'
+    )
+    warnSpy.mockRestore()
+  })
+
+  it('removes an employee official photo through HR and does not call Identity', async () => {
+    const source = {
+      requestId: 'req-1',
+      traceId: 'trace-1',
+      user: { aid: 'admin-account-1', scopeLevel: 'TENANT', tid: 'tenant-1' }
+    }
+    const updatedEmployee = {
+      id: 'employee-1',
+      tenantId: 'tenant-1',
+      tenantPartyId: 'tenant-party-1',
+      employeeCode: 'EMP-0AF-0001',
+      lifecycleStatus: 'ACTIVE',
+      officialPhotoAssetId: null,
+      officialPhotoUrl: null
+    }
+    hrMutationAdapter.removeEmployeeOfficialPhoto.mockResolvedValue({
+      employee: updatedEmployee
+    })
+
+    await expect(
+      service.removeEmployeeOfficialPhoto('tenant-1', 'employee-1', source as any)
+    ).resolves.toEqual({ employee: updatedEmployee })
+
+    expect(hrMutationAdapter.removeEmployeeOfficialPhoto).toHaveBeenCalledWith(
+      {
+        tenantId: 'tenant-1',
+        employeeId: 'employee-1'
+      },
+      source
+    )
+    expect(identityQueryAdapter.getAccountById).not.toHaveBeenCalled()
+    expect(identityQueryAdapter.getEmployeeBindingByAccountId).not.toHaveBeenCalled()
   })
 
   it('previews the next system-owned employee code from tenant prefix and current HR count', async () => {

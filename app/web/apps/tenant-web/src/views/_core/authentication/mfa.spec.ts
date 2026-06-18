@@ -40,14 +40,6 @@ vi.mock('#/store', () => ({
   useAuthStore: () => authStoreMock
 }))
 
-vi.mock('@vben/common-ui', () => ({
-  SliderCaptcha: {
-    emits: ['success', 'update:modelValue'],
-    template:
-      '<button class="slider-pass" @click="$emit(\'update:modelValue\', true); $emit(\'success\')">captcha-pass</button>'
-  }
-}))
-
 vi.mock('ant-design-vue', async () => {
   const actual = await vi.importActual<any>('ant-design-vue')
   return {
@@ -221,7 +213,7 @@ describe('CompleteMfa view', () => {
     expect(wrapper.find('.tooltip').attributes('data-title')).toContain('打开已绑定的认证器应用')
   })
 
-  it('masks the displayed email destination and gates resend behind slider captcha', async () => {
+  it('masks the displayed email destination and resends without an extra gate', async () => {
     authStoreMock.pendingMfaDestination = 'alice@example.com'
 
     const view = await import('./mfa.vue')
@@ -238,26 +230,25 @@ describe('CompleteMfa view', () => {
     await resendButton!.trigger('click')
     await flushPromises()
 
-    const captchaPassButton = wrapper.get('.slider-pass')
-    await captchaPassButton.trigger('click')
-    await flushPromises()
-
     expect(authStoreMock.requestPendingMfaFactorChallenge).toHaveBeenCalledTimes(1)
     expect(authStoreMock.requestPendingMfaFactorChallenge).toHaveBeenCalledWith('EMAIL_OTP')
   })
 
-  it('requires slider captcha before sending the first email MFA OTP challenge', async () => {
+  it('sends the first email MFA OTP challenge without an extra gate', async () => {
     authStoreMock.pendingMfaDestination = ''
     authStoreMock.pendingMfaFactorChallengeId = ''
 
     const view = await import('./mfa.vue')
     const wrapper = mount(view.default)
 
-    expect(wrapper.text()).toContain('完成安全验证后发送验证码')
+    expect(wrapper.text()).toContain('发送验证码')
     expect(authStoreMock.requestPendingMfaFactorChallenge).not.toHaveBeenCalled()
 
-    const captchaPassButton = wrapper.get('.slider-pass')
-    await captchaPassButton.trigger('click')
+    const sendButton = wrapper
+      .findAll('button')
+      .find((button) => button.text() === '发送验证码')
+    expect(sendButton).toBeTruthy()
+    await sendButton!.trigger('click')
     await flushPromises()
 
     expect(authStoreMock.requestPendingMfaFactorChallenge).toHaveBeenCalledTimes(1)
@@ -279,7 +270,7 @@ describe('CompleteMfa view', () => {
     expect(wrapper.text()).not.toContain('+8613912345678')
   })
 
-  it('gates sms resend behind slider captcha instead of sending immediately', async () => {
+  it('resends sms otp without an extra gate', async () => {
     authStoreMock.pendingMfaFactor = 'SMS_OTP'
     authStoreMock.pendingMfaDestination = '+8613912345678'
     authStoreMock.pendingMfaAvailableFactors = [
@@ -296,10 +287,6 @@ describe('CompleteMfa view', () => {
 
     expect(resendButton).toBeTruthy()
     await resendButton!.trigger('click')
-    await flushPromises()
-
-    const captchaPassButton = wrapper.get('.slider-pass')
-    await captchaPassButton.trigger('click')
     await flushPromises()
 
     expect(authStoreMock.requestPendingMfaFactorChallenge).toHaveBeenCalledTimes(1)

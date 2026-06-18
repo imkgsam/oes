@@ -5,8 +5,8 @@ export interface FlatManagedOrgUnit {
   id: string
   label: string
   name: string
-  organizationParty?: TenantManagementApi.ManagedOrgUnit['organizationParty']
-  organizationPartyId?: string | null
+  organizationTenantParty?: TenantManagementApi.ManagedOrgUnit['organizationTenantParty']
+  organizationTenantPartyId?: string | null
   parentOrgId?: string
   path: string
   sortOrder: number
@@ -19,21 +19,21 @@ export interface ManagedOrgGridRow extends FlatManagedOrgUnit {
   children?: ManagedOrgGridRow[]
 }
 
-/** formatManagedOrganizationPartyName chooses the most human-readable organization-party label available for tenant/org read models. */
-export function formatManagedOrganizationPartyName(
-  orgUnit?: Pick<TenantManagementApi.ManagedOrgUnit, 'organizationParty' | 'organizationPartyId'> | null
+/** formatManagedOrganizationTenantPartyName chooses the most human-readable organization-party label available for tenant/org read models. */
+export function formatManagedOrganizationTenantPartyName(
+  orgUnit?: Pick<TenantManagementApi.ManagedOrgUnit, 'organizationTenantParty' | 'organizationTenantPartyId'> | null
 ) {
   return (
-    orgUnit?.organizationParty?.legalName ||
-    orgUnit?.organizationPartyId ||
+    orgUnit?.organizationTenantParty?.legalName ||
+    orgUnit?.organizationTenantPartyId ||
     ''
   )
 }
 
 /** formatManagedOrgSelectorLabel builds one indentation-friendly org selector label without redefining org ownership semantics. */
 export function formatManagedOrgSelectorLabel(orgUnit: TenantManagementApi.ManagedOrgUnit) {
-  const organizationPartyName = formatManagedOrganizationPartyName(orgUnit)
-  const metadata = [orgUnit.type, organizationPartyName].filter(Boolean).join(' · ')
+  const organizationTenantPartyName = formatManagedOrganizationTenantPartyName(orgUnit)
+  const metadata = [orgUnit.type, organizationTenantPartyName].filter(Boolean).join(' · ')
   return `${'　'.repeat(orgUnit.depth)}${orgUnit.name}${metadata ? ` · ${metadata}` : ''}`
 }
 
@@ -48,8 +48,8 @@ export function flattenManagedOrgTree(
       id: node.orgUnit.id,
       label: formatManagedOrgSelectorLabel(node.orgUnit),
       name: node.orgUnit.name,
-      organizationParty: node.orgUnit.organizationParty,
-      organizationPartyId: node.orgUnit.organizationPartyId,
+      organizationTenantParty: node.orgUnit.organizationTenantParty,
+      organizationTenantPartyId: node.orgUnit.organizationTenantPartyId,
       parentOrgId: node.orgUnit.parentOrgId,
       path: node.orgUnit.path,
       sortOrder: node.orgUnit.sortOrder,
@@ -72,8 +72,8 @@ export function mapManagedOrgTreeToGridRows(
     id: node.orgUnit.id,
     label: formatManagedOrgSelectorLabel(node.orgUnit),
     name: node.orgUnit.name,
-    organizationParty: node.orgUnit.organizationParty,
-    organizationPartyId: node.orgUnit.organizationPartyId,
+    organizationTenantParty: node.orgUnit.organizationTenantParty,
+    organizationTenantPartyId: node.orgUnit.organizationTenantPartyId,
     parentOrgId: node.orgUnit.parentOrgId,
     path: node.orgUnit.path,
     sortOrder: node.orgUnit.sortOrder,

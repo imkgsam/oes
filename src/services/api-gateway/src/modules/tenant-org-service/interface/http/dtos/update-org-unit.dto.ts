@@ -21,11 +21,11 @@ export class UpdateOrgUnitDto {
   sortOrder?: number
 
   @ApiPropertyOptional({
-    description: 'Set one organization party id, or pass null to clear the current association.',
+    description: 'Set one organization TenantParty id, or pass null to clear the current association.',
     example: '5f9624d9-294c-4b9b-ae72-4d9f8b8a7b73',
     nullable: true
   })
   @IsOptional()
   @IsString()
-  organizationPartyId?: string | null
+  organizationTenantPartyId?: string | null
 }

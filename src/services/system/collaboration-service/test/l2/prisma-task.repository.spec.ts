@@ -55,6 +55,17 @@ describe('PrismaTaskRepository L2', () => {
     expect(result.total).toBe(1)
     expect(result.items[0]?.id).toBe(created.id)
     expect(result.items[0]?.visibility).toBe(TaskVisibility.PRIVATE)
+
+    const createdByMe = await repository.list({
+      tenantId: `${prefix}_tenant`,
+      operatorAccountId: `${prefix}_operator`,
+      scope: TaskListScope.CREATED_BY_ME,
+      page: 1,
+      pageSize: 20,
+      now: new Date('2026-06-14T10:00:00.000Z')
+    })
+
+    expect(createdByMe.total).toBe(0)
   })
 
   it('saves lifecycle and archive fields without changing tenant ownership', async () => {
@@ -124,6 +135,40 @@ describe('PrismaTaskRepository L2', () => {
     expect(overdue.items[0]?.title).toBe(`${prefix}_task`)
     expect(archived.items).toHaveLength(1)
     expect(archived.items[0]?.title).toBe(`${prefix}_archived`)
+  })
+
+  it('lists only tasks the operator assigned to other accounts in CREATED_BY_ME scope', async () => {
+    await repository.create(
+      buildTask({
+        id: '20000000-0000-4000-8000-000000000011',
+        title: `${prefix}_assigned_out`,
+        createdByAccountId: `${prefix}_operator`,
+        assigneeAccountId: `${prefix}_assignee`,
+        visibility: TaskVisibility.ASSIGNMENT_PARTICIPANTS
+      })
+    )
+    await repository.create(
+      buildTask({
+        id: '20000000-0000-4000-8000-000000000012',
+        title: `${prefix}_self_todo`,
+        createdByAccountId: `${prefix}_operator`,
+        assigneeAccountId: `${prefix}_operator`,
+        visibility: TaskVisibility.PRIVATE
+      })
+    )
+
+    const result = await repository.list({
+      tenantId: `${prefix}_tenant`,
+      operatorAccountId: `${prefix}_operator`,
+      scope: TaskListScope.CREATED_BY_ME,
+      page: 1,
+      pageSize: 20,
+      now: new Date('2026-06-14T10:00:00.000Z')
+    })
+
+    expect(result.items.map((task) => task.title)).toEqual([
+      `${prefix}_assigned_out`
+    ])
   })
 })
 

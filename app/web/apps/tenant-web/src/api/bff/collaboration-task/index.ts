@@ -16,7 +16,9 @@ export namespace CollaborationTaskApi {
     title: string
     description?: string
     createdByAccountId: string
+    createdByDisplayName?: string
     assigneeAccountId: string
+    assigneeDisplayName?: string
     visibility: TaskVisibility | string
     status: TaskStatus | string
     priority: TaskPriority | string

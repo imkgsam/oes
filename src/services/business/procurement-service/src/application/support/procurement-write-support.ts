@@ -521,6 +521,9 @@ async function assertPurchasableItem(
   itemId: string
 ) {
   const item = assertExists(await itemLookup.getItemById(tenantId, itemId), 'item', itemId)
+  assertPrecondition(item.active, 'standard item must be active', {
+    itemId
+  })
   assertPrecondition(item.purchasable, 'standard item must be purchasable', {
     itemId
   })

@@ -58,9 +58,9 @@
 - `idempotency_key`
 - `tenant.code`
 - `tenant.name`
-- `organization_party.legal_name`
-- optional `organization_party.registered_country`
-- optional `organization_party.identifiers[]`
+- `organization_tenant_party.legal_name`
+- optional `organization_tenant_party.registered_country`
+- optional `organization_tenant_party.identifiers[]`
 - `root_org.name`
 - `first_admin.display_name`
 - optional `first_admin.email`
@@ -72,7 +72,7 @@
 - `idempotency_key` 必填。
 - `tenant.code` 必填且格式由 tenant-org-service 管理。
 - `tenant.name` 必填。
-- `organization_party.legal_name` 必填。
+- `organization_tenant_party.legal_name` 必填。
 - `root_org.name` 必填。
 - `first_admin.display_name` 必填。
 - `first_admin.email` 与 `first_admin.phone` 至少一个必填。
@@ -84,12 +84,10 @@
 - `onboarding.status`
 - `tenant`
 - `root_org`
-- `organization_party.party_id`
-- `organization_party.tenant_party_id`
+- `organization_tenant_party.tenant_party_id`
 - `first_admin.user_id`
 - `first_admin.account_id`
-- `first_admin.person_party_id`
-- `first_admin.person_tenant_party_id`
+- `first_admin.tenant_party_id`
 - `first_admin_employee.employee_id`
 - `first_admin_employee.employment_id`
 - optional `first_admin_employee.access_process_id`
@@ -106,8 +104,8 @@
 成功后必须满足：
 
 - tenant 存在且由 tenant-org-service 拥有。
-- root org 存在，且可引用 organization party。
-- organization party 与 organization tenant-party 存在。
+- root org 存在，且可引用当前租户 `ORGANIZATION` TenantParty。
+- organizationTenantPartyId 指向当前租户内存在且可引用的 `ORGANIZATION` TenantParty。
 - first admin user/account 存在。
 - first admin employee / employment 存在，且由 hr-service 拥有。
 - first admin login method 已 bootstrap。

@@ -1,4 +1,5 @@
 import {
+  ArchiveCrmAccountResponse,
   ConvertLeadToProspectCustomerResponse,
   CreateLeadResponse,
   CrmAccountP1,
@@ -6,15 +7,18 @@ import {
   CrmLeadDuplicateResult,
   CrmPartyCandidate,
   GetCrmAccountResponse,
-  ListCrmAccountsResponse
+  ListCrmAccountsResponse,
+  RestoreCrmAccountResponse
 } from '@oes/common/generated/crm_service'
 import {
   CrmAccountRecord,
   CrmLeadConversionResultType,
   CrmLeadCreateResultType
 } from '../../domain/models/crm-records'
+import { ArchiveCrmAccountResult } from '../../application/commands/archive-crm-account.handler'
 import { ConvertLeadToProspectCustomerResult } from '../../application/commands/convert-lead-to-prospect-customer.handler'
 import { CreateLeadResult } from '../../application/commands/create-lead.handler'
+import { RestoreCrmAccountResult } from '../../application/commands/restore-crm-account.handler'
 import { GetCrmAccountResult } from '../../application/queries/get-crm-account.handler'
 import { ListCrmAccountsResult } from '../../application/queries/list-crm-accounts.handler'
 import { CrmAccountDuplicateCandidate } from '../../domain/repositories/crm-account.repository'
@@ -82,6 +86,20 @@ export class CustomerGrpcPresenter {
         conflictFlags: candidate.conflictFlags
       })),
       existingCrmAccountId: result.existingCrmAccountId ?? ''
+    }
+  }
+
+  /** toArchiveCrmAccountResponse renders one archived CRM account for P1 workspace refreshes. */
+  static toArchiveCrmAccountResponse(result: ArchiveCrmAccountResult): ArchiveCrmAccountResponse {
+    return {
+      crmAccount: this.toCrmAccountP1(result.account)
+    }
+  }
+
+  /** toRestoreCrmAccountResponse renders one restored CRM account for P1 workspace refreshes. */
+  static toRestoreCrmAccountResponse(result: RestoreCrmAccountResult): RestoreCrmAccountResponse {
+    return {
+      crmAccount: this.toCrmAccountP1(result.account)
     }
   }
 

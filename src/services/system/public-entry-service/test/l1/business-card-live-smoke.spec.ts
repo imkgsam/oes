@@ -105,7 +105,10 @@ describe('BusinessCard live smoke flow', () => {
           view: {
             businessCardId: 'card-1',
             publicUrl: 'https://public.example.test/s/abc123',
-            person: { displayName: 'Alex Chen' },
+            person: {
+              displayName: 'Alex Chen',
+              officialPhotoUrl: 'https://hr.example.test/official-photo.webp'
+            },
             company: { companyDisplayName: 'OES Manufacturing' },
             contactActions: [
               { contactActionType: 'SEND_EMAIL', actionUrl: 'mailto:alex@example.test' },
@@ -157,6 +160,8 @@ describe('BusinessCard live smoke flow', () => {
       input: {
         tenantId: 'tenant-1',
         employeeId: 'employee-1',
+        accountAvatarUrl: 'https://identity.example.test/account-avatar.webp',
+        hrOfficialPhotoUrl: 'https://hr.example.test/official-photo.webp',
         operatorAccountId: 'operator-1',
         selfAccountId: 'self-account-1',
         workEmailContactAssetId: 'contact-email-1',
@@ -168,6 +173,8 @@ describe('BusinessCard live smoke flow', () => {
     expect(report.businessCardId).toBe('card-1')
     expect(report.shortCode).toBe('abc123')
     expect(report.publicRenderState).toBe('AVAILABLE')
+    expect(report.publicRenderOfficialPhotoUrl).toBe('https://hr.example.test/official-photo.webp')
+    expect(report.publicRenderOfficialPhotoUrl).not.toBe('https://identity.example.test/account-avatar.webp')
     expect(report.selfPreviewState).toBe('AVAILABLE')
     expect(report.vCardContentType).toBe('text/vcard; charset=utf-8')
     expect(report.visitTotal).toBe(1)
@@ -191,5 +198,18 @@ describe('BusinessCard live smoke flow', () => {
     expect(() => buildBusinessCardLiveSmokeInputFromEnv({})).toThrow(
       'BUSINESS_CARD_LIVE_TENANT_ID is required'
     )
+  })
+
+  it('keeps an explicit empty HR official photo expectation from env', () => {
+    const input = buildBusinessCardLiveSmokeInputFromEnv({
+      BUSINESS_CARD_LIVE_TENANT_ID: 'tenant-1',
+      BUSINESS_CARD_LIVE_EMPLOYEE_ID: 'employee-1',
+      BUSINESS_CARD_LIVE_HR_OFFICIAL_PHOTO_URL: '',
+      BUSINESS_CARD_LIVE_OPERATOR_ACCOUNT_ID: 'operator-1',
+      BUSINESS_CARD_LIVE_SELF_ACCOUNT_ID: 'self-account-1',
+      BUSINESS_CARD_LIVE_WORK_EMAIL_CONTACT_ASSET_ID: 'contact-email-1'
+    })
+
+    expect(input.hrOfficialPhotoUrl).toBe('')
   })
 })

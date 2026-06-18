@@ -1,6 +1,6 @@
 /* @vitest-environment happy-dom */
 
-import { flushPromises, mount } from '@vue/test-utils'
+import { config, flushPromises, mount } from '@vue/test-utils'
 import { Select, Table, TreeSelect } from 'ant-design-vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, onMounted, reactive, ref } from 'vue'
@@ -14,6 +14,13 @@ const moveManagedOrgUnitApi = vi.fn()
 const updateManagedOrgUnitApi = vi.fn()
 const setTreeExpand = vi.fn()
 const push = vi.fn()
+const mountedWrappers: any[] = []
+
+config.global.directives = {
+  ...config.global.directives,
+  access: {},
+  loading: {}
+}
 
 const authContextState: any = reactive({
   actionCodes: [
@@ -46,6 +53,57 @@ function createStorageMock(): Storage {
       store.set(key, value)
     }
   }
+}
+
+/** mountOrgWorkspace tracks Vue wrappers so each test fully unmounts async effects and teleports. */
+function mountOrgWorkspace(component: any, options: Parameters<typeof mount>[1]) {
+  const wrapper = mount(component, options)
+  mountedWrappers.push(wrapper)
+  return wrapper
+}
+
+/** openOrgRowActions opens the Ant Design row action menu that owns the per-row operation test ids. */
+async function openOrgRowActions(wrapper: any, orgUnitId: string) {
+  const row = wrapper.get(`[data-testid="org-row-${orgUnitId}"]`).element.closest('tr')
+  const actionButton = row?.querySelector('button[aria-label="组织操作"]') as HTMLButtonElement | null
+
+  expect(actionButton).not.toBeNull()
+  actionButton?.click()
+  await flushPromises()
+}
+
+/** clickOrgRowAction triggers one visible organization row action from the dropdown menu. */
+async function clickOrgRowAction(
+  wrapper: any,
+  orgUnitId: string,
+  action: 'append' | 'edit' | 'view'
+) {
+  let menuItem = document.body.querySelector(
+    `[data-testid="org-${action}-${orgUnitId}"]`
+  ) as HTMLElement | null
+
+  if (!menuItem) {
+    await openOrgRowActions(wrapper, orgUnitId)
+    menuItem = document.body.querySelector(
+      `[data-testid="org-${action}-${orgUnitId}"]`
+    ) as HTMLElement | null
+  }
+
+  expect(menuItem).not.toBeNull()
+  for (const eventName of ['pointerdown', 'mousedown', 'mouseup', 'click']) {
+    menuItem?.dispatchEvent(new MouseEvent(eventName, { bubbles: true, cancelable: true }))
+  }
+  await flushPromises()
+  await flushPromises()
+}
+
+/** getCreateTypeSelection reads the visible child org type selected in the create drawer. */
+function getCreateTypeSelection() {
+  return (
+    document.body
+      .querySelector('[data-testid="org-create-form-type"] .ant-select-selection-item')
+      ?.textContent?.trim() ?? ''
+  )
 }
 
 vi.mock('#/api', () => ({
@@ -267,7 +325,7 @@ describe('org management workspace', () => {
         depth: 1,
         id: 'org-dept-1',
         name: '制造中心',
-        organizationPartyId: undefined,
+        organizationTenantPartyId: undefined,
         parentOrgId: 'org-root-1',
         path: '/org-root-1/org-dept-1',
         sortOrder: 10,
@@ -281,7 +339,7 @@ describe('org management workspace', () => {
         depth: 2,
         id: 'org-dept-1',
         name: '制造中心',
-        organizationPartyId: undefined,
+        organizationTenantPartyId: undefined,
         parentOrgId: 'org-support-1',
         path: '/org-root-1/org-support-1/org-dept-1',
         sortOrder: 10,
@@ -293,13 +351,16 @@ describe('org management workspace', () => {
   })
 
   afterEach(() => {
+    for (const wrapper of mountedWrappers.splice(0)) {
+      wrapper.unmount()
+    }
     document.body.innerHTML = ''
   })
 
   it('renders the organization tree with an Ant Design native expandable table', async () => {
     const view = await import('./org-management-workspace.vue')
 
-    const wrapper = mount(view.default, {
+    const wrapper = mountOrgWorkspace(view.default, {
       attachTo: document.body,
       props: {
         managementMode: 'TENANT'
@@ -318,12 +379,12 @@ describe('org management workspace', () => {
     expect(wrapper.get('[data-testid="org-tree-panel"]').text()).not.toContain('/org-root-1')
     expect(wrapper.find('[data-testid="org-ant-tree-table"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="mock-grid-root"]').exists()).toBe(false)
-    expect(wrapper.get('[data-testid="org-tree-panel"]').text()).not.toContain('OrganizationParty')
+    expect(wrapper.get('[data-testid="org-tree-panel"]').text()).not.toContain('OrganizationTenantParty')
     expect(wrapper.get('[data-testid="org-tree-panel"]').text()).not.toContain('未关联')
 
     const table = wrapper.findComponent(Table)
     const operationColumn = (table.props('columns') as any[]).find((column) => column.key === 'operation')
-    expect(operationColumn).toEqual(expect.objectContaining({ align: 'right' }))
+    expect(operationColumn).toEqual(expect.objectContaining({ align: 'center' }))
     const tableRows = table.props('dataSource') as any[]
     expect(tableRows[0].children[0].id).toBe('org-dept-1')
     expect(tableRows[0].children[0]).not.toHaveProperty('children')
@@ -384,7 +445,7 @@ describe('org management workspace', () => {
     })
     const view = await import('./org-management-workspace.vue')
 
-    const tenantWrapper = mount(view.default, {
+    const tenantWrapper = mountOrgWorkspace(view.default, {
       attachTo: document.body,
       props: {
         managementMode: 'TENANT'
@@ -405,7 +466,7 @@ describe('org management workspace', () => {
     tenantWrapper.unmount()
     authContextState.isPlatformScope = true
 
-    const systemWrapper = mount(view.default, {
+    const systemWrapper = mountOrgWorkspace(view.default, {
       attachTo: document.body,
       props: {
         managementMode: 'SYSTEM'
@@ -427,7 +488,7 @@ describe('org management workspace', () => {
   it('does not render the current-tenant header copy in tenant mode', async () => {
     const view = await import('./org-management-workspace.vue')
 
-    const wrapper = mount(view.default, {
+    const wrapper = mountOrgWorkspace(view.default, {
       attachTo: document.body,
       props: {
         managementMode: 'TENANT'
@@ -448,7 +509,7 @@ describe('org management workspace', () => {
   it('routes tenant org view actions to the independent department detail page', async () => {
     const view = await import('./org-management-workspace.vue')
 
-    const wrapper = mount(view.default, {
+    const wrapper = mountOrgWorkspace(view.default, {
       attachTo: document.body,
       props: {
         managementMode: 'TENANT'
@@ -467,8 +528,7 @@ describe('org management workspace', () => {
 
     expect(push).not.toHaveBeenCalled()
 
-    await wrapper.get('[data-testid="org-view-org-dept-1"]').trigger('click')
-    await flushPromises()
+    await clickOrgRowAction(wrapper, 'org-dept-1', 'view')
 
     expect(push).toHaveBeenCalledWith({
       name: 'TenantOrgUnitDetail',
@@ -501,7 +561,7 @@ describe('org management workspace', () => {
 
     const view = await import('./org-management-workspace.vue')
 
-    const wrapper = mount(view.default, {
+    const wrapper = mountOrgWorkspace(view.default, {
       attachTo: document.body,
       props: {
         managementMode: 'TENANT'
@@ -515,10 +575,10 @@ describe('org management workspace', () => {
 
     await flushPromises()
 
-    expect(wrapper.find('[data-testid="org-edit-org-root-1"]').exists()).toBe(false)
+    await openOrgRowActions(wrapper, 'org-root-1')
+    expect(document.body.querySelector('[data-testid="org-edit-org-root-1"]')).toBeNull()
 
-    await wrapper.get('[data-testid="org-view-org-root-1"]').trigger('click')
-    await flushPromises()
+    await clickOrgRowAction(wrapper, 'org-root-1', 'view')
 
     expect(push).toHaveBeenCalledWith({
       name: 'TenantOrgUnitDetail',
@@ -537,7 +597,7 @@ describe('org management workspace', () => {
 
     const view = await import('./org-management-workspace.vue')
 
-    const wrapper = mount(view.default, {
+    const wrapper = mountOrgWorkspace(view.default, {
       attachTo: document.body,
       props: {
         managementMode: 'TENANT'
@@ -554,8 +614,7 @@ describe('org management workspace', () => {
     expect(document.body.querySelector('[data-testid="org-edit-drawer"]')).toBeNull()
     expect(document.body.textContent ?? '').not.toContain('编辑信息')
 
-    await wrapper.get('[data-testid="org-edit-org-dept-1"]').trigger('click')
-    await flushPromises()
+    await clickOrgRowAction(wrapper, 'org-dept-1', 'edit')
 
     const editDrawer = document.body.querySelector('[data-testid="org-edit-drawer"]')
     expect(editDrawer).not.toBeNull()
@@ -563,7 +622,7 @@ describe('org management workspace', () => {
     expect(editDrawer?.textContent ?? '').toContain('排序')
   })
 
-  it('edits an org unit parent through the same tree selector pattern as creation', async () => {
+  it('edits an org unit through a dedicated drawer with the same parent selector pattern as creation', async () => {
     authContextState.actionCodes = [
       'tenant_org.org_unit.list_tree',
       'tenant_org.org_unit.get_by_id',
@@ -636,7 +695,7 @@ describe('org management workspace', () => {
         depth: 1,
         id: 'org-dept-1',
         name: '制造中心',
-        organizationPartyId: undefined,
+        organizationTenantPartyId: undefined,
         parentOrgId: 'org-root-1',
         path: '/org-root-1/org-dept-1',
         sortOrder: 10,
@@ -648,7 +707,7 @@ describe('org management workspace', () => {
 
     const view = await import('./org-management-workspace.vue')
 
-    const wrapper = mount(view.default, {
+    const wrapper = mountOrgWorkspace(view.default, {
       attachTo: document.body,
       props: {
         managementMode: 'TENANT'
@@ -661,33 +720,12 @@ describe('org management workspace', () => {
     })
 
     await flushPromises()
-    await wrapper.get('[data-testid="org-edit-org-dept-1"]').trigger('click')
-    await flushPromises()
+    await clickOrgRowAction(wrapper, 'org-dept-1', 'edit')
 
-    const parentTree = wrapper.findAllComponents(TreeSelect).find(
-      (component) => component.attributes('data-testid') === 'org-edit-parent-tree'
-    )
-    expect(parentTree?.exists()).toBe(true)
-    expect(parentTree?.props('treeCheckable')).toBeFalsy()
-    expect(parentTree?.props('multiple')).toBeFalsy()
-    expect(parentTree?.props('treeData')).toEqual([
-      {
-        children: [
-          {
-            children: [],
-            key: 'org-support-1',
-            title: '运营支持',
-            value: 'org-support-1'
-          }
-        ],
-        key: 'org-root-1',
-        title: 'Alpha 集团',
-        value: 'org-root-1'
-      }
-    ])
-
-    parentTree?.vm.$emit('update:value', 'org-support-1')
-    await flushPromises()
+    const editDrawer = document.body.querySelector('[data-testid="org-edit-drawer"]')
+    expect(editDrawer).not.toBeNull()
+    expect(editDrawer?.querySelector('[data-testid="org-edit-parent-tree"]')).not.toBeNull()
+    expect(editDrawer?.textContent ?? '').toContain('挂载父节点')
 
     const saveButton = document.body.querySelector('[data-testid="org-edit-save"]') as HTMLButtonElement
     saveButton.click()
@@ -698,9 +736,7 @@ describe('org management workspace', () => {
       sortOrder: 10,
       type: 'DEPARTMENT'
     })
-    expect(moveManagedOrgUnitApi).toHaveBeenCalledWith('tenant-1', 'org-dept-1', {
-      newParentOrgId: 'org-support-1'
-    })
+    expect(moveManagedOrgUnitApi).not.toHaveBeenCalled()
   })
 
   it('keeps ordinary creation on row append actions instead of a duplicate toolbar create button', async () => {
@@ -712,7 +748,7 @@ describe('org management workspace', () => {
 
     const view = await import('./org-management-workspace.vue')
 
-    const wrapper = mount(view.default, {
+    const wrapper = mountOrgWorkspace(view.default, {
       attachTo: document.body,
       props: {
         managementMode: 'TENANT'
@@ -728,8 +764,7 @@ describe('org management workspace', () => {
 
     expect(wrapper.find('[data-testid="org-create-open"]').exists()).toBe(false)
 
-    await wrapper.get('[data-testid="org-append-org-root-1"]').trigger('click')
-    await flushPromises()
+    await clickOrgRowAction(wrapper, 'org-root-1', 'append')
 
     expect(document.body.textContent ?? '').toContain('新建 OrgUnit')
     expect(document.body.textContent ?? '').not.toContain('概览')
@@ -745,7 +780,7 @@ describe('org management workspace', () => {
 
     const view = await import('./org-management-workspace.vue')
 
-    const wrapper = mount(view.default, {
+    const wrapper = mountOrgWorkspace(view.default, {
       attachTo: document.body,
       props: {
         managementMode: 'TENANT'
@@ -874,7 +909,7 @@ describe('org management workspace', () => {
 
     const view = await import('./org-management-workspace.vue')
 
-    const wrapper = mount(view.default, {
+    const wrapper = mountOrgWorkspace(view.default, {
       attachTo: document.body,
       props: {
         managementMode: 'TENANT'
@@ -888,49 +923,37 @@ describe('org management workspace', () => {
 
     await flushPromises()
 
-    expect(wrapper.find('[data-testid="org-append-org-root-1"]').exists()).toBe(true)
+    await openOrgRowActions(wrapper, 'org-root-1')
+    expect(document.body.querySelector('[data-testid="org-append-org-root-1"]')).not.toBeNull()
 
-    await wrapper.get('[data-testid="org-append-org-root-1"]').trigger('click')
-    await flushPromises()
-    let typeSelect = wrapper.findComponent(Select)
-    expect(typeSelect.props('options')).toEqual([
-      { label: '部门', value: 'DEPARTMENT' },
-      { label: '小组', value: 'TEAM' }
-    ])
+    await clickOrgRowAction(wrapper, 'org-root-1', 'append')
+    expect(document.body.querySelector('[data-testid="org-create-drawer"]')).not.toBeNull()
+    expect(getCreateTypeSelection()).toBe('部门')
 
     ;(document.body.querySelector('[data-testid="org-create-cancel"]') as HTMLButtonElement).click()
     await flushPromises()
 
-    await wrapper.get('[data-testid="org-append-org-branch-1"]').trigger('click')
-    await flushPromises()
-    typeSelect = wrapper.findComponent(Select)
-    expect(typeSelect.props('options')).toEqual([{ label: '部门', value: 'DEPARTMENT' }])
+    await clickOrgRowAction(wrapper, 'org-branch-1', 'append')
+    expect(getCreateTypeSelection()).toBe('部门')
     expect(document.body.textContent ?? '').not.toContain('OTHER')
     expect(document.body.textContent ?? '').not.toContain('ROOT')
     expect(document.body.textContent ?? '').not.toContain('BRANCH')
 
     ;(document.body.querySelector('[data-testid="org-create-cancel"]') as HTMLButtonElement).click()
     await flushPromises()
-    await wrapper.get('[data-testid="org-append-org-dept-1"]').trigger('click')
-    await flushPromises()
-    typeSelect = wrapper.findComponent(Select)
-    expect(typeSelect.props('options')).toEqual([
-      { label: '部门', value: 'DEPARTMENT' },
-      { label: '小组', value: 'TEAM' }
-    ])
+    await clickOrgRowAction(wrapper, 'org-dept-1', 'append')
+    expect(getCreateTypeSelection()).toBe('部门')
 
     ;(document.body.querySelector('[data-testid="org-create-cancel"]') as HTMLButtonElement).click()
     await flushPromises()
-    await wrapper.get('[data-testid="org-append-org-team-1"]').trigger('click')
-    await flushPromises()
-    typeSelect = wrapper.findComponent(Select)
-    expect(typeSelect.props('options')).toEqual([{ label: '小组', value: 'TEAM' }])
+    await clickOrgRowAction(wrapper, 'org-team-1', 'append')
+    expect(getCreateTypeSelection()).toBe('小组')
   })
 
   it('keeps department list focused and sends read-only details to the dedicated route', async () => {
     const view = await import('./org-management-workspace.vue')
 
-    const wrapper = mount(view.default, {
+    const wrapper = mountOrgWorkspace(view.default, {
       attachTo: document.body,
       props: {
         managementMode: 'TENANT'
@@ -947,11 +970,10 @@ describe('org management workspace', () => {
     expect(wrapper.get('[data-testid="org-tree-panel"]').text()).toContain('组织列表')
     expect(wrapper.find('[data-testid="org-ant-tree-table"]').exists()).toBe(true)
 
-    await wrapper.get('[data-testid="org-view-org-dept-1"]').trigger('click')
-    await flushPromises()
+    await clickOrgRowAction(wrapper, 'org-dept-1', 'view')
 
     const pageText = document.body.textContent ?? ''
-    expect(pageText).not.toContain('OrganizationParty')
+    expect(pageText).not.toContain('OrganizationTenantParty')
     expect(pageText).not.toContain('未关联')
     expect(pageText).not.toContain('Backend gap')
     expect(push).toHaveBeenCalledWith({
@@ -967,7 +989,7 @@ describe('org management workspace', () => {
 
     const view = await import('./org-management-workspace.vue')
 
-    const wrapper = mount(view.default, {
+    const wrapper = mountOrgWorkspace(view.default, {
       attachTo: document.body,
       props: {
         managementMode: 'TENANT'

@@ -3,7 +3,7 @@ export interface StockableItemLookupResult {
   itemId: string
   itemCode: string
   itemName: string
-  status: string
+  active: boolean
   stockable: boolean
 }
 

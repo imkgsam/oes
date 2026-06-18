@@ -1,9 +1,17 @@
 import { PrismaClient } from '../prisma/generated/prisma/index.js'
 
-const rawDatabaseUrl = process.env.COLLABORATION_DATABASE_URL || process.env.DATABASE_URL
-if (rawDatabaseUrl) {
-  process.env.DATABASE_URL = withCollaborationSchema(rawDatabaseUrl)
+const DEFAULT_LOCAL_DATABASE_URL = 'postgres://imkgsam:imkgsam@localhost:5432/mydb'
+const rawDatabaseUrl =
+  process.env.COLLABORATION_DATABASE_URL ||
+  process.env.DATABASE_URL ||
+  (process.env.NODE_ENV !== 'production' ? DEFAULT_LOCAL_DATABASE_URL : '')
+
+if (!rawDatabaseUrl) {
+  console.error('COLLABORATION_DATABASE_URL or DATABASE_URL is required for production Task P1 seed.')
+  process.exit(1)
 }
+
+process.env.DATABASE_URL = withCollaborationSchema(rawDatabaseUrl)
 
 const prisma = new PrismaClient()
 

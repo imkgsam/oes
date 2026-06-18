@@ -1,0 +1,706 @@
+syntax = "proto3";
+
+package site_service;
+
+option java_multiple_files = true;
+option java_package = "com.oes.site.v1";
+
+service SiteAdminManagementService {
+  rpc ListSiteCards(ListSiteCardsRequest) returns (ListSiteCardsResponse);
+  rpc CreateSite(CreateSiteRequest) returns (CreateSiteResponse);
+  rpc UpdateSiteSettings(UpdateSiteSettingsRequest) returns (UpdateSiteSettingsResponse);
+  rpc DisableSite(DisableSiteRequest) returns (DisableSiteResponse);
+  rpc AddPreparingLocale(AddPreparingLocaleRequest) returns (AddPreparingLocaleResponse);
+  rpc CheckLocaleCompleteness(CheckLocaleCompletenessRequest) returns (CheckLocaleCompletenessResponse);
+  rpc ActivateLocale(ActivateLocaleRequest) returns (ActivateLocaleResponse);
+  rpc DisableLocale(DisableLocaleRequest) returns (DisableLocaleResponse);
+  rpc ListSiteCategories(ListSiteCategoriesRequest) returns (ListSiteCategoriesResponse);
+  rpc CreateSiteCategory(CreateSiteCategoryRequest) returns (CreateSiteCategoryResponse);
+  rpc UpdateSiteCategory(UpdateSiteCategoryRequest) returns (UpdateSiteCategoryResponse);
+  rpc UnpublishSiteCategory(UnpublishSiteCategoryRequest) returns (UnpublishSiteCategoryResponse);
+  rpc ListSiteProducts(ListSiteProductsRequest) returns (ListSiteProductsResponse);
+  rpc SearchProductMasterForAdd(SearchProductMasterForAddRequest) returns (SearchProductMasterForAddResponse);
+  rpc GetSiteProductPublication(GetSiteProductPublicationRequest) returns (GetSiteProductPublicationResponse);
+  rpc AddProductsToSite(AddProductsToSiteRequest) returns (AddProductsToSiteResponse);
+  rpc UpdateSiteProductPublication(UpdateSiteProductPublicationRequest) returns (UpdateSiteProductPublicationResponse);
+  rpc UnpublishSiteProduct(UnpublishSiteProductRequest) returns (UnpublishSiteProductResponse);
+  rpc ListSiteContents(ListSiteContentsRequest) returns (ListSiteContentsResponse);
+  rpc GetSiteContent(GetSiteContentRequest) returns (GetSiteContentResponse);
+  rpc CreateSiteContent(CreateSiteContentRequest) returns (CreateSiteContentResponse);
+  rpc UpdateSiteContentLocaleVersion(UpdateSiteContentLocaleVersionRequest) returns (UpdateSiteContentLocaleVersionResponse);
+  rpc UnpublishSiteContent(UnpublishSiteContentRequest) returns (UnpublishSiteContentResponse);
+  rpc GetPendingSyncSummary(GetPendingSyncSummaryRequest) returns (GetPendingSyncSummaryResponse);
+  rpc ListPendingSyncResources(ListPendingSyncResourcesRequest) returns (ListPendingSyncResourcesResponse);
+  rpc ListSyncHistory(ListSyncHistoryRequest) returns (ListSyncHistoryResponse);
+  rpc GetSyncDetail(GetSyncDetailRequest) returns (GetSyncDetailResponse);
+  rpc SyncAllPendingChanges(SyncAllPendingChangesRequest) returns (SyncAllPendingChangesResponse);
+  rpc RetryLastSync(RetryLastSyncRequest) returns (RetryLastSyncResponse);
+  rpc ResendWebhook(ResendWebhookRequest) returns (ResendWebhookResponse);
+  rpc ListSiteCredentials(ListSiteCredentialsRequest) returns (ListSiteCredentialsResponse);
+  rpc GenerateSiteCredential(GenerateSiteCredentialRequest) returns (GenerateSiteCredentialResponse);
+  rpc RotateSiteCredential(RotateSiteCredentialRequest) returns (RotateSiteCredentialResponse);
+  rpc RevokeSiteCredential(RevokeSiteCredentialRequest) returns (RevokeSiteCredentialResponse);
+  rpc ListSiteAuditLogs(ListSiteAuditLogsRequest) returns (ListSiteAuditLogsResponse);
+  rpc IssuePreviewToken(IssuePreviewTokenRequest) returns (IssuePreviewTokenResponse);
+}
+
+service SiteRuntimeSyncService {
+  rpc GetLatestPublishState(GetLatestPublishStateRequest) returns (GetLatestPublishStateResponse);
+  rpc ListChangedResources(ListChangedResourcesRequest) returns (ListChangedResourcesResponse);
+  rpc BatchGetPublicViews(BatchGetPublicViewsRequest) returns (BatchGetPublicViewsResponse);
+  rpc GetSnapshot(GetSnapshotRequest) returns (GetSnapshotResponse);
+  rpc ReportSyncResult(ReportSyncResultRequest) returns (ReportSyncResultResponse);
+  rpc GetPreviewView(GetPreviewViewRequest) returns (GetPreviewViewResponse);
+}
+
+message AdminRequestContext {
+  string tenant_id = 1;
+  string org_id = 2;
+  string operator_id = 3;
+  string trace_id = 4;
+  string request_id = 5;
+}
+
+message SignedSiteContext {
+  string site_id = 1;
+  string client_id = 2;
+  string credential_id = 3;
+  string request_id = 4;
+  string trace_id = 5;
+  string timestamp = 6;
+  string nonce = 7;
+  string signature = 8;
+  string method = 9;
+  string path = 10;
+  string normalized_query = 11;
+  string body_sha256 = 12;
+}
+
+message ListSiteCardsRequest {
+  string tenant_id = 1;
+  string operator_id = 2;
+  string trace_id = 3;
+}
+
+message SiteCard {
+  string site_id = 1;
+  string site_name = 2;
+  string site_type = 3;
+  string primary_domain = 4;
+  string brand_id = 5;
+  string region_code = 6;
+  string channel_code = 7;
+  string status = 8;
+  repeated string active_locales = 9;
+  repeated string preparing_locales = 10;
+  string runtime_status = 11;
+  uint32 pending_sync_count = 12;
+  uint32 latest_publish_version = 13;
+  uint32 runtime_publish_version = 14;
+  string last_sync_at = 15;
+  string last_error_summary = 16;
+}
+
+message ListSiteCardsResponse {
+  repeated SiteCard cards = 1;
+}
+
+message CreateSiteRequest {
+  string tenant_id = 1;
+  string org_id = 2;
+  string operator_id = 3;
+  string trace_id = 4;
+  string site_name = 5;
+  string site_type = 6;
+  string brand_id = 7;
+  string region_code = 8;
+  string channel_code = 9;
+  string default_locale = 10;
+  string primary_domain = 11;
+  string preview_base_url = 12;
+}
+
+message CreateSiteResponse {
+  string site_id = 1;
+  string status = 2;
+  string default_locale = 3;
+}
+
+message UpdateSiteSettingsRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+  string site_name = 3;
+  string primary_domain = 4;
+  string preview_base_url = 5;
+  string webhook_url = 6;
+  string runtime_status_url = 7;
+  repeated string allowed_origins = 8;
+}
+
+message UpdateSiteSettingsResponse {
+  bool updated = 1;
+}
+
+message DisableSiteRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+  string reason = 3;
+}
+
+message DisableSiteResponse {
+  bool disabled = 1;
+}
+
+message AddPreparingLocaleRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+  string locale = 3;
+}
+
+message AddPreparingLocaleResponse {
+  bool added = 1;
+}
+
+message CheckLocaleCompletenessRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+  string locale = 3;
+}
+
+message CheckLocaleCompletenessResponse {
+  bool complete = 1;
+  repeated string issues = 2;
+}
+
+message ActivateLocaleRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+  string locale = 3;
+}
+
+message ActivateLocaleResponse {
+  bool activated = 1;
+}
+
+message DisableLocaleRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+  string locale = 3;
+}
+
+message DisableLocaleResponse {
+  bool disabled = 1;
+}
+
+message SiteCategoryRecord {
+  string category_id = 1;
+  string site_id = 2;
+  string parent_category_id = 3;
+  string source_category_id = 4;
+  string locale = 5;
+  string slug = 6;
+  string display_title = 7;
+  string description = 8;
+  string image = 9;
+  uint32 sort_order = 10;
+  string seo_title = 11;
+  string seo_description = 12;
+  string seo_image = 13;
+  string publish_status = 14;
+  string sync_status = 15;
+}
+
+message ListSiteCategoriesRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+  string locale = 3;
+}
+
+message ListSiteCategoriesResponse {
+  repeated SiteCategoryRecord categories = 1;
+}
+
+message CreateSiteCategoryRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+  string parent_category_id = 3;
+  string source_category_id = 4;
+  string locale = 5;
+  string slug = 6;
+  string display_title = 7;
+  string description = 8;
+  string image = 9;
+  uint32 sort_order = 10;
+  string seo_title = 11;
+  string seo_description = 12;
+  string seo_image = 13;
+}
+
+message CreateSiteCategoryResponse {
+  SiteCategoryRecord category = 1;
+}
+
+message UpdateSiteCategoryRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+  SiteCategoryRecord category = 3;
+}
+
+message UpdateSiteCategoryResponse {
+  SiteCategoryRecord category = 1;
+}
+
+message UnpublishSiteCategoryRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+  string category_id = 3;
+  string locale = 4;
+}
+
+message UnpublishSiteCategoryResponse {
+  bool unpublished = 1;
+}
+
+message SiteProductPublicationRecord {
+  string publication_id = 1;
+  string site_id = 2;
+  string product_id = 3;
+  string locale = 4;
+  string slug = 5;
+  string display_title = 6;
+  string display_description = 7;
+  string seo_title = 8;
+  string seo_description = 9;
+  string seo_image = 10;
+  string image_override = 11;
+  string publish_status = 12;
+  string sync_status = 13;
+  repeated string category_ids = 14;
+}
+
+message ListSiteProductsRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+  string locale = 3;
+}
+
+message ListSiteProductsResponse {
+  repeated SiteProductPublicationRecord products = 1;
+}
+
+message SearchProductMasterForAddRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+  string keyword = 3;
+  uint32 page = 4;
+  uint32 page_size = 5;
+}
+
+message ProductMasterAddCandidate {
+  string product_id = 1;
+  string display_name = 2;
+  string model = 3;
+  string brand = 4;
+  repeated string category_ids = 5;
+}
+
+message SearchProductMasterForAddResponse {
+  repeated ProductMasterAddCandidate candidates = 1;
+  uint32 total = 2;
+}
+
+message GetSiteProductPublicationRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+  string publication_id = 3;
+}
+
+message GetSiteProductPublicationResponse {
+  SiteProductPublicationRecord publication = 1;
+}
+
+message AddProductsToSiteRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+  repeated string product_ids = 3;
+  repeated string locales = 4;
+  repeated string category_ids = 5;
+}
+
+message AddProductsToSiteResponse {
+  repeated SiteProductPublicationRecord publications = 1;
+}
+
+message UpdateSiteProductPublicationRequest {
+  AdminRequestContext context = 1;
+  SiteProductPublicationRecord publication = 2;
+}
+
+message UpdateSiteProductPublicationResponse {
+  SiteProductPublicationRecord publication = 1;
+}
+
+message UnpublishSiteProductRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+  string publication_id = 3;
+}
+
+message UnpublishSiteProductResponse {
+  bool unpublished = 1;
+}
+
+message SiteContentRecord {
+  string content_id = 1;
+  string site_id = 2;
+  string content_type = 3;
+  string status = 4;
+  repeated SiteContentLocaleVersionRecord versions = 5;
+}
+
+message SiteContentLocaleVersionRecord {
+  string content_version_id = 1;
+  string content_id = 2;
+  string locale = 3;
+  string slug = 4;
+  string title = 5;
+  string summary = 6;
+  string cover_image = 7;
+  string author = 8;
+  repeated string tags = 9;
+  string body_html = 10;
+  string seo_title = 11;
+  string seo_description = 12;
+  string seo_image = 13;
+  string published_at = 14;
+  string status = 15;
+  string sync_status = 16;
+}
+
+message ListSiteContentsRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+  string content_type = 3;
+}
+
+message ListSiteContentsResponse {
+  repeated SiteContentRecord contents = 1;
+}
+
+message GetSiteContentRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+  string content_id = 3;
+}
+
+message GetSiteContentResponse {
+  SiteContentRecord content = 1;
+}
+
+message CreateSiteContentRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+  string content_type = 3;
+}
+
+message CreateSiteContentResponse {
+  SiteContentRecord content = 1;
+}
+
+message UpdateSiteContentLocaleVersionRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+  SiteContentLocaleVersionRecord version = 3;
+}
+
+message UpdateSiteContentLocaleVersionResponse {
+  SiteContentLocaleVersionRecord version = 1;
+}
+
+message UnpublishSiteContentRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+  string content_id = 3;
+  string locale = 4;
+}
+
+message UnpublishSiteContentResponse {
+  bool unpublished = 1;
+}
+
+message GetPendingSyncSummaryRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+}
+
+message GetPendingSyncSummaryResponse {
+  uint32 pending_count = 1;
+  repeated string resource_types = 2;
+}
+
+message SiteSyncResourceRecord {
+  string resource_type = 1;
+  string resource_id = 2;
+  string locale = 3;
+  string change_type = 4;
+  uint32 latest_publish_version = 5;
+}
+
+message ListPendingSyncResourcesRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+}
+
+message ListPendingSyncResourcesResponse {
+  repeated SiteSyncResourceRecord resources = 1;
+}
+
+message SiteSyncBatchRecord {
+  string sync_id = 1;
+  string site_id = 2;
+  uint32 publish_version = 3;
+  string status = 4;
+  string triggered_by = 5;
+  string started_at = 6;
+  string completed_at = 7;
+  repeated SiteSyncResourceRecord resources = 8;
+}
+
+message ListSyncHistoryRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+}
+
+message ListSyncHistoryResponse {
+  repeated SiteSyncBatchRecord batches = 1;
+}
+
+message GetSyncDetailRequest {
+  AdminRequestContext context = 1;
+  string sync_id = 2;
+}
+
+message GetSyncDetailResponse {
+  SiteSyncBatchRecord batch = 1;
+}
+
+message SyncAllPendingChangesRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+}
+
+message SyncAllPendingChangesResponse {
+  string sync_id = 1;
+  uint32 publish_version = 2;
+  bool webhook_dispatched = 3;
+}
+
+message RetryLastSyncRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+}
+
+message RetryLastSyncResponse {
+  string sync_id = 1;
+  uint32 publish_version = 2;
+}
+
+message ResendWebhookRequest {
+  AdminRequestContext context = 1;
+  string sync_id = 2;
+}
+
+message ResendWebhookResponse {
+  bool resent = 1;
+}
+
+message SiteCredentialMetadata {
+  string credential_id = 1;
+  string client_id = 2;
+  string status = 3;
+  repeated string scopes = 4;
+  string created_at = 5;
+  string last_used_at = 6;
+  string revoked_at = 7;
+}
+
+message ListSiteCredentialsRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+}
+
+message ListSiteCredentialsResponse {
+  repeated SiteCredentialMetadata credentials = 1;
+}
+
+message GenerateSiteCredentialRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+  repeated string scopes = 3;
+}
+
+message GenerateSiteCredentialResponse {
+  SiteCredentialMetadata metadata = 1;
+  string credential_bundle = 2;
+}
+
+message RotateSiteCredentialRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+  string credential_id = 3;
+}
+
+message RotateSiteCredentialResponse {
+  SiteCredentialMetadata metadata = 1;
+  string credential_bundle = 2;
+}
+
+message RevokeSiteCredentialRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+  string credential_id = 3;
+}
+
+message RevokeSiteCredentialResponse {
+  bool revoked = 1;
+}
+
+message SiteAuditLogRecord {
+  string audit_id = 1;
+  string site_id = 2;
+  string operation = 3;
+  string resource_type = 4;
+  string resource_id = 5;
+  string operator_id = 6;
+  string result = 7;
+  string reason = 8;
+  string trace_id = 9;
+  string occurred_at = 10;
+}
+
+message ListSiteAuditLogsRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+}
+
+message ListSiteAuditLogsResponse {
+  repeated SiteAuditLogRecord audit_logs = 1;
+}
+
+message IssuePreviewTokenRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+  string resource_type = 3;
+  string resource_id = 4;
+  string locale = 5;
+}
+
+message IssuePreviewTokenResponse {
+  string preview_token = 1;
+  string preview_url = 2;
+  string expires_at = 3;
+}
+
+message GetLatestPublishStateRequest {
+  SignedSiteContext signed_context = 1;
+  uint32 local_publish_version = 2;
+}
+
+message GetLatestPublishStateResponse {
+  string site_id = 1;
+  uint32 latest_publish_version = 2;
+  string latest_sync_id = 3;
+  bool has_updates = 4;
+  string server_time = 5;
+}
+
+message ListChangedResourcesRequest {
+  SignedSiteContext signed_context = 1;
+  uint32 from_publish_version = 2;
+  uint32 to_publish_version = 3;
+  repeated string resource_types = 4;
+}
+
+message ListChangedResourcesResponse {
+  string site_id = 1;
+  uint32 from_publish_version = 2;
+  uint32 to_publish_version = 3;
+  bool requires_snapshot = 4;
+  repeated SiteSyncResourceRecord changed_resources = 5;
+}
+
+message PublicViewEnvelope {
+  string site_id = 1;
+  string resource_type = 2;
+  string resource_id = 3;
+  string locale = 4;
+  string slug = 5;
+  string status = 6;
+  uint32 publish_version = 7;
+  string updated_at = 8;
+  string payload_json = 9;
+}
+
+message PublicViewResourceRef {
+  string resource_type = 1;
+  string resource_id = 2;
+  string locale = 3;
+}
+
+message BatchGetPublicViewsRequest {
+  SignedSiteContext signed_context = 1;
+  repeated PublicViewResourceRef resources = 2;
+}
+
+message BatchGetPublicViewsResponse {
+  repeated PublicViewEnvelope public_views = 1;
+  repeated PublicViewResourceRef missing_resources = 2;
+  uint32 server_publish_version = 3;
+}
+
+message GetSnapshotRequest {
+  SignedSiteContext signed_context = 1;
+  repeated string resource_types = 2;
+  repeated string locales = 3;
+  string page_token = 4;
+  uint32 page_size = 5;
+}
+
+message GetSnapshotResponse {
+  string site_id = 1;
+  uint32 snapshot_publish_version = 2;
+  repeated PublicViewEnvelope public_views = 3;
+  string next_page_token = 4;
+  bool is_complete = 5;
+}
+
+message ReportSyncResultRequest {
+  SignedSiteContext signed_context = 1;
+  string sync_id = 2;
+  uint32 local_publish_version = 3;
+  string status = 4;
+  string started_at = 5;
+  string completed_at = 6;
+  string error_code = 7;
+  string error_message = 8;
+}
+
+message ReportSyncResultResponse {
+  bool accepted = 1;
+  string server_time = 2;
+}
+
+message GetPreviewViewRequest {
+  SignedSiteContext signed_context = 1;
+  string preview_token = 2;
+  string resource_type = 3;
+  string resource_id = 4;
+  string locale = 5;
+}
+
+message GetPreviewViewResponse {
+  PublicViewEnvelope preview_view = 1;
+  string expires_at = 2;
+  bool noindex = 3;
+  string cache_policy = 4;
+}

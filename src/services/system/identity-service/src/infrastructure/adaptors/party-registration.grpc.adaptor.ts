@@ -7,29 +7,25 @@ import {
 } from '@oes/common/authorization'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import {
-  BindExistingPartyToTenantRequest,
-  BindExistingPartyToTenantResponse,
   PARTY_REGISTRATION_SERVICE_NAME,
   PartyRegistrationServiceClient,
-  RegisterPersonPartyRequest,
-  RegisterPersonPartyResponse
+  RegisterTenantPartyRequest,
+  RegisterTenantPartyResponse
 } from '@oes/common/generated/party_service'
 import { InjectGrpcClient, safeGrpcCall } from '@oes/common/transport'
 import {
-  BindExistingPartyToTenantInput,
-  BindExistingPartyToTenantResult,
   PartyRegistrationPort,
-  RegisterPersonPartyInput,
-  RegisterPersonPartyResult
+  RegisterTenantPartyInput,
+  RegisterTenantPartyResult
 } from '../../application/ports/party-registration.port'
 
 type PartyRegistrationMetadataInput = Pick<
-  RegisterPersonPartyInput,
+  RegisterTenantPartyInput,
   'operatorId' | 'operatorScope'
 >
 
 @Injectable()
-// This adaptor sends identity-driven person registrations to party-service through the shared gRPC transport boundary.
+// This adaptor sends identity-driven tenant person registrations to party-service through the shared gRPC boundary.
 export class PartyRegistrationGrpcAdaptor implements PartyRegistrationPort, OnModuleInit {
   private readonly logger = new Logger(PartyRegistrationGrpcAdaptor.name)
   private partyRegistrationService!: PartyRegistrationServiceClient
@@ -48,69 +44,35 @@ export class PartyRegistrationGrpcAdaptor implements PartyRegistrationPort, OnMo
     )
   }
 
-  async bindExistingPartyToTenant(input: BindExistingPartyToTenantInput): Promise<BindExistingPartyToTenantResult> {
-    const response = await safeGrpcCall<BindExistingPartyToTenantResponse>(
-      this.partyRegistrationService.bindExistingPartyToTenant(
+  async registerTenantParty(input: RegisterTenantPartyInput): Promise<RegisterTenantPartyResult> {
+    const response = await safeGrpcCall<RegisterTenantPartyResponse>(
+      this.partyRegistrationService.registerTenantParty(
         {
           tenantId: input.tenantId,
-          partyId: input.partyId,
-          localDisplayName: input.localDisplayName ?? '',
-          localCode: '',
-          tags: [],
+          type: 'PERSON',
+          legalName: input.legalName,
+          displayName: input.displayName ?? '',
+          identifiers: [],
           idempotencyKey: input.idempotencyKey ?? ''
-        } as BindExistingPartyToTenantRequest,
+        } as RegisterTenantPartyRequest,
         this.buildMetadata(input)
       ),
       {
         caller: 'identity-service',
-        method: 'PartyRegistrationService.bindExistingPartyToTenant'
+        method: 'PartyRegistrationService.registerTenantParty'
       }
     )
 
-    const partyId = response.party?.id?.trim() || input.partyId
     const tenantPartyId = response.tenantParty?.id?.trim()
     if (!tenantPartyId) {
-      this.logger.error('party-service returned an empty tenant party id during existing person binding', {
-        partyId: input.partyId,
+      this.logger.error('party-service returned an empty tenant party id during tenant person registration', {
+        legalName: input.legalName,
         tenantId: input.tenantId
       })
       throw new Error('party-service did not return tenantParty.id')
     }
 
-    return { partyId, tenantPartyId }
-  }
-
-  async registerPersonParty(input: RegisterPersonPartyInput): Promise<RegisterPersonPartyResult> {
-    const response = await safeGrpcCall<RegisterPersonPartyResponse>(
-      this.partyRegistrationService.registerPersonParty(
-        {
-          tenantId: input.tenantId ?? '',
-          legalName: input.legalName,
-          localDisplayName: input.localDisplayName ?? '',
-          identifiers: [],
-          idempotencyKey: input.idempotencyKey ?? ''
-        } as RegisterPersonPartyRequest,
-        this.buildMetadata(input)
-      ),
-      {
-        caller: 'identity-service',
-        method: 'PartyRegistrationService.registerPersonParty'
-      }
-    )
-
-    const partyId = response.party?.id?.trim()
-    if (!partyId) {
-      this.logger.error('party-service returned an empty party id during person registration', {
-        legalName: input.legalName,
-        tenantId: input.tenantId
-      })
-      throw new Error('party-service did not return party.id')
-    }
-
-    return {
-      partyId,
-      tenantPartyId: response.tenantParty?.id?.trim() || undefined
-    }
+    return { tenantPartyId }
   }
 
   private buildMetadata(input: PartyRegistrationMetadataInput) {

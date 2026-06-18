@@ -10,6 +10,13 @@ export namespace PublicEntryBusinessCardApi {
     | 'SAVE_VCARD'
     | 'SEND_EMAIL'
   export type TargetRefType = 'CONTACT_ASSET' | 'NONE' | 'TENANT_PUBLIC_PROFILE'
+  export type ContactAssetType =
+    | 'EXTERNAL_COMMUNICATION_ACCOUNT'
+    | 'OTHER_SOCIAL'
+    | 'WECHAT'
+    | 'WHATSAPP'
+    | 'WORK_EMAIL'
+    | 'WORK_PHONE'
 
   export interface PublicEntryRef {
     expiresAt?: string
@@ -86,6 +93,10 @@ export namespace PublicEntryBusinessCardApi {
     view?: PublicView
   }
 
+  export interface PublicRenderEnvelope {
+    data?: PublicRenderResult
+  }
+
   export interface CountBucket {
     count: number
     key: string
@@ -100,6 +111,21 @@ export namespace PublicEntryBusinessCardApi {
     shortLinkId: string
     totalVisits: number
   }
+
+  export interface ContactAssetCandidate {
+    contactAssetId: string
+    displayLabel: string
+    displayValue: string
+    isPrimary: boolean
+    ownership: string
+    provider?: null | string
+    status: string
+    type: ContactAssetType
+  }
+
+  export interface ContactAssetCandidateResult {
+    assets: ContactAssetCandidate[]
+  }
 }
 
 const basePath = (tenantId: string) => `/public-entry/tenants/${tenantId}/business-cards`
@@ -112,8 +138,11 @@ export function ensurePrimaryBusinessCardApi(tenantId: string, employeeId: strin
   )
 }
 
-// listBusinessCardsApi lists tenant-scoped BusinessCards.
-export function listBusinessCardsApi(tenantId: string, query?: { page?: number; pageSize?: number }) {
+// listBusinessCardsApi lists tenant-scoped BusinessCards with optional employee narrowing.
+export function listBusinessCardsApi(
+  tenantId: string,
+  query?: { employeeId?: string; page?: number; pageSize?: number }
+) {
   return requestClient.get<PublicEntryBusinessCardApi.ListResult>(basePath(tenantId), { params: query })
 }
 
@@ -121,6 +150,14 @@ export function listBusinessCardsApi(tenantId: string, query?: { page?: number; 
 export function getBusinessCardDetailApi(tenantId: string, businessCardId: string) {
   return requestClient.get<PublicEntryBusinessCardApi.DetailResult>(
     `${basePath(tenantId)}/${businessCardId}`
+  )
+}
+
+// listBusinessCardContactAssetCandidatesApi reads identity-owned Contact Asset refs for the management picker.
+export function listBusinessCardContactAssetCandidatesApi(tenantId: string, employeeId: string) {
+  return requestClient.get<PublicEntryBusinessCardApi.ContactAssetCandidateResult>(
+    `${basePath(tenantId)}/contact-assets`,
+    { params: { employeeId } }
   )
 }
 
@@ -178,8 +215,18 @@ export function renderPublicBusinessCardApi(businessCardId: string) {
     if (!contentType.includes('application/json')) {
       return { state: 'PUBLIC_CARD_UNAVAILABLE' as const }
     }
-    return (await response.json()) as PublicEntryBusinessCardApi.PublicRenderResult
+    return normalizePublicRenderResponse(await response.json())
   }).catch(() => ({ state: 'PUBLIC_CARD_UNAVAILABLE' as const }))
+}
+
+// normalizePublicRenderResponse accepts both direct service payloads and gateway response envelopes.
+function normalizePublicRenderResponse(payload: unknown): PublicEntryBusinessCardApi.PublicRenderResult {
+  const envelope = payload as PublicEntryBusinessCardApi.PublicRenderEnvelope
+  const result = envelope.data ?? (payload as PublicEntryBusinessCardApi.PublicRenderResult)
+  if (result?.state === 'AVAILABLE' || result?.state === 'PUBLIC_CARD_NOT_FOUND' || result?.state === 'PUBLIC_CARD_UNAVAILABLE') {
+    return result
+  }
+  return { state: 'PUBLIC_CARD_UNAVAILABLE' }
 }
 
 // resolveBusinessCardVCardUrl returns the anonymous vCard download path.

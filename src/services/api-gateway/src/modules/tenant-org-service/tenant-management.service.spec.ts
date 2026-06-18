@@ -323,7 +323,7 @@ describe('TenantManagementService', () => {
         {
           idempotencyKey: 'onboarding-key-1',
           tenant: { code: 'tenant.beta', employeeCodePrefix: '0B0', name: 'Beta Inc.' },
-          organizationParty: {
+          organizationTenantParty: {
             legalName: 'Beta Inc.',
             registeredCountry: 'US',
             identifiers: [
@@ -346,7 +346,7 @@ describe('TenantManagementService', () => {
 
     expect(tenantOrgManagementAdapter.startTenantOnboarding).toHaveBeenCalledWith(
       expect.objectContaining({
-        organizationParty: expect.objectContaining({
+        organizationTenantParty: expect.objectContaining({
           identifiers: [
             {
               identifierType: 'EIN',
@@ -381,7 +381,7 @@ describe('TenantManagementService', () => {
         {
           idempotencyKey: 'onboarding-key-1',
           tenant: { code: 'tenant.beta', employeeCodePrefix: '0B0', name: 'Beta Inc.' },
-          organizationParty: {
+          organizationTenantParty: {
             legalName: 'Beta Inc.',
             registeredCountry: 'US',
             identifiers: [{ identifierType: 'EIN', rawValue: '12-3456789', normalizedValue: '', issuerCountryOrRegion: '' }]
@@ -439,7 +439,6 @@ describe('TenantManagementService', () => {
         personalEmail: 'existing@example.com',
         personalPhone: '+14155550100',
         isActive: true,
-        partyId: 'party-1'
       }
     })
 
@@ -490,7 +489,6 @@ describe('TenantManagementService', () => {
         personalEmail: 'existing@example.com',
         personalPhone: '+14155550100',
         isActive: true,
-        partyId: 'party-1'
       }
     })
 
@@ -530,7 +528,7 @@ describe('TenantManagementService', () => {
         {
           idempotencyKey: 'onboarding-key-1',
           tenant: { code: 'tenant.beta', employeeCodePrefix: '0B0', name: 'Beta Inc.' },
-          organizationParty: {
+          organizationTenantParty: {
             legalName: 'Beta Inc.',
             registeredCountry: 'US',
             identifiers: [{ identifierType: 'EIN', rawValue: '12-3456789', normalizedValue: '', issuerCountryOrRegion: '' }]
@@ -571,7 +569,7 @@ describe('OrgManagementService', () => {
     getTenantById: jest.fn()
   }
   const partyQueryAdapter = {
-    getPartyById: jest.fn()
+    getOrganizationTenantPartyById: jest.fn()
   }
   const tenantOrgManagementAdapter = {
     archiveOrgUnit: jest.fn(),
@@ -589,7 +587,7 @@ describe('OrgManagementService', () => {
     tenantOrgQueryAdapter.getOrgTreeByTenantId.mockReset()
     tenantOrgQueryAdapter.getOrgUnitById.mockReset()
     tenantOrgQueryAdapter.getTenantById.mockReset()
-    partyQueryAdapter.getPartyById.mockReset()
+    partyQueryAdapter.getOrganizationTenantPartyById.mockReset()
     tenantOrgManagementAdapter.archiveOrgUnit.mockReset()
     tenantOrgManagementAdapter.createOrgUnit.mockReset()
     tenantOrgManagementAdapter.updateOrgUnit.mockReset()
@@ -653,8 +651,8 @@ describe('OrgManagementService', () => {
             depth: 0,
             id: 'org-root-1',
             name: 'Alpha Root',
-            organizationParty: null,
-            organizationPartyId: null,
+            organizationTenantParty: null,
+            organizationTenantPartyId: null,
             parentOrgId: undefined,
             path: '/org-root-1',
             sortOrder: 0,
@@ -671,8 +669,8 @@ describe('OrgManagementService', () => {
         depth: 0,
         id: 'org-root-1',
         name: 'Alpha Root',
-        organizationParty: null,
-        organizationPartyId: null,
+        organizationTenantParty: null,
+        organizationTenantPartyId: null,
         parentOrgId: undefined,
         path: '/org-root-1',
         sortOrder: 0,
@@ -698,8 +696,8 @@ describe('OrgManagementService', () => {
         depth: 0,
         id: 'org-child-1',
         name: 'Manufacturing',
-        organizationParty: null,
-        organizationPartyId: null,
+        organizationTenantParty: null,
+        organizationTenantPartyId: null,
         parentOrgId: 'org-root-1',
         path: '/org-root-1/org-child-1',
         sortOrder: 10,
@@ -820,8 +818,8 @@ describe('OrgManagementService', () => {
         depth: 0,
         id: 'org-child-1',
         name: 'Manufacturing Updated',
-        organizationParty: null,
-        organizationPartyId: null,
+        organizationTenantParty: null,
+        organizationTenantPartyId: null,
         parentOrgId: 'org-root-1',
         path: '/org-root-1/org-child-1',
         sortOrder: 11,
@@ -836,8 +834,8 @@ describe('OrgManagementService', () => {
         depth: 0,
         id: 'org-child-1',
         name: 'Manufacturing Updated',
-        organizationParty: null,
-        organizationPartyId: null,
+        organizationTenantParty: null,
+        organizationTenantPartyId: null,
         parentOrgId: 'org-root-1',
         path: '/org-root-1/org-child-1',
         sortOrder: 11,

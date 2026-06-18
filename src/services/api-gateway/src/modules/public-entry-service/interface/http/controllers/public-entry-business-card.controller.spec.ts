@@ -17,6 +17,7 @@ describe('PublicEntryBusinessCardController', () => {
     ensurePrimaryCard: jest.fn(),
     generateVCard: jest.fn(),
     getCardDetail: jest.fn(),
+    listContactAssetCandidates: jest.fn(),
     getOwnPreview: jest.fn(),
     getVisitSummary: jest.fn(),
     listCards: jest.fn(),
@@ -60,6 +61,9 @@ describe('PublicEntryBusinessCardController', () => {
       reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, PublicEntryBusinessCardController.prototype.getVisitSummary)
     ).toEqual({ all: [PUBLIC_ENTRY_BUSINESS_CARD_PERMISSION_CODES.STATS_READ] })
     expect(
+      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, PublicEntryBusinessCardController.prototype.listContactAssetCandidates)
+    ).toEqual({ all: [PUBLIC_ENTRY_BUSINESS_CARD_PERMISSION_CODES.READ] })
+    expect(
       reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, PublicEntryBusinessCardController.prototype.getOwnPreview)
     ).toBeUndefined()
     expect(
@@ -90,6 +94,7 @@ describe('PublicEntryBusinessCardController', () => {
     service.disableCard.mockResolvedValue({ status: 'DISABLED' })
     service.bindPublicEntry.mockResolvedValue({ publicEntryRef: { publicUrl: '/c/abc1234' } })
     service.getVisitSummary.mockResolvedValue({ totalVisits: 3 })
+    service.listContactAssetCandidates.mockResolvedValue({ assets: [] })
     service.getOwnPreview.mockResolvedValue({ businessCardId: 'card-1' })
     service.renderPublicCard.mockResolvedValue({ state: 'AVAILABLE' })
     service.generateVCard.mockResolvedValue({ contentType: 'text/vcard', body: 'BEGIN:VCARD\r\nEND:VCARD\r\n' })
@@ -108,6 +113,7 @@ describe('PublicEntryBusinessCardController', () => {
     await controller.disableCard('tenant-1', 'card-1', source as never)
     await controller.bindPublicEntry('tenant-1', 'card-1', source as never)
     await controller.getVisitSummary('tenant-1', 'card-1', { from: '2026-06-08T00:00:00.000Z' }, source as never)
+    await controller.listContactAssetCandidates('tenant-1', { employeeId: 'emp-1' }, source as never)
     await controller.getOwnPreview('tenant-1', source as never)
     await controller.renderPublicCard('card-1', source as never)
 
@@ -133,6 +139,7 @@ describe('PublicEntryBusinessCardController', () => {
       { from: '2026-06-08T00:00:00.000Z' },
       source
     )
+    expect(service.listContactAssetCandidates).toHaveBeenCalledWith('tenant-1', { employeeId: 'emp-1' }, source)
     expect(service.getOwnPreview).toHaveBeenCalledWith('tenant-1', source)
     expect(service.renderPublicCard).toHaveBeenCalledWith('card-1', source)
     expect(service.generateVCard).toHaveBeenCalledWith('card-1', source)

@@ -20,7 +20,7 @@
     "start": "node dist/main.js",
   
     "prisma:generate": "npx prisma generate --schema=./prisma/schema.prisma",
-    "prisma:push": "npx prisma db push",
+    "prisma:push": "node -r ts-node/register ./src/scripts/permission-prisma-push.ts",
     "seed:dry-run": "node -r ts-node/register ./src/scripts/permission-service-seed.ts",
     "seed:cleanup:dry-run": "node -r ts-node/register ./src/scripts/permission-service-seed-cleanup.ts",
     "seed:validate": "node -r ts-node/register ./src/scripts/permission-service-seed-validate.ts",

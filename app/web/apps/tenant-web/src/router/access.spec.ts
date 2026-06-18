@@ -174,6 +174,66 @@ describe('router access visible-entry filtering', () => {
     expect(filtered).toEqual(routes);
   });
 
+  it('keeps the public touchpoint parent when BusinessCard or ShortLink entries are visible', async () => {
+    const { filterRoutesByVisibleEntries } = await import('./access');
+    const routes = [
+      {
+        children: [
+          {
+            meta: {
+              entryKey: 'public-entry.business-cards',
+            },
+            name: 'AdminBusinessCards',
+            path: '/public-entry/business-cards',
+          },
+          {
+            meta: {
+              entryKey: 'public-entry.short-links',
+            },
+            name: 'AdminPublicEntryShortLinks',
+            path: '/public-entry/short-links',
+          },
+        ],
+        name: 'TenantPublicEntry',
+        path: '/public-entry',
+      },
+      {
+        meta: {
+          hideInMenu: true,
+        },
+        name: 'EmployeeBusinessCardSelfView',
+        path: '/profile/business-card',
+      },
+    ];
+
+    const filtered = filterRoutesByVisibleEntries(routes, [
+      'public-entry.business-cards',
+    ]);
+
+    expect(filtered).toEqual([
+      {
+        children: [
+          {
+            meta: {
+              entryKey: 'public-entry.business-cards',
+            },
+            name: 'AdminBusinessCards',
+            path: '/public-entry/business-cards',
+          },
+        ],
+        name: 'TenantPublicEntry',
+        path: '/public-entry',
+      },
+      {
+        meta: {
+          hideInMenu: true,
+        },
+        name: 'EmployeeBusinessCardSelfView',
+        path: '/profile/business-card',
+      },
+    ]);
+  });
+
   it('keeps the finance parent when the finance dashboard entry is visible', async () => {
     const { filterRoutesByVisibleEntries } = await import('./access');
     const routes = [
@@ -270,6 +330,37 @@ describe('router access visible-entry filtering', () => {
     ]);
 
     expect(filtered).toEqual(routes);
+  });
+
+  it('removes tenant settings when employee-only hidden children are not authorized', async () => {
+    const { filterRoutesByVisibleEntries } = await import('./access');
+    const routes = [
+      {
+        children: [
+          {
+            meta: {
+              entryKey: 'tenant-settings.employee-employment',
+            },
+            name: 'TenantEmployeeEmploymentManagement',
+            path: '/settings/employee-employment',
+          },
+          {
+            meta: {
+              activePath: '/settings/employee-employment',
+              entryKey: 'tenant-settings.employee-employment',
+              hideInMenu: true,
+            },
+            name: 'TenantEmployeeBusinessCards',
+            path: '/settings/employee-employment/business-cards',
+          },
+        ],
+        name: 'TenantSettings',
+        path: '/settings',
+      },
+    ];
+
+    expect(filterRoutesByVisibleEntries(routes, ['workbench.home'])).toEqual([]);
+    expect(filterRoutesByVisibleEntries(routes, ['tenant-settings.employee-employment'])).toEqual(routes);
   });
 
   it('removes the master-data parent when none of its children remain visible', async () => {
@@ -664,6 +755,7 @@ describe('router access visible-entry filtering', () => {
       {
         children: [
           {
+            component: () => Promise.resolve({}),
             meta: {
               entryKey: 'sales.quote-orders',
             },
@@ -682,7 +774,21 @@ describe('router access visible-entry filtering', () => {
       routes,
     });
 
-    expect(result.accessibleMenus).toEqual(routes);
+    expect(result.accessibleMenus).toEqual([
+      {
+        children: [
+          {
+            meta: {
+              entryKey: 'sales.quote-orders',
+            },
+            name: 'TenantSalesQuoteOrderWorkspace',
+            path: '/sales/quote-orders',
+          },
+        ],
+        name: 'TenantSales',
+        path: '/sales',
+      },
+    ]);
     expect(result.accessibleRoutes).toEqual(routes);
   });
 

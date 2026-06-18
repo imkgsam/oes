@@ -1,10 +1,12 @@
-import { AssetScopeLevel } from '../entities/asset.entity'
+import { AssetCategory, AssetScopeLevel } from '../entities/asset.entity'
 
 export interface PutObjectInput {
   body: Buffer
+  category?: AssetCategory
   contentType: string
   fileName: string
-  ownerAccountId: string
+  ownerAccountId?: string
+  ownerEmployeeId?: string
   scopeLevel: AssetScopeLevel
   tenantId?: string
 }

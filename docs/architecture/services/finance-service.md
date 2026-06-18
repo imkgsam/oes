@@ -142,11 +142,11 @@ Last Updated: 2026-05-13
   - payment account / bank account / PSP account 闭环
 - Finance owns standard exchange rate truth；Sales 只保存 exchange rate snapshot。
 - Finance owns receivable / invoice / collection / credit truth；payment / account 能力属于 Finance 域族但不是 CRM/SRM 第一阶段前置依赖。
-- `Party` 不保存币种；CRM / SRM 的 default currency 只是订单默认值。
+- `TenantParty` 不保存币种；CRM / SRM 的 default currency 只是订单默认值。
 - SalesOrder / PurchaseOrder / Invoice / Receivable / Payable 应保存实际 transaction currency。
 - Finance 单据应保存 transaction amount、base currency、base amount 与 exchange rate snapshot。
 - 第一阶段只支持同币种收付款与同币种核销；跨币种能力后置但对象设计不得堵死。
-- 同公司同时是客户和供应商时，Finance future 可以基于 `tenantPartyId / partyId` 识别同一 counterparty；第一阶段不实现 AR/AP 抵扣。
+- 同公司同时是客户和供应商时，Finance future 可以基于当前租户内 `tenantPartyId` 识别同一 counterparty；第一阶段不实现 AR/AP 抵扣。
 - `sales-service` owns `Quote / SalesOrder / commercial snapshot / customer commitment`。
 - `finance-service` 只发布 finance release signal，不直接成为 `SalesOrder` gate owner。
 - order profitability 后置，不进入 phase 1。

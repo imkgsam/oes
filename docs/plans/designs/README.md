@@ -43,7 +43,31 @@
   - 需要频繁中断与恢复上下文的设计过程
 - 若讨论已经转向另一个无直接关系的主题，必须新建 workspace，而不是继续混写。
 - 已冻结结论必须尽快回写到唯一真相源，不能长期滞留在 workspace。
+- design workspace 是过程文件，不是稳定真相源；当设计已冻结且结论已回写完成后，必须退出 active 状态。
+- 已退出 active 的 workspace 不得继续作为当前设计入口扩写；后续变更应进入对应真相源、feature packet，或新建新的设计主题 workspace。
 - workspace 应保持短小、可恢复、可接续，不写大而全重复正文。
+
+### 3.1 冻结后的收口规则
+
+设计冻结后，维护线程必须先确认所有冻结结论已经回写到正确位置：
+
+- 服务职责：`docs/architecture/services/*.md`
+- 跨服务协同：`docs/architecture/collaborations/*.md`
+- 架构取舍：`docs/adr/*.md`
+- 黑盒契约：`docs/contracts/**`
+- feature 执行状态：`docs/plans/features/*.md`
+
+回写完成后，design workspace 必须执行以下收口动作之一：
+
+- 标记为 `SUPERSEDED_BY_TRUTH_SOURCE`，并在 `0. 文档控制` 写明 `truthSource` 与 `doNotUseAsStableSource: true`
+- 移动到 `docs/plans/designs/archive/`，仅作为历史设计过程记录
+- 若已被稳定真相源完全覆盖且无导航或历史解释价值，可以删除
+
+禁止事项：
+
+- 禁止让已冻结 workspace 长期保持 `ACTIVE_DESIGN_WORKSPACE`
+- 禁止把 archived / superseded workspace 当作稳定设计依据
+- 禁止在旧 workspace 内继续扩写新主题或新版本设计
 
 ## 4. 推荐命名
 
@@ -67,9 +91,12 @@
 ```text
 designKey: <design-key>
 designStatus: ACTIVE_DESIGN_WORKSPACE
+implementationStatus: IDEA_ONLY | DESIGN_FROZEN | FEATURE_PACKET_CREATED | PARTIALLY_IMPLEMENTED | IMPLEMENTED | DEFERRED | NOT_APPLICABLE
 lastUpdatedAt: YYYY-MM-DD HH:mm:ss TZ
 lastUpdatedBy: <human-or-thread>
 supersedes: <older-design-or-discussion-it-replaces>
+truthSource: <architecture/collaboration/ADR/contract/feature path after frozen, or empty while active>
+doNotUseAsStableSource: false
 conflictResolution: 当本文与更早讨论冲突时，以本文 lastUpdatedAt 之后的冻结结论为准；稳定 architecture / ADR / contracts 明确覆盖本文时，以稳定真相源为准。
 ```
 
@@ -121,7 +148,7 @@ conflictResolution: 当本文与更早讨论冲突时，以本文 lastUpdatedAt 
 
 当前目录作为规则与模板入口保留；只有当某项设计确实进入长周期推进时，才建立具体 workspace。
 
-当前已建立或正在推进的 design workspace 包括：
+当前已建立或正在推进的 active design workspace 包括：
 
 - [after-sales-service-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/after-sales-service-design.md)
 - [customer-touchpoint-and-platform-integration-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/customer-touchpoint-and-platform-integration-design.md)
@@ -134,6 +161,12 @@ conflictResolution: 当本文与更早讨论冲突时，以本文 lastUpdatedAt 
 - [planning-workbench-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/planning-workbench-design.md)
 - [scan-identity-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/scan-identity-design.md)
 - [shortlink-public-entry-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/shortlink-public-entry-design.md)
+- [whatsapp-sales-inbox-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/whatsapp-sales-inbox-design.md)
 - [wms-service-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/wms-service-design.md)
+
+已退出 active 或暂停维护的 design workspace 包括：
+
+- [collaboration-service-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/collaboration-service-design.md)
+  - Task P1 已冻结并实现完成；后续 Task P2/P3 设计后置，annotation / notification / project 由独立线程承接。
 
 MES 当前新设计不再维护 design workspace，统一沉淀到 [mes-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/mes-service.md)。

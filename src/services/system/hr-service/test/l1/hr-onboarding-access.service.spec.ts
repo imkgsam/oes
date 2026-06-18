@@ -261,7 +261,8 @@ describe('HrOnboardingAccessService L1', () => {
       employmentId: 'employment-1',
       createAccount: {
         displayName: 'Existing User',
-        existingUserId: 'user-existing-1'
+        existingUserId: 'user-existing-1',
+        tenantPartyId: 'tenant-party-1'
       } as never,
       roleIds: []
     })
@@ -271,7 +272,8 @@ describe('HrOnboardingAccessService L1', () => {
       expect.objectContaining({
         tenantId: 'tenant-1',
         displayName: 'Existing User',
-        existingUserId: 'user-existing-1'
+        existingUserId: 'user-existing-1',
+        tenantPartyId: 'tenant-party-1'
       })
     )
     expect(authLoginBootstrapPort.bootstrapUserLoginMethods).not.toHaveBeenCalled()

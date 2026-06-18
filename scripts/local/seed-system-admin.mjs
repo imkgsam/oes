@@ -6,18 +6,12 @@ import { pathToFileURL } from 'node:url'
 const require = createRequire(import.meta.url)
 
 const DEFAULT_DATABASE_URLS = {
-  partyService: 'postgres://imkgsam:imkgsam@localhost:5432/partydb',
   identityService: 'postgres://imkgsam:imkgsam@localhost:5432/identitydb',
   authService: 'postgres://imkgsam:imkgsam@localhost:5432/authdb',
   permissionService: 'postgres://imkgsam:imkgsam@localhost:5432/permissiondb'
 }
 
 const DATABASE_TARGETS = {
-  partyService: {
-    envKeys: ['OES_PARTY_DATABASE_URL', 'PARTY_DATABASE_URL'],
-    expectedDatabase: 'partydb',
-    label: 'party-service'
-  },
   identityService: {
     envKeys: ['OES_IDENTITY_DATABASE_URL', 'IDENTITY_DATABASE_URL'],
     expectedDatabase: 'identitydb',
@@ -36,24 +30,12 @@ const DATABASE_TARGETS = {
 }
 
 const SERVICE_ORDER = [
-  'party-service',
   'identity-service',
   'auth-service',
   'permission-service'
 ]
 
 export const SYSTEM_ADMIN_SEED = {
-  party: {
-    legalName: 'chenshuangpeng',
-    preferredName: 'tth',
-    type: 'PERSON'
-  },
-  identifier: {
-    identifierType: 'EMAIL',
-    issuerCountryOrRegion: '',
-    rawValue: 'sysadmin@oes.local',
-    status: 'VERIFIED'
-  },
   identity: {
     username: 'sysadmin',
     email: 'sysadmin@oes.local',
@@ -100,10 +82,6 @@ export function buildSystemAdminSeedConfig(env = process.env) {
     databaseUrls,
     seed: {
       ...SYSTEM_ADMIN_SEED,
-      identifier: {
-        ...SYSTEM_ADMIN_SEED.identifier,
-        normalizedValue: normalizeEmail(SYSTEM_ADMIN_SEED.identifier.rawValue)
-      },
       identity: {
         ...SYSTEM_ADMIN_SEED.identity,
         email: normalizeEmail(SYSTEM_ADMIN_SEED.identity.email)
@@ -128,8 +106,6 @@ export function buildSystemAdminSeedExecutionPlan(config, options) {
       ])
     ),
     seed: {
-      party: config.seed.party,
-      identifier: config.seed.identifier,
       identity: config.seed.identity,
       auth: config.seed.auth,
       permission: config.seed.permission
@@ -141,55 +117,9 @@ export function buildSystemAdminSeedExecutionPlan(config, options) {
 export async function validateAppliedSystemAdminSeed(clients, config) {
   const errors = []
   const state = {
-    party: {},
     identity: {},
     auth: {},
     permission: {}
-  }
-
-  const identifier = await clients.party.partyIdentifier.findUnique({
-    where: {
-      identifierType_issuerCountryOrRegion_normalizedValue: {
-        identifierType: config.seed.identifier.identifierType,
-        issuerCountryOrRegion: config.seed.identifier.issuerCountryOrRegion,
-        normalizedValue: config.seed.identifier.normalizedValue
-      }
-    },
-    include: {
-      party: {
-        include: {
-          personParty: true
-        }
-      }
-    }
-  })
-
-  if (!identifier) {
-    errors.push('party-service: missing sysadmin EMAIL PartyIdentifier')
-  } else {
-    state.party = {
-      identifierId: identifier.id,
-      partyId: identifier.partyId,
-      legalName: identifier.party?.legalName ?? null,
-      preferredName: identifier.party?.personParty?.preferredName ?? null,
-      status: identifier.party?.status ?? null
-    }
-
-    if (identifier.status !== config.seed.identifier.status) {
-      errors.push(`party-service: expected identifier status ${config.seed.identifier.status}`)
-    }
-    if (identifier.party?.type !== config.seed.party.type) {
-      errors.push(`party-service: expected party type ${config.seed.party.type}`)
-    }
-    if (identifier.party?.status !== 'ACTIVE') {
-      errors.push('party-service: expected Party.status ACTIVE')
-    }
-    if (identifier.party?.legalName !== config.seed.party.legalName) {
-      errors.push(`party-service: expected Party.legalName ${config.seed.party.legalName}`)
-    }
-    if (identifier.party?.personParty?.preferredName !== config.seed.party.preferredName) {
-      errors.push(`party-service: expected PersonParty.preferredName ${config.seed.party.preferredName}`)
-    }
   }
 
   const user = await clients.identity.user.findUnique({
@@ -203,15 +133,11 @@ export async function validateAppliedSystemAdminSeed(clients, config) {
   } else {
     state.identity = {
       userId: user.id,
-      partyId: user.partyId,
       username: user.username,
       email: user.email,
       isActive: user.isActive
     }
 
-    if (identifier?.partyId && user.partyId !== identifier.partyId) {
-      errors.push('identity-service: User.partyId does not match party-service Party.id')
-    }
     if (user.username !== config.seed.identity.username) {
       errors.push(`identity-service: expected username ${config.seed.identity.username}`)
     }
@@ -387,8 +313,7 @@ export function validateSystemAdminSeedConfig(config) {
 
 /** applySystemAdminSeed performs the bounded upserts through each service-owned Prisma client. */
 export async function applySystemAdminSeed(clients, config) {
-  const party = await upsertSystemAdminParty(clients.party, config.seed)
-  const identity = await upsertSystemAdminIdentity(clients.identity, config.seed, party.partyId)
+  const identity = await upsertSystemAdminIdentity(clients.identity, config.seed)
   const auth = await upsertSystemAdminAuthLoginMethod(clients.auth, config.seed, identity.userId)
   const permission = await upsertSystemAdminPermissionBinding(
     clients.permission,
@@ -397,24 +322,19 @@ export async function applySystemAdminSeed(clients, config) {
   )
 
   return {
-    party,
     identity,
     auth,
     permission
   }
 }
 
-/** createSystemAdminSeedClients loads the four service-generated Prisma clients with isolated datasource URLs. */
+/** createSystemAdminSeedClients loads the service-generated Prisma clients with isolated datasource URLs. */
 export function createSystemAdminSeedClients(config) {
-  const { PrismaClient: PartyPrismaClient } = require('../../src/services/system/party-service/prisma/generated/prisma')
   const { PrismaClient: IdentityPrismaClient } = require('../../src/services/system/identity-service/prisma/generated/prisma')
   const { PrismaClient: AuthPrismaClient } = require('../../src/services/system/auth-service/prisma/generated/prisma')
   const { PrismaClient: PermissionPrismaClient } = require('../../src/services/system/permission-service/prisma/generated/prisma')
 
   return {
-    party: new PartyPrismaClient({
-      datasources: { db: { url: config.databaseUrls.partyService } }
-    }),
     identity: new IdentityPrismaClient({
       datasources: { db: { url: config.databaseUrls.identityService } }
     }),
@@ -436,113 +356,20 @@ export async function disconnectSystemAdminSeedClients(clients) {
   )
 }
 
-/** upsertSystemAdminParty creates or refreshes the canonical system admin person party and email identifier. */
-async function upsertSystemAdminParty(partyClient, seed) {
-  return partyClient.$transaction(async (tx) => {
-    const existingIdentifier = await tx.partyIdentifier.findUnique({
-      where: {
-        identifierType_issuerCountryOrRegion_normalizedValue: {
-          identifierType: seed.identifier.identifierType,
-          issuerCountryOrRegion: seed.identifier.issuerCountryOrRegion,
-          normalizedValue: seed.identifier.normalizedValue
-        }
-      },
-      include: {
-        party: true
-      }
-    })
-
-    if (!existingIdentifier) {
-      const party = await tx.party.create({
-        data: {
-          type: seed.party.type,
-          status: 'ACTIVE',
-          legalName: seed.party.legalName,
-          personParty: {
-            create: {
-              preferredName: seed.party.preferredName
-            }
-          },
-          identifiers: {
-            create: {
-              identifierType: seed.identifier.identifierType,
-              issuerCountryOrRegion: seed.identifier.issuerCountryOrRegion,
-              normalizedValue: seed.identifier.normalizedValue,
-              rawValue: seed.identifier.rawValue,
-              status: seed.identifier.status
-            }
-          }
-        },
-        include: {
-          identifiers: true,
-          personParty: true
-        }
-      })
-
-      return {
-        operation: 'created',
-        partyId: party.id,
-        personPartyId: party.personParty?.id ?? null,
-        identifierId: party.identifiers[0]?.id ?? null
-      }
-    }
-
-    if (existingIdentifier.party?.type && existingIdentifier.party.type !== 'PERSON') {
-      throw new Error(
-        `System admin email identifier is already bound to non-person party ${existingIdentifier.party.id}`
-      )
-    }
-
-    await tx.party.update({
-      where: { id: existingIdentifier.partyId },
-      data: {
-        status: 'ACTIVE',
-        legalName: seed.party.legalName
-      }
-    })
-    const personParty = await tx.personParty.upsert({
-      where: { partyId: existingIdentifier.partyId },
-      create: {
-        partyId: existingIdentifier.partyId,
-        preferredName: seed.party.preferredName
-      },
-      update: {
-        preferredName: seed.party.preferredName
-      }
-    })
-    const identifier = await tx.partyIdentifier.update({
-      where: { id: existingIdentifier.id },
-      data: {
-        rawValue: seed.identifier.rawValue,
-        status: seed.identifier.status
-      }
-    })
-
-    return {
-      operation: 'updated',
-      partyId: existingIdentifier.partyId,
-      personPartyId: personParty.id,
-      identifierId: identifier.id
-    }
-  })
-}
-
-/** upsertSystemAdminIdentity links the system person party to one system-scope identity account. */
-async function upsertSystemAdminIdentity(identityClient, seed, partyId) {
+/** upsertSystemAdminIdentity creates or refreshes one system-scope identity account without binding a Party. */
+async function upsertSystemAdminIdentity(identityClient, seed) {
   const existingUser = await identityClient.user.findUnique({
     where: { email: seed.identity.email }
   })
   const user = await identityClient.user.upsert({
     where: { email: seed.identity.email },
     create: {
-      partyId,
       username: seed.identity.username,
       email: seed.identity.email,
       phone: seed.identity.phone,
       isActive: true
     },
     update: {
-      partyId,
       username: seed.identity.username,
       phone: seed.identity.phone,
       isActive: true
@@ -715,16 +542,14 @@ function parseDatabaseUrl(value) {
 function printHelp() {
   console.log(`Usage: node scripts/local/seed-system-admin.mjs [--apply]
 
-Seeds the local system admin account across party, identity, auth, and permission stores.
+Seeds the local system admin account across identity, auth, and permission stores.
 
 Default mode is dry-run. Use --apply to write and --validate to read-check:
-  party-service      Party + PersonParty + PartyIdentifier.EMAIL
   identity-service   User + UserAccount(SYSTEM)
   auth-service       LoginMethod.EMAIL only; no password credential
   permission-service AccountRole(system.admin)
 
 Database URL overrides:
-  OES_PARTY_DATABASE_URL
   OES_IDENTITY_DATABASE_URL
   OES_AUTH_DATABASE_URL
   OES_PERMISSION_DATABASE_URL

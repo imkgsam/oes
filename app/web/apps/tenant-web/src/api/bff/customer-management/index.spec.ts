@@ -22,8 +22,10 @@ describe('tenant-web customer management api', () => {
 
   it('creates CRM P1 leads and converts leads through the tenant-scoped BFF endpoints', async () => {
     const {
+      archiveCrmAccountApi,
       convertLeadToProspectCustomerApi,
-      createCrmLeadApi
+      createCrmLeadApi,
+      restoreCrmAccountApi
     } = await import('./index')
 
     await createCrmLeadApi('tenant-1', {
@@ -38,6 +40,8 @@ describe('tenant-web customer management api', () => {
       sourceRawPayload: { url: 'https://northline.example' }
     })
     await convertLeadToProspectCustomerApi('tenant-1', 'crm-account-1')
+    await archiveCrmAccountApi('tenant-1', 'crm-account-1')
+    await restoreCrmAccountApi('tenant-1', 'crm-account-1')
 
     expect(post).toHaveBeenCalledWith('/customer-management/tenants/tenant-1/leads', {
       displayName: 'Northline Bathworks',
@@ -52,6 +56,14 @@ describe('tenant-web customer management api', () => {
     })
     expect(post).toHaveBeenCalledWith(
       '/customer-management/tenants/tenant-1/leads/crm-account-1/convert-to-prospect-customer',
+      {}
+    )
+    expect(post).toHaveBeenCalledWith(
+      '/customer-management/tenants/tenant-1/crm-accounts/crm-account-1/archive',
+      {}
+    )
+    expect(post).toHaveBeenCalledWith(
+      '/customer-management/tenants/tenant-1/crm-accounts/crm-account-1/restore',
       {}
     )
   })

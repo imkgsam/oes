@@ -37,9 +37,15 @@ export class ShortLinkTargetResolverRegistry {
     if (!value) return false
     try {
       const url = new URL(value)
-      return url.protocol === 'https:'
+      return url.protocol === 'https:' || isLocalDevelopmentHttpUrl(url)
     } catch {
       return false
     }
   }
+}
+
+// isLocalDevelopmentHttpUrl permits loopback HTTP redirects for local frontend integration only.
+function isLocalDevelopmentHttpUrl(url: URL): boolean {
+  if (url.protocol !== 'http:' || process.env.NODE_ENV === 'production') return false
+  return ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)
 }

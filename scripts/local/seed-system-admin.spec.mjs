@@ -18,57 +18,32 @@ test('system admin seed defaults to dry-run and masks local database passwords',
   assert.equal(plan.mode, 'dry-run')
   assert.equal(plan.writesDatabase, false)
   assert.deepEqual(plan.serviceOrder, [
-    'party-service',
     'identity-service',
     'auth-service',
     'permission-service'
   ])
   assert.equal(plan.seed.auth.createsPasswordCredential, false)
-  assert.match(plan.targets.partyService.url, /postgres:\/\/imkgsam:\*\*\*@localhost:5432\/partydb/)
+  assert.equal(plan.targets.partyService, undefined)
   assert.doesNotMatch(JSON.stringify(plan), /imkgsam:imkgsam/)
 })
 
 test('system admin seed rejects non-local or unexpected database targets', () => {
   const config = buildSystemAdminSeedConfig({
-    OES_PARTY_DATABASE_URL: 'postgres://imkgsam:imkgsam@db.example.com:5432/partydb',
     OES_IDENTITY_DATABASE_URL: 'postgres://imkgsam:imkgsam@localhost:5432/not_identitydb'
   })
 
   const errors = validateSystemAdminSeedConfig(config)
 
-  assert.match(errors.join('\n'), /party-service DATABASE_URL must target localhost/)
   assert.match(errors.join('\n'), /identity-service DATABASE_URL must target database identitydb/)
 })
 
 test('validateAppliedSystemAdminSeed reports a consistent cross-service system admin seed', async () => {
   const config = buildSystemAdminSeedConfig({})
   const clients = {
-    party: {
-      partyIdentifier: {
-        findUnique: async () => ({
-          id: 'identifier-1',
-          partyId: 'party-1',
-          identifierType: 'EMAIL',
-          normalizedValue: 'sysadmin@oes.local',
-          status: 'VERIFIED',
-          party: {
-            id: 'party-1',
-            type: 'PERSON',
-            status: 'ACTIVE',
-            legalName: 'chenshuangpeng',
-            personParty: {
-              id: 'person-1',
-              preferredName: 'tth'
-            }
-          }
-        })
-      }
-    },
     identity: {
       user: {
         findUnique: async () => ({
           id: 'user-1',
-          partyId: 'party-1',
           username: 'sysadmin',
           email: 'sysadmin@oes.local',
           isActive: true
@@ -129,7 +104,6 @@ test('validateAppliedSystemAdminSeed reports a consistent cross-service system a
 
   assert.equal(result.valid, true)
   assert.deepEqual(result.errors, [])
-  assert.equal(result.state.party.partyId, 'party-1')
   assert.equal(result.state.identity.accountId, 'account-1')
   assert.equal(result.state.auth.passwordCredentialCount, 1)
   assert.equal(result.state.permission.accountRoleId, 'account-role-1')
@@ -139,27 +113,6 @@ test('applySystemAdminSeed upserts system admin records across service-owned sto
   const operations = []
   const config = buildSystemAdminSeedConfig({})
   const clients = {
-    party: {
-      $transaction: async (callback) =>
-        callback({
-          partyIdentifier: {
-            findUnique: async (args) => {
-              operations.push(['partyIdentifier.findUnique', args])
-              return null
-            }
-          },
-          party: {
-            create: async (args) => {
-              operations.push(['party.create', args])
-              return {
-                id: 'party-1',
-                identifiers: [{ id: 'identifier-1' }],
-                personParty: { id: 'person-1' }
-              }
-            }
-          }
-        })
-    },
     identity: {
       user: {
         findUnique: async (args) => {
@@ -219,8 +172,6 @@ test('applySystemAdminSeed upserts system admin records across service-owned sto
   assert.deepEqual(
     operations.map(([operation]) => operation),
     [
-      'partyIdentifier.findUnique',
-      'party.create',
       'identity.user.findUnique',
       'identity.user.upsert',
       'identity.userAccount.findUnique',
@@ -232,17 +183,11 @@ test('applySystemAdminSeed upserts system admin records across service-owned sto
       'permission.accountRole.upsert'
     ]
   )
-  assert.equal(result.party.partyId, 'party-1')
   assert.equal(result.identity.userId, 'user-1')
   assert.equal(result.identity.accountId, 'account-1')
   assert.equal(result.auth.createsPasswordCredential, false)
   assert.equal(result.permission.roleCode, 'system.admin')
   assert.equal(result.permission.accountRoleId, 'account-role-1')
-
-  const partyCreate = operations.find(([operation]) => operation === 'party.create')?.[1]
-  assert.equal(partyCreate.data.legalName, 'chenshuangpeng')
-  assert.equal(partyCreate.data.personParty.create.preferredName, 'tth')
-  assert.equal(partyCreate.data.identifiers.create.normalizedValue, 'sysadmin@oes.local')
 
   const authUpsert = operations.find(([operation]) => operation === 'auth.loginMethod.upsert')?.[1]
   assert.equal(authUpsert.create.verified, true)

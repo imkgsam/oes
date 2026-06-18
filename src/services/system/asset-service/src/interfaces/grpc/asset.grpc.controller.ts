@@ -6,15 +6,22 @@ import {
   AssetServiceControllerMethods,
   BindAccountAvatarRequest,
   BindAccountAvatarResponse,
+  BindEmployeeOfficialPhotoRequest,
+  BindEmployeeOfficialPhotoResponse,
   ResolveAssetPublicUrlRequest,
   ResolveAssetPublicUrlResponse,
   UploadAccountAvatarRequest,
-  UploadAccountAvatarResponse
+  UploadAccountAvatarResponse,
+  UploadEmployeeOfficialPhotoRequest,
+  UploadEmployeeOfficialPhotoResponse
 } from '@oes/common/generated/asset_service'
 import {
   BindAccountAvatarCommand,
   BindAccountAvatarResult,
-  UploadAccountAvatarCommand
+  BindEmployeeOfficialPhotoCommand,
+  BindEmployeeOfficialPhotoResult,
+  UploadAccountAvatarCommand,
+  UploadEmployeeOfficialPhotoCommand
 } from '../../application/commands/avatar'
 import {
   ResolveAssetPublicUrlQuery,
@@ -56,6 +63,49 @@ export class AssetGrpcController implements AssetServiceController {
         scopeLevel: request.scopeLevel === 'SYSTEM' ? 'SYSTEM' : 'TENANT',
         tenantId: request.tenantId || undefined,
         accountId: request.accountId!,
+        operatorId: request.operatorId!,
+        newAssetId: request.newAssetId!,
+        previousAssetId: request.previousAssetId || undefined
+      })
+    )
+
+    return {
+      activeAsset: AssetGrpcPresenter.toAssetSummary(result.activeAsset),
+      replacedAssetId: result.replacedAssetId || undefined
+    }
+  }
+
+  async uploadEmployeeOfficialPhoto(
+    request: UploadEmployeeOfficialPhotoRequest
+  ): Promise<UploadEmployeeOfficialPhotoResponse> {
+    const asset = await this.commandBus.execute(
+      new UploadEmployeeOfficialPhotoCommand({
+        scopeLevel: request.scopeLevel === 'TENANT' ? 'TENANT' : 'SYSTEM',
+        tenantId: request.tenantId || '',
+        employeeId: request.employeeId!,
+        operatorId: request.operatorId!,
+        file: request.file ?? Buffer.alloc(0),
+        fileName: request.fileName || 'official-photo',
+        contentType: request.contentType || 'application/octet-stream'
+      })
+    )
+
+    return {
+      asset: AssetGrpcPresenter.toAssetSummary(asset)
+    }
+  }
+
+  async bindEmployeeOfficialPhoto(
+    request: BindEmployeeOfficialPhotoRequest
+  ): Promise<BindEmployeeOfficialPhotoResponse> {
+    const result = await this.commandBus.execute<
+      BindEmployeeOfficialPhotoCommand,
+      BindEmployeeOfficialPhotoResult
+    >(
+      new BindEmployeeOfficialPhotoCommand({
+        scopeLevel: request.scopeLevel === 'TENANT' ? 'TENANT' : 'SYSTEM',
+        tenantId: request.tenantId || '',
+        employeeId: request.employeeId!,
         operatorId: request.operatorId!,
         newAssetId: request.newAssetId!,
         previousAssetId: request.previousAssetId || undefined

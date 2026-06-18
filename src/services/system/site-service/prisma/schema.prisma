@@ -1,0 +1,314 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../prisma/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Site {
+  siteId               String   @id @db.VarChar(128)
+  tenantId             String   @db.VarChar(128)
+  siteCode             String   @db.VarChar(128)
+  siteName             String   @db.VarChar(255)
+  siteType             String   @db.VarChar(64)
+  brandId              String?  @db.VarChar(128)
+  regionCode           String?  @db.VarChar(64)
+  channelCode          String?  @db.VarChar(64)
+  status               String   @db.VarChar(32)
+  defaultLocale        String   @db.VarChar(32)
+  primaryDomain        String?  @db.VarChar(255)
+  previewBaseUrl       String?  @db.VarChar(1024)
+  allowedOrigins       Json
+  webhookUrl           String?  @db.VarChar(1024)
+  runtimeStatusUrl     String?  @db.VarChar(1024)
+  latestPublishVersion Int      @default(0)
+  createdBy            String   @db.VarChar(128)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  disabledAt           DateTime?
+
+  locales             SiteLocale[]
+  credentials         SiteCredential[]
+  categoryPublications SiteCategoryPublication[]
+  productPublications SiteProductPublication[]
+  contentEntries      SiteContentEntry[]
+  publicViews         SitePublicView[]
+  syncBatches         SiteSyncBatch[]
+  webhookDeliveries   SiteWebhookDelivery[]
+  runtimeStatus       SiteRuntimeStatus?
+
+  @@unique([tenantId, siteCode])
+  @@index([tenantId, status])
+}
+
+model SiteLocale {
+  id        String   @id @default(uuid()) @db.Uuid
+  siteId    String   @db.VarChar(128)
+  locale    String   @db.VarChar(32)
+  status    String   @db.VarChar(32)
+  isDefault Boolean
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  site Site @relation(fields: [siteId], references: [siteId], onDelete: Cascade)
+
+  @@unique([siteId, locale])
+  @@index([siteId, status])
+}
+
+model SiteCredential {
+  credentialId String    @id @db.VarChar(128)
+  siteId       String    @db.VarChar(128)
+  clientId     String    @db.VarChar(128)
+  secretHash   String    @db.VarChar(255)
+  secretCiphertext String?   @db.Text
+  scopes       Json
+  status       String    @db.VarChar(32)
+  createdBy    String    @db.VarChar(128)
+  createdAt    DateTime  @default(now())
+  rotatedAt    DateTime?
+  revokedAt    DateTime?
+  lastUsedAt   DateTime?
+
+  site   Site                  @relation(fields: [siteId], references: [siteId], onDelete: Cascade)
+  nonces SiteCredentialNonce[]
+
+  @@unique([siteId, clientId])
+  @@index([siteId, status])
+}
+
+model SiteCredentialNonce {
+  id           String   @id @default(uuid()) @db.Uuid
+  credentialId String   @db.VarChar(128)
+  nonce        String   @db.VarChar(255)
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  credential SiteCredential @relation(fields: [credentialId], references: [credentialId], onDelete: Cascade)
+
+  @@unique([credentialId, nonce])
+  @@index([expiresAt])
+}
+
+model SiteProductPublication {
+  publicationId      String   @id @db.VarChar(128)
+  siteId             String   @db.VarChar(128)
+  tenantId           String   @db.VarChar(128)
+  productId          String   @db.VarChar(128)
+  locale             String   @db.VarChar(32)
+  slug               String   @db.VarChar(255)
+  displayTitle       String   @db.VarChar(255)
+  displayDescription String   @db.Text
+  seoTitle           String   @db.VarChar(255)
+  seoDescription     String   @db.Text
+  seoImage           String?  @db.VarChar(1024)
+  imageOverride      String?  @db.VarChar(1024)
+  categoryIds        Json     @default("[]")
+  publishStatus      String   @db.VarChar(32)
+  syncStatus         String   @db.VarChar(32)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  site Site @relation(fields: [siteId], references: [siteId], onDelete: Cascade)
+
+  @@unique([siteId, productId, locale])
+  @@unique([siteId, locale, slug])
+  @@index([tenantId, siteId, syncStatus])
+}
+
+model SiteCategoryPublication {
+  id               String   @id @default(uuid()) @db.Uuid
+  categoryId       String   @db.VarChar(128)
+  siteId           String   @db.VarChar(128)
+  tenantId         String   @db.VarChar(128)
+  parentCategoryId String?  @db.VarChar(128)
+  sourceCategoryId String?  @db.VarChar(128)
+  locale           String   @db.VarChar(32)
+  slug             String   @db.VarChar(255)
+  displayTitle     String   @db.VarChar(255)
+  description      String?  @db.Text
+  image            String?  @db.VarChar(1024)
+  sortOrder        Int      @default(0)
+  seoTitle         String   @db.VarChar(255)
+  seoDescription   String   @db.Text
+  seoImage         String?  @db.VarChar(1024)
+  publishStatus    String   @db.VarChar(32)
+  syncStatus       String   @db.VarChar(32)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  site Site @relation(fields: [siteId], references: [siteId], onDelete: Cascade)
+
+  @@unique([siteId, categoryId, locale])
+  @@unique([siteId, locale, slug])
+  @@index([tenantId, siteId, syncStatus])
+  @@index([siteId, locale, publishStatus])
+}
+
+model SiteContentEntry {
+  contentId   String   @id @db.VarChar(128)
+  siteId      String   @db.VarChar(128)
+  tenantId    String   @db.VarChar(128)
+  contentType String   @db.VarChar(32)
+  status      String   @db.VarChar(32)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  site     Site                       @relation(fields: [siteId], references: [siteId], onDelete: Cascade)
+  versions SiteContentLocaleVersion[]
+
+  @@index([tenantId, siteId, contentType, status])
+}
+
+model SiteContentLocaleVersion {
+  contentVersionId String    @id @db.VarChar(128)
+  contentId        String    @db.VarChar(128)
+  locale           String    @db.VarChar(32)
+  slug             String    @db.VarChar(255)
+  title            String    @db.VarChar(255)
+  summary          String?   @db.Text
+  coverImage       String?   @db.VarChar(1024)
+  author           String?   @db.VarChar(255)
+  tags             Json
+  bodyHtml         String    @db.Text
+  seoTitle         String    @db.VarChar(255)
+  seoDescription   String    @db.Text
+  seoImage         String?   @db.VarChar(1024)
+  publishedAt      DateTime?
+  status           String    @db.VarChar(32)
+  syncStatus       String    @db.VarChar(32)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  contentEntry SiteContentEntry @relation(fields: [contentId], references: [contentId], onDelete: Cascade)
+
+  @@unique([contentId, locale])
+  @@index([locale, syncStatus])
+}
+
+model SitePublicView {
+  id             String   @id @default(uuid()) @db.Uuid
+  siteId         String   @db.VarChar(128)
+  tenantId       String   @db.VarChar(128)
+  resourceType   String   @db.VarChar(32)
+  resourceId     String   @db.VarChar(128)
+  locale         String   @db.VarChar(32)
+  slug           String   @db.VarChar(255)
+  status         String   @db.VarChar(32)
+  publishVersion Int
+  payload        Json
+  updatedAt      DateTime
+  createdAt      DateTime @default(now())
+
+  site Site @relation(fields: [siteId], references: [siteId], onDelete: Cascade)
+
+  @@unique([siteId, resourceType, resourceId, locale])
+  @@unique([siteId, resourceType, locale, slug])
+  @@index([tenantId, siteId, publishVersion])
+}
+
+model SiteSyncBatch {
+  syncId         String    @id @db.VarChar(128)
+  siteId         String    @db.VarChar(128)
+  tenantId       String    @db.VarChar(128)
+  publishVersion Int
+  status         String    @db.VarChar(32)
+  triggeredBy    String    @db.VarChar(128)
+  startedAt      DateTime  @default(now())
+  completedAt    DateTime?
+  failedAt       DateTime?
+  failureReason  String?   @db.Text
+
+  site      Site               @relation(fields: [siteId], references: [siteId], onDelete: Cascade)
+  resources SiteSyncResource[]
+  webhookDeliveries SiteWebhookDelivery[]
+
+  @@index([tenantId, siteId, startedAt])
+  @@index([tenantId, siteId, status])
+}
+
+model SiteWebhookDelivery {
+  deliveryId     String    @id @db.VarChar(128)
+  syncId         String    @db.VarChar(128)
+  siteId         String    @db.VarChar(128)
+  tenantId       String    @db.VarChar(128)
+  eventId        String    @db.VarChar(128)
+  eventType      String    @db.VarChar(128)
+  publishVersion Int
+  targetUrl      String?   @db.VarChar(1024)
+  status         String    @db.VarChar(32)
+  attempt        Int       @default(1)
+  resent         Boolean   @default(false)
+  payload        Json
+  headers        Json
+  dispatchedAt   DateTime?
+  failedAt       DateTime?
+  failureReason  String?   @db.Text
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  site Site @relation(fields: [siteId], references: [siteId], onDelete: Cascade)
+  syncBatch SiteSyncBatch @relation(fields: [syncId], references: [syncId], onDelete: Cascade)
+
+  @@index([tenantId, siteId, status, createdAt])
+  @@index([eventId])
+}
+
+model SiteSyncResource {
+  id           String   @id @default(uuid()) @db.Uuid
+  syncId       String   @db.VarChar(128)
+  resourceType String   @db.VarChar(32)
+  resourceId   String   @db.VarChar(128)
+  locale       String   @db.VarChar(32)
+  changeType   String   @db.VarChar(32)
+
+  syncBatch SiteSyncBatch @relation(fields: [syncId], references: [syncId], onDelete: Cascade)
+
+  @@index([syncId])
+  @@index([resourceType, resourceId, locale])
+}
+
+model SiteRuntimeStatus {
+  siteId                        String    @id @db.VarChar(128)
+  status                        String    @db.VarChar(32)
+  localPublishVersion           Int       @default(0)
+  lastKnownRemotePublishVersion Int?
+  lastSuccessfulSyncAt          DateTime?
+  lastSyncStatus                String?   @db.VarChar(32)
+  lastErrorCode                 String?   @db.VarChar(128)
+  lastErrorMessage              String?   @db.Text
+  storeReady                    Boolean   @default(false)
+  syncInProgress                Boolean   @default(false)
+  pendingSync                   Boolean   @default(false)
+  kitVersion                    String?   @db.VarChar(128)
+  reportedAt                    DateTime?
+  updatedAt                     DateTime  @updatedAt
+
+  site Site @relation(fields: [siteId], references: [siteId], onDelete: Cascade)
+}
+
+model SiteAuditEnvelope {
+  eventId      String   @id @db.VarChar(128)
+  service      String   @db.VarChar(128)
+  module       String   @db.VarChar(128)
+  eventType    String   @db.VarChar(128)
+  occurredAt   DateTime
+  result       String   @db.VarChar(32)
+  operatorId   String?  @db.VarChar(128)
+  operatorType String   @db.VarChar(32)
+  tenantId     String?  @db.VarChar(128)
+  orgId        String?  @db.VarChar(128)
+  traceId      String?  @db.VarChar(128)
+  resourceType String   @db.VarChar(128)
+  resourceId   String?  @db.VarChar(128)
+  siteId       String?  @db.VarChar(128)
+  details      Json
+
+  @@index([tenantId, occurredAt])
+  @@index([resourceType, resourceId, occurredAt])
+  @@index([operatorId, occurredAt])
+  @@index([service, module, eventType, occurredAt])
+}

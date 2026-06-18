@@ -34,7 +34,7 @@ export interface TenantManagementQueryOrgUnit {
   depth?: number
   id?: string
   name?: string
-  organizationPartyId?: string
+  organizationTenantPartyId?: string
   parentOrgId?: string
   path?: string
   sortOrder?: number
@@ -140,7 +140,7 @@ export class TenantOrgQueryGrpcAdapter implements OnModuleInit {
               path: response.orgUnit.path,
               depth: response.orgUnit.depth,
               sortOrder: response.orgUnit.sortOrder,
-              organizationPartyId: normalize(response.orgUnit.organizationPartyId)
+              organizationTenantPartyId: normalize(response.orgUnit.organizationTenantPartyId)
             }
           : undefined
       })
@@ -187,7 +187,7 @@ function mapOrgNode(node: {
     depth?: number
     id?: string
     name?: string
-    organizationPartyId?: string
+    organizationTenantPartyId?: string
     parentOrgId?: string
     path?: string
     sortOrder?: number
@@ -208,7 +208,7 @@ function mapOrgNode(node: {
           path: node.orgUnit.path,
           depth: node.orgUnit.depth,
           sortOrder: node.orgUnit.sortOrder,
-          organizationPartyId: normalize(node.orgUnit.organizationPartyId)
+          organizationTenantPartyId: normalize(node.orgUnit.organizationTenantPartyId)
         }
       : undefined,
     children: (node.children ?? []).map((child) => mapOrgNode(child))

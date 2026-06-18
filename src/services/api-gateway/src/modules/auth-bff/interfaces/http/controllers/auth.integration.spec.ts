@@ -1010,14 +1010,14 @@ class TestAssetGrpcController {
   }
 }
 
-// Implements the downstream party-service gRPC contract used by auth-bff display-name hydration in the integration test.
+// Implements the downstream party-service gRPC contract shape for integration-test module wiring.
 @Controller()
 class TestPartyGrpcController {
-  @GrpcMethod('PartyQueryService', 'GetPartyById')
-  getPartyById(request: { partyId?: string }) {
+  @GrpcMethod('PartyQueryService', 'GetTenantPartyById')
+  getTenantPartyById(request: { tenantPartyId?: string }) {
     return {
-      party: {
-        id: request.partyId ?? '',
+      tenantParty: {
+        id: request.tenantPartyId ?? '',
         type: 'PERSON',
         status: 'ACTIVE',
         legalName: 'Vic Chen'

@@ -5,7 +5,7 @@ import {
 } from '../ports/auth-session-revocation.port'
 import {
   ORGANIZATION_PARTY_READER,
-  OrganizationPartyReader
+  OrganizationTenantPartyReader
 } from '../ports/organization-party-reader.port'
 import {
   ORG_UNIT_REPOSITORY,
@@ -24,7 +24,7 @@ export class TenantOrgManagementService {
     @Inject(ORG_UNIT_REPOSITORY)
     private readonly orgUnitRepository: OrgUnitRepository,
     @Inject(ORGANIZATION_PARTY_READER)
-    private readonly organizationPartyReader: OrganizationPartyReader,
+    private readonly organizationTenantPartyReader: OrganizationTenantPartyReader,
     @Inject(AUTH_SESSION_REVOCATION_PORT)
     private readonly authSessionRevocationPort: AuthSessionRevocationPort
   ) {}
@@ -85,7 +85,7 @@ export class TenantOrgManagementService {
     name: string
     type: string
     sortOrder?: number
-    organizationPartyId?: string
+    organizationTenantPartyId?: string
   }) {
     const tenant = await this.tenantRepository.findById(requireNonBlank(input.tenantId, 'tenantId'))
     if (!tenant) {
@@ -96,8 +96,8 @@ export class TenantOrgManagementService {
     }
 
     const type = requireNonBlank(input.type, 'type')
-    const organizationPartyId = input.organizationPartyId?.trim() || undefined
-    await this.assertOrganizationPartyAssociation(type, organizationPartyId)
+    const organizationTenantPartyId = input.organizationTenantPartyId?.trim() || undefined
+    await this.assertOrganizationTenantPartyAssociation(tenant.id, type, organizationTenantPartyId)
 
     return this.orgUnitRepository.create({
       tenantId: tenant.id,
@@ -105,7 +105,7 @@ export class TenantOrgManagementService {
       name: requireNonBlank(input.name, 'name'),
       type,
       sortOrder: input.sortOrder ?? 0,
-      organizationPartyId
+      organizationTenantPartyId
     })
   }
 
@@ -115,7 +115,7 @@ export class TenantOrgManagementService {
     name?: string
     type?: string
     sortOrder?: number
-    organizationPartyId?: string | null
+    organizationTenantPartyId?: string | null
   }) {
     const tenantId = requireNonBlank(input.tenantId, 'tenantId')
     const orgUnitId = requireNonBlank(input.orgUnitId, 'orgUnitId')
@@ -125,14 +125,14 @@ export class TenantOrgManagementService {
     }
 
     const nextType = input.type?.trim() || existing.type
-    const nextOrganizationPartyId =
-      input.organizationPartyId === undefined
-        ? existing.organizationPartyId
-        : input.organizationPartyId === null
+    const nextOrganizationTenantPartyId =
+      input.organizationTenantPartyId === undefined
+        ? existing.organizationTenantPartyId
+        : input.organizationTenantPartyId === null
           ? null
-          : input.organizationPartyId.trim() || null
+          : input.organizationTenantPartyId.trim() || null
 
-    await this.assertOrganizationPartyAssociation(nextType, nextOrganizationPartyId)
+    await this.assertOrganizationTenantPartyAssociation(tenantId, nextType, nextOrganizationTenantPartyId)
 
     return this.orgUnitRepository.update({
       tenantId,
@@ -140,8 +140,8 @@ export class TenantOrgManagementService {
       name: input.name?.trim() || undefined,
       type: input.type?.trim() || undefined,
       sortOrder: input.sortOrder,
-      organizationPartyId:
-        input.organizationPartyId === null ? null : input.organizationPartyId?.trim() || undefined
+      organizationTenantPartyId:
+        input.organizationTenantPartyId === null ? null : input.organizationTenantPartyId?.trim() || undefined
     })
   }
 
@@ -160,33 +160,37 @@ export class TenantOrgManagementService {
     })
   }
 
-  /** assertOrganizationPartyAssociation enforces the frozen org-type and canonical-party rules for organizationPartyId writes. */
-  private async assertOrganizationPartyAssociation(
+  /** assertOrganizationTenantPartyAssociation enforces tenant-local organization TenantParty rules for org bindings. */
+  private async assertOrganizationTenantPartyAssociation(
+    tenantId: string,
     orgUnitType: string,
-    organizationPartyId?: string | null
+    organizationTenantPartyId?: string | null
   ) {
-    if (!organizationPartyId) {
+    if (!organizationTenantPartyId) {
       return
     }
 
-    if (!isOrganizationPartyAllowedOrgType(orgUnitType)) {
+    if (!isOrganizationTenantPartyAllowedOrgType(orgUnitType)) {
       throw new BadRequestException(
-        `organizationPartyId is only allowed for ${OrgUnitType.ROOT} or ${OrgUnitType.BRANCH} org units`
+        `organizationTenantPartyId is only allowed for ${OrgUnitType.ROOT} or ${OrgUnitType.BRANCH} org units`
       )
     }
 
-    const party = await this.organizationPartyReader.getOrganizationPartyById(organizationPartyId)
+    const party = await this.organizationTenantPartyReader.getOrganizationTenantPartyById({
+      tenantId,
+      tenantPartyId: organizationTenantPartyId
+    })
     if (!party) {
-      throw new BadRequestException(`Organization party ${organizationPartyId} not found`)
+      throw new BadRequestException(`Organization TenantParty ${organizationTenantPartyId} not found`)
     }
     if (party.type !== 'ORGANIZATION') {
       throw new BadRequestException(
-        `Organization party ${organizationPartyId} must reference an ORGANIZATION party`
+        `Organization TenantParty ${organizationTenantPartyId} must reference an ORGANIZATION TenantParty`
       )
     }
     if (party.status !== 'ACTIVE') {
       throw new BadRequestException(
-        `Organization party ${organizationPartyId} must be ACTIVE to be referenced`
+        `Organization TenantParty ${organizationTenantPartyId} must be ACTIVE to be referenced`
       )
     }
   }
@@ -201,7 +205,7 @@ function requireNonBlank(value: string, fieldName: string): string {
   return normalized
 }
 
-/** isOrganizationPartyAllowedOrgType keeps organization-party binding limited to legal-organization-like org nodes. */
-function isOrganizationPartyAllowedOrgType(orgUnitType: string): boolean {
+/** isOrganizationTenantPartyAllowedOrgType keeps organization TenantParty binding limited to legal-organization-like org nodes. */
+function isOrganizationTenantPartyAllowedOrgType(orgUnitType: string): boolean {
   return orgUnitType === OrgUnitType.ROOT || orgUnitType === OrgUnitType.BRANCH
 }

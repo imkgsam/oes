@@ -59,7 +59,7 @@ function resolveGrpcUrl(envKey: string, fallbackUrl: string): string | undefined
           serviceName: SERVICE_NAMES.NOTIFICATION,
           protoPath: resolveCommonProtoPath('notification_service/notification.proto'),
           packageName: 'notification_service',
-          url: resolveGrpcUrl('NOTIFICATION_SERVICE_GRPC_URL', '127.0.0.1:50053')
+          url: resolveGrpcUrl('NOTIFICATION_SERVICE_GRPC_URL', '127.0.0.1:50066')
         },
         [SERVICE_NAMES.TENANT_ORG]: {
           serviceName: SERVICE_NAMES.TENANT_ORG,

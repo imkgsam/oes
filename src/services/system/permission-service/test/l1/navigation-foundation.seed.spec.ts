@@ -37,6 +37,9 @@ describe('navigation foundation seed', () => {
       'admin.policy-governance',
       'admin.terminal-device-management',
       'admin.navigation-management',
+      'admin.site-management',
+      'public-entry.business-cards',
+      'public-entry.short-links',
       'collaboration.tasks',
       'pda.home',
       'kiosk.home',
@@ -74,6 +77,9 @@ describe('navigation foundation seed', () => {
       '策略治理',
       '终端设备管理',
       '导航管理',
+      'Site Management',
+      '员工数字名片',
+      '公开短链',
       '任务工作台',
       'PDA 首页',
       '触摸屏首页',
@@ -247,6 +253,18 @@ describe('navigation foundation seed', () => {
       },
       {
         roleId: 'role-system-admin',
+        entryKey: 'public-entry.business-cards',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'role-system-admin',
+        entryKey: 'public-entry.short-links',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'role-system-admin',
         entryKey: 'collaboration.tasks',
         terminal: 'DEFAULT',
         enabled: true
@@ -289,6 +307,12 @@ describe('navigation foundation seed', () => {
       },
       {
         roleId: 'template-tenant-admin',
+        entryKey: 'admin.site-management',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'template-tenant-admin',
         entryKey: 'tenant-settings.org-structure',
         terminal: 'DEFAULT',
         enabled: true
@@ -302,6 +326,24 @@ describe('navigation foundation seed', () => {
       {
         roleId: 'template-tenant-admin',
         entryKey: 'tenant-settings.login-mfa',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'template-tenant-admin',
+        entryKey: 'master-data.customer-management',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'template-tenant-admin',
+        entryKey: 'public-entry.business-cards',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'template-tenant-admin',
+        entryKey: 'public-entry.short-links',
         terminal: 'DEFAULT',
         enabled: true
       },
@@ -343,6 +385,12 @@ describe('navigation foundation seed', () => {
       },
       {
         roleId: 'role-tenant-admin',
+        entryKey: 'admin.site-management',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'role-tenant-admin',
         entryKey: 'tenant-settings.org-structure',
         terminal: 'DEFAULT',
         enabled: true
@@ -356,6 +404,24 @@ describe('navigation foundation seed', () => {
       {
         roleId: 'role-tenant-admin',
         entryKey: 'tenant-settings.login-mfa',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'role-tenant-admin',
+        entryKey: 'master-data.customer-management',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'role-tenant-admin',
+        entryKey: 'public-entry.business-cards',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'role-tenant-admin',
+        entryKey: 'public-entry.short-links',
         terminal: 'DEFAULT',
         enabled: true
       },

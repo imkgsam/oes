@@ -51,7 +51,7 @@ import PhoneNumberInput from '../_core/authentication/phone-number-input.vue'
 import {
   findManagedOrgUnitOption,
   flattenManagedOrgTree,
-  formatManagedOrganizationPartyName
+  formatManagedOrganizationTenantPartyName
 } from './org-read-side'
 
 interface CreateEmployeeFormState {
@@ -1117,8 +1117,8 @@ function formatEmploymentOrgSummary(employment?: HrManagementApi.EmploymentSumma
     return ''
   }
 
-  const organizationPartyName = formatManagedOrganizationPartyName(orgUnit)
-  return [orgUnit.type, organizationPartyName].filter(Boolean).join(' · ')
+  const organizationTenantPartyName = formatManagedOrganizationTenantPartyName(orgUnit)
+  return [orgUnit.type, organizationTenantPartyName].filter(Boolean).join(' · ')
 }
 
 function formatEmploymentStatus(status?: string) {
@@ -1599,7 +1599,7 @@ onBeforeUnmount(() => {
                   {{ detail.employee.tenantPartyId }}
                 </Descriptions.Item>
                 <Descriptions.Item label="PartyId">
-                  {{ detail.employee.partyId || '未关联' }}
+                  {{ detail.employee.tenantPartyId || '未关联' }}
                 </Descriptions.Item>
                 <Descriptions.Item label="Tenant">
                   {{ detail.employee.tenantId }}

@@ -6,6 +6,7 @@ import { AuthGrpcAdapter } from '../auth-bff/infrastructure/downstream/auth-serv
 import { IdentityQueryGrpcAdapter } from '../auth-bff/infrastructure/downstream/identity-service/identity-query-grpc.adapter'
 import { PermissionServiceProxyModule } from '../permission-service/permission-service.module'
 import { TenantOrgServiceProxyModule } from '../tenant-org-service/tenant-org-service.module'
+import { EmployeeOfficialPhotoAssetGrpcAdapter } from './adapters/employee-official-photo-asset-grpc.adapter'
 import { HrManagementGrpcAdapter } from './adapters/hr-management-grpc.adapter'
 import { PartyTenantQueryGrpcAdapter } from './adapters/party-tenant-query-grpc.adapter'
 import { HrQueryGrpcAdapter } from './adapters/hr-query-grpc.adapter'
@@ -18,6 +19,7 @@ import { HrManagementController } from './interface/http/controllers/hr-manageme
     PermissionServiceProxyModule,
     GrpcTransportModule.forFeature([
       SERVICE_NAMES.HR,
+      SERVICE_NAMES.ASSET,
       SERVICE_NAMES.AUTH,
       SERVICE_NAMES.IDENTITY,
       SERVICE_NAMES.PARTY
@@ -28,6 +30,7 @@ import { HrManagementController } from './interface/http/controllers/hr-manageme
   providers: [
     HrQueryGrpcAdapter,
     HrManagementGrpcAdapter,
+    EmployeeOfficialPhotoAssetGrpcAdapter,
     IdentityQueryGrpcAdapter,
     AuthGrpcAdapter,
     PartyTenantQueryGrpcAdapter,

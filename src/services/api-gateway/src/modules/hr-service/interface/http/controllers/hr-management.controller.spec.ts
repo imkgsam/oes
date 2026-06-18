@@ -1,9 +1,15 @@
+import { BadRequestException, RequestMethod } from '@nestjs/common'
+import { METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants'
 import { Reflector } from '@nestjs/core'
 import {
   HR_MANAGEMENT_PERMISSION_CODES,
   REQUIRE_PERMISSIONS_METADATA_KEY
 } from '@oes/common/authorization'
 import { HrManagementController } from './hr-management.controller'
+import {
+  EMPLOYEE_OFFICIAL_PHOTO_UPLOAD_LIMITS,
+  employeeOfficialPhotoFileFilter
+} from '../dtos/employee-official-photo.dto'
 
 // Verifies the HR management gateway controller keeps employee and employment endpoints aligned with HR boundaries.
 describe('HrManagementController', () => {
@@ -16,7 +22,9 @@ describe('HrManagementController', () => {
     getEmployeeAccountAccess: jest.fn(),
     getEmployeeDetail: jest.fn(),
     listEmployees: jest.fn(),
-    previewNextEmployeeCode: jest.fn()
+    previewNextEmployeeCode: jest.fn(),
+    removeEmployeeOfficialPhoto: jest.fn(),
+    uploadEmployeeOfficialPhoto: jest.fn()
   }
 
   const controller = new HrManagementController(hrManagementService as any)
@@ -78,6 +86,45 @@ describe('HrManagementController', () => {
         HrManagementController.prototype.completeEmployeeAccess
       )
     ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        HrManagementController.prototype.uploadEmployeeOfficialPhoto
+      )
+    ).toEqual(expect.objectContaining({ all: [HR_MANAGEMENT_PERMISSION_CODES.CREATE_EMPLOYEE] }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        HrManagementController.prototype.removeEmployeeOfficialPhoto
+      )
+    ).toEqual(expect.objectContaining({ all: [HR_MANAGEMENT_PERMISSION_CODES.CREATE_EMPLOYEE] }))
+  })
+
+  it('declares upload and delete routes for employee official photo management', () => {
+    expect(
+      Reflect.getMetadata(PATH_METADATA, HrManagementController.prototype.uploadEmployeeOfficialPhoto)
+    ).toBe('employees/:employeeId/official-photo')
+    expect(
+      Reflect.getMetadata(METHOD_METADATA, HrManagementController.prototype.uploadEmployeeOfficialPhoto)
+    ).toBe(RequestMethod.POST)
+    expect(
+      Reflect.getMetadata(PATH_METADATA, HrManagementController.prototype.removeEmployeeOfficialPhoto)
+    ).toBe('employees/:employeeId/official-photo')
+    expect(
+      Reflect.getMetadata(METHOD_METADATA, HrManagementController.prototype.removeEmployeeOfficialPhoto)
+    ).toBe(RequestMethod.DELETE)
+  })
+
+  it('allows only bounded employee official photo upload mime types', () => {
+    expect(EMPLOYEE_OFFICIAL_PHOTO_UPLOAD_LIMITS.fileSize).toBe(2 * 1024 * 1024)
+
+    const allowCallback = jest.fn()
+    employeeOfficialPhotoFileFilter({} as any, { mimetype: 'image/webp' } as any, allowCallback)
+    expect(allowCallback).toHaveBeenCalledWith(null, true)
+
+    const rejectCallback = jest.fn()
+    employeeOfficialPhotoFileFilter({} as any, { mimetype: 'image/gif' } as any, rejectCallback)
+    expect(rejectCallback).toHaveBeenCalledWith(expect.any(BadRequestException), false)
   })
 
   it('forwards employee list, detail, account-access summary, and write actions to the HR management service', async () => {
@@ -121,6 +168,20 @@ describe('HrManagementController', () => {
     hrManagementService.completeEmployeeAccess.mockResolvedValue({
       status: 'ACTIVE'
     })
+    hrManagementService.uploadEmployeeOfficialPhoto.mockResolvedValue({
+      employee: {
+        id: 'employee-1',
+        officialPhotoAssetId: 'asset-1',
+        officialPhotoUrl: 'https://assets.example.com/official.webp'
+      }
+    })
+    hrManagementService.removeEmployeeOfficialPhoto.mockResolvedValue({
+      employee: {
+        id: 'employee-1',
+        officialPhotoAssetId: null,
+        officialPhotoUrl: null
+      }
+    })
 
     await expect(
       controller.listEmployees(
@@ -155,7 +216,6 @@ describe('HrManagementController', () => {
         'tenant-1',
         {
           employeeCode: 'EMP-0AF-0001',
-          partyId: 'party-1',
           tenantPartyId: 'tenant-party-1'
         } as any,
         source as any
@@ -227,6 +287,35 @@ describe('HrManagementController', () => {
     ).resolves.toEqual({
       status: 'ACTIVE'
     })
+    const file = {
+      buffer: Buffer.from('png-bytes'),
+      mimetype: 'image/png',
+      originalname: 'official.png',
+      size: 9
+    }
+    await expect(
+      controller.uploadEmployeeOfficialPhoto(
+        'tenant-1',
+        'employee-1',
+        file as any,
+        source as any
+      )
+    ).resolves.toEqual({
+      employee: {
+        id: 'employee-1',
+        officialPhotoAssetId: 'asset-1',
+        officialPhotoUrl: 'https://assets.example.com/official.webp'
+      }
+    })
+    await expect(
+      controller.removeEmployeeOfficialPhoto('tenant-1', 'employee-1', source as any)
+    ).resolves.toEqual({
+      employee: {
+        id: 'employee-1',
+        officialPhotoAssetId: null,
+        officialPhotoUrl: null
+      }
+    })
 
     expect(hrManagementService.listEmployees).toHaveBeenCalledWith(
       'tenant-1',
@@ -253,7 +342,6 @@ describe('HrManagementController', () => {
       'tenant-1',
       {
         employeeCode: 'EMP-0AF-0001',
-        partyId: 'party-1',
         tenantPartyId: 'tenant-party-1'
       },
       source
@@ -300,6 +388,17 @@ describe('HrManagementController', () => {
           email: 'member@example.com'
         }
       },
+      source
+    )
+    expect(hrManagementService.uploadEmployeeOfficialPhoto).toHaveBeenCalledWith(
+      'tenant-1',
+      'employee-1',
+      file,
+      source
+    )
+    expect(hrManagementService.removeEmployeeOfficialPhoto).toHaveBeenCalledWith(
+      'tenant-1',
+      'employee-1',
       source
     )
   })

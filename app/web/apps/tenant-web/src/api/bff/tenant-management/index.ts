@@ -47,7 +47,7 @@ export namespace TenantManagementApi {
       requirePasswordSetup?: boolean;
     };
     idempotencyKey: string;
-    organizationParty: {
+    organizationTenantParty: {
       identifiers?: Array<{
         identifierType: string;
         issuerCountryOrRegion?: string;
@@ -86,7 +86,6 @@ export namespace TenantManagementApi {
     };
     firstAdmin?: {
       accountId?: string;
-      personPartyId?: string;
       tenantPartyId?: string;
       userId?: string;
     };
@@ -96,8 +95,7 @@ export namespace TenantManagementApi {
       employmentId?: string;
     };
     onboardingId?: string;
-    organizationParty?: {
-      partyId?: string;
+    organizationTenantParty?: {
       tenantPartyId?: string;
     };
     rootOrg?: ManagedOrgUnit;
@@ -142,13 +140,14 @@ export namespace TenantManagementApi {
     depth: number;
     id: string;
     name: string;
-    organizationParty?: {
+    organizationTenantParty?: {
       id: string;
       legalName?: string;
       status: string;
       type: string;
+      tenantId?: string;
     } | null;
-    organizationPartyId?: string | null;
+    organizationTenantPartyId?: string | null;
     parentOrgId?: string;
     path: string;
     sortOrder: number;
@@ -180,6 +179,7 @@ export namespace TenantManagementApi {
 
   export interface CreateManagedOrgUnitPayload {
     name: string;
+    organizationTenantPartyId?: string;
     parentOrgId: string;
     sortOrder?: number;
     type: string;
@@ -187,6 +187,7 @@ export namespace TenantManagementApi {
 
   export interface UpdateManagedOrgUnitPayload {
     name?: string;
+    organizationTenantPartyId?: string | null;
     sortOrder?: number;
     type?: string;
   }

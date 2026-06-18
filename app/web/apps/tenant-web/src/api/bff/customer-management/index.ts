@@ -152,6 +152,9 @@ export namespace CustomerManagementApi {
     existingCrmAccountId: string
   }
 
+  export interface ArchiveCrmAccountResult extends CrmAccount {}
+  export interface RestoreCrmAccountResult extends CrmAccount {}
+
   export interface CrmAccountListQuery {
     keyword?: string
     lifecycleStage?: CrmAccountLifecycleStage
@@ -237,6 +240,28 @@ export async function convertLeadToProspectCustomerApi(
 ) {
   return requestClient.post<CustomerManagementApi.ConvertLeadToProspectCustomerResult>(
     `/customer-management/tenants/${encodeURIComponent(tenantId)}/leads/${encodeURIComponent(crmAccountId)}/convert-to-prospect-customer`,
+    {}
+  )
+}
+
+// Archives one CRM P1 lead or prospect customer while preserving its CRM history.
+export async function archiveCrmAccountApi(
+  tenantId: string,
+  crmAccountId: string
+) {
+  return requestClient.post<CustomerManagementApi.ArchiveCrmAccountResult>(
+    `/customer-management/tenants/${encodeURIComponent(tenantId)}/crm-accounts/${encodeURIComponent(crmAccountId)}/archive`,
+    {}
+  )
+}
+
+// Restores one archived CRM P1 lead or prospect customer while preserving its lifecycle stage.
+export async function restoreCrmAccountApi(
+  tenantId: string,
+  crmAccountId: string
+) {
+  return requestClient.post<CustomerManagementApi.RestoreCrmAccountResult>(
+    `/customer-management/tenants/${encodeURIComponent(tenantId)}/crm-accounts/${encodeURIComponent(crmAccountId)}/restore`,
     {}
   )
 }

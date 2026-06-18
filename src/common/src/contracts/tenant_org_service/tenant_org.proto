@@ -50,7 +50,7 @@ message OrgUnitSummary {
   string path = 7;
   int32 depth = 8;
   int32 sort_order = 9;
-  string organization_party_id = 10;
+  string organization_tenant_party_id = 10;
 }
 
 message OrgNode {
@@ -164,7 +164,7 @@ message TenantOnboardingIdentifierInput {
   string issuer_country_or_region = 4;
 }
 
-message TenantOnboardingOrganizationPartyInput {
+message TenantOnboardingOrganizationTenantPartyInput {
   string legal_name = 1;
   string registered_country = 2;
   repeated TenantOnboardingIdentifierInput identifiers = 3;
@@ -187,7 +187,7 @@ message TenantOnboardingFirstAdminInput {
 message StartTenantOnboardingRequest {
   string idempotency_key = 1;
   TenantOnboardingTenantInput tenant = 2;
-  TenantOnboardingOrganizationPartyInput organization_party = 3;
+  TenantOnboardingOrganizationTenantPartyInput organization_tenant_party = 3;
   TenantOnboardingRootOrgInput root_org = 4;
   TenantOnboardingFirstAdminInput first_admin = 5;
 }
@@ -227,15 +227,17 @@ message TenantOnboardingFailure {
   bool retryable = 4;
 }
 
-message TenantOnboardingOrganizationPartyResult {
-  string party_id = 1;
+message TenantOnboardingOrganizationTenantPartyResult {
+  reserved 1;
+  reserved "party_id";
   string tenant_party_id = 2;
 }
 
 message TenantOnboardingFirstAdminResult {
   string user_id = 1;
   string account_id = 2;
-  string person_party_id = 3;
+  reserved 3;
+  reserved "person_party_id";
   string tenant_party_id = 4;
 }
 
@@ -261,7 +263,7 @@ message TenantOnboardingResult {
   string status = 2;
   TenantSummary tenant = 3;
   OrgUnitSummary root_org = 4;
-  TenantOnboardingOrganizationPartyResult organization_party = 5;
+  TenantOnboardingOrganizationTenantPartyResult organization_tenant_party = 5;
   TenantOnboardingFirstAdminResult first_admin = 6;
   TenantOnboardingAccessResult access = 7;
   repeated TenantOnboardingStep steps = 8;
@@ -312,7 +314,7 @@ message CreateOrgUnitRequest {
   string name = 3;
   string type = 4;
   int32 sort_order = 5;
-  optional string organization_party_id = 6;
+  optional string organization_tenant_party_id = 6;
 }
 
 message CreateOrgUnitResponse {
@@ -325,7 +327,7 @@ message UpdateOrgUnitRequest {
   string name = 3;
   string type = 4;
   int32 sort_order = 5;
-  optional string organization_party_id = 6;
+  optional string organization_tenant_party_id = 6;
 }
 
 message UpdateOrgUnitResponse {

@@ -14,6 +14,7 @@ export const SERVICE_NAMES = {
   PARTY: 'party-service',
   PROCUREMENT: 'procurement-service',
   PUBLIC_ENTRY: 'public-entry-service',
+  SITE: 'site-service',
   SRM: 'srm-service',
   TENANT_ORG: 'tenant-org-service',
   TERMINAL_DEVICE: 'terminal-device-service',

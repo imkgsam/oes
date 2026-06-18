@@ -179,10 +179,6 @@ export class AdminSecurityUseCase {
       source
     )
 
-    const userPartyNameMap = await this.loadPartyNames(
-      [...new Set((result.accounts ?? []).map((account) => normalize(account.userPartyId)).filter(Boolean))] as string[],
-      source
-    )
     const tenantNameMap = await this.loadTenantNames(
       [...new Set((result.accounts ?? []).map((account) => normalize(account.tenantId)).filter(Boolean))] as string[],
       source
@@ -197,8 +193,7 @@ export class AdminSecurityUseCase {
           ? tenantNameMap.get(normalize(account.tenantId)!)
           : undefined,
         accountDisplayName: normalize(account.displayName),
-        userDisplayName:
-          userPartyNameMap.get(normalize(account.userPartyId) ?? '') ?? normalize(account.userDisplayName),
+        userDisplayName: normalize(account.userDisplayName),
         scopeLevel: account.scopeLevel === 'SYSTEM' ? 'SYSTEM' : 'TENANT',
         isEnabled: Boolean(account.isEnabled)
       })),
@@ -762,7 +757,7 @@ export class AdminSecurityUseCase {
       Promise.all(
         userIds.map(async (userId) => {
           const result = await this.identityAdapter.getUserById(userId, source)
-          return [userId, normalize(result.user?.partyId), normalize(result.user?.username)] as const
+          return [userId, normalize(result.user?.username)] as const
         })
       ),
       Promise.all(
@@ -774,9 +769,8 @@ export class AdminSecurityUseCase {
     ])
     const userNameMap = new Map(
       await Promise.all(
-        userEntries.map(async ([userId, partyId, username]) => {
-          const partyName = partyId ? await this.loadPartyName(partyId, source) : undefined
-          return [userId, { displayName: partyName ?? username, username }] as const
+        userEntries.map(async ([userId, username]) => {
+          return [userId, { displayName: username, username }] as const
         })
       )
     )
@@ -937,10 +931,9 @@ export class AdminSecurityUseCase {
   private async findSearchCandidates(
     keyword: string,
     source: DownstreamRequestSource
-  ): Promise<Array<{ id: string; partyId?: string; username?: string; personalEmail?: string; personalPhone?: string }>> {
+  ): Promise<Array<{ id: string; username?: string; personalEmail?: string; personalPhone?: string }>> {
     const candidates: Array<{
       id: string
-      partyId?: string
       username?: string
       personalEmail?: string
       personalPhone?: string
@@ -948,7 +941,6 @@ export class AdminSecurityUseCase {
     const seen = new Set<string>()
     const pushCandidate = (user?: {
       id?: string
-      partyId?: string
       username?: string
       personalEmail?: string
       personalPhone?: string
@@ -961,7 +953,6 @@ export class AdminSecurityUseCase {
       seen.add(userId)
       candidates.push({
         id: userId,
-        partyId: normalize(user?.partyId),
         username: normalize(user?.username),
         personalEmail: normalize(user?.personalEmail),
         personalPhone: normalize(user?.personalPhone)
@@ -987,7 +978,6 @@ export class AdminSecurityUseCase {
   private async buildSearchItem(
     user: {
       id: string
-      partyId?: string
       username?: string
       personalEmail?: string
       personalPhone?: string
@@ -1017,7 +1007,6 @@ export class AdminSecurityUseCase {
       })
     )
     const tenantNameMap = new Map(tenantEntries)
-    const partyName = user.partyId ? await this.loadPartyName(user.partyId, source) : undefined
     const sessionsResult = await this.authAdapter.adminListUserSessions(user.id, source)
     const activeSessions = (sessionsResult.sessions ?? []).filter((session) => {
       if (Boolean(session.isRevoked) || Boolean(session.isAccessExpired)) {
@@ -1033,7 +1022,7 @@ export class AdminSecurityUseCase {
 
     return {
       userId: user.id,
-      displayName: partyName ?? normalize(accountSummaries[0]?.displayName) ?? user.username ?? user.id,
+      displayName: normalize(accountSummaries[0]?.displayName) ?? user.username ?? user.id,
       emailMasked: maskEmail(user.personalEmail),
       phoneMasked: maskPhone(user.personalPhone),
       accountSummaries: accountSummaries.map((account) => ({
@@ -1050,18 +1039,6 @@ export class AdminSecurityUseCase {
     }
   }
 
-  // Loads one display name per party id so admin-facing user rows no longer rely on legacy identity usernames.
-  private async loadPartyNames(
-    partyIds: string[],
-    source: DownstreamRequestSource
-  ): Promise<Map<string, string>> {
-    const entries = await Promise.all(
-      partyIds.map(async (partyId) => [partyId, await this.loadPartyName(partyId, source)] as const)
-    )
-
-    return new Map(entries.filter((entry): entry is readonly [string, string] => Boolean(entry[1])))
-  }
-
   // Loads tenant names from tenant-org-service so identity account-directory rows stay tenant-truth free.
   private async loadTenantNames(
     tenantIds: string[],
@@ -1075,20 +1052,6 @@ export class AdminSecurityUseCase {
     )
 
     return new Map(entries.filter((entry): entry is readonly [string, string] => Boolean(entry[1])))
-  }
-
-  // Resolves one human-facing party name from party-service without inventing account-display semantics.
-  private async loadPartyName(
-    partyId: string,
-    source: DownstreamRequestSource
-  ): Promise<string | undefined> {
-    const normalizedPartyId = normalize(partyId)
-    if (!normalizedPartyId || !this.partyAdapter) {
-      return undefined
-    }
-
-    const result = await this.partyAdapter.getPartyById(normalizedPartyId, source)
-    return normalize(result.party?.legalName)
   }
 
   private requireTenantOrgAdapter(): TenantOrgQueryGrpcAdapter {

@@ -1,7 +1,9 @@
 import { AccountContactAssetEntity } from '../entities/account-contact-asset.entity'
 
+// AccountContactAssetRepository defines storage operations for identity-owned account contact assets.
 export interface AccountContactAssetRepository {
   findById(assetId: string): Promise<AccountContactAssetEntity | null>
+  listByIds(assetIds: string[]): Promise<AccountContactAssetEntity[]>
   findCurrentByTenantAndTypeAndValue(
     tenantId: string,
     type: string,
@@ -14,6 +16,14 @@ export interface AccountContactAssetRepository {
       tenantId?: string
     }
   ): Promise<AccountContactAssetEntity[]>
+  listByAccountContactAssetFilter(input: {
+    tenantId: string
+    accountId: string
+    employeeId?: string | null
+    types?: string[]
+    statuses?: string[]
+    ownership?: string[]
+  }): Promise<AccountContactAssetEntity[]>
   assign(input: {
     tenantId: string
     accountId: string

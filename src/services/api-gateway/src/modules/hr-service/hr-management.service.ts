@@ -1,9 +1,17 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
+import {
+  BadGatewayException,
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException
+} from '@nestjs/common'
 import { DownstreamRequestSource } from '../../common/grpc/gateway-downstream-source.mapper'
 import { AuthGrpcAdapter } from '../auth-bff/infrastructure/downstream/auth-service/auth-grpc.adapter'
 import { IdentityQueryGrpcAdapter } from '../auth-bff/infrastructure/downstream/identity-service/identity-query-grpc.adapter'
 import { PermissionProxyService } from '../permission-service/permission-service.service'
 import { OrgManagementService } from '../tenant-org-service/org-management.service'
+import { EmployeeOfficialPhotoAssetGrpcAdapter } from './adapters/employee-official-photo-asset-grpc.adapter'
 import { HrManagementGrpcAdapter } from './adapters/hr-management-grpc.adapter'
 import {
   HrEmployeeSummary,
@@ -12,12 +20,22 @@ import {
 } from './adapters/hr-query-grpc.adapter'
 import { PartyTenantQueryGrpcAdapter } from './adapters/party-tenant-query-grpc.adapter'
 
+export interface EmployeeOfficialPhotoUploadFile {
+  buffer: Buffer
+  mimetype: string
+  originalname: string
+  size: number
+}
+
 @Injectable()
 // Builds the tenant-scoped employee and employment management model for the gateway HR entry.
 export class HrManagementService {
+  private readonly logger = new Logger(HrManagementService.name)
+
   constructor(
     private readonly hrQueryAdapter: HrQueryGrpcAdapter,
     private readonly hrManagementAdapter: HrManagementGrpcAdapter,
+    private readonly officialPhotoAssetAdapter: EmployeeOfficialPhotoAssetGrpcAdapter,
     private readonly identityQueryAdapter: IdentityQueryGrpcAdapter,
     private readonly authAdapter: AuthGrpcAdapter,
     private readonly partyTenantQueryAdapter: PartyTenantQueryGrpcAdapter,
@@ -128,6 +146,99 @@ export class HrManagementService {
     })
   }
 
+  /** uploadEmployeeOfficialPhoto coordinates Asset upload, HR truth update, Asset binding, and HR rollback on bind failure. */
+  async uploadEmployeeOfficialPhoto(
+    tenantId: string,
+    employeeId: string,
+    file: EmployeeOfficialPhotoUploadFile | undefined,
+    source: DownstreamRequestSource
+  ): Promise<{ employee?: HrEmployeeSummary }> {
+    if (!file) {
+      throw new BadRequestException('official photo file is required')
+    }
+
+    const resolvedTenantId = this.resolveTenantId(tenantId, source)
+    const employee = await this.assertEmployeeInTenant(resolvedTenantId, employeeId, source)
+    const previousOfficialPhotoAssetId = normalize(employee.officialPhotoAssetId)
+    const previousOfficialPhotoUrl = normalize(employee.officialPhotoUrl)
+    const operatorId = this.resolveOperatorId(source)
+    const uploadResult = await this.officialPhotoAssetAdapter.uploadEmployeeOfficialPhoto(
+      {
+        scopeLevel: 'TENANT',
+        tenantId: resolvedTenantId,
+        employeeId: requireNonBlank(employeeId, 'employeeId'),
+        operatorId,
+        file: file.buffer,
+        fileName: file.originalname,
+        contentType: requireNonBlank(file.mimetype, 'contentType')
+      },
+      source
+    )
+    const officialPhotoAssetId = requireNonBlank(uploadResult.asset?.assetId, 'officialPhotoAssetId')
+    const officialPhotoUrl = requireNonBlank(uploadResult.asset?.publicUrl, 'officialPhotoUrl')
+    const updatedEmployee = await this.hrManagementAdapter.updateEmployeeOfficialPhoto(
+      {
+        tenantId: resolvedTenantId,
+        employeeId: requireNonBlank(employeeId, 'employeeId'),
+        officialPhotoAssetId,
+        officialPhotoUrl
+      },
+      source
+    )
+
+    try {
+      await this.officialPhotoAssetAdapter.bindEmployeeOfficialPhoto(
+        {
+          scopeLevel: 'TENANT',
+          tenantId: resolvedTenantId,
+          employeeId: requireNonBlank(employeeId, 'employeeId'),
+          operatorId,
+          newAssetId: officialPhotoAssetId,
+          previousAssetId: normalize(employee.officialPhotoAssetId)
+        },
+        source
+      )
+    } catch (error) {
+      this.logger.warn(
+        {
+          tenantId: resolvedTenantId,
+          employeeId,
+          officialPhotoAssetId,
+          error
+        },
+        'Failed to bind employee official photo asset after HR update'
+      )
+      await this.restorePreviousOfficialPhotoState(
+        {
+          tenantId: resolvedTenantId,
+          employeeId: requireNonBlank(employeeId, 'employeeId'),
+          previousOfficialPhotoAssetId,
+          previousOfficialPhotoUrl
+        },
+        source
+      )
+      throw new BadGatewayException('employee official photo upload did not complete')
+    }
+
+    return updatedEmployee
+  }
+
+  /** removeEmployeeOfficialPhoto clears the HR-owned official photo reference without touching Identity avatar data. */
+  async removeEmployeeOfficialPhoto(
+    tenantId: string,
+    employeeId: string,
+    source: DownstreamRequestSource
+  ): Promise<{ employee?: HrEmployeeSummary }> {
+    const resolvedTenantId = this.resolveTenantId(tenantId, source)
+    return this.hrManagementAdapter.removeEmployeeOfficialPhoto(
+      {
+        tenantId: resolvedTenantId,
+        employeeId: requireNonBlank(employeeId, 'employeeId')
+      },
+      source
+    )
+  }
+
   async searchEmployeeUserCandidates(
     tenantId: string,
     query: { countryOrRegion?: string; keyword?: string },
@@ -186,7 +297,6 @@ export class HrManagementService {
       }
       employeeCode?: string
       idempotencyKey?: string
-      partyId?: string
       person?: {
         gender?: string
         identifiers?: Array<{
@@ -213,7 +323,6 @@ export class HrManagementService {
         {
           tenantId: resolvedTenantId,
           tenantPartyId: requireNonBlank(input.tenantPartyId, 'tenantPartyId'),
-          partyId: normalize(input.partyId),
           employeeCode: normalize(input.employeeCode)
         },
         source
@@ -523,8 +632,8 @@ export class HrManagementService {
             tenantPartyId!,
             source
           )
-          return tenantParty?.localDisplayName
-            ? ([tenantPartyId!, tenantParty.localDisplayName] as const)
+          return tenantParty?.displayName
+            ? ([tenantPartyId!, tenantParty.displayName] as const)
             : undefined
         } catch (error) {
           if (error instanceof NotFoundException) {
@@ -603,6 +712,57 @@ export class HrManagementService {
     }
 
     return operatorTenantId
+  }
+
+  private resolveOperatorId(source: DownstreamRequestSource): string {
+    return requireNonBlank(
+      source.user?.holderId ?? source.user?.aid ?? source.user?.id ?? source.user?.sub,
+      'operatorId'
+    )
+  }
+
+  /** restorePreviousOfficialPhotoState reverts HR photo truth to the pre-upload state after Asset binding fails. */
+  private async restorePreviousOfficialPhotoState(
+    input: {
+      tenantId: string
+      employeeId: string
+      previousOfficialPhotoAssetId?: string
+      previousOfficialPhotoUrl?: string
+    },
+    source: DownstreamRequestSource
+  ): Promise<void> {
+    try {
+      if (input.previousOfficialPhotoAssetId && input.previousOfficialPhotoUrl) {
+        await this.hrManagementAdapter.updateEmployeeOfficialPhoto(
+          {
+            tenantId: input.tenantId,
+            employeeId: input.employeeId,
+            officialPhotoAssetId: input.previousOfficialPhotoAssetId,
+            officialPhotoUrl: input.previousOfficialPhotoUrl
+          },
+          source
+        )
+        return
+      }
+
+      await this.hrManagementAdapter.removeEmployeeOfficialPhoto(
+        {
+          tenantId: input.tenantId,
+          employeeId: input.employeeId
+        },
+        source
+      )
+    } catch (error) {
+      this.logger.warn(
+        {
+          tenantId: input.tenantId,
+          employeeId: input.employeeId,
+          previousOfficialPhotoAssetId: input.previousOfficialPhotoAssetId,
+          error
+        },
+        'Failed to restore HR official photo state after asset bind failure'
+      )
+    }
   }
 }
 

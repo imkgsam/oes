@@ -8,7 +8,9 @@ import {
   CreateEmploymentResponse,
   EndEmploymentResponse,
   HR_MANAGEMENT_SERVICE_NAME,
-  HrManagementServiceClient
+  HrManagementServiceClient,
+  RemoveEmployeeOfficialPhotoResponse,
+  UpdateEmployeeOfficialPhotoResponse
 } from '@oes/common/generated/hr_service'
 import {
   GRPC_METADATA_PROPAGATION_FACTORY,
@@ -45,7 +47,7 @@ export class HrManagementGrpcAdapter implements OnModuleInit {
   }
 
   createEmployee(
-    input: { tenantId: string; tenantPartyId: string; partyId?: string; employeeCode?: string },
+    input: { tenantId: string; tenantPartyId: string; employeeCode?: string },
     source: DownstreamRequestSource
   ): Promise<{ employee?: HrEmployeeSummary }> {
     return this.call(
@@ -55,16 +57,7 @@ export class HrManagementGrpcAdapter implements OnModuleInit {
         this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
       ),
       (response: CreateEmployeeResponse) => ({
-        employee: response.employee
-          ? {
-              id: response.employee.id ?? '',
-              tenantId: response.employee.tenantId ?? '',
-              tenantPartyId: response.employee.tenantPartyId ?? '',
-              partyId: response.employee.partyId?.trim() || undefined,
-              employeeCode: response.employee.employeeCode ?? '',
-              lifecycleStatus: mapEmployeeLifecycleStatus(response.employee.lifecycleStatus)
-            }
-          : undefined
+        employee: response.employee ? mapEmployee(response.employee) : undefined
       })
     )
   }
@@ -74,7 +67,6 @@ export class HrManagementGrpcAdapter implements OnModuleInit {
       tenantId: string
       idempotencyKey: string
       person: {
-        existingPartyId?: string
         existingTenantPartyId?: string
         legalName: string
         identifiers?: Array<{
@@ -112,7 +104,6 @@ export class HrManagementGrpcAdapter implements OnModuleInit {
           idempotencyKey: input.idempotencyKey,
           person: {
             legalName: input.person.legalName,
-            existingPartyId: input.person.existingPartyId,
             existingTenantPartyId: input.person.existingTenantPartyId,
             identifiers: (input.person.identifiers ?? []).map((identifier) => ({
               identifierType: identifier.identifierType,
@@ -129,16 +120,7 @@ export class HrManagementGrpcAdapter implements OnModuleInit {
         this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
       ),
       (response: CreateEmployeeOnboardingResponse) => ({
-        employee: response.employee
-          ? {
-              id: response.employee.id ?? '',
-              tenantId: response.employee.tenantId ?? '',
-              tenantPartyId: response.employee.tenantPartyId ?? '',
-              partyId: response.employee.partyId?.trim() || undefined,
-              employeeCode: response.employee.employeeCode ?? '',
-              lifecycleStatus: mapEmployeeLifecycleStatus(response.employee.lifecycleStatus)
-            }
-          : undefined,
+        employee: response.employee ? mapEmployee(response.employee) : undefined,
         employment: response.employment ? mapEmployment(response.employment) : undefined,
         access: response.access ? mapOnboardingAccessProcess(response.access) : undefined
       })
@@ -162,16 +144,7 @@ export class HrManagementGrpcAdapter implements OnModuleInit {
         this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
       ),
       (response: CreateEmploymentResponse) => ({
-        employee: response.employee
-          ? {
-              id: response.employee.id ?? '',
-              tenantId: response.employee.tenantId ?? '',
-              tenantPartyId: response.employee.tenantPartyId ?? '',
-              partyId: response.employee.partyId?.trim() || undefined,
-              employeeCode: response.employee.employeeCode ?? '',
-              lifecycleStatus: mapEmployeeLifecycleStatus(response.employee.lifecycleStatus)
-            }
-          : undefined,
+        employee: response.employee ? mapEmployee(response.employee) : undefined,
         employment: response.employment ? mapEmployment(response.employment) : undefined
       })
     )
@@ -188,16 +161,7 @@ export class HrManagementGrpcAdapter implements OnModuleInit {
         this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
       ),
       (response: EndEmploymentResponse) => ({
-        employee: response.employee
-          ? {
-              id: response.employee.id ?? '',
-              tenantId: response.employee.tenantId ?? '',
-              tenantPartyId: response.employee.tenantPartyId ?? '',
-              partyId: response.employee.partyId?.trim() || undefined,
-              employeeCode: response.employee.employeeCode ?? '',
-              lifecycleStatus: mapEmployeeLifecycleStatus(response.employee.lifecycleStatus)
-            }
-          : undefined,
+        employee: response.employee ? mapEmployee(response.employee) : undefined,
         employment: response.employment ? mapEmployment(response.employment) : undefined
       })
     )
@@ -226,16 +190,7 @@ export class HrManagementGrpcAdapter implements OnModuleInit {
         this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
       ),
       (response: ChangePrimaryEmploymentResponse) => ({
-        employee: response.employee
-          ? {
-              id: response.employee.id ?? '',
-              tenantId: response.employee.tenantId ?? '',
-              tenantPartyId: response.employee.tenantPartyId ?? '',
-              partyId: response.employee.partyId?.trim() || undefined,
-              employeeCode: response.employee.employeeCode ?? '',
-              lifecycleStatus: mapEmployeeLifecycleStatus(response.employee.lifecycleStatus)
-            }
-          : undefined,
+        employee: response.employee ? mapEmployee(response.employee) : undefined,
         endedEmployment: response.endedEmployment
           ? mapEmployment(response.endedEmployment)
           : undefined,
@@ -281,6 +236,45 @@ export class HrManagementGrpcAdapter implements OnModuleInit {
     )
   }
 
+  /** updateEmployeeOfficialPhoto writes the HR-owned official photo reference after asset upload succeeds. */
+  updateEmployeeOfficialPhoto(
+    input: {
+      tenantId: string
+      employeeId: string
+      officialPhotoAssetId: string
+      officialPhotoUrl: string
+    },
+    source: DownstreamRequestSource
+  ): Promise<{ employee?: HrEmployeeSummary }> {
+    return this.call(
+      'updateEmployeeOfficialPhoto',
+      this.svc.updateEmployeeOfficialPhoto(
+        input,
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      ),
+      (response: UpdateEmployeeOfficialPhotoResponse) => ({
+        employee: response.employee ? mapEmployee(response.employee) : undefined
+      })
+    )
+  }
+
+  /** removeEmployeeOfficialPhoto clears only the HR-owned official photo reference. */
+  removeEmployeeOfficialPhoto(
+    input: { tenantId: string; employeeId: string },
+    source: DownstreamRequestSource
+  ): Promise<{ employee?: HrEmployeeSummary }> {
+    return this.call(
+      'removeEmployeeOfficialPhoto',
+      this.svc.removeEmployeeOfficialPhoto(
+        input,
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      ),
+      (response: RemoveEmployeeOfficialPhotoResponse) => ({
+        employee: response.employee ? mapEmployee(response.employee) : undefined
+      })
+    )
+  }
+
   private call<TResponse, TResult>(
     method: string,
     call$: any,
@@ -291,6 +285,27 @@ export class HrManagementGrpcAdapter implements OnModuleInit {
 
   private opts(method: string): SafeGrpcCallOptions {
     return { caller: CALLER, method }
+  }
+}
+
+/** mapEmployee preserves HR employee summary truth, including official photo references, for gateway responses. */
+function mapEmployee(employee: {
+  id?: string
+  tenantId?: string
+  tenantPartyId?: string
+  employeeCode?: string
+  lifecycleStatus?: number
+  officialPhotoAssetId?: string
+  officialPhotoUrl?: string
+}): HrEmployeeSummary {
+  return {
+    id: employee.id ?? '',
+    tenantId: employee.tenantId ?? '',
+    tenantPartyId: employee.tenantPartyId ?? '',
+    employeeCode: employee.employeeCode ?? '',
+    lifecycleStatus: mapEmployeeLifecycleStatus(employee.lifecycleStatus),
+    officialPhotoAssetId: employee.officialPhotoAssetId?.trim() || null,
+    officialPhotoUrl: employee.officialPhotoUrl?.trim() || null
   }
 }
 

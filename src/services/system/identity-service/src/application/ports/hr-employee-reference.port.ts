@@ -4,6 +4,6 @@ export interface HrEmployeeReferencePort {
   getEmployeeById(employeeId: string): Promise<{
     id: string
     tenantId: string
-    partyId: string | null
+    tenantPartyId: string | null
   } | null>
 }

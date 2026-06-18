@@ -21,6 +21,18 @@ service TaskQueryService {
   rpc GetTask(GetTaskRequest) returns (GetTaskResponse);
 }
 
+service AnnotationCommandService {
+  rpc CreateAnnotation(CreateAnnotationRequest) returns (CreateAnnotationResponse);
+  rpc UpdateAnnotation(UpdateAnnotationRequest) returns (UpdateAnnotationResponse);
+  rpc DeleteAnnotation(DeleteAnnotationRequest) returns (DeleteAnnotationResponse);
+  rpc SetAnnotationPinned(SetAnnotationPinnedRequest) returns (SetAnnotationPinnedResponse);
+}
+
+service AnnotationQueryService {
+  rpc ListAnnotationsForObject(ListAnnotationsForObjectRequest) returns (ListAnnotationsForObjectResponse);
+  rpc GetAnnotation(GetAnnotationRequest) returns (GetAnnotationResponse);
+}
+
 enum TaskVisibility {
   TASK_VISIBILITY_UNSPECIFIED = 0;
   TASK_VISIBILITY_PRIVATE = 1;
@@ -50,6 +62,12 @@ enum TaskListScope {
   TASK_LIST_SCOPE_CREATED_BY_ME = 3;
 }
 
+enum AnnotationVisibility {
+  ANNOTATION_VISIBILITY_UNSPECIFIED = 0;
+  ANNOTATION_VISIBILITY_PRIVATE = 1;
+  ANNOTATION_VISIBILITY_OBJECT_VISIBLE = 2;
+}
+
 message OperatorContext {
   string account_id = 1;
   string user_id = 2;
@@ -65,6 +83,18 @@ message AuditContext {
   string audit_id = 1;
   string reason = 2;
   string source = 3;
+}
+
+message ObjectRef {
+  string object_owner_service = 1;
+  string object_type = 2;
+  string object_id = 3;
+}
+
+message ObjectDisplaySnapshot {
+  string title = 1;
+  string subtitle = 2;
+  string status = 3;
 }
 
 message CreateTaskRequest {
@@ -232,4 +262,101 @@ message ListTasksResponse {
   int32 page = 2;
   int32 page_size = 3;
   int32 total = 4;
+}
+
+message AnnotationView {
+  string annotation_id = 1;
+  string tenant_id = 2;
+  ObjectRef object_ref = 3;
+  ObjectDisplaySnapshot object_display_snapshot = 4;
+  string author_account_id = 5;
+  string author_display_name_snapshot = 6;
+  string body_text = 7;
+  AnnotationVisibility visibility = 8;
+  bool pinned = 9;
+  bool edited = 10;
+  string created_at = 11;
+  string updated_at = 12;
+}
+
+message CreateAnnotationRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  ObjectRef object_ref = 5;
+  string body_text = 6;
+  AnnotationVisibility visibility = 7;
+}
+
+message CreateAnnotationResponse {
+  AnnotationView annotation = 1;
+}
+
+message UpdateAnnotationRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string annotation_id = 5;
+  string body_text = 6;
+  AnnotationVisibility visibility = 7;
+}
+
+message UpdateAnnotationResponse {
+  AnnotationView annotation = 1;
+}
+
+message DeleteAnnotationRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string annotation_id = 5;
+  string delete_reason = 6;
+}
+
+message DeleteAnnotationResponse {
+  AnnotationView annotation = 1;
+}
+
+message SetAnnotationPinnedRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string annotation_id = 5;
+  bool pinned = 6;
+}
+
+message SetAnnotationPinnedResponse {
+  AnnotationView annotation = 1;
+}
+
+message ListAnnotationsForObjectRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  ObjectRef object_ref = 4;
+  bool include_private = 5;
+  int32 page = 6;
+  int32 page_size = 7;
+}
+
+message ListAnnotationsForObjectResponse {
+  repeated AnnotationView items = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+  int32 total = 4;
+}
+
+message GetAnnotationRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string annotation_id = 4;
+}
+
+message GetAnnotationResponse {
+  AnnotationView annotation = 1;
 }

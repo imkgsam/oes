@@ -185,7 +185,6 @@ describe('employee management page', () => {
             employeeCode: 'EMP-0AF-0001',
             id: 'employee-1',
             lifecycleStatus: 'ACTIVE',
-            partyId: 'party-1',
             tenantId: 'tenant-1',
             tenantPartyId: 'tenant-party-1'
           },
@@ -199,13 +198,13 @@ describe('employee management page', () => {
               depth: 1,
               id: 'org-branch-1',
               name: '华东分公司',
-              organizationParty: {
+              organizationTenantParty: {
                 id: 'party-branch-1',
                 legalName: '华东制造主体有限公司',
                 status: 'ACTIVE',
                 type: 'ORGANIZATION'
               },
-              organizationPartyId: 'party-branch-1',
+              organizationTenantPartyId: 'party-branch-1',
               parentOrgId: 'org-root-1',
               path: '/org-root-1/org-branch-1',
               sortOrder: 10,
@@ -227,7 +226,6 @@ describe('employee management page', () => {
         employeeCode: 'EMP-0AF-0001',
         id: 'employee-1',
         lifecycleStatus: 'ACTIVE',
-        partyId: 'party-1',
         tenantId: 'tenant-1',
         tenantPartyId: 'tenant-party-1'
       },
@@ -241,13 +239,13 @@ describe('employee management page', () => {
           depth: 1,
           id: 'org-branch-1',
           name: '华东分公司',
-          organizationParty: {
+          organizationTenantParty: {
             id: 'party-branch-1',
             legalName: '华东制造主体有限公司',
             status: 'ACTIVE',
             type: 'ORGANIZATION'
           },
-          organizationPartyId: 'party-branch-1',
+          organizationTenantPartyId: 'party-branch-1',
           parentOrgId: 'org-root-1',
           path: '/org-root-1/org-branch-1',
           sortOrder: 10,
@@ -269,13 +267,13 @@ describe('employee management page', () => {
             depth: 1,
             id: 'org-branch-1',
             name: '华东分公司',
-            organizationParty: {
+            organizationTenantParty: {
               id: 'party-branch-1',
               legalName: '华东制造主体有限公司',
               status: 'ACTIVE',
               type: 'ORGANIZATION'
             },
-            organizationPartyId: 'party-branch-1',
+            organizationTenantPartyId: 'party-branch-1',
             parentOrgId: 'org-root-1',
             path: '/org-root-1/org-branch-1',
             sortOrder: 10,
@@ -297,13 +295,13 @@ describe('employee management page', () => {
             depth: 0,
             id: 'org-root-1',
             name: 'Alpha 集团',
-            organizationParty: {
+            organizationTenantParty: {
               id: 'party-root-1',
               legalName: 'Alpha Holdings Co.',
               status: 'ACTIVE',
               type: 'ORGANIZATION'
             },
-            organizationPartyId: 'party-root-1',
+            organizationTenantPartyId: 'party-root-1',
             path: '/org-root-1',
             sortOrder: 0,
             status: 'ACTIVE',
@@ -358,13 +356,13 @@ describe('employee management page', () => {
                 depth: 1,
                 id: 'org-branch-1',
                 name: '华东分公司',
-                organizationParty: {
+                organizationTenantParty: {
                   id: 'party-branch-1',
                   legalName: '华东制造主体有限公司',
                   status: 'ACTIVE',
                   type: 'ORGANIZATION'
                 },
-                organizationPartyId: 'party-branch-1',
+                organizationTenantPartyId: 'party-branch-1',
                 parentOrgId: 'org-root-1',
                 path: '/org-root-1/org-branch-1',
                 sortOrder: 10,
@@ -378,13 +376,13 @@ describe('employee management page', () => {
             depth: 0,
             id: 'org-root-1',
             name: 'Alpha 集团',
-            organizationParty: {
+            organizationTenantParty: {
               id: 'party-root-1',
               legalName: 'Alpha Holdings Co.',
               status: 'ACTIVE',
               type: 'ORGANIZATION'
             },
-            organizationPartyId: 'party-root-1',
+            organizationTenantPartyId: 'party-root-1',
             path: '/org-root-1',
             sortOrder: 0,
             status: 'ACTIVE',
@@ -400,13 +398,13 @@ describe('employee management page', () => {
         depth: 1,
         id: 'org-branch-1',
         name: '华东分公司',
-        organizationParty: {
+        organizationTenantParty: {
           id: 'party-branch-1',
           legalName: '华东制造主体有限公司',
           status: 'ACTIVE',
           type: 'ORGANIZATION'
         },
-        organizationPartyId: 'party-branch-1',
+        organizationTenantPartyId: 'party-branch-1',
         path: '/org-root-1/org-branch-1',
         sortOrder: 10,
         status: 'ACTIVE',
@@ -419,7 +417,6 @@ describe('employee management page', () => {
         employeeCode: 'EMP-0AF-0002',
         id: 'employee-2',
         lifecycleStatus: 'PREBOARDING',
-        partyId: 'party-2',
         tenantId: 'tenant-1',
         tenantPartyId: 'tenant-party-2'
       }
@@ -429,7 +426,6 @@ describe('employee management page', () => {
         employeeCode: 'EMP-0AF-0002',
         id: 'employee-2',
         lifecycleStatus: 'ACTIVE',
-        partyId: 'party-2',
         tenantId: 'tenant-1',
         tenantPartyId: 'tenant-party-2'
       },

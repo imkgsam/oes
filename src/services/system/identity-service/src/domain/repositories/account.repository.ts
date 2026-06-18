@@ -15,6 +15,7 @@ export interface AccountRepository {
   createUserAccount(input: {
     scopeLevel: 'SYSTEM' | 'TENANT'
     tenantId?: string
+    tenantPartyId?: string | null
     userId: string
     displayName?: string | null
   }): Promise<AccountSummaryEntity>

@@ -1,0 +1,3 @@
+ALTER TABLE "Employee"
+  ADD COLUMN IF NOT EXISTS "officialPhotoAssetId" VARCHAR(100),
+  ADD COLUMN IF NOT EXISTS "officialPhotoUrl" VARCHAR(1000);

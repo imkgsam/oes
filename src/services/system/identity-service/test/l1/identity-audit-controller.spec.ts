@@ -341,4 +341,55 @@ describe('identity audit controller integration', () => {
       )
     ).toEqual({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.UPDATE_ACCOUNT_PROFILE] })
   })
+
+  it('management controller / contact asset mutations 应使用统一 Contact Asset 权限码', () => {
+    expect(
+      Reflect.getMetadata(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        IdentityManagementGrpcController.prototype.assignAccountWorkEmailAsset
+      )
+    ).toEqual({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.ASSIGN_CONTACT_ASSET] })
+    expect(
+      Reflect.getMetadata(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        IdentityManagementGrpcController.prototype.assignAccountWorkPhoneAsset
+      )
+    ).toEqual({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.ASSIGN_CONTACT_ASSET] })
+    expect(
+      Reflect.getMetadata(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        IdentityManagementGrpcController.prototype.revokeAccountWorkEmailAsset
+      )
+    ).toEqual({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.RELEASE_CONTACT_ASSET] })
+    expect(
+      Reflect.getMetadata(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        IdentityManagementGrpcController.prototype.revokeAccountWorkPhoneAsset
+      )
+    ).toEqual({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.RELEASE_CONTACT_ASSET] })
+    expect(
+      Reflect.getMetadata(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        IdentityManagementGrpcController.prototype.setAccountPrimaryWorkEmailAsset
+      )
+    ).toEqual({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.SET_PRIMARY_CONTACT_ASSET] })
+    expect(
+      Reflect.getMetadata(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        IdentityManagementGrpcController.prototype.setAccountPrimaryWorkPhoneAsset
+      )
+    ).toEqual({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.SET_PRIMARY_CONTACT_ASSET] })
+    expect(
+      Reflect.getMetadata(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        IdentityManagementGrpcController.prototype.setAccountWorkEmailAssetStatus
+      )
+    ).toEqual({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.SET_CONTACT_ASSET_STATUS] })
+    expect(
+      Reflect.getMetadata(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        IdentityManagementGrpcController.prototype.setAccountWorkPhoneAssetStatus
+      )
+    ).toEqual({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.SET_CONTACT_ASSET_STATUS] })
+  })
 })

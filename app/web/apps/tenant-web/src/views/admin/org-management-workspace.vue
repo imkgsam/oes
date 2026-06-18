@@ -1294,6 +1294,15 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .org-management-workspace {
+  --org-card-bg: hsl(var(--card));
+  --org-card-bg-soft: hsl(var(--muted) / 0.34);
+  --org-border: hsl(var(--border));
+  --org-muted: hsl(var(--muted-foreground));
+  --org-resizer: hsl(var(--muted-foreground) / 0.3);
+  --org-table-header-bg: hsl(var(--muted) / 0.54);
+  --org-table-row-hover-bg: hsl(var(--muted) / 0.42);
+  --org-text: hsl(var(--foreground) / 0.92);
+  --org-title: hsl(var(--foreground));
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -1302,12 +1311,17 @@ onBeforeUnmount(() => {
 }
 
 .org-management__panel {
-  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  background: var(--org-card-bg);
+  border: 1px solid var(--org-border);
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
+}
+
+.org-management__panel :deep(.ant-card-body) {
+  background: var(--org-card-bg);
 }
 
 .org-management__tree-panel {
@@ -1326,7 +1340,7 @@ onBeforeUnmount(() => {
 }
 
 .org-management__table-head h2 {
-  color: #1f2937;
+  color: var(--org-title);
   font-size: 18px;
   font-weight: 600;
   line-height: 26px;
@@ -1334,7 +1348,7 @@ onBeforeUnmount(() => {
 }
 
 .org-management__table-head p {
-  color: #6b7280;
+  color: var(--org-muted);
   font-size: 13px;
   margin: 2px 0 0;
 }
@@ -1347,9 +1361,30 @@ onBeforeUnmount(() => {
   min-width: 0;
 }
 
+:deep(.org-management__ant-table .ant-table),
+:deep(.org-management__ant-table .ant-table-container) {
+  background: transparent;
+}
+
 :deep(.org-management__ant-table .ant-table-thead > tr > th) {
+  background: var(--org-table-header-bg);
+  color: var(--org-text);
   position: relative;
   user-select: none;
+}
+
+:deep(.org-management__ant-table .ant-table-tbody > tr > td) {
+  background: transparent;
+  color: var(--org-text);
+}
+
+:deep(.org-management__ant-table .ant-table-tbody > tr:hover > td) {
+  background: var(--org-table-row-hover-bg);
+}
+
+:deep(.org-management__ant-table .ant-table-cell-fix-right),
+:deep(.org-management__ant-table .ant-table-cell-fix-left) {
+  background: var(--org-card-bg);
 }
 
 .org-management__resizable-title {
@@ -1391,7 +1426,7 @@ onBeforeUnmount(() => {
   left: 6px;
   width: 1px;
   content: '';
-  background: rgb(15 23 42 / 14%);
+  background: var(--org-resizer);
   transition: background 0.16s ease;
 }
 
@@ -1407,7 +1442,7 @@ onBeforeUnmount(() => {
 }
 
 .org-management__name {
-  color: #1f2937;
+  color: var(--org-title);
   font-weight: 500;
 }
 
@@ -1432,7 +1467,7 @@ onBeforeUnmount(() => {
 
 .org-management__drawer-subtitle,
 .org-management__section-title {
-  color: #64748b;
+  color: var(--org-muted);
 }
 
 .org-management__backend-gap {

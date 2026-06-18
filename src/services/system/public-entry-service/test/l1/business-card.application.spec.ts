@@ -367,6 +367,40 @@ describe('BusinessCardApplicationService', () => {
     expect(JSON.stringify(publicView.view)).not.toContain('missing_asset')
   })
 
+  it('hides official photo from public render when visibility config disables it', async () => {
+    const { service } = buildService()
+    const created = await service.ensurePrimaryCard({ tenantId, employeeId, operatorContext })
+    await service.updateCardConfig({
+      tenantId,
+      businessCardId: created.businessCard.businessCardId,
+      operatorContext,
+      visibilityConfig: {
+        showTitle: true,
+        showDepartment: true,
+        showCompany: true,
+        showOfficialPhoto: false
+      }
+    })
+    await service.bindOrRefreshMainPublicEntry({
+      tenantId,
+      businessCardId: created.businessCard.businessCardId,
+      operatorContext
+    })
+    await service.enableCard({
+      tenantId,
+      businessCardId: created.businessCard.businessCardId,
+      operatorContext
+    })
+
+    const publicView = await service.renderPublicCard({
+      tenantId,
+      businessCardId: created.businessCard.businessCardId
+    })
+
+    expect(publicView.state).toBe('AVAILABLE')
+    expect(publicView.view?.person.officialPhotoUrl).toBeNull()
+  })
+
   it('self-view is derived from the authenticated account and cannot target another employee', async () => {
     const { service } = buildService()
     const created = await service.ensurePrimaryCard({ tenantId, employeeId, operatorContext })

@@ -51,7 +51,7 @@ describe('TenantOnboardingService', () => {
           path: '/root-org-1',
           depth: 0,
           sortOrder: 0,
-          organizationPartyId: null
+          organizationTenantPartyId: null
         }
       }),
       findById: jest.fn().mockResolvedValue({ id: 'tenant-1', code: 'acme', employeeCodePrefix: '0AF', name: 'ACME', status: 'ACTIVE', rootOrgId: 'root-org-1' })
@@ -68,20 +68,18 @@ describe('TenantOnboardingService', () => {
         path: '/root-org-1',
         depth: 0,
         sortOrder: 0,
-        organizationPartyId: 'org-party-1'
+        organizationTenantPartyId: 'org-tenant-party-1'
       })
     }
     const runRepository = createRunRepository()
     const partyPort = {
-      registerOrganizationParty: jest.fn().mockResolvedValue({ partyId: 'org-party-1' }),
-      bindExistingPartyToTenant: jest.fn().mockResolvedValue({ partyId: 'org-party-1', tenantPartyId: 'org-tenant-party-1' })
+      registerOrganizationTenantParty: jest.fn().mockResolvedValue({ tenantPartyId: 'org-tenant-party-1' })
     }
     const identityPort = {
       createTenantUserAccount: jest.fn().mockResolvedValue({
         userId: 'user-1',
         accountId: 'account-1',
-        userPartyId: 'person-party-1',
-        userTenantPartyId: 'person-tenant-party-1'
+        tenantPartyId: 'person-tenant-party-1'
       })
     }
     const authPort = {
@@ -118,7 +116,7 @@ describe('TenantOnboardingService', () => {
       service.start({
         idempotencyKey: 'onboarding-key-1',
         tenant: { code: 'acme', employeeCodePrefix: '0AF', name: 'ACME' },
-        organizationParty: {
+        organizationTenantParty: {
           legalName: 'ACME Inc.',
           registeredCountry: 'US',
           identifiers: [
@@ -135,8 +133,8 @@ describe('TenantOnboardingService', () => {
       })
     ).resolves.toMatchObject({
       status: 'SUCCEEDED',
-      organizationParty: { partyId: 'org-party-1', tenantPartyId: 'org-tenant-party-1' },
-      firstAdmin: { userId: 'user-1', accountId: 'account-1', personPartyId: 'person-party-1' },
+      organizationTenantParty: { tenantPartyId: 'org-tenant-party-1' },
+      firstAdmin: { userId: 'user-1', accountId: 'account-1', tenantPartyId: 'person-tenant-party-1' },
       access: {
         roleCode: 'tenant.admin',
         roleId: 'role-tenant-admin',
@@ -149,7 +147,7 @@ describe('TenantOnboardingService', () => {
       }
     })
 
-    expect(partyPort.registerOrganizationParty).toHaveBeenCalledWith(
+    expect(partyPort.registerOrganizationTenantParty).toHaveBeenCalledWith(
       expect.objectContaining({
         identifiers: [
           {
@@ -171,7 +169,6 @@ describe('TenantOnboardingService', () => {
       employeeCode: 'EMP-0AF-0001',
       idempotencyKey: 'onboarding-1:CREATE_FIRST_ADMIN_EMPLOYEE',
       person: {
-        existingPartyId: 'person-party-1',
         existingTenantPartyId: 'person-tenant-party-1',
         legalName: 'Alice Admin'
       },
@@ -191,7 +188,7 @@ describe('TenantOnboardingService', () => {
       { createWithRootOrg: jest.fn(), findById: jest.fn() } as any,
       { update: jest.fn(), findById: jest.fn() } as any,
       createRunRepository(),
-      { registerOrganizationParty: jest.fn(), bindExistingPartyToTenant: jest.fn() } as any,
+      { registerOrganizationTenantParty: jest.fn() } as any,
       { createTenantUserAccount: jest.fn() } as any,
       { bootstrapUserLoginMethods: jest.fn(), requirePasswordSetup: jest.fn() } as any,
       { ensureTenantAdminRole: jest.fn(), ensureHrAdminRole: jest.fn(), ensureAccountBasicRole: jest.fn(), grantTenantAdmin: jest.fn(), grantHrAdmin: jest.fn() } as any,
@@ -202,11 +199,11 @@ describe('TenantOnboardingService', () => {
       service.start({
         idempotencyKey: 'onboarding-key-1',
         tenant: { code: 'acme', employeeCodePrefix: '0AF', name: 'ACME' },
-        organizationParty: { legalName: 'ACME Inc.', registeredCountry: 'US', identifiers: [] },
+        organizationTenantParty: { legalName: 'ACME Inc.', registeredCountry: 'US', identifiers: [] },
         rootOrg: { name: 'ACME HQ' },
         firstAdmin: { displayName: 'Alice Admin', email: 'alice@example.com', requirePasswordSetup: true }
       })
-    ).rejects.toThrow('organizationParty.identifiers is required')
+    ).rejects.toThrow('organizationTenantParty.identifiers is required')
   })
 
   it('can bind an existing user as the first tenant admin without creating login methods', async () => {
@@ -223,7 +220,7 @@ describe('TenantOnboardingService', () => {
           path: '/root-org-1',
           depth: 0,
           sortOrder: 0,
-          organizationPartyId: null
+          organizationTenantPartyId: null
         }
       }),
       findById: jest.fn().mockResolvedValue({ id: 'tenant-1', code: 'acme', employeeCodePrefix: '0AF', name: 'ACME', status: 'ACTIVE', rootOrgId: 'root-org-1' })
@@ -240,19 +237,17 @@ describe('TenantOnboardingService', () => {
         path: '/root-org-1',
         depth: 0,
         sortOrder: 0,
-        organizationPartyId: 'org-party-1'
+        organizationTenantPartyId: 'org-tenant-party-1'
       })
     }
     const partyPort = {
-      registerOrganizationParty: jest.fn().mockResolvedValue({ partyId: 'org-party-1' }),
-      bindExistingPartyToTenant: jest.fn().mockResolvedValue({ partyId: 'org-party-1', tenantPartyId: 'org-tenant-party-1' })
+      registerOrganizationTenantParty: jest.fn().mockResolvedValue({ tenantPartyId: 'org-tenant-party-1' })
     }
     const identityPort = {
       createTenantUserAccount: jest.fn().mockResolvedValue({
         userId: 'user-system-admin',
         accountId: 'tenant-account-1',
-        userPartyId: 'person-party-1',
-        userTenantPartyId: 'person-tenant-party-1'
+        tenantPartyId: 'person-tenant-party-1'
       })
     }
     const authPort = {
@@ -289,7 +284,7 @@ describe('TenantOnboardingService', () => {
       service.start({
         idempotencyKey: 'onboarding-key-1',
         tenant: { code: 'acme', employeeCodePrefix: '0AF', name: 'ACME' },
-        organizationParty: {
+        organizationTenantParty: {
           legalName: 'ACME Inc.',
           registeredCountry: 'US',
           identifiers: [{ identifierType: 'EIN', rawValue: '12-3456789', normalizedValue: '', issuerCountryOrRegion: '' }]
@@ -323,7 +318,6 @@ describe('TenantOnboardingService', () => {
         tenantId: 'tenant-1',
         employeeCode: 'EMP-0AF-0001',
         person: expect.objectContaining({
-          existingPartyId: 'person-party-1',
           existingTenantPartyId: 'person-tenant-party-1',
           legalName: 'System Admin'
         }),

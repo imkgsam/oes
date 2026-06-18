@@ -27,13 +27,15 @@ describe('tenant-web public entry business card api', () => {
       getBusinessCardDetailApi,
       getBusinessCardVisitSummaryApi,
       getOwnBusinessCardPreviewApi,
+      listBusinessCardContactAssetCandidatesApi,
       listBusinessCardsApi,
       updateBusinessCardContactActionsApi
     } = await import('./index')
 
     await ensurePrimaryBusinessCardApi('tenant_001', 'emp_001')
-    await listBusinessCardsApi('tenant_001', { page: 2, pageSize: 10 })
+    await listBusinessCardsApi('tenant_001', { employeeId: 'emp_001', page: 2, pageSize: 10 })
     await getBusinessCardDetailApi('tenant_001', 'card_001')
+    await listBusinessCardContactAssetCandidatesApi('tenant_001', 'emp_001')
     await updateBusinessCardContactActionsApi('tenant_001', 'card_001', {
       contactActionConfigs: [
         {
@@ -57,9 +59,12 @@ describe('tenant-web public entry business card api', () => {
       employeeId: 'emp_001'
     })
     expect(get).toHaveBeenCalledWith('/public-entry/tenants/tenant_001/business-cards', {
-      params: { page: 2, pageSize: 10 }
+      params: { employeeId: 'emp_001', page: 2, pageSize: 10 }
     })
     expect(get).toHaveBeenCalledWith('/public-entry/tenants/tenant_001/business-cards/card_001')
+    expect(get).toHaveBeenCalledWith('/public-entry/tenants/tenant_001/business-cards/contact-assets', {
+      params: { employeeId: 'emp_001' }
+    })
     expect(post).toHaveBeenCalledWith('/public-entry/tenants/tenant_001/business-cards/card_001/contact-actions', {
       contactActionConfigs: [
         {
@@ -85,6 +90,20 @@ describe('tenant-web public entry business card api', () => {
     const { renderPublicBusinessCardApi, resolveBusinessCardVCardUrl } = await import('./index')
     const fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
+
+    fetchMock.mockResolvedValueOnce({
+      headers: { get: () => 'application/json; charset=utf-8' },
+      json: async () => ({
+        code: 'SYS_000000',
+        data: { state: 'AVAILABLE', view: { businessCardId: 'card_001' } },
+        message: 'Success'
+      }),
+      ok: true
+    })
+    await expect(renderPublicBusinessCardApi('card_001')).resolves.toEqual({
+      state: 'AVAILABLE',
+      view: { businessCardId: 'card_001' }
+    })
 
     fetchMock.mockResolvedValueOnce({
       headers: { get: () => 'application/json; charset=utf-8' },

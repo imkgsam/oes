@@ -63,4 +63,43 @@ describe('ShortLinkTargetResolverRegistry', () => {
       })
     ).resolves.toEqual({ result: 'UNAVAILABLE', resultTarget: 'resolver:invalid-result' })
   })
+
+  it('permits local development HTTP loopback redirects but still rejects non-loopback HTTP redirects', async () => {
+    const registry = new ShortLinkTargetResolverRegistry()
+    registry.register('LOCAL_CARD', {
+      resolve: async () => ({
+        result: 'REDIRECT',
+        redirectUrl: 'http://localhost:5771/public/business-cards/card_001',
+        resultTarget: 'business-card:web'
+      })
+    })
+    registry.register('PLAIN_HTTP_CARD', {
+      resolve: async () => ({
+        result: 'REDIRECT',
+        redirectUrl: 'http://example.com/public/business-cards/card_001',
+        resultTarget: 'business-card:web'
+      })
+    })
+
+    await expect(
+      registry.resolve({
+        tenantId: 'tenant_001',
+        targetType: 'LOCAL_CARD',
+        targetResourceId: 'card_001',
+        requestContext: {}
+      })
+    ).resolves.toEqual({
+      result: 'REDIRECT',
+      redirectUrl: 'http://localhost:5771/public/business-cards/card_001',
+      resultTarget: 'business-card:web'
+    })
+    await expect(
+      registry.resolve({
+        tenantId: 'tenant_001',
+        targetType: 'PLAIN_HTTP_CARD',
+        targetResourceId: 'card_001',
+        requestContext: {}
+      })
+    ).resolves.toEqual({ result: 'UNAVAILABLE', resultTarget: 'resolver:invalid-result' })
+  })
 })

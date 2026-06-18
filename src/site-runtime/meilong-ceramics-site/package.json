@@ -1,0 +1,22 @@
+{
+  "name": "@oes/meilong-ceramics-site",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Meilong Ceramics production-shaped local site pilot for OES Site Runtime and Nuxt storefront.",
+  "license": "UNLICENSED",
+  "scripts": {
+    "dev:backend": "OES_SITE_CREDENTIAL=${OES_SITE_CREDENTIAL:-oes_site_cred_v1.eyJzaXRlX2lkIjoibWVpbG9uZy1jZXJhbWljcy1sb2NhbCIsImNsaWVudF9pZCI6Im1laWxvbmctbG9jYWwtZGV2LWNsaWVudCIsImNyZWRlbnRpYWxfaWQiOiJtZWlsb25nLWxvY2FsLWRldi1jcmVkZW50aWFsIiwiY2xpZW50X3NlY3JldCI6ImxvY2FsLWRldi1ub3QtYS1zZWNyZXQiLCJ3ZWJob29rX3NpZ25pbmdfc2VjcmV0IjoibG9jYWwtZGV2LW5vdC1hLXNlY3JldCIsIm9lc19iYXNlX3VybCI6Imh0dHA6Ly8xMjcuMC4wLjE6NTc3MSIsImVudmlyb25tZW50IjoibG9jYWwtc2VlZC1wcmV2aWV3In0} SITE_MEILONG_SEED_PUBLISHED_DATA=${SITE_MEILONG_SEED_PUBLISHED_DATA:-true} OES_SITE_PULL_INTERVAL_MS=${OES_SITE_PULL_INTERVAL_MS:-0} pnpm --dir runtime dev",
+    "dev:frontend": "pnpm --dir storefront dev",
+    "dev": "node -e \"console.log('Start Meilong locally with two terminals: pnpm dev:backend and pnpm dev:frontend. From the repo root, use pnpm meilong. Use docker compose for the nginx local-domain edge.')\"",
+    "typecheck:runtime": "pnpm --dir runtime typecheck",
+    "typecheck:storefront": "pnpm --dir storefront typecheck",
+    "typecheck": "pnpm typecheck:runtime && pnpm typecheck:storefront",
+    "build:runtime": "pnpm --dir runtime build",
+    "build:storefront": "pnpm --dir storefront build",
+    "build": "pnpm build:runtime && pnpm build:storefront",
+    "verify:boundaries": "node scripts/verify-meilong-boundaries.mjs",
+    "verify": "pnpm verify:boundaries && pnpm typecheck && pnpm build",
+    "clean:generated": "node -e \"console.log('Generated directories are ignored but not deleted by default. Review README.md before removing runtime/dist, storefront/.nuxt, storefront/.output, or runtime/data manually.')\"",
+    "clean": "pnpm clean:generated"
+  }
+}

@@ -1,18 +1,21 @@
 /* @vitest-environment happy-dom */
 
 import { flushPromises, mount } from '@vue/test-utils'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+const archiveCrmAccountApi = vi.fn()
 const convertLeadToProspectCustomerApi = vi.fn()
 const createCrmLeadApi = vi.fn()
 const getCrmAccountApi = vi.fn()
 const listCrmAccountsApi = vi.fn()
+const restoreCrmAccountApi = vi.fn()
 const useRoute = vi.fn()
 
 const authContextState: any = {
   actionCodes: [
     'crm.account.convert',
     'crm.account.create',
+    'crm.account.archive',
     'crm.account.read'
   ],
   sessionContext: {
@@ -26,18 +29,32 @@ const authContextState: any = {
 }
 
 vi.mock('#/api', () => ({
+  archiveCrmAccountApi,
   convertLeadToProspectCustomerApi,
   createCrmLeadApi,
   getCrmAccountApi,
-  listCrmAccountsApi
+  listCrmAccountsApi,
+  restoreCrmAccountApi
 }))
 
 vi.mock('#/store/auth-context', () => ({
   useAuthContextStore: () => authContextState
 }))
 
+vi.mock('#/locales', () => ({
+  $t: (key: string) => key
+}))
+
 vi.mock('vue-router', () => ({
   useRoute: () => useRoute()
+}))
+
+vi.mock('@vben/preferences', () => ({
+  preferences: {
+    app: {
+      locale: 'zh-CN'
+    }
+  }
 }))
 
 vi.mock('@vben/common-ui', () => ({
@@ -54,13 +71,35 @@ vi.mock('@vben/icons', () => ({
   }
 }))
 
+// Updates Ant Design teleported form inputs through the real document DOM.
+async function setDocumentInputValue(testId: string, value: string) {
+  const input = document.querySelector(`[data-testid="${testId}"]`) as HTMLInputElement | null
+  expect(input).toBeTruthy()
+  input!.value = value
+  input!.dispatchEvent(new Event('input', { bubbles: true }))
+  await flushPromises()
+}
+
+// Opens the native Ant Design dropdown and dispatches one CRM row menu action from the teleported overlay.
+async function clickCrmRowAction(wrapper: any, crmAccountId: string, actionTestId: string) {
+  await wrapper.get(`[data-testid="crm-account-actions-${crmAccountId}"]`).trigger('click')
+  await flushPromises()
+  const action = document.querySelector(`[data-testid="${actionTestId}"]`) as HTMLElement | null
+  expect(action).toBeTruthy()
+  action!.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+  await flushPromises()
+}
+
 // Verifies the CRM P1 workspace uses the tenant-scoped account BFF and keeps lead creation/formalization inside the sales flow.
 describe('customer management CRM P1 workspace', () => {
   beforeEach(() => {
+    document.body.innerHTML = ''
+    archiveCrmAccountApi.mockReset()
     convertLeadToProspectCustomerApi.mockReset()
     createCrmLeadApi.mockReset()
     getCrmAccountApi.mockReset()
     listCrmAccountsApi.mockReset()
+    restoreCrmAccountApi.mockReset()
     useRoute.mockReturnValue({
       meta: {
         entryKey: 'master-data.customer-management'
@@ -136,11 +175,25 @@ describe('customer management CRM P1 workspace', () => {
       candidates: [],
       existingCrmAccountId: ''
     })
+    archiveCrmAccountApi.mockResolvedValue({
+      crmAccountId: 'crm-account-1',
+      recordStatus: 'ARCHIVED',
+      lifecycleStage: 'LEAD'
+    })
+    restoreCrmAccountApi.mockResolvedValue({
+      crmAccountId: 'crm-account-1',
+      recordStatus: 'ACTIVE',
+      lifecycleStage: 'LEAD'
+    })
+  })
+
+  afterEach(() => {
+    document.body.innerHTML = ''
   })
 
   it('loads, filters, creates, inspects, and formalizes CRM P1 accounts', async () => {
     const page = (await import('./customer-management.vue')).default
-    const wrapper = mount(page)
+    const wrapper = mount(page, { attachTo: document.body })
 
     await flushPromises()
 
@@ -180,12 +233,14 @@ describe('customer management CRM P1 workspace', () => {
     })
 
     await wrapper.get('[data-testid="crm-create-lead-open"]').trigger('click')
-    await wrapper.get('[data-testid="crm-lead-display-name"]').setValue('Serrano Fixtures')
-    await wrapper.get('[data-testid="crm-lead-domain"]').setValue('serrano.example')
-    await wrapper.get('[data-testid="crm-lead-email"]').setValue('imports@serrano.example')
-    await wrapper.get('[data-testid="crm-lead-country"]').setValue('ES')
-    await wrapper.get('[data-testid="crm-lead-source-type"]').setValue('WEB_RESEARCH')
-    await wrapper.get('[data-testid="crm-lead-submit"]').trigger('click')
+    await flushPromises()
+    await setDocumentInputValue('crm-lead-display-name', 'Serrano Fixtures')
+    await setDocumentInputValue('crm-lead-domain', 'serrano.example')
+    await setDocumentInputValue('crm-lead-email', 'imports@serrano.example')
+    wrapper.findComponent({ name: 'CountryRegionSelect' }).vm.$emit('update:value', 'ES')
+    ;(wrapper.findComponent('[data-testid="crm-lead-party-type"]') as any).vm.$emit('update:value', 'ORGANIZATION')
+    await flushPromises()
+    ;(document.querySelector('[data-testid="crm-lead-submit"]') as HTMLButtonElement).click()
     await flushPromises()
 
     expect(createCrmLeadApi).toHaveBeenCalledWith('tenant-1', {
@@ -205,16 +260,146 @@ describe('customer management CRM P1 workspace', () => {
       sourceType: 'WEB_RESEARCH'
     })
 
-    await wrapper.get('[data-testid="crm-account-detail-crm-account-1"]').trigger('click')
+    await clickCrmRowAction(wrapper, 'crm-account-1', 'crm-account-detail-crm-account-1')
     await flushPromises()
 
     expect(getCrmAccountApi).toHaveBeenCalledWith('tenant-1', 'crm-account-1')
-    expect(wrapper.text()).toContain('sourcing@northline.example')
+    expect(document.body.textContent).toContain('sourcing@northline.example')
 
-    await wrapper.get('[data-testid="crm-account-convert-crm-account-1"]').trigger('click')
+    await clickCrmRowAction(wrapper, 'crm-account-1', 'crm-account-convert-crm-account-1')
     await flushPromises()
 
     expect(convertLeadToProspectCustomerApi).toHaveBeenCalledWith('tenant-1', 'crm-account-1')
-    expect(wrapper.text()).toContain('CONVERTED')
+    expect(document.body.textContent).toContain('CONVERTED')
+
+    expect(wrapper.find('[data-testid="crm-account-actions-crm-account-1"]').exists()).toBe(true)
+    await clickCrmRowAction(wrapper, 'crm-account-1', 'crm-account-archive-crm-account-1')
+    await flushPromises()
+
+    expect(archiveCrmAccountApi).not.toHaveBeenCalled()
+    expect(document.querySelector('[data-testid="crm-archive-confirm"]')).toBeTruthy()
+    ;(document.querySelector('[data-testid="crm-archive-confirm-submit"]') as HTMLButtonElement).click()
+    await flushPromises()
+
+    expect(archiveCrmAccountApi).toHaveBeenCalledWith('tenant-1', 'crm-account-1')
+  }, 20_000)
+
+  it('loads archived CRM accounts and restores them through a confirmed action', async () => {
+    listCrmAccountsApi
+      .mockResolvedValueOnce({
+        crmAccounts: [],
+        page: 1,
+        pageSize: 20,
+        total: 0
+      })
+      .mockResolvedValueOnce({
+        crmAccounts: [
+          {
+            crmAccountId: 'crm-account-archived-1',
+            tenantId: 'tenant-1',
+            tenantPartyId: '',
+            recordStatus: 'ARCHIVED',
+            lifecycleStage: 'LEAD',
+            partyTypeHint: 'ORGANIZATION',
+            displayName: 'Archived Northline',
+            leadCompanyName: 'Archived Northline LLC',
+            leadDomain: 'archived-northline.example',
+            leadEmail: 'archived@northline.example',
+            leadPhone: '',
+            leadWhatsapp: '',
+            leadCountry: 'US',
+            leadIdentifiers: [],
+            ownerAccountId: 'account-1',
+            priority: 'B',
+            lastActivityAt: '',
+            nextFollowUpAt: '',
+            createdBy: 'account-1',
+            createdAt: '2026-06-10T00:00:00.000Z',
+            updatedAt: '2026-06-14T00:00:00.000Z',
+            archivedAt: '2026-06-14T00:00:00.000Z'
+          }
+        ],
+        page: 1,
+        pageSize: 20,
+        total: 1
+      })
+
+    const page = (await import('./customer-management.vue')).default
+    const wrapper = mount(page, { attachTo: document.body })
+
+    await flushPromises()
+    await wrapper.get('[data-testid="crm-stage-archived"]').trigger('click')
+    await flushPromises()
+
+    expect(listCrmAccountsApi).toHaveBeenLastCalledWith('tenant-1', {
+      keyword: undefined,
+      lifecycleStage: undefined,
+      ownerAccountId: undefined,
+      page: 1,
+      pageSize: 20,
+      recordStatus: 'ARCHIVED'
+    })
+    expect(document.body.textContent).toContain('Archived Northline')
+
+    expect(wrapper.find('[data-testid="crm-account-actions-crm-account-archived-1"]').exists()).toBe(true)
+    await clickCrmRowAction(wrapper, 'crm-account-archived-1', 'crm-account-restore-crm-account-archived-1')
+    await flushPromises()
+
+    expect(restoreCrmAccountApi).not.toHaveBeenCalled()
+    expect(document.querySelector('[data-testid="crm-restore-confirm"]')).toBeTruthy()
+    ;(document.querySelector('[data-testid="crm-restore-confirm-submit"]') as HTMLButtonElement).click()
+    await flushPromises()
+
+    expect(restoreCrmAccountApi).toHaveBeenCalledWith('tenant-1', 'crm-account-archived-1')
+  }, 20_000)
+
+  it('keeps the create modal open and shows an alert when the lead is blocked by an owned duplicate', async () => {
+    createCrmLeadApi.mockResolvedValueOnce({
+      resultType: 'BLOCKED_BY_OWNED_DUPLICATE',
+      crmAccount: null,
+      duplicateResult: {
+        resultType: 'OWNED_DUPLICATE',
+        candidates: [
+          {
+            crmAccountId: 'crm-account-1',
+            tenantId: 'tenant-1',
+            displayName: 'Northline Bathworks',
+            ownerAccountId: 'account-1',
+            recordStatus: 'ACTIVE',
+            lifecycleStage: 'LEAD',
+            matchedFields: ['leadDomain'],
+            confidence: 'HIGH'
+          }
+        ]
+      }
+    })
+    const page = (await import('./customer-management.vue')).default
+    const wrapper = mount(page, { attachTo: document.body })
+
+    await flushPromises()
+    await wrapper.get('[data-testid="crm-create-lead-open"]').trigger('click')
+    await flushPromises()
+    await setDocumentInputValue('crm-lead-display-name', 'Northline Bathworks')
+    await setDocumentInputValue('crm-lead-domain', 'northline.example')
+    wrapper.findComponent({ name: 'CountryRegionSelect' }).vm.$emit('update:value', 'US')
+    ;(wrapper.findComponent('[data-testid="crm-lead-party-type"]') as any).vm.$emit('update:value', 'ORGANIZATION')
+    await flushPromises()
+    ;(document.querySelector('[data-testid="crm-lead-submit"]') as HTMLButtonElement).click()
+    await flushPromises()
+
+    expect(createCrmLeadApi).toHaveBeenCalledWith(
+      'tenant-1',
+      expect.objectContaining({
+        displayName: 'Northline Bathworks',
+        leadCountry: 'US',
+        leadDomain: 'northline.example',
+        partyTypeHint: 'ORGANIZATION'
+      })
+    )
+    expect(document.querySelector('[data-testid="crm-lead-duplicate-alert"]')).toBeTruthy()
+    expect(document.body.textContent).toContain('已存在你负责的重复 Lead')
+    expect(document.body.textContent).toContain('Northline Bathworks')
+    expect(document.body.textContent).toContain('leadDomain')
+    expect(document.querySelector('[data-testid="crm-lead-submit"]')).toBeTruthy()
   }, 20_000)
 })

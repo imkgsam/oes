@@ -13,7 +13,6 @@ export interface IdentityAccountOnboardingPort {
   }): Promise<{
     userId: string
     accountId: string
-    userPartyId?: string
-    userTenantPartyId?: string
+    tenantPartyId?: string
   }>
 }

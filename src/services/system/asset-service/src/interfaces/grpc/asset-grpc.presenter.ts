@@ -8,7 +8,8 @@ export class AssetGrpcPresenter {
       assetId: asset.id,
       scopeLevel: asset.scopeLevel,
       tenantId: asset.tenantId ?? undefined,
-      ownerAccountId: asset.ownerAccountId,
+      ownerAccountId: asset.ownerAccountId ?? undefined,
+      ownerEmployeeId: asset.ownerEmployeeId ?? undefined,
       category: asset.category,
       storageKey: asset.storageKey,
       mimeType: asset.mimeType,
@@ -18,6 +19,6 @@ export class AssetGrpcPresenter {
       status: asset.status,
       createdAt: asset.createdAt.toISOString(),
       updatedAt: asset.updatedAt.toISOString()
-    }
+    } as AssetSummary
   }
 }

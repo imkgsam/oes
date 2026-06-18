@@ -1,8 +1,7 @@
 <script lang="ts" setup>
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-import { SliderCaptcha } from '@vben/common-ui'
 import { Button, Card, Form, FormItem, Input, InputPassword, message, Step, Steps } from 'ant-design-vue'
 
 import {
@@ -41,7 +40,6 @@ function resolveInitialIdentifier(value: unknown) {
 
 const formState = reactive({
   availableChannels: [] as Array<{ channel: RecoveryChannel; maskedDestination: string }>,
-  captchaPassed: false,
   challengeId: '',
   confirmPassword: '',
   identifier: resolveInitialIdentifier(route.query.identifier),
@@ -77,11 +75,7 @@ const stepsDirection = computed(() => {
 })
 
 const canInspectChannels = computed(() => {
-  return canEnableCaptcha.value && formState.captchaPassed && isSupportedIdentifier(formState.identifier.trim())
-})
-
-const canEnableCaptcha = computed(() => {
-  return Boolean(formState.identifier.trim())
+  return isSupportedIdentifier(formState.identifier.trim())
 })
 
 const canRequestChallenge = computed(() => {
@@ -116,10 +110,6 @@ function goToLogin() {
   void router.push('/auth/login')
 }
 
-function resetCaptcha() {
-  formState.captchaPassed = false
-}
-
 function resetRecoveryState() {
   currentStep.value = 0
   completed.value = false
@@ -131,7 +121,6 @@ function resetRecoveryState() {
   formState.otp = ''
   formState.resetToken = ''
   formState.selectedChannel = ''
-  resetCaptcha()
 }
 
 function chooseChannel(channel: RecoveryChannel) {
@@ -146,7 +135,7 @@ function resolveMaskedDestination(channel: RecoveryChannel) {
 
 async function inspectChannels() {
   if (!canInspectChannels.value) {
-    message.error('请输入有效的邮箱或手机号，并完成安全验证。')
+    message.error('请输入有效的邮箱或手机号。')
     return
   }
 
@@ -252,13 +241,6 @@ function syncViewportWidth() {
   viewportWidth.value = window.innerWidth
 }
 
-watch(
-  () => formState.identifier,
-  () => {
-    resetCaptcha()
-  }
-)
-
 onMounted(() => {
   syncViewportWidth()
   window.addEventListener('resize', syncViewportWidth)
@@ -308,17 +290,6 @@ onBeforeUnmount(() => {
                   :value="formState.identifier"
                   @update:value="formState.identifier = $event"
                 />
-              </FormItem>
-
-              <FormItem label="安全验证">
-                <div class="forget-password-captcha">
-                  <SliderCaptcha
-                    v-model="formState.captchaPassed"
-                    :disabled="!canEnableCaptcha"
-                    success-text="验证通过"
-                    :text="canEnableCaptcha ? '请按住滑块拖动' : '请先输入登录邮箱或手机号'"
-                  />
-                </div>
               </FormItem>
 
               <div class="forget-password-actions">
@@ -552,13 +523,6 @@ onBeforeUnmount(() => {
 .forget-password-section {
   display: grid;
   gap: 18px;
-}
-
-.forget-password-captcha {
-  padding: 14px;
-  border-radius: 18px;
-  background: hsl(var(--muted) / 0.55);
-  border: 1px dashed hsl(var(--border));
 }
 
 .forget-password-summary {

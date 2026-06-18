@@ -6,15 +6,31 @@ import { BindAccountAvatarCommand } from '../../src/application/commands/avatar/
 import {
   BindAccountAvatarHandler
 } from '../../src/application/commands/avatar/bind-account-avatar.handler'
+import { BindEmployeeOfficialPhotoCommand } from '../../src/application/commands/avatar/bind-employee-official-photo.command'
+import {
+  BindEmployeeOfficialPhotoHandler
+} from '../../src/application/commands/avatar/bind-employee-official-photo.handler'
 import { UploadAccountAvatarCommand } from '../../src/application/commands/avatar/upload-account-avatar.command'
 import { UploadAccountAvatarHandler } from '../../src/application/commands/avatar/upload-account-avatar.handler'
+import { UploadEmployeeOfficialPhotoCommand } from '../../src/application/commands/avatar/upload-employee-official-photo.command'
+import {
+  UploadEmployeeOfficialPhotoHandler
+} from '../../src/application/commands/avatar/upload-employee-official-photo.handler'
+import {
+  S3CompatibleObjectStorageAdaptor
+} from '../../src/infrastructure/adaptors/storage/s3-compatible-object-storage.adaptor'
 
 function buildAsset(overrides: Partial<ConstructorParameters<typeof AssetEntity>[0]> = {}) {
   return new AssetEntity({
     id: overrides.id ?? 'asset-1',
     scopeLevel: overrides.scopeLevel ?? 'TENANT',
     tenantId: Object.prototype.hasOwnProperty.call(overrides, 'tenantId') ? overrides.tenantId! : 'tenant-1',
-    ownerAccountId: overrides.ownerAccountId ?? 'account-1',
+    ownerAccountId: Object.prototype.hasOwnProperty.call(overrides, 'ownerAccountId')
+      ? overrides.ownerAccountId!
+      : 'account-1',
+    ownerEmployeeId: Object.prototype.hasOwnProperty.call(overrides, 'ownerEmployeeId')
+      ? overrides.ownerEmployeeId!
+      : null,
     category: overrides.category ?? 'ACCOUNT_AVATAR',
     storageKey: overrides.storageKey ?? 'avatar/tenant/tenant-1/account-1/asset-1.webp',
     mimeType: overrides.mimeType ?? 'image/webp',
@@ -33,8 +49,10 @@ function buildAsset(overrides: Partial<ConstructorParameters<typeof AssetEntity>
 describe('avatar command handlers', () => {
   it('rejects unsupported avatar mime types', async () => {
     const repository: jest.Mocked<AssetRepository> = {
+      activateEmployeeOfficialPhoto: jest.fn(),
       create: jest.fn(),
       findActiveAvatarByAccountId: jest.fn(),
+      findActiveEmployeeOfficialPhotoByEmployeeId: jest.fn(),
       findById: jest.fn(),
       updateStatus: jest.fn()
     }
@@ -72,8 +90,10 @@ describe('avatar command handlers', () => {
       publicUrl: 'http://localhost:9000/oes-assets/avatar/system/account-1/asset-system-1.webp'
     })
     const repository: jest.Mocked<AssetRepository> = {
+      activateEmployeeOfficialPhoto: jest.fn(),
       create: jest.fn().mockResolvedValue(uploadedAsset),
       findActiveAvatarByAccountId: jest.fn(),
+      findActiveEmployeeOfficialPhotoByEmployeeId: jest.fn(),
       findById: jest.fn(),
       updateStatus: jest.fn()
     }
@@ -120,8 +140,10 @@ describe('avatar command handlers', () => {
     const nextAsset = buildAsset({ id: 'asset-2', status: 'PENDING_BIND' })
     const previousAsset = buildAsset({ id: 'asset-1', status: 'ACTIVE' })
     const repository: jest.Mocked<AssetRepository> = {
+      activateEmployeeOfficialPhoto: jest.fn(),
       create: jest.fn(),
       findActiveAvatarByAccountId: jest.fn().mockResolvedValue(previousAsset),
+      findActiveEmployeeOfficialPhotoByEmployeeId: jest.fn(),
       findById: jest.fn().mockResolvedValue(nextAsset),
       updateStatus: jest
         .fn()
@@ -172,8 +194,10 @@ describe('avatar command handlers', () => {
       publicUrl: 'http://localhost:9000/oes-assets/avatar/system/account-1/asset-system-1.webp'
     })
     const repository: jest.Mocked<AssetRepository> = {
+      activateEmployeeOfficialPhoto: jest.fn(),
       create: jest.fn(),
       findActiveAvatarByAccountId: jest.fn().mockResolvedValue(previousAsset),
+      findActiveEmployeeOfficialPhotoByEmployeeId: jest.fn(),
       findById: jest.fn().mockResolvedValue(nextAsset),
       updateStatus: jest
         .fn()
@@ -195,5 +219,358 @@ describe('avatar command handlers', () => {
     expect(result.activeAsset.id).toBe('asset-system-2')
     expect(result.replacedAssetId).toBe('asset-system-1')
     expect(repository.findActiveAvatarByAccountId).toHaveBeenCalledWith('account-1', 'SYSTEM', undefined)
+  })
+
+  it('uploads employee official photos as pending tenant-owned employee assets', async () => {
+    const repository: jest.Mocked<AssetRepository> = {
+      activateEmployeeOfficialPhoto: jest.fn(),
+      create: jest.fn().mockImplementation((input) =>
+        Promise.resolve(
+          buildAsset({
+            id: 'asset-employee-1',
+            scopeLevel: input.scopeLevel,
+            tenantId: input.tenantId ?? null,
+            ownerAccountId: input.ownerAccountId ?? null,
+            ownerEmployeeId: input.ownerEmployeeId ?? null,
+            category: input.category,
+            storageKey: input.storageKey,
+            publicUrl: input.publicUrl,
+            status: input.status
+          })
+        )
+      ),
+      findActiveAvatarByAccountId: jest.fn(),
+      findActiveEmployeeOfficialPhotoByEmployeeId: jest.fn(),
+      findById: jest.fn(),
+      updateStatus: jest.fn()
+    }
+    const client = {
+      send: jest.fn().mockResolvedValue({})
+    }
+    const storage = new S3CompatibleObjectStorageAdaptor({
+      bucket: 'oes-assets',
+      client,
+      keyPrefix: 'avatar',
+      publicBaseUrl: 'http://localhost:9000/oes-assets'
+    })
+    const handler = new UploadEmployeeOfficialPhotoHandler(repository, storage)
+
+    const result = await handler.execute(
+      new UploadEmployeeOfficialPhotoCommand({
+        scopeLevel: 'TENANT',
+        tenantId: 'tenant-1',
+        employeeId: 'employee-1',
+        operatorId: 'admin-1',
+        file: Buffer.from('avatar'),
+        fileName: 'official.png',
+        contentType: 'image/png'
+      })
+    )
+
+    expect(result).toMatchObject({
+      category: 'EMPLOYEE_OFFICIAL_PHOTO',
+      tenantId: 'tenant-1',
+      ownerAccountId: null,
+      ownerEmployeeId: 'employee-1',
+      status: 'PENDING_BIND'
+    })
+    expect(result.storageKey).toMatch(
+      /^avatar\/tenant\/tenant-1\/employee\/employee-1\/official\/.+\.png$/
+    )
+    expect(client.send.mock.calls[0][0].input.Key).toBe(result.storageKey)
+    expect(repository.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scopeLevel: 'TENANT',
+        tenantId: 'tenant-1',
+        ownerAccountId: null,
+        ownerEmployeeId: 'employee-1',
+        category: 'EMPLOYEE_OFFICIAL_PHOTO',
+        status: 'PENDING_BIND'
+      })
+    )
+  })
+
+  it('rejects employee official photo uploads without employee ownership', async () => {
+    const repository: jest.Mocked<AssetRepository> = {
+      activateEmployeeOfficialPhoto: jest.fn(),
+      create: jest.fn(),
+      findActiveAvatarByAccountId: jest.fn(),
+      findActiveEmployeeOfficialPhotoByEmployeeId: jest.fn(),
+      findById: jest.fn(),
+      updateStatus: jest.fn()
+    }
+    const storage: jest.Mocked<ObjectStoragePort> = {
+      deleteObject: jest.fn(),
+      putObject: jest.fn()
+    }
+    const handler = new UploadEmployeeOfficialPhotoHandler(repository, storage)
+
+    await expect(
+      handler.execute(
+        new UploadEmployeeOfficialPhotoCommand({
+          scopeLevel: 'TENANT',
+          tenantId: 'tenant-1',
+          employeeId: '',
+          operatorId: 'admin-1',
+          file: Buffer.from('avatar'),
+          fileName: 'official.png',
+          contentType: 'image/png'
+        })
+      )
+    ).rejects.toMatchObject({
+      additionalDetails: {
+        violations: ['employeeId is required']
+      }
+    })
+
+    expect(storage.putObject).not.toHaveBeenCalled()
+    expect(repository.create).not.toHaveBeenCalled()
+  })
+
+  it('binds employee official photos and replaces the previous matching employee photo', async () => {
+    const nextAsset = buildAsset({
+      id: 'asset-employee-2',
+      ownerAccountId: null,
+      ownerEmployeeId: 'employee-1',
+      category: 'EMPLOYEE_OFFICIAL_PHOTO',
+      status: 'PENDING_BIND'
+    })
+    const previousAsset = buildAsset({
+      id: 'asset-employee-1',
+      ownerAccountId: null,
+      ownerEmployeeId: 'employee-1',
+      category: 'EMPLOYEE_OFFICIAL_PHOTO',
+      status: 'ACTIVE'
+    })
+    const repository: jest.Mocked<AssetRepository> = {
+      activateEmployeeOfficialPhoto: jest.fn().mockResolvedValue({
+        activeAsset: buildAsset({
+          id: 'asset-employee-2',
+          ownerAccountId: null,
+          ownerEmployeeId: 'employee-1',
+          category: 'EMPLOYEE_OFFICIAL_PHOTO',
+          status: 'ACTIVE'
+        }),
+        replacedAssetId: 'asset-employee-1'
+      }),
+      create: jest.fn(),
+      findActiveAvatarByAccountId: jest.fn(),
+      findActiveEmployeeOfficialPhotoByEmployeeId: jest.fn(),
+      findById: jest.fn().mockResolvedValue(nextAsset),
+      updateStatus: jest.fn()
+    }
+    const handler = new BindEmployeeOfficialPhotoHandler(repository)
+
+    const result = await handler.execute(
+      new BindEmployeeOfficialPhotoCommand({
+        scopeLevel: 'TENANT',
+        tenantId: 'tenant-1',
+        employeeId: 'employee-1',
+        operatorId: 'admin-1',
+        newAssetId: 'asset-employee-2'
+      })
+    )
+
+    expect(result.activeAsset.id).toBe('asset-employee-2')
+    expect(result.replacedAssetId).toBe('asset-employee-1')
+    expect(repository.activateEmployeeOfficialPhoto).toHaveBeenCalledWith({
+      tenantId: 'tenant-1',
+      employeeId: 'employee-1',
+      newAssetId: 'asset-employee-2',
+      previousAssetId: undefined,
+      updatedBy: 'admin-1'
+    })
+    expect(repository.updateStatus).not.toHaveBeenCalled()
+    expect(repository.findActiveEmployeeOfficialPhotoByEmployeeId).not.toHaveBeenCalled()
+  })
+
+  it('rejects account-owned assets when binding employee official photos', async () => {
+    const repository: jest.Mocked<AssetRepository> = {
+      activateEmployeeOfficialPhoto: jest.fn().mockRejectedValue(
+        Object.assign(new Error('newAssetId: employee official photo asset does not belong to the current employee context'), {
+          definition: {
+            code: VALIDATION_FAILED.code
+          }
+        })
+      ),
+      create: jest.fn(),
+      findActiveAvatarByAccountId: jest.fn(),
+      findActiveEmployeeOfficialPhotoByEmployeeId: jest.fn(),
+      findById: jest.fn(),
+      updateStatus: jest.fn()
+    }
+    const handler = new BindEmployeeOfficialPhotoHandler(repository)
+
+    await expect(
+      handler.execute(
+        new BindEmployeeOfficialPhotoCommand({
+          scopeLevel: 'TENANT',
+          tenantId: 'tenant-1',
+          employeeId: 'employee-1',
+          operatorId: 'admin-1',
+          newAssetId: 'asset-account-1'
+        })
+      )
+    ).rejects.toMatchObject({
+      definition: {
+        code: VALIDATION_FAILED.code
+      }
+    })
+
+    expect(repository.updateStatus).not.toHaveBeenCalled()
+  })
+
+  it('rejects employee official photos owned by a different employee', async () => {
+    const repository: jest.Mocked<AssetRepository> = {
+      activateEmployeeOfficialPhoto: jest.fn().mockRejectedValue(
+        Object.assign(new Error('newAssetId: employee official photo asset does not belong to the current employee context'), {
+          definition: {
+            code: VALIDATION_FAILED.code
+          }
+        })
+      ),
+      create: jest.fn(),
+      findActiveAvatarByAccountId: jest.fn(),
+      findActiveEmployeeOfficialPhotoByEmployeeId: jest.fn(),
+      findById: jest.fn(),
+      updateStatus: jest.fn()
+    }
+    const handler = new BindEmployeeOfficialPhotoHandler(repository)
+
+    await expect(
+      handler.execute(
+        new BindEmployeeOfficialPhotoCommand({
+          scopeLevel: 'TENANT',
+          tenantId: 'tenant-1',
+          employeeId: 'employee-1',
+          operatorId: 'admin-1',
+          newAssetId: 'asset-employee-other'
+        })
+      )
+    ).rejects.toMatchObject({
+      definition: {
+        code: VALIDATION_FAILED.code
+      }
+    })
+
+    expect(repository.updateStatus).not.toHaveBeenCalled()
+  })
+
+  it('rejects stale previous employee photo ids instead of leaving the current active photo unreplaced', async () => {
+    const nextAsset = buildAsset({
+      id: 'asset-employee-2',
+      ownerAccountId: null,
+      ownerEmployeeId: 'employee-1',
+      category: 'EMPLOYEE_OFFICIAL_PHOTO',
+      status: 'PENDING_BIND'
+    })
+    const currentActiveAsset = buildAsset({
+      id: 'asset-employee-current',
+      ownerAccountId: null,
+      ownerEmployeeId: 'employee-1',
+      category: 'EMPLOYEE_OFFICIAL_PHOTO',
+      status: 'ACTIVE'
+    })
+    const stalePreviousAsset = buildAsset({
+      id: 'asset-employee-stale',
+      ownerAccountId: null,
+      ownerEmployeeId: 'employee-1',
+      category: 'EMPLOYEE_OFFICIAL_PHOTO',
+      status: 'REPLACED'
+    })
+    const repository: jest.Mocked<AssetRepository> = {
+      activateEmployeeOfficialPhoto: jest.fn().mockRejectedValue(
+        Object.assign(new Error('previousAssetId: employee official photo asset is not the current active photo'), {
+          definition: {
+            code: VALIDATION_FAILED.code
+          }
+        })
+      ),
+      create: jest.fn(),
+      findActiveAvatarByAccountId: jest.fn(),
+      findActiveEmployeeOfficialPhotoByEmployeeId: jest.fn(),
+      findById: jest.fn()
+        .mockResolvedValueOnce(nextAsset),
+      updateStatus: jest.fn()
+    }
+    const handler = new BindEmployeeOfficialPhotoHandler(repository)
+
+    await expect(
+      handler.execute(
+        new BindEmployeeOfficialPhotoCommand({
+          scopeLevel: 'TENANT',
+          tenantId: 'tenant-1',
+          employeeId: 'employee-1',
+          operatorId: 'admin-1',
+          newAssetId: 'asset-employee-2',
+          previousAssetId: 'asset-employee-stale'
+        })
+      )
+    ).rejects.toMatchObject({
+      definition: {
+        code: VALIDATION_FAILED.code
+      }
+    })
+
+    expect(repository.activateEmployeeOfficialPhoto).toHaveBeenCalledWith({
+      tenantId: 'tenant-1',
+      employeeId: 'employee-1',
+      newAssetId: 'asset-employee-2',
+      previousAssetId: 'asset-employee-stale',
+      updatedBy: 'admin-1'
+    })
+    expect(repository.updateStatus).not.toHaveBeenCalled()
+  })
+
+  it('rejects supplied previous employee photo ids when no current active photo exists', async () => {
+    const nextAsset = buildAsset({
+      id: 'asset-employee-2',
+      ownerAccountId: null,
+      ownerEmployeeId: 'employee-1',
+      category: 'EMPLOYEE_OFFICIAL_PHOTO',
+      status: 'PENDING_BIND'
+    })
+    const suppliedPreviousAsset = buildAsset({
+      id: 'asset-employee-old',
+      ownerAccountId: null,
+      ownerEmployeeId: 'employee-1',
+      category: 'EMPLOYEE_OFFICIAL_PHOTO',
+      status: 'REPLACED'
+    })
+    const repository: jest.Mocked<AssetRepository> = {
+      activateEmployeeOfficialPhoto: jest.fn().mockRejectedValue(
+        Object.assign(new Error('previousAssetId: employee official photo asset is not the current active photo'), {
+          definition: {
+            code: VALIDATION_FAILED.code
+          }
+        })
+      ),
+      create: jest.fn(),
+      findActiveAvatarByAccountId: jest.fn(),
+      findActiveEmployeeOfficialPhotoByEmployeeId: jest.fn(),
+      findById: jest.fn()
+        .mockResolvedValueOnce(nextAsset),
+      updateStatus: jest.fn()
+    }
+    const handler = new BindEmployeeOfficialPhotoHandler(repository)
+
+    await expect(
+      handler.execute(
+        new BindEmployeeOfficialPhotoCommand({
+          scopeLevel: 'TENANT',
+          tenantId: 'tenant-1',
+          employeeId: 'employee-1',
+          operatorId: 'admin-1',
+          newAssetId: 'asset-employee-2',
+          previousAssetId: 'asset-employee-old'
+        })
+      )
+    ).rejects.toMatchObject({
+      definition: {
+        code: VALIDATION_FAILED.code
+      }
+    })
+
+    expect(repository.updateStatus).not.toHaveBeenCalled()
   })
 })

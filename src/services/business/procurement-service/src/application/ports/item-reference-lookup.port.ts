@@ -2,7 +2,7 @@ export interface ItemReferenceLookupResult {
   itemId: string
   itemCode: string
   itemName: string
-  status: string
+  active: boolean
   purchasable: boolean
 }
 

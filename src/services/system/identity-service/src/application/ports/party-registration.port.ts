@@ -1,37 +1,21 @@
 import { OperatorScope } from '../authorization'
 
-export interface RegisterPersonPartyInput {
+export interface RegisterTenantPartyInput {
   legalName: string
-  localDisplayName?: string
+  displayName?: string
   operatorId?: string
   operatorScope?: OperatorScope
-  tenantId?: string
-  idempotencyKey?: string
-}
-
-export interface RegisterPersonPartyResult {
-  partyId: string
-  tenantPartyId?: string
-}
-
-export interface BindExistingPartyToTenantInput {
-  idempotencyKey?: string
-  localDisplayName?: string
-  operatorId?: string
-  operatorScope?: OperatorScope
-  partyId: string
   tenantId: string
+  idempotencyKey?: string
 }
 
-export interface BindExistingPartyToTenantResult {
-  partyId: string
+export interface RegisterTenantPartyResult {
   tenantPartyId: string
 }
 
-// Describes the party-service write capabilities identity-service needs when provisioning human accounts.
+// Describes the party-service write capability identity-service needs when provisioning tenant accounts.
 export interface PartyRegistrationPort {
-  bindExistingPartyToTenant(input: BindExistingPartyToTenantInput): Promise<BindExistingPartyToTenantResult>
-  registerPersonParty(input: RegisterPersonPartyInput): Promise<RegisterPersonPartyResult>
+  registerTenantParty(input: RegisterTenantPartyInput): Promise<RegisterTenantPartyResult>
 }
 
 export const PARTY_REGISTRATION_PORT = Symbol('IDENTITY_PARTY_REGISTRATION_PORT')

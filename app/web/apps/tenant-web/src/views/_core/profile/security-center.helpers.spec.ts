@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildLoginMethodGroups,
-  canRequestContactBindingChallenge,
   getContactBindingActionLabel,
   getLoginHistoryFailureExplanation,
   getMfaAvailabilityHint,
@@ -133,31 +132,10 @@ describe('security center contact binding helpers', () => {
     expect(validateContactBindingValue('phone', '+8613811112222')).toBe('');
   });
 
-  it('validates OTP format and request preconditions', () => {
+  it('validates OTP format', () => {
     expect(validateContactBindingOtp('')).toBe('请输入验证码');
     expect(validateContactBindingOtp('123')).toBe('请输入 6 位验证码');
     expect(validateContactBindingOtp('123456')).toBe('');
-
-    expect(
-      canRequestContactBindingChallenge({
-        captchaVerified: false,
-        value: 'user@example.com',
-      }),
-    ).toBe(false);
-
-    expect(
-      canRequestContactBindingChallenge({
-        captchaVerified: true,
-        value: '',
-      }),
-    ).toBe(false);
-
-    expect(
-      canRequestContactBindingChallenge({
-        captchaVerified: true,
-        value: 'user@example.com',
-      }),
-    ).toBe(true);
   });
 
   it('groups login capabilities by channel for card-based rendering', () => {

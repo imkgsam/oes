@@ -47,6 +47,19 @@ export class PublicEntryBusinessCardController {
   }
 
   @ApiBearerAuth('JWT')
+  @Get('public-entry/tenants/:tenantId/business-cards/contact-assets')
+  @RequirePermissions({ all: [PUBLIC_ENTRY_BUSINESS_CARD_PERMISSION_CODES.READ] })
+  @ApiOperation({ summary: 'List Contact Asset candidates for BusinessCard actions' })
+  // listContactAssetCandidates exposes identity-owned Contact Asset refs for the management picker.
+  async listContactAssetCandidates(
+    @Param('tenantId') tenantId: string,
+    @Query() query: { employeeId?: string },
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.service.listContactAssetCandidates(tenantId, query, source)
+  }
+
+  @ApiBearerAuth('JWT')
   @Get('public-entry/tenants/:tenantId/business-cards/:businessCardId')
   @RequirePermissions({ all: [PUBLIC_ENTRY_BUSINESS_CARD_PERMISSION_CODES.READ] })
   @ApiOperation({ summary: 'Get one BusinessCard detail' })

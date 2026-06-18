@@ -1,3 +1,5 @@
+import { createPurchasableSmokeItem } from '../../../../../scripts/local/item-master-smoke-fixture.mjs';
+
 // Builds one deterministic SRM smoke seed so the runtime flow can create one supplier profile and optionally bind and offer it.
 export function createSmokeSeed(now = Date.now()) {
   const suffix = `${now}-${Math.random().toString(36).slice(2, 8)}`;
@@ -59,7 +61,7 @@ export async function runSrmSmokeFlow(services, seed, log = () => {}) {
   log(`supplier search returned created supplier=${createdSupplier.supplierId}`);
 
   const registration = services.party?.registration;
-  if (!registration?.registerOrganizationParty) {
+  if (!registration?.registerTenantParty) {
     return {
       supplierId: createdSupplier.supplierId,
       supplierNo: createdSupplier.supplierNo ?? null,
@@ -83,7 +85,7 @@ export async function runSrmSmokeFlow(services, seed, log = () => {}) {
 
   let registerResponse;
   try {
-    registerResponse = await registration.registerOrganizationParty(createPartyRegistrationRequest(seed));
+    registerResponse = await registration.registerTenantParty(createPartyRegistrationRequest(seed));
   } catch (error) {
     if (error?.srmSmokeOptionalPartyUnavailable) {
       return {
@@ -137,7 +139,7 @@ export async function runSrmSmokeFlow(services, seed, log = () => {}) {
   log(`activated supplier=${createdSupplier.supplierId}`);
 
   const itemManagement = services.itemMaster?.management;
-  if (!itemManagement?.createItem || !itemManagement?.setItemCapabilities) {
+  if (!itemManagement?.createItemModel || !itemManagement?.createItem || !itemManagement?.setItemCapabilities) {
     return {
       supplierId: createdSupplier.supplierId,
       supplierNo: createdSupplier.supplierNo ?? null,
@@ -161,20 +163,15 @@ export async function runSrmSmokeFlow(services, seed, log = () => {}) {
 
   let createdItemId;
   try {
-    const createItemResponse = await itemManagement.createItem(createItemRequest(seed));
-    createdItemId = createItemResponse?.item?.itemId ?? createItemResponse?.itemId;
-    if (!createdItemId) {
-      throw new Error('srm-service smoke failed: item-master createItem did not return itemId');
-    }
+    const itemFixture = await createPurchasableSmokeItem(itemManagement, seed, {
+      modelCode: seed.itemCode,
+      modelName: seed.itemName,
+      itemCode: seed.itemCode,
+      itemName: seed.itemName
+    });
+    createdItemId = itemFixture.itemId;
 
     log(`created item=${createdItemId} code=${seed.itemCode}`);
-
-    const capabilitiesResponse = await itemManagement.setItemCapabilities(
-      createSetCapabilitiesRequest(seed, createdItemId)
-    );
-    if (!capabilitiesResponse?.item?.capabilities?.purchasable) {
-      throw new Error('srm-service smoke failed: item-master setItemCapabilities did not enable purchasable=true');
-    }
   } catch (error) {
     if (!error?.srmSmokeOptionalItemMasterUnavailable) {
       throw error;
@@ -262,7 +259,8 @@ function createPartyRegistrationRequest(seed) {
   return {
     tenantId: seed.tenantId,
     legalName: seed.partyCanonicalName,
-    localDisplayName: seed.partyLocalDisplayName,
+    type: 'ORGANIZATION',
+    displayName: seed.partyLocalDisplayName,
     localCode: seed.partyLocalCode,
     registeredCountry: seed.partyRegisteredCountry,
     identifiers: [
@@ -297,28 +295,6 @@ function createChangeStatusRequest(seed, supplierId) {
     auditContext: seed.auditContext,
     supplierId,
     targetStatus: 1
-  };
-}
-
-// createItemRequest builds one minimal PHYSICAL+SINGLE item-master creation request for the optional offering path.
-function createItemRequest(seed) {
-  return {
-    tenantId: seed.tenantId,
-    itemCode: seed.itemCode,
-    itemName: seed.itemName,
-    structureType: 1,
-    natureType: 1
-  };
-}
-
-// createSetCapabilitiesRequest marks the smoke item as purchasable so SRM offering validation can succeed.
-function createSetCapabilitiesRequest(seed, itemId) {
-  return {
-    tenantId: seed.tenantId,
-    itemId,
-    capabilities: {
-      purchasable: true
-    }
   };
 }
 

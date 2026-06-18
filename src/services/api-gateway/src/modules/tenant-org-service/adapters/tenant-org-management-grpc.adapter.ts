@@ -42,7 +42,7 @@ export interface TenantManagementMutationOrgUnit {
   depth?: number
   id?: string
   name?: string
-  organizationPartyId?: string
+  organizationTenantPartyId?: string
   parentOrgId?: string
   path?: string
   sortOrder?: number
@@ -56,8 +56,8 @@ export interface TenantOnboardingGatewayResult {
   status?: string
   tenant?: TenantManagementMutationTenant
   rootOrg?: TenantManagementMutationOrgUnit
-  organizationParty?: { partyId?: string; tenantPartyId?: string }
-  firstAdmin?: { userId?: string; accountId?: string; personPartyId?: string; tenantPartyId?: string }
+  organizationTenantParty?: { tenantPartyId?: string }
+  firstAdmin?: { userId?: string; accountId?: string; tenantPartyId?: string }
   firstAdminEmployee?: { employeeId?: string; employmentId?: string; accessProcessId?: string }
   access?: {
     roleCode?: string
@@ -120,10 +120,10 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
         {
           idempotencyKey: input.idempotencyKey,
           tenant: input.tenant,
-          organizationParty: {
-            legalName: input.organizationParty.legalName,
-            registeredCountry: input.organizationParty.registeredCountry ?? '',
-            identifiers: (input.organizationParty.identifiers ?? []).map((identifier: any) => ({
+          organizationTenantParty: {
+            legalName: input.organizationTenantParty.legalName,
+            registeredCountry: input.organizationTenantParty.registeredCountry ?? '',
+            identifiers: (input.organizationTenantParty.identifiers ?? []).map((identifier: any) => ({
               identifierType: identifier.identifierType,
               rawValue: identifier.rawValue ?? '',
               normalizedValue: identifier.normalizedValue,
@@ -231,7 +231,7 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
   createOrgUnit(
     input: {
       name: string
-      organizationPartyId?: string
+      organizationTenantPartyId?: string
       parentOrgId: string
       sortOrder?: number
       tenantId: string
@@ -242,7 +242,10 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
     return this.call(
       'createOrgUnit',
       this.svc.createOrgUnit(
-        input,
+        {
+          ...input,
+          organizationTenantPartyId: input.organizationTenantPartyId
+        },
         this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
       ),
       (response: CreateOrgUnitResponse) => ({
@@ -255,7 +258,7 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
     input: {
       name?: string
       orgUnitId: string
-      organizationPartyId?: string | null
+      organizationTenantPartyId?: string | null
       sortOrder?: number
       tenantId: string
       type?: string
@@ -265,7 +268,10 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
     return this.call(
       'updateOrgUnit',
       this.svc.updateOrgUnit(
-        input,
+        {
+          ...input,
+          organizationTenantPartyId: input.organizationTenantPartyId
+        },
         this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
       ),
       (response: UpdateOrgUnitResponse) => ({
@@ -350,7 +356,7 @@ function mapOrgUnit(orgUnit: {
   depth?: number
   id?: string
   name?: string
-  organizationPartyId?: string
+  organizationTenantPartyId?: string
   parentOrgId?: string
   path?: string
   sortOrder?: number
@@ -368,7 +374,7 @@ function mapOrgUnit(orgUnit: {
     path: orgUnit.path,
     depth: orgUnit.depth,
     sortOrder: orgUnit.sortOrder,
-    organizationPartyId: normalize(orgUnit.organizationPartyId)
+    organizationTenantPartyId: normalize(orgUnit.organizationTenantPartyId)
   }
 }
 
@@ -379,14 +385,12 @@ export function mapTenantOnboardingGatewayResult(onboarding?: any): TenantOnboar
     status: onboarding.status,
     tenant: onboarding.tenant ? mapTenant(onboarding.tenant) : undefined,
     rootOrg: onboarding.rootOrg ? mapOrgUnit(onboarding.rootOrg) : undefined,
-    organizationParty: {
-      partyId: normalize(onboarding.organizationParty?.partyId),
-      tenantPartyId: normalize(onboarding.organizationParty?.tenantPartyId)
+    organizationTenantParty: {
+      tenantPartyId: normalize(onboarding.organizationTenantParty?.tenantPartyId)
     },
     firstAdmin: {
       userId: normalize(onboarding.firstAdmin?.userId),
       accountId: normalize(onboarding.firstAdmin?.accountId),
-      personPartyId: normalize(onboarding.firstAdmin?.personPartyId),
       tenantPartyId: normalize(onboarding.firstAdmin?.tenantPartyId)
     },
     firstAdminEmployee: {

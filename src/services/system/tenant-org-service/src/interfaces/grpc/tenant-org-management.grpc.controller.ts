@@ -84,11 +84,11 @@ export class TenantOrgManagementGrpcController implements TenantOrgManagementSer
         employeeCodePrefix: request.tenant?.employeeCodePrefix ?? '',
         name: request.tenant?.name ?? ''
       },
-      organizationParty: {
-        legalName: request.organizationParty?.legalName ?? '',
-        registeredCountry: request.organizationParty?.registeredCountry || undefined,
+      organizationTenantParty: {
+        legalName: request.organizationTenantParty?.legalName ?? '',
+        registeredCountry: request.organizationTenantParty?.registeredCountry || undefined,
         identifiers:
-          request.organizationParty?.identifiers?.map((identifier) => ({
+          request.organizationTenantParty?.identifiers?.map((identifier) => ({
             identifierType: identifier.identifierType ?? '',
             rawValue: identifier.rawValue || undefined,
             normalizedValue: identifier.normalizedValue ?? '',
@@ -195,7 +195,7 @@ export class TenantOrgManagementGrpcController implements TenantOrgManagementSer
       name: _request.name ?? '',
       type: _request.type ?? '',
       sortOrder: _request.sortOrder,
-      organizationPartyId: _request.organizationPartyId?.trim() || undefined
+      organizationTenantPartyId: _request.organizationTenantPartyId?.trim() || undefined
     })
     return { orgUnit: mapOrgUnit(orgUnit) }
   }
@@ -205,9 +205,9 @@ export class TenantOrgManagementGrpcController implements TenantOrgManagementSer
     _request: UpdateOrgUnitRequest,
     _metadata?: Metadata
   ): Promise<UpdateOrgUnitResponse> {
-    const hasOrganizationPartyId = Object.prototype.hasOwnProperty.call(
+    const hasOrganizationTenantPartyId = Object.prototype.hasOwnProperty.call(
       _request,
-      'organizationPartyId'
+      'organizationTenantPartyId'
     )
     const orgUnit = await this.tenantOrgManagementService.updateOrgUnit({
       tenantId: _request.tenantId ?? '',
@@ -215,8 +215,8 @@ export class TenantOrgManagementGrpcController implements TenantOrgManagementSer
       name: _request.name || undefined,
       type: _request.type || undefined,
       sortOrder: _request.sortOrder,
-      organizationPartyId: hasOrganizationPartyId
-        ? _request.organizationPartyId?.trim() || null
+      organizationTenantPartyId: hasOrganizationTenantPartyId
+        ? _request.organizationTenantPartyId?.trim() || null
         : undefined
     })
     return { orgUnit: mapOrgUnit(orgUnit) }
@@ -279,7 +279,7 @@ function mapOrgUnit(orgUnit: {
   path: string
   depth: number
   sortOrder: number
-  organizationPartyId: string | null
+  organizationTenantPartyId: string | null
 }) {
   return {
     id: orgUnit.id,
@@ -291,7 +291,7 @@ function mapOrgUnit(orgUnit: {
     path: orgUnit.path,
     depth: orgUnit.depth,
     sortOrder: orgUnit.sortOrder,
-    organizationPartyId: orgUnit.organizationPartyId ?? ''
+    organizationTenantPartyId: orgUnit.organizationTenantPartyId ?? ''
   }
 }
 
@@ -302,14 +302,12 @@ function mapOnboarding(result: TenantOnboardingResult) {
     status: result.status,
     tenant: result.tenant ? mapTenant(result.tenant) : undefined,
     rootOrg: result.rootOrg ? mapOrgUnit(result.rootOrg) : undefined,
-    organizationParty: {
-      partyId: result.organizationParty?.partyId ?? '',
-      tenantPartyId: result.organizationParty?.tenantPartyId ?? ''
+    organizationTenantParty: {
+      tenantPartyId: result.organizationTenantParty?.tenantPartyId ?? ''
     },
     firstAdmin: {
       userId: result.firstAdmin?.userId ?? '',
       accountId: result.firstAdmin?.accountId ?? '',
-      personPartyId: result.firstAdmin?.personPartyId ?? '',
       tenantPartyId: result.firstAdmin?.tenantPartyId ?? ''
     },
     firstAdminEmployee: {

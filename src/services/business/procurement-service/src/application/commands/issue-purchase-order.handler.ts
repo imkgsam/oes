@@ -45,6 +45,9 @@ export class IssuePurchaseOrderHandler
           'item',
           line.itemId ?? ''
         )
+        assertPrecondition(item.active, 'standard item must remain active before issue', {
+          itemId: line.itemId ?? ''
+        })
         assertPrecondition(item.purchasable, 'standard item must remain purchasable before issue', {
           itemId: line.itemId ?? ''
         })

@@ -20,7 +20,8 @@ describe('TaskBffService', () => {
       listTasks: jest.fn().mockResolvedValue({ items: [], page: 1, pageSize: 20, total: 0 }),
       getTask: jest.fn()
     } as unknown as TaskQueryGrpcAdapter
-    const service = new TaskBffService(command, query)
+    const identity = { getAccountById: jest.fn() }
+    const service = new TaskBffService(command, query, identity as any)
 
     await service.listTasks(
       'tenant-1',
@@ -54,7 +55,12 @@ describe('TaskBffService', () => {
       call: jest.fn().mockResolvedValue({ task: { taskId: 'task-1' } })
     } as unknown as TaskCommandGrpcAdapter
     const query = { listTasks: jest.fn(), getTask: jest.fn() } as unknown as TaskQueryGrpcAdapter
-    const service = new TaskBffService(command, query)
+    const identity = {
+      getAccountById: jest.fn().mockResolvedValue({
+        account: { id: 'account-1', displayName: '陈双鹏', userId: 'user-1' }
+      })
+    }
+    const service = new TaskBffService(command, query, identity as any)
 
     await service.createTask(
       'tenant-1',
@@ -75,5 +81,50 @@ describe('TaskBffService', () => {
       }),
       source
     )
+  })
+
+  it('hydrates task participant labels through identity account reads', async () => {
+    const command = { call: jest.fn() } as unknown as TaskCommandGrpcAdapter
+    const query = {
+      listTasks: jest.fn().mockResolvedValue({
+        items: [
+          {
+            taskId: 'task-1',
+            createdByAccountId: 'account-creator',
+            assigneeAccountId: 'account-assignee'
+          }
+        ],
+        page: 1,
+        pageSize: 20,
+        total: 1
+      }),
+      getTask: jest.fn()
+    } as unknown as TaskQueryGrpcAdapter
+    const identity = {
+      getAccountById: jest.fn(async (accountId: string) => ({
+        account: {
+          id: accountId,
+          displayName:
+            accountId === 'account-creator' ? '陈双鹏' : '林晓雯',
+          userId: `user-${accountId}`
+        }
+      }))
+    }
+    const service = new TaskBffService(command, query, identity as any)
+
+    const result = await service.listTasks(
+      'tenant-1',
+      { scope: 'CREATED_BY_ME' },
+      source
+    )
+
+    expect(result.items[0]).toEqual(
+      expect.objectContaining({
+        assigneeDisplayName: '林晓雯',
+        createdByDisplayName: '陈双鹏'
+      })
+    )
+    expect(identity.getAccountById).toHaveBeenCalledWith('account-creator', source)
+    expect(identity.getAccountById).toHaveBeenCalledWith('account-assignee', source)
   })
 })

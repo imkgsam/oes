@@ -14,6 +14,8 @@ import {
   CountTenantAccountsResponse,
   ListAccountsRequest,
   ListAccountsResponse,
+  ListAccountContactAssetsRequest,
+  ListAccountContactAssetsResponse,
   GetAccountByIdRequest,
   GetAccountByIdResponse,
   GetEmployeeBindingByAccountIdRequest,
@@ -34,6 +36,8 @@ import {
   ListAccountWorkEmailAssetsResponse,
   ListAccountWorkPhoneAssetsRequest,
   ListAccountWorkPhoneAssetsResponse,
+  ResolveContactActionTargetsRequest,
+  ResolveContactActionTargetsResponse,
   GetUserByIdRequest,
   GetUserByIdResponse,
   GetUserByEmailRequest,
@@ -48,6 +52,7 @@ import {
   AccountCandidateView,
   AccountDirectoryPageView,
   AccountContactAssetView,
+  ListAccountContactAssetsQuery,
   AccountSummaryView,
   CountTenantAccountsQuery,
   EmployeeLoginAccountView,
@@ -66,6 +71,8 @@ import {
   ListServiceAccountsQuery,
   ListAccountWorkEmailAssetsQuery,
   ListAccountWorkPhoneAssetsQuery,
+  ResolveContactActionTargetsQuery,
+  ResolveContactActionTargetsView,
   ServiceAccountView,
   GetUserByIdQuery,
   UserSummaryView,
@@ -153,7 +160,8 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
         displayName: account.displayName ?? '',
         bio: account.bio ?? '',
         isEnabled: account.isEnabled,
-        scopeLevel: account.scopeLevel
+        scopeLevel: account.scopeLevel,
+        tenantPartyId: account.tenantPartyId ?? ''
       }
     }
   }
@@ -247,6 +255,49 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
     }
   }
 
+  async resolveContactActionTargets(
+    request: ResolveContactActionTargetsRequest
+  ): Promise<ResolveContactActionTargetsResponse> {
+    const result = await this.queryBus.execute<
+      ResolveContactActionTargetsQuery,
+      ResolveContactActionTargetsView
+    >(
+      new ResolveContactActionTargetsQuery({
+        tenantId: request.tenantId!,
+        accountId: request.accountId!,
+        employeeId: request.employeeId || undefined,
+        targetRefs: (request.targetRefs ?? []).map((ref) => ({
+          contactActionType: ref.contactActionType!,
+          targetRefType: ref.targetRefType!,
+          targetRefId: ref.targetRefId || null
+        }))
+      })
+    )
+
+    return {
+      targets: result.targets.map((target) => IdentityGrpcPresenter.toResolvedContactActionTarget(target))
+    }
+  }
+
+  async listAccountContactAssets(
+    request: ListAccountContactAssetsRequest
+  ): Promise<ListAccountContactAssetsResponse> {
+    const assets = await this.queryBus.execute<ListAccountContactAssetsQuery, AccountContactAssetView[]>(
+      new ListAccountContactAssetsQuery({
+        tenantId: request.tenantId!,
+        accountId: request.accountId!,
+        employeeId: request.employeeId || undefined,
+        types: request.types ?? undefined,
+        statuses: request.statuses ?? undefined,
+        ownership: request.ownership ?? undefined
+      })
+    )
+
+    return {
+      assets: assets.map((asset) => IdentityGrpcPresenter.toContactAsset(asset))
+    }
+  }
+
   @RequireAuthenticatedOperator()
   @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
   @UseInterceptors(GrpcRequestContextInterceptor)
@@ -316,8 +367,8 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
       accounts: result.items.map((account) => ({
         accountId: account.accountId,
         userId: account.userId,
-        userPartyId: account.userPartyId ?? '',
         tenantId: account.tenantId ?? '',
+        tenantPartyId: account.tenantPartyId ?? '',
         scopeLevel: account.scopeLevel,
         displayName: account.displayName ?? '',
         userDisplayName: account.userDisplayName ?? '',
@@ -363,7 +414,6 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
     return {
       user: {
         id: user.id,
-        partyId: user.partyId ?? '',
         username: user.username ?? '',
         personalEmail: user.personalEmail ?? '',
         personalPhone: user.personalPhone ?? '',
@@ -384,7 +434,6 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
     return {
       user: {
         id: user.id,
-        partyId: user.partyId ?? '',
         username: user.username ?? '',
         personalEmail: user.personalEmail ?? '',
         personalPhone: user.personalPhone ?? '',
@@ -405,7 +454,6 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
     return {
       user: {
         id: user.id,
-        partyId: user.partyId ?? '',
         username: user.username ?? '',
         personalEmail: user.personalEmail ?? '',
         personalPhone: user.personalPhone ?? '',

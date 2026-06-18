@@ -2,7 +2,7 @@ import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import {
-  GetPartyByIdResponse,
+  GetTenantPartyByIdResponse,
   PARTY_QUERY_SERVICE_NAME,
   PartyQueryServiceClient
 } from '@oes/common/generated/party_service'
@@ -19,7 +19,7 @@ import {
 const CALLER = 'api-gateway'
 
 @Injectable()
-// Bridges auth-bff display-name hydration to the downstream party-service gRPC query contract.
+// Bridges auth-bff tenant party lookups to the downstream party-service gRPC query contract.
 export class PartyQueryGrpcAdapter implements OnModuleInit {
   private svc!: PartyQueryServiceClient
 
@@ -34,10 +34,14 @@ export class PartyQueryGrpcAdapter implements OnModuleInit {
     this.svc = this.client.getService<PartyQueryServiceClient>(PARTY_QUERY_SERVICE_NAME)
   }
 
-  getPartyById(partyId: string, source: DownstreamRequestSource): Promise<GetPartyByIdResponse> {
+  getTenantPartyById(
+    tenantId: string,
+    tenantPartyId: string,
+    source: DownstreamRequestSource
+  ): Promise<GetTenantPartyByIdResponse> {
     return this.call(
-      'getPartyById',
-      this.svc.getPartyById({ partyId }, this.operatorMetadata(source))
+      'getTenantPartyById',
+      this.svc.getTenantPartyById({ tenantId, tenantPartyId }, this.operatorMetadata(source))
     )
   }
 

@@ -16,6 +16,7 @@ import {
   ApiKeyView,
   EmployeeLoginAccountView,
   EmployeeBindingSummaryView,
+  ResolvedContactActionTargetView,
   ServiceAccountView
 } from '../../application/queries'
 import { DeleteAccountResult } from '../../application/commands'
@@ -66,7 +67,35 @@ export class IdentityGrpcPresenter {
       status: asset.status,
       isPrimary: asset.isPrimary,
       assignedAt: asset.assignedAt.toISOString(),
-      revokedAt: asset.revokedAt?.toISOString() ?? ''
+      revokedAt: asset.releasedAt?.toISOString() ?? '',
+      userId: asset.userId ?? '',
+      employeeId: asset.employeeId ?? '',
+      provider: asset.provider ?? '',
+      displayName: asset.displayName ?? '',
+      ownership: asset.ownership,
+      usage: asset.usage,
+      releasedAt: asset.releasedAt?.toISOString() ?? ''
+    }
+  }
+
+  static toResolvedContactActionTarget(target: ResolvedContactActionTargetView) {
+    return {
+      contactActionType: target.contactActionType,
+      targetRefType: target.targetRefType,
+      targetRefId: target.targetRefId ?? '',
+      renderable: target.renderable,
+      hiddenReason: target.hiddenReason ?? '',
+      publicValueSummary: target.publicValueSummary
+        ? {
+            type: target.publicValueSummary.type,
+            provider: target.publicValueSummary.provider ?? '',
+            label: target.publicValueSummary.label,
+            displayValue: target.publicValueSummary.displayValue,
+            actionValue: target.publicValueSummary.actionValue,
+            actionUri: target.publicValueSummary.actionUri,
+            includeInVCardAllowed: target.publicValueSummary.includeInVCardAllowed
+          }
+        : undefined
     }
   }
 

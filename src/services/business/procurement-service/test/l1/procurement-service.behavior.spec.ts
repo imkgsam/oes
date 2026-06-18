@@ -191,7 +191,7 @@ describe('procurement-service behavior L1', () => {
       itemId: 'item-1',
       itemCode: 'RM-001',
       itemName: 'Standard Resin',
-      status: 'ACTIVE',
+      active: true,
       purchasable: true
     })
 
@@ -273,7 +273,7 @@ describe('procurement-service behavior L1', () => {
       itemId: 'item-1',
       itemCode: 'RM-001',
       itemName: 'Standard Resin',
-      status: 'ACTIVE',
+      active: true,
       purchasable: true
     })
 
@@ -350,13 +350,47 @@ describe('procurement-service behavior L1', () => {
     expect(cancelled.status).toBe(PurchaseRequestStatus.CANCELLED)
   })
 
+  it('PurchaseRequest standard item validation / should reject inactive items before creating draft demand', async () => {
+    const harness = createHarness()
+    harness.itemLookup.seed({
+      itemId: 'item-inactive',
+      itemCode: 'RM-INACTIVE',
+      itemName: 'Inactive Standard Resin',
+      active: false,
+      purchasable: true
+    })
+
+    await expect(
+      harness.createPurchaseRequest.execute(
+        new CreatePurchaseRequestCommand({
+          tenantId: 'tenant-1',
+          requester: {
+            operatorId: 'requester-1',
+            displayName: 'Buyer One'
+          },
+          requestType: PurchaseRequestType.PRODUCTION_PACKAGING,
+          lines: [
+            buildStandardItemLine({
+              itemId: 'item-inactive',
+              description: 'Inactive resin'
+            })
+          ]
+        })
+      )
+    ).rejects.toMatchObject({
+      definition: {
+        rpcStatus: status.FAILED_PRECONDITION
+      }
+    })
+  })
+
   it('ConvertPurchaseRequestToPurchaseOrder / should create a PO draft with mixed allocation and general-stock excess reason', async () => {
     const harness = createHarness()
     harness.itemLookup.seed({
       itemId: 'item-1',
       itemCode: 'RM-001',
       itemName: 'Standard Resin',
-      status: 'ACTIVE',
+      active: true,
       purchasable: true
     })
     harness.supplierLookup.seedSupplier({
@@ -457,7 +491,7 @@ describe('procurement-service behavior L1', () => {
       itemId: 'item-1',
       itemCode: 'RM-001',
       itemName: 'Standard Resin',
-      status: 'ACTIVE',
+      active: true,
       purchasable: true
     })
     harness.supplierLookup.seedSupplier({
@@ -614,7 +648,7 @@ describe('procurement-service behavior L1', () => {
       itemId: 'item-1',
       itemCode: 'RM-001',
       itemName: 'Standard Resin',
-      status: 'ACTIVE',
+      active: true,
       purchasable: true
     })
     harness.supplierLookup.seedSupplier({
@@ -767,7 +801,7 @@ describe('procurement-service behavior L1', () => {
       itemId: 'item-1',
       itemCode: 'RM-001',
       itemName: 'Standard Resin',
-      status: 'ACTIVE',
+      active: true,
       purchasable: true
     })
     harness.supplierLookup.seedSupplier({
@@ -877,7 +911,7 @@ describe('procurement-service behavior L1', () => {
       itemId: 'item-1',
       itemCode: 'RM-001',
       itemName: 'Standard Resin',
-      status: 'ACTIVE',
+      active: true,
       purchasable: true
     })
     harness.supplierLookup.seedSupplier({

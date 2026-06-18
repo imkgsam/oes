@@ -218,7 +218,7 @@ describe('srm-service behavior L1', () => {
       itemId: 'item-1',
       itemCode: 'RM-001',
       itemName: 'Raw Material',
-      status: 'ACTIVE',
+      active: true,
       purchasable: true
     })
 
@@ -258,7 +258,7 @@ describe('srm-service behavior L1', () => {
       itemId: 'item-2',
       itemCode: 'FG-002',
       itemName: 'Finished Good',
-      status: 'ACTIVE',
+      active: true,
       purchasable: false
     })
 
@@ -301,6 +301,61 @@ describe('srm-service behavior L1', () => {
     })
   })
 
+  it('UpsertSupplierOffering / when item is inactive / should reject ACTIVE offering with FAILED_PRECONDITION', async () => {
+    const harness = createHarness()
+    harness.tenantPartyLookup.seed({
+      tenantId: 'tenant-1',
+      tenantPartyId: 'party-active',
+      status: 'ACTIVE',
+      partyDisplayName: 'Acme Trading'
+    })
+    harness.itemLookup.seed({
+      itemId: 'item-inactive',
+      itemCode: 'RM-INACTIVE',
+      itemName: 'Inactive Raw Material',
+      active: false,
+      purchasable: true
+    })
+
+    const profile = await harness.createSupplierProfile.execute(
+      new CreateSupplierProfileCommand({
+        tenantId: 'tenant-1',
+        displayName: 'Active Supplier',
+        tags: []
+      })
+    )
+
+    await harness.bindSupplierToTenantParty.execute(
+      new BindSupplierToTenantPartyCommand({
+        tenantId: 'tenant-1',
+        supplierId: profile.id,
+        tenantPartyId: 'party-active'
+      })
+    )
+    await harness.changeSupplierStatus.execute(
+      new ChangeSupplierStatusCommand({
+        tenantId: 'tenant-1',
+        supplierId: profile.id,
+        targetStatus: SupplierStatus.ACTIVE
+      })
+    )
+
+    await expect(
+      harness.upsertSupplierOffering.execute(
+        new UpsertSupplierOfferingCommand({
+          tenantId: 'tenant-1',
+          supplierId: profile.id,
+          itemId: 'item-inactive',
+          targetStatus: SupplierOfferingStatus.ACTIVE
+        })
+      )
+    ).rejects.toMatchObject({
+      definition: {
+        rpcStatus: status.FAILED_PRECONDITION
+      }
+    })
+  })
+
   it('SearchSuppliers / contact-address upserts / offering queries / should return the frozen phase 1 supplier master surface', async () => {
     const harness = createHarness()
     harness.tenantPartyLookup.seed({
@@ -313,7 +368,7 @@ describe('srm-service behavior L1', () => {
       itemId: 'item-1',
       itemCode: 'RM-001',
       itemName: 'Raw Material',
-      status: 'ACTIVE',
+      active: true,
       purchasable: true
     })
 

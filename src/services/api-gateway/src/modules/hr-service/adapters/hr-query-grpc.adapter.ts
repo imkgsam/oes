@@ -30,9 +30,10 @@ export interface HrEmployeeSummary {
   id: string
   tenantId: string
   tenantPartyId: string
-  partyId?: string
   employeeCode: string
   lifecycleStatus: string
+  officialPhotoAssetId?: string | null
+  officialPhotoUrl?: string | null
 }
 
 export interface HrEmploymentSummary {
@@ -197,17 +198,19 @@ function mapEmployee(employee: {
   id?: string
   tenantId?: string
   tenantPartyId?: string
-  partyId?: string
   employeeCode?: string
   lifecycleStatus?: EmployeeLifecycleStatus
+  officialPhotoAssetId?: string
+  officialPhotoUrl?: string
 }): HrEmployeeSummary {
   return {
     id: employee.id ?? '',
     tenantId: employee.tenantId ?? '',
     tenantPartyId: employee.tenantPartyId ?? '',
-    partyId: normalize(employee.partyId),
     employeeCode: employee.employeeCode ?? '',
-    lifecycleStatus: mapEmployeeLifecycleStatusToString(employee.lifecycleStatus)
+    lifecycleStatus: mapEmployeeLifecycleStatusToString(employee.lifecycleStatus),
+    officialPhotoAssetId: normalize(employee.officialPhotoAssetId) ?? null,
+    officialPhotoUrl: normalize(employee.officialPhotoUrl) ?? null
   }
 }
 

@@ -1,18 +1,17 @@
 import { of } from 'rxjs'
 import { PartyRegistrationGrpcAdapter } from '../../src/infrastructure/adapters/party-registration.grpc.adapter'
 
-// Verifies tenant-org maps onboarding party registration requests to the current party-service gRPC contract.
+// Verifies tenant-org maps onboarding tenant party registration requests to the current party-service gRPC contract.
 describe('PartyRegistrationGrpcAdapter', () => {
-  it('sends organization legalName to party-service instead of the removed canonicalName field', async () => {
-    const registerOrganizationParty = jest.fn().mockReturnValue(
+  it('sends tenant-scoped organization TenantParty registration to party-service', async () => {
+    const registerTenantParty = jest.fn().mockReturnValue(
       of({
-        party: { id: 'party-1' },
         tenantParty: { id: 'tenant-party-1' }
       })
     )
     const adapter = new PartyRegistrationGrpcAdapter(
       {
-        getService: jest.fn(() => ({ registerOrganizationParty }))
+        getService: jest.fn(() => ({ registerTenantParty }))
       } as any,
       {} as any,
       {} as any
@@ -21,7 +20,8 @@ describe('PartyRegistrationGrpcAdapter', () => {
     ;(adapter as any).buildMetadata = jest.fn(() => undefined)
 
     await expect(
-      adapter.registerOrganizationParty({
+      adapter.registerOrganizationTenantParty({
+        tenantId: 'tenant-1',
         legalName: 'Beta Inc.',
         registeredCountry: 'US',
         identifiers: [
@@ -34,16 +34,18 @@ describe('PartyRegistrationGrpcAdapter', () => {
         ],
         idempotencyKey: 'step-1'
       })
-    ).resolves.toEqual({ partyId: 'party-1', tenantPartyId: 'tenant-party-1' })
+    ).resolves.toEqual({ tenantPartyId: 'tenant-party-1' })
 
-    expect(registerOrganizationParty).toHaveBeenCalledWith(
+    expect(registerTenantParty).toHaveBeenCalledWith(
       expect.objectContaining({
+        tenantId: 'tenant-1',
+        type: 'ORGANIZATION',
         legalName: 'Beta Inc.',
-        localDisplayName: 'Beta Inc.',
+        displayName: 'Beta Inc.',
         registeredCountry: 'US'
       }),
       undefined
     )
-    expect(registerOrganizationParty.mock.calls[0][0]).not.toHaveProperty('canonicalName')
+    expect(registerTenantParty.mock.calls[0][0]).not.toHaveProperty('canonicalName')
   })
 })

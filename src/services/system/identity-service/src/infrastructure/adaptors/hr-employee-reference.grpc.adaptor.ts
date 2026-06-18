@@ -45,7 +45,7 @@ export class HrEmployeeReferenceGrpcAdaptor implements HrEmployeeReferencePort, 
       return {
         id: response.employee.id,
         tenantId: response.employee.tenantId ?? '',
-        partyId: normalizeOptional(response.employee.partyId) ?? null
+        tenantPartyId: normalizeOptional(response.employee.tenantPartyId) ?? null
       }
     } catch {
       return null

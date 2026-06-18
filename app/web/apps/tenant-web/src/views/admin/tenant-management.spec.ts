@@ -125,7 +125,7 @@ describe('tenant management page', () => {
         access: { grantId: 'grant-1', roleCode: 'tenant.admin', roleId: 'role-1' },
         firstAdmin: { accountId: 'account-1', userId: 'user-1' },
         onboardingId: 'onboarding-1',
-        organizationParty: { partyId: 'party-1', tenantPartyId: 'tenant-party-1' },
+        organizationTenantParty: { tenantPartyId: 'tenant-party-1' },
         rootOrg: { id: 'org-root-2' },
         status: 'SUCCEEDED',
         tenant: {
@@ -284,7 +284,7 @@ describe('tenant management page', () => {
           email: 'alice@example.com',
           requirePasswordSetup: true,
         }),
-        organizationParty: expect.objectContaining({
+        organizationTenantParty: expect.objectContaining({
           identifiers: [
             {
               identifierType: 'EIN',

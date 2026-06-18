@@ -1,7 +1,5 @@
 <script lang="ts" setup>
-import { computed, reactive, ref, watch } from 'vue';
-
-import { SliderCaptcha } from '@vben/common-ui';
+import { computed, reactive } from 'vue';
 
 import { Button, Form, Input } from 'ant-design-vue';
 
@@ -26,12 +24,12 @@ const emit = defineEmits<{
 const formState = reactive({
   code: '',
 });
-const captchaVerified = ref(false);
-const showCaptchaPanel = ref(false);
-const sliderVersion = ref(0);
 
 const canSubmit = computed(
   () => props.hasActiveChallenge && formState.code.trim().length === 6 && !props.loading,
+);
+const canRequestChallenge = computed(
+  () => !props.loading && (props.resendCooldown ?? 0) <= 0,
 );
 
 const resendButtonText = computed(() => {
@@ -44,18 +42,6 @@ const maskedDestination = computed(() =>
   maskMfaDestination(props.destination) || '当前绑定手机号',
 );
 
-watch(
-  () => props.hasActiveChallenge,
-  (hasChallenge) => {
-    if (hasChallenge) {
-      captchaVerified.value = false;
-      showCaptchaPanel.value = false;
-      sliderVersion.value += 1;
-    }
-  },
-  { immediate: true },
-);
-
 async function handleSubmit() {
   if (!canSubmit.value) {
     return;
@@ -64,15 +50,11 @@ async function handleSubmit() {
   emit('submit', formState.code.trim());
 }
 
-function openCaptchaGate() {
-  showCaptchaPanel.value = true;
-  captchaVerified.value = false;
-  sliderVersion.value += 1;
-}
+async function handleRequestChallenge() {
+  if (!canRequestChallenge.value) {
+    return;
+  }
 
-async function handleCaptchaSuccess() {
-  captchaVerified.value = true;
-  showCaptchaPanel.value = false;
   emit('resend');
 }
 </script>
@@ -101,6 +83,7 @@ async function handleCaptchaSuccess() {
 
       <div class="mfa-factor-actions">
         <Button
+          v-if="hasActiveChallenge"
           type="primary"
           block
           :disabled="!canSubmit"
@@ -111,26 +94,24 @@ async function handleCaptchaSuccess() {
         </Button>
 
         <Button
+          v-else
+          type="primary"
+          block
+          :disabled="!canRequestChallenge"
+          :loading="loading"
+          @click="handleRequestChallenge"
+        >
+          发送验证码
+        </Button>
+
+        <Button
           v-if="hasActiveChallenge"
           block
           :disabled="loading || (resendCooldown ?? 0) > 0"
-          @click="openCaptchaGate"
+          @click="handleRequestChallenge"
         >
           {{ resendButtonText }}
         </Button>
-      </div>
-
-      <div
-        v-if="!hasActiveChallenge || showCaptchaPanel"
-        class="mfa-factor-captcha"
-      >
-        <SliderCaptcha
-          :key="sliderVersion"
-          v-model="captchaVerified"
-          success-text="验证通过"
-          text="请按住滑块拖动"
-          @success="handleCaptchaSuccess"
-        />
       </div>
     </Form>
   </MfaSceneShell>
@@ -141,9 +122,5 @@ async function handleCaptchaSuccess() {
   display: flex;
   flex-direction: column;
   gap: 12px;
-}
-
-.mfa-factor-captcha {
-  margin-top: 16px;
 }
 </style>

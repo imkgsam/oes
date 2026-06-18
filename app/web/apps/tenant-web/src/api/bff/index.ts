@@ -18,6 +18,7 @@ export * from './public-entry-business-card';
 export * from './role-management';
 export * from './security';
 export * from './sales';
+export * from './site-management';
 export * from './supplier-management';
 export * from './tenant-management';
 export * from './terminal-device';

@@ -116,7 +116,8 @@ function buildScopeWhere(filter: TaskListFilter): Prisma.CollaborationTaskWhereI
     }
   }
   return {
-    createdByAccountId: filter.operatorAccountId
+    createdByAccountId: filter.operatorAccountId,
+    NOT: { assigneeAccountId: filter.operatorAccountId }
   }
 }
 

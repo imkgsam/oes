@@ -160,7 +160,7 @@ export class TenantManagementService {
   async startTenantOnboarding(input: {
     idempotencyKey: string
     tenant: { code: string; employeeCodePrefix: string; name: string }
-    organizationParty: {
+    organizationTenantParty: {
       legalName: string
       registeredCountry?: string
       identifiers?: Array<{
@@ -195,12 +195,12 @@ export class TenantManagementService {
           employeeCodePrefix: normalizeEmployeeCodePrefix(input.tenant.employeeCodePrefix),
           name: requireNonBlank(input.tenant.name, 'tenant.name')
         },
-        organizationParty: {
-          legalName: requireNonBlank(input.organizationParty.legalName, 'organizationParty.legalName'),
-          registeredCountry: normalize(input.organizationParty.registeredCountry),
+        organizationTenantParty: {
+          legalName: requireNonBlank(input.organizationTenantParty.legalName, 'organizationTenantParty.legalName'),
+          registeredCountry: normalize(input.organizationTenantParty.registeredCountry),
           identifiers: normalizeOrganizationIdentifiers(
-            input.organizationParty.identifiers,
-            input.organizationParty.registeredCountry
+            input.organizationTenantParty.identifiers,
+            input.organizationTenantParty.registeredCountry
           )
         },
         rootOrg: {
@@ -322,7 +322,7 @@ function requireNonBlank(value: string, fieldName: string): string {
   return normalized
 }
 
-// normalizeOrganizationIdentifiers validates party-owned legal identifiers before forwarding to tenant-org-service.
+// normalizeOrganizationIdentifiers validates tenant-scoped organization identifiers before forwarding to tenant-org-service.
 function normalizeOrganizationIdentifiers(
   identifiers: Array<{
     identifierType: string
@@ -333,19 +333,19 @@ function normalizeOrganizationIdentifiers(
   registeredCountry?: string
 ) {
   if (!identifiers?.length) {
-    throw new BadRequestException('organizationParty.identifiers is required')
+    throw new BadRequestException('organizationTenantParty.identifiers is required')
   }
 
   return identifiers.map((identifier, index) => {
     const rawValue = normalize(identifier.rawValue) ?? normalize(identifier.normalizedValue)
-    const normalizedValue = normalizeIdentifierValue(rawValue, `organizationParty.identifiers[${index}].rawValue`)
+    const normalizedValue = normalizeIdentifierValue(rawValue, `organizationTenantParty.identifiers[${index}].rawValue`)
     const issuerCountryOrRegion = requireNonBlank(
       normalize(identifier.issuerCountryOrRegion) ?? normalize(registeredCountry) ?? '',
-      `organizationParty.identifiers[${index}].issuerCountryOrRegion`
+      `organizationTenantParty.identifiers[${index}].issuerCountryOrRegion`
     )
 
     return {
-      identifierType: requireNonBlank(identifier.identifierType, `organizationParty.identifiers[${index}].identifierType`),
+      identifierType: requireNonBlank(identifier.identifierType, `organizationTenantParty.identifiers[${index}].identifierType`),
       issuerCountryOrRegion,
       normalizedValue,
       rawValue

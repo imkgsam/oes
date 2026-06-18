@@ -10,7 +10,7 @@
 - `OrgUnit`、组织树与层级结构真相
 - 组织节点类型、组织路径、祖先 / 子孙关系与排序
 - 业务对象 `ownerOrgId / submitOrgId / responsibleOrgId` 等组织引用的合法性校验基础
-- 组织节点与现实世界 `organization party` 的可选受控关联
+- 组织节点与当前租户内 `ORGANIZATION` TenantParty 的可选受控关联
 
 ## 3. Does Not Own
 
@@ -29,11 +29,11 @@
 - 提供组织路径、祖先、子孙、同级等层级解析能力
 - 为业务服务、Workflow、Reporting 提供组织引用校验与层级遍历基础
 - 为 `hr-service` 提供可被正式任职关系引用的 `OrgUnit` 真相；HR 任职设计以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准
-- 在必要时允许组织节点受控关联到 `party-service` 的 organization party，但不替代主体主数据
-- `organizationPartyId` 的基础语义是“组织节点对现实世界 organization party 的可选正式引用”，不是所有 `OrgUnit` 都默认拥有的字段语义
-- 当前第一阶段只允许 `ROOT` 与 `BRANCH` 节点持有 `organizationPartyId`；`DEPARTMENT`、`TEAM`、`OTHER` 不得绑定 organization party
-- `tenant-org-service` 负责在写入口校验 `organizationPartyId` 是否可被当前节点类型持有，并通过 `party-service` 只读 query 校验目标主体是否存在、是否为可绑定的组织主体、以及是否处于可引用状态；组织主体边界以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准
-- 拥有 tenant onboarding process manager 状态，负责编排创建 tenant、root org、organization party、first admin account、first admin employee 与初始访问权；下游事实仍由各 owner service 拥有
+- 在必要时允许组织节点受控关联到 `party-service` 的当前租户 `ORGANIZATION` TenantParty，但不替代主体主数据
+- `organizationTenantPartyId` 的基础语义是“组织节点对当前租户内组织主体的可选正式引用”，不是所有 `OrgUnit` 都默认拥有的字段语义
+- 当前第一阶段只允许 `ROOT` 与 `BRANCH` 节点持有 `organizationTenantPartyId`；`DEPARTMENT`、`TEAM`、`OTHER` 不得绑定组织主体
+- `tenant-org-service` 负责在写入口校验 `organizationTenantPartyId` 是否可被当前节点类型持有，并通过 `party-service` 只读 query 校验目标主体是否存在、是否为可绑定的组织主体、以及是否处于可引用状态；组织主体边界以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准
+- 拥有 tenant onboarding process manager 状态，负责编排创建 tenant、root org、当前租户 `ORGANIZATION` TenantParty、first admin account、first admin employee 与初始访问权；下游事实仍由各 owner service 拥有
 
 ## 5. Core Model
 
@@ -57,7 +57,7 @@
 - `path`
 - `depth`
 - `sortOrder`
-- optional `organizationPartyId`
+- optional `organizationTenantPartyId`
 
 `TenantOnboardingRun` 是 onboarding process manager 状态：
 
@@ -147,4 +147,4 @@ Management 能力：
 - 不拥有 account 到 org 的归属真相
 - 不拥有 `Employee / Employment`、岗位、汇报关系或薪酬考勤等 HR 语义；这些以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准
 - 不在本服务内直接实现业务域自己的订单、客户、供应商或审批规则
-- 不把“哪些场景必须关联 organization party”上升为通用 org tree 规则；如 future 场景需要必填，应由对应协同 contract 单独冻结
+- 不把“哪些场景必须关联 organizationTenantPartyId”上升为通用 org tree 规则；如 future 场景需要必填，应由对应协同 contract 单独冻结

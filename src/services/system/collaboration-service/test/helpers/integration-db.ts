@@ -2,6 +2,8 @@ import { existsSync, readFileSync } from 'fs'
 import { resolve } from 'path'
 import { PrismaService } from '../../src/infrastructure/prisma/prisma.service'
 
+const DEFAULT_LOCAL_DATABASE_URL = 'postgres://imkgsam:imkgsam@localhost:5432/mydb'
+
 /** parseEnvValue removes optional quotes from a dotenv scalar value. */
 function parseEnvValue(raw: string): string {
   const trimmed = raw.trim()
@@ -16,26 +18,31 @@ function parseEnvValue(raw: string): string {
 
 /** ensureIntegrationDatabaseUrl loads collaboration-service DATABASE_URL for L2 tests. */
 export function ensureIntegrationDatabaseUrl(): string {
-  if (process.env.DATABASE_URL) {
-    process.env.DATABASE_URL = withCollaborationSchema(process.env.DATABASE_URL)
+  const directUrl = process.env.COLLABORATION_DATABASE_URL || process.env.DATABASE_URL
+  if (directUrl) {
+    process.env.DATABASE_URL = withCollaborationSchema(directUrl)
     return process.env.DATABASE_URL
   }
 
   const envPath = resolve(__dirname, '../../.env')
-  if (!existsSync(envPath)) {
-    throw new Error(`DATABASE_URL is not set and .env was not found at ${envPath}`)
+  if (existsSync(envPath)) {
+    const envContent = readFileSync(envPath, 'utf8')
+    const match = envContent.match(/^\s*DATABASE_URL\s*=\s*(.+)\s*$/m)
+
+    if (!match) {
+      throw new Error(`DATABASE_URL was not found in ${envPath}`)
+    }
+
+    process.env.DATABASE_URL = withCollaborationSchema(parseEnvValue(match[1]))
+    return process.env.DATABASE_URL
   }
 
-  const envContent = readFileSync(envPath, 'utf8')
-  const match = envContent.match(/^\s*DATABASE_URL\s*=\s*(.+)\s*$/m)
-
-  if (!match) {
-    throw new Error(`DATABASE_URL was not found in ${envPath}`)
+  if ((process.env.NODE_ENV ?? 'development') !== 'production') {
+    process.env.DATABASE_URL = withCollaborationSchema(DEFAULT_LOCAL_DATABASE_URL)
+    return process.env.DATABASE_URL
   }
 
-  const databaseUrl = parseEnvValue(match[1])
-  process.env.DATABASE_URL = withCollaborationSchema(databaseUrl)
-  return process.env.DATABASE_URL
+  throw new Error(`DATABASE_URL is not set and .env was not found at ${envPath}`)
 }
 
 /** createPrismaForIntegration creates a connected PrismaService with a targeted local-db error. */

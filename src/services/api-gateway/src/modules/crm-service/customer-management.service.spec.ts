@@ -8,8 +8,10 @@ describe('CustomerManagementService', () => {
     listCrmAccounts: jest.fn()
   }
   const customerManagementAdapter = {
+    archiveCrmAccount: jest.fn(),
     convertLeadToProspectCustomer: jest.fn(),
-    createLead: jest.fn()
+    createLead: jest.fn(),
+    restoreCrmAccount: jest.fn()
   }
 
   const service = new CustomerManagementService(
@@ -42,7 +44,7 @@ describe('CustomerManagementService', () => {
     expect(customerQueryAdapter.listCrmAccounts).not.toHaveBeenCalled()
   })
 
-  it('maps CRM P1 lead creation and formalization operations into the BFF model', async () => {
+  it('maps CRM P1 lead creation, formalization, and archive operations into the BFF model', async () => {
     const source = {
       requestId: 'req-1',
       traceId: 'trace-1',
@@ -95,6 +97,46 @@ describe('CustomerManagementService', () => {
       candidates: [],
       existingCrmAccountId: ''
     })
+    customerManagementAdapter.archiveCrmAccount.mockResolvedValue({
+      crmAccount: {
+        crmAccountId: 'crm-account-1',
+        tenantId: 'tenant-1',
+        tenantPartyId: '',
+        recordStatus: 'ARCHIVED',
+        lifecycleStage: 'LEAD',
+        partyTypeHint: 'ORGANIZATION',
+        displayName: 'Acme Importers',
+        leadCompanyName: 'Acme Importers Ltd',
+        leadDomain: 'acme.example',
+        leadEmail: 'buyer@acme.example',
+        leadCountry: 'US',
+        leadIdentifiers: [],
+        ownerAccountId: 'account-1',
+        priority: 'A',
+        createdBy: 'account-1',
+        archivedAt: '2026-06-14T10:00:00.000Z'
+      }
+    })
+    customerManagementAdapter.restoreCrmAccount.mockResolvedValue({
+      crmAccount: {
+        crmAccountId: 'crm-account-1',
+        tenantId: 'tenant-1',
+        tenantPartyId: '',
+        recordStatus: 'ACTIVE',
+        lifecycleStage: 'LEAD',
+        partyTypeHint: 'ORGANIZATION',
+        displayName: 'Acme Importers',
+        leadCompanyName: 'Acme Importers Ltd',
+        leadDomain: 'acme.example',
+        leadEmail: 'buyer@acme.example',
+        leadCountry: 'US',
+        leadIdentifiers: [],
+        ownerAccountId: 'account-1',
+        priority: 'A',
+        createdBy: 'account-1',
+        archivedAt: ''
+      }
+    })
 
     await expect(
       service.createLead(
@@ -142,6 +184,22 @@ describe('CustomerManagementService', () => {
       candidates: [],
       existingCrmAccountId: ''
     })
+    await expect(
+      service.archiveCrmAccount('tenant-1', 'crm-account-1', source as any)
+    ).resolves.toEqual(expect.objectContaining({
+      crmAccountId: 'crm-account-1',
+      lifecycleStage: 'LEAD',
+      recordStatus: 'ARCHIVED',
+      archivedAt: '2026-06-14T10:00:00.000Z'
+    }))
+    await expect(
+      service.restoreCrmAccount('tenant-1', 'crm-account-1', source as any)
+    ).resolves.toEqual(expect.objectContaining({
+      crmAccountId: 'crm-account-1',
+      lifecycleStage: 'LEAD',
+      recordStatus: 'ACTIVE',
+      archivedAt: ''
+    }))
 
     expect(customerManagementAdapter.createLead).toHaveBeenCalledWith(
       {
@@ -171,6 +229,20 @@ describe('CustomerManagementService', () => {
       source
     )
     expect(customerManagementAdapter.convertLeadToProspectCustomer).toHaveBeenCalledWith(
+      {
+        tenantId: 'tenant-1',
+        crmAccountId: 'crm-account-1'
+      },
+      source
+    )
+    expect(customerManagementAdapter.archiveCrmAccount).toHaveBeenCalledWith(
+      {
+        tenantId: 'tenant-1',
+        crmAccountId: 'crm-account-1'
+      },
+      source
+    )
+    expect(customerManagementAdapter.restoreCrmAccount).toHaveBeenCalledWith(
       {
         tenantId: 'tenant-1',
         crmAccountId: 'crm-account-1'

@@ -4,6 +4,7 @@ import {
   AUTH_MANAGEMENT_PERMISSION_CODES,
   AUTH_SELF_PERMISSION_CODES,
   AUTH_SESSION_PERMISSION_CODES,
+  COLLABORATION_ANNOTATION_PERMISSION_CODES,
   COLLABORATION_TASK_PERMISSION_CODES,
   CRM_MANAGEMENT_PERMISSION_CODES,
   FINANCE_MANAGEMENT_PERMISSION_CODES,
@@ -23,6 +24,7 @@ import {
   ROLE_TEMPLATE_PERMISSION_CODES,
   SALES_MANAGEMENT_PERMISSION_CODES,
   SALES_PRICING_PERMISSION_CODES,
+  SITE_MANAGEMENT_PERMISSION_CODES,
   SRM_MANAGEMENT_PERMISSION_CODES,
   TENANT_ORG_MANAGEMENT_PERMISSION_CODES,
   TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES,
@@ -68,6 +70,7 @@ const COMMON_PERMISSION_CODE_FILES: CommonPermissionCodeFileDefinition[] = [
       './permission',
       './public-entry',
       './sales',
+      './site-management',
       './srm',
       './tenant-org',
       './terminal-device',
@@ -100,7 +103,13 @@ const COMMON_PERMISSION_CODE_FILES: CommonPermissionCodeFileDefinition[] = [
   {
     kind: 'index',
     relativePath: 'collaboration/index.ts',
-    exports: ['./task.permission-codes']
+    exports: ['./annotation.permission-codes', './task.permission-codes']
+  },
+  {
+    kind: 'const',
+    relativePath: 'collaboration/annotation.permission-codes.ts',
+    constName: 'COLLABORATION_ANNOTATION_PERMISSION_CODES',
+    records: COLLABORATION_ANNOTATION_PERMISSION_CODES
   },
   {
     kind: 'const',
@@ -275,6 +284,17 @@ const COMMON_PERMISSION_CODE_FILES: CommonPermissionCodeFileDefinition[] = [
     relativePath: 'sales/pricing.permission-codes.ts',
     constName: 'SALES_PRICING_PERMISSION_CODES',
     records: SALES_PRICING_PERMISSION_CODES
+  },
+  {
+    kind: 'index',
+    relativePath: 'site-management/index.ts',
+    exports: ['./management.permission-codes']
+  },
+  {
+    kind: 'const',
+    relativePath: 'site-management/management.permission-codes.ts',
+    constName: 'SITE_MANAGEMENT_PERMISSION_CODES',
+    records: SITE_MANAGEMENT_PERMISSION_CODES
   },
   {
     kind: 'index',

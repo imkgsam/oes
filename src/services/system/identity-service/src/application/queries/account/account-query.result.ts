@@ -2,6 +2,7 @@ export interface AccountSummaryView {
   id: string
   userId: string
   tenantId: string | null
+  tenantPartyId: string | null
   scopeLevel: 'SYSTEM' | 'TENANT'
   avatarUrl: string | null
   avatarAssetId: string | null
@@ -21,8 +22,8 @@ export interface AccountCandidateView {
 export interface AccountDirectoryView {
   accountId: string
   userId: string
-  userPartyId: string | null
   tenantId: string | null
+  tenantPartyId: string | null
   scopeLevel: 'SYSTEM' | 'TENANT'
   displayName: string | null
   userDisplayName: string | null

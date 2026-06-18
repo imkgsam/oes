@@ -12,13 +12,13 @@ import {
 } from '@oes/common/generated/party_service'
 import { InjectGrpcClient, safeGrpcCall } from '@oes/common/transport'
 import {
-  OrganizationPartyLookupSummary,
-  OrganizationPartyReader
+  OrganizationTenantPartyLookupSummary,
+  OrganizationTenantPartyReader
 } from '../../application/ports/organization-party-reader.port'
 
-/** PartyQueryGrpcAdapter reads canonical organization-party facts from party-service for org write validation. */
+/** PartyQueryGrpcAdapter reads tenant-local organization subject facts from party-service for org write validation. */
 @Injectable()
-export class PartyQueryGrpcAdapter implements OrganizationPartyReader, OnModuleInit {
+export class PartyQueryGrpcAdapter implements OrganizationTenantPartyReader, OnModuleInit {
   private partyQueryService!: PartyQueryServiceClient
 
   constructor(
@@ -35,24 +35,32 @@ export class PartyQueryGrpcAdapter implements OrganizationPartyReader, OnModuleI
     )
   }
 
-  async getOrganizationPartyById(
-    partyId: string
-  ): Promise<OrganizationPartyLookupSummary | null> {
+  async getOrganizationTenantPartyById(input: {
+    tenantId: string
+    tenantPartyId: string
+  }): Promise<OrganizationTenantPartyLookupSummary | null> {
     const response = await safeGrpcCall(
-      this.partyQueryService.getPartyById({ partyId }, this.buildMetadata()),
+      this.partyQueryService.getTenantPartyById(
+        {
+          tenantId: input.tenantId,
+          tenantPartyId: input.tenantPartyId
+        },
+        this.buildMetadata()
+      ),
       {
         caller: SERVICE_NAMES.TENANT_ORG,
-        method: 'PartyQueryService.getPartyById'
+        method: 'PartyQueryService.getTenantPartyById'
       }
     )
 
-    const party = response.party
+    const party = response.tenantParty
     if (!party?.id?.trim()) {
       return null
     }
 
     return {
       id: party.id,
+      tenantId: party.tenantId ?? '',
       type: party.type ?? '',
       status: party.status ?? ''
     }

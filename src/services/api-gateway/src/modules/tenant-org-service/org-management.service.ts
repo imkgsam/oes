@@ -1,6 +1,6 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { DownstreamRequestSource } from '../../common/grpc/gateway-downstream-source.mapper'
-import { OrganizationPartySummary, PartyQueryGrpcAdapter } from './adapters/party-query-grpc.adapter'
+import { OrganizationTenantPartySummary, PartyQueryGrpcAdapter } from './adapters/party-query-grpc.adapter'
 import { TenantOrgManagementGrpcAdapter } from './adapters/tenant-org-management-grpc.adapter'
 import {
   TenantManagementQueryOrgNode,
@@ -23,15 +23,16 @@ export class OrgManagementService {
     const tenant =
       scope === 'SYSTEM' ? await this.loadTenantSummary(resolvedTenantId, source) : undefined
     const result = await this.tenantOrgQueryAdapter.getOrgTreeByTenantId(resolvedTenantId, source)
-    const organizationPartyMap = await this.loadOrganizationPartyMap(
-      collectOrganizationPartyIdsFromNodes(result.roots ?? []),
+    const organizationTenantPartyMap = await this.loadOrganizationTenantPartyMap(
+      resolvedTenantId,
+      collectOrganizationTenantPartyIdsFromNodes(result.roots ?? []),
       source
     )
 
     return {
       scope,
       tenant,
-      roots: (result.roots ?? []).map((node) => this.mapOrgNode(node, organizationPartyMap))
+      roots: (result.roots ?? []).map((node) => this.mapOrgNode(node, organizationTenantPartyMap))
     }
   }
 
@@ -40,9 +41,10 @@ export class OrgManagementService {
     orgUnitId: string,
     source: DownstreamRequestSource
   ) {
+    const resolvedTenantId = this.resolveTenantId(tenantId, source)
     const result = await this.tenantOrgQueryAdapter.getOrgUnitById(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        tenantId: resolvedTenantId,
         orgUnitId: requireNonBlank(orgUnitId, 'orgUnitId')
       },
       source
@@ -51,13 +53,14 @@ export class OrgManagementService {
     if (!result.orgUnit?.id) {
       throw new NotFoundException('Org unit not found')
     }
-    const organizationPartyMap = await this.loadOrganizationPartyMap(
-      collectOrganizationPartyIdsFromOrgUnit(result.orgUnit),
+    const organizationTenantPartyMap = await this.loadOrganizationTenantPartyMap(
+      resolvedTenantId,
+      collectOrganizationTenantPartyIdsFromOrgUnit(result.orgUnit),
       source
     )
 
     return {
-      orgUnit: this.mapOrgUnit(result.orgUnit, organizationPartyMap)
+      orgUnit: this.mapOrgUnit(result.orgUnit, organizationTenantPartyMap)
     }
   }
 
@@ -77,7 +80,7 @@ export class OrgManagementService {
     tenantId: string,
     input: {
       name: string
-      organizationPartyId?: string
+      organizationTenantPartyId?: string
       parentOrgId: string
       sortOrder?: number
       type: string
@@ -90,7 +93,7 @@ export class OrgManagementService {
         parentOrgId: requireNonBlank(input.parentOrgId, 'parentOrgId'),
         name: requireNonBlank(input.name, 'name'),
         type: requireNonBlank(input.type, 'type'),
-        organizationPartyId: normalize(input.organizationPartyId),
+        organizationTenantPartyId: normalize(input.organizationTenantPartyId),
         sortOrder: input.sortOrder
       },
       source
@@ -104,12 +107,12 @@ export class OrgManagementService {
   async updateOrgUnit(
     tenantId: string,
     orgUnitId: string,
-    input: { name?: string; organizationPartyId?: string | null; sortOrder?: number; type?: string },
+    input: { name?: string; organizationTenantPartyId?: string | null; sortOrder?: number; type?: string },
     source: DownstreamRequestSource
   ) {
-    const hasOrganizationPartyId = Object.prototype.hasOwnProperty.call(
+    const hasOrganizationTenantPartyId = Object.prototype.hasOwnProperty.call(
       input,
-      'organizationPartyId'
+      'organizationTenantPartyId'
     )
     const result = await this.tenantOrgManagementAdapter.updateOrgUnit(
       {
@@ -118,8 +121,8 @@ export class OrgManagementService {
         name: normalize(input.name),
         type: normalize(input.type),
         sortOrder: input.sortOrder,
-        organizationPartyId: hasOrganizationPartyId
-          ? normalize(input.organizationPartyId ?? undefined) ?? null
+        organizationTenantPartyId: hasOrganizationTenantPartyId
+          ? normalize(input.organizationTenantPartyId ?? undefined) ?? null
           : undefined
       },
       source
@@ -194,39 +197,40 @@ export class OrgManagementService {
     return operatorTenantId
   }
 
-  private async loadOrganizationPartyMap(
-    partyIds: string[],
+  private async loadOrganizationTenantPartyMap(
+    tenantId: string,
+    tenantPartyIds: string[],
     source: DownstreamRequestSource
-  ): Promise<Map<string, OrganizationPartySummary>> {
+  ): Promise<Map<string, OrganizationTenantPartySummary>> {
     const entries = await Promise.all(
-      partyIds.map(async (partyId) => {
-        const party = await this.partyQueryAdapter.getPartyById(partyId, source)
-        return party ? ([partyId, party] as const) : undefined
+      tenantPartyIds.map(async (tenantPartyId) => {
+        const party = await this.partyQueryAdapter.getOrganizationTenantPartyById(tenantId, tenantPartyId, source)
+        return party ? ([tenantPartyId, party] as const) : undefined
       })
     )
 
-    return new Map(entries.filter(Boolean) as Array<readonly [string, OrganizationPartySummary]>)
+    return new Map(entries.filter(Boolean) as Array<readonly [string, OrganizationTenantPartySummary]>)
   }
 
   private mapOrgNode(
     node: TenantManagementQueryOrgNode,
-    organizationPartyMap?: Map<string, OrganizationPartySummary>
+    organizationTenantPartyMap?: Map<string, OrganizationTenantPartySummary>
   ) {
     return {
-      orgUnit: this.mapOrgUnit(node.orgUnit, organizationPartyMap),
-      children: (node.children ?? []).map((child) => this.mapOrgNode(child, organizationPartyMap))
+      orgUnit: this.mapOrgUnit(node.orgUnit, organizationTenantPartyMap),
+      children: (node.children ?? []).map((child) => this.mapOrgNode(child, organizationTenantPartyMap))
     }
   }
 
   private mapOrgUnit(
     orgUnit?: TenantManagementQueryOrgUnit,
-    organizationPartyMap?: Map<string, OrganizationPartySummary>
+    organizationTenantPartyMap?: Map<string, OrganizationTenantPartySummary>
   ) {
     if (!orgUnit?.id) {
       throw new NotFoundException('Org unit not found')
     }
 
-    const organizationPartyId = normalize(orgUnit.organizationPartyId) ?? null
+    const organizationTenantPartyId = normalize(orgUnit.organizationTenantPartyId) ?? null
 
     return {
       id: orgUnit.id,
@@ -238,34 +242,34 @@ export class OrgManagementService {
       path: orgUnit.path ?? '',
       depth: Number(orgUnit.depth ?? 0),
       sortOrder: Number(orgUnit.sortOrder ?? 0),
-      organizationPartyId,
-      organizationParty:
-        organizationPartyId && organizationPartyMap
-          ? organizationPartyMap.get(organizationPartyId) ?? null
+      organizationTenantPartyId,
+      organizationTenantParty:
+        organizationTenantPartyId && organizationTenantPartyMap
+          ? organizationTenantPartyMap.get(organizationTenantPartyId) ?? null
           : null
     }
   }
 }
 
-function collectOrganizationPartyIdsFromNodes(nodes: TenantManagementQueryOrgNode[]): string[] {
-  const partyIds = new Set<string>()
+function collectOrganizationTenantPartyIdsFromNodes(nodes: TenantManagementQueryOrgNode[]): string[] {
+  const tenantPartyIds = new Set<string>()
   const collect = (currentNodes: TenantManagementQueryOrgNode[]) => {
     for (const node of currentNodes) {
-      const organizationPartyId = normalize(node.orgUnit?.organizationPartyId)
-      if (organizationPartyId) {
-        partyIds.add(organizationPartyId)
+      const organizationTenantPartyId = normalize(node.orgUnit?.organizationTenantPartyId)
+      if (organizationTenantPartyId) {
+        tenantPartyIds.add(organizationTenantPartyId)
       }
       collect(node.children ?? [])
     }
   }
 
   collect(nodes)
-  return [...partyIds]
+  return [...tenantPartyIds]
 }
 
-function collectOrganizationPartyIdsFromOrgUnit(orgUnit?: TenantManagementQueryOrgUnit): string[] {
-  const organizationPartyId = normalize(orgUnit?.organizationPartyId)
-  return organizationPartyId ? [organizationPartyId] : []
+function collectOrganizationTenantPartyIdsFromOrgUnit(orgUnit?: TenantManagementQueryOrgUnit): string[] {
+  const organizationTenantPartyId = normalize(orgUnit?.organizationTenantPartyId)
+  return organizationTenantPartyId ? [organizationTenantPartyId] : []
 }
 
 function normalize(value?: string): string | undefined {

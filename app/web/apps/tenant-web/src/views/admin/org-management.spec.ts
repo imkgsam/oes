@@ -134,13 +134,13 @@ describe('org management page', () => {
             depth: 0,
             id: 'org-root-1',
             name: 'Alpha Root',
-            organizationParty: {
+            organizationTenantParty: {
               id: 'party-root-1',
               legalName: 'Alpha Holdings Co.',
               status: 'ACTIVE',
               type: 'ORGANIZATION',
             },
-            organizationPartyId: 'party-root-1',
+            organizationTenantPartyId: 'party-root-1',
             parentOrgId: undefined,
             path: '/org-root-1',
             sortOrder: 0,
@@ -163,13 +163,13 @@ describe('org management page', () => {
         depth: 1,
         id: 'org-dept-1',
         name: 'Manufacturing',
-        organizationParty: {
+        organizationTenantParty: {
           id: 'party-1',
           legalName: 'Acme Manufacturing Ltd.',
           status: 'ACTIVE',
           type: 'ORGANIZATION',
         },
-        organizationPartyId: 'party-1',
+        organizationTenantPartyId: 'party-1',
         parentOrgId: 'org-root-1',
         path: '/org-root-1/org-dept-1',
         sortOrder: 10,
@@ -279,7 +279,7 @@ describe('org management page', () => {
     expect(getManagedOrgTreeApi).toHaveBeenCalledWith('tenant-1');
     expect(wrapper.text()).toContain('Alpha Root');
     expect(wrapper.text()).not.toContain('Alpha Holdings');
-    expect(wrapper.text()).not.toContain('OrganizationParty');
+    expect(wrapper.text()).not.toContain('OrganizationTenantParty');
   });
 
   it('reuses the same page for tenant entry and reads the current tenant without a platform selector', async () => {

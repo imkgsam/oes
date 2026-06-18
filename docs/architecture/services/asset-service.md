@@ -4,7 +4,7 @@
 
 `asset-service` 是 OES 的受控资产与对象存储编排服务，负责回答“平台受控文件资产如何上传、持久化、绑定、替换与对外暴露”。
 
-当前第一版只冻结头像资产这条垂直切片，但服务边界按长期资产服务方向建立，不把头像上传临时塞回 `auth-bff` 或 `identity-service`。
+当前第一版已冻结账号头像资产切片，并允许在同一受控资产边界下扩展员工公开展示头像切片；服务边界按长期资产服务方向建立，不把头像上传临时塞回 `auth-bff`、`identity-service` 或 `hr-service`。
 
 ## 2. Owns
 
@@ -30,7 +30,7 @@
 
 - 为内部调用方提供受控资产上传能力
 - 维护资产元数据记录与对象存储 key 映射
-- 以 `scopeLevel + tenantId? + ownerAccountId` 表达资产归属，而不是把所有头像资产都硬绑定到 tenant
+- 以 `scopeLevel + tenantId? + ownerAccountId / ownerEmployeeId` 表达资产归属，而不是把所有头像资产都硬绑定到 tenant 或 account
 - 生成稳定 `assetId` 与 `publicUrl`
 - 在资产绑定完成后执行旧资产替换与清理编排
 - 以 S3-compatible 抽象隔离底层对象存储厂商差异
@@ -39,9 +39,11 @@
 
 - 典型上游入口：
   - `api-gateway` / `auth-bff`
+  - `api-gateway` / HR management BFF
   - 未来其他需要受控文件资产的系统服务
 - 典型契约位置：
   - [avatar.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/asset-service/avatar.md)
+  - [employee-official-photo.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/asset-service/employee-official-photo.md)
 
 ## 6. Upstream Dependencies
 
@@ -79,6 +81,8 @@
   - `tenantId = null`
   - `ownerAccountId`
 - 当前账号头像上传是“当前 account 自助编辑当前 account profile”的一部分，因此系统账号与租户账号都应支持头像上传与绑定；差异只体现在资产归属 scope，而不是体现在是否允许使用该功能。
+- 员工公开展示头像上传是“HR / 租户管理员维护 Employee 正式公开照片”的一部分，因此必须使用员工维度 owner，不得复用账号头像 owner 语义。
 - 对象存储 key 也必须按 scope 分层，避免把 system 账号头像硬塞进 tenant 路径：
   - tenant avatar: `avatar/tenant/<tenantId>/<accountId>/...`
   - system avatar: `avatar/system/<accountId>/...`
+  - employee official photo: `avatar/tenant/<tenantId>/employee/<employeeId>/official/...`

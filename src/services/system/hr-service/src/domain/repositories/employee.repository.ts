@@ -6,15 +6,15 @@ export interface EmployeeSummary {
   id: string
   tenantId: string
   tenantPartyId: string
-  partyId: string | null
   employeeCode: string
   lifecycleStatus: EmployeeLifecycleStatus | string
+  officialPhotoAssetId?: string | null
+  officialPhotoUrl?: string | null
 }
 
 export interface CreateEmployeeInput {
   tenantId: string
   tenantPartyId: string
-  partyId?: string
   employeeCode: string
   lifecycleStatus: EmployeeLifecycleStatus
 }
@@ -41,6 +41,13 @@ export interface EmployeeRepository {
   findByTenantAndEmployeeCode(tenantId: string, employeeCode: string): Promise<EmployeeSummary | null>
   findByTenantPartyId(tenantId: string, tenantPartyId: string): Promise<EmployeeSummary | null>
   listByTenant(input: ListEmployeesInput): Promise<EmployeeListResult>
+  updateOfficialPhoto(input: {
+    tenantId: string
+    employeeId: string
+    officialPhotoAssetId: string
+    officialPhotoUrl: string
+  }): Promise<EmployeeSummary>
+  removeOfficialPhoto(input: { tenantId: string; employeeId: string }): Promise<EmployeeSummary>
   setLifecycleStatus(input: {
     tenantId: string
     employeeId: string
