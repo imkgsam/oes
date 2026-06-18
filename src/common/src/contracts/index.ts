@@ -1,5 +1,6 @@
 export * from './auth_service'
 export * from './asset_service'
+export * from './collaboration_service'
 export * from './contract-path.util'
 export * from './permission_service'
 export * from './identity_service'

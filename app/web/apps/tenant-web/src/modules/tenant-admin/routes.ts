@@ -3,6 +3,27 @@ import type { RouteRecordRaw } from 'vue-router';
 const tenantAdminRoutes: RouteRecordRaw[] = [
   {
     meta: {
+      icon: 'lucide:list-checks',
+      order: 9,
+      title: '协作',
+    },
+    name: 'TenantCollaboration',
+    path: '/collaboration',
+    children: [
+      {
+        name: 'TenantCollaborationTasks',
+        path: '/collaboration/tasks',
+        component: () => import('#/views/admin/collaboration-task-workspace.vue'),
+        meta: {
+          entryKey: 'collaboration.tasks',
+          icon: 'lucide:list-todo',
+          title: '任务工作台',
+        },
+      },
+    ],
+  },
+  {
+    meta: {
       icon: 'lucide:shield-check',
       order: 10,
       title: '权限治理',
@@ -314,28 +335,6 @@ const tenantAdminRoutes: RouteRecordRaw[] = [
           fullPathKey: false,
           icon: 'lucide:truck',
           title: '供应商管理',
-        },
-      },
-      {
-        name: 'TenantCustomerManagementCreate',
-        path: '/master-data/customers/create',
-        component: () => import('#/views/admin/customer-management-create.vue'),
-        meta: {
-          activePath: '/master-data/customers',
-          entryKey: 'master-data.customer-management',
-          hideInMenu: true,
-          title: '创建客户',
-        },
-      },
-      {
-        name: 'TenantCustomerManagementDetail',
-        path: '/master-data/customers/:customerAccountId',
-        component: () => import('#/views/admin/customer-management-detail.vue'),
-        meta: {
-          activePath: '/master-data/customers',
-          entryKey: 'master-data.customer-management',
-          hideInMenu: true,
-          title: '客户详情',
         },
       },
       {

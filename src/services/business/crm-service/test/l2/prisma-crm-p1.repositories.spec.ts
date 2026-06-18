@@ -1,0 +1,436 @@
+import { randomUUID } from 'node:crypto'
+import { PrismaService } from '../../src/infrastructure/prisma/prisma.service'
+import {
+  CrmActivityCreatedByType,
+  CrmActivityDirection,
+  CrmActivityType,
+  CrmAccountLifecycleStage,
+  CrmAccountRecordStatus,
+  CrmAccountTypeHint,
+  CrmActivityVisibility,
+  CrmOpportunityStage,
+  CrmOpportunityStatus,
+  CrmPriority,
+  CrmSourceType
+} from '../../src/domain/models/crm-records'
+import { PrismaCrmAccountRepository } from '../../src/infrastructure/repositories/prisma/prisma-crm-account.repository'
+import { cleanupByPrefix, createPrismaForIntegration, createTestPrefix } from '../helpers/integration-db'
+
+describe('Prisma CRM P1 repositories L2', () => {
+  let prisma: PrismaService
+  let accountRepository: PrismaCrmAccountRepository
+  let prefix: string
+
+  beforeAll(async () => {
+    prisma = await createPrismaForIntegration()
+    accountRepository = new PrismaCrmAccountRepository(prisma)
+  })
+
+  beforeEach(async () => {
+    prefix = createTestPrefix()
+    await cleanupByPrefix(prisma, prefix)
+  })
+
+  afterEach(async () => {
+    await cleanupByPrefix(prisma, prefix)
+  })
+
+  afterAll(async () => {
+    if (prisma) {
+      await prisma.$disconnect()
+    }
+  })
+
+  it('CrmAccount P1 / should persist one active lead with primary source under tenant isolation', async () => {
+    const accountId = randomUUID()
+    const sourceId = randomUUID()
+    const tenantId = `${prefix}_tenant`
+
+    await accountRepository.saveAccount({
+      id: accountId,
+      tenantId,
+      tenantPartyId: null,
+      recordStatus: CrmAccountRecordStatus.ACTIVE,
+      lifecycleStage: CrmAccountLifecycleStage.LEAD,
+      partyTypeHint: CrmAccountTypeHint.ORGANIZATION,
+      displayName: `${prefix} Basin Importers`,
+      leadCompanyName: `${prefix} Basin Importers Ltd`,
+      leadPersonName: null,
+      leadDomain: `${prefix}.basin.example`,
+      leadEmail: `sales@${prefix}.basin.example`,
+      leadPhone: null,
+      leadWhatsapp: null,
+      leadCountry: 'US',
+      leadIdentifiers: [
+        {
+          identifierType: 'VAT_NO',
+          normalizedValue: `${prefix}-vat-001`,
+          rawValue: `${prefix} VAT 001`,
+          issuerCountryOrRegion: 'US'
+        }
+      ],
+      ownerAccountId: `${prefix}_sales`,
+      priority: CrmPriority.A,
+      lastActivityAt: null,
+      nextFollowUpAt: new Date('2026-06-20T08:00:00.000Z'),
+      createdBy: `${prefix}_sales`
+    })
+    await accountRepository.addSourceRecord({
+      id: sourceId,
+      tenantId,
+      crmAccountId: accountId,
+      sourceType: CrmSourceType.EXHIBITION_SCAN,
+      sourceName: 'KBIS 2026 booth scan',
+      capturedAt: new Date('2026-06-14T09:00:00.000Z'),
+      capturedByAccountId: `${prefix}_sales`,
+      externalReference: `${prefix}-scan-001`,
+      rawPayload: { badgeId: `${prefix}-B442` },
+      note: 'Asked about ceramic basins',
+      isPrimary: true
+    })
+
+    const found = await accountRepository.findAccountById(tenantId, accountId)
+    const sources = await accountRepository.listSourceRecords(tenantId, accountId)
+    const otherTenant = await accountRepository.findAccountById(`${prefix}_other_tenant`, accountId)
+
+    expect(found).toEqual(
+      expect.objectContaining({
+        id: accountId,
+        tenantId,
+        recordStatus: CrmAccountRecordStatus.ACTIVE,
+        lifecycleStage: CrmAccountLifecycleStage.LEAD,
+        tenantPartyId: null,
+        priority: CrmPriority.A
+      })
+    )
+    expect(found?.leadIdentifiers).toEqual([
+      {
+        identifierType: 'VAT_NO',
+        normalizedValue: `${prefix}-vat-001`,
+        rawValue: `${prefix} VAT 001`,
+        issuerCountryOrRegion: 'US'
+      }
+    ])
+    expect(sources).toEqual([
+      expect.objectContaining({
+        id: sourceId,
+        crmAccountId: accountId,
+        sourceType: CrmSourceType.EXHIBITION_SCAN,
+        isPrimary: true
+      })
+    ])
+    expect(otherTenant).toBeNull()
+  })
+
+  it('CrmAccount P1 / should reject a second active formal account bound to the same tenant party', async () => {
+    const tenantId = `${prefix}_tenant`
+    const tenantPartyId = `${prefix}_tenant_party`
+
+    await accountRepository.saveAccount({
+      id: randomUUID(),
+      tenantId,
+      tenantPartyId,
+      recordStatus: CrmAccountRecordStatus.ACTIVE,
+      lifecycleStage: CrmAccountLifecycleStage.PROSPECT_CUSTOMER,
+      partyTypeHint: CrmAccountTypeHint.ORGANIZATION,
+      displayName: `${prefix} Existing Customer`,
+      leadCompanyName: `${prefix} Existing Customer Ltd`,
+      leadPersonName: null,
+      leadDomain: null,
+      leadEmail: null,
+      leadPhone: null,
+      leadWhatsapp: null,
+      leadCountry: 'US',
+      leadIdentifiers: [],
+      ownerAccountId: `${prefix}_owner_a`,
+      priority: CrmPriority.B,
+      lastActivityAt: null,
+      nextFollowUpAt: null,
+      createdBy: `${prefix}_owner_a`
+    })
+
+    await expect(
+      accountRepository.saveAccount({
+        id: randomUUID(),
+        tenantId,
+        tenantPartyId,
+        recordStatus: CrmAccountRecordStatus.ACTIVE,
+        lifecycleStage: CrmAccountLifecycleStage.PROSPECT_CUSTOMER,
+        partyTypeHint: CrmAccountTypeHint.ORGANIZATION,
+        displayName: `${prefix} Duplicate Customer`,
+        leadCompanyName: `${prefix} Duplicate Customer Ltd`,
+        leadPersonName: null,
+        leadDomain: null,
+        leadEmail: null,
+        leadPhone: null,
+        leadWhatsapp: null,
+        leadCountry: 'US',
+        leadIdentifiers: [],
+        ownerAccountId: `${prefix}_owner_b`,
+        priority: CrmPriority.C,
+        lastActivityAt: null,
+        nextFollowUpAt: null,
+        createdBy: `${prefix}_owner_b`
+      })
+    ).rejects.toThrow(/tenantPartyId is already bound/)
+  })
+
+  it('CrmAccount P1 / should persist contact activity and opportunity for one formal account', async () => {
+    const tenantId = `${prefix}_tenant`
+    const accountId = randomUUID()
+    const contactId = randomUUID()
+    const activityId = randomUUID()
+    const opportunityId = randomUUID()
+
+    await accountRepository.saveAccount({
+      id: accountId,
+      tenantId,
+      tenantPartyId: `${prefix}_tenant_party`,
+      recordStatus: CrmAccountRecordStatus.ACTIVE,
+      lifecycleStage: CrmAccountLifecycleStage.PROSPECT_CUSTOMER,
+      partyTypeHint: CrmAccountTypeHint.ORGANIZATION,
+      displayName: `${prefix} Formal Account`,
+      leadCompanyName: `${prefix} Formal Account Ltd`,
+      leadPersonName: null,
+      leadDomain: `${prefix}.formal.example`,
+      leadEmail: `sales@${prefix}.formal.example`,
+      leadPhone: null,
+      leadWhatsapp: null,
+      leadCountry: 'US',
+      leadIdentifiers: [],
+      ownerAccountId: `${prefix}_sales`,
+      priority: CrmPriority.A,
+      lastActivityAt: null,
+      nextFollowUpAt: null,
+      createdBy: `${prefix}_sales`
+    })
+
+    await accountRepository.addContact({
+      id: contactId,
+      tenantId,
+      crmAccountId: accountId,
+      personTenantPartyId: null,
+      name: `${prefix} Jane Buyer`,
+      title: 'Purchasing Manager',
+      department: 'Procurement',
+      email: `jane@${prefix}.formal.example`,
+      phone: '+1-555-0100',
+      whatsapp: null,
+      linkedin: null,
+      isPrimary: true,
+      note: 'Prefers email follow-up',
+      createdBy: `${prefix}_sales`
+    })
+    await accountRepository.addActivity({
+      id: activityId,
+      tenantId,
+      crmAccountId: accountId,
+      opportunityId: null,
+      contactId,
+      activityType: CrmActivityType.EMAIL,
+      direction: CrmActivityDirection.OUTBOUND,
+      subject: 'Sent product catalogue',
+      content: 'Shared basin catalogue after exhibition discussion.',
+      occurredAt: new Date('2026-06-15T10:00:00.000Z'),
+      createdByAccountId: `${prefix}_sales`,
+      createdByType: CrmActivityCreatedByType.USER,
+      externalProvider: null,
+      externalReference: null,
+      metadata: { channel: 'email' },
+      visibility: CrmActivityVisibility.TEAM
+    })
+    await accountRepository.saveOpportunity({
+      id: opportunityId,
+      tenantId,
+      crmAccountId: accountId,
+      ownerAccountId: `${prefix}_sales`,
+      name: `${prefix} Hotel basin project`,
+      stage: CrmOpportunityStage.QUOTING,
+      status: CrmOpportunityStatus.OPEN,
+      estimatedAmount: '12500.50',
+      currency: 'USD',
+      expectedCloseDate: new Date('2026-08-01T00:00:00.000Z'),
+      openedAt: new Date('2026-06-15T11:00:00.000Z'),
+      closedAt: null,
+      closeReason: null,
+      closeNote: null,
+      createdBy: `${prefix}_sales`
+    })
+
+    await expect(
+      accountRepository.saveOpportunity({
+        id: randomUUID(),
+        tenantId,
+        crmAccountId: randomUUID(),
+        ownerAccountId: `${prefix}_sales`,
+        name: `${prefix} Invalid detached opportunity`,
+        stage: CrmOpportunityStage.NEW,
+        status: CrmOpportunityStatus.OPEN,
+        estimatedAmount: null,
+        currency: 'USD',
+        expectedCloseDate: null,
+        openedAt: new Date('2026-06-15T11:00:00.000Z'),
+        closedAt: null,
+        closeReason: null,
+        closeNote: null,
+        createdBy: `${prefix}_sales`
+      })
+    ).rejects.toThrow(/formal CrmAccount/)
+
+    const contacts = await accountRepository.listContacts(tenantId, accountId)
+    const activities = await accountRepository.listActivities(tenantId, accountId)
+    const opportunities = await accountRepository.listOpportunities(tenantId, accountId)
+
+    expect(contacts).toEqual([
+      expect.objectContaining({
+        id: contactId,
+        name: `${prefix} Jane Buyer`,
+        isPrimary: true
+      })
+    ])
+    expect(activities).toEqual([
+      expect.objectContaining({
+        id: activityId,
+        activityType: CrmActivityType.EMAIL,
+        contactId
+      })
+    ])
+    expect(opportunities).toEqual([
+      expect.objectContaining({
+        id: opportunityId,
+        stage: CrmOpportunityStage.QUOTING,
+        status: CrmOpportunityStatus.OPEN,
+        estimatedAmount: '12500.50'
+      })
+    ])
+  })
+
+  it('CrmAccount P1 / should find high-confidence duplicate candidates from lead evidence', async () => {
+    const tenantId = `${prefix}_tenant`
+    const accountId = randomUUID()
+
+    await accountRepository.saveAccount({
+      id: accountId,
+      tenantId,
+      tenantPartyId: null,
+      recordStatus: CrmAccountRecordStatus.ACTIVE,
+      lifecycleStage: CrmAccountLifecycleStage.LEAD,
+      partyTypeHint: CrmAccountTypeHint.ORGANIZATION,
+      displayName: `${prefix} Duplicate Evidence`,
+      leadCompanyName: `${prefix} Duplicate Evidence Ltd`,
+      leadPersonName: null,
+      leadDomain: `${prefix}.duplicate.example`,
+      leadEmail: `buyer@${prefix}.duplicate.example`,
+      leadPhone: '+1-555-0999',
+      leadWhatsapp: null,
+      leadCountry: 'US',
+      leadIdentifiers: [
+        {
+          identifierType: 'VAT_NO',
+          normalizedValue: `${prefix}-vat-duplicate`,
+          rawValue: `${prefix} VAT DUP`,
+          issuerCountryOrRegion: 'US'
+        }
+      ],
+      ownerAccountId: null,
+      priority: CrmPriority.B,
+      lastActivityAt: null,
+      nextFollowUpAt: null,
+      createdBy: `${prefix}_sales`
+    })
+
+    const candidates = await accountRepository.findDuplicateCandidates({
+      tenantId,
+      leadEmail: `buyer@${prefix}.duplicate.example`,
+      leadDomain: `${prefix}.duplicate.example`,
+      leadIdentifiers: [
+        {
+          identifierType: 'VAT_NO',
+          normalizedValue: `${prefix}-vat-duplicate`,
+          issuerCountryOrRegion: 'US'
+        }
+      ]
+    })
+
+    expect(candidates).toEqual([
+      expect.objectContaining({
+        crmAccountId: accountId,
+        displayName: `${prefix} Duplicate Evidence`,
+        confidence: 'HIGH',
+        matchedFields: expect.arrayContaining(['leadEmail', 'leadDomain', 'leadIdentifiers'])
+      })
+    ])
+  })
+
+  it('CrmAccount P1 / should list tenant accounts by lifecycle and status filters', async () => {
+    const tenantId = `${prefix}_tenant`
+    const leadId = randomUUID()
+    const prospectId = randomUUID()
+
+    await accountRepository.saveAccount({
+      id: leadId,
+      tenantId,
+      tenantPartyId: null,
+      recordStatus: CrmAccountRecordStatus.ACTIVE,
+      lifecycleStage: CrmAccountLifecycleStage.LEAD,
+      partyTypeHint: CrmAccountTypeHint.ORGANIZATION,
+      displayName: `${prefix} Lead Account`,
+      leadCompanyName: `${prefix} Lead Account Ltd`,
+      leadPersonName: null,
+      leadDomain: `${prefix}.lead.example`,
+      leadEmail: null,
+      leadPhone: null,
+      leadWhatsapp: null,
+      leadCountry: 'US',
+      leadIdentifiers: [],
+      ownerAccountId: `${prefix}_sales`,
+      priority: CrmPriority.A,
+      lastActivityAt: null,
+      nextFollowUpAt: null,
+      createdBy: `${prefix}_sales`
+    })
+    await accountRepository.saveAccount({
+      id: prospectId,
+      tenantId,
+      tenantPartyId: `${prefix}_party`,
+      recordStatus: CrmAccountRecordStatus.ACTIVE,
+      lifecycleStage: CrmAccountLifecycleStage.PROSPECT_CUSTOMER,
+      partyTypeHint: CrmAccountTypeHint.ORGANIZATION,
+      displayName: `${prefix} Prospect Account`,
+      leadCompanyName: `${prefix} Prospect Account Ltd`,
+      leadPersonName: null,
+      leadDomain: `${prefix}.prospect.example`,
+      leadEmail: null,
+      leadPhone: null,
+      leadWhatsapp: null,
+      leadCountry: 'US',
+      leadIdentifiers: [],
+      ownerAccountId: `${prefix}_sales`,
+      priority: CrmPriority.B,
+      lastActivityAt: null,
+      nextFollowUpAt: null,
+      createdBy: `${prefix}_sales`
+    })
+
+    const result = await accountRepository.listAccounts({
+      tenantId,
+      lifecycleStage: CrmAccountLifecycleStage.LEAD,
+      recordStatus: CrmAccountRecordStatus.ACTIVE,
+      page: 1,
+      pageSize: 20
+    })
+
+    expect(result).toEqual({
+      items: [
+        expect.objectContaining({
+          id: leadId,
+          displayName: `${prefix} Lead Account`,
+          lifecycleStage: CrmAccountLifecycleStage.LEAD
+        })
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 20
+    })
+  })
+})

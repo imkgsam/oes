@@ -69,10 +69,10 @@ function createSmokeServices(client) {
 
   return {
     registration: {
-      registerOrganizationParty: async (request) => firstValueFrom(registration.registerOrganizationParty(request)),
+      registerTenantParty: async (request) => firstValueFrom(registration.registerTenantParty(request)),
     },
     query: {
-      searchPartyCandidates: async (request) => firstValueFrom(query.searchPartyCandidates(request)),
+      searchTenantPartyCandidates: async (request) => firstValueFrom(query.searchTenantPartyCandidates(request)),
       getTenantPartyById: async (request) => firstValueFrom(query.getTenantPartyById(request)),
     },
   };
@@ -96,7 +96,6 @@ async function main() {
       JSON.stringify(
         {
           tenantId: seed.tenantId,
-          partyId: result.partyId,
           tenantPartyId: result.tenantPartyId,
           matchResult: result.matchResult,
         },

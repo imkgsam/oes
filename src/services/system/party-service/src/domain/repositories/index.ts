@@ -1,27 +1,18 @@
 import {
-  AssertionLevel,
   IdentifierStatus,
-  PartyStatus,
   PartyType,
-  RelationshipType,
   TenantPartyStatus
 } from '../value-objects'
 
-/** PartySummary is the minimal canonical party view shared between repositories and application services. */
-export interface PartySummary {
-  id: string
-  type: PartyType
-  status: PartyStatus
-  legalName: string
-}
-
-/** TenantPartySummary is the minimal tenant-scoped binding view shared between repositories and services. */
+/** TenantPartySummary is the minimal tenant-scoped subject view shared between repositories and services. */
 export interface TenantPartySummary {
   id: string
   tenantId: string
-  partyId: string
-  localDisplayName?: string | null
+  type: PartyType
+  legalName: string
+  displayName?: string | null
   localCode?: string | null
+  registeredCountry?: string | null
   status: TenantPartyStatus | string
 }
 
@@ -34,56 +25,74 @@ export interface IdentifierInput {
   status?: IdentifierStatus
 }
 
-/** SearchPartyCandidatesInput carries the minimal search criteria for candidate lookup. */
-export interface SearchPartyCandidatesInput {
+/** ContactPointInput describes one tenant-party contact or digital evidence point used for search and registration. */
+export interface ContactPointInput {
+  contactPointType: 'EMAIL' | 'PHONE' | 'WHATSAPP' | 'DOMAIN' | 'WEBSITE'
+  normalizedValue: string
+  rawValue: string
+  label?: string
+}
+
+/** SearchTenantPartyCandidatesInput carries tenant-local search criteria for candidate lookup. */
+export interface SearchTenantPartyCandidatesInput {
   tenantId: string
   keyword?: string
   partyType?: PartyType
   registeredCountry?: string
   identifiers?: IdentifierInput[]
+  domain?: string
+  email?: string
+  phone?: string
+  whatsapp?: string
 }
 
-/** PartyCandidate summarizes one possible match returned to the caller without side effects. */
-export interface PartyCandidate {
-  party: PartySummary
+/** ResolveTenantPartyForConsumerInput carries consumer evidence for tenant-local subject resolution without consumer semantics. */
+export interface ResolveTenantPartyForConsumerInput {
+  tenantId: string
+  typeHint?: PartyType
+  name?: string
+  country?: string
+  domain?: string
+  email?: string
+  phone?: string
+  whatsapp?: string
+  identifiers?: IdentifierInput[]
+}
+
+/** TenantPartyCandidate summarizes one tenant-local subject candidate returned without side effects. */
+export interface TenantPartyCandidate {
+  tenantParty: TenantPartySummary
   confidence: number
   matchSignals: string[]
 }
 
-/** PartyRelationshipSummary is the stable outward-facing view of a first-stage party relationship. */
-export interface PartyRelationshipSummary {
-  id: string
-  fromPartyId: string
-  toPartyId: string
-  relationshipType: RelationshipType
-  assertionLevel: AssertionLevel
-  effectiveFrom?: string | null
-  effectiveTo?: string | null
+/** ResolvedTenantPartyCandidate adds resolution-specific match and conflict details to one tenant party candidate. */
+export interface ResolvedTenantPartyCandidate {
+  tenantParty: TenantPartySummary
+  confidence: number
+  matchedFields: string[]
+  conflictFlags: string[]
 }
 
-/** CreatePersonPartyInput captures the legal and local inputs required to register a person party. */
-export interface CreatePersonPartyInput {
+/** ResolveTenantPartyForConsumerResult classifies tenant-local subject resolution for downstream services. */
+export interface ResolveTenantPartyForConsumerResult {
+  result: 'EXACT_MATCH' | 'NO_MATCH' | 'CANDIDATES_FOUND' | 'IDENTITY_CONFLICT'
+  tenantParty: TenantPartySummary | null
+  candidates: ResolvedTenantPartyCandidate[]
+  matchedFields: string[]
+}
+
+/** RegisterTenantPartyInput captures the legal and local inputs required to register a tenant-scoped subject. */
+export interface RegisterTenantPartyInput {
   tenantId: string
+  type: PartyType
   legalName: string
-  localDisplayName?: string
+  displayName?: string
   localCode?: string
   identifiers: IdentifierInput[]
+  contactPoints?: ContactPointInput[]
   idempotencyKey?: string
-}
-
-/** CreateOrganizationPartyInput captures the legal and local inputs required to register an organization party. */
-export interface CreateOrganizationPartyInput extends CreatePersonPartyInput {
   registeredCountry?: string
-}
-
-/** BindExistingPartyToTenantInput binds an already known canonical party to one tenant. */
-export interface BindExistingPartyToTenantInput {
-  tenantId: string
-  partyId: string
-  localDisplayName?: string
-  localCode?: string
-  tags?: string[]
-  idempotencyKey?: string
 }
 
 /** DeactivateTenantPartyInput marks one tenant party inactive without deleting history. */
@@ -93,50 +102,13 @@ export interface DeactivateTenantPartyInput {
   reason?: string
 }
 
-/** MergePartiesInput describes a high-risk merge operation for canonical parties. */
-export interface MergePartiesInput {
-  survivorPartyId: string
-  mergedPartyIds: string[]
-  reason?: string
-}
-
-/** PartyRepository owns canonical party persistence and candidate search operations. */
-export interface PartyRepository {
-  findById(id: string): Promise<PartySummary | null>
-  createPersonParty(data: {
-    legalName: string
-  }): Promise<PartySummary>
-  createOrganizationParty(data: {
-    legalName: string
-    registeredCountry?: string
-  }): Promise<PartySummary>
-  findCandidates(input: SearchPartyCandidatesInput): Promise<PartyCandidate[]>
-  resolveByIdentifier(input: IdentifierInput): Promise<PartySummary | null>
-  findRelationships(partyId: string, relationshipType?: RelationshipType): Promise<PartyRelationshipSummary[]>
-  mergeParties(input: MergePartiesInput): Promise<{
-    survivorParty: PartySummary
-    mergedParties: Array<PartySummary & { status: PartyStatus | string }>
-  }>
-}
-
-/** TenantPartyRepository owns tenant-scoped binding lookup and lifecycle changes. */
+/** TenantPartyRepository owns tenant-scoped subject lookup, registration, search, and lifecycle changes. */
 export interface TenantPartyRepository {
   findById(tenantId: string, tenantPartyId: string): Promise<TenantPartySummary | null>
-  findByTenantAndPartyId(tenantId: string, partyId: string): Promise<TenantPartySummary | null>
-  create(data: {
-    tenantId: string
-    partyId: string
-    localDisplayName?: string
-    localCode?: string
-    tags?: string[]
-  }): Promise<TenantPartySummary>
+  findByTenantAndIdentifier(tenantId: string, identifiers: IdentifierInput[]): Promise<TenantPartySummary | null>
+  findCandidates(input: SearchTenantPartyCandidatesInput): Promise<TenantPartyCandidate[]>
+  create(data: RegisterTenantPartyInput): Promise<TenantPartySummary>
   deactivate(data: DeactivateTenantPartyInput): Promise<TenantPartySummary>
-}
-
-/** PartyIdentifierRepository owns strong-match lookup and identifier persistence. */
-export interface PartyIdentifierRepository {
-  createMany(partyId: string, identifiers: IdentifierInput[]): Promise<void>
-  findStrongMatch(identifiers: IdentifierInput[]): Promise<PartySummary | null>
 }
 
 /** PartyRegistrationIdempotencyRecord rehydrates a completed registration request for safe retries. */
@@ -144,8 +116,7 @@ export interface PartyRegistrationIdempotencyRecord {
   idempotencyKey: string
   requestHash: string
   operation: string
-  party: PartySummary
-  tenantParty?: TenantPartySummary | null
+  tenantParty: TenantPartySummary
   matchResult?: string | null
 }
 
@@ -156,13 +127,10 @@ export interface PartyRegistrationIdempotencyRepository {
     idempotencyKey: string
     requestHash: string
     operation: string
-    partyId: string
-    tenantPartyId?: string
+    tenantPartyId: string
     matchResult?: string
   }): Promise<PartyRegistrationIdempotencyRecord>
 }
 
-export const PARTY_REPOSITORY = Symbol('PARTY_REPOSITORY')
 export const TENANT_PARTY_REPOSITORY = Symbol('TENANT_PARTY_REPOSITORY')
-export const PARTY_IDENTIFIER_REPOSITORY = Symbol('PARTY_IDENTIFIER_REPOSITORY')
 export const PARTY_REGISTRATION_IDEMPOTENCY_REPOSITORY = Symbol('PARTY_REGISTRATION_IDEMPOTENCY_REPOSITORY')

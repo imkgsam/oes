@@ -3,23 +3,23 @@ import { PartyQueryGrpcController } from '../../src/interfaces/grpc/party-query.
 
 function createPartyQueryServiceMock() {
   return {
-    getPartyById: jest.fn(),
     getTenantPartyById: jest.fn(),
-    resolvePartyByIdentifier: jest.fn(),
-    searchPartyCandidates: jest.fn(),
-    listPartyRelationships: jest.fn()
+    resolveTenantPartyByIdentifier: jest.fn(),
+    resolveTenantPartyForConsumer: jest.fn(),
+    searchTenantPartyCandidates: jest.fn()
   }
 }
 
 describe('PartyQueryGrpcController L3', () => {
-  it('gRPC 搜索主体候选 / 当请求包含 partyType 和 identifiers 时 / 应完整映射查询条件并返回候选', async () => {
+  it('gRPC 搜索租户主体候选 / 当请求包含 partyType 和 identifiers 时 / 应完整映射查询条件并返回候选', async () => {
     const service = createPartyQueryServiceMock()
     const controller = new PartyQueryGrpcController(service as unknown as PartyQueryService)
 
-    service.searchPartyCandidates.mockResolvedValue([
+    service.searchTenantPartyCandidates.mockResolvedValue([
       {
-        party: {
-          id: 'party-1',
+        tenantParty: {
+          id: 'tenant-party-1',
+          tenantId: 'tenant-1',
           type: 'ORGANIZATION',
           status: 'ACTIVE',
           legalName: 'Acme Legal'
@@ -29,7 +29,7 @@ describe('PartyQueryGrpcController L3', () => {
       }
     ])
 
-    const result = await controller.searchPartyCandidates({
+    const result = await controller.searchTenantPartyCandidates({
       tenantId: 'tenant-1',
       keyword: 'Acme',
       partyType: 'ORGANIZATION',
@@ -44,7 +44,7 @@ describe('PartyQueryGrpcController L3', () => {
       ]
     } as any)
 
-    expect(service.searchPartyCandidates).toHaveBeenCalledWith({
+    expect(service.searchTenantPartyCandidates).toHaveBeenCalledWith({
       tenantId: 'tenant-1',
       keyword: 'Acme',
       partyType: 'ORGANIZATION',
@@ -61,11 +61,15 @@ describe('PartyQueryGrpcController L3', () => {
     expect(result).toEqual({
       candidates: [
         {
-          party: {
-            id: 'party-1',
+          tenantParty: {
+            id: 'tenant-party-1',
+            tenantId: 'tenant-1',
             type: 'ORGANIZATION',
             status: 'ACTIVE',
-            legalName: 'Acme Legal'
+            legalName: 'Acme Legal',
+            displayName: '',
+            localCode: '',
+            registeredCountry: ''
           },
           confidence: 0.88,
           matchSignals: ['name', 'identifier']
@@ -78,20 +82,22 @@ describe('PartyQueryGrpcController L3', () => {
     const service = createPartyQueryServiceMock()
     const controller = new PartyQueryGrpcController(service as unknown as PartyQueryService)
 
-    service.resolvePartyByIdentifier.mockResolvedValue({
-      id: 'party-2',
+    service.resolveTenantPartyByIdentifier.mockResolvedValue({
+      id: 'tenant-party-2',
+      tenantId: 'tenant-1',
       type: 'PERSON',
       status: 'ACTIVE',
       legalName: 'Zhang San'
     })
 
-    const result = await controller.resolvePartyByIdentifier({
+    const result = await controller.resolveTenantPartyByIdentifier({
+      tenantId: 'tenant-1',
       identifierType: 'PASSPORT',
       normalizedValue: 'P123456',
       issuerCountryOrRegion: 'CN'
     } as any)
 
-    expect(service.resolvePartyByIdentifier).toHaveBeenCalledWith({
+    expect(service.resolveTenantPartyByIdentifier).toHaveBeenCalledWith('tenant-1', {
       identifierType: 'PASSPORT',
       normalizedValue: 'P123456',
       rawValue: 'P123456',
@@ -99,12 +105,87 @@ describe('PartyQueryGrpcController L3', () => {
     })
     expect(result).toEqual({
       matchType: 'STRONG_MATCH',
-      party: {
-        id: 'party-2',
+      tenantParty: {
+        id: 'tenant-party-2',
+        tenantId: 'tenant-1',
         type: 'PERSON',
         status: 'ACTIVE',
-        legalName: 'Zhang San'
+        legalName: 'Zhang San',
+        displayName: '',
+        localCode: '',
+        registeredCountry: ''
       }
+    })
+  })
+
+  it('gRPC 消费方主体解析 / 当请求包含强标识和联系 evidence 时 / 应映射正式 resolution 结果', async () => {
+    const service = createPartyQueryServiceMock()
+    const controller = new PartyQueryGrpcController(service as unknown as PartyQueryService)
+
+    service.resolveTenantPartyForConsumer.mockResolvedValue({
+      result: 'EXACT_MATCH',
+      tenantParty: {
+        id: 'tenant-party-3',
+        tenantId: 'tenant-1',
+        type: 'ORGANIZATION',
+        status: 'ACTIVE',
+        legalName: 'Foshan Basin Trading'
+      },
+      candidates: [],
+      matchedFields: ['identifier:VAT_NO']
+    })
+
+    const result = await (controller as any).resolveTenantPartyForConsumer({
+      tenantId: 'tenant-1',
+      typeHint: 'ORGANIZATION',
+      name: 'Foshan Basin Trading',
+      country: 'CN',
+      domain: 'basin.example',
+      email: 'sales@basin.example',
+      phone: '+86 757 8842 1930',
+      whatsapp: '+86 139 2847 1000',
+      identifiers: [
+        {
+          identifierType: 'VAT_NO',
+          normalizedValue: 'cn-vat-001',
+          rawValue: 'CN VAT 001',
+          issuerCountryOrRegion: 'CN'
+        }
+      ]
+    })
+
+    expect(service.resolveTenantPartyForConsumer).toHaveBeenCalledWith({
+      tenantId: 'tenant-1',
+      typeHint: 'ORGANIZATION',
+      name: 'Foshan Basin Trading',
+      country: 'CN',
+      domain: 'basin.example',
+      email: 'sales@basin.example',
+      phone: '+86 757 8842 1930',
+      whatsapp: '+86 139 2847 1000',
+      identifiers: [
+        {
+          identifierType: 'VAT_NO',
+          normalizedValue: 'cn-vat-001',
+          rawValue: 'CN VAT 001',
+          issuerCountryOrRegion: 'CN'
+        }
+      ]
+    })
+    expect(result).toEqual({
+      result: 'EXACT_MATCH',
+      tenantParty: {
+        id: 'tenant-party-3',
+        tenantId: 'tenant-1',
+        type: 'ORGANIZATION',
+        status: 'ACTIVE',
+        legalName: 'Foshan Basin Trading',
+        displayName: '',
+        localCode: '',
+        registeredCountry: ''
+      },
+      candidates: [],
+      matchedFields: ['identifier:VAT_NO']
     })
   })
 })

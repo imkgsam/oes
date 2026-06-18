@@ -1,5 +1,7 @@
 # party-service Merge API
 
+> Superseded: 本文属于 ADR 0003 的 system-wide Party 模型历史契约，已被 [ADR 0008 Tenant-scoped TenantParty As Primary Party Model](/Users/acehood/Documents/GitHub/oes/docs/adr/0008-tenant-scoped-tenant-party-primary-party-model.md) 替代。当前 `party-service` runtime surface 不提供 `MergeParties`，不得把本文作为当前实现或调用依据。
+
 ## 1. 模块职责
 
 `PartyMergeService` 负责主体受控合并接口。

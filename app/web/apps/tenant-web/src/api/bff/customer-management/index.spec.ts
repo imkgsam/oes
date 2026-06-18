@@ -20,156 +20,70 @@ describe('tenant-web customer management api', () => {
     request.mockReset()
   })
 
-  it('lists customer directories, selector results, and one customer detail aggregate from the tenant-scoped entry', async () => {
+  it('creates CRM P1 leads and converts leads through the tenant-scoped BFF endpoints', async () => {
     const {
-      getManagedCustomerAccountByIdApi,
-      listManagedCustomerAccountsApi,
-      listSelectableCustomersApi
+      convertLeadToProspectCustomerApi,
+      createCrmLeadApi
     } = await import('./index')
 
-    await listManagedCustomerAccountsApi('tenant-1', {
-      keyword: 'alpha',
-      page: 2,
-      pageSize: 10,
-      primaryTenantPartyId: 'party-1',
-      status: 'ACTIVE_CUSTOMER'
+    await createCrmLeadApi('tenant-1', {
+      displayName: 'Northline Bathworks',
+      partyTypeHint: 'ORGANIZATION',
+      leadCompanyName: 'Northline Bathworks LLC',
+      leadDomain: 'northline.example',
+      leadEmail: 'sourcing@northline.example',
+      leadCountry: 'US',
+      priority: 'A',
+      sourceType: 'WEB_RESEARCH',
+      sourceRawPayload: { url: 'https://northline.example' }
     })
-    await listSelectableCustomersApi('tenant-1', {
-      keyword: 'alpha',
-      page: 1,
-      pageSize: 20
-    })
-    await getManagedCustomerAccountByIdApi('tenant-1', 'customer-1')
+    await convertLeadToProspectCustomerApi('tenant-1', 'crm-account-1')
 
-    expect(get).toHaveBeenCalledWith('/customer-management/tenants/tenant-1/customers', {
-      params: {
-        keyword: 'alpha',
-        page: 2,
-        pageSize: 10,
-        primaryTenantPartyId: 'party-1',
-        status: 'ACTIVE_CUSTOMER'
-      }
+    expect(post).toHaveBeenCalledWith('/customer-management/tenants/tenant-1/leads', {
+      displayName: 'Northline Bathworks',
+      partyTypeHint: 'ORGANIZATION',
+      leadCompanyName: 'Northline Bathworks LLC',
+      leadDomain: 'northline.example',
+      leadEmail: 'sourcing@northline.example',
+      leadCountry: 'US',
+      priority: 'A',
+      sourceType: 'WEB_RESEARCH',
+      sourceRawPayload: { url: 'https://northline.example' }
     })
-    expect(get).toHaveBeenCalledWith(
-      '/customer-management/tenants/tenant-1/selectable-customers',
-      {
-        params: {
-          keyword: 'alpha',
-          page: 1,
-          pageSize: 20
-        }
-      }
-    )
-    expect(get).toHaveBeenCalledWith(
-      '/customer-management/tenants/tenant-1/customers/customer-1'
+    expect(post).toHaveBeenCalledWith(
+      '/customer-management/tenants/tenant-1/leads/crm-account-1/convert-to-prospect-customer',
+      {}
     )
   })
 
-  it('creates and mutates phase 1 customer accounts without widening the CRM contract surface', async () => {
+  it('lists and reads CRM P1 accounts through the sales workspace BFF endpoints', async () => {
     const {
-      bindManagedCustomerAccountToTenantPartyApi,
-      changeManagedCustomerStatusApi,
-      createManagedCustomerAccountApi,
-      updateManagedCustomerAccountBasicsApi,
-      upsertManagedCustomerAddressApi,
-      upsertManagedCustomerContactApi
+      getCrmAccountApi,
+      listCrmAccountsApi
     } = await import('./index')
 
-    await createManagedCustomerAccountApi('tenant-1', {
-      customerCategory: 'DISTRIBUTOR',
-      displayName: 'Alpha Manufacturing',
-      tags: ['key']
+    await listCrmAccountsApi('tenant-1', {
+      keyword: 'northline',
+      lifecycleStage: 'LEAD',
+      ownerAccountId: 'account-1',
+      page: 1,
+      pageSize: 20,
+      recordStatus: 'ACTIVE'
     })
-    await updateManagedCustomerAccountBasicsApi('tenant-1', 'customer-1', {
-      customerCategory: 'OEM',
-      displayName: 'Alpha Manufacturing Rev',
-      tags: ['priority']
-    })
-    await bindManagedCustomerAccountToTenantPartyApi('tenant-1', 'customer-1', {
-      tenantPartyId: 'party-1'
-    })
-    await upsertManagedCustomerContactApi('tenant-1', 'customer-1', {
-      customerContactId: 'contact-1',
-      displayName: 'Alice',
-      email: 'alice@example.com',
-      isActive: true,
-      isPrimaryContact: true,
-      phone: '123456',
-      roleTitle: 'Purchasing Manager'
-    })
-    await upsertManagedCustomerAddressApi('tenant-1', 'customer-1', {
-      addressLine1: 'Line 1',
-      addressLine2: 'Line 2',
-      countryCode: 'CN',
-      customerAddressId: 'address-1',
-      isActive: true,
-      isPrimaryAddress: true,
-      label: 'HQ',
-      locality: 'Pudong',
-      postalCode: '200000',
-      region: 'Shanghai'
-    })
-    await changeManagedCustomerStatusApi('tenant-1', 'customer-1', {
-      status: 'BLOCKED'
-    })
+    await getCrmAccountApi('tenant-1', 'crm-account-1')
 
-    expect(post).toHaveBeenCalledWith('/customer-management/tenants/tenant-1/customers', {
-      customerCategory: 'DISTRIBUTOR',
-      displayName: 'Alpha Manufacturing',
-      tags: ['key']
+    expect(get).toHaveBeenCalledWith('/customer-management/tenants/tenant-1/crm-accounts', {
+      params: {
+        keyword: 'northline',
+        lifecycleStage: 'LEAD',
+        ownerAccountId: 'account-1',
+        page: 1,
+        pageSize: 20,
+        recordStatus: 'ACTIVE'
+      }
     })
-    expect(request).toHaveBeenCalledWith(
-      '/customer-management/tenants/tenant-1/customers/customer-1/basics',
-      {
-        data: {
-          customerCategory: 'OEM',
-          displayName: 'Alpha Manufacturing Rev',
-          tags: ['priority']
-        },
-        method: 'PATCH'
-      }
-    )
-    expect(post).toHaveBeenCalledWith(
-      '/customer-management/tenants/tenant-1/customers/customer-1/tenant-party-binding',
-      {
-        tenantPartyId: 'party-1'
-      }
-    )
-    expect(post).toHaveBeenCalledWith(
-      '/customer-management/tenants/tenant-1/customers/customer-1/contacts',
-      {
-        customerContactId: 'contact-1',
-        displayName: 'Alice',
-        email: 'alice@example.com',
-        isActive: true,
-        isPrimaryContact: true,
-        phone: '123456',
-        roleTitle: 'Purchasing Manager'
-      }
-    )
-    expect(post).toHaveBeenCalledWith(
-      '/customer-management/tenants/tenant-1/customers/customer-1/addresses',
-      {
-        addressLine1: 'Line 1',
-        addressLine2: 'Line 2',
-        countryCode: 'CN',
-        customerAddressId: 'address-1',
-        isActive: true,
-        isPrimaryAddress: true,
-        label: 'HQ',
-        locality: 'Pudong',
-        postalCode: '200000',
-        region: 'Shanghai'
-      }
-    )
-    expect(request).toHaveBeenCalledWith(
-      '/customer-management/tenants/tenant-1/customers/customer-1/status',
-      {
-        data: {
-          status: 'BLOCKED'
-        },
-        method: 'PATCH'
-      }
+    expect(get).toHaveBeenCalledWith(
+      '/customer-management/tenants/tenant-1/crm-accounts/crm-account-1'
     )
   })
 })

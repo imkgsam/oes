@@ -76,6 +76,46 @@ export async function cleanupByPrefix(prisma: PrismaService, prefix: string): Pr
     return
   }
 
+  await prisma.crmActivity.deleteMany({
+    where: {
+      tenantId: {
+        startsWith: prefix
+      }
+    }
+  })
+
+  await prisma.opportunity.deleteMany({
+    where: {
+      tenantId: {
+        startsWith: prefix
+      }
+    }
+  })
+
+  await prisma.crmContact.deleteMany({
+    where: {
+      tenantId: {
+        startsWith: prefix
+      }
+    }
+  })
+
+  await prisma.crmSourceRecord.deleteMany({
+    where: {
+      tenantId: {
+        startsWith: prefix
+      }
+    }
+  })
+
+  await prisma.crmAccount.deleteMany({
+    where: {
+      tenantId: {
+        startsWith: prefix
+      }
+    }
+  })
+
   await prisma.crmAuditEnvelope.deleteMany({
     where: {
       tenantId: {
@@ -84,43 +124,4 @@ export async function cleanupByPrefix(prisma: PrismaService, prefix: string): Pr
     }
   })
 
-  await prisma.customerAddress.deleteMany({
-    where: {
-      tenantId: {
-        startsWith: prefix
-      }
-    }
-  })
-
-  await prisma.customerContact.deleteMany({
-    where: {
-      tenantId: {
-        startsWith: prefix
-      }
-    }
-  })
-
-  await prisma.customerPartyBinding.deleteMany({
-    where: {
-      tenantId: {
-        startsWith: prefix
-      }
-    }
-  })
-
-  await prisma.customerAccount.deleteMany({
-    where: {
-      tenantId: {
-        startsWith: prefix
-      }
-    }
-  })
-
-  await prisma.crmSequenceCounter.deleteMany({
-    where: {
-      tenantId: {
-        startsWith: prefix
-      }
-    }
-  })
 }

@@ -3,7 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 
-import { createSmokeSeed, runCrmSmokeFlow } from './crm-smoke-lib.mjs';
+import { createSmokeSeed, runCrmP1SmokeFlow } from './crm-smoke-lib.mjs';
 
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -17,10 +17,6 @@ const {
   CUSTOMER_QUERY_SERVICE_NAME,
   CUSTOMER_MANAGEMENT_SERVICE_NAME,
 } = require(path.join(WORKSPACE_ROOT, 'src/common/dist/generated/crm_service/crm.js'));
-const { PARTY_REGISTRATION_SERVICE_NAME } = require(path.join(
-  WORKSPACE_ROOT,
-  'src/common/dist/generated/party_service/party.js',
-));
 
 // disableProxyForLocalGrpc clears shell proxy variables so grpc-js talks to localhost directly during smoke verification.
 function disableProxyForLocalGrpc() {
@@ -93,21 +89,6 @@ function createCrmGrpcClient() {
   });
 }
 
-// createPartyGrpcClient binds one direct gRPC client to the configured downstream party-service endpoint for bind smoke.
-function createPartyGrpcClient() {
-  const explicitUrl = process.env.GRPC_SERVICE_PARTY_URL?.trim();
-  const [host = '127.0.0.1', port = '50053'] = explicitUrl ? explicitUrl.split(':', 2) : ['127.0.0.1', '50053'];
-
-  return ClientProxyFactory.create({
-    transport: Transport.GRPC,
-    options: {
-      package: 'party_service',
-      protoPath: [resolveCommonProtoPath('party_service/party.proto')],
-      url: `${host}:${port}`,
-    },
-  });
-}
-
 // createCrmServices wraps generated CRM observable clients into promise-returning functions for smoke verification.
 function createCrmServices(client) {
   const query = client.getService(CUSTOMER_QUERY_SERVICE_NAME);
@@ -115,36 +96,15 @@ function createCrmServices(client) {
 
   return {
     query: {
-      searchSelectableCustomers: async (request) => firstValueFrom(query.searchSelectableCustomers(request)),
+      listCrmAccounts: async (request) => firstValueFrom(query.listCrmAccounts(request)),
+      getCrmAccount: async (request) => firstValueFrom(query.getCrmAccount(request)),
     },
     management: {
-      createCustomerAccount: async (request) => firstValueFrom(management.createCustomerAccount(request)),
-      bindCustomerAccountToTenantParty: async (request) =>
-        firstValueFrom(management.bindCustomerAccountToTenantParty(request)),
+      createLead: async (request) => firstValueFrom(management.createLead(request)),
+      convertLeadToProspectCustomer: async (request) =>
+        firstValueFrom(management.convertLeadToProspectCustomer(request)),
     },
   };
-}
-
-// createPartyServices wraps the generated party registration client needed to exercise the real CRM binding path.
-function createPartyServices(client) {
-  const registration = client.getService(PARTY_REGISTRATION_SERVICE_NAME);
-
-  return {
-    registration: {
-      registerOrganizationParty: async (request) => firstValueFrom(registration.registerOrganizationParty(request)),
-    },
-  };
-}
-
-// isOptionalPartyUnavailableError detects environment-level party unavailability so the smoke can skip optional binding cleanly.
-function isOptionalPartyUnavailableError(error) {
-  const message = error instanceof Error ? error.message : String(error);
-  return (
-    message.includes('UNAVAILABLE') ||
-    message.includes('ECONNREFUSED') ||
-    message.includes('No connection established') ||
-    message.includes('14 ')
-  );
 }
 
 // closeClient closes one Nest client proxy when the implementation exposes a close hook.
@@ -155,53 +115,19 @@ async function closeClient(client) {
   }
 }
 
-// main executes the minimal CRM smoke flow against a running local crm-service and optionally a live party-service.
+// main executes the CRM P1 smoke flow against a running local crm-service.
 async function main() {
   loadServiceEnv();
   disableProxyForLocalGrpc();
 
   const seed = createSmokeSeed();
   const crmClient = createCrmGrpcClient();
-  const partyClient = createPartyGrpcClient();
   const crmServices = createCrmServices(crmClient);
-  let partyServices;
 
   try {
-    try {
-      if ((process.env.CRM_SMOKE_ENABLE_BIND ?? 'true').toLowerCase() !== 'false') {
-        partyServices = createPartyServices(partyClient);
-      }
-    } catch (error) {
-      if (!isOptionalPartyUnavailableError(error)) {
-        throw error;
-      }
-    }
-
-    if (partyServices) {
-      const registerOrganizationParty = partyServices.registration.registerOrganizationParty;
-      partyServices = {
-        registration: {
-          registerOrganizationParty: async (request) => {
-            try {
-              return await registerOrganizationParty(request);
-            } catch (error) {
-              if (!isOptionalPartyUnavailableError(error)) {
-                throw error;
-              }
-
-              const unavailable = new Error('party-service unavailable');
-              unavailable.crmSmokeOptionalPartyUnavailable = true;
-              throw unavailable;
-            }
-          },
-        },
-      };
-    }
-
-    const result = await runCrmSmokeFlow(
+    const result = await runCrmP1SmokeFlow(
       {
         crm: crmServices,
-        party: partyServices,
       },
       seed,
       (message) => {
@@ -214,11 +140,10 @@ async function main() {
       JSON.stringify(
         {
           tenantId: seed.tenantId,
-          customerAccountId: result.customerAccountId,
-          customerAccountNo: result.customerAccountNo,
-          bindingStatus: result.binding.status,
-          tenantPartyId: result.binding.tenantPartyId,
-          selectableTotals: result.selectableTotals,
+          crmAccountId: result.crmAccountId,
+          conversionResultType: result.conversionResultType,
+          tenantPartyId: result.tenantPartyId,
+          listTotals: result.listTotals,
         },
         null,
         2,
@@ -231,7 +156,6 @@ async function main() {
     process.exitCode = 1;
   } finally {
     await closeClient(crmClient);
-    await closeClient(partyClient);
   }
 }
 

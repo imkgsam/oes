@@ -24,23 +24,26 @@ describe('Party Service Database Constraints L2', () => {
     }
   })
 
-  it('PartyIdentifier 复合唯一约束 / 当同类型同签发域同 normalizedValue 重复时 / 应失败', async () => {
-    const partyA = await prisma.party.create({
+  it('TenantPartyIdentifier 复合唯一约束 / 当同租户同类型同签发域同 normalizedValue 重复时 / 应失败', async () => {
+    const tenantPartyA = await prisma.tenantParty.create({
       data: {
+        tenantId: `${prefix}_tenant`,
         type: 'ORGANIZATION',
         legalName: `${prefix}_legal_a`
       }
     })
-    const partyB = await prisma.party.create({
+    const tenantPartyB = await prisma.tenantParty.create({
       data: {
+        tenantId: `${prefix}_tenant`,
         type: 'ORGANIZATION',
         legalName: `${prefix}_legal_b`
       }
     })
 
-    await prisma.partyIdentifier.create({
+    await prisma.tenantPartyIdentifier.create({
       data: {
-        partyId: partyA.id,
+        tenantId: `${prefix}_tenant`,
+        tenantPartyId: tenantPartyA.id,
         identifierType: 'BUSINESS_REG_NO',
         normalizedValue: `${prefix}_reg_same`,
         rawValue: `${prefix}_reg_same`,
@@ -49,9 +52,10 @@ describe('Party Service Database Constraints L2', () => {
     })
 
     await expect(
-      prisma.partyIdentifier.create({
+      prisma.tenantPartyIdentifier.create({
         data: {
-          partyId: partyB.id,
+          tenantId: `${prefix}_tenant`,
+          tenantPartyId: tenantPartyB.id,
           identifierType: 'BUSINESS_REG_NO',
           normalizedValue: `${prefix}_reg_same`,
           rawValue: `${prefix}_reg_same`,
@@ -61,30 +65,44 @@ describe('Party Service Database Constraints L2', () => {
     ).rejects.toBeTruthy()
   })
 
-  it('TenantParty 复合唯一约束 / 当同租户重复绑定同一 legal party 时 / 应失败', async () => {
-    const party = await prisma.party.create({
+  it('TenantPartyIdentifier 复合唯一约束 / 当不同租户使用相同 normalizedValue 时 / 应允许', async () => {
+    const tenantPartyA = await prisma.tenantParty.create({
       data: {
+        tenantId: `${prefix}_tenant_a`,
         type: 'ORGANIZATION',
-        legalName: `${prefix}_legal`
+        legalName: `${prefix}_legal_a`
+      }
+    })
+    const tenantPartyB = await prisma.tenantParty.create({
+      data: {
+        tenantId: `${prefix}_tenant_b`,
+        type: 'ORGANIZATION',
+        legalName: `${prefix}_legal_b`
       }
     })
 
-    await prisma.tenantParty.create({
+    await prisma.tenantPartyIdentifier.create({
       data: {
-        tenantId: `${prefix}_tenant`,
-        partyId: party.id,
-        localDisplayName: `${prefix}_local_a`
+        tenantId: `${prefix}_tenant_a`,
+        tenantPartyId: tenantPartyA.id,
+        identifierType: 'BUSINESS_REG_NO',
+        normalizedValue: `${prefix}_reg_same`,
+        rawValue: `${prefix}_reg_same`,
+        issuerCountryOrRegion: 'CN'
       }
     })
 
     await expect(
-      prisma.tenantParty.create({
+      prisma.tenantPartyIdentifier.create({
         data: {
-          tenantId: `${prefix}_tenant`,
-          partyId: party.id,
-          localDisplayName: `${prefix}_local_b`
+          tenantId: `${prefix}_tenant_b`,
+          tenantPartyId: tenantPartyB.id,
+          identifierType: 'BUSINESS_REG_NO',
+          normalizedValue: `${prefix}_reg_same`,
+          rawValue: `${prefix}_reg_same`,
+          issuerCountryOrRegion: 'CN'
         }
       })
-    ).rejects.toBeTruthy()
+    ).resolves.toBeTruthy()
   })
 })

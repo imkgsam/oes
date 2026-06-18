@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { AuditEnvelope } from '@oes/common'
 import { CrmAuditWriter } from '../../application/ports/crm-audit-writer.port'
-import { PrismaCrmRecordMapper } from '../repositories/prisma/prisma-crm-record.mapper'
+import { Prisma } from '../../../prisma/generated/prisma'
 import { PrismaService } from '../prisma/prisma.service'
 
 /** PrismaCrmAuditRepository persists local CRM audit envelopes inside the service database. */
@@ -25,7 +25,7 @@ export class PrismaCrmAuditRepository implements CrmAuditWriter {
         traceId: envelope.trace.traceId ?? null,
         resourceType: envelope.resource.resourceType,
         resourceId: envelope.resource.resourceId ?? null,
-        details: PrismaCrmRecordMapper.toInputJson(envelope.details)
+        details: structuredClone(envelope.details) as Prisma.InputJsonValue
       }
     })
   }

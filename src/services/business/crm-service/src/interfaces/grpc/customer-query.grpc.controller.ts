@@ -4,24 +4,17 @@ import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
   CustomerQueryServiceController,
   CustomerQueryServiceControllerMethods,
-  CustomerStatus as ProtoCustomerStatus,
-  GetCustomerAccountRequest,
-  GetCustomerAccountResponse,
-  ListCustomerAddressesRequest,
-  ListCustomerAddressesResponse,
-  ListCustomerContactsRequest,
-  ListCustomerContactsResponse,
-  SearchCustomerAccountsRequest,
-  SearchCustomerAccountsResponse,
-  SearchSelectableCustomersRequest,
-  SearchSelectableCustomersResponse
+  GetCrmAccountRequest,
+  GetCrmAccountResponse,
+  ListCrmAccountsRequest,
+  ListCrmAccountsResponse
 } from '@oes/common/generated/crm_service'
-import { GetCustomerAccountQuery } from '../../application/queries/get-customer-account.query'
-import { ListCustomerAddressesQuery } from '../../application/queries/list-customer-addresses.query'
-import { ListCustomerContactsQuery } from '../../application/queries/list-customer-contacts.query'
-import { SearchCustomerAccountsQuery } from '../../application/queries/search-customer-accounts.query'
-import { SearchSelectableCustomersQuery } from '../../application/queries/search-selectable-customers.query'
-import { CustomerStatus } from '../../domain/models/crm-records'
+import { GetCrmAccountQuery } from '../../application/queries/get-crm-account.query'
+import { ListCrmAccountsQuery } from '../../application/queries/list-crm-accounts.query'
+import {
+  CrmAccountLifecycleStage,
+  CrmAccountRecordStatus
+} from '../../domain/models/crm-records'
 import { CustomerGrpcPresenter } from './customer-grpc.presenter'
 import { CustomerRpcContextValidator } from './customer-rpc-context.validator'
 
@@ -32,82 +25,57 @@ import { CustomerRpcContextValidator } from './customer-rpc-context.validator'
 export class CustomerQueryGrpcController implements CustomerQueryServiceController {
   constructor(private readonly queryBus: ValidatingQueryBus) {}
 
-  async searchSelectableCustomers(
-    request: SearchSelectableCustomersRequest
-  ): Promise<SearchSelectableCustomersResponse> {
+  async listCrmAccounts(request: ListCrmAccountsRequest): Promise<ListCrmAccountsResponse> {
     CustomerRpcContextValidator.assertQueryContext(request)
     const result = await this.queryBus.execute(
-      new SearchSelectableCustomersQuery({
+      new ListCrmAccountsQuery({
         tenantId: request.tenantId ?? '',
-        keyword: request.keyword ?? undefined,
+        keyword: request.keyword || undefined,
+        lifecycleStage: toCrmAccountLifecycleStage(request.lifecycleStage),
+        recordStatus: toCrmAccountRecordStatus(request.recordStatus),
+        ownerAccountId: request.ownerAccountId || undefined,
         page: request.page ?? undefined,
         pageSize: request.pageSize ?? undefined
       })
     )
 
-    return CustomerGrpcPresenter.toSearchSelectableCustomersResponse(result)
+    return CustomerGrpcPresenter.toListCrmAccountsResponse(result)
   }
 
-  async getCustomerAccount(request: GetCustomerAccountRequest): Promise<GetCustomerAccountResponse> {
-    CustomerRpcContextValidator.assertQueryContext(request)
-    const account = await this.queryBus.execute(
-      new GetCustomerAccountQuery(request.tenantId ?? '', request.customerAccountId ?? '')
-    )
-
-    return CustomerGrpcPresenter.toGetCustomerAccountResponse(account)
-  }
-
-  async searchCustomerAccounts(
-    request: SearchCustomerAccountsRequest
-  ): Promise<SearchCustomerAccountsResponse> {
+  async getCrmAccount(request: GetCrmAccountRequest): Promise<GetCrmAccountResponse> {
     CustomerRpcContextValidator.assertQueryContext(request)
     const result = await this.queryBus.execute(
-      new SearchCustomerAccountsQuery({
-        tenantId: request.tenantId ?? '',
-        keyword: request.keyword ?? undefined,
-        status: toDomainCustomerStatus(request.status),
-        primaryTenantPartyId: request.primaryTenantPartyId ?? undefined,
-        page: request.page ?? undefined,
-        pageSize: request.pageSize ?? undefined
-      })
+      new GetCrmAccountQuery(request.tenantId ?? '', request.crmAccountId ?? '')
     )
 
-    return CustomerGrpcPresenter.toSearchCustomerAccountsResponse(result)
-  }
-
-  async listCustomerContacts(
-    request: ListCustomerContactsRequest
-  ): Promise<ListCustomerContactsResponse> {
-    CustomerRpcContextValidator.assertQueryContext(request)
-    const result = await this.queryBus.execute(
-      new ListCustomerContactsQuery(request.tenantId ?? '', request.customerAccountId ?? '')
-    )
-
-    return CustomerGrpcPresenter.toListCustomerContactsResponse(result)
-  }
-
-  async listCustomerAddresses(
-    request: ListCustomerAddressesRequest
-  ): Promise<ListCustomerAddressesResponse> {
-    CustomerRpcContextValidator.assertQueryContext(request)
-    const result = await this.queryBus.execute(
-      new ListCustomerAddressesQuery(request.tenantId ?? '', request.customerAccountId ?? '')
-    )
-
-    return CustomerGrpcPresenter.toListCustomerAddressesResponse(result)
+    return CustomerGrpcPresenter.toGetCrmAccountResponse(result)
   }
 }
 
-/** toDomainCustomerStatus maps the generated CRM enum filter into the minimal domain status filter. */
-function toDomainCustomerStatus(value?: ProtoCustomerStatus): CustomerStatus | undefined {
-  if (value === ProtoCustomerStatus.CUSTOMER_STATUS_BLOCKED) {
-    return CustomerStatus.BLOCKED
+/** toCrmAccountLifecycleStage maps P1 string lifecycle filters into domain enum values. */
+function toCrmAccountLifecycleStage(value?: string): CrmAccountLifecycleStage | undefined {
+  if (value === CrmAccountLifecycleStage.LEAD) {
+    return CrmAccountLifecycleStage.LEAD
   }
-  if (value === ProtoCustomerStatus.CUSTOMER_STATUS_ARCHIVED) {
-    return CustomerStatus.ARCHIVED
+  if (value === CrmAccountLifecycleStage.PROSPECT_CUSTOMER) {
+    return CrmAccountLifecycleStage.PROSPECT_CUSTOMER
   }
-  if (value === ProtoCustomerStatus.CUSTOMER_STATUS_ACTIVE_CUSTOMER) {
-    return CustomerStatus.ACTIVE_CUSTOMER
+  if (value === CrmAccountLifecycleStage.CUSTOMER) {
+    return CrmAccountLifecycleStage.CUSTOMER
+  }
+  return undefined
+}
+
+/** toCrmAccountRecordStatus maps P1 string record-status filters into domain enum values. */
+function toCrmAccountRecordStatus(value?: string): CrmAccountRecordStatus | undefined {
+  if (value === CrmAccountRecordStatus.DRAFT) {
+    return CrmAccountRecordStatus.DRAFT
+  }
+  if (value === CrmAccountRecordStatus.ACTIVE) {
+    return CrmAccountRecordStatus.ACTIVE
+  }
+  if (value === CrmAccountRecordStatus.ARCHIVED) {
+    return CrmAccountRecordStatus.ARCHIVED
   }
   return undefined
 }

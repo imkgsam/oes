@@ -4,6 +4,7 @@ import {
   AUTH_MANAGEMENT_PERMISSION_CODES,
   AUTH_SELF_PERMISSION_CODES,
   AUTH_SESSION_PERMISSION_CODES,
+  COLLABORATION_TASK_PERMISSION_CODES,
   CRM_MANAGEMENT_PERMISSION_CODES,
   FINANCE_MANAGEMENT_PERMISSION_CODES,
   HR_MANAGEMENT_PERMISSION_CODES,
@@ -56,6 +57,7 @@ const COMMON_PERMISSION_CODE_FILES: CommonPermissionCodeFileDefinition[] = [
     relativePath: 'index.ts',
     exports: [
       './auth',
+      './collaboration',
       './crm',
       './finance',
       './hr',
@@ -94,6 +96,17 @@ const COMMON_PERMISSION_CODE_FILES: CommonPermissionCodeFileDefinition[] = [
     relativePath: 'auth/session.permission-codes.ts',
     constName: 'AUTH_SESSION_PERMISSION_CODES',
     records: AUTH_SESSION_PERMISSION_CODES
+  },
+  {
+    kind: 'index',
+    relativePath: 'collaboration/index.ts',
+    exports: ['./task.permission-codes']
+  },
+  {
+    kind: 'const',
+    relativePath: 'collaboration/task.permission-codes.ts',
+    constName: 'COLLABORATION_TASK_PERMISSION_CODES',
+    records: COLLABORATION_TASK_PERMISSION_CODES
   },
   {
     kind: 'index',

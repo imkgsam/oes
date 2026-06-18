@@ -1,6 +1,17 @@
 # crm-service Contracts
 
-> `crm-service` 的服务职责、核心对象、owner 边界与长期命名以 [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md) 为唯一稳定真相源。本目录只描述 phase 1 customer master 黑盒契约，不重新定义 CRM 服务设计。
+> `crm-service` 的服务职责、核心对象、owner 边界与长期命名以 [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md) 为唯一稳定真相源。本目录当前只保留旧 customer master phase 1 黑盒契约记录，不重新定义 CRM 服务设计。
+
+## Status Note 2026-06-10
+
+CRM v2 已原地替代旧 customer master phase 1 设计。
+
+本目录下既有 `CustomerQueryService / CustomerManagementService`、`CustomerAccount`、`CustomerPartyBinding` 等契约文档只保留为旧实现和迁移参考，不再作为新的 CRM contract 冻结入口。
+
+新的 CRM v2 contract / proto 必须在后续 feature 中基于以下文件重新冻结：
+
+- [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md)
+- [crm-v2-core-object-model.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/crm-v2-core-object-model.md)
 
 ## 1. 目的
 

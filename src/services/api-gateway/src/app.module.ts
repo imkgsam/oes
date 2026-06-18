@@ -16,6 +16,7 @@ import { GatewaySessionAuthGuard } from './common/guards/gateway-session-auth.gu
 import { AuthBffModule } from './modules/auth-bff/auth-bff.module'
 import { PdaBffModule } from './modules/pda-bff/pda-bff.module'
 import { TerminalDeviceAdminBffModule } from './modules/terminal-device-admin-bff/terminal-device-admin-bff.module'
+import { CollaborationServiceProxyModule } from './modules/collaboration-service/collaboration-service.module'
 import { CrmServiceProxyModule } from './modules/crm-service/crm-service.module'
 import { FinanceServiceProxyModule } from './modules/finance-service/finance-service.module'
 import { HrServiceProxyModule } from './modules/hr-service/hr-service.module'
@@ -73,6 +74,18 @@ export function resolveHrGrpcUrl() {
   }
 
   return (process.env.NODE_ENV ?? 'development') !== 'production' ? '127.0.0.1:50055' : undefined
+}
+
+/** resolveCollaborationGrpcUrl centralizes the local collaboration-service endpoint used by api-gateway. */
+export function resolveCollaborationGrpcUrl() {
+  const host = process.env.COLLABORATION_SERVICE_HOST?.trim()
+  const port = process.env.COLLABORATION_SERVICE_PORT?.trim()
+
+  if (host && port) {
+    return `${normalizeLocalhostGrpcHost(host)}:${port}`
+  }
+
+  return (process.env.NODE_ENV ?? 'development') !== 'production' ? '127.0.0.1:50068' : undefined
 }
 
 /** resolveMesGrpcUrl centralizes the local MES fallback endpoint used by api-gateway. */
@@ -141,6 +154,12 @@ export const permissionGrpcProtoPaths = [
           protoPath: resolveCommonProtoPath('hr_service/hr.proto'),
           packageName: 'hr_service',
           url: resolveHrGrpcUrl()
+        },
+        [SERVICE_NAMES.COLLABORATION]: {
+          serviceName: SERVICE_NAMES.COLLABORATION,
+          protoPath: resolveCommonProtoPath('collaboration_service/collaboration.proto'),
+          packageName: 'collaboration_service',
+          url: resolveCollaborationGrpcUrl()
         },
         [SERVICE_NAMES.CRM]: {
           serviceName: SERVICE_NAMES.CRM,
@@ -270,6 +289,7 @@ export const permissionGrpcProtoPaths = [
     AuthBffModule,
     PdaBffModule,
     TerminalDeviceAdminBffModule,
+    CollaborationServiceProxyModule,
     CrmServiceProxyModule,
     FinanceServiceProxyModule,
     HrServiceProxyModule,

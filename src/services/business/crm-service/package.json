@@ -15,7 +15,7 @@
     "test:smoke": "node --test ./scripts/crm-smoke.spec.mjs",
     "build": "tsc -b",
     "prisma:generate": "npx prisma generate --schema=./prisma/schema.prisma",
-    "prisma:push": "npx prisma db push --schema=./prisma/schema.prisma",
+    "prisma:push": "npx prisma db push --schema=./prisma/schema.prisma --accept-data-loss",
     "smoke": "node ./scripts/crm-smoke.mjs",
     "dev:build": "tsc -b -w --preserveWatchOutput",
     "dev:start": "wait-on dist/main.js ../../../common/dist/index.js && nodemon --watch dist --watch ../../../common/dist --ext js,json --signal SIGTERM dist/main.js",

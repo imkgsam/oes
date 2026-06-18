@@ -1,6 +1,7 @@
 export * from './account-role-management';
 export * from './admin-security';
 export * from './auth';
+export * from './collaboration-task';
 export * from './customer-management';
 export * from './context';
 export * from './finance';

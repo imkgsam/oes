@@ -20,11 +20,11 @@ function createQueryController() {
 }
 
 describe('crm-service grpc context validation L3', () => {
-  it('CreateCustomerAccount / when tenant_id is missing / should reject with INVALID_ARGUMENT', async () => {
+  it('CreateLead / when tenant_id is missing / should reject with INVALID_ARGUMENT', async () => {
     const controller = createManagementController()
 
     await expect(
-      controller.createCustomerAccount({
+      controller.createLead({
         tenantId: '',
         operatorContext: {
           operatorId: 'operator-1',
@@ -37,11 +37,11 @@ describe('crm-service grpc context validation L3', () => {
         },
         auditContext: {
           auditId: 'audit-1',
-          reason: 'create customer account',
+          reason: 'create lead',
           source: 'crm-workspace'
         },
         displayName: 'Acme CRM',
-        tags: []
+        sourceType: 'WEB_RESEARCH'
       } as never)
     ).rejects.toMatchObject({
       definition: {
@@ -50,11 +50,11 @@ describe('crm-service grpc context validation L3', () => {
     })
   })
 
-  it('CreateCustomerAccount / when operator_context is missing / should reject with UNAUTHENTICATED', async () => {
+  it('CreateLead / when operator_context is missing / should reject with UNAUTHENTICATED', async () => {
     const controller = createManagementController()
 
     await expect(
-      controller.createCustomerAccount({
+      controller.createLead({
         tenantId: 'tenant-1',
         traceContext: {
           traceId: 'trace-1',
@@ -62,11 +62,11 @@ describe('crm-service grpc context validation L3', () => {
         },
         auditContext: {
           auditId: 'audit-1',
-          reason: 'create customer account',
+          reason: 'create lead',
           source: 'crm-workspace'
         },
         displayName: 'Acme CRM',
-        tags: []
+        sourceType: 'WEB_RESEARCH'
       } as never)
     ).rejects.toMatchObject({
       definition: {
@@ -75,11 +75,11 @@ describe('crm-service grpc context validation L3', () => {
     })
   })
 
-  it('CreateCustomerAccount / when trace_context is missing / should reject with UNAUTHENTICATED', async () => {
+  it('CreateLead / when trace_context is missing / should reject with UNAUTHENTICATED', async () => {
     const controller = createManagementController()
 
     await expect(
-      controller.createCustomerAccount({
+      controller.createLead({
         tenantId: 'tenant-1',
         operatorContext: {
           operatorId: 'operator-1',
@@ -88,11 +88,11 @@ describe('crm-service grpc context validation L3', () => {
         },
         auditContext: {
           auditId: 'audit-1',
-          reason: 'create customer account',
+          reason: 'create lead',
           source: 'crm-workspace'
         },
         displayName: 'Acme CRM',
-        tags: []
+        sourceType: 'WEB_RESEARCH'
       } as never)
     ).rejects.toMatchObject({
       definition: {
@@ -101,11 +101,11 @@ describe('crm-service grpc context validation L3', () => {
     })
   })
 
-  it('CreateCustomerAccount / when audit_context is missing / should reject with UNAUTHENTICATED', async () => {
+  it('CreateLead / when audit_context is missing / should reject with UNAUTHENTICATED', async () => {
     const controller = createManagementController()
 
     await expect(
-      controller.createCustomerAccount({
+      controller.createLead({
         tenantId: 'tenant-1',
         operatorContext: {
           operatorId: 'operator-1',
@@ -117,7 +117,7 @@ describe('crm-service grpc context validation L3', () => {
           requestId: 'request-1'
         },
         displayName: 'Acme CRM',
-        tags: []
+        sourceType: 'WEB_RESEARCH'
       } as never)
     ).rejects.toMatchObject({
       definition: {
@@ -126,11 +126,11 @@ describe('crm-service grpc context validation L3', () => {
     })
   })
 
-  it('SearchSelectableCustomers / when query operator_context is missing / should reject with UNAUTHENTICATED', async () => {
+  it('ListCrmAccounts / when query operator_context is missing / should reject with UNAUTHENTICATED', async () => {
     const controller = createQueryController()
 
     await expect(
-      controller.searchSelectableCustomers({
+      controller.listCrmAccounts({
         tenantId: 'tenant-1',
         traceContext: {
           traceId: 'trace-1',

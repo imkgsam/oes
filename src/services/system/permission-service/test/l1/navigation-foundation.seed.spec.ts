@@ -37,6 +37,7 @@ describe('navigation foundation seed', () => {
       'admin.policy-governance',
       'admin.terminal-device-management',
       'admin.navigation-management',
+      'collaboration.tasks',
       'pda.home',
       'kiosk.home',
       'extension.designer.workspace'
@@ -73,6 +74,7 @@ describe('navigation foundation seed', () => {
       '策略治理',
       '终端设备管理',
       '导航管理',
+      '任务工作台',
       'PDA 首页',
       '触摸屏首页',
       'Designer Workspace'
@@ -244,8 +246,20 @@ describe('navigation foundation seed', () => {
         enabled: true
       },
       {
+        roleId: 'role-system-admin',
+        entryKey: 'collaboration.tasks',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
         roleId: 'template-tenant-admin',
         entryKey: 'workbench.home',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'template-tenant-admin',
+        entryKey: 'collaboration.tasks',
         terminal: 'DEFAULT',
         enabled: true
       },
@@ -294,6 +308,12 @@ describe('navigation foundation seed', () => {
       {
         roleId: 'role-tenant-admin',
         entryKey: 'workbench.home',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'role-tenant-admin',
+        entryKey: 'collaboration.tasks',
         terminal: 'DEFAULT',
         enabled: true
       },
@@ -354,6 +374,12 @@ describe('navigation foundation seed', () => {
       {
         roleId: 'template-account-basic',
         entryKey: 'workbench.home',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'template-account-basic',
+        entryKey: 'collaboration.tasks',
         terminal: 'DEFAULT',
         enabled: true
       },

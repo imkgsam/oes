@@ -26,150 +26,94 @@ export function createSmokeSeed(now = Date.now()) {
     partyRegisteredCountry: process.env.CRM_SMOKE_PARTY_COUNTRY || 'CN',
     partyIdentifierType: process.env.CRM_SMOKE_PARTY_IDENTIFIER_TYPE || 'BUSINESS_REG_NO',
     partyIdentifierValue: process.env.CRM_SMOKE_PARTY_IDENTIFIER_VALUE || `crm-smoke-reg-${suffix}`,
+    leadDomain: process.env.CRM_SMOKE_LEAD_DOMAIN || `crm-smoke-${suffix}.example`,
+    leadEmail: process.env.CRM_SMOKE_LEAD_EMAIL || `buyer-${suffix}@crm-smoke.example`,
+    leadSourceType: process.env.CRM_SMOKE_LEAD_SOURCE_TYPE || 'WEB_RESEARCH',
+    leadPriority: process.env.CRM_SMOKE_LEAD_PRIORITY || 'A',
   };
 }
 
-// Executes the minimal CRM live-smoke flow: empty selector, customer creation, and optional party-backed binding.
-export async function runCrmSmokeFlow(services, seed, log = () => {}) {
-  const beforeCreate = await services.crm.query.searchSelectableCustomers(createSelectableRequest(seed));
-  const beforeCreatePage = assertSelectablePage(beforeCreate, 'initial selector check');
-  if (beforeCreatePage.total !== 0 || beforeCreatePage.customers.length !== 0) {
-    throw new Error('crm-service smoke failed: SearchSelectableCustomers should return an empty page for a fresh tenant');
+// Executes the CRM P1 smoke flow: create a Lead, verify the workspace list, formalize, list again, and read back the account.
+export async function runCrmP1SmokeFlow(services, seed, log = () => {}) {
+  const createResponse = await services.crm.management.createLead(createLeadRequest(seed));
+  const createdAccount = createResponse?.crmAccount;
+  if (createResponse?.resultType !== 'CREATED' || !createdAccount?.crmAccountId) {
+    throw new Error('crm-service smoke failed: CreateLead did not return a persisted CRM account');
   }
 
-  log(`selector empty before create for tenant=${seed.tenantId}`);
+  log(`created lead crmAccount=${createdAccount.crmAccountId}`);
 
-  const createResponse = await services.crm.management.createCustomerAccount(createCreateRequest(seed));
-  const createdAccount = createResponse?.customerAccount;
-  if (!createdAccount?.customerAccountId || !createdAccount?.customerAccountNo) {
-    throw new Error('crm-service smoke failed: CreateCustomerAccount did not return a persisted customer account');
+  const afterCreate = await services.crm.query.listCrmAccounts(createP1ListRequest(seed, 'LEAD'));
+  const afterCreatePage = assertCrmAccountPage(afterCreate, 'post-create P1 account list');
+  const createdLead = afterCreatePage.crmAccounts.find((account) => account?.crmAccountId === createdAccount.crmAccountId);
+  if (!createdLead || createdLead.lifecycleStage !== 'LEAD') {
+    throw new Error('crm-service smoke failed: created Lead did not appear in ListCrmAccounts');
   }
 
-  log(`created customerAccount=${createdAccount.customerAccountId} no=${createdAccount.customerAccountNo}`);
+  log(`listed lead crmAccount=${createdAccount.crmAccountId}`);
 
-  const afterCreate = await services.crm.query.searchSelectableCustomers(createSelectableRequest(seed));
-  const afterCreatePage = assertSelectablePage(afterCreate, 'post-create selector check');
-  if (afterCreatePage.total !== 0 || afterCreatePage.customers.length !== 0) {
-    throw new Error('crm-service smoke failed: unbound customer unexpectedly appeared in SearchSelectableCustomers');
-  }
-
-  log(`selector still empty after create for customerAccount=${createdAccount.customerAccountId}`);
-
-  const registration = services.party?.registration;
-  if (!registration?.registerOrganizationParty) {
-    return {
-      customerAccountId: createdAccount.customerAccountId,
-      customerAccountNo: createdAccount.customerAccountNo,
-      binding: {
-        status: 'skipped',
-        reason: 'party-service unavailable',
-        tenantPartyId: null,
-      },
-      selectableTotals: {
-        beforeCreate: beforeCreatePage.total,
-        afterCreate: afterCreatePage.total,
-        afterBind: null,
-      },
-    };
-  }
-
-  let registerResponse;
-  try {
-    registerResponse = await registration.registerOrganizationParty(createPartyRegistrationRequest(seed));
-  } catch (error) {
-    if (error?.crmSmokeOptionalPartyUnavailable) {
-      return {
-        customerAccountId: createdAccount.customerAccountId,
-        customerAccountNo: createdAccount.customerAccountNo,
-        binding: {
-          status: 'skipped',
-          reason: 'party-service unavailable',
-          tenantPartyId: null,
-        },
-        selectableTotals: {
-          beforeCreate: beforeCreatePage.total,
-          afterCreate: afterCreatePage.total,
-          afterBind: null,
-        },
-      };
-    }
-
-    throw error;
-  }
-
-  const tenantPartyId = registerResponse?.tenantParty?.id;
-  if (!tenantPartyId) {
-    throw new Error('crm-service smoke failed: party registration did not return tenantParty.id');
-  }
-
-  log(`registered tenantParty=${tenantPartyId}`);
-
-  const bindResponse = await services.crm.management.bindCustomerAccountToTenantParty(
-    createBindRequest(seed, createdAccount.customerAccountId, tenantPartyId),
+  const conversionResponse = await services.crm.management.convertLeadToProspectCustomer(
+    createConvertLeadRequest(seed, createdAccount.crmAccountId),
   );
-  const bindingTenantPartyId = bindResponse?.customerAccount?.primaryBinding?.tenantPartyId;
-  if (bindingTenantPartyId !== tenantPartyId) {
-    throw new Error('crm-service smoke failed: BindCustomerAccountToTenantParty did not return the expected active primary binding');
+  if (conversionResponse?.resultType !== 'CONVERTED') {
+    throw new Error(
+      `crm-service smoke failed: ConvertLeadToProspectCustomer returned ${conversionResponse?.resultType || 'EMPTY'}`,
+    );
   }
 
-  log(`bound customerAccount=${createdAccount.customerAccountId} tenantParty=${tenantPartyId}`);
-
-  const afterBind = await services.crm.query.searchSelectableCustomers(createSelectableRequest(seed));
-  const afterBindPage = assertSelectablePage(afterBind, 'post-bind selector check');
-  const boundCustomer = afterBindPage.customers.find((customer) => customer?.customerAccountId === createdAccount.customerAccountId);
-  if (!boundCustomer || boundCustomer.primaryTenantPartyId !== tenantPartyId) {
-    throw new Error('crm-service smoke failed: bound customer did not appear in SearchSelectableCustomers');
+  const convertedAccount = conversionResponse.crmAccount;
+  if (
+    !convertedAccount?.crmAccountId ||
+    convertedAccount.lifecycleStage !== 'PROSPECT_CUSTOMER' ||
+    !convertedAccount.tenantPartyId
+  ) {
+    throw new Error('crm-service smoke failed: conversion did not return a tenant-party-bound prospect customer');
   }
 
-  log(`selector returned bound customerAccount=${createdAccount.customerAccountId}`);
+  log(`formalized crmAccount=${convertedAccount.crmAccountId} tenantParty=${convertedAccount.tenantPartyId}`);
+
+  const afterConvert = await services.crm.query.listCrmAccounts(createP1ListRequest(seed, 'PROSPECT_CUSTOMER'));
+  const afterConvertPage = assertCrmAccountPage(afterConvert, 'post-convert P1 account list');
+  const listedProspect = afterConvertPage.crmAccounts.find(
+    (account) => account?.crmAccountId === convertedAccount.crmAccountId,
+  );
+  if (!listedProspect || listedProspect.tenantPartyId !== convertedAccount.tenantPartyId) {
+    throw new Error('crm-service smoke failed: converted Prospect Customer did not appear in ListCrmAccounts');
+  }
+
+  log(`listed prospect crmAccount=${convertedAccount.crmAccountId}`);
+
+  const detail = await services.crm.query.getCrmAccount(createGetCrmAccountRequest(seed, convertedAccount.crmAccountId));
+  if (detail?.crmAccount?.tenantPartyId !== convertedAccount.tenantPartyId) {
+    throw new Error('crm-service smoke failed: GetCrmAccount did not return the converted account');
+  }
+
+  log(`read prospect detail crmAccount=${convertedAccount.crmAccountId}`);
 
   return {
-    customerAccountId: createdAccount.customerAccountId,
-    customerAccountNo: createdAccount.customerAccountNo,
-    binding: {
-      status: 'bound',
-      reason: null,
-      tenantPartyId,
-    },
-    selectableTotals: {
-      beforeCreate: beforeCreatePage.total,
+    crmAccountId: convertedAccount.crmAccountId,
+    conversionResultType: conversionResponse.resultType,
+    tenantPartyId: convertedAccount.tenantPartyId,
+    listTotals: {
       afterCreate: afterCreatePage.total,
-      afterBind: afterBindPage.total,
+      afterConvert: afterConvertPage.total,
     },
   };
 }
 
-function createSelectableRequest(seed) {
-  return {
-    tenantId: seed.tenantId,
-    operatorContext: seed.operatorContext,
-    traceContext: seed.traceContext,
-    page: 1,
-    pageSize: 20,
-    keyword: seed.displayName,
-  };
-}
-
-function createCreateRequest(seed) {
+function createLeadRequest(seed) {
   return {
     tenantId: seed.tenantId,
     operatorContext: seed.operatorContext,
     traceContext: seed.traceContext,
     auditContext: seed.auditContext,
     displayName: seed.displayName,
-    customerCategory: seed.customerCategory,
-    tags: seed.tags,
-  };
-}
-
-function createPartyRegistrationRequest(seed) {
-  return {
-    tenantId: seed.tenantId,
-    legalName: seed.partyCanonicalName,
-    localDisplayName: seed.partyLocalDisplayName,
-    localCode: seed.partyLocalCode,
-    registeredCountry: seed.partyRegisteredCountry,
-    identifiers: [
+    partyTypeHint: 'ORGANIZATION',
+    leadCompanyName: seed.partyCanonicalName,
+    leadDomain: seed.leadDomain,
+    leadEmail: seed.leadEmail,
+    leadCountry: seed.partyRegisteredCountry,
+    leadIdentifiers: [
       {
         identifierType: seed.partyIdentifierType,
         normalizedValue: seed.partyIdentifierValue,
@@ -177,27 +121,58 @@ function createPartyRegistrationRequest(seed) {
         issuerCountryOrRegion: seed.partyRegisteredCountry,
       },
     ],
+    ownerAccountId: seed.operatorContext.operatorId,
+    priority: seed.leadPriority,
+    duplicateWarningAcknowledged: false,
+    sourceType: seed.leadSourceType,
+    sourceName: 'CRM smoke source',
+    sourceCapturedByAccountId: seed.operatorContext.operatorId,
+    sourceExternalReference: seed.traceContext.requestId,
+    sourceRawPayloadJson: JSON.stringify({ smoke: true }),
+    sourceNote: 'CRM P1 smoke lead',
   };
 }
 
-function createBindRequest(seed, customerAccountId, tenantPartyId) {
+function createP1ListRequest(seed, lifecycleStage) {
+  return {
+    tenantId: seed.tenantId,
+    operatorContext: seed.operatorContext,
+    traceContext: seed.traceContext,
+    keyword: seed.displayName,
+    lifecycleStage,
+    recordStatus: 'ACTIVE',
+    ownerAccountId: seed.operatorContext.operatorId,
+    page: 1,
+    pageSize: 20,
+  };
+}
+
+function createConvertLeadRequest(seed, crmAccountId) {
   return {
     tenantId: seed.tenantId,
     operatorContext: seed.operatorContext,
     traceContext: seed.traceContext,
     auditContext: seed.auditContext,
-    customerAccountId,
-    tenantPartyId,
+    crmAccountId,
   };
 }
 
-function assertSelectablePage(response, step) {
+function createGetCrmAccountRequest(seed, crmAccountId) {
+  return {
+    tenantId: seed.tenantId,
+    operatorContext: seed.operatorContext,
+    traceContext: seed.traceContext,
+    crmAccountId,
+  };
+}
+
+function assertCrmAccountPage(response, step) {
   if (!response || typeof response.total !== 'number' || typeof response.page !== 'number' || typeof response.pageSize !== 'number') {
     throw new Error(`crm-service smoke failed: ${step} did not return the expected page payload`);
   }
 
   return {
-    customers: Array.isArray(response.customers) ? response.customers : [],
+    crmAccounts: Array.isArray(response.crmAccounts) ? response.crmAccounts : [],
     total: response.total,
     page: response.page,
     pageSize: response.pageSize,

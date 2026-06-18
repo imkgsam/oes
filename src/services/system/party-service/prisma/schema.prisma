@@ -13,13 +13,6 @@ enum PartyType {
   ORGANIZATION
 }
 
-enum PartyStatus {
-  ACTIVE
-  INACTIVE
-  MERGED
-  ARCHIVED
-}
-
 enum TenantPartyStatus {
   ACTIVE
   INACTIVE
@@ -32,104 +25,58 @@ enum IdentifierStatus {
   EXPIRED
 }
 
-enum AssertionLevel {
-  DECLARED
-  VERIFIED
-}
-
-enum RelationshipType {
-  SUBSIDIARY_OF
-  BRANCH_OF
-  LEGAL_REPRESENTATIVE_OF
-  SHAREHOLDER_OF
-}
-
-model Party {
-  id                 String              @id @default(uuid()) @db.Uuid
-  type               PartyType
-  status             PartyStatus         @default(ACTIVE)
-  legalName          String              @db.VarChar(255)
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  personParty        PersonParty?
-  organizationParty  OrganizationParty?
-  tenantParties      TenantParty[]
-  identifiers        PartyIdentifier[]
-  registrationIdempotencies PartyRegistrationIdempotency[]
-  relationshipsFrom  PartyRelationship[] @relation("PartyRelationshipFrom")
-  relationshipsTo    PartyRelationship[] @relation("PartyRelationshipTo")
-
-  @@index([type])
-  @@index([status])
-  @@index([legalName])
-}
-
-model PersonParty {
-  id            String   @id @default(uuid()) @db.Uuid
-  partyId       String   @unique @db.Uuid
-  preferredName String?  @db.VarChar(255)
-  dateOfBirth   DateTime? @db.Date
-  gender        String?  @db.VarChar(50)
-  nationality   String?  @db.VarChar(50)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  party Party @relation(fields: [partyId], references: [id], onDelete: Cascade)
-}
-
-model OrganizationParty {
-  id                 String   @id @default(uuid()) @db.Uuid
-  partyId            String   @unique @db.Uuid
-  registeredCountry  String?  @db.VarChar(50)
-  registrationStatus String?  @db.VarChar(50)
-  incorporationDate  DateTime? @db.Date
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-
-  party Party @relation(fields: [partyId], references: [id], onDelete: Cascade)
+enum TenantPartyContactPointType {
+  EMAIL
+  PHONE
+  WHATSAPP
+  DOMAIN
+  WEBSITE
 }
 
 model TenantParty {
-  id               String            @id @default(uuid()) @db.Uuid
-  tenantId         String            @db.VarChar(64)
-  partyId          String            @db.Uuid
-  localDisplayName String?           @db.VarChar(255)
-  localCode        String?           @db.VarChar(100)
-  tags             Json?
-  status           TenantPartyStatus @default(ACTIVE)
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  id                 String            @id @default(uuid()) @db.Uuid
+  tenantId           String            @db.VarChar(64)
+  type               PartyType
+  legalName          String            @db.VarChar(255)
+  displayName        String?           @db.VarChar(255)
+  localCode          String?           @db.VarChar(100)
+  registeredCountry  String?           @db.VarChar(50)
+  tags               Json?
+  status             TenantPartyStatus @default(ACTIVE)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
 
-  party Party @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  identifiers               TenantPartyIdentifier[]
+  contactPoints             TenantPartyContactPoint[]
   registrationIdempotencies PartyRegistrationIdempotency[]
 
-  @@unique([tenantId, partyId])
   @@index([tenantId])
-  @@index([status])
+  @@index([tenantId, type])
+  @@index([tenantId, status])
+  @@index([tenantId, legalName])
 }
 
-model PartyRegistrationIdempotency {
-  id             String   @id @default(uuid()) @db.Uuid
-  idempotencyKey String   @unique @db.VarChar(128)
-  operation      String   @db.VarChar(80)
-  requestHash    String   @db.VarChar(128)
-  partyId        String   @db.Uuid
-  tenantPartyId  String?  @db.Uuid
-  matchResult    String?  @db.VarChar(80)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+model TenantPartyContactPoint {
+  id               String                      @id @default(uuid()) @db.Uuid
+  tenantId         String                      @db.VarChar(64)
+  tenantPartyId    String                      @db.Uuid
+  contactPointType TenantPartyContactPointType
+  normalizedValue  String                      @db.VarChar(255)
+  rawValue         String                      @db.VarChar(255)
+  label            String?                     @db.VarChar(100)
+  createdAt        DateTime                    @default(now())
+  updatedAt        DateTime                    @updatedAt
 
-  party       Party        @relation(fields: [partyId], references: [id], onDelete: Restrict)
-  tenantParty TenantParty? @relation(fields: [tenantPartyId], references: [id], onDelete: SetNull)
+  tenantParty TenantParty @relation(fields: [tenantPartyId], references: [id], onDelete: Cascade)
 
-  @@index([operation])
-  @@index([partyId])
-  @@index([tenantPartyId])
+  @@index([tenantId, contactPointType, normalizedValue])
+  @@index([tenantId, tenantPartyId])
 }
 
-model PartyIdentifier {
+model TenantPartyIdentifier {
   id                    String           @id @default(uuid()) @db.Uuid
-  partyId               String           @db.Uuid
+  tenantId              String           @db.VarChar(64)
+  tenantPartyId         String           @db.Uuid
   identifierType        String           @db.VarChar(100)
   normalizedValue       String           @db.VarChar(255)
   rawValue              String           @db.VarChar(255)
@@ -140,28 +87,24 @@ model PartyIdentifier {
   createdAt             DateTime         @default(now())
   updatedAt             DateTime         @updatedAt
 
-  party Party @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  tenantParty TenantParty @relation(fields: [tenantPartyId], references: [id], onDelete: Cascade)
 
-  @@unique([identifierType, issuerCountryOrRegion, normalizedValue])
-  @@index([partyId])
+  @@unique([tenantId, identifierType, issuerCountryOrRegion, normalizedValue])
+  @@index([tenantId, tenantPartyId])
 }
 
-model PartyRelationship {
-  id             String           @id @default(uuid()) @db.Uuid
-  fromPartyId    String           @db.Uuid
-  toPartyId      String           @db.Uuid
-  relationshipType RelationshipType
-  assertionLevel AssertionLevel   @default(DECLARED)
-  source         String?          @db.VarChar(100)
-  effectiveFrom  DateTime?
-  effectiveTo    DateTime?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+model PartyRegistrationIdempotency {
+  id             String   @id @default(uuid()) @db.Uuid
+  idempotencyKey String   @unique @db.VarChar(128)
+  operation      String   @db.VarChar(80)
+  requestHash    String   @db.VarChar(128)
+  tenantPartyId  String   @db.Uuid
+  matchResult    String?  @db.VarChar(80)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  fromParty Party @relation("PartyRelationshipFrom", fields: [fromPartyId], references: [id], onDelete: Cascade)
-  toParty   Party @relation("PartyRelationshipTo", fields: [toPartyId], references: [id], onDelete: Cascade)
+  tenantParty TenantParty @relation(fields: [tenantPartyId], references: [id], onDelete: Restrict)
 
-  @@index([fromPartyId])
-  @@index([toPartyId])
-  @@index([relationshipType])
+  @@index([operation])
+  @@index([tenantPartyId])
 }

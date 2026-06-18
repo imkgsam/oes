@@ -4,7 +4,6 @@ import { LoggingModule } from '@oes/common/logging'
 import { PrismaModule } from './infrastructure/prisma/prisma.module'
 import { PartyQueryModule } from './modules/party-query/party-query.module'
 import { PartyRegistrationModule } from './modules/party-registration/party-registration.module'
-import { PartyMergeModule } from './modules/party-merge/party-merge.module'
 
 /** AppModule wires party-service modules and enables service-scoped logging metadata. */
 @Module({
@@ -16,8 +15,7 @@ import { PartyMergeModule } from './modules/party-merge/party-merge.module'
     }),
     PrismaModule,
     PartyQueryModule,
-    PartyRegistrationModule,
-    PartyMergeModule
+    PartyRegistrationModule
   ]
 })
 export class AppModule {}

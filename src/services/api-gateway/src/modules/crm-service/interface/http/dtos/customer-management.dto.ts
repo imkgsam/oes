@@ -5,30 +5,74 @@ import {
   IsBoolean,
   IsInt,
   IsNotEmpty,
+  IsObject,
   IsOptional,
   IsString,
   Max,
   Min
 } from 'class-validator'
 
-const CUSTOMER_STATUS_VALUES = ['ACTIVE_CUSTOMER', 'BLOCKED', 'ARCHIVED'] as const
+const CRM_ACCOUNT_LIFECYCLE_STAGE_VALUES = ['LEAD', 'PROSPECT_CUSTOMER', 'CUSTOMER'] as const
+const CRM_ACCOUNT_RECORD_STATUS_VALUES = ['DRAFT', 'ACTIVE', 'ARCHIVED'] as const
+const CRM_ACCOUNT_TYPE_HINT_VALUES = ['UNKNOWN', 'PERSON', 'ORGANIZATION'] as const
+const CRM_PRIORITY_VALUES = ['A', 'B', 'C', 'D'] as const
+const CRM_SOURCE_TYPE_VALUES = [
+  'WEBSITE_FORM',
+  'EXHIBITION_SCAN',
+  'BUSINESS_CARD',
+  'AD_CAMPAIGN',
+  'REFERRAL',
+  'IMPORTED_LIST',
+  'WEB_RESEARCH',
+  'PEER_TRANSFER',
+  'SOCIAL_MEDIA',
+  'OTHER'
+] as const
 
-/** SearchCustomerAccountsDto defines the optional customer directory filters exposed through the CRM BFF. */
-export class SearchCustomerAccountsDto {
+/** CrmLeadIdentifierDto defines one strong identifier evidence value submitted with a CRM lead. */
+export class CrmLeadIdentifierDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  identifierType!: string
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  normalizedValue!: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  rawValue?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  issuerCountryOrRegion?: string
+}
+
+/** ListCrmAccountsDto defines the CRM P1 workspace account filters exposed through the BFF. */
+export class ListCrmAccountsDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   keyword?: string
 
-  @ApiPropertyOptional({ enum: CUSTOMER_STATUS_VALUES })
+  @ApiPropertyOptional({ enum: CRM_ACCOUNT_LIFECYCLE_STAGE_VALUES })
   @IsOptional()
   @IsString()
-  status?: string
+  lifecycleStage?: string
+
+  @ApiPropertyOptional({ enum: CRM_ACCOUNT_RECORD_STATUS_VALUES })
+  @IsOptional()
+  @IsString()
+  recordStatus?: string
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  primaryTenantPartyId?: string
+  ownerAccountId?: string
 
   @ApiPropertyOptional({ minimum: 1 })
   @IsOptional()
@@ -46,174 +90,111 @@ export class SearchCustomerAccountsDto {
   pageSize?: number
 }
 
-/** SearchSelectableCustomersDto defines the optional selector filters exposed through the CRM BFF. */
-export class SearchSelectableCustomersDto {
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  keyword?: string
-
-  @ApiPropertyOptional({ minimum: 1 })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  page?: number
-
-  @ApiPropertyOptional({ minimum: 1, maximum: 100 })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(100)
-  pageSize?: number
-}
-
-/** CreateCustomerAccountDto defines the frozen phase 1 account-shell creation fields accepted by the BFF. */
-export class CreateCustomerAccountDto {
+/** CreateLeadDto defines the CRM P1 lead creation payload accepted by tenant-web. */
+export class CreateLeadDto {
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
   displayName!: string
 
+  @ApiPropertyOptional({ enum: CRM_ACCOUNT_TYPE_HINT_VALUES })
+  @IsOptional()
+  @IsString()
+  partyTypeHint?: string
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  customerCategory?: string
+  leadCompanyName?: string
 
-  @ApiPropertyOptional({ type: [String] })
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  leadPersonName?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  leadDomain?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  leadEmail?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  leadPhone?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  leadWhatsapp?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  leadCountry?: string
+
+  @ApiPropertyOptional({ type: [CrmLeadIdentifierDto] })
   @IsOptional()
   @IsArray()
-  @IsString({ each: true })
-  tags?: string[]
-}
-
-/** UpdateCustomerAccountBasicsDto defines the mutable basics fields for one existing account shell. */
-export class UpdateCustomerAccountBasicsDto {
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  displayName?: string
+  leadIdentifiers?: CrmLeadIdentifierDto[]
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  customerCategory?: string
+  ownerAccountId?: string
 
-  @ApiPropertyOptional({ type: [String] })
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  tags?: string[]
-}
-
-/** BindCustomerAccountToTenantPartyDto defines the single phase 1 primary binding target. */
-export class BindCustomerAccountToTenantPartyDto {
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  tenantPartyId!: string
-}
-
-/** UpsertCustomerContactDto defines the create-or-update payload for one CRM business contact. */
-export class UpsertCustomerContactDto {
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ enum: CRM_PRIORITY_VALUES })
   @IsOptional()
   @IsString()
-  customerContactId?: string
-
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  displayName!: string
+  priority?: string
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  roleTitle?: string
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  email?: string
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  phone?: string
+  nextFollowUpAt?: string
 
   @ApiPropertyOptional()
   @IsOptional()
   @Type(() => Boolean)
   @IsBoolean()
-  isPrimaryContact?: boolean
+  duplicateWarningAcknowledged?: boolean
 
-  @ApiPropertyOptional()
-  @IsOptional()
-  @Type(() => Boolean)
-  @IsBoolean()
-  isActive?: boolean
-}
-
-/** UpsertCustomerAddressDto defines the create-or-update payload for one CRM business address. */
-export class UpsertCustomerAddressDto {
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  customerAddressId?: string
-
-  @ApiProperty()
+  @ApiProperty({ enum: CRM_SOURCE_TYPE_VALUES })
   @IsString()
   @IsNotEmpty()
-  label!: string
-
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  countryCode!: string
+  sourceType!: string
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  region?: string
+  sourceName?: string
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  locality?: string
-
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  addressLine1!: string
+  sourceCapturedAt?: string
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  addressLine2?: string
+  sourceCapturedByAccountId?: string
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  postalCode?: string
+  sourceExternalReference?: string
 
   @ApiPropertyOptional()
   @IsOptional()
-  @Type(() => Boolean)
-  @IsBoolean()
-  isPrimaryAddress?: boolean
+  @IsObject()
+  sourceRawPayload?: Record<string, unknown>
 
   @ApiPropertyOptional()
   @IsOptional()
-  @Type(() => Boolean)
-  @IsBoolean()
-  isActive?: boolean
-}
-
-/** ChangeCustomerStatusDto defines the minimal explicit lifecycle mutation accepted by the BFF. */
-export class ChangeCustomerStatusDto {
-  @ApiProperty({ enum: CUSTOMER_STATUS_VALUES })
   @IsString()
-  @IsNotEmpty()
-  status!: string
+  sourceNote?: string
 }

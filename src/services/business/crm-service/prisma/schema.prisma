@@ -8,95 +8,240 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum CrmCustomerStatus {
-  ACTIVE_CUSTOMER
-  BLOCKED
+enum CrmAccountLifecycleStage {
+  LEAD
+  PROSPECT_CUSTOMER
+  CUSTOMER
+}
+
+enum CrmAccountRecordStatus {
+  DRAFT
+  ACTIVE
   ARCHIVED
 }
 
-enum CrmCustomerPartyBindingStatus {
-  ACTIVE_PRIMARY
+enum CrmAccountTypeHint {
+  UNKNOWN
+  PERSON
+  ORGANIZATION
 }
 
-model CrmSequenceCounter {
-  tenantId               String   @id @db.VarChar(128)
-  nextCustomerAccountNo  Int      @default(1)
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
+enum CrmPriority {
+  A
+  B
+  C
+  D
 }
 
-model CustomerAccount {
-  id                String               @id @db.Uuid
-  customerAccountNo String               @unique @db.VarChar(64)
-  tenantId          String               @db.VarChar(128)
-  displayName       String               @db.VarChar(255)
-  status            CrmCustomerStatus
-  customerCategory  String?              @db.VarChar(128)
-  tags              Json
-  createdAt         DateTime             @default(now())
-  updatedAt         DateTime             @updatedAt
-  primaryBinding    CustomerPartyBinding?
-  contacts          CustomerContact[]
-  addresses         CustomerAddress[]
+enum CrmSourceType {
+  WEBSITE_FORM
+  EXHIBITION_SCAN
+  BUSINESS_CARD
+  ADVERTISEMENT
+  AD_CAMPAIGN
+  REFERRAL
+  IMPORTED_LIST
+  BROWSER_EXTENSION
+  WEB_RESEARCH
+  PEER_TRANSFER
+  SOCIAL_MEDIA
+  COLD_EMAIL
+  CUSTOMER_RECOMMENDATION
+  MANUAL_INPUT
+  OTHER
+}
 
-  @@index([tenantId, status, customerAccountNo])
+enum CrmOpportunityStage {
+  NEW
+  QUALIFYING
+  QUOTING
+  SAMPLE
+  NEGOTIATION
+  WON
+  LOST
+}
+
+enum CrmOpportunityStatus {
+  OPEN
+  WON
+  LOST
+  CANCELLED
+}
+
+enum CrmActivityType {
+  NOTE
+  CALL
+  EMAIL
+  MEETING
+  MESSAGE
+  SOURCE_CAPTURED
+  STATUS_CHANGED
+  OWNER_CHANGED
+  OPPORTUNITY_CREATED
+  OPPORTUNITY_STAGE_CHANGED
+  OPPORTUNITY_CLOSED
+  QUOTE_VIEWED
+  EXTERNAL_EVENT
+  OTHER
+}
+
+enum CrmActivityDirection {
+  INBOUND
+  OUTBOUND
+  INTERNAL
+}
+
+enum CrmActivityCreatedByType {
+  USER
+  SYSTEM
+  INTEGRATION
+}
+
+enum CrmActivityVisibility {
+  INTERNAL
+  TEAM
+  OWNER_ONLY
+}
+
+model CrmAccount {
+  id                String                   @id @db.Uuid
+  tenantId          String                   @db.VarChar(128)
+  tenantPartyId     String?                  @db.VarChar(128)
+  recordStatus      CrmAccountRecordStatus
+  lifecycleStage    CrmAccountLifecycleStage
+  partyTypeHint     CrmAccountTypeHint
+  displayName       String                   @db.VarChar(255)
+  leadCompanyName   String?                  @db.VarChar(255)
+  leadPersonName    String?                  @db.VarChar(255)
+  leadDomain        String?                  @db.VarChar(255)
+  leadEmail         String?                  @db.VarChar(255)
+  leadPhone         String?                  @db.VarChar(64)
+  leadWhatsapp      String?                  @db.VarChar(64)
+  leadCountry       String?                  @db.VarChar(32)
+  leadIdentifiers   Json
+  ownerAccountId    String?                  @db.VarChar(128)
+  priority          CrmPriority
+  lastActivityAt    DateTime?
+  nextFollowUpAt    DateTime?
+  createdBy         String                   @db.VarChar(128)
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+  archivedAt        DateTime?
+  sourceRecords     CrmSourceRecord[]
+  contacts          CrmContact[]
+  activities        CrmActivity[]
+  opportunities     Opportunity[]
+
+  @@index([tenantId, recordStatus, lifecycleStage])
+  @@index([tenantId, ownerAccountId])
   @@index([tenantId, displayName])
-}
-
-model CustomerPartyBinding {
-  id                String                        @id @db.Uuid
-  tenantId          String                        @db.VarChar(128)
-  customerAccountId String                        @unique @db.Uuid
-  tenantPartyId     String                        @db.VarChar(128)
-  bindingStatus     CrmCustomerPartyBindingStatus
-  partyDisplayName  String?                       @db.VarChar(255)
-  createdAt         DateTime                      @default(now())
-  updatedAt         DateTime                      @updatedAt
-
-  customerAccount CustomerAccount @relation(fields: [customerAccountId], references: [id], onDelete: Cascade)
-
   @@index([tenantId, tenantPartyId])
-  @@index([tenantId, bindingStatus])
-  @@unique([tenantId, tenantPartyId])
 }
 
-model CustomerContact {
-  id                String          @id @db.Uuid
-  tenantId          String          @db.VarChar(128)
-  customerAccountId String          @db.Uuid
-  displayName       String          @db.VarChar(255)
-  roleTitle         String?         @db.VarChar(255)
-  email             String?         @db.VarChar(255)
-  phone             String?         @db.VarChar(64)
-  isPrimaryContact  Boolean
-  isActive          Boolean
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+model CrmContact {
+  id                  String        @id @db.Uuid
+  tenantId            String        @db.VarChar(128)
+  crmAccountId        String        @db.Uuid
+  personTenantPartyId String?       @db.VarChar(128)
+  name                String        @db.VarChar(255)
+  title               String?       @db.VarChar(255)
+  department          String?       @db.VarChar(255)
+  email               String?       @db.VarChar(255)
+  phone               String?       @db.VarChar(64)
+  whatsapp            String?       @db.VarChar(64)
+  linkedin            String?       @db.VarChar(255)
+  isPrimary           Boolean
+  note                String?       @db.Text
+  createdBy           String        @db.VarChar(128)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  archivedAt          DateTime?
+  activities          CrmActivity[]
 
-  customerAccount CustomerAccount @relation(fields: [customerAccountId], references: [id], onDelete: Cascade)
+  crmAccount CrmAccount @relation(fields: [crmAccountId], references: [id], onDelete: Cascade)
 
-  @@index([tenantId, customerAccountId, displayName])
+  @@index([tenantId, crmAccountId, archivedAt])
+  @@index([tenantId, email])
+  @@index([tenantId, phone])
 }
 
-model CustomerAddress {
-  id                String          @id @db.Uuid
-  tenantId          String          @db.VarChar(128)
-  customerAccountId String          @db.Uuid
-  label             String          @db.VarChar(128)
-  countryCode       String          @db.VarChar(32)
-  region            String?         @db.VarChar(128)
-  locality          String?         @db.VarChar(128)
-  addressLine1      String          @db.VarChar(255)
-  addressLine2      String?         @db.VarChar(255)
-  postalCode        String?         @db.VarChar(64)
-  isPrimaryAddress  Boolean
-  isActive          Boolean
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+model Opportunity {
+  id                String                 @id @db.Uuid
+  tenantId          String                 @db.VarChar(128)
+  crmAccountId      String                 @db.Uuid
+  ownerAccountId    String                 @db.VarChar(128)
+  name              String                 @db.VarChar(255)
+  stage             CrmOpportunityStage
+  status            CrmOpportunityStatus
+  estimatedAmount   Decimal?               @db.Decimal(18, 2)
+  currency          String                 @db.VarChar(3)
+  expectedCloseDate DateTime?
+  openedAt          DateTime
+  closedAt          DateTime?
+  closeReason       String?                @db.VarChar(255)
+  closeNote         String?                @db.Text
+  createdBy         String                 @db.VarChar(128)
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  activities        CrmActivity[]
 
-  customerAccount CustomerAccount @relation(fields: [customerAccountId], references: [id], onDelete: Cascade)
+  crmAccount CrmAccount @relation(fields: [crmAccountId], references: [id], onDelete: Cascade)
 
-  @@index([tenantId, customerAccountId, label])
+  @@index([tenantId, crmAccountId, status])
+  @@index([tenantId, ownerAccountId, status])
+  @@index([tenantId, stage, status])
+  @@index([tenantId, expectedCloseDate])
+}
+
+model CrmActivity {
+  id                 String                    @id @db.Uuid
+  tenantId           String                    @db.VarChar(128)
+  crmAccountId       String                    @db.Uuid
+  opportunityId      String?                   @db.Uuid
+  contactId          String?                   @db.Uuid
+  activityType       CrmActivityType
+  direction          CrmActivityDirection
+  subject            String                    @db.VarChar(255)
+  content            String?                   @db.Text
+  occurredAt         DateTime
+  createdByAccountId String?                   @db.VarChar(128)
+  createdByType      CrmActivityCreatedByType
+  externalProvider   String?                   @db.VarChar(128)
+  externalReference  String?                   @db.VarChar(255)
+  metadata           Json
+  visibility         CrmActivityVisibility
+  createdAt          DateTime                  @default(now())
+
+  crmAccount  CrmAccount   @relation(fields: [crmAccountId], references: [id], onDelete: Cascade)
+  opportunity Opportunity? @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  contact     CrmContact?  @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, crmAccountId, occurredAt])
+  @@index([tenantId, opportunityId, occurredAt])
+  @@index([tenantId, contactId, occurredAt])
+  @@index([tenantId, activityType, occurredAt])
+}
+
+model CrmSourceRecord {
+  id                  String        @id @db.Uuid
+  tenantId            String        @db.VarChar(128)
+  crmAccountId        String        @db.Uuid
+  sourceType          CrmSourceType
+  sourceName          String?       @db.VarChar(255)
+  capturedAt          DateTime
+  capturedByAccountId String?       @db.VarChar(128)
+  externalReference   String?       @db.VarChar(255)
+  rawPayload          Json?
+  note                String?       @db.Text
+  isPrimary           Boolean
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  crmAccount CrmAccount @relation(fields: [crmAccountId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, crmAccountId, capturedAt])
+  @@index([tenantId, sourceType, capturedAt])
+  @@index([tenantId, externalReference])
 }
 
 model CrmAuditEnvelope {

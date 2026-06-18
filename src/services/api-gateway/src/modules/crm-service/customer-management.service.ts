@@ -1,15 +1,14 @@
 import { ForbiddenException, Injectable } from '@nestjs/common'
 import {
-  CustomerPartyBindingStatus as GrpcCustomerPartyBindingStatus,
-  CustomerStatus as GrpcCustomerStatus,
-  SearchCustomerAccountsResponse,
-  SearchSelectableCustomersResponse
+  ConvertLeadToProspectCustomerResponse,
+  CreateLeadResponse,
+  CrmAccountP1,
+  GetCrmAccountResponse,
+  ListCrmAccountsResponse
 } from '@oes/common/generated/crm_service'
 import { DownstreamRequestSource } from '../../common/grpc/gateway-downstream-source.mapper'
 import { CustomerManagementGrpcAdapter } from './adapters/customer-management-grpc.adapter'
 import { CustomerQueryGrpcAdapter } from './adapters/customer-query-grpc.adapter'
-
-type CustomerStatusValue = 'ACTIVE_CUSTOMER' | 'ARCHIVED' | 'BLOCKED'
 
 @Injectable()
 // Builds the tenant-scoped CRM customer-management BFF model without widening CRM contract ownership boundaries.
@@ -19,253 +18,131 @@ export class CustomerManagementService {
     private readonly customerManagementAdapter: CustomerManagementGrpcAdapter
   ) {}
 
-  /** searchCustomerAccounts returns the paged CRM customer directory needed by the tenant master-data entry. */
-  async searchCustomerAccounts(
+  /** listCrmAccounts returns the paged CRM P1 workspace account model. */
+  async listCrmAccounts(
     tenantId: string,
     query: {
       keyword?: string
+      lifecycleStage?: string
+      ownerAccountId?: string
       page?: number
       pageSize?: number
-      primaryTenantPartyId?: string
-      status?: string
+      recordStatus?: string
     },
     source: DownstreamRequestSource
   ) {
-    const result = await this.customerQueryAdapter.searchCustomerAccounts(
+    const result = await this.customerQueryAdapter.listCrmAccounts(
       {
         tenantId: this.resolveTenantId(tenantId, source),
         keyword: normalize(query.keyword),
-        status: toGrpcCustomerStatus(query.status),
-        primaryTenantPartyId: normalize(query.primaryTenantPartyId),
+        lifecycleStage: normalize(query.lifecycleStage),
+        recordStatus: normalize(query.recordStatus),
+        ownerAccountId: normalize(query.ownerAccountId),
         page: Math.max(query.page ?? 1, 1),
         pageSize: Math.min(Math.max(query.pageSize ?? 20, 1), 100)
       },
       source
     )
 
-    return mapCustomerAccountPage(result)
+    return mapCrmAccountP1Page(result)
   }
 
-  /** searchSelectableCustomers returns the selector-only CRM customer page without turning account ids into Sales truth. */
-  async searchSelectableCustomers(
+  /** getCrmAccount returns one CRM P1 account for the workspace detail panel. */
+  async getCrmAccount(
     tenantId: string,
-    query: {
-      keyword?: string
-      page?: number
-      pageSize?: number
-    },
+    crmAccountId: string,
     source: DownstreamRequestSource
   ) {
-    const result = await this.customerQueryAdapter.searchSelectableCustomers(
+    const result = await this.customerQueryAdapter.getCrmAccount(
       {
         tenantId: this.resolveTenantId(tenantId, source),
-        keyword: normalize(query.keyword),
-        page: Math.max(query.page ?? 1, 1),
-        pageSize: Math.min(Math.max(query.pageSize ?? 20, 1), 100)
+        crmAccountId: requireNonBlank(crmAccountId, 'crmAccountId')
       },
       source
     )
 
-    return mapSelectableCustomerPage(result)
+    return mapCrmAccountP1Detail(result)
   }
 
-  /** getCustomerAccountDetail aggregates one account shell with its contacts and addresses for the phase 1 detail page. */
-  async getCustomerAccountDetail(
-    tenantId: string,
-    customerAccountId: string,
-    source: DownstreamRequestSource
-  ) {
-    const resolvedTenantId = this.resolveTenantId(tenantId, source)
-    const resolvedCustomerAccountId = requireNonBlank(customerAccountId, 'customerAccountId')
-    const [accountResult, contactsResult, addressesResult] = await Promise.all([
-      this.customerQueryAdapter.getCustomerAccount(
-        {
-          tenantId: resolvedTenantId,
-          customerAccountId: resolvedCustomerAccountId
-        },
-        source
-      ),
-      this.customerQueryAdapter.listCustomerContacts(
-        {
-          tenantId: resolvedTenantId,
-          customerAccountId: resolvedCustomerAccountId
-        },
-        source
-      ),
-      this.customerQueryAdapter.listCustomerAddresses(
-        {
-          tenantId: resolvedTenantId,
-          customerAccountId: resolvedCustomerAccountId
-        },
-        source
-      )
-    ])
-
-    return {
-      customerAccount: mapCustomerAccount(accountResult.customerAccount),
-      contacts: (contactsResult.contacts ?? []).map((contact) => mapCustomerContact(contact)),
-      addresses: (addressesResult.addresses ?? []).map((address) => mapCustomerAddress(address))
-    }
-  }
-
-  /** createCustomerAccount creates one CRM customer-account shell without creating Party truth. */
-  async createCustomerAccount(
+  /** createLead creates one active CRM P1 lead with its primary source record. */
+  async createLead(
     tenantId: string,
     input: {
-      customerCategory?: string
       displayName: string
-      tags?: string[]
+      duplicateWarningAcknowledged?: boolean
+      leadCompanyName?: string
+      leadCountry?: string
+      leadDomain?: string
+      leadEmail?: string
+      leadIdentifiers?: Array<{
+        identifierType: string
+        normalizedValue: string
+        rawValue?: string
+        issuerCountryOrRegion?: string
+      }>
+      leadPersonName?: string
+      leadPhone?: string
+      leadWhatsapp?: string
+      nextFollowUpAt?: string
+      ownerAccountId?: string
+      partyTypeHint?: string
+      priority?: string
+      sourceCapturedAt?: string
+      sourceCapturedByAccountId?: string
+      sourceExternalReference?: string
+      sourceName?: string
+      sourceNote?: string
+      sourceRawPayload?: Record<string, unknown>
+      sourceType: string
     },
     source: DownstreamRequestSource
   ) {
-    const result = await this.customerManagementAdapter.createCustomerAccount(
+    const result = await this.customerManagementAdapter.createLead(
       {
         tenantId: this.resolveTenantId(tenantId, source),
         displayName: requireNonBlank(input.displayName, 'displayName'),
-        customerCategory: normalize(input.customerCategory),
-        tags: normalizeStringArray(input.tags)
+        partyTypeHint: normalize(input.partyTypeHint) ?? 'UNKNOWN',
+        leadCompanyName: normalize(input.leadCompanyName),
+        leadPersonName: normalize(input.leadPersonName),
+        leadDomain: normalize(input.leadDomain),
+        leadEmail: normalize(input.leadEmail),
+        leadPhone: normalize(input.leadPhone),
+        leadWhatsapp: normalize(input.leadWhatsapp),
+        leadCountry: normalize(input.leadCountry),
+        leadIdentifiers: normalizeLeadIdentifiers(input.leadIdentifiers),
+        ownerAccountId: normalize(input.ownerAccountId),
+        priority: normalize(input.priority) ?? 'C',
+        nextFollowUpAt: normalize(input.nextFollowUpAt),
+        duplicateWarningAcknowledged: Boolean(input.duplicateWarningAcknowledged),
+        sourceType: requireNonBlank(input.sourceType, 'sourceType'),
+        sourceName: normalize(input.sourceName),
+        sourceCapturedAt: normalize(input.sourceCapturedAt),
+        sourceCapturedByAccountId: normalize(input.sourceCapturedByAccountId),
+        sourceExternalReference: normalize(input.sourceExternalReference),
+        sourceRawPayloadJson: stringifyRawPayload(input.sourceRawPayload),
+        sourceNote: normalize(input.sourceNote)
       },
       source
     )
 
-    return mapCustomerAccount(result.customerAccount)
+    return mapCreateLeadResponse(result)
   }
 
-  /** updateCustomerAccountBasics mutates only the frozen basics fields. */
-  async updateCustomerAccountBasics(
+  /** convertLeadToProspectCustomer formalizes one CRM P1 lead through crm-service and party-service rules. */
+  async convertLeadToProspectCustomer(
     tenantId: string,
-    customerAccountId: string,
-    input: {
-      customerCategory?: string
-      displayName?: string
-      tags?: string[]
-    },
+    crmAccountId: string,
     source: DownstreamRequestSource
   ) {
-    const result = await this.customerManagementAdapter.updateCustomerAccountBasics(
+    const result = await this.customerManagementAdapter.convertLeadToProspectCustomer(
       {
         tenantId: this.resolveTenantId(tenantId, source),
-        customerAccountId: requireNonBlank(customerAccountId, 'customerAccountId'),
-        displayName: normalize(input.displayName),
-        customerCategory: normalize(input.customerCategory),
-        tags: normalizeStringArray(input.tags)
+        crmAccountId: requireNonBlank(crmAccountId, 'crmAccountId')
       },
       source
     )
 
-    return mapCustomerAccount(result.customerAccount)
-  }
-
-  /** bindCustomerAccountToTenantParty establishes the phase 1 active primary tenantPartyId binding. */
-  async bindCustomerAccountToTenantParty(
-    tenantId: string,
-    customerAccountId: string,
-    input: {
-      tenantPartyId: string
-    },
-    source: DownstreamRequestSource
-  ) {
-    const result = await this.customerManagementAdapter.bindCustomerAccountToTenantParty(
-      {
-        tenantId: this.resolveTenantId(tenantId, source),
-        customerAccountId: requireNonBlank(customerAccountId, 'customerAccountId'),
-        tenantPartyId: requireNonBlank(input.tenantPartyId, 'tenantPartyId')
-      },
-      source
-    )
-
-    return mapCustomerAccount(result.customerAccount)
-  }
-
-  /** upsertCustomerContact proxies one CRM business-contact create-or-update command. */
-  async upsertCustomerContact(
-    tenantId: string,
-    customerAccountId: string,
-    input: {
-      customerContactId?: string
-      displayName: string
-      email?: string
-      isActive?: boolean
-      isPrimaryContact?: boolean
-      phone?: string
-      roleTitle?: string
-    },
-    source: DownstreamRequestSource
-  ) {
-    const result = await this.customerManagementAdapter.upsertCustomerContact(
-      {
-        tenantId: this.resolveTenantId(tenantId, source),
-        customerAccountId: requireNonBlank(customerAccountId, 'customerAccountId'),
-        customerContactId: normalize(input.customerContactId),
-        displayName: requireNonBlank(input.displayName, 'displayName'),
-        roleTitle: normalize(input.roleTitle),
-        email: normalize(input.email),
-        phone: normalize(input.phone),
-        isPrimaryContact: input.isPrimaryContact,
-        isActive: input.isActive
-      },
-      source
-    )
-
-    return mapCustomerContact(result.contact)
-  }
-
-  /** upsertCustomerAddress proxies one CRM business-address create-or-update command. */
-  async upsertCustomerAddress(
-    tenantId: string,
-    customerAccountId: string,
-    input: {
-      addressLine1: string
-      addressLine2?: string
-      countryCode: string
-      customerAddressId?: string
-      isActive?: boolean
-      isPrimaryAddress?: boolean
-      label: string
-      locality?: string
-      postalCode?: string
-      region?: string
-    },
-    source: DownstreamRequestSource
-  ) {
-    const result = await this.customerManagementAdapter.upsertCustomerAddress(
-      {
-        tenantId: this.resolveTenantId(tenantId, source),
-        customerAccountId: requireNonBlank(customerAccountId, 'customerAccountId'),
-        customerAddressId: normalize(input.customerAddressId),
-        label: requireNonBlank(input.label, 'label'),
-        countryCode: requireNonBlank(input.countryCode, 'countryCode'),
-        region: normalize(input.region),
-        locality: normalize(input.locality),
-        addressLine1: requireNonBlank(input.addressLine1, 'addressLine1'),
-        addressLine2: normalize(input.addressLine2),
-        postalCode: normalize(input.postalCode),
-        isPrimaryAddress: input.isPrimaryAddress,
-        isActive: input.isActive
-      },
-      source
-    )
-
-    return mapCustomerAddress(result.address)
-  }
-
-  /** changeCustomerStatus proxies one explicit customer lifecycle status change. */
-  async changeCustomerStatus(
-    tenantId: string,
-    customerAccountId: string,
-    input: { status: string },
-    source: DownstreamRequestSource
-  ) {
-    const result = await this.customerManagementAdapter.changeCustomerStatus(
-      {
-        tenantId: this.resolveTenantId(tenantId, source),
-        customerAccountId: requireNonBlank(customerAccountId, 'customerAccountId'),
-        targetStatus: requireGrpcCustomerStatus(input.status)
-      },
-      source
-    )
-
-    return mapCustomerAccount(result.customerAccount)
+    return mapConvertLeadToProspectCustomerResponse(result)
   }
 
   /** resolveTenantId keeps tenant-scoped CRM requests pinned to the operator tenant unless the operator is at system scope. */
@@ -287,127 +164,94 @@ export class CustomerManagementService {
   }
 }
 
-/** mapCustomerAccountPage converts one generated customer directory page into the stable tenant-web BFF shape. */
-function mapCustomerAccountPage(result: SearchCustomerAccountsResponse) {
+/** mapCreateLeadResponse converts one CRM P1 create lead response into tenant-web friendly JSON. */
+function mapCreateLeadResponse(result: CreateLeadResponse) {
   return {
-    customerAccounts: (result.customerAccounts ?? []).map((account) => mapCustomerAccount(account)),
-    total: Number(result.total ?? 0),
-    page: Number(result.page ?? 1),
-    pageSize: Number(result.pageSize ?? 20)
+    resultType: result.resultType ?? '',
+    crmAccount: mapCrmAccountP1(result.crmAccount),
+    duplicateResult: {
+      resultType: result.duplicateResult?.resultType ?? '',
+      candidates: (result.duplicateResult?.candidates ?? []).map((candidate) => ({
+        crmAccountId: candidate.crmAccountId ?? '',
+        tenantId: candidate.tenantId ?? '',
+        displayName: candidate.displayName ?? '',
+        ownerAccountId: candidate.ownerAccountId ?? '',
+        recordStatus: candidate.recordStatus ?? '',
+        lifecycleStage: candidate.lifecycleStage ?? '',
+        matchedFields: normalizeStringArray(candidate.matchedFields),
+        confidence: candidate.confidence ?? ''
+      }))
+    }
   }
 }
 
-/** mapSelectableCustomerPage converts one generated selector page into the stable tenant-web BFF shape. */
-function mapSelectableCustomerPage(result: SearchSelectableCustomersResponse) {
+/** mapConvertLeadToProspectCustomerResponse converts one CRM P1 formalization response into tenant-web friendly JSON. */
+function mapConvertLeadToProspectCustomerResponse(result: ConvertLeadToProspectCustomerResponse) {
   return {
-    customers: (result.customers ?? []).map((customer) => ({
-      customerAccountId: customer.customerAccountId ?? '',
-      customerAccountNo: customer.customerAccountNo ?? '',
-      displayName: customer.displayName ?? '',
-      status: fromGrpcCustomerStatus(customer.status),
-      primaryTenantPartyId: customer.primaryTenantPartyId ?? '',
-      primaryPartyDisplayName: customer.primaryPartyDisplayName ?? ''
+    resultType: result.resultType ?? '',
+    crmAccount: mapCrmAccountP1(result.crmAccount),
+    candidates: (result.candidates ?? []).map((candidate) => ({
+      tenantPartyId: candidate.tenantPartyId ?? '',
+      displayName: candidate.displayName ?? '',
+      confidence: Number(candidate.confidence ?? 0),
+      matchedFields: normalizeStringArray(candidate.matchedFields),
+      conflictFlags: normalizeStringArray(candidate.conflictFlags)
     })),
+    existingCrmAccountId: result.existingCrmAccountId ?? ''
+  }
+}
+
+/** mapCrmAccountP1Page converts one generated CRM P1 workspace page into BFF JSON. */
+function mapCrmAccountP1Page(result: ListCrmAccountsResponse) {
+  return {
+    crmAccounts: (result.crmAccounts ?? []).map((account) => mapCrmAccountP1(account)),
     total: Number(result.total ?? 0),
     page: Number(result.page ?? 1),
     pageSize: Number(result.pageSize ?? 20)
   }
 }
 
-/** mapCustomerAccount flattens one generated CRM customer account read model into the tenant-web detail shape. */
-function mapCustomerAccount(account?: any) {
+/** mapCrmAccountP1Detail converts one generated CRM P1 detail response into BFF JSON. */
+function mapCrmAccountP1Detail(result: GetCrmAccountResponse) {
+  return mapCrmAccountP1(result.crmAccount)
+}
+
+/** mapCrmAccountP1 flattens one CRM P1 account generated payload into BFF JSON. */
+function mapCrmAccountP1(account?: CrmAccountP1) {
+  if (!account) {
+    return null
+  }
+
   return {
-    customerAccountId: account?.customerAccountId ?? '',
-    customerAccountNo: account?.customerAccountNo ?? '',
-    tenantId: account?.tenantId ?? '',
-    displayName: account?.displayName ?? '',
-    status: fromGrpcCustomerStatus(account?.status),
-    customerCategory: normalize(account?.customerCategory) ?? '',
-    tags: normalizeStringArray(account?.tags),
-    primaryBinding: account?.primaryBinding
-      ? {
-          customerPartyBindingId: account.primaryBinding.customerPartyBindingId ?? '',
-          tenantPartyId: account.primaryBinding.tenantPartyId ?? '',
-          bindingStatus: fromGrpcBindingStatus(account.primaryBinding.bindingStatus),
-          partyDisplayName: account.primaryBinding.partyDisplayName ?? ''
-        }
-      : undefined
+    crmAccountId: account.crmAccountId ?? '',
+    tenantId: account.tenantId ?? '',
+    tenantPartyId: account.tenantPartyId ?? '',
+    recordStatus: account.recordStatus ?? '',
+    lifecycleStage: account.lifecycleStage ?? '',
+    partyTypeHint: account.partyTypeHint ?? '',
+    displayName: account.displayName ?? '',
+    leadCompanyName: account.leadCompanyName ?? '',
+    leadPersonName: account.leadPersonName ?? '',
+    leadDomain: account.leadDomain ?? '',
+    leadEmail: account.leadEmail ?? '',
+    leadPhone: account.leadPhone ?? '',
+    leadWhatsapp: account.leadWhatsapp ?? '',
+    leadCountry: account.leadCountry ?? '',
+    leadIdentifiers: (account.leadIdentifiers ?? []).map((identifier) => ({
+      identifierType: identifier.identifierType ?? '',
+      normalizedValue: identifier.normalizedValue ?? '',
+      rawValue: identifier.rawValue ?? '',
+      issuerCountryOrRegion: identifier.issuerCountryOrRegion ?? ''
+    })),
+    ownerAccountId: account.ownerAccountId ?? '',
+    priority: account.priority ?? '',
+    lastActivityAt: account.lastActivityAt ?? '',
+    nextFollowUpAt: account.nextFollowUpAt ?? '',
+    createdBy: account.createdBy ?? '',
+    createdAt: account.createdAt ?? '',
+    updatedAt: account.updatedAt ?? '',
+    archivedAt: account.archivedAt ?? ''
   }
-}
-
-/** mapCustomerContact flattens one generated CRM contact read model into the tenant-web detail shape. */
-function mapCustomerContact(contact?: any) {
-  return {
-    customerContactId: contact?.customerContactId ?? '',
-    customerAccountId: contact?.customerAccountId ?? '',
-    displayName: contact?.displayName ?? '',
-    roleTitle: contact?.roleTitle ?? '',
-    email: contact?.email ?? '',
-    phone: contact?.phone ?? '',
-    isPrimaryContact: Boolean(contact?.isPrimaryContact),
-    isActive: contact?.isActive ?? true
-  }
-}
-
-/** mapCustomerAddress flattens one generated CRM address read model into the tenant-web detail shape. */
-function mapCustomerAddress(address?: any) {
-  return {
-    customerAddressId: address?.customerAddressId ?? '',
-    customerAccountId: address?.customerAccountId ?? '',
-    label: address?.label ?? '',
-    countryCode: address?.countryCode ?? '',
-    region: address?.region ?? '',
-    locality: address?.locality ?? '',
-    addressLine1: address?.addressLine1 ?? '',
-    addressLine2: address?.addressLine2 ?? '',
-    postalCode: address?.postalCode ?? '',
-    isPrimaryAddress: Boolean(address?.isPrimaryAddress),
-    isActive: address?.isActive ?? true
-  }
-}
-
-/** fromGrpcCustomerStatus maps the generated CRM enum into the stable tenant-web/customer-management string union. */
-function fromGrpcCustomerStatus(value?: GrpcCustomerStatus): CustomerStatusValue {
-  if (value === GrpcCustomerStatus.CUSTOMER_STATUS_BLOCKED) {
-    return 'BLOCKED'
-  }
-  if (value === GrpcCustomerStatus.CUSTOMER_STATUS_ARCHIVED) {
-    return 'ARCHIVED'
-  }
-  return 'ACTIVE_CUSTOMER'
-}
-
-/** toGrpcCustomerStatus maps optional list filters into the generated CRM enum. */
-function toGrpcCustomerStatus(value?: string): GrpcCustomerStatus | undefined {
-  if (!value) {
-    return undefined
-  }
-  return requireGrpcCustomerStatus(value)
-}
-
-/** requireGrpcCustomerStatus maps a required status input into the generated CRM enum. */
-function requireGrpcCustomerStatus(value?: string): GrpcCustomerStatus {
-  if (value === 'BLOCKED') {
-    return GrpcCustomerStatus.CUSTOMER_STATUS_BLOCKED
-  }
-  if (value === 'ARCHIVED') {
-    return GrpcCustomerStatus.CUSTOMER_STATUS_ARCHIVED
-  }
-  return GrpcCustomerStatus.CUSTOMER_STATUS_ACTIVE_CUSTOMER
-}
-
-/** fromGrpcBindingStatus maps the generated CRM binding enum into the stable tenant-web binding string union. */
-function fromGrpcBindingStatus(
-  value?: GrpcCustomerPartyBindingStatus
-): 'ACTIVE_PRIMARY' | undefined {
-  if (
-    value ===
-    GrpcCustomerPartyBindingStatus.CUSTOMER_PARTY_BINDING_STATUS_ACTIVE_PRIMARY
-  ) {
-    return 'ACTIVE_PRIMARY'
-  }
-
-  return undefined
 }
 
 /** requireNonBlank trims one required string input and rejects blank values before they reach the downstream contract. */
@@ -433,4 +277,36 @@ function normalizeStringArray(values?: string[]): string[] {
   }
 
   return values.map((value) => value.trim()).filter(Boolean)
+}
+
+/** normalizeLeadIdentifiers trims CRM lead identifier inputs before they cross the BFF boundary. */
+function normalizeLeadIdentifiers(
+  values?: Array<{
+    identifierType: string
+    normalizedValue: string
+    rawValue?: string
+    issuerCountryOrRegion?: string
+  }>
+) {
+  if (!Array.isArray(values)) {
+    return []
+  }
+
+  return values
+    .map((value) => ({
+      identifierType: normalize(value.identifierType) ?? '',
+      normalizedValue: normalize(value.normalizedValue) ?? '',
+      rawValue: normalize(value.rawValue),
+      issuerCountryOrRegion: normalize(value.issuerCountryOrRegion)
+    }))
+    .filter((value) => value.identifierType && value.normalizedValue)
+}
+
+/** stringifyRawPayload serializes optional source payloads for the CRM gRPC contract. */
+function stringifyRawPayload(value?: Record<string, unknown>): string | undefined {
+  if (!value) {
+    return undefined
+  }
+
+  return JSON.stringify(value)
 }

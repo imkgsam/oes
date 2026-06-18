@@ -2,31 +2,22 @@ import { Controller, UseFilters } from '@nestjs/common'
 import { ValidatingCommandBus } from '@oes/common/cqrs'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
-  BindCustomerAccountToTenantPartyRequest,
-  BindCustomerAccountToTenantPartyResponse,
-  ChangeCustomerStatusRequest,
-  ChangeCustomerStatusResponse,
-  CreateCustomerAccountRequest,
-  CreateCustomerAccountResponse,
+  ConvertLeadToProspectCustomerRequest,
+  ConvertLeadToProspectCustomerResponse,
+  CreateLeadRequest,
+  CreateLeadResponse,
   CustomerManagementServiceController,
   CustomerManagementServiceControllerMethods,
-  CustomerStatus as ProtoCustomerStatus,
-  UpdateCustomerAccountBasicsRequest,
-  UpdateCustomerAccountBasicsResponse,
-  UpsertCustomerAddressRequest,
-  UpsertCustomerAddressResponse,
-  UpsertCustomerContactRequest,
-  UpsertCustomerContactResponse
 } from '@oes/common/generated/crm_service'
-import { BindCustomerAccountToTenantPartyCommand } from '../../application/commands/bind-customer-account-to-tenant-party.command'
-import { ChangeCustomerStatusCommand } from '../../application/commands/change-customer-status.command'
-import { CreateCustomerAccountCommand } from '../../application/commands/create-customer-account.command'
-import { UpdateCustomerAccountBasicsCommand } from '../../application/commands/update-customer-account-basics.command'
-import { UpsertCustomerAddressCommand } from '../../application/commands/upsert-customer-address.command'
-import { UpsertCustomerContactCommand } from '../../application/commands/upsert-customer-contact.command'
+import { ConvertLeadToProspectCustomerCommand } from '../../application/commands/convert-lead-to-prospect-customer.command'
+import { CreateLeadCommand } from '../../application/commands/create-lead.command'
 import { CrmAuditService } from '../../application/services/crm-audit.service'
 import { normalizeOptionalString } from '../../application/support/crm-assertions'
-import { CustomerStatus } from '../../domain/models/crm-records'
+import {
+  CrmAccountTypeHint,
+  CrmPriority,
+  CrmSourceType
+} from '../../domain/models/crm-records'
 import { CustomerGrpcPresenter } from './customer-grpc.presenter'
 import { CustomerRpcContextValidator } from './customer-rpc-context.validator'
 
@@ -40,7 +31,7 @@ export class CustomerManagementGrpcController implements CustomerManagementServi
     private readonly auditService: CrmAuditService
   ) {}
 
-  async createCustomerAccount(request: CreateCustomerAccountRequest): Promise<CreateCustomerAccountResponse> {
+  async createLead(request: CreateLeadRequest): Promise<CreateLeadResponse> {
     const context = CustomerRpcContextValidator.assertManagementContext(request)
     return this.auditService.recordCommand(
       {
@@ -48,32 +39,58 @@ export class CustomerManagementGrpcController implements CustomerManagementServi
         operatorContext: context.operatorContext,
         traceContext: context.traceContext,
         auditContext: context.auditContext,
-        commandName: 'CreateCustomerAccount',
-        resourceType: 'customer_account',
+        commandName: 'CreateLead',
+        resourceType: 'crm_account',
         targetId: null,
         requestSummary: {
           displayName: request.displayName ?? '',
-          tagCount: request.tags?.length ?? 0
+          sourceType: request.sourceType ?? ''
         }
       },
       async () => {
-        const account = await this.commandBus.execute(
-          new CreateCustomerAccountCommand({
+        const result = await this.commandBus.execute(
+          new CreateLeadCommand({
             tenantId: request.tenantId ?? '',
+            operatorAccountId: context.operatorContext.operatorId,
             displayName: request.displayName ?? '',
-            customerCategory: normalizeOptionalString(request.customerCategory),
-            tags: request.tags ?? []
+            partyTypeHint: toCrmAccountTypeHint(request.partyTypeHint),
+            leadCompanyName: normalizeOptionalString(request.leadCompanyName),
+            leadPersonName: normalizeOptionalString(request.leadPersonName),
+            leadDomain: normalizeOptionalString(request.leadDomain),
+            leadEmail: normalizeOptionalString(request.leadEmail),
+            leadPhone: normalizeOptionalString(request.leadPhone),
+            leadWhatsapp: normalizeOptionalString(request.leadWhatsapp),
+            leadCountry: normalizeOptionalString(request.leadCountry),
+            leadIdentifiers: (request.leadIdentifiers ?? []).map((identifier) => ({
+              identifierType: identifier.identifierType ?? '',
+              normalizedValue: identifier.normalizedValue ?? '',
+              rawValue: normalizeOptionalString(identifier.rawValue),
+              issuerCountryOrRegion: normalizeOptionalString(identifier.issuerCountryOrRegion)
+            })),
+            ownerAccountId: normalizeOptionalString(request.ownerAccountId),
+            priority: toCrmPriority(request.priority),
+            nextFollowUpAt: parseOptionalDate(request.nextFollowUpAt),
+            duplicateWarningAcknowledged: request.duplicateWarningAcknowledged ?? false,
+            source: {
+              sourceType: toCrmSourceType(request.sourceType),
+              sourceName: normalizeOptionalString(request.sourceName),
+              capturedAt: parseOptionalDate(request.sourceCapturedAt),
+              capturedByAccountId: normalizeOptionalString(request.sourceCapturedByAccountId),
+              externalReference: normalizeOptionalString(request.sourceExternalReference),
+              rawPayload: parseRawPayload(request.sourceRawPayloadJson),
+              note: normalizeOptionalString(request.sourceNote)
+            }
           })
         )
 
-        return CustomerGrpcPresenter.toCreateCustomerAccountResponse(account)
+        return CustomerGrpcPresenter.toCreateLeadResponse(result)
       }
     )
   }
 
-  async updateCustomerAccountBasics(
-    request: UpdateCustomerAccountBasicsRequest
-  ): Promise<UpdateCustomerAccountBasicsResponse> {
+  async convertLeadToProspectCustomer(
+    request: ConvertLeadToProspectCustomerRequest
+  ): Promise<ConvertLeadToProspectCustomerResponse> {
     const context = CustomerRpcContextValidator.assertManagementContext(request)
     return this.auditService.recordCommand(
       {
@@ -81,177 +98,73 @@ export class CustomerManagementGrpcController implements CustomerManagementServi
         operatorContext: context.operatorContext,
         traceContext: context.traceContext,
         auditContext: context.auditContext,
-        commandName: 'UpdateCustomerAccountBasics',
-        resourceType: 'customer_account',
-        targetId: request.customerAccountId ?? null,
+        commandName: 'ConvertLeadToProspectCustomer',
+        resourceType: 'crm_account',
+        targetId: request.crmAccountId ?? null,
         requestSummary: {
-          customerAccountId: request.customerAccountId ?? ''
+          crmAccountId: request.crmAccountId ?? ''
         }
       },
       async () => {
-        const account = await this.commandBus.execute(
-          new UpdateCustomerAccountBasicsCommand({
+        const result = await this.commandBus.execute(
+          new ConvertLeadToProspectCustomerCommand({
             tenantId: request.tenantId ?? '',
-            customerAccountId: request.customerAccountId ?? '',
-            displayName: normalizeOptionalString(request.displayName),
-            customerCategory:
-              request.customerCategory !== undefined
-                ? normalizeOptionalString(request.customerCategory) ?? ''
-                : undefined,
-            tags: request.tags
+            crmAccountId: request.crmAccountId ?? '',
+            operatorAccountId: context.operatorContext.operatorId
           })
         )
 
-        return CustomerGrpcPresenter.toUpdateCustomerAccountBasicsResponse(account)
-      }
-    )
-  }
-
-  async bindCustomerAccountToTenantParty(
-    request: BindCustomerAccountToTenantPartyRequest
-  ): Promise<BindCustomerAccountToTenantPartyResponse> {
-    const context = CustomerRpcContextValidator.assertManagementContext(request)
-    return this.auditService.recordCommand(
-      {
-        tenantId: context.tenantId,
-        operatorContext: context.operatorContext,
-        traceContext: context.traceContext,
-        auditContext: context.auditContext,
-        commandName: 'BindCustomerAccountToTenantParty',
-        resourceType: 'customer_party_binding',
-        targetId: request.customerAccountId ?? null,
-        requestSummary: {
-          customerAccountId: request.customerAccountId ?? '',
-          tenantPartyId: request.tenantPartyId ?? ''
-        }
-      },
-      async () => {
-        const account = await this.commandBus.execute(
-          new BindCustomerAccountToTenantPartyCommand({
-            tenantId: request.tenantId ?? '',
-            customerAccountId: request.customerAccountId ?? '',
-            tenantPartyId: request.tenantPartyId ?? ''
-          })
-        )
-
-        return CustomerGrpcPresenter.toBindCustomerAccountToTenantPartyResponse(account)
-      }
-    )
-  }
-
-  async upsertCustomerContact(request: UpsertCustomerContactRequest): Promise<UpsertCustomerContactResponse> {
-    const context = CustomerRpcContextValidator.assertManagementContext(request)
-    return this.auditService.recordCommand(
-      {
-        tenantId: context.tenantId,
-        operatorContext: context.operatorContext,
-        traceContext: context.traceContext,
-        auditContext: context.auditContext,
-        commandName: 'UpsertCustomerContact',
-        resourceType: 'customer_contact',
-        targetId: request.customerContactId ?? request.customerAccountId ?? null,
-        requestSummary: {
-          customerAccountId: request.customerAccountId ?? '',
-          customerContactId: request.customerContactId ?? ''
-        }
-      },
-      async () => {
-        const contact = await this.commandBus.execute(
-          new UpsertCustomerContactCommand({
-            tenantId: request.tenantId ?? '',
-            customerAccountId: request.customerAccountId ?? '',
-            customerContactId: normalizeOptionalString(request.customerContactId),
-            displayName: request.displayName ?? '',
-            roleTitle: normalizeOptionalString(request.roleTitle),
-            email: normalizeOptionalString(request.email),
-            phone: normalizeOptionalString(request.phone),
-            isPrimaryContact: request.isPrimaryContact,
-            isActive: request.isActive
-          })
-        )
-
-        return CustomerGrpcPresenter.toUpsertCustomerContactResponse(contact)
-      }
-    )
-  }
-
-  async upsertCustomerAddress(request: UpsertCustomerAddressRequest): Promise<UpsertCustomerAddressResponse> {
-    const context = CustomerRpcContextValidator.assertManagementContext(request)
-    return this.auditService.recordCommand(
-      {
-        tenantId: context.tenantId,
-        operatorContext: context.operatorContext,
-        traceContext: context.traceContext,
-        auditContext: context.auditContext,
-        commandName: 'UpsertCustomerAddress',
-        resourceType: 'customer_address',
-        targetId: request.customerAddressId ?? request.customerAccountId ?? null,
-        requestSummary: {
-          customerAccountId: request.customerAccountId ?? '',
-          customerAddressId: request.customerAddressId ?? ''
-        }
-      },
-      async () => {
-        const address = await this.commandBus.execute(
-          new UpsertCustomerAddressCommand({
-            tenantId: request.tenantId ?? '',
-            customerAccountId: request.customerAccountId ?? '',
-            customerAddressId: normalizeOptionalString(request.customerAddressId),
-            label: request.label ?? '',
-            countryCode: request.countryCode ?? '',
-            region: normalizeOptionalString(request.region),
-            locality: normalizeOptionalString(request.locality),
-            addressLine1: request.addressLine1 ?? '',
-            addressLine2: normalizeOptionalString(request.addressLine2),
-            postalCode: normalizeOptionalString(request.postalCode),
-            isPrimaryAddress: request.isPrimaryAddress,
-            isActive: request.isActive
-          })
-        )
-
-        return CustomerGrpcPresenter.toUpsertCustomerAddressResponse(address)
-      }
-    )
-  }
-
-  async changeCustomerStatus(request: ChangeCustomerStatusRequest): Promise<ChangeCustomerStatusResponse> {
-    const context = CustomerRpcContextValidator.assertManagementContext(request)
-    return this.auditService.recordCommand(
-      {
-        tenantId: context.tenantId,
-        operatorContext: context.operatorContext,
-        traceContext: context.traceContext,
-        auditContext: context.auditContext,
-        commandName: 'ChangeCustomerStatus',
-        resourceType: 'customer_account',
-        targetId: request.customerAccountId ?? null,
-        requestSummary: {
-          customerAccountId: request.customerAccountId ?? '',
-          targetStatus: request.targetStatus ?? 0
-        }
-      },
-      async () => {
-        const account = await this.commandBus.execute(
-          new ChangeCustomerStatusCommand({
-            tenantId: request.tenantId ?? '',
-            customerAccountId: request.customerAccountId ?? '',
-            targetStatus: toDomainCustomerStatus(request.targetStatus)
-          })
-        )
-
-        return CustomerGrpcPresenter.toChangeCustomerStatusResponse(account)
+        return CustomerGrpcPresenter.toConvertLeadToProspectCustomerResponse(result)
       }
     )
   }
 }
 
-/** toDomainCustomerStatus maps the generated CRM status enum into the frozen domain status set. */
-function toDomainCustomerStatus(value?: ProtoCustomerStatus): CustomerStatus {
-  if (value === ProtoCustomerStatus.CUSTOMER_STATUS_BLOCKED) {
-    return CustomerStatus.BLOCKED
+/** toCrmAccountTypeHint maps one P1 string request value into the domain type hint enum. */
+function toCrmAccountTypeHint(value?: string): CrmAccountTypeHint {
+  if (value === CrmAccountTypeHint.PERSON) {
+    return CrmAccountTypeHint.PERSON
   }
-  if (value === ProtoCustomerStatus.CUSTOMER_STATUS_ARCHIVED) {
-    return CustomerStatus.ARCHIVED
+  if (value === CrmAccountTypeHint.ORGANIZATION) {
+    return CrmAccountTypeHint.ORGANIZATION
   }
-  return CustomerStatus.ACTIVE_CUSTOMER
+  return CrmAccountTypeHint.UNKNOWN
+}
+
+/** toCrmPriority maps one P1 string request value into the domain priority enum. */
+function toCrmPriority(value?: string): CrmPriority {
+  if (value === CrmPriority.A || value === CrmPriority.B || value === CrmPriority.C || value === CrmPriority.D) {
+    return value
+  }
+  return CrmPriority.C
+}
+
+/** toCrmSourceType maps one P1 string request value into a known CRM source type. */
+function toCrmSourceType(value?: string): CrmSourceType {
+  return Object.values(CrmSourceType).includes(value as CrmSourceType)
+    ? (value as CrmSourceType)
+    : CrmSourceType.OTHER
+}
+
+/** parseOptionalDate converts optional ISO date strings into Date values for application commands. */
+function parseOptionalDate(value?: string): Date | null {
+  if (!value?.trim()) {
+    return null
+  }
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+/** parseRawPayload parses source raw payload JSON while preserving malformed payloads for traceability. */
+function parseRawPayload(value?: string): Record<string, unknown> | null {
+  if (!value?.trim()) {
+    return null
+  }
+
+  try {
+    const parsed = JSON.parse(value)
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : { value: parsed }
+  } catch {
+    return { raw: value }
+  }
 }

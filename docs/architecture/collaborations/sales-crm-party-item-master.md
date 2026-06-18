@@ -1,8 +1,14 @@
 # Sales、CRM、Party 与 Item Master 协同蓝图
 
-Last Updated: 2026-05-22
+Last Updated: 2026-06-10
 
 > `crm-service` 的服务职责、核心对象、owner 边界与长期命名以 [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md) 为唯一稳定真相源。本文只描述 `sales-service`、`crm-service`、`party-service` 与 `item-master-service` 的跨服务协同，不重新定义 CRM 服务内部设计。
+
+## Status Note 2026-06-10
+
+CRM v2 已原地替代旧 customer master phase 1 设计。CRM v2 Phase 1 只冻结核心对象模型，不冻结报价、订单、发票或 Sales selector 边界。
+
+因此，本文中围绕旧 `CustomerAccount / CustomerAddressUsage / CustomerContactUsage / CustomerTaxProfile / Customer Selector` 的销售协同规则只作为旧实现和后续重写参考；新的 Sales / CRM 协同必须在独立 feature 中基于 [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md) 与 [crm-v2-core-object-model.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/crm-v2-core-object-model.md) 重新冻结。
 
 ## 1. 目标
 
@@ -26,7 +32,7 @@ Item Master 概念以以下文件为唯一真相源：
 - `crm-service`
   - 负责 `CustomerAccount`、`CustomerAddressUsage`、`CustomerContactUsage`、`CustomerTaxProfile` 与销售前置交互过程。
 - `party-service`
-  - 负责交易 / 法律主体相关事实；核心对象、地址 / 联系人正文与 owner 边界以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准。
+  - 负责当前租户内 `TenantParty` 主体事实；核心对象、地址 / 联系人正文与 owner 边界以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准。
 - `item-master-service`
   - 负责 `ItemModel`、`Item`、attribute、BOM、Packaging、`ItemCategory` 与 `SupplierItemMapping` 真相。
 
@@ -35,12 +41,12 @@ Item Master 概念以以下文件为唯一真相源：
 ### 4.1 CRM CustomerAccount 与 Party 的边界
 
 - `CustomerAccount` 是客户关系外壳，不等于 `party-service` 的主体主数据。
-- `party-service` 回答“这个交易 / 法律主体是谁”；`crm-service` 回答“这个主体在销售关系里处于什么客户状态”。
+- `party-service` 回答“当前租户内这个交易 / 法律主体是谁”；`crm-service` 回答“这个主体在销售关系里处于什么客户状态”。
 - `CustomerAccount` 直接引用 `tenantPartyId`；该绑定目标真相仍归 `party-service`。
 - phase 1 一条 `CustomerAccount` 只有一个 `tenantPartyId`。
 - 同一 `tenantId + tenantPartyId` 最多对应一个 active `CustomerAccount`。
-- 创建客户时必须先通过 `party-service` resolve / create 主体事实与租户主体引用；强标识命中与复用规则以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准。
-- `Party Selector` 只用于主体去重 / 复用；`Customer Selector` 只返回可被销售采用的 `CustomerAccount`。
+- 创建客户时必须先通过 `party-service` 在当前租户内 register / select `TenantParty`；identifier 复用规则以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准。
+- `TenantParty Selector` 只用于当前租户内主体选择；`Customer Selector` 只返回可被销售采用的 `CustomerAccount`。
 - 明确禁止把 Party 主体字段复制成 CRM 真相；CRM 只保存关系语义、绑定关系和必要摘要。
 
 ### 4.2 Sales 与 CRM 的 customer selector 边界
@@ -125,9 +131,9 @@ Item Master 概念以以下文件为唯一真相源：
 ## 7. 明确禁止
 
 - 不让 `sales-service` 接管 opportunity 真相或 Party 主数据真相。
-- 不让 Sales 长期绕过 CRM selector 直接把 Party 当成 customer entry。
+- 不让 Sales 长期绕过 CRM selector 直接把 TenantParty 当成 customer entry。
 - 不把 Party 主体信息复制成 CRM customer truth。
-- 不让 Sales 直接把 Party selector 当成 Customer selector。
+- 不让 Sales 直接把 TenantParty selector 当成 Customer selector。
 - 不把 CRM/SRM 第一阶段实现阻塞在 payment account / bank account 设计上。
 - 不让 `item-master-service` 承载客户自己的 SKU / 型号目录。
 - 不让报价下载、预览、打印隐式生成 `QuoteVersion`。
