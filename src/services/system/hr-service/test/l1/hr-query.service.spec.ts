@@ -51,7 +51,6 @@ describe('HrQueryService L1', () => {
       id: 'employee-1',
       tenantId: 'tenant-1',
       tenantPartyId: 'tenant-party-1',
-      partyId: 'party-1',
       employeeCode: '0001',
       lifecycleStatus: EmployeeLifecycleStatus.ACTIVE
     })
@@ -77,7 +76,6 @@ describe('HrQueryService L1', () => {
         id: 'employee-1',
         tenantId: 'tenant-1',
         tenantPartyId: 'tenant-party-1',
-        partyId: 'party-1',
         employeeCode: 'EMP-0AF-0001',
         lifecycleStatus: EmployeeLifecycleStatus.ACTIVE
       },
@@ -109,7 +107,6 @@ describe('HrQueryService L1', () => {
       id: 'employee-1',
       tenantId: 'tenant-1',
       tenantPartyId: 'tenant-party-1',
-      partyId: 'party-1',
       employeeCode: '0001',
       lifecycleStatus: EmployeeLifecycleStatus.OFFBOARDED
     })
@@ -131,7 +128,6 @@ describe('HrQueryService L1', () => {
       id: 'employee-1',
       tenantId: 'tenant-1',
       tenantPartyId: 'tenant-party-1',
-      partyId: 'party-1',
       employeeCode: '0001',
       lifecycleStatus: EmployeeLifecycleStatus.ACTIVE
     })
@@ -155,9 +151,10 @@ describe('HrQueryService L1', () => {
           id: 'employee-1',
           tenantId: 'tenant-1',
           tenantPartyId: 'tenant-party-1',
-          partyId: 'party-1',
           employeeCode: '0001',
-          lifecycleStatus: EmployeeLifecycleStatus.ACTIVE
+          lifecycleStatus: EmployeeLifecycleStatus.ACTIVE,
+          officialPhotoAssetId: 'asset-1',
+          officialPhotoUrl: 'https://assets.example.com/photo.webp'
         }
       ],
       page: 2,
@@ -180,9 +177,10 @@ describe('HrQueryService L1', () => {
           id: 'employee-1',
           tenantId: 'tenant-1',
           tenantPartyId: 'tenant-party-1',
-          partyId: 'party-1',
           employeeCode: 'EMP-0AF-0001',
-          lifecycleStatus: EmployeeLifecycleStatus.ACTIVE
+          lifecycleStatus: EmployeeLifecycleStatus.ACTIVE,
+          officialPhotoAssetId: 'asset-1',
+          officialPhotoUrl: 'https://assets.example.com/photo.webp'
         }
       ],
       page: 2,
@@ -216,6 +214,65 @@ describe('HrQueryService L1', () => {
     ).rejects.toBeInstanceOf(BadRequestException)
   })
 
+  it('GetEmployeeById / should preserve HR official photo fields without account avatar substitution', async () => {
+    const employeeRepository = createEmployeeRepositoryMock()
+    const employmentRepository = createEmploymentRepositoryMock()
+    employeeRepository.findById.mockResolvedValue({
+      id: 'employee-1',
+      tenantId: 'tenant-1',
+      tenantPartyId: 'tenant-party-1',
+      employeeCode: '0001',
+      lifecycleStatus: EmployeeLifecycleStatus.ACTIVE,
+      officialPhotoAssetId: null,
+      officialPhotoUrl: null,
+      accountAvatarUrl: 'https://identity.example.com/avatar.webp'
+    })
+    const service = createHrQueryService(employeeRepository, employmentRepository)
+
+    const employee = await service.getEmployeeById('employee-1')
+
+    expect(employee.officialPhotoAssetId).toBeNull()
+    expect(employee.officialPhotoUrl).toBeNull()
+    expect(employee.officialPhotoUrl).not.toBe('https://identity.example.com/avatar.webp')
+  })
+
+  it('ResolveActiveEmployeeByCode / should preserve official photo fields in active employee summaries', async () => {
+    const employeeRepository = createEmployeeRepositoryMock()
+    const employmentRepository = createEmploymentRepositoryMock()
+    employeeRepository.findByTenantAndEmployeeCode.mockResolvedValue({
+      id: 'employee-1',
+      tenantId: 'tenant-1',
+      tenantPartyId: 'tenant-party-1',
+      employeeCode: '0001',
+      lifecycleStatus: EmployeeLifecycleStatus.ACTIVE,
+      officialPhotoAssetId: 'asset-1',
+      officialPhotoUrl: 'https://assets.example.com/photo.webp'
+    })
+    employmentRepository.findActiveByEmployeeId.mockResolvedValue({
+      id: 'employment-1',
+      tenantId: 'tenant-1',
+      employeeId: 'employee-1',
+      orgUnitId: 'org-1',
+      status: EmploymentStatus.ACTIVE,
+      effectiveFrom: new Date('2026-04-23T00:00:00.000Z'),
+      effectiveTo: null,
+      endedReason: null
+    })
+    const service = createHrQueryService(employeeRepository, employmentRepository)
+
+    await expect(
+      (service as any).resolveActiveEmployeeByCode({
+        tenantId: 'tenant-1',
+        employeeCode: 'EMP-0AF-0001'
+      })
+    ).resolves.toMatchObject({
+      employee: {
+        officialPhotoAssetId: 'asset-1',
+        officialPhotoUrl: 'https://assets.example.com/photo.webp'
+      }
+    })
+  })
+
   it('GetActiveEmployment / should still surface not-found when an employee has no active employment', async () => {
     const employeeRepository = createEmployeeRepositoryMock()
     const employmentRepository = createEmploymentRepositoryMock()
@@ -223,7 +280,6 @@ describe('HrQueryService L1', () => {
       id: 'employee-1',
       tenantId: 'tenant-1',
       tenantPartyId: 'tenant-party-1',
-      partyId: 'party-1',
       employeeCode: '0001',
       lifecycleStatus: EmployeeLifecycleStatus.PREBOARDING
     })
@@ -241,7 +297,6 @@ describe('HrQueryService L1', () => {
       id: 'employee-1',
       tenantId: 'tenant-1',
       tenantPartyId: 'tenant-party-1',
-      partyId: 'party-1',
       employeeCode: '0001',
       lifecycleStatus: EmployeeLifecycleStatus.ACTIVE
     })

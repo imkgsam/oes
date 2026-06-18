@@ -270,6 +270,10 @@ design workspace 明确不负责：
 - 只有在用户明确要求记录、创建文档、更新文档、形成 feature packet，或某项结论已被明确冻结并需要沉淀时，线程才可以进入文档写入动作。
 - 若讨论中发现可能需要沉淀的设计结论，线程应先标记为“待确认结论”并向用户确认写入目标，而不是自行更新稳定真相源。
 - 已冻结结论必须尽快回写到唯一真相源，而不是长期滞留在 workspace
+- design workspace 是设计过程文件，不是长期真相源；当设计已冻结且结论已回写到 architecture / collaboration / ADR / contract / feature packet 后，必须退出 active 状态：
+  - 若仍有历史解释价值，标记为 `SUPERSEDED_BY_TRUTH_SOURCE` 或移动到 `docs/plans/designs/archive/`，并写明 `truthSource` 与 `doNotUseAsStableSource: true`
+  - 若已被稳定真相源完全覆盖且无导航或历史价值，可以删除
+  - 已退出 active 的 workspace 不得再作为当前设计入口继续扩写
 - 若讨论主题已变为另一个无直接关系的服务、协同能力或 feature，必须新建 workspace，而不是继续混写
 - 线程切换时应优先通过 workspace 恢复上下文，而不是重新从多个历史文档中手工拼接
 

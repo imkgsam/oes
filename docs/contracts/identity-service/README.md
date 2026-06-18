@@ -58,6 +58,7 @@ Proto 契约来源仍然是：
 - 兼容性组织归属查询 / 管理与 Contact Asset 查询、公开解析、治理管理
 - 机器身份与 API Key 管理 / 认证
 - `UserAccount <-> Employee` 绑定管理
+- tenant account 创建时可通过 `CreateUserAccountRequest.tenant_party_id` 显式复用上游已解析的当前租户 `TenantParty`
 
 说明：
 

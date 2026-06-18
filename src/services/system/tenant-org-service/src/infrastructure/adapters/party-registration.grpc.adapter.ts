@@ -7,10 +7,10 @@ import {
 } from '@oes/common/authorization'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import {
-  BindExistingPartyToTenantResponse,
   PARTY_REGISTRATION_SERVICE_NAME,
   PartyRegistrationServiceClient,
-  RegisterOrganizationPartyResponse
+  RegisterTenantPartyRequest,
+  RegisterTenantPartyResponse
 } from '@oes/common/generated/party_service'
 import { InjectGrpcClient, safeGrpcCall } from '@oes/common/transport'
 import { PartyRegistrationPort } from '../../application/ports/party-registration.port'
@@ -34,64 +34,41 @@ export class PartyRegistrationGrpcAdapter implements PartyRegistrationPort, OnMo
     this.client = this.partyClient.getService<PartyRegistrationServiceClient>(PARTY_REGISTRATION_SERVICE_NAME)
   }
 
-  async registerOrganizationParty(input: {
+  async registerOrganizationTenantParty(input: {
+    tenantId: string
     legalName: string
     registeredCountry?: string
     identifiers: Array<{ identifierType: string; rawValue?: string; normalizedValue: string; issuerCountryOrRegion?: string }>
     idempotencyKey: string
-  }): Promise<{ partyId: string; tenantPartyId?: string }> {
-    const response = await safeGrpcCall<RegisterOrganizationPartyResponse>(
-      this.client.registerOrganizationParty(
+  }): Promise<{ tenantPartyId: string }> {
+    const response = await safeGrpcCall<RegisterTenantPartyResponse>(
+      this.client.registerTenantParty(
         {
+          tenantId: input.tenantId,
+          type: 'ORGANIZATION',
           legalName: input.legalName,
-          localDisplayName: input.legalName,
+          displayName: input.legalName,
+          localCode: '',
           registeredCountry: input.registeredCountry ?? '',
           identifiers: input.identifiers.map((identifier) => ({
             identifierType: identifier.identifierType,
             rawValue: identifier.rawValue ?? identifier.normalizedValue,
             normalizedValue: identifier.normalizedValue,
-            issuerCountryOrRegion: identifier.issuerCountryOrRegion ?? ''
+            issuerCountryOrRegion: identifier.issuerCountryOrRegion ?? '',
+            status: 'DECLARED'
           })),
           idempotencyKey: input.idempotencyKey
-        },
+        } as RegisterTenantPartyRequest,
         this.buildMetadata()
       ),
-      { caller: 'tenant-org-service', method: 'PartyRegistrationService.registerOrganizationParty' }
-    )
-    const partyId = response.party?.id?.trim()
-    if (!partyId) {
-      this.logger.error('party-service returned empty organization party id during tenant onboarding')
-      throw new Error('party-service did not return organization party id')
-    }
-    return { partyId, tenantPartyId: response.tenantParty?.id?.trim() || undefined }
-  }
-
-  async bindExistingPartyToTenant(input: {
-    tenantId: string
-    partyId: string
-    localDisplayName?: string
-    localCode?: string
-    idempotencyKey: string
-  }): Promise<{ partyId: string; tenantPartyId: string }> {
-    const response = await safeGrpcCall<BindExistingPartyToTenantResponse>(
-      this.client.bindExistingPartyToTenant(
-        {
-          tenantId: input.tenantId,
-          partyId: input.partyId,
-          localDisplayName: input.localDisplayName ?? '',
-          localCode: input.localCode ?? '',
-          tags: ['TENANT_OWNER'],
-          idempotencyKey: input.idempotencyKey
-        },
-        this.buildMetadata()
-      ),
-      { caller: 'tenant-org-service', method: 'PartyRegistrationService.bindExistingPartyToTenant' }
+      { caller: 'tenant-org-service', method: 'PartyRegistrationService.registerTenantParty' }
     )
     const tenantPartyId = response.tenantParty?.id?.trim()
     if (!tenantPartyId) {
-      throw new Error('party-service did not return tenant party id')
+      this.logger.error('party-service returned empty organization tenant party id during tenant onboarding')
+      throw new Error('party-service did not return organization tenant party id')
     }
-    return { partyId: response.party?.id?.trim() || input.partyId, tenantPartyId }
+    return { tenantPartyId }
   }
 
   /** buildMetadata propagates tenant-org request context into downstream owner-service calls. */

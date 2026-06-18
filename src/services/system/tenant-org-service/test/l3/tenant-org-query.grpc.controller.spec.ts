@@ -85,7 +85,7 @@ describe('TenantOrgQueryGrpcController L3', () => {
           path: '/root-1',
           depth: 0,
           sortOrder: 0,
-          organizationPartyId: null
+          organizationTenantPartyId: null
         },
         children: [
           {
@@ -99,7 +99,7 @@ describe('TenantOrgQueryGrpcController L3', () => {
               path: '/root-1/dept-1',
               depth: 1,
               sortOrder: 10,
-              organizationPartyId: null
+              organizationTenantPartyId: null
             },
             children: []
           }

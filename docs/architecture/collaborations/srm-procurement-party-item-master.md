@@ -1,6 +1,6 @@
 # SRM、Procurement、Party 与 Item Master 协同蓝图
 
-Last Updated: 2026-05-18
+Last Updated: 2026-06-10
 
 ## 1. 目标
 
@@ -22,7 +22,7 @@ Item Master 概念以以下文件为唯一真相源：
 - `srm-service`
   - 负责 `SupplierProfile`、`SupplierAddressUsage`、`SupplierContactUsage`、`SupplierTaxProfile`、`SupplierStatus`、`SupplierCategory`、`SupplierTag`，以及 future `SupplierOffering` / supplier purchasing info。
 - `party-service`
-  - 负责供应商正式主体相关事实；核心对象、地址 / 联系人正文与 owner 边界以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准。
+  - 负责当前租户内 `TenantParty` 主体事实；核心对象、地址 / 联系人正文与 owner 边界以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准。
 - `item-master-service`
   - 负责 `ItemModel`、`Item`、capability、`SupplierItemMapping` 与基础分类真相。
 - future `procurement-service`
@@ -35,9 +35,9 @@ Item Master 概念以以下文件为唯一真相源：
 - `SupplierProfile` 的正式主体引用统一使用 `tenantPartyId`。
 - `ACTIVE SupplierProfile` 必须绑定 `tenantPartyId`。
 - 同一 `tenantId + tenantPartyId` 只允许一个正式 `SupplierProfile`。
-- 创建供应商时必须先通过 `party-service` resolve / create 主体事实与租户主体引用；强标识命中与复用规则以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准。
-- `Party Selector` 只用于主体去重 / 复用；`Supplier Selector` 只返回可被采购采用的 `SupplierProfile`。
-- `party-service` 继续拥有主体注册信息、证照、canonical 名称与主体关系真相。
+- 创建供应商时必须先通过 `party-service` 在当前租户内 register / select `TenantParty`；identifier 复用规则以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准。
+- `TenantParty Selector` 只用于当前租户内主体选择；`Supplier Selector` 只返回可被采购采用的 `SupplierProfile`。
+- `party-service` 继续拥有当前租户内主体名称、证照标识与主体基础事实。
 - SRM 不复制 Party 注册信息为自己的长期真相，只保存受控引用与供应商业务语义。
 
 ### 4.2 SRM 与 Item Master 边界
@@ -81,7 +81,7 @@ Item Master 概念以以下文件为唯一真相源：
 ## 5. 同步 / 异步边界
 
 - 第一阶段优先同步校验：
-  - `srm-service -> party-service` 校验 `tenantPartyId`。
+  - `srm-service -> party-service` 校验当前租户内 `tenantPartyId`。
   - `srm-service -> item-master-service` 校验 `itemId` 与 purchasable 能力。
   - future `procurement-service -> item-master-service` 查询或解析采购 Item。
   - future `procurement-service -> srm-service` 查询供应商主档与 offering 状态。

@@ -35,6 +35,7 @@ export class IdentityAccountProvisioningGrpcAdapter
     email?: string
     existingUserId?: string
     phone?: string
+    tenantPartyId?: string
     username?: string
     operatorContext?: {
       operatorId: string
@@ -59,7 +60,8 @@ export class IdentityAccountProvisioningGrpcAdapter
           username: input.username || input.displayName,
           email: input.email,
           existingUserId: input.existingUserId,
-          phone: input.phone
+          phone: input.phone,
+          tenantPartyId: input.tenantPartyId
         },
         this.metadata(input)
       ),

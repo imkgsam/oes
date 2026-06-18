@@ -1,6 +1,7 @@
 # compiled output
 /dist/
 src/services/**/dist/
+src/site-runtime/**/dist/
 /node_modules
 /build
 */dict/*

@@ -1880,6 +1880,10 @@ onBeforeUnmount(() => {
   --account-card-bg: hsl(var(--card));
   --account-card-bg-soft: hsl(var(--muted) / 0.55);
   --account-card-bg-strong: hsl(var(--muted) / 0.82);
+  --account-table-border: hsl(var(--border));
+  --account-table-header-bg: hsl(var(--muted) / 0.54);
+  --account-table-resizer: hsl(var(--muted-foreground) / 0.3);
+  --account-table-row-hover-bg: hsl(var(--muted) / 0.42);
   --account-title: hsl(var(--foreground));
   --account-text: hsl(var(--foreground) / 0.92);
   --account-muted: hsl(var(--muted-foreground));
@@ -2432,7 +2436,7 @@ onBeforeUnmount(() => {
 }
 
 :deep(.ant-table-wrapper .ant-table-thead > tr > th) {
-  background: rgb(248 250 252 / 0.96);
+  background: var(--account-table-header-bg);
   color: var(--account-text);
   font-size: 12px;
   font-weight: 600;
@@ -2446,7 +2450,7 @@ onBeforeUnmount(() => {
 }
 
 :deep(.ant-table-wrapper .ant-table-tbody > tr:hover > td) {
-  background: rgb(248 250 252 / 0.9);
+  background: var(--account-table-row-hover-bg);
 }
 
 :deep(.account-management__account-table .ant-table-cell) {
@@ -2487,7 +2491,7 @@ onBeforeUnmount(() => {
   left: 6px;
   width: 1px;
   content: '';
-  background: rgb(15 23 42 / 14%);
+  background: var(--account-table-resizer);
   transition: background 0.16s ease;
 }
 
@@ -2501,7 +2505,7 @@ onBeforeUnmount(() => {
 }
 
 :deep(.account-management__login-method-table-shell .ant-table-tbody > tr > td) {
-  border-bottom-color: rgb(226 232 240 / 0.88);
+  border-bottom-color: var(--account-table-border);
 }
 
 :deep(.account-management__filter-panel .ant-input),

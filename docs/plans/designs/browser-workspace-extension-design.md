@@ -5,9 +5,9 @@
 ```text
 designKey: browser-workspace-extension
 designStatus: ACTIVE_DESIGN_WORKSPACE
-lastUpdatedAt: 2026-06-04 00:00:00 Asia/Shanghai
+lastUpdatedAt: 2026-06-17 00:00:00 Asia/Shanghai
 lastUpdatedBy: Codex
-supersedes: docs/plans/designs/browser-prospecting-workspace.md
+supersedes: docs/plans/designs/browser-prospecting-workspace.md (removed 2026-06-17)
 conflictResolution: 当本文与更早浏览器插件讨论或旧 browser prospecting workspace 冲突时，以本文 lastUpdatedAt 之后的冻结结论为准；稳定 architecture / ADR / contracts 明确覆盖本文时，以稳定真相源为准。
 ```
 
@@ -66,6 +66,11 @@ conflictResolution: 当本文与更早浏览器插件讨论或旧 browser prospe
 | 2026-06-04 | 插件登录后的账号 / 租户切换应复用现有 account context switch / selectAccount 重签 session 语义，并固定 `terminal=browser-extension`。 | session switch / account context | 当前 workspace；后续 extension auth-bff contract |
 | 2026-06-04 | extension demo 第一版登录方式先默认使用 `EMAIL_PASSWORD`，OTP / MFA 只按现有 auth flow 兼容，不作为首版重点扩展。 | login method / demo scope | 当前 workspace；后续 extension auth-bff contract |
 | 2026-06-04 | 插件登录成功后的 shell 初始化复用现有 session context 与 access summary 语义：`navigation.visibleEntries` 驱动 launcher，`actionCodes` 驱动 workspace 内动作。 | session bootstrap / launcher / authorization | 当前 workspace；后续 extension auth-bff contract |
+| 2026-06-17 | 插件定位收敛为浏览器中的效率入口、采集入口、轻量动作入口和 OES 双向数据交换入口，不替代 OES Web 的完整操作台。 | product boundary | 当前 workspace；后续 CRM / PLM capability design |
+| 2026-06-17 | 第一批业务场景仍可面向 CRM 与 PLM，但当前线程先选择 CRM 作为第一个详细设计场景；PLM 暂不展开。 | capability sequencing | 当前 workspace；后续 CRM capability workspace / feature packet |
+| 2026-06-17 | CRM 首个样板场景定义为销售目标研究与沉淀，重点支持销售在浏览器中研究潜在客户、避免重复开发、沉淀有效上下文。 | CRM workspace / sales workflow | 当前 workspace；后续 CRM capability design |
+| 2026-06-17 | 插件显示的页面业务判断应来自 OES 回传结论，不由插件或 AI 自行判定目标有效性、客户归属或业务状态。 | OES truth boundary | 当前 workspace；后续 BFF / CRM contract |
+| 2026-06-17 | 旧 `browser-prospecting-workspace` 已删除，后续浏览器插件设计统一从本文恢复上下文。 | docs governance / workspace cleanup | 当前 workspace |
 
 ## 5. 待确认保留结论
 
@@ -152,14 +157,97 @@ conflictResolution: 当本文与更早浏览器插件讨论或旧 browser prospe
 - 插件应独立调用 access summary，使用 `actionCodes` 控制 workspace 内按钮、context menu、commands 和提交动作。
 - 插件前端不得从 roles 推导 workspace visibility 或 action availability。
 
+## 6.5 CRM workspace 当前讨论进度
+
+本节记录 2026-06-17 线程中已确认或倾向确认的 CRM 插件场景方向。当前只沉淀产品边界与场景进度，不冻结 CRM 字段、正式契约、接口 DTO 或服务模型。
+
+### 6.5.1 CRM 样板场景定位
+
+- CRM 是当前优先详细拆解的第一个业务 workspace。
+- CRM workspace 的首个样板场景是销售目标研究与沉淀，而不是完整 CRM 操作入口。
+- 插件用于减少销售在 OES Web 与外部网页之间反复切换的成本。
+- 插件支持双向数据流：
+  - 网页上下文可以被销售主动采集并提交到 OES。
+  - OES 中已有 lead / customer / 状态结论可以按权限回显到当前网页。
+- 报价、订单、商机阶段推进、正式客户生命周期管理等完整 CRM 操作不属于插件职责，应回到 OES Web。
+
+### 6.5.2 搜索引擎结果页已确认边界
+
+- 适用页面包括 Google / Bing 等搜索结果页。
+- 搜索结果页只做 OES 状态回显，不向 OES 写入业务数据。
+- 插件可以识别搜索结果中的链接、域名、标题和摘要片段，并请求 OES 判断这些候选是否已有 lead / customer 或业务状态。
+- OES 返回后，插件只展示低敏信息，帮助销售避免重复开发。
+- 可展示信息包括：
+  - 状态标签，例如未知、已有客户、已有线索、本人负责、他人负责、跟进中、无效目标、风险对象。
+  - 少量辅助信息，例如负责人或团队、最近更新时间、对象类型、是否与本人相关。
+- 不应展示订单、金额、报价、合同、客户等级、详细沟通内容、联系方式明细或内部备注全文。
+- 搜索结果页不提供创建 lead、标记无效、加入待研究、批量保存等写入动作。
+
+### 6.5.3 客户官网页当前设计方向
+
+- 客户官网页是 CRM workspace 第一个真正双向的页面类型。
+- 官网页需要展示 OES 识别到的相关 lead / customer，但展示内容必须由 OES 按当前 operator 权限裁剪。
+- 官网页不应只依赖 domain 匹配；domain 是重要信号，但可能因为 CRM 中缺失 domain 或页面身份不稳定而匹配失败。
+- 插件可以收集当前页面的候选识别信号，例如 domain、URL、页面标题、页面可见公司名、品牌名、页脚公司名、企业邮箱域名、电话、地址和社媒链接。
+- 插件不决定最终匹配结论；OES 返回匹配状态、候选对象、置信或解释性状态，以及当前用户可执行动作。
+- 页面展示应以 status tags、brief 摘要和跳转入口为主，不做 OES Web 的替代详情页。
+
+### 6.5.4 官网页权限与动作边界
+
+- 插件可以查询 OES 中 lead 和 customer 的全局去重状态，但数据控制、权限裁剪和动作授权全部由 OES 完成。
+- 展示权限与写入权限分开：
+  - 销售可以感知某目标已存在、被跟进、无效或存在风险。
+  - 是否能看到更多 brief 信息由 OES 权限裁剪决定。
+  - 是否能 append、claim 或 convert 由 OES 返回的动作能力决定。
+- 当前倾向的写入边界：
+  - 只能 append 到本人负责的 lead。
+  - 可以 append 到本人负责的 customer。
+  - 可以 append 到所属团队的 customer。
+  - 不允许直接 append 到其他人的 lead / customer。
+  - 不允许直接 append 到公海 lead / customer。
+  - 公海 lead 必须先 claim，claim 成功后才允许 append。
+  - convert 必须先 claim lead，再由 OES 判断是否允许转 customer。
+- claim lead 的成功与否由 OES 判定，例如是否仍为公海 lead、当前业务员 lead 数量是否超限、是否存在冲突、是否具备权限。
+- 插件只显示 claim / convert 的结果，不在前端推导业务规则。
+
+### 6.5.5 官网页 append 与 contact 能力待继续细化
+
+当前倾向的高价值 append 类型包括：
+
+- 页面来源：当前 URL、domain、页面标题和采集时间。
+- 销售备注：销售手写的简短判断或背调结论。
+- 选中文本片段：公司介绍、产品描述、服务区域、联系方式片段或需求线索。
+- 页面证据：截图、关键页面区域或网页证据。
+- 标签或状态补充：具体可用标签应由 OES 控制，插件只渲染可选项。
+
+需要重点继续讨论 contact 相关能力：
+
+- 插件可以扫描当前页面可见邮箱地址，并提示销售存在可处理的联系人候选。
+- OES 应判断邮箱是否已经存在于 contact / lead / customer 关联中。
+- 若邮箱不存在，插件可以提示是否添加为 contact 候选或联系人草稿。
+- 创建 contact 前必须选择或确认归属对象，且只能归属到当前用户可 append 的 lead / customer。
+- 公海 lead 场景下，必须先 claim 成功，再允许添加 contact 或 append 信息。
+- 不应自动批量创建联系人，避免把 `info@`、`support@`、`privacy@` 等低价值或非销售联系人灌入 CRM。
+- contact 能力当前只讨论场景和边界，不冻结字段、契约或正式 CRM contact 模型。
+
+### 6.5.6 CRM 场景后续待讨论页面类型
+
+- LinkedIn / 社媒公司页。
+- 行业目录、展会名单、B2B 平台。
+- 新闻、招聘、文章和第三方资料页。
+- 邮箱 / Webmail 页面。
+
 ## 7. 真相源回写计划
 
 - 服务职责：
   - 如插件登录态、launcher、capability gating 需要改变现有 owner 边界，再回写相应 service truth。
+- 服务设计：
+  - CRM 服务字段、lead / customer / contact 正式模型尚未冻结前，插件 workspace 只能定义所需能力与场景边界，不反向定义 CRM 主模型。
 - 协同蓝图：
   - 待冻结“插件壳层 -> BFF -> capability owner”协同后再新增 collaboration 文档。
 - contracts：
   - 待冻结统一浏览器工作台插件首批 BFF contract 后新增。
+  - 待 CRM 官网页、搜索结果页和 contact 候选能力进一步冻结后，再建立 CRM workspace / BFF 黑盒契约。
 - feature packet：
   - 待新方案范围足够清晰后建立新的 feature packet。
 - architecture / ADR：
@@ -169,10 +257,10 @@ conflictResolution: 当本文与更早浏览器插件讨论或旧 browser prospe
 
 - 下次继续前先读：
   - `docs/plans/designs/browser-workspace-extension-design.md`
-  - `docs/plans/designs/browser-prospecting-workspace.md`
   - `docs/architecture/services/permission-service.md`
+  - `docs/architecture/services/crm-service.md`
   - `docs/contracts/api-gateway/access-summary.md`
   - `docs/contracts/api-gateway/navigation-summary.md`
 - 当前推荐下一步：
-  - 先冻结统一插件壳层的首屏模型与 capability 接入模型。
-  - 再逐项确认第 5 节中的旧结论哪些保留、改写或丢弃。
+  - 继续拆 CRM 官网页中 append、contact candidate、claim 和 convert 的用户流程与权限反馈。
+  - 暂不冻结 CRM 字段、DTO 或接口契约。

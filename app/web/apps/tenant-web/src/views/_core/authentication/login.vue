@@ -4,7 +4,7 @@ import type { VbenFormSchema } from '@vben/common-ui'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-import { AuthenticationLogin, SliderCaptcha, VbenButton, z } from '@vben/common-ui'
+import { AuthenticationLogin, VbenButton, z } from '@vben/common-ui'
 import { SvgGithubIcon, SvgGoogleIcon, SvgQQChatIcon, SvgWeChatIcon } from '@vben/icons'
 import { $t } from '@vben/locales'
 import { message } from 'ant-design-vue'
@@ -22,8 +22,6 @@ defineOptions({ name: 'Login' })
 const authStore = useAuthStore()
 const route = useRoute()
 const router = useRouter()
-const sliderPassed = ref(false)
-const sliderRef = ref<InstanceType<typeof SliderCaptcha>>()
 const loginFormRef = ref<InstanceType<typeof AuthenticationLogin>>()
 
 type PasswordLoginMode = 'email' | 'phone'
@@ -45,11 +43,6 @@ const loginMode = computed<PasswordLoginMode>(() => {
 })
 
 const isPhoneMode = computed(() => loginMode.value === 'phone')
-
-// Converts rejected login attempts into user-facing feedback without leaking unhandled promise errors.
-function handleLoginError() {
-  resetSlider()
-}
 
 const formSchema = computed((): VbenFormSchema[] => {
   const phoneSchema: VbenFormSchema[] = [
@@ -109,10 +102,6 @@ const formSchema = computed((): VbenFormSchema[] => {
 })
 
 async function handleSubmit(values: Record<string, any>) {
-  if (!sliderPassed.value) {
-    return
-  }
-
   if (isPhoneMode.value) {
     saveAuthLoginScenePreference('password', {
       mode: 'phone',
@@ -125,7 +114,7 @@ async function handleSubmit(values: Record<string, any>) {
       })
       return
     } catch {
-      handleLoginError()
+      return
     }
     return
   }
@@ -137,12 +126,11 @@ async function handleSubmit(values: Record<string, any>) {
   try {
     await authStore.authLogin(values)
   } catch {
-    handleLoginError()
+    return
   }
 }
 
 async function goToGenericCodeLogin() {
-  resetSlider()
   const values = await loginFormRef.value?.getFormApi?.().getValues?.()
   const identifier = `${isPhoneMode.value ? values?.phoneNumber ?? '' : values?.username ?? ''}`.trim()
   const fallbackIdentifier =
@@ -173,14 +161,11 @@ async function goToGenericCodeLogin() {
 }
 
 function goToQrCodeLogin() {
-  resetSlider()
   void router.push({ name: 'QrCodeLogin' })
 }
 
 // Carries the current login identifier into password recovery without sharing page-local form state.
 function goToForgetPassword(values: Record<string, any>) {
-  resetSlider()
-
   const identifier = `${isPhoneMode.value ? values.phoneNumber ?? '' : values.username ?? ''}`.trim()
 
   void router.push({
@@ -194,16 +179,10 @@ function handleThirdPartyLogin(provider: string) {
 }
 
 function switchPasswordMode(mode: PasswordLoginMode) {
-  resetSlider()
   void router.replace({
     name: 'Login',
     query: { mode }
   })
-}
-
-function resetSlider() {
-  sliderPassed.value = false
-  sliderRef.value?.resume?.()
 }
 
 // Restores the remembered identifier for the current password-login mode when the route itself does not override that choice.
@@ -278,20 +257,6 @@ watch(() => loginMode.value, syncStoredIdentifier)
           >
             邮箱
           </button>
-        </div>
-      </template>
-
-      <template #submit-prepend>
-        <div class="mb-4">
-          <SliderCaptcha
-            ref="sliderRef"
-            v-model="sliderPassed"
-            :class="{
-              'opacity-80': authStore.loginLoading
-            }"
-            success-text="验证通过"
-            text="请按住滑块拖动"
-          />
         </div>
       </template>
 

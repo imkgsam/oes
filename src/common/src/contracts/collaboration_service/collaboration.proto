@@ -1,0 +1,362 @@
+syntax = "proto3";
+
+package collaboration_service;
+
+option java_multiple_files = true;
+option java_package = "com.oes.collaboration.v1";
+
+service TaskCommandService {
+  rpc CreateTask(CreateTaskRequest) returns (CreateTaskResponse);
+  rpc UpdateTask(UpdateTaskRequest) returns (UpdateTaskResponse);
+  rpc StartTask(StartTaskRequest) returns (StartTaskResponse);
+  rpc CompleteTask(CompleteTaskRequest) returns (CompleteTaskResponse);
+  rpc CancelTask(CancelTaskRequest) returns (CancelTaskResponse);
+  rpc ReopenTask(ReopenTaskRequest) returns (ReopenTaskResponse);
+  rpc ArchiveTask(ArchiveTaskRequest) returns (ArchiveTaskResponse);
+  rpc UnarchiveTask(UnarchiveTaskRequest) returns (UnarchiveTaskResponse);
+}
+
+service TaskQueryService {
+  rpc ListTasks(ListTasksRequest) returns (ListTasksResponse);
+  rpc GetTask(GetTaskRequest) returns (GetTaskResponse);
+}
+
+service AnnotationCommandService {
+  rpc CreateAnnotation(CreateAnnotationRequest) returns (CreateAnnotationResponse);
+  rpc UpdateAnnotation(UpdateAnnotationRequest) returns (UpdateAnnotationResponse);
+  rpc DeleteAnnotation(DeleteAnnotationRequest) returns (DeleteAnnotationResponse);
+  rpc SetAnnotationPinned(SetAnnotationPinnedRequest) returns (SetAnnotationPinnedResponse);
+}
+
+service AnnotationQueryService {
+  rpc ListAnnotationsForObject(ListAnnotationsForObjectRequest) returns (ListAnnotationsForObjectResponse);
+  rpc GetAnnotation(GetAnnotationRequest) returns (GetAnnotationResponse);
+}
+
+enum TaskVisibility {
+  TASK_VISIBILITY_UNSPECIFIED = 0;
+  TASK_VISIBILITY_PRIVATE = 1;
+  TASK_VISIBILITY_ASSIGNMENT_PARTICIPANTS = 2;
+}
+
+enum TaskStatus {
+  TASK_STATUS_UNSPECIFIED = 0;
+  TASK_STATUS_OPEN = 1;
+  TASK_STATUS_IN_PROGRESS = 2;
+  TASK_STATUS_COMPLETED = 3;
+  TASK_STATUS_CANCELLED = 4;
+}
+
+enum TaskPriority {
+  TASK_PRIORITY_UNSPECIFIED = 0;
+  TASK_PRIORITY_LOW = 1;
+  TASK_PRIORITY_NORMAL = 2;
+  TASK_PRIORITY_HIGH = 3;
+  TASK_PRIORITY_URGENT = 4;
+}
+
+enum TaskListScope {
+  TASK_LIST_SCOPE_UNSPECIFIED = 0;
+  TASK_LIST_SCOPE_MY_TODO = 1;
+  TASK_LIST_SCOPE_ASSIGNED_TO_ME = 2;
+  TASK_LIST_SCOPE_CREATED_BY_ME = 3;
+}
+
+enum AnnotationVisibility {
+  ANNOTATION_VISIBILITY_UNSPECIFIED = 0;
+  ANNOTATION_VISIBILITY_PRIVATE = 1;
+  ANNOTATION_VISIBILITY_OBJECT_VISIBLE = 2;
+}
+
+message OperatorContext {
+  string account_id = 1;
+  string user_id = 2;
+  string tenant_id = 3;
+}
+
+message TraceContext {
+  string trace_id = 1;
+  string span_id = 2;
+}
+
+message AuditContext {
+  string audit_id = 1;
+  string reason = 2;
+  string source = 3;
+}
+
+message ObjectRef {
+  string object_owner_service = 1;
+  string object_type = 2;
+  string object_id = 3;
+}
+
+message ObjectDisplaySnapshot {
+  string title = 1;
+  string subtitle = 2;
+  string status = 3;
+}
+
+message CreateTaskRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string title = 5;
+  string description = 6;
+  string assignee_account_id = 7;
+  string due_at = 8;
+  TaskPriority priority = 9;
+}
+
+message UpdateTaskRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string task_id = 5;
+  string title = 6;
+  string description = 7;
+  string due_at = 8;
+  TaskPriority priority = 9;
+}
+
+message StartTaskRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string task_id = 5;
+}
+
+message StartTaskResponse {
+  TaskView task = 1;
+}
+
+message CompleteTaskRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string task_id = 5;
+  string completion_note = 6;
+}
+
+message CompleteTaskResponse {
+  TaskView task = 1;
+}
+
+message CancelTaskRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string task_id = 5;
+  string cancel_reason = 6;
+}
+
+message CancelTaskResponse {
+  TaskView task = 1;
+}
+
+message ReopenTaskRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string task_id = 5;
+  string reopen_reason = 6;
+}
+
+message ReopenTaskResponse {
+  TaskView task = 1;
+}
+
+message ArchiveTaskRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string task_id = 5;
+}
+
+message ArchiveTaskResponse {
+  TaskView task = 1;
+}
+
+message UnarchiveTaskRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string task_id = 5;
+}
+
+message UnarchiveTaskResponse {
+  TaskView task = 1;
+}
+
+message ListTasksRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  TaskListScope scope = 4;
+  repeated TaskStatus status = 5;
+  repeated TaskPriority priority = 6;
+  string due_before = 7;
+  string due_after = 8;
+  string keyword = 9;
+  bool overdue_only = 10;
+  bool include_archived = 11;
+  bool archived_only = 12;
+  int32 page = 13;
+  int32 page_size = 14;
+}
+
+message GetTaskRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string task_id = 4;
+}
+
+message GetTaskResponse {
+  TaskView task = 1;
+}
+
+message TaskView {
+  string task_id = 1;
+  string tenant_id = 2;
+  string title = 3;
+  string description = 4;
+  string created_by_account_id = 5;
+  string assignee_account_id = 6;
+  TaskVisibility visibility = 7;
+  TaskStatus status = 8;
+  TaskPriority priority = 9;
+  string due_at = 10;
+  bool overdue = 11;
+  string started_at = 12;
+  string completed_at = 13;
+  string completed_by_account_id = 14;
+  string completion_note = 15;
+  string cancelled_at = 16;
+  string cancelled_by_account_id = 17;
+  string cancel_reason = 18;
+  string archived_at = 19;
+  string archived_by_account_id = 20;
+  string created_at = 21;
+  string updated_at = 22;
+}
+
+message CreateTaskResponse {
+  TaskView task = 1;
+}
+
+message UpdateTaskResponse {
+  TaskView task = 1;
+}
+
+message ListTasksResponse {
+  repeated TaskView items = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+  int32 total = 4;
+}
+
+message AnnotationView {
+  string annotation_id = 1;
+  string tenant_id = 2;
+  ObjectRef object_ref = 3;
+  ObjectDisplaySnapshot object_display_snapshot = 4;
+  string author_account_id = 5;
+  string author_display_name_snapshot = 6;
+  string body_text = 7;
+  AnnotationVisibility visibility = 8;
+  bool pinned = 9;
+  bool edited = 10;
+  string created_at = 11;
+  string updated_at = 12;
+}
+
+message CreateAnnotationRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  ObjectRef object_ref = 5;
+  string body_text = 6;
+  AnnotationVisibility visibility = 7;
+}
+
+message CreateAnnotationResponse {
+  AnnotationView annotation = 1;
+}
+
+message UpdateAnnotationRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string annotation_id = 5;
+  string body_text = 6;
+  AnnotationVisibility visibility = 7;
+}
+
+message UpdateAnnotationResponse {
+  AnnotationView annotation = 1;
+}
+
+message DeleteAnnotationRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string annotation_id = 5;
+  string delete_reason = 6;
+}
+
+message DeleteAnnotationResponse {
+  AnnotationView annotation = 1;
+}
+
+message SetAnnotationPinnedRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string annotation_id = 5;
+  bool pinned = 6;
+}
+
+message SetAnnotationPinnedResponse {
+  AnnotationView annotation = 1;
+}
+
+message ListAnnotationsForObjectRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  ObjectRef object_ref = 4;
+  bool include_private = 5;
+  int32 page = 6;
+  int32 page_size = 7;
+}
+
+message ListAnnotationsForObjectResponse {
+  repeated AnnotationView items = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+  int32 total = 4;
+}
+
+message GetAnnotationRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string annotation_id = 4;
+}
+
+message GetAnnotationResponse {
+  AnnotationView annotation = 1;
+}

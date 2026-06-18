@@ -56,7 +56,7 @@ export class ItemMasterQueryGrpcAdapter implements ItemLookupPort, OnModuleInit 
       itemId: item.itemId,
       itemCode: item.itemCode ?? '',
       itemName: item.itemName ?? '',
-      status: `${item.status ?? ''}`,
+      active: item.active ?? false,
       purchasable: item.capabilities?.purchasable ?? false
     }
   }

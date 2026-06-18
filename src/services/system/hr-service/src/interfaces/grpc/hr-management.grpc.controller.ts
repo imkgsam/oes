@@ -28,7 +28,11 @@ import {
   EndEmploymentRequest,
   EndEmploymentResponse,
   HrManagementServiceController,
-  HrManagementServiceControllerMethods
+  HrManagementServiceControllerMethods,
+  RemoveEmployeeOfficialPhotoRequest,
+  RemoveEmployeeOfficialPhotoResponse,
+  UpdateEmployeeOfficialPhotoRequest,
+  UpdateEmployeeOfficialPhotoResponse
 } from '@oes/common/generated/hr_service'
 import { HrManagementService } from '../../application/services'
 import { HrEmployeeOnboardingService } from '../../application/services/hr-employee-onboarding.service'
@@ -66,7 +70,6 @@ export class HrManagementGrpcController implements HrManagementServiceController
     const employee = await this.hrManagementService.createEmployee({
       tenantId: request.tenantId ?? '',
       tenantPartyId: request.tenantPartyId ?? '',
-      partyId: request.partyId || undefined,
       employeeCode: request.employeeCode || undefined
     })
     return { employee: mapEmployee(employee) }
@@ -84,7 +87,6 @@ export class HrManagementGrpcController implements HrManagementServiceController
       employeeCode: request.employeeCode || undefined,
       person: {
         legalName: request.person?.legalName ?? '',
-        existingPartyId: request.person?.existingPartyId || undefined,
         existingTenantPartyId: request.person?.existingTenantPartyId || undefined,
         identifiers: (request.person?.identifiers ?? []).map((identifier) => ({
           identifierType: identifier.identifierType ?? '',
@@ -120,6 +122,32 @@ export class HrManagementGrpcController implements HrManagementServiceController
       employment: result.employment ? mapEmployment(result.employment) : undefined,
       access: result.access ? mapOnboardingAccessProcess(result.access) : undefined
     }
+  }
+
+  async updateEmployeeOfficialPhoto(
+    request: UpdateEmployeeOfficialPhotoRequest,
+    metadata?: Metadata
+  ): Promise<UpdateEmployeeOfficialPhotoResponse> {
+    requireOperatorMetadata(metadata)
+    const employee = await this.hrManagementService.updateEmployeeOfficialPhoto({
+      tenantId: request.tenantId ?? '',
+      employeeId: request.employeeId ?? '',
+      officialPhotoAssetId: request.officialPhotoAssetId ?? '',
+      officialPhotoUrl: request.officialPhotoUrl ?? ''
+    })
+    return { employee: mapEmployee(employee) }
+  }
+
+  async removeEmployeeOfficialPhoto(
+    request: RemoveEmployeeOfficialPhotoRequest,
+    metadata?: Metadata
+  ): Promise<RemoveEmployeeOfficialPhotoResponse> {
+    requireOperatorMetadata(metadata)
+    const employee = await this.hrManagementService.removeEmployeeOfficialPhoto({
+      tenantId: request.tenantId ?? '',
+      employeeId: request.employeeId ?? ''
+    })
+    return { employee: mapEmployee(employee) }
   }
 
   async createEmployment(
@@ -265,9 +293,10 @@ export function mapEmployee(employee: EmployeeSummary) {
     id: employee.id,
     tenantId: employee.tenantId,
     tenantPartyId: employee.tenantPartyId,
-    partyId: employee.partyId ?? '',
     employeeCode: employee.employeeCode,
-    lifecycleStatus: mapEmployeeLifecycleStatus(employee.lifecycleStatus)
+    lifecycleStatus: mapEmployeeLifecycleStatus(employee.lifecycleStatus),
+    officialPhotoAssetId: employee.officialPhotoAssetId ?? '',
+    officialPhotoUrl: employee.officialPhotoUrl ?? ''
   }
 }
 

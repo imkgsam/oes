@@ -89,9 +89,9 @@
   - `org_unit.status`
   - `org_unit.path`
   - `org_unit.depth`
-  - optional `org_unit.organization_party_id`
-- `organization_party_id` 语义：
-  - 表示该节点当前正式持有的 organization party 引用
+  - optional `org_unit.organization_tenant_party_id`
+- `organization_tenant_party_id` 语义：
+  - 表示该节点当前正式持有的 `ORGANIZATION` TenantParty 引用
   - 该字段为空不代表数据异常；当前基础语义仍是 optional association
   - 当前只有 `ROOT` 与 `BRANCH` 节点允许返回非空值
 
@@ -144,7 +144,7 @@
   - `org_unit.type`
   - `org_unit.path`
   - `org_unit.status`
-- 当前第一阶段 `GetOrgReferenceSummary` 不承诺补水 organization party 摘要；调用方如需要主体详情，应再通过受控链路查询 `party-service`
+- 当前第一阶段 `GetOrgReferenceSummary` 不承诺补水 TenantParty 摘要；调用方如需要主体详情，应再通过受控链路查询 `party-service`
 
 ## 5. 主要错误与返回约束
 
@@ -153,7 +153,7 @@
 - 查询对象不存在时：
   - 查询接口优先返回空响应对象，而不是抛业务异常
 - 调用方不应依赖内部异常结构推断 tenant 或 org 语义
-- query 侧暴露 `organization_party_id` 不代表调用方获得了对该 party 的业务使用权；是否继续消费该主体，仍由各自业务 contract 与授权链路决定
+- query 侧暴露 `organization_tenant_party_id` 不代表调用方获得了对该 party 的业务使用权；是否继续消费该主体，仍由各自业务 contract 与授权链路决定
 
 ## 6. 第一阶段明确不做
 

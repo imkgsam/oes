@@ -27,10 +27,10 @@ function createOrgUnitRepositoryMock() {
   }
 }
 
-/** createOrganizationPartyReaderMock builds the downstream party lookup double for org-party validation tests. */
-function createOrganizationPartyReaderMock() {
+/** createOrganizationTenantPartyReaderMock builds the downstream party lookup double for org-party validation tests. */
+function createOrganizationTenantPartyReaderMock() {
   return {
-    getOrganizationPartyById: jest.fn()
+    getOrganizationTenantPartyById: jest.fn()
   }
 }
 
@@ -45,7 +45,7 @@ describe('TenantOrgManagementService', () => {
   it('suspendTenant / should revoke tenant-scope sessions through auth-service after status changes', async () => {
     const tenantRepository = createTenantRepositoryMock()
     const orgUnitRepository = createOrgUnitRepositoryMock()
-    const organizationPartyReader = createOrganizationPartyReaderMock()
+    const organizationTenantPartyReader = createOrganizationTenantPartyReaderMock()
     const authSessionRevocationPort = createAuthSessionRevocationPortMock()
     tenantRepository.setStatus.mockResolvedValue({
       id: 'tenant-1',
@@ -57,7 +57,7 @@ describe('TenantOrgManagementService', () => {
     const service = new TenantOrgManagementService(
       tenantRepository as never,
       orgUnitRepository as never,
-      organizationPartyReader as never,
+      organizationTenantPartyReader as never,
       authSessionRevocationPort as never
     )
 
@@ -74,7 +74,7 @@ describe('TenantOrgManagementService', () => {
   it('archiveTenant / should revoke tenant-scope sessions through auth-service after status changes', async () => {
     const tenantRepository = createTenantRepositoryMock()
     const orgUnitRepository = createOrgUnitRepositoryMock()
-    const organizationPartyReader = createOrganizationPartyReaderMock()
+    const organizationTenantPartyReader = createOrganizationTenantPartyReaderMock()
     const authSessionRevocationPort = createAuthSessionRevocationPortMock()
     tenantRepository.setStatus.mockResolvedValue({
       id: 'tenant-1',
@@ -86,7 +86,7 @@ describe('TenantOrgManagementService', () => {
     const service = new TenantOrgManagementService(
       tenantRepository as never,
       orgUnitRepository as never,
-      organizationPartyReader as never,
+      organizationTenantPartyReader as never,
       authSessionRevocationPort as never
     )
 
@@ -103,7 +103,7 @@ describe('TenantOrgManagementService', () => {
   it('reactivateTenant / should not restore or revoke existing sessions', async () => {
     const tenantRepository = createTenantRepositoryMock()
     const orgUnitRepository = createOrgUnitRepositoryMock()
-    const organizationPartyReader = createOrganizationPartyReaderMock()
+    const organizationTenantPartyReader = createOrganizationTenantPartyReaderMock()
     const authSessionRevocationPort = createAuthSessionRevocationPortMock()
     tenantRepository.setStatus.mockResolvedValue({
       id: 'tenant-1',
@@ -115,7 +115,7 @@ describe('TenantOrgManagementService', () => {
     const service = new TenantOrgManagementService(
       tenantRepository as never,
       orgUnitRepository as never,
-      organizationPartyReader as never,
+      organizationTenantPartyReader as never,
       authSessionRevocationPort as never
     )
 
@@ -129,7 +129,7 @@ describe('TenantOrgManagementService', () => {
   it('createTenant / should return tenant and root org from the transactional repository', async () => {
     const tenantRepository = createTenantRepositoryMock()
     const orgUnitRepository = createOrgUnitRepositoryMock()
-    const organizationPartyReader = createOrganizationPartyReaderMock()
+    const organizationTenantPartyReader = createOrganizationTenantPartyReaderMock()
     tenantRepository.createWithRootOrg.mockResolvedValue({
       tenant: {
         id: 'tenant-1',
@@ -149,13 +149,13 @@ describe('TenantOrgManagementService', () => {
         path: '/root-1',
         depth: 0,
         sortOrder: 0,
-        organizationPartyId: null
+        organizationTenantPartyId: null
       }
     })
     const service = new TenantOrgManagementService(
       tenantRepository as never,
       orgUnitRepository as never,
-      organizationPartyReader as never,
+      organizationTenantPartyReader as never,
       createAuthSessionRevocationPortMock() as never
     )
 
@@ -173,7 +173,7 @@ describe('TenantOrgManagementService', () => {
   it('createOrgUnit / when tenant is suspended / should reject new org units', async () => {
     const tenantRepository = createTenantRepositoryMock()
     const orgUnitRepository = createOrgUnitRepositoryMock()
-    const organizationPartyReader = createOrganizationPartyReaderMock()
+    const organizationTenantPartyReader = createOrganizationTenantPartyReaderMock()
     tenantRepository.findById.mockResolvedValue({
       id: 'tenant-1',
       code: 'acme',
@@ -184,7 +184,7 @@ describe('TenantOrgManagementService', () => {
     const service = new TenantOrgManagementService(
       tenantRepository as never,
       orgUnitRepository as never,
-      organizationPartyReader as never,
+      organizationTenantPartyReader as never,
       createAuthSessionRevocationPortMock() as never
     )
 
@@ -202,14 +202,14 @@ describe('TenantOrgManagementService', () => {
   it('moveOrgUnit / should delegate cycle detection to the org repository', async () => {
     const tenantRepository = createTenantRepositoryMock()
     const orgUnitRepository = createOrgUnitRepositoryMock()
-    const organizationPartyReader = createOrganizationPartyReaderMock()
+    const organizationTenantPartyReader = createOrganizationTenantPartyReaderMock()
     orgUnitRepository.move.mockRejectedValue(
       new BadRequestException('Cannot move org unit below its descendant')
     )
     const service = new TenantOrgManagementService(
       tenantRepository as never,
       orgUnitRepository as never,
-      organizationPartyReader as never,
+      organizationTenantPartyReader as never,
       createAuthSessionRevocationPortMock() as never
     )
 
@@ -225,7 +225,7 @@ describe('TenantOrgManagementService', () => {
   it('createOrgUnit / when department tries to bind organization party / should reject before persistence', async () => {
     const tenantRepository = createTenantRepositoryMock()
     const orgUnitRepository = createOrgUnitRepositoryMock()
-    const organizationPartyReader = createOrganizationPartyReaderMock()
+    const organizationTenantPartyReader = createOrganizationTenantPartyReaderMock()
     tenantRepository.findById.mockResolvedValue({
       id: 'tenant-1',
       code: 'acme',
@@ -236,7 +236,7 @@ describe('TenantOrgManagementService', () => {
     const service = new TenantOrgManagementService(
       tenantRepository as never,
       orgUnitRepository as never,
-      organizationPartyReader as never,
+      organizationTenantPartyReader as never,
       createAuthSessionRevocationPortMock() as never
     )
 
@@ -246,18 +246,18 @@ describe('TenantOrgManagementService', () => {
         parentOrgId: 'root-1',
         name: 'Ops',
         type: OrgUnitType.DEPARTMENT,
-        organizationPartyId: 'party-1'
+        organizationTenantPartyId: 'party-1'
       })
     ).rejects.toBeInstanceOf(BadRequestException)
 
-    expect(organizationPartyReader.getOrganizationPartyById).not.toHaveBeenCalled()
+    expect(organizationTenantPartyReader.getOrganizationTenantPartyById).not.toHaveBeenCalled()
     expect(orgUnitRepository.create).not.toHaveBeenCalled()
   })
 
   it('createOrgUnit / when root binds active organization party / should validate and persist association', async () => {
     const tenantRepository = createTenantRepositoryMock()
     const orgUnitRepository = createOrgUnitRepositoryMock()
-    const organizationPartyReader = createOrganizationPartyReaderMock()
+    const organizationTenantPartyReader = createOrganizationTenantPartyReaderMock()
     tenantRepository.findById.mockResolvedValue({
       id: 'tenant-1',
       code: 'acme',
@@ -265,8 +265,9 @@ describe('TenantOrgManagementService', () => {
       status: TenantStatus.ACTIVE,
       rootOrgId: 'root-1'
     })
-    organizationPartyReader.getOrganizationPartyById.mockResolvedValue({
+    organizationTenantPartyReader.getOrganizationTenantPartyById.mockResolvedValue({
       id: 'party-1',
+      tenantId: 'tenant-1',
       type: 'ORGANIZATION',
       status: 'ACTIVE'
     })
@@ -280,12 +281,12 @@ describe('TenantOrgManagementService', () => {
       path: '/root-1/org-1',
       depth: 1,
       sortOrder: 0,
-      organizationPartyId: 'party-1'
+      organizationTenantPartyId: 'party-1'
     })
     const service = new TenantOrgManagementService(
       tenantRepository as never,
       orgUnitRepository as never,
-      organizationPartyReader as never,
+      organizationTenantPartyReader as never,
       createAuthSessionRevocationPortMock() as never
     )
 
@@ -295,19 +296,22 @@ describe('TenantOrgManagementService', () => {
         parentOrgId: 'root-1',
         name: 'Acme Legal',
         type: OrgUnitType.ROOT,
-        organizationPartyId: 'party-1'
+        organizationTenantPartyId: 'party-1'
       })
     ).resolves.toEqual(
       expect.objectContaining({
         id: 'org-1',
-        organizationPartyId: 'party-1'
+        organizationTenantPartyId: 'party-1'
       })
     )
 
-    expect(organizationPartyReader.getOrganizationPartyById).toHaveBeenCalledWith('party-1')
+    expect(organizationTenantPartyReader.getOrganizationTenantPartyById).toHaveBeenCalledWith({
+      tenantId: 'tenant-1',
+      tenantPartyId: 'party-1'
+    })
     expect(orgUnitRepository.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        organizationPartyId: 'party-1'
+        organizationTenantPartyId: 'party-1'
       })
     )
   })

@@ -100,6 +100,9 @@ export class PostReceiptHandler implements ICommandHandler<PostReceiptCommand, R
         'item',
         line.itemId
       )
+      assertPrecondition(item.active, 'item must be active before receipt posting', {
+        itemId: line.itemId
+      })
       assertPrecondition(item.stockable, 'item must be stockable before receipt posting', {
         itemId: line.itemId
       })

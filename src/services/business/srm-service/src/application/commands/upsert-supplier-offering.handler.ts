@@ -66,6 +66,13 @@ export class UpsertSupplierOfferingHandler
         })
       }
 
+      if (!item.active) {
+        throw ExceptionFactory.application(SRM_FAILED_PRECONDITION, {
+          reason: 'active offering requires active item',
+          itemId: item.itemId
+        })
+      }
+
       if (!item.purchasable) {
         throw ExceptionFactory.application(SRM_FAILED_PRECONDITION, {
           reason: 'active offering requires purchasable item',

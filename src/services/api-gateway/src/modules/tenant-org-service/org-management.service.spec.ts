@@ -1,6 +1,6 @@
 import { OrgManagementService } from './org-management.service'
 
-// Verifies the gateway org management service preserves organizationPartyId through downstream tenant-org contracts.
+// Verifies the gateway org management service preserves organizationTenantPartyId through downstream tenant-org contracts.
 describe('OrgManagementService', () => {
   const tenantOrgQueryAdapter = {
     getOrgTreeByTenantId: jest.fn(),
@@ -8,7 +8,7 @@ describe('OrgManagementService', () => {
     getTenantById: jest.fn()
   }
   const partyQueryAdapter = {
-    getPartyById: jest.fn()
+    getOrganizationTenantPartyById: jest.fn()
   }
   const tenantOrgManagementAdapter = {
     archiveOrgUnit: jest.fn(),
@@ -27,14 +27,14 @@ describe('OrgManagementService', () => {
     tenantOrgQueryAdapter.getOrgTreeByTenantId.mockReset()
     tenantOrgQueryAdapter.getOrgUnitById.mockReset()
     tenantOrgQueryAdapter.getTenantById.mockReset()
-    partyQueryAdapter.getPartyById.mockReset()
+    partyQueryAdapter.getOrganizationTenantPartyById.mockReset()
     tenantOrgManagementAdapter.archiveOrgUnit.mockReset()
     tenantOrgManagementAdapter.createOrgUnit.mockReset()
     tenantOrgManagementAdapter.moveOrgUnit.mockReset()
     tenantOrgManagementAdapter.updateOrgUnit.mockReset()
   })
 
-  it('getOrgUnitDetail / should hydrate organizationParty summary from party-service when organizationPartyId exists', async () => {
+  it('getOrgUnitDetail / should hydrate organizationTenantParty summary from party-service when organizationTenantPartyId exists', async () => {
     const source = { requestId: 'req-1', traceId: 'trace-1', user: { scopeLevel: 'SYSTEM' } }
     tenantOrgQueryAdapter.getOrgUnitById.mockResolvedValue({
       orgUnit: {
@@ -47,11 +47,12 @@ describe('OrgManagementService', () => {
         path: '/root-1/org-1',
         depth: 1,
         sortOrder: 10,
-        organizationPartyId: 'party-1'
+        organizationTenantPartyId: 'party-1'
       }
     })
-    partyQueryAdapter.getPartyById.mockResolvedValue({
+    partyQueryAdapter.getOrganizationTenantPartyById.mockResolvedValue({
       id: 'party-1',
+      tenantId: 'tenant-1',
       type: 'ORGANIZATION',
       status: 'ACTIVE',
       legalName: 'Acme Manufacturing Ltd.'
@@ -60,20 +61,20 @@ describe('OrgManagementService', () => {
     await expect(service.getOrgUnitDetail('tenant-1', 'org-1', source as any)).resolves.toEqual({
       orgUnit: expect.objectContaining({
         id: 'org-1',
-        organizationPartyId: 'party-1',
-        organizationParty: {
+        organizationTenantPartyId: 'party-1',
+        organizationTenantParty: expect.objectContaining({
           id: 'party-1',
           type: 'ORGANIZATION',
           status: 'ACTIVE',
           legalName: 'Acme Manufacturing Ltd.'
-        }
+        })
       })
     })
 
-    expect(partyQueryAdapter.getPartyById).toHaveBeenCalledWith('party-1', source)
+    expect(partyQueryAdapter.getOrganizationTenantPartyById).toHaveBeenCalledWith('tenant-1', 'party-1', source)
   })
 
-  it('getOrgTree / should hydrate organizationParty summaries for tree nodes with organizationPartyId', async () => {
+  it('getOrgTree / should hydrate organizationTenantParty summaries for tree nodes with organizationTenantPartyId', async () => {
     const source = { requestId: 'req-1', traceId: 'trace-1', user: { scopeLevel: 'SYSTEM' } }
     tenantOrgQueryAdapter.getTenantById.mockResolvedValue({
       tenant: {
@@ -97,7 +98,7 @@ describe('OrgManagementService', () => {
             path: '/org-root-1',
             depth: 0,
             sortOrder: 0,
-            organizationPartyId: 'party-root-1'
+            organizationTenantPartyId: 'party-root-1'
           },
           children: [
             {
@@ -111,7 +112,7 @@ describe('OrgManagementService', () => {
                 path: '/org-root-1/org-branch-1',
                 depth: 1,
                 sortOrder: 10,
-                organizationPartyId: 'party-branch-1'
+                organizationTenantPartyId: 'party-branch-1'
               },
               children: []
             },
@@ -126,7 +127,7 @@ describe('OrgManagementService', () => {
                 path: '/org-root-1/org-dept-1',
                 depth: 1,
                 sortOrder: 20,
-                organizationPartyId: undefined
+                organizationTenantPartyId: undefined
               },
               children: []
             }
@@ -134,8 +135,8 @@ describe('OrgManagementService', () => {
         }
       ]
     })
-    partyQueryAdapter.getPartyById.mockImplementation(async (partyId: string) =>
-      partyId === 'party-root-1'
+    partyQueryAdapter.getOrganizationTenantPartyById.mockImplementation(async (_tenantId: string, tenantPartyId: string) =>
+      tenantPartyId === 'party-root-1'
         ? {
             id: 'party-root-1',
             type: 'ORGANIZATION',
@@ -160,8 +161,8 @@ describe('OrgManagementService', () => {
         {
           orgUnit: expect.objectContaining({
             id: 'org-root-1',
-            organizationPartyId: 'party-root-1',
-              organizationParty: expect.objectContaining({
+            organizationTenantPartyId: 'party-root-1',
+              organizationTenantParty: expect.objectContaining({
                 id: 'party-root-1',
                 legalName: 'Alpha Holdings Co.'
             })
@@ -170,8 +171,8 @@ describe('OrgManagementService', () => {
             {
               orgUnit: expect.objectContaining({
                 id: 'org-branch-1',
-                organizationPartyId: 'party-branch-1',
-                organizationParty: expect.objectContaining({
+                organizationTenantPartyId: 'party-branch-1',
+                organizationTenantParty: expect.objectContaining({
                   id: 'party-branch-1',
                   legalName: 'Alpha Shenzhen Branch'
                 })
@@ -181,8 +182,8 @@ describe('OrgManagementService', () => {
             {
               orgUnit: expect.objectContaining({
                 id: 'org-dept-1',
-                organizationPartyId: null,
-                organizationParty: null
+                organizationTenantPartyId: null,
+                organizationTenantParty: null
               }),
               children: []
             }
@@ -192,7 +193,7 @@ describe('OrgManagementService', () => {
     })
   })
 
-  it('updateOrgUnit / should preserve explicit organizationPartyId clear requests', async () => {
+  it('updateOrgUnit / should preserve explicit organizationTenantPartyId clear requests', async () => {
     const source = { requestId: 'req-1', traceId: 'trace-1', user: { scopeLevel: 'SYSTEM' } }
     tenantOrgManagementAdapter.updateOrgUnit.mockResolvedValue({
       orgUnit: {
@@ -205,7 +206,7 @@ describe('OrgManagementService', () => {
         path: '/root-1/org-1',
         depth: 1,
         sortOrder: 10,
-        organizationPartyId: undefined
+        organizationTenantPartyId: undefined
       }
     })
 
@@ -214,14 +215,14 @@ describe('OrgManagementService', () => {
         'tenant-1',
         'org-1',
         {
-          organizationPartyId: null
+          organizationTenantPartyId: null
         },
         source as any
       )
     ).resolves.toEqual({
       orgUnit: expect.objectContaining({
         id: 'org-1',
-        organizationPartyId: null
+        organizationTenantPartyId: null
       })
     })
 
@@ -232,7 +233,7 @@ describe('OrgManagementService', () => {
         name: undefined,
         type: undefined,
         sortOrder: undefined,
-        organizationPartyId: null
+        organizationTenantPartyId: null
       },
       source
     )
@@ -251,7 +252,7 @@ describe('OrgManagementService', () => {
         path: '/root-1/org-parent-2/org-1',
         depth: 2,
         sortOrder: 10,
-        organizationPartyId: undefined
+        organizationTenantPartyId: undefined
       }
     })
 

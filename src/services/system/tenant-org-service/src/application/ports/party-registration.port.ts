@@ -1,6 +1,6 @@
 export const PARTY_REGISTRATION_PORT = Symbol('TENANT_ONBOARDING_PARTY_REGISTRATION_PORT')
 
-export interface PartyIdentifierInput {
+export interface TenantPartyIdentifierInput {
   identifierType: string
   rawValue?: string
   normalizedValue: string
@@ -9,17 +9,11 @@ export interface PartyIdentifierInput {
 
 /** PartyRegistrationPort exposes only the party-service writes needed by tenant onboarding. */
 export interface PartyRegistrationPort {
-  registerOrganizationParty(input: {
+  registerOrganizationTenantParty(input: {
+    tenantId: string
     legalName: string
     registeredCountry?: string
-    identifiers: PartyIdentifierInput[]
+    identifiers: TenantPartyIdentifierInput[]
     idempotencyKey: string
-  }): Promise<{ partyId: string; tenantPartyId?: string }>
-  bindExistingPartyToTenant(input: {
-    tenantId: string
-    partyId: string
-    localDisplayName?: string
-    localCode?: string
-    idempotencyKey: string
-  }): Promise<{ partyId: string; tenantPartyId: string }>
+  }): Promise<{ tenantPartyId: string }>
 }

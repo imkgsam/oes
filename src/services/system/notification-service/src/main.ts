@@ -14,7 +14,7 @@ async function bootstrap() {
     options: {
       package: 'notification_service',
       protoPath: resolveCommonProtoPath('notification_service/notification.proto'),
-      url: `${process.env.GRPC_LISTEN_HOST || '0.0.0.0'}:${process.env.GRPC_LISTEN_PORT || '50053'}`
+      url: `${process.env.GRPC_LISTEN_HOST || '0.0.0.0'}:${process.env.GRPC_LISTEN_PORT || '50066'}`
     }
   })
 

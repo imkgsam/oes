@@ -20,8 +20,7 @@ const CALLER = 'api-gateway'
 export interface TenantPartySummary {
   id: string
   localCode?: string
-  localDisplayName?: string
-  partyId?: string
+  displayName?: string
   status: string
   tenantId: string
 }
@@ -62,8 +61,7 @@ export class PartyTenantQueryGrpcAdapter implements OnModuleInit {
     return {
       id: tenantParty.id,
       tenantId: tenantParty.tenantId ?? '',
-      partyId: normalize(tenantParty.partyId),
-      localDisplayName: normalize(tenantParty.localDisplayName),
+      displayName: normalize(tenantParty.displayName),
       localCode: normalize(tenantParty.localCode),
       status: tenantParty.status ?? ''
     }

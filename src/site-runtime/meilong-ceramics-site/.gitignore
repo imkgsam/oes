@@ -1,0 +1,20 @@
+# Local dependency installs
+node_modules/
+runtime/dist/
+runtime/data/
+runtime/node_modules/
+runtime/tsconfig.tsbuildinfo
+storefront/.nuxt/
+storefront/.output/
+storefront/node_modules/
+
+# Local env files may contain OES_SITE_CREDENTIAL or machine-specific ports.
+.env
+.env.local
+.env.*.local
+runtime/.env
+runtime/.env.local
+runtime/.env.*.local
+storefront/.env
+storefront/.env.local
+storefront/.env.*.local

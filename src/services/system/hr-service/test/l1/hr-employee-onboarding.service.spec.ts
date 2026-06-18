@@ -6,8 +6,7 @@ import { OnboardingAccessStatus } from '../../src/domain/value-objects'
 /** createPartyPortMock builds the party registration boundary used by employee onboarding. */
 function createPartyPortMock() {
   return {
-    registerPersonParty: jest.fn().mockResolvedValue({
-      partyId: 'party-1',
+    registerTenantParty: jest.fn().mockResolvedValue({
       tenantPartyId: 'tenant-party-1'
     })
   }
@@ -20,7 +19,6 @@ function createHrManagementServiceMock() {
       id: 'employee-1',
       tenantId: 'tenant-1',
       tenantPartyId: 'tenant-party-1',
-      partyId: 'party-1',
       employeeCode: 'EMP-0AF-0001',
       lifecycleStatus: 'PREBOARDING'
     }),
@@ -29,7 +27,6 @@ function createHrManagementServiceMock() {
         id: 'employee-1',
         tenantId: 'tenant-1',
         tenantPartyId: 'tenant-party-1',
-        partyId: 'party-1',
         employeeCode: 'EMP-0AF-0001',
         lifecycleStatus: 'ACTIVE'
       },
@@ -117,10 +114,10 @@ describe('HrEmployeeOnboardingService', () => {
     expect(result.employee.id).toBe('employee-1')
     expect(result.employment?.id).toBe('employment-1')
     expect(result.access?.status).toBe(OnboardingAccessStatus.COMPLETED)
-    expect(partyPort.registerPersonParty).toHaveBeenCalledWith({
+    expect(partyPort.registerTenantParty).toHaveBeenCalledWith({
       tenantId: 'tenant-1',
       legalName: '林予安',
-      localDisplayName: '林予安',
+      displayName: '林予安',
       identifiers: [
         {
           identifierType: 'NATIONAL_ID',
@@ -129,7 +126,7 @@ describe('HrEmployeeOnboardingService', () => {
           issuerCountryOrRegion: 'CN'
         }
       ],
-      idempotencyKey: 'hr-employee-onboarding:onboarding-1:party'
+      idempotencyKey: expect.stringMatching(/^hr-employee-party:[a-f0-9]{64}$/)
     })
     expect(accessService.completeAccess).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -139,6 +136,7 @@ describe('HrEmployeeOnboardingService', () => {
         createAccount: {
           displayName: '林予安',
           email: 'lin@example.com',
+          tenantPartyId: 'tenant-party-1',
           phone: undefined
         },
         roleIds: [],
@@ -182,12 +180,48 @@ describe('HrEmployeeOnboardingService', () => {
           displayName: '林予安',
           email: undefined,
           existingUserId: 'user-existing-1',
+          tenantPartyId: 'tenant-party-1',
           phone: undefined
         },
         roleIds: [],
         reason: 'employee_onboarding_account_basic'
       })
     )
+  })
+
+  it('uses a bounded deterministic party registration idempotency key for long upstream onboarding keys', async () => {
+    const partyPort = createPartyPortMock()
+    const hrManagementService = createHrManagementServiceMock()
+    const hrQueryService = createHrQueryServiceMock()
+    const accessService = createAccessServiceMock()
+    const service = new HrEmployeeOnboardingService(
+      partyPort as never,
+      hrManagementService as never,
+      hrQueryService as never,
+      accessService as never
+    )
+    const longGatewayKey =
+      'hr:create-employee-person:00000000-0000-4000-8000-000000000001:CODEX_LIVE_TEST:US:CODEX-LIVE-20260610-F19E'
+
+    await service.startEmployeeOnboarding({
+      idempotencyKey: longGatewayKey,
+      tenantId: '00000000-0000-4000-8000-000000000001',
+      person: {
+        legalName: 'Codex Live F19E',
+        identifiers: [
+          {
+            identifierType: 'CODEX_LIVE_TEST',
+            normalizedValue: 'CODEX-LIVE-20260610-F19E',
+            rawValue: 'CODEX-LIVE-20260610-F19E',
+            issuerCountryOrRegion: 'US'
+          }
+        ]
+      }
+    })
+
+    const partyInput = partyPort.registerTenantParty.mock.calls[0][0]
+    expect(partyInput.idempotencyKey).toMatch(/^hr-employee-party:[a-f0-9]{64}$/)
+    expect(partyInput.idempotencyKey).toHaveLength(82)
   })
 
   it('returns pending access process when downstream account creation needs recovery', async () => {
@@ -244,7 +278,6 @@ describe('HrEmployeeOnboardingService', () => {
         id: 'employee-2',
         tenantId: 'tenant-1',
         tenantPartyId: 'tenant-party-1',
-        partyId: 'party-1',
         employeeCode: 'EMP-0AF-0003',
         lifecycleStatus: 'PREBOARDING'
       })

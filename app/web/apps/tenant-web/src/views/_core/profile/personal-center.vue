@@ -14,6 +14,7 @@ import { useAuthContextStore } from '#/store/auth-context';
 import { resolveTestUserAvatar } from '#/store/test-user-avatar';
 
 import PersonalAccountSection from './components/personal-account-section.vue';
+import PersonalBusinessCardSection from './components/personal-business-card-section.vue';
 import PersonalSecuritySection from './components/personal-security-section.vue';
 import PersonalUserSection from './components/personal-user-section.vue';
 
@@ -194,6 +195,7 @@ onMounted(() => {
             :saving="accountSaving"
             @save="handleAccountProfileSave"
           />
+          <PersonalBusinessCardSection />
           <PersonalSecuritySection :entries="summary.securityEntries" />
         </template>
       </div>

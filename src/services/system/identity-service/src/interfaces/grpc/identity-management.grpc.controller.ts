@@ -96,6 +96,7 @@ import { getOptionalOperatorScope, getRequiredOperatorId } from './grpc-request-
 @UseInterceptors(GrpcRequestContextInterceptor)
 @Controller()
 @IdentityManagementServiceControllerMethods()
+/** IdentityManagementGrpcController maps internal identity management gRPC requests into audited command handlers. */
 export class IdentityManagementGrpcController implements IdentityManagementServiceController {
   constructor(
     private readonly commandBus: ValidatingCommandBus,
@@ -322,6 +323,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
         email: request.email || undefined,
         existingUserId: request.existingUserId || undefined,
         phone: request.phone || undefined,
+        tenantPartyId: request.tenantPartyId || undefined,
         idempotencyKey: request.idempotencyKey || undefined,
         operatorId,
         operatorScope
@@ -338,10 +340,10 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
         displayName: account.displayName ?? '',
         bio: account.bio ?? '',
         isEnabled: account.isEnabled,
-        scopeLevel: account.scopeLevel
+        scopeLevel: account.scopeLevel,
+        tenantPartyId: account.tenantPartyId ?? ''
       },
-      userPartyId: account.userPartyId ?? '',
-      userTenantPartyId: account.userTenantPartyId ?? ''
+      tenantPartyId: account.tenantPartyId ?? ''
     }
   }
 
@@ -635,7 +637,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     )
   }
 
-  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.ASSIGN_WORK_EMAIL] })
+  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.ASSIGN_CONTACT_ASSET] })
   async assignAccountWorkEmailAsset(
     request: AssignAccountWorkEmailAssetRequest
   ): Promise<AssignAccountWorkEmailAssetResponse> {
@@ -679,7 +681,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     )
   }
 
-  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.ASSIGN_WORK_PHONE] })
+  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.ASSIGN_CONTACT_ASSET] })
   async assignAccountWorkPhoneAsset(
     request: AssignAccountWorkPhoneAssetRequest
   ): Promise<AssignAccountWorkPhoneAssetResponse> {
@@ -723,7 +725,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     )
   }
 
-  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.REVOKE_WORK_EMAIL] })
+  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.RELEASE_CONTACT_ASSET] })
   async revokeAccountWorkEmailAsset(
     request: RevokeAccountWorkEmailAssetRequest
   ): Promise<RevokeAccountWorkEmailAssetResponse> {
@@ -759,7 +761,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     )
   }
 
-  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.REVOKE_WORK_PHONE] })
+  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.RELEASE_CONTACT_ASSET] })
   async revokeAccountWorkPhoneAsset(
     request: RevokeAccountWorkPhoneAssetRequest
   ): Promise<RevokeAccountWorkPhoneAssetResponse> {
@@ -795,7 +797,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     )
   }
 
-  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.SET_PRIMARY_WORK_EMAIL] })
+  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.SET_PRIMARY_CONTACT_ASSET] })
   async setAccountPrimaryWorkEmailAsset(
     request: SetAccountPrimaryWorkEmailAssetRequest
   ): Promise<SetAccountPrimaryWorkEmailAssetResponse> {
@@ -831,7 +833,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     )
   }
 
-  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.SET_PRIMARY_WORK_PHONE] })
+  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.SET_PRIMARY_CONTACT_ASSET] })
   async setAccountPrimaryWorkPhoneAsset(
     request: SetAccountPrimaryWorkPhoneAssetRequest
   ): Promise<SetAccountPrimaryWorkPhoneAssetResponse> {
@@ -867,7 +869,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     )
   }
 
-  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.SET_WORK_EMAIL_STATUS] })
+  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.SET_CONTACT_ASSET_STATUS] })
   async setAccountWorkEmailAssetStatus(
     request: SetAccountWorkEmailAssetStatusRequest
   ): Promise<SetAccountWorkEmailAssetStatusResponse> {
@@ -909,7 +911,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     )
   }
 
-  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.SET_WORK_PHONE_STATUS] })
+  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.SET_CONTACT_ASSET_STATUS] })
   async setAccountWorkPhoneAssetStatus(
     request: SetAccountWorkPhoneAssetStatusRequest
   ): Promise<SetAccountWorkPhoneAssetStatusResponse> {

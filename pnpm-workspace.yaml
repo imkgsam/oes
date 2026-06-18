@@ -4,4 +4,7 @@ packages:
   - 'src/services/auxiliary/*'
   - 'src/services/business/*'
   - 'src/services/system/*'
+  - 'src/site-runtime/*'
+  - 'src/site-runtime/external-site-template/runtime'
+  - 'src/site-runtime/external-site-template/storefront'
   - 'src/common'

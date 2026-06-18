@@ -84,11 +84,6 @@ export class CreateEmployeeDto {
   @IsString()
   tenantPartyId?: string
 
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  partyId?: string
-
   @ApiPropertyOptional({ type: CreateEmployeePersonDto })
   @IsObject()
   @IsOptional()

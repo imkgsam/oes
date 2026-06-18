@@ -14,6 +14,8 @@ service IdentityQueryService {
   rpc GetServiceAccountById(GetServiceAccountByIdRequest) returns (GetServiceAccountByIdResponse);
   rpc ListApiKeysByServiceAccountId(ListApiKeysByServiceAccountIdRequest) returns (ListApiKeysByServiceAccountIdResponse);
   rpc ListServiceAccounts(ListServiceAccountsRequest) returns (ListServiceAccountsResponse);
+  rpc ResolveContactActionTargets(ResolveContactActionTargetsRequest) returns (ResolveContactActionTargetsResponse);
+  rpc ListAccountContactAssets(ListAccountContactAssetsRequest) returns (ListAccountContactAssetsResponse);
   rpc ListAccountWorkEmailAssets(ListAccountWorkEmailAssetsRequest) returns (ListAccountWorkEmailAssetsResponse);
   rpc ListAccountWorkPhoneAssets(ListAccountWorkPhoneAssetsRequest) returns (ListAccountWorkPhoneAssetsResponse);
   rpc ListAccounts(ListAccountsRequest) returns (ListAccountsResponse);
@@ -109,7 +111,8 @@ message UserSummary {
   string personal_email = 3;
   string personal_phone = 4;
   bool is_active = 5;
-  string party_id = 6;
+  reserved 6;
+  reserved "party_id";
 }
 
 message GetUserByEmailResponse {
@@ -141,7 +144,7 @@ message AccountDirectoryItem {
   string display_name = 5;
   bool is_enabled = 6;
   string user_display_name = 7;
-  string user_party_id = 8;
+  string tenant_party_id = 8;
 }
 
 message ListAccountsResponse {
@@ -173,6 +176,7 @@ message CreateUserAccountRequest {
   string phone = 6;
   string idempotency_key = 7;
   string existing_user_id = 8;
+  string tenant_party_id = 9;
 }
 
 message BindAccountToEmployeeRequest {
@@ -253,6 +257,13 @@ message AccountContactAsset {
   bool is_primary = 7;
   string assigned_at = 8;
   string revoked_at = 9;
+  string user_id = 10;
+  string employee_id = 11;
+  string provider = 12;
+  string display_name = 13;
+  string ownership = 14;
+  repeated string usage = 15;
+  string released_at = 16;
 }
 
 message AccountContactAssetResponse {
@@ -304,6 +315,55 @@ message ListAccountWorkPhoneAssetsRequest {
 }
 
 message ListAccountWorkPhoneAssetsResponse {
+  repeated AccountContactAsset assets = 1;
+}
+
+message ContactActionTargetRef {
+  string contact_action_type = 1;
+  string target_ref_type = 2;
+  string target_ref_id = 3;
+}
+
+message ContactAssetPublicValueSummary {
+  string type = 1;
+  string provider = 2;
+  string label = 3;
+  string display_value = 4;
+  string action_value = 5;
+  string action_uri = 6;
+  bool include_in_v_card_allowed = 7;
+}
+
+message ResolvedContactActionTarget {
+  string contact_action_type = 1;
+  string target_ref_type = 2;
+  string target_ref_id = 3;
+  bool renderable = 4;
+  string hidden_reason = 5;
+  ContactAssetPublicValueSummary public_value_summary = 6;
+}
+
+message ResolveContactActionTargetsRequest {
+  string tenant_id = 1;
+  string account_id = 2;
+  string employee_id = 3;
+  repeated ContactActionTargetRef target_refs = 4;
+}
+
+message ResolveContactActionTargetsResponse {
+  repeated ResolvedContactActionTarget targets = 1;
+}
+
+message ListAccountContactAssetsRequest {
+  string tenant_id = 1;
+  string account_id = 2;
+  string employee_id = 3;
+  repeated string types = 4;
+  repeated string statuses = 5;
+  repeated string ownership = 6;
+}
+
+message ListAccountContactAssetsResponse {
   repeated AccountContactAsset assets = 1;
 }
 
@@ -392,6 +452,7 @@ message AccountSummary {
   bool is_enabled = 7;
   string scope_level = 8;
   string avatar_asset_id = 9;
+  string tenant_party_id = 10;
 }
 
 message GetAccountByIdResponse {
@@ -400,8 +461,9 @@ message GetAccountByIdResponse {
 
 message CreateUserAccountResponse {
   AccountSummary account = 1;
-  string user_party_id = 2;
-  string user_tenant_party_id = 3;
+  reserved 2;
+  reserved "user_party_id";
+  string tenant_party_id = 3;
 }
 
 message UpdateOwnAccountProfileResponse {

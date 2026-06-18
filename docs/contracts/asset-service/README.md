@@ -20,6 +20,8 @@
 
 - [avatar.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/asset-service/avatar.md)
   - 头像资产上传、绑定、替换与地址解析契约
+- [employee-official-photo.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/asset-service/employee-official-photo.md)
+  - 员工公开展示头像资产上传、绑定与地址解析契约
 
 ## 3. 全局调用约束
 

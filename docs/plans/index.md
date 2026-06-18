@@ -65,7 +65,15 @@
     - CRM Service 最小客户主档闭环与 Sales selector 边界 feature packet
 25. `features/procurement-pr-po-foundation.md`
     - Procurement Service 第一阶段 PR、PO、allocation、收货预期与采购差异摘要 feature packet
-26. `pda-phase-1-foundation-implementation-plan.md`
+26. `features/collaboration-task-p1.md`
+    - Collaboration Service Task 第一阶段手动任务、private todo、assigned task、状态、权限、审计与事件 feature packet
+27. `features/collaboration-annotation-p1.md`
+    - Collaboration Service Annotation 第一阶段 CrmAccount 内部对象备注、Panel Notes tab、权限、审计与对象引用校验 feature packet
+28. `collaboration-task-p1-implementation-plan.md`
+    - Collaboration Service Task P1 从 contracts 到 runtime、permission、gateway 与验证的实施计划
+29. `collaboration-annotation-p1-implementation-plan.md`
+    - Collaboration Service Annotation P1 从 contracts 到 CRM object reference、runtime、gateway、tenant-web Panel 与验证的实施计划
+30. `pda-phase-1-foundation-implementation-plan.md`
     - PDA Android 设备端第一阶段系统基础能力、Android Shell、Vue3 Web、JS Bridge、PDA BFF 与真机验收实施计划
 
 ## 3. 使用规则

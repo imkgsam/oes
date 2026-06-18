@@ -172,7 +172,7 @@ Drawer：
   - 节点 ID
   - 组织路径
   - depth
-  - organization party 相关字段
+  - organization TenantParty 相关字段
 
 ### 6.4 负责人规则
 
@@ -192,7 +192,7 @@ Drawer：
 
 来源：
 
-- `tenantPartyId -> party-service tenantParty.localDisplayName`
+- `tenantPartyId -> party-service TenantParty.displayName`
 
 约束：
 
@@ -356,9 +356,8 @@ Drawer：
   - employment
   - employee onboarding access
 - `party-service`
-  - person party
-  - tenant party
-  - 必要 organization party
+  - PERSON TenantParty
+  - ORGANIZATION TenantParty
 - `identity-service`
   - user
   - userAccount

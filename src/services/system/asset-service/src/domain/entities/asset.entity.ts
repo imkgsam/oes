@@ -1,4 +1,4 @@
-export type AssetCategory = 'ACCOUNT_AVATAR'
+export type AssetCategory = 'ACCOUNT_AVATAR' | 'EMPLOYEE_OFFICIAL_PHOTO'
 export type AssetScopeLevel = 'SYSTEM' | 'TENANT'
 export type AssetStatus = 'ACTIVE' | 'DELETED' | 'PENDING_BIND' | 'REPLACED'
 
@@ -6,7 +6,8 @@ export interface AssetProps {
   id: string
   scopeLevel: AssetScopeLevel
   tenantId: null | string
-  ownerAccountId: string
+  ownerAccountId: null | string
+  ownerEmployeeId: null | string
   category: AssetCategory
   storageKey: string
   mimeType: string
@@ -25,7 +26,8 @@ export class AssetEntity {
   readonly id: string
   readonly scopeLevel: AssetScopeLevel
   readonly tenantId: null | string
-  readonly ownerAccountId: string
+  readonly ownerAccountId: null | string
+  readonly ownerEmployeeId: null | string
   readonly category: AssetCategory
   readonly storageKey: string
   readonly mimeType: string
@@ -43,6 +45,7 @@ export class AssetEntity {
     this.scopeLevel = props.scopeLevel
     this.tenantId = props.tenantId
     this.ownerAccountId = props.ownerAccountId
+    this.ownerEmployeeId = props.ownerEmployeeId
     this.category = props.category
     this.storageKey = props.storageKey
     this.mimeType = props.mimeType

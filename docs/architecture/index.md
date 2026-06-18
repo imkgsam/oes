@@ -37,9 +37,11 @@
 15. `14-grpc-metadata-and-service-trust-architecture.md`
 16. `15-authorization-layering-and-resource-policy-architecture.md`
 17. `16-unified-web-account-context-architecture.md`
-18. `service-collaboration-rules.md`
-19. `terminals/index.md`
-20. `frontends/index.md`
+18. `site-runtime-architecture.md`
+19. `site-runtime-kit.md`
+20. `service-collaboration-rules.md`
+21. `terminals/index.md`
+22. `frontends/index.md`
 
 ## 3. 文档职责
 
@@ -77,6 +79,10 @@
   - 定义粗粒度 `RBAC`、单资源 `checkResource`、列表 `buildQueryScope`、policy 分类、业务规则边界与跨服务派生协作授权规则
 - `16-unified-web-account-context-architecture.md`
   - 定义统一 Web Shell、scope-aware `UserAccount`、系统账号与租户账号、登录上下文选择、上下文切换、token 与菜单权限协作模型
+- `site-runtime-architecture.md`
+  - 定义 OES 与外部网站之间的顶层协作方式、webhook 通知、pull fallback 与 Site Runtime 的基础同步原则
+- `site-runtime-kit.md`
+  - 定义 `@oes/site-runtime-kit` Phase 1 的站点运行时基础框架、签名通信、webhook 校验、本地 published store、NestJS 接入与 P1 范围边界
 - `service-collaboration-rules.md`
   - 定义项目级 `gRPC / Event` 适用边界、写前校验与写后事实扩散组合规则，以及事件命名、payload 与长流程解耦护栏
 - `terminals/index.md`

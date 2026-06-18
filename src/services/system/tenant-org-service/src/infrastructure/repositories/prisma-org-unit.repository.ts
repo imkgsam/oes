@@ -36,7 +36,7 @@ export class PrismaOrgUnitRepository implements OrgUnitRepository {
         path: '/',
         depth: parent.depth + 1,
         sortOrder: _input.sortOrder ?? 0,
-        organizationPartyId: _input.organizationPartyId ?? null
+        organizationTenantPartyId: _input.organizationTenantPartyId ?? null
       }
     })
     const orgUnit = await this.prisma.orgUnit.update({
@@ -87,8 +87,8 @@ export class PrismaOrgUnitRepository implements OrgUnitRepository {
         name: _input.name,
         type: (_input.type as never) || undefined,
         sortOrder: _input.sortOrder,
-        organizationPartyId:
-          _input.organizationPartyId === undefined ? undefined : _input.organizationPartyId
+        organizationTenantPartyId:
+          _input.organizationTenantPartyId === undefined ? undefined : _input.organizationTenantPartyId
       }
     })
     return mapOrgUnit(orgUnit)
@@ -244,7 +244,7 @@ function mapOrgUnit(orgUnit: {
   path: string
   depth: number
   sortOrder: number
-  organizationPartyId: string | null
+  organizationTenantPartyId: string | null
 }): OrgUnitSummary {
   return {
     id: orgUnit.id,
@@ -256,7 +256,7 @@ function mapOrgUnit(orgUnit: {
     path: orgUnit.path,
     depth: orgUnit.depth,
     sortOrder: orgUnit.sortOrder,
-    organizationPartyId: orgUnit.organizationPartyId
+    organizationTenantPartyId: orgUnit.organizationTenantPartyId
   }
 }
 

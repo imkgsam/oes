@@ -10,20 +10,20 @@ import { SERVICE_NAMES } from '@oes/common/constants'
 import {
   PARTY_REGISTRATION_SERVICE_NAME,
   PartyRegistrationServiceClient,
-  RegisterPersonPartyRequest,
-  RegisterPersonPartyResponse
+  RegisterTenantPartyRequest,
+  RegisterTenantPartyResponse
 } from '@oes/common/generated/party_service'
 import { safeGrpcCall } from '@oes/common/transport'
 import {
   PartyRegistrationPort,
-  RegisterPersonPartyInput,
-  RegisterPersonPartyResult
+  RegisterTenantPartyInput,
+  RegisterTenantPartyResult
 } from '../../application/ports'
 
 export const PARTY_GRPC_CLIENT = Symbol('PARTY_GRPC_CLIENT')
 export const PARTY_PROTO_PATH = resolveCommonProtoPath('party_service/party.proto')
 
-/** PartyRegistrationGrpcAdapter delegates employee person-party registration to party-service through gRPC. */
+/** PartyRegistrationGrpcAdapter delegates employee tenant-party registration to party-service through gRPC. */
 @Injectable()
 export class PartyRegistrationGrpcAdapter implements PartyRegistrationPort, OnModuleInit {
   private svc!: PartyRegistrationServiceClient
@@ -42,13 +42,14 @@ export class PartyRegistrationGrpcAdapter implements PartyRegistrationPort, OnMo
     )
   }
 
-  async registerPersonParty(input: RegisterPersonPartyInput): Promise<RegisterPersonPartyResult> {
-    const response = await safeGrpcCall<RegisterPersonPartyResponse>(
-      this.svc.registerPersonParty(
+  async registerTenantParty(input: RegisterTenantPartyInput): Promise<RegisterTenantPartyResult> {
+    const response = await safeGrpcCall<RegisterTenantPartyResponse>(
+      this.svc.registerTenantParty(
         {
           tenantId: input.tenantId,
+          type: 'PERSON',
           legalName: input.legalName,
-          localDisplayName: input.localDisplayName ?? input.legalName,
+          displayName: input.displayName ?? input.legalName,
           localCode: '',
           identifiers: input.identifiers.map((identifier) => ({
             identifierType: identifier.identifierType,
@@ -58,17 +59,16 @@ export class PartyRegistrationGrpcAdapter implements PartyRegistrationPort, OnMo
             status: 'DECLARED'
           })),
           idempotencyKey: input.idempotencyKey ?? ''
-        } as RegisterPersonPartyRequest,
+        } as RegisterTenantPartyRequest,
         this.buildMetadata(input.tenantId)
       ),
       {
         caller: SERVICE_NAMES.HR,
-        method: 'PartyRegistrationService.registerPersonParty'
+        method: 'PartyRegistrationService.registerTenantParty'
       }
     )
 
     return {
-      partyId: response.party?.id ?? '',
       tenantPartyId: response.tenantParty?.id ?? ''
     }
   }

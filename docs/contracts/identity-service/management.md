@@ -36,7 +36,27 @@
 - 子服务通过共享 resolver 调 `permission-service`
 - 解析出 permission codes 后交给 `PermissionGuard`
 
-## 3. Contact Asset management
+## 3. Account management
+
+### `CreateUserAccount`
+
+- 作用：创建 `SYSTEM` 或 `TENANT` 账号；员工 onboarding 场景由 `hr-service` 通过内部 gRPC 调用该能力创建租户账号。
+- 请求关键字段：
+  - `scope_level`
+  - `tenant_id`
+  - `display_name`
+  - `email` / `phone` / `existing_user_id`
+  - optional `tenant_party_id`
+- `tenant_party_id` 语义：
+  - 仅适用于 `scope_level = TENANT`。
+  - 当调用方传入 `tenant_party_id` 时，`identity-service` 必须把它作为 `UserAccount.tenantPartyId` 持久化，不得再注册新的 `TenantParty`。
+  - 当调用方未传 `tenant_party_id` 时，`identity-service` 保留自行向 `party-service` 注册当前租户 `PERSON TenantParty` 的既有行为。
+  - 当前 `identity-service` 尚无正式 Party query port；字段所属租户校验由上游受控写链路保证。若后续需要由 Identity 强校验，应先补充正式 Party query contract / ADR，不得运行时跨库查询。
+- 与 HR binding 的关系：
+  - HR employee onboarding 已解析出的 `Employee.tenantPartyId` 必须通过本字段传入。
+  - 后续 `BindAccountToEmployee` 仍必须校验 `UserAccount.tenantPartyId == Employee.tenantPartyId`，不得为了 onboarding 成功而放宽一致性校验。
+
+## 4. Contact Asset management
 
 Contact Asset management 是管理员或受控 self-service 对账号工作上下文联系方式资产的 command 边界。
 
@@ -51,7 +71,7 @@ Contact Asset management 是管理员或受控 self-service 对账号工作上�
 - 所有会改变 Contact Asset 的管理命令都必须携带 operator context、trace context 与审计元数据。
 - self-service 与 admin-management 必须使用不同入口或不同受控 command mode；self-service target 必须从当前 session / operator context 推导，不接受前端指定他人 target。
 
-### 3.1 Shared management shapes
+### 4.1 Shared management shapes
 
 `ContactAssetMutationTarget`：
 
@@ -119,7 +139,7 @@ Contact Asset management 是管理员或受控 self-service 对账号工作上�
 - 返回管理摘要，不返回敏感 credential、外部 OAuth token、内部审计正文或不可公开备注。
 - 调用方如需 BusinessCard public render 值，应通过 query contract 的 `ResolveContactActionTargets` 解析。
 
-### 3.2 Self-service profile boundary
+### 4.2 Self-service profile boundary
 
 #### `UpdateOwnUserBasicInfo`
 
@@ -149,7 +169,7 @@ Contact Asset management 是管理员或受控 self-service 对账号工作上�
   - 这是 admin-management 专用边界
   - self-service 链路不得再复用该接口
 
-### 3.3 Unified Contact Asset commands
+### 4.3 Unified Contact Asset commands
 
 #### `AssignAccountContactAsset`
 
@@ -266,7 +286,7 @@ Contact Asset management 是管理员或受控 self-service 对账号工作上�
   - `status_after_handover` 通常为 `ACTIVE` 或 `DISABLED`。
   - 交接完成后，原账号不得再通过 `ResolveContactActionTargets` 获得该资产正文。
 
-### 3.4 Legacy narrow work asset commands
+### 4.4 Legacy narrow work asset commands
 
 以下 work email / work phone 接口是历史窄口径命令。它们的长期语义应视为统一 Contact Asset command 的兼容别名；新 BusinessCard Phase 1 设计不得继续扩展这些窄接口。
 
@@ -360,7 +380,7 @@ Contact Asset management 是管理员或受控 self-service 对账号工作上�
   - 仅允许对工作手机号资产生效
   - 兼容语义等价于 `SetAccountPrimaryContactAsset(type=WORK_PHONE)`
 
-## 4. 租户与组织边界
+## 5. 租户与组织边界
 
 - `identity-service` 不再提供 `AddAccountOrgMembership`、`RemoveAccountOrgMembership`、`SetAccountPrimaryOrg`
 - `identity-service` 创建 tenant-scope service account 时，只通过 `tenant-org-service` gRPC 校验 tenant 引用存在

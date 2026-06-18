@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { createSmokeSeed, runSrmSmokeFlow } from './srm-smoke-lib.mjs';
+import { createPurchasableSmokeItem } from '../../../../../scripts/local/item-master-smoke-fixture.mjs';
 
 // Verifies the minimal SRM smoke flow creates a supplier, binds it to a tenant party, activates it, and adds one purchasable offering.
 test('srm smoke flow / should create, bind, activate, and offer one supplier when party and item-master are available', async () => {
@@ -108,10 +109,9 @@ test('srm smoke flow / should create, bind, activate, and offer one supplier whe
       },
       party: {
         registration: {
-          registerOrganizationParty: async (request) => {
-            calls.push(['registerOrganizationParty', request]);
+          registerTenantParty: async (request) => {
+            calls.push(['registerTenantParty', request]);
             return {
-              party: { id: 'party-1' },
               tenantParty: { id: 'tenant-party-1' },
               matchResult: 'CREATED'
             };
@@ -120,6 +120,20 @@ test('srm smoke flow / should create, bind, activate, and offer one supplier whe
       },
       itemMaster: {
         management: {
+          createItemModel: async (request) => {
+            calls.push(['createItemModel', request]);
+            return {
+              itemModelId: 'item-model-1',
+              itemModel: {
+                itemModelId: 'item-model-1',
+                modelCode: request.modelCode,
+                modelName: request.modelName,
+                modelKind: request.modelKind,
+                modelType: request.modelType,
+                active: true
+              }
+            };
+          },
           createItem: async (request) => {
             calls.push(['createItem', request]);
             return {
@@ -166,14 +180,57 @@ test('srm smoke flow / should create, bind, activate, and offer one supplier whe
       'searchSuppliers',
       'createSupplierProfile',
       'searchSuppliers',
-      'registerOrganizationParty',
+      'registerTenantParty',
       'bindSupplierToTenantParty',
       'changeSupplierStatus',
+      'createItemModel',
       'createItem',
       'setItemCapabilities',
       'upsertSupplierOffering'
     ]
   );
+  const createItemCall = calls.find(([name]) => name === 'createItem');
+  assert.equal(createItemCall[1].itemModelId, 'item-model-1');
+});
+
+// Verifies the shared smoke fixture follows Item Master Contract V2 by creating an ItemModel before the executable Item.
+test('item-master smoke fixture / should create a model before creating a purchasable item', async () => {
+  const calls = [];
+  const seed = createSmokeSeed(1700000000103);
+
+  const result = await createPurchasableSmokeItem(
+    {
+      createItemModel: async (request) => {
+        calls.push(['createItemModel', request]);
+        return { itemModelId: 'item-model-shared-1' };
+      },
+      createItem: async (request) => {
+        calls.push(['createItem', request]);
+        return { itemId: 'item-shared-1', item: { itemId: 'item-shared-1' } };
+      },
+      setItemCapabilities: async (request) => {
+        calls.push(['setItemCapabilities', request]);
+        return {
+          item: {
+            itemId: request.itemId,
+            capabilities: { purchasable: true }
+          }
+        };
+      }
+    },
+    seed,
+    {
+      modelCode: seed.itemCode,
+      modelName: seed.itemName,
+      itemCode: seed.itemCode,
+      itemName: seed.itemName
+    }
+  );
+
+  assert.deepEqual(calls.map(([name]) => name), ['createItemModel', 'createItem', 'setItemCapabilities']);
+  assert.equal(calls[1][1].itemModelId, 'item-model-shared-1');
+  assert.equal(result.itemModelId, 'item-model-shared-1');
+  assert.equal(result.itemId, 'item-shared-1');
 });
 
 // Verifies the minimal SRM smoke flow still succeeds when party-service is unavailable and both binding and offering must be skipped.
@@ -306,8 +363,7 @@ test('srm smoke flow / should skip offering when item-master-service is unavaila
       },
       party: {
         registration: {
-          registerOrganizationParty: async () => ({
-            party: { id: 'party-3' },
+          registerTenantParty: async () => ({
             tenantParty: { id: 'tenant-party-3' },
             matchResult: 'CREATED'
           })

@@ -69,12 +69,6 @@ vi.mock('@vben/common-ui', () => ({
       </section>
     `
   }),
-  SliderCaptcha: defineComponent({
-    name: 'SliderCaptcha',
-    emits: ['success', 'update:modelValue'],
-    template:
-      '<button class="slider-pass" type="button" @click="$emit(\'update:modelValue\', true); $emit(\'success\')">slider-pass</button>'
-  }),
   z: {
     string: zString
   }
@@ -166,17 +160,13 @@ describe('code login identifier handoff', () => {
     expect(setFieldValue).toHaveBeenCalledWith('phoneNumber', '+8613800138000')
   })
 
-  it('requires captcha verification before sending a phone otp challenge', async () => {
+  it('sends a phone otp challenge without requiring an extra gate', async () => {
     routeState.query = {
       mode: 'phone'
     }
     const view = await import('./code-login.vue')
     const wrapper = mount(view.default)
 
-    await wrapper.get('.send-code').trigger('click')
-    expect(requestPhoneOtpChallengeMock).not.toHaveBeenCalled()
-
-    await wrapper.get('.slider-pass').trigger('click')
     await wrapper.get('.send-code').trigger('click')
 
     expect(requestPhoneOtpChallengeMock).toHaveBeenCalledWith('+8613800138000')

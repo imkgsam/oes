@@ -90,7 +90,7 @@ describe('TenantOrgManagementGrpcController L3', () => {
         path: '/root-1',
         depth: 0,
         sortOrder: 0,
-        organizationPartyId: null
+        organizationTenantPartyId: null
       }
     })
 
@@ -125,7 +125,7 @@ describe('TenantOrgManagementGrpcController L3', () => {
     ).rejects.toBeInstanceOf(BadRequestException)
   })
 
-  it('updateOrgUnit / when organizationPartyId is sent as empty string / should forward explicit clear semantics', async () => {
+  it('updateOrgUnit / when organizationTenantPartyId is sent as empty string / should forward explicit clear semantics', async () => {
     const service = createTenantOrgManagementServiceMock()
     const onboardingService = createTenantOnboardingServiceMock()
     const controller = new TenantOrgManagementGrpcController(
@@ -142,13 +142,13 @@ describe('TenantOrgManagementGrpcController L3', () => {
       path: '/root-1/org-1',
       depth: 1,
       sortOrder: 10,
-      organizationPartyId: null
+      organizationTenantPartyId: null
     })
 
     await controller.updateOrgUnit({
       tenantId: 'tenant-1',
       orgUnitId: 'org-1',
-      organizationPartyId: ''
+      organizationTenantPartyId: ''
     } as any)
 
     expect(service.updateOrgUnit).toHaveBeenCalledWith({
@@ -157,7 +157,7 @@ describe('TenantOrgManagementGrpcController L3', () => {
       name: undefined,
       type: undefined,
       sortOrder: undefined,
-      organizationPartyId: null
+      organizationTenantPartyId: null
     })
   })
 
@@ -193,7 +193,7 @@ describe('TenantOrgManagementGrpcController L3', () => {
     const result = await controller.startTenantOnboarding({
       idempotencyKey: 'onboarding-key-1',
       tenant: { code: 'acme', name: 'ACME' },
-      organizationParty: {
+      organizationTenantParty: {
         legalName: 'ACME Inc.',
         registeredCountry: 'US',
         identifiers: [{ identifierType: 'EIN', rawValue: '12-3456789' }]

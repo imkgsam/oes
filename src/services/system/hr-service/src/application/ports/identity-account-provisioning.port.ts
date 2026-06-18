@@ -8,6 +8,7 @@ export interface IdentityAccountProvisioningPort {
     email?: string
     existingUserId?: string
     phone?: string
+    tenantPartyId?: string
     username?: string
     operatorContext?: {
       operatorId: string

@@ -5,7 +5,7 @@ import type { Recordable } from '@vben/types';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
-import { AuthenticationCodeLogin, SliderCaptcha, z } from '@vben/common-ui';
+import { AuthenticationCodeLogin, z } from '@vben/common-ui';
 import { $t } from '@vben/locales';
 import { message } from 'ant-design-vue';
 
@@ -25,8 +25,6 @@ const authStore = useAuthStore();
 const formRef = ref<InstanceType<typeof AuthenticationCodeLogin>>();
 const route = useRoute();
 const router = useRouter();
-const sliderPassed = ref(false);
-const sliderRef = ref<InstanceType<typeof SliderCaptcha>>();
 const otpChallengeRequested = ref(false);
 
 type LoginMode = 'email' | 'phone';
@@ -86,16 +84,10 @@ const formSchema = computed((): VbenFormSchema[] => {
       handleSendCode: async () => {
         const formApi = formRef.value?.getFormApi();
         const values = await formApi?.getValues?.();
-        if (!sliderPassed.value) {
-          message.warning('请先完成安全验证后再发送验证码。');
-          return false;
-        }
-
         if (isEmailMode.value) {
           const email = `${values?.email ?? ''}`.trim();
           await authStore.requestEmailOtpChallenge(email);
           otpChallengeRequested.value = true;
-          resetSlider();
           message.success('验证码已发送，请注意查收邮件。');
           return true;
         }
@@ -103,7 +95,6 @@ const formSchema = computed((): VbenFormSchema[] => {
         const phone = `${values?.phoneNumber ?? ''}`.trim();
         await authStore.requestPhoneOtpChallenge(phone);
         otpChallengeRequested.value = true;
-        resetSlider();
         message.success('验证码已发送，请注意查收短信。');
         return true;
       },
@@ -152,7 +143,7 @@ const formSchema = computed((): VbenFormSchema[] => {
 // Submits the OTP login form using either the email or phone identifier mode.
 async function handleLogin(values: Recordable<any>) {
   if (!otpChallengeRequested.value) {
-    message.warning('请先完成安全验证并发送验证码。');
+    message.warning('请先发送验证码。');
     return;
   }
 
@@ -185,17 +176,11 @@ async function handleLogin(values: Recordable<any>) {
 }
 
 function switchMode(mode: LoginMode) {
-  resetSlider();
   otpChallengeRequested.value = false;
   void router.replace({
     name: 'CodeLogin',
     query: { mode },
   });
-}
-
-function resetSlider() {
-  sliderPassed.value = false;
-  sliderRef.value?.resume?.();
 }
 
 // syncIdentifierFromRoute carries an identifier handed off from password login into the current OTP mode.
@@ -258,16 +243,6 @@ watch(() => [loginMode.value, routeIdentifier.value] as const, syncIdentifierFro
         </div>
       </template>
 
-      <template #submit-prepend>
-        <div class="mb-4">
-          <SliderCaptcha
-            ref="sliderRef"
-            v-model="sliderPassed"
-            success-text="验证通过"
-            text="请按住滑块拖动"
-          />
-        </div>
-      </template>
     </AuthenticationCodeLogin>
   </div>
 </template>

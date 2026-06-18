@@ -1,5 +1,7 @@
 # Browser Prospecting Workspace
 
+> Historical note: this feature packet belongs to the older sales prospecting plugin direction. The design workspace it came from was removed on 2026-06-17. Continue new browser extension design work from [browser-workspace-extension-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/browser-workspace-extension-design.md).
+
 ## 1. 目标
 
 - 建立 OES Chrome 插件第一阶段销售背调工作区。
@@ -37,7 +39,7 @@
   - [auth-bff-extension-connect.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-extension-connect.md)
   - [browser-prospecting-workspace.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/browser-prospecting-workspace.md)
 - design workspace:
-  - [browser-prospecting-workspace.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/browser-prospecting-workspace.md)
+  - [browser-workspace-extension-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/browser-workspace-extension-design.md)
   - [crm-service-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/crm-service-design.md)
 - implementation plan:
   - [browser-prospecting-workspace-implementation-plan.md](/Users/acehood/Documents/GitHub/oes/docs/plans/browser-prospecting-workspace-implementation-plan.md)
@@ -191,6 +193,6 @@
 
 ## 13. 备注
 
-- 本 feature 从 `docs/plans/designs/browser-prospecting-workspace.md` 收口而来。
+- 本 feature 从已删除的旧 sales prospecting design workspace 收口而来；新的浏览器插件设计以 `docs/plans/designs/browser-workspace-extension-design.md` 为恢复入口。
 - 当前稳定消费契约草案在 `docs/contracts/api-gateway/browser-prospecting-workspace.md`。
 - 设计工作台继续保留开放问题和未来回写计划；实现推进应以本 feature packet、BFF contract 和后续 implementation plan 为准。

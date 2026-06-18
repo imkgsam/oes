@@ -38,7 +38,6 @@ export class HrManagementService {
   async createEmployee(input: {
     tenantId: string
     tenantPartyId: string
-    partyId?: string
     employeeCode?: string
   }) {
     const tenantId = requireNonBlank(input.tenantId, 'tenantId')
@@ -55,10 +54,35 @@ export class HrManagementService {
     const created = await this.createEmployeeWithGeneratedSuffix({
       tenantId,
       tenantPartyId,
-      partyId: input.partyId?.trim() || undefined,
       explicitEmployeeCodeSuffix
     })
     return this.withDisplayEmployeeCode(created, tenantCodePrefix)
+  }
+
+  /** updateEmployeeOfficialPhoto binds the HR-owned official employee photo fields without touching account avatar truth. */
+  async updateEmployeeOfficialPhoto(input: {
+    tenantId: string
+    employeeId: string
+    officialPhotoAssetId: string
+    officialPhotoUrl: string
+  }): Promise<EmployeeSummary> {
+    return this.employeeRepository.updateOfficialPhoto({
+      tenantId: requireNonBlank(input.tenantId, 'tenantId'),
+      employeeId: requireNonBlank(input.employeeId, 'employeeId'),
+      officialPhotoAssetId: requireNonBlank(input.officialPhotoAssetId, 'officialPhotoAssetId'),
+      officialPhotoUrl: requireNonBlank(input.officialPhotoUrl, 'officialPhotoUrl')
+    })
+  }
+
+  /** removeEmployeeOfficialPhoto clears the HR-owned official employee photo fields. */
+  async removeEmployeeOfficialPhoto(input: {
+    tenantId: string
+    employeeId: string
+  }): Promise<EmployeeSummary> {
+    return this.employeeRepository.removeOfficialPhoto({
+      tenantId: requireNonBlank(input.tenantId, 'tenantId'),
+      employeeId: requireNonBlank(input.employeeId, 'employeeId')
+    })
   }
 
   async createEmployment(input: {
@@ -162,7 +186,6 @@ export class HrManagementService {
   private async createEmployeeWithGeneratedSuffix(input: {
     tenantId: string
     tenantPartyId: string
-    partyId?: string
     explicitEmployeeCodeSuffix?: string
   }): Promise<EmployeeSummary> {
     for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -172,7 +195,6 @@ export class HrManagementService {
         return await this.employeeRepository.create({
           tenantId: input.tenantId,
           tenantPartyId: input.tenantPartyId,
-          partyId: input.partyId,
           employeeCode: employeeCodeSuffix,
           lifecycleStatus: EmployeeLifecycleStatus.PREBOARDING
         })

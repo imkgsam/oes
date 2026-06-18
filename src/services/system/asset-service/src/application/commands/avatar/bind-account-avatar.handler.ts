@@ -5,6 +5,7 @@ import { ExceptionFactory } from '@oes/common/exceptions'
 import { SYMBOLS } from '../../../common/constants/symbols'
 import { AssetEntity } from '../../../domain/entities/asset.entity'
 import { AssetRepository } from '../../../domain/repositories/asset.repository'
+import { validateAccountAvatarScope } from './avatar-command-validation'
 import { BindAccountAvatarCommand } from './bind-account-avatar.command'
 
 export interface BindAccountAvatarResult {
@@ -24,7 +25,7 @@ export class BindAccountAvatarHandler
   ) {}
 
   async execute(command: BindAccountAvatarCommand): Promise<BindAccountAvatarResult> {
-    validateScopeOwnership(command.scopeLevel, command.tenantId)
+    validateAccountAvatarScope(command.scopeLevel, command.tenantId)
 
     const nextAsset = await this.assetRepository.findById(command.newAssetId)
     if (
@@ -76,19 +77,5 @@ export class BindAccountAvatarHandler
       activeAsset,
       replacedAssetId: null
     }
-  }
-}
-
-function validateScopeOwnership(scopeLevel: 'SYSTEM' | 'TENANT', tenantId?: string): void {
-  if (scopeLevel === 'TENANT' && !tenantId) {
-    throw ExceptionFactory.application(VALIDATION_FAILED, {
-      violations: ['tenantId: tenant-scoped avatar bindings require tenantId']
-    })
-  }
-
-  if (scopeLevel === 'SYSTEM' && tenantId) {
-    throw ExceptionFactory.application(VALIDATION_FAILED, {
-      violations: ['tenantId: system-scoped avatar bindings must not carry tenantId']
-    })
   }
 }

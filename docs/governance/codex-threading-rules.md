@@ -296,19 +296,22 @@
 - 一个 workspace 只对应一个清晰设计主题
 - 已冻结决定必须回写到 services / collaborations / contracts / feature packet
 - workspace 只保留过程记录、开放问题、决策日志与恢复入口
+- design workspace 是过程文件，不是稳定真相源；冻结结论完成回写后必须退出 active 状态
 
 推荐切换顺序：
 
 1. 先在 workspace 记录本轮结论
 2. 标记哪些结论已冻结
 3. 回写对应唯一真相源
-4. 再切换到下一个设计主题
+4. 将 workspace 标记为 `SUPERSEDED_BY_TRUTH_SOURCE`、移动到 `docs/plans/designs/archive/`，或在确认完全覆盖后删除
+5. 再切换到下一个设计主题
 
 服务设计回写必须遵守“一个服务一个真相源文件”：
 
 - 单个服务的稳定设计只允许回写到 `docs/architecture/services/<service-name>.md`
 - design workspace、feature packet、contract 文档不得替代服务真相源定义服务对象、边界或命名
 - 如果设计线程发现自己正在为同一服务维护第二份稳定设计文档，必须暂停扩写，先把冻结结论合并回服务真相源，再清理或降级旧文档
+- 已经归档、删除或标记 `SUPERSEDED_BY_TRUTH_SOURCE` 的 workspace 不得继续作为当前设计入口；后续新设计必须进入对应真相源、feature packet，或新建新的 workspace
 
 ## 4. 文件修改边界规则
 

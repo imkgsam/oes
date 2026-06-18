@@ -1152,6 +1152,9 @@ onBeforeUnmount(() => {
   --crm-card-bg: hsl(var(--card));
   --crm-muted: hsl(var(--muted-foreground));
   --crm-panel-bg: hsl(var(--muted) / 0.34);
+  --crm-table-header-bg: hsl(var(--muted) / 0.54);
+  --crm-table-resizer: hsl(var(--muted-foreground) / 0.3);
+  --crm-table-row-hover-bg: hsl(var(--muted) / 0.42);
   --crm-text: hsl(var(--foreground) / 0.92);
   --crm-title: hsl(var(--foreground));
 
@@ -1402,7 +1405,7 @@ onBeforeUnmount(() => {
 }
 
 :deep(.ant-table-wrapper .ant-table-thead > tr > th) {
-  background: rgb(248 250 252 / 0.96);
+  background: var(--crm-table-header-bg);
   color: var(--crm-text);
   font-size: 12px;
   font-weight: 600;
@@ -1410,12 +1413,23 @@ onBeforeUnmount(() => {
 }
 
 :deep(.ant-table-wrapper .ant-table-tbody > tr > td) {
+  background: transparent;
   color: var(--crm-text);
   vertical-align: middle;
 }
 
 :deep(.ant-table-wrapper .ant-table-tbody > tr:hover > td) {
-  background: rgb(248 250 252 / 0.9);
+  background: var(--crm-table-row-hover-bg);
+}
+
+:deep(.crm-workspace__table .ant-table-tbody > tr > td.ant-table-cell-fix-right),
+:deep(.crm-workspace__table .ant-table-tbody > tr > td.ant-table-cell-fix-left) {
+  background: var(--crm-card-bg);
+}
+
+:deep(.crm-workspace__table .ant-table-tbody > tr:hover > td.ant-table-cell-fix-right),
+:deep(.crm-workspace__table .ant-table-tbody > tr:hover > td.ant-table-cell-fix-left) {
+  background: var(--crm-table-row-hover-bg);
 }
 
 .crm-workspace__resizable-title {
@@ -1450,7 +1464,7 @@ onBeforeUnmount(() => {
   left: 6px;
   width: 1px;
   content: '';
-  background: rgb(15 23 42 / 14%);
+  background: var(--crm-table-resizer);
   transition: background 0.16s ease;
 }
 

@@ -44,7 +44,8 @@ bounded context 的划分依据应当是：
 - Identity & Access
 - Tenant & Organization
 - Party Master
-- Workflow & Task
+- Collaboration / Task
+- Workflow
 - Notification
 - Integration Hub
 - Audit & Compliance
@@ -182,15 +183,35 @@ bounded context 的划分依据应当是：
 - 结算与账务集成
 - 财务侧经营数据支撑
 
-### 3.13 Workflow & Task
+### 3.13 Collaboration / Task
+
+职责：
+
+- 手动工作待办
+- 自己给自己的 work todo
+- 指派给他人的协作任务
+- 对象备注、评论、mention 等 future 协作能力的边界讨论入口
+
+边界说明：
+
+- Task P1 以 [collaboration-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/collaboration-service.md) 为准
+- 它负责“谁需要处理一条工作事项”
+- 不负责业务对象真相、审批流程、通知投递、对象时间线或审计合规真相
+
+### 3.14 Workflow
 
 职责：
 
 - 审批流
 - 长事务编排
-- 人机任务分发
+- 人工确认与流程节点运行
 
-### 3.14 Notification
+边界说明：
+
+- Workflow 可以在后续通过协同契约创建或驱动 task
+- Workflow 不等于 task；审批节点、流程实例、审批意见与流程结果不归 Task P1 拥有
+
+### 3.15 Notification
 
 职责：
 
@@ -210,7 +231,7 @@ bounded context 的划分依据应当是：
 - 不负责 OTP 真相、审批真相、订单真相等业务语义
 - 不拥有邮箱、手机号等联系资产主数据真相
 
-### 3.15 Integration Hub
+### 3.16 Integration Hub
 
 职责：
 
@@ -219,7 +240,7 @@ bounded context 的划分依据应当是：
 - 数据同步
 - 对外出入站集成
 
-### 3.16 Audit & Compliance
+### 3.17 Audit & Compliance
 
 职责：
 
@@ -227,7 +248,7 @@ bounded context 的划分依据应当是：
 - 合规记录
 - 关键操作留痕
 
-### 3.17 Knowledge & AI
+### 3.18 Knowledge & AI
 
 职责：
 

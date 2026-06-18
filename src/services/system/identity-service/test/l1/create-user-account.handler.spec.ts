@@ -13,8 +13,7 @@ describe('CreateUserAccountHandler', () => {
     const accountRepository = createAccountRepositoryMock()
     const userRepository = createUserRepositoryMock()
     const partyRegistrationPort = {
-      registerPersonParty: jest.fn().mockResolvedValue({
-        partyId: 'party-1',
+      registerTenantParty: jest.fn().mockResolvedValue({
         tenantPartyId: 'tenant-party-1',
       }),
     }
@@ -70,14 +69,13 @@ describe('CreateUserAccountHandler', () => {
     expect(userRepository.create).toHaveBeenCalledWith({
       email: 'janny@example.com',
       isActive: true,
-      partyId: 'party-1',
       phone: '+8613800138000',
       username: undefined
     })
-    expect(partyRegistrationPort.registerPersonParty).toHaveBeenCalledWith(
+    expect(partyRegistrationPort.registerTenantParty).toHaveBeenCalledWith(
       expect.objectContaining({
         legalName: 'Janny',
-        localDisplayName: 'Janny',
+        displayName: 'Janny',
         tenantId: 'tenant-a',
       }),
     )
@@ -85,24 +83,84 @@ describe('CreateUserAccountHandler', () => {
       displayName: 'Janny',
       scopeLevel: 'TENANT',
       tenantId: 'tenant-a',
+      tenantPartyId: 'tenant-party-1',
       userId: 'user-1'
     })
   })
 
-  it('creates a tenant account for an existing user without creating another user or person party', async () => {
+  it('creates a tenant account with an upstream tenantPartyId without registering another tenant party', async () => {
     const accountRepository = createAccountRepositoryMock()
     const userRepository = createUserRepositoryMock()
     const partyRegistrationPort = {
-      bindExistingPartyToTenant: jest.fn().mockResolvedValue({
-        partyId: 'party-system-admin',
+      registerTenantParty: jest.fn()
+    }
+    userRepository.findByEmail.mockResolvedValue(null)
+    userRepository.findByPhone.mockResolvedValue(null)
+    userRepository.create.mockResolvedValue(
+      createUserSummaryFixture({
+        id: 'user-1',
+        personalEmail: 'janny@example.com'
+      })
+    )
+    accountRepository.createUserAccount.mockResolvedValue(
+      createAccountSummaryFixture({
+        id: 'account-1',
+        userId: 'user-1',
+        tenantId: 'tenant-a',
+        tenantPartyId: 'tenant-party-from-hr',
+        scopeLevel: 'TENANT',
+        displayName: 'Janny'
+      })
+    )
+
+    const handler = new CreateUserAccountHandler(
+      accountRepository,
+      userRepository,
+      new CheckResourceService(),
+      partyRegistrationPort as any
+    ) as any
+
+    await expect(
+      handler.execute(
+        new CreateUserAccountCommand({
+          scopeLevel: 'TENANT',
+          tenantId: 'tenant-a',
+          tenantPartyId: 'tenant-party-from-hr',
+          displayName: 'Janny',
+          email: 'janny@example.com',
+          operatorId: 'operator-1',
+          operatorScope: {
+            operatorId: 'operator-1',
+            tenantId: 'tenant-a'
+          } as any
+        })
+      )
+    ).resolves.toMatchObject({
+      id: 'account-1',
+      tenantPartyId: 'tenant-party-from-hr'
+    })
+
+    expect(partyRegistrationPort.registerTenantParty).not.toHaveBeenCalled()
+    expect(accountRepository.createUserAccount).toHaveBeenCalledWith({
+      displayName: 'Janny',
+      scopeLevel: 'TENANT',
+      tenantId: 'tenant-a',
+      tenantPartyId: 'tenant-party-from-hr',
+      userId: 'user-1'
+    })
+  })
+
+  it('creates a tenant account for an existing user without creating another user', async () => {
+    const accountRepository = createAccountRepositoryMock()
+    const userRepository = createUserRepositoryMock()
+    const partyRegistrationPort = {
+      registerTenantParty: jest.fn().mockResolvedValue({
         tenantPartyId: 'tenant-party-system-admin'
-      }),
-      registerPersonParty: jest.fn()
+      })
     }
     userRepository.findById.mockResolvedValue(
       createUserSummaryFixture({
         id: 'user-system-admin',
-        partyId: 'party-system-admin',
         personalEmail: 'sysadmin@example.com'
       })
     )
@@ -112,6 +170,7 @@ describe('CreateUserAccountHandler', () => {
         id: 'tenant-account-1',
         userId: 'user-system-admin',
         tenantId: 'tenant-a',
+        tenantPartyId: 'tenant-party-system-admin',
         scopeLevel: 'TENANT',
         displayName: 'System Admin'
       })
@@ -143,23 +202,84 @@ describe('CreateUserAccountHandler', () => {
       userId: 'user-system-admin',
       tenantId: 'tenant-a',
       scopeLevel: 'TENANT',
-      userPartyId: 'party-system-admin',
-      userTenantPartyId: 'tenant-party-system-admin'
+      tenantPartyId: 'tenant-party-system-admin'
     })
 
     expect(userRepository.create).not.toHaveBeenCalled()
-    expect(partyRegistrationPort.registerPersonParty).not.toHaveBeenCalled()
-    expect(partyRegistrationPort.bindExistingPartyToTenant).toHaveBeenCalledWith(
+    expect(partyRegistrationPort.registerTenantParty).toHaveBeenCalledWith(
       expect.objectContaining({
-        partyId: 'party-system-admin',
+        legalName: 'System Admin',
+        displayName: 'System Admin',
         tenantId: 'tenant-a',
-        localDisplayName: 'System Admin'
       })
     )
     expect(accountRepository.createUserAccount).toHaveBeenCalledWith({
       displayName: 'System Admin',
       scopeLevel: 'TENANT',
       tenantId: 'tenant-a',
+      tenantPartyId: 'tenant-party-system-admin',
+      userId: 'user-system-admin'
+    })
+  })
+
+  it('creates a tenant account for an existing user with an upstream tenantPartyId without registering another tenant party', async () => {
+    const accountRepository = createAccountRepositoryMock()
+    const userRepository = createUserRepositoryMock()
+    const partyRegistrationPort = {
+      registerTenantParty: jest.fn()
+    }
+    userRepository.findById.mockResolvedValue(
+      createUserSummaryFixture({
+        id: 'user-system-admin',
+        personalEmail: 'sysadmin@example.com'
+      })
+    )
+    accountRepository.findByUserScope.mockResolvedValue(null)
+    accountRepository.createUserAccount.mockResolvedValue(
+      createAccountSummaryFixture({
+        id: 'tenant-account-1',
+        userId: 'user-system-admin',
+        tenantId: 'tenant-a',
+        tenantPartyId: 'tenant-party-from-hr',
+        scopeLevel: 'TENANT',
+        displayName: 'System Admin'
+      })
+    )
+
+    const handler = new CreateUserAccountHandler(
+      accountRepository,
+      userRepository,
+      new CheckResourceService(),
+      partyRegistrationPort as any
+    ) as any
+
+    await expect(
+      handler.execute(
+        new CreateUserAccountCommand({
+          scopeLevel: 'TENANT',
+          tenantId: 'tenant-a',
+          tenantPartyId: 'tenant-party-from-hr',
+          displayName: 'System Admin',
+          existingUserId: 'user-system-admin',
+          operatorId: 'platform-account-1',
+          operatorScope: {
+            operatorId: 'platform-account-1',
+            isSystemScope: true
+          } as any
+        })
+      )
+    ).resolves.toMatchObject({
+      id: 'tenant-account-1',
+      tenantPartyId: 'tenant-party-from-hr'
+    })
+
+    expect(userRepository.create).not.toHaveBeenCalled()
+    expect(partyRegistrationPort.registerTenantParty).not.toHaveBeenCalled()
+    expect(accountRepository.createUserAccount).toHaveBeenCalledWith({
+      displayName: 'System Admin',
+      scopeLevel: 'TENANT',
+      tenantId: 'tenant-a',
+      tenantPartyId: 'tenant-party-from-hr',
       userId: 'user-system-admin'
     })
   })
@@ -168,16 +288,13 @@ describe('CreateUserAccountHandler', () => {
     const accountRepository = createAccountRepositoryMock()
     const userRepository = createUserRepositoryMock()
     const partyRegistrationPort = {
-      bindExistingPartyToTenant: jest.fn().mockResolvedValue({
-        partyId: 'party-system-admin',
+      registerTenantParty: jest.fn().mockResolvedValue({
         tenantPartyId: 'tenant-party-system-admin'
-      }),
-      registerPersonParty: jest.fn()
+      })
     }
     userRepository.findById.mockResolvedValue(
       createUserSummaryFixture({
-        id: 'user-system-admin',
-        partyId: 'party-system-admin'
+        id: 'user-system-admin'
       })
     )
     accountRepository.findByUserScope.mockResolvedValue(
@@ -185,6 +302,7 @@ describe('CreateUserAccountHandler', () => {
         id: 'tenant-account-1',
         userId: 'user-system-admin',
         tenantId: 'tenant-a',
+        tenantPartyId: 'tenant-party-system-admin',
         scopeLevel: 'TENANT',
         displayName: 'System Admin'
       })
@@ -215,13 +333,12 @@ describe('CreateUserAccountHandler', () => {
       id: 'tenant-account-1',
       userId: 'user-system-admin',
       tenantId: 'tenant-a',
-      userTenantPartyId: 'tenant-party-system-admin'
+      tenantPartyId: 'tenant-party-system-admin'
     })
 
     expect(accountRepository.createUserAccount).not.toHaveBeenCalled()
-    expect(partyRegistrationPort.bindExistingPartyToTenant).toHaveBeenCalledWith(
+    expect(partyRegistrationPort.registerTenantParty).toHaveBeenCalledWith(
       expect.objectContaining({
-        partyId: 'party-system-admin',
         tenantId: 'tenant-a'
       })
     )
@@ -232,7 +349,7 @@ describe('CreateUserAccountHandler', () => {
       createAccountRepositoryMock(),
       createUserRepositoryMock(),
       new CheckResourceService(),
-      { registerPersonParty: jest.fn() } as any,
+      { registerTenantParty: jest.fn() } as any,
     )
 
     await expect(
@@ -256,7 +373,7 @@ describe('CreateUserAccountHandler', () => {
       createAccountRepositoryMock(),
       createUserRepositoryMock(),
       new CheckResourceService(),
-      { registerPersonParty: jest.fn() } as any,
+      { registerTenantParty: jest.fn() } as any,
     )
 
     await expect(
@@ -276,13 +393,11 @@ describe('CreateUserAccountHandler', () => {
     ).rejects.toThrow()
   })
 
-  it('creates a system account and registers a canonical person party without a tenant binding', async () => {
+  it('creates a system account without registering a tenant party', async () => {
     const accountRepository = createAccountRepositoryMock()
     const userRepository = createUserRepositoryMock()
     const partyRegistrationPort = {
-      registerPersonParty: jest.fn().mockResolvedValue({
-        partyId: 'party-system-1',
-      }),
+      registerTenantParty: jest.fn()
     }
     userRepository.findByEmail.mockResolvedValue(null)
     userRepository.findByPhone.mockResolvedValue(null)
@@ -329,17 +444,10 @@ describe('CreateUserAccountHandler', () => {
       scopeLevel: 'SYSTEM',
     })
 
-    expect(partyRegistrationPort.registerPersonParty).toHaveBeenCalledWith(
-      expect.objectContaining({
-        legalName: 'Platform Operator',
-        localDisplayName: 'Platform Operator',
-        tenantId: undefined,
-      }),
-    )
+    expect(partyRegistrationPort.registerTenantParty).not.toHaveBeenCalled()
     expect(userRepository.create).toHaveBeenCalledWith({
       email: 'system@example.com',
       isActive: true,
-      partyId: 'party-system-1',
       phone: undefined,
       username: undefined,
     })

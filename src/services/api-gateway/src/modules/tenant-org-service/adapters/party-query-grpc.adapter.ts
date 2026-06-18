@@ -17,15 +17,16 @@ import {
 
 const CALLER = 'api-gateway'
 
-export interface OrganizationPartySummary {
+export interface OrganizationTenantPartySummary {
   id: string
   legalName?: string
   status: string
   type: string
+  tenantId?: string
 }
 
 @Injectable()
-// Reads lightweight organization-party summaries for org-management read-side hydration.
+// Reads lightweight organization TenantParty summaries for org-management read-side hydration.
 export class PartyQueryGrpcAdapter implements OnModuleInit {
   private svc!: PartyQueryServiceClient
 
@@ -40,27 +41,29 @@ export class PartyQueryGrpcAdapter implements OnModuleInit {
     this.svc = this.client.getService<PartyQueryServiceClient>(PARTY_QUERY_SERVICE_NAME)
   }
 
-  async getPartyById(
-    partyId: string,
+  async getOrganizationTenantPartyById(
+    tenantId: string,
+    tenantPartyId: string,
     source: DownstreamRequestSource
-  ): Promise<OrganizationPartySummary | null> {
+  ): Promise<OrganizationTenantPartySummary | null> {
     const response = await safeGrpcCall(
-      this.svc.getPartyById(
-        { partyId },
+      this.svc.getTenantPartyById(
+        { tenantId, tenantPartyId },
         this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
       ),
-      this.opts('PartyQueryService.getPartyById')
+      this.opts('PartyQueryService.getTenantPartyById')
     )
-    const party = response.party
-    if (!party?.id) {
+    const tenantParty = response.tenantParty
+    if (!tenantParty?.id) {
       return null
     }
 
     return {
-      id: party.id,
-      type: party.type ?? '',
-      status: party.status ?? '',
-      legalName: normalize(party.legalName)
+      id: tenantParty.id,
+      tenantId: normalize(tenantParty.tenantId),
+      type: tenantParty.type ?? '',
+      status: tenantParty.status ?? '',
+      legalName: normalize(tenantParty.legalName)
     }
   }
 

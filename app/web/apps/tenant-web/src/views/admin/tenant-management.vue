@@ -462,7 +462,7 @@ async function submitCreateTenant() {
         employeeCodePrefix: createForm.employeeCodePrefix.trim().toUpperCase(),
         name: createForm.organizationLegalName.trim(),
       },
-      organizationParty: {
+      organizationTenantParty: {
         legalName: createForm.organizationLegalName.trim(),
         registeredCountry: createForm.registeredCountry.trim() || undefined,
         identifiers: [

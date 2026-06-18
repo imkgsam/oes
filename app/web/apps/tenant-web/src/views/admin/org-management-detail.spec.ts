@@ -57,7 +57,7 @@ describe('org management detail page', () => {
         depth: 1,
         id: 'org-dept-1',
         name: '制造中心',
-        organizationPartyId: 'party-1',
+        organizationTenantPartyId: 'party-1',
         parentOrgId: 'org-root-1',
         path: '/org-root-1/org-dept-1',
         sortOrder: 10,
@@ -182,7 +182,7 @@ describe('org management detail page', () => {
     expect(wrapper.text()).toContain('制造中心')
     expect(wrapper.text()).toContain('装配一组')
     expect(wrapper.text()).toContain('成员数量')
-    expect(wrapper.text()).not.toContain('OrganizationParty')
+    expect(wrapper.text()).not.toContain('OrganizationTenantParty')
     expect(wrapper.text()).not.toContain('party-1')
   })
 

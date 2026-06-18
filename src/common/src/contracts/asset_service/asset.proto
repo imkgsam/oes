@@ -9,6 +9,8 @@ option java_package = "com.oes.asset.v1";
 service AssetService {
   rpc UploadAccountAvatar(UploadAccountAvatarRequest) returns (UploadAccountAvatarResponse);
   rpc BindAccountAvatar(BindAccountAvatarRequest) returns (BindAccountAvatarResponse);
+  rpc UploadEmployeeOfficialPhoto(UploadEmployeeOfficialPhotoRequest) returns (UploadEmployeeOfficialPhotoResponse);
+  rpc BindEmployeeOfficialPhoto(BindEmployeeOfficialPhotoRequest) returns (BindEmployeeOfficialPhotoResponse);
   rpc ResolveAssetPublicUrl(ResolveAssetPublicUrlRequest) returns (ResolveAssetPublicUrlResponse);
 }
 
@@ -36,6 +38,7 @@ message AssetSummary {
   string status = 11;
   string created_at = 12;
   string updated_at = 13;
+  string owner_employee_id = 14;
 }
 
 message UploadAccountAvatarResponse {
@@ -52,6 +55,34 @@ message BindAccountAvatarRequest {
 }
 
 message BindAccountAvatarResponse {
+  AssetSummary active_asset = 1;
+  string replaced_asset_id = 2;
+}
+
+message UploadEmployeeOfficialPhotoRequest {
+  string scope_level = 1;
+  string tenant_id = 2;
+  string employee_id = 3;
+  string operator_id = 4;
+  bytes file = 5;
+  string file_name = 6;
+  string content_type = 7;
+}
+
+message UploadEmployeeOfficialPhotoResponse {
+  AssetSummary asset = 1;
+}
+
+message BindEmployeeOfficialPhotoRequest {
+  string scope_level = 1;
+  string tenant_id = 2;
+  string employee_id = 3;
+  string operator_id = 4;
+  string new_asset_id = 5;
+  string previous_asset_id = 6;
+}
+
+message BindEmployeeOfficialPhotoResponse {
   AssetSummary active_asset = 1;
   string replaced_asset_id = 2;
 }

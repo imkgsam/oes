@@ -41,19 +41,19 @@ describe('BindAccountToEmployeeHandler', () => {
       createAccountSummaryFixture({
         id: 'account-1',
         userId: 'user-1',
-        tenantId: 'tenant-1'
+        tenantId: 'tenant-1',
+        tenantPartyId: 'tenant-party-1'
       })
     )
     userRepository.findById.mockResolvedValue(
       createUserSummaryFixture({
-        id: 'user-1',
-        partyId: 'party-1'
+        id: 'user-1'
       })
     )
     hrEmployeeReferencePort.getEmployeeById.mockResolvedValue({
       id: 'employee-1',
       tenantId: 'tenant-1',
-      partyId: 'party-1'
+      tenantPartyId: 'tenant-party-1'
     })
     bindingRepository.findByAccountId.mockResolvedValue(null)
     bindingRepository.findByEmployeeId.mockResolvedValue(null)
@@ -90,7 +90,7 @@ describe('BindAccountToEmployeeHandler', () => {
     })
   })
 
-  it('rejects mismatched employee party binding instead of falling back to legacy org membership', async () => {
+  it('rejects mismatched employee tenant-party binding instead of falling back to legacy org membership', async () => {
     const accountRepository = createAccountRepositoryMock()
     const userRepository = createUserRepositoryMock()
     const bindingRepository = createEmployeeBindingRepositoryMock()
@@ -100,19 +100,19 @@ describe('BindAccountToEmployeeHandler', () => {
       createAccountSummaryFixture({
         id: 'account-1',
         userId: 'user-1',
-        tenantId: 'tenant-1'
+        tenantId: 'tenant-1',
+        tenantPartyId: 'tenant-party-1'
       })
     )
     userRepository.findById.mockResolvedValue(
       createUserSummaryFixture({
-        id: 'user-1',
-        partyId: 'party-1'
+        id: 'user-1'
       })
     )
     hrEmployeeReferencePort.getEmployeeById.mockResolvedValue({
       id: 'employee-1',
       tenantId: 'tenant-1',
-      partyId: 'party-2'
+      tenantPartyId: 'tenant-party-2'
     })
 
     const handler = new BindAccountToEmployeeHandler(
@@ -137,8 +137,8 @@ describe('BindAccountToEmployeeHandler', () => {
 
     expect(error).toBeInstanceOf(OESExceptionBase)
     expect((error as OESExceptionBase).toRpcPayload()).toMatchObject({
-      code: 'IDENTITY_EMPLOYEE_PARTY_MISMATCH',
-      message: 'Employee party mismatch',
+      code: 'IDENTITY_EMPLOYEE_TENANT_PARTY_MISMATCH',
+      message: 'Employee tenant party mismatch',
       grpcStatus: 9
     })
 

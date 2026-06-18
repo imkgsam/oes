@@ -36,7 +36,6 @@
   - `tenant_id`
   - `idempotency_key`
   - `person.legal_name`
-  - optional `person.existing_party_id`
   - optional `person.existing_tenant_party_id`
   - optional `person.identifiers[]`
   - optional `primary_employment.org_unit_id`
@@ -58,16 +57,14 @@
 
 ### `CreateEmployee`
 
-- 作用：基于已存在的 `tenantPartyId / partyId` 建立员工主档
+- 作用：基于已存在的 `tenantPartyId` 建立员工主档
 - 请求关键字段：
   - `tenant_id`
   - `tenant_party_id`
-  - optional `party_id`
   - `employee_code`
 - contract 语义：
   - `employeeId` 必须独立生成
   - 同一 `tenantId + tenantPartyId` 在第一阶段只能对应一个正式 Employee
-  - `party_id` 如存在，只用于完整性校验，不构成第二 owner
   - 新建 Employee 初始 `lifecycleStatus=PREBOARDING`
 
 ### `CreateEmployment`
@@ -118,6 +115,34 @@
   - Employee 保持 `ACTIVE`
   - 任一校验失败时不得产生部分变更
   - 不允许原地篡改既有 employment 的正式 `org_unit_id`
+
+### `UpdateEmployeeOfficialPhoto`
+
+- 作用：为员工设置或替换 HR-owned 公开展示头像，用于员工数字名片和公开展示页面
+- 请求关键字段：
+  - `tenant_id`
+  - `employee_id`
+  - `official_photo_asset_id`
+  - `official_photo_url`
+- contract 语义：
+  - 员工公开展示头像的 owner 是 `hr-service`，以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准
+  - `official_photo_asset_id` 必须引用已由上游 Asset 能力完成上传、校验和可访问 URL 生成的图片资产
+  - `official_photo_url` 是 HR 对外查询摘要可返回的展示 URL；URL 生成与对象存储生命周期不属于 HR
+  - command 必须校验目标 Employee 属于 `tenant_id`
+  - command 只更新员工公开展示头像引用，不修改账号头像、个人中心头像、account profile 或身份绑定
+  - 公开展示头像为空时，消费方必须展示正式占位，不得回退到账号头像
+
+### `RemoveEmployeeOfficialPhoto`
+
+- 作用：移除员工公开展示头像引用
+- 请求关键字段：
+  - `tenant_id`
+  - `employee_id`
+- contract 语义：
+  - command 必须校验目标 Employee 属于 `tenant_id`
+  - 成功后 Employee 摘要中的 `official_photo_asset_id` 与 `official_photo_url` 为空
+  - 移除 HR 引用不等于删除 Asset 文件；文件删除、回收或保留策略属于 Asset 服务边界
+  - 消费方在头像为空时只能显示正式占位，不得读取或混用账号头像
 
 ## 4. onboarding contract 语义
 

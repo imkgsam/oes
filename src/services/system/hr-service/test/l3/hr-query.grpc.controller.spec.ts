@@ -22,9 +22,10 @@ describe('HrQueryGrpcController L3', () => {
         id: 'employee-1',
         tenantId: 'tenant-1',
         tenantPartyId: 'tenant-party-1',
-        partyId: 'party-1',
         employeeCode: 'EMP-0AF-0001',
-        lifecycleStatus: 'ACTIVE'
+        lifecycleStatus: 'ACTIVE',
+        officialPhotoAssetId: 'asset-1',
+        officialPhotoUrl: 'https://assets.example.com/photo.webp'
       },
       activeEmployment: {
         id: 'employment-1',
@@ -49,6 +50,8 @@ describe('HrQueryGrpcController L3', () => {
       employeeCode: 'EMP-0AF-0001'
     })
     expect(result.employee?.employeeCode).toBe('EMP-0AF-0001')
+    expect(result.employee?.officialPhotoAssetId).toBe('asset-1')
+    expect(result.employee?.officialPhotoUrl).toBe('https://assets.example.com/photo.webp')
     expect(result.activeEmployment?.orgUnitId).toBe('org-1')
     expect(result.employee).not.toHaveProperty('accountId')
     expect(result).not.toHaveProperty('pin')
@@ -84,9 +87,10 @@ describe('HrQueryGrpcController L3', () => {
           id: 'employee-1',
           tenantId: 'tenant-1',
           tenantPartyId: 'tenant-party-1',
-          partyId: 'party-1',
           employeeCode: 'EMP-0AF-0001',
-          lifecycleStatus: 'ACTIVE'
+          lifecycleStatus: 'ACTIVE',
+          officialPhotoAssetId: null,
+          officialPhotoUrl: null
         }
       ],
       page: 2,
@@ -111,8 +115,30 @@ describe('HrQueryGrpcController L3', () => {
       tenantId: 'tenant-1'
     })
     expect(result.items?.[0]?.employeeCode).toBe('EMP-0AF-0001')
+    expect(result.items?.[0]?.officialPhotoAssetId).toBe('')
+    expect(result.items?.[0]?.officialPhotoUrl).toBe('')
     expect(result.items?.[0]).not.toHaveProperty('accountId')
     expect(result.total).toBe(1)
+  })
+
+  it('GetEmployeeById / should expose HR official photo fields without account-owned avatar fields', async () => {
+    const service = createHrQueryServiceMock()
+    service.getEmployeeById.mockResolvedValue({
+      id: 'employee-1',
+      tenantId: 'tenant-1',
+      tenantPartyId: 'tenant-party-1',
+      employeeCode: 'EMP-0AF-0001',
+      lifecycleStatus: 'ACTIVE',
+      officialPhotoAssetId: 'asset-1',
+      officialPhotoUrl: 'https://assets.example.com/photo.webp'
+    })
+    const controller = new HrQueryGrpcController(service as unknown as HrQueryService)
+
+    const result = await controller.getEmployeeById({ employeeId: 'employee-1' })
+
+    expect(result.employee?.officialPhotoAssetId).toBe('asset-1')
+    expect(result.employee?.officialPhotoUrl).toBe('https://assets.example.com/photo.webp')
+    expect(result.employee).not.toHaveProperty('accountAvatarUrl')
   })
 
   it('GetLatestOnboardingAccess / should expose HR-owned access compensation state without granting account truth ownership to HR', async () => {

@@ -40,12 +40,16 @@
   - `items[].id`
   - `items[].tenant_id`
   - `items[].tenant_party_id`
-  - `items[].party_id`
   - `items[].employee_code`
   - `items[].lifecycle_status`
+  - optional `items[].official_photo_url`
   - `page`
   - `page_size`
   - `total`
+- 公开头像语义：
+  - `official_photo_url` 来自 HR Employee 公开展示头像字段，用于员工数字名片和公开展示页面
+  - 该字段为空表示未配置员工公开展示头像
+  - 该字段不得由账号头像、个人中心头像或 account profile avatar 补齐
 
 ### `GetEmployeeById`
 
@@ -60,9 +64,14 @@
   - `employee.id`
   - `employee.tenant_id`
   - `employee.tenant_party_id`
-  - `employee.party_id`
   - `employee.employee_code`
   - `employee.lifecycle_status`
+  - optional `employee.official_photo_asset_id`
+  - optional `employee.official_photo_url`
+- 公开头像语义：
+  - `official_photo_asset_id` 是 HR 保存的员工公开展示头像资产引用
+  - `official_photo_url` 是 HR 查询摘要可返回的展示 URL
+  - 若 `official_photo_url` 为空，调用方必须展示正式占位，不得回退到账号头像
 
 ### `GetEmployeeByTenantPartyId`
 
@@ -89,6 +98,7 @@
   - `employee.tenant_id`
   - `employee.employee_code`
   - `employee.lifecycle_status`
+  - optional `employee.official_photo_url`
   - `active_employment.id`
   - `active_employment.employee_id`
   - `active_employment.org_unit_id`
@@ -145,3 +155,4 @@
 
 - 不要把 HR 查询结果反向写回 `identity-service` 作为第二真相。
 - BFF 若需要展示账号与员工合成摘要，应在上层做聚合，不应让 `hr-service` 变成账号服务。
+- 员工数字名片、公开资料页或 Public Entry renderer 只应消费 HR 摘要中的 `official_photo_url` 或渲染正式占位；不得从 `identity-service` account avatar 做 fallback。

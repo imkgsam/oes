@@ -45,14 +45,12 @@ describe('identity query optional result', () => {
     ).resolves.toEqual({})
   })
 
-  it('当 user 存在时 / getUserById 应返回完整用户资料摘要并带 partyId', async () => {
+  it('当 user 存在时 / getUserById 应返回完整用户资料摘要且不带 party 绑定', async () => {
     const userId = '11111111-1111-4111-8111-111111111111'
-    const partyId = '22222222-2222-4222-8222-222222222222'
     const queryBus = {
       execute: jest.fn().mockResolvedValue(
         createUserSummaryFixture({
           id: userId,
-          partyId,
           username: 'legacy-handle',
           personalEmail: 'user@example.com',
           personalPhone: '+8613900000001',
@@ -69,7 +67,6 @@ describe('identity query optional result', () => {
     ).resolves.toEqual({
       user: {
         id: userId,
-        partyId,
         username: 'legacy-handle',
         personalEmail: 'user@example.com',
         personalPhone: '+8613900000001',
@@ -105,6 +102,7 @@ describe('identity query optional result', () => {
         id: accountId,
         userId: 'user-1',
         tenantId: 'tenant-1',
+        tenantPartyId: 'tenant-party-1',
         avatarUrl: 'https://cdn.example.com/avatar/account-1.png',
         avatarAssetId: '',
         displayName: '陈双鹏',
@@ -142,6 +140,66 @@ describe('identity query optional result', () => {
         displayName: '陈双鹏',
         accountEnabled: true
       }
+    })
+  })
+
+  it('当联系方式动作目标可解析时 / resolveContactActionTargets 应返回 public-safe summary', async () => {
+    const queryBus = {
+      execute: jest.fn().mockResolvedValue({
+        targets: [
+          {
+            contactActionType: 'OPEN_WHATSAPP',
+            targetRefType: 'CONTACT_ASSET',
+            targetRefId: 'asset-whatsapp',
+            renderable: true,
+            hiddenReason: null,
+            publicValueSummary: {
+              type: 'WHATSAPP',
+              provider: null,
+              label: 'Regional WhatsApp',
+              displayValue: '+44 20 7946 0321',
+              actionValue: '+442079460321',
+              actionUri: 'https://wa.me/442079460321',
+              includeInVCardAllowed: false
+            }
+          }
+        ]
+      })
+    } as unknown as QueryBus
+    const controller = new IdentityQueryGrpcController(new ValidatingQueryBus(queryBus))
+
+    await expect(
+      controller.resolveContactActionTargets({
+        tenantId: 'tenant-1',
+        accountId: 'account-1',
+        employeeId: 'employee-1',
+        targetRefs: [
+          {
+            contactActionType: 'OPEN_WHATSAPP',
+            targetRefType: 'CONTACT_ASSET',
+            targetRefId: 'asset-whatsapp'
+          }
+        ]
+      })
+    ).resolves.toEqual({
+      targets: [
+        {
+          contactActionType: 'OPEN_WHATSAPP',
+          targetRefType: 'CONTACT_ASSET',
+          targetRefId: 'asset-whatsapp',
+          renderable: true,
+          hiddenReason: '',
+          publicValueSummary: {
+            type: 'WHATSAPP',
+            provider: '',
+            label: 'Regional WhatsApp',
+            displayValue: '+44 20 7946 0321',
+            actionValue: '+442079460321',
+            actionUri: 'https://wa.me/442079460321',
+            includeInVCardAllowed: false
+          }
+        }
+      ]
     })
   })
 })

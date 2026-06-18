@@ -23,8 +23,8 @@ describe('list accounts query', () => {
         new AccountDirectoryEntity(
           'account-1',
           'user-1',
-          null,
           'tenant-1',
+          null,
           'TENANT',
           'Alpha Admin',
           'Janny',
@@ -61,8 +61,8 @@ describe('list accounts query', () => {
         {
           accountId: 'account-1',
           userId: 'user-1',
-          userPartyId: null,
           tenantId: 'tenant-1',
+          tenantPartyId: null,
           scopeLevel: 'TENANT',
           displayName: 'Alpha Admin',
           userDisplayName: 'Janny',
@@ -180,6 +180,7 @@ describe('list accounts query', () => {
             accountId: 'account-1',
             userId: 'user-1',
             tenantId: 'tenant-1',
+            tenantPartyId: null,
             scopeLevel: 'TENANT',
             displayName: 'Alpha Admin',
             userDisplayName: 'Janny',
@@ -205,8 +206,8 @@ describe('list accounts query', () => {
         {
           accountId: 'account-1',
           userId: 'user-1',
-          userPartyId: '',
           tenantId: 'tenant-1',
+          tenantPartyId: '',
           scopeLevel: 'TENANT',
           displayName: 'Alpha Admin',
           userDisplayName: 'Janny',

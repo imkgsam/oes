@@ -11,7 +11,6 @@ datasource db {
 
 model User {
   id           String        @id @default(uuid())
-  partyId      String?       @db.Uuid
   username     String?       @unique
   email        String?       @unique
   phone        String?       @unique
@@ -19,13 +18,12 @@ model User {
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   userAccounts UserAccount[]
-
-  @@index([partyId])
 }
 
 model UserAccount {
   id             String                     @id @default(uuid())
   tenantId       String?
+  tenantPartyId  String?                    @db.Uuid
   userId         String
   scopeLevel     UserAccountScopeLevel      @default(TENANT)
   contextKey     String
@@ -43,6 +41,7 @@ model UserAccount {
   @@unique([userId, scopeLevel, contextKey])
   @@index([scopeLevel])
   @@index([tenantId])
+  @@index([tenantId, tenantPartyId])
 }
 
 model UserAccountEmployeeBinding {
@@ -63,34 +62,54 @@ enum UserAccountScopeLevel {
 }
 
 model AccountContactAsset {
-  id         String                    @id @default(uuid())
-  tenantId   String
-  accountId  String
-  type       AccountContactAssetType
-  value      String
-  status     AccountContactAssetStatus @default(ACTIVE)
-  isPrimary  Boolean                   @default(false)
-  assignedAt DateTime                  @default(now())
-  revokedAt  DateTime?
-  assignedBy String
-  revokedBy  String?
-  createdAt  DateTime                  @default(now())
-  updatedAt  DateTime                  @updatedAt
-  account    UserAccount               @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  id          String                       @id @default(uuid())
+  tenantId    String
+  accountId   String
+  userId      String?
+  employeeId  String?
+  type        AccountContactAssetType
+  provider    String?
+  value       String
+  displayName String?
+  ownership   AccountContactAssetOwnership @default(COMPANY_CONTROLLED)
+  usage       String[]                     @default([])
+  status      AccountContactAssetStatus    @default(ACTIVE)
+  isPrimary   Boolean                      @default(false)
+  assignedAt  DateTime                     @default(now())
+  releasedAt  DateTime?
+  revokedAt   DateTime?
+  assignedBy  String
+  revokedBy   String?
+  createdAt   DateTime                     @default(now())
+  updatedAt   DateTime                     @updatedAt
+  account     UserAccount                  @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   @@index([accountId, type, status])
   @@index([tenantId, type, value])
   @@index([accountId, type, isPrimary])
+  @@index([tenantId, accountId])
+  @@index([employeeId])
 }
 
 enum AccountContactAssetType {
   WORK_EMAIL
   WORK_PHONE
+  WECHAT
+  WHATSAPP
+  EXTERNAL_COMMUNICATION_ACCOUNT
+  OTHER_SOCIAL
+}
+
+enum AccountContactAssetOwnership {
+  COMPANY_CONTROLLED
+  EMPLOYEE_OWNED
 }
 
 enum AccountContactAssetStatus {
   ACTIVE
+  PENDING_HANDOVER
   DISABLED
+  RELEASED
   REVOKED
 }
 

@@ -1,3 +1,4 @@
+import { createHash } from 'crypto'
 import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common'
 import { EmployeeAccessPendingException, HrOnboardingAccessService } from './hr-onboarding-access.service'
 import { HrManagementService } from './hr-management.service'
@@ -11,7 +12,6 @@ import {
 import { parseEmployeeCodeStrict } from '../../domain/value-objects'
 
 export interface EmployeeOnboardingPersonInput {
-  existingPartyId?: string
   existingTenantPartyId?: string
   identifiers?: Array<{
     identifierType: string
@@ -68,7 +68,7 @@ export class HrEmployeeOnboardingService {
   }): Promise<EmployeeOnboardingResult> {
     const tenantId = requireNonBlank(input.tenantId, 'tenantId')
     const idempotencyKey = `hr-employee-onboarding:${requireNonBlank(input.idempotencyKey, 'idempotencyKey')}`
-    const partyRefs = await this.resolvePersonPartyRefs({
+    const tenantPartyRef = await this.resolvePersonTenantPartyRef({
       tenantId,
       idempotencyKey,
       person: input.person
@@ -76,8 +76,7 @@ export class HrEmployeeOnboardingService {
 
     const employee = await this.ensureEmployee({
       tenantId,
-      tenantPartyId: requireNonBlank(partyRefs.tenantPartyId, 'tenantPartyId'),
-      partyId: partyRefs.partyId,
+      tenantPartyId: requireNonBlank(tenantPartyRef.tenantPartyId, 'tenantPartyId'),
       employeeCode: input.employeeCode ? parseEmployeeCodeStrict(input.employeeCode).employeeCode : undefined,
       retryGeneratedEmployeeCode: !input.employeeCode
     })
@@ -94,6 +93,7 @@ export class HrEmployeeOnboardingService {
       ? await this.completeAccountAccess({
           tenantId,
           employeeId: employee.id,
+          tenantPartyId: requireNonBlank(employee.tenantPartyId, 'employee.tenantPartyId'),
           employmentId: employment.id,
           account: input.account,
           idempotencyKey,
@@ -113,7 +113,6 @@ export class HrEmployeeOnboardingService {
   /** ensureEmployee creates the HR employee once and reuses the existing employee on idempotent retries. */
   private async ensureEmployee(input: {
     employeeCode?: string
-    partyId?: string
     retryGeneratedEmployeeCode: boolean
     tenantId: string
     tenantPartyId: string
@@ -134,7 +133,6 @@ export class HrEmployeeOnboardingService {
         return await this.hrManagementService.createEmployee({
           tenantId: input.tenantId,
           tenantPartyId: input.tenantPartyId,
-          partyId: input.partyId,
           employeeCode: input.employeeCode
         })
       } catch (error) {
@@ -147,8 +145,8 @@ export class HrEmployeeOnboardingService {
     throw new ConflictException('Employee code generation retry exhausted')
   }
 
-  /** resolvePersonPartyRefs either reuses identity-owned person refs or asks party-service to register a person. */
-  private async resolvePersonPartyRefs(input: {
+  /** resolvePersonTenantPartyRef either reuses an existing tenant person subject or asks party-service to register one. */
+  private async resolvePersonTenantPartyRef(input: {
     idempotencyKey: string
     person: EmployeeOnboardingPersonInput
     tenantId: string
@@ -156,21 +154,19 @@ export class HrEmployeeOnboardingService {
     const existingTenantPartyId = normalize(input.person.existingTenantPartyId)
     if (existingTenantPartyId) {
       return {
-        partyId: normalize(input.person.existingPartyId),
         tenantPartyId: existingTenantPartyId
       }
     }
 
     const legalName = requireNonBlank(input.person.legalName, 'person.legalName')
-    const registeredParty = await this.partyRegistrationPort.registerPersonParty({
+    const registeredParty = await this.partyRegistrationPort.registerTenantParty({
       tenantId: input.tenantId,
       legalName,
-      localDisplayName: legalName,
+      displayName: legalName,
       identifiers: normalizeIdentifiers(input.person.identifiers),
-      idempotencyKey: `${input.idempotencyKey}:party`
+      idempotencyKey: buildPartyRegistrationIdempotencyKey(input)
     })
     return {
-      partyId: registeredParty.partyId,
       tenantPartyId: registeredParty.tenantPartyId
     }
   }
@@ -212,6 +208,7 @@ export class HrEmployeeOnboardingService {
       phone?: string
     }
     employeeId: string
+    tenantPartyId: string
     employmentId: string
     idempotencyKey: string
     tenantId: string
@@ -237,6 +234,7 @@ export class HrEmployeeOnboardingService {
               displayName: requireNonBlank(input.account.displayName, 'account.displayName'),
               email: normalize(input.account.email),
               existingUserId: normalize(input.account.existingUserId),
+              tenantPartyId: requireNonBlank(input.tenantPartyId, 'tenantPartyId'),
               phone: normalize(input.account.phone)
             },
         roleIds: [],
@@ -253,6 +251,27 @@ export class HrEmployeeOnboardingService {
     }
   }
 
+}
+
+/** buildPartyRegistrationIdempotencyKey keeps HR-originated Party writes idempotent within party-service key limits. */
+function buildPartyRegistrationIdempotencyKey(input: {
+  idempotencyKey: string
+  person: EmployeeOnboardingPersonInput
+  tenantId: string
+}) {
+  const fingerprint = createHash('sha256')
+    .update(
+      JSON.stringify({
+        operation: 'HR_EMPLOYEE_ONBOARDING_PARTY_REGISTRATION',
+        tenantId: input.tenantId,
+        onboardingIdempotencyKey: input.idempotencyKey,
+        legalName: input.person.legalName,
+        identifiers: normalizeIdentifiers(input.person.identifiers)
+      })
+    )
+    .digest('hex')
+
+  return `hr-employee-party:${fingerprint}`
 }
 
 /** normalizeIdentifiers prepares person identifiers for the party-service strong-match contract. */

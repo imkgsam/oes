@@ -2,7 +2,6 @@ import { UserSummaryEntity } from '../entities/user-summary.entity'
 
 export interface UserRepository {
   create(input: {
-    partyId?: string | null
     username?: string | null
     email?: string | null
     phone?: string | null

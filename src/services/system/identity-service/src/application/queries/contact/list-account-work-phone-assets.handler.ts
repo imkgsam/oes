@@ -42,11 +42,17 @@ function toAccountContactAssetView(asset: AccountContactAssetEntity): AccountCon
     id: asset.id,
     tenantId: asset.tenantId,
     accountId: asset.accountId,
+    userId: asset.userId,
+    employeeId: asset.employeeId,
     type: asset.type,
+    provider: asset.provider,
     value: asset.value,
+    displayName: asset.displayName,
+    ownership: asset.ownership,
+    usage: asset.usage,
     status: asset.status,
     isPrimary: asset.isPrimary,
     assignedAt: asset.assignedAt,
-    revokedAt: asset.revokedAt
+    releasedAt: asset.releasedAt
   }
 }

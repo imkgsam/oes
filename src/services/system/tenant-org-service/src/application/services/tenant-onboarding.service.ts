@@ -35,7 +35,7 @@ import { OrgUnitType, normalizeEmployeeCodePrefix } from '../../domain/value-obj
 export interface StartTenantOnboardingInput {
   idempotencyKey: string
   tenant: { code: string; employeeCodePrefix: string; name: string }
-  organizationParty: {
+  organizationTenantParty: {
     legalName: string
     registeredCountry?: string
     identifiers: Array<{
@@ -70,10 +70,10 @@ export interface TenantOnboardingResult {
     path: string
     depth: number
     sortOrder: number
-    organizationPartyId: string | null
+    organizationTenantPartyId: string | null
   }
-  organizationParty?: { partyId?: string; tenantPartyId?: string }
-  firstAdmin?: { userId?: string; accountId?: string; personPartyId?: string; tenantPartyId?: string }
+  organizationTenantParty?: { tenantPartyId?: string }
+  firstAdmin?: { userId?: string; accountId?: string; tenantPartyId?: string }
   firstAdminEmployee?: { employeeId?: string; employmentId?: string; accessProcessId?: string }
   access?: {
     roleCode?: string
@@ -159,24 +159,6 @@ export class TenantOnboardingService {
     let steps = ensureOnboardingSteps(run.steps)
 
     try {
-      await this.runStep(run.id, steps, TenantOnboardingStepKey.REGISTER_ORGANIZATION_PARTY, async () => {
-        if (refs.organizationPartyId) return
-        const result = await this.partyRegistrationPort.registerOrganizationParty({
-          legalName: input.organizationParty.legalName,
-          registeredCountry: input.organizationParty.registeredCountry,
-          identifiers: input.organizationParty.identifiers.map((identifier, index) => ({
-            identifierType: requireNonBlank(identifier.identifierType, `organizationParty.identifiers[${index}].identifierType`),
-            rawValue: identifier.rawValue,
-            normalizedValue: requireNonBlank(identifier.normalizedValue, `organizationParty.identifiers[${index}].normalizedValue`),
-            issuerCountryOrRegion: identifier.issuerCountryOrRegion
-          })),
-          idempotencyKey: stepKey(run.id, TenantOnboardingStepKey.REGISTER_ORGANIZATION_PARTY)
-        })
-        refs.organizationPartyId = result.partyId
-        refs.organizationTenantPartyId = result.tenantPartyId
-        run = await this.persistRefs(run.id, refs, steps)
-      })
-
       await this.runStep(run.id, steps, TenantOnboardingStepKey.CREATE_TENANT_WITH_ROOT_ORG, async () => {
         if (refs.tenantId && refs.rootOrgId) return
         const result = await this.tenantRepository.createWithRootOrg({
@@ -190,25 +172,34 @@ export class TenantOnboardingService {
         run = await this.persistRefs(run.id, refs, steps)
       })
 
+      await this.runStep(run.id, steps, TenantOnboardingStepKey.REGISTER_ORGANIZATION_PARTY, async () => {
+        if (refs.organizationTenantPartyId) return
+        if (!refs.tenantId) throw new Error('missing tenant ref before organization tenant party registration')
+        const result = await this.partyRegistrationPort.registerOrganizationTenantParty({
+          tenantId: refs.tenantId,
+          legalName: input.organizationTenantParty.legalName,
+          registeredCountry: input.organizationTenantParty.registeredCountry,
+          identifiers: input.organizationTenantParty.identifiers.map((identifier, index) => ({
+            identifierType: requireNonBlank(identifier.identifierType, `organizationTenantParty.identifiers[${index}].identifierType`),
+            rawValue: identifier.rawValue,
+            normalizedValue: requireNonBlank(identifier.normalizedValue, `organizationTenantParty.identifiers[${index}].normalizedValue`),
+            issuerCountryOrRegion: identifier.issuerCountryOrRegion
+          })),
+          idempotencyKey: stepKey(run.id, TenantOnboardingStepKey.REGISTER_ORGANIZATION_PARTY)
+        })
+        refs.organizationTenantPartyId = result.tenantPartyId
+        run = await this.persistRefs(run.id, refs, steps)
+      })
+
       await this.runStep(run.id, steps, TenantOnboardingStepKey.BIND_ORGANIZATION_TENANT_PARTY, async () => {
-        if (!refs.tenantId || !refs.rootOrgId || !refs.organizationPartyId) {
-          throw new Error('missing tenant/root org/organization party refs before binding tenant party')
-        }
-        if (!refs.organizationTenantPartyId) {
-          const result = await this.partyRegistrationPort.bindExistingPartyToTenant({
-            tenantId: refs.tenantId,
-            partyId: refs.organizationPartyId,
-            localDisplayName: input.organizationParty.legalName,
-            localCode: input.tenant.code,
-            idempotencyKey: stepKey(run.id, TenantOnboardingStepKey.BIND_ORGANIZATION_TENANT_PARTY)
-          })
-          refs.organizationTenantPartyId = result.tenantPartyId
+        if (!refs.tenantId || !refs.rootOrgId || !refs.organizationTenantPartyId) {
+          throw new Error('missing tenant/root org/organization tenant party refs before root org binding')
         }
         await this.orgUnitRepository.update({
           tenantId: refs.tenantId,
           orgUnitId: refs.rootOrgId,
           type: OrgUnitType.ROOT,
-          organizationPartyId: refs.organizationPartyId
+          organizationTenantPartyId: refs.organizationTenantPartyId
         })
         run = await this.persistRefs(run.id, refs, steps)
       })
@@ -227,8 +218,7 @@ export class TenantOnboardingService {
         })
         refs.firstAdminUserId = result.userId
         refs.firstAdminAccountId = result.accountId
-        refs.firstAdminPersonPartyId = result.userPartyId
-        refs.firstAdminTenantPartyId = result.userTenantPartyId
+        refs.firstAdminTenantPartyId = result.tenantPartyId
         run = await this.persistRefs(run.id, refs, steps)
       })
 
@@ -247,7 +237,6 @@ export class TenantOnboardingService {
           employeeCode: `EMP-${input.tenant.employeeCodePrefix}-0001`,
           idempotencyKey: stepKey(run.id, TenantOnboardingStepKey.CREATE_FIRST_ADMIN_EMPLOYEE),
           person: {
-            existingPartyId: refs.firstAdminPersonPartyId,
             existingTenantPartyId: refs.firstAdminTenantPartyId,
             legalName: input.firstAdmin.displayName
           },
@@ -411,14 +400,12 @@ export class TenantOnboardingService {
       status: run.status,
       tenant: tenant ? { ...tenant, status: String(tenant.status) } : undefined,
       rootOrg: rootOrg ? { ...rootOrg, type: String(rootOrg.type), status: String(rootOrg.status) } : undefined,
-      organizationParty: {
-        partyId: refs.organizationPartyId,
+      organizationTenantParty: {
         tenantPartyId: refs.organizationTenantPartyId
       },
       firstAdmin: {
         userId: refs.firstAdminUserId,
         accountId: refs.firstAdminAccountId,
-        personPartyId: refs.firstAdminPersonPartyId,
         tenantPartyId: refs.firstAdminTenantPartyId
       },
       firstAdminEmployee: {
@@ -490,7 +477,7 @@ function normalizeInput(input: StartTenantOnboardingInput): StartTenantOnboardin
   const phone = input.firstAdmin.phone?.trim() || undefined
   const existingUserId = input.firstAdmin.existingUserId?.trim() || undefined
   const provisioningMode = input.firstAdmin.provisioningMode === 'EXISTING_USER' ? 'EXISTING_USER' : 'CREATE_NEW_USER'
-  const registeredCountry = input.organizationParty.registeredCountry?.trim() || undefined
+  const registeredCountry = input.organizationTenantParty.registeredCountry?.trim() || undefined
   if (provisioningMode === 'EXISTING_USER' && !existingUserId) {
     throw new BadRequestException('firstAdmin.existingUserId is required')
   }
@@ -500,9 +487,9 @@ function normalizeInput(input: StartTenantOnboardingInput): StartTenantOnboardin
   if (phone && !/^\+[1-9]\d{5,19}$/.test(phone)) {
     throw new BadRequestException('firstAdmin.phone must be canonical + international format')
   }
-  const identifiers = input.organizationParty.identifiers ?? []
+  const identifiers = input.organizationTenantParty.identifiers ?? []
   if (!identifiers.length) {
-    throw new BadRequestException('organizationParty.identifiers is required')
+    throw new BadRequestException('organizationTenantParty.identifiers is required')
   }
   return {
     idempotencyKey: requireNonBlank(input.idempotencyKey, 'idempotencyKey'),
@@ -511,18 +498,18 @@ function normalizeInput(input: StartTenantOnboardingInput): StartTenantOnboardin
       employeeCodePrefix: normalizeEmployeeCodePrefix(input.tenant.employeeCodePrefix, 'tenant.employeeCodePrefix'),
       name: requireNonBlank(input.tenant.name, 'tenant.name')
     },
-    organizationParty: {
-      legalName: requireNonBlank(input.organizationParty.legalName, 'organizationParty.legalName'),
+    organizationTenantParty: {
+      legalName: requireNonBlank(input.organizationTenantParty.legalName, 'organizationTenantParty.legalName'),
       registeredCountry,
       identifiers: identifiers.map((identifier, index) => {
         const rawValue = identifier.rawValue?.trim() || identifier.normalizedValue?.trim()
         return {
-          identifierType: requireNonBlank(identifier.identifierType, `organizationParty.identifiers[${index}].identifierType`),
+          identifierType: requireNonBlank(identifier.identifierType, `organizationTenantParty.identifiers[${index}].identifierType`),
           rawValue,
-          normalizedValue: normalizeIdentifierValue(rawValue, `organizationParty.identifiers[${index}].rawValue`),
+          normalizedValue: normalizeIdentifierValue(rawValue, `organizationTenantParty.identifiers[${index}].rawValue`),
           issuerCountryOrRegion: requireNonBlank(
             identifier.issuerCountryOrRegion?.trim() || registeredCountry || '',
-            `organizationParty.identifiers[${index}].issuerCountryOrRegion`
+            `organizationTenantParty.identifiers[${index}].issuerCountryOrRegion`
           )
         }
       })

@@ -4,47 +4,27 @@ import { mount } from '@vue/test-utils';
 
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('@vben/stores', () => ({
-  useUserStore: () => ({
-    userInfo: {
-      homePath: '/workbench/home',
-      realName: '陈双鹏',
-      username: 'chen-shuangpeng',
-    },
-  }),
-}));
-
-vi.mock('#/store/auth-context', () => ({
-  useAuthContextStore: () => ({
-    accountName: '陈双鹏',
-    homePath: '/workbench/home',
-    isPlatformScope: false,
-    operatorName: '陈双鹏',
-    tenantName: '广东美隆陶瓷有限公司',
-  }),
-}));
-
-vi.mock('ant-design-vue', () => ({
-  Card: {
-    name: 'Card',
-    template: '<section class="ant-card"><slot name="title" /><slot /></section>',
-  },
-  Tag: {
-    name: 'Tag',
-    template: '<span class="ant-tag"><slot /></span>',
+vi.mock('./components/collaboration-task/task-workbench-section.vue', () => ({
+  default: {
+    name: 'TaskWorkbenchSection',
+    template: '<section data-testid="task-workbench-section" />',
   },
 }));
 
-// Verifies the workbench keeps top-level sections separated with a real layout gap.
+// Verifies the workbench is task-first instead of retaining placeholder dashboard blocks.
 describe('tenant workbench home layout', () => {
-  it('uses an explicit column gap between top-level blocks', async () => {
+  it('renders the collaboration task block as the primary workbench content', async () => {
     const view = await import('./index.vue');
 
     const wrapper = mount(view.default);
 
-    expect(wrapper.classes()).toEqual(
-      expect.arrayContaining(['flex', 'flex-col', 'gap-5', 'p-5']),
+    expect(wrapper.classes()).toContain('tenant-workbench-home');
+    expect(wrapper.find('[data-testid="task-workbench-section"]').exists()).toBe(
+      true,
     );
-    expect(wrapper.classes()).not.toContain('space-y-5');
+    expect(wrapper.text()).not.toContain('OES Tenant Workbench');
+    expect(wrapper.text()).not.toContain('本阶段说明');
+    expect(wrapper.text()).not.toContain('租户治理');
+    expect(wrapper.text()).not.toContain('业务域导航');
   });
 });

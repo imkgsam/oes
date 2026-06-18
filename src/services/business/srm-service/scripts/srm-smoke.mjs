@@ -166,7 +166,7 @@ function createPartyServices(client) {
 
   return {
     registration: {
-      registerOrganizationParty: async (request) => firstValueFrom(registration.registerOrganizationParty(request))
+      registerTenantParty: async (request) => firstValueFrom(registration.registerTenantParty(request))
     }
   };
 }
@@ -177,6 +177,8 @@ function createItemMasterServices(client, seed) {
 
   return {
     management: {
+      createItemModel: async (request) =>
+        firstValueFrom(management.createItemModel(request, createItemMasterMetadata(seed))),
       createItem: async (request) =>
         firstValueFrom(management.createItem(request, createItemMasterMetadata(seed))),
       setItemCapabilities: async (request) =>
@@ -298,12 +300,12 @@ async function main() {
   try {
     if ((process.env.SRM_SMOKE_ENABLE_BIND ?? 'true').toLowerCase() !== 'false') {
       partyServices = createPartyServices(partyClient);
-      const registerOrganizationParty = partyServices.registration.registerOrganizationParty;
+      const registerTenantParty = partyServices.registration.registerTenantParty;
       partyServices = {
         registration: {
-          registerOrganizationParty: async (request) => {
+          registerTenantParty: async (request) => {
             try {
-              return await registerOrganizationParty(request);
+              return await registerTenantParty(request);
             } catch (error) {
               if (!isOptionalPartyUnavailableError(error)) {
                 throw error;
@@ -322,6 +324,19 @@ async function main() {
       const services = createItemMasterServices(itemMasterClient, seed);
       itemMasterServices = {
         management: {
+          createItemModel: async (request) => {
+            try {
+              return await services.management.createItemModel(request);
+            } catch (error) {
+              if (!isOptionalItemMasterUnavailableError(error)) {
+                throw error;
+              }
+
+              const unavailable = new Error('item-master-service unavailable');
+              unavailable.srmSmokeOptionalItemMasterUnavailable = true;
+              throw unavailable;
+            }
+          },
           createItem: async (request) => {
             try {
               return await services.management.createItem(request);

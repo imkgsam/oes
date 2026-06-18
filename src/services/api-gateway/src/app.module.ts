@@ -16,6 +16,7 @@ import { GatewaySessionAuthGuard } from './common/guards/gateway-session-auth.gu
 import { AuthBffModule } from './modules/auth-bff/auth-bff.module'
 import { PdaBffModule } from './modules/pda-bff/pda-bff.module'
 import { TerminalDeviceAdminBffModule } from './modules/terminal-device-admin-bff/terminal-device-admin-bff.module'
+import { CollaborationServiceProxyModule } from './modules/collaboration-service/collaboration-service.module'
 import { CrmServiceProxyModule } from './modules/crm-service/crm-service.module'
 import { FinanceServiceProxyModule } from './modules/finance-service/finance-service.module'
 import { HrServiceProxyModule } from './modules/hr-service/hr-service.module'
@@ -25,6 +26,8 @@ import { PermissionServiceProxyModule } from './modules/permission-service/permi
 import { ProcurementServiceProxyModule } from './modules/procurement-service/procurement-service.module'
 import { PublicEntryServiceProxyModule } from './modules/public-entry-service/public-entry-service.module'
 import { SalesServiceProxyModule } from './modules/sales-service/sales-service.module'
+import { SiteManagementBffModule } from './modules/site-management-bff/site-management-bff.module'
+import { SiteRuntimeBffModule } from './modules/site-runtime-bff/site-runtime-bff.module'
 import { SrmServiceProxyModule } from './modules/srm-service/srm-service.module'
 import { TenantOrgServiceProxyModule } from './modules/tenant-org-service/tenant-org-service.module'
 import { WmsServiceProxyModule } from './modules/wms-service/wms-service.module'
@@ -75,6 +78,18 @@ export function resolveHrGrpcUrl() {
   return (process.env.NODE_ENV ?? 'development') !== 'production' ? '127.0.0.1:50055' : undefined
 }
 
+/** resolveCollaborationGrpcUrl centralizes the local collaboration-service endpoint used by api-gateway. */
+export function resolveCollaborationGrpcUrl() {
+  const host = process.env.COLLABORATION_SERVICE_HOST?.trim()
+  const port = process.env.COLLABORATION_SERVICE_PORT?.trim()
+
+  if (host && port) {
+    return `${normalizeLocalhostGrpcHost(host)}:${port}`
+  }
+
+  return (process.env.NODE_ENV ?? 'development') !== 'production' ? '127.0.0.1:50068' : undefined
+}
+
 /** resolveMesGrpcUrl centralizes the local MES fallback endpoint used by api-gateway. */
 export function resolveMesGrpcUrl() {
   return process.env.MES_SERVICE_HOST && process.env.MES_SERVICE_PORT
@@ -87,6 +102,18 @@ export function resolvePublicEntryGrpcUrl() {
   return process.env.PUBLIC_ENTRY_SERVICE_HOST && process.env.PUBLIC_ENTRY_SERVICE_PORT
     ? `${process.env.PUBLIC_ENTRY_SERVICE_HOST}:${process.env.PUBLIC_ENTRY_SERVICE_PORT}`
     : 'localhost:50067'
+}
+
+/** resolveSiteGrpcUrl centralizes the local site-service endpoint used by Admin and Site-facing BFFs. */
+export function resolveSiteGrpcUrl() {
+  const host = process.env.SITE_SERVICE_HOST?.trim()
+  const port = process.env.SITE_SERVICE_PORT?.trim()
+
+  if (host && port) {
+    return `${normalizeLocalhostGrpcHost(host)}:${port}`
+  }
+
+  return (process.env.NODE_ENV ?? 'development') !== 'production' ? '127.0.0.1:50069' : undefined
 }
 
 /** normalizeLocalhostGrpcHost maps local gRPC clients to IPv4 when services bind IPv4-only sockets. */
@@ -141,6 +168,12 @@ export const permissionGrpcProtoPaths = [
           protoPath: resolveCommonProtoPath('hr_service/hr.proto'),
           packageName: 'hr_service',
           url: resolveHrGrpcUrl()
+        },
+        [SERVICE_NAMES.COLLABORATION]: {
+          serviceName: SERVICE_NAMES.COLLABORATION,
+          protoPath: resolveCommonProtoPath('collaboration_service/collaboration.proto'),
+          packageName: 'collaboration_service',
+          url: resolveCollaborationGrpcUrl()
         },
         [SERVICE_NAMES.CRM]: {
           serviceName: SERVICE_NAMES.CRM,
@@ -208,6 +241,12 @@ export const permissionGrpcProtoPaths = [
           packageName: 'public_entry_service',
           url: resolvePublicEntryGrpcUrl()
         },
+        [SERVICE_NAMES.SITE]: {
+          serviceName: SERVICE_NAMES.SITE,
+          protoPath: resolveCommonProtoPath('site_service/site.proto'),
+          packageName: 'site_service',
+          url: resolveSiteGrpcUrl()
+        },
         [SERVICE_NAMES.SRM]: {
           serviceName: SERVICE_NAMES.SRM,
           protoPath: resolveCommonProtoPath('srm_service/srm.proto'),
@@ -270,6 +309,7 @@ export const permissionGrpcProtoPaths = [
     AuthBffModule,
     PdaBffModule,
     TerminalDeviceAdminBffModule,
+    CollaborationServiceProxyModule,
     CrmServiceProxyModule,
     FinanceServiceProxyModule,
     HrServiceProxyModule,
@@ -279,6 +319,8 @@ export const permissionGrpcProtoPaths = [
     ProcurementServiceProxyModule,
     PublicEntryServiceProxyModule,
     SalesServiceProxyModule,
+    SiteManagementBffModule,
+    SiteRuntimeBffModule,
     SrmServiceProxyModule,
     TenantOrgServiceProxyModule,
     WmsServiceProxyModule

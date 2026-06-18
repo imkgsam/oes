@@ -66,8 +66,7 @@ export class IdentityAccountOnboardingGrpcAdapter implements IdentityAccountOnbo
     return {
       accountId,
       userId,
-      userPartyId: response.userPartyId?.trim() || undefined,
-      userTenantPartyId: response.userTenantPartyId?.trim() || undefined
+      tenantPartyId: response.tenantPartyId?.trim() || response.account?.tenantPartyId?.trim() || undefined
     }
   }
 

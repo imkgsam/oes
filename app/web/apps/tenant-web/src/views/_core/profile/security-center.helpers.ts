@@ -134,14 +134,6 @@ export function validateContactBindingOtp(value: string) {
   return /^\d{6}$/.test(trimmedValue) ? '' : '请输入 6 位验证码';
 }
 
-// Decides whether the UI can request a new binding challenge.
-export function canRequestContactBindingChallenge(input: {
-  captchaVerified: boolean;
-  value: string;
-}) {
-  return input.captchaVerified && input.value.trim().length > 0;
-}
-
 // Builds contact and terminal-PIN login-capability groups for the compact security-center card layout.
 export function buildLoginMethodGroups(
   loginMethods: SelfSecurityApi.LoginMethod[],

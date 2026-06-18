@@ -57,7 +57,7 @@ export class PartyQueryGrpcAdapter implements TenantPartyLookupPort, OnModuleIni
       tenantId: tenantParty.tenantId ?? tenantId,
       tenantPartyId: tenantParty.id,
       status: tenantParty.status ?? '',
-      partyDisplayName: tenantParty.localDisplayName ?? ''
+      partyDisplayName: tenantParty.displayName ?? ''
     }
   }
 

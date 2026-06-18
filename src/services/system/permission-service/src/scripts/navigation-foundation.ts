@@ -46,23 +46,31 @@ const NAVIGATION_VISIBILITY_ENTRY_KEYS_BY_ROLE_CODE: Record<string, string[]> = 
     'admin.permission-management',
     'admin.policy-governance',
     'admin.terminal-device-management',
-    'admin.navigation-management'
+    'admin.navigation-management',
+    'public-entry.business-cards',
+    'public-entry.short-links',
+    'collaboration.tasks'
   ],
   'tenant.admin': [
     'workbench.home',
+    'collaboration.tasks',
     'admin.auth-session-management',
     'admin.role-management',
     'admin.account-management',
     'admin.terminal-device-management',
+    'admin.site-management',
     'tenant-settings.org-structure',
     'tenant-settings.employee-employment',
-    'tenant-settings.login-mfa'
+    'tenant-settings.login-mfa',
+    'master-data.customer-management',
+    'public-entry.business-cards',
+    'public-entry.short-links'
   ],
   'hr.admin': [
     'workbench.home',
     'tenant-settings.employee-employment'
   ],
-  'account.basic': ['workbench.home'],
+  'account.basic': ['workbench.home', 'collaboration.tasks'],
   'item_master.product_data_manager': [
     'workbench.home',
     'master-data.item-management',
@@ -361,12 +369,52 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     entryType: 'page'
   },
   {
+    entryKey: 'admin.site-management',
+    name: 'Site Management',
+    description: 'OES 端外部站点治理、发布同步、凭证与运行状态管理入口。',
+    featureKey: 'site-service',
+    supportedTerminals: ['WEB'],
+    registryPriority: 28,
+    enabled: true,
+    entryType: 'page'
+  },
+  {
+    entryKey: 'public-entry.business-cards',
+    name: '员工数字名片',
+    description: '租户侧员工数字名片公开展示、主公开入口、二维码与访问摘要管理入口。',
+    featureKey: 'public-entry',
+    supportedTerminals: ['WEB'],
+    registryPriority: 29,
+    enabled: true,
+    entryType: 'page'
+  },
+  {
+    entryKey: 'public-entry.short-links',
+    name: '公开短链',
+    description: '租户侧 ShortLink 生命周期、目标迁移、二维码与访问统计治理入口。',
+    featureKey: 'public-entry',
+    supportedTerminals: ['WEB'],
+    registryPriority: 30,
+    enabled: true,
+    entryType: 'page'
+  },
+  {
+    entryKey: 'collaboration.tasks',
+    name: '任务工作台',
+    description: '租户内个人待办、指派任务与创建任务视图入口。',
+    featureKey: 'collaboration',
+    supportedTerminals: ['WEB'],
+    registryPriority: 31,
+    enabled: true,
+    entryType: 'page'
+  },
+  {
     entryKey: 'pda.home',
     name: 'PDA 首页',
     description: '现场 PDA 端默认系统入口。',
     featureKey: 'pda',
     supportedTerminals: ['PDA'],
-    registryPriority: 28,
+    registryPriority: 32,
     enabled: true,
     entryType: 'workspace'
   },
@@ -376,7 +424,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '固定工位触摸屏默认系统入口。',
     featureKey: 'kiosk',
     supportedTerminals: ['KIOSK'],
-    registryPriority: 29,
+    registryPriority: 33,
     enabled: true,
     entryType: 'workspace'
   },
@@ -386,7 +434,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '浏览器插件设计师选品、加入项目并提交到 OES 的 demo workspace。',
     featureKey: 'browser-extension',
     supportedTerminals: ['BROWSER_EXTENSION'],
-    registryPriority: 30,
+    registryPriority: 34,
     enabled: true,
     entryType: 'workspace'
   }

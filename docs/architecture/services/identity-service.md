@@ -12,7 +12,6 @@
 
 - `User` 技术身份真相：
   - `userId`
-  - `partyId` 到 `party-service` `PersonParty` 的受控关联
   - 启用状态
   - legacy login handle 展示 / 迁移语义
 - `UserAccount` 账号真相：
@@ -20,6 +19,7 @@
   - `userId`
   - `scopeLevel`
   - tenant 引用
+  - tenant account 上的 `tenantPartyId` 关联
   - account display name
   - account enabled / disabled lifecycle
 - 当前 user 可用 account context 列表与 account 展示摘要。
@@ -42,7 +42,7 @@
 
 - 密码、OTP、MFA、login method、session、token、refresh token、认证 challenge 或认证审计真相；这些归属 `auth-service`。
 - 权限码、角色、scope、policy、terminal access policy、授权判定、权限摘要或导航授权真相；这些以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。
-- `Tenant`、tenant lifecycle、`OrgUnit`、org tree、org hierarchy、org reference validation 或 `organizationPartyId` 真相；这些以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准。
+- `Tenant`、tenant lifecycle、`OrgUnit`、org tree、org hierarchy、org reference validation 或 `organizationTenantPartyId` 真相；这些以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准。
 - `Employee`、`Employment`、正式 `人 -> org` 任职关系或 onboarding 业务结果；这些归属 `hr-service`。
 - 现实世界自然人的真实姓名、法定姓名、昵称、多语言姓名或组织主体 canonical truth；这些归属 `party-service`。
 - 客户、供应商、员工、联系人等业务角色语义真相；这些归属对应业务服务。
@@ -54,7 +54,7 @@
 ## 4. Core Responsibilities
 
 - 提供 `User`、`UserAccount`、联系资产、机器主体与账号绑定关系的查询能力。
-- 维护 `User.partyId` 到 `party-service` 自然人主体的受控关联。
+- `User` 不绑定 Party；租户账号通过 `UserAccount.tenantPartyId` 关联当前租户内 `PERSON` TenantParty。
 - 维护 scope-aware `UserAccount`，支持 `SYSTEM` 与 `TENANT` 两类 account context。
 - 为 `auth-service` 提供登录后 account candidate、account existence、account ownership、account enabled state 与 scope / tenant 引用事实。
 - 为 `auth-service` 的员工码现场终端登录提供 `employeeId -> unique UserAccount + enabled state` 的受控解析事实；员工 lifecycle 与 active employment 仍由 `hr-service` 判断，PIN 仍由 `auth-service` 校验。
@@ -71,7 +71,7 @@
 
 稳定规则：
 
-- `User.partyId` 是到 `party-service` `PersonParty` 的受控关联。
+- `User` 是技术身份，不持有 `partyId`。
 - `User.username` 是历史字段；如被读取，只能作为可选 legacy login handle 展示或迁移依据。
 - `User.username` 不是真实姓名、法定姓名、昵称、展示名或多语言姓名真相源。
 - 若后续需要唯一用户名登录，应先冻结 login handle 语义，再同步更新 `auth-service` login method / credential 设计。
@@ -88,6 +88,9 @@
 - `UserAccount.scopeLevel = TENANT` 表示租户账号。
 - `SYSTEM` account 不绑定 tenant，`tenantId` 必须为空。
 - `TENANT` account 必须绑定真实 tenant 引用，`tenantId` 必填。
+- `TENANT` account 可关联当前租户内 `tenantPartyId`；该字段用于表达账号在该租户上下文内对应的现实自然人主体。
+- `CreateUserAccount` 收到上游显式传入的 `tenantPartyId` 时，应直接复用该租户主体引用；未传时可按既有账号创建流程向 `party-service` 注册当前租户 `PERSON TenantParty`。
+- `SYSTEM` account 不关联 `tenantPartyId`。
 - `tenantId` 在 `identity-service` 内只表示 account context 对 tenant 的引用，不是 tenant 主数据或 lifecycle 真相。
 - `identity-service` 只按账号自身启用状态与 tenant 引用返回 account candidates；tenant lifecycle 由 `tenant-org-service` 提供并以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准，认证准入由 `auth-service` 消费后决策。
 - account display name 是 account context 展示摘要，不等同于自然人真实姓名。
@@ -102,7 +105,7 @@
 - `Tenant`、tenant status、tenant lifecycle 与 tenant 展示摘要以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准。
 - `OrgUnit`、org tree、org hierarchy 与 org reference validation 以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准。
 - `Employment -> OrgUnit` 是正式 `人 -> org` 任职真相，归 `hr-service`。
-- `UserAccount <-> Employee` binding 只表达账号与员工聚合的受控关联，不替代 `Employee / Employment`。
+- `UserAccount <-> Employee` binding 必须校验同 tenant，且 `UserAccount.tenantPartyId == Employee.tenantPartyId`。
 - `ResolveEmployeeLoginAccount` 可基于既有 `UserAccount <-> Employee` binding 返回某 active employee 对应的唯一 account 及其 enabled state，用于认证编排与准确审计；该能力不得把 identity-service 扩展为 HR lifecycle、terminal access 或 PIN owner。
 - legacy account-org membership 或 account 视角 org 数据只能作为 compatibility / projection 口径存在，不得成为 onboarding、HR、授权或组织治理主链 owner。
 - `identity-service` 可在账号、联系资产、机器主体、审计记录中保留 `tenantId / orgId` 引用字段，但不得通过本地模型或共享数据库读取 tenant / org 真相。
@@ -204,8 +207,8 @@ Contract 文档只描述黑盒调用语义、字段、错误与当前接口形�
 ## 12. Upstream Dependencies
 
 - `party-service`
-  - 提供 canonical natural person / organization party 事实。
-  - 承接真实姓名、法定姓名、多语言姓名、主体识别与主体合并等现实世界主体语义。
+  - 提供当前租户内 `TenantParty` 主体事实。
+  - 承接租户内真实姓名、法定名称、多语言名称与主体识别等现实世界主体语义。
 - `tenant-org-service`
   - 提供 tenant lifecycle、tenant 摘要、org tree 与 org reference validation。
   - 为 TENANT scope account / machine principal 提供 tenant 引用校验依据。
@@ -221,8 +224,8 @@ Contract 文档只描述黑盒调用语义、字段、错误与当前接口形�
 ## 13. Downstream / Published Facts
 
 - user 技术身份摘要。
-- `User.partyId` 关联摘要。
 - account context 列表。
+- `UserAccount.tenantPartyId` 租户主体关联摘要。
 - account existence / ownership / enabled state。
 - account scope / tenant reference。
 - account display summary。

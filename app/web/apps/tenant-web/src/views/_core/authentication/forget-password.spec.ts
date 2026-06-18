@@ -28,24 +28,6 @@ vi.mock('vue-router', () => ({
   })
 }))
 
-vi.mock('@vben/common-ui', () => ({
-  SliderCaptcha: defineComponent({
-    name: 'SliderCaptcha',
-    props: ['disabled'],
-    emits: ['success', 'update:modelValue'],
-    template: `
-      <button
-        class="slider-pass"
-        :disabled="disabled"
-        type="button"
-        @click="!disabled && ($emit('update:modelValue', true), $emit('success', { isPassing: true }))"
-      >
-        pass
-      </button>
-    `
-  })
-}))
-
 vi.mock('ant-design-vue', () => ({
   Button: defineComponent({
     name: 'Button',
@@ -144,22 +126,16 @@ describe('forget password page', () => {
     expect((identifierInput.element as HTMLInputElement).value).toBe('user@example.com')
   })
 
-  it('keeps the captcha disabled until the identifier input has content', async () => {
+  it('keeps continue disabled until the identifier input has valid content without rendering an extra gate', async () => {
     const view = await import('./forget-password.vue')
     const wrapper = mount(view.default, {
       attachTo: document.body
     })
 
-    const sliderPassButton = document.body.querySelector('.slider-pass') as HTMLButtonElement | null
     const continueButton = wrapper.findAll('button').find((button) => button.text().includes('继续'))
 
-    expect(sliderPassButton?.disabled).toBe(true)
+    expect(document.body.textContent).not.toContain('安全验证')
     expect((continueButton?.element as HTMLButtonElement | undefined)?.disabled).toBe(true)
-
-    sliderPassButton?.click()
-    await flushPromises()
-
-    expect(inspectPasswordRecoveryChannelsApi).not.toHaveBeenCalled()
   })
 
   it('auto-defaults the only verified recovery channel and progresses into otp verification', async () => {
@@ -172,9 +148,6 @@ describe('forget password page', () => {
     expect(document.body.textContent).toContain('验证身份')
 
     await wrapper.find('input[placeholder="name@company.com / +8613800138000"]').setValue('user@example.com')
-    const sliderPassButton = document.body.querySelector('.slider-pass') as HTMLButtonElement | null
-    sliderPassButton?.click()
-    await flushPromises()
 
     await wrapper.findAll('button').find((button) => button.text().includes('继续'))?.trigger('click')
     await flushPromises()
@@ -213,9 +186,6 @@ describe('forget password page', () => {
     })
 
     await wrapper.find('input[placeholder="name@company.com / +8613800138000"]').setValue('user@example.com')
-    const sliderPassButton = document.body.querySelector('.slider-pass') as HTMLButtonElement | null
-    sliderPassButton?.click()
-    await flushPromises()
 
     await wrapper.findAll('button').find((button) => button.text().includes('继续'))?.trigger('click')
     await flushPromises()

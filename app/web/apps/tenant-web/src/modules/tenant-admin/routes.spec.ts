@@ -1,8 +1,22 @@
-import { describe, expect, it } from 'vitest'
+import { createMemoryHistory, createRouter } from 'vue-router'
+import { describe, expect, it, vi } from 'vitest'
 
 import tenantAdminRoutes from './routes'
 
+vi.mock('#/locales', () => ({
+  $t: (key: string) => ({
+    'page.siteManagement.siteDetail': '站点详情',
+    'page.siteManagement.title': '站点管理'
+  }[key] ?? key)
+}))
+
 describe('tenant admin routes', () => {
+  it('does not register a standalone collaboration task page because workbench owns the Task UI', () => {
+    const collaborationRoute = tenantAdminRoutes.find((route) => route.name === 'TenantCollaboration')
+
+    expect(collaborationRoute).toBeUndefined()
+  })
+
   it('keeps the system org-management workbench on one stable tab key even when orgUnitId query changes', () => {
     const governanceRoute = tenantAdminRoutes.find((route) => route.name === 'TenantAdminGovernance')
     const orgManagementRoute = governanceRoute?.children?.find(
@@ -24,35 +38,118 @@ describe('tenant admin routes', () => {
     expect(terminalDeviceRoute?.component).toBeTypeOf('function')
   })
 
-  it('registers public entry ShortLink management under the tenant admin section', () => {
+  it('registers public-entry management pages under the dedicated public touchpoint section', () => {
     const governanceRoute = tenantAdminRoutes.find((route) => route.name === 'TenantAdminGovernance')
-    const publicEntryRoute = governanceRoute?.children?.find(
+    const publicEntryRoute = tenantAdminRoutes.find((route) => route.name === 'TenantPublicEntry')
+    const shortLinkRoute = publicEntryRoute?.children?.find(
       (route) => route.name === 'AdminPublicEntryShortLinks'
     )
-
-    expect(publicEntryRoute?.path).toBe('/admin/public-entry-short-links')
-    expect(publicEntryRoute?.meta?.entryKey).toBe('admin.public-entry-short-links')
-    expect(publicEntryRoute?.component).toBeTypeOf('function')
-  })
-
-  it('registers BusinessCard admin and employee self-view pages under tenant admin', () => {
-    const governanceRoute = tenantAdminRoutes.find((route) => route.name === 'TenantAdminGovernance')
-    const businessCardAdminRoute = governanceRoute?.children?.find(
+    const businessCardAdminRoute = publicEntryRoute?.children?.find(
       (route) => route.name === 'AdminBusinessCards'
     )
-    const businessCardSelfRoute = governanceRoute?.children?.find(
+
+    expect(governanceRoute?.children?.some((route) => route.name === 'AdminPublicEntryShortLinks')).toBe(false)
+    expect(governanceRoute?.children?.some((route) => route.name === 'AdminBusinessCards')).toBe(false)
+    expect(publicEntryRoute?.path).toBe('/public-entry')
+    expect(publicEntryRoute?.meta?.title).toBe('公开触点')
+    expect(publicEntryRoute?.meta?.icon).toBe('lucide:radio-tower')
+    expect(shortLinkRoute?.path).toBe('/public-entry/short-links')
+    expect(shortLinkRoute?.alias).toBeUndefined()
+    expect(shortLinkRoute?.meta?.entryKey).toBe('public-entry.short-links')
+    expect(shortLinkRoute?.meta?.title).toBe('公开短链')
+    expect(shortLinkRoute?.meta?.icon).toBe('lucide:link')
+    expect(shortLinkRoute?.component).toBeTypeOf('function')
+    expect(businessCardAdminRoute?.path).toBe('/public-entry/business-cards')
+    expect(businessCardAdminRoute?.alias).toBeUndefined()
+    expect(businessCardAdminRoute?.meta?.entryKey).toBe('public-entry.business-cards')
+    expect(businessCardAdminRoute?.meta?.title).toBe('员工数字名片')
+    expect(businessCardAdminRoute?.meta?.icon).toBe('lucide:contact-round')
+    expect(businessCardAdminRoute?.component).toBeTypeOf('function')
+  })
+
+  it('also exposes BusinessCard management as an employee-management nested route', () => {
+    const settingsRoute = tenantAdminRoutes.find((route) => route.name === 'TenantSettings')
+    const employeeBusinessCardRoute = settingsRoute?.children?.find(
+      (route) => route.name === 'TenantEmployeeBusinessCards'
+    )
+
+    expect(employeeBusinessCardRoute?.path).toBe('/settings/employee-employment/business-cards')
+    expect(employeeBusinessCardRoute?.meta?.entryKey).toBe('tenant-settings.employee-employment')
+    expect(employeeBusinessCardRoute?.meta?.activePath).toBe('/settings/employee-employment')
+    expect(employeeBusinessCardRoute?.meta?.hideInMenu).toBe(true)
+    expect(employeeBusinessCardRoute?.meta?.title).toBe('员工数字名片')
+    expect(employeeBusinessCardRoute?.component).toBeTypeOf('function')
+  })
+
+  it('keeps legacy public-entry admin paths as hidden redirects to canonical routes', async () => {
+    const businessCardLegacyRoute = tenantAdminRoutes.find(
+      (route) => route.name === 'AdminBusinessCardsLegacyRedirect'
+    )
+    const shortLinkLegacyRoute = tenantAdminRoutes.find(
+      (route) => route.name === 'AdminPublicEntryShortLinksLegacyRedirect'
+    )
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: tenantAdminRoutes
+    })
+
+    expect(businessCardLegacyRoute?.redirect).toBe('/settings/employee-employment/business-cards')
+    expect(businessCardLegacyRoute?.meta?.entryKey).toBe('tenant-settings.employee-employment')
+    expect(businessCardLegacyRoute?.meta?.hideInMenu).toBe(true)
+    expect(shortLinkLegacyRoute?.redirect).toBe('/public-entry/short-links')
+    expect(shortLinkLegacyRoute?.meta?.hideInMenu).toBe(true)
+    expect(router.resolve('/admin/business-cards').matched.at(-1)?.name).toBe(
+      'AdminBusinessCardsLegacyRedirect'
+    )
+    expect(router.resolve('/admin/public-entry-short-links').matched.at(-1)?.name).toBe(
+      'AdminPublicEntryShortLinksLegacyRedirect'
+    )
+    expect(router.resolve('/settings/employee-employment/business-cards').matched.at(-1)?.name).toBe(
+      'TenantEmployeeBusinessCards'
+    )
+    expect(router.resolve('/public-entry/business-cards').matched.at(-1)?.name).toBe('AdminBusinessCards')
+    expect(router.resolve('/public-entry/short-links').matched.at(-1)?.name).toBe(
+      'AdminPublicEntryShortLinks'
+    )
+  })
+
+  it('keeps employee BusinessCard self-view as a hidden authenticated self-service route', () => {
+    const governanceRoute = tenantAdminRoutes.find((route) => route.name === 'TenantAdminGovernance')
+    const publicEntryRoute = tenantAdminRoutes.find((route) => route.name === 'TenantPublicEntry')
+    const businessCardSelfRoute = tenantAdminRoutes.find(
       (route) => route.name === 'EmployeeBusinessCardSelfView'
     )
 
-    expect(businessCardAdminRoute?.path).toBe('/admin/business-cards')
-    expect(businessCardAdminRoute?.meta?.entryKey).toBe('admin.business-cards')
-    expect(businessCardAdminRoute?.meta?.title).toBe('员工数字名片')
-    expect(businessCardAdminRoute?.component).toBeTypeOf('function')
-    expect(businessCardSelfRoute?.path).toBe('/admin/business-card-self-view')
-    expect(businessCardSelfRoute?.alias).toBe('/admin/business-card-self')
-    expect(businessCardSelfRoute?.meta?.entryKey).toBe('admin.business-card-self')
+    expect(governanceRoute?.children?.some((route) => route.name === 'EmployeeBusinessCardSelfView')).toBe(false)
+    expect(publicEntryRoute?.children?.some((route) => route.name === 'EmployeeBusinessCardSelfView')).toBe(false)
+    expect(businessCardSelfRoute?.path).toBe('/profile/business-card')
+    expect(businessCardSelfRoute?.alias).toEqual([
+      '/admin/business-card-self-view',
+      '/admin/business-card-self'
+    ])
+    expect(businessCardSelfRoute?.meta?.entryKey).toBeUndefined()
+    expect(businessCardSelfRoute?.meta?.ignoreAccess).not.toBe(true)
+    expect(businessCardSelfRoute?.meta?.hideInMenu).toBe(true)
     expect(businessCardSelfRoute?.meta?.title).toBe('我的名片')
     expect(businessCardSelfRoute?.component).toBeTypeOf('function')
+  })
+
+  it('registers Site Management under tenant admin governance', () => {
+    const governanceRoute = tenantAdminRoutes.find((route) => route.name === 'TenantAdminGovernance')
+    const siteRoute = governanceRoute?.children?.find((route) => route.name === 'AdminSiteManagement')
+    const siteDetailRoute = governanceRoute?.children?.find((route) => route.name === 'AdminSiteManagementDetail')
+
+    expect(siteRoute?.path).toBe('/admin/site-management')
+    expect(siteRoute?.meta?.entryKey).toBe('admin.site-management')
+    expect(siteRoute?.meta?.icon).toBe('lucide:globe-2')
+    expect(siteRoute?.meta?.title).toBe('站点管理')
+    expect(siteRoute?.component).toBeTypeOf('function')
+    expect(siteDetailRoute?.path).toBe('/admin/site-management/:siteId')
+    expect(siteDetailRoute?.meta?.activePath).toBe('/admin/site-management')
+    expect(siteDetailRoute?.meta?.entryKey).toBe('admin.site-management')
+    expect(siteDetailRoute?.meta?.hideInMenu).toBe(true)
+    expect(siteDetailRoute?.meta?.title).toBe('站点详情')
+    expect(siteDetailRoute?.component).toBeTypeOf('function')
   })
 
   it('registers terminal-aware account security settings without reusing managed device routes', () => {

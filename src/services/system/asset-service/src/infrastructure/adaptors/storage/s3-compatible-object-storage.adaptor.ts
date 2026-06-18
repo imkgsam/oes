@@ -80,11 +80,23 @@ export class S3CompatibleObjectStorageAdaptor implements ObjectStoragePort {
 
   // buildStorageKey creates a deterministic namespace while keeping filenames opaque and collision-resistant.
   private buildStorageKey(input: PutObjectInput): string {
+    if (input.category === 'EMPLOYEE_OFFICIAL_PHOTO') {
+      return [
+        this.keyPrefix,
+        'tenant',
+        sanitizePathSegment(input.tenantId || ''),
+        'employee',
+        sanitizePathSegment(input.ownerEmployeeId || ''),
+        'official',
+        `${randomUUID()}.${extensionFor(input.contentType)}`
+      ].join('/')
+    }
+
     if (input.scopeLevel === 'SYSTEM') {
       return [
         this.keyPrefix,
         'system',
-        sanitizePathSegment(input.ownerAccountId),
+        sanitizePathSegment(input.ownerAccountId || ''),
         `${randomUUID()}.${extensionFor(input.contentType)}`
       ].join('/')
     }
@@ -93,7 +105,7 @@ export class S3CompatibleObjectStorageAdaptor implements ObjectStoragePort {
       this.keyPrefix,
       'tenant',
       sanitizePathSegment(input.tenantId || ''),
-      sanitizePathSegment(input.ownerAccountId),
+      sanitizePathSegment(input.ownerAccountId || ''),
       `${randomUUID()}.${extensionFor(input.contentType)}`
     ].join('/')
   }

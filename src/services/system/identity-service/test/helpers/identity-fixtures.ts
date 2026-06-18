@@ -35,8 +35,10 @@ export function createUserRepositoryMock(): jest.Mocked<UserRepository> {
 export function createAccountContactAssetRepositoryMock(): jest.Mocked<AccountContactAssetRepository> {
   return {
     findById: jest.fn(),
+    listByIds: jest.fn(),
     findCurrentByTenantAndTypeAndValue: jest.fn(),
     listByAccountIdAndType: jest.fn(),
+    listByAccountContactAssetFilter: jest.fn(),
     assign: jest.fn(),
     revoke: jest.fn(),
     setStatus: jest.fn(),
@@ -49,6 +51,7 @@ export function createAccountSummaryFixture(
     id: string
     userId: string
     tenantId: string
+    tenantPartyId: string | null
     scopeLevel: 'SYSTEM' | 'TENANT'
     avatarUrl: string | null
     avatarAssetId: string | null
@@ -61,6 +64,7 @@ export function createAccountSummaryFixture(
     overrides.id ?? 'acc-1',
     overrides.userId ?? 'user-1',
     overrides.tenantId ?? 'tenant-1',
+    Object.prototype.hasOwnProperty.call(overrides, 'tenantPartyId') ? overrides.tenantPartyId! : 'tenant-party-1',
     overrides.scopeLevel ?? 'TENANT',
     Object.prototype.hasOwnProperty.call(overrides, 'avatarUrl') ? overrides.avatarUrl! : null,
     Object.prototype.hasOwnProperty.call(overrides, 'avatarAssetId') ? overrides.avatarAssetId! : null,
@@ -75,11 +79,18 @@ export function createContactAssetFixture(
     id: string
     tenantId: string
     accountId: string
+    userId: string | null
+    employeeId: string | null
     type: string
+    provider: string | null
     value: string
+    displayName: string | null
+    ownership: 'COMPANY_CONTROLLED' | 'EMPLOYEE_OWNED'
+    usage: string[]
     status: string
     isPrimary: boolean
     assignedAt: Date
+    releasedAt: Date | null
     revokedAt: Date | null
   }> = {}
 ): AccountContactAssetEntity {
@@ -87,19 +98,28 @@ export function createContactAssetFixture(
     overrides.id ?? 'asset-1',
     overrides.tenantId ?? 'tenant-1',
     overrides.accountId ?? 'acc-1',
+    Object.prototype.hasOwnProperty.call(overrides, 'userId') ? overrides.userId! : null,
+    Object.prototype.hasOwnProperty.call(overrides, 'employeeId') ? overrides.employeeId! : null,
     overrides.type ?? 'WORK_EMAIL',
+    Object.prototype.hasOwnProperty.call(overrides, 'provider') ? overrides.provider! : null,
     overrides.value ?? 'user@corp.com',
+    Object.prototype.hasOwnProperty.call(overrides, 'displayName') ? overrides.displayName! : null,
+    overrides.ownership ?? 'COMPANY_CONTROLLED',
+    overrides.usage ?? ['WORK_CONTACT'],
     overrides.status ?? 'ACTIVE',
     overrides.isPrimary ?? false,
     overrides.assignedAt ?? DEFAULT_ASSIGNED_AT,
-    Object.prototype.hasOwnProperty.call(overrides, 'revokedAt') ? overrides.revokedAt! : null
+    Object.prototype.hasOwnProperty.call(overrides, 'releasedAt')
+      ? overrides.releasedAt!
+      : Object.prototype.hasOwnProperty.call(overrides, 'revokedAt')
+        ? overrides.revokedAt!
+        : null
   )
 }
 
 export function createUserSummaryFixture(
   overrides: Partial<{
     id: string
-    partyId: string | null
     username: string | null
     personalEmail: string | null
     personalPhone: string | null
@@ -108,7 +128,6 @@ export function createUserSummaryFixture(
 ): UserSummaryEntity {
   return new UserSummaryEntity(
     overrides.id ?? 'user-1',
-    Object.prototype.hasOwnProperty.call(overrides, 'partyId') ? overrides.partyId! : null,
     Object.prototype.hasOwnProperty.call(overrides, 'username') ? overrides.username! : 'demo-user',
     Object.prototype.hasOwnProperty.call(overrides, 'personalEmail')
       ? overrides.personalEmail!

@@ -15,6 +15,7 @@ const ACCOUNT_SUMMARY_SELECT = {
   id: true,
   userId: true,
   tenantId: true,
+  tenantPartyId: true,
   scopeLevel: true,
   avatarUrl: true,
   avatarAssetId: true,
@@ -23,7 +24,6 @@ const ACCOUNT_SUMMARY_SELECT = {
   isEnable: true,
   User: {
     select: {
-      partyId: true,
       username: true
     }
   }
@@ -69,13 +69,16 @@ export class PrismaAccountRepository implements AccountRepository {
   async createUserAccount(input: {
     scopeLevel: 'SYSTEM' | 'TENANT'
     tenantId?: string
+    tenantPartyId?: string | null
     userId: string
     displayName?: string | null
   }): Promise<AccountSummaryEntity> {
     const tenantId = input.scopeLevel === 'TENANT' ? input.tenantId ?? null : null
+    const tenantPartyId = input.scopeLevel === 'TENANT' ? input.tenantPartyId ?? null : null
     const record = await this.prisma.userAccount.create({
       data: {
         tenantId,
+        tenantPartyId,
         userId: input.userId,
         scopeLevel: input.scopeLevel as UserAccountScopeLevel,
         contextKey: input.scopeLevel === 'SYSTEM' ? 'SYSTEM' : tenantId ?? '',
@@ -132,6 +135,7 @@ export class PrismaAccountRepository implements AccountRepository {
         id: true,
         userId: true,
         tenantId: true,
+        tenantPartyId: true,
         scopeLevel: true,
         avatarUrl: true,
         avatarAssetId: true,

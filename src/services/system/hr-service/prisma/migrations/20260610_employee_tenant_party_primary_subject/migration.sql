@@ -1,0 +1,2 @@
+ALTER TABLE "Employee"
+  DROP COLUMN IF EXISTS "partyId";

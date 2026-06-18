@@ -15,7 +15,7 @@ import { setupSwagger } from './config/swagger.setup'
 async function bootstrap() {
   initOtelSdk(process.env.MODULE_NAME || 'api-gateway')
 
-  const app = await NestFactory.create(AppModule, { bufferLogs: true })
+  const app = await NestFactory.create(AppModule, { bufferLogs: true, rawBody: true })
   const config = app.get(ConfigService)
   const logger = app.get(AppLogger)
 

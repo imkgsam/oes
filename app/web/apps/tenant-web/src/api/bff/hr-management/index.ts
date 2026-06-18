@@ -11,7 +11,8 @@ export namespace HrManagementApi {
     employeeCode: string
     id: string
     lifecycleStatus: EmployeeLifecycleStatus | string
-    partyId?: string
+    officialPhotoAssetId?: null | string
+    officialPhotoUrl?: null | string
     tenantId: string
     tenantPartyId: string
   }
@@ -56,6 +57,10 @@ export namespace HrManagementApi {
     activeEmployment?: EmploymentSummary
     employee: EmployeeSummary
     employments: EmploymentSummary[]
+  }
+
+  export interface EmployeeOfficialPhotoMutationResult {
+    employee?: EmployeeSummary
   }
 
   export interface EmployeeAccessAccountSummary {
@@ -131,7 +136,6 @@ export namespace HrManagementApi {
   export interface CreateEmployeePayload {
     account?: ProvisionEmployeeAccessAccountPayload
     employeeCode?: string
-    partyId?: string
     person?: {
       gender?: string
       identifiers?: EmployeePartyIdentifierPayload[]
@@ -258,6 +262,25 @@ export async function changeManagedPrimaryEmploymentApi(
   return requestClient.post(
     `/hr-management/tenants/${encodeURIComponent(tenantId)}/employees/${encodeURIComponent(employeeId)}/employments/change-primary`,
     data
+  )
+}
+
+// Uploads one HR-owned official employee photo for BusinessCard and public display surfaces.
+export async function uploadEmployeeOfficialPhotoApi(
+  tenantId: string,
+  employeeId: string,
+  file: File
+) {
+  return requestClient.upload<HrManagementApi.EmployeeOfficialPhotoMutationResult>(
+    `/hr-management/tenants/${encodeURIComponent(tenantId)}/employees/${encodeURIComponent(employeeId)}/official-photo`,
+    { file }
+  )
+}
+
+// Removes the HR-owned official employee photo without touching the account avatar.
+export async function removeEmployeeOfficialPhotoApi(tenantId: string, employeeId: string) {
+  return requestClient.delete<HrManagementApi.EmployeeOfficialPhotoMutationResult>(
+    `/hr-management/tenants/${encodeURIComponent(tenantId)}/employees/${encodeURIComponent(employeeId)}/official-photo`
   )
 }
 

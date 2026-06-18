@@ -2,11 +2,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const get = vi.fn()
 const post = vi.fn()
+const upload = vi.fn()
+const deleteRequest = vi.fn()
 
 vi.mock('#/api/request', () => ({
   requestClient: {
+    delete: deleteRequest,
     get,
-    post
+    post,
+    upload
   }
 }))
 
@@ -15,6 +19,8 @@ describe('tenant-web hr management api', () => {
   beforeEach(() => {
     get.mockReset()
     post.mockReset()
+    upload.mockReset()
+    deleteRequest.mockReset()
   })
 
   it('lists the employee directory and loads one employee detail from the tenant-scoped HR entry', async () => {
@@ -50,7 +56,6 @@ describe('tenant-web hr management api', () => {
 
     await createManagedEmployeeApi('tenant-1', {
       employeeCode: 'EMP-0AF-0001',
-      partyId: 'party-1',
       tenantPartyId: 'tenant-party-1'
     })
     await createManagedEmploymentApi('tenant-1', 'employee-1', {
@@ -79,7 +84,6 @@ describe('tenant-web hr management api', () => {
 
     expect(post).toHaveBeenCalledWith('/hr-management/tenants/tenant-1/employees', {
       employeeCode: 'EMP-0AF-0001',
-      partyId: 'party-1',
       tenantPartyId: 'tenant-party-1'
     })
     expect(post).toHaveBeenCalledWith('/hr-management/tenants/tenant-1/employees/employee-1/employments', {
@@ -123,6 +127,22 @@ describe('tenant-web hr management api', () => {
 
     expect(get).toHaveBeenCalledWith(
       '/hr-management/tenants/tenant-1/employees/employee-1/account-access'
+    )
+  })
+
+  it('uploads and removes one employee official photo through the tenant-scoped HR entry', async () => {
+    const { removeEmployeeOfficialPhotoApi, uploadEmployeeOfficialPhotoApi } = await import('./index')
+    const file = new File(['avatar'], 'official.webp', { type: 'image/webp' })
+
+    await uploadEmployeeOfficialPhotoApi('tenant-1', 'employee-1', file)
+    await removeEmployeeOfficialPhotoApi('tenant-1', 'employee-1')
+
+    expect(upload).toHaveBeenCalledWith(
+      '/hr-management/tenants/tenant-1/employees/employee-1/official-photo',
+      { file }
+    )
+    expect(deleteRequest).toHaveBeenCalledWith(
+      '/hr-management/tenants/tenant-1/employees/employee-1/official-photo'
     )
   })
 })

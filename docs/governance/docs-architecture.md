@@ -453,6 +453,14 @@ OES 文档默认分为六类真相源与协作层：
 
 - 将其降级为 index / summary / redirect 文档
 
+design workspace 的特殊规则：
+
+- design workspace 是设计过程文件，不是稳定真相源
+- 设计冻结并完成真相源回写后，必须退出 `ACTIVE_DESIGN_WORKSPACE`
+- 若仍需保留历史解释价值，应标记为 `SUPERSEDED_BY_TRUTH_SOURCE` 或移动到 `docs/plans/designs/archive/`
+- 归档或 superseded workspace 必须写明 `truthSource` 与 `doNotUseAsStableSource: true`
+- 已退出 active 的 workspace 不得继续作为当前设计入口
+
 ### 7.3 什么时候清理正文
 
 当一份文档已经被正式真相源完全覆盖，且不再承担导航价值时：

@@ -13,7 +13,7 @@ Gateway 只负责客户端入口、鉴权、DTO 校验、下游调用与展示�
 ## 2. 下游 owner
 
 - 主要下游：`tenant-org-service`
-- Tenant onboarding、`Tenant` 与 `organizationPartyId` 边界以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准；Gateway 不重新定义 onboarding 状态机或租户真相。
+- Tenant onboarding、`Tenant` 与 `organizationTenantPartyId` 边界以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准；Gateway 不重新定义 onboarding 状态机或租户真相。
 - Gateway 调用：
   - `StartTenantOnboarding`
   - `GetTenantOnboarding`
@@ -47,7 +47,7 @@ Gateway 不直接调用：
     "code": "tenant.alpha",
     "name": "Alpha Tenant"
   },
-  "organizationParty": {
+  "organizationTenantParty": {
     "legalName": "Alpha Ltd.",
     "registeredCountry": "CN",
     "identifiers": [
@@ -82,14 +82,12 @@ Gateway 不直接调用：
     "name": "Alpha Tenant",
     "rootOrgId": "root-org-id"
   },
-  "organizationParty": {
-    "partyId": "organization-party-id",
+  "organizationTenantParty": {
     "tenantPartyId": "organization-tenant-party-id"
   },
   "firstAdmin": {
     "userId": "user-id",
     "accountId": "account-id",
-    "personPartyId": "person-party-id",
     "tenantPartyId": "person-tenant-party-id"
   },
   "firstAdminEmployee": {
@@ -109,7 +107,7 @@ Gateway 不直接调用：
   },
   "steps": [
     {
-      "key": "REGISTER_ORGANIZATION_PARTY",
+      "key": "REGISTER_ORGANIZATION_TENANT_PARTY",
       "status": "SUCCEEDED",
       "message": ""
     }

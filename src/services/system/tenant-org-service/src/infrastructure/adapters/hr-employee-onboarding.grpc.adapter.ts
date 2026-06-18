@@ -38,7 +38,6 @@ export class HrEmployeeOnboardingGrpcAdapter implements HrEmployeeOnboardingPort
     employeeCode: string
     idempotencyKey: string
     person: {
-      existingPartyId?: string
       existingTenantPartyId: string
       legalName: string
     }
@@ -56,7 +55,6 @@ export class HrEmployeeOnboardingGrpcAdapter implements HrEmployeeOnboardingPort
           idempotencyKey: input.idempotencyKey,
           person: {
             legalName: input.person.legalName,
-            existingPartyId: input.person.existingPartyId,
             existingTenantPartyId: input.person.existingTenantPartyId
           },
           primaryEmployment: {

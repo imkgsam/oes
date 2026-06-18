@@ -19,14 +19,12 @@ export interface TenantOnboardingFailureRecord {
 export interface TenantOnboardingExternalRefs {
   tenantId?: string
   rootOrgId?: string
-  organizationPartyId?: string
   organizationTenantPartyId?: string
   firstAdminUserId?: string
   firstAdminAccountId?: string
   firstAdminAccessProcessId?: string
   firstAdminEmployeeId?: string
   firstAdminEmploymentId?: string
-  firstAdminPersonPartyId?: string
   firstAdminTenantPartyId?: string
   tenantAdminRoleId?: string
   tenantAdminRoleCode?: string

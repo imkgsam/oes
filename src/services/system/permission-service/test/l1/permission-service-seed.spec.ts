@@ -4,6 +4,7 @@ import {
   validatePermissionServiceSeed
 } from '../../src/scripts/permission-service-seed'
 import {
+  COLLABORATION_TASK_PERMISSION_CODES,
   CRM_MANAGEMENT_PERMISSION_CODES,
   IDENTITY_ACCOUNT_PERMISSION_CODES,
   TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES
@@ -29,7 +30,7 @@ describe('permission service seed source', () => {
     const seed = buildPermissionServiceSeed()
 
     expect(validatePermissionServiceSeed(seed)).toEqual([])
-    expect(seed.permissionCodes).toHaveLength(237)
+    expect(seed.permissionCodes).toHaveLength(247)
     expect(Object.values(TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES)).toEqual([
       ...EXPECTED_TERMINAL_DEVICE_PERMISSION_CODES
     ])
@@ -48,9 +49,15 @@ describe('permission service seed source', () => {
         IDENTITY_ACCOUNT_PERMISSION_CODES.UPDATE_CONTACT_ASSET,
         IDENTITY_ACCOUNT_PERMISSION_CODES.SET_CONTACT_ASSET_STATUS,
         IDENTITY_ACCOUNT_PERMISSION_CODES.SET_PRIMARY_CONTACT_ASSET,
-        IDENTITY_ACCOUNT_PERMISSION_CODES.RELEASE_CONTACT_ASSET
+        IDENTITY_ACCOUNT_PERMISSION_CODES.RELEASE_CONTACT_ASSET,
+        COLLABORATION_TASK_PERMISSION_CODES.ASSIGN
       ])
     )
+    expect(
+      seed.permissionCodes.find(
+        (permission) => permission.code === COLLABORATION_TASK_PERMISSION_CODES.ASSIGN
+      )?.module
+    ).toBe(Modules.COLLABORATION_SERVICE)
     expect(
       seed.permissionCodes
         .filter((permission) =>
@@ -83,9 +90,9 @@ describe('permission service seed source', () => {
       'item_master.product_data_manager',
       'extension.designer'
     ])
-    expect(seed.rolePermissions).toHaveLength(199)
-    expect(seed.navigationEntries).toHaveLength(31)
-    expect(seed.roleNavigationVisibility).toHaveLength(33)
+    expect(seed.rolePermissions).toHaveLength(210)
+    expect(seed.navigationEntries).toHaveLength(35)
+    expect(seed.roleNavigationVisibility).toHaveLength(41)
     expect(seed.roleLandingPolicies).toHaveLength(7)
     expect(seed.roleTerminalAccess).toHaveLength(7)
     expect(seed.policyInstances).toHaveLength(0)
@@ -93,13 +100,13 @@ describe('permission service seed source', () => {
 
   it('renders a stable dry-run summary for audit output', () => {
     expect(renderPermissionServiceSeedDryRunSummary(buildPermissionServiceSeed())).toEqual({
-      permissionCodeCount: 237,
+      permissionCodeCount: 247,
       deprecatedPermissionCodeCount: 14,
       roleCount: 7,
-      rolePermissionCount: 199,
-      navigationEntryCount: 31,
+      rolePermissionCount: 210,
+      navigationEntryCount: 35,
       deprecatedNavigationEntryCount: 1,
-      roleNavigationVisibilityCount: 33,
+      roleNavigationVisibilityCount: 41,
       roleLandingPolicyCount: 7,
       roleTerminalAccessCount: 7,
       policyInstanceCount: 0

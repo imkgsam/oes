@@ -17,6 +17,24 @@ service CustomerManagementService {
   rpc RestoreCrmAccount(RestoreCrmAccountRequest) returns (RestoreCrmAccountResponse);
 }
 
+service CrmObjectReferenceService {
+  rpc ValidateCrmObjectReference(ValidateCrmObjectReferenceRequest) returns (ValidateCrmObjectReferenceResponse);
+}
+
+enum CrmObjectReferenceCapability {
+  CRM_OBJECT_REFERENCE_CAPABILITY_UNSPECIFIED = 0;
+  CRM_OBJECT_REFERENCE_CAPABILITY_READ = 1;
+  CRM_OBJECT_REFERENCE_CAPABILITY_CREATE_ANNOTATION = 2;
+  CRM_OBJECT_REFERENCE_CAPABILITY_MUTATE_ANNOTATION = 3;
+}
+
+enum CrmObjectLifecycle {
+  CRM_OBJECT_LIFECYCLE_UNSPECIFIED = 0;
+  CRM_OBJECT_LIFECYCLE_ACTIVE = 1;
+  CRM_OBJECT_LIFECYCLE_ARCHIVED = 2;
+  CRM_OBJECT_LIFECYCLE_DELETED_OR_UNAVAILABLE = 3;
+}
+
 message OperatorContext {
   string operator_id = 1;
   string operator_type = 2;
@@ -192,4 +210,35 @@ message GetCrmAccountRequest {
 
 message GetCrmAccountResponse {
   CrmAccountP1 crm_account = 1;
+}
+
+message CrmObjectRef {
+  string object_owner_service = 1;
+  string object_type = 2;
+  string object_id = 3;
+}
+
+message CrmObjectDisplaySnapshot {
+  string title = 1;
+  string subtitle = 2;
+  string status = 3;
+}
+
+message ValidateCrmObjectReferenceRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string object_type = 4;
+  string object_id = 5;
+  CrmObjectReferenceCapability requested_capability = 6;
+}
+
+message ValidateCrmObjectReferenceResponse {
+  CrmObjectRef object_ref = 1;
+  bool exists = 2;
+  bool readable = 3;
+  bool capability_allowed = 4;
+  CrmObjectLifecycle object_lifecycle = 5;
+  CrmObjectDisplaySnapshot display_snapshot = 6;
+  string deny_reason = 7;
 }

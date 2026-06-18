@@ -46,8 +46,8 @@ function toAccountDirectoryView(account: AccountDirectoryEntity) {
   return {
     accountId: account.accountId,
     userId: account.userId,
-    userPartyId: account.userPartyId,
     tenantId: account.tenantId,
+    tenantPartyId: account.tenantPartyId,
     scopeLevel: account.scopeLevel,
     displayName: account.displayName,
     userDisplayName: account.userDisplayName,

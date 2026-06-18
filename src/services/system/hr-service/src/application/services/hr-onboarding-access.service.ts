@@ -59,6 +59,7 @@ export class HrOnboardingAccessService {
       email?: string
       existingUserId?: string
       phone?: string
+      tenantPartyId?: string
     }
     roleIds?: string[]
     reason?: string
@@ -191,6 +192,7 @@ export class HrOnboardingAccessService {
       email?: string
       existingUserId?: string
       phone?: string
+      tenantPartyId?: string
     }
     operatorContext?: {
       operatorId: string
@@ -215,6 +217,7 @@ export class HrOnboardingAccessService {
     const email = createAccount.email?.trim() || undefined
     const existingUserId = createAccount.existingUserId?.trim() || undefined
     const phone = createAccount.phone?.trim() || undefined
+    const tenantPartyId = createAccount.tenantPartyId?.trim() || undefined
     if (!existingUserId && !email && !phone) {
       throw new BadRequestException('At least one login contact is required')
     }
@@ -227,6 +230,7 @@ export class HrOnboardingAccessService {
         email,
         existingUserId,
         phone,
+        tenantPartyId,
         username: createAccount.displayName,
         operatorContext: input.operatorContext,
         requestId: input.requestId,

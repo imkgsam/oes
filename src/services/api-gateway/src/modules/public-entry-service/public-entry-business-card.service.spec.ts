@@ -17,7 +17,10 @@ describe('PublicEntryBusinessCardService', () => {
     updateBusinessCardConfig: jest.fn(),
     updateBusinessCardContactActions: jest.fn()
   }
-  const service = new PublicEntryBusinessCardService(adapter as never)
+  const contactAssetAdapter = {
+    listContactAssetCandidatesByEmployee: jest.fn()
+  }
+  const service = new PublicEntryBusinessCardService(adapter as never, contactAssetAdapter as never)
   const source = {
     requestId: 'req-1',
     traceId: 'trace-1',
@@ -107,6 +110,47 @@ describe('PublicEntryBusinessCardService', () => {
       source
     )
     expect(JSON.stringify(adapter.updateBusinessCardContactActions.mock.calls)).not.toContain('alex.chen@example.com')
+  })
+
+  it('lists Contact Asset candidates by employee without exposing login credentials', async () => {
+    contactAssetAdapter.listContactAssetCandidatesByEmployee.mockResolvedValue({
+      assets: [
+        {
+          contactAssetId: 'asset-whatsapp-1',
+          type: 'WHATSAPP',
+          displayLabel: 'Regional WhatsApp',
+          displayValue: '+44 20 7946 0321',
+          status: 'ACTIVE',
+          ownership: 'COMPANY_CONTROLLED'
+        }
+      ]
+    })
+
+    await expect(
+      service.listContactAssetCandidates('tenant-1', { employeeId: 'emp-1' }, source as never)
+    ).resolves.toEqual({
+      assets: [
+        {
+          contactAssetId: 'asset-whatsapp-1',
+          type: 'WHATSAPP',
+          displayLabel: 'Regional WhatsApp',
+          displayValue: '+44 20 7946 0321',
+          status: 'ACTIVE',
+          ownership: 'COMPANY_CONTROLLED'
+        }
+      ]
+    })
+
+    expect(contactAssetAdapter.listContactAssetCandidatesByEmployee).toHaveBeenCalledWith(
+      {
+        tenantId: 'tenant-1',
+        employeeId: 'emp-1',
+        traceId: 'trace-1'
+      },
+      source
+    )
+    expect(JSON.stringify(contactAssetAdapter.listContactAssetCandidatesByEmployee.mock.calls)).not.toContain('password')
+    expect(JSON.stringify(contactAssetAdapter.listContactAssetCandidatesByEmployee.mock.calls)).not.toContain('otp')
   })
 
   it('keeps anonymous public render and vCard calls internal without tenant or operator context', async () => {

@@ -56,7 +56,7 @@ export class ItemMasterStockableQueryGrpcAdapter implements StockableItemLookupP
       itemId: item.itemId,
       itemCode: item.itemCode ?? '',
       itemName: item.itemName ?? '',
-      status: `${item.status ?? ''}`,
+      active: item.active ?? false,
       stockable: item.capabilities?.stockable ?? false
     }
   }

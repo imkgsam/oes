@@ -1,6 +1,7 @@
 export * from './account-role-management';
 export * from './admin-security';
 export * from './auth';
+export * from './collaboration-task';
 export * from './customer-management';
 export * from './context';
 export * from './finance';
@@ -17,6 +18,7 @@ export * from './public-entry-business-card';
 export * from './role-management';
 export * from './security';
 export * from './sales';
+export * from './site-management';
 export * from './supplier-management';
 export * from './tenant-management';
 export * from './terminal-device';

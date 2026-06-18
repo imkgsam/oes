@@ -8,6 +8,7 @@ import {
 import {
   AUTH_MANAGEMENT_PERMISSION_CODES,
   AUTH_SESSION_PERMISSION_CODES,
+  COLLABORATION_TASK_PERMISSION_CODES,
   CRM_MANAGEMENT_PERMISSION_CODES,
   FINANCE_MANAGEMENT_PERMISSION_CODES,
   HR_MANAGEMENT_PERMISSION_CODES,
@@ -192,6 +193,7 @@ const PERMISSION_DESCRIPTION_BY_CODE: Readonly<Record<string, string>> = {
   'auth.platform_mfa_policy.manage': '管理平台 MFA 策略',
   'auth.session.admin.view': '查看用户会话',
   'auth.session.admin.revoke': '撤销用户会话',
+  'collaboration.task.assign': '指派协作任务给租户内其他账号',
   'terminal-device.enrollment.create': '创建受管终端设备 enrollment',
   'terminal-device.enrollment.revoke': '撤销未使用的受管终端设备 enrollment',
   'terminal-device.read': '查看受管终端设备列表与基础详情',
@@ -282,6 +284,11 @@ export function buildPermissionSeedItems(): PermissionSeedItem[] {
     ...valuesOf(AUTH_SESSION_PERMISSION_CODES).map((code) => ({
       code,
       module: Modules.AUTH_SERVICE,
+      description: getPermissionDescription(code)
+    })),
+    ...valuesOf(COLLABORATION_TASK_PERMISSION_CODES).map((code) => ({
+      code,
+      module: Modules.COLLABORATION_SERVICE,
       description: getPermissionDescription(code)
     })),
     ...valuesOf(TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES).map((code) => ({

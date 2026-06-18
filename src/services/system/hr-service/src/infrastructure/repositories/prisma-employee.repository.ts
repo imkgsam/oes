@@ -20,7 +20,6 @@ export class PrismaEmployeeRepository implements EmployeeRepository {
         data: {
           tenantId: input.tenantId,
           tenantPartyId: input.tenantPartyId,
-          partyId: input.partyId ?? null,
           employeeCode: input.employeeCode,
           lifecycleStatus: input.lifecycleStatus
         }
@@ -79,8 +78,7 @@ export class PrismaEmployeeRepository implements EmployeeRepository {
         ? {
             OR: [
               { employeeCode: { contains: input.keyword, mode: 'insensitive' as const } },
-              { tenantPartyId: { contains: input.keyword, mode: 'insensitive' as const } },
-              { partyId: { contains: input.keyword, mode: 'insensitive' as const } }
+              { tenantPartyId: { contains: input.keyword, mode: 'insensitive' as const } }
             ]
           }
         : {})
@@ -122,6 +120,52 @@ export class PrismaEmployeeRepository implements EmployeeRepository {
     })
     return mapEmployee(updated)
   }
+
+  /** updateOfficialPhoto stores the HR-owned official photo binding for one tenant-scoped employee. */
+  async updateOfficialPhoto(input: {
+    tenantId: string
+    employeeId: string
+    officialPhotoAssetId: string
+    officialPhotoUrl: string
+  }): Promise<EmployeeSummary> {
+    const employee = await this.prisma.employee.findFirst({
+      where: { id: input.employeeId, tenantId: input.tenantId }
+    })
+    if (!employee) {
+      throw new NotFoundException(`Employee ${input.employeeId} not found`)
+    }
+
+    const updated = await this.prisma.employee.update({
+      where: { id: employee.id },
+      data: {
+        officialPhotoAssetId: input.officialPhotoAssetId,
+        officialPhotoUrl: input.officialPhotoUrl
+      }
+    })
+    return mapEmployee(updated)
+  }
+
+  /** removeOfficialPhoto clears the HR-owned official photo binding for one tenant-scoped employee. */
+  async removeOfficialPhoto(input: {
+    tenantId: string
+    employeeId: string
+  }): Promise<EmployeeSummary> {
+    const employee = await this.prisma.employee.findFirst({
+      where: { id: input.employeeId, tenantId: input.tenantId }
+    })
+    if (!employee) {
+      throw new NotFoundException(`Employee ${input.employeeId} not found`)
+    }
+
+    const updated = await this.prisma.employee.update({
+      where: { id: employee.id },
+      data: {
+        officialPhotoAssetId: null,
+        officialPhotoUrl: null
+      }
+    })
+    return mapEmployee(updated)
+  }
 }
 
 /** mapEmployee converts a Prisma employee row to the HR repository summary. */
@@ -129,17 +173,19 @@ export function mapEmployee(employee: {
   id: string
   tenantId: string
   tenantPartyId: string
-  partyId: string | null
   employeeCode: string
   lifecycleStatus: string
+  officialPhotoAssetId?: string | null
+  officialPhotoUrl?: string | null
 }): EmployeeSummary {
   return {
     id: employee.id,
     tenantId: employee.tenantId,
     tenantPartyId: employee.tenantPartyId,
-    partyId: employee.partyId,
     employeeCode: employee.employeeCode,
-    lifecycleStatus: employee.lifecycleStatus as EmployeeLifecycleStatus
+    lifecycleStatus: employee.lifecycleStatus as EmployeeLifecycleStatus,
+    officialPhotoAssetId: employee.officialPhotoAssetId ?? null,
+    officialPhotoUrl: employee.officialPhotoUrl ?? null
   }
 }
 

@@ -4,6 +4,7 @@ import {
 } from '@oes/common/generated/public_entry_service'
 import { Injectable } from '@nestjs/common'
 import { DownstreamRequestSource } from '../../common/grpc/gateway-downstream-source.mapper'
+import { IdentityContactAssetGrpcAdapter } from './adapters/identity-contact-asset-grpc.adapter'
 import { PublicEntryBusinessCardGrpcAdapter } from './adapters/public-entry-business-card-grpc.adapter'
 import {
   EnsurePrimaryBusinessCardDto,
@@ -14,7 +15,10 @@ import {
 // PublicEntryBusinessCardService builds BFF request models for BusinessCard admin, self-view, and public render APIs.
 @Injectable()
 export class PublicEntryBusinessCardService {
-  constructor(private readonly adapter: PublicEntryBusinessCardGrpcAdapter) {}
+  constructor(
+    private readonly adapter: PublicEntryBusinessCardGrpcAdapter,
+    private readonly contactAssetAdapter: IdentityContactAssetGrpcAdapter
+  ) {}
 
   ensurePrimaryCard(tenantId: string, body: EnsurePrimaryBusinessCardDto, source: DownstreamRequestSource) {
     return this.adapter.ensurePrimaryBusinessCard({
@@ -104,6 +108,21 @@ export class PublicEntryBusinessCardService {
       accountId: source.user?.holderId || source.user?.aid || source.user?.id || source.user?.sub || '',
       traceId: source.traceId
     }, source)
+  }
+
+  listContactAssetCandidates(
+    tenantId: string,
+    query: { employeeId?: string },
+    source: DownstreamRequestSource
+  ) {
+    return this.contactAssetAdapter.listContactAssetCandidatesByEmployee(
+      {
+        tenantId,
+        employeeId: query.employeeId?.trim() || '',
+        traceId: source.traceId
+      },
+      source
+    )
   }
 
   renderPublicCard(businessCardId: string, source: Pick<DownstreamRequestSource, 'requestId' | 'traceId'>) {

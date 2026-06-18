@@ -10,10 +10,10 @@ import { UserRepository } from '../../../domain/repositories/user.repository'
 import { CreateUserAccountCommand } from './create-user-account.command'
 
 export type CreateUserAccountResult = AccountSummaryEntity & {
-  userPartyId?: string
-  userTenantPartyId?: string
+  tenantPartyId?: string | null
 }
 
+/** CreateUserAccountHandler creates human accounts while preserving tenant-scoped party ownership semantics. */
 @CommandHandler(CreateUserAccountCommand)
 export class CreateUserAccountHandler
   implements ICommandHandler<CreateUserAccountCommand, CreateUserAccountResult>
@@ -34,6 +34,7 @@ export class CreateUserAccountHandler
     const username = normalizeOptional(command.username)
     const displayName = normalizeOptional(command.displayName)
     const existingUserId = normalizeOptional(command.existingUserId)
+    const tenantPartyId = normalizeOptional(command.tenantPartyId)
 
     if (!existingUserId && !email && !phone) {
       throw ExceptionFactory.application(VALIDATION_FAILED, {
@@ -51,6 +52,12 @@ export class CreateUserAccountHandler
     if (command.scopeLevel === 'TENANT' && !normalizeOptional(command.tenantId)) {
       throw ExceptionFactory.application(VALIDATION_FAILED, {
         field: 'tenantId'
+      })
+    }
+
+    if (tenantPartyId && command.scopeLevel !== 'TENANT') {
+      throw ExceptionFactory.application(VALIDATION_FAILED, {
+        field: 'tenantPartyId'
       })
     }
 
@@ -80,7 +87,8 @@ export class CreateUserAccountHandler
         operatorId: command.operatorId,
         operatorScope: command.operatorScope,
         scopeLevel: command.scopeLevel,
-        tenantId
+        tenantId,
+        tenantPartyId
       })
     }
 
@@ -92,17 +100,19 @@ export class CreateUserAccountHandler
       throw ExceptionFactory.application(VALIDATION_FAILED, { field: 'phone', value: phone })
     }
 
-    const registeredParty = await this.partyRegistrationPort.registerPersonParty({
-      legalName: displayName ?? username ?? email ?? phone ?? command.operatorId ?? 'Unnamed User',
-      localDisplayName: displayName,
-      idempotencyKey: command.idempotencyKey,
-      operatorId: command.operatorId,
-      operatorScope: command.operatorScope,
-      tenantId
-    })
+    const registeredParty =
+      command.scopeLevel === 'TENANT' && tenantId && !tenantPartyId
+        ? await this.partyRegistrationPort.registerTenantParty({
+            legalName: displayName ?? username ?? email ?? phone ?? command.operatorId ?? 'Unnamed User',
+            displayName,
+            idempotencyKey: command.idempotencyKey,
+            operatorId: command.operatorId,
+            operatorScope: command.operatorScope,
+            tenantId
+          })
+        : undefined
 
     const user = await this.userRepository.create({
-      partyId: registeredParty.partyId,
       username,
       email,
       phone,
@@ -113,16 +123,16 @@ export class CreateUserAccountHandler
       displayName,
       scopeLevel: command.scopeLevel,
       tenantId,
+      tenantPartyId: tenantPartyId ?? registeredParty?.tenantPartyId,
       userId: user.id
     })
 
     return Object.assign(account, {
-      userPartyId: registeredParty.partyId,
-      userTenantPartyId: registeredParty.tenantPartyId
+      tenantPartyId: account.tenantPartyId
     })
   }
 
-  /** createAccountForExistingUser binds a known user/person party into one tenant account context. */
+  /** createAccountForExistingUser binds a known user into one tenant account context with a tenant-local party subject. */
   private async createAccountForExistingUser(input: {
     displayName?: string
     existingUserId: string
@@ -131,6 +141,7 @@ export class CreateUserAccountHandler
     operatorScope?: CreateUserAccountCommand['operatorScope']
     scopeLevel: 'SYSTEM' | 'TENANT'
     tenantId?: string
+    tenantPartyId?: string
   }): Promise<CreateUserAccountResult> {
     if (input.scopeLevel !== 'TENANT' || !input.tenantId) {
       throw ExceptionFactory.application(VALIDATION_FAILED, {
@@ -151,30 +162,33 @@ export class CreateUserAccountHandler
         value: input.existingUserId
       })
     }
-    if (!user.partyId) {
-      throw ExceptionFactory.application(VALIDATION_FAILED, {
-        field: 'existingUserId.partyId',
-        value: input.existingUserId
-      })
-    }
-
-    const tenantParty = await this.partyRegistrationPort.bindExistingPartyToTenant({
-      tenantId: input.tenantId,
-      partyId: user.partyId,
-      localDisplayName: input.displayName,
-      idempotencyKey: input.idempotencyKey,
-      operatorId: input.operatorId,
-      operatorScope: input.operatorScope
-    })
+    const tenantPartyId =
+      input.tenantPartyId ??
+      (
+        await this.partyRegistrationPort.registerTenantParty({
+          tenantId: input.tenantId,
+          legalName:
+            input.displayName ?? user.username ?? user.personalEmail ?? user.personalPhone ?? input.existingUserId,
+          displayName: input.displayName,
+          idempotencyKey: input.idempotencyKey,
+          operatorId: input.operatorId,
+          operatorScope: input.operatorScope
+        })
+      ).tenantPartyId
     const existingAccount = await this.accountRepository.findByUserScope({
       scopeLevel: 'TENANT',
       tenantId: input.tenantId,
       userId: input.existingUserId
     })
     if (existingAccount) {
+      if (input.tenantPartyId && existingAccount.tenantPartyId !== input.tenantPartyId) {
+        throw ExceptionFactory.application(VALIDATION_FAILED, {
+          field: 'tenantPartyId',
+          value: input.tenantPartyId
+        })
+      }
       return Object.assign(existingAccount, {
-        userPartyId: user.partyId,
-        userTenantPartyId: tenantParty.tenantPartyId
+        tenantPartyId: existingAccount.tenantPartyId
       })
     }
 
@@ -182,16 +196,17 @@ export class CreateUserAccountHandler
       displayName: input.displayName,
       scopeLevel: 'TENANT',
       tenantId: input.tenantId,
+      tenantPartyId,
       userId: input.existingUserId
     })
 
     return Object.assign(account, {
-      userPartyId: user.partyId,
-      userTenantPartyId: tenantParty.tenantPartyId
+      tenantPartyId: account.tenantPartyId
     })
   }
 }
 
+/** normalizeOptional trims optional string command fields and treats blanks as omitted. */
 function normalizeOptional(value?: string): string | undefined {
   const normalized = value?.trim()
   return normalized ? normalized : undefined

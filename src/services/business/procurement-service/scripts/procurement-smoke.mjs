@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 
 import { createSmokeSeed, runProcurementSmokeFlow } from './procurement-smoke-lib.mjs';
+import { createPurchasableSmokeItem } from '../../../../../scripts/local/item-master-smoke-fixture.mjs';
 
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -200,7 +201,7 @@ function createPartyServices(client) {
 
   return {
     registration: {
-      registerOrganizationParty: async (request) => firstValueFrom(registration.registerOrganizationParty(request))
+      registerTenantParty: async (request) => firstValueFrom(registration.registerTenantParty(request))
     }
   };
 }
@@ -211,6 +212,8 @@ function createItemMasterServices(client, seed) {
 
   return {
     management: {
+      createItemModel: async (request) =>
+        firstValueFrom(management.createItemModel(request, createItemMasterMetadata(seed))),
       createItem: async (request) =>
         firstValueFrom(management.createItem(request, createItemMasterMetadata(seed))),
       setItemCapabilities: async (request) =>
@@ -251,7 +254,7 @@ function createBootstrapHook(seed) {
 // ensureActiveOffering provisions one active supplier plus one purchasable item/offering when all downstream collaborators are reachable.
 async function ensureActiveOffering(services, seed) {
   try {
-    const registerResponse = await services.party.registration.registerOrganizationParty(
+    const registerResponse = await services.party.registration.registerTenantParty(
       createPartyRegistrationRequest(seed)
     );
     const tenantPartyId = registerResponse?.tenantParty?.id;
@@ -281,18 +284,8 @@ async function ensureActiveOffering(services, seed) {
       throw new Error('ChangeSupplierStatus did not activate the supplier');
     }
 
-    const createItemResponse = await services.itemMaster.management.createItem(createItemRequest(seed));
-    const itemId = createItemResponse?.item?.itemId ?? createItemResponse?.itemId;
-    if (!itemId) {
-      throw new Error('item-master createItem did not return itemId');
-    }
-
-    const capabilitiesResponse = await services.itemMaster.management.setItemCapabilities(
-      createSetCapabilitiesRequest(seed, itemId)
-    );
-    if (!capabilitiesResponse?.item?.capabilities?.purchasable) {
-      throw new Error('item-master setItemCapabilities did not enable purchasable=true');
-    }
+    const itemFixture = await createPurchasableSmokeItem(services.itemMaster.management, seed, createItemFixtureInput(seed));
+    const itemId = itemFixture.itemId;
 
     const offeringResponse = await services.srm.management.upsertSupplierOffering(
       createSupplierOfferingRequest(seed, supplierId, itemId)
@@ -381,7 +374,8 @@ function createPartyRegistrationRequest(seed) {
   return {
     tenantId: seed.tenantId,
     legalName: `Procurement Smoke Supplier ${seed.title}`,
-    localDisplayName: `Procurement Smoke Party ${seed.title}`,
+    type: 'ORGANIZATION',
+    displayName: `Procurement Smoke Party ${seed.title}`,
     localCode: `PROC-SMOKE-${seed.traceContext.requestId.slice(-10).toUpperCase()}`,
     registeredCountry: 'CN',
     identifiers: [
@@ -432,25 +426,14 @@ function createActivateSupplierRequest(seed, supplierId) {
   };
 }
 
-// createItemRequest builds one minimal PHYSICAL+SINGLE item-master creation request for the optional conversion bootstrap.
-function createItemRequest(seed) {
+// createItemFixtureInput builds deterministic ItemModel and Item names for the optional conversion bootstrap.
+function createItemFixtureInput(seed) {
+  const suffix = seed.traceContext.requestId.slice(-8).toUpperCase();
   return {
-    tenantId: seed.tenantId,
-    itemCode: `PROC-SMOKE-ITEM-${seed.traceContext.requestId.slice(-8).toUpperCase()}`,
-    itemName: `Procurement Smoke Item ${seed.title}`,
-    structureType: 1,
-    natureType: 1
-  };
-}
-
-// createSetCapabilitiesRequest marks the bootstrap item as purchasable so procurement conversion validation can succeed.
-function createSetCapabilitiesRequest(seed, itemId) {
-  return {
-    tenantId: seed.tenantId,
-    itemId,
-    capabilities: {
-      purchasable: true
-    }
+    modelCode: `PROC-SMOKE-MODEL-${suffix}`,
+    modelName: `Procurement Smoke Model ${seed.title}`,
+    itemCode: `PROC-SMOKE-ITEM-${suffix}`,
+    itemName: `Procurement Smoke Item ${seed.title}`
   };
 }
 

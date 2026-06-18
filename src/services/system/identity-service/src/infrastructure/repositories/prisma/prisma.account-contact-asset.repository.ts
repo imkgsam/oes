@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import {
+  AccountContactAssetOwnership,
   AccountContactAssetStatus,
   AccountContactAssetType
 } from '../../../../prisma/generated/prisma/index'
@@ -22,6 +23,20 @@ export class PrismaAccountContactAssetRepository implements AccountContactAssetR
     return record ? PrismaAccountContactAssetMapper.toDomain(record) : null
   }
 
+  async listByIds(assetIds: string[]): Promise<AccountContactAssetEntity[]> {
+    if (assetIds.length === 0) return []
+
+    const records = await this.prisma.accountContactAsset.findMany({
+      where: {
+        id: {
+          in: assetIds
+        }
+      }
+    })
+
+    return records.map((record) => PrismaAccountContactAssetMapper.toDomain(record))
+  }
+
   async findCurrentByTenantAndTypeAndValue(
     tenantId: string,
     type: string,
@@ -33,7 +48,7 @@ export class PrismaAccountContactAssetRepository implements AccountContactAssetR
         type: type as AccountContactAssetType,
         value,
         status: {
-          not: AccountContactAssetStatus.REVOKED
+          notIn: [AccountContactAssetStatus.REVOKED, AccountContactAssetStatus.RELEASED]
         }
       },
       orderBy: {
@@ -63,6 +78,33 @@ export class PrismaAccountContactAssetRepository implements AccountContactAssetR
     return records.map((record) => PrismaAccountContactAssetMapper.toDomain(record))
   }
 
+  async listByAccountContactAssetFilter(input: {
+    tenantId: string
+    accountId: string
+    employeeId?: string | null
+    types?: string[]
+    statuses?: string[]
+    ownership?: string[]
+  }): Promise<AccountContactAssetEntity[]> {
+    const records = await this.prisma.accountContactAsset.findMany({
+      where: {
+        tenantId: input.tenantId,
+        accountId: input.accountId,
+        type: input.types?.length ? { in: input.types as AccountContactAssetType[] } : undefined,
+        status: input.statuses?.length
+          ? { in: input.statuses as AccountContactAssetStatus[] }
+          : undefined,
+        employeeId: input.employeeId || undefined,
+        ownership: input.ownership?.length
+          ? { in: input.ownership as AccountContactAssetOwnership[] }
+          : undefined
+      },
+      orderBy: [{ isPrimary: 'desc' }, { assignedAt: 'asc' }]
+    })
+
+    return records.map((record) => PrismaAccountContactAssetMapper.toDomain(record))
+  }
+
   async assign(input: {
     tenantId: string
     accountId: string
@@ -78,7 +120,7 @@ export class PrismaAccountContactAssetRepository implements AccountContactAssetR
             accountId: input.accountId,
             type: input.type as AccountContactAssetType,
             status: {
-              not: AccountContactAssetStatus.REVOKED
+              notIn: [AccountContactAssetStatus.REVOKED, AccountContactAssetStatus.RELEASED]
             },
             isPrimary: true
           },
@@ -112,6 +154,7 @@ export class PrismaAccountContactAssetRepository implements AccountContactAssetR
       data: {
         status: AccountContactAssetStatus.REVOKED,
         isPrimary: false,
+        releasedAt: new Date(),
         revokedAt: new Date(),
         revokedBy
       }
@@ -146,7 +189,7 @@ export class PrismaAccountContactAssetRepository implements AccountContactAssetR
           accountId: current.accountId,
           type: current.type,
           status: {
-            not: AccountContactAssetStatus.REVOKED
+            notIn: [AccountContactAssetStatus.REVOKED, AccountContactAssetStatus.RELEASED]
           },
           isPrimary: true
         },

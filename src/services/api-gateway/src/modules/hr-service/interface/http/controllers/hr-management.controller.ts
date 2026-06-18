@@ -1,5 +1,16 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common'
-import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger'
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Query,
+  UploadedFile,
+  UseInterceptors
+} from '@nestjs/common'
+import { FileInterceptor } from '@nestjs/platform-express'
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger'
 import {
   RequirePermissions,
   HR_MANAGEMENT_PERMISSION_CODES,
@@ -7,11 +18,15 @@ import {
 } from '@oes/common/authorization'
 import { DownstreamSource } from '../../../../../common/decorators/downstream-source.decorator'
 import { DownstreamRequestSource } from '../../../../../common/grpc/gateway-downstream-source.mapper'
-import { HrManagementService } from '../../../hr-management.service'
+import {
+  EmployeeOfficialPhotoUploadFile,
+  HrManagementService
+} from '../../../hr-management.service'
 import { ChangePrimaryEmploymentDto } from '../dtos/change-primary-employment.dto'
 import { CreateEmployeeDto } from '../dtos/create-employee.dto'
 import { CreateEmploymentDto } from '../dtos/create-employment.dto'
 import { CompleteEmployeeAccessDto } from '../dtos/employee-account-access.dto'
+import { EMPLOYEE_OFFICIAL_PHOTO_UPLOAD_OPTIONS } from '../dtos/employee-official-photo.dto'
 import { EndEmploymentDto } from '../dtos/end-employment.dto'
 import { ListEmployeesDto } from '../dtos/list-employees.dto'
 
@@ -107,6 +122,43 @@ export class HrManagementController {
     @DownstreamSource() source: DownstreamRequestSource
   ) {
     return this.hrManagementService.createEmployee(tenantId, body, source)
+  }
+
+  @Post('employees/:employeeId/official-photo')
+  @UseInterceptors(FileInterceptor('file', EMPLOYEE_OFFICIAL_PHOTO_UPLOAD_OPTIONS))
+  @RequirePermissions({ all: [HR_MANAGEMENT_PERMISSION_CODES.CREATE_EMPLOYEE] })
+  @ApiOperation({ summary: 'Upload one HR-owned employee official photo' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary'
+        }
+      }
+    }
+  })
+  async uploadEmployeeOfficialPhoto(
+    @Param('tenantId') tenantId: string,
+    @Param('employeeId') employeeId: string,
+    @UploadedFile() file: EmployeeOfficialPhotoUploadFile | undefined,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.hrManagementService.uploadEmployeeOfficialPhoto(tenantId, employeeId, file, source)
+  }
+
+  @Delete('employees/:employeeId/official-photo')
+  @RequirePermissions({ all: [HR_MANAGEMENT_PERMISSION_CODES.CREATE_EMPLOYEE] })
+  @ApiOperation({ summary: 'Remove the HR-owned employee official photo reference' })
+  async removeEmployeeOfficialPhoto(
+    @Param('tenantId') tenantId: string,
+    @Param('employeeId') employeeId: string,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.hrManagementService.removeEmployeeOfficialPhoto(tenantId, employeeId, source)
   }
 
   @Post('employees/:employeeId/employments')

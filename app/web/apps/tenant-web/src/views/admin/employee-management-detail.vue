@@ -8,16 +8,23 @@ import { Page } from '@vben/common-ui'
 import { Button, Card, Descriptions, Empty, message, QRCode, Skeleton, Space, Table, Tabs, Tag } from 'ant-design-vue'
 
 import type { HrManagementApi } from '#/api'
-import { getManagedEmployeeAccountAccessApi, getManagedEmployeeDetailApi } from '#/api'
+import {
+  getManagedEmployeeAccountAccessApi,
+  getManagedEmployeeDetailApi,
+  uploadEmployeeOfficialPhotoApi
+} from '#/api'
 import { useAuthContextStore } from '#/store/auth-context'
+import EmployeeBusinessCardDisplay from './components/employee-business-card-display.vue'
 
 const route = useRoute()
 const router = useRouter()
 const authContextStore = useAuthContextStore()
 const detailLoading = ref(false)
 const accessLoading = ref(false)
+const officialPhotoUploading = ref(false)
 const detail = ref<HrManagementApi.EmployeeDetailResult | null>(null)
 const accountAccess = ref<HrManagementApi.EmployeeAccountAccessResult | null>(null)
+const officialPhotoInput = ref<HTMLInputElement | null>(null)
 
 const activeTenantId = computed(() => authContextStore.sessionContext?.tenant?.tenantId ?? '')
 const employeeId = computed(() =>
@@ -25,6 +32,17 @@ const employeeId = computed(() =>
 )
 const currentActiveEmployment = computed(() => detail.value?.activeEmployment)
 const employeeCodeQrValue = computed(() => detail.value?.employee.employeeCode ?? '')
+const businessCardEmployeeContext = computed(() => {
+  if (!detail.value) return undefined
+  return {
+    department: formatEmploymentOrgTitle(currentActiveEmployment.value),
+    displayName: formatEmployeeName(detail.value.employee),
+    employeeCode: detail.value.employee.employeeCode,
+    employeeId: detail.value.employee.id,
+    officialPhotoAssetId: detail.value.employee.officialPhotoAssetId,
+    officialPhotoUrl: detail.value.employee.officialPhotoUrl
+  }
+})
 const employmentRows = computed(() => detail.value?.employments ?? [])
 const employmentColumns: TableColumnsType<HrManagementApi.EmploymentSummary> = [
   {
@@ -95,8 +113,48 @@ async function goBackToEmployeeList() {
   await router.push({ name: 'TenantEmployeeEmploymentManagement' })
 }
 
+/** handleOfficialPhotoSelected updates the HR-owned public employee photo from the detail portrait action. */
+async function handleOfficialPhotoSelected(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file || !activeTenantId.value || !detail.value?.employee.id) return
+
+  officialPhotoUploading.value = true
+  try {
+    const result = await uploadEmployeeOfficialPhotoApi(
+      activeTenantId.value,
+      detail.value.employee.id,
+      file
+    )
+    const employee = result.employee
+    if (!employee) {
+      await loadEmployeeDetail()
+      message.success('公开头像已更新')
+      return
+    }
+    detail.value = {
+      ...detail.value,
+      employee: {
+        ...detail.value.employee,
+        ...employee
+      }
+    }
+    message.success('公开头像已更新')
+  } catch (error) {
+    message.error(resolveErrorMessage(error, '公开头像上传失败'))
+  } finally {
+    officialPhotoUploading.value = false
+  }
+}
+
 function formatEmployeeName(employee?: HrManagementApi.EmployeeSummary) {
   return employee?.displayName?.trim() || employee?.employeeCode || '未命名员工'
+}
+
+function formatOfficialPhotoPlaceholder(employee?: HrManagementApi.EmployeeSummary) {
+  const normalized = formatEmployeeName(employee).trim()
+  return normalized ? normalized.slice(0, 1).toUpperCase() : '职'
 }
 
 function formatLifecycleStatus(status?: string) {
@@ -151,14 +209,28 @@ function formatEmploymentOrgTitle(employment?: Partial<HrManagementApi.Employmen
   return employment?.orgUnit?.name || employment?.orgUnitId || '未建立任职'
 }
 
-function formatLoginMethodSummary(loginMethods: HrManagementApi.EmployeeAccessLoginMethodSummary[]) {
-  if (loginMethods.length === 0) {
-    return '未配置登录方式'
+/** formatLoginMethodLabel maps internal login method codes into readable HR-facing labels. */
+function formatLoginMethodLabel(type?: string) {
+  switch (type) {
+    case 'EMAIL_PASSWORD': {
+      return '邮箱密码'
+    }
+    case 'EMAIL_OTP': {
+      return '邮箱验证码'
+    }
+    case 'PHONE_PASSWORD': {
+      return '手机密码'
+    }
+    case 'PHONE_OTP': {
+      return '手机验证码'
+    }
+    case 'TERMINAL_PIN': {
+      return '终端 PIN'
+    }
+    default: {
+      return type || '登录方式'
+    }
   }
-
-  return loginMethods
-    .map((method) => [method.type, method.maskedIdentifier].filter(Boolean).join(' · '))
-    .join(' / ')
 }
 
 function formatRoleSummary(roles: HrManagementApi.EmployeeAccessRoleSummary[]) {
@@ -198,18 +270,51 @@ onMounted(() => {
       <Skeleton v-if="detailLoading && !detail" active />
       <Empty v-else-if="!detail" description="未找到员工详情" />
       <div v-else class="employee-detail-page__content">
-        <Card :bordered="false" class="employee-detail-page__summary-card">
+        <Card :bordered="false" class="employee-detail-page__summary-card employee-detail-page__summary-card--hero">
           <div class="employee-detail-page__summary">
             <div class="employee-detail-page__identity">
-              <div class="employee-detail-page__avatar">
-                {{ formatEmployeeName(detail.employee).slice(0, 1).toUpperCase() }}
+              <div
+                class="employee-detail-page__avatar"
+                :class="{ 'employee-detail-page__avatar--photo': detail.employee.officialPhotoUrl }"
+              >
+                <img
+                  v-if="detail.employee.officialPhotoUrl"
+                  data-testid="employee-detail-official-photo"
+                  :alt="formatEmployeeName(detail.employee)"
+                  :src="detail.employee.officialPhotoUrl"
+                >
+                <span v-else data-testid="employee-detail-official-photo-placeholder">
+                  {{ formatOfficialPhotoPlaceholder(detail.employee) }}
+                </span>
+                <Button
+                  aria-label="修改公开头像"
+                  class="employee-detail-page__avatar-action"
+                  data-testid="employee-detail-official-photo-action"
+                  :disabled="officialPhotoUploading"
+                  shape="circle"
+                  size="small"
+                  type="text"
+                  @click="officialPhotoInput?.click()"
+                >
+                  <span aria-hidden="true" class="employee-detail-page__avatar-edit-mark" />
+                </Button>
+                <input
+                  ref="officialPhotoInput"
+                  class="employee-detail-page__avatar-input"
+                  data-testid="employee-detail-official-photo-input"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  :disabled="officialPhotoUploading"
+                  @change="handleOfficialPhotoSelected"
+                >
               </div>
-              <div>
+              <div class="employee-detail-page__summary-copy">
+                <span class="employee-detail-page__eyebrow">{{ detail.employee.employeeCode }}</span>
                 <h2>{{ formatEmployeeName(detail.employee) }}</h2>
                 <p>{{ detail.employee.employeeCode }} · {{ formatEmploymentOrgTitle(currentActiveEmployment) }}</p>
               </div>
             </div>
-            <Space>
+            <Space class="employee-detail-page__summary-status">
               <Tag :color="detail.employee.lifecycleStatus === 'ACTIVE' ? 'green' : detail.employee.lifecycleStatus === 'PREBOARDING' ? 'blue' : 'default'">
                 {{ formatLifecycleStatus(detail.employee.lifecycleStatus) }}
               </Tag>
@@ -315,7 +420,34 @@ onMounted(() => {
                   {{ accountAccess?.account ? (accountAccess.account.isEnabled ? '已启用' : '未启用') : '未提供' }}
                 </Descriptions.Item>
                 <Descriptions.Item label="登录方式">
-                  {{ formatLoginMethodSummary(accountAccess?.loginMethods ?? []) }}
+                  <div
+                    v-if="accountAccess?.loginMethods?.length"
+                    class="employee-detail-page__login-method-list"
+                  >
+                    <span
+                      v-for="method in accountAccess.loginMethods"
+                      :key="method.methodId"
+                      class="employee-detail-page__login-method-chip"
+                      :class="{ 'employee-detail-page__login-method-chip--disabled': !method.enabled }"
+                    >
+                      <span class="employee-detail-page__login-method-label">
+                        {{ formatLoginMethodLabel(method.type) }}
+                      </span>
+                      <span
+                        v-if="method.maskedIdentifier"
+                        class="employee-detail-page__login-method-value"
+                      >
+                        {{ method.maskedIdentifier }}
+                      </span>
+                      <span
+                        v-if="!method.enabled"
+                        class="employee-detail-page__login-method-state"
+                      >
+                        已停用
+                      </span>
+                    </span>
+                  </div>
+                  <span v-else>未配置登录方式</span>
                 </Descriptions.Item>
                 <Descriptions.Item label="访问角色">
                   {{ formatRoleSummary(accountAccess?.roles ?? []) }}
@@ -325,6 +457,13 @@ onMounted(() => {
                 </Descriptions.Item>
               </Descriptions>
             </Card>
+          </Tabs.TabPane>
+
+          <Tabs.TabPane key="business-cards" tab="名片">
+            <EmployeeBusinessCardDisplay
+              v-if="businessCardEmployeeContext"
+              :employee-context="businessCardEmployeeContext"
+            />
           </Tabs.TabPane>
         </Tabs>
       </div>
@@ -355,47 +494,265 @@ onMounted(() => {
   border-radius: 8px;
 }
 
+.employee-detail-page__summary-card--hero {
+  overflow: hidden;
+  border: 1px solid rgb(226 232 240 / 0.96);
+  background:
+    linear-gradient(125deg, rgb(255 255 255 / 0.98), rgb(248 250 252 / 0.94) 58%, rgb(237 245 249 / 0.92)),
+    #fff;
+  box-shadow: 0 22px 46px -36px rgb(15 23 42 / 0.42);
+}
+
+.employee-detail-page__summary-card--hero :deep(.ant-card-body) {
+  padding: 30px 34px;
+}
+
 .employee-detail-page__summary {
-  align-items: flex-start;
+  align-items: center;
   display: flex;
   justify-content: space-between;
-  gap: 16px;
+  gap: 24px;
 }
 
 .employee-detail-page__identity {
   align-items: center;
   display: flex;
-  gap: 14px;
+  gap: 24px;
   min-width: 0;
 }
 
 .employee-detail-page__avatar {
   align-items: center;
-  background: #e8f4ff;
-  border: 1px solid #cfe8ff;
+  background:
+    linear-gradient(145deg, #f8fafc, #e2edf6),
+    #f8fafc;
+  border: 1px solid #cbddeb;
   border-radius: 8px;
-  color: #0960bd;
+  box-shadow:
+    0 20px 42px -32px rgb(15 23 42 / 0.62),
+    inset 0 1px 0 rgb(255 255 255 / 0.92);
+  color: #2f5f73;
   display: flex;
-  flex: 0 0 44px;
-  font-size: 18px;
-  font-weight: 600;
-  height: 44px;
+  flex: 0 0 104px;
+  font-size: 42px;
+  font-weight: 760;
+  height: 122px;
   justify-content: center;
-  width: 44px;
+  overflow: hidden;
+  position: relative;
+  width: 104px;
+  transform: translateZ(0);
+  transition:
+    box-shadow 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.employee-detail-page__avatar::after {
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgb(255 255 255 / 0.68);
+  border-radius: inherit;
+  pointer-events: none;
+  content: '';
+}
+
+.employee-detail-page__summary-card--hero:hover .employee-detail-page__avatar {
+  box-shadow:
+    0 24px 48px -34px rgb(15 23 42 / 0.68),
+    inset 0 1px 0 rgb(255 255 255 / 0.92);
+  transform: translateY(-2px);
+}
+
+.employee-detail-page__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.employee-detail-page__avatar--photo {
+  background: #f8fafc;
+}
+
+.employee-detail-page__avatar-action {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  border: 1px solid rgb(226 232 240 / 0.86);
+  background: rgb(255 255 255 / 0.88);
+  box-shadow:
+    0 12px 22px -16px rgb(15 23 42 / 0.82),
+    inset 0 1px 0 rgb(255 255 255 / 0.95);
+  color: #334155;
+  opacity: 0.88;
+  transform: translateZ(0);
+  transition:
+    background-color 0.24s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.24s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.24s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.24s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.employee-detail-page__avatar-action:hover,
+.employee-detail-page__avatar-action:focus-visible {
+  border-color: rgb(148 163 184 / 0.78);
+  background: rgb(255 255 255 / 0.98);
+  box-shadow:
+    0 16px 28px -18px rgb(15 23 42 / 0.88),
+    inset 0 1px 0 rgb(255 255 255 / 0.98);
+  color: #0f172a;
+  opacity: 1;
+  transform: translateY(-1px);
+}
+
+.employee-detail-page__avatar-action:active {
+  transform: translateY(0) scale(0.96);
+}
+
+.employee-detail-page__avatar-action:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.employee-detail-page__avatar-action :deep(.ant-btn-icon),
+.employee-detail-page__avatar-action :deep(span:not(.employee-detail-page__avatar-edit-mark)) {
+  display: inline-flex;
+}
+
+.employee-detail-page__avatar-edit-mark {
+  position: relative;
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+}
+
+.employee-detail-page__avatar-edit-mark::before {
+  position: absolute;
+  top: 2px;
+  left: 6px;
+  width: 3px;
+  height: 10px;
+  border-radius: 999px;
+  background: currentcolor;
+  content: '';
+  transform: rotate(45deg);
+}
+
+.employee-detail-page__avatar-edit-mark::after {
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  width: 6px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentcolor;
+  content: '';
+  transform: rotate(-45deg);
+}
+
+.employee-detail-page__avatar-input {
+  display: none;
+}
+
+.employee-detail-page__summary-copy {
+  min-width: 0;
+}
+
+.employee-detail-page__eyebrow {
+  display: block;
+  margin-bottom: 8px;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
 }
 
 .employee-detail-page__summary h2 {
   margin: 0;
-  color: #1f2937;
-  font-size: 20px;
-  font-weight: 600;
-  line-height: 28px;
+  color: #0f172a;
+  font-size: 30px;
+  font-weight: 760;
+  line-height: 38px;
 }
 
 .employee-detail-page__summary p {
-  margin: 2px 0 0;
-  color: #6b7280;
+  margin: 8px 0 0;
+  color: #64748b;
+  font-size: 15px;
+  line-height: 22px;
+}
+
+.employee-detail-page__summary-status {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.employee-detail-page__summary-status :deep(.ant-tag) {
+  margin-inline-end: 0;
+  border-radius: 999px;
+  padding: 2px 11px;
   font-size: 13px;
+}
+
+.employee-detail-page__login-method-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: 100%;
+}
+
+.employee-detail-page__login-method-chip {
+  align-items: center;
+  display: inline-flex;
+  min-height: 30px;
+  max-width: 100%;
+  gap: 8px;
+  border: 1px solid rgb(191 219 254 / 0.92);
+  border-radius: 999px;
+  background: rgb(239 246 255 / 0.9);
+  color: #1e3a5f;
+  padding: 4px 11px;
+  line-height: 20px;
+  transition:
+    background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.employee-detail-page__login-method-chip:hover {
+  border-color: rgb(147 197 253 / 0.98);
+  background: #eff6ff;
+  transform: translateY(-1px);
+}
+
+.employee-detail-page__login-method-chip--disabled {
+  border-color: #e5e7eb;
+  background: #f8fafc;
+  color: #64748b;
+}
+
+.employee-detail-page__login-method-label {
+  flex: 0 0 auto;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.employee-detail-page__login-method-value {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #475569;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+  font-size: 13px;
+}
+
+.employee-detail-page__login-method-state {
+  flex: 0 0 auto;
+  color: #64748b;
+  font-size: 12px;
 }
 
 .employee-detail-page__grid {
@@ -445,10 +802,49 @@ onMounted(() => {
 @media (max-width: 960px) {
   .employee-detail-page__summary {
     flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .employee-detail-page__identity {
+    align-items: flex-start;
+  }
+
+  .employee-detail-page__summary-status {
+    justify-content: flex-start;
   }
 
   .employee-detail-page__grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .employee-detail-page__summary-card--hero :deep(.ant-card-body) {
+    padding: 22px;
+  }
+
+  .employee-detail-page__identity {
+    gap: 16px;
+  }
+
+  .employee-detail-page__avatar {
+    flex-basis: 88px;
+    width: 88px;
+    height: 104px;
+    font-size: 34px;
+  }
+
+  .employee-detail-page__avatar-action {
+    top: 7px;
+    right: 7px;
+    width: 26px;
+    height: 26px;
+    min-width: 26px;
+  }
+
+  .employee-detail-page__summary h2 {
+    font-size: 24px;
+    line-height: 32px;
   }
 }
 </style>

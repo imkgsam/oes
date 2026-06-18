@@ -18,6 +18,7 @@ const forbiddenComponent = () => import('#/views/_core/fallback/forbidden.vue');
 
 interface EntryKeyRouteLike {
   children?: EntryKeyRouteLike[];
+  component?: unknown;
   meta?: unknown;
   [key: string]: unknown;
 }
@@ -65,11 +66,29 @@ function filterRoutesByVisibleEntries<T>(
   return filterEntryRouteLikes(routes as EntryKeyRouteLike[], visibleEntries) as T[];
 }
 
+// Converts local Vue routes into backend-menu-shaped records for the remote menu fallback path.
+function toMenuRouteFallbackItem(
+  route: EntryKeyRouteLike,
+): RouteRecordStringComponent {
+  const { children, component, ...rest } = route;
+  const menuRoute = { ...rest } as unknown as RouteRecordStringComponent;
+
+  if (typeof component === 'string') {
+    menuRoute.component = component;
+  }
+
+  if (children && children.length > 0) {
+    menuRoute.children = children.map(toMenuRouteFallbackItem);
+  }
+
+  return menuRoute;
+}
+
 // Reuses the local route tree as a last-resort menu source when the legacy remote menu endpoint is unavailable.
 function toMenuRouteFallback(
   routes: EntryKeyRouteLike[],
 ): RouteRecordStringComponent[] {
-  return routes as RouteRecordStringComponent[];
+  return routes.map(toMenuRouteFallbackItem);
 }
 
 // Generates the accessible route tree from local route definitions and BFF navigation visibility.

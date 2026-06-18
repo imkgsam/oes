@@ -1,0 +1,6 @@
+runtime/dist/
+runtime/node_modules/
+runtime/tsconfig.tsbuildinfo
+storefront/.nuxt/
+storefront/.output/
+storefront/node_modules/

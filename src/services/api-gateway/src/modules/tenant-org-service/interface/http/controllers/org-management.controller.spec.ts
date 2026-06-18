@@ -68,7 +68,7 @@ describe('OrgManagementController', () => {
         id: 'org-2',
         name: 'Manufacturing',
         type: 'BRANCH',
-        organizationPartyId: 'party-1'
+        organizationTenantPartyId: 'party-1'
       }
     })
     orgManagementService.updateOrgUnit.mockResolvedValue({
@@ -76,7 +76,7 @@ describe('OrgManagementController', () => {
         id: 'org-2',
         name: 'Manufacturing Updated',
         type: 'BRANCH',
-        organizationPartyId: null
+        organizationTenantPartyId: null
       }
     })
     orgManagementService.moveOrgUnit.mockResolvedValue({
@@ -105,7 +105,7 @@ describe('OrgManagementController', () => {
         {
           name: 'Manufacturing',
           parentOrgId: 'org-1',
-          organizationPartyId: 'party-1',
+          organizationTenantPartyId: 'party-1',
           sortOrder: 10,
           type: 'BRANCH'
         } as any,
@@ -116,7 +116,7 @@ describe('OrgManagementController', () => {
         id: 'org-2',
         name: 'Manufacturing',
         type: 'BRANCH',
-        organizationPartyId: 'party-1'
+        organizationTenantPartyId: 'party-1'
       }
     })
     await expect(
@@ -125,7 +125,7 @@ describe('OrgManagementController', () => {
         'org-2',
         {
           name: 'Manufacturing Updated',
-          organizationPartyId: null,
+          organizationTenantPartyId: null,
           sortOrder: 11
         } as any,
         source as any
@@ -135,7 +135,7 @@ describe('OrgManagementController', () => {
         id: 'org-2',
         name: 'Manufacturing Updated',
         type: 'BRANCH',
-        organizationPartyId: null
+        organizationTenantPartyId: null
       }
     })
     await expect(
@@ -166,7 +166,7 @@ describe('OrgManagementController', () => {
       {
         name: 'Manufacturing',
         parentOrgId: 'org-1',
-        organizationPartyId: 'party-1',
+        organizationTenantPartyId: 'party-1',
         sortOrder: 10,
         type: 'BRANCH'
       },
@@ -177,7 +177,7 @@ describe('OrgManagementController', () => {
       'org-2',
       {
         name: 'Manufacturing Updated',
-        organizationPartyId: null,
+        organizationTenantPartyId: null,
         sortOrder: 11,
         type: undefined
       },

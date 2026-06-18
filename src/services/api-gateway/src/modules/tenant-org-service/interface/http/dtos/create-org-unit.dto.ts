@@ -23,10 +23,10 @@ export class CreateOrgUnitDto {
   sortOrder?: number
 
   @ApiPropertyOptional({
-    description: 'Optional organization party identifier for ROOT or BRANCH nodes.',
+    description: 'Optional organization TenantParty identifier for ROOT or BRANCH nodes.',
     example: '5f9624d9-294c-4b9b-ae72-4d9f8b8a7b73'
   })
   @IsOptional()
   @IsString()
-  organizationPartyId?: string
+  organizationTenantPartyId?: string
 }

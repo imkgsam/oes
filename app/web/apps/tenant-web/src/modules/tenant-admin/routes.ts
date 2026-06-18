@@ -1,5 +1,7 @@
 import type { RouteRecordRaw } from 'vue-router';
 
+import { $t } from '#/locales';
+
 const tenantAdminRoutes: RouteRecordRaw[] = [
   {
     meta: {
@@ -113,42 +115,93 @@ const tenantAdminRoutes: RouteRecordRaw[] = [
         },
       },
       {
-        name: 'AdminPublicEntryShortLinks',
-        path: '/admin/public-entry-short-links',
-        component: () => import('#/views/admin/public-entry-short-link-management.vue'),
+        name: 'AdminSiteManagement',
+        path: '/admin/site-management',
+        component: () => import('#/views/admin/site-management.vue'),
         meta: {
-          entryKey: 'admin.public-entry-short-links',
-          icon: 'lucide:link',
-          title: '公开短链',
+          entryKey: 'admin.site-management',
+          icon: 'lucide:globe-2',
+          title: $t('page.siteManagement.title'),
         },
       },
       {
-        name: 'AdminBusinessCards',
-        path: '/admin/business-cards',
-        component: () => import('#/views/admin/business-card-management.vue'),
+        name: 'AdminSiteManagementDetail',
+        path: '/admin/site-management/:siteId',
+        component: () => import('#/views/admin/site-management-detail.vue'),
         meta: {
-          entryKey: 'admin.business-cards',
-          icon: 'lucide:contact-round',
-          title: '员工数字名片',
-        },
-      },
-      {
-        name: 'EmployeeBusinessCardSelfView',
-        path: '/admin/business-card-self-view',
-        alias: '/admin/business-card-self',
-        component: () => import('#/views/admin/business-card-self-view.vue'),
-        meta: {
-          entryKey: 'admin.business-card-self',
-          icon: 'lucide:badge-check',
-          title: '我的名片',
+          activePath: '/admin/site-management',
+          entryKey: 'admin.site-management',
+          hideInMenu: true,
+          title: $t('page.siteManagement.siteDetail'),
         },
       },
     ],
   },
   {
     meta: {
-      icon: 'lucide:settings-2',
+      icon: 'lucide:radio-tower',
       order: 11,
+      title: '公开触点',
+    },
+    name: 'TenantPublicEntry',
+    path: '/public-entry',
+    children: [
+      {
+        name: 'AdminBusinessCards',
+        path: '/public-entry/business-cards',
+        component: () => import('#/views/admin/business-card-management.vue'),
+        meta: {
+          entryKey: 'public-entry.business-cards',
+          icon: 'lucide:contact-round',
+          title: '员工数字名片',
+        },
+      },
+      {
+        name: 'AdminPublicEntryShortLinks',
+        path: '/public-entry/short-links',
+        component: () => import('#/views/admin/public-entry-short-link-management.vue'),
+        meta: {
+          entryKey: 'public-entry.short-links',
+          icon: 'lucide:link',
+          title: '公开短链',
+        },
+      },
+    ],
+  },
+  {
+    name: 'AdminBusinessCardsLegacyRedirect',
+    path: '/admin/business-cards',
+    redirect: '/settings/employee-employment/business-cards',
+    meta: {
+      entryKey: 'tenant-settings.employee-employment',
+      hideInMenu: true,
+      title: '员工数字名片',
+    },
+  },
+  {
+    name: 'AdminPublicEntryShortLinksLegacyRedirect',
+    path: '/admin/public-entry-short-links',
+    redirect: '/public-entry/short-links',
+    meta: {
+      hideInMenu: true,
+      title: '公开短链',
+    },
+  },
+  {
+    name: 'EmployeeBusinessCardSelfView',
+    path: '/profile/business-card',
+    alias: ['/admin/business-card-self-view', '/admin/business-card-self'],
+    component: () => import('#/views/admin/business-card-self-view.vue'),
+    meta: {
+      hideInMenu: true,
+      icon: 'lucide:badge-check',
+      title: '我的名片',
+    },
+  },
+  {
+    meta: {
+      icon: 'lucide:settings-2',
+      order: 12,
       title: '租户设置',
     },
     name: 'TenantSettings',
@@ -183,6 +236,18 @@ const tenantAdminRoutes: RouteRecordRaw[] = [
           entryKey: 'tenant-settings.employee-employment',
           icon: 'lucide:id-card',
           title: '员工管理',
+        },
+      },
+      {
+        name: 'TenantEmployeeBusinessCards',
+        path: '/settings/employee-employment/business-cards',
+        component: () => import('#/views/admin/business-card-management.vue'),
+        meta: {
+          activePath: '/settings/employee-employment',
+          entryKey: 'tenant-settings.employee-employment',
+          hideInMenu: true,
+          icon: 'lucide:contact-round',
+          title: '员工数字名片',
         },
       },
       {

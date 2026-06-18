@@ -1,0 +1,45 @@
+services:
+  runtime:
+    image: node:22-bookworm
+    working_dir: /workspace/src/site-runtime/external-site-template/runtime
+    command: sh -lc "corepack enable && pnpm install && pnpm dev"
+    environment:
+      OES_SITE_CREDENTIAL: ${OES_SITE_CREDENTIAL}
+      OES_SITE_STORE_PATH: ./data/site-runtime.sqlite
+      OES_SITE_PULL_INTERVAL_MS: "60000"
+      SITE_RUNTIME_PORT: "4301"
+      SITE_RUNTIME_HOST: 0.0.0.0
+      SITE_PUBLIC_BASE_URL: ${SITE_PUBLIC_BASE_URL:-https://example-site.test}
+      SITE_DEFAULT_LOCALE: ${SITE_DEFAULT_LOCALE:-en-US}
+      SITE_ACTIVE_LOCALES: ${SITE_ACTIVE_LOCALES:-en-US}
+      SITE_TEMPLATE_SEED_PUBLISHED_DATA: ${SITE_TEMPLATE_SEED_PUBLISHED_DATA:-true}
+    volumes:
+      - ../../..:/workspace
+    ports:
+      - "4301:4301"
+
+  storefront:
+    image: node:22-bookworm
+    working_dir: /workspace/src/site-runtime/external-site-template/storefront
+    command: sh -lc "corepack enable && pnpm install && pnpm dev"
+    environment:
+      SITE_RUNTIME_BASE_URL: http://runtime:4301
+      SITE_PUBLIC_BASE_URL: ${SITE_PUBLIC_BASE_URL:-https://example-site.test}
+      NUXT_HOST: 0.0.0.0
+      NUXT_PORT: "4300"
+    volumes:
+      - ../../..:/workspace
+    ports:
+      - "4300:4300"
+    depends_on:
+      - runtime
+
+  edge:
+    image: nginx:1.27-alpine
+    volumes:
+      - ./nginx/local-domain.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "8080:80"
+    depends_on:
+      - runtime
+      - storefront

@@ -3,8 +3,6 @@ import type { SelfSecurityApi } from '#/api';
 
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 
-import { SliderCaptcha } from '@vben/common-ui';
-
 import { Alert, Button, Card, Form, Input, message, Modal, Steps } from 'ant-design-vue';
 
 import {
@@ -48,14 +46,12 @@ const resendCountdown = ref(0);
 const resendTimer = ref<ReturnType<typeof setTimeout>>();
 const verifyLoading = ref(false);
 const formState = reactive({
-  captchaVerified: false,
   challengeDestination: '',
   challengeExpiresAt: '',
   otp: '',
   otpError: '',
   value: '',
   valueError: '',
-  widgetVersion: 0,
 });
 
 const kindLabel = computed(() => (props.kind === 'email' ? '邮箱' : '手机'));
@@ -102,9 +98,6 @@ const canAdvanceToVerification = computed(() =>
   Boolean(formState.value.trim()) &&
   !bindingValueUnchanged.value,
 );
-const shouldShowCaptchaPanel = computed(
-  () => !challengeReady.value || resendCountdown.value === 0,
-);
 const shouldShowOtpPanel = computed(() => challengeReady.value);
 const activeStepIndex = computed(() => (isDestinationStep.value ? 0 : 1));
 const stepItems = computed(() => [
@@ -131,14 +124,12 @@ watch(
   },
 );
 
-// Resets one pending captcha / OTP exchange whenever the target contact changes.
+// Resets one pending OTP exchange whenever the target contact changes.
 function resetChallengeState() {
-  formState.captchaVerified = false;
   formState.challengeDestination = '';
   formState.challengeExpiresAt = '';
   formState.otp = '';
   formState.otpError = '';
-  formState.widgetVersion += 1;
   resetResendCountdown();
 }
 
@@ -163,25 +154,14 @@ function closeModal() {
 }
 
 // Advances the replacement flow to the security verification step when the target is valid.
-function goToVerificationStep() {
+async function goToVerificationStep() {
   formState.valueError = resolveValueValidationError();
   if (formState.valueError) {
     return;
   }
 
   activeStep.value = 'verification';
-}
-
-// Returns to the target entry step and clears pending verification state for a clean retry.
-function goBackToDestinationStep() {
-  activeStep.value = 'destination';
-  resetChallengeState();
-}
-
-// Clears the resend timer so the button can return to its default state.
-function resetResendCountdown() {
-  resendCountdown.value = 0;
-  clearTimeout(resendTimer.value);
+  await sendChallengeRequest();
 }
 
 // Starts the resend cooldown after one OTP challenge is successfully sent.
@@ -203,10 +183,16 @@ function startResendCountdown() {
   tick();
 }
 
-// Records that the slider gate has passed and then sends the OTP challenge.
-async function handleCaptchaSuccess() {
-  formState.captchaVerified = true;
-  await sendChallengeRequest();
+// Returns to the target entry step and clears pending verification state for a clean retry.
+function goBackToDestinationStep() {
+  activeStep.value = 'destination';
+  resetChallengeState();
+}
+
+// Clears the resend timer so the button can return to its default state.
+function resetResendCountdown() {
+  resendCountdown.value = 0;
+  clearTimeout(resendTimer.value);
 }
 
 // Formats the challenge expiration timestamp for concise inline display.
@@ -230,8 +216,6 @@ async function sendChallengeRequest() {
 
     formState.challengeDestination = result.destination;
     formState.challengeExpiresAt = result.expiresAt;
-    formState.captchaVerified = false;
-    formState.widgetVersion += 1;
     startResendCountdown();
     message.success(
       `${kindLabel.value}验证码已发送，请在有效期内完成验证`,
@@ -407,23 +391,6 @@ function resolveValueValidationError() {
                 type="info"
               />
 
-              <div
-                v-if="shouldShowCaptchaPanel"
-                class="binding-modal__captcha"
-              >
-                <div class="binding-modal__caption">
-                  {{ challengeReady ? '重新验证后发送验证码' : '完成安全验证后发送验证码' }}
-                </div>
-                <SliderCaptcha
-                  :key="formState.widgetVersion"
-                  v-model="formState.captchaVerified"
-                  class="binding-modal__captcha-widget"
-                  success-text="验证通过"
-                  text="请按住滑块拖动"
-                  @success="handleCaptchaSuccess"
-                />
-              </div>
-
               <div v-if="shouldShowOtpPanel" class="binding-modal__verification">
                 <div class="binding-modal__caption binding-modal__caption--muted">
                   <div>验证码已发送至 {{ formState.challengeDestination }}</div>
@@ -451,7 +418,14 @@ function resolveValueValidationError() {
                     >
                       {{ sendButtonLabel }}
                     </Button>
-                    <span v-else class="binding-modal__resend-hint">可重新验证后发送</span>
+                    <Button
+                      v-else
+                      class="otp-row__button"
+                      :loading="challengeLoading"
+                      @click="sendChallengeRequest"
+                    >
+                      {{ sendButtonLabel }}
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -465,6 +439,7 @@ function resolveValueValidationError() {
               v-if="isDestinationStep"
               type="primary"
               :disabled="!canAdvanceToVerification"
+              :loading="challengeLoading"
               @click="goToVerificationStep"
             >
               下一步
@@ -601,17 +576,9 @@ function resolveValueValidationError() {
   background: hsl(var(--muted) / 0.3);
 }
 
-.binding-modal__captcha,
 .binding-modal__verification {
   display: grid;
   gap: 12px;
-}
-
-.binding-modal__captcha {
-  padding: 12px;
-  border: 1px solid var(--binding-border);
-  border-radius: 8px;
-  background: hsl(var(--muted) / 0.18);
 }
 
 .binding-modal__caption {
@@ -627,10 +594,6 @@ function resolveValueValidationError() {
   font-size: 12px;
   font-weight: 400;
   line-height: 1.6;
-}
-
-.binding-modal__captcha-widget {
-  width: 100%;
 }
 
 .otp-row {

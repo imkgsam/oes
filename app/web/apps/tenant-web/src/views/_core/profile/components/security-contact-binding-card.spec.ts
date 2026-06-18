@@ -34,25 +34,6 @@ vi.mock('#/api', () => ({
   verifyPhoneBindingApi,
 }));
 
-vi.mock('@vben/common-ui', () => ({
-  SliderCaptcha: defineComponent({
-    name: 'SliderCaptcha',
-    emits: ['success', 'update:modelValue'],
-    template: `
-      <button
-        class="slider-pass"
-        type="button"
-        @click="
-          $emit('update:modelValue', true);
-          $emit('success', { isPassing: true, time: '0.1' });
-        "
-      >
-        pass
-      </button>
-    `,
-  }),
-}));
-
 vi.mock('../../authentication/phone-number-input.vue', () => ({
   default: defineComponent({
     name: 'PhoneNumberInput',
@@ -186,18 +167,20 @@ describe('security contact binding card', () => {
     await wrapper.find('button').trigger('click');
     await flushPromises();
 
-    expect(document.body.textContent).not.toContain('完成安全验证后发送验证码');
+    expect(document.body.textContent).not.toContain('验证码将发送至 new@example.com');
 
     await wrapper.find('input[placeholder="请输入要绑定的新邮箱"]').setValue('new@example.com');
     const nextButton = wrapper.findAll('button').find((item) => item.text() === '下一步');
     await nextButton?.trigger('click');
     await flushPromises();
 
-    expect(document.body.textContent).toContain('完成安全验证后发送验证码');
+    expect(requestEmailBindingChallengeApi).toHaveBeenCalledWith({
+      email: 'new@example.com',
+    });
     expect(document.body.textContent).toContain('验证码将发送至 new@example.com');
   });
 
-  it('requests the otp challenge only after the inline captcha succeeds', async () => {
+  it('requests the otp challenge without an inline gate', async () => {
     const view = await import('./security-contact-binding-card.vue');
     const wrapper = mount(view.default, {
       attachTo: document.body,
@@ -214,16 +197,9 @@ describe('security contact binding card', () => {
     await nextButton?.trigger('click');
     await flushPromises();
 
-    expect(requestEmailBindingChallengeApi).not.toHaveBeenCalled();
-
-    const captchaPassButton = document.body.querySelector('.slider-pass') as HTMLButtonElement | null;
-    captchaPassButton?.click();
-    await flushPromises();
-
     expect(requestEmailBindingChallengeApi).toHaveBeenCalledWith({
       email: 'new@example.com',
     });
-    expect(document.body.textContent).not.toContain('发送前验证');
   });
 
   it('uses a neutral confirm action label in the verification step', async () => {
@@ -275,10 +251,6 @@ describe('security contact binding card', () => {
     await nextButton?.trigger('click');
     await flushPromises();
 
-    const captchaPassButton = document.body.querySelector('.slider-pass') as HTMLButtonElement | null;
-    captchaPassButton?.click();
-    await flushPromises();
-
     const sendButton = wrapper.find('.otp-row__button');
     expect(sendButton.text()).toContain('60');
     expect(sendButton.attributes('disabled')).toBeDefined();
@@ -289,8 +261,7 @@ describe('security contact binding card', () => {
 
     await vi.advanceTimersByTimeAsync(60_000);
     await flushPromises();
-    expect(document.body.textContent).toContain('可重新验证后发送');
-    expect(document.body.textContent).toContain('重新验证后发送验证码');
+    expect(document.body.textContent).toContain('重新发送验证码');
   });
 
   it('keeps the email send button disabled until the destination format is valid', async () => {

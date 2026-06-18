@@ -154,7 +154,7 @@ describe('wms-service behavior L1', () => {
       itemId: 'item-1',
       itemCode: 'RM-001',
       itemName: 'Resin',
-      status: 'ACTIVE',
+      active: true,
       stockable: true
     })
     harness.receivingExpectationLookup.seed({
@@ -310,7 +310,7 @@ describe('wms-service behavior L1', () => {
       itemId: 'item-1',
       itemCode: 'RM-001',
       itemName: 'Resin',
-      status: 'ACTIVE',
+      active: true,
       stockable: true
     })
 
@@ -381,6 +381,59 @@ describe('wms-service behavior L1', () => {
           tenantId: 'tenant-1',
           receiptId: secondDraft.receiptId,
           cancelReason: 'too late'
+        })
+      )
+    ).rejects.toMatchObject({
+      definition: {
+        rpcStatus: status.FAILED_PRECONDITION
+      }
+    })
+  })
+
+  it('Receipt posting / should reject inactive stockable items before creating inventory truth', async () => {
+    const harness = createHarness()
+    seedInternalWarehouse(harness.store)
+    harness.stockableItemLookup.seed({
+      itemId: 'item-inactive',
+      itemCode: 'RM-INACTIVE',
+      itemName: 'Inactive Resin',
+      active: false,
+      stockable: true
+    })
+
+    const created = await harness.createReceiptDraft.execute(
+      new CreateReceiptDraftCommand({
+        tenantId: 'tenant-1',
+        warehouseId: 'wh-1',
+        receiptSourceType: ReceiptSourceType.MANUAL,
+        referencedReceivingExpectationIds: [],
+        note: 'Manual inactive item receipt',
+        attachmentRefs: []
+      })
+    )
+    await harness.addOrReplaceReceiptLines.execute(
+      new AddOrReplaceReceiptLinesCommand({
+        tenantId: 'tenant-1',
+        receiptId: created.receiptId,
+        lines: [
+          {
+            itemId: 'item-inactive',
+            targetLocationId: 'loc-stock',
+            confirmedQuantity: '1',
+            uom: 'KG',
+            inventoryStatus: InventoryStatus.AVAILABLE,
+            trackingRefs: [],
+            evidenceAttachmentRefs: []
+          }
+        ]
+      })
+    )
+
+    await expect(
+      harness.postReceipt.execute(
+        new PostReceiptCommand({
+          tenantId: 'tenant-1',
+          receiptId: created.receiptId
         })
       )
     ).rejects.toMatchObject({

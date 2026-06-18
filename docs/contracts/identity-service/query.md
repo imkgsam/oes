@@ -39,14 +39,13 @@
   - `user_id`
 - 响应关键字段：
   - `user.id`
-  - `user.party_id`
   - `user.username`
   - `user.personal_email`
   - `user.personal_phone`
   - `user.is_active`
 - 说明：
-  - `user.party_id` 是 identity 用户到 `party-service` canonical 自然人主体的受控关联
-  - 管理端若需要稳定的人名展示，应优先联动 `party-service` 读取 `displayName / canonicalName`
+  - `User` 是技术身份，不持有 `partyId`。
+  - 管理端若需要租户内稳定的人名展示，应从当前租户 `UserAccount.tenantPartyId` 出发，联动 `party-service` 读取 `TenantParty.displayName / legalName`。
   - `user.username` 仍只作为历史 login handle 回传，不应再被理解为真实姓名真相
 - 返回空语义：
   - 用户不存在时返回空响应对象
@@ -109,8 +108,8 @@
 - 响应关键字段：
   - `accounts[].account_id`
   - `accounts[].user_id`
-  - `accounts[].user_party_id`
   - `accounts[].tenant_id`
+  - `accounts[].tenant_party_id`
   - `accounts[].scope_level`
   - `accounts[].display_name`
   - `accounts[].user_display_name`
@@ -133,7 +132,7 @@
 - 展示语义：
   - `accounts[].display_name` 是 account 上下文显示名
   - `accounts[].tenant_id` 只表示 tenant 引用，tenant 标签应由调用方再向 `tenant-org-service` 聚合
-  - `accounts[].user_party_id` 用于调用方继续联动 `party-service` 获取 user 级人名真相
+  - `accounts[].tenant_party_id` 是当前账号在该租户内关联的 `TenantParty`，可用于租户内人员展示聚合
   - `accounts[].user_display_name` 当前仅作为 legacy fallback，不应再被当作长期真实姓名来源
 
 ## 3. 租户与组织边界

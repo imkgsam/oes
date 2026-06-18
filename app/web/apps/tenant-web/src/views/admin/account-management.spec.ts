@@ -1,10 +1,15 @@
 /* @vitest-environment happy-dom */
 
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { defineComponent, h } from 'vue';
 
 import { Modal, Select, message } from 'ant-design-vue';
 import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+const pageSource = readFileSync(join(__dirname, 'account-management.vue'), 'utf8');
 
 const listAdminAccountsApi = vi.fn();
 const listAdminAccountTenantOptionsApi = vi.fn();
@@ -43,6 +48,14 @@ const authContextState: any = {
   },
   tenantName: 'Alpha Tenant',
 };
+
+// Extracts a single scoped CSS rule from the account page source for style contract checks.
+function extractStyleBlock(selector: string) {
+  const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = pageSource.match(new RegExp(`${escapedSelector}\\s*\\{[^}]*\\}`));
+
+  return match?.[0] ?? '';
+}
 
 vi.mock('#/api', () => ({
   createAdminAccountApi,
@@ -444,6 +457,27 @@ describe('account management page', () => {
   afterEach(() => {
     document.body.innerHTML = '';
     vi.restoreAllMocks();
+  });
+
+  it('keeps account table chrome bound to theme tokens in dark mode', () => {
+    const tableHeaderStyle = extractStyleBlock(
+      ':deep(.ant-table-wrapper .ant-table-thead > tr > th)',
+    );
+    const tableHoverStyle = extractStyleBlock(
+      ':deep(.ant-table-wrapper .ant-table-tbody > tr:hover > td)',
+    );
+    const loginBorderStyle = extractStyleBlock(
+      ':deep(.account-management__login-method-table-shell .ant-table-tbody > tr > td)',
+    );
+
+    expect(pageSource).toContain('--account-table-header-bg');
+    expect(pageSource).toContain('--account-table-row-hover-bg');
+    expect(tableHeaderStyle).toContain('background: var(--account-table-header-bg)');
+    expect(tableHoverStyle).toContain('background: var(--account-table-row-hover-bg)');
+    expect(loginBorderStyle).toContain('border-bottom-color: var(--account-table-border)');
+    expect(`${tableHeaderStyle}\n${tableHoverStyle}\n${loginBorderStyle}`).not.toMatch(
+      /rgb\(248 250 252|rgb\(226 232 240/,
+    );
   });
 
   it('uses the same toolbar and filter-card rhythm as role management before rendering the account list', async () => {

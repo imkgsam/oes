@@ -12,6 +12,8 @@ CRM v2 已原地替代旧 customer master phase 1 设计。
 
 - [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md)
 - [crm-v2-core-object-model.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/crm-v2-core-object-model.md)
+- [object-reference.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/crm-service/object-reference.md)
+  - `CrmAccount` 对象引用校验契约，供 `collaboration-service.annotation` P1 使用。
 
 ## 1. 目的
 
