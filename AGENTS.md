@@ -297,6 +297,24 @@ design workspace 明确不负责：
 - 如果发现既有设计不合理，应暂停并说明问题，必要时升级到 architecture / ADR / integration 流程，而不是私自绕过。
 - 如因生产或联调阻塞必须先做临时止血方案，必须明确标记为临时方案、说明移除条件，并同步记录后续正式修复任务。
 
+### 12.3 Global Command 与 Command Hub 协作纪律
+
+OES 使用 Global Command Thread 与 Codex Command Hub 管理多线程并行协作。详细规则以 `docs/governance/codex-global-command-model.md` 与 `docs/governance/codex-command-hub.md` 为准。
+
+Global Command Thread 只负责项目级规划、任务调度、依赖编排、优先级调整、ownership 冲突协调与 handoff 收口。Global Command Thread 明确禁止做服务级设计、功能级设计讨论、契约字段定义、领域对象定义、数据库 schema 设计、代码实现或具体 debug。
+
+新功能 intake 只能由 Global Command 产出项目级分类信息，包括候选能力域、候选 owner group、疑似依赖、所需 design thread、优先级与冲突风险。最终服务归属、领域模型、workflow、API、event、proto 或 schema 必须交由对应 design thread，在唯一真相源规则下完成。
+
+任何正式 Codex thread 启动时，必须优先通过 Command Hub 恢复身份与任务边界：
+
+- 已有 task 时运行 `node scripts/oes-hub.mjs sync --task <task-id>`
+- 已有 thread 时运行 `node scripts/oes-hub.mjs sync --thread <thread-id>`
+- 修改任何文件前必须先通过 Hub claim 写路径
+- 遇到 ownership 拒绝、跨服务依赖、受保护文件需求或无法继续推进时，必须提交 blocker，不得绕过 Hub 继续修改
+- 任务执行中应在关键阶段提交 checkpoint；完成、失败或阻塞时必须提交 handoff / failure / blocker
+
+共享计划文件采用单写者规则。`docs/plans/oes-global-roadmap.md`、`docs/plans/oes-thread-control-board.md`、`docs/plans/oes-capability-dependency-map.md` 只能由 Global Command Thread 写入。其他 thread 只能通过 Hub 或结构化 handoff 回报给 owner。
+
 ## 13. 交付输出要求
 
 每次完成一个任务片段后，应明确说明：
