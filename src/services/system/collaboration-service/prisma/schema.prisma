@@ -1,0 +1,99 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../prisma/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum CollaborationTaskVisibility {
+  PRIVATE
+  ASSIGNMENT_PARTICIPANTS
+}
+
+enum CollaborationTaskStatus {
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum CollaborationTaskPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+model CollaborationTask {
+  id                   String                      @id @default(uuid()) @db.Uuid
+  tenantId             String                      @db.VarChar(100)
+  title                String                      @db.VarChar(255)
+  description          String?                     @db.VarChar(4000)
+  createdByAccountId   String                      @db.VarChar(100)
+  assigneeAccountId    String                      @db.VarChar(100)
+  visibility           CollaborationTaskVisibility
+  status               CollaborationTaskStatus     @default(OPEN)
+  priority             CollaborationTaskPriority   @default(NORMAL)
+  dueAt                DateTime?
+  startedAt            DateTime?
+  completedAt          DateTime?
+  completedByAccountId String?                     @db.VarChar(100)
+  completionNote       String?                     @db.VarChar(4000)
+  cancelledAt          DateTime?
+  cancelledByAccountId String?                     @db.VarChar(100)
+  cancelReason         String?                     @db.VarChar(1000)
+  archivedAt           DateTime?
+  archivedByAccountId  String?                     @db.VarChar(100)
+  createdAt            DateTime                    @default(now())
+  updatedAt            DateTime                    @updatedAt
+
+  @@index([tenantId, assigneeAccountId, status])
+  @@index([tenantId, createdByAccountId, status])
+  @@index([tenantId, dueAt])
+  @@index([tenantId, archivedAt])
+}
+
+model CollaborationTaskAuditEnvelope {
+  id                 String   @id @default(uuid()) @db.Uuid
+  tenantId           String   @db.VarChar(100)
+  taskId             String   @db.Uuid
+  action             String   @db.VarChar(80)
+  result             String   @db.VarChar(40)
+  operatorAccountId  String   @db.VarChar(100)
+  createdByAccountId String   @db.VarChar(100)
+  assigneeAccountId  String   @db.VarChar(100)
+  traceId            String?  @db.VarChar(100)
+  auditId            String?  @db.VarChar(100)
+  reasonSnapshot     String?  @db.VarChar(1000)
+  occurredAt         DateTime @default(now())
+  payload            Json?
+
+  @@index([tenantId, taskId])
+  @@index([tenantId, occurredAt])
+}
+
+model CollaborationTaskEventEnvelope {
+  id                 String   @id @default(uuid()) @db.Uuid
+  eventType          String   @db.VarChar(80)
+  occurredAt         DateTime
+  tenantId           String   @db.VarChar(100)
+  taskId             String   @db.Uuid
+  actorAccountId     String   @db.VarChar(100)
+  createdByAccountId String   @db.VarChar(100)
+  assigneeAccountId  String   @db.VarChar(100)
+  status             String   @db.VarChar(40)
+  previousStatus     String?  @db.VarChar(40)
+  priority           String   @db.VarChar(40)
+  dueAt              DateTime?
+  titleSnapshot      String   @db.VarChar(255)
+  traceId            String?  @db.VarChar(100)
+  payload            Json
+  publishedAt        DateTime @default(now())
+
+  @@index([tenantId, taskId])
+  @@index([tenantId, eventType, occurredAt])
+  @@index([publishedAt])
+}

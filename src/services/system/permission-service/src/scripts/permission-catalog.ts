@@ -835,6 +835,13 @@ const authSessionManagement = definePermissionGroup(Modules.AUTH_SERVICE, {
   }
 })
 
+const collaborationTask = definePermissionGroup(Modules.COLLABORATION_SERVICE, {
+  ASSIGN: {
+    code: 'collaboration.task.assign',
+    description: '指派协作任务给租户内其他账号'
+  }
+})
+
 const terminalDeviceManagement = definePermissionGroup(Modules.TERMINAL_DEVICE_SERVICE, {
   CREATE_ENROLLMENT: {
     code: 'terminal-device.enrollment.create',
@@ -917,6 +924,7 @@ export const MES_MANAGEMENT_PERMISSION_CODES = mesManagement.codes
 export const AUTH_MANAGEMENT_PERMISSION_CODES = authManagement.codes
 export const AUTH_SELF_PERMISSION_CODES = authSelfManagement.codes
 export const AUTH_SESSION_PERMISSION_CODES = authSessionManagement.codes
+export const COLLABORATION_TASK_PERMISSION_CODES = collaborationTask.codes
 export const TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES = terminalDeviceManagement.codes
 export const BROWSER_EXTENSION_DESIGNER_PERMISSION_CODES = browserExtensionDesigner.codes
 
@@ -963,6 +971,7 @@ export const PERMISSION_CODE_SEED_ITEMS: PermissionSeedItem[] = [
   ...authManagement.items,
   ...authSelfManagement.items,
   ...authSessionManagement.items,
+  ...collaborationTask.items,
   ...terminalDeviceManagement.items,
   ...browserExtensionDesigner.items
 ]

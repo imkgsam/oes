@@ -2,6 +2,7 @@ export const SERVICE_NAMES = {
   API_GATEWAY: 'api-gateway',
   ASSET: 'asset-service',
   AUTH: 'auth-service',
+  COLLABORATION: 'collaboration-service',
   CRM: 'crm-service',
   FINANCE: 'finance-service',
   HR: 'hr-service',

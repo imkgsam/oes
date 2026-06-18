@@ -3,6 +3,27 @@ import type { RouteRecordRaw } from 'vue-router';
 const tenantAdminRoutes: RouteRecordRaw[] = [
   {
     meta: {
+      icon: 'lucide:list-checks',
+      order: 9,
+      title: '协作',
+    },
+    name: 'TenantCollaboration',
+    path: '/collaboration',
+    children: [
+      {
+        name: 'TenantCollaborationTasks',
+        path: '/collaboration/tasks',
+        component: () => import('#/views/admin/collaboration-task-workspace.vue'),
+        meta: {
+          entryKey: 'collaboration.tasks',
+          icon: 'lucide:list-todo',
+          title: '任务工作台',
+        },
+      },
+    ],
+  },
+  {
+    meta: {
       icon: 'lucide:shield-check',
       order: 10,
       title: '权限治理',
