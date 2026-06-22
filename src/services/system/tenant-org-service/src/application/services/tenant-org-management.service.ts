@@ -37,14 +37,21 @@ export class TenantOrgManagementService {
     return this.tenantRepository.createWithRootOrg({ code, employeeCodePrefix, name, rootOrgName })
   }
 
-  async updateTenantProfile(input: { tenantId: string; name?: string; code?: string; employeeCodePrefix?: string }) {
+  async updateTenantProfile(input: {
+    tenantId: string
+    name?: string
+    code?: string
+    employeeCodePrefix?: string
+    websiteUrl?: string | null
+  }) {
     return this.tenantRepository.updateProfile({
       tenantId: requireNonBlank(input.tenantId, 'tenantId'),
       name: input.name?.trim() || undefined,
       code: input.code?.trim() || undefined,
       employeeCodePrefix: input.employeeCodePrefix === undefined
         ? undefined
-        : normalizeEmployeeCodePrefix(input.employeeCodePrefix)
+        : normalizeEmployeeCodePrefix(input.employeeCodePrefix),
+      websiteUrl: input.websiteUrl === undefined ? undefined : normalizeOptionalString(input.websiteUrl)
     })
   }
 
@@ -203,6 +210,12 @@ function requireNonBlank(value: string, fieldName: string): string {
     throw new BadRequestException(`${fieldName} is required`)
   }
   return normalized
+}
+
+/** normalizeOptionalString trims optional profile text and preserves explicit clearing as null. */
+function normalizeOptionalString(value: string | null): string | null {
+  const normalized = value?.trim()
+  return normalized ? normalized : null
 }
 
 /** isOrganizationTenantPartyAllowedOrgType keeps organization TenantParty binding limited to legal-organization-like org nodes. */

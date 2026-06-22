@@ -27,6 +27,14 @@ vi.mock('@vben/common-ui', () => ({
   },
 }));
 
+vi.mock('@vben/icons', () => ({
+  IconifyIcon: {
+    name: 'IconifyIcon',
+    props: ['icon'],
+    template: '<span data-testid="mock-iconify-icon" />',
+  },
+}));
+
 describe('policy governance page', () => {
   beforeEach(() => {
     listPoliciesApi.mockReset();
@@ -158,9 +166,15 @@ describe('policy governance page', () => {
 
     await flushPromises();
 
-    Array.from(document.body.querySelectorAll('button'))
-      .find((button) => button.textContent?.includes('查看详情'))
-      ?.click();
+    const actionTrigger = document.body.querySelector<HTMLButtonElement>(
+      'button[aria-label="策略操作"]',
+    );
+    actionTrigger?.click();
+    await flushPromises();
+
+    Array.from(document.body.querySelectorAll('[role="menuitem"]'))
+      .find((item) => item.textContent?.includes('查看详情'))
+      ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
     await flushPromises();
 
@@ -201,7 +215,7 @@ describe('policy governance page', () => {
     expect(tableCard).not.toBeNull();
     expect(helpDot).not.toBeNull();
     expect(document.body.textContent).toContain('策略目录');
-    expect(document.body.textContent).toContain('查看详情');
+    expect(document.body.querySelector('button[aria-label="策略操作"]')).not.toBeNull();
     expect(document.body.textContent).not.toContain('登录 MFA 策略');
     expect(document.body.textContent).not.toContain('因子优先级');
 

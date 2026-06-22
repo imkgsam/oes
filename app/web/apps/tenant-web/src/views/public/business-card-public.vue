@@ -2,7 +2,7 @@
 import type { PublicEntryBusinessCardApi } from '#/api'
 
 import { computed, onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import { IconifyIcon } from '@vben/icons'
 
@@ -11,6 +11,7 @@ import { QRCode, Skeleton } from 'ant-design-vue'
 import { renderPublicBusinessCardApi } from '#/api'
 
 const route = useRoute()
+const router = useRouter()
 const loading = ref(false)
 const result = ref<PublicEntryBusinessCardApi.PublicRenderResult | null>(null)
 const businessCardId = computed(() => String(route.params.businessCardId ?? ''))
@@ -36,7 +37,14 @@ const officialPhotoBackgroundStyle = computed(() => {
 async function loadPublicCard() {
   loading.value = true
   try {
-    result.value = await renderPublicBusinessCardApi(businessCardId.value)
+    const nextResult = await renderPublicBusinessCardApi(businessCardId.value)
+    result.value = nextResult
+    if (nextResult?.state !== 'AVAILABLE' || !nextResult.view) {
+      await router.replace({
+        name: 'FallbackNotFound',
+        params: { path: ['404'] }
+      })
+    }
   } finally {
     loading.value = false
   }
@@ -66,9 +74,13 @@ function actionIcon(type: string) {
   }[type] ?? 'lucide:send'
 }
 
+// isCompactContactAction identifies system actions that should render as a single concise command.
+function isCompactContactAction(type: string) {
+  return type === 'SAVE_VCARD'
+}
+
 // actionDisplayValue prefers service-owned display values and falls back to readable URLs.
 function actionDisplayValue(action: PublicEntryBusinessCardApi.PublicView['contactActions'][number]) {
-  if (action.contactActionType === 'SAVE_VCARD') return action.displayValue || '下载标准 vCard'
   if (action.displayValue) return action.displayValue
   const url = action.actionUrl ?? ''
   return url
@@ -89,11 +101,10 @@ onMounted(loadPublicCard)
 <template>
   <main class="public-card-page">
     <Skeleton v-if="loading" active class="public-card-page__skeleton" />
-    <section v-else-if="result?.state !== 'AVAILABLE' || !view" class="public-card-page__unavailable">
-      <h1>名片暂不可用</h1>
-      <p>该公开名片当前无法展示，请稍后再试。</p>
-    </section>
-    <section v-else class="public-card">
+    <section v-else-if="view" class="public-card">
+      <div class="public-card__qr-shell">
+        <QRCode :bordered="false" :size="72" :value="publicQrValue" />
+      </div>
       <div
         class="public-card__portrait"
         :class="{ 'public-card__portrait--photo-background': view.person.officialPhotoUrl }"
@@ -108,44 +119,31 @@ onMounted(loadPublicCard)
       </div>
 
       <div class="public-card__panel public-card__panel--angled">
-        <div class="public-card__ornament" aria-hidden="true">
-          <span />
-          <span />
-          <span />
-        </div>
-        <div class="public-card__name-grid">
-          <div>
-            <p class="public-card__eyebrow">{{ view.person.englishName || 'Business Card' }}</p>
+        <div class="public-card__content-grid">
+          <div class="public-card__identity">
             <h1>{{ view.person.displayName }}</h1>
+            <div class="public-card__role">
+              <strong>{{ view.company.companyDisplayName }}</strong>
+              <span>{{ personMeta || '员工数字名片' }}</span>
+            </div>
           </div>
-          <div class="public-card__role">
-            <strong>{{ view.company.companyDisplayName }}</strong>
-            <span>{{ personMeta || '员工数字名片' }}</span>
-          </div>
-        </div>
 
-        <div class="public-card__contact-list">
-          <a
-            v-for="action in sortedActions"
-            :key="`${action.contactActionType}-${action.displayOrder}`"
-            class="public-card__contact-row"
-            :href="action.actionUrl"
-            rel="noreferrer"
-            target="_blank"
-          >
-            <IconifyIcon :icon="actionIcon(action.contactActionType)" />
-            <span>{{ actionLabel(action.contactActionType) }}</span>
-            <strong>{{ actionDisplayValue(action) }}</strong>
-          </a>
-        </div>
-
-        <div class="public-card__footer">
-          <div>
-            <strong>扫码查看最新名片</strong>
-            <span>保存通讯录后，可快速找到联系方式。</span>
-          </div>
-          <div class="public-card__qr-shell">
-            <QRCode :size="86" :value="publicQrValue" />
+          <div class="public-card__contact-list">
+            <a
+              v-for="action in sortedActions"
+              :key="`${action.contactActionType}-${action.displayOrder}`"
+              class="public-card__contact-row"
+              :class="{ 'public-card__contact-row--compact': isCompactContactAction(action.contactActionType) }"
+              :href="action.actionUrl"
+              rel="noreferrer"
+              target="_blank"
+            >
+              <IconifyIcon :icon="actionIcon(action.contactActionType)" />
+              <span>{{ actionLabel(action.contactActionType) }}</span>
+              <strong v-if="!isCompactContactAction(action.contactActionType)">
+                {{ actionDisplayValue(action) }}
+              </strong>
+            </a>
           </div>
         </div>
       </div>
@@ -165,18 +163,17 @@ onMounted(loadPublicCard)
   padding: 28px;
 }
 .public-card-page__skeleton,
-.public-card,
-.public-card-page__unavailable {
+.public-card {
   margin: 0 auto;
-  max-width: 560px;
+  max-width: 500px;
   width: 100%;
 }
-.public-card,
-.public-card-page__unavailable {
+.public-card {
   background: #fff;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
   box-shadow: 0 26px 70px -38px rgb(15 23 42 / 46%);
+  position: relative;
 }
 .public-card {
   display: grid;
@@ -186,7 +183,7 @@ onMounted(loadPublicCard)
 .public-card__portrait {
   position: relative;
   display: grid;
-  min-height: 346px;
+  min-height: 328px;
   place-items: end center;
   overflow: hidden;
   background:
@@ -195,19 +192,11 @@ onMounted(loadPublicCard)
   padding: 42px 36px 0;
 }
 .public-card__portrait--photo-background {
-  min-height: 362px;
+  min-height: 340px;
   place-items: center;
   background-position: center top;
   background-repeat: no-repeat;
   background-size: cover;
-}
-.public-card__portrait--photo-background::before {
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(180deg, rgb(241 248 255 / 0.24) 0%, rgb(11 31 62 / 0.10) 70%, rgb(11 31 62 / 0.34) 100%),
-    linear-gradient(90deg, rgb(255 255 255 / 0.12), transparent 32%, rgb(255 255 255 / 0.18));
-  content: '';
 }
 .public-card__photo {
   display: grid;
@@ -233,17 +222,18 @@ onMounted(loadPublicCard)
 }
 .public-card__panel {
   position: relative;
-  margin-top: -38px;
+  margin-top: -16px;
+  min-height: 218px;
   background:
     linear-gradient(145deg, rgb(39 89 165 / 0.92) 0%, rgb(32 67 136 / 0.98) 42%, #142c66 100%),
     #1f4387;
   color: #fff;
-  clip-path: polygon(0 38px, 100% 0, 100% 100%, 0 100%);
-  padding: 78px 44px 34px;
+  clip-path: polygon(0 16px, 100% 0, 100% 100%, 0 100%);
+  padding: 58px 36px 44px;
 }
 .public-card__panel::before {
   position: absolute;
-  top: 34px;
+  top: 14px;
   right: 0;
   left: 0;
   height: 1px;
@@ -254,81 +244,68 @@ onMounted(loadPublicCard)
 }
 .public-card__panel::after {
   position: absolute;
-  inset: 38px 0 auto;
+  inset: 16px 0 auto;
   height: 92px;
   background: linear-gradient(180deg, rgb(255 255 255 / 0.08), transparent);
   content: '';
   pointer-events: none;
 }
-.public-card__ornament {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  gap: 7px;
-  margin-bottom: 22px;
-}
-.public-card__ornament span {
-  width: 7px;
-  height: 7px;
-  border-radius: 999px;
-  background: rgb(255 255 255 / 0.86);
-}
-.public-card__name-grid {
+.public-card__content-grid {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(170px, 0.9fr);
-  gap: 26px;
-  align-items: center;
+  grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr);
+  gap: 20px;
+  align-items: start;
 }
-.public-card__name-grid > div:first-child {
+.public-card__identity {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
   border-right: 1px dotted rgb(255 255 255 / 0.48);
-  padding-right: 26px;
+  padding-right: 10px;
 }
-.public-card__eyebrow {
-  color: rgb(255 255 255 / 0.78);
-  font-size: 12px;
-  margin: 0 0 6px;
-}
-.public-card h1,
-.public-card-page__unavailable h1 {
-  font-size: 42px;
+.public-card h1 {
+  font-size: 24px;
   font-weight: 700;
-  line-height: 1.05;
+  line-height: 1.12;
   margin: 0;
 }
 .public-card__role {
   display: grid;
-  gap: 8px;
+  gap: 6px;
+  min-width: 0;
 }
 .public-card__role strong {
-  font-size: 16px;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 14px;
   font-weight: 700;
   line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .public-card__role span {
   color: rgb(255 255 255 / 0.82);
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.55;
 }
-.public-card p,
-.public-card-page__unavailable p {
+.public-card p {
   color: #64748b;
   line-height: 1.6;
   margin: 8px 0 0;
 }
 .public-card__contact-list {
-  position: relative;
-  z-index: 1;
   display: grid;
   gap: 10px;
-  margin-top: 28px;
+  min-width: 0;
 }
 .public-card__contact-row {
   display: grid;
-  grid-template-columns: 24px 74px minmax(0, 1fr);
+  grid-template-columns: 18px 44px minmax(0, 1fr);
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   color: #fff;
   min-height: 28px;
   text-decoration: none;
@@ -338,50 +315,34 @@ onMounted(loadPublicCard)
   opacity: 0.88;
   transform: translateX(2px);
 }
+.public-card__contact-row--compact {
+  grid-template-columns: 18px minmax(0, 1fr);
+}
 .public-card__contact-row > span {
   color: rgb(255 255 255 / 0.74);
-  font-size: 13px;
+  font-size: 12px;
+}
+.public-card__contact-row--compact > span {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
 }
 .public-card__contact-row strong {
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow: hidden;
   font-size: 14px;
   font-weight: 500;
-}
-.public-card__footer {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
-  gap: 18px;
-  margin-top: 26px;
-  border-top: 1px dotted rgb(255 255 255 / 0.42);
-  padding-top: 22px;
-}
-.public-card__footer > div {
-  display: grid;
-  gap: 8px;
-}
-.public-card__footer strong {
-  font-size: 18px;
-}
-.public-card__footer span {
-  color: rgb(255 255 255 / 0.76);
-  font-size: 13px;
-  line-height: 1.6;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .public-card__qr-shell {
   display: grid;
-  width: 102px;
-  height: 102px;
+  position: absolute;
+  right: 18px;
+  top: 18px;
+  z-index: 2;
+  justify-self: end;
   place-items: center;
-  border-radius: 8px;
-  background: #fff;
-  box-shadow: 0 12px 28px rgb(10 20 46 / 0.18);
-}
-.public-card-page__unavailable {
-  padding: 28px;
 }
 @media (max-width: 520px) {
   .public-card-page {
@@ -400,25 +361,33 @@ onMounted(loadPublicCard)
     margin-bottom: 50px;
   }
   .public-card__panel {
-    margin-top: -34px;
-    clip-path: polygon(0 34px, 100% 0, 100% 100%, 0 100%);
-    padding: 72px 26px 28px;
+    margin-top: -16px;
+    min-height: 228px;
+    clip-path: polygon(0 16px, 100% 0, 100% 100%, 0 100%);
+    padding: 64px 26px 38px;
   }
-  .public-card__name-grid,
-  .public-card__footer {
+  .public-card__content-grid {
     grid-template-columns: 1fr;
+    gap: 24px;
   }
-  .public-card__name-grid > div:first-child {
+  .public-card__identity {
     border-right: 0;
     border-bottom: 1px dotted rgb(255 255 255 / 0.42);
     padding-right: 0;
     padding-bottom: 18px;
   }
+  .public-card__qr-shell {
+    right: 14px;
+    top: 14px;
+  }
   .public-card h1 {
-    font-size: 36px;
+    font-size: 24px;
   }
   .public-card__contact-row {
-    grid-template-columns: 22px 62px minmax(0, 1fr);
+    grid-template-columns: 22px 64px minmax(0, 1fr);
+  }
+  .public-card__contact-row--compact {
+    grid-template-columns: 22px minmax(0, 1fr);
   }
 }
 </style>

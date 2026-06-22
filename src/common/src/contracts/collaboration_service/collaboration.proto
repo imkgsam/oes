@@ -72,6 +72,7 @@ message OperatorContext {
   string account_id = 1;
   string user_id = 2;
   string tenant_id = 3;
+  string display_name = 4;
 }
 
 message TraceContext {

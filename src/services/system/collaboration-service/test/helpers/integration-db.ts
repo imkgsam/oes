@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'fs'
 import { resolve } from 'path'
 import { PrismaService } from '../../src/infrastructure/prisma/prisma.service'
 
-const DEFAULT_LOCAL_DATABASE_URL = 'postgres://imkgsam:imkgsam@localhost:5432/mydb'
+const DEFAULT_LOCAL_DATABASE_URL = 'postgres://imkgsam:imkgsam@localhost:5432/collaborationdb'
 
 /** parseEnvValue removes optional quotes from a dotenv scalar value. */
 function parseEnvValue(raw: string): string {
@@ -89,6 +89,39 @@ export function createTestPrefix(): string {
 /** cleanupByPrefix removes collaboration task integration records keyed by generated prefixes. */
 export async function cleanupByPrefix(prisma: PrismaService, prefix: string): Promise<void> {
   if (!prisma) return
+
+  const annotations = await prisma.collaborationAnnotation.findMany({
+    where: {
+      OR: [
+        { tenantId: { startsWith: prefix } },
+        { objectId: { startsWith: prefix } },
+        { authorAccountId: { startsWith: prefix } },
+        { bodyText: { startsWith: prefix } }
+      ]
+    },
+    select: { id: true }
+  })
+  const annotationIds = annotations.map((annotation) => annotation.id)
+
+  await prisma.collaborationAnnotationAuditEnvelope.deleteMany({
+    where: {
+      OR: [
+        { tenantId: { startsWith: prefix } },
+        annotationIds.length > 0 ? { annotationId: { in: annotationIds } } : undefined
+      ].filter(Boolean) as any
+    }
+  })
+
+  await prisma.collaborationAnnotation.deleteMany({
+    where: {
+      OR: [
+        { tenantId: { startsWith: prefix } },
+        { objectId: { startsWith: prefix } },
+        { authorAccountId: { startsWith: prefix } },
+        { bodyText: { startsWith: prefix } }
+      ]
+    }
+  })
 
   const tasks = await prisma.collaborationTask.findMany({
     where: {

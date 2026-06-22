@@ -172,7 +172,8 @@ export class GrpcClientManager implements OnModuleInit, OnModuleDestroy {
         packageName: config.packageName,
         poolConfig,
         loadBalancer: this.loadBalancer,
-        channelOptions: config.channelOptions ?? this.options.defaultChannelOptions
+        channelOptions: config.channelOptions ?? this.options.defaultChannelOptions,
+        loader: config.loader
       })
 
       this.pools.set(serviceName, pool)

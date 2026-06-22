@@ -1,6 +1,10 @@
 # Policy Template / Instance Model
 
-> 服务设计唯一真相源：[permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。本文只记录 policy template / instance 模型的阶段设计、冻结边界与后续 rollout 路线；`Permission`、`Role`、`AccountRole`、`Policy` 的长期 owner 边界仍以服务真相源为准。
+> Status: SUPERSEDED_BY_TRUTH_SOURCE. Do not use this file as the stable design source or an implementation target.
+
+> Historical phase packet. The stable service boundary is now [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md), the stable resource authorization contract is [resource-authorization.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/resource-authorization.md), the stable management contract is [policy-instance-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/policy-instance-management.md), and the active PolicyInstance resource authorization mainline is [policyinstance-resource-authorization-mainline.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/policyinstance-resource-authorization-mainline.md). Use this file only as background for earlier design rationale.
+
+> 服务设计唯一真相源：[permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。本文只记录 policy template / instance 模型的历史阶段讨论；`Permission`、`Role`、`AccountRole`、`Policy`、`PolicyInstance` 的长期 owner 边界、资源授权组合规则与当前 contract 均以上述真相源为准。
 
 ## 1. 目标
 

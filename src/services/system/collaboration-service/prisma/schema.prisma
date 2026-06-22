@@ -27,6 +27,11 @@ enum CollaborationTaskPriority {
   URGENT
 }
 
+enum CollaborationAnnotationVisibility {
+  PRIVATE
+  OBJECT_VISIBLE
+}
+
 model CollaborationTask {
   id                   String                      @id @default(uuid()) @db.Uuid
   tenantId             String                      @db.VarChar(100)
@@ -96,4 +101,52 @@ model CollaborationTaskEventEnvelope {
   @@index([tenantId, taskId])
   @@index([tenantId, eventType, occurredAt])
   @@index([publishedAt])
+}
+
+model CollaborationAnnotation {
+  id                        String                            @id @default(uuid()) @db.Uuid
+  tenantId                  String                            @db.VarChar(100)
+  objectOwnerService        String                            @db.VarChar(80)
+  objectType                String                            @db.VarChar(80)
+  objectId                  String                            @db.VarChar(100)
+  objectDisplayTitle        String?                           @db.VarChar(255)
+  objectDisplaySubtitle     String?                           @db.VarChar(255)
+  objectDisplayStatus       String?                           @db.VarChar(80)
+  authorAccountId           String                            @db.VarChar(100)
+  authorDisplayNameSnapshot String                            @db.VarChar(255)
+  bodyText                  String                            @db.VarChar(4000)
+  visibility                CollaborationAnnotationVisibility @default(OBJECT_VISIBLE)
+  pinned                    Boolean                           @default(false)
+  edited                    Boolean                           @default(false)
+  deletedAt                 DateTime?
+  deletedByAccountId        String?                           @db.VarChar(100)
+  deleteReason              String?                           @db.VarChar(1000)
+  createdAt                 DateTime                          @default(now())
+  updatedAt                 DateTime                          @updatedAt
+
+  @@index([tenantId, objectOwnerService, objectType, objectId, deletedAt], map: "collab_annotation_object_visible_idx")
+  @@index([tenantId, objectOwnerService, objectType, objectId, pinned, createdAt], map: "collab_annotation_object_sort_idx")
+  @@index([tenantId, authorAccountId, createdAt])
+}
+
+model CollaborationAnnotationAuditEnvelope {
+  id                 String   @id @default(uuid()) @db.Uuid
+  tenantId           String   @db.VarChar(100)
+  annotationId       String   @db.Uuid
+  action             String   @db.VarChar(80)
+  result             String   @db.VarChar(40)
+  operatorAccountId  String   @db.VarChar(100)
+  authorAccountId    String   @db.VarChar(100)
+  objectOwnerService String   @db.VarChar(80)
+  objectType         String   @db.VarChar(80)
+  objectId           String   @db.VarChar(100)
+  traceId            String?  @db.VarChar(100)
+  auditId            String?  @db.VarChar(100)
+  reasonSnapshot     String?  @db.VarChar(1000)
+  occurredAt         DateTime @default(now())
+  payload            Json?
+
+  @@index([tenantId, annotationId])
+  @@index([tenantId, objectOwnerService, objectType, objectId])
+  @@index([tenantId, occurredAt])
 }

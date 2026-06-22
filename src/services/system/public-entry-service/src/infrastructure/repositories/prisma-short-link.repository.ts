@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { Prisma, ShortLink as PrismaShortLink } from '../../../prisma/generated/prisma'
 import {
+  ShortLinkListInput,
   ShortLinkListByTargetInput,
   ShortLinkRepository,
   ShortLinkVisitStatsInput,
@@ -78,6 +79,26 @@ export class PrismaShortLinkRepository implements ShortLinkRepository {
       }
     })
     return toDomainShortLink(updated)
+  }
+
+  async list(input: ShortLinkListInput): Promise<{ items: ShortLinkRecord[]; total: number }> {
+    const where: Prisma.ShortLinkWhereInput = {
+      tenantId: input.tenantId,
+      targetKind: input.targetKind,
+      targetType: input.targetType
+    }
+    const page = input.page ?? 1
+    const pageSize = input.pageSize ?? 20
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.shortLink.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize
+      }),
+      this.prisma.shortLink.count({ where })
+    ])
+    return { items: items.map((item) => toDomainShortLink(item)), total }
   }
 
   async listByTarget(

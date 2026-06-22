@@ -40,20 +40,5 @@ export interface AuthorizationDecisionOutput {
   policyExplainEntries?: PolicyExplainEntryOutput[]
 }
 
-/**
- * @deprecated OUTDATED: kept for the historical CheckPermissionWithContext RPC.
- * New business resource authorization should use application-level checkResource
- * and buildQueryScope flows instead of this RPC as the standard integration path.
- */
-export interface PermissionCheckWithContextInput {
-  accountId: string
-  permissionCode: string
-  tenantId?: string
-  subjectAttributes: Record<string, string>
-  resourceAttributes: Record<string, string>
-  environmentAttributes: Record<string, string>
-  actionAttributes: Record<string, string>
-}
-
 export type PermissionCheckOutput = AuthorizationDecisionOutput
 export type AuthzDecisionOutput = AuthorizationDecisionOutput

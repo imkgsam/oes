@@ -620,7 +620,8 @@ describe('AuthGrpcController', () => {
         terminal: 'WEB',
         allowedTerminals: ['WEB', 'PDA'],
         passwordSetupRequired: true,
-        roleIds: ['role-1']
+        roleIds: ['role-1'],
+        displayName: 'Tenant Account'
       })
     } as unknown as ValidatingQueryBus
 
@@ -643,6 +644,7 @@ describe('AuthGrpcController', () => {
       scopeLevel: 'TENANT',
       terminal: 'WEB',
       allowedTerminals: ['WEB', 'PDA'],
+      displayName: 'Tenant Account',
       terminalDeviceId: '',
       deviceBoundTenantId: '',
       loginFlow: '',

@@ -10,6 +10,7 @@ export interface GatewayAuthenticatedUser {
   holderId?: string
   userId?: string
   tenantId?: string
+  displayName?: string
   orgId?: string
   id?: string
   sub?: string

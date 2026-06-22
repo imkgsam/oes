@@ -32,6 +32,7 @@ const instance: PolicyInstance = {
 function createPrismaMock() {
   return {
     policyInstance: {
+      count: jest.fn(),
       findUnique: jest.fn(),
       findMany: jest.fn(),
       upsert: jest.fn()
@@ -81,6 +82,19 @@ describe('Policy template instance storage', () => {
     ).rejects.toThrow('POLICY_TEMPLATE_NOT_FOUND')
   })
 
+  it('repository / 无效 params / 应拒绝保存并避免自由 JSON 策略扩散', async () => {
+    const repository = createRepository()
+
+    await expect(
+      repository.save({
+        ...instance,
+        params: {
+          field: 'categoryId'
+        }
+      })
+    ).rejects.toThrow('POLICY_TEMPLATE_PARAMS_INVALID')
+  })
+
   it('repository / save / 应 upsert PolicyInstance 持久化记录', async () => {
     const prisma = createPrismaMock()
     prisma.policyInstance.upsert.mockResolvedValue(PolicyTemplateInstanceMapper.toPersistent(instance))
@@ -103,6 +117,29 @@ describe('Policy template instance storage', () => {
         params: instance.params
       })
     })
+  })
+
+  it('repository / save update / 不应覆盖创建审计字段', async () => {
+    const prisma = createPrismaMock()
+    prisma.policyInstance.upsert.mockResolvedValue(PolicyTemplateInstanceMapper.toPersistent(instance))
+    const repository = createRepository(prisma)
+
+    await repository.save({
+      ...instance,
+      updatedBy: 'operator-2'
+    })
+
+    expect(prisma.policyInstance.upsert.mock.calls[0][0].update).not.toHaveProperty(
+      'createdBy'
+    )
+    expect(prisma.policyInstance.upsert.mock.calls[0][0].update).not.toHaveProperty(
+      'createdAt'
+    )
+    expect(prisma.policyInstance.upsert.mock.calls[0][0].update).toEqual(
+      expect.objectContaining({
+        updatedBy: 'operator-2'
+      })
+    )
   })
 
   it('repository / findEnabledForEvaluation / 应只查询启用且匹配 tenant permission resourceType 的 instance', async () => {
@@ -130,10 +167,58 @@ describe('Policy template instance storage', () => {
     expect(result[0]).toEqual(instance)
   })
 
+  it('repository / listForManagement / 应按管理筛选分页查询 PolicyInstance', async () => {
+    const prisma = createPrismaMock()
+    prisma.policyInstance.count.mockResolvedValue(1)
+    prisma.policyInstance.findMany.mockResolvedValue([
+      PolicyTemplateInstanceMapper.toPersistent(instance)
+    ])
+    const repository = createRepository(prisma)
+
+    const result = await repository.listForManagement({
+      tenantId: 'tenant-1',
+      permissionCode: 'procurement.purchase.create',
+      resourceType: 'item',
+      templateCode: 'resource-field-in-set',
+      enabled: true,
+      page: 2,
+      pageSize: 10
+    })
+
+    expect(prisma.policyInstance.count).toHaveBeenCalledWith({
+      where: {
+        tenantId: 'tenant-1',
+        permissionCode: 'procurement.purchase.create',
+        resourceType: 'item',
+        templateCode: 'resource-field-in-set',
+        isEnabled: true
+      }
+    })
+    expect(prisma.policyInstance.findMany).toHaveBeenCalledWith({
+      where: {
+        tenantId: 'tenant-1',
+        permissionCode: 'procurement.purchase.create',
+        resourceType: 'item',
+        templateCode: 'resource-field-in-set',
+        isEnabled: true
+      },
+      orderBy: [{ createdAt: 'desc' }, { priority: 'desc' }],
+      skip: 10,
+      take: 10
+    })
+    expect(result).toEqual({
+      items: [instance],
+      total: 1,
+      page: 2,
+      pageSize: 10
+    })
+  })
+
   it('reader / listEnabledPolicyInstances / 应从 evaluator request 中提取查询条件', async () => {
     const repository: jest.Mocked<PolicyTemplateInstanceRepository> = {
       findById: jest.fn(),
       findEnabledForEvaluation: jest.fn().mockResolvedValue([instance]),
+      listForManagement: jest.fn(),
       save: jest.fn()
     }
     const reader = new PolicyTemplateInstanceReader(repository)

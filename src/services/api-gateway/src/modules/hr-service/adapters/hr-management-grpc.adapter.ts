@@ -212,6 +212,7 @@ export class HrManagementGrpcAdapter implements OnModuleInit {
         email?: string
         existingUserId?: string
         phone?: string
+        tenantPartyId?: string
       }
     },
     source: DownstreamRequestSource

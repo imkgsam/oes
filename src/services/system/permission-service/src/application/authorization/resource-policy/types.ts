@@ -71,6 +71,7 @@ export interface ResourceFacts {
   factoryId?: string
   plantId?: string
   workshopId?: string
+  workCenterId?: string
   productionLineId?: string
   warehouseId?: string
   storageLocationId?: string

@@ -10,7 +10,6 @@ import {
   CreateRoleInstanceRequest,
   CreateRoleTemplateRequest,
   DeleteAccountTerminalAccessOverrideRequest,
-  DeletePolicyRequest,
   DeletePermissionRequest,
   DeleteRoleRequest,
   DeleteRoleTemplateRequest,
@@ -71,14 +70,25 @@ import {
 } from '@oes/common/generated/permission_service'
 import { DownstreamRequestSource } from '../../common/grpc/gateway-downstream-source.mapper'
 import { PolicyManagementGrpcAdapter } from './adapters/policy-management-grpc.adapter'
+import {
+  CreatePolicyInstanceRequest,
+  GetPolicyInstanceRequest,
+  ListPolicyInstancesRequest,
+  PolicyInstanceManagementGrpcAdapter,
+  SetPolicyInstanceEnabledRequest
+} from './adapters/policy-instance-management-grpc.adapter'
+import { PolicyInstancePreviewGrpcAdapter } from './adapters/policy-instance-preview-grpc.adapter'
 import { PermissionManagementGrpcAdapter } from './adapters/permission-management-grpc.adapter'
+import { EvaluatePolicyInstancePreviewDto } from './interface/http/dtos/policy-instance-preview.dto'
 
 // Provides the gateway-facing permission management port over the downstream gRPC adapter.
 @Injectable()
 export class PermissionProxyService {
   constructor(
     private readonly managementPort: PermissionManagementGrpcAdapter,
-    private readonly policyManagementPort: PolicyManagementGrpcAdapter
+    private readonly policyManagementPort: PolicyManagementGrpcAdapter,
+    private readonly policyInstanceManagementPort: PolicyInstanceManagementGrpcAdapter,
+    private readonly policyInstancePreviewPort: PolicyInstancePreviewGrpcAdapter
   ) {}
 
   async createPermission(
@@ -135,17 +145,43 @@ export class PermissionProxyService {
     return this.policyManagementPort.getPolicyById(req, source)
   }
 
-  // Deletes one policy governance row by id.
-  async deletePolicy(req: DeletePolicyRequest, source: DownstreamRequestSource): Promise<void> {
-    return this.policyManagementPort.deletePolicy(req, source)
-  }
-
   // Reads policy governance records linked to one permission code.
   async listPermissionPolicies(
     req: ListPoliciesByPermissionRequest,
     source: DownstreamRequestSource
   ): Promise<ListPoliciesResponse> {
     return this.policyManagementPort.listPoliciesByPermission(req, source)
+  }
+
+  // Reads paged PolicyInstance governance records from the new template-based policy model.
+  async listPolicyInstances(req: ListPolicyInstancesRequest, source: DownstreamRequestSource) {
+    return this.policyInstanceManagementPort.listPolicyInstances(req, source)
+  }
+
+  // Reads one PolicyInstance governance record by id from the new template-based policy model.
+  async getPolicyInstanceById(req: GetPolicyInstanceRequest, source: DownstreamRequestSource) {
+    return this.policyInstanceManagementPort.getPolicyInstanceById(req, source)
+  }
+
+  // Creates one template-based PolicyInstance authorization fact.
+  async createPolicyInstance(req: CreatePolicyInstanceRequest, source: DownstreamRequestSource) {
+    return this.policyInstanceManagementPort.createPolicyInstance(req, source)
+  }
+
+  // Enables or disables one template-based PolicyInstance authorization fact.
+  async setPolicyInstanceEnabled(
+    req: SetPolicyInstanceEnabledRequest,
+    source: DownstreamRequestSource
+  ) {
+    return this.policyInstanceManagementPort.setPolicyInstanceEnabled(req, source)
+  }
+
+  // Evaluates a preview-only PolicyInstance request without persisting policy facts.
+  async evaluatePolicyInstancePreview(
+    req: EvaluatePolicyInstancePreviewDto,
+    source: DownstreamRequestSource
+  ) {
+    return this.policyInstancePreviewPort.evaluatePolicyInstancePreview(req, source)
   }
 
   // Reads a paged permission dictionary list for management tables.

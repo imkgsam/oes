@@ -6,15 +6,9 @@ option java_multiple_files = true;
 option java_package = "com.oes.permission.v1";
 
 service PolicyManagementService {
-  rpc CreatePolicy(CreatePolicyRequest) returns (CreatePolicyResponse);
-  rpc UpdatePolicy(UpdatePolicyRequest) returns (UpdatePolicyResponse);
-  rpc DeletePolicy(DeletePolicyRequest) returns (DeletePolicyResponse);
-  rpc TogglePolicy(TogglePolicyRequest) returns (TogglePolicyResponse);
   rpc GetPolicyById(GetPolicyByIdRequest) returns (GetPolicyByIdResponse);
   rpc ListPoliciesPaged(ListPoliciesPagedRequest) returns (ListPoliciesPagedResponse);
   rpc ListPoliciesByPermission(ListPoliciesByPermissionRequest) returns (ListPoliciesByPermissionResponse);
-  rpc AddPermissionPolicy(AddPermissionPolicyRequest) returns (AddPermissionPolicyResponse);
-  rpc RemovePermissionPolicy(RemovePermissionPolicyRequest) returns (RemovePermissionPolicyResponse);
 }
 
 enum PolicyEffectProto {
@@ -28,42 +22,6 @@ enum PolicySubjectTypeProto {
   POLICY_SUBJECT_TYPE_PROTO_ROLE = 1;
   POLICY_SUBJECT_TYPE_PROTO_ACCOUNT = 2;
   POLICY_SUBJECT_TYPE_PROTO_ANY = 3;
-}
-
-message CreatePolicyRequest {
-  string name = 1;
-  PolicyEffectProto effect = 2;
-  string description = 3;
-  string tenant_id = 4;
-  PolicySubjectTypeProto subject_type = 5;
-  string subject_id = 6;
-  string permission_code = 7;
-  string resource_type = 8;
-  int32 priority = 9;
-  string created_by = 10;
-  string condition_ast_json = 11;
-}
-
-message UpdatePolicyRequest {
-  string id = 1;
-  string name = 2;
-  PolicyEffectProto effect = 3;
-  string description = 4;
-  PolicySubjectTypeProto subject_type = 5;
-  string subject_id = 6;
-  string permission_code = 7;
-  string resource_type = 8;
-  int32 priority = 9;
-  string condition_ast_json = 10;
-}
-
-message DeletePolicyRequest {
-  string id = 1;
-}
-
-message TogglePolicyRequest {
-  string id = 1;
-  bool is_enabled = 2;
 }
 
 message GetPolicyByIdRequest {
@@ -84,71 +42,6 @@ message ListPoliciesPagedRequest {
 message ListPoliciesByPermissionRequest {
   string permission_code = 1;
   string tenant_id = 2;
-}
-
-message AddPermissionPolicyRequest {
-  string permission_code = 1;
-  string name = 2;
-  PolicyEffectProto effect = 3;
-  string description = 4;
-  string tenant_id = 5;
-  PolicySubjectTypeProto subject_type = 6;
-  string subject_id = 7;
-  string resource_type = 8;
-  int32 priority = 9;
-  string condition_ast_json = 10;
-}
-
-message RemovePermissionPolicyRequest {
-  string permission_code = 1;
-  string policy_id = 2;
-}
-
-message CreatePolicyResponse {
-  string id = 1;
-  string name = 2;
-  PolicyEffectProto effect = 3;
-  string description = 4;
-  string tenant_id = 5;
-  PolicySubjectTypeProto subject_type = 6;
-  string subject_id = 7;
-  string permission_code = 8;
-  string resource_type = 9;
-  int32 priority = 10;
-  bool is_enabled = 11;
-  string condition_ast_json = 12;
-}
-
-message UpdatePolicyResponse {
-  string id = 1;
-  string name = 2;
-  PolicyEffectProto effect = 3;
-  string description = 4;
-  string tenant_id = 5;
-  PolicySubjectTypeProto subject_type = 6;
-  string subject_id = 7;
-  string permission_code = 8;
-  string resource_type = 9;
-  int32 priority = 10;
-  bool is_enabled = 11;
-  string condition_ast_json = 12;
-}
-
-message DeletePolicyResponse {}
-
-message TogglePolicyResponse {
-  string id = 1;
-  string name = 2;
-  PolicyEffectProto effect = 3;
-  string description = 4;
-  string tenant_id = 5;
-  PolicySubjectTypeProto subject_type = 6;
-  string subject_id = 7;
-  string permission_code = 8;
-  string resource_type = 9;
-  int32 priority = 10;
-  bool is_enabled = 11;
-  string condition_ast_json = 12;
 }
 
 message GetPolicyByIdResponse {
@@ -202,20 +95,3 @@ message ListPoliciesPagedResponse {
   int32 page = 3;
   int32 page_size = 4;
 }
-
-message AddPermissionPolicyResponse {
-  string id = 1;
-  string name = 2;
-  PolicyEffectProto effect = 3;
-  string description = 4;
-  string tenant_id = 5;
-  PolicySubjectTypeProto subject_type = 6;
-  string subject_id = 7;
-  string permission_code = 8;
-  string resource_type = 9;
-  int32 priority = 10;
-  bool is_enabled = 11;
-  string condition_ast_json = 12;
-}
-
-message RemovePermissionPolicyResponse {}

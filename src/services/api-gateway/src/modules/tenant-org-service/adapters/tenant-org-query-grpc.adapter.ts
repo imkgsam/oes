@@ -28,6 +28,7 @@ export interface TenantManagementQueryTenant {
   name?: string
   rootOrgId?: string
   status?: string
+  websiteUrl?: string
 }
 
 export interface TenantManagementQueryOrgUnit {
@@ -79,7 +80,8 @@ export class TenantOrgQueryGrpcAdapter implements OnModuleInit {
               employeeCodePrefix: response.tenant.employeeCodePrefix,
               name: response.tenant.name,
               status: response.tenant.status,
-              rootOrgId: normalize(response.tenant.rootOrgId)
+              rootOrgId: normalize(response.tenant.rootOrgId),
+              ...withOptionalWebsiteUrl(response.tenant.websiteUrl)
             }
           : undefined
       })
@@ -108,7 +110,8 @@ export class TenantOrgQueryGrpcAdapter implements OnModuleInit {
           employeeCodePrefix: tenant.employeeCodePrefix,
           name: tenant.name,
           status: tenant.status,
-          rootOrgId: normalize(tenant.rootOrgId)
+          rootOrgId: normalize(tenant.rootOrgId),
+          ...withOptionalWebsiteUrl(tenant.websiteUrl)
         })),
         total: response.total
       })
@@ -179,6 +182,11 @@ export class TenantOrgQueryGrpcAdapter implements OnModuleInit {
 function normalize(value?: string): string | undefined {
   const normalized = value?.trim()
   return normalized ? normalized : undefined
+}
+
+function withOptionalWebsiteUrl(value?: string): { websiteUrl?: string } {
+  const websiteUrl = normalize(value)
+  return websiteUrl ? { websiteUrl } : {}
 }
 
 function mapOrgNode(node: {

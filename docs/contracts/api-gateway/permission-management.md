@@ -14,7 +14,8 @@
 - `role` 组首批接口已完成 Gateway HTTP → permission-service gRPC 真实联调验证
 - `role-template` 组首批接口已完成 Gateway HTTP → permission-service gRPC 真实联调验证
 - `account-role` 组首批接口已完成 Gateway HTTP → permission-service gRPC 真实联调验证
-- `policy-governance-readonly` 组已冻结第一阶段 contract 方向，尚待 Gateway / tenant-web 实现
+- `policy-governance-readonly` 组已实现 Gateway / tenant-web 只读入口
+- `policy-instance-management` 组已实现 Gateway / tenant-web list / detail / create / enable-disable 第一阶段入口
 - 已验证系统管理员账号可完成 permission / role / role-template / account-role 的首批管理闭环
 - 本组接口依赖 Gateway 全局 `checkPermission` guard，guard 会携带 `api-gateway` 内部服务 metadata 调用 permission-service
 
@@ -612,6 +613,8 @@
 
 本组接口用于权限治理后台只读查看 policy 主数据与 permission-policy 绑定关系。
 
+本组展示的是 legacy `Policy + conditionAstJson` readonly governance，不是 `PolicyInstance` 资源授权管理入口。新的资源授权配置主线以 `permission-service` 的 `PolicyTemplate / PolicyInstance + ResourceAuthorizationService` 为准，黑盒语义见 [permission-service/resource-authorization.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/resource-authorization.md)。`PolicyInstance` 管理与 preview 必须使用下方独立 contract 分组，不得复用本组旧 AST 语义。
+
 当前边界：
 
 - 只读治理，不开放 policy 创建、修改、删除、启停。
@@ -620,6 +623,10 @@
 - 不做 Rule Builder。
 - 不做 Resource Policy Business Rollout。
 - 不接入 feature / plugin enablement。
+
+Gateway 内部仍保留 `deleteLegacyPolicy` 兼容清理路径，仅用于账号删除时清理历史 account-scoped AST policy。该方法不是 HTTP contract，不得作为新 policy mutation surface 使用。
+
+`permission-service` 底层 legacy Policy AST mutation RPC 已默认封存；只有显式历史兼容恢复开关打开时才会执行。API Gateway 不提供打开该能力的 HTTP 入口。
 
 ### `GET /policy`
 
@@ -681,6 +688,146 @@
   - 不渲染 create / edit / delete / enable-disable 操作。
   - 不允许提交 `conditionAstJson`。
   - 不把 explain / impact preview 混入当前页面主线。
+
+## 9.1 当前已冻结的 `policy-instance-management` 组边界
+
+本组接口用于查看并执行第一阶段受控 template-based `PolicyInstance` 资源授权事实管理。
+
+当前边界：
+
+- 支持 list / detail。
+- 支持 create。
+- 支持 enable / disable。
+- 尚不开放 full update / delete。
+- 不返回 legacy `conditionAstJson`。
+- 不允许前端把 `params` 当自由 AST 编辑器使用。
+- `list / detail` 使用 `permission.policy.list`。
+- `create` 使用 `permission.policy.create`。
+- `enable / disable` 使用 `permission.policy.update`。
+- 下游黑盒契约见 [permission-service/policy-instance-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/policy-instance-management.md)。
+
+### `GET /policy-instance`
+
+- 用途：读取 `PolicyInstance` 分页列表，并支持基础过滤。
+- 使用人：
+  - 系统管理员
+  - 权限管理员
+- 权限控制：
+  - `checkPermission(permission.policy.list)`
+- 支持的过滤参数：
+  - `page`
+  - `pageSize`
+  - `tenantId`
+  - `permissionCode`
+  - `resourceType`
+  - `templateCode`
+  - `enabled`
+- 响应语义：
+  - 返回分页结构：`policyInstances / total / page / pageSize`
+  - `policyInstances[]` 为 `PolicyInstance` 只读摘要。
+  - `subjectSelector / templateCode / params / effect / enabled / priority` 来自 `permission-service` 的 `PolicyInstanceManagementService`。
+
+### `GET /policy-instance/:id`
+
+- 用途：读取单个 `PolicyInstance` 详情。
+- 使用人：
+  - 系统管理员
+  - 权限管理员
+- 权限控制：
+  - `checkPermission(permission.policy.list)`
+- 响应语义：
+  - 返回单个 `PolicyInstance` 详情。
+  - 包含 `subjectSelector / permissionCode / resourceType / templateCode / effect / params / enabled / priority / createdBy / updatedBy / createdAt / updatedAt`。
+  - 不包含业务资源主数据；业务资源 truth 仍由各业务服务拥有。
+
+### `POST /policy-instance`
+
+- 用途：创建一个 template-based `PolicyInstance`。
+- 使用人：
+  - 系统管理员
+  - 权限管理员
+- 权限控制：
+  - `checkPermission(permission.policy.create)`
+- 请求语义：
+  - `tenantId`
+  - `subjectSelector`
+  - `permissionCode`
+  - `resourceType`
+  - `templateCode`
+  - `effect`
+  - `params`
+  - `enabled`
+  - `priority`
+- 响应语义：
+  - 返回创建后的 `PolicyInstance`。
+  - `createdBy / updatedBy` 来自 authenticated operator context。
+  - `params` 由 permission-service 按 built-in template schema 校验。
+  - Gateway 不校验业务资源主数据存在性。
+
+### `POST /policy-instance/:id/enabled`
+
+- 用途：启用或停用一个 `PolicyInstance`。
+- 使用人：
+  - 系统管理员
+  - 权限管理员
+- 权限控制：
+  - `checkPermission(permission.policy.update)`
+- 请求字段：
+  - `enabled`
+- 响应语义：
+  - 返回更新后的 `PolicyInstance`。
+  - 仅表达启停，不表达 full update。
+
+### `policy-instance-management` 页面接入建议
+
+- PolicyInstance 列表页：
+  - `GET /policy-instance`
+- PolicyInstance 详情：
+  - `GET /policy-instance/:id`
+- PolicyInstance 创建：
+  - `POST /policy-instance`
+- PolicyInstance 启停：
+  - `POST /policy-instance/:id/enabled`
+- 页面必须保持模板受控：
+  - 不允许提交模板 schema 外的 `params`。
+  - 不把 `params` 渲染成自由 AST / rule builder。
+- tenant-web 当前治理入口：
+  - route: `/admin/policy-instance-management`
+  - navigation entry: `admin.policy-instance-management`
+
+## 9.2 当前已冻结的 `policy-instance-preview` 组边界
+
+本组接口用于验证 template-based `PolicyInstance` 资源授权主线是否可从管理端触发真实判定。
+
+当前边界：
+
+- preview-only，不持久化 `PolicyInstance`。
+- 不开放完整 PolicyInstance CRUD。
+- 不开放旧 `Policy.conditionAstJson` 编辑。
+- 不作为业务服务 runtime resource authorization RPC。
+- 使用 `permission.policy.list` 作为第一阶段粗粒度管理入口权限。
+
+### `POST /policy-instance/evaluate-preview`
+
+- 用途：提交候选 `PolicyInstance` 与 subject/resource facts，返回 `checkResource` 或 `buildQueryScope` 预览结果。
+- 使用人：
+  - 系统管理员
+  - 权限管理员
+- 权限控制：
+  - `checkPermission(permission.policy.list)`
+- 请求语义：
+  - `mode = CHECK_RESOURCE | QUERY_SCOPE`
+  - `subject` 必须包含 `accountId / tenantId / roleIds`
+  - `policyInstances[]` 是 preview-only candidate，不写入数据库
+  - `QUERY_SCOPE` 返回结构化 `scope`
+  - `CHECK_RESOURCE` 消费调用方提供的 `resource` facts
+- 响应语义：
+  - 返回 `allowed / reasonCode / matchedPolicyIds / deniedPolicyIds`
+  - `scope` 为结构化 QueryScopeExpression，不包含 raw SQL
+  - 返回结果只用于管理验证，不代表某个业务服务已经完成 rollout
+- tenant-web 当前治理入口：
+  - route: `/admin/policy-instance-preview`
+  - navigation entry: `admin.policy-instance-preview`
 
 ## 10. 当前已冻结的 `navigation-management` 组边界
 
@@ -954,7 +1101,9 @@
   - [role.controller.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/controllers/role.controller.ts)
   - [role-template.controller.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/controllers/role-template.controller.ts)
   - [account-role.controller.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/controllers/account-role.controller.ts)
-  - `policy-governance-readonly` controller 尚待实现
+  - [policy.controller.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/controllers/policy.controller.ts)
+  - [policy-instance.controller.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/controllers/policy-instance.controller.ts)
+  - [policy-instance-preview.controller.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/controllers/policy-instance-preview.controller.ts)
 - Gateway DTO
 - 下游 proto：
   - [permission_management.proto](/Users/acehood/Documents/GitHub/oes/src/common/src/contracts/permission_service/permission_management.proto)

@@ -1,6 +1,8 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
 import {
+  CheckLeadDuplicateRequest,
+  CheckLeadDuplicateResponse,
   CUSTOMER_QUERY_SERVICE_NAME,
   CustomerQueryServiceClient,
   GetCrmAccountRequest,
@@ -64,6 +66,24 @@ export class CustomerQueryGrpcAdapter implements OnModuleInit {
     return this.call(
       'getCrmAccount',
       this.svc.getCrmAccount(
+        {
+          ...input,
+          operatorContext: buildCrmOperatorContext(source),
+          traceContext: buildCrmTraceContext(source)
+        },
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
+  /** checkLeadDuplicate forwards one explicit CRM P1 duplicate evidence query. */
+  checkLeadDuplicate(
+    input: Omit<CheckLeadDuplicateRequest, 'operatorContext' | 'traceContext'>,
+    source: DownstreamRequestSource
+  ): Promise<CheckLeadDuplicateResponse> {
+    return this.call(
+      'checkLeadDuplicate',
+      this.svc.checkLeadDuplicate(
         {
           ...input,
           operatorContext: buildCrmOperatorContext(source),

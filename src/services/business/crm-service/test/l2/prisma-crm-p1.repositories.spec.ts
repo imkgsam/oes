@@ -122,6 +122,73 @@ describe('Prisma CRM P1 repositories L2', () => {
     expect(otherTenant).toBeNull()
   })
 
+  it('CrmAccount P1 / should normalize legacy non-array lead identifiers and exclude archived accounts from lists', async () => {
+    const activeAccountId = randomUUID()
+    const archivedAccountId = randomUUID()
+    const tenantId = `${prefix}_tenant`
+
+    await prisma.getExecutionClient().crmAccount.create({
+      data: {
+        id: activeAccountId,
+        tenantId,
+        recordStatus: CrmAccountRecordStatus.ACTIVE,
+        lifecycleStage: CrmAccountLifecycleStage.LEAD,
+        partyTypeHint: CrmAccountTypeHint.ORGANIZATION,
+        displayName: `${prefix} Active Legacy Lead`,
+        leadCompanyName: `${prefix} Active Legacy Lead Ltd`,
+        leadCountry: 'US',
+        leadIdentifiers: { legacyIdentifier: `${prefix}-legacy-active` },
+        ownerAccountId: `${prefix}_sales`,
+        priority: CrmPriority.C,
+        createdBy: `${prefix}_sales`
+      }
+    })
+    await prisma.getExecutionClient().crmAccount.create({
+      data: {
+        id: archivedAccountId,
+        tenantId,
+        recordStatus: CrmAccountRecordStatus.ARCHIVED,
+        lifecycleStage: CrmAccountLifecycleStage.LEAD,
+        partyTypeHint: CrmAccountTypeHint.ORGANIZATION,
+        displayName: `${prefix} Archived Legacy Lead`,
+        leadCompanyName: `${prefix} Archived Legacy Lead Ltd`,
+        leadCountry: 'US',
+        leadIdentifiers: { legacyIdentifier: `${prefix}-legacy` },
+        ownerAccountId: `${prefix}_sales`,
+        priority: CrmPriority.C,
+        createdBy: `${prefix}_sales`,
+        archivedAt: new Date('2026-06-18T08:00:00.000Z')
+      }
+    })
+
+    const listed = await accountRepository.listAccounts({
+      tenantId,
+      page: 1,
+      pageSize: 20
+    })
+
+    expect(listed.items).toEqual([
+      expect.objectContaining({
+        id: activeAccountId,
+        leadIdentifiers: []
+      })
+    ])
+    expect(listed.items).not.toEqual([
+      expect.objectContaining({
+        id: archivedAccountId
+      })
+    ])
+
+    const archivedFilter = await accountRepository.listAccounts({
+      tenantId,
+      recordStatus: CrmAccountRecordStatus.ARCHIVED,
+      page: 1,
+      pageSize: 20
+    })
+
+    expect(archivedFilter.items).toEqual([])
+  })
+
   it('CrmAccount P1 / should reject a second active formal account bound to the same tenant party', async () => {
     const tenantId = `${prefix}_tenant`
     const tenantPartyId = `${prefix}_tenant_party`

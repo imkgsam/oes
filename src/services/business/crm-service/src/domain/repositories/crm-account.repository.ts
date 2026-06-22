@@ -40,8 +40,11 @@ export interface CrmAccountDuplicateCandidate {
 
 export interface ListCrmAccountsInput {
   tenantId: string
+  createdBy?: string | null
   keyword?: string | null
   lifecycleStage?: CrmAccountLifecycleStage | null
+  lifecycleStages?: CrmAccountLifecycleStage[] | null
+  ownerless?: boolean | null
   recordStatus?: CrmAccountRecordStatus | null
   ownerAccountId?: string | null
   page?: number
@@ -62,6 +65,8 @@ export interface CrmAccountRepository {
   listAccounts(input: ListCrmAccountsInput): Promise<ListCrmAccountsResult>
   saveAccount(account: CrmAccountRecord): Promise<CrmAccountRecord>
   addSourceRecord(source: CrmSourceRecord): Promise<CrmSourceRecord>
+  listSourceRecords(tenantId: string, accountId: string): Promise<CrmSourceRecord[]>
+  deleteDraftAccount(tenantId: string, accountId: string): Promise<boolean>
   findDuplicateCandidates(input: CrmDuplicateSearchInput): Promise<CrmAccountDuplicateCandidate[]>
   addContact?(contact: CrmContactRecord): Promise<CrmContactRecord>
   addActivity?(activity: CrmActivityRecord): Promise<CrmActivityRecord>

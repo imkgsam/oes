@@ -1,9 +1,12 @@
 import { Inject } from '@nestjs/common'
 import { IQueryHandler, QueryHandler } from '@nestjs/cqrs'
-import { ACCOUNT_AUTHORIZATION_SERVICE } from './check-permission-with-context.handler'
 import { CheckPermissionQuery } from './check-permission.query'
-import { AccountAuthorizationService } from '../../../domain/services/account-authorization.service'
+import {
+  ACCOUNT_AUTHORIZATION_SERVICE,
+  AccountAuthorizationService
+} from '../../../domain/services/account-authorization.service'
 
+// CheckPermissionHandler resolves the current pure RBAC permission decision for one account.
 @QueryHandler(CheckPermissionQuery)
 export class CheckPermissionHandler implements IQueryHandler<CheckPermissionQuery> {
   constructor(

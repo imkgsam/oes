@@ -64,6 +64,19 @@ export class PublicEntryShortLinkController {
   }
 
   @ApiBearerAuth('JWT')
+  @Get('public-entry/tenants/:tenantId/short-links')
+  @RequirePermissions({ all: [PUBLIC_ENTRY_SHORT_LINK_PERMISSION_CODES.READ] })
+  @ApiOperation({ summary: 'List tenant ShortLinks across all target kinds' })
+  async listShortLinks(
+    @Param('tenantId') tenantId: string,
+    @Query()
+    query: { targetKind?: string; targetType?: string; page?: string; pageSize?: string },
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.service.listShortLinks(tenantId, query, source)
+  }
+
+  @ApiBearerAuth('JWT')
   @Get('public-entry/tenants/:tenantId/short-links/by-target')
   @RequirePermissions({ all: [PUBLIC_ENTRY_SHORT_LINK_PERMISSION_CODES.READ] })
   @ApiOperation({ summary: 'List tenant ShortLinks for one target reference' })

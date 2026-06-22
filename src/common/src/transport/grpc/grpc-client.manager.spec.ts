@@ -10,7 +10,10 @@ describe('GrpcClientManager logging', () => {
         serviceName: 'item-master-service',
         protoPath: ['/tmp/item-master.proto'],
         packageName: 'item_master_service',
-        url: '127.0.0.1:50058'
+        url: '127.0.0.1:50058',
+        loader: {
+          includeDirs: ['/tmp/contracts']
+        }
       }
     }
   }
@@ -55,6 +58,15 @@ describe('GrpcClientManager logging', () => {
         details: expect.objectContaining({
           serviceName: 'item-master-service',
           url: '127.0.0.1:50058'
+        })
+      })
+    )
+    expect(ClientProxyFactory.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        options: expect.objectContaining({
+          loader: {
+            includeDirs: ['/tmp/contracts']
+          }
         })
       })
     )

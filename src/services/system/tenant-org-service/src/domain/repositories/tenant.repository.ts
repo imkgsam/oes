@@ -9,6 +9,7 @@ export interface TenantSummary {
   name: string
   status: TenantStatus | string
   rootOrgId: string | null
+  websiteUrl?: string | null
 }
 
 export interface CreateTenantWithRootInput {
@@ -31,6 +32,12 @@ export interface TenantRepository {
   ): Promise<{ tenant: TenantSummary; rootOrgUnit: import('./org-unit.repository').OrgUnitSummary }>
   findById(id: string): Promise<TenantSummary | null>
   list(input: ListTenantsInput): Promise<{ tenants: TenantSummary[]; total: number }>
-  updateProfile(input: { tenantId: string; name?: string; code?: string; employeeCodePrefix?: string }): Promise<TenantSummary>
+  updateProfile(input: {
+    tenantId: string
+    name?: string
+    code?: string
+    employeeCodePrefix?: string
+    websiteUrl?: string | null
+  }): Promise<TenantSummary>
   setStatus(input: { tenantId: string; status: TenantStatus }): Promise<TenantSummary>
 }

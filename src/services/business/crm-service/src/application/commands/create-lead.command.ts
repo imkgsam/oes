@@ -1,6 +1,7 @@
 import { Allow } from 'class-validator'
 import {
   CrmAccountTypeHint,
+  CrmLeadAssignmentIntent,
   CrmLeadIdentifierRecord,
   CrmPriority,
   CrmSourceType
@@ -29,7 +30,9 @@ export interface CreateLeadCommandProps {
   leadWhatsapp?: string | null
   leadCountry?: string | null
   leadIdentifiers?: CrmLeadIdentifierRecord[]
+  assignmentIntent?: CrmLeadAssignmentIntent
   ownerAccountId?: string | null
+  claimForCurrentUser?: boolean
   priority: CrmPriority
   nextFollowUpAt?: Date | null
   duplicateWarningAcknowledged?: boolean

@@ -47,7 +47,9 @@ type ScopeStatusView = 'ALL' | TaskStatus;
 interface ScopeState {
   error: string;
   items: TaskView[];
+  loaded: boolean;
   loading: boolean;
+  refreshing: boolean;
   total: number;
 }
 
@@ -156,7 +158,9 @@ function emptyScopeState(): ScopeState {
   return {
     error: '',
     items: [],
+    loaded: false,
     loading: false,
+    refreshing: false,
     total: 0,
   };
 }
@@ -195,7 +199,9 @@ async function refreshWorkbenchTasks() {
 /** loadScopeTasks loads the default workbench slice for one P1 task scope. */
 async function loadScopeTasks(scope: TaskScope) {
   const state = scopeStates[scope];
-  state.loading = true;
+  const isInitialLoad = !state.loaded;
+  state.loading = isInitialLoad;
+  state.refreshing = !isInitialLoad;
   state.error = '';
   try {
     const result = await listCollaborationTasksApi(activeTenantId.value, {
@@ -211,11 +217,15 @@ async function loadScopeTasks(scope: TaskScope) {
     rememberTaskParticipantLabels(state.items);
     await hydrateTaskParticipantLabels(state.items);
   } catch (error: any) {
-    state.items = [];
-    state.total = 0;
+    if (isInitialLoad) {
+      state.items = [];
+      state.total = 0;
+    }
     state.error = resolveTaskError(error);
   } finally {
+    state.loaded = true;
     state.loading = false;
+    state.refreshing = false;
   }
 }
 
@@ -835,7 +845,13 @@ onMounted(refreshWorkbenchTasks);
           </div>
         </header>
 
-        <div class="task-scope-block__body">
+        <div
+          class="task-scope-block__body"
+          :class="{
+            'task-scope-block__body--refreshing': scopeStates[scope.key].refreshing,
+          }"
+          :aria-busy="scopeStates[scope.key].loading || scopeStates[scope.key].refreshing"
+        >
           <Skeleton
             v-if="scopeStates[scope.key].loading"
             active
@@ -1385,6 +1401,12 @@ onMounted(refreshWorkbenchTasks);
 .task-scope-block__body::-webkit-scrollbar-thumb {
   background: color-mix(in srgb, var(--ant-color-text-tertiary, #94a3b8) 38%, transparent);
   border-radius: 999px;
+}
+
+.task-scope-block__body--refreshing .task-card-list,
+.task-scope-block__body--refreshing .task-scope-block__empty {
+  opacity: 0.76;
+  transition: opacity 0.18s ease;
 }
 
 .task-scope-block__empty {

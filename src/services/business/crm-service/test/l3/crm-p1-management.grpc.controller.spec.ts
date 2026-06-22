@@ -1,7 +1,10 @@
-import { ArchiveCrmAccountCommand } from '../../src/application/commands/archive-crm-account.command'
+import { ClaimCrmAccountCommand } from '../../src/application/commands/claim-crm-account.command'
 import { ConvertLeadToProspectCustomerCommand } from '../../src/application/commands/convert-lead-to-prospect-customer.command'
+import { CreateDraftLeadCommand } from '../../src/application/commands/create-draft-lead.command'
 import { CreateLeadCommand } from '../../src/application/commands/create-lead.command'
-import { RestoreCrmAccountCommand } from '../../src/application/commands/restore-crm-account.command'
+import { DeleteDraftLeadCommand } from '../../src/application/commands/delete-draft-lead.command'
+import { ReleaseCrmAccountCommand } from '../../src/application/commands/release-crm-account.command'
+import { SubmitDraftLeadCommand } from '../../src/application/commands/submit-draft-lead.command'
 import {
   CrmAccountLifecycleStage,
   CrmAccountRecord,
@@ -50,10 +53,13 @@ function createController(result: unknown) {
 
   return {
     controller: new CustomerManagementGrpcController(commandBus as never, auditService as never) as never as {
-      archiveCrmAccount(request: Record<string, unknown>): Promise<unknown>
+      claimCrmAccount(request: Record<string, unknown>): Promise<unknown>
+      createDraftLead(request: Record<string, unknown>): Promise<unknown>
       createLead(request: Record<string, unknown>): Promise<unknown>
       convertLeadToProspectCustomer(request: Record<string, unknown>): Promise<unknown>
-      restoreCrmAccount(request: Record<string, unknown>): Promise<unknown>
+      deleteDraftLead(request: Record<string, unknown>): Promise<unknown>
+      releaseCrmAccount(request: Record<string, unknown>): Promise<unknown>
+      submitDraftLead(request: Record<string, unknown>): Promise<unknown>
     },
     commandBus,
     auditService
@@ -99,6 +105,7 @@ describe('crm-service P1 management gRPC controller L3', () => {
       leadEmail: 'buyer@acme.example',
       leadCountry: 'US',
       ownerAccountId: 'operator-1',
+      claimForCurrentUser: true,
       priority: 'A',
       sourceType: 'WEB_RESEARCH',
       sourceName: 'Browser research',
@@ -121,7 +128,9 @@ describe('crm-service P1 management gRPC controller L3', () => {
           sourceType: CrmSourceType.WEB_RESEARCH,
           externalReference: 'research-001',
           rawPayload: { url: 'https://acme.example' }
-        })
+        }),
+        ownerAccountId: 'operator-1',
+        claimForCurrentUser: true
       })
     })
     expect(response).toEqual({
@@ -159,7 +168,8 @@ describe('crm-service P1 management gRPC controller L3', () => {
 
     const response = await harness.controller.convertLeadToProspectCustomer({
       ...managementContext,
-      crmAccountId: 'crm-account-1'
+      crmAccountId: 'crm-account-1',
+      allowOwnerlessConversion: true
     })
 
     expect(harness.commandBus.execute).toHaveBeenCalledWith(expect.any(ConvertLeadToProspectCustomerCommand))
@@ -167,7 +177,8 @@ describe('crm-service P1 management gRPC controller L3', () => {
       props: {
         tenantId: 'tenant-1',
         crmAccountId: 'crm-account-1',
-        operatorAccountId: 'operator-1'
+        operatorAccountId: 'operator-1',
+        allowOwnerlessConversion: true
       }
     })
     expect(response).toEqual({
@@ -182,80 +193,114 @@ describe('crm-service P1 management gRPC controller L3', () => {
     })
   })
 
-  it('ArchiveCrmAccount / should map request to archive command and render archived account', async () => {
+  it('CreateDraftLead / should map request to draft command and render draft account', async () => {
     const account = createCrmAccount({
-      recordStatus: CrmAccountRecordStatus.ARCHIVED
+      recordStatus: CrmAccountRecordStatus.DRAFT,
+      ownerAccountId: null
     })
     const harness = createController({
       account
     })
 
-    const response = await harness.controller.archiveCrmAccount({
+    const response = await harness.controller.createDraftLead({
       ...managementContext,
-      crmAccountId: 'crm-account-1'
+      displayName: 'Draft Lead',
+      partyTypeHint: 'ORGANIZATION',
+      leadDomain: 'draft.example',
+      priority: 'B',
+      sourceType: 'WEB_RESEARCH'
     })
 
-    expect(harness.commandBus.execute).toHaveBeenCalledWith(expect.any(ArchiveCrmAccountCommand))
+    expect(harness.commandBus.execute).toHaveBeenCalledWith(expect.any(CreateDraftLeadCommand))
     expect(harness.commandBus.execute.mock.calls[0][0]).toMatchObject({
-      props: {
+      props: expect.objectContaining({
         tenantId: 'tenant-1',
-        crmAccountId: 'crm-account-1',
+        displayName: 'Draft Lead',
         operatorAccountId: 'operator-1'
-      }
+      })
     })
     expect(response).toEqual({
       crmAccount: expect.objectContaining({
         crmAccountId: 'crm-account-1',
-        recordStatus: 'ARCHIVED',
+        recordStatus: 'DRAFT',
         lifecycleStage: 'LEAD'
       })
     })
     expect(harness.auditService.recordCommand).toHaveBeenCalledWith(
       expect.objectContaining({
-        commandName: 'ArchiveCrmAccount',
-        resourceType: 'crm_account',
-        targetId: 'crm-account-1'
+        commandName: 'CreateDraftLead',
+        resourceType: 'crm_account'
       }),
       expect.any(Function)
     )
   })
 
-  it('RestoreCrmAccount / should map request to restore command and render active account', async () => {
+  it('SubmitDraftLead and ClaimCrmAccount / should map owner workflow commands', async () => {
     const account = createCrmAccount({
-      archivedAt: null,
+      ownerAccountId: 'operator-1',
       recordStatus: CrmAccountRecordStatus.ACTIVE
     })
     const harness = createController({
+      resultType: CrmLeadCreateResultType.CREATED,
+      duplicateResult: {
+        resultType: 'NO_DUPLICATE',
+        candidates: []
+      },
       account
     })
 
-    const response = await harness.controller.restoreCrmAccount({
+    const submitResponse = await harness.controller.submitDraftLead({
+      ...managementContext,
+      crmAccountId: 'crm-account-1',
+      claimForCurrentUser: true
+    })
+
+    expect(harness.commandBus.execute).toHaveBeenCalledWith(expect.any(SubmitDraftLeadCommand))
+    expect(harness.commandBus.execute.mock.calls[0][0]).toMatchObject({
+      props: expect.objectContaining({
+        tenantId: 'tenant-1',
+        crmAccountId: 'crm-account-1',
+        operatorAccountId: 'operator-1',
+        claimForCurrentUser: true
+      })
+    })
+    expect(submitResponse).toEqual({
+      resultType: 'CREATED',
+      crmAccount: expect.objectContaining({
+        crmAccountId: 'crm-account-1',
+        ownerAccountId: 'operator-1'
+      }),
+      duplicateResult: expect.objectContaining({ resultType: 'NO_DUPLICATE' })
+    })
+
+    await harness.controller.claimCrmAccount({
+      ...managementContext,
+      crmAccountId: 'crm-account-1'
+    })
+    expect(harness.commandBus.execute).toHaveBeenLastCalledWith(expect.any(ClaimCrmAccountCommand))
+
+    await harness.controller.releaseCrmAccount({
+      ...managementContext,
+      crmAccountId: 'crm-account-1'
+    })
+    expect(harness.commandBus.execute).toHaveBeenLastCalledWith(expect.any(ReleaseCrmAccountCommand))
+  })
+
+  it('DeleteDraftLead / should map request to hard-delete command and render acknowledgement', async () => {
+    const harness = createController({
+      deleted: true,
+      crmAccountId: 'crm-account-1'
+    })
+
+    const response = await harness.controller.deleteDraftLead({
       ...managementContext,
       crmAccountId: 'crm-account-1'
     })
 
-    expect(harness.commandBus.execute).toHaveBeenCalledWith(expect.any(RestoreCrmAccountCommand))
-    expect(harness.commandBus.execute.mock.calls[0][0]).toMatchObject({
-      props: {
-        tenantId: 'tenant-1',
-        crmAccountId: 'crm-account-1',
-        operatorAccountId: 'operator-1'
-      }
-    })
+    expect(harness.commandBus.execute).toHaveBeenCalledWith(expect.any(DeleteDraftLeadCommand))
     expect(response).toEqual({
-      crmAccount: expect.objectContaining({
-        crmAccountId: 'crm-account-1',
-        recordStatus: 'ACTIVE',
-        archivedAt: ''
-      })
+      deleted: true,
+      crmAccountId: 'crm-account-1'
     })
-    expect(harness.auditService.recordCommand).toHaveBeenCalledWith(
-      expect.objectContaining({
-        commandName: 'RestoreCrmAccount',
-        resourceType: 'crm_account',
-        targetId: 'crm-account-1'
-      }),
-      expect.any(Function)
-    )
   })
 })

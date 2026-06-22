@@ -1,4 +1,5 @@
 export * from './policy-template-instance-authorization.service'
 export * from './policy-template-instance.reader'
+export * from './policy-template-params.validator'
 export * from './template-registry'
 export * from './types'

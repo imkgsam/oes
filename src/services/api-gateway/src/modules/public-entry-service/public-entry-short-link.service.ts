@@ -1,5 +1,6 @@
 import {
   PublicRedirectResultType,
+  ShortLinkRecord,
   ShortLinkStatus,
   ShortLinkTargetKind
 } from '@oes/common/generated/public_entry_service'
@@ -24,7 +25,7 @@ export class PublicEntryShortLinkService {
     body: CreateShortLinkDto,
     source: DownstreamRequestSource
   ) {
-    return this.adapter.createShortLink(
+    const result = await this.adapter.createShortLink(
       {
         tenantId,
         displayName: body.displayName,
@@ -37,10 +38,12 @@ export class PublicEntryShortLinkService {
       },
       source
     )
+    return { ...result, shortLink: normalizeShortLinkRecord(result.shortLink) }
   }
 
   async getShortLink(tenantId: string, shortLinkId: string, source: DownstreamRequestSource) {
-    return this.adapter.getShortLink({ tenantId, shortLinkId }, source)
+    const result = await this.adapter.getShortLink({ tenantId, shortLinkId }, source)
+    return { ...result, shortLink: normalizeShortLinkRecord(result.shortLink) }
   }
 
   async listByTarget(
@@ -48,7 +51,7 @@ export class PublicEntryShortLinkService {
     query: { targetType?: string; targetResourceId?: string; page?: string; pageSize?: string },
     source: DownstreamRequestSource
   ) {
-    return this.adapter.listShortLinksByTarget(
+    const result = await this.adapter.listShortLinksByTarget(
       {
         tenantId,
         targetType: query.targetType ?? '',
@@ -58,6 +61,31 @@ export class PublicEntryShortLinkService {
       },
       source
     )
+    return {
+      ...result,
+      items: (result.items ?? []).map((item) => normalizeShortLinkRecord(item))
+    }
+  }
+
+  async listShortLinks(
+    tenantId: string,
+    query: { targetKind?: string; targetType?: string; page?: string; pageSize?: string },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.adapter.listShortLinks(
+      {
+        tenantId,
+        targetKind: toGrpcOptionalTargetKind(query.targetKind),
+        targetType: normalizeOptionalQuery(query.targetType),
+        page: parsePositiveInt(query.page, 1),
+        pageSize: parsePositiveInt(query.pageSize, 20)
+      },
+      source
+    )
+    return {
+      ...result,
+      items: (result.items ?? []).map((item) => normalizeShortLinkRecord(item))
+    }
   }
 
   async updateTarget(
@@ -84,7 +112,7 @@ export class PublicEntryShortLinkService {
     body: UpdateShortLinkMetadataDto,
     source: DownstreamRequestSource
   ) {
-    return this.adapter.updateShortLinkMetadata(
+    const result = await this.adapter.updateShortLinkMetadata(
       {
         tenantId,
         shortLinkId,
@@ -97,6 +125,7 @@ export class PublicEntryShortLinkService {
       },
       source
     )
+    return { ...result, shortLink: normalizeShortLinkRecord(result.shortLink) }
   }
 
   async changeStatus(
@@ -180,6 +209,37 @@ function toGrpcTarget(target: ShortLinkTargetDto) {
   }
 }
 
+// toGrpcOptionalTargetKind maps omitted/ALL filters to the proto UNSPECIFIED value.
+function toGrpcOptionalTargetKind(kind?: string): ShortLinkTargetKind | undefined {
+  if (kind === 'INTERNAL_REF') return ShortLinkTargetKind.SHORT_LINK_TARGET_KIND_INTERNAL_REF
+  if (kind === 'EXTERNAL_URL') return ShortLinkTargetKind.SHORT_LINK_TARGET_KIND_EXTERNAL_URL
+  return undefined
+}
+
+// normalizeShortLinkRecord maps generated gRPC enums into the tenant-web BFF string contract.
+function normalizeShortLinkRecord(record?: ShortLinkRecord) {
+  if (!record) return record
+  return {
+    ...record,
+    status: record.status === undefined ? undefined : fromGrpcStatus(record.status),
+    targetKind: record.targetKind === undefined ? undefined : fromGrpcTargetKind(record.targetKind)
+  }
+}
+
+// fromGrpcStatus maps generated enum values into stable web status strings.
+function fromGrpcStatus(status?: ShortLinkStatus) {
+  if (status === ShortLinkStatus.SHORT_LINK_STATUS_DISABLED) return 'DISABLED'
+  if (status === ShortLinkStatus.SHORT_LINK_STATUS_ARCHIVED) return 'ARCHIVED'
+  return 'ACTIVE'
+}
+
+// fromGrpcTargetKind maps generated enum values into stable web target kind strings.
+function fromGrpcTargetKind(kind?: ShortLinkTargetKind) {
+  return kind === ShortLinkTargetKind.SHORT_LINK_TARGET_KIND_EXTERNAL_URL
+    ? 'EXTERNAL_URL'
+    : 'INTERNAL_REF'
+}
+
 // toGrpcStatus maps admin status strings to generated enum values.
 function toGrpcStatus(status: 'ACTIVE' | 'DISABLED' | 'ARCHIVED'): ShortLinkStatus {
   return {
@@ -203,4 +263,10 @@ function toOperatorContext(source: DownstreamRequestSource) {
 function parsePositiveInt(value: string | undefined, fallback: number): number {
   const parsed = Number.parseInt(value ?? '', 10)
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
+}
+
+// normalizeOptionalQuery strips blank query filters before calling downstream contracts.
+function normalizeOptionalQuery(value?: string): string | undefined {
+  const normalized = value?.trim()
+  return normalized || undefined
 }

@@ -1,6 +1,10 @@
 # Policy Template / Instance Contract
 
-> 服务设计唯一真相源：[permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。模型冻结依据为 [policy-template-instance-model.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/policy-template-instance-model.md)。本文只记录第一条实现主线的 contract / application pattern / evaluation shape，不重新定义 permission-service 长期 owner 边界。
+> Status: SUPERSEDED_BY_TRUTH_SOURCE. Do not use this file as the stable contract source or an implementation target.
+
+> Historical phase packet. The stable black-box resource authorization contract is now [resource-authorization.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/resource-authorization.md), the stable `PolicyInstance` management contract is [policy-instance-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/policy-instance-management.md), and the active implementation plan is [policyinstance-resource-authorization-mainline.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/policyinstance-resource-authorization-mainline.md). Use this file only as background for earlier contract shaping.
+
+> 服务设计唯一真相源：[permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。本文只记录第一条实现主线形成前的历史 contract / application pattern / evaluation shape，不重新定义 permission-service 长期 owner 边界；当前契约以上述 stable contract 文档为准。
 
 ## 1. 目标
 

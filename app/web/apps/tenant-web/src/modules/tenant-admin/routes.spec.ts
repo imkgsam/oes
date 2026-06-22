@@ -38,6 +38,25 @@ describe('tenant admin routes', () => {
     expect(terminalDeviceRoute?.component).toBeTypeOf('function')
   })
 
+  it('registers PolicyInstance management and preview entries under tenant admin governance', () => {
+    const governanceRoute = tenantAdminRoutes.find((route) => route.name === 'TenantAdminGovernance')
+    const managementRoute = governanceRoute?.children?.find(
+      (route) => route.name === 'AdminPolicyInstanceManagement'
+    )
+    const previewRoute = governanceRoute?.children?.find(
+      (route) => route.name === 'AdminPolicyInstancePreview'
+    )
+
+    expect(managementRoute?.path).toBe('/admin/policy-instance-management')
+    expect(managementRoute?.meta?.entryKey).toBe('admin.policy-instance-management')
+    expect(managementRoute?.meta?.title).toBe('资源授权实例')
+    expect(managementRoute?.component).toBeTypeOf('function')
+    expect(previewRoute?.path).toBe('/admin/policy-instance-preview')
+    expect(previewRoute?.meta?.entryKey).toBe('admin.policy-instance-preview')
+    expect(previewRoute?.meta?.title).toBe('资源授权预览')
+    expect(previewRoute?.component).toBeTypeOf('function')
+  })
+
   it('registers public-entry management pages under the dedicated public touchpoint section', () => {
     const governanceRoute = tenantAdminRoutes.find((route) => route.name === 'TenantAdminGovernance')
     const publicEntryRoute = tenantAdminRoutes.find((route) => route.name === 'TenantPublicEntry')
@@ -302,19 +321,36 @@ describe('tenant admin routes', () => {
     expect(itemDetailRoute?.meta?.activePath).toBe('/master-data/items')
   })
 
-  it('binds the CRM P1 customer workspace to the dedicated master-data customer entry', () => {
+  it('binds the CRM P1 account workspace to the dedicated CRM customer-resource entry', () => {
+    const crmRoute = tenantAdminRoutes.find((route) => route.name === 'TenantCrm')
     const masterDataRoute = tenantAdminRoutes.find((route) => route.name === 'TenantMasterData')
-    const customerListRoute = masterDataRoute?.children?.find(
+    const crmAccountRoute = crmRoute?.children?.find((route) => route.name === 'TenantCrmAccounts')
+    const crmPoolRoute = crmRoute?.children?.find((route) => route.name === 'TenantCrmPool')
+    const legacyCustomerRoute = masterDataRoute?.children?.find(
       (route) => route.name === 'TenantCustomerManagement'
     )
 
-    expect(customerListRoute?.meta?.entryKey).toBe('master-data.customer-management')
-    expect(customerListRoute?.path).toBe('/master-data/customers')
+    expect(crmAccountRoute?.meta?.entryKey).toBe('crm.accounts')
+    expect(crmAccountRoute?.path).toBe('/crm/accounts')
+    expect(crmPoolRoute?.meta?.entryKey).toBe('crm.pool')
+    expect(crmPoolRoute?.meta?.icon).toBe('lucide:radar')
+    expect(crmPoolRoute?.meta?.title).toBe('公海')
+    expect(crmPoolRoute?.path).toBe('/crm/pool')
+    expect(crmPoolRoute?.component).toBeTypeOf('function')
+    const crmAccountDetailRoute = crmRoute?.children?.find(
+      (route) => route.name === 'TenantCrmAccountDetail'
+    )
+    expect(crmAccountDetailRoute?.path).toBe('/crm/accounts/:crmAccountId')
+    expect(crmAccountDetailRoute?.meta?.hideInMenu).toBe(true)
+    expect(crmAccountDetailRoute?.meta?.activePath).toBe('/crm/accounts')
+    expect(crmAccountDetailRoute?.meta?.entryKey).toBe('crm.accounts')
+    expect(legacyCustomerRoute?.redirect).toBe('/crm/accounts')
+    expect(legacyCustomerRoute?.meta?.hideInMenu).toBe(true)
     expect(
-      masterDataRoute?.children?.some((route) => route.name === 'TenantCustomerManagementCreate')
+      crmRoute?.children?.some((route) => route.name === 'TenantCustomerManagementCreate')
     ).toBe(false)
     expect(
-      masterDataRoute?.children?.some((route) => route.name === 'TenantCustomerManagementDetail')
+      crmRoute?.children?.some((route) => route.name === 'TenantCustomerManagementDetail')
     ).toBe(false)
   })
 

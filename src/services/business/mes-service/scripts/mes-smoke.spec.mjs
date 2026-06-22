@@ -62,6 +62,16 @@ test('mes smoke flow / should execute the current mold tooling runtime path with
             }
           };
         },
+        confirmProductionMoldArrival: async (request) => {
+          calls.push(['confirmProductionMoldArrival', request]);
+          return {
+            productionMold: {
+              productionMoldId: request.productionMoldId,
+              moldCode: seed.moldCode,
+              currentStatus: 3
+            }
+          };
+        },
         moveTooling: async (request) => {
           calls.push(['moveTooling', request]);
           return {
@@ -85,6 +95,16 @@ test('mes smoke flow / should execute the current mold tooling runtime path with
                 toolingInstallationId,
                 moldPosition: request.moldPosition
               }
+            }
+          };
+        },
+        confirmInstalledMoldReady: async (request) => {
+          calls.push(['confirmInstalledMoldReady', request]);
+          return {
+            productionMold: {
+              productionMoldId: request.productionMoldId,
+              moldCode: seed.moldCode,
+              currentStatus: 5
             }
           };
         },
@@ -153,14 +173,16 @@ test('mes smoke flow / should execute the current mold tooling runtime path with
         verifyOutbox: async () => {
           calls.push(['verifyOutbox']);
           return {
-            pendingCount: 7,
+            pendingCount: 9,
             eventTypes: [
               'ProductionSpecCreated',
               'ProductionSpecActivated',
               'MoldDesignRegistered',
-              'ProductionMoldRegistered',
+              'ProductionMoldPreRegistered',
+              'ProductionMoldArrivalConfirmed',
               'ToolingMoved',
               'ToolingInstalled',
+              'InstalledMoldReadyConfirmed',
               'MoldUsageRecorded'
             ]
           };
@@ -173,10 +195,11 @@ test('mes smoke flow / should execute the current mold tooling runtime path with
   assert.equal(result.spec.productionSpecId, productionSpecId);
   assert.equal(result.design.moldDesignId, moldDesignId);
   assert.equal(result.mold.productionMoldId, productionMoldId);
+  assert.equal(result.readyMold.productionMoldId, productionMoldId);
   assert.equal(result.currentMolds.items.length, 1);
   assert.equal(result.counters.total, 1);
   assert.equal(result.idempotency.productionMoldCount, 1);
-  assert.equal(result.outbox.pendingCount, 7);
+  assert.equal(result.outbox.pendingCount, 9);
   assert.deepEqual(
     calls.map(([name]) => name),
     [
@@ -184,8 +207,10 @@ test('mes smoke flow / should execute the current mold tooling runtime path with
       'activateProductionSpec',
       'registerMoldDesign',
       'registerProductionMold',
+      'confirmProductionMoldArrival',
       'moveTooling',
       'installTooling',
+      'confirmInstalledMoldReady',
       'recordMoldUsage',
       'listCurrentMoldsByWorkCenter',
       'listMoldLifeCounters',

@@ -8,6 +8,7 @@ option java_package = "com.oes.publicentry.v1";
 service PublicEntryShortLinkService {
   rpc CreateShortLink(CreateShortLinkRequest) returns (CreateShortLinkResponse);
   rpc GetShortLink(GetShortLinkRequest) returns (GetShortLinkResponse);
+  rpc ListShortLinks(ListShortLinksRequest) returns (ListShortLinksResponse);
   rpc ListShortLinksByTarget(ListShortLinksByTargetRequest) returns (ListShortLinksByTargetResponse);
   rpc UpdateShortLinkTarget(UpdateShortLinkTargetRequest) returns (UpdateShortLinkTargetResponse);
   rpc UpdateShortLinkMetadata(UpdateShortLinkMetadataRequest) returns (UpdateShortLinkMetadataResponse);
@@ -120,6 +121,21 @@ message ListShortLinksByTargetRequest {
 }
 
 message ListShortLinksByTargetResponse {
+  repeated ShortLinkRecord items = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+  int32 total = 4;
+}
+
+message ListShortLinksRequest {
+  string tenant_id = 1;
+  ShortLinkTargetKind target_kind = 2;
+  string target_type = 3;
+  int32 page = 4;
+  int32 page_size = 5;
+}
+
+message ListShortLinksResponse {
   repeated ShortLinkRecord items = 1;
   int32 page = 2;
   int32 page_size = 3;

@@ -1190,6 +1190,7 @@ export class AuthGrpcController implements AuthServiceController {
       allowedTerminals: result.allowedTerminals,
       passwordSetupRequired: result.passwordSetupRequired,
       roleIds: result.roleIds,
+      displayName: result.displayName ?? '',
       terminalDeviceId: result.terminalDeviceId ?? '',
       deviceBoundTenantId: result.deviceBoundTenantId ?? '',
       loginFlow: result.loginFlow ?? ''

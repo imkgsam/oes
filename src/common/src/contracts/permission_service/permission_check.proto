@@ -13,8 +13,6 @@ service PermissionCheckService {
   rpc CheckPermission(CheckPermissionRequest) returns (CheckPermissionResponse);
   // 纯 RBAC 批量鉴权
   rpc BatchCheckPermission(BatchCheckPermissionRequest) returns (BatchCheckPermissionResponse);
-  // OUTDATED: 历史 RBAC + ABAC 混合鉴权兼容接口；新业务资源授权应使用 application 层 checkResource / buildQueryScope。
-  rpc CheckPermissionWithContext(CheckPermissionWithContextRequest) returns (CheckPermissionWithContextResponse);
 }
 
 enum EvaluationModeProto {
@@ -56,24 +54,6 @@ message BatchCheckPermissionRequest {
   repeated BatchCheckPermissionItem items = 1;
 }
 
-// OUTDATED: 历史 RBAC + ABAC 混合鉴权请求；不作为新业务资源授权标准入口。
-message CheckPermissionWithContextRequest {
-  // 账户ID
-  string account_id = 1;
-  // 权限代码
-  string permission_code = 2;
-  // 租户ID
-  string tenant_id = 3;
-  // 主体属性
-  map<string, string> subject_attributes = 4;
-  // 资源属性
-  map<string, string> resource_attributes = 5;
-  // 环境属性
-  map<string, string> environment_attributes = 6;
-  // 操作属性
-  map<string, string> action_attributes = 7;
-}
-
 // CheckPermissionResponse preserves the existing wire shape while satisfying RPC-specific response naming hygiene.
 message CheckPermissionResponse {
   // 是否允许
@@ -94,24 +74,6 @@ message CheckPermissionResponse {
 
 // 统一鉴权决策响应
 message AuthorizationDecisionResponse {
-  // 是否允许
-  bool allowed = 1;
-  // 决策评估层级
-  EvaluationModeProto evaluation_mode = 2;
-  // 命中的策略名称
-  string matched_policy = 3;
-  // 决策原因
-  string reason = 4;
-  // 稳定的机器可读解释码
-  string explain_code = 5;
-  // 命中的策略ID
-  string matched_policy_id = 6;
-  // 参与本次评估的策略解释条目
-  repeated PolicyExplainEntry policy_explain_entries = 7;
-}
-
-// CheckPermissionWithContextResponse preserves the existing wire shape while satisfying RPC-specific response naming hygiene.
-message CheckPermissionWithContextResponse {
   // 是否允许
   bool allowed = 1;
   // 决策评估层级

@@ -134,4 +134,47 @@ describe('PrismaPolicyTemplateInstanceRepository L2', () => {
 
     expect(result.map((instance) => instance.id)).toEqual([target.id, allResources.id])
   })
+
+  it('PolicyInstance 查询 / management 查询 / 应支持按 subject selector 过滤', async () => {
+    const permissionCode = `${prefix}_permission_instance_subject_filter`
+    await createPermission(permissionCode)
+
+    const accountInstance = await repository.save(
+      createInstance(permissionCode, {
+        subjectSelector: {
+          type: 'ACCOUNT',
+          accountId: `${prefix}_account_target`
+        }
+      })
+    )
+    await repository.save(
+      createInstance(permissionCode, {
+        id: randomUUID(),
+        subjectSelector: {
+          type: 'ACCOUNT',
+          accountId: `${prefix}_account_other`
+        }
+      })
+    )
+    await repository.save(
+      createInstance(permissionCode, {
+        id: randomUUID(),
+        subjectSelector: {
+          type: 'ROLE',
+          roleId: `${prefix}_role`
+        }
+      })
+    )
+
+    const result = await repository.listForManagement({
+      tenantId: `${prefix}_tenant`,
+      subjectSelectorType: 'ACCOUNT',
+      subjectSelectorValue: `${prefix}_account_target`,
+      page: 1,
+      pageSize: 20
+    })
+
+    expect(result.items.map((instance) => instance.id)).toEqual([accountInstance.id])
+    expect(result.total).toBe(1)
+  })
 })

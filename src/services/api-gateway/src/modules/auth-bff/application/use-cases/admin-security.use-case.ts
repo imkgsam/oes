@@ -1,6 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { MfaBindingType } from '@oes/common/generated/auth_service'
-import { PolicySubjectTypeProto } from '@oes/common/generated/permission_service'
 import { DownstreamRequestSource } from '../../../../common/grpc/gateway-downstream-source.mapper'
 import { AuthGrpcAdapter } from '../../infrastructure/downstream/auth-service/auth-grpc.adapter'
 import { IdentityQueryGrpcAdapter } from '../../infrastructure/downstream/identity-service/identity-query-grpc.adapter'
@@ -559,7 +558,11 @@ export class AdminSecurityUseCase {
       },
       source
     )
-    const deletedPolicyCount = await this.clearAccountPolicies(account.id, source)
+    const deletedPolicyCount = await this.disableAccountPolicyInstances(
+      account.id,
+      account.tenantId ?? undefined,
+      source
+    )
 
     const deleteResult = await this.identityAdapter.deleteAccount(
       {
@@ -582,27 +585,48 @@ export class AdminSecurityUseCase {
     }
   }
 
-  private async clearAccountPolicies(
+  private async disableAccountPolicyInstances(
     accountId: string,
+    tenantId: string | undefined,
     source: DownstreamRequestSource
   ): Promise<number> {
-    const result = await this.permissionService.listPolicies(
-      {
-        page: 1,
-        pageSize: 100,
-        subjectId: accountId,
-        subjectType: PolicySubjectTypeProto.POLICY_SUBJECT_TYPE_PROTO_ACCOUNT
-      },
-      source
+    const pageSize = 100
+    let page = 1
+    const policyInstanceIds: string[] = []
+
+    while (true) {
+      const result = await this.permissionService.listPolicyInstances(
+        {
+          page,
+          pageSize,
+          tenantId,
+          subjectSelectorType: 'ACCOUNT',
+          subjectSelectorValue: accountId,
+          hasEnabledFilter: true,
+          enabled: true
+        },
+        source
+      )
+      const ids = (result.policyInstances ?? [])
+        .map((policyInstance) => policyInstance.id)
+        .filter((policyInstanceId): policyInstanceId is string => Boolean(policyInstanceId))
+
+      policyInstanceIds.push(...ids)
+
+      if (policyInstanceIds.length >= Number(result.total ?? 0) || ids.length < pageSize) {
+        break
+      }
+
+      page += 1
+    }
+
+    await Promise.all(
+      policyInstanceIds.map((id) =>
+        this.permissionService.setPolicyInstanceEnabled({ id, enabled: false }, source)
+      )
     )
 
-    const policyIds = (result.policies ?? [])
-      .map((policy) => policy.id)
-      .filter((policyId): policyId is string => Boolean(policyId))
-
-    await Promise.all(policyIds.map((policyId) => this.permissionService.deletePolicy({ id: policyId }, source)))
-
-    return policyIds.length
+    return policyInstanceIds.length
   }
 
   async listTenantOptions(

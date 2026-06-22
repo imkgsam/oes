@@ -22,6 +22,14 @@ The proto files remain the machine-readable source of truth. These documents exp
 涉及 HR `Employee / Employment`、员工生命周期或 onboarding owner 边界时，以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准；本目录只描述 permission contract 如何消费 employee onboarding 授权 handoff。
 - [tenant-onboarding-grant.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/tenant-onboarding-grant.md)
   - Tenant onboarding first-admin role instance and initial grant target contract.
+- [resource-authorization.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/resource-authorization.md)
+  - Resource authorization contract shape for `checkResource / buildQueryScope`.
+  - Freezes `PolicyInstance` as the resource authorization fact model and marks legacy `CheckPermissionWithContext` out of scope and disabled by default for new resource authorization.
+- [policy-instance-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/policy-instance-management.md)
+  - Controlled management contract for listing, loading, creating, and enabling/disabling template-based `PolicyInstance` facts.
+  - Keeps `PolicyInstance` governance separate from legacy `Policy + conditionAstJson`.
+
+Legacy `Policy + conditionAstJson` mutation RPCs and `CheckPermissionWithContext` remain in the machine contracts only for historical compatibility recovery. They are disabled by default in `permission-service`; new callers must use `PolicyInstanceManagementService` and `ResourceAuthorizationService`.
 
 ## 3. Machine Contract Sources
 
@@ -29,3 +37,6 @@ The proto files remain the machine-readable source of truth. These documents exp
 - [permission_terminal_access.proto](/Users/acehood/Documents/GitHub/oes/src/common/src/contracts/permission_service/permission_terminal_access.proto)
 - [permission_management.proto](/Users/acehood/Documents/GitHub/oes/src/common/src/contracts/permission_service/permission_management.proto)
 - [policy_management.proto](/Users/acehood/Documents/GitHub/oes/src/common/src/contracts/permission_service/policy_management.proto)
+- [policy_instance_preview.proto](/Users/acehood/Documents/GitHub/oes/src/common/src/contracts/permission_service/policy_instance_preview.proto)
+- [policy_instance_management.proto](/Users/acehood/Documents/GitHub/oes/src/common/src/contracts/permission_service/policy_instance_management.proto)
+- [resource_authorization.proto](/Users/acehood/Documents/GitHub/oes/src/common/src/contracts/permission_service/resource_authorization.proto)

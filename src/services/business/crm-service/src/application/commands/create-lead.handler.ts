@@ -6,6 +6,7 @@ import {
   CrmAccountLifecycleStage,
   CrmAccountRecord,
   CrmAccountRecordStatus,
+  CrmLeadAssignmentIntent,
   CrmLeadCreateResultType,
   CrmLeadDuplicateResultType,
   CrmSourceRecord
@@ -61,6 +62,12 @@ export class CreateLeadHandler implements ICommandHandler<CreateLeadCommand, Cre
       }
     }
 
+    const ownerAccountId = resolveLeadOwnerAccountId(
+      command.props.ownerAccountId,
+      command.props.assignmentIntent,
+      command.props.operatorAccountId
+    )
+
     const account: CrmAccountRecord = {
       id: randomUUID(),
       tenantId: command.props.tenantId,
@@ -77,7 +84,7 @@ export class CreateLeadHandler implements ICommandHandler<CreateLeadCommand, Cre
       leadWhatsapp: command.props.leadWhatsapp ?? null,
       leadCountry: command.props.leadCountry ?? null,
       leadIdentifiers: command.props.leadIdentifiers ?? [],
-      ownerAccountId: command.props.ownerAccountId ?? command.props.operatorAccountId,
+      ownerAccountId,
       priority: command.props.priority,
       lastActivityAt: null,
       nextFollowUpAt: command.props.nextFollowUpAt ?? null,
@@ -106,6 +113,22 @@ export class CreateLeadHandler implements ICommandHandler<CreateLeadCommand, Cre
       duplicateResult
     }
   }
+}
+
+/** resolveLeadOwnerAccountId applies CRM entry-context ownership instead of treating Pool as the default. */
+function resolveLeadOwnerAccountId(
+  explicitOwnerAccountId: string | null | undefined,
+  assignmentIntent: CrmLeadAssignmentIntent | undefined,
+  operatorAccountId: string
+): string | null {
+  if (explicitOwnerAccountId !== undefined) {
+    return explicitOwnerAccountId
+  }
+  if (assignmentIntent === CrmLeadAssignmentIntent.POOL) {
+    return null
+  }
+
+  return operatorAccountId
 }
 
 /** toBlockedCreateResult maps duplicate result states into create result states. */

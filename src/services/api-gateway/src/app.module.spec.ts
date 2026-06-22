@@ -6,12 +6,19 @@ import {
   resolveTenantOrgGrpcUrl,
   resolveTerminalDeviceGrpcUrl
 } from './app.module'
+import { GATEWAY_GLOBAL_PREFIX_EXCLUDES } from './config/gateway-global-prefix'
 
 describe('permissionGrpcProtoPaths', () => {
   it('loads terminal access proto so auth-bff can resolve account terminal eligibility', () => {
     expect(permissionGrpcProtoPaths).toContainEqual(
       expect.stringContaining('permission_terminal_access.proto')
     )
+  })
+})
+
+describe('GATEWAY_GLOBAL_PREFIX_EXCLUDES', () => {
+  it('keeps the public ShortLink redirect at the root edge path', () => {
+    expect(GATEWAY_GLOBAL_PREFIX_EXCLUDES).toContain('c/:shortCode')
   })
 })
 

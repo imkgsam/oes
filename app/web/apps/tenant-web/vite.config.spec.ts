@@ -11,14 +11,45 @@ describe('tenant-web vite config', () => {
     const config = await createConfig()
     const proxy = config.vite.server.proxy
 
-    expect(proxy['/c']).toMatchObject({
+    const shortLinkProxyPattern = '^/c(?:/|$)'
+
+    expect(proxy[shortLinkProxyPattern]).toMatchObject({
       changeOrigin: true,
-      target: 'http://localhost:9101/api/v1'
+      target: 'http://localhost:9101'
     })
+    expect(new RegExp(shortLinkProxyPattern).test('/c')).toBe(true)
+    expect(new RegExp(shortLinkProxyPattern).test('/c/abc123')).toBe(true)
+    expect(new RegExp(shortLinkProxyPattern).test('/crm/accounts')).toBe(false)
     expect(proxy['/public-entry/public']).toMatchObject({
       changeOrigin: true,
       target: 'http://localhost:9101/api/v1'
     })
     expect(proxy['/public-entry']).toBeUndefined()
+  })
+
+  it('installs a pre middleware for browser HTML navigation to public ShortLinks', async () => {
+    const { default: createConfig, shouldProxyPublicShortLinkHtmlRequest } = await import('./vite.config')
+    const config = await createConfig()
+    const plugins = config.vite.plugins
+
+    expect(plugins).toContainEqual(
+      expect.objectContaining({
+        enforce: 'pre',
+        name: 'oes-public-short-link-html-proxy',
+        configureServer: expect.any(Function)
+      })
+    )
+    expect(shouldProxyPublicShortLinkHtmlRequest({
+      headers: { accept: 'text/html,application/xhtml+xml' },
+      url: '/c/sctGfcF'
+    })).toBe(true)
+    expect(shouldProxyPublicShortLinkHtmlRequest({
+      headers: { accept: '*/*' },
+      url: '/c/sctGfcF'
+    })).toBe(false)
+    expect(shouldProxyPublicShortLinkHtmlRequest({
+      headers: { accept: 'text/html' },
+      url: '/public-entry/business-cards'
+    })).toBe(false)
   })
 })

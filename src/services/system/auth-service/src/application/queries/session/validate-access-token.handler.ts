@@ -20,6 +20,7 @@ export interface ValidateAccessTokenResult {
   allowedTerminals: string[]
   passwordSetupRequired: boolean
   roleIds: string[]
+  displayName?: string
   terminalDeviceId?: string
   deviceBoundTenantId?: string
   loginFlow?: string
@@ -107,6 +108,7 @@ export class ValidateAccessTokenHandler
       allowedTerminals: this.normalizeStringArray(payload.allowedTerminals),
       passwordSetupRequired: Boolean(payload.passwordSetupRequired),
       roleIds: this.normalizeRoleIds(payload.roles),
+      displayName: session.getDisplayName(),
       terminalDeviceId: session.getTerminalDeviceId(),
       deviceBoundTenantId: session.getDeviceBoundTenantId(),
       loginFlow: session.getLoginFlow()

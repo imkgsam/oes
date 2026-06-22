@@ -3,6 +3,7 @@ import test from 'node:test'
 
 import {
   DEFAULT_PASSWORD,
+  SEEDED_TENANT_ROLE_PERMISSION_CODES,
   buildBrowserExtensionDesignerDemoSeed,
   buildSeedAccountRoleBindings,
   buildSeedTenantRoles,
@@ -71,6 +72,13 @@ test('tenant admin demo accounts also receive item master product data permissio
         binding.roleId === meilongProductDataManager.id
     )
   )
+})
+
+test('tenant admin demo role includes Annotation P1 collaboration permissions', () => {
+  const permissionCodes = SEEDED_TENANT_ROLE_PERMISSION_CODES.get('tenant.admin')
+
+  assert.ok(permissionCodes.includes('collaboration.annotation.create'))
+  assert.ok(permissionCodes.includes('collaboration.annotation.manage'))
 })
 
 test('browser extension designer demo seed targets one tenant account with plugin workspace access', () => {

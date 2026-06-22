@@ -4,6 +4,9 @@
  */
 
 import { ChannelOptions } from '@grpc/grpc-js'
+import type { GrpcOptions } from '@nestjs/microservices'
+
+export type GrpcLoaderOptions = NonNullable<NonNullable<GrpcOptions['options']>['loader']>
 
 /**
  * Configuration for a single gRPC service endpoint.
@@ -29,6 +32,9 @@ export interface GrpcServiceConfig {
 
   /** gRPC channel options (keepalive, max message size, etc.) */
   channelOptions?: ChannelOptions
+
+  /** Proto-loader options, including includeDirs for imported proto files */
+  loader?: GrpcLoaderOptions
 
   /** Connection pool configuration for this service */
   pool?: GrpcPoolConfig

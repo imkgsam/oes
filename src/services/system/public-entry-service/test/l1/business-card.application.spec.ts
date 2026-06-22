@@ -174,6 +174,34 @@ describe('BusinessCardApplicationService', () => {
     })
   })
 
+  it('reflects the live ShortLink status in BusinessCard list output after the entry is disabled', async () => {
+    const { service, shortLinkRepository } = buildService()
+    const created = await service.ensurePrimaryCard({ tenantId, employeeId, operatorContext })
+    const publicEntry = await service.bindOrRefreshMainPublicEntry({
+      tenantId,
+      businessCardId: created.businessCard.businessCardId,
+      operatorContext
+    })
+    await service.enableCard({
+      tenantId,
+      businessCardId: created.businessCard.businessCardId,
+      operatorContext
+    })
+    await shortLinkRepository.update({
+      ...shortLinkRepository.shortLinks[0],
+      status: 'DISABLED',
+      updatedAt: new Date()
+    })
+
+    const result = await service.listCards({ tenantId, operatorContext })
+
+    expect(result.items).toHaveLength(1)
+    expect(result.items[0].publicEntryRef).toMatchObject({
+      publicEntryId: publicEntry.publicEntryRef.publicEntryId,
+      status: 'DISABLED'
+    })
+  })
+
   it('requires readiness before enabling and audits state changes', async () => {
     const { cardRepository, service } = buildService()
     const created = await service.ensurePrimaryCard({ tenantId, employeeId, operatorContext })
@@ -359,7 +387,7 @@ describe('BusinessCardApplicationService', () => {
     ])
     expect(publicView.view?.contactActions[1]).toMatchObject({
       actionUrl: 'https://oes.example.com',
-      displayValue: 'OES Manufacturing'
+      displayValue: 'oes.example.com'
     })
     expect(publicView.view?.contactActions[2]).toMatchObject({
       actionUrl: expect.stringContaining(`/public/business-cards/${created.businessCard.businessCardId}.vcf`)

@@ -5,27 +5,6 @@ import { $t } from '#/locales';
 const tenantAdminRoutes: RouteRecordRaw[] = [
   {
     meta: {
-      icon: 'lucide:list-checks',
-      order: 9,
-      title: '协作',
-    },
-    name: 'TenantCollaboration',
-    path: '/collaboration',
-    children: [
-      {
-        name: 'TenantCollaborationTasks',
-        path: '/collaboration/tasks',
-        component: () => import('#/views/admin/collaboration-task-workspace.vue'),
-        meta: {
-          entryKey: 'collaboration.tasks',
-          icon: 'lucide:list-todo',
-          title: '任务工作台',
-        },
-      },
-    ],
-  },
-  {
-    meta: {
       icon: 'lucide:shield-check',
       order: 10,
       title: '权限治理',
@@ -113,6 +92,26 @@ const tenantAdminRoutes: RouteRecordRaw[] = [
           entryKey: 'admin.policy-governance',
           icon: 'lucide:scale',
           title: '策略治理',
+        },
+      },
+      {
+        name: 'AdminPolicyInstanceManagement',
+        path: '/admin/policy-instance-management',
+        component: () => import('#/views/admin/policy-instance-management.vue'),
+        meta: {
+          entryKey: 'admin.policy-instance-management',
+          icon: 'lucide:sliders-horizontal',
+          title: '资源授权实例',
+        },
+      },
+      {
+        name: 'AdminPolicyInstancePreview',
+        path: '/admin/policy-instance-preview',
+        component: () => import('#/views/admin/policy-instance-preview.vue'),
+        meta: {
+          entryKey: 'admin.policy-instance-preview',
+          icon: 'lucide:scan-search',
+          title: '资源授权预览',
         },
       },
       {
@@ -307,8 +306,52 @@ const tenantAdminRoutes: RouteRecordRaw[] = [
   },
   {
     meta: {
-      icon: 'lucide:boxes',
+      icon: 'lucide:handshake',
       order: 12,
+      title: 'CRM',
+    },
+    name: 'TenantCrm',
+    path: '/crm',
+    children: [
+      {
+        name: 'TenantCrmAccounts',
+        path: '/crm/accounts',
+        component: () => import('#/views/admin/customer-management.vue'),
+        meta: {
+          entryKey: 'crm.accounts',
+          fullPathKey: false,
+          icon: 'lucide:users-round',
+          title: '客户资源',
+        },
+      },
+      {
+        name: 'TenantCrmPool',
+        path: '/crm/pool',
+        component: () => import('#/views/admin/crm-pool-management.vue'),
+        meta: {
+          entryKey: 'crm.pool',
+          fullPathKey: false,
+          icon: 'lucide:radar',
+          title: '公海',
+        },
+      },
+      {
+        name: 'TenantCrmAccountDetail',
+        path: '/crm/accounts/:crmAccountId',
+        component: () => import('#/views/admin/customer-management-detail.vue'),
+        meta: {
+          activePath: '/crm/accounts',
+          entryKey: 'crm.accounts',
+          hideInMenu: true,
+          title: '客户资源详情',
+        },
+      },
+    ],
+  },
+  {
+    meta: {
+      icon: 'lucide:boxes',
+      order: 13,
       title: '主数据',
     },
     name: 'TenantMasterData',
@@ -383,12 +426,12 @@ const tenantAdminRoutes: RouteRecordRaw[] = [
       {
         name: 'TenantCustomerManagement',
         path: '/master-data/customers',
-        component: () => import('#/views/admin/customer-management.vue'),
+        redirect: '/crm/accounts',
         meta: {
-          entryKey: 'master-data.customer-management',
-          fullPathKey: false,
-          icon: 'lucide:users-round',
-          title: '客户管理',
+          activePath: '/crm/accounts',
+          entryKey: 'crm.accounts',
+          hideInMenu: true,
+          title: '客户资源',
         },
       },
       {

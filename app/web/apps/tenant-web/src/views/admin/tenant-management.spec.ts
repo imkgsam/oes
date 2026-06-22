@@ -107,6 +107,7 @@ describe('tenant management page', () => {
         rootOrgName: 'Alpha Root',
         status: 'ACTIVE',
         userCount: 3,
+        websiteUrl: 'https://alpha.example.com',
       },
     });
     searchFirstAdminUserCandidatesApi.mockResolvedValue({
@@ -317,6 +318,7 @@ describe('tenant management page', () => {
 
     await wrapper.find('input[placeholder="输入租户名称"]').setValue('Alpha Tenant Updated');
     await wrapper.find('input[placeholder="输入租户编码"]').setValue('tenant.alpha.updated');
+    await wrapper.find('input[placeholder="https://example.com"]').setValue('https://alpha-updated.example.com');
     await wrapper.find('[data-testid="tenant-detail-save"]').trigger('click');
     await flushPromises();
 
@@ -324,6 +326,7 @@ describe('tenant management page', () => {
       code: 'tenant.alpha.updated',
       employeeCodePrefix: '0AF',
       name: 'Alpha Tenant Updated',
+      websiteUrl: 'https://alpha-updated.example.com',
     });
 
     await wrapper.find('[data-testid="tenant-suspend-button-tenant-1"]').trigger('click');

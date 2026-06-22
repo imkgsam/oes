@@ -89,13 +89,15 @@ export class PrismaTenantRepository implements TenantRepository {
     name?: string
     code?: string
     employeeCodePrefix?: string
+    websiteUrl?: string | null
   }): Promise<TenantSummary> {
     const tenant = await this.prisma.tenant.update({
       where: { id: _input.tenantId },
       data: {
         name: _input.name,
         code: _input.code,
-        employeeCodePrefix: _input.employeeCodePrefix
+        employeeCodePrefix: _input.employeeCodePrefix,
+        websiteUrl: _input.websiteUrl
       }
     })
     return mapTenant(tenant)
@@ -122,6 +124,7 @@ function mapTenant(tenant: {
   name: string
   status: string
   rootOrgId: string | null
+  websiteUrl?: string | null
 }): TenantSummary {
   return {
     id: tenant.id,
@@ -129,7 +132,8 @@ function mapTenant(tenant: {
     employeeCodePrefix: tenant.employeeCodePrefix,
     name: tenant.name,
     status: tenant.status as TenantStatus,
-    rootOrgId: tenant.rootOrgId
+    rootOrgId: tenant.rootOrgId,
+    websiteUrl: tenant.websiteUrl
   }
 }
 

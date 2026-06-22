@@ -225,7 +225,8 @@ export class HrManagementGrpcController implements HrManagementServiceController
               displayName: request.createAccount.displayName ?? '',
               email: request.createAccount.email || undefined,
               existingUserId: request.createAccount.existingUserId || undefined,
-              phone: request.createAccount.phone || undefined
+              phone: request.createAccount.phone || undefined,
+              tenantPartyId: request.createAccount.tenantPartyId || undefined
             }
           : undefined,
         ...downstreamContext

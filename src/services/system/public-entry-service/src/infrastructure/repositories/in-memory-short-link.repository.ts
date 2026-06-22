@@ -5,6 +5,7 @@ import {
   VisitEventRecord
 } from '../../domain/types/short-link.types'
 import {
+  ShortLinkListInput,
   ShortLinkListByTargetInput,
   ShortLinkRepository,
   ShortLinkVisitStatsInput,
@@ -45,6 +46,23 @@ export class InMemoryShortLinkRepository implements ShortLinkRepository {
     if (index < 0) return Promise.reject(new Error('ShortLink not found'))
     this.shortLinks[index] = { ...record }
     return Promise.resolve(record)
+  }
+
+  list(input: ShortLinkListInput): Promise<{ items: ShortLinkRecord[]; total: number }> {
+    const matches = this.shortLinks
+      .filter((link) => {
+        if (link.tenantId !== input.tenantId) return false
+        if (input.targetKind && link.targetKind !== input.targetKind) return false
+        if (input.targetType && link.targetType !== input.targetType) return false
+        return true
+      })
+      .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
+    const page = input.page ?? 1
+    const pageSize = input.pageSize ?? 20
+    return Promise.resolve({
+      items: matches.slice((page - 1) * pageSize, page * pageSize),
+      total: matches.length
+    })
   }
 
   listByTarget(

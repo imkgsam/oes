@@ -37,7 +37,8 @@ export class TenantManagementService {
       code: tenant.code ?? '',
       employeeCodePrefix: tenant.employeeCodePrefix ?? '',
       name: tenant.name ?? '',
-      status: normalizeTenantStatus(tenant)
+      status: normalizeTenantStatus(tenant),
+      ...withOptionalWebsiteUrl(tenant.websiteUrl)
     }))
     const tenantIds = tenantItems.map((tenant) => tenant.id).filter(Boolean)
     const accountCounts =
@@ -106,7 +107,8 @@ export class TenantManagementService {
         rootOrgId,
         rootOrgName: normalize(rootOrg?.orgUnit?.name),
         status: normalizeTenantStatus(tenant),
-        userCount
+        userCount,
+        ...withOptionalWebsiteUrl(tenant.websiteUrl)
       }
     }
   }
@@ -244,7 +246,7 @@ export class TenantManagementService {
 
   async updateTenantProfile(
     tenantId: string,
-    input: { code?: string; employeeCodePrefix?: string; name?: string },
+    input: { code?: string; employeeCodePrefix?: string; name?: string; websiteUrl?: string },
     source: DownstreamRequestSource
   ) {
     this.assertSystemScope(source)
@@ -253,7 +255,8 @@ export class TenantManagementService {
         tenantId: requireNonBlank(tenantId, 'tenantId'),
         code: normalize(input.code),
         employeeCodePrefix: input.employeeCodePrefix === undefined ? undefined : normalizeEmployeeCodePrefix(input.employeeCodePrefix),
-        name: normalize(input.name)
+        name: normalize(input.name),
+        ...withOptionalWebsiteUrl(input.websiteUrl)
       },
       source
     )
@@ -304,6 +307,11 @@ export class TenantManagementService {
 function normalize(value?: string): string | undefined {
   const normalized = value?.trim()
   return normalized ? normalized : undefined
+}
+
+function withOptionalWebsiteUrl(value?: string): { websiteUrl?: string } {
+  const websiteUrl = normalize(value)
+  return websiteUrl ? { websiteUrl } : {}
 }
 
 function normalizeEmployeeCodePrefix(value?: string): string {

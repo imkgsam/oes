@@ -1,5 +1,5 @@
 import { SERVICE_NAMES } from '@oes/common/constants'
-import { resolveCommonProtoPath } from '@oes/common/contracts'
+import { resolveCommonContractPath, resolveCommonProtoPath } from '@oes/common/contracts'
 import { registerAs } from '@nestjs/config'
 
 export const gatewayConfig = registerAs('gateway', () => ({
@@ -37,11 +37,19 @@ export const gatewayConfig = registerAs('gateway', () => ({
         serviceName: SERVICE_NAMES.PERMISSION,
         protoPath: [
           resolveCommonProtoPath('permission_service/policy_management.proto'),
+          resolveCommonProtoPath('permission_service/policy_instance_management.proto'),
+          resolveCommonProtoPath('permission_service/policy_instance_preview.proto'),
           resolveCommonProtoPath('permission_service/permission_management.proto'),
           resolveCommonProtoPath('permission_service/permission_check.proto'),
           resolveCommonProtoPath('permission_service/permission_access_summary.proto')
         ],
         packageName: 'permission_service',
+        loader: {
+          includeDirs: [
+            resolveCommonContractPath(),
+            resolveCommonContractPath('permission_service')
+          ]
+        },
         // Static URL fallback (used when Nacos discovery is unavailable)
         url:
           process.env.PERMISSION_SERVICE_HOST && process.env.PERMISSION_SERVICE_PORT

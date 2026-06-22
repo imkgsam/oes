@@ -10,6 +10,7 @@ import { GatewayExceptionFilter } from './common/filters/gateway-exception.filte
 import { ResponseTransformInterceptor } from './common/interceptors/response.interceptor'
 import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor'
 import { resolveCorsOrigin } from './config/cors-origin.util'
+import { GATEWAY_GLOBAL_PREFIX_EXCLUDES } from './config/gateway-global-prefix'
 import { setupSwagger } from './config/swagger.setup'
 
 async function bootstrap() {
@@ -22,7 +23,7 @@ async function bootstrap() {
   app.useLogger(logger)
 
   app.setGlobalPrefix(config.get<string>('gateway.globalPrefix', 'api/v1'), {
-    exclude: ['health', 'health/ready', 'docs', 'docs-json']
+    exclude: GATEWAY_GLOBAL_PREFIX_EXCLUDES
   })
 
   app.use(helmet())

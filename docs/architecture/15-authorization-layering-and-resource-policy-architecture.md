@@ -42,6 +42,13 @@ OES 的目标状态不是“所有权限控制都通过 guard 完成”，而是
 
 历史 `CheckPermissionWithContext` RPC 仅作为 `permission-service` 既有兼容能力与 policy AST 评估能力载体保留，不再作为新业务资源授权的标准接入方式。新业务的单资源授权必须优先落到 application 层 `checkResource`，列表 / 搜索 / 分页授权必须优先落到 `buildQueryScope`。
 
+资源授权的长期事实主线冻结为 `PolicyTemplate / PolicyInstance`：
+
+- `PolicyTemplate` 是平台内置、代码版本化、可测试、可审计的判断模板。
+- `PolicyInstance` 是 tenant 内资源授权事实，表达 `TENANT_WIDE / ROLE / ACCOUNT` 在某个 `permissionCode + resourceType` 下的资源范围或安全环境约束。
+- `PolicyInstance` 承接 resource grant / resource scope 职责，不再新增独立 `ResourceGrant` 或 `ResourceScope` 长期事实模型。
+- 旧 `Policy + conditionAstJson` 只保留为历史兼容与 readonly governance，不再作为新业务资源授权主线。
+
 同时，在 `common` 的目录语义上采用以下边界：
 
 - `authorization/`
@@ -173,6 +180,58 @@ application/
 - repository 不负责决定“能看什么”，只负责消费已构造好的 scope
 
 当前已在 `permission-service` 落地的函数式 scope builder 与第一版 `AuthorizationQueryScopeService` 骨架，仅视为首批试点，不代表最终完成态。
+
+### 3.3.2 `PolicyTemplate / PolicyInstance`
+
+`PolicyTemplate` 定义“如何判断”，例如：
+
+- `resource-field-in-set`
+- `resource-field-equals`
+- `resource-field-matches-subject-field`
+- `own-resource`
+- `org-scope`
+- `working-hours`
+- `ip-allowlist`
+
+`PolicyInstance` 定义“谁在什么能力下受哪个范围约束”，例如：
+
+```text
+subjectSelector: ACCOUNT(account_001)
+permissionCode: wms.inventory.view
+resourceType: inventory
+templateCode: resource-field-in-set
+params:
+  field: warehouseId
+  allowedValues: [W1, W2]
+effect: ALLOW
+```
+
+稳定规则：
+
+- template 由平台维护，不由租户管理员编辑。
+- instance 保存授权配置与业务资源引用，不保存业务主数据真相。
+- `PolicyInstance` 是第一阶段资源授权事实主线。
+- 不再为同一职责新增独立 `ResourceGrant / ResourceScope`，避免双事实源。
+- 业务服务负责提供 resource facts，并负责把 `QueryScopeExpression` 映射到自身 repository 查询条件。
+
+### 3.3.3 `PolicyInstance` 组合规则
+
+运行时收集当前 operator 适用的 instance：
+
+- 当前租户的 `TENANT_WIDE` instance
+- 当前账号拥有角色命中的 `ROLE` instance
+- 当前账号命中的 `ACCOUNT` instance
+
+组合规则：
+
+- `DENY` 永远优先。
+- 同一 layer、同一 field 的 `ALLOW` 取并集。
+- 不同 layer、同一 field 的 `ALLOW` 取交集。
+- 不同 field 的 `ALLOW` 取 `AND`。
+- 某个 layer 未配置某 field 的 `ALLOW` 时，该 layer 不参与该 field 收窄。
+- 无启用 instance 时，RBAC 通过即可允许。
+- 有启用 instance 但无 ALLOW 命中时默认拒绝。
+- `buildQueryScope` 遇到不可安全编译的 policy 时 fail closed。
 
 ### 3.4 domain rule
 
@@ -547,10 +606,10 @@ OES 当前只保留三类 policy：
 
 流程：
 
-1. Gateway 执行 `checkPermission`
-2. 子服务接口层执行 `checkPermission`
-3. application 层加载 resource
-4. application 层执行 `checkResource`
+1. 平台硬边界先执行，包括认证、operator context、tenant isolation、service-to-service trust 与审计前提
+2. Gateway 或子服务入口执行 `checkPermission`
+3. application 层加载最小 resource facts
+4. application 层通过 `ResourceAuthorizationService.checkResource` 执行资源授权
 5. domain 层执行业务规则
 6. 提交状态变更 / 返回详情
 
@@ -568,10 +627,10 @@ OES 当前只保留三类 policy：
 
 流程：
 
-1. Gateway 执行 `checkPermission`
-2. 子服务接口层执行 `checkPermission`
-3. query application 层执行 `buildQueryScope`
-4. repository 基于 scope 获取数据
+1. 平台硬边界先执行
+2. Gateway 或子服务入口执行 `checkPermission`
+3. query application 层通过 `ResourceAuthorizationService.buildQueryScope` 构造结构化范围
+4. repository / query adapter 将 `QueryScopeExpression` 转为自身持久化查询条件
 5. 返回结果
 
 适用接口：
@@ -584,6 +643,25 @@ OES 当前只保留三类 policy：
 明确禁止：
 
 - 先查一批记录，再逐条做资源布尔鉴权作为主方案
+- repository 自行决定“能看什么”；repository 只消费已经构造好的 scope
+
+### 8.2.1 WMS / MES 多资源范围示例
+
+第一阶段 WMS / MES 资源范围不要求 permission-service 理解业务层级本体，只消费业务服务提供的 resource facts。
+
+典型 `PolicyInstance` 映射：
+
+- WMS 多仓库：`resource-field-in-set` + `warehouseId`
+- WMS 多库位：`resource-field-in-set` + `storageLocationId`
+- MES 多工厂：`resource-field-in-set` + `factoryId / plantId`
+- MES 多车间 / WorkCenter：`resource-field-in-set` + `workshopId / workCenterId`
+
+层级规则：
+
+- `warehouse / storageLocation / site / area / workCenter / workUnit` 主数据真相归 WMS / MES 等业务服务。
+- permission-service 不查询业务服务数据库展开层级。
+- 第一阶段推荐由业务服务在配置、保存或 query adapter 中完成后代资源展开。
+- 若后续需要 `includeDescendants`，必须作为受控 template 或业务 adapter 能力单独冻结；层级真相仍不迁入 permission-service。
 
 ### 8.3 高风险环境敏感动作
 

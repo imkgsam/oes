@@ -17,7 +17,7 @@ describe('collaboration-service prisma URL resolution', () => {
     const options = resolvePrismaClientOptions()
     const url = options?.datasources?.db?.url
 
-    expect(url).toContain('postgres://imkgsam:imkgsam@localhost:5432/mydb')
+    expect(url).toContain('postgres://imkgsam:imkgsam@localhost:5432/collaborationdb')
     expect(url).toContain('schema=collaboration_service')
   })
 
@@ -38,7 +38,7 @@ describe('collaboration-service prisma URL resolution', () => {
 
     const url = ensureIntegrationDatabaseUrl()
 
-    expect(url).toContain('postgres://imkgsam:imkgsam@localhost:5432/mydb')
+    expect(url).toContain('postgres://imkgsam:imkgsam@localhost:5432/collaborationdb')
     expect(url).toContain('schema=collaboration_service')
   })
 })

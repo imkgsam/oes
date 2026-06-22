@@ -5,7 +5,7 @@ import { createTaskP1SmokeSeed, runCollaborationTaskP1SmokeFlow } from './collab
 const require = createRequire(import.meta.url)
 const { PrismaClient } = require('../../src/services/system/collaboration-service/prisma/generated/prisma')
 
-const DEFAULT_LOCAL_DATABASE_URL = 'postgres://imkgsam:imkgsam@localhost:5432/mydb'
+const DEFAULT_LOCAL_DATABASE_URL = 'postgres://imkgsam:imkgsam@localhost:5432/collaborationdb'
 const gatewayBaseUrl =
   process.env.COLLABORATION_TASK_SMOKE_GATEWAY_BASE_URL ||
   process.env.API_GATEWAY_BASE_URL ||

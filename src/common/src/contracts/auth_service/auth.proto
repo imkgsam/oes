@@ -753,6 +753,7 @@ message ValidateAccessTokenResponse {
   bool password_setup_required = 7;
   string terminal = 8;
   repeated string allowed_terminals = 9;
+  string display_name = 10;
   string terminal_device_id = 20;
   string device_bound_tenant_id = 21;
   string login_flow = 22;

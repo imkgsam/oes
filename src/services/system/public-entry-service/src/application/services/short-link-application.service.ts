@@ -49,6 +49,14 @@ type ChangeStatusInput = {
   operatorContext: OperatorContext
 }
 
+type ListShortLinksInput = {
+  tenantId: string
+  targetKind?: ShortLinkTarget['targetKind']
+  targetType?: string
+  page?: number
+  pageSize?: number
+}
+
 const MAX_SHORT_CODE_ATTEMPTS = 32
 
 // ShortLinkApplicationService coordinates tenant-scoped ShortLink commands and queries.
@@ -112,6 +120,22 @@ export class ShortLinkApplicationService {
       tenantId: input.tenantId,
       targetType: requireNonBlank(input.targetType, 'targetType'),
       targetResourceId: requireNonBlank(input.targetResourceId, 'targetResourceId'),
+      page: input.page,
+      pageSize: input.pageSize
+    })
+    return {
+      items: result.items.map((item) => serializeShortLink(item)),
+      page: input.page ?? 1,
+      pageSize: input.pageSize ?? 20,
+      total: result.total
+    }
+  }
+
+  async listShortLinks(input: ListShortLinksInput) {
+    const result = await this.repository.list({
+      tenantId: requireNonBlank(input.tenantId, 'tenantId'),
+      targetKind: input.targetKind,
+      targetType: normalizeOptional(input.targetType),
       page: input.page,
       pageSize: input.pageSize
     })
@@ -404,6 +428,12 @@ function parseNullableDate(value: string | null | undefined): Date | null {
 function normalizeNullable(value: string | null | undefined): string | null {
   const normalized = value?.trim()
   return normalized ? normalized : null
+}
+
+// normalizeOptional stores blank query filters as absent values.
+function normalizeOptional(value: string | null | undefined): string | undefined {
+  const normalized = value?.trim()
+  return normalized || undefined
 }
 
 // serializeShortLink returns detached records so callers cannot mutate repository state.

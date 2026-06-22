@@ -59,6 +59,20 @@ export namespace PublicEntryShortLinkApi {
     total: number
   }
 
+  export interface ListQuery {
+    page?: number
+    pageSize?: number
+    targetKind?: 'ALL' | TargetKind
+    targetType?: string
+  }
+
+  export interface ListResult {
+    items: ShortLinkRecord[]
+    page: number
+    pageSize: number
+    total: number
+  }
+
   export interface UpdateTargetPayload {
     reason?: string
     target: ShortLinkTarget
@@ -103,7 +117,10 @@ export namespace PublicEntryShortLinkApi {
 const basePath = (tenantId: string) => `/public-entry/tenants/${tenantId}/short-links`
 
 // createPublicEntryShortLinkApi creates a tenant-scoped ShortLink through the admin BFF.
-export function createPublicEntryShortLinkApi(tenantId: string, payload: PublicEntryShortLinkApi.CreatePayload) {
+export function createPublicEntryShortLinkApi(
+  tenantId: string,
+  payload: PublicEntryShortLinkApi.CreatePayload
+) {
   return requestClient.post<PublicEntryShortLinkApi.CreateResult>(basePath(tenantId), payload)
 }
 
@@ -114,14 +131,31 @@ export function getPublicEntryShortLinkApi(tenantId: string, shortLinkId: string
   )
 }
 
+// listPublicEntryShortLinksApi lists tenant ShortLinks without requiring a target resource id.
+export function listPublicEntryShortLinksApi(
+  tenantId: string,
+  query: PublicEntryShortLinkApi.ListQuery = {}
+) {
+  const { targetKind, ...rest } = query
+  return requestClient.get<PublicEntryShortLinkApi.ListResult>(basePath(tenantId), {
+    params: {
+      ...rest,
+      targetKind: targetKind === 'ALL' ? undefined : targetKind
+    }
+  })
+}
+
 // listPublicEntryShortLinksByTargetApi lists ShortLinks attached to one internal target reference.
 export function listPublicEntryShortLinksByTargetApi(
   tenantId: string,
   query: PublicEntryShortLinkApi.ListByTargetQuery
 ) {
-  return requestClient.get<PublicEntryShortLinkApi.ListByTargetResult>(`${basePath(tenantId)}/by-target`, {
-    params: query
-  })
+  return requestClient.get<PublicEntryShortLinkApi.ListByTargetResult>(
+    `${basePath(tenantId)}/by-target`,
+    {
+      params: query
+    }
+  )
 }
 
 // updatePublicEntryShortLinkTargetApi migrates one ShortLink target without changing publicUrl.
@@ -152,15 +186,24 @@ export function changePublicEntryShortLinkStatusApi(
 }
 
 // getPublicEntryShortLinkStatsApi reads VisitEvent-derived aggregate statistics.
-export function getPublicEntryShortLinkStatsApi(tenantId: string, shortLinkId: string, query?: { from?: string; to?: string }) {
-  return requestClient.get<PublicEntryShortLinkApi.StatsResult>(`${basePath(tenantId)}/${shortLinkId}/stats`, {
-    params: query
-  })
+export function getPublicEntryShortLinkStatsApi(
+  tenantId: string,
+  shortLinkId: string,
+  query?: { from?: string; to?: string }
+) {
+  return requestClient.get<PublicEntryShortLinkApi.StatsResult>(
+    `${basePath(tenantId)}/${shortLinkId}/stats`,
+    {
+      params: query
+    }
+  )
 }
 
 // getPublicEntryShortLinkQrApi reads the base64 QR payload for preview.
 export function getPublicEntryShortLinkQrApi(tenantId: string, shortLinkId: string) {
-  return requestClient.get<PublicEntryShortLinkApi.QrResult>(`${basePath(tenantId)}/${shortLinkId}/qr`)
+  return requestClient.get<PublicEntryShortLinkApi.QrResult>(
+    `${basePath(tenantId)}/${shortLinkId}/qr`
+  )
 }
 
 // resolvePublicEntryShortLinkQrDownloadUrl returns the direct PNG download path for browser download.

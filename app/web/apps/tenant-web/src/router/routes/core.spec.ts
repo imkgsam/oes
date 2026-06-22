@@ -21,4 +21,13 @@ describe('tenant-web core routes', () => {
     expect(publicBusinessCardRoute?.meta?.title).toBe('员工数字名片')
     expect(publicBusinessCardRoute?.component).toBeTypeOf('function')
   })
+
+  it('registers a hidden ShortLink fallback route for dev-server SPA fallback navigations', () => {
+    const publicShortLinkRoute = coreRoutes.find((route) => route.name === 'PublicShortLinkRedirect')
+
+    expect(publicShortLinkRoute?.path).toBe('/c/:shortCode')
+    expect(publicShortLinkRoute?.meta?.hideInMenu).toBe(true)
+    expect(publicShortLinkRoute?.meta?.hideInTab).toBe(true)
+    expect(publicShortLinkRoute?.component).toBeTypeOf('function')
+  })
 })

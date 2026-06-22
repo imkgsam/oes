@@ -12,8 +12,7 @@ function buildAdapter(allowed: boolean | Error) {
   const permissionClient = {
     checkPermission: jest.fn(() =>
       allowed instanceof Error ? throwError(() => allowed) : of({ allowed })
-    ),
-    checkPermissionWithContext: jest.fn()
+    )
   }
   const adapter = new PermissionBusinessCardAuthorizationAdapter(permissionClient as any)
   return { adapter, permissionClient }
@@ -36,7 +35,6 @@ describe('PermissionBusinessCardAuthorizationAdapter', () => {
       accountId: 'acc_admin',
       permissionCode: 'public-entry.business-card.manage'
     })
-    expect(permissionClient.checkPermissionWithContext).not.toHaveBeenCalled()
   })
 
   it('uses RBAC permission checks for resource checks and never falls back to historical context RPC', async () => {
@@ -61,7 +59,6 @@ describe('PermissionBusinessCardAuthorizationAdapter', () => {
       accountId: 'acc_admin',
       permissionCode: 'public-entry.business-card.enable'
     })
-    expect(permissionClient.checkPermissionWithContext).not.toHaveBeenCalled()
   })
 
   it('allows tenant-wide resource access after RBAC allow but denies cross-tenant resource facts', async () => {
@@ -96,7 +93,6 @@ describe('PermissionBusinessCardAuthorizationAdapter', () => {
     ).resolves.toBe(false)
 
     expect(permissionClient.checkPermission).toHaveBeenCalledTimes(1)
-    expect(permissionClient.checkPermissionWithContext).not.toHaveBeenCalled()
   })
 
   it('returns tenant-only query scope when permission-service allows list access', async () => {

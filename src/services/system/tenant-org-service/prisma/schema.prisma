@@ -40,6 +40,7 @@ model Tenant {
   code               String       @unique @db.VarChar(100)
   employeeCodePrefix String       @unique @db.VarChar(3)
   name               String       @db.VarChar(255)
+  websiteUrl         String?      @db.VarChar(2048)
   status             TenantStatus @default(ACTIVE)
   rootOrgId          String?      @db.Uuid
   createdAt          DateTime     @default(now())

@@ -1,10 +1,16 @@
 import { randomUUID } from 'node:crypto'
-import { ArchiveCrmAccountCommand } from '../../src/application/commands/archive-crm-account.command'
-import { ArchiveCrmAccountHandler } from '../../src/application/commands/archive-crm-account.handler'
+import { ClaimCrmAccountCommand } from '../../src/application/commands/claim-crm-account.command'
+import { ClaimCrmAccountHandler } from '../../src/application/commands/claim-crm-account.handler'
+import { CreateDraftLeadCommand } from '../../src/application/commands/create-draft-lead.command'
+import { CreateDraftLeadHandler } from '../../src/application/commands/create-draft-lead.handler'
 import { CreateLeadCommand } from '../../src/application/commands/create-lead.command'
 import { CreateLeadHandler } from '../../src/application/commands/create-lead.handler'
-import { RestoreCrmAccountCommand } from '../../src/application/commands/restore-crm-account.command'
-import { RestoreCrmAccountHandler } from '../../src/application/commands/restore-crm-account.handler'
+import { DeleteDraftLeadCommand } from '../../src/application/commands/delete-draft-lead.command'
+import { DeleteDraftLeadHandler } from '../../src/application/commands/delete-draft-lead.handler'
+import { ReleaseCrmAccountCommand } from '../../src/application/commands/release-crm-account.command'
+import { ReleaseCrmAccountHandler } from '../../src/application/commands/release-crm-account.handler'
+import { SubmitDraftLeadCommand } from '../../src/application/commands/submit-draft-lead.command'
+import { SubmitDraftLeadHandler } from '../../src/application/commands/submit-draft-lead.handler'
 import { CheckLeadDuplicateHandler } from '../../src/application/queries/check-lead-duplicate.handler'
 import { CheckLeadDuplicateQuery } from '../../src/application/queries/check-lead-duplicate.query'
 import {
@@ -12,6 +18,7 @@ import {
   CrmAccountRecord,
   CrmAccountRecordStatus,
   CrmAccountTypeHint,
+  CrmLeadAssignmentIntent,
   CrmLeadCreateResultType,
   CrmLeadDuplicateResultType,
   CrmPriority,
@@ -61,6 +68,29 @@ class FakeCrmAccountRepository implements CrmAccountRepository {
     return source
   }
 
+  async listSourceRecords(tenantId: string, accountId: string): Promise<CrmSourceRecord[]> {
+    return this.sources.filter((source) => source.tenantId === tenantId && source.crmAccountId === accountId)
+  }
+
+  async deleteDraftAccount(tenantId: string, accountId: string): Promise<boolean> {
+    const existingIndex = this.accounts.findIndex(
+      (account) =>
+        account.tenantId === tenantId &&
+        account.id === accountId &&
+        account.recordStatus === CrmAccountRecordStatus.DRAFT
+    )
+    if (existingIndex < 0) {
+      return false
+    }
+    this.accounts.splice(existingIndex, 1)
+    for (let index = this.sources.length - 1; index >= 0; index -= 1) {
+      if (this.sources[index].tenantId === tenantId && this.sources[index].crmAccountId === accountId) {
+        this.sources.splice(index, 1)
+      }
+    }
+    return true
+  }
+
   async findDuplicateCandidates(): Promise<CrmAccountDuplicateCandidate[]> {
     return this.duplicateCandidates
   }
@@ -72,14 +102,17 @@ function createHarness() {
   return {
     repository,
     checkLeadDuplicate,
-    archiveCrmAccount: new ArchiveCrmAccountHandler(repository),
+    claimCrmAccount: new ClaimCrmAccountHandler(repository),
+    createDraftLead: new CreateDraftLeadHandler(repository),
     createLead: new CreateLeadHandler(repository, checkLeadDuplicate),
-    restoreCrmAccount: new RestoreCrmAccountHandler(repository)
+    deleteDraftLead: new DeleteDraftLeadHandler(repository),
+    releaseCrmAccount: new ReleaseCrmAccountHandler(repository),
+    submitDraftLead: new SubmitDraftLeadHandler(repository, checkLeadDuplicate)
   }
 }
 
 describe('CRM P1 lead use cases L1', () => {
-  it('CreateLead / should create ACTIVE LEAD with primary source without tenantParty binding', async () => {
+  it('CreateLead / should default manually created ACTIVE LEAD ownership to the current operator', async () => {
     const harness = createHarness()
 
     const result = await harness.createLead.execute(
@@ -93,7 +126,6 @@ describe('CRM P1 lead use cases L1', () => {
         leadDomain: 'acme.example',
         leadCountry: 'US',
         leadIdentifiers: [],
-        ownerAccountId: 'sales-1',
         priority: CrmPriority.A,
         nextFollowUpAt: new Date('2026-06-20T08:00:00.000Z'),
         source: {
@@ -118,14 +150,107 @@ describe('CRM P1 lead use cases L1', () => {
         displayName: 'Acme Importers'
       })
     )
-    expect(harness.repository.accounts).toHaveLength(1)
-    expect(harness.repository.sources).toEqual([
-      expect.objectContaining({
-        crmAccountId: result.account?.id,
-        sourceType: CrmSourceType.WEB_RESEARCH,
-        isPrimary: true
+    expect(result.account?.ownerAccountId).toBe('sales-1')
+
+    const claimed = await harness.createLead.execute(
+      new CreateLeadCommand({
+        tenantId: 'tenant-1',
+        operatorAccountId: 'sales-1',
+        displayName: 'Claimed Lead',
+        partyTypeHint: CrmAccountTypeHint.ORGANIZATION,
+        leadDomain: 'claimed.example',
+        leadIdentifiers: [],
+        priority: CrmPriority.A,
+        source: {
+          sourceType: CrmSourceType.WEB_RESEARCH,
+          capturedAt: new Date('2026-06-14T09:00:00.000Z'),
+          capturedByAccountId: 'sales-1'
+        }
       })
-    ])
+    )
+    expect(claimed.account?.ownerAccountId).toBe('sales-1')
+
+    const explicitlyOwned = await harness.createLead.execute(
+      new CreateLeadCommand({
+        tenantId: 'tenant-1',
+        operatorAccountId: 'sales-1',
+        displayName: 'Assigned Lead',
+        partyTypeHint: CrmAccountTypeHint.ORGANIZATION,
+        leadDomain: 'assigned.example',
+        leadIdentifiers: [],
+        ownerAccountId: 'sales-2',
+        claimForCurrentUser: false,
+        priority: CrmPriority.B,
+        source: {
+          sourceType: CrmSourceType.WEB_RESEARCH,
+          capturedAt: new Date('2026-06-14T09:00:00.000Z'),
+          capturedByAccountId: 'sales-1'
+        }
+      })
+    )
+    expect(explicitlyOwned.account?.ownerAccountId).toBe('sales-2')
+    expect(harness.repository.accounts).toHaveLength(3)
+    expect(harness.repository.sources[0]).toEqual(expect.objectContaining({ isPrimary: true }))
+  })
+
+  it('CreateLead / should leave owner empty only when Pool assignment is explicit', async () => {
+    const harness = createHarness()
+
+    const result = await harness.createLead.execute(
+      new CreateLeadCommand({
+        tenantId: 'tenant-1',
+        operatorAccountId: 'sales-1',
+        displayName: 'Website Form Lead',
+        partyTypeHint: CrmAccountTypeHint.ORGANIZATION,
+        leadDomain: 'website-form.example',
+        leadIdentifiers: [],
+        assignmentIntent: CrmLeadAssignmentIntent.POOL,
+        priority: CrmPriority.C,
+        source: {
+          sourceType: CrmSourceType.WEBSITE_FORM,
+          capturedAt: new Date('2026-06-20T08:00:00.000Z')
+        }
+      })
+    )
+
+    expect(result.account?.ownerAccountId).toBeNull()
+  })
+
+  it('ReleaseCrmAccount / should clear owner so active leads return to Pool', async () => {
+    const harness = createHarness()
+    harness.repository.accounts.push({
+      id: 'crm-account-1',
+      tenantId: 'tenant-1',
+      tenantPartyId: null,
+      recordStatus: CrmAccountRecordStatus.ACTIVE,
+      lifecycleStage: CrmAccountLifecycleStage.LEAD,
+      partyTypeHint: CrmAccountTypeHint.ORGANIZATION,
+      displayName: 'Released Lead',
+      leadCompanyName: null,
+      leadPersonName: null,
+      leadDomain: 'released.example',
+      leadEmail: null,
+      leadPhone: null,
+      leadWhatsapp: null,
+      leadCountry: 'US',
+      leadIdentifiers: [],
+      ownerAccountId: 'sales-1',
+      priority: CrmPriority.B,
+      lastActivityAt: null,
+      nextFollowUpAt: null,
+      createdBy: 'sales-1'
+    })
+
+    const result = await harness.releaseCrmAccount.execute(
+      new ReleaseCrmAccountCommand({
+        tenantId: 'tenant-1',
+        crmAccountId: 'crm-account-1',
+        operatorAccountId: 'sales-manager-1'
+      })
+    )
+
+    expect(result.account.ownerAccountId).toBeNull()
+    expect(harness.repository.accounts[0].ownerAccountId).toBeNull()
   })
 
   it('CheckLeadDuplicate / should classify high-confidence owner states without calling Party', async () => {
@@ -179,7 +304,7 @@ describe('CRM P1 lead use cases L1', () => {
         partyTypeHint: CrmAccountTypeHint.ORGANIZATION,
         leadDomain: 'acme.example',
         leadIdentifiers: [],
-        ownerAccountId: 'sales-1',
+        claimForCurrentUser: true,
         priority: CrmPriority.B,
         source: {
           sourceType: CrmSourceType.WEB_RESEARCH,
@@ -195,19 +320,132 @@ describe('CRM P1 lead use cases L1', () => {
     expect(harness.repository.sources).toHaveLength(0)
   })
 
-  it('ArchiveCrmAccount / should archive active lead and keep lifecycle stage unchanged', async () => {
+  it('CreateDraftLead and SubmitDraftLead / should keep source records and activate under the submitter by default', async () => {
+    const harness = createHarness()
+    const draft = await harness.createDraftLead.execute(
+      new CreateDraftLeadCommand({
+        tenantId: 'tenant-1',
+        operatorAccountId: 'sales-1',
+        displayName: 'Draft Lead',
+        partyTypeHint: CrmAccountTypeHint.ORGANIZATION,
+        leadDomain: 'draft.example',
+        leadCountry: 'US',
+        leadIdentifiers: [],
+        priority: CrmPriority.B,
+        source: {
+          sourceType: CrmSourceType.WEB_RESEARCH,
+          capturedAt: new Date('2026-06-18T08:00:00.000Z'),
+          capturedByAccountId: 'sales-1'
+        }
+      })
+    )
+
+    expect(draft.account).toEqual(
+      expect.objectContaining({
+        recordStatus: CrmAccountRecordStatus.DRAFT,
+        lifecycleStage: CrmAccountLifecycleStage.LEAD,
+        ownerAccountId: null,
+        createdBy: 'sales-1'
+      })
+    )
+    expect(harness.repository.sources).toHaveLength(1)
+
+    const submitted = await harness.submitDraftLead.execute(
+      new SubmitDraftLeadCommand({
+        tenantId: 'tenant-1',
+        crmAccountId: draft.account.id,
+        operatorAccountId: 'sales-1',
+        source: {
+          sourceType: CrmSourceType.OTHER
+        }
+      })
+    )
+
+    expect(submitted.resultType).toBe(CrmLeadCreateResultType.CREATED)
+    expect(submitted.account).toEqual(
+      expect.objectContaining({
+        recordStatus: CrmAccountRecordStatus.ACTIVE,
+        lifecycleStage: CrmAccountLifecycleStage.LEAD,
+        ownerAccountId: 'sales-1'
+      })
+    )
+    expect(harness.repository.sources).toHaveLength(1)
+  })
+
+  it('SubmitDraftLead / should submit to Pool only when Pool assignment is explicit', async () => {
+    const harness = createHarness()
+    const draft = await harness.createDraftLead.execute(
+      new CreateDraftLeadCommand({
+        tenantId: 'tenant-1',
+        operatorAccountId: 'sales-1',
+        displayName: 'Pool Draft Lead',
+        partyTypeHint: CrmAccountTypeHint.ORGANIZATION,
+        leadDomain: 'pool-draft.example',
+        leadIdentifiers: [],
+        priority: CrmPriority.C,
+        source: {
+          sourceType: CrmSourceType.WEBSITE_FORM,
+          capturedAt: new Date('2026-06-20T08:00:00.000Z')
+        }
+      })
+    )
+
+    const submitted = await harness.submitDraftLead.execute(
+      new SubmitDraftLeadCommand({
+        tenantId: 'tenant-1',
+        crmAccountId: draft.account.id,
+        operatorAccountId: 'sales-1',
+        assignmentIntent: CrmLeadAssignmentIntent.POOL
+      })
+    )
+
+    expect(submitted.account?.ownerAccountId).toBeNull()
+  })
+
+  it('DeleteDraftLead / should hard delete only draft leads and their source records', async () => {
     const harness = createHarness()
     harness.repository.accounts.push({
-      id: 'crm-account-1',
+      id: 'draft-1',
+      tenantId: 'tenant-1',
+      tenantPartyId: null,
+      recordStatus: CrmAccountRecordStatus.DRAFT,
+      lifecycleStage: CrmAccountLifecycleStage.LEAD,
+      partyTypeHint: CrmAccountTypeHint.ORGANIZATION,
+      displayName: 'Draft Lead',
+      leadCompanyName: null,
+      leadPersonName: null,
+      leadDomain: 'draft.example',
+      leadEmail: null,
+      leadPhone: null,
+      leadWhatsapp: null,
+      leadCountry: 'US',
+      leadIdentifiers: [],
+      ownerAccountId: null,
+      priority: CrmPriority.B,
+      lastActivityAt: null,
+      nextFollowUpAt: null,
+      createdBy: 'sales-1'
+    })
+    harness.repository.sources.push({
+      id: 'source-1',
+      tenantId: 'tenant-1',
+      crmAccountId: 'draft-1',
+      sourceType: CrmSourceType.WEB_RESEARCH,
+      capturedAt: new Date('2026-06-18T08:00:00.000Z'),
+      capturedByAccountId: 'sales-1',
+      isPrimary: true
+    })
+    harness.repository.accounts.push({
+      id: 'active-1',
       tenantId: 'tenant-1',
       tenantPartyId: null,
       recordStatus: CrmAccountRecordStatus.ACTIVE,
       lifecycleStage: CrmAccountLifecycleStage.LEAD,
       partyTypeHint: CrmAccountTypeHint.ORGANIZATION,
-      displayName: 'Retired Lead',
+      displayName: 'Active Lead',
       leadCompanyName: null,
       leadPersonName: null,
-      leadDomain: 'retired.example',
+      leadDomain: 'active.example',
       leadEmail: null,
       leadPhone: null,
       leadWhatsapp: null,
@@ -220,64 +458,57 @@ describe('CRM P1 lead use cases L1', () => {
       createdBy: 'sales-1'
     })
 
-    const result = await harness.archiveCrmAccount.execute(
-      new ArchiveCrmAccountCommand({
+    const result = await harness.deleteDraftLead.execute(
+      new DeleteDraftLeadCommand({
         tenantId: 'tenant-1',
-        crmAccountId: 'crm-account-1',
+        crmAccountId: 'draft-1',
         operatorAccountId: 'sales-1'
       })
     )
 
-    expect(result.account).toEqual(
-      expect.objectContaining({
-        id: 'crm-account-1',
-        recordStatus: CrmAccountRecordStatus.ARCHIVED,
-        lifecycleStage: CrmAccountLifecycleStage.LEAD
-      })
-    )
-    expect(harness.repository.accounts[0]).toEqual(result.account)
+    expect(result).toEqual({ deleted: true, crmAccountId: 'draft-1' })
+    expect(harness.repository.accounts.map((account) => account.id)).toEqual(['active-1'])
+    expect(harness.repository.sources).toHaveLength(0)
   })
 
-  it('RestoreCrmAccount / should restore archived lead to active without changing lifecycle stage', async () => {
+  it('ClaimCrmAccount / should assign current operator to ownerless Pool records', async () => {
     const harness = createHarness()
     harness.repository.accounts.push({
-      id: 'crm-account-1',
+      id: 'pool-1',
       tenantId: 'tenant-1',
       tenantPartyId: null,
-      recordStatus: CrmAccountRecordStatus.ARCHIVED,
+      recordStatus: CrmAccountRecordStatus.ACTIVE,
       lifecycleStage: CrmAccountLifecycleStage.LEAD,
       partyTypeHint: CrmAccountTypeHint.ORGANIZATION,
-      displayName: 'Restorable Lead',
+      displayName: 'Pool Lead',
       leadCompanyName: null,
       leadPersonName: null,
-      leadDomain: 'restorable.example',
+      leadDomain: 'pool.example',
       leadEmail: null,
       leadPhone: null,
       leadWhatsapp: null,
       leadCountry: 'US',
       leadIdentifiers: [],
-      ownerAccountId: 'sales-1',
+      ownerAccountId: null,
       priority: CrmPriority.B,
       lastActivityAt: null,
       nextFollowUpAt: null,
-      createdBy: 'sales-1',
-      archivedAt: new Date('2026-06-14T10:00:00.000Z')
+      createdBy: 'system'
     })
 
-    const result = await harness.restoreCrmAccount.execute(
-      new RestoreCrmAccountCommand({
+    const result = await harness.claimCrmAccount.execute(
+      new ClaimCrmAccountCommand({
         tenantId: 'tenant-1',
-        crmAccountId: 'crm-account-1',
+        crmAccountId: 'pool-1',
         operatorAccountId: 'sales-1'
       })
     )
 
     expect(result.account).toEqual(
       expect.objectContaining({
-        id: 'crm-account-1',
+        id: 'pool-1',
         recordStatus: CrmAccountRecordStatus.ACTIVE,
-        lifecycleStage: CrmAccountLifecycleStage.LEAD,
-        archivedAt: null
+        ownerAccountId: 'sales-1'
       })
     )
     expect(harness.repository.accounts[0]).toEqual(result.account)

@@ -32,11 +32,19 @@ describe('CountryRegionSelect', () => {
     const select = wrapper.findComponent(Select);
     const options = select.props('options') as Array<{ label: string; value: string }>;
 
+    expect(options.slice(0, 5).map((option) => option.value)).toEqual([
+      'AD',
+      'AE',
+      'AF',
+      'AG',
+      'AI',
+    ]);
     expect(options).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ label: '中国 (CN)', value: 'CN' }),
-        expect.objectContaining({ label: '美国 (US)', value: 'US' }),
-        expect.objectContaining({ label: '南极洲 (AQ)', value: 'AQ' }),
+        expect.objectContaining({ label: 'CN - 中国', value: 'CN' }),
+        expect.objectContaining({ label: 'US - 美国', value: 'US' }),
+        expect.objectContaining({ label: 'AQ - 南极洲', value: 'AQ' }),
+        expect.objectContaining({ label: 'GB / UK - 英国', value: 'GB' }),
       ]),
     );
 
@@ -62,9 +70,28 @@ describe('CountryRegionSelect', () => {
 
     expect(options).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ label: 'China (CN)', value: 'CN' }),
-        expect.objectContaining({ label: 'United States (US)', value: 'US' }),
+        expect.objectContaining({ label: 'CN - China', value: 'CN' }),
+        expect.objectContaining({ label: 'US - United States', value: 'US' }),
+        expect.objectContaining({ label: 'GB / UK - United Kingdom', value: 'GB' }),
       ]),
     );
+  });
+
+  it('matches United Kingdom by the common UK alias', () => {
+    const wrapper = mount(CountryRegionSelect);
+    const select = wrapper.findComponent(Select);
+    const filterOption = select.props('filterOption') as (
+      input: string,
+      option?: { label: string; searchText: string; value: string },
+    ) => boolean;
+    const options = select.props('options') as Array<{
+      label: string;
+      searchText: string;
+      value: string;
+    }>;
+    const unitedKingdom = options.find((option) => option.value === 'GB');
+
+    expect(unitedKingdom).toBeDefined();
+    expect(filterOption('UK', unitedKingdom)).toBe(true);
   });
 });

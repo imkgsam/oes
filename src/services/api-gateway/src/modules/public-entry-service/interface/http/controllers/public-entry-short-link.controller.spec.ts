@@ -61,7 +61,7 @@ describe('PublicEntryShortLinkController', () => {
     ).toEqual({ all: [PUBLIC_ENTRY_SHORT_LINK_PERMISSION_CODES.READ] })
   })
 
-  it('maps public REDIRECT, NOT_FOUND, and unavailable outcomes into controlled HTTP responses', async () => {
+  it('redirects external ShortLink targets directly without an intermediate confirmation page', async () => {
     const redirectResponse = createResponseMock()
     service.resolvePublicRedirect.mockResolvedValueOnce({
       type: 'REDIRECT',
@@ -74,6 +74,8 @@ describe('PublicEntryShortLinkController', () => {
         headers: {
           'user-agent': 'Mozilla/5.0',
           'x-forwarded-for': '203.0.113.9, 10.0.0.1',
+          'x-forwarded-proto': 'https',
+          host: 'go.oes.local',
           'accept-language': 'zh-CN',
           referer: 'https://source.example',
           'x-request-id': 'req-public',
@@ -93,17 +95,51 @@ describe('PublicEntryShortLinkController', () => {
       traceId: 'trace-public'
     })
     expect(redirectResponse.redirect).toHaveBeenCalledWith(302, 'https://example.com/card')
+    expect(redirectResponse.send).not.toHaveBeenCalled()
+  })
 
+  it('redirects same-origin internal ShortLink targets without an external confirmation page', async () => {
+    const redirectResponse = createResponseMock()
+    service.resolvePublicRedirect.mockResolvedValueOnce({
+      type: 'REDIRECT',
+      location: '/public/business-cards/card_001'
+    })
+
+    await controller.resolvePublicRedirect(
+      'card001',
+      {
+        headers: {
+          'x-forwarded-proto': 'https',
+          host: 'go.oes.local'
+        },
+        ip: '10.0.0.2'
+      } as never,
+      redirectResponse as never
+    )
+
+    expect(redirectResponse.redirect).toHaveBeenCalledWith(302, '/public/business-cards/card_001')
+    expect(redirectResponse.send).not.toHaveBeenCalled()
+  })
+
+  it('maps NOT_FOUND and unavailable public redirect outcomes into controlled HTTP responses', async () => {
     const missingResponse = createResponseMock()
     service.resolvePublicRedirect.mockResolvedValueOnce({ type: 'NOT_FOUND', location: '' })
-    await controller.resolvePublicRedirect('missing', { headers: {}, ip: '10.0.0.2' } as never, missingResponse as never)
+    await controller.resolvePublicRedirect(
+      'missing',
+      { headers: {}, ip: '10.0.0.2' } as never,
+      missingResponse as never
+    )
     expect(missingResponse.status).toHaveBeenCalledWith(404)
     expect(missingResponse.send.mock.calls[0][0]).toContain('链接不可用')
     expect(missingResponse.send.mock.calls[0][0]).not.toContain('tenant-1')
 
     const disabledResponse = createResponseMock()
     service.resolvePublicRedirect.mockResolvedValueOnce({ type: 'UNAVAILABLE', location: '' })
-    await controller.resolvePublicRedirect('disabled', { headers: {}, ip: '10.0.0.2' } as never, disabledResponse as never)
+    await controller.resolvePublicRedirect(
+      'disabled',
+      { headers: {}, ip: '10.0.0.2' } as never,
+      disabledResponse as never
+    )
     expect(disabledResponse.status).toHaveBeenCalledWith(200)
     expect(disabledResponse.send.mock.calls[0][0]).toContain('该链接当前不可用')
     expect(disabledResponse.send.mock.calls[0][0]).not.toContain('targetResourceId')

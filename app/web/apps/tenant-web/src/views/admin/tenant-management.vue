@@ -80,6 +80,7 @@ interface TenantDetailFormState {
   rootOrgName: string;
   status: string;
   userCount: number | null;
+  websiteUrl: string;
 }
 
 const authContextStore = useAuthContextStore();
@@ -127,6 +128,7 @@ const detailForm = reactive<TenantDetailFormState>({
   rootOrgName: '',
   status: '',
   userCount: null,
+  websiteUrl: '',
 });
 
 const tenants = ref<TenantManagementApi.TenantSummary[]>([]);
@@ -527,6 +529,7 @@ function syncDetailForm(tenant: TenantManagementApi.TenantSummary) {
   detailForm.rootOrgName = tenant.rootOrgName || '';
   detailForm.status = tenant.status;
   detailForm.userCount = typeof tenant.userCount === 'number' ? tenant.userCount : null;
+  detailForm.websiteUrl = tenant.websiteUrl || '';
 }
 
 /** openTenantDetail loads one tenant snapshot into the detail drawer. */
@@ -559,6 +562,7 @@ async function submitTenantProfile() {
       code: detailForm.code.trim() || undefined,
       employeeCodePrefix: detailForm.employeeCodePrefix.trim().toUpperCase() || undefined,
       name: detailForm.name.trim() || undefined,
+      websiteUrl: detailForm.websiteUrl.trim() || undefined,
     });
     if (result.tenant) {
       syncDetailForm(result.tenant);
@@ -1078,6 +1082,9 @@ onMounted(async () => {
                   :maxlength="3"
                   placeholder="例如 0AF"
                 />
+              </Form.Item>
+              <Form.Item label="公司官网">
+                <Input v-model:value="detailForm.websiteUrl" placeholder="https://example.com" />
               </Form.Item>
             </Form>
           </Card>

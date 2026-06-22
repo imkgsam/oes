@@ -1,12 +1,15 @@
 import { Inject } from '@nestjs/common'
 import { IQueryHandler, QueryHandler } from '@nestjs/cqrs'
-import { ACCOUNT_AUTHORIZATION_SERVICE } from './check-permission-with-context.handler'
 import {
   BatchAuthorizationDecisionItemResult,
   BatchCheckPermissionQuery
 } from './batch-check-permission.query'
-import { AccountAuthorizationService } from '../../../domain/services/account-authorization.service'
+import {
+  ACCOUNT_AUTHORIZATION_SERVICE,
+  AccountAuthorizationService
+} from '../../../domain/services/account-authorization.service'
 
+// BatchCheckPermissionHandler resolves pure RBAC permission decisions for multiple request items.
 @QueryHandler(BatchCheckPermissionQuery)
 export class BatchCheckPermissionHandler
   implements IQueryHandler<BatchCheckPermissionQuery, BatchAuthorizationDecisionItemResult[]>

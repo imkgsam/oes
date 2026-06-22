@@ -351,6 +351,34 @@ describe('BusinessCard upstream gRPC adapters', () => {
     expect(identityQuery.listAccountWorkPhoneAssets).not.toHaveBeenCalled()
   })
 
+  it('maps tenant public website URL from tenant-org into the company display summary', async () => {
+    const tenantOrgQuery = {
+      getTenantById: jest.fn(() =>
+        of({
+          tenant: {
+            id: 'tenant_001',
+            code: 'oes',
+            name: 'OES Manufacturing',
+            status: 'ACTIVE',
+            websiteUrl: 'https://www.oes.example'
+          }
+        })
+      )
+    }
+    const adapter = new BusinessCardTenantProfileGrpcAdapter(
+      buildGrpcClient(tenantOrgQuery) as any,
+      metadataFactory as any
+    )
+    adapter.onModuleInit()
+
+    await expect(adapter.getCompanyDisplaySummary({ tenantId: 'tenant_001' })).resolves.toEqual({
+      tenantId: 'tenant_001',
+      companyDisplayName: 'OES Manufacturing',
+      websiteUrl: 'https://www.oes.example',
+      logoUrl: null
+    })
+  })
+
   it('returns null instead of leaking upstream failures', async () => {
     const adapter = new BusinessCardTenantProfileGrpcAdapter(
       buildGrpcClient({

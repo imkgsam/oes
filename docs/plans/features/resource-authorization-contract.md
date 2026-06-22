@@ -1,6 +1,10 @@
 # Resource Authorization Contract
 
-> 服务设计唯一真相源：[permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。授权分层依据为 [15-authorization-layering-and-resource-policy-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/15-authorization-layering-and-resource-policy-architecture.md)。本文只记录 `checkResource / buildQueryScope` 的内部 application contract 与调用模式，不重新定义 permission-service 长期 owner 边界。
+> Status: SUPERSEDED_BY_TRUTH_SOURCE. Do not use this file as the stable resource authorization contract source or an implementation target.
+
+> Historical phase packet. The stable black-box resource authorization contract is now [resource-authorization.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/resource-authorization.md), and the active rollout plan is [policyinstance-resource-authorization-mainline.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/policyinstance-resource-authorization-mainline.md). Use this file only as background for the internal facade slice that has already landed; earlier statements about not exposing gRPC / HTTP are superseded by the current contract documents.
+
+> 服务设计唯一真相源：[permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。授权分层依据为 [15-authorization-layering-and-resource-policy-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/15-authorization-layering-and-resource-policy-architecture.md)。本文只记录 `checkResource / buildQueryScope` 的历史内部 application contract 与调用模式，不重新定义 permission-service 长期 owner 边界；当前 gRPC / Gateway 暴露状态以 stable contract 与 mainline packet 为准。
 
 ## 1. 目标
 
@@ -12,7 +16,7 @@
 ## 2. 不做什么
 
 - 不接入 CRM/SRM/Procurement/MES/WMS 业务服务。
-- 不开放外部 gRPC / HTTP contract。
+- 历史阶段当时未开放外部 gRPC / HTTP contract；当前 `checkResource / buildQueryScope` 契约以 [resource-authorization.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/resource-authorization.md) 为准。
 - 不改变 `CheckPermission` 粗粒度 RBAC 语义。
 - 不把 resource facts 或 query scope 放进 decorator。
 - 不让 permission-service 查询业务资源数据库。

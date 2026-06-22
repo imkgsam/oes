@@ -5,7 +5,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler'
 import { CommonJwtModule } from '@oes/common/auth'
 import { GatewayPermissionGuard } from '@oes/common/authorization'
 import { SERVICE_NAMES } from '@oes/common/constants'
-import { resolveCommonProtoPath } from '@oes/common/contracts'
+import { resolveCommonContractPath, resolveCommonProtoPath } from '@oes/common/contracts'
 import { LoggingModule } from '@oes/common/logging'
 import { RegistryModule } from '@oes/common/registry'
 import { GrpcTransportModule } from '@oes/common/transport'
@@ -127,6 +127,8 @@ export const permissionGrpcProtoPaths = [
   resolveCommonProtoPath('permission_service/permission_management.proto'),
   resolveCommonProtoPath('permission_service/permission_check.proto'),
   resolveCommonProtoPath('permission_service/permission_access_summary.proto'),
+  resolveCommonProtoPath('permission_service/policy_instance_management.proto'),
+  resolveCommonProtoPath('permission_service/policy_instance_preview.proto'),
   resolveCommonProtoPath('permission_service/permission_terminal_access.proto')
 ]
 
@@ -158,6 +160,12 @@ export const permissionGrpcProtoPaths = [
           serviceName: SERVICE_NAMES.PERMISSION,
           protoPath: permissionGrpcProtoPaths,
           packageName: 'permission_service',
+          loader: {
+            includeDirs: [
+              resolveCommonContractPath(),
+              resolveCommonContractPath('permission_service')
+            ]
+          },
           url:
             process.env.PERMISSION_SERVICE_HOST && process.env.PERMISSION_SERVICE_PORT
               ? `${process.env.PERMISSION_SERVICE_HOST}:${process.env.PERMISSION_SERVICE_PORT}`

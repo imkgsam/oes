@@ -17,6 +17,7 @@ function createSessionFixture(input: {
   terminal?: string
   terminalDeviceId?: string
   deviceBoundTenantId?: string
+  displayName?: string
   loginFlow?: string
 }): Session {
   return Session.fromRedis({
@@ -28,6 +29,7 @@ function createSessionFixture(input: {
     terminal: input.terminal,
     terminalDeviceId: input.terminalDeviceId,
     deviceBoundTenantId: input.deviceBoundTenantId,
+    displayName: input.displayName,
     loginFlow: input.loginFlow,
     refreshToken: `${input.id}-refresh`,
     status: input.status ?? SessionStatus.ACTIVE,
@@ -46,7 +48,8 @@ function createSessionFixture(input: {
       loginFlow: input.loginFlow,
       terminal: input.terminal,
       terminalDeviceId: input.terminalDeviceId,
-      deviceBoundTenantId: input.deviceBoundTenantId
+      deviceBoundTenantId: input.deviceBoundTenantId,
+      displayName: input.displayName
     },
     isAdminControlled: false
   })
@@ -58,7 +61,8 @@ describe('ValidateAccessTokenHandler', () => {
       id: 'session-1',
       userId: 'user-1',
       accountId: 'account-1',
-      tenantId: 'tenant-1'
+      tenantId: 'tenant-1',
+      displayName: 'Tenant Account'
     })
     const jwtService = {
       verifyAsync: jest.fn().mockResolvedValue({
@@ -106,7 +110,8 @@ describe('ValidateAccessTokenHandler', () => {
       id: 'session-1',
       userId: 'user-1',
       accountId: 'account-1',
-      tenantId: 'tenant-1'
+      tenantId: 'tenant-1',
+      displayName: 'Tenant Account'
     })
     const jwtService = {
       verifyAsync: jest.fn().mockResolvedValue({
@@ -146,6 +151,9 @@ describe('ValidateAccessTokenHandler', () => {
       allowedTerminals: [],
       passwordSetupRequired: true,
       roleIds: ['role-1'],
+      displayName: 'Tenant Account',
+      terminalDeviceId: undefined,
+      deviceBoundTenantId: undefined,
       loginFlow: 'email-password'
     })
     expect(sessionRepository.save).toHaveBeenCalledWith(session)

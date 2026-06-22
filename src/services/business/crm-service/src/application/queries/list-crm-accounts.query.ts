@@ -6,8 +6,11 @@ import {
 
 export interface ListCrmAccountsQueryInput {
   tenantId: string
+  createdBy?: string | null
   keyword?: string | null
   lifecycleStage?: CrmAccountLifecycleStage | null
+  lifecycleStages?: CrmAccountLifecycleStage[] | null
+  ownerless?: boolean | null
   recordStatus?: CrmAccountRecordStatus | null
   ownerAccountId?: string | null
   page?: number

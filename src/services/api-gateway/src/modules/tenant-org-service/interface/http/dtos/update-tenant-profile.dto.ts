@@ -17,4 +17,9 @@ export class UpdateTenantProfileDto {
   @IsOptional()
   @IsString()
   name?: string
+
+  @ApiPropertyOptional({ description: 'Tenant public company website URL.', example: 'https://www.example.com' })
+  @IsOptional()
+  @IsString()
+  websiteUrl?: string
 }

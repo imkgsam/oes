@@ -170,6 +170,41 @@ describe('TenantOrgManagementService', () => {
     expect(result.rootOrgUnit.id).toBe('root-1')
   })
 
+  it('updateTenantProfile / should persist the tenant public website URL', async () => {
+    const tenantRepository = createTenantRepositoryMock()
+    const orgUnitRepository = createOrgUnitRepositoryMock()
+    const organizationTenantPartyReader = createOrganizationTenantPartyReaderMock()
+    tenantRepository.updateProfile.mockResolvedValue({
+      id: 'tenant-1',
+      code: 'acme',
+      employeeCodePrefix: '0AF',
+      name: 'Acme',
+      status: TenantStatus.ACTIVE,
+      rootOrgId: 'root-1',
+      websiteUrl: 'https://www.acme.example'
+    })
+    const service = new TenantOrgManagementService(
+      tenantRepository as never,
+      orgUnitRepository as never,
+      organizationTenantPartyReader as never,
+      createAuthSessionRevocationPortMock() as never
+    )
+
+    await service.updateTenantProfile({
+      tenantId: 'tenant-1',
+      name: 'Acme',
+      websiteUrl: ' https://www.acme.example '
+    } as never)
+
+    expect(tenantRepository.updateProfile).toHaveBeenCalledWith({
+      tenantId: 'tenant-1',
+      name: 'Acme',
+      code: undefined,
+      employeeCodePrefix: undefined,
+      websiteUrl: 'https://www.acme.example'
+    })
+  })
+
   it('createOrgUnit / when tenant is suspended / should reject new org units', async () => {
     const tenantRepository = createTenantRepositoryMock()
     const orgUnitRepository = createOrgUnitRepositoryMock()

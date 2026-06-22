@@ -112,6 +112,43 @@ describe('PublicEntryBusinessCardService', () => {
     expect(JSON.stringify(adapter.updateBusinessCardContactActions.mock.calls)).not.toContain('alex.chen@example.com')
   })
 
+  it('normalizes BusinessCard contact action target ref enums before returning BFF responses', async () => {
+    adapter.getBusinessCardDetail.mockResolvedValue({
+      businessCard: {
+        businessCardId: 'card-1',
+        contactActionConfigs: [
+          {
+            contactActionType: 'SEND_EMAIL',
+            targetRefId: 'asset-email-1',
+            targetRefType: ContactActionTargetRefType.CONTACT_ACTION_TARGET_REF_TYPE_CONTACT_ASSET
+          },
+          {
+            contactActionType: 'SAVE_VCARD',
+            targetRefId: '',
+            targetRefType: ContactActionTargetRefType.CONTACT_ACTION_TARGET_REF_TYPE_NONE
+          }
+        ]
+      }
+    })
+
+    await expect(service.getCardDetail('tenant-1', 'card-1', source as never)).resolves.toEqual({
+      businessCard: expect.objectContaining({
+        contactActionConfigs: [
+          expect.objectContaining({
+            contactActionType: 'SEND_EMAIL',
+            targetRefId: 'asset-email-1',
+            targetRefType: 'CONTACT_ASSET'
+          }),
+          expect.objectContaining({
+            contactActionType: 'SAVE_VCARD',
+            targetRefId: '',
+            targetRefType: 'NONE'
+          })
+        ]
+      })
+    })
+  })
+
   it('lists Contact Asset candidates by employee without exposing login credentials', async () => {
     contactAssetAdapter.listContactAssetCandidatesByEmployee.mockResolvedValue({
       assets: [

@@ -8,6 +8,14 @@ export type ShortLinkListByTargetInput = {
   pageSize?: number
 }
 
+export type ShortLinkListInput = {
+  tenantId: string
+  targetKind?: ShortLinkRecord['targetKind']
+  targetType?: string
+  page?: number
+  pageSize?: number
+}
+
 export type ShortLinkVisitStatsInput = {
   tenantId: string
   shortLinkId: string
@@ -31,6 +39,7 @@ export interface ShortLinkRepository {
   isShortCodeTaken(shortCode: string): Promise<boolean>
   create(record: ShortLinkRecord): Promise<ShortLinkRecord>
   update(record: ShortLinkRecord): Promise<ShortLinkRecord>
+  list(input: ShortLinkListInput): Promise<{ items: ShortLinkRecord[]; total: number }>
   listByTarget(
     input: ShortLinkListByTargetInput
   ): Promise<{ items: ShortLinkRecord[]; total: number }>

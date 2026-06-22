@@ -22,8 +22,10 @@ export namespace CustomerManagementApi {
     | 'POSSIBLE_DUPLICATE'
     | 'RESTRICTED_DUPLICATE'
   export type CrmPriority = 'A' | 'B' | 'C' | 'D'
+  export type CrmLeadAssignmentIntent = 'OWNED_BY_OPERATOR' | 'POOL'
   export type CrmSourceType =
     | 'AD_CAMPAIGN'
+    | 'BROWSER_EXTENSION'
     | 'BUSINESS_CARD'
     | 'EXHIBITION_SCAN'
     | 'IMPORTED_LIST'
@@ -57,10 +59,12 @@ export namespace CustomerManagementApi {
     leadCountry: string
     leadIdentifiers: CrmLeadIdentifier[]
     ownerAccountId: string
+    ownerDisplayName: string
     priority: CrmPriority | string
     lastActivityAt: string
     nextFollowUpAt: string
     createdBy: string
+    createdByDisplayName: string
     createdAt: string
     updatedAt: string
     archivedAt: string
@@ -127,7 +131,8 @@ export namespace CustomerManagementApi {
     leadPhone?: string
     leadWhatsapp?: string
     nextFollowUpAt?: string
-    ownerAccountId?: string
+    claimForCurrentUser?: boolean
+    assignmentIntent?: CrmLeadAssignmentIntent
     partyTypeHint?: CrmAccountTypeHint
     priority?: CrmPriority
     sourceCapturedAt?: string
@@ -152,13 +157,53 @@ export namespace CustomerManagementApi {
     existingCrmAccountId: string
   }
 
-  export interface ArchiveCrmAccountResult extends CrmAccount {}
-  export interface RestoreCrmAccountResult extends CrmAccount {}
+  export interface CreateDraftLeadPayload extends Omit<CreateLeadPayload, 'claimForCurrentUser' | 'duplicateWarningAcknowledged' | 'sourceType'> {
+    sourceType?: CrmSourceType
+  }
+
+  export interface UpdateDraftLeadPayload extends Omit<CreateDraftLeadPayload, 'sourceCapturedAt' | 'sourceCapturedByAccountId' | 'sourceExternalReference' | 'sourceName' | 'sourceNote' | 'sourceRawPayload' | 'sourceType'> {}
+
+  export interface SubmitDraftLeadPayload {
+    claimForCurrentUser?: boolean
+    assignmentIntent?: CrmLeadAssignmentIntent
+    duplicateWarningAcknowledged?: boolean
+    sourceCapturedAt?: string
+    sourceCapturedByAccountId?: string
+    sourceExternalReference?: string
+    sourceName?: string
+    sourceNote?: string
+    sourceRawPayload?: Record<string, unknown>
+    sourceType?: CrmSourceType
+  }
+
+  export interface DeleteDraftLeadResult {
+    deleted: boolean
+    crmAccountId: string
+  }
+
+  export interface CheckLeadDuplicatePayload {
+    displayName?: string
+    leadCompanyName?: string
+    leadCountry?: string
+    leadDomain?: string
+    leadEmail?: string
+    leadIdentifiers?: CrmLeadIdentifier[]
+    leadPersonName?: string
+    leadPhone?: string
+    leadWhatsapp?: string
+  }
+
+  export interface CheckLeadDuplicateResult {
+    duplicateResult: CrmLeadDuplicateResult
+  }
 
   export interface CrmAccountListQuery {
+    createdBy?: string
     keyword?: string
     lifecycleStage?: CrmAccountLifecycleStage
+    lifecycleStages?: CrmAccountLifecycleStage[]
     ownerAccountId?: string
+    ownerless?: boolean
     page?: number
     pageSize?: number
     recordStatus?: CrmAccountRecordStatus
@@ -199,6 +244,17 @@ export namespace CustomerManagementApi {
   }
 }
 
+// Checks CRM P1 duplicate candidates before creating or submitting a lead.
+export async function checkLeadDuplicateApi(
+  tenantId: string,
+  data: CustomerManagementApi.CheckLeadDuplicatePayload
+) {
+  return requestClient.post<CustomerManagementApi.CheckLeadDuplicateResult>(
+    `/customer-management/tenants/${encodeURIComponent(tenantId)}/leads/check-duplicate`,
+    data
+  )
+}
+
 // Lists CRM P1 accounts for the sales workspace without using the legacy customer-directory shape.
 export async function listCrmAccountsApi(
   tenantId: string,
@@ -207,7 +263,8 @@ export async function listCrmAccountsApi(
   return requestClient.get<CustomerManagementApi.CrmAccountListResult>(
     `/customer-management/tenants/${encodeURIComponent(tenantId)}/crm-accounts`,
     {
-      params
+      params,
+      paramsSerializer: 'repeat'
     }
   )
 }
@@ -219,6 +276,51 @@ export async function getCrmAccountApi(
 ) {
   return requestClient.get<CustomerManagementApi.CrmAccount>(
     `/customer-management/tenants/${encodeURIComponent(tenantId)}/crm-accounts/${encodeURIComponent(crmAccountId)}`
+  )
+}
+
+// Creates one CRM P1 draft lead without entering the active lead views.
+export async function createDraftLeadApi(
+  tenantId: string,
+  data: CustomerManagementApi.CreateDraftLeadPayload
+) {
+  return requestClient.post<CustomerManagementApi.CrmAccount>(
+    `/customer-management/tenants/${encodeURIComponent(tenantId)}/draft-leads`,
+    data
+  )
+}
+
+// Updates one CRM P1 draft lead before submit.
+export async function updateDraftLeadApi(
+  tenantId: string,
+  crmAccountId: string,
+  data: CustomerManagementApi.UpdateDraftLeadPayload
+) {
+  return requestClient.request<CustomerManagementApi.CrmAccount>(
+    `/customer-management/tenants/${encodeURIComponent(tenantId)}/draft-leads/${encodeURIComponent(crmAccountId)}`,
+    { data, method: 'PATCH' }
+  )
+}
+
+// Submits one CRM P1 draft lead to ACTIVE + LEAD after formal duplicate checks.
+export async function submitDraftLeadApi(
+  tenantId: string,
+  crmAccountId: string,
+  data: CustomerManagementApi.SubmitDraftLeadPayload
+) {
+  return requestClient.post<CustomerManagementApi.CreateLeadResult>(
+    `/customer-management/tenants/${encodeURIComponent(tenantId)}/draft-leads/${encodeURIComponent(crmAccountId)}/submit`,
+    data
+  )
+}
+
+// Hard-deletes one CRM P1 draft lead and its source records.
+export async function deleteDraftLeadApi(
+  tenantId: string,
+  crmAccountId: string
+) {
+  return requestClient.delete<CustomerManagementApi.DeleteDraftLeadResult>(
+    `/customer-management/tenants/${encodeURIComponent(tenantId)}/draft-leads/${encodeURIComponent(crmAccountId)}`
   )
 }
 
@@ -244,24 +346,24 @@ export async function convertLeadToProspectCustomerApi(
   )
 }
 
-// Archives one CRM P1 lead or prospect customer while preserving its CRM history.
-export async function archiveCrmAccountApi(
+// Claims one ownerless CRM P1 Pool lead or prospect customer for the current operator.
+export async function claimCrmAccountApi(
   tenantId: string,
   crmAccountId: string
 ) {
-  return requestClient.post<CustomerManagementApi.ArchiveCrmAccountResult>(
-    `/customer-management/tenants/${encodeURIComponent(tenantId)}/crm-accounts/${encodeURIComponent(crmAccountId)}/archive`,
+  return requestClient.post<CustomerManagementApi.CrmAccount>(
+    `/customer-management/tenants/${encodeURIComponent(tenantId)}/crm-accounts/${encodeURIComponent(crmAccountId)}/claim`,
     {}
   )
 }
 
-// Restores one archived CRM P1 lead or prospect customer while preserving its lifecycle stage.
-export async function restoreCrmAccountApi(
+// Releases one owned CRM P1 lead or prospect customer back to the ownerless Pool.
+export async function releaseCrmAccountApi(
   tenantId: string,
   crmAccountId: string
 ) {
-  return requestClient.post<CustomerManagementApi.RestoreCrmAccountResult>(
-    `/customer-management/tenants/${encodeURIComponent(tenantId)}/crm-accounts/${encodeURIComponent(crmAccountId)}/restore`,
+  return requestClient.post<CustomerManagementApi.CrmAccount>(
+    `/customer-management/tenants/${encodeURIComponent(tenantId)}/crm-accounts/${encodeURIComponent(crmAccountId)}/release`,
     {}
   )
 }

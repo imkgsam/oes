@@ -128,4 +128,44 @@ describe('createRouterGuard', () => {
     expect(generateAccessMock).not.toHaveBeenCalled();
     expect(afterEachHandlers).toHaveLength(1);
   });
+
+  it('refreshes persisted user info before rebuilding access routes', async () => {
+    const beforeEachHandlers: Array<(to: any, from: any) => Promise<any>> = [];
+    const routerMock = {
+      beforeEach: (handler: (to: any, from: any) => Promise<any>) => {
+        beforeEachHandlers.push(handler);
+      },
+      afterEach: vi.fn(),
+      resolve: vi.fn((path: string) => ({ fullPath: path, path })),
+    };
+    accessStoreMock.isAccessChecked = false;
+    fetchUserInfoMock.mockResolvedValue({
+      homePath: '/workbench/home',
+      roles: ['TENANT_ADMIN'],
+    });
+    generateAccessMock.mockResolvedValue({
+      accessibleMenus: [{ name: 'WorkbenchHome' }],
+      accessibleRoutes: [{ name: 'WorkbenchHome' }],
+    });
+
+    const { createRouterGuard } = await import('./guard');
+    createRouterGuard(routerMock as any);
+
+    const handler = beforeEachHandlers[1];
+    const targetRoute = {
+      fullPath: '/crm/accounts/account-1',
+      meta: {},
+      name: 'TenantCrmAccountDetail',
+      path: '/crm/accounts/account-1',
+    };
+
+    await expect(handler!(targetRoute, { query: {} })).resolves.toMatchObject({
+      path: '/crm/accounts/account-1',
+      replace: true,
+    });
+
+    expect(fetchUserInfoMock).toHaveBeenCalledWith(true);
+    expect(generateAccessMock).toHaveBeenCalledTimes(1);
+    expect(accessStoreMock.setIsAccessChecked).toHaveBeenCalledWith(true);
+  });
 });

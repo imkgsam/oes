@@ -1,16 +1,24 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
 import {
-  ArchiveCrmAccountRequest,
-  ArchiveCrmAccountResponse,
+  ClaimCrmAccountRequest,
+  ClaimCrmAccountResponse,
   ConvertLeadToProspectCustomerRequest,
   ConvertLeadToProspectCustomerResponse,
+  CreateDraftLeadRequest,
+  CreateDraftLeadResponse,
   CreateLeadRequest,
   CreateLeadResponse,
   CUSTOMER_MANAGEMENT_SERVICE_NAME,
   CustomerManagementServiceClient,
-  RestoreCrmAccountRequest,
-  RestoreCrmAccountResponse
+  DeleteDraftLeadRequest,
+  DeleteDraftLeadResponse,
+  ReleaseCrmAccountRequest,
+  ReleaseCrmAccountResponse,
+  SubmitDraftLeadRequest,
+  SubmitDraftLeadResponse,
+  UpdateDraftLeadRequest,
+  UpdateDraftLeadResponse
 } from '@oes/common/generated/crm_service'
 import {
   GRPC_METADATA_PROPAGATION_FACTORY,
@@ -75,22 +83,22 @@ export class CustomerManagementGrpcAdapter implements OnModuleInit {
     )
   }
 
-  /** archiveCrmAccount forwards one CRM P1 soft-archive command. */
-  archiveCrmAccount(
-    input: Omit<ArchiveCrmAccountRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
+  /** createDraftLead forwards one CRM P1 draft capture command. */
+  createDraftLead(
+    input: Omit<CreateDraftLeadRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
       ManagementInputBase,
     source: DownstreamRequestSource
-  ): Promise<ArchiveCrmAccountResponse> {
+  ): Promise<CreateDraftLeadResponse> {
     return this.call(
-      'archiveCrmAccount',
-      this.svc.archiveCrmAccount(
+      'createDraftLead',
+      this.svc.createDraftLead(
         {
           ...input,
           operatorContext: buildCrmOperatorContext(source),
           traceContext: buildCrmTraceContext(source),
           auditContext: buildCrmAuditContext(
             source,
-            input.auditReason ?? 'archive crm account from api-gateway'
+            input.auditReason ?? 'create draft crm lead from api-gateway'
           )
         },
         this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
@@ -98,22 +106,114 @@ export class CustomerManagementGrpcAdapter implements OnModuleInit {
     )
   }
 
-  /** restoreCrmAccount forwards one CRM P1 soft-restore command. */
-  restoreCrmAccount(
-    input: Omit<RestoreCrmAccountRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
+  /** updateDraftLead forwards one CRM P1 draft update command. */
+  updateDraftLead(
+    input: Omit<UpdateDraftLeadRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
       ManagementInputBase,
     source: DownstreamRequestSource
-  ): Promise<RestoreCrmAccountResponse> {
+  ): Promise<UpdateDraftLeadResponse> {
     return this.call(
-      'restoreCrmAccount',
-      this.svc.restoreCrmAccount(
+      'updateDraftLead',
+      this.svc.updateDraftLead(
         {
           ...input,
           operatorContext: buildCrmOperatorContext(source),
           traceContext: buildCrmTraceContext(source),
           auditContext: buildCrmAuditContext(
             source,
-            input.auditReason ?? 'restore crm account from api-gateway'
+            input.auditReason ?? 'update draft crm lead from api-gateway'
+          )
+        },
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
+  /** submitDraftLead forwards one CRM P1 draft submit command. */
+  submitDraftLead(
+    input: Omit<SubmitDraftLeadRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
+      ManagementInputBase,
+    source: DownstreamRequestSource
+  ): Promise<SubmitDraftLeadResponse> {
+    return this.call(
+      'submitDraftLead',
+      this.svc.submitDraftLead(
+        {
+          ...input,
+          operatorContext: buildCrmOperatorContext(source),
+          traceContext: buildCrmTraceContext(source),
+          auditContext: buildCrmAuditContext(
+            source,
+            input.auditReason ?? 'submit draft crm lead from api-gateway'
+          )
+        },
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
+  /** deleteDraftLead forwards one CRM P1 draft hard-delete command. */
+  deleteDraftLead(
+    input: Omit<DeleteDraftLeadRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
+      ManagementInputBase,
+    source: DownstreamRequestSource
+  ): Promise<DeleteDraftLeadResponse> {
+    return this.call(
+      'deleteDraftLead',
+      this.svc.deleteDraftLead(
+        {
+          ...input,
+          operatorContext: buildCrmOperatorContext(source),
+          traceContext: buildCrmTraceContext(source),
+          auditContext: buildCrmAuditContext(
+            source,
+            input.auditReason ?? 'delete draft crm lead from api-gateway'
+          )
+        },
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
+  /** claimCrmAccount forwards one CRM P1 Pool claim command. */
+  claimCrmAccount(
+    input: Omit<ClaimCrmAccountRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
+      ManagementInputBase,
+    source: DownstreamRequestSource
+  ): Promise<ClaimCrmAccountResponse> {
+    return this.call(
+      'claimCrmAccount',
+      this.svc.claimCrmAccount(
+        {
+          ...input,
+          operatorContext: buildCrmOperatorContext(source),
+          traceContext: buildCrmTraceContext(source),
+          auditContext: buildCrmAuditContext(
+            source,
+            input.auditReason ?? 'claim crm pool account from api-gateway'
+          )
+        },
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
+  /** releaseCrmAccount forwards one CRM P1 owner release command. */
+  releaseCrmAccount(
+    input: Omit<ReleaseCrmAccountRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
+      ManagementInputBase,
+    source: DownstreamRequestSource
+  ): Promise<ReleaseCrmAccountResponse> {
+    return this.call(
+      'releaseCrmAccount',
+      this.svc.releaseCrmAccount(
+        {
+          ...input,
+          operatorContext: buildCrmOperatorContext(source),
+          traceContext: buildCrmTraceContext(source),
+          auditContext: buildCrmAuditContext(
+            source,
+            input.auditReason ?? 'release crm account to pool from api-gateway'
           )
         },
         this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))

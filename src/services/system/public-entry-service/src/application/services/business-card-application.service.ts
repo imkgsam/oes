@@ -119,8 +119,9 @@ export class BusinessCardApplicationService {
       pageSize: input.pageSize
     }
     const result = await this.repository.list(listInput)
+    const items = await Promise.all(result.items.map((card) => this.withLivePublicEntryRef(card)))
     return {
-      items: result.items.map((card) => serializeBusinessCard(card)),
+      items: items.map((card) => serializeBusinessCard(card)),
       page: input.page ?? 1,
       pageSize: input.pageSize ?? 20,
       total: result.total
@@ -132,12 +133,13 @@ export class BusinessCardApplicationService {
       input,
       BUSINESS_CARD_PERMISSION_CODES.READ
     )
+    const liveCard = await this.withLivePublicEntryRef(card)
     const readiness = await this.runReadinessCheck({
       tenantId: input.tenantId,
       businessCardId: input.businessCardId,
       operatorContext: input.operatorContext
     })
-    return { businessCard: serializeBusinessCard(card), readiness }
+    return { businessCard: serializeBusinessCard(liveCard), readiness }
   }
 
   async updateCardConfig(input: BusinessCardIdInput & { templateKey?: string; visibilityConfig?: VisibilityConfig }) {
@@ -265,7 +267,8 @@ export class BusinessCardApplicationService {
       input,
       BUSINESS_CARD_PERMISSION_CODES.READ
     )
-    return { publicEntryRef: card.publicEntryRef ? serializePublicEntryRef(card.publicEntryRef) : null }
+    const liveCard = await this.withLivePublicEntryRef(card)
+    return { publicEntryRef: liveCard.publicEntryRef ? serializePublicEntryRef(liveCard.publicEntryRef) : null }
   }
 
   async getVisitSummary(input: BusinessCardIdInput & { from?: string; to?: string }) {
@@ -289,7 +292,9 @@ export class BusinessCardApplicationService {
       traceId: input.traceId
     })
     if (!employee) throw new Error('Employee binding not found')
-    const card = await this.repository.findPrimaryByEmployee(input.tenantId, employee.employeeId)
+    const card = await this.withLivePublicEntryRef(
+      await this.repository.findPrimaryByEmployee(input.tenantId, employee.employeeId)
+    )
     if (!card) throw new Error('BusinessCard not found')
     const rendered = await this.renderPublicCard({
       tenantId: input.tenantId,
@@ -324,28 +329,29 @@ export class BusinessCardApplicationService {
     traceId?: string
   ): Promise<PublicRenderResult> {
     if (!card) return { state: 'PUBLIC_CARD_NOT_FOUND', view: null }
-    const readiness = await this.evaluateReadiness(card, traceId)
+    const liveCard = await this.withLivePublicEntryRef(card)
+    const readiness = await this.evaluateReadiness(liveCard, traceId)
     if (!readiness.ready) return { state: 'PUBLIC_CARD_UNAVAILABLE', view: null }
-    const employee = await this.requireEmployee(card, traceId)
-    const company = await this.requireCompany(card.tenantId, traceId)
-    const contactActions = await this.resolvePublicContactActions(card, company, traceId)
+    const employee = await this.requireEmployee(liveCard, traceId)
+    const company = await this.requireCompany(liveCard.tenantId, traceId)
+    const contactActions = await this.resolvePublicContactActions(liveCard, company, traceId)
     return {
       state: 'AVAILABLE',
       view: {
-        businessCardId: card.id,
-        publicUrl: card.publicEntryRef?.publicUrl ?? null,
-        templateKey: card.templateKey,
+        businessCardId: liveCard.id,
+        publicUrl: liveCard.publicEntryRef?.publicUrl ?? null,
+        templateKey: liveCard.templateKey,
         person: {
           displayName: employee.displayName ?? '',
           englishName: employee.englishName ?? null,
-          title: card.visibilityConfig.showTitle ? employee.title ?? null : null,
-          department: card.visibilityConfig.showDepartment ? employee.department ?? null : null,
-          officialPhotoUrl: card.visibilityConfig.showOfficialPhoto
+          title: liveCard.visibilityConfig.showTitle ? employee.title ?? null : null,
+          department: liveCard.visibilityConfig.showDepartment ? employee.department ?? null : null,
+          officialPhotoUrl: liveCard.visibilityConfig.showOfficialPhoto
             ? employee.officialPhotoUrl ?? null
             : null
         },
         company: {
-          companyDisplayName: card.visibilityConfig.showCompany
+          companyDisplayName: liveCard.visibilityConfig.showCompany
             ? company.companyDisplayName ?? ''
             : '',
           websiteUrl: company.websiteUrl ?? null,
@@ -376,7 +382,9 @@ export class BusinessCardApplicationService {
     if (request.targetType !== 'BUSINESS_CARD') {
       return { result: 'UNAVAILABLE' as const, resultTarget: 'business-card:unsupported-target' }
     }
-    const card = await this.repository.getById(request.tenantId, request.targetResourceId)
+    const card = await this.withLivePublicEntryRef(
+      await this.repository.getById(request.tenantId, request.targetResourceId)
+    )
     if (!card) return { result: 'NOT_FOUND' as const, resultTarget: 'business-card:not-found' }
     const readiness = await this.evaluateReadiness(card, request.requestContext.traceId)
     if (!readiness.ready) {
@@ -391,6 +399,30 @@ export class BusinessCardApplicationService {
 
   async resolve(request: TargetResolverRequest) {
     return this.resolveTarget(request)
+  }
+
+  // withLivePublicEntryRef overlays the current ShortLink lifecycle onto BusinessCard's stored entry reference.
+  private async withLivePublicEntryRef<T extends BusinessCardRecord | null>(card: T): Promise<T> {
+    if (!card?.publicEntryRef) return card
+    const result = await this.shortLinkService.getShortLink({
+      tenantId: card.tenantId,
+      shortLinkId: card.publicEntryRef.publicEntryId
+    }).catch(() => null)
+    const shortLink = result?.shortLink
+    if (!shortLink) {
+      return { ...card, publicEntryRef: null } as T
+    }
+    return {
+      ...card,
+      publicEntryRef: {
+        publicEntryId: shortLink.id,
+        shortCode: shortLink.shortCode,
+        publicUrl: shortLink.publicUrl,
+        qrContent: shortLink.publicUrl,
+        status: shortLink.status,
+        expiresAt: shortLink.expiresAt ?? null
+      }
+    } as T
   }
 
   private async requireCardWithResourcePermission(
@@ -441,13 +473,18 @@ export class BusinessCardApplicationService {
     traceId?: string,
     options?: { ignoreCurrentStatus?: boolean }
   ) {
+    const liveCard = await this.withLivePublicEntryRef(card)
     const reasons: ReadinessReason[] = []
-    if (!options?.ignoreCurrentStatus && card.status !== 'ACTIVE') reasons.push('CARD_DISABLED')
-    if (card.templateKey !== TENANT_STANDARD_TEMPLATE_KEY) reasons.push('TEMPLATE_UNAVAILABLE')
-    if (!card.publicEntryRef) reasons.push('PUBLIC_ENTRY_MISSING')
+    if (!options?.ignoreCurrentStatus && liveCard.status !== 'ACTIVE') reasons.push('CARD_DISABLED')
+    if (liveCard.templateKey !== TENANT_STANDARD_TEMPLATE_KEY) reasons.push('TEMPLATE_UNAVAILABLE')
+    if (!liveCard.publicEntryRef) {
+      reasons.push('PUBLIC_ENTRY_MISSING')
+    } else if (liveCard.publicEntryRef.status !== 'ACTIVE') {
+      reasons.push('PUBLIC_ENTRY_DISABLED')
+    }
     const employee = await this.employeePort.getEmployeeSummary({
-      tenantId: card.tenantId,
-      employeeId: card.employeeId,
+      tenantId: liveCard.tenantId,
+      employeeId: liveCard.employeeId,
       traceId
     })
     if (!employee) {
@@ -457,7 +494,7 @@ export class BusinessCardApplicationService {
       if (!employee.displayName?.trim()) reasons.push('DISPLAY_NAME_MISSING')
     }
     const company = await this.tenantProfilePort.getCompanyDisplaySummary({
-      tenantId: card.tenantId,
+      tenantId: liveCard.tenantId,
       traceId
     })
     if (!company?.companyDisplayName?.trim()) reasons.push('COMPANY_DISPLAY_MISSING')
@@ -518,7 +555,7 @@ export class BusinessCardApplicationService {
           {
             contactActionType: config.contactActionType,
             displayOrder: config.displayOrder,
-            displayValue: company.companyDisplayName ?? null,
+            displayValue: formatPublicUrlDisplayValue(company.websiteUrl),
             actionUrl: company.websiteUrl
           }
         ]
@@ -642,6 +679,18 @@ function findResolvedValue(
     (value) =>
       value.targetRefType === config.targetRefType && value.targetRefId === config.targetRefId
   )
+}
+
+// formatPublicUrlDisplayValue renders public URL targets with a compact, reusable display format.
+function formatPublicUrlDisplayValue(value: string): string {
+  const normalized = value.trim()
+  try {
+    const parsed = new URL(normalized)
+    const path = `${parsed.pathname}${parsed.search}`.replace(/\/$/, '')
+    return `${parsed.host}${path}`
+  } catch {
+    return normalized.replace(/^https?:\/\//i, '').replace(/\/$/, '')
+  }
 }
 
 // toVCard renders the public view into a conservative vCard 3.0 payload.

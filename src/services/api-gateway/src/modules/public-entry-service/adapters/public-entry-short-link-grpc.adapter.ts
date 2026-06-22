@@ -11,6 +11,8 @@ import {
   GetShortLinkResponse,
   GetShortLinkStatsRequest,
   GetShortLinkStatsResponse,
+  ListShortLinksRequest,
+  ListShortLinksResponse,
   ListShortLinksByTargetRequest,
   ListShortLinksByTargetResponse,
   PUBLIC_ENTRY_SHORT_LINK_SERVICE_NAME,
@@ -76,6 +78,16 @@ export class PublicEntryShortLinkGrpcAdapter implements OnModuleInit {
     return this.call(
       'listShortLinksByTarget',
       this.svc.listShortLinksByTarget(input, this.operatorMetadata(source))
+    )
+  }
+
+  listShortLinks(
+    input: ListShortLinksRequest,
+    source: DownstreamRequestSource
+  ): Promise<ListShortLinksResponse> {
+    return this.call(
+      'listShortLinks',
+      this.svc.listShortLinks(input, this.operatorMetadata(source))
     )
   }
 

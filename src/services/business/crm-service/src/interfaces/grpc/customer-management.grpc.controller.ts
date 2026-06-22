@@ -2,25 +2,38 @@ import { Controller, UseFilters } from '@nestjs/common'
 import { ValidatingCommandBus } from '@oes/common/cqrs'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
-  ArchiveCrmAccountRequest,
-  ArchiveCrmAccountResponse,
+  ClaimCrmAccountRequest,
+  ClaimCrmAccountResponse,
   ConvertLeadToProspectCustomerRequest,
   ConvertLeadToProspectCustomerResponse,
+  CreateDraftLeadRequest,
+  CreateDraftLeadResponse,
   CreateLeadRequest,
   CreateLeadResponse,
   CustomerManagementServiceController,
   CustomerManagementServiceControllerMethods,
-  RestoreCrmAccountRequest,
-  RestoreCrmAccountResponse,
+  DeleteDraftLeadRequest,
+  DeleteDraftLeadResponse,
+  ReleaseCrmAccountRequest,
+  ReleaseCrmAccountResponse,
+  SubmitDraftLeadRequest,
+  SubmitDraftLeadResponse,
+  UpdateDraftLeadRequest,
+  UpdateDraftLeadResponse,
 } from '@oes/common/generated/crm_service'
-import { ArchiveCrmAccountCommand } from '../../application/commands/archive-crm-account.command'
+import { ClaimCrmAccountCommand } from '../../application/commands/claim-crm-account.command'
 import { ConvertLeadToProspectCustomerCommand } from '../../application/commands/convert-lead-to-prospect-customer.command'
+import { CreateDraftLeadCommand } from '../../application/commands/create-draft-lead.command'
 import { CreateLeadCommand } from '../../application/commands/create-lead.command'
-import { RestoreCrmAccountCommand } from '../../application/commands/restore-crm-account.command'
+import { DeleteDraftLeadCommand } from '../../application/commands/delete-draft-lead.command'
+import { ReleaseCrmAccountCommand } from '../../application/commands/release-crm-account.command'
+import { SubmitDraftLeadCommand } from '../../application/commands/submit-draft-lead.command'
+import { UpdateDraftLeadCommand } from '../../application/commands/update-draft-lead.command'
 import { CrmAuditService } from '../../application/services/crm-audit.service'
 import { normalizeOptionalString } from '../../application/support/crm-assertions'
 import {
   CrmAccountTypeHint,
+  CrmLeadAssignmentIntent,
   CrmPriority,
   CrmSourceType
 } from '../../domain/models/crm-records'
@@ -36,6 +49,167 @@ export class CustomerManagementGrpcController implements CustomerManagementServi
     private readonly commandBus: ValidatingCommandBus,
     private readonly auditService: CrmAuditService
   ) {}
+
+  async createDraftLead(request: CreateDraftLeadRequest): Promise<CreateDraftLeadResponse> {
+    const context = CustomerRpcContextValidator.assertManagementContext(request)
+    return this.auditService.recordCommand(
+      {
+        tenantId: context.tenantId,
+        operatorContext: context.operatorContext,
+        traceContext: context.traceContext,
+        auditContext: context.auditContext,
+        commandName: 'CreateDraftLead',
+        resourceType: 'crm_account',
+        targetId: null,
+        requestSummary: {
+          displayName: request.displayName ?? '',
+          sourceType: request.sourceType ?? ''
+        }
+      },
+      async () => {
+        const result = await this.commandBus.execute(
+          new CreateDraftLeadCommand({
+            tenantId: request.tenantId ?? '',
+            operatorAccountId: context.operatorContext.operatorId,
+            displayName: request.displayName ?? '',
+            partyTypeHint: toCrmAccountTypeHint(request.partyTypeHint),
+            leadCompanyName: normalizeOptionalString(request.leadCompanyName),
+            leadPersonName: normalizeOptionalString(request.leadPersonName),
+            leadDomain: normalizeOptionalString(request.leadDomain),
+            leadEmail: normalizeOptionalString(request.leadEmail),
+            leadPhone: normalizeOptionalString(request.leadPhone),
+            leadWhatsapp: normalizeOptionalString(request.leadWhatsapp),
+            leadCountry: normalizeOptionalString(request.leadCountry),
+            leadIdentifiers: toCrmLeadIdentifiers(request.leadIdentifiers),
+            priority: toCrmPriority(request.priority),
+            nextFollowUpAt: parseOptionalDate(request.nextFollowUpAt),
+            source: toOptionalCrmSourceInput({
+              sourceType: request.sourceType,
+              sourceName: request.sourceName,
+              sourceCapturedAt: request.sourceCapturedAt,
+              sourceCapturedByAccountId: request.sourceCapturedByAccountId,
+              sourceExternalReference: request.sourceExternalReference,
+              sourceRawPayloadJson: request.sourceRawPayloadJson,
+              sourceNote: request.sourceNote
+            })
+          })
+        )
+
+        return CustomerGrpcPresenter.toCreateDraftLeadResponse(result)
+      }
+    )
+  }
+
+  async updateDraftLead(request: UpdateDraftLeadRequest): Promise<UpdateDraftLeadResponse> {
+    const context = CustomerRpcContextValidator.assertManagementContext(request)
+    return this.auditService.recordCommand(
+      {
+        tenantId: context.tenantId,
+        operatorContext: context.operatorContext,
+        traceContext: context.traceContext,
+        auditContext: context.auditContext,
+        commandName: 'UpdateDraftLead',
+        resourceType: 'crm_account',
+        targetId: request.crmAccountId ?? null,
+        requestSummary: {
+          crmAccountId: request.crmAccountId ?? ''
+        }
+      },
+      async () => {
+        const result = await this.commandBus.execute(
+          new UpdateDraftLeadCommand({
+            tenantId: request.tenantId ?? '',
+            crmAccountId: request.crmAccountId ?? '',
+            operatorAccountId: context.operatorContext.operatorId,
+            displayName: request.displayName ?? '',
+            partyTypeHint: toCrmAccountTypeHint(request.partyTypeHint),
+            leadCompanyName: normalizeOptionalString(request.leadCompanyName),
+            leadPersonName: normalizeOptionalString(request.leadPersonName),
+            leadDomain: normalizeOptionalString(request.leadDomain),
+            leadEmail: normalizeOptionalString(request.leadEmail),
+            leadPhone: normalizeOptionalString(request.leadPhone),
+            leadWhatsapp: normalizeOptionalString(request.leadWhatsapp),
+            leadCountry: normalizeOptionalString(request.leadCountry),
+            leadIdentifiers: toCrmLeadIdentifiers(request.leadIdentifiers),
+            priority: toCrmPriority(request.priority),
+            nextFollowUpAt: parseOptionalDate(request.nextFollowUpAt)
+          })
+        )
+
+        return CustomerGrpcPresenter.toUpdateDraftLeadResponse(result)
+      }
+    )
+  }
+
+  async submitDraftLead(request: SubmitDraftLeadRequest): Promise<SubmitDraftLeadResponse> {
+    const context = CustomerRpcContextValidator.assertManagementContext(request)
+    return this.auditService.recordCommand(
+      {
+        tenantId: context.tenantId,
+        operatorContext: context.operatorContext,
+        traceContext: context.traceContext,
+        auditContext: context.auditContext,
+        commandName: 'SubmitDraftLead',
+        resourceType: 'crm_account',
+        targetId: request.crmAccountId ?? null,
+        requestSummary: {
+          crmAccountId: request.crmAccountId ?? ''
+        }
+      },
+      async () => {
+        const result = await this.commandBus.execute(
+          new SubmitDraftLeadCommand({
+            tenantId: request.tenantId ?? '',
+            crmAccountId: request.crmAccountId ?? '',
+            operatorAccountId: context.operatorContext.operatorId,
+            assignmentIntent: toCrmLeadAssignmentIntent(request.assignmentIntent),
+            duplicateWarningAcknowledged: request.duplicateWarningAcknowledged ?? false,
+            claimForCurrentUser: request.claimForCurrentUser ?? false,
+            source: toOptionalCrmSourceInput({
+              sourceType: request.sourceType,
+              sourceName: request.sourceName,
+              sourceCapturedAt: request.sourceCapturedAt,
+              sourceCapturedByAccountId: request.sourceCapturedByAccountId,
+              sourceExternalReference: request.sourceExternalReference,
+              sourceRawPayloadJson: request.sourceRawPayloadJson,
+              sourceNote: request.sourceNote
+            })
+          })
+        )
+
+        return CustomerGrpcPresenter.toSubmitDraftLeadResponse(result)
+      }
+    )
+  }
+
+  async deleteDraftLead(request: DeleteDraftLeadRequest): Promise<DeleteDraftLeadResponse> {
+    const context = CustomerRpcContextValidator.assertManagementContext(request)
+    return this.auditService.recordCommand(
+      {
+        tenantId: context.tenantId,
+        operatorContext: context.operatorContext,
+        traceContext: context.traceContext,
+        auditContext: context.auditContext,
+        commandName: 'DeleteDraftLead',
+        resourceType: 'crm_account',
+        targetId: request.crmAccountId ?? null,
+        requestSummary: {
+          crmAccountId: request.crmAccountId ?? ''
+        }
+      },
+      async () => {
+        const result = await this.commandBus.execute(
+          new DeleteDraftLeadCommand({
+            tenantId: request.tenantId ?? '',
+            crmAccountId: request.crmAccountId ?? '',
+            operatorAccountId: context.operatorContext.operatorId
+          })
+        )
+
+        return CustomerGrpcPresenter.toDeleteDraftLeadResponse(result)
+      }
+    )
+  }
 
   async createLead(request: CreateLeadRequest): Promise<CreateLeadResponse> {
     const context = CustomerRpcContextValidator.assertManagementContext(request)
@@ -67,13 +241,10 @@ export class CustomerManagementGrpcController implements CustomerManagementServi
             leadPhone: normalizeOptionalString(request.leadPhone),
             leadWhatsapp: normalizeOptionalString(request.leadWhatsapp),
             leadCountry: normalizeOptionalString(request.leadCountry),
-            leadIdentifiers: (request.leadIdentifiers ?? []).map((identifier) => ({
-              identifierType: identifier.identifierType ?? '',
-              normalizedValue: identifier.normalizedValue ?? '',
-              rawValue: normalizeOptionalString(identifier.rawValue),
-              issuerCountryOrRegion: normalizeOptionalString(identifier.issuerCountryOrRegion)
-            })),
+            leadIdentifiers: toCrmLeadIdentifiers(request.leadIdentifiers),
+            assignmentIntent: toCrmLeadAssignmentIntent(request.assignmentIntent),
             ownerAccountId: normalizeOptionalString(request.ownerAccountId),
+            claimForCurrentUser: request.claimForCurrentUser ?? false,
             priority: toCrmPriority(request.priority),
             nextFollowUpAt: parseOptionalDate(request.nextFollowUpAt),
             duplicateWarningAcknowledged: request.duplicateWarningAcknowledged ?? false,
@@ -116,7 +287,8 @@ export class CustomerManagementGrpcController implements CustomerManagementServi
           new ConvertLeadToProspectCustomerCommand({
             tenantId: request.tenantId ?? '',
             crmAccountId: request.crmAccountId ?? '',
-            operatorAccountId: context.operatorContext.operatorId
+            operatorAccountId: context.operatorContext.operatorId,
+            allowOwnerlessConversion: request.allowOwnerlessConversion ?? false
           })
         )
 
@@ -125,7 +297,7 @@ export class CustomerManagementGrpcController implements CustomerManagementServi
     )
   }
 
-  async archiveCrmAccount(request: ArchiveCrmAccountRequest): Promise<ArchiveCrmAccountResponse> {
+  async claimCrmAccount(request: ClaimCrmAccountRequest): Promise<ClaimCrmAccountResponse> {
     const context = CustomerRpcContextValidator.assertManagementContext(request)
     return this.auditService.recordCommand(
       {
@@ -133,7 +305,7 @@ export class CustomerManagementGrpcController implements CustomerManagementServi
         operatorContext: context.operatorContext,
         traceContext: context.traceContext,
         auditContext: context.auditContext,
-        commandName: 'ArchiveCrmAccount',
+        commandName: 'ClaimCrmAccount',
         resourceType: 'crm_account',
         targetId: request.crmAccountId ?? null,
         requestSummary: {
@@ -142,19 +314,19 @@ export class CustomerManagementGrpcController implements CustomerManagementServi
       },
       async () => {
         const result = await this.commandBus.execute(
-          new ArchiveCrmAccountCommand({
+          new ClaimCrmAccountCommand({
             tenantId: request.tenantId ?? '',
             crmAccountId: request.crmAccountId ?? '',
             operatorAccountId: context.operatorContext.operatorId
           })
         )
 
-        return CustomerGrpcPresenter.toArchiveCrmAccountResponse(result)
+        return CustomerGrpcPresenter.toClaimCrmAccountResponse(result)
       }
     )
   }
 
-  async restoreCrmAccount(request: RestoreCrmAccountRequest): Promise<RestoreCrmAccountResponse> {
+  async releaseCrmAccount(request: ReleaseCrmAccountRequest): Promise<ReleaseCrmAccountResponse> {
     const context = CustomerRpcContextValidator.assertManagementContext(request)
     return this.auditService.recordCommand(
       {
@@ -162,7 +334,7 @@ export class CustomerManagementGrpcController implements CustomerManagementServi
         operatorContext: context.operatorContext,
         traceContext: context.traceContext,
         auditContext: context.auditContext,
-        commandName: 'RestoreCrmAccount',
+        commandName: 'ReleaseCrmAccount',
         resourceType: 'crm_account',
         targetId: request.crmAccountId ?? null,
         requestSummary: {
@@ -171,14 +343,14 @@ export class CustomerManagementGrpcController implements CustomerManagementServi
       },
       async () => {
         const result = await this.commandBus.execute(
-          new RestoreCrmAccountCommand({
+          new ReleaseCrmAccountCommand({
             tenantId: request.tenantId ?? '',
             crmAccountId: request.crmAccountId ?? '',
             operatorAccountId: context.operatorContext.operatorId
           })
         )
 
-        return CustomerGrpcPresenter.toRestoreCrmAccountResponse(result)
+        return CustomerGrpcPresenter.toReleaseCrmAccountResponse(result)
       }
     )
   }
@@ -208,6 +380,53 @@ function toCrmSourceType(value?: string): CrmSourceType {
   return Object.values(CrmSourceType).includes(value as CrmSourceType)
     ? (value as CrmSourceType)
     : CrmSourceType.OTHER
+}
+
+/** toCrmLeadAssignmentIntent maps entry-context ownership intent into the CRM domain enum. */
+function toCrmLeadAssignmentIntent(value?: string): CrmLeadAssignmentIntent {
+  return value === CrmLeadAssignmentIntent.POOL
+    ? CrmLeadAssignmentIntent.POOL
+    : CrmLeadAssignmentIntent.OWNED_BY_OPERATOR
+}
+
+/** toCrmLeadIdentifiers maps generated proto identifier payloads into domain records. */
+function toCrmLeadIdentifiers(identifiers: Array<{
+  identifierType?: string
+  normalizedValue?: string
+  rawValue?: string
+  issuerCountryOrRegion?: string
+}> = []) {
+  return identifiers.map((identifier) => ({
+    identifierType: identifier.identifierType ?? '',
+    normalizedValue: identifier.normalizedValue ?? '',
+    rawValue: normalizeOptionalString(identifier.rawValue),
+    issuerCountryOrRegion: normalizeOptionalString(identifier.issuerCountryOrRegion)
+  }))
+}
+
+/** toOptionalCrmSourceInput maps optional draft/submit source fields without inventing OTHER sources. */
+function toOptionalCrmSourceInput(input: {
+  sourceType?: string
+  sourceName?: string
+  sourceCapturedAt?: string
+  sourceCapturedByAccountId?: string
+  sourceExternalReference?: string
+  sourceRawPayloadJson?: string
+  sourceNote?: string
+}) {
+  if (!input.sourceType?.trim()) {
+    return null
+  }
+
+  return {
+    sourceType: toCrmSourceType(input.sourceType),
+    sourceName: normalizeOptionalString(input.sourceName),
+    capturedAt: parseOptionalDate(input.sourceCapturedAt),
+    capturedByAccountId: normalizeOptionalString(input.sourceCapturedByAccountId),
+    externalReference: normalizeOptionalString(input.sourceExternalReference),
+    rawPayload: parseRawPayload(input.sourceRawPayloadJson),
+    note: normalizeOptionalString(input.sourceNote)
+  }
 }
 
 /** parseOptionalDate converts optional ISO date strings into Date values for application commands. */

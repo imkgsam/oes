@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package permission_service;
+
+import "permission_service/policy_instance_preview.proto";
+
+option java_multiple_files = true;
+option java_package = "com.oes.permission.v1";
+
+service ResourceAuthorizationService {
+  rpc CheckResource(CheckResourceRequest) returns (CheckResourceResponse);
+  rpc BuildQueryScope(BuildQueryScopeRequest) returns (BuildQueryScopeResponse);
+}
+
+message CheckResourceRequest {
+  AuthorizationSubjectFactsProto subject = 1;
+  string permission_code = 2;
+  ResourceFactsProto resource = 3;
+  EnvironmentFactsProto environment = 4;
+}
+
+message CheckResourceResponse {
+  bool allowed = 1;
+  string reason_code = 2;
+  repeated string matched_policy_ids = 3;
+  repeated string denied_policy_ids = 4;
+  PolicyDecisionTraceProto trace = 5;
+}
+
+message BuildQueryScopeRequest {
+  AuthorizationSubjectFactsProto subject = 1;
+  string permission_code = 2;
+  string resource_type = 3;
+  EnvironmentFactsProto environment = 4;
+}
+
+message BuildQueryScopeResponse {
+  bool allowed = 1;
+  string reason_code = 2;
+  repeated string matched_policy_ids = 3;
+  repeated string denied_policy_ids = 4;
+  QueryScopeExpressionProto scope = 5;
+  PolicyDecisionTraceProto trace = 6;
+}

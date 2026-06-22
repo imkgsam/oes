@@ -152,6 +152,62 @@ describe('ShortLinkApplicationService', () => {
     )
   })
 
+  it('lists tenant short links across external URLs and internal references without a target-resource constraint', async () => {
+    const { service } = buildService()
+    const external = await service.createShortLink({
+      tenantId: 'tenant_001',
+      displayName: 'Supplier onboarding external entry',
+      target: { targetKind: 'EXTERNAL_URL', targetUrl: 'https://supplier.example.com/onboarding' },
+      entryPurpose: 'SUPPLIER_ONBOARDING',
+      sourcePlacement: 'EMAIL',
+      operatorContext: operator
+    })
+    const businessCard = await service.createShortLink({
+      tenantId: 'tenant_001',
+      displayName: 'Employee business card entry',
+      target: {
+        targetKind: 'INTERNAL_REF',
+        targetType: 'BUSINESS_CARD',
+        targetResourceId: 'card_001'
+      },
+      entryPurpose: 'BUSINESS_CARD',
+      sourcePlacement: 'MAIN_PROFILE',
+      operatorContext: operator
+    })
+    await service.createShortLink({
+      tenantId: 'tenant_002',
+      displayName: 'Other tenant entry',
+      target: { targetKind: 'EXTERNAL_URL', targetUrl: 'https://other.example.com' },
+      entryPurpose: 'OTHER',
+      sourcePlacement: 'ADMIN',
+      operatorContext: operator
+    })
+
+    await expect(
+      service.listShortLinks({ tenantId: 'tenant_001', page: 1, pageSize: 20 })
+    ).resolves.toMatchObject({
+      items: expect.arrayContaining([
+        expect.objectContaining({ id: businessCard.shortLink.id, targetKind: 'INTERNAL_REF' }),
+        expect.objectContaining({ id: external.shortLink.id, targetKind: 'EXTERNAL_URL' })
+      ]),
+      page: 1,
+      pageSize: 20,
+      total: 2
+    })
+
+    await expect(
+      service.listShortLinks({
+        tenantId: 'tenant_001',
+        page: 1,
+        pageSize: 20,
+        targetKind: 'EXTERNAL_URL'
+      })
+    ).resolves.toMatchObject({
+      items: [expect.objectContaining({ id: external.shortLink.id, targetKind: 'EXTERNAL_URL' })],
+      total: 1
+    })
+  })
+
   it('aggregates VisitEvent stats without summary storage', async () => {
     const { repository, service } = buildService()
     const created = await service.createShortLink({

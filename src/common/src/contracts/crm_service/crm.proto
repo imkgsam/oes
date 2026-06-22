@@ -8,13 +8,18 @@ option java_package = "com.oes.crm.v1";
 service CustomerQueryService {
   rpc ListCrmAccounts(ListCrmAccountsRequest) returns (ListCrmAccountsResponse);
   rpc GetCrmAccount(GetCrmAccountRequest) returns (GetCrmAccountResponse);
+  rpc CheckLeadDuplicate(CheckLeadDuplicateRequest) returns (CheckLeadDuplicateResponse);
 }
 
 service CustomerManagementService {
+  rpc CreateDraftLead(CreateDraftLeadRequest) returns (CreateDraftLeadResponse);
+  rpc UpdateDraftLead(UpdateDraftLeadRequest) returns (UpdateDraftLeadResponse);
+  rpc SubmitDraftLead(SubmitDraftLeadRequest) returns (SubmitDraftLeadResponse);
+  rpc DeleteDraftLead(DeleteDraftLeadRequest) returns (DeleteDraftLeadResponse);
   rpc CreateLead(CreateLeadRequest) returns (CreateLeadResponse);
+  rpc ClaimCrmAccount(ClaimCrmAccountRequest) returns (ClaimCrmAccountResponse);
+  rpc ReleaseCrmAccount(ReleaseCrmAccountRequest) returns (ReleaseCrmAccountResponse);
   rpc ConvertLeadToProspectCustomer(ConvertLeadToProspectCustomerRequest) returns (ConvertLeadToProspectCustomerResponse);
-  rpc ArchiveCrmAccount(ArchiveCrmAccountRequest) returns (ArchiveCrmAccountResponse);
-  rpc RestoreCrmAccount(RestoreCrmAccountRequest) returns (RestoreCrmAccountResponse);
 }
 
 service CrmObjectReferenceService {
@@ -135,6 +140,8 @@ message CreateLeadRequest {
   string source_external_reference = 23;
   string source_raw_payload_json = 24;
   string source_note = 25;
+  bool claim_for_current_user = 26;
+  string assignment_intent = 27;
 }
 
 message CreateLeadResponse {
@@ -149,6 +156,7 @@ message ConvertLeadToProspectCustomerRequest {
   TraceContext trace_context = 3;
   AuditContext audit_context = 4;
   string crm_account_id = 5;
+  bool allow_ownerless_conversion = 6;
 }
 
 message ConvertLeadToProspectCustomerResponse {
@@ -158,19 +166,104 @@ message ConvertLeadToProspectCustomerResponse {
   string existing_crm_account_id = 4;
 }
 
-message ArchiveCrmAccountRequest {
+message CheckLeadDuplicateRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string display_name = 4;
+  string lead_company_name = 5;
+  string lead_person_name = 6;
+  string lead_domain = 7;
+  string lead_email = 8;
+  string lead_phone = 9;
+  string lead_whatsapp = 10;
+  string lead_country = 11;
+  repeated CrmLeadIdentifier lead_identifiers = 12;
+}
+
+message CheckLeadDuplicateResponse {
+  CrmLeadDuplicateResult duplicate_result = 1;
+}
+
+message CreateDraftLeadRequest {
   string tenant_id = 1;
   OperatorContext operator_context = 2;
   TraceContext trace_context = 3;
   AuditContext audit_context = 4;
-  string crm_account_id = 5;
+  string display_name = 5;
+  string party_type_hint = 6;
+  string lead_company_name = 7;
+  string lead_person_name = 8;
+  string lead_domain = 9;
+  string lead_email = 10;
+  string lead_phone = 11;
+  string lead_whatsapp = 12;
+  string lead_country = 13;
+  repeated CrmLeadIdentifier lead_identifiers = 14;
+  string priority = 15;
+  string next_follow_up_at = 16;
+  string source_type = 17;
+  string source_name = 18;
+  string source_captured_at = 19;
+  string source_captured_by_account_id = 20;
+  string source_external_reference = 21;
+  string source_raw_payload_json = 22;
+  string source_note = 23;
 }
 
-message ArchiveCrmAccountResponse {
+message CreateDraftLeadResponse {
   CrmAccountP1 crm_account = 1;
 }
 
-message RestoreCrmAccountRequest {
+message UpdateDraftLeadRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string crm_account_id = 5;
+  string display_name = 6;
+  string party_type_hint = 7;
+  string lead_company_name = 8;
+  string lead_person_name = 9;
+  string lead_domain = 10;
+  string lead_email = 11;
+  string lead_phone = 12;
+  string lead_whatsapp = 13;
+  string lead_country = 14;
+  repeated CrmLeadIdentifier lead_identifiers = 15;
+  string priority = 16;
+  string next_follow_up_at = 17;
+}
+
+message UpdateDraftLeadResponse {
+  CrmAccountP1 crm_account = 1;
+}
+
+message SubmitDraftLeadRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string crm_account_id = 5;
+  bool duplicate_warning_acknowledged = 6;
+  bool claim_for_current_user = 7;
+  string source_type = 8;
+  string source_name = 9;
+  string source_captured_at = 10;
+  string source_captured_by_account_id = 11;
+  string source_external_reference = 12;
+  string source_raw_payload_json = 13;
+  string source_note = 14;
+  string assignment_intent = 15;
+}
+
+message SubmitDraftLeadResponse {
+  string result_type = 1;
+  CrmAccountP1 crm_account = 2;
+  CrmLeadDuplicateResult duplicate_result = 3;
+}
+
+message DeleteDraftLeadRequest {
   string tenant_id = 1;
   OperatorContext operator_context = 2;
   TraceContext trace_context = 3;
@@ -178,7 +271,32 @@ message RestoreCrmAccountRequest {
   string crm_account_id = 5;
 }
 
-message RestoreCrmAccountResponse {
+message DeleteDraftLeadResponse {
+  bool deleted = 1;
+  string crm_account_id = 2;
+}
+
+message ClaimCrmAccountRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string crm_account_id = 5;
+}
+
+message ClaimCrmAccountResponse {
+  CrmAccountP1 crm_account = 1;
+}
+
+message ReleaseCrmAccountRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string crm_account_id = 5;
+}
+
+message ReleaseCrmAccountResponse {
   CrmAccountP1 crm_account = 1;
 }
 
@@ -192,6 +310,9 @@ message ListCrmAccountsRequest {
   string owner_account_id = 7;
   uint32 page = 8;
   uint32 page_size = 9;
+  bool ownerless = 10;
+  string created_by = 11;
+  repeated string lifecycle_stages = 12;
 }
 
 message ListCrmAccountsResponse {

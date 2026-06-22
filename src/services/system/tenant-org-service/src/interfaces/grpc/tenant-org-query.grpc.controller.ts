@@ -147,6 +147,7 @@ function mapTenant(tenant: {
   name: string
   status: string
   rootOrgId: string | null
+  websiteUrl?: string | null
 }) {
   return {
     id: tenant.id,
@@ -154,7 +155,8 @@ function mapTenant(tenant: {
     employeeCodePrefix: tenant.employeeCodePrefix,
     name: tenant.name,
     status: String(tenant.status),
-    rootOrgId: tenant.rootOrgId ?? ''
+    rootOrgId: tenant.rootOrgId ?? '',
+    websiteUrl: tenant.websiteUrl ?? ''
   }
 }
 

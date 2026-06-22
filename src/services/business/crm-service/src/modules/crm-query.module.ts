@@ -4,6 +4,8 @@ import { ValidatingQueryBus } from '@oes/common/cqrs'
 import { CheckLeadDuplicateHandler } from '../application/queries/check-lead-duplicate.handler'
 import { GetCrmAccountHandler } from '../application/queries/get-crm-account.handler'
 import { ListCrmAccountsHandler } from '../application/queries/list-crm-accounts.handler'
+import { ValidateCrmObjectReferenceHandler } from '../application/queries/validate-object-reference.handler'
+import { CrmObjectReferenceGrpcController } from '../interfaces/grpc/crm-object-reference.grpc.controller'
 import { CustomerQueryGrpcController } from '../interfaces/grpc/customer-query.grpc.controller'
 
 /** CrmQueryModule wires the phase 1 CRM query handlers and gRPC controller surface. */
@@ -13,8 +15,9 @@ import { CustomerQueryGrpcController } from '../interfaces/grpc/customer-query.g
     ValidatingQueryBus,
     CheckLeadDuplicateHandler,
     GetCrmAccountHandler,
-    ListCrmAccountsHandler
+    ListCrmAccountsHandler,
+    ValidateCrmObjectReferenceHandler
   ],
-  controllers: [CustomerQueryGrpcController]
+  controllers: [CustomerQueryGrpcController, CrmObjectReferenceGrpcController]
 })
 export class CrmQueryModule {}

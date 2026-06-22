@@ -2,7 +2,7 @@
 
 ## 1. Feature Status
 
-Current status: `implemented / CRM P1 account flow verified`
+Current status: `implemented core account flow / design delta pending implementation`
 
 本 feature packet 是 CRM v2 P1 的全栈执行入口，承接以下稳定设计：
 
@@ -20,6 +20,17 @@ Current implementation checkpoint:
 - `CrmSourceRecord`, `CrmContact`, `CrmActivity`, and `Opportunity` are P1 schema/domain foundations, but their external commands/pages are not treated as complete until separately exposed and verified.
 - Old customer-master runtime endpoints and schema are not part of the active P1 surface.
 
+Design delta checkpoint on 2026-06-18:
+
+- CRM P1 must not expose Archive / Unarchive runtime. Any WIP for `ArchiveCrmAccount`, `RestoreCrmAccount`, `crm.account.archive`, `crm.account.restore`, archived filters or archive buttons must be removed from the P1 runtime surface.
+- `recordStatus` may keep `DRAFT / ACTIVE / ARCHIVED` as a model extension axis, but P1 runtime only operates on `DRAFT` and `ACTIVE`.
+- CRM P1 must support Draft Lead, Draft hard delete, Submit Draft to Active Lead, entry-context Lead assignment through `assignmentIntent`, Claim for Pool records, and unified Pool.
+- Manual creation/import from “My CRM resources” and sales plugin capture default to `OWNED_BY_OPERATOR`; Pool import and website-form leads default to `POOL`, with website form source evidence recorded as `WEBSITE_FORM`.
+- Pool is the minimal ownerless resource list for `ACTIVE + LEAD / PROSPECT_CUSTOMER` with `ownerAccountId = null`; full pool governance, protection periods, recycle rules, release to pool and disputes remain deferred.
+- P1 tenant-web entry must move out of `主数据` into independent `CRM > 客户资源`, recommended route `/crm/accounts`; `/master-data/customers` can redirect for compatibility.
+- P1 page-level closure focuses on the `CrmAccount` main chain. `CrmContact`, `CrmActivity`, and `Opportunity` remain model foundations and are not required as complete page-level subsystems in this implementation slice.
+- The implementation thread must treat [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md) and [crm-v2-core-object-model.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/crm-v2-core-object-model.md) as the source of truth for these corrected rules.
+
 Completion checkpoint:
 
 - Party tenant-scoped `TenantParty` model and CRM P1 resolution contract are implemented.
@@ -28,6 +39,8 @@ Completion checkpoint:
 - tenant-web CRM page uses real BFF APIs and supports list/filter, Lead creation, detail drawer, and formalization.
 - Local seed fixtures and CRM smoke cover the P1 lead creation and conversion path.
 - Browser verification confirmed `New Lead`, Lead creation, `Formalize`, TenantParty binding, and Prospect Customer filtering on `2026-06-14`.
+
+Completion checkpoint is now historical for the earlier core account flow. The implementation thread must re-verify completion after applying the 2026-06-18 Draft / Pool / Claim / No Archive design delta.
 
 ## 2. Goal
 

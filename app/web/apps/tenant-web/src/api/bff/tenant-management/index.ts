@@ -10,6 +10,7 @@ export namespace TenantManagementApi {
     rootOrgName?: string;
     status: string;
     userCount?: number;
+    websiteUrl?: string;
   }
 
   export interface TenantListQuery {
@@ -129,6 +130,7 @@ export namespace TenantManagementApi {
     code?: string;
     employeeCodePrefix?: string;
     name?: string;
+    websiteUrl?: string;
   }
 
   export interface UpdateTenantStatusPayload {

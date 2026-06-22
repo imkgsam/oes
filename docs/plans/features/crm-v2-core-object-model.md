@@ -2,7 +2,7 @@
 
 ## 1. Feature Status
 
-Current status: `design frozen / implementation not started`
+Current status: `design frozen / implementation delta pending`
 
 本 feature packet 冻结 CRM v2 Phase 1 的核心对象设计、核心用例边界与 tenant-web 第一阶段前端入口结构，为后续 contract、proto、schema、runtime、Gateway/BFF 与 tenant-web 实现提供执行入口。
 
@@ -23,10 +23,11 @@ Current status: `design frozen / implementation not started`
 - 统一 `CrmAccount` 模型承载 Lead、Prospect Customer、Customer。
 - 弱 Lead 不查、不建、不绑定 `TenantParty`。
 - Lead 正式化为 Prospect Customer 时，才调用 `party-service` 识别或创建 `TenantParty`。
-- Source、Contact、Activity、Opportunity 支撑第一阶段销售员日常操作。
+- SourceRecord 支撑第一阶段来源闭环。
+- Contact、Activity、Opportunity 只冻结模型基础，不要求 P1 页面级闭环。
 - tenant-web 以销售员工作流组织 CRM 入口，而不是以数据库对象直接组织页面。
 
-Phase 1 不冻结公海、保护期、报价、PI、订单、发票、AI、全局 Task 或复杂预测。
+Phase 1 冻结最小 Pool / 公海入口，但不冻结完整公海治理、保护期、报价、PI、订单、发票、AI、全局 Task 或复杂预测。
 
 ## 3. Background
 
@@ -92,7 +93,9 @@ CRM v2 Phase 1 冻结以下核心对象：
 - `recordStatus = DRAFT` 不是生命周期阶段，只表示记录未正式提交。
 - `DRAFT` 只能搭配 `lifecycleStage = LEAD`。
 - `ACTIVE + LEAD` 才是正式线索。
-- `DRAFT` 不进入正式销售线索视图，不得创建正式 `Opportunity`，不进入正式报表统计。
+- `DRAFT` 不进入正式 Lead / Pool 视图，不得创建正式 `Opportunity`，不进入正式报表统计。
+- `DRAFT` 可以 hard delete；只允许删除 Draft，不能删除 Active Lead、Prospect Customer 或 Customer。
+- Draft 删除不影响 `TenantParty`；删除时关联 `CrmSourceRecord` 一并 hard delete。
 - `LEAD` 可以不绑定 `tenantPartyId`。
 - `PROSPECT_CUSTOMER / CUSTOMER` 必须绑定 `tenantPartyId`。
 - `PROSPECT_CUSTOMER` 表示已正式化、已绑定 `TenantParty`、但未确认成交的客户资产。
@@ -101,6 +104,21 @@ CRM v2 Phase 1 冻结以下核心对象：
 - `leadCompanyName / leadPersonName / leadDomain / leadEmail / leadPhone / leadWhatsapp / leadCountry / leadIdentifiers[]` 是 CRM 线索阶段输入值，可以作为 `party-service` 搜索 evidence，但不是 Party 主档真相。
 - `leadIdentifiers[]` 只承载可能升级为 `TenantPartyIdentifier` 的强主体标识。
 - Phase 1 不冻结 `duplicateOfCrmAccountId / sourceSummary / qualificationBasis / hasOrdered / firstOrderAt / lastOrderAt`。
+
+Created-by / owner 规则：
+
+- `createdBy` 表示是谁创建、导入或生成了该 `CrmAccount`。
+- `ownerAccountId` 表示当前由谁负责跟进。
+- Draft Lead 必须记录 `createdBy`，但 `ownerAccountId = null`。
+- Active Lead 可以没有 owner；无 owner 的 Active Lead 进入 P1 Pool。
+- Prospect Customer 也允许没有 owner；无 owner 的 Prospect Customer 进入 P1 Pool。
+- Lead 默认归属由创建入口语境决定。
+- 在“我的客户资源”手动创建或批量导入 Lead 时，默认 `ownerAccountId = current operator accountId`。
+- 销售通过插件或个人捕获工具创建 Lead 时，默认 `ownerAccountId = current operator accountId`。
+- 在 Pool / 公海入口导入 Lead 时，默认 `ownerAccountId = null`。
+- 官网表单 Lead 默认 `ownerAccountId = null`，进入 P1 Pool，并必须写入 `sourceType = WEBSITE_FORM` 及来源标识。
+- `CreateLead / SubmitDraftLead` 使用 `assignmentIntent = OWNED_BY_OPERATOR / POOL` 承载入口归属语义；缺省为 `OWNED_BY_OPERATOR`。
+- 创建自己的 Lead 不要求 `crm.account.claim`；`crm.account.claim` 只用于领取已有 Pool 资源。
 
 ## 6. CrmContact
 
@@ -173,9 +191,12 @@ Phase 1 核心写模型不在 `CrmAccount` 冗余 `sourceSummary`。完整来源
 
 冻结规则：
 
+- `DRAFT + LEAD` 可以拥有 `CrmSourceRecord`，用于保存草稿来源。
 - `ACTIVE + LEAD` 必须至少有一条 `CrmSourceRecord`。
 - 一个 `CrmAccount` 可以拥有多个 `CrmSourceRecord`。
 - 同一个 `CrmAccount` 同一时间只能有一个 primary source。
+- Draft 提交为 Active Lead 时，原 `CrmSourceRecord` 保留，不重新创建重复来源；如提交时补充新来源，可更新 primary source 或追加新来源，但不得丢失原始来源。
+- Draft hard delete 时关联 `CrmSourceRecord` 一并 hard delete。
 - 批量导入时，每条导入记录必须提供或映射出真实 `sourceType`。
 - `MANUAL_IMPORT` 不作为 `sourceType`。
 - 重复 Lead 被阻断时，新来源不丢；权限允许或系统集成规则允许时，追加到 existing `CrmAccount` 的 `CrmSourceRecord`，并生成 `CrmActivity`。
@@ -276,9 +297,11 @@ Phase 1 核心写模型不在 `CrmAccount` 冗余 `sourceSummary`。完整来源
 冻结用例：
 
 - `CheckLeadDuplicate`：根据当前表单输入查 CRM 内疑似重复、可领取、已有负责人对象，不写库。
-- `CreateDraftLead`：创建 `DRAFT + LEAD`，可不查重。
-- `CreateLead`：创建 `ACTIVE + LEAD`，必须执行 CRM 内重复检查。
-- `SubmitDraftLead`：将 Draft 转为 `ACTIVE + LEAD`，必须执行 CRM 内重复检查。
+- `CreateDraftLead`：创建 `DRAFT + LEAD`，可以做轻量重复提示，但不硬阻断。
+- `DeleteDraftLead`：hard delete `DRAFT + LEAD`，只允许删除 Draft。
+- `CreateLead`：创建 `ACTIVE + LEAD`，必须执行 CRM 内重复检查；根据 `assignmentIntent` 决定默认负责人。
+- `SubmitDraftLead`：将 Draft 转为 `ACTIVE + LEAD`，必须执行 CRM 内重复检查；根据 `assignmentIntent` 决定默认负责人。
+- `ClaimCrmAccount`：领取 Pool 中 owner 为空的 Active Lead 或 Prospect Customer。
 
 查重强度：
 
@@ -308,8 +331,50 @@ Phase 1 核心写模型不在 `CrmAccount` 冗余 `sourceSummary`。完整来源
 - `POSSIBLE_DUPLICATE` 是保存前确认信息，不是最终 create result。
 - 用户确认继续后，请求带 `duplicateWarningAcknowledged = true`；后端仍必须重新检查。
 - `CLAIMABLE_EXISTING / OWNED_DUPLICATE / RESTRICTED_DUPLICATE` 即使前端确认也不能绕过。
-- Claim Phase 1 只适用于 owner 为空的对象，不等于公海。
+- Draft duplicate 只提示，不硬阻断 Active Lead 创建或 Draft 提交。
+- `CreateLead / SubmitDraftLead` 支持显式 `assignmentIntent`；`OWNED_BY_OPERATOR` 写入当前 operator 为 owner，`POOL` 保持 owner 为空并进入 P1 Pool。
+- `crm.account.claim` 不用于创建自己的 Lead，只用于领取已有 Pool 资源。
+- Claim Phase 1 只适用于 Pool 中 owner 为空的 `ACTIVE + LEAD / PROSPECT_CUSTOMER`。
 - 无权限命中重复对象时必须脱敏返回，避免通过查重接口枚举客户资料。
+
+## 10.1 Minimal Pool
+
+P1 提供统一 `公海 / Pool` 入口，作为最小公海能力。
+
+Pool 包含：
+
+- `recordStatus = ACTIVE`
+- `ownerAccountId = null`
+- `lifecycleStage = LEAD` 或 `PROSPECT_CUSTOMER`
+
+Pool 不包含：
+
+- Draft
+- Customer
+- 已有 owner 的 Lead / Prospect Customer
+- Archived；P1 不支持 Archive runtime
+
+Pool 支持动作：
+
+- Claim。
+- 打开详情。
+- 具备 `crm.account.manage` 的 CRM 管理角色可以在 Pool 中将 owner 为空的 Lead 直接转为 Prospect Customer，转化后仍可保持 `ownerAccountId = null`。
+
+普通销售规则：
+
+- 可以 claim Pool 中的 Lead / Prospect Customer。
+- 不允许直接 convert Pool Lead；必须先 claim，成为 owner 后再 convert。
+
+P1 不做：
+
+- 保护期。
+- 自动回收。
+- 释放回公海。
+- 池规则配置。
+- 领取次数限制。
+- 争议仲裁。
+- 协作申请。
+- 主管分配。
 
 ## 11. Party Resolution And Conversion
 
@@ -378,18 +443,18 @@ CRM P1 已冻结 conversion result：
 
 ## 12. Archive Rules
 
-`recordStatus = ARCHIVED` 表示退出默认销售流程，但不物理删除。
+`recordStatus = ARCHIVED` 是底层扩展位，但 CRM P1 不开放 Archive runtime。
 
-冻结规则：
+CRM P1 明确不支持：
 
-- 可归档对象：`DRAFT`、`LEAD`、`PROSPECT_CUSTOMER`。
-- Phase 1 不允许归档 `CUSTOMER`。
-- owner 或有管理权限的人可以归档。
-- 归档后不出现在默认列表。
-- 归档对象不参与“允许继续创建”的普通判断，但强匹配时仍可提示历史存在，避免重复数据。
-- Phase 1 允许恢复为归档前状态。
-- 归档 / 恢复记录全系统 audit。
-- 如需要展示在客户时间线，用 `CrmActivity(STATUS_CHANGED)`，metadata 记录 `recordStatus` 变化，不新增专用 Activity 类型。
+- Archive。
+- Unarchive / Restore。
+- Archived list / filter。
+- Archive reason / restore reason。
+- `crm.account.archive`。
+- `crm.account.restore`。
+
+P1 runtime 只处理 `DRAFT` 与 `ACTIVE`。Archive / Restore 后续必须作为独立设计重新冻结。
 
 ## 13. P1 Use Cases
 
@@ -400,13 +465,12 @@ CRM P1 冻结以下用例边界：
 - `CreateDraftLead`
 - `UpdateDraftLead`
 - `SubmitDraftLead`
+- `DeleteDraftLead`
 - `CreateLead`
 - `UpdateCrmAccount`
 - `CheckLeadDuplicate`
 - `ConvertLeadToProspectCustomer`
-- `ArchiveCrmAccount`
-- `RestoreCrmAccount`
-- `ClaimUnownedCrmAccount`
+- `ClaimCrmAccount`
 
 ### CrmSourceRecord
 
@@ -416,26 +480,15 @@ CRM P1 冻结以下用例边界：
 
 ### CrmContact
 
-- `CreateCrmContact`
-- `UpdateCrmContact`
-- `ArchiveCrmContact`
-- `SetPrimaryCrmContact`
+- P1 只冻结模型基础，不要求页面级闭环。
 
 ### CrmActivity
 
-- `CreateManualActivity`
-- `ListActivities`
-- `AppendSystemActivity`
-- `AppendIntegrationActivity`
+- P1 只冻结模型基础，不要求完整手动 Activity 录入、第三方通信同步或报价链接访问 activity。
 
 ### Opportunity
 
-- `CreateOpportunity`
-- `UpdateOpportunity`
-- `ChangeOpportunityStage`
-- `CloseOpportunity`
-- `CancelOpportunity`
-- `ListOpportunities`
+- P1 只冻结模型基础，不要求 Opportunity workspace、Opportunity detail、Pipeline / forecast / win-loss analysis 页面级闭环。
 
 CRM P1 不提供人工 `MarkAsCustomer`。`CUSTOMER` 由后续 Sales / Order 成交事实或历史订单导入事实触发。
 
@@ -456,131 +509,67 @@ tenant-web CRM P1 必须遵循现有前端框架：
 
 ```text
 CRM
-├── 工作台 Dashboard
-├── 线索 Lead
-├── 客户资源 CRM Account
-└── 商机 Opportunity
+└── 客户资源 CRM Account
 ```
 
-### 14.1 CRM Dashboard
+### 14.1 CRM Account Workspace
 
-定位：销售员进入 CRM 后的第一屏，回答“今天要做什么”。
+定位：承载 CRM P1 主链，包括 Draft Lead、我的 Lead、Pool、Prospect Customer 与 Customer。
 
-P1 views / sections：
+推荐 route：
 
-- `今日跟进`
-- `我的新线索`
-- `我的商机`
-- `最近活动`
+- `/crm/accounts`
 
-P1 不引入：
-
-- 全局 Task
-- 超期规则
-- 报价 / PI / 订单
-- 销售目标
-
-### 14.2 Lead Workspace
-
-定位：处理新销售资源。
+旧 `/master-data/customers` 不再作为主入口，可临时 redirect 到 `/crm/accounts`。
 
 Tabs：
 
-- `我的线索`
-- `草稿`
-- `无主线索`
-- `已归档`
+- `我的草稿`
+- `我的 Lead`
+- `公海`
+- `潜在客户`
+- `客户`
 
 核心操作：
 
 - 新建 Lead
 - 保存 Draft
 - Submit Draft
+- Delete Draft
 - Check duplicate
-- Claim owner 为空的对象
-- 添加 Activity
+- Claim Pool 中 owner 为空的 Lead / Prospect Customer
 - 转 Prospect Customer
-- Archive / Restore
-
-### 14.3 CRM Account Workspace
-
-定位：经营已正式化客户资产。
-
-Tabs：
-
-- `潜在客户`
-- `成交客户`
-- `全部客户资源`
-- `已归档`
-
-核心操作：
-
-- 打开 Account 详情
-- 添加 Activity
-- 添加 Contact
-- 添加 Source
-- 新建 Opportunity
-- Archive / Restore
+- 打开 Account 基础详情
 
 P1 不提供“新建 Customer”或“手动 Mark as Customer”入口。
 
-### 14.4 Opportunity Workspace
-
-定位：全局推进销售机会。
-
-Tabs：
-
-- `我的商机`
-- `Pipeline`
-- `已赢单`
-- `已输单`
-- `已取消`
-
-核心操作：
-
-- 创建 Opportunity
-- 编辑 Opportunity
-- Change stage
-- Close won
-- Close lost
-- Cancel
-- 打开关联 `CrmAccount`
-
-P1 有独立 Opportunity workspace route，但不做独立 `OpportunityDetail` route。点击商机打开 drawer 查看、编辑、推进阶段或关闭。
-
-### 14.5 Detail And Operation Containers
+### 14.2 Detail And Operation Containers
 
 独立 route：
 
-- `CRM > 工作台`
-- `CRM > 线索`
 - `CRM > 客户资源`
-- `CRM > 商机`
-- `CrmAccountDetail`，统一承载 Lead、Prospect Customer、Customer 详情
 
 Drawer：
 
 - 新建 / 编辑 Lead
-- 添加 / 编辑 Source
-- 添加 / 编辑 Contact
-- 添加 Activity
-- 创建 / 编辑 Opportunity
+- Account 基础详情也可用 drawer 承载
 
 Modal / Confirm Modal：
 
 - Duplicate candidate decision
 - Convert Lead to Prospect Customer，宽 drawer 或 step modal 也可接受
-- Claim unowned lead
-- Archive / Restore
-- Close Opportunity
-- Cancel Opportunity
+- Claim Pool record
+- Delete Draft
 
 第一阶段不做一级入口：
 
+- CRM 工作台
+- 线索独立页
+- 客户资源拆分页
+- 商机独立页
 - Contact
 - Source
 - Activity
-- Pool / 公海
 - Quote / PI
 - Sales Order / Invoice
 - Global Task
@@ -604,7 +593,6 @@ CRM 必须接入全系统 audit architecture。
 - 商机创建
 - 商机阶段变更
 - 商机关闭
-- 归档 / 恢复
 
 若业务时间线需要展示某类审计动作，应额外创建对应 `CrmActivity`。
 
@@ -625,8 +613,8 @@ P1 最小权限动作：
 - `crm.account.create`
 - `crm.account.read`
 - `crm.account.update`
-- `crm.account.archive`
 - `crm.account.convert`
+- `crm.account.manage`
 - `crm.contact.manage`
 - `crm.source.manage`
 - `crm.activity.create`
@@ -642,7 +630,7 @@ P1 最小权限动作：
 - proto / contract 细节
 - Prisma schema
 - Gateway / BFF 具体接口
-- 公海与保护期
+- 完整公海治理与保护期；P1 只支持最小 Pool。
 - 报价 / PI / 订单 / 发票边界
 - AI 场景
 - 全局 Task
@@ -653,6 +641,9 @@ P1 最小权限动作：
 - 复杂联系人角色模型
 - Campaign / Marketing 自动化
 - 客户 360 / BI 聚合视图
+- Archive / Unarchive
+- 独立 Contact 管理、完整 Activity 录入、第三方通信同步、报价链接访问 Activity
+- Opportunity workspace、Opportunity detail、Pipeline / forecast / win-loss analysis
 
 ## 17. Acceptance Criteria
 
@@ -663,15 +654,17 @@ P1 最小权限动作：
 - `CrmAccount / CrmContact / CrmSourceRecord / Opportunity / CrmActivity` 对象语义已冻结。
 - `recordStatus` 与 `lifecycleStage` 两条轴已冻结。
 - `QUALIFIED_LEAD` 不进入 P1。
+- P1 支持 Draft Lead、Draft hard delete、Submit Draft、最小 Pool、Claim Lead / Prospect Customer。
+- P1 不支持 Archive / Unarchive。
 - TenantParty 绑定规则与 ADR 0008 一致。
 - `CrmSourceRecord` 与 `CrmActivity` 的职责差异已冻结。
 - `Opportunity` 只允许绑定已正式化 `CrmAccount`。
-- `Opportunity` P1 有独立 workspace，但不做独立 detail route。
+- `Opportunity` P1 只冻结模型基础，不要求页面级闭环。
 - Party / CRM 数据归属与 evidence / identifier 边界已冻结。
 - `ConvertLeadToProspectCustomer` 已确认的 P1 result model 已冻结。
 - CRM 审计明确对齐全系统 audit architecture，不设计特殊 CRM audit 表。
-- tenant-web P1 一级入口、tabs/views、route/drawer/modal 划分已冻结。
-- Deferred 清单明确，不把公海、报价、AI、Task、复杂预测混入 Phase 1。
+- tenant-web P1 独立 CRM 菜单、`客户资源` 页面、tabs/views、route/drawer/modal 划分已冻结。
+- Deferred 清单明确，不把完整公海治理、报价、AI、Task、复杂预测、Archive、完整 Opportunity / Activity / Contact 子系统混入 Phase 1。
 
 ## 18. Suggested Next Steps
 
@@ -682,5 +675,5 @@ P1 最小权限动作：
 3. 替换旧 customer master runtime。
 4. 接入 Gateway / BFF。
 5. 实现 tenant-web CRM v2 页面。
-6. 冻结公海与保护期 feature。
+6. 冻结完整公海治理与保护期 feature。
 7. 冻结报价 / 订单 / 发票协同 feature。

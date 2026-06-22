@@ -1,24 +1,32 @@
 import {
-  ArchiveCrmAccountResponse,
+  ClaimCrmAccountResponse,
   ConvertLeadToProspectCustomerResponse,
+  CreateDraftLeadResponse,
   CreateLeadResponse,
   CrmAccountP1,
   CrmDuplicateCandidate,
   CrmLeadDuplicateResult,
   CrmPartyCandidate,
+  DeleteDraftLeadResponse,
   GetCrmAccountResponse,
   ListCrmAccountsResponse,
-  RestoreCrmAccountResponse
+  ReleaseCrmAccountResponse,
+  SubmitDraftLeadResponse,
+  UpdateDraftLeadResponse
 } from '@oes/common/generated/crm_service'
 import {
   CrmAccountRecord,
   CrmLeadConversionResultType,
   CrmLeadCreateResultType
 } from '../../domain/models/crm-records'
-import { ArchiveCrmAccountResult } from '../../application/commands/archive-crm-account.handler'
+import { ClaimCrmAccountResult } from '../../application/commands/claim-crm-account.handler'
 import { ConvertLeadToProspectCustomerResult } from '../../application/commands/convert-lead-to-prospect-customer.handler'
+import { CreateDraftLeadResult } from '../../application/commands/create-draft-lead.handler'
 import { CreateLeadResult } from '../../application/commands/create-lead.handler'
-import { RestoreCrmAccountResult } from '../../application/commands/restore-crm-account.handler'
+import { DeleteDraftLeadResult } from '../../application/commands/delete-draft-lead.handler'
+import { ReleaseCrmAccountResult } from '../../application/commands/release-crm-account.handler'
+import { SubmitDraftLeadResult } from '../../application/commands/submit-draft-lead.handler'
+import { UpdateDraftLeadResult } from '../../application/commands/update-draft-lead.handler'
 import { GetCrmAccountResult } from '../../application/queries/get-crm-account.handler'
 import { ListCrmAccountsResult } from '../../application/queries/list-crm-accounts.handler'
 import { CrmAccountDuplicateCandidate } from '../../domain/repositories/crm-account.repository'
@@ -89,15 +97,49 @@ export class CustomerGrpcPresenter {
     }
   }
 
-  /** toArchiveCrmAccountResponse renders one archived CRM account for P1 workspace refreshes. */
-  static toArchiveCrmAccountResponse(result: ArchiveCrmAccountResult): ArchiveCrmAccountResponse {
+  /** toCreateDraftLeadResponse renders one saved draft lead. */
+  static toCreateDraftLeadResponse(result: CreateDraftLeadResult): CreateDraftLeadResponse {
     return {
       crmAccount: this.toCrmAccountP1(result.account)
     }
   }
 
-  /** toRestoreCrmAccountResponse renders one restored CRM account for P1 workspace refreshes. */
-  static toRestoreCrmAccountResponse(result: RestoreCrmAccountResult): RestoreCrmAccountResponse {
+  /** toUpdateDraftLeadResponse renders one updated draft lead. */
+  static toUpdateDraftLeadResponse(result: UpdateDraftLeadResult): UpdateDraftLeadResponse {
+    return {
+      crmAccount: this.toCrmAccountP1(result.account)
+    }
+  }
+
+  /** toSubmitDraftLeadResponse renders one draft submit result with duplicate classification. */
+  static toSubmitDraftLeadResponse(result: SubmitDraftLeadResult): SubmitDraftLeadResponse {
+    return {
+      resultType: result.resultType,
+      crmAccount: result.account ? this.toCrmAccountP1(result.account) : undefined,
+      duplicateResult: {
+        resultType: result.duplicateResult.resultType,
+        candidates: result.duplicateResult.candidates.map(toCrmDuplicateCandidate)
+      }
+    }
+  }
+
+  /** toDeleteDraftLeadResponse renders one hard delete acknowledgement. */
+  static toDeleteDraftLeadResponse(result: DeleteDraftLeadResult): DeleteDraftLeadResponse {
+    return {
+      deleted: result.deleted,
+      crmAccountId: result.crmAccountId
+    }
+  }
+
+  /** toClaimCrmAccountResponse renders one claimed Pool record. */
+  static toClaimCrmAccountResponse(result: ClaimCrmAccountResult): ClaimCrmAccountResponse {
+    return {
+      crmAccount: this.toCrmAccountP1(result.account)
+    }
+  }
+
+  /** toReleaseCrmAccountResponse renders one released Pool record. */
+  static toReleaseCrmAccountResponse(result: ReleaseCrmAccountResult): ReleaseCrmAccountResponse {
     return {
       crmAccount: this.toCrmAccountP1(result.account)
     }

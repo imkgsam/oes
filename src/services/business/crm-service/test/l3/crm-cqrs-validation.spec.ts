@@ -1,8 +1,11 @@
 import { validate } from 'class-validator'
-import { ArchiveCrmAccountCommand } from '../../src/application/commands/archive-crm-account.command'
+import { ClaimCrmAccountCommand } from '../../src/application/commands/claim-crm-account.command'
 import { ConvertLeadToProspectCustomerCommand } from '../../src/application/commands/convert-lead-to-prospect-customer.command'
+import { CreateDraftLeadCommand } from '../../src/application/commands/create-draft-lead.command'
 import { CreateLeadCommand } from '../../src/application/commands/create-lead.command'
-import { RestoreCrmAccountCommand } from '../../src/application/commands/restore-crm-account.command'
+import { DeleteDraftLeadCommand } from '../../src/application/commands/delete-draft-lead.command'
+import { SubmitDraftLeadCommand } from '../../src/application/commands/submit-draft-lead.command'
+import { UpdateDraftLeadCommand } from '../../src/application/commands/update-draft-lead.command'
 import { CheckLeadDuplicateQuery } from '../../src/application/queries/check-lead-duplicate.query'
 import { GetCrmAccountQuery } from '../../src/application/queries/get-crm-account.query'
 import { ListCrmAccountsQuery } from '../../src/application/queries/list-crm-accounts.query'
@@ -39,12 +42,33 @@ describe('crm-service cqrs validation L3', () => {
         crmAccountId: 'crm-account-1',
         operatorAccountId: 'operator-1'
       }),
-      new ArchiveCrmAccountCommand({
+      new CreateDraftLeadCommand({
+        tenantId: 'tenant-1',
+        operatorAccountId: 'operator-1',
+        displayName: 'Draft Lead',
+        partyTypeHint: CrmAccountTypeHint.ORGANIZATION,
+        priority: CrmPriority.B
+      }),
+      new UpdateDraftLeadCommand({
+        tenantId: 'tenant-1',
+        crmAccountId: 'crm-account-1',
+        operatorAccountId: 'operator-1',
+        displayName: 'Draft Lead',
+        partyTypeHint: CrmAccountTypeHint.ORGANIZATION,
+        priority: CrmPriority.B
+      }),
+      new SubmitDraftLeadCommand({
+        tenantId: 'tenant-1',
+        crmAccountId: 'crm-account-1',
+        operatorAccountId: 'operator-1',
+        claimForCurrentUser: true
+      }),
+      new DeleteDraftLeadCommand({
         tenantId: 'tenant-1',
         crmAccountId: 'crm-account-1',
         operatorAccountId: 'operator-1'
       }),
-      new RestoreCrmAccountCommand({
+      new ClaimCrmAccountCommand({
         tenantId: 'tenant-1',
         crmAccountId: 'crm-account-1',
         operatorAccountId: 'operator-1'

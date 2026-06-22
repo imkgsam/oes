@@ -26,8 +26,10 @@ export function createSmokeSeed(now = Date.now()) {
     specActivateCommandId: `mes-smoke-cmd-spec-activate-${suffix}`,
     designCommandId: `mes-smoke-cmd-design-${suffix}`,
     moldCommandId: `mes-smoke-cmd-mold-${suffix}`,
+    moldArrivalCommandId: `mes-smoke-cmd-mold-arrival-${suffix}`,
     moveCommandId: `mes-smoke-cmd-move-${suffix}`,
     installCommandId: `mes-smoke-cmd-install-${suffix}`,
+    moldReadyCommandId: `mes-smoke-cmd-mold-ready-${suffix}`,
     usageCommandId: `mes-smoke-cmd-usage-${suffix}`,
     designCode: `MES-SMOKE-${shortSuffix}`,
     moldCode: `PM-MES-SMOKE-${shortSuffix}`,
@@ -37,6 +39,9 @@ export function createSmokeSeed(now = Date.now()) {
     carrierResourceId: `mes-smoke-carrier-${suffix}`,
     workCenterId: `mes-smoke-wc-${suffix}`,
     workUnitId: `mes-smoke-wu-${suffix}`,
+    itemModelId: `mes-smoke-item-model-${suffix}`,
+    itemModelCode: `MES-SMOKE-MODEL-${shortSuffix}`,
+    itemModelName: 'MES Smoke Item Model',
     itemId: `mes-smoke-item-${suffix}`,
     productionSpecCode: `MES-SMOKE-SPEC-${shortSuffix}`,
     lifeLimitValue: '10',
@@ -73,6 +78,14 @@ export async function runMesSmokeFlow(services, seed, report = () => undefined) 
   const mold = requireProductionMold(await services.management.registerProductionMold(moldRequest), 'RegisterProductionMold');
   report(`production mold registered: ${mold.productionMoldId}`);
 
+  const arrivedMold = requireProductionMold(
+    await services.management.confirmProductionMoldArrival(
+      buildConfirmProductionMoldArrivalRequest(seed, mold.productionMoldId)
+    ),
+    'ConfirmProductionMoldArrival'
+  );
+  report(`production mold arrival confirmed: ${arrivedMold.productionMoldId}`);
+
   const moved = requirePlacement(
     await services.management.moveTooling(buildMoveToolingRequest(seed, mold.productionMoldId)),
     'MoveTooling'
@@ -84,6 +97,18 @@ export async function runMesSmokeFlow(services, seed, report = () => undefined) 
     'InstallTooling'
   );
   report(`tooling installed: ${installed.toolingInstallation.toolingInstallationId}`);
+
+  const readyMold = requireProductionMold(
+    await services.management.confirmInstalledMoldReady(
+      buildConfirmInstalledMoldReadyRequest(
+        seed,
+        mold.productionMoldId,
+        installed.toolingInstallation.toolingInstallationId
+      )
+    ),
+    'ConfirmInstalledMoldReady'
+  );
+  report(`installed mold ready: ${readyMold.productionMoldId}`);
 
   const usage = requireUsage(
     await services.management.recordMoldUsage(
@@ -150,16 +175,18 @@ export async function runMesSmokeFlow(services, seed, report = () => undefined) 
     'ProductionSpecCreated',
     'ProductionSpecActivated',
     'MoldDesignRegistered',
-    'ProductionMoldRegistered',
+    'ProductionMoldPreRegistered',
+    'ProductionMoldArrivalConfirmed',
     'ToolingMoved',
     'ToolingInstalled',
+    'InstalledMoldReadyConfirmed',
     'MoldUsageRecorded'
   ]) {
     if (!outbox.eventTypes.includes(expectedEventType)) {
       throw new Error(`mes-service smoke failed: outbox did not persist ${expectedEventType}`);
     }
   }
-  if (outbox.pendingCount < 7) {
+  if (outbox.pendingCount < 9) {
     throw new Error('mes-service smoke failed: outbox did not persist the minimum pending event rows');
   }
   report(`outbox pending events verified: ${outbox.pendingCount}`);
@@ -168,6 +195,7 @@ export async function runMesSmokeFlow(services, seed, report = () => undefined) 
     spec: activatedSpec,
     design,
     mold,
+    readyMold,
     moved,
     installed,
     usage,
@@ -212,6 +240,15 @@ export function buildRegisterProductionMoldRequest(seed, moldDesignId) {
   };
 }
 
+/** buildConfirmProductionMoldArrivalRequest moves the smoke production mold from pre-registered to available. */
+function buildConfirmProductionMoldArrivalRequest(seed, productionMoldId) {
+  return {
+    ...buildManagementContext(seed, seed.moldArrivalCommandId, 'confirm production mold arrival'),
+    productionMoldId,
+    arrivedAt: new Date().toISOString()
+  };
+}
+
 /** buildQueryContext attaches the explicit tenant, operator, and trace payload frozen by the MES query contracts. */
 function buildQueryContext(seed) {
   return {
@@ -248,10 +285,10 @@ function buildRegisterMoldDesignRequest(seed, productionSpec) {
     designCode: seed.designCode,
     name: 'MES Smoke Mold Design',
     revisionCode: 'R1',
-    itemRef: {
-      itemId: seed.itemId,
-      itemCodeSnapshot: 'MES-SMOKE-ITEM',
-      itemNameSnapshot: 'MES Smoke Item'
+    primaryItemModelRef: {
+      itemModelId: seed.itemModelId,
+      modelCodeSnapshot: seed.itemModelCode,
+      modelNameSnapshot: seed.itemModelName
     },
     productionSpecRefs: [productionSpecRef],
     materialType: 'GYPSUM',
@@ -264,6 +301,11 @@ function buildRegisterMoldDesignRequest(seed, productionSpec) {
         outputCode: 'MES-SMOKE-OUT',
         outputKind: MOLD_OUTPUT_PRODUCT,
         productionSpecRef,
+        itemModelRef: {
+          itemModelId: seed.itemModelId,
+          modelCodeSnapshot: seed.itemModelCode,
+          modelNameSnapshot: seed.itemModelName
+        },
         quantityPerUse: '1',
         isPrimaryOutput: true
       }
@@ -295,6 +337,16 @@ function buildInstallToolingRequest(seed, productionMoldId) {
     moldPosition: 'A',
     cavityPosition: '1',
     setupParameters: 'smoke setup'
+  };
+}
+
+/** buildConfirmInstalledMoldReadyRequest creates the field readiness command required before recording usage. */
+function buildConfirmInstalledMoldReadyRequest(seed, productionMoldId, toolingInstallationId) {
+  return {
+    ...buildManagementContext(seed, seed.moldReadyCommandId, 'confirm installed mold ready'),
+    productionMoldId,
+    toolingInstallationId,
+    readyAt: new Date().toISOString()
   };
 }
 
@@ -352,8 +404,10 @@ function assertMesServices(services) {
     !services?.specManagement?.activateProductionSpec ||
     !services?.management?.registerMoldDesign ||
     !services?.management?.registerProductionMold ||
+    !services?.management?.confirmProductionMoldArrival ||
     !services?.management?.moveTooling ||
     !services?.management?.installTooling ||
+    !services?.management?.confirmInstalledMoldReady ||
     !services?.management?.recordMoldUsage ||
     !services?.query?.listCurrentMoldsByWorkCenter ||
     !services?.query?.listMoldLifeCounters ||

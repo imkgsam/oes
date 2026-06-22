@@ -144,7 +144,8 @@ export class TenantOrgManagementGrpcController implements TenantOrgManagementSer
       tenantId: _request.tenantId ?? '',
       name: _request.name || undefined,
       code: _request.code || undefined,
-      employeeCodePrefix: _request.employeeCodePrefix || undefined
+      employeeCodePrefix: _request.employeeCodePrefix || undefined,
+      websiteUrl: _request.websiteUrl || undefined
     })
     return { tenant: mapTenant(tenant) }
   }
@@ -257,6 +258,7 @@ function mapTenant(tenant: {
   name: string
   status: string
   rootOrgId: string | null
+  websiteUrl?: string | null
 }) {
   return {
     id: tenant.id,
@@ -264,7 +266,8 @@ function mapTenant(tenant: {
     employeeCodePrefix: tenant.employeeCodePrefix,
     name: tenant.name,
     status: String(tenant.status),
-    rootOrgId: tenant.rootOrgId ?? ''
+    rootOrgId: tenant.rootOrgId ?? '',
+    websiteUrl: tenant.websiteUrl ?? ''
   }
 }
 

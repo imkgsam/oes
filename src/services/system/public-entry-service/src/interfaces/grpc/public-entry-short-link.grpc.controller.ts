@@ -9,6 +9,8 @@ import {
   GetShortLinkResponse,
   GetShortLinkStatsRequest,
   GetShortLinkStatsResponse,
+  ListShortLinksRequest,
+  ListShortLinksResponse,
   ListShortLinksByTargetRequest,
   ListShortLinksByTargetResponse,
   PublicEntryShortLinkServiceController,
@@ -64,6 +66,22 @@ export class PublicEntryShortLinkGrpcController implements PublicEntryShortLinkS
       shortLinkId: request.shortLinkId ?? ''
     })
     return { shortLink: toGrpcShortLink(result.shortLink) }
+  }
+
+  async listShortLinks(request: ListShortLinksRequest): Promise<ListShortLinksResponse> {
+    const result = await this.shortLinkService.listShortLinks({
+      tenantId: request.tenantId ?? '',
+      targetKind: fromGrpcOptionalTargetKind(request.targetKind),
+      targetType: request.targetType,
+      page: request.page,
+      pageSize: request.pageSize
+    })
+    return {
+      items: result.items.map((item) => toGrpcShortLink(item)),
+      page: result.page,
+      pageSize: result.pageSize,
+      total: result.total
+    }
   }
 
   async listShortLinksByTarget(
@@ -216,6 +234,15 @@ export function toGrpcShortLinkTargetKind(
   return kind === 'INTERNAL_REF'
     ? GrpcShortLinkTargetKind.SHORT_LINK_TARGET_KIND_INTERNAL_REF
     : GrpcShortLinkTargetKind.SHORT_LINK_TARGET_KIND_EXTERNAL_URL
+}
+
+// fromGrpcOptionalTargetKind treats UNSPECIFIED as an omitted list filter.
+function fromGrpcOptionalTargetKind(
+  kind?: GrpcShortLinkTargetKind
+): ShortLinkTarget['targetKind'] | undefined {
+  if (kind === GrpcShortLinkTargetKind.SHORT_LINK_TARGET_KIND_INTERNAL_REF) return 'INTERNAL_REF'
+  if (kind === GrpcShortLinkTargetKind.SHORT_LINK_TARGET_KIND_EXTERNAL_URL) return 'EXTERNAL_URL'
+  return undefined
 }
 
 // fromGrpcTarget converts generated target input into the domain target union.

@@ -4,6 +4,7 @@ import {
   IsArray,
   IsBoolean,
   IsInt,
+  IsIn,
   IsNotEmpty,
   IsObject,
   IsOptional,
@@ -13,8 +14,9 @@ import {
 } from 'class-validator'
 
 const CRM_ACCOUNT_LIFECYCLE_STAGE_VALUES = ['LEAD', 'PROSPECT_CUSTOMER', 'CUSTOMER'] as const
-const CRM_ACCOUNT_RECORD_STATUS_VALUES = ['DRAFT', 'ACTIVE', 'ARCHIVED'] as const
+const CRM_ACCOUNT_RECORD_STATUS_VALUES = ['DRAFT', 'ACTIVE'] as const
 const CRM_ACCOUNT_TYPE_HINT_VALUES = ['UNKNOWN', 'PERSON', 'ORGANIZATION'] as const
+const CRM_LEAD_ASSIGNMENT_INTENT_VALUES = ['OWNED_BY_OPERATOR', 'POOL'] as const
 const CRM_PRIORITY_VALUES = ['A', 'B', 'C', 'D'] as const
 const CRM_SOURCE_TYPE_VALUES = [
   'WEBSITE_FORM',
@@ -23,6 +25,7 @@ const CRM_SOURCE_TYPE_VALUES = [
   'AD_CAMPAIGN',
   'REFERRAL',
   'IMPORTED_LIST',
+  'BROWSER_EXTENSION',
   'WEB_RESEARCH',
   'PEER_TRANSFER',
   'SOCIAL_MEDIA',
@@ -64,8 +67,14 @@ export class ListCrmAccountsDto {
   @IsString()
   lifecycleStage?: string
 
+  @ApiPropertyOptional({ enum: CRM_ACCOUNT_LIFECYCLE_STAGE_VALUES, isArray: true })
+  @IsOptional()
+  @IsArray()
+  lifecycleStages?: string[]
+
   @ApiPropertyOptional({ enum: CRM_ACCOUNT_RECORD_STATUS_VALUES })
   @IsOptional()
+  @IsIn(CRM_ACCOUNT_RECORD_STATUS_VALUES)
   @IsString()
   recordStatus?: string
 
@@ -73,6 +82,17 @@ export class ListCrmAccountsDto {
   @IsOptional()
   @IsString()
   ownerAccountId?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  createdBy?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  ownerless?: boolean
 
   @ApiPropertyOptional({ minimum: 1 })
   @IsOptional()
@@ -90,8 +110,8 @@ export class ListCrmAccountsDto {
   pageSize?: number
 }
 
-/** CreateLeadDto defines the CRM P1 lead creation payload accepted by tenant-web. */
-export class CreateLeadDto {
+/** CrmLeadDraftFieldsDto defines editable CRM lead fields shared by draft and active creation. */
+export class CrmLeadDraftFieldsDto {
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
@@ -142,11 +162,6 @@ export class CreateLeadDto {
   @IsArray()
   leadIdentifiers?: CrmLeadIdentifierDto[]
 
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  ownerAccountId?: string
-
   @ApiPropertyOptional({ enum: CRM_PRIORITY_VALUES })
   @IsOptional()
   @IsString()
@@ -156,12 +171,27 @@ export class CreateLeadDto {
   @IsOptional()
   @IsString()
   nextFollowUpAt?: string
+}
 
+/** CreateLeadDto defines the CRM P1 active lead creation payload accepted by tenant-web. */
+export class CreateLeadDto extends CrmLeadDraftFieldsDto {
   @ApiPropertyOptional()
   @IsOptional()
   @Type(() => Boolean)
   @IsBoolean()
   duplicateWarningAcknowledged?: boolean
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  claimForCurrentUser?: boolean
+
+  @ApiPropertyOptional({ enum: CRM_LEAD_ASSIGNMENT_INTENT_VALUES })
+  @IsOptional()
+  @IsIn(CRM_LEAD_ASSIGNMENT_INTENT_VALUES)
+  @IsString()
+  assignmentIntent?: string
 
   @ApiProperty({ enum: CRM_SOURCE_TYPE_VALUES })
   @IsString()
@@ -197,4 +227,149 @@ export class CreateLeadDto {
   @IsOptional()
   @IsString()
   sourceNote?: string
+}
+
+/** CreateDraftLeadDto defines a saved draft lead payload and optional source evidence. */
+export class CreateDraftLeadDto extends CrmLeadDraftFieldsDto {
+  @ApiPropertyOptional({ enum: CRM_SOURCE_TYPE_VALUES })
+  @IsOptional()
+  @IsString()
+  sourceType?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  sourceName?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  sourceCapturedAt?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  sourceCapturedByAccountId?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  sourceExternalReference?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsObject()
+  sourceRawPayload?: Record<string, unknown>
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  sourceNote?: string
+}
+
+/** UpdateDraftLeadDto defines the fields that can be changed before draft submit. */
+export class UpdateDraftLeadDto extends CrmLeadDraftFieldsDto {}
+
+/** SubmitDraftLeadDto defines optional submit behavior and fallback source evidence for draft leads. */
+export class SubmitDraftLeadDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  duplicateWarningAcknowledged?: boolean
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  claimForCurrentUser?: boolean
+
+  @ApiPropertyOptional({ enum: CRM_LEAD_ASSIGNMENT_INTENT_VALUES })
+  @IsOptional()
+  @IsIn(CRM_LEAD_ASSIGNMENT_INTENT_VALUES)
+  @IsString()
+  assignmentIntent?: string
+
+  @ApiPropertyOptional({ enum: CRM_SOURCE_TYPE_VALUES })
+  @IsOptional()
+  @IsString()
+  sourceType?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  sourceName?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  sourceCapturedAt?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  sourceCapturedByAccountId?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  sourceExternalReference?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsObject()
+  sourceRawPayload?: Record<string, unknown>
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  sourceNote?: string
+}
+
+/** CheckLeadDuplicateDto defines the evidence payload for explicit duplicate checks. */
+export class CheckLeadDuplicateDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  displayName?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  leadCompanyName?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  leadPersonName?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  leadDomain?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  leadEmail?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  leadPhone?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  leadWhatsapp?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  leadCountry?: string
+
+  @ApiPropertyOptional({ type: [CrmLeadIdentifierDto] })
+  @IsOptional()
+  @IsArray()
+  leadIdentifiers?: CrmLeadIdentifierDto[]
 }

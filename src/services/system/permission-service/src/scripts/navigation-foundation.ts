@@ -45,15 +45,15 @@ const NAVIGATION_VISIBILITY_ENTRY_KEYS_BY_ROLE_CODE: Record<string, string[]> = 
     'admin.platform-terminal-security',
     'admin.permission-management',
     'admin.policy-governance',
+    'admin.policy-instance-management',
+    'admin.policy-instance-preview',
     'admin.terminal-device-management',
     'admin.navigation-management',
     'public-entry.business-cards',
-    'public-entry.short-links',
-    'collaboration.tasks'
+    'public-entry.short-links'
   ],
   'tenant.admin': [
     'workbench.home',
-    'collaboration.tasks',
     'admin.auth-session-management',
     'admin.role-management',
     'admin.account-management',
@@ -62,7 +62,8 @@ const NAVIGATION_VISIBILITY_ENTRY_KEYS_BY_ROLE_CODE: Record<string, string[]> = 
     'tenant-settings.org-structure',
     'tenant-settings.employee-employment',
     'tenant-settings.login-mfa',
-    'master-data.customer-management',
+    'crm.accounts',
+    'crm.pool',
     'public-entry.business-cards',
     'public-entry.short-links'
   ],
@@ -70,7 +71,7 @@ const NAVIGATION_VISIBILITY_ENTRY_KEYS_BY_ROLE_CODE: Record<string, string[]> = 
     'workbench.home',
     'tenant-settings.employee-employment'
   ],
-  'account.basic': ['workbench.home', 'collaboration.tasks'],
+  'account.basic': ['workbench.home'],
   'item_master.product_data_manager': [
     'workbench.home',
     'master-data.item-management',
@@ -80,11 +81,16 @@ const NAVIGATION_VISIBILITY_ENTRY_KEYS_BY_ROLE_CODE: Record<string, string[]> = 
     'master-data.item-bom-management'
   ],
   'mes.forming_workshop.supervisor': ['workbench.home', 'mes.mold-management'],
-  'extension.designer': ['workbench.home']
+  'extension.designer': ['workbench.home'],
+  'crm.sales': ['workbench.home', 'crm.accounts', 'crm.pool'],
+  'crm.sales_manager': ['workbench.home', 'crm.accounts', 'crm.pool']
 }
 
 /** DEPRECATED_NAVIGATION_ENTRY_KEYS disables removed built-in entries during seed sync. */
-export const DEPRECATED_NAVIGATION_ENTRY_KEYS = ['tenant-settings.organization-people'] as const
+export const DEPRECATED_NAVIGATION_ENTRY_KEYS = [
+  'tenant-settings.organization-people',
+  'collaboration.tasks'
+] as const
 
 /** DEFAULT_NAVIGATION_ENTRIES defines the built-in first-stage navigation registry rows. */
 export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
@@ -249,12 +255,22 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     entryType: 'page'
   },
   {
-    entryKey: 'master-data.customer-management',
-    name: '客户管理',
-    description: '租户侧 CRM customer master phase 1 管理入口。',
+    entryKey: 'crm.accounts',
+    name: '客户资源',
+    description: '租户侧 CRM P1 客户资源工作台入口。',
     featureKey: 'crm',
     supportedTerminals: ['WEB'],
     registryPriority: 16,
+    enabled: true,
+    entryType: 'page'
+  },
+  {
+    entryKey: 'crm.pool',
+    name: '公海',
+    description: '租户侧 CRM P1 无负责人公海资源认领入口。',
+    featureKey: 'crm',
+    supportedTerminals: ['WEB'],
+    registryPriority: 17,
     enabled: true,
     entryType: 'page'
   },
@@ -264,7 +280,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '租户侧 sales quote-order phase 1 最小闭环入口。',
     featureKey: 'sales',
     supportedTerminals: ['WEB'],
-    registryPriority: 17,
+    registryPriority: 18,
     enabled: true,
     entryType: 'page'
   },
@@ -274,7 +290,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '租户侧 procurement phase 1 PR / PO / receiving 最小闭环入口。',
     featureKey: 'procurement',
     supportedTerminals: ['WEB'],
-    registryPriority: 18,
+    registryPriority: 19,
     enabled: true,
     entryType: 'page'
   },
@@ -284,7 +300,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '租户侧 finance phase 1A 资金账户、应收、汇率与收款核销最小入口。',
     featureKey: 'finance',
     supportedTerminals: ['WEB'],
-    registryPriority: 19,
+    registryPriority: 20,
     enabled: true,
     entryType: 'page'
   },
@@ -294,7 +310,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '租户侧 WMS phase 1 仓库、库位、收货与库存查询最小入口。',
     featureKey: 'wms',
     supportedTerminals: ['WEB'],
-    registryPriority: 20,
+    registryPriority: 21,
     enabled: true,
     entryType: 'page'
   },
@@ -304,7 +320,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '租户侧 MES 模具管理、产线模具现况与注浆记录最小闭环入口。',
     featureKey: 'mes',
     supportedTerminals: ['WEB'],
-    registryPriority: 21,
+    registryPriority: 22,
     enabled: true,
     entryType: 'page'
   },
@@ -314,7 +330,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '系统账号 MFA 场景、因子启用状态与展示优先级配置入口。',
     featureKey: 'auth',
     supportedTerminals: ['WEB'],
-    registryPriority: 22,
+    registryPriority: 23,
     enabled: true,
     entryType: 'page'
   },
@@ -324,7 +340,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '系统管理员维护平台级 terminal 登录流与各 terminal MFA 默认开关的账号安全入口。',
     featureKey: 'auth',
     supportedTerminals: ['WEB'],
-    registryPriority: 23,
+    registryPriority: 24,
     enabled: true,
     entryType: 'page'
   },
@@ -334,7 +350,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '管理员权限管理入口。',
     featureKey: 'permission',
     supportedTerminals: ['WEB'],
-    registryPriority: 24,
+    registryPriority: 25,
     enabled: true,
     entryType: 'page'
   },
@@ -344,7 +360,27 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '管理员策略治理只读入口。',
     featureKey: 'permission',
     supportedTerminals: ['WEB'],
-    registryPriority: 25,
+    registryPriority: 26,
+    enabled: true,
+    entryType: 'page'
+  },
+  {
+    entryKey: 'admin.policy-instance-management',
+    name: '资源授权实例',
+    description: '管理员管理 template-based PolicyInstance 资源授权事实的第一阶段入口。',
+    featureKey: 'permission',
+    supportedTerminals: ['WEB'],
+    registryPriority: 27,
+    enabled: true,
+    entryType: 'page'
+  },
+  {
+    entryKey: 'admin.policy-instance-preview',
+    name: '资源授权预览',
+    description: '管理员验证 PolicyInstance checkResource / buildQueryScope 判定结果的预览入口。',
+    featureKey: 'permission',
+    supportedTerminals: ['WEB'],
+    registryPriority: 28,
     enabled: true,
     entryType: 'page'
   },
@@ -354,7 +390,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '管理员受管终端设备 enrollment、状态、版本策略与审计入口。',
     featureKey: 'terminal-device',
     supportedTerminals: ['WEB'],
-    registryPriority: 26,
+    registryPriority: 29,
     enabled: true,
     entryType: 'page'
   },
@@ -364,7 +400,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '管理员导航治理入口。',
     featureKey: 'permission',
     supportedTerminals: ['WEB'],
-    registryPriority: 27,
+    registryPriority: 30,
     enabled: true,
     entryType: 'page'
   },
@@ -374,7 +410,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: 'OES 端外部站点治理、发布同步、凭证与运行状态管理入口。',
     featureKey: 'site-service',
     supportedTerminals: ['WEB'],
-    registryPriority: 28,
+    registryPriority: 31,
     enabled: true,
     entryType: 'page'
   },
@@ -384,7 +420,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '租户侧员工数字名片公开展示、主公开入口、二维码与访问摘要管理入口。',
     featureKey: 'public-entry',
     supportedTerminals: ['WEB'],
-    registryPriority: 29,
+    registryPriority: 32,
     enabled: true,
     entryType: 'page'
   },
@@ -394,17 +430,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '租户侧 ShortLink 生命周期、目标迁移、二维码与访问统计治理入口。',
     featureKey: 'public-entry',
     supportedTerminals: ['WEB'],
-    registryPriority: 30,
-    enabled: true,
-    entryType: 'page'
-  },
-  {
-    entryKey: 'collaboration.tasks',
-    name: '任务工作台',
-    description: '租户内个人待办、指派任务与创建任务视图入口。',
-    featureKey: 'collaboration',
-    supportedTerminals: ['WEB'],
-    registryPriority: 31,
+    registryPriority: 33,
     enabled: true,
     entryType: 'page'
   },
@@ -414,7 +440,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '现场 PDA 端默认系统入口。',
     featureKey: 'pda',
     supportedTerminals: ['PDA'],
-    registryPriority: 32,
+    registryPriority: 34,
     enabled: true,
     entryType: 'workspace'
   },
@@ -424,7 +450,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '固定工位触摸屏默认系统入口。',
     featureKey: 'kiosk',
     supportedTerminals: ['KIOSK'],
-    registryPriority: 33,
+    registryPriority: 35,
     enabled: true,
     entryType: 'workspace'
   },
@@ -434,7 +460,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '浏览器插件设计师选品、加入项目并提交到 OES 的 demo workspace。',
     featureKey: 'browser-extension',
     supportedTerminals: ['BROWSER_EXTENSION'],
-    registryPriority: 34,
+    registryPriority: 36,
     enabled: true,
     entryType: 'workspace'
   }

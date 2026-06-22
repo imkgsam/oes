@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common'
+import { BadRequestException, Inject, Injectable } from '@nestjs/common'
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs'
 import { TOKENS } from '../../common/constants/tokens'
 import {
@@ -47,6 +47,12 @@ export class ConvertLeadToProspectCustomerHandler
 
     if (!canAttemptFormalization(account)) {
       return emptyConversionResult(CrmLeadConversionResultType.INSUFFICIENT_INFO)
+    }
+    if (
+      !account.ownerAccountId &&
+      !command.props.allowOwnerlessConversion
+    ) {
+      throw new BadRequestException('Ownerless Pool leads must be claimed before conversion')
     }
 
     const resolution = await this.tenantPartyResolution.resolveTenantPartyForConsumer({

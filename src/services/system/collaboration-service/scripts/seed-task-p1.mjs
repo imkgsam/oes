@@ -1,6 +1,6 @@
 import { PrismaClient } from '../prisma/generated/prisma/index.js'
 
-const DEFAULT_LOCAL_DATABASE_URL = 'postgres://imkgsam:imkgsam@localhost:5432/mydb'
+const DEFAULT_LOCAL_DATABASE_URL = 'postgres://imkgsam:imkgsam@localhost:5432/collaborationdb'
 const rawDatabaseUrl =
   process.env.COLLABORATION_DATABASE_URL ||
   process.env.DATABASE_URL ||

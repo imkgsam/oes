@@ -291,10 +291,25 @@ export class PrismaCrmAccountRepository implements CrmAccountRepository {
   async listAccounts(input: ListCrmAccountsInput): Promise<ListCrmAccountsResult> {
     const page = Math.max(input.page ?? 1, 1)
     const pageSize = Math.min(Math.max(input.pageSize ?? 20, 1), 100)
+    const p1RecordStatus =
+      input.recordStatus === CrmAccountRecordStatus.DRAFT || input.recordStatus === CrmAccountRecordStatus.ACTIVE
+        ? input.recordStatus
+        : null
+    const recordStatusWhere = input.recordStatus
+      ? p1RecordStatus
+        ? { recordStatus: p1RecordStatus }
+        : { recordStatus: { in: [] } }
+      : { recordStatus: { in: [CrmAccountRecordStatus.DRAFT, CrmAccountRecordStatus.ACTIVE] } }
     const where: Prisma.CrmAccountWhereInput = {
       tenantId: input.tenantId,
-      ...(input.lifecycleStage ? { lifecycleStage: input.lifecycleStage } : {}),
-      ...(input.recordStatus ? { recordStatus: input.recordStatus } : {}),
+      ...(input.lifecycleStages?.length
+        ? { lifecycleStage: { in: input.lifecycleStages } }
+        : input.lifecycleStage
+          ? { lifecycleStage: input.lifecycleStage }
+          : {}),
+      ...recordStatusWhere,
+      ...(input.createdBy ? { createdBy: input.createdBy } : {}),
+      ...(input.ownerless ? { ownerAccountId: null } : {}),
       ...(input.ownerAccountId ? { ownerAccountId: input.ownerAccountId } : {}),
       ...(input.keyword
         ? {
@@ -342,6 +357,20 @@ export class PrismaCrmAccountRepository implements CrmAccountRepository {
     })
 
     return records.map(toCrmSourceRecord)
+  }
+
+  /** deleteDraftAccount hard-deletes only draft leads and cascades their source records. */
+  async deleteDraftAccount(tenantId: string, accountId: string): Promise<boolean> {
+    const deleted = await this.prisma.getExecutionClient().crmAccount.deleteMany({
+      where: {
+        id: accountId,
+        tenantId,
+        recordStatus: CrmAccountRecordStatus.DRAFT,
+        lifecycleStage: CrmAccountLifecycleStage.LEAD
+      }
+    })
+
+    return deleted.count > 0
   }
 
   /** findDuplicateCandidates searches tenant-local CRM evidence without consulting party-service. */
@@ -436,7 +465,7 @@ function toCrmAccountRecord(record: PrismaCrmAccountRow): CrmAccountRecord {
     leadPhone: record.leadPhone,
     leadWhatsapp: record.leadWhatsapp,
     leadCountry: record.leadCountry,
-    leadIdentifiers: fromJson<CrmLeadIdentifierRecord[]>(record.leadIdentifiers),
+    leadIdentifiers: fromJsonArray<CrmLeadIdentifierRecord>(record.leadIdentifiers),
     ownerAccountId: record.ownerAccountId,
     priority: record.priority as CrmPriority,
     lastActivityAt: record.lastActivityAt,
@@ -547,7 +576,7 @@ function toDuplicateCandidate(
   input: CrmDuplicateSearchInput
 ): CrmAccountDuplicateCandidate | null {
   const matchedFields: string[] = []
-  const recordIdentifiers = fromJson<CrmLeadIdentifierRecord[]>(record.leadIdentifiers)
+  const recordIdentifiers = fromJsonArray<CrmLeadIdentifierRecord>(record.leadIdentifiers)
 
   if (matchesNullableText(record.leadEmail, input.leadEmail)) {
     matchedFields.push('leadEmail')
@@ -614,4 +643,10 @@ function toJson(value: unknown): Prisma.InputJsonValue {
 /** fromJson deep-clones one stored Prisma JSON value into a plain domain payload. */
 function fromJson<T>(value: Prisma.JsonValue): T {
   return structuredClone(value) as T
+}
+
+/** fromJsonArray normalizes stored Prisma JSON values that are expected to be domain arrays. */
+function fromJsonArray<T>(value: Prisma.JsonValue): T[] {
+  const cloned = structuredClone(value)
+  return Array.isArray(cloned) ? (cloned as T[]) : []
 }

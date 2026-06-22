@@ -8,7 +8,7 @@
 
 import { ClientGrpc, ClientProxyFactory, Transport } from '@nestjs/microservices'
 import { ChannelOptions } from '@grpc/grpc-js'
-import { ResolvedPoolConfig } from './grpc.interfaces'
+import { GrpcLoaderOptions, ResolvedPoolConfig } from './grpc.interfaces'
 import { LoadBalancer, ServiceEndpoint } from '../loadbalancer/loadbalancer.interface'
 import { AppLogger } from '../../logging'
 
@@ -70,6 +70,7 @@ export class GrpcConnectionPool {
   private readonly config: ResolvedPoolConfig
   private readonly loadBalancer: LoadBalancer
   private readonly channelOptions?: ChannelOptions
+  private readonly loader?: GrpcLoaderOptions
 
   constructor(options: {
     logger: AppLogger
@@ -79,6 +80,7 @@ export class GrpcConnectionPool {
     poolConfig: ResolvedPoolConfig
     loadBalancer: LoadBalancer
     channelOptions?: ChannelOptions
+    loader?: GrpcLoaderOptions
   }) {
     this.serviceName = options.serviceName
     this.protoPath = options.protoPath
@@ -86,6 +88,7 @@ export class GrpcConnectionPool {
     this.config = options.poolConfig
     this.loadBalancer = options.loadBalancer
     this.channelOptions = options.channelOptions
+    this.loader = options.loader
     this.logger = options.logger
   }
 
@@ -261,6 +264,7 @@ export class GrpcConnectionPool {
         url,
         package: this.packageName,
         protoPath: this.protoPath,
+        loader: this.loader,
         channelOptions: this.channelOptions
       }
     }) as unknown as ClientGrpc

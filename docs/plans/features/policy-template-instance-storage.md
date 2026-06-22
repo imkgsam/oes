@@ -1,6 +1,10 @@
 # Policy Template / Instance Storage
 
-> 服务设计唯一真相源：[permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。模型冻结依据为 [policy-template-instance-model.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/policy-template-instance-model.md)，内部 contract 基线为 [policy-template-instance-contract.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/policy-template-instance-contract.md)。本文只记录第一阶段 policy template instance 的存储落点，不重新定义 permission-service 长期 owner 边界。
+> Status: SUPERSEDED_BY_TRUTH_SOURCE. Do not use this file as the stable storage design source or an implementation target.
+
+> Historical phase packet. The active PolicyInstance resource authorization mainline is [policyinstance-resource-authorization-mainline.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/policyinstance-resource-authorization-mainline.md), and the current `PolicyInstance` management contract is [policy-instance-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/policy-instance-management.md). Use this file only as background for the storage slice that has already landed.
+
+> 服务设计唯一真相源：[permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。本文只记录第一阶段 policy template instance 存储落地前的历史设计，不重新定义 permission-service 长期 owner 边界；当前模型、契约与 rollout 状态以上述真相源为准。
 
 ## 1. 目标
 
@@ -11,7 +15,7 @@
 
 ## 2. 不做什么
 
-- 不开放 gRPC / HTTP mutation contract。
+- 历史阶段当时未开放 gRPC / HTTP mutation contract；当前 `PolicyInstance` 管理契约以 [policy-instance-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/policy-instance-management.md) 为准。
 - 不做 tenant-web UI。
 - 不开放自由 AST 编辑。
 - 不迁移或删除现有 `Policy` AST 表。

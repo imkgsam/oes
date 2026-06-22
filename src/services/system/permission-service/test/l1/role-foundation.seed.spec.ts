@@ -32,7 +32,7 @@ describe('role foundation seed', () => {
     expect(validateBuiltInRoleSeedDefinitions()).toEqual([])
   })
 
-  it('publishes the built-in system admin instance baseline without tenant business permissions', () => {
+  it('publishes the built-in system admin instance baseline with platform and CRM governance permissions', () => {
     expect(BUILT_IN_SYSTEM_ROLES).toEqual([
       {
         code: 'system.admin',
@@ -115,6 +115,17 @@ describe('role foundation seed', () => {
           TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.RESTORE_ACTIVE_DEVICE,
           TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.MANAGE_VERSION_POLICY,
           TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.READ_AUDIT,
+          CRM_MANAGEMENT_PERMISSION_CODES.READ_CRM_ACCOUNT,
+          CRM_MANAGEMENT_PERMISSION_CODES.CREATE_CRM_ACCOUNT,
+          CRM_MANAGEMENT_PERMISSION_CODES.UPDATE_CRM_ACCOUNT,
+          CRM_MANAGEMENT_PERMISSION_CODES.CONVERT_CRM_ACCOUNT,
+          CRM_MANAGEMENT_PERMISSION_CODES.CLAIM_CRM_ACCOUNT,
+          CRM_MANAGEMENT_PERMISSION_CODES.MANAGE_CRM_ACCOUNT,
+          CRM_MANAGEMENT_PERMISSION_CODES.VIEW_RESTRICTED_DUPLICATE,
+          CRM_MANAGEMENT_PERMISSION_CODES.MANAGE_CRM_CONTACT,
+          CRM_MANAGEMENT_PERMISSION_CODES.MANAGE_CRM_SOURCE,
+          CRM_MANAGEMENT_PERMISSION_CODES.CREATE_CRM_ACTIVITY,
+          CRM_MANAGEMENT_PERMISSION_CODES.MANAGE_CRM_OPPORTUNITY,
           COLLABORATION_TASK_PERMISSION_CODES.ASSIGN
         ]
       }
@@ -164,8 +175,9 @@ describe('role foundation seed', () => {
         CRM_MANAGEMENT_PERMISSION_CODES.READ_CRM_ACCOUNT,
         CRM_MANAGEMENT_PERMISSION_CODES.CREATE_CRM_ACCOUNT,
         CRM_MANAGEMENT_PERMISSION_CODES.UPDATE_CRM_ACCOUNT,
-        CRM_MANAGEMENT_PERMISSION_CODES.ARCHIVE_CRM_ACCOUNT,
         CRM_MANAGEMENT_PERMISSION_CODES.CONVERT_CRM_ACCOUNT,
+        CRM_MANAGEMENT_PERMISSION_CODES.CLAIM_CRM_ACCOUNT,
+        CRM_MANAGEMENT_PERMISSION_CODES.MANAGE_CRM_ACCOUNT,
         CRM_MANAGEMENT_PERMISSION_CODES.VIEW_RESTRICTED_DUPLICATE,
         TENANT_ORG_MANAGEMENT_PERMISSION_CODES.LIST_ORG_TREE,
         TENANT_ORG_MANAGEMENT_PERMISSION_CODES.VIEW_ORG_UNIT_DETAIL,
@@ -271,6 +283,57 @@ describe('role foundation seed', () => {
         PERMISSION_ACCOUNT_SELF_PERMISSION_CODES.GET_ROLES,
         TENANT_ORG_MANAGEMENT_PERMISSION_CODES.LIST_ORG_TREE,
         TENANT_ORG_MANAGEMENT_PERMISSION_CODES.VIEW_ORG_UNIT_DETAIL
+      ]
+    })
+  })
+
+  it('publishes the built-in CRM role templates for sales execution and sales management', () => {
+    expect(BUILT_IN_ROLE_TEMPLATES).toContainEqual({
+      code: 'crm.sales',
+      description: 'Built-in CRM sales template for account execution and daily customer follow-up.',
+      id: '2cf72f72-e04a-4946-b8c0-22f120f82007',
+      isEnabled: true,
+      kind: RoleKind.SYSTEM_TEMPLATE,
+      name: 'CRM 销售',
+      allowTenantPermissionOverride: true,
+      isProtected: false,
+      scopeKey: '__SYSTEM_TEMPLATE__',
+      templateRoleCode: null,
+      tenantId: null,
+      permissionCodes: [
+        CRM_MANAGEMENT_PERMISSION_CODES.READ_CRM_ACCOUNT,
+        CRM_MANAGEMENT_PERMISSION_CODES.CREATE_CRM_ACCOUNT,
+        CRM_MANAGEMENT_PERMISSION_CODES.UPDATE_CRM_ACCOUNT,
+        CRM_MANAGEMENT_PERMISSION_CODES.CLAIM_CRM_ACCOUNT,
+        CRM_MANAGEMENT_PERMISSION_CODES.MANAGE_CRM_CONTACT,
+        CRM_MANAGEMENT_PERMISSION_CODES.CREATE_CRM_ACTIVITY
+      ]
+    })
+
+    expect(BUILT_IN_ROLE_TEMPLATES).toContainEqual({
+      code: 'crm.sales_manager',
+      description: 'Built-in CRM sales manager template for team account governance and pipeline management.',
+      id: '2cf72f72-e04a-4946-b8c0-22f120f82008',
+      isEnabled: true,
+      kind: RoleKind.SYSTEM_TEMPLATE,
+      name: 'CRM 销售主管',
+      allowTenantPermissionOverride: true,
+      isProtected: false,
+      scopeKey: '__SYSTEM_TEMPLATE__',
+      templateRoleCode: null,
+      tenantId: null,
+      permissionCodes: [
+        CRM_MANAGEMENT_PERMISSION_CODES.READ_CRM_ACCOUNT,
+        CRM_MANAGEMENT_PERMISSION_CODES.CREATE_CRM_ACCOUNT,
+        CRM_MANAGEMENT_PERMISSION_CODES.UPDATE_CRM_ACCOUNT,
+        CRM_MANAGEMENT_PERMISSION_CODES.CLAIM_CRM_ACCOUNT,
+        CRM_MANAGEMENT_PERMISSION_CODES.CONVERT_CRM_ACCOUNT,
+        CRM_MANAGEMENT_PERMISSION_CODES.MANAGE_CRM_ACCOUNT,
+        CRM_MANAGEMENT_PERMISSION_CODES.VIEW_RESTRICTED_DUPLICATE,
+        CRM_MANAGEMENT_PERMISSION_CODES.MANAGE_CRM_CONTACT,
+        CRM_MANAGEMENT_PERMISSION_CODES.MANAGE_CRM_SOURCE,
+        CRM_MANAGEMENT_PERMISSION_CODES.CREATE_CRM_ACTIVITY,
+        CRM_MANAGEMENT_PERMISSION_CODES.MANAGE_CRM_OPPORTUNITY
       ]
     })
   })

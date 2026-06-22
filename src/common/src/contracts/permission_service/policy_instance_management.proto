@@ -1,0 +1,107 @@
+syntax = "proto3";
+
+package permission_service;
+
+import "permission_service/policy_instance_preview.proto";
+
+option java_multiple_files = true;
+option java_package = "com.oes.permission.v1";
+
+service PolicyInstanceManagementService {
+  rpc CreatePolicyInstance(CreatePolicyInstanceRequest) returns (CreatePolicyInstanceResponse);
+  rpc GetPolicyInstance(GetPolicyInstanceRequest) returns (GetPolicyInstanceResponse);
+  rpc ListPolicyInstances(ListPolicyInstancesRequest) returns (ListPolicyInstancesResponse);
+  rpc SetPolicyInstanceEnabled(SetPolicyInstanceEnabledRequest) returns (SetPolicyInstanceEnabledResponse);
+}
+
+message CreatePolicyInstanceRequest {
+  string tenant_id = 1;
+  PolicyInstanceSubjectSelectorProto subject_selector = 2;
+  string permission_code = 3;
+  string resource_type = 4;
+  string template_code = 5;
+  PolicyInstanceEffectProto effect = 6;
+  PolicyInstanceParamsProto params = 7;
+  bool enabled = 8;
+  int32 priority = 9;
+}
+
+message GetPolicyInstanceRequest {
+  string id = 1;
+}
+
+message ListPolicyInstancesRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string tenant_id = 3;
+  string permission_code = 4;
+  string resource_type = 5;
+  string template_code = 6;
+  bool has_enabled_filter = 7;
+  bool enabled = 8;
+  PolicyInstanceSubjectSelectorTypeProto subject_selector_type = 9;
+  string subject_selector_value = 10;
+}
+
+message SetPolicyInstanceEnabledRequest {
+  string id = 1;
+  bool enabled = 2;
+}
+
+message GetPolicyInstanceResponse {
+  string id = 1;
+  string tenant_id = 2;
+  PolicyInstanceSubjectSelectorProto subject_selector = 3;
+  string permission_code = 4;
+  string resource_type = 5;
+  string template_code = 6;
+  PolicyInstanceEffectProto effect = 7;
+  PolicyInstanceParamsProto params = 8;
+  bool enabled = 9;
+  int32 priority = 10;
+  string created_by = 11;
+  string updated_by = 12;
+  string created_at = 13;
+  string updated_at = 14;
+}
+
+message CreatePolicyInstanceResponse {
+  string id = 1;
+  string tenant_id = 2;
+  PolicyInstanceSubjectSelectorProto subject_selector = 3;
+  string permission_code = 4;
+  string resource_type = 5;
+  string template_code = 6;
+  PolicyInstanceEffectProto effect = 7;
+  PolicyInstanceParamsProto params = 8;
+  bool enabled = 9;
+  int32 priority = 10;
+  string created_by = 11;
+  string updated_by = 12;
+  string created_at = 13;
+  string updated_at = 14;
+}
+
+message SetPolicyInstanceEnabledResponse {
+  string id = 1;
+  string tenant_id = 2;
+  PolicyInstanceSubjectSelectorProto subject_selector = 3;
+  string permission_code = 4;
+  string resource_type = 5;
+  string template_code = 6;
+  PolicyInstanceEffectProto effect = 7;
+  PolicyInstanceParamsProto params = 8;
+  bool enabled = 9;
+  int32 priority = 10;
+  string created_by = 11;
+  string updated_by = 12;
+  string created_at = 13;
+  string updated_at = 14;
+}
+
+message ListPolicyInstancesResponse {
+  repeated GetPolicyInstanceResponse policy_instances = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}

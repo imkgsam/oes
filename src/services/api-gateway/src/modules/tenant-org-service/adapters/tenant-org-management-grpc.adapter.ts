@@ -36,6 +36,7 @@ export interface TenantManagementMutationTenant {
   name?: string
   rootOrgId?: string
   status?: string
+  websiteUrl?: string
 }
 
 export interface TenantManagementMutationOrgUnit {
@@ -165,7 +166,7 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
   }
 
   updateTenantProfile(
-    input: { code?: string; employeeCodePrefix?: string; name?: string; tenantId: string },
+    input: { code?: string; employeeCodePrefix?: string; name?: string; tenantId: string; websiteUrl?: string },
     source: DownstreamRequestSource
   ): Promise<{ tenant?: TenantManagementMutationTenant }> {
     return this.call(
@@ -336,6 +337,7 @@ function mapTenant(tenant: {
   name?: string
   rootOrgId?: string
   status?: string
+  websiteUrl?: string
 }): TenantManagementMutationTenant {
   return {
     id: tenant.id,
@@ -343,13 +345,19 @@ function mapTenant(tenant: {
     employeeCodePrefix: tenant.employeeCodePrefix,
     name: tenant.name,
     status: tenant.status,
-    rootOrgId: normalize(tenant.rootOrgId)
+    rootOrgId: normalize(tenant.rootOrgId),
+    ...withOptionalWebsiteUrl(tenant.websiteUrl)
   }
 }
 
 function normalize(value?: string): string | undefined {
   const normalized = value?.trim()
   return normalized ? normalized : undefined
+}
+
+function withOptionalWebsiteUrl(value?: string): { websiteUrl?: string } {
+  const websiteUrl = normalize(value)
+  return websiteUrl ? { websiteUrl } : {}
 }
 
 function mapOrgUnit(orgUnit: {

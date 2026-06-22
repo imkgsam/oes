@@ -12,7 +12,7 @@ import { LoggingModule } from '@oes/common/logging'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import { GrpcTransportModule } from '@oes/common/transport'
 import { AuthBffModule } from '../../../auth-bff.module'
-import { resolveCommonProtoPath } from '@oes/common/contracts'
+import { resolveCommonContractPath, resolveCommonProtoPath } from '@oes/common/contracts'
 import {
   AuthServiceController,
   AuthServiceControllerMethods,
@@ -22,6 +22,10 @@ import {
 import {
   PermissionCheckServiceController,
   PermissionCheckServiceControllerMethods,
+  PolicyInstanceManagementServiceController,
+  PolicyInstanceManagementServiceControllerMethods,
+  PolicyInstancePreviewServiceController,
+  PolicyInstancePreviewServiceControllerMethods,
   PermissionTerminalAccessServiceController,
   PermissionTerminalAccessServiceControllerMethods
 } from '@oes/common/generated/permission_service'
@@ -43,6 +47,7 @@ const ASSET_PORT = 56053
 const TENANT_ORG_PORT = 56054
 const PARTY_PORT = 56055
 const TERMINAL_DEVICE_PORT = 56056
+const COMMON_CONTRACTS_ROOT = resolveCommonContractPath()
 
 type ObservedCallState = {
   emailPasswordLoginRequest?: {
@@ -867,10 +872,6 @@ class TestPermissionGrpcController implements PermissionCheckServiceController {
     return { decisions: [] }
   }
 
-  checkPermissionWithContext() {
-    return { allowed: false }
-  }
-
   @GrpcMethod('PermissionAccessSummaryService', 'GetAccountAccessSummary')
   getAccountAccessSummary(request: { accountId?: string; tenantId?: string }) {
     return {
@@ -893,6 +894,43 @@ class TestPermissionGrpcController implements PermissionCheckServiceController {
       defaultEntry: 'workbench.home',
       visibleEntries: ['workbench.home'],
       resolvedByRoleId: 'role-1'
+    }
+  }
+}
+
+// Provides the PolicyInstance management surface now initialized by the gateway permission module.
+@Controller()
+@PolicyInstanceManagementServiceControllerMethods()
+class TestPolicyInstanceManagementGrpcController
+  implements PolicyInstanceManagementServiceController
+{
+  createPolicyInstance(): any {
+    return { id: 'policy-instance-test' }
+  }
+
+  getPolicyInstance(): any {
+    return { id: 'policy-instance-test' }
+  }
+
+  listPolicyInstances(): any {
+    return { policyInstances: [], total: 0, page: 1, pageSize: 20 }
+  }
+
+  setPolicyInstanceEnabled(): any {
+    return { id: 'policy-instance-test' }
+  }
+}
+
+// Provides the PolicyInstance preview surface now initialized by the gateway permission module.
+@Controller()
+@PolicyInstancePreviewServiceControllerMethods()
+class TestPolicyInstancePreviewGrpcController implements PolicyInstancePreviewServiceController {
+  evaluatePolicyInstancePreview(): any {
+    return {
+      allowed: true,
+      reasonCode: 'TEST_ALLOWED',
+      matchedPolicyIds: [],
+      deniedPolicyIds: []
     }
   }
 }
@@ -1073,7 +1111,12 @@ class TestAuthGrpcModule {}
 
 // Hosts the test permission-service gRPC controller used by the gateway integration harness.
 @Module({
-  controllers: [TestPermissionGrpcController, TestPermissionTerminalAccessGrpcController]
+  controllers: [
+    TestPermissionGrpcController,
+    TestPolicyInstanceManagementGrpcController,
+    TestPolicyInstancePreviewGrpcController,
+    TestPermissionTerminalAccessGrpcController
+  ]
 })
 class TestPermissionGrpcModule {}
 
@@ -1128,8 +1171,13 @@ class TestTerminalDeviceGrpcModule {}
             resolveCommonProtoPath('permission_service/permission_management.proto'),
             resolveCommonProtoPath('permission_service/permission_check.proto'),
             resolveCommonProtoPath('permission_service/permission_access_summary.proto'),
-            resolveCommonProtoPath('permission_service/permission_terminal_access.proto')
+            resolveCommonProtoPath('permission_service/permission_terminal_access.proto'),
+            resolveCommonProtoPath('permission_service/policy_instance_preview.proto'),
+            resolveCommonProtoPath('permission_service/policy_instance_management.proto')
           ],
+          loader: {
+            includeDirs: [COMMON_CONTRACTS_ROOT]
+          },
           packageName: 'permission_service',
           url: `127.0.0.1:${PERMISSION_PORT}`
         },
@@ -1215,8 +1263,13 @@ describe('AuthBff gateway integration', () => {
           protoPath: [
             resolveCommonProtoPath('permission_service/permission_check.proto'),
             resolveCommonProtoPath('permission_service/permission_access_summary.proto'),
-            resolveCommonProtoPath('permission_service/permission_terminal_access.proto')
+            resolveCommonProtoPath('permission_service/permission_terminal_access.proto'),
+            resolveCommonProtoPath('permission_service/policy_instance_preview.proto'),
+            resolveCommonProtoPath('permission_service/policy_instance_management.proto')
           ],
+          loader: {
+            includeDirs: [COMMON_CONTRACTS_ROOT]
+          },
           url: `127.0.0.1:${PERMISSION_PORT}`
         }
       }

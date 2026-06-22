@@ -25,7 +25,7 @@ export class PublicEntryBusinessCardService {
       tenantId,
       employeeId: body.employeeId,
       operatorContext: toOperatorContext(source)
-    }, source)
+    }, source).then(normalizeBusinessCardResponse)
   }
 
   listCards(tenantId: string, query: { page?: string; pageSize?: string }, source: DownstreamRequestSource) {
@@ -34,7 +34,10 @@ export class PublicEntryBusinessCardService {
       page: parsePositiveInt(query.page, 1),
       pageSize: parsePositiveInt(query.pageSize, 20),
       operatorContext: toOperatorContext(source)
-    }, source)
+    }, source).then((result) => ({
+      ...result,
+      items: (result.items ?? []).map(normalizeBusinessCardRecord)
+    }))
   }
 
   getCardDetail(tenantId: string, businessCardId: string, source: DownstreamRequestSource) {
@@ -42,7 +45,7 @@ export class PublicEntryBusinessCardService {
       tenantId,
       businessCardId,
       operatorContext: toOperatorContext(source)
-    }, source)
+    }, source).then(normalizeBusinessCardResponse)
   }
 
   updateConfig(tenantId: string, businessCardId: string, body: UpdateBusinessCardConfigDto, source: DownstreamRequestSource) {
@@ -52,7 +55,7 @@ export class PublicEntryBusinessCardService {
       templateKey: body.templateKey,
       visibilityConfig: body.visibilityConfig,
       operatorContext: toOperatorContext(source)
-    }, source)
+    }, source).then(normalizeBusinessCardResponse)
   }
 
   updateContactActions(tenantId: string, businessCardId: string, body: UpdateBusinessCardContactActionsDto, source: DownstreamRequestSource) {
@@ -65,7 +68,7 @@ export class PublicEntryBusinessCardService {
       })),
       visibilityConfig: body.visibilityConfig,
       operatorContext: toOperatorContext(source)
-    }, source)
+    }, source).then(normalizeBusinessCardResponse)
   }
 
   enableCard(tenantId: string, businessCardId: string, source: DownstreamRequestSource) {
@@ -151,6 +154,42 @@ function toGrpcTargetRefType(value: string): ContactActionTargetRefType {
   }
   if (value === 'NONE') return ContactActionTargetRefType.CONTACT_ACTION_TARGET_REF_TYPE_NONE
   return ContactActionTargetRefType.CONTACT_ACTION_TARGET_REF_TYPE_CONTACT_ASSET
+}
+
+// normalizeBusinessCardResponse restores the HTTP BFF string contract after downstream gRPC enum responses.
+function normalizeBusinessCardResponse<T extends { businessCard?: Record<string, any> }>(response: T): T {
+  if (!response.businessCard) return response
+  return {
+    ...response,
+    businessCard: normalizeBusinessCardRecord(response.businessCard)
+  }
+}
+
+// normalizeBusinessCardRecord converts nested BusinessCard enum fields to the web-facing BFF strings.
+function normalizeBusinessCardRecord<T extends Record<string, any>>(record: T): T {
+  return {
+    ...record,
+    contactActionConfigs: (record.contactActionConfigs ?? []).map(normalizeContactActionConfig)
+  }
+}
+
+// normalizeContactActionConfig keeps Contact Action references as strings for tenant-web editors.
+function normalizeContactActionConfig<T extends Record<string, any>>(config: T): T {
+  return {
+    ...config,
+    targetRefType: fromGrpcTargetRefType(config.targetRefType)
+  }
+}
+
+// fromGrpcTargetRefType maps generated enum values or already-normalized strings onto the BFF contract.
+function fromGrpcTargetRefType(value: unknown): 'CONTACT_ASSET' | 'NONE' | 'TENANT_PUBLIC_PROFILE' {
+  if (value === 'TENANT_PUBLIC_PROFILE') return 'TENANT_PUBLIC_PROFILE'
+  if (value === 'NONE') return 'NONE'
+  if (value === ContactActionTargetRefType.CONTACT_ACTION_TARGET_REF_TYPE_TENANT_PUBLIC_PROFILE) {
+    return 'TENANT_PUBLIC_PROFILE'
+  }
+  if (value === ContactActionTargetRefType.CONTACT_ACTION_TARGET_REF_TYPE_NONE) return 'NONE'
+  return 'CONTACT_ASSET'
 }
 
 // parsePositiveInt normalizes pagination query values.

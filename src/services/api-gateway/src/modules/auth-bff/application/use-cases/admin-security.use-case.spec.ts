@@ -1,5 +1,4 @@
 import { MfaBindingType } from '@oes/common/generated/auth_service'
-import { PolicySubjectTypeProto } from '@oes/common/generated/permission_service'
 import { AdminSecurityUseCase } from './admin-security.use-case'
 
 // Verifies the administrator auth-bff use case maps downstream admin session and audit responses into HTTP view models.
@@ -1564,7 +1563,7 @@ describe('AdminSecurityUseCase', () => {
     })
   })
 
-  it('deletes one account by clearing sessions, clearing roles, and deleting identity state in order', async () => {
+  it('deletes one account by clearing sessions, clearing roles, disabling policy instances, and deleting identity state in order', async () => {
     const authAdapter = {
       adminDeleteAccountSessions: jest.fn().mockResolvedValue({
         success: true,
@@ -1599,10 +1598,11 @@ describe('AdminSecurityUseCase', () => {
       })
     }
     const permissionService = {
-      deletePolicy: jest.fn().mockResolvedValue(undefined),
-      listPolicies: jest.fn().mockResolvedValue({
-        policies: [{ id: 'policy-1' }, { id: 'policy-2' }]
+      listPolicies: jest.fn(),
+      listPolicyInstances: jest.fn().mockResolvedValue({
+        policyInstances: [{ id: 'policy-instance-1' }, { id: 'policy-instance-2' }]
       }),
+      setPolicyInstanceEnabled: jest.fn().mockResolvedValue({}),
       listAccountRoles: jest.fn().mockResolvedValue({
         roles: [{ id: 'role-1' }, { id: 'role-2' }]
       }),
@@ -1639,30 +1639,34 @@ describe('AdminSecurityUseCase', () => {
       permissionService.setAccountRoles.mock.invocationCallOrder[0]
     )
     expect(permissionService.setAccountRoles.mock.invocationCallOrder[0]).toBeLessThan(
-      permissionService.deletePolicy.mock.invocationCallOrder[0]
+      permissionService.setPolicyInstanceEnabled.mock.invocationCallOrder[0]
     )
-    expect(permissionService.deletePolicy.mock.invocationCallOrder[1]).toBeLessThan(
+    expect(permissionService.setPolicyInstanceEnabled.mock.invocationCallOrder[1]).toBeLessThan(
       identityAdapter.deleteAccount.mock.invocationCallOrder[0]
     )
-    expect(permissionService.listPolicies).toHaveBeenCalledWith(
+    expect(permissionService.listPolicyInstances).toHaveBeenCalledWith(
       {
         page: 1,
         pageSize: 100,
-        subjectId: 'account-1',
-        subjectType: PolicySubjectTypeProto.POLICY_SUBJECT_TYPE_PROTO_ACCOUNT
+        tenantId: 'tenant-1',
+        subjectSelectorType: 'ACCOUNT',
+        subjectSelectorValue: 'account-1',
+        hasEnabledFilter: true,
+        enabled: true
       },
       source
     )
-    expect(permissionService.deletePolicy).toHaveBeenNthCalledWith(
+    expect(permissionService.setPolicyInstanceEnabled).toHaveBeenNthCalledWith(
       1,
-      { id: 'policy-1' },
+      { id: 'policy-instance-1', enabled: false },
       source
     )
-    expect(permissionService.deletePolicy).toHaveBeenNthCalledWith(
+    expect(permissionService.setPolicyInstanceEnabled).toHaveBeenNthCalledWith(
       2,
-      { id: 'policy-2' },
+      { id: 'policy-instance-2', enabled: false },
       source
     )
+    expect(permissionService.listPolicies).not.toHaveBeenCalled()
     expect(identityAdapter.deleteAccount).toHaveBeenCalledWith(
       {
         accountId: 'account-1',

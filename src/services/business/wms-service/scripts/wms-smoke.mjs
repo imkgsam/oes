@@ -113,7 +113,7 @@ function applySmokeDatabaseUrl() {
 // ensureSmokeSchema pushes the Prisma model into the dedicated smoke schema before the live runtime starts.
 function ensureSmokeSchema(databaseUrl) {
   try {
-    execFileSync(PRISMA_BIN, ['db', 'push', '--schema=./prisma/schema.prisma', '--skip-generate'], {
+    execFileSync(PRISMA_BIN, ['db', 'push', '--schema=./prisma/schema.prisma', '--skip-generate', '--accept-data-loss'], {
       cwd: SERVICE_ROOT,
       encoding: 'utf8',
       env: {
@@ -260,7 +260,7 @@ async function startItemMasterStub(seed) {
           itemId: call.request.itemId,
           itemCode: seed.itemCode,
           itemName: seed.itemName,
-          status: 1,
+          active: true,
           capabilities: {
             stockable: true
           }

@@ -263,6 +263,7 @@ message ProvisionEmployeeAccessAccountInput {
   string email = 2;
   string phone = 3;
   string existing_user_id = 4;
+  string tenant_party_id = 5;
 }
 
 message CompleteEmployeeAccessRequest {

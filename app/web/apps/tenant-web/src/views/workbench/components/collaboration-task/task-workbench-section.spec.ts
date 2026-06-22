@@ -2,6 +2,8 @@
 
 import { flushPromises, mount } from '@vue/test-utils';
 
+import { nextTick } from 'vue';
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import taskWorkbenchSource from './task-workbench-section.vue?raw';
@@ -424,6 +426,38 @@ describe('task workbench section', () => {
         status: ['OPEN'],
       }),
     );
+  });
+
+  it('keeps the current task list visible while a status switch refresh is pending', async () => {
+    const wrapper = await mountSection();
+    const pendingStatusRefresh = new Promise(() => {});
+    apiMock.listCollaborationTasksApi.mockImplementation(
+      async (
+        _tenantId: string,
+        params: { pageSize?: number; scope: string; status?: string[] },
+      ) => {
+        if (params.scope === 'MY_TODO' && params.status?.[0] === 'OPEN') {
+          return pendingStatusRefresh;
+        }
+        return {
+          items: [makeTask('task-fallback', '兜底任务')],
+          page: 1,
+          pageSize: params.pageSize ?? 5,
+          total: 1,
+        };
+      },
+    );
+
+    await wrapper
+      .find('[data-testid="task-status-view-MY_TODO"]')
+      .findAll('button')
+      .find((button) => button.text() === '待处理')
+      ?.trigger('click');
+    await nextTick();
+
+    const myTodoScope = wrapper.find('[data-testid="task-scope-MY_TODO"]');
+    expect(myTodoScope.text()).toContain('复核交接事项');
+    expect(myTodoScope.find('.ant-skeleton').exists()).toBe(false);
   });
 
   it('renders in-progress tasks with a distinct status tag class', async () => {

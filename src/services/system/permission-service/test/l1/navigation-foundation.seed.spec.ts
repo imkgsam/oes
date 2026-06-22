@@ -25,7 +25,8 @@ describe('navigation foundation seed', () => {
       'master-data.item-packaging-management',
       'master-data.item-bom-management',
       'master-data.supplier-management',
-      'master-data.customer-management',
+      'crm.accounts',
+      'crm.pool',
       'sales.quote-orders',
       'procurement.management',
       'finance.dashboard',
@@ -35,12 +36,13 @@ describe('navigation foundation seed', () => {
       'admin.platform-terminal-security',
       'admin.permission-management',
       'admin.policy-governance',
+      'admin.policy-instance-management',
+      'admin.policy-instance-preview',
       'admin.terminal-device-management',
       'admin.navigation-management',
       'admin.site-management',
       'public-entry.business-cards',
       'public-entry.short-links',
-      'collaboration.tasks',
       'pda.home',
       'kiosk.home',
       'extension.designer.workspace'
@@ -65,7 +67,8 @@ describe('navigation foundation seed', () => {
       'Item 包装管理',
       'Item BOM 管理',
       '供应商管理',
-      '客户管理',
+      '客户资源',
+      '公海',
       '报价与订单',
       '采购管理',
       '财务管理',
@@ -75,20 +78,24 @@ describe('navigation foundation seed', () => {
       'Terminal 登录策略',
       '权限管理',
       '策略治理',
+      '资源授权实例',
+      '资源授权预览',
       '终端设备管理',
       '导航管理',
       'Site Management',
       '员工数字名片',
       '公开短链',
-      '任务工作台',
       'PDA 首页',
       '触摸屏首页',
       'Designer Workspace'
     ])
   })
 
-  it('marks the removed organization-people entry for navigation cleanup', () => {
-    expect(DEPRECATED_NAVIGATION_ENTRY_KEYS).toEqual(['tenant-settings.organization-people'])
+  it('marks removed built-in entries for navigation cleanup', () => {
+    expect(DEPRECATED_NAVIGATION_ENTRY_KEYS).toEqual([
+      'tenant-settings.organization-people',
+      'collaboration.tasks'
+    ])
   })
 
   it('publishes terminal device management for built-in administrator navigation', () => {
@@ -175,6 +182,16 @@ describe('navigation foundation seed', () => {
         id: 'template-extension-designer',
         code: 'extension.designer',
         kind: RoleKind.SYSTEM_TEMPLATE
+      },
+      {
+        id: 'template-crm-sales',
+        code: 'crm.sales',
+        kind: RoleKind.SYSTEM_TEMPLATE
+      },
+      {
+        id: 'template-crm-sales-manager',
+        code: 'crm.sales_manager',
+        kind: RoleKind.SYSTEM_TEMPLATE
       }
     ])
 
@@ -241,6 +258,18 @@ describe('navigation foundation seed', () => {
       },
       {
         roleId: 'role-system-admin',
+        entryKey: 'admin.policy-instance-management',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'role-system-admin',
+        entryKey: 'admin.policy-instance-preview',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'role-system-admin',
         entryKey: 'admin.terminal-device-management',
         terminal: 'DEFAULT',
         enabled: true
@@ -264,20 +293,8 @@ describe('navigation foundation seed', () => {
         enabled: true
       },
       {
-        roleId: 'role-system-admin',
-        entryKey: 'collaboration.tasks',
-        terminal: 'DEFAULT',
-        enabled: true
-      },
-      {
         roleId: 'template-tenant-admin',
         entryKey: 'workbench.home',
-        terminal: 'DEFAULT',
-        enabled: true
-      },
-      {
-        roleId: 'template-tenant-admin',
-        entryKey: 'collaboration.tasks',
         terminal: 'DEFAULT',
         enabled: true
       },
@@ -331,7 +348,13 @@ describe('navigation foundation seed', () => {
       },
       {
         roleId: 'template-tenant-admin',
-        entryKey: 'master-data.customer-management',
+        entryKey: 'crm.accounts',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'template-tenant-admin',
+        entryKey: 'crm.pool',
         terminal: 'DEFAULT',
         enabled: true
       },
@@ -350,12 +373,6 @@ describe('navigation foundation seed', () => {
       {
         roleId: 'role-tenant-admin',
         entryKey: 'workbench.home',
-        terminal: 'DEFAULT',
-        enabled: true
-      },
-      {
-        roleId: 'role-tenant-admin',
-        entryKey: 'collaboration.tasks',
         terminal: 'DEFAULT',
         enabled: true
       },
@@ -409,7 +426,13 @@ describe('navigation foundation seed', () => {
       },
       {
         roleId: 'role-tenant-admin',
-        entryKey: 'master-data.customer-management',
+        entryKey: 'crm.accounts',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'role-tenant-admin',
+        entryKey: 'crm.pool',
         terminal: 'DEFAULT',
         enabled: true
       },
@@ -440,12 +463,6 @@ describe('navigation foundation seed', () => {
       {
         roleId: 'template-account-basic',
         entryKey: 'workbench.home',
-        terminal: 'DEFAULT',
-        enabled: true
-      },
-      {
-        roleId: 'template-account-basic',
-        entryKey: 'collaboration.tasks',
         terminal: 'DEFAULT',
         enabled: true
       },
@@ -502,6 +519,42 @@ describe('navigation foundation seed', () => {
         entryKey: 'workbench.home',
         terminal: 'DEFAULT',
         enabled: true
+      },
+      {
+        roleId: 'template-crm-sales',
+        entryKey: 'workbench.home',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'template-crm-sales',
+        entryKey: 'crm.accounts',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'template-crm-sales',
+        entryKey: 'crm.pool',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'template-crm-sales-manager',
+        entryKey: 'workbench.home',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'template-crm-sales-manager',
+        entryKey: 'crm.accounts',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'template-crm-sales-manager',
+        entryKey: 'crm.pool',
+        terminal: 'DEFAULT',
+        enabled: true
       }
     ])
   })
@@ -541,6 +594,16 @@ describe('navigation foundation seed', () => {
       {
         id: 'template-extension-designer',
         code: 'extension.designer',
+        kind: RoleKind.SYSTEM_TEMPLATE
+      },
+      {
+        id: 'template-crm-sales',
+        code: 'crm.sales',
+        kind: RoleKind.SYSTEM_TEMPLATE
+      },
+      {
+        id: 'template-crm-sales-manager',
+        code: 'crm.sales_manager',
         kind: RoleKind.SYSTEM_TEMPLATE
       }
     ])
@@ -590,6 +653,20 @@ describe('navigation foundation seed', () => {
       },
       {
         roleId: 'template-extension-designer',
+        terminal: 'DEFAULT',
+        defaultEntryKey: 'workbench.home',
+        priority: 0,
+        enabled: true
+      },
+      {
+        roleId: 'template-crm-sales',
+        terminal: 'DEFAULT',
+        defaultEntryKey: 'workbench.home',
+        priority: 0,
+        enabled: true
+      },
+      {
+        roleId: 'template-crm-sales-manager',
         terminal: 'DEFAULT',
         defaultEntryKey: 'workbench.home',
         priority: 0,

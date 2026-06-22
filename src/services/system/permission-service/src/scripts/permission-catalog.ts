@@ -402,9 +402,13 @@ const crmManagement = definePermissionGroup(Modules.CRM_SERVICE, {
     code: 'crm.account.convert',
     description: '将 CRM P1 Lead 转为 Prospect Customer'
   },
-  ARCHIVE_CRM_ACCOUNT: {
-    code: 'crm.account.archive',
-    description: '归档 CRM P1 Lead 或 Prospect Customer'
+  CLAIM_CRM_ACCOUNT: {
+    code: 'crm.account.claim',
+    description: '认领 CRM P1 公海 Lead 或 Prospect Customer'
+  },
+  MANAGE_CRM_ACCOUNT: {
+    code: 'crm.account.manage',
+    description: '管理 CRM P1 客户资源与公海例外动作'
   },
   VIEW_RESTRICTED_DUPLICATE: {
     code: 'crm.duplicate.viewRestricted',

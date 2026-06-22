@@ -9,6 +9,7 @@ import { PHONE_COUNTRY_OPTIONS } from '#/views/_core/authentication/phone-countr
 
 interface CountryRegionOption {
   label: string;
+  searchText: string;
   value: string;
 }
 
@@ -34,6 +35,9 @@ defineOptions({
 });
 
 const supplementalRegionCodes = ['AQ', 'BV', 'TF', 'HM', 'PN', 'GS', 'UM'];
+const commonRegionAliases: Record<string, string[]> = {
+  GB: ['UK'],
+};
 
 const regionOptions = computed<CountryRegionOption[]>(() => {
   const locale = preferences.app.locale || 'en-US';
@@ -50,19 +54,20 @@ const regionOptions = computed<CountryRegionOption[]>(() => {
     regionCodes.add(regionCode);
   }
 
-  return [...regionCodes].map((regionCode) => ({
-    label: formatRegionLabel(regionCode, locale),
-    value: regionCode,
-  })).sort((left, right) =>
-    left.label.localeCompare(right.label, locale),
-  );
-});
+  return [...regionCodes]
+    .sort((left, right) => left.localeCompare(right, 'en-US'))
+    .map((regionCode) => {
+      const localizedName = resolveLocalizedRegionName(regionCode, locale);
+      const aliases = commonRegionAliases[regionCode] ?? [];
+      const codeLabel = aliases.length > 0 ? `${regionCode} / ${aliases.join(' / ')}` : regionCode;
 
-/** formatRegionLabel renders one ISO region code in the active app locale. */
-function formatRegionLabel(regionCode: string, locale: string) {
-  const localizedName = resolveLocalizedRegionName(regionCode, locale);
-  return `${localizedName} (${regionCode})`;
-}
+      return {
+        label: `${codeLabel} - ${localizedName}`,
+        searchText: [regionCode, ...aliases, localizedName].join(' '),
+        value: regionCode,
+      };
+    });
+});
 
 /** resolveLocalizedRegionName uses the platform Intl catalog, falling back to existing phone labels. */
 function resolveLocalizedRegionName(regionCode: string, locale: string) {
@@ -85,6 +90,18 @@ function resolveLocalizedRegionName(regionCode: string, locale: string) {
 function handleChange(value: unknown) {
   emit('update:value', typeof value === 'string' ? value : undefined);
 }
+
+/** filterRegionOption matches ISO codes, common aliases, and localized region names. */
+function filterRegionOption(input: string, option?: Record<string, unknown>) {
+  const normalizedInput = input.trim().toLowerCase();
+  if (!normalizedInput) {
+    return true;
+  }
+
+  return `${option?.label ?? ''} ${option?.searchText ?? ''}`
+    .toLowerCase()
+    .includes(normalizedInput);
+}
 </script>
 
 <template>
@@ -94,7 +111,7 @@ function handleChange(value: unknown) {
     :placeholder="props.placeholder"
     :value="props.value || undefined"
     allow-clear
-    option-filter-prop="label"
+    :filter-option="filterRegionOption"
     show-search
     @change="handleChange"
   />

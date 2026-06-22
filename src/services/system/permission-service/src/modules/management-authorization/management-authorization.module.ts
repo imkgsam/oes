@@ -3,7 +3,6 @@ import { PrismaModule } from '../../infrastructure/prisma/prisma.module'
 import { PrismaPermissionRepository } from '../../infrastructure/repositories/prisma/prisma.permission.repository'
 import { PrismaPolicyRepository } from '../../infrastructure/repositories/prisma/prisma.policy.repository'
 import { PrismaRoleRepository } from '../../infrastructure/repositories/prisma/prisma.role.repository'
-import { PolicyEngine } from '../../domain/services/policy-engine'
 import { AccountAuthorizationService } from '../../domain/services/account-authorization.service'
 import { SYMBOLS } from '../../common/constants/symbols'
 import { ManagementAuthorizationGuard } from '../../interfaces/guards'
@@ -23,12 +22,11 @@ import { ManagementAuthorizationGuard } from '../../interfaces/guards'
       provide: SYMBOLS.REPO.POLICY,
       useClass: PrismaPolicyRepository
     },
-    PolicyEngine,
     {
       provide: AccountAuthorizationService,
-      useFactory: (roleRepo: any, permRepo: any, policyRepo: any, engine: PolicyEngine) =>
-        new AccountAuthorizationService(roleRepo, permRepo, policyRepo, engine),
-      inject: [SYMBOLS.REPO.ROLE, SYMBOLS.REPO.PERMISSION, SYMBOLS.REPO.POLICY, PolicyEngine]
+      useFactory: (roleRepo: any, permRepo: any) =>
+        new AccountAuthorizationService(roleRepo, permRepo),
+      inject: [SYMBOLS.REPO.ROLE, SYMBOLS.REPO.PERMISSION]
     },
     ManagementAuthorizationGuard
   ],

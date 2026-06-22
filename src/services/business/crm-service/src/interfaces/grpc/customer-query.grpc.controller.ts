@@ -2,6 +2,8 @@ import { Controller, UseFilters } from '@nestjs/common'
 import { ValidatingQueryBus } from '@oes/common/cqrs'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
+  CheckLeadDuplicateRequest,
+  CheckLeadDuplicateResponse,
   CustomerQueryServiceController,
   CustomerQueryServiceControllerMethods,
   GetCrmAccountRequest,
@@ -9,6 +11,7 @@ import {
   ListCrmAccountsRequest,
   ListCrmAccountsResponse
 } from '@oes/common/generated/crm_service'
+import { CheckLeadDuplicateQuery } from '../../application/queries/check-lead-duplicate.query'
 import { GetCrmAccountQuery } from '../../application/queries/get-crm-account.query'
 import { ListCrmAccountsQuery } from '../../application/queries/list-crm-accounts.query'
 import {
@@ -30,10 +33,15 @@ export class CustomerQueryGrpcController implements CustomerQueryServiceControll
     const result = await this.queryBus.execute(
       new ListCrmAccountsQuery({
         tenantId: request.tenantId ?? '',
+        createdBy: request.createdBy || undefined,
         keyword: request.keyword || undefined,
         lifecycleStage: toCrmAccountLifecycleStage(request.lifecycleStage),
+        lifecycleStages: (request.lifecycleStages ?? [])
+          .map((stage) => toCrmAccountLifecycleStage(stage))
+          .filter((stage): stage is CrmAccountLifecycleStage => Boolean(stage)),
         recordStatus: toCrmAccountRecordStatus(request.recordStatus),
         ownerAccountId: request.ownerAccountId || undefined,
+        ownerless: request.ownerless ?? false,
         page: request.page ?? undefined,
         pageSize: request.pageSize ?? undefined
       })
@@ -49,6 +57,45 @@ export class CustomerQueryGrpcController implements CustomerQueryServiceControll
     )
 
     return CustomerGrpcPresenter.toGetCrmAccountResponse(result)
+  }
+
+  async checkLeadDuplicate(request: CheckLeadDuplicateRequest): Promise<CheckLeadDuplicateResponse> {
+    const context = CustomerRpcContextValidator.assertQueryContext(request)
+    const result = await this.queryBus.execute(
+      new CheckLeadDuplicateQuery({
+        tenantId: request.tenantId ?? '',
+        operatorAccountId: context.operatorContext.operatorId,
+        displayName: request.displayName,
+        leadCompanyName: request.leadCompanyName,
+        leadPersonName: request.leadPersonName,
+        leadDomain: request.leadDomain,
+        leadEmail: request.leadEmail,
+        leadPhone: request.leadPhone,
+        leadWhatsapp: request.leadWhatsapp,
+        leadCountry: request.leadCountry,
+        leadIdentifiers: (request.leadIdentifiers ?? []).map((identifier) => ({
+          identifierType: identifier.identifierType ?? '',
+          normalizedValue: identifier.normalizedValue ?? '',
+          issuerCountryOrRegion: identifier.issuerCountryOrRegion ?? ''
+        }))
+      })
+    )
+
+    return {
+      duplicateResult: {
+        resultType: result.resultType,
+        candidates: result.candidates.map((candidate) => ({
+          crmAccountId: candidate.crmAccountId,
+          tenantId: candidate.tenantId,
+          displayName: candidate.displayName,
+          ownerAccountId: candidate.ownerAccountId ?? '',
+          recordStatus: candidate.recordStatus,
+          lifecycleStage: candidate.lifecycleStage,
+          matchedFields: candidate.matchedFields,
+          confidence: candidate.confidence
+        }))
+      }
+    }
   }
 }
 
@@ -73,9 +120,6 @@ function toCrmAccountRecordStatus(value?: string): CrmAccountRecordStatus | unde
   }
   if (value === CrmAccountRecordStatus.ACTIVE) {
     return CrmAccountRecordStatus.ACTIVE
-  }
-  if (value === CrmAccountRecordStatus.ARCHIVED) {
-    return CrmAccountRecordStatus.ARCHIVED
   }
   return undefined
 }

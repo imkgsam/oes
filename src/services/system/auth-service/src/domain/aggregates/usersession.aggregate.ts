@@ -30,6 +30,7 @@ type SessionProps = {
   terminalDeviceId?: string
   deviceBoundTenantId?: string
   orgId?: string
+  displayName?: string
   refreshToken: string
   status: SessionStatus
   deviceInfo: DeviceInfo
@@ -63,6 +64,7 @@ export class Session {
     terminalDeviceId?: string
     deviceBoundTenantId?: string
     orgId?: string
+    displayName?: string
     deviceInfo: DeviceInfo
     config: SessionConfig
     metadata?: Record<string, any>
@@ -80,6 +82,7 @@ export class Session {
       terminalDeviceId: Session.normalizeOptionalText(params.terminalDeviceId),
       deviceBoundTenantId: Session.normalizeOptionalText(params.deviceBoundTenantId),
       orgId: params.orgId,
+      displayName: Session.normalizeOptionalText(params.displayName),
       refreshToken: randomUUID(),
       status: SessionStatus.ACTIVE,
       deviceInfo: params.deviceInfo,
@@ -104,6 +107,7 @@ export class Session {
       terminalDeviceId: data.terminalDeviceId ?? data.metadata?.terminalDeviceId,
       deviceBoundTenantId: data.deviceBoundTenantId ?? data.metadata?.deviceBoundTenantId,
       orgId: data.orgId ?? data.metadata?.orgId,
+      displayName: data.displayName ?? data.metadata?.displayName,
       refreshToken: data.refreshToken,
       status: data.status as SessionStatus,
       deviceInfo: data.deviceInfo as DeviceInfo,
@@ -163,6 +167,7 @@ export class Session {
       terminalDeviceId: this.props.terminalDeviceId,
       deviceBoundTenantId: this.props.deviceBoundTenantId,
       orgId: this.props.orgId,
+      displayName: this.props.displayName,
       refreshToken: this.props.refreshToken,
       status: this.props.status,
       deviceInfo: this.props.deviceInfo,
@@ -331,6 +336,11 @@ export class Session {
 
   getLoginMethod(): string {
     return String(this.props.metadata?.loginMethod ?? '')
+  }
+
+  // Returns the operator display snapshot captured when the session was established.
+  getDisplayName(): string | undefined {
+    return Session.normalizeOptionalText(this.props.displayName ?? this.props.metadata?.displayName)
   }
 
   // Returns the terminal login flow recorded at session establishment for audit and display.

@@ -38,6 +38,7 @@ message TenantSummary {
   string status = 4;
   string root_org_id = 5;
   string employee_code_prefix = 6;
+  string website_url = 7;
 }
 
 message OrgUnitSummary {
@@ -276,6 +277,7 @@ message UpdateTenantProfileRequest {
   string name = 2;
   string code = 3;
   string employee_code_prefix = 4;
+  string website_url = 5;
 }
 
 message UpdateTenantProfileResponse {

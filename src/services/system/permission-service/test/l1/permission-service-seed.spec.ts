@@ -30,7 +30,7 @@ describe('permission service seed source', () => {
     const seed = buildPermissionServiceSeed()
 
     expect(validatePermissionServiceSeed(seed)).toEqual([])
-    expect(seed.permissionCodes).toHaveLength(247)
+    expect(seed.permissionCodes).toHaveLength(250)
     expect(Object.values(TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES)).toEqual([
       ...EXPECTED_TERMINAL_DEVICE_PERMISSION_CODES
     ])
@@ -43,7 +43,8 @@ describe('permission service seed source', () => {
         CRM_MANAGEMENT_PERMISSION_CODES.CREATE_CRM_ACCOUNT,
         CRM_MANAGEMENT_PERMISSION_CODES.UPDATE_CRM_ACCOUNT,
         CRM_MANAGEMENT_PERMISSION_CODES.CONVERT_CRM_ACCOUNT,
-        CRM_MANAGEMENT_PERMISSION_CODES.ARCHIVE_CRM_ACCOUNT,
+        CRM_MANAGEMENT_PERMISSION_CODES.CLAIM_CRM_ACCOUNT,
+        CRM_MANAGEMENT_PERMISSION_CODES.MANAGE_CRM_ACCOUNT,
         CRM_MANAGEMENT_PERMISSION_CODES.VIEW_RESTRICTED_DUPLICATE,
         IDENTITY_ACCOUNT_PERMISSION_CODES.ASSIGN_CONTACT_ASSET,
         IDENTITY_ACCOUNT_PERMISSION_CODES.UPDATE_CONTACT_ASSET,
@@ -88,27 +89,29 @@ describe('permission service seed source', () => {
       'account.basic',
       'mes.forming_workshop.supervisor',
       'item_master.product_data_manager',
-      'extension.designer'
+      'extension.designer',
+      'crm.sales',
+      'crm.sales_manager'
     ])
-    expect(seed.rolePermissions).toHaveLength(210)
-    expect(seed.navigationEntries).toHaveLength(35)
-    expect(seed.roleNavigationVisibility).toHaveLength(41)
-    expect(seed.roleLandingPolicies).toHaveLength(7)
-    expect(seed.roleTerminalAccess).toHaveLength(7)
+    expect(seed.rolePermissions).toHaveLength(239)
+    expect(seed.navigationEntries).toHaveLength(37)
+    expect(seed.roleNavigationVisibility).toHaveLength(47)
+    expect(seed.roleLandingPolicies).toHaveLength(9)
+    expect(seed.roleTerminalAccess).toHaveLength(9)
     expect(seed.policyInstances).toHaveLength(0)
   })
 
   it('renders a stable dry-run summary for audit output', () => {
     expect(renderPermissionServiceSeedDryRunSummary(buildPermissionServiceSeed())).toEqual({
-      permissionCodeCount: 247,
+      permissionCodeCount: 250,
       deprecatedPermissionCodeCount: 14,
-      roleCount: 7,
-      rolePermissionCount: 210,
-      navigationEntryCount: 35,
-      deprecatedNavigationEntryCount: 1,
-      roleNavigationVisibilityCount: 41,
-      roleLandingPolicyCount: 7,
-      roleTerminalAccessCount: 7,
+      roleCount: 9,
+      rolePermissionCount: 239,
+      navigationEntryCount: 37,
+      deprecatedNavigationEntryCount: 2,
+      roleNavigationVisibilityCount: 47,
+      roleLandingPolicyCount: 9,
+      roleTerminalAccessCount: 9,
       policyInstanceCount: 0
     })
   })

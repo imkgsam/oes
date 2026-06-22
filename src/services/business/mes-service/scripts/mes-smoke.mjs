@@ -112,17 +112,49 @@ function applySmokeDatabaseUrl() {
   return process.env.DATABASE_URL;
 }
 
-// ensureSmokeSchema pushes the Prisma model into the dedicated smoke schema before the live runtime starts.
+// splitSqlStatements strips generated diff comments before replaying DDL into the smoke schema.
+function splitSqlStatements(script) {
+  return script.replace(/^--.*$/gm, '').trim();
+}
+
+// buildBootstrapSql recreates only the dedicated smoke schema before replaying generated Prisma DDL.
+function buildBootstrapSql(schemaScript) {
+  return [
+    `DROP SCHEMA IF EXISTS "${SMOKE_SCHEMA}" CASCADE;`,
+    `CREATE SCHEMA "${SMOKE_SCHEMA}";`,
+    `SET search_path TO "${SMOKE_SCHEMA}";`,
+    splitSqlStatements(schemaScript)
+  ]
+    .filter((statement) => statement.length > 0)
+    .join('\n');
+}
+
+// ensureSmokeSchema recreates the dedicated smoke schema without relying on MES db push.
 function ensureSmokeSchema(databaseUrl) {
   try {
-    execFileSync(PRISMA_BIN, ['db', 'push', '--schema=./prisma/schema.prisma', '--skip-generate'], {
+    const schemaScript = execFileSync(
+      PRISMA_BIN,
+      ['migrate', 'diff', '--from-empty', '--to-schema-datamodel', './prisma/schema.prisma', '--script'],
+      {
+        cwd: SERVICE_ROOT,
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          DATABASE_URL: databaseUrl
+        },
+        stdio: 'pipe'
+      }
+    );
+
+    execFileSync(PRISMA_BIN, ['db', 'execute', '--stdin', '--schema=./prisma/schema.prisma'], {
       cwd: SERVICE_ROOT,
+      input: buildBootstrapSql(schemaScript),
       encoding: 'utf8',
       env: {
         ...process.env,
         DATABASE_URL: databaseUrl
       },
-      stdio: 'pipe'
+      stdio: ['pipe', 'pipe', 'pipe']
     });
   } catch (error) {
     const parsed = new URL(databaseUrl);
@@ -283,8 +315,8 @@ async function startItemMasterStub(seed) {
           itemId: call.request.itemId,
           itemCode: 'MES-SMOKE-ITEM',
           itemName: 'MES Smoke Item',
-          natureType: 1,
-          status: 1,
+          itemType: 1,
+          active: true,
           capabilities: {
             manufacturable: true
           }
@@ -361,8 +393,11 @@ function createMesServices(client, prisma, seed) {
     management: {
       registerMoldDesign: async (request) => firstValueFrom(management.registerMoldDesign(request)),
       registerProductionMold: async (request) => firstValueFrom(management.registerProductionMold(request)),
+      confirmProductionMoldArrival: async (request) =>
+        firstValueFrom(management.confirmProductionMoldArrival(request)),
       moveTooling: async (request) => firstValueFrom(management.moveTooling(request)),
       installTooling: async (request) => firstValueFrom(management.installTooling(request)),
+      confirmInstalledMoldReady: async (request) => firstValueFrom(management.confirmInstalledMoldReady(request)),
       recordMoldUsage: async (request) => firstValueFrom(management.recordMoldUsage(request))
     },
     query: {

@@ -447,12 +447,13 @@ export class HrManagementService {
         displayName: string
         email?: string
         phone?: string
+        tenantPartyId?: string
       }
     },
     source: DownstreamRequestSource
   ) {
     const resolvedTenantId = this.resolveTenantId(tenantId, source)
-    await this.assertEmployeeInTenant(resolvedTenantId, employeeId, source)
+    const employee = await this.assertEmployeeInTenant(resolvedTenantId, employeeId, source)
 
     await this.hrManagementAdapter.completeEmployeeAccess(
       {
@@ -466,7 +467,8 @@ export class HrManagementService {
           ? {
               displayName: requireNonBlank(input.createAccount.displayName, 'displayName'),
               email: normalize(input.createAccount.email),
-              phone: normalize(input.createAccount.phone)
+              phone: normalize(input.createAccount.phone),
+              tenantPartyId: requireNonBlank(employee.tenantPartyId, 'employee.tenantPartyId')
             }
           : undefined
       },

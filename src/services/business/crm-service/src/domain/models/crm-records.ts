@@ -108,6 +108,11 @@ export enum CrmLeadCreateResultType {
   BLOCKED_BY_RESTRICTED_DUPLICATE = 'BLOCKED_BY_RESTRICTED_DUPLICATE'
 }
 
+export enum CrmLeadAssignmentIntent {
+  OWNED_BY_OPERATOR = 'OWNED_BY_OPERATOR',
+  POOL = 'POOL'
+}
+
 export enum CrmLeadConversionResultType {
   CONVERTED = 'CONVERTED',
   INSUFFICIENT_INFO = 'INSUFFICIENT_INFO',

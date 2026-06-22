@@ -123,7 +123,7 @@ function setupAccessGuard(router: Router) {
 
     // 生成路由表
     // 当前登录用户拥有的角色标识列表
-    const userInfo = userStore.userInfo || (await authStore.fetchUserInfo());
+    const userInfo = await authStore.fetchUserInfo(true);
     if (authContextStore.sessionContext?.passwordSetupRequired === true) {
       return { name: FIRST_LOGIN_PASSWORD_ROUTE_NAME, replace: true };
     }

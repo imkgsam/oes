@@ -11,6 +11,7 @@
 - `Permission` 运行时 catalog、权限码注册事实、权限引用关系与权限管理审计。
 - `Role`、`RoleTemplate`、`AccountRole`、role-permission 绑定与账号授权 grant 真相。
 - `Scope`、`Policy`、授权判定、授权决策记录与 policy AST 评估能力。
+- `PolicyTemplate`、`PolicyInstance` 资源授权配置事实、资源授权判定与查询范围构造能力。
 - 当前 session 的 access summary：effective roles、effective action codes、运行时权限摘要。
 - 第一阶段 navigation governance 真相：
   - `NavigationEntry Registry`
@@ -110,6 +111,14 @@ HR、Identity、TenantOrg、BFF 或其他服务只能请求授权 grant，不能
 - 单资源命令或详情查询：application 层加载最小 resource facts 后执行 `checkResource`。
 - 列表、搜索、分页、导出前范围筛选：application/query 层执行 `buildQueryScope`。
 
+`ResourceAuthorizationService` 是 `permission-service` 的资源授权 application facade。调用方只依赖 `checkResource / buildQueryScope` 语义，不直接依赖底层 template evaluator、Prisma 表结构或组合算法。
+
+长期资源授权主线为 `PolicyTemplate / PolicyInstance`：
+
+- `PolicyTemplate` 定义平台内置、代码版本化、可测试的判断模板。
+- `PolicyInstance` 定义某个 tenant 内，某类 subject 在某个 `permissionCode + resourceType` 下的资源范围或安全环境策略。
+- `PolicyInstance` 承接资源授权事实职责，不再另建独立 `ResourceGrant` 或 `ResourceScope` 事实模型。
+
 `permission-service` 拥有可被复用的授权事实、policy 能力与授权查询能力，但不拥有业务资源本体。资源事实与业务状态必须由对应业务服务提供。
 
 项目级规则以 [15-authorization-layering-and-resource-policy-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/15-authorization-layering-and-resource-policy-architecture.md) 为准。
@@ -126,7 +135,7 @@ HR、Identity、TenantOrg、BFF 或其他服务只能请求授权 grant，不能
 
 ## 6. Policy
 
-`Policy` 是围绕 permission 的授权策略事实。
+`Policy` 是围绕 permission 的历史 AST 授权策略事实。
 
 稳定规则：
 
@@ -137,7 +146,59 @@ HR、Identity、TenantOrg、BFF 或其他服务只能请求授权 grant，不能
 - 当某 permission 没有启用中的 policy 时，RBAC 通过即可允许。
 - 当某 permission 存在启用中的 policy 时，必须进入 policy 评估；未命中允许规则时默认拒绝。
 
-管理端当前阶段只开放 readonly governance。Policy create / update / delete / enable / disable、rule builder、explain / impact preview 必须作为独立 feature 重新冻结后再开放。
+长期定位：
+
+- 旧 `Policy + conditionAstJson` 只作为历史兼容、readonly governance 与 `CheckPermissionWithContext` 的 AST 评估载体保留。
+- 旧 `Policy` 不作为新业务资源授权主线。
+- `conditionAstJson` 不再作为未来业务资源授权的可编辑配置格式。
+- 新业务资源授权必须落到 `PolicyTemplate / PolicyInstance + ResourceAuthorizationService`。
+
+管理端当前阶段只开放 readonly governance。Policy create / update / delete / enable / disable、rule builder、explain / impact preview 必须作为独立 feature 重新冻结后再开放；既有底层 mutation RPC / command 属于 legacy compatibility，不得作为新调用方接入方式扩散。
+
+### 6.1 PolicyTemplate / PolicyInstance
+
+`PolicyTemplate` 是平台内置的受控授权模板，定义“如何判断”。
+
+稳定规则：
+
+- template 由平台代码维护，不由租户管理员创建或编辑。
+- template 必须可测试、可审计、可解释。
+- template 不执行任意脚本，不开放自由 AST。
+- template 不拥有业务主数据真相。
+
+第一阶段稳定 template 包括：
+
+- `resource-field-in-set`
+- `resource-field-equals`
+- `resource-field-matches-subject-field`
+- `own-resource`
+- `org-scope`，第一阶段为 experimental
+- `working-hours`
+- `ip-allowlist`
+
+`PolicyInstance` 是资源授权事实主模型，定义“谁在某个能力下受哪些资源范围或安全环境约束”。
+
+稳定规则：
+
+- `subjectSelector` 第一阶段只支持 `TENANT_WIDE / ROLE / ACCOUNT`。
+- `TENANT_WIDE` 表示租户内全员默认收窄或安全策略，不表示 tenant isolation。
+- `ROLE` 表示一类角色共同资源范围。
+- `ACCOUNT` 表示账号级个性化资源范围。
+- `permissionCode` 必须引用已存在的 `Permission.code`。
+- `templateCode` 必须引用内置 template registry。
+- `params` 保存授权配置引用，不保存业务主数据真相。
+- `PolicyInstance` 是 resource grant / resource scope 的唯一长期事实承接模型。
+
+组合规则：
+
+- `DENY` 永远优先。
+- 同一 layer、同一 field 的 `ALLOW` 取并集。
+- 不同 layer、同一 field 的 `ALLOW` 取交集。
+- 不同 field 的 `ALLOW` 取 `AND`。
+- `TENANT_WIDE / ROLE / ACCOUNT` 是叠加收窄关系，不是覆盖关系。
+- 无启用 `PolicyInstance` 时，RBAC 通过即可允许。
+- 有启用 `PolicyInstance` 且进入资源授权评估时，未命中允许规则默认拒绝。
+- `buildQueryScope` 无法安全编译时必须 fail closed。
 
 ## 7. Access Summary
 

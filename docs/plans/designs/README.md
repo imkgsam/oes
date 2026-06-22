@@ -158,6 +158,7 @@ conflictResolution: 当本文与更早讨论冲突时，以本文 lastUpdatedAt 
 - [item-master-model-item-bom-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/item-master-model-item-bom-design.md)
 - [packaging-master-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/packaging-master-design.md)
 - [wms-inventory-package-unit-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/wms-inventory-package-unit-design.md)
+- [warehouse-site-work-context-permission-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/warehouse-site-work-context-permission-design.md)
 - [planning-workbench-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/planning-workbench-design.md)
 - [scan-identity-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/scan-identity-design.md)
 - [shortlink-public-entry-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/shortlink-public-entry-design.md)

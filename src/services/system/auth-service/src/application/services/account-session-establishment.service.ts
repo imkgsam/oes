@@ -141,12 +141,14 @@ export class AccountSessionEstablishmentService {
       loginFlow: sessionLoginFlow,
       terminalDeviceId: input.terminalDeviceId,
       deviceBoundTenantId: input.deviceBoundTenantId,
+      displayName: input.account.displayName,
       deviceInfo: this.buildDeviceInfo(input),
       config: sessionConfig,
       metadata: {
         loginMethod: sessionLoginMethod,
         loginFlow: sessionLoginFlow,
         scopeLevel: input.account.scopeLevel,
+        displayName: input.account.displayName,
         terminal,
         terminalDeviceId: input.terminalDeviceId,
         deviceBoundTenantId: input.deviceBoundTenantId

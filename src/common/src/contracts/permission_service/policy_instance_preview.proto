@@ -1,0 +1,147 @@
+syntax = "proto3";
+
+package permission_service;
+
+option java_multiple_files = true;
+option java_package = "com.oes.permission.v1";
+
+service PolicyInstancePreviewService {
+  rpc EvaluatePolicyInstancePreview(EvaluatePolicyInstancePreviewRequest) returns (EvaluatePolicyInstancePreviewResponse);
+}
+
+enum PolicyInstancePreviewModeProto {
+  POLICY_INSTANCE_PREVIEW_MODE_PROTO_UNSPECIFIED = 0;
+  POLICY_INSTANCE_PREVIEW_MODE_PROTO_CHECK_RESOURCE = 1;
+  POLICY_INSTANCE_PREVIEW_MODE_PROTO_QUERY_SCOPE = 2;
+}
+
+enum PolicyInstanceSubjectSelectorTypeProto {
+  POLICY_INSTANCE_SUBJECT_SELECTOR_TYPE_PROTO_UNSPECIFIED = 0;
+  POLICY_INSTANCE_SUBJECT_SELECTOR_TYPE_PROTO_ACCOUNT = 1;
+  POLICY_INSTANCE_SUBJECT_SELECTOR_TYPE_PROTO_ROLE = 2;
+  POLICY_INSTANCE_SUBJECT_SELECTOR_TYPE_PROTO_TENANT_WIDE = 3;
+}
+
+enum PolicyInstanceEffectProto {
+  POLICY_INSTANCE_EFFECT_PROTO_UNSPECIFIED = 0;
+  POLICY_INSTANCE_EFFECT_PROTO_ALLOW = 1;
+  POLICY_INSTANCE_EFFECT_PROTO_DENY = 2;
+}
+
+enum QueryScopeOperatorProto {
+  QUERY_SCOPE_OPERATOR_PROTO_UNSPECIFIED = 0;
+  QUERY_SCOPE_OPERATOR_PROTO_EQ = 1;
+  QUERY_SCOPE_OPERATOR_PROTO_IN = 2;
+  QUERY_SCOPE_OPERATOR_PROTO_INTERSECTS = 3;
+}
+
+message AuthorizationSubjectFactsProto {
+  string account_id = 1;
+  string tenant_id = 2;
+  repeated string role_ids = 3;
+  repeated string role_codes = 4;
+  repeated string org_ids = 5;
+  repeated string visible_org_ids = 6;
+}
+
+message PolicyInstanceSubjectSelectorProto {
+  PolicyInstanceSubjectSelectorTypeProto type = 1;
+  string account_id = 2;
+  string role_id = 3;
+}
+
+message PolicyInstanceWorkingWindowProto {
+  repeated int32 days = 1;
+  string start = 2;
+  string end = 3;
+}
+
+message PolicyInstanceParamsProto {
+  string field = 1;
+  repeated string allowed_values = 2;
+  string value = 3;
+  string resource_field = 4;
+  string subject_field = 5;
+  string owner_field = 6;
+  string org_field = 7;
+  string timezone = 8;
+  repeated PolicyInstanceWorkingWindowProto windows = 9;
+  repeated string cidrs = 10;
+}
+
+message PolicyInstancePreviewCandidateProto {
+  string id = 1;
+  string tenant_id = 2;
+  PolicyInstanceSubjectSelectorProto subject_selector = 3;
+  string permission_code = 4;
+  string resource_type = 5;
+  string template_code = 6;
+  PolicyInstanceEffectProto effect = 7;
+  PolicyInstanceParamsProto params = 8;
+  bool enabled = 9;
+  int32 priority = 10;
+}
+
+message ResourceFactsProto {
+  string tenant_id = 1;
+  string resource_type = 2;
+  string resource_id = 3;
+  string owner_account_id = 4;
+  string responsible_buyer_account_id = 5;
+  string manager_account_id = 6;
+  string org_id = 7;
+  string category_id = 8;
+  string customer_id = 9;
+  string supplier_id = 10;
+  string factory_id = 11;
+  string plant_id = 12;
+  string workshop_id = 13;
+  string production_line_id = 14;
+  string warehouse_id = 15;
+  string storage_location_id = 16;
+  string work_center_id = 17;
+  map<string, string> attributes = 18;
+}
+
+message EnvironmentFactsProto {
+  string client_ip = 1;
+  string request_time = 2;
+  string timezone = 3;
+  string terminal = 4;
+}
+
+message QueryScopeExpressionProto {
+  repeated QueryScopeExpressionProto and = 1;
+  repeated QueryScopeExpressionProto or = 2;
+  string field = 3;
+  QueryScopeOperatorProto op = 4;
+  string value = 5;
+  repeated string values = 6;
+}
+
+message PolicyDecisionTraceProto {
+  repeated string evaluated_policy_ids = 1;
+  repeated string matched_allow_policy_ids = 2;
+  repeated string matched_deny_policy_ids = 3;
+  repeated string skipped_policy_ids = 4;
+  string reason_code = 5;
+}
+
+message EvaluatePolicyInstancePreviewRequest {
+  PolicyInstancePreviewModeProto mode = 1;
+  AuthorizationSubjectFactsProto subject = 2;
+  string permission_code = 3;
+  string resource_type = 4;
+  ResourceFactsProto resource = 5;
+  EnvironmentFactsProto environment = 6;
+  repeated PolicyInstancePreviewCandidateProto policy_instances = 7;
+}
+
+message EvaluatePolicyInstancePreviewResponse {
+  bool allowed = 1;
+  string reason_code = 2;
+  repeated string matched_policy_ids = 3;
+  repeated string denied_policy_ids = 4;
+  QueryScopeExpressionProto scope = 5;
+  PolicyDecisionTraceProto trace = 6;
+}

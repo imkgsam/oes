@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process'
 
-const DEFAULT_LOCAL_DATABASE_URL = 'postgres://imkgsam:imkgsam@localhost:5432/mydb'
+const DEFAULT_LOCAL_DATABASE_URL = 'postgres://imkgsam:imkgsam@localhost:5432/collaborationdb'
 
 /** withCollaborationSchema returns a DATABASE_URL scoped to collaboration-service storage. */
 function withCollaborationSchema(rawUrl) {

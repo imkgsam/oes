@@ -570,7 +570,8 @@ describe('HrManagementService', () => {
         reason: 'member_access_enable',
         createAccount: {
           displayName: 'EMP-0AF-0001',
-          email: 'member@example.com'
+          email: 'member@example.com',
+          tenantPartyId: 'tenant-party-1'
         }
       },
       source

@@ -668,6 +668,8 @@ const TENANT_ADMIN_PERMISSION_CODES = [
   'crm.source.manage',
   'crm.activity.create',
   'crm.opportunity.manage',
+  'collaboration.annotation.create',
+  'collaboration.annotation.manage',
 ];
 
 const HR_ADMIN_PERMISSION_CODES = [

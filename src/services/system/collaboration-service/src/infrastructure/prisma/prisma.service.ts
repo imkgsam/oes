@@ -3,7 +3,7 @@ import { GLOBAL_SYSTEM_ERRORS } from '@oes/common/constants'
 import { ExceptionFactory } from '@oes/common/exceptions'
 import { PrismaClient } from '../../../prisma/generated/prisma/index'
 
-const DEFAULT_LOCAL_DATABASE_URL = 'postgres://imkgsam:imkgsam@localhost:5432/mydb'
+const DEFAULT_LOCAL_DATABASE_URL = 'postgres://imkgsam:imkgsam@localhost:5432/collaborationdb'
 
 /** PrismaService manages the collaboration-service database connection lifecycle. */
 @Injectable()

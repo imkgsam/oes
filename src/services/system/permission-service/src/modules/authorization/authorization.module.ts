@@ -7,26 +7,37 @@ import { PolicyModule } from '../policy/policy.module'
 import { AccessSummaryQueryHandlers } from '../../application/queries/access-summary'
 import { AuthorizationQueryHandlers } from '../../application/queries/authorization'
 import { TerminalAccessRuntimeQueryHandlers } from '../../application/queries/terminal-access'
-import { ACCOUNT_AUTHORIZATION_SERVICE } from '../../application/queries/authorization/check-permission-with-context.handler'
 import { SYMBOLS } from '../../common/constants/symbols'
-import { AccountAuthorizationService } from '../../domain/services/account-authorization.service'
+import {
+  ACCOUNT_AUTHORIZATION_SERVICE,
+  AccountAuthorizationService
+} from '../../domain/services/account-authorization.service'
 import { NavigationResolverService } from '../../domain/services/navigation-resolver.service'
 import { TerminalAccessResolverService } from '../../domain/services/terminal-access-resolver.service'
-import { PolicyEngine } from '../../domain/services/policy-engine'
 import {
   PolicyTemplateInstanceAuthorizationService,
   PolicyTemplateInstanceReader
 } from '../../application/authorization/resource-policy'
 import { ResourceAuthorizationService } from '../../application/authorization/resource-authorization.service'
+import { PolicyInstancePreviewService } from '../../application/authorization/policy-instance-preview.service'
 import { PermissionAccessSummaryGrpcController } from '../../interfaces/grpc/permission-access-summary.grpc.controller'
 import { PermissionCheckGrpcController } from '../../interfaces/grpc/permission-check.grpc.controller'
+import { PolicyInstancePreviewGrpcController } from '../../interfaces/grpc/policy-instance-preview.grpc.controller'
+import { ResourceAuthorizationGrpcController } from '../../interfaces/grpc/resource-authorization.grpc.controller'
 import { PermissionTerminalAccessGrpcController } from '../../interfaces/grpc/permission-terminal-access.grpc.controller'
 import { PermissionAuditModule } from '../audit/permission-audit.module'
+import { ManagementAuthorizationModule } from '../management-authorization/management-authorization.module'
 
 @Module({
-  imports: [CqrsModule, PermissionModule, RoleModule, PolicyModule, PermissionAuditModule],
+  imports: [
+    CqrsModule,
+    PermissionModule,
+    RoleModule,
+    PolicyModule,
+    PermissionAuditModule,
+    ManagementAuthorizationModule
+  ],
   providers: [
-    PolicyEngine,
     NavigationResolverService,
     TerminalAccessResolverService,
     {
@@ -42,11 +53,12 @@ import { PermissionAuditModule } from '../audit/permission-audit.module'
       inject: [PolicyTemplateInstanceReader]
     },
     ResourceAuthorizationService,
+    PolicyInstancePreviewService,
     {
       provide: ACCOUNT_AUTHORIZATION_SERVICE,
-      useFactory: (roleRepo: any, permRepo: any, policyRepo: any, engine: PolicyEngine) =>
-        new AccountAuthorizationService(roleRepo, permRepo, policyRepo, engine),
-      inject: [SYMBOLS.REPO.ROLE, SYMBOLS.REPO.PERMISSION, SYMBOLS.REPO.POLICY, PolicyEngine]
+      useFactory: (roleRepo: any, permRepo: any) =>
+        new AccountAuthorizationService(roleRepo, permRepo),
+      inject: [SYMBOLS.REPO.ROLE, SYMBOLS.REPO.PERMISSION]
     },
     ValidatingQueryBus,
     ...AccessSummaryQueryHandlers,
@@ -56,7 +68,9 @@ import { PermissionAuditModule } from '../audit/permission-audit.module'
   controllers: [
     PermissionCheckGrpcController,
     PermissionAccessSummaryGrpcController,
-    PermissionTerminalAccessGrpcController
+    PermissionTerminalAccessGrpcController,
+    PolicyInstancePreviewGrpcController,
+    ResourceAuthorizationGrpcController
   ],
   exports: [ResourceAuthorizationService]
 })

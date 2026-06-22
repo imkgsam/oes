@@ -13,6 +13,7 @@ describe('PublicEntryShortLinkService', () => {
     generateShortLinkQr: jest.fn(),
     getShortLink: jest.fn(),
     getShortLinkStats: jest.fn(),
+    listShortLinks: jest.fn(),
     listShortLinksByTarget: jest.fn(),
     resolvePublicRedirect: jest.fn(),
     updateShortLinkMetadata: jest.fn(),
@@ -171,7 +172,18 @@ describe('PublicEntryShortLinkService', () => {
   })
 
   it('normalizes list pagination and public redirect result types for the web BFF', async () => {
-    adapter.listShortLinksByTarget.mockResolvedValue({ items: [], page: 1, pageSize: 20, total: 0 })
+    adapter.listShortLinksByTarget.mockResolvedValue({
+      items: [
+        {
+          id: 'short-link-1',
+          status: ShortLinkStatus.SHORT_LINK_STATUS_ACTIVE,
+          targetKind: ShortLinkTargetKind.SHORT_LINK_TARGET_KIND_INTERNAL_REF
+        }
+      ],
+      page: 1,
+      pageSize: 20,
+      total: 1
+    })
     adapter.resolvePublicRedirect
       .mockResolvedValueOnce({
         resultType: PublicRedirectResultType.PUBLIC_REDIRECT_RESULT_TYPE_REDIRECT,
@@ -184,11 +196,24 @@ describe('PublicEntryShortLinkService', () => {
         resultType: PublicRedirectResultType.PUBLIC_REDIRECT_RESULT_TYPE_UNAVAILABLE
       })
 
-    await service.listByTarget(
-      'tenant-1',
-      { targetType: 'BUSINESS_CARD', targetResourceId: 'card-1', page: '-1', pageSize: 'bad' },
-      source as never
-    )
+    await expect(
+      service.listByTarget(
+        'tenant-1',
+        { targetType: 'BUSINESS_CARD', targetResourceId: 'card-1', page: '-1', pageSize: 'bad' },
+        source as never
+      )
+    ).resolves.toEqual({
+      items: [
+        expect.objectContaining({
+          id: 'short-link-1',
+          status: 'ACTIVE',
+          targetKind: 'INTERNAL_REF'
+        })
+      ],
+      page: 1,
+      pageSize: 20,
+      total: 1
+    })
 
     await expect(
       service.resolvePublicRedirect('abc1234', {
@@ -230,5 +255,64 @@ describe('PublicEntryShortLinkService', () => {
       },
       { requestId: 'req-public', traceId: 'trace-public' }
     )
+  })
+
+  it('lists tenant short links without constraining the default query to business cards', async () => {
+    adapter.listShortLinks.mockResolvedValue({
+      items: [
+        {
+          id: 'short-link-external',
+          status: ShortLinkStatus.SHORT_LINK_STATUS_ACTIVE,
+          targetKind: ShortLinkTargetKind.SHORT_LINK_TARGET_KIND_EXTERNAL_URL,
+          targetUrl: 'https://supplier.example.com/onboarding'
+        },
+        {
+          id: 'short-link-card',
+          status: ShortLinkStatus.SHORT_LINK_STATUS_DISABLED,
+          targetKind: ShortLinkTargetKind.SHORT_LINK_TARGET_KIND_INTERNAL_REF,
+          targetType: 'BUSINESS_CARD',
+          targetResourceId: 'card-1'
+        }
+      ],
+      page: 1,
+      pageSize: 20,
+      total: 2
+    })
+
+    await expect(
+      service.listShortLinks(
+        'tenant-1',
+        { page: '-1', pageSize: 'bad', targetKind: 'ALL' },
+        source as never
+      )
+    ).resolves.toEqual({
+      items: [
+        expect.objectContaining({
+          id: 'short-link-external',
+          status: 'ACTIVE',
+          targetKind: 'EXTERNAL_URL'
+        }),
+        expect.objectContaining({
+          id: 'short-link-card',
+          status: 'DISABLED',
+          targetKind: 'INTERNAL_REF'
+        })
+      ],
+      page: 1,
+      pageSize: 20,
+      total: 2
+    })
+
+    expect(adapter.listShortLinks).toHaveBeenCalledWith(
+      {
+        tenantId: 'tenant-1',
+        page: 1,
+        pageSize: 20,
+        targetKind: undefined,
+        targetType: undefined
+      },
+      source
+    )
+    expect(adapter.listShortLinksByTarget).not.toHaveBeenCalled()
   })
 })

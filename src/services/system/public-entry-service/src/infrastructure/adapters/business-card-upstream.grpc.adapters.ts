@@ -386,7 +386,7 @@ export class BusinessCardTenantProfileGrpcAdapter implements BusinessCardTenantP
       return {
         tenantId: tenant.id,
         companyDisplayName: normalizeOptional(tenant.name) ?? null,
-        websiteUrl: null,
+        websiteUrl: normalizeOptional(tenant.websiteUrl) ?? null,
         logoUrl: null
       }
     } catch {
