@@ -122,6 +122,15 @@
             >
               Floating Panel {{ floatingPanelEnabled ? '已开启' : '已关闭' }}
             </button>
+            <button
+              v-if="floatingPanelEnabled"
+              class="workspace-panel-toggle"
+              :disabled="busy"
+              type="button"
+              @click="handleShowFloatingPanel"
+            >
+              显示当前页
+            </button>
           </div>
           <p v-if="workspaceError" class="error-text">{{ workspaceError }}</p>
         </div>
@@ -261,7 +270,8 @@ import { BrowserActivityRuntime } from '../runtime/browser-activity-runtime'
 import {
   SET_CRM_FLOATING_PANEL_ENABLED_MESSAGE,
   SET_CRM_SIDE_PANEL_ENABLED_MESSAGE,
-  SET_CRM_WORKSPACE_RUNTIME_ENABLED_MESSAGE
+  SET_CRM_WORKSPACE_RUNTIME_ENABLED_MESSAGE,
+  SHOW_CRM_FLOATING_PANEL_MESSAGE
 } from '../runtime/messages'
 import {
   CRM_WORKSPACE_KEY,
@@ -426,6 +436,26 @@ async function handleToggleFloatingPanel() {
   }
 }
 
+// Forces the active official site to render the CRM floating panel and shows runtime failures in the popup.
+async function handleShowFloatingPanel() {
+  if (screen.value.kind !== 'authenticated') {
+    return
+  }
+
+  busy.value = true
+  workspaceError.value = ''
+  try {
+    await sendRuntimeCommand({
+      type: SHOW_CRM_FLOATING_PANEL_MESSAGE
+    })
+    floatingPanelEnabled.value = true
+  } catch (caught) {
+    workspaceError.value = caught instanceof Error ? caught.message : '显示当前页 Floating Panel 失败'
+  } finally {
+    busy.value = false
+  }
+}
+
 // Applies the extension-global side-panel default while preserving Chrome's user-activation requirement on open.
 async function setSidePanelEnabled(enabled: boolean) {
   const sidePanel = globalThis.chrome?.sidePanel
@@ -486,6 +516,7 @@ async function sendRuntimeCommand(message:
   | { enabled: boolean; type: typeof SET_CRM_WORKSPACE_RUNTIME_ENABLED_MESSAGE }
   | { enabled: boolean; type: typeof SET_CRM_SIDE_PANEL_ENABLED_MESSAGE }
   | { enabled: boolean; type: typeof SET_CRM_FLOATING_PANEL_ENABLED_MESSAGE }
+  | { type: typeof SHOW_CRM_FLOATING_PANEL_MESSAGE }
 ) {
   if (!globalThis.chrome?.runtime?.sendMessage) {
     return

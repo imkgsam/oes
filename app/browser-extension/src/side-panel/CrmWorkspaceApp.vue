@@ -273,6 +273,7 @@ import type { ExtensionCrmAccountSummary } from './crm-types'
 
 type WorkspaceView = 'conflict' | 'draft' | 'duplicate' | 'empty' | 'loading' | 'signed-out' | 'success'
 type WorkspaceTab = 'drafts' | 'recent' | 'settings' | 'workspace'
+type DraftCrmAccountSummary = ExtensionCrmAccountSummary & { recordStatus: 'DRAFT' }
 
 const authStorage = new ExtensionAuthStorage()
 const authApi = new ExtensionAuthApi()
@@ -351,7 +352,7 @@ async function discardActiveDraft(): Promise<void> {
     return
   }
 
-  if (session.value?.context?.tenant?.tenantId && activeDraft.value.draftId) {
+  if (session.value?.context?.tenant?.tenantId && isDraftLead(activeDraft.value.oesDraft)) {
     await api.deleteDraftLead(session.value.context.tenant.tenantId, activeDraft.value.draftId)
   }
   await draftStore.deleteDraft(identity.value, activeDraft.value.draftId)
@@ -367,6 +368,11 @@ async function deleteOesDraft(draft: ExtensionCrmAccountSummary): Promise<void> 
   busy.value = true
   errorMessage.value = ''
   try {
+    if (!isDraftLead(draft)) {
+      draftInbox.value = draftInbox.value.filter((item) => item.crmAccountId !== draft.crmAccountId)
+      draftInboxError.value = '该记录已不是草稿，不能删除。'
+      return
+    }
     await api.deleteDraftLead(requireTenantId(identity.value), draft.crmAccountId)
     if (activeDraft.value?.draftId === draft.crmAccountId) {
       await draftStore.deleteDraft(identity.value, draft.crmAccountId)
@@ -490,7 +496,7 @@ async function loadDraftInbox(): Promise<void> {
   draftInboxError.value = ''
   try {
     const page = await api.listDraftLeads(identity.value)
-    draftInbox.value = page.crmAccounts
+    draftInbox.value = page.crmAccounts.filter(isDraftLead)
     draftInboxStatus.value = 'ready'
   } catch (caught) {
     draftInbox.value = []
@@ -503,6 +509,13 @@ async function loadDraftInbox(): Promise<void> {
 async function openDraftInbox(): Promise<void> {
   activeTab.value = 'drafts'
   await loadDraftInbox()
+}
+
+// isDraftLead centralizes the client-side guard for the CRM hard-delete Draft Lead contract.
+function isDraftLead(
+  value: Pick<ExtensionCrmAccountSummary, 'recordStatus'> | null | undefined
+): value is DraftCrmAccountSummary {
+  return value?.recordStatus === 'DRAFT'
 }
 
 // Resolves an active-draft conflict before creating a draft from the pending capture.

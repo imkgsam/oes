@@ -207,6 +207,86 @@ describe('CRM official-site floating panel', () => {
     expect(document.getElementById('oes-crm-official-site-panel')).not.toBeNull()
   })
 
+  it('does not let stale page-level close state suppress a matched Swiss Madison page render', async () => {
+    const currentUrl = 'https://swissmadison.com/collections/psc-console-sinks?srsltid=AfmBOoq5aiPA59jPDeL2CUQoJ_bTK044XsMEo9uxBB1NmV8j-L1UuHre'
+    localStorage.setItem('oes-crm-panel-closed:page:swissmadison.com/collections/psc-console-sinks', JSON.stringify(true))
+    const document = createDocument(currentUrl)
+
+    const result = await renderCrmOfficialSitePanelInCurrentDocument({
+      document,
+      resolvedPage: {
+        ...createResolvedPage('swissmadison.com', 'Swiss Madison'),
+        title: 'Console Sinks - Swiss Madison',
+        url: currentUrl
+      },
+      tenantWebBaseUrl: 'http://localhost:5771'
+    })
+
+    expect(result).toEqual({ rendered: true, skipped: false })
+    expect(document.getElementById('oes-crm-official-site-panel')?.shadowRoot?.textContent).toContain('Swiss Madison')
+  })
+
+  it('keeps explicit close scoped to the current tab session', async () => {
+    const currentUrl = 'https://swissmadison.com/collections/psc-console-sinks'
+    const document = createDocument(currentUrl)
+    const resolvedPage = {
+      ...createResolvedPage('swissmadison.com', 'Swiss Madison'),
+      title: 'Console Sinks - Swiss Madison',
+      url: currentUrl
+    }
+
+    await renderCrmOfficialSitePanelInCurrentDocument({
+      document,
+      resolvedPage,
+      tenantWebBaseUrl: 'http://localhost:5771'
+    })
+    document
+      .getElementById('oes-crm-official-site-panel')
+      ?.shadowRoot
+      ?.querySelector<HTMLButtonElement>('[data-action="close"]')
+      ?.click()
+
+    const result = await renderCrmOfficialSitePanelInCurrentDocument({
+      document,
+      resolvedPage,
+      tenantWebBaseUrl: 'http://localhost:5771'
+    })
+
+    expect(result).toEqual({ rendered: false, skipped: true })
+    expect(localStorage.getItem('oes-crm-panel-closed:page:swissmadison.com/collections/psc-console-sinks')).toBeNull()
+  })
+
+  it('renders again after a page reload even when the previous document explicitly closed it', async () => {
+    const currentUrl = 'https://swissmadison.com/collections/psc-console-sinks'
+    const resolvedPage = {
+      ...createResolvedPage('swissmadison.com', 'Swiss Madison'),
+      title: 'Console Sinks - Swiss Madison',
+      url: currentUrl
+    }
+    const firstDocument = createDocument(currentUrl)
+
+    await renderCrmOfficialSitePanelInCurrentDocument({
+      document: firstDocument,
+      resolvedPage,
+      tenantWebBaseUrl: 'http://localhost:5771'
+    })
+    firstDocument
+      .getElementById('oes-crm-official-site-panel')
+      ?.shadowRoot
+      ?.querySelector<HTMLButtonElement>('[data-action="close"]')
+      ?.click()
+
+    const reloadedDocument = createDocument(currentUrl)
+    const result = await renderCrmOfficialSitePanelInCurrentDocument({
+      document: reloadedDocument,
+      resolvedPage,
+      tenantWebBaseUrl: 'http://localhost:5771'
+    })
+
+    expect(result).toEqual({ rendered: true, skipped: false })
+    expect(reloadedDocument.getElementById('oes-crm-official-site-panel')?.shadowRoot?.textContent).toContain('Swiss Madison')
+  })
+
   it('renders public ownership context for other-owned CRM pages without exposing account details', async () => {
     const document = createDocument('https://other-owned.example/')
 
@@ -574,6 +654,28 @@ describe('CRM official-site floating panel', () => {
     const refreshedHost = firstTab.getElementById('oes-crm-official-site-panel') as HTMLElement
     expect(refreshedHost.style.right).toBe('64px')
     expect(refreshedHost.style.bottom).toBe('74px')
+  })
+
+  it('keeps restored positions inside the current viewport when old storage is off-screen', async () => {
+    vi.stubGlobal('innerWidth', 390)
+    vi.stubGlobal('innerHeight', 640)
+    localStorage.setItem('oes-crm-official-site-panel-position:v1', JSON.stringify({
+      bottom: 2000,
+      right: 2000
+    }))
+    const document = createDocument('https://swissmadison.com/')
+
+    await renderCrmOfficialSitePanelInCurrentDocument({
+      document,
+      resolvedPage: createResolvedPage('swissmadison.com', 'Swiss Madison'),
+      tenantWebBaseUrl: 'http://localhost:5771'
+    })
+
+    const host = document.getElementById('oes-crm-official-site-panel') as HTMLElement
+    expect(Number.parseFloat(host.style.right)).toBeLessThanOrEqual(342)
+    expect(Number.parseFloat(host.style.bottom)).toBeLessThanOrEqual(592)
+    expect(Number.parseFloat(host.style.right)).toBeGreaterThanOrEqual(12)
+    expect(Number.parseFloat(host.style.bottom)).toBeGreaterThanOrEqual(12)
   })
 
   it('keeps the minimized floating pill draggable without restoring the full panel', async () => {

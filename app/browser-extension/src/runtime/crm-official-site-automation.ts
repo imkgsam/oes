@@ -38,7 +38,21 @@ export interface CrmOfficialSiteTabSnapshot {
   url?: string
 }
 
+export interface CrmOfficialSiteRenderOptions {
+  reopenClosedPanel?: boolean
+}
+
+// Identifies the official-site floating panel pipeline phase that produced a user-visible failure.
+export type CrmOfficialSitePanelFailurePhase =
+  | 'COLLECT_SIGNALS'
+  | 'RESOLVE_PAGE_CONTEXT'
+  | 'RENDER_PANEL'
+  | 'CLEAR_PANEL'
+
+// Captures whether one tab rendered, skipped for a normal reason, or failed with diagnostics.
 export interface CrmOfficialSitePanelOutcome {
+  error?: string
+  failurePhase?: CrmOfficialSitePanelFailurePhase
   rendered: boolean
   skipped: boolean
 }
@@ -85,7 +99,10 @@ export function createCrmOfficialSiteAutomation(dependencies: CrmOfficialSiteAut
   })
 
   return {
-    renderTab: async (tab: CrmOfficialSiteTabSnapshot): Promise<CrmOfficialSitePanelOutcome> => {
+    renderTab: async (
+      tab: CrmOfficialSiteTabSnapshot,
+      options: CrmOfficialSiteRenderOptions = {}
+    ): Promise<CrmOfficialSitePanelOutcome> => {
       if (!tab.id || !isSupportedOfficialSiteUrl(tab.url)) {
         return { rendered: false, skipped: true }
       }
@@ -96,34 +113,53 @@ export function createCrmOfficialSiteAutomation(dependencies: CrmOfficialSiteAut
         return { rendered: false, skipped: true }
       }
 
+      let pageContext: ResolvePageContextRequest | null
       try {
         const [signalResult] = await executeScript({
           func: collectCurrentPageSignals as (...args: never[]) => unknown,
           target: { tabId: tab.id }
         })
-        const pageContext = toPageContextRequest(signalResult?.result)
-        if (!pageContext) {
-          await clearTabPanel(executeScript, tab.id)
-          return { rendered: false, skipped: true }
+        pageContext = toPageContextRequest(signalResult?.result)
+      } catch (caught) {
+        if (isChromeTabUnavailableError(caught)) {
+          return skipUnavailableTabAfterFailure(executeScript, tab.id)
         }
+        return clearAndReportFailure(executeScript, tab.id, caught, 'COLLECT_SIGNALS')
+      }
 
-        const resolvedPage = await api.resolvePageContext(pageContext)
-        if (!shouldRenderPanel(resolvedPage)) {
-          await clearTabPanel(executeScript, tab.id)
-          return { rendered: false, skipped: true }
-        }
-        const renderablePage = withOfficialSitePageFallbacks(resolvedPage, pageContext.page)
+      if (!pageContext) {
+        return clearOrReportUnsupportedPage(executeScript, tab.id)
+      }
 
+      let resolvedPage: unknown
+      try {
+        resolvedPage = await api.resolvePageContext(pageContext)
+      } catch (caught) {
+        return clearAndReportFailure(executeScript, tab.id, caught, 'RESOLVE_PAGE_CONTEXT')
+      }
+
+      if (!shouldRenderPanel(resolvedPage)) {
+        return clearOrReportUnsupportedPage(executeScript, tab.id)
+      }
+      const renderablePage = withOfficialSitePageFallbacks(resolvedPage, pageContext.page)
+
+      try {
         const [renderResult] = await executeScript({
-          args: [{ resolvedPage: renderablePage, tenantWebBaseUrl }],
+          args: [{
+            reopenClosedPanel: options.reopenClosedPanel === true,
+            resolvedPage: renderablePage,
+            tenantWebBaseUrl
+          }],
           func: renderCrmOfficialSitePanelInCurrentDocument as (...args: never[]) => unknown,
           target: { tabId: tab.id }
         })
 
         return extractPanelOutcome(renderResult?.result)
-      } catch {
-        await safeClearTabPanel(executeScript, tab.id)
-        return { rendered: false, skipped: true }
+      } catch (caught) {
+        if (isChromeTabUnavailableError(caught)) {
+          return skipUnavailableTabAfterFailure(executeScript, tab.id)
+        }
+        return clearAndReportFailure(executeScript, tab.id, caught, 'RENDER_PANEL')
       }
     },
     clearTab: async (tab: CrmOfficialSiteTabSnapshot): Promise<{ removedCount: number; skipped: boolean }> => {
@@ -137,6 +173,63 @@ export function createCrmOfficialSiteAutomation(dependencies: CrmOfficialSiteAut
   }
 }
 
+// Converts expected Chrome tab lifecycle races into a normal skipped render.
+async function skipUnavailableTabAfterFailure(
+  executeScript: ScriptExecution,
+  tabId: number
+): Promise<CrmOfficialSitePanelOutcome> {
+  try {
+    await safeClearTabPanel(executeScript, tabId)
+  } catch {
+    // Cleanup must not convert an already-closed tab into a user-visible failure.
+  }
+  return { rendered: false, skipped: true }
+}
+
+// Clears stale panel UI for unsupported pages while preserving real cleanup failures.
+async function clearOrReportUnsupportedPage(
+  executeScript: ScriptExecution,
+  tabId: number
+): Promise<CrmOfficialSitePanelOutcome> {
+  try {
+    await clearTabPanel(executeScript, tabId)
+    return { rendered: false, skipped: true }
+  } catch (caught) {
+    if (isChromeTabUnavailableError(caught)) {
+      return { rendered: false, skipped: true }
+    }
+    return failedPanelOutcome(caught, 'CLEAR_PANEL')
+  }
+}
+
+// Reports the original render pipeline failure after a best-effort panel cleanup.
+async function clearAndReportFailure(
+  executeScript: ScriptExecution,
+  tabId: number,
+  error: unknown,
+  phase: CrmOfficialSitePanelFailurePhase
+): Promise<CrmOfficialSitePanelOutcome> {
+  try {
+    await safeClearTabPanel(executeScript, tabId)
+  } catch {
+    // Keep the original failure visible; cleanup is secondary diagnostic context.
+  }
+  return failedPanelOutcome(error, phase)
+}
+
+// Builds the diagnostic outcome that the background runtime can aggregate and surface.
+function failedPanelOutcome(
+  error: unknown,
+  phase: CrmOfficialSitePanelFailurePhase
+): CrmOfficialSitePanelOutcome {
+  return {
+    error: toErrorMessage(error),
+    failurePhase: phase,
+    rendered: false,
+    skipped: false
+  }
+}
+
 function hasAuthSave(storage: Pick<AuthStorage, 'load'>): storage is Pick<AuthStorage, 'load' | 'save'> {
   return typeof (storage as Partial<AuthStorage>).save === 'function'
 }
@@ -147,21 +240,6 @@ async function executeChromeScript(options: {
   target: { tabId: number }
 }): Promise<Array<{ result?: unknown }>> {
   return chrome.scripting.executeScript(options)
-}
-
-async function isCrmWorkspaceEnabled(
-  session: StoredAuthSession | null,
-  workspacePreferences: Pick<WorkspacePreferenceStore, 'isEnabled'>
-): Promise<boolean> {
-  if (!session?.accessToken) {
-    return false
-  }
-
-  return workspacePreferences.isEnabled({
-    accountId: session.context?.account?.accountId,
-    tenantId: session.context?.tenant?.tenantId,
-    workspaceKey: CRM_WORKSPACE_KEY
-  })
 }
 
 async function isCrmFloatingPanelEnabled(
@@ -179,7 +257,7 @@ async function isCrmFloatingPanelEnabled(
     workspaceKey: CRM_WORKSPACE_KEY
   }
   const panelEnabled = await workspacePreferences.getPanelEnabled?.(identity)
-  return panelEnabled === true && await isCrmWorkspaceEnabled(session, workspacePreferences)
+  return panelEnabled === true
 }
 
 function toPageContextRequest(value: unknown): ResolvePageContextRequest | null {
@@ -281,4 +359,8 @@ function extractPanelOutcome(value: unknown): CrmOfficialSitePanelOutcome {
   }
 
   return { rendered: false, skipped: true }
+}
+
+function toErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error || 'CRM floating panel failed')
 }

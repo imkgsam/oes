@@ -2,6 +2,7 @@ import type { ExtensionCrmResolvedPage } from '../side-panel/crm-types'
 
 export interface RenderCrmOfficialSitePanelInput {
   document?: Document
+  reopenClosedPanel?: boolean
   resolvedPage: ExtensionCrmResolvedPage
   tenantWebBaseUrl: string
 }
@@ -15,6 +16,7 @@ export async function renderCrmOfficialSitePanelInCurrentDocument(input: RenderC
   const pageDocument = input.document ?? globalThis.document
   const resolvedPage = input.resolvedPage
   const hostId = 'oes-crm-official-site-panel'
+  const closeMarkerId = 'oes-crm-official-site-panel-close-marker'
   const panelPositionStorageKey = 'oes-crm-official-site-panel-position:v1'
 
   function text(value: unknown): string {
@@ -40,7 +42,7 @@ export async function renderCrmOfficialSitePanelInCurrentDocument(input: RenderC
     ))
   }
 
-  // Builds the per-domain key that suppresses future panel renders after an explicit close.
+  // Builds the same-tab key that suppresses immediate re-renders after an explicit close.
   function closedStorageKey(): string {
     const pageTarget = normalizeClosedPageTarget(resolvedPage.url || pageDocument.location?.href)
     if (pageTarget) {
@@ -49,6 +51,27 @@ export async function renderCrmOfficialSitePanelInCurrentDocument(input: RenderC
 
     const fallback = text(resolvedPage.domain || resolvedPage.matchedAccount?.crmAccountId || 'unknown')
     return `oes-crm-panel-closed:record:${fallback}`
+  }
+
+  // Checks a current-document close marker so page reloads naturally reopen eligible panels.
+  function isClosedInCurrentDocument(key: string): boolean {
+    return pageDocument.getElementById(closeMarkerId)?.getAttribute('data-oes-closed-key') === key
+  }
+
+  // Marks only the current DOM document as explicitly closed without persisting across reloads.
+  function markClosedInCurrentDocument(key: string): void {
+    pageDocument.getElementById(closeMarkerId)?.remove()
+    const marker = pageDocument.createElement('span')
+    marker.id = closeMarkerId
+    marker.hidden = true
+    marker.setAttribute('aria-hidden', 'true')
+    marker.setAttribute('data-oes-closed-key', key)
+    pageDocument.body?.appendChild(marker)
+  }
+
+  // Clears the current-document close marker when a user explicitly asks to reopen the panel.
+  function clearClosedInCurrentDocument(): void {
+    pageDocument.getElementById(closeMarkerId)?.remove()
   }
 
   // Normalizes explicit close state to the current page path instead of suppressing an entire customer domain.
@@ -145,9 +168,13 @@ export async function renderCrmOfficialSitePanelInCurrentDocument(input: RenderC
     if (!Number.isFinite(right) || !Number.isFinite(bottom)) {
       return null
     }
+    const viewportWidth = Number(globalThis.innerWidth)
+    const viewportHeight = Number(globalThis.innerHeight)
+    const maxRight = Number.isFinite(viewportWidth) ? Math.max(12, viewportWidth - 48) : Number.POSITIVE_INFINITY
+    const maxBottom = Number.isFinite(viewportHeight) ? Math.max(12, viewportHeight - 48) : Number.POSITIVE_INFINITY
     return {
-      bottom: Math.max(12, bottom),
-      right: Math.max(12, right)
+      bottom: Math.min(Math.max(12, bottom), maxBottom),
+      right: Math.min(Math.max(12, right), maxRight)
     }
   }
 
@@ -334,7 +361,10 @@ export async function renderCrmOfficialSitePanelInCurrentDocument(input: RenderC
   }
 
   const closedKey = closedStorageKey()
-  if ((await readStorageValue<boolean>(closedKey)) === true || readLegacySessionValue(closedKey) === '1') {
+  if (input.reopenClosedPanel) {
+    clearClosedInCurrentDocument()
+  }
+  if (!input.reopenClosedPanel && isClosedInCurrentDocument(closedKey)) {
     pageDocument.getElementById(hostId)?.remove()
     return { rendered: false, skipped: true }
   }
@@ -773,8 +803,7 @@ export async function renderCrmOfficialSitePanelInCurrentDocument(input: RenderC
     void writeStorageValue(minimizedKey, false)
   })
   close?.addEventListener('click', () => {
-    writeLegacySessionValue(closedKey, '1')
-    void writeStorageValue(closedKey, true)
+    markClosedInCurrentDocument(closedKey)
     host.remove()
   })
   if (handle) {

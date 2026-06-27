@@ -81,6 +81,24 @@ describe('CrmWorkspaceApp operation console', () => {
     expect(stored.drafts[0].fields.country).toBe('ES')
   })
 
+  it('does not hard-delete a locally cached active draft after its OES record is no longer DRAFT', async () => {
+    seedAuthenticatedSession()
+    seedActiveDraft({
+      draftId: 'converted-lead-1',
+      oesRecordStatus: 'ACTIVE'
+    })
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    const root = mountCrmWorkspace()
+    await flush()
+    clickButton(root, '丢弃')
+    await flush()
+
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(JSON.parse(localStorage.getItem(buildCrmLeadDraftStorageKey(identity)) || '{}').drafts ?? []).toEqual([])
+  })
+
   it('loads the draft inbox from OES instead of local saved drafts', async () => {
     seedAuthenticatedSession()
     seedWorkspaceEnabled()
@@ -225,6 +243,42 @@ describe('CrmWorkspaceApp operation console', () => {
     expect(root.textContent).toContain('暂无 OES 草稿')
   })
 
+  it('does not expose hard-delete actions for non-draft accounts returned to the draft inbox', async () => {
+    seedAuthenticatedSession()
+    seedWorkspaceEnabled()
+    const fetchMock = mockFetchSequence([
+      {
+        data: {
+          crmAccounts: [
+            {
+              crmAccountId: 'active-lead-1',
+              displayName: 'Converted Lead',
+              leadDomain: 'converted.example',
+              lifecycleStage: 'LEAD',
+              recordStatus: 'ACTIVE'
+            }
+          ],
+          page: 1,
+          pageSize: 50,
+          total: 1
+        },
+        success: true
+      }
+    ])
+    vi.stubGlobal('fetch', fetchMock)
+
+    const root = mountCrmWorkspace()
+    await flush()
+    clickButton(root, '草稿')
+    await flush()
+
+    expect(root.textContent).toContain('暂无 OES 草稿')
+    expect(root.textContent).not.toContain('Converted Lead')
+    expect(fetchMock.mock.calls.map(([url, init]) => [url, init.method])).toEqual([
+      ['http://localhost:9101/api/v1/customer-management/tenants/tenant-1/crm-accounts?createdBy=account-1&page=1&pageSize=50&recordStatus=DRAFT', 'GET']
+    ])
+  })
+
   it('blocks duplicate captures without exposing CRM duplicate details', async () => {
     seedAuthenticatedSession()
     seedDraftBucket({
@@ -356,11 +410,12 @@ function buildDraft(input: Partial<CrmLeadDraft> & {
   companyName?: string
   displayName?: string
   domain?: string
+  oesRecordStatus?: string
 }): CrmLeadDraft {
   const draftId = input.draftId ?? 'draft-1'
   const companyName = input.companyName ?? input.displayName ?? 'Serrano Fixtures'
   const domain = input.domain ?? 'serrano.example'
-  return {
+  const draft: CrmLeadDraft = {
     capture: {
       ...baseCapture,
       companyNameCandidates: [companyName],
@@ -384,6 +439,16 @@ function buildDraft(input: Partial<CrmLeadDraft> & {
     savedAt: input.savedAt,
     updatedAt: input.updatedAt ?? '2026-06-23T08:00:01.000Z'
   }
+  if (input.oesRecordStatus) {
+    draft.oesDraft = {
+      crmAccountId: draftId,
+      displayName: companyName,
+      leadDomain: domain,
+      lifecycleStage: 'LEAD',
+      recordStatus: input.oesRecordStatus
+    }
+  }
+  return draft
 }
 
 function clickButton(root: HTMLElement, label: string): void {
@@ -416,6 +481,7 @@ function seedActiveDraft(input: {
   companyName?: string
   domain?: string
   draftId?: string
+  oesRecordStatus?: string
 } = {}): void {
   seedDraftBucket({
     activeDraftId: input.draftId ?? 'draft-1',
@@ -423,7 +489,8 @@ function seedActiveDraft(input: {
       buildDraft({
         companyName: input.companyName,
         domain: input.domain,
-        draftId: input.draftId ?? 'draft-1'
+        draftId: input.draftId ?? 'draft-1',
+        oesRecordStatus: input.oesRecordStatus
       })
     ]
   })

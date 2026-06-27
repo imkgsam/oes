@@ -45,6 +45,7 @@ describe('background floating panel capability boundary', () => {
       url: 'https://lead.example/'
     })
     chromeMock.scripting.executeScript
+      .mockResolvedValueOnce([{ result: { removedCount: 0 } }])
       .mockResolvedValueOnce([
         {
           result: {
@@ -100,7 +101,271 @@ describe('background floating panel capability boundary', () => {
       })
     )
   })
+
+  it('returns a runtime error and rolls back the preference when every floating-panel render fails', async () => {
+    const chromeMock = createChromeMock()
+    chromeMock.tabs.query.mockImplementation(async (query) => {
+      if (query?.active) {
+        return [{ id: 7, url: 'https://lead.example/', windowId: 11 }]
+      }
+      return [{ id: 12, url: 'https://lead.example/', windowId: 11 }]
+    })
+    chromeMock.scripting.executeScript
+      .mockResolvedValueOnce([{ result: { removedCount: 1 } }])
+      .mockResolvedValueOnce([
+        {
+          result: {
+            page: {
+              capturedAt: '2026-06-24T00:00:00.000Z',
+              companyNameCandidates: ['Lead Example'],
+              domain: 'lead.example',
+              pageKind: 'OFFICIAL_SITE',
+              selectedText: '',
+              socialLinks: [],
+              title: 'Lead Example',
+              url: 'https://lead.example/',
+              visibleEmails: [],
+              visiblePhones: []
+            }
+          }
+        }
+      ])
+      .mockResolvedValueOnce([{ result: { removedCount: 1 } }])
+    vi.stubGlobal('chrome', chromeMock)
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('CRM resolver unavailable')))
+
+    await import('./background')
+
+    await expect(sendRuntimeMessage(chromeMock, {
+      enabled: true,
+      type: SET_CRM_FLOATING_PANEL_ENABLED_MESSAGE
+    })).resolves.toEqual({
+      error: 'CRM resolver unavailable'
+    })
+    expect(chromeMock.storage.local.set).toHaveBeenLastCalledWith({
+      'workspace-panel-enabled:tenant-1:account-1:extension.crm.workspace:crm-floating-panel': false
+    })
+  })
+
+  it('reopens current-document closed panels when the user enables the floating panel', async () => {
+    const chromeMock = createChromeMock()
+    chromeMock.tabs.query.mockImplementation(async (query) => {
+      if (query?.active) {
+        return [{ id: 7, url: 'https://swissmadison.com/', windowId: 11 }]
+      }
+      return [{ id: 12, url: 'https://swissmadison.com/', windowId: 11 }]
+    })
+    chromeMock.scripting.executeScript
+      .mockResolvedValueOnce([{ result: { removedCount: 0 } }])
+      .mockResolvedValueOnce([
+        {
+          result: {
+            page: {
+              capturedAt: '2026-06-24T00:00:00.000Z',
+              companyNameCandidates: ['Swiss Madison'],
+              domain: 'swissmadison.com',
+              pageKind: 'OFFICIAL_SITE',
+              selectedText: '',
+              socialLinks: [],
+              title: 'Swiss Madison',
+              url: 'https://swissmadison.com/',
+              visibleEmails: [],
+              visiblePhones: []
+            }
+          }
+        }
+      ])
+      .mockResolvedValueOnce([{ result: { rendered: true, skipped: false } }])
+    vi.stubGlobal('chrome', chromeMock)
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      data: {
+        allowedActions: ['CLAIM_POOL_LEAD', 'OPEN_OES_DETAIL'],
+        matchedAccount: {
+          crmAccountId: 'crm-swiss-1',
+          displayName: 'Swiss Madison',
+          lifecycleStage: 'PROSPECT_CUSTOMER',
+          ownerKind: 'POOL',
+          recordStatus: 'ACTIVE'
+        },
+        status: 'POOL_LEAD'
+      },
+      success: true
+    }))))
+
+    await import('./background')
+    await expect(sendRuntimeMessage(chromeMock, {
+      enabled: true,
+      type: SET_CRM_FLOATING_PANEL_ENABLED_MESSAGE
+    })).resolves.toEqual({
+      data: {
+        failedCount: 0,
+        failures: [],
+        renderedCount: 1,
+        skippedCount: 0
+      },
+      ok: true
+    })
+
+    expect(chromeMock.scripting.executeScript).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        args: [
+          expect.objectContaining({
+            reopenClosedPanel: true,
+            resolvedPage: expect.objectContaining({ status: 'POOL_LEAD' })
+          })
+        ],
+        target: { tabId: 12 }
+      })
+    )
+  })
+
+  it('clears legacy page localStorage close markers before reopening a floating panel', async () => {
+    const localStorageMock = createMemoryStorage()
+    const sessionStorageMock = createMemoryStorage()
+    vi.stubGlobal('localStorage', localStorageMock)
+    vi.stubGlobal('sessionStorage', sessionStorageMock)
+    const closedKey = 'oes-crm-panel-closed:page:swissmadison.com/'
+    const minimizedKey = 'oes-crm-panel-minimized:swissmadison.com'
+    localStorageMock.setItem(closedKey, JSON.stringify(true))
+    localStorageMock.setItem(minimizedKey, JSON.stringify(true))
+    sessionStorageMock.setItem(closedKey, '1')
+    sessionStorageMock.setItem(minimizedKey, '1')
+    const chromeMock = createChromeMock()
+    chromeMock.tabs.query.mockImplementation(async (query) => {
+      if (query?.active) {
+        return [{ id: 7, url: 'https://swissmadison.com/', windowId: 11 }]
+      }
+      return [{ id: 12, url: 'https://swissmadison.com/', windowId: 11 }]
+    })
+    chromeMock.scripting.executeScript
+      .mockResolvedValueOnce([{ result: { removedCount: 0 } }])
+      .mockResolvedValueOnce([
+        {
+          result: {
+            page: {
+              capturedAt: '2026-06-24T00:00:00.000Z',
+              companyNameCandidates: ['Swiss Madison'],
+              domain: 'swissmadison.com',
+              pageKind: 'OFFICIAL_SITE',
+              selectedText: '',
+              socialLinks: [],
+              title: 'Swiss Madison',
+              url: 'https://swissmadison.com/',
+              visibleEmails: [],
+              visiblePhones: []
+            }
+          }
+        }
+      ])
+      .mockResolvedValueOnce([{ result: { rendered: true, skipped: false } }])
+    vi.stubGlobal('chrome', chromeMock)
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      data: {
+        allowedActions: ['CLAIM_POOL_LEAD', 'OPEN_OES_DETAIL'],
+        matchedAccount: {
+          crmAccountId: 'crm-swiss-1',
+          displayName: 'Swiss Madison',
+          lifecycleStage: 'PROSPECT_CUSTOMER',
+          ownerKind: 'POOL',
+          recordStatus: 'ACTIVE'
+        },
+        status: 'POOL_LEAD'
+      },
+      success: true
+    }))))
+
+    await import('./background')
+    await sendRuntimeMessage(chromeMock, {
+      enabled: true,
+      type: SET_CRM_FLOATING_PANEL_ENABLED_MESSAGE
+    })
+    const cleanupCall = chromeMock.scripting.executeScript.mock.calls[0]?.[0]
+    expect(cleanupCall?.func.name).toBe('clearLegacyPanelCloseState')
+    cleanupCall?.func(...(cleanupCall.args ?? []))
+
+    expect(sessionStorageMock.getItem(closedKey)).toBeNull()
+    expect(localStorageMock.getItem(closedKey)).toBeNull()
+    expect(sessionStorageMock.getItem(minimizedKey)).toBeNull()
+    expect(localStorageMock.getItem(minimizedKey)).toBeNull()
+  })
+
+  it('clears legacy page localStorage close markers during automatic official-site rendering', async () => {
+    vi.useFakeTimers()
+    const localStorageMock = createMemoryStorage()
+    const sessionStorageMock = createMemoryStorage()
+    vi.stubGlobal('localStorage', localStorageMock)
+    vi.stubGlobal('sessionStorage', sessionStorageMock)
+    const closedKey = 'oes-crm-panel-closed:page:swissmadison.com/'
+    localStorageMock.setItem(closedKey, JSON.stringify(true))
+    sessionStorageMock.setItem(closedKey, '1')
+    const chromeMock = createChromeMock()
+    chromeMock.tabs.get.mockResolvedValue({
+      id: 12,
+      status: 'complete',
+      url: 'https://swissmadison.com/'
+    })
+    chromeMock.scripting.executeScript
+      .mockResolvedValueOnce([{ result: { removedCount: 0 } }])
+      .mockResolvedValueOnce([
+        {
+          result: {
+            page: {
+              capturedAt: '2026-06-24T00:00:00.000Z',
+              companyNameCandidates: ['Swiss Madison'],
+              domain: 'swissmadison.com',
+              pageKind: 'OFFICIAL_SITE',
+              selectedText: '',
+              socialLinks: [],
+              title: 'Swiss Madison',
+              url: 'https://swissmadison.com/',
+              visibleEmails: [],
+              visiblePhones: []
+            }
+          }
+        }
+      ])
+      .mockResolvedValueOnce([{ result: { rendered: true, skipped: false } }])
+    vi.stubGlobal('chrome', chromeMock)
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      data: {
+        allowedActions: ['CLAIM_POOL_LEAD', 'OPEN_OES_DETAIL'],
+        matchedAccount: {
+          crmAccountId: 'crm-swiss-1',
+          displayName: 'Swiss Madison',
+          lifecycleStage: 'PROSPECT_CUSTOMER',
+          ownerKind: 'POOL',
+          recordStatus: 'ACTIVE'
+        },
+        status: 'POOL_LEAD'
+      },
+      success: true
+    }))))
+
+    await import('./background')
+    chromeMock.__sendTabUpdated(12, { url: 'https://swissmadison.com/' }, { id: 12, status: 'loading' })
+    await vi.advanceTimersByTimeAsync(1_200)
+    const cleanupCall = chromeMock.scripting.executeScript.mock.calls[0]?.[0]
+    expect(cleanupCall?.func.name).toBe('clearLegacyPanelCloseState')
+    cleanupCall?.func(...(cleanupCall.args ?? []))
+
+    expect(sessionStorageMock.getItem(closedKey)).toBeNull()
+    expect(localStorageMock.getItem(closedKey)).toBeNull()
+  })
 })
+
+function createMemoryStorage() {
+  const values = new Map<string, string>()
+  return {
+    clear: vi.fn(() => values.clear()),
+    getItem: vi.fn((key: string) => values.get(key) ?? null),
+    removeItem: vi.fn((key: string) => {
+      values.delete(key)
+    }),
+    setItem: vi.fn((key: string, value: string) => {
+      values.set(key, value)
+    })
+  }
+}
 
 function createChromeMock() {
   let runtimeListener: ((message: unknown, sender: unknown, sendResponse: (response: unknown) => void) => boolean) | undefined

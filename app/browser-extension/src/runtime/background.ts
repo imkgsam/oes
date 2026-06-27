@@ -1,6 +1,11 @@
 import { collectCurrentPageSignals } from './page-signals'
 import { createCrmSearchPageAutomation } from './crm-search-automation'
-import { createCrmOfficialSiteAutomation } from './crm-official-site-automation'
+import {
+  createCrmOfficialSiteAutomation,
+  type CrmOfficialSiteRenderOptions,
+  type CrmOfficialSitePanelFailurePhase,
+  type CrmOfficialSitePanelOutcome
+} from './crm-official-site-automation'
 import {
   annotateCrmSearchTabAfterActivation,
   renderCrmOfficialSitePanelAfterActivation
@@ -59,6 +64,22 @@ registerBrowserActivityLifecycleEvents(browserActivityRuntime, undefined, runBac
 })
 const workspacePreferences = new WorkspacePreferenceStore()
 const crmLeadDraftStore = new CrmLeadDraftStore()
+
+// Describes one tab-level floating-panel render failure for popup diagnostics.
+interface FloatingPanelRenderFailure {
+  error: string
+  failurePhase?: CrmOfficialSitePanelFailurePhase
+  tabId?: number
+  url?: string
+}
+
+// Summarizes one global floating-panel refresh across all browser tabs.
+interface FloatingPanelRenderSummary {
+  failedCount: number
+  failures: FloatingPanelRenderFailure[]
+  renderedCount: number
+  skippedCount: number
+}
 const deferredSearchUpdateScheduler = createDeferredTabTaskScheduler<chrome.tabs.Tab>({
   runTask: (tab) => {
     runBackgroundTask(annotateCrmSearchTab(tab))
@@ -221,14 +242,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.type === SET_CRM_FLOATING_PANEL_ENABLED_MESSAGE) {
     void setCrmFloatingPanelEnabled(message.enabled)
-      .then(() => sendResponse({ ok: true }))
+      .then((data) => sendResponse({ data, ok: true }))
       .catch((error) => sendResponse({ error: toErrorMessage(error) }))
     return true
   }
 
   if (message.type === SHOW_CRM_FLOATING_PANEL_MESSAGE) {
     void showActiveCrmOfficialSitePanel()
-      .then(() => sendResponse({ ok: true }))
+      .then((data) => sendResponse({ data, ok: true }))
       .catch((error) => sendResponse({ error: toErrorMessage(error) }))
     return true
   }
@@ -298,19 +319,29 @@ async function setCrmSidePanelEnabled(enabled: boolean): Promise<void> {
   }
 }
 
-async function setCrmFloatingPanelEnabled(enabled: boolean): Promise<void> {
-  await savePanelPreference(CRM_FLOATING_PANEL_PREFERENCE_KEY, enabled)
-  if (enabled) {
-    await clearStoredFloatingPanelCloseState()
-    await renderAllCrmOfficialSitePanels({ reopenClosedPanels: true })
-    return
+async function setCrmFloatingPanelEnabled(enabled: boolean): Promise<FloatingPanelRenderSummary | undefined> {
+  if (!enabled) {
+    await savePanelPreference(CRM_FLOATING_PANEL_PREFERENCE_KEY, false)
+    await clearAllCrmOfficialSitePanels()
+    return undefined
   }
 
-  await clearAllCrmOfficialSitePanels()
+  await savePanelPreference(CRM_FLOATING_PANEL_PREFERENCE_KEY, true)
+  try {
+    await clearStoredFloatingPanelCloseState()
+    const summary = await renderAllCrmOfficialSitePanels({ reopenClosedPanels: true })
+    if (summary.failedCount > 0 && summary.renderedCount === 0) {
+      throw new Error(summary.failures[0]?.error || 'CRM floating panel render failed')
+    }
+    return summary
+  } catch (caught) {
+    await savePanelPreference(CRM_FLOATING_PANEL_PREFERENCE_KEY, false)
+    throw caught
+  }
 }
 
-// Reopens the floating panel on the active site by clearing its explicit close marker first.
-async function showActiveCrmOfficialSitePanel(): Promise<void> {
+// Reopens the floating panel on the active site by clearing explicit close markers first.
+async function showActiveCrmOfficialSitePanel(): Promise<CrmOfficialSitePanelOutcome> {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
   if (!tab?.id) {
     throw new Error('Active tab is unavailable')
@@ -327,7 +358,11 @@ async function showActiveCrmOfficialSitePanel(): Promise<void> {
   }
 
   await setCrmFloatingPanelPreference(true)
-  await renderCrmOfficialSitePanel(tab)
+  const outcome = await renderCrmOfficialSitePanel(tab, { reopenClosedPanel: true })
+  if (!outcome.rendered) {
+    throw new Error(outcome.error || '当前页面未显示 Floating Panel：页面可能未被识别为 CRM 官网，或页面脚本注入被浏览器拦截。')
+  }
+  return outcome
 }
 
 // Persists one workspace-owned panel preference for the signed-in browser-extension account.
@@ -379,7 +414,9 @@ function resolveClosedPanelStorageKeys(rawUrl: string | undefined): string[] {
       `oes-crm-panel-closed:record:${hostname}`,
       `oes-crm-panel-closed:record:${normalized}`,
       `oes-crm-panel-closed:${hostname}`,
-      `oes-crm-panel-closed:${normalized}`
+      `oes-crm-panel-closed:${normalized}`,
+      `oes-crm-panel-minimized:${hostname}`,
+      `oes-crm-panel-minimized:${normalized}`
     ]))
   } catch {
     return []
@@ -400,6 +437,7 @@ function clearLegacyPanelCloseState(keys: string[]): void {
   try {
     for (const key of keys) {
       globalThis.sessionStorage?.removeItem(key)
+      globalThis.localStorage?.removeItem(key)
     }
   } catch {
     // Page storage can be unavailable in privacy-restricted contexts.
@@ -497,21 +535,56 @@ async function renderActiveCrmOfficialSitePanel(): Promise<void> {
   await renderCrmOfficialSitePanel(tab)
 }
 
-async function renderCrmOfficialSitePanel(tab?: chrome.tabs.Tab) {
+async function renderCrmOfficialSitePanel(tab?: chrome.tabs.Tab, options: CrmOfficialSiteRenderOptions = {}) {
+  await clearLegacyFloatingPanelCloseState(tab)
   return crmOfficialSiteAutomation.renderTab({
     id: tab?.id,
     url: tab?.url
-  })
+  }, options)
 }
 
-async function renderAllCrmOfficialSitePanels(options: { reopenClosedPanels?: boolean } = {}): Promise<void> {
+async function renderAllCrmOfficialSitePanels(
+  options: { reopenClosedPanels?: boolean } = {}
+): Promise<FloatingPanelRenderSummary> {
   const tabs = await chrome.tabs.query({})
-  await Promise.all(tabs.map(async (tab) => {
-    if (options.reopenClosedPanels) {
-      await clearLegacyFloatingPanelCloseState(tab)
+  const outcomes = await Promise.all(tabs.map(async (tab) => {
+    return {
+      outcome: await renderCrmOfficialSitePanel(tab, {
+        reopenClosedPanel: options.reopenClosedPanels === true
+      }),
+      tab
     }
-    await renderCrmOfficialSitePanel(tab)
   }))
+  return summarizeFloatingPanelRender(outcomes)
+}
+
+// Aggregates per-tab render outcomes without treating unsupported pages as failures.
+function summarizeFloatingPanelRender(
+  outcomes: Array<{ outcome: CrmOfficialSitePanelOutcome; tab: chrome.tabs.Tab }>
+): FloatingPanelRenderSummary {
+  return outcomes.reduce<FloatingPanelRenderSummary>((summary, { outcome, tab }) => {
+    if (outcome.rendered) {
+      summary.renderedCount += 1
+    }
+    if (outcome.skipped) {
+      summary.skippedCount += 1
+    }
+    if (outcome.error) {
+      summary.failedCount += 1
+      summary.failures.push({
+        error: outcome.error,
+        failurePhase: outcome.failurePhase,
+        tabId: tab.id,
+        url: tab.url
+      })
+    }
+    return summary
+  }, {
+    failedCount: 0,
+    failures: [],
+    renderedCount: 0,
+    skippedCount: 0
+  })
 }
 
 async function clearActiveCrmSearchPageAnnotations(): Promise<void> {

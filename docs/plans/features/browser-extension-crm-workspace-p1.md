@@ -325,3 +325,12 @@ The implementation plan should not ask product questions about internal code str
 - existing `src/services/api-gateway/src/modules/crm-service` CRM adapters and DTO mapping.
 - existing `src/services/system/permission-service` navigation seed patterns.
 - existing CRM P1 service contract and tests.
+
+## 13. Deferred Debug Reminder
+
+下次继续浏览器插件开发时，优先恢复以下未决问题，不要把它当作已解决：
+
+- Swiss Madison official site 上 CRM floating panel 仍未在用户真机中出现；Google Search 结果页可以正确标注 Swiss Madison / PC，因此当前证据更像 official-site FP 渲染链路问题，而不是 CRM 后端识别问题。
+- 已验证过的后端证据：`/extension/crm/page-context/resolve` 对 `https://swissmadison.com/collections/psc-console-sinks` 能返回 Swiss Madison 相关匹配结果。
+- 已尝试过的修复方向：FP close/minimized 状态清理、panel preference 独立于 search-tags runtime、offscreen position clamp、popup 增加“显示当前页”入口、draft hard-delete guard 修复。
+- 下次恢复时应先完成真实浏览器加载 unpacked extension 的 E2E 复现，观察 background runtime 返回的失败阶段：`COLLECT_SIGNALS`、`RESOLVE_PAGE_CONTEXT`、`RENDER_PANEL` 或页面内 host 已存在但不可见。不要继续靠猜测修改多个无关文件。

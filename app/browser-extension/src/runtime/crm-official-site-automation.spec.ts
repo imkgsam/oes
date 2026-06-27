@@ -84,6 +84,73 @@ describe('CRM official-site automation', () => {
     )
   })
 
+  it('renders the floating panel from its own panel preference without requiring search CRM tags to be enabled', async () => {
+    const executeScript = vi.fn()
+      .mockResolvedValueOnce([
+        {
+          result: {
+            page: {
+              capturedAt: '2026-06-24T00:00:00.000Z',
+              companyNameCandidates: ['Swiss Madison'],
+              domain: 'swissmadison.com',
+              pageKind: 'OFFICIAL_SITE',
+              selectedText: '',
+              socialLinks: [],
+              title: 'Swiss Madison',
+              url: 'https://swissmadison.com/',
+              visibleEmails: [],
+              visiblePhones: []
+            }
+          }
+        }
+      ])
+      .mockResolvedValueOnce([{ result: { rendered: true, skipped: false } }])
+    const api = {
+      resolvePageContext: vi.fn().mockResolvedValue({
+        allowedActions: ['CLAIM_POOL_LEAD', 'OPEN_OES_DETAIL'],
+        matchedAccount: {
+          crmAccountId: 'crm-swiss-1',
+          displayName: 'Swiss Madison',
+          lifecycleStage: 'PROSPECT_CUSTOMER',
+          ownerKind: 'POOL',
+          recordStatus: 'ACTIVE'
+        },
+        status: 'POOL_LEAD'
+      })
+    }
+
+    const automation = createCrmOfficialSiteAutomation({
+      api,
+      authStorage: {
+        load: vi.fn().mockResolvedValue({
+          accessToken: 'access-token-1',
+          context: { account: { accountId: 'acc-1' }, tenant: { tenantId: 'tenant-1' } }
+        })
+      },
+      executeScript,
+      tenantWebBaseUrl: 'http://localhost:5771',
+      workspacePreferences: {
+        getPanelEnabled: vi.fn().mockResolvedValue(true),
+        isEnabled: vi.fn().mockResolvedValue(false)
+      }
+    })
+
+    await expect(
+      automation.renderTab({ id: 9, url: 'https://swissmadison.com/' })
+    ).resolves.toEqual({ rendered: true, skipped: false })
+    expect(api.resolvePageContext).toHaveBeenCalled()
+    expect(executeScript).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        args: [
+          expect.objectContaining({
+            resolvedPage: expect.objectContaining({ status: 'POOL_LEAD' })
+          })
+        ],
+        target: { tabId: 9 }
+      })
+    )
+  })
+
   it('uses the live official-site URL and domain when rendering a matched Swiss Madison collection page', async () => {
     const currentUrl = 'https://swissmadison.com/collections/psc-console-sinks?srsltid=AfmBOoq5aiPA59jPDeL2CUQoJ_bTK044XsMEo9uxBB1NmV8j-L1UuHre'
     const executeScript = vi.fn()
@@ -327,6 +394,54 @@ describe('CRM official-site automation', () => {
 
     expect(api.resolvePageContext).not.toHaveBeenCalled()
     expect(executeScript).toHaveBeenCalledTimes(2)
+  })
+
+  it('reports resolver failures instead of treating them as an unsupported tab', async () => {
+    const executeScript = vi.fn()
+      .mockResolvedValueOnce([
+        {
+          result: {
+            page: {
+              capturedAt: '2026-06-24T00:00:00.000Z',
+              companyNameCandidates: ['Swiss Madison'],
+              domain: 'swissmadison.com',
+              pageKind: 'OFFICIAL_SITE',
+              selectedText: '',
+              socialLinks: [],
+              title: 'Swiss Madison',
+              url: 'https://swissmadison.com/',
+              visibleEmails: [],
+              visiblePhones: []
+            }
+          }
+        }
+      ])
+      .mockResolvedValueOnce([{ result: { removedCount: 1 } }])
+    const api = {
+      resolvePageContext: vi.fn().mockRejectedValue(new Error('CRM resolver unavailable'))
+    }
+    const automation = createCrmOfficialSiteAutomation({
+      api,
+      authStorage: {
+        load: vi.fn().mockResolvedValue({
+          accessToken: 'access-token-1',
+          context: { account: { accountId: 'acc-1' }, tenant: { tenantId: 'tenant-1' } }
+        })
+      },
+      executeScript,
+      workspacePreferences: {
+        getPanelEnabled: vi.fn().mockResolvedValue(true),
+        isEnabled: vi.fn().mockResolvedValue(true)
+      }
+    })
+
+    await expect(automation.renderTab({ id: 10, url: 'https://swissmadison.com/' })).resolves.toEqual({
+      error: 'CRM resolver unavailable',
+      failurePhase: 'RESOLVE_PAGE_CONTEXT',
+      rendered: false,
+      skipped: false
+    })
+    expect(executeScript.mock.calls[1]?.[0].func.name).toBe('clearCrmOfficialSitePanelInCurrentDocument')
   })
 
   it('clears the panel instead of rendering when the official site is not in CRM', async () => {

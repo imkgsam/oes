@@ -23,7 +23,8 @@ import {
 import {
   SET_CRM_FLOATING_PANEL_ENABLED_MESSAGE,
   SET_CRM_SIDE_PANEL_ENABLED_MESSAGE,
-  SET_CRM_WORKSPACE_RUNTIME_ENABLED_MESSAGE
+  SET_CRM_WORKSPACE_RUNTIME_ENABLED_MESSAGE,
+  SHOW_CRM_FLOATING_PANEL_MESSAGE
 } from '../runtime/messages'
 
 describe('PopupApp display helpers', () => {
@@ -497,6 +498,62 @@ describe('PopupApp display helpers', () => {
       type: SET_CRM_FLOATING_PANEL_ENABLED_MESSAGE
     })
     expect(getButtonByText(root, 'Floating Panel')?.getAttribute('aria-checked')).toBe('false')
+
+    unmount()
+  })
+
+  it('lets users force-show the floating panel on the current official site after enabling it', async () => {
+    const sendMessage = vi.fn().mockResolvedValue({ ok: true })
+    seedAuthenticatedSession({
+      account: { accountId: 'acc-1' },
+      navigation: {
+        visibleEntries: ['extension.crm.workspace']
+      },
+      tenant: { tenantId: 'tenant-1' }
+    })
+    vi.stubGlobal('chrome', {
+      runtime: { sendMessage }
+    })
+
+    const { root, unmount } = mountPopup()
+    await flush()
+    await clickWorkspaceEntry(root, 'CRM Sales Workspace')
+    await clickByText(root, 'Floating Panel 已关闭')
+    await clickByText(root, '显示当前页')
+
+    expect(sendMessage).toHaveBeenCalledWith({
+      type: SHOW_CRM_FLOATING_PANEL_MESSAGE
+    })
+
+    unmount()
+  })
+
+  it('keeps floating panel disabled when the background render fails', async () => {
+    const sendMessage = vi.fn().mockImplementation(async (message) => {
+      if (message.type === SET_CRM_FLOATING_PANEL_ENABLED_MESSAGE) {
+        return { error: 'CRM resolver unavailable' }
+      }
+      return { ok: true }
+    })
+    seedAuthenticatedSession({
+      account: { accountId: 'acc-1' },
+      navigation: {
+        visibleEntries: ['extension.crm.workspace']
+      },
+      tenant: { tenantId: 'tenant-1' }
+    })
+    vi.stubGlobal('chrome', {
+      runtime: { sendMessage }
+    })
+
+    const { root, unmount } = mountPopup()
+    await flush()
+    await clickWorkspaceEntry(root, 'CRM Sales Workspace')
+    await clickByText(root, 'Floating Panel 已关闭')
+
+    expect(root.textContent).toContain('CRM resolver unavailable')
+    expect(getButtonByText(root, 'Floating Panel')?.getAttribute('aria-checked')).toBe('false')
+    expect(localStorage.getItem('workspace-panel-enabled:tenant-1:acc-1:extension.crm.workspace:crm-floating-panel')).not.toBe('true')
 
     unmount()
   })
