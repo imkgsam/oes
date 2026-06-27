@@ -7,6 +7,7 @@ import {
   CrmAccountRecordStatus
 } from '../../domain/models/crm-records'
 import { CrmAccountRepository } from '../../domain/repositories/crm-account.repository'
+import { normalizeLeadDomainEvidence } from '../support/lead-domain-normalization'
 import { UpdateDraftLeadCommand } from './update-draft-lead.command'
 
 export interface UpdateDraftLeadResult {
@@ -16,7 +17,10 @@ export interface UpdateDraftLeadResult {
 /** UpdateDraftLeadHandler updates only unfinished DRAFT + LEAD accounts. */
 @Injectable()
 @CommandHandler(UpdateDraftLeadCommand)
-export class UpdateDraftLeadHandler implements ICommandHandler<UpdateDraftLeadCommand, UpdateDraftLeadResult> {
+export class UpdateDraftLeadHandler implements ICommandHandler<
+  UpdateDraftLeadCommand,
+  UpdateDraftLeadResult
+> {
   constructor(
     @Inject(TOKENS.CRM_ACCOUNT_REPOSITORY)
     private readonly accountRepository: CrmAccountRepository
@@ -24,11 +28,17 @@ export class UpdateDraftLeadHandler implements ICommandHandler<UpdateDraftLeadCo
 
   /** execute rewrites draft lead fields without assigning an owner or binding TenantParty. */
   async execute(command: UpdateDraftLeadCommand): Promise<UpdateDraftLeadResult> {
-    const account = await this.accountRepository.findAccountById(command.props.tenantId, command.props.crmAccountId)
+    const account = await this.accountRepository.findAccountById(
+      command.props.tenantId,
+      command.props.crmAccountId
+    )
     if (!account) {
       throw new NotFoundException('CrmAccount draft was not found')
     }
-    if (account.recordStatus !== CrmAccountRecordStatus.DRAFT || account.lifecycleStage !== CrmAccountLifecycleStage.LEAD) {
+    if (
+      account.recordStatus !== CrmAccountRecordStatus.DRAFT ||
+      account.lifecycleStage !== CrmAccountLifecycleStage.LEAD
+    ) {
       throw new BadRequestException('Only draft leads can be updated through UpdateDraftLead')
     }
 
@@ -41,7 +51,7 @@ export class UpdateDraftLeadHandler implements ICommandHandler<UpdateDraftLeadCo
       displayName: command.props.displayName,
       leadCompanyName: command.props.leadCompanyName ?? null,
       leadPersonName: command.props.leadPersonName ?? null,
-      leadDomain: command.props.leadDomain ?? null,
+      leadDomain: normalizeLeadDomainEvidence(command.props.leadDomain),
       leadEmail: command.props.leadEmail ?? null,
       leadPhone: command.props.leadPhone ?? null,
       leadWhatsapp: command.props.leadWhatsapp ?? null,

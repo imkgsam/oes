@@ -1,6 +1,6 @@
 import type { StoredAuthSession } from './types'
 
-const SESSION_KEY = 'oes.browserExtension.authSession'
+export const EXTENSION_AUTH_SESSION_STORAGE_KEY = 'oes.browserExtension.authSession'
 
 export interface AuthStorage {
   clear(): Promise<void>
@@ -13,21 +13,21 @@ export class ExtensionAuthStorage implements AuthStorage {
   async clear(): Promise<void> {
     const storage = resolveChromeStorage()
     if (storage) {
-      await storage.remove(SESSION_KEY)
+      await storage.remove(EXTENSION_AUTH_SESSION_STORAGE_KEY)
       return
     }
 
-    globalThis.localStorage?.removeItem(SESSION_KEY)
+    globalThis.localStorage?.removeItem(EXTENSION_AUTH_SESSION_STORAGE_KEY)
   }
 
   async load(): Promise<StoredAuthSession | null> {
     const storage = resolveChromeStorage()
     if (storage) {
-      const result = await storage.get(SESSION_KEY)
-      return normalizeStoredSession(result[SESSION_KEY])
+      const result = await storage.get(EXTENSION_AUTH_SESSION_STORAGE_KEY)
+      return normalizeStoredSession(result[EXTENSION_AUTH_SESSION_STORAGE_KEY])
     }
 
-    const raw = globalThis.localStorage?.getItem(SESSION_KEY)
+    const raw = globalThis.localStorage?.getItem(EXTENSION_AUTH_SESSION_STORAGE_KEY)
     if (!raw) {
       return null
     }
@@ -42,11 +42,11 @@ export class ExtensionAuthStorage implements AuthStorage {
   async save(session: StoredAuthSession): Promise<void> {
     const storage = resolveChromeStorage()
     if (storage) {
-      await storage.set({ [SESSION_KEY]: session })
+      await storage.set({ [EXTENSION_AUTH_SESSION_STORAGE_KEY]: session })
       return
     }
 
-    globalThis.localStorage?.setItem(SESSION_KEY, JSON.stringify(session))
+    globalThis.localStorage?.setItem(EXTENSION_AUTH_SESSION_STORAGE_KEY, JSON.stringify(session))
   }
 }
 

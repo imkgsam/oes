@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common'
+import { InternetDomain } from '@oes/common'
 import {
   CrmActivity as PrismaCrmActivityRow,
   CrmAccount as PrismaCrmAccountRow,
@@ -17,6 +18,7 @@ import {
   CrmAccountLifecycleStage,
   CrmAccountRecordStatus,
   CrmAccountTypeHint,
+  CrmArchiveReason,
   CrmContactRecord,
   CrmOpportunityStage,
   CrmOpportunityStatus,
@@ -58,7 +60,7 @@ export class PrismaCrmAccountRepository implements CrmAccountRepository {
         displayName: account.displayName,
         leadCompanyName: account.leadCompanyName ?? null,
         leadPersonName: account.leadPersonName ?? null,
-        leadDomain: account.leadDomain ?? null,
+        leadDomain: normalizeLeadDomainForStorage(account.leadDomain),
         leadEmail: account.leadEmail ?? null,
         leadPhone: account.leadPhone ?? null,
         leadWhatsapp: account.leadWhatsapp ?? null,
@@ -69,7 +71,8 @@ export class PrismaCrmAccountRepository implements CrmAccountRepository {
         lastActivityAt: account.lastActivityAt ?? null,
         nextFollowUpAt: account.nextFollowUpAt ?? null,
         createdBy: account.createdBy,
-        archivedAt: account.archivedAt ?? null
+        archivedAt: account.archivedAt ?? null,
+        archiveReason: account.archiveReason ?? null
       },
       update: {
         tenantPartyId: account.tenantPartyId ?? null,
@@ -79,7 +82,7 @@ export class PrismaCrmAccountRepository implements CrmAccountRepository {
         displayName: account.displayName,
         leadCompanyName: account.leadCompanyName ?? null,
         leadPersonName: account.leadPersonName ?? null,
-        leadDomain: account.leadDomain ?? null,
+        leadDomain: normalizeLeadDomainForStorage(account.leadDomain),
         leadEmail: account.leadEmail ?? null,
         leadPhone: account.leadPhone ?? null,
         leadWhatsapp: account.leadWhatsapp ?? null,
@@ -89,7 +92,8 @@ export class PrismaCrmAccountRepository implements CrmAccountRepository {
         priority: account.priority,
         lastActivityAt: account.lastActivityAt ?? null,
         nextFollowUpAt: account.nextFollowUpAt ?? null,
-        archivedAt: account.archivedAt ?? null
+        archivedAt: account.archivedAt ?? null,
+        archiveReason: account.archiveReason ?? null
       }
     })
 
@@ -193,7 +197,9 @@ export class PrismaCrmAccountRepository implements CrmAccountRepository {
         name: opportunity.name,
         stage: opportunity.stage,
         status: opportunity.status,
-        estimatedAmount: opportunity.estimatedAmount ? new Prisma.Decimal(opportunity.estimatedAmount) : null,
+        estimatedAmount: opportunity.estimatedAmount
+          ? new Prisma.Decimal(opportunity.estimatedAmount)
+          : null,
         currency: opportunity.currency,
         expectedCloseDate: opportunity.expectedCloseDate ?? null,
         openedAt: opportunity.openedAt,
@@ -207,7 +213,9 @@ export class PrismaCrmAccountRepository implements CrmAccountRepository {
         name: opportunity.name,
         stage: opportunity.stage,
         status: opportunity.status,
-        estimatedAmount: opportunity.estimatedAmount ? new Prisma.Decimal(opportunity.estimatedAmount) : null,
+        estimatedAmount: opportunity.estimatedAmount
+          ? new Prisma.Decimal(opportunity.estimatedAmount)
+          : null,
         currency: opportunity.currency,
         expectedCloseDate: opportunity.expectedCloseDate ?? null,
         openedAt: opportunity.openedAt,
@@ -292,7 +300,9 @@ export class PrismaCrmAccountRepository implements CrmAccountRepository {
     const page = Math.max(input.page ?? 1, 1)
     const pageSize = Math.min(Math.max(input.pageSize ?? 20, 1), 100)
     const p1RecordStatus =
-      input.recordStatus === CrmAccountRecordStatus.DRAFT || input.recordStatus === CrmAccountRecordStatus.ACTIVE
+      input.recordStatus === CrmAccountRecordStatus.DRAFT ||
+      input.recordStatus === CrmAccountRecordStatus.ACTIVE ||
+      input.recordStatus === CrmAccountRecordStatus.ARCHIVED
         ? input.recordStatus
         : null
     const recordStatusWhere = input.recordStatus
@@ -344,16 +354,21 @@ export class PrismaCrmAccountRepository implements CrmAccountRepository {
     }
   }
 
-  /** listSourceRecords returns source records for one account ordered by capture time. */
+  /** listSourceRecords returns primary source first, then newest captured evidence for one account. */
   async listSourceRecords(tenantId: string, accountId: string): Promise<CrmSourceRecord[]> {
     const records = await this.prisma.getExecutionClient().crmSourceRecord.findMany({
       where: {
         tenantId,
         crmAccountId: accountId
       },
-      orderBy: {
-        capturedAt: 'asc'
-      }
+      orderBy: [
+        {
+          isPrimary: 'desc'
+        },
+        {
+          capturedAt: 'desc'
+        }
+      ]
     })
 
     return records.map(toCrmSourceRecord)
@@ -374,11 +389,15 @@ export class PrismaCrmAccountRepository implements CrmAccountRepository {
   }
 
   /** findDuplicateCandidates searches tenant-local CRM evidence without consulting party-service. */
-  async findDuplicateCandidates(input: CrmDuplicateSearchInput): Promise<CrmAccountDuplicateCandidate[]> {
+  async findDuplicateCandidates(
+    input: CrmDuplicateSearchInput
+  ): Promise<CrmAccountDuplicateCandidate[]> {
     const records = await this.prisma.getExecutionClient().crmAccount.findMany({
       where: {
         tenantId: input.tenantId,
-        recordStatus: CrmAccountRecordStatus.ACTIVE
+        recordStatus: {
+          in: [CrmAccountRecordStatus.ACTIVE, CrmAccountRecordStatus.ARCHIVED]
+        }
       },
       orderBy: {
         updatedAt: 'desc'
@@ -424,7 +443,10 @@ export class PrismaCrmAccountRepository implements CrmAccountRepository {
   }
 
   /** assertOpportunityAccountIsFormal protects Opportunity from being attached to draft or lead accounts. */
-  private async assertOpportunityAccountIsFormal(tenantId: string, accountId: string): Promise<void> {
+  private async assertOpportunityAccountIsFormal(
+    tenantId: string,
+    accountId: string
+  ): Promise<void> {
     const account = await this.prisma.getExecutionClient().crmAccount.findFirst({
       where: {
         id: accountId,
@@ -473,7 +495,8 @@ function toCrmAccountRecord(record: PrismaCrmAccountRow): CrmAccountRecord {
     createdBy: record.createdBy,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
-    archivedAt: record.archivedAt
+    archivedAt: record.archivedAt,
+    archiveReason: record.archiveReason as CrmArchiveReason | null
   }
 }
 
@@ -567,7 +590,10 @@ function toCrmOpportunityRecord(record: PrismaOpportunityRow): CrmOpportunityRec
 
 /** isFormalLifecycleStage identifies CRM account stages that must already be backed by TenantParty. */
 function isFormalLifecycleStage(stage: CrmAccountLifecycleStage): boolean {
-  return stage === CrmAccountLifecycleStage.PROSPECT_CUSTOMER || stage === CrmAccountLifecycleStage.CUSTOMER
+  return (
+    stage === CrmAccountLifecycleStage.PROSPECT_CUSTOMER ||
+    stage === CrmAccountLifecycleStage.CUSTOMER
+  )
 }
 
 /** toDuplicateCandidate converts a matching account row into a duplicate candidate with matched evidence fields. */
@@ -581,7 +607,7 @@ function toDuplicateCandidate(
   if (matchesNullableText(record.leadEmail, input.leadEmail)) {
     matchedFields.push('leadEmail')
   }
-  if (matchesNullableText(record.leadDomain, input.leadDomain)) {
+  if (matchesNullableLeadDomain(record.leadDomain, input.leadDomain)) {
     matchedFields.push('leadDomain')
   }
   if (matchesNullableText(record.leadPhone, input.leadPhone)) {
@@ -608,6 +634,36 @@ function toDuplicateCandidate(
     matchedFields,
     confidence: 'HIGH'
   }
+}
+
+/** normalizeLeadDomainForStorage stores valid lead domains as canonical hosts without treating invalid legacy text as business truth. */
+function normalizeLeadDomainForStorage(value?: string | null): string | null {
+  const trimmedValue = value?.trim()
+  if (!trimmedValue) {
+    return null
+  }
+
+  const domain = InternetDomain.parse(trimmedValue)
+  if (!domain.isValid) {
+    return trimmedValue
+  }
+
+  return domain.canonicalHost
+}
+
+/** matchesNullableLeadDomain compares valid domains by canonical host while preserving text fallback for invalid legacy values. */
+function matchesNullableLeadDomain(left?: string | null, right?: string | null): boolean {
+  if (!left || !right) {
+    return false
+  }
+
+  const leftDomain = InternetDomain.parse(left)
+  const rightDomain = InternetDomain.parse(right)
+  if (leftDomain.isValid && rightDomain.isValid) {
+    return leftDomain.canonicalHost === rightDomain.canonicalHost
+  }
+
+  return matchesNullableText(left, right)
 }
 
 /** matchesNullableText compares normalized optional text evidence values. */

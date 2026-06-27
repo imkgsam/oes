@@ -1,0 +1,478 @@
+<style>
+  .audit-page {
+    padding: 22px;
+    background: #f5f7fb;
+    color: #111827;
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  .audit-shell {
+    max-width: 1180px;
+    margin: 0 auto;
+  }
+  .command-card {
+    overflow: hidden;
+    margin-bottom: 16px;
+    border: 1px solid #e1e8f2;
+    border-radius: 20px;
+    background: #ffffff;
+    box-shadow: 0 16px 42px rgba(15, 23, 42, 0.06);
+  }
+  .command-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 18px;
+    align-items: center;
+    padding: 17px 18px;
+    background:
+      linear-gradient(90deg, rgba(90,177,239,0.13), transparent 42%),
+      linear-gradient(270deg, rgba(1,150,128,0.1), transparent 32%),
+      #ffffff;
+  }
+  .command-title h1 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 23px;
+    font-weight: 820;
+    letter-spacing: 0;
+  }
+  .command-title p {
+    margin: 6px 0 0;
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .command-controls {
+    display: grid;
+    grid-template-columns: 236px auto auto;
+    gap: 9px;
+    align-items: center;
+    padding: 8px;
+    border: 1px solid #dbe5f1;
+    border-radius: 15px;
+    background: rgba(255,255,255,0.78);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.9);
+  }
+  .command-controls select,
+  .command-controls button {
+    height: 36px;
+    border: 1px solid #cfd9e8;
+    border-radius: 11px;
+    background: #ffffff;
+    color: #0f172a;
+    font-weight: 700;
+  }
+  .command-controls select {
+    min-width: 0;
+    padding: 0 12px;
+  }
+  .segments {
+    display: inline-flex;
+    height: 36px;
+    overflow: hidden;
+    border: 1px solid #cfd9e8;
+    border-radius: 11px;
+    background: #fff;
+  }
+  .segments span {
+    display: grid;
+    place-items: center;
+    min-width: 44px;
+    padding: 0 9px;
+    border-right: 1px solid #e2e8f0;
+    color: #64748b;
+    font-size: 13px;
+  }
+  .segments span:last-child { border-right: 0; }
+  .segments .on {
+    color: #fff;
+    background: #019680;
+  }
+  .command-status {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0;
+    border-top: 1px solid #edf2f7;
+    background: #fbfdff;
+  }
+  .command-status div {
+    padding: 10px 18px;
+    border-right: 1px solid #edf2f7;
+  }
+  .command-status div:last-child { border-right: 0; }
+  .command-status span {
+    display: block;
+    color: #94a3b8;
+    font-size: 11px;
+  }
+  .command-status b {
+    display: block;
+    margin-top: 3px;
+    color: #0f172a;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 13px;
+  }
+  .overview {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+  .metric {
+    position: relative;
+    overflow: hidden;
+    min-height: 118px;
+    border: 1px solid #e5e7eb;
+    border-radius: 18px;
+    background: #ffffff;
+    padding: 16px;
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.045);
+  }
+  .metric:after {
+    content: "";
+    position: absolute;
+    right: -34px;
+    bottom: -38px;
+    width: 112px;
+    height: 112px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+  }
+  .metric i {
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    border-radius: 13px;
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 12%, white);
+    font-style: normal;
+    font-weight: 900;
+  }
+  .metric label {
+    display: block;
+    margin-top: 13px;
+    color: #64748b;
+    font-size: 13px;
+  }
+  .metric strong {
+    display: block;
+    margin-top: 4px;
+    color: #111827;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 24px;
+  }
+  .workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1.45fr) 440px;
+    gap: 16px;
+  }
+  .panel, .drawer {
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 16px 42px rgba(15, 23, 42, 0.06);
+  }
+  .panel {
+    border: 1px solid #e5e7eb;
+    background: #fff;
+  }
+  .panel-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 16px;
+    border-bottom: 1px solid #eef2f7;
+  }
+  .panel-head h2 {
+    margin: 0;
+    font-size: 16px;
+  }
+  .panel-head p {
+    margin: 4px 0 0;
+    color: #64748b;
+    font-size: 12px;
+  }
+  .tabs {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    border-radius: 11px;
+    background: #f1f5f9;
+  }
+  .tabs span {
+    padding: 7px 10px;
+    border-radius: 8px;
+    color: #64748b;
+    font-size: 12px;
+  }
+  .tabs .on {
+    color: #111827;
+    background: #fff;
+    box-shadow: 0 4px 12px rgba(15,23,42,0.08);
+  }
+  .chart {
+    height: 230px;
+    padding: 18px 18px 8px;
+    display: grid;
+    align-items: end;
+    grid-template-columns: repeat(18, 1fr);
+    gap: 7px;
+    background:
+      linear-gradient(#edf2f7 1px, transparent 1px) 0 18px / 100% 46px,
+      linear-gradient(180deg, rgba(90,177,239,0.14), rgba(1,150,128,0.05));
+  }
+  .bar {
+    position: relative;
+    height: var(--h);
+    min-height: 12px;
+    border-radius: 9px 9px 0 0;
+    background: linear-gradient(180deg, #5ab1ef, #019680);
+  }
+  .bar:before {
+    content: "";
+    position: absolute;
+    top: -4px;
+    left: 50%;
+    width: 8px;
+    height: 8px;
+    margin-left: -4px;
+    border-radius: 50%;
+    background: #019680;
+    box-shadow: 0 0 0 5px rgba(1,150,128,0.12);
+  }
+  .rank {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    padding: 14px;
+  }
+  .mini {
+    overflow: hidden;
+    border: 1px solid #eef2f7;
+    border-radius: 15px;
+  }
+  .mini h3 {
+    margin: 0;
+    padding: 12px 13px;
+    border-bottom: 1px solid #eef2f7;
+    font-size: 14px;
+  }
+  .row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    padding: 11px 13px;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .row:last-child { border-bottom: 0; }
+  .row strong, .row small {
+    display: block;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .row strong {
+    font-size: 13px;
+  }
+  .row small {
+    margin-top: 5px;
+    color: #64748b;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+  }
+  .duration {
+    color: #019680;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-weight: 760;
+    white-space: nowrap;
+  }
+  .drawer {
+    background: #111827;
+    color: #cbd5e1;
+  }
+  .drawer-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 15px;
+    border-bottom: 1px solid rgba(226,232,240,0.14);
+  }
+  .drawer-head h2 {
+    margin: 0;
+    color: #fff;
+    font-size: 16px;
+  }
+  .drawer-head p {
+    max-width: 260px;
+    margin: 5px 0 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    color: #94a3b8;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+  }
+  .actions {
+    display: flex;
+    gap: 8px;
+  }
+  .actions button {
+    height: 32px;
+    border: 1px solid rgba(226,232,240,0.2);
+    border-radius: 9px;
+    padding: 0 10px;
+    color: #e5e7eb;
+    background: rgba(255,255,255,0.08);
+  }
+  .actions .x {
+    width: 32px;
+    padding: 0;
+    font-size: 18px;
+  }
+  .donut-zone {
+    display: grid;
+    grid-template-columns: 146px 1fr;
+    gap: 14px;
+    align-items: center;
+    padding: 18px 16px;
+  }
+  .donut {
+    width: 142px;
+    height: 142px;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at center, #111827 0 48%, transparent 49%),
+      conic-gradient(#5ab1ef 0 56%, #019680 56% 82%, #67e0e3 82% 100%);
+  }
+  .legend div {
+    display: flex;
+    justify-content: space-between;
+    padding: 7px 0;
+    border-bottom: 1px solid rgba(226,232,240,0.1);
+    font-size: 12px;
+  }
+  .drawer-list {
+    padding: 0 14px 14px;
+  }
+  .drawer-row {
+    margin-top: 10px;
+    padding: 12px;
+    border-radius: 13px;
+    background: rgba(255,255,255,0.055);
+  }
+  .drawer-row strong {
+    color: #fff;
+    font-size: 13px;
+  }
+  .split-url {
+    display: grid;
+    grid-template-columns: 48px minmax(0,1fr);
+    gap: 6px;
+    margin-top: 8px;
+    color: #94a3b8;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+  }
+  .split-url b {
+    color: #67e0e3;
+  }
+  .split-url span {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  @media (max-width: 980px) {
+    .command-main, .overview, .workspace, .rank { grid-template-columns: 1fr; }
+    .command-controls { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="audit-page">
+  <div class="audit-shell">
+    <section class="command-card">
+      <div class="command-main">
+        <div class="command-title">
+          <h1>浏览器插件监控</h1>
+          <p>当前用户级浏览审计。历史数据可继续查看，监控开关只控制后续采集。</p>
+        </div>
+        <div class="command-controls">
+          <select>
+            <option>陈双鹏 · csp</option>
+            <option>林晓雯 · lin</option>
+          </select>
+          <div class="segments"><span>1h</span><span class="on">1天</span><span>1周</span><span>1月</span></div>
+          <button>监控已开启</button>
+        </div>
+      </div>
+      <div class="command-status">
+        <div><span>历史策略</span><b>可查看</b></div>
+        <div><span>最近心跳</span><b>18s</b></div>
+        <div><span>时长精度</span><b>秒级</b></div>
+        <div><span>URL 参数</span><b>不携带 accountId</b></div>
+      </div>
+    </section>
+
+    <div class="overview">
+      <div class="metric" style="--accent:#5ab1ef"><i>D</i><label>Domain 数量</label><strong>12</strong></div>
+      <div class="metric" style="--accent:#019680"><i>U</i><label>URL 访问</label><strong>48</strong></div>
+      <div class="metric" style="--accent:#67e0e3"><i>T</i><label>活跃时长</label><strong>2m 30s</strong></div>
+      <div class="metric" style="--accent:#b6a2de"><i>H</i><label>最近心跳</label><strong>18s</strong></div>
+    </div>
+
+    <div class="workspace">
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>访问趋势</h2>
+            <p>Analytics 图表区：趋势和排名同卡片承载。</p>
+          </div>
+          <div class="tabs"><span class="on">趋势</span><span>排名</span></div>
+        </div>
+        <div class="chart">
+          <i class="bar" style="--h:32%"></i><i class="bar" style="--h:46%"></i><i class="bar" style="--h:38%"></i>
+          <i class="bar" style="--h:62%"></i><i class="bar" style="--h:70%"></i><i class="bar" style="--h:56%"></i>
+          <i class="bar" style="--h:82%"></i><i class="bar" style="--h:64%"></i><i class="bar" style="--h:74%"></i>
+          <i class="bar" style="--h:54%"></i><i class="bar" style="--h:42%"></i><i class="bar" style="--h:58%"></i>
+          <i class="bar" style="--h:48%"></i><i class="bar" style="--h:66%"></i><i class="bar" style="--h:40%"></i>
+          <i class="bar" style="--h:36%"></i><i class="bar" style="--h:29%"></i><i class="bar" style="--h:44%"></i>
+        </div>
+        <div class="rank">
+          <div class="mini">
+            <h3>Domain 时长排名</h3>
+            <div class="row"><div><strong>supplier-portal.example</strong><small>12 次访问 · 8 URLs</small></div><span class="duration">2m 30s</span></div>
+            <div class="row"><div><strong>docs.oes.internal</strong><small>6 次访问 · 4 URLs</small></div><span class="duration">1m 12s</span></div>
+          </div>
+          <div class="mini">
+            <h3>URL 时长排名</h3>
+            <div class="row"><div><strong>Supplier Orders</strong><small>supplier-portal.example / orders / pending-approval...</small></div><span class="duration">58s</span></div>
+            <div class="row"><div><strong>Procurement Review Notes</strong><small>docs.oes.internal / reviews / procurement...</small></div><span class="duration">41s</span></div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="drawer">
+        <div class="drawer-head">
+          <div><h2>supplier-portal.example</h2><p>https://supplier-portal.example/orders/pending-approval/2026/weekly-review</p></div>
+          <div class="actions"><button>打开链接</button><button class="x">×</button></div>
+        </div>
+        <div class="donut-zone">
+          <div class="donut"></div>
+          <div class="legend">
+            <div><span>Orders</span><b class="duration">1m 20s</b></div>
+            <div><span>Contracts</span><b class="duration">42s</b></div>
+            <div><span>Search</span><b class="duration">28s</b></div>
+          </div>
+        </div>
+        <div class="drawer-list">
+          <div class="drawer-row">
+            <strong>Supplier Orders</strong>
+            <div class="split-url"><b>host</b><span>supplier-portal.example</span><b>path</b><span>/orders/pending-approval/2026/weekly-review</span></div>
+          </div>
+          <div class="drawer-row">
+            <strong>Supplier Contract Detail</strong>
+            <div class="split-url"><b>host</b><span>supplier-portal.example</span><b>path</b><span>/contracts/vendor-1842/revision-history</span></div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</div>

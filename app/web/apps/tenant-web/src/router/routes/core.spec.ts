@@ -22,12 +22,11 @@ describe('tenant-web core routes', () => {
     expect(publicBusinessCardRoute?.component).toBeTypeOf('function')
   })
 
-  it('registers a hidden ShortLink fallback route for dev-server SPA fallback navigations', () => {
+  it('does not register ShortLink public edge routes in the tenant-web SPA', () => {
     const publicShortLinkRoute = coreRoutes.find((route) => route.name === 'PublicShortLinkRedirect')
+    const shortLinkPathRoute = coreRoutes.find((route) => route.path === '/c/:shortCode')
 
-    expect(publicShortLinkRoute?.path).toBe('/c/:shortCode')
-    expect(publicShortLinkRoute?.meta?.hideInMenu).toBe(true)
-    expect(publicShortLinkRoute?.meta?.hideInTab).toBe(true)
-    expect(publicShortLinkRoute?.component).toBeTypeOf('function')
+    expect(publicShortLinkRoute).toBeUndefined()
+    expect(shortLinkPathRoute).toBeUndefined()
   })
 })

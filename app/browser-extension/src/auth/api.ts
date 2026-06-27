@@ -4,6 +4,7 @@ import type {
   LoginParams,
   RefreshSessionResult,
   SelectAccountParams,
+  SessionAccessSummary,
   SessionContext
 } from './types'
 
@@ -44,6 +45,10 @@ export class ExtensionAuthApi {
 
   getSessionContext(accessToken: string): Promise<SessionContext> {
     return this.get<SessionContext>('/extension/auth/session/context', accessToken)
+  }
+
+  getSessionAccessSummary(accessToken: string): Promise<SessionAccessSummary> {
+    return this.get<SessionAccessSummary>('/extension/auth/session/access-summary', accessToken)
   }
 
   logout(accessToken?: string): Promise<void> {

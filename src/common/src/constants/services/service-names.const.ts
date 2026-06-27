@@ -2,6 +2,7 @@ export const SERVICE_NAMES = {
   API_GATEWAY: 'api-gateway',
   ASSET: 'asset-service',
   AUTH: 'auth-service',
+  BROWSER_ACTIVITY: 'browser-activity-service',
   COLLABORATION: 'collaboration-service',
   CRM: 'crm-service',
   FINANCE: 'finance-service',

@@ -33,6 +33,8 @@
   - KIOSK 专用登录闭环与 session context 契约
 - [extension-auth-bff-login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/extension-auth-bff-login.md)
   - 浏览器插件专用登录闭环、extension terminal session 与 launcher 初始化契约草案
+- [browser-activity-bff.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/browser-activity-bff.md)
+  - Browser Activity 插件采集与 tenant-web 管理台 BFF 契约
 - [navigation-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/navigation-summary.md)
   - 登录后导航可见性摘要契约
 - [access-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/access-summary.md)

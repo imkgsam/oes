@@ -1,3 +1,4 @@
+import { ArchiveCrmAccountCommand } from '../../src/application/commands/archive-crm-account.command'
 import { ClaimCrmAccountCommand } from '../../src/application/commands/claim-crm-account.command'
 import { ConvertLeadToProspectCustomerCommand } from '../../src/application/commands/convert-lead-to-prospect-customer.command'
 import { CreateDraftLeadCommand } from '../../src/application/commands/create-draft-lead.command'
@@ -10,6 +11,7 @@ import {
   CrmAccountRecord,
   CrmAccountRecordStatus,
   CrmAccountTypeHint,
+  CrmArchiveReason,
   CrmLeadConversionResultType,
   CrmLeadCreateResultType,
   CrmPriority,
@@ -54,6 +56,7 @@ function createController(result: unknown) {
   return {
     controller: new CustomerManagementGrpcController(commandBus as never, auditService as never) as never as {
       claimCrmAccount(request: Record<string, unknown>): Promise<unknown>
+      archiveCrmAccount(request: Record<string, unknown>): Promise<unknown>
       createDraftLead(request: Record<string, unknown>): Promise<unknown>
       createLead(request: Record<string, unknown>): Promise<unknown>
       convertLeadToProspectCustomer(request: Record<string, unknown>): Promise<unknown>
@@ -85,6 +88,51 @@ const managementContext = {
 }
 
 describe('crm-service P1 management gRPC controller L3', () => {
+  it('ArchiveCrmAccount / should map request to archive command and render archive reason', async () => {
+    const account = createCrmAccount({
+      recordStatus: CrmAccountRecordStatus.ARCHIVED,
+      archivedAt: new Date('2026-06-23T08:00:00.000Z'),
+      archiveReason: CrmArchiveReason.NON_TARGET_ACCOUNT
+    })
+    const harness = createController({ account })
+
+    const response = await harness.controller.archiveCrmAccount({
+      ...managementContext,
+      crmAccountId: 'crm-account-1',
+      archiveReason: 'NON_TARGET_ACCOUNT'
+    })
+
+    expect(harness.commandBus.execute).toHaveBeenCalledWith(expect.any(ArchiveCrmAccountCommand))
+    expect(harness.commandBus.execute.mock.calls[0][0]).toMatchObject({
+      props: {
+        tenantId: 'tenant-1',
+        crmAccountId: 'crm-account-1',
+        operatorAccountId: 'operator-1',
+        archiveReason: CrmArchiveReason.NON_TARGET_ACCOUNT
+      }
+    })
+    expect(response).toEqual({
+      crmAccount: expect.objectContaining({
+        crmAccountId: 'crm-account-1',
+        recordStatus: 'ARCHIVED',
+        archivedAt: '2026-06-23T08:00:00.000Z',
+        archiveReason: 'NON_TARGET_ACCOUNT'
+      })
+    })
+    expect(harness.auditService.recordCommand).toHaveBeenCalledWith(
+      expect.objectContaining({
+        commandName: 'ArchiveCrmAccount',
+        resourceType: 'crm_account',
+        targetId: 'crm-account-1',
+        requestSummary: {
+          crmAccountId: 'crm-account-1',
+          archiveReason: 'NON_TARGET_ACCOUNT'
+        }
+      }),
+      expect.any(Function)
+    )
+  })
+
   it('CreateLead / should map request to CreateLeadCommand and render P1 account response', async () => {
     const account = createCrmAccount()
     const harness = createController({

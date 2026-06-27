@@ -87,6 +87,11 @@ export function shouldSuppressAuthRecoveryError(error: any) {
   );
 }
 
+// Identifies calls that intentionally handle failures locally and should not show a global toast.
+export function shouldSuppressRequestErrorMessage(error: any) {
+  return Boolean(error?.config?.suppressErrorMessage);
+}
+
 function createRequestClient(baseURL: string, options?: RequestClientOptions) {
   const client = new RequestClient({
     ...options,
@@ -168,6 +173,10 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
   // 通用的错误处理,如果没有进入上面的错误处理逻辑，就会进入这里
   client.addResponseInterceptor(
     errorMessageResponseInterceptor((msg: string, error) => {
+      if (shouldSuppressRequestErrorMessage(error)) {
+        return;
+      }
+
       if (shouldSuppressAuthRecoveryError(error)) {
         return;
       }

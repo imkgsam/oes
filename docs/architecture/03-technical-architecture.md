@@ -35,12 +35,14 @@ OES 采用：
 - 公共传输能力
 - 公共契约工具
 - 认证、日志、追踪、注册发现等横向支撑
+- 不含业务语义的基础值对象，例如仅做互联网域名格式规范化的 `InternetDomain`
 
 明确限制：
 
 - 不承载业务域规则
 - 不承载跨上下文业务语义
 - 不成为“复用方便就往里放”的超级库
+- `InternetDomain` 只能表达 URL / hostname 到 canonical host 的格式规范化，不得表达 CRM 查重、Party 识别、客户归属或数据合并规则
 
 ### 2.2 `src/services/system` 的定位
 

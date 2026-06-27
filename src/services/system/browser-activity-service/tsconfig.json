@@ -1,0 +1,13 @@
+{
+  "extends": "../../../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "skipLibCheck": true
+  },
+  "references": [
+    { "path": "../../../common" }
+  ],
+  "include": ["src"],
+  "exclude": ["node_modules"]
+}

@@ -10,6 +10,17 @@ export enum CrmAccountRecordStatus {
   ARCHIVED = 'ARCHIVED'
 }
 
+export enum CrmArchiveReason {
+  LOW_VALUE = 'LOW_VALUE',
+  INVALID_TARGET = 'INVALID_TARGET',
+  NON_TARGET_ACCOUNT = 'NON_TARGET_ACCOUNT',
+  COMPETITOR = 'COMPETITOR',
+  DUPLICATE = 'DUPLICATE',
+  NO_FIT = 'NO_FIT',
+  UNRESPONSIVE = 'UNRESPONSIVE',
+  OTHER = 'OTHER'
+}
+
 export enum CrmAccountTypeHint {
   UNKNOWN = 'UNKNOWN',
   PERSON = 'PERSON',
@@ -152,6 +163,7 @@ export interface CrmAccountRecord {
   createdAt?: Date
   updatedAt?: Date
   archivedAt?: Date | null
+  archiveReason?: CrmArchiveReason | null
 }
 
 export interface CrmSourceRecord {

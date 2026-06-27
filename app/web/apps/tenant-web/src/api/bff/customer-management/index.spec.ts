@@ -26,6 +26,7 @@ describe('tenant-web customer management api', () => {
   it('runs CRM P1 lead workflow actions through the tenant-scoped BFF endpoints', async () => {
     const {
       checkLeadDuplicateApi,
+      archiveCrmAccountApi,
       claimCrmAccountApi,
       convertLeadToProspectCustomerApi,
       createCrmLeadApi,
@@ -57,6 +58,9 @@ describe('tenant-web customer management api', () => {
     await createCrmLeadApi('tenant-1', { ...payload, sourceType: 'BROWSER_EXTENSION' })
     await claimCrmAccountApi('tenant-1', 'crm-account-1')
     await releaseCrmAccountApi('tenant-1', 'crm-account-1')
+    await archiveCrmAccountApi('tenant-1', 'crm-account-1', {
+      archiveReason: 'NON_TARGET_ACCOUNT'
+    })
     await convertLeadToProspectCustomerApi('tenant-1', 'crm-account-1')
 
     expect(post).toHaveBeenCalledWith(
@@ -92,6 +96,10 @@ describe('tenant-web customer management api', () => {
       {}
     )
     expect(post).toHaveBeenCalledWith(
+      '/customer-management/tenants/tenant-1/crm-accounts/crm-account-1/archive',
+      { archiveReason: 'NON_TARGET_ACCOUNT' }
+    )
+    expect(post).toHaveBeenCalledWith(
       '/customer-management/tenants/tenant-1/leads/crm-account-1/convert-to-prospect-customer',
       {}
     )
@@ -100,7 +108,8 @@ describe('tenant-web customer management api', () => {
   it('lists and reads CRM P1 accounts through the account workspace BFF endpoints', async () => {
     const {
       getCrmAccountApi,
-      listCrmAccountsApi
+      listCrmAccountsApi,
+      listCrmSourceRecordsApi
     } = await import('./index')
 
     await listCrmAccountsApi('tenant-1', {
@@ -112,6 +121,7 @@ describe('tenant-web customer management api', () => {
       recordStatus: 'ACTIVE'
     })
     await getCrmAccountApi('tenant-1', 'crm-account-1')
+    await listCrmSourceRecordsApi('tenant-1', 'crm-account-1')
 
     expect(get).toHaveBeenCalledWith('/customer-management/tenants/tenant-1/crm-accounts', {
       params: {
@@ -126,6 +136,9 @@ describe('tenant-web customer management api', () => {
     })
     expect(get).toHaveBeenCalledWith(
       '/customer-management/tenants/tenant-1/crm-accounts/crm-account-1'
+    )
+    expect(get).toHaveBeenCalledWith(
+      '/customer-management/tenants/tenant-1/crm-accounts/crm-account-1/source-records'
     )
   })
 })

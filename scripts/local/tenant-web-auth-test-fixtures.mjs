@@ -468,7 +468,7 @@ const ALL_SEEDED_USERS = [
     phone: '+8613900000101',
     avatarUrl: buildSeedAvatar({ accent: '#0f766e', label: 'SP' }),
     accounts: [
-      { key: 'account.chen-shuangpeng.meilong', id: makeUuid(901), scopeLevel: 'TENANT', companyKey: 'meilong', displayName: '陈双鹏', workEmail: 'csp@ml.lc', bindEmployeeKey: 'meilong.chen-shuangpeng', primaryOrgKey: 'meilong.office', roleCodes: ['tenant.admin', 'extension.designer'] },
+      { key: 'account.chen-shuangpeng.meilong', id: makeUuid(901), scopeLevel: 'TENANT', companyKey: 'meilong', displayName: '陈双鹏', workEmail: 'csp@ml.lc', bindEmployeeKey: 'meilong.chen-shuangpeng', primaryOrgKey: 'meilong.office', roleCodes: ['tenant.admin', 'extension.designer', 'crm.sales'] },
       { key: 'account.chen-shuangpeng.system', id: makeUuid(902), scopeLevel: 'SYSTEM', contextKey: 'SYSTEM', displayName: '陈双鹏', roleCodes: ['system.admin'] },
     ],
   },
@@ -572,10 +572,7 @@ const ALL_SEEDED_USERS = [
 
 export const SEEDED_USERS = ALL_SEEDED_USERS.filter((user) =>
   LIVE_SEED_USER_KEYS.has(user.key)
-).map((user) => ({
-  ...user,
-  accounts: user.accounts.filter((account) => account.scopeLevel === 'TENANT')
-}));
+);
 
 const userByKey = new Map(SEEDED_USERS.map((user) => [user.key, user]));
 const accountByKey = new Map(
@@ -620,6 +617,14 @@ const SEEDED_TENANT_ROLE_TEMPLATES = [
     code: 'extension.designer',
     name: '插件设计师',
     description: '本地浏览器插件 Designer Workspace demo 角色实例。',
+    allowTenantPermissionOverride: true,
+    isProtected: false,
+  },
+  {
+    templateRoleId: '2cf72f72-e04a-4946-b8c0-22f120f82007',
+    code: 'crm.sales',
+    name: 'CRM 销售',
+    description: '本地 CRM Sales Workspace demo 角色实例。',
     allowTenantPermissionOverride: true,
     isProtected: false,
   },
@@ -734,6 +739,16 @@ const EXTENSION_DESIGNER_PERMISSION_CODES = [
   'extension.designer.submit_to_oes',
 ];
 
+const CRM_SALES_PERMISSION_CODES = [
+  'crm.account.read',
+  'crm.account.create',
+  'crm.account.update',
+  'crm.account.claim',
+  'crm.account.release',
+  'crm.contact.manage',
+  'crm.activity.create',
+];
+
 const ACCOUNT_BASIC_PERMISSION_CODES = [
   'identity.account.self.read',
   'identity.account.self.update_profile',
@@ -752,6 +767,7 @@ export const SEEDED_TENANT_ROLE_PERMISSION_CODES = new Map([
   ['account.basic', ACCOUNT_BASIC_PERMISSION_CODES],
   ['item_master.product_data_manager', ITEM_MASTER_PRODUCT_DATA_MANAGER_PERMISSION_CODES],
   ['extension.designer', EXTENSION_DESIGNER_PERMISSION_CODES],
+  ['crm.sales', CRM_SALES_PERMISSION_CODES],
 ]);
 
 function resolveSeedAccountRoleCodes(account) {
@@ -790,9 +806,15 @@ export const EXPECTED_ROLE_CODES = new Set([
 export const MANAGED_TENANT_IDS = SEEDED_COMPANIES.map((company) => company.id);
 export const MANAGED_USER_IDS = SEEDED_USERS.map((user) => user.id);
 export const MANAGED_ACCOUNT_IDS = SEEDED_USERS.flatMap((user) => user.accounts.map((account) => account.id));
-export const SYSTEM_ACCOUNT_IDS = SEEDED_USERS.flatMap((user) =>
+export const SYSTEM_ACCOUNT_IDS = ALL_SEEDED_USERS.flatMap((user) =>
   user.accounts.filter((account) => account.scopeLevel === 'SYSTEM').map((account) => account.id)
 );
+// Grants platform administrator access to dedicated SYSTEM account contexts.
+export const SYSTEM_ADMIN_ACCOUNT_IDS = [
+  ...SYSTEM_ACCOUNT_IDS,
+];
+// Tenant account contexts must not receive platform administrator role bindings.
+export const TENANT_SYSTEM_ADMIN_ACCOUNT_ROLE_BINDINGS = [];
 export const MANAGED_TENANT_PARTY_IDS = [
   ...SEEDED_COMPANIES.map((company) => company.organizationTenantPartyId),
   ...getLiveEmployeeFixtures().map((employee) => employee.tenantPartyId),

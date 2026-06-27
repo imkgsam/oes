@@ -1,4 +1,5 @@
 import {
+  ArchiveCrmAccountResponse,
   ClaimCrmAccountResponse,
   ConvertLeadToProspectCustomerResponse,
   CreateDraftLeadResponse,
@@ -7,9 +8,11 @@ import {
   CrmDuplicateCandidate,
   CrmLeadDuplicateResult,
   CrmPartyCandidate,
+  CrmSourceRecord as GrpcCrmSourceRecord,
   DeleteDraftLeadResponse,
   GetCrmAccountResponse,
   ListCrmAccountsResponse,
+  ListSourceRecordsResponse,
   ReleaseCrmAccountResponse,
   SubmitDraftLeadResponse,
   UpdateDraftLeadResponse
@@ -17,8 +20,10 @@ import {
 import {
   CrmAccountRecord,
   CrmLeadConversionResultType,
-  CrmLeadCreateResultType
+  CrmLeadCreateResultType,
+  CrmSourceRecord
 } from '../../domain/models/crm-records'
+import { ArchiveCrmAccountResult } from '../../application/commands/archive-crm-account.handler'
 import { ClaimCrmAccountResult } from '../../application/commands/claim-crm-account.handler'
 import { ConvertLeadToProspectCustomerResult } from '../../application/commands/convert-lead-to-prospect-customer.handler'
 import { CreateDraftLeadResult } from '../../application/commands/create-draft-lead.handler'
@@ -29,6 +34,7 @@ import { SubmitDraftLeadResult } from '../../application/commands/submit-draft-l
 import { UpdateDraftLeadResult } from '../../application/commands/update-draft-lead.handler'
 import { GetCrmAccountResult } from '../../application/queries/get-crm-account.handler'
 import { ListCrmAccountsResult } from '../../application/queries/list-crm-accounts.handler'
+import { ListSourceRecordsResult } from '../../application/queries/list-source-records.handler'
 import { CrmAccountDuplicateCandidate } from '../../domain/repositories/crm-account.repository'
 
 /** CustomerGrpcPresenter maps CRM domain records into the frozen phase 1 gRPC response shapes. */
@@ -63,7 +69,8 @@ export class CustomerGrpcPresenter {
       createdBy: account.createdBy,
       createdAt: toIsoString(account.createdAt),
       updatedAt: toIsoString(account.updatedAt),
-      archivedAt: toIsoString(account.archivedAt)
+      archivedAt: toIsoString(account.archivedAt),
+      archiveReason: account.archiveReason ?? ''
     }
   }
 
@@ -145,6 +152,13 @@ export class CustomerGrpcPresenter {
     }
   }
 
+  /** toArchiveCrmAccountResponse renders one archived CRM account with its CRM-owned reason. */
+  static toArchiveCrmAccountResponse(result: ArchiveCrmAccountResult): ArchiveCrmAccountResponse {
+    return {
+      crmAccount: this.toCrmAccountP1(result.account)
+    }
+  }
+
   /** toListCrmAccountsResponse renders one P1 CRM account page. */
   static toListCrmAccountsResponse(result: ListCrmAccountsResult): ListCrmAccountsResponse {
     return {
@@ -159,6 +173,13 @@ export class CustomerGrpcPresenter {
   static toGetCrmAccountResponse(result: GetCrmAccountResult): GetCrmAccountResponse {
     return {
       crmAccount: result.crmAccount ? this.toCrmAccountP1(result.crmAccount) : undefined
+    }
+  }
+
+  /** toListSourceRecordsResponse renders CRM source evidence in a read-only gRPC shape. */
+  static toListSourceRecordsResponse(result: ListSourceRecordsResult): ListSourceRecordsResponse {
+    return {
+      sourceRecords: result.sourceRecords.map(toCrmSourceRecord)
     }
   }
 }
@@ -180,4 +201,22 @@ function toCrmDuplicateCandidate(candidate: CrmAccountDuplicateCandidate): CrmDu
 /** toIsoString serializes optional date values into protobuf-friendly strings. */
 function toIsoString(value?: Date | null): string {
   return value ? value.toISOString() : ''
+}
+
+/** toCrmSourceRecord renders one CRM source record without exposing domain internals. */
+function toCrmSourceRecord(source: CrmSourceRecord): GrpcCrmSourceRecord {
+  return {
+    sourceRecordId: source.id,
+    crmAccountId: source.crmAccountId,
+    sourceType: source.sourceType,
+    sourceName: source.sourceName ?? '',
+    capturedAt: toIsoString(source.capturedAt),
+    capturedByAccountId: source.capturedByAccountId ?? '',
+    externalReference: source.externalReference ?? '',
+    rawPayloadJson: source.rawPayload ? JSON.stringify(source.rawPayload) : '',
+    note: source.note ?? '',
+    isPrimary: source.isPrimary,
+    createdAt: toIsoString(source.createdAt),
+    updatedAt: toIsoString(source.updatedAt)
+  }
 }

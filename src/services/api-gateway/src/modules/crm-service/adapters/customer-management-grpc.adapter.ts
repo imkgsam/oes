@@ -1,6 +1,8 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
 import {
+  ArchiveCrmAccountRequest,
+  ArchiveCrmAccountResponse,
   ClaimCrmAccountRequest,
   ClaimCrmAccountResponse,
   ConvertLeadToProspectCustomerRequest,
@@ -214,6 +216,29 @@ export class CustomerManagementGrpcAdapter implements OnModuleInit {
           auditContext: buildCrmAuditContext(
             source,
             input.auditReason ?? 'release crm account to pool from api-gateway'
+          )
+        },
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
+  /** archiveCrmAccount forwards one CRM-owned archive reason command. */
+  archiveCrmAccount(
+    input: Omit<ArchiveCrmAccountRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
+      ManagementInputBase,
+    source: DownstreamRequestSource
+  ): Promise<ArchiveCrmAccountResponse> {
+    return this.call(
+      'archiveCrmAccount',
+      this.svc.archiveCrmAccount(
+        {
+          ...input,
+          operatorContext: buildCrmOperatorContext(source),
+          traceContext: buildCrmTraceContext(source),
+          auditContext: buildCrmAuditContext(
+            source,
+            input.auditReason ?? 'archive crm account from api-gateway'
           )
         },
         this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))

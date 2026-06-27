@@ -185,3 +185,10 @@ catalog:
   yaml-eslint-parser: ^2.0.0
   zod: ^3.25.76
   zod-defaults: 0.1.3
+
+allowBuilds:
+  '@parcel/watcher': set this to true or false
+  core-js: set this to true or false
+  esbuild: set this to true or false
+  lefthook: set this to true or false
+  vue-demi: set this to true or false

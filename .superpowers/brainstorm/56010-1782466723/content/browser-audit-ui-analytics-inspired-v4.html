@@ -1,0 +1,738 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Browser Audit Workbench Visual V4</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --line: #e5ebf3;
+      --line-strong: #d8e2ef;
+      --text: #111827;
+      --muted: #64748b;
+      --soft: #f8fafc;
+      --blue: #5ab1ef;
+      --green: #019680;
+      --cyan: #67e0e3;
+      --violet: #b6a2de;
+      --shadow: 0 14px 36px rgba(15, 23, 42, 0.06);
+      --radius: 16px;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); }
+    button, select { font: inherit; }
+
+    .audit-page {
+      min-height: 100dvh;
+      padding: 20px;
+    }
+
+    .audit-shell {
+      width: min(1200px, 100%);
+      margin: 0 auto;
+    }
+
+    .command-card {
+      overflow: hidden;
+      margin-bottom: 16px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--card);
+      box-shadow: var(--shadow);
+    }
+
+    .command-main {
+      display: grid;
+      grid-template-columns: minmax(280px, 1fr) minmax(430px, 0.86fr);
+      gap: 16px;
+      align-items: center;
+      padding: 16px;
+      background:
+        linear-gradient(110deg, rgba(90,177,239,0.12), transparent 38%),
+        linear-gradient(270deg, rgba(1,150,128,0.10), transparent 30%),
+        #ffffff;
+    }
+
+    .command-title {
+      min-width: 0;
+      padding-left: 2px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      margin-bottom: 8px;
+      color: var(--green);
+      font-size: 12px;
+      font-weight: 760;
+    }
+
+    .eyebrow:before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--green);
+      box-shadow: 0 0 0 5px rgba(1,150,128,0.12);
+    }
+
+    h1, h2, h3, p { margin: 0; }
+
+    .command-title h1 {
+      color: #0f172a;
+      font-size: 22px;
+      font-weight: 820;
+      letter-spacing: 0;
+      line-height: 1.18;
+    }
+
+    .command-title p {
+      max-width: 56ch;
+      margin-top: 7px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .control-card {
+      display: grid;
+      gap: 10px;
+      padding: 10px;
+      border: 1px solid var(--line-strong);
+      border-radius: 14px;
+      background: rgba(255,255,255,0.82);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.9);
+    }
+
+    .control-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .control-card select,
+    .toggle-button {
+      height: 36px;
+      min-width: 0;
+      border: 1px solid #cfd9e8;
+      border-radius: 10px;
+      background: #fff;
+      color: #0f172a;
+      font-size: 13px;
+      font-weight: 740;
+    }
+
+    .control-card select { padding: 0 12px; }
+
+    .toggle-button {
+      padding: 0 14px;
+      color: #fff;
+      background: var(--green);
+      border-color: var(--green);
+      white-space: nowrap;
+      box-shadow: 0 8px 18px rgba(1,150,128,0.18);
+    }
+
+    .segments {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      overflow: hidden;
+      height: 36px;
+      border: 1px solid #cfd9e8;
+      border-radius: 10px;
+      background: #fff;
+    }
+
+    .segments span {
+      display: grid;
+      place-items: center;
+      min-width: 0;
+      border-right: 1px solid #e2e8f0;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 690;
+    }
+
+    .segments span:last-child { border-right: 0; }
+    .segments .on { color: #fff; background: var(--green); }
+
+    .command-status {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      border-top: 1px solid #edf2f7;
+      background: #fbfdff;
+    }
+
+    .status-item {
+      min-width: 0;
+      padding: 10px 16px;
+      border-right: 1px solid #edf2f7;
+    }
+
+    .status-item:last-child { border-right: 0; }
+
+    .status-item span {
+      display: block;
+      color: #94a3b8;
+      font-size: 11px;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+
+    .status-item b {
+      display: block;
+      margin-top: 4px;
+      overflow: hidden;
+      color: #0f172a;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px;
+      line-height: 1.2;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .overview {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .metric {
+      position: relative;
+      overflow: hidden;
+      min-height: 116px;
+      padding: 15px 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--card);
+      box-shadow: 0 10px 26px rgba(15, 23, 42, 0.045);
+    }
+
+    .metric:after {
+      content: "";
+      position: absolute;
+      right: -28px;
+      bottom: -32px;
+      width: 102px;
+      height: 102px;
+      border-radius: 32px;
+      background: color-mix(in srgb, var(--accent) 17%, transparent);
+      transform: rotate(12deg);
+    }
+
+    .metric-icon {
+      position: relative;
+      z-index: 1;
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      border-radius: 12px;
+      color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 13%, white);
+    }
+
+    .metric-icon svg {
+      width: 18px;
+      height: 18px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .metric label {
+      position: relative;
+      z-index: 1;
+      display: block;
+      margin-top: 13px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .metric strong {
+      position: relative;
+      z-index: 1;
+      display: block;
+      margin-top: 4px;
+      color: #111827;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 24px;
+      line-height: 1.1;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1.42fr) 440px;
+      gap: 16px;
+      align-items: stretch;
+    }
+
+    .panel,
+    .drawer {
+      overflow: hidden;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: center;
+      padding: 15px 16px;
+      border-bottom: 1px solid #eef2f7;
+    }
+
+    .panel-head h2 {
+      color: #111827;
+      font-size: 16px;
+      font-weight: 800;
+    }
+
+    .panel-head p {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .tabs {
+      display: flex;
+      flex: 0 0 auto;
+      gap: 4px;
+      padding: 4px;
+      border-radius: 10px;
+      background: #f1f5f9;
+    }
+
+    .tabs span {
+      padding: 7px 10px;
+      border-radius: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 720;
+    }
+
+    .tabs .on {
+      color: #111827;
+      background: #fff;
+      box-shadow: 0 4px 12px rgba(15,23,42,0.08);
+    }
+
+    .chart-card {
+      padding: 16px 16px 10px;
+      background:
+        linear-gradient(#edf2f7 1px, transparent 1px) 0 18px / 100% 44px,
+        linear-gradient(180deg, rgba(90,177,239,0.13), rgba(1,150,128,0.04));
+    }
+
+    .trend-svg {
+      display: block;
+      width: 100%;
+      height: 238px;
+    }
+
+    .trend-area { fill: url(#areaGradient); opacity: 0.88; }
+    .trend-line { fill: none; stroke: var(--green); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+    .trend-secondary { fill: none; stroke: var(--blue); stroke-width: 2; stroke-dasharray: 5 7; stroke-linecap: round; opacity: .85; }
+    .trend-point { fill: #fff; stroke: var(--green); stroke-width: 3; }
+
+    .rank {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      padding: 14px;
+    }
+
+    .mini {
+      overflow: hidden;
+      border: 1px solid #eef2f7;
+      border-radius: 14px;
+      background: #fff;
+    }
+
+    .mini h3 {
+      padding: 12px 13px;
+      border-bottom: 1px solid #eef2f7;
+      color: #111827;
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .rank-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      padding: 11px 13px;
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    .rank-row:last-child { border-bottom: 0; }
+
+    .rank-row strong,
+    .rank-row small {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .rank-row strong {
+      color: #111827;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .rank-row small {
+      margin-top: 5px;
+      color: var(--muted);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+    }
+
+    .bar-track {
+      grid-column: 1 / -1;
+      height: 6px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #eef2f7;
+    }
+
+    .bar-fill {
+      width: var(--w);
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--blue), var(--green));
+    }
+
+    .duration {
+      color: var(--green);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-weight: 780;
+      white-space: nowrap;
+    }
+
+    .drawer {
+      border: 1px solid rgba(226,232,240,0.10);
+      background: #111827;
+      color: #cbd5e1;
+    }
+
+    .drawer-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: start;
+      padding: 15px;
+      border-bottom: 1px solid rgba(226,232,240,0.14);
+    }
+
+    .drawer-head h2 {
+      overflow: hidden;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 820;
+      line-height: 1.25;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .drawer-head p {
+      margin-top: 6px;
+      overflow: hidden;
+      color: #94a3b8;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.4;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .actions button {
+      height: 32px;
+      border: 1px solid rgba(226,232,240,0.2);
+      border-radius: 9px;
+      padding: 0 10px;
+      color: #e5e7eb;
+      background: rgba(255,255,255,0.08);
+      font-size: 12px;
+      font-weight: 740;
+    }
+
+    .actions .x {
+      width: 32px;
+      padding: 0;
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .donut-zone {
+      display: grid;
+      grid-template-columns: 144px minmax(0, 1fr);
+      gap: 14px;
+      align-items: center;
+      padding: 18px 16px 16px;
+    }
+
+    .donut {
+      width: 140px;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at center, #111827 0 48%, transparent 49%),
+        conic-gradient(var(--blue) 0 56%, var(--green) 56% 82%, var(--cyan) 82% 100%);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+    }
+
+    .legend div {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      padding: 7px 0;
+      border-bottom: 1px solid rgba(226,232,240,0.10);
+      font-size: 12px;
+    }
+
+    .legend span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .drawer-list {
+      display: grid;
+      gap: 10px;
+      padding: 0 14px 14px;
+    }
+
+    .drawer-row {
+      padding: 12px;
+      border-radius: 13px;
+      background: rgba(255,255,255,0.06);
+    }
+
+    .drawer-row strong {
+      display: block;
+      overflow: hidden;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 820;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .split-url {
+      display: grid;
+      grid-template-columns: 42px minmax(0,1fr);
+      gap: 6px 8px;
+      margin-top: 8px;
+      color: #94a3b8;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .split-url b { color: var(--cyan); }
+    .split-url span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    @media (max-width: 1060px) {
+      .command-main,
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+      .overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 640px) {
+      .audit-page { padding: 12px; }
+      .command-main { padding: 14px; }
+      .command-title h1 { font-size: 21px; }
+      .control-row { grid-template-columns: 1fr; }
+      .command-status { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .status-item:nth-child(2n) { border-right: 0; }
+      .status-item:nth-child(n+3) { border-top: 1px solid #edf2f7; }
+      .overview,
+      .rank {
+        grid-template-columns: 1fr;
+      }
+      .metric { min-height: 112px; }
+      .panel-head {
+        align-items: stretch;
+        flex-direction: column;
+      }
+      .tabs { width: max-content; }
+      .chart-card { padding: 12px 10px 6px; }
+      .trend-svg { height: 220px; }
+      .drawer-head {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      .actions {
+        justify-content: flex-end;
+      }
+      .donut-zone {
+        grid-template-columns: 124px minmax(0, 1fr);
+        gap: 12px;
+      }
+      .donut { width: 122px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="audit-page">
+    <div class="audit-shell">
+      <section class="command-card">
+        <div class="command-main">
+          <div class="command-title">
+            <div class="eyebrow">用户级审计工作台</div>
+            <h1>浏览器插件监控</h1>
+            <p>选择员工后，开关、在线状态、聚合趋势、Domain 和 URL 明细全部按当前用户刷新；关闭监控只停止后续采集，历史数据继续可查。</p>
+          </div>
+          <div class="control-card">
+            <div class="control-row">
+              <select aria-label="选择员工">
+                <option>陈双鹏 · csp</option>
+                <option>林晓雯 · lin</option>
+              </select>
+              <button class="toggle-button">监控已开启</button>
+            </div>
+            <div class="segments" aria-label="时间范围">
+              <span>1h</span><span class="on">1天</span><span>1周</span><span>1月</span>
+            </div>
+          </div>
+        </div>
+        <div class="command-status">
+          <div class="status-item"><span>历史数据</span><b>可继续查看</b></div>
+          <div class="status-item"><span>在线状态</span><b>在线 · 18s 前心跳</b></div>
+          <div class="status-item"><span>时长精度</span><b>秒级聚合</b></div>
+          <div class="status-item"><span>页面状态</span><b>不使用 URL 用户参数</b></div>
+        </div>
+      </section>
+
+      <section class="overview">
+        <div class="metric" style="--accent:#5ab1ef">
+          <div class="metric-icon"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg></div>
+          <label>Domain 数量</label>
+          <strong>12</strong>
+        </div>
+        <div class="metric" style="--accent:#019680">
+          <div class="metric-icon"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.1 0l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1"/><path d="M14 11a5 5 0 0 0-7.1 0l-2 2a5 5 0 0 0 7.1 7.1l1.1-1.1"/></svg></div>
+          <label>URL 访问</label>
+          <strong>48</strong>
+        </div>
+        <div class="metric" style="--accent:#67e0e3">
+          <div class="metric-icon"><svg viewBox="0 0 24 24"><path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="8"/></svg></div>
+          <label>活跃时长</label>
+          <strong>2m 30s</strong>
+        </div>
+        <div class="metric" style="--accent:#b6a2de">
+          <div class="metric-icon"><svg viewBox="0 0 24 24"><path d="M4 12h4l2-6 4 12 2-6h4"/></svg></div>
+          <label>最近心跳</label>
+          <strong>18s</strong>
+        </div>
+      </section>
+
+      <section class="workspace">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>访问趋势</h2>
+              <p>按选定时间范围展示活跃时长变化，同时保留 Domain 与 URL 两个排名视角。</p>
+            </div>
+            <div class="tabs"><span class="on">趋势</span><span>排名</span></div>
+          </div>
+          <div class="chart-card">
+            <svg class="trend-svg" viewBox="0 0 720 238" role="img" aria-label="访问趋势示意图">
+              <defs>
+                <linearGradient id="areaGradient" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="0%" stop-color="#67e0e3" stop-opacity="0.55"/>
+                  <stop offset="100%" stop-color="#019680" stop-opacity="0.05"/>
+                </linearGradient>
+              </defs>
+              <path class="trend-area" d="M0 188 C38 172 52 150 88 154 C126 158 132 94 178 104 C224 114 232 56 272 68 C318 82 312 128 356 116 C400 104 404 76 450 84 C494 92 500 144 542 130 C584 116 588 86 626 94 C668 102 684 132 720 118 L720 238 L0 238 Z"/>
+              <path class="trend-secondary" d="M0 170 C58 128 104 174 154 132 C206 88 242 132 294 96 C344 62 386 122 434 102 C488 80 516 138 570 112 C620 88 666 116 720 86"/>
+              <path class="trend-line" d="M0 188 C38 172 52 150 88 154 C126 158 132 94 178 104 C224 114 232 56 272 68 C318 82 312 128 356 116 C400 104 404 76 450 84 C494 92 500 144 542 130 C584 116 588 86 626 94 C668 102 684 132 720 118"/>
+              <circle class="trend-point" cx="88" cy="154" r="5"/><circle class="trend-point" cx="178" cy="104" r="5"/><circle class="trend-point" cx="272" cy="68" r="5"/><circle class="trend-point" cx="450" cy="84" r="5"/><circle class="trend-point" cx="626" cy="94" r="5"/>
+            </svg>
+          </div>
+          <div class="rank">
+            <div class="mini">
+              <h3>Domain 时长排名</h3>
+              <div class="rank-row">
+                <div><strong>supplier-portal.example</strong><small>12 次访问 · 8 URLs</small></div><span class="duration">2m 30s</span>
+                <div class="bar-track"><div class="bar-fill" style="--w:100%"></div></div>
+              </div>
+              <div class="rank-row">
+                <div><strong>docs.oes.internal</strong><small>6 次访问 · 4 URLs</small></div><span class="duration">1m 12s</span>
+                <div class="bar-track"><div class="bar-fill" style="--w:48%"></div></div>
+              </div>
+            </div>
+            <div class="mini">
+              <h3>URL 时长排名</h3>
+              <div class="rank-row">
+                <div><strong>Supplier Orders</strong><small>supplier-portal.example / orders / pending-approval...</small></div><span class="duration">58s</span>
+                <div class="bar-track"><div class="bar-fill" style="--w:100%"></div></div>
+              </div>
+              <div class="rank-row">
+                <div><strong>Procurement Review Notes</strong><small>docs.oes.internal / reviews / procurement...</small></div><span class="duration">41s</span>
+                <div class="bar-track"><div class="bar-fill" style="--w:71%"></div></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <aside class="drawer">
+          <div class="drawer-head">
+            <div>
+              <h2>supplier-portal.example</h2>
+              <p>https://supplier-portal.example/orders/pending-approval/2026/weekly-review</p>
+            </div>
+            <div class="actions"><button>打开链接</button><button class="x" aria-label="关闭">×</button></div>
+          </div>
+          <div class="donut-zone">
+            <div class="donut"></div>
+            <div class="legend">
+              <div><span>Orders</span><b class="duration">1m 20s</b></div>
+              <div><span>Contracts</span><b class="duration">42s</b></div>
+              <div><span>Search</span><b class="duration">28s</b></div>
+            </div>
+          </div>
+          <div class="drawer-list">
+            <div class="drawer-row">
+              <strong>Supplier Orders</strong>
+              <div class="split-url"><b>host</b><span>supplier-portal.example</span><b>path</b><span>/orders/pending-approval/2026/weekly-review</span></div>
+            </div>
+            <div class="drawer-row">
+              <strong>Supplier Contract Detail</strong>
+              <div class="split-url"><b>host</b><span>supplier-portal.example</span><b>path</b><span>/contracts/vendor-1842/revision-history</span></div>
+            </div>
+          </div>
+        </aside>
+      </section>
+    </div>
+  </main>
+</body>
+</html>

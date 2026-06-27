@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common'
 import { CqrsModule } from '@nestjs/cqrs'
 import { ValidatingCommandBus } from '@oes/common/cqrs'
+import { ArchiveCrmAccountHandler } from '../application/commands/archive-crm-account.handler'
 import { ClaimCrmAccountHandler } from '../application/commands/claim-crm-account.handler'
 import { ConvertLeadToProspectCustomerHandler } from '../application/commands/convert-lead-to-prospect-customer.handler'
 import { CreateDraftLeadHandler } from '../application/commands/create-draft-lead.handler'
@@ -20,6 +21,7 @@ import { CustomerManagementGrpcController } from '../interfaces/grpc/customer-ma
     ValidatingCommandBus,
     CrmAuditService,
     CheckLeadDuplicateHandler,
+    ArchiveCrmAccountHandler,
     ClaimCrmAccountHandler,
     CreateDraftLeadHandler,
     CreateLeadHandler,

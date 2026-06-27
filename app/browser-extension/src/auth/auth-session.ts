@@ -13,16 +13,24 @@ import { ExtensionAuthApi, ExtensionAuthApiError } from './api'
 
 export interface AuthSessionControllerOptions {
   api?: ExtensionAuthApi
+  browserActivityRuntime?: BrowserActivityRuntimePort
   storage: AuthStorage
+}
+
+export interface BrowserActivityRuntimePort {
+  logout(): Promise<void>
+  startFromSession(session: StoredAuthSession): Promise<void>
 }
 
 // Coordinates popup auth state transitions across login, MFA, account selection, refresh, and logout.
 export class AuthSessionController {
   private readonly api: ExtensionAuthApi
+  private readonly browserActivityRuntime?: BrowserActivityRuntimePort
   private readonly storage: AuthStorage
 
   constructor(options: AuthSessionControllerOptions) {
     this.api = options.api ?? new ExtensionAuthApi()
+    this.browserActivityRuntime = options.browserActivityRuntime
     this.storage = options.storage
   }
 
@@ -91,6 +99,12 @@ export class AuthSessionController {
   async logout(): Promise<AuthScreen> {
     const stored = await this.storage.load()
     try {
+      await this.browserActivityRuntime?.logout()
+    } catch {
+      // Local logout must still clear auth state if runtime cleanup has already failed.
+    }
+
+    try {
       await this.api.logout(stored?.accessToken)
     } catch {
       // Local logout must complete even when the remote session is already expired.
@@ -141,6 +155,7 @@ export class AuthSessionController {
       refreshToken: session.refreshToken
     }
     await this.storage.save(stored)
+    await this.browserActivityRuntime?.startFromSession(stored)
 
     return {
       context,
@@ -154,6 +169,7 @@ export class AuthSessionController {
       const context = await this.api.getSessionContext(stored.accessToken)
       const next = { ...stored, context }
       await this.storage.save(next)
+      await this.browserActivityRuntime?.startFromSession(next)
       return toAuthenticatedScreen(next, context)
     } catch (error) {
       if (!isRecoverableAuthError(error)) {
@@ -168,6 +184,7 @@ export class AuthSessionController {
       context: await this.api.getSessionContext(refreshed.accessToken)
     }
     await this.storage.save(next)
+    await this.browserActivityRuntime?.startFromSession(next)
     return toAuthenticatedScreen(next, next.context)
   }
 }

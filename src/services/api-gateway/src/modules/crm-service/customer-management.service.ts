@@ -1,5 +1,6 @@
 import { ForbiddenException, Injectable } from '@nestjs/common'
 import {
+  ArchiveCrmAccountResponse,
   CheckLeadDuplicateResponse,
   ClaimCrmAccountResponse,
   ConvertLeadToProspectCustomerResponse,
@@ -9,6 +10,7 @@ import {
   DeleteDraftLeadResponse,
   GetCrmAccountResponse,
   ListCrmAccountsResponse,
+  ListSourceRecordsResponse,
   ReleaseCrmAccountResponse,
   SubmitDraftLeadResponse,
   UpdateDraftLeadResponse
@@ -77,6 +79,23 @@ export class CustomerManagementService {
     )
 
     return this.withAccountDisplayNames(mapCrmAccountP1Detail(result), source)
+  }
+
+  /** listSourceRecords returns read-only CRM source evidence for the account detail tab. */
+  async listSourceRecords(
+    tenantId: string,
+    crmAccountId: string,
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.customerQueryAdapter.listSourceRecords(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        crmAccountId: requireNonBlank(crmAccountId, 'crmAccountId')
+      },
+      source
+    )
+
+    return this.withSourceRecordDisplayNames(mapListSourceRecordsResponse(result), source)
   }
 
   /** createLead creates one active CRM P1 lead with its primary source record. */
@@ -304,6 +323,25 @@ export class CustomerManagementService {
     return this.withAccountDisplayNames(mapReleaseCrmAccountResponse(result), source)
   }
 
+  /** archiveCrmAccount delegates CRM-owned archive reason semantics to crm-service. */
+  async archiveCrmAccount(
+    tenantId: string,
+    crmAccountId: string,
+    input: { archiveReason: string },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.customerManagementAdapter.archiveCrmAccount(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        crmAccountId: requireNonBlank(crmAccountId, 'crmAccountId'),
+        archiveReason: requireNonBlank(input.archiveReason, 'archiveReason')
+      },
+      source
+    )
+
+    return this.withAccountDisplayNames(mapArchiveCrmAccountResponse(result), source)
+  }
+
   /** checkLeadDuplicate exposes the CRM duplicate check before create or submit decisions. */
   async checkLeadDuplicate(
     tenantId: string,
@@ -432,13 +470,43 @@ export class CustomerManagementService {
           .filter(Boolean)
       )
     ] as string[]
+    return this.loadDisplayNameMap(accountIds, source)
+  }
+
+  /** loadDisplayNameMap resolves display-only account names for arbitrary CRM account references. */
+  private async loadDisplayNameMap(
+    accountIds: string[],
+    source: DownstreamRequestSource
+  ): Promise<Map<string, string | undefined>> {
     const entries = await Promise.all(
-      accountIds.map(async (accountId) => {
+      [...new Set(accountIds)].map(async (accountId) => {
         const result = await this.identityQueryAdapter.getAccountById(accountId, source)
         return [accountId, normalize(result.account?.displayName)] as const
       })
     )
     return new Map(entries)
+  }
+
+  /** withSourceRecordDisplayNames attaches captured-by labels without changing source-record truth. */
+  private async withSourceRecordDisplayNames(
+    result: CrmSourceRecordListModel,
+    source: DownstreamRequestSource
+  ): Promise<CrmSourceRecordListModel> {
+    const accountNames = await this.loadDisplayNameMap(
+      result.sourceRecords
+        .map((record) => normalize(record.capturedByAccountId))
+        .filter((accountId): accountId is string => Boolean(accountId)),
+      source
+    )
+
+    return {
+      sourceRecords: result.sourceRecords.map((record) => ({
+        ...record,
+        capturedByDisplayName: record.capturedByAccountId
+          ? accountNames.get(record.capturedByAccountId) ?? ''
+          : ''
+      }))
+    }
   }
 
   /** withAccountDisplayNamesFromMap adds display-only account names when identity-service returned them. */
@@ -467,6 +535,8 @@ type CrmAccountP1Model = NonNullable<ReturnType<typeof mapCrmAccountP1>> & {
 type CrmAccountP1PageModel = ReturnType<typeof mapCrmAccountP1Page> & {
   crmAccounts: CrmAccountP1Model[]
 }
+
+type CrmSourceRecordListModel = ReturnType<typeof mapListSourceRecordsResponse>
 
 /** mapLeadDraftInput normalizes editable lead fields shared by draft create and update commands. */
 function mapLeadDraftInput(input: {
@@ -573,6 +643,11 @@ function mapReleaseCrmAccountResponse(result: ReleaseCrmAccountResponse) {
   return mapCrmAccountP1(result.crmAccount)
 }
 
+/** mapArchiveCrmAccountResponse converts one CRM archive command response into a CRM account view model. */
+function mapArchiveCrmAccountResponse(result: ArchiveCrmAccountResponse) {
+  return mapCrmAccountP1(result.crmAccount)
+}
+
 /** mapCheckLeadDuplicateResponse converts one explicit duplicate check response into BFF JSON. */
 function mapCheckLeadDuplicateResponse(result: CheckLeadDuplicateResponse) {
   return {
@@ -612,6 +687,27 @@ function mapCrmAccountP1Detail(result: GetCrmAccountResponse) {
   return mapCrmAccountP1(result.crmAccount)
 }
 
+/** mapListSourceRecordsResponse converts CRM source evidence into tenant-web friendly JSON. */
+function mapListSourceRecordsResponse(result: ListSourceRecordsResponse) {
+  return {
+    sourceRecords: (result.sourceRecords ?? []).map((source) => ({
+      sourceRecordId: source.sourceRecordId ?? '',
+      crmAccountId: source.crmAccountId ?? '',
+      sourceType: source.sourceType ?? '',
+      sourceName: source.sourceName ?? '',
+      capturedAt: source.capturedAt ?? '',
+      capturedByAccountId: source.capturedByAccountId ?? '',
+      capturedByDisplayName: '',
+      externalReference: source.externalReference ?? '',
+      rawPayload: parseRawPayload(source.rawPayloadJson),
+      note: source.note ?? '',
+      isPrimary: Boolean(source.isPrimary),
+      createdAt: source.createdAt ?? '',
+      updatedAt: source.updatedAt ?? ''
+    }))
+  }
+}
+
 /** mapCrmAccountP1 flattens one CRM P1 account generated payload into BFF JSON. */
 function mapCrmAccountP1(account?: CrmAccountP1) {
   if (!account) {
@@ -624,6 +720,7 @@ function mapCrmAccountP1(account?: CrmAccountP1) {
     tenantPartyId: account.tenantPartyId ?? '',
     recordStatus: account.recordStatus ?? '',
     lifecycleStage: account.lifecycleStage ?? '',
+    archiveReason: account.archiveReason ?? '',
     partyTypeHint: account.partyTypeHint ?? '',
     displayName: account.displayName ?? '',
     leadCompanyName: account.leadCompanyName ?? '',
@@ -707,6 +804,23 @@ function stringifyRawPayload(value?: Record<string, unknown>): string | undefine
   }
 
   return JSON.stringify(value)
+}
+
+/** parseRawPayload restores optional CRM source payload JSON for display-only BFF responses. */
+function parseRawPayload(value?: string): Record<string, unknown> | null {
+  const normalized = normalize(value)
+  if (!normalized) {
+    return null
+  }
+
+  try {
+    const parsed = JSON.parse(normalized)
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : null
+  } catch {
+    return null
+  }
 }
 
 /** resolveCreateLeadAssignmentIntent maps BFF entry context into CRM's explicit owner assignment contract. */

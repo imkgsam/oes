@@ -1,5 +1,7 @@
 /* @vitest-environment happy-dom */
 
+import { readFileSync } from 'node:fs'
+
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -144,7 +146,7 @@ describe('CRM pool management page', () => {
     document.body.innerHTML = ''
   })
 
-  it('loads ownerless Pool Lead records with metrics and claim actions', async () => {
+  it('loads ownerless Pool Lead records with metrics and claim actions in the row dropdown', async () => {
     const page = (await import('./crm-pool-management.vue')).default
     const wrapper = mount(page, { attachTo: document.body })
 
@@ -161,24 +163,42 @@ describe('CRM pool management page', () => {
     expect(wrapper.get('[data-testid="crm-pool-page"]').text()).toContain('CRM 公海')
     expect(wrapper.get('[data-testid="crm-pool-metrics"]').text()).toContain('公海 Lead')
     expect(wrapper.find('[data-testid="crm-pool-chart"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="crm-pool-refresh"]').exists()).toBe(false)
     expect(wrapper.text()).toContain('Meridian Tile Works')
     expect(wrapper.text()).toContain('未分配')
-    expect(wrapper.find('[data-testid="crm-pool-claim-crm-account-1"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="crm-pool-claim-crm-account-1"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="crm-pool-more-crm-account-1"]').classes()).toContain(
+      'crm-pool__more-button'
+    )
 
     const countrySelect = wrapper.findComponent({ name: 'CountryRegionSelect' })
     expect(countrySelect.exists()).toBe(true)
+    const prioritySelect = wrapper
+      .findAllComponents({ name: 'ASelect' })
+      .find((select) => select.props('placeholder') === '选择优先级')
+    expect(prioritySelect).toBeTruthy()
+    expect(prioritySelect!.props('placeholder')).toBe('选择优先级')
+    expect(prioritySelect!.props('value')).toBeUndefined()
     countrySelect.vm.$emit('update:value', 'GB')
     await flushPromises()
 
     expect(wrapper.text()).toContain('Meridian Tile Works')
     expect(wrapper.text()).not.toContain('Caldera Surface Studio')
 
-    await wrapper.get('[data-testid="crm-pool-claim-crm-account-1"]').trigger('click')
-    await flushPromises()
+    await clickPoolRowDropdownAction(wrapper, 'crm-account-1', 'crm-pool-claim-crm-account-1')
 
     expect(claimCrmAccountApi).toHaveBeenCalledWith('tenant-1', 'crm-account-1')
     expect(listCrmAccountsApi.mock.calls.length).toBeGreaterThan(2)
   }, 20_000)
+
+  it('centers the CRM Pool row more icon inside its circular action button', () => {
+    const source = readFileSync('apps/tenant-web/src/views/admin/crm-pool-management.vue', 'utf8')
+
+    expect(source).not.toContain('.crm-pool__row-actions :deep(.ant-btn)')
+    expect(source).toMatch(
+      /\.crm-pool__more-button\s*\{[\s\S]*?display:\s*inline-grid[\s\S]*?place-items:\s*center/
+    )
+  })
 
   it('switches to ownerless Pool prospect customers and routes details to the CRM detail page', async () => {
     const page = (await import('./crm-pool-management.vue')).default
@@ -226,10 +246,14 @@ describe('CRM pool management page', () => {
 
     await flushPromises()
 
-    const claimButton = wrapper.get('[data-testid="crm-pool-claim-crm-account-1"]')
-    expect(claimButton.attributes('disabled')).toBeDefined()
+    await wrapper.get('[data-testid="crm-pool-more-crm-account-1"]').trigger('click')
+    await flushPromises()
 
-    await claimButton.trigger('click')
+    const claimAction = document.querySelector('[data-testid="crm-pool-claim-crm-account-1"]') as HTMLElement | null
+    expect(claimAction).toBeTruthy()
+    expect(claimAction!.getAttribute('aria-disabled')).toBe('true')
+
+    claimAction!.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
     await flushPromises()
 
     expect(claimCrmAccountApi).not.toHaveBeenCalled()

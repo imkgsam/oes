@@ -1,0 +1,739 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Browser Audit Workbench Visual V5</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --line: #e5ebf3;
+      --line-strong: #d8e2ef;
+      --text: #111827;
+      --muted: #64748b;
+      --soft: #f8fafc;
+      --blue: #5ab1ef;
+      --green: #019680;
+      --cyan: #67e0e3;
+      --violet: #b6a2de;
+      --shadow: 0 14px 36px rgba(15, 23, 42, 0.06);
+      --radius: 16px;
+      color-scheme: light;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); }
+    button, select { font: inherit; }
+    h1, h2, h3, p { margin: 0; }
+
+    .audit-page { min-height: 100dvh; padding: 20px; }
+    .audit-shell { width: min(1220px, 100%); margin: 0 auto; }
+
+    .card {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--card);
+      box-shadow: var(--shadow);
+    }
+
+    .command-card {
+      margin-bottom: 16px;
+      background:
+        linear-gradient(110deg, rgba(90,177,239,0.12), transparent 38%),
+        linear-gradient(270deg, rgba(1,150,128,0.10), transparent 30%),
+        #fff;
+    }
+
+    .command-main {
+      display: grid;
+      grid-template-columns: minmax(280px, 1fr) minmax(430px, 0.86fr);
+      gap: 16px;
+      align-items: center;
+      padding: 16px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      margin-bottom: 8px;
+      color: var(--green);
+      font-size: 12px;
+      font-weight: 760;
+    }
+
+    .eyebrow:before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--green);
+      box-shadow: 0 0 0 5px rgba(1,150,128,0.12);
+    }
+
+    .command-title h1 {
+      color: #0f172a;
+      font-size: 22px;
+      font-weight: 820;
+      line-height: 1.18;
+    }
+
+    .command-title p {
+      max-width: 62ch;
+      margin-top: 7px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .control-card {
+      display: grid;
+      gap: 10px;
+      padding: 10px;
+      border: 1px solid var(--line-strong);
+      border-radius: 14px;
+      background: rgba(255,255,255,0.82);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.9);
+    }
+
+    .control-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .control-card select,
+    .toggle-button {
+      height: 36px;
+      min-width: 0;
+      border: 1px solid #cfd9e8;
+      border-radius: 10px;
+      background: #fff;
+      color: #0f172a;
+      font-size: 13px;
+      font-weight: 740;
+    }
+
+    .control-card select { padding: 0 12px; }
+
+    .toggle-button {
+      padding: 0 14px;
+      color: #fff;
+      background: var(--green);
+      border-color: var(--green);
+      white-space: nowrap;
+      box-shadow: 0 8px 18px rgba(1,150,128,0.18);
+    }
+
+    .segments {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      overflow: hidden;
+      height: 36px;
+      border: 1px solid #cfd9e8;
+      border-radius: 10px;
+      background: #fff;
+    }
+
+    .segments span {
+      display: grid;
+      place-items: center;
+      border-right: 1px solid #e2e8f0;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 690;
+    }
+
+    .segments span:last-child { border-right: 0; }
+    .segments .on { color: #fff; background: var(--green); }
+
+    .command-status {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      border-top: 1px solid #edf2f7;
+      background: rgba(251,253,255,0.9);
+    }
+
+    .status-item {
+      min-width: 0;
+      padding: 10px 16px;
+      border-right: 1px solid #edf2f7;
+    }
+
+    .status-item:last-child { border-right: 0; }
+    .status-item span {
+      display: block;
+      color: #94a3b8;
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .status-item b {
+      display: block;
+      margin-top: 4px;
+      overflow: hidden;
+      color: #0f172a;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .overview {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .metric {
+      position: relative;
+      overflow: hidden;
+      min-height: 108px;
+      padding: 15px 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      box-shadow: 0 10px 26px rgba(15, 23, 42, 0.045);
+    }
+
+    .metric:after {
+      content: "";
+      position: absolute;
+      right: -28px;
+      bottom: -32px;
+      width: 102px;
+      height: 102px;
+      border-radius: 32px;
+      background: color-mix(in srgb, var(--accent) 17%, transparent);
+      transform: rotate(12deg);
+    }
+
+    .metric-icon {
+      position: relative;
+      z-index: 1;
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 11px;
+      color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 13%, white);
+    }
+
+    .metric-icon svg {
+      width: 17px;
+      height: 17px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .metric label {
+      position: relative;
+      z-index: 1;
+      display: block;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .metric strong {
+      position: relative;
+      z-index: 1;
+      display: block;
+      margin-top: 4px;
+      color: #111827;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 23px;
+      line-height: 1.1;
+    }
+
+    .block { margin-bottom: 16px; }
+
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: center;
+      padding: 15px 16px;
+      border-bottom: 1px solid #eef2f7;
+    }
+
+    .panel-head h2 {
+      color: #111827;
+      font-size: 16px;
+      font-weight: 820;
+    }
+
+    .panel-head p {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .tabs {
+      display: flex;
+      flex: 0 0 auto;
+      gap: 4px;
+      padding: 4px;
+      border-radius: 10px;
+      background: #f1f5f9;
+    }
+
+    .tabs span {
+      padding: 7px 10px;
+      border-radius: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 720;
+    }
+
+    .tabs .on {
+      color: #111827;
+      background: #fff;
+      box-shadow: 0 4px 12px rgba(15,23,42,0.08);
+    }
+
+    .trend-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.65fr);
+      gap: 14px;
+      padding: 14px;
+      background:
+        linear-gradient(#edf2f7 1px, transparent 1px) 0 18px / 100% 44px,
+        linear-gradient(180deg, rgba(90,177,239,0.10), rgba(1,150,128,0.03));
+    }
+
+    .trend-canvas,
+    .domain-bars {
+      min-height: 260px;
+      border: 1px solid #eef2f7;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.72);
+    }
+
+    .trend-canvas { padding: 14px; }
+    .trend-svg { display: block; width: 100%; height: 232px; }
+    .trend-area { fill: url(#areaGradient); opacity: 0.88; }
+    .trend-line { fill: none; stroke: var(--green); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+    .trend-secondary { fill: none; stroke: var(--blue); stroke-width: 2; stroke-dasharray: 5 7; stroke-linecap: round; opacity: .85; }
+    .trend-point { fill: #fff; stroke: var(--green); stroke-width: 3; }
+
+    .domain-bars {
+      display: grid;
+      align-content: end;
+      gap: 12px;
+      padding: 16px;
+    }
+
+    .domain-bars h3 {
+      align-self: start;
+      color: #111827;
+      font-size: 14px;
+      font-weight: 820;
+    }
+
+    .vbars {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 11px;
+      align-items: end;
+      height: 184px;
+    }
+
+    .vbar {
+      display: grid;
+      align-content: end;
+      gap: 8px;
+      min-width: 0;
+      height: 100%;
+    }
+
+    .vbar i {
+      display: block;
+      height: var(--h);
+      min-height: 24px;
+      border-radius: 10px 10px 4px 4px;
+      background: linear-gradient(180deg, var(--blue), var(--green));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.35);
+    }
+
+    .vbar span {
+      overflow: hidden;
+      color: var(--muted);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 11px;
+      text-align: center;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .analysis-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 440px;
+      gap: 16px;
+      align-items: stretch;
+    }
+
+    .rank-list {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      padding: 14px;
+    }
+
+    .rank-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      padding: 12px 13px;
+      border: 1px solid #eef2f7;
+      border-radius: 13px;
+      background: #fff;
+    }
+
+    .rank-row strong,
+    .rank-row small {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .rank-row strong {
+      color: #111827;
+      font-size: 13px;
+      font-weight: 820;
+    }
+
+    .rank-row small {
+      margin-top: 5px;
+      color: var(--muted);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+    }
+
+    .bar-track {
+      grid-column: 1 / -1;
+      height: 7px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #eef2f7;
+    }
+
+    .bar-fill {
+      width: var(--w);
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--blue), var(--green));
+    }
+
+    .duration {
+      color: var(--green);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-weight: 780;
+      white-space: nowrap;
+    }
+
+    .drawer {
+      border: 1px solid rgba(226,232,240,0.10);
+      border-radius: var(--radius);
+      background: #111827;
+      color: #cbd5e1;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .drawer-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: start;
+      padding: 15px;
+      border-bottom: 1px solid rgba(226,232,240,0.14);
+    }
+
+    .drawer-head h2 {
+      overflow: hidden;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 820;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .drawer-head p {
+      margin-top: 6px;
+      overflow: hidden;
+      color: #94a3b8;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .actions { display: flex; gap: 8px; }
+    .actions button {
+      height: 32px;
+      border: 1px solid rgba(226,232,240,0.2);
+      border-radius: 9px;
+      padding: 0 10px;
+      color: #e5e7eb;
+      background: rgba(255,255,255,0.08);
+      font-size: 12px;
+      font-weight: 740;
+    }
+
+    .actions .x { width: 32px; padding: 0; font-size: 18px; line-height: 1; }
+
+    .donut-zone {
+      display: grid;
+      grid-template-columns: 142px minmax(0, 1fr);
+      gap: 14px;
+      align-items: center;
+      padding: 18px 16px 14px;
+    }
+
+    .donut {
+      width: 138px;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at center, #111827 0 48%, transparent 49%),
+        conic-gradient(var(--blue) 0 45%, var(--green) 45% 70%, var(--cyan) 70% 86%, var(--violet) 86% 100%);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+    }
+
+    .legend div {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      padding: 7px 0;
+      border-bottom: 1px solid rgba(226,232,240,0.10);
+      font-size: 12px;
+    }
+
+    .legend span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .drawer-list {
+      display: grid;
+      gap: 10px;
+      padding: 0 14px 14px;
+    }
+
+    .drawer-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      padding: 12px;
+      border-radius: 13px;
+      background: rgba(255,255,255,0.06);
+    }
+
+    .drawer-row strong,
+    .drawer-row small {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .drawer-row strong {
+      color: #fff;
+      font-size: 13px;
+      font-weight: 820;
+    }
+
+    .drawer-row small {
+      margin-top: 5px;
+      color: #94a3b8;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+    }
+
+    .open-link {
+      height: 30px;
+      border: 1px solid rgba(226,232,240,0.18);
+      border-radius: 8px;
+      color: #e5e7eb;
+      background: rgba(255,255,255,0.08);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    @media (max-width: 1080px) {
+      .command-main,
+      .analysis-layout,
+      .trend-grid {
+        grid-template-columns: 1fr;
+      }
+      .overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 640px) {
+      .audit-page { padding: 12px; }
+      .command-main { padding: 14px; }
+      .command-title h1 { font-size: 21px; }
+      .control-row { grid-template-columns: 1fr; }
+      .command-status { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .status-item:nth-child(2n) { border-right: 0; }
+      .status-item:nth-child(n+3) { border-top: 1px solid #edf2f7; }
+      .overview { grid-template-columns: 1fr; }
+      .panel-head { align-items: stretch; flex-direction: column; }
+      .tabs { width: max-content; }
+      .trend-canvas, .domain-bars { min-height: 220px; }
+      .trend-svg { height: 190px; }
+      .vbars { height: 160px; }
+      .drawer-head { grid-template-columns: minmax(0, 1fr); }
+      .actions { justify-content: flex-end; }
+      .donut-zone { grid-template-columns: 124px minmax(0, 1fr); gap: 12px; }
+      .donut { width: 122px; }
+      .drawer-row { grid-template-columns: minmax(0, 1fr); }
+      .open-link { justify-self: end; }
+    }
+  </style>
+</head>
+<body>
+  <main class="audit-page">
+    <div class="audit-shell">
+      <section class="card command-card">
+        <div class="command-main">
+          <div class="command-title">
+            <div class="eyebrow">用户级审计工作台</div>
+            <h1>浏览器插件监控</h1>
+            <p>选择员工后，开关、在线状态、聚合趋势、Domain 和 URL 明细全部按当前用户刷新；关闭监控只停止后续采集，历史数据继续可查。</p>
+          </div>
+          <div class="control-card">
+            <div class="control-row">
+              <select aria-label="选择员工"><option>陈双鹏 · csp</option><option>林晓雯 · lin</option></select>
+              <button class="toggle-button">监控已开启</button>
+            </div>
+            <div class="segments" aria-label="时间范围"><span>1h</span><span class="on">1天</span><span>1周</span><span>1月</span></div>
+          </div>
+        </div>
+        <div class="command-status">
+          <div class="status-item"><span>历史数据</span><b>可继续查看</b></div>
+          <div class="status-item"><span>在线状态</span><b>在线 · 18s 前心跳</b></div>
+          <div class="status-item"><span>时长精度</span><b>秒级聚合</b></div>
+          <div class="status-item"><span>页面状态</span><b>不使用 URL 用户参数</b></div>
+        </div>
+      </section>
+
+      <section class="overview">
+        <div class="metric" style="--accent:#5ab1ef"><div class="metric-icon"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg></div><label>Domain 数量</label><strong>12</strong></div>
+        <div class="metric" style="--accent:#019680"><div class="metric-icon"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.1 0l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1"/><path d="M14 11a5 5 0 0 0-7.1 0l-2 2a5 5 0 0 0 7.1 7.1l1.1-1.1"/></svg></div><label>URL 访问</label><strong>48</strong></div>
+        <div class="metric" style="--accent:#67e0e3"><div class="metric-icon"><svg viewBox="0 0 24 24"><path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="8"/></svg></div><label>活跃时长</label><strong>2m 30s</strong></div>
+        <div class="metric" style="--accent:#b6a2de"><div class="metric-icon"><svg viewBox="0 0 24 24"><path d="M4 12h4l2-6 4 12 2-6h4"/></svg></div><label>最近心跳</label><strong>18s</strong></div>
+      </section>
+
+      <section class="card block">
+        <div class="panel-head">
+          <div>
+            <h2>访问趋势</h2>
+            <p>顶部 block 只回答“这段时间内活跃如何变化”和“哪些 Domain 占比最高”。</p>
+          </div>
+          <div class="tabs"><span class="on">时间趋势</span><span>Domain 柱状图</span></div>
+        </div>
+        <div class="trend-grid">
+          <div class="trend-canvas">
+            <svg class="trend-svg" viewBox="0 0 720 232" role="img" aria-label="访问趋势示意图">
+              <defs>
+                <linearGradient id="areaGradient" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="0%" stop-color="#67e0e3" stop-opacity="0.55"/>
+                  <stop offset="100%" stop-color="#019680" stop-opacity="0.05"/>
+                </linearGradient>
+              </defs>
+              <path class="trend-area" d="M0 182 C38 166 52 146 88 150 C126 154 132 90 178 100 C224 110 232 52 272 64 C318 78 312 124 356 112 C400 100 404 72 450 80 C494 88 500 140 542 126 C584 112 588 82 626 90 C668 98 684 128 720 114 L720 232 L0 232 Z"/>
+              <path class="trend-secondary" d="M0 164 C58 122 104 168 154 126 C206 82 242 126 294 90 C344 56 386 116 434 96 C488 74 516 132 570 106 C620 82 666 110 720 80"/>
+              <path class="trend-line" d="M0 182 C38 166 52 146 88 150 C126 154 132 90 178 100 C224 110 232 52 272 64 C318 78 312 124 356 112 C400 100 404 72 450 80 C494 88 500 140 542 126 C584 112 588 82 626 90 C668 98 684 128 720 114"/>
+              <circle class="trend-point" cx="88" cy="150" r="5"/><circle class="trend-point" cx="178" cy="100" r="5"/><circle class="trend-point" cx="272" cy="64" r="5"/><circle class="trend-point" cx="450" cy="80" r="5"/><circle class="trend-point" cx="626" cy="90" r="5"/>
+            </svg>
+          </div>
+          <aside class="domain-bars">
+            <h3>Domain 时长柱状图</h3>
+            <div class="vbars">
+              <div class="vbar"><i style="--h:154px"></i><span>supplier</span></div>
+              <div class="vbar"><i style="--h:118px"></i><span>docs</span></div>
+              <div class="vbar"><i style="--h:92px"></i><span>mail</span></div>
+              <div class="vbar"><i style="--h:68px"></i><span>crm</span></div>
+              <div class="vbar"><i style="--h:50px"></i><span>erp</span></div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="analysis-layout">
+        <section class="card">
+          <div class="panel-head">
+            <div>
+              <h2>访问时长排名</h2>
+              <p>下部分独立 block，切换 Domain 或 URL 排名；点击 Domain 后右侧展开分布和明细。</p>
+            </div>
+            <div class="tabs"><span class="on">Domain 排名</span><span>URL 排名</span></div>
+          </div>
+          <div class="rank-list">
+            <div class="rank-row">
+              <div><strong>supplier-portal.example</strong><small>12 次访问 · 8 URLs · 点击查看 domain 明细</small></div><span class="duration">2m 30s</span>
+              <div class="bar-track"><div class="bar-fill" style="--w:100%"></div></div>
+            </div>
+            <div class="rank-row">
+              <div><strong>docs.oes.internal</strong><small>6 次访问 · 4 URLs</small></div><span class="duration">1m 12s</span>
+              <div class="bar-track"><div class="bar-fill" style="--w:48%"></div></div>
+            </div>
+            <div class="rank-row">
+              <div><strong>mail.melon.example</strong><small>5 次访问 · 3 URLs</small></div><span class="duration">46s</span>
+              <div class="bar-track"><div class="bar-fill" style="--w:31%"></div></div>
+            </div>
+            <div class="rank-row">
+              <div><strong>crm.oes.internal</strong><small>4 次访问 · 2 URLs</small></div><span class="duration">39s</span>
+              <div class="bar-track"><div class="bar-fill" style="--w:26%"></div></div>
+            </div>
+          </div>
+        </section>
+
+        <aside class="drawer">
+          <div class="drawer-head">
+            <div>
+              <h2>supplier-portal.example</h2>
+              <p>Domain drilldown: URL 时长分布、排名与跳转</p>
+            </div>
+            <div class="actions"><button>打开域名</button><button class="x" aria-label="关闭">×</button></div>
+          </div>
+          <div class="donut-zone">
+            <div class="donut"></div>
+            <div class="legend">
+              <div><span>/orders/pending...</span><b class="duration">1m 20s</b></div>
+              <div><span>/contracts/vendor...</span><b class="duration">42s</b></div>
+              <div><span>/search</span><b class="duration">28s</b></div>
+              <div><span>/dashboard</span><b class="duration">20s</b></div>
+            </div>
+          </div>
+          <div class="drawer-list">
+            <div class="drawer-row">
+              <div><strong>Supplier Orders</strong><small>/orders/pending-approval/2026/weekly-review</small></div><button class="open-link">跳转</button>
+            </div>
+            <div class="drawer-row">
+              <div><strong>Supplier Contract Detail</strong><small>/contracts/vendor-1842/revision-history</small></div><button class="open-link">跳转</button>
+            </div>
+            <div class="drawer-row">
+              <div><strong>Supplier Search</strong><small>/search?q=component-approval</small></div><button class="open-link">跳转</button>
+            </div>
+          </div>
+        </aside>
+      </section>
+    </div>
+  </main>
+</body>
+</html>

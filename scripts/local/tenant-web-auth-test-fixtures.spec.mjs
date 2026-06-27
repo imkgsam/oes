@@ -4,8 +4,11 @@ import test from 'node:test'
 import {
   DEFAULT_PASSWORD,
   SEEDED_TENANT_ROLE_PERMISSION_CODES,
+  SYSTEM_ADMIN_ACCOUNT_IDS,
+  TENANT_SYSTEM_ADMIN_ACCOUNT_ROLE_BINDINGS,
   buildBrowserExtensionDesignerDemoSeed,
   buildSeedAccountRoleBindings,
+  buildSeedAccounts,
   buildSeedTenantRoles,
   buildPdaLoginSmokeSeed
 } from './tenant-web-auth-test-fixtures.mjs'
@@ -84,6 +87,12 @@ test('tenant admin demo role includes Annotation P1 collaboration permissions', 
 test('browser extension designer demo seed targets one tenant account with plugin workspace access', () => {
   const seed = buildBrowserExtensionDesignerDemoSeed()
   const bindings = buildSeedAccountRoleBindings()
+  const roles = buildSeedTenantRoles()
+  const meilongCrmSales = roles.find(
+    (role) =>
+      role.code === 'crm.sales' &&
+      role.tenantId === '00000000-0000-4000-8000-000000000001'
+  )
 
   assert.equal(seed.tenantKey, 'meilong')
   assert.equal(seed.tenantId, '00000000-0000-4000-8000-000000000001')
@@ -126,4 +135,42 @@ test('browser extension designer demo seed targets one tenant account with plugi
         binding.roleId === seed.roleTerminalAccess.roleId
     )
   )
+  assert.ok(meilongCrmSales)
+  assert.equal(meilongCrmSales.id, '00000000-0000-4000-8000-000000001006')
+  assert.ok(
+    bindings.some(
+      (binding) =>
+        binding.accountId === '00000000-0000-4000-8000-000000000901' &&
+        binding.roleId === meilongCrmSales.id
+    )
+  )
+})
+
+test('csp demo account receives default system admin binding ids for the dedicated system context', () => {
+  assert.deepEqual(SYSTEM_ADMIN_ACCOUNT_IDS, [
+    '00000000-0000-4000-8000-000000000902',
+  ])
+})
+
+test('csp dedicated system account is seeded into identity accounts', () => {
+  const accounts = buildSeedAccounts()
+
+  assert.deepEqual(
+    accounts.find((account) => account.id === '00000000-0000-4000-8000-000000000902'),
+    {
+      id: '00000000-0000-4000-8000-000000000902',
+      avatarUrl: accounts.find((account) => account.id === '00000000-0000-4000-8000-000000000901')?.avatarUrl,
+      contextKey: 'SYSTEM',
+      displayName: '陈双鹏',
+      scopeLevel: 'SYSTEM',
+      tenantId: null,
+      tenantPartyId: null,
+      userId: '00000000-0000-4000-8000-000000000801',
+      workEmail: null,
+    },
+  )
+})
+
+test('csp tenant demo account does not receive system admin in the selected tenant context', () => {
+  assert.deepEqual(TENANT_SYSTEM_ADMIN_ACCOUNT_ROLE_BINDINGS, [])
 })

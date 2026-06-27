@@ -1,0 +1,136 @@
+<h2>员工 Performance 监控台：Analytics 风格增强版</h2>
+<p class="subtitle">这版对齐 tenant-web /analytics 的概览指标、趋势图、来源图和图表卡片语言，同时加入员工切换与管理操作。请选择更接近你想要的方向。</p>
+
+<div class="cards">
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#f4f6f8;border-radius:14px;padding:16px;min-height:620px;font-family:Inter,system-ui,sans-serif">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
+          <div>
+            <div style="font-size:12px;color:#64748b;letter-spacing:.08em;text-transform:uppercase">Sales Performance Command</div>
+            <div style="font-size:26px;font-weight:760;color:#17201c;margin-top:4px">员工开发表现监控台</div>
+            <div style="font-size:13px;color:#64748b;margin-top:4px">插件、CRM Web、导入、线下登记只是来源维度，不改变 CRM 主数据归属。</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="mock-button">本周</button>
+            <button class="mock-button">导出视图</button>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:260px 1fr;gap:14px">
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div style="background:#fff;border:1px solid #dde4ed;border-radius:12px;padding:14px;box-shadow:0 18px 44px -34px rgba(15,23,42,.4)">
+              <div style="font-size:12px;color:#64748b;margin-bottom:10px">员工切换</div>
+              <div style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;background:linear-gradient(135deg,#e7f4ee,#f8fafc);border:1px solid #cfe5dc">
+                <div style="width:34px;height:34px;border-radius:10px;background:#3f7e68;color:white;display:grid;place-items:center;font-weight:800">MT</div>
+                <div><strong style="color:#17201c">Mira Tan</strong><div style="font-size:12px;color:#64748b">CRM Sales · Export</div></div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
+                <div style="padding:9px 10px;border-radius:9px;background:#f8fafc;border:1px solid #eef2f7;color:#334155">Daniel Ibarra <span style="float:right;color:#3f7e68">↑</span></div>
+                <div style="padding:9px 10px;border-radius:9px;background:#f8fafc;border:1px solid #eef2f7;color:#334155">Vivian Cho <span style="float:right;color:#a9955f">•</span></div>
+                <div style="padding:9px 10px;border-radius:9px;background:#f8fafc;border:1px solid #eef2f7;color:#334155">Noor Rahman <span style="float:right;color:#b45309">!</span></div>
+              </div>
+            </div>
+
+            <div style="background:#0f1f1b;border-radius:14px;padding:14px;color:#d9f0e6;min-height:218px;box-shadow:0 22px 54px -32px rgba(15,31,27,.7)">
+              <div style="font-size:12px;color:#9cc8b8">本周判断</div>
+              <div style="font-size:42px;font-weight:780;margin:10px 0 0">B+</div>
+              <div style="height:7px;border-radius:99px;background:#243a34;margin:14px 0">
+                <div style="height:7px;width:68%;border-radius:99px;background:linear-gradient(90deg,#3f7e68,#a9955f)"></div>
+              </div>
+              <div style="font-size:12px;line-height:1.7;color:#b9d9cc">插件来源效率高，但有效跟进率低于团队均值 4.7pt。建议查看重复阻止与 Draft Lead 转正路径。</div>
+              <div style="margin-top:14px;display:flex;gap:8px">
+                <button class="mock-button">查看异常</button>
+                <button class="mock-button">分配复盘</button>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+              <div style="background:#fff;border:1px solid #dde4ed;border-radius:12px;padding:14px;box-shadow:0 16px 38px -32px rgba(15,23,42,.38)"><div style="color:#64748b;font-size:12px">新增 Lead</div><div style="font-size:28px;font-weight:760;color:#17201c">42</div><div style="color:#3f7e68;font-size:12px">较上周 +11</div></div>
+              <div style="background:#fff;border:1px solid #dde4ed;border-radius:12px;padding:14px;box-shadow:0 16px 38px -32px rgba(15,23,42,.38)"><div style="color:#64748b;font-size:12px">插件识别</div><div style="font-size:28px;font-weight:760;color:#17201c">118</div><div style="color:#64748b;font-size:12px">17 创建</div></div>
+              <div style="background:#fff;border:1px solid #dde4ed;border-radius:12px;padding:14px;box-shadow:0 16px 38px -32px rgba(15,23,42,.38)"><div style="color:#64748b;font-size:12px">重复阻止</div><div style="font-size:28px;font-weight:760;color:#17201c">23</div><div style="color:#a9955f;font-size:12px">避免重复开发</div></div>
+              <div style="background:#fff;border:1px solid #dde4ed;border-radius:12px;padding:14px;box-shadow:0 16px 38px -32px rgba(15,23,42,.38)"><div style="color:#64748b;font-size:12px">跟进完成</div><div style="font-size:28px;font-weight:760;color:#17201c">63%</div><div style="color:#b45309;font-size:12px">低于团队</div></div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1.6fr .9fr;gap:12px">
+              <div style="background:#fff;border:1px solid #dde4ed;border-radius:14px;padding:16px;height:270px;box-shadow:0 22px 54px -38px rgba(15,23,42,.45)">
+                <div style="display:flex;justify-content:space-between;margin-bottom:12px"><strong style="color:#17201c">开发效率趋势</strong><span style="font-size:12px;color:#64748b">插件 / Web / 导入</span></div>
+                <svg viewBox="0 0 520 190" width="100%" height="190" aria-label="trend mock">
+                  <defs>
+                    <linearGradient id="areaA" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#3f7e68" stop-opacity=".30"/><stop offset="100%" stop-color="#3f7e68" stop-opacity="0"/></linearGradient>
+                    <linearGradient id="areaB" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#a9955f" stop-opacity=".22"/><stop offset="100%" stop-color="#a9955f" stop-opacity="0"/></linearGradient>
+                  </defs>
+                  <g stroke="#e2e8f0" stroke-width="1"><path d="M0 35H520"/><path d="M0 80H520"/><path d="M0 125H520"/><path d="M0 170H520"/></g>
+                  <path d="M0 155 C70 120,105 132,150 94 S245 52,315 78 S430 30,520 42 V190 H0Z" fill="url(#areaA)"/>
+                  <path d="M0 166 C70 146,108 148,160 128 S246 112,320 116 S430 92,520 95 V190 H0Z" fill="url(#areaB)"/>
+                  <path d="M0 155 C70 120,105 132,150 94 S245 52,315 78 S430 30,520 42" fill="none" stroke="#3f7e68" stroke-width="4" stroke-linecap="round"/>
+                  <path d="M0 166 C70 146,108 148,160 128 S246 112,320 116 S430 92,520 95" fill="none" stroke="#a9955f" stroke-width="3" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <div style="background:#fff;border:1px solid #dde4ed;border-radius:14px;padding:16px;height:270px;box-shadow:0 22px 54px -38px rgba(15,23,42,.45)">
+                <strong style="color:#17201c">来源结构</strong>
+                <div style="height:160px;display:grid;place-items:center">
+                  <div style="width:126px;height:126px;border-radius:50%;background:conic-gradient(#3f7e68 0 38%,#5ab1ef 38% 66%,#a9955f 66% 82%,#d6dde6 82%);display:grid;place-items:center">
+                    <div style="width:72px;height:72px;border-radius:50%;background:#fff;display:grid;place-items:center;color:#17201c;font-weight:800">38%</div>
+                  </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;color:#475569"><span>插件</span><span>CRM Web</span><span>导入</span><span>其他</span></div>
+              </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+              <div style="background:#fff;border:1px solid #dde4ed;border-radius:14px;padding:14px;min-height:150px"><strong>插件事件流</strong><div style="margin-top:10px;font-size:12px;color:#475569;line-height:1.9">识别 serrano-fixtures.example<br>创建 Draft Lead · 2m<br>阻止重复 · Kohler archive</div></div>
+              <div style="background:#fff;border:1px solid #dde4ed;border-radius:14px;padding:14px;min-height:150px"><strong>质量漏斗</strong><div style="margin-top:12px;display:flex;align-items:end;gap:8px;height:80px"><span style="height:74px;width:28px;background:#3f7e68;border-radius:6px"></span><span style="height:54px;width:28px;background:#5ab1ef;border-radius:6px"></span><span style="height:34px;width:28px;background:#a9955f;border-radius:6px"></span><span style="height:22px;width:28px;background:#cbd5e1;border-radius:6px"></span></div></div>
+              <div style="background:#fff;border:1px solid #dde4ed;border-radius:14px;padding:14px;min-height:150px"><strong>管理员动作</strong><div style="margin-top:10px;display:flex;flex-direction:column;gap:8px"><button class="mock-button">打开员工 CRM 视图</button><button class="mock-button">创建复盘任务</button><button class="mock-button">查看来源明细</button></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C. 推荐升级：Analytics Command Console</h3>
+      <p>保留 /analytics 的概览 + 趋势 + 来源环图，但主交互仍是员工切换和管理操作。适合 P1 做 mock-backed 或 read-model-backed 页面。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="d" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#101416;border-radius:14px;padding:16px;min-height:620px;color:#e8efe9;font-family:Inter,system-ui,sans-serif">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <div>
+            <div style="font-size:12px;color:#89b5a4;letter-spacing:.08em;text-transform:uppercase">Live Operator Room</div>
+            <div style="font-size:26px;font-weight:780">员工实时作战视图</div>
+          </div>
+          <button class="mock-button">切换员工</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:14px">
+          <div style="background:#151d1a;border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:16px;height:360px">
+            <div style="display:flex;justify-content:space-between"><strong>Live Signal Map</strong><span style="color:#89b5a4;font-size:12px">plugin / crm / import</span></div>
+            <div style="position:relative;height:280px;margin-top:20px;background:radial-gradient(circle at 35% 35%,rgba(63,126,104,.34),transparent 28%),radial-gradient(circle at 68% 58%,rgba(169,149,95,.28),transparent 24%),#101416;border-radius:14px;overflow:hidden">
+              <div style="position:absolute;left:12%;top:22%;width:10px;height:10px;border-radius:50%;background:#80d4b0;box-shadow:0 0 0 12px rgba(128,212,176,.08)"></div>
+              <div style="position:absolute;left:58%;top:46%;width:12px;height:12px;border-radius:50%;background:#d8c37d;box-shadow:0 0 0 16px rgba(216,195,125,.08)"></div>
+              <div style="position:absolute;left:74%;top:28%;width:8px;height:8px;border-radius:50%;background:#8cc6e8;box-shadow:0 0 0 10px rgba(140,198,232,.08)"></div>
+              <svg viewBox="0 0 420 260" width="100%" height="100%"><path d="M55 70 C160 40 210 180 330 115" stroke="rgba(128,212,176,.44)" fill="none" stroke-width="2"/><path d="M220 155 C275 88 302 82 345 72" stroke="rgba(216,195,125,.38)" fill="none" stroke-width="2"/></svg>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div style="background:#151d1a;border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:16px;height:174px"><div style="color:#89b5a4;font-size:12px">当前员工</div><div style="font-size:36px;font-weight:780;margin-top:10px">Mira Tan</div><div style="font-size:12px;color:#9baaa3;margin-top:8px">CRM Sales · 42 leads · 118 plugin recognitions</div></div>
+            <div style="background:#151d1a;border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:16px;height:174px"><div style="color:#89b5a4;font-size:12px">Risk Focus</div><div style="font-size:30px;font-weight:780;margin-top:10px;color:#d8c37d">跟进断层</div><div style="font-size:12px;color:#9baaa3;margin-top:8px">Draft Lead 创建后 48h 内未转正比例偏高。</div></div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px">
+          <div style="background:#151d1a;border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:14px;height:150px"><span style="color:#89b5a4;font-size:12px">插件识别</span><strong style="display:block;font-size:30px;margin-top:8px">118</strong></div>
+          <div style="background:#151d1a;border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:14px;height:150px"><span style="color:#89b5a4;font-size:12px">阻止重复</span><strong style="display:block;font-size:30px;margin-top:8px">23</strong></div>
+          <div style="background:#151d1a;border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:14px;height:150px"><span style="color:#89b5a4;font-size:12px">有效跟进</span><strong style="display:block;font-size:30px;margin-top:8px">63%</strong></div>
+          <div style="background:#151d1a;border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:14px;height:150px"><span style="color:#89b5a4;font-size:12px">异常</span><strong style="display:block;font-size:30px;margin-top:8px">3</strong></div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>D. 更炫：深色实时作战室</h3>
+      <p>视觉冲击强，但和当前 Vben 管理后台浅色风格差异大。适合做独立大屏，不太适合作为普通管理员页面 P1。</p>
+    </div>
+  </div>
+</div>

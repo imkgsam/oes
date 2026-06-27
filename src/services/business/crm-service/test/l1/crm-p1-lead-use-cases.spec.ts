@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto'
+import { ArchiveCrmAccountCommand } from '../../src/application/commands/archive-crm-account.command'
+import { ArchiveCrmAccountHandler } from '../../src/application/commands/archive-crm-account.handler'
 import { ClaimCrmAccountCommand } from '../../src/application/commands/claim-crm-account.command'
 import { ClaimCrmAccountHandler } from '../../src/application/commands/claim-crm-account.handler'
 import { CreateDraftLeadCommand } from '../../src/application/commands/create-draft-lead.command'
@@ -18,6 +20,7 @@ import {
   CrmAccountRecord,
   CrmAccountRecordStatus,
   CrmAccountTypeHint,
+  CrmArchiveReason,
   CrmLeadAssignmentIntent,
   CrmLeadCreateResultType,
   CrmLeadDuplicateResultType,
@@ -101,6 +104,7 @@ function createHarness() {
   const checkLeadDuplicate = new CheckLeadDuplicateHandler(repository)
   return {
     repository,
+    archiveCrmAccount: new ArchiveCrmAccountHandler(repository),
     checkLeadDuplicate,
     claimCrmAccount: new ClaimCrmAccountHandler(repository),
     createDraftLead: new CreateDraftLeadHandler(repository),
@@ -111,7 +115,148 @@ function createHarness() {
   }
 }
 
+/** buildAccountRecord creates a tenant-scoped CRM account fixture with explicit override points. */
+function buildAccountRecord(overrides: Partial<CrmAccountRecord> = {}): CrmAccountRecord {
+  return {
+    id: 'crm-account-1',
+    tenantId: 'tenant-1',
+    tenantPartyId: null,
+    recordStatus: CrmAccountRecordStatus.ACTIVE,
+    lifecycleStage: CrmAccountLifecycleStage.LEAD,
+    partyTypeHint: CrmAccountTypeHint.ORGANIZATION,
+    displayName: 'Fixture CRM Account',
+    leadCompanyName: null,
+    leadPersonName: null,
+    leadDomain: 'fixture.example',
+    leadEmail: null,
+    leadPhone: null,
+    leadWhatsapp: null,
+    leadCountry: 'US',
+    leadIdentifiers: [],
+    ownerAccountId: null,
+    priority: CrmPriority.B,
+    lastActivityAt: null,
+    nextFollowUpAt: null,
+    createdBy: 'sales-1',
+    ...overrides
+  }
+}
+
 describe('CRM P1 lead use cases L1', () => {
+  it('ArchiveCrmAccount / should archive active Lead with required archive reason', async () => {
+    const harness = createHarness()
+    harness.repository.accounts.push(buildAccountRecord({
+      id: 'lead-archive-1',
+      lifecycleStage: CrmAccountLifecycleStage.LEAD,
+      ownerAccountId: 'sales-1',
+      recordStatus: CrmAccountRecordStatus.ACTIVE
+    }))
+
+    const result = await harness.archiveCrmAccount.execute(
+      new ArchiveCrmAccountCommand({
+        tenantId: 'tenant-1',
+        crmAccountId: 'lead-archive-1',
+        operatorAccountId: 'sales-manager-1',
+        archiveReason: CrmArchiveReason.NON_TARGET_ACCOUNT
+      })
+    )
+
+    expect(result.account).toEqual(
+      expect.objectContaining({
+        id: 'lead-archive-1',
+        lifecycleStage: CrmAccountLifecycleStage.LEAD,
+        recordStatus: CrmAccountRecordStatus.ARCHIVED,
+        archiveReason: CrmArchiveReason.NON_TARGET_ACCOUNT,
+        ownerAccountId: 'sales-1'
+      })
+    )
+    expect(result.account.archivedAt).toBeInstanceOf(Date)
+    expect(harness.repository.accounts[0]).toEqual(result.account)
+  })
+
+  it('ArchiveCrmAccount / should preserve competitor as the CRM-owned reason for peer-company leads', async () => {
+    const harness = createHarness()
+    harness.repository.accounts.push(buildAccountRecord({
+      id: 'competitor-lead-archive-1',
+      lifecycleStage: CrmAccountLifecycleStage.LEAD,
+      ownerAccountId: 'sales-1',
+      recordStatus: CrmAccountRecordStatus.ACTIVE
+    }))
+
+    const result = await harness.archiveCrmAccount.execute(
+      new ArchiveCrmAccountCommand({
+        tenantId: 'tenant-1',
+        crmAccountId: 'competitor-lead-archive-1',
+        operatorAccountId: 'sales-manager-1',
+        archiveReason: CrmArchiveReason.COMPETITOR
+      })
+    )
+
+    expect(result.account).toEqual(
+      expect.objectContaining({
+        id: 'competitor-lead-archive-1',
+        lifecycleStage: CrmAccountLifecycleStage.LEAD,
+        recordStatus: CrmAccountRecordStatus.ARCHIVED,
+        ownerAccountId: 'sales-1'
+      })
+    )
+    expect(result.account.archiveReason).toBe('COMPETITOR')
+    expect(result.account.archivedAt).toBeInstanceOf(Date)
+  })
+
+  it('ArchiveCrmAccount / should archive active Prospect Customer with required archive reason', async () => {
+    const harness = createHarness()
+    harness.repository.accounts.push(buildAccountRecord({
+      id: 'pc-archive-1',
+      lifecycleStage: CrmAccountLifecycleStage.PROSPECT_CUSTOMER,
+      tenantPartyId: 'tenant-party-1',
+      recordStatus: CrmAccountRecordStatus.ACTIVE
+    }))
+
+    const result = await harness.archiveCrmAccount.execute(
+      new ArchiveCrmAccountCommand({
+        tenantId: 'tenant-1',
+        crmAccountId: 'pc-archive-1',
+        operatorAccountId: 'sales-manager-1',
+        archiveReason: CrmArchiveReason.LOW_VALUE
+      })
+    )
+
+    expect(result.account).toEqual(
+      expect.objectContaining({
+        id: 'pc-archive-1',
+        lifecycleStage: CrmAccountLifecycleStage.PROSPECT_CUSTOMER,
+        recordStatus: CrmAccountRecordStatus.ARCHIVED,
+        archiveReason: CrmArchiveReason.LOW_VALUE,
+        tenantPartyId: 'tenant-party-1'
+      })
+    )
+  })
+
+  it('ArchiveCrmAccount / should reject Customer archive in this feature slice', async () => {
+    const harness = createHarness()
+    harness.repository.accounts.push(buildAccountRecord({
+      id: 'customer-archive-1',
+      lifecycleStage: CrmAccountLifecycleStage.CUSTOMER,
+      tenantPartyId: 'tenant-party-customer-1',
+      recordStatus: CrmAccountRecordStatus.ACTIVE
+    }))
+
+    await expect(
+      harness.archiveCrmAccount.execute(
+        new ArchiveCrmAccountCommand({
+          tenantId: 'tenant-1',
+          crmAccountId: 'customer-archive-1',
+          operatorAccountId: 'sales-manager-1',
+          archiveReason: CrmArchiveReason.NO_FIT
+        })
+      )
+    ).rejects.toThrow(/Only active leads and prospect customers can be archived/)
+
+    expect(harness.repository.accounts[0].recordStatus).toBe(CrmAccountRecordStatus.ACTIVE)
+    expect(harness.repository.accounts[0].archivedAt).toBeUndefined()
+  })
+
   it('CreateLead / should default manually created ACTIVE LEAD ownership to the current operator', async () => {
     const harness = createHarness()
 

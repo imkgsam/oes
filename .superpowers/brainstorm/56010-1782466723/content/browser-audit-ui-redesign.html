@@ -1,0 +1,382 @@
+<style>
+  .audit-shell {
+    background: #f6f8fb;
+    color: #111827;
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  .audit-frame {
+    border: 1px solid #e5e7eb;
+    border-radius: 18px;
+    overflow: hidden;
+    background: #f8fafc;
+    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+  }
+  .audit-top {
+    display: grid;
+    grid-template-columns: 1.25fr auto;
+    gap: 14px;
+    align-items: center;
+    padding: 18px;
+    background: #ffffff;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  .audit-title h2 {
+    margin: 0;
+    font-size: 19px;
+    letter-spacing: 0;
+  }
+  .audit-title p {
+    margin: 5px 0 0;
+    color: #64748b;
+    font-size: 13px;
+  }
+  .audit-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .audit-select, .audit-segment {
+    height: 38px;
+    border: 1px solid #d7dde7;
+    border-radius: 10px;
+    background: #f8fafc;
+  }
+  .audit-select {
+    min-width: 210px;
+    padding: 0 12px;
+    font-weight: 650;
+    color: #111827;
+  }
+  .audit-segment {
+    display: inline-flex;
+    overflow: hidden;
+  }
+  .audit-segment span {
+    display: grid;
+    place-items: center;
+    min-width: 46px;
+    padding: 0 10px;
+    font-size: 13px;
+    color: #475569;
+    border-right: 1px solid #d7dde7;
+  }
+  .audit-segment span:last-child { border-right: 0; }
+  .audit-segment .active {
+    background: #0f766e;
+    color: #ffffff;
+  }
+  .audit-toggle {
+    height: 38px;
+    border: 1px solid #d7dde7;
+    border-radius: 999px;
+    padding: 0 13px;
+    background: #ffffff;
+    color: #334155;
+    font-weight: 650;
+  }
+  .audit-toggle.off {
+    color: #64748b;
+    background: #f8fafc;
+  }
+  .audit-status {
+    display: flex;
+    gap: 8px;
+    padding: 12px 18px;
+    background: #f1f5f9;
+    border-bottom: 1px solid #e5e7eb;
+    color: #475569;
+    font-size: 13px;
+  }
+  .audit-status b {
+    color: #0f172a;
+  }
+  .audit-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(300px, 0.9fr);
+    gap: 14px;
+    padding: 18px;
+  }
+  .audit-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .audit-card-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+    padding: 14px 15px;
+    border-bottom: 1px solid #eef2f7;
+  }
+  .audit-card-head h3 {
+    margin: 0;
+    font-size: 15px;
+  }
+  .audit-card-head p {
+    margin: 3px 0 0;
+    color: #64748b;
+    font-size: 12px;
+  }
+  .rank-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    padding: 13px 15px;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .rank-row:last-child { border-bottom: 0; }
+  .rank-row strong {
+    display: block;
+    font-size: 14px;
+    color: #0f172a;
+  }
+  .rank-row small {
+    display: block;
+    margin-top: 5px;
+    color: #64748b;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 520px;
+  }
+  .duration {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-weight: 750;
+    color: #0f766e;
+    white-space: nowrap;
+  }
+  .drawer {
+    background: #0f172a;
+    color: #e5e7eb;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 20px 45px rgba(15, 23, 42, 0.22);
+  }
+  .drawer-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: start;
+    padding: 16px;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.16);
+  }
+  .drawer-head h3 {
+    margin: 0;
+    color: #ffffff;
+    font-size: 15px;
+  }
+  .drawer-head p {
+    margin: 5px 0 0;
+    max-width: 280px;
+    color: #94a3b8;
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .drawer-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .drawer-actions button {
+    height: 32px;
+    border: 1px solid rgba(226, 232, 240, 0.22);
+    border-radius: 9px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #e2e8f0;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+  .drawer-actions .close {
+    width: 32px;
+    padding: 0;
+    font-size: 18px;
+  }
+  .drawer-list {
+    padding: 10px;
+  }
+  .drawer-item {
+    padding: 12px;
+    border-radius: 11px;
+    background: rgba(255, 255, 255, 0.045);
+    margin-bottom: 9px;
+  }
+  .drawer-item strong {
+    display: block;
+    color: #ffffff;
+    font-size: 13px;
+  }
+  .drawer-url {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 6px;
+    margin: 7px 0;
+    color: #94a3b8;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 12px;
+  }
+  .drawer-url b {
+    color: #5eead4;
+    font-weight: 700;
+  }
+  .drawer-url span {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .drawer-meta {
+    display: flex;
+    justify-content: space-between;
+    color: #cbd5e1;
+    font-size: 12px;
+  }
+  .notes {
+    margin-top: 14px;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .note {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #ffffff;
+    padding: 12px;
+  }
+  .note b {
+    display: block;
+    color: #0f172a;
+    font-size: 13px;
+  }
+  .note span {
+    display: block;
+    margin-top: 4px;
+    color: #64748b;
+    font-size: 12px;
+  }
+</style>
+
+<div class="audit-shell">
+  <div class="audit-frame">
+    <div class="audit-top">
+      <div class="audit-title">
+        <h2>浏览器插件监控</h2>
+        <p>用户选择、时间范围、采集开关收敛到同一个控制区；URL 不再携带 accountId。</p>
+      </div>
+      <div class="audit-controls">
+        <select class="audit-select">
+          <option>陈双鹏 · csp</option>
+          <option>林晓雯 · lin</option>
+          <option>许嘉豪 · xu</option>
+        </select>
+        <div class="audit-segment">
+          <span>1h</span>
+          <span class="active">1天</span>
+          <span>1周</span>
+          <span>1月</span>
+        </div>
+        <button class="audit-toggle off">监控已关闭</button>
+      </div>
+    </div>
+
+    <div class="audit-status">
+      <span><b>历史可见</b> · 关闭后不继续采集</span>
+      <span>最近心跳 06/26 11:42:18</span>
+      <span>时长精度：秒</span>
+    </div>
+
+    <div class="audit-grid">
+      <div class="audit-card">
+        <div class="audit-card-head">
+          <div>
+            <h3>URL 时长排名</h3>
+            <p>长链接展示为 title + domain/path，完整链接放在 drawer</p>
+          </div>
+          <span class="duration">3m 42s</span>
+        </div>
+        <div class="rank-row">
+          <div>
+            <strong>Supplier Orders</strong>
+            <small>supplier-portal.example / orders / pending-approval / 2026 / weekly-review</small>
+          </div>
+          <span class="duration">2m 30s</span>
+        </div>
+        <div class="rank-row">
+          <div>
+            <strong>Procurement Review Notes</strong>
+            <small>docs.oes.internal / reviews / procurement / supplier-risk-checklist</small>
+          </div>
+          <span class="duration">1m 12s</span>
+        </div>
+        <div class="rank-row">
+          <div>
+            <strong>美隆客户订单</strong>
+            <small>erp.meilong.local / sales / customer-orders / ML-260626-1842</small>
+          </div>
+          <span class="duration">48s</span>
+        </div>
+      </div>
+
+      <div class="drawer">
+        <div class="drawer-head">
+          <div>
+            <h3>supplier-portal.example 明细</h3>
+            <p>https://supplier-portal.example/orders/pending-approval/2026/weekly-review</p>
+          </div>
+          <div class="drawer-actions">
+            <button>打开链接</button>
+            <button class="close">×</button>
+          </div>
+        </div>
+        <div class="drawer-list">
+          <div class="drawer-item">
+            <strong>Supplier Orders</strong>
+            <div class="drawer-url">
+              <b>domain</b><span>supplier-portal.example</span>
+              <b>path</b><span>/orders/pending-approval/2026/weekly-review</span>
+            </div>
+            <div class="drawer-meta">
+              <span>访问 2 次</span>
+              <span class="duration">2m 30s</span>
+            </div>
+          </div>
+          <div class="drawer-item">
+            <strong>Supplier Contract Detail</strong>
+            <div class="drawer-url">
+              <b>domain</b><span>supplier-portal.example</span>
+              <b>path</b><span>/contracts/vendor-1842/revision-history</span>
+            </div>
+            <div class="drawer-meta">
+              <span>访问 1 次</span>
+              <span class="duration">38s</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <div class="note">
+      <b>秒级时长</b>
+      <span>小于 1 分钟显示 48s，大于 1 分钟显示 2m 30s。</span>
+    </div>
+    <div class="note">
+      <b>Drawer 操作</b>
+      <span>右上关闭；打开链接使用新 tab，不改变审计台页面。</span>
+    </div>
+    <div class="note">
+      <b>链接展示</b>
+      <span>列表截断 path，drawer 分离 domain/path，避免横向撑开。</span>
+    </div>
+    <div class="note">
+      <b>顶部控制</b>
+      <span>用户选择和时间段合并，状态提示放在下一行。</span>
+    </div>
+  </div>
+</div>

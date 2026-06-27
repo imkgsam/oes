@@ -1,0 +1,99 @@
+<h2>管理员员工 Performance 监控台：布局方向</h2>
+<p class="subtitle">目标是简约、可切换员工、能看插件来源但不把插件数据当成唯一来源。请选择更适合 OES tenant-web 管理后台的一种方向。</p>
+
+<div class="split">
+  <div class="mockup card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="mockup-header">A. 管理控制台式：左侧员工列表 + 右侧指标工作区</div>
+    <div class="mockup-body">
+      <div style="display:grid;grid-template-columns:220px 1fr;gap:14px;min-height:420px;background:#f6f7f8;padding:14px;border-radius:10px">
+        <div style="background:#fff;border:1px solid #dfe3e8;border-radius:8px;padding:12px">
+          <div style="font-size:12px;color:#64748b;margin-bottom:10px">员工</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="border-left:3px solid #3f7e68;background:#eef6f2;padding:10px;border-radius:6px">
+              <strong style="display:block;color:#17201c">Mira Tan</strong>
+              <span style="font-size:12px;color:#64748b">Sales · CRM</span>
+            </div>
+            <div style="background:#f9fafb;padding:10px;border-radius:6px">
+              <strong style="display:block;color:#263238">Daniel Ibarra</strong>
+              <span style="font-size:12px;color:#64748b">Sales · West</span>
+            </div>
+            <div style="background:#f9fafb;padding:10px;border-radius:6px">
+              <strong style="display:block;color:#263238">Vivian Cho</strong>
+              <span style="font-size:12px;color:#64748b">BD · Export</span>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="background:#fff;border:1px solid #dfe3e8;border-radius:8px;padding:14px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div>
+                <strong style="font-size:18px;color:#17201c">Mira Tan</strong>
+                <div style="font-size:12px;color:#64748b">本周销售开发表现 · 数据汇总自 CRM / 插件 / Web / 导入</div>
+              </div>
+              <button class="mock-button">切换周期</button>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
+            <div style="background:#fff;border:1px solid #dfe3e8;border-radius:8px;padding:12px"><span style="font-size:12px;color:#64748b">新增 Lead</span><strong style="display:block;font-size:24px;color:#17201c">42</strong></div>
+            <div style="background:#fff;border:1px solid #dfe3e8;border-radius:8px;padding:12px"><span style="font-size:12px;color:#64748b">插件识别</span><strong style="display:block;font-size:24px;color:#17201c">17</strong></div>
+            <div style="background:#fff;border:1px solid #dfe3e8;border-radius:8px;padding:12px"><span style="font-size:12px;color:#64748b">有效跟进</span><strong style="display:block;font-size:24px;color:#17201c">63%</strong></div>
+            <div style="background:#fff;border:1px solid #dfe3e8;border-radius:8px;padding:12px"><span style="font-size:12px;color:#64748b">重复阻止</span><strong style="display:block;font-size:24px;color:#17201c">9</strong></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:10px">
+            <div style="background:#fff;border:1px solid #dfe3e8;border-radius:8px;padding:12px;height:190px">
+              <div style="font-size:12px;color:#64748b;margin-bottom:12px">来源贡献</div>
+              <div style="height:16px;background:linear-gradient(90deg,#3f7e68 0 38%,#64748b 38% 68%,#a9955f 68% 84%,#dfe3e8 84%);border-radius:99px"></div>
+              <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:16px;font-size:12px;color:#475569">
+                <span>插件 38%</span><span>CRM Web 30%</span><span>导入 16%</span><span>其他 16%</span>
+              </div>
+            </div>
+            <div style="background:#fff;border:1px solid #dfe3e8;border-radius:8px;padding:12px;height:190px">
+              <div style="font-size:12px;color:#64748b;margin-bottom:10px">最近动作</div>
+              <div style="display:flex;flex-direction:column;gap:8px;font-size:12px;color:#334155">
+                <div>插件识别 · serrano-fixtures.example</div>
+                <div>创建 Draft Lead · Blue Ridge Bath</div>
+                <div>Claim 公海 Lead · Orlen Home</div>
+                <div>Web 更新跟进 · Swiss Madison</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>推荐：简洁、管理后台感强</h3>
+      <p>员工切换是主交互，右侧集中看指标、来源贡献、最近动作。适合先做 P1，不需要复杂 BI 图表。</p>
+    </div>
+  </div>
+
+  <div class="mockup card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="mockup-header">B. 分析看板式：顶部筛选 + 多来源趋势墙</div>
+    <div class="mockup-body">
+      <div style="display:flex;flex-direction:column;gap:14px;min-height:420px;background:#f6f7f8;padding:14px;border-radius:10px">
+        <div style="background:#fff;border:1px solid #dfe3e8;border-radius:8px;padding:14px;display:flex;gap:10px;align-items:center">
+          <input class="mock-input" value="Mira Tan" style="width:160px">
+          <button class="mock-button">本周</button>
+          <button class="mock-button">来源：全部</button>
+          <button class="mock-button">导出</button>
+        </div>
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px">
+          <div style="background:#fff;border:1px solid #dfe3e8;border-radius:8px;padding:14px;height:140px">
+            <div style="font-size:12px;color:#64748b">开发效率趋势</div>
+            <div style="margin-top:40px;height:54px;background:linear-gradient(135deg,transparent 0 30%,rgba(63,126,104,.18) 30% 60%,transparent 60%);border-bottom:2px solid #3f7e68"></div>
+          </div>
+          <div style="background:#fff;border:1px solid #dfe3e8;border-radius:8px;padding:14px"><span style="font-size:12px;color:#64748b">线索质量</span><strong style="display:block;font-size:32px;color:#17201c">B+</strong></div>
+          <div style="background:#fff;border:1px solid #dfe3e8;border-radius:8px;padding:14px"><span style="font-size:12px;color:#64748b">异常提醒</span><strong style="display:block;font-size:32px;color:#17201c">3</strong></div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+          <div style="background:#fff;border:1px solid #dfe3e8;border-radius:8px;padding:14px;height:210px"><strong>插件来源</strong><p style="font-size:12px;color:#64748b">识别、查重、创建、claim</p></div>
+          <div style="background:#fff;border:1px solid #dfe3e8;border-radius:8px;padding:14px;height:210px"><strong>CRM Web 来源</strong><p style="font-size:12px;color:#64748b">跟进、更新、转化</p></div>
+          <div style="background:#fff;border:1px solid #dfe3e8;border-radius:8px;padding:14px;height:210px"><strong>导入 / 其他来源</strong><p style="font-size:12px;color:#64748b">批量录入、外部同步</p></div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>更像 BI，但 P1 成本更高</h3>
+      <p>视觉上更完整，但会推动更多聚合、趋势和异常模型。适合等数据口径稳定后再升级。</p>
+    </div>
+  </div>
+</div>

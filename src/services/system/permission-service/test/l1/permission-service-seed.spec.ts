@@ -5,6 +5,7 @@ import {
 } from '../../src/scripts/permission-service-seed'
 import {
   COLLABORATION_TASK_PERMISSION_CODES,
+  BROWSER_ACTIVITY_AUDIT_PERMISSION_CODES,
   CRM_MANAGEMENT_PERMISSION_CODES,
   IDENTITY_ACCOUNT_PERMISSION_CODES,
   TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES
@@ -30,7 +31,7 @@ describe('permission service seed source', () => {
     const seed = buildPermissionServiceSeed()
 
     expect(validatePermissionServiceSeed(seed)).toEqual([])
-    expect(seed.permissionCodes).toHaveLength(250)
+    expect(seed.permissionCodes).toHaveLength(256)
     expect(Object.values(TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES)).toEqual([
       ...EXPECTED_TERMINAL_DEVICE_PERMISSION_CODES
     ])
@@ -44,8 +45,14 @@ describe('permission service seed source', () => {
         CRM_MANAGEMENT_PERMISSION_CODES.UPDATE_CRM_ACCOUNT,
         CRM_MANAGEMENT_PERMISSION_CODES.CONVERT_CRM_ACCOUNT,
         CRM_MANAGEMENT_PERMISSION_CODES.CLAIM_CRM_ACCOUNT,
+        CRM_MANAGEMENT_PERMISSION_CODES.RELEASE_CRM_ACCOUNT,
         CRM_MANAGEMENT_PERMISSION_CODES.MANAGE_CRM_ACCOUNT,
         CRM_MANAGEMENT_PERMISSION_CODES.VIEW_RESTRICTED_DUPLICATE,
+        BROWSER_ACTIVITY_AUDIT_PERMISSION_CODES.POLICY_READ,
+        BROWSER_ACTIVITY_AUDIT_PERMISSION_CODES.POLICY_MANAGE,
+        BROWSER_ACTIVITY_AUDIT_PERMISSION_CODES.OVERVIEW_READ,
+        BROWSER_ACTIVITY_AUDIT_PERMISSION_CODES.EMPLOYEE_DETAIL_READ,
+        BROWSER_ACTIVITY_AUDIT_PERMISSION_CODES.URL_DETAIL_READ,
         IDENTITY_ACCOUNT_PERMISSION_CODES.ASSIGN_CONTACT_ASSET,
         IDENTITY_ACCOUNT_PERMISSION_CODES.UPDATE_CONTACT_ASSET,
         IDENTITY_ACCOUNT_PERMISSION_CODES.SET_CONTACT_ASSET_STATUS,
@@ -93,9 +100,9 @@ describe('permission service seed source', () => {
       'crm.sales',
       'crm.sales_manager'
     ])
-    expect(seed.rolePermissions).toHaveLength(239)
-    expect(seed.navigationEntries).toHaveLength(37)
-    expect(seed.roleNavigationVisibility).toHaveLength(47)
+    expect(seed.rolePermissions).toHaveLength(248)
+    expect(seed.navigationEntries).toHaveLength(40)
+    expect(seed.roleNavigationVisibility).toHaveLength(52)
     expect(seed.roleLandingPolicies).toHaveLength(9)
     expect(seed.roleTerminalAccess).toHaveLength(9)
     expect(seed.policyInstances).toHaveLength(0)
@@ -103,13 +110,13 @@ describe('permission service seed source', () => {
 
   it('renders a stable dry-run summary for audit output', () => {
     expect(renderPermissionServiceSeedDryRunSummary(buildPermissionServiceSeed())).toEqual({
-      permissionCodeCount: 250,
+      permissionCodeCount: 256,
       deprecatedPermissionCodeCount: 14,
       roleCount: 9,
-      rolePermissionCount: 239,
-      navigationEntryCount: 37,
+      rolePermissionCount: 248,
+      navigationEntryCount: 40,
       deprecatedNavigationEntryCount: 2,
-      roleNavigationVisibilityCount: 47,
+      roleNavigationVisibilityCount: 52,
       roleLandingPolicyCount: 9,
       roleTerminalAccessCount: 9,
       policyInstanceCount: 0

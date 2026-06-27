@@ -6,9 +6,11 @@ describe('CustomerManagementService', () => {
   const customerQueryAdapter = {
     checkLeadDuplicate: jest.fn(),
     getCrmAccount: jest.fn(),
-    listCrmAccounts: jest.fn()
+    listCrmAccounts: jest.fn(),
+    listSourceRecords: jest.fn()
   }
   const customerManagementAdapter = {
+    archiveCrmAccount: jest.fn(),
     claimCrmAccount: jest.fn(),
     convertLeadToProspectCustomer: jest.fn(),
     createDraftLead: jest.fn(),
@@ -56,6 +58,8 @@ describe('CustomerManagementService', () => {
       user: { aid: 'account-1', permissions: [], scopeLevel: 'TENANT', tid: 'tenant-1' }
     }
     const crmAccount = buildCrmAccount({
+      archiveReason: 'NON_TARGET_ACCOUNT',
+      archivedAt: '2026-06-23T00:00:00.000Z',
       crmAccountId: 'crm-account-1',
       createdBy: 'account-creator',
       ownerAccountId: 'account-owner'
@@ -73,6 +77,24 @@ describe('CustomerManagementService', () => {
       pageSize: 20
     })
     customerQueryAdapter.getCrmAccount.mockResolvedValue({ crmAccount })
+    customerQueryAdapter.listSourceRecords.mockResolvedValue({
+      sourceRecords: [
+        {
+          sourceRecordId: 'source-1',
+          crmAccountId: 'crm-account-1',
+          sourceType: 'WEB_RESEARCH',
+          sourceName: 'Research page',
+          capturedAt: '2026-06-24T08:00:00.000Z',
+          capturedByAccountId: 'sales-1',
+          externalReference: 'https://northline.example',
+          rawPayloadJson: '{"url":"https://northline.example"}',
+          note: 'Found through research',
+          isPrimary: true,
+          createdAt: '2026-06-24T08:01:00.000Z',
+          updatedAt: '2026-06-24T08:02:00.000Z'
+        }
+      ]
+    })
     customerQueryAdapter.checkLeadDuplicate.mockResolvedValue({
       duplicateResult: {
         resultType: 'CLAIMABLE_EXISTING',
@@ -98,6 +120,8 @@ describe('CustomerManagementService', () => {
       crmAccounts: [
         expect.objectContaining({
           crmAccountId: 'crm-account-1',
+          archiveReason: 'NON_TARGET_ACCOUNT',
+          archivedAt: '2026-06-23T00:00:00.000Z',
           createdBy: 'account-creator',
           createdByDisplayName: '林晓雯',
           ownerAccountId: 'account-owner',
@@ -113,12 +137,35 @@ describe('CustomerManagementService', () => {
     ).resolves.toEqual(
       expect.objectContaining({
         crmAccountId: 'crm-account-1',
+        archiveReason: 'NON_TARGET_ACCOUNT',
+        archivedAt: '2026-06-23T00:00:00.000Z',
         createdBy: 'account-creator',
         createdByDisplayName: '林晓雯',
         ownerAccountId: 'account-owner',
         ownerDisplayName: '陈双鹏'
       })
     )
+    await expect(
+      service.listSourceRecords('tenant-1', 'crm-account-1', source as any)
+    ).resolves.toEqual({
+      sourceRecords: [
+        {
+          sourceRecordId: 'source-1',
+          crmAccountId: 'crm-account-1',
+          sourceType: 'WEB_RESEARCH',
+          sourceName: 'Research page',
+          capturedAt: '2026-06-24T08:00:00.000Z',
+          capturedByAccountId: 'sales-1',
+          capturedByDisplayName: '陈双鹏',
+          externalReference: 'https://northline.example',
+          rawPayload: { url: 'https://northline.example' },
+          note: 'Found through research',
+          isPrimary: true,
+          createdAt: '2026-06-24T08:01:00.000Z',
+          updatedAt: '2026-06-24T08:02:00.000Z'
+        }
+      ]
+    })
     await expect(
       service.checkLeadDuplicate(
         'tenant-1',
@@ -162,10 +209,18 @@ describe('CustomerManagementService', () => {
       },
       source
     )
+    expect(customerQueryAdapter.listSourceRecords).toHaveBeenCalledWith(
+      {
+        tenantId: 'tenant-1',
+        crmAccountId: 'crm-account-1'
+      },
+      source
+    )
     expect(identityQueryAdapter.getAccountById).toHaveBeenCalledWith('account-owner', source)
+    expect(identityQueryAdapter.getAccountById).toHaveBeenCalledWith('sales-1', source)
   })
 
-  it('maps draft, active lead, claim, and conversion commands without archive runtime', async () => {
+  it('maps draft, active lead, claim, archive, and conversion commands', async () => {
     const source = {
       requestId: 'req-1',
       traceId: 'trace-1',
@@ -198,6 +253,13 @@ describe('CustomerManagementService', () => {
     })
     customerManagementAdapter.releaseCrmAccount.mockResolvedValue({
       crmAccount: buildCrmAccount({ ownerAccountId: '' })
+    })
+    customerManagementAdapter.archiveCrmAccount.mockResolvedValue({
+      crmAccount: buildCrmAccount({
+        archiveReason: 'NON_TARGET_ACCOUNT',
+        archivedAt: '2026-06-23T00:00:00.000Z',
+        recordStatus: 'ARCHIVED'
+      })
     })
     customerManagementAdapter.convertLeadToProspectCustomer.mockResolvedValue({
       resultType: 'CONVERTED',
@@ -247,6 +309,19 @@ describe('CustomerManagementService', () => {
     )
     await service.claimCrmAccount('tenant-1', 'crm-account-1', source as any)
     await service.releaseCrmAccount('tenant-1', 'crm-account-1', source as any)
+    await expect(
+      service.archiveCrmAccount(
+        'tenant-1',
+        'crm-account-1',
+        { archiveReason: 'NON_TARGET_ACCOUNT' },
+        source as any
+      )
+    ).resolves.toEqual(
+      expect.objectContaining({
+        archiveReason: 'NON_TARGET_ACCOUNT',
+        recordStatus: 'ARCHIVED'
+      })
+    )
     await service.convertLeadToProspectCustomer('tenant-1', 'crm-account-1', source as any)
     await expect(
       service.deleteDraftLead('tenant-1', 'crm-account-1', source as any)
@@ -275,6 +350,14 @@ describe('CustomerManagementService', () => {
       {
         tenantId: 'tenant-1',
         crmAccountId: 'crm-account-1'
+      },
+      source
+    )
+    expect(customerManagementAdapter.archiveCrmAccount).toHaveBeenCalledWith(
+      {
+        tenantId: 'tenant-1',
+        crmAccountId: 'crm-account-1',
+        archiveReason: 'NON_TARGET_ACCOUNT'
       },
       source
     )

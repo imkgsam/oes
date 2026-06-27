@@ -141,6 +141,7 @@ Phase 1 不冻结：
 - `createdAt`
 - `updatedAt`
 - `archivedAt`
+- `archiveReason`
 
 `recordStatus` 是记录提交状态，不是客户生命周期。
 
@@ -183,9 +184,9 @@ Owner 规则：
 - 销售通过浏览器插件、网络研究插件或个人捕获工具创建 Active Lead 时，默认 `ownerAccountId = current operator accountId`。
 - 在 Pool / 公海入口导入 Active Lead 时，默认 `ownerAccountId = null`，进入 P1 Pool。
 - 官网表单创建 Active Lead 时，默认 `ownerAccountId = null`，进入 P1 Pool，并必须通过 `CrmSourceRecord` 标识 `sourceType = WEBSITE_FORM` 及表单、页面、活动或外部引用信息。
-- 主动释放到公海必须是后续明确动作；P1 尚不实现释放回公海。
+- 主动释放到公海必须是显式动作；P1 通过 `ReleaseCrmAccount` 将已归属的 `ACTIVE + LEAD / PROSPECT_CUSTOMER` 释放回 Pool。
 - `CreateLead / SubmitDraftLead` 使用显式 `assignmentIntent = OWNED_BY_OPERATOR / POOL` 承载入口归属语义；缺省语义为 `OWNED_BY_OPERATOR`，官网表单入口应传 `POOL`。
-- 创建自己的 Lead 只要求 create / submit 所需权限，不要求 `crm.account.claim`；`crm.account.claim` 只用于领取已有 Pool 资源。
+- 创建自己的 Lead 只要求 create / submit 所需权限，不要求 `crm.account.claim` 或 `crm.account.release`；`crm.account.claim` 只用于领取已有 Pool 资源，`crm.account.release` 只用于释放已有归属资源回 Pool。
 - `PROSPECT_CUSTOMER` 也允许 `ownerAccountId = null`；无 owner 的 Prospect Customer 进入 P1 Pool。
 
 `priority` 是 `CrmAccount` 级业务优先级，贯穿 `LEAD / PROSPECT_CUSTOMER / CUSTOMER`，不代表生命周期阶段，也不代表成交状态。
@@ -457,7 +458,7 @@ CRM v2 废弃旧主路径：
 - `CLAIMABLE_EXISTING / OWNED_DUPLICATE / RESTRICTED_DUPLICATE` 即使前端确认也不能绕过。
 - Draft duplicate 只提示，不硬阻断 Active Lead 创建或 Draft 提交。
 - `CreateLead / SubmitDraftLead` 支持显式 `assignmentIntent`；`OWNED_BY_OPERATOR` 写入当前 operator 为 owner，`POOL` 保持 owner 为空并进入 P1 Pool。
-- `crm.account.claim` 不用于创建自己的 Lead，只用于领取已有 Pool 资源。
+- `crm.account.claim` 不用于创建自己的 Lead，只用于领取已有 Pool 资源；`crm.account.release` 不用于创建或认领，只用于释放已有归属资源回 Pool。
 - Claim Phase 1 只适用于 Pool 中 owner 为空的 `ACTIVE + LEAD / PROSPECT_CUSTOMER`。
 - 无权限命中重复对象时必须脱敏返回，避免通过查重接口枚举客户资料。
 
@@ -476,12 +477,13 @@ Pool 不包含：
 - Draft
 - Customer
 - 已有 owner 的 Lead / Prospect Customer
-- Archived；P1 不支持 Archive runtime。
+- Archived；归档记录不进入 active Pool。
 
 Pool 支持：
 
 - 查看 Pool 中的 Lead / Prospect Customer。
 - Claim Pool 中的 Lead / Prospect Customer。Claim 后 `ownerAccountId = current operator accountId`，`recordStatus` 与 `lifecycleStage` 不变。
+- Release 已归属的 `ACTIVE + LEAD / PROSPECT_CUSTOMER` 回 Pool。Release 后 `ownerAccountId = null`，`recordStatus` 与 `lifecycleStage` 不变。
 - 具备 `crm.account.manage` 的 CRM 管理角色可以直接将 Pool 中 owner 为空的 Lead 转为 Prospect Customer，并保持 `ownerAccountId = null`。
 
 普通销售规则：
@@ -595,18 +597,42 @@ CRM conversion result 不使用泛化的 `CONVERSION_BLOCKED`。权限拒绝应�
 
 ## 11. Archive Rules
 
-`recordStatus = ARCHIVED` 是底层扩展位，但 CRM P1 不开放 Archive runtime。
+`recordStatus = ARCHIVED` 表示 CRM 记录不再处于 active 跟进状态。`archiveReason` 是 `crm-service` 的领域真相，用于记录为什么该 Lead 或 Prospect Customer 不再 active 跟进，API Gateway / BFF 与浏览器插件只能展示该事实，不拥有归档原因业务语义。
 
-Phase 1 明确不支持：
+Phase 1 支持的 archive runtime：
 
-- Archive。
+- `ACTIVE + LEAD` 可以 archive。
+- `ACTIVE + PROSPECT_CUSTOMER` 可以 archive。
+- Archive 必须提交 `archiveReason`。
+- Archive 设置 `recordStatus = ARCHIVED`、`archivedAt` 与 `archiveReason`。
+- Archive 不改变 `lifecycleStage`、`tenantPartyId`、`ownerAccountId`、source、contact、opportunity 或 activity 主体归属。
+
+`archiveReason` 枚举：
+
+- `LOW_VALUE`：真实主体，但商业价值低、优先级低、不值得继续投入。
+- `INVALID_TARGET`：不存在、错误公司、垃圾主体或明显不可作为 CRM 主体的记录。
+- `NON_TARGET_ACCOUNT`：真实主体，但战略上不适合作为当前销售目标，例如 Kohler、Roca、TOTO、Grohe 等国际大牌或明显不会合作的主体。
+- `COMPETITOR`：真实主体，调研后确认是同行、竞品或同业竞争主体，不应作为当前销售开发目标继续跟进。
+- `DUPLICATE`：确认已有其他 CRM 记录承载同一主体，不应继续单独跟进。
+- `NO_FIT`：业务品类、地区、产品线等与当前目标市场不匹配。
+- `UNRESPONSIVE`：真实主体但长期无法联系或长期无回应。
+- `OTHER`：真实归档原因不在固定枚举内。
+
+Archive 限制：
+
+- `Customer` archive 不属于 CRM P1，本阶段不得扩展 `CUSTOMER` archive runtime。
+- `DRAFT` 不允许 archive；Draft 仍通过 Draft hard delete 退出。
+- `ARCHIVED` 记录不进入 active Lead / Prospect Customer / Pool 默认视图。
+- `archiveReason` 只在 `recordStatus = ARCHIVED` 时有效；`DRAFT / ACTIVE` 记录应保持为空。
+
+Phase 1 仍不支持：
+
 - Unarchive / Restore。
-- Archived list / filter。
-- Archive reason / restore reason。
-- `crm.account.archive`。
+- Restore reason。
+- 独立的 `crm.account.archive` permission code；本阶段 BFF 使用既有 `crm.account.manage` 承载管理动作。
 - `crm.account.restore`。
 
-P1 runtime 只处理 `DRAFT` 与 `ACTIVE`。任何 Archive / Restore 能力必须作为后续独立设计重新冻结。
+任何 Restore / Unarchive 能力必须作为后续独立设计重新冻结。
 
 ## 12. P1 Use Cases
 
@@ -618,6 +644,7 @@ Phase 1 冻结以下用例边界：
 - `DeleteDraftLead`
 - `CreateLead`
 - `UpdateCrmAccount`
+- `ArchiveCrmAccount`
 - `CheckLeadDuplicate`
 - `ConvertLeadToProspectCustomer`
 - `ClaimCrmAccount`
@@ -666,13 +693,14 @@ Phase 1 最小权限动作：
 - `crm.account.read`
 - `crm.account.update`
 - `crm.account.convert`
+- `crm.account.claim`
+- `crm.account.release`
 - `crm.account.manage`
 - `crm.contact.manage`
 - `crm.source.manage`
 - `crm.activity.create`
 - `crm.opportunity.manage`
 - `crm.duplicate.viewRestricted`
-- `crm.account.claim`
 
 ## 14. Tenant-web P1 Entrance Structure
 

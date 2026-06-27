@@ -3,7 +3,7 @@ import type { CustomerManagementApi } from '#/api'
 import type { TableColumnsType } from 'ant-design-vue'
 
 import { computed, h, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import { Page } from '@vben/common-ui'
 import { IconifyIcon } from '@vben/icons'
@@ -17,6 +17,7 @@ import {
   Input,
   Menu,
   Modal,
+  Radio,
   Row,
   Select,
   SelectOption,
@@ -27,6 +28,7 @@ import {
 } from 'ant-design-vue'
 
 import {
+  archiveCrmAccountApi,
   claimCrmAccountApi,
   convertLeadToProspectCustomerApi,
   createDraftLeadApi,
@@ -34,22 +36,31 @@ import {
   deleteDraftLeadApi,
   listCrmAccountsApi,
   releaseCrmAccountApi,
-  submitDraftLeadApi
+  submitDraftLeadApi,
+  updateDraftLeadApi
 } from '#/api'
 import CountryRegionSelect from '#/components/country-region-select.vue'
 import { $t } from '#/locales'
 import { useAuthContextStore } from '#/store/auth-context'
 
-type WorkspaceViewKey = 'CUSTOMERS' | 'MY_DRAFTS' | 'MY_LEADS' | 'PROSPECTS'
+type WorkspaceViewKey = 'CUSTOMERS' | 'MY_ARCHIVED' | 'MY_DRAFTS' | 'MY_LEADS' | 'PROSPECTS'
 type WorkspaceTabKey = WorkspaceViewKey | 'POOL'
-type CrmAccountActionKey = 'claim' | 'deleteDraft' | 'detail' | 'formalize' | 'release' | 'submitDraft'
+type CrmAccountActionKey =
+  | 'archive'
+  | 'claim'
+  | 'deleteDraft'
+  | 'detail'
+  | 'editDraft'
+  | 'formalize'
+  | 'release'
+  | 'submitDraft'
 type AccountColumnKey =
   | 'actions'
+  | 'archiveReason'
   | 'displayName'
   | 'leadCountry'
   | 'leadDomain'
   | 'lifecycleStage'
-  | 'ownerAccountId'
   | 'priority'
 
 interface CrmWorkspaceFilterState {
@@ -86,6 +97,12 @@ interface CrmAccountActionItem {
 
 const customerManagementFallbackMessages = {
   active: '活跃',
+  archive: '归档',
+  archiveConfirm: '归档后该记录会退出 active 跟进视图，原因会作为 CRM 共识记录。',
+  archiveFailed: '归档失败',
+  archiveReason: '归档原因',
+  archiveReasonRequired: '请选择归档原因',
+  archiveSuccess: '已归档',
   bound: '已绑定主体',
   cancel: '取消',
   claim: '认领',
@@ -95,7 +112,6 @@ const customerManagementFallbackMessages = {
   columnCountry: '国家/地区',
   columnDomain: '域名',
   columnName: '名称',
-  columnOwner: '负责人',
   columnPriority: '优先级',
   columnStage: '阶段',
   company: '公司',
@@ -109,6 +125,7 @@ const customerManagementFallbackMessages = {
   draftDeleteConfirmTitle: '确认删除此草稿？',
   draftDeleteFailed: '草稿删除失败',
   draftDeleteSuccess: '草稿已删除',
+  draftEdit: '编辑草稿',
   draftSaveFailed: '草稿保存失败',
   draftSaveSuccess: '草稿已保存',
   draftSubmit: '提交 Lead',
@@ -167,6 +184,7 @@ const customerManagementFallbackMessages = {
   sourceWebsiteForm: '网站表单',
   stageCustomer: '客户',
   stageLead: 'Lead',
+  stageMyArchived: '我的归档',
   stageMyDrafts: '我的草稿',
   stageMyLeads: '我的 Lead',
   stageProspectCustomer: '潜在客户',
@@ -186,6 +204,7 @@ function t(key: keyof typeof customerManagementFallbackMessages) {
 
 const authContextStore = useAuthContextStore()
 const router = useRouter()
+const route = useRoute()
 const activeTenantId = computed(() => authContextStore.sessionContext?.tenant?.tenantId ?? '')
 const currentAccountId = computed(() => authContextStore.sessionContext?.account?.accountId ?? '')
 const canCreateLead = computed(() =>
@@ -206,13 +225,48 @@ const canClaimAccount = computed(() =>
 const canManageAccount = computed(() =>
   authContextStore.actionCodes.includes('crm.account.manage')
 )
+const canReleaseAccount = computed(() =>
+  authContextStore.actionCodes.includes('crm.account.release')
+)
 const canUpdateLead = computed(() =>
   authContextStore.actionCodes.includes('crm.account.update')
 )
 
+const workspaceViewStorageKey = 'oes.crm.accounts.activeView'
+const workspaceViewValues: WorkspaceViewKey[] = ['MY_DRAFTS', 'MY_LEADS', 'PROSPECTS', 'CUSTOMERS', 'MY_ARCHIVED']
+
+/** isWorkspaceViewKey keeps route and storage values inside supported CRM account tabs. */
+function isWorkspaceViewKey(value: unknown): value is WorkspaceViewKey {
+  return typeof value === 'string' && workspaceViewValues.includes(value as WorkspaceViewKey)
+}
+
+/** firstRouteQueryValue normalizes Vue Router query values for tab restoration. */
+function firstRouteQueryValue(value: unknown) {
+  return Array.isArray(value) ? value[0] : value
+}
+
+/** readStoredWorkspaceView returns the last CRM account tab if browser storage is available. */
+function readStoredWorkspaceView() {
+  try {
+    const storedView = window.localStorage.getItem(workspaceViewStorageKey)
+    return isWorkspaceViewKey(storedView) ? storedView : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/** resolveInitialWorkspaceView restores the CRM account tab from URL first, then local browser state. */
+function resolveInitialWorkspaceView(): WorkspaceViewKey {
+  const routeView = firstRouteQueryValue(route.query.view)
+  if (isWorkspaceViewKey(routeView)) {
+    return routeView
+  }
+  return readStoredWorkspaceView() ?? 'MY_DRAFTS'
+}
+
 const filters = reactive<CrmWorkspaceFilterState>({
   keyword: '',
-  view: 'MY_DRAFTS',
+  view: resolveInitialWorkspaceView(),
   ownerAccountId: ''
 })
 const leadForm = reactive<LeadFormState>(createEmptyLeadForm())
@@ -223,17 +277,22 @@ const creating = ref(false)
 const importing = ref(false)
 const convertingAccountId = ref('')
 const createPanelOpen = ref(false)
+const editingDraftAccountId = ref('')
 const importPanelOpen = ref(false)
 const importRawText = ref('')
-const notice = ref('')
+const archiveModalOpen = ref(false)
+const archiveTargetAccount = ref<CustomerManagementApi.CrmAccount | null>(null)
+const archiveReasonDraft = ref<CustomerManagementApi.CrmArchiveReason | ''>('')
 const errorMessage = ref('')
 const createDuplicateResult = ref<CustomerManagementApi.CrmLeadDuplicateResult | null>(null)
+const isEditingDraft = computed(() => Boolean(editingDraftAccountId.value))
 
 const stageOptions: Array<{ label: string; value: WorkspaceTabKey }> = [
   { label: t('stageMyDrafts'), value: 'MY_DRAFTS' },
   { label: t('stageMyLeads'), value: 'MY_LEADS' },
   { label: t('stageProspectCustomer'), value: 'PROSPECTS' },
   { label: t('stageCustomer'), value: 'CUSTOMERS' },
+  { label: t('stageMyArchived'), value: 'MY_ARCHIVED' },
   { label: t('pool'), value: 'POOL' }
 ]
 
@@ -250,6 +309,21 @@ const sourceTypeOptions: Array<{ label: string; value: CustomerManagementApi.Crm
   { label: t('sourceOther'), value: 'OTHER' }
 ]
 
+const archiveReasonOptions: Array<{
+  description: string
+  label: string
+  value: CustomerManagementApi.CrmArchiveReason
+}> = [
+  { description: '真实主体，但不属于当前目标客户范围。', label: '非目标', value: 'NON_TARGET_ACCOUNT' },
+  { description: '调研后确认是同行、竞品或同业竞争主体。', label: '同行', value: 'COMPETITOR' },
+  { description: '真实主体，但商业价值或跟进优先级较低。', label: '低价值', value: 'LOW_VALUE' },
+  { description: '不存在、错误公司、垃圾主体或不可作为 CRM 主体。', label: '无效', value: 'INVALID_TARGET' },
+  { description: '已有其他 CRM 记录承载同一主体。', label: '重复', value: 'DUPLICATE' },
+  { description: '品类、地区或产品线与当前市场不匹配。', label: '不匹配', value: 'NO_FIT' },
+  { description: '长期无法联系或长期没有回应。', label: '无响应', value: 'UNRESPONSIVE' },
+  { description: '不属于以上原因，但需要退出 active 跟进。', label: '其他', value: 'OTHER' }
+]
+
 const partyTypeOptions: Array<{ label: string; value: CustomerManagementApi.CrmAccountTypeHint }> = [
   { label: t('partyTypeOrganization'), value: 'ORGANIZATION' },
   { label: t('partyTypePerson'), value: 'PERSON' }
@@ -259,20 +333,20 @@ const priorityOptions: CustomerManagementApi.CrmPriority[] = ['A', 'B', 'C', 'D'
 const prioritySortRanks = new Map(priorityOptions.map((priority, index) => [priority, index]))
 const accountColumnMinWidths: Record<AccountColumnKey, number> = {
   actions: 72,
+  archiveReason: 120,
   displayName: 160,
   leadCountry: 96,
   leadDomain: 160,
   lifecycleStage: 120,
-  ownerAccountId: 150,
   priority: 90
 }
 const accountColumnWidths = reactive<Record<AccountColumnKey, number>>({
   actions: 88,
+  archiveReason: 140,
   displayName: 260,
   leadCountry: 110,
   leadDomain: 260,
   lifecycleStage: 160,
-  ownerAccountId: 180,
   priority: 110
 })
 
@@ -284,58 +358,73 @@ const accountCounts = computed(() => ({
   visible: accounts.value.length
 }))
 const accountTableScrollX = computed(() =>
-  Object.values(accountColumnWidths).reduce((sum, width) => sum + width, 0)
+  accountColumns.value.reduce((sum, column) => sum + Number(column.width ?? column.minWidth ?? 0), 0)
 )
 
 const accountColumns = computed<TableColumnsType<CustomerManagementApi.CrmAccount>>(() => [
   {
+    align: 'center',
     dataIndex: 'displayName',
+    ellipsis: true,
     key: 'displayName',
+    minWidth: accountColumnMinWidths.displayName,
     title: renderResizableAccountHeader('displayName', t('columnName')),
-    width: accountColumnWidths.displayName,
     customRender: ({ record }) =>
       h('div', { class: 'crm-account-cell' }, [
         h('strong', record.displayName || '-')
       ])
   },
   {
+    align: 'center',
     dataIndex: 'leadDomain',
+    ellipsis: true,
     key: 'leadDomain',
+    minWidth: accountColumnMinWidths.leadDomain,
     title: renderResizableAccountHeader('leadDomain', t('columnDomain')),
-    width: accountColumnWidths.leadDomain,
     customRender: ({ record }) => h('span', { class: 'crm-muted' }, record.leadDomain || '-')
   },
   {
+    align: 'center',
     dataIndex: 'lifecycleStage',
+    ellipsis: true,
     key: 'lifecycleStage',
+    minWidth: accountColumnMinWidths.lifecycleStage,
     title: renderResizableAccountHeader('lifecycleStage', t('columnStage')),
-    width: accountColumnWidths.lifecycleStage,
     customRender: ({ record }) =>
-      h(Tag, { color: stageColor(record.lifecycleStage) }, () => stageLabel(record.lifecycleStage))
+      h(Tag, { color: accountStatusColor(record) }, () => accountStatusLabel(record))
   },
   {
+    align: 'center',
     dataIndex: 'priority',
+    ellipsis: true,
     key: 'priority',
+    minWidth: accountColumnMinWidths.priority,
     sorter: (left, right) => compareCrmPriority(left.priority, right.priority),
     title: renderResizableAccountHeader('priority', t('columnPriority')),
-    width: accountColumnWidths.priority,
     customRender: ({ record }) => h('span', { class: 'crm-priority' }, record.priority || '-')
   },
   {
-    dataIndex: 'ownerAccountId',
-    key: 'ownerAccountId',
-    title: renderResizableAccountHeader('ownerAccountId', t('columnOwner')),
-    width: accountColumnWidths.ownerAccountId,
-    customRender: ({ record }) => record.ownerDisplayName || record.ownerAccountId || '-'
-  },
-  {
+    align: 'center',
     dataIndex: 'leadCountry',
+    ellipsis: true,
     key: 'leadCountry',
+    minWidth: accountColumnMinWidths.leadCountry,
     sorter: (left, right) => compareCrmColumnText(left.leadCountry, right.leadCountry),
     title: renderResizableAccountHeader('leadCountry', t('columnCountry')),
-    width: accountColumnWidths.leadCountry,
     customRender: ({ record }) => record.leadCountry || '-'
   },
+  ...(filters.view === 'MY_ARCHIVED'
+    ? [{
+        align: 'center' as const,
+        dataIndex: 'archiveReason',
+        ellipsis: true,
+        key: 'archiveReason',
+        minWidth: accountColumnMinWidths.archiveReason,
+        title: renderResizableAccountHeader('archiveReason', t('archiveReason')),
+        customRender: ({ record }: { record: CustomerManagementApi.CrmAccount }) =>
+          archiveReasonLabel(record.archiveReason)
+      }]
+    : []),
   {
     align: 'center',
     fixed: 'right',
@@ -369,6 +458,13 @@ function getCrmAccountActionItems(record: CustomerManagementApi.CrmAccount): Crm
       label: t('formalize')
     },
     {
+      dataTestId: `crm-account-edit-draft-${record.crmAccountId}`,
+      disabled: busy,
+      hidden: !canUpdateLead.value || record.recordStatus !== 'DRAFT',
+      key: 'editDraft',
+      label: t('draftEdit')
+    },
+    {
       dataTestId: `crm-account-submit-draft-${record.crmAccountId}`,
       disabled: busy,
       hidden: !canUpdateLead.value || record.recordStatus !== 'DRAFT',
@@ -386,12 +482,20 @@ function getCrmAccountActionItems(record: CustomerManagementApi.CrmAccount): Crm
       dataTestId: `crm-account-release-${record.crmAccountId}`,
       disabled: busy,
       hidden:
-        !canManageAccount.value ||
+        !canReleaseAccount.value ||
         record.recordStatus !== 'ACTIVE' ||
         !record.ownerAccountId ||
         !['LEAD', 'PROSPECT_CUSTOMER'].includes(record.lifecycleStage),
       key: 'release',
       label: t('release')
+    },
+    {
+      danger: true,
+      dataTestId: `crm-account-archive-${record.crmAccountId}`,
+      disabled: busy,
+      hidden: !canArchiveAccount(record),
+      key: 'archive',
+      label: t('archive')
     },
     {
       danger: true,
@@ -426,6 +530,11 @@ function handleCrmAccountAction(actionKey: CrmAccountActionKey, record: Customer
     return
   }
 
+  if (actionKey === 'editDraft') {
+    openEditDraftLeadPanel(record)
+    return
+  }
+
   if (actionKey === 'claim') {
     void claimCrmAccount(record.crmAccountId)
     return
@@ -433,6 +542,11 @@ function handleCrmAccountAction(actionKey: CrmAccountActionKey, record: Customer
 
   if (actionKey === 'release') {
     void releaseCrmAccount(record.crmAccountId)
+    return
+  }
+
+  if (actionKey === 'archive') {
+    openArchiveModal(record)
     return
   }
 
@@ -601,8 +715,10 @@ async function loadAccounts() {
       pageSize: 20,
       recordStatus: query.recordStatus
     })
-    accounts.value = result.crmAccounts ?? []
-    total.value = result.total ?? accounts.value.length
+    accounts.value = filterAccountsForCurrentView(result.crmAccounts ?? [])
+    total.value = filters.view === 'MY_ARCHIVED'
+      ? accounts.value.length
+      : (result.total ?? accounts.value.length)
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : t('loadFailed')
     accounts.value = []
@@ -610,6 +726,29 @@ async function loadAccounts() {
   } finally {
     loading.value = false
   }
+}
+
+/** filterAccountsForCurrentView enforces view-level status boundaries after BFF results are mapped. */
+function filterAccountsForCurrentView(records: CustomerManagementApi.CrmAccount[]) {
+  if (filters.view === 'MY_ARCHIVED') {
+    return records.filter((record) => record.recordStatus === 'ARCHIVED')
+  }
+  return records
+}
+
+/** persistWorkspaceView stores the current CRM account tab for refresh and shareable route state. */
+function persistWorkspaceView(view: WorkspaceViewKey) {
+  try {
+    window.localStorage.setItem(workspaceViewStorageKey, view)
+  } catch {
+    // Ignore unavailable storage; the URL query remains the primary source.
+  }
+  void router.replace({
+    query: {
+      ...route.query,
+      view
+    }
+  })
 }
 
 /** selectStage switches account lanes or routes to the dedicated Pool workspace tab. */
@@ -620,6 +759,14 @@ function selectStage(stage: WorkspaceTabKey) {
   }
 
   filters.view = stage
+  persistWorkspaceView(stage)
+  void loadAccounts()
+}
+
+/** clearFilters resets list-only filters while preserving the current CRM account tab. */
+function clearFilters() {
+  filters.keyword = ''
+  filters.ownerAccountId = ''
   void loadAccounts()
 }
 
@@ -636,6 +783,9 @@ function buildListQuery(): CustomerManagementApi.CrmAccountListQuery {
   if (filters.view === 'PROSPECTS') {
     return { lifecycleStage: 'PROSPECT_CUSTOMER', ownerAccountId: ownAccountId, recordStatus: 'ACTIVE' }
   }
+  if (filters.view === 'MY_ARCHIVED') {
+    return { ownerAccountId: ownAccountId, recordStatus: 'ARCHIVED' }
+  }
 
   return { lifecycleStage: 'CUSTOMER', ownerAccountId: ownAccountId, recordStatus: 'ACTIVE' }
 }
@@ -646,11 +796,30 @@ function openCreateLeadPanel() {
     return
   }
 
+  editingDraftAccountId.value = ''
   Object.assign(leadForm, createEmptyLeadForm())
-  notice.value = ''
   errorMessage.value = ''
   createDuplicateResult.value = null
   createPanelOpen.value = true
+}
+
+/** openEditDraftLeadPanel reuses the lead form modal for one editable DRAFT record. */
+function openEditDraftLeadPanel(record: CustomerManagementApi.CrmAccount) {
+  if (!canUpdateLead.value || record.recordStatus !== 'DRAFT') {
+    return
+  }
+
+  editingDraftAccountId.value = record.crmAccountId
+  Object.assign(leadForm, leadFormFromDraft(record))
+  errorMessage.value = ''
+  createDuplicateResult.value = null
+  createPanelOpen.value = true
+}
+
+/** closeLeadPanel clears modal mode state shared by create and draft-edit flows. */
+function closeLeadPanel() {
+  createPanelOpen.value = false
+  editingDraftAccountId.value = ''
 }
 
 /** openImportLeadPanel prepares the owned-workspace batch import input. */
@@ -660,9 +829,68 @@ function openImportLeadPanel() {
   }
 
   importRawText.value = ''
-  notice.value = ''
   errorMessage.value = ''
   importPanelOpen.value = true
+}
+
+/** canArchiveAccount keeps list-page archive eligibility aligned to CRM P1 Lead/PC rules. */
+function canArchiveAccount(record: CustomerManagementApi.CrmAccount) {
+  return (
+    canManageAccount.value &&
+    record.recordStatus === 'ACTIVE' &&
+    ['LEAD', 'PROSPECT_CUSTOMER'].includes(record.lifecycleStage)
+  )
+}
+
+/** openArchiveModal starts the row-level CRM archive flow for one active Lead or Prospect Customer. */
+function openArchiveModal(record: CustomerManagementApi.CrmAccount) {
+  if (!canArchiveAccount(record)) {
+    return
+  }
+
+  archiveTargetAccount.value = record
+  archiveReasonDraft.value = ''
+  errorMessage.value = ''
+  archiveModalOpen.value = true
+}
+
+/** closeArchiveModal clears archive modal state without changing the underlying CRM record. */
+function closeArchiveModal() {
+  archiveModalOpen.value = false
+  archiveTargetAccount.value = null
+  archiveReasonDraft.value = ''
+}
+
+/** archiveCrmAccountFromList persists the selected CRM-owned archive reason and refreshes the table. */
+async function archiveCrmAccountFromList() {
+  if (!activeTenantId.value || !archiveTargetAccount.value) {
+    return
+  }
+  if (!archiveReasonDraft.value) {
+    errorMessage.value = t('archiveReasonRequired')
+    message.error(t('archiveReasonRequired'))
+    return
+  }
+  if (!canArchiveAccount(archiveTargetAccount.value)) {
+    return
+  }
+
+  const crmAccountId = archiveTargetAccount.value.crmAccountId
+  convertingAccountId.value = crmAccountId
+  errorMessage.value = ''
+  try {
+    await archiveCrmAccountApi(activeTenantId.value, crmAccountId, {
+      archiveReason: archiveReasonDraft.value
+    })
+    message.success(t('archiveSuccess'))
+    closeArchiveModal()
+    await loadAccounts()
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : t('archiveFailed')
+    message.error(t('archiveFailed'))
+  } finally {
+    convertingAccountId.value = ''
+  }
 }
 
 /** parseLeadImportRows converts simple line-based CRM import text into create-lead payloads. */
@@ -712,7 +940,6 @@ async function submitImportedLeads() {
     for (const row of importRows) {
       await createCrmLeadApi(activeTenantId.value, row)
     }
-    notice.value = t('importSuccess')
     importPanelOpen.value = false
     message.success(t('importSuccess'))
     await loadAccounts()
@@ -764,8 +991,7 @@ async function submitLead() {
       return
     }
 
-    notice.value = result.resultType || 'CREATED'
-    createPanelOpen.value = false
+    closeLeadPanel()
     message.success(t('createSuccess'))
     await loadAccounts()
   } catch (error) {
@@ -787,7 +1013,7 @@ async function saveDraftLead() {
   errorMessage.value = ''
   createDuplicateResult.value = null
   try {
-    await createDraftLeadApi(activeTenantId.value, {
+    const draftPayload = {
       displayName: leadForm.displayName.trim(),
       leadCompanyName: normalize(leadForm.leadCompanyName),
       leadCountry: normalize(leadForm.leadCountry),
@@ -798,14 +1024,22 @@ async function saveDraftLead() {
       leadWhatsapp: normalize(leadForm.leadWhatsapp),
       nextFollowUpAt: normalize(leadForm.nextFollowUpAt),
       partyTypeHint: leadForm.partyTypeHint,
-      priority: leadForm.priority,
-      sourceName: normalize(leadForm.sourceName),
-      sourceNote: normalize(leadForm.sourceNote),
-      sourceType: leadForm.sourceType
-    })
-    notice.value = t('draftSaveSuccess')
-    createPanelOpen.value = false
+      priority: leadForm.priority
+    }
+
+    if (editingDraftAccountId.value) {
+      await updateDraftLeadApi(activeTenantId.value, editingDraftAccountId.value, draftPayload)
+    } else {
+      await createDraftLeadApi(activeTenantId.value, {
+        ...draftPayload,
+        sourceName: normalize(leadForm.sourceName),
+        sourceNote: normalize(leadForm.sourceNote),
+        sourceType: leadForm.sourceType
+      })
+    }
+    closeLeadPanel()
     filters.view = 'MY_DRAFTS'
+    persistWorkspaceView('MY_DRAFTS')
     message.success(t('draftSaveSuccess'))
     await loadAccounts()
   } catch (error) {
@@ -813,6 +1047,40 @@ async function saveDraftLead() {
   } finally {
     creating.value = false
   }
+}
+
+/** leadFormFromDraft maps one draft CRM account into the shared create/edit lead form state. */
+function leadFormFromDraft(record: CustomerManagementApi.CrmAccount): LeadFormState {
+  return {
+    displayName: record.displayName ?? '',
+    leadCompanyName: record.leadCompanyName ?? '',
+    leadCountry: record.leadCountry ?? '',
+    leadDomain: record.leadDomain ?? '',
+    leadEmail: record.leadEmail ?? '',
+    leadPersonName: record.leadPersonName ?? '',
+    leadPhone: record.leadPhone ?? '',
+    leadWhatsapp: record.leadWhatsapp ?? '',
+    nextFollowUpAt: record.nextFollowUpAt ?? '',
+    partyTypeHint: normalizePartyTypeHint(record.partyTypeHint),
+    priority: normalizePriority(record.priority),
+    sourceName: '',
+    sourceNote: '',
+    sourceType: 'WEB_RESEARCH'
+  }
+}
+
+/** normalizePartyTypeHint keeps backend draft values inside the options accepted by the shared lead form. */
+function normalizePartyTypeHint(value: string): CustomerManagementApi.CrmAccountTypeHint | undefined {
+  return partyTypeOptions.some((option) => option.value === value)
+    ? (value as CustomerManagementApi.CrmAccountTypeHint)
+    : undefined
+}
+
+/** normalizePriority keeps backend draft priority values inside the options accepted by the shared lead form. */
+function normalizePriority(value: string): CustomerManagementApi.CrmPriority {
+  return priorityOptions.includes(value as CustomerManagementApi.CrmPriority)
+    ? (value as CustomerManagementApi.CrmPriority)
+    : 'B'
 }
 
 /** duplicateMatchedFieldsText renders CRM duplicate evidence in a compact sales-facing form. */
@@ -842,7 +1110,7 @@ async function formalizeLead(crmAccountId: string) {
   errorMessage.value = ''
   try {
     const result = await convertLeadToProspectCustomerApi(activeTenantId.value, crmAccountId)
-    notice.value = result.resultType || ''
+    message.success(result.resultType || t('formalize'))
     await loadAccounts()
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : t('formalizeFailed')
@@ -866,7 +1134,6 @@ async function submitDraftLead(crmAccountId: string) {
       message.warning(t('duplicateOwnedTitle'))
       return
     }
-    notice.value = t('draftSubmitSuccess')
     message.success(t('draftSubmitSuccess'))
     await loadAccounts()
   } catch (error) {
@@ -887,7 +1154,6 @@ async function claimCrmAccount(crmAccountId: string) {
   errorMessage.value = ''
   try {
     const result = await claimCrmAccountApi(activeTenantId.value, crmAccountId)
-    notice.value = t('claimSuccess')
     void result
     message.success(t('claimSuccess'))
     await loadAccounts()
@@ -901,7 +1167,7 @@ async function claimCrmAccount(crmAccountId: string) {
 
 /** releaseCrmAccount clears ownership so the record moves back into the CRM Pool. */
 async function releaseCrmAccount(crmAccountId: string) {
-  if (!canManageAccount.value || !activeTenantId.value) {
+  if (!canReleaseAccount.value || !activeTenantId.value) {
     return
   }
 
@@ -909,7 +1175,6 @@ async function releaseCrmAccount(crmAccountId: string) {
   errorMessage.value = ''
   try {
     await releaseCrmAccountApi(activeTenantId.value, crmAccountId)
-    notice.value = t('releaseSuccess')
     message.success(t('releaseSuccess'))
     await loadAccounts()
   } catch (error) {
@@ -941,7 +1206,6 @@ async function deleteDraftLead(crmAccountId: string) {
   errorMessage.value = ''
   try {
     await deleteDraftLeadApi(activeTenantId.value, crmAccountId)
-    notice.value = t('draftDeleteSuccess')
     message.success(t('draftDeleteSuccess'))
     await loadAccounts()
   } catch (error) {
@@ -963,6 +1227,14 @@ function stageLabel(stage: string) {
   return t('stageLead')
 }
 
+/** accountStatusLabel renders archived records by record status instead of active lifecycle stage. */
+function accountStatusLabel(record: CustomerManagementApi.CrmAccount) {
+  if (record.recordStatus === 'ARCHIVED') {
+    return t('archive')
+  }
+  return stageLabel(record.lifecycleStage)
+}
+
 /** stageColor assigns Ant Design tag colors without encoding extra business semantics. */
 function stageColor(stage: string) {
   if (stage === 'PROSPECT_CUSTOMER') {
@@ -972,6 +1244,19 @@ function stageColor(stage: string) {
     return 'green'
   }
   return 'gold'
+}
+
+/** accountStatusColor gives archived records a distinct status color before falling back to lifecycle color. */
+function accountStatusColor(record: CustomerManagementApi.CrmAccount) {
+  if (record.recordStatus === 'ARCHIVED') {
+    return 'orange'
+  }
+  return stageColor(record.lifecycleStage)
+}
+
+/** archiveReasonLabel maps archived CRM reason enums to compact list labels. */
+function archiveReasonLabel(reason?: string) {
+  return archiveReasonOptions.find((option) => option.value === reason)?.label ?? '-'
 }
 
 /** compareCrmPriority sorts CRM priorities by the configured A-to-D business order. */
@@ -1028,7 +1313,6 @@ onBeforeUnmount(() => {
 <template>
   <Page :title="t('title')">
     <div class="crm-workspace">
-      <Alert v-if="notice" class="crm-alert" :message="notice" show-icon type="success" />
       <Alert v-if="errorMessage" class="crm-alert" :message="errorMessage" show-icon type="error" />
 
       <Card :bordered="false" class="crm-workspace__card">
@@ -1096,6 +1380,14 @@ onBeforeUnmount(() => {
             <Col :lg="8" :md="5" :span="24" :xl="10" class="crm-workspace__filter-actions-col">
               <Button
                 class="crm-workspace__filter-button"
+                data-testid="crm-filter-clear"
+                @click="clearFilters"
+              >
+                <IconifyIcon icon="ant-design:clear-outlined" />
+                清空
+              </Button>
+              <Button
+                class="crm-workspace__filter-button"
                 data-testid="crm-filter-search"
                 :loading="loading"
                 type="primary"
@@ -1123,7 +1415,7 @@ onBeforeUnmount(() => {
           </div>
         </section>
 
-        <div class="crm-workspace__table-shell">
+        <div class="crm-workspace__table-shell" data-testid="crm-account-table-shell">
           <Table
             :columns="accountColumns"
             :data-source="accounts"
@@ -1141,9 +1433,9 @@ onBeforeUnmount(() => {
       <Modal
         v-model:open="createPanelOpen"
         destroy-on-close
-        :title="t('newLead')"
+        :title="isEditingDraft ? t('draftEdit') : t('newLead')"
         :width="760"
-        @cancel="createPanelOpen = false"
+        @cancel="closeLeadPanel"
       >
         <Alert
           v-if="createDuplicateResult"
@@ -1265,11 +1557,17 @@ onBeforeUnmount(() => {
 
         <template #footer>
           <div class="crm-workspace__modal-footer">
-            <Button @click="createPanelOpen = false">{{ t('cancel') }}</Button>
+            <Button @click="closeLeadPanel">{{ t('cancel') }}</Button>
             <Button data-testid="crm-draft-save" :loading="creating" @click="saveDraftLead">
               {{ t('saveDraft') }}
             </Button>
-            <Button data-testid="crm-lead-submit" :loading="creating" type="primary" @click="submitLead">
+            <Button
+              v-if="!isEditingDraft"
+              data-testid="crm-lead-submit"
+              :loading="creating"
+              type="primary"
+              @click="submitLead"
+            >
               {{ t('saveLead') }}
             </Button>
           </div>
@@ -1304,12 +1602,66 @@ onBeforeUnmount(() => {
           </div>
         </template>
       </Modal>
+
+      <Modal
+        v-model:open="archiveModalOpen"
+        destroy-on-close
+        :title="t('archive')"
+        :width="620"
+        @cancel="closeArchiveModal"
+      >
+        <div class="crm-workspace__archive-form">
+          <Alert
+            :message="t('archiveConfirm')"
+            show-icon
+            type="warning"
+          />
+          <div class="crm-workspace__archive-label">
+            {{ t('archiveReason') }}
+          </div>
+          <Radio.Group
+            v-model:value="archiveReasonDraft"
+            class="crm-workspace__archive-options"
+            data-testid="crm-account-list-archive-reason"
+          >
+            <label
+              v-for="option in archiveReasonOptions"
+              :key="option.value"
+              class="crm-workspace__archive-option"
+              :class="{ 'crm-workspace__archive-option--selected': archiveReasonDraft === option.value }"
+              :data-testid="`crm-account-list-archive-reason-${option.value}`"
+            >
+              <Radio :value="option.value" />
+              <span class="crm-workspace__archive-option-copy">
+                <strong>{{ option.label }}</strong>
+                <span>{{ option.description }}</span>
+              </span>
+            </label>
+          </Radio.Group>
+        </div>
+
+        <template #footer>
+          <div class="crm-workspace__modal-footer">
+            <Button @click="closeArchiveModal">{{ t('cancel') }}</Button>
+            <Button
+              data-testid="crm-account-list-archive-submit"
+              :disabled="!archiveReasonDraft"
+              :loading="convertingAccountId === archiveTargetAccount?.crmAccountId"
+              type="primary"
+              @click="archiveCrmAccountFromList"
+            >
+              {{ t('archive') }}
+            </Button>
+          </div>
+        </template>
+      </Modal>
     </div>
   </Page>
 </template>
 
 <style scoped>
 .crm-workspace {
+  --crm-account-table-body-height: max(360px, calc(100dvh - 430px));
   --crm-border: hsl(var(--border));
   --crm-card-bg: hsl(var(--card));
   --crm-muted: hsl(var(--muted-foreground));
@@ -1323,18 +1675,26 @@ onBeforeUnmount(() => {
   display: grid;
   gap: 14px;
   max-width: 100%;
+  min-height: 0;
   min-width: 0;
 }
 
 .crm-workspace__card {
   border: 1px solid var(--crm-border);
   background: var(--crm-card-bg);
+  display: flex;
+  flex-direction: column;
   box-shadow: 0 10px 30px rgb(15 23 42 / 0.04);
   max-width: 100%;
+  min-height: 0;
   min-width: 0;
 }
 
 .crm-workspace__card :deep(.ant-card-body) {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
   min-width: 0;
   padding: 20px;
 }
@@ -1387,7 +1747,6 @@ onBeforeUnmount(() => {
 
 .crm-workspace__filter-button {
   justify-content: center;
-  margin-left: auto;
   max-width: 144px;
   min-width: 112px;
   width: auto;
@@ -1429,6 +1788,7 @@ onBeforeUnmount(() => {
 .crm-workspace__filter-actions-col {
   align-items: center;
   display: flex;
+  gap: 8px;
   justify-content: flex-end;
 }
 
@@ -1468,14 +1828,17 @@ onBeforeUnmount(() => {
 }
 
 .crm-workspace__table-shell {
+  flex: 1 1 auto;
   max-width: 100%;
+  min-height: var(--crm-account-table-body-height);
   min-width: 0;
-  overflow-x: auto;
+  overflow: hidden;
 }
 
 .crm-account-cell {
   display: grid;
   gap: 3px;
+  justify-items: center;
 }
 
 .crm-account-cell strong {
@@ -1500,6 +1863,67 @@ onBeforeUnmount(() => {
 
 .crm-workspace__modal-alert {
   margin-bottom: 14px;
+}
+
+.crm-workspace__archive-form {
+  display: grid;
+  gap: 14px;
+}
+
+.crm-workspace__archive-label {
+  color: var(--crm-text);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.crm-workspace__archive-options {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+}
+
+.crm-workspace__archive-option {
+  align-items: flex-start;
+  border: 1px solid var(--crm-border);
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.crm-workspace__archive-option:hover,
+.crm-workspace__archive-option--selected {
+  border-color: hsl(var(--primary) / 0.45);
+  background: hsl(var(--primary) / 0.06);
+}
+
+.crm-workspace__archive-option:active {
+  transform: translateY(1px);
+}
+
+.crm-workspace__archive-option-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.crm-workspace__archive-option-copy strong {
+  color: var(--crm-title);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.crm-workspace__archive-option-copy span {
+  color: var(--crm-muted);
+  font-size: 12px;
+  line-height: 18px;
 }
 
 .crm-workspace__duplicate-alert-body {
@@ -1548,6 +1972,10 @@ onBeforeUnmount(() => {
   background: transparent;
 }
 
+:deep(.crm-workspace__table .ant-table-content) {
+  min-height: var(--crm-account-table-body-height);
+}
+
 :deep(.ant-table-wrapper .ant-table-thead > tr > th) {
   background: var(--crm-table-header-bg);
   color: var(--crm-text);
@@ -1580,6 +2008,7 @@ onBeforeUnmount(() => {
   position: relative;
   display: flex;
   align-items: center;
+  justify-content: center;
   min-height: 24px;
   padding-right: 12px;
 }
@@ -1625,7 +2054,9 @@ onBeforeUnmount(() => {
   .crm-workspace__filter-actions-col {
     justify-content: flex-end;
   }
+}
 
+@media (max-width: 560px) {
   .crm-workspace__metrics {
     grid-template-columns: 1fr;
   }
@@ -1638,9 +2069,7 @@ onBeforeUnmount(() => {
   .crm-workspace__metrics div:last-child {
     border-bottom: 0;
   }
-}
 
-@media (max-width: 560px) {
   .crm-workspace__create-button {
     min-width: 112px;
   }

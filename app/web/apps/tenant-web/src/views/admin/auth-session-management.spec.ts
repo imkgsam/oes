@@ -153,4 +153,90 @@ describe('auth session management page', () => {
     expect(filteredSessions).toHaveLength(1);
     expect(filteredSessions[0].sessionId).toBe('session-pda');
   });
+
+  it('uses a responsive action grid for the session search filters', async () => {
+    const view = await import('./auth-session-management.vue');
+
+    const wrapper = mount(view.default, {
+      attachTo: document.body,
+      global: {
+        directives: {
+          access: {},
+          loading: {},
+        },
+      },
+    });
+
+    await flushPromises();
+
+    const filterShells = wrapper.findAll('.filter-shell');
+    const sessionFilterShell = filterShells[0];
+    expect(sessionFilterShell?.exists()).toBe(true);
+
+    const actionGrid = sessionFilterShell!.find('.filter-button-pair');
+    expect(actionGrid.exists()).toBe(true);
+    expect(actionGrid.findAll('.filter-action-button')).toHaveLength(2);
+  });
+
+  it('uses resizable columns for the session drawer table', async () => {
+    const view = await import('./auth-session-management.vue');
+
+    const wrapper = mount(view.default, {
+      attachTo: document.body,
+      global: {
+        directives: {
+          access: {},
+          loading: {},
+        },
+      },
+    });
+
+    await flushPromises();
+
+    await (wrapper.vm as any).inspectUserSessions({
+      displayName: '张三',
+      tenantId: 'tenant-1',
+      tenantName: 'Tenant One',
+      userId: 'user-1',
+    });
+    await flushPromises();
+
+    const columns = (wrapper.vm as any).sessionColumns;
+    expect(columns).toHaveLength(8);
+    expect(columns.every((column: any) => typeof column.title !== 'string')).toBe(true);
+    expect(columns.every((column: any) => typeof column.width === 'number')).toBe(true);
+    expect((wrapper.vm as any).sessionTableScrollX).toBe(
+      columns.reduce((total: number, column: any) => total + column.width, 0),
+    );
+  });
+
+  it('uses a responsive layout for the session drawer filters', async () => {
+    const view = await import('./auth-session-management.vue');
+
+    const wrapper = mount(view.default, {
+      attachTo: document.body,
+      global: {
+        directives: {
+          access: {},
+          loading: {},
+        },
+      },
+    });
+
+    await flushPromises();
+
+    await (wrapper.vm as any).inspectUserSessions({
+      displayName: '张三',
+      tenantId: 'tenant-1',
+      tenantName: 'Tenant One',
+      userId: 'user-1',
+    });
+    await flushPromises();
+
+    const drawerFilter = document.body.querySelector('.filter-shell--drawer');
+    expect(drawerFilter).toBeTruthy();
+    expect(drawerFilter?.querySelector('.session-drawer-filter-grid')).toBeTruthy();
+    expect(drawerFilter?.querySelectorAll('.session-drawer-filter-field')).toHaveLength(3);
+    expect(drawerFilter?.querySelector('.session-drawer-filter-actions')).toBeTruthy();
+  });
 });

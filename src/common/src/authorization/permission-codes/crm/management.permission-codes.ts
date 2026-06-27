@@ -5,6 +5,7 @@ export const CRM_MANAGEMENT_PERMISSION_CODES = {
   UPDATE_CRM_ACCOUNT: 'crm.account.update',
   CONVERT_CRM_ACCOUNT: 'crm.account.convert',
   CLAIM_CRM_ACCOUNT: 'crm.account.claim',
+  RELEASE_CRM_ACCOUNT: 'crm.account.release',
   MANAGE_CRM_ACCOUNT: 'crm.account.manage',
   VIEW_RESTRICTED_DUPLICATE: 'crm.duplicate.viewRestricted',
   MANAGE_CRM_CONTACT: 'crm.contact.manage',

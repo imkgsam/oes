@@ -22,7 +22,6 @@ import {
   Modal,
   Row,
   Select,
-  Space,
   Spin,
   Statistic,
   Table,
@@ -55,6 +54,15 @@ type OnlineUserColumnKey =
   | 'lastActiveAt'
   | 'tenantNames';
 type OnlineUserActionKey = 'inspectSessions';
+type SessionColumnKey =
+  | 'actions'
+  | 'deviceName'
+  | 'idleSeconds'
+  | 'ipAddress'
+  | 'lastActiveAt'
+  | 'loginMethod'
+  | 'status'
+  | 'terminal';
 type SessionActionKey = 'revoke';
 
 interface AuthTableActionItem<ActionKey extends string> {
@@ -126,7 +134,28 @@ const onlineUserColumnWidths = reactive<Record<OnlineUserColumnKey, number>>({
   lastActiveAt: 180,
   tenantNames: 240,
 });
-let activeOnlineUserColumnCleanup: null | (() => void) = null;
+const sessionColumnMinWidths: Record<SessionColumnKey, number> = {
+  actions: 96,
+  deviceName: 150,
+  idleSeconds: 96,
+  ipAddress: 120,
+  lastActiveAt: 150,
+  loginMethod: 120,
+  status: 96,
+  terminal: 96,
+};
+const sessionColumnWidths = reactive<Record<SessionColumnKey, number>>({
+  actions: 150,
+  deviceName: 180,
+  idleSeconds: 120,
+  ipAddress: 150,
+  lastActiveAt: 180,
+  loginMethod: 140,
+  status: 120,
+  terminal: 120,
+});
+let activeColumnResizeCleanup: null | (() => void) = null;
+let activeColumnResizeFrame: null | number = null;
 
 const terminalFilterOptions = [
   { label: 'Web', value: 'WEB' },
@@ -281,6 +310,9 @@ const auditTablePagination = computed<TablePaginationConfig>(() => ({
 }));
 const onlineUserTableScrollX = computed(() =>
   Object.values(onlineUserColumnWidths).reduce((total, width) => total + width, 0),
+);
+const sessionTableScrollX = computed(() =>
+  Object.values(sessionColumnWidths).reduce((total, width) => total + width, 0),
 );
 
 // Normalizes unknown request failures into a stable user-facing message.
@@ -635,61 +667,112 @@ function formatAuditDetails(detailsJson?: string) {
   }
 }
 
-// stopOnlineUserColumnResize clears the active drag listeners for the online-user table.
-function stopOnlineUserColumnResize() {
-  activeOnlineUserColumnCleanup?.();
-  activeOnlineUserColumnCleanup = null;
+// stopColumnResize clears the active table-header drag listeners and pending animation frame.
+function stopColumnResize() {
+  activeColumnResizeCleanup?.();
+  activeColumnResizeCleanup = null;
+
+  if (activeColumnResizeFrame !== null) {
+    cancelAnimationFrame(activeColumnResizeFrame);
+    activeColumnResizeFrame = null;
+  }
+
   document.body.classList.remove('admin-session--resizing-column');
 }
 
-// startOnlineUserColumnResize updates one online-user table column width from header drag movement.
-function startOnlineUserColumnResize(
+// startColumnResize updates one table column width from header drag movement without per-event layout churn.
+function startColumnResize<ColumnKey extends string>(
   event: MouseEvent,
-  columnKey: OnlineUserColumnKey,
+  columnKey: ColumnKey,
+  columnWidths: Record<ColumnKey, number>,
+  columnMinWidths: Record<ColumnKey, number>,
 ) {
   event.preventDefault();
   event.stopPropagation();
 
-  stopOnlineUserColumnResize();
+  stopColumnResize();
 
   const startX = event.clientX;
-  const startWidth = onlineUserColumnWidths[columnKey];
+  const startWidth = columnWidths[columnKey];
+  let nextWidth = startWidth;
+
+  const commitColumnWidth = () => {
+    activeColumnResizeFrame = null;
+    columnWidths[columnKey] = nextWidth;
+  };
 
   const handleMouseMove = (moveEvent: MouseEvent) => {
-    onlineUserColumnWidths[columnKey] = Math.max(
-      onlineUserColumnMinWidths[columnKey],
+    nextWidth = Math.max(
+      columnMinWidths[columnKey],
       Math.round(startWidth + moveEvent.clientX - startX),
     );
+
+    if (activeColumnResizeFrame === null) {
+      activeColumnResizeFrame = requestAnimationFrame(commitColumnWidth);
+    }
   };
 
   const handleMouseUp = () => {
-    stopOnlineUserColumnResize();
+    columnWidths[columnKey] = nextWidth;
+    stopColumnResize();
   };
 
   document.body.classList.add('admin-session--resizing-column');
   document.addEventListener('mousemove', handleMouseMove);
   document.addEventListener('mouseup', handleMouseUp, { once: true });
-  activeOnlineUserColumnCleanup = () => {
+  activeColumnResizeCleanup = () => {
     document.removeEventListener('mousemove', handleMouseMove);
     document.removeEventListener('mouseup', handleMouseUp);
   };
 }
 
-// renderResizableOnlineUserHeader adds the column-width drag handle to online-user headers.
-function renderResizableOnlineUserHeader(
-  columnKey: OnlineUserColumnKey,
+// renderResizableColumnHeader adds a stable drag handle to one table header cell.
+function renderResizableColumnHeader(
   label: string,
+  onResizeStart: (event: MouseEvent) => void,
 ) {
   return h('div', { class: 'session-resizable-title' }, [
     h('span', { class: 'session-resizable-title__text' }, label),
     h('span', {
       'aria-label': `调整${label}列宽`,
       class: 'session-column-resizer',
-      onMousedown: (event: MouseEvent) =>
-        startOnlineUserColumnResize(event, columnKey),
+      onClick: (event: MouseEvent) => event.stopPropagation(),
+      onDblclick: (event: MouseEvent) => event.stopPropagation(),
+      onMousedown: onResizeStart,
       role: 'separator',
+      title: `拖拽调整${label}列宽`,
     }),
   ]);
+}
+
+// renderResizableOnlineUserHeader wires online-user table headers to their column width state.
+function renderResizableOnlineUserHeader(
+  columnKey: OnlineUserColumnKey,
+  label: string,
+) {
+  return renderResizableColumnHeader(label, (event) =>
+    startColumnResize(
+      event,
+      columnKey,
+      onlineUserColumnWidths,
+      onlineUserColumnMinWidths,
+    ),
+  );
+}
+
+// renderResizableSessionHeader wires drawer session table headers to their column width state.
+function renderResizableSessionHeader(
+  columnKey: SessionColumnKey,
+  label: string,
+) {
+  return renderResizableColumnHeader(label, (event) =>
+    startColumnResize(
+      event,
+      columnKey,
+      sessionColumnWidths,
+      sessionColumnMinWidths,
+    ),
+  );
 }
 
 const auditColumns: TableColumnsType<AdminSecurityApi.AuditEvent> = [
@@ -835,12 +918,12 @@ const onlineUserColumns = computed<TableColumnsType<AdminSecurityApi.OnlineUser>
   },
 ]);
 
-const sessionColumns: TableColumnsType<AdminSecurityApi.Session> = [
+const sessionColumns = computed<TableColumnsType<AdminSecurityApi.Session>>(() => [
   {
     dataIndex: 'status',
     key: 'status',
-    title: '状态',
-    width: 120,
+    title: renderResizableSessionHeader('status', '状态'),
+    width: sessionColumnWidths.status,
     customRender: ({ record }) => {
       const session = record as AdminSecurityApi.Session;
       const color = session.isRevoked
@@ -859,14 +942,14 @@ const sessionColumns: TableColumnsType<AdminSecurityApi.Session> = [
   {
     dataIndex: 'loginMethod',
     key: 'loginMethod',
-    title: '登录方式',
-    width: 140,
+    title: renderResizableSessionHeader('loginMethod', '登录方式'),
+    width: sessionColumnWidths.loginMethod,
   },
   {
     dataIndex: 'terminal',
     key: 'terminal',
-    title: '终端',
-    width: 120,
+    title: renderResizableSessionHeader('terminal', '终端'),
+    width: sessionColumnWidths.terminal,
     customRender: ({ record }) => {
       const session = record as AdminSecurityApi.Session;
       return h(
@@ -879,8 +962,8 @@ const sessionColumns: TableColumnsType<AdminSecurityApi.Session> = [
   {
     dataIndex: 'deviceName',
     key: 'deviceName',
-    title: '设备',
-    width: 180,
+    title: renderResizableSessionHeader('deviceName', '设备'),
+    width: sessionColumnWidths.deviceName,
     ellipsis: true,
     customRender: ({ record }) => {
       const session = record as AdminSecurityApi.Session;
@@ -895,30 +978,30 @@ const sessionColumns: TableColumnsType<AdminSecurityApi.Session> = [
   {
     dataIndex: 'ipAddress',
     key: 'ipAddress',
-    title: 'IP',
-    width: 150,
+    title: renderResizableSessionHeader('ipAddress', 'IP'),
+    width: sessionColumnWidths.ipAddress,
     ellipsis: true,
   },
   {
     dataIndex: 'lastActiveAt',
     key: 'lastActiveAt',
-    title: '最近活跃',
-    width: 180,
+    title: renderResizableSessionHeader('lastActiveAt', '最近活跃'),
+    width: sessionColumnWidths.lastActiveAt,
     customRender: ({ value }) => formatTime(value as string | undefined),
   },
   {
     dataIndex: 'idleSeconds',
     key: 'idleSeconds',
-    title: '空闲时长',
-    width: 120,
+    title: renderResizableSessionHeader('idleSeconds', '空闲时长'),
+    width: sessionColumnWidths.idleSeconds,
     customRender: ({ value }) => formatDuration(value as number | undefined),
   },
   {
     align: 'center',
     fixed: 'right',
     key: 'actions',
-    title: '操作',
-    width: 150,
+    title: renderResizableSessionHeader('actions', '操作'),
+    width: sessionColumnWidths.actions,
     customRender: ({ record }) =>
       renderAuthNativeActions<SessionActionKey>(
         '会话操作',
@@ -933,7 +1016,7 @@ const sessionColumns: TableColumnsType<AdminSecurityApi.Session> = [
         () => openRevokeModal(record),
       ),
   },
-];
+]);
 
 // Applies the current local session filters without pushing extra complexity into the first implementation slice.
 const filteredSessionItems = computed(() => {
@@ -1031,7 +1114,7 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
-  stopOnlineUserColumnResize();
+  stopColumnResize();
 });
 </script>
 
@@ -1096,8 +1179,8 @@ onBeforeUnmount(() => {
                 layout="vertical"
                 class="filter-shell"
               >
-                <Row :gutter="16">
-                  <Col v-if="isPlatformScope" :span="8">
+                <Row :gutter="[10, 10]">
+                  <Col v-if="isPlatformScope" :xs="24" :md="8">
                     <Form.Item label="租户 ID">
                       <Input
                         v-model:value="onlineUserQuery.tenantId"
@@ -1105,7 +1188,7 @@ onBeforeUnmount(() => {
                       />
                     </Form.Item>
                   </Col>
-                  <Col :span="isPlatformScope ? 10 : 18">
+                  <Col :xs="24" :md="isPlatformScope ? 10 : 18">
                     <Form.Item label="在线用户关键词">
                       <Input
                         v-model:value="onlineUserQuery.query"
@@ -1114,11 +1197,12 @@ onBeforeUnmount(() => {
                       />
                     </Form.Item>
                   </Col>
-                  <Col :span="6">
+                  <Col :xs="24" :md="6">
                     <Form.Item label=" " :colon="false">
-                      <Space>
-                        <Button type="primary" @click="loadOnlineUsers">查询</Button>
+                      <div class="filter-button-pair">
+                        <Button class="filter-action-button" type="primary" @click="loadOnlineUsers">查询</Button>
                         <Button
+                          class="filter-action-button"
                           @click="
                             onlineUserQuery.query = '';
                             if (isPlatformScope) onlineUserQuery.tenantId = '';
@@ -1127,7 +1211,7 @@ onBeforeUnmount(() => {
                         >
                           重置
                         </Button>
-                      </Space>
+                      </div>
                     </Form.Item>
                   </Col>
                 </Row>
@@ -1261,14 +1345,14 @@ onBeforeUnmount(() => {
       :open="sessionDrawerOpen"
       :body-style="{
         background: 'hsl(var(--background-deep))',
-        padding: '24px 28px',
+        padding: 'clamp(14px, 3vw, 24px) clamp(14px, 3.5vw, 28px)',
       }"
       :header-style="{
         background: 'hsl(var(--card))',
         borderBottom: '1px solid hsl(var(--border))',
       }"
       :title="selectedUserScopeText"
-      width="68%"
+      width="min(1080px, 92vw)"
       @close="sessionDrawerOpen = false"
     >
       <Spin :spinning="sessionLoading">
@@ -1304,8 +1388,8 @@ onBeforeUnmount(() => {
             <div class="session-filter-header">
               <div class="session-filter-header__title">会话筛选</div>
             </div>
-            <Row :gutter="16">
-              <Col :span="7">
+            <Row :gutter="[10, 10]" class="session-drawer-filter-grid">
+              <Col class="session-drawer-filter-field" :xs="24" :md="12" :xl="7">
                 <Form.Item label="状态">
                   <Input
                     v-model:value="sessionFilters.status"
@@ -1313,7 +1397,7 @@ onBeforeUnmount(() => {
                   />
                 </Form.Item>
               </Col>
-              <Col :span="7">
+              <Col class="session-drawer-filter-field" :xs="24" :md="12" :xl="7">
                 <Form.Item label="终端">
                   <Select
                     v-model:value="sessionFilters.terminal"
@@ -1323,7 +1407,7 @@ onBeforeUnmount(() => {
                   />
                 </Form.Item>
               </Col>
-              <Col :span="7">
+              <Col class="session-drawer-filter-field" :xs="24" :md="12" :xl="7">
                 <Form.Item label="设备关键词">
                   <Input
                     v-model:value="sessionFilters.deviceQuery"
@@ -1331,9 +1415,10 @@ onBeforeUnmount(() => {
                   />
                 </Form.Item>
               </Col>
-              <Col :span="3">
+              <Col class="session-drawer-filter-actions" :xs="24" :md="12" :xl="3">
                 <Form.Item label=" " :colon="false">
                   <Button
+                    class="filter-action-button"
                     @click="
                       sessionFilters.status = '';
                       sessionFilters.terminal = '';
@@ -1367,7 +1452,7 @@ onBeforeUnmount(() => {
                 :pagination="false"
                 class="clean-table"
                 :row-key="(record) => record.sessionId"
-                :scroll="{ x: 1200 }"
+                :scroll="{ x: sessionTableScrollX }"
                 size="small"
               />
             </Card>
@@ -1520,6 +1605,19 @@ onBeforeUnmount(() => {
 .filter-shell--drawer {
   border-radius: 8px;
   background: var(--session-card-bg);
+}
+
+.session-drawer-filter-grid {
+  min-width: 0;
+}
+
+.session-drawer-filter-field,
+.session-drawer-filter-actions {
+  min-width: 0;
+}
+
+.session-drawer-filter-actions .filter-action-button {
+  width: 100%;
 }
 
 .session-drawer-shell {
@@ -1686,6 +1784,7 @@ onBeforeUnmount(() => {
   align-items: center;
   min-height: 24px;
   padding-right: 12px;
+  user-select: none;
 }
 
 .session-resizable-title__text {
@@ -1700,6 +1799,7 @@ onBeforeUnmount(() => {
   z-index: 2;
   width: 14px;
   cursor: col-resize;
+  touch-action: none;
 }
 
 .session-column-resizer::after {
@@ -1814,6 +1914,13 @@ onBeforeUnmount(() => {
 
   .session-drawer-stats {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .filter-button-pair {
+    grid-template-columns: 1fr;
+    width: 100%;
   }
 }
 </style>

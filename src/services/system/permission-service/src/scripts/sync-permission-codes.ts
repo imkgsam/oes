@@ -122,6 +122,7 @@ const PERMISSION_DESCRIPTION_BY_CODE: Readonly<Record<string, string>> = {
   'crm.account.update': '更新 CRM P1 客户关系账户',
   'crm.account.convert': '将 CRM P1 Lead 转为 Prospect Customer',
   'crm.account.claim': '认领 CRM P1 公海 Lead 或 Prospect Customer',
+  'crm.account.release': '释放 CRM P1 Lead 或 Prospect Customer 回公海',
   'crm.account.manage': '管理 CRM P1 客户资源与公海例外动作',
   'crm.duplicate.viewRestricted': '查看 CRM 重复线索受限候选信息',
   'crm.contact.manage': '维护 CRM 联系人基础记录',

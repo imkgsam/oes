@@ -14,8 +14,18 @@ import {
 } from 'class-validator'
 
 const CRM_ACCOUNT_LIFECYCLE_STAGE_VALUES = ['LEAD', 'PROSPECT_CUSTOMER', 'CUSTOMER'] as const
-const CRM_ACCOUNT_RECORD_STATUS_VALUES = ['DRAFT', 'ACTIVE'] as const
+const CRM_ACCOUNT_RECORD_STATUS_VALUES = ['DRAFT', 'ACTIVE', 'ARCHIVED'] as const
 const CRM_ACCOUNT_TYPE_HINT_VALUES = ['UNKNOWN', 'PERSON', 'ORGANIZATION'] as const
+const CRM_ARCHIVE_REASON_VALUES = [
+  'LOW_VALUE',
+  'INVALID_TARGET',
+  'NON_TARGET_ACCOUNT',
+  'COMPETITOR',
+  'DUPLICATE',
+  'NO_FIT',
+  'UNRESPONSIVE',
+  'OTHER'
+] as const
 const CRM_LEAD_ASSIGNMENT_INTENT_VALUES = ['OWNED_BY_OPERATOR', 'POOL'] as const
 const CRM_PRIORITY_VALUES = ['A', 'B', 'C', 'D'] as const
 const CRM_SOURCE_TYPE_VALUES = [
@@ -324,6 +334,15 @@ export class SubmitDraftLeadDto {
   @IsOptional()
   @IsString()
   sourceNote?: string
+}
+
+/** ArchiveCrmAccountDto defines the CRM-owned reason required to archive a Lead or Prospect Customer. */
+export class ArchiveCrmAccountDto {
+  @ApiProperty({ enum: CRM_ARCHIVE_REASON_VALUES })
+  @IsIn(CRM_ARCHIVE_REASON_VALUES)
+  @IsString()
+  @IsNotEmpty()
+  archiveReason!: string
 }
 
 /** CheckLeadDuplicateDto defines the evidence payload for explicit duplicate checks. */

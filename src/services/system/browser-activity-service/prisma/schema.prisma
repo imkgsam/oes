@@ -1,0 +1,102 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../prisma/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model BrowserActivityPolicy {
+  tenantId               String   @id
+  enabled                Boolean
+  rawRetentionDays       Int
+  aggregateRetentionDays Int
+  updatedBy              String
+  updatedAt              DateTime @updatedAt
+  createdAt              DateTime @default(now())
+}
+
+model BrowserActivityVisitSession {
+  visitSessionId            String   @id @default(uuid())
+  tenantId                  String
+  clientVisitId             String
+  extensionSessionId        String
+  mergeKey                  String
+  employeeAccountId         String
+  employeeDisplayName       String
+  url                       String
+  domain                    String
+  pageTitle                 String
+  startedAt                 DateTime
+  endedAt                   DateTime
+  lastFlushedAt             DateTime
+  dwellDurationSeconds      Int
+  activeDurationSeconds     Int
+  idleDurationSeconds       Int
+  foregroundDurationSeconds Int
+  createdAt                 DateTime @default(now())
+
+  @@unique([tenantId, employeeAccountId, clientVisitId])
+  @@index([tenantId, employeeAccountId, startedAt])
+  @@index([tenantId, domain, startedAt])
+  @@index([tenantId, endedAt])
+}
+
+model BrowserActivityEmployeeAuditGrant {
+  tenantId  String
+  accountId String
+  enabled   Boolean
+  updatedBy String
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@id([tenantId, accountId])
+  @@index([tenantId, enabled])
+  @@index([tenantId, updatedBy])
+}
+
+model BrowserActivityHeartbeat {
+  heartbeatId        String   @id @default(uuid())
+  tenantId           String
+  extensionSessionId String
+  accountId          String
+  observedAt         DateTime
+  receivedAt         DateTime @default(now())
+  traceId            String?
+
+  @@index([tenantId, accountId, observedAt])
+  @@index([tenantId, extensionSessionId, observedAt])
+}
+
+model BrowserActivityOnlinePresence {
+  tenantId           String
+  accountId          String
+  displayName        String
+  extensionSessionId String
+  sessionStartedAt   DateTime
+  lastHeartbeatAt    DateTime
+  lastObservedDomain String?
+  updatedAt          DateTime @updatedAt
+  createdAt          DateTime @default(now())
+
+  @@id([tenantId, accountId])
+  @@index([tenantId, lastHeartbeatAt])
+  @@index([tenantId, extensionSessionId])
+}
+
+model BrowserActivityReadAudit {
+  readAuditId       String   @id @default(uuid())
+  tenantId          String
+  operatorAccountId String
+  action            String
+  reason            String?
+  keyword           String?
+  employeeAccountId String?
+  traceId           String?
+  occurredAt        DateTime @default(now())
+
+  @@index([tenantId, operatorAccountId, occurredAt])
+  @@index([tenantId, action, occurredAt])
+}

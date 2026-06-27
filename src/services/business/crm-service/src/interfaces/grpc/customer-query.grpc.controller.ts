@@ -9,11 +9,14 @@ import {
   GetCrmAccountRequest,
   GetCrmAccountResponse,
   ListCrmAccountsRequest,
-  ListCrmAccountsResponse
+  ListCrmAccountsResponse,
+  ListSourceRecordsRequest,
+  ListSourceRecordsResponse
 } from '@oes/common/generated/crm_service'
 import { CheckLeadDuplicateQuery } from '../../application/queries/check-lead-duplicate.query'
 import { GetCrmAccountQuery } from '../../application/queries/get-crm-account.query'
 import { ListCrmAccountsQuery } from '../../application/queries/list-crm-accounts.query'
+import { ListSourceRecordsQuery } from '../../application/queries/list-source-records.query'
 import {
   CrmAccountLifecycleStage,
   CrmAccountRecordStatus
@@ -57,6 +60,15 @@ export class CustomerQueryGrpcController implements CustomerQueryServiceControll
     )
 
     return CustomerGrpcPresenter.toGetCrmAccountResponse(result)
+  }
+
+  async listSourceRecords(request: ListSourceRecordsRequest): Promise<ListSourceRecordsResponse> {
+    CustomerRpcContextValidator.assertQueryContext(request)
+    const result = await this.queryBus.execute(
+      new ListSourceRecordsQuery(request.tenantId ?? '', request.crmAccountId ?? '')
+    )
+
+    return CustomerGrpcPresenter.toListSourceRecordsResponse(result)
   }
 
   async checkLeadDuplicate(request: CheckLeadDuplicateRequest): Promise<CheckLeadDuplicateResponse> {
@@ -120,6 +132,9 @@ function toCrmAccountRecordStatus(value?: string): CrmAccountRecordStatus | unde
   }
   if (value === CrmAccountRecordStatus.ACTIVE) {
     return CrmAccountRecordStatus.ACTIVE
+  }
+  if (value === CrmAccountRecordStatus.ARCHIVED) {
+    return CrmAccountRecordStatus.ARCHIVED
   }
   return undefined
 }

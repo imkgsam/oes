@@ -5,6 +5,7 @@ import { DownstreamSource } from '../../../../../common/decorators/downstream-so
 import { DownstreamRequestSource } from '../../../../../common/grpc/gateway-downstream-source.mapper'
 import { CustomerManagementService } from '../../../customer-management.service'
 import {
+  ArchiveCrmAccountDto,
   CheckLeadDuplicateDto,
   CreateDraftLeadDto,
   CreateLeadDto,
@@ -54,6 +55,17 @@ export class CustomerManagementController {
     @DownstreamSource() source: DownstreamRequestSource
   ) {
     return this.customerManagementService.getCrmAccount(tenantId, crmAccountId, source)
+  }
+
+  @Get('crm-accounts/:crmAccountId/source-records')
+  @RequirePermissions({ all: [CRM_MANAGEMENT_PERMISSION_CODES.READ_CRM_ACCOUNT] })
+  @ApiOperation({ summary: 'List source records for one CRM P1 account detail panel' })
+  async listSourceRecords(
+    @Param('tenantId') tenantId: string,
+    @Param('crmAccountId') crmAccountId: string,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.customerManagementService.listSourceRecords(tenantId, crmAccountId, source)
   }
 
   @Post('leads')
@@ -129,7 +141,7 @@ export class CustomerManagementController {
   }
 
   @Post('crm-accounts/:crmAccountId/release')
-  @RequirePermissions({ all: [CRM_MANAGEMENT_PERMISSION_CODES.MANAGE_CRM_ACCOUNT] })
+  @RequirePermissions({ all: [CRM_MANAGEMENT_PERMISSION_CODES.RELEASE_CRM_ACCOUNT] })
   @ApiOperation({ summary: 'Release one owned CRM P1 account back to the Pool' })
   async releaseCrmAccount(
     @Param('tenantId') tenantId: string,
@@ -137,6 +149,19 @@ export class CustomerManagementController {
     @DownstreamSource() source: DownstreamRequestSource
   ) {
     return this.customerManagementService.releaseCrmAccount(tenantId, crmAccountId, source)
+  }
+
+  @Post('crm-accounts/:crmAccountId/archive')
+  @RequirePermissions({ all: [CRM_MANAGEMENT_PERMISSION_CODES.MANAGE_CRM_ACCOUNT] })
+  @ApiOperation({ summary: 'Archive one CRM P1 Lead or Prospect Customer with a CRM-owned reason' })
+  @ApiBody({ type: ArchiveCrmAccountDto })
+  async archiveCrmAccount(
+    @Param('tenantId') tenantId: string,
+    @Param('crmAccountId') crmAccountId: string,
+    @Body() body: ArchiveCrmAccountDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.customerManagementService.archiveCrmAccount(tenantId, crmAccountId, body, source)
   }
 
   @Post('leads/check-duplicate')

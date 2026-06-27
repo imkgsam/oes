@@ -323,13 +323,23 @@ describe('tenant admin routes', () => {
 
   it('binds the CRM P1 account workspace to the dedicated CRM customer-resource entry', () => {
     const crmRoute = tenantAdminRoutes.find((route) => route.name === 'TenantCrm')
+    const governanceRoute = tenantAdminRoutes.find((route) => route.name === 'TenantAdminGovernance')
     const masterDataRoute = tenantAdminRoutes.find((route) => route.name === 'TenantMasterData')
     const crmAccountRoute = crmRoute?.children?.find((route) => route.name === 'TenantCrmAccounts')
     const crmPoolRoute = crmRoute?.children?.find((route) => route.name === 'TenantCrmPool')
+    const crmPerformanceRoute = crmRoute?.children?.find(
+      (route) => route.name === 'AdminEmployeePerformanceConsole'
+    )
+    const legacyPerformanceRoute = tenantAdminRoutes.find(
+      (route) => route.name === 'AdminEmployeePerformanceConsoleLegacyRedirect'
+    )
     const legacyCustomerRoute = masterDataRoute?.children?.find(
       (route) => route.name === 'TenantCustomerManagement'
     )
 
+    expect(
+      governanceRoute?.children?.some((route) => route.name === 'AdminEmployeePerformanceConsole')
+    ).toBe(false)
     expect(crmAccountRoute?.meta?.entryKey).toBe('crm.accounts')
     expect(crmAccountRoute?.path).toBe('/crm/accounts')
     expect(crmPoolRoute?.meta?.entryKey).toBe('crm.pool')
@@ -337,6 +347,14 @@ describe('tenant admin routes', () => {
     expect(crmPoolRoute?.meta?.title).toBe('公海')
     expect(crmPoolRoute?.path).toBe('/crm/pool')
     expect(crmPoolRoute?.component).toBeTypeOf('function')
+    expect(crmPerformanceRoute?.path).toBe('/crm/employee-performance-console')
+    expect(crmPerformanceRoute?.meta?.entryKey).toBe('admin.employee-performance-console')
+    expect(crmPerformanceRoute?.meta?.icon).toBe('lucide:chart-no-axes-combined')
+    expect(crmPerformanceRoute?.meta?.title).toBe('CRM 员工绩效分析')
+    expect(crmPerformanceRoute?.component).toBeTypeOf('function')
+    expect(legacyPerformanceRoute?.path).toBe('/admin/employee-performance-console')
+    expect(legacyPerformanceRoute?.redirect).toBe('/crm/employee-performance-console')
+    expect(legacyPerformanceRoute?.meta?.hideInMenu).toBe(true)
     const crmAccountDetailRoute = crmRoute?.children?.find(
       (route) => route.name === 'TenantCrmAccountDetail'
     )
@@ -351,6 +369,23 @@ describe('tenant admin routes', () => {
     ).toBe(false)
     expect(
       crmRoute?.children?.some((route) => route.name === 'TenantCustomerManagementDetail')
+    ).toBe(false)
+  })
+
+  it('binds the browser activity audit workbench to governance without placing it under CRM', () => {
+    const governanceRoute = tenantAdminRoutes.find((route) => route.name === 'TenantAdminGovernance')
+    const crmRoute = tenantAdminRoutes.find((route) => route.name === 'TenantCrm')
+    const auditRoute = governanceRoute?.children?.find(
+      (route) => route.name === 'AdminBrowserActivityAuditWorkbench'
+    )
+
+    expect(auditRoute?.path).toBe('/admin/browser-activity-audit-workbench')
+    expect(auditRoute?.meta?.entryKey).toBe('browser-activity.audit-workbench')
+    expect(auditRoute?.meta?.icon).toBe('lucide:history')
+    expect(auditRoute?.meta?.title).toBe('浏览器访问审计')
+    expect(auditRoute?.component).toBeTypeOf('function')
+    expect(
+      crmRoute?.children?.some((route) => route.name === 'AdminBrowserActivityAuditWorkbench')
     ).toBe(false)
   })
 

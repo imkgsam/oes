@@ -2,6 +2,8 @@ import { Controller, UseFilters } from '@nestjs/common'
 import { ValidatingCommandBus } from '@oes/common/cqrs'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
+  ArchiveCrmAccountRequest,
+  ArchiveCrmAccountResponse,
   ClaimCrmAccountRequest,
   ClaimCrmAccountResponse,
   ConvertLeadToProspectCustomerRequest,
@@ -21,6 +23,7 @@ import {
   UpdateDraftLeadRequest,
   UpdateDraftLeadResponse,
 } from '@oes/common/generated/crm_service'
+import { ArchiveCrmAccountCommand } from '../../application/commands/archive-crm-account.command'
 import { ClaimCrmAccountCommand } from '../../application/commands/claim-crm-account.command'
 import { ConvertLeadToProspectCustomerCommand } from '../../application/commands/convert-lead-to-prospect-customer.command'
 import { CreateDraftLeadCommand } from '../../application/commands/create-draft-lead.command'
@@ -33,6 +36,7 @@ import { CrmAuditService } from '../../application/services/crm-audit.service'
 import { normalizeOptionalString } from '../../application/support/crm-assertions'
 import {
   CrmAccountTypeHint,
+  CrmArchiveReason,
   CrmLeadAssignmentIntent,
   CrmPriority,
   CrmSourceType
@@ -354,6 +358,37 @@ export class CustomerManagementGrpcController implements CustomerManagementServi
       }
     )
   }
+
+  async archiveCrmAccount(request: ArchiveCrmAccountRequest): Promise<ArchiveCrmAccountResponse> {
+    const context = CustomerRpcContextValidator.assertManagementContext(request)
+    return this.auditService.recordCommand(
+      {
+        tenantId: context.tenantId,
+        operatorContext: context.operatorContext,
+        traceContext: context.traceContext,
+        auditContext: context.auditContext,
+        commandName: 'ArchiveCrmAccount',
+        resourceType: 'crm_account',
+        targetId: request.crmAccountId ?? null,
+        requestSummary: {
+          crmAccountId: request.crmAccountId ?? '',
+          archiveReason: request.archiveReason ?? ''
+        }
+      },
+      async () => {
+        const result = await this.commandBus.execute(
+          new ArchiveCrmAccountCommand({
+            tenantId: request.tenantId ?? '',
+            crmAccountId: request.crmAccountId ?? '',
+            operatorAccountId: context.operatorContext.operatorId,
+            archiveReason: toCrmArchiveReason(request.archiveReason)
+          })
+        )
+
+        return CustomerGrpcPresenter.toArchiveCrmAccountResponse(result)
+      }
+    )
+  }
 }
 
 /** toCrmAccountTypeHint maps one P1 string request value into the domain type hint enum. */
@@ -387,6 +422,13 @@ function toCrmLeadAssignmentIntent(value?: string): CrmLeadAssignmentIntent {
   return value === CrmLeadAssignmentIntent.POOL
     ? CrmLeadAssignmentIntent.POOL
     : CrmLeadAssignmentIntent.OWNED_BY_OPERATOR
+}
+
+/** toCrmArchiveReason maps one required archive reason string into the CRM domain enum. */
+function toCrmArchiveReason(value?: string): CrmArchiveReason {
+  return Object.values(CrmArchiveReason).includes(value as CrmArchiveReason)
+    ? (value as CrmArchiveReason)
+    : CrmArchiveReason.OTHER
 }
 
 /** toCrmLeadIdentifiers maps generated proto identifier payloads into domain records. */

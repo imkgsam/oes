@@ -30,3 +30,17 @@ test('full backend startup includes site-service', () => {
   assert.match(scripts.backend, /-n [^"]*site/)
   assert.match(scripts.backend, /"pnpm site"/)
 })
+
+// Keeps Browser Activity Audit Workbench backend dependencies available in system and full backend startup.
+test('system backend startup includes browser-activity-service when browser activity schema is synced', () => {
+  assert.match(scripts.bas, /browser-activity-service dev/)
+  assert.match(scripts['backend:system:db:sync'], /browser-activity-service prisma:push/)
+  assert.match(scripts['backend:system'], /-n [^"]*bas/)
+  assert.match(scripts['backend:system'], /"pnpm bas"/)
+})
+
+// Keeps full backend startup from regressing the Browser Activity BFF downstream dependency.
+test('full backend startup includes browser-activity-service', () => {
+  assert.match(scripts.backend, /-n [^"]*bas/)
+  assert.match(scripts.backend, /"pnpm bas"/)
+})

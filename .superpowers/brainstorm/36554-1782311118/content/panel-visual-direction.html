@@ -1,0 +1,318 @@
+<style>
+  .direction-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 22px;
+    margin-top: 24px;
+  }
+  .direction-card {
+    border: 1px solid rgba(226, 232, 240, 0.12);
+    border-radius: 22px;
+    background: #101416;
+    cursor: pointer;
+    overflow: hidden;
+    padding: 14px;
+    transition: transform 180ms ease, border-color 180ms ease;
+  }
+  .direction-card:hover {
+    border-color: rgba(201, 176, 110, 0.55);
+    transform: translateY(-2px);
+  }
+  .preview-stage {
+    display: grid;
+    grid-template-columns: 330px 210px;
+    align-items: end;
+    min-height: 430px;
+    gap: 18px;
+    border-radius: 18px;
+    padding: 18px;
+  }
+  .pc-stage {
+    background:
+      radial-gradient(circle at 18% 18%, rgba(201, 176, 110, 0.22), transparent 28%),
+      radial-gradient(circle at 82% 14%, rgba(71, 96, 88, 0.36), transparent 32%),
+      linear-gradient(145deg, #111719, #1b1712 62%, #0c1011);
+  }
+  .ops-stage {
+    background:
+      linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+      linear-gradient(145deg, #151a1c, #101416);
+    background-size: 22px 22px, 22px 22px, auto;
+  }
+  .mini-popup {
+    width: 330px;
+    min-height: 390px;
+    border-radius: 30px;
+    color: #f1eee4;
+    padding: 20px;
+    position: relative;
+    box-shadow: 0 30px 70px -36px rgba(0, 0, 0, 0.78);
+  }
+  .pc-popup {
+    background:
+      linear-gradient(145deg, rgba(35, 42, 39, 0.92), rgba(15, 18, 19, 0.96)),
+      #121719;
+    border: 1px solid rgba(236, 222, 178, 0.16);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      0 35px 90px -42px rgba(0, 0, 0, 0.88);
+  }
+  .ops-popup {
+    background: #14191b;
+    border: 1px solid rgba(161, 168, 163, 0.18);
+  }
+  .top-row {
+    align-items: center;
+    display: flex;
+    justify-content: space-between;
+  }
+  .orb {
+    align-items: center;
+    border-radius: 18px;
+    display: flex;
+    font: 760 13px/1 Satoshi, sans-serif;
+    height: 38px;
+    justify-content: center;
+    width: 38px;
+  }
+  .pc-orb {
+    background: linear-gradient(145deg, #cdb46f, #776a42);
+    color: #171410;
+  }
+  .ops-orb {
+    background: #242b2e;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #d4ded7;
+  }
+  .pill {
+    border-radius: 999px;
+    color: rgba(239, 235, 222, 0.7);
+    font: 720 10px/1 Satoshi, sans-serif;
+    letter-spacing: 0.12em;
+    padding: 8px 10px;
+    text-transform: uppercase;
+  }
+  .pc-pill { background: rgba(206, 186, 126, 0.1); color: #d4bd7a; }
+  .ops-pill { background: rgba(143, 157, 151, 0.12); color: #a7b3ad; }
+  .hero-title {
+    font-size: 26px;
+    font-weight: 780;
+    letter-spacing: 0;
+    line-height: 1.05;
+    margin: 34px 0 8px;
+  }
+  .hero-copy {
+    color: rgba(241, 238, 228, 0.58);
+    font-size: 12px;
+    line-height: 1.5;
+    margin: 0 0 20px;
+  }
+  .workspace-strip {
+    display: grid;
+    gap: 9px;
+  }
+  .workspace-line {
+    align-items: center;
+    border-radius: 16px;
+    display: flex;
+    justify-content: space-between;
+    padding: 12px;
+  }
+  .pc-line {
+    background: rgba(255, 255, 255, 0.055);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .ops-line {
+    background: rgba(255, 255, 255, 0.035);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0;
+  }
+  .workspace-line strong {
+    display: block;
+    font-size: 13px;
+  }
+  .workspace-line span {
+    color: rgba(241, 238, 228, 0.52);
+    display: block;
+    font-size: 10px;
+    margin-top: 3px;
+  }
+  .toggle-dot {
+    border-radius: 999px;
+    height: 22px;
+    width: 42px;
+  }
+  .toggle-off {
+    background: rgba(118, 128, 123, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    position: relative;
+  }
+  .toggle-off::after {
+    background: rgba(237, 235, 225, 0.68);
+    border-radius: 50%;
+    content: "";
+    height: 16px;
+    left: 3px;
+    position: absolute;
+    top: 2px;
+    width: 16px;
+  }
+  .floating {
+    width: 205px;
+    border-radius: 24px;
+    color: #eee9d7;
+    padding: 15px;
+  }
+  .pc-floating {
+    background:
+      linear-gradient(150deg, rgba(34, 40, 38, 0.94), rgba(12, 15, 16, 0.96));
+    border: 1px solid rgba(214, 190, 119, 0.2);
+    box-shadow: 0 24px 62px -32px rgba(0, 0, 0, 0.9);
+  }
+  .ops-floating {
+    background: #171d20;
+    border: 1px solid rgba(176, 185, 180, 0.14);
+  }
+  .drag-bar {
+    align-items: center;
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .dots {
+    display: flex;
+    gap: 5px;
+  }
+  .dots i {
+    background: rgba(230, 221, 184, 0.48);
+    border-radius: 50%;
+    display: block;
+    height: 5px;
+    width: 5px;
+  }
+  .crm-status {
+    border-radius: 18px;
+    padding: 13px;
+  }
+  .pc-status {
+    background: rgba(199, 176, 110, 0.1);
+    border: 1px solid rgba(199, 176, 110, 0.16);
+  }
+  .ops-status {
+    background: rgba(255, 255, 255, 0.035);
+    border-left: 2px solid #a9955f;
+    border-radius: 3px;
+  }
+  .crm-status strong {
+    display: block;
+    font-size: 14px;
+  }
+  .crm-status span {
+    color: rgba(238, 233, 215, 0.58);
+    display: block;
+    font-size: 11px;
+    margin-top: 5px;
+  }
+  .micro-row {
+    display: grid;
+    gap: 7px;
+    margin-top: 12px;
+  }
+  .micro-row b {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 999px;
+    display: block;
+    height: 8px;
+  }
+  .micro-row b:nth-child(2) { width: 70%; }
+  .micro-row b:nth-child(3) { width: 52%; }
+  .card-body h3 {
+    margin-bottom: 6px;
+  }
+  @media (max-width: 980px) {
+    .direction-grid { grid-template-columns: 1fr; }
+    .preview-stage { grid-template-columns: 1fr; }
+  }
+</style>
+
+<h2>主面板 + Floating Panel 视觉方向</h2>
+<p class="subtitle">只讨论 UI。能力、开关、数据流保持不变。两套方案都避免白色主背景，保留简约但更有质感。</p>
+
+<div class="direction-grid">
+  <div class="card direction-card" data-choice="promptcard-dark" onclick="toggleSelect(this)">
+    <div class="preview-stage pc-stage">
+      <div class="mini-popup pc-popup">
+        <div class="top-row">
+          <div class="orb pc-orb">O</div>
+          <div class="pill pc-pill">OES BE</div>
+        </div>
+        <div class="hero-title">Workspace<br>Command Surface</div>
+        <p class="hero-copy">深色玻璃、金属边缘、低饱和金色强调。更像一张可操作的 Promptcard。</p>
+        <div class="workspace-strip">
+          <div class="workspace-line pc-line">
+            <div><strong>CRM Sales Workspace</strong><span>客户识别与 Lead Draft</span></div>
+            <div class="toggle-dot toggle-off"></div>
+          </div>
+          <div class="workspace-line pc-line">
+            <div><strong>Floating Panel</strong><span>默认关闭</span></div>
+            <div class="toggle-dot toggle-off"></div>
+          </div>
+        </div>
+      </div>
+      <div class="floating pc-floating">
+        <div class="drag-bar">
+          <span class="pill pc-pill">CRM</span>
+          <span class="dots"><i></i><i></i><i></i></span>
+        </div>
+        <div class="crm-status pc-status">
+          <strong>Deer Valley Bath</strong>
+          <span>公海 · Lead · console sink</span>
+        </div>
+        <div class="micro-row"><b></b><b></b><b></b></div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A. Promptcard Dark Glass</h3>
+      <p>推荐方向。更精致、更炫酷，适合插件这种小面积高质感界面；floating panel 会像一张悬浮业务卡片。</p>
+    </div>
+  </div>
+
+  <div class="card direction-card" data-choice="ops-dark" onclick="toggleSelect(this)">
+    <div class="preview-stage ops-stage">
+      <div class="mini-popup ops-popup">
+        <div class="top-row">
+          <div class="orb ops-orb">O</div>
+          <div class="pill ops-pill">Workspace</div>
+        </div>
+        <div class="hero-title">CRM Control<br>Console</div>
+        <p class="hero-copy">更克制的暗色企业工具。减少玻璃质感，强调线、间距、状态和长期可读性。</p>
+        <div class="workspace-strip">
+          <div class="workspace-line ops-line">
+            <div><strong>CRM Sales Workspace</strong><span>Runtime enabled</span></div>
+            <div class="toggle-dot toggle-off"></div>
+          </div>
+          <div class="workspace-line ops-line">
+            <div><strong>Side Panel</strong><span>默认关闭</span></div>
+            <div class="toggle-dot toggle-off"></div>
+          </div>
+        </div>
+      </div>
+      <div class="floating ops-floating">
+        <div class="drag-bar">
+          <span class="pill ops-pill">STATUS</span>
+          <span class="dots"><i></i><i></i><i></i></span>
+        </div>
+        <div class="crm-status ops-status">
+          <strong>Deer Valley Bath</strong>
+          <span>Lead candidate · US</span>
+        </div>
+        <div class="micro-row"><b></b><b></b><b></b></div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B. Dark Ops Console</h3>
+      <p>更稳定、严肃、低风险。适合频繁使用，但“炫酷感”比 A 弱一些。</p>
+    </div>
+  </div>
+</div>

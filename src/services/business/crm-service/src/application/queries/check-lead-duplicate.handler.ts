@@ -1,13 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common'
 import { IQueryHandler, QueryHandler } from '@nestjs/cqrs'
 import { TOKENS } from '../../common/constants/tokens'
-import {
-  CrmLeadDuplicateResultType
-} from '../../domain/models/crm-records'
+import { CrmLeadDuplicateResultType } from '../../domain/models/crm-records'
 import {
   CrmAccountDuplicateCandidate,
   CrmAccountRepository
 } from '../../domain/repositories/crm-account.repository'
+import { normalizeLeadDomainEvidence } from '../support/lead-domain-normalization'
 import { CheckLeadDuplicateQuery } from './check-lead-duplicate.query'
 
 export interface CheckLeadDuplicateResult {
@@ -18,7 +17,10 @@ export interface CheckLeadDuplicateResult {
 /** CheckLeadDuplicateHandler classifies CRM-local duplicate candidates without consulting party-service. */
 @Injectable()
 @QueryHandler(CheckLeadDuplicateQuery)
-export class CheckLeadDuplicateHandler implements IQueryHandler<CheckLeadDuplicateQuery, CheckLeadDuplicateResult> {
+export class CheckLeadDuplicateHandler implements IQueryHandler<
+  CheckLeadDuplicateQuery,
+  CheckLeadDuplicateResult
+> {
   constructor(
     @Inject(TOKENS.CRM_ACCOUNT_REPOSITORY)
     private readonly accountRepository: CrmAccountRepository
@@ -31,7 +33,7 @@ export class CheckLeadDuplicateHandler implements IQueryHandler<CheckLeadDuplica
       displayName: query.props.displayName,
       leadCompanyName: query.props.leadCompanyName,
       leadPersonName: query.props.leadPersonName,
-      leadDomain: query.props.leadDomain,
+      leadDomain: normalizeLeadDomainEvidence(query.props.leadDomain),
       leadEmail: query.props.leadEmail,
       leadPhone: query.props.leadPhone,
       leadWhatsapp: query.props.leadWhatsapp,
@@ -60,11 +62,17 @@ function classifyDuplicateResult(
     return CrmLeadDuplicateResultType.POSSIBLE_DUPLICATE
   }
 
-  if (highConfidenceCandidates.some((candidate) => candidate.ownerAccountId && candidate.ownerAccountId !== operatorAccountId)) {
+  if (
+    highConfidenceCandidates.some(
+      (candidate) => candidate.ownerAccountId && candidate.ownerAccountId !== operatorAccountId
+    )
+  ) {
     return CrmLeadDuplicateResultType.RESTRICTED_DUPLICATE
   }
 
-  if (highConfidenceCandidates.some((candidate) => candidate.ownerAccountId === operatorAccountId)) {
+  if (
+    highConfidenceCandidates.some((candidate) => candidate.ownerAccountId === operatorAccountId)
+  ) {
     return CrmLeadDuplicateResultType.OWNED_DUPLICATE
   }
 

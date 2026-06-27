@@ -128,17 +128,6 @@ const coreRoutes: RouteRecordRaw[] = [
     ],
   },
   {
-    name: 'PublicShortLinkRedirect',
-    path: '/c/:shortCode',
-    component: () => import('#/views/public/short-link-redirect.vue'),
-    meta: {
-      hideInBreadcrumb: true,
-      hideInMenu: true,
-      hideInTab: true,
-      title: '公开短链',
-    },
-  },
-  {
     name: 'PublicBusinessCard',
     path: '/public/business-cards/:businessCardId',
     component: () => import('#/views/public/business-card-public.vue'),

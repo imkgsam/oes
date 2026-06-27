@@ -8,6 +8,7 @@ option java_package = "com.oes.crm.v1";
 service CustomerQueryService {
   rpc ListCrmAccounts(ListCrmAccountsRequest) returns (ListCrmAccountsResponse);
   rpc GetCrmAccount(GetCrmAccountRequest) returns (GetCrmAccountResponse);
+  rpc ListSourceRecords(ListSourceRecordsRequest) returns (ListSourceRecordsResponse);
   rpc CheckLeadDuplicate(CheckLeadDuplicateRequest) returns (CheckLeadDuplicateResponse);
 }
 
@@ -19,6 +20,7 @@ service CustomerManagementService {
   rpc CreateLead(CreateLeadRequest) returns (CreateLeadResponse);
   rpc ClaimCrmAccount(ClaimCrmAccountRequest) returns (ClaimCrmAccountResponse);
   rpc ReleaseCrmAccount(ReleaseCrmAccountRequest) returns (ReleaseCrmAccountResponse);
+  rpc ArchiveCrmAccount(ArchiveCrmAccountRequest) returns (ArchiveCrmAccountResponse);
   rpc ConvertLeadToProspectCustomer(ConvertLeadToProspectCustomerRequest) returns (ConvertLeadToProspectCustomerResponse);
 }
 
@@ -88,6 +90,7 @@ message CrmAccountP1 {
   string created_at = 21;
   string updated_at = 22;
   string archived_at = 23;
+  string archive_reason = 24;
 }
 
 message CrmDuplicateCandidate {
@@ -300,6 +303,19 @@ message ReleaseCrmAccountResponse {
   CrmAccountP1 crm_account = 1;
 }
 
+message ArchiveCrmAccountRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string crm_account_id = 5;
+  string archive_reason = 6;
+}
+
+message ArchiveCrmAccountResponse {
+  CrmAccountP1 crm_account = 1;
+}
+
 message ListCrmAccountsRequest {
   string tenant_id = 1;
   OperatorContext operator_context = 2;
@@ -331,6 +347,32 @@ message GetCrmAccountRequest {
 
 message GetCrmAccountResponse {
   CrmAccountP1 crm_account = 1;
+}
+
+message CrmSourceRecord {
+  string source_record_id = 1;
+  string crm_account_id = 2;
+  string source_type = 3;
+  string source_name = 4;
+  string captured_at = 5;
+  string captured_by_account_id = 6;
+  string external_reference = 7;
+  string raw_payload_json = 8;
+  string note = 9;
+  bool is_primary = 10;
+  string created_at = 11;
+  string updated_at = 12;
+}
+
+message ListSourceRecordsRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string crm_account_id = 4;
+}
+
+message ListSourceRecordsResponse {
+  repeated CrmSourceRecord source_records = 1;
 }
 
 message CrmObjectRef {

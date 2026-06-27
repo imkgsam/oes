@@ -1,0 +1,318 @@
+syntax = "proto3";
+
+package browser_activity_service;
+
+option java_multiple_files = true;
+option java_package = "com.oes.browseractivity.v1";
+
+// BrowserActivityService owns tenant policy, extension ingest, heartbeat, and audit workbench read models.
+service BrowserActivityService {
+  rpc GetPolicy(GetPolicyRequest) returns (GetPolicyResponse);
+  rpc UpdatePolicy(UpdatePolicyRequest) returns (UpdatePolicyResponse);
+  rpc GetEmployeeAuditGrants(GetEmployeeAuditGrantsRequest) returns (GetEmployeeAuditGrantsResponse);
+  rpc UpdateEmployeeAuditGrant(UpdateEmployeeAuditGrantRequest) returns (UpdateEmployeeAuditGrantResponse);
+  rpc GetAuditControl(GetAuditControlRequest) returns (GetAuditControlResponse);
+  rpc AppendVisitSessions(AppendVisitSessionsRequest) returns (AppendVisitSessionsResponse);
+  rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+  rpc Disconnect(DisconnectRequest) returns (DisconnectResponse);
+  rpc GetOverview(GetOverviewRequest) returns (GetOverviewResponse);
+  rpc GetEmployeeTimeline(GetEmployeeTimelineRequest) returns (GetEmployeeTimelineResponse);
+  rpc GetDomainAggregation(GetDomainAggregationRequest) returns (GetDomainAggregationResponse);
+  rpc SearchUrls(SearchUrlsRequest) returns (SearchUrlsResponse);
+  rpc GetOnlinePresence(GetOnlinePresenceRequest) returns (GetOnlinePresenceResponse);
+}
+
+// BrowserActivityOperatorContext carries the authenticated actor resolved by gateway/auth.
+message BrowserActivityOperatorContext {
+  string account_id = 1;
+  string display_name = 2;
+  string terminal = 3;
+  string user_id = 4;
+}
+
+// BrowserActivityTraceContext carries request trace facts for auditability.
+message BrowserActivityTraceContext {
+  string request_id = 1;
+  string trace_id = 2;
+}
+
+// BrowserActivityAuditContext explains why a sensitive read or state change is performed.
+message BrowserActivityAuditContext {
+  string reason = 1;
+}
+
+// BrowserActivityPolicy is the tenant-level collection switch and retention policy.
+message BrowserActivityPolicy {
+  bool enabled = 1;
+  int32 raw_retention_days = 2;
+  int32 aggregate_retention_days = 3;
+}
+
+// BrowserActivityVisitSessionSummary is a privacy-bounded browser visit summary.
+message BrowserActivityVisitSessionSummary {
+  string client_visit_id = 1;
+  string extension_session_id = 2;
+  string merge_key = 3;
+  string url = 4;
+  string domain = 5;
+  string page_title = 6;
+  string started_at = 7;
+  string ended_at = 8;
+  string last_flushed_at = 9;
+  int32 dwell_duration_seconds = 10;
+  int32 active_duration_seconds = 11;
+  int32 idle_duration_seconds = 12;
+  int32 foreground_duration_seconds = 13;
+}
+
+message GetPolicyRequest {
+  string tenant_id = 1;
+  BrowserActivityOperatorContext operator = 2;
+  BrowserActivityTraceContext trace = 3;
+}
+
+message UpdatePolicyRequest {
+  string tenant_id = 1;
+  BrowserActivityPolicy policy = 2;
+  BrowserActivityOperatorContext operator = 3;
+  BrowserActivityTraceContext trace = 4;
+  BrowserActivityAuditContext audit = 5;
+}
+
+message GetPolicyResponse {
+  BrowserActivityPolicy policy = 1;
+}
+
+message UpdatePolicyResponse {
+  BrowserActivityPolicy policy = 1;
+}
+
+// EmployeeAuditGrant controls collection for one tenant account.
+message EmployeeAuditGrant {
+  string account_id = 1;
+  bool enabled = 2;
+  string updated_by = 3;
+  string updated_at = 4;
+}
+
+message GetEmployeeAuditGrantsRequest {
+  string tenant_id = 1;
+  repeated string account_ids = 2;
+  BrowserActivityOperatorContext operator = 3;
+  BrowserActivityTraceContext trace = 4;
+}
+
+message GetEmployeeAuditGrantsResponse {
+  repeated EmployeeAuditGrant grants = 1;
+}
+
+message UpdateEmployeeAuditGrantRequest {
+  string tenant_id = 1;
+  string account_id = 2;
+  bool enabled = 3;
+  BrowserActivityOperatorContext operator = 4;
+  BrowserActivityTraceContext trace = 5;
+  BrowserActivityAuditContext audit = 6;
+}
+
+message UpdateEmployeeAuditGrantResponse {
+  EmployeeAuditGrant grant = 1;
+}
+
+message AppendVisitSessionsRequest {
+  string tenant_id = 1;
+  BrowserActivityOperatorContext operator = 2;
+  BrowserActivityTraceContext trace = 3;
+  BrowserActivityAuditContext audit = 4;
+  repeated BrowserActivityVisitSessionSummary sessions = 5;
+}
+
+message GetAuditControlRequest {
+  string tenant_id = 1;
+  BrowserActivityOperatorContext operator = 2;
+  BrowserActivityTraceContext trace = 3;
+}
+
+message GetAuditControlResponse {
+  bool enabled = 1;
+  int32 next_poll_after_seconds = 2;
+  string reason_code = 3;
+}
+
+message AppendVisitSessionsResponse {
+  int32 accepted_count = 1;
+  int32 rejected_count = 2;
+  bool policy_enabled = 3;
+  string reason_code = 4;
+}
+
+message HeartbeatRequest {
+  string tenant_id = 1;
+  string extension_session_id = 2;
+  string observed_at = 3;
+  BrowserActivityOperatorContext operator = 4;
+  BrowserActivityTraceContext trace = 5;
+}
+
+message HeartbeatResponse {
+  bool accepted = 1;
+  bool policy_enabled = 2;
+  int32 next_heartbeat_after_seconds = 3;
+}
+
+message DisconnectRequest {
+  string tenant_id = 1;
+  string extension_session_id = 2;
+  string observed_at = 3;
+  BrowserActivityOperatorContext operator = 4;
+  BrowserActivityTraceContext trace = 5;
+}
+
+message DisconnectResponse {
+  bool accepted = 1;
+}
+
+message GetOverviewRequest {
+  string tenant_id = 1;
+  string period = 2;
+  BrowserActivityOperatorContext operator = 3;
+  BrowserActivityTraceContext trace = 4;
+}
+
+message BrowserActivityEmployeeSummary {
+  string account_id = 1;
+  string display_name = 2;
+  int32 online_duration_seconds = 3;
+  int32 active_duration_seconds = 4;
+  int32 idle_duration_seconds = 5;
+  int32 foreground_duration_seconds = 6;
+  int32 page_view_count = 7;
+  string online_status = 8;
+  string last_heartbeat_at = 9;
+}
+
+message BrowserActivityOverviewMetrics {
+  int32 employee_count = 1;
+  int32 online_duration_seconds = 2;
+  int32 active_duration_seconds = 3;
+  int32 idle_duration_seconds = 4;
+  int32 foreground_duration_seconds = 5;
+  int32 url_count = 6;
+  int32 online_employee_count = 7;
+  int32 stale_employee_count = 8;
+}
+
+message GetOverviewResponse {
+  string period = 1;
+  BrowserActivityPolicy policy = 2;
+  BrowserActivityOverviewMetrics metrics = 3;
+  repeated BrowserActivityEmployeeSummary employees = 4;
+}
+
+message GetEmployeeTimelineRequest {
+  string tenant_id = 1;
+  string employee_account_id = 2;
+  string period = 3;
+  BrowserActivityOperatorContext operator = 4;
+  BrowserActivityTraceContext trace = 5;
+}
+
+message BrowserActivityVisit {
+  string visit_id = 1;
+  string url = 2;
+  string domain = 3;
+  string page_title = 4;
+  string started_at = 5;
+  string ended_at = 6;
+  int32 dwell_duration_seconds = 7;
+  int32 active_duration_seconds = 8;
+  int32 idle_duration_seconds = 9;
+  int32 foreground_duration_seconds = 10;
+}
+
+message GetEmployeeTimelineResponse {
+  string employee_account_id = 1;
+  repeated BrowserActivityVisit visits = 2;
+}
+
+message GetDomainAggregationRequest {
+  string tenant_id = 1;
+  string employee_account_id = 2;
+  string period = 3;
+  BrowserActivityOperatorContext operator = 4;
+  BrowserActivityTraceContext trace = 5;
+}
+
+message DomainAggregationItem {
+  string domain = 1;
+  int32 visit_count = 2;
+  int32 url_count = 3;
+  int32 employee_count = 4;
+  int32 active_duration_seconds = 5;
+  int32 idle_duration_seconds = 6;
+  int32 foreground_duration_seconds = 7;
+}
+
+message GetDomainAggregationResponse {
+  repeated DomainAggregationItem domains = 1;
+}
+
+message SearchUrlsRequest {
+  string tenant_id = 1;
+  string keyword = 2;
+  string period = 3;
+  BrowserActivityOperatorContext operator = 4;
+  BrowserActivityTraceContext trace = 5;
+  BrowserActivityAuditContext audit = 6;
+}
+
+message UrlSearchResult {
+  string url = 1;
+  string domain = 2;
+  string page_title = 3;
+  string employee_display_name = 4;
+  string last_visited_at = 5;
+  int32 visit_count = 6;
+  int32 active_duration_seconds = 7;
+}
+
+message SearchUrlsResponse {
+  repeated UrlSearchResult results = 1;
+}
+
+message GetOnlinePresenceRequest {
+  string tenant_id = 1;
+  string status = 2;
+  int32 include_offline_within_minutes = 3;
+  BrowserActivityOperatorContext operator = 4;
+  BrowserActivityTraceContext trace = 5;
+}
+
+message OnlinePresenceThresholds {
+  int32 heartbeat_interval_seconds = 1;
+  int32 online_within_seconds = 2;
+  int32 stale_within_seconds = 3;
+}
+
+message OnlinePresenceSummary {
+  int32 online_count = 1;
+  int32 stale_count = 2;
+  int32 offline_count = 3;
+}
+
+message OnlinePresenceEmployee {
+  string account_id = 1;
+  string display_name = 2;
+  string online_status = 3;
+  string extension_session_id = 4;
+  string session_started_at = 5;
+  string last_heartbeat_at = 6;
+  string last_observed_domain = 7;
+}
+
+message GetOnlinePresenceResponse {
+  string server_time = 1;
+  OnlinePresenceThresholds thresholds = 2;
+  OnlinePresenceSummary summary = 3;
+  repeated OnlinePresenceEmployee employees = 4;
+}

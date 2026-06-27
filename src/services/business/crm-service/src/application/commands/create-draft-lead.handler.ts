@@ -9,6 +9,7 @@ import {
   CrmSourceRecord
 } from '../../domain/models/crm-records'
 import { CrmAccountRepository } from '../../domain/repositories/crm-account.repository'
+import { normalizeLeadDomainEvidence } from '../support/lead-domain-normalization'
 import { CreateDraftLeadCommand } from './create-draft-lead.command'
 
 export interface CreateDraftLeadResult {
@@ -18,7 +19,10 @@ export interface CreateDraftLeadResult {
 /** CreateDraftLeadHandler persists a DRAFT + LEAD account with optional source evidence. */
 @Injectable()
 @CommandHandler(CreateDraftLeadCommand)
-export class CreateDraftLeadHandler implements ICommandHandler<CreateDraftLeadCommand, CreateDraftLeadResult> {
+export class CreateDraftLeadHandler implements ICommandHandler<
+  CreateDraftLeadCommand,
+  CreateDraftLeadResult
+> {
   constructor(
     @Inject(TOKENS.CRM_ACCOUNT_REPOSITORY)
     private readonly accountRepository: CrmAccountRepository
@@ -36,7 +40,7 @@ export class CreateDraftLeadHandler implements ICommandHandler<CreateDraftLeadCo
       displayName: command.props.displayName,
       leadCompanyName: command.props.leadCompanyName ?? null,
       leadPersonName: command.props.leadPersonName ?? null,
-      leadDomain: command.props.leadDomain ?? null,
+      leadDomain: normalizeLeadDomainEvidence(command.props.leadDomain),
       leadEmail: command.props.leadEmail ?? null,
       leadPhone: command.props.leadPhone ?? null,
       leadWhatsapp: command.props.leadWhatsapp ?? null,
@@ -52,7 +56,9 @@ export class CreateDraftLeadHandler implements ICommandHandler<CreateDraftLeadCo
 
     const saved = await this.accountRepository.saveAccount(account)
     if (command.props.source) {
-      await this.accountRepository.addSourceRecord(buildSourceRecord(saved, command.props.source, command.props.operatorAccountId))
+      await this.accountRepository.addSourceRecord(
+        buildSourceRecord(saved, command.props.source, command.props.operatorAccountId)
+      )
     }
 
     return { account: saved }

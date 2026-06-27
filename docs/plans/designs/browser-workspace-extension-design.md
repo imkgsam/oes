@@ -5,10 +5,12 @@
 ```text
 designKey: browser-workspace-extension
 designStatus: ACTIVE_DESIGN_WORKSPACE
-lastUpdatedAt: 2026-06-17 00:00:00 Asia/Shanghai
+lastUpdatedAt: 2026-06-23 00:00:00 Asia/Shanghai
 lastUpdatedBy: Codex
-supersedes: docs/plans/designs/browser-prospecting-workspace.md (removed 2026-06-17)
-conflictResolution: 当本文与更早浏览器插件讨论或旧 browser prospecting workspace 冲突时，以本文 lastUpdatedAt 之后的冻结结论为准；稳定 architecture / ADR / contracts 明确覆盖本文时，以稳定真相源为准。
+supersedes:
+  - docs/plans/designs/browser-prospecting-workspace.md (removed 2026-06-17)
+  - docs/plans/features/browser-prospecting-workspace.md (deleted 2026-06-22)
+conflictResolution: 当本文与更早浏览器插件讨论、旧 browser prospecting workspace 或旧 browser-prospecting feature packet 冲突时，以本文 lastUpdatedAt 之后的冻结结论为准；稳定 architecture / ADR / contracts 明确覆盖本文时，以稳定真相源为准。
 ```
 
 ## 1. 目标
@@ -71,15 +73,27 @@ conflictResolution: 当本文与更早浏览器插件讨论或旧 browser prospe
 | 2026-06-17 | CRM 首个样板场景定义为销售目标研究与沉淀，重点支持销售在浏览器中研究潜在客户、避免重复开发、沉淀有效上下文。 | CRM workspace / sales workflow | 当前 workspace；后续 CRM capability design |
 | 2026-06-17 | 插件显示的页面业务判断应来自 OES 回传结论，不由插件或 AI 自行判定目标有效性、客户归属或业务状态。 | OES truth boundary | 当前 workspace；后续 BFF / CRM contract |
 | 2026-06-17 | 旧 `browser-prospecting-workspace` 已删除，后续浏览器插件设计统一从本文恢复上下文。 | docs governance / workspace cleanup | 当前 workspace |
+| 2026-06-22 | 旧 `browser-prospecting-workspace` feature packet 已删除；后续不得继续以 `/browser-prospecting/*`、`Target Workspace`、`Research Timeline`、`Research Event` 或旧 `Lead Draft` 防腐层作为插件主模型恢复实现。 | docs governance / workspace cleanup | 当前 workspace；后续新 feature packet / contracts |
+| 2026-06-22 | 旧 `/browser-prospecting/*` endpoint prefix 废弃；后续浏览器插件能力应采用 extension terminal 下的 capability-specific BFF 入口，例如 CRM 场景候选 `/extension/crm/*`。 | BFF contract naming / terminal boundary | 后续 extension CRM contract |
+| 2026-06-22 | 插件 P1 不消费 `ReleaseCrmAccount`，因为当前 CRM 服务真相源仍明确 P1 不支持 release 回公海；如后续需要，必须先回写 CRM 真相源并单独冻结。 | CRM alignment / action boundary | `docs/architecture/services/crm-service.md` / future feature |
+| 2026-06-22 | 插件采集来源倾向采用 `BROWSER_EXTENSION` 作为入口来源类型，`WEB_RESEARCH` 仅作为来源语义或历史兼容项另行说明。 | CRM source semantics | future extension CRM contract / CRM source note |
+| 2026-06-22 | CRM 插件 workspace entry 新增为 `extension.crm.workspace`，不复用 Web terminal 的 `crm.accounts / crm.pool` entry。 | terminal navigation boundary / CRM workspace entry | permission navigation seed / extension launcher mapping |
+| 2026-06-22 | 插件 CRM P1 允许通过 `/extension/crm/*` BFF facade 直接调用 CRM P1 `CreateDraftLead / CreateLead / ClaimCrmAccount`，形成识别、查重、创建与 claim 的真实闭环；BFF 不拥有 CRM 业务规则。 | extension CRM BFF / CRM P1 integration | future extension CRM contract / implementation plan |
+| 2026-06-22 | 当前实现基线以 `app/browser-extension` 为准，不再把 `app/web/apps/browser-extension` 作为待建目录；后续如要迁移进 `app/web` monorepo，必须单独评估。 | implementation baseline / repo layout | current workspace / future implementation plan |
+| 2026-06-22 | CRM 插件 P1 前端操作形式采用 `Popup Launcher + Side Panel Workspace`：popup 只承载登录、账号菜单与 workspace 入口，CRM Sales Workspace 主流程放在浏览器 side panel。 | frontend interaction model / CRM workspace UX | future implementation plan / UI spec |
+| 2026-06-22 | 所有插件 workspace 能力必须支持用户个人启用 / 停用；后端 `navigation.visibleEntries` 仍是可见性上限，用户本地开关只决定该 workspace 是否主动运行。CRM workspace P1 默认不主动运行，用户启用后才进行页面识别和 CRM 请求。 | workspace personal preference / privacy and noise control | extension shell / storage / workspace runtime |
+| 2026-06-23 | CRM 插件 P1 操作流程冻结为：用户启用 CRM workspace 后才可识别当前页；客户官网页支持状态解析、查重、创建 Draft Lead、创建 Active Lead、Claim 公海 Lead 和打开 tenant-web 详情；搜索结果页只做状态回显，不创建或批量保存。 | CRM workspace P1 flow / UX contract input | future extension CRM contract / implementation plan |
 
-## 5. 待确认保留结论
+## 5. 旧 Browser Prospecting 方向处置
 
-下列结论来自旧 `browser-prospecting-workspace` 设计，当前尚未在新方案中自动继承，需逐项确认：
+旧 `browser-prospecting-workspace` feature packet 已于 2026-06-22 删除。后续线程不得把旧 feature packet、旧 `/browser-prospecting/*` contract 草案或旧 implementation plan 作为当前设计入口。
 
-### 5.1 倾向保留
+旧方向的核心问题不是“CRM 销售研究场景无效”，而是它把一个具体销售场景误塑造成插件主模型，容易污染统一浏览器插件壳层、权限治理和 CRM P1 事实归属。
+
+### 5.1 保留为统一插件壳层原则
 
 - 插件是 OES 浏览器前端入口，不是独立业务系统，也不拥有业务真相。
-- 插件代码放在 `app/web/apps/browser-extension`，作为 `app/web` 下独立 frontend app。
+- 插件当前代码位于 `app/browser-extension`，作为独立 Vue / Vite Chrome extension app；本轮设计按现有实现对齐，不默认迁移目录。
 - 插件必须通过 `api-gateway / BFF` 接入 OES，不直接调用业务服务。
 - 插件前端按 Chrome extension runtime 拆分为 `background`、`content`、`side-panel`、`popup`、`context-menu`、`commands`、统一 `api client`。
 - `side panel` 仍应作为复杂交互主工作区，`popup` 只承担轻入口。
@@ -88,18 +102,155 @@ conflictResolution: 当本文与更早浏览器插件讨论或旧 browser prospe
 - 前端动作控制应消费 `access summary.actionCodes`，而不是前端自己从 role 名称推导权限。
 - launcher 只渲染后端返回的可见 workspace entries，前端不根据 role 名硬编码显示工作台。
 
-### 5.2 倾向改写
+### 5.2 改写为 CRM workspace 局部交互
 
 - 旧 `Target Workspace` 应改写为更通用的 `Browser Workspace` / capability-specific workspace 容器语义，避免把所有角色都绑到 sales target 模型。
 - 旧“页面信息卡 + timeline + research event”模式可以保留为某类 capability 的候选交互模式，但不应成为所有 role 的统一数据模型。
 - 旧 prospecting / lead draft / contact clue 只应降级为“销售 workspace 示例能力”，不再代表插件主模型。
 - 旧 `browser-prospecting` 命名、endpoint prefix、feature packet 命名不再默认延续。
 
-### 5.3 倾向丢弃
+### 5.3 已丢弃
 
 - “插件第一阶段即以销售 prospecting 为唯一主线”的产品定位。
 - “插件所有保存、提取、备注、跳转等输入都必须归属到 target workspace”的统一规则。
 - 任何把 CRM prospecting 防腐层直接当成整个插件核心领域模型的表达。
+- 旧 `/browser-prospecting/*` endpoint prefix。
+- 旧 `Target Workspace / Research Timeline / Research Event / Lead Draft` 作为插件主模型的表达。
+
+## 5.4 当前实现基线
+
+本节记录当前仓库中已经存在的浏览器插件与 extension auth 能力，后续 P1 方案不得把这些能力重复写成“从零实现”。
+
+当前已实现：
+
+- `app/browser-extension` 已存在独立 Vue / Vite 插件 app。
+- Chrome manifest 当前仅声明 `storage` permission 和 BFF host permissions；尚未声明 `sidePanel`、`activeTab`、`scripting`、`contextMenus` 或 commands。
+- popup 已实现登录页、账号选择页、MFA 页、authenticated home view、头像菜单与 logout 按钮。
+- `AuthSessionController` 已实现 restore、login、MFA complete、account selection、session refresh、logout，本地 logout 在远端失败时也会清理本地 session。
+- `ExtensionAuthApi` 已调用 `/extension/auth/login`、`/extension/auth/account-selection`、`/extension/auth/mfa/complete`、`/extension/auth/session/refresh`、`/extension/auth/session/context`、`/extension/auth/logout`。
+- api-gateway 已有 terminal-scoped `/extension/auth/*` controller，包含 login、account selection、MFA、refresh、logout、session context、access summary、session contexts、switch context。
+- popup launcher 当前只映射 `extension.designer.workspace`，尚未映射 `extension.crm.workspace`。
+
+当前未实现：
+
+- 插件前端尚未调用 `/extension/auth/session/access-summary` 作为独立 action control 来源。
+- 插件前端尚未实现 session context list / switch-context UI。
+- 插件尚未实现 background、content script、side panel、context menu、commands 或当前 tab 页面信号采集。
+- permission navigation seed 尚未提供 `extension.crm.workspace`。
+- 尚未存在 `/extension/crm/*` BFF facade。
+- 尚未存在 CRM Sales Workspace UI、页面识别、duplicate check、Draft Lead / Active Lead 创建或 Pool claim 插件流程。
+
+## 5.5 CRM P1 前端操作形式
+
+CRM 插件 P1 采用 `Popup Launcher + Side Panel Workspace`。
+
+职责划分：
+
+- `popup`：继续承载登录、账号选择、MFA、session restore / refresh 后的 launcher、账号菜单、logout 与 workspace 入口。
+- `side panel`：承载 CRM Sales Workspace 主工作区，包括当前页面摘要、OES CRM 状态、可采集信号、查重结果和允许动作。
+- `background`：负责打开 side panel、处理 context menu / commands，并在 popup、side panel、content script 之间转发当前 tab 上下文。
+- `content script`：只在用户触发后采集当前页面信号，不常驻拥有业务真相。
+
+P1 side panel 只做轻量 CRM 工作区，不替代 tenant-web CRM 详情页。
+
+P1 side panel 包含四个稳定区域：
+
+- 当前页面摘要：URL、domain、title、页面类型。
+- OES CRM 状态：unknown、possible duplicate、owned lead、pool lead、other-owner lead、prospect customer、customer、restricted 等后端结论。
+- 可采集信号：domain、title、selected text、可见 email / phone / company-like text。
+- 允许动作：duplicate check、create draft lead、create active lead、claim pool lead、open tenant-web CRM detail。
+
+不采用的方案：
+
+- 不采用 popup 内完成全部 CRM 操作；空间不足，错误态、查重结果、表单和账号菜单容易互相挤压。
+- 不采用 popup 只显示状态并跳转 tenant-web；风险低但无法形成插件采集闭环，P1 价值不足。
+
+## 5.6 CRM P1 操作流程
+
+CRM 插件 P1 的操作流程以用户个人启用 CRM workspace 为前提。未启用时，插件不得进行 CRM 页面识别、content script 注入、搜索结果页标记或 `/extension/crm/*` 请求。
+
+### 5.6.1 主线流程
+
+```mermaid
+flowchart TD
+  A["用户登录插件"] --> B["Popup Launcher"]
+  B --> C{"后端 visibleEntries 包含 extension.crm.workspace?"}
+  C -- "否" --> D["不显示 CRM Workspace"]
+  C -- "是" --> E["显示 CRM Workspace 入口"]
+  E --> F{"用户是否启用 CRM Workspace?"}
+  F -- "否，默认" --> G["不识别页面 / 不请求 CRM / 不显示网页标记"]
+  F -- "是" --> H["打开 Side Panel CRM Workspace"]
+  H --> I["用户触发识别当前页"]
+  I --> J["采集 URL / domain / title / selected text / email / phone"]
+  J --> K["/extension/crm/page-context/resolve"]
+  K --> L["展示 OES 返回状态和 allowed actions"]
+```
+
+### 5.6.2 客户官网页流程
+
+客户官网页是 CRM workspace P1 的主要双向页面类型。
+
+```mermaid
+flowchart TD
+  A["用户在客户官网打开 CRM Side Panel"] --> B["采集页面信号"]
+  B --> C["OES 解析 CRM 状态"]
+  C --> D{"状态"}
+  D -- "UNKNOWN" --> E["允许 Check Duplicate"]
+  E --> F{"查重结果"}
+  F -- "NO_DUPLICATE" --> G["Create Draft Lead 或 Create Active Lead"]
+  F -- "POSSIBLE_DUPLICATE" --> H["展示候选摘要，允许确认后创建 Draft 或 Active Lead"]
+  F -- "OWNED_DUPLICATE / RESTRICTED_DUPLICATE" --> I["阻止创建，展示脱敏原因"]
+  D -- "POOL_LEAD" --> J["允许 Claim"]
+  J --> K["Claim 成功后刷新状态为 OWNED_LEAD"]
+  D -- "OWNED_LEAD / PROSPECT_CUSTOMER / CUSTOMER" --> L["显示摘要 + Open in OES"]
+  D -- "OTHER_OWNER_LEAD / RESTRICTED" --> M["只显示低敏状态，不允许写入"]
+```
+
+规则：
+
+- 插件只采集页面候选信号，不自行判断客户归属、重复、风险或权限。
+- `Create Active Lead` 默认 `assignmentIntent = OWNED_BY_OPERATOR`。
+- 插件采集来源默认使用 `sourceType = BROWSER_EXTENSION`。
+- 后端重复检查结果仍是最终判断；前端确认不能绕过 `CLAIMABLE_EXISTING / OWNED_DUPLICATE / RESTRICTED_DUPLICATE` 等阻断。
+- Pool Lead 必须先 `ClaimCrmAccount`，Claim 成功后才进入本人可继续处理状态。
+
+### 5.6.3 搜索结果页流程
+
+搜索结果页只做低敏状态回显，不做写入。
+
+```mermaid
+flowchart TD
+  A["用户在搜索结果页启用 CRM Workspace"] --> B["用户触发扫描当前结果页"]
+  B --> C["提取结果链接 / domain / title / snippet"]
+  C --> D["/extension/crm/search-results/resolve"]
+  D --> E["在 Side Panel 显示候选状态列表"]
+  E --> F["可点击某个候选打开官网页或 tenant-web"]
+  E --> G["不在搜索结果页创建 Lead / 不批量保存"]
+```
+
+### 5.6.4 P1 状态与动作矩阵
+
+| OES 返回状态 | 插件展示 | P1 允许动作 |
+| --- | --- | --- |
+| `UNKNOWN` | 未发现记录 | 查重、创建 Draft Lead、创建 Active Lead |
+| `POSSIBLE_DUPLICATE` | 可能重复 | 展示候选、确认后创建，最终仍以后端结果为准 |
+| `OWNED_LEAD` | 本人 Lead | 打开 OES 详情 |
+| `POOL_LEAD` | 公海 Lead | Claim、Claim 后打开 OES |
+| `OTHER_OWNER_LEAD` | 他人负责 | 低敏提示，不写入 |
+| `PROSPECT_CUSTOMER` | 潜在客户 | 打开 OES 详情 |
+| `CUSTOMER` | 已成交客户 | 打开 OES 详情 |
+| `RESTRICTED` | 受限对象 | 低敏提示，不写入 |
+
+### 5.6.5 P1 明确不做
+
+- 不做 release 回公海。
+- 不在插件内做 convert to Prospect Customer。
+- 不创建 contact。
+- 不 append activity。
+- 不 append source 到已有 CRM account。
+- 不做截图证据。
+- 不做 AI 总结。
+- 不做搜索结果批量导入。
 
 ## 6. 当前开放问题
 
@@ -126,6 +277,26 @@ conflictResolution: 当本文与更早浏览器插件讨论或旧 browser prospe
 - 用户进入某个 workspace 后，side panel、context menu、commands / 快捷键和页面动作应切换到该 workspace 的工作语义。
 - workspace entry 默认是 terminal-scoped entry，先只服务 extension terminal，不默认给 tenant-web、PDA、KIOSK 复用。
 - actionCodes 不负责决定 launcher 上有哪些 workspace entry；actionCodes 负责控制已进入 workspace 后的动作能力。
+
+### 6.2.1 Workspace Personal Enablement
+
+所有插件 workspace 能力必须支持用户个人启用 / 停用。
+
+规则：
+
+- 后端 `navigation.visibleEntries` 是 workspace 可见性上限；未返回的 workspace 不能被前端通过本地开关显示或启用。
+- 用户本地开关只决定一个已可见 workspace 是否在当前插件中主动运行。
+- 用户本地开关不授予权限，不改变 `actionCodes`，不影响 tenant-web，也不影响其他用户。
+- P1 本地偏好可以保存在 extension storage 中，按当前 extension session account / tenant / workspace key 隔离。
+- 默认不主动运行需要页面识别或网页注入的 workspace；用户必须显式启用后才允许启动该 workspace 的页面识别、content script 注入、context menu 动作和 capability BFF 请求。
+- 关闭某个 workspace 后，应停止对应页面识别、隐藏页面标记、停止对应 capability BFF 请求，并在 launcher / settings 中保留重新启用入口。
+
+CRM workspace P1 适用规则：
+
+- `extension.crm.workspace.enabled` 默认为 `false`。
+- 用户启用 CRM workspace 后，才允许当前页面识别、搜索结果页状态回显、官网页 CRM 操作和 `/extension/crm/*` 请求。
+- 用户关闭 CRM workspace 后，不注入 CRM content script，不请求 `/extension/crm/*`，不显示搜索结果页 CRM 状态标记，不自动打开 CRM side panel。
+- 如果 side panel 已打开时用户关闭 CRM workspace，side panel 应停止当前页面识别并显示 CRM workspace 已停用状态。
 
 ## 6.3 当前冻结的插件登录方向
 
@@ -262,5 +433,7 @@ conflictResolution: 当本文与更早浏览器插件讨论或旧 browser prospe
   - `docs/contracts/api-gateway/access-summary.md`
   - `docs/contracts/api-gateway/navigation-summary.md`
 - 当前推荐下一步：
+  - 冻结统一浏览器插件壳层 + CRM Sales Workspace 设计。
+  - 再冻结 `/extension/crm/*` contract 与实现方案。
   - 继续拆 CRM 官网页中 append、contact candidate、claim 和 convert 的用户流程与权限反馈。
   - 暂不冻结 CRM 字段、DTO 或接口契约。

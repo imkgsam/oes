@@ -33,7 +33,7 @@ type PoolStage = 'LEAD' | 'PROSPECT_CUSTOMER'
 interface PoolFilterState {
   country: string
   keyword: string
-  priority: string
+  priority?: string
 }
 
 interface PoolMetricItem {
@@ -62,8 +62,8 @@ const poolFallbackMessages = {
   noOwner: '未分配',
   poolProspects: '公海潜在客户',
   priority: '优先级',
+  priorityPlaceholder: '选择优先级',
   query: '查询',
-  refresh: '刷新',
   searchPlaceholder: '公司、邮箱、域名',
   source: '来源',
   sourceFallback: '来源待补充',
@@ -102,7 +102,7 @@ const importRawText = ref('')
 const filters = reactive<PoolFilterState>({
   country: '',
   keyword: '',
-  priority: ''
+  priority: undefined
 })
 
 const poolStageOptions: Array<{ icon: string; label: string; value: PoolStage }> = [
@@ -385,10 +385,6 @@ onMounted(() => {
             <IconifyIcon icon="lucide:upload" />
             {{ t('importLead') }}
           </Button>
-          <Button data-testid="crm-pool-refresh" :loading="loading" type="primary" @click="refreshPool">
-            <IconifyIcon icon="lucide:refresh-cw" />
-            {{ t('refresh') }}
-          </Button>
         </div>
       </section>
 
@@ -455,7 +451,7 @@ onMounted(() => {
             v-model:value="filters.priority"
             allow-clear
             class="crm-pool__filter-control"
-            :placeholder="t('priority')"
+            :placeholder="t('priorityPlaceholder')"
           >
             <SelectOption v-for="priority in priorityOptions" :key="priority" :value="priority">
               {{ priority }}
@@ -509,19 +505,10 @@ onMounted(() => {
               </div>
 
               <div class="crm-pool__row-actions">
-                <Button
-                  :data-testid="`crm-pool-claim-${account.crmAccountId}`"
-                  :disabled="!canClaimAccount"
-                  :loading="claimingAccountId === account.crmAccountId"
-                  type="primary"
-                  @click="claimPoolAccount(account.crmAccountId)"
-                >
-                  <IconifyIcon icon="lucide:handshake" />
-                  {{ t('claim') }}
-                </Button>
                 <Dropdown :trigger="['click']">
                   <Button
                     :aria-label="t('more')"
+                    class="crm-pool__more-button"
                     :data-testid="`crm-pool-more-${account.crmAccountId}`"
                     shape="circle"
                     type="text"
@@ -531,11 +518,22 @@ onMounted(() => {
                   <template #overlay>
                     <Menu
                       @click="(info) => {
+                        if (String(info.key) === 'claim') {
+                          claimPoolAccount(account.crmAccountId)
+                          return
+                        }
                         if (String(info.key) === 'detail') {
                           openPoolAccountDetail(account.crmAccountId)
                         }
                       }"
                     >
+                      <Menu.Item
+                        :data-testid="`crm-pool-claim-${account.crmAccountId}`"
+                        :disabled="!canClaimAccount || claimingAccountId === account.crmAccountId"
+                        key="claim"
+                      >
+                        {{ t('claim') }}
+                      </Menu.Item>
                       <Menu.Item
                         :data-testid="`crm-pool-detail-${account.crmAccountId}`"
                         key="detail"
@@ -761,11 +759,23 @@ onMounted(() => {
 
 .crm-pool__stage-button,
 .crm-pool__account-button,
-.crm-pool__query-button,
-.crm-pool__row-actions :deep(.ant-btn) {
+.crm-pool__query-button {
   align-items: center;
   display: inline-flex;
   gap: 6px;
+}
+
+.crm-pool__more-button {
+  align-items: center;
+  display: inline-grid;
+  justify-content: center;
+  padding: 0;
+  place-items: center;
+}
+
+.crm-pool__more-button :deep(.anticon),
+.crm-pool__more-button :deep(.iconify) {
+  line-height: 1;
 }
 
 .crm-pool__stage-button {

@@ -8,7 +8,9 @@ import {
   GetCrmAccountRequest,
   GetCrmAccountResponse,
   ListCrmAccountsRequest,
-  ListCrmAccountsResponse
+  ListCrmAccountsResponse,
+  ListSourceRecordsRequest,
+  ListSourceRecordsResponse
 } from '@oes/common/generated/crm_service'
 import {
   GRPC_METADATA_PROPAGATION_FACTORY,
@@ -66,6 +68,24 @@ export class CustomerQueryGrpcAdapter implements OnModuleInit {
     return this.call(
       'getCrmAccount',
       this.svc.getCrmAccount(
+        {
+          ...input,
+          operatorContext: buildCrmOperatorContext(source),
+          traceContext: buildCrmTraceContext(source)
+        },
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
+  /** listSourceRecords forwards one CRM account source evidence query. */
+  listSourceRecords(
+    input: Omit<ListSourceRecordsRequest, 'operatorContext' | 'traceContext'>,
+    source: DownstreamRequestSource
+  ): Promise<ListSourceRecordsResponse> {
+    return this.call(
+      'listSourceRecords',
+      this.svc.listSourceRecords(
         {
           ...input,
           operatorContext: buildCrmOperatorContext(source),

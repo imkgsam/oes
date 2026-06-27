@@ -8,13 +8,18 @@ import {
   CrmAccountRecordStatus,
   CrmAccountTypeHint,
   CrmActivityVisibility,
+  CrmArchiveReason,
   CrmOpportunityStage,
   CrmOpportunityStatus,
   CrmPriority,
   CrmSourceType
 } from '../../src/domain/models/crm-records'
 import { PrismaCrmAccountRepository } from '../../src/infrastructure/repositories/prisma/prisma-crm-account.repository'
-import { cleanupByPrefix, createPrismaForIntegration, createTestPrefix } from '../helpers/integration-db'
+import {
+  cleanupByPrefix,
+  createPrismaForIntegration,
+  createTestPrefix
+} from '../helpers/integration-db'
 
 describe('Prisma CRM P1 repositories L2', () => {
   let prisma: PrismaService
@@ -44,6 +49,8 @@ describe('Prisma CRM P1 repositories L2', () => {
   it('CrmAccount P1 / should persist one active lead with primary source under tenant isolation', async () => {
     const accountId = randomUUID()
     const sourceId = randomUUID()
+    const newerSourceId = randomUUID()
+    const olderSourceId = randomUUID()
     const tenantId = `${prefix}_tenant`
 
     await accountRepository.saveAccount({
@@ -88,6 +95,32 @@ describe('Prisma CRM P1 repositories L2', () => {
       note: 'Asked about ceramic basins',
       isPrimary: true
     })
+    await accountRepository.addSourceRecord({
+      id: newerSourceId,
+      tenantId,
+      crmAccountId: accountId,
+      sourceType: CrmSourceType.WEB_RESEARCH,
+      sourceName: 'Follow-up website research',
+      capturedAt: new Date('2026-06-15T09:00:00.000Z'),
+      capturedByAccountId: `${prefix}_sales`,
+      externalReference: `${prefix}-research-001`,
+      rawPayload: { url: `https://${prefix}.basin.example` },
+      note: 'Newer non-primary evidence',
+      isPrimary: false
+    })
+    await accountRepository.addSourceRecord({
+      id: olderSourceId,
+      tenantId,
+      crmAccountId: accountId,
+      sourceType: CrmSourceType.IMPORTED_LIST,
+      sourceName: 'Legacy import',
+      capturedAt: new Date('2026-06-13T09:00:00.000Z'),
+      capturedByAccountId: `${prefix}_sales`,
+      externalReference: `${prefix}-import-001`,
+      rawPayload: { row: 12 },
+      note: 'Older non-primary evidence',
+      isPrimary: false
+    })
 
     const found = await accountRepository.findAccountById(tenantId, accountId)
     const sources = await accountRepository.listSourceRecords(tenantId, accountId)
@@ -117,12 +150,20 @@ describe('Prisma CRM P1 repositories L2', () => {
         crmAccountId: accountId,
         sourceType: CrmSourceType.EXHIBITION_SCAN,
         isPrimary: true
+      }),
+      expect.objectContaining({
+        id: newerSourceId,
+        isPrimary: false
+      }),
+      expect.objectContaining({
+        id: olderSourceId,
+        isPrimary: false
       })
     ])
     expect(otherTenant).toBeNull()
   })
 
-  it('CrmAccount P1 / should normalize legacy non-array lead identifiers and exclude archived accounts from lists', async () => {
+  it('CrmAccount P1 / should normalize legacy identifiers while explicit archived lists return only archived accounts', async () => {
     const activeAccountId = randomUUID()
     const archivedAccountId = randomUUID()
     const tenantId = `${prefix}_tenant`
@@ -186,7 +227,59 @@ describe('Prisma CRM P1 repositories L2', () => {
       pageSize: 20
     })
 
-    expect(archivedFilter.items).toEqual([])
+    expect(archivedFilter.items).toEqual([
+      expect.objectContaining({
+        id: archivedAccountId,
+        leadIdentifiers: [],
+        recordStatus: CrmAccountRecordStatus.ARCHIVED
+      })
+    ])
+    expect(archivedFilter.items).not.toEqual([
+      expect.objectContaining({
+        id: activeAccountId
+      })
+    ])
+  })
+
+  it('CrmAccount P1 / should persist archive reason for archived Lead records', async () => {
+    const accountId = randomUUID()
+    const tenantId = `${prefix}_tenant`
+
+    await accountRepository.saveAccount({
+      id: accountId,
+      tenantId,
+      tenantPartyId: null,
+      recordStatus: CrmAccountRecordStatus.ARCHIVED,
+      lifecycleStage: CrmAccountLifecycleStage.LEAD,
+      partyTypeHint: CrmAccountTypeHint.ORGANIZATION,
+      displayName: `${prefix} Archived Non Target Lead`,
+      leadCompanyName: `${prefix} Kohler`,
+      leadPersonName: null,
+      leadDomain: `${prefix}.kohler.example`,
+      leadEmail: null,
+      leadPhone: null,
+      leadWhatsapp: null,
+      leadCountry: 'US',
+      leadIdentifiers: [],
+      ownerAccountId: `${prefix}_sales`,
+      priority: CrmPriority.C,
+      lastActivityAt: null,
+      nextFollowUpAt: null,
+      createdBy: `${prefix}_sales`,
+      archivedAt: new Date('2026-06-23T08:00:00.000Z'),
+      archiveReason: CrmArchiveReason.NON_TARGET_ACCOUNT
+    })
+
+    const found = await accountRepository.findAccountById(tenantId, accountId)
+
+    expect(found).toEqual(
+      expect.objectContaining({
+        id: accountId,
+        recordStatus: CrmAccountRecordStatus.ARCHIVED,
+        archivedAt: new Date('2026-06-23T08:00:00.000Z'),
+        archiveReason: CrmArchiveReason.NON_TARGET_ACCOUNT
+      })
+    )
   })
 
   it('CrmAccount P1 / should reject a second active formal account bound to the same tenant party', async () => {
@@ -427,6 +520,150 @@ describe('Prisma CRM P1 repositories L2', () => {
         matchedFields: expect.arrayContaining(['leadEmail', 'leadDomain', 'leadIdentifiers'])
       })
     ])
+  })
+
+  it('CrmAccount P1 / should find archived duplicate candidates for read-only CRM recognition', async () => {
+    const tenantId = `${prefix}_tenant`
+    const accountId = randomUUID()
+
+    await accountRepository.saveAccount({
+      id: accountId,
+      tenantId,
+      tenantPartyId: null,
+      recordStatus: CrmAccountRecordStatus.ARCHIVED,
+      lifecycleStage: CrmAccountLifecycleStage.LEAD,
+      partyTypeHint: CrmAccountTypeHint.ORGANIZATION,
+      displayName: `${prefix} Kohler`,
+      leadCompanyName: `${prefix} Kohler`,
+      leadPersonName: null,
+      leadDomain: `${prefix}.kohler.example`,
+      leadEmail: null,
+      leadPhone: null,
+      leadWhatsapp: null,
+      leadCountry: 'US',
+      leadIdentifiers: [],
+      ownerAccountId: `${prefix}_sales`,
+      priority: CrmPriority.C,
+      lastActivityAt: null,
+      nextFollowUpAt: null,
+      createdBy: `${prefix}_sales`,
+      archivedAt: new Date('2026-06-23T08:00:00.000Z'),
+      archiveReason: CrmArchiveReason.NON_TARGET_ACCOUNT
+    })
+
+    const candidates = await accountRepository.findDuplicateCandidates({
+      tenantId,
+      leadDomain: `${prefix}.kohler.example`
+    })
+
+    expect(candidates).toEqual([
+      expect.objectContaining({
+        crmAccountId: accountId,
+        displayName: `${prefix} Kohler`,
+        confidence: 'HIGH',
+        matchedFields: ['leadDomain'],
+        recordStatus: CrmAccountRecordStatus.ARCHIVED
+      })
+    ])
+  })
+
+  it('CrmAccount P1 / should canonicalize lead domain when saving CRM account records', async () => {
+    const tenantId = `${prefix}_tenant`
+    const accountId = randomUUID()
+
+    await accountRepository.saveAccount({
+      id: accountId,
+      tenantId,
+      tenantPartyId: null,
+      recordStatus: CrmAccountRecordStatus.ACTIVE,
+      lifecycleStage: CrmAccountLifecycleStage.LEAD,
+      partyTypeHint: CrmAccountTypeHint.ORGANIZATION,
+      displayName: `${prefix} Canonical Save Domain`,
+      leadCompanyName: null,
+      leadPersonName: null,
+      leadDomain: 'https://www.vintagetub.com/products?id=1',
+      leadEmail: null,
+      leadPhone: null,
+      leadWhatsapp: null,
+      leadCountry: 'US',
+      leadIdentifiers: [],
+      ownerAccountId: null,
+      priority: CrmPriority.B,
+      lastActivityAt: null,
+      nextFollowUpAt: null,
+      createdBy: `${prefix}_sales`
+    })
+
+    const found = await accountRepository.findAccountById(tenantId, accountId)
+
+    expect(found?.leadDomain).toBe('vintagetub.com')
+  })
+
+  it('CrmAccount P1 / should match canonical lead domains against historical www lead domains', async () => {
+    const tenantId = `${prefix}_tenant`
+    const wwwAccountId = randomUUID()
+    const canonicalAccountId = randomUUID()
+
+    await accountRepository.saveAccount({
+      id: wwwAccountId,
+      tenantId,
+      tenantPartyId: null,
+      recordStatus: CrmAccountRecordStatus.ACTIVE,
+      lifecycleStage: CrmAccountLifecycleStage.LEAD,
+      partyTypeHint: CrmAccountTypeHint.ORGANIZATION,
+      displayName: `${prefix} Historical Www Domain`,
+      leadCompanyName: null,
+      leadPersonName: null,
+      leadDomain: 'www.vintagetub.com',
+      leadEmail: null,
+      leadPhone: null,
+      leadWhatsapp: null,
+      leadCountry: 'US',
+      leadIdentifiers: [],
+      ownerAccountId: null,
+      priority: CrmPriority.B,
+      lastActivityAt: null,
+      nextFollowUpAt: null,
+      createdBy: `${prefix}_sales`
+    })
+    await accountRepository.saveAccount({
+      id: canonicalAccountId,
+      tenantId,
+      tenantPartyId: null,
+      recordStatus: CrmAccountRecordStatus.ACTIVE,
+      lifecycleStage: CrmAccountLifecycleStage.LEAD,
+      partyTypeHint: CrmAccountTypeHint.ORGANIZATION,
+      displayName: `${prefix} Canonical Domain`,
+      leadCompanyName: null,
+      leadPersonName: null,
+      leadDomain: 'vintagetub.com',
+      leadEmail: null,
+      leadPhone: null,
+      leadWhatsapp: null,
+      leadCountry: 'US',
+      leadIdentifiers: [],
+      ownerAccountId: null,
+      priority: CrmPriority.B,
+      lastActivityAt: null,
+      nextFollowUpAt: null,
+      createdBy: `${prefix}_sales`
+    })
+
+    const canonicalInputCandidates = await accountRepository.findDuplicateCandidates({
+      tenantId,
+      leadDomain: 'vintagetub.com'
+    })
+    const wwwInputCandidates = await accountRepository.findDuplicateCandidates({
+      tenantId,
+      leadDomain: 'www.vintagetub.com'
+    })
+
+    expect(canonicalInputCandidates.map((candidate) => candidate.crmAccountId)).toEqual(
+      expect.arrayContaining([wwwAccountId, canonicalAccountId])
+    )
+    expect(wwwInputCandidates.map((candidate) => candidate.crmAccountId)).toEqual(
+      expect.arrayContaining([wwwAccountId, canonicalAccountId])
+    )
   })
 
   it('CrmAccount P1 / should list tenant accounts by lifecycle and status filters', async () => {

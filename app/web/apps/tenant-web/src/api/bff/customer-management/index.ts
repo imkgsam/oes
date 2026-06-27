@@ -4,6 +4,15 @@ export namespace CustomerManagementApi {
   export type CrmAccountLifecycleStage = 'CUSTOMER' | 'LEAD' | 'PROSPECT_CUSTOMER'
   export type CrmAccountRecordStatus = 'ACTIVE' | 'ARCHIVED' | 'DRAFT'
   export type CrmAccountTypeHint = 'ORGANIZATION' | 'PERSON' | 'UNKNOWN'
+  export type CrmArchiveReason =
+    | 'COMPETITOR'
+    | 'DUPLICATE'
+    | 'INVALID_TARGET'
+    | 'LOW_VALUE'
+    | 'NON_TARGET_ACCOUNT'
+    | 'NO_FIT'
+    | 'OTHER'
+    | 'UNRESPONSIVE'
   export type CrmLeadCreateResultType =
     | 'BLOCKED_BY_CLAIMABLE_EXISTING'
     | 'BLOCKED_BY_OWNED_DUPLICATE'
@@ -48,6 +57,7 @@ export namespace CustomerManagementApi {
     tenantPartyId: string
     recordStatus: CrmAccountRecordStatus | string
     lifecycleStage: CrmAccountLifecycleStage | string
+    archiveReason: CrmArchiveReason | string
     partyTypeHint: CrmAccountTypeHint | string
     displayName: string
     leadCompanyName: string
@@ -68,6 +78,26 @@ export namespace CustomerManagementApi {
     createdAt: string
     updatedAt: string
     archivedAt: string
+  }
+
+  export interface CrmSourceRecord {
+    sourceRecordId: string
+    crmAccountId: string
+    sourceType: CrmSourceType | string
+    sourceName: string
+    capturedAt: string
+    capturedByAccountId: string
+    capturedByDisplayName: string
+    externalReference: string
+    rawPayload: Record<string, unknown> | null
+    note: string
+    isPrimary: boolean
+    createdAt: string
+    updatedAt: string
+  }
+
+  export interface CrmSourceRecordListResult {
+    sourceRecords: CrmSourceRecord[]
   }
 
   export interface CrmDuplicateCandidate {
@@ -176,6 +206,10 @@ export namespace CustomerManagementApi {
     sourceType?: CrmSourceType
   }
 
+  export interface ArchiveCrmAccountPayload {
+    archiveReason: CrmArchiveReason
+  }
+
   export interface DeleteDraftLeadResult {
     deleted: boolean
     crmAccountId: string
@@ -279,6 +313,16 @@ export async function getCrmAccountApi(
   )
 }
 
+// Lists read-only CRM source evidence for one account detail page.
+export async function listCrmSourceRecordsApi(
+  tenantId: string,
+  crmAccountId: string
+) {
+  return requestClient.get<CustomerManagementApi.CrmSourceRecordListResult>(
+    `/customer-management/tenants/${encodeURIComponent(tenantId)}/crm-accounts/${encodeURIComponent(crmAccountId)}/source-records`
+  )
+}
+
 // Creates one CRM P1 draft lead without entering the active lead views.
 export async function createDraftLeadApi(
   tenantId: string,
@@ -365,6 +409,18 @@ export async function releaseCrmAccountApi(
   return requestClient.post<CustomerManagementApi.CrmAccount>(
     `/customer-management/tenants/${encodeURIComponent(tenantId)}/crm-accounts/${encodeURIComponent(crmAccountId)}/release`,
     {}
+  )
+}
+
+// Archives one CRM P1 lead or prospect customer with the CRM-owned reason selected by the operator.
+export async function archiveCrmAccountApi(
+  tenantId: string,
+  crmAccountId: string,
+  data: CustomerManagementApi.ArchiveCrmAccountPayload
+) {
+  return requestClient.post<CustomerManagementApi.CrmAccount>(
+    `/customer-management/tenants/${encodeURIComponent(tenantId)}/crm-accounts/${encodeURIComponent(crmAccountId)}/archive`,
+    data
   )
 }
 

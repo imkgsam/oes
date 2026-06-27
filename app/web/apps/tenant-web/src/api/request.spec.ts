@@ -259,6 +259,33 @@ describe('tenant-web request auth recovery error suppression', () => {
   })
 })
 
+// Verifies locally handled preview or optional endpoints can opt out of global error toasts.
+describe('tenant-web request local error handling suppression', () => {
+  it('suppresses global error messages only when a request explicitly opts in', async () => {
+    const { shouldSuppressRequestErrorMessage } = await import('./request')
+
+    expect(
+      shouldSuppressRequestErrorMessage({
+        config: {
+          suppressErrorMessage: true
+        },
+        response: {
+          status: 404
+        }
+      })
+    ).toBe(true)
+
+    expect(
+      shouldSuppressRequestErrorMessage({
+        config: {},
+        response: {
+          status: 404
+        }
+      })
+    ).toBe(false)
+  })
+})
+
 // Verifies generic validation failures do not reuse login-only error copy in unrelated admin workflows.
 describe('tenant-web request validation message mapping', () => {
   it('keeps APP_VALIDATION_001 as a generic form validation message', async () => {

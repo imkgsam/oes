@@ -20,6 +20,17 @@ enum CrmAccountRecordStatus {
   ARCHIVED
 }
 
+enum CrmArchiveReason {
+  LOW_VALUE
+  INVALID_TARGET
+  NON_TARGET_ACCOUNT
+  COMPETITOR
+  DUPLICATE
+  NO_FIT
+  UNRESPONSIVE
+  OTHER
+}
+
 enum CrmAccountTypeHint {
   UNKNOWN
   PERSON
@@ -127,6 +138,7 @@ model CrmAccount {
   createdAt         DateTime                 @default(now())
   updatedAt         DateTime                 @updatedAt
   archivedAt        DateTime?
+  archiveReason     CrmArchiveReason?
   sourceRecords     CrmSourceRecord[]
   contacts          CrmContact[]
   activities        CrmActivity[]

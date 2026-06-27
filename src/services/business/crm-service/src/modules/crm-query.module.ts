@@ -4,6 +4,7 @@ import { ValidatingQueryBus } from '@oes/common/cqrs'
 import { CheckLeadDuplicateHandler } from '../application/queries/check-lead-duplicate.handler'
 import { GetCrmAccountHandler } from '../application/queries/get-crm-account.handler'
 import { ListCrmAccountsHandler } from '../application/queries/list-crm-accounts.handler'
+import { ListSourceRecordsHandler } from '../application/queries/list-source-records.handler'
 import { ValidateCrmObjectReferenceHandler } from '../application/queries/validate-object-reference.handler'
 import { CrmObjectReferenceGrpcController } from '../interfaces/grpc/crm-object-reference.grpc.controller'
 import { CustomerQueryGrpcController } from '../interfaces/grpc/customer-query.grpc.controller'
@@ -16,6 +17,7 @@ import { CustomerQueryGrpcController } from '../interfaces/grpc/customer-query.g
     CheckLeadDuplicateHandler,
     GetCrmAccountHandler,
     ListCrmAccountsHandler,
+    ListSourceRecordsHandler,
     ValidateCrmObjectReferenceHandler
   ],
   controllers: [CustomerQueryGrpcController, CrmObjectReferenceGrpcController]

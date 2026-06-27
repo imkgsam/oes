@@ -16,6 +16,8 @@ import { GetCrmAccountHandler } from '../../src/application/queries/get-crm-acco
 import { GetCrmAccountQuery } from '../../src/application/queries/get-crm-account.query'
 import { ListCrmAccountsHandler } from '../../src/application/queries/list-crm-accounts.handler'
 import { ListCrmAccountsQuery } from '../../src/application/queries/list-crm-accounts.query'
+import { ListSourceRecordsHandler } from '../../src/application/queries/list-source-records.handler'
+import { ListSourceRecordsQuery } from '../../src/application/queries/list-source-records.query'
 
 const leadAccount: CrmAccountRecord = {
   id: 'crm-account-1',
@@ -40,9 +42,24 @@ const leadAccount: CrmAccountRecord = {
   createdBy: 'sales-1'
 }
 
+const primarySource: CrmSourceRecord = {
+  id: 'source-1',
+  tenantId: 'tenant-1',
+  crmAccountId: 'crm-account-1',
+  sourceType: 'WEB_RESEARCH',
+  sourceName: 'Website research',
+  capturedAt: new Date('2026-06-24T08:00:00.000Z'),
+  capturedByAccountId: 'sales-1',
+  externalReference: 'https://northline.example',
+  rawPayload: { url: 'https://northline.example' },
+  note: 'Found during research',
+  isPrimary: true
+}
+
 /** FakeCrmAccountRepository supports P1 query tests with deterministic account data. */
 class FakeCrmAccountRepository implements CrmAccountRepository {
   readonly listInputs: ListCrmAccountsInput[] = []
+  readonly sourceRecordInputs: Array<{ tenantId: string; accountId: string }> = []
 
   async findAccountById(tenantId: string, accountId: string): Promise<CrmAccountRecord | null> {
     return tenantId === leadAccount.tenantId && accountId === leadAccount.id ? leadAccount : null
@@ -68,6 +85,13 @@ class FakeCrmAccountRepository implements CrmAccountRepository {
 
   async addSourceRecord(source: CrmSourceRecord): Promise<CrmSourceRecord> {
     return source
+  }
+
+  async listSourceRecords(tenantId: string, accountId: string): Promise<CrmSourceRecord[]> {
+    this.sourceRecordInputs.push({ tenantId, accountId })
+    return tenantId === primarySource.tenantId && accountId === primarySource.crmAccountId
+      ? [primarySource]
+      : []
   }
 
   async findDuplicateCandidates(_input: CrmDuplicateSearchInput): Promise<CrmAccountDuplicateCandidate[]> {
@@ -125,5 +149,26 @@ describe('CRM P1 query use cases L1', () => {
     ).resolves.toEqual({
       crmAccount: null
     })
+  })
+
+  it('ListSourceRecords / should return source records inside the tenant boundary', async () => {
+    const repository = new FakeCrmAccountRepository()
+    const handler = new ListSourceRecordsHandler(repository)
+
+    await expect(
+      handler.execute(new ListSourceRecordsQuery('tenant-1', 'crm-account-1'))
+    ).resolves.toEqual({
+      sourceRecords: [primarySource]
+    })
+    await expect(
+      handler.execute(new ListSourceRecordsQuery('tenant-2', 'crm-account-1'))
+    ).resolves.toEqual({
+      sourceRecords: []
+    })
+
+    expect(repository.sourceRecordInputs).toEqual([
+      { tenantId: 'tenant-1', accountId: 'crm-account-1' },
+      { tenantId: 'tenant-2', accountId: 'crm-account-1' }
+    ])
   })
 })

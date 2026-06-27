@@ -51,6 +51,52 @@ describe('AuthSessionController', () => {
     )
   })
 
+  it('starts browser activity runtime after a successful authenticated extension login', async () => {
+    const browserActivityRuntime = {
+      logout: vi.fn(),
+      startFromSession: vi.fn()
+    }
+    const api = {
+      getSessionContext: vi.fn().mockResolvedValue({
+        account: { accountId: 'account-1' },
+        tenant: { tenantId: 'tenant-1' },
+        terminal: 'BROWSER_EXTENSION'
+      }),
+      login: vi.fn().mockResolvedValue({
+        accountOptions: [],
+        nextStep: 'NONE',
+        session: {
+          accessToken: 'access-1',
+          expiresIn: 3600,
+          refreshToken: 'refresh-1',
+          terminal: 'BROWSER_EXTENSION'
+        },
+        status: 'SUCCESS'
+      })
+    }
+    const controller = new AuthSessionController({
+      api: api as any,
+      browserActivityRuntime,
+      storage: new MemoryAuthStorage()
+    })
+
+    await controller.login({
+      credential: 'secret-1',
+      identifier: 'employee@example.com',
+      method: 'EMAIL_PASSWORD'
+    })
+
+    expect(browserActivityRuntime.startFromSession).toHaveBeenCalledWith({
+      accessToken: 'access-1',
+      context: {
+        account: { accountId: 'account-1' },
+        tenant: { tenantId: 'tenant-1' },
+        terminal: 'BROWSER_EXTENSION'
+      },
+      refreshToken: 'refresh-1'
+    })
+  })
+
   it('continues through account selection when login returns selectable extension accounts', async () => {
     const api = {
       login: vi.fn().mockResolvedValue({
@@ -152,6 +198,28 @@ describe('AuthSessionController', () => {
     const controller = new AuthSessionController({ api: api as any, storage })
 
     await expect(controller.logout()).resolves.toEqual({ kind: 'login' })
+    await expect(storage.load()).resolves.toBeNull()
+  })
+
+  it('stops browser activity runtime during logout before clearing local session', async () => {
+    const browserActivityRuntime = {
+      logout: vi.fn(),
+      startFromSession: vi.fn()
+    }
+    const storage = new MemoryAuthStorage()
+    await storage.save({ accessToken: 'access-1', refreshToken: 'refresh-1' })
+    const api = {
+      logout: vi.fn().mockResolvedValue(undefined)
+    }
+    const controller = new AuthSessionController({
+      api: api as any,
+      browserActivityRuntime,
+      storage
+    })
+
+    await controller.logout()
+
+    expect(browserActivityRuntime.logout).toHaveBeenCalled()
     await expect(storage.load()).resolves.toBeNull()
   })
 })

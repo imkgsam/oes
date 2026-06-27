@@ -39,6 +39,7 @@
 | Service | Truth Source | Status | Note |
 | --- | --- | --- | --- |
 | `auth-service` | [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md) | `OK` | 认证、认证凭据、challenge、session、token、MFA、OTP、context switch、self-service / admin-management 与认证域审计已收敛到唯一稳定设计入口。 |
+| `browser-activity-service` | [browser-activity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/browser-activity-service.md) | `DESIGNING` | 浏览器访问审计策略、已登录插件采集的访问会话汇总、heartbeat、聚合读模型与敏感管理读取审计已冻结边界；runtime 与 contracts 按 P1 推进。 |
 | `identity-service` | [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md) | `OK` | User、UserAccount、contact asset、machine principal、employee binding、tenant / org 边界、self-service / admin-management 已收敛到唯一稳定设计入口。 |
 | `permission-service` | [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) | `OK` | Permission、Role、AccountRole、Policy、access summary、navigation governance、terminal access 与 onboarding grant 已收敛到唯一稳定设计入口；其他文档只保留 contract、ADR、feature 状态或协同引用。 |
 | `terminal-device-service` | [terminal-device-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/terminal-device-service.md) | `OK` | 企业受管现场交互终端设备 registry、enrollment、生命周期、租户绑定、运行快照、版本策略、设备准入决策与设备治理审计已冻结；Phase 2 只正式支持 PDA。 |

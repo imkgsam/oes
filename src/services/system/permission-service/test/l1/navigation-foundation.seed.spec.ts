@@ -27,6 +27,8 @@ describe('navigation foundation seed', () => {
       'master-data.supplier-management',
       'crm.accounts',
       'crm.pool',
+      'admin.employee-performance-console',
+      'browser-activity.audit-workbench',
       'sales.quote-orders',
       'procurement.management',
       'finance.dashboard',
@@ -45,7 +47,8 @@ describe('navigation foundation seed', () => {
       'public-entry.short-links',
       'pda.home',
       'kiosk.home',
-      'extension.designer.workspace'
+      'extension.designer.workspace',
+      'extension.crm.workspace'
     ])
   })
 
@@ -69,6 +72,8 @@ describe('navigation foundation seed', () => {
       '供应商管理',
       '客户资源',
       '公海',
+      'CRM 员工绩效分析',
+      '浏览器访问审计',
       '报价与订单',
       '采购管理',
       '财务管理',
@@ -87,7 +92,8 @@ describe('navigation foundation seed', () => {
       '公开短链',
       'PDA 首页',
       '触摸屏首页',
-      'Designer Workspace'
+      'Designer Workspace',
+      'CRM Sales Workspace'
     ])
   })
 
@@ -139,6 +145,21 @@ describe('navigation foundation seed', () => {
 
     expect(priorities).toEqual([...DEFAULT_NAVIGATION_ENTRIES.keys()])
     expect(new Set(priorities).size).toBe(DEFAULT_NAVIGATION_ENTRIES.length)
+  })
+
+  it('publishes the CRM browser extension workspace as a terminal-specific workspace', () => {
+    expect(DEFAULT_NAVIGATION_ENTRIES).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          entryKey: 'extension.crm.workspace',
+          entryType: 'workspace',
+          featureKey: 'crm',
+          name: 'CRM Sales Workspace',
+          registryPriority: 39,
+          supportedTerminals: ['BROWSER_EXTENSION']
+        })
+      ])
+    )
   })
 
   it('maps built-in role visibility to the confirmed navigation entries', () => {
@@ -360,6 +381,18 @@ describe('navigation foundation seed', () => {
       },
       {
         roleId: 'template-tenant-admin',
+        entryKey: 'admin.employee-performance-console',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'template-tenant-admin',
+        entryKey: 'browser-activity.audit-workbench',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'template-tenant-admin',
         entryKey: 'public-entry.business-cards',
         terminal: 'DEFAULT',
         enabled: true
@@ -433,6 +466,18 @@ describe('navigation foundation seed', () => {
       {
         roleId: 'role-tenant-admin',
         entryKey: 'crm.pool',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'role-tenant-admin',
+        entryKey: 'admin.employee-performance-console',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'role-tenant-admin',
+        entryKey: 'browser-activity.audit-workbench',
         terminal: 'DEFAULT',
         enabled: true
       },
@@ -539,6 +584,12 @@ describe('navigation foundation seed', () => {
         enabled: true
       },
       {
+        roleId: 'template-crm-sales',
+        entryKey: 'extension.crm.workspace',
+        terminal: 'BROWSER_EXTENSION',
+        enabled: true
+      },
+      {
         roleId: 'template-crm-sales-manager',
         entryKey: 'workbench.home',
         terminal: 'DEFAULT',
@@ -554,6 +605,18 @@ describe('navigation foundation seed', () => {
         roleId: 'template-crm-sales-manager',
         entryKey: 'crm.pool',
         terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'template-crm-sales-manager',
+        entryKey: 'admin.employee-performance-console',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'template-crm-sales-manager',
+        entryKey: 'extension.crm.workspace',
+        terminal: 'BROWSER_EXTENSION',
         enabled: true
       }
     ])

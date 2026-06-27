@@ -129,6 +129,11 @@ export interface SessionContext {
   terminal?: string
 }
 
+export interface SessionAccessSummary {
+  actionCodes?: string[]
+  roleCodes?: string[]
+}
+
 export interface StoredAuthSession {
   accessToken: string
   context?: SessionContext | null

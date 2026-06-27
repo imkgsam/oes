@@ -406,6 +406,10 @@ const crmManagement = definePermissionGroup(Modules.CRM_SERVICE, {
     code: 'crm.account.claim',
     description: '认领 CRM P1 公海 Lead 或 Prospect Customer'
   },
+  RELEASE_CRM_ACCOUNT: {
+    code: 'crm.account.release',
+    description: '释放 CRM P1 Lead 或 Prospect Customer 回公海'
+  },
   MANAGE_CRM_ACCOUNT: {
     code: 'crm.account.manage',
     description: '管理 CRM P1 客户资源与公海例外动作'
@@ -923,6 +927,29 @@ const browserExtensionDesigner = definePermissionGroup(Modules.PERMISSION_SERVIC
   }
 })
 
+const browserActivityAudit = definePermissionGroup(Modules.PERMISSION_SERVICE, {
+  POLICY_READ: {
+    code: 'browser_activity.policy.read',
+    description: '查看租户浏览器访问审计策略'
+  },
+  POLICY_MANAGE: {
+    code: 'browser_activity.policy.manage',
+    description: '维护租户浏览器访问审计开关与保留周期'
+  },
+  OVERVIEW_READ: {
+    code: 'browser_activity.overview.read',
+    description: '查看租户浏览器访问审计概览与员工活跃浏览排名'
+  },
+  EMPLOYEE_DETAIL_READ: {
+    code: 'browser_activity.employee_detail.read',
+    description: '查看员工浏览器访问时间线与访问事实明细'
+  },
+  URL_DETAIL_READ: {
+    code: 'browser_activity.url_detail.read',
+    description: '查询浏览器访问审计 URL 与 domain 明细'
+  }
+})
+
 const siteManagement = definePermissionGroup(Modules.SITE_SERVICE, {
   READ: { code: 'site.management.read', description: '查看站点治理工作台、站点卡片与运行状态' },
   MANAGE: { code: 'site.management.manage', description: '创建、更新或禁用站点配置' },
@@ -963,6 +990,7 @@ export const COLLABORATION_TASK_PERMISSION_CODES = collaborationTask.codes
 export const COLLABORATION_ANNOTATION_PERMISSION_CODES = collaborationAnnotation.codes
 export const TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES = terminalDeviceManagement.codes
 export const BROWSER_EXTENSION_DESIGNER_PERMISSION_CODES = browserExtensionDesigner.codes
+export const BROWSER_ACTIVITY_AUDIT_PERMISSION_CODES = browserActivityAudit.codes
 export const SITE_MANAGEMENT_PERMISSION_CODES = siteManagement.codes
 
 /** DEPRECATED_PERMISSION_CODES tracks legacy permission rows that should be cleaned from local/dev seed data. */
@@ -1012,5 +1040,6 @@ export const PERMISSION_CODE_SEED_ITEMS: PermissionSeedItem[] = [
   ...collaborationAnnotation.items,
   ...terminalDeviceManagement.items,
   ...browserExtensionDesigner.items,
+  ...browserActivityAudit.items,
   ...siteManagement.items
 ]

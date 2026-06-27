@@ -135,6 +135,16 @@ const tenantAdminRoutes: RouteRecordRaw[] = [
         },
       },
       {
+        name: 'AdminBrowserActivityAuditWorkbench',
+        path: '/admin/browser-activity-audit-workbench',
+        component: () => import('#/views/admin/browser-activity-audit-workbench.vue'),
+        meta: {
+          entryKey: 'browser-activity.audit-workbench',
+          icon: 'lucide:history',
+          title: '浏览器访问审计',
+        },
+      },
+      {
         name: 'AdminSiteManagement',
         path: '/admin/site-management',
         component: () => import('#/views/admin/site-management.vue'),
@@ -205,6 +215,15 @@ const tenantAdminRoutes: RouteRecordRaw[] = [
     meta: {
       hideInMenu: true,
       title: '公开短链',
+    },
+  },
+  {
+    name: 'AdminEmployeePerformanceConsoleLegacyRedirect',
+    path: '/admin/employee-performance-console',
+    redirect: '/crm/employee-performance-console',
+    meta: {
+      hideInMenu: true,
+      title: 'CRM 员工绩效分析',
     },
   },
   {
@@ -333,6 +352,16 @@ const tenantAdminRoutes: RouteRecordRaw[] = [
           fullPathKey: false,
           icon: 'lucide:radar',
           title: '公海',
+        },
+      },
+      {
+        name: 'AdminEmployeePerformanceConsole',
+        path: '/crm/employee-performance-console',
+        component: () => import('#/views/admin/employee-performance-console.vue'),
+        meta: {
+          entryKey: 'admin.employee-performance-console',
+          icon: 'lucide:chart-no-axes-combined',
+          title: 'CRM 员工绩效分析',
         },
       },
       {

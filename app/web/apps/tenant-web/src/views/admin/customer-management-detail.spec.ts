@@ -1,12 +1,16 @@
 /* @vitest-environment happy-dom */
 
+import { readFileSync } from 'node:fs'
+
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const claimCrmAccountApi = vi.fn()
+const archiveCrmAccountApi = vi.fn()
 const convertLeadToProspectCustomerApi = vi.fn()
 const deleteDraftLeadApi = vi.fn()
 const getCrmAccountApi = vi.fn()
+const listCrmSourceRecordsApi = vi.fn()
 const submitDraftLeadApi = vi.fn()
 const routerPush = vi.fn()
 
@@ -30,10 +34,12 @@ const authContextState: any = {
 }
 
 vi.mock('#/api', () => ({
+  archiveCrmAccountApi,
   claimCrmAccountApi,
   convertLeadToProspectCustomerApi,
   deleteDraftLeadApi,
   getCrmAccountApi,
+  listCrmSourceRecordsApi,
   submitDraftLeadApi
 }))
 
@@ -84,14 +90,24 @@ async function clickDetailDropdownAction(wrapper: any, actionTestId: string) {
   await flushPromises()
 }
 
+// Activates one Ant Design tab by its visible label in the mounted detail page.
+async function clickDetailTab(wrapper: any, label: string) {
+  const tab = wrapper.findAll('.ant-tabs-tab-btn').find((candidate: any) => candidate.text() === label)
+  expect(tab).toBeTruthy()
+  await tab!.trigger('click')
+  await flushPromises()
+}
+
 // Verifies the CRM account detail page owns detail loading instead of the list Drawer.
 describe('customer management CRM account detail page', () => {
   beforeEach(() => {
     document.body.innerHTML = ''
     claimCrmAccountApi.mockReset()
+    archiveCrmAccountApi.mockReset()
     convertLeadToProspectCustomerApi.mockReset()
     deleteDraftLeadApi.mockReset()
     getCrmAccountApi.mockReset()
+    listCrmSourceRecordsApi.mockReset()
     routerPush.mockReset()
     submitDraftLeadApi.mockReset()
     authContextState.actionCodes = [
@@ -102,7 +118,33 @@ describe('customer management CRM account detail page', () => {
       'crm.account.update'
     ]
     getCrmAccountApi.mockResolvedValue(buildCrmAccount())
+    listCrmSourceRecordsApi.mockResolvedValue({
+      sourceRecords: [
+        {
+          sourceRecordId: 'source-1',
+          crmAccountId: 'crm-account-1',
+          sourceType: 'WEB_RESEARCH',
+          sourceName: 'Research page',
+          capturedAt: '2026-06-24T08:00:00.000Z',
+          capturedByAccountId: 'account-1',
+          capturedByDisplayName: '陈双鹏',
+          externalReference: 'https://northline.example',
+          rawPayload: { url: 'https://northline.example' },
+          note: 'Found through research',
+          isPrimary: true,
+          createdAt: '2026-06-24T08:01:00.000Z',
+          updatedAt: '2026-06-24T08:02:00.000Z'
+        }
+      ]
+    })
     claimCrmAccountApi.mockResolvedValue(buildCrmAccount({ ownerAccountId: 'account-1' }))
+    archiveCrmAccountApi.mockResolvedValue(
+      buildCrmAccount({
+        archiveReason: 'COMPETITOR',
+        archivedAt: '2026-06-23T00:00:00.000Z',
+        recordStatus: 'ARCHIVED'
+      })
+    )
     convertLeadToProspectCustomerApi.mockResolvedValue({
       resultType: 'CONVERTED',
       crmAccount: buildCrmAccount({
@@ -121,6 +163,7 @@ describe('customer management CRM account detail page', () => {
     await flushPromises()
 
     expect(getCrmAccountApi).toHaveBeenCalledWith('tenant-1', 'crm-account-1')
+    expect(listCrmSourceRecordsApi).toHaveBeenCalledWith('tenant-1', 'crm-account-1')
     expect(wrapper.text()).toContain('Northline Bathworks')
     expect(wrapper.text()).toContain('陈双鹏')
     expect(wrapper.text()).not.toContain('刷新')
@@ -129,6 +172,58 @@ describe('customer management CRM account detail page', () => {
     await flushPromises()
 
     expect(routerPush).toHaveBeenCalledWith({ name: 'TenantCrmAccounts' })
+  })
+
+  it('renders real source records in the source tab', async () => {
+    const page = (await import('./customer-management-detail.vue')).default
+    const wrapper = mount(page, { attachTo: document.body })
+
+    await flushPromises()
+    await clickDetailTab(wrapper, '来源记录')
+
+    expect(wrapper.text()).toContain('Research page')
+    expect(wrapper.text()).toContain('主来源')
+    expect(wrapper.text()).toContain('WEB_RESEARCH')
+    expect(wrapper.text()).toContain('陈双鹏')
+    expect(wrapper.text()).toContain('https://northline.example')
+    expect(wrapper.text()).not.toContain('暂无来源记录')
+  })
+
+  it('shows source empty state only when the source API returns no records', async () => {
+    listCrmSourceRecordsApi.mockResolvedValueOnce({ sourceRecords: [] })
+    const page = (await import('./customer-management-detail.vue')).default
+    const wrapper = mount(page, { attachTo: document.body })
+
+    await flushPromises()
+    await clickDetailTab(wrapper, '来源记录')
+
+    expect(wrapper.text()).toContain('暂无来源记录')
+  })
+
+  it('keeps detail header navigation compact and inline on medium-width screens', async () => {
+    const page = (await import('./customer-management-detail.vue')).default
+    const wrapper = mount(page, { attachTo: document.body })
+    const source = readFileSync('apps/tenant-web/src/views/admin/customer-management-detail.vue', 'utf8')
+    const mediumBreakpointStart = source.indexOf('@media (max-width: 991px)')
+    const narrowBreakpointStart = source.indexOf('@media (max-width: 560px)')
+    const mediumBreakpointRules = source.slice(
+      mediumBreakpointStart,
+      narrowBreakpointStart === -1 ? undefined : narrowBreakpointStart
+    )
+
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="crm-account-detail-back"]').classes()).toContain(
+      'crm-account-detail__back-button'
+    )
+    expect(wrapper.get('[data-testid="crm-account-detail-more-actions"]').classes()).toContain(
+      'crm-account-detail__more-button'
+    )
+    expect(mediumBreakpointStart).toBeGreaterThan(-1)
+    expect(mediumBreakpointRules).not.toContain('.crm-account-detail__topbar')
+    expect(mediumBreakpointRules).toMatch(
+      /\.crm-account-detail__actions\s*\{[\s\S]*?justify-content:\s*flex-end/
+    )
   })
 
   it('keeps the responsibility summary only in the overview content', async () => {
@@ -187,6 +282,40 @@ describe('customer management CRM account detail page', () => {
 
     expect(claimCrmAccountApi).toHaveBeenCalledWith('tenant-1', 'crm-account-1')
     expect(wrapper.text()).toContain('陈双鹏')
+  })
+
+  it('archives an active Lead from the detail page with a required CRM reason', async () => {
+    const page = (await import('./customer-management-detail.vue')).default
+    const wrapper = mount(page, { attachTo: document.body })
+
+    await flushPromises()
+    await wrapper.get('[data-testid="crm-account-detail-more-actions"]').trigger('click')
+    await flushPromises()
+    const archiveAction = document.querySelector(
+      '[data-testid="crm-account-detail-archive"]'
+    ) as HTMLElement | null
+    expect(archiveAction).toBeTruthy()
+    archiveAction!.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+    await flushPromises()
+
+    const reasonOption = document.querySelector(
+      '[data-testid="crm-account-detail-archive-reason-COMPETITOR"]'
+    ) as HTMLElement | null
+    expect(reasonOption).toBeTruthy()
+    reasonOption!.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+    await flushPromises()
+    const submitButton = document.querySelector(
+      '[data-testid="crm-account-detail-archive-submit"]'
+    ) as HTMLElement | null
+    expect(submitButton).toBeTruthy()
+    submitButton!.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+    await flushPromises()
+
+    expect(archiveCrmAccountApi).toHaveBeenCalledWith('tenant-1', 'crm-account-1', {
+      archiveReason: 'COMPETITOR'
+    })
+    expect(wrapper.text()).toContain('ARCHIVED')
+    expect(wrapper.text()).toContain('同行')
   })
 
   it('does not expose the owner account id as a display name when identity has no name', async () => {

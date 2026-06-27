@@ -14,6 +14,7 @@ import { HealthModule } from './health/health.module'
 import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware'
 import { GatewaySessionAuthGuard } from './common/guards/gateway-session-auth.guard'
 import { AuthBffModule } from './modules/auth-bff/auth-bff.module'
+import { BrowserActivityBffModule } from './modules/browser-activity-bff/browser-activity-bff.module'
 import { PdaBffModule } from './modules/pda-bff/pda-bff.module'
 import { TerminalDeviceAdminBffModule } from './modules/terminal-device-admin-bff/terminal-device-admin-bff.module'
 import { CollaborationServiceProxyModule } from './modules/collaboration-service/collaboration-service.module'
@@ -90,6 +91,18 @@ export function resolveCollaborationGrpcUrl() {
   return (process.env.NODE_ENV ?? 'development') !== 'production' ? '127.0.0.1:50068' : undefined
 }
 
+/** resolveBrowserActivityGrpcUrl centralizes the local browser-activity-service endpoint used by api-gateway. */
+export function resolveBrowserActivityGrpcUrl() {
+  const host = process.env.BROWSER_ACTIVITY_SERVICE_HOST?.trim()
+  const port = process.env.BROWSER_ACTIVITY_SERVICE_PORT?.trim()
+
+  if (host && port) {
+    return `${normalizeLocalhostGrpcHost(host)}:${port}`
+  }
+
+  return (process.env.NODE_ENV ?? 'development') !== 'production' ? '127.0.0.1:50070' : undefined
+}
+
 /** resolveMesGrpcUrl centralizes the local MES fallback endpoint used by api-gateway. */
 export function resolveMesGrpcUrl() {
   return process.env.MES_SERVICE_HOST && process.env.MES_SERVICE_PORT
@@ -146,6 +159,12 @@ export const permissionGrpcProtoPaths = [
           protoPath: resolveCommonProtoPath('auth_service/auth.proto'),
           packageName: 'auth_service',
           url: resolveAuthGrpcUrl()
+        },
+        [SERVICE_NAMES.BROWSER_ACTIVITY]: {
+          serviceName: SERVICE_NAMES.BROWSER_ACTIVITY,
+          protoPath: resolveCommonProtoPath('browser_activity_service/browser_activity.proto'),
+          packageName: 'browser_activity_service',
+          url: resolveBrowserActivityGrpcUrl()
         },
         [SERVICE_NAMES.ASSET]: {
           serviceName: SERVICE_NAMES.ASSET,
@@ -315,6 +334,7 @@ export const permissionGrpcProtoPaths = [
 
     HealthModule,
     AuthBffModule,
+    BrowserActivityBffModule,
     PdaBffModule,
     TerminalDeviceAdminBffModule,
     CollaborationServiceProxyModule,

@@ -32,7 +32,9 @@ import {
   SEEDED_OTP_IDENTIFIERS,
   SEEDED_TENANT_ROLE_PERMISSION_CODES,
   SEEDED_USERS,
+  SYSTEM_ADMIN_ACCOUNT_IDS,
   SYSTEM_ACCOUNT_IDS,
+  TENANT_SYSTEM_ADMIN_ACCOUNT_ROLE_BINDINGS,
 } from './tenant-web-auth-test-fixtures.mjs';
 
 const require = createRequire(import.meta.url);
@@ -174,7 +176,7 @@ function syncPermissionFoundationForLocalSystemAccount() {
       env: {
         ...process.env,
         DATABASE_URL: PERMISSION_DB_URL,
-        OES_SYSTEM_ADMIN_ACCOUNT_IDS: SYSTEM_ACCOUNT_IDS.join(','),
+        OES_SYSTEM_ADMIN_ACCOUNT_IDS: SYSTEM_ADMIN_ACCOUNT_IDS.join(','),
       },
       stdio: 'inherit',
     },
@@ -582,9 +584,31 @@ async function seedPermission(permission) {
       });
     }
 
-    if (SYSTEM_ACCOUNT_IDS.length > 0) {
+    if (TENANT_SYSTEM_ADMIN_ACCOUNT_ROLE_BINDINGS.length > 0) {
+      await tx.accountRole.deleteMany({
+        where: {
+          accountId: {
+            in: TENANT_SYSTEM_ADMIN_ACCOUNT_ROLE_BINDINGS.map((binding) => binding.accountId),
+          },
+          roleId: systemAdminRole.id,
+        },
+      });
       await tx.accountRole.createMany({
-        data: SYSTEM_ACCOUNT_IDS.map((accountId) => ({
+        data: TENANT_SYSTEM_ADMIN_ACCOUNT_ROLE_BINDINGS.map((binding) => ({
+          accountId: binding.accountId,
+          accountType: AccountType.USER,
+          effectiveAt: null,
+          expiresAt: null,
+          roleId: systemAdminRole.id,
+          scopeLevel: ScopeLevel.TENANT,
+          tenantId: binding.tenantId,
+        })),
+      });
+    }
+
+    if (SYSTEM_ADMIN_ACCOUNT_IDS.length > 0) {
+      await tx.accountRole.createMany({
+        data: SYSTEM_ADMIN_ACCOUNT_IDS.map((accountId) => ({
           accountId,
           accountType: AccountType.USER,
           effectiveAt: null,

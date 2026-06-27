@@ -20,6 +20,7 @@ import {
   Empty,
   Menu,
   Modal,
+  Radio,
   Row,
   Skeleton,
   Tabs,
@@ -30,10 +31,12 @@ import {
 } from 'ant-design-vue'
 
 import {
+  archiveCrmAccountApi,
   claimCrmAccountApi,
   convertLeadToProspectCustomerApi,
   deleteDraftLeadApi,
   getCrmAccountApi,
+  listCrmSourceRecordsApi,
   submitDraftLeadApi
 } from '#/api'
 import NotesTab from '#/components/collaboration-panel/NotesTab.vue'
@@ -41,6 +44,12 @@ import { useAuthContextStore } from '#/store/auth-context'
 
 const fallbackMessages = {
   back: '返回客户资源',
+  archive: '归档',
+  archiveConfirm: '归档后该记录会退出 active 跟进视图，原因会作为 CRM 共识记录。',
+  archiveFailed: '归档失败',
+  archiveReason: '归档原因',
+  archiveReasonRequired: '请选择归档原因',
+  archiveSuccess: '已归档',
   bound: '已绑定主体',
   claim: '认领',
   claimFailed: '认领失败',
@@ -77,6 +86,13 @@ const fallbackMessages = {
   phone: '电话',
   priority: '优先级',
   sourceRecords: '来源记录',
+  sourceRecordsLoadFailed: '来源记录加载失败',
+  primarySource: '主来源',
+  sourceCapturedAt: '获取时间',
+  sourceCapturedBy: '获取人',
+  sourceExternalReference: '外部引用',
+  sourceNote: '说明',
+  sourceRawPayload: '原始载荷',
   submitDraft: '提交 Lead',
   submitDraftFailed: '草稿提交失败',
   submitDraftSuccess: '草稿已提交',
@@ -86,6 +102,21 @@ const fallbackMessages = {
   updatedAt: '更新时间',
   whatsapp: 'WhatsApp'
 }
+
+const archiveReasonOptions: Array<{
+  description: string
+  label: string
+  value: CustomerManagementApi.CrmArchiveReason
+}> = [
+  { description: '真实主体，但不属于当前目标客户范围。', label: '非目标', value: 'NON_TARGET_ACCOUNT' },
+  { description: '调研后确认是同行、竞品或同业竞争主体。', label: '同行', value: 'COMPETITOR' },
+  { description: '真实主体，但商业价值或跟进优先级较低。', label: '低价值', value: 'LOW_VALUE' },
+  { description: '不存在、错误公司、垃圾主体或不可作为 CRM 主体。', label: '无效', value: 'INVALID_TARGET' },
+  { description: '已有其他 CRM 记录承载同一主体。', label: '重复', value: 'DUPLICATE' },
+  { description: '品类、地区或产品线与当前市场不匹配。', label: '不匹配', value: 'NO_FIT' },
+  { description: '长期无法联系或长期没有回应。', label: '无响应', value: 'UNRESPONSIVE' },
+  { description: '不属于以上原因，但需要退出 active 跟进。', label: '其他', value: 'OTHER' }
+]
 
 const authContextStore = useAuthContextStore()
 const route = useRoute()
@@ -100,11 +131,16 @@ const canManageAccount = computed(() => authContextStore.actionCodes.includes('c
 const canUpdateLead = computed(() => authContextStore.actionCodes.includes('crm.account.update'))
 
 const account = ref<CustomerManagementApi.CrmAccount | null>(null)
+const sourceRecords = ref<CustomerManagementApi.CrmSourceRecord[]>([])
 const loading = ref(false)
+const sourceRecordsLoading = ref(false)
 const actionLoading = ref('')
 const errorMessage = ref('')
+const sourceRecordsError = ref('')
 const activeTab = ref('overview')
 const collaborationPanelOpen = ref(false)
+const archiveModalOpen = ref(false)
+const archiveReasonDraft = ref<CustomerManagementApi.CrmArchiveReason | ''>('')
 
 const pageTitle = computed(() => account.value?.displayName || fallbackMessages.title)
 const ownerLabel = computed(() => {
@@ -153,8 +189,15 @@ const canClaimCurrentAccount = computed(
 const canSubmitCurrentDraft = computed(
   () => Boolean(account.value) && canUpdateLead.value && account.value!.recordStatus === 'DRAFT'
 )
+const canArchiveCurrentAccount = computed(
+  () =>
+    Boolean(account.value) &&
+    canManageAccount.value &&
+    account.value!.recordStatus === 'ACTIVE' &&
+    ['LEAD', 'PROSPECT_CUSTOMER'].includes(account.value!.lifecycleStage)
+)
 const hasSecondaryActions = computed(
-  () => canClaimCurrentAccount.value || canSubmitCurrentDraft.value
+  () => canClaimCurrentAccount.value || canSubmitCurrentDraft.value || canArchiveCurrentAccount.value
 )
 const collaborationContext = computed(() => {
   if (!account.value) return null
@@ -179,10 +222,30 @@ async function loadAccount() {
   errorMessage.value = ''
   try {
     account.value = await getCrmAccountApi(activeTenantId.value, crmAccountId.value)
+    await loadSourceRecords()
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : fallbackMessages.detailLoadFailed
   } finally {
     loading.value = false
+  }
+}
+
+/** loadSourceRecords reads CRM-owned source evidence for the current detail account. */
+async function loadSourceRecords() {
+  if (!activeTenantId.value || !crmAccountId.value || !canViewAccount.value) {
+    return
+  }
+
+  sourceRecordsLoading.value = true
+  sourceRecordsError.value = ''
+  try {
+    const result = await listCrmSourceRecordsApi(activeTenantId.value, crmAccountId.value)
+    sourceRecords.value = result.sourceRecords ?? []
+  } catch (error) {
+    sourceRecords.value = []
+    sourceRecordsError.value = error instanceof Error ? error.message : fallbackMessages.sourceRecordsLoadFailed
+  } finally {
+    sourceRecordsLoading.value = false
   }
 }
 
@@ -286,6 +349,40 @@ async function deleteDraft() {
   }
 }
 
+/** openArchiveModal starts the operator-driven CRM archive reason selection flow. */
+function openArchiveModal() {
+  if (!canArchiveCurrentAccount.value) {
+    return
+  }
+  archiveReasonDraft.value = ''
+  archiveModalOpen.value = true
+}
+
+/** archiveAccount sends the selected CRM archive reason to the BFF and refreshes local detail state. */
+async function archiveAccount() {
+  if (!activeTenantId.value || !account.value || !canArchiveCurrentAccount.value) {
+    return
+  }
+  if (!archiveReasonDraft.value) {
+    errorMessage.value = fallbackMessages.archiveReasonRequired
+    return
+  }
+
+  actionLoading.value = 'archive'
+  errorMessage.value = ''
+  try {
+    account.value = await archiveCrmAccountApi(activeTenantId.value, account.value.crmAccountId, {
+      archiveReason: archiveReasonDraft.value
+    })
+    archiveModalOpen.value = false
+    message.success(fallbackMessages.archiveSuccess)
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : fallbackMessages.archiveFailed
+  } finally {
+    actionLoading.value = ''
+  }
+}
+
 /** stageLabel maps CRM lifecycle values into concise operational labels. */
 function stageLabel(stage?: string) {
   if (stage === 'PROSPECT_CUSTOMER') return '潜在客户'
@@ -305,6 +402,34 @@ function partyTypeLabel(type?: string) {
   if (type === 'ORGANIZATION') return '组织'
   if (type === 'PERSON') return '个人'
   return '未知'
+}
+
+/** archiveReasonLabel maps CRM archive reason enum values to display labels without deriving the reason. */
+function archiveReasonLabel(reason?: string) {
+  return archiveReasonOptions.find((option) => option.value === reason)?.label ?? '-'
+}
+
+/** sourceTypeLabel maps CRM source types into compact operator-facing labels. */
+function sourceTypeLabel(sourceType?: string) {
+  const labels: Record<string, string> = {
+    AD_CAMPAIGN: '广告投放',
+    BROWSER_EXTENSION: '浏览器插件',
+    BUSINESS_CARD: '名片',
+    EXHIBITION_SCAN: '展会扫码',
+    IMPORTED_LIST: '名单导入',
+    OTHER: '其他',
+    PEER_TRANSFER: '同事转交',
+    REFERRAL: '转介绍',
+    SOCIAL_MEDIA: '社交媒体',
+    WEB_RESEARCH: '网络调研',
+    WEBSITE_FORM: '官网表单'
+  }
+  return labels[sourceType ?? ''] ?? sourceType ?? '-'
+}
+
+/** formatRawPayload keeps technical source payloads inspectable but compact. */
+function formatRawPayload(value: Record<string, unknown> | null) {
+  return value ? JSON.stringify(value) : ''
 }
 
 /** formatDateTime keeps optional timestamps compact in CRM detail descriptions. */
@@ -334,7 +459,7 @@ onMounted(() => {
         <Skeleton v-if="loading && !account" active />
         <template v-else-if="account">
           <div class="crm-account-detail__topbar">
-            <Button data-testid="crm-account-detail-back" @click="goBack">
+            <Button class="crm-account-detail__back-button" data-testid="crm-account-detail-back" @click="goBack">
               <template #icon>
                 <IconifyIcon icon="lucide:arrow-left" />
               </template>
@@ -342,7 +467,7 @@ onMounted(() => {
             </Button>
             <div class="crm-account-detail__actions">
               <Dropdown v-if="hasSecondaryActions" :trigger="['click']">
-                <Button data-testid="crm-account-detail-more-actions">
+                <Button class="crm-account-detail__more-button" data-testid="crm-account-detail-more-actions">
                   {{ fallbackMessages.moreActions }}
                   <template #icon>
                     <IconifyIcon icon="lucide:chevron-down" />
@@ -378,6 +503,16 @@ onMounted(() => {
                     >
                       {{ fallbackMessages.deleteDraft }}
                     </Menu.Item>
+                    <Menu.Item
+                      v-if="canArchiveCurrentAccount"
+                      key="archive"
+                      danger
+                      data-testid="crm-account-detail-archive"
+                      :disabled="actionLoading === 'archive'"
+                      @click="openArchiveModal"
+                    >
+                      {{ fallbackMessages.archive }}
+                    </Menu.Item>
                   </Menu>
                 </template>
               </Dropdown>
@@ -403,8 +538,11 @@ onMounted(() => {
               <div class="crm-account-detail__tags">
                 <Tag :color="stageColor(account.lifecycleStage)">{{ stageLabel(account.lifecycleStage) }}</Tag>
                 <Tag color="processing">{{ fallbackMessages.priority }} {{ account.priority || '-' }}</Tag>
-                <Tag :color="account.recordStatus === 'DRAFT' ? 'default' : 'success'">
+                <Tag :color="account.recordStatus === 'ARCHIVED' ? 'warning' : account.recordStatus === 'DRAFT' ? 'default' : 'success'">
                   {{ account.recordStatus }}
+                </Tag>
+                <Tag v-if="account.archiveReason" color="warning">
+                  {{ archiveReasonLabel(account.archiveReason) }}
                 </Tag>
               </div>
               <div class="crm-account-detail__meta">
@@ -487,13 +625,60 @@ onMounted(() => {
                       <DescriptionsItem :label="fallbackMessages.updatedAt">
                         {{ formatDateTime(account.updatedAt) }}
                       </DescriptionsItem>
+                      <DescriptionsItem v-if="account.recordStatus === 'ARCHIVED'" :label="fallbackMessages.archiveReason">
+                        {{ archiveReasonLabel(account.archiveReason) }}
+                      </DescriptionsItem>
+                      <DescriptionsItem v-if="account.recordStatus === 'ARCHIVED'" :label="fallbackMessages.archive">
+                        {{ formatDateTime(account.archivedAt) }}
+                      </DescriptionsItem>
                     </Descriptions>
                   </section>
                 </div>
               </Tabs.TabPane>
 
               <Tabs.TabPane key="source" :tab="fallbackMessages.sourceRecords">
-                <Empty :description="fallbackMessages.noSourceRecords" />
+                <div class="crm-account-detail__source-panel">
+                  <Skeleton v-if="sourceRecordsLoading" active />
+                  <Alert
+                    v-else-if="sourceRecordsError"
+                    :message="sourceRecordsError"
+                    show-icon
+                    type="error"
+                  />
+                  <Empty v-else-if="!sourceRecords.length" :description="fallbackMessages.noSourceRecords" />
+                  <div v-else class="crm-account-detail__source-list">
+                    <article
+                      v-for="source in sourceRecords"
+                      :key="source.sourceRecordId"
+                      class="crm-account-detail__source-row"
+                      data-testid="crm-account-detail-source-record"
+                    >
+                      <div class="crm-account-detail__source-heading">
+                        <div class="crm-account-detail__source-title">
+                          <strong>{{ source.sourceName || sourceTypeLabel(source.sourceType) }}</strong>
+                          <Tag v-if="source.isPrimary" color="gold">{{ fallbackMessages.primarySource }}</Tag>
+                          <Tag>{{ source.sourceType }}</Tag>
+                        </div>
+                      </div>
+                      <div class="crm-account-detail__source-meta">
+                        <span>{{ fallbackMessages.sourceCapturedAt }} {{ formatDateTime(source.capturedAt) }}</span>
+                        <span>{{ fallbackMessages.sourceCapturedBy }} {{ source.capturedByDisplayName || source.capturedByAccountId || '-' }}</span>
+                      </div>
+                      <div v-if="source.externalReference" class="crm-account-detail__source-field">
+                        <span>{{ fallbackMessages.sourceExternalReference }}</span>
+                        <code>{{ source.externalReference }}</code>
+                      </div>
+                      <div v-if="source.note" class="crm-account-detail__source-field">
+                        <span>{{ fallbackMessages.sourceNote }}</span>
+                        <p>{{ source.note }}</p>
+                      </div>
+                      <details v-if="source.rawPayload" class="crm-account-detail__source-raw">
+                        <summary>{{ fallbackMessages.sourceRawPayload }}</summary>
+                        <pre>{{ formatRawPayload(source.rawPayload) }}</pre>
+                      </details>
+                    </article>
+                  </div>
+                </div>
               </Tabs.TabPane>
 
               <Tabs.TabPane key="contact" :tab="fallbackMessages.contact">
@@ -546,6 +731,54 @@ onMounted(() => {
       >
         <NotesTab :object-context="collaborationContext" />
       </Drawer>
+
+      <Modal
+        v-model:open="archiveModalOpen"
+        cancel-text="取消"
+        :title="fallbackMessages.archive"
+      >
+        <div class="crm-account-detail__archive-form">
+          <Alert
+            :message="fallbackMessages.archiveConfirm"
+            show-icon
+            type="warning"
+          />
+          <div class="crm-account-detail__archive-label">
+            {{ fallbackMessages.archiveReason }}
+          </div>
+          <Radio.Group
+            v-model:value="archiveReasonDraft"
+            class="crm-account-detail__archive-options"
+            data-testid="crm-account-detail-archive-reason"
+          >
+            <label
+              v-for="option in archiveReasonOptions"
+              :key="option.value"
+              class="crm-account-detail__archive-option"
+              :class="{ 'crm-account-detail__archive-option--selected': archiveReasonDraft === option.value }"
+              :data-testid="`crm-account-detail-archive-reason-${option.value}`"
+            >
+              <Radio :value="option.value" />
+              <span class="crm-account-detail__archive-option-copy">
+                <strong>{{ option.label }}</strong>
+                <span>{{ option.description }}</span>
+              </span>
+            </label>
+          </Radio.Group>
+        </div>
+        <template #footer>
+          <Button @click="archiveModalOpen = false">取消</Button>
+          <Button
+            data-testid="crm-account-detail-archive-submit"
+            :disabled="!archiveReasonDraft"
+            :loading="actionLoading === 'archive'"
+            type="primary"
+            @click="archiveAccount"
+          >
+            {{ fallbackMessages.archive }}
+          </Button>
+        </template>
+      </Modal>
     </div>
   </Page>
 </template>
@@ -584,9 +817,25 @@ onMounted(() => {
 }
 
 .crm-account-detail__topbar {
+  align-items: center;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 18px;
+}
+
+.crm-account-detail__back-button,
+.crm-account-detail__more-button {
+  align-items: center;
+  display: inline-flex;
+  flex: 0 0 auto;
+  justify-content: center;
+  min-width: 0;
+  width: auto;
+}
+
+.crm-account-detail__back-button {
+  padding-inline: 12px;
 }
 
 .crm-account-detail__actions {
@@ -595,6 +844,7 @@ onMounted(() => {
   flex-wrap: wrap;
   gap: 8px;
   justify-content: flex-end;
+  margin-left: auto;
   min-width: 0;
 }
 
@@ -704,6 +954,96 @@ onMounted(() => {
   font-weight: 700;
 }
 
+.crm-account-detail__source-panel {
+  min-width: 0;
+}
+
+.crm-account-detail__source-list {
+  display: grid;
+  gap: 12px;
+}
+
+.crm-account-detail__source-row {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--crm-detail-border);
+  border-radius: 8px;
+  background: var(--crm-detail-panel);
+  padding: 12px 14px;
+}
+
+.crm-account-detail__source-heading,
+.crm-account-detail__source-title,
+.crm-account-detail__source-meta,
+.crm-account-detail__source-field {
+  min-width: 0;
+}
+
+.crm-account-detail__source-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.crm-account-detail__source-title strong {
+  color: var(--crm-detail-text);
+  font-size: 14px;
+}
+
+.crm-account-detail__source-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  color: var(--crm-detail-muted);
+  font-size: 12px;
+}
+
+.crm-account-detail__source-field {
+  display: grid;
+  gap: 4px;
+  color: var(--crm-detail-text);
+  font-size: 13px;
+}
+
+.crm-account-detail__source-field > span {
+  color: var(--crm-detail-muted);
+  font-size: 12px;
+}
+
+.crm-account-detail__source-field code {
+  overflow-wrap: anywhere;
+  border-radius: 6px;
+  background: hsl(var(--background) / 0.7);
+  padding: 4px 6px;
+  color: var(--crm-detail-text);
+  font-size: 12px;
+}
+
+.crm-account-detail__source-field p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.crm-account-detail__source-raw {
+  color: var(--crm-detail-muted);
+  font-size: 12px;
+}
+
+.crm-account-detail__source-raw summary {
+  cursor: pointer;
+}
+
+.crm-account-detail__source-raw pre {
+  overflow: auto;
+  margin: 8px 0 0;
+  border-radius: 6px;
+  background: hsl(var(--background) / 0.7);
+  padding: 8px;
+  color: var(--crm-detail-text);
+  font-size: 12px;
+}
+
 .crm-account-detail__side {
   position: sticky;
   top: 76px;
@@ -711,15 +1051,75 @@ onMounted(() => {
   gap: 16px;
 }
 
+.crm-account-detail__archive-form {
+  display: grid;
+  gap: 14px;
+}
+
+.crm-account-detail__archive-label {
+  color: var(--crm-detail-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.crm-account-detail__archive-options {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+}
+
+.crm-account-detail__archive-option {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: flex-start;
+  width: 100%;
+  border: 1px solid var(--crm-detail-border);
+  border-radius: 8px;
+  background: var(--crm-detail-bg);
+  cursor: pointer;
+  padding: 10px 12px;
+  transition:
+    border-color 0.18s ease,
+    background-color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.crm-account-detail__archive-option:hover,
+.crm-account-detail__archive-option--selected {
+  border-color: hsl(var(--primary) / 0.42);
+  background: hsl(var(--primary) / 0.045);
+}
+
+.crm-account-detail__archive-option:active {
+  transform: translateY(1px);
+}
+
+.crm-account-detail__archive-option-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.crm-account-detail__archive-option-copy strong {
+  color: var(--crm-detail-text);
+  font-size: 13px;
+}
+
+.crm-account-detail__archive-option-copy span {
+  color: var(--crm-detail-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 @media (max-width: 991px) {
-  .crm-account-detail__topbar,
   .crm-account-detail__identity {
     align-items: stretch;
     flex-direction: column;
   }
 
   .crm-account-detail__actions {
-    justify-content: flex-start;
+    justify-content: flex-end;
   }
 
   .crm-account-detail__tabs :deep(.ant-tabs-nav) {

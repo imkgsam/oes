@@ -1,0 +1,677 @@
+<style>
+  .ba-wrap {
+    --ink: #111827;
+    --muted: #64748b;
+    --line: #d8e0ea;
+    --panel: #ffffff;
+    --soft: #f5f8fc;
+    --audit: #0f766e;
+    --blue: #2563eb;
+    --amber: #b45309;
+    display: grid;
+    gap: 22px;
+  }
+
+  .ba-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.8fr);
+    gap: 18px;
+    align-items: stretch;
+  }
+
+  .ba-hero-main,
+  .ba-hero-side,
+  .ba-card {
+    border: 1px solid rgba(148, 163, 184, 0.34);
+    background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+    box-shadow: 0 22px 50px -34px rgba(15, 23, 42, 0.28);
+  }
+
+  .ba-hero-main {
+    min-height: 168px;
+    padding: 30px;
+    border-radius: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ba-hero-main::after {
+    content: "";
+    position: absolute;
+    right: -42px;
+    top: 18px;
+    width: 210px;
+    height: 210px;
+    border-radius: 999px;
+    border: 1px solid rgba(37, 99, 235, 0.18);
+    background:
+      repeating-linear-gradient(90deg, rgba(37, 99, 235, 0.1) 0 1px, transparent 1px 18px),
+      radial-gradient(circle at 38% 38%, rgba(15, 118, 110, 0.14), transparent 42%);
+  }
+
+  .ba-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 999px;
+    background: rgba(37, 99, 235, 0.08);
+    color: #1d4ed8;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 6px 10px;
+  }
+
+  .ba-hero h2 {
+    margin: 22px 0 10px;
+    color: var(--ink);
+    font-size: clamp(30px, 3vw, 46px);
+    letter-spacing: 0;
+    line-height: 1.04;
+  }
+
+  .ba-hero p {
+    margin: 0;
+    max-width: 720px;
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.7;
+  }
+
+  .ba-hero-side {
+    border-radius: 24px;
+    padding: 22px;
+    display: grid;
+    gap: 14px;
+  }
+
+  .ba-switch {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .ba-switch b {
+    display: block;
+    color: var(--ink);
+    font-size: 15px;
+  }
+
+  .ba-switch span {
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .ba-toggle {
+    width: 48px;
+    height: 26px;
+    border-radius: 999px;
+    background: #0f766e;
+    position: relative;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+  }
+
+  .ba-toggle::after {
+    content: "";
+    position: absolute;
+    right: 4px;
+    top: 4px;
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    background: white;
+  }
+
+  .ba-stat-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+
+  .ba-stat {
+    border-radius: 16px;
+    background: var(--soft);
+    padding: 13px;
+  }
+
+  .ba-stat span {
+    display: block;
+    color: var(--muted);
+    font-size: 11px;
+  }
+
+  .ba-stat strong {
+    display: block;
+    margin-top: 6px;
+    color: var(--ink);
+    font-size: 20px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+
+  .ba-options {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+  }
+
+  .ba-card {
+    cursor: pointer;
+    border-radius: 22px;
+    overflow: hidden;
+    transition: transform 0.26s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.26s, box-shadow 0.26s;
+  }
+
+  .ba-card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(37, 99, 235, 0.44);
+    box-shadow: 0 26px 70px -38px rgba(15, 23, 42, 0.4);
+  }
+
+  .ba-card.selected,
+  .ba-card[aria-pressed="true"] {
+    border-color: rgba(15, 118, 110, 0.72);
+    box-shadow: 0 26px 70px -34px rgba(15, 118, 110, 0.38);
+  }
+
+  .ba-preview {
+    min-height: 322px;
+    padding: 14px;
+    background: #eef4fb;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .ba-window {
+    height: 100%;
+    min-height: 294px;
+    border-radius: 16px;
+    background: #f9fbfe;
+    overflow: hidden;
+    border: 1px solid rgba(148, 163, 184, 0.42);
+  }
+
+  .ba-topbar {
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 12px;
+    color: #475569;
+    font-size: 10px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.32);
+    background: rgba(255, 255, 255, 0.74);
+  }
+
+  .ba-shell {
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .ba-mini-header {
+    display: grid;
+    grid-template-columns: 1.2fr 0.55fr;
+    gap: 10px;
+  }
+
+  .ba-block {
+    border: 1px solid rgba(148, 163, 184, 0.32);
+    background: white;
+    border-radius: 13px;
+    padding: 10px;
+  }
+
+  .ba-line {
+    height: 7px;
+    border-radius: 999px;
+    background: #cbd5e1;
+    margin-bottom: 7px;
+  }
+
+  .ba-line.short {
+    width: 52%;
+  }
+
+  .ba-kpis {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+
+  .ba-kpi {
+    min-height: 54px;
+    border-radius: 12px;
+    background: white;
+    border: 1px solid rgba(148, 163, 184, 0.32);
+    padding: 9px;
+  }
+
+  .ba-kpi b {
+    display: block;
+    color: #111827;
+    font-size: 18px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+
+  .ba-kpi span {
+    display: block;
+    color: #64748b;
+    font-size: 9px;
+    margin-top: 4px;
+  }
+
+  .ba-a-grid {
+    display: grid;
+    grid-template-columns: 0.82fr 1.18fr 0.78fr;
+    gap: 8px;
+  }
+
+  .ba-rank-row {
+    display: grid;
+    grid-template-columns: 24px 1fr 48px;
+    gap: 7px;
+    align-items: center;
+    padding: 7px 0;
+    border-bottom: 1px solid #eef2f7;
+    font-size: 10px;
+    color: #334155;
+  }
+
+  .ba-dot {
+    width: 22px;
+    height: 22px;
+    border-radius: 9px;
+    background: linear-gradient(135deg, #2563eb, #0f766e);
+  }
+
+  .ba-chart {
+    height: 118px;
+    border-radius: 12px;
+    background:
+      linear-gradient(180deg, transparent 0 24%, rgba(148, 163, 184, 0.18) 24% 25%, transparent 25% 49%, rgba(148, 163, 184, 0.18) 49% 50%, transparent 50% 74%, rgba(148, 163, 184, 0.18) 74% 75%, transparent 75%),
+      linear-gradient(135deg, rgba(37, 99, 235, 0.14), rgba(15, 118, 110, 0.1));
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ba-chart::after {
+    content: "";
+    position: absolute;
+    inset: 42px 12px 24px 12px;
+    border-radius: 50% 42% 0 0;
+    border-top: 3px solid #2563eb;
+    transform: skewX(-14deg);
+  }
+
+  .ba-bars {
+    display: grid;
+    gap: 9px;
+  }
+
+  .ba-bar {
+    height: 8px;
+    border-radius: 999px;
+    background: #e2e8f0;
+    overflow: hidden;
+  }
+
+  .ba-bar i {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #2563eb, #0f766e);
+  }
+
+  .ba-b-grid {
+    display: grid;
+    grid-template-columns: 0.78fr 1.45fr 0.72fr;
+    gap: 8px;
+  }
+
+  .ba-profile {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 8px;
+    border-radius: 12px;
+    background: #f8fafc;
+    margin-bottom: 7px;
+  }
+
+  .ba-profile.active {
+    background: #e6f4f1;
+    outline: 1px solid rgba(15, 118, 110, 0.24);
+  }
+
+  .ba-avatar {
+    width: 26px;
+    height: 26px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #0f766e, #2563eb);
+    color: white;
+    display: grid;
+    place-items: center;
+    font-size: 10px;
+    font-weight: 800;
+  }
+
+  .ba-timeline {
+    display: grid;
+    gap: 8px;
+  }
+
+  .ba-visit {
+    display: grid;
+    grid-template-columns: 46px 1fr 52px;
+    gap: 9px;
+    align-items: start;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #edf2f7;
+  }
+
+  .ba-visit time {
+    color: #2563eb;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 10px;
+    line-height: 1.4;
+  }
+
+  .ba-visit b {
+    display: block;
+    color: #111827;
+    font-size: 11px;
+  }
+
+  .ba-visit small {
+    color: #64748b;
+    font-size: 9px;
+  }
+
+  .ba-pill {
+    border-radius: 999px;
+    background: #eef2ff;
+    color: #1d4ed8;
+    padding: 4px 7px;
+    text-align: center;
+    font-size: 9px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+
+  .ba-c-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .ba-wide {
+    grid-column: span 2;
+  }
+
+  .ba-heat {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 4px;
+  }
+
+  .ba-heat i {
+    aspect-ratio: 1;
+    border-radius: 5px;
+    background: rgba(37, 99, 235, 0.13);
+  }
+
+  .ba-heat i:nth-child(3n) {
+    background: rgba(15, 118, 110, 0.32);
+  }
+
+  .ba-heat i:nth-child(5n) {
+    background: rgba(180, 83, 9, 0.34);
+  }
+
+  .ba-url {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    color: #334155;
+    font-size: 10px;
+    padding: 7px 0;
+    border-bottom: 1px solid #edf2f7;
+  }
+
+  .ba-body {
+    padding: 18px;
+  }
+
+  .ba-body h3 {
+    margin: 0 0 7px;
+    color: var(--ink);
+    font-size: 18px;
+  }
+
+  .ba-body p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  .ba-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 14px;
+  }
+
+  .ba-tags span {
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: #334155;
+    font-size: 11px;
+    padding: 5px 8px;
+    background: #f8fafc;
+  }
+
+  .ba-rec {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 16px;
+    align-items: center;
+    border-radius: 22px;
+    border: 1px solid rgba(15, 118, 110, 0.28);
+    background: linear-gradient(135deg, rgba(15, 118, 110, 0.08), rgba(37, 99, 235, 0.06));
+    padding: 18px 20px;
+  }
+
+  .ba-rec b {
+    color: #0f766e;
+  }
+
+  .ba-rec p {
+    margin: 5px 0 0;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .ba-rec .ba-badge {
+    border-radius: 999px;
+    background: #0f766e;
+    color: white;
+    font-weight: 800;
+    padding: 8px 12px;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 1040px) {
+    .ba-hero,
+    .ba-options {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<div class="ba-wrap">
+  <section class="ba-hero">
+    <div class="ba-hero-main">
+      <div class="ba-eyebrow">Browser Activity Audit / UI Direction</div>
+      <h2>浏览器访问审计工作台方案选择</h2>
+      <p>
+        三个方案都遵守已冻结边界：只展示访问事实、活跃/空闲/前台时长、domain 聚合、URL 搜索和员工时间线；不做截图、键盘内容、页面正文、风险评分或自动绩效判断。
+      </p>
+    </div>
+    <div class="ba-hero-side">
+      <div class="ba-switch">
+        <div>
+          <b>租户审计开关</b>
+          <span>P1 是租户级总开关</span>
+        </div>
+        <div class="ba-toggle"></div>
+      </div>
+      <div class="ba-stat-row">
+        <div class="ba-stat"><span>active</span><strong>18.6h</strong></div>
+        <div class="ba-stat"><span>idle</span><strong>3.4h</strong></div>
+        <div class="ba-stat"><span>URLs</span><strong>412</strong></div>
+      </div>
+      <p style="margin:0;color:#64748b;font-size:13px;line-height:1.6">
+        请点击下面一个方案；如果你想混合，也可以点击最接近的方向后在对话里说明。
+      </p>
+    </div>
+  </section>
+
+  <section class="ba-options">
+    <article class="ba-card" data-choice="A-audit-cockpit" onclick="toggleSelect(this)" aria-pressed="false">
+      <div class="ba-preview">
+        <div class="ba-window">
+          <div class="ba-topbar">权限治理 / 浏览器访问审计 <span>策略开启</span></div>
+          <div class="ba-shell">
+            <div class="ba-mini-header">
+              <div class="ba-block">
+                <div class="ba-line" style="width:64%"></div>
+                <div class="ba-line short"></div>
+              </div>
+              <div class="ba-block ba-bars">
+                <div class="ba-bar"><i style="width:78%"></i></div>
+                <div class="ba-bar"><i style="width:52%"></i></div>
+              </div>
+            </div>
+            <div class="ba-kpis">
+              <div class="ba-kpi"><b>42.8h</b><span>活跃浏览</span></div>
+              <div class="ba-kpi"><b>9.2h</b><span>空闲</span></div>
+              <div class="ba-kpi"><b>28</b><span>在线员工</span></div>
+              <div class="ba-kpi"><b>812</b><span>URL</span></div>
+            </div>
+            <div class="ba-a-grid">
+              <div class="ba-block">
+                <div class="ba-rank-row"><i class="ba-dot"></i><span>林晓雯</span><b>7.4h</b></div>
+                <div class="ba-rank-row"><i class="ba-dot"></i><span>许嘉豪</span><b>6.8h</b></div>
+                <div class="ba-rank-row"><i class="ba-dot"></i><span>陈双鹏</span><b>5.9h</b></div>
+              </div>
+              <div class="ba-block"><div class="ba-chart"></div></div>
+              <div class="ba-block ba-bars">
+                <div class="ba-bar"><i style="width:88%"></i></div>
+                <div class="ba-bar"><i style="width:64%"></i></div>
+                <div class="ba-bar"><i style="width:42%"></i></div>
+                <div class="ba-bar"><i style="width:32%"></i></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="ba-body">
+        <h3>A. 审计驾驶舱</h3>
+        <p>先看全局状态、排名、趋势和 domain 结构，再下钻员工。管理台感最强，适合租户管理员每天快速扫描。</p>
+        <div class="ba-tags"><span>全局优先</span><span>排名突出</span><span>适合日常巡检</span></div>
+      </div>
+    </article>
+
+    <article class="ba-card" data-choice="B-employee-timeline" onclick="toggleSelect(this)" aria-pressed="false">
+      <div class="ba-preview">
+        <div class="ba-window">
+          <div class="ba-topbar">权限治理 / 浏览器访问审计 <span>员工视角</span></div>
+          <div class="ba-shell">
+            <div class="ba-mini-header">
+              <div class="ba-block">
+                <div class="ba-line" style="width:58%"></div>
+                <div class="ba-line short"></div>
+              </div>
+              <div class="ba-block">
+                <div class="ba-line" style="width:76%"></div>
+                <div class="ba-line" style="width:48%"></div>
+              </div>
+            </div>
+            <div class="ba-b-grid">
+              <div class="ba-block">
+                <div class="ba-profile active"><i class="ba-avatar">陈</i><div><div class="ba-line" style="width:68px"></div><div class="ba-line" style="width:46px"></div></div></div>
+                <div class="ba-profile"><i class="ba-avatar">林</i><div><div class="ba-line" style="width:64px"></div><div class="ba-line" style="width:38px"></div></div></div>
+                <div class="ba-profile"><i class="ba-avatar">许</i><div><div class="ba-line" style="width:60px"></div><div class="ba-line" style="width:42px"></div></div></div>
+              </div>
+              <div class="ba-block ba-timeline">
+                <div class="ba-visit"><time>09:12</time><div><b>supplier-portal.example</b><small>采购报价页 / 前台 14m / 空闲 2m</small></div><span class="ba-pill">12m</span></div>
+                <div class="ba-visit"><time>09:37</time><div><b>mail.workspace.local</b><small>邮件处理 / 前台 21m / 空闲 0m</small></div><span class="ba-pill">21m</span></div>
+                <div class="ba-visit"><time>10:06</time><div><b>docs.oes.internal</b><small>工单文档 / 前台 18m / 空闲 5m</small></div><span class="ba-pill">13m</span></div>
+                <div class="ba-visit"><time>10:42</time><div><b>vendor-catalog.example</b><small>产品目录 / 前台 9m / 空闲 1m</small></div><span class="ba-pill">8m</span></div>
+              </div>
+              <div class="ba-block ba-bars">
+                <div class="ba-bar"><i style="width:86%"></i></div>
+                <div class="ba-bar"><i style="width:72%"></i></div>
+                <div class="ba-bar"><i style="width:58%"></i></div>
+                <div class="ba-bar"><i style="width:41%"></i></div>
+                <div class="ba-bar"><i style="width:31%"></i></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="ba-body">
+        <h3>B. 员工时间线中心</h3>
+        <p>左侧切员工，中间还原访问历史，右侧看 domain 和 URL 聚合。最贴近“某个员工访问了什么、活跃多久”的原始目标。</p>
+        <div class="ba-tags"><span>员工优先</span><span>时间线强</span><span>证据追溯清晰</span></div>
+      </div>
+    </article>
+
+    <article class="ba-card" data-choice="C-analytics-showcase" onclick="toggleSelect(this)" aria-pressed="false">
+      <div class="ba-preview">
+        <div class="ba-window">
+          <div class="ba-topbar">权限治理 / 浏览器访问审计 <span>Analytics 展示</span></div>
+          <div class="ba-shell">
+            <div class="ba-kpis">
+              <div class="ba-kpi"><b>47.2%</b><span>活跃占比</span></div>
+              <div class="ba-kpi"><b>6.3h</b><span>峰值</span></div>
+              <div class="ba-kpi"><b>124</b><span>domains</span></div>
+              <div class="ba-kpi"><b>31</b><span>employees</span></div>
+            </div>
+            <div class="ba-c-grid">
+              <div class="ba-block ba-wide"><div class="ba-chart" style="height:96px"></div></div>
+              <div class="ba-block">
+                <div class="ba-heat">
+                  <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                  <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                  <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                </div>
+              </div>
+              <div class="ba-block">
+                <div class="ba-url"><span>mail.workspace.local</span><b>8.1h</b></div>
+                <div class="ba-url"><span>supplier-portal.example</span><b>4.7h</b></div>
+                <div class="ba-url"><span>docs.oes.internal</span><b>3.9h</b></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="ba-body">
+        <h3>C. Analytics 展示台</h3>
+        <p>更像 `/analytics`：趋势、热力和大指标更醒目，视觉冲击最强。适合展示，但需要控制，避免弱化审计工具属性。</p>
+        <div class="ba-tags"><span>展示强</span><span>图表优先</span><span>适合大屏汇报</span></div>
+      </div>
+    </article>
+  </section>
+
+  <section class="ba-rec">
+    <div>
+      <b>我的推荐：B 为主，吸收 C 的顶部图表质感</b>
+      <p>
+        用员工时间线保证审计动作清晰，再用顶部趋势、domain 热力和指标带提供“更炫酷”的第一眼效果。这样不会变成 CRM 分析台，也不会像纯大屏一样牺牲操作效率。
+      </p>
+    </div>
+    <div class="ba-badge">Recommended</div>
+  </section>
+</div>

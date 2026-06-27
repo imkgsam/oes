@@ -33,7 +33,14 @@ type NavigationLandingSeed = {
   terminal: string
 }
 
-const NAVIGATION_VISIBILITY_ENTRY_KEYS_BY_ROLE_CODE: Record<string, string[]> = {
+type NavigationVisibilityRule = string | { entryKey: string; terminal: string }
+
+const BROWSER_EXTENSION_NAVIGATION_TERMINAL = 'BROWSER_EXTENSION'
+
+const NAVIGATION_VISIBILITY_ENTRY_KEYS_BY_ROLE_CODE: Record<
+  string,
+  NavigationVisibilityRule[]
+> = {
   'system.admin': [
     'platform.home',
     'admin.auth-session-management',
@@ -64,6 +71,8 @@ const NAVIGATION_VISIBILITY_ENTRY_KEYS_BY_ROLE_CODE: Record<string, string[]> = 
     'tenant-settings.login-mfa',
     'crm.accounts',
     'crm.pool',
+    'admin.employee-performance-console',
+    'browser-activity.audit-workbench',
     'public-entry.business-cards',
     'public-entry.short-links'
   ],
@@ -82,8 +91,25 @@ const NAVIGATION_VISIBILITY_ENTRY_KEYS_BY_ROLE_CODE: Record<string, string[]> = 
   ],
   'mes.forming_workshop.supervisor': ['workbench.home', 'mes.mold-management'],
   'extension.designer': ['workbench.home'],
-  'crm.sales': ['workbench.home', 'crm.accounts', 'crm.pool'],
-  'crm.sales_manager': ['workbench.home', 'crm.accounts', 'crm.pool']
+  'crm.sales': [
+    'workbench.home',
+    'crm.accounts',
+    'crm.pool',
+    {
+      entryKey: 'extension.crm.workspace',
+      terminal: BROWSER_EXTENSION_NAVIGATION_TERMINAL
+    }
+  ],
+  'crm.sales_manager': [
+    'workbench.home',
+    'crm.accounts',
+    'crm.pool',
+    'admin.employee-performance-console',
+    {
+      entryKey: 'extension.crm.workspace',
+      terminal: BROWSER_EXTENSION_NAVIGATION_TERMINAL
+    }
+  ]
 }
 
 /** DEPRECATED_NAVIGATION_ENTRY_KEYS disables removed built-in entries during seed sync. */
@@ -275,12 +301,32 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     entryType: 'page'
   },
   {
+    entryKey: 'admin.employee-performance-console',
+    name: 'CRM 员工绩效分析',
+    description: '租户侧 CRM 管理者按员工查看 CRM 来源活动与绩效概览的只读分析入口。',
+    featureKey: 'crm',
+    supportedTerminals: ['WEB'],
+    registryPriority: 18,
+    enabled: true,
+    entryType: 'page'
+  },
+  {
+    entryKey: 'browser-activity.audit-workbench',
+    name: '浏览器访问审计',
+    description: '租户管理员查看员工浏览器访问历史、活跃浏览时长、domain 聚合与 URL 查询的事实审计入口。',
+    featureKey: 'browser-activity',
+    supportedTerminals: ['WEB'],
+    registryPriority: 19,
+    enabled: true,
+    entryType: 'page'
+  },
+  {
     entryKey: 'sales.quote-orders',
     name: '报价与订单',
     description: '租户侧 sales quote-order phase 1 最小闭环入口。',
     featureKey: 'sales',
     supportedTerminals: ['WEB'],
-    registryPriority: 18,
+    registryPriority: 20,
     enabled: true,
     entryType: 'page'
   },
@@ -290,7 +336,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '租户侧 procurement phase 1 PR / PO / receiving 最小闭环入口。',
     featureKey: 'procurement',
     supportedTerminals: ['WEB'],
-    registryPriority: 19,
+    registryPriority: 21,
     enabled: true,
     entryType: 'page'
   },
@@ -300,7 +346,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '租户侧 finance phase 1A 资金账户、应收、汇率与收款核销最小入口。',
     featureKey: 'finance',
     supportedTerminals: ['WEB'],
-    registryPriority: 20,
+    registryPriority: 22,
     enabled: true,
     entryType: 'page'
   },
@@ -310,7 +356,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '租户侧 WMS phase 1 仓库、库位、收货与库存查询最小入口。',
     featureKey: 'wms',
     supportedTerminals: ['WEB'],
-    registryPriority: 21,
+    registryPriority: 23,
     enabled: true,
     entryType: 'page'
   },
@@ -320,7 +366,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '租户侧 MES 模具管理、产线模具现况与注浆记录最小闭环入口。',
     featureKey: 'mes',
     supportedTerminals: ['WEB'],
-    registryPriority: 22,
+    registryPriority: 24,
     enabled: true,
     entryType: 'page'
   },
@@ -330,7 +376,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '系统账号 MFA 场景、因子启用状态与展示优先级配置入口。',
     featureKey: 'auth',
     supportedTerminals: ['WEB'],
-    registryPriority: 23,
+    registryPriority: 25,
     enabled: true,
     entryType: 'page'
   },
@@ -340,7 +386,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '系统管理员维护平台级 terminal 登录流与各 terminal MFA 默认开关的账号安全入口。',
     featureKey: 'auth',
     supportedTerminals: ['WEB'],
-    registryPriority: 24,
+    registryPriority: 26,
     enabled: true,
     entryType: 'page'
   },
@@ -350,7 +396,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '管理员权限管理入口。',
     featureKey: 'permission',
     supportedTerminals: ['WEB'],
-    registryPriority: 25,
+    registryPriority: 27,
     enabled: true,
     entryType: 'page'
   },
@@ -360,7 +406,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '管理员策略治理只读入口。',
     featureKey: 'permission',
     supportedTerminals: ['WEB'],
-    registryPriority: 26,
+    registryPriority: 28,
     enabled: true,
     entryType: 'page'
   },
@@ -370,7 +416,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '管理员管理 template-based PolicyInstance 资源授权事实的第一阶段入口。',
     featureKey: 'permission',
     supportedTerminals: ['WEB'],
-    registryPriority: 27,
+    registryPriority: 29,
     enabled: true,
     entryType: 'page'
   },
@@ -380,7 +426,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '管理员验证 PolicyInstance checkResource / buildQueryScope 判定结果的预览入口。',
     featureKey: 'permission',
     supportedTerminals: ['WEB'],
-    registryPriority: 28,
+    registryPriority: 30,
     enabled: true,
     entryType: 'page'
   },
@@ -390,7 +436,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '管理员受管终端设备 enrollment、状态、版本策略与审计入口。',
     featureKey: 'terminal-device',
     supportedTerminals: ['WEB'],
-    registryPriority: 29,
+    registryPriority: 31,
     enabled: true,
     entryType: 'page'
   },
@@ -400,7 +446,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '管理员导航治理入口。',
     featureKey: 'permission',
     supportedTerminals: ['WEB'],
-    registryPriority: 30,
+    registryPriority: 32,
     enabled: true,
     entryType: 'page'
   },
@@ -410,7 +456,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: 'OES 端外部站点治理、发布同步、凭证与运行状态管理入口。',
     featureKey: 'site-service',
     supportedTerminals: ['WEB'],
-    registryPriority: 31,
+    registryPriority: 33,
     enabled: true,
     entryType: 'page'
   },
@@ -420,7 +466,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '租户侧员工数字名片公开展示、主公开入口、二维码与访问摘要管理入口。',
     featureKey: 'public-entry',
     supportedTerminals: ['WEB'],
-    registryPriority: 32,
+    registryPriority: 34,
     enabled: true,
     entryType: 'page'
   },
@@ -430,7 +476,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '租户侧 ShortLink 生命周期、目标迁移、二维码与访问统计治理入口。',
     featureKey: 'public-entry',
     supportedTerminals: ['WEB'],
-    registryPriority: 33,
+    registryPriority: 35,
     enabled: true,
     entryType: 'page'
   },
@@ -440,7 +486,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '现场 PDA 端默认系统入口。',
     featureKey: 'pda',
     supportedTerminals: ['PDA'],
-    registryPriority: 34,
+    registryPriority: 36,
     enabled: true,
     entryType: 'workspace'
   },
@@ -450,7 +496,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '固定工位触摸屏默认系统入口。',
     featureKey: 'kiosk',
     supportedTerminals: ['KIOSK'],
-    registryPriority: 35,
+    registryPriority: 37,
     enabled: true,
     entryType: 'workspace'
   },
@@ -460,7 +506,17 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '浏览器插件设计师选品、加入项目并提交到 OES 的 demo workspace。',
     featureKey: 'browser-extension',
     supportedTerminals: ['BROWSER_EXTENSION'],
-    registryPriority: 36,
+    registryPriority: 38,
+    enabled: true,
+    entryType: 'workspace'
+  },
+  {
+    entryKey: 'extension.crm.workspace',
+    name: 'CRM Sales Workspace',
+    description: '浏览器插件 CRM Sales Workspace 入口。',
+    featureKey: 'crm',
+    supportedTerminals: [BROWSER_EXTENSION_NAVIGATION_TERMINAL],
+    registryPriority: 39,
     enabled: true,
     entryType: 'workspace'
   }
@@ -473,11 +529,13 @@ export function buildNavigationFoundationVisibilitySeeds(
   const rows: NavigationVisibilitySeed[] = []
 
   for (const role of roles) {
-    for (const entryKey of NAVIGATION_VISIBILITY_ENTRY_KEYS_BY_ROLE_CODE[role.code] ?? []) {
+    for (const rule of NAVIGATION_VISIBILITY_ENTRY_KEYS_BY_ROLE_CODE[role.code] ?? []) {
+      const entryKey = typeof rule === 'string' ? rule : rule.entryKey
+      const terminal = typeof rule === 'string' ? DEFAULT_NAVIGATION_TERMINAL : rule.terminal
       rows.push({
         roleId: role.id,
         entryKey,
-        terminal: DEFAULT_NAVIGATION_TERMINAL,
+        terminal,
         enabled: true
       })
     }
