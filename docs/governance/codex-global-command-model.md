@@ -14,11 +14,12 @@ Global Command Thread 只负责项目级规划、调度、依赖编排与冲突�
 
 Global Command Thread 可以做：
 
-- 维护 OES 全局 roadmap、能力依赖图、thread control board 与 branch/worktree registry
+- 维护 OES 全局 roadmap、能力依赖图、thread control board 与 capability 级 branch/worktree 汇总；子任务详细 registry 由对应 Capability Command 独占
 - 对新需求做项目级 intake，判断候选能力域、候选 owner group、疑似依赖与优先级
-- 创建或调整 design / implementation / debug / integration task
+- 未启用能力框架时，按普通项目流程创建或调整 design / implementation / debug / integration task
+- 用户显式启用能力框架后，只创建并登记该 capability 的 Design Thread 与 Capability Command
 - 协调 ownership 冲突、优先级冲突与跨组阻塞
-- 接收下级 thread handoff，并决定是否更新全局计划或继续分派任务
+- 接收 Capability Command 的能力级汇总，并决定是否更新全局计划、创建新的 capability 配对或调整跨能力调度
 
 Global Command Thread 明确禁止：
 
@@ -30,6 +31,8 @@ Global Command Thread 明确禁止：
 - 不 debug 具体服务问题
 - 不替代 design thread 决定最终服务归属
 - 不替代 implementation thread 修改实现
+- 能力框架启用后，不创建、恢复、验收或指挥对应 Capability Command 下的 Implementation、Focused Review、Acceptance 或 Integration Thread
+- 不读取这些子任务终态后替 Capability Command 裁定 gate、返工或解锁下游
 
 新功能 intake 只能输出：
 
@@ -63,6 +66,8 @@ OES Codex 协作采用四层结构：
    - 只在被父 thread 内部临时调用时作为辅助；如果独立写文件、独立 debug 或独立交付，必须注册为 child thread
 
 对于已显式启用的单一能力域，Management Thread 的职责由一个与 Design Thread 一对一配对的 Capability Command 承担；多个能力域可以并行建立各自的配对。未显式启用时，不得自动创建这组线程。
+
+框架启用后的排他控制链、任务命名、监控恢复、branch/worktree 和紧急接管规则，以 `oes-capability-collaboration-framework.md` 为准。Global Command 只能恢复或替换失联的 Capability Command，不能穿透接管其子任务；任何紧急穿透必须由用户明确授权。
 
 ## 4. 小组方向
 
@@ -125,11 +130,11 @@ handoff 必须包含：
 - Cleanup State
 - Recommended next tasks
 
-Global Command 只根据结构化 handoff 更新全局 roadmap、依赖图与调度状态。
+框架未启用时，Global Command 可以按普通流程消费下级 handoff。框架启用后，Implementation、Focused Review、Acceptance 与 Integration Thread 只向对应 Capability Command 回传；Global Command 只根据 Capability Command 的能力级汇总更新全局 roadmap、依赖图与调度状态。
 
 ## 7. 冲突升级
 
-任意 thread 触碰以下情况必须停止并上报：
+任意 thread 触碰以下未在冻结设计/feature packet 与已分配 ownership 内的情况必须停止并向当前 owner 上报：
 
 - 需要修改 shared proto
 - 需要修改 `src/common`
@@ -140,4 +145,6 @@ Global Command 只根据结构化 handoff 更新全局 roadmap、依赖图与调
 - 两个 thread 需要写同一个核心文件
 - 设计结论影响其他服务 truth source
 
-Global Command 或对应 Management Thread 负责决定串行、拆分、新开 integration/debug/contract thread 或升级 ADR。
+普通流程由 Global Command 或对应 Management Thread 决定串行、拆分或升级 ADR。能力框架启用后，Capability Command 先区分：设计/契约缺口直接回 Design Thread；capability 内部拆分、返工和 gate 由自身处理；只有跨能力依赖、全局优先级或未分配/冲突的共享 ownership 才升级 Global Command。
+
+Global Command 对升级只决定 owner capability、优先级、执行顺序、路径 ownership/lease、前置 gate、暂停/恢复状态和 return target。实际 I/R/V/X 仍由获授权的 Capability Command 创建和管理；Global Command 不下发字段、schema、payload、handler、测试实现、lane gate 或 worker 返工细节。

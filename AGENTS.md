@@ -309,9 +309,17 @@ Global Command Thread 只负责项目级规划、任务调度、依赖编排、�
 
 新功能 intake 只能由 Global Command 产出项目级分类信息，包括候选能力域、候选 owner group、疑似依赖、所需 design thread、优先级与冲突风险。最终服务归属、领域模型、workflow、API、event、proto 或 schema 必须交由对应 design thread，在唯一真相源规则下完成。
 
-正式 Codex thread 应在启动时明确当前任务范围、允许修改路径、依赖与 owner。遇到跨服务依赖、受保护文件需求或无法继续推进时，应直接向 Global Command 或当前任务 owner 报告；完成、失败或阻塞时提交结构化 handoff。
+正式 Codex thread 应在启动时明确当前任务范围、允许与保护路径、依赖、parent、return target 与 owner。完成、失败或阻塞时只向注册 owner 提交结构化 handoff；能力框架启用后，I/R/V/X 不得绕过 Capability Command 直接向 Global Command 请求 scope、gate、返工或状态决定。
 
 共享计划文件采用单写者规则。`docs/plans/oes-global-roadmap.md`、`docs/plans/oes-thread-control-board.md`、`docs/plans/oes-capability-dependency-map.md` 只能由 Global Command Thread 写入。其他 thread 通过结构化 handoff 回报给 owner。
+
+能力框架启用后的强制边界：
+
+- Global Command 只创建 Design Thread 与 Capability Command，管理能力组合级优先级、依赖和跨能力 ownership；不得创建、恢复、验收或指挥该 Capability Command 下的 I/R/V/X。
+- Capability Command 是 capability 内唯一执行状态 owner，独占子任务创建、完整终态读取、lane gate、返工、验收和集成调度；设计/契约缺口直接回配对 Design Thread，只有跨能力依赖、全局优先级或未分配/冲突共享 ownership 才升级 Global Command。
+- 子任务只接受注册 `parentThreadId`/`returnTarget` 对应 Capability Command 的 scope/state 指令；其他任务或 Global Command 的直接指令返回 `ROUTING_VIOLATION`。用户指令始终有效，但改变范围时必须先同步 Capability Command 更新 registry。
+- Capability Command 失联或工具不可用时只能恢复或替换同一 Command，禁止 Global Command 穿透接管。紧急穿透必须由用户明确授权并记录原因、范围、失效条件和恢复目标。
+- 框架正式任务必须由 Capability Command 分配规范序号，创建后显式设置并读回确认 UI 标题；错误标题、父子关系或 Git 工作面不得进入 active。
 
 ### 12.4 OES 协同框架 Git 隔离纪律
 
@@ -323,7 +331,7 @@ Global Command Thread 只负责项目级规划、任务调度、依赖编排、�
 - 模块必须先满足构建/类型检查与定向测试，再通过保留 ancestry 的正常 merge 进入 integration branch；正常流程禁止 cherry-pick、squash merge 或 rebase 已共享提交。
 - Acceptance Thread 只验收精确 candidate SHA，不修复实现；验收失败回原 owner/branch，设计缺口回 Design Thread，未通过不得进入 `main`。
 - 最终 integration 必须同步最新 `origin/main`、重新验证并以 `--ff-only` 进入本地 `main` 后正常 push；若远端 `main` 已变化，重新生成 candidate，不得直接在 `main` 解冲突。
-- branch/worktree 只在代码已进入 `origin/main`、ancestry 可证明、worktree clean、handoff/registry/子线程记录已收口后删除。正常清理使用 `git worktree remove` 与 `git branch -d`，禁止把 `-D`、`--force`、`reset --hard` 或批量 `git clean` 当作常规流程。
+- branch/worktree 只在代码已进入 `origin/main`、ancestry 可证明、worktree clean、handoff/registry/子线程记录已收口且用户在合并后明确批准 cleanup 时删除。合并成功后默认进入 `MERGED_WAITING_FOR_USER_CLEANUP`；正常清理使用 `git worktree remove` 与 `git branch -d`，禁止把 `-D`、`--force`、`reset --hard` 或批量 `git clean` 当作常规流程。
 - 运行或验收结果必须报告 cwd、branch、HEAD 和 dirty state，确保能明确回答“运行的是哪个版本”。
 
 ## 13. 交付输出要求

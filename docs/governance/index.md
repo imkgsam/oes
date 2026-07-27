@@ -16,7 +16,7 @@
 ## 2. 当前治理文档
 
 0. [oes-capability-collaboration-framework.md](/Users/acehood/Documents/GitHub/oes/docs/governance/oes-capability-collaboration-framework.md)
-   - OES 能力级协同框架 v1：默认关闭、显式启用、Design Thread 与 Capability Command 一对一、实现/批量验收及线程归档
+   - OES 能力级协同框架 v1.2：默认关闭、显式启用、Global Command/Capability Command 排他边界、实现/批量验收、任务命名与用户批准后清理
 
 1. [docs-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/governance/docs-architecture.md)
    - 文档架构规范与单一真相源规则，包括服务职责卡与协同蓝图落点
