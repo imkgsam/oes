@@ -53,6 +53,8 @@
   - Tenant onboarding BFF 目标契约草案；当前为设计对齐用，尚未实现
 - [mes-mold-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/mes-mold-management.md)
   - MES 模具管理第一阶段 web 手工闭环 BFF 契约
+- [external-api-key-exchange.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/external-api-key-exchange.md)
+  - 外部 Integration Machine 的 API Key HTTP exchange 与 Gateway-only access token 契约；external opening 仍关闭
 
 ## 4. 契约实现参考
 

@@ -11,7 +11,7 @@ plugins:
     opt:
       # NestJS 集成 - 生成与 @nestjs/microservices 兼容的代码
       - nestJs=true
-      - addGrpcMetadata=false
+      - addGrpcMetadata=true
       - addNestjsRestParameter=true
       # 类型选项
       - esModuleInterop=true

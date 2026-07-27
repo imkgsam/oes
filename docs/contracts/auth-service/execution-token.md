@@ -18,7 +18,7 @@ architectureTruthSource: docs/architecture/services/auth-service.md
 - tenant Integration Machine 使用 API Key 在 Gateway / Auth 入口认证并换 Token。
 - 资源服务取得 JWKS 并消费紧急撤销事实。
 
-本契约不开放外部直连 gRPC，不定义用户登录 access / refresh token，也不定义高危 ActionGrant 的具体字段。
+本契约不开放外部直连 gRPC，也不定义用户登录 access / refresh token。高危 ActionGrant 的生命周期、绑定与消费规则以 [delegated-execution-and-action-grant.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/delegated-execution-and-action-grant.md) 为准。
 
 ## 2. Trust Inputs
 
@@ -124,19 +124,19 @@ Token TTL maximum is 5 minutes. Implementations may shorten it by risk but calle
 
 ## 7. API Key Exchange
 
-- API Key 属于一个 active TENANT Integration Machine；key 本身不是 principal。
-- secret 只在创建时显示一次，Auth 持久化不可逆 hash 与 credential metadata。
-- API Key 认证检查 credential status / expiry、Machine Principal lifecycle、tenant lifecycle 与调用入口 policy。
-- 成功后只返回 ExecutionToken，不把 API Key secret 或内部 gRPC credential 传播到下游。
-- 撤销、过期、轮换后旧 key、machine disabled、tenant mismatch 均拒绝。
-- 每个 tenant 独立创建 Integration Machine 与 credential。Marketplace、共享第三方 App principal、App installation 与跨 tenant developer platform 已取消，不在本契约预留。
+API Key is an external-entry credential, not an internal gRPC credential or an ExecutionToken. The full credential lifecycle is frozen in [external-api-key-security.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/external-api-key-security.md), and its public HTTP exchange is frozen in [external-api-key-exchange.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/external-api-key-exchange.md).
+
+- API Key belongs to one active TENANT Integration Machine; the key is not a principal and never enters gRPC metadata.
+- Gateway submits the credential to Auth over its trusted internal path. Auth verifies credential, machine and tenant status, resolves the machine's permitted external capabilities, and returns only a Gateway-bound external-access result.
+- The external caller receives a short-lived Gateway-only external access token. When it invokes an approved external HTTP endpoint, Gateway derives trusted execution context and obtains the separate target-audience ExecutionToken required for the internal mTLS hop.
+- Revoked, expired, superseded-after-overlap, disabled-machine, suspended-tenant, wrong-tenant, or disallowed-entry requests fail closed. Marketplace, shared third-party App principals, App installation and cross-tenant developer-platform models remain out of scope.
 
 ## 8. Revocation And Replay
 
 - 普通 role / grant / session / credential 变化允许在 Token TTL 内收敛。
 - 紧急事件可按 `jti`、principal、session、credential 或 minimum `authz_version` 更新服务本地 deny cache。
 - Token 合法复用不是业务幂等。所有有副作用 command 仍使用 tenant + caller + operation 范围内的 idempotency key。
-- 高危操作不能仅靠普通 ExecutionToken 防重放；必须使用另行冻结的 step-up / ActionGrant，绑定 operation、target、输入摘要和一次性消费。
+- 高危操作不能仅靠普通 ExecutionToken 防重放；必须使用有效 delegation、适用 step-up 和冻结的 ActionGrant。ActionGrant 绑定 operation、target、输入摘要与 idempotency reference，并由目标服务在业务写入事务中一次性消费。
 
 ## 9. Stable Error Categories
 
