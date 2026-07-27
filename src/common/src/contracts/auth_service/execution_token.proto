@@ -1,0 +1,87 @@
+syntax = "proto3";
+
+package auth_service;
+
+option java_multiple_files = true;
+option java_package = "com.oes.auth.v1";
+
+// ExecutionTokenService publishes the strictly bounded STS exchange and trusted JWKS discovery surface.
+service ExecutionTokenService {
+  // Exchanges the caller's verified execution context for one exact target-audience ExecutionToken.
+  rpc ExchangeExecutionToken(ExchangeExecutionTokenRequest) returns (ExchangeExecutionTokenResponse);
+  // Returns issuer-bound public verification keys and their bounded cache and rotation metadata.
+  rpc GetExecutionTokenJwks(GetExecutionTokenJwksRequest) returns (GetExecutionTokenJwksResponse);
+}
+
+// ExchangeExecutionTokenRequest carries only the target and exact permission set requested by an already verified caller.
+message ExchangeExecutionTokenRequest {
+  // Registered target audience in the exact urn:oes:service:<service-name> form.
+  string target_audience = 1;
+  // Non-empty, deduplicated, canonical-order Permission Code subset requested for the target audience.
+  repeated string requested_permission_codes = 2;
+}
+
+// ExchangeExecutionTokenResponse returns a short-lived, single-audience bearer credential and cache-safe metadata.
+message ExchangeExecutionTokenResponse {
+  // Compact JWS with protected typ=at+jwt and alg=ES256; it is never a refresh token.
+  string access_token = 1;
+  // Always Bearer for a successful exchange.
+  string token_type = 2;
+  // Unix timestamp at which access_token expires; the maximum lifetime is 300 seconds.
+  int64 expires_at_unix_seconds = 3;
+  // Remaining token lifetime in seconds; it is positive and never exceeds 300 seconds.
+  int64 expires_in_seconds = 4;
+  // Globally unique, never-reused signing key identifier from the compact JWS protected header.
+  string kid = 5;
+  // Canonical-order Permission Code subset that Auth / STS granted for this one Token.
+  repeated string granted_permission_codes = 6;
+  // Registered single audience actually bound into access_token; it must exactly equal target_audience.
+  string granted_audience = 7;
+}
+
+// GetExecutionTokenJwksRequest intentionally has no caller-controlled registry, issuer, trust-domain, or key-source fields.
+message GetExecutionTokenJwksRequest {}
+
+// GetExecutionTokenJwksResponse exposes public ES256 verification material from Auth's configured exact issuer only.
+message GetExecutionTokenJwksResponse {
+  // Exact HTTPS issuer from the deployment-controlled issuer registry.
+  string issuer = 1;
+  // Current and overlap-period public verification keys; private signing material is never returned.
+  repeated ExecutionTokenJwk keys = 2;
+  // Maximum verifier cache lifetime in seconds; Auth always returns 300 seconds.
+  int32 max_age_seconds = 3;
+  // Unknown kid verification may perform one controlled refresh and this value is always 1.
+  int32 unknown_kid_refresh_limit = 4;
+  // Publication, signing, and retirement boundaries for every currently published or overlap key.
+  repeated ExecutionTokenKeyRotation rotations = 5;
+}
+
+// ExecutionTokenJwk is one public P-256 key encoded with the standard JWK parameter names.
+message ExecutionTokenJwk {
+  // Always EC.
+  string kty = 1;
+  // Always ES256; verifiers reject every other algorithm.
+  string alg = 2;
+  // Always P-256.
+  string crv = 3;
+  // Always sig.
+  string use = 4;
+  // Base64url-encoded affine public-key x coordinate.
+  string x = 5;
+  // Base64url-encoded affine public-key y coordinate.
+  string y = 6;
+  // Globally unique, non-empty, never-reused signing key identifier.
+  string kid = 7;
+}
+
+// ExecutionTokenKeyRotation states the public key timeline that bounds signing-key activation and retirement.
+message ExecutionTokenKeyRotation {
+  // Unique kid of the JWK whose timeline this record describes.
+  string kid = 1;
+  // Unix timestamp after which the public key is published for verifier discovery.
+  int64 publish_not_before_unix_seconds = 2;
+  // Unix timestamp after the maximum 300-second JWKS cache window when the key may sign Tokens.
+  int64 signing_not_before_unix_seconds = 3;
+  // Unix timestamp after every Token signed by this key has expired plus the 60-second clock-skew window.
+  int64 retire_after_unix_seconds = 4;
+}
