@@ -159,6 +159,13 @@
 - `type` 表达机器主体类型，例如 internal service、external integration、AI agent 或 automation bot。
 - lifecycle 至少需要 active / disabled 语义。
 
+`Integration Machine` 是 `type = external integration` 的 tenant machine principal 使用形态，而不是新的共享 App 或 credential owner。稳定规则：
+
+- 必须是 `TENANT` scope，并且一台 machine 只绑定一个 tenant；它不能转换为 SYSTEM、跨 tenant 复用或代表人类 account。
+- Identity owns its display name、tenant reference、type and active/disabled lifecycle. It returns only the stable machine reference and lifecycle facts needed by Auth and Permission.
+- Auth may create and manage credentials only for an active Integration Machine. Identity never stores, verifies, lists, reveals, rotates, or revokes API Key secrets.
+- A disabled machine is not eligible for new credential exchange or external access. Credential and session invalidation semantics remain Auth-owned; the cross-service path is [external-api-key-security.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/external-api-key-security.md).
+
 当前注意事项：
 
 - 现有 machine auth contract 中由 Identity 执行 `AuthenticateApiKey` 的部分是 legacy 兼容形态，目标状态由 [ADR 0015](/Users/acehood/Documents/GitHub/oes/docs/adr/0015-workload-identity-and-execution-token.md) 与 Auth [execution-token.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/execution-token.md) 取代。

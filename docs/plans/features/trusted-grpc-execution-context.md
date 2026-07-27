@@ -16,6 +16,9 @@ freezeToken: FROZEN_TRUSTED_GRPC_METADATA
 decisionAdr: docs/adr/0015-workload-identity-and-execution-token.md
 architectureTruthSource: docs/architecture/14-grpc-metadata-and-service-trust-architecture.md
 migrationClosure: 21 services / 51 controllers / 560 RPCs / zero legacy trust references
+resolvedDesignGates:
+  - DG-1: docs/architecture/services/auth-service.md
+  - DG-3: docs/architecture/collaborations/external-api-key-security.md
 ```
 
 ## 1. Frozen Scope
@@ -44,7 +47,7 @@ The following five items are required but intentionally moved to separate design
 | --- | --- | --- |
 | DG-1 | Token cryptography and workload identity interoperability: allowed algorithm, issuer / audience registry, JWKS endpoint, `cnf` representation, trust domain and rotation | Production TG-0/TG-1/TG-2 security configuration |
 | DG-2 | Emergency ExecutionToken revocation event: owner, CloudEvents type/version, payload, ordering, delivery, deny-cache update and recovery | Emergency revoke implementation and production security acceptance |
-| DG-3 | External API Key security contract: identifier/secret format, HTTP exchange, hash/pepper, rate limit, rotation overlap, audit and leak response | External Integration credential creation and opening |
+| DG-3 | **FROZEN**: [External API Key Security Collaboration](../../architecture/collaborations/external-api-key-security.md) and its Auth/Gateway contracts define identifier/secret, HTTP exchange, verifier/pepper, rate protection, rotation, audit, leak response and Integration Machine boundary. | Credential implementation may start after Command dispatch; public external opening remains blocked by DG-2 credential-deny propagation. |
 | DG-4 | DELEGATED execution and ActionGrant: delegation lifecycle, tool upper bound, step-up, one-time consumption and forbidden operations | AI delegation and RPCs requiring one-time high-risk authorization |
 | DG-5 | PrincipalRoleBinding persistence: uniqueness, effective-window overlap, revoke idempotency, migration invariants and rollback | Permission schema migration from AccountRole |
 
@@ -266,7 +269,7 @@ Final acceptance must prove:
 8. Multi-hop calls change audience / `cnf` and preserve allowed attribution and trace continuity.
 9. Cross-workload Token replay fails; repeated commands remain idempotent.
 10. Site Runtime credential proof remains independent from internal Token validation.
-11. External API Key never enters internal gRPC metadata; DG-3 remains closed before external opening.
+11. External API Key never enters internal gRPC metadata. DG-3 is frozen; public external opening remains blocked until DG-2 provides credential-deny propagation.
 12. Emergency revoke and DELEGATED/ActionGrant acceptance remain gated by DG-2/DG-4 rather than locally invented.
 13. Full workspace generation, build and service test matrix pass at the exact candidate SHA.
 14. Repository scans find zero legacy signer, guard, factory, header, trusted body identity and request-only client call.
@@ -315,7 +318,7 @@ node scripts/local/trusted-grpc-repository-smoke.mjs
 The capability closes only when:
 
 - TG-0 through TG-5 and TG-VERIFY outputs are integrated.
-- DG-1 through DG-5 are either closed for enabled capabilities or the corresponding capability is demonstrably disabled; no local substitute exists.
+- DG-1 and DG-3 are frozen for their enabled capabilities; DG-2, DG-4 and DG-5 are either closed for enabled capabilities or the corresponding capability is demonstrably disabled; no local substitute exists.
 - All 21 service rows are `LEGACY_REFERENCES_ZERO`.
 - All 51 Controller files and 560 RPCs are covered by the authorization-mode architecture test.
 - The 19 request-only caller baseline reaches zero and the full generated caller inventory is explicit-metadata compliant.

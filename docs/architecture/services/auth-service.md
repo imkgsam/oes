@@ -41,8 +41,8 @@
   - workload issuance policy 的认证执行
   - ExecutionToken 紧急撤销版本 / deny fact
 - API Key credential 真相：
-  - secret hash、credential id、过期、轮换、禁用与撤销
-  - API Key 认证并交换为 ExecutionToken
+  - opaque credential identifier、secret verifier、pepper key version、过期、轮换、禁用与撤销
+  - API Key 认证与 Gateway-only external access token exchange；Gateway 内部再取得 ExecutionToken
 - account selection 与 context switch 的 session 侧真相：
   - account selection 后建立当前 session context
   - context switch 后替换当前 session context
@@ -183,7 +183,19 @@ ExecutionToken 是 service-to-service 的短期执行凭据，不是用户登录
 - 默认 TTL 约 5 分钟，不签发 refresh token。精确上下限、claim 与错误语义以 [execution-token.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/execution-token.md) 为准。
 - 普通资源服务只通过 cached JWKS 本地验签；Auth 实例保持无状态横向扩展，STS 容量按 cache miss、context change 与 audience exchange 规划，而不是按每个业务 RPC 规划。
 - 普通撤销接受短 TTL 收敛；紧急撤销发布 principal / credential / session / security-version deny fact。Auth 不要求所有服务共享 Bearer Token cache。
-- API Key 只在 Gateway / Auth 入口使用；认证成功后换取 ExecutionToken，不能作为内部 gRPC credential 原样传播。
+- API Key 只在 Gateway / Auth 入口使用；认证成功后得到 Gateway-only external access token，Gateway 内部才换取 target-audience ExecutionToken。API Key 与 external token 都不能作为内部 gRPC credential 原样传播。
+
+#### 7.1.2 External API Key Security
+
+`auth-service` owns the credential lifecycle for a tenant Integration Machine; it does not own the machine principal, external HTTP routing, or the external capability catalogue. The frozen cross-service flow is [external-api-key-security.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/external-api-key-security.md); credential-management behaviour is [external-api-key-security.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/external-api-key-security.md).
+
+- A credential has a non-secret opaque identifier and a high-entropy secret. The secret is displayed only in the successful create or rotate response and is never recoverable, logged, audited in plaintext, or returned by query APIs.
+- Auth persists only a constant-time-verifiable, irreversible secret verifier plus a versioned server-held pepper reference. It never stores the presented secret or lets Gateway, Identity, Permission, or a business service read the verifier or pepper.
+- One credential belongs to exactly one active `TENANT` Integration Machine. It cannot choose another tenant, represent a human, become an internal workload credential, or be shared by a Marketplace/App-installation model.
+- Create, reveal-once, rotate, revoke, disable, and permission-affecting administration require the authorised human management path and a recent step-up MFA proof. Auth records an authentication-domain audit fact for every credential lifecycle and exchange outcome.
+- A replacement credential may overlap the superseded credential for at most seven days; no Integration Machine has more than two valid credentials. Revocation, machine disablement, tenant disablement, or a confirmed leak removes the credential from future exchange immediately and never restores the same secret.
+- Credential expiry defaults to one year. A 90-day age is a rotation-health signal, not an automatic outage; tenant security policy may impose a shorter lifetime. Expiry never extends by use.
+- External callers never receive an internal `ExecutionToken`. They receive the Gateway-only short-lived external access token defined by the HTTP contract; Gateway exchanges trusted external context for target-audience ExecutionTokens only on its internal mTLS hop.
 
 #### 7.1.1 Cryptography, Registry And Rotation
 
@@ -366,6 +378,7 @@ application / domain 层可以复用底层业务逻辑，但 BFF / gRPC / interf
 - [auth-service/login-history.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/login-history.md)
 - [auth-service/trusted-login-device.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/trusted-login-device.md)
 - [auth-service/execution-token.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/execution-token.md)
+- [auth-service/external-api-key-security.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/external-api-key-security.md)
 
 相关 BFF contract：
 

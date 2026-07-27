@@ -55,12 +55,12 @@ Execution Principal 只有三种稳定模式：
 ### 5. API Key 与机器授权 owner
 
 - `identity-service` 拥有 Machine Principal identity 与 lifecycle。
-- `auth-service` 拥有 API Key credential、认证、轮换、撤销与交换 ExecutionToken 的 STS 能力。
+- `auth-service` 拥有 API Key credential、认证、轮换、撤销、Gateway-only external access token 与内部 ExecutionToken exchange 的 STS 能力。
 - `permission-service` 拥有 HUMAN / MACHINE 的角色、grant、policy 与授权判定。
 - 长期绑定模型收敛为 `PrincipalRoleBinding`，显式记录 principal type / id、scope level、tenant 与 role；不把机器伪装为 `UserAccount`。
 - INTERNAL kind Permission Code 只由 STS workload issuance policy 授予，不能进入人类或租户机器业务角色。
 
-外部 App 只能创建 tenant-scoped Integration Machine 与 API Key，并通过 Gateway / Auth 换取 ExecutionToken；外部调用方不直接访问内部 gRPC。Marketplace、第三方开发者平台、共享 App 主体与一个 App 被多个 tenant 安装的模型已取消，不做架构预留。
+外部 App 只能创建 tenant-scoped Integration Machine 与 API Key，并通过 Gateway/Auth 取得 Gateway-only external access token；Gateway 才为其内部 mTLS call 换取 target-audience ExecutionToken。外部调用方不直接访问内部 gRPC。具体 credential/exchange 规则以 DG-3 External API Key contracts 为准。Marketplace、第三方开发者平台、共享 App 主体与一个 App 被多个 tenant 安装的模型已取消，不做架构预留。
 
 ### 6. RPC authorization declaration
 
@@ -124,5 +124,7 @@ Site Runtime 现有 HMAC、nonce、method/path/body hash 是独立的外部 cred
 - [可信 gRPC Metadata 架构](/Users/acehood/Documents/GitHub/oes/docs/architecture/14-grpc-metadata-and-service-trust-architecture.md)
 - [Permission Code 语义源](/Users/acehood/Documents/GitHub/oes/docs/architecture/07-permission-code-source.md)
 - [ExecutionToken Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/execution-token.md)
+- [External API Key Credential Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/external-api-key-security.md)
+- [External API Key Exchange Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/external-api-key-exchange.md)
 - [Principal Authorization Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/principal-authorization.md)
 - [Trusted gRPC Feature Packet](/Users/acehood/Documents/GitHub/oes/docs/plans/features/trusted-grpc-execution-context.md)
