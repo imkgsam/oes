@@ -12,3 +12,4 @@ export {
   resolvePoolConfig
 } from './grpc.interfaces'
 export { safeGrpcCall, SafeGrpcCallOptions } from './safe-grpc-call'
+export * from './authorization-mode-inventory'
