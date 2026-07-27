@@ -136,6 +136,8 @@ handoff 必须包含：
 
 Global Command registry 必须记录每个 Capability Command 的运行状态、`currentWorkItem`、`deliveryLock` 与 `lastConsumedCursor`。多个 Command 同时 terminal-ready 时，GC 一次只处理一个；其他结果留在来源 terminal，不另建 Inbox thread，也不因新结果抢占当前原子工作。
 
+Capability Command 的非稳定 `currentWorkItem` 进入执行态后，Global Command 只负责确认对应的轻量 liveness watchdog 已登记。watchdog 只能在该 Command 意外 idle 时恢复同一 Command，不得读取其 child、消费 child terminal、裁定 lane gate、创建或恢复 I/R/V/X，也不得成为第二个控制线程。Capability Command 不得以 `*_IN_PROGRESS`、`READY_FOR_PARENT_PULL`、“已派发”或“等待 child”作为 terminal final；Global Command 读到此类非稳定 final 时只执行 Command liveness recovery，不据此改变能力状态。
+
 ## 7. 冲突升级
 
 任意 thread 触碰以下未在冻结设计/feature packet 与已分配 ownership 内的情况必须停止并向当前 owner 上报：

@@ -1,4 +1,4 @@
-# OES Capability Collaboration Framework v1.3
+# OES Capability Collaboration Framework v1.3.1
 
 ## 1. 定位与启用规则
 
@@ -102,7 +102,11 @@ Capability Command 主动拉取配对 Design 与已登记 I/R/V/X 的 terminal
 - `ACTIVE` 线程的 `deliveryLock` 固定为 `CLOSED`。自动线程不得向其推送任务、handoff、scope、gate、返工或状态消息；结果继续保留在来源 terminal。
 - Parent 只能在 child 为 `IDLE` 时下发或恢复任务。Peer-to-peer 正式控制消息一律返回 `ROUTING_VIOLATION`。
 - Global Command 与 Capability Command 必须使用任务等待/读取机制消费 terminal，并在处理后记录精确 cursor；同一 terminal 不得重复裁定。
-- “处理完成”指当前原子工作达到安全检查点并更新 registry，不要求整个 capability 结束。
+- 当前原子工作只要仍有 `ACTIVE` child 或未消费 terminal，注册 parent 就必须保持本 turn，通过有界 wait/read 循环持续监控；wait 超时只产生状态更新，不构成结束条件。
+- 禁止控制线程用 `*_IN_PROGRESS`、`READY_FOR_PARENT_PULL`、“已派发”或“等待 child”作为 terminal final 后自行进入 idle。存在 active/ready child 时不属于安全检查点。
+- 控制线程只有在以下稳定状态才能结束 turn：当前能力/原子工作完成；等待 Design、跨能力前置或用户决定；已证实的环境/工具 blocker；`MERGED_WAITING_FOR_USER_CLEANUP`。terminal 必须准确命名该稳定状态。
+- 若 Codex 运行时意外结束控制 turn，由注册 owner 配置的轻量 liveness watchdog 只唤醒该 idle 控制线程继续原 `currentWorkItem`。watchdog 不读取或指挥 child、不消费 terminal、不裁定 gate、不创建任务、不承担业务状态，也不得作为 Inbox。
+- “处理完成”指当前原子工作达到上述稳定检查点并更新 registry，不要求整个 capability 结束。
 
 用户消息始终有效，但只有用户明确要求停止、切换、覆盖或优先处理时才抢占当前工作；当前任务补充合并处理，无关新任务等待当前原子工作达到安全检查点。
 
@@ -345,7 +349,7 @@ reserve sequence in registry
 Capability Command 创建子任务后保持执行所有权，通过任务等待机制监控已登记的活动子任务，不在派发后立即以“应启动”或“等待 Global Command”结束控制链。
 
 - 子任务不得主动推送 handoff；Command 按第 3.8 节主动拉取已登记 terminal；
-- 超时或仍有 heartbeat/工具进程时只继续等待，不重复读取完整上下文；
+- Command 在当前原子工作存在 active/ready child 时不得返回 terminal final；必须留在同一 turn，以有界 `wait_threads` 连续等待，超时后继续且不重复读取完整上下文；
 - 子任务终态出现后按 cursor 完整读取一次 final record，再裁定 gate 并记录已消费 cursor；
 - `idle`、部分结果或测试运行中不能视为完成；
 - 已有可信证据不重复执行完整测试，只补实际风险缺口；
@@ -353,7 +357,7 @@ Capability Command 创建子任务后保持执行所有权，通过任务等待�
 - 设计/契约缺口直接回 Design Thread，Capability Command 标记 `WAITING_FOR_DESIGN`；
 - 连续三个监控窗口无任何进度证据且确认失联后，只恢复同一个 thread/branch/worktree，不重新创建任务。
 
-显式启用框架后可以建立只唤醒对应 Capability Command 的轻量恢复机制；它不得读取或指挥子任务，能力完成或用户停用框架后必须删除。
+Capability 进入执行态时必须建立或确认只唤醒对应 Capability Command 的轻量 liveness watchdog，作为 control turn 意外结束的兜底。watchdog 只在 Command 为 idle 且 registry 仍有非稳定 `currentWorkItem` 时恢复同一 Command；它不得读取或指挥子任务、消费 handoff、裁定 gate、创建任务或形成第二个 Inbox。Command 到达稳定终态、能力完成或用户停用框架后必须停用该 watchdog。
 
 ### 10.2 跨能力升级与授权
 

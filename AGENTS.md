@@ -322,6 +322,8 @@ Global Command Thread 只负责项目级规划、任务调度、依赖编排、�
 - 框架正式任务必须由 Capability Command 分配规范序号，创建后显式设置并读回确认 UI 标题；错误标题、父子关系或 Git 工作面不得进入 active。
 - 正式线程通信采用注册表驱动的单消费者 Pull：子线程只在自身 terminal 留下 handoff，注册 parent 通过 wait/read 主动拉取并按 cursor 串行消费；禁止自动线程向 `ACTIVE` target 推送消息。
 - GC registry 与 Capability Command registry 必须记录 `currentWorkItem`、`deliveryLock`、受控 child 与 `lastConsumedCursor`；同一线程同一时间只处理一个原子工作项，多个 ready terminal 留在来源线程等待拉取。
+- 注册 parent 的当前原子工作项只要仍有 `ACTIVE` child 或未消费 terminal，就必须保持本 turn 并持续使用 wait/read；不得用 `*_IN_PROGRESS`、`READY_FOR_PARENT_PULL` 或“已派发、等待结果”作为 terminal final 后自行进入 idle。
+- 控制线程只有在完成、等待 Design/跨能力前置/用户决定、明确环境或工具 blocker、`MERGED_WAITING_FOR_USER_CLEANUP` 等稳定状态才能结束 turn。若运行时意外令其 idle，由只唤醒该控制线程的轻量 watchdog 恢复；watchdog 不得读取或指挥 child、裁定 gate、创建任务或充当 Inbox。
 - Parent 只能向 `IDLE` child 下发或恢复任务；peer-to-peer 控制消息返回 `ROUTING_VIOLATION`。用户只有明确要求停止、切换、覆盖或优先处理时才抢占当前工作。
 - 注册 parent 仅可因代码/数据破坏、敏感信息泄露、确认的共享文件并发写或未经授权的破坏性操作，对自己的 child 发出不夹带新任务的 `STOP_ONLY`；跨 capability 不得直接停止。
 - 超时不等于失败；存在 heartbeat、工具进程或状态变化时继续等待。连续三个监控窗口均无进度证据并确认失联后，只能恢复同一 thread/branch/worktree，不得创建重复任务。
