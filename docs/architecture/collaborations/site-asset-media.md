@@ -14,7 +14,7 @@
 | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `asset-service`                     | Asset binary、技术元数据、validation、storage origin、CDN delivery、`SiteMediaDeliveryBinding`、迁移、Asset lifecycle、publication protection 与 Asset audit。                          |
 | `site-service`                      | Site、媒体域名与 local / remote 激活意图、Inspiration Item / Category、Asset reference、locale alt、SEO use semantics、rank、Hotspot、public view、publishVersion、sync 与 Site audit。 |
-| `api-gateway` / Site Management BFF | tenant-bound 外部 HTTP、authenticated operator / permission / trace propagation、文件流与下游编排。                                                                                     |
+| `api-gateway` / Site Management BFF | tenant-bound 外部 HTTP、session / API credential 验证、Gateway permission gate、target-audience ExecutionToken、trace propagation、文件流与下游编排。                                      |
 | Site Runtime / Storefront           | 只读取本地完整 public publication 并从 CDN 请求已解析媒体；不拥有 Asset 或 request-time 解析 Asset。                                                                                    |
 
 Asset 不拥有 Site 页面或内容语义；Site 不拥有二进制、storage key、CDN / DNS provider credential、媒体尺寸真相或 Asset lifecycle。
@@ -32,7 +32,7 @@ Site Admin
 ```
 
 - 外部客户端不直接调用对象存储、CDN control plane 或 Asset 内部 gRPC。
-- BFF 完成 authenticated tenant target binding、permission 与 DTO / stream 编排；Asset 再次校验 tenant、scope、Asset state 与操作资格。
+- BFF 从可信 session 派生 tenant target，完成 Gateway permission gate 与 DTO / stream 编排，并为 Asset 取得 `aud=asset-service` 的 ExecutionToken；Asset 再次校验 workload、Token、tenant、scope、Asset state 与操作资格。
 - Site Admin BFF 只把稳定 `assetId` 提交给 Site Service，不接受外链 URL 或 object key。
 - Asset default alt 不会自动写入或覆盖 Site-owned locale alt。
 
@@ -40,7 +40,9 @@ Site Admin
 
 ```text
 Site formal Sync
-  -> site-service resolves assetId + siteId with asset-service
+  -> site-service verifies BUSINESS execution + Site ownership
+  -> site-service exchanges target-audience Token with Auth / STS
+  -> site-service resolves assetId + siteId with asset-service INTERNAL RPC
   -> asset-service returns public-safe delivery facts
   -> site-service establishes publication protection
   -> site-service commits one target publishVersion public output
@@ -82,17 +84,18 @@ Site formal Sync
 
 - Asset 向已知 consumer 传播 [asset.site-media.availability.changed](../../contracts/events/asset-service.md) `eventVersion = 1`；其 `availabilityVersion` 是 Site 去重与拒绝过期事实的唯一 owner ordering，具体 CloudEvents envelope 与 payload 以 Asset event contract 为准。
 - Site 在自身范围内记录 Item / Category / publication audit；Asset 记录 Asset lifecycle、delivery purge 与保护 / 释放 audit。任一服务不得写对方数据库。
-- 调用和事实传播必须携带 tenant、operator（适用时）、trace 与审计关联；跨 tenant 或 scope mismatch 一律 fail closed。
+- 同步调用必须携带 mTLS workload identity、target-audience ExecutionToken、tenant、execution principal（适用时）、trace 与审计关联；事实传播继续携带 tenant、actor attribution、trace 与 audit reference。跨 tenant、audience、`cnf` 或 scope mismatch 一律 fail closed。
 
 ## 8. Implementation Sequencing
 
-1. Global Command 先关闭三个平台前置条件：shared gRPC generator / metadata consumption、跨服务 Event Bus + outbox delivery、`oes-managed-cloudflare` delivery / purge provider。当前进程内 EventEmitter、request body tenant / operator 与 S3 delete 不能替代这些能力。
-2. Asset owner 先在 Asset truth source 与 [site-media.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/asset-service/site-media.md) 冻结可消费能力。
-3. shared gRPC / event wire contract 已在 [site-media.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/asset-service/site-media.md#8-shared-grpc-and-event-wire-contract) 冻结；Capability owner 以此生成 types，并实现 Gateway/BFF adapter，不得从 avatar contract 临时复制字段。
-4. Asset lane 实现 validation、local MinIO 与 Cloudflare R2 storage / delivery adaptor、单向 delivery binding migration、provider confirmation、reference protection 与 audit。
-5. Site / Admin BFF lane 实现媒体域名意图、远端验证 / 激活入口、Asset selection、带 `siteId` 的 pre-publication resolution、publication protection / release 与 availability handling。
-6. Runtime / Storefront lane 只消费同步后的 public-safe Asset projection；不得增加 request-time Asset fallback。
-7. 按 Asset contract 的黑盒 acceptance 和 Site Inspiration P1 acceptance 执行跨端验收。
+1. Global Command 先按 [trusted-grpc-execution-context.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/trusted-grpc-execution-context.md) 完成 shared generator/runtime、Auth / STS、Permission principal grant、Gateway producer 与 Asset/Site consumer 的原子 cutover；body tenant/operator、shared signed operator payload 和自报 service header 不能作为 fallback。
+2. 同期关闭另外两个平台前置条件：跨服务 Event Bus + outbox delivery、`oes-managed-cloudflare` delivery / purge provider。当前进程内 EventEmitter 与 S3 delete 不能替代这些能力。
+3. Asset owner 以 Asset truth source 与 [site-media.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/asset-service/site-media.md) 的 frozen RPC / Permission mapping 实现 consumer。Gateway 直调 Asset 时取得 `aud=asset-service` BUSINESS Token；不得复制 avatar body identity 字段。
+4. Site owner 把 Admin RPC 切到 `aud=site-service` BUSINESS Token，并在 Sync application 授权完成后，通过统一 metadata provider 申请 `aud=asset-service` + 精确 `asset.internal.site_media.*` Token；Site audience Token 不向下透传。
+5. Asset lane 实现 validation、local MinIO 与 Cloudflare R2 storage / delivery adaptor、单向 delivery binding migration、provider confirmation、reference protection 与 audit。
+6. Site / Admin BFF lane 实现媒体域名意图、远端验证 / 激活入口、Asset selection、带 `siteId` 的 pre-publication resolution、publication protection / release 与 availability handling。Site Runtime 现有 HMAC / nonce / body-hash proof 继续验证，再换内部 ExecutionToken。
+7. Runtime / Storefront lane 只消费同步后的 public-safe Asset projection；不得增加 request-time Asset fallback。
+8. 按可信 gRPC 黑盒安全验收、Asset contract acceptance 和 Site Inspiration P1 acceptance 执行跨端验收。
 
 ## 9. Deferred
 

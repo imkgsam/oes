@@ -79,6 +79,15 @@ P1 稳定规则：
 
 该边界复用现有 tenant context 与 Site ownership，不新增 scope、page、schema 或 proto 字段。
 
+#### 2.2.1 Trusted Admin RPC Context
+
+- Site Admin gRPC RPC 必须使用 `BUSINESS` mode，从已验证 `TrustedExecutionContext` 获取 tenant、principal、Permission Code、request 与 trace；request body 的 tenant、operator 或 scope 副本不得作为授权依据。
+- Self-service RPC（如未来存在）必须单独使用 `SELF_SERVICE` mode，并从执行主体派生 target；不能复用 Admin management body target。
+- Site Runtime 的外部请求先继续验证既有 Site credential HMAC、nonce、method/path/body hash 与时效窗口，再由 Gateway / BFF 为内部调用取得 target-audience ExecutionToken。这两层分别证明 Runtime request 与内部 execution，不互相替代。
+- Site Runtime 的七个 gRPC RPC 在内部边界统一使用 `INTERNAL` mode：capability registration 使用 `site.internal.runtime.capability.register`，publication reads 使用 `site.internal.runtime.publication.read`，sync result 使用 `site.internal.runtime.sync.report`，preview read 使用 `site.internal.runtime.preview.read`。这些 Code 只授予已验证 Gateway workload 的 STS issuance policy，不进入业务角色。
+- `siteId`、resource id 与合法 `targetTenantId` 是业务目标，不是身份来源；application 层始终加载 Site ownership 并与可信 tenant 比较。
+- SYSTEM principal 当前不能绕过 Site Management P1 的 TENANT 边界。未来平台跨租户操作必须通过专用 BUSINESS RPC、平台 Permission Code、目标 tenant 与高风险审计另行冻结。
+
 ### 2.3 Frozen Dynamic Slug Ownership
 
 `site-service` 在自身边界内维护轻量的 dynamic slug reservation / history ledger，作为 OES-owned 动态资源 URL 所有权的唯一真相。它是内部领域与持久化机制，不是独立 `slug-service`，也不是供运营人员维护任意跳转规则的 Redirect Manager。
@@ -850,6 +859,19 @@ Sales / Order / Pricing / WMS / CRM services
 `site-service` 不直接面向公网暴露 Site Runtime API。外部 Site Runtime 必须通过 `api-gateway` 的 Site-facing BFF / Site API 访问 OES。
 
 `api-gateway` 负责 HTTP 入口、DTO 校验、HTTP 错误模型、operator / site caller context、trace、rate limit 与签名校验前置；`site-service` 负责 credential、site status、scope、sync state、public view 与 audit 的最终真相判定。
+
+内部调用的可信边界以 [14-grpc-metadata-and-service-trust-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/14-grpc-metadata-and-service-trust-architecture.md) 为准。Gateway 不把 HTTP access token、Runtime HMAC 或 body operator 原样当作 Site gRPC 凭据，而是取得 `aud=site-service` 的 ExecutionToken。
+
+Site Sync 调 Asset 的稳定多跳形态：
+
+```text
+Gateway -> Site: aud=site-service, BUSINESS site.management.sync
+Site verifies business authorization and Site ownership
+Site -> STS: request aud=asset-service + exact asset.internal.* code
+Site -> Asset: INTERNAL ExecutionToken bound to site-service workload
+```
+
+Site 不 hardcode Permission Code 转换表；调用 Asset adapter 的方法签名显式声明所需 INTERNAL Code，STS 再依据 Site workload issuance policy 决定是否签发。Site audience Token 不得原样传给 Asset。
 
 ## 9. Sync Semantics
 

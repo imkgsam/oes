@@ -1,6 +1,6 @@
 # Permission Service Contracts
 
-> 服务设计唯一真相源：[permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。本目录只描述 `permission-service` 对外黑盒 contract，不重新定义 Permission、Role、AccountRole、Policy、access summary、navigation governance、terminal access 或 onboarding grant 的长期 owner 边界。
+> 服务设计唯一真相源：[permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。本目录只描述 `permission-service` 对外黑盒 contract，不重新定义 Permission、Role、PrincipalRoleBinding、Policy、access summary、navigation governance、terminal access 或 onboarding grant 的长期 owner 边界。
 
 ## 1. Purpose
 
@@ -28,6 +28,9 @@ The proto files remain the machine-readable source of truth. These documents exp
 - [policy-instance-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/policy-instance-management.md)
   - Controlled management contract for listing, loading, creating, and enabling/disabling template-based `PolicyInstance` facts.
   - Keeps `PolicyInstance` governance separate from legacy `Policy + conditionAstJson`.
+- [principal-authorization.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/principal-authorization.md)
+  - HUMAN / MACHINE 的通用 PrincipalRoleBinding、DELEGATED 授权交集与 workload INTERNAL issuance policy。
+  - Freezes trusted-subject inputs for Auth / STS and target-service authorization without creating a second Scope vocabulary.
 
 Legacy `Policy + conditionAstJson` mutation RPCs and `CheckPermissionWithContext` remain in the machine contracts only for historical compatibility recovery. They are disabled by default in `permission-service`; new callers must use `PolicyInstanceManagementService` and `ResourceAuthorizationService`.
 

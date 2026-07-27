@@ -203,13 +203,17 @@ Asset Service 对已知 consumer 发布可消费的生命周期事实，包括�
 
 ### 8.1 Transport Context
 
-- verified tenant、signed `operator_context`、request / trace metadata 按 [gRPC metadata architecture](/Users/acehood/Documents/GitHub/oes/docs/architecture/14-grpc-metadata-and-service-trust-architecture.md) 放入 gRPC metadata，不在 Site Media request body 中由调用方重复声明或伪造。
-- 所有 command 都必须带 `idempotency_key`；Asset 以 verified tenant、caller、operation 与该 key 作为幂等范围。
+- 每次调用必须同时通过当前 channel 的 mTLS `VerifiedWorkloadIdentity` 与 `authorization: Bearer <ExecutionToken>` 建立可信上下文。Token 必须由 Auth / STS 签发、`aud=asset-service`、以 `cnf` 绑定当前 workload，并携带 verified tenant / execution principal 与本 RPC 所需 Permission Code。
+- `request-id`、`traceparent`、`tracestate` 与安全审计关联字段通过统一 [gRPC metadata architecture](/Users/acehood/Documents/GitHub/oes/docs/architecture/14-grpc-metadata-and-service-trust-architecture.md) 传播。Site Media request body 不声明 tenant、operator、scopeLevel、permission、service name 或签名 operator payload。
+- Admin-facing upload、list、archive、takedown、delete、delivery management RPC 使用 `BUSINESS` mode 与对应 `asset.site_media.*` Code。Site Service 发起的 resolve / publication protect / release 使用 `INTERNAL` mode 与精确 `asset.internal.site_media.*` Code。
+- Site 调 Asset 前必须向 STS exchange `aud=asset-service` 的下一跳 Token；不能原样转发 `aud=site-service` Token，也不能由 Site 自行签名。
+- 合法 `site_id`、`asset_id` 与 operation id 是业务目标，不是身份来源。Asset 加载自身归属事实，并把目标 tenant 与 Token tenant 比较；SYSTEM principal 不具有隐式 tenant wildcard。
+- 所有 command 都必须带 `idempotency_key`；Asset 以 verified tenant、execution principal、direct workload、operation 与该 key 作为幂等范围。
 - 分页 token、operation id、Asset id 与 Site id 均为 opaque stable identifier；调用方不得从格式推断 storage key、tenant 或业务对象信息。
 
 #### Repository Implementation Prerequisite
 
-截至本合同冻结时，仓库的 shared proto generator 仍配置为 `addGrpcMetadata=false`，现有 Asset RPC 也从 body 读取 tenant / operator 字段。这与本合同要求的可信 metadata context 不一致。实现线程不得为了推进 Site Media 而继续在 request body 复制或信任 tenant / operator；Global Command 必须先协调 shared generator、Gateway / BFF metadata propagation 与各服务 controller 的迁移策略。
+截至本合同冻结时，仓库的 shared proto generator 仍配置为 `addGrpcMetadata=false`，现有 Asset RPC 也从 body 读取 tenant / operator 字段。这是已确认的实现缺口，不是兼容 contract。实现必须按 [trusted-grpc-execution-context.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/trusted-grpc-execution-context.md) 原子更新 generator、Gateway / BFF producer、Site multi-hop caller、Asset controller 与 fixture；Asset / Site 不保留 body 或 legacy signed-operator fallback。
 
 ### 8.2 `SiteMediaAssetService` Operations
 
@@ -226,6 +230,20 @@ Asset Service 对已知 consumer 发布可消费的生命周期事实，包括�
 | `TakeDownSiteMedia`                            | `{ idempotency_key, asset_id, reason_code, reason_note }`                                                                                                   | `{ operation_id, delivery_status }`                                                        | 阻断 origin 并启动精确 CDN purge；`delivery_status` 可以为 pending，完成由状态查询 / lifecycle event 表达。            |
 | `GetSiteMediaDeliveryStatus`                   | `{ asset_id }`                                                                                                                                              | `{ asset_id, lifecycle_status, delivery_status, availability_version, last_operation_id }` | 提供下架、purge 与公开交付的可读状态；不泄漏 provider internals。                                                      |
 | `DeleteSiteMedia`                              | `{ idempotency_key, asset_id, deletion_reason }`                                                                                                            | `{ operation_id, deletion_status }`                                                        | 检查 protection、留存与高权限治理；拒绝时返回稳定错误而不静默删除。                                                    |
+
+固定 mode / Permission mapping：
+
+- `UploadSiteMedia`：BUSINESS `asset.site_media.upload`。
+- `ListAuthorizedSiteMedia`、`GetSiteMediaDeliveryStatus`：BUSINESS `asset.site_media.read`。
+- `PrepareSiteMediaRemoteDelivery`、`ActivateSiteMediaRemoteDelivery`：BUSINESS `asset.site_media.delivery.manage`。
+- `ArchiveSiteMedia`：BUSINESS `asset.site_media.archive`。
+- `TakeDownSiteMedia`：BUSINESS `asset.site_media.takedown`。
+- `DeleteSiteMedia`：BUSINESS `asset.site_media.delete`。
+- `ResolveSiteMediaForPublication`：INTERNAL `asset.internal.site_media.resolve`。
+- `ProtectSitePublicationReferences`：INTERNAL `asset.internal.site_media.publication.protect`。
+- `ReleaseSitePublicationReferences`：INTERNAL `asset.internal.site_media.publication.release`。
+
+INTERNAL 三个 publication primitive 只允许 Site workload 按 STS issuance policy 申请，不能加入 HUMAN / MACHINE 业务角色。它们不取代 Site `site.management.sync` 的 BUSINESS 授权。
 
 `UploadSiteMediaChunk` 使用 proto `oneof`，只允许第一帧为 `start`、后续帧为 `content_chunk`；空 content、第二个 start 或超出受控上传限制必须拒绝。流实际大小、解析结果与 checksum 由 Asset 计算，不能信任调用方声明。
 

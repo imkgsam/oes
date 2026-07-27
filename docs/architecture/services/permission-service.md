@@ -9,9 +9,10 @@
 ## 2. Owns
 
 - `Permission` 运行时 catalog、权限码注册事实、权限引用关系与权限管理审计。
-- `Role`、`RoleTemplate`、`AccountRole`、role-permission 绑定与账号授权 grant 真相。
+- `Role`、`RoleTemplate`、`PrincipalRoleBinding`、role-permission 绑定与 HUMAN / MACHINE principal grant 真相。
 - `Scope`、`Policy`、授权判定、授权决策记录与 policy AST 评估能力。
 - `PolicyTemplate`、`PolicyInstance` 资源授权配置事实、资源授权判定与查询范围构造能力。
+- workload-to-INTERNAL-Permission issuance policy 与授权判定；Auth / STS 负责认证 workload、签发和执行该判定结果。
 - 当前 session 的 access summary：effective roles、effective action codes、运行时权限摘要。
 - 第一阶段 navigation governance 真相：
   - `NavigationEntry Registry`
@@ -25,7 +26,7 @@
 
 ## 3. Does Not Own
 
-- 用户认证、认证凭据、MFA、OTP、challenge、session、refresh token、access token 或 token 签发语义。
+- 用户或机器认证、API Key credential、MFA、OTP、challenge、session、refresh token、access token、STS 或 ExecutionToken 签发语义。
 - `User`、`UserAccount`、账号登录身份、contact asset、machine principal 或 employee binding 真相。
 - 租户、组织、员工、Party 或业务资源主数据；员工与任职真相以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准。
 - 前端 route、菜单层级、icon、layout、页面文案、terminal-specific UI 呈现配置。
@@ -56,15 +57,15 @@
   - 全局模板角色。
   - 由系统管理员治理。
   - 用于派生租户角色实例。
-  - 不得直接分配给账号。
+  - 不得直接分配给 principal。
 - `SYSTEM_INSTANCE`
   - 系统级真实角色。
-  - 可分配给不绑定租户的系统账号。
+  - 可分配给不绑定租户的 SYSTEM HUMAN / MACHINE principal。
   - 用于系统管理员 access summary、接口授权与系统导航解析。
 - `TENANT_INSTANCE`
   - 租户级真实角色。
   - 必须属于具体 tenant。
-  - 可分配给租户账号。
+  - 可分配给同租户的 TENANT HUMAN / MACHINE principal。
   - 用于租户管理员与租户成员 access summary、接口授权与租户导航解析。
 
 稳定规则：
@@ -76,20 +77,23 @@
 
 详细 role kind 与 account-role scope 决策见 [0002-system-role-instance-and-account-role-scope.md](/Users/acehood/Documents/GitHub/oes/docs/adr/0002-system-role-instance-and-account-role-scope.md)。
 
-### 4.3 AccountRole / Grant
+### 4.3 PrincipalRoleBinding / Grant
 
-`AccountRole` 是账号与 role instance 的绑定事实。
+`PrincipalRoleBinding` 是 HUMAN / MACHINE principal 与 role instance 的通用绑定事实。HUMAN principal 可引用现有 account identity；MACHINE principal 引用 Identity 拥有的 Machine Principal。机器不得通过创建伪 `UserAccount` 复用授权表。
 
 稳定规则：
 
+- binding 显式记录 `principalType = HUMAN | MACHINE` 与 `principalId`。
 - 系统级绑定：`scopeLevel = SYSTEM`，`tenantId = null`，role 必须是 `SYSTEM_INSTANCE`。
 - 租户级绑定：`scopeLevel = TENANT`，`tenantId` 必填，role 必须是同 tenant 的 `TENANT_INSTANCE`。
-- `SYSTEM_TEMPLATE` 不得绑定账号。
-- account-role 可以包含 `effectiveAt / expiresAt`，当前有效绑定才参与 access summary、terminal access 与授权解析。
+- `SYSTEM_TEMPLATE` 不得绑定 principal。
+- binding 可以包含 `effectiveAt / expiresAt`，当前有效绑定才参与授权解析。
+- 人类账号继续参与 access summary、navigation 与 terminal access；机器 grant 不生成 UI navigation，也不进入人类 terminal access 计算。
+- Permission metadata 必须允许对应 principal type 与 scopeLevel；INTERNAL kind Permission Code 不得绑定到 HUMAN / MACHINE role，只能由 Auth / STS workload issuance policy 授予。
 - 不存在的撤销可按幂等成功处理。
-- checkbox list 类账号角色设置使用按 scope 全量替换语义；单条授予可支持有效期窗口。
+- checkbox list 类 principal 角色设置使用按 scope 全量替换语义；单条授予可支持有效期窗口。
 
-HR、Identity、TenantOrg、BFF 或其他服务只能请求授权 grant，不能直接写 account-role 绑定。
+现有 `AccountRole` 在迁移期是 HUMAN binding 的 legacy storage / projection 名称，目标 schema 必须无损迁移到 `PrincipalRoleBinding`，保持既有 grant id、role、scope、tenant、有效期与审计关系。HR、Identity、TenantOrg、BFF 或其他服务只能请求授权 grant，不能直接写 binding。
 
 ## 5. Authorization Model
 
@@ -103,6 +107,9 @@ HR、Identity、TenantOrg、BFF 或其他服务只能请求授权 grant，不能
 - 默认基于 effective roles 与 permission codes。
 - 不负责业务资源本体授权。
 - 不替代 domain rule。
+- subject identity、tenant、principal type 与 delegation 只能从已验证执行上下文或服务拥有的 identity facts 派生；调用方提交的 subject facts 不能提升授权。
+
+ExecutionToken 使用同一 Permission Code 词汇：Permission Service 提供有效 HUMAN / MACHINE grant 与 policy 判定，Auth / STS 取其允许子集签发目标 audience Token。Permission Service 不签发 Token，也不建立独立 Permission-to-Scope 映射。
 
 ### 5.2 checkResource / buildQueryScope
 

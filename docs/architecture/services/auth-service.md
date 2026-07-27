@@ -35,6 +35,14 @@
   - refresh token rotation
   - session validation
   - logout / revoke / tenant session revoke
+- service-to-service 执行凭据真相：
+  - STS token exchange
+  - 短期 ExecutionToken 签发、issuer、audience、TTL 与 key rotation
+  - workload issuance policy 的认证执行
+  - ExecutionToken 紧急撤销版本 / deny fact
+- API Key credential 真相：
+  - secret hash、credential id、过期、轮换、禁用与撤销
+  - API Key 认证并交换为 ExecutionToken
 - account selection 与 context switch 的 session 侧真相：
   - account selection 后建立当前 session context
   - context switch 后替换当前 session context
@@ -67,6 +75,7 @@
 - 当前用户可用 account context 列表与 account 展示摘要真相；这些归属 `identity-service`。
 - tenant lifecycle 与 org tree 真相；这些以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准。
 - 角色、权限、policy、授权判定、权限摘要与导航授权真相；这些以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。
+- Machine Principal identity、类型、scope 与 lifecycle；这些归属 `identity-service`。API Key 是 `auth-service` 拥有的 credential，不是机器主体。
 - 通知模板、渠道、provider、投递任务、投递状态、回执与成本治理真相；这些归属 `notification-service`。
 - API Gateway / BFF 的 HTTP contract、前端响应聚合形状、captcha 校验与前端 shell 状态。
 - 企业受管共享终端设备 registry、绑定租户、设备禁用、丢失、版本策略或设备运行快照真相；这些归属 `terminal-device-service`。
@@ -87,6 +96,8 @@
 - 维护平台级 Terminal Entry Login Policy，并在 primary credential 校验前判定当前 terminal 是否允许请求的 login flow。
 - 执行登录失败限流、OTP 发码频控、OTP 尝试次数控制与 trusted-device / new-device MFA 判定。
 - 记录认证、安全与 session 操作的本地审计事实。
+- 认证 workload、HUMAN / MACHINE / DELEGATED execution principal 与外部 API Key，并通过 STS 签发目标 audience 的最小权限 ExecutionToken。
+- 发布 JWKS 与紧急撤销事实，使资源服务在普通 RPC 上本地验签而不在线 introspection。
 - 显式区分 self-service 与 admin-management 接口授权语义，不允许长期复用同一接口层权限门承载两种语义。
 
 ## 5. Authentication Flow
@@ -159,6 +170,20 @@ Terminal-aware Account Security Phase 2 增加以下稳定规则：
 - PDA login / refresh / bootstrap 仍应重查受管设备状态，作为事件延迟或失败时的兜底。
 
 存储方向只在本文冻结到“active session truth 必须由 `auth-service` 拥有”。Redis、Prisma 或后续持久化 session 历史属于实现或专项架构问题，不在本文冻结为长期存储方案。
+
+### 7.1 ExecutionToken And STS
+
+ExecutionToken 是 service-to-service 的短期执行凭据，不是用户登录 access token 的别名。
+
+稳定规则：
+
+- 只有 `auth-service` / STS 可以签发 ExecutionToken；业务服务不得共享签名私钥或自行重签。
+- Token 只面向一个 target service audience，以 `cnf` 绑定申请工作负载的已验证 mTLS identity，并直接在 `scope` 携带获准 Permission Code 子集。
+- STS 对 HUMAN、MACHINE、DELEGATED 分别验证可信 session / principal、Permission grant、delegation upper bound 与 workload issuance policy；调用方不能提交可提升授权的 subject facts。
+- 默认 TTL 约 5 分钟，不签发 refresh token。精确上下限、claim 与错误语义以 [execution-token.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/execution-token.md) 为准。
+- 普通资源服务只通过 cached JWKS 本地验签；Auth 实例保持无状态横向扩展，STS 容量按 cache miss、context change 与 audience exchange 规划，而不是按每个业务 RPC 规划。
+- 普通撤销接受短 TTL 收敛；紧急撤销发布 principal / credential / session / security-version deny fact。Auth 不要求所有服务共享 Bearer Token cache。
+- API Key 只在 Gateway / Auth 入口使用；认证成功后换取 ExecutionToken，不能作为内部 gRPC credential 原样传播。
 
 ## 8. Login Methods And Credentials
 
@@ -329,6 +354,7 @@ application / domain 层可以复用底层业务逻辑，但 BFF / gRPC / interf
 - [auth-service/session-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/session-management.md)
 - [auth-service/login-history.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/login-history.md)
 - [auth-service/trusted-login-device.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/trusted-login-device.md)
+- [auth-service/execution-token.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/execution-token.md)
 
 相关 BFF contract：
 
@@ -347,12 +373,14 @@ Contract 文档只描述黑盒调用语义、字段、错误与当前接口形�
   - 提供 user、account、login target 相关身份映射与展示查询支撑。
   - 提供当前 user 可用 account context 列表与 account 摘要。
   - 拥有联系资产主数据与账号展示资料真相。
+  - 提供 Machine Principal identity、scope、tenant reference 与 lifecycle；不保存 API Key secret 或签发 ExecutionToken。
 - `tenant-org-service`
   - 提供 tenant lifecycle、tenant 摘要、org tree 与组织上下文支撑。
   - 为 TENANT scope session 建立、refresh、validate 与 context switch 提供 tenant status 校验依据。
 - `permission-service`
   - 为 admin-management、terminal login policy、MFA policy 管理、audit 查询等受保护管理能力提供授权判定。
   - 提供 access summary 与导航授权支撑，但不拥有 session context；permission 侧核心对象与 owner 边界以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。
+  - 提供 HUMAN / MACHINE principal grant、Permission Code 与 policy 判定，供 STS 计算 ExecutionToken 的获准 Permission 子集。
 - `terminal-device-service`
   - 提供受管终端设备状态、设备绑定 tenant 与设备不可登录事件。
   - 不拥有 auth session、token、MFA、trusted login device 或认证审计真相。
@@ -371,6 +399,8 @@ Contract 文档只描述黑盒调用语义、字段、错误与当前接口形�
 - 当前 session context 摘要。
 - terminal-aware session metadata。
 - access token 与 refresh token 签发结果。
+- target-audience ExecutionToken、JWKS 与紧急撤销 / minimum security version 事实。
+- API Key credential lifecycle 与认证结果；不发布可恢复的 API Key secret。
 - refresh token rotation 与 replay 处理结果。
 - account selection / context switch 后的 session 更新结果。
 - MFA policy 与 MFA binding 查询结果。
@@ -385,6 +415,7 @@ Contract 文档只描述黑盒调用语义、字段、错误与当前接口形�
 - 不复制 `identity-service` 的 user / account / contact asset 主数据。
 - 不复制 `tenant-org-service` 的 tenant / org 主数据。
 - 不复制 `permission-service` 的 role / policy / authorization truth。
+- 不拥有 Machine Principal identity 或 lifecycle，也不把 API Key credential 建模成 principal。
 - 不复制 `terminal-device-service` 的 managed terminal device registry、设备绑定、设备状态或版本策略真相。
 - 不直接对接 Email / SMS provider。
 - 不将 local notification fallback 视为长期平台通知边界。

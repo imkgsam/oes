@@ -1,11 +1,19 @@
-# identity-service Machine Auth API
+# identity-service Machine Auth API（Legacy / Superseded Target）
 
-> 服务设计唯一真相源：[identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)。本文只描述现有黑盒 gRPC machine auth 接口语义；machine principal 与 credential 的长期边界以服务真相源及后续专项设计为准。
+```text
+status: LEGACY_COMPATIBILITY_ONLY
+supersededBy: docs/contracts/auth-service/execution-token.md
+doNotUseAsTargetArchitecture: true
+```
+
+> 服务设计唯一真相源：[identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)。本文只记录现有黑盒 gRPC 接口，不能作为新调用方或长期 credential 架构依据。
 > 涉及 permission code、upper-bound policy、delegation scope 或授权判定的服务设计边界，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。
+
+目标 owner 已由 [ADR 0015](/Users/acehood/Documents/GitHub/oes/docs/adr/0015-workload-identity-and-execution-token.md) 冻结：Identity 只拥有 Machine Principal identity / lifecycle；Auth 拥有 API Key credential、认证、轮换、撤销与 STS ExecutionToken；Permission 拥有机器授权。
 
 ## 1. 接口范围
 
-`IdentityMachineAuthService` 提供现有机器身份认证入口。
+`IdentityMachineAuthService` 是待迁移的现有机器身份认证入口。
 
 当前仅开放一个接口：
 
@@ -16,6 +24,8 @@
 - 校验 API Key secret
 - 解析所属 `service account`
 - 返回可供上游继续使用的机器主体摘要
+
+禁止新增调用方。目标调用链为 API Key 只在 Gateway / Auth 认证，随后换取 target-audience ExecutionToken；API Key 不进入内部 gRPC metadata。
 
 ## 2. 调用约束
 
@@ -68,6 +78,7 @@
 
 ## 5. 调用方建议
 
-- 把该接口视为机器主体认证入口，而不是通用查询接口
-- 成功后应基于返回的 `service account` 继续做上层授权判断
-- 不要依赖下游实现细节，只依赖返回的主体摘要和明确错误语义
+- 现有调用方只可在原子迁移窗口内继续使用，不得扩散。
+- 迁移时把 API Key hash、status、expiry、rotation、last-used 与审计关系转交 Auth-owned credential storage；Machine Principal id、type、scope、tenant 与 lifecycle 继续由 Identity 拥有。
+- 迁移完成后删除 `AuthenticateApiKey` 与 Identity 内 credential secret/hash，不保留 Identity -> Auth 双写或长期 fallback。
+- 新调用方使用 [execution-token.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/execution-token.md)。

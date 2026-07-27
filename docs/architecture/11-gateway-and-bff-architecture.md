@@ -446,18 +446,19 @@ Gateway 是外部请求进入内部服务体系的第一层应用入口，因此
 - `operator_roles`
 - 旧的预解析权限集合字段
 
-这属于过渡状态，而不是目标状态。
+这属于待删除的 legacy 状态，而不是目标状态。
 
-项目级目标状态应以 [09-role-based-permission-resolution.md](./09-role-based-permission-resolution.md) 为准：
+项目级目标状态以 [14-grpc-metadata-and-service-trust-architecture.md](./14-grpc-metadata-and-service-trust-architecture.md) 与 [09-role-based-permission-resolution.md](./09-role-based-permission-resolution.md) 为准：
 
-- `operator_context` 长期应传播 `operator_roles`
-- 旧的预解析权限集合字段不应继续作为标准长期字段扩散
+- Gateway 从已验证 session / API credential 建立 `TrustedExecutionContext`
+- Gateway 保留 tenant-aware HTTP `RequirePermissions`，并通过 Auth / STS 获取单 audience、`cnf` 绑定、携带最小 Permission Code subset 的 ExecutionToken
+- 下游不接收 Role id、完整授权图或 body tenant/operator 作为可信身份
 
 这意味着 Gateway 重构时需要注意：
 
 - 新的 BFF / downstream adapter 不应继续把旧的预解析权限集合字段当作长期设计前提
-- 现有兼容逻辑可以保留过渡期兼容，但应明确标记为迁移中
-- Gateway 当前的 metadata 工厂实现可继续作为首跳实现，但不应被误认为项目级最终态；后续应由 `common` 中统一的多跳 metadata propagation 能力替代“Gateway 专属工厂即长期方案”的旧方向
+- 尚未轮到的目标服务只能在自己的 legacy RPC 内保持现有兼容逻辑，不得扩散；本 capability 必须继续迁移直至全部目标归零
+- Gateway 当前 metadata 工厂按目标服务逐个由 `common` 的 `TrustedGrpcMetadataProvider` 取代；任一 server cutover 都不保留 legacy fallback
 
 ## 10. 错误模型与返回语义
 
@@ -1541,7 +1542,7 @@ OES 推荐在 Gateway 设计阶段就同步考虑 APISIX 接入，而不是等 G
 说明：
 
 - 此响应是前端消费模型，不应与任一下游服务单独返回结构一一对应
-- `authorization.permissions` 对前端是消费视图，不等价于要求 `operator_context` 长期传播完整权限
+- `authorization.permissions` 对前端是消费视图，不等价于在内部链路传播 Role 或完整权限；内部调用以 target-audience ExecutionToken 的最小 Permission Code subset 为准
 
 建议字段定义：
 

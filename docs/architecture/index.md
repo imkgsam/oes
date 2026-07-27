@@ -65,7 +65,7 @@
 - `08-notification-architecture.md`
   - 定义通知平台边界、渠道模型、provider 抽象、与 `auth-service` 的协作方式和实施原则
 - `09-role-based-permission-resolution.md`
-  - 定义 operator context 的角色传播语义，以及子服务通过 `permission-service` 解析权限的共享方案
+  - 定义 HUMAN / MACHINE principal 的 Role grant 如何解析为 Permission Code，以及 Gateway、Auth / STS、目标服务的分层消费方式
 - `10-communication-and-mailbox-architecture.md`
   - 定义共享邮箱、外部通信线程、责任制、SLA、业务关联、全量持久化与 AI 辅助的项目级边界
 - `11-gateway-and-bff-architecture.md`
@@ -75,7 +75,7 @@
 - `13-response-and-exception-architecture.md`
   - 定义 HTTP 与 gRPC 的统一返回模型、异常分类标准、多层调用异常传播规则、第三方 provider 异常包装方式，以及权限判定链路的 fail-closed 策略
 - `14-grpc-metadata-and-service-trust-architecture.md`
-  - 定义内部 gRPC metadata 的多跳传播规则、signed `operator_context` 的目标结构与逐跳策略、部署层 mTLS 的职责边界，以及历史老旧设计的废弃方向
+  - 定义 mTLS workload identity、Auth / STS ExecutionToken、三种 RPC authorization mode、可信 metadata、多跳 target-audience exchange，以及全部 gRPC 服务逐服务迁移与验收规则
 - `15-authorization-layering-and-resource-policy-architecture.md`
   - 定义粗粒度 `RBAC`、单资源 `checkResource`、列表 `buildQueryScope`、policy 分类、业务规则边界与跨服务派生协作授权规则
 - `16-unified-web-account-context-architecture.md`

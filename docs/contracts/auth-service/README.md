@@ -47,6 +47,8 @@ Proto 契约来源仍然是：
   - login history 作为 auth audit 脱敏视图的查询语义
 - [trusted-login-device.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/trusted-login-device.md)
   - Web trusted browser 与 future Mobile remembered device 语义
+- [execution-token.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/execution-token.md)
+  - Workload / API Key 认证、STS exchange、单 audience ExecutionToken、JWKS、cache 与紧急撤销语义
 
 ## 3. 全局调用约束
 
@@ -54,7 +56,8 @@ Proto 契约来源仍然是：
 - 调用方应将 `auth-service` 视为 black box，而不是依赖其内部实现
 - 登录与认证流程接口不以 Swagger 作为主文档
 - 管理员接口要求：
-  - internal service 上下文
-  - authenticated operator context
+  - verified workload identity
+  - target-audience ExecutionToken
   - 对应 permission code
-- `tenantId / orgId / operator context / trace context` 是否必需，以具体接口文档为准
+- `tenantId / orgId / execution principal / trace context` 是否必需，以具体接口文档为准
+- request body 中重复的 tenant、operator、scope 或 service name 不能建立身份或授权

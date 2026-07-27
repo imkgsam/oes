@@ -104,7 +104,7 @@
 
 Site Media 是 `asset-service` 内可由 Site consumer 使用的 tenant-scoped 图片 / 视频资产切片，不是 `site-service` 的文件能力，也不是全域附件平台。
 
-- Site consumer 只能通过 API Gateway / BFF 使用 Asset 能力，调用链必须携带 verified tenant、operator、permission、trace 与 audit context；Asset 在服务端再次校验 scope、tenant、资产状态与操作资格。
+- Site 管理客户端只能通过 API Gateway / BFF 使用 Asset 能力；Gateway、Site Service 与其他内部 caller 必须通过可信 gRPC metadata 携带 mTLS workload identity、ExecutionToken、request / trace 与 audit context。Asset 在服务端再次校验 RPC mode、audience、Permission Code、tenant、资产状态与操作资格。
 - Site consumer 可以上传新的 Site Media candidate，或在其 tenant 内选择已授权的 Site Media；不得提交任意外链 URL、对象存储 key 或伪造的技术元数据。
 - 当前 Site Inspiration 只可引用受控图片；未来静态页面或其他已冻结 Site consumer 可以使用受控图片或视频，但 Asset 不拥有页面设计、构建产物或页面发布真相。
 - P1 图片只接受 `JPEG / PNG / WebP`；P1 视频只接受浏览器可直接播放的 `MP4` / `H.264` / `AAC` 组合。服务端必须解析实际二进制，而不是相信扩展名或声明 MIME。数值容量限制是 Asset 的可配置治理策略，不是 Site 页面规则。
@@ -151,5 +151,18 @@ P1 不在 OES UI 中管理 DNS 服务商账号。站点管理员只提交 `media
 - Platform 观察 R2 storage / operation、CDN cache hit、purge request / acknowledgement / retry / failure、确认延迟和未完成下架指标；P1 不实现租户自助 billing 或 provider cost split。
 - 远端公开站点可以早于完整 OES 上线，但其 Asset control plane 与 Asset metadata database 必须是持久化的，不能依赖开发者电脑保存公开 Asset identity、下架操作或审计。
 - 架构预留 `tenantId + siteId -> deliveryProfileId`，但 P1 唯一可激活的远端 profile 是 `oes-managed-cloudflare`。客户自带 R2 / Cloudflare 或 S3 / CloudFront 仅在未来作为平台审核的 profile 与 adapter 加入；租户管理员不得自助录入凭据。
+
+### 10.4 Trusted RPC Execution Boundary
+
+Asset + Site Media 是可信 gRPC 全仓 capability 的第一个业务优先 service slice；完成本切片不代表全仓迁移关闭。
+
+- Asset Controller 只从公共 server runtime 的不可变 `TrustedExecutionContext` 读取 principal、tenant、org、workload、request 与 trace；request body 中的 `tenantId`、`scopeLevel`、`operatorId` 或同义字段不能建立身份或授权。
+- Admin-facing upload、list、archive、takedown、delete 与 delivery management 使用 `BUSINESS` mode 和对应 `asset.site_media.*` Permission Code。
+- Site Service 的 publication resolve / protect / release 使用 `INTERNAL` mode 与 `asset.internal.site_media.*` Code；这些技术原语不能独立替代 Site 的业务 Sync 授权。
+- 合法 `siteId`、`assetId` 与 `targetTenantId` 可以保留为业务目标。Asset 必须加载自身拥有的归属事实，并把目标 tenant 与可信 context 比较；SYSTEM principal 不获得隐式 tenant wildcard。
+- Asset 不接受上游 Site audience Token。Site 调 Asset 前必须通过 Auth / STS 换取 `aud=asset-service`、绑定 Site workload 的 Token。
+- cutover 同时删除所有已纳入 Asset/Site 路径的 body identity、legacy signed operator header、controller fallback 与 fixture fallback；不得长期双读。
+
+完整传输信任规则以 [14-grpc-metadata-and-service-trust-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/14-grpc-metadata-and-service-trust-architecture.md) 为准，黑盒媒体能力以 [site-media.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/asset-service/site-media.md) 为准。
 
 Site Media 的完整黑盒交互以 [site-media.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/asset-service/site-media.md) 为准；跨服务发布保护与消费行为以 [site-asset-media.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/site-asset-media.md) 为准。

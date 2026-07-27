@@ -38,7 +38,7 @@ OES 的目标状态不是“所有权限控制都通过 guard 完成”，而是
 - 平台硬边界控制：
   - 不依赖 permission policy
   - 不允许被租户配置或业务 policy 放宽
-  - 由认证、租户隔离、服务间信任、operator context、审计与领域不变量等对应 owner 负责
+  - 由认证、租户隔离、mTLS workload identity、TrustedExecutionContext、审计与领域不变量等对应 owner 负责
 
 历史 `CheckPermissionWithContext` RPC 仅作为 `permission-service` 既有兼容能力与 policy AST 评估能力载体保留，不再作为新业务资源授权的标准接入方式。新业务的单资源授权必须优先落到 application 层 `checkResource`，列表 / 搜索 / 分页授权必须优先落到 `buildQueryScope`。
 
@@ -74,7 +74,7 @@ OES 的目标状态不是“所有权限控制都通过 guard 完成”，而是
 
 典型输入：
 
-- `operator_context`
+- verified execution principal / tenant context
 - `permissionCode`
 
 典型输出：
@@ -754,24 +754,15 @@ OES 需要区分：
 - `checkPermission`
 - 必要时 `checkResource`
 
-## 10. 与 operator context 的关系
+## 10. 与 TrustedExecutionContext 的关系
 
-当前项目目标状态仍为：
+当前目标状态为：
 
-- `operator_context` 传播 `operator_roles`
-- 不再长期传播预解析权限集合
+- mTLS workload identity 证明直接 caller。
+- ExecutionToken 传播 execution principal、tenant / org、最小 Permission Code subset、delegation 与 audience / `cnf` binding。
+- Role 与完整授权图不跨跳传播。
 
-在多跳调用中：
-
-- operator context 是否继续传播，取决于下游是否仍需要 operator 语义
-- “继续传播 operator context” 不等于 “每一跳都重新执行同层最终操作者授权”
-
-常见继续传播目的包括：
-
-- 审计归因
-- 租户 / 组织边界
-- 领域规则需要操作者身份
-- 少量下游独立授权点
+多跳调用向 STS exchange 下一跳 audience Token。上游已经完成的 BUSINESS 授权不要求下游 INTERNAL 技术原语重复同一层最终用户授权，但下游仍验证 workload policy、INTERNAL Code、tenant、resource ownership 与 domain rule。如果下游动作是独立 BUSINESS capability，则继续验证对应 BUSINESS Permission Code。
 
 ## 11. 当前代码状态评估
 
@@ -784,8 +775,8 @@ Updated: 2026-04-09 11:35 +08:00
   - `common` 中共享 `PermissionGuard`
   - `common/security` 已整体迁移到 `common/authorization`
   - 原 `common/permission` 中用于授权执行的 decorator / guard 已并入 `common/authorization`
-  - `common` 中基于 `operator_roles -> permission-service` 的共享 resolver / adaptor 已落地
-  - 共享 `OperatorContextPayload` 与共享授权实现已不再暴露旧的权限快照字段
+  - legacy `common` 中基于 `operator_roles -> permission-service` 的共享 resolver / adaptor 已落地，但已被可信 ExecutionToken 目标取代，待按逐服务 migration slice 删除
+  - legacy `OperatorContextPayload` 仍属于当前实现盘点，不再是新接口目标 contract
   - `auth-service`、`identity-service` 已接入接口级 `RequirePermissions + PermissionGuard`
   - `permission-service` 已具备 `CheckPermission`
   - `permission-service` 已具备历史兼容的 `CheckPermissionWithContext` 与 policy AST 能力；该 RPC 不作为新业务资源授权标准入口
@@ -850,7 +841,7 @@ Updated: 2026-04-09 11:35 +08:00
 - [07-permission-code-source.md](./07-permission-code-source.md)
   - 负责统一权限码语义源
 - [09-role-based-permission-resolution.md](./09-role-based-permission-resolution.md)
-  - 负责 `operator_roles -> permissions` 解析链
+  - 负责 PrincipalRoleBinding -> effective Permission Code 解析，以及 Gateway / STS / target service 的分层消费
 - [11-gateway-and-bff-architecture.md](./11-gateway-and-bff-architecture.md)
   - 负责 Gateway 的入口职责边界
 - 本文

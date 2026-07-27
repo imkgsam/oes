@@ -1,218 +1,234 @@
-# OES 统一权限码语义源设计
-
-> `permission-service` 的服务设计唯一真相源为 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。本文只定义项目级权限码语义源与同步机制，不重新定义 permission-service 的核心对象、owner 边界或授权判定模型。
-
-## 1. 目的
-
-本设计用于统一 OES 项目中权限码的定义、引用与数据库同步方式，避免以下问题：
-
-- 各服务手写字符串，权限语义漂移
-- 装饰器、授权检查、数据库初始化之间不一致
-- `gateway`、`permission-service`、业务服务各自维护一份权限码副本
-- 修改权限码后无法稳定同步到数据库与运行时
-
-本设计只定义“权限码唯一语义源”的结构与同步机制，不直接承载 operator context 与权限解析链设计。相关内容已由 [09-role-based-permission-resolution.md](09-role-based-permission-resolution.md) 单独定义。
-
-## 2. 目标
-
-- 代码中所有权限码都来自统一常量定义
-- 权限码按模块拆分，不放入单一大文件
-- `permission-service` 能从统一定义中同步权限到数据库
-- `gateway`、`auth-service`、其他服务、装饰器都复用同一份权限码常量
-- 数据库中的权限定义与代码中的权限码保持一致
-
-## 3. 非目标
-
-- 不在本设计中调整 operator context 结构
-- 不在本设计中调整 role / policy / scope 模型
-- 不在本设计中定义所有业务域的完整权限集
-- 不在本设计中改变现有 permission 判定协议
-
-## 4. 设计原则
-
-- 单一语义源优先于局部便利
-- 权限码定义与数据库同步逻辑分离
-- 共享库承载稳定语义，不承载本地服务实现
-- 权限码按 bounded context / 模块拆分
-- 常量命名与字符串值都必须稳定、可审计、可追踪
-
-## 5. 模块拆分
-
-统一权限码定义建议下沉到 `src/common`，并按模块拆分，而不是留在单个服务内部。
-
-建议目录：
+# OES 统一 Permission Code 语义源
 
 ```text
-src/common/src/authorization/permission-codes/
-  auth/
-    session.permission-codes.ts
-    auth-management.permission-codes.ts
-    index.ts
-  permission/
-    management.permission-codes.ts
-    index.ts
-  identity/
-    account.permission-codes.ts
-    tenant.permission-codes.ts
-    index.ts
-  index.ts
+status: FROZEN_PERMISSION_CODE_SOURCE
+decisionAdr: docs/adr/0015-workload-identity-and-execution-token.md
 ```
 
-约束：
+> `permission-service` 的服务职责、Role、Grant 与 Policy 以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。本文只冻结 Permission Code 的代码语义源、metadata 与运行时同步方向。
 
-- 每个文件只定义一个清晰模块的权限码
-- `index.ts` 只做聚合导出
-- 不允许把所有域的权限码重新塞回一个超大常量对象
+## 1. 冻结结论
 
-## 6. 常量形态
+Permission Code 的唯一静态语义源固定为：
 
-建议采用稳定对象常量：
+```text
+src/common/src/authorization/permission-codes/**
+```
+
+依赖方向固定为：
+
+```text
+Common definitions
+  -> Gateway / Auth-STS / all business services
+  -> Permission Service runtime catalog sync
+```
+
+禁止：
+
+- Permission Service 私有脚本定义全项目业务域 Permission Code，再反向生成 Common。
+- 业务服务手写散落字符串。
+- 建立独立 Scope 表、Scope 目录或 Permission-to-Scope 转换规则。
+- 把仅用于前端显示、尚无真实受保护入口或纯计划中的名称同步为 active runtime Permission。
+
+ExecutionToken 的标准 `scope` claim 直接携带本次获准的 Permission Code 子集。
+
+## 2. 当前漂移与根因
+
+当前实现由 `permission-service/src/scripts/permission-catalog.ts` 定义约 256 个 active Code，再由 `generate-common-permission-codes.ts` 生成 Common string 常量。
+
+该实现有以下问题：
+
+- 反转了稳定架构规定的依赖方向。
+- Permission Service 私有脚本被迫理解所有 bounded context 的业务能力。
+- generator 只输出 string，丢失 owner、kind、assignability 与 scope-level metadata。
+- generator 自身仍手工维护 import、path 和 export 清单。
+- 生成机制没有运行时性能或安全收益。
+- active catalog 中存在只在 seed、test 或 UI 出现而无真实服务端安全入口的 Code。
+
+因此，`permission-catalog.ts -> common` 生成链必须在实现迁移中删除；Permission Service 改为消费 Common definitions 并 upsert 自己的运行时数据库。
+
+## 3. 定义形态
+
+不引入公共 `definePermissionGroup` helper。每个 bounded context 使用普通 TypeScript `const`、metadata `const` 与 `satisfies`：
 
 ```ts
-export const AUTH_SESSION_PERMISSION_CODES = {
-  ADMIN_VIEW_USER_SESSIONS: 'auth.session.admin.view',
-  ADMIN_REVOKE_SESSION: 'auth.session.admin.revoke',
-  USER_VIEW_OWN_SESSIONS: 'auth.session.self.view',
-  USER_RENAME_OWN_SESSION_DEVICE: 'auth.session.self.rename_device',
-  USER_LOGOUT_OWN_SESSION: 'auth.session.self.logout'
+export const SITE_MANAGEMENT_PERMISSION_CODES = {
+  SYNC: 'site.management.sync'
 } as const
+
+export const SITE_MANAGEMENT_PERMISSION_DEFINITIONS = {
+  ownerService: 'site-service',
+  permissions: {
+    [SITE_MANAGEMENT_PERMISSION_CODES.SYNC]: {
+      description: '执行站点 public view 同步',
+      kind: 'BUSINESS',
+      assignableTo: ['HUMAN', 'MACHINE'],
+      allowedScopeLevels: ['TENANT']
+    }
+  }
+} as const satisfies PermissionDefinitionGroup
 ```
 
-约束：
-
-- key 使用稳定英文标识
-- value 使用 `domain.resource.action` 风格
-- value 才是数据库中真正持久化与判定的权限码
-- key 仅用于代码可读性与引用稳定性
-
-## 7. 与装饰器的关系
-
-`@RequirePermissions({ all: [...] })` 不再接收散落字符串，而是接收统一常量值，例如：
+公共类型最小字段：
 
 ```ts
-@RequirePermissions({ all: [AUTH_SESSION_PERMISSION_CODES.ADMIN_REVOKE_SESSION] })
+type PermissionKind = 'BUSINESS' | 'INTERNAL'
+type PermissionAssignee = 'HUMAN' | 'MACHINE' | 'WORKLOAD_POLICY'
+type PermissionScopeLevel = 'SYSTEM' | 'TENANT'
+
+interface PermissionDefinition {
+  description: string
+  kind: PermissionKind
+  assignableTo: PermissionAssignee[]
+  allowedScopeLevels: PermissionScopeLevel[]
+}
+
+interface PermissionDefinitionGroup {
+  ownerService: string
+  permissions: Record<string, PermissionDefinition>
+}
 ```
 
-这保证：
+字段语义：
 
-- controller / guard / permission-service 检查语义一致
-- IDE 可追踪引用
-- 重构时可统一修改
+- `ownerService`：Permission 语义 owner，不表示该 Code 只能在 owner 的一个 RPC 使用。
+- `kind=BUSINESS`：可进入角色 / principal grant，承载业务能力。
+- `kind=INTERNAL`：只可由 STS workload issuance policy 授予，不得加入人类或租户机器业务角色。
+- `assignableTo`：静态阻止把 INTERNAL Code 或不适配主体的 Code 绑定到角色。
+- `allowedScopeLevels`：阻止 SYSTEM / TENANT scope 错配，不替代运行时 tenant isolation。
 
-## 8. 与数据库同步的关系
+不在第一版 metadata 中加入 speculative risk score、UI route、菜单、审批流或资源 schema。
 
-`permission-service` 应提供“从统一权限码定义同步数据库”的脚本或同步入口。
+## 4. 命名与稳定性
 
-同步机制要求：
+- 值使用稳定英文标识，通常采用 `domain.resource.action`。
+- INTERNAL Code 必须显式包含 `.internal.`，例如 `asset.internal.site_media.resolve`。
+- value 是数据库、Token scope、decorator 与审计使用的稳定身份。
+- TypeScript key 只负责代码可读性。
+- 修改现有 value 视为契约变更；使用新增 + 显式 deprecated / migration，不做静默 rename。
+- 描述与 metadata 可治理更新，但不能改变 Code 的业务含义。
 
-- 输入：`src/common/src/authorization/permission-codes/**`
-- 输出：权限主数据表中的标准 permission code 记录
-- 能识别新增、缺失、重复
-- 默认只做 upsert，不自动删除数据库记录
-- 删除动作需显式治理流程，不允许脚本默认清理
+## 5. Runtime catalog sync
 
-建议同步步骤：
+Permission Service 同步方向：
 
-1. 聚合所有 permission code 常量
-2. 生成平铺清单
-3. 对数据库执行 upsert
-4. 输出新增 / 已存在 / 冲突报告
+1. 聚合 Common definitions。
+2. 验证 Code 唯一、metadata 完整、owner 合法。
+3. upsert `Permission` 运行时 catalog。
+4. 输出新增、已存在、metadata 变化、deprecated 与引用冲突报告。
+5. 默认不自动物理删除数据库记录；删除由显式治理流程处理。
 
-## 9. 数据库同步边界
+数据库是当前环境运行时注册事实，Common 是允许存在的代码语义源。业务服务不能直接写 Permission 数据库。
 
-统一权限码常量是语义源，但数据库仍是运行时事实源。
+## 6. all / any 与 application policy
 
-二者关系：
+Decorator 使用：
 
-- 代码常量：定义“允许存在的权限语义”
-- 数据库：承载“当前环境已注册的权限事实”
+```ts
+@AuthorizeBusinessRpc({ all: [A, B] })
+@AuthorizeBusinessRpc({ any: [A, B] })
+```
 
-因此：
+- `all`：同一操作必须同时具备全部能力。
+- `any`：多个 Code 对完全相同的操作均构成充分授权。
+- 如果 body 中不同值选择不同状态跃迁，不能把对应 Code 放入一个 `any`；必须拆分命令或在 application 层按目标动作检查对应 Code。
+- 条件授权如“操作自己的备注无需 manage，删除他人备注需要 manage”继续由 application/resource policy 判断；入口仍标为 BUSINESS。
 
-- 装饰器与服务代码引用统一常量
-- `permission-service` 启动脚本或治理脚本将常量同步到数据库
-- 不允许业务服务自行向数据库散写 permission code
+## 7. 当前 catalog 审计决定
 
-## 10. 迁移路径
+当前 256 个 active Code 的冻结治理方向：
 
-### Phase 1
+### 7.1 从 active catalog 退出
 
-- 保留 `permission-service` 现有本地 `MANAGEMENT_PERMISSION_CODES`
-- 在 `src/common` 建立统一目录与结构
-- 将 `permission-service` 的管理权限码迁移到 `common`
-- 仅保证代码引用来源统一，不改变字符串值
+以下 22 个 Code 类别退出 active runtime catalog；未来真实接口冻结后可以重新以新证据引入：
 
-### Phase 2
+- 7 个把基础 self-service 伪装为岗位 RBAC 的 Code：
+  - `auth.login_method.self.list`
+  - `auth.login_method.self.manage`
+  - `auth.session.self.list`
+  - `auth.session.self.revoke`
+  - `identity.account.self.read`
+  - `identity.account.self.update_profile`
+  - `permission.account.self.get_roles`
+- 5 个与已存在工作邮箱 / 手机细分能力重复且当前没有独立真实入口的 generic Contact Asset Code：
+  - `identity.contact.asset.assign`
+  - `identity.contact.asset.update`
+  - `identity.contact.asset.set_status`
+  - `identity.contact.asset.set_primary`
+  - `identity.contact.asset.release`
+- 5 个尚无真实受保护入口的 CRM future Code：
+  - `crm.duplicate.viewRestricted`
+  - `crm.contact.manage`
+  - `crm.source.manage`
+  - `crm.activity.create`
+  - `crm.opportunity.manage`
+- 3 个只控制浏览器本地工作区、没有受保护 resource server action 的 Extension Code：
+  - `extension.designer.project.create`
+  - `extension.designer.product.collect`
+  - `extension.designer.submit_to_oes`
+- `permission.policy.delete`：当前 Policy 治理冻结为 readonly，不存在开放删除能力。
+- `item_master.item.set_composition`：当前没有真实执行入口。
 
-- 为 `auth-service` 增加 `auth` 域权限码常量
-- 将 admin session 管理接口改为引用 `common` 中的权限码
-- `permission-service` 同步脚本开始消费 `common` 权限码定义
+### 7.2 保留并接入真实入口
 
-### Phase 3
+- Identity 工作邮箱 / 手机 8 个细分 Code 接入对应 RPC，替换 generic Contact Asset Code。
+- Site 的 locale、product、content、credential、audit 五个细分 Code 替换当前过粗的 READ / MANAGE 使用。
+- `item_master.item.set_primary_category` 接入对应 Item Master command。
+- `sales.order.set_commercial_gate` 接入现有 Sales BUSINESS RPC。
+- Collaboration annotation/task Code 保留，用于 application 层条件授权。
+- `terminal-device.sensitive.read` 保留，用于敏感字段 projection 条件授权。
 
-- 逐步迁移 `identity-service` 与其他服务
-- 清理各服务内部残留的本地 permission code 常量
+### 7.3 修正 metadata owner
 
-## 11. 对当前主线的直接影响
+- Browser Activity Code 的 owner/module 改为 `browser-activity-service`，不再归 `permission-service`。
+- Asset、Party、Notification 当前缺失的 INTERNAL Code 随真实跨服务 contract 引入，不为没有调用者的想象场景预建。
 
-当前最直接落点是 `auth-service` 的 admin session 管理：
+## 8. Asset + Site 第一优先链新增 Code
 
-- `AdminListUserSessions`
-- `AdminRevokeSession`
+Site Media 第一优先 service slice 至少需要：
 
-它们不应继续裸用 operator identity，而应在接入统一权限码定义后，通过 `permission-service` 做授权判定。
+BUSINESS：
 
-建议权限码语义先按 `auth` 模块拆：
+- `asset.site_media.read`
+- `asset.site_media.upload`
+- `asset.site_media.archive`
+- `asset.site_media.takedown`
+- `asset.site_media.delete`
+- `asset.site_media.delivery.manage`
 
-- `auth.session.admin.view`
-- `auth.session.admin.revoke`
+INTERNAL：
 
-注意：
+- `asset.internal.site_media.resolve`
+- `asset.internal.site_media.publication.protect`
+- `asset.internal.site_media.publication.release`
+- `asset.internal.avatar.resolve_public_url`
+- `site.internal.runtime.capability.register`
+- `site.internal.runtime.publication.read`
+- `site.internal.runtime.sync.report`
+- `site.internal.runtime.preview.read`
 
-- 本设计只确定结构与命名方向
-- 具体权限码清单进入实施阶段时仍应按最小切片逐步落地
+最终 exact Code 与 RPC 映射在 Asset shared contract / implementation packet 中保持一致，不新增 Permission-to-Scope 转换规则。
 
-## 12. 风险与约束
+## 9. 一致性测试
 
-- 这是跨模块语义设计，不能在单服务线程中随意扩张
-- `src/common` 中只允许承载稳定权限码语义，不承载数据库同步实现
-- 数据库同步脚本应放在 `permission-service` 或治理脚本目录，不应放进 `common`
-- 如果历史数据库里已有不一致权限码，需要单独治理，不能靠常量文件直接覆盖
+必须提供全局静态测试：
 
-## 13. 当前落地状态
+- 所有 Code 全局唯一。
+- 每个 Code metadata 完整。
+- INTERNAL Code 不能 assign to HUMAN / MACHINE role。
+- role foundation 只能引用 active、可分配且 scope-compatible 的 Code。
+- decorator 只能引用 active Code。
+- Permission Service runtime seed 与 Common definitions 一致。
+- 旧反向 generator 与 generated banner 不再存在。
+- active Code 不能只被 seed / test / UI 引用而没有明确 contract 或 runtime security consumer。
 
-Updated: 2026-03-26 00:45 +08:00
+## 10. 迁移与删除
 
-截至当前，已完成：
+1. 在 Common 建立人工维护 definitions 与聚合器。
+2. 让 Permission Service sync 消费 Common。
+3. 迁移 role foundation、Gateway、server decorator 与 STS。
+4. 处理本次审计决定的 deprecated / active 变化。
+5. 删除 Permission Service `permission-catalog.ts -> common` generator、generated banner 与相关一致性测试。
+6. 保留现有 `*_PERMISSION_CODES` export name，减少调用方无意义 churn。
 
-- `SLICE-01`
-  - `src/common/src/authorization/permission-codes/**` 目录与导出基线已建立
-- `SLICE-02`
-  - `permission-service` 本地 `MANAGEMENT_PERMISSION_CODES` 已收敛为对 `common` 的复用导出
-- `SLICE-03`
-  - `permission-service` 已新增统一权限码同步脚本
-  - 当前脚本采用保守 upsert，不执行删除
-- `SLICE-04`
-  - `auth-service` 的 `AdminListUserSessions`
-  - `auth-service` 的 `AdminRevokeSession`
-  - 已接入统一权限码常量与 `RequirePermissions(...)`
-
-当前仍未完成的内容：
-
-- 历史数据库中权限码的实际同步执行与环境验证
-- 其他服务继续迁移到统一权限码来源
-- 装饰器和数据库同步链路在更大范围内的全面收口
-
-## 14. 与整体主线的关系
-
-这份设计文档对应的是“统一权限码语义源”这条治理分支，不等同于项目级
-`internal-service-auth-and-operator-context` 主线切片本身。
-
-当前关系如下：
-
-- 整体主线：
-  - 已超过 `SLICE-04`
-  - 当前整体主线处于 `SLICE-07` 部分实现阶段
-- 本治理分支：
-  - 已完成到本地计划中的 `SLICE-04`
-  - 也就是“统一权限码定义 -> `permission-service` 复用 -> 同步脚本 -> `auth-service` 接入”这一条最小闭环
+该迁移是单向终态迁移，不长期维护 Common 和 Permission Service 两份定义。

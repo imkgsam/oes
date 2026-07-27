@@ -1,564 +1,377 @@
-# OES gRPC Metadata 与服务信任架构
+# OES 可信 gRPC Metadata、ExecutionToken 与服务信任架构
 
-> 涉及 permission-service 的服务职责、核心对象或 owner 边界时，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准；本文只描述 gRPC metadata、operator context 与服务信任传播规则。
+```text
+status: FROZEN_TRUSTED_GRPC_METADATA
+decisionAdr: docs/adr/0015-workload-identity-and-execution-token.md
+implementationPacket: docs/plans/features/trusted-grpc-execution-context.md
+requiredDeferredDesigns:
+  - token-cryptography-and-workload-identity-contract
+  - emergency-execution-revocation-event-contract
+  - external-api-key-security-contract
+  - delegated-execution-and-action-grant-contract
+  - principal-role-binding-persistence-contract
+```
+
+> `auth-service`、`identity-service`、`permission-service` 的长期职责分别以对应服务真相源为准。本文只冻结跨服务 gRPC 传输身份、执行身份、授权上下文与多跳传播规则。
 
 ## 1. 目的
 
-本设计用于明确 OES 内部服务在 gRPC 调用链中的三类问题：
+本文回答四个项目级问题：
 
-- 服务与服务之间如何建立可信通信边界
-- request / trace / operator context 应如何跨多跳传播
-- 哪些历史实现只能作为过渡或旧设计，后续应停止扩散
+- 当前直接调用工作负载是谁，如何证明。
+- 本次调用代表哪个人或机器主体，属于哪个 tenant / org。
+- 本次调用可以对目标服务执行哪些 Permission Code。
+- 多跳调用如何保持最小授权、审计与 trace continuity，而不信任 request body 中重复的身份字段。
 
-本文是项目级稳定设计，覆盖 Gateway 首跳与服务间多跳调用，不再仅以某个单服务线程中的局部约定作为事实来源。
+本文覆盖：
 
-## 2. 核心结论
+- API Gateway / BFF 到内部服务的首跳。
+- 内部服务到下游服务的多跳。
+- Cron、Robot、AI、内部平台任务与外部 Integration Machine。
+- 有人类 operator、受委托 operator 与没有人类 operator 的技术调用。
 
-### 2.1 传输层信任由部署层负责
+## 2. 根因与当前调用形态
 
-OES 的内部服务传输层信任目标状态明确为：
+仓库只读审计基线：
 
-- 内部 gRPC 链路通过 mTLS 建立双向认证与链路加密
-- mTLS 属于部署 / 平台层能力
-- 代码层不承担长期 TLS / 证书治理职责
+- 21 个 gRPC 服务。
+- 51 个 gRPC Controller 文件。
+- 560 个实际 RPC 方法。
+- 约 360 个 RPC 没有任意服务端入口 Guard。
+- 只有 44 个 RPC 使用公共 `@RequirePermissions`；Permission Service 另有 61 个自定义管理权限门。
+- 256 个 active Permission Code 中，208 个用于 Gateway decorator，只有 61 个用于 gRPC 服务端 decorator。
+- 生成器配置 `addGrpcMetadata=false`；现有客户端依赖 `...rest: any` 传 metadata。
+- 556 个生成客户端调用中有 19 个仍只传 request，开启显式 metadata signature 后必须修复。
 
-当前阶段的实现要求：
+根因不是缺少 tenant 字段或缺少 Permission Code，而是信任根分散且边界不一致：
 
-- 代码层不为未来 mTLS 做一套临时过渡 TLS 方案
-- 代码层只实现不会因 mTLS 上线而返工的能力：
-  - metadata 多跳传播
-  - signed `operator_context`
-  - request / trace continuity
-  - internal service 调用语义归一
+- `x-internal-service-name` 由调用方自报，不能证明工作负载身份。
+- 多个服务共享 operator-context 签名能力，无法保证只有中央认证服务能签发执行身份。
+- `AuthenticatedOperatorGuard`、`PermissionGuard` 依赖额外 reflector metadata；接口漏标时可能表面挂 Guard、实际不消费 operator context。
+- Asset、Site、Finance、CRM、Public Entry、Terminal 等路径仍从 request body 读取 tenant、scope、operator 或 trace。
+- Gateway 的 legacy 单项 `checkPermission` 没有把 tenant 纳入实际授权查询。
+- Permission PDP 允许调用方提交 subject facts；这些事实不能取代已验证执行主体。
 
-### 2.2 应用层信任由 signed `operator_context` 负责
+因此，当前 signed `operator_context`、自报 service name 与 body identity 只属于待删除的历史实现，不再是目标架构。
 
-mTLS 只解决：
+## 3. 冻结结论
 
-- 当前调用服务是谁
-- 这条链路是否来自受信服务
+OES 目标信任模型由三部分组成：
 
-它不解决：
+1. mTLS 工作负载身份：证明当前直接调用方和目标服务。
+2. Auth / STS 签发的短期 ExecutionToken：证明本次执行主体、tenant、audience 与获准 Permission Code。
+3. 方法级 RPC authorization declaration：由目标服务声明该方法是 BUSINESS、SELF_SERVICE 或 INTERNAL，并在本地执行统一授权。
 
-- 当前调用代表哪个操作者
-- 当前操作者属于哪个 tenant / org
-- 当前操作者带哪些角色
+禁止：
 
-这些业务语义继续由应用层的 signed `operator_context` 负责。
+- 让 request body 建立或提升 tenant、operator、scope 或服务身份。
+- 把 `x-internal-service-name`、网络位置、私有 IP 或 allowlist header 当作可信根。
+- 每跳由业务服务自行签发或重签 operator token。
+- 每个 RPC 在线调用 Auth 做 token introspection 或重新签发。
+- 建立第二套 Scope 目录或 Permission Code 到 Scope 的转换表。
+- 为任何服务增加 feature-specific body fallback。
 
-### 2.3 多跳传播是项目级要求，不是 Gateway 专属能力
+## 4. 两类身份
 
-Gateway 是外部入口的首跳上下文装配点，但不是 metadata 传播的唯一承担者。
+### 4.1 Workload Identity
 
-项目级要求：
+Workload Identity 表示当前网络直连工作负载，例如：
 
-- Gateway 首跳需要写入 metadata
-- 子服务在继续调用下游时，也必须按统一规则传播 metadata
-- 不允许形成“Gateway 有 metadata 工厂、其他服务靠手写或不传”的长期状态
+- `api-gateway`
+- `site-service`
+- `asset-service`
+- `cron-worker`
+- `ai-orchestrator`
 
-## 3. 元数据分类
+长期由部署层 mTLS / SPIFFE-compatible identity 提供。代码层只消费平台已经验证的 `VerifiedWorkloadIdentity`，不管理证书签发、轮换或根证书。
 
-### 3.1 基础内部调用 metadata
+### 4.2 Execution Principal
 
-以下字段属于内部服务调用基础 metadata，应在绝大多数内部 gRPC 调用中跨跳传播：
+Execution Principal 表示本次业务执行代表谁：
 
-- `x-internal-service-name`
-- `x-request-id`
-- `x-trace-id`
-- `traceparent`
-- `tracestate`，当存在时
+- `HUMAN`：用户直接操作。
+- `MACHINE`：Cron、Integration、Robot 或平台自动化以自己的授权运行。
+- `DELEGATED`：AI / Robot 在受控委托中代表一个 HUMAN 执行。
 
-职责：
+Workload 与 Execution Principal 不合并。Gateway 是工作负载，不自动成为业务 actor；AI worker 也不能因为自己是可信工作负载就继承用户权限。
 
-- 标识当前直接调用方服务
-- `x-trace-id` 作为日志、审计与排障的稳定关联键
-- `traceparent / tracestate` 作为标准 OTel 分布式追踪上下文
-- 支撑观测、日志、审计与排障
+## 5. ExecutionToken
 
-### 3.2 业务操作者 metadata
+### 5.1 最小 claims
 
-以下字段属于业务语义 metadata，只在下游仍需要操作者语义时传播：
-
-- `x-operator-context`
-
-适用场景：
-
-- 下游接口接入 `AuthenticatedOperatorGuard`
-- 下游接口接入 `PermissionGuard`
-- 下游需要 operator 归因审计
-- 下游需要 tenant / org 作用域校验
-
-实现护栏：
-
-- 仅仅在接口上挂 `AuthenticatedOperatorGuard` 并不等于一定会解析 `x-operator-context`
-- 当前 `AuthenticatedOperatorGuard` 只会在接口显式带有 `@RequirePermissions({ all: [...] })` 或 `@RequireAuthenticatedOperator()` 元数据时，才会真正读取 gRPC metadata 并把 operator context 挂到 request context 上
-- 因此，凡是 handler 内部会调用 `getRequiredOperatorId(...)`、`getOptionalOperatorScope(...)`、资源边界校验、操作者审计写入等逻辑的 gRPC 管理接口，都必须显式声明：
-  - `@RequirePermissions({ all: [...] })`，或
-  - `@RequireAuthenticatedOperator()`
-- 只写 `@UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)` 但未声明上述元数据时，接口表面上接入了 guard，实际上不会消费 operator context，后续在 handler 内取 operator id 会得到 `APP_SECURITY_003 / operator context is missing`
-
-不适用场景：
-
-- 纯技术型内部调用
-- 无 operator 归因要求的基础设施能力调用
-
-例如：
-
-- `auth-service -> notification-service` 发送 OTP
-  - 默认只需要基础内部调用 metadata
-- `api-gateway -> permission-service` 管理接口
-  - 需要基础 metadata + signed `operator_context`
-
-## 4. `operator_context` 结构
-
-### 4.1 目标结构
-
-`operator_context` 的目标字段如下：
-
-- `operator_id`
-- `operator_type`
-- `tenant_id`
-- `org_id`，当场景适用
-- `issued_at`
-- `expires_at`
-- `issuer`
-- `operator_roles`
-- `request_id`
-- `trace_id`
-- `signature`
-
-### 4.2 明确废弃项
-
-以下字段不再作为长期标准传播设计：
-
-- 旧的预解析权限集合字段
-
-其在当前代码中的存在仅视为过渡兼容，不得继续作为新实现的长期前提。
-
-该要求与 [09-role-based-permission-resolution.md](./09-role-based-permission-resolution.md) 保持一致。
-
-## 5. 多跳传播规则
-
-### 5.1 基础规则
-
-所有内部 gRPC 多跳调用应遵循：
-
-1. 保持 `request_id` 连续
-2. 保持 `trace_id` 连续
-3. 保持 `traceparent / tracestate` 连续
-4. 当前直接调用方服务名写入 `x-internal-service-name`
-5. 仅在业务需要时继续传播 `x-operator-context`
-
-说明：
-
-- `x-trace-id` 继续保留，用于日志、审计与手工排障关联
-- `traceparent / tracestate` 负责真实的 OTel 分布式追踪传播
-- 新实现不得再把“只有 `x-trace-id` 连续”视为 tracing 已闭环
-
-### 5.2 `operator_context` 逐跳策略
-
-项目目标状态采用逐跳重签策略：
-
-1. 当前服务接收上游 `operator_context`
-2. 当前服务先完成验签与有效性校验
-3. 若继续调用下游且仍需要 operator 语义：
-   - 基于已验证 payload 生成新的 `operator_context`
-   - `issuer` 写当前调用服务名
-   - 重新签名
-   - 保持短 TTL
-
-这样做的目的：
-
-- 明确每一跳的调用责任
-- 避免长期把 Gateway 作为唯一 issuer
-- 便于 trusted issuer 治理
-- 便于跨服务审计归因
-
-### 5.3 不允许的做法
-
-以下做法应视为不符合目标架构：
-
-- 只在 Gateway 首跳写 metadata，二跳以后任由 metadata 丢失
-- 无差别把 `operator_context` 透传到所有技术型内部调用
-- 继续把旧的预解析权限集合字段作为长期标准字段扩散
-- 用 `x-internal-service-name` 伪装为完整服务身份信任根
-
-## 6. 服务信任模型
-
-### 6.1 目标职责分层
-
-OES 内部服务信任模型分为两层：
-
-- 传输层：
-  - 由部署层 mTLS 负责
-- 应用层：
-  - 由 signed `operator_context` 与 request / trace metadata 负责
-
-### 6.2 `InternalServiceGuard` 的定位
-
-在目标状态下：
-
-- `InternalServiceGuard` 继续保留
-- 但它的语义应理解为：
-  - 应用层调用方声明校验
-  - 辅助审计与治理能力
-- 它不是长期唯一的服务可信根
-
-长期可信根应来自部署层 mTLS / service identity 体系。
-
-## 7. 当前代码状态评估
-
-### 7.1 已实现部分
-
-当前代码已具备：
-
-- Gateway 首跳 metadata 工厂
-- `operator_context` RSA 签名与验签
-- `InternalServiceGuard`
-- `AuthenticatedOperatorGuard`
-- request / trace metadata 基础字段
-- 标准 `traceparent / tracestate` 的 gRPC metadata 生成
-
-### 7.2 当前缺口
-
-当前代码仍存在以下项目级缺口：
-
-- 多个子服务 adaptor 在二跳调用中未继续传 metadata
-- `operator_context` 仍带过渡期的权限快照字段
-- `org_id` 尚未成为标准传播字段
-- 传输层 mTLS 尚未实现
-- HTTP / gRPC / 事件总线的全链路 tracing 联调仍未完整验证
-
-因此，当前代码应被理解为：
-
-- 首跳设计已存在
-- gRPC 标准 trace metadata 已进入 `common`
-- 全链路 trace propagation 仍未完全收口
-- 服务信任模型仍未达到目标状态
-
-## 8. 历史老旧设计删除与废弃
-
-以下设计或实现方向，后续应明确停止扩散，并逐步从活跃实现与活跃设计中退出。
-
-### 8.1 删除“代码层临时 mTLS 过渡方案”作为目标方向
-
-本项目不再采用：
-
-- 在各业务服务代码中临时接入 TLS credentials
-- 把证书加载、轮换、client / server cert 配置分散进各服务代码
-
-原因：
-
-- 这会形成明显返工
-- 与部署层 mTLS 的最终职责分工不一致
-- 会让业务代码承担本不应承担的证书治理责任
-
-### 8.2 废弃“Gateway 专属 metadata 工厂即项目长期方案”
-
-历史上 metadata 工厂主要存在于 Gateway 内部，这可以作为首跳实现，但不能继续视为项目级终态。
-
-目标状态应为：
-
-- 在 `common` 下沉统一的服务间 metadata propagation 能力
-- Gateway 与各子服务复用同一套规则
-
-### 8.3 废弃“`x-internal-service-name` 单独承担服务信任根”
-
-历史实现中，`InternalServiceGuard` 主要基于：
-
-- `x-internal-service-name`
-- allowlist
-
-进行内部服务识别。
-
-这可作为当前阶段的应用层控制手段，但不再被视为长期充分条件。
-
-长期目标应以部署层 mTLS 为传输层信任根。
-
-### 8.4 删除“长期传播预解析权限集合”设计方向
-
-以下方向已明确废弃：
-
-- 在 `operator_context` 中长期携带完整权限集合
-- 让子服务继续直接依赖旧的权限快照字段作为主要授权来源
-
-后续所有新路径应以：
-
-- `operator_roles`
-- `permission-service` 运行时解析权限
-
-作为目标方案。
-
-## 9. 推荐实施顺序
-
-### Phase 1
-
-- 在 `docs/architecture` 冻结本文
-- 明确 mTLS 由部署层负责
-
-### Phase 2
-
-- 在 `common` 下沉统一 metadata propagation factory
-- 定义内部调用与 operator-scoped 调用两套构造入口
-
-### Phase 3
-
-- Gateway 与各子服务 adaptor 统一接入该 factory
-- 打通 request / trace continuity
-- 打通业务需要场景下的 `operator_context` 多跳传播
-
-### Phase 4
-
-- 收敛 `operator_context` 到 `operator_roles`
-- 逐步移除对旧的权限快照字段的长期依赖
-
-### Phase 5
-
-- 在部署层接入 mTLS
-- 完成证书、轮换、服务身份、可信链治理
-
-## 10. `common` 通用 metadata propagation factory 设计
-
-为避免继续沿用“Gateway 专属工厂 + 子服务各自手写”的旧方向，项目下一步应在 `src/common` 下沉统一的 metadata propagation 能力。
-
-### 10.1 目标位置
-
-建议位置：
+ExecutionToken 使用短期、签名 JWT，至少包含：
 
 ```text
-src/common/src/authorization/
-  metadata/
-    grpc-metadata-propagation.factory.ts
+iss
+aud
+sub
+principal_type = HUMAN | MACHINE | DELEGATED
+client_id
+tenant_id? / org_id?
+scope
+jti / iat / nbf / exp
+cnf
+act? / delegation_id? / session_id?
+authz_version?
 ```
 
-若后续认为更适合放入 `transport/grpc`，也可以迁移，但职责必须保持在“安全上下文传播”边界内，而不是演变成通用杂项工具。
+语义：
 
-### 10.2 工厂目标职责
+- `aud` 只允许一个目标服务 audience；不得签发项目级通用 audience。
+- `sub` 是获授权主体。
+- `client_id` 是申请本 Token 的直接调用工作负载。
+- `scope` 是空格分隔的 Permission Code 子集，不是另一套权限命名。
+- `act` 仅在 DELEGATED 时记录受控代理主体。
+- `cnf` 绑定当前调用工作负载的 mTLS certificate / proof-of-possession identity。
+- TENANT 数据面 Token 必须有唯一 `tenant_id`；不存在 `tenant=*`。
+- SYSTEM Token 只表示平台控制面，不自动允许访问任意 tenant 数据。
 
-该工厂负责：
+默认 TTL 目标为约 5 分钟；具体上下限由 Auth contract 冻结。Token 不签发 refresh token。
 
-- 统一创建内部服务调用 metadata
-- 在需要时创建带 signed `operator_context` 的 metadata
-- 从 HTTP 首跳来源与已认证 gRPC 上下文两类来源归一化输入
-- 保持 `request_id` / `trace_id` 连续
-- 支持逐跳重签
+### 5.2 签发与验证
 
-该工厂不负责：
+- 只有 `auth-service` / STS 持有 ExecutionToken 签发权。
+- Auth 实例无状态横向扩展，通过 `kid` 与 JWKS 支持密钥轮换。
+- 目标服务本地验证签名、issuer、时间、audience、scope、cnf 与紧急 deny cache。
+- 普通 RPC 不在线访问 Auth；Auth 不在每次调用的热路径。
+- 普通撤销允许受短 TTL 限制的收敛窗口；紧急撤销通过安全事件更新本地 deny cache / minimum security version。
 
-- 业务权限判断
-- 设备上下文扩展
-- 任意自定义 metadata 扩散
-- mTLS 或证书治理
+### 5.3 Token cache
 
-### 10.3 建议公开入口
+调用端只使用严格进程内 cache。cache key 至少包含：
 
-建议提供两个显式入口：
+```text
+subject + principal type + actor/delegation
++ tenant + org
++ target audience + exact permission-code set
++ cnf/workload binding
++ session/security version
+```
 
-- `createInternalCallMetadata(input)`
-- `createOperatorScopedMetadata(input)`
+禁止建立 Redis 或其他多服务共享 Bearer Token 池。Redis 可保存授权事实、撤销版本或限流状态，但不能成为可被多个服务取用的 Token 仓库。
 
-语义如下：
+Token 合法复用不等同于攻击重放。防护分层为：
 
-- `createInternalCallMetadata`
-  - 只生成基础内部调用 metadata
-- `createOperatorScopedMetadata`
-  - 生成基础 metadata
-  - 额外生成 signed `operator_context`
+- mTLS + `cnf` 阻止 Token 被另一工作负载直接使用。
+- 短 TTL、最小 audience 与最小 Permission Code 缩小泄露影响。
+- command idempotency 阻止同一业务命令重复产生副作用。
+- 高危操作使用另行冻结的短期 ActionGrant / step-up grant，绑定 operation、target 与输入摘要并一次性消费。
 
-不建议保留语义模糊的单一入口，例如：
+## 6. 三种 RPC authorization mode
 
-- `createMetadata(...)`
-
-因为这会让调用方不清楚自己是否正在向下游传播 operator 语义。
-
-### 10.4 建议输入模型
-
-建议在 `common` 中定义统一输入模型，而不是继续复用 Gateway 私有的 `DownstreamRequestSource`。
-
-建议至少包含：
+每个 gRPC RPC 必须在方法旁显式声明且只能声明一种：
 
 ```ts
-interface InternalCallMetadataInput {
-  callerServiceName: string
-  requestId?: string
-  traceId?: string
-}
-
-interface OperatorScopedMetadataInput extends InternalCallMetadataInput {
-  operatorContext: {
-    operatorId: string
-    operatorType: string
-    tenantId?: string
-    orgId?: string
-    operatorRoles?: string[]
-    requestId?: string
-    traceId?: string
-  }
-}
+@AuthorizeBusinessRpc({ all: [PERMISSION_CODE] })
+@AuthorizeSelfServiceRpc({ allowDelegated: false })
+@AuthorizeInternalCall({ all: [INTERNAL_PERMISSION_CODE] })
 ```
 
-注意：
+### 6.1 BUSINESS
 
-- `operatorPermissions` 不再作为新模型标准字段
-- `orgId` 应在本次公共模型中作为标准可选字段纳入
+- 用于能独立读取或改变业务事实的能力。
+- 允许 HUMAN、具备业务授权的 MACHINE、受控 DELEGATED。
+- 支持 `{ all: [...] }` 与 `{ any: [...] }`。
+- `all` 表示同时需要多个独立能力。
+- `any` 只允许用于多个 Code 授权完全相同的动作；不得用 `any` 覆盖由 body 决定的不同状态跃迁。
+- resource ownership、审批分离、状态机与金额阈值继续由 application/domain 检查。
 
-### 10.5 来源归一化
+### 6.2 SELF_SERVICE
 
-工厂本身只负责“根据标准输入创建 metadata”，不直接依赖 HTTP 或 NestJS ExecutionContext。
+- 目标必须从已验证 Execution Principal 派生。
+- 默认只允许 HUMAN。
+- 低风险能力可显式 `allowDelegated: true`。
+- 密码、MFA、Session、API Key、恢复码等敏感能力禁止普通 AI 委托。
+- request body 中的 target account / operator 不能覆盖当前主体。
 
-来源归一化建议拆成两个辅助入口：
+### 6.3 INTERNAL
 
-- HTTP 首跳来源提取器
-- gRPC 已认证上下文来源提取器
+- 只用于上游已完成业务授权后的受限技术原语。
+- 允许没有人类 operator 的纯技术调用。
+- 需要 INTERNAL kind Permission Code，并验证直接 workload 与 STS issuance policy。
+- 能独立完成审批、删除、重要状态跃迁、资金承诺或业务承诺的 RPC 不得标为 INTERNAL。
 
-也就是说：
+限流、审计、设备绑定、资源事实、幂等、nonce 与防重放不统一塞进这三个 decorator；它们由对应的 transport interceptor、application/domain 或基础设施组件负责。
 
-- Gateway 负责把 HTTP request 归一化成标准输入
-- 子服务负责把 `AuthenticatedGrpcRequestContext` 归一化成标准输入
-- metadata factory 只消费标准输入
+## 7. 公共 client/server runtime
 
-这样可以避免把 Gateway/HTTP 语义硬耦合进 `common`。
+### 7.1 Generated signature
 
-### 10.6 逐跳重签规则
+`src/common/src/contracts/buf.gen.yaml` 的目标配置必须启用 `addGrpcMetadata=true`。在当前 `addNestjsRestParameter=true` 下，生成签名变为：
 
-当调用 `createOperatorScopedMetadata(...)` 时，统一遵循：
+```ts
+method(request: Request, metadata: Metadata, ...rest: any): Observable<Response>
+```
 
-1. 当前服务已经拥有可信的 operator 上下文来源
-2. 由当前服务名写入 `callerServiceName`
-3. `issuer` 取当前服务名
-4. 重新生成：
-   - `issued_at`
-   - `expires_at`
-   - `signature`
-5. 保持 `request_id` / `trace_id` 连续
+Controller interface 同样显式包含 `metadata: Metadata`。生成器变更是全仓签名变更，必须先盘点并修复全部编译影响；新信任 enforcement 再按 feature packet 的逐服务顺序启用，最终覆盖全部服务。
 
-这意味着：
+### 7.2 单一 reusable abstraction
 
-- Gateway 首跳会签一次
-- 子服务如果继续向下游传播 operator 语义，会再次按当前服务身份重签
+`src/common` 提供一个 `TrustedGrpcMetadataProvider`，公开三个语义明确的入口：
 
-### 10.7 当前 Gateway 工厂的去向
+```text
+forBusinessCall(targetAudience, requiredPermissionCodes)
+forSelfServiceCall(targetAudience)
+forInternalCall(targetAudience, requiredInternalPermissionCodes)
+```
 
-当前 [downstream-grpc-metadata.factory.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/common/grpc/downstream-grpc-metadata.factory.ts) 不应继续作为长期唯一实现。
+它负责：
 
-推荐演进方式：
+- 从当前 `TrustedExecutionContext` 获取已验证 subject、tenant、actor、request 与 trace。
+- 向 Auth / STS 请求或从进程 cache 复用目标 audience Token。
+- 生成 `authorization`、`x-request-id`、`traceparent`、`tracestate` 与兼容日志关联字段。
+- 不接受调用方传入原始 operator、任意 tenant 或已签名 Token 字符串。
 
-1. 在 `common` 新增统一 factory
-2. Gateway 改为复用 `common` factory
-3. 旧 Gateway 私有工厂逐步删除
+无入站请求的 Cron / Robot 先建立由 workload 与 Machine Principal 支撑的 root execution context，再使用同一 provider；不建立另一套 metadata 工厂。
 
-这样可以明确完成以下历史老旧设计删除：
+### 7.3 Server runtime
 
-- 删除“Gateway 私有 metadata 工厂即项目长期方案”的旧方向
+公共 server runtime 负责：
 
-## 11. 实施切片建议
+- 读取方法 decorator metadata。
+- 提取 Verified Workload Identity 与 ExecutionToken。
+- 本地验签并执行 mode、aud、cnf、tenant 与 Permission Code 检查。
+- 把不可变 `TrustedExecutionContext` 写入 request-scoped / AsyncLocalStorage context。
+- 生成授权拒绝与审计关联数据。
+- 启动扫描全部 generated RPC handler，缺少或重复 mode 时启动失败。
 
-### Slice A：公共接口冻结
+长期删除：
 
-目标：
+- `OperatorContextCryptoService`
+- `x-operator-context` payload / codec / signer
+- `DefaultInternalServiceAuthenticator`
+- 把自报 service name 当信任根的 `InternalServiceGuard`
+- legacy `AuthenticatedOperatorGuard` / server `PermissionGuard`
+- Gateway / 服务私有的 metadata 手写工厂
 
-- 在 `common` 中定义标准输入类型
-- 定义通用 factory 接口
-- 明确旧的权限快照字段不进入新接口
+Gateway HTTP `RequirePermissions` 保留为外部入口的第一层业务授权声明，但其 tenant-aware 判定与下游 Token 获取必须使用可信 session / execution context，不能继续使用 legacy tenant-blind `checkPermission`。
 
-产出：
+## 8. 多跳规则
 
-- types
-- factory interface
-- 基础单测
+示例：用户执行 Site Sync，Site 调 Asset resolver。
 
-### Slice B：公共实现落地
+```text
+HTTP access token
+  -> Gateway 验证用户 session 与 site.management.sync
+  -> STS 签发 aud=site-service, scope=site.management.sync
+  -> Site 本地验证并执行 @AuthorizeBusinessRpc
+  -> Site 用当前已验证 context 向 STS 换取
+     aud=asset-service, scope=asset.internal.site_media.resolve
+  -> Asset 执行 @AuthorizeInternalCall
+```
 
-目标：
+规则：
 
-- 实现 `createInternalCallMetadata`
-- 实现 `createOperatorScopedMetadata`
-- 接入 `OperatorContextCryptoService`
+- 不把 Site Token 原样传给 Asset，因为 audience 不匹配。
+- 不由 Site 自己签名。
+- 不建立 `site.management.sync -> asset.internal...` 的 Permission 转换表。
+- STS 根据 Site workload 的 issuance policy 判断其能否申请该 INTERNAL Code；Site 已在业务入口验证用户权限。
+- 新 Token 保持 subject、tenant、delegation 与 trace 归因，但 audience、scope、client/cnf 绑定到新一跳。
+- 如果下游 RPC 本身能独立完成业务承诺，应使用 BUSINESS，并继续验证对应业务 Permission Code，而不是 INTERNAL。
 
-产出：
+## 9. Machine、Robot、AI 与 API Key
 
-- `grpc-metadata-propagation.factory.ts`
-- 签名与字段映射测试
+- 第一方内部服务通过 workload identity 向 STS 认证，不使用长期 API Key。
+- 平台 Cron 使用 SYSTEM Machine Principal；进入租户数据面时逐 tenant 获取 Token。
+- 租户 Robot 使用 TENANT Machine Principal 与自己的 role / policy。
+- 无人值守 Robot 不继承创建者权限。
+- 平台 Robot template 不是 principal；租户安装时创建独立 tenant machine principal。
+- DELEGATED AI 的有效权限为用户权限、AI / tool 上限、delegation grant、tenant 与目标 RPC 要求的交集。
+- 外部 App 只允许创建 tenant Integration Machine + API Key，经 Gateway / Auth 换 ExecutionToken；不开放内部 gRPC。Marketplace、第三方开发者平台、共享 App 主体与跨 tenant 安装模型已取消，不作为后续预留能力。
 
-### Slice C：Gateway 首跳迁移
+## 10. Tenant 与业务目标
 
-目标：
+Token 中 tenant 表示可信调用上下文。Request 仍可携带合法业务目标，例如：
 
-- 让 Gateway 改为复用 `common` factory
-- 保持当前行为兼容
+- `siteId`
+- `assetId`
+- `targetTenantId`
+- `targetAccountId`
 
-产出：
+这些字段不是身份来源。稳定规则：
 
-- Gateway 首跳不再依赖私有长期模型
-- 旧工厂进入删除路径
+- TENANT Token 只能操作相同 tenant 的业务资源。
+- SYSTEM Token 操作目标 tenant 必须经过平台业务 Permission Code 与资源规则，不存在隐式全租户权限。
+- body 中重复的 tenant、scopeLevel、operatorId 必须删除；尚未迁移服务中的同名字段不得被新 runtime 读取为可信上下文。
 
-### Slice D：auth-service 二跳接入
+## 11. 全仓逐服务迁移范围
 
-目标：
+本 capability 的关闭范围扩大为当前仓库全部 gRPC 边界：
 
-- `identity-service.adaptor`
-- `permission-service.adaptor`
-- `notification-service.grpc.adaptor`
+- 21 个服务。
+- 51 个 gRPC Controller 文件。
+- 560 个 proto RPC。
+- 全部 Gateway、service-to-service、Cron / Robot 与测试调用方。
+- 因 generated signature 变更暴露的 19 个 request-only client call，以及已经通过 `...rest` 传 metadata 的全部调用。
 
-全部改为使用 `common` factory
+执行采用“逐目标服务迁移、逐目标服务验收”：
 
-产出：
+1. 为目标服务盘点全部 RPC、全部直接 caller、body identity、legacy guards 与 fixtures。
+2. 由目标服务 owner 在自身 truth source / contract 冻结每个 RPC 的 BUSINESS / SELF_SERVICE / INTERNAL mapping；跨服务线程不能替 owner 猜测业务语义。
+3. 先让该目标的所有 caller 能发送正确 target-audience ExecutionToken，再切换目标 server。
+4. 目标服务切换时，同一次 service slice 更新 proto、caller、controller、application context、fixtures 与黑盒测试。
+5. 切换后的 RPC 只信任新 runtime；Token 失败不能回退到旧 body、operator header 或自报 service name。
+6. 完成服务级 acceptance 和 legacy-reference-zero 证明后，才迁移下一个服务。
 
-- request / trace continuity
-- 业务需要场景下的 operator context 继续传播
+默认一个 service 是一个迁移与验收单元。若静态调用图证明多个服务形成无法通过 caller preparation 安全拆开的强连通环，则只允许把该最小强连通组作为一次原子 server cutover；不能扩大为无差别全仓同时修改。
 
-### Slice E：其余子服务推广
+Asset + Site 仍是第一个业务解阻优先链，但不再是本 capability 的关闭边界。所有 21 个服务完成前不得宣称项目级迁移完成。
 
-目标：
+## 12. 黑盒安全与传播验收
 
-- `identity-service`
-- `permission-service`
-- 后续其他服务
+最低验收：
 
-统一接入公共传播机制
+1. 只有 `x-internal-service-name`、无 mTLS / Token 的调用失败。
+2. 缺失、伪造、过期、未生效、错误 issuer / kid 的 Token 失败。
+3. 错误 audience、缺少 required Permission Code 或 all/any 不满足时失败。
+4. Token `cnf` 与当前 workload identity 不匹配时失败。
+5. TENANT Token 不能通过 body tenant 操作另一 tenant；SYSTEM Token 不等于 tenant wildcard。
+6. SELF_SERVICE 不能由 body 指定其他 account；敏感 self-service 拒绝 DELEGATED。
+7. INTERNAL RPC 可接受合法纯 MACHINE 技术调用，但拒绝未经 STS issuance policy 授权的 workload。
+8. 多跳后 audience 与 cnf 改为下一跳，subject / tenant / delegation / request / trace continuity 保持。
+9. 目标服务正常验签期间不调用 Auth；Token cache miss 才发生 STS 请求。
+10. 从另一工作负载重放 Token 因 cnf 失败；重复 command 因 idempotency 不产生第二次副作用。
+11. 紧急撤销事件到达后，本地 deny cache 在 Token 自然过期前拒绝目标 principal / jti / version。
+12. 每个 generated RPC 恰有一个 authorization mode，漏标使启动或架构测试失败。
+13. 每个已迁移服务的 body tenant、scopeLevel、operatorId 等身份副本被移除，fixture 不能继续依赖它们。
+14. Site Runtime HMAC、nonce、method/path/body hash 继续独立验证，不能被 ExecutionToken 替代。
+15. 外部 API Key 只能在 Gateway / Auth 使用；撤销、过期、禁用 machine 与 tenant mismatch 均失败。
+16. `traceparent / tracestate` 按 W3C 规则传播，审计可用 request / trace / jti 关联完整调用链。
+17. 每个服务切换前全部直接 caller 已准备 target-audience Token；切换后 legacy caller 必须失败而不是触发 server fallback。
+18. 最终 21 个服务、51 个 Controller、560 个 RPC 全部恰有一个 mode，legacy signer / guard / factory / body identity 引用归零。
 
-### Slice F：历史实现删除
+## 13. 兼容与删除纪律
 
-目标：
+- OES 尚在开发阶段，全仓迁移属于一个 capability，但按目标服务形成可独立审查、验证和回滚的 service slice。
+- generated signature 是全局变更，必须先完成全仓编译修复；generated output 不手工编辑。
+- caller preparation 可以在目标 server 切换前发送新 metadata；legacy target 在自身切换前继续只使用既有 legacy contract。任何 server method 不得同时接受两套信任来源。
+- 禁止实现“ExecutionToken 校验失败则读取 body/header”的降级逻辑，也禁止新增公共 legacy projector 扩散旧协议。
+- 如果目标服务仍有无法发送新 Token 的 caller，该服务保持未迁移状态，不能以 server fallback 提前上线。
+- 每个服务验收通过后删除该目标在所有 caller / controller / fixtures 中的 legacy body fields、guards 与 factory 使用；最终一个服务完成后从 `common` 删除旧 operator-context API。
+- 强连通服务组需要原子切换时，组内仍逐服务完成代码审查与定向测试，只把 server enforcement activation 合并为一个最小发布单元。
+- 任何公共 API、Permission metadata、ExecutionToken claim、event 或 proto 变更必须先回写本文、ADR 与对应 contract。
 
-- 删除 Gateway 私有长期 metadata 模型依赖
-- 删除继续扩散旧的权限快照字段的新路径
-- 删除“各服务 adaptor 手写 metadata / 不传 metadata”作为默认做法
+## 14. 必做但后置的独立设计
 
-## 12. 当前推进状态
+以下五项已确认为必做，但不在本轮继续展开；Global Command 必须建立独立 design task，并在对应实现 lane 前完成冻结：
 
-截至当前阶段：
+1. Token cryptography 与 workload identity 互操作 contract：阻塞 production mTLS、JWT verifier 与 key management 定稿。
+2. Execution emergency revocation event contract：阻塞紧急撤销和最终 production security acceptance。
+3. External API Key security contract：阻塞外部 Integration credential 的创建、交换、轮换与开放。
+4. DELEGATED execution 与 ActionGrant contract：阻塞 AI delegation 和需要一次性高危授权的 RPC 开放。
+5. PrincipalRoleBinding persistence contract：阻塞 Permission schema 与 AccountRole 数据迁移。
 
-- 架构边界已冻结
-- mTLS 已明确为部署层职责
-- 代码层已明确不做 TLS 过渡实现
-- `common` 中已落地通用 gRPC metadata propagation factory
-- Gateway 首跳已改为复用 `common` factory
-- Gateway 私有长期 metadata factory 方向已删除，当前仅保留 Gateway source mapper
-- `auth-service` 已接入 gRPC request context store / interceptor
-- `auth-service -> identity-service / permission-service / notification-service`
-  三条二跳链路已统一接入 propagation factory
-- `identity-service` 已接入 gRPC request context interceptor
-- `identity-service -> permission-service`
-  这条共享权限解析二跳链路已接入 propagation factory
-- 已补针对性测试，验证：
-  - gRPC 入口 metadata 进入 request context store
-  - `auth-service` 二跳 metadata continuity
-  - notification source context 的 `request_id / trace_id` 写入
-  - `identity-service` 共享权限 adaptor 的定向行为未回归
+“后置”表示转交独立设计任务，不表示允许实现 owner 自行决定；对应 gate 未关闭时，相关能力必须保持未开放。
 
-当前仍未完成：
+Marketplace 已取消，不进入后置任务清单。
 
-- `permission-service` 等其他确有二跳 / 三跳调用的服务继续按需推广
-- operator-scoped metadata 在多跳管理调用中的进一步推广
-- 部署层 mTLS 的实施方案与接入
+## 15. 相关真相源
 
-## 13. 当前结论
-
-截至当前阶段，OES 对内部 gRPC 调用链的稳定目标状态明确为：
-
-- 传输层信任由部署层 mTLS 负责
-- 代码层不做临时 TLS 过渡实现
-- 应用层继续通过 signed `operator_context` 表达业务操作者身份
-- 基础 metadata 与业务 metadata 都必须有统一的多跳传播规则
-- 历史上仅靠 Gateway 首跳 metadata、仅靠 `x-internal-service-name` allowlist、或长期传播预解析权限集合的方案，均不再作为目标状态
+- [ADR 0015](/Users/acehood/Documents/GitHub/oes/docs/adr/0015-workload-identity-and-execution-token.md)
+- [Permission Code Source](/Users/acehood/Documents/GitHub/oes/docs/architecture/07-permission-code-source.md)
+- [auth-service](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)
+- [identity-service](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)
+- [permission-service](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
+- [ExecutionToken Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/execution-token.md)
+- [Principal Authorization Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/principal-authorization.md)
+- [Trusted gRPC Feature Packet](/Users/acehood/Documents/GitHub/oes/docs/plans/features/trusted-grpc-execution-context.md)

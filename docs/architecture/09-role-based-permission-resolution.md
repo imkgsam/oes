@@ -1,236 +1,123 @@
-# OES 基于角色的权限解析设计
+# OES 基于主体与角色的 Permission 解析设计
 
-> `permission-service` 的服务设计唯一真相源为 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。本文只定义项目级 role -> permission 解析协作方式，不重新定义 Role、AccountRole、Permission 或 access summary 的 owner 边界。
+```text
+status: FROZEN_PRINCIPAL_PERMISSION_RESOLUTION
+decisionAdr: docs/adr/0015-workload-identity-and-execution-token.md
+transportTruthSource: docs/architecture/14-grpc-metadata-and-service-trust-architecture.md
+```
+
+> `permission-service` 的服务设计唯一真相源为 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。本文只定义 Role / Principal grant 如何解析为 Permission Code 并供 Gateway、Auth / STS 与目标服务消费，不重新定义 Role、PrincipalRoleBinding、Permission 或 Policy owner。
 
 ## 1. 目的
 
-本设计用于明确 OES 内部服务在管理型接口上如何完成权限判断，解决当前实现中的两个问题：
+本设计回答：
 
-- `operator_context` 直接传播预解析权限集合会导致上下文过大，且权限集合难以稳定治理
-- 各子服务如果各自实现 role -> permission 解析，会形成重复轮子和语义漂移
+- HUMAN / MACHINE principal 的 Role grant 如何解析为有效 Permission Code。
+- Gateway、Auth / STS 与目标服务分别在哪一层消费判定。
+- 多跳调用为何传播最小 Permission Code，而不是 Role id 或完整授权图。
+- 如何避免每个业务 RPC 在线访问 Permission Service 或 Auth。
 
-本设计的目标是建立一个稳定、可复用、可跨服务消费的权限解析方案。
-
-## 2. 背景
-
-当前项目已经完成：
-
-- `src/common` 中统一权限码语义源
-- `permission-service` 中角色与权限主数据管理
-- 各子服务基于 `@RequirePermissions({ all: [...] })` 和 `PermissionGuard` 做接口保护
-
-但当前仍存在一个关键缺口：
-
-- `PermissionGuard` 依赖 `OperatorPermissionResolver`
-- 部分服务当前是直接从旧的权限快照字段返回权限集合
-
-这只能作为过渡方案，不应成为长期设计。
-
-## 3. 核心决策
-
-### 3.0 系统级真实角色与租户级真实角色分离
-
-OES 角色模型区分三类角色：
-
-- `SYSTEM_TEMPLATE`
-  - 全局模板角色
-  - 只能作为租户角色实例的来源
-  - 不直接分配给账号
-- `SYSTEM_INSTANCE`
-  - 系统级真实角色
-  - 可分配给不绑定租户的系统管理员账号
-  - 用于解析系统管理员的 access summary 与接口权限
-- `TENANT_INSTANCE`
-  - 租户级真实角色
-  - 可分配给租户账号
-  - 用于解析租户管理员与租户成员权限
-
-`AccountRole` 是账号与角色的绑定事实，应表达绑定 scope：
-
-- 系统级绑定：`scopeLevel = SYSTEM`，`tenantId = null`，role 必须是 `SYSTEM_INSTANCE`
-- 租户级绑定：`scopeLevel = TENANT`，`tenantId` 必填，role 必须是 `TENANT_INSTANCE`
-
-详细决策见 ADR：
-
-- [0002-system-role-instance-and-account-role-scope.md](/Users/acehood/Documents/GitHub/oes/docs/adr/0002-system-role-instance-and-account-role-scope.md)
-
-### 3.1 operator context 只传播角色，不传播权限
-
-`operator_context` 的目标状态如下：
-
-- 必须包含 `operator_id`
-- 必须包含 `operator_roles`
-- 可以包含 `tenant_id`
-- 不再作为标准路径传播预解析权限集合
-
-约束：
-
-- `operator_roles` 的元素语义统一为 `roleId`
-- 角色是跨服务传播的最小授权上下文
-- 权限集合由子服务在本地解析，不由上游一次性展开后透传
-
-### 3.2 权限真相来自 permission-service
-
-角色与权限的运行时事实源仍然是 `permission-service`。
-
-子服务不得：
-
-- 自行持久化角色权限映射真相
-- 自行在本地硬编码 role -> permission 对应表
-
-子服务应通过显式同步调用向 `permission-service` 请求角色对应权限。
-
-### 3.3 共享解析能力下沉到 common
-
-由于多个子服务都会需要相同能力，role -> permission 解析不应各服务重复实现，而应在 `src/common` 提供共享组件。
-
-共享组件职责：
-
-- 基于 `operator_context.operator_roles` 提取 `roleId`
-- 调用 `permission-service` 的管理查询接口解析每个角色的权限
-- 合并、去重并返回 permission code 集合
-- 暴露为 `OperatorPermissionResolver` 的通用实现
-
-## 4. 目标结构
-
-建议结构：
+## 2. 冻结结论
 
 ```text
-src/common/src/authorization/
-  resolvers/
-    role-based-operator-permission.resolver.ts
-  adaptors/
-    permission-service-permission-read.adaptor.ts
+PrincipalRoleBinding + RolePermission + Policy
+  -> Permission Service resolves effective Permission Codes
+  -> Gateway checks external BUSINESS entry
+  -> Auth / STS signs exact granted subset into ExecutionToken.scope
+  -> target service validates locally and applies resource/domain rules
 ```
 
-职责说明：
+稳定规则：
 
-- `RoleBasedOperatorPermissionResolver`
-  - 实现 `OperatorPermissionResolver`
-  - 输入 `OperatorContextPayload`
-  - 输出去重后的 `permission code[]`
-- `PermissionServicePermissionReadAdaptor`
-  - 封装对 `permission-service` 的 gRPC 调用
-  - 负责读取 role -> permissions
+- Role 与 grant 是 Permission Service 的运行时授权事实，不跨服务复制。
+- Permission Code 是接口能力的稳定公共词汇，也是 ExecutionToken `scope` 的值。
+- Role id、role-permission mapping 或完整 permission catalog 不作为多跳 transport context。
+- 目标服务从可信 ExecutionToken 取得本次获准的最小 Code 子集，不在普通 RPC 上重新解析全部 Role。
+- Gateway HTTP `RequirePermissions` 与目标 gRPC method authorization 都保留；二者使用相同 Code 和可信 tenant，但各自保护不同信任边界。
+- resource ownership、query scope、审批分离、状态机与业务不变量不由 Token 替代。
 
-各子服务只需要：
+## 3. Role 与 Principal
 
-- 接入 `permission-service` gRPC client
-- 在模块中把 `OPERATOR_PERMISSION_RESOLVER` 绑定到该共享 resolver
+Role 保持三类：
 
-## 5. 与 permission-service 的协作方式
+- `SYSTEM_TEMPLATE`：只用于派生 role instance，不直接绑定 principal。
+- `SYSTEM_INSTANCE`：可绑定符合 metadata 的 SYSTEM HUMAN / MACHINE principal。
+- `TENANT_INSTANCE`：只能绑定同 tenant HUMAN / MACHINE principal。
 
-### 5.1 当前最小可行方案
+`PrincipalRoleBinding` 显式记录 principal type / id、scopeLevel、tenant、role、effective / expiry 与审计关系。既有 `AccountRole` 是 HUMAN binding 的 legacy storage 形态，按 [Principal Authorization Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/principal-authorization.md) 无损迁移。
 
-优先复用现有能力：
+MACHINE 不通过伪造 `UserAccount` 复用 grant。机器角色只参与业务授权，不生成 human navigation、landing page 或 terminal access view。
 
-- `PermissionManagementService.ListRolePermissions`
+## 4. Permission Code 解析
 
-解析流程：
+### 4.1 BUSINESS
 
-1. 从 `operator_context.operator_roles` 读取全部 `roleId`
-2. 对每个 `roleId` 调用 `ListRolePermissions`
-3. 合并所有返回的 permission code
-4. 去重后交给 `PermissionGuard`
+Permission Service 根据 active principal、有效 binding、enabled role、role-permission、scope / tenant 与适用 policy 解析有效 BUSINESS Code。
 
-这是当前最小闭环，不需要先扩公共 proto。
+- HUMAN 以可信 session / account identity 解析。
+- MACHINE 以 Identity 拥有的 active Machine Principal 解析。
+- DELEGATED 不拥有独立长期 Role；有效 Code 是 HUMAN grant、delegation、agent/tool upper bound 与目标 policy 的交集。
 
-### 5.2 后续优化方向
+### 4.2 SELF_SERVICE
 
-如果多个子服务都开始高频使用该能力，可再评估在 `permission-service` 中增加批量解析接口，例如：
+基础 self-service 不通过普通岗位 Role grant 建模。目标必须从可信 HUMAN principal 派生，并由 `SELF_SERVICE` RPC mode、字段白名单、安全策略、step-up 与 application rule 共同保护。
 
-- `ResolvePermissionsByRoles`
+### 4.3 INTERNAL
 
-但这属于后续优化，不是当前落地前置条件。
+INTERNAL Code 不进入 HUMAN / MACHINE role。Permission Service 的 workload issuance policy 只回答：已验证 caller workload 能否为 target audience 申请指定 INTERNAL Code。Auth / STS 消费该 decision 并签发绑定 audience 与 `cnf` 的 Token。
 
-## 6. OperatorContextPayload 约束
+## 5. 三个消费点
 
-`OperatorContextPayload` 的当前标准约束：
+### 5.1 Gateway
 
-- `operator_roles?: string[]` 保留并作为标准字段使用
-- 共享类型与共享授权实现不再暴露旧的权限快照字段
+Gateway 验证 HTTP session / API credential，绑定可信 tenant target，并通过 `RequirePermissions` 对外部 BUSINESS 入口执行第一层授权。Gateway 不能使用 body tenant 或 tenant-blind legacy query。
 
-约束：
+### 5.2 Auth / STS
 
-- 新服务和新改造路径不得继续以旧的权限快照字段作为标准来源
-- 若历史上下文中仍出现该字段，只能视为兼容遗留输入，而不能成为新的代码依赖前提
+STS 在 Token cache miss、audience 变化、Code 集变化或安全版本变化时解析授权，签发 exact subset。请求任意未获准 Code 时整体拒绝，不静默签发更大集合或伪装成功。
 
-## 7. 缓存与性能边界
+### 5.3 Target Service
 
-本设计允许为 role -> permission 解析增加短 TTL 内存缓存，但缓存只是优化，不是事实源。
+目标服务本地验证 Token signature、issuer、time、audience、`cnf`、tenant、principal mode 与 decorator `all / any`。普通调用不访问 Auth 或 Permission Service；只有需要动态 resource policy 的 application use case 才通过明确 contract 请求 `checkResource / buildQueryScope`。
 
-约束：
+## 6. all / any
 
-- 若多个子服务都会使用该能力，缓存实现应优先下沉到 `common` 的共享 resolver / adaptor 中，而不是各服务各自实现
-- 缓存键应以 `roleId` 为粒度
-- 缓存失效不能改变授权正确性
-- 未命中缓存时必须仍可回落到 `permission-service`
+- `all`：同一动作必须同时持有全部独立能力。
+- `any`：列出的任一 Code 都足以授权完全相同的动作。
+- request body 中不同值触发不同状态跃迁时，不能用一个 `any` 放行；应拆 command 或在 application 层按实际动作检查对应 Code。
 
-若未证明存在明显性能瓶颈，第一阶段可先不加缓存。
+## 7. Cache 与失效
 
-推荐顺序：
+- Gateway / STS 可以缓存授权 decision 或有效 Permission 子集，但 cache key 必须包含 principal、scope、tenant、requested Code、policy / authz version 与 delegation。
+- 调用服务的 ExecutionToken cache 只存在本进程，key 还必须包含 audience 与 `cnf`。
+- Role / grant 普通变更通过短 Token TTL 收敛；紧急变化通过 Auth / Permission 安全版本与撤销事实更新本地 deny cache。
+- 不使用 Redis 共享 Bearer Token；Redis 可以保存非凭据型授权事实和安全版本。
 
-1. 先在 `common` 中完成无缓存的共享解析链
-2. 再在 `common` 的共享 adaptor / resolver 中补短 TTL 缓存
-3. 子服务只复用共享实现，不自行复制缓存逻辑
+## 8. 安全约束
 
-## 8. 安全与治理要求
+- 调用方提交的 role id、admin flag、subject facts、tenant 或 permission list 不能建立授权。
+- 业务服务不得本地硬编码 Role -> Permission 映射。
+- Permission Service 不签发 ExecutionToken；Auth / STS 不拥有 Role / Policy 真相。
+- Token `scope` 直接使用 Permission Code，不建立第二套 Scope catalog。
+- Role / grant / policy decision 和 Token exchange 必须保留可关联的 audit reference 与 trace。
 
-该方案必须满足：
+## 9. 迁移
 
-- 权限判定可审计
-- 权限码来源单一
-- 角色来源显式
-- 子服务不持有权限真相副本
+历史 `operator_context.operator_roles -> Common resolver -> Permission Service` 路径不再是目标架构：
 
-同时明确禁止：
+1. Common definitions 取代 Permission Service 反向生成 Code。
+2. AccountRole 无损迁移到 HUMAN PrincipalRoleBinding，并加入独立 MACHINE binding。
+3. Gateway 修复 tenant-aware permission gate。
+4. Auth / STS 以 trusted principal decision 签发最小 Code subset。
+5. Asset / Site 作为第一条业务优先链删除 role/operator body/header 传播并启用本地 Token authorization。
+6. 同一 capability 继续逐服务迁移当前全部 gRPC 服务；每个目标独立验收并清零 legacy 引用，最终删除 role-based operator resolver 与 operator-context transport API。
 
-- 在 `operator_context` 中塞入完整权限清单作为长期方案
-- 在各子服务中复制一份静态 role -> permission 映射
-- 绕过 `permission-service` 直接以本地约定替代授权真相
+未迁移服务可以暂时保持 legacy runtime，但任何一个 RPC 不得同时信任 legacy subject source 与新 ExecutionToken。
 
-## 9. 落地顺序
+## 10. 相关真相源
 
-### Phase 1
-
-- 在 `docs/architecture` 明确本设计
-- 保持现有 `PermissionGuard` 与 `OperatorPermissionResolver` 接口不变
-
-### Phase 2
-
-- 在 `src/common` 增加共享 `permission-service` adaptor
-- 在 `src/common` 增加共享 `RoleBasedOperatorPermissionResolver`
-
-### Phase 3
-
-- `identity-service`、`auth-service` 等子服务改为复用共享 resolver
-- 停止依赖旧的权限快照字段
-- 从共享类型与共享授权实现中移除旧的权限快照字段
-
-### Phase 4
-
-- 如有必要，再为 `permission-service` 增加批量角色解析契约
-
-## 10. 对现有文档的关系
-
-本设计补充并收敛以下主线：
-
-- `07-permission-code-source.md`
-  - 负责“权限码从哪里来”
-- 本文
-  - 负责“子服务如何基于角色解析权限并完成判断”
-- `15-authorization-layering-and-resource-policy-architecture.md`
-  - 负责“`checkPermission / checkResource / buildQueryScope` 如何在项目中分层落地”
-
-二者互补，不互相替代。
-
-## 11. 当前结论
-
-截至 2026-03-29，本项目的目标状态明确为：
-
-- 统一权限码定义放在 `common`
-- 统一权限真相放在 `permission-service`
-- `operator_context` 传播 `roleId`
-- 子服务通过 `common` 中的共享 resolver 调用 `permission-service`，解析出 permission code 后参与 `PermissionGuard` 判定
-
-在该设计落地前，任何继续基于旧的权限快照字段扩展的新实现，都应视为过渡方案，而不是目标方案。
+- [Permission Service](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
+- [Permission Code Source](/Users/acehood/Documents/GitHub/oes/docs/architecture/07-permission-code-source.md)
+- [Trusted gRPC Metadata](/Users/acehood/Documents/GitHub/oes/docs/architecture/14-grpc-metadata-and-service-trust-architecture.md)
+- [Authorization Layering](/Users/acehood/Documents/GitHub/oes/docs/architecture/15-authorization-layering-and-resource-policy-architecture.md)
+- [Principal Authorization Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/principal-authorization.md)

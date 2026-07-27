@@ -35,12 +35,12 @@
 - 机器主体基础身份：
   - `ServiceAccount`
   - machine principal scope / type / lifecycle
-- API Key 与 machine auth 的现有 contract 语义；长期 credential 边界仍需按 machine-principal 专项继续对齐。
 - 面向认证、授权、BFF 与业务服务的受控身份查询结果。
 
 ## 3. Does Not Own
 
 - 密码、OTP、MFA、login method、session、token、refresh token、认证 challenge 或认证审计真相；这些归属 `auth-service`。
+- API Key secret / hash、credential 认证、轮换、撤销、STS 与 ExecutionToken 签发；这些归属 `auth-service`。
 - 权限码、角色、scope、policy、terminal access policy、授权判定、权限摘要或导航授权真相；这些以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。
 - `Tenant`、tenant lifecycle、`OrgUnit`、org tree、org hierarchy、org reference validation 或 `organizationTenantPartyId` 真相；这些以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准。
 - `Employee`、`Employment`、正式 `人 -> org` 任职关系或 onboarding 业务结果；这些归属 `hr-service`。
@@ -61,7 +61,7 @@
 - 为 `api-gateway` / BFF 提供 account context、账号目录、身份展示摘要与必要的用户发现能力。
 - 维护 `UserAccount <-> Employee` 绑定结果，并在绑定时校验同 tenant 与同自然人主体约束。
 - 维护工作邮箱、工作手机号、公司受控社交账号、员工个人社交联系方式展示引用与外部通信账号展示摘要这类账号联系资产的分配、回收、启停、交接和主联系方式语义。
-- 维护机器主体基础身份；机器认证、API Key credential 与 delegation 的长期协同需按专项 contract / architecture 继续推进。
+- 维护机器主体基础身份，并向 Auth / Permission 提供稳定 principal id、type、scope、tenant reference 与 lifecycle；不保存认证 secret 或签发 token。
 - 区分登录标识、联系资产、真实姓名与展示名，不把一个字段扩张成多种真相。
 - 对当前账号自助资料修改与管理员资料管理使用显式分离的接口边界，不允许长期复用同一个 management 写接口承载 self-service 语义。
 
@@ -161,10 +161,11 @@
 
 当前注意事项：
 
-- API Key 与 machine auth contract 已存在，但长期 credential 边界仍需按 machine-principal 专项继续对齐。
+- 现有 machine auth contract 中由 Identity 执行 `AuthenticateApiKey` 的部分是 legacy 兼容形态，目标状态由 [ADR 0015](/Users/acehood/Documents/GitHub/oes/docs/adr/0015-workload-identity-and-execution-token.md) 与 Auth [execution-token.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/execution-token.md) 取代。
 - `APIKey` 是 credential，不是主体。
-- `auth-service` 后续如承担机器认证 token / delegation issuance，应通过专项协同设计明确，不由 `identity-service` 单独定义。
-- `permission-service` 对机器主体的权限、upper-bound policy 或 delegation scope 仍需独立冻结，且必须回写到 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 或新的 ADR。
+- API Key credential、认证、轮换与撤销归 `auth-service`；Identity 只保存 Auth credential 所引用的 machine principal identity，不保存 secret 或 hash。
+- `permission-service` 通过通用 `PrincipalRoleBinding` 与 policy 管理机器授权；机器不伪装为 `UserAccount`。
+- 平台 Robot template 不是 machine principal；租户启用 template 时创建独立 TENANT principal。外部 Integration 同样固定为 tenant-owned principal；Marketplace、共享第三方 App principal 与跨 tenant installation model 已取消，不在 Identity 预留对应对象。
 
 ## 10. Self-service And Admin-management Boundary
 
@@ -219,7 +220,7 @@ Contract 文档只描述黑盒调用语义、字段、错误与当前接口形�
   - 为 identity 管理接口、账号目录、机器主体管理等受保护能力提供授权判定。
 - `auth-service`
   - 消费 identity account facts 建立认证续流、account selection 与 session context。
-  - 拥有认证凭据、login method、session、token 与认证域审计。
+  - 消费 Machine Principal facts，验证 API Key owner 与 lifecycle，并拥有认证凭据、API Key、login method、session、STS、token 与认证域审计。
 
 ## 13. Downstream / Published Facts
 
@@ -236,6 +237,7 @@ Contract 文档只描述黑盒调用语义、字段、错误与当前接口形�
 ## 14. Non-goals
 
 - 不拥有 session、refresh token、认证 challenge、password、OTP、MFA 或 login method 真相。
+- 不拥有 API Key credential、STS、ExecutionToken 或 delegation credential 真相。
 - 不定义权限、角色、policy、scope 或 terminal access 策略模型。
 - 不拥有 tenant / org tree / org lifecycle / org hierarchy。
 - 不拥有 `Employee / Employment -> OrgUnit` 的正式归属真相。
