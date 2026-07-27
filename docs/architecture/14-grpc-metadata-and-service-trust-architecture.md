@@ -6,10 +6,10 @@ decisionAdr: docs/adr/0015-workload-identity-and-execution-token.md
 implementationPacket: docs/plans/features/trusted-grpc-execution-context.md
 requiredDeferredDesigns:
   - emergency-execution-revocation-event-contract
-  - external-api-key-security-contract
   - principal-role-binding-persistence-contract
 resolvedDeferredDesigns:
   - token-cryptography-and-workload-identity-contract
+  - external-api-key-security-contract
   - delegated-execution-and-action-grant-contract
 ```
 
@@ -292,7 +292,7 @@ HTTP access token
 - 无人值守 Robot 不继承创建者权限。
 - 平台 Robot template 不是 principal；租户安装时创建独立 tenant machine principal。
 - DELEGATED AI 的有效权限为用户权限、AI / tool 上限、delegation grant、tenant 与目标 RPC 要求的交集。
-- 外部 App 只允许创建 tenant Integration Machine + API Key，经 Gateway / Auth 换 ExecutionToken；不开放内部 gRPC。Marketplace、第三方开发者平台、共享 App 主体与跨 tenant 安装模型已取消，不作为后续预留能力。
+- 外部 App 只允许创建 tenant Integration Machine + API Key，经 Gateway/Auth 取得 Gateway-only external access token；Gateway 才在受信任的内部 mTLS hop 换取 target-audience ExecutionToken。API Key 与 external token 均不开放内部 gRPC。具体边界以 [External API Key Security Collaboration](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/external-api-key-security.md) 为准。Marketplace、第三方开发者平台、共享 App 主体与跨 tenant 安装模型已取消，不作为后续预留能力。
 
 ## 10. Tenant 与业务目标
 
@@ -372,7 +372,7 @@ Asset + Site 仍是第一个业务解阻优先链，但不再是本 capability �
 
 1. Token cryptography 与 workload identity 互操作 contract：阻塞 production mTLS、JWT verifier 与 key management 定稿。
 2. Execution emergency revocation event contract：阻塞紧急撤销和最终 production security acceptance。
-3. External API Key security contract：阻塞外部 Integration credential 的创建、交换、轮换与开放。
+3. External API Key security contract 已冻结：外部 Integration credential 的创建、交换、轮换与开放以 [External API Key Security Collaboration](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/external-api-key-security.md) 为准；public opening 仍等待 DG-2 credential-deny propagation。
 4. DELEGATED execution 与 ActionGrant contract：已由 [ADR 0016](/Users/acehood/Documents/GitHub/oes/docs/adr/0016-delegated-execution-and-action-grant.md) 冻结；它解除 AI delegation 与一次性高危授权的设计阻塞，但不替代 DG-1 的签名 / workload binding 或 DG-2 的紧急撤销设计。
 5. PrincipalRoleBinding persistence contract：阻塞 Permission schema 与 AccountRole 数据迁移。
 
@@ -388,6 +388,8 @@ Marketplace 已取消，不进入后置任务清单。
 - [identity-service](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)
 - [permission-service](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
 - [ExecutionToken Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/execution-token.md)
+- [External API Key Credential Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/external-api-key-security.md)
+- [External API Key Exchange Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/external-api-key-exchange.md)
 - [Principal Authorization Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/principal-authorization.md)
 - [Delegated Execution And ActionGrant Collaboration](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/delegated-execution-and-action-grant.md)
 - [Trusted gRPC Feature Packet](/Users/acehood/Documents/GitHub/oes/docs/plans/features/trusted-grpc-execution-context.md)

@@ -48,7 +48,9 @@ Proto 契约来源仍然是：
 - [trusted-login-device.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/trusted-login-device.md)
   - Web trusted browser 与 future Mobile remembered device 语义
 - [execution-token.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/execution-token.md)
-  - Workload / API Key 认证、STS exchange、单 audience ExecutionToken、JWKS、cache 与紧急撤销语义
+  - Workload / API Key 认证、STS exchange、单 audience ExecutionToken、JWKS、cache 与紧急撤销语义；external callers receive only the separate Gateway-only access token
+- [external-api-key-security.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/external-api-key-security.md)
+  - tenant Integration Machine 的 API Key 创建、轮换、撤销、审计与泄漏处置语义
 - [delegated-execution-and-action-grant.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/delegated-execution-and-action-grant.md)
   - HUMAN delegation、step-up、精确 ActionGrant、撤销与高风险操作一次性消费语义
 
