@@ -12,12 +12,27 @@ const NOW_SECONDS = 1_800_000_000
 
 const signingKeys = generateKeyPairSync('ec', { namedCurve: 'P-256' })
 const publicJwk = signingKeys.publicKey.export({ format: 'jwk' })
+const DEFAULT_CLAIMS = {
+  iss: ISSUER,
+  aud: AUDIENCE,
+  sub: 'machine-123',
+  principal_type: 'MACHINE',
+  client_id: SPIFFE_ID,
+  tenant_id: 'tenant-123',
+  scope: 'asset.internal.site-media.resolve',
+  jti: 'token-123',
+  iat: NOW_SECONDS - 30,
+  nbf: NOW_SECONDS - 30,
+  exp: NOW_SECONDS + 240,
+  cnf: { 'x5t#S256': THUMBPRINT }
+} as const
 
 /** Creates a compact ES256 JWS for exercising the verifier's public contract. */
 function createToken(
   overrides: {
     readonly header?: Record<string, unknown>
     readonly claims?: Record<string, unknown>
+    readonly rawClaimsJson?: string
   } = {}
 ): string {
   const header = {
@@ -27,22 +42,13 @@ function createToken(
     ...overrides.header
   }
   const claims = {
-    iss: ISSUER,
-    aud: AUDIENCE,
-    sub: 'machine-123',
-    principal_type: 'MACHINE',
-    client_id: SPIFFE_ID,
-    tenant_id: 'tenant-123',
-    scope: 'asset.internal.site-media.resolve',
-    jti: 'token-123',
-    iat: NOW_SECONDS - 30,
-    nbf: NOW_SECONDS - 30,
-    exp: NOW_SECONDS + 240,
-    cnf: { 'x5t#S256': THUMBPRINT },
+    ...DEFAULT_CLAIMS,
     ...overrides.claims
   }
   const encodedHeader = Buffer.from(JSON.stringify(header)).toString('base64url')
-  const encodedClaims = Buffer.from(JSON.stringify(claims)).toString('base64url')
+  const encodedClaims = Buffer.from(overrides.rawClaimsJson ?? JSON.stringify(claims)).toString(
+    'base64url'
+  )
   const signingInput = `${encodedHeader}.${encodedClaims}`
   const signature = sign('sha256', Buffer.from(signingInput), {
     key: signingKeys.privateKey,
@@ -123,6 +129,65 @@ describe('trusted execution token runtime', () => {
         workloadIdentity: { spiffeId: SPIFFE_ID, certificateThumbprint: THUMBPRINT }
       })
     ).rejects.toThrow(message)
+  })
+
+  it.each([
+    ['object', {}],
+    ['boolean', true]
+  ])('rejects a signed %s authz_version before it enters trusted context', async (_name, value) => {
+    const verifier = new ExecutionTokenVerifier({
+      registry: createRegistry(),
+      jwksCache: createJwksCache(),
+      now: () => NOW_SECONDS
+    })
+
+    await expect(
+      verifier.verify({
+        token: createToken({ claims: { authz_version: value } }),
+        targetAudience: AUDIENCE,
+        workloadIdentity: { spiffeId: SPIFFE_ID, certificateThumbprint: THUMBPRINT }
+      })
+    ).rejects.toThrow('authz_version')
+  })
+
+  it('rejects a signed numeric authz_version that parses as non-finite', async () => {
+    const verifier = new ExecutionTokenVerifier({
+      registry: createRegistry(),
+      jwksCache: createJwksCache(),
+      now: () => NOW_SECONDS
+    })
+    const rawClaimsJson = JSON.stringify({ ...DEFAULT_CLAIMS, authz_version: 0 }).replace(
+      '"authz_version":0',
+      '"authz_version":1e400'
+    )
+
+    await expect(
+      verifier.verify({
+        token: createToken({ rawClaimsJson }),
+        targetAudience: AUDIENCE,
+        workloadIdentity: { spiffeId: SPIFFE_ID, certificateThumbprint: THUMBPRINT }
+      })
+    ).rejects.toThrow('authz_version')
+  })
+
+  it.each([
+    ['string', 'security-v3'],
+    ['integer', 7]
+  ])('preserves a valid %s authz_version in immutable trusted context', async (_name, value) => {
+    const verifier = new ExecutionTokenVerifier({
+      registry: createRegistry(),
+      jwksCache: createJwksCache(),
+      now: () => NOW_SECONDS
+    })
+
+    const verified = await verifier.verify({
+      token: createToken({ claims: { authz_version: value } }),
+      targetAudience: AUDIENCE,
+      workloadIdentity: { spiffeId: SPIFFE_ID, certificateThumbprint: THUMBPRINT }
+    })
+
+    expect(verified.authzVersion).toBe(value)
+    expect(Object.isFrozen(verified)).toBe(true)
   })
 
   it('refreshes an unknown kid once and fails closed when no trusted key appears', async () => {

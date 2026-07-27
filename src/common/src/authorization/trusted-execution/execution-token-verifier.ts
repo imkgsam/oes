@@ -143,6 +143,7 @@ export class ExecutionTokenVerifier {
     }
 
     const permissionCodes = parseScope(claims.scope)
+    const authzVersion = readOptionalAuthzVersion(claims.authz_version)
     return Object.freeze({
       issuer,
       audience: claims.aud,
@@ -160,9 +161,7 @@ export class ExecutionTokenVerifier {
       ...(claims.act === undefined ? {} : { actor: deepFreezeJson(claims.act) }),
       ...optionalProperty(claims, 'delegation_id', 'delegationId'),
       ...optionalProperty(claims, 'session_id', 'sessionId'),
-      ...(claims.authz_version === undefined
-        ? {}
-        : { authzVersion: claims.authz_version as string | number })
+      ...(authzVersion === undefined ? {} : { authzVersion })
     })
   }
 }
@@ -232,6 +231,20 @@ function requireIntegerClaim(claims: Record<string, unknown>, name: string): num
     throw new Error(`ExecutionToken ${name} claim must be an integer NumericDate`)
   }
   return value as number
+}
+
+/** Reads an optional authorization security version without allowing malformed signed data into trusted context. */
+function readOptionalAuthzVersion(value: unknown): string | number | undefined {
+  if (value === undefined) {
+    return undefined
+  }
+  if (typeof value === 'string' && value.length > 0) {
+    return value
+  }
+  if (typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value)) {
+    return value
+  }
+  throw new Error('ExecutionToken authz_version claim must be a non-empty string or finite integer')
 }
 
 /** Accepts the standard cnf object only when it contains exactly one valid x5t#S256 member. */
