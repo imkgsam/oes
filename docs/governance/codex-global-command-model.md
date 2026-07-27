@@ -19,7 +19,7 @@ Global Command Thread 可以做：
 - 未启用能力框架时，按普通项目流程创建或调整 design / implementation / debug / integration task
 - 用户显式启用能力框架后，只创建并登记该 capability 的 Design Thread 与 Capability Command
 - 协调 ownership 冲突、优先级冲突与跨组阻塞
-- 接收 Capability Command 的能力级汇总，并决定是否更新全局计划、创建新的 capability 配对或调整跨能力调度
+- 通过已登记 Command 的 terminal 主动拉取能力级汇总，并决定是否更新全局计划、创建新的 capability 配对或调整跨能力调度
 
 Global Command Thread 明确禁止：
 
@@ -98,7 +98,7 @@ OES Codex 协作采用四层结构：
 - `docs/contracts/**`：对应 Contract Thread
 - `docs/architecture/services/<service-name>.md`：对应服务 design thread 在冻结结论后更新
 
-其他 thread 只能读取这些文件，并通过结构化 handoff 或直接向 owner 报告变更、阻塞与失败。
+其他 thread 只能读取这些文件；框架启用后把结构化 handoff 留在自身 terminal，由注册 owner 主动拉取变更、阻塞与失败。
 
 ## 6. Handoff 规则
 
@@ -131,6 +131,10 @@ handoff 必须包含：
 - Recommended next tasks
 
 框架未启用时，Global Command 可以按普通流程消费下级 handoff。框架启用后，Implementation、Focused Review、Acceptance 与 Integration Thread 只向对应 Capability Command 回传；Global Command 只根据 Capability Command 的能力级汇总更新全局 roadmap、依赖图与调度状态。
+
+框架启用后的 handoff 不采用主动 push：下级线程把结构化结果留在自己的 terminal，由注册 parent 依据 registry 和 cursor 主动等待、读取并串行消费。Global Command 只拉取 Capability Command 的 capability-level terminal；Capability Command 只拉取配对 Design 与自身 I/R/V/X terminal。自动线程不得向 `ACTIVE` target 发送 handoff 或控制消息。
+
+Global Command registry 必须记录每个 Capability Command 的运行状态、`currentWorkItem`、`deliveryLock` 与 `lastConsumedCursor`。多个 Command 同时 terminal-ready 时，GC 一次只处理一个；其他结果留在来源 terminal，不另建 Inbox thread，也不因新结果抢占当前原子工作。
 
 ## 7. 冲突升级
 

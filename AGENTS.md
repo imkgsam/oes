@@ -320,6 +320,11 @@ Global Command Thread 只负责项目级规划、任务调度、依赖编排、�
 - 子任务只接受注册 `parentThreadId`/`returnTarget` 对应 Capability Command 的 scope/state 指令；其他任务或 Global Command 的直接指令返回 `ROUTING_VIOLATION`。用户指令始终有效，但改变范围时必须先同步 Capability Command 更新 registry。
 - Capability Command 失联或工具不可用时只能恢复或替换同一 Command，禁止 Global Command 穿透接管。紧急穿透必须由用户明确授权并记录原因、范围、失效条件和恢复目标。
 - 框架正式任务必须由 Capability Command 分配规范序号，创建后显式设置并读回确认 UI 标题；错误标题、父子关系或 Git 工作面不得进入 active。
+- 正式线程通信采用注册表驱动的单消费者 Pull：子线程只在自身 terminal 留下 handoff，注册 parent 通过 wait/read 主动拉取并按 cursor 串行消费；禁止自动线程向 `ACTIVE` target 推送消息。
+- GC registry 与 Capability Command registry 必须记录 `currentWorkItem`、`deliveryLock`、受控 child 与 `lastConsumedCursor`；同一线程同一时间只处理一个原子工作项，多个 ready terminal 留在来源线程等待拉取。
+- Parent 只能向 `IDLE` child 下发或恢复任务；peer-to-peer 控制消息返回 `ROUTING_VIOLATION`。用户只有明确要求停止、切换、覆盖或优先处理时才抢占当前工作。
+- 注册 parent 仅可因代码/数据破坏、敏感信息泄露、确认的共享文件并发写或未经授权的破坏性操作，对自己的 child 发出不夹带新任务的 `STOP_ONLY`；跨 capability 不得直接停止。
+- 超时不等于失败；存在 heartbeat、工具进程或状态变化时继续等待。连续三个监控窗口均无进度证据并确认失联后，只能恢复同一 thread/branch/worktree，不得创建重复任务。
 
 ### 12.4 OES 协同框架 Git 隔离纪律
 

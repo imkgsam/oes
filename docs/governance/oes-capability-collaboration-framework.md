@@ -1,4 +1,4 @@
-# OES Capability Collaboration Framework v1.2
+# OES Capability Collaboration Framework v1.3
 
 ## 1. 定位与启用规则
 
@@ -84,6 +84,32 @@ Capability Command ↔ Implementation / Focused Review / Acceptance / Integratio
 
 Capability Command 失联、工具不可用或中断时，Global Command 只能恢复或替换该 Capability Command，不能穿透接管其子任务。紧急穿透必须由用户明确授权，并记录 `emergencyOverride: true`、原因、范围、失效条件和恢复目标；Global Command 不得自行声明紧急状态。
 
+### 3.8 注册表驱动的单消费者 Pull 协议
+
+框架内正式线程通信采用 **Registry-Governed Single-Consumer Pull**，而不是子线程或 peer 向正在工作的控制线程主动推送 handoff。
+
+控制关系固定为：
+
+```text
+Global Command 主动拉取 Capability Command 的 capability-level terminal
+Capability Command 主动拉取配对 Design 与已登记 I/R/V/X 的 terminal
+```
+
+强制规则：
+
+- 每个控制线程在自己的 registry 中登记受控线程、`currentWorkItem`、运行状态、`deliveryLock` 与 `lastConsumedCursor`；同一时间只处理一个原子工作项。
+- 正式子线程完成、失败或阻塞后，只在自己的 terminal final record 留下结构化 handoff，不调用消息工具主动唤醒或打断 parent。多个 terminal 可以并行就绪，由 parent 串行拉取。
+- `ACTIVE` 线程的 `deliveryLock` 固定为 `CLOSED`。自动线程不得向其推送任务、handoff、scope、gate、返工或状态消息；结果继续保留在来源 terminal。
+- Parent 只能在 child 为 `IDLE` 时下发或恢复任务。Peer-to-peer 正式控制消息一律返回 `ROUTING_VIOLATION`。
+- Global Command 与 Capability Command 必须使用任务等待/读取机制消费 terminal，并在处理后记录精确 cursor；同一 terminal 不得重复裁定。
+- “处理完成”指当前原子工作达到安全检查点并更新 registry，不要求整个 capability 结束。
+
+用户消息始终有效，但只有用户明确要求停止、切换、覆盖或优先处理时才抢占当前工作；当前任务补充合并处理，无关新任务等待当前原子工作达到安全检查点。
+
+自动抢占只允许注册 parent 对自己的 child 发出纯 `STOP_ONLY`，且仅限代码/数据破坏、凭据或敏感信息泄露、已确认共享文件并发写、未经授权的外部或破坏性操作。`STOP_ONLY` 只能要求停止并保存现场，不得夹带新任务、scope、gate 或返工指令；跨 capability 不得直接停止对方线程。
+
+超时不等于失败。只要 heartbeat、cursor、工具进程或状态仍变化就继续等待；child 已 idle 或留下 incomplete terminal 时恢复同一线程。连续三个监控窗口均无任何进度证据并确认失联后，注册 parent 才可执行恢复停止并恢复同一 thread/branch/worktree，禁止创建重复任务或工作面。
+
 ## 4. 标准生命周期
 
 1. **Explicit intake**：确认用户明确启用框架，记录 `capabilityKey`、目标、优先级和疑似依赖。
@@ -150,8 +176,8 @@ codex/site/x01-integration
 
 - `d`、`i`、`r`、`x` 分别对应 Design、Implementation、Focused Review、Integration。
 - branch 名必须能映射到自动任务名，例如 `A/I/SITE/01` 对应 `codex/site/i01-<slug>`。
-- Global Command 只维护 capability 级 registry：`capabilityKey`、Design/Command thread、能力状态、跨能力依赖、candidate/main SHA、全局风险和待用户清理状态。
-- Capability Command 独占维护 capability 内部 registry：`threadId`、`hostId`、规范标题、parent/return target、owner、branch、worktree、base SHA、allowed/protected paths、dependency SHA、gate、last commit、dirty state、integration target、cleanup state。
+- Global Command 只维护 capability 级 registry：`capabilityKey`、Design/Command thread、能力状态、`currentWorkItem`、`deliveryLock`、`lastConsumedCursor`、跨能力依赖、candidate/main SHA、全局风险和待用户清理状态。
+- Capability Command 独占维护 capability 内部 registry：`threadId`、`hostId`、规范标题、parent/return target、owner、运行状态、`currentWorkItem`、`deliveryLock`、`lastConsumedCursor`、branch、worktree、base SHA、allowed/protected paths、dependency SHA、gate、last commit、dirty state、integration target、cleanup state。
 - 未登记 branch/worktree 不得成为正式写入任务的工作面。
 
 ### 5.4 创建与依赖顺序
@@ -318,13 +344,14 @@ reserve sequence in registry
 
 Capability Command 创建子任务后保持执行所有权，通过任务等待机制监控已登记的活动子任务，不在派发后立即以“应启动”或“等待 Global Command”结束控制链。
 
-- 超时或无状态变化只继续等待，不重复读取完整上下文；
-- 子任务终态出现后完整读取一次 final record，再裁定 gate；
+- 子任务不得主动推送 handoff；Command 按第 3.8 节主动拉取已登记 terminal；
+- 超时或仍有 heartbeat/工具进程时只继续等待，不重复读取完整上下文；
+- 子任务终态出现后按 cursor 完整读取一次 final record，再裁定 gate 并记录已消费 cursor；
 - `idle`、部分结果或测试运行中不能视为完成；
 - 已有可信证据不重复执行完整测试，只补实际风险缺口；
 - 实现缺陷恢复原 Implementation，验收脚本/fixture 缺陷恢复原 Acceptance；
 - 设计/契约缺口直接回 Design Thread，Capability Command 标记 `WAITING_FOR_DESIGN`；
-- 中断后恢复同一个 Capability Command，并从既有 registry 与任务终态继续，不重新创建任务。
+- 连续三个监控窗口无任何进度证据且确认失联后，只恢复同一个 thread/branch/worktree，不重新创建任务。
 
 显式启用框架后可以建立只唤醒对应 Capability Command 的轻量恢复机制；它不得读取或指挥子任务，能力完成或用户停用框架后必须删除。
 
