@@ -24,16 +24,17 @@ import { useAuthContextStore } from '#/store/auth-context'
 type ActivityPeriod = BrowserActivityApi.ActivityPeriod
 type OnlineStatus = BrowserActivityApi.OnlineStatus
 type DrilldownState = { key: string; type: 'domain' } | null
-type UrlShareTooltipParam = {
-  data?: {
-    durationLabel?: string
-    percent?: number
-    rankLabel?: string
-    visitCount?: number
-  }
+type UrlShareTooltipData = {
+  durationLabel?: string
+  percent?: number
+  rankLabel?: string
+  visitCount?: number
+}
+type UrlShareTooltipItem = {
+  data?: unknown
   name?: string
   percent?: number
-  value?: number
+  value?: unknown
 }
 
 const authContextStore = useAuthContextStore()
@@ -136,9 +137,6 @@ const urlRankings = computed(() => {
 })
 const maxUrlDuration = computed(() =>
   Math.max(1, ...urlRankings.value.map((url) => url.activeDurationSeconds))
-)
-const maxTrendDuration = computed(() =>
-  Math.max(1, ...timeDistribution.value.map((bucket) => bucket.seconds))
 )
 const selectedDomainTotalDuration = computed(() =>
   Math.max(1, selectedDomainUrls.value.reduce((total, item) => total + item.activeDurationSeconds, 0))
@@ -297,11 +295,24 @@ async function renderSelectedDomainShareChart() {
 }
 
 // formatUrlShareTooltip keeps long URLs out of the chart hover layer and points users to the ranked list for details.
-function formatUrlShareTooltip(params: UrlShareTooltipParam) {
-  const rankLabel = params.data?.rankLabel ?? params.name ?? 'Rank'
-  const durationLabel = params.data?.durationLabel ?? formatDuration(params.value ?? 0)
-  const percent = params.percent ?? params.data?.percent ?? 0
+function formatUrlShareTooltip(params: unknown) {
+  const candidate = Array.isArray(params) ? params[0] : params
+  const item = isUrlShareTooltipItem(candidate) ? candidate : undefined
+  const data = isUrlShareTooltipData(item?.data) ? item.data : undefined
+  const rankLabel = data?.rankLabel ?? item?.name ?? 'Rank'
+  const durationLabel = data?.durationLabel ?? formatDuration(Number(item?.value ?? 0))
+  const percent = item?.percent ?? data?.percent ?? 0
   return `<span>${rankLabel} · ${durationLabel} · ${percent}%</span>`
+}
+
+// isUrlShareTooltipItem narrows ECharts tooltip params before reading common callback fields.
+function isUrlShareTooltipItem(value: unknown): value is UrlShareTooltipItem {
+  return typeof value === 'object' && value !== null
+}
+
+// isUrlShareTooltipData narrows ECharts option data before reading custom URL share fields.
+function isUrlShareTooltipData(value: unknown): value is UrlShareTooltipData {
+  return typeof value === 'object' && value !== null
 }
 
 // loadWorkbench hydrates the selected-user browser monitoring shell.

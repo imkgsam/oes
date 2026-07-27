@@ -5,6 +5,7 @@ export interface ConvertLeadToProspectCustomerCommandProps {
   crmAccountId: string
   operatorAccountId: string
   allowOwnerlessConversion?: boolean
+  legalName?: string | null
 }
 
 /** ConvertLeadToProspectCustomerCommand requests formalization of one active CRM lead. */

@@ -7,6 +7,7 @@ import {
   CrmAccountRecordStatus
 } from '../../domain/models/crm-records'
 import { CrmAccountRepository } from '../../domain/repositories/crm-account.repository'
+import { buildCrmAccountProfileItems } from '../support/account-profile-items'
 import { normalizeLeadDomainEvidence } from '../support/lead-domain-normalization'
 import { UpdateDraftLeadCommand } from './update-draft-lead.command'
 
@@ -49,6 +50,7 @@ export class UpdateDraftLeadHandler implements ICommandHandler<
       lifecycleStage: CrmAccountLifecycleStage.LEAD,
       partyTypeHint: command.props.partyTypeHint,
       displayName: command.props.displayName,
+      leadLegalName: command.props.leadLegalName ?? null,
       leadCompanyName: command.props.leadCompanyName ?? null,
       leadPersonName: command.props.leadPersonName ?? null,
       leadDomain: normalizeLeadDomainEvidence(command.props.leadDomain),
@@ -63,6 +65,13 @@ export class UpdateDraftLeadHandler implements ICommandHandler<
       archivedAt: null
     })
 
-    return { account: saved }
+    const profileItems = buildCrmAccountProfileItems({
+      tenantId: saved.tenantId,
+      crmAccountId: saved.id,
+      profileItems: command.props.profileItems
+    })
+    await this.accountRepository.replaceAccountProfileItems(saved.tenantId, saved.id, profileItems)
+
+    return { account: { ...saved, profileItems } }
   }
 }

@@ -27,6 +27,12 @@ enum CollaborationTaskPriority {
   URGENT
 }
 
+enum CollaborationTaskOutboxStatus {
+  PENDING
+  PUBLISHED
+  QUARANTINED
+}
+
 enum CollaborationAnnotationVisibility {
   PRIVATE
   OBJECT_VISIBLE
@@ -101,6 +107,33 @@ model CollaborationTaskEventEnvelope {
   @@index([tenantId, taskId])
   @@index([tenantId, eventType, occurredAt])
   @@index([publishedAt])
+}
+
+model CollaborationTaskOutbox {
+  eventId          String                       @id @db.Uuid
+  eventType        String                       @db.VarChar(120)
+  eventVersion     Int
+  ownerService     String                       @db.VarChar(80)
+  tenantId         String                       @db.VarChar(100)
+  aggregateType    String                       @db.VarChar(80)
+  aggregateId      String                       @db.Uuid
+  occurredAt       DateTime
+  cloudEventBody   Json
+  status           CollaborationTaskOutboxStatus @default(PENDING)
+  attemptCount     Int                          @default(0)
+  nextAttemptAt    DateTime                     @default(now())
+  leaseToken       String?                      @db.Uuid
+  leaseExpiresAt   DateTime?
+  lastErrorCode    String?                      @db.VarChar(120)
+  lastErrorMessage String?                      @db.VarChar(1000)
+  publishedAt      DateTime?
+  quarantinedAt    DateTime?
+  createdAt        DateTime                     @default(now())
+  updatedAt        DateTime                     @updatedAt
+
+  @@index([status, nextAttemptAt])
+  @@index([tenantId, aggregateType, aggregateId])
+  @@index([leaseExpiresAt])
 }
 
 model CollaborationAnnotation {

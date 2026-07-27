@@ -34,9 +34,171 @@ model NotificationDispatch {
   @@index([sourceService, createdAt])
 }
 
+model NotificationInboxEvent {
+  id                  String                       @id
+  consumerName        String
+  eventId             String
+  tenantId            String
+  orgId               String?
+  source              String
+  eventType           String
+  eventVersion        Int
+  eventTime           DateTime
+  aggregateType       String
+  aggregateId         String
+  canonicalBodyDigest String
+  traceId             String
+  result              NotificationInboxEventResult
+  processedAt         DateTime                     @default(now())
+  items               NotificationInboxItem[]
+
+  @@unique([consumerName, eventId])
+  @@index([tenantId, eventId])
+  @@index([tenantId, processedAt])
+}
+
+model NotificationInboxItem {
+  id                 String                  @id
+  inboxEventId       String
+  tenantId           String
+  orgId              String?
+  recipientAccountId String
+  notificationType   NotificationInboxType
+  channel            NotificationInboxChannel
+  sourceEventId      String
+  sourceObjectRef    String
+  deepLinkRef        String
+  titleSnapshot      String
+  bodySnapshot       String
+  templateKey        String
+  templateVersion    Int
+  locale             String
+  traceId            String
+  isRead             Boolean                 @default(false)
+  isArchived         Boolean                 @default(false)
+  createdAt          DateTime                @default(now())
+  inboxEvent         NotificationInboxEvent  @relation(fields: [inboxEventId], references: [id], onDelete: Restrict)
+
+  @@unique([inboxEventId, recipientAccountId])
+  @@index([tenantId, recipientAccountId, createdAt])
+  @@index([tenantId, sourceEventId])
+}
+
+model NotificationEventAdvisoryRecovery {
+  id                        String                            @id
+  consumerName              String
+  sourceStream              String
+  sourceStreamSequence      BigInt
+  sourceConsumerSequence    BigInt
+  deliveryAttempts          Int
+  sourceExpiresAt           DateTime
+  status                    NotificationAdvisoryRecoveryStatus
+  originalSourceTermination NotificationSourceTermination
+  ownerAlertedAt            DateTime?
+  preExpiryEscalatedAt      DateTime?
+  createdAt                 DateTime                          @default(now())
+  updatedAt                 DateTime                          @updatedAt
+  audits                    NotificationEventAdvisoryAudit[]
+
+  @@unique([consumerName, sourceStream, sourceStreamSequence])
+  @@index([status, sourceExpiresAt])
+}
+
+model NotificationEventAdvisoryAudit {
+  id         String                           @id
+  recoveryId String
+  action     NotificationAdvisoryAuditAction
+  evidence   Json
+  occurredAt DateTime                         @default(now())
+  recovery   NotificationEventAdvisoryRecovery @relation(fields: [recoveryId], references: [id], onDelete: Restrict)
+
+  @@index([recoveryId, occurredAt])
+}
+
+model NotificationEventReplayRun {
+  id                        String                        @id
+  replayRunId               String                        @unique
+  consumerName              String
+  tenantScope               Json
+  eventFilter               Json
+  requestedBy               String
+  approvedByConsumerOwner   String
+  approvedByPlatformOperator String
+  platformApprovalRef       String
+  reason                    String
+  status                    NotificationReplayRunStatus
+  originalSourceTermination NotificationSourceTermination
+  startedAt                 DateTime                      @default(now())
+  completedAt               DateTime?
+  audits                    NotificationEventReplayAudit[]
+
+  @@index([consumerName, status, startedAt])
+}
+
+model NotificationEventReplayAudit {
+  id          String                     @id
+  replayRunId String
+  action      NotificationReplayAuditAction
+  evidence    Json
+  occurredAt  DateTime                   @default(now())
+  replayRun   NotificationEventReplayRun @relation(fields: [replayRunId], references: [replayRunId], onDelete: Restrict)
+
+  @@index([replayRunId, occurredAt])
+}
+
 enum NotificationChannel {
   EMAIL
   SMS
+}
+
+enum NotificationInboxChannel {
+  IN_APP
+}
+
+enum NotificationInboxType {
+  COLLABORATION_TASK_ASSIGNED
+  COLLABORATION_TASK_COMPLETED
+  COLLABORATION_TASK_CANCELLED
+}
+
+enum NotificationInboxEventResult {
+  APPLIED
+  NO_RECIPIENT
+}
+
+enum NotificationAdvisoryRecoveryStatus {
+  UNRESOLVED_SOURCE_TERMINATION_AUTHORITY_REQUIRED
+  EXPIRED_UNRESOLVED
+}
+
+enum NotificationSourceTermination {
+  AUTHORITY_UNAVAILABLE
+  NOT_PERFORMED
+}
+
+enum NotificationAdvisoryAuditAction {
+  ADVISORY_RECORDED
+  OWNER_ALERTED
+  PRE_EXPIRY_ESCALATED
+  EXPIRED_UNRESOLVED
+}
+
+enum NotificationReplayRunStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum NotificationReplayAuditAction {
+  REPLAY_STARTED
+  REPLAY_RESUMED
+  PULL_EMPTY
+  PULL_SKIPPED
+  PULL_ACKED
+  PULL_RETRY_SCHEDULED
+  PULL_REQUIRES_DLQ
+  REPLAY_COMPLETED
+  REPLAY_FAILED
 }
 
 enum NotificationCategory {

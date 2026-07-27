@@ -1,13 +1,18 @@
 import { randomBytes } from 'node:crypto'
 import { Injectable } from '@nestjs/common'
-import { PublishSiteWebhookInput, SiteWebhookPublisher } from '../../application/ports/site-webhook-publisher.port'
+import {
+  PublishSiteWebhookInput,
+  SiteWebhookPublisher
+} from '../../application/ports/site-webhook-publisher.port'
 import { signSiteWebhook } from '../../domain/security/site-webhook-signing'
 
 export interface HttpSiteWebhookPublisherOptions {
-  fetcher?: (url: string, init: { method: string; headers: Record<string, string>; body: string }) => Promise<{
+  fetcher?: (
+    url: string,
+    init: { method: string; headers: Record<string, string>; body: string }
+  ) => Promise<{
     ok: boolean
     status: number
-    text(): Promise<string>
   }>
   now?: () => Date
   nonce?: () => string
@@ -58,13 +63,15 @@ export class HttpSiteWebhookPublisher implements SiteWebhookPublisher {
     })
 
     if (!response.ok) {
-      const text = await response.text().catch(() => '')
-      throw new Error(`webhook dispatch failed with HTTP ${response.status}${text ? `: ${text}` : ''}`)
+      throw new Error(`webhook dispatch failed with HTTP ${response.status}`)
     }
   }
 
   /** fetcher returns the injected fetch implementation or the Node runtime fetch. */
-  private fetcher(url: string, init: { method: string; headers: Record<string, string>; body: string }) {
+  private fetcher(
+    url: string,
+    init: { method: string; headers: Record<string, string>; body: string }
+  ) {
     const fetcher = this.options.fetcher ?? globalThis.fetch
     if (!fetcher) {
       throw new Error('fetch is not available for webhook dispatch')
@@ -86,8 +93,9 @@ function normalizeSearchParams(searchParams: URLSearchParams): string {
 
 /** encodeRfc3986 encodes webhook query keys and values using strict percent escaping. */
 function encodeRfc3986(value: string): string {
-  return encodeURIComponent(value).replace(/[!'()*]/g, (character) =>
-    `%${character.charCodeAt(0).toString(16).toUpperCase()}`
+  return encodeURIComponent(value).replace(
+    /[!'()*]/g,
+    (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`
   )
 }
 

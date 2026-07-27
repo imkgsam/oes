@@ -15,7 +15,10 @@ export interface ListCrmAccountsResult {
 /** ListCrmAccountsHandler returns tenant-scoped CRM P1 account workspace pages. */
 @Injectable()
 @QueryHandler(ListCrmAccountsQuery)
-export class ListCrmAccountsHandler implements IQueryHandler<ListCrmAccountsQuery, ListCrmAccountsResult> {
+export class ListCrmAccountsHandler implements IQueryHandler<
+  ListCrmAccountsQuery,
+  ListCrmAccountsResult
+> {
   constructor(
     @Inject(TOKENS.CRM_ACCOUNT_REPOSITORY)
     private readonly accountRepository: CrmAccountRepository
@@ -24,9 +27,18 @@ export class ListCrmAccountsHandler implements IQueryHandler<ListCrmAccountsQuer
   /** execute delegates filtering and pagination to the CRM account repository. */
   async execute(query: ListCrmAccountsQuery): Promise<ListCrmAccountsResult> {
     const result = await this.accountRepository.listAccounts(query.input)
+    const crmAccounts = await Promise.all(
+      result.items.map(async (account) => ({
+        ...account,
+        profileItems: await this.accountRepository.listAccountProfileItems(
+          account.tenantId,
+          account.id
+        )
+      }))
+    )
 
     return {
-      crmAccounts: result.items,
+      crmAccounts,
       total: result.total,
       page: result.page,
       pageSize: result.pageSize

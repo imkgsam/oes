@@ -25,11 +25,13 @@ message TenantPartyIdentifierInput {
   string status = 5;
 }
 
-message TenantPartyContactPointInput {
-  string contact_point_type = 1;
+message TenantPartyProfileItemInput {
+  string item_type = 1;
   string normalized_value = 2;
   string raw_value = 3;
   string label = 4;
+  string role = 5;
+  string status = 6;
 }
 
 message TenantPartySummary {
@@ -65,7 +67,7 @@ message RegisterTenantPartyRequest {
   string registered_country = 6;
   repeated TenantPartyIdentifierInput identifiers = 7;
   string idempotency_key = 8;
-  repeated TenantPartyContactPointInput contact_points = 9;
+  repeated TenantPartyProfileItemInput profile_items = 9;
 }
 
 message RegisterTenantPartyResponse {

@@ -60,7 +60,11 @@ export const Card = defineComponent({
       h('section', { ...attrs, class: mergeClass('ant-card', attrs.class) }, [
         props.title || slots.title || slots.extra
           ? h('header', { class: 'ant-card-head' }, [
-              h('div', { class: 'ant-card-head-title' }, renderSlotContent(slots.title?.(), props.title) as any),
+              h(
+                'div',
+                { class: 'ant-card-head-title' },
+                renderSlotContent(slots.title?.(), props.title) as any
+              ),
               slots.extra ? h('div', { class: 'ant-card-extra' }, slots.extra()) : null
             ])
           : null,
@@ -73,7 +77,8 @@ export const Card = defineComponent({
 export const Form = defineComponent({
   name: 'Form',
   setup(_props, { attrs, slots }) {
-    return () => h('form', { ...attrs, class: mergeClass('ant-form', attrs.class) }, slots.default?.())
+    return () =>
+      h('form', { ...attrs, class: mergeClass('ant-form', attrs.class) }, slots.default?.())
   }
 })
 
@@ -96,14 +101,14 @@ export const FormItem = defineComponent({
       ])
   }
 })
-
 ;(Form as any).Item = FormItem
 
 /** Row preserves Ant Design grid grouping while keeping tests layout-agnostic. */
 export const Row = defineComponent({
   name: 'Row',
   setup(_props, { attrs, slots }) {
-    return () => h('div', { ...attrs, class: mergeClass('ant-row', attrs.class) }, slots.default?.())
+    return () =>
+      h('div', { ...attrs, class: mergeClass('ant-row', attrs.class) }, slots.default?.())
   }
 })
 
@@ -111,7 +116,8 @@ export const Row = defineComponent({
 export const Col = defineComponent({
   name: 'Col',
   setup(_props, { attrs, slots }) {
-    return () => h('div', { ...attrs, class: mergeClass('ant-col', attrs.class) }, slots.default?.())
+    return () =>
+      h('div', { ...attrs, class: mergeClass('ant-col', attrs.class) }, slots.default?.())
   }
 })
 
@@ -219,7 +225,8 @@ export const Select = defineComponent({
         {
           ...attrs,
           class: mergeClass('ant-select', attrs.class),
-          'data-max-tag-count': props.maxTagCount === undefined ? undefined : `${props.maxTagCount}`,
+          'data-max-tag-count':
+            props.maxTagCount === undefined ? undefined : `${props.maxTagCount}`,
           'data-mode': props.mode,
           disabled: props.disabled,
           multiple: props.mode === 'multiple',
@@ -237,7 +244,6 @@ export const Select = defineComponent({
       )
   }
 })
-
 ;(Select as any).Option = SelectOption
 
 /** TreeSelect maps Ant Design Vue tree selection onto a native select for deterministic drawer specs. */
@@ -276,11 +282,39 @@ export const TreeSelect = defineComponent({
           ...attrs,
           class: mergeClass('ant-tree-select', attrs.class),
           value: props.value,
-          onChange: (event: Event) => emit('update:value', (event.target as HTMLSelectElement).value)
+          onChange: (event: Event) =>
+            emit('update:value', (event.target as HTMLSelectElement).value)
         },
         [
           props.placeholder ? h('option', { disabled: true, value: '' }, props.placeholder) : null,
           ...renderOptions(props.treeData)
+        ]
+      )
+  }
+})
+
+/** Tooltip exposes overlay copy through a deterministic wrapper for hover-help assertions. */
+export const Tooltip = defineComponent({
+  name: 'Tooltip',
+  props: {
+    overlayClassName: String,
+    placement: String,
+    title: String
+  },
+  setup(props, { attrs, slots }) {
+    return () =>
+      h(
+        'span',
+        {
+          ...attrs,
+          class: mergeClass('ant-tooltip', attrs.class),
+          'data-overlay-class-name': props.overlayClassName,
+          'data-placement': props.placement,
+          'data-tooltip-title': props.title
+        },
+        [
+          h('span', { class: 'ant-tooltip-title' }, slots.title?.() ?? props.title),
+          slots.default?.()
         ]
       )
   }
@@ -306,9 +340,10 @@ export const Checkbox = defineComponent({
       h('label', { class: 'ant-checkbox-wrapper' }, [
         h('input', {
           ...attrs,
-          checked: group && props.value !== undefined
-            ? group.selectedValues().includes(props.value)
-            : props.checked,
+          checked:
+            group && props.value !== undefined
+              ? group.selectedValues().includes(props.value)
+              : props.checked,
           class: mergeClass('ant-checkbox', attrs.class),
           disabled: props.disabled,
           type: 'checkbox',
@@ -349,10 +384,14 @@ export const CheckboxGroup = defineComponent({
       }
     })
 
-    return () => h('div', { ...attrs, class: mergeClass('ant-checkbox-group', attrs.class) }, slots.default?.())
+    return () =>
+      h(
+        'div',
+        { ...attrs, class: mergeClass('ant-checkbox-group', attrs.class) },
+        slots.default?.()
+      )
   }
 })
-
 ;(Checkbox as any).Group = CheckboxGroup
 
 /** Switch maps Ant Design Vue v-model:checked onto a native checkbox with switch semantics. */
@@ -376,9 +415,14 @@ export const Switch = defineComponent({
           disabled: props.disabled,
           role: 'switch',
           type: 'checkbox',
-          onChange: (event: Event) => emit('update:checked', (event.target as HTMLInputElement).checked)
+          onChange: (event: Event) =>
+            emit('update:checked', (event.target as HTMLInputElement).checked)
         }),
-        h('span', { class: 'ant-switch-label' }, props.checked ? props.checkedChildren : props.unCheckedChildren)
+        h(
+          'span',
+          { class: 'ant-switch-label' },
+          props.checked ? props.checkedChildren : props.unCheckedChildren
+        )
       ])
   }
 })
@@ -387,7 +431,8 @@ export const Switch = defineComponent({
 export const Space = defineComponent({
   name: 'Space',
   setup(_props, { attrs, slots }) {
-    return () => h('span', { ...attrs, class: mergeClass('ant-space', attrs.class) }, slots.default?.())
+    return () =>
+      h('span', { ...attrs, class: mergeClass('ant-space', attrs.class) }, slots.default?.())
   }
 })
 
@@ -398,7 +443,12 @@ export const Spin = defineComponent({
     spinning: Boolean
   },
   setup(_props, { attrs, slots }) {
-    return () => h('div', { ...attrs, class: mergeClass('ant-spin-nested-loading', attrs.class) }, slots.default?.())
+    return () =>
+      h(
+        'div',
+        { ...attrs, class: mergeClass('ant-spin-nested-loading', attrs.class) },
+        slots.default?.()
+      )
   }
 })
 
@@ -472,7 +522,11 @@ export const Empty = defineComponent({
   },
   setup(props, { attrs, slots }) {
     return () =>
-      h('div', { ...attrs, class: mergeClass('ant-empty', attrs.class) }, slots.default?.() ?? props.description)
+      h(
+        'div',
+        { ...attrs, class: mergeClass('ant-empty', attrs.class) },
+        slots.default?.() ?? props.description
+      )
   }
 })
 
@@ -538,7 +592,6 @@ export const MenuItem = defineComponent({
       )
   }
 })
-
 ;(Menu as any).Item = MenuItem
 
 /** Drawer conditionally renders its contents when the open prop is true. */
@@ -588,9 +641,9 @@ export const Modal = defineComponent({
 })
 
 // Modal.confirm runs the accepted callback immediately so destructive-action specs stay deterministic.
-;(Modal as typeof Modal & { confirm: (options: { onOk?: () => Promise<void> | void }) => void }).confirm = (
-  options,
-) => {
+;(
+  Modal as typeof Modal & { confirm: (options: { onOk?: () => Promise<void> | void }) => void }
+).confirm = (options) => {
   void options.onOk?.()
 }
 
@@ -602,7 +655,11 @@ export const QRCode = defineComponent({
   },
   setup(props, { attrs }) {
     return () =>
-      h('div', { ...attrs, class: mergeClass('ant-qrcode', attrs.class), 'data-value': props.value }, props.value)
+      h(
+        'div',
+        { ...attrs, class: mergeClass('ant-qrcode', attrs.class), 'data-value': props.value },
+        props.value
+      )
   }
 })
 
@@ -746,7 +803,9 @@ export const Table = defineComponent({
         )
       )
 
-      return expanded ? [row, ...children.flatMap((child: AnyRecord) => renderRecord(child, depth + 1))] : [row]
+      return expanded
+        ? [row, ...children.flatMap((child: AnyRecord) => renderRecord(child, depth + 1))]
+        : [row]
     }
 
     return () =>
@@ -794,23 +853,31 @@ export const Tree = defineComponent({
   emits: ['select', 'update:expandedKeys'],
   setup(props, { attrs, emit, slots }) {
     const renderNode = (node: AnyRecord, depth = 0): VNodeChild =>
-      h('div', { class: 'ant-tree-node', key: node.key, style: { paddingLeft: `${depth * 16}px` } }, [
-        h(
-          'div',
-          {
-            class: [
-              'ant-tree-title',
-              props.selectedKeys.includes(node.key) ? 'ant-tree-title-selected' : ''
-            ],
-            onClick: () => emit('select', [node.key], { node })
-          },
-          slots.title?.(node) ?? node.title
-        ),
-        (node.children ?? []).map((child: AnyRecord) => renderNode(child, depth + 1))
-      ])
+      h(
+        'div',
+        { class: 'ant-tree-node', key: node.key, style: { paddingLeft: `${depth * 16}px` } },
+        [
+          h(
+            'div',
+            {
+              class: [
+                'ant-tree-title',
+                props.selectedKeys.includes(node.key) ? 'ant-tree-title-selected' : ''
+              ],
+              onClick: () => emit('select', [node.key], { node })
+            },
+            slots.title?.(node) ?? node.title
+          ),
+          (node.children ?? []).map((child: AnyRecord) => renderNode(child, depth + 1))
+        ]
+      )
 
     return () =>
-      h('div', { ...attrs, class: mergeClass('ant-tree', attrs.class) }, props.treeData.map((node) => renderNode(node)))
+      h(
+        'div',
+        { ...attrs, class: mergeClass('ant-tree', attrs.class) },
+        props.treeData.map((node) => renderNode(node))
+      )
   }
 })
 

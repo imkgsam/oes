@@ -42,11 +42,12 @@ describe('PartyRegistrationGrpcController L3', () => {
           issuerCountryOrRegion: 'CN'
         }
       ],
-      contactPoints: [
+      profileItems: [
         {
-          contactPointType: 'DOMAIN',
+          itemType: 'DOMAIN',
           normalizedValue: 'acme.example',
-          rawValue: 'https://acme.example'
+          rawValue: 'https://acme.example',
+          role: 'PRIMARY'
         }
       ]
     } as any)
@@ -66,14 +67,17 @@ describe('PartyRegistrationGrpcController L3', () => {
           issuerCountryOrRegion: 'CN'
         }
       ],
-      contactPoints: [
+      profileItems: [
         {
-          contactPointType: 'DOMAIN',
+          itemType: 'DOMAIN',
           normalizedValue: 'acme.example',
           rawValue: 'https://acme.example',
-          label: undefined
+          label: undefined,
+          role: 'PRIMARY',
+          status: undefined
         }
-      ]
+      ],
+      idempotencyKey: undefined
     })
     expect(result).toEqual({
       tenantParty: {

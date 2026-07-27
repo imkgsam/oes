@@ -9,10 +9,7 @@ const listManagedItemsApi = vi.fn()
 const push = vi.fn()
 
 const authContextState: any = {
-  actionCodes: [
-    'item_master.item_model.list',
-    'item_master.item_model.create'
-  ],
+  actionCodes: ['item_master.item_model.list', 'item_master.item_model.create'],
   sessionContext: {
     tenant: {
       tenantId: 'tenant-1'
@@ -32,6 +29,10 @@ vi.mock('#/store/auth-context', () => ({
 
 vi.mock('vue-router', () => ({
   useRouter: () => ({ push })
+}))
+
+vi.mock('#/locales', () => ({
+  $t: (key: string) => key
 }))
 
 vi.mock('@vben/common-ui', () => ({
@@ -112,9 +113,16 @@ describe('item model management page', () => {
     expect(wrapper.find('[data-testid="item-model-block-model-1"]').exists()).toBe(true)
     expect(wrapper.find('table').exists()).toBe(false)
     expect(wrapper.text()).toContain('ItemModel 管理')
+    expect(wrapper.text()).toContain('启用 ItemModel')
+    expect(wrapper.text()).toContain('可销售')
+    expect(wrapper.text()).toContain('可库存')
+    expect(wrapper.text()).toContain('实物')
+    expect(wrapper.text()).toContain('成品')
+    expect(wrapper.text()).not.toContain('Active ItemModel')
+    expect(wrapper.text()).not.toContain('sellable')
     expect(wrapper.text()).toContain('MODEL-1')
     expect(wrapper.text()).toContain('Model 1')
-    expect(wrapper.text()).toContain('FINISHED_PRODUCT')
+    expect(wrapper.text()).not.toContain('FINISHED_PRODUCT')
   })
 
   it('filters ItemModel blocks without loading executable Items', async () => {

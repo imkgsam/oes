@@ -20,8 +20,10 @@ import {
   ReleaseCrmAccountResponse,
   SubmitDraftLeadRequest,
   SubmitDraftLeadResponse,
+  UpdateCrmAccountIdentifiersRequest,
+  UpdateCrmAccountIdentifiersResponse,
   UpdateDraftLeadRequest,
-  UpdateDraftLeadResponse,
+  UpdateDraftLeadResponse
 } from '@oes/common/generated/crm_service'
 import { ArchiveCrmAccountCommand } from '../../application/commands/archive-crm-account.command'
 import { ClaimCrmAccountCommand } from '../../application/commands/claim-crm-account.command'
@@ -31,6 +33,7 @@ import { CreateLeadCommand } from '../../application/commands/create-lead.comman
 import { DeleteDraftLeadCommand } from '../../application/commands/delete-draft-lead.command'
 import { ReleaseCrmAccountCommand } from '../../application/commands/release-crm-account.command'
 import { SubmitDraftLeadCommand } from '../../application/commands/submit-draft-lead.command'
+import { UpdateCrmAccountIdentifiersCommand } from '../../application/commands/update-crm-account-identifiers.command'
 import { UpdateDraftLeadCommand } from '../../application/commands/update-draft-lead.command'
 import { CrmAuditService } from '../../application/services/crm-audit.service'
 import { normalizeOptionalString } from '../../application/support/crm-assertions'
@@ -77,6 +80,7 @@ export class CustomerManagementGrpcController implements CustomerManagementServi
             operatorAccountId: context.operatorContext.operatorId,
             displayName: request.displayName ?? '',
             partyTypeHint: toCrmAccountTypeHint(request.partyTypeHint),
+            leadLegalName: normalizeOptionalString(request.leadLegalName),
             leadCompanyName: normalizeOptionalString(request.leadCompanyName),
             leadPersonName: normalizeOptionalString(request.leadPersonName),
             leadDomain: normalizeOptionalString(request.leadDomain),
@@ -85,6 +89,7 @@ export class CustomerManagementGrpcController implements CustomerManagementServi
             leadWhatsapp: normalizeOptionalString(request.leadWhatsapp),
             leadCountry: normalizeOptionalString(request.leadCountry),
             leadIdentifiers: toCrmLeadIdentifiers(request.leadIdentifiers),
+            profileItems: toCrmAccountProfileItemDrafts(request.profileItems),
             priority: toCrmPriority(request.priority),
             nextFollowUpAt: parseOptionalDate(request.nextFollowUpAt),
             source: toOptionalCrmSourceInput({
@@ -127,6 +132,7 @@ export class CustomerManagementGrpcController implements CustomerManagementServi
             operatorAccountId: context.operatorContext.operatorId,
             displayName: request.displayName ?? '',
             partyTypeHint: toCrmAccountTypeHint(request.partyTypeHint),
+            leadLegalName: normalizeOptionalString(request.leadLegalName),
             leadCompanyName: normalizeOptionalString(request.leadCompanyName),
             leadPersonName: normalizeOptionalString(request.leadPersonName),
             leadDomain: normalizeOptionalString(request.leadDomain),
@@ -135,12 +141,46 @@ export class CustomerManagementGrpcController implements CustomerManagementServi
             leadWhatsapp: normalizeOptionalString(request.leadWhatsapp),
             leadCountry: normalizeOptionalString(request.leadCountry),
             leadIdentifiers: toCrmLeadIdentifiers(request.leadIdentifiers),
+            profileItems: toCrmAccountProfileItemDrafts(request.profileItems),
             priority: toCrmPriority(request.priority),
             nextFollowUpAt: parseOptionalDate(request.nextFollowUpAt)
           })
         )
 
         return CustomerGrpcPresenter.toUpdateDraftLeadResponse(result)
+      }
+    )
+  }
+
+  async updateCrmAccountIdentifiers(
+    request: UpdateCrmAccountIdentifiersRequest
+  ): Promise<UpdateCrmAccountIdentifiersResponse> {
+    const context = CustomerRpcContextValidator.assertManagementContext(request)
+    return this.auditService.recordCommand(
+      {
+        tenantId: context.tenantId,
+        operatorContext: context.operatorContext,
+        traceContext: context.traceContext,
+        auditContext: context.auditContext,
+        commandName: 'UpdateCrmAccountIdentifiers',
+        resourceType: 'crm_account',
+        targetId: request.crmAccountId ?? null,
+        requestSummary: {
+          crmAccountId: request.crmAccountId ?? '',
+          identifierCount: request.leadIdentifiers?.length ?? 0
+        }
+      },
+      async () => {
+        const result = await this.commandBus.execute(
+          new UpdateCrmAccountIdentifiersCommand({
+            tenantId: request.tenantId ?? '',
+            crmAccountId: request.crmAccountId ?? '',
+            operatorAccountId: context.operatorContext.operatorId,
+            leadIdentifiers: toCrmLeadIdentifiers(request.leadIdentifiers)
+          })
+        )
+
+        return CustomerGrpcPresenter.toUpdateCrmAccountIdentifiersResponse(result)
       }
     )
   }
@@ -238,6 +278,7 @@ export class CustomerManagementGrpcController implements CustomerManagementServi
             operatorAccountId: context.operatorContext.operatorId,
             displayName: request.displayName ?? '',
             partyTypeHint: toCrmAccountTypeHint(request.partyTypeHint),
+            leadLegalName: normalizeOptionalString(request.leadLegalName),
             leadCompanyName: normalizeOptionalString(request.leadCompanyName),
             leadPersonName: normalizeOptionalString(request.leadPersonName),
             leadDomain: normalizeOptionalString(request.leadDomain),
@@ -246,6 +287,7 @@ export class CustomerManagementGrpcController implements CustomerManagementServi
             leadWhatsapp: normalizeOptionalString(request.leadWhatsapp),
             leadCountry: normalizeOptionalString(request.leadCountry),
             leadIdentifiers: toCrmLeadIdentifiers(request.leadIdentifiers),
+            profileItems: toCrmAccountProfileItemDrafts(request.profileItems),
             assignmentIntent: toCrmLeadAssignmentIntent(request.assignmentIntent),
             ownerAccountId: normalizeOptionalString(request.ownerAccountId),
             claimForCurrentUser: request.claimForCurrentUser ?? false,
@@ -292,6 +334,7 @@ export class CustomerManagementGrpcController implements CustomerManagementServi
             tenantId: request.tenantId ?? '',
             crmAccountId: request.crmAccountId ?? '',
             operatorAccountId: context.operatorContext.operatorId,
+            legalName: normalizeOptionalString(request.legalName),
             allowOwnerlessConversion: request.allowOwnerlessConversion ?? false
           })
         )
@@ -404,7 +447,12 @@ function toCrmAccountTypeHint(value?: string): CrmAccountTypeHint {
 
 /** toCrmPriority maps one P1 string request value into the domain priority enum. */
 function toCrmPriority(value?: string): CrmPriority {
-  if (value === CrmPriority.A || value === CrmPriority.B || value === CrmPriority.C || value === CrmPriority.D) {
+  if (
+    value === CrmPriority.A ||
+    value === CrmPriority.B ||
+    value === CrmPriority.C ||
+    value === CrmPriority.D
+  ) {
     return value
   }
   return CrmPriority.C
@@ -432,17 +480,38 @@ function toCrmArchiveReason(value?: string): CrmArchiveReason {
 }
 
 /** toCrmLeadIdentifiers maps generated proto identifier payloads into domain records. */
-function toCrmLeadIdentifiers(identifiers: Array<{
-  identifierType?: string
-  normalizedValue?: string
-  rawValue?: string
-  issuerCountryOrRegion?: string
-}> = []) {
+function toCrmLeadIdentifiers(
+  identifiers: Array<{
+    identifierType?: string
+    normalizedValue?: string
+    rawValue?: string
+    issuerCountryOrRegion?: string
+  }> = []
+) {
   return identifiers.map((identifier) => ({
     identifierType: identifier.identifierType ?? '',
     normalizedValue: identifier.normalizedValue ?? '',
     rawValue: normalizeOptionalString(identifier.rawValue),
     issuerCountryOrRegion: normalizeOptionalString(identifier.issuerCountryOrRegion)
+  }))
+}
+
+/** toCrmAccountProfileItemDrafts maps gRPC profile item inputs into CRM account-level evidence drafts. */
+function toCrmAccountProfileItemDrafts(
+  profileItems: Array<{
+    itemType?: string
+    normalizedValue?: string
+    rawValue?: string
+    label?: string
+    role?: string
+  }> = []
+) {
+  return profileItems.map((profileItem) => ({
+    itemType: profileItem.itemType ?? '',
+    normalizedValue: profileItem.normalizedValue ?? '',
+    rawValue: normalizeOptionalString(profileItem.rawValue),
+    label: normalizeOptionalString(profileItem.label),
+    role: normalizeOptionalString(profileItem.role)
   }))
 }
 
@@ -488,7 +557,9 @@ function parseRawPayload(value?: string): Record<string, unknown> | null {
 
   try {
     const parsed = JSON.parse(value)
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : { value: parsed }
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed
+      : { value: parsed }
   } catch {
     return { raw: value }
   }

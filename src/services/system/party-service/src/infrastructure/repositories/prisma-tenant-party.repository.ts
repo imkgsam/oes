@@ -56,18 +56,18 @@ export class PrismaTenantPartyRepository implements TenantPartyRepository {
   }
 
   async findCandidates(input: SearchTenantPartyCandidatesInput): Promise<TenantPartyCandidate[]> {
-    const contactPointCriteria = [
-      input.domain ? { contactPointType: 'DOMAIN' as const, normalizedValue: input.domain } : null,
-      input.email ? { contactPointType: 'EMAIL' as const, normalizedValue: input.email } : null,
-      input.phone ? { contactPointType: 'PHONE' as const, normalizedValue: input.phone } : null,
-      input.whatsapp ? { contactPointType: 'WHATSAPP' as const, normalizedValue: input.whatsapp } : null
-    ].filter(Boolean) as Array<{ contactPointType: 'DOMAIN' | 'EMAIL' | 'PHONE' | 'WHATSAPP'; normalizedValue: string }>
+    const profileItemCriteria = [
+      input.domain ? { itemType: 'DOMAIN' as const, normalizedValue: input.domain } : null,
+      input.email ? { itemType: 'EMAIL' as const, normalizedValue: input.email } : null,
+      input.phone ? { itemType: 'PHONE' as const, normalizedValue: input.phone } : null,
+      input.whatsapp ? { itemType: 'WHATSAPP' as const, normalizedValue: input.whatsapp } : null
+    ].filter(Boolean) as Array<{ itemType: 'DOMAIN' | 'EMAIL' | 'PHONE' | 'WHATSAPP'; normalizedValue: string }>
 
-    if (contactPointCriteria.length) {
-      const matches = await this.prisma.tenantPartyContactPoint.findMany({
+    if (profileItemCriteria.length) {
+      const matches = await (this.prisma as any).tenantPartyProfileItem.findMany({
         where: {
           tenantId: input.tenantId,
-          OR: contactPointCriteria
+          OR: profileItemCriteria
         },
         include: {
           tenantParty: true
@@ -87,7 +87,7 @@ export class PrismaTenantPartyRepository implements TenantPartyRepository {
           continue
         }
 
-        const signal = String(match.contactPointType).toLowerCase()
+        const signal = String(match.itemType).toLowerCase()
         const existing = byTenantPartyId.get(match.tenantPartyId)
         if (existing) {
           existing.matchSignals = [...new Set([...existing.matchSignals, signal])]
@@ -138,44 +138,48 @@ export class PrismaTenantPartyRepository implements TenantPartyRepository {
 
   async create(data: RegisterTenantPartyInput): Promise<TenantPartySummary> {
     try {
+      const createData = {
+        tenantId: data.tenantId,
+        type: data.type,
+        legalName: data.legalName,
+        displayName: data.displayName ?? null,
+        localCode: data.localCode ?? null,
+        registeredCountry: data.registeredCountry ?? null,
+        status: TenantPartyStatus.ACTIVE,
+        identifiers: data.identifiers.length
+          ? {
+              createMany: {
+                data: data.identifiers.map((identifier) => ({
+                  tenantId: data.tenantId,
+                  identifierType: identifier.identifierType,
+                  normalizedValue: identifier.normalizedValue,
+                  rawValue: identifier.rawValue,
+                  issuerCountryOrRegion: identifier.issuerCountryOrRegion ?? '',
+                  status: identifier.status ?? 'DECLARED'
+                })),
+                skipDuplicates: true
+              }
+            }
+          : undefined,
+        profileItems: data.profileItems?.length
+          ? {
+              createMany: {
+                data: data.profileItems.map((profileItem) => ({
+                  tenantId: data.tenantId,
+                  itemType: profileItem.itemType,
+                  normalizedValue: profileItem.normalizedValue,
+                  rawValue: profileItem.rawValue,
+                  label: profileItem.label ?? null,
+                  role: profileItem.role ?? null,
+                  status: profileItem.status ?? 'ASSERTED'
+                }))
+              }
+            }
+          : undefined
+      }
+
       const tenantParty = await this.prisma.tenantParty.create({
-        data: {
-          tenantId: data.tenantId,
-          type: data.type,
-          legalName: data.legalName,
-          displayName: data.displayName ?? null,
-          localCode: data.localCode ?? null,
-          registeredCountry: data.registeredCountry ?? null,
-          status: TenantPartyStatus.ACTIVE,
-          identifiers: data.identifiers.length
-            ? {
-                createMany: {
-                  data: data.identifiers.map((identifier) => ({
-                    tenantId: data.tenantId,
-                    identifierType: identifier.identifierType,
-                    normalizedValue: identifier.normalizedValue,
-                    rawValue: identifier.rawValue,
-                    issuerCountryOrRegion: identifier.issuerCountryOrRegion ?? '',
-                    status: identifier.status ?? 'DECLARED'
-                  })),
-                  skipDuplicates: true
-                }
-              }
-            : undefined,
-          contactPoints: data.contactPoints?.length
-            ? {
-                createMany: {
-                  data: data.contactPoints.map((contactPoint) => ({
-                    tenantId: data.tenantId,
-                    contactPointType: contactPoint.contactPointType,
-                    normalizedValue: contactPoint.normalizedValue,
-                    rawValue: contactPoint.rawValue,
-                    label: contactPoint.label ?? null
-                  }))
-                }
-              }
-            : undefined
-        }
+        data: createData as any
       })
 
       return mapTenantParty(tenantParty)

@@ -114,6 +114,28 @@ enum CrmActivityVisibility {
   OWNER_ONLY
 }
 
+enum CrmAccountProfileItemType {
+  DOMAIN
+  WEBSITE
+  EMAIL
+  PHONE
+  WHATSAPP
+  WECHAT
+  SOCIAL_PROFILE
+  MARKETPLACE_STORE
+  IDENTIFIER
+  ADDRESS
+  BRAND_NAME
+  COMPANY_NAME
+}
+
+enum CrmAccountProfileItemStatus {
+  ACTIVE
+  REJECTED
+  ARCHIVED
+  PROMOTED
+}
+
 model CrmAccount {
   id                String                   @id @db.Uuid
   tenantId          String                   @db.VarChar(128)
@@ -122,6 +144,7 @@ model CrmAccount {
   lifecycleStage    CrmAccountLifecycleStage
   partyTypeHint     CrmAccountTypeHint
   displayName       String                   @db.VarChar(255)
+  leadLegalName     String?                  @db.VarChar(255)
   leadCompanyName   String?                  @db.VarChar(255)
   leadPersonName    String?                  @db.VarChar(255)
   leadDomain        String?                  @db.VarChar(255)
@@ -140,6 +163,7 @@ model CrmAccount {
   archivedAt        DateTime?
   archiveReason     CrmArchiveReason?
   sourceRecords     CrmSourceRecord[]
+  profileItems      CrmAccountProfileItem[]
   contacts          CrmContact[]
   activities        CrmActivity[]
   opportunities     Opportunity[]
@@ -148,6 +172,29 @@ model CrmAccount {
   @@index([tenantId, ownerAccountId])
   @@index([tenantId, displayName])
   @@index([tenantId, tenantPartyId])
+}
+
+model CrmAccountProfileItem {
+  id                 String                      @id @db.Uuid
+  tenantId           String                      @db.VarChar(128)
+  crmAccountId       String                      @db.Uuid
+  itemType           CrmAccountProfileItemType
+  normalizedValue    String                      @db.VarChar(255)
+  rawValue           String                      @db.VarChar(255)
+  label              String?                     @db.VarChar(100)
+  role               String?                     @db.VarChar(80)
+  status             CrmAccountProfileItemStatus @default(ACTIVE)
+  sourceRecordId     String?                     @db.Uuid
+  promotedTargetType String?                     @db.VarChar(80)
+  promotedTargetId   String?                     @db.VarChar(128)
+  promotedAt         DateTime?
+  createdAt          DateTime                    @default(now())
+  updatedAt          DateTime                    @updatedAt
+
+  crmAccount CrmAccount @relation(fields: [crmAccountId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, crmAccountId, status])
+  @@index([tenantId, itemType, normalizedValue])
 }
 
 model CrmContact {

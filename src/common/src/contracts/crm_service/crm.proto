@@ -21,6 +21,7 @@ service CustomerManagementService {
   rpc ClaimCrmAccount(ClaimCrmAccountRequest) returns (ClaimCrmAccountResponse);
   rpc ReleaseCrmAccount(ReleaseCrmAccountRequest) returns (ReleaseCrmAccountResponse);
   rpc ArchiveCrmAccount(ArchiveCrmAccountRequest) returns (ArchiveCrmAccountResponse);
+  rpc UpdateCrmAccountIdentifiers(UpdateCrmAccountIdentifiersRequest) returns (UpdateCrmAccountIdentifiersResponse);
   rpc ConvertLeadToProspectCustomer(ConvertLeadToProspectCustomerRequest) returns (ConvertLeadToProspectCustomerResponse);
 }
 
@@ -66,6 +67,30 @@ message CrmLeadIdentifier {
   string issuer_country_or_region = 4;
 }
 
+message CrmAccountProfileItemInput {
+  string item_type = 1;
+  string normalized_value = 2;
+  string raw_value = 3;
+  string label = 4;
+  string role = 5;
+}
+
+message CrmAccountProfileItem {
+  string profile_item_id = 1;
+  string item_type = 2;
+  string normalized_value = 3;
+  string raw_value = 4;
+  string label = 5;
+  string role = 6;
+  string status = 7;
+  string source_record_id = 8;
+  string promoted_target_type = 9;
+  string promoted_target_id = 10;
+  string promoted_at = 11;
+  string created_at = 12;
+  string updated_at = 13;
+}
+
 message CrmAccountP1 {
   string crm_account_id = 1;
   string tenant_id = 2;
@@ -74,6 +99,7 @@ message CrmAccountP1 {
   string lifecycle_stage = 5;
   string party_type_hint = 6;
   string display_name = 7;
+  string lead_legal_name = 26;
   string lead_company_name = 8;
   string lead_person_name = 9;
   string lead_domain = 10;
@@ -91,6 +117,7 @@ message CrmAccountP1 {
   string updated_at = 22;
   string archived_at = 23;
   string archive_reason = 24;
+  repeated CrmAccountProfileItem profile_items = 25;
 }
 
 message CrmDuplicateCandidate {
@@ -124,6 +151,7 @@ message CreateLeadRequest {
   AuditContext audit_context = 4;
   string display_name = 5;
   string party_type_hint = 6;
+  string lead_legal_name = 29;
   string lead_company_name = 7;
   string lead_person_name = 8;
   string lead_domain = 9;
@@ -145,6 +173,7 @@ message CreateLeadRequest {
   string source_note = 25;
   bool claim_for_current_user = 26;
   string assignment_intent = 27;
+  repeated CrmAccountProfileItemInput profile_items = 28;
 }
 
 message CreateLeadResponse {
@@ -160,6 +189,7 @@ message ConvertLeadToProspectCustomerRequest {
   AuditContext audit_context = 4;
   string crm_account_id = 5;
   bool allow_ownerless_conversion = 6;
+  string legal_name = 7;
 }
 
 message ConvertLeadToProspectCustomerResponse {
@@ -174,6 +204,7 @@ message CheckLeadDuplicateRequest {
   OperatorContext operator_context = 2;
   TraceContext trace_context = 3;
   string display_name = 4;
+  string lead_legal_name = 14;
   string lead_company_name = 5;
   string lead_person_name = 6;
   string lead_domain = 7;
@@ -182,6 +213,7 @@ message CheckLeadDuplicateRequest {
   string lead_whatsapp = 10;
   string lead_country = 11;
   repeated CrmLeadIdentifier lead_identifiers = 12;
+  repeated CrmAccountProfileItemInput profile_items = 13;
 }
 
 message CheckLeadDuplicateResponse {
@@ -195,6 +227,7 @@ message CreateDraftLeadRequest {
   AuditContext audit_context = 4;
   string display_name = 5;
   string party_type_hint = 6;
+  string lead_legal_name = 25;
   string lead_company_name = 7;
   string lead_person_name = 8;
   string lead_domain = 9;
@@ -212,6 +245,7 @@ message CreateDraftLeadRequest {
   string source_external_reference = 21;
   string source_raw_payload_json = 22;
   string source_note = 23;
+  repeated CrmAccountProfileItemInput profile_items = 24;
 }
 
 message CreateDraftLeadResponse {
@@ -226,6 +260,7 @@ message UpdateDraftLeadRequest {
   string crm_account_id = 5;
   string display_name = 6;
   string party_type_hint = 7;
+  string lead_legal_name = 19;
   string lead_company_name = 8;
   string lead_person_name = 9;
   string lead_domain = 10;
@@ -236,6 +271,7 @@ message UpdateDraftLeadRequest {
   repeated CrmLeadIdentifier lead_identifiers = 15;
   string priority = 16;
   string next_follow_up_at = 17;
+  repeated CrmAccountProfileItemInput profile_items = 18;
 }
 
 message UpdateDraftLeadResponse {
@@ -313,6 +349,19 @@ message ArchiveCrmAccountRequest {
 }
 
 message ArchiveCrmAccountResponse {
+  CrmAccountP1 crm_account = 1;
+}
+
+message UpdateCrmAccountIdentifiersRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string crm_account_id = 5;
+  repeated CrmLeadIdentifier lead_identifiers = 6;
+}
+
+message UpdateCrmAccountIdentifiersResponse {
   CrmAccountP1 crm_account = 1;
 }
 

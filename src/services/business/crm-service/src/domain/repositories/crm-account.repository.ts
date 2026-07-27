@@ -1,5 +1,6 @@
 import {
   CrmAccountLifecycleStage,
+  CrmAccountProfileItemRecord,
   CrmAccountRecord,
   CrmAccountRecordStatus,
   CrmActivityRecord,
@@ -13,6 +14,7 @@ export type CrmDuplicateConfidence = 'HIGH' | 'MEDIUM' | 'LOW'
 export interface CrmDuplicateSearchInput {
   tenantId: string
   displayName?: string | null
+  leadLegalName?: string | null
   leadCompanyName?: string | null
   leadPersonName?: string | null
   leadDomain?: string | null
@@ -20,6 +22,7 @@ export interface CrmDuplicateSearchInput {
   leadPhone?: string | null
   leadWhatsapp?: string | null
   leadCountry?: string | null
+  profileItems?: CrmAccountProfileItemRecord[]
   leadIdentifiers?: Array<{
     identifierType: string
     normalizedValue: string
@@ -61,11 +64,26 @@ export interface ListCrmAccountsResult {
 /** CrmAccountRepository defines CRM P1 persistence operations used by application use cases. */
 export interface CrmAccountRepository {
   findAccountById(tenantId: string, accountId: string): Promise<CrmAccountRecord | null>
-  findActiveFormalByTenantPartyId(tenantId: string, tenantPartyId: string): Promise<CrmAccountRecord | null>
+  findActiveFormalByTenantPartyId(
+    tenantId: string,
+    tenantPartyId: string
+  ): Promise<CrmAccountRecord | null>
   listAccounts(input: ListCrmAccountsInput): Promise<ListCrmAccountsResult>
   saveAccount(account: CrmAccountRecord): Promise<CrmAccountRecord>
   addSourceRecord(source: CrmSourceRecord): Promise<CrmSourceRecord>
   listSourceRecords(tenantId: string, accountId: string): Promise<CrmSourceRecord[]>
+  listAccountProfileItems(
+    tenantId: string,
+    accountId: string
+  ): Promise<CrmAccountProfileItemRecord[]>
+  addAccountProfileItem(
+    profileItem: CrmAccountProfileItemRecord
+  ): Promise<CrmAccountProfileItemRecord>
+  replaceAccountProfileItems(
+    tenantId: string,
+    accountId: string,
+    profileItems: CrmAccountProfileItemRecord[]
+  ): Promise<CrmAccountProfileItemRecord[]>
   deleteDraftAccount(tenantId: string, accountId: string): Promise<boolean>
   findDuplicateCandidates(input: CrmDuplicateSearchInput): Promise<CrmAccountDuplicateCandidate[]>
   addContact?(contact: CrmContactRecord): Promise<CrmContactRecord>

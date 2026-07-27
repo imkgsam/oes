@@ -12,7 +12,7 @@ import { GrpcTransportModule } from '@oes/common/transport'
 import { gatewayConfig } from './config/gateway.config'
 import { HealthModule } from './health/health.module'
 import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware'
-import { GatewaySessionAuthGuard } from './common/guards/gateway-session-auth.guard'
+import { createGatewayGuardProviders } from './security'
 import { AuthBffModule } from './modules/auth-bff/auth-bff.module'
 import { BrowserActivityBffModule } from './modules/browser-activity-bff/browser-activity-bff.module'
 import { PdaBffModule } from './modules/pda-bff/pda-bff.module'
@@ -145,6 +145,9 @@ export const permissionGrpcProtoPaths = [
   resolveCommonProtoPath('permission_service/permission_terminal_access.proto')
 ]
 
+/** siteGrpcLoaderOptions preserves SITE uint64 strings and proto3 repeated-field defaults. */
+const siteGrpcLoaderOptions = { longs: String, arrays: true }
+
 @Module({
   imports: [
     RegistryModule,
@@ -272,6 +275,7 @@ export const permissionGrpcProtoPaths = [
           serviceName: SERVICE_NAMES.SITE,
           protoPath: resolveCommonProtoPath('site_service/site.proto'),
           packageName: 'site_service',
+          loader: siteGrpcLoaderOptions,
           url: resolveSiteGrpcUrl()
         },
         [SERVICE_NAMES.SRM]: {
@@ -327,7 +331,7 @@ export const permissionGrpcProtoPaths = [
         {
           name: 'default',
           ttl: parseInt(process.env.THROTTLE_TTL ?? '60000', 10),
-          limit: parseInt(process.env.THROTTLE_LIMIT ?? '100', 10)
+          limit: parseInt(process.env.THROTTLE_LIMIT ?? '200', 10)
         }
       ]
     }),
@@ -356,8 +360,7 @@ export const permissionGrpcProtoPaths = [
   providers: [
     GatewayPermissionGuard,
     { provide: APP_GUARD, useClass: ThrottlerGuard },
-    { provide: APP_GUARD, useClass: GatewaySessionAuthGuard },
-    { provide: APP_GUARD, useExisting: GatewayPermissionGuard },
+    ...createGatewayGuardProviders(),
 
     GatewayExceptionFilter,
     ResponseTransformInterceptor,

@@ -7,7 +7,7 @@ import { PartyQueryGrpcAdapter } from '../../src/infrastructure/adapters/party-q
 
 // Verifies the CRM-to-Party anti-corruption adapter sends a complete tenant-scoped registration payload.
 describe('PartyQueryGrpcAdapter', () => {
-  it('registerTenantParty / should use the CRM formalization name as both legalName and displayName', async () => {
+  it('registerTenantParty / should send CRM legal name separately from display name', async () => {
     const registerTenantParty = jest.fn().mockReturnValue(
       of({
         tenantParty: {
@@ -40,6 +40,7 @@ describe('PartyQueryGrpcAdapter', () => {
     await adapter.registerTenantParty({
       tenantId: 'tenant-1',
       typeHint: 'ORGANIZATION',
+      legalName: 'Northline Bathworks Incorporated',
       displayName: 'Northline Bathworks',
       country: 'US',
       identifiers: [
@@ -50,10 +51,12 @@ describe('PartyQueryGrpcAdapter', () => {
           issuerCountryOrRegion: 'US'
         }
       ],
-      contactPoints: [
+      profileItems: [
         {
-          contactPointType: 'DOMAIN',
-          normalizedValue: 'northline.example'
+          itemType: 'DOMAIN',
+          normalizedValue: 'northline.example',
+          rawValue: 'https://northline.example',
+          role: 'PRIMARY'
         }
       ]
     })
@@ -61,7 +64,16 @@ describe('PartyQueryGrpcAdapter', () => {
     expect(registerTenantParty).toHaveBeenCalledWith(
       expect.objectContaining({
         displayName: 'Northline Bathworks',
-        legalName: 'Northline Bathworks'
+        legalName: 'Northline Bathworks Incorporated',
+        profileItems: [
+          expect.objectContaining({
+            itemType: 'DOMAIN',
+            normalizedValue: 'northline.example',
+            rawValue: 'https://northline.example',
+            role: 'PRIMARY',
+            status: 'ASSERTED'
+          })
+        ]
       }),
       expect.anything()
     )

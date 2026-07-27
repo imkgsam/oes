@@ -3,6 +3,9 @@ import { CommandHandler, ICommandHandler } from '@nestjs/cqrs'
 import { TOKENS } from '../../common/constants/tokens'
 import {
   CrmAccountLifecycleStage,
+  CrmAccountProfileItemRecord,
+  CrmAccountProfileItemStatus,
+  CrmAccountProfileItemType,
   CrmAccountRecord,
   CrmAccountRecordStatus,
   CrmLeadConversionResultType
@@ -25,9 +28,10 @@ export interface ConvertLeadToProspectCustomerResult {
 /** ConvertLeadToProspectCustomerHandler formalizes a CRM lead through party-service subject resolution. */
 @Injectable()
 @CommandHandler(ConvertLeadToProspectCustomerCommand)
-export class ConvertLeadToProspectCustomerHandler
-  implements ICommandHandler<ConvertLeadToProspectCustomerCommand, ConvertLeadToProspectCustomerResult>
-{
+export class ConvertLeadToProspectCustomerHandler implements ICommandHandler<
+  ConvertLeadToProspectCustomerCommand,
+  ConvertLeadToProspectCustomerResult
+> {
   constructor(
     @Inject(TOKENS.CRM_ACCOUNT_REPOSITORY)
     private readonly accountRepository: CrmAccountRepository,
@@ -36,7 +40,9 @@ export class ConvertLeadToProspectCustomerHandler
   ) {}
 
   /** execute converts an active lead to prospect customer when CRM and Party evidence allow it. */
-  async execute(command: ConvertLeadToProspectCustomerCommand): Promise<ConvertLeadToProspectCustomerResult> {
+  async execute(
+    command: ConvertLeadToProspectCustomerCommand
+  ): Promise<ConvertLeadToProspectCustomerResult> {
     const account = await this.accountRepository.findAccountById(
       command.props.tenantId,
       command.props.crmAccountId
@@ -45,26 +51,23 @@ export class ConvertLeadToProspectCustomerHandler
       throw new Error('CrmAccount was not found')
     }
 
-    if (!canAttemptFormalization(account)) {
+    const profileItems = await this.listAccountProfileItems(account)
+    const legalName = formalizationLegalName(account, command.props.legalName)
+
+    if (!canAttemptFormalization(account, profileItems, legalName)) {
       return emptyConversionResult(CrmLeadConversionResultType.INSUFFICIENT_INFO)
     }
-    if (
-      !account.ownerAccountId &&
-      !command.props.allowOwnerlessConversion
-    ) {
+    if (!account.ownerAccountId && !command.props.allowOwnerlessConversion) {
       throw new BadRequestException('Ownerless Pool leads must be claimed before conversion')
     }
 
     const resolution = await this.tenantPartyResolution.resolveTenantPartyForConsumer({
       tenantId: account.tenantId,
       typeHint: account.partyTypeHint,
-      name: formalizationName(account),
+      name: legalName,
       country: account.leadCountry,
-      domain: account.leadDomain,
-      email: account.leadEmail,
-      phone: account.leadPhone,
-      whatsapp: account.leadWhatsapp,
-      identifiers: account.leadIdentifiers
+      identifiers: account.leadIdentifiers,
+      profileItems
     })
 
     if (resolution.resultType === TenantPartyResolutionResultType.IDENTITY_CONFLICT) {
@@ -84,9 +87,10 @@ export class ConvertLeadToProspectCustomerHandler
     }
 
     const tenantPartyId =
-      resolution.resultType === TenantPartyResolutionResultType.EXACT_MATCH && resolution.tenantPartyId
+      resolution.resultType === TenantPartyResolutionResultType.EXACT_MATCH &&
+      resolution.tenantPartyId
         ? resolution.tenantPartyId
-        : await this.createTenantPartyForAccount(account)
+        : await this.createTenantPartyForAccount(account, profileItems, legalName)
 
     const existingAccount = await this.accountRepository.findActiveFormalByTenantPartyId(
       account.tenantId,
@@ -103,6 +107,7 @@ export class ConvertLeadToProspectCustomerHandler
 
     const saved = await this.accountRepository.saveAccount({
       ...account,
+      leadLegalName: legalName,
       tenantPartyId,
       recordStatus: CrmAccountRecordStatus.ACTIVE,
       lifecycleStage: CrmAccountLifecycleStage.PROSPECT_CUSTOMER
@@ -116,75 +121,102 @@ export class ConvertLeadToProspectCustomerHandler
   }
 
   /** createTenantPartyForAccount registers a new TenantParty using CRM lead evidence after Party reports no match. */
-  private async createTenantPartyForAccount(account: CrmAccountRecord): Promise<string> {
+  private async createTenantPartyForAccount(
+    account: CrmAccountRecord,
+    profileItems: CrmAccountProfileItemRecord[],
+    legalName: string
+  ): Promise<string> {
     const registered = await this.tenantPartyResolution.registerTenantParty({
       tenantId: account.tenantId,
       typeHint: account.partyTypeHint,
-      displayName: formalizationName(account),
+      legalName,
+      displayName: account.displayName,
       country: account.leadCountry,
       identifiers: account.leadIdentifiers,
-      contactPoints: buildContactPoints(account)
+      profileItems: buildPartyProfileItems(profileItems)
     })
 
     return registered.tenantPartyId
   }
+
+  /** listAccountProfileItems reads account-level profile data for Party candidate resolution and registration. */
+  private async listAccountProfileItems(
+    account: CrmAccountRecord
+  ): Promise<CrmAccountProfileItemRecord[]> {
+    return this.accountRepository.listAccountProfileItems(account.tenantId, account.id)
+  }
 }
 
 /** canAttemptFormalization checks the CRM-side minimum evidence before calling party-service. */
-function canAttemptFormalization(account: CrmAccountRecord): boolean {
+function canAttemptFormalization(
+  account: CrmAccountRecord,
+  profileItems: CrmAccountProfileItemRecord[],
+  legalName: string
+): boolean {
   return (
     account.recordStatus === CrmAccountRecordStatus.ACTIVE &&
     account.lifecycleStage === CrmAccountLifecycleStage.LEAD &&
-    hasText(formalizationName(account)) &&
-    (hasText(account.leadDomain) ||
-      hasText(account.leadEmail) ||
-      hasText(account.leadPhone) ||
-      hasText(account.leadWhatsapp) ||
-      account.leadIdentifiers.length > 0)
+    hasText(legalName) &&
+    (account.leadIdentifiers.length > 0 ||
+      profileItems.some(isActiveFormalizationProfileItem))
   )
 }
 
-/** formalizationName returns the strongest CRM-side name evidence for Party resolution. */
-function formalizationName(account: CrmAccountRecord): string {
-  return account.leadCompanyName || account.leadPersonName || account.displayName
+/** formalizationLegalName returns the explicit registration-name evidence accepted at formalization time. */
+function formalizationLegalName(account: CrmAccountRecord, submittedLegalName?: string | null): string {
+  return submittedLegalName?.trim() || account.leadLegalName?.trim() || ''
 }
 
-/** buildContactPoints converts CRM lead evidence into Party contact point registration inputs. */
-function buildContactPoints(account: CrmAccountRecord) {
-  return [
-    account.leadDomain
-      ? {
-          contactPointType: 'DOMAIN' as const,
-          normalizedValue: account.leadDomain,
-          rawValue: account.leadDomain
-        }
-      : null,
-    account.leadEmail
-      ? {
-          contactPointType: 'EMAIL' as const,
-          normalizedValue: account.leadEmail,
-          rawValue: account.leadEmail
-        }
-      : null,
-    account.leadPhone
-      ? {
-          contactPointType: 'PHONE' as const,
-          normalizedValue: account.leadPhone,
-          rawValue: account.leadPhone
-        }
-      : null,
-    account.leadWhatsapp
-      ? {
-          contactPointType: 'WHATSAPP' as const,
-          normalizedValue: account.leadWhatsapp,
-          rawValue: account.leadWhatsapp
-        }
-      : null
-  ].filter((contactPoint): contactPoint is NonNullable<typeof contactPoint> => contactPoint !== null)
+/** buildPartyProfileItems converts account-level CRM profile items into Party profile item registration inputs. */
+function buildPartyProfileItems(profileItems: CrmAccountProfileItemRecord[]) {
+  return profileItems
+    .filter(isActivePromotablePartyProfileItem)
+    .map((profileItem) => ({
+      itemType: profileItem.itemType as
+        | 'EMAIL'
+        | 'PHONE'
+        | 'WHATSAPP'
+        | 'WECHAT'
+        | 'DOMAIN'
+        | 'WEBSITE'
+        | 'SOCIAL_PROFILE'
+        | 'MARKETPLACE_STORE',
+      normalizedValue: profileItem.normalizedValue,
+      rawValue: profileItem.rawValue,
+      label: profileItem.label ?? undefined,
+      role: profileItem.role ?? undefined
+    }))
+}
+
+/** isActiveFormalizationProfileItem checks if an account profile item can support formalization. */
+function isActiveFormalizationProfileItem(profileItem: CrmAccountProfileItemRecord): boolean {
+  return (
+    profileItem.status === CrmAccountProfileItemStatus.ACTIVE &&
+    hasText(profileItem.normalizedValue)
+  )
+}
+
+/** isActivePromotablePartyProfileItem filters CRM profile items that map to Party profile items. */
+function isActivePromotablePartyProfileItem(profileItem: CrmAccountProfileItemRecord): boolean {
+  return (
+    isActiveFormalizationProfileItem(profileItem) &&
+    [
+      CrmAccountProfileItemType.DOMAIN,
+      CrmAccountProfileItemType.WEBSITE,
+      CrmAccountProfileItemType.EMAIL,
+      CrmAccountProfileItemType.PHONE,
+      CrmAccountProfileItemType.WHATSAPP,
+      CrmAccountProfileItemType.WECHAT,
+      CrmAccountProfileItemType.SOCIAL_PROFILE,
+      CrmAccountProfileItemType.MARKETPLACE_STORE
+    ].includes(profileItem.itemType as CrmAccountProfileItemType)
+  )
 }
 
 /** emptyConversionResult creates a no-mutation conversion result. */
-function emptyConversionResult(resultType: CrmLeadConversionResultType): ConvertLeadToProspectCustomerResult {
+function emptyConversionResult(
+  resultType: CrmLeadConversionResultType
+): ConvertLeadToProspectCustomerResult {
   return {
     resultType,
     account: null,

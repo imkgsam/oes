@@ -3,9 +3,13 @@ import { ClientsModule, Transport } from '@nestjs/microservices'
 import type { ClientProviderOptions } from '@nestjs/microservices/module/interfaces'
 import { AuthorizationModule } from '@oes/common/authorization'
 import { resolveCommonProtoPath } from '@oes/common/contracts'
+import {
+  NatsJetStreamModule,
+  NatsJetStreamPublisher,
+  NatsJetStreamRuntimeConfig
+} from '@oes/common/events'
 import { ACCOUNT_REFERENCE_PORT } from '../application/ports/account-reference.port'
-import { TASK_AUDIT_PORT } from '../application/ports/task-audit.port'
-import { TASK_EVENT_PUBLISHER_PORT } from '../application/ports/task-event-publisher.port'
+import { TASK_COMMAND_TRANSACTION_PORT } from '../application/ports/task-command-transaction.port'
 import { TASK_PERMISSION_PORT } from '../application/ports/task-permission.port'
 import { TaskCommandService } from '../application/services/task-command.service'
 import { TaskQueryService } from '../application/services/task-query.service'
@@ -18,9 +22,14 @@ import {
   PERMISSION_GRPC_CLIENT,
   TaskPermissionGrpcAdapter
 } from '../infrastructure/adapters/task-permission.grpc.adapter'
-import { LocalTaskAuditRepository } from '../infrastructure/audit/local-task-audit.repository'
-import { LocalTaskEventPublisher } from '../infrastructure/events/local-task-event.publisher'
 import { PrismaModule } from '../infrastructure/prisma/prisma.module'
+import { PrismaTaskCommandTransaction } from '../infrastructure/prisma/prisma-task-command-transaction.repository'
+import {
+  COLLABORATION_PUBLIC_EVENT_PUBLISHER,
+  COLLABORATION_TASK_OUTBOX_STORE,
+  CollaborationTaskOutboxRelay
+} from '../infrastructure/events/collaboration-task-outbox.relay'
+import { PrismaCollaborationTaskOutboxStore } from '../infrastructure/events/prisma-collaboration-task-outbox.store'
 import { PrismaTaskRepository } from '../infrastructure/repositories/prisma-task.repository'
 import { TaskCommandGrpcController } from '../interfaces/grpc/task-command.grpc.controller'
 import { TaskQueryGrpcController } from '../interfaces/grpc/task-query.grpc.controller'
@@ -62,11 +71,12 @@ export function buildCollaborationTaskGrpcClients(): ClientProviderOptions[] {
   ]
 }
 
-/** CollaborationTaskModule wires Task P1 command/query, persistence, audit, and gRPC surfaces. */
+/** CollaborationTaskModule wires Task commands and the owner-local relay to the shared ACL-scoped JetStream runtime. */
 @Module({
   imports: [
     AuthorizationModule,
     PrismaModule,
+    NatsJetStreamModule.forRoot(NatsJetStreamRuntimeConfig.fromEnvironment(process.env)),
     ClientsModule.register(buildCollaborationTaskGrpcClients())
   ],
   controllers: [TaskCommandGrpcController, TaskQueryGrpcController],
@@ -78,13 +88,18 @@ export function buildCollaborationTaskGrpcClients(): ClientProviderOptions[] {
       useClass: PrismaTaskRepository
     },
     {
-      provide: TASK_AUDIT_PORT,
-      useClass: LocalTaskAuditRepository
+      provide: TASK_COMMAND_TRANSACTION_PORT,
+      useClass: PrismaTaskCommandTransaction
     },
     {
-      provide: TASK_EVENT_PUBLISHER_PORT,
-      useClass: LocalTaskEventPublisher
+      provide: COLLABORATION_TASK_OUTBOX_STORE,
+      useClass: PrismaCollaborationTaskOutboxStore
     },
+    {
+      provide: COLLABORATION_PUBLIC_EVENT_PUBLISHER,
+      useExisting: NatsJetStreamPublisher
+    },
+    CollaborationTaskOutboxRelay,
     {
       provide: ACCOUNT_REFERENCE_PORT,
       useClass: IdentityAccountReferenceGrpcAdapter

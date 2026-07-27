@@ -9,6 +9,11 @@ export interface CreateSiteDto {
   previewBaseUrl?: string
 }
 
+export interface SiteLocaleOptionDto {
+  locale: string
+  nativeName: string
+}
+
 export interface IssuePreviewTokenDto {
   resourceType: 'product' | 'blog' | 'news'
   resourceId: string
@@ -87,8 +92,10 @@ export interface UpdateSiteContentLocaleVersionDto {
   title: string
   summary?: string
   coverImage?: string
+  coverImageAlt?: string
   author?: string
   tags?: string[]
+  categoryIds?: string[]
   bodyHtml: string
   seoTitle: string
   seoDescription: string
@@ -96,3 +103,26 @@ export interface UpdateSiteContentLocaleVersionDto {
   publishedAt?: string
   status?: string
 }
+
+export interface CreateContentCategoryDto {
+  sortOrder?: number
+  initialLocaleVersion: ContentCategoryLocaleVersionDto
+}
+
+export interface ContentCategoryLocaleVersionDto {
+  categoryId?: string
+  locale: string
+  slug: string
+  displayName: string
+  archiveIntro?: string
+  archiveLabel?: string
+  seoTitle?: string
+  seoDescription?: string
+  seoImage?: string
+}
+
+export type UpdateContentCategoryLocaleVersionDto = ContentCategoryLocaleVersionDto
+
+export interface UpdateFaqCategoryLocaleVersionDto { categoryId: string; locale: string; title: string; anchorKey: string; sortOrder: number }
+export interface CreateFaqEntryDto { categoryId: string }
+export interface UpdateFaqEntryLocaleVersionDto { entryId: string; locale: string; question: string; answerHtml: string; sortOrder: number }

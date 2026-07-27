@@ -10,10 +10,11 @@ import TaskWorkbenchSection from './components/collaboration-task/task-workbench
 
 <style scoped>
 .tenant-workbench-home {
+  box-sizing: border-box;
   margin: 0 auto;
-  max-width: 1320px;
   min-width: 0;
   padding: 18px;
+  width: 100%;
 }
 
 @media (max-width: 640px) {

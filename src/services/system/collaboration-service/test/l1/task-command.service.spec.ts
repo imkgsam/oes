@@ -3,8 +3,7 @@ import { TaskEntity } from '../../src/domain/entities/task.entity'
 import { TaskRepository } from '../../src/domain/repositories/task.repository'
 import { TaskPriority, TaskStatus, TaskVisibility } from '../../src/domain/value-objects/task.enums'
 import { AccountReferencePort } from '../../src/application/ports/account-reference.port'
-import { TaskAuditPort } from '../../src/application/ports/task-audit.port'
-import { TaskEventPublisherPort } from '../../src/application/ports/task-event-publisher.port'
+import { TaskCommandTransactionPort } from '../../src/application/ports/task-command-transaction.port'
 import { TaskPermissionPort } from '../../src/application/ports/task-permission.port'
 import { TaskCommandService } from '../../src/application/services/task-command.service'
 
@@ -18,8 +17,7 @@ const AUDIT_ID = 'audit-1'
 describe('TaskCommandService', () => {
   let repository: InMemoryTaskRepository
   let accountReference: jest.Mocked<AccountReferencePort>
-  let audit: jest.Mocked<TaskAuditPort>
-  let events: jest.Mocked<TaskEventPublisherPort>
+  let transaction: jest.Mocked<TaskCommandTransactionPort>
   let permissions: jest.Mocked<TaskPermissionPort>
   let service: TaskCommandService
 
@@ -28,16 +26,15 @@ describe('TaskCommandService', () => {
     accountReference = {
       isActiveTenantAccount: jest.fn().mockResolvedValue(true)
     }
-    audit = {
-      record: jest.fn().mockResolvedValue(undefined)
-    }
-    events = {
-      publish: jest.fn().mockResolvedValue(undefined)
+    transaction = {
+      commit: jest.fn(async (input) => input.operation === 'CREATE'
+        ? repository.create(input.task)
+        : repository.save(input.task))
     }
     permissions = {
       canAssignTask: jest.fn().mockResolvedValue(false)
     }
-    service = new TaskCommandService(repository, accountReference, audit, events, permissions)
+    service = new TaskCommandService(repository, accountReference, transaction, permissions)
   })
 
   it('creates a private self todo without assign permission', async () => {
@@ -56,9 +53,11 @@ describe('TaskCommandService', () => {
     expect(task.visibility).toBe(TaskVisibility.PRIVATE)
     expect(task.status).toBe(TaskStatus.OPEN)
     expect(permissions.canAssignTask).not.toHaveBeenCalled()
-    expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ action: 'TASK_CREATED', result: 'SUCCEEDED' }))
-    expect(events.publish).toHaveBeenCalledTimes(1)
-    expect(events.publish).toHaveBeenCalledWith(expect.objectContaining({ eventType: 'TaskCreated' }))
+    expect(transaction.commit).toHaveBeenCalledWith(expect.objectContaining({
+      operation: 'CREATE',
+      audit: expect.objectContaining({ action: 'TASK_CREATED', result: 'SUCCEEDED' })
+    }))
+    expect(transaction.commit.mock.calls[0][0].publicEvent).toBeUndefined()
   })
 
   it('requires assign permission and active target account for assigned task', async () => {
@@ -88,7 +87,7 @@ describe('TaskCommandService', () => {
     ).rejects.toThrow(TaskAssigneeNotActiveError)
   })
 
-  it('creates assigned tasks with participant visibility and assignment event', async () => {
+  it('creates assigned tasks with participant visibility and one frozen assigned public fact', async () => {
     permissions.canAssignTask.mockResolvedValue(true)
 
     const task = await service.createTask({
@@ -107,8 +106,10 @@ describe('TaskCommandService', () => {
     expect(task.visibility).toBe(TaskVisibility.ASSIGNMENT_PARTICIPANTS)
     expect(task.priority).toBe(TaskPriority.HIGH)
     expect(accountReference.isActiveTenantAccount).toHaveBeenCalledWith({ tenantId: TENANT_ID, accountId: ASSIGNEE })
-    expect(events.publish).toHaveBeenCalledWith(expect.objectContaining({ eventType: 'TaskCreated' }))
-    expect(events.publish).toHaveBeenCalledWith(expect.objectContaining({ eventType: 'TaskAssigned' }))
+    expect(transaction.commit).toHaveBeenCalledWith(expect.objectContaining({
+      operation: 'CREATE',
+      publicEvent: expect.objectContaining({ type: 'collaboration.task.assigned' })
+    }))
   })
 
   it('enforces participant rules for start complete cancel and archive', async () => {

@@ -44,10 +44,19 @@ export function resolveUserFacingErrorMessage(responseData: any, fallbackMessage
   const messageKey = `${responseData?.messageKey ?? ''}`;
   const originalMessage = `${responseData?.details?.originalMessage ?? ''}`;
   const originalDetails = `${responseData?.details?.originalDetails ?? ''}`;
+  const reason = `${responseData?.details?.reason ?? ''}`.trim();
   const combined = `${code} ${messageText} ${messageKey} ${originalMessage} ${originalDetails}`;
 
   if (/AUTH_INVALID_CREDENTIALS|Invalid credentials|auth\.invalid_credentials/i.test(combined)) {
     return '账号或密码错误，请检查后重试。';
+  }
+
+  if (
+    /APP_VALIDATION_001|Request validation failed|app\.validation\.failed/i.test(combined) &&
+    (/^slug\s+.+\s+is already used by\s+.+$/i.test(reason) ||
+      /^slug is already reserved for this site, namespace, and locale$/i.test(reason))
+  ) {
+    return '该 Slug 已被当前站点、当前 URL 类型和语言版本中的其他内容或历史地址占用，请更换 Slug 后重试。';
   }
 
   if (/APP_VALIDATION_001|Request validation failed|app\.validation\.failed/i.test(combined)) {

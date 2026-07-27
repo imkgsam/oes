@@ -19,6 +19,8 @@ import {
   ReleaseCrmAccountResponse,
   SubmitDraftLeadRequest,
   SubmitDraftLeadResponse,
+  UpdateCrmAccountIdentifiersRequest,
+  UpdateCrmAccountIdentifiersResponse,
   UpdateDraftLeadRequest,
   UpdateDraftLeadResponse
 } from '@oes/common/generated/crm_service'
@@ -239,6 +241,32 @@ export class CustomerManagementGrpcAdapter implements OnModuleInit {
           auditContext: buildCrmAuditContext(
             source,
             input.auditReason ?? 'archive crm account from api-gateway'
+          )
+        },
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
+  /** updateCrmAccountIdentifiers forwards CRM-owned strong identifier evidence updates. */
+  updateCrmAccountIdentifiers(
+    input: Omit<
+      UpdateCrmAccountIdentifiersRequest,
+      'auditContext' | 'operatorContext' | 'traceContext'
+    > &
+      ManagementInputBase,
+    source: DownstreamRequestSource
+  ): Promise<UpdateCrmAccountIdentifiersResponse> {
+    return this.call(
+      'updateCrmAccountIdentifiers',
+      this.svc.updateCrmAccountIdentifiers(
+        {
+          ...input,
+          operatorContext: buildCrmOperatorContext(source),
+          traceContext: buildCrmTraceContext(source),
+          auditContext: buildCrmAuditContext(
+            source,
+            input.auditReason ?? 'update crm account identifiers from api-gateway'
           )
         },
         this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))

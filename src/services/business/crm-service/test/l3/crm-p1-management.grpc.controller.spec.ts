@@ -148,6 +148,7 @@ describe('crm-service P1 management gRPC controller L3', () => {
       ...managementContext,
       displayName: 'Acme Importers',
       partyTypeHint: 'ORGANIZATION',
+      leadLegalName: 'Acme Importers Incorporated',
       leadCompanyName: 'Acme Importers Ltd',
       leadDomain: 'acme.example',
       leadEmail: 'buyer@acme.example',
@@ -170,6 +171,7 @@ describe('crm-service P1 management gRPC controller L3', () => {
         tenantId: 'tenant-1',
         operatorAccountId: 'operator-1',
         displayName: 'Acme Importers',
+        leadLegalName: 'Acme Importers Incorporated',
         partyTypeHint: CrmAccountTypeHint.ORGANIZATION,
         priority: CrmPriority.A,
         source: expect.objectContaining({
@@ -254,6 +256,7 @@ describe('crm-service P1 management gRPC controller L3', () => {
       ...managementContext,
       displayName: 'Draft Lead',
       partyTypeHint: 'ORGANIZATION',
+      leadLegalName: 'Draft Lead LLC',
       leadDomain: 'draft.example',
       priority: 'B',
       sourceType: 'WEB_RESEARCH'
@@ -264,6 +267,7 @@ describe('crm-service P1 management gRPC controller L3', () => {
       props: expect.objectContaining({
         tenantId: 'tenant-1',
         displayName: 'Draft Lead',
+        leadLegalName: 'Draft Lead LLC',
         operatorAccountId: 'operator-1'
       })
     })

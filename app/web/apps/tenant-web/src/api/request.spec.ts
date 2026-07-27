@@ -288,6 +288,29 @@ describe('tenant-web request local error handling suppression', () => {
 
 // Verifies generic validation failures do not reuse login-only error copy in unrelated admin workflows.
 describe('tenant-web request validation message mapping', () => {
+  it.each([
+    'slug kitchen-sinks is already used by blog:article-123',
+    'slug is already reserved for this site, namespace, and locale'
+  ])('maps slug ownership conflicts to an actionable message: %s', async (reason) => {
+    const { resolveUserFacingErrorMessage } = await import('./request')
+
+    expect(
+      resolveUserFacingErrorMessage(
+        {
+          code: 'APP_VALIDATION_001',
+          details: {
+            reason
+          },
+          message: 'Request validation failed',
+          messageKey: 'app.validation.failed'
+        },
+        'fallback'
+      )
+    ).toBe(
+      '该 Slug 已被当前站点、当前 URL 类型和语言版本中的其他内容或历史地址占用，请更换 Slug 后重试。'
+    )
+  })
+
   it('keeps APP_VALIDATION_001 as a generic form validation message', async () => {
     const { resolveUserFacingErrorMessage } = await import('./request')
 

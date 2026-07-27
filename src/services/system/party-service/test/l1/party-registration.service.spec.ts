@@ -118,7 +118,7 @@ describe('PartyRegistrationService', () => {
         tenantId: 'tenant-1',
         type: PartyType.ORGANIZATION,
         legalName: 'ACME Corporation',
-        contactPoints: []
+        profileItems: []
       })
     )
     expect(result).toMatchObject({
@@ -164,7 +164,7 @@ describe('PartyRegistrationService', () => {
           displayName: '',
           localCode: '',
           identifiers: [],
-          contactPoints: []
+          profileItems: []
         }
       }),
       operation: 'REGISTER_TENANT_PARTY',
@@ -202,7 +202,7 @@ describe('PartyRegistrationService', () => {
     expect(idempotencyRepository.saveCompleted).not.toHaveBeenCalled()
   })
 
-  it('registerTenantParty / when contact points are supplied / should persist them with the created tenant party', async () => {
+  it('registerTenantParty / when profile items are supplied / should persist them with the created tenant party', async () => {
     const tenantPartyRepository = createTenantPartyRepositoryMock()
 
     tenantPartyRepository.findByTenantAndIdentifier.mockResolvedValue(null)
@@ -221,9 +221,9 @@ describe('PartyRegistrationService', () => {
       type: PartyType.ORGANIZATION,
       legalName: 'Basin World Importers',
       identifiers: [],
-      contactPoints: [
+      profileItems: [
         {
-          contactPointType: 'DOMAIN',
+          itemType: 'DOMAIN',
           normalizedValue: 'basin.example',
           rawValue: 'https://basin.example'
         }
@@ -232,9 +232,9 @@ describe('PartyRegistrationService', () => {
 
     expect(tenantPartyRepository.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        contactPoints: [
+        profileItems: [
           {
-            contactPointType: 'DOMAIN',
+            itemType: 'DOMAIN',
             normalizedValue: 'basin.example',
             rawValue: 'https://basin.example'
           }

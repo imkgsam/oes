@@ -51,6 +51,30 @@ export namespace CustomerManagementApi {
     issuerCountryOrRegion?: string
   }
 
+  export interface CrmAccountProfileItemInput {
+    itemType: string
+    normalizedValue: string
+    rawValue?: string
+    label?: string
+    role?: string
+  }
+
+  export interface CrmAccountProfileItem {
+    profileItemId: string
+    itemType: string
+    normalizedValue: string
+    rawValue: string
+    label: string
+    role: string
+    status: string
+    sourceRecordId: string
+    promotedTargetType: string
+    promotedTargetId: string
+    promotedAt: string
+    createdAt: string
+    updatedAt: string
+  }
+
   export interface CrmAccount {
     crmAccountId: string
     tenantId: string
@@ -60,6 +84,7 @@ export namespace CustomerManagementApi {
     archiveReason: CrmArchiveReason | string
     partyTypeHint: CrmAccountTypeHint | string
     displayName: string
+    leadLegalName: string
     leadCompanyName: string
     leadPersonName: string
     leadDomain: string
@@ -68,6 +93,7 @@ export namespace CustomerManagementApi {
     leadWhatsapp: string
     leadCountry: string
     leadIdentifiers: CrmLeadIdentifier[]
+    profileItems: CrmAccountProfileItem[]
     ownerAccountId: string
     ownerDisplayName: string
     priority: CrmPriority | string
@@ -152,11 +178,13 @@ export namespace CustomerManagementApi {
   export interface CreateLeadPayload {
     displayName: string
     duplicateWarningAcknowledged?: boolean
+    leadLegalName?: string
     leadCompanyName?: string
     leadCountry?: string
     leadDomain?: string
     leadEmail?: string
     leadIdentifiers?: CrmLeadIdentifier[]
+    profileItems?: CrmAccountProfileItemInput[]
     leadPersonName?: string
     leadPhone?: string
     leadWhatsapp?: string
@@ -187,6 +215,10 @@ export namespace CustomerManagementApi {
     existingCrmAccountId: string
   }
 
+  export interface ConvertLeadToProspectCustomerPayload {
+    legalName: string
+  }
+
   export interface CreateDraftLeadPayload extends Omit<CreateLeadPayload, 'claimForCurrentUser' | 'duplicateWarningAcknowledged' | 'sourceType'> {
     sourceType?: CrmSourceType
   }
@@ -210,6 +242,10 @@ export namespace CustomerManagementApi {
     archiveReason: CrmArchiveReason
   }
 
+  export interface UpdateCrmAccountIdentifiersPayload {
+    leadIdentifiers?: CrmLeadIdentifier[]
+  }
+
   export interface DeleteDraftLeadResult {
     deleted: boolean
     crmAccountId: string
@@ -217,11 +253,13 @@ export namespace CustomerManagementApi {
 
   export interface CheckLeadDuplicatePayload {
     displayName?: string
+    leadLegalName?: string
     leadCompanyName?: string
     leadCountry?: string
     leadDomain?: string
     leadEmail?: string
     leadIdentifiers?: CrmLeadIdentifier[]
+    profileItems?: CrmAccountProfileItemInput[]
     leadPersonName?: string
     leadPhone?: string
     leadWhatsapp?: string
@@ -289,7 +327,7 @@ export async function checkLeadDuplicateApi(
   )
 }
 
-// Lists CRM P1 accounts for the sales workspace without using the legacy customer-directory shape.
+// Lists CRM P1 accounts for the sales workspace through the CRM account endpoint.
 export async function listCrmAccountsApi(
   tenantId: string,
   params: CustomerManagementApi.CrmAccountListQuery
@@ -382,11 +420,12 @@ export async function createCrmLeadApi(
 // Converts one CRM P1 lead into a prospect customer through Party resolution.
 export async function convertLeadToProspectCustomerApi(
   tenantId: string,
-  crmAccountId: string
+  crmAccountId: string,
+  data: CustomerManagementApi.ConvertLeadToProspectCustomerPayload
 ) {
   return requestClient.post<CustomerManagementApi.ConvertLeadToProspectCustomerResult>(
     `/customer-management/tenants/${encodeURIComponent(tenantId)}/leads/${encodeURIComponent(crmAccountId)}/convert-to-prospect-customer`,
-    {}
+    data
   )
 }
 
@@ -424,7 +463,19 @@ export async function archiveCrmAccountApi(
   )
 }
 
-// Bridges legacy Sales selector screens onto the CRM P1 account endpoint until Sales/CRM selection is refrozen.
+// Updates CRM-owned strong identifiers for eligible Lead or Prospect Customer records.
+export async function updateCrmAccountIdentifiersApi(
+  tenantId: string,
+  crmAccountId: string,
+  data: CustomerManagementApi.UpdateCrmAccountIdentifiersPayload
+) {
+  return requestClient.request<CustomerManagementApi.CrmAccount>(
+    `/customer-management/tenants/${encodeURIComponent(tenantId)}/crm-accounts/${encodeURIComponent(crmAccountId)}/identifiers`,
+    { data, method: 'PATCH' }
+  )
+}
+
+// Maps Sales selector screens onto the CRM P1 account endpoint while Sales owns transaction semantics.
 export async function listSelectableCustomersApi(
   tenantId: string,
   params: CustomerManagementApi.SelectableCustomerListQuery
@@ -447,7 +498,7 @@ export async function listSelectableCustomersApi(
   }
 }
 
-// Bridges current Sales quote detail display onto CRM P1 account data without restoring old customer-master endpoints.
+// Maps current Sales quote detail display onto CRM P1 account data without expanding CRM ownership.
 export async function listManagedCustomerAccountsApi(
   tenantId: string,
   params: CustomerManagementApi.CustomerAccountListQuery

@@ -24,6 +24,7 @@ import {
   Table,
   Tabs,
   Tag,
+  Tooltip,
   message
 } from 'ant-design-vue'
 
@@ -31,6 +32,7 @@ import {
   archiveCrmAccountApi,
   claimCrmAccountApi,
   convertLeadToProspectCustomerApi,
+  createCollaborationAnnotationApi,
   createDraftLeadApi,
   createCrmLeadApi,
   deleteDraftLeadApi,
@@ -42,6 +44,8 @@ import {
 import CountryRegionSelect from '#/components/country-region-select.vue'
 import { $t } from '#/locales'
 import { useAuthContextStore } from '#/store/auth-context'
+
+import { identifierTypeOptionsForCountry } from './customer-management-identifiers'
 
 type WorkspaceViewKey = 'CUSTOMERS' | 'MY_ARCHIVED' | 'MY_DRAFTS' | 'MY_LEADS' | 'PROSPECTS'
 type WorkspaceTabKey = WorkspaceViewKey | 'POOL'
@@ -71,19 +75,28 @@ interface CrmWorkspaceFilterState {
 
 interface LeadFormState {
   displayName: string
-  leadCompanyName: string
+  initialNote: string
   leadCountry: string
-  leadDomain: string
-  leadEmail: string
-  leadPersonName: string
-  leadPhone: string
-  leadWhatsapp: string
-  nextFollowUpAt: string
+  leadIdentifiers: LeadIdentifierFormRow[]
+  leadLegalName: string
   partyTypeHint?: CustomerManagementApi.CrmAccountTypeHint
   priority: CustomerManagementApi.CrmPriority
-  sourceName: string
+  profileItems: LeadProfileItemFormRow[]
   sourceNote: string
   sourceType: CustomerManagementApi.CrmSourceType
+}
+
+interface LeadProfileItemFormRow {
+  itemType: string
+  rowId: string
+  value: string
+}
+
+interface LeadIdentifierFormRow {
+  identifierType: string
+  issuerCountryOrRegion: string
+  rowId: string
+  value: string
 }
 
 interface CrmAccountActionItem {
@@ -138,6 +151,8 @@ const customerManagementFallbackMessages = {
   email: '邮箱',
   formalize: '正式化',
   formalizeFailed: 'Lead 正式化失败',
+  formalizeLegalNameHelp: '转为潜在客户前，需要确认将写入 Party 的法定/登记名称。',
+  formalizeLegalNameRequired: '请填写法定/登记名称后再正式化',
   keyword: '关键词',
   keywordPlaceholder: '公司、邮箱、域名',
   importFailed: 'Lead 导入失败',
@@ -149,9 +164,31 @@ const customerManagementFallbackMessages = {
   newLead: '新建 Lead',
   noAccounts: '暂无 CRM 客户关系',
   operation: '操作',
+  identifierAdd: '添加登记/证件',
+  identifierCountry: '国家/地区',
+  identifierEmpty: '还未添加登记/证件信息',
+  identifierInfo: '登记/证件信息',
+  identifierInfoHelp: '用于记录能确认主体身份的官方登记号、证件号或税号；PC 绑定主体后此类信息会受保护。',
+  identifierRemove: '删除登记/证件',
+  identifierType: '登记/证件类型',
+  identifierTypePlaceholder: '先选国家/地区',
+  identifierValue: '号码',
+  identifierValuePlaceholder: '填写对应号码',
+  organizationName: '组织名称',
+  legalName: '法定/登记名称',
+  legalNamePlaceholder: '填写营业执照、注册文件或证件上的名称',
   owner: '负责人',
   ownerPlaceholder: '账号 ID',
   pool: '公海',
+  profileAdd: '添加联系/网络信息',
+  profileEmpty: '还未添加联系方式或网络信息',
+  profileInfo: '联系与网络信息',
+  profileInfoHelp: '用于记录与该 Lead 相关的联系方式、域名、官网、社媒和店铺等可跟进信息。',
+  profileRemove: '删除联系/网络信息',
+  profileType: '信息类型',
+  profileTypePlaceholder: '选择信息类型',
+  profileValue: '内容',
+  profileValuePlaceholder: '填写域名、邮箱、电话等内容',
   release: '放入公海',
   releaseFailed: '放入公海失败',
   releaseSuccess: '已放入公海',
@@ -164,6 +201,10 @@ const customerManagementFallbackMessages = {
   duplicateCandidateMatchedFields: '匹配字段',
   duplicateCandidateOwner: '负责人',
   person: '联系人',
+  personDisplayName: '常用姓名',
+  personalLeadCompanyHint: '如后续确认其属于某家公司，可在公司 Account 下创建 Contact 并绑定该个人主体。',
+  personLegalName: '法定姓名',
+  personName: '姓名',
   phone: '电话',
   priority: '优先级',
   saveDraft: '保存草稿',
@@ -173,13 +214,15 @@ const customerManagementFallbackMessages = {
   sourceBusinessCard: '名片',
   sourceExhibitionScan: '展会扫码',
   sourceImportedList: '导入名单',
+  leadInitialNote: '初步了解',
   sourceName: '来源名称',
-  sourceNote: '来源备注',
+  sourceNote: '来源说明',
   sourceOther: '其他',
   sourcePeerTransfer: '同行移交',
   sourceReferral: '转介绍',
   sourceSocialMedia: '社媒',
   sourceType: '来源类型',
+  subjectBasic: '主体基础',
   sourceWebResearch: '网络调研',
   sourceWebsiteForm: '网站表单',
   stageCustomer: '客户',
@@ -234,6 +277,8 @@ const canUpdateLead = computed(() =>
 
 const workspaceViewStorageKey = 'oes.crm.accounts.activeView'
 const workspaceViewValues: WorkspaceViewKey[] = ['MY_DRAFTS', 'MY_LEADS', 'PROSPECTS', 'CUSTOMERS', 'MY_ARCHIVED']
+let leadProfileItemRowSequence = 0
+let leadIdentifierRowSequence = 0
 
 /** isWorkspaceViewKey keeps route and storage values inside supported CRM account tabs. */
 function isWorkspaceViewKey(value: unknown): value is WorkspaceViewKey {
@@ -276,6 +321,9 @@ const loading = ref(false)
 const creating = ref(false)
 const importing = ref(false)
 const convertingAccountId = ref('')
+const conversionLegalName = ref('')
+const conversionTargetAccount = ref<CustomerManagementApi.CrmAccount | null>(null)
+const conversionModalOpen = ref(false)
 const createPanelOpen = ref(false)
 const editingDraftAccountId = ref('')
 const importPanelOpen = ref(false)
@@ -327,6 +375,17 @@ const archiveReasonOptions: Array<{
 const partyTypeOptions: Array<{ label: string; value: CustomerManagementApi.CrmAccountTypeHint }> = [
   { label: t('partyTypeOrganization'), value: 'ORGANIZATION' },
   { label: t('partyTypePerson'), value: 'PERSON' }
+]
+
+const profileItemTypeOptions: Array<{ label: string; value: string }> = [
+  { label: t('domain'), value: 'DOMAIN' },
+  { label: t('email'), value: 'EMAIL' },
+  { label: t('phone'), value: 'PHONE' },
+  { label: t('whatsapp'), value: 'WHATSAPP' },
+  { label: 'Website', value: 'WEBSITE' },
+  { label: 'WeChat', value: 'WECHAT' },
+  { label: 'Social', value: 'SOCIAL_PROFILE' },
+  { label: 'Marketplace', value: 'MARKETPLACE_STORE' }
 ]
 
 const priorityOptions: CustomerManagementApi.CrmPriority[] = ['A', 'B', 'C', 'D']
@@ -381,7 +440,7 @@ const accountColumns = computed<TableColumnsType<CustomerManagementApi.CrmAccoun
     key: 'leadDomain',
     minWidth: accountColumnMinWidths.leadDomain,
     title: renderResizableAccountHeader('leadDomain', t('columnDomain')),
-    customRender: ({ record }) => h('span', { class: 'crm-muted' }, record.leadDomain || '-')
+    customRender: ({ record }) => h('span', { class: 'crm-muted' }, accountProfileText(record, 'DOMAIN'))
   },
   {
     align: 'center',
@@ -521,7 +580,7 @@ function handleCrmAccountAction(actionKey: CrmAccountActionKey, record: Customer
   }
 
   if (actionKey === 'formalize') {
-    void formalizeLead(record.crmAccountId)
+    openFormalizeModal(record)
     return
   }
 
@@ -678,20 +737,95 @@ function stageTabLabel(stage: { label: string; value: WorkspaceTabKey }) {
 function createEmptyLeadForm(): LeadFormState {
   return {
     displayName: '',
-    leadCompanyName: '',
+    initialNote: '',
     leadCountry: '',
-    leadDomain: '',
-    leadEmail: '',
-    leadPersonName: '',
-    leadPhone: '',
-    leadWhatsapp: '',
-    nextFollowUpAt: '',
-    partyTypeHint: undefined,
+    leadIdentifiers: [],
+    leadLegalName: '',
+    partyTypeHint: 'ORGANIZATION',
     priority: 'B',
-    sourceName: '',
+    profileItems: [],
     sourceNote: '',
     sourceType: 'WEB_RESEARCH'
   }
+}
+
+/** createLeadIdentifierRow creates one editable official identity row for the Lead modal. */
+function createLeadIdentifierRow(identifierType = '', value = '', issuerCountryOrRegion = ''): LeadIdentifierFormRow {
+  leadIdentifierRowSequence += 1
+  return {
+    identifierType,
+    issuerCountryOrRegion,
+    rowId: `identifier-row-${leadIdentifierRowSequence}`,
+    value
+  }
+}
+
+/** addLeadIdentifier appends one country/type/value official identity row to the Lead modal. */
+function addLeadIdentifier() {
+  leadForm.leadIdentifiers.push(createLeadIdentifierRow())
+}
+
+/** createLeadProfileItemRow creates one editable CRM account profile item row for the Lead modal. */
+function createLeadProfileItemRow(itemType = '', value = ''): LeadProfileItemFormRow {
+  leadProfileItemRowSequence += 1
+  return {
+    itemType,
+    rowId: `profile-row-${leadProfileItemRowSequence}`,
+    value
+  }
+}
+
+/** addLeadProfileItem appends one explicit profile item row to the Lead modal. */
+function addLeadProfileItem(itemType = '') {
+  leadForm.profileItems.push(createLeadProfileItemRow(itemType))
+}
+
+/** identifierTypeOptionsFor returns country-appropriate official identity types for the active subject kind. */
+function identifierTypeOptionsFor(identifier: LeadIdentifierFormRow) {
+  return identifierTypeOptionsForCountry(identifier.issuerCountryOrRegion, leadForm.partyTypeHint)
+}
+
+/** clearInvalidIdentifierTypes removes stale identifier type choices after country or subject changes. */
+function clearInvalidIdentifierTypes() {
+  for (const identifier of leadForm.leadIdentifiers) {
+    const validTypes = new Set(identifierTypeOptionsFor(identifier).map((option) => option.value))
+    if (identifier.identifierType && !validTypes.has(identifier.identifierType)) {
+      identifier.identifierType = ''
+    }
+  }
+}
+
+/** updateLeadIdentifierCountry stores the issuer country and resets types that do not apply there. */
+function updateLeadIdentifierCountry(identifier: LeadIdentifierFormRow, value?: string) {
+  identifier.issuerCountryOrRegion = value || ''
+  const validTypes = new Set(identifierTypeOptionsFor(identifier).map((option) => option.value))
+  if (identifier.identifierType && !validTypes.has(identifier.identifierType)) {
+    identifier.identifierType = ''
+  }
+}
+
+/** updateLeadPartyType switches the Lead modal field set and removes incompatible identifier choices. */
+function updateLeadPartyType(value?: CustomerManagementApi.CrmAccountTypeHint) {
+  leadForm.partyTypeHint = value
+  clearInvalidIdentifierTypes()
+}
+
+/** removeLeadProfileItem removes one profile row while keeping one blank row available for capture. */
+function removeLeadProfileItem(rowId: string) {
+  const index = leadForm.profileItems.findIndex((profileItem) => profileItem.rowId === rowId)
+  if (index < 0) {
+    return
+  }
+  leadForm.profileItems.splice(index, 1)
+}
+
+/** removeLeadIdentifier removes one official identity row from the Lead modal. */
+function removeLeadIdentifier(rowId: string) {
+  const index = leadForm.leadIdentifiers.findIndex((identifier) => identifier.rowId === rowId)
+  if (index < 0) {
+    return
+  }
+  leadForm.leadIdentifiers.splice(index, 1)
 }
 
 /** loadAccounts refreshes the CRM P1 workspace account list using tenant scope and current filters. */
@@ -906,11 +1040,16 @@ function parseLeadImportRows(rawText: string): CustomerManagementApi.CreateLeadP
 
       return {
         displayName,
+        leadLegalName: displayName,
         leadCountry,
-        leadDomain: normalize(leadDomain),
-        leadEmail: normalize(leadEmail),
+        leadDomain: firstProfileValue(leadDomain),
+        leadEmail: firstProfileValue(leadEmail),
         partyTypeHint: 'ORGANIZATION',
         priority: 'C',
+        profileItems: buildImportedAccountProfileItems({
+          leadDomain,
+          leadEmail
+        }),
         sourceName: 'CRM import',
         sourceRawPayload: {
           rawLine: row.line,
@@ -971,17 +1110,19 @@ async function submitLead() {
   try {
     const result = await createCrmLeadApi(activeTenantId.value, {
       displayName: leadForm.displayName.trim(),
-      leadCompanyName: normalize(leadForm.leadCompanyName),
+      leadLegalName: normalize(leadForm.leadLegalName),
+      leadCompanyName: undefined,
       leadCountry: normalize(leadForm.leadCountry),
-      leadDomain: normalize(leadForm.leadDomain),
-      leadEmail: normalize(leadForm.leadEmail),
-      leadPersonName: normalize(leadForm.leadPersonName),
-      leadPhone: normalize(leadForm.leadPhone),
-      leadWhatsapp: normalize(leadForm.leadWhatsapp),
-      nextFollowUpAt: normalize(leadForm.nextFollowUpAt),
+      leadDomain: firstLeadProfileValue(leadForm.profileItems, 'DOMAIN'),
+      leadEmail: firstLeadProfileValue(leadForm.profileItems, 'EMAIL'),
+      leadIdentifiers: buildLeadIdentifiers(leadForm.leadIdentifiers),
+      leadPersonName: undefined,
+      leadPhone: firstLeadProfileValue(leadForm.profileItems, 'PHONE'),
+      leadWhatsapp: firstLeadProfileValue(leadForm.profileItems, 'WHATSAPP'),
       partyTypeHint: leadForm.partyTypeHint,
       priority: leadForm.priority,
-      sourceName: normalize(leadForm.sourceName),
+      profileItems: buildAccountProfileItems(leadForm.profileItems),
+      sourceName: undefined,
       sourceNote: normalize(leadForm.sourceNote),
       sourceType: leadForm.sourceType
     })
@@ -991,6 +1132,7 @@ async function submitLead() {
       return
     }
 
+    await createInitialLeadAnnotation(result.crmAccount?.crmAccountId)
     closeLeadPanel()
     message.success(t('createSuccess'))
     await loadAccounts()
@@ -1015,27 +1157,31 @@ async function saveDraftLead() {
   try {
     const draftPayload = {
       displayName: leadForm.displayName.trim(),
-      leadCompanyName: normalize(leadForm.leadCompanyName),
+      leadLegalName: normalize(leadForm.leadLegalName),
+      leadCompanyName: undefined,
       leadCountry: normalize(leadForm.leadCountry),
-      leadDomain: normalize(leadForm.leadDomain),
-      leadEmail: normalize(leadForm.leadEmail),
-      leadPersonName: normalize(leadForm.leadPersonName),
-      leadPhone: normalize(leadForm.leadPhone),
-      leadWhatsapp: normalize(leadForm.leadWhatsapp),
-      nextFollowUpAt: normalize(leadForm.nextFollowUpAt),
+      leadDomain: firstLeadProfileValue(leadForm.profileItems, 'DOMAIN'),
+      leadEmail: firstLeadProfileValue(leadForm.profileItems, 'EMAIL'),
+      leadIdentifiers: buildLeadIdentifiers(leadForm.leadIdentifiers),
+      leadPersonName: undefined,
+      leadPhone: firstLeadProfileValue(leadForm.profileItems, 'PHONE'),
+      leadWhatsapp: firstLeadProfileValue(leadForm.profileItems, 'WHATSAPP'),
       partyTypeHint: leadForm.partyTypeHint,
-      priority: leadForm.priority
+      priority: leadForm.priority,
+      profileItems: buildAccountProfileItems(leadForm.profileItems)
     }
 
     if (editingDraftAccountId.value) {
-      await updateDraftLeadApi(activeTenantId.value, editingDraftAccountId.value, draftPayload)
+      const updatedDraft = await updateDraftLeadApi(activeTenantId.value, editingDraftAccountId.value, draftPayload)
+      await createInitialLeadAnnotation(updatedDraft.crmAccountId)
     } else {
-      await createDraftLeadApi(activeTenantId.value, {
+      const createdDraft = await createDraftLeadApi(activeTenantId.value, {
         ...draftPayload,
-        sourceName: normalize(leadForm.sourceName),
+        sourceName: undefined,
         sourceNote: normalize(leadForm.sourceNote),
         sourceType: leadForm.sourceType
       })
+      await createInitialLeadAnnotation(createdDraft.crmAccountId)
     }
     closeLeadPanel()
     filters.view = 'MY_DRAFTS'
@@ -1053,17 +1199,13 @@ async function saveDraftLead() {
 function leadFormFromDraft(record: CustomerManagementApi.CrmAccount): LeadFormState {
   return {
     displayName: record.displayName ?? '',
-    leadCompanyName: record.leadCompanyName ?? '',
+    initialNote: '',
     leadCountry: record.leadCountry ?? '',
-    leadDomain: record.leadDomain ?? '',
-    leadEmail: record.leadEmail ?? '',
-    leadPersonName: record.leadPersonName ?? '',
-    leadPhone: record.leadPhone ?? '',
-    leadWhatsapp: record.leadWhatsapp ?? '',
-    nextFollowUpAt: record.nextFollowUpAt ?? '',
+    leadIdentifiers: identifierFormRows(record),
+    leadLegalName: record.leadLegalName ?? '',
     partyTypeHint: normalizePartyTypeHint(record.partyTypeHint),
     priority: normalizePriority(record.priority),
-    sourceName: '',
+    profileItems: profileFormRows(record),
     sourceNote: '',
     sourceType: 'WEB_RESEARCH'
   }
@@ -1088,6 +1230,33 @@ function duplicateMatchedFieldsText(candidate: CustomerManagementApi.CrmDuplicat
   return candidate.matchedFields.length ? candidate.matchedFields.join(', ') : candidate.confidence || '-'
 }
 
+/** createInitialLeadAnnotation persists operator-written Lead understanding as a collaboration note. */
+async function createInitialLeadAnnotation(crmAccountId?: string) {
+  const bodyText = leadForm.initialNote.trim()
+  if (!crmAccountId || !bodyText) {
+    return
+  }
+  await createCollaborationAnnotationApi(
+    {
+      objectOwnerService: 'crm-service',
+      objectType: 'CrmAccount',
+      objectId: crmAccountId
+    },
+    {
+      bodyText,
+      visibility: 'OBJECT_VISIBLE'
+    }
+  )
+}
+
+/** accountProfileText renders account-owned profile item values for list cells. */
+function accountProfileText(record: CustomerManagementApi.CrmAccount, itemType: string) {
+  const values = (record.profileItems ?? [])
+    .filter((profileItem) => profileItem.itemType === itemType && profileItem.normalizedValue)
+    .map((profileItem) => profileItem.normalizedValue)
+  return values.length ? [...new Set(values)].join(' / ') : '-'
+}
+
 /** openAccountDetail routes one CRM P1 account to the dedicated detail page. */
 async function openAccountDetail(crmAccountId: string) {
   if (!canViewAccount.value) {
@@ -1100,17 +1269,44 @@ async function openAccountDetail(crmAccountId: string) {
   })
 }
 
+/** openFormalizeModal captures the legal name required only when turning a Lead into a PC. */
+function openFormalizeModal(record: CustomerManagementApi.CrmAccount) {
+  if (!canFormalizeLead.value) {
+    return
+  }
+  conversionTargetAccount.value = record
+  conversionLegalName.value = record.leadLegalName || ''
+  conversionModalOpen.value = true
+}
+
+/** closeFormalizeModal clears the formalization-only legal name capture state. */
+function closeFormalizeModal() {
+  conversionModalOpen.value = false
+  conversionTargetAccount.value = null
+  conversionLegalName.value = ''
+}
+
 /** formalizeLead asks crm-service to bind or create TenantParty according to the frozen P1 rules. */
-async function formalizeLead(crmAccountId: string) {
-  if (!canFormalizeLead.value || !activeTenantId.value) {
+async function formalizeLead() {
+  const target = conversionTargetAccount.value
+  if (!canFormalizeLead.value || !activeTenantId.value || !target) {
+    return
+  }
+  const legalName = conversionLegalName.value.trim()
+  if (!legalName) {
+    errorMessage.value = t('formalizeLegalNameRequired')
+    message.error(t('formalizeLegalNameRequired'))
     return
   }
 
-  convertingAccountId.value = crmAccountId
+  convertingAccountId.value = target.crmAccountId
   errorMessage.value = ''
   try {
-    const result = await convertLeadToProspectCustomerApi(activeTenantId.value, crmAccountId)
+    const result = await convertLeadToProspectCustomerApi(activeTenantId.value, target.crmAccountId, {
+      legalName
+    })
     message.success(result.resultType || t('formalize'))
+    closeFormalizeModal()
     await loadAccounts()
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : t('formalizeFailed')
@@ -1295,6 +1491,129 @@ function compareCrmColumnText(left?: string, right?: string): number {
   return leftText.localeCompare(rightText, 'zh-Hans-CN')
 }
 
+/** buildAccountProfileItems materializes explicit Lead modal rows into CRM account profile items. */
+function buildAccountProfileItems(rows: LeadProfileItemFormRow[]): CustomerManagementApi.CrmAccountProfileItemInput[] {
+  const seen = new Set<string>()
+  const profileItems: CustomerManagementApi.CrmAccountProfileItemInput[] = []
+
+  for (const row of rows) {
+    const itemType = row.itemType.trim()
+    const profileValue = row.value.trim()
+    if (!itemType || !profileValue) {
+      continue
+    }
+    const dedupeKey = `${itemType}:${profileValue.toLowerCase()}`
+    if (seen.has(dedupeKey)) {
+      continue
+    }
+    seen.add(dedupeKey)
+    profileItems.push({
+      itemType,
+      normalizedValue: profileValue,
+      rawValue: profileValue
+    })
+  }
+
+  return profileItems
+}
+
+/** buildLeadIdentifiers materializes country/type/value rows into deduplicated CRM official identity inputs. */
+function buildLeadIdentifiers(rows: LeadIdentifierFormRow[]): CustomerManagementApi.CrmLeadIdentifier[] {
+  const seen = new Set<string>()
+  const identifiers: CustomerManagementApi.CrmLeadIdentifier[] = []
+
+  for (const row of rows) {
+    const identifierType = row.identifierType.trim()
+    const identifierValue = row.value.trim()
+    const issuerCountryOrRegion = row.issuerCountryOrRegion.trim()
+    if (!identifierType || !identifierValue) {
+      continue
+    }
+    const dedupeKey = `${issuerCountryOrRegion}:${identifierType}:${identifierValue.toLowerCase()}`
+    if (seen.has(dedupeKey)) {
+      continue
+    }
+    seen.add(dedupeKey)
+    identifiers.push({
+      identifierType,
+      issuerCountryOrRegion,
+      normalizedValue: identifierValue,
+      rawValue: identifierValue
+    })
+  }
+
+  return identifiers
+}
+
+/** buildImportedAccountProfileItems converts simple CSV import columns into profile item inputs. */
+function buildImportedAccountProfileItems(input: {
+  leadDomain?: string
+  leadEmail?: string
+}): CustomerManagementApi.CrmAccountProfileItemInput[] {
+  return [
+    ...importedProfileItemInputs('DOMAIN', input.leadDomain),
+    ...importedProfileItemInputs('EMAIL', input.leadEmail)
+  ]
+}
+
+/** importedProfileItemInputs converts one import column into account-level profile item inputs. */
+function importedProfileItemInputs(itemType: string, value?: string) {
+  return splitProfileValues(value).map((profileValue) => ({
+    itemType,
+    normalizedValue: profileValue,
+    rawValue: profileValue
+  }))
+}
+
+/** splitProfileValues supports compact multi-value entry without adding a second CRM field model in the UI. */
+function splitProfileValues(value?: string) {
+  const seen = new Set<string>()
+  const values: string[] = []
+  for (const segment of (value ?? '').split(/[,\n;]/)) {
+    const normalized = segment.trim()
+    if (!normalized) {
+      continue
+    }
+    const dedupeKey = normalized.toLowerCase()
+    if (seen.has(dedupeKey)) {
+      continue
+    }
+    seen.add(dedupeKey)
+    values.push(normalized)
+  }
+  return values
+}
+
+/** firstProfileValue mirrors the first profile item value into compact list fields. */
+function firstProfileValue(value?: string) {
+  return splitProfileValues(value)[0]
+}
+
+/** firstLeadProfileValue mirrors the first explicit profile row of a type into compact list fields. */
+function firstLeadProfileValue(rows: LeadProfileItemFormRow[], itemType: string) {
+  return rows.find((profileItem) => profileItem.itemType === itemType && profileItem.value.trim())?.value.trim()
+}
+
+/** profileFormRows hydrates editable draft rows from account-level profile items. */
+function profileFormRows(record: CustomerManagementApi.CrmAccount) {
+  return (record.profileItems ?? [])
+    .filter((profileItem) => profileItem.itemType && profileItem.normalizedValue)
+    .map((profileItem) => createLeadProfileItemRow(profileItem.itemType, profileItem.normalizedValue))
+}
+
+/** identifierFormRows hydrates editable draft rows from CRM official identity evidence. */
+function identifierFormRows(record: CustomerManagementApi.CrmAccount) {
+  return (record.leadIdentifiers ?? [])
+    .filter((identifier) => identifier.identifierType && identifier.normalizedValue)
+    .map((identifier) =>
+      createLeadIdentifierRow(
+        identifier.identifierType,
+        identifier.normalizedValue,
+        identifier.issuerCountryOrRegion ?? record.leadCountry ?? ''
+      )
+    )
+}
+
 /** normalize trims optional user input before it crosses the BFF boundary. */
 function normalize(value: string) {
   const normalized = value.trim()
@@ -1434,7 +1753,7 @@ onBeforeUnmount(() => {
         v-model:open="createPanelOpen"
         destroy-on-close
         :title="isEditingDraft ? t('draftEdit') : t('newLead')"
-        :width="760"
+        :width="820"
         @cancel="closeLeadPanel"
       >
         <Alert
@@ -1465,94 +1784,258 @@ onBeforeUnmount(() => {
         </Alert>
 
         <Form class="crm-workspace__modal-form" layout="vertical" @submit.prevent="submitLead">
-          <Row :gutter="[12, 0]">
-            <Col :md="12" :span="24">
-              <Form.Item :label="t('displayName')" required>
-                <Input v-model:value="leadForm.displayName" allow-clear data-testid="crm-lead-display-name" />
-              </Form.Item>
-            </Col>
-            <Col :md="12" :span="24">
-              <Form.Item :label="t('company')">
-                <Input v-model:value="leadForm.leadCompanyName" allow-clear />
-              </Form.Item>
-            </Col>
-            <Col :md="12" :span="24">
-              <Form.Item :label="t('domain')">
-                <Input v-model:value="leadForm.leadDomain" allow-clear data-testid="crm-lead-domain" />
-              </Form.Item>
-            </Col>
-            <Col :md="12" :span="24">
-              <Form.Item :label="t('email')">
-                <Input v-model:value="leadForm.leadEmail" allow-clear data-testid="crm-lead-email" />
-              </Form.Item>
-            </Col>
-            <Col :md="12" :span="24">
-              <Form.Item :label="t('country')" required>
-                <CountryRegionSelect
-                  :placeholder="t('countryPlaceholder')"
-                  :value="leadForm.leadCountry"
-                  data-testid="crm-lead-country"
-                  @update:value="(value) => (leadForm.leadCountry = value || '')"
-                />
-              </Form.Item>
-            </Col>
-            <Col :md="12" :span="24">
-              <Form.Item :label="t('person')">
-                <Input v-model:value="leadForm.leadPersonName" allow-clear />
-              </Form.Item>
-            </Col>
-            <Col :md="12" :span="24">
-              <Form.Item :label="t('phone')">
-                <Input v-model:value="leadForm.leadPhone" allow-clear />
-              </Form.Item>
-            </Col>
-            <Col :md="12" :span="24">
-              <Form.Item :label="t('whatsapp')">
-                <Input v-model:value="leadForm.leadWhatsapp" allow-clear />
-              </Form.Item>
-            </Col>
-            <Col :md="8" :span="24">
-              <Form.Item :label="t('partyType')" required>
-                <Select
-                  v-model:value="leadForm.partyTypeHint"
-                  data-testid="crm-lead-party-type"
-                  :placeholder="t('partyTypePlaceholder')"
+          <section class="crm-lead-section">
+            <div class="crm-lead-section__title">{{ t('subjectBasic') }}</div>
+            <Row :gutter="[12, 0]">
+              <Col :span="24">
+                <Form.Item :label="t('partyType')" required>
+                  <Radio.Group
+                    button-style="solid"
+                    class="crm-lead-party-type"
+                    data-testid="crm-lead-party-type"
+                    :value="leadForm.partyTypeHint"
+                    @update:value="(value) => updateLeadPartyType(value as CustomerManagementApi.CrmAccountTypeHint)"
+                  >
+                    <Radio.Button v-for="option in partyTypeOptions" :key="option.value" :value="option.value">
+                      {{ option.label }}
+                    </Radio.Button>
+                  </Radio.Group>
+                </Form.Item>
+              </Col>
+              <Col :md="12" :span="24">
+                <Form.Item
+                  :label="leadForm.partyTypeHint === 'PERSON' ? t('personDisplayName') : t('displayName')"
+                  required
                 >
-                  <SelectOption v-for="option in partyTypeOptions" :key="option.value" :value="option.value">
-                    {{ option.label }}
-                  </SelectOption>
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col :md="8" :span="24">
-              <Form.Item :label="t('priority')">
-                <Select v-model:value="leadForm.priority">
-                  <SelectOption v-for="priority in priorityOptions" :key="priority" :value="priority">
-                    {{ priority }}
-                  </SelectOption>
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col :md="8" :span="24">
-              <Form.Item :label="t('sourceType')" required>
-                <Select v-model:value="leadForm.sourceType" data-testid="crm-lead-source-type">
-                  <SelectOption v-for="option in sourceTypeOptions" :key="option.value" :value="option.value">
-                    {{ option.label }}
-                  </SelectOption>
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col :span="24">
-              <Form.Item :label="t('sourceName')">
-                <Input v-model:value="leadForm.sourceName" allow-clear />
-              </Form.Item>
-            </Col>
-            <Col :span="24">
-              <Form.Item :label="t('sourceNote')">
-                <Input.TextArea v-model:value="leadForm.sourceNote" :auto-size="{ minRows: 3 }" />
-              </Form.Item>
-            </Col>
-          </Row>
+                  <Input v-model:value="leadForm.displayName" allow-clear data-testid="crm-lead-display-name" />
+                </Form.Item>
+              </Col>
+              <Col :md="12" :span="24">
+                <Form.Item :label="leadForm.partyTypeHint === 'PERSON' ? t('personLegalName') : t('legalName')">
+                  <Input
+                    v-model:value="leadForm.leadLegalName"
+                    allow-clear
+                    data-testid="crm-lead-legal-name"
+                    :placeholder="t('legalNamePlaceholder')"
+                  />
+                </Form.Item>
+              </Col>
+              <Col :md="12" :span="24">
+                <Form.Item :label="t('country')" required>
+                  <CountryRegionSelect
+                    :placeholder="t('countryPlaceholder')"
+                    :value="leadForm.leadCountry"
+                    data-testid="crm-lead-country"
+                    @update:value="(value) => (leadForm.leadCountry = value || '')"
+                  />
+                </Form.Item>
+              </Col>
+              <Col :md="12" :span="24">
+                <Form.Item :label="t('priority')">
+                  <Select v-model:value="leadForm.priority">
+                    <SelectOption v-for="priority in priorityOptions" :key="priority" :value="priority">
+                      {{ priority }}
+                    </SelectOption>
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col v-if="leadForm.partyTypeHint === 'PERSON'" :span="24">
+                <p class="crm-lead-section__hint">{{ t('personalLeadCompanyHint') }}</p>
+              </Col>
+            </Row>
+          </section>
+
+          <section class="crm-lead-section">
+            <div class="crm-lead-section__title crm-lead-section__title--with-help">
+              <span>{{ t('identifierInfo') }}</span>
+              <Tooltip :title="t('identifierInfoHelp')" placement="top">
+                <IconifyIcon
+                  :aria-label="t('identifierInfoHelp')"
+                  class="crm-lead-section__help-icon"
+                  icon="ant-design:question-circle-outlined"
+                  :title="t('identifierInfoHelp')"
+                />
+              </Tooltip>
+            </div>
+            <div class="crm-lead-section__body">
+              <div class="crm-profile-editor crm-identifier-editor" data-testid="crm-identifier-editor">
+                <div v-if="leadForm.leadIdentifiers.length" class="crm-profile-editor__labels" aria-hidden="true">
+                  <span>{{ t('identifierCountry') }}</span>
+                  <span>{{ t('identifierType') }}</span>
+                  <span>{{ t('identifierValue') }}</span>
+                  <span>{{ t('operation') }}</span>
+                </div>
+
+                <div v-if="leadForm.leadIdentifiers.length" class="crm-profile-editor__rows">
+                  <div
+                    v-for="(identifier, index) in leadForm.leadIdentifiers"
+                    :key="identifier.rowId"
+                    class="crm-profile-editor__row"
+                    :data-testid="`crm-identifier-row-${index}`"
+                  >
+                    <CountryRegionSelect
+                      class="crm-profile-editor__type"
+                      :data-testid="`crm-identifier-country-${index}`"
+                      :placeholder="t('countryPlaceholder')"
+                      :value="identifier.issuerCountryOrRegion"
+                      @update:value="(value) => updateLeadIdentifierCountry(identifier, value)"
+                    />
+                    <Select
+                      v-model:value="identifier.identifierType"
+                      class="crm-profile-editor__type"
+                      :data-testid="`crm-identifier-type-${index}`"
+                      :options="identifierTypeOptionsFor(identifier)"
+                      :placeholder="t('identifierTypePlaceholder')"
+                    />
+                    <Input
+                      v-model:value="identifier.value"
+                      allow-clear
+                      class="crm-profile-editor__value"
+                      :data-testid="`crm-identifier-value-${index}`"
+                      :placeholder="t('identifierValuePlaceholder')"
+                    />
+                    <Button
+                      :aria-label="t('identifierRemove')"
+                      class="crm-profile-editor__remove"
+                      :data-testid="`crm-identifier-remove-${index}`"
+                      shape="circle"
+                      size="small"
+                      type="text"
+                      @click="removeLeadIdentifier(identifier.rowId)"
+                    >
+                      <IconifyIcon icon="ant-design:delete-outlined" />
+                    </Button>
+                  </div>
+                </div>
+                <div v-else class="crm-profile-editor__empty" data-testid="crm-identifier-empty">
+                  {{ t('identifierEmpty') }}
+                </div>
+                <div class="crm-profile-editor__footer">
+                  <button
+                    class="crm-profile-editor__add-row"
+                    data-testid="crm-identifier-add"
+                    type="button"
+                    @click="addLeadIdentifier"
+                  >
+                    <IconifyIcon icon="ant-design:plus-outlined" />
+                    <span>{{ t('identifierAdd') }}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="crm-lead-section">
+            <div class="crm-lead-section__title crm-lead-section__title--with-help">
+              <span>{{ t('profileInfo') }}</span>
+              <Tooltip :title="t('profileInfoHelp')" placement="top">
+                <IconifyIcon
+                  :aria-label="t('profileInfoHelp')"
+                  class="crm-lead-section__help-icon"
+                  icon="ant-design:question-circle-outlined"
+                  :title="t('profileInfoHelp')"
+                />
+              </Tooltip>
+            </div>
+            <div class="crm-lead-section__body">
+              <div class="crm-profile-editor" data-testid="crm-profile-editor">
+                <div v-if="leadForm.profileItems.length" class="crm-profile-editor__labels" aria-hidden="true">
+                  <span>{{ t('profileType') }}</span>
+                  <span>{{ t('profileValue') }}</span>
+                  <span>{{ t('operation') }}</span>
+                </div>
+
+                <div v-if="leadForm.profileItems.length" class="crm-profile-editor__rows">
+                  <div
+                    v-for="(profileItem, index) in leadForm.profileItems"
+                    :key="profileItem.rowId"
+                    class="crm-profile-editor__row"
+                    :data-testid="`crm-profile-row-${index}`"
+                  >
+                    <Select
+                      v-model:value="profileItem.itemType"
+                      class="crm-profile-editor__type"
+                      :data-testid="`crm-profile-type-${index}`"
+                      :placeholder="t('profileTypePlaceholder')"
+                    >
+                      <SelectOption
+                        v-for="option in profileItemTypeOptions"
+                        :key="option.value"
+                        :value="option.value"
+                      >
+                        {{ option.label }}
+                      </SelectOption>
+                    </Select>
+                    <Input
+                      v-model:value="profileItem.value"
+                      allow-clear
+                      class="crm-profile-editor__value"
+                      :data-testid="`crm-profile-value-${index}`"
+                      :placeholder="t('profileValuePlaceholder')"
+                    />
+                    <Button
+                      :aria-label="t('profileRemove')"
+                      class="crm-profile-editor__remove"
+                      :data-testid="`crm-profile-remove-${index}`"
+                      shape="circle"
+                      size="small"
+                      type="text"
+                      @click="removeLeadProfileItem(profileItem.rowId)"
+                    >
+                      <IconifyIcon icon="ant-design:delete-outlined" />
+                    </Button>
+                  </div>
+                </div>
+                <div v-else class="crm-profile-editor__empty" data-testid="crm-profile-empty">
+                  {{ t('profileEmpty') }}
+                </div>
+                <div class="crm-profile-editor__footer">
+                  <button
+                    class="crm-profile-editor__add-row"
+                    data-testid="crm-profile-add"
+                    type="button"
+                    @click="addLeadProfileItem()"
+                  >
+                    <IconifyIcon icon="ant-design:plus-outlined" />
+                    <span>{{ t('profileAdd') }}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="crm-lead-section">
+            <div class="crm-lead-section__title">来源与备注</div>
+            <Row :gutter="[12, 0]">
+              <Col :md="12" :span="24">
+                <Form.Item :label="t('sourceType')" required>
+                  <Select v-model:value="leadForm.sourceType" data-testid="crm-lead-source-type">
+                    <SelectOption v-for="option in sourceTypeOptions" :key="option.value" :value="option.value">
+                      {{ option.label }}
+                    </SelectOption>
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col :span="24">
+                <Form.Item :label="t('sourceNote')">
+                  <Input.TextArea
+                    v-model:value="leadForm.sourceNote"
+                    :auto-size="{ minRows: 2, maxRows: 4 }"
+                    data-testid="crm-lead-source-note"
+                  />
+                </Form.Item>
+              </Col>
+              <Col :span="24">
+                <Form.Item :label="t('leadInitialNote')">
+                  <Input.TextArea
+                    v-model:value="leadForm.initialNote"
+                    :auto-size="{ minRows: 2, maxRows: 5 }"
+                    data-testid="crm-lead-initial-note"
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+          </section>
         </Form>
 
         <template #footer>
@@ -1598,6 +2081,43 @@ onBeforeUnmount(() => {
               @click="submitImportedLeads"
             >
               {{ t('importLead') }}
+            </Button>
+          </div>
+        </template>
+      </Modal>
+
+      <Modal
+        v-model:open="conversionModalOpen"
+        destroy-on-close
+        :title="t('formalize')"
+        :width="520"
+        @cancel="closeFormalizeModal"
+      >
+        <div class="crm-workspace__archive-form">
+          <Alert :message="t('formalizeLegalNameHelp')" show-icon type="info" />
+          <Form layout="vertical">
+            <Form.Item :label="t('legalName')" required>
+              <Input
+                v-model:value="conversionLegalName"
+                allow-clear
+                data-testid="crm-formalize-legal-name"
+                :placeholder="t('legalNamePlaceholder')"
+              />
+            </Form.Item>
+          </Form>
+        </div>
+
+        <template #footer>
+          <div class="crm-workspace__modal-footer">
+            <Button @click="closeFormalizeModal">{{ t('cancel') }}</Button>
+            <Button
+              data-testid="crm-formalize-submit"
+              :disabled="!conversionLegalName.trim()"
+              :loading="Boolean(convertingAccountId)"
+              type="primary"
+              @click="formalizeLead"
+            >
+              {{ t('formalize') }}
             </Button>
           </div>
         </template>
@@ -1865,6 +2385,174 @@ onBeforeUnmount(() => {
   margin-bottom: 14px;
 }
 
+.crm-lead-section {
+  border-top: 1px solid var(--crm-border);
+  padding: 18px 0 2px;
+}
+
+.crm-lead-section:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.crm-lead-section__title {
+  color: var(--crm-title);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 22px;
+  margin-bottom: 12px;
+}
+
+.crm-lead-section__title--with-help {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
+}
+
+.crm-lead-section__help-icon {
+  color: var(--crm-muted);
+  cursor: help;
+  font-size: 15px;
+  transition: color 0.16s ease;
+}
+
+.crm-lead-section__help-icon:hover {
+  color: hsl(var(--primary));
+}
+
+.crm-lead-section__body {
+  display: grid;
+}
+
+.crm-lead-section__hint {
+  color: var(--crm-muted);
+  font-size: 12px;
+  line-height: 18px;
+  margin: -2px 0 12px;
+}
+
+.crm-lead-party-type {
+  display: inline-flex;
+}
+
+.crm-profile-editor {
+  border: 1px solid hsl(var(--border) / 0.92);
+  border-radius: 8px;
+  background: var(--crm-card-bg);
+  box-shadow: 0 1px 0 hsl(var(--foreground) / 0.03);
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.crm-profile-editor__add-row {
+  align-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: hsl(var(--primary));
+  cursor: pointer;
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 10px;
+  transition:
+    background 0.16s ease,
+    color 0.16s ease;
+  width: 100%;
+}
+
+.crm-profile-editor__add-row:hover {
+  background: hsl(var(--primary) / 0.08);
+}
+
+.crm-profile-editor__footer {
+  border-top: 1px solid hsl(var(--border) / 0.74);
+  background: hsl(var(--muted) / 0.14);
+  padding: 8px;
+}
+
+.crm-profile-editor__empty {
+  color: var(--crm-muted);
+  font-size: 13px;
+  line-height: 20px;
+  padding: 18px 14px;
+  text-align: center;
+}
+
+.crm-profile-editor__labels,
+.crm-profile-editor__row {
+  display: grid;
+  grid-template-columns: minmax(148px, 0.34fr) minmax(0, 1fr) 48px;
+}
+
+.crm-identifier-editor .crm-profile-editor__labels,
+.crm-identifier-editor .crm-profile-editor__row {
+  grid-template-columns: minmax(190px, 0.36fr) minmax(210px, 0.34fr) minmax(0, 1fr) 48px;
+}
+
+.crm-profile-editor__labels {
+  border-bottom: 1px solid hsl(var(--border) / 0.86);
+  background: hsl(var(--muted) / 0.42);
+  color: var(--crm-muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+  padding: 7px 14px;
+}
+
+.crm-profile-editor__labels span:not(:last-child),
+.crm-profile-editor__row > *:not(:last-child) {
+  border-right: 1px solid hsl(var(--border) / 0.64);
+  padding-right: 10px;
+}
+
+.crm-profile-editor__rows {
+  display: grid;
+}
+
+.crm-profile-editor__row {
+  align-items: center;
+  border-bottom: 1px solid hsl(var(--border) / 0.74);
+  column-gap: 10px;
+  padding: 10px 14px;
+  transition: background 0.16s ease;
+}
+
+.crm-profile-editor__row:last-child {
+  border-bottom: 0;
+}
+
+.crm-profile-editor__row:hover {
+  background: hsl(var(--muted) / 0.16);
+}
+
+.crm-profile-editor__type,
+.crm-profile-editor__value {
+  min-width: 0;
+}
+
+.crm-profile-editor__type :deep(.ant-select-selector) {
+  padding-left: 12px;
+  padding-right: 48px;
+}
+
+.crm-profile-editor__type :deep(.ant-select-selection-item) {
+  padding-right: 18px;
+}
+
+.crm-profile-editor__type :deep(.ant-select-arrow) {
+  right: 14px;
+}
+
+.crm-profile-editor__type :deep(.ant-select-clear) {
+  right: 34px;
+}
+
+.crm-profile-editor__remove {
+  justify-self: end;
+}
+
 .crm-workspace__archive-form {
   display: grid;
   gap: 14px;
@@ -2072,6 +2760,24 @@ onBeforeUnmount(() => {
 
   .crm-workspace__create-button {
     min-width: 112px;
+  }
+
+  .crm-profile-editor__labels {
+    display: none;
+  }
+
+  .crm-profile-editor__row {
+    grid-template-columns: 1fr 38px;
+    row-gap: 8px;
+  }
+
+  .crm-profile-editor__type,
+  .crm-profile-editor__value {
+    grid-column: 1 / -1;
+  }
+
+  .crm-profile-editor__remove {
+    grid-column: 2;
   }
 }
 </style>

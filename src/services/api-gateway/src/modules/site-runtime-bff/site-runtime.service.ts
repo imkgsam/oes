@@ -12,6 +12,7 @@ export interface SiteRuntimeSignedHttpRequest {
 }
 
 export interface SiteRuntimeDownstream {
+  registerPageCapabilities(request: SiteRuntimeSignedHttpRequest): Promise<unknown>
   getLatestPublishState(request: SiteRuntimeSignedHttpRequest): Promise<unknown>
   listChangedResources(request: SiteRuntimeSignedHttpRequest): Promise<unknown>
   batchGetPublicViews(request: SiteRuntimeSignedHttpRequest): Promise<unknown>
@@ -31,6 +32,11 @@ export class SiteRuntimeService {
   /** getLatestPublishState forwards the signed runtime request to site-service for verification. */
   getLatestPublishState(request: SiteRuntimeSignedHttpRequest): Promise<unknown> {
     return this.downstream.getLatestPublishState(request)
+  }
+
+  /** registerPageCapabilities forwards one complete signed capability manifest without trusting body site ids. */
+  registerPageCapabilities(request: SiteRuntimeSignedHttpRequest): Promise<unknown> {
+    return this.downstream.registerPageCapabilities(request)
   }
 
   /** listChangedResources forwards delta requests without trusting ordinary site_id fields. */

@@ -102,16 +102,16 @@ describe('PrismaTenantPartyRepository L2', () => {
     ])
   })
 
-  it('TenantParty 候选查询 / 当 domain 联系点命中时 / 应返回当前租户主体候选', async () => {
+  it('TenantParty 候选查询 / 当 domain profile item 命中时 / 应返回当前租户主体候选', async () => {
     const tenantParty = await tenantPartyRepository.create({
       tenantId: `${prefix}_tenant`,
       type: PartyType.ORGANIZATION,
       legalName: `${prefix}_basin_trading`,
       registeredCountry: 'US',
       identifiers: [],
-      contactPoints: [
+      profileItems: [
         {
-          contactPointType: 'DOMAIN',
+          itemType: 'DOMAIN',
           normalizedValue: `${prefix}.basin.example`,
           rawValue: `https://${prefix}.basin.example`
         }
@@ -122,9 +122,9 @@ describe('PrismaTenantPartyRepository L2', () => {
       type: PartyType.ORGANIZATION,
       legalName: `${prefix}_basin_trading`,
       identifiers: [],
-      contactPoints: [
+      profileItems: [
         {
-          contactPointType: 'DOMAIN',
+          itemType: 'DOMAIN',
           normalizedValue: `${prefix}.basin.example`,
           rawValue: `https://${prefix}.basin.example`
         }

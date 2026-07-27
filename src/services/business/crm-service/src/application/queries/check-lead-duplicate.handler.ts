@@ -7,6 +7,7 @@ import {
   CrmAccountRepository
 } from '../../domain/repositories/crm-account.repository'
 import { normalizeLeadDomainEvidence } from '../support/lead-domain-normalization'
+import { buildCrmAccountProfileItems } from '../support/account-profile-items'
 import { CheckLeadDuplicateQuery } from './check-lead-duplicate.query'
 
 export interface CheckLeadDuplicateResult {
@@ -31,6 +32,7 @@ export class CheckLeadDuplicateHandler implements IQueryHandler<
     const candidates = await this.accountRepository.findDuplicateCandidates({
       tenantId: query.props.tenantId,
       displayName: query.props.displayName,
+      leadLegalName: query.props.leadLegalName,
       leadCompanyName: query.props.leadCompanyName,
       leadPersonName: query.props.leadPersonName,
       leadDomain: normalizeLeadDomainEvidence(query.props.leadDomain),
@@ -38,6 +40,11 @@ export class CheckLeadDuplicateHandler implements IQueryHandler<
       leadPhone: query.props.leadPhone,
       leadWhatsapp: query.props.leadWhatsapp,
       leadCountry: query.props.leadCountry,
+      profileItems: buildCrmAccountProfileItems({
+        tenantId: query.props.tenantId,
+        crmAccountId: 'duplicate-check',
+        profileItems: query.props.profileItems
+      }),
       leadIdentifiers: query.props.leadIdentifiers
     })
 

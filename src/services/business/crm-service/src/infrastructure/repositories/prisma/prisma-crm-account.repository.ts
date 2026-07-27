@@ -14,6 +14,8 @@ import {
   CrmActivityDirection,
   CrmActivityType,
   CrmActivityVisibility,
+  CrmAccountProfileItemRecord,
+  CrmAccountProfileItemStatus,
   CrmAccountRecord,
   CrmAccountLifecycleStage,
   CrmAccountRecordStatus,
@@ -58,6 +60,7 @@ export class PrismaCrmAccountRepository implements CrmAccountRepository {
         lifecycleStage: account.lifecycleStage,
         partyTypeHint: account.partyTypeHint,
         displayName: account.displayName,
+        leadLegalName: account.leadLegalName ?? null,
         leadCompanyName: account.leadCompanyName ?? null,
         leadPersonName: account.leadPersonName ?? null,
         leadDomain: normalizeLeadDomainForStorage(account.leadDomain),
@@ -80,6 +83,7 @@ export class PrismaCrmAccountRepository implements CrmAccountRepository {
         lifecycleStage: account.lifecycleStage,
         partyTypeHint: account.partyTypeHint,
         displayName: account.displayName,
+        leadLegalName: account.leadLegalName ?? null,
         leadCompanyName: account.leadCompanyName ?? null,
         leadPersonName: account.leadPersonName ?? null,
         leadDomain: normalizeLeadDomainForStorage(account.leadDomain),
@@ -138,6 +142,88 @@ export class PrismaCrmAccountRepository implements CrmAccountRepository {
     })
 
     return records.map(toCrmContactRecord)
+  }
+
+  /** addAccountProfileItem creates one account-level CRM profile item without treating it as contact data. */
+  async addAccountProfileItem(
+    profileItem: CrmAccountProfileItemRecord
+  ): Promise<CrmAccountProfileItemRecord> {
+    const saved = await (this.prisma.getExecutionClient() as any).crmAccountProfileItem.create({
+      data: {
+        id: profileItem.id,
+        tenantId: profileItem.tenantId,
+        crmAccountId: profileItem.crmAccountId,
+        itemType: profileItem.itemType,
+        normalizedValue: profileItem.normalizedValue,
+        rawValue: profileItem.rawValue,
+        label: profileItem.label ?? null,
+        role: profileItem.role ?? null,
+        status: profileItem.status,
+        sourceRecordId: profileItem.sourceRecordId ?? null,
+        promotedTargetType: profileItem.promotedTargetType ?? null,
+        promotedTargetId: profileItem.promotedTargetId ?? null,
+        promotedAt: profileItem.promotedAt ?? null
+      }
+    })
+
+    return toCrmAccountProfileItemRecord(saved)
+  }
+
+  /** listAccountProfileItems returns account-level profile items used for duplicate checks and Party promotion. */
+  async listAccountProfileItems(
+    tenantId: string,
+    accountId: string
+  ): Promise<CrmAccountProfileItemRecord[]> {
+    const records = await (this.prisma.getExecutionClient() as any).crmAccountProfileItem.findMany({
+      where: {
+        tenantId,
+        crmAccountId: accountId,
+        status: CrmAccountProfileItemStatus.ACTIVE
+      },
+      orderBy: {
+        createdAt: 'asc'
+      }
+    })
+
+    return records.map(toCrmAccountProfileItemRecord)
+  }
+
+  /** replaceAccountProfileItems rewrites draft account-level profile items as one account-owned collection. */
+  async replaceAccountProfileItems(
+    tenantId: string,
+    accountId: string,
+    profileItems: CrmAccountProfileItemRecord[]
+  ): Promise<CrmAccountProfileItemRecord[]> {
+    const client = this.prisma.getExecutionClient() as any
+    await client.$transaction(async (tx: any) => {
+      await tx.crmAccountProfileItem.deleteMany({
+        where: {
+          tenantId,
+          crmAccountId: accountId
+        }
+      })
+      if (profileItems.length > 0) {
+        await tx.crmAccountProfileItem.createMany({
+          data: profileItems.map((profileItem) => ({
+            id: profileItem.id,
+            tenantId: profileItem.tenantId,
+            crmAccountId: profileItem.crmAccountId,
+            itemType: profileItem.itemType,
+            normalizedValue: profileItem.normalizedValue,
+            rawValue: profileItem.rawValue,
+            label: profileItem.label ?? null,
+            role: profileItem.role ?? null,
+            status: profileItem.status,
+            sourceRecordId: profileItem.sourceRecordId ?? null,
+            promotedTargetType: profileItem.promotedTargetType ?? null,
+            promotedTargetId: profileItem.promotedTargetId ?? null,
+            promotedAt: profileItem.promotedAt ?? null
+          }))
+        })
+      }
+    })
+
+    return this.listAccountProfileItems(tenantId, accountId)
   }
 
   /** addActivity appends one business-visible timeline event to a CRM account. */
@@ -325,6 +411,7 @@ export class PrismaCrmAccountRepository implements CrmAccountRepository {
         ? {
             OR: [
               { displayName: { contains: input.keyword, mode: 'insensitive' } },
+              { leadLegalName: { contains: input.keyword, mode: 'insensitive' } },
               { leadCompanyName: { contains: input.keyword, mode: 'insensitive' } },
               { leadPersonName: { contains: input.keyword, mode: 'insensitive' } },
               { leadDomain: { contains: input.keyword, mode: 'insensitive' } },
@@ -392,6 +479,10 @@ export class PrismaCrmAccountRepository implements CrmAccountRepository {
   async findDuplicateCandidates(
     input: CrmDuplicateSearchInput
   ): Promise<CrmAccountDuplicateCandidate[]> {
+    const profileItemMatches = await this.findDuplicateProfileItemMatches(input)
+    const profileMatchedAccountIds = [
+      ...new Set(profileItemMatches.map((item) => item.crmAccountId))
+    ]
     const records = await this.prisma.getExecutionClient().crmAccount.findMany({
       where: {
         tenantId: input.tenantId,
@@ -404,10 +495,63 @@ export class PrismaCrmAccountRepository implements CrmAccountRepository {
       },
       take: 50
     })
+    const missingProfileMatchedRecords = profileMatchedAccountIds.length
+      ? await this.prisma.getExecutionClient().crmAccount.findMany({
+          where: {
+            tenantId: input.tenantId,
+            id: {
+              in: profileMatchedAccountIds.filter(
+                (accountId) => !records.some((record) => record.id === accountId)
+              )
+            },
+            recordStatus: {
+              in: [CrmAccountRecordStatus.ACTIVE, CrmAccountRecordStatus.ARCHIVED]
+            }
+          }
+        })
+      : []
+    const profileMatchedFieldsByAccountId = new Map<string, string[]>()
+    for (const profileItem of profileItemMatches) {
+      const fields = profileMatchedFieldsByAccountId.get(profileItem.crmAccountId) ?? []
+      fields.push(`profileItems.${profileItem.itemType}`)
+      profileMatchedFieldsByAccountId.set(profileItem.crmAccountId, [...new Set(fields)])
+    }
+
+    return [...records, ...missingProfileMatchedRecords]
+      .map((record) =>
+        toDuplicateCandidate(record, input, profileMatchedFieldsByAccountId.get(record.id) ?? [])
+      )
+      .filter((candidate): candidate is CrmAccountDuplicateCandidate => candidate !== null)
+  }
+
+  /** findDuplicateProfileItemMatches finds account-level profile item values that match submitted lead evidence. */
+  private async findDuplicateProfileItemMatches(input: CrmDuplicateSearchInput): Promise<
+    Array<{
+      crmAccountId: string
+      itemType: string
+    }>
+  > {
+    const profileItems = input.profileItems ?? []
+    if (profileItems.length === 0) {
+      return []
+    }
+    const records = await (this.prisma.getExecutionClient() as any).crmAccountProfileItem.findMany({
+      where: {
+        tenantId: input.tenantId,
+        status: CrmAccountProfileItemStatus.ACTIVE,
+        OR: profileItems.map((profileItem) => ({
+          itemType: profileItem.itemType,
+          normalizedValue: profileItem.normalizedValue
+        }))
+      },
+      select: {
+        crmAccountId: true,
+        itemType: true
+      },
+      take: 100
+    })
 
     return records
-      .map((record) => toDuplicateCandidate(record, input))
-      .filter((candidate): candidate is CrmAccountDuplicateCandidate => candidate !== null)
   }
 
   /** assertFormalTenantPartyIsAvailable prevents two active formal CRM accounts from claiming one TenantParty. */
@@ -480,6 +624,7 @@ function toCrmAccountRecord(record: PrismaCrmAccountRow): CrmAccountRecord {
     lifecycleStage: record.lifecycleStage as CrmAccountLifecycleStage,
     partyTypeHint: record.partyTypeHint as CrmAccountTypeHint,
     displayName: record.displayName,
+    leadLegalName: record.leadLegalName,
     leadCompanyName: record.leadCompanyName,
     leadPersonName: record.leadPersonName,
     leadDomain: record.leadDomain,
@@ -514,6 +659,43 @@ function toCrmSourceRecord(record: PrismaCrmSourceRecordRow): CrmSourceRecord {
     rawPayload: record.rawPayload ? fromJson<Record<string, unknown>>(record.rawPayload) : null,
     note: record.note,
     isPrimary: record.isPrimary,
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt
+  }
+}
+
+/** toCrmAccountProfileItemRecord converts one Prisma profile item row into a CRM domain record. */
+function toCrmAccountProfileItemRecord(record: {
+  id: string
+  tenantId: string
+  crmAccountId: string
+  itemType: string
+  normalizedValue: string
+  rawValue: string
+  label: string | null
+  role: string | null
+  status: string
+  sourceRecordId: string | null
+  promotedTargetType: string | null
+  promotedTargetId: string | null
+  promotedAt: Date | null
+  createdAt: Date
+  updatedAt: Date
+}): CrmAccountProfileItemRecord {
+  return {
+    id: record.id,
+    tenantId: record.tenantId,
+    crmAccountId: record.crmAccountId,
+    itemType: record.itemType,
+    normalizedValue: record.normalizedValue,
+    rawValue: record.rawValue,
+    label: record.label,
+    role: record.role,
+    status: record.status,
+    sourceRecordId: record.sourceRecordId,
+    promotedTargetType: record.promotedTargetType,
+    promotedTargetId: record.promotedTargetId,
+    promotedAt: record.promotedAt,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt
   }
@@ -599,7 +781,8 @@ function isFormalLifecycleStage(stage: CrmAccountLifecycleStage): boolean {
 /** toDuplicateCandidate converts a matching account row into a duplicate candidate with matched evidence fields. */
 function toDuplicateCandidate(
   record: PrismaCrmAccountRow,
-  input: CrmDuplicateSearchInput
+  input: CrmDuplicateSearchInput,
+  matchedProfileItemFields: string[] = []
 ): CrmAccountDuplicateCandidate | null {
   const matchedFields: string[] = []
   const recordIdentifiers = fromJsonArray<CrmLeadIdentifierRecord>(record.leadIdentifiers)
@@ -619,6 +802,7 @@ function toDuplicateCandidate(
   if (hasMatchingLeadIdentifier(recordIdentifiers, input.leadIdentifiers ?? [])) {
     matchedFields.push('leadIdentifiers')
   }
+  matchedFields.push(...matchedProfileItemFields)
 
   if (matchedFields.length === 0) {
     return null

@@ -176,7 +176,7 @@ describe('browser activity audit workbench page', () => {
     expect(wrapper.text()).toContain('Domain 排名')
     expect(wrapper.text()).toContain('URL 排名')
     expect(wrapper.get('[data-testid="browser-activity-control-summary"]').text()).toContain('用户级范围')
-    expect(wrapper.get('[data-testid="browser-activity-period-segments"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="browser-activity-period-segments"]').exists()).toBe(true)
     expect(wrapper.text()).not.toContain('绩效')
     expect(wrapper.text()).not.toContain('摸鱼')
     expect(wrapper.text()).not.toContain('租户审计开关')
@@ -564,7 +564,7 @@ describe('browser activity audit workbench page', () => {
     expect(wrapper.find('[data-testid="browser-activity-time-trend-chart"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="browser-activity-domain-bar-chart"]').exists()).toBe(true)
     const domainBar = wrapper.get('.browser-monitor__domain-bar')
-    expect(domainBar.exists()).toBe(true)
+    expect(domainBar.classes()).toContain('browser-monitor__domain-bar')
     expect(domainBar.find('.browser-monitor__domain-bar-tip').text()).toContain('8s')
     expect(domainBar.find('.browser-monitor__domain-bar-tip').text()).toContain('3 次访问')
     expect(domainBar.find('.browser-monitor__domain-bar-slot > i').exists()).toBe(true)
@@ -611,7 +611,7 @@ describe('browser activity audit workbench page', () => {
     await flushPromises()
 
     expect(wrapper.find('.browser-monitor__donut-wrap').exists()).toBe(false)
-    expect(wrapper.get('[data-testid="browser-activity-url-share-chart"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="browser-activity-url-share-chart"]').exists()).toBe(true)
     expect(renderEcharts).toHaveBeenCalled()
     const chartOptions = renderEcharts.mock.calls.at(-1)?.[0]
     expect(chartOptions.legend.show).toBe(false)

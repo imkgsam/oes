@@ -28,7 +28,10 @@ export interface SubmitDraftLeadResult {
 /** SubmitDraftLeadHandler promotes drafts after formal duplicate checks while preserving source history. */
 @Injectable()
 @CommandHandler(SubmitDraftLeadCommand)
-export class SubmitDraftLeadHandler implements ICommandHandler<SubmitDraftLeadCommand, SubmitDraftLeadResult> {
+export class SubmitDraftLeadHandler implements ICommandHandler<
+  SubmitDraftLeadCommand,
+  SubmitDraftLeadResult
+> {
   constructor(
     @Inject(TOKENS.CRM_ACCOUNT_REPOSITORY)
     private readonly accountRepository: CrmAccountRepository,
@@ -37,19 +40,30 @@ export class SubmitDraftLeadHandler implements ICommandHandler<SubmitDraftLeadCo
 
   /** execute turns a draft into an active lead without duplicating existing source records. */
   async execute(command: SubmitDraftLeadCommand): Promise<SubmitDraftLeadResult> {
-    const account = await this.accountRepository.findAccountById(command.props.tenantId, command.props.crmAccountId)
+    const account = await this.accountRepository.findAccountById(
+      command.props.tenantId,
+      command.props.crmAccountId
+    )
     if (!account) {
       throw new NotFoundException('CrmAccount draft was not found')
     }
-    if (account.recordStatus !== CrmAccountRecordStatus.DRAFT || account.lifecycleStage !== CrmAccountLifecycleStage.LEAD) {
+    if (
+      account.recordStatus !== CrmAccountRecordStatus.DRAFT ||
+      account.lifecycleStage !== CrmAccountLifecycleStage.LEAD
+    ) {
       throw new BadRequestException('Only draft leads can be submitted')
     }
 
+    const profileItems = await this.accountRepository.listAccountProfileItems(
+      account.tenantId,
+      account.id
+    )
     const duplicateResult = await this.checkLeadDuplicateHandler.execute(
       new CheckLeadDuplicateQuery({
         tenantId: account.tenantId,
         operatorAccountId: command.props.operatorAccountId,
         displayName: account.displayName,
+        leadLegalName: account.leadLegalName,
         leadCompanyName: account.leadCompanyName,
         leadPersonName: account.leadPersonName,
         leadDomain: account.leadDomain,
@@ -57,7 +71,8 @@ export class SubmitDraftLeadHandler implements ICommandHandler<SubmitDraftLeadCo
         leadPhone: account.leadPhone,
         leadWhatsapp: account.leadWhatsapp,
         leadCountry: account.leadCountry,
-        leadIdentifiers: account.leadIdentifiers
+        leadIdentifiers: account.leadIdentifiers,
+        profileItems
       })
     )
     const blockedResult = toBlockedCreateResult(duplicateResult.resultType)
@@ -70,9 +85,14 @@ export class SubmitDraftLeadHandler implements ICommandHandler<SubmitDraftLeadCo
       }
     }
 
-    const existingSources = await this.accountRepository.listSourceRecords(account.tenantId, account.id)
+    const existingSources = await this.accountRepository.listSourceRecords(
+      account.tenantId,
+      account.id
+    )
     if (existingSources.length === 0 && command.props.source) {
-      await this.accountRepository.addSourceRecord(buildSourceRecord(account, command.props.source, command.props.operatorAccountId))
+      await this.accountRepository.addSourceRecord(
+        buildSourceRecord(account, command.props.source, command.props.operatorAccountId)
+      )
     } else if (existingSources.length === 0) {
       throw new BadRequestException('Submitting an active lead requires at least one source record')
     }
@@ -90,7 +110,7 @@ export class SubmitDraftLeadHandler implements ICommandHandler<SubmitDraftLeadCo
 
     return {
       resultType: CrmLeadCreateResultType.CREATED,
-      account: saved,
+      account: { ...saved, profileItems },
       duplicateResult
     }
   }
@@ -109,7 +129,9 @@ function resolveSubmittedLeadOwnerAccountId(
 }
 
 /** toBlockedCreateResult maps duplicate result states into submit result states. */
-function toBlockedCreateResult(resultType: CrmLeadDuplicateResultType): CrmLeadCreateResultType | null {
+function toBlockedCreateResult(
+  resultType: CrmLeadDuplicateResultType
+): CrmLeadCreateResultType | null {
   if (resultType === CrmLeadDuplicateResultType.CLAIMABLE_EXISTING) {
     return CrmLeadCreateResultType.BLOCKED_BY_CLAIMABLE_EXISTING
   }

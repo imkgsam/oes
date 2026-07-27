@@ -26,7 +26,7 @@ export class PartyRegistrationService {
     const legalName = this.normalizeRequiredName(input.legalName)
     const type = this.normalizeRequiredType(input.type)
     const identifiers = input.identifiers ?? []
-    const contactPoints = input.contactPoints ?? []
+    const profileItems = input.profileItems ?? []
     const idempotency = await this.resolveIdempotency(
       'REGISTER_TENANT_PARTY',
       {
@@ -37,7 +37,7 @@ export class PartyRegistrationService {
         displayName: input.displayName ?? '',
         localCode: input.localCode ?? '',
         identifiers,
-        contactPoints
+        profileItems
       },
       input.idempotencyKey
     )
@@ -61,7 +61,7 @@ export class PartyRegistrationService {
       localCode: input.localCode,
       registeredCountry: input.registeredCountry,
       identifiers,
-      contactPoints,
+      profileItems,
       idempotencyKey: input.idempotencyKey
     })
     return this.saveIdempotentResult(idempotency, { tenantParty, matchResult: 'CREATED' })

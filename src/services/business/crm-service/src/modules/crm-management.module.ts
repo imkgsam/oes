@@ -9,6 +9,7 @@ import { CreateLeadHandler } from '../application/commands/create-lead.handler'
 import { DeleteDraftLeadHandler } from '../application/commands/delete-draft-lead.handler'
 import { ReleaseCrmAccountHandler } from '../application/commands/release-crm-account.handler'
 import { SubmitDraftLeadHandler } from '../application/commands/submit-draft-lead.handler'
+import { UpdateCrmAccountIdentifiersHandler } from '../application/commands/update-crm-account-identifiers.handler'
 import { UpdateDraftLeadHandler } from '../application/commands/update-draft-lead.handler'
 import { CheckLeadDuplicateHandler } from '../application/queries/check-lead-duplicate.handler'
 import { CrmAuditService } from '../application/services/crm-audit.service'
@@ -29,6 +30,7 @@ import { CustomerManagementGrpcController } from '../interfaces/grpc/customer-ma
     DeleteDraftLeadHandler,
     ReleaseCrmAccountHandler,
     SubmitDraftLeadHandler,
+    UpdateCrmAccountIdentifiersHandler,
     UpdateDraftLeadHandler
   ],
   controllers: [CustomerManagementGrpcController]

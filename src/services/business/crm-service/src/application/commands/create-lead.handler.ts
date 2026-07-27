@@ -17,6 +17,7 @@ import {
   CheckLeadDuplicateResult
 } from '../queries/check-lead-duplicate.handler'
 import { CheckLeadDuplicateQuery } from '../queries/check-lead-duplicate.query'
+import { buildCrmAccountProfileItems } from '../support/account-profile-items'
 import { CreateLeadCommand } from './create-lead.command'
 
 export interface CreateLeadResult {
@@ -42,6 +43,7 @@ export class CreateLeadHandler implements ICommandHandler<CreateLeadCommand, Cre
         tenantId: command.props.tenantId,
         operatorAccountId: command.props.operatorAccountId,
         displayName: command.props.displayName,
+        leadLegalName: command.props.leadLegalName,
         leadCompanyName: command.props.leadCompanyName,
         leadPersonName: command.props.leadPersonName,
         leadDomain: command.props.leadDomain,
@@ -49,7 +51,8 @@ export class CreateLeadHandler implements ICommandHandler<CreateLeadCommand, Cre
         leadPhone: command.props.leadPhone,
         leadWhatsapp: command.props.leadWhatsapp,
         leadCountry: command.props.leadCountry,
-        leadIdentifiers: command.props.leadIdentifiers ?? []
+        leadIdentifiers: command.props.leadIdentifiers ?? [],
+        profileItems: command.props.profileItems ?? []
       })
     )
     const blockedResult = toBlockedCreateResult(duplicateResult.resultType)
@@ -76,6 +79,7 @@ export class CreateLeadHandler implements ICommandHandler<CreateLeadCommand, Cre
       lifecycleStage: CrmAccountLifecycleStage.LEAD,
       partyTypeHint: command.props.partyTypeHint,
       displayName: command.props.displayName,
+      leadLegalName: command.props.leadLegalName ?? null,
       leadCompanyName: command.props.leadCompanyName ?? null,
       leadPersonName: command.props.leadPersonName ?? null,
       leadDomain: command.props.leadDomain ?? null,
@@ -97,7 +101,8 @@ export class CreateLeadHandler implements ICommandHandler<CreateLeadCommand, Cre
       sourceType: command.props.source.sourceType,
       sourceName: command.props.source.sourceName ?? null,
       capturedAt: command.props.source.capturedAt ?? new Date(),
-      capturedByAccountId: command.props.source.capturedByAccountId ?? command.props.operatorAccountId,
+      capturedByAccountId:
+        command.props.source.capturedByAccountId ?? command.props.operatorAccountId,
       externalReference: command.props.source.externalReference ?? null,
       rawPayload: command.props.source.rawPayload ?? null,
       note: command.props.source.note ?? null,
@@ -106,10 +111,19 @@ export class CreateLeadHandler implements ICommandHandler<CreateLeadCommand, Cre
 
     const saved = await this.accountRepository.saveAccount(account)
     await this.accountRepository.addSourceRecord(source)
+    const profileItems = buildCrmAccountProfileItems({
+      tenantId: saved.tenantId,
+      crmAccountId: saved.id,
+      sourceRecordId: source.id,
+      profileItems: command.props.profileItems
+    })
+    for (const profileItem of profileItems) {
+      await this.accountRepository.addAccountProfileItem(profileItem)
+    }
 
     return {
       resultType: CrmLeadCreateResultType.CREATED,
-      account: saved,
+      account: { ...saved, profileItems },
       duplicateResult
     }
   }
@@ -132,7 +146,9 @@ function resolveLeadOwnerAccountId(
 }
 
 /** toBlockedCreateResult maps duplicate result states into create result states. */
-function toBlockedCreateResult(resultType: CrmLeadDuplicateResultType): CrmLeadCreateResultType | null {
+function toBlockedCreateResult(
+  resultType: CrmLeadDuplicateResultType
+): CrmLeadCreateResultType | null {
   if (resultType === CrmLeadDuplicateResultType.CLAIMABLE_EXISTING) {
     return CrmLeadCreateResultType.BLOCKED_BY_CLAIMABLE_EXISTING
   }

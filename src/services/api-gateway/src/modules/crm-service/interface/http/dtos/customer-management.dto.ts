@@ -9,6 +9,7 @@ import {
   IsObject,
   IsOptional,
   IsString,
+  ValidateNested,
   Max,
   Min
 } from 'class-validator'
@@ -27,6 +28,20 @@ const CRM_ARCHIVE_REASON_VALUES = [
   'OTHER'
 ] as const
 const CRM_LEAD_ASSIGNMENT_INTENT_VALUES = ['OWNED_BY_OPERATOR', 'POOL'] as const
+const CRM_ACCOUNT_PROFILE_ITEM_TYPE_VALUES = [
+  'DOMAIN',
+  'WEBSITE',
+  'EMAIL',
+  'PHONE',
+  'WHATSAPP',
+  'WECHAT',
+  'SOCIAL_PROFILE',
+  'MARKETPLACE_STORE',
+  'IDENTIFIER',
+  'ADDRESS',
+  'BRAND_NAME',
+  'COMPANY_NAME'
+] as const
 const CRM_PRIORITY_VALUES = ['A', 'B', 'C', 'D'] as const
 const CRM_SOURCE_TYPE_VALUES = [
   'WEBSITE_FORM',
@@ -63,6 +78,34 @@ export class CrmLeadIdentifierDto {
   @IsOptional()
   @IsString()
   issuerCountryOrRegion?: string
+}
+
+/** CrmAccountProfileItemDto defines one CRM account-level profile item submitted before formalization. */
+export class CrmAccountProfileItemDto {
+  @ApiProperty({ enum: CRM_ACCOUNT_PROFILE_ITEM_TYPE_VALUES })
+  @IsIn(CRM_ACCOUNT_PROFILE_ITEM_TYPE_VALUES)
+  @IsString()
+  itemType!: string
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  normalizedValue!: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  rawValue?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  label?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  role?: string
 }
 
 /** ListCrmAccountsDto defines the CRM P1 workspace account filters exposed through the BFF. */
@@ -135,6 +178,11 @@ export class CrmLeadDraftFieldsDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  leadLegalName?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   leadCompanyName?: string
 
   @ApiPropertyOptional()
@@ -172,6 +220,13 @@ export class CrmLeadDraftFieldsDto {
   @IsArray()
   leadIdentifiers?: CrmLeadIdentifierDto[]
 
+  @ApiPropertyOptional({ type: [CrmAccountProfileItemDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CrmAccountProfileItemDto)
+  profileItems?: CrmAccountProfileItemDto[]
+
   @ApiPropertyOptional({ enum: CRM_PRIORITY_VALUES })
   @IsOptional()
   @IsString()
@@ -181,6 +236,14 @@ export class CrmLeadDraftFieldsDto {
   @IsOptional()
   @IsString()
   nextFollowUpAt?: string
+}
+
+/** ConvertLeadToProspectCustomerDto carries formalization-only fields required before binding Party. */
+export class ConvertLeadToProspectCustomerDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  legalName!: string
 }
 
 /** CreateLeadDto defines the CRM P1 active lead creation payload accepted by tenant-web. */
@@ -279,6 +342,16 @@ export class CreateDraftLeadDto extends CrmLeadDraftFieldsDto {
 
 /** UpdateDraftLeadDto defines the fields that can be changed before draft submit. */
 export class UpdateDraftLeadDto extends CrmLeadDraftFieldsDto {}
+
+/** UpdateCrmAccountIdentifiersDto carries CRM-owned strong identifiers for eligible Lead or PC records. */
+export class UpdateCrmAccountIdentifiersDto {
+  @ApiPropertyOptional({ type: [CrmLeadIdentifierDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CrmLeadIdentifierDto)
+  leadIdentifiers?: CrmLeadIdentifierDto[]
+}
 
 /** SubmitDraftLeadDto defines optional submit behavior and fallback source evidence for draft leads. */
 export class SubmitDraftLeadDto {
@@ -391,4 +464,11 @@ export class CheckLeadDuplicateDto {
   @IsOptional()
   @IsArray()
   leadIdentifiers?: CrmLeadIdentifierDto[]
+
+  @ApiPropertyOptional({ type: [CrmAccountProfileItemDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CrmAccountProfileItemDto)
+  profileItems?: CrmAccountProfileItemDto[]
 }

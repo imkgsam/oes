@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { buildSiteAuditEnvelope } from '../../src/application/audit/site-audit-envelope'
 import {
   checkActiveLocaleCompleteness,
@@ -5,18 +7,39 @@ import {
 } from '../../src/domain/publication/locale-completeness'
 import {
   assertSlugAvailable,
+  normalizeSiteSlug,
+  siteSlugNamespaceForContentType,
   SiteSlugConflictError
 } from '../../src/domain/publication/site-slug-policy'
 import {
   buildBlogPublicView,
   buildCategoryPublicView,
   buildNewsPublicView,
+  buildArticleCategoryPublicView,
   buildProductPublicView
 } from '../../src/domain/public-view/public-view-builders'
+import {
+  assertContentCategoryReferencesValid,
+  ContentCategoryReferenceError
+} from '../../src/domain/publication/content-category-policy'
 import { createSyncBatchPlan } from '../../src/domain/sync/sync-batch-planner'
 import { issuePreviewToken, validatePreviewToken } from '../../src/domain/preview/preview-token'
 
 describe('site-service publication and sync L1', () => {
+  it('Content Category migration / converts historical runtime views and sync resources without rewriting opaque IDs', () => {
+    const migration = readFileSync(
+      join(__dirname, '../../prisma/migrations/202607170001_site_content_categories/migration.sql'),
+      'utf8'
+    )
+
+    expect(migration).toMatch(/UPDATE\s+"SitePublicView"[\s\S]*?"resourceType"\s*=\s*'article-category'/)
+    expect(migration).toMatch(/UPDATE\s+"SitePublicView"[\s\S]*?'\{category_ids\}'/)
+    expect(migration).toMatch(/FROM\s+"SiteContentCategory"/)
+    expect(migration).toMatch(/UPDATE\s+"SiteSyncResource"[\s\S]*?"resourceType"\s*=\s*'article-category'/)
+    expect(migration).toContain('stable opaque IDs')
+    expect(migration).toContain('SiteAuditEnvelope')
+  })
+
   it('Slug policy / rejects duplicate site resource locale slugs', () => {
     expect(() =>
       assertSlugAvailable(
@@ -59,6 +82,17 @@ describe('site-service publication and sync L1', () => {
         }
       )
     ).not.toThrow()
+  })
+
+  it('Dynamic slug policy / normalizes once and keeps Blog and News namespaces independent', () => {
+    expect(normalizeSiteSlug('  Launch-Note  ')).toBe('launch-note')
+    expect(siteSlugNamespaceForContentType('blog')).toBe('blog')
+    expect(siteSlugNamespaceForContentType('news')).toBe('news')
+    expect(() => normalizeSiteSlug('   ')).toThrow('slug is required')
+  })
+
+  it('Dynamic slug policy / folds Unicode compatibility-equivalent slugs into one key', () => {
+    expect(normalizeSiteSlug('  Ｌａｕｎｃｈ-Ｎｏｔｅ  ')).toBe('launch-note')
   })
 
   it('Locale completeness / checks active locales and ignores preparing locales', () => {
@@ -218,6 +252,7 @@ describe('site-service publication and sync L1', () => {
       bodyHtml: '<p onclick="x()">Hello<script>alert(1)</script></p>',
       summary: 'Short note',
       coverImage: null,
+      coverImageAlt: 'Launch note kiln inspection photo',
       author: 'OES Editorial',
       tags: ['launch'],
       seoTitle: 'Launch SEO',
@@ -237,8 +272,125 @@ describe('site-service publication and sync L1', () => {
 
     expect(blog.resource_type).toBe('blog')
     expect(blog.payload.body_html).toBe('<p>Hello</p>')
+    expect(blog.payload.cover_image_alt).toBe('Launch note kiln inspection photo')
     expect(news.resource_type).toBe('news')
     expect(news.payload.body_html).toBe('<p>Hello</p>')
+    expect(news.payload.cover_image_alt).toBe('Launch note kiln inspection photo')
+  })
+
+  it('Public view / builds category views with archive SEO and historical slugs', () => {
+    const view = buildArticleCategoryPublicView({
+      siteId: 'site_a',
+      categoryId: 'content_category_guides',
+      locale: 'en-US',
+      slug: 'how-to-guides',
+      displayName: 'How-to Guides',
+      archiveIntro: 'Practical installation and buying guides',
+      archiveLabel: 'Guides',
+      sortOrder: 20,
+      historicalSlugs: ['guides'],
+      seoTitle: 'How-to Guides',
+      seoDescription: 'Ceramic product guides',
+      seoImage: 'https://cdn.example/guides-og.jpg',
+      publishVersion: 6,
+      updatedAt: new Date('2026-06-15T08:00:00.000Z')
+    })
+
+    expect(view).toEqual({
+      site_id: 'site_a',
+      resource_type: 'article-category',
+      resource_id: 'content_category_guides',
+      locale: 'en-US',
+      slug: 'how-to-guides',
+      status: 'published',
+      publish_version: 6,
+      updated_at: '2026-06-15T08:00:00.000Z',
+      payload: {
+        content_category_id: 'content_category_guides',
+        display_name: 'How-to Guides',
+        archive_intro: 'Practical installation and buying guides',
+        archive_label: 'Guides',
+        sort_order: 20,
+        historical_slugs: ['guides'],
+        seo: {
+          title: 'How-to Guides',
+          description: 'Ceramic product guides',
+          image: 'https://cdn.example/guides-og.jpg'
+        }
+      }
+    })
+  })
+
+  it('Category policy / requires a non-deleted same-locale published revision', () => {
+    expect(() =>
+      assertContentCategoryReferencesValid({
+        contentType: 'blog',
+        targetLocale: 'en-US',
+        referencedCategoryIds: ['content_category_news'],
+        categories: [
+          {
+            categoryId: 'content_category_news',
+            localeVersions: [
+              {
+                locale: 'en-US',
+                slug: 'press',
+                displayName: 'Press',
+                lastPublishedRevision: 1
+              },
+              {
+                locale: 'zh-CN',
+                slug: 'xinwen',
+                displayName: '新闻',
+                seoTitle: '新闻',
+                seoDescription: '公司新闻'
+              }
+            ]
+          }
+        ]
+      })
+    ).not.toThrow()
+
+    expect(() =>
+      assertContentCategoryReferencesValid({
+        contentType: 'news',
+        targetLocale: 'zh-CN',
+        referencedCategoryIds: ['content_category_company'],
+        categories: [
+          {
+            categoryId: 'content_category_company',
+            localeVersions: [
+              {
+                locale: 'en-US',
+                slug: 'company',
+                displayName: 'Company',
+                lastPublishedRevision: 1
+              }
+            ]
+          }
+        ]
+      })
+    ).toThrow(ContentCategoryReferenceError)
+
+    expect(() =>
+      assertContentCategoryReferencesValid({
+        contentType: 'blog',
+        targetLocale: 'en-US',
+        referencedCategoryIds: ['content_category_guides'],
+        categories: [
+          {
+            categoryId: 'content_category_guides',
+            localeVersions: [
+              {
+                locale: 'en-US',
+                slug: 'guides',
+                displayName: 'Guides',
+                lastPublishedRevision: 1
+              }
+            ]
+          }
+        ]
+      })
+    ).not.toThrow()
   })
 
   it('Sync batch / skips empty pending changes and aggregates repeated resource changes', () => {
@@ -252,22 +404,33 @@ describe('site-service publication and sync L1', () => {
           resourceType: 'product',
           resourceId: 'product_a',
           locale: 'en-US',
-          changeType: 'update',
-          markedAt: new Date('2026-06-15T08:00:00.000Z')
+          changeType: 'unpublish',
+          markedAt: new Date('2026-06-15T08:00:00.000Z'),
+          syncRevision: 2
         },
         {
           resourceType: 'product',
           resourceId: 'product_a',
           locale: 'en-US',
-          changeType: 'unpublish',
-          markedAt: new Date('2026-06-15T08:05:00.000Z')
+          changeType: 'update',
+          markedAt: new Date('2026-06-15T08:00:00.000Z'),
+          syncRevision: 1
         },
         {
           resourceType: 'blog',
           resourceId: 'blog_a',
           locale: 'en-US',
           changeType: 'create',
-          markedAt: new Date('2026-06-15T08:06:00.000Z')
+          markedAt: new Date('2026-06-15T08:06:00.000Z'),
+          syncRevision: 3
+        },
+        {
+          resourceType: 'article-category',
+          resourceId: 'content_category_guides',
+          locale: 'en-US',
+          changeType: 'update',
+          markedAt: new Date('2026-06-15T08:07:00.000Z'),
+          syncRevision: 4
         }
       ]
     })
@@ -287,9 +450,16 @@ describe('site-service publication and sync L1', () => {
           resourceId: 'blog_a',
           locale: 'en-US',
           changeType: 'create'
+        },
+        {
+          resourceType: 'article-category',
+          resourceId: 'content_category_guides',
+          locale: 'en-US',
+          changeType: 'update'
         }
       ]
     })
+    expect(plan?.resources.map((resource) => resource.expectedRevision)).toEqual([2, 3, 4])
   })
 
   it('Preview token / issues a 15 minute token bound to site resource locale and operator', () => {

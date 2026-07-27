@@ -9,6 +9,7 @@ import {
   CrmSourceRecord
 } from '../../domain/models/crm-records'
 import { CrmAccountRepository } from '../../domain/repositories/crm-account.repository'
+import { buildCrmAccountProfileItems } from '../support/account-profile-items'
 import { normalizeLeadDomainEvidence } from '../support/lead-domain-normalization'
 import { CreateDraftLeadCommand } from './create-draft-lead.command'
 
@@ -38,6 +39,7 @@ export class CreateDraftLeadHandler implements ICommandHandler<
       lifecycleStage: CrmAccountLifecycleStage.LEAD,
       partyTypeHint: command.props.partyTypeHint,
       displayName: command.props.displayName,
+      leadLegalName: command.props.leadLegalName ?? null,
       leadCompanyName: command.props.leadCompanyName ?? null,
       leadPersonName: command.props.leadPersonName ?? null,
       leadDomain: normalizeLeadDomainEvidence(command.props.leadDomain),
@@ -55,13 +57,23 @@ export class CreateDraftLeadHandler implements ICommandHandler<
     }
 
     const saved = await this.accountRepository.saveAccount(account)
+    const sourceRecord = command.props.source
+      ? buildSourceRecord(saved, command.props.source, command.props.operatorAccountId)
+      : null
     if (command.props.source) {
-      await this.accountRepository.addSourceRecord(
-        buildSourceRecord(saved, command.props.source, command.props.operatorAccountId)
-      )
+      await this.accountRepository.addSourceRecord(sourceRecord as CrmSourceRecord)
+    }
+    const profileItems = buildCrmAccountProfileItems({
+      tenantId: saved.tenantId,
+      crmAccountId: saved.id,
+      sourceRecordId: sourceRecord?.id ?? null,
+      profileItems: command.props.profileItems
+    })
+    for (const profileItem of profileItems) {
+      await this.accountRepository.addAccountProfileItem(profileItem)
     }
 
-    return { account: saved }
+    return { account: { ...saved, profileItems } }
   }
 }
 

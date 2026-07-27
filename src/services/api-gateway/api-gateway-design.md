@@ -814,7 +814,7 @@ flowchart LR
 | `CORS_ORIGINS`                | `*`                     | CORS 允许的源       |
 | `GLOBAL_PREFIX`               | `api/v1`                | API 全局前缀        |
 | `THROTTLE_TTL`                | `60000`                 | 限流时间窗口 (ms)   |
-| `THROTTLE_LIMIT`              | `100`                   | 限流请求数          |
+| `THROTTLE_LIMIT`              | `200`                   | 限流请求数          |
 | `REQUEST_TIMEOUT_MS`          | `10000`                 | 请求超时 (ms)       |
 | `SWAGGER_ENABLED`             | `true`                  | 是否启用 Swagger    |
 | `AUTH_SERVICE_HOST`           | `localhost`             | Auth 服务地址       |

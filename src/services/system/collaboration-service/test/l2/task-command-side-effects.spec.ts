@@ -1,6 +1,5 @@
 import { TaskPriority } from '../../src/domain/value-objects/task.enums'
-import { LocalTaskAuditRepository } from '../../src/infrastructure/audit/local-task-audit.repository'
-import { LocalTaskEventPublisher } from '../../src/infrastructure/events/local-task-event.publisher'
+import { PrismaTaskCommandTransaction } from '../../src/infrastructure/prisma/prisma-task-command-transaction.repository'
 import { PrismaTaskRepository } from '../../src/infrastructure/repositories/prisma-task.repository'
 import { TaskCommandService } from '../../src/application/services/task-command.service'
 import {
@@ -20,8 +19,7 @@ describe('TaskCommandService side effects L2', () => {
     service = new TaskCommandService(
       new PrismaTaskRepository(prisma),
       { isActiveTenantAccount: jest.fn().mockResolvedValue(true) },
-      new LocalTaskAuditRepository(prisma),
-      new LocalTaskEventPublisher(prisma),
+      new PrismaTaskCommandTransaction(prisma),
       { canAssignTask: jest.fn().mockResolvedValue(true) }
     )
   })
@@ -41,7 +39,7 @@ describe('TaskCommandService side effects L2', () => {
     }
   })
 
-  it('persists audit and frozen task fact envelopes after creating an assigned task', async () => {
+  it('persists the assigned Task, audit, and immutable public outbox body in one local command transaction', async () => {
     const task = await service.createTask({
       tenantId: `${prefix}_tenant`,
       operatorAccountId: `${prefix}_creator`,
@@ -58,8 +56,8 @@ describe('TaskCommandService side effects L2', () => {
       where: { taskId: task.id },
       orderBy: { occurredAt: 'asc' }
     })
-    const events = await prisma.collaborationTaskEventEnvelope.findMany({
-      where: { taskId: task.id },
+    const outbox = await prisma.collaborationTaskOutbox.findMany({
+      where: { aggregateId: task.id },
       orderBy: { occurredAt: 'asc' }
     })
 
@@ -74,20 +72,27 @@ describe('TaskCommandService side effects L2', () => {
       traceId: `${prefix}_trace`,
       auditId: `${prefix}_audit`
     })
-    expect(events.map((event) => event.eventType)).toEqual(['TaskCreated', 'TaskAssigned'])
-    expect(events[0]).toMatchObject({
+    expect(outbox).toHaveLength(1)
+    expect(outbox[0]).toMatchObject({
+      eventType: 'collaboration.task.assigned',
+      eventVersion: 1,
+      ownerService: 'collaboration-service',
       tenantId: `${prefix}_tenant`,
-      actorAccountId: `${prefix}_creator`,
-      createdByAccountId: `${prefix}_creator`,
-      assigneeAccountId: `${prefix}_assignee`,
-      status: 'OPEN',
-      priority: 'HIGH',
-      titleSnapshot: `${prefix}_review supplier quote`,
-      traceId: `${prefix}_trace`
+      aggregateType: 'TASK',
+      aggregateId: task.id,
+      status: 'PENDING',
+      attemptCount: 0,
+      publishedAt: null
     })
-    expect(events[0].payload).toMatchObject({
-      eventType: 'TaskCreated',
-      dueAt: '2026-06-15T10:00:00.000Z'
+    expect(outbox[0].cloudEventBody).toMatchObject({
+      id: outbox[0].eventId,
+      type: 'collaboration.task.assigned',
+      subject: task.id,
+      oestenantid: `${prefix}_tenant`,
+      data: {
+        taskId: task.id,
+        dueAt: '2026-06-15T10:00:00.000Z'
+      }
     })
   })
 })

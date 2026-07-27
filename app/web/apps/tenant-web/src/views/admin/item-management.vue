@@ -7,24 +7,18 @@ import { useRouter } from 'vue-router'
 import { Page } from '@vben/common-ui'
 import { IconifyIcon } from '@vben/icons'
 
-import {
-  Button,
-  Card,
-  Empty,
-  Form,
-  Input,
-  Select,
-  SelectOption,
-  Tag
-} from 'ant-design-vue'
+import { Button, Card, Empty, Form, Input, Select, SelectOption, Tag } from 'ant-design-vue'
 
-import {
-  listManagedItemCategoriesApi,
-  listManagedItemModelsApi
-} from '#/api'
+import { listManagedItemCategoriesApi, listManagedItemModelsApi } from '#/api'
+import { $t } from '#/locales'
 import { useAuthContextStore } from '#/store/auth-context'
 
-const modelKindOptions: ItemManagementApi.ItemModelKind[] = ['PHYSICAL', 'SERVICE', 'DIGITAL', 'VIRTUAL']
+const modelKindOptions: ItemManagementApi.ItemModelKind[] = [
+  'PHYSICAL',
+  'SERVICE',
+  'DIGITAL',
+  'VIRTUAL'
+]
 const modelTypeOptions: ItemManagementApi.ItemModelType[] = [
   'FINISHED_PRODUCT',
   'SEMI_FINISHED_PRODUCT',
@@ -47,11 +41,63 @@ const capabilityOptions: ItemManagementApi.ItemCapabilityKey[] = [
   'packaged'
 ]
 
+const itemManagementFallbackMessages = {
+  activeItemModels: '启用 ItemModel',
+  allCategories: '全部分类',
+  allKinds: '全部性质',
+  allStatuses: '全部状态',
+  allTypes: '全部类型',
+  assemblable: '可装配',
+  createButton: '创建 ItemModel',
+  createCardDescription: '创建新的模型主数据',
+  createCardTitle: '新建 ItemModel',
+  currentFilter: '当前筛选',
+  emptyDescription: '暂无 ItemModel',
+  eyebrow: '主数据 / ItemModel',
+  inactive: '停用',
+  loading: '加载中',
+  modelKindDigital: '数字物料',
+  modelKindPhysical: '实物',
+  modelKindService: '服务',
+  modelKindVirtual: '虚拟',
+  modelTypeAccessory: '配件',
+  modelTypeFinishedProduct: '成品',
+  modelTypePackagingMaterial: '包装材料',
+  modelTypePart: '零件',
+  modelTypeRawMaterial: '原材料',
+  modelTypeSemiFinishedProduct: '半成品',
+  modelTypeService: '服务',
+  modelTypeSubAssembly: '子装配件',
+  modelTypeVirtualKit: '虚拟套装',
+  noCapabilities: '未配置默认能力',
+  noCategory: '未分类',
+  pageDescription: '以模型为主入口维护物料主数据，点击卡片进入详情。',
+  packable: '可包装',
+  packaged: '包装成品',
+  purchasable: '可采购',
+  reset: '重置',
+  search: '查询',
+  searchPlaceholder: '搜索模型编码 / 名称',
+  sellable: '可销售',
+  statusActive: '启用',
+  statusInactive: '停用',
+  stockable: '可库存',
+  title: 'ItemModel 管理',
+  transformable: '可转换',
+  manufacturable: '可制造'
+} as const
+
+type ItemManagementMessageKey = keyof typeof itemManagementFallbackMessages
+
 const authContextStore = useAuthContextStore()
 const router = useRouter()
 const activeTenantId = computed(() => authContextStore.sessionContext?.tenant?.tenantId ?? '')
-const canCreateItemModel = computed(() => authContextStore.actionCodes.includes('item_master.item_model.create'))
-const canListItemModels = computed(() => authContextStore.actionCodes.includes('item_master.item_model.list'))
+const canCreateItemModel = computed(() =>
+  authContextStore.actionCodes.includes('item_master.item_model.create')
+)
+const canListItemModels = computed(() =>
+  authContextStore.actionCodes.includes('item_master.item_model.list')
+)
 
 const itemModels = ref<ItemManagementApi.ItemModelRecord[]>([])
 const itemCategories = ref<ItemManagementApi.ItemCategoryNode[]>([])
@@ -64,11 +110,24 @@ const filters = reactive({
   status: 'ACTIVE' as '' | ItemManagementApi.ItemStatus
 })
 
-const activeModelCount = computed(() => itemModels.value.filter((model) => model.status === 'ACTIVE').length)
+const activeModelCount = computed(
+  () => itemModels.value.filter((model) => model.status === 'ACTIVE').length
+)
+
+/** t resolves ItemModel list locale keys while keeping Chinese as the stable default. */
+function t(key: ItemManagementMessageKey) {
+  const path = `page.itemManagement.list.${key}`
+  const translated = $t(path)
+  return translated && translated !== path ? translated : itemManagementFallbackMessages[key]
+}
 
 /** getCapabilityLabels returns enabled ItemModel default capability chips. */
-function getCapabilityLabels(record: { capabilities?: Partial<ItemManagementApi.ItemCapabilities> }) {
-  return capabilityOptions.filter((capability) => record.capabilities?.[capability])
+function getCapabilityLabels(record: {
+  capabilities?: Partial<ItemManagementApi.ItemCapabilities>
+}) {
+  return capabilityOptions
+    .filter((capability) => record.capabilities?.[capability])
+    .map((capability) => ({ key: capability, label: t(capability as ItemManagementMessageKey) }))
 }
 
 /** getStatusColor maps active/archive state to Ant Design Vue tag colors. */
@@ -76,8 +135,49 @@ function getStatusColor(status: string) {
   return status === 'ACTIVE' ? 'green' : 'default'
 }
 
+/** getStatusLabel localizes the active/archive state displayed on model blocks. */
+function getStatusLabel(status: string) {
+  if (status === 'ACTIVE') return t('statusActive')
+  if (status === 'INACTIVE') return t('statusInactive')
+  return status
+}
+
+/** modelKindLabel renders ItemModel kind options without changing filter enum values. */
+function modelKindLabel(kind: ItemManagementApi.ItemModelKind | string) {
+  const labels: Record<ItemManagementApi.ItemModelKind, ItemManagementMessageKey> = {
+    DIGITAL: 'modelKindDigital',
+    PHYSICAL: 'modelKindPhysical',
+    SERVICE: 'modelKindService',
+    VIRTUAL: 'modelKindVirtual'
+  }
+  return labels[kind as ItemManagementApi.ItemModelKind]
+    ? t(labels[kind as ItemManagementApi.ItemModelKind])
+    : kind
+}
+
+/** modelTypeLabel renders ItemModel type options without changing filter enum values. */
+function modelTypeLabel(type: ItemManagementApi.ItemModelType | string) {
+  const labels: Record<ItemManagementApi.ItemModelType, ItemManagementMessageKey> = {
+    ACCESSORY: 'modelTypeAccessory',
+    FINISHED_PRODUCT: 'modelTypeFinishedProduct',
+    PACKAGING_MATERIAL: 'modelTypePackagingMaterial',
+    PART: 'modelTypePart',
+    RAW_MATERIAL: 'modelTypeRawMaterial',
+    SEMI_FINISHED_PRODUCT: 'modelTypeSemiFinishedProduct',
+    SERVICE: 'modelTypeService',
+    SUB_ASSEMBLY: 'modelTypeSubAssembly',
+    VIRTUAL_KIT: 'modelTypeVirtualKit'
+  }
+  return labels[type as ItemManagementApi.ItemModelType]
+    ? t(labels[type as ItemManagementApi.ItemModelType])
+    : type
+}
+
 /** loadCategoryBranch recursively flattens ItemCategory tree layers for selectors. */
-async function loadCategoryBranch(parentCategoryId?: string, bucket: ItemManagementApi.ItemCategoryNode[] = []) {
+async function loadCategoryBranch(
+  parentCategoryId?: string,
+  bucket: ItemManagementApi.ItemCategoryNode[] = []
+) {
   const result = await listManagedItemCategoriesApi(activeTenantId.value, {
     parentCategoryId
   })
@@ -170,9 +270,9 @@ onMounted(() => {
     <section class="item-model-page">
       <header class="item-model-page__header">
         <div>
-          <div class="item-model-page__eyebrow">主数据 / ItemModel</div>
-          <h1>ItemModel 管理</h1>
-          <p>以模型为主入口维护物料主数据，点击卡片进入详情。</p>
+          <div class="item-model-page__eyebrow">{{ t('eyebrow') }}</div>
+          <h1>{{ t('title') }}</h1>
+          <p>{{ t('pageDescription') }}</p>
         </div>
         <Button
           v-if="canCreateItemModel"
@@ -180,17 +280,17 @@ onMounted(() => {
           type="primary"
           @click="openItemModelCreate"
         >
-          创建 ItemModel
+          {{ t('createButton') }}
         </Button>
       </header>
 
       <div class="item-model-page__summary">
         <div>
-          <span>当前筛选</span>
+          <span>{{ t('currentFilter') }}</span>
           <strong>{{ itemModels.length }}</strong>
         </div>
         <div>
-          <span>Active ItemModel</span>
+          <span>{{ t('activeItemModels') }}</span>
           <strong>{{ activeModelCount }}</strong>
         </div>
       </div>
@@ -202,25 +302,29 @@ onMounted(() => {
               <Input
                 v-model:value="filters.keyword"
                 data-testid="item-model-filter-keyword"
-                placeholder="搜索 Model Code / Name"
+                :placeholder="t('searchPlaceholder')"
                 @press-enter="applyFilters"
               />
             </Form.Item>
             <Form.Item>
               <Select v-model:value="filters.modelKind" data-testid="item-model-filter-kind">
-                <SelectOption value="">全部 Kind</SelectOption>
-                <SelectOption v-for="kind in modelKindOptions" :key="kind" :value="kind">{{ kind }}</SelectOption>
+                <SelectOption value="">{{ t('allKinds') }}</SelectOption>
+                <SelectOption v-for="kind in modelKindOptions" :key="kind" :value="kind">{{
+                  modelKindLabel(kind)
+                }}</SelectOption>
               </Select>
             </Form.Item>
             <Form.Item>
               <Select v-model:value="filters.modelType" data-testid="item-model-filter-type">
-                <SelectOption value="">全部 Type</SelectOption>
-                <SelectOption v-for="type in modelTypeOptions" :key="type" :value="type">{{ type }}</SelectOption>
+                <SelectOption value="">{{ t('allTypes') }}</SelectOption>
+                <SelectOption v-for="type in modelTypeOptions" :key="type" :value="type">{{
+                  modelTypeLabel(type)
+                }}</SelectOption>
               </Select>
             </Form.Item>
             <Form.Item>
               <Select v-model:value="filters.categoryId" data-testid="item-model-filter-category">
-                <SelectOption value="">全部分类</SelectOption>
+                <SelectOption value="">{{ t('allCategories') }}</SelectOption>
                 <SelectOption
                   v-for="category in itemCategories"
                   :key="category.categoryId"
@@ -232,16 +336,23 @@ onMounted(() => {
             </Form.Item>
             <Form.Item>
               <Select v-model:value="filters.status" data-testid="item-model-filter-status">
-                <SelectOption value="">全部状态</SelectOption>
-                <SelectOption value="ACTIVE">ACTIVE</SelectOption>
-                <SelectOption value="INACTIVE">INACTIVE</SelectOption>
+                <SelectOption value="">{{ t('allStatuses') }}</SelectOption>
+                <SelectOption value="ACTIVE">{{ t('statusActive') }}</SelectOption>
+                <SelectOption value="INACTIVE">{{ t('statusInactive') }}</SelectOption>
               </Select>
             </Form.Item>
             <div class="item-model-page__filter-actions">
-              <Button data-testid="item-model-filter-search" type="primary" :loading="loading" @click="applyFilters">
-                查询
+              <Button
+                data-testid="item-model-filter-search"
+                type="primary"
+                :loading="loading"
+                @click="applyFilters"
+              >
+                {{ t('search') }}
               </Button>
-              <Button data-testid="item-model-filter-reset" @click="resetFilters">重置</Button>
+              <Button data-testid="item-model-filter-reset" @click="resetFilters">{{
+                t('reset')
+              }}</Button>
             </div>
           </div>
         </Form>
@@ -262,8 +373,8 @@ onMounted(() => {
           <span class="item-model-page__create-icon">
             <IconifyIcon icon="ant-design:plus-outlined" />
           </span>
-          <strong>新建 ItemModel</strong>
-          <span>创建新的模型主数据</span>
+          <strong>{{ t('createCardTitle') }}</strong>
+          <span>{{ t('createCardDescription') }}</span>
         </button>
         <button
           v-for="model in itemModels"
@@ -278,22 +389,26 @@ onMounted(() => {
               <div class="item-model-page__model-code">{{ model.modelCode }}</div>
               <div class="item-model-page__model-name">{{ model.modelName }}</div>
             </div>
-            <Tag :color="getStatusColor(model.status)">{{ model.status }}</Tag>
+            <Tag :color="getStatusColor(model.status)">{{ getStatusLabel(model.status) }}</Tag>
           </div>
           <div class="item-model-page__block-meta">
-            <span>{{ model.modelKind }}</span>
-            <span>{{ model.modelType }}</span>
-            <span>{{ model.primaryCategorySummary?.categoryCode ?? '未分类' }}</span>
+            <span>{{ modelKindLabel(model.modelKind) }}</span>
+            <span>{{ modelTypeLabel(model.modelType) }}</span>
+            <span>{{ model.primaryCategorySummary?.categoryCode ?? t('noCategory') }}</span>
           </div>
           <div class="item-model-page__capabilities">
-            <Tag v-for="capability in getCapabilityLabels(model)" :key="capability">{{ capability }}</Tag>
-            <span v-if="!getCapabilityLabels(model).length" class="item-model-page__muted">未配置默认能力</span>
+            <Tag v-for="capability in getCapabilityLabels(model)" :key="capability.key">{{
+              capability.label
+            }}</Tag>
+            <span v-if="!getCapabilityLabels(model).length" class="item-model-page__muted">{{
+              t('noCapabilities')
+            }}</span>
           </div>
         </button>
       </section>
 
       <Card v-else class="item-model-page__empty-card">
-        <Empty :description="loading ? '加载中' : '暂无 ItemModel'" />
+        <Empty :description="loading ? t('loading') : t('emptyDescription')" />
       </Card>
     </section>
   </Page>

@@ -11,6 +11,8 @@ import {
   CheckLocaleCompletenessResponse,
   CreateSiteContentRequest,
   CreateSiteContentResponse,
+  CreateContentCategoryRequest,
+  CreateContentCategoryResponse,
   CreateSiteCategoryRequest,
   CreateSiteCategoryResponse,
   CreateSiteRequest,
@@ -19,12 +21,26 @@ import {
   DisableLocaleResponse,
   DisableSiteRequest,
   DisableSiteResponse,
+  PublishContentCategoryLocaleRequest,
+  PublishContentCategoryLocaleResponse,
+  ReorderContentCategoriesRequest,
+  ReorderContentCategoriesResponse,
+  DeleteContentCategoryRequest,
+  DeleteContentCategoryResponse,
+  ListVisibleContentCategoriesRequest,
+  ListVisibleContentCategoriesResponse,
+  CheckContentCategoryCompletenessRequest,
+  CheckContentCategoryCompletenessResponse,
+  ListContentCategoryUsageRequest,
+  ListContentCategoryUsageResponse,
   GenerateSiteCredentialRequest,
   GenerateSiteCredentialResponse,
   GetPendingSyncSummaryRequest,
   GetPendingSyncSummaryResponse,
   GetSiteContentRequest,
   GetSiteContentResponse,
+  GetContentCategoryRequest,
+  GetContentCategoryResponse,
   GetSiteProductPublicationRequest,
   GetSiteProductPublicationResponse,
   GetSyncDetailRequest,
@@ -43,8 +59,12 @@ import {
   ListSiteCredentialsResponse,
   ListSiteContentsRequest,
   ListSiteContentsResponse,
+  ListContentCategoriesRequest,
+  ListContentCategoriesResponse,
   ListSiteProductsRequest,
   ListSiteProductsResponse,
+  ListSitePagesRequest,
+  ListSitePagesResponse,
   ListSyncHistoryRequest,
   ListSyncHistoryResponse,
   ResendWebhookRequest,
@@ -69,12 +89,17 @@ import {
   UnpublishSiteProductResponse,
   UpdateSiteContentLocaleVersionRequest,
   UpdateSiteContentLocaleVersionResponse,
+  UpdateContentCategoryLocaleVersionRequest,
+  UpdateContentCategoryLocaleVersionResponse,
   UpdateSiteCategoryRequest,
   UpdateSiteCategoryResponse,
   UpdateSiteProductPublicationRequest,
   UpdateSiteProductPublicationResponse,
   UpdateSiteSettingsRequest,
-  UpdateSiteSettingsResponse
+  UpdateSiteSettingsResponse,
+  UpdateSitePageGovernanceRequest,
+  UpdateSitePageGovernanceResponse
+  , ListFaqCategoriesRequest, ListFaqCategoriesResponse, GetFaqCategoryRequest, GetFaqCategoryResponse, CreateFaqCategoryRequest, CreateFaqCategoryResponse, UpdateFaqCategoryLocaleVersionRequest, UpdateFaqCategoryLocaleVersionResponse, DisableFaqCategoryRequest, DisableFaqCategoryResponse, ListFaqEntriesRequest, ListFaqEntriesResponse, GetFaqEntryRequest, GetFaqEntryResponse, CreateFaqEntryRequest, CreateFaqEntryResponse, UpdateFaqEntryLocaleVersionRequest, UpdateFaqEntryLocaleVersionResponse, UnpublishFaqEntryRequest, UnpublishFaqEntryResponse, CheckFaqCompletenessRequest, CheckFaqCompletenessResponse
 } from '@oes/common/generated/site_service'
 
 export interface SiteAdminApplicationPort {
@@ -86,6 +111,8 @@ export interface SiteAdminApplicationPort {
   checkLocaleCompleteness(request: CheckLocaleCompletenessRequest): Promise<CheckLocaleCompletenessResponse>
   activateLocale(request: ActivateLocaleRequest): Promise<ActivateLocaleResponse>
   disableLocale(request: DisableLocaleRequest): Promise<DisableLocaleResponse>
+  listSitePages(request: ListSitePagesRequest): Promise<ListSitePagesResponse>
+  updateSitePageGovernance(request: UpdateSitePageGovernanceRequest): Promise<UpdateSitePageGovernanceResponse>
   listSiteCategories(request: ListSiteCategoriesRequest): Promise<ListSiteCategoriesResponse>
   createSiteCategory(request: CreateSiteCategoryRequest): Promise<CreateSiteCategoryResponse>
   updateSiteCategory(request: UpdateSiteCategoryRequest): Promise<UpdateSiteCategoryResponse>
@@ -101,6 +128,16 @@ export interface SiteAdminApplicationPort {
   createSiteContent(request: CreateSiteContentRequest): Promise<CreateSiteContentResponse>
   updateSiteContentLocaleVersion(request: UpdateSiteContentLocaleVersionRequest): Promise<UpdateSiteContentLocaleVersionResponse>
   unpublishSiteContent(request: UnpublishSiteContentRequest): Promise<UnpublishSiteContentResponse>
+  listContentCategories(request: ListContentCategoriesRequest): Promise<ListContentCategoriesResponse>
+  getContentCategory(request: GetContentCategoryRequest): Promise<GetContentCategoryResponse>
+  createContentCategory(request: CreateContentCategoryRequest): Promise<CreateContentCategoryResponse>
+  updateContentCategoryLocaleVersion(request: UpdateContentCategoryLocaleVersionRequest): Promise<UpdateContentCategoryLocaleVersionResponse>
+  publishContentCategoryLocale(request: PublishContentCategoryLocaleRequest): Promise<PublishContentCategoryLocaleResponse>
+  reorderContentCategories(request: ReorderContentCategoriesRequest): Promise<ReorderContentCategoriesResponse>
+  deleteContentCategory(request: DeleteContentCategoryRequest): Promise<DeleteContentCategoryResponse>
+  listVisibleContentCategories(request: ListVisibleContentCategoriesRequest): Promise<ListVisibleContentCategoriesResponse>
+  checkContentCategoryCompleteness(request: CheckContentCategoryCompletenessRequest): Promise<CheckContentCategoryCompletenessResponse>
+  listContentCategoryUsage(request: ListContentCategoryUsageRequest): Promise<ListContentCategoryUsageResponse>
   getPendingSyncSummary(request: GetPendingSyncSummaryRequest): Promise<GetPendingSyncSummaryResponse>
   listPendingSyncResources(request: ListPendingSyncResourcesRequest): Promise<ListPendingSyncResourcesResponse>
   listSyncHistory(request: ListSyncHistoryRequest): Promise<ListSyncHistoryResponse>
@@ -114,6 +151,17 @@ export interface SiteAdminApplicationPort {
   revokeSiteCredential(request: RevokeSiteCredentialRequest): Promise<RevokeSiteCredentialResponse>
   listSiteAuditLogs(request: ListSiteAuditLogsRequest): Promise<ListSiteAuditLogsResponse>
   issuePreviewToken(request: IssuePreviewTokenRequest): Promise<IssuePreviewTokenResponse>
+  listFaqCategories(request: ListFaqCategoriesRequest): Promise<ListFaqCategoriesResponse>
+  getFaqCategory(request: GetFaqCategoryRequest): Promise<GetFaqCategoryResponse>
+  createFaqCategory(request: CreateFaqCategoryRequest): Promise<CreateFaqCategoryResponse>
+  updateFaqCategoryLocaleVersion(request: UpdateFaqCategoryLocaleVersionRequest): Promise<UpdateFaqCategoryLocaleVersionResponse>
+  disableFaqCategory(request: DisableFaqCategoryRequest): Promise<DisableFaqCategoryResponse>
+  listFaqEntries(request: ListFaqEntriesRequest): Promise<ListFaqEntriesResponse>
+  getFaqEntry(request: GetFaqEntryRequest): Promise<GetFaqEntryResponse>
+  createFaqEntry(request: CreateFaqEntryRequest): Promise<CreateFaqEntryResponse>
+  updateFaqEntryLocaleVersion(request: UpdateFaqEntryLocaleVersionRequest): Promise<UpdateFaqEntryLocaleVersionResponse>
+  unpublishFaqEntry(request: UnpublishFaqEntryRequest): Promise<UnpublishFaqEntryResponse>
+  checkFaqCompleteness(request: CheckFaqCompletenessRequest): Promise<CheckFaqCompletenessResponse>
 }
 
 export const SITE_ADMIN_APPLICATION = Symbol('SITE_ADMIN_APPLICATION')
@@ -127,6 +175,29 @@ export class SiteAdminGrpcController implements SiteAdminManagementServiceContro
     @Inject(SITE_ADMIN_APPLICATION)
     private readonly application: SiteAdminApplicationPort
   ) {}
+
+  /** listFaqCategories forwards FAQ administration reads to the owning application boundary. */
+  listFaqCategories(request: ListFaqCategoriesRequest): Promise<ListFaqCategoriesResponse> { return this.application.listFaqCategories(request) }
+  /** getFaqCategory forwards a scoped FAQ Category read. */
+  getFaqCategory(request: GetFaqCategoryRequest): Promise<GetFaqCategoryResponse> { return this.application.getFaqCategory(request) }
+  /** createFaqCategory forwards one FAQ Category command. */
+  createFaqCategory(request: CreateFaqCategoryRequest): Promise<CreateFaqCategoryResponse> { return this.application.createFaqCategory(request) }
+  /** updateFaqCategoryLocaleVersion forwards locale-scoped FAQ Category editing. */
+  updateFaqCategoryLocaleVersion(request: UpdateFaqCategoryLocaleVersionRequest): Promise<UpdateFaqCategoryLocaleVersionResponse> { return this.application.updateFaqCategoryLocaleVersion(request) }
+  /** disableFaqCategory forwards the protected Category lifecycle command. */
+  disableFaqCategory(request: DisableFaqCategoryRequest): Promise<DisableFaqCategoryResponse> { return this.application.disableFaqCategory(request) }
+  /** listFaqEntries forwards FAQ Entry reads. */
+  listFaqEntries(request: ListFaqEntriesRequest): Promise<ListFaqEntriesResponse> { return this.application.listFaqEntries(request) }
+  /** getFaqEntry forwards one scoped FAQ Entry read. */
+  getFaqEntry(request: GetFaqEntryRequest): Promise<GetFaqEntryResponse> { return this.application.getFaqEntry(request) }
+  /** createFaqEntry forwards one Entry creation command. */
+  createFaqEntry(request: CreateFaqEntryRequest): Promise<CreateFaqEntryResponse> { return this.application.createFaqEntry(request) }
+  /** updateFaqEntryLocaleVersion forwards locale-scoped FAQ Entry editing. */
+  updateFaqEntryLocaleVersion(request: UpdateFaqEntryLocaleVersionRequest): Promise<UpdateFaqEntryLocaleVersionResponse> { return this.application.updateFaqEntryLocaleVersion(request) }
+  /** unpublishFaqEntry forwards FAQ Entry publication withdrawal. */
+  unpublishFaqEntry(request: UnpublishFaqEntryRequest): Promise<UnpublishFaqEntryResponse> { return this.application.unpublishFaqEntry(request) }
+  /** checkFaqCompleteness forwards per-locale FAQ preflight validation. */
+  checkFaqCompleteness(request: CheckFaqCompletenessRequest): Promise<CheckFaqCompletenessResponse> { return this.application.checkFaqCompleteness(request) }
 
   listSiteCards(request: ListSiteCardsRequest): Promise<ListSiteCardsResponse> {
     return this.application.listSiteCards(request)
@@ -158,6 +229,14 @@ export class SiteAdminGrpcController implements SiteAdminManagementServiceContro
 
   disableLocale(request: DisableLocaleRequest): Promise<DisableLocaleResponse> {
     return this.application.disableLocale(request)
+  }
+
+  listSitePages(request: ListSitePagesRequest): Promise<ListSitePagesResponse> {
+    return this.application.listSitePages(request)
+  }
+
+  updateSitePageGovernance(request: UpdateSitePageGovernanceRequest): Promise<UpdateSitePageGovernanceResponse> {
+    return this.application.updateSitePageGovernance(request)
   }
 
   listSiteCategories(request: ListSiteCategoriesRequest): Promise<ListSiteCategoriesResponse> {
@@ -219,6 +298,37 @@ export class SiteAdminGrpcController implements SiteAdminManagementServiceContro
   unpublishSiteContent(request: UnpublishSiteContentRequest): Promise<UnpublishSiteContentResponse> {
     return this.application.unpublishSiteContent(request)
   }
+
+  listContentCategories(request: ListContentCategoriesRequest): Promise<ListContentCategoriesResponse> {
+    return this.application.listContentCategories(request)
+  }
+
+  getContentCategory(request: GetContentCategoryRequest): Promise<GetContentCategoryResponse> {
+    return this.application.getContentCategory(request)
+  }
+
+  createContentCategory(request: CreateContentCategoryRequest): Promise<CreateContentCategoryResponse> {
+    return this.application.createContentCategory(request)
+  }
+
+  updateContentCategoryLocaleVersion(
+    request: UpdateContentCategoryLocaleVersionRequest
+  ): Promise<UpdateContentCategoryLocaleVersionResponse> {
+    return this.application.updateContentCategoryLocaleVersion(request)
+  }
+
+  /** publishContentCategoryLocale forwards explicit locale publication approval. */
+  publishContentCategoryLocale(request: PublishContentCategoryLocaleRequest): Promise<PublishContentCategoryLocaleResponse> { return this.application.publishContentCategoryLocale(request) }
+  /** reorderContentCategories forwards the complete global Category ordering command. */
+  reorderContentCategories(request: ReorderContentCategoriesRequest): Promise<ReorderContentCategoriesResponse> { return this.application.reorderContentCategories(request) }
+  /** deleteContentCategory forwards protected delete and tombstone semantics. */
+  deleteContentCategory(request: DeleteContentCategoryRequest): Promise<DeleteContentCategoryResponse> { return this.application.deleteContentCategory(request) }
+  /** listVisibleContentCategories forwards usage-derived public eligibility reads. */
+  listVisibleContentCategories(request: ListVisibleContentCategoriesRequest): Promise<ListVisibleContentCategoriesResponse> { return this.application.listVisibleContentCategories(request) }
+  /** checkContentCategoryCompleteness forwards locale publication readiness diagnostics. */
+  checkContentCategoryCompleteness(request: CheckContentCategoryCompletenessRequest): Promise<CheckContentCategoryCompletenessResponse> { return this.application.checkContentCategoryCompleteness(request) }
+  /** listContentCategoryUsage forwards published and draft Article reference projections. */
+  listContentCategoryUsage(request: ListContentCategoryUsageRequest): Promise<ListContentCategoryUsageResponse> { return this.application.listContentCategoryUsage(request) }
 
   getPendingSyncSummary(request: GetPendingSyncSummaryRequest): Promise<GetPendingSyncSummaryResponse> {
     return this.application.getPendingSyncSummary(request)

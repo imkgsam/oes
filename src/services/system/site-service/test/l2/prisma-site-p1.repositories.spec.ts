@@ -31,6 +31,32 @@ describe('Prisma site-service P1 repositories L2', () => {
     }
   })
 
+  it('preserves immutable N output when N+1 overwrites the current public projection', async () => {
+    const tenantId = `${prefix}_tenant`; const siteId = randomUUID(); const resourceId = `${prefix}_faq`
+    await repository.createSiteWithDefaultLocale({ siteId, tenantId, siteCode: `${prefix}_site`, siteName: `${prefix} Site`, siteType: 'brand', defaultLocale: 'en-US', primaryDomain: null, previewBaseUrl: null, createdBy: `${prefix}_operator` })
+    await repository.upsertPublicView({ siteId, tenantId, resourceType: 'faq', resourceId, locale: 'en-US', slug: '', status: 'published', publishVersion: 1, payload: { revision: 'N' }, updatedAt: new Date('2026-07-25T01:00:00.000Z') })
+    await repository.createSyncBatch({ syncId: randomUUID(), siteId, tenantId, publishVersion: 1, status: 'completed', triggeredBy: `${prefix}_operator`, resources: [{ resourceType: 'faq', resourceId, locale: 'en-US', changeType: 'create' }] })
+    await repository.upsertPublicView({ siteId, tenantId, resourceType: 'faq', resourceId, locale: 'en-US', slug: '', status: 'published', publishVersion: 2, payload: { revision: 'N+1' }, updatedAt: new Date('2026-07-25T02:00:00.000Z') })
+    await repository.createSyncBatch({ syncId: randomUUID(), siteId, tenantId, publishVersion: 2, status: 'completed', triggeredBy: `${prefix}_operator`, resources: [{ resourceType: 'faq', resourceId, locale: 'en-US', changeType: 'update' }] })
+    await expect(repository.getCommittedSyncTarget({ siteId, targetPublishVersion: 1 })).resolves.toEqual({ latestPublishVersion: 2, committed: true })
+    await expect(repository.batchGetPublicViewsForRuntime({ siteId, targetPublishVersion: 1, resources: [{ resourceType: 'faq', resourceId, locale: 'en-US' }] })).resolves.toMatchObject({ serverPublishVersion: 1, publicViews: [expect.objectContaining({ publishVersion: 1, payload: { revision: 'N' } })] })
+    await expect(repository.getSnapshotForRuntime({ siteId, targetPublishVersion: 1, pageSize: 1 })).resolves.toMatchObject({ snapshotPublishVersion: 1, publicViews: [expect.objectContaining({ publishVersion: 1, payload: { revision: 'N' } })] })
+  })
+
+  it('persists a locale FAQ directory as one pending resource and withdraws it without locale fallback', async () => {
+    const tenantId = `${prefix}_tenant`; const siteId = randomUUID(); const categoryId = `${prefix}_faq_category`; const entryId = `${prefix}_faq_entry`
+    await repository.createSiteWithDefaultLocale({ siteId, tenantId, siteCode: `${prefix}_faq_site`, siteName: `${prefix} FAQ`, siteType: 'brand', defaultLocale: 'en-US', primaryDomain: null, previewBaseUrl: null, createdBy: `${prefix}_operator` })
+    await repository.createFaqCategory({ categoryId, siteId, tenantId })
+    await repository.updateFaqCategoryLocaleVersion({ categoryVersionId: randomUUID(), categoryId, siteId, locale: 'en-US', title: 'Care', anchorKey: 'care', sortOrder: 1 })
+    await repository.createFaqEntry({ entryId, siteId, tenantId, categoryId })
+    await repository.updateFaqEntryLocaleVersion({ entryVersionId: randomUUID(), entryId, siteId, locale: 'en-US', question: 'How?', answerHtml: '<p>Carefully</p>', sortOrder: 1 })
+    await expect(repository.listPendingSyncResources(siteId)).resolves.toEqual(expect.arrayContaining([expect.objectContaining({ resourceType: 'faq', resourceId: `${siteId}:faq-directory`, locale: 'en-US' })]))
+    await expect(repository.getFaqDirectoryForPublicView({ siteId, locale: 'en-US' })).resolves.toEqual([expect.objectContaining({ anchorKey: 'care', entries: [expect.objectContaining({ entryId })] })])
+    await repository.unpublishFaqEntry({ siteId, entryId, locale: 'en-US' })
+    await expect(repository.getFaqDirectoryForPublicView({ siteId, locale: 'fr-FR' })).resolves.toBeNull()
+    await repository.disableFaqCategory({ siteId, categoryId })
+  })
+
   it('Site P1 persistence / stores site, locale, credential, publication, content, public view, sync, and audit facts', async () => {
     const tenantId = `${prefix}_tenant`
     const siteId = randomUUID()
@@ -120,7 +146,7 @@ describe('Prisma site-service P1 repositories L2', () => {
       summary: 'Short note',
       coverImage: null,
       author: 'OES Editorial',
-      tags: ['launch'],
+      categoryIds: [],
       seoTitle: 'Launch SEO',
       seoDescription: 'Launch page',
       seoImage: null,
@@ -399,7 +425,7 @@ describe('Prisma site-service P1 repositories L2', () => {
       summary: null,
       coverImage: null,
       author: null,
-      tags: [],
+      categoryIds: [],
       seoTitle: 'Note FR',
       seoDescription: 'French note',
       seoImage: null,

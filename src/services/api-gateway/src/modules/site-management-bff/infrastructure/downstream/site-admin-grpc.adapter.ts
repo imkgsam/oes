@@ -3,17 +3,20 @@ import { ClientGrpc } from '@nestjs/microservices'
 import { GRPC_METADATA_PROPAGATION_FACTORY, GrpcMetadataPropagationFactory } from '@oes/common/authorization'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import {
+  CreateSiteContentRequest,
   CreateSiteRequest,
-  IssuePreviewTokenRequest,
   GenerateSiteCredentialRequest,
+  IssuePreviewTokenRequest,
   ListSiteCardsRequest,
+  ListSitePagesRequest,
   RevokeSiteCredentialRequest,
   RotateSiteCredentialRequest,
   SITE_ADMIN_MANAGEMENT_SERVICE_NAME,
   SiteAdminManagementServiceClient,
   SyncAllPendingChangesRequest,
-  CreateSiteContentRequest,
+  UpdateSitePageGovernanceRequest,
   UpdateSiteContentLocaleVersionRequest
+  , ListFaqCategoriesRequest, GetFaqCategoryRequest, CreateFaqCategoryRequest, UpdateFaqCategoryLocaleVersionRequest, DisableFaqCategoryRequest, ListFaqEntriesRequest, GetFaqEntryRequest, CreateFaqEntryRequest, UpdateFaqEntryLocaleVersionRequest, UnpublishFaqEntryRequest, CheckFaqCompletenessRequest
 } from '@oes/common/generated/site_service'
 import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
 import {
@@ -104,6 +107,27 @@ export class SiteAdminGrpcAdapter implements SiteManagementDownstream, OnModuleI
   /** disableLocale forwards locale disable commands to site-service. */
   disableLocale(input: any, source: DownstreamRequestSource) {
     return this.call('disableLocale', this.siteAdmin.disableLocale(input, this.metadata(source)))
+  }
+
+  /** listSitePages forwards discovery/governance reads to site-service. */
+  listSitePages(input: any, source: DownstreamRequestSource) {
+    const request: ListSitePagesRequest = {
+      context: input.context,
+      siteId: input.siteId
+    }
+    return this.call('listSitePages', this.siteAdmin.listSitePages(request, this.metadata(source)))
+  }
+
+  /** updateSitePageGovernance forwards page-wide governance intent to site-service. */
+  updateSitePageGovernance(input: any, source: DownstreamRequestSource) {
+    const request: UpdateSitePageGovernanceRequest = {
+      context: input.context,
+      siteId: input.siteId,
+      pageKey: input.pageKey,
+      enabled: input.enabled === true,
+      indexable: input.indexable === true
+    }
+    return this.call('updateSitePageGovernance', this.siteAdmin.updateSitePageGovernance(request, this.metadata(source)))
   }
 
   /** listSiteCategories forwards category projection reads to site-service. */
@@ -246,6 +270,65 @@ export class SiteAdminGrpcAdapter implements SiteManagementDownstream, OnModuleI
   unpublishSiteContent(input: any, source: DownstreamRequestSource) {
     return this.call('unpublishSiteContent', this.siteAdmin.unpublishSiteContent(input, this.metadata(source)))
   }
+
+  /** listContentCategories forwards Blog/News Category reads to site-service. */
+  listContentCategories(input: any, source: DownstreamRequestSource) {
+    return this.call('listContentCategories', this.siteAdmin.listContentCategories(input, this.metadata(source)))
+  }
+
+  /** getContentCategory forwards one Blog/News Category read to site-service. */
+  getContentCategory(input: any, source: DownstreamRequestSource) {
+    return this.call('getContentCategory', this.siteAdmin.getContentCategory(input, this.metadata(source)))
+  }
+
+  /** createContentCategory forwards Category creation commands to site-service. */
+  createContentCategory(input: any, source: DownstreamRequestSource) {
+    return this.call('createContentCategory', this.siteAdmin.createContentCategory(input, this.metadata(source)))
+  }
+
+  /** updateContentCategoryLocaleVersion forwards Category locale draft saves to site-service. */
+  updateContentCategoryLocaleVersion(input: any, source: DownstreamRequestSource) {
+    return this.call(
+      'updateContentCategoryLocaleVersion',
+      this.siteAdmin.updateContentCategoryLocaleVersion(input, this.metadata(source))
+    )
+  }
+
+  /** publishContentCategoryLocale forwards explicit locale publication approval. */
+  publishContentCategoryLocale(input: any, source: DownstreamRequestSource) { return this.call('publishContentCategoryLocale', this.siteAdmin.publishContentCategoryLocale(input, this.metadata(source))) }
+  /** reorderContentCategories forwards a complete global neutral rank sequence. */
+  reorderContentCategories(input: any, source: DownstreamRequestSource) { return this.call('reorderContentCategories', this.siteAdmin.reorderContentCategories(input, this.metadata(source))) }
+  /** deleteContentCategory forwards protected deletion and tombstone semantics. */
+  deleteContentCategory(input: any, source: DownstreamRequestSource) { return this.call('deleteContentCategory', this.siteAdmin.deleteContentCategory(input, this.metadata(source))) }
+  /** listVisibleContentCategories forwards usage-derived eligibility reads. */
+  listVisibleContentCategories(input: any, source: DownstreamRequestSource) { return this.call('listVisibleContentCategories', this.siteAdmin.listVisibleContentCategories(input, this.metadata(source))) }
+  /** checkContentCategoryCompleteness forwards locale publication readiness. */
+  checkContentCategoryCompleteness(input: any, source: DownstreamRequestSource) { return this.call('checkContentCategoryCompleteness', this.siteAdmin.checkContentCategoryCompleteness(input, this.metadata(source))) }
+  /** listContentCategoryUsage forwards Article usage projections. */
+  listContentCategoryUsage(input: any, source: DownstreamRequestSource) { return this.call('listContentCategoryUsage', this.siteAdmin.listContentCategoryUsage(input, this.metadata(source))) }
+
+  /** listFaqCategories forwards a typed FAQ Category list request. */
+  listFaqCategories(input: ListFaqCategoriesRequest, source: DownstreamRequestSource) { return this.call('listFaqCategories', this.siteAdmin.listFaqCategories(input, this.metadata(source))) }
+  /** getFaqCategory forwards a typed FAQ Category detail request. */
+  getFaqCategory(input: GetFaqCategoryRequest, source: DownstreamRequestSource) { return this.call('getFaqCategory', this.siteAdmin.getFaqCategory(input, this.metadata(source))) }
+  /** createFaqCategory forwards flat FAQ Category creation. */
+  createFaqCategory(input: CreateFaqCategoryRequest, source: DownstreamRequestSource) { return this.call('createFaqCategory', this.siteAdmin.createFaqCategory(input, this.metadata(source))) }
+  /** updateFaqCategoryLocaleVersion forwards typed Category locale content. */
+  updateFaqCategoryLocaleVersion(input: UpdateFaqCategoryLocaleVersionRequest, source: DownstreamRequestSource) { return this.call('updateFaqCategoryLocaleVersion', this.siteAdmin.updateFaqCategoryLocaleVersion(input, this.metadata(source))) }
+  /** disableFaqCategory forwards lifecycle validation to Site Service. */
+  disableFaqCategory(input: DisableFaqCategoryRequest, source: DownstreamRequestSource) { return this.call('disableFaqCategory', this.siteAdmin.disableFaqCategory(input, this.metadata(source))) }
+  /** listFaqEntries forwards an optional Category/locale filter. */
+  listFaqEntries(input: ListFaqEntriesRequest, source: DownstreamRequestSource) { return this.call('listFaqEntries', this.siteAdmin.listFaqEntries(input, this.metadata(source))) }
+  /** getFaqEntry forwards a typed Entry detail request. */
+  getFaqEntry(input: GetFaqEntryRequest, source: DownstreamRequestSource) { return this.call('getFaqEntry', this.siteAdmin.getFaqEntry(input, this.metadata(source))) }
+  /** createFaqEntry forwards one-Category Entry creation. */
+  createFaqEntry(input: CreateFaqEntryRequest, source: DownstreamRequestSource) { return this.call('createFaqEntry', this.siteAdmin.createFaqEntry(input, this.metadata(source))) }
+  /** updateFaqEntryLocaleVersion forwards typed Entry locale content. */
+  updateFaqEntryLocaleVersion(input: UpdateFaqEntryLocaleVersionRequest, source: DownstreamRequestSource) { return this.call('updateFaqEntryLocaleVersion', this.siteAdmin.updateFaqEntryLocaleVersion(input, this.metadata(source))) }
+  /** unpublishFaqEntry forwards one locale withdrawal. */
+  unpublishFaqEntry(input: UnpublishFaqEntryRequest, source: DownstreamRequestSource) { return this.call('unpublishFaqEntry', this.siteAdmin.unpublishFaqEntry(input, this.metadata(source))) }
+  /** checkFaqCompleteness forwards per-locale publication preflight. */
+  checkFaqCompleteness(input: CheckFaqCompletenessRequest, source: DownstreamRequestSource) { return this.call('checkFaqCompleteness', this.siteAdmin.checkFaqCompleteness(input, this.metadata(source))) }
 
   /** listSiteAuditLogs forwards site audit queries to site-service. */
   listSiteAuditLogs(input: any, source: DownstreamRequestSource) {

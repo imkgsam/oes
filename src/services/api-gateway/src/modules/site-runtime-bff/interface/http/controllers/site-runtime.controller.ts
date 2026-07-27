@@ -26,6 +26,20 @@ export class SiteRuntimeController {
     )
   }
 
+  /** registerPageCapabilities accepts the complete Storefront page manifest on the signed site-facing path. */
+  @Public()
+  @Post('capabilities/pages:register')
+  @ApiOperation({ summary: 'Register Storefront page capabilities' })
+  registerPageCapabilities(
+    @Headers() signedHeaders: Record<string, string>,
+    @Body() body: Record<string, unknown>,
+    @Req() requestOrRawBody?: Request | Buffer
+  ) {
+    return this.service.registerPageCapabilities(
+      buildSignedRequest('POST', '/api/v1/site/capabilities/pages:register', signedHeaders, body, requestOrRawBody)
+    )
+  }
+
   /** listChangedResources lets a signed runtime fetch the aggregated delta resource list. */
   @Public()
   @Post('sync/changed-resources')

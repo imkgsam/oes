@@ -1,5 +1,8 @@
 import {
   CrmAccountLifecycleStage,
+  CrmAccountProfileItemRecord,
+  CrmAccountProfileItemStatus,
+  CrmAccountProfileItemType,
   CrmAccountRecord,
   CrmAccountRecordStatus,
   CrmAccountTypeHint,
@@ -56,6 +59,18 @@ const primarySource: CrmSourceRecord = {
   isPrimary: true
 }
 
+const accountProfileItem: CrmAccountProfileItemRecord = {
+  id: 'profile-item-1',
+  tenantId: 'tenant-1',
+  crmAccountId: 'crm-account-1',
+  itemType: CrmAccountProfileItemType.DOMAIN,
+  normalizedValue: 'northline.example',
+  rawValue: 'https://northline.example',
+  label: 'official site',
+  role: 'official',
+  status: CrmAccountProfileItemStatus.ACTIVE
+}
+
 /** FakeCrmAccountRepository supports P1 query tests with deterministic account data. */
 class FakeCrmAccountRepository implements CrmAccountRepository {
   readonly listInputs: ListCrmAccountsInput[] = []
@@ -94,7 +109,27 @@ class FakeCrmAccountRepository implements CrmAccountRepository {
       : []
   }
 
-  async findDuplicateCandidates(_input: CrmDuplicateSearchInput): Promise<CrmAccountDuplicateCandidate[]> {
+  async listAccountProfileItems(tenantId: string, accountId: string) {
+    return tenantId === accountProfileItem.tenantId && accountId === accountProfileItem.crmAccountId
+      ? [accountProfileItem]
+      : []
+  }
+
+  async addAccountProfileItem(profileItem: any): Promise<any> {
+    return profileItem
+  }
+
+  async replaceAccountProfileItems(): Promise<any[]> {
+    return []
+  }
+
+  async deleteDraftAccount(): Promise<boolean> {
+    return false
+  }
+
+  async findDuplicateCandidates(
+    _input: CrmDuplicateSearchInput
+  ): Promise<CrmAccountDuplicateCandidate[]> {
     return []
   }
 }
@@ -128,7 +163,7 @@ describe('CRM P1 query use cases L1', () => {
       }
     ])
     expect(result).toEqual({
-      crmAccounts: [leadAccount],
+      crmAccounts: [{ ...leadAccount, profileItems: [accountProfileItem] }],
       total: 1,
       page: 2,
       pageSize: 10
@@ -142,7 +177,7 @@ describe('CRM P1 query use cases L1', () => {
     await expect(
       handler.execute(new GetCrmAccountQuery('tenant-1', 'crm-account-1'))
     ).resolves.toEqual({
-      crmAccount: leadAccount
+      crmAccount: { ...leadAccount, profileItems: [accountProfileItem] }
     })
     await expect(
       handler.execute(new GetCrmAccountQuery('tenant-2', 'crm-account-1'))

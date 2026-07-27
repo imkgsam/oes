@@ -35,12 +35,14 @@ export class PartyRegistrationGrpcController implements PartyRegistrationService
           rawValue: identifier.rawValue ?? '',
           issuerCountryOrRegion: identifier.issuerCountryOrRegion ?? undefined
         })) ?? [],
-      contactPoints:
-        request.contactPoints?.map((contactPoint) => ({
-          contactPointType: (contactPoint.contactPointType ?? '') as never,
-          normalizedValue: contactPoint.normalizedValue ?? '',
-          rawValue: contactPoint.rawValue ?? '',
-          label: contactPoint.label ?? undefined
+      profileItems:
+        request.profileItems?.map((profileItem) => ({
+          itemType: (profileItem.itemType ?? '') as never,
+          normalizedValue: profileItem.normalizedValue ?? '',
+          rawValue: profileItem.rawValue ?? '',
+          label: profileItem.label ?? undefined,
+          role: profileItem.role ?? undefined,
+          status: profileItem.status ?? undefined
         })) ?? [],
       idempotencyKey: request.idempotencyKey ?? undefined
     })

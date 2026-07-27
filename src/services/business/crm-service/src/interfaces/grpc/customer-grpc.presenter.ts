@@ -5,6 +5,7 @@ import {
   CreateDraftLeadResponse,
   CreateLeadResponse,
   CrmAccountP1,
+  CrmAccountProfileItem as GrpcCrmAccountProfileItem,
   CrmDuplicateCandidate,
   CrmLeadDuplicateResult,
   CrmPartyCandidate,
@@ -15,6 +16,7 @@ import {
   ListSourceRecordsResponse,
   ReleaseCrmAccountResponse,
   SubmitDraftLeadResponse,
+  UpdateCrmAccountIdentifiersResponse,
   UpdateDraftLeadResponse
 } from '@oes/common/generated/crm_service'
 import {
@@ -31,6 +33,7 @@ import { CreateLeadResult } from '../../application/commands/create-lead.handler
 import { DeleteDraftLeadResult } from '../../application/commands/delete-draft-lead.handler'
 import { ReleaseCrmAccountResult } from '../../application/commands/release-crm-account.handler'
 import { SubmitDraftLeadResult } from '../../application/commands/submit-draft-lead.handler'
+import { UpdateCrmAccountIdentifiersResult } from '../../application/commands/update-crm-account-identifiers.handler'
 import { UpdateDraftLeadResult } from '../../application/commands/update-draft-lead.handler'
 import { GetCrmAccountResult } from '../../application/queries/get-crm-account.handler'
 import { ListCrmAccountsResult } from '../../application/queries/list-crm-accounts.handler'
@@ -49,6 +52,7 @@ export class CustomerGrpcPresenter {
       lifecycleStage: account.lifecycleStage,
       partyTypeHint: account.partyTypeHint,
       displayName: account.displayName,
+      leadLegalName: account.leadLegalName ?? '',
       leadCompanyName: account.leadCompanyName ?? '',
       leadPersonName: account.leadPersonName ?? '',
       leadDomain: account.leadDomain ?? '',
@@ -70,7 +74,8 @@ export class CustomerGrpcPresenter {
       createdAt: toIsoString(account.createdAt),
       updatedAt: toIsoString(account.updatedAt),
       archivedAt: toIsoString(account.archivedAt),
-      archiveReason: account.archiveReason ?? ''
+      archiveReason: account.archiveReason ?? '',
+      profileItems: (account.profileItems ?? []).map(toCrmAccountProfileItem)
     }
   }
 
@@ -93,13 +98,15 @@ export class CustomerGrpcPresenter {
     return {
       resultType: result.resultType,
       crmAccount: result.account ? this.toCrmAccountP1(result.account) : undefined,
-      candidates: result.candidates.map((candidate): CrmPartyCandidate => ({
-        tenantPartyId: candidate.tenantPartyId,
-        displayName: candidate.displayName,
-        confidence: candidate.confidence,
-        matchedFields: candidate.matchedFields,
-        conflictFlags: candidate.conflictFlags
-      })),
+      candidates: result.candidates.map(
+        (candidate): CrmPartyCandidate => ({
+          tenantPartyId: candidate.tenantPartyId,
+          displayName: candidate.displayName,
+          confidence: candidate.confidence,
+          matchedFields: candidate.matchedFields,
+          conflictFlags: candidate.conflictFlags
+        })
+      ),
       existingCrmAccountId: result.existingCrmAccountId ?? ''
     }
   }
@@ -113,6 +120,15 @@ export class CustomerGrpcPresenter {
 
   /** toUpdateDraftLeadResponse renders one updated draft lead. */
   static toUpdateDraftLeadResponse(result: UpdateDraftLeadResult): UpdateDraftLeadResponse {
+    return {
+      crmAccount: this.toCrmAccountP1(result.account)
+    }
+  }
+
+  /** toUpdateCrmAccountIdentifiersResponse renders one CRM strong identifier update result. */
+  static toUpdateCrmAccountIdentifiersResponse(
+    result: UpdateCrmAccountIdentifiersResult
+  ): UpdateCrmAccountIdentifiersResponse {
     return {
       crmAccount: this.toCrmAccountP1(result.account)
     }
@@ -195,6 +211,27 @@ function toCrmDuplicateCandidate(candidate: CrmAccountDuplicateCandidate): CrmDu
     lifecycleStage: candidate.lifecycleStage,
     matchedFields: candidate.matchedFields,
     confidence: candidate.confidence
+  }
+}
+
+/** toCrmAccountProfileItem renders one account-owned profile item into the gRPC response shape. */
+function toCrmAccountProfileItem(
+  profileItem: NonNullable<CrmAccountRecord['profileItems']>[number]
+): GrpcCrmAccountProfileItem {
+  return {
+    profileItemId: profileItem.id,
+    itemType: profileItem.itemType,
+    normalizedValue: profileItem.normalizedValue,
+    rawValue: profileItem.rawValue,
+    label: profileItem.label ?? '',
+    role: profileItem.role ?? '',
+    status: profileItem.status,
+    sourceRecordId: profileItem.sourceRecordId ?? '',
+    promotedTargetType: profileItem.promotedTargetType ?? '',
+    promotedTargetId: profileItem.promotedTargetId ?? '',
+    promotedAt: toIsoString(profileItem.promotedAt),
+    createdAt: toIsoString(profileItem.createdAt),
+    updatedAt: toIsoString(profileItem.updatedAt)
   }
 }
 

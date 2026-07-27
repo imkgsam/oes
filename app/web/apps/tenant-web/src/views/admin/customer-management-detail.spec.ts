@@ -12,6 +12,7 @@ const deleteDraftLeadApi = vi.fn()
 const getCrmAccountApi = vi.fn()
 const listCrmSourceRecordsApi = vi.fn()
 const submitDraftLeadApi = vi.fn()
+const updateCrmAccountIdentifiersApi = vi.fn()
 const routerPush = vi.fn()
 
 const authContextState: any = {
@@ -40,7 +41,8 @@ vi.mock('#/api', () => ({
   deleteDraftLeadApi,
   getCrmAccountApi,
   listCrmSourceRecordsApi,
-  submitDraftLeadApi
+  submitDraftLeadApi,
+  updateCrmAccountIdentifiersApi
 }))
 
 vi.mock('#/store/auth-context', () => ({
@@ -72,6 +74,14 @@ vi.mock('@vben/icons', () => ({
   }
 }))
 
+vi.mock('@vben/preferences', () => ({
+  preferences: {
+    app: {
+      locale: 'zh-CN'
+    }
+  }
+}))
+
 vi.mock('#/components/collaboration-panel/NotesTab.vue', () => ({
   default: {
     name: 'NotesTab',
@@ -87,6 +97,15 @@ async function clickDetailDropdownAction(wrapper: any, actionTestId: string) {
   const action = document.querySelector(`[data-testid="${actionTestId}"]`) as HTMLElement | null
   expect(action).toBeTruthy()
   action!.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+  await flushPromises()
+}
+
+// Updates Ant Design dialog inputs rendered in the detail page test DOM.
+async function setDocumentInputValue(testId: string, value: string) {
+  const input = document.querySelector(`[data-testid="${testId}"]`) as HTMLInputElement | null
+  expect(input).toBeTruthy()
+  input!.value = value
+  input!.dispatchEvent(new Event('input', { bubbles: true }))
   await flushPromises()
 }
 
@@ -110,6 +129,7 @@ describe('customer management CRM account detail page', () => {
     listCrmSourceRecordsApi.mockReset()
     routerPush.mockReset()
     submitDraftLeadApi.mockReset()
+    updateCrmAccountIdentifiersApi.mockReset()
     authContextState.actionCodes = [
       'crm.account.claim',
       'crm.account.convert',
@@ -154,6 +174,20 @@ describe('customer management CRM account detail page', () => {
       candidates: [],
       existingCrmAccountId: ''
     })
+    updateCrmAccountIdentifiersApi.mockResolvedValue(
+      buildCrmAccount({
+        leadIdentifiers: [
+          {
+            identifierType: 'VAT_NO',
+            issuerCountryOrRegion: 'US',
+            normalizedValue: 'US-91-4432102',
+            rawValue: '91-4432102'
+          }
+        ],
+        lifecycleStage: 'PROSPECT_CUSTOMER',
+        tenantPartyId: 'tenant-party-1'
+      })
+    )
   })
 
   it('loads CRM account detail from the route param and returns to the account workspace', async () => {
@@ -165,6 +199,8 @@ describe('customer management CRM account detail page', () => {
     expect(getCrmAccountApi).toHaveBeenCalledWith('tenant-1', 'crm-account-1')
     expect(listCrmSourceRecordsApi).toHaveBeenCalledWith('tenant-1', 'crm-account-1')
     expect(wrapper.text()).toContain('Northline Bathworks')
+    expect(wrapper.text()).toContain('northline.example / northline.us')
+    expect(wrapper.text()).toContain('sourcing@northline.example / orders@northline.us')
     expect(wrapper.text()).toContain('陈双鹏')
     expect(wrapper.text()).not.toContain('刷新')
 
@@ -267,9 +303,107 @@ describe('customer management CRM account detail page', () => {
     await flushPromises()
     await wrapper.get('[data-testid="crm-account-detail-convert"]').trigger('click')
     await flushPromises()
+    await setDocumentInputValue('crm-account-detail-convert-legal-name', 'Northline Bathworks LLC')
+    ;(document.querySelector('[data-testid="crm-account-detail-convert-submit"]') as HTMLButtonElement).click()
+    await flushPromises()
 
-    expect(convertLeadToProspectCustomerApi).toHaveBeenCalledWith('tenant-1', 'crm-account-1')
+    expect(convertLeadToProspectCustomerApi).toHaveBeenCalledWith('tenant-1', 'crm-account-1', {
+      legalName: 'Northline Bathworks LLC'
+    })
     expect(wrapper.text()).toContain('潜在客户')
+  })
+
+  it('renders identifier-bound Prospect Customer identifiers as locked read-only facts', async () => {
+    getCrmAccountApi.mockResolvedValueOnce(
+      buildCrmAccount({
+        leadIdentifiers: [
+          {
+            identifierType: 'VAT_NO',
+            issuerCountryOrRegion: 'US',
+            normalizedValue: 'US-91-4432102',
+            rawValue: '91-4432102'
+          }
+        ],
+        lifecycleStage: 'PROSPECT_CUSTOMER',
+        tenantPartyId: 'tenant-party-1'
+      })
+    )
+    const page = (await import('./customer-management-detail.vue')).default
+    const wrapper = mount(page, { attachTo: document.body })
+
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="crm-account-identifier-lock"]').text()).toContain('已锁定')
+    expect(wrapper.text()).toContain('US / VAT No / US-91-4432102')
+    expect(wrapper.find('[data-testid="crm-account-identifiers-edit"]').exists()).toBe(false)
+  })
+
+  it('allows adding country-specific official identity rows on a Prospect Customer that is not identifier-locked', async () => {
+    getCrmAccountApi.mockResolvedValueOnce(
+      buildCrmAccount({
+        leadIdentifiers: [],
+        lifecycleStage: 'PROSPECT_CUSTOMER',
+        tenantPartyId: 'tenant-party-1'
+      })
+    )
+    updateCrmAccountIdentifiersApi.mockResolvedValueOnce(
+      buildCrmAccount({
+        leadIdentifiers: [
+          {
+            identifierType: 'TAX_ID',
+            issuerCountryOrRegion: 'US',
+            normalizedValue: 'US-91-4432102',
+            rawValue: 'US-91-4432102'
+          }
+        ],
+        lifecycleStage: 'PROSPECT_CUSTOMER',
+        tenantPartyId: 'tenant-party-1'
+      })
+    )
+    const page = (await import('./customer-management-detail.vue')).default
+    const wrapper = mount(page, { attachTo: document.body })
+
+    await flushPromises()
+    await wrapper.get('[data-testid="crm-account-identifiers-edit"]').trigger('click')
+    await flushPromises()
+
+    expect(document.body.textContent).toContain('编辑登记/证件')
+    expect(document.body.textContent).not.toContain('Identifier')
+
+    ;(document.querySelector('[data-testid="crm-identifier-add"]') as HTMLButtonElement).click()
+    await flushPromises()
+    expect(wrapper.findAllComponents({ name: 'CountryRegionSelect' })).toHaveLength(1)
+    expect((wrapper.findComponent('[data-testid="crm-identifier-type-0"]') as any).props('value')).toBe('')
+
+    const value = document.querySelector('[data-testid="crm-identifier-value-0"]') as HTMLInputElement
+    ;(wrapper.findComponent('[data-testid="crm-identifier-country-0"]') as any).vm.$emit('update:value', 'US')
+    await flushPromises()
+    const usIdentifierLabels = (
+      (wrapper.findComponent('[data-testid="crm-identifier-type-0"]') as any).props('options') as Array<{
+        label: string
+      }>
+    ).map((option) => option.label)
+    expect(usIdentifierLabels).toContain('EIN')
+    expect(usIdentifierLabels).not.toContain('VAT No')
+    ;(wrapper.findComponent('[data-testid="crm-identifier-type-0"]') as any).vm.$emit('update:value', 'TAX_ID')
+    value.value = 'US-91-4432102'
+    value.dispatchEvent(new Event('input', { bubbles: true }))
+    await flushPromises()
+
+    ;(document.querySelector('[data-testid="crm-account-identifiers-save"]') as HTMLButtonElement).click()
+    await flushPromises()
+
+    expect(updateCrmAccountIdentifiersApi).toHaveBeenCalledWith('tenant-1', 'crm-account-1', {
+      leadIdentifiers: [
+        {
+          identifierType: 'TAX_ID',
+          issuerCountryOrRegion: 'US',
+          normalizedValue: 'US-91-4432102',
+          rawValue: 'US-91-4432102'
+        }
+      ]
+    })
+    expect(wrapper.text()).toContain('US / EIN / US-91-4432102')
   })
 
   it('allows claiming ownerless Pool records from the detail page', async () => {
@@ -378,6 +512,7 @@ function buildCrmAccount(overrides: Record<string, unknown> = {}) {
     lifecycleStage: 'LEAD',
     partyTypeHint: 'ORGANIZATION',
     displayName: 'Northline Bathworks',
+    leadLegalName: 'Northline Bathworks LLC',
     leadCompanyName: 'Northline Bathworks LLC',
     leadPersonName: 'Mara Sinclair',
     leadDomain: 'northline.example',
@@ -396,6 +531,68 @@ function buildCrmAccount(overrides: Record<string, unknown> = {}) {
     createdAt: '2026-06-10T00:00:00.000Z',
     updatedAt: '2026-06-10T00:00:00.000Z',
     archivedAt: '',
+    profileItems: [
+      {
+        profileItemId: 'profile-domain-1',
+        itemType: 'DOMAIN',
+        normalizedValue: 'northline.example',
+        rawValue: 'northline.example',
+        label: '',
+        role: '',
+        status: 'ACTIVE',
+        sourceRecordId: '',
+        promotedTargetType: '',
+        promotedTargetId: '',
+        promotedAt: '',
+        createdAt: '2026-06-10T00:00:00.000Z',
+        updatedAt: '2026-06-10T00:00:00.000Z'
+      },
+      {
+        profileItemId: 'profile-domain-2',
+        itemType: 'DOMAIN',
+        normalizedValue: 'northline.us',
+        rawValue: 'northline.us',
+        label: '',
+        role: '',
+        status: 'ACTIVE',
+        sourceRecordId: '',
+        promotedTargetType: '',
+        promotedTargetId: '',
+        promotedAt: '',
+        createdAt: '2026-06-10T00:00:00.000Z',
+        updatedAt: '2026-06-10T00:00:00.000Z'
+      },
+      {
+        profileItemId: 'profile-email-1',
+        itemType: 'EMAIL',
+        normalizedValue: 'sourcing@northline.example',
+        rawValue: 'sourcing@northline.example',
+        label: '',
+        role: '',
+        status: 'ACTIVE',
+        sourceRecordId: '',
+        promotedTargetType: '',
+        promotedTargetId: '',
+        promotedAt: '',
+        createdAt: '2026-06-10T00:00:00.000Z',
+        updatedAt: '2026-06-10T00:00:00.000Z'
+      },
+      {
+        profileItemId: 'profile-email-2',
+        itemType: 'EMAIL',
+        normalizedValue: 'orders@northline.us',
+        rawValue: 'orders@northline.us',
+        label: '',
+        role: '',
+        status: 'ACTIVE',
+        sourceRecordId: '',
+        promotedTargetType: '',
+        promotedTargetId: '',
+        promotedAt: '',
+        createdAt: '2026-06-10T00:00:00.000Z',
+        updatedAt: '2026-06-10T00:00:00.000Z'
+      }
+    ],
     ...overrides
   }
 }

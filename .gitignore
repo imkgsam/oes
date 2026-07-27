@@ -13,9 +13,14 @@ src/services/**/prisma/generated/
 
 nacos/
 otel/
-/docker/
+/docker/*
+!/docker/nats/
+!/docker/nats/**
 
 app/demo/
+
+# Local reference projects
+reference-projects/
 
 
 # Logs
@@ -60,6 +65,7 @@ lerna-debug.log*
 # temp directory
 .temp
 .tmp
+tmp/
 .worktrees/
 
 # Runtime data

@@ -49,6 +49,8 @@ const antMessageMock = vi.hoisted(() => ({
   success: vi.fn(),
 }));
 
+const renderEchartsMock = vi.hoisted(() => vi.fn());
+
 vi.mock('#/api', () => apiMock);
 
 vi.mock('#/store/auth-context', () => ({
@@ -69,6 +71,16 @@ vi.mock('@vben/icons', () => ({
   },
 }));
 
+vi.mock('@vben/plugins/echarts', () => ({
+  EchartsUI: {
+    name: 'EchartsUI',
+    template: '<div data-testid="task-health-echarts" />',
+  },
+  useEcharts: () => ({
+    renderEcharts: renderEchartsMock,
+  }),
+}));
+
 vi.mock('ant-design-vue', () => {
   const Button = {
     emits: ['click'],
@@ -81,15 +93,13 @@ vi.mock('ant-design-vue', () => {
     emits: ['update:value'],
     name: 'Input',
     props: ['value'],
-    template:
-      '<input :value="value" @input="$emit(\'update:value\', $event.target.value)" />',
+    template: '<input :value="value" @input="$emit(\'update:value\', $event.target.value)" />',
   };
   const TextArea = {
     emits: ['update:value'],
     name: 'Textarea',
     props: ['value'],
-    template:
-      '<textarea :value="value" @input="$emit(\'update:value\', $event.target.value)" />',
+    template: '<textarea :value="value" @input="$emit(\'update:value\', $event.target.value)" />',
   };
   (Input as any).TextArea = TextArea;
 
@@ -317,12 +327,16 @@ describe('task workbench section', () => {
     apiMock.unarchiveCollaborationTaskApi.mockResolvedValue({
       task: makeTask('task-created', '跟进报价审批', 'COMPLETED'),
     });
+    renderEchartsMock.mockReset();
   });
 
   it('loads three Task P1 scopes as separate workbench blocks', async () => {
     const wrapper = await mountSection();
 
-    expect(apiMock.listCollaborationTasksApi).toHaveBeenCalledTimes(3);
+    const scopeListCalls = apiMock.listCollaborationTasksApi.mock.calls.filter(
+      (call) => call[1].pageSize === 5,
+    );
+    expect(scopeListCalls).toHaveLength(3);
     expect(apiMock.listCollaborationTasksApi).toHaveBeenCalledWith(
       authContextState.sessionContext.tenant.tenantId,
       expect.objectContaining({ pageSize: 5, scope: 'MY_TODO' }),
@@ -337,7 +351,264 @@ describe('task workbench section', () => {
     expect(wrapper.find('.task-workbench-heading').exists()).toBe(false);
   });
 
-  it('keeps creator-owned terminal tasks visible until they are archived', async () => {
+  it('renders the task health panel with an interactive execution trend', async () => {
+    const today = new Date();
+    const todayCompletedAt = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate(),
+      9,
+      20,
+      0,
+    ).toISOString();
+    const yesterdayCompletedAt = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate() - 1,
+      18,
+      0,
+      0,
+    ).toISOString();
+
+    apiMock.listCollaborationTasksApi.mockImplementation(
+      async (
+        _tenantId: string,
+        params: {
+          dueAfter?: string;
+          dueBefore?: string;
+          overdueOnly?: boolean;
+          pageSize?: number;
+          scope: string;
+          status?: string[];
+        },
+      ) => {
+        if (params.pageSize === 5) {
+          return {
+            items:
+              params.scope === 'MY_TODO'
+                ? [makeTask('task-self', '复核交接事项')]
+                : params.scope === 'ASSIGNED_TO_ME'
+                  ? [makeTask('task-assigned', '处理客户资料')]
+                  : [makeTask('task-created', '跟进报价审批', 'COMPLETED')],
+            page: 1,
+            pageSize: 5,
+            total: 1,
+          };
+        }
+
+        if (params.pageSize === 1 && params.overdueOnly) {
+          return {
+            items: [],
+            page: 1,
+            pageSize: 1,
+            total: params.scope === 'MY_TODO' ? 1 : params.scope === 'ASSIGNED_TO_ME' ? 1 : 1,
+          };
+        }
+
+        if (params.pageSize === 1 && params.dueAfter && params.dueBefore) {
+          return {
+            items: [],
+            page: 1,
+            pageSize: 1,
+            total: params.scope === 'MY_TODO' ? 2 : params.scope === 'ASSIGNED_TO_ME' ? 3 : 1,
+          };
+        }
+
+        if ((params.pageSize === 1 || params.pageSize === 50) && params.status?.includes('OPEN')) {
+          return {
+            items:
+              params.pageSize === 50
+                ? [
+                    {
+                      ...makeTask(`${params.scope}-active-created`, '本周新增待办'),
+                      createdAt: new Date(
+                        today.getFullYear(),
+                        today.getMonth(),
+                        today.getDate() - 2,
+                        10,
+                        0,
+                        0,
+                      ).toISOString(),
+                      dueAt: new Date(
+                        today.getFullYear(),
+                        today.getMonth(),
+                        today.getDate() - 1,
+                        18,
+                        0,
+                        0,
+                      ).toISOString(),
+                    },
+                  ]
+                : [],
+            page: 1,
+            pageSize: params.pageSize,
+            total: params.scope === 'MY_TODO' ? 10 : params.scope === 'ASSIGNED_TO_ME' ? 5 : 3,
+          };
+        }
+
+        if (params.pageSize === 50 && params.status?.[0] === 'COMPLETED') {
+          const todayCount =
+            params.scope === 'MY_TODO' ? 3 : params.scope === 'ASSIGNED_TO_ME' ? 2 : 2;
+          return {
+            items: [
+              ...Array.from({ length: todayCount }, (_, index) => ({
+                ...makeTask(
+                  `${params.scope}-completed-today-${index}`,
+                  `今日完成 ${index + 1}`,
+                  'COMPLETED',
+                ),
+                completedAt: todayCompletedAt,
+              })),
+              {
+                ...makeTask(`${params.scope}-completed-old`, '昨日完成', 'COMPLETED'),
+                completedAt: yesterdayCompletedAt,
+              },
+            ],
+            page: 1,
+            pageSize: 50,
+            total: todayCount + 5,
+          };
+        }
+
+        return { items: [], page: 1, pageSize: params.pageSize ?? 1, total: 0 };
+      },
+    );
+
+    const wrapper = await mountSection();
+
+    const panel = wrapper.find('[data-testid="task-health-panel"]');
+    expect(panel.exists()).toBe(true);
+    expect(panel.text()).toContain('任务数据');
+    expect(panel.text()).toContain('我的待办');
+    expect(wrapper.find('[data-testid="task-health-myTodo"]').text()).toContain('10');
+    expect(panel.text()).toContain('指派给我');
+    expect(wrapper.find('[data-testid="task-health-assignedToMe"]').text()).toContain('5');
+    expect(panel.text()).toContain('管理关注');
+    expect(panel.text()).toContain('我分派 3');
+    expect(panel.text()).toContain('即将到期');
+    expect(wrapper.find('[data-testid="task-health-dueSoon"]').text()).toContain('5');
+    expect(panel.text()).toContain('今日完成');
+    expect(wrapper.find('[data-testid="task-health-completedToday"]').text()).toContain('5');
+    expect(panel.text()).toContain('已逾期');
+    expect(wrapper.find('[data-testid="task-health-overdue"]').text()).toContain('2');
+    expect(wrapper.find('[data-testid="task-health-echarts"]').exists()).toBe(true);
+    expect(panel.text()).toContain('未完成');
+    expect(panel.text()).toContain('每日完成');
+
+    expect(apiMock.listCollaborationTasksApi).toHaveBeenCalledWith(
+      authContextState.sessionContext.tenant.tenantId,
+      expect.objectContaining({
+        includeArchived: false,
+        pageSize: 50,
+        scope: 'MY_TODO',
+        status: ['OPEN', 'IN_PROGRESS'],
+      }),
+    );
+    expect(apiMock.listCollaborationTasksApi).toHaveBeenCalledWith(
+      authContextState.sessionContext.tenant.tenantId,
+      expect.objectContaining({
+        dueAfter: expect.any(String),
+        dueBefore: expect.any(String),
+        pageSize: 1,
+        scope: 'ASSIGNED_TO_ME',
+        status: ['OPEN', 'IN_PROGRESS'],
+      }),
+    );
+    expect(
+      apiMock.listCollaborationTasksApi.mock.calls.some(
+        (call) => call[1].scope === 'CREATED_BY_ME' && call[1].overdueOnly === true,
+      ),
+    ).toBe(false);
+    expect(
+      apiMock.listCollaborationTasksApi.mock.calls.some(
+        (call) =>
+          call[1].scope === 'CREATED_BY_ME' && call[1].pageSize === 1 && Boolean(call[1].dueAfter),
+      ),
+    ).toBe(false);
+    expect(
+      apiMock.listCollaborationTasksApi.mock.calls.some(
+        (call) =>
+          call[1].scope === 'CREATED_BY_ME' &&
+          call[1].pageSize === 50 &&
+          call[1].status?.[0] === 'COMPLETED',
+      ),
+    ).toBe(false);
+    expect(apiMock.listCollaborationTasksApi).toHaveBeenCalledWith(
+      authContextState.sessionContext.tenant.tenantId,
+      expect.objectContaining({
+        includeArchived: false,
+        pageSize: 50,
+        scope: 'CREATED_BY_ME',
+        status: ['OPEN', 'IN_PROGRESS'],
+      }),
+    );
+    expect(apiMock.listCollaborationTasksApi).toHaveBeenCalledWith(
+      authContextState.sessionContext.tenant.tenantId,
+      expect.objectContaining({
+        includeArchived: false,
+        pageSize: 50,
+        scope: 'MY_TODO',
+        status: ['COMPLETED'],
+      }),
+    );
+    const renderedChartOptions = renderEchartsMock.mock.calls.at(-1)?.[0];
+    expect(renderedChartOptions).toEqual(
+      expect.objectContaining({
+        tooltip: expect.objectContaining({
+          show: true,
+          trigger: 'axis',
+        }),
+        xAxis: expect.objectContaining({
+          data: expect.arrayContaining([expect.stringMatching(/\d{1,2}\/\d{1,2}/)]),
+        }),
+      }),
+    );
+    expect(renderedChartOptions.series).toHaveLength(2);
+    expect(renderedChartOptions.series).toEqual([
+      expect.objectContaining({
+        areaStyle: expect.any(Object),
+        name: '未完成',
+        silent: false,
+        smooth: true,
+        type: 'line',
+      }),
+      expect.objectContaining({
+        itemStyle: expect.objectContaining({
+          borderRadius: expect.any(Array),
+        }),
+        name: '每日完成',
+        silent: false,
+        type: 'bar',
+      }),
+    ]);
+  });
+
+  it('shows a clear empty trend state instead of overlapping zero-value lines', async () => {
+    apiMock.listCollaborationTasksApi.mockResolvedValue({
+      items: [],
+      page: 1,
+      pageSize: 50,
+      total: 0,
+    });
+
+    const wrapper = await mountSection();
+
+    expect(wrapper.find('[data-testid="task-health-chart-empty"]').text()).toContain(
+      '近 7 日暂无任务波动',
+    );
+    expect(wrapper.find('[data-testid="task-health-echarts"]').exists()).toBe(false);
+    expect(renderEchartsMock).not.toHaveBeenCalled();
+  });
+
+  it('gives the desktop task health panel enough height for the larger chart', () => {
+    expect(taskWorkbenchSource).toContain('min-height: 168px;');
+    expect(taskWorkbenchSource).toContain(
+      'grid-template-columns: 220px minmax(0, 1fr) minmax(280px, 300px);',
+    );
+    expect(taskWorkbenchSource).toContain('height: 96px;');
+  });
+
+  it('loads each scope with a concrete default status instead of an aggregate all tab', async () => {
     await mountSection();
 
     const initialScopeQueries = apiMock.listCollaborationTasksApi.mock.calls
@@ -349,17 +620,17 @@ describe('task workbench section', () => {
         expect.objectContaining({
           includeArchived: false,
           scope: 'CREATED_BY_ME',
-          status: ['OPEN', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'],
+          status: ['OPEN'],
         }),
         expect.objectContaining({
           includeArchived: false,
           scope: 'MY_TODO',
-          status: undefined,
+          status: ['OPEN'],
         }),
         expect.objectContaining({
           includeArchived: false,
           scope: 'ASSIGNED_TO_ME',
-          status: undefined,
+          status: ['OPEN'],
         }),
       ]),
     );
@@ -371,7 +642,7 @@ describe('task workbench section', () => {
 
     const assignedView = wrapper.find('[data-testid="task-status-view-ASSIGNED_TO_ME"]');
     expect(assignedView.exists()).toBe(true);
-    expect(assignedView.text()).toContain('全部');
+    expect(assignedView.text()).not.toContain('全部');
     expect(assignedView.text()).toContain('待处理');
     expect(assignedView.text()).toContain('进行中');
     expect(assignedView.text()).not.toContain('已完成');
@@ -393,6 +664,7 @@ describe('task workbench section', () => {
     );
 
     const createdView = wrapper.find('[data-testid="task-status-view-CREATED_BY_ME"]');
+    expect(createdView.text()).not.toContain('全部');
     expect(createdView.text()).toContain('已完成');
     expect(createdView.text()).toContain('已取消');
 
@@ -414,7 +686,7 @@ describe('task workbench section', () => {
     const myTodoView = wrapper.find('[data-testid="task-status-view-MY_TODO"]');
     await myTodoView
       .findAll('button')
-      .find((button) => button.text() === '待处理')
+      .find((button) => button.text() === '进行中')
       ?.trigger('click');
     await flushPromises();
 
@@ -423,7 +695,7 @@ describe('task workbench section', () => {
       expect.objectContaining({
         includeArchived: false,
         scope: 'MY_TODO',
-        status: ['OPEN'],
+        status: ['IN_PROGRESS'],
       }),
     );
   });
@@ -545,24 +817,32 @@ describe('task workbench section', () => {
   it('constrains status tabs inside the scope header when terminal statuses are visible', async () => {
     const wrapper = await mountSection();
 
-    expect(
-      wrapper.find('[data-testid="task-status-view-CREATED_BY_ME"]').text(),
-    ).toContain('已取消');
+    expect(wrapper.find('[data-testid="task-status-view-CREATED_BY_ME"]').text()).toContain(
+      '已取消',
+    );
     expect(taskWorkbenchSource).toContain('grid-template-columns: minmax(0, 1fr);');
     expect(taskWorkbenchSource).toContain('width: 100%;');
-    expect(taskWorkbenchSource).toContain(
-      '.task-scope-block__status-tabs :deep(.ant-segmented)',
-    );
+    expect(taskWorkbenchSource).toContain('.task-scope-block__status-tabs :deep(.ant-segmented)');
     expect(taskWorkbenchSource).toContain('width: max-content;');
     expect(taskWorkbenchSource).toContain('max-width: 100%;');
+  });
+
+  it('keeps the three task scope panels equal width regardless of task content', () => {
+    expect(taskWorkbenchSource).toContain('grid-template-columns: repeat(3, minmax(0, 1fr));');
+    expect(taskWorkbenchSource).toContain('justify-self: stretch;');
+    expect(taskWorkbenchSource).toContain('width: 100%;');
   });
 
   it('keeps task blocks dark-mode native instead of forcing light panels', () => {
     expect(taskWorkbenchSource).toContain(':global(html.dark) .task-scope-block');
     expect(taskWorkbenchSource).toContain('background: #111827;');
     expect(taskWorkbenchSource).toContain('background: #172033;');
-    expect(taskWorkbenchSource).not.toContain(':global(html.dark) .task-scope-block {\n  background: #e5e7eb;');
-    expect(taskWorkbenchSource).not.toContain(':global(html.dark) .task-card-row {\n  background: #f1f5f9;');
+    expect(taskWorkbenchSource).not.toContain(
+      ':global(html.dark) .task-scope-block {\n  background: #e5e7eb;',
+    );
+    expect(taskWorkbenchSource).not.toContain(
+      ':global(html.dark) .task-card-row {\n  background: #f1f5f9;',
+    );
   });
 
   it('binds a component-level dark class so task panels do not depend on Ant CSS variable fallbacks', async () => {
@@ -577,6 +857,9 @@ describe('task workbench section', () => {
     expect(taskWorkbenchSource).toContain(':class="{ \'task-workbench-section--dark\': isDark }"');
     expect(taskWorkbenchSource).toContain('.task-workbench-section--dark .task-scope-block');
     expect(taskWorkbenchSource).toContain('.task-workbench-section--dark .task-card-row');
+    expect(taskWorkbenchSource).toContain(
+      '.task-workbench-section--dark .task-health-panel__chart-empty',
+    );
     expect(taskWorkbenchSource).toContain(
       '.task-workbench-section--dark .task-scope-block__status-tabs :deep(.ant-segmented-item-selected)',
     );
@@ -651,6 +934,48 @@ describe('task workbench section', () => {
   });
 
   it('opens a terminal-task history modal from the scope dropdown with duration', async () => {
+    const completedToday = {
+      ...makeTask('task-history-today-completed', '今天完成任务', 'COMPLETED'),
+      completedAt: '2026-06-29T04:30:00.000Z',
+      createdAt: '2026-06-29T04:00:00.000Z',
+    };
+    const cancelledToday = {
+      ...makeTask('task-history-today-cancelled', '今天取消任务', 'CANCELLED'),
+      cancelledAt: '2026-06-29T03:15:00.000Z',
+      createdAt: '2026-06-29T03:00:00.000Z',
+    };
+    const completedYesterday = {
+      ...makeTask('task-history-yesterday', '昨天完成任务', 'COMPLETED'),
+      completedAt: '2026-06-28T11:20:00.000Z',
+      createdAt: '2026-06-28T08:50:00.000Z',
+    };
+    apiMock.listCollaborationTasksApi.mockImplementation(
+      async (
+        _tenantId: string,
+        params: { pageSize?: number; scope: string; status?: string[] },
+      ) => {
+        if (params.pageSize === 20 && params.status?.includes('COMPLETED')) {
+          return {
+            items: [completedYesterday, cancelledToday, completedToday],
+            page: 1,
+            pageSize: 20,
+            total: 3,
+          };
+        }
+        return {
+          items:
+            params.scope === 'MY_TODO'
+              ? [makeTask('task-self', '复核交接事项')]
+              : params.scope === 'ASSIGNED_TO_ME'
+                ? [makeTask('task-assigned', '处理客户资料')]
+                : [makeTask('task-created', '跟进报价审批', 'COMPLETED')],
+          page: 1,
+          pageSize: params.pageSize ?? 5,
+          total: 1,
+        };
+      },
+    );
+
     const wrapper = await mountSection();
 
     await wrapper.find('[data-testid="task-history-open-MY_TODO"]').trigger('click');
@@ -665,8 +990,31 @@ describe('task workbench section', () => {
       }),
     );
     expect(wrapper.text()).toContain('我的待办历史');
-    expect(wrapper.text()).toContain('历史跟进任务');
-    expect(wrapper.text()).toContain('花费 2小时30分钟');
+    expect(wrapper.text()).toContain('按终态时间倒序 · 3 条记录');
+    expect(wrapper.findAll('.task-history-day-group')).toHaveLength(2);
+    expect(wrapper.findAll('.task-history-day-group')[0]?.text()).toContain('06/29');
+    expect(wrapper.findAll('.task-history-day-group')[0]?.text()).toContain(
+      '2 条 · 完成 1 · 取消 1',
+    );
+    expect(wrapper.findAll('.task-history-day-group')[1]?.text()).toContain('06/28');
+
+    const historyRows = wrapper.findAll('.task-history-row');
+    expect(historyRows.map((row) => row.text())).toEqual([
+      expect.stringContaining('今天完成任务'),
+      expect.stringContaining('今天取消任务'),
+      expect.stringContaining('昨天完成任务'),
+    ]);
+    expect(historyRows[0]?.find('.task-history-row__top').text()).toContain('今天完成任务');
+    expect(historyRows[0]?.find('.task-history-row__top').text()).toContain('已完成');
+    expect(historyRows[0]?.find('.task-history-row__bottom').text()).toContain(
+      '今天完成任务 description',
+    );
+    expect(historyRows[0]?.find('.task-history-row__bottom').text()).toContain('30分钟');
+    expect(historyRows[0]?.find('.task-history-row__bottom').text()).toContain('12:30');
+    expect(taskWorkbenchSource).toContain('grid-template-columns: minmax(0, 1fr) auto;');
+    expect(taskWorkbenchSource).toContain('width: 100%;');
+    expect(taskWorkbenchSource).toContain('justify-self: end;');
+    expect(taskWorkbenchSource).toContain('text-overflow: ellipsis;');
   });
 
   it('opens task detail and sends a start command through the BFF API', async () => {
@@ -679,7 +1027,10 @@ describe('task workbench section', () => {
     expect(wrapper.text()).toContain('林婉清');
     expect(wrapper.text()).not.toContain('未加载成员信息');
 
-    await wrapper.findAll('button').find((button) => button.text() === '开始')?.trigger('click');
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '开始')
+      ?.trigger('click');
     await flushPromises();
 
     expect(apiMock.startCollaborationTaskApi).toHaveBeenCalledWith(
@@ -695,9 +1046,15 @@ describe('task workbench section', () => {
 
     await wrapper.find('.task-card-row').trigger('click');
     await flushPromises();
-    await wrapper.findAll('button').find((button) => button.text() === '完成')?.trigger('click');
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '完成')
+      ?.trigger('click');
     await flushPromises();
-    await wrapper.findAll('button').find((button) => button.text() === '提交')?.trigger('click');
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '提交')
+      ?.trigger('click');
     await flushPromises();
 
     expect(apiMock.completeCollaborationTaskApi).toHaveBeenCalledWith(
@@ -706,9 +1063,15 @@ describe('task workbench section', () => {
       expect.objectContaining({ completionNote: undefined }),
     );
 
-    await wrapper.findAll('button').find((button) => button.text() === '重开')?.trigger('click');
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '重开')
+      ?.trigger('click');
     await flushPromises();
-    await wrapper.findAll('button').find((button) => button.text() === '提交')?.trigger('click');
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '提交')
+      ?.trigger('click');
     await flushPromises();
 
     expect(apiMock.reopenCollaborationTaskApi).toHaveBeenCalledWith(
@@ -717,12 +1080,13 @@ describe('task workbench section', () => {
       expect.objectContaining({ reopenReason: undefined }),
     );
 
-    const cancelButtons = wrapper
-      .findAll('button')
-      .filter((button) => button.text() === '取消');
+    const cancelButtons = wrapper.findAll('button').filter((button) => button.text() === '取消');
     await cancelButtons[cancelButtons.length - 1]?.trigger('click');
     await flushPromises();
-    await wrapper.findAll('button').find((button) => button.text() === '提交')?.trigger('click');
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '提交')
+      ?.trigger('click');
     await flushPromises();
 
     expect(apiMock.cancelCollaborationTaskApi).toHaveBeenCalledWith(
@@ -731,9 +1095,15 @@ describe('task workbench section', () => {
       expect.objectContaining({ cancelReason: undefined }),
     );
 
-    await wrapper.findAll('.task-card-row').find((row) => row.text().includes('跟进报价审批'))?.trigger('click');
+    await wrapper
+      .findAll('.task-card-row')
+      .find((row) => row.text().includes('跟进报价审批'))
+      ?.trigger('click');
     await flushPromises();
-    await wrapper.findAll('button').find((button) => button.text() === '归档')?.trigger('click');
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '归档')
+      ?.trigger('click');
     await flushPromises();
 
     expect(apiMock.archiveCollaborationTaskApi).toHaveBeenCalledWith(
@@ -741,7 +1111,10 @@ describe('task workbench section', () => {
       'task-created',
     );
 
-    await wrapper.findAll('button').find((button) => button.text() === '恢复归档')?.trigger('click');
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '恢复归档')
+      ?.trigger('click');
     await flushPromises();
 
     expect(apiMock.unarchiveCollaborationTaskApi).toHaveBeenCalledWith(
@@ -751,9 +1124,7 @@ describe('task workbench section', () => {
   });
 
   it('shows permission-denied state when task list calls are rejected by policy', async () => {
-    apiMock.listCollaborationTasksApi.mockRejectedValueOnce(
-      new Error('PERMISSION_DENIED'),
-    );
+    apiMock.listCollaborationTasksApi.mockRejectedValueOnce(new Error('PERMISSION_DENIED'));
 
     const wrapper = await mountSection();
 

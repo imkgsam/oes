@@ -25,12 +25,14 @@ export interface IdentifierInput {
   status?: IdentifierStatus
 }
 
-/** ContactPointInput describes one tenant-party contact or digital evidence point used for search and registration. */
-export interface ContactPointInput {
-  contactPointType: 'EMAIL' | 'PHONE' | 'WHATSAPP' | 'DOMAIN' | 'WEBSITE'
+/** ProfileItemInput describes one weak tenant-party profile item used for search, registration, display, or contact. */
+export interface ProfileItemInput {
+  itemType: 'EMAIL' | 'PHONE' | 'WHATSAPP' | 'WECHAT' | 'DOMAIN' | 'WEBSITE' | 'SOCIAL_PROFILE' | 'MARKETPLACE_STORE'
   normalizedValue: string
   rawValue: string
   label?: string
+  role?: string
+  status?: string
 }
 
 /** SearchTenantPartyCandidatesInput carries tenant-local search criteria for candidate lookup. */
@@ -90,7 +92,7 @@ export interface RegisterTenantPartyInput {
   displayName?: string
   localCode?: string
   identifiers: IdentifierInput[]
-  contactPoints?: ContactPointInput[]
+  profileItems?: ProfileItemInput[]
   idempotencyKey?: string
   registeredCountry?: string
 }

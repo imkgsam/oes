@@ -33,7 +33,8 @@ const authContextState: any = {
     'crm.account.manage',
     'crm.account.read',
     'crm.account.release',
-    'crm.account.update'
+    'crm.account.update',
+    'collaboration.annotation.create'
   ],
   sessionContext: {
     account: {
@@ -96,6 +97,15 @@ function createStorageMock(): Storage {
     removeItem: vi.fn((key: string) => values.delete(key)),
     setItem: vi.fn((key: string, value: string) => values.set(key, String(value)))
   } as Storage
+}
+
+// Extracts one scoped CSS rule body from the Vue SFC source for layout contract tests.
+function cssBlock(source: string, selector: string, fromIndex = 0) {
+  const start = source.indexOf(`${selector} {`, fromIndex)
+  expect(start).toBeGreaterThan(-1)
+  const bodyStart = source.indexOf('{', start)
+  const bodyEnd = source.indexOf('}', bodyStart)
+  return source.slice(bodyStart + 1, bodyEnd)
 }
 
 vi.mock('@vben/preferences', () => ({
@@ -190,6 +200,11 @@ describe('customer management CRM P1 workspace', () => {
       duplicateResult: { resultType: 'NO_DUPLICATE', candidates: [] }
     })
     createDraftLeadApi.mockResolvedValue(buildCrmAccount({ crmAccountId: 'draft-1', recordStatus: 'DRAFT' }))
+    createCollaborationAnnotationApi.mockResolvedValue({
+      annotation: {
+        annotationId: 'annotation-1'
+      }
+    })
     updateDraftLeadApi.mockResolvedValue(buildCrmAccount({ crmAccountId: 'crm-account-1', recordStatus: 'DRAFT' }))
     submitDraftLeadApi.mockResolvedValue({
       resultType: 'CREATED',
@@ -233,6 +248,88 @@ describe('customer management CRM P1 workspace', () => {
     expect(narrowBreakpointRules).toMatch(/\.crm-workspace__metrics\s*\{[\s\S]*?grid-template-columns:\s*1fr/)
   })
 
+  it('renders Profile information as a bordered object editor instead of a loose form group', () => {
+    const source = readFileSync('apps/tenant-web/src/views/admin/customer-management.vue', 'utf8')
+    const editorBlock = cssBlock(source, '.crm-profile-editor')
+    const labelsBlock = cssBlock(source, '.crm-profile-editor__labels')
+    const rowBlock = cssBlock(source, '.crm-profile-editor__row', source.indexOf('.crm-profile-editor__rows {'))
+    const identifierGridStart = source.indexOf('.crm-identifier-editor .crm-profile-editor__labels,')
+    const identifierGridBlock = source.slice(identifierGridStart, identifierGridStart + 180)
+    const addRowBlock = cssBlock(source, '.crm-profile-editor__add-row')
+    const cellDividerStart = source.indexOf('.crm-profile-editor__labels span:not(:last-child),')
+    const selectorPaddingStart = source.indexOf('.crm-profile-editor__type :deep(.ant-select-selector)')
+    const arrowPaddingStart = source.indexOf('.crm-profile-editor__type :deep(.ant-select-arrow)')
+    const clearPaddingStart = source.indexOf('.crm-profile-editor__type :deep(.ant-select-clear)')
+
+    expect(editorBlock).toMatch(/border:\s*1px solid/)
+    expect(editorBlock).toMatch(/box-shadow:/)
+    expect(labelsBlock).toMatch(/background:/)
+    expect(rowBlock).toMatch(/border-bottom:\s*1px solid/)
+    expect(addRowBlock).toMatch(/width:\s*100%/)
+    expect(addRowBlock).toMatch(/justify-content:\s*center/)
+    expect(identifierGridStart).toBeGreaterThan(-1)
+    expect(identifierGridBlock).toContain('minmax(190px')
+    expect(identifierGridBlock).toContain('minmax(210px')
+    expect(cellDividerStart).toBeGreaterThan(-1)
+    expect(selectorPaddingStart).toBeGreaterThan(-1)
+    expect(arrowPaddingStart).toBeGreaterThan(-1)
+    expect(clearPaddingStart).toBeGreaterThan(-1)
+    expect(source.slice(selectorPaddingStart, selectorPaddingStart + 120)).toMatch(/padding-right:\s*48px/)
+    expect(source.slice(arrowPaddingStart, arrowPaddingStart + 80)).toMatch(/right:\s*14px/)
+    expect(source.slice(clearPaddingStart, clearPaddingStart + 80)).toMatch(/right:\s*34px/)
+  })
+
+  it('uses business-language help text and country-specific identifier entry in the Lead modal', async () => {
+    const page = (await import('./customer-management.vue')).default
+    const wrapper = mount(page, { attachTo: document.body })
+
+    await flushPromises()
+    await wrapper.get('[data-testid="crm-create-lead-open"]').trigger('click')
+    await flushPromises()
+
+    expect(document.body.textContent).toContain('登记/证件信息')
+    expect(document.body.textContent).toContain('联系与网络信息')
+    expect(document.body.textContent).not.toContain('强 Identifier')
+    expect(document.body.textContent).not.toContain('Profile 信息')
+    expect(document.querySelector('[aria-label*="主体身份"]')).toBeTruthy()
+    expect(document.querySelector('[aria-label*="联系方式"]')).toBeTruthy()
+
+    ;(document.querySelector('[data-testid="crm-identifier-add"]') as HTMLButtonElement).click()
+    await flushPromises()
+
+    expect(wrapper.findAllComponents({ name: 'CountryRegionSelect' })).toHaveLength(2)
+    expect((wrapper.findComponent('[data-testid="crm-identifier-type-0"]') as any).props('value')).toBe('')
+    expect(document.querySelector('[data-testid="crm-identifier-value-0"]')?.getAttribute('placeholder')).toBe(
+      '填写对应号码'
+    )
+
+    ;(wrapper.findComponent('[data-testid="crm-identifier-country-0"]') as any).vm.$emit('update:value', 'CN')
+    await flushPromises()
+    const cnIdentifierLabels = (
+      (wrapper.findComponent('[data-testid="crm-identifier-type-0"]') as any).props('options') as Array<{
+        label: string
+      }>
+    ).map((option) => option.label)
+    expect(cnIdentifierLabels).toContain('统一社会信用代码')
+    expect(cnIdentifierLabels).not.toContain('D-U-N-S')
+
+    ;(wrapper.findComponent('[data-testid="crm-identifier-country-0"]') as any).vm.$emit('update:value', 'US')
+    await flushPromises()
+    const usIdentifierLabels = (
+      (wrapper.findComponent('[data-testid="crm-identifier-type-0"]') as any).props('options') as Array<{
+        label: string
+      }>
+    ).map((option) => option.label)
+    expect(usIdentifierLabels).toContain('EIN')
+
+    ;(document.querySelector('[data-testid="crm-profile-add"]') as HTMLButtonElement).click()
+    await flushPromises()
+    expect((wrapper.findComponent('[data-testid="crm-profile-type-0"]') as any).props('value')).toBe('')
+    expect(document.querySelector('[data-testid="crm-profile-value-0"]')?.getAttribute('placeholder')).toBe(
+      '填写域名、邮箱、电话等内容'
+    )
+  })
+
   it('loads the CRM account workspace and creates active leads or drafts', async () => {
     const page = (await import('./customer-management.vue')).default
     const wrapper = mount(page, { attachTo: document.body })
@@ -258,9 +355,43 @@ describe('customer management CRM P1 workspace', () => {
 
     await wrapper.get('[data-testid="crm-create-lead-open"]').trigger('click')
     await flushPromises()
+    expect(document.body.textContent).toContain('主体基础')
+    expect(document.body.textContent).toContain('法定/登记名称')
+    expect(document.body.textContent).toContain('来源说明')
+    expect(document.body.textContent).not.toContain('下次跟进')
+    expect(document.body.textContent).not.toContain('来源名称')
+    expect(document.querySelector('[data-testid="crm-lead-company-name"]')).toBeNull()
+    expect(document.querySelector('[data-testid="crm-lead-person-name"]')).toBeNull()
     await setDocumentInputValue('crm-lead-display-name', 'Serrano Fixtures')
-    await setDocumentInputValue('crm-lead-domain', 'serrano.example')
-    await setDocumentInputValue('crm-lead-email', 'imports@serrano.example')
+    expect(document.querySelector('[data-testid="crm-lead-domain"]')).toBeNull()
+    expect(document.querySelector('[data-testid="crm-identifier-empty"]')).toBeTruthy()
+    const addIdentifierRow = document.querySelector('[data-testid="crm-identifier-add"]') as HTMLButtonElement
+    expect(addIdentifierRow?.tagName).toBe('BUTTON')
+    addIdentifierRow.click()
+    await flushPromises()
+    expect(document.querySelector('[data-testid="crm-identifier-value-0"]')).toBeTruthy()
+    ;(wrapper.findComponent('[data-testid="crm-identifier-country-0"]') as any).vm.$emit('update:value', 'ES')
+    ;(wrapper.findComponent('[data-testid="crm-identifier-type-0"]') as any).vm.$emit('update:value', 'VAT_NO')
+    await setDocumentInputValue('crm-identifier-value-0', 'ES-A12345678')
+    expect(document.querySelector('[data-testid="crm-profile-empty"]')).toBeTruthy()
+    expect(document.querySelector('[data-testid="crm-profile-value-0"]')).toBeNull()
+    const addProfileRow = document.querySelector('[data-testid="crm-profile-add"]') as HTMLButtonElement
+    expect(addProfileRow?.tagName).toBe('BUTTON')
+    expect(addProfileRow.classList.contains('crm-profile-editor__add-row')).toBe(true)
+    addProfileRow.click()
+    await flushPromises()
+    expect(document.querySelector('[data-testid="crm-profile-empty"]')).toBeNull()
+    expect(document.querySelector('[data-testid="crm-profile-value-0"]')).toBeTruthy()
+    ;(wrapper.findComponent('[data-testid="crm-profile-type-0"]') as any).vm.$emit('update:value', 'DOMAIN')
+    await setDocumentInputValue('crm-profile-value-0', 'serrano.example')
+    ;(document.querySelector('[data-testid="crm-profile-add"]') as HTMLButtonElement).click()
+    await flushPromises()
+    ;(wrapper.findComponent('[data-testid="crm-profile-type-1"]') as any).vm.$emit('update:value', 'DOMAIN')
+    await setDocumentInputValue('crm-profile-value-1', 'serrano.es')
+    ;(document.querySelector('[data-testid="crm-profile-add"]') as HTMLButtonElement).click()
+    await flushPromises()
+    ;(wrapper.findComponent('[data-testid="crm-profile-type-2"]') as any).vm.$emit('update:value', 'EMAIL')
+    await setDocumentInputValue('crm-profile-value-2', 'imports@serrano.example')
     wrapper.findComponent({ name: 'CountryRegionSelect' }).vm.$emit('update:value', 'ES')
     ;(wrapper.findComponent('[data-testid="crm-lead-party-type"]') as any).vm.$emit('update:value', 'ORGANIZATION')
     await flushPromises()
@@ -272,7 +403,35 @@ describe('customer management CRM P1 workspace', () => {
       'tenant-1',
       expect.objectContaining({
         displayName: 'Serrano Fixtures',
+        leadLegalName: undefined,
         leadCountry: 'ES',
+        leadCompanyName: undefined,
+        leadDomain: 'serrano.example',
+        leadIdentifiers: [
+          {
+            identifierType: 'VAT_NO',
+            issuerCountryOrRegion: 'ES',
+            normalizedValue: 'ES-A12345678',
+            rawValue: 'ES-A12345678'
+          }
+        ],
+        profileItems: [
+          {
+            itemType: 'DOMAIN',
+            normalizedValue: 'serrano.example',
+            rawValue: 'serrano.example'
+          },
+          {
+            itemType: 'DOMAIN',
+            normalizedValue: 'serrano.es',
+            rawValue: 'serrano.es'
+          },
+          {
+            itemType: 'EMAIL',
+            normalizedValue: 'imports@serrano.example',
+            rawValue: 'imports@serrano.example'
+          }
+        ],
         sourceType: 'WEB_RESEARCH'
       })
     )
@@ -280,6 +439,8 @@ describe('customer management CRM P1 workspace', () => {
     await wrapper.get('[data-testid="crm-create-lead-open"]').trigger('click')
     await flushPromises()
     await setDocumentInputValue('crm-lead-display-name', 'Serrano Fixtures')
+    await setDocumentInputValue('crm-lead-source-note', 'Website supplier list row 42')
+    await setDocumentInputValue('crm-lead-initial-note', 'Looks like a regional distributor with OEM pages.')
     wrapper.findComponent({ name: 'CountryRegionSelect' }).vm.$emit('update:value', 'ES')
     ;(wrapper.findComponent('[data-testid="crm-lead-party-type"]') as any).vm.$emit('update:value', 'ORGANIZATION')
     await flushPromises()
@@ -290,10 +451,27 @@ describe('customer management CRM P1 workspace', () => {
       'tenant-1',
       expect.objectContaining({
         displayName: 'Serrano Fixtures',
+        leadLegalName: undefined,
         leadCountry: 'ES',
+        leadCompanyName: undefined,
+        leadIdentifiers: [],
         partyTypeHint: 'ORGANIZATION',
+        profileItems: [],
+        sourceNote: 'Website supplier list row 42',
         sourceType: 'WEB_RESEARCH'
       })
+    )
+    expect(createCrmLeadApi.mock.calls.at(-1)?.[1]).not.toHaveProperty('nextFollowUpAt')
+    expect(createCollaborationAnnotationApi).toHaveBeenCalledWith(
+      {
+        objectId: 'crm-account-2',
+        objectOwnerService: 'crm-service',
+        objectType: 'CrmAccount'
+      },
+      {
+        bodyText: 'Looks like a regional distributor with OEM pages.',
+        visibility: 'OBJECT_VISIBLE'
+      }
     )
 
     await wrapper.get('[data-testid="crm-stage-pool"]').trigger('click')
@@ -302,6 +480,39 @@ describe('customer management CRM P1 workspace', () => {
     expect(routerPush).toHaveBeenCalledWith({
       name: 'TenantCrmPool'
     })
+  }, 20_000)
+
+  it('switches the Lead modal field set for personal Leads', async () => {
+    const page = (await import('./customer-management.vue')).default
+    const wrapper = mount(page, { attachTo: document.body })
+
+    await flushPromises()
+    await wrapper.get('[data-testid="crm-create-lead-open"]').trigger('click')
+    await flushPromises()
+    ;(wrapper.findComponent('[data-testid="crm-lead-party-type"]') as any).vm.$emit('update:value', 'PERSON')
+    await flushPromises()
+
+    expect(document.body.textContent).toContain('姓名')
+    expect(document.body.textContent).toContain('后续确认其属于某家公司')
+    expect(document.querySelector('[data-testid="crm-lead-company-name"]')).toBeNull()
+    expect(document.querySelector('[data-testid="crm-lead-person-name"]')).toBeNull()
+
+    await setDocumentInputValue('crm-lead-display-name', 'Mateo Ruiz')
+    await setDocumentInputValue('crm-lead-legal-name', 'Mateo Ruiz García')
+    wrapper.findComponent({ name: 'CountryRegionSelect' }).vm.$emit('update:value', 'ES')
+    ;(document.querySelector('[data-testid="crm-lead-submit"]') as HTMLButtonElement).click()
+    await flushPromises()
+
+    expect(createCrmLeadApi).toHaveBeenCalledWith(
+      'tenant-1',
+      expect.objectContaining({
+        displayName: 'Mateo Ruiz',
+        leadLegalName: 'Mateo Ruiz García',
+        leadCompanyName: undefined,
+        leadPersonName: undefined,
+        partyTypeHint: 'PERSON'
+      })
+    )
   }, 20_000)
 
   it('keeps the CRM account table pinned to the workspace body without forcing an inner y-scroll', async () => {
@@ -404,8 +615,13 @@ describe('customer management CRM P1 workspace', () => {
 
     await clickCrmRowAction(wrapper, 'crm-account-1', 'crm-account-convert-crm-account-1')
     await flushPromises()
+    await setDocumentInputValue('crm-formalize-legal-name', 'Northline Bathworks LLC')
+    ;(document.querySelector('[data-testid="crm-formalize-submit"]') as HTMLButtonElement).click()
+    await flushPromises()
 
-    expect(convertLeadToProspectCustomerApi).toHaveBeenCalledWith('tenant-1', 'crm-account-1')
+    expect(convertLeadToProspectCustomerApi).toHaveBeenCalledWith('tenant-1', 'crm-account-1', {
+      legalName: 'Northline Bathworks LLC'
+    })
 
     await clickCrmRowAction(wrapper, 'crm-account-1', 'crm-account-release-crm-account-1')
     await flushPromises()
@@ -457,8 +673,48 @@ describe('customer management CRM P1 workspace', () => {
           leadCountry: 'US',
           leadDomain: 'draft-northline.example',
           leadEmail: 'draft@northline.example',
+          leadIdentifiers: [
+            {
+              identifierType: 'BUSINESS_REGISTRATION_NO',
+              issuerCountryOrRegion: 'US',
+              normalizedValue: 'US-778899',
+              rawValue: 'US-778899'
+            }
+          ],
           nextFollowUpAt: '2026-07-15T00:00:00.000Z',
           ownerAccountId: '',
+          profileItems: [
+            {
+              profileItemId: 'profile-domain-draft',
+              itemType: 'DOMAIN',
+              normalizedValue: 'draft-northline.example',
+              rawValue: 'draft-northline.example',
+              label: '',
+              role: '',
+              status: 'ACTIVE',
+              sourceRecordId: '',
+              promotedTargetType: '',
+              promotedTargetId: '',
+              promotedAt: '',
+              createdAt: '2026-06-10T00:00:00.000Z',
+              updatedAt: '2026-06-10T00:00:00.000Z'
+            },
+            {
+              profileItemId: 'profile-email-draft',
+              itemType: 'EMAIL',
+              normalizedValue: 'draft@northline.example',
+              rawValue: 'draft@northline.example',
+              label: '',
+              role: '',
+              status: 'ACTIVE',
+              sourceRecordId: '',
+              promotedTargetType: '',
+              promotedTargetId: '',
+              promotedAt: '',
+              createdAt: '2026-06-10T00:00:00.000Z',
+              updatedAt: '2026-06-10T00:00:00.000Z'
+            }
+          ],
           recordStatus: 'DRAFT'
         })
       ],
@@ -476,8 +732,19 @@ describe('customer management CRM P1 workspace', () => {
     expect((document.querySelector('[data-testid="crm-lead-display-name"]') as HTMLInputElement).value).toBe(
       'Draft Northline'
     )
+    expect((document.querySelector('[data-testid="crm-profile-value-0"]') as HTMLInputElement).value).toBe(
+      'draft-northline.example'
+    )
+    expect((document.querySelector('[data-testid="crm-profile-value-1"]') as HTMLInputElement).value).toBe(
+      'draft@northline.example'
+    )
+    expect((document.querySelector('[data-testid="crm-identifier-value-0"]') as HTMLInputElement).value).toBe(
+      'US-778899'
+    )
     await setDocumentInputValue('crm-lead-display-name', 'Draft Northline Updated')
-    await setDocumentInputValue('crm-lead-domain', 'updated-northline.example')
+    await setDocumentInputValue('crm-lead-legal-name', 'Draft Northline Legal Updated LLC')
+    await setDocumentInputValue('crm-profile-value-0', 'updated-northline.example')
+    await setDocumentInputValue('crm-identifier-value-0', 'US-778899-UPDATED')
     ;(document.querySelector('[data-testid="crm-draft-save"]') as HTMLButtonElement).click()
     await flushPromises()
 
@@ -486,9 +753,30 @@ describe('customer management CRM P1 workspace', () => {
       'crm-account-1',
       expect.objectContaining({
         displayName: 'Draft Northline Updated',
+        leadLegalName: 'Draft Northline Legal Updated LLC',
         leadCountry: 'US',
         leadDomain: 'updated-northline.example',
+        leadIdentifiers: [
+          {
+            identifierType: 'BUSINESS_REGISTRATION_NO',
+            issuerCountryOrRegion: 'US',
+            normalizedValue: 'US-778899-UPDATED',
+            rawValue: 'US-778899-UPDATED'
+          }
+        ],
         partyTypeHint: 'ORGANIZATION',
+        profileItems: [
+          {
+            itemType: 'DOMAIN',
+            normalizedValue: 'updated-northline.example',
+            rawValue: 'updated-northline.example'
+          },
+          {
+            itemType: 'EMAIL',
+            normalizedValue: 'draft@northline.example',
+            rawValue: 'draft@northline.example'
+          }
+        ],
         priority: 'A'
       })
     )
@@ -695,7 +983,10 @@ describe('customer management CRM P1 workspace', () => {
     await wrapper.get('[data-testid="crm-create-lead-open"]').trigger('click')
     await flushPromises()
     await setDocumentInputValue('crm-lead-display-name', 'Northline Bathworks')
-    await setDocumentInputValue('crm-lead-domain', 'northline.example')
+    await setDocumentInputValue('crm-lead-legal-name', 'Northline Bathworks LLC')
+    ;(document.querySelector('[data-testid="crm-profile-add"]') as HTMLButtonElement).click()
+    await flushPromises()
+    await setDocumentInputValue('crm-profile-value-0', 'northline.example')
     wrapper.findComponent({ name: 'CountryRegionSelect' }).vm.$emit('update:value', 'US')
     ;(wrapper.findComponent('[data-testid="crm-lead-party-type"]') as any).vm.$emit('update:value', 'ORGANIZATION')
     await flushPromises()
@@ -729,10 +1020,23 @@ describe('customer management CRM P1 workspace', () => {
       'tenant-1',
       expect.objectContaining({
         displayName: 'Serrano Fixtures',
+        leadLegalName: 'Serrano Fixtures',
         leadCountry: 'ES',
         leadDomain: 'serrano.example',
         leadEmail: 'imports@serrano.example',
         partyTypeHint: 'ORGANIZATION',
+        profileItems: [
+          {
+            itemType: 'DOMAIN',
+            normalizedValue: 'serrano.example',
+            rawValue: 'serrano.example'
+          },
+          {
+            itemType: 'EMAIL',
+            normalizedValue: 'imports@serrano.example',
+            rawValue: 'imports@serrano.example'
+          }
+        ],
         priority: 'C',
         sourceType: 'IMPORTED_LIST'
       })
@@ -758,6 +1062,7 @@ function buildCrmAccount(overrides: Record<string, unknown> = {}) {
     lifecycleStage: 'LEAD',
     partyTypeHint: 'ORGANIZATION',
     displayName: 'Northline Bathworks',
+    leadLegalName: 'Northline Bathworks LLC',
     leadCompanyName: 'Northline Bathworks LLC',
     leadDomain: 'northline.example',
     leadEmail: 'sourcing@northline.example',
@@ -774,6 +1079,23 @@ function buildCrmAccount(overrides: Record<string, unknown> = {}) {
     createdAt: '2026-06-10T00:00:00.000Z',
     updatedAt: '2026-06-10T00:00:00.000Z',
     archivedAt: '',
+    profileItems: [
+      {
+        profileItemId: 'profile-domain-1',
+        itemType: 'DOMAIN',
+        normalizedValue: 'northline.example',
+        rawValue: 'northline.example',
+        label: '',
+        role: '',
+        status: 'ACTIVE',
+        sourceRecordId: '',
+        promotedTargetType: '',
+        promotedTargetId: '',
+        promotedAt: '',
+        createdAt: '2026-06-10T00:00:00.000Z',
+        updatedAt: '2026-06-10T00:00:00.000Z'
+      }
+    ],
     ...overrides
   }
 }

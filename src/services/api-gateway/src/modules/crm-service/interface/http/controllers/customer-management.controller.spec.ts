@@ -20,6 +20,7 @@ describe('CustomerManagementController', () => {
     listCrmAccounts: jest.fn(),
     releaseCrmAccount: jest.fn(),
     submitDraftLead: jest.fn(),
+    updateCrmAccountIdentifiers: jest.fn(),
     updateDraftLead: jest.fn()
   }
 
@@ -107,6 +108,12 @@ describe('CustomerManagementController', () => {
     expect(
       reflector.get(
         REQUIRE_PERMISSIONS_METADATA_KEY,
+        CustomerManagementController.prototype.updateCrmAccountIdentifiers
+      )
+    ).toEqual({ all: [CRM_MANAGEMENT_PERMISSION_CODES.UPDATE_CRM_ACCOUNT] })
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
         CustomerManagementController.prototype.convertLeadToProspectCustomer
       )
     ).toEqual({ all: [CRM_MANAGEMENT_PERMISSION_CODES.CONVERT_CRM_ACCOUNT] })
@@ -117,6 +124,7 @@ describe('CustomerManagementController', () => {
     const leadBody = {
       displayName: 'Acme Importers',
       partyTypeHint: 'ORGANIZATION',
+      leadLegalName: 'Acme Importers Incorporated',
       leadCompanyName: 'Acme Importers Ltd',
       leadDomain: 'acme.example',
       priority: 'A',
@@ -153,6 +161,17 @@ describe('CustomerManagementController', () => {
       archiveReason: 'NON_TARGET_ACCOUNT',
       crmAccountId: 'archived-1',
       recordStatus: 'ARCHIVED'
+    })
+    customerManagementService.updateCrmAccountIdentifiers.mockResolvedValue({
+      crmAccountId: 'crm-account-1',
+      leadIdentifiers: [
+        {
+          identifierType: 'VAT_NO',
+          issuerCountryOrRegion: 'US',
+          normalizedValue: 'US-91-4432102',
+          rawValue: '91-4432102'
+        }
+      ]
     })
     customerManagementService.checkLeadDuplicate.mockResolvedValue({
       duplicateResult: { resultType: 'NO_DUPLICATE', candidates: [] }
@@ -192,7 +211,27 @@ describe('CustomerManagementController', () => {
       { archiveReason: 'NON_TARGET_ACCOUNT' } as any,
       source as any
     )
-    await controller.convertLeadToProspectCustomer('tenant-1', 'crm-account-1', source as any)
+    await controller.updateCrmAccountIdentifiers(
+      'tenant-1',
+      'crm-account-1',
+      {
+        leadIdentifiers: [
+          {
+            identifierType: 'VAT_NO',
+            issuerCountryOrRegion: 'US',
+            normalizedValue: 'US-91-4432102',
+            rawValue: '91-4432102'
+          }
+        ]
+      } as any,
+      source as any
+    )
+    await controller.convertLeadToProspectCustomer(
+      'tenant-1',
+      'crm-account-1',
+      { legalName: 'Acme Importers Incorporated' },
+      source as any
+    )
 
     expect(customerManagementService.listCrmAccounts).toHaveBeenCalledWith(
       'tenant-1',
@@ -241,6 +280,27 @@ describe('CustomerManagementController', () => {
       'tenant-1',
       'archived-1',
       { archiveReason: 'NON_TARGET_ACCOUNT' },
+      source
+    )
+    expect(customerManagementService.updateCrmAccountIdentifiers).toHaveBeenCalledWith(
+      'tenant-1',
+      'crm-account-1',
+      {
+        leadIdentifiers: [
+          {
+            identifierType: 'VAT_NO',
+            issuerCountryOrRegion: 'US',
+            normalizedValue: 'US-91-4432102',
+            rawValue: '91-4432102'
+          }
+        ]
+      },
+      source
+    )
+    expect(customerManagementService.convertLeadToProspectCustomer).toHaveBeenCalledWith(
+      'tenant-1',
+      'crm-account-1',
+      { legalName: 'Acme Importers Incorporated' },
       source
     )
   })

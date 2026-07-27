@@ -49,4 +49,40 @@ describe('site-service webhook publisher L1', () => {
     expect(headers).not.toHaveProperty('x-oes-client-id')
     expect(headers).not.toHaveProperty('x-oes-credential-id')
   })
+
+  it('rejects non-2xx responses without reading or exposing the response body', async () => {
+    const maliciousBody =
+      'url=https://attacker.invalid/private secret=body_secret credential=credential_from_body sync=sync_from_body'
+    const text = jest.fn().mockResolvedValue(maliciousBody)
+    const fetcher = jest.fn().mockResolvedValue({ ok: false, status: 502, text })
+    const publisher = new HttpSiteWebhookPublisher({
+      fetcher,
+      now: () => new Date('2026-07-22T08:00:00.000Z'),
+      nonce: () => 'nonce_webhook_failure'
+    })
+
+    const error = await publisher
+      .publish({
+        targetUrl: 'https://runtime.example/oes/webhooks/site',
+        signingSecret: 'webhook_signing_secret',
+        syncId: 'sync_a',
+        siteId: 'site_a',
+        eventId: 'event_a',
+        eventType: 'site.publish.available',
+        publishVersion: 7,
+        payload: { event_id: 'event_a', site_id: 'site_a' },
+        headers: {},
+        resent: true,
+        occurredAt: new Date('2026-07-22T08:00:00.000Z')
+      })
+      .catch((caught: unknown) => caught)
+
+    expect(error).toEqual(new Error('webhook dispatch failed with HTTP 502'))
+    expect(text).not.toHaveBeenCalled()
+    expect(String(error)).not.toContain(maliciousBody)
+    expect(String(error)).not.toContain('attacker.invalid')
+    expect(String(error)).not.toContain('body_secret')
+    expect(String(error)).not.toContain('credential_from_body')
+    expect(String(error)).not.toContain('sync_from_body')
+  })
 })

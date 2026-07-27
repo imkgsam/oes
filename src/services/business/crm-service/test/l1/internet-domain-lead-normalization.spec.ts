@@ -67,6 +67,18 @@ class FakeCrmAccountRepository implements CrmAccountRepository {
     )
   }
 
+  async listAccountProfileItems() {
+    return []
+  }
+
+  async addAccountProfileItem(profileItem: any): Promise<any> {
+    return profileItem
+  }
+
+  async replaceAccountProfileItems(): Promise<any[]> {
+    return []
+  }
+
   async deleteDraftAccount(): Promise<boolean> {
     return false
   }

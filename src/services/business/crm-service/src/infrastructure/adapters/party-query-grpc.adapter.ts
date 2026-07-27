@@ -13,7 +13,10 @@ import {
   PartyQueryServiceClient
 } from '@oes/common/generated/party_service'
 import { InjectGrpcClient, safeGrpcCall } from '@oes/common/transport'
-import { TenantPartyLookupPort, TenantPartyLookupResult } from '../../application/ports/tenant-party-lookup.port'
+import {
+  TenantPartyLookupPort,
+  TenantPartyLookupResult
+} from '../../application/ports/tenant-party-lookup.port'
 import {
   RegisterTenantPartyFromCrmInput,
   RegisterTenantPartyFromCrmResult,
@@ -25,7 +28,9 @@ import {
 
 /** PartyQueryGrpcAdapter validates and resolves tenant-scoped parties through party-service gRPC contracts. */
 @Injectable()
-export class PartyQueryGrpcAdapter implements TenantPartyLookupPort, TenantPartyResolutionPort, OnModuleInit {
+export class PartyQueryGrpcAdapter
+  implements TenantPartyLookupPort, TenantPartyResolutionPort, OnModuleInit
+{
   private partyQueryService!: PartyQueryServiceClient
   private partyRegistrationService!: PartyRegistrationServiceClient
 
@@ -38,15 +43,17 @@ export class PartyQueryGrpcAdapter implements TenantPartyLookupPort, TenantParty
   ) {}
 
   onModuleInit(): void {
-    this.partyQueryService = this.partyClient.getService<PartyQueryServiceClient>(
-      PARTY_QUERY_SERVICE_NAME
-    )
+    this.partyQueryService =
+      this.partyClient.getService<PartyQueryServiceClient>(PARTY_QUERY_SERVICE_NAME)
     this.partyRegistrationService = this.partyClient.getService<PartyRegistrationServiceClient>(
       PARTY_REGISTRATION_SERVICE_NAME
     )
   }
 
-  async getTenantPartyById(tenantId: string, tenantPartyId: string): Promise<TenantPartyLookupResult | null> {
+  async getTenantPartyById(
+    tenantId: string,
+    tenantPartyId: string
+  ): Promise<TenantPartyLookupResult | null> {
     const response = await safeGrpcCall(
       this.partyQueryService.getTenantPartyById(
         {
@@ -85,10 +92,10 @@ export class PartyQueryGrpcAdapter implements TenantPartyLookupPort, TenantParty
           typeHint: input.typeHint,
           name: input.name,
           country: input.country ?? '',
-          domain: input.domain ?? '',
-          email: input.email ?? '',
-          phone: input.phone ?? '',
-          whatsapp: input.whatsapp ?? '',
+          domain: firstProfileValue(input.profileItems, 'DOMAIN'),
+          email: firstProfileValue(input.profileItems, 'EMAIL'),
+          phone: firstProfileValue(input.profileItems, 'PHONE'),
+          whatsapp: firstProfileValue(input.profileItems, 'WHATSAPP'),
           identifiers: input.identifiers.map((identifier) => ({
             identifierType: identifier.identifierType,
             normalizedValue: identifier.normalizedValue,
@@ -121,13 +128,15 @@ export class PartyQueryGrpcAdapter implements TenantPartyLookupPort, TenantParty
   }
 
   /** registerTenantParty creates a tenant-scoped party only after CRM has accepted formalization. */
-  async registerTenantParty(input: RegisterTenantPartyFromCrmInput): Promise<RegisterTenantPartyFromCrmResult> {
+  async registerTenantParty(
+    input: RegisterTenantPartyFromCrmInput
+  ): Promise<RegisterTenantPartyFromCrmResult> {
     const response = await safeGrpcCall(
       this.partyRegistrationService.registerTenantParty(
         {
           tenantId: input.tenantId,
           type: input.typeHint,
-          legalName: input.displayName,
+          legalName: input.legalName,
           displayName: input.displayName,
           localCode: '',
           registeredCountry: input.country ?? '',
@@ -138,12 +147,14 @@ export class PartyQueryGrpcAdapter implements TenantPartyLookupPort, TenantParty
             issuerCountryOrRegion: identifier.issuerCountryOrRegion ?? '',
             status: 'ACTIVE'
           })),
-          idempotencyKey: `crm:${input.tenantId}:${input.displayName}`,
-          contactPoints: input.contactPoints.map((contactPoint) => ({
-            contactPointType: contactPoint.contactPointType,
-            normalizedValue: contactPoint.normalizedValue,
-            rawValue: contactPoint.rawValue ?? contactPoint.normalizedValue,
-            label: 'CRM lead evidence'
+          idempotencyKey: `crm:${input.tenantId}:${input.legalName}`,
+          profileItems: (input.profileItems ?? []).map((profileItem) => ({
+            itemType: profileItem.itemType,
+            normalizedValue: profileItem.normalizedValue,
+            rawValue: profileItem.rawValue ?? profileItem.normalizedValue,
+            label: profileItem.label ?? 'CRM account profile',
+            role: profileItem.role ?? '',
+            status: 'ASSERTED'
           }))
         },
         this.buildMetadata()
@@ -184,4 +195,14 @@ function toTenantPartyResolutionResultType(result?: string): TenantPartyResoluti
   }
 
   return TenantPartyResolutionResultType.NO_MATCH
+}
+
+/** firstProfileValue derives Party query evidence from CRM account profile items instead of lead field snapshots. */
+function firstProfileValue(
+  profileItems: ResolveTenantPartyForConsumerInput['profileItems'] = [],
+  itemType: string
+): string {
+  return profileItems.find(
+    (profileItem) => profileItem.itemType === itemType && profileItem.normalizedValue.trim()
+  )?.normalizedValue ?? ''
 }

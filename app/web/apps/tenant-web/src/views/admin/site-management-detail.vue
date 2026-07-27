@@ -1,13 +1,15 @@
 <script setup lang="ts">
+import type { TableColumnsType } from 'ant-design-vue'
 import type { SiteManagementApi } from '#/api'
 
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { Page } from '@vben/common-ui'
 import { IconifyIcon } from '@vben/icons'
+import { useI18n } from '@vben/locales'
 
-import { Alert, Button, Empty, Form, Input, Select, Skeleton, Space, Tag, message } from 'ant-design-vue'
+import { Alert, Button, Drawer, Dropdown, Empty, Form, Input, Menu, Modal, Select, Skeleton, Space, Table, Tag, message } from 'ant-design-vue'
 
 import {
   addProductsToSiteApi,
@@ -15,19 +17,27 @@ import {
   addPreparingLocaleApi,
   checkLocaleCompletenessApi,
   createSiteContentApi,
+  createContentCategoryApi,
   createSiteCategoryApi,
+  deleteContentCategoryApi,
+  publishContentCategoryLocaleApi,
+  reorderContentCategoriesApi,
+  listContentCategoryUsageApi,
   disableSiteApi,
   disableLocaleApi,
   generateSiteCredentialApi,
   getPendingSyncSummaryApi,
   getSyncDetailApi,
   listPendingSyncResourcesApi,
+  listLocaleOptionsApi,
   listSiteAuditLogsApi,
   listSiteCategoriesApi,
   listSiteContentsApi,
   listSiteCredentialsApi,
   listSiteCardsApi,
+  listSitePagesApi,
   listSiteProductsApi,
+  listContentCategoriesApi,
   listSyncHistoryApi,
   issuePreviewTokenApi,
   resendWebhookApi,
@@ -36,15 +46,18 @@ import {
   rotateSiteCredentialApi,
   searchProductMasterForAddApi,
   saveSiteContentLocaleVersionApi,
+  saveContentCategoryLocaleVersionApi,
   syncSiteApi,
   unpublishSiteCategoryApi,
   unpublishSiteContentApi,
   unpublishSiteProductApi,
   updateSiteCategoryApi,
+  updateSitePageGovernanceApi,
   updateSiteProductPublicationApi,
   updateSiteSettingsApi
 } from '#/api'
 import { $t } from '#/locales'
+import SiteManagementFaq from './site-management-faq.vue'
 import { useAuthContextStore } from '#/store/auth-context'
 
 type SiteCard = SiteManagementApi.SiteCard
@@ -53,9 +66,41 @@ type PendingSyncSummary = SiteManagementApi.PendingSyncSummary
 type SiteAuditLog = SiteManagementApi.SiteAuditLog
 type SiteCategory = SiteManagementApi.SiteCategory
 type SiteContentEntry = SiteManagementApi.SiteContentEntry
+type ContentCategory = SiteManagementApi.ContentCategory
 type SiteCredentialMetadata = SiteManagementApi.SiteCredentialMetadata
 type SiteProductPublication = SiteManagementApi.SiteProductPublication
+type LocaleOption = SiteManagementApi.SiteLocaleOption
+type LocaleCompletenessResult = SiteManagementApi.LocaleCompletenessResult
+type SitePage = SiteManagementApi.SitePage
 type SyncBatch = SiteManagementApi.SyncBatch
+type PageGovernanceAction = 'enabled' | 'indexable'
+type LocaleReadinessStatus = 'error' | 'idle' | 'loading' | 'success'
+interface PageActionRequest {
+  action: PageGovernanceAction
+  requestId: number
+  siteId: string
+  tenantId: string
+}
+
+interface PagesRequest {
+  confirmedMutationRevision: number
+  requestId: number
+  siteId: string
+  tenantId: string
+}
+
+interface LocaleReadinessRequest {
+  locale: string
+  requestId: number
+  siteId: string
+  tenantId: string
+}
+
+interface LocaleReadinessState extends LocaleReadinessRequest {
+  data: LocaleCompletenessResult | null
+  error: string
+  status: LocaleReadinessStatus
+}
 
 const siteManagementFallbackMessages = {
   activate: '激活',
@@ -63,30 +108,59 @@ const siteManagementFallbackMessages = {
   addLocale: '添加语言',
   addProducts: '加入产品',
   audit: '审计',
-  auditDescription: '重要命令由 site-service 记录，便于追踪和回放。',
   auditLoadFailed: '审计日志加载失败。',
   backToList: '返回站点列表',
   blogNews: '博客 / 新闻',
+  blogNewsCreateBlog: 'Create Blog',
+  blogNewsCreateNews: 'Create News',
+  blogNewsManageContentCategories: 'Manage Category Archive',
+  blogNewsPublishSync: 'Publish Sync',
   bodyHtml: '正文 HTML',
   categories: '站点类目',
-  categoriesDescription: '站点自定义类目，Sync 后进入 CategoryPublicView。',
   categoryIds: '类目 ID',
+  contentCategories: '文章分类',
+  contentCategoryIds: '文章分类',
   cancelEdit: '取消编辑',
   check: '检查',
   contentCreateSuccess: '内容条目已创建',
   contentDraftSaved: '内容草稿已保存',
   contentId: '内容 ID',
   contentLoadFailed: '博客 / 新闻加载失败。',
-  contentsDescription: '草稿先保存到 site-service，Sync 后才生成公开视图。',
+  applyFilter: '筛选',
+  createContentCategory: '新增文章分类',
+  deleteContentCategory: '删除文章分类',
+  deleteContentCategoryConfirm: '确认删除该文章分类？存在草稿或已发布文章引用时将被阻止。',
+  editContentCategory: '编辑文章分类',
+  localeCoverage: 'Locale 完整性',
+  moveDown: '下移',
+  moveUp: '上移',
+  resetFilter: '重置',
+  contentCategoryDetail: '文章分类详情',
+  contentCategoryDescription: '简介',
+  contentCategoryDeleteFailed: '文章分类删除失败。',
+  contentCategoryUsageLoadFailed: '文章分类使用情况加载失败。',
+  contentCategoryCreateSuccess: '文章分类草稿已创建',
+  contentCategoryDeleted: '文章分类已删除或转为 URL tombstone',
+  contentCategoryPublished: '语言版本已发布，等待下一次站点同步。',
+  contentCategoryDraftSaved: '文章分类草稿已保存',
+  contentCategoryKeyword: '文章分类关键词',
+  contentCategoryLabel: '归档短标签',
+  contentCategoryLoadFailed: '文章分类加载失败。',
+  contentCategoryName: '文章分类名称',
+  contentCategoryRank: '全站排序',
+  contentCategoryUsage: '文章使用',
+  contentCategoryOrderSaved: '全站文章分类排序已保存',
+  contentCategoryOptionalSeoWarning: 'SEO 字段可留空；公开端会按分类名称或简介回退。',
+  contentCategorySlug: 'URL Slug',
   createCategory: '创建类目',
   createEntry: '创建条目',
   credential: '凭证',
   credentialCreated: '凭证已生成，请在后端安全位置保存一次性结果。',
-  credentialDescription: '前端只展示 metadata，不持有 OES_SITE_CREDENTIAL 或高权限 secret。',
   credentialLoadFailed: '凭证元数据加载失败。',
   credentials: '凭证',
   defaultLocale: '默认语言',
   detail: '详情',
+  detailTablistLabel: '站点详情分区',
   disableSite: '禁用站点',
   disableReason: '禁用原因',
   disableLocale: '禁用语言',
@@ -97,31 +171,59 @@ const siteManagementFallbackMessages = {
   emptyContents: '暂无博客或新闻。',
   emptyCredentials: '暂无凭证 metadata。',
   emptyPendingResources: '暂无待同步资源。',
+  emptyPages: '尚未发现 Storefront 页面能力。',
   emptyProducts: '暂无已加入当前站点的产品。',
   emptySites: '暂无站点，创建一个 draft site 后开始配置。',
   emptySyncHistory: '暂无同步历史。',
   history: '历史记录',
   edit: '编辑',
+  faq: '常见问题',
   lastSync: '最近同步',
+  lastDiscoveredAt: '最近发现',
   lastUsed: '最近使用',
   latestVersion: '最新版本',
   locale: '语言',
   localeActivated: '语言已激活',
   localeAdded: 'Preparing 语言已添加',
   localeDisabled: '语言已禁用',
-  localeRule: 'Default locale 保持 active；preparing locale 不公开。',
+  localeReadinessBaseIssues: '基础检查问题',
+  localeReadinessCheckFailed: '语言激活检查失败。',
+  localeReadinessChecking: '正在检查语言激活条件。',
+  localeReadinessComplete: '语言激活检查：complete',
+  localeReadinessIncomplete: '语言激活检查：incomplete',
+  localeReadinessPageDrift: '页面能力 drift',
+  localeReadinessPageMissing: '静态页面能力缺失',
+  localeReadinessRetry: '重试检查',
+  localeReadinessStaticPages: '缺失的静态页面能力',
   locales: '语言',
   managedSites: '站点数',
   noActiveLocale: '无启用语言',
   noPreparingLocale: '无',
+  operation: '操作',
   overview: '概览',
+  off: '关闭',
+  on: '开启',
+  pageCapabilityAvailable: '能力可用',
+  pageCapabilityUnavailable: '能力不可用',
+  pageCapabilityUnavailableWarning: 'Runtime 当前未发现此页面能力；当前生产版本保持不变。',
+  pageDefaultOffHint: '新发现页面默认关闭，需显式开启后等待 Sync。',
+  pageDrift: 'drift',
+  pageDriftWarning: '能力 drift 会阻断下一次显式 Sync，但不会删除当前生产版本。',
+  pageEnabled: '页面启用',
+  pageGovernanceSaved: '页面治理已保存，等待显式 Sync。',
+  pageGovernanceUpdateFailed: '页面治理更新失败。',
+  pageIndexIntent: '页面索引意图',
+  pageKey: '页面标识',
+  pageLoadFailed: '页面治理加载失败。',
+  pages: '页面',
+  pagesLoading: '正在加载页面治理。',
   pendingSync: '待同步',
   preparing: 'Preparing',
   preview: '预览',
   previewBaseUrl: '预览地址',
   previewIssued: '预览令牌已签发，请通过 runtime 预览入口访问。',
   primaryDomain: '主域名',
-  productAddDescription: '只保存站点展示配置和站点类目归属，不复制 Product Master 真相。',
+  publish: '发布语言版本',
   productIds: '产品 ID',
   productJoined: '产品已加入站点',
   productLoadFailed: '站点产品加载失败。',
@@ -144,7 +246,6 @@ const siteManagementFallbackMessages = {
   seoDescription: 'SEO 描述',
   seoTitle: 'SEO 标题',
   settings: '设置',
-  settingsDescription: '保存站点配置只产生 pending sync，不直接通知 runtime。',
   settingsSaved: '站点设置已保存',
   siteCategoryLoadFailed: '站点类目加载失败。',
   siteCategorySaved: '站点类目已保存',
@@ -155,11 +256,16 @@ const siteManagementFallbackMessages = {
   siteRequiredTenant: '当前会话缺少租户上下文。',
   siteStatus: '站点状态',
   siteType: '站点类型',
+  sitemapConstraint: '派生结果；仍受真实内容与 canonical 资格约束。',
+  sitemapEligibility: 'Sitemap 资格',
+  sitemapEligible: '符合',
+  sitemapIneligible: '不符合',
+  sitemapPendingCandidate: 'Sync 后的条件候选',
   slug: 'Slug',
   sort: '排序',
   summary: '摘要',
+  supportedLocales: '支持语言',
   sync: '同步',
-  syncDescription: 'Sync 才推进 publishVersion，并且每批最多发送一次 webhook。',
   syncDetail: '同步详情',
   syncLoadFailed: '同步状态加载失败。',
   syncTriggered: '同步已触发',
@@ -180,8 +286,25 @@ function t(key: SiteManagementMessageKey) {
   return translated && translated !== path ? translated : siteManagementFallbackMessages[key]
 }
 
+// findLocaleOption returns the common contract locale metadata for a selected site locale.
+function findLocaleOption(locale: string) {
+  return localeOptions.value.find((option) => option.locale === locale)
+}
+
+// formatLocaleCodeLabel renders configured site locale values with native names when metadata is loaded.
+function formatLocaleCodeLabel(locale: string) {
+  const option = findLocaleOption(locale)
+  return option?.nativeName ?? locale
+}
+
+// formatLocaleOptionLabel renders Google-style native language names without OES UI translation coupling.
+function formatLocaleOptionLabel(locale: LocaleOption) {
+  return locale.nativeName
+}
+
 const route = useRoute()
 const router = useRouter()
+const { locale: currentUiLocale } = useI18n()
 const authContextStore = useAuthContextStore()
 const activeTenantId = computed(() => authContextStore.sessionContext?.tenant?.tenantId ?? '')
 const routeSiteId = computed(() => String(route.params.siteId ?? ''))
@@ -193,6 +316,7 @@ const credentialLoading = ref(false)
 const panelLoading = ref(false)
 const errorMessage = ref('')
 const activeTab = ref('overview')
+const siteTabList = ref<HTMLElement | null>(null)
 const categories = ref<SiteCategory[]>([])
 const credentials = ref<SiteCredentialMetadata[]>([])
 const products = ref<SiteProductPublication[]>([])
@@ -203,7 +327,35 @@ const syncHistory = ref<SyncBatch[]>([])
 const selectedSyncDetail = ref<SyncBatch | null>(null)
 const auditLogs = ref<SiteAuditLog[]>([])
 const contents = ref<SiteContentEntry[]>([])
-const localeCheckResult = ref('')
+const contentCategories = ref<ContentCategory[]>([])
+const localeOptions = ref<LocaleOption[]>([])
+const pages = ref<SitePage[]>([])
+const pagesLoading = ref(false)
+const pagesError = ref('')
+const pageActionLoading = reactive(new Map<string, PageActionRequest>())
+const pageActionErrors = reactive(new Map<string, string>())
+const activePagesRequest = ref<PagesRequest | null>(null)
+let pagesRequestSequence = 0
+let pageActionRequestSequence = 0
+let pagesConfirmedMutationRevision = 0
+const contentCategoryModalOpen = ref(false)
+const contentCategoryModalMode = ref<'create' | 'edit'>('create')
+const contentCategoryDetailDrawerOpen = ref(false)
+const selectedContentCategory = ref<ContentCategory | null>(null)
+const contentCategoryDeleteConfirmOpen = ref(false)
+const contentCategoryDeleteTarget = ref<ContentCategory | null>(null)
+const contentCategoryDeleteError = ref('')
+const contentCategoryDeleteUsage = ref<ContentCategory['publishedUsage'] | null>(null)
+const localeReadiness = reactive<LocaleReadinessState>({
+  data: null,
+  error: '',
+  locale: '',
+  requestId: 0,
+  siteId: '',
+  status: 'idle',
+  tenantId: ''
+})
+let localeReadinessRequestSequence = 0
 const editingCategoryId = ref('')
 const editingProductId = ref('')
 const categoryForm = reactive({
@@ -217,7 +369,7 @@ const categoryForm = reactive({
 })
 const productAddForm = reactive({
   productIds: '',
-  locales: 'zh-CN',
+  locales: [] as string[],
   categoryIds: ''
 })
 const productMasterSearchForm = reactive({
@@ -241,9 +393,25 @@ const contentForm = reactive({
   slug: '',
   title: '',
   summary: '',
+  categoryIds: [] as string[],
   bodyHtml: '',
   seoTitle: '',
   seoDescription: ''
+})
+const contentCategoryForm = reactive({
+  categoryId: '',
+  locale: 'zh-CN',
+  sortOrder: 0,
+  slug: '',
+  displayName: '',
+  archiveIntro: '',
+  archiveLabel: '',
+  seoTitle: '',
+  seoDescription: '',
+  seoImage: ''
+})
+const contentCategoryFilterForm = reactive({
+  keyword: ''
 })
 const settingsForm = reactive({
   primaryDomain: '',
@@ -253,12 +421,54 @@ const settingsForm = reactive({
 
 const selectedSite = computed(() => sites.value.find((site) => site.siteId === selectedSiteId.value) ?? null)
 const selectedDefaultLocale = computed(() => selectedSite.value?.activeLocales?.[0] ?? 'zh-CN')
+const siteLocaleOptions = computed(() => {
+  const locales = [
+    ...(selectedSite.value?.activeLocales ?? []),
+    ...(selectedSite.value?.preparingLocales ?? [])
+  ]
+  return [...new Set(locales)].map((locale) => ({ label: formatLocaleCodeLabel(locale), value: locale }))
+})
+const addableLocaleOptions = computed(() => {
+  const existing = new Set(siteLocaleOptions.value.map((option) => option.value))
+  return localeOptions.value
+    .filter((locale) => !existing.has(locale.locale))
+    .map((locale) => ({
+      label: formatLocaleOptionLabel(locale),
+      value: locale.locale
+    }))
+})
 const syncTypeCounts = computed(() => Object.entries(pendingSyncSummary.value?.byResourceType ?? {}))
+const localeCheckResult = computed(() =>
+  localeReadiness.status === 'success' ? localeReadiness.data : null
+)
+// localeReadinessBaseIssues removes serialized duplicates already represented by structured page issues.
+const localeReadinessBaseIssues = computed(() => {
+  if (!localeCheckResult.value) return []
+  const structuredIssues = new Set(
+    (localeCheckResult.value.preflightIssues ?? []).map(
+      (issue) => `${issue.code}:${issue.pageKey}:${issue.locale}`
+    )
+  )
+  return localeCheckResult.value.issues.filter((issue) => !structuredIssues.has(issue))
+})
+const lastDiscoveredAtFormatter = computed(
+  () =>
+    new Intl.DateTimeFormat(currentUiLocale.value, {
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    })
+)
 
 const siteTabs = computed(() => [
   { key: 'overview', label: t('overview'), icon: 'lucide:layout-dashboard' },
+  { key: 'pages', label: t('pages'), icon: 'lucide:files' },
+  { key: 'faq', label: t('faq'), icon: 'lucide:circle-help' },
   { key: 'categories', label: t('categories'), icon: 'lucide:folder-tree' },
   { key: 'products', label: t('products'), icon: 'lucide:package' },
+  { key: 'content-categories', label: t('contentCategories'), icon: 'lucide:tags' },
   { key: 'contents', label: t('blogNews'), icon: 'lucide:newspaper' },
   { key: 'locales', label: t('locales'), icon: 'lucide:languages' },
   { key: 'sync', label: t('sync'), icon: 'lucide:refresh-cw' },
@@ -267,12 +477,30 @@ const siteTabs = computed(() => [
   { key: 'audit', label: t('audit'), icon: 'lucide:history' }
 ])
 
+const contentCategoryTableColumns = computed<TableColumnsType<ContentCategory>>(() => [
+  { title: t('contentCategories'), dataIndex: 'category', key: 'category', width: 260 },
+  { align: 'center', title: t('contentCategoryRank'), dataIndex: 'sortOrder', key: 'sortOrder', width: 90 },
+  { align: 'center', title: t('contentCategoryUsage'), dataIndex: 'usage', key: 'usage', width: 130 },
+  { align: 'center', title: t('operation'), dataIndex: 'actions', key: 'actions', width: 82 }
+])
+
+const filteredContentCategories = computed(() => {
+  const keyword = contentCategoryFilterForm.keyword.trim().toLowerCase()
+  return contentCategories.value.filter((category) => {
+    const versions = category.localeVersions ?? []
+    const searchable = [
+      category.categoryId,
+      ...versions.flatMap((version) => [version.displayName, version.slug])
+    ].join(' ').toLowerCase()
+    const matchesKeyword = !keyword || searchable.includes(keyword)
+    return matchesKeyword
+  })
+})
+
 // splitCsvField turns compact comma-separated form fields into clean API arrays.
-function splitCsvField(value: string) {
-  return value
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean)
+function splitCsvField(value: string | string[]) {
+  const values = Array.isArray(value) ? value : value.split(',')
+  return values.map((item) => item.trim()).filter(Boolean)
 }
 
 // resetSiteScopedPanels clears read models that belong to the previously selected site.
@@ -287,7 +515,26 @@ function resetSiteScopedPanels() {
   selectedSyncDetail.value = null
   auditLogs.value = []
   contents.value = []
-  localeCheckResult.value = ''
+  contentCategories.value = []
+  pages.value = []
+  pagesError.value = ''
+  pagesLoading.value = false
+  activePagesRequest.value = null
+  pagesConfirmedMutationRevision = 0
+  pageActionLoading.clear()
+  pageActionErrors.clear()
+  contentCategoryModalOpen.value = false
+  contentCategoryDetailDrawerOpen.value = false
+  selectedContentCategory.value = null
+  contentCategoryDeleteConfirmOpen.value = false
+  contentCategoryDeleteTarget.value = null
+  contentCategoryDeleteError.value = ''
+  contentCategoryDeleteUsage.value = null
+  invalidateLocaleReadiness(
+    activeTenantId.value,
+    selectedSiteId.value,
+    localeForm.locale.trim()
+  )
   editingCategoryId.value = ''
   editingProductId.value = ''
 }
@@ -312,6 +559,210 @@ async function loadSites() {
   } finally {
     loading.value = false
   }
+}
+
+// loadLocaleOptions loads fixed system locale options used by the site locale lifecycle form.
+async function loadLocaleOptions() {
+  if (!activeTenantId.value) return
+  const result = await listLocaleOptionsApi(activeTenantId.value)
+  localeOptions.value = result.locales ?? []
+}
+
+/** loadSitePages reads discovered page capabilities and page-wide governance for the selected site. */
+async function loadSitePages() {
+  const tenantId = activeTenantId.value
+  const siteId = selectedSite.value?.siteId ?? ''
+  if (!tenantId || !siteId) return
+  const request: PagesRequest = {
+    confirmedMutationRevision: pagesConfirmedMutationRevision,
+    requestId: ++pagesRequestSequence,
+    siteId,
+    tenantId
+  }
+  activePagesRequest.value = request
+  pagesLoading.value = true
+  pagesError.value = ''
+  try {
+    const result = await listSitePagesApi(tenantId, siteId)
+    if (isCurrentPagesRequest(request)) {
+      pages.value = result.pages ?? []
+    }
+  } catch (error) {
+    if (isCurrentPagesRequest(request)) {
+      pagesError.value = (error as Error).message || t('pageLoadFailed')
+    }
+  } finally {
+    if (isCurrentPagesRequest(request)) {
+      activePagesRequest.value = null
+      pagesLoading.value = false
+    }
+  }
+}
+
+/** isCurrentSiteScope verifies that an async result still belongs to the active tenant and site. */
+function isCurrentSiteScope(tenantId: string, siteId: string) {
+  return activeTenantId.value === tenantId && selectedSiteId.value === siteId
+}
+
+/** isCurrentPagesRequest admits state writes only from the latest request in the active site scope. */
+function isCurrentPagesRequest(request: PagesRequest) {
+  return (
+    isCurrentSiteScope(request.tenantId, request.siteId) &&
+    activePagesRequest.value?.requestId === request.requestId &&
+    request.confirmedMutationRevision === pagesConfirmedMutationRevision
+  )
+}
+
+/** isSitemapEligible derives visibility intent without creating an independent sitemap setting. */
+function isSitemapEligible(page: SitePage) {
+  return page.capabilityAvailable && page.enabled && page.indexable
+}
+
+/** parseLastDiscoveredAt turns a valid timestamp into a Date and safely rejects invalid input. */
+function parseLastDiscoveredAt(value: string) {
+  const timestamp = Date.parse(value)
+  return Number.isNaN(timestamp) ? null : new Date(timestamp)
+}
+
+/** formatLastDiscoveredAt renders discovery time through the current OES UI locale. */
+function formatLastDiscoveredAt(value: string) {
+  const discoveredAt = parseLastDiscoveredAt(value)
+  if (!discoveredAt) return '-'
+  try {
+    return lastDiscoveredAtFormatter.value.format(discoveredAt)
+  } catch {
+    return '-'
+  }
+}
+
+/** lastDiscoveredDateTime returns a machine-readable datetime only for valid timestamps. */
+function lastDiscoveredDateTime(value: string) {
+  return parseLastDiscoveredAt(value)?.toISOString()
+}
+
+/** sitemapEligibilityLabel distinguishes pending intent from current synced eligibility. */
+function sitemapEligibilityLabel(page: SitePage) {
+  if (!isSitemapEligible(page)) return t('sitemapIneligible')
+  return page.syncStatus.toLowerCase() === 'pending'
+    ? t('sitemapPendingCandidate')
+    : t('sitemapEligible')
+}
+
+/** handleSiteTabKeydown implements selection-follow-focus roving keyboard navigation. */
+function handleSiteTabKeydown(event: KeyboardEvent, currentKey: string) {
+  const currentIndex = siteTabs.value.findIndex((tab) => tab.key === currentKey)
+  if (currentIndex < 0) return
+  const lastIndex = siteTabs.value.length - 1
+  let targetIndex: number
+  switch (event.key) {
+    case 'ArrowDown':
+    case 'ArrowRight':
+      targetIndex = currentIndex === lastIndex ? 0 : currentIndex + 1
+      break
+    case 'ArrowLeft':
+    case 'ArrowUp':
+      targetIndex = currentIndex === 0 ? lastIndex : currentIndex - 1
+      break
+    case 'End':
+      targetIndex = lastIndex
+      break
+    case 'Home':
+      targetIndex = 0
+      break
+    default:
+      return
+  }
+  event.preventDefault()
+  const targetTab = siteTabs.value[targetIndex]
+  if (!targetTab) return
+  activeTab.value = targetTab.key
+  void nextTick(() => {
+    siteTabList.value
+      ?.querySelector<HTMLElement>(`[data-testid="site-tab-${targetTab.key}"]`)
+      ?.focus()
+  })
+}
+
+/** formatLocalePreflightIssue translates structured static-page readiness issues for operators. */
+function formatLocalePreflightIssue(issue: SiteManagementApi.SitePagePreflightIssue) {
+  const localeSuffix = issue.locale ? ` · ${t('locale')}: ${issue.locale}` : ''
+  if (issue.code === 'SITE_PAGE_LOCALE_COVERAGE_INCOMPLETE') {
+    return `${t('localeReadinessPageMissing')}: ${issue.pageKey}${localeSuffix}`
+  }
+  if (issue.code === 'SITE_PAGE_CAPABILITY_DRIFT') {
+    return `${t('localeReadinessPageDrift')}: ${issue.pageKey}${localeSuffix}`
+  }
+  return `${issue.code}: ${issue.pageKey}${localeSuffix}`
+}
+
+/** updatePageGovernance persists one complete pair and replaces only the confirmed response row. */
+async function updatePageGovernance(page: SitePage, action: PageGovernanceAction) {
+  const tenantId = activeTenantId.value
+  const siteId = selectedSite.value?.siteId ?? ''
+  if (!tenantId || !siteId || pageActionLoading.has(page.pageKey)) {
+    return
+  }
+  const request: PageActionRequest = {
+    action,
+    requestId: ++pageActionRequestSequence,
+    siteId,
+    tenantId
+  }
+  const governance = {
+    enabled: action === 'enabled' ? !page.enabled : page.enabled,
+    indexable: action === 'indexable' ? !page.indexable : page.indexable
+  }
+  pageActionLoading.set(page.pageKey, request)
+  pageActionErrors.delete(page.pageKey)
+  try {
+    const result = await updateSitePageGovernanceApi(
+      tenantId,
+      siteId,
+      page.pageKey,
+      governance
+    )
+    if (!isCurrentPageActionRequest(page.pageKey, request)) return
+    confirmPageMutation(request)
+    const rowIndex = pages.value.findIndex((candidate) => candidate.pageKey === page.pageKey)
+    if (rowIndex >= 0) {
+      pages.value.splice(rowIndex, 1, result.page)
+    }
+    pageActionErrors.delete(page.pageKey)
+    message.success(t('pageGovernanceSaved'))
+  } catch (error) {
+    if (isCurrentPageActionRequest(page.pageKey, request)) {
+      pageActionErrors.set(
+        page.pageKey,
+        (error as Error).message || t('pageGovernanceUpdateFailed')
+      )
+    }
+  } finally {
+    if (isCurrentPageActionRequest(page.pageKey, request)) {
+      pageActionLoading.delete(page.pageKey)
+    }
+  }
+}
+
+/** confirmPageMutation advances the shared sequencing boundary and retires older refresh work. */
+function confirmPageMutation(request: PageActionRequest) {
+  pagesConfirmedMutationRevision += 1
+  const refreshRequest = activePagesRequest.value
+  if (
+    refreshRequest?.tenantId === request.tenantId &&
+    refreshRequest.siteId === request.siteId &&
+    refreshRequest.confirmedMutationRevision < pagesConfirmedMutationRevision
+  ) {
+    activePagesRequest.value = null
+    pagesLoading.value = false
+  }
+}
+
+/** isCurrentPageActionRequest protects row writes and lock release with scope and token identity. */
+function isCurrentPageActionRequest(pageKey: string, request: PageActionRequest) {
+  return (
+    isCurrentSiteScope(request.tenantId, request.siteId) &&
+    pageActionLoading.get(pageKey)?.requestId === request.requestId
+  )
 }
 
 // backToList returns from the heavy detail surface to the filterable Site Management workspace.
@@ -478,7 +929,7 @@ async function saveProductDisplayConfig() {
 async function addProducts() {
   if (!activeTenantId.value || !selectedSite.value) return
   const productIds = splitCsvField(productAddForm.productIds)
-  const locales = splitCsvField(productAddForm.locales || selectedDefaultLocale.value)
+  const locales = splitCsvField(productAddForm.locales.length ? productAddForm.locales : [selectedDefaultLocale.value])
   const categoryIds = splitCsvField(productAddForm.categoryIds)
   if (productIds.length === 0 || locales.length === 0) return
   actionLoading.value = true
@@ -538,18 +989,61 @@ async function addPreparingLocale() {
   }
 }
 
-// checkLocaleCompleteness asks site-service whether a preparing locale can become active.
+/** invalidateLocaleReadiness clears conclusions and invalidates any request for an obsolete target. */
+function invalidateLocaleReadiness(tenantId: string, siteId: string, locale: string) {
+  Object.assign(localeReadiness, {
+    data: null,
+    error: '',
+    locale,
+    requestId: ++localeReadinessRequestSequence,
+    siteId,
+    status: 'idle' as const,
+    tenantId
+  })
+}
+
+/** isCurrentLocaleReadinessRequest admits results only for the latest active target tuple. */
+function isCurrentLocaleReadinessRequest(request: LocaleReadinessRequest) {
+  return (
+    isCurrentSiteScope(request.tenantId, request.siteId) &&
+    localeForm.locale.trim() === request.locale &&
+    localeReadiness.requestId === request.requestId
+  )
+}
+
+/** checkLocaleCompleteness asks site-service whether the current preparing locale can become active. */
 async function checkLocaleCompleteness() {
-  if (!activeTenantId.value || !selectedSite.value || !localeForm.locale.trim()) return
-  actionLoading.value = true
+  const tenantId = activeTenantId.value
+  const siteId = selectedSite.value?.siteId ?? ''
+  const locale = localeForm.locale.trim()
+  if (!tenantId || !siteId || !locale) return
+  const request: LocaleReadinessRequest = {
+    locale,
+    requestId: ++localeReadinessRequestSequence,
+    siteId,
+    tenantId
+  }
+  Object.assign(localeReadiness, {
+    ...request,
+    data: null,
+    error: '',
+    status: 'loading' as const
+  })
   try {
-    const result = await checkLocaleCompletenessApi(activeTenantId.value, selectedSite.value.siteId, localeForm.locale.trim()) as {
-      complete?: boolean
-      missing?: string[]
+    const result = await checkLocaleCompletenessApi(tenantId, siteId, locale)
+    if (!isCurrentLocaleReadinessRequest(request)) return
+    localeReadiness.data = {
+      complete: result.complete,
+      issues: result.issues ?? [],
+      preflightIssues: result.preflightIssues ?? []
     }
-    localeCheckResult.value = result.complete ? 'complete' : `missing: ${(result.missing ?? []).join(', ') || '-'}`
-  } finally {
-    actionLoading.value = false
+    localeReadiness.status = 'success'
+  } catch (error) {
+    if (!isCurrentLocaleReadinessRequest(request)) return
+    localeReadiness.data = null
+    localeReadiness.error =
+      (error as Error).message || t('localeReadinessCheckFailed')
+    localeReadiness.status = 'error'
   }
 }
 
@@ -584,8 +1078,12 @@ async function loadContents() {
   if (!activeTenantId.value || !selectedSite.value) return
   panelLoading.value = true
   try {
-    const result = await listSiteContentsApi(activeTenantId.value, selectedSite.value.siteId)
+    const [result, contentCategoryResult] = await Promise.all([
+      listSiteContentsApi(activeTenantId.value, selectedSite.value.siteId),
+      listContentCategoriesApi(activeTenantId.value, selectedSite.value.siteId)
+    ])
     contents.value = result.contents ?? []
+    contentCategories.value = contentCategoryResult.categories ?? []
   } catch (error) {
     errorMessage.value = (error as Error).message || t('contentLoadFailed')
   } finally {
@@ -593,13 +1091,40 @@ async function loadContents() {
   }
 }
 
-// createContentEntry creates the site-scoped Blog/News shell before locale drafts are saved.
-async function createContentEntry() {
+// loadContentCategories reads site-scoped Blog/News Categories for the dedicated Category tab and content reference selector.
+async function loadContentCategories() {
   if (!activeTenantId.value || !selectedSite.value) return
+  panelLoading.value = true
+  try {
+    const result = await listContentCategoriesApi(activeTenantId.value, selectedSite.value.siteId)
+    contentCategories.value = result.categories ?? []
+  } catch (error) {
+    errorMessage.value = (error as Error).message || t('contentCategoryLoadFailed')
+  } finally {
+    panelLoading.value = false
+  }
+}
+
+// contentCategoryDefaultVersion prioritizes the Site default locale without silently falling back across publication rules.
+function contentCategoryDefaultVersion(category: ContentCategory | Record<string, unknown>) {
+  const versions = (category as ContentCategory).localeVersions ?? []
+  return versions.find((version) => version.locale === selectedDefaultLocale.value) ?? versions[0]
+}
+
+// normalizeContentType keeps button click events from leaking into the Admin BFF payload.
+function normalizeContentType(contentType?: unknown): 'blog' | 'news' {
+  return contentType === 'blog' || contentType === 'news' ? contentType : contentForm.contentType
+}
+
+// createContentEntry creates the site-scoped Blog/News shell before locale drafts are saved.
+async function createContentEntry(contentType?: unknown) {
+  if (!activeTenantId.value || !selectedSite.value) return
+  const selectedContentType = normalizeContentType(contentType)
   actionLoading.value = true
   try {
+    contentForm.contentType = selectedContentType
     const result = await createSiteContentApi(activeTenantId.value, selectedSite.value.siteId, {
-      contentType: contentForm.contentType
+      contentType: selectedContentType
     }) as { contentId?: string }
     contentForm.contentId = result.contentId ?? contentForm.contentId
     message.success(t('contentCreateSuccess'))
@@ -607,6 +1132,11 @@ async function createContentEntry() {
   } finally {
     actionLoading.value = false
   }
+}
+
+// openContentCategoryArchiveOperations switches from content editing to the dedicated Category archive management tab.
+function openContentCategoryArchiveOperations() {
+  activeTab.value = 'content-categories'
 }
 
 // saveContentDraft saves one Blog/News locale draft without notifying the runtime.
@@ -619,6 +1149,7 @@ async function saveContentDraft() {
       slug: contentForm.slug.trim(),
       title: contentForm.title.trim(),
       summary: contentForm.summary.trim() || undefined,
+      categoryIds: [...contentForm.categoryIds],
       bodyHtml: contentForm.bodyHtml.trim(),
       seoTitle: contentForm.seoTitle.trim() || contentForm.title.trim(),
       seoDescription: contentForm.seoDescription.trim() || contentForm.summary.trim() || contentForm.title.trim()
@@ -628,6 +1159,155 @@ async function saveContentDraft() {
   } finally {
     actionLoading.value = false
   }
+}
+
+// resetContentCategoryForm prepares the shared create/edit Category modal with safe defaults.
+function resetContentCategoryForm() {
+  contentCategoryForm.categoryId = ''
+  contentCategoryForm.locale = selectedDefaultLocale.value
+  contentCategoryForm.sortOrder = contentCategories.value.length
+  contentCategoryForm.slug = ''
+  contentCategoryForm.displayName = ''
+  contentCategoryForm.archiveIntro = ''
+  contentCategoryForm.archiveLabel = ''
+  contentCategoryForm.seoTitle = ''
+  contentCategoryForm.seoDescription = ''
+  contentCategoryForm.seoImage = ''
+}
+
+// openCreateContentCategoryModal starts a short create flow without leaving the Category table context.
+function openCreateContentCategoryModal() {
+  resetContentCategoryForm()
+  contentCategoryModalMode.value = 'create'
+  contentCategoryModalOpen.value = true
+}
+
+// openEditContentCategoryModal copies one Category row into the shared modal for locale-version edits.
+function openEditContentCategoryModal(category: ContentCategory | Record<string, unknown>) {
+  const contentCategoryRecord = category as ContentCategory
+  const version = contentCategoryDefaultVersion(contentCategoryRecord)
+  contentCategoryForm.categoryId = contentCategoryRecord.categoryId
+  contentCategoryForm.locale = version?.locale || selectedDefaultLocale.value
+  contentCategoryForm.sortOrder = contentCategoryRecord.sortOrder ?? 0
+  contentCategoryForm.slug = version?.slug || ''
+  contentCategoryForm.displayName = version?.displayName || ''
+  contentCategoryForm.archiveIntro = version?.archiveIntro || ''
+  contentCategoryForm.archiveLabel = version?.archiveLabel || ''
+  contentCategoryForm.seoTitle = version?.seoTitle || ''
+  contentCategoryForm.seoDescription = version?.seoDescription || ''
+  contentCategoryForm.seoImage = version?.seoImage || ''
+  contentCategoryModalMode.value = 'edit'
+  contentCategoryModalOpen.value = true
+}
+
+// openContentCategoryDetailDrawer shows one Category as read-only operational context.
+function openContentCategoryDetailDrawer(category: ContentCategory | Record<string, unknown>) {
+  selectedContentCategory.value = category as ContentCategory
+  contentCategoryDetailDrawerOpen.value = true
+}
+
+// saveContentCategoryModal creates an atomic default-locale draft or saves one locale draft without publishing it.
+async function saveContentCategoryModal() {
+  if (!activeTenantId.value || !selectedSite.value) return
+  if (contentCategoryModalMode.value === 'edit' && !contentCategoryForm.categoryId.trim()) return
+  actionLoading.value = true
+  try {
+    let categoryId = contentCategoryForm.categoryId.trim()
+    const localeVersion = {
+      locale: contentCategoryForm.locale.trim() || selectedDefaultLocale.value,
+      slug: contentCategoryForm.slug.trim(),
+      displayName: contentCategoryForm.displayName.trim(),
+      archiveIntro: contentCategoryForm.archiveIntro.trim() || undefined,
+      archiveLabel: contentCategoryForm.archiveLabel.trim() || undefined,
+      seoTitle: contentCategoryForm.seoTitle.trim() || undefined,
+      seoDescription: contentCategoryForm.seoDescription.trim() || undefined,
+      seoImage: contentCategoryForm.seoImage.trim() || undefined
+    }
+    if (contentCategoryModalMode.value === 'create') {
+      const result = await createContentCategoryApi(activeTenantId.value, selectedSite.value.siteId, {
+        sortOrder: contentCategoryForm.sortOrder,
+        initialLocaleVersion: localeVersion
+      }) as { category?: ContentCategory }
+      categoryId = result.category?.categoryId ?? categoryId
+      contentCategoryForm.categoryId = categoryId
+      contentCategoryModalMode.value = 'edit'
+      message.success(t('contentCategoryCreateSuccess'))
+    } else await saveContentCategoryLocaleVersionApi(activeTenantId.value, selectedSite.value.siteId, categoryId, localeVersion)
+    message.success(t('contentCategoryDraftSaved'))
+    await loadContentCategories()
+    await loadSites()
+  } finally {
+    actionLoading.value = false
+  }
+}
+
+// openDeleteContentCategoryConfirm loads server-owned Article usage before a destructive Category command.
+async function openDeleteContentCategoryConfirm(category: ContentCategory | Record<string, unknown>) {
+  const record = category as ContentCategory
+  if (!activeTenantId.value || !selectedSite.value) return
+  contentCategoryDeleteTarget.value = record
+  contentCategoryDeleteError.value = ''
+  contentCategoryDeleteUsage.value = null
+  try {
+    const result = await listContentCategoryUsageApi(activeTenantId.value, selectedSite.value.siteId, record.categoryId)
+    contentCategoryDeleteUsage.value = result.usage ?? null
+  } catch (error) {
+    contentCategoryDeleteError.value = (error as Error).message || t('contentCategoryUsageLoadFailed')
+  }
+  contentCategoryDeleteConfirmOpen.value = true
+}
+
+// confirmDeleteContentCategory delegates draft/published reference protection and tombstone semantics to site-service.
+async function confirmDeleteContentCategory() {
+  const category = contentCategoryDeleteTarget.value
+  if (!activeTenantId.value || !selectedSite.value) return
+  if (!category) return
+  actionLoading.value = true
+  try {
+    await deleteContentCategoryApi(activeTenantId.value, selectedSite.value.siteId, category.categoryId)
+    message.success(t('contentCategoryDeleted'))
+    contentCategoryDeleteConfirmOpen.value = false
+    contentCategoryDeleteTarget.value = null
+    await loadContentCategories()
+    await loadSites()
+  } catch (error) {
+    contentCategoryDeleteConfirmOpen.value = false
+    contentCategoryDeleteError.value = (error as Error).message || t('contentCategoryDeleteFailed')
+  } finally {
+    actionLoading.value = false
+  }
+}
+
+/** publishContentCategoryLocale approves the saved locale draft without directly invoking Runtime Sync. */
+async function publishContentCategoryLocale() {
+  if (!activeTenantId.value || !selectedSite.value || !contentCategoryForm.categoryId.trim()) return
+  actionLoading.value = true
+  try {
+    await publishContentCategoryLocaleApi(activeTenantId.value, selectedSite.value.siteId, contentCategoryForm.categoryId.trim(), contentCategoryForm.locale)
+    message.success(t('contentCategoryPublished'))
+    await loadContentCategories()
+  } finally { actionLoading.value = false }
+}
+
+/** moveContentCategory changes only local table order until the operator saves the one global rank sequence. */
+function moveContentCategory(categoryId: string, direction: -1 | 1) {
+  const index = contentCategories.value.findIndex((category) => category.categoryId === categoryId)
+  const target = index + direction
+  if (index < 0 || target < 0 || target >= contentCategories.value.length) return
+  const reordered = [...contentCategories.value]
+  ;[reordered[index], reordered[target]] = [reordered[target]!, reordered[index]!]
+  contentCategories.value = reordered.map((category, sortOrder) => ({ ...category, sortOrder }))
+}
+
+/** saveContentCategoryOrder persists the complete shared Category rank and leaves Article types neutral. */
+async function saveContentCategoryOrder() {
+  if (!activeTenantId.value || !selectedSite.value) return
+  actionLoading.value = true
+  try {
+    await reorderContentCategoriesApi(activeTenantId.value, selectedSite.value.siteId, contentCategories.value.map((category) => category.categoryId))
+    message.success(t('contentCategoryOrderSaved'))
+    await loadContentCategories()
+  } finally { actionLoading.value = false }
 }
 
 // hydrateSettingsForm copies selected site values into editable settings fields.
@@ -809,7 +1489,8 @@ async function generateCredential() {
       'site:read',
       'site:sync',
       'site:preview',
-      'site:status'
+      'site:status',
+      'site:capabilities'
     ])
     message.success(t('credentialCreated'))
     if (activeTab.value === 'credentials') {
@@ -887,24 +1568,46 @@ function statusColor(status?: string) {
   return 'blue'
 }
 
-onMounted(loadSites)
+onMounted(() => {
+  void loadLocaleOptions()
+  void loadSites()
+})
 
-// The route watcher keeps the detail page refreshable and reusable across site ids.
-watch(routeSiteId, () => {
+// The scope watcher invalidates site-owned read models whenever tenant or route site changes.
+watch([routeSiteId, activeTenantId], () => {
   selectedSiteId.value = routeSiteId.value
   activeTab.value = 'overview'
   resetSiteScopedPanels()
   void loadSites()
 })
 
+// The readiness target watcher invalidates conclusions whenever tenant, site, or locale changes.
+watch([activeTenantId, selectedSiteId, () => localeForm.locale], ([tenantId, siteId, locale]) => {
+  if (
+    localeReadiness.tenantId !== tenantId ||
+    localeReadiness.siteId !== siteId ||
+    localeReadiness.locale !== locale.trim()
+  ) {
+    invalidateLocaleReadiness(tenantId, siteId, locale.trim())
+  }
+})
+
 watch([activeTab, selectedSiteId], () => {
   categoryForm.locale = selectedDefaultLocale.value
-  productAddForm.locales = selectedDefaultLocale.value
+  productAddForm.locales = selectedDefaultLocale.value ? [selectedDefaultLocale.value] : []
+  contentForm.locale = selectedDefaultLocale.value
+  localeForm.locale = addableLocaleOptions.value[0]?.value ?? ''
   if (activeTab.value === 'categories') {
     void loadCategories()
   }
+  if (activeTab.value === 'pages') {
+    void loadSitePages()
+  }
   if (activeTab.value === 'products') {
     void loadProducts()
+  }
+  if (activeTab.value === 'content-categories') {
+    void loadContentCategories()
   }
   if (activeTab.value === 'sync') {
     void loadSyncPanel()
@@ -912,6 +1615,7 @@ watch([activeTab, selectedSiteId], () => {
   if (activeTab.value === 'contents') {
     contentForm.locale = selectedDefaultLocale.value
     void loadContents()
+    void loadContentCategories()
   }
   if (activeTab.value === 'settings') {
     hydrateSettingsForm()
@@ -960,23 +1664,38 @@ watch([activeTab, selectedSiteId], () => {
               </Button>
             </Space>
           </header>
-          <div class="site-tabs" role="tablist" aria-label="Site detail sections">
+          <div
+            ref="siteTabList"
+            class="site-tabs"
+            role="tablist"
+            :aria-label="t('detailTablistLabel')"
+          >
             <button
               v-for="tab in siteTabs"
               :key="tab.key"
+              :id="`site-tab-${tab.key}`"
               class="site-tabs__button"
               :class="{ 'site-tabs__button--active': activeTab === tab.key }"
               type="button"
               role="tab"
+              aria-controls="site-detail-tabpanel"
+              :aria-label="tab.label"
               :aria-selected="activeTab === tab.key"
+              :tabindex="activeTab === tab.key ? 0 : -1"
               :data-testid="`site-tab-${tab.key}`"
               @click="activeTab = tab.key"
+              @keydown="handleSiteTabKeydown($event, tab.key)"
             >
               <IconifyIcon :icon="tab.icon" />
               {{ tab.label }}
             </button>
           </div>
-          <div class="site-detail__panel">
+          <div
+            id="site-detail-tabpanel"
+            class="site-detail__panel"
+            role="tabpanel"
+            :aria-labelledby="`site-tab-${activeTab}`"
+          >
             <div v-if="activeTab === 'overview'" class="overview-grid">
               <div class="metric-cell">
                 <span>{{ t('runtime') }}</span>
@@ -995,11 +1714,193 @@ watch([activeTab, selectedSiteId], () => {
                 <strong>{{ selectedSite.runtimePublishVersion ?? 0 }}</strong>
               </div>
             </div>
+            <SiteManagementFaq
+              v-else-if="activeTab === 'faq' && activeTenantId && selectedSite"
+              :tenant-id="activeTenantId"
+              :site-id="selectedSite.siteId"
+              :locale="selectedDefaultLocale"
+            />
+            <div
+              v-else-if="activeTab === 'pages'"
+              class="data-panel"
+              data-testid="site-pages-panel"
+              :aria-busy="pagesLoading"
+            >
+              <div class="panel-heading">
+                <div class="panel-heading__copy">
+                  <strong>{{ t('pages') }}</strong>
+                  <span>{{ t('pageDefaultOffHint') }}</span>
+                </div>
+                <Button
+                  size="small"
+                  :loading="pagesLoading"
+                  :aria-label="`${t('refresh')} ${t('pages')}`"
+                  @click="loadSitePages"
+                >
+                  <template #icon><IconifyIcon icon="lucide:rotate-cw" /></template>
+                  {{ t('refresh') }}
+                </Button>
+              </div>
+
+              <div
+                v-if="pagesLoading"
+                class="site-page-list"
+                data-testid="site-pages-loading"
+                role="status"
+              >
+                <span class="site-visually-hidden">{{ t('pagesLoading') }}</span>
+                <div v-for="index in 2" :key="index" class="site-page-card site-page-card--loading">
+                  <Skeleton active :paragraph="{ rows: 3 }" />
+                </div>
+              </div>
+              <div
+                v-else-if="pagesError"
+                class="site-page-error"
+                data-testid="site-pages-error"
+                role="alert"
+              >
+                <Alert :message="pagesError" type="error" show-icon />
+                <Button
+                  data-testid="site-pages-retry"
+                  :aria-label="`${t('refresh')} ${t('pages')}`"
+                  @click="loadSitePages"
+                >
+                  {{ t('refresh') }}
+                </Button>
+              </div>
+              <Empty
+                v-else-if="pages.length === 0"
+                data-testid="site-pages-empty"
+                :description="t('emptyPages')"
+              />
+              <div v-else class="site-page-list">
+                <article
+                  v-for="page in pages"
+                  :key="page.pageKey"
+                  class="site-page-card"
+                  :data-testid="`site-page-${page.pageKey}`"
+                >
+                  <header class="site-page-card__header">
+                    <div class="site-page-card__identity">
+                      <span class="summary-label">{{ t('pageKey') }}</span>
+                      <strong class="site-page-card__key">{{ page.pageKey }}</strong>
+                      <div class="site-page-card__locales" :aria-label="t('supportedLocales')">
+                        <span>{{ t('supportedLocales') }}</span>
+                        <Tag
+                          v-for="locale in page.supportedLocales"
+                          :key="`${page.pageKey}:${locale}`"
+                        >
+                          {{ locale }}
+                        </Tag>
+                        <span v-if="page.supportedLocales.length === 0">-</span>
+                      </div>
+                    </div>
+                    <div class="site-page-card__statuses">
+                      <Tag :color="page.capabilityAvailable ? 'green' : 'red'">
+                        {{
+                          page.capabilityAvailable
+                            ? t('pageCapabilityAvailable')
+                            : t('pageCapabilityUnavailable')
+                        }}
+                      </Tag>
+                      <Tag :color="statusColor(page.syncStatus)">{{ page.syncStatus }}</Tag>
+                      <Tag v-if="page.capabilityDrift" color="orange">{{ t('pageDrift') }}</Tag>
+                    </div>
+                  </header>
+
+                  <div class="site-page-card__facts">
+                    <div>
+                      <span>{{ t('lastDiscoveredAt') }}</span>
+                      <time
+                        :datetime="lastDiscoveredDateTime(page.lastDiscoveredAt)"
+                        :data-testid="`site-page-last-discovered-${page.pageKey}`"
+                      >
+                        {{ formatLastDiscoveredAt(page.lastDiscoveredAt) }}
+                      </time>
+                    </div>
+                    <div>
+                      <span>{{ t('sitemapEligibility') }}</span>
+                      <Tag
+                        :color="
+                          !isSitemapEligible(page)
+                            ? 'default'
+                            : page.syncStatus.toLowerCase() === 'pending'
+                              ? 'blue'
+                              : 'green'
+                        "
+                        :data-testid="`site-page-sitemap-${page.pageKey}`"
+                      >
+                        {{
+                          sitemapEligibilityLabel(page)
+                        }}
+                      </Tag>
+                      <small>{{ t('sitemapConstraint') }}</small>
+                    </div>
+                  </div>
+
+                  <div
+                    class="site-page-card__controls"
+                    role="group"
+                    :aria-label="`${t('pages')} ${page.pageKey}`"
+                  >
+                    <Button
+                      class="site-page-control"
+                      :class="{ 'site-page-control--active': page.enabled }"
+                      :type="page.enabled ? 'primary' : 'default'"
+                      :loading="pageActionLoading.get(page.pageKey)?.action === 'enabled'"
+                      :disabled="pageActionLoading.has(page.pageKey)"
+                      :aria-label="`${t('pageEnabled')} ${page.pageKey}`"
+                      :aria-pressed="page.enabled"
+                      :data-testid="`site-page-enabled-${page.pageKey}`"
+                      @click="updatePageGovernance(page, 'enabled')"
+                    >
+                      {{ t('pageEnabled') }}: {{ page.enabled ? t('on') : t('off') }}
+                    </Button>
+                    <Button
+                      class="site-page-control"
+                      :class="{ 'site-page-control--active': page.indexable }"
+                      :type="page.indexable ? 'primary' : 'default'"
+                      :loading="pageActionLoading.get(page.pageKey)?.action === 'indexable'"
+                      :disabled="pageActionLoading.has(page.pageKey)"
+                      :aria-label="`${t('pageIndexIntent')} ${page.pageKey}`"
+                      :aria-pressed="page.indexable"
+                      :data-testid="`site-page-indexable-${page.pageKey}`"
+                      @click="updatePageGovernance(page, 'indexable')"
+                    >
+                      {{ t('pageIndexIntent') }}:
+                      {{ page.indexable ? t('on') : t('off') }}
+                    </Button>
+                  </div>
+
+                  <Alert
+                    v-if="page.capabilityDrift"
+                    class="site-page-card__warning"
+                    :message="t('pageDriftWarning')"
+                    type="warning"
+                    show-icon
+                  />
+                  <Alert
+                    v-else-if="!page.capabilityAvailable"
+                    class="site-page-card__warning"
+                    :message="t('pageCapabilityUnavailableWarning')"
+                    type="warning"
+                    show-icon
+                  />
+                  <Alert
+                    v-if="pageActionErrors.get(page.pageKey)"
+                    class="site-page-card__warning"
+                    :data-testid="`site-page-action-error-${page.pageKey}`"
+                    :message="pageActionErrors.get(page.pageKey)"
+                    type="error"
+                    show-icon
+                  />
+                </article>
+              </div>
+            </div>
             <div v-else-if="activeTab === 'categories'" class="data-panel">
               <div class="panel-heading">
                 <div>
                   <strong>{{ t('categories') }}</strong>
-                  <span>{{ t('categoriesDescription') }}</span>
                 </div>
                 <Button size="small" :loading="panelLoading" @click="loadCategories">
                   <template #icon><IconifyIcon icon="lucide:rotate-cw" /></template>
@@ -1009,7 +1910,13 @@ watch([activeTab, selectedSiteId], () => {
               <Form layout="vertical" class="form-surface" @submit.prevent="saveCategoryForm">
                 <div class="inline-form-grid">
                   <Form.Item :label="t('locale')">
-                    <Input v-model:value="categoryForm.locale" placeholder="zh-CN" />
+                    <Select
+                      v-model:value="categoryForm.locale"
+                      :options="siteLocaleOptions"
+                      :placeholder="t('locale')"
+                      show-search
+                      option-filter-prop="label"
+                    />
                   </Form.Item>
                   <Form.Item :label="t('slug')">
                     <Input v-model:value="categoryForm.slug" placeholder="parts" />
@@ -1066,7 +1973,6 @@ watch([activeTab, selectedSiteId], () => {
               <div class="panel-heading">
                 <div>
                   <strong>{{ t('products') }}</strong>
-                  <span>{{ t('productAddDescription') }}</span>
                 </div>
                 <Button size="small" :loading="panelLoading" @click="loadProducts">
                   <template #icon><IconifyIcon icon="lucide:rotate-cw" /></template>
@@ -1079,7 +1985,14 @@ watch([activeTab, selectedSiteId], () => {
                     <Input v-model:value="productAddForm.productIds" placeholder="prod_001, prod_002" />
                   </Form.Item>
                   <Form.Item :label="t('locales')">
-                    <Input v-model:value="productAddForm.locales" placeholder="zh-CN" />
+                    <Select
+                      v-model:value="productAddForm.locales"
+                      :options="siteLocaleOptions"
+                      :placeholder="t('locales')"
+                      mode="multiple"
+                      show-search
+                      option-filter-prop="label"
+                    />
                   </Form.Item>
                   <Form.Item :label="t('categoryIds')">
                     <Input v-model:value="productAddForm.categoryIds" placeholder="cat_001, cat_002" />
@@ -1194,17 +2107,157 @@ watch([activeTab, selectedSiteId], () => {
                 </div>
               </div>
             </div>
+            <div v-else-if="activeTab === 'content-categories'" class="data-panel">
+              <Alert
+                v-if="contentCategoryDeleteError"
+                data-testid="site-category-delete-error"
+                :message="contentCategoryDeleteError"
+                type="error"
+                show-icon
+              />
+              <div class="panel-heading">
+                <div>
+                  <strong>{{ t('contentCategories') }}</strong>
+                </div>
+                <Space>
+                  <Button size="small" :loading="panelLoading" @click="loadContentCategories">
+                    <template #icon><IconifyIcon icon="lucide:rotate-cw" /></template>
+                    {{ t('refresh') }}
+                  </Button>
+                  <Button type="primary" data-testid="site-open-category-create" @click="openCreateContentCategoryModal">
+                    <template #icon><IconifyIcon icon="lucide:tag" /></template>
+                    {{ t('createContentCategory') }}
+                  </Button>
+                  <Button :loading="actionLoading" data-testid="site-save-category-order" @click="saveContentCategoryOrder">
+                    <template #icon><IconifyIcon icon="lucide:arrow-down-up" /></template>
+                    {{ t('contentCategoryOrderSaved') }}
+                  </Button>
+                </Space>
+              </div>
+              <Form layout="vertical" class="form-surface category-filter-surface">
+                <div class="category-filter-grid">
+                  <Form.Item :label="t('contentCategoryKeyword')">
+                    <Input data-testid="site-category-keyword-filter" v-model:value="contentCategoryFilterForm.keyword" placeholder="name / slug / categoryId" />
+                  </Form.Item>
+                  <div class="category-filter-actions">
+                    <Button @click="contentCategoryFilterForm.keyword = ''">
+                      {{ t('resetFilter') }}
+                    </Button>
+                  </div>
+                </div>
+              </Form>
+              <Skeleton v-if="panelLoading" active />
+              <Empty v-else-if="filteredContentCategories.length === 0" :description="t('emptyContents')" />
+              <Table
+                v-else
+                class="category-table"
+                data-testid="site-category-table"
+                :columns="contentCategoryTableColumns"
+                :data-source="filteredContentCategories"
+                :pagination="{ pageSize: 10 }"
+                row-key="categoryId"
+              >
+                <template #bodyCell="{ column, record }">
+                  <template v-if="column.key === 'category'">
+                    <div class="category-table__title">
+                      <strong>{{ contentCategoryDefaultVersion(record)?.displayName || record.categoryId }}</strong>
+                      <span>{{ record.categoryId }} · {{ contentCategoryDefaultVersion(record)?.slug || '-' }}</span>
+                      <Tag v-if="record.syncStatus && record.syncStatus !== 'synced'" color="orange">{{ record.syncStatus }}</Tag>
+                    </div>
+                  </template>
+                  <template v-else-if="column.key === 'sortOrder'">
+                    <span>{{ record.sortOrder ?? 0 }}</span>
+                  </template>
+                  <template v-else-if="column.key === 'usage'">
+                    <span>{{ record.publishedUsage?.blogCount ?? 0 }} Blog · {{ record.publishedUsage?.newsCount ?? 0 }} News</span>
+                  </template>
+                  <template v-else-if="column.key === 'actions'">
+                    <Dropdown :trigger="['click']" placement="bottomRight">
+                      <Button
+                        :aria-label="t('operation')"
+                        data-testid="site-category-action-menu"
+                        class="row-action-trigger"
+                        shape="circle"
+                        size="small"
+                        type="text"
+                      >
+                        <template #icon><IconifyIcon icon="ant-design:more-outlined" /></template>
+                      </Button>
+                      <template #overlay>
+                        <Menu>
+                          <Menu.Item
+                            key="detail"
+                            data-testid="site-category-detail"
+                            @click="openContentCategoryDetailDrawer(record)"
+                          >
+                            {{ t('detail') }}
+                          </Menu.Item>
+                          <Menu.Item
+                            key="edit"
+                            data-testid="site-category-edit"
+                            @click="openEditContentCategoryModal(record)"
+                          >
+                            {{ t('edit') }}
+                          </Menu.Item>
+                          <Menu.Item
+                            key="move-up"
+                            data-testid="site-category-move-up"
+                            @click="moveContentCategory(record.categoryId, -1)"
+                          >
+                            {{ t('moveUp') }}
+                          </Menu.Item>
+                          <Menu.Item
+                            key="move-down"
+                            data-testid="site-category-move-down"
+                            @click="moveContentCategory(record.categoryId, 1)"
+                          >
+                            {{ t('moveDown') }}
+                          </Menu.Item>
+                          <Menu.Item
+                            key="delete"
+                            danger
+                            data-testid="site-category-delete"
+                            @click="openDeleteContentCategoryConfirm(record)"
+                          >
+                            {{ t('deleteContentCategory') }}
+                          </Menu.Item>
+                        </Menu>
+                      </template>
+                    </Dropdown>
+                  </template>
+                </template>
+              </Table>
+            </div>
             <div v-else-if="activeTab === 'contents'" class="data-panel">
               <div class="panel-heading">
                 <div>
                   <strong>{{ t('blogNews') }}</strong>
-                  <span>{{ t('contentsDescription') }}</span>
                 </div>
                 <Button size="small" :loading="panelLoading" @click="loadContents">
                   <template #icon><IconifyIcon icon="lucide:rotate-cw" /></template>
                   {{ t('refresh') }}
                 </Button>
               </div>
+              <section class="blog-news-ops" data-testid="site-blog-news-ops" aria-label="Blog and News operations">
+                <div class="blog-news-ops__actions">
+                  <Button :loading="actionLoading" data-testid="site-create-blog-shortcut" @click="createContentEntry('blog')">
+                    <template #icon><IconifyIcon icon="lucide:file-text" /></template>
+                    {{ t('blogNewsCreateBlog') }}
+                  </Button>
+                  <Button :loading="actionLoading" data-testid="site-create-news-shortcut" @click="createContentEntry('news')">
+                    <template #icon><IconifyIcon icon="lucide:newspaper" /></template>
+                    {{ t('blogNewsCreateNews') }}
+                  </Button>
+                  <Button data-testid="site-manage-category-archive" @click="openContentCategoryArchiveOperations">
+                    <template #icon><IconifyIcon icon="lucide:tags" /></template>
+                    {{ t('blogNewsManageContentCategories') }}
+                  </Button>
+                  <Button type="primary" :loading="actionLoading" data-testid="site-content-sync-shortcut" @click="syncSelectedSite">
+                    <template #icon><IconifyIcon icon="lucide:refresh-cw" /></template>
+                    {{ t('blogNewsPublishSync') }}
+                  </Button>
+                </div>
+              </section>
               <Form layout="vertical" class="form-surface" @submit.prevent="saveContentDraft">
                 <div class="content-form-grid">
                   <Form.Item :label="t('type')">
@@ -1220,7 +2273,13 @@ watch([activeTab, selectedSiteId], () => {
                     <Input v-model:value="contentForm.contentId" placeholder="content_002" />
                   </Form.Item>
                   <Form.Item :label="t('locale')">
-                    <Input v-model:value="contentForm.locale" placeholder="zh-CN" />
+                    <Select
+                      v-model:value="contentForm.locale"
+                      :options="siteLocaleOptions"
+                      :placeholder="t('locale')"
+                      show-search
+                      option-filter-prop="label"
+                    />
                   </Form.Item>
                   <Form.Item :label="t('slug')">
                     <Input v-model:value="contentForm.slug" placeholder="launch-notes" />
@@ -1230,6 +2289,16 @@ watch([activeTab, selectedSiteId], () => {
                   </Form.Item>
                   <Form.Item :label="t('summary')">
                     <Input v-model:value="contentForm.summary" placeholder="Short summary" />
+                  </Form.Item>
+                  <Form.Item :label="t('contentCategoryIds')">
+                    <Select
+                      v-model:value="contentForm.categoryIds"
+                      data-testid="site-content-category-select"
+                      mode="multiple"
+                      show-search
+                      option-filter-prop="label"
+                      :options="contentCategories.map((category) => ({ value: category.categoryId, label: `${contentCategoryDefaultVersion(category)?.displayName || category.categoryId} · ${contentCategoryDefaultVersion(category)?.slug || '-'}` }))"
+                    />
                   </Form.Item>
                   <Form.Item :label="t('bodyHtml')">
                     <Input v-model:value="contentForm.bodyHtml" placeholder="<p>Body</p>" />
@@ -1248,37 +2317,49 @@ watch([activeTab, selectedSiteId], () => {
               </Form>
               <Skeleton v-if="panelLoading" active />
               <Empty v-else-if="contents.length === 0" :description="t('emptyContents')" />
-              <div v-else class="resource-list">
-                <div v-for="content in contents" :key="content.contentId" class="resource-row">
-                  <div class="resource-row__main">
+              <div v-else class="content-card-list">
+                <div v-for="content in contents" :key="content.contentId" class="content-card" data-testid="site-content-card">
+                  <div class="content-card__main">
                     <strong>{{ content.localeVersions?.[0]?.title || content.contentId }}</strong>
                     <span>{{ content.contentType }} · {{ content.localeVersions?.[0]?.slug || '-' }}</span>
+                    <div class="content-card__tags">
+                      <Tag>{{ content.contentId }}</Tag>
+                      <Tag v-for="categoryId in content.localeVersions?.[0]?.categoryIds ?? []" :key="`${content.contentId}:${categoryId}`">
+                        {{ categoryId }}
+                      </Tag>
+                      <Tag v-for="version in content.localeVersions ?? []" :key="`${content.contentId}:${version.locale}`">
+                        {{ version.locale }} / {{ version.status || 'draft' }}
+                      </Tag>
+                    </div>
                   </div>
-                  <div class="resource-row__tags">
-                    <Tag>{{ content.contentId }}</Tag>
-                    <Tag v-for="version in content.localeVersions ?? []" :key="`${content.contentId}:${version.locale}`">
-                      {{ version.locale }} / {{ version.status || 'draft' }}
-                    </Tag>
-                    <Button
-                      size="small"
-                      :loading="actionLoading"
-                      data-testid="site-preview-content"
-                      @click="issuePreviewForResource(content.contentType, content.contentId, content.localeVersions?.[0]?.locale ?? selectedDefaultLocale)"
-                    >
-                      <template #icon><IconifyIcon icon="lucide:eye" /></template>
-                      {{ t('preview') }}
+                  <Dropdown trigger="click" placement="bottomRight">
+                    <Button data-testid="site-content-action-menu" class="row-action-trigger" size="small">
+                      <template #icon><IconifyIcon icon="lucide:more-horizontal" /></template>
                     </Button>
-                    <Button
-                      size="small"
-                      danger
-                      :loading="actionLoading"
-                      data-testid="site-unpublish-content"
-                      @click="unpublishContent(content)"
-                    >
-                      <template #icon><IconifyIcon icon="lucide:archive-x" /></template>
-                      {{ t('unpublish') }}
-                    </Button>
-                  </div>
+                    <template #overlay>
+                      <div class="row-action-menu">
+                        <button
+                          type="button"
+                          data-testid="site-preview-content"
+                          :disabled="actionLoading"
+                          @click="issuePreviewForResource(content.contentType, content.contentId, content.localeVersions?.[0]?.locale ?? selectedDefaultLocale)"
+                        >
+                          <IconifyIcon icon="lucide:eye" />
+                          {{ t('preview') }}
+                        </button>
+                        <button
+                          type="button"
+                          class="row-action-menu__danger"
+                          data-testid="site-unpublish-content"
+                          :disabled="actionLoading"
+                          @click="unpublishContent(content)"
+                        >
+                          <IconifyIcon icon="lucide:archive-x" />
+                          {{ t('unpublish') }}
+                        </button>
+                      </div>
+                    </template>
+                  </Dropdown>
                 </div>
               </div>
             </div>
@@ -1286,7 +2367,6 @@ watch([activeTab, selectedSiteId], () => {
               <div class="panel-heading">
                 <div>
                   <strong>{{ t('locales') }}</strong>
-                  <span>{{ t('localeRule') }}</span>
                 </div>
               </div>
               <div class="locale-status">
@@ -1303,13 +2383,24 @@ watch([activeTab, selectedSiteId], () => {
               <Form layout="vertical" class="form-surface">
                 <div class="locale-form-grid">
                   <Form.Item :label="t('locale')">
-                    <Input v-model:value="localeForm.locale" placeholder="fr-FR" />
+                    <Select
+                      v-model:value="localeForm.locale"
+                      data-testid="site-locale-select"
+                      :options="addableLocaleOptions"
+                      :placeholder="t('locale')"
+                      show-search
+                      option-filter-prop="label"
+                    />
                   </Form.Item>
                   <Button :loading="actionLoading" data-testid="site-add-locale" @click="addPreparingLocale">
                     <template #icon><IconifyIcon icon="lucide:plus" /></template>
                     {{ t('addLocale') }}
                   </Button>
-                  <Button :loading="actionLoading" data-testid="site-check-locale" @click="checkLocaleCompleteness">
+                  <Button
+                    :loading="localeReadiness.status === 'loading'"
+                    data-testid="site-check-locale"
+                    @click="checkLocaleCompleteness"
+                  >
                     <template #icon><IconifyIcon icon="lucide:list-checks" /></template>
                     {{ t('check') }}
                   </Button>
@@ -1323,13 +2414,75 @@ watch([activeTab, selectedSiteId], () => {
                   </Button>
                 </div>
               </Form>
-              <Alert v-if="localeCheckResult" :message="localeCheckResult" type="info" show-icon />
+              <section
+                v-if="localeReadiness.status !== 'idle'"
+                class="locale-readiness"
+                data-testid="site-locale-readiness"
+                aria-live="polite"
+              >
+                <div
+                  v-if="localeReadiness.status === 'loading'"
+                  data-testid="site-locale-readiness-loading"
+                  role="status"
+                >
+                  <span class="site-visually-hidden">{{ t('localeReadinessChecking') }}</span>
+                  <Skeleton active :paragraph="{ rows: 2 }" />
+                </div>
+                <div
+                  v-else-if="localeReadiness.status === 'error'"
+                  class="locale-readiness__error"
+                  data-testid="site-locale-readiness-error"
+                  role="alert"
+                >
+                  <Alert :message="localeReadiness.error" type="error" show-icon />
+                  <Button
+                    data-testid="site-locale-readiness-retry"
+                    :aria-label="t('localeReadinessRetry')"
+                    @click="checkLocaleCompleteness"
+                  >
+                    {{ t('localeReadinessRetry') }}
+                  </Button>
+                </div>
+                <template v-else-if="localeCheckResult">
+                  <Alert
+                    :message="
+                      localeCheckResult.complete
+                        ? t('localeReadinessComplete')
+                        : t('localeReadinessIncomplete')
+                    "
+                    :type="localeCheckResult.complete ? 'success' : 'warning'"
+                    show-icon
+                  />
+                  <div
+                    v-if="(localeCheckResult.preflightIssues ?? []).length > 0"
+                    class="locale-readiness__issues"
+                  >
+                    <strong>{{ t('localeReadinessStaticPages') }}</strong>
+                    <ul>
+                      <li
+                        v-for="issue in localeCheckResult.preflightIssues ?? []"
+                        :key="`${issue.code}:${issue.pageKey}:${issue.locale}`"
+                      >
+                        {{ formatLocalePreflightIssue(issue) }}
+                      </li>
+                    </ul>
+                  </div>
+                  <div
+                    v-if="localeReadinessBaseIssues.length > 0"
+                    class="locale-readiness__issues"
+                  >
+                    <strong>{{ t('localeReadinessBaseIssues') }}</strong>
+                    <ul>
+                      <li v-for="issue in localeReadinessBaseIssues" :key="issue">{{ issue }}</li>
+                    </ul>
+                  </div>
+                </template>
+              </section>
             </div>
             <div v-else-if="activeTab === 'sync'" class="data-panel">
               <div class="panel-heading">
                 <div>
                   <strong>{{ t('pendingSync') }}</strong>
-                  <span>{{ t('syncDescription') }}</span>
                 </div>
                 <Space>
                   <Button size="small" :loading="panelLoading" @click="loadSyncPanel">
@@ -1429,7 +2582,6 @@ watch([activeTab, selectedSiteId], () => {
               <div class="panel-heading">
                 <div>
                   <strong>{{ t('settings') }}</strong>
-                  <span>{{ t('settingsDescription') }}</span>
                 </div>
               </div>
               <Form layout="vertical" class="form-surface" @submit.prevent="saveSettings">
@@ -1463,7 +2615,6 @@ watch([activeTab, selectedSiteId], () => {
               <div class="panel-heading">
                 <div>
                   <strong>{{ t('credentials') }}</strong>
-                  <span>{{ t('credentialDescription') }}</span>
                 </div>
                 <Button size="small" :loading="credentialLoading" @click="loadCredentials">
                   <template #icon><IconifyIcon icon="lucide:rotate-cw" /></template>
@@ -1503,7 +2654,6 @@ watch([activeTab, selectedSiteId], () => {
               <div class="panel-heading">
                 <div>
                   <strong>{{ t('audit') }}</strong>
-                  <span>{{ t('auditDescription') }}</span>
                 </div>
                 <Button size="small" :loading="panelLoading" @click="loadAuditLogs">
                   <template #icon><IconifyIcon icon="lucide:rotate-cw" /></template>
@@ -1527,6 +2677,118 @@ watch([activeTab, selectedSiteId], () => {
               </div>
             </div>
           </div>
+          <Modal
+            v-model:open="contentCategoryModalOpen"
+            :title="contentCategoryModalMode === 'create' ? t('createContentCategory') : t('editContentCategory')"
+            width="680px"
+            :footer="null"
+            destroy-on-close
+          >
+            <div data-testid="site-category-modal" class="category-modal">
+              <Form layout="vertical" @submit.prevent="saveContentCategoryModal">
+                <div class="category-modal-grid">
+                  <Form.Item :label="t('contentCategoryName')" class="category-modal-grid__wide">
+                    <Input v-model:value="contentCategoryForm.displayName" placeholder="Guides" />
+                  </Form.Item>
+                  <Form.Item :label="t('contentCategorySlug')">
+                    <Input v-model:value="contentCategoryForm.slug" placeholder="guides" />
+                  </Form.Item>
+                  <Form.Item :label="t('locale')">
+                    <Select
+                      v-model:value="contentCategoryForm.locale"
+                      :options="siteLocaleOptions"
+                      :disabled="contentCategoryModalMode === 'create'"
+                    />
+                  </Form.Item>
+                  <Form.Item :label="t('contentCategoryDescription')" class="category-modal-grid__wide">
+                    <Input v-model:value="contentCategoryForm.archiveIntro" placeholder="Category archive description" />
+                  </Form.Item>
+                  <Form.Item :label="t('contentCategoryLabel')">
+                    <Input v-model:value="contentCategoryForm.archiveLabel" :placeholder="contentCategoryForm.displayName" />
+                  </Form.Item>
+                  <Form.Item :label="t('seoTitle')">
+                    <Input v-model:value="contentCategoryForm.seoTitle" :placeholder="contentCategoryForm.displayName" />
+                  </Form.Item>
+                  <Form.Item :label="t('seoDescription')" class="category-modal-grid__wide">
+                    <Input v-model:value="contentCategoryForm.seoDescription" :placeholder="contentCategoryForm.archiveIntro || contentCategoryForm.displayName" />
+                  </Form.Item>
+                  <Alert v-if="!contentCategoryForm.seoTitle || !contentCategoryForm.seoDescription" :message="t('contentCategoryOptionalSeoWarning')" type="warning" show-icon />
+                </div>
+                <div class="category-modal__actions">
+                  <Button data-testid="site-category-modal-cancel" @click="contentCategoryModalOpen = false">
+                    {{ t('cancelEdit') }}
+                  </Button>
+                  <Button type="primary" :loading="actionLoading" data-testid="site-save-category-modal" @click="saveContentCategoryModal">
+                    <template #icon><IconifyIcon icon="lucide:save" /></template>
+                    {{ t('save') }}
+                  </Button>
+                  <Button v-if="contentCategoryModalMode === 'edit'" :loading="actionLoading" data-testid="site-publish-category-locale" @click="publishContentCategoryLocale">
+                    <template #icon><IconifyIcon icon="lucide:send" /></template>
+                    {{ t('publish') }}
+                  </Button>
+                </div>
+              </Form>
+            </div>
+          </Modal>
+          <Drawer
+            v-model:open="contentCategoryDetailDrawerOpen"
+            :title="t('contentCategoryDetail')"
+            width="560px"
+            destroy-on-close
+          >
+            <div v-if="selectedContentCategory" data-testid="site-category-detail-drawer" class="category-detail-drawer">
+              <div class="category-detail-section">
+                <strong>{{ contentCategoryDefaultVersion(selectedContentCategory)?.displayName || selectedContentCategory.categoryId }}</strong>
+                <span>{{ selectedContentCategory.categoryId }}</span>
+              </div>
+              <div class="category-detail-grid">
+                <span>{{ t('contentCategoryRank') }}</span>
+                <span>{{ selectedContentCategory.sortOrder ?? 0 }}</span>
+                <span>{{ t('contentCategoryUsage') }}</span>
+                <span>{{ selectedContentCategory.publishedUsage?.blogCount ?? 0 }} Blog · {{ selectedContentCategory.publishedUsage?.newsCount ?? 0 }} News</span>
+                <span>{{ t('sync') }}</span>
+                <Tag :color="statusColor(selectedContentCategory.syncStatus)">{{ selectedContentCategory.syncStatus || 'synced' }}</Tag>
+              </div>
+              <div class="category-detail-section">
+                <strong>{{ t('locale') }}</strong>
+                <div v-if="contentCategoryDefaultVersion(selectedContentCategory)" class="category-locale-version">
+                  <b>{{ contentCategoryDefaultVersion(selectedContentCategory)?.slug }}</b>
+                  <span>{{ contentCategoryDefaultVersion(selectedContentCategory)?.displayName }}</span>
+                  <span>{{ (contentCategoryDefaultVersion(selectedContentCategory)?.historicalSlugs ?? []).join(', ') || '-' }}</span>
+                </div>
+                <div v-else class="category-locale-version">
+                  <b>-</b>
+                  <span>-</span>
+                </div>
+              </div>
+            </div>
+          </Drawer>
+          <Modal
+            v-model:open="contentCategoryDeleteConfirmOpen"
+            :title="t('deleteContentCategory')"
+            :footer="null"
+            destroy-on-close
+          >
+            <div data-testid="site-category-delete-confirm" class="category-disable-confirm">
+              <p>
+                {{ t('deleteContentCategoryConfirm') }}
+                <strong>{{ contentCategoryDeleteTarget ? contentCategoryDefaultVersion(contentCategoryDeleteTarget)?.displayName || contentCategoryDeleteTarget.categoryId : '-' }}</strong>
+              </p>
+              <p v-if="contentCategoryDeleteUsage">{{ contentCategoryDeleteUsage.blogCount ?? 0 }} Blog · {{ contentCategoryDeleteUsage.newsCount ?? 0 }} News · {{ contentCategoryDeleteUsage.draftReferenceCount ?? 0 }} drafts</p>
+              <div class="category-modal__actions">
+                <Button @click="contentCategoryDeleteConfirmOpen = false">{{ t('cancelEdit') }}</Button>
+                <Button
+                  danger
+                  type="primary"
+                  :loading="actionLoading"
+                  data-testid="site-category-delete-confirm-action"
+                  @click="confirmDeleteContentCategory"
+                >
+                  {{ t('deleteContentCategory') }}
+                </Button>
+              </div>
+            </div>
+          </Modal>
       </article>
     </div>
   </Page>
@@ -1549,11 +2811,12 @@ watch([activeTab, selectedSiteId], () => {
 }
 
 .site-management__alert {
-  max-width: 960px;
+  width: 100%;
 }
 
 .site-management--detail-page {
-  max-width: 1280px;
+  width: 100%;
+  max-width: none;
 }
 
 .site-detail-page__toolbar {
@@ -1766,6 +3029,7 @@ watch([activeTab, selectedSiteId], () => {
 }
 
 .site-detail--page {
+  width: 100%;
   border: 1px solid var(--site-border);
   border-radius: 8px;
   background: var(--site-surface);
@@ -1841,12 +3105,12 @@ watch([activeTab, selectedSiteId], () => {
 
 .overview-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 12px;
 }
 
 .overview-grid--compact {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
 }
 
 .metric-cell,
@@ -1898,6 +3162,180 @@ watch([activeTab, selectedSiteId], () => {
 
 .panel-heading {
   justify-content: space-between;
+}
+
+.panel-heading__copy {
+  display: grid;
+  gap: 2px;
+}
+
+.site-page-list {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.site-page-card {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--site-border);
+  border-radius: 8px;
+  padding: 14px;
+  background: var(--site-surface);
+}
+
+.site-page-card--loading {
+  min-height: 168px;
+  background: var(--site-surface-soft);
+}
+
+.site-page-card__header,
+.site-page-card__statuses,
+.site-page-card__locales,
+.site-page-card__controls,
+.site-page-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.site-page-card__header {
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.site-page-card__identity {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.site-page-card__key {
+  color: var(--site-title);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 15px;
+  line-height: 22px;
+  overflow-wrap: anywhere;
+}
+
+.site-page-card__statuses,
+.site-page-card__locales,
+.site-page-card__controls {
+  flex-wrap: wrap;
+}
+
+.site-page-card__locales > span:first-child {
+  color: var(--site-muted);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.site-page-card__facts {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.65fr) minmax(260px, 1.35fr);
+  gap: 12px;
+  border-top: 1px solid var(--site-border);
+  border-bottom: 1px solid var(--site-border);
+  padding: 12px 0;
+}
+
+.site-page-card__facts > div {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.site-page-card__facts span,
+.site-page-card__facts small {
+  color: var(--site-muted);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.site-page-card__facts strong,
+.site-page-card__facts time {
+  color: var(--site-title);
+  font-size: 13px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.site-page-control {
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    background-color 0.18s ease;
+}
+
+.site-page-control:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+.site-tabs__button:focus-visible,
+.site-page-control:focus-visible {
+  outline: 2px solid var(--site-primary);
+  outline-offset: 2px;
+}
+
+.site-page-card__warning {
+  margin-top: -2px;
+}
+
+.site-page-error {
+  align-items: stretch;
+  justify-content: space-between;
+  border: 1px solid var(--site-border);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--site-surface-soft);
+}
+
+.locale-readiness {
+  display: grid;
+  gap: 10px;
+}
+
+.locale-readiness__error {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.site-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.locale-readiness__issues {
+  border-left: 3px solid #d97706;
+  padding: 2px 0 2px 12px;
+}
+
+.locale-readiness__issues strong {
+  color: var(--site-title);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.locale-readiness__issues ul {
+  display: grid;
+  gap: 4px;
+  margin: 6px 0 0;
+  padding-left: 18px;
+  color: var(--site-muted);
+  font-size: 12px;
+  line-height: 18px;
 }
 
 .panel-heading--compact {
@@ -2012,9 +3450,19 @@ watch([activeTab, selectedSiteId], () => {
 
 .content-form-grid {
   display: grid;
-  grid-template-columns: minmax(120px, 0.5fr) minmax(170px, 0.9fr) minmax(110px, 0.5fr) minmax(160px, 0.8fr) minmax(180px, 1fr);
+  grid-template-columns: minmax(110px, 0.45fr) minmax(180px, 0.85fr) minmax(110px, 0.45fr) minmax(180px, 0.9fr) minmax(220px, 1fr);
   gap: 12px;
   align-items: end;
+}
+
+.blog-news-ops {
+  min-width: 0;
+}
+
+.blog-news-ops__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .content-form-grid .ant-form-item:nth-child(6),
@@ -2033,6 +3481,272 @@ watch([activeTab, selectedSiteId], () => {
 
 .content-actions {
   flex-wrap: wrap;
+}
+
+.content-card-list {
+  display: grid;
+  gap: 10px;
+}
+
+.content-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  border: 1px solid var(--site-border);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--site-surface);
+}
+
+.content-card__main {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.content-card__main strong,
+.content-card__main span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.content-card__main strong {
+  color: var(--site-title);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.content-card__main span {
+  color: var(--site-muted);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.content-card__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.category-filter-surface {
+  background: var(--site-surface);
+}
+
+.category-filter-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.2fr) minmax(140px, 0.5fr) minmax(140px, 0.5fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.category-filter-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.category-table {
+  min-width: 0;
+}
+
+.category-table :deep(.ant-table) {
+  table-layout: fixed;
+}
+
+.category-table :deep(.ant-table-cell) {
+  overflow: hidden;
+}
+
+.site-detail :deep(.ant-table),
+.site-detail :deep(.ant-table-container) {
+  background: transparent;
+}
+
+.site-detail :deep(.ant-table-thead > tr > th) {
+  background: var(--site-surface-soft);
+  color: var(--site-muted);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.site-detail :deep(.ant-table-tbody > tr > td) {
+  border-bottom-color: var(--site-border);
+  color: var(--site-text);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.site-detail :deep(.ant-table-tbody > tr:hover > td) {
+  background: var(--site-surface-soft);
+}
+
+.category-table__title {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.category-table__title strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--site-title);
+  font-size: 13px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.category-table__title span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--site-muted);
+  font-size: 12px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.category-table__actions {
+  white-space: nowrap;
+}
+
+.row-action-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  min-width: 30px;
+  padding-inline: 0;
+}
+
+.row-action-menu {
+  display: grid;
+  min-width: 148px;
+  gap: 2px;
+  border: 1px solid var(--site-border);
+  border-radius: 8px;
+  padding: 6px;
+  background: var(--site-surface);
+  box-shadow: 0 12px 32px rgb(15 23 42 / 0.12);
+}
+
+.row-action-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 32px;
+  border: 0;
+  border-radius: 6px;
+  padding: 0 9px;
+  background: transparent;
+  color: var(--site-text);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.row-action-menu button:hover {
+  background: var(--site-surface-soft);
+}
+
+.row-action-menu button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.row-action-menu__danger {
+  color: var(--site-danger, #dc2626) !important;
+}
+
+.category-modal,
+.category-disable-confirm,
+.category-detail-drawer {
+  display: grid;
+  gap: 14px;
+}
+
+.category-modal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.category-modal-grid__wide {
+  grid-column: 1 / -1;
+}
+
+.category-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.category-disable-confirm p {
+  margin: 0;
+  color: var(--site-text);
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.category-disable-confirm strong {
+  display: block;
+  margin-top: 8px;
+  color: var(--site-title);
+}
+
+.category-detail-section {
+  display: grid;
+  gap: 6px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--site-border);
+}
+
+.category-detail-section:last-child {
+  border-bottom: none;
+}
+
+.category-detail-section > strong {
+  color: var(--site-title);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.category-detail-section > span,
+.category-locale-version span {
+  color: var(--site-muted);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.category-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.4fr) minmax(0, 1fr);
+  gap: 10px 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--site-border);
+}
+
+.category-detail-grid > span:nth-child(odd) {
+  color: var(--site-muted);
+  font-size: 12px;
+  line-height: 22px;
+}
+
+.category-locale-version {
+  display: grid;
+  gap: 4px;
+  padding: 10px 0;
+  border-top: 1px solid var(--site-border);
+}
+
+.category-locale-version:first-of-type {
+  border-top: none;
 }
 
 .locale-form-grid {
@@ -2150,13 +3864,22 @@ watch([activeTab, selectedSiteId], () => {
   .inline-form-grid,
   .inline-form-grid--products,
   .product-search-grid,
-  .content-form-grid,
   .settings-form-grid,
   .site-table-toolbar,
-  .site-management__workspace,
-  .overview-grid,
-  .overview-grid--compact {
+  .site-management__workspace {
     grid-template-columns: 1fr;
+  }
+
+  .content-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .blog-news-ops__actions {
+    justify-content: flex-start;
+  }
+
+  .category-filter-grid {
+    grid-template-columns: minmax(220px, 1fr) minmax(150px, 0.65fr) minmax(150px, 0.65fr) auto;
   }
 
   .create-modal__actions {
@@ -2166,6 +3889,10 @@ watch([activeTab, selectedSiteId], () => {
   .content-form-grid .ant-form-item:nth-child(6),
   .content-form-grid .ant-form-item:nth-child(7) {
     grid-column: span 1;
+  }
+
+  .category-filter-actions {
+    justify-content: flex-start;
   }
 
   .site-management__summary {
@@ -2213,6 +3940,49 @@ watch([activeTab, selectedSiteId], () => {
   .site-tabs__button {
     flex: 1 1 130px;
     justify-content: center;
+  }
+
+  .site-page-card__header,
+  .site-page-error,
+  .locale-readiness__error {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .site-page-card__facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .site-page-card__controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .site-page-control {
+    width: 100%;
+  }
+
+  .content-form-grid,
+  .category-filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .blog-news-ops__actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .content-card {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .category-modal-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .category-modal__actions {
+    align-items: stretch;
+    flex-direction: column-reverse;
   }
 }
 </style>

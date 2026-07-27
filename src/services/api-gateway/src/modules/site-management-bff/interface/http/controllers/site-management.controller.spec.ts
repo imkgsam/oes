@@ -1,7 +1,14 @@
 import 'reflect-metadata'
 import { Reflector } from '@nestjs/core'
 import { IS_PUBLIC_KEY } from '@oes/common/auth'
-import { REQUIRE_PERMISSIONS_METADATA_KEY, SITE_MANAGEMENT_PERMISSION_CODES } from '@oes/common/authorization'
+import {
+  REQUIRE_PERMISSIONS_METADATA_KEY,
+  SITE_MANAGEMENT_PERMISSION_CODES
+} from '@oes/common/authorization'
+import {
+  TENANT_TARGET_BINDING_METADATA_KEY,
+  VerifiedTenantTarget
+} from '../../../../../common/tenant-target'
 import { SiteManagementController } from './site-management.controller'
 
 // Verifies Site Management BFF keeps Admin-only permissions and delegates HTTP shape to the service layer.
@@ -21,6 +28,7 @@ describe('SiteManagementController', () => {
     updateSiteContentLocaleVersion: jest.fn()
   }
   const controller = new SiteManagementController(service as never)
+  const tenantTarget = 'tenant_a' as VerifiedTenantTarget
   const source = {
     requestId: 'request_admin',
     traceId: 'trace_admin',
@@ -35,24 +43,47 @@ describe('SiteManagementController', () => {
     const reflector = new Reflector()
 
     expect(
-      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, SiteManagementController.prototype.listSiteCards)
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        SiteManagementController.prototype.listSiteCards
+      )
     ).toEqual({ all: [SITE_MANAGEMENT_PERMISSION_CODES.READ] })
     expect(
       reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, SiteManagementController.prototype.createSite)
     ).toEqual({ all: [SITE_MANAGEMENT_PERMISSION_CODES.MANAGE] })
     expect(
-      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, SiteManagementController.prototype.syncAllPendingChanges)
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        SiteManagementController.prototype.syncAllPendingChanges
+      )
     ).toEqual({ all: [SITE_MANAGEMENT_PERMISSION_CODES.SYNC] })
     expect(
-      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, SiteManagementController.prototype.issuePreviewToken)
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        SiteManagementController.prototype.issuePreviewToken
+      )
     ).toEqual({ all: [SITE_MANAGEMENT_PERMISSION_CODES.PREVIEW] })
-    expect(reflector.get(IS_PUBLIC_KEY, SiteManagementController.prototype.listSiteCards)).toBeUndefined()
+    expect(reflector.get(TENANT_TARGET_BINDING_METADATA_KEY, SiteManagementController)).toEqual({
+      pathParam: 'tenantId',
+      systemPolicy: 'DENY'
+    })
+    expect(
+      reflector.get(IS_PUBLIC_KEY, SiteManagementController.prototype.listSiteCards)
+    ).toBeUndefined()
   })
 
   it('delegates Site Management core paths to the BFF service', async () => {
     service.listSiteCards.mockResolvedValue({ cards: [] })
-    service.createSite.mockResolvedValue({ siteId: 'site_a', status: 'draft', defaultLocale: 'en-US' })
-    service.syncAllPendingChanges.mockResolvedValue({ syncId: 'sync_a', publishVersion: 1, webhookDispatched: true })
+    service.createSite.mockResolvedValue({
+      siteId: 'site_a',
+      status: 'draft',
+      defaultLocale: 'en-US'
+    })
+    service.syncAllPendingChanges.mockResolvedValue({
+      syncId: 'sync_a',
+      publishVersion: 1,
+      webhookDispatched: true
+    })
     service.listSiteCategories.mockResolvedValue({ categories: [] })
     service.createSiteCategory.mockResolvedValue({ category: { categoryId: 'category_a' } })
     service.issuePreviewToken.mockResolvedValue({
@@ -65,11 +96,13 @@ describe('SiteManagementController', () => {
     service.rotateSiteCredential.mockResolvedValue({ credentialBundle: 'rotated' })
     service.revokeSiteCredential.mockResolvedValue({ revoked: true })
     service.createSiteContent.mockResolvedValue({ content: { contentId: 'content_a' } })
-    service.updateSiteContentLocaleVersion.mockResolvedValue({ version: { contentId: 'content_a' } })
+    service.updateSiteContentLocaleVersion.mockResolvedValue({
+      version: { contentId: 'content_a' }
+    })
 
-    await controller.listSiteCards('tenant_a', source as never)
+    await controller.listSiteCards(tenantTarget, source as never)
     await controller.createSite(
-      'tenant_a',
+      tenantTarget,
       {
         siteName: 'Brand US',
         siteType: 'brand',
@@ -79,10 +112,10 @@ describe('SiteManagementController', () => {
       },
       source as never
     )
-    await controller.syncAllPendingChanges('tenant_a', 'site_a', source as never)
-    await controller.listSiteCategories('tenant_a', 'site_a', 'en-US', source as never)
+    await controller.syncAllPendingChanges(tenantTarget, 'site_a', source as never)
+    await controller.listSiteCategories(tenantTarget, 'site_a', 'en-US', source as never)
     await controller.createSiteCategory(
-      'tenant_a',
+      tenantTarget,
       'site_a',
       {
         locale: 'en-US',
@@ -94,18 +127,28 @@ describe('SiteManagementController', () => {
       source as never
     )
     await controller.issuePreviewToken(
-      'tenant_a',
+      tenantTarget,
       'site_a',
       { resourceType: 'blog', resourceId: 'blog_a', locale: 'en-US' },
       source as never
     )
-    await controller.generateSiteCredential('tenant_a', 'site_a', { scopes: ['site:read'] }, source as never)
-    await controller.listSiteCredentials('tenant_a', 'site_a', source as never)
-    await controller.rotateSiteCredential('tenant_a', 'site_a', 'cred_a', source as never)
-    await controller.revokeSiteCredential('tenant_a', 'site_a', 'cred_a', source as never)
-    await controller.createSiteContent('tenant_a', 'site_a', { contentType: 'blog' }, source as never)
+    await controller.generateSiteCredential(
+      tenantTarget,
+      'site_a',
+      { scopes: ['site:read'] },
+      source as never
+    )
+    await controller.listSiteCredentials(tenantTarget, 'site_a', source as never)
+    await controller.rotateSiteCredential(tenantTarget, 'site_a', 'cred_a', source as never)
+    await controller.revokeSiteCredential(tenantTarget, 'site_a', 'cred_a', source as never)
+    await controller.createSiteContent(
+      tenantTarget,
+      'site_a',
+      { contentType: 'blog' },
+      source as never
+    )
     await controller.updateSiteContentLocaleVersion(
-      'tenant_a',
+      tenantTarget,
       'site_a',
       'content_a',
       {
@@ -151,11 +194,31 @@ describe('SiteManagementController', () => {
       { resourceType: 'blog', resourceId: 'blog_a', locale: 'en-US' },
       source
     )
-    expect(service.generateSiteCredential).toHaveBeenCalledWith('tenant_a', 'site_a', { scopes: ['site:read'] }, source)
+    expect(service.generateSiteCredential).toHaveBeenCalledWith(
+      'tenant_a',
+      'site_a',
+      { scopes: ['site:read'] },
+      source
+    )
     expect(service.listSiteCredentials).toHaveBeenCalledWith('tenant_a', 'site_a', source)
-    expect(service.rotateSiteCredential).toHaveBeenCalledWith('tenant_a', 'site_a', 'cred_a', source)
-    expect(service.revokeSiteCredential).toHaveBeenCalledWith('tenant_a', 'site_a', 'cred_a', source)
-    expect(service.createSiteContent).toHaveBeenCalledWith('tenant_a', 'site_a', { contentType: 'blog' }, source)
+    expect(service.rotateSiteCredential).toHaveBeenCalledWith(
+      'tenant_a',
+      'site_a',
+      'cred_a',
+      source
+    )
+    expect(service.revokeSiteCredential).toHaveBeenCalledWith(
+      'tenant_a',
+      'site_a',
+      'cred_a',
+      source
+    )
+    expect(service.createSiteContent).toHaveBeenCalledWith(
+      'tenant_a',
+      'site_a',
+      { contentType: 'blog' },
+      source
+    )
     expect(service.updateSiteContentLocaleVersion).toHaveBeenCalledWith(
       'tenant_a',
       'site_a',

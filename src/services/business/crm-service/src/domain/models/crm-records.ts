@@ -132,11 +132,42 @@ export enum CrmLeadConversionResultType {
   IDENTITY_CONFLICT = 'IDENTITY_CONFLICT'
 }
 
+export enum CrmAccountProfileItemType {
+  DOMAIN = 'DOMAIN',
+  WEBSITE = 'WEBSITE',
+  EMAIL = 'EMAIL',
+  PHONE = 'PHONE',
+  WHATSAPP = 'WHATSAPP',
+  WECHAT = 'WECHAT',
+  SOCIAL_PROFILE = 'SOCIAL_PROFILE',
+  MARKETPLACE_STORE = 'MARKETPLACE_STORE',
+  IDENTIFIER = 'IDENTIFIER',
+  ADDRESS = 'ADDRESS',
+  BRAND_NAME = 'BRAND_NAME',
+  COMPANY_NAME = 'COMPANY_NAME'
+}
+
+export enum CrmAccountProfileItemStatus {
+  ACTIVE = 'ACTIVE',
+  REJECTED = 'REJECTED',
+  ARCHIVED = 'ARCHIVED',
+  PROMOTED = 'PROMOTED'
+}
+
 export interface CrmLeadIdentifierRecord {
   identifierType: string
   normalizedValue: string
   rawValue?: string | null
   issuerCountryOrRegion?: string | null
+}
+
+export interface CrmAccountProfileItemDraft {
+  itemType: CrmAccountProfileItemType | string
+  normalizedValue: string
+  rawValue?: string | null
+  label?: string | null
+  role?: string | null
+  sourceRecordId?: string | null
 }
 
 export interface CrmAccountRecord {
@@ -147,6 +178,7 @@ export interface CrmAccountRecord {
   lifecycleStage: CrmAccountLifecycleStage
   partyTypeHint: CrmAccountTypeHint
   displayName: string
+  leadLegalName?: string | null
   leadCompanyName?: string | null
   leadPersonName?: string | null
   leadDomain?: string | null
@@ -155,6 +187,7 @@ export interface CrmAccountRecord {
   leadWhatsapp?: string | null
   leadCountry?: string | null
   leadIdentifiers: CrmLeadIdentifierRecord[]
+  profileItems?: CrmAccountProfileItemRecord[]
   ownerAccountId?: string | null
   priority: CrmPriority
   lastActivityAt?: Date | null
@@ -164,6 +197,24 @@ export interface CrmAccountRecord {
   updatedAt?: Date
   archivedAt?: Date | null
   archiveReason?: CrmArchiveReason | null
+}
+
+export interface CrmAccountProfileItemRecord {
+  id: string
+  tenantId: string
+  crmAccountId: string
+  itemType: CrmAccountProfileItemType | string
+  normalizedValue: string
+  rawValue: string
+  label?: string | null
+  role?: string | null
+  status: CrmAccountProfileItemStatus | string
+  sourceRecordId?: string | null
+  promotedTargetType?: string | null
+  promotedTargetId?: string | null
+  promotedAt?: Date | null
+  createdAt?: Date
+  updatedAt?: Date
 }
 
 export interface CrmSourceRecord {

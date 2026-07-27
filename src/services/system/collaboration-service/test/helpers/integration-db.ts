@@ -154,6 +154,15 @@ export async function cleanupByPrefix(prisma: PrismaService, prefix: string): Pr
     }
   })
 
+  await prisma.collaborationTaskOutbox.deleteMany({
+    where: {
+      OR: [
+        { tenantId: { startsWith: prefix } },
+        taskIds.length > 0 ? { aggregateId: { in: taskIds } } : undefined
+      ].filter(Boolean) as any
+    }
+  })
+
   await prisma.collaborationTask.deleteMany({
     where: {
       OR: [

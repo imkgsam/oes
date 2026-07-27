@@ -12,7 +12,10 @@ export interface GetCrmAccountResult {
 /** GetCrmAccountHandler returns one CRM P1 account inside the tenant boundary. */
 @Injectable()
 @QueryHandler(GetCrmAccountQuery)
-export class GetCrmAccountHandler implements IQueryHandler<GetCrmAccountQuery, GetCrmAccountResult> {
+export class GetCrmAccountHandler implements IQueryHandler<
+  GetCrmAccountQuery,
+  GetCrmAccountResult
+> {
   constructor(
     @Inject(TOKENS.CRM_ACCOUNT_REPOSITORY)
     private readonly accountRepository: CrmAccountRepository
@@ -20,8 +23,17 @@ export class GetCrmAccountHandler implements IQueryHandler<GetCrmAccountQuery, G
 
   /** execute reads one CRM P1 account by tenant and id without widening visibility. */
   async execute(query: GetCrmAccountQuery): Promise<GetCrmAccountResult> {
+    const account = await this.accountRepository.findAccountById(query.tenantId, query.crmAccountId)
+    if (!account) {
+      return { crmAccount: null }
+    }
+    const profileItems = await this.accountRepository.listAccountProfileItems(
+      account.tenantId,
+      account.id
+    )
+
     return {
-      crmAccount: await this.accountRepository.findAccountById(query.tenantId, query.crmAccountId)
+      crmAccount: { ...account, profileItems }
     }
   }
 }

@@ -13,6 +13,7 @@ import {
   ListSourceRecordsResponse,
   ReleaseCrmAccountResponse,
   SubmitDraftLeadResponse,
+  UpdateCrmAccountIdentifiersResponse,
   UpdateDraftLeadResponse
 } from '@oes/common/generated/crm_service'
 import { DownstreamRequestSource } from '../../common/grpc/gateway-downstream-source.mapper'
@@ -65,11 +66,7 @@ export class CustomerManagementService {
   }
 
   /** getCrmAccount returns one CRM P1 account for the workspace detail panel. */
-  async getCrmAccount(
-    tenantId: string,
-    crmAccountId: string,
-    source: DownstreamRequestSource
-  ) {
+  async getCrmAccount(tenantId: string, crmAccountId: string, source: DownstreamRequestSource) {
     const result = await this.customerQueryAdapter.getCrmAccount(
       {
         tenantId: this.resolveTenantId(tenantId, source),
@@ -82,11 +79,7 @@ export class CustomerManagementService {
   }
 
   /** listSourceRecords returns read-only CRM source evidence for the account detail tab. */
-  async listSourceRecords(
-    tenantId: string,
-    crmAccountId: string,
-    source: DownstreamRequestSource
-  ) {
+  async listSourceRecords(tenantId: string, crmAccountId: string, source: DownstreamRequestSource) {
     const result = await this.customerQueryAdapter.listSourceRecords(
       {
         tenantId: this.resolveTenantId(tenantId, source),
@@ -104,6 +97,7 @@ export class CustomerManagementService {
     input: {
       displayName: string
       duplicateWarningAcknowledged?: boolean
+      leadLegalName?: string
       leadCompanyName?: string
       leadCountry?: string
       leadDomain?: string
@@ -114,6 +108,7 @@ export class CustomerManagementService {
         rawValue?: string
         issuerCountryOrRegion?: string
       }>
+      profileItems?: CrmAccountProfileItemInputModel[]
       leadPersonName?: string
       leadPhone?: string
       leadWhatsapp?: string
@@ -137,6 +132,7 @@ export class CustomerManagementService {
         tenantId: this.resolveTenantId(tenantId, source),
         displayName: requireNonBlank(input.displayName, 'displayName'),
         partyTypeHint: normalize(input.partyTypeHint) ?? 'UNKNOWN',
+        leadLegalName: normalize(input.leadLegalName),
         leadCompanyName: normalize(input.leadCompanyName),
         leadPersonName: normalize(input.leadPersonName),
         leadDomain: normalize(input.leadDomain),
@@ -145,9 +141,13 @@ export class CustomerManagementService {
         leadWhatsapp: normalize(input.leadWhatsapp),
         leadCountry: normalize(input.leadCountry),
         leadIdentifiers: normalizeLeadIdentifiers(input.leadIdentifiers),
+        profileItems: normalizeProfileItems(input.profileItems),
         ownerAccountId: undefined,
         claimForCurrentUser: Boolean(input.claimForCurrentUser),
-        assignmentIntent: resolveCreateLeadAssignmentIntent(input.assignmentIntent, input.sourceType),
+        assignmentIntent: resolveCreateLeadAssignmentIntent(
+          input.assignmentIntent,
+          input.sourceType
+        ),
         priority: normalize(input.priority) ?? 'C',
         nextFollowUpAt: normalize(input.nextFollowUpAt),
         duplicateWarningAcknowledged: Boolean(input.duplicateWarningAcknowledged),
@@ -170,6 +170,7 @@ export class CustomerManagementService {
     tenantId: string,
     input: {
       displayName: string
+      leadLegalName?: string
       leadCompanyName?: string
       leadCountry?: string
       leadDomain?: string
@@ -180,6 +181,7 @@ export class CustomerManagementService {
         rawValue?: string
         issuerCountryOrRegion?: string
       }>
+      profileItems?: CrmAccountProfileItemInputModel[]
       leadPersonName?: string
       leadPhone?: string
       leadWhatsapp?: string
@@ -273,11 +275,7 @@ export class CustomerManagementService {
   }
 
   /** deleteDraftLead hard-deletes one draft lead and its source records. */
-  async deleteDraftLead(
-    tenantId: string,
-    crmAccountId: string,
-    source: DownstreamRequestSource
-  ) {
+  async deleteDraftLead(tenantId: string, crmAccountId: string, source: DownstreamRequestSource) {
     const result = await this.customerManagementAdapter.deleteDraftLead(
       {
         tenantId: this.resolveTenantId(tenantId, source),
@@ -290,11 +288,7 @@ export class CustomerManagementService {
   }
 
   /** claimCrmAccount assigns one ownerless Pool account to the current operator. */
-  async claimCrmAccount(
-    tenantId: string,
-    crmAccountId: string,
-    source: DownstreamRequestSource
-  ) {
+  async claimCrmAccount(tenantId: string, crmAccountId: string, source: DownstreamRequestSource) {
     const result = await this.customerManagementAdapter.claimCrmAccount(
       {
         tenantId: this.resolveTenantId(tenantId, source),
@@ -307,11 +301,7 @@ export class CustomerManagementService {
   }
 
   /** releaseCrmAccount clears ownership so one CRM P1 account returns to the Pool. */
-  async releaseCrmAccount(
-    tenantId: string,
-    crmAccountId: string,
-    source: DownstreamRequestSource
-  ) {
+  async releaseCrmAccount(tenantId: string, crmAccountId: string, source: DownstreamRequestSource) {
     const result = await this.customerManagementAdapter.releaseCrmAccount(
       {
         tenantId: this.resolveTenantId(tenantId, source),
@@ -342,11 +332,38 @@ export class CustomerManagementService {
     return this.withAccountDisplayNames(mapArchiveCrmAccountResponse(result), source)
   }
 
+  /** updateCrmAccountIdentifiers replaces CRM-owned strong identifiers for eligible Lead or Prospect Customer records. */
+  async updateCrmAccountIdentifiers(
+    tenantId: string,
+    crmAccountId: string,
+    input: {
+      leadIdentifiers?: Array<{
+        identifierType: string
+        normalizedValue: string
+        rawValue?: string
+        issuerCountryOrRegion?: string
+      }>
+    },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.customerManagementAdapter.updateCrmAccountIdentifiers(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        crmAccountId: requireNonBlank(crmAccountId, 'crmAccountId'),
+        leadIdentifiers: normalizeLeadIdentifiers(input.leadIdentifiers)
+      },
+      source
+    )
+
+    return this.withAccountDisplayNames(mapUpdateCrmAccountIdentifiersResponse(result), source)
+  }
+
   /** checkLeadDuplicate exposes the CRM duplicate check before create or submit decisions. */
   async checkLeadDuplicate(
     tenantId: string,
     input: {
       displayName?: string
+      leadLegalName?: string
       leadCompanyName?: string
       leadCountry?: string
       leadDomain?: string
@@ -357,6 +374,7 @@ export class CustomerManagementService {
         rawValue?: string
         issuerCountryOrRegion?: string
       }>
+      profileItems?: CrmAccountProfileItemInputModel[]
       leadPersonName?: string
       leadPhone?: string
       leadWhatsapp?: string
@@ -367,6 +385,7 @@ export class CustomerManagementService {
       {
         tenantId: this.resolveTenantId(tenantId, source),
         displayName: normalize(input.displayName),
+        leadLegalName: normalize(input.leadLegalName),
         leadCompanyName: normalize(input.leadCompanyName),
         leadPersonName: normalize(input.leadPersonName),
         leadDomain: normalize(input.leadDomain),
@@ -374,7 +393,8 @@ export class CustomerManagementService {
         leadPhone: normalize(input.leadPhone),
         leadWhatsapp: normalize(input.leadWhatsapp),
         leadCountry: normalize(input.leadCountry),
-        leadIdentifiers: normalizeLeadIdentifiers(input.leadIdentifiers)
+        leadIdentifiers: normalizeLeadIdentifiers(input.leadIdentifiers),
+        profileItems: normalizeProfileItems(input.profileItems)
       },
       source
     )
@@ -386,12 +406,16 @@ export class CustomerManagementService {
   async convertLeadToProspectCustomer(
     tenantId: string,
     crmAccountId: string,
+    input: {
+      legalName: string
+    },
     source: DownstreamRequestSource
   ) {
     const result = await this.customerManagementAdapter.convertLeadToProspectCustomer(
       {
         tenantId: this.resolveTenantId(tenantId, source),
         crmAccountId: requireNonBlank(crmAccountId, 'crmAccountId'),
+        legalName: requireNonBlank(input.legalName, 'legalName'),
         allowOwnerlessConversion: hasPermission(source, 'crm.account.manage')
       },
       source
@@ -445,10 +469,9 @@ export class CustomerManagementService {
   }
 
   /** withAccountDisplayNamesInResponse enriches command responses that carry one CRM account view. */
-  private async withAccountDisplayNamesInResponse<T extends { crmAccount: CrmAccountP1Model | null }>(
-    response: T,
-    source: DownstreamRequestSource
-  ): Promise<T> {
+  private async withAccountDisplayNamesInResponse<
+    T extends { crmAccount: CrmAccountP1Model | null }
+  >(response: T, source: DownstreamRequestSource): Promise<T> {
     return {
       ...response,
       crmAccount: await this.withAccountDisplayNames(response.crmAccount, source)
@@ -463,10 +486,7 @@ export class CustomerManagementService {
     const accountIds = [
       ...new Set(
         accounts
-          .flatMap((account) => [
-            normalize(account?.ownerAccountId),
-            normalize(account?.createdBy)
-          ])
+          .flatMap((account) => [normalize(account?.ownerAccountId), normalize(account?.createdBy)])
           .filter(Boolean)
       )
     ] as string[]
@@ -503,7 +523,7 @@ export class CustomerManagementService {
       sourceRecords: result.sourceRecords.map((record) => ({
         ...record,
         capturedByDisplayName: record.capturedByAccountId
-          ? accountNames.get(record.capturedByAccountId) ?? ''
+          ? (accountNames.get(record.capturedByAccountId) ?? '')
           : ''
       }))
     }
@@ -521,8 +541,8 @@ export class CustomerManagementService {
     const createdBy = normalize(account.createdBy)
     return {
       ...account,
-      createdByDisplayName: createdBy ? accountNames.get(createdBy) ?? '' : '',
-      ownerDisplayName: ownerAccountId ? accountNames.get(ownerAccountId) ?? '' : ''
+      createdByDisplayName: createdBy ? (accountNames.get(createdBy) ?? '') : '',
+      ownerDisplayName: ownerAccountId ? (accountNames.get(ownerAccountId) ?? '') : ''
     }
   }
 }
@@ -538,9 +558,18 @@ type CrmAccountP1PageModel = ReturnType<typeof mapCrmAccountP1Page> & {
 
 type CrmSourceRecordListModel = ReturnType<typeof mapListSourceRecordsResponse>
 
+interface CrmAccountProfileItemInputModel {
+  itemType?: string
+  normalizedValue?: string
+  rawValue?: string
+  label?: string
+  role?: string
+}
+
 /** mapLeadDraftInput normalizes editable lead fields shared by draft create and update commands. */
 function mapLeadDraftInput(input: {
   displayName: string
+  leadLegalName?: string
   leadCompanyName?: string
   leadCountry?: string
   leadDomain?: string
@@ -551,6 +580,7 @@ function mapLeadDraftInput(input: {
     rawValue?: string
     issuerCountryOrRegion?: string
   }>
+  profileItems?: CrmAccountProfileItemInputModel[]
   leadPersonName?: string
   leadPhone?: string
   leadWhatsapp?: string
@@ -561,6 +591,7 @@ function mapLeadDraftInput(input: {
   return {
     displayName: requireNonBlank(input.displayName, 'displayName'),
     partyTypeHint: normalize(input.partyTypeHint) ?? 'UNKNOWN',
+    leadLegalName: normalize(input.leadLegalName),
     leadCompanyName: normalize(input.leadCompanyName),
     leadPersonName: normalize(input.leadPersonName),
     leadDomain: normalize(input.leadDomain),
@@ -569,6 +600,7 @@ function mapLeadDraftInput(input: {
     leadWhatsapp: normalize(input.leadWhatsapp),
     leadCountry: normalize(input.leadCountry),
     leadIdentifiers: normalizeLeadIdentifiers(input.leadIdentifiers),
+    profileItems: normalizeProfileItems(input.profileItems),
     priority: normalize(input.priority) ?? 'C',
     nextFollowUpAt: normalize(input.nextFollowUpAt)
   }
@@ -648,6 +680,11 @@ function mapArchiveCrmAccountResponse(result: ArchiveCrmAccountResponse) {
   return mapCrmAccountP1(result.crmAccount)
 }
 
+/** mapUpdateCrmAccountIdentifiersResponse converts one identifier update response into a CRM account view model. */
+function mapUpdateCrmAccountIdentifiersResponse(result: UpdateCrmAccountIdentifiersResponse) {
+  return mapCrmAccountP1(result.crmAccount)
+}
+
 /** mapCheckLeadDuplicateResponse converts one explicit duplicate check response into BFF JSON. */
 function mapCheckLeadDuplicateResponse(result: CheckLeadDuplicateResponse) {
   return {
@@ -723,6 +760,7 @@ function mapCrmAccountP1(account?: CrmAccountP1) {
     archiveReason: account.archiveReason ?? '',
     partyTypeHint: account.partyTypeHint ?? '',
     displayName: account.displayName ?? '',
+    leadLegalName: account.leadLegalName ?? '',
     leadCompanyName: account.leadCompanyName ?? '',
     leadPersonName: account.leadPersonName ?? '',
     leadDomain: account.leadDomain ?? '',
@@ -735,6 +773,21 @@ function mapCrmAccountP1(account?: CrmAccountP1) {
       normalizedValue: identifier.normalizedValue ?? '',
       rawValue: identifier.rawValue ?? '',
       issuerCountryOrRegion: identifier.issuerCountryOrRegion ?? ''
+    })),
+    profileItems: (account.profileItems ?? []).map((profileItem) => ({
+      profileItemId: profileItem.profileItemId ?? '',
+      itemType: profileItem.itemType ?? '',
+      normalizedValue: profileItem.normalizedValue ?? '',
+      rawValue: profileItem.rawValue ?? '',
+      label: profileItem.label ?? '',
+      role: profileItem.role ?? '',
+      status: profileItem.status ?? '',
+      sourceRecordId: profileItem.sourceRecordId ?? '',
+      promotedTargetType: profileItem.promotedTargetType ?? '',
+      promotedTargetId: profileItem.promotedTargetId ?? '',
+      promotedAt: profileItem.promotedAt ?? '',
+      createdAt: profileItem.createdAt ?? '',
+      updatedAt: profileItem.updatedAt ?? ''
     })),
     ownerAccountId: account.ownerAccountId ?? '',
     createdByDisplayName: '',
@@ -797,6 +850,23 @@ function normalizeLeadIdentifiers(
     .filter((value) => value.identifierType && value.normalizedValue)
 }
 
+/** normalizeProfileItems trims CRM account-level profile item inputs before they cross the BFF boundary. */
+function normalizeProfileItems(values?: CrmAccountProfileItemInputModel[]) {
+  if (!Array.isArray(values)) {
+    return []
+  }
+
+  return values
+    .map((value) => ({
+      itemType: normalize(value.itemType) ?? '',
+      normalizedValue: normalize(value.normalizedValue) ?? '',
+      rawValue: normalize(value.rawValue),
+      label: normalize(value.label),
+      role: normalize(value.role)
+    }))
+    .filter((value) => value.itemType && value.normalizedValue)
+}
+
 /** stringifyRawPayload serializes optional source payloads for the CRM gRPC contract. */
 function stringifyRawPayload(value?: Record<string, unknown>): string | undefined {
   if (!value) {
@@ -816,7 +886,7 @@ function parseRawPayload(value?: string): Record<string, unknown> | null {
   try {
     const parsed = JSON.parse(normalized)
     return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-      ? parsed as Record<string, unknown>
+      ? (parsed as Record<string, unknown>)
       : null
   } catch {
     return null

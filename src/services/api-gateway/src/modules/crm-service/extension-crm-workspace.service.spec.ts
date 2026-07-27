@@ -238,7 +238,11 @@ describe('ExtensionCrmWorkspaceService', () => {
         })
       ]
     })
-    expect(customerManagementService.getCrmAccount).toHaveBeenCalledWith('tenant-1', 'crm-kohler-1', source)
+    expect(customerManagementService.getCrmAccount).toHaveBeenCalledWith(
+      'tenant-1',
+      'crm-kohler-1',
+      source
+    )
   })
 
   it('does not expose claim or create actions for archived official-site matches', async () => {
@@ -455,7 +459,10 @@ describe('ExtensionCrmWorkspaceService', () => {
     })
 
     await expect(
-      service.createDraftLead({ displayName: 'Serrano Fixtures', leadDomain: 'serrano.example' }, source as any)
+      service.createDraftLead(
+        { displayName: 'Serrano Fixtures', leadDomain: 'serrano.example' },
+        source as any
+      )
     ).resolves.toEqual(
       expect.objectContaining({
         allowedActions: ['OPEN_OES_DETAIL'],
@@ -480,8 +487,16 @@ describe('ExtensionCrmWorkspaceService', () => {
       expect.objectContaining({ sourceType: 'BROWSER_EXTENSION' }),
       source
     )
-    expect(customerManagementService.claimCrmAccount).toHaveBeenCalledWith('tenant-1', 'pool-1', source)
-    expect(customerManagementService.getCrmAccount).toHaveBeenCalledWith('tenant-1', 'owned-1', source)
+    expect(customerManagementService.claimCrmAccount).toHaveBeenCalledWith(
+      'tenant-1',
+      'pool-1',
+      source
+    )
+    expect(customerManagementService.getCrmAccount).toHaveBeenCalledWith(
+      'tenant-1',
+      'owned-1',
+      source
+    )
   })
 
   it('creates draft leads with the standard browser capture rawPayload contract', async () => {
@@ -499,6 +514,7 @@ describe('ExtensionCrmWorkspaceService', () => {
       companyNameCandidates: ['Serrano Fixtures'],
       sourcePageTitle: 'Google',
       sourcePageUrl: 'https://www.google.com/search?q=serrano',
+      socialLinks: ['https://www.linkedin.com/company/serrano-fixtures'],
       targetDomain: 'serrano.example',
       targetTitle: 'serrano.example',
       targetUrl: 'https://serrano.example',
@@ -525,6 +541,32 @@ describe('ExtensionCrmWorkspaceService', () => {
         sourceExternalReference: 'https://serrano.example',
         sourceName: 'Browser CRM capture',
         sourceNote: 'Captured from context menu',
+        profileItems: [
+          {
+            itemType: 'DOMAIN',
+            normalizedValue: 'serrano.example',
+            rawValue: 'serrano.example',
+            label: 'captured domain'
+          },
+          {
+            itemType: 'EMAIL',
+            normalizedValue: 'imports@serrano.example',
+            rawValue: 'imports@serrano.example',
+            label: 'visible email'
+          },
+          {
+            itemType: 'PHONE',
+            normalizedValue: '+1 312 847 1928',
+            rawValue: '+1 312 847 1928',
+            label: 'visible phone'
+          },
+          {
+            itemType: 'SOCIAL_PROFILE',
+            normalizedValue: 'https://www.linkedin.com/company/serrano-fixtures',
+            rawValue: 'https://www.linkedin.com/company/serrano-fixtures',
+            label: 'social link'
+          }
+        ],
         sourceRawPayload: capture,
         sourceType: 'BROWSER_EXTENSION'
       }),

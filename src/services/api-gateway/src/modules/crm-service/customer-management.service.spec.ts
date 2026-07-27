@@ -18,6 +18,7 @@ describe('CustomerManagementService', () => {
     deleteDraftLead: jest.fn(),
     releaseCrmAccount: jest.fn(),
     submitDraftLead: jest.fn(),
+    updateCrmAccountIdentifiers: jest.fn(),
     updateDraftLead: jest.fn()
   }
   const identityQueryAdapter = {
@@ -62,7 +63,18 @@ describe('CustomerManagementService', () => {
       archivedAt: '2026-06-23T00:00:00.000Z',
       crmAccountId: 'crm-account-1',
       createdBy: 'account-creator',
-      ownerAccountId: 'account-owner'
+      ownerAccountId: 'account-owner',
+      profileItems: [
+        {
+          profileItemId: 'profile-item-1',
+          itemType: 'DOMAIN',
+          normalizedValue: 'northline.example',
+          rawValue: 'https://northline.example',
+          label: 'official site',
+          role: 'official',
+          status: 'ACTIVE'
+        }
+      ]
     })
     identityQueryAdapter.getAccountById.mockImplementation(async (accountId: string) => ({
       account: {
@@ -125,7 +137,14 @@ describe('CustomerManagementService', () => {
           createdBy: 'account-creator',
           createdByDisplayName: '林晓雯',
           ownerAccountId: 'account-owner',
-          ownerDisplayName: '陈双鹏'
+          ownerDisplayName: '陈双鹏',
+          profileItems: [
+            expect.objectContaining({
+              profileItemId: 'profile-item-1',
+              itemType: 'DOMAIN',
+              normalizedValue: 'northline.example'
+            })
+          ]
         })
       ],
       page: 1,
@@ -142,7 +161,14 @@ describe('CustomerManagementService', () => {
         createdBy: 'account-creator',
         createdByDisplayName: '林晓雯',
         ownerAccountId: 'account-owner',
-        ownerDisplayName: '陈双鹏'
+        ownerDisplayName: '陈双鹏',
+        profileItems: [
+          expect.objectContaining({
+            profileItemId: 'profile-item-1',
+            itemType: 'DOMAIN',
+            normalizedValue: 'northline.example'
+          })
+        ]
       })
     )
     await expect(
@@ -205,7 +231,8 @@ describe('CustomerManagementService', () => {
         leadPhone: undefined,
         leadWhatsapp: undefined,
         leadCountry: undefined,
-        leadIdentifiers: []
+        leadIdentifiers: [],
+        profileItems: []
       },
       source
     )
@@ -261,6 +288,18 @@ describe('CustomerManagementService', () => {
         recordStatus: 'ARCHIVED'
       })
     })
+    customerManagementAdapter.updateCrmAccountIdentifiers.mockResolvedValue({
+      crmAccount: buildCrmAccount({
+        leadIdentifiers: [
+          {
+            identifierType: 'VAT_NO',
+            issuerCountryOrRegion: 'US',
+            normalizedValue: 'US-91-4432102',
+            rawValue: '91-4432102'
+          }
+        ]
+      })
+    })
     customerManagementAdapter.convertLeadToProspectCustomer.mockResolvedValue({
       resultType: 'CONVERTED',
       crmAccount: buildCrmAccount({
@@ -278,10 +317,25 @@ describe('CustomerManagementService', () => {
     const leadInput = {
       displayName: 'Acme Importers',
       partyTypeHint: 'ORGANIZATION',
+      leadLegalName: 'Acme Importers Incorporated',
       leadCompanyName: 'Acme Importers Ltd',
       leadDomain: 'acme.example',
       leadEmail: 'buyer@acme.example',
       leadCountry: 'US',
+      profileItems: [
+        {
+          itemType: 'DOMAIN',
+          normalizedValue: 'acme.example',
+          rawValue: 'https://www.acme.example',
+          label: 'official site',
+          role: 'official'
+        },
+        {
+          itemType: 'DOMAIN',
+          normalizedValue: 'acme-usa.example',
+          rawValue: 'https://acme-usa.example'
+        }
+      ],
       priority: 'A',
       sourceType: 'WEB_RESEARCH',
       sourceName: 'Browser research',
@@ -322,7 +376,40 @@ describe('CustomerManagementService', () => {
         recordStatus: 'ARCHIVED'
       })
     )
-    await service.convertLeadToProspectCustomer('tenant-1', 'crm-account-1', source as any)
+    await expect(
+      service.updateCrmAccountIdentifiers(
+        'tenant-1',
+        'crm-account-1',
+        {
+          leadIdentifiers: [
+            {
+              identifierType: ' VAT_NO ',
+              issuerCountryOrRegion: ' US ',
+              normalizedValue: ' US-91-4432102 ',
+              rawValue: ' 91-4432102 '
+            }
+          ]
+        },
+        source as any
+      )
+    ).resolves.toEqual(
+      expect.objectContaining({
+        leadIdentifiers: [
+          {
+            identifierType: 'VAT_NO',
+            issuerCountryOrRegion: 'US',
+            normalizedValue: 'US-91-4432102',
+            rawValue: '91-4432102'
+          }
+        ]
+      })
+    )
+    await service.convertLeadToProspectCustomer(
+      'tenant-1',
+      'crm-account-1',
+      { legalName: 'Acme Importers Incorporated' },
+      source as any
+    )
     await expect(
       service.deleteDraftLead('tenant-1', 'crm-account-1', source as any)
     ).resolves.toEqual({
@@ -333,8 +420,25 @@ describe('CustomerManagementService', () => {
     expect(customerManagementAdapter.createLead).toHaveBeenCalledWith(
       expect.objectContaining({
         tenantId: 'tenant-1',
+        leadLegalName: 'Acme Importers Incorporated',
         ownerAccountId: undefined,
-        claimForCurrentUser: true
+        claimForCurrentUser: true,
+        profileItems: [
+          {
+            itemType: 'DOMAIN',
+            normalizedValue: 'acme.example',
+            rawValue: 'https://www.acme.example',
+            label: 'official site',
+            role: 'official'
+          },
+          {
+            itemType: 'DOMAIN',
+            normalizedValue: 'acme-usa.example',
+            rawValue: 'https://acme-usa.example',
+            label: undefined,
+            role: undefined
+          }
+        ]
       }),
       source
     )
@@ -342,6 +446,7 @@ describe('CustomerManagementService', () => {
       {
         tenantId: 'tenant-1',
         crmAccountId: 'crm-account-1',
+        legalName: 'Acme Importers Incorporated',
         allowOwnerlessConversion: true
       },
       source
@@ -358,6 +463,21 @@ describe('CustomerManagementService', () => {
         tenantId: 'tenant-1',
         crmAccountId: 'crm-account-1',
         archiveReason: 'NON_TARGET_ACCOUNT'
+      },
+      source
+    )
+    expect(customerManagementAdapter.updateCrmAccountIdentifiers).toHaveBeenCalledWith(
+      {
+        tenantId: 'tenant-1',
+        crmAccountId: 'crm-account-1',
+        leadIdentifiers: [
+          {
+            identifierType: 'VAT_NO',
+            issuerCountryOrRegion: 'US',
+            normalizedValue: 'US-91-4432102',
+            rawValue: '91-4432102'
+          }
+        ]
       },
       source
     )
@@ -394,11 +514,7 @@ describe('CustomerManagementService', () => {
     })
 
     await service.createLead('tenant-1', leadInput, source as any)
-    await service.createLead(
-      'tenant-1',
-      { ...leadInput, assignmentIntent: 'POOL' },
-      source as any
-    )
+    await service.createLead('tenant-1', { ...leadInput, assignmentIntent: 'POOL' }, source as any)
     await service.createLead(
       'tenant-1',
       { ...leadInput, sourceType: 'WEBSITE_FORM' },
@@ -434,7 +550,10 @@ describe('CustomerManagementService', () => {
     )
     expect(customerManagementAdapter.createLead).toHaveBeenNthCalledWith(
       4,
-      expect.objectContaining({ assignmentIntent: 'OWNED_BY_OPERATOR', sourceType: 'BROWSER_EXTENSION' }),
+      expect.objectContaining({
+        assignmentIntent: 'OWNED_BY_OPERATOR',
+        sourceType: 'BROWSER_EXTENSION'
+      }),
       source
     )
     expect(customerManagementAdapter.submitDraftLead).toHaveBeenNthCalledWith(
@@ -494,6 +613,7 @@ function buildCrmAccount(overrides: Record<string, unknown> = {}) {
     lifecycleStage: 'LEAD',
     partyTypeHint: 'ORGANIZATION',
     displayName: 'Northline Bathworks',
+    leadLegalName: 'Northline Bathworks LLC',
     leadCompanyName: 'Northline Bathworks LLC',
     leadDomain: 'northline.example',
     leadEmail: 'sourcing@northline.example',

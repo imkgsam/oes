@@ -37,6 +37,86 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # ============ Local Event Bus Proof (single-node only) ============
+  nats:
+    image: nats:2.10.26-alpine
+    container_name: oes_nats
+    command: ["-c", "/etc/nats/nats-server.conf"]
+    environment:
+      NATS_COLLABORATION_USER: "${NATS_COLLABORATION_USER:?NATS_COLLABORATION_USER is required}"
+      NATS_COLLABORATION_PASSWORD: "${NATS_COLLABORATION_PASSWORD:?NATS_COLLABORATION_PASSWORD is required}"
+      NATS_NOTIFICATION_USER: "${NATS_NOTIFICATION_USER:?NATS_NOTIFICATION_USER is required}"
+      NATS_NOTIFICATION_PASSWORD: "${NATS_NOTIFICATION_PASSWORD:?NATS_NOTIFICATION_PASSWORD is required}"
+      NATS_NOTIFICATION_REPLAY_USER: "${NATS_NOTIFICATION_REPLAY_USER:?NATS_NOTIFICATION_REPLAY_USER is required}"
+      NATS_NOTIFICATION_REPLAY_PASSWORD: "${NATS_NOTIFICATION_REPLAY_PASSWORD:?NATS_NOTIFICATION_REPLAY_PASSWORD is required}"
+      NATS_NOTIFICATION_RECOVERY_USER: "${NATS_NOTIFICATION_RECOVERY_USER:?NATS_NOTIFICATION_RECOVERY_USER is required}"
+      NATS_NOTIFICATION_RECOVERY_PASSWORD: "${NATS_NOTIFICATION_RECOVERY_PASSWORD:?NATS_NOTIFICATION_RECOVERY_PASSWORD is required}"
+      NATS_NOTIFICATION_REPLAY_ASSIGNED_CREATE_SUBJECT: "${NATS_NOTIFICATION_REPLAY_ASSIGNED_CREATE_SUBJECT:?NATS_NOTIFICATION_REPLAY_ASSIGNED_CREATE_SUBJECT is required}"
+      NATS_NOTIFICATION_REPLAY_COMPLETED_CREATE_SUBJECT: "${NATS_NOTIFICATION_REPLAY_COMPLETED_CREATE_SUBJECT:?NATS_NOTIFICATION_REPLAY_COMPLETED_CREATE_SUBJECT is required}"
+      NATS_NOTIFICATION_REPLAY_CANCELLED_CREATE_SUBJECT: "${NATS_NOTIFICATION_REPLAY_CANCELLED_CREATE_SUBJECT:?NATS_NOTIFICATION_REPLAY_CANCELLED_CREATE_SUBJECT is required}"
+      NATS_NOTIFICATION_REPLAY_ASSIGNED_INFO_SUBJECT: "${NATS_NOTIFICATION_REPLAY_ASSIGNED_INFO_SUBJECT:?NATS_NOTIFICATION_REPLAY_ASSIGNED_INFO_SUBJECT is required}"
+      NATS_NOTIFICATION_REPLAY_COMPLETED_INFO_SUBJECT: "${NATS_NOTIFICATION_REPLAY_COMPLETED_INFO_SUBJECT:?NATS_NOTIFICATION_REPLAY_COMPLETED_INFO_SUBJECT is required}"
+      NATS_NOTIFICATION_REPLAY_CANCELLED_INFO_SUBJECT: "${NATS_NOTIFICATION_REPLAY_CANCELLED_INFO_SUBJECT:?NATS_NOTIFICATION_REPLAY_CANCELLED_INFO_SUBJECT is required}"
+      NATS_NOTIFICATION_REPLAY_ASSIGNED_DELETE_SUBJECT: "${NATS_NOTIFICATION_REPLAY_ASSIGNED_DELETE_SUBJECT:?NATS_NOTIFICATION_REPLAY_ASSIGNED_DELETE_SUBJECT is required}"
+      NATS_NOTIFICATION_REPLAY_COMPLETED_DELETE_SUBJECT: "${NATS_NOTIFICATION_REPLAY_COMPLETED_DELETE_SUBJECT:?NATS_NOTIFICATION_REPLAY_COMPLETED_DELETE_SUBJECT is required}"
+      NATS_NOTIFICATION_REPLAY_CANCELLED_DELETE_SUBJECT: "${NATS_NOTIFICATION_REPLAY_CANCELLED_DELETE_SUBJECT:?NATS_NOTIFICATION_REPLAY_CANCELLED_DELETE_SUBJECT is required}"
+      NATS_NOTIFICATION_REPLAY_ASSIGNED_NEXT_SUBJECT: "${NATS_NOTIFICATION_REPLAY_ASSIGNED_NEXT_SUBJECT:?NATS_NOTIFICATION_REPLAY_ASSIGNED_NEXT_SUBJECT is required}"
+      NATS_NOTIFICATION_REPLAY_COMPLETED_NEXT_SUBJECT: "${NATS_NOTIFICATION_REPLAY_COMPLETED_NEXT_SUBJECT:?NATS_NOTIFICATION_REPLAY_COMPLETED_NEXT_SUBJECT is required}"
+      NATS_NOTIFICATION_REPLAY_CANCELLED_NEXT_SUBJECT: "${NATS_NOTIFICATION_REPLAY_CANCELLED_NEXT_SUBJECT:?NATS_NOTIFICATION_REPLAY_CANCELLED_NEXT_SUBJECT is required}"
+      NATS_NOTIFICATION_REPLAY_ASSIGNED_ACK_SUBJECT: "${NATS_NOTIFICATION_REPLAY_ASSIGNED_ACK_SUBJECT:?NATS_NOTIFICATION_REPLAY_ASSIGNED_ACK_SUBJECT is required}"
+      NATS_NOTIFICATION_REPLAY_COMPLETED_ACK_SUBJECT: "${NATS_NOTIFICATION_REPLAY_COMPLETED_ACK_SUBJECT:?NATS_NOTIFICATION_REPLAY_COMPLETED_ACK_SUBJECT is required}"
+      NATS_NOTIFICATION_REPLAY_CANCELLED_ACK_SUBJECT: "${NATS_NOTIFICATION_REPLAY_CANCELLED_ACK_SUBJECT:?NATS_NOTIFICATION_REPLAY_CANCELLED_ACK_SUBJECT is required}"
+      NATS_OPERATOR_USER: "${NATS_OPERATOR_USER:?NATS_OPERATOR_USER is required}"
+      NATS_OPERATOR_PASSWORD: "${NATS_OPERATOR_PASSWORD:?NATS_OPERATOR_PASSWORD is required}"
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    volumes:
+      - ./docker/nats/nats-server.conf:/etc/nats/nats-server.conf:ro
+      - nats_jetstream_data:/data
+    networks:
+      - oes_network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8222/healthz?js-enabled-only >/dev/null"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+    restart: unless-stopped
+
+  nats-bootstrap:
+    image: natsio/nats-box:0.14.5
+    container_name: oes_nats_bootstrap
+    environment:
+      NATS_OPERATOR_USER: "${NATS_OPERATOR_USER:?NATS_OPERATOR_USER is required}"
+      NATS_OPERATOR_PASSWORD: "${NATS_OPERATOR_PASSWORD:?NATS_OPERATOR_PASSWORD is required}"
+    entrypoint: ["/bin/sh", "/etc/nats/bootstrap.sh"]
+    volumes:
+      - ./docker/nats/bootstrap.sh:/etc/nats/bootstrap.sh:ro
+      - ./docker/nats/topology:/etc/nats/topology:ro
+    depends_on:
+      nats:
+        condition: service_healthy
+    networks:
+      - oes_network
+    restart: "no"
+
+  nats-advisory-monitor:
+    image: natsio/nats-box:0.14.5
+    container_name: oes_nats_advisory_monitor
+    environment:
+      NATS_OPERATOR_USER: "${NATS_OPERATOR_USER:?NATS_OPERATOR_USER is required}"
+      NATS_OPERATOR_PASSWORD: "${NATS_OPERATOR_PASSWORD:?NATS_OPERATOR_PASSWORD is required}"
+    entrypoint: ["/bin/sh", "/etc/nats/advisory-monitor.sh"]
+    volumes:
+      - ./docker/nats/advisory-monitor.sh:/etc/nats/advisory-monitor.sh:ro
+    depends_on:
+      nats-bootstrap:
+        condition: service_completed_successfully
+    networks:
+      - oes_network
+    restart: unless-stopped
+
   # ============ OpenTelemetry Stack ============
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.137.0
@@ -194,6 +274,7 @@ volumes:
   minio_data:
   nacos_mysql_data:
   grafana_data:
+  nats_jetstream_data:
 
 networks:
   oes_network:

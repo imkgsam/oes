@@ -13,10 +13,15 @@ import { ReleaseCrmAccountCommand } from '../../src/application/commands/release
 import { ReleaseCrmAccountHandler } from '../../src/application/commands/release-crm-account.handler'
 import { SubmitDraftLeadCommand } from '../../src/application/commands/submit-draft-lead.command'
 import { SubmitDraftLeadHandler } from '../../src/application/commands/submit-draft-lead.handler'
+import { UpdateCrmAccountIdentifiersCommand } from '../../src/application/commands/update-crm-account-identifiers.command'
+import { UpdateCrmAccountIdentifiersHandler } from '../../src/application/commands/update-crm-account-identifiers.handler'
 import { CheckLeadDuplicateHandler } from '../../src/application/queries/check-lead-duplicate.handler'
 import { CheckLeadDuplicateQuery } from '../../src/application/queries/check-lead-duplicate.query'
 import {
   CrmAccountLifecycleStage,
+  CrmAccountProfileItemRecord,
+  CrmAccountProfileItemStatus,
+  CrmAccountProfileItemType,
   CrmAccountRecord,
   CrmAccountRecordStatus,
   CrmAccountTypeHint,
@@ -36,11 +41,15 @@ import {
 /** FakeCrmAccountRepository stores CRM P1 records in memory so L1 tests focus on application rules. */
 class FakeCrmAccountRepository implements CrmAccountRepository {
   readonly accounts: CrmAccountRecord[] = []
+  readonly profileItems: CrmAccountProfileItemRecord[] = []
   readonly sources: CrmSourceRecord[] = []
   readonly duplicateCandidates: CrmAccountDuplicateCandidate[] = []
 
   async findAccountById(tenantId: string, accountId: string): Promise<CrmAccountRecord | null> {
-    return this.accounts.find((account) => account.tenantId === tenantId && account.id === accountId) ?? null
+    return (
+      this.accounts.find((account) => account.tenantId === tenantId && account.id === accountId) ??
+      null
+    )
   }
 
   async findActiveFormalByTenantPartyId(): Promise<CrmAccountRecord | null> {
@@ -57,7 +66,9 @@ class FakeCrmAccountRepository implements CrmAccountRepository {
   }
 
   async saveAccount(account: CrmAccountRecord): Promise<CrmAccountRecord> {
-    const existingIndex = this.accounts.findIndex((existing) => existing.id === account.id && existing.tenantId === account.tenantId)
+    const existingIndex = this.accounts.findIndex(
+      (existing) => existing.id === account.id && existing.tenantId === account.tenantId
+    )
     if (existingIndex >= 0) {
       this.accounts[existingIndex] = account
     } else {
@@ -72,7 +83,45 @@ class FakeCrmAccountRepository implements CrmAccountRepository {
   }
 
   async listSourceRecords(tenantId: string, accountId: string): Promise<CrmSourceRecord[]> {
-    return this.sources.filter((source) => source.tenantId === tenantId && source.crmAccountId === accountId)
+    return this.sources.filter(
+      (source) => source.tenantId === tenantId && source.crmAccountId === accountId
+    )
+  }
+
+  async addAccountProfileItem(
+    profileItem: CrmAccountProfileItemRecord
+  ): Promise<CrmAccountProfileItemRecord> {
+    this.profileItems.push(profileItem)
+    return profileItem
+  }
+
+  async replaceAccountProfileItems(
+    tenantId: string,
+    accountId: string,
+    profileItems: CrmAccountProfileItemRecord[]
+  ): Promise<CrmAccountProfileItemRecord[]> {
+    for (let index = this.profileItems.length - 1; index >= 0; index -= 1) {
+      if (
+        this.profileItems[index].tenantId === tenantId &&
+        this.profileItems[index].crmAccountId === accountId
+      ) {
+        this.profileItems.splice(index, 1)
+      }
+    }
+    this.profileItems.push(...profileItems)
+    return profileItems
+  }
+
+  async listAccountProfileItems(
+    tenantId: string,
+    accountId: string
+  ): Promise<CrmAccountProfileItemRecord[]> {
+    return this.profileItems.filter(
+      (profileItem) =>
+        profileItem.tenantId === tenantId &&
+        profileItem.crmAccountId === accountId &&
+        profileItem.status === CrmAccountProfileItemStatus.ACTIVE
+    )
   }
 
   async deleteDraftAccount(tenantId: string, accountId: string): Promise<boolean> {
@@ -87,7 +136,10 @@ class FakeCrmAccountRepository implements CrmAccountRepository {
     }
     this.accounts.splice(existingIndex, 1)
     for (let index = this.sources.length - 1; index >= 0; index -= 1) {
-      if (this.sources[index].tenantId === tenantId && this.sources[index].crmAccountId === accountId) {
+      if (
+        this.sources[index].tenantId === tenantId &&
+        this.sources[index].crmAccountId === accountId
+      ) {
         this.sources.splice(index, 1)
       }
     }
@@ -111,7 +163,8 @@ function createHarness() {
     createLead: new CreateLeadHandler(repository, checkLeadDuplicate),
     deleteDraftLead: new DeleteDraftLeadHandler(repository),
     releaseCrmAccount: new ReleaseCrmAccountHandler(repository),
-    submitDraftLead: new SubmitDraftLeadHandler(repository, checkLeadDuplicate)
+    submitDraftLead: new SubmitDraftLeadHandler(repository, checkLeadDuplicate),
+    updateCrmAccountIdentifiers: new UpdateCrmAccountIdentifiersHandler(repository)
   }
 }
 
@@ -143,14 +196,101 @@ function buildAccountRecord(overrides: Partial<CrmAccountRecord> = {}): CrmAccou
 }
 
 describe('CRM P1 lead use cases L1', () => {
+  it('UpdateCrmAccountIdentifiers / should replace strong identifiers on active Leads', async () => {
+    const harness = createHarness()
+    harness.repository.accounts.push(
+      buildAccountRecord({
+        id: 'lead-identifier-1',
+        lifecycleStage: CrmAccountLifecycleStage.LEAD,
+        ownerAccountId: 'sales-1',
+        recordStatus: CrmAccountRecordStatus.ACTIVE
+      })
+    )
+
+    const result = await harness.updateCrmAccountIdentifiers.execute(
+      new UpdateCrmAccountIdentifiersCommand({
+        tenantId: 'tenant-1',
+        crmAccountId: 'lead-identifier-1',
+        operatorAccountId: 'sales-1',
+        leadIdentifiers: [
+          {
+            identifierType: 'VAT_NO',
+            issuerCountryOrRegion: 'US',
+            normalizedValue: 'US-91-4432102',
+            rawValue: '91-4432102'
+          }
+        ]
+      })
+    )
+
+    expect(result.account.leadIdentifiers).toEqual([
+      {
+        identifierType: 'VAT_NO',
+        issuerCountryOrRegion: 'US',
+        normalizedValue: 'US-91-4432102',
+        rawValue: '91-4432102'
+      }
+    ])
+    expect(harness.repository.accounts[0]?.leadIdentifiers).toEqual(result.account.leadIdentifiers)
+  })
+
+  it('UpdateCrmAccountIdentifiers / should reject identifier-bound Prospect Customer identifier changes', async () => {
+    const harness = createHarness()
+    harness.repository.accounts.push(
+      buildAccountRecord({
+        id: 'pc-identifier-locked-1',
+        tenantPartyId: 'tenant-party-1',
+        lifecycleStage: CrmAccountLifecycleStage.PROSPECT_CUSTOMER,
+        leadIdentifiers: [
+          {
+            identifierType: 'VAT_NO',
+            issuerCountryOrRegion: 'US',
+            normalizedValue: 'US-91-4432102',
+            rawValue: '91-4432102'
+          }
+        ],
+        recordStatus: CrmAccountRecordStatus.ACTIVE
+      })
+    )
+
+    await expect(
+      harness.updateCrmAccountIdentifiers.execute(
+        new UpdateCrmAccountIdentifiersCommand({
+          tenantId: 'tenant-1',
+          crmAccountId: 'pc-identifier-locked-1',
+          operatorAccountId: 'sales-1',
+          leadIdentifiers: [
+            {
+              identifierType: 'VAT_NO',
+              issuerCountryOrRegion: 'US',
+              normalizedValue: 'US-00-0000000',
+              rawValue: '00-0000000'
+            }
+          ]
+        })
+      )
+    ).rejects.toThrow('Identifier-bound prospect customer identifiers are immutable')
+
+    expect(harness.repository.accounts[0]?.leadIdentifiers).toEqual([
+      {
+        identifierType: 'VAT_NO',
+        issuerCountryOrRegion: 'US',
+        normalizedValue: 'US-91-4432102',
+        rawValue: '91-4432102'
+      }
+    ])
+  })
+
   it('ArchiveCrmAccount / should archive active Lead with required archive reason', async () => {
     const harness = createHarness()
-    harness.repository.accounts.push(buildAccountRecord({
-      id: 'lead-archive-1',
-      lifecycleStage: CrmAccountLifecycleStage.LEAD,
-      ownerAccountId: 'sales-1',
-      recordStatus: CrmAccountRecordStatus.ACTIVE
-    }))
+    harness.repository.accounts.push(
+      buildAccountRecord({
+        id: 'lead-archive-1',
+        lifecycleStage: CrmAccountLifecycleStage.LEAD,
+        ownerAccountId: 'sales-1',
+        recordStatus: CrmAccountRecordStatus.ACTIVE
+      })
+    )
 
     const result = await harness.archiveCrmAccount.execute(
       new ArchiveCrmAccountCommand({
@@ -176,12 +316,14 @@ describe('CRM P1 lead use cases L1', () => {
 
   it('ArchiveCrmAccount / should preserve competitor as the CRM-owned reason for peer-company leads', async () => {
     const harness = createHarness()
-    harness.repository.accounts.push(buildAccountRecord({
-      id: 'competitor-lead-archive-1',
-      lifecycleStage: CrmAccountLifecycleStage.LEAD,
-      ownerAccountId: 'sales-1',
-      recordStatus: CrmAccountRecordStatus.ACTIVE
-    }))
+    harness.repository.accounts.push(
+      buildAccountRecord({
+        id: 'competitor-lead-archive-1',
+        lifecycleStage: CrmAccountLifecycleStage.LEAD,
+        ownerAccountId: 'sales-1',
+        recordStatus: CrmAccountRecordStatus.ACTIVE
+      })
+    )
 
     const result = await harness.archiveCrmAccount.execute(
       new ArchiveCrmAccountCommand({
@@ -206,12 +348,14 @@ describe('CRM P1 lead use cases L1', () => {
 
   it('ArchiveCrmAccount / should archive active Prospect Customer with required archive reason', async () => {
     const harness = createHarness()
-    harness.repository.accounts.push(buildAccountRecord({
-      id: 'pc-archive-1',
-      lifecycleStage: CrmAccountLifecycleStage.PROSPECT_CUSTOMER,
-      tenantPartyId: 'tenant-party-1',
-      recordStatus: CrmAccountRecordStatus.ACTIVE
-    }))
+    harness.repository.accounts.push(
+      buildAccountRecord({
+        id: 'pc-archive-1',
+        lifecycleStage: CrmAccountLifecycleStage.PROSPECT_CUSTOMER,
+        tenantPartyId: 'tenant-party-1',
+        recordStatus: CrmAccountRecordStatus.ACTIVE
+      })
+    )
 
     const result = await harness.archiveCrmAccount.execute(
       new ArchiveCrmAccountCommand({
@@ -235,12 +379,14 @@ describe('CRM P1 lead use cases L1', () => {
 
   it('ArchiveCrmAccount / should reject Customer archive in this feature slice', async () => {
     const harness = createHarness()
-    harness.repository.accounts.push(buildAccountRecord({
-      id: 'customer-archive-1',
-      lifecycleStage: CrmAccountLifecycleStage.CUSTOMER,
-      tenantPartyId: 'tenant-party-customer-1',
-      recordStatus: CrmAccountRecordStatus.ACTIVE
-    }))
+    harness.repository.accounts.push(
+      buildAccountRecord({
+        id: 'customer-archive-1',
+        lifecycleStage: CrmAccountLifecycleStage.CUSTOMER,
+        tenantPartyId: 'tenant-party-customer-1',
+        recordStatus: CrmAccountRecordStatus.ACTIVE
+      })
+    )
 
     await expect(
       harness.archiveCrmAccount.execute(
@@ -336,6 +482,84 @@ describe('CRM P1 lead use cases L1', () => {
     expect(explicitlyOwned.account?.ownerAccountId).toBe('sales-2')
     expect(harness.repository.accounts).toHaveLength(3)
     expect(harness.repository.sources[0]).toEqual(expect.objectContaining({ isPrimary: true }))
+  })
+
+  it('CreateLead / should persist account-level profile items without treating them as contact data', async () => {
+    const harness = createHarness()
+
+    const result = await harness.createLead.execute(
+      new CreateLeadCommand({
+        tenantId: 'tenant-1',
+        operatorAccountId: 'sales-1',
+        displayName: 'Toto Group',
+        partyTypeHint: CrmAccountTypeHint.ORGANIZATION,
+        leadCompanyName: 'Toto Group',
+        leadDomain: 'toto.com',
+        leadEmail: 'sales@toto.com',
+        leadIdentifiers: [],
+        profileItems: [
+          {
+            itemType: CrmAccountProfileItemType.DOMAIN,
+            normalizedValue: 'toto.com',
+            rawValue: 'https://www.toto.com',
+            label: 'global site',
+            role: 'official'
+          },
+          {
+            itemType: CrmAccountProfileItemType.DOMAIN,
+            normalizedValue: 'totousa.com',
+            rawValue: 'https://www.totousa.com',
+            label: 'usa site',
+            role: 'regional'
+          },
+          {
+            itemType: CrmAccountProfileItemType.EMAIL,
+            normalizedValue: 'sales@toto.com',
+            rawValue: 'sales@toto.com'
+          }
+        ],
+        priority: CrmPriority.A,
+        source: {
+          sourceType: CrmSourceType.WEB_RESEARCH,
+          capturedAt: new Date('2026-06-14T09:00:00.000Z'),
+          capturedByAccountId: 'sales-1'
+        }
+      })
+    )
+
+    expect(result.resultType).toBe(CrmLeadCreateResultType.CREATED)
+    expect(harness.repository.profileItems).toEqual([
+      expect.objectContaining({
+        tenantId: 'tenant-1',
+        crmAccountId: result.account?.id,
+        itemType: CrmAccountProfileItemType.DOMAIN,
+        normalizedValue: 'toto.com',
+        rawValue: 'https://www.toto.com',
+        label: 'global site',
+        role: 'official',
+        status: CrmAccountProfileItemStatus.ACTIVE
+      }),
+      expect.objectContaining({
+        tenantId: 'tenant-1',
+        crmAccountId: result.account?.id,
+        itemType: CrmAccountProfileItemType.DOMAIN,
+        normalizedValue: 'totousa.com',
+        rawValue: 'https://www.totousa.com',
+        label: 'usa site',
+        role: 'regional',
+        status: CrmAccountProfileItemStatus.ACTIVE
+      }),
+      expect.objectContaining({
+        tenantId: 'tenant-1',
+        crmAccountId: result.account?.id,
+        itemType: CrmAccountProfileItemType.EMAIL,
+        normalizedValue: 'sales@toto.com',
+        rawValue: 'sales@toto.com',
+        status: CrmAccountProfileItemStatus.ACTIVE
+      })
+    ])
+    expect(result.account?.leadDomain).toBe('toto.com')
+    expect(result.account?.leadEmail).toBe('sales@toto.com')
   })
 
   it('CreateLead / should leave owner empty only when Pool assignment is explicit', async () => {

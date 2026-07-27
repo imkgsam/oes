@@ -54,8 +54,17 @@ interface ExtensionLeadCapture extends Record<string, unknown> {
   targetDomain: string
   targetTitle: string
   targetUrl: string
+  socialLinks?: string[]
   visibleEmails?: string[]
   visiblePhones?: string[]
+}
+
+interface AccountProfileItemInput {
+  itemType?: string
+  normalizedValue?: string
+  rawValue?: string
+  label?: string
+  role?: string
 }
 
 interface LeadInput {
@@ -69,6 +78,7 @@ interface LeadInput {
   leadPhone?: string
   partyTypeHint?: string
   priority?: string
+  profileItems?: AccountProfileItemInput[]
   sourceNote?: string
   page?: ExtensionPageSignals
 }
@@ -334,12 +344,19 @@ export class ExtensionCrmWorkspaceService {
       duplicateHints: (duplicateResult.candidates ?? []).map((item) =>
         renderDuplicateHint(item, source)
       ),
-      allowedActions: resolveActionsForDuplicate(duplicateResult, source, actionContext, allowMutations),
+      allowedActions: resolveActionsForDuplicate(
+        duplicateResult,
+        source,
+        actionContext,
+        allowMutations
+      ),
       deepLinks: renderDeepLinks(matchedAccount)
     }
   }
 
-  private async resolveActionContext(source: DownstreamRequestSource): Promise<ExtensionActionContext> {
+  private async resolveActionContext(
+    source: DownstreamRequestSource
+  ): Promise<ExtensionActionContext> {
     const accountId = currentAccountId(source)
     if (!accountId) {
       throw new ForbiddenException('extension CRM workspace requires account context')
@@ -418,7 +435,13 @@ function toDuplicateInput(page: ExtensionPageSignals) {
     leadCompanyName: page.companyNameCandidates?.[0] || page.title,
     leadDomain: page.domain,
     leadEmail: page.visibleEmails?.[0],
-    leadPhone: page.visiblePhones?.[0]
+    leadPhone: page.visiblePhones?.[0],
+    profileItems: buildExtensionProfileItems({
+      domain: page.domain,
+      emails: page.visibleEmails,
+      phones: page.visiblePhones,
+      socialLinks: page.socialLinks
+    })
   }
 }
 
@@ -429,7 +452,14 @@ function toLeadDuplicateInput(input: LeadInput) {
     leadCountry: input.leadCountry,
     leadDomain: input.leadDomain ?? input.capture?.targetDomain,
     leadEmail: input.leadEmail ?? input.capture?.visibleEmails?.[0],
-    leadPhone: input.leadPhone ?? input.capture?.visiblePhones?.[0]
+    leadPhone: input.leadPhone ?? input.capture?.visiblePhones?.[0],
+    profileItems: buildExtensionProfileItems({
+      explicit: input.profileItems,
+      domain: input.leadDomain ?? input.capture?.targetDomain,
+      emails: [input.leadEmail, ...(input.capture?.visibleEmails ?? [])],
+      phones: [input.leadPhone, ...(input.capture?.visiblePhones ?? [])],
+      socialLinks: input.capture?.socialLinks
+    })
   }
 }
 
@@ -444,6 +474,13 @@ function toLeadCreateInput(input: LeadInput) {
     leadEmail: input.leadEmail,
     leadPhone: input.leadPhone,
     leadCountry: input.leadCountry,
+    profileItems: buildExtensionProfileItems({
+      explicit: input.profileItems,
+      domain: input.leadDomain ?? sourceCapture?.targetDomain,
+      emails: [input.leadEmail, ...(sourceCapture?.visibleEmails ?? [])],
+      phones: [input.leadPhone, ...(sourceCapture?.visiblePhones ?? [])],
+      socialLinks: sourceCapture?.socialLinks
+    }),
     priority: input.priority ?? 'C',
     sourceType: 'BROWSER_EXTENSION',
     sourceName: 'Browser CRM capture',
@@ -470,8 +507,59 @@ function toLegacyCapture(page: ExtensionPageSignals | undefined): ExtensionLeadC
     targetDomain: page.domain,
     targetTitle: page.title,
     targetUrl: page.url,
+    socialLinks: page.socialLinks,
     visibleEmails: page.visibleEmails,
     visiblePhones: page.visiblePhones
+  }
+}
+
+/** buildExtensionProfileItems turns bounded browser evidence into CRM account-level profile items. */
+function buildExtensionProfileItems(input: {
+  explicit?: AccountProfileItemInput[]
+  domain?: string
+  emails?: Array<string | undefined>
+  phones?: Array<string | undefined>
+  socialLinks?: string[]
+}): AccountProfileItemInput[] {
+  const drafts: AccountProfileItemInput[] = [
+    ...(input.explicit ?? []),
+    profileItem('DOMAIN', input.domain, input.domain, 'captured domain'),
+    ...(input.emails ?? []).map((email) => profileItem('EMAIL', email, email, 'visible email')),
+    ...(input.phones ?? []).map((phone) => profileItem('PHONE', phone, phone, 'visible phone')),
+    ...(input.socialLinks ?? []).map((link) =>
+      profileItem('SOCIAL_PROFILE', link, link, 'social link')
+    )
+  ].filter((item): item is AccountProfileItemInput =>
+    Boolean(item?.itemType && item.normalizedValue)
+  )
+  const seen = new Set<string>()
+
+  return drafts.filter((item) => {
+    const key = `${normalize(item.itemType) ?? ''}:${normalize(item.normalizedValue)?.toLowerCase() ?? ''}`
+    if (!key || seen.has(key)) {
+      return false
+    }
+    seen.add(key)
+    return true
+  })
+}
+
+/** profileItem creates one extension profile item draft from nonblank captured text. */
+function profileItem(
+  itemType: string,
+  normalizedValue?: string,
+  rawValue?: string,
+  label?: string
+): AccountProfileItemInput | null {
+  const normalized = normalize(normalizedValue)
+  if (!normalized) {
+    return null
+  }
+  return {
+    itemType,
+    normalizedValue: normalized,
+    rawValue: normalize(rawValue) ?? normalized,
+    label
   }
 }
 
@@ -509,7 +597,9 @@ function resolveActionsForDuplicate(
     actions.push('CREATE_DRAFT_LEAD', 'CREATE_ACTIVE_LEAD')
   }
 
-  return status === 'POSSIBLE_DUPLICATE' ? actions.filter((action) => action !== 'CREATE_ACTIVE_LEAD') : actions
+  return status === 'POSSIBLE_DUPLICATE'
+    ? actions.filter((action) => action !== 'CREATE_ACTIVE_LEAD')
+    : actions
 }
 
 function isArchivedDuplicate(duplicateResult: { candidates?: DuplicateCandidate[] }): boolean {
@@ -587,10 +677,10 @@ function renderAccountSummary(
     recordStatus: account.recordStatus ?? '',
     lifecycleStage: account.lifecycleStage ?? '',
     ownerKind: resolveOwnerKind(account, source),
-    ownerAccountId: restricted ? '' : account.ownerAccountId ?? '',
-    ownerDisplayName: restricted ? '' : account.ownerDisplayName ?? '',
-    leadDomain: restricted ? '' : account.leadDomain ?? '',
-    leadEmail: restricted ? '' : account.leadEmail ?? '',
+    ownerAccountId: restricted ? '' : (account.ownerAccountId ?? ''),
+    ownerDisplayName: restricted ? '' : (account.ownerDisplayName ?? ''),
+    leadDomain: restricted ? '' : (account.leadDomain ?? ''),
+    leadEmail: restricted ? '' : (account.leadEmail ?? ''),
     createdAt: account.createdAt ?? '',
     lastActivityAt: account.lastActivityAt ?? '',
     nextFollowUpAt: account.nextFollowUpAt ?? ''
@@ -602,13 +692,13 @@ function renderDuplicateHint(candidate: DuplicateCandidate, source: DownstreamRe
   const status = statusFromAccount(account, source)
   const restricted = status === 'OTHER_OWNER_LEAD' || status === 'RESTRICTED'
   return {
-    archiveReason: restricted ? '' : candidate.archiveReason ?? '',
-    archivedAt: restricted ? '' : candidate.archivedAt ?? '',
-    crmAccountId: restricted ? '' : candidate.crmAccountId ?? '',
+    archiveReason: restricted ? '' : (candidate.archiveReason ?? ''),
+    archivedAt: restricted ? '' : (candidate.archivedAt ?? ''),
+    crmAccountId: restricted ? '' : (candidate.crmAccountId ?? ''),
     displayName: candidate.displayName ?? '',
     lifecycleStage: candidate.lifecycleStage ?? '',
     ownerKind: resolveOwnerKind(account, source),
-    ownerDisplayName: restricted ? '' : candidate.ownerDisplayName ?? '',
+    ownerDisplayName: restricted ? '' : (candidate.ownerDisplayName ?? ''),
     matchedFields: candidate.matchedFields ?? [],
     confidence: candidate.confidence ?? ''
   }
@@ -618,7 +708,8 @@ function renderStatusSummary(status: ExtensionCrmStatus, displayName: string) {
   return {
     label: status,
     displayName,
-    description: status === 'UNKNOWN' ? 'No visible CRM record was found.' : 'CRM status is available.',
+    description:
+      status === 'UNKNOWN' ? 'No visible CRM record was found.' : 'CRM status is available.',
     sensitivity: status === 'OTHER_OWNER_LEAD' || status === 'RESTRICTED' ? 'LOW' : 'LOW'
   }
 }
@@ -633,7 +724,9 @@ function shouldExposeMatchedAccount(status: ExtensionCrmStatus): boolean {
   return ['CUSTOMER', 'OWNED_LEAD', 'POOL_LEAD', 'PROSPECT_CUSTOMER'].includes(status)
 }
 
-function candidateToAccount(candidate: DuplicateCandidate | null | undefined): CrmAccountView | null {
+function candidateToAccount(
+  candidate: DuplicateCandidate | null | undefined
+): CrmAccountView | null {
   if (!candidate) {
     return null
   }

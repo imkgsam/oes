@@ -1,0 +1,10 @@
+{
+  "durable_name": "notification-service__dlq-inspection__v1",
+  "deliver_policy": "all",
+  "ack_policy": "explicit",
+  "ack_wait": 300000000000,
+  "max_deliver": 1,
+  "replay_policy": "instant",
+  "max_ack_pending": 10,
+  "filter_subject": "oes.dlq.notification-service.collaboration-task.v1"
+}

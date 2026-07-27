@@ -28,6 +28,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     return this.transactionStorage.getStore() !== undefined
   }
 
+  /** runWithTransactionClient binds a Prisma transaction client to repository calls made in the callback. */
+  runWithTransactionClient<T>(client: Prisma.TransactionClient, callback: () => Promise<T>): Promise<T> {
+    return this.transactionStorage.run(client, callback)
+  }
+
   /** runInTransaction executes one callback inside a shared Prisma transaction boundary. */
   async runInTransaction<T>(callback: () => Promise<T>): Promise<T> {
     if (this.hasActiveTransaction()) {

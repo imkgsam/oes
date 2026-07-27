@@ -208,7 +208,7 @@ describe('PartyQueryService', () => {
     })
   })
 
-  it('resolveTenantPartyForConsumer / when domain evidence is supplied / should pass it to tenant party candidate search', async () => {
+  it('resolveTenantPartyForConsumer / when domain evidence is supplied / should search Party profile items as weak candidates', async () => {
     const tenantPartyRepository = createTenantPartyRepositoryMock()
     tenantPartyRepository.findByTenantAndIdentifier.mockResolvedValue(null)
     tenantPartyRepository.findCandidates.mockResolvedValue([

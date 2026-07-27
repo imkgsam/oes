@@ -25,12 +25,15 @@ enum IdentifierStatus {
   EXPIRED
 }
 
-enum TenantPartyContactPointType {
+enum TenantPartyProfileItemType {
   EMAIL
   PHONE
   WHATSAPP
+  WECHAT
   DOMAIN
   WEBSITE
+  SOCIAL_PROFILE
+  MARKETPLACE_STORE
 }
 
 model TenantParty {
@@ -47,7 +50,7 @@ model TenantParty {
   updatedAt          DateTime          @updatedAt
 
   identifiers               TenantPartyIdentifier[]
-  contactPoints             TenantPartyContactPoint[]
+  profileItems              TenantPartyProfileItem[]
   registrationIdempotencies PartyRegistrationIdempotency[]
 
   @@index([tenantId])
@@ -56,20 +59,22 @@ model TenantParty {
   @@index([tenantId, legalName])
 }
 
-model TenantPartyContactPoint {
-  id               String                      @id @default(uuid()) @db.Uuid
-  tenantId         String                      @db.VarChar(64)
-  tenantPartyId    String                      @db.Uuid
-  contactPointType TenantPartyContactPointType
-  normalizedValue  String                      @db.VarChar(255)
-  rawValue         String                      @db.VarChar(255)
-  label            String?                     @db.VarChar(100)
-  createdAt        DateTime                    @default(now())
-  updatedAt        DateTime                    @updatedAt
+model TenantPartyProfileItem {
+  id              String                     @id @default(uuid()) @db.Uuid
+  tenantId        String                     @db.VarChar(64)
+  tenantPartyId   String                     @db.Uuid
+  itemType        TenantPartyProfileItemType
+  normalizedValue String                     @db.VarChar(255)
+  rawValue        String                     @db.VarChar(255)
+  label           String?                    @db.VarChar(100)
+  role            String?                    @db.VarChar(80)
+  status          String                     @default("ASSERTED") @db.VarChar(40)
+  createdAt       DateTime                   @default(now())
+  updatedAt       DateTime                   @updatedAt
 
   tenantParty TenantParty @relation(fields: [tenantPartyId], references: [id], onDelete: Cascade)
 
-  @@index([tenantId, contactPointType, normalizedValue])
+  @@index([tenantId, itemType, normalizedValue])
   @@index([tenantId, tenantPartyId])
 }
 

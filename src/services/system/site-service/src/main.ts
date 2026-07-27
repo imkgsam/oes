@@ -14,6 +14,7 @@ async function bootstrap() {
     options: {
       package: 'site_service',
       protoPath: [resolveCommonProtoPath('site_service/site.proto')],
+      loader: { longs: String, arrays: true },
       url: `${process.env.GRPC_LISTEN_HOST || '0.0.0.0'}:${process.env.GRPC_LISTEN_PORT || '50069'}`
     }
   })

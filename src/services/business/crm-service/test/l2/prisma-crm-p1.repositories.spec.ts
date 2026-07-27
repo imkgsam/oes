@@ -5,6 +5,8 @@ import {
   CrmActivityDirection,
   CrmActivityType,
   CrmAccountLifecycleStage,
+  CrmAccountProfileItemStatus,
+  CrmAccountProfileItemType,
   CrmAccountRecordStatus,
   CrmAccountTypeHint,
   CrmActivityVisibility,
@@ -664,6 +666,99 @@ describe('Prisma CRM P1 repositories L2', () => {
     expect(wwwInputCandidates.map((candidate) => candidate.crmAccountId)).toEqual(
       expect.arrayContaining([wwwAccountId, canonicalAccountId])
     )
+  })
+
+  it('CrmAccount P1 / should persist and replace account-level profile items for duplicate matching', async () => {
+    const tenantId = `${prefix}_tenant`
+    const accountId = randomUUID()
+
+    await accountRepository.saveAccount({
+      id: accountId,
+      tenantId,
+      tenantPartyId: null,
+      recordStatus: CrmAccountRecordStatus.ACTIVE,
+      lifecycleStage: CrmAccountLifecycleStage.LEAD,
+      partyTypeHint: CrmAccountTypeHint.ORGANIZATION,
+      displayName: `${prefix} Toto Group`,
+      leadCompanyName: `${prefix} Toto Group`,
+      leadPersonName: null,
+      leadDomain: `${prefix}.toto.example`,
+      leadEmail: null,
+      leadPhone: null,
+      leadWhatsapp: null,
+      leadCountry: 'US',
+      leadIdentifiers: [],
+      ownerAccountId: `${prefix}_sales`,
+      priority: CrmPriority.A,
+      lastActivityAt: null,
+      nextFollowUpAt: null,
+      createdBy: `${prefix}_sales`
+    })
+    await accountRepository.addAccountProfileItem({
+      id: randomUUID(),
+      tenantId,
+      crmAccountId: accountId,
+      itemType: CrmAccountProfileItemType.DOMAIN,
+      normalizedValue: `${prefix}.toto.example`,
+      rawValue: `https://${prefix}.toto.example`,
+      label: 'global site',
+      role: 'official',
+      status: CrmAccountProfileItemStatus.ACTIVE
+    })
+    await accountRepository.addAccountProfileItem({
+      id: randomUUID(),
+      tenantId,
+      crmAccountId: accountId,
+      itemType: CrmAccountProfileItemType.DOMAIN,
+      normalizedValue: `${prefix}.totousa.example`,
+      rawValue: `https://${prefix}.totousa.example`,
+      label: 'usa site',
+      role: 'regional',
+      status: CrmAccountProfileItemStatus.ACTIVE
+    })
+
+    const profileItems = await accountRepository.listAccountProfileItems(tenantId, accountId)
+    const candidates = await accountRepository.findDuplicateCandidates({
+      tenantId,
+      profileItems: [
+        {
+          id: 'query-profile-item',
+          tenantId,
+          crmAccountId: 'query',
+          itemType: CrmAccountProfileItemType.DOMAIN,
+          normalizedValue: `${prefix}.totousa.example`,
+          rawValue: `${prefix}.totousa.example`,
+          status: CrmAccountProfileItemStatus.ACTIVE
+        }
+      ]
+    })
+
+    expect(profileItems).toHaveLength(2)
+    expect(candidates).toEqual([
+      expect.objectContaining({
+        crmAccountId: accountId,
+        matchedFields: ['profileItems.DOMAIN']
+      })
+    ])
+
+    await accountRepository.replaceAccountProfileItems(tenantId, accountId, [
+      {
+        id: randomUUID(),
+        tenantId,
+        crmAccountId: accountId,
+        itemType: CrmAccountProfileItemType.EMAIL,
+        normalizedValue: `info@${prefix}.toto.example`,
+        rawValue: `info@${prefix}.toto.example`,
+        status: CrmAccountProfileItemStatus.ACTIVE
+      }
+    ])
+
+    await expect(accountRepository.listAccountProfileItems(tenantId, accountId)).resolves.toEqual([
+      expect.objectContaining({
+        itemType: CrmAccountProfileItemType.EMAIL,
+        normalizedValue: `info@${prefix}.toto.example`
+      })
+    ])
   })
 
   it('CrmAccount P1 / should list tenant accounts by lifecycle and status filters', async () => {

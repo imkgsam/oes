@@ -7,10 +7,12 @@ import { CustomerManagementService } from '../../../customer-management.service'
 import {
   ArchiveCrmAccountDto,
   CheckLeadDuplicateDto,
+  ConvertLeadToProspectCustomerDto,
   CreateDraftLeadDto,
   CreateLeadDto,
   ListCrmAccountsDto,
   SubmitDraftLeadDto,
+  UpdateCrmAccountIdentifiersDto,
   UpdateDraftLeadDto
 } from '../dtos/customer-management.dto'
 
@@ -164,6 +166,24 @@ export class CustomerManagementController {
     return this.customerManagementService.archiveCrmAccount(tenantId, crmAccountId, body, source)
   }
 
+  @Patch('crm-accounts/:crmAccountId/identifiers')
+  @RequirePermissions({ all: [CRM_MANAGEMENT_PERMISSION_CODES.UPDATE_CRM_ACCOUNT] })
+  @ApiOperation({ summary: 'Update CRM-owned strong identifiers for an eligible Lead or Prospect Customer' })
+  @ApiBody({ type: UpdateCrmAccountIdentifiersDto })
+  async updateCrmAccountIdentifiers(
+    @Param('tenantId') tenantId: string,
+    @Param('crmAccountId') crmAccountId: string,
+    @Body() body: UpdateCrmAccountIdentifiersDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.customerManagementService.updateCrmAccountIdentifiers(
+      tenantId,
+      crmAccountId,
+      body,
+      source
+    )
+  }
+
   @Post('leads/check-duplicate')
   @RequirePermissions({ all: [CRM_MANAGEMENT_PERMISSION_CODES.READ_CRM_ACCOUNT] })
   @ApiOperation({ summary: 'Check CRM P1 lead duplicate candidates' })
@@ -184,11 +204,13 @@ export class CustomerManagementController {
   async convertLeadToProspectCustomer(
     @Param('tenantId') tenantId: string,
     @Param('crmAccountId') crmAccountId: string,
+    @Body() body: ConvertLeadToProspectCustomerDto,
     @DownstreamSource() source: DownstreamRequestSource
   ) {
     return this.customerManagementService.convertLeadToProspectCustomer(
       tenantId,
       crmAccountId,
+      body,
       source
     )
   }

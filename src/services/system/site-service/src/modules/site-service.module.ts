@@ -18,8 +18,18 @@ import { HttpSiteWebhookPublisher } from '../infrastructure/adapters/http-site-w
 import { PrismaService } from '../infrastructure/prisma/prisma.service'
 import { PrismaSiteRepository } from '../infrastructure/repositories/prisma-site.repository'
 import { PrismaSiteTransactionRunner } from '../infrastructure/transactions/prisma-site-transaction-runner'
-import { SITE_ADMIN_APPLICATION, SiteAdminGrpcController } from '../interfaces/grpc/site-admin.grpc.controller'
-import { SITE_RUNTIME_APPLICATION, SiteRuntimeGrpcController } from '../interfaces/grpc/site-runtime.grpc.controller'
+import {
+  requireSitePreviewTokenSecret,
+  SITE_PREVIEW_TOKEN_SECRET
+} from '../domain/preview/preview-config'
+import {
+  SITE_ADMIN_APPLICATION,
+  SiteAdminGrpcController
+} from '../interfaces/grpc/site-admin.grpc.controller'
+import {
+  SITE_RUNTIME_APPLICATION,
+  SiteRuntimeGrpcController
+} from '../interfaces/grpc/site-runtime.grpc.controller'
 
 /** SiteServiceModule assembles site-service application, persistence, and gRPC interface adapters. */
 @Module({
@@ -37,6 +47,10 @@ import { SITE_RUNTIME_APPLICATION, SiteRuntimeGrpcController } from '../interfac
     PrismaSiteRepository,
     PrismaSiteTransactionRunner,
     {
+      provide: SITE_PREVIEW_TOKEN_SECRET,
+      useFactory: () => requireSitePreviewTokenSecret(process.env.SITE_PREVIEW_TOKEN_SECRET)
+    },
+    {
       provide: HttpSiteWebhookPublisher,
       useFactory: () => new HttpSiteWebhookPublisher()
     },
@@ -45,14 +59,18 @@ import { SITE_RUNTIME_APPLICATION, SiteRuntimeGrpcController } from '../interfac
     { provide: SITE_WEBHOOK_PUBLISHER, useExisting: HttpSiteWebhookPublisher },
     {
       provide: SiteAdminApplicationService,
-      useFactory: (repository: PrismaSiteRepository, webhookPublisher: SiteWebhookPublisher) =>
-        new SiteAdminApplicationService(repository, {}, webhookPublisher),
-      inject: [SITE_ADMIN_APPLICATION_REPOSITORY, SITE_WEBHOOK_PUBLISHER]
+      useFactory: (
+        repository: PrismaSiteRepository,
+        webhookPublisher: SiteWebhookPublisher,
+        previewTokenSecret: string
+      ) => new SiteAdminApplicationService(repository, { previewTokenSecret }, webhookPublisher),
+      inject: [SITE_ADMIN_APPLICATION_REPOSITORY, SITE_WEBHOOK_PUBLISHER, SITE_PREVIEW_TOKEN_SECRET]
     },
     {
       provide: SiteRuntimeApplicationService,
-      useFactory: (repository: PrismaSiteRepository) => new SiteRuntimeApplicationService(repository, {}),
-      inject: [SITE_RUNTIME_APPLICATION_REPOSITORY]
+      useFactory: (repository: PrismaSiteRepository, previewTokenSecret: string) =>
+        new SiteRuntimeApplicationService(repository, { previewTokenSecret }),
+      inject: [SITE_RUNTIME_APPLICATION_REPOSITORY, SITE_PREVIEW_TOKEN_SECRET]
     },
     { provide: SITE_ADMIN_APPLICATION, useExisting: SiteAdminApplicationService },
     { provide: SITE_RUNTIME_APPLICATION, useExisting: SiteRuntimeApplicationService }

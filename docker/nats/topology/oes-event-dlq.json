@@ -1,0 +1,14 @@
+{
+  "name": "OES_EVENT_DLQ",
+  "subjects": ["oes.dlq.>"],
+  "retention": "limits",
+  "max_consumers": -1,
+  "max_msgs": -1,
+  "max_bytes": 5368709120,
+  "max_age": 7776000000000000,
+  "max_msg_size": 524288,
+  "storage": "file",
+  "num_replicas": 1,
+  "discard": "new",
+  "duplicate_window": 120000000000
+}

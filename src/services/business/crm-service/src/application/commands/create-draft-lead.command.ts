@@ -1,6 +1,7 @@
 import { Allow } from 'class-validator'
 import {
   CrmAccountTypeHint,
+  CrmAccountProfileItemDraft,
   CrmLeadIdentifierRecord,
   CrmPriority
 } from '../../domain/models/crm-records'
@@ -11,6 +12,7 @@ export interface CreateDraftLeadCommandProps {
   operatorAccountId: string
   displayName: string
   partyTypeHint: CrmAccountTypeHint
+  leadLegalName?: string | null
   leadCompanyName?: string | null
   leadPersonName?: string | null
   leadDomain?: string | null
@@ -19,6 +21,7 @@ export interface CreateDraftLeadCommandProps {
   leadWhatsapp?: string | null
   leadCountry?: string | null
   leadIdentifiers?: CrmLeadIdentifierRecord[]
+  profileItems?: CrmAccountProfileItemDraft[]
   priority: CrmPriority
   nextFollowUpAt?: Date | null
   source?: CreateLeadSourceInput | null

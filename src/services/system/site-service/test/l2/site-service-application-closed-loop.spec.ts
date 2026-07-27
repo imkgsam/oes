@@ -1,10 +1,17 @@
 import { createHash, createHmac, randomUUID } from 'node:crypto'
 import { SiteAdminApplicationService } from '../../src/application/services/site-admin-application.service'
 import { SiteRuntimeApplicationService } from '../../src/application/services/site-runtime-application.service'
-import { buildCanonicalRequest, formatSignature } from '../../src/domain/security/site-request-signing'
+import {
+  buildCanonicalRequest,
+  formatSignature
+} from '../../src/domain/security/site-request-signing'
 import { PrismaService } from '../../src/infrastructure/prisma/prisma.service'
 import { PrismaSiteRepository } from '../../src/infrastructure/repositories/prisma-site.repository'
-import { cleanupByPrefix, createPrismaForIntegration, createTestPrefix } from '../helpers/integration-db'
+import {
+  cleanupByPrefix,
+  createPrismaForIntegration,
+  createTestPrefix
+} from '../helpers/integration-db'
 
 // Verifies the OES-side P1 application loop from Admin draft changes to signed Site Runtime public-view pull.
 describe('site-service application closed loop L2', () => {
@@ -36,14 +43,22 @@ describe('site-service application closed loop L2', () => {
     const now = new Date('2026-06-15T08:00:00.000Z')
     let sequence = 0
     const webhookPublisher = { publish: jest.fn().mockResolvedValue(undefined) }
-    const admin = new SiteAdminApplicationService(repository, {
-      now: () => now,
-      randomId: (prefixName) => `${prefix}_${prefixName}_${++sequence}`,
-      randomSecret: () => `${prefix}_client_secret`,
-      oesBaseUrl: 'https://oes.example/api/v1/site',
-      environment: 'local'
-    }, webhookPublisher)
-    const runtime = new SiteRuntimeApplicationService(repository, { now: () => now })
+    const admin = new SiteAdminApplicationService(
+      repository,
+      {
+        previewTokenSecret: 'site-service-local-preview-secret',
+        now: () => now,
+        randomId: (prefixName) => `${prefix}_${prefixName}_${++sequence}`,
+        randomSecret: () => `${prefix}_client_secret`,
+        oesBaseUrl: 'https://oes.example/api/v1/site',
+        environment: 'local'
+      },
+      webhookPublisher
+    )
+    const runtime = new SiteRuntimeApplicationService(repository, {
+      previewTokenSecret: 'site-service-local-preview-secret',
+      now: () => now
+    })
     const tenantId = `${prefix}_tenant`
     const operatorId = `${prefix}_operator`
 
@@ -80,6 +95,34 @@ describe('site-service application closed loop L2', () => {
       seoTitle: 'Bathroom Basins',
       seoDescription: 'Explore basin collections'
     })
+    const createdContentCategory = await admin.createContentCategory({
+      context: { tenantId, operatorId, traceId: `${prefix}_trace` },
+      siteId: createdSite.siteId,
+      sortOrder: 10,
+      initialLocaleVersion: {
+        locale: 'en-US', slug: `${prefix}-guides`, displayName: 'Guides', archiveIntro: 'Practical ceramic guides', archiveLabel: 'Guides', seoTitle: 'Guides', seoDescription: 'Practical ceramic guides'
+      }
+    })
+    await admin.updateContentCategoryLocaleVersion({
+      context: { tenantId, operatorId, traceId: `${prefix}_trace` },
+      siteId: createdSite.siteId,
+      version: {
+        categoryId: createdContentCategory.category?.categoryId,
+        locale: 'en-US',
+        slug: `${prefix}-guides`,
+        displayName: 'Guides',
+        archiveIntro: 'Practical ceramic guides',
+        archiveLabel: 'Guides',
+        seoTitle: 'Guides',
+        seoDescription: 'Practical ceramic guides'
+      }
+    })
+    await admin.publishContentCategoryLocale({
+      context: { tenantId, operatorId, traceId: `${prefix}_trace` },
+      siteId: createdSite.siteId,
+      categoryId: createdContentCategory.category?.categoryId,
+      locale: 'en-US'
+    })
     const createdContent = await admin.createSiteContent({
       context: { tenantId, operatorId, traceId: `${prefix}_trace` },
       siteId: createdSite.siteId,
@@ -95,6 +138,7 @@ describe('site-service application closed loop L2', () => {
         title: 'Launch note',
         summary: 'Short',
         bodyHtml: '<p>Hello</p><script>alert(1)</script>',
+        categoryIds: [createdContentCategory.category?.categoryId],
         seoTitle: 'Launch SEO',
         seoDescription: 'Launch page'
       }
@@ -140,10 +184,16 @@ describe('site-service application closed loop L2', () => {
       })
     ).resolves.toEqual(
       expect.objectContaining({
-        changedResources: [
+        changedResources: expect.arrayContaining([
           expect.objectContaining({
             resourceType: 'category',
             resourceId: createdCategory.category?.categoryId,
+            latestPublishVersion: sync.publishVersion
+          }),
+          expect.objectContaining({
+            resourceType: 'article-category',
+            resourceId: createdContentCategory.category?.categoryId,
+            changeType: 'update',
             latestPublishVersion: sync.publishVersion
           }),
           expect.objectContaining({
@@ -151,13 +201,13 @@ describe('site-service application closed loop L2', () => {
             resourceId: createdContent.content?.contentId,
             latestPublishVersion: sync.publishVersion
           })
-        ]
+        ])
       })
     )
     const publicViews = await runtime.batchGetPublicViews({
       signedContext: signContext({
         path: '/api/v1/site/sync/public-views:batchGet',
-        bodyText: '{"resources":[]}',
+        bodyText: `{"target_publish_version":${sync.publishVersion},"resources":[]}`,
         nonce: `${prefix}_nonce_views`,
         siteId: parsedCredential.site_id,
         clientId: parsedCredential.client_id,
@@ -165,24 +215,43 @@ describe('site-service application closed loop L2', () => {
         clientSecret: parsedCredential.client_secret,
         now
       }),
+      targetPublishVersion: sync.publishVersion,
       resources: [
-        { resourceType: 'category', resourceId: createdCategory.category?.categoryId, locale: 'en-US' },
+        {
+          resourceType: 'category',
+          resourceId: createdCategory.category?.categoryId,
+          locale: 'en-US'
+        },
+        {
+          resourceType: 'article-category',
+          resourceId: createdContentCategory.category?.categoryId,
+          locale: 'en-US'
+        },
         { resourceType: 'blog', resourceId: createdContent.content?.contentId, locale: 'en-US' }
       ]
     })
 
-    expect(publicViews.publicViews).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        siteId: createdSite.siteId,
-        resourceType: 'category',
-        payloadJson: expect.stringContaining('"display_title":"Basins"')
-      }),
-      expect.objectContaining({
-        siteId: createdSite.siteId,
-        resourceType: 'blog',
-        payloadJson: expect.stringContaining('"body_html":"<p>Hello</p>"')
-      })
-    ]))
+    expect(publicViews.publicViews).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          siteId: createdSite.siteId,
+          resourceType: 'category',
+          payloadJson: expect.stringContaining('"display_title":"Basins"')
+        }),
+        expect.objectContaining({
+          siteId: createdSite.siteId,
+          resourceType: 'article-category',
+          payloadJson: expect.stringContaining('"content_category_id"')
+        }),
+        expect.objectContaining({
+          siteId: createdSite.siteId,
+          resourceType: 'blog',
+          payloadJson: expect.stringContaining(
+            `"category_ids":["${createdContentCategory.category?.categoryId}"]`
+          )
+        })
+      ])
+    )
     await expect(
       runtime.reportSyncResult({
         signedContext: signContext({
@@ -202,7 +271,11 @@ describe('site-service application closed loop L2', () => {
       })
     ).resolves.toEqual({ accepted: true, serverTime: now.toISOString() })
 
-    const siteCards = await admin.listSiteCards({ tenantId, operatorId, traceId: `${prefix}_trace` })
+    const siteCards = await admin.listSiteCards({
+      tenantId,
+      operatorId,
+      traceId: `${prefix}_trace`
+    })
     expect(siteCards.cards).toEqual([
       expect.objectContaining({
         siteId: createdSite.siteId,
@@ -215,15 +288,17 @@ describe('site-service application closed loop L2', () => {
       where: { syncId: sync.syncId }
     })
     expect(webhookPublisher.publish).toHaveBeenCalledTimes(1)
-    expect(webhookPublisher.publish).toHaveBeenCalledWith(expect.objectContaining({
-      syncId: sync.syncId,
-      siteId: createdSite.siteId,
-      eventType: 'site.publish.available',
-      publishVersion: sync.publishVersion,
-      targetUrl: `https://${prefix}.runtime.example/oes/webhooks/site`,
-      signingSecret: parsedCredential.client_secret,
-      resent: false
-    }))
+    expect(webhookPublisher.publish).toHaveBeenCalledWith(
+      expect.objectContaining({
+        syncId: sync.syncId,
+        siteId: createdSite.siteId,
+        eventType: 'site.publish.available',
+        publishVersion: sync.publishVersion,
+        targetUrl: `https://${prefix}.runtime.example/oes/webhooks/site`,
+        signingSecret: parsedCredential.client_secret,
+        resent: false
+      })
+    )
     expect(webhookDeliveries).toEqual([
       expect.objectContaining({
         siteId: createdSite.siteId,
@@ -277,21 +352,23 @@ describe('site-service application closed loop L2', () => {
         }),
         fromPublishVersion: sync.publishVersion
       })
-    ).resolves.toEqual(expect.objectContaining({
-      changedResources: [
-        expect.objectContaining({
-          resourceType: 'product',
-          resourceId: `${prefix}_product_fr`,
-          locale: 'fr-FR',
-          changeType: 'locale_disable',
-          latestPublishVersion: disableSync.publishVersion
-        })
-      ]
-    }))
+    ).resolves.toEqual(
+      expect.objectContaining({
+        changedResources: expect.arrayContaining([
+          expect.objectContaining({
+            resourceType: 'product',
+            resourceId: `${prefix}_product_fr`,
+            locale: 'fr-FR',
+            changeType: 'locale_disable',
+            latestPublishVersion: disableSync.publishVersion
+          })
+        ])
+      })
+    )
     const disabledView = await runtime.batchGetPublicViews({
       signedContext: signContext({
         path: '/api/v1/site/sync/public-views:batchGet',
-        bodyText: '{"resources":[]}',
+        bodyText: `{"target_publish_version":${disableSync.publishVersion},"resources":[]}`,
         nonce: `${prefix}_nonce_disabled_view`,
         siteId: parsedCredential.site_id,
         clientId: parsedCredential.client_id,
@@ -299,15 +376,161 @@ describe('site-service application closed loop L2', () => {
         clientSecret: parsedCredential.client_secret,
         now
       }),
+      targetPublishVersion: disableSync.publishVersion,
       resources: [{ resourceType: 'product', resourceId: `${prefix}_product_fr`, locale: 'fr-FR' }]
     })
-    expect(disabledView.publicViews?.[0]).toEqual(expect.objectContaining({
-      resourceType: 'product',
-      resourceId: `${prefix}_product_fr`,
-      locale: 'fr-FR',
-      status: 'disabled',
-      publishVersion: disableSync.publishVersion
-    }))
+    expect(disabledView.publicViews?.[0]).toEqual(
+      expect.objectContaining({
+        resourceType: 'product',
+        resourceId: `${prefix}_product_fr`,
+        locale: 'fr-FR',
+        status: 'disabled',
+        publishVersion: disableSync.publishVersion
+      })
+    )
+  })
+
+  it('protects published category references and preserves Blog/News historical slugs', async () => {
+    const now = new Date('2026-06-15T08:00:00.000Z')
+    let sequence = 0
+    const admin = new SiteAdminApplicationService(repository, {
+      previewTokenSecret: 'site-service-local-preview-secret',
+      now: () => now,
+      randomId: (prefixName) => `${prefix}_${prefixName}_${++sequence}`,
+      randomSecret: () => `${prefix}_client_secret`,
+      oesBaseUrl: 'https://oes.example/api/v1/site',
+      environment: 'local'
+    })
+    const tenantId = `${prefix}_tenant`
+    const operatorId = `${prefix}_operator`
+    const createdSite = await admin.createSite({
+      tenantId,
+      orgId: `${prefix}_org`,
+      operatorId,
+      traceId: `${prefix}_trace`,
+      siteName: `${prefix} Brand`,
+      siteType: 'brand',
+      defaultLocale: 'en-US',
+      primaryDomain: `${prefix}.example`
+    })
+    const createdContentCategory = await admin.createContentCategory({
+      context: { tenantId, operatorId, traceId: `${prefix}_trace` },
+      siteId: createdSite.siteId,
+      initialLocaleVersion: { locale: 'en-US', slug: `${prefix}-guides`, displayName: 'Guides', seoTitle: 'Guides', seoDescription: 'Guides SEO' }
+    })
+    await admin.updateContentCategoryLocaleVersion({
+      context: { tenantId, operatorId, traceId: `${prefix}_trace` },
+      siteId: createdSite.siteId,
+      version: {
+        categoryId: createdContentCategory.category?.categoryId,
+        locale: 'en-US',
+        slug: `${prefix}-guides`,
+        displayName: 'Guides',
+        seoTitle: 'Guides',
+        seoDescription: 'Guides SEO'
+      }
+    })
+    await admin.publishContentCategoryLocale({
+      context: { tenantId, operatorId, traceId: `${prefix}_trace` },
+      siteId: createdSite.siteId,
+      categoryId: createdContentCategory.category?.categoryId,
+      locale: 'en-US'
+    })
+    const createdContent = await admin.createSiteContent({
+      context: { tenantId, operatorId, traceId: `${prefix}_trace` },
+      siteId: createdSite.siteId,
+      contentType: 'blog'
+    })
+    await admin.updateSiteContentLocaleVersion({
+      context: { tenantId, operatorId, traceId: `${prefix}_trace` },
+      siteId: createdSite.siteId,
+      version: {
+        contentId: createdContent.content?.contentId,
+        locale: 'en-US',
+        slug: `${prefix}-launch`,
+        title: 'Launch note',
+        bodyHtml: '<p>Hello</p>',
+        categoryIds: [createdContentCategory.category?.categoryId],
+        seoTitle: 'Launch SEO',
+        seoDescription: 'Launch page'
+      }
+    })
+    await admin.syncAllPendingChanges({
+      context: { tenantId, operatorId, traceId: `${prefix}_trace` },
+      siteId: createdSite.siteId
+    })
+
+    await expect(
+      admin.deleteContentCategory({
+        context: { tenantId, operatorId, traceId: `${prefix}_trace` },
+        siteId: createdSite.siteId,
+        categoryId: createdContentCategory.category?.categoryId
+      })
+    ).rejects.toThrow('still referenced by Article drafts or published revisions')
+
+    await admin.updateSiteContentLocaleVersion({
+      context: { tenantId, operatorId, traceId: `${prefix}_trace` },
+      siteId: createdSite.siteId,
+      version: {
+        contentId: createdContent.content?.contentId,
+        locale: 'en-US',
+        slug: `${prefix}-launch-v2`,
+        title: 'Launch note',
+        bodyHtml: '<p>Hello</p>',
+        categoryIds: [createdContentCategory.category?.categoryId],
+        seoTitle: 'Launch SEO',
+        seoDescription: 'Launch page'
+      }
+    })
+    const conflictingContent = await admin.createSiteContent({
+      context: { tenantId, operatorId, traceId: `${prefix}_trace` },
+      siteId: createdSite.siteId,
+      contentType: 'blog'
+    })
+    await expect(
+      admin.updateSiteContentLocaleVersion({
+        context: { tenantId, operatorId, traceId: `${prefix}_trace` },
+        siteId: createdSite.siteId,
+        version: {
+          contentId: conflictingContent.content?.contentId,
+          locale: 'en-US',
+          slug: `${prefix}-launch-v2`,
+          title: 'Conflicting note',
+          bodyHtml: '<p>Conflict</p>',
+          seoTitle: 'Conflict SEO',
+          seoDescription: 'Conflict page'
+        }
+      })
+    ).rejects.toMatchObject({
+      definition: expect.objectContaining({ code: 'APP_VALIDATION_001' }),
+      additionalDetails: expect.objectContaining({ reason: expect.stringContaining('already reserved') })
+    })
+
+    const sync = await admin.syncAllPendingChanges({
+      context: { tenantId, operatorId, traceId: `${prefix}_trace` },
+      siteId: createdSite.siteId
+    })
+    const publicView = await prisma.getExecutionClient().sitePublicView.findUnique({
+      where: {
+        siteId_resourceType_resourceId_locale: {
+          siteId: createdSite.siteId,
+          resourceType: 'blog',
+          resourceId: createdContent.content?.contentId,
+          locale: 'en-US'
+        }
+      }
+    })
+    expect(publicView).toEqual(
+      expect.objectContaining({
+        slug: `${prefix}-launch-v2`,
+        publishVersion: sync.publishVersion
+      })
+    )
+    expect(publicView?.payload).toEqual(
+      expect.objectContaining({
+        historical_slugs: [`${prefix}-launch`]
+      })
+    )
   })
 })
 
@@ -355,7 +578,9 @@ function signContext(input: {
     traceId: randomUUID(),
     timestamp,
     nonce: input.nonce,
-    signature: formatSignature(createHmac('sha256', input.clientSecret).update(canonical).digest('hex')),
+    signature: formatSignature(
+      createHmac('sha256', input.clientSecret).update(canonical).digest('hex')
+    ),
     method: 'POST',
     path: input.path,
     normalizedQuery: '',

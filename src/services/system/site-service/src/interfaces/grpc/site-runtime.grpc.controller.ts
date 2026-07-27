@@ -13,12 +13,20 @@ import {
   ListChangedResourcesResponse,
   ReportSyncResultRequest,
   ReportSyncResultResponse,
+  RegisterPageCapabilitiesRequest,
+  RegisterPageCapabilitiesResponse,
   SiteRuntimeSyncServiceController,
   SiteRuntimeSyncServiceControllerMethods
 } from '@oes/common/generated/site_service'
+import { mapSiteCapabilityRegistrationError } from './site-capability-registration-error.mapper'
 
 export interface SiteRuntimeApplicationPort {
-  getLatestPublishState(request: GetLatestPublishStateRequest): Promise<GetLatestPublishStateResponse>
+  registerPageCapabilities(
+    request: RegisterPageCapabilitiesRequest
+  ): Promise<RegisterPageCapabilitiesResponse>
+  getLatestPublishState(
+    request: GetLatestPublishStateRequest
+  ): Promise<GetLatestPublishStateResponse>
   listChangedResources(request: ListChangedResourcesRequest): Promise<ListChangedResourcesResponse>
   batchGetPublicViews(request: BatchGetPublicViewsRequest): Promise<BatchGetPublicViewsResponse>
   getSnapshot(request: GetSnapshotRequest): Promise<GetSnapshotResponse>
@@ -38,11 +46,26 @@ export class SiteRuntimeGrpcController implements SiteRuntimeSyncServiceControll
     private readonly application: SiteRuntimeApplicationPort
   ) {}
 
-  getLatestPublishState(request: GetLatestPublishStateRequest): Promise<GetLatestPublishStateResponse> {
+  getLatestPublishState(
+    request: GetLatestPublishStateRequest
+  ): Promise<GetLatestPublishStateResponse> {
     return this.application.getLatestPublishState(request)
   }
 
-  listChangedResources(request: ListChangedResourcesRequest): Promise<ListChangedResourcesResponse> {
+  /** registerPageCapabilities preserves stable domain errors as typed OES gRPC payloads. */
+  async registerPageCapabilities(
+    request: RegisterPageCapabilitiesRequest
+  ): Promise<RegisterPageCapabilitiesResponse> {
+    try {
+      return await this.application.registerPageCapabilities(request)
+    } catch (error) {
+      return mapSiteCapabilityRegistrationError(error)
+    }
+  }
+
+  listChangedResources(
+    request: ListChangedResourcesRequest
+  ): Promise<ListChangedResourcesResponse> {
     return this.application.listChangedResources(request)
   }
 

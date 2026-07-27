@@ -34,16 +34,30 @@ describe('tenant-web customer management api', () => {
       deleteDraftLeadApi,
       releaseCrmAccountApi,
       submitDraftLeadApi,
+      updateCrmAccountIdentifiersApi,
       updateDraftLeadApi
     } = await import('./index')
 
     const payload = {
       displayName: 'Northline Bathworks',
+      leadLegalName: 'Northline Bathworks LLC',
       partyTypeHint: 'ORGANIZATION' as const,
       leadCompanyName: 'Northline Bathworks LLC',
       leadDomain: 'northline.example',
       leadEmail: 'sourcing@northline.example',
       leadCountry: 'US',
+      profileItems: [
+        {
+          itemType: 'DOMAIN',
+          normalizedValue: 'northline.example',
+          rawValue: 'northline.example'
+        },
+        {
+          itemType: 'DOMAIN',
+          normalizedValue: 'northline.us',
+          rawValue: 'northline.us'
+        }
+      ],
       priority: 'A' as const,
       sourceType: 'WEB_RESEARCH' as const,
       sourceRawPayload: { url: 'https://northline.example' }
@@ -61,7 +75,19 @@ describe('tenant-web customer management api', () => {
     await archiveCrmAccountApi('tenant-1', 'crm-account-1', {
       archiveReason: 'NON_TARGET_ACCOUNT'
     })
-    await convertLeadToProspectCustomerApi('tenant-1', 'crm-account-1')
+    await updateCrmAccountIdentifiersApi('tenant-1', 'crm-account-1', {
+      leadIdentifiers: [
+        {
+          identifierType: 'VAT_NO',
+          issuerCountryOrRegion: 'US',
+          normalizedValue: 'US-91-4432102',
+          rawValue: '91-4432102'
+        }
+      ]
+    })
+    await convertLeadToProspectCustomerApi('tenant-1', 'crm-account-1', {
+      legalName: 'Northline Bathworks LLC'
+    })
 
     expect(post).toHaveBeenCalledWith(
       '/customer-management/tenants/tenant-1/leads/check-duplicate',
@@ -99,9 +125,25 @@ describe('tenant-web customer management api', () => {
       '/customer-management/tenants/tenant-1/crm-accounts/crm-account-1/archive',
       { archiveReason: 'NON_TARGET_ACCOUNT' }
     )
+    expect(request).toHaveBeenCalledWith(
+      '/customer-management/tenants/tenant-1/crm-accounts/crm-account-1/identifiers',
+      {
+        data: {
+          leadIdentifiers: [
+            {
+              identifierType: 'VAT_NO',
+              issuerCountryOrRegion: 'US',
+              normalizedValue: 'US-91-4432102',
+              rawValue: '91-4432102'
+            }
+          ]
+        },
+        method: 'PATCH'
+      }
+    )
     expect(post).toHaveBeenCalledWith(
       '/customer-management/tenants/tenant-1/leads/crm-account-1/convert-to-prospect-customer',
-      {}
+      { legalName: 'Northline Bathworks LLC' }
     )
   })
 

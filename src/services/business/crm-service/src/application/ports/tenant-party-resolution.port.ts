@@ -1,4 +1,5 @@
 import {
+  CrmAccountProfileItemRecord,
   CrmAccountTypeHint,
   CrmLeadIdentifierRecord
 } from '../../domain/models/crm-records'
@@ -23,11 +24,8 @@ export interface ResolveTenantPartyForConsumerInput {
   typeHint: CrmAccountTypeHint
   name: string
   country?: string | null
-  domain?: string | null
-  email?: string | null
-  phone?: string | null
-  whatsapp?: string | null
   identifiers: CrmLeadIdentifierRecord[]
+  profileItems?: CrmAccountProfileItemRecord[]
 }
 
 export interface ResolveTenantPartyForConsumerResult {
@@ -41,13 +39,24 @@ export interface ResolveTenantPartyForConsumerResult {
 export interface RegisterTenantPartyFromCrmInput {
   tenantId: string
   typeHint: CrmAccountTypeHint
+  legalName: string
   displayName: string
   country?: string | null
   identifiers: CrmLeadIdentifierRecord[]
-  contactPoints: Array<{
-    contactPointType: 'DOMAIN' | 'EMAIL' | 'PHONE' | 'WHATSAPP'
+  profileItems?: Array<{
+    itemType:
+      | 'EMAIL'
+      | 'PHONE'
+      | 'WHATSAPP'
+      | 'WECHAT'
+      | 'DOMAIN'
+      | 'WEBSITE'
+      | 'SOCIAL_PROFILE'
+      | 'MARKETPLACE_STORE'
     normalizedValue: string
     rawValue?: string | null
+    label?: string | null
+    role?: string | null
   }>
 }
 
@@ -61,5 +70,7 @@ export interface TenantPartyResolutionPort {
   resolveTenantPartyForConsumer(
     input: ResolveTenantPartyForConsumerInput
   ): Promise<ResolveTenantPartyForConsumerResult>
-  registerTenantParty(input: RegisterTenantPartyFromCrmInput): Promise<RegisterTenantPartyFromCrmResult>
+  registerTenantParty(
+    input: RegisterTenantPartyFromCrmInput
+  ): Promise<RegisterTenantPartyFromCrmResult>
 }

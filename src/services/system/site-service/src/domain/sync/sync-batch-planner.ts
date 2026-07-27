@@ -1,4 +1,4 @@
-export type SiteSyncResourceType = 'product' | 'category' | 'content' | 'blog' | 'news'
+export type SiteSyncResourceType = 'product' | 'category' | 'content' | 'blog' | 'news' | 'article-category' | 'faq' | 'site-exposure'
 export type SiteSyncChangeType = 'create' | 'update' | 'unpublish' | 'locale_activate' | 'locale_disable'
 
 export interface PendingSyncResource {
@@ -7,12 +7,15 @@ export interface PendingSyncResource {
   locale: string
   changeType: SiteSyncChangeType
   markedAt: Date
+  syncRevision: number
 }
 
 export interface SyncBatchPlan {
   siteId: string
   publishVersion: number
-  resources: Array<Omit<PendingSyncResource, 'markedAt'>>
+  resources: Array<
+    Omit<PendingSyncResource, 'markedAt' | 'syncRevision'> & { expectedRevision: number }
+  >
 }
 
 export interface CreateSyncBatchPlanInput {
@@ -28,14 +31,34 @@ export function createSyncBatchPlan(input: CreateSyncBatchPlanInput): SyncBatchP
   }
 
   const latestByResource = new Map<string, PendingSyncResource>()
-  for (const resource of [...input.pendingResources].sort((left, right) => left.markedAt.getTime() - right.markedAt.getTime())) {
-    latestByResource.set(resourceKey(resource), resource)
+  for (const resource of input.pendingResources) {
+    const key = resourceKey(resource)
+    const current = latestByResource.get(key)
+    if (!current || resource.syncRevision > current.syncRevision) {
+      latestByResource.set(key, resource)
+    }
   }
+
+  const resources = Array.from(latestByResource.values()).map(
+    ({ markedAt: _markedAt, syncRevision, ...resource }) => {
+      const planned = { ...resource } as Omit<
+        PendingSyncResource,
+        'markedAt' | 'syncRevision'
+      > & { expectedRevision: number }
+      // Keep the revision internal to the planner result so existing public batch shapes stay stable.
+      Object.defineProperty(planned, 'expectedRevision', {
+        value: syncRevision,
+        enumerable: false,
+        writable: false
+      })
+      return planned
+    }
+  )
 
   return {
     siteId: input.siteId,
     publishVersion: input.currentPublishVersion + 1,
-    resources: Array.from(latestByResource.values()).map(({ markedAt: _markedAt, ...resource }) => resource)
+    resources
   }
 }
 

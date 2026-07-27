@@ -18,10 +18,12 @@ import {
   Drawer,
   Dropdown,
   Empty,
+  Input,
   Menu,
   Modal,
   Radio,
   Row,
+  Select,
   Skeleton,
   Tabs,
   Tag,
@@ -37,10 +39,17 @@ import {
   deleteDraftLeadApi,
   getCrmAccountApi,
   listCrmSourceRecordsApi,
-  submitDraftLeadApi
+  submitDraftLeadApi,
+  updateCrmAccountIdentifiersApi
 } from '#/api'
 import NotesTab from '#/components/collaboration-panel/NotesTab.vue'
+import CountryRegionSelect from '#/components/country-region-select.vue'
 import { useAuthContextStore } from '#/store/auth-context'
+
+import {
+  identifierTypeLabel as resolveIdentifierTypeLabel,
+  identifierTypeOptionsForCountry
+} from './customer-management-identifiers'
 
 const fallbackMessages = {
   back: '返回客户资源',
@@ -58,6 +67,8 @@ const fallbackMessages = {
   contact: '联系方式',
   convert: '转为潜在客户',
   convertFailed: 'Lead 正式化失败',
+  convertLegalNameHelp: '转为潜在客户前，需要确认将写入 Party 的法定/登记名称。',
+  convertLegalNameRequired: '请填写法定/登记名称后再正式化',
   country: '国家/地区',
   createdAt: '创建时间',
   createdBy: '创建人',
@@ -70,7 +81,18 @@ const fallbackMessages = {
   domain: '域名',
   email: '邮箱',
   followUpSummary: '跟进摘要',
-  identifiers: '识别信息',
+  identifiers: '登记/证件信息',
+  identifierAdd: '添加登记/证件',
+  identifierEdit: '编辑登记/证件',
+  identifierEmpty: '还未添加登记/证件信息',
+  identifierLocked: '已锁定',
+  identifierSave: '保存登记/证件',
+  identifierType: '登记/证件类型',
+  identifierTypePlaceholder: '先选国家/地区',
+  identifierValue: '号码',
+  identifierValuePlaceholder: '填写对应号码',
+  legalName: '法定/登记名称',
+  legalNamePlaceholder: '填写营业执照、注册文件或证件上的名称',
   lifecycle: '阶段',
   leadInfo: 'Lead 信息',
   moreActions: '更多操作',
@@ -131,6 +153,7 @@ const canManageAccount = computed(() => authContextStore.actionCodes.includes('c
 const canUpdateLead = computed(() => authContextStore.actionCodes.includes('crm.account.update'))
 
 const account = ref<CustomerManagementApi.CrmAccount | null>(null)
+const identifierRows = ref<IdentifierFormRow[]>([])
 const sourceRecords = ref<CustomerManagementApi.CrmSourceRecord[]>([])
 const loading = ref(false)
 const sourceRecordsLoading = ref(false)
@@ -141,6 +164,18 @@ const activeTab = ref('overview')
 const collaborationPanelOpen = ref(false)
 const archiveModalOpen = ref(false)
 const archiveReasonDraft = ref<CustomerManagementApi.CrmArchiveReason | ''>('')
+const identifierModalOpen = ref(false)
+const conversionModalOpen = ref(false)
+const conversionLegalName = ref('')
+
+interface IdentifierFormRow {
+  identifierType: string
+  issuerCountryOrRegion: string
+  rowId: string
+  value: string
+}
+
+let identifierRowSequence = 0
 
 const pageTitle = computed(() => account.value?.displayName || fallbackMessages.title)
 const ownerLabel = computed(() => {
@@ -195,6 +230,20 @@ const canArchiveCurrentAccount = computed(
     canManageAccount.value &&
     account.value!.recordStatus === 'ACTIVE' &&
     ['LEAD', 'PROSPECT_CUSTOMER'].includes(account.value!.lifecycleStage)
+)
+const isIdentifierLocked = computed(
+  () =>
+    Boolean(account.value?.tenantPartyId) &&
+    account.value?.lifecycleStage === 'PROSPECT_CUSTOMER' &&
+    (account.value?.leadIdentifiers ?? []).length > 0
+)
+const canEditIdentifiers = computed(
+  () =>
+    Boolean(account.value) &&
+    canUpdateLead.value &&
+    account.value!.recordStatus === 'ACTIVE' &&
+    ['LEAD', 'PROSPECT_CUSTOMER'].includes(account.value!.lifecycleStage) &&
+    !isIdentifierLocked.value
 )
 const hasSecondaryActions = computed(
   () => canClaimCurrentAccount.value || canSubmitCurrentDraft.value || canArchiveCurrentAccount.value
@@ -254,21 +303,45 @@ async function goBack() {
   await router.push({ name: 'TenantCrmAccounts' })
 }
 
+/** openConversionModal captures the legal name required only when turning a Lead into a PC. */
+function openConversionModal() {
+  if (!activeTenantId.value || !account.value || !canConvertCurrentAccount.value) {
+    return
+  }
+  conversionLegalName.value = account.value.leadLegalName || ''
+  conversionModalOpen.value = true
+}
+
+/** closeConversionModal clears conversion-only legal name capture state. */
+function closeConversionModal() {
+  conversionModalOpen.value = false
+  conversionLegalName.value = ''
+}
+
 /** convertLead formalizes the current Lead and refreshes the independent detail page. */
 async function convertLead() {
   if (!activeTenantId.value || !account.value || !canConvertCurrentAccount.value) {
+    return
+  }
+  const legalName = conversionLegalName.value.trim()
+  if (!legalName) {
+    errorMessage.value = fallbackMessages.convertLegalNameRequired
+    message.error(fallbackMessages.convertLegalNameRequired)
     return
   }
 
   actionLoading.value = 'convert'
   errorMessage.value = ''
   try {
-    const result = await convertLeadToProspectCustomerApi(activeTenantId.value, account.value.crmAccountId)
+    const result = await convertLeadToProspectCustomerApi(activeTenantId.value, account.value.crmAccountId, {
+      legalName
+    })
     if (result.crmAccount) {
       account.value = result.crmAccount
     } else {
       await loadAccount()
     }
+    closeConversionModal()
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : fallbackMessages.convertFailed
   } finally {
@@ -358,6 +431,49 @@ function openArchiveModal() {
   archiveModalOpen.value = true
 }
 
+/** openIdentifierModal starts CRM-owned strong identifier editing for eligible Lead or PC records. */
+function openIdentifierModal() {
+  if (!account.value || !canEditIdentifiers.value) {
+    return
+  }
+  identifierRows.value = identifierFormRows(account.value)
+  identifierModalOpen.value = true
+}
+
+/** addIdentifierRow appends one country/type/value row to the detail identifier editor. */
+function addIdentifierRow() {
+  identifierRows.value.push(createIdentifierRow())
+}
+
+/** removeIdentifierRow removes one unsaved identifier row from the detail editor. */
+function removeIdentifierRow(rowId: string) {
+  identifierRows.value = identifierRows.value.filter((row) => row.rowId !== rowId)
+}
+
+/** saveIdentifiers persists CRM-owned strong identifiers through the formal BFF endpoint. */
+async function saveIdentifiers() {
+  if (!activeTenantId.value || !account.value || !canEditIdentifiers.value) {
+    return
+  }
+
+  actionLoading.value = 'identifiers'
+  errorMessage.value = ''
+  try {
+    account.value = await updateCrmAccountIdentifiersApi(
+      activeTenantId.value,
+      account.value.crmAccountId,
+      {
+        leadIdentifiers: buildLeadIdentifiers(identifierRows.value)
+      }
+    )
+    identifierModalOpen.value = false
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : fallbackMessages.detailLoadFailed
+  } finally {
+    actionLoading.value = ''
+  }
+}
+
 /** archiveAccount sends the selected CRM archive reason to the BFF and refreshes local detail state. */
 async function archiveAccount() {
   if (!activeTenantId.value || !account.value || !canArchiveCurrentAccount.value) {
@@ -443,8 +559,105 @@ function formatDateTime(value?: string) {
 function formatLeadIdentifiers(values: CustomerManagementApi.CrmLeadIdentifier[]) {
   if (!values.length) return '-'
   return values
-    .map((identifier) => `${identifier.identifierType}:${identifier.normalizedValue}`)
+    .map((identifier) =>
+      [
+        identifier.issuerCountryOrRegion,
+        identifierTypeLabel(identifier.identifierType, identifier.issuerCountryOrRegion),
+        identifier.normalizedValue
+      ]
+        .filter(Boolean)
+        .join(' / ')
+    )
     .join(' / ')
+}
+
+/** currentIdentifierSubjectType returns the subject kind used to filter detail-page official identity choices. */
+function currentIdentifierSubjectType() {
+  return account.value?.partyTypeHint === 'PERSON' ? 'PERSON' : 'ORGANIZATION'
+}
+
+/** identifierTypeOptionsFor returns country-appropriate official identity choices for one editor row. */
+function identifierTypeOptionsFor(identifier: IdentifierFormRow) {
+  return identifierTypeOptionsForCountry(identifier.issuerCountryOrRegion, currentIdentifierSubjectType())
+}
+
+/** identifierTypeLabel renders CRM official identity enum values as concise operator-facing text. */
+function identifierTypeLabel(value?: string, issuerCountryOrRegion = '') {
+  return resolveIdentifierTypeLabel(value, issuerCountryOrRegion, currentIdentifierSubjectType())
+}
+
+/** updateIdentifierCountry stores row country and clears stale official identity type choices. */
+function updateIdentifierCountry(identifier: IdentifierFormRow, value?: string) {
+  identifier.issuerCountryOrRegion = value || ''
+  const validTypes = new Set(identifierTypeOptionsFor(identifier).map((option) => option.value))
+  if (identifier.identifierType && !validTypes.has(identifier.identifierType)) {
+    identifier.identifierType = ''
+  }
+}
+
+/** createIdentifierRow creates one detail-page official identity editor row. */
+function createIdentifierRow(identifierType = '', value = '', issuerCountryOrRegion = ''): IdentifierFormRow {
+  identifierRowSequence += 1
+  return {
+    identifierType,
+    issuerCountryOrRegion,
+    rowId: `identifier-row-${identifierRowSequence}`,
+    value
+  }
+}
+
+/** identifierFormRows hydrates the detail identifier editor from current CRM account facts. */
+function identifierFormRows(record: CustomerManagementApi.CrmAccount) {
+  return (record.leadIdentifiers ?? [])
+    .filter((identifier) => identifier.identifierType && identifier.normalizedValue)
+    .map((identifier) =>
+      createIdentifierRow(
+        identifier.identifierType,
+        identifier.normalizedValue,
+        identifier.issuerCountryOrRegion ?? record.leadCountry ?? ''
+      )
+    )
+}
+
+/** buildLeadIdentifiers materializes detail editor rows into deduplicated CRM official identity inputs. */
+function buildLeadIdentifiers(rows: IdentifierFormRow[]): CustomerManagementApi.CrmLeadIdentifier[] {
+  const seen = new Set<string>()
+  const identifiers: CustomerManagementApi.CrmLeadIdentifier[] = []
+
+  for (const row of rows) {
+    const identifierType = row.identifierType.trim()
+    const identifierValue = row.value.trim()
+    const issuerCountryOrRegion = row.issuerCountryOrRegion.trim()
+    if (!identifierType || !identifierValue) {
+      continue
+    }
+    const dedupeKey = `${issuerCountryOrRegion}:${identifierType}:${identifierValue.toLowerCase()}`
+    if (seen.has(dedupeKey)) {
+      continue
+    }
+    seen.add(dedupeKey)
+    identifiers.push({
+      identifierType,
+      issuerCountryOrRegion,
+      normalizedValue: identifierValue,
+      rawValue: identifierValue
+    })
+  }
+
+  return identifiers
+}
+
+/** formatAccountProfileItems renders account-owned profile items as the CRM profile truth. */
+function formatAccountProfileItems(itemType: string) {
+  const profileValues = (account.value?.profileItems ?? [])
+    .filter((profileItem) => profileItem.itemType === itemType && profileItem.normalizedValue)
+    .map((profileItem) => profileItem.normalizedValue)
+
+  if (profileValues.length) {
+    return [...new Set(profileValues)].join(' / ')
+  }
+
+  return '-'
 }
 
 onMounted(() => {
@@ -521,7 +734,7 @@ onMounted(() => {
                 data-testid="crm-account-detail-convert"
                 :loading="actionLoading === 'convert'"
                 type="primary"
-                @click="convertLead"
+                @click="openConversionModal"
               >
                 {{ fallbackMessages.convert }}
               </Button>
@@ -589,18 +802,45 @@ onMounted(() => {
                     <h3>{{ fallbackMessages.leadInfo }}</h3>
                     <Descriptions bordered :column="{ xs: 1, sm: 2, md: 2 }" size="small">
                       <DescriptionsItem label="显示名称">{{ account.displayName || '-' }}</DescriptionsItem>
+                      <DescriptionsItem label="法定/登记名称">{{ account.leadLegalName || '-' }}</DescriptionsItem>
                       <DescriptionsItem label="公司">{{ account.leadCompanyName || '-' }}</DescriptionsItem>
                       <DescriptionsItem label="联系人">{{ account.leadPersonName || '-' }}</DescriptionsItem>
                       <DescriptionsItem :label="fallbackMessages.partyType">
                         {{ partyTypeLabel(account.partyTypeHint) }}
                       </DescriptionsItem>
                       <DescriptionsItem :label="fallbackMessages.country">{{ account.leadCountry || '-' }}</DescriptionsItem>
-                      <DescriptionsItem :label="fallbackMessages.domain">{{ account.leadDomain || '-' }}</DescriptionsItem>
-                      <DescriptionsItem :label="fallbackMessages.email">{{ account.leadEmail || '-' }}</DescriptionsItem>
-                      <DescriptionsItem :label="fallbackMessages.phone">{{ account.leadPhone || '-' }}</DescriptionsItem>
-                      <DescriptionsItem :label="fallbackMessages.whatsapp">{{ account.leadWhatsapp || '-' }}</DescriptionsItem>
+                      <DescriptionsItem :label="fallbackMessages.domain">
+                        {{ formatAccountProfileItems('DOMAIN') }}
+                      </DescriptionsItem>
+                      <DescriptionsItem :label="fallbackMessages.email">
+                        {{ formatAccountProfileItems('EMAIL') }}
+                      </DescriptionsItem>
+                      <DescriptionsItem :label="fallbackMessages.phone">
+                        {{ formatAccountProfileItems('PHONE') }}
+                      </DescriptionsItem>
+                      <DescriptionsItem :label="fallbackMessages.whatsapp">
+                        {{ formatAccountProfileItems('WHATSAPP') }}
+                      </DescriptionsItem>
                       <DescriptionsItem :label="fallbackMessages.identifiers">
-                        {{ formatLeadIdentifiers(account.leadIdentifiers) }}
+                        <div class="crm-account-detail__identifier-cell">
+                          <span>{{ formatLeadIdentifiers(account.leadIdentifiers) }}</span>
+                          <Tag
+                            v-if="isIdentifierLocked"
+                            color="default"
+                            data-testid="crm-account-identifier-lock"
+                          >
+                            {{ fallbackMessages.identifierLocked }}
+                          </Tag>
+                          <Button
+                            v-if="canEditIdentifiers"
+                            class="crm-account-detail__inline-action"
+                            data-testid="crm-account-identifiers-edit"
+                            size="small"
+                            @click="openIdentifierModal"
+                          >
+                            {{ fallbackMessages.identifierEdit }}
+                          </Button>
+                        </div>
                       </DescriptionsItem>
                     </Descriptions>
                   </section>
@@ -779,6 +1019,108 @@ onMounted(() => {
           </Button>
         </template>
       </Modal>
+
+      <Modal
+        v-model:open="conversionModalOpen"
+        :title="fallbackMessages.convert"
+        @cancel="closeConversionModal"
+      >
+        <div class="crm-account-detail__archive-form">
+          <Alert :message="fallbackMessages.convertLegalNameHelp" show-icon type="info" />
+          <div class="crm-account-detail__archive-label">{{ fallbackMessages.legalName }}</div>
+          <Input
+            v-model:value="conversionLegalName"
+            allow-clear
+            data-testid="crm-account-detail-convert-legal-name"
+            :placeholder="fallbackMessages.legalNamePlaceholder"
+          />
+        </div>
+        <template #footer>
+          <Button @click="closeConversionModal">取消</Button>
+          <Button
+            data-testid="crm-account-detail-convert-submit"
+            :disabled="!conversionLegalName.trim()"
+            :loading="actionLoading === 'convert'"
+            type="primary"
+            @click="convertLead"
+          >
+            {{ fallbackMessages.convert }}
+          </Button>
+        </template>
+      </Modal>
+
+      <Modal
+        v-model:open="identifierModalOpen"
+        :confirm-loading="actionLoading === 'identifiers'"
+        :title="fallbackMessages.identifierEdit"
+        @ok="saveIdentifiers"
+      >
+        <div class="crm-detail-identifier-editor" data-testid="crm-identifier-editor">
+          <div v-if="identifierRows.length" class="crm-detail-identifier-editor__labels" aria-hidden="true">
+            <span>{{ fallbackMessages.country }}</span>
+            <span>{{ fallbackMessages.identifierType }}</span>
+            <span>{{ fallbackMessages.identifierValue }}</span>
+            <span>操作</span>
+          </div>
+          <div v-if="identifierRows.length" class="crm-detail-identifier-editor__rows">
+            <div
+              v-for="(identifier, index) in identifierRows"
+              :key="identifier.rowId"
+              class="crm-detail-identifier-editor__row"
+            >
+              <CountryRegionSelect
+                :data-testid="`crm-identifier-country-${index}`"
+                :placeholder="fallbackMessages.country"
+                :value="identifier.issuerCountryOrRegion"
+                @update:value="(value) => updateIdentifierCountry(identifier, value)"
+              />
+              <Select
+                v-model:value="identifier.identifierType"
+                :data-testid="`crm-identifier-type-${index}`"
+                :options="identifierTypeOptionsFor(identifier)"
+                :placeholder="fallbackMessages.identifierTypePlaceholder"
+              />
+              <Input
+                v-model:value="identifier.value"
+                :data-testid="`crm-identifier-value-${index}`"
+                :placeholder="fallbackMessages.identifierValuePlaceholder"
+              />
+              <Button
+                :data-testid="`crm-identifier-remove-${index}`"
+                shape="circle"
+                size="small"
+                type="text"
+                @click="removeIdentifierRow(identifier.rowId)"
+              >
+                <IconifyIcon icon="ant-design:delete-outlined" />
+              </Button>
+            </div>
+          </div>
+          <div v-else class="crm-detail-identifier-editor__empty" data-testid="crm-identifier-empty">
+            {{ fallbackMessages.identifierEmpty }}
+          </div>
+          <button
+            class="crm-detail-identifier-editor__add"
+            data-testid="crm-identifier-add"
+            type="button"
+            @click="addIdentifierRow"
+          >
+            <IconifyIcon icon="ant-design:plus-outlined" />
+            <span>{{ fallbackMessages.identifierAdd }}</span>
+          </button>
+        </div>
+        <template #footer>
+          <Button @click="identifierModalOpen = false">取消</Button>
+          <Button
+            data-testid="crm-account-identifiers-save"
+            :loading="actionLoading === 'identifiers'"
+            type="primary"
+            @click="saveIdentifiers"
+          >
+            {{ fallbackMessages.identifierSave }}
+          </Button>
+        </template>
+      </Modal>
     </div>
   </Page>
 </template>
@@ -952,6 +1294,86 @@ onMounted(() => {
   color: var(--crm-detail-text);
   font-size: 15px;
   font-weight: 700;
+}
+
+.crm-account-detail__identifier-cell {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.crm-account-detail__inline-action {
+  border-radius: 7px;
+}
+
+.crm-detail-identifier-editor {
+  border: 1px solid var(--crm-detail-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.crm-detail-identifier-editor__labels,
+.crm-detail-identifier-editor__row {
+  display: grid;
+  grid-template-columns: minmax(110px, 0.24fr) minmax(168px, 0.34fr) minmax(0, 1fr) 46px;
+}
+
+.crm-detail-identifier-editor__labels {
+  border-bottom: 1px solid hsl(var(--border) / 0.86);
+  background: hsl(var(--muted) / 0.42);
+  color: var(--crm-detail-muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+  padding: 7px 12px;
+}
+
+.crm-detail-identifier-editor__labels span:not(:last-child),
+.crm-detail-identifier-editor__row > *:not(:last-child) {
+  border-right: 1px solid hsl(var(--border) / 0.64);
+  padding-right: 10px;
+}
+
+.crm-detail-identifier-editor__rows {
+  display: grid;
+}
+
+.crm-detail-identifier-editor__row {
+  align-items: center;
+  border-bottom: 1px solid hsl(var(--border) / 0.74);
+  column-gap: 10px;
+  padding: 10px 12px;
+}
+
+.crm-detail-identifier-editor__row:last-child {
+  border-bottom: 0;
+}
+
+.crm-detail-identifier-editor__empty {
+  color: var(--crm-detail-muted);
+  font-size: 13px;
+  line-height: 20px;
+  padding: 18px 14px;
+  text-align: center;
+}
+
+.crm-detail-identifier-editor__add {
+  align-items: center;
+  border: 0;
+  border-top: 1px solid hsl(var(--border) / 0.74);
+  background: hsl(var(--muted) / 0.14);
+  color: hsl(var(--primary));
+  cursor: pointer;
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  min-height: 44px;
+  width: 100%;
+}
+
+.crm-detail-identifier-editor__add:hover {
+  background: hsl(var(--primary) / 0.08);
 }
 
 .crm-account-detail__source-panel {
@@ -1144,6 +1566,19 @@ onMounted(() => {
 }
 
 @media (max-width: 575px) {
+  .crm-detail-identifier-editor__labels {
+    display: none;
+  }
+
+  .crm-detail-identifier-editor__row {
+    grid-template-columns: 1fr 38px;
+    row-gap: 8px;
+  }
+
+  .crm-detail-identifier-editor__row > *:not(:last-child) {
+    grid-column: 1 / -1;
+  }
+
   .crm-account-detail__tabs :deep(.ant-tabs-nav) {
     flex-wrap: wrap;
   }

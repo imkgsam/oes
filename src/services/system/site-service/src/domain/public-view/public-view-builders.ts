@@ -1,6 +1,6 @@
 import { sanitizeSiteHtml } from '../content/site-html-sanitizer'
 
-export type SitePublicResourceType = 'product' | 'category' | 'content' | 'blog' | 'news'
+export type SitePublicResourceType = 'product' | 'category' | 'content' | 'blog' | 'news' | 'article-category'
 export type SitePublicViewStatus = 'published' | 'unpublished' | 'deleted' | 'disabled' | 'draft_preview'
 
 export interface SitePublicViewEnvelope<TPayload extends Record<string, unknown>> {
@@ -82,12 +82,31 @@ export interface BuildContentPublicViewInput {
   bodyHtml: string
   summary?: string | null
   coverImage?: string | null
+  coverImageAlt?: string | null
   author?: string | null
-  tags?: string[]
+  categoryIds?: string[]
+  historicalSlugs?: string[]
   seoTitle: string
   seoDescription: string
   seoImage?: string | null
   publishedAt?: Date | null
+  publishVersion: number
+  updatedAt: Date
+}
+
+export interface BuildArticleCategoryPublicViewInput {
+  siteId: string
+  categoryId: string
+  locale: string
+  slug: string
+  displayName: string
+  archiveIntro?: string | null
+  archiveLabel?: string | null
+  sortOrder?: number | null
+  historicalSlugs?: string[]
+  seoTitle?: string | null
+  seoDescription?: string | null
+  seoImage?: string | null
   publishVersion: number
   updatedAt: Date
 }
@@ -178,6 +197,35 @@ export function buildNewsPublicView(
   return buildContentPublicView('news', input)
 }
 
+/** buildArticleCategoryPublicView maps a site-scoped content Category into a runtime archive public view. */
+export function buildArticleCategoryPublicView(
+  input: BuildArticleCategoryPublicViewInput
+): SitePublicViewEnvelope<Record<string, unknown>> {
+  return {
+    site_id: input.siteId,
+    resource_type: 'article-category',
+    resource_id: input.categoryId,
+    locale: input.locale,
+    slug: input.slug,
+    status: 'published',
+    publish_version: input.publishVersion,
+    updated_at: input.updatedAt.toISOString(),
+    payload: {
+      content_category_id: input.categoryId,
+      display_name: input.displayName,
+      archive_intro: input.archiveIntro ?? null,
+      archive_label: input.archiveLabel ?? input.displayName,
+      sort_order: input.sortOrder ?? 0,
+      historical_slugs: input.historicalSlugs ?? [],
+      seo: {
+        title: input.seoTitle || input.displayName,
+        description: input.seoDescription || input.archiveIntro || null,
+        image: input.seoImage ?? null
+      }
+    }
+  }
+}
+
 /** buildContentPublicView maps one content locale version into a public view payload. */
 function buildContentPublicView(
   resourceType: 'blog' | 'news',
@@ -197,10 +245,12 @@ function buildContentPublicView(
       title: input.title,
       summary: input.summary ?? null,
       cover_image: input.coverImage ?? null,
+      cover_image_alt: input.coverImageAlt ?? null,
       author: input.author ?? null,
-      tags: input.tags ?? [],
+      category_ids: input.categoryIds ?? [],
       body_html: sanitizeSiteHtml(input.bodyHtml),
       published_at: input.publishedAt?.toISOString() ?? null,
+      historical_slugs: input.historicalSlugs ?? [],
       seo: {
         title: input.seoTitle,
         description: input.seoDescription,

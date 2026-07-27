@@ -14,6 +14,37 @@ import {
 const EXTENSION_PAGE_KIND_VALUES = ['OFFICIAL_SITE', 'SEARCH_RESULTS'] as const
 const EXTENSION_SEARCH_ENGINE_VALUES = ['GOOGLE', 'BING', 'OTHER'] as const
 const EXTENSION_CAPTURE_KIND_VALUES = ['CURRENT_PAGE', 'LINK'] as const
+const EXTENSION_PROFILE_ITEM_TYPE_VALUES = [
+  'DOMAIN',
+  'WEBSITE',
+  'EMAIL',
+  'PHONE',
+  'WHATSAPP',
+  'WECHAT',
+  'SOCIAL_PROFILE'
+] as const
+
+/** ExtensionProfileItemDto validates one account-level profile item supplied by browser extension capture. */
+export class ExtensionProfileItemDto {
+  @IsIn(EXTENSION_PROFILE_ITEM_TYPE_VALUES)
+  itemType!: string
+
+  @IsString()
+  @IsNotEmpty()
+  normalizedValue!: string
+
+  @IsOptional()
+  @IsString()
+  rawValue?: string
+
+  @IsOptional()
+  @IsString()
+  label?: string
+
+  @IsOptional()
+  @IsString()
+  role?: string
+}
 
 /** ExtensionPageSignalsDto validates bounded browser-collected page evidence. */
 export class ExtensionPageSignalsDto {
@@ -144,6 +175,10 @@ export class ExtensionLeadCaptureDto {
   @IsArray()
   visiblePhones?: string[]
 
+  @IsOptional()
+  @IsArray()
+  socialLinks?: string[]
+
   @IsString()
   @IsNotEmpty()
   capturedAt!: string
@@ -203,6 +238,12 @@ export class ExtensionLeadInputDto {
   @IsOptional()
   @IsString()
   leadPhone?: string
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ExtensionProfileItemDto)
+  profileItems?: ExtensionProfileItemDto[]
 
   @IsOptional()
   @IsString()

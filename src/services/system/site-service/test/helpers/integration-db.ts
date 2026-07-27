@@ -77,10 +77,18 @@ export async function cleanupByPrefix(prisma: PrismaService, prefix: string): Pr
   }
 
   const tenantWhere = { tenantId: { startsWith: prefix } }
+  await prisma.siteExposurePublication.deleteMany({ where: { site: tenantWhere } })
+  await prisma.siteCapabilityRegistration.deleteMany({ where: { site: tenantWhere } })
+  await prisma.siteCapabilityRegistrationStream.deleteMany({ where: { site: tenantWhere } })
+  await prisma.siteExposureDraft.deleteMany({ where: { site: tenantWhere } })
+  await prisma.sitePageGovernance.deleteMany({ where: { site: tenantWhere } })
+  await prisma.sitePageCapability.deleteMany({ where: { site: tenantWhere } })
   await prisma.siteAuditEnvelope.deleteMany({ where: tenantWhere })
   await prisma.siteSyncResource.deleteMany({ where: { syncBatch: tenantWhere } })
   await prisma.siteSyncBatch.deleteMany({ where: tenantWhere })
   await prisma.sitePublicView.deleteMany({ where: tenantWhere })
+  await prisma.sitePublicViewRevision.deleteMany({ where: tenantWhere })
+  await prisma.siteSlugLedger.deleteMany({ where: { site: tenantWhere } })
   await prisma.siteContentLocaleVersion.deleteMany({ where: { contentEntry: tenantWhere } })
   await prisma.siteContentEntry.deleteMany({ where: tenantWhere })
   await prisma.siteProductPublication.deleteMany({ where: tenantWhere })

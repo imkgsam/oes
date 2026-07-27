@@ -14,6 +14,8 @@ service SiteAdminManagementService {
   rpc CheckLocaleCompleteness(CheckLocaleCompletenessRequest) returns (CheckLocaleCompletenessResponse);
   rpc ActivateLocale(ActivateLocaleRequest) returns (ActivateLocaleResponse);
   rpc DisableLocale(DisableLocaleRequest) returns (DisableLocaleResponse);
+  rpc ListSitePages(ListSitePagesRequest) returns (ListSitePagesResponse);
+  rpc UpdateSitePageGovernance(UpdateSitePageGovernanceRequest) returns (UpdateSitePageGovernanceResponse);
   rpc ListSiteCategories(ListSiteCategoriesRequest) returns (ListSiteCategoriesResponse);
   rpc CreateSiteCategory(CreateSiteCategoryRequest) returns (CreateSiteCategoryResponse);
   rpc UpdateSiteCategory(UpdateSiteCategoryRequest) returns (UpdateSiteCategoryResponse);
@@ -29,6 +31,27 @@ service SiteAdminManagementService {
   rpc CreateSiteContent(CreateSiteContentRequest) returns (CreateSiteContentResponse);
   rpc UpdateSiteContentLocaleVersion(UpdateSiteContentLocaleVersionRequest) returns (UpdateSiteContentLocaleVersionResponse);
   rpc UnpublishSiteContent(UnpublishSiteContentRequest) returns (UnpublishSiteContentResponse);
+  rpc ListContentCategories(ListContentCategoriesRequest) returns (ListContentCategoriesResponse);
+  rpc GetContentCategory(GetContentCategoryRequest) returns (GetContentCategoryResponse);
+  rpc CreateContentCategory(CreateContentCategoryRequest) returns (CreateContentCategoryResponse);
+  rpc UpdateContentCategoryLocaleVersion(UpdateContentCategoryLocaleVersionRequest) returns (UpdateContentCategoryLocaleVersionResponse);
+  rpc PublishContentCategoryLocale(PublishContentCategoryLocaleRequest) returns (PublishContentCategoryLocaleResponse);
+  rpc ReorderContentCategories(ReorderContentCategoriesRequest) returns (ReorderContentCategoriesResponse);
+  rpc DeleteContentCategory(DeleteContentCategoryRequest) returns (DeleteContentCategoryResponse);
+  rpc ListVisibleContentCategories(ListVisibleContentCategoriesRequest) returns (ListVisibleContentCategoriesResponse);
+  rpc CheckContentCategoryCompleteness(CheckContentCategoryCompletenessRequest) returns (CheckContentCategoryCompletenessResponse);
+  rpc ListContentCategoryUsage(ListContentCategoryUsageRequest) returns (ListContentCategoryUsageResponse);
+  rpc ListFaqCategories(ListFaqCategoriesRequest) returns (ListFaqCategoriesResponse);
+  rpc GetFaqCategory(GetFaqCategoryRequest) returns (GetFaqCategoryResponse);
+  rpc CreateFaqCategory(CreateFaqCategoryRequest) returns (CreateFaqCategoryResponse);
+  rpc UpdateFaqCategoryLocaleVersion(UpdateFaqCategoryLocaleVersionRequest) returns (UpdateFaqCategoryLocaleVersionResponse);
+  rpc DisableFaqCategory(DisableFaqCategoryRequest) returns (DisableFaqCategoryResponse);
+  rpc ListFaqEntries(ListFaqEntriesRequest) returns (ListFaqEntriesResponse);
+  rpc GetFaqEntry(GetFaqEntryRequest) returns (GetFaqEntryResponse);
+  rpc CreateFaqEntry(CreateFaqEntryRequest) returns (CreateFaqEntryResponse);
+  rpc UpdateFaqEntryLocaleVersion(UpdateFaqEntryLocaleVersionRequest) returns (UpdateFaqEntryLocaleVersionResponse);
+  rpc UnpublishFaqEntry(UnpublishFaqEntryRequest) returns (UnpublishFaqEntryResponse);
+  rpc CheckFaqCompleteness(CheckFaqCompletenessRequest) returns (CheckFaqCompletenessResponse);
   rpc GetPendingSyncSummary(GetPendingSyncSummaryRequest) returns (GetPendingSyncSummaryResponse);
   rpc ListPendingSyncResources(ListPendingSyncResourcesRequest) returns (ListPendingSyncResourcesResponse);
   rpc ListSyncHistory(ListSyncHistoryRequest) returns (ListSyncHistoryResponse);
@@ -45,6 +68,7 @@ service SiteAdminManagementService {
 }
 
 service SiteRuntimeSyncService {
+  rpc RegisterPageCapabilities(RegisterPageCapabilitiesRequest) returns (RegisterPageCapabilitiesResponse);
   rpc GetLatestPublishState(GetLatestPublishStateRequest) returns (GetLatestPublishStateResponse);
   rpc ListChangedResources(ListChangedResourcesRequest) returns (ListChangedResourcesResponse);
   rpc BatchGetPublicViews(BatchGetPublicViewsRequest) returns (BatchGetPublicViewsResponse);
@@ -74,6 +98,7 @@ message SignedSiteContext {
   string path = 10;
   string normalized_query = 11;
   string body_sha256 = 12;
+  string idempotency_key = 13;
 }
 
 message ListSiteCardsRequest {
@@ -170,6 +195,7 @@ message CheckLocaleCompletenessRequest {
 message CheckLocaleCompletenessResponse {
   bool complete = 1;
   repeated string issues = 2;
+  repeated SitePagePreflightIssue preflight_issues = 3;
 }
 
 message ActivateLocaleRequest {
@@ -190,6 +216,44 @@ message DisableLocaleRequest {
 
 message DisableLocaleResponse {
   bool disabled = 1;
+}
+
+message SitePageRecord {
+  string page_key = 1;
+  repeated string supported_locales = 2;
+  bool capability_available = 3;
+  bool enabled = 4;
+  bool indexable = 5;
+  bool capability_drift = 6;
+  string sync_status = 7;
+  string last_discovered_at = 8;
+}
+
+message SitePagePreflightIssue {
+  string code = 1;
+  string page_key = 2;
+  string locale = 3;
+}
+
+message ListSitePagesRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+}
+
+message ListSitePagesResponse {
+  repeated SitePageRecord pages = 1;
+}
+
+message UpdateSitePageGovernanceRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+  string page_key = 3;
+  bool enabled = 4;
+  bool indexable = 5;
+}
+
+message UpdateSitePageGovernanceResponse {
+  SitePageRecord page = 1;
 }
 
 message SiteCategoryRecord {
@@ -375,6 +439,9 @@ message SiteContentLocaleVersionRecord {
   string published_at = 14;
   string status = 15;
   string sync_status = 16;
+  repeated string category_ids = 17;
+  repeated string historical_slugs = 18;
+  string cover_image_alt = 19;
 }
 
 message ListSiteContentsRequest {
@@ -427,6 +494,206 @@ message UnpublishSiteContentRequest {
 message UnpublishSiteContentResponse {
   bool unpublished = 1;
 }
+
+message ContentCategoryRecord {
+  string category_id = 1;
+  string site_id = 2;
+  uint32 sort_order = 3;
+  string sync_status = 4;
+  repeated ContentCategoryLocaleVersionRecord locale_versions = 5;
+  ContentCategoryUsageRecord published_usage = 6;
+  bool deleted = 7;
+}
+
+message ContentCategoryLocaleVersionRecord {
+  string category_version_id = 1;
+  string category_id = 2;
+  string locale = 3;
+  string slug = 4;
+  string display_name = 5;
+  string archive_intro = 6;
+  string archive_label = 7;
+  string seo_title = 8;
+  string seo_description = 9;
+  string seo_image = 10;
+  repeated string historical_slugs = 11;
+  string sync_status = 12;
+  uint32 draft_revision = 13;
+  uint32 last_published_revision = 14;
+  string last_published_at = 15;
+}
+
+message ListContentCategoriesRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+  string locale = 3;
+}
+
+message ListContentCategoriesResponse {
+  repeated ContentCategoryRecord categories = 1;
+}
+
+message GetContentCategoryRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+  string category_id = 3;
+}
+
+message GetContentCategoryResponse {
+  ContentCategoryRecord category = 1;
+}
+
+message CreateContentCategoryRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+  uint32 sort_order = 3;
+  ContentCategoryLocaleVersionRecord initial_locale_version = 4;
+}
+
+message CreateContentCategoryResponse {
+  ContentCategoryRecord category = 1;
+}
+
+message UpdateContentCategoryLocaleVersionRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+  ContentCategoryLocaleVersionRecord version = 3;
+}
+
+message UpdateContentCategoryLocaleVersionResponse {
+  ContentCategoryLocaleVersionRecord version = 1;
+}
+
+message PublishContentCategoryLocaleRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+  string category_id = 3;
+  string locale = 4;
+}
+
+message PublishContentCategoryLocaleResponse {
+  ContentCategoryLocaleVersionRecord version = 1;
+}
+
+message ReorderContentCategoriesRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+  repeated string ordered_category_ids = 3;
+}
+
+message ReorderContentCategoriesResponse {
+  repeated ContentCategoryRecord categories = 1;
+}
+
+message DeleteContentCategoryRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+  string category_id = 3;
+}
+
+message DeleteContentCategoryResponse {
+  bool deleted = 1;
+  bool tombstoned = 2;
+}
+
+message ListVisibleContentCategoriesRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+  string content_type = 3;
+  string locale = 4;
+}
+
+message ListVisibleContentCategoriesResponse {
+  repeated ContentCategoryRecord categories = 1;
+}
+
+message CheckContentCategoryCompletenessRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+  string category_id = 3;
+  string locale = 4;
+}
+
+message CheckContentCategoryCompletenessResponse {
+  bool complete = 1;
+  repeated string issues = 2;
+}
+
+message ContentCategoryUsageRecord {
+  uint32 blog_count = 1;
+  uint32 news_count = 2;
+  uint32 draft_reference_count = 3;
+}
+
+message ListContentCategoryUsageRequest {
+  AdminRequestContext context = 1;
+  string site_id = 2;
+  string category_id = 3;
+}
+
+message ListContentCategoryUsageResponse {
+  ContentCategoryUsageRecord usage = 1;
+}
+
+message FaqCategoryLocaleVersionRecord {
+  string category_version_id = 1;
+  string category_id = 2;
+  string locale = 3;
+  string title = 4;
+  string anchor_key = 5;
+  uint32 sort_order = 6;
+  string sync_status = 7;
+}
+
+message FaqCategoryRecord {
+  string category_id = 1;
+  string site_id = 2;
+  string status = 3;
+  string sync_status = 4;
+  repeated FaqCategoryLocaleVersionRecord locale_versions = 5;
+}
+
+message FaqEntryLocaleVersionRecord {
+  string entry_version_id = 1;
+  string entry_id = 2;
+  string locale = 3;
+  string question = 4;
+  string answer_html = 5;
+  uint32 sort_order = 6;
+  string sync_status = 7;
+}
+
+message FaqEntryRecord {
+  string entry_id = 1;
+  string site_id = 2;
+  string category_id = 3;
+  string status = 4;
+  string sync_status = 5;
+  repeated FaqEntryLocaleVersionRecord locale_versions = 6;
+}
+
+message ListFaqCategoriesRequest { AdminRequestContext context = 1; string site_id = 2; string locale = 3; }
+message ListFaqCategoriesResponse { repeated FaqCategoryRecord categories = 1; }
+message GetFaqCategoryRequest { AdminRequestContext context = 1; string site_id = 2; string category_id = 3; }
+message GetFaqCategoryResponse { FaqCategoryRecord category = 1; }
+message CreateFaqCategoryRequest { AdminRequestContext context = 1; string site_id = 2; }
+message CreateFaqCategoryResponse { FaqCategoryRecord category = 1; }
+message UpdateFaqCategoryLocaleVersionRequest { AdminRequestContext context = 1; string site_id = 2; FaqCategoryLocaleVersionRecord version = 3; }
+message UpdateFaqCategoryLocaleVersionResponse { FaqCategoryLocaleVersionRecord version = 1; }
+message DisableFaqCategoryRequest { AdminRequestContext context = 1; string site_id = 2; string category_id = 3; }
+message DisableFaqCategoryResponse { bool disabled = 1; }
+message ListFaqEntriesRequest { AdminRequestContext context = 1; string site_id = 2; string category_id = 3; string locale = 4; }
+message ListFaqEntriesResponse { repeated FaqEntryRecord entries = 1; }
+message GetFaqEntryRequest { AdminRequestContext context = 1; string site_id = 2; string entry_id = 3; }
+message GetFaqEntryResponse { FaqEntryRecord entry = 1; }
+message CreateFaqEntryRequest { AdminRequestContext context = 1; string site_id = 2; string category_id = 3; }
+message CreateFaqEntryResponse { FaqEntryRecord entry = 1; }
+message UpdateFaqEntryLocaleVersionRequest { AdminRequestContext context = 1; string site_id = 2; FaqEntryLocaleVersionRecord version = 3; }
+message UpdateFaqEntryLocaleVersionResponse { FaqEntryLocaleVersionRecord version = 1; }
+message UnpublishFaqEntryRequest { AdminRequestContext context = 1; string site_id = 2; string entry_id = 3; string locale = 4; }
+message UnpublishFaqEntryResponse { bool unpublished = 1; }
+message CheckFaqCompletenessRequest { AdminRequestContext context = 1; string site_id = 2; string locale = 3; }
+message CheckFaqCompletenessResponse { bool complete = 1; repeated string issues = 2; }
 
 message GetPendingSyncSummaryRequest {
   AdminRequestContext context = 1;
@@ -493,6 +760,8 @@ message SyncAllPendingChangesResponse {
   string sync_id = 1;
   uint32 publish_version = 2;
   bool webhook_dispatched = 3;
+  bool blocked = 4;
+  repeated SitePagePreflightIssue preflight_issues = 5;
 }
 
 message RetryLastSyncRequest {
@@ -601,6 +870,46 @@ message IssuePreviewTokenResponse {
   string expires_at = 3;
 }
 
+message PageCapabilityDeclaration {
+  string page_key = 1;
+  repeated string supported_locales = 2;
+}
+
+message RegisterPageCapabilitiesRequest {
+  SignedSiteContext signed_context = 1;
+  string idempotency_key = 2;
+  repeated PageCapabilityDeclaration capabilities = 3;
+  string runtime_version = 4;
+  uint64 expected_registration_generation = 5;
+}
+
+message RegisterPageCapabilitiesResponse {
+  bool accepted = 1;
+  bool idempotent_replay = 2;
+  string manifest_hash = 3;
+  uint32 discovered_count = 4;
+  repeated string unavailable_page_keys = 5;
+  repeated string drift_page_keys = 6;
+  repeated string recovered_page_keys = 7;
+  uint64 registration_generation = 8;
+}
+
+message SitePageExposure {
+  string page_key = 1;
+  bool enabled = 2;
+  bool indexable = 3;
+  repeated string supported_locales = 4;
+}
+
+message SiteExposurePublication {
+  string site_id = 1;
+  uint32 publish_version = 2;
+  string default_locale = 3;
+  repeated string active_locales = 4;
+  repeated SitePageExposure pages = 5;
+  string published_at = 6;
+}
+
 message GetLatestPublishStateRequest {
   SignedSiteContext signed_context = 1;
   uint32 local_publish_version = 2;
@@ -650,12 +959,14 @@ message PublicViewResourceRef {
 message BatchGetPublicViewsRequest {
   SignedSiteContext signed_context = 1;
   repeated PublicViewResourceRef resources = 2;
+  uint32 target_publish_version = 3;
 }
 
 message BatchGetPublicViewsResponse {
   repeated PublicViewEnvelope public_views = 1;
   repeated PublicViewResourceRef missing_resources = 2;
   uint32 server_publish_version = 3;
+  SiteExposurePublication exposure_publication = 4;
 }
 
 message GetSnapshotRequest {
@@ -664,6 +975,7 @@ message GetSnapshotRequest {
   repeated string locales = 3;
   string page_token = 4;
   uint32 page_size = 5;
+  uint32 target_publish_version = 6;
 }
 
 message GetSnapshotResponse {
@@ -672,6 +984,7 @@ message GetSnapshotResponse {
   repeated PublicViewEnvelope public_views = 3;
   string next_page_token = 4;
   bool is_complete = 5;
+  SiteExposurePublication exposure_publication = 6;
 }
 
 message ReportSyncResultRequest {

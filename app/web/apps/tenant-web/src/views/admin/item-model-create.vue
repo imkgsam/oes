@@ -6,12 +6,27 @@ import { useRouter } from 'vue-router'
 
 import { Page } from '@vben/common-ui'
 
-import { Button, Checkbox, Form, Input, Select, SelectOption } from 'ant-design-vue'
+import {
+  Button,
+  Checkbox,
+  Form,
+  Input,
+  Select,
+  SelectOption,
+  Tooltip,
+  TreeSelect
+} from 'ant-design-vue'
 
 import { createManagedItemModelApi, listManagedItemCategoriesApi } from '#/api'
+import { $t } from '#/locales'
 import { useAuthContextStore } from '#/store/auth-context'
 
-const modelKindOptions: ItemManagementApi.ItemModelKind[] = ['PHYSICAL', 'SERVICE', 'DIGITAL', 'VIRTUAL']
+const modelKindOptions: ItemManagementApi.ItemModelKind[] = [
+  'PHYSICAL',
+  'SERVICE',
+  'DIGITAL',
+  'VIRTUAL'
+]
 const modelTypeOptions: ItemManagementApi.ItemModelType[] = [
   'FINISHED_PRODUCT',
   'SEMI_FINISHED_PRODUCT',
@@ -23,15 +38,15 @@ const modelTypeOptions: ItemManagementApi.ItemModelType[] = [
   'SERVICE',
   'VIRTUAL_KIT'
 ]
-const capabilityOptions: Array<{ key: ItemManagementApi.ItemCapabilityKey; label: string }> = [
-  { key: 'sellable', label: 'Sellable' },
-  { key: 'purchasable', label: 'Purchasable' },
-  { key: 'stockable', label: 'Stockable' },
-  { key: 'manufacturable', label: 'Manufacturable' },
-  { key: 'assemblable', label: 'Assemblable' },
-  { key: 'transformable', label: 'Transformable' },
-  { key: 'packable', label: 'Packable' },
-  { key: 'packaged', label: 'Packaged' }
+const capabilityOptions: ItemManagementApi.ItemCapabilityKey[] = [
+  'sellable',
+  'purchasable',
+  'stockable',
+  'manufacturable',
+  'assemblable',
+  'transformable',
+  'packable',
+  'packaged'
 ]
 type NotebookTabKey = 'general' | 'inventory' | 'manufacturing' | 'packaging' | 'purchase' | 'sales'
 
@@ -40,6 +55,80 @@ interface NotebookTab {
   label: string
 }
 
+interface CategoryTreeSelectOption {
+  children?: CategoryTreeSelectOption[]
+  key: string
+  title: string
+  value: string
+}
+
+const itemModelCreateFallbackMessages = {
+  assemblable: '可装配',
+  cancel: '放弃',
+  createThenDetail: '创建后进入详情',
+  digital: '数字物料',
+  draft: '草稿',
+  general: '基础信息',
+  generalInformation: '基础信息',
+  inventory: '库存',
+  manufacturable: '可制造',
+  manufacturing: '制造',
+  modelCode: '模型编码',
+  modelCodeRequired: '模型编码必填。',
+  modelCodePlaceholder: 'MODEL-CODE',
+  modelKind: '模型性质',
+  modelKindRequired: '模型性质必填。',
+  modelKindTooltipDigital: '数字物料：电子图纸、固件包、安装说明 PDF 等数字交付物。',
+  modelKindTooltipPhysical: '实物：马桶、浴缸、纸箱、泡沫等可库存或可交付实体。',
+  modelKindTooltipService: '服务：安装、维修、检测等履约行为。',
+  modelKindTooltipVirtual:
+    '虚拟：套餐、销售组合、配置模板等逻辑组合，本身不作为实物或数字文件交付。',
+  modelKindDigital: '数字物料',
+  modelKindPhysical: '实物',
+  modelKindService: '服务',
+  modelKindVirtual: '虚拟',
+  modelName: '模型名称',
+  modelNamePlaceholder: '例如：标准浴缸款式',
+  modelNameRequired: '模型名称必填。',
+  modelType: '模型类型',
+  modelTypeRequired: '模型类型必填。',
+  modelTypeAccessory: '配件',
+  modelTypeFinishedProduct: '成品',
+  modelTypePackagingMaterial: '包装材料',
+  modelTypePart: '零件',
+  modelTypeRawMaterial: '原材料',
+  modelTypeSemiFinishedProduct: '半成品',
+  modelTypeService: '服务',
+  modelTypeSubAssembly: '子装配件',
+  modelTypeTooltipAccessory: '配件：座圈、盖板、角阀、软管等随产品销售或替换件。',
+  modelTypeTooltipFinishedProduct: '成品：可销售的最终卫浴产品，如连体马桶、浴缸。',
+  modelTypeTooltipPackagingMaterial: '包装材料：纸箱、泡沫、标签、说明书等包装随附物。',
+  modelTypeTooltipPart: '零件：排水阀按钮、密封圈、螺丝等单个组成件。',
+  modelTypeTooltipRawMaterial: '原材料：泥浆、釉料、树脂、五金原料等基础投入。',
+  modelTypeTooltipSemiFinishedProduct: '半成品：还需继续加工的坯体、釉后件或待装配件。',
+  modelTypeTooltipService: '服务：安装、维修、检测等服务型模型。',
+  modelTypeTooltipSubAssembly: '子装配件：水箱组件、座圈组件、龙头阀芯组件等。',
+  modelTypeTooltipVirtualKit: '虚拟套装：马桶+盖板+配件包等逻辑组合。',
+  modelTypeVirtualKit: '虚拟套装',
+  noPrimaryCategory: '不设置分类',
+  packable: '可包装',
+  packaged: '包装成品',
+  packaging: '包装',
+  physical: '实物',
+  primaryCategory: '主分类',
+  purchasable: '可采购',
+  purchase: '采购',
+  sales: '销售',
+  save: '保存',
+  sellable: '可销售',
+  service: '服务',
+  stockable: '可库存',
+  transformable: '可转换',
+  virtual: '虚拟'
+} as const
+
+type ItemModelCreateMessageKey = keyof typeof itemModelCreateFallbackMessages
+
 const authContextStore = useAuthContextStore()
 const router = useRouter()
 const activeTenantId = computed(() => authContextStore.sessionContext?.tenant?.tenantId ?? '')
@@ -47,6 +136,12 @@ const itemCategories = ref<ItemManagementApi.ItemCategoryNode[]>([])
 const activeNotebookTab = ref<NotebookTabKey>('general')
 const saving = ref(false)
 const validationErrors = ref<string[]>([])
+const fieldErrors = reactive({
+  modelCode: '',
+  modelKind: '',
+  modelName: '',
+  modelType: ''
+})
 const form = reactive({
   capabilities: emptyCapabilities(),
   modelCode: '',
@@ -55,30 +150,106 @@ const form = reactive({
   modelType: 'FINISHED_PRODUCT' as ItemManagementApi.ItemModelType,
   primaryCategoryId: ''
 })
+const modelKindTooltipKeys: ItemModelCreateMessageKey[] = [
+  'modelKindTooltipPhysical',
+  'modelKindTooltipService',
+  'modelKindTooltipDigital',
+  'modelKindTooltipVirtual'
+]
+const modelTypeTooltipKeys: ItemModelCreateMessageKey[] = [
+  'modelTypeTooltipFinishedProduct',
+  'modelTypeTooltipSemiFinishedProduct',
+  'modelTypeTooltipAccessory',
+  'modelTypeTooltipPart',
+  'modelTypeTooltipSubAssembly',
+  'modelTypeTooltipRawMaterial',
+  'modelTypeTooltipPackagingMaterial',
+  'modelTypeTooltipService',
+  'modelTypeTooltipVirtualKit'
+]
+
+/** t resolves ItemModel create locale keys while keeping Chinese as the stable default. */
+function t(key: ItemModelCreateMessageKey) {
+  const path = `page.itemManagement.create.${key}`
+  const translated = $t(path)
+  return translated && translated !== path ? translated : itemModelCreateFallbackMessages[key]
+}
+
+/** capabilityLabel renders execution capability keys as localized UI labels. */
+function capabilityLabel(key: ItemManagementApi.ItemCapabilityKey) {
+  return t(key as ItemModelCreateMessageKey)
+}
+
+/** modelKindLabel renders ItemModel kind options without changing submitted enum values. */
+function modelKindLabel(kind: ItemManagementApi.ItemModelKind) {
+  const labels: Record<ItemManagementApi.ItemModelKind, ItemModelCreateMessageKey> = {
+    DIGITAL: 'modelKindDigital',
+    PHYSICAL: 'modelKindPhysical',
+    SERVICE: 'modelKindService',
+    VIRTUAL: 'modelKindVirtual'
+  }
+  return t(labels[kind])
+}
+
+/** modelTypeLabel renders ItemModel type options without changing submitted enum values. */
+function modelTypeLabel(type: ItemManagementApi.ItemModelType) {
+  const labels: Record<ItemManagementApi.ItemModelType, ItemModelCreateMessageKey> = {
+    ACCESSORY: 'modelTypeAccessory',
+    FINISHED_PRODUCT: 'modelTypeFinishedProduct',
+    PACKAGING_MATERIAL: 'modelTypePackagingMaterial',
+    PART: 'modelTypePart',
+    RAW_MATERIAL: 'modelTypeRawMaterial',
+    SEMI_FINISHED_PRODUCT: 'modelTypeSemiFinishedProduct',
+    SERVICE: 'modelTypeService',
+    SUB_ASSEMBLY: 'modelTypeSubAssembly',
+    VIRTUAL_KIT: 'modelTypeVirtualKit'
+  }
+  return t(labels[type])
+}
+
+/** updateModelCode keeps ItemModel codes in the uppercase canonical form expected by master data users. */
+function updateModelCode(value: string) {
+  form.modelCode = value.toUpperCase()
+  clearFieldError('modelCode', form.modelCode)
+}
+
+/** updateModelName keeps the readable ItemModel name in sync and clears field-level validation. */
+function updateModelName(value: string) {
+  form.modelName = value
+  clearFieldError('modelName', form.modelName)
+}
+
 const visibleNotebookTabs = computed<NotebookTab[]>(() => {
-  const tabs: NotebookTab[] = [{ key: 'general', label: '基础信息' }]
+  const tabs: NotebookTab[] = [{ key: 'general', label: t('general') }]
 
   if (form.capabilities.sellable) {
-    tabs.push({ key: 'sales', label: '销售' })
+    tabs.push({ key: 'sales', label: t('sales') })
   }
   if (form.capabilities.purchasable) {
-    tabs.push({ key: 'purchase', label: '采购' })
+    tabs.push({ key: 'purchase', label: t('purchase') })
   }
   if (form.capabilities.stockable) {
-    tabs.push({ key: 'inventory', label: '库存' })
+    tabs.push({ key: 'inventory', label: t('inventory') })
   }
-  if (form.capabilities.manufacturable || form.capabilities.assemblable || form.capabilities.transformable) {
-    tabs.push({ key: 'manufacturing', label: '制造' })
+  if (
+    form.capabilities.manufacturable ||
+    form.capabilities.assemblable ||
+    form.capabilities.transformable
+  ) {
+    tabs.push({ key: 'manufacturing', label: t('manufacturing') })
   }
   if (form.capabilities.packable || form.capabilities.packaged) {
-    tabs.push({ key: 'packaging', label: '包装' })
+    tabs.push({ key: 'packaging', label: t('packaging') })
   }
 
   return tabs
 })
 const currentNotebookTab = computed<NotebookTabKey>(() =>
-  visibleNotebookTabs.value.some((tab) => tab.key === activeNotebookTab.value) ? activeNotebookTab.value : 'general'
+  visibleNotebookTabs.value.some((tab) => tab.key === activeNotebookTab.value)
+    ? activeNotebookTab.value
+    : 'general'
 )
+const categoryTreeOptions = computed(() => buildCategoryTreeOptions(itemCategories.value))
 
 /** emptyCapabilities returns the explicit default ItemModel capability contract. */
 function emptyCapabilities(): ItemManagementApi.ItemCapabilities {
@@ -95,7 +266,10 @@ function emptyCapabilities(): ItemManagementApi.ItemCapabilities {
 }
 
 /** loadCategoryBranch recursively flattens ItemCategory tree layers for the create selector. */
-async function loadCategoryBranch(parentCategoryId?: string, bucket: ItemManagementApi.ItemCategoryNode[] = []) {
+async function loadCategoryBranch(
+  parentCategoryId?: string,
+  bucket: ItemManagementApi.ItemCategoryNode[] = []
+) {
   const result = await listManagedItemCategoriesApi(activeTenantId.value, {
     parentCategoryId
   })
@@ -110,6 +284,31 @@ async function loadCategoryBranch(parentCategoryId?: string, bucket: ItemManagem
   return bucket
 }
 
+/** buildCategoryTreeOptions exposes active category hierarchy as a TreeSelect model picker. */
+function buildCategoryTreeOptions(
+  categories: ItemManagementApi.ItemCategoryNode[]
+): CategoryTreeSelectOption[] {
+  const byParent = new Map<string, CategoryTreeSelectOption[]>()
+
+  for (const category of categories) {
+    const parentKey = category.parentCategoryId || ''
+    const option: CategoryTreeSelectOption = {
+      children: [],
+      key: category.categoryId,
+      title: `${category.categoryName}（${category.categoryCode}）`,
+      value: category.categoryId
+    }
+    byParent.set(parentKey, [...(byParent.get(parentKey) ?? []), option])
+  }
+
+  const attachChildren = (option: CategoryTreeSelectOption): CategoryTreeSelectOption => {
+    const children = (byParent.get(option.value) ?? []).map((child) => attachChildren(child))
+    return children.length ? { ...option, children } : { ...option, children: undefined }
+  }
+
+  return (byParent.get('') ?? []).map((option) => attachChildren(option))
+}
+
 /** loadCategories refreshes active category choices for ItemModel creation. */
 async function loadCategories() {
   if (!activeTenantId.value) {
@@ -120,15 +319,36 @@ async function loadCategories() {
   itemCategories.value = await loadCategoryBranch()
 }
 
+/** clearFieldError removes a required-field error after the user provides a value. */
+function clearFieldError(field: keyof typeof fieldErrors, value: string) {
+  if (value.trim()) {
+    fieldErrors[field] = ''
+  }
+}
+
 /** validateCreateForm blocks incomplete ItemModel identities before calling the BFF. */
 function validateCreateForm() {
   const errors: string[] = []
+  fieldErrors.modelCode = ''
+  fieldErrors.modelName = ''
+  fieldErrors.modelKind = ''
+  fieldErrors.modelType = ''
 
   if (!form.modelCode.trim()) {
-    errors.push('Model Code 必填。')
+    fieldErrors.modelCode = t('modelCodeRequired')
+    errors.push(fieldErrors.modelCode)
   }
   if (!form.modelName.trim()) {
-    errors.push('Model Name 必填。')
+    fieldErrors.modelName = t('modelNameRequired')
+    errors.push(fieldErrors.modelName)
+  }
+  if (!form.modelKind) {
+    fieldErrors.modelKind = t('modelKindRequired')
+    errors.push(fieldErrors.modelKind)
+  }
+  if (!form.modelType) {
+    fieldErrors.modelType = t('modelTypeRequired')
+    errors.push(fieldErrors.modelType)
   }
 
   validationErrors.value = errors
@@ -185,45 +405,74 @@ onMounted(() => {
     <section class="item-model-create-page">
       <div class="item-model-create-page__toolbar" data-testid="item-model-create-toolbar">
         <div class="item-model-create-page__toolbar-actions">
-          <Button data-testid="create-model-submit-top" type="primary" :loading="saving" @click="submitItemModel">
-            保存
+          <Button
+            data-testid="create-model-submit-top"
+            type="primary"
+            :loading="saving"
+            @click="submitItemModel"
+          >
+            {{ t('save') }}
           </Button>
-          <Button @click="goBack">放弃</Button>
+          <Button @click="goBack">{{ t('cancel') }}</Button>
         </div>
         <div class="item-model-create-page__status">
-          <span>草稿</span>
-          <span>创建后进入详情</span>
+          <span>{{ t('draft') }}</span>
+          <span>{{ t('createThenDetail') }}</span>
         </div>
       </div>
 
-      <Form class="item-model-create-page__form" layout="vertical" @submit.prevent="submitItemModel">
+      <Form
+        class="item-model-create-page__form"
+        layout="vertical"
+        @submit.prevent="submitItemModel"
+      >
         <section class="item-model-create-page__sheet" data-testid="item-model-form-sheet">
-          <div class="item-model-create-page__identity" data-testid="create-model-identity-stack">
-            <Form.Item label="ItemModel Name" class="item-model-create-page__name-field">
+          <div
+            class="item-model-create-page__identity item-model-create-page__identity--compact"
+            data-testid="create-model-identity-stack"
+          >
+            <Form.Item
+              :label="t('modelCode')"
+              class="item-model-create-page__code-field"
+              data-testid="create-model-code-field"
+              :help="fieldErrors.modelCode"
+              :required="true"
+              :validate-status="fieldErrors.modelCode ? 'error' : undefined"
+            >
               <Input
-                v-model:value="form.modelName"
-                class="item-model-create-page__name-input"
-                data-testid="create-model-name"
-                placeholder="例如：标准浴缸款式"
+                :value="form.modelCode"
+                class="item-model-create-page__identity-input"
+                data-testid="create-model-code"
+                :placeholder="t('modelCodePlaceholder')"
+                @update:value="updateModelCode"
               />
             </Form.Item>
             <Form.Item
-              label="Model Code"
-              class="item-model-create-page__code-field"
-              data-testid="create-model-code-field"
+              :label="t('modelName')"
+              class="item-model-create-page__name-field"
+              data-testid="create-model-name-field"
+              :help="fieldErrors.modelName"
+              :required="true"
+              :validate-status="fieldErrors.modelName ? 'error' : undefined"
             >
-              <Input v-model:value="form.modelCode" data-testid="create-model-code" placeholder="MODEL-CODE" />
+              <Input
+                :value="form.modelName"
+                class="item-model-create-page__identity-input"
+                data-testid="create-model-name"
+                :placeholder="t('modelNamePlaceholder')"
+                @update:value="updateModelName"
+              />
             </Form.Item>
           </div>
 
           <div class="item-model-create-page__capability-strip">
             <Checkbox
               v-for="capability in capabilityOptions"
-              :key="capability.key"
-              v-model:checked="form.capabilities[capability.key]"
-              :data-testid="`create-model-capability-${capability.key}`"
+              :key="capability"
+              v-model:checked="form.capabilities[capability]"
+              :data-testid="`create-model-capability-${capability}`"
             >
-              {{ capability.label }}
+              {{ capabilityLabel(capability) }}
             </Checkbox>
           </div>
 
@@ -244,92 +493,205 @@ onMounted(() => {
 
             <div v-if="currentNotebookTab === 'general'" class="item-model-create-page__tab-panel">
               <div class="item-model-create-page__field-group">
-                <div class="item-model-create-page__field-group-title">General Information</div>
+                <div class="item-model-create-page__field-group-title">
+                  {{ t('generalInformation') }}
+                </div>
                 <div class="item-model-create-page__grid">
-                  <Form.Item label="Model Kind">
-                    <Select v-model:value="form.modelKind" data-testid="create-model-kind">
-                      <SelectOption v-for="kind in modelKindOptions" :key="kind" :value="kind">{{ kind }}</SelectOption>
+                  <Form.Item
+                    :help="fieldErrors.modelKind"
+                    :required="true"
+                    :validate-status="fieldErrors.modelKind ? 'error' : undefined"
+                  >
+                    <template #label>
+                      <span class="item-model-create-page__label-with-help">
+                        <span>{{ t('modelKind') }}</span>
+                        <Tooltip
+                          data-testid="create-model-kind-tooltip"
+                          overlay-class-name="item-model-create-page__help-tooltip"
+                          placement="right"
+                        >
+                          <template #title>
+                            <span class="item-model-create-page__tooltip-lines">
+                              <span
+                                v-for="lineKey in modelKindTooltipKeys"
+                                :key="lineKey"
+                                class="item-model-create-page__tooltip-line"
+                                data-testid="create-model-kind-tooltip-line"
+                              >
+                                {{ t(lineKey) }}
+                              </span>
+                            </span>
+                          </template>
+                          <span class="item-model-create-page__label-help">?</span>
+                        </Tooltip>
+                      </span>
+                    </template>
+                    <Select
+                      v-model:value="form.modelKind"
+                      data-testid="create-model-kind"
+                      @update:value="clearFieldError('modelKind', form.modelKind)"
+                    >
+                      <SelectOption v-for="kind in modelKindOptions" :key="kind" :value="kind">{{
+                        modelKindLabel(kind)
+                      }}</SelectOption>
                     </Select>
                   </Form.Item>
-                  <Form.Item label="Model Type">
-                    <Select v-model:value="form.modelType" data-testid="create-model-type">
-                      <SelectOption v-for="type in modelTypeOptions" :key="type" :value="type">{{ type }}</SelectOption>
+                  <Form.Item
+                    :help="fieldErrors.modelType"
+                    :required="true"
+                    :validate-status="fieldErrors.modelType ? 'error' : undefined"
+                  >
+                    <template #label>
+                      <span class="item-model-create-page__label-with-help">
+                        <span>{{ t('modelType') }}</span>
+                        <Tooltip
+                          data-testid="create-model-type-tooltip"
+                          overlay-class-name="item-model-create-page__help-tooltip"
+                          placement="right"
+                        >
+                          <template #title>
+                            <span class="item-model-create-page__tooltip-lines">
+                              <span
+                                v-for="lineKey in modelTypeTooltipKeys"
+                                :key="lineKey"
+                                class="item-model-create-page__tooltip-line"
+                                data-testid="create-model-type-tooltip-line"
+                              >
+                                {{ t(lineKey) }}
+                              </span>
+                            </span>
+                          </template>
+                          <span class="item-model-create-page__label-help">?</span>
+                        </Tooltip>
+                      </span>
+                    </template>
+                    <Select
+                      v-model:value="form.modelType"
+                      data-testid="create-model-type"
+                      @update:value="clearFieldError('modelType', form.modelType)"
+                    >
+                      <SelectOption v-for="type in modelTypeOptions" :key="type" :value="type">{{
+                        modelTypeLabel(type)
+                      }}</SelectOption>
                     </Select>
                   </Form.Item>
-                  <Form.Item label="Primary Category">
-                    <Select v-model:value="form.primaryCategoryId" data-testid="create-model-category">
-                      <SelectOption value="">不设置分类</SelectOption>
-                      <SelectOption
-                        v-for="category in itemCategories"
-                        :key="category.categoryId"
-                        :value="category.categoryId"
-                      >
-                        {{ category.categoryCode }} · {{ category.categoryName }}
-                      </SelectOption>
-                    </Select>
+                  <Form.Item :label="t('primaryCategory')">
+                    <TreeSelect
+                      v-model:value="form.primaryCategoryId"
+                      data-testid="create-model-category"
+                      :placeholder="t('noPrimaryCategory')"
+                      show-search
+                      tree-default-expand-all
+                      tree-node-filter-prop="title"
+                      :tree-data="categoryTreeOptions"
+                    />
                   </Form.Item>
                 </div>
               </div>
             </div>
 
-            <div v-else-if="currentNotebookTab === 'sales'" class="item-model-create-page__tab-panel">
+            <div
+              v-else-if="currentNotebookTab === 'sales'"
+              class="item-model-create-page__tab-panel"
+            >
               <div class="item-model-create-page__field-group">
-                <div class="item-model-create-page__field-group-title">Sales</div>
+                <div class="item-model-create-page__field-group-title">{{ t('sales') }}</div>
                 <div class="item-model-create-page__option-grid">
-                  <Checkbox v-model:checked="form.capabilities.sellable">Sellable</Checkbox>
+                  <Checkbox v-model:checked="form.capabilities.sellable">{{
+                    t('sellable')
+                  }}</Checkbox>
                 </div>
               </div>
             </div>
 
-            <div v-else-if="currentNotebookTab === 'purchase'" class="item-model-create-page__tab-panel">
+            <div
+              v-else-if="currentNotebookTab === 'purchase'"
+              class="item-model-create-page__tab-panel"
+            >
               <div class="item-model-create-page__field-group">
-                <div class="item-model-create-page__field-group-title">Purchase</div>
+                <div class="item-model-create-page__field-group-title">{{ t('purchase') }}</div>
                 <div class="item-model-create-page__option-grid">
-                  <Checkbox v-model:checked="form.capabilities.purchasable">Purchasable</Checkbox>
+                  <Checkbox v-model:checked="form.capabilities.purchasable">{{
+                    t('purchasable')
+                  }}</Checkbox>
                 </div>
               </div>
             </div>
 
-            <div v-else-if="currentNotebookTab === 'inventory'" class="item-model-create-page__tab-panel">
+            <div
+              v-else-if="currentNotebookTab === 'inventory'"
+              class="item-model-create-page__tab-panel"
+            >
               <div class="item-model-create-page__field-group">
-                <div class="item-model-create-page__field-group-title">Inventory</div>
+                <div class="item-model-create-page__field-group-title">{{ t('inventory') }}</div>
                 <div class="item-model-create-page__option-grid">
-                  <Checkbox v-model:checked="form.capabilities.stockable">Stockable</Checkbox>
-                  <Checkbox v-model:checked="form.capabilities.packable">Packable</Checkbox>
+                  <Checkbox v-model:checked="form.capabilities.stockable">{{
+                    t('stockable')
+                  }}</Checkbox>
+                  <Checkbox v-model:checked="form.capabilities.packable">{{
+                    t('packable')
+                  }}</Checkbox>
                 </div>
               </div>
             </div>
 
-            <div v-else-if="currentNotebookTab === 'manufacturing'" class="item-model-create-page__tab-panel">
+            <div
+              v-else-if="currentNotebookTab === 'manufacturing'"
+              class="item-model-create-page__tab-panel"
+            >
               <div class="item-model-create-page__field-group">
-                <div class="item-model-create-page__field-group-title">Manufacturing</div>
+                <div class="item-model-create-page__field-group-title">
+                  {{ t('manufacturing') }}
+                </div>
                 <div class="item-model-create-page__option-grid">
-                  <Checkbox v-model:checked="form.capabilities.manufacturable">Manufacturable</Checkbox>
-                  <Checkbox v-model:checked="form.capabilities.assemblable">Assemblable</Checkbox>
-                  <Checkbox v-model:checked="form.capabilities.transformable">Transformable</Checkbox>
+                  <Checkbox v-model:checked="form.capabilities.manufacturable">{{
+                    t('manufacturable')
+                  }}</Checkbox>
+                  <Checkbox v-model:checked="form.capabilities.assemblable">{{
+                    t('assemblable')
+                  }}</Checkbox>
+                  <Checkbox v-model:checked="form.capabilities.transformable">{{
+                    t('transformable')
+                  }}</Checkbox>
                 </div>
               </div>
             </div>
 
-            <div v-else-if="currentNotebookTab === 'packaging'" class="item-model-create-page__tab-panel">
+            <div
+              v-else-if="currentNotebookTab === 'packaging'"
+              class="item-model-create-page__tab-panel"
+            >
               <div class="item-model-create-page__field-group">
-                <div class="item-model-create-page__field-group-title">Packaging</div>
+                <div class="item-model-create-page__field-group-title">{{ t('packaging') }}</div>
                 <div class="item-model-create-page__option-grid">
-                  <Checkbox v-model:checked="form.capabilities.packable">Packable</Checkbox>
-                  <Checkbox v-model:checked="form.capabilities.packaged">Packaged</Checkbox>
+                  <Checkbox v-model:checked="form.capabilities.packable">{{
+                    t('packable')
+                  }}</Checkbox>
+                  <Checkbox v-model:checked="form.capabilities.packaged">{{
+                    t('packaged')
+                  }}</Checkbox>
                 </div>
               </div>
             </div>
           </div>
 
-          <div v-if="validationErrors.length" class="item-model-create-page__error" data-testid="create-model-error">
+          <div
+            v-if="validationErrors.length"
+            class="item-model-create-page__error"
+            data-testid="create-model-error"
+          >
             <p v-for="error in validationErrors" :key="error">{{ error }}</p>
           </div>
 
           <div class="item-model-create-page__actions">
-            <Button @click="goBack">放弃</Button>
-            <Button data-testid="create-model-submit" type="primary" :loading="saving" @click="submitItemModel">
-              保存
+            <Button @click="goBack">{{ t('cancel') }}</Button>
+            <Button
+              data-testid="create-model-submit"
+              type="primary"
+              :loading="saving"
+              @click="submitItemModel"
+            >
+              {{ t('save') }}
             </Button>
           </div>
         </section>
@@ -411,19 +773,77 @@ onMounted(() => {
   max-width: 640px;
 }
 
+.item-model-create-page__identity--compact {
+  align-items: end;
+  column-gap: 16px;
+  grid-template-columns: minmax(240px, 360px) minmax(240px, 1fr);
+  max-width: 880px;
+}
+
+.item-model-create-page__code-field,
+.item-model-create-page__name-field {
+  margin-bottom: 0;
+}
+
+.item-model-create-page__code-field :deep(.ant-form-item-label),
 .item-model-create-page__name-field :deep(.ant-form-item-label) {
   color: #64748b;
   font-size: 12px;
 }
 
-.item-model-create-page__name-input {
-  font-size: 24px;
-  font-weight: 600;
-  min-height: 48px;
+.item-model-create-page__label-with-help {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
+}
+
+.item-model-create-page__label-help {
+  align-items: center;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  color: #64748b;
+  cursor: help;
+  display: inline-flex;
+  font-size: 11px;
+  height: 16px;
+  justify-content: center;
+  line-height: 1;
+  width: 16px;
+}
+
+.item-model-create-page__label-help:hover {
+  border-color: #1677ff;
+  color: #1677ff;
+}
+
+.item-model-create-page__tooltip-lines {
+  display: grid;
+  gap: 4px;
+}
+
+.item-model-create-page__tooltip-line {
+  display: block;
+}
+
+:global(.item-model-create-page__help-tooltip .ant-tooltip-inner) {
+  font-size: 12px;
+  line-height: 1.45;
+  max-width: 380px;
+  padding: 8px 10px;
 }
 
 .item-model-create-page__code-field {
-  max-width: 320px;
+  max-width: 100%;
+}
+
+.item-model-create-page__name-field {
+  max-width: 100%;
+}
+
+.item-model-create-page__identity-input {
+  color: #475569;
+  font-size: 15px;
+  min-height: 38px;
 }
 
 .item-model-create-page__capability-strip {
@@ -523,6 +943,10 @@ onMounted(() => {
   .item-model-create-page__identity,
   .item-model-create-page__actions {
     align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+
+  .item-model-create-page__identity--compact {
     grid-template-columns: 1fr;
   }
 

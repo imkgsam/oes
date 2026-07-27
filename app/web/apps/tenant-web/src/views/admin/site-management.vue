@@ -1,19 +1,26 @@
 <script setup lang="ts">
+import type { TableColumnsType } from 'ant-design-vue'
 import type { SiteManagementApi } from '#/api'
 
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, h, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { Page } from '@vben/common-ui'
 import { IconifyIcon } from '@vben/icons'
 
-import { Alert, Button, Empty, Form, Input, Modal, Select, Skeleton, Tag, message } from 'ant-design-vue'
+import { Alert, Button, Dropdown, Empty, Form, Input, Menu, Modal, Select, Table, Tag, message } from 'ant-design-vue'
 
-import { createSiteApi, listSiteCardsApi } from '#/api'
+import {
+  createSiteApi,
+  listLocaleOptionsApi,
+  listSiteCardsApi
+} from '#/api'
 import { $t } from '#/locales'
 import { useAuthContextStore } from '#/store/auth-context'
 
 type SiteCard = SiteManagementApi.SiteCard
+type LocaleOption = SiteManagementApi.SiteLocaleOption
+type SiteTableColumnKey = 'actions' | 'activeLocales' | 'latestPublishVersion' | 'pendingSyncCount' | 'primaryDomain' | 'runtimeStatus' | 'siteName' | 'siteType' | 'status'
 
 const siteManagementFallbackMessages = {
   all: '全部',
@@ -22,6 +29,9 @@ const siteManagementFallbackMessages = {
   createSite: '创建站点',
   defaultLocale: '默认语言',
   detail: '详情',
+  disable: '禁用',
+  edit: '编辑',
+  enabledLocales: '可用语言',
   domainMissing: '未配置主域名',
   emptySiteFilter: '没有匹配筛选条件的站点。',
   emptySites: '暂无站点，创建一个 draft site 后开始配置。',
@@ -30,6 +40,7 @@ const siteManagementFallbackMessages = {
   locales: '语言',
   managedSites: '站点数',
   noActiveLocale: '无启用语言',
+  operation: '操作',
   pendingSync: '待同步',
   previewBaseUrl: '预览地址',
   primaryDomain: '主域名',
@@ -42,6 +53,7 @@ const siteManagementFallbackMessages = {
   siteSearchPlaceholder: '搜索站点名称或域名',
   siteStatus: '站点状态',
   siteType: '站点类型',
+  status: '状态',
   title: '站点管理'
 } as const
 
@@ -54,10 +66,16 @@ function t(key: SiteManagementMessageKey) {
   return translated && translated !== path ? translated : siteManagementFallbackMessages[key]
 }
 
+// formatLocaleOptionLabel renders Google-style native language names without OES UI translation coupling.
+function formatLocaleOptionLabel(locale: LocaleOption) {
+  return locale.nativeName
+}
+
 const router = useRouter()
 const authContextStore = useAuthContextStore()
 const activeTenantId = computed(() => authContextStore.sessionContext?.tenant?.tenantId ?? '')
 const sites = ref<SiteCard[]>([])
+const localeOptions = ref<LocaleOption[]>([])
 const selectedSiteId = ref('')
 const loading = ref(false)
 const actionLoading = ref(false)
@@ -66,6 +84,7 @@ const createSiteModalOpen = ref(false)
 const siteSearchKeyword = ref('')
 const siteStatusFilter = ref('')
 const siteRuntimeFilter = ref('')
+let activeSiteColumnCleanup: null | (() => void) = null
 const createForm = reactive({
   siteName: '',
   siteType: 'brand',
@@ -73,12 +92,52 @@ const createForm = reactive({
   primaryDomain: '',
   previewBaseUrl: ''
 })
+const siteColumnMinWidths: Record<SiteTableColumnKey, number> = {
+  actions: 72,
+  activeLocales: 82,
+  latestPublishVersion: 92,
+  pendingSyncCount: 74,
+  primaryDomain: 160,
+  runtimeStatus: 88,
+  siteName: 200,
+  siteType: 82,
+  status: 84
+}
+const siteColumnWidths = reactive<Record<SiteTableColumnKey, number>>({
+  actions: 72,
+  activeLocales: 90,
+  latestPublishVersion: 102,
+  pendingSyncCount: 78,
+  primaryDomain: 200,
+  runtimeStatus: 96,
+  siteName: 220,
+  siteType: 90,
+  status: 92
+})
 
 const selectedSite = computed(() => sites.value.find((site) => site.siteId === selectedSiteId.value) ?? sites.value[0] ?? null)
 const totalPendingSync = computed(() => sites.value.reduce((sum, site) => sum + (site.pendingSyncCount ?? 0), 0))
 const healthyCount = computed(() => sites.value.filter((site) => site.runtimeStatus === 'healthy').length)
 const siteStatusOptions = computed(() => Array.from(new Set(sites.value.map((site) => site.status).filter(Boolean))))
 const siteRuntimeOptions = computed(() => Array.from(new Set(sites.value.map((site) => site.runtimeStatus || 'unknown'))))
+const enabledLocaleOptions = computed(() => localeOptions.value.map((locale) => ({
+  label: formatLocaleOptionLabel(locale),
+  value: locale.locale
+})))
+const siteTableScrollX = computed(() =>
+  Object.values(siteColumnWidths).reduce((total, width) => total + width, 0)
+)
+const siteTableColumns = computed<TableColumnsType<SiteCard>>(() => [
+  { title: renderResizableSiteHeader('siteName', t('siteName')), dataIndex: 'siteName', key: 'siteName', width: siteColumnWidths.siteName },
+  { align: 'center', title: renderResizableSiteHeader('status', t('siteStatus')), dataIndex: 'status', key: 'status', width: siteColumnWidths.status },
+  { align: 'center', title: renderResizableSiteHeader('primaryDomain', t('primaryDomain')), dataIndex: 'primaryDomain', key: 'primaryDomain', width: siteColumnWidths.primaryDomain },
+  { align: 'center', title: renderResizableSiteHeader('siteType', t('siteType')), dataIndex: 'siteType', key: 'siteType', width: siteColumnWidths.siteType },
+  { align: 'center', title: renderResizableSiteHeader('activeLocales', t('locales')), dataIndex: 'activeLocales', key: 'activeLocales', width: siteColumnWidths.activeLocales },
+  { align: 'center', title: renderResizableSiteHeader('runtimeStatus', t('runtime')), dataIndex: 'runtimeStatus', key: 'runtimeStatus', width: siteColumnWidths.runtimeStatus },
+  { align: 'center', title: renderResizableSiteHeader('pendingSyncCount', t('pendingSync')), dataIndex: 'pendingSyncCount', key: 'pendingSyncCount', width: siteColumnWidths.pendingSyncCount },
+  { align: 'center', title: renderResizableSiteHeader('latestPublishVersion', t('latestVersion')), dataIndex: 'latestPublishVersion', key: 'latestPublishVersion', width: siteColumnWidths.latestPublishVersion },
+  { align: 'center', fixed: 'right', title: t('operation'), dataIndex: 'actions', key: 'actions', width: siteColumnWidths.actions }
+])
 const filteredSites = computed(() => {
   const keyword = siteSearchKeyword.value.trim().toLowerCase()
   return sites.value.filter((site) => {
@@ -109,6 +168,76 @@ async function loadSites() {
   }
 }
 
+// loadLocaleOptions refreshes fixed locale options used by Site creation selectors.
+async function loadLocaleOptions() {
+  if (!activeTenantId.value) return
+  const result = await listLocaleOptionsApi(activeTenantId.value)
+  localeOptions.value = result.locales ?? []
+  if (!createForm.defaultLocale || !enabledLocaleOptions.value.some((option) => option.value === createForm.defaultLocale)) {
+    createForm.defaultLocale = enabledLocaleOptions.value[0]?.value ?? 'en-US'
+  }
+}
+
+// loadWorkspace refreshes global locale options and the tenant-scoped site list together.
+async function loadWorkspace() {
+  loading.value = true
+  errorMessage.value = ''
+  try {
+    await Promise.all([loadLocaleOptions(), loadSites()])
+  } finally {
+    loading.value = false
+  }
+}
+
+function stopSiteColumnResize() {
+  activeSiteColumnCleanup?.()
+  activeSiteColumnCleanup = null
+  document.body.classList.remove('site-management--resizing-column')
+}
+
+// startSiteColumnResize wires one Site table header drag handle to reactive column width state.
+function startSiteColumnResize(event: MouseEvent, columnKey: SiteTableColumnKey) {
+  event.preventDefault()
+  event.stopPropagation()
+
+  stopSiteColumnResize()
+
+  const startX = event.clientX
+  const startWidth = siteColumnWidths[columnKey]
+
+  const handleMouseMove = (moveEvent: MouseEvent) => {
+    siteColumnWidths[columnKey] = Math.max(
+      siteColumnMinWidths[columnKey],
+      Math.round(startWidth + moveEvent.clientX - startX)
+    )
+  }
+
+  const handleMouseUp = () => {
+    stopSiteColumnResize()
+  }
+
+  document.body.classList.add('site-management--resizing-column')
+  document.addEventListener('mousemove', handleMouseMove)
+  document.addEventListener('mouseup', handleMouseUp, { once: true })
+  activeSiteColumnCleanup = () => {
+    document.removeEventListener('mousemove', handleMouseMove)
+    document.removeEventListener('mouseup', handleMouseUp)
+  }
+}
+
+// renderResizableSiteHeader exposes the same compact column resize affordance used by Role Management tables.
+function renderResizableSiteHeader(columnKey: SiteTableColumnKey, label: string) {
+  return h('div', { class: 'site-management__resizable-title' }, [
+    h('span', { class: 'site-management__resizable-title-text' }, label),
+    h('span', {
+      'aria-label': `调整${label}列宽`,
+      class: 'site-management__column-resizer',
+      onMousedown: (event: MouseEvent) => startSiteColumnResize(event, columnKey),
+      role: 'separator'
+    })
+  ])
+}
+
 // createSite creates a draft site from the modal without exposing runtime credentials in the browser.
 async function createSite() {
   if (!activeTenantId.value || !createForm.siteName.trim()) return
@@ -117,7 +246,7 @@ async function createSite() {
     const result = await createSiteApi(activeTenantId.value, {
       siteName: createForm.siteName.trim(),
       siteType: createForm.siteType,
-      defaultLocale: createForm.defaultLocale.trim() || 'zh-CN',
+      defaultLocale: createForm.defaultLocale,
       primaryDomain: createForm.primaryDomain.trim() || undefined,
       previewBaseUrl: createForm.previewBaseUrl.trim() || undefined
     })
@@ -150,6 +279,11 @@ function openSiteDetailPage(site: SiteCard) {
   })
 }
 
+// asSiteCard narrows Ant Table's broad slot record type back to the Site Card contract.
+function asSiteCard(record: SiteCard | Record<string, unknown>) {
+  return record as SiteCard
+}
+
 // selectSite keeps keyboard and row focus visible without opening the heavy detail surface.
 function selectSite(site: SiteCard) {
   selectedSiteId.value = site.siteId
@@ -163,7 +297,8 @@ function statusColor(status?: string) {
   return 'blue'
 }
 
-onMounted(loadSites)
+onMounted(loadWorkspace)
+onBeforeUnmount(stopSiteColumnResize)
 </script>
 
 <template>
@@ -199,7 +334,6 @@ onMounted(loadSites)
 
       <Modal v-model:open="createSiteModalOpen" :title="t('createSite')" width="680px" :footer="null" destroy-on-close>
         <div class="create-modal">
-          <p>{{ t('settingsDescription') }}</p>
           <Form layout="vertical" @submit.prevent="createSite">
             <div class="create-grid">
               <Form.Item :label="t('siteName')">
@@ -218,7 +352,13 @@ onMounted(loadSites)
                 />
               </Form.Item>
               <Form.Item :label="t('defaultLocale')">
-                <Input v-model:value="createForm.defaultLocale" placeholder="zh-CN" />
+                <Select
+                  v-model:value="createForm.defaultLocale"
+                  :options="enabledLocaleOptions"
+                  :placeholder="t('defaultLocale')"
+                  show-search
+                  option-filter-prop="label"
+                />
               </Form.Item>
               <Form.Item :label="t('primaryDomain')">
                 <Input v-model:value="createForm.primaryDomain" placeholder="brand.example.com" />
@@ -238,9 +378,8 @@ onMounted(loadSites)
         </div>
       </Modal>
 
-      <Skeleton v-if="loading" active />
-      <Empty v-else-if="sites.length === 0" :description="t('emptySites')" />
-      <section v-else class="site-table-panel" aria-label="Site list">
+      <Empty v-if="!loading && sites.length === 0" :description="t('emptySites')" />
+      <section v-else-if="!loading" class="site-table-panel" aria-label="Site list">
         <div class="site-table-toolbar">
           <label class="site-filter-field">
             <span>{{ t('siteName') }}</span>
@@ -269,50 +408,76 @@ onMounted(loadSites)
             />
           </label>
         </div>
-        <div class="site-table-scroll">
-          <table class="site-table">
-            <thead>
-              <tr>
-                <th>{{ t('siteName') }}</th>
-                <th>{{ t('siteStatus') }}</th>
-                <th>{{ t('primaryDomain') }}</th>
-                <th>{{ t('siteType') }}</th>
-                <th>{{ t('locales') }}</th>
-                <th>{{ t('runtime') }}</th>
-                <th>{{ t('pendingSync') }}</th>
-                <th>{{ t('latestVersion') }}</th>
-                <th>{{ t('detail') }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="site in filteredSites"
-                :key="site.siteId"
-                class="site-table__row"
-                :class="{ 'site-table__row--active': site.siteId === selectedSite?.siteId }"
-                tabindex="0"
-                @click="selectSite(site)"
-                @keydown.enter="selectSite(site)"
-              >
-                <td>
-                  <strong>{{ site.siteName }}</strong>
-                </td>
-                <td><Tag :color="statusColor(site.status)">{{ site.status }}</Tag></td>
-                <td>{{ site.primaryDomain || t('domainMissing') }}</td>
-                <td>{{ site.siteType }}</td>
-                <td>{{ site.activeLocales?.join(', ') || t('noActiveLocale') }}</td>
-                <td><Tag :color="statusColor(site.runtimeStatus)">{{ site.runtimeStatus || 'unknown' }}</Tag></td>
-                <td>{{ site.pendingSyncCount ?? 0 }}</td>
-                <td>v{{ site.runtimePublishVersion ?? 0 }} / {{ site.latestPublishVersion ?? 0 }}</td>
-                <td>
-                  <Button size="small" data-testid="site-open-detail" @click.stop="openSiteDetailPage(site)">
-                    <template #icon><IconifyIcon icon="lucide:arrow-right" /></template>
-                    {{ t('detail') }}
+        <div class="site-table-shell">
+          <Table
+            class="site-management__ant-table"
+            data-testid="site-list-table"
+            :columns="siteTableColumns"
+            :data-source="filteredSites"
+            :loading="loading"
+            :pagination="false"
+            row-key="siteId"
+            :scroll="{ x: siteTableScrollX }"
+          >
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.key === 'siteName'">
+                <button
+                  class="site-table-name"
+                  type="button"
+                  :class="{ 'site-table-name--active': asSiteCard(record).siteId === selectedSite?.siteId }"
+                  @click="selectSite(asSiteCard(record))"
+                >
+                  {{ asSiteCard(record).siteName }}
+                </button>
+              </template>
+              <template v-else-if="column.key === 'status'">
+                <Tag :color="statusColor(asSiteCard(record).status)">{{ asSiteCard(record).status }}</Tag>
+              </template>
+              <template v-else-if="column.key === 'primaryDomain'">
+                {{ asSiteCard(record).primaryDomain || t('domainMissing') }}
+              </template>
+              <template v-else-if="column.key === 'siteType'">
+                {{ asSiteCard(record).siteType }}
+              </template>
+              <template v-else-if="column.key === 'activeLocales'">
+                {{ asSiteCard(record).activeLocales?.join(', ') || t('noActiveLocale') }}
+              </template>
+              <template v-else-if="column.key === 'runtimeStatus'">
+                <Tag :color="statusColor(asSiteCard(record).runtimeStatus)">{{ asSiteCard(record).runtimeStatus || 'unknown' }}</Tag>
+              </template>
+              <template v-else-if="column.key === 'pendingSyncCount'">
+                {{ asSiteCard(record).pendingSyncCount ?? 0 }}
+              </template>
+              <template v-else-if="column.key === 'latestPublishVersion'">
+                v{{ asSiteCard(record).runtimePublishVersion ?? 0 }} / {{ asSiteCard(record).latestPublishVersion ?? 0 }}
+              </template>
+              <template v-else-if="column.key === 'actions'">
+                <Dropdown :trigger="['click']" placement="bottomRight">
+                  <Button
+                    :aria-label="t('operation')"
+                    class="row-action-trigger"
+                    data-testid="site-action-menu"
+                    shape="circle"
+                    size="small"
+                    type="text"
+                  >
+                    <template #icon><IconifyIcon icon="ant-design:more-outlined" /></template>
                   </Button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                  <template #overlay>
+                    <Menu>
+                      <Menu.Item
+                        key="detail"
+                        data-testid="site-open-detail"
+                        @click="openSiteDetailPage(asSiteCard(record))"
+                      >
+                        {{ t('detail') }}
+                      </Menu.Item>
+                    </Menu>
+                  </template>
+                </Dropdown>
+              </template>
+            </template>
+          </Table>
           <Empty v-if="filteredSites.length === 0" :description="t('emptySiteFilter')" />
         </div>
       </section>
@@ -388,7 +553,8 @@ onMounted(loadSites)
   letter-spacing: 0;
 }
 
-.create-grid {
+.create-grid,
+.locale-modal-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
@@ -437,6 +603,11 @@ onMounted(loadSites)
   display: grid;
   grid-template-columns: minmax(220px, 1fr) minmax(150px, 0.28fr) minmax(150px, 0.28fr);
   gap: 10px;
+  align-items: end;
+}
+
+.site-table-toolbar--with-action {
+  grid-template-columns: minmax(220px, 1fr) minmax(150px, 0.28fr) auto;
 }
 
 .site-filter-field {
@@ -451,68 +622,124 @@ onMounted(loadSites)
   line-height: 18px;
 }
 
-.site-table-scroll {
+.site-table-shell {
   min-width: 0;
   overflow-x: auto;
   border: 1px solid var(--site-border);
   border-radius: 8px;
+  background: var(--site-surface);
 }
 
-.site-table {
-  width: 100%;
-  min-width: 860px;
-  border-collapse: collapse;
+.site-management__ant-table :deep(.ant-table),
+.site-management__ant-table :deep(.ant-table-container) {
+  background: transparent;
 }
 
-.site-table th,
-.site-table td {
-  border-bottom: 1px solid var(--site-border);
-  padding: 11px 12px;
-  text-align: left;
-  vertical-align: middle;
-  white-space: nowrap;
-}
-
-.site-table th {
+.site-management__ant-table :deep(.ant-table-thead > tr > th) {
+  position: relative;
   background: var(--site-surface-soft);
   color: var(--site-muted);
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
+  user-select: none;
+  white-space: nowrap;
 }
 
-.site-table td {
+.site-management__ant-table :deep(.ant-table-thead > tr > th:not(:first-child) .site-management__resizable-title) {
+  justify-content: center;
+  padding-left: 12px;
+}
+
+.site-management__ant-table :deep(.ant-table-tbody > tr > td) {
+  border-bottom-color: var(--site-border);
   color: var(--site-text);
   font-size: 13px;
+  white-space: nowrap;
 }
 
-.site-table td strong {
-  display: block;
-  max-width: 260px;
-  overflow: hidden;
-  color: var(--site-title);
-  font-size: 13px;
-  text-overflow: ellipsis;
-}
-
-.site-table__row {
-  cursor: pointer;
-  outline: none;
-  transition: background-color 0.2s ease;
-}
-
-.site-table__row:hover,
-.site-table__row--active {
+.site-management__ant-table :deep(.ant-table-tbody > tr:hover > td) {
   background: var(--site-surface-soft);
 }
 
-.site-table__row--active td:first-child {
-  box-shadow: inset 3px 0 0 var(--site-primary);
+.site-table-name {
+  display: block;
+  max-width: 260px;
+  overflow: hidden;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--site-title);
+  font-weight: 600;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.site-table-name--active {
+  color: var(--site-primary);
+}
+
+.row-action-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  min-width: 30px;
+  padding-inline: 0;
+}
+
+.site-management__resizable-title {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 24px;
+  padding-right: 12px;
+}
+
+.site-management__resizable-title-text {
+  min-width: 0;
+}
+
+.site-management__column-resizer {
+  position: absolute;
+  top: -12px;
+  right: -10px;
+  bottom: -12px;
+  z-index: 2;
+  width: 14px;
+  cursor: col-resize;
+}
+
+.site-management__column-resizer::after {
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  left: 6px;
+  width: 1px;
+  content: '';
+  background: rgb(15 23 42 / 14%);
+  transition: background 0.16s ease;
+}
+
+.site-management__column-resizer:hover::after {
+  background: var(--site-primary);
+}
+
+:global(body.site-management--resizing-column) {
+  cursor: col-resize;
+  user-select: none;
 }
 
 @media (max-width: 900px) {
   .site-table-toolbar,
-  .create-grid {
+  .create-grid,
+  .locale-modal-grid {
     grid-template-columns: 1fr;
+  }
+
+  .site-table-toolbar > button {
+    width: 100%;
   }
 }
 

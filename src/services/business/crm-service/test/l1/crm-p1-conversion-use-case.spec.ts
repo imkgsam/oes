@@ -24,6 +24,7 @@ import {
 class FakeCrmAccountRepository implements CrmAccountRepository {
   readonly accounts = new Map<string, CrmAccountRecord>()
   readonly sources: CrmSourceRecord[] = []
+  readonly profileItems: any[] = []
 
   async saveAccount(account: CrmAccountRecord): Promise<CrmAccountRecord> {
     this.accounts.set(`${account.tenantId}:${account.id}`, account)
@@ -66,7 +67,47 @@ class FakeCrmAccountRepository implements CrmAccountRepository {
     return source
   }
 
-  async findDuplicateCandidates(_input: CrmDuplicateSearchInput): Promise<CrmAccountDuplicateCandidate[]> {
+  async listAccountProfileItems(tenantId: string, accountId: string): Promise<any[]> {
+    return this.profileItems.filter(
+      (item) => item.tenantId === tenantId && item.crmAccountId === accountId
+    )
+  }
+
+  async addAccountProfileItem(profileItem: any): Promise<any> {
+    this.profileItems.push(profileItem)
+    return profileItem
+  }
+
+  async replaceAccountProfileItems(
+    tenantId: string,
+    accountId: string,
+    profileItems: any[]
+  ): Promise<any[]> {
+    for (let index = this.profileItems.length - 1; index >= 0; index -= 1) {
+      if (
+        this.profileItems[index].tenantId === tenantId &&
+        this.profileItems[index].crmAccountId === accountId
+      ) {
+        this.profileItems.splice(index, 1)
+      }
+    }
+    this.profileItems.push(...profileItems)
+    return profileItems
+  }
+
+  async listSourceRecords(tenantId: string, accountId: string): Promise<CrmSourceRecord[]> {
+    return this.sources.filter(
+      (source) => source.tenantId === tenantId && source.crmAccountId === accountId
+    )
+  }
+
+  async deleteDraftAccount(): Promise<boolean> {
+    return false
+  }
+
+  async findDuplicateCandidates(
+    _input: CrmDuplicateSearchInput
+  ): Promise<CrmAccountDuplicateCandidate[]> {
     return []
   }
 }
@@ -75,6 +116,7 @@ class FakeCrmAccountRepository implements CrmAccountRepository {
 class FakeTenantPartyResolutionPort implements TenantPartyResolutionPort {
   resolveCalls = 0
   registerCalls = 0
+  registerInputs: any[] = []
   nextResult = {
     resultType: TenantPartyResolutionResultType.NO_MATCH,
     candidates: [],
@@ -87,8 +129,9 @@ class FakeTenantPartyResolutionPort implements TenantPartyResolutionPort {
     return this.nextResult
   }
 
-  async registerTenantParty() {
+  async registerTenantParty(input: any) {
     this.registerCalls += 1
+    this.registerInputs.push(input)
     return {
       tenantPartyId: this.nextRegisteredTenantPartyId,
       displayName: 'Created Party'
@@ -105,6 +148,7 @@ function createLead(overrides: Partial<CrmAccountRecord> = {}): CrmAccountRecord
     lifecycleStage: CrmAccountLifecycleStage.LEAD,
     partyTypeHint: CrmAccountTypeHint.ORGANIZATION,
     displayName: 'Acme Importers',
+    leadLegalName: null,
     leadCompanyName: 'Acme Importers Ltd',
     leadPersonName: null,
     leadDomain: 'acme.example',
@@ -132,6 +176,22 @@ function createHarness() {
   }
 }
 
+function addActiveDomainProfileItem(
+  repository: FakeCrmAccountRepository,
+  lead: CrmAccountRecord,
+  normalizedValue = lead.leadDomain ?? 'acme.example'
+) {
+  repository.profileItems.push({
+    id: randomUUID(),
+    tenantId: lead.tenantId,
+    crmAccountId: lead.id,
+    itemType: 'DOMAIN',
+    normalizedValue,
+    rawValue: normalizedValue,
+    status: 'ACTIVE'
+  })
+}
+
 describe('CRM P1 lead conversion use case L1', () => {
   it('ConvertLeadToProspectCustomer / should not call Party when formalization info is insufficient', async () => {
     const harness = createHarness()
@@ -151,7 +211,8 @@ describe('CRM P1 lead conversion use case L1', () => {
       new ConvertLeadToProspectCustomerCommand({
         tenantId: lead.tenantId,
         crmAccountId: lead.id,
-        operatorAccountId: 'sales-1'
+        operatorAccountId: 'sales-1',
+        legalName: 'Acme Importers Incorporated'
       })
     )
 
@@ -163,6 +224,7 @@ describe('CRM P1 lead conversion use case L1', () => {
   it('ConvertLeadToProspectCustomer / should auto-bind exact Party match and formalize the lead', async () => {
     const harness = createHarness()
     const lead = createLead()
+    addActiveDomainProfileItem(harness.repository, lead)
     await harness.repository.saveAccount(lead)
     harness.partyResolution.nextResult = {
       resultType: TenantPartyResolutionResultType.EXACT_MATCH,
@@ -175,7 +237,8 @@ describe('CRM P1 lead conversion use case L1', () => {
       new ConvertLeadToProspectCustomerCommand({
         tenantId: lead.tenantId,
         crmAccountId: lead.id,
-        operatorAccountId: 'sales-1'
+        operatorAccountId: 'sales-1',
+        legalName: 'Acme Importers Incorporated'
       })
     )
 
@@ -192,6 +255,7 @@ describe('CRM P1 lead conversion use case L1', () => {
   it('ConvertLeadToProspectCustomer / should return existing account when matched Party is already bound', async () => {
     const harness = createHarness()
     const lead = createLead()
+    addActiveDomainProfileItem(harness.repository, lead)
     const existing = createLead({
       id: randomUUID(),
       tenantPartyId: 'party-1',
@@ -210,7 +274,8 @@ describe('CRM P1 lead conversion use case L1', () => {
       new ConvertLeadToProspectCustomerCommand({
         tenantId: lead.tenantId,
         crmAccountId: lead.id,
-        operatorAccountId: 'sales-1'
+        operatorAccountId: 'sales-1',
+        legalName: 'Toto Ltd'
       })
     )
 
@@ -222,8 +287,34 @@ describe('CRM P1 lead conversion use case L1', () => {
   it('ConvertLeadToProspectCustomer / should create TenantParty on no match and formalize the lead', async () => {
     const harness = createHarness()
     const lead = createLead()
+    addActiveDomainProfileItem(harness.repository, lead)
     await harness.repository.saveAccount(lead)
     harness.partyResolution.nextRegisteredTenantPartyId = 'party-created-1'
+
+    const result = await harness.convertLead.execute(
+      new ConvertLeadToProspectCustomerCommand({
+        tenantId: lead.tenantId,
+        crmAccountId: lead.id,
+        operatorAccountId: 'sales-1',
+        legalName: 'Acme Importers Incorporated'
+      })
+    )
+
+    expect(result.resultType).toBe(CrmLeadConversionResultType.CONVERTED)
+    expect(harness.partyResolution.registerCalls).toBe(1)
+    expect(harness.partyResolution.registerInputs[0]).toMatchObject({
+      legalName: 'Acme Importers Incorporated',
+      displayName: 'Acme Importers'
+    })
+    expect(result.account?.leadLegalName).toBe('Acme Importers Incorporated')
+    expect(result.account?.tenantPartyId).toBe('party-created-1')
+  })
+
+  it('ConvertLeadToProspectCustomer / should require legal name at formalization time', async () => {
+    const harness = createHarness()
+    const lead = createLead()
+    addActiveDomainProfileItem(harness.repository, lead)
+    await harness.repository.saveAccount(lead)
 
     const result = await harness.convertLead.execute(
       new ConvertLeadToProspectCustomerCommand({
@@ -233,14 +324,115 @@ describe('CRM P1 lead conversion use case L1', () => {
       })
     )
 
+    expect(result.resultType).toBe(CrmLeadConversionResultType.INSUFFICIENT_INFO)
+    expect(harness.partyResolution.resolveCalls).toBe(0)
+    expect(harness.partyResolution.registerCalls).toBe(0)
+  })
+
+  it('ConvertLeadToProspectCustomer / should not formalize from legacy single-value lead fields without profile items', async () => {
+    const harness = createHarness()
+    const lead = createLead()
+    await harness.repository.saveAccount(lead)
+
+    const result = await harness.convertLead.execute(
+      new ConvertLeadToProspectCustomerCommand({
+        tenantId: lead.tenantId,
+        crmAccountId: lead.id,
+        operatorAccountId: 'sales-1',
+        legalName: 'Toto Ltd'
+      })
+    )
+
+    expect(result.resultType).toBe(CrmLeadConversionResultType.INSUFFICIENT_INFO)
+    expect(harness.partyResolution.resolveCalls).toBe(0)
+    expect(harness.partyResolution.registerCalls).toBe(0)
+  })
+
+  it('ConvertLeadToProspectCustomer / should promote account profile items to Party and ignore CRM contacts', async () => {
+    const harness = createHarness()
+    const lead = createLead({
+      leadDomain: null,
+      leadEmail: null,
+      leadPhone: null,
+      leadWhatsapp: null
+    })
+    harness.repository.profileItems.push(
+      {
+        id: randomUUID(),
+        tenantId: lead.tenantId,
+        crmAccountId: lead.id,
+        itemType: 'DOMAIN',
+        normalizedValue: 'toto.com',
+        rawValue: 'https://www.toto.com',
+        label: 'global site',
+        role: 'PRIMARY',
+        status: 'ACTIVE'
+      },
+      {
+        id: randomUUID(),
+        tenantId: lead.tenantId,
+        crmAccountId: lead.id,
+        itemType: 'DOMAIN',
+        normalizedValue: 'totousa.com',
+        rawValue: 'https://www.totousa.com',
+        label: 'US site',
+        role: 'REGIONAL',
+        status: 'ACTIVE'
+      },
+      {
+        id: randomUUID(),
+        tenantId: lead.tenantId,
+        crmAccountId: lead.id,
+        itemType: 'EMAIL',
+        normalizedValue: 'info@toto.com',
+        rawValue: 'info@toto.com',
+        label: 'general inbox',
+        role: 'PRIMARY',
+        status: 'ACTIVE'
+      }
+    )
+    await harness.repository.saveAccount(lead)
+    harness.partyResolution.nextRegisteredTenantPartyId = 'party-toto'
+
+    const result = await harness.convertLead.execute(
+      new ConvertLeadToProspectCustomerCommand({
+        tenantId: lead.tenantId,
+        crmAccountId: lead.id,
+        operatorAccountId: 'sales-1',
+        legalName: 'Acme Importers Incorporated'
+      })
+    )
+
     expect(result.resultType).toBe(CrmLeadConversionResultType.CONVERTED)
-    expect(harness.partyResolution.registerCalls).toBe(1)
-    expect(result.account?.tenantPartyId).toBe('party-created-1')
+    expect(harness.partyResolution.registerInputs[0]).toEqual(
+      expect.objectContaining({
+        profileItems: [
+          expect.objectContaining({
+            itemType: 'DOMAIN',
+            normalizedValue: 'toto.com',
+            rawValue: 'https://www.toto.com',
+            role: 'PRIMARY'
+          }),
+          expect.objectContaining({
+            itemType: 'DOMAIN',
+            normalizedValue: 'totousa.com',
+            rawValue: 'https://www.totousa.com',
+            role: 'REGIONAL'
+          }),
+          expect.objectContaining({
+            itemType: 'EMAIL',
+            normalizedValue: 'info@toto.com'
+          })
+        ]
+      })
+    )
+    expect(harness.partyResolution.registerInputs[0].profileItems).toHaveLength(3)
   })
 
   it('ConvertLeadToProspectCustomer / should require user choice for non-exact Party candidates', async () => {
     const harness = createHarness()
     const lead = createLead()
+    addActiveDomainProfileItem(harness.repository, lead)
     await harness.repository.saveAccount(lead)
     harness.partyResolution.nextResult = {
       resultType: TenantPartyResolutionResultType.CANDIDATES_FOUND,
@@ -260,7 +452,8 @@ describe('CRM P1 lead conversion use case L1', () => {
       new ConvertLeadToProspectCustomerCommand({
         tenantId: lead.tenantId,
         crmAccountId: lead.id,
-        operatorAccountId: 'sales-1'
+        operatorAccountId: 'sales-1',
+        legalName: 'Acme Importers Incorporated'
       })
     )
 

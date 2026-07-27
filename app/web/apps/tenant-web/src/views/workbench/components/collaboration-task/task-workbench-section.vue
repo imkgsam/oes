@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import type { AdminSecurityApi } from '#/api';
-import type { CollaborationTaskApi } from '#/api';
+import type { AdminSecurityApi, CollaborationTaskApi } from '#/api';
+import type { EchartsUIType } from '@vben/plugins/echarts';
 
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, nextTick, onMounted, reactive, ref } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
+import { EchartsUI, useEcharts } from '@vben/plugins/echarts';
 import { usePreferences } from '@vben/preferences';
 
 import {
@@ -42,7 +43,7 @@ type TaskPriority = CollaborationTaskApi.TaskPriority;
 type TaskScope = CollaborationTaskApi.TaskScope;
 type TaskStatus = CollaborationTaskApi.TaskStatus;
 type TaskView = CollaborationTaskApi.TaskView;
-type ScopeStatusView = 'ALL' | TaskStatus;
+type ScopeStatusView = TaskStatus;
 
 interface ScopeState {
   error: string;
@@ -70,10 +71,45 @@ interface HistoryState {
   total: number;
 }
 
+interface HistoryDayGroup {
+  cancelledCount: number;
+  completedCount: number;
+  key: string;
+  label: string;
+  summary: string;
+  tasks: TaskView[];
+}
+
 interface AssignableAccountOption {
   accountId: string;
   label: string;
   subtitle: string;
+}
+
+interface TaskHealthState {
+  assignedToMe: number;
+  completedToday: number;
+  delegated: number;
+  dueSoon: number;
+  error: string;
+  loaded: boolean;
+  loading: boolean;
+  overdue: number;
+  refreshing: boolean;
+  trendCompleted: number[];
+  trendDueSoon: number[];
+  trendLabels: string[];
+  trendOverdue: number[];
+  trendUnfinished: number[];
+  myTodo: number;
+}
+
+interface TaskHealthMetric {
+  key: 'assignedToMe' | 'completedToday' | 'dueSoon' | 'myTodo' | 'overdue';
+  label: string;
+  tone: 'assigned' | 'normal' | 'ok' | 'warn';
+  unit: string;
+  value: number;
 }
 
 type PendingActionKind = 'cancel' | 'complete' | 'reopen';
@@ -81,9 +117,9 @@ type PendingActionKind = 'cancel' | 'complete' | 'reopen';
 const Textarea = Input.TextArea;
 const authContextStore = useAuthContextStore();
 const { isDark } = usePreferences();
-const activeTenantId = computed(
-  () => authContextStore.sessionContext?.tenant?.tenantId ?? '',
-);
+const taskHealthChartRef = ref<EchartsUIType>();
+const { renderEcharts: renderTaskHealthEcharts } = useEcharts(taskHealthChartRef);
+const activeTenantId = computed(() => authContextStore.sessionContext?.tenant?.tenantId ?? '');
 const canAssignTask = computed(() =>
   authContextStore.actionCodes.includes('collaboration.task.assign'),
 );
@@ -116,10 +152,11 @@ const scopeStates = reactive<Record<TaskScope, ScopeState>>({
   MY_TODO: emptyScopeState(),
 });
 const scopeStatusViews = reactive<Record<TaskScope, ScopeStatusView>>({
-  ASSIGNED_TO_ME: 'ALL',
-  CREATED_BY_ME: 'ALL',
-  MY_TODO: 'ALL',
+  ASSIGNED_TO_ME: 'OPEN',
+  CREATED_BY_ME: 'OPEN',
+  MY_TODO: 'OPEN',
 });
+const taskHealthState = reactive<TaskHealthState>(emptyTaskHealthState());
 const createForm = reactive<CreateTaskFormState>(emptyCreateForm());
 const createDrawerOpen = ref(false);
 const detailDrawerOpen = ref(false);
@@ -136,12 +173,10 @@ const loadingAccountOptionIds = new Set<string>();
 const createDrawerScope = ref<TaskScope>('MY_TODO');
 const historyModalOpen = ref(false);
 const historyState = reactive<HistoryState>(emptyHistoryState());
-const creatorVisibleStatuses: TaskStatus[] = [
-  'OPEN',
-  'IN_PROGRESS',
-  'COMPLETED',
-  'CANCELLED',
-];
+const activeTaskStatuses: TaskStatus[] = ['OPEN', 'IN_PROGRESS'];
+const completedTaskSamplePageSize = 50;
+const executionTaskScopes: TaskScope[] = ['MY_TODO', 'ASSIGNED_TO_ME'];
+const managementTaskScopes: TaskScope[] = ['CREATED_BY_ME'];
 
 const hasAnyPermissionError = computed(() =>
   Object.values(scopeStates).some((state) => isPermissionMessage(state.error)),
@@ -152,6 +187,61 @@ const createDrawerTitle = computed(() =>
 const historyModalTitle = computed(() => `${scopeTitle(historyState.scope)}历史`);
 const historyModalZIndex = 2000;
 const taskDetailDrawerZIndex = 2100;
+const groupedHistoryTasks = computed(() => groupHistoryTasksByTerminalDate(historyState.items));
+const historyModalSubtitle = computed(() => `按终态时间倒序 · ${historyState.total} 条记录`);
+const taskHealthMetrics = computed<TaskHealthMetric[]>(() => [
+  {
+    key: 'myTodo',
+    label: '我的待办',
+    tone: 'normal',
+    unit: '项',
+    value: taskHealthState.myTodo,
+  },
+  {
+    key: 'assignedToMe',
+    label: '指派给我',
+    tone: 'assigned',
+    unit: '项',
+    value: taskHealthState.assignedToMe,
+  },
+  {
+    key: 'dueSoon',
+    label: '即将到期',
+    tone: 'warn',
+    unit: '项',
+    value: taskHealthState.dueSoon,
+  },
+  {
+    key: 'completedToday',
+    label: '今日完成',
+    tone: 'ok',
+    unit: '项',
+    value: taskHealthState.completedToday,
+  },
+  {
+    key: 'overdue',
+    label: '已逾期',
+    tone: 'warn',
+    unit: '项',
+    value: taskHealthState.overdue,
+  },
+]);
+const taskHealthLabel = computed(() => {
+  if (taskHealthState.overdue > 0) return '需要处理';
+  if (taskHealthState.dueSoon > 0) return '关注到期';
+  return '可控';
+});
+const taskHealthDescription = computed(() => {
+  if (taskHealthState.overdue > 0) return '优先处理已逾期任务，再看 48 小时内到期项。';
+  if (taskHealthState.dueSoon > 0) return '48 小时内到期任务需要提前安排节奏。';
+  return '当前个人执行数据稳定，我分派的任务单独跟踪。';
+});
+// taskHealthHasTrendActivity keeps an all-zero week from rendering overlapping chart baselines.
+const taskHealthHasTrendActivity = computed(() =>
+  [...taskHealthState.trendUnfinished, ...taskHealthState.trendCompleted].some(
+    (value) => value > 0,
+  ),
+);
 
 /** emptyScopeState returns a neutral list state for one workbench task block. */
 function emptyScopeState(): ScopeState {
@@ -188,12 +278,36 @@ function emptyHistoryState(): HistoryState {
   };
 }
 
+/** emptyTaskHealthState returns the neutral state for the workbench overview strip. */
+function emptyTaskHealthState(): TaskHealthState {
+  return {
+    assignedToMe: 0,
+    completedToday: 0,
+    delegated: 0,
+    dueSoon: 0,
+    error: '',
+    loaded: false,
+    loading: false,
+    overdue: 0,
+    refreshing: false,
+    trendCompleted: [],
+    trendDueSoon: [],
+    trendLabels: [],
+    trendOverdue: [],
+    trendUnfinished: [],
+    myTodo: 0,
+  };
+}
+
 /** refreshWorkbenchTasks loads every P1 task scope used by the login workbench. */
 async function refreshWorkbenchTasks() {
   if (!activeTenantId.value) return;
   globalError.value = '';
   rememberCurrentAccountOption();
-  await Promise.all(taskScopes.map((scope) => loadScopeTasks(scope.key)));
+  await Promise.all([
+    ...taskScopes.map((scope) => loadScopeTasks(scope.key)),
+    loadTaskHealthOverview(),
+  ]);
 }
 
 /** loadScopeTasks loads the default workbench slice for one P1 task scope. */
@@ -229,6 +343,316 @@ async function loadScopeTasks(scope: TaskScope) {
   }
 }
 
+/** loadTaskHealthOverview refreshes aggregate workbench counts without relying on visible rows. */
+async function loadTaskHealthOverview() {
+  if (!activeTenantId.value) return;
+  const isInitialLoad = !taskHealthState.loaded;
+  taskHealthState.loading = isInitialLoad;
+  taskHealthState.refreshing = !isInitialLoad;
+  taskHealthState.error = '';
+  const now = new Date();
+  try {
+    const [executionActiveResults, managementActiveResults, dueSoon, overdue, completedResults] =
+      await Promise.all([
+        listTaskSamples(
+          () => ({
+            includeArchived: false,
+            overdueOnly: false,
+            status: activeTaskStatuses,
+          }),
+          executionTaskScopes,
+        ),
+        listTaskSamples(
+          () => ({
+            includeArchived: false,
+            overdueOnly: false,
+            status: activeTaskStatuses,
+          }),
+          managementTaskScopes,
+        ),
+        sumTaskTotals(
+          () => ({
+            dueAfter: now.toISOString(),
+            dueBefore: addHours(now, 48).toISOString(),
+            includeArchived: false,
+            overdueOnly: false,
+            status: activeTaskStatuses,
+          }),
+          executionTaskScopes,
+        ),
+        sumTaskTotals(
+          () => ({
+            includeArchived: false,
+            overdueOnly: true,
+            status: activeTaskStatuses,
+          }),
+          executionTaskScopes,
+        ),
+        listTaskSamples(
+          () => ({
+            includeArchived: false,
+            overdueOnly: false,
+            status: ['COMPLETED'],
+          }),
+          executionTaskScopes,
+        ),
+      ]);
+    const activeTasks = flattenTaskResults(executionActiveResults);
+    const completedTasks = flattenTaskResults(completedResults);
+    const trend = buildTaskHealthTrend(now, activeTasks, completedTasks);
+    const myTodo = taskResultTotalForScope(executionActiveResults, executionTaskScopes, 'MY_TODO');
+    const assignedToMe = taskResultTotalForScope(
+      executionActiveResults,
+      executionTaskScopes,
+      'ASSIGNED_TO_ME',
+    );
+    const delegated = sumTaskResultTotals(managementActiveResults);
+    const completedToday = countTodayCompletedTasks(completedTasks, now);
+    taskHealthState.myTodo = myTodo;
+    taskHealthState.assignedToMe = assignedToMe;
+    taskHealthState.delegated = delegated;
+    taskHealthState.dueSoon = dueSoon;
+    taskHealthState.overdue = overdue;
+    taskHealthState.completedToday = completedToday;
+    taskHealthState.trendCompleted = trend.completed;
+    taskHealthState.trendDueSoon = trend.dueSoon;
+    taskHealthState.trendLabels = trend.labels;
+    taskHealthState.trendOverdue = trend.overdue;
+    taskHealthState.trendUnfinished = trend.unfinished;
+    await renderTaskHealthChartAfterDom();
+  } catch (error: any) {
+    taskHealthState.error = resolveTaskError(error);
+  } finally {
+    taskHealthState.loaded = true;
+    taskHealthState.loading = false;
+    taskHealthState.refreshing = false;
+  }
+}
+
+/** sumTaskTotals sums contract totals across the workbench's disjoint personal task scopes. */
+async function sumTaskTotals(
+  buildQuery: (
+    scope: TaskScope,
+  ) => Omit<CollaborationTaskApi.ListTasksQuery, 'page' | 'pageSize' | 'scope'>,
+  scopes: TaskScope[] = taskScopes.map((scope) => scope.key),
+) {
+  const results = await Promise.all(
+    scopes.map((scope) =>
+      listCollaborationTasksApi(activeTenantId.value, {
+        ...buildQuery(scope),
+        page: 1,
+        pageSize: 1,
+        scope,
+      }),
+    ),
+  );
+  return results.reduce((sum, result) => sum + (result.total ?? result.items?.length ?? 0), 0);
+}
+
+/** listTaskSamples loads bounded row samples while preserving list total for overview counts. */
+async function listTaskSamples(
+  buildQuery: (
+    scope: TaskScope,
+  ) => Omit<CollaborationTaskApi.ListTasksQuery, 'page' | 'pageSize' | 'scope'>,
+  scopes: TaskScope[] = taskScopes.map((scope) => scope.key),
+) {
+  return Promise.all(
+    scopes.map((scope) =>
+      listCollaborationTasksApi(activeTenantId.value, {
+        ...buildQuery(scope),
+        page: 1,
+        pageSize: completedTaskSamplePageSize,
+        scope,
+      }),
+    ),
+  );
+}
+
+/** sumTaskResultTotals sums totals from already-loaded list results without an extra count query. */
+function sumTaskResultTotals(results: CollaborationTaskApi.ListTasksResult[]) {
+  return results.reduce((sum, result) => sum + (result.total ?? result.items?.length ?? 0), 0);
+}
+
+/** taskResultTotalForScope returns one scoped total from result arrays requested in the same scope order. */
+function taskResultTotalForScope(
+  results: CollaborationTaskApi.ListTasksResult[],
+  scopes: TaskScope[],
+  scope: TaskScope,
+) {
+  const index = scopes.indexOf(scope);
+  const result = index >= 0 ? results[index] : undefined;
+  return result?.total ?? result?.items?.length ?? 0;
+}
+
+/** flattenTaskResults returns sampled rows from all personal task scopes. */
+function flattenTaskResults(results: CollaborationTaskApi.ListTasksResult[]) {
+  return results.flatMap((result) => result.items ?? []);
+}
+
+/** countTodayCompletedTasks derives today's completed count from recent completed rows. */
+function countTodayCompletedTasks(tasks: TaskView[], now: Date) {
+  return tasks.filter((task) => isSameLocalDate(task.completedAt, now)).length;
+}
+
+/** buildTaskHealthTrend derives a compact seven-day multi-line trend from task timestamps. */
+function buildTaskHealthTrend(now: Date, activeTasks: TaskView[], completedTasks: TaskView[]) {
+  const days = buildRecentLocalDays(now, 7);
+  return {
+    completed: days.map(
+      (day) => completedTasks.filter((task) => isSameLocalDate(task.completedAt, day)).length,
+    ),
+    dueSoon: days.map(
+      (day) => activeTasks.filter((task) => isSameLocalDate(task.dueAt, day)).length,
+    ),
+    labels: days.map(formatTrendDayLabel),
+    overdue: days.map((day) => {
+      const end = endOfLocalDay(day).getTime();
+      return activeTasks.filter((task) => {
+        const dueAt = parseDateTime(task.dueAt);
+        return dueAt ? dueAt.getTime() <= end && dueAt.getTime() < now.getTime() : false;
+      }).length;
+    }),
+    unfinished: days.map((day) => {
+      const end = endOfLocalDay(day).getTime();
+      return activeTasks.filter((task) => {
+        const createdAt = parseDateTime(task.createdAt);
+        return createdAt ? createdAt.getTime() <= end : false;
+      }).length;
+    }),
+  };
+}
+
+/** renderTaskHealthChartAfterDom paints the compact ECharts distribution after metrics render. */
+async function renderTaskHealthChartAfterDom() {
+  await nextTick();
+  if (!taskHealthHasTrendActivity.value) return;
+  renderTaskHealthChart();
+}
+
+/** renderTaskHealthChart compares open workload with daily completion in one readable chart. */
+function renderTaskHealthChart() {
+  renderTaskHealthEcharts({
+    grid: {
+      bottom: 20,
+      containLabel: false,
+      left: 4,
+      right: 4,
+      top: 8,
+    },
+    series: [
+      {
+        areaStyle: { color: 'rgba(37, 99, 235, 0.12)' },
+        data: taskHealthState.trendUnfinished,
+        emphasis: { focus: 'series' },
+        itemStyle: { color: '#2563eb' },
+        lineStyle: { color: '#2563eb', width: 2.2 },
+        name: '未完成',
+        showSymbol: false,
+        silent: false,
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 6,
+        type: 'line',
+      },
+      {
+        barMaxWidth: 14,
+        data: taskHealthState.trendCompleted,
+        emphasis: { focus: 'series' },
+        itemStyle: {
+          borderRadius: [4, 4, 1, 1],
+          color: '#059669',
+        },
+        name: '每日完成',
+        silent: false,
+        type: 'bar',
+      },
+    ],
+    tooltip: {
+      axisPointer: {
+        lineStyle: { color: '#94a3b8', type: 'dashed' },
+        type: 'line',
+      },
+      backgroundColor: 'rgba(15, 23, 42, 0.94)',
+      borderColor: 'rgba(148, 163, 184, 0.28)',
+      borderWidth: 1,
+      padding: [8, 10],
+      show: true,
+      textStyle: { color: '#f8fafc', fontSize: 11 },
+      trigger: 'axis',
+    },
+    xAxis: {
+      axisPointer: { show: false },
+      axisLabel: {
+        color: '#64748b',
+        fontSize: 10,
+        margin: 8,
+      },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      data: taskHealthState.trendLabels,
+      type: 'category',
+    },
+    yAxis: {
+      axisLabel: { show: false },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitLine: {
+        lineStyle: {
+          color: '#e2e8f0',
+          type: 'dashed',
+        },
+      },
+      minInterval: 1,
+      splitNumber: 2,
+      triggerEvent: false,
+      type: 'value',
+    },
+  });
+}
+
+/** addHours returns a new date offset without mutating the original query baseline. */
+function addHours(value: Date, hours: number) {
+  return new Date(value.getTime() + hours * 60 * 60 * 1000);
+}
+
+/** buildRecentLocalDays returns local day starts for a compact trend window. */
+function buildRecentLocalDays(reference: Date, count: number) {
+  const today = new Date(reference.getFullYear(), reference.getMonth(), reference.getDate());
+  return Array.from({ length: count }, (_, index) => {
+    const day = new Date(today);
+    day.setDate(today.getDate() - (count - 1 - index));
+    return day;
+  });
+}
+
+/** endOfLocalDay returns the final millisecond of one local calendar day. */
+function endOfLocalDay(value: Date) {
+  return new Date(value.getFullYear(), value.getMonth(), value.getDate(), 23, 59, 59, 999);
+}
+
+/** formatTrendDayLabel renders compact local day labels for the trend axis. */
+function formatTrendDayLabel(value: Date) {
+  return `${value.getMonth() + 1}/${value.getDate()}`;
+}
+
+/** parseDateTime accepts optional ISO timestamps without throwing inside trend derivation. */
+function parseDateTime(value: string | undefined) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+/** isSameLocalDate checks completedAt against the operator's current local day. */
+function isSameLocalDate(value: string | undefined, reference: Date) {
+  const parsed = parseDateTime(value);
+  if (!parsed) return false;
+  return (
+    parsed.getFullYear() === reference.getFullYear() &&
+    parsed.getMonth() === reference.getMonth() &&
+    parsed.getDate() === reference.getDate()
+  );
+}
+
 /** handleScopeStatusViewChange changes one block status lens and refreshes only that block. */
 async function handleScopeStatusViewChange(scope: TaskScope, value: string | number) {
   const nextView = normalizeStatusView(value);
@@ -240,14 +664,12 @@ async function handleScopeStatusViewChange(scope: TaskScope, value: string | num
 /** statusFilterForScope maps the current workbench view to the Task query status filter. */
 function statusFilterForScope(scope: TaskScope): TaskStatus[] | undefined {
   const selectedView = scopeStatusViews[scope];
-  if (selectedView !== 'ALL') return [selectedView];
-  return scope === 'CREATED_BY_ME' ? creatorVisibleStatuses : undefined;
+  return [selectedView];
 }
 
 /** statusViewOptions returns compact status lenses that match each Task block's operator perspective. */
 function statusViewOptions(scope: TaskScope) {
   const activeOptions = [
-    { label: '全部', value: 'ALL' },
     { label: '待处理', value: 'OPEN' },
     { label: '进行中', value: 'IN_PROGRESS' },
   ];
@@ -263,7 +685,6 @@ function statusViewOptions(scope: TaskScope) {
 function normalizeStatusView(value: string | number): ScopeStatusView | undefined {
   const normalized = String(value);
   if (
-    normalized === 'ALL' ||
     normalized === 'OPEN' ||
     normalized === 'IN_PROGRESS' ||
     normalized === 'COMPLETED' ||
@@ -419,13 +840,8 @@ async function loadAssignableAccounts(keyword = '') {
 function toAssignableAccountOption(
   account: AdminSecurityApi.AccountDirectoryItem,
 ): AssignableAccountOption {
-  const label =
-    account.accountDisplayName ||
-    account.userDisplayName ||
-    account.accountId;
-  const subtitle = [account.userDisplayName, account.tenantName]
-    .filter(Boolean)
-    .join(' / ');
+  const label = account.accountDisplayName || account.userDisplayName || account.accountId;
+  const subtitle = [account.userDisplayName, account.tenantName].filter(Boolean).join(' / ');
   return {
     accountId: account.accountId,
     label,
@@ -471,10 +887,7 @@ function rememberCurrentAccountOption() {
   if (!account?.accountId) return;
   accountOptionsById[account.accountId] = {
     accountId: account.accountId,
-    label:
-      account.name ||
-      authContextStore.sessionContext?.operator?.displayName ||
-      '当前账号',
+    label: account.name || authContextStore.sessionContext?.operator?.displayName || '当前账号',
     subtitle: authContextStore.sessionContext?.tenant?.name ?? '',
   };
 }
@@ -511,9 +924,7 @@ async function loadAccountOptionById(accountId: string) {
       status: 'ENABLED',
       tenantId: activeTenantId.value,
     });
-    const matchedAccount = (result.items ?? []).find(
-      (account) => account.accountId === accountId,
-    );
+    const matchedAccount = (result.items ?? []).find((account) => account.accountId === accountId);
     if (matchedAccount) {
       rememberAssignableAccounts([toAssignableAccountOption(matchedAccount)]);
     }
@@ -539,17 +950,11 @@ function accountDisplaySubtitle(accountId?: string) {
 /** taskParticipantLabel returns the compact participant cue shown on non-self task rows. */
 function taskParticipantLabel(task: TaskView, scope: TaskScope) {
   if (scope === 'CREATED_BY_ME') {
-    const assigneeName = participantDisplayName(
-      task.assigneeAccountId,
-      task.assigneeDisplayName,
-    );
+    const assigneeName = participantDisplayName(task.assigneeAccountId, task.assigneeDisplayName);
     return assigneeName ? `委派给 ${assigneeName}` : '';
   }
   if (scope === 'ASSIGNED_TO_ME') {
-    const creatorName = participantDisplayName(
-      task.createdByAccountId,
-      task.createdByDisplayName,
-    );
+    const creatorName = participantDisplayName(task.createdByAccountId, task.createdByDisplayName);
     return creatorName ? `来自 ${creatorName}` : '';
   }
   return '';
@@ -642,9 +1047,7 @@ function resolveTaskError(error: any) {
 
 /** isPermissionMessage detects BFF and service permission failures. */
 function isPermissionMessage(message: string) {
-  return /permission|forbidden|denied|PERMISSION|UNAUTHORIZED|权限/i.test(
-    message,
-  );
+  return /permission|forbidden|denied|PERMISSION|UNAUTHORIZED|权限/i.test(message);
 }
 
 /** statusLabel maps frozen P1 statuses to workbench labels. */
@@ -750,6 +1153,78 @@ function formatTaskDuration(task: TaskView) {
   return parts.join('') || '少于1分钟';
 }
 
+/** groupHistoryTasksByTerminalDate sorts terminal tasks and groups them by local terminal date. */
+function groupHistoryTasksByTerminalDate(tasks: TaskView[]): HistoryDayGroup[] {
+  const groups = new Map<string, TaskView[]>();
+  const sortedTasks = [...tasks].sort(
+    (left, right) => terminalTaskTime(right).getTime() - terminalTaskTime(left).getTime(),
+  );
+  for (const task of sortedTasks) {
+    const terminalTime = terminalTaskTime(task);
+    const key = formatHistoryDayKey(terminalTime);
+    groups.set(key, [...(groups.get(key) ?? []), task]);
+  }
+  return [...groups.entries()].map(([key, groupTasks]) => {
+    const completedCount = groupTasks.filter((task) => task.status === 'COMPLETED').length;
+    const cancelledCount = groupTasks.filter((task) => task.status === 'CANCELLED').length;
+    return {
+      cancelledCount,
+      completedCount,
+      key,
+      label: formatHistoryDayLabel(groupTasks[0] ? terminalTaskTime(groupTasks[0]) : new Date()),
+      summary: formatHistoryDaySummary(groupTasks.length, completedCount, cancelledCount),
+      tasks: groupTasks,
+    };
+  });
+}
+
+/** terminalTaskTime returns the user-facing end time used for history sorting and grouping. */
+function terminalTaskTime(task: TaskView) {
+  return (
+    parseDateTime(task.completedAt) ??
+    parseDateTime(task.cancelledAt) ??
+    parseDateTime(task.updatedAt) ??
+    parseDateTime(task.createdAt) ??
+    new Date(0)
+  );
+}
+
+/** formatHistoryDayKey renders a stable local date grouping key. */
+function formatHistoryDayKey(value: Date) {
+  const year = value.getFullYear();
+  const month = `${value.getMonth() + 1}`.padStart(2, '0');
+  const day = `${value.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/** formatHistoryDayLabel renders the date label for a history group header. */
+function formatHistoryDayLabel(value: Date) {
+  const today = new Date();
+  const dateLabel = value.toLocaleDateString('zh-CN', {
+    day: '2-digit',
+    month: '2-digit',
+  });
+  return isSameLocalDate(value.toISOString(), today) ? `今天 · ${dateLabel}` : dateLabel;
+}
+
+/** formatHistoryDaySummary renders compact group counts for completed and cancelled tasks. */
+function formatHistoryDaySummary(total: number, completedCount: number, cancelledCount: number) {
+  const parts = [
+    `${total} 条`,
+    completedCount ? `完成 ${completedCount}` : '',
+    cancelledCount ? `取消 ${cancelledCount}` : '',
+  ].filter(Boolean);
+  return parts.join(' · ');
+}
+
+/** formatTerminalTaskTime renders the compact end time shown on grouped history rows. */
+function formatTerminalTaskTime(task: TaskView) {
+  return terminalTaskTime(task).toLocaleTimeString('zh-CN', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 onMounted(refreshWorkbenchTasks);
 </script>
 
@@ -782,6 +1257,67 @@ onMounted(refreshWorkbenchTasks);
       closable
       @close="globalError = ''"
     />
+    <section
+      class="task-health-panel"
+      data-testid="task-health-panel"
+      :aria-busy="taskHealthState.loading || taskHealthState.refreshing"
+    >
+      <div class="task-health-panel__copy">
+        <span>Task data</span>
+        <div class="task-health-panel__title">
+          <strong>任务数据</strong>
+          <em>{{ taskHealthLabel }}</em>
+        </div>
+        <p>{{ taskHealthDescription }}</p>
+        <small class="task-health-panel__scope-note">
+          管理关注 <b>我分派 {{ taskHealthState.delegated }}</b>
+        </small>
+        <small v-if="taskHealthState.error">{{ taskHealthState.error }}</small>
+      </div>
+
+      <div class="task-health-panel__metrics">
+        <article
+          v-for="metric in taskHealthMetrics"
+          :key="metric.key"
+          class="task-health-metric"
+          :class="`task-health-metric--${metric.tone}`"
+          :data-testid="`task-health-${metric.key}`"
+        >
+          <span>{{ metric.label }}</span>
+          <b>
+            {{ metric.value }}
+            <small>{{ metric.unit }}</small>
+          </b>
+          <i aria-hidden="true"></i>
+        </article>
+      </div>
+
+      <div class="task-health-panel__chart">
+        <div class="task-health-panel__chart-header">
+          <span class="task-health-panel__chart-title">
+            <strong>执行趋势</strong>
+            <span>近 7 日</span>
+          </span>
+          <span class="task-health-panel__chart-legend" aria-label="趋势图图例">
+            <span>
+              <i class="task-health-panel__legend-dot--unfinished" aria-hidden="true"></i>
+              未完成
+            </span>
+            <span>
+              <i class="task-health-panel__legend-dot--completed" aria-hidden="true"></i>
+              每日完成
+            </span>
+          </span>
+        </div>
+        <div v-if="taskHealthHasTrendActivity" class="task-health-panel__chart-canvas">
+          <EchartsUI ref="taskHealthChartRef" />
+        </div>
+        <div v-else class="task-health-panel__chart-empty" data-testid="task-health-chart-empty">
+          <IconifyIcon icon="lucide:chart-no-axes-column-increasing" />
+          <span>近 7 日暂无任务波动</span>
+        </div>
+      </div>
+    </section>
     <div class="task-scope-grid">
       <article
         v-for="scope in taskScopes"
@@ -852,11 +1388,7 @@ onMounted(refreshWorkbenchTasks);
           }"
           :aria-busy="scopeStates[scope.key].loading || scopeStates[scope.key].refreshing"
         >
-          <Skeleton
-            v-if="scopeStates[scope.key].loading"
-            active
-            :paragraph="{ rows: 3 }"
-          />
+          <Skeleton v-if="scopeStates[scope.key].loading" active :paragraph="{ rows: 3 }" />
           <Alert
             v-else-if="scopeStates[scope.key].error"
             :message="scopeStates[scope.key].error"
@@ -882,16 +1414,10 @@ onMounted(refreshWorkbenchTasks);
                 <small>{{ task.description || '无说明' }}</small>
               </span>
               <span class="task-card-row__meta">
-                <Tag
-                  :class="statusTagClass(task.status)"
-                  :color="statusColor(task.status)"
-                >
+                <Tag :class="statusTagClass(task.status)" :color="statusColor(task.status)">
                   {{ statusLabel(task.status) }}
                 </Tag>
-                <Tag
-                  :class="priorityTagClass(task.priority)"
-                  :color="priorityColor(task.priority)"
-                >
+                <Tag :class="priorityTagClass(task.priority)" :color="priorityColor(task.priority)">
                   {{ priorityLabel(task.priority) }}
                 </Tag>
                 <small
@@ -908,11 +1434,7 @@ onMounted(refreshWorkbenchTasks);
       </article>
     </div>
 
-    <Drawer
-      v-model:open="createDrawerOpen"
-      :title="createDrawerTitle"
-      width="520"
-    >
+    <Drawer v-model:open="createDrawerOpen" :title="createDrawerTitle" width="520">
       <div class="task-drawer-form">
         <label class="task-field">
           <span>任务类型</span>
@@ -938,10 +1460,7 @@ onMounted(refreshWorkbenchTasks);
             placeholder="例如：复核今日交接事项"
           />
         </label>
-        <label
-          v-if="createForm.assignmentMode === 'ASSIGN' && canAssignTask"
-          class="task-field"
-        >
+        <label v-if="createForm.assignmentMode === 'ASSIGN' && canAssignTask" class="task-field">
           <span>处理人</span>
           <Select
             v-model:value="createForm.assigneeAccountId"
@@ -973,11 +1492,7 @@ onMounted(refreshWorkbenchTasks);
         <label class="task-field">
           <span>优先级</span>
           <Select v-model:value="createForm.priority">
-            <SelectOption
-              v-for="priority in priorityOptions"
-              :key="priority"
-              :value="priority"
-            >
+            <SelectOption v-for="priority in priorityOptions" :key="priority" :value="priority">
               {{ priorityLabel(priority) }}
             </SelectOption>
           </Select>
@@ -1027,44 +1542,49 @@ onMounted(refreshWorkbenchTasks);
       :z-index="historyModalZIndex"
     >
       <section class="task-history-panel">
-        <Skeleton
-          v-if="historyState.loading"
-          active
-          :paragraph="{ rows: 4 }"
-        />
+        <p class="task-history-panel__summary">{{ historyModalSubtitle }}</p>
+        <Skeleton v-if="historyState.loading" active :paragraph="{ rows: 4 }" />
         <Alert
           v-else-if="historyState.error"
           :message="historyState.error"
           show-icon
           type="error"
         />
-        <Empty
-          v-else-if="historyState.items.length === 0"
-          description="暂无历史任务"
-        />
+        <Empty v-else-if="historyState.items.length === 0" description="暂无历史任务" />
         <div v-else class="task-history-list">
-          <button
-            v-for="task in historyState.items"
-            :key="task.taskId"
-            class="task-history-row"
-            type="button"
-            @click="openTaskDetail(task)"
+          <section
+            v-for="group in groupedHistoryTasks"
+            :key="group.key"
+            class="task-history-day-group"
           >
-            <span class="task-history-row__main">
-              <strong>{{ task.title }}</strong>
-              <small>{{ task.description || '无说明' }}</small>
-            </span>
-            <span class="task-history-row__meta">
-              <Tag
-                :class="statusTagClass(task.status)"
-                :color="statusColor(task.status)"
-              >
-                {{ statusLabel(task.status) }}
-              </Tag>
-              <small>花费 {{ formatTaskDuration(task) }}</small>
-              <small>{{ formatDateTime(task.completedAt || task.cancelledAt) }}</small>
-            </span>
-          </button>
+            <header class="task-history-day-group__header">
+              <strong>{{ group.label }}</strong>
+              <span>{{ group.summary }}</span>
+            </header>
+            <button
+              v-for="task in group.tasks"
+              :key="task.taskId"
+              class="task-history-row"
+              type="button"
+              @click="openTaskDetail(task)"
+            >
+              <span class="task-history-row__top">
+                <strong class="task-history-row__title">{{ task.title }}</strong>
+                <Tag :class="statusTagClass(task.status)" :color="statusColor(task.status)">
+                  {{ statusLabel(task.status) }}
+                </Tag>
+              </span>
+              <span class="task-history-row__bottom">
+                <small class="task-history-row__description">
+                  {{ task.description || '无说明' }}
+                </small>
+                <small class="task-history-row__terminal-meta">
+                  <span>{{ formatTaskDuration(task) }}</span>
+                  <time>{{ formatTerminalTaskTime(task) }}</time>
+                </small>
+              </span>
+            </button>
+          </section>
         </div>
       </section>
     </Modal>
@@ -1152,8 +1672,7 @@ onMounted(refreshWorkbenchTasks);
           </Button>
           <Button
             v-if="
-              !selectedTask.archivedAt &&
-              ['OPEN', 'IN_PROGRESS'].includes(`${selectedTask.status}`)
+              !selectedTask.archivedAt && ['OPEN', 'IN_PROGRESS'].includes(`${selectedTask.status}`)
             "
             type="primary"
             @click="preparePendingAction('complete')"
@@ -1162,8 +1681,7 @@ onMounted(refreshWorkbenchTasks);
           </Button>
           <Button
             v-if="
-              !selectedTask.archivedAt &&
-              ['OPEN', 'IN_PROGRESS'].includes(`${selectedTask.status}`)
+              !selectedTask.archivedAt && ['OPEN', 'IN_PROGRESS'].includes(`${selectedTask.status}`)
             "
             danger
             @click="preparePendingAction('cancel')"
@@ -1239,6 +1757,287 @@ onMounted(refreshWorkbenchTasks);
   max-width: 760px;
 }
 
+.task-health-panel {
+  align-items: center;
+  background: color-mix(in srgb, var(--ant-color-bg-container, #ffffff) 94%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ant-color-border, #d7e1ee) 88%, transparent);
+  border-radius: 8px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.72);
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 220px minmax(0, 1fr) minmax(280px, 300px);
+  min-height: 168px;
+  min-width: 0;
+  padding: 14px 16px;
+}
+
+.task-health-panel__copy {
+  border-right: 1px solid var(--ant-color-border-secondary, #e2e8f0);
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding-right: 14px;
+}
+
+.task-health-panel__copy > span {
+  color: var(--ant-color-text-secondary, #64748b);
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.task-health-panel__title {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+
+.task-health-panel__title strong {
+  color: var(--ant-color-text, #172033);
+  font-size: 20px;
+  font-weight: 760;
+  line-height: 1;
+}
+
+.task-health-panel__title em {
+  background: #e8f2ff;
+  border: 1px solid #cddfff;
+  border-radius: 999px;
+  color: #1d4ed8;
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 820;
+  line-height: 1;
+  padding: 4px 7px;
+}
+
+.task-health-panel__copy p,
+.task-health-panel__copy small {
+  color: var(--ant-color-text-secondary, #64748b);
+  font-size: 12px;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.task-health-panel__copy small {
+  color: #b45309;
+}
+
+.task-health-panel__scope-note {
+  align-items: center;
+  background: var(--ant-color-bg-layout, #f8fafc);
+  border: 1px solid var(--ant-color-border-secondary, #e2e8f0);
+  border-radius: 999px;
+  color: var(--ant-color-text-secondary, #64748b);
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 720;
+  gap: 6px;
+  justify-self: start;
+  line-height: 1;
+  margin-top: 1px;
+  padding: 5px 8px;
+}
+
+.task-health-panel__scope-note b {
+  color: var(--ant-color-text, #172033);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 760;
+}
+
+.task-health-panel__metrics {
+  align-items: center;
+  align-self: stretch;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  min-width: 0;
+}
+
+.task-health-metric {
+  background: var(--ant-color-bg-layout, #f8fafc);
+  border: 1px solid var(--ant-color-border-secondary, #e2e8f0);
+  border-radius: 8px;
+  display: grid;
+  grid-template-rows: 16px 34px 10px;
+  min-height: 86px;
+  min-width: 0;
+  padding: 11px 10px 9px;
+}
+
+.task-health-metric > span {
+  color: var(--ant-color-text-secondary, #64748b);
+  font-size: 11px;
+  line-height: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-health-metric b {
+  align-items: baseline;
+  color: var(--ant-color-text, #172033);
+  display: flex;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 26px;
+  font-weight: 760;
+  gap: 4px;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.task-health-metric small {
+  color: var(--ant-color-text-tertiary, #94a3b8);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.task-health-metric i {
+  border-radius: 999px;
+  height: 3px;
+  margin-top: 5px;
+  width: 38px;
+}
+
+.task-health-metric--normal i {
+  background: #2563eb;
+}
+
+.task-health-metric--assigned i {
+  background: #7c3aed;
+}
+
+.task-health-metric--warn b {
+  color: #b45309;
+}
+
+.task-health-metric--warn i {
+  background: #d97706;
+}
+
+.task-health-metric--ok b {
+  color: #047857;
+}
+
+.task-health-metric--ok i {
+  background: #059669;
+}
+
+.task-health-panel__chart {
+  align-self: stretch;
+  border-left: 1px solid var(--ant-color-border-secondary, #e2e8f0);
+  display: grid;
+  gap: 8px;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-width: 0;
+  padding-left: 16px;
+}
+
+.task-health-panel__chart-header,
+.task-health-panel__chart-title,
+.task-health-panel__chart-legend,
+.task-health-panel__chart-legend > span {
+  align-items: center;
+  display: flex;
+}
+
+.task-health-panel__chart-header {
+  gap: 12px;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.task-health-panel__chart-title {
+  flex: 0 0 auto;
+  gap: 7px;
+}
+
+.task-health-panel__chart-legend {
+  gap: 10px;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.task-health-panel__chart-legend > span {
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.task-health-panel__chart-legend i {
+  border-radius: 999px;
+  display: inline-block;
+  flex: 0 0 auto;
+  height: 7px;
+  width: 7px;
+}
+
+.task-health-panel__legend-dot--unfinished {
+  background: #2563eb;
+}
+
+.task-health-panel__legend-dot--completed {
+  background: #059669;
+}
+
+.task-health-panel__chart strong {
+  color: var(--ant-color-text, #172033);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.task-health-panel__chart span {
+  color: var(--ant-color-text-secondary, #64748b);
+  font-size: 11px;
+}
+
+.task-health-panel__chart-canvas {
+  height: 96px;
+  min-height: 96px;
+  min-width: 0;
+  overflow: hidden;
+  width: 100%;
+}
+
+.task-health-panel__chart-canvas :deep(div),
+.task-health-panel__chart-canvas :deep(canvas) {
+  height: 96px !important;
+  max-height: 96px;
+  min-height: 96px;
+  width: 100% !important;
+}
+
+.task-health-panel__chart-empty {
+  align-content: center;
+  align-items: center;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 30px,
+    color-mix(in srgb, var(--ant-color-border-secondary, #e2e8f0) 72%, transparent) 31px
+  );
+  border-radius: 6px;
+  color: var(--ant-color-text-tertiary, #94a3b8);
+  display: grid;
+  gap: 7px;
+  height: 96px;
+  justify-items: center;
+  min-height: 96px;
+}
+
+.task-health-panel__chart-empty :deep(svg) {
+  height: 20px;
+  width: 20px;
+}
+
+.task-health-panel__chart-empty span {
+  font-size: 11px;
+  font-weight: 650;
+}
+
 :global(.task-history-modal) {
   --task-history-modal-width: min(560px, calc(100vw - 72px));
 }
@@ -1251,7 +2050,7 @@ onMounted(refreshWorkbenchTasks);
   align-items: stretch;
   display: grid;
   gap: 14px;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .task-scope-block {
@@ -1262,6 +2061,7 @@ onMounted(refreshWorkbenchTasks);
   gap: 10px;
   grid-template-rows: auto 1fr;
   height: var(--task-block-height);
+  justify-self: stretch;
   max-height: var(--task-block-height);
   min-height: var(--task-block-height);
   min-width: 0;
@@ -1273,10 +2073,15 @@ onMounted(refreshWorkbenchTasks);
     border-color 0.18s ease,
     box-shadow 0.18s ease,
     transform 0.18s ease;
+  width: 100%;
 }
 
 .task-scope-block:hover {
-  border-color: color-mix(in srgb, var(--ant-color-primary, #2563eb) 36%, var(--ant-color-border, #dfe5ee));
+  border-color: color-mix(
+    in srgb,
+    var(--ant-color-primary, #2563eb) 36%,
+    var(--ant-color-border, #dfe5ee)
+  );
   box-shadow: 0 14px 30px -24px rgba(15, 23, 42, 0.5);
 }
 
@@ -1447,7 +2252,11 @@ onMounted(refreshWorkbenchTasks);
 
 .task-card-row:hover {
   background: var(--ant-color-bg-container, #ffffff);
-  border-color: color-mix(in srgb, var(--ant-color-primary, #2563eb) 24%, var(--ant-color-border, #cbd5e1));
+  border-color: color-mix(
+    in srgb,
+    var(--ant-color-primary, #2563eb) 24%,
+    var(--ant-color-border, #cbd5e1)
+  );
 }
 
 .task-card-row:active {
@@ -1587,6 +2396,13 @@ onMounted(refreshWorkbenchTasks);
   scrollbar-width: thin;
 }
 
+.task-history-panel__summary {
+  color: var(--ant-color-text-secondary, #64748b);
+  font-size: 12px;
+  line-height: 1.45;
+  margin: 0 0 10px;
+}
+
 .task-history-panel::-webkit-scrollbar {
   width: 6px;
 }
@@ -1598,19 +2414,57 @@ onMounted(refreshWorkbenchTasks);
 
 .task-history-list {
   display: grid;
-  gap: 8px;
+  gap: 12px;
 }
 
-.task-history-row {
-  align-items: center;
+.task-history-day-group {
   background: var(--ant-color-bg-layout, #f8fafc);
   border: 1px solid var(--ant-color-border-secondary, #e2e8f0);
   border-radius: 8px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.task-history-day-group__header {
+  align-items: center;
+  background: var(--ant-color-bg-container, #ffffff);
+  border-bottom: 1px solid var(--ant-color-border-secondary, #e2e8f0);
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  min-width: 0;
+  padding: 9px 12px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.task-history-day-group__header strong {
+  color: var(--ant-color-text, #172033);
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.3;
+}
+
+.task-history-day-group__header span {
+  color: var(--ant-color-text-secondary, #64748b);
+  font-size: 12px;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-history-row {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--ant-color-border-secondary, #e2e8f0) 72%, transparent);
+  border-radius: 0;
   color: inherit;
   cursor: pointer;
   display: grid;
-  gap: 12px;
-  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
   min-width: 0;
   padding: 10px 12px;
   text-align: left;
@@ -1618,53 +2472,77 @@ onMounted(refreshWorkbenchTasks);
     background-color 0.18s ease,
     border-color 0.18s ease,
     transform 0.18s ease;
+  width: 100%;
+}
+
+.task-history-row:last-child {
+  border-bottom: 0;
 }
 
 .task-history-row:hover {
   background: var(--ant-color-bg-container, #ffffff);
-  border-color: color-mix(in srgb, var(--ant-color-primary, #2563eb) 24%, var(--ant-color-border, #cbd5e1));
 }
 
 .task-history-row:active {
   transform: translateY(1px);
 }
 
-.task-history-row__main {
+.task-history-row__top,
+.task-history-row__bottom {
+  align-items: center;
   display: grid;
-  gap: 3px;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) auto;
   min-width: 0;
+  width: 100%;
 }
 
-.task-history-row__main strong,
-.task-history-row__main small,
-.task-history-row__meta small {
+.task-history-row__title,
+.task-history-row__description,
+.task-history-row__terminal-meta {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.task-history-row__main strong {
+.task-history-row__title {
   color: var(--ant-color-text, #172033);
+  display: block;
   font-size: 13.5px;
+  line-height: 1.35;
+  max-width: 100%;
+}
+
+.task-history-row__description,
+.task-history-row__terminal-meta {
+  color: var(--ant-color-text-secondary, #64748b);
+  font-size: 12px;
   line-height: 1.35;
 }
 
-.task-history-row__main small,
-.task-history-row__meta small {
-  color: var(--ant-color-text-secondary, #64748b);
-  font-size: 12px;
-}
-
-.task-history-row__meta {
+.task-history-row__terminal-meta {
   align-items: center;
   display: flex;
-  flex: 0 0 auto;
   gap: 6px;
-  min-width: 0;
+  justify-content: flex-end;
 }
 
-.task-history-row__meta :deep(.ant-tag) {
+.task-history-row__terminal-meta time {
+  color: var(--ant-color-text, #172033);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.task-history-row__top :deep(.ant-tag) {
+  justify-self: end;
+  font-size: 11px;
+  line-height: 20px;
   margin-inline-end: 0;
+  max-width: 112px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .task-assignee-select {
@@ -1827,6 +2705,23 @@ onMounted(refreshWorkbenchTasks);
     --task-block-height: 338px;
   }
 
+  .task-health-panel {
+    align-items: stretch;
+    grid-template-columns: 180px minmax(0, 1fr);
+  }
+
+  .task-health-panel__copy {
+    padding-right: 14px;
+  }
+
+  .task-health-panel__chart {
+    border-left: 0;
+    border-top: 1px solid var(--ant-color-border-secondary, #e2e8f0);
+    grid-column: 1 / -1;
+    padding-left: 0;
+    padding-top: 10px;
+  }
+
   .task-scope-grid {
     grid-template-columns: 1fr;
   }
@@ -1841,13 +2736,34 @@ onMounted(refreshWorkbenchTasks);
     max-height: calc(100dvh - 156px);
   }
 
+  .task-health-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .task-health-panel__copy {
+    border-right: 0;
+    padding-right: 0;
+  }
+
   .task-history-row {
     align-items: start;
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .task-history-row__meta {
-    flex-wrap: wrap;
+  .task-history-day-group__header {
+    align-items: start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .task-history-row__top,
+  .task-history-row__bottom {
+    align-items: start;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .task-history-row__terminal-meta {
+    justify-content: flex-start;
   }
 
   .task-detail-panel__header {
@@ -1863,6 +2779,134 @@ onMounted(refreshWorkbenchTasks);
   .task-detail-grid {
     grid-template-columns: 1fr;
   }
+
+  .task-health-panel__metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+:global(html.dark) .task-health-panel,
+.task-workbench-section--dark .task-health-panel {
+  background: #111827;
+  border-color: rgb(71 85 105 / 0.78);
+  box-shadow:
+    0 18px 36px -30px rgb(0 0 0 / 0.78),
+    inset 0 1px 0 rgb(255 255 255 / 0.04);
+}
+
+:global(html.dark) .task-health-panel__copy,
+:global(html.dark) .task-health-panel__chart,
+.task-workbench-section--dark .task-health-panel__copy,
+.task-workbench-section--dark .task-health-panel__chart {
+  border-color: rgb(71 85 105 / 0.7);
+}
+
+:global(html.dark) .task-health-panel__chart-empty,
+.task-workbench-section--dark .task-health-panel__chart-empty {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 30px,
+    rgb(71 85 105 / 0.42) 31px
+  );
+  color: #93a4ba;
+}
+
+:global(html.dark) .task-health-panel__copy > span,
+:global(html.dark) .task-health-panel__copy p,
+:global(html.dark) .task-health-panel__chart span,
+:global(html.dark) .task-health-metric > span,
+.task-workbench-section--dark .task-health-panel__copy > span,
+.task-workbench-section--dark .task-health-panel__copy p,
+.task-workbench-section--dark .task-health-panel__chart span,
+.task-workbench-section--dark .task-health-metric > span {
+  color: #9ca8ba;
+}
+
+:global(html.dark) .task-health-panel__title strong,
+:global(html.dark) .task-health-panel__chart strong,
+.task-workbench-section--dark .task-health-panel__title strong,
+.task-workbench-section--dark .task-health-panel__chart strong {
+  color: #f8fafc;
+}
+
+:global(html.dark) .task-health-panel__title em,
+.task-workbench-section--dark .task-health-panel__title em {
+  background: rgb(37 99 235 / 0.18);
+  border-color: rgb(96 165 250 / 0.42);
+  color: #bfdbfe;
+}
+
+:global(html.dark) .task-health-panel__scope-note,
+.task-workbench-section--dark .task-health-panel__scope-note {
+  background: #172033;
+  border-color: rgb(71 85 105 / 0.7);
+  color: #9ca8ba;
+}
+
+:global(html.dark) .task-health-panel__scope-note b,
+.task-workbench-section--dark .task-health-panel__scope-note b {
+  color: #f8fafc;
+}
+
+:global(html.dark) .task-health-metric,
+.task-workbench-section--dark .task-health-metric {
+  background: #172033;
+  border-color: rgb(71 85 105 / 0.7);
+}
+
+:global(html.dark) .task-health-metric b,
+.task-workbench-section--dark .task-health-metric b {
+  color: #eff6ff;
+}
+
+:global(html.dark) .task-health-metric small,
+.task-workbench-section--dark .task-health-metric small {
+  color: #93a4ba;
+}
+
+:global(html.dark) .task-health-metric--warn b,
+.task-workbench-section--dark .task-health-metric--warn b {
+  color: #fed7aa;
+}
+
+:global(html.dark) .task-health-metric--ok b,
+.task-workbench-section--dark .task-health-metric--ok b {
+  color: #bbf7d0;
+}
+
+:global(html.dark) .task-history-panel__summary,
+:global(html.dark) .task-history-day-group__header span,
+.task-workbench-section--dark .task-history-panel__summary,
+.task-workbench-section--dark .task-history-day-group__header span {
+  color: #9ca8ba;
+}
+
+:global(html.dark) .task-history-day-group,
+.task-workbench-section--dark .task-history-day-group {
+  background: #172033;
+  border-color: rgb(71 85 105 / 0.7);
+}
+
+:global(html.dark) .task-history-day-group__header,
+.task-workbench-section--dark .task-history-day-group__header {
+  background: #111827;
+  border-color: rgb(71 85 105 / 0.7);
+}
+
+:global(html.dark) .task-history-day-group__header strong,
+.task-workbench-section--dark .task-history-day-group__header strong {
+  color: #f8fafc;
+}
+
+:global(html.dark) .task-history-row,
+.task-workbench-section--dark .task-history-row {
+  border-color: rgb(71 85 105 / 0.52);
+}
+
+:global(html.dark) .task-history-row:hover,
+.task-workbench-section--dark .task-history-row:hover {
+  background: #1f2a44;
 }
 
 :global(html.dark) .task-card-row__main small,

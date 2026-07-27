@@ -38,6 +38,51 @@ export namespace SiteManagementApi {
     defaultLocale: string
   }
 
+  export interface SiteLocaleOption {
+    locale: string
+    nativeName: string
+  }
+
+  export interface ListLocaleOptionsResult {
+    locales: SiteLocaleOption[]
+  }
+
+  export interface SitePagePreflightIssue {
+    code: string
+    pageKey: string
+    locale: string
+  }
+
+  export interface LocaleCompletenessResult {
+    complete: boolean
+    issues: string[]
+    preflightIssues?: SitePagePreflightIssue[]
+  }
+
+  export interface SitePage {
+    pageKey: string
+    supportedLocales: string[]
+    capabilityAvailable: boolean
+    enabled: boolean
+    indexable: boolean
+    capabilityDrift: boolean
+    syncStatus: string
+    lastDiscoveredAt: string
+  }
+
+  export interface ListSitePagesResult {
+    pages: SitePage[]
+  }
+
+  export interface UpdateSitePageGovernancePayload {
+    enabled: boolean
+    indexable: boolean
+  }
+
+  export interface UpdateSitePageGovernanceResult {
+    page: SitePage
+  }
+
   export interface SiteCredentialMetadata {
     credentialId: string
     clientId: string
@@ -130,13 +175,43 @@ export namespace SiteManagementApi {
     slug?: string
     title?: string
     summary?: string
+    coverImageAlt?: string
     status?: string
+    categoryIds?: string[]
   }
 
   export interface SiteContentEntry {
     contentId: string
     contentType: 'blog' | 'news' | string
     localeVersions?: SiteContentLocaleVersion[]
+  }
+
+  export interface ContentCategoryLocaleVersion {
+    categoryVersionId?: string
+    categoryId: string
+    locale: string
+    slug: string
+    displayName: string
+    archiveIntro?: string
+    archiveLabel?: string
+    seoTitle?: string
+    seoDescription?: string
+    seoImage?: string
+    historicalSlugs?: string[]
+    syncStatus?: string
+    draftRevision?: number
+    lastPublishedRevision?: number
+    lastPublishedAt?: string
+  }
+
+  export interface ContentCategory {
+    categoryId: string
+    siteId: string
+    sortOrder?: number
+    syncStatus?: string
+    deleted?: boolean
+    publishedUsage?: { blogCount?: number; newsCount?: number; draftReferenceCount?: number }
+    localeVersions?: ContentCategoryLocaleVersion[]
   }
 
   export interface CreateCategoryPayload {
@@ -166,9 +241,27 @@ export namespace SiteManagementApi {
     slug: string
     title: string
     summary?: string
+    coverImageAlt?: string
+    categoryIds?: string[]
     bodyHtml: string
     seoTitle: string
     seoDescription: string
+  }
+
+  export interface CreateContentCategoryPayload {
+    sortOrder?: number
+    initialLocaleVersion: SaveContentCategoryLocaleVersionPayload
+  }
+
+  export interface SaveContentCategoryLocaleVersionPayload {
+    locale: string
+    slug: string
+    displayName: string
+    archiveIntro?: string
+    archiveLabel?: string
+    seoTitle?: string
+    seoDescription?: string
+    seoImage?: string
   }
 
   export interface AddProductsPayload {
@@ -213,13 +306,125 @@ export namespace SiteManagementApi {
     previewToken: string
     expiresAt: string
   }
+  export interface FaqCategoryLocaleVersion { categoryId: string; locale: string; title: string; anchorKey: string; sortOrder: number; syncStatus?: string }
+  export interface FaqCategory { categoryId: string; siteId: string; status: string; syncStatus: string; localeVersions: FaqCategoryLocaleVersion[] }
+  export interface FaqEntryLocaleVersion { entryId: string; locale: string; question: string; answerHtml: string; sortOrder: number; syncStatus?: string }
+  export interface FaqEntry { entryId: string; siteId: string; categoryId: string; status: string; syncStatus: string; localeVersions: FaqEntryLocaleVersion[] }
+  export interface SaveFaqCategoryLocaleVersionPayload { locale: string; title: string; anchorKey: string; sortOrder: number }
+  export interface CreateFaqEntryPayload { categoryId: string }
+  export interface SaveFaqEntryLocaleVersionPayload { locale: string; question: string; answerHtml: string; sortOrder: number }
+  export interface FaqCompleteness { complete: boolean; issues: string[] }
 }
 
 const siteBase = (tenantId: string) => `/site-management/tenants/${encodeURIComponent(tenantId)}/sites`
+const localeOptionsBase = (tenantId: string) => `/site-management/tenants/${encodeURIComponent(tenantId)}/locale-options`
+
+/** invalidSitePageResponse creates one stable API-boundary validation error. */
+function invalidSitePageResponse(field: string): TypeError {
+  return new TypeError(`Invalid SitePage response: ${field}`)
+}
+
+/** parsePlainSitePageRecord rejects null, arrays, and class instances at the SitePage API boundary. */
+function parsePlainSitePageRecord(value: unknown, field: string): Record<string, unknown> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw invalidSitePageResponse(field)
+  }
+  const prototype = Object.getPrototypeOf(value)
+  if (prototype !== Object.prototype && prototype !== null) {
+    throw invalidSitePageResponse(field)
+  }
+  return value as Record<string, unknown>
+}
+
+/** parseDenseSitePageArray enforces an own-indexed array without inventing capacity limits or repairing holes. */
+function parseDenseSitePageArray(value: unknown, field: string): unknown[] {
+  if (!Array.isArray(value)) {
+    throw invalidSitePageResponse(field)
+  }
+  for (let index = 0; index < value.length; index += 1) {
+    if (!Object.prototype.hasOwnProperty.call(value, index)) {
+      throw invalidSitePageResponse(`${field}[${index}]`)
+    }
+  }
+  return value
+}
+
+/** parseSitePageString requires one present non-empty string field. */
+function parseSitePageString(value: unknown, field: string): string {
+  if (typeof value !== 'string' || value.length === 0) {
+    throw invalidSitePageResponse(field)
+  }
+  return value
+}
+
+/** parseSitePageBoolean requires one present boolean field without coercion. */
+function parseSitePageBoolean(value: unknown, field: string): boolean {
+  if (typeof value !== 'boolean') {
+    throw invalidSitePageResponse(field)
+  }
+  return value
+}
+
+/** parseSitePageRecord validates and reconstructs one exact SitePage read model. */
+function parseSitePageRecord(value: unknown, field: string): SiteManagementApi.SitePage {
+  const record = parsePlainSitePageRecord(value, field)
+  const supportedLocales = parseDenseSitePageArray(
+    record.supportedLocales,
+    `${field}.supportedLocales`
+  ).map((locale, index) =>
+    parseSitePageString(locale, `${field}.supportedLocales[${index}]`)
+  )
+  return {
+    pageKey: parseSitePageString(record.pageKey, `${field}.pageKey`),
+    supportedLocales,
+    capabilityAvailable: parseSitePageBoolean(
+      record.capabilityAvailable,
+      `${field}.capabilityAvailable`
+    ),
+    enabled: parseSitePageBoolean(record.enabled, `${field}.enabled`),
+    indexable: parseSitePageBoolean(record.indexable, `${field}.indexable`),
+    capabilityDrift: parseSitePageBoolean(record.capabilityDrift, `${field}.capabilityDrift`),
+    syncStatus: parseSitePageString(record.syncStatus, `${field}.syncStatus`),
+    lastDiscoveredAt: parseSitePageString(record.lastDiscoveredAt, `${field}.lastDiscoveredAt`)
+  }
+}
+
+/** parseListSitePagesResult validates the list envelope and unique page identities. */
+function parseListSitePagesResult(value: unknown): SiteManagementApi.ListSitePagesResult {
+  const record = parsePlainSitePageRecord(value, 'result')
+  const pageKeys = new Set<string>()
+  const pages = parseDenseSitePageArray(record.pages, 'result.pages').map((page, index) => {
+    const parsed = parseSitePageRecord(page, `result.pages[${index}]`)
+    if (pageKeys.has(parsed.pageKey)) {
+      throw invalidSitePageResponse(`duplicate pageKey ${parsed.pageKey}`)
+    }
+    pageKeys.add(parsed.pageKey)
+    return parsed
+  })
+  return { pages }
+}
+
+/** parseUpdateSitePageGovernanceResult validates the response envelope and requested page identity. */
+function parseUpdateSitePageGovernanceResult(
+  value: unknown,
+  requestedPageKey: string
+): SiteManagementApi.UpdateSitePageGovernanceResult {
+  const record = parsePlainSitePageRecord(value, 'result')
+  const page = parseSitePageRecord(record.page, 'result.page')
+  if (page.pageKey !== requestedPageKey) {
+    throw invalidSitePageResponse('result.page.pageKey identity mismatch')
+  }
+  return { page }
+}
 
 /** listSiteCardsApi loads the Site Management card workspace from the Admin BFF. */
 export function listSiteCardsApi(tenantId: string) {
   return requestClient.get<SiteManagementApi.ListSiteCardsResult>(siteBase(tenantId))
+}
+
+/** listLocaleOptionsApi loads fixed system locale options through the Admin BFF. */
+export function listLocaleOptionsApi(tenantId: string) {
+  return requestClient.get<SiteManagementApi.ListLocaleOptionsResult>(localeOptionsBase(tenantId))
 }
 
 /** createSiteApi creates one draft managed external site through the Admin BFF. */
@@ -376,9 +581,31 @@ export function unpublishSiteCategoryApi(tenantId: string, siteId: string, categ
 
 /** checkLocaleCompletenessApi validates whether one locale can be activated. */
 export function checkLocaleCompletenessApi(tenantId: string, siteId: string, locale: string) {
-  return requestClient.get(
+  return requestClient.get<SiteManagementApi.LocaleCompletenessResult>(
     `${siteBase(tenantId)}/${encodeURIComponent(siteId)}/locales/${encodeURIComponent(locale)}/completeness`
   )
+}
+
+/** listSitePagesApi loads discovered page capability facts and page-wide governance state. */
+export async function listSitePagesApi(tenantId: string, siteId: string) {
+  const response = await requestClient.get<unknown>(
+    `${siteBase(tenantId)}/${encodeURIComponent(siteId)}/pages`
+  )
+  return parseListSitePagesResult(response)
+}
+
+/** updateSitePageGovernanceApi sends the complete page-wide governance pair through the Admin BFF. */
+export async function updateSitePageGovernanceApi(
+  tenantId: string,
+  siteId: string,
+  pageKey: string,
+  data: SiteManagementApi.UpdateSitePageGovernancePayload
+) {
+  const response = await requestClient.post<unknown>(
+    `${siteBase(tenantId)}/${encodeURIComponent(siteId)}/pages/${encodeURIComponent(pageKey)}/governance`,
+    { enabled: data.enabled, indexable: data.indexable }
+  )
+  return parseUpdateSitePageGovernanceResult(response, pageKey)
 }
 
 /** listSiteProductsApi loads product publications already joined to one site. */
@@ -491,6 +718,83 @@ export function unpublishSiteContentApi(tenantId: string, siteId: string, conten
     { locale }
   )
 }
+
+/** listContentCategoriesApi loads site-scoped Blog/News Categories for Admin selection and management. */
+export function listContentCategoriesApi(
+  tenantId: string,
+  siteId: string,
+  locale?: string
+) {
+  const params = locale ? { locale } : undefined
+  return requestClient.get<{ categories: SiteManagementApi.ContentCategory[] }>(
+    `${siteBase(tenantId)}/${encodeURIComponent(siteId)}/content-categories`,
+    { params }
+  )
+}
+
+/** getContentCategoryApi loads one site-scoped Category detail through Admin BFF. */
+export function getContentCategoryApi(tenantId: string, siteId: string, categoryId: string) {
+  return requestClient.get<{ category: SiteManagementApi.ContentCategory }>(
+    `${siteBase(tenantId)}/${encodeURIComponent(siteId)}/content-categories/${encodeURIComponent(categoryId)}`
+  )
+}
+
+/** createContentCategoryApi creates one site-scoped Blog/News Category. */
+export function createContentCategoryApi(
+  tenantId: string,
+  siteId: string,
+  data: SiteManagementApi.CreateContentCategoryPayload
+) {
+  return requestClient.post<{ category: SiteManagementApi.ContentCategory }>(
+    `${siteBase(tenantId)}/${encodeURIComponent(siteId)}/content-categories`,
+    data
+  )
+}
+
+/** saveContentCategoryLocaleVersionApi saves one Category locale version for later explicit sync. */
+export function saveContentCategoryLocaleVersionApi(
+  tenantId: string,
+  siteId: string,
+  categoryId: string,
+  data: SiteManagementApi.SaveContentCategoryLocaleVersionPayload
+) {
+  return requestClient.post<{ version: SiteManagementApi.ContentCategoryLocaleVersion }>(
+    `${siteBase(tenantId)}/${encodeURIComponent(siteId)}/content-categories/${encodeURIComponent(categoryId)}/locale-version`,
+    data
+  )
+}
+
+/** publishContentCategoryLocaleApi approves one locale draft for the next target-pinned Site Sync. */
+export function publishContentCategoryLocaleApi(tenantId: string, siteId: string, categoryId: string, locale: string) { return requestClient.post(`${siteBase(tenantId)}/${encodeURIComponent(siteId)}/content-categories/${encodeURIComponent(categoryId)}/publish`, { locale }) }
+/** reorderContentCategoriesApi submits the complete, single global Category order. */
+export function reorderContentCategoriesApi(tenantId: string, siteId: string, orderedCategoryIds: string[]) { return requestClient.post(`${siteBase(tenantId)}/${encodeURIComponent(siteId)}/content-categories/reorder`, { orderedCategoryIds }) }
+/** deleteContentCategoryApi requests protected deletion or a published-slug tombstone. */
+export function deleteContentCategoryApi(tenantId: string, siteId: string, categoryId: string) { return requestClient.post(`${siteBase(tenantId)}/${encodeURIComponent(siteId)}/content-categories/${encodeURIComponent(categoryId)}/delete`, {}) }
+/** listVisibleContentCategoriesApi reads Category archive candidates derived from published Article usage. */
+export function listVisibleContentCategoriesApi(tenantId: string, siteId: string, contentType: 'blog' | 'news', locale: string) { return requestClient.get<{ categories: SiteManagementApi.ContentCategory[] }>(`${siteBase(tenantId)}/${encodeURIComponent(siteId)}/content-categories/visible`, { params: { contentType, locale } }) }
+/** checkContentCategoryCompletenessApi reports locale readiness without turning optional SEO into a blocker. */
+export function checkContentCategoryCompletenessApi(tenantId: string, siteId: string, categoryId: string, locale: string) { return requestClient.get<{ complete: boolean; issues: string[] }>(`${siteBase(tenantId)}/${encodeURIComponent(siteId)}/content-categories/${encodeURIComponent(categoryId)}/completeness`, { params: { locale } }) }
+/** listContentCategoryUsageApi reads published and draft Article references before a delete attempt. */
+export function listContentCategoryUsageApi(tenantId: string, siteId: string, categoryId: string) { return requestClient.get<{ usage: NonNullable<SiteManagementApi.ContentCategory['publishedUsage']> }>(`${siteBase(tenantId)}/${encodeURIComponent(siteId)}/content-categories/${encodeURIComponent(categoryId)}/usage`) }
+
+/** listFaqCategoriesApi reads flat site FAQ Categories through the Admin BFF. */
+export function listFaqCategoriesApi(tenantId: string, siteId: string, locale?: string) { return requestClient.get<{ categories: SiteManagementApi.FaqCategory[] }>(`${siteBase(tenantId)}/${encodeURIComponent(siteId)}/faqs/categories`, { params: locale ? { locale } : undefined }) }
+/** createFaqCategoryApi creates one flat FAQ Category. */
+export function createFaqCategoryApi(tenantId: string, siteId: string) { return requestClient.post<{ category: SiteManagementApi.FaqCategory }>(`${siteBase(tenantId)}/${encodeURIComponent(siteId)}/faqs/categories`, {}) }
+/** saveFaqCategoryLocaleVersionApi saves one locale Category revision for explicit Sync. */
+export function saveFaqCategoryLocaleVersionApi(tenantId: string, siteId: string, categoryId: string, data: SiteManagementApi.SaveFaqCategoryLocaleVersionPayload) { return requestClient.post(`${siteBase(tenantId)}/${encodeURIComponent(siteId)}/faqs/categories/${encodeURIComponent(categoryId)}/locale-version`, data) }
+/** disableFaqCategoryApi disables only after server-side published Entry protection. */
+export function disableFaqCategoryApi(tenantId: string, siteId: string, categoryId: string) { return requestClient.post(`${siteBase(tenantId)}/${encodeURIComponent(siteId)}/faqs/categories/${encodeURIComponent(categoryId)}/disable`, {}) }
+/** listFaqEntriesApi reads Entries with optional Category and locale filters. */
+export function listFaqEntriesApi(tenantId: string, siteId: string, categoryId?: string, locale?: string) { const params = { ...(categoryId ? { categoryId } : {}), ...(locale ? { locale } : {}) }; return requestClient.get<{ entries: SiteManagementApi.FaqEntry[] }>(`${siteBase(tenantId)}/${encodeURIComponent(siteId)}/faqs/entries`, { params: Object.keys(params).length ? params : undefined }) }
+/** createFaqEntryApi creates one Entry with its required single Category assignment. */
+export function createFaqEntryApi(tenantId: string, siteId: string, data: SiteManagementApi.CreateFaqEntryPayload) { return requestClient.post<{ entry: SiteManagementApi.FaqEntry }>(`${siteBase(tenantId)}/${encodeURIComponent(siteId)}/faqs/entries`, data) }
+/** saveFaqEntryLocaleVersionApi saves a locale Entry revision for explicit Sync. */
+export function saveFaqEntryLocaleVersionApi(tenantId: string, siteId: string, entryId: string, data: SiteManagementApi.SaveFaqEntryLocaleVersionPayload) { return requestClient.post(`${siteBase(tenantId)}/${encodeURIComponent(siteId)}/faqs/entries/${encodeURIComponent(entryId)}/locale-version`, data) }
+/** unpublishFaqEntryApi withdraws only the selected locale Entry revision. */
+export function unpublishFaqEntryApi(tenantId: string, siteId: string, entryId: string, locale: string) { return requestClient.post(`${siteBase(tenantId)}/${encodeURIComponent(siteId)}/faqs/entries/${encodeURIComponent(entryId)}/unpublish`, { locale }) }
+/** checkFaqCompletenessApi queries locale-specific FAQ readiness before explicit publish. */
+export function checkFaqCompletenessApi(tenantId: string, siteId: string, locale: string) { return requestClient.get<SiteManagementApi.FaqCompleteness>(`${siteBase(tenantId)}/${encodeURIComponent(siteId)}/faqs/completeness`, { params: { locale } }) }
 
 /** issuePreviewTokenApi requests a short-lived preview token for a saved draft resource. */
 export function issuePreviewTokenApi(

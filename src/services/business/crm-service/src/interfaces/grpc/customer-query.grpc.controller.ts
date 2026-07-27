@@ -17,10 +17,7 @@ import { CheckLeadDuplicateQuery } from '../../application/queries/check-lead-du
 import { GetCrmAccountQuery } from '../../application/queries/get-crm-account.query'
 import { ListCrmAccountsQuery } from '../../application/queries/list-crm-accounts.query'
 import { ListSourceRecordsQuery } from '../../application/queries/list-source-records.query'
-import {
-  CrmAccountLifecycleStage,
-  CrmAccountRecordStatus
-} from '../../domain/models/crm-records'
+import { CrmAccountLifecycleStage, CrmAccountRecordStatus } from '../../domain/models/crm-records'
 import { CustomerGrpcPresenter } from './customer-grpc.presenter'
 import { CustomerRpcContextValidator } from './customer-rpc-context.validator'
 
@@ -71,13 +68,16 @@ export class CustomerQueryGrpcController implements CustomerQueryServiceControll
     return CustomerGrpcPresenter.toListSourceRecordsResponse(result)
   }
 
-  async checkLeadDuplicate(request: CheckLeadDuplicateRequest): Promise<CheckLeadDuplicateResponse> {
+  async checkLeadDuplicate(
+    request: CheckLeadDuplicateRequest
+  ): Promise<CheckLeadDuplicateResponse> {
     const context = CustomerRpcContextValidator.assertQueryContext(request)
     const result = await this.queryBus.execute(
       new CheckLeadDuplicateQuery({
         tenantId: request.tenantId ?? '',
         operatorAccountId: context.operatorContext.operatorId,
         displayName: request.displayName,
+        leadLegalName: request.leadLegalName,
         leadCompanyName: request.leadCompanyName,
         leadPersonName: request.leadPersonName,
         leadDomain: request.leadDomain,
@@ -89,6 +89,13 @@ export class CustomerQueryGrpcController implements CustomerQueryServiceControll
           identifierType: identifier.identifierType ?? '',
           normalizedValue: identifier.normalizedValue ?? '',
           issuerCountryOrRegion: identifier.issuerCountryOrRegion ?? ''
+        })),
+        profileItems: (request.profileItems ?? []).map((profileItem) => ({
+          itemType: profileItem.itemType ?? '',
+          normalizedValue: profileItem.normalizedValue ?? '',
+          rawValue: profileItem.rawValue ?? '',
+          label: profileItem.label ?? '',
+          role: profileItem.role ?? ''
         }))
       })
     )
