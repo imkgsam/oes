@@ -18,6 +18,23 @@ architectureTruthSource: docs/architecture/services/permission-service.md
 
 既有 `AccountRole` 迁移为 HUMAN binding 时必须保持 grant identity、role、scope、tenant、有效期与审计关系。迁移不是重新授权。
 
+### Binding lifecycle and temporal behavior
+
+本节只定义调用方可观察的 binding 生命周期；对象 owner、字段归属与长期模型以 `permission-service` 服务真相源为准。
+
+- 一次 grant 返回一个不可变 binding / grant identity。对同一 HUMAN 或 MACHINE、role、scope 与 tenant 的再次 grant，只有在其有效窗口不与既有未关闭窗口重叠时才成功。
+- 有效窗口采用开始包含、结束排除的语义；到期或 revoke 都关闭窗口。相邻窗口可以衔接，重叠窗口必须被拒绝，即使并发请求同时通过了前置校验。
+- revoke 以 binding identity 为目标。首次成功 revoke 记录关闭时间与可信审计归因；对同一 identity 的重试返回同一已撤销结果，不产生第二次状态变化或审计事件。不存在的 identity 依既有幂等撤销语义处理，不可借此枚举主体授权。
+- regrant 绝不复活或改写历史 binding，而是创建新的 identity。因而审计、授权决策和回放可以区分每次独立授予。
+- access summary、navigation、terminal access 与 `ResolvePrincipalAuthorization` 只使用当前生效、未撤销、未过期且 role enabled 的 HUMAN binding；MACHINE binding 只参与机器 BUSINESS grant / policy 判定，不出现在人类 UI 或终端访问结果。
+
+### AccountRole compatibility, migration and rollback
+
+- 每个既有 `AccountRole` 必须一对一迁移为 HUMAN `PrincipalRoleBinding`，保留原 grant identity、role、scope、tenant、有效期和审计关联；迁移不得改变当前有效授权集合。
+- canonical cutover 后，`PrincipalRoleBinding` 是唯一授权写入真相。旧 `AccountRole` 名称如暂时保留，只能作为由 canonical HUMAN binding 重建的单向兼容 projection，调用方不得向两个模型分别写入。
+- 迁移必须在切换前和回退前验证 binding 数、有效授权集合、access summary 与审计关联的 parity，并保留可审计的 backfill / cutover / rollback 记录。
+- 旧模型不能表示 MACHINE binding 或同一逻辑 binding 的多段历史；在旧版本仍可回退的窗口内不得启用这些新写入语义。窗口结束后，回退目标必须是已支持 canonical binding 的版本，不能以删除、压缩或伪造历史换取回退。
+
 ## 2. Permission Kinds
 
 - `BUSINESS` Permission Code 可按 definition metadata 授予 HUMAN 或 MACHINE role。
@@ -105,3 +122,7 @@ Gateway HTTP `RequirePermissions` 保留。它与目标 gRPC BUSINESS authorizat
 6. AccountRole 到 HUMAN PrincipalRoleBinding 的迁移保持现有有效授权不变。
 7. 同一操作要求两个独立 Permission 时 `all` 正确拒绝只持有一个 Code 的主体。
 8. workload issuance policy 不允许时，即使 human 有上游 BUSINESS Permission 也不能申请目标 INTERNAL Code。
+9. 同一 logical binding 的相邻窗口可以衔接；重叠窗口（包括并发 grant）只有一个能成功持久化。
+10. 首次 revoke 关闭 binding 并保留可信审计关联；同一 binding 的重复 revoke 不改变首次撤销事实，也不产生重复审计。
+11. revoke 后的 regrant 返回新的 binding identity，旧 identity 仍可供审计与历史授权决策引用。
+12. AccountRole backfill 与任何回退前都证明 binding 数、有效授权、access summary 与审计关联一致；旧模型无法表示的新 MACHINE 或多段历史写入不允许伪造性回退。
