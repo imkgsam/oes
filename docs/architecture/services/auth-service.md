@@ -40,9 +40,13 @@
   - 短期 ExecutionToken 签发、issuer、audience、TTL 与 key rotation
   - workload issuance policy 的认证执行
   - ExecutionToken 紧急撤销版本 / deny fact
+- DELEGATED execution credential 真相：
+  - `DelegationGrant` 的创建、状态、时效、撤销与认证域审计
+  - 由明确用户确认和适用 step-up 证据签发的 `ActionGrant`
+  - `ActionGrant` 的精确绑定、失效与签发审计；目标业务服务自己的原子消费记录不归 Auth 所有
 - API Key credential 真相：
-  - secret hash、credential id、过期、轮换、禁用与撤销
-  - API Key 认证并交换为 ExecutionToken
+  - opaque credential identifier、secret verifier、pepper key version、过期、轮换、禁用与撤销
+  - API Key 认证与 Gateway-only external access token exchange；Gateway 内部再取得 ExecutionToken
 - account selection 与 context switch 的 session 侧真相：
   - account selection 后建立当前 session context
   - context switch 后替换当前 session context
@@ -97,6 +101,7 @@
 - 执行登录失败限流、OTP 发码频控、OTP 尝试次数控制与 trusted-device / new-device MFA 判定。
 - 记录认证、安全与 session 操作的本地审计事实。
 - 认证 workload、HUMAN / MACHINE / DELEGATED execution principal 与外部 API Key，并通过 STS 签发目标 audience 的最小权限 ExecutionToken。
+- 为 AI / Robot 的 HUMAN delegation 建立、撤销和失效受控的 `DelegationGrant`，并为明确的高风险业务动作签发短时、单用途的 `ActionGrant`。
 - 发布 JWKS 与紧急撤销事实，使资源服务在普通 RPC 上本地验签而不在线 introspection。
 - 显式区分 self-service 与 admin-management 接口授权语义，不允许长期复用同一接口层权限门承载两种语义。
 
@@ -183,7 +188,43 @@ ExecutionToken 是 service-to-service 的短期执行凭据，不是用户登录
 - 默认 TTL 约 5 分钟，不签发 refresh token。精确上下限、claim 与错误语义以 [execution-token.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/execution-token.md) 为准。
 - 普通资源服务只通过 cached JWKS 本地验签；Auth 实例保持无状态横向扩展，STS 容量按 cache miss、context change 与 audience exchange 规划，而不是按每个业务 RPC 规划。
 - 普通撤销接受短 TTL 收敛；紧急撤销发布 principal / credential / session / security-version deny fact。Auth 不要求所有服务共享 Bearer Token cache。
-- API Key 只在 Gateway / Auth 入口使用；认证成功后换取 ExecutionToken，不能作为内部 gRPC credential 原样传播。
+- API Key 只在 Gateway / Auth 入口使用；认证成功后得到 Gateway-only external access token，Gateway 内部才换取 target-audience ExecutionToken。API Key 与 external token 都不能作为内部 gRPC credential 原样传播。
+
+#### 7.1.2 External API Key Security
+
+`auth-service` owns the credential lifecycle for a tenant Integration Machine; it does not own the machine principal, external HTTP routing, or the external capability catalogue. The frozen cross-service flow is [external-api-key-security.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/external-api-key-security.md); credential-management behaviour is [external-api-key-security.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/external-api-key-security.md).
+
+- A credential has a non-secret opaque identifier and a high-entropy secret. The secret is displayed only in the successful create or rotate response and is never recoverable, logged, audited in plaintext, or returned by query APIs.
+- Auth persists only a constant-time-verifiable, irreversible secret verifier plus a versioned server-held pepper reference. It never stores the presented secret or lets Gateway, Identity, Permission, or a business service read the verifier or pepper.
+- One credential belongs to exactly one active `TENANT` Integration Machine. It cannot choose another tenant, represent a human, become an internal workload credential, or be shared by a Marketplace/App-installation model.
+- Create, reveal-once, rotate, revoke, disable, and permission-affecting administration require the authorised human management path and a recent step-up MFA proof. Auth records an authentication-domain audit fact for every credential lifecycle and exchange outcome.
+- A replacement credential may overlap the superseded credential for at most seven days; no Integration Machine has more than two valid credentials. Revocation, machine disablement, tenant disablement, or a confirmed leak removes the credential from future exchange immediately and never restores the same secret.
+- Credential expiry defaults to one year. A 90-day age is a rotation-health signal, not an automatic outage; tenant security policy may impose a shorter lifetime. Expiry never extends by use.
+- External callers never receive an internal `ExecutionToken`. They receive the Gateway-only short-lived external access token defined by the HTTP contract; Gateway exchanges trusted external context for target-audience ExecutionTokens only on its internal mTLS hop.
+
+#### 7.1.1 Delegation And ActionGrant
+
+`DelegationGrant` 与 `ActionGrant` 是认证域凭据，不是 role、业务审批或业务操作本身。
+
+稳定规则：
+
+- `DelegationGrant` 只能由已验证 HUMAN 明确创建，必须绑定 human principal、tenant / org、受控 AgentPrincipal、ToolContract 版本、允许的 operation / Permission Code 上限、最晚失效时间与审计关联；它不能创建独立的 DELEGATED role。
+- 授权默认短时、可撤销且不可静默续期；到期、用户撤销、human session / principal 失效、tenant 不可用或有效授权不再满足时，后续 delegation 和 ActionGrant 签发必须失败。长期无人值守自动化使用单独的 MACHINE principal 与流程授权，不复用 HUMAN delegation。
+- `ActionGrant` 只能在有效 delegation、Permission 的交集判定、明确的用户确认以及适用时的 step-up 完成后签发。它是短时、单一目标服务、单一 operation、单一 target 与单一 canonical input digest 的一次性凭据。
+- `ActionGrant` 不替代目标服务的状态机、审批分离、金额阈值、资源授权或 command idempotency。目标服务在自己的事务中记录唯一的消费事实并写入业务结果；Auth 不跨服务共享数据库或接管业务提交。
+- 用于 `ActionGrant` 的签名、issuer、audience 与 workload binding 必须使用 DG-1 冻结的 JWS / mTLS 互操作规则；不得引入第二套签名体系、共享 Bearer pool 或 body identity fallback。
+- 密码、MFA、recovery code、session、API Key、role / permission / policy、delegation 自身、审计记录和 AI 自己结果的批准属于 AI 永久禁止操作。精确规则以 [delegated-execution-and-action-grant.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/delegated-execution-and-action-grant.md) 为准。
+
+#### 7.1.2 Cryptography, Registry And Rotation
+
+`auth-service` owns ExecutionToken issuer configuration, signing-key lifecycle, JWKS publication and the controlled registry of service audiences and permitted workload identities. Deployment owns the CA, trust bundle and workload certificate issuance; business services do not own any part of this registry or key material.
+
+- The production signing profile is JWS `ES256` only. Private signing keys are KMS/HSM-backed or equivalently protected, every `kid` is unique and never reused, and no service receives a shared signing secret.
+- Each environment exposes one exact HTTPS issuer. Auth registers immutable service audiences as `urn:oes:service:<service-name>` and validates the requesting workload's verified SPIFFE ID before issuing a Token. The registry does not support wildcard audiences or caller-defined issuer/audience values.
+- Auth publishes standard authorization-server metadata and JWKS over HTTPS. A resource service may use cached trusted keys and a bounded unknown-`kid` refresh, but must fail closed if refresh cannot establish a valid trusted key.
+- A new signing public key is published before it signs Tokens. Old public keys remain published through the final Token expiry plus permitted clock skew. Signing keys rotate at least every 90 days and immediately on suspected compromise.
+- Tokens carry `client_id` equal to the verified SPIFFE ID and `cnf.x5t#S256` equal to the presenting workload's current mTLS leaf certificate. Auth exchanges a new Token after certificate rotation; the Token cache key includes that certificate binding.
+- Production workload leaf certificates have a maximum 24-hour lifetime and renew automatically before two thirds of their lifetime. Local uses a separate trust domain, CA, issuer and signing key, but exercises the same mTLS, JWKS and rotation protocol.
 
 ## 8. Login Methods And Credentials
 
@@ -355,6 +396,7 @@ application / domain 层可以复用底层业务逻辑，但 BFF / gRPC / interf
 - [auth-service/login-history.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/login-history.md)
 - [auth-service/trusted-login-device.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/trusted-login-device.md)
 - [auth-service/execution-token.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/execution-token.md)
+- [auth-service/external-api-key-security.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/external-api-key-security.md)
 
 相关 BFF contract：
 

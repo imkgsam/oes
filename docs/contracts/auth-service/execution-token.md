@@ -18,7 +18,7 @@ architectureTruthSource: docs/architecture/services/auth-service.md
 - tenant Integration Machine 使用 API Key 在 Gateway / Auth 入口认证并换 Token。
 - 资源服务取得 JWKS 并消费紧急撤销事实。
 
-本契约不开放外部直连 gRPC，不定义用户登录 access / refresh token，也不定义高危 ActionGrant 的具体字段。
+本契约不开放外部直连 gRPC，也不定义用户登录 access / refresh token。高危 ActionGrant 的生命周期、绑定与消费规则以 [delegated-execution-and-action-grant.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/delegated-execution-and-action-grant.md) 为准。
 
 ## 2. Trust Inputs
 
@@ -68,6 +68,14 @@ STS 只接受平台已经验证的输入：
 
 ## 4. ExecutionToken Claims
 
+### Cryptographic profile and registry
+
+ExecutionToken is a compact JWS with protected header `typ=at+jwt`, `alg=ES256` and a non-empty, globally unique, never-reused `kid`. `ES256` is the only accepted algorithm. Verifiers reject `alg=none`, every HMAC algorithm, a mismatched key type, and unsupported JOSE headers including dynamic key-source headers. JWT signing private keys are KMS/HSM-backed or equivalently protected and never distributed to callers or resource services.
+
+Every environment has one exact HTTPS issuer. Auth owns a controlled registry containing that issuer, stable registered audiences, permitted workload SPIFFE IDs and their issuance policy. A service audience is exactly `urn:oes:service:<service-name>`; it is not a hostname, is not caller-configurable, and no wildcard or multi-audience Token is valid. The Token header and claims never supply a JWKS URL, trust domain or registry override.
+
+The issuer publishes authorization-server metadata and a HTTPS `jwks_uri`. Resource services are configured only with trusted issuer metadata; they do not discover keys from a Token. `iss` equals the registered environment issuer exactly, `aud` equals the one target audience exactly, and `typ` must equal `at+jwt`.
+
 至少包含：
 
 | Claim | Required | Semantics |
@@ -76,17 +84,17 @@ STS 只接受平台已经验证的输入：
 | `aud` | yes | 唯一 target service audience。 |
 | `sub` | yes | 获授权 execution principal id。 |
 | `principal_type` | yes | `HUMAN`、`MACHINE` 或 `DELEGATED`。 |
-| `client_id` | yes | 申请并直接使用本 Token 的 workload identity。 |
+| `client_id` | yes | 申请并直接使用本 Token 的 verified SPIFFE ID。 |
 | `tenant_id` | TENANT | 唯一 tenant；不允许 wildcard。 |
 | `org_id` | conditional | 已验证且场景适用时携带。 |
 | `scope` | yes | 空格分隔、规范排序的 Permission Code 子集。 |
 | `jti` / `iat` / `nbf` / `exp` | yes | 唯一性与短期时效。 |
-| `cnf` | yes | 当前 workload mTLS identity / proof-of-possession binding。 |
+| `cnf` | yes | 仅含标准 `x5t#S256`：当前 workload mTLS 叶证书 DER 的 SHA-256 base64url thumbprint。 |
 | `act` / `delegation_id` | DELEGATED | 代理归因与 delegation reference。 |
 | `session_id` | HUMAN / DELEGATED when applicable | 关联 active human session；不是资源服务在线 introspection 要求。 |
 | `authz_version` | conditional | principal / session / credential 最低安全版本。 |
 
-默认 TTL 目标约 5 分钟。实现可以在冻结上限内按风险缩短，但不能由调用方请求任意长寿命。签名算法、key size 与精确 issuer URI 属于安全配置，必须通过 deployment contract 固定且不得接受 `alg=none` 或调用方指定算法。
+Token TTL maximum is 5 minutes. Implementations may shorten it by risk but callers cannot request arbitrary lifetime. The allowed algorithm, issuer and registry are fixed by this contract; callers cannot select them.
 
 ## 5. Local Validation Contract
 
@@ -96,37 +104,39 @@ STS 只接受平台已经验证的输入：
 2. exact issuer、`nbf / iat / exp` 与受控 clock skew。
 3. exact target audience。
 4. `client_id` 与 mTLS `VerifiedWorkloadIdentity` 一致。
-5. `cnf` 与当前 channel workload proof 一致。
+5. `cnf.x5t#S256` 与当前 mTLS channel client leaf certificate thumbprint 一致。
 6. tenant / org 与 RPC mode、resource ownership 一致。
 7. required Permission Code 的 `all / any` 规则。
 8. principal type、delegation 与 SELF / BUSINESS / INTERNAL mode 兼容。
 9. 本地 emergency deny cache / minimum security version 未拒绝。
 
-验签成功的正常 RPC 不调用 Auth introspection。未知 `kid` 可以触发一次受控 JWKS refresh；refresh 失败必须 fail closed，不能跳过签名校验。
+验签成功的正常 RPC 不调用 Auth introspection。JWKS cache maximum age is 5 minutes. Unknown `kid` can trigger one controlled JWKS refresh; refresh failure, an untrusted key, an issuer mismatch or any unsupported header must fail closed without bypassing signature validation.
 
 ## 6. JWKS, Rotation And Availability
 
 - Auth 实例共享 issuer 与 active signing key material，通过 `kid` 发布 JWKS。
-- 新 key 先发布，再用于签发；旧 key 至少保留到其签发 Token 全部自然过期及 clock-skew 窗口结束。
+- New key is published through JWKS before use and must be available through the 5-minute maximum JWKS cache window before signing Tokens. Old public keys stay published until every Token they signed has expired plus a 60-second clock-skew window. Every `kid` is unique and never reused.
 - 资源服务缓存 JWKS，并在后台或未知 `kid` 时刷新；已有可验证 key 的正常流量不依赖 Auth 在线。
 - STS 无状态横向扩展。容量按 exchange / cache miss 峰值、key rotation 与故障恢复设计，不按每个 gRPC RPC QPS 设计。
 - 调用方只能把 Token 缓存在本进程，并在过期前留出 refresh margin；禁止共享 Bearer Token pool。
+- Production signing keys rotate at least every 90 days and immediately after suspected compromise. Production workload leaf certificates have a maximum 24-hour lifetime and renew before two thirds of their lifetime. Token cache keys include `cnf.x5t#S256`; after a certificate rotation, the caller exchanges a new Token rather than presenting a Token bound to the previous certificate.
+- Production, staging and local use distinct SPIFFE trust domains, CAs, issuer URIs and signing keys. Local security integration tests use actual mTLS with per-workload certificates and cover missing/unknown certificates, mismatched SPIFFE ID, cross-certificate Token replay, certificate rotation and JWKS signing-key rotation.
 
 ## 7. API Key Exchange
 
-- API Key 属于一个 active TENANT Integration Machine；key 本身不是 principal。
-- secret 只在创建时显示一次，Auth 持久化不可逆 hash 与 credential metadata。
-- API Key 认证检查 credential status / expiry、Machine Principal lifecycle、tenant lifecycle 与调用入口 policy。
-- 成功后只返回 ExecutionToken，不把 API Key secret 或内部 gRPC credential 传播到下游。
-- 撤销、过期、轮换后旧 key、machine disabled、tenant mismatch 均拒绝。
-- 每个 tenant 独立创建 Integration Machine 与 credential。Marketplace、共享第三方 App principal、App installation 与跨 tenant developer platform 已取消，不在本契约预留。
+API Key is an external-entry credential, not an internal gRPC credential or an ExecutionToken. The full credential lifecycle is frozen in [external-api-key-security.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/external-api-key-security.md), and its public HTTP exchange is frozen in [external-api-key-exchange.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/external-api-key-exchange.md).
+
+- API Key belongs to one active TENANT Integration Machine; the key is not a principal and never enters gRPC metadata.
+- Gateway submits the credential to Auth over its trusted internal path. Auth verifies credential, machine and tenant status, resolves the machine's permitted external capabilities, and returns only a Gateway-bound external-access result.
+- The external caller receives a short-lived Gateway-only external access token. When it invokes an approved external HTTP endpoint, Gateway derives trusted execution context and obtains the separate target-audience ExecutionToken required for the internal mTLS hop.
+- Revoked, expired, superseded-after-overlap, disabled-machine, suspended-tenant, wrong-tenant, or disallowed-entry requests fail closed. Marketplace, shared third-party App principals, App installation and cross-tenant developer-platform models remain out of scope.
 
 ## 8. Revocation And Replay
 
 - 普通 role / grant / session / credential 变化允许在 Token TTL 内收敛。
 - 紧急事件可按 `jti`、principal、session、credential 或 minimum `authz_version` 更新服务本地 deny cache。
 - Token 合法复用不是业务幂等。所有有副作用 command 仍使用 tenant + caller + operation 范围内的 idempotency key。
-- 高危操作不能仅靠普通 ExecutionToken 防重放；必须使用另行冻结的 step-up / ActionGrant，绑定 operation、target、输入摘要和一次性消费。
+- 高危操作不能仅靠普通 ExecutionToken 防重放；必须使用有效 delegation、适用 step-up 和冻结的 ActionGrant。ActionGrant 绑定 operation、target、输入摘要与 idempotency reference，并由目标服务在业务写入事务中一次性消费。
 
 ## 9. Stable Error Categories
 
@@ -155,3 +165,7 @@ transport status 映射由 Gateway / common error boundary 统一处理；不得
 6. API Key 不进入内部 gRPC metadata；下游只看到 target-audience ExecutionToken。
 7. key rotation overlap 期间新旧合法 Token 均可验签，过期旧 key 在安全窗口后退出。
 8. emergency deny fact 到达后，在自然过期前拒绝目标 Token / principal / version。
+9. `alg` 非 `ES256`、错误或复用的 `kid`、错误 `typ`、Token 自带 key-source header、错误 issuer 或 multi-audience Token 全部拒绝。
+10. unknown `kid` 只触发一次受控 JWKS refresh；无法从已配置 issuer 获得可信 key 时拒绝，不能访问 Token 提供的 URL。
+11. 正确 SPIFFE ID 但不同叶证书、或正确证书但错误 SPIFFE ID / `client_id` 的调用都因三重绑定失败；证书轮换后旧 Token 必须失败，新 exchange 的 Token 必须成功。
+12. local security integration 使用独立 local CA 与 trust domain 完成真实 TLS 握手，不以 mock identity 替代上述绑定与轮换验证。

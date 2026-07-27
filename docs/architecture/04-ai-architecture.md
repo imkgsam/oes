@@ -336,7 +336,7 @@ This means most new AI scenarios should be introduced by configuration, bounded 
 
 `auth-service`
 - authenticates machine principals
-- issues delegation or execution context for AI-assisted operations
+- owns DelegationGrant / ActionGrant credential lifecycle and issues trusted delegation or execution context for AI-assisted operations
 
 `permission-service`
 - evaluates the upper bound of machine permissions
@@ -346,7 +346,7 @@ future knowledge layer
 - owns document ingestion, metadata, retrieval, and citation filtering
 
 future tool layer / agent orchestration
-- owns controlled tool invocation, planning, confirmation gates, and execution logs
+- owns controlled tool invocation, planning, user-facing confirmation gates, ToolContract identity / version and execution logs; it cannot issue credentials or redefine the business service's risk class
 
 ### 9.5 AI scenario taxonomy is advisory, not architectural
 
@@ -361,7 +361,8 @@ For all future AI scenarios:
 - read and explanation scenarios may run directly under governed retrieval and query policies
 - draft generation scenarios may create proposals
 - submit and mutate scenarios must go through controlled tools
-- high-risk actions must support confirmation and/or approval
+- each tool operation is preclassified by its business owner as delegation-allowed, ActionGrant-required or AI-forbidden
+- high-risk actions require an exact, one-time ActionGrant after human confirmation; the stable collaboration rule is [delegated-execution-and-action-grant.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/delegated-execution-and-action-grant.md)
 
 This is required to satisfy OES audit, tenant isolation, and AI governance goals.
 

@@ -5,11 +5,12 @@ status: FROZEN_TRUSTED_GRPC_METADATA
 decisionAdr: docs/adr/0015-workload-identity-and-execution-token.md
 implementationPacket: docs/plans/features/trusted-grpc-execution-context.md
 requiredDeferredDesigns:
-  - token-cryptography-and-workload-identity-contract
   - emergency-execution-revocation-event-contract
+  - principal-role-binding-persistence-contract
+resolvedDeferredDesigns:
+  - token-cryptography-and-workload-identity-contract
   - external-api-key-security-contract
   - delegated-execution-and-action-grant-contract
-  - principal-role-binding-persistence-contract
 ```
 
 > `auth-service`、`identity-service`、`permission-service` 的长期职责分别以对应服务真相源为准。本文只冻结跨服务 gRPC 传输身份、执行身份、授权上下文与多跳传播规则。
@@ -155,7 +156,21 @@ Token 合法复用不等同于攻击重放。防护分层为：
 - mTLS + `cnf` 阻止 Token 被另一工作负载直接使用。
 - 短 TTL、最小 audience 与最小 Permission Code 缩小泄露影响。
 - command idempotency 阻止同一业务命令重复产生副作用。
-- 高危操作使用另行冻结的短期 ActionGrant / step-up grant，绑定 operation、target 与输入摘要并一次性消费。
+- 高危操作使用 [DG-4 冻结的 ActionGrant](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/delegated-execution-and-action-grant.md)：它绑定 operation、target、canonical input digest 与 idempotency reference，并由目标服务随业务写入一次性消费。
+
+### 5.4 DG-1 密码学与工作负载互操作基线
+
+本节冻结 ExecutionToken、mTLS 工作负载身份与资源服务验证之间的跨服务互操作规则；Auth 的长期职责以 `docs/architecture/services/auth-service.md` 为准，黑盒字段与错误以 `docs/contracts/auth-service/execution-token.md` 为准。
+
+- ExecutionToken 是 `typ=at+jwt` 的 JWS，唯一允许的签名算法为 `ES256`；验证器固定 allowlist，拒绝 `alg=none`、HMAC、未登记算法及不受支持的 JOSE header。每个 `kid` 唯一且不得复用。
+- 每个环境有一个精确 HTTPS issuer；`aud` 使用稳定、非部署地址的单一服务标识 `urn:oes:service:<service-name>`。资源服务只接受自身精确 audience，绝不接受 wildcard、数组式多 audience 或由调用方指定的 audience。
+- Auth / STS 维护受控 registry，登记环境 issuer、服务 audience、允许的 SPIFFE ID 与 workload-to-audience issuance policy；部署层拥有 trust bundle、证书签发与轮换。调用方、Token 或请求 body 都不能动态扩展 registry。
+- 每个直接调用 workload 用独立的 X.509-SVID 风格 mTLS 叶证书证明其 SPIFFE ID。生产优先 TLS 1.3，TLS 1.2 仅是兼容下限；生产、预发和本地使用彼此独立的 trust domain。
+- `client_id` 必须等于经 TLS 验证的 SPIFFE ID；`cnf` 唯一采用标准 `x5t#S256`，即当前 mTLS 客户端叶证书 DER 的 SHA-256 base64url 指纹。资源服务必须同时验证 trust bundle / SPIFFE ID、`client_id` 和 `cnf`，三者任一不符即拒绝。
+- mTLS 若在代理终止，该代理是受信任 transport boundary，且只能经已认证的本地通道提供不可伪造的 `VerifiedWorkloadIdentity`；普通 gRPC / HTTP header 不能承载该证明。
+- JWT signing private key 只在 KMS、HSM 或等价受控密钥系统中使用；新 JWKS key 必须先发布且完成最长 JWKS cache 窗口传播，再开始签发。旧 public key 保留至其最后签发 Token 过期并越过 clock-skew 窗口。
+- production mTLS 叶证书最长有效期为 24 小时，并在寿命的三分之二前自动续期；签名 key 至少每 90 天轮换且在疑似泄露后立即轮换。证书变更使旧 `cnf` Token 失效，调用方重新 exchange；进程内 Token cache key 必须包含证书指纹。
+- 本地环境同样运行真实 mTLS：使用独立 local trust domain、local CA、每 workload 独立证书和独立 JWT signing key。单元测试可 mock `VerifiedWorkloadIdentity`，但安全集成测试必须覆盖真实 TLS、跨证书重放、错误 SPIFFE ID 与证书/签名 key 轮换。
 
 ## 6. 三种 RPC authorization mode
 
@@ -277,7 +292,7 @@ HTTP access token
 - 无人值守 Robot 不继承创建者权限。
 - 平台 Robot template 不是 principal；租户安装时创建独立 tenant machine principal。
 - DELEGATED AI 的有效权限为用户权限、AI / tool 上限、delegation grant、tenant 与目标 RPC 要求的交集。
-- 外部 App 只允许创建 tenant Integration Machine + API Key，经 Gateway / Auth 换 ExecutionToken；不开放内部 gRPC。Marketplace、第三方开发者平台、共享 App 主体与跨 tenant 安装模型已取消，不作为后续预留能力。
+- 外部 App 只允许创建 tenant Integration Machine + API Key，经 Gateway/Auth 取得 Gateway-only external access token；Gateway 才在受信任的内部 mTLS hop 换取 target-audience ExecutionToken。API Key 与 external token 均不开放内部 gRPC。具体边界以 [External API Key Security Collaboration](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/external-api-key-security.md) 为准。Marketplace、第三方开发者平台、共享 App 主体与跨 tenant 安装模型已取消，不作为后续预留能力。
 
 ## 10. Tenant 与业务目标
 
@@ -357,8 +372,8 @@ Asset + Site 仍是第一个业务解阻优先链，但不再是本 capability �
 
 1. Token cryptography 与 workload identity 互操作 contract：阻塞 production mTLS、JWT verifier 与 key management 定稿。
 2. Execution emergency revocation event contract：阻塞紧急撤销和最终 production security acceptance。
-3. External API Key security contract：阻塞外部 Integration credential 的创建、交换、轮换与开放。
-4. DELEGATED execution 与 ActionGrant contract：阻塞 AI delegation 和需要一次性高危授权的 RPC 开放。
+3. External API Key security contract 已冻结：外部 Integration credential 的创建、交换、轮换与开放以 [External API Key Security Collaboration](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/external-api-key-security.md) 为准；public opening 仍等待 DG-2 credential-deny propagation。
+4. DELEGATED execution 与 ActionGrant contract：已由 [ADR 0016](/Users/acehood/Documents/GitHub/oes/docs/adr/0016-delegated-execution-and-action-grant.md) 冻结；它解除 AI delegation 与一次性高危授权的设计阻塞，但不替代 DG-1 的签名 / workload binding 或 DG-2 的紧急撤销设计。
 5. PrincipalRoleBinding persistence contract：阻塞 Permission schema 与 AccountRole 数据迁移。
 
 “后置”表示转交独立设计任务，不表示允许实现 owner 自行决定；对应 gate 未关闭时，相关能力必须保持未开放。
@@ -373,5 +388,8 @@ Marketplace 已取消，不进入后置任务清单。
 - [identity-service](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)
 - [permission-service](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
 - [ExecutionToken Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/execution-token.md)
+- [External API Key Credential Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/external-api-key-security.md)
+- [External API Key Exchange Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/external-api-key-exchange.md)
 - [Principal Authorization Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/principal-authorization.md)
+- [Delegated Execution And ActionGrant Collaboration](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/delegated-execution-and-action-grant.md)
 - [Trusted gRPC Feature Packet](/Users/acehood/Documents/GitHub/oes/docs/plans/features/trusted-grpc-execution-context.md)
