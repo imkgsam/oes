@@ -12,3 +12,7 @@ export {
   resolvePoolConfig
 } from './grpc.interfaces'
 export { safeGrpcCall, SafeGrpcCallOptions } from './safe-grpc-call'
+export {
+  GrpcWorkloadIdentityProvider,
+  VerifiedGrpcTlsPeer
+} from './grpc-workload-identity.provider'
