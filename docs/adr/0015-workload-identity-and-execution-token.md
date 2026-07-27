@@ -37,11 +37,14 @@ Execution Principal 只有三种稳定模式：
 ### 3. Token 形态与验证
 
 - Token 是签名 JWT，默认 TTL 约 5 分钟，不提供 refresh token。
+- ExecutionToken JWS 固定使用 `typ=at+jwt`、`alg=ES256` 与唯一、不可复用的 `kid`。签名私钥只在 KMS/HSM 或等价受控密钥系统中使用；验证器固定 allowlist，拒绝算法降级与未受支持 JOSE header。
 - 每个 Token 只有一个 `aud`，只面向一个目标服务。
+- 每个环境有一个精确 HTTPS issuer；audience 是稳定的 `urn:oes:service:<service-name>`，不随部署地址变化。Auth / STS 拥有受控 issuer / audience / workload registry，资源服务只接受自身精确 audience。
 - 标准 `scope` claim 直接携带本次获准的 Permission Code 子集，不建立第二套 Scope 目录或转换表。
-- `cnf` 将 Token 绑定到申请方工作负载的 mTLS identity。
+- `client_id` 必须等于经 mTLS 验证的 SPIFFE ID；`cnf` 采用标准 `x5t#S256`，将 Token 绑定到申请方当前 mTLS 叶证书。资源服务同时验证 trust bundle / SPIFFE ID、`client_id` 与 `cnf`。
 - 目标服务本地校验签名、issuer、时间、audience、scope、tenant、`cnf` 与紧急 deny state；普通 RPC 不在线调用 Auth。
-- Auth 以无状态实例横向扩展，使用 `kid` / JWKS 轮换签名密钥。普通撤销依赖短 TTL；紧急撤销通过安全事件更新本地 deny cache 或 minimum security version。
+- Auth 以无状态实例横向扩展，使用 `kid` / JWKS 轮换签名密钥。新 key 先发布、后签发，旧 public key 保留至最后 Token 过期及 clock-skew 窗口；签名 key 至少每 90 天轮换。普通撤销依赖短 TTL；紧急撤销通过安全事件更新本地 deny cache 或 minimum security version。
+- workload 使用独立短期 X.509-SVID 风格证书；production、staging 与 local 使用独立 trust domain。production leaf certificate 最长 24 小时并在寿命三分之二前自动续期；证书轮换后必须重新 exchange Token，不能跨证书复用。
 
 ### 4. 多跳与 cache
 

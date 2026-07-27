@@ -185,6 +185,17 @@ ExecutionToken 是 service-to-service 的短期执行凭据，不是用户登录
 - 普通撤销接受短 TTL 收敛；紧急撤销发布 principal / credential / session / security-version deny fact。Auth 不要求所有服务共享 Bearer Token cache。
 - API Key 只在 Gateway / Auth 入口使用；认证成功后换取 ExecutionToken，不能作为内部 gRPC credential 原样传播。
 
+#### 7.1.1 Cryptography, Registry And Rotation
+
+`auth-service` owns ExecutionToken issuer configuration, signing-key lifecycle, JWKS publication and the controlled registry of service audiences and permitted workload identities. Deployment owns the CA, trust bundle and workload certificate issuance; business services do not own any part of this registry or key material.
+
+- The production signing profile is JWS `ES256` only. Private signing keys are KMS/HSM-backed or equivalently protected, every `kid` is unique and never reused, and no service receives a shared signing secret.
+- Each environment exposes one exact HTTPS issuer. Auth registers immutable service audiences as `urn:oes:service:<service-name>` and validates the requesting workload's verified SPIFFE ID before issuing a Token. The registry does not support wildcard audiences or caller-defined issuer/audience values.
+- Auth publishes standard authorization-server metadata and JWKS over HTTPS. A resource service may use cached trusted keys and a bounded unknown-`kid` refresh, but must fail closed if refresh cannot establish a valid trusted key.
+- A new signing public key is published before it signs Tokens. Old public keys remain published through the final Token expiry plus permitted clock skew. Signing keys rotate at least every 90 days and immediately on suspected compromise.
+- Tokens carry `client_id` equal to the verified SPIFFE ID and `cnf.x5t#S256` equal to the presenting workload's current mTLS leaf certificate. Auth exchanges a new Token after certificate rotation; the Token cache key includes that certificate binding.
+- Production workload leaf certificates have a maximum 24-hour lifetime and renew automatically before two thirds of their lifetime. Local uses a separate trust domain, CA, issuer and signing key, but exercises the same mTLS, JWKS and rotation protocol.
+
 ## 8. Login Methods And Credentials
 
 `auth-service` owns 认证可用性；`identity-service` owns 联系资产主数据。

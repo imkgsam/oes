@@ -157,6 +157,20 @@ Token 合法复用不等同于攻击重放。防护分层为：
 - command idempotency 阻止同一业务命令重复产生副作用。
 - 高危操作使用另行冻结的短期 ActionGrant / step-up grant，绑定 operation、target 与输入摘要并一次性消费。
 
+### 5.4 DG-1 密码学与工作负载互操作基线
+
+本节冻结 ExecutionToken、mTLS 工作负载身份与资源服务验证之间的跨服务互操作规则；Auth 的长期职责以 `docs/architecture/services/auth-service.md` 为准，黑盒字段与错误以 `docs/contracts/auth-service/execution-token.md` 为准。
+
+- ExecutionToken 是 `typ=at+jwt` 的 JWS，唯一允许的签名算法为 `ES256`；验证器固定 allowlist，拒绝 `alg=none`、HMAC、未登记算法及不受支持的 JOSE header。每个 `kid` 唯一且不得复用。
+- 每个环境有一个精确 HTTPS issuer；`aud` 使用稳定、非部署地址的单一服务标识 `urn:oes:service:<service-name>`。资源服务只接受自身精确 audience，绝不接受 wildcard、数组式多 audience 或由调用方指定的 audience。
+- Auth / STS 维护受控 registry，登记环境 issuer、服务 audience、允许的 SPIFFE ID 与 workload-to-audience issuance policy；部署层拥有 trust bundle、证书签发与轮换。调用方、Token 或请求 body 都不能动态扩展 registry。
+- 每个直接调用 workload 用独立的 X.509-SVID 风格 mTLS 叶证书证明其 SPIFFE ID。生产优先 TLS 1.3，TLS 1.2 仅是兼容下限；生产、预发和本地使用彼此独立的 trust domain。
+- `client_id` 必须等于经 TLS 验证的 SPIFFE ID；`cnf` 唯一采用标准 `x5t#S256`，即当前 mTLS 客户端叶证书 DER 的 SHA-256 base64url 指纹。资源服务必须同时验证 trust bundle / SPIFFE ID、`client_id` 和 `cnf`，三者任一不符即拒绝。
+- mTLS 若在代理终止，该代理是受信任 transport boundary，且只能经已认证的本地通道提供不可伪造的 `VerifiedWorkloadIdentity`；普通 gRPC / HTTP header 不能承载该证明。
+- JWT signing private key 只在 KMS、HSM 或等价受控密钥系统中使用；新 JWKS key 必须先发布且完成最长 JWKS cache 窗口传播，再开始签发。旧 public key 保留至其最后签发 Token 过期并越过 clock-skew 窗口。
+- production mTLS 叶证书最长有效期为 24 小时，并在寿命的三分之二前自动续期；签名 key 至少每 90 天轮换且在疑似泄露后立即轮换。证书变更使旧 `cnf` Token 失效，调用方重新 exchange；进程内 Token cache key 必须包含证书指纹。
+- 本地环境同样运行真实 mTLS：使用独立 local trust domain、local CA、每 workload 独立证书和独立 JWT signing key。单元测试可 mock `VerifiedWorkloadIdentity`，但安全集成测试必须覆盖真实 TLS、跨证书重放、错误 SPIFFE ID 与证书/签名 key 轮换。
+
 ## 6. 三种 RPC authorization mode
 
 每个 gRPC RPC 必须在方法旁显式声明且只能声明一种：
