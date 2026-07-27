@@ -13,6 +13,7 @@
 - `Scope`、`Policy`、授权判定、授权决策记录与 policy AST 评估能力。
 - `PolicyTemplate`、`PolicyInstance` 资源授权配置事实、资源授权判定与查询范围构造能力。
 - workload-to-INTERNAL-Permission issuance policy 与授权判定；Auth / STS 负责认证 workload、签发和执行该判定结果。
+- DELEGATED authorization 的有效上限判定：将 HUMAN grant、有效 delegation、ToolContract 上限、tenant / org、resource policy 与目标 operation 取交集；Auth 负责 delegation credential 与 ActionGrant，Permission 不签发任一凭据。
 - 当前 session 的 access summary：effective roles、effective action codes、运行时权限摘要。
 - 第一阶段 navigation governance 真相：
   - `NavigationEntry Registry`
@@ -110,6 +111,8 @@
 - subject identity、tenant、principal type 与 delegation 只能从已验证执行上下文或服务拥有的 identity facts 派生；调用方提交的 subject facts 不能提升授权。
 
 ExecutionToken 使用同一 Permission Code 词汇：Permission Service 提供有效 HUMAN / MACHINE grant 与 policy 判定，Auth / STS 取其允许子集签发目标 audience Token。Permission Service 不签发 Token，也不建立独立 Permission-to-Scope 映射。
+
+DELEGATED 判定必须同时受 HUMAN grant、未撤销的 delegation reference、固定 ToolContract / operation upper bound、tenant / org 与 resource policy 约束；任一输入不满足即拒绝。Tool 或 Agent 不能因用户有更高权限而自动获得更高上限，也不能把高风险 operation 重分类为低风险。
 
 ### 5.2 checkResource / buildQueryScope
 

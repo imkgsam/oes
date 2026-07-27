@@ -5,11 +5,12 @@ status: FROZEN_TRUSTED_GRPC_METADATA
 decisionAdr: docs/adr/0015-workload-identity-and-execution-token.md
 implementationPacket: docs/plans/features/trusted-grpc-execution-context.md
 requiredDeferredDesigns:
-  - token-cryptography-and-workload-identity-contract
   - emergency-execution-revocation-event-contract
   - external-api-key-security-contract
-  - delegated-execution-and-action-grant-contract
   - principal-role-binding-persistence-contract
+resolvedDeferredDesigns:
+  - token-cryptography-and-workload-identity-contract
+  - delegated-execution-and-action-grant-contract
 ```
 
 > `auth-service`、`identity-service`、`permission-service` 的长期职责分别以对应服务真相源为准。本文只冻结跨服务 gRPC 传输身份、执行身份、授权上下文与多跳传播规则。
@@ -155,7 +156,7 @@ Token 合法复用不等同于攻击重放。防护分层为：
 - mTLS + `cnf` 阻止 Token 被另一工作负载直接使用。
 - 短 TTL、最小 audience 与最小 Permission Code 缩小泄露影响。
 - command idempotency 阻止同一业务命令重复产生副作用。
-- 高危操作使用另行冻结的短期 ActionGrant / step-up grant，绑定 operation、target 与输入摘要并一次性消费。
+- 高危操作使用 [DG-4 冻结的 ActionGrant](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/delegated-execution-and-action-grant.md)：它绑定 operation、target、canonical input digest 与 idempotency reference，并由目标服务随业务写入一次性消费。
 
 ### 5.4 DG-1 密码学与工作负载互操作基线
 
@@ -372,7 +373,7 @@ Asset + Site 仍是第一个业务解阻优先链，但不再是本 capability �
 1. Token cryptography 与 workload identity 互操作 contract：阻塞 production mTLS、JWT verifier 与 key management 定稿。
 2. Execution emergency revocation event contract：阻塞紧急撤销和最终 production security acceptance。
 3. External API Key security contract：阻塞外部 Integration credential 的创建、交换、轮换与开放。
-4. DELEGATED execution 与 ActionGrant contract：阻塞 AI delegation 和需要一次性高危授权的 RPC 开放。
+4. DELEGATED execution 与 ActionGrant contract：已由 [ADR 0016](/Users/acehood/Documents/GitHub/oes/docs/adr/0016-delegated-execution-and-action-grant.md) 冻结；它解除 AI delegation 与一次性高危授权的设计阻塞，但不替代 DG-1 的签名 / workload binding 或 DG-2 的紧急撤销设计。
 5. PrincipalRoleBinding persistence contract：阻塞 Permission schema 与 AccountRole 数据迁移。
 
 “后置”表示转交独立设计任务，不表示允许实现 owner 自行决定；对应 gate 未关闭时，相关能力必须保持未开放。
@@ -388,4 +389,5 @@ Marketplace 已取消，不进入后置任务清单。
 - [permission-service](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
 - [ExecutionToken Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/execution-token.md)
 - [Principal Authorization Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/principal-authorization.md)
+- [Delegated Execution And ActionGrant Collaboration](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/delegated-execution-and-action-grant.md)
 - [Trusted gRPC Feature Packet](/Users/acehood/Documents/GitHub/oes/docs/plans/features/trusted-grpc-execution-context.md)

@@ -31,6 +31,8 @@ The proto files remain the machine-readable source of truth. These documents exp
 - [principal-authorization.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/principal-authorization.md)
   - HUMAN / MACHINE 的通用 PrincipalRoleBinding、DELEGATED 授权交集与 workload INTERNAL issuance policy。
   - Freezes trusted-subject inputs for Auth / STS and target-service authorization without creating a second Scope vocabulary.
+- [delegated-authorization.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/delegated-authorization.md)
+  - HUMAN grant、DelegationGrant、ToolContract upper bound、目标 policy 与风险分类的 DELEGATED 交集判定。
 
 Legacy `Policy + conditionAstJson` mutation RPCs and `CheckPermissionWithContext` remain in the machine contracts only for historical compatibility recovery. They are disabled by default in `permission-service`; new callers must use `PolicyInstanceManagementService` and `ResourceAuthorizationService`.
 

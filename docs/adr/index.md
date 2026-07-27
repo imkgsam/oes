@@ -38,5 +38,7 @@
   - 决定公共事件采用 CloudEvents 1.0 Structured JSON，并按 owner service 在 `src/common/src/contracts/<service_snake_case>/events.ts` 维护 producer / consumer 共用的代码契约；异步 command lane 本期不实施。
 - `0015-workload-identity-and-execution-token.md`
   - 决定 OES 以 mTLS / SPIFFE-compatible identity 证明直接工作负载，由 Auth / STS 独占签发单 audience、`cnf` 绑定的短期 ExecutionToken，并逐服务迁移全部 21 个 gRPC 服务、560 个 RPC，直至 legacy 信任引用归零。
+- `0016-delegated-execution-and-action-grant.md`
+  - 决定 HUMAN delegation 采用限时可撤销的最小权限交集，高风险业务动作采用精确绑定、一次性消费的 ActionGrant，并划定 AI 永久禁止操作。
 
 若后续涉及 bounded context、共享契约、事件模型、权限语义、租户模型、`src/common` 对外 API 或 AI 工具协议变更，应先在本目录新增 ADR，再进入实现。

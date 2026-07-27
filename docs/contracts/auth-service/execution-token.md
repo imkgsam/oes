@@ -18,7 +18,7 @@ architectureTruthSource: docs/architecture/services/auth-service.md
 - tenant Integration Machine 使用 API Key 在 Gateway / Auth 入口认证并换 Token。
 - 资源服务取得 JWKS 并消费紧急撤销事实。
 
-本契约不开放外部直连 gRPC，不定义用户登录 access / refresh token，也不定义高危 ActionGrant 的具体字段。
+本契约不开放外部直连 gRPC，也不定义用户登录 access / refresh token。高危 ActionGrant 的生命周期、绑定与消费规则以 [delegated-execution-and-action-grant.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/delegated-execution-and-action-grant.md) 为准。
 
 ## 2. Trust Inputs
 
@@ -136,7 +136,7 @@ Token TTL maximum is 5 minutes. Implementations may shorten it by risk but calle
 - 普通 role / grant / session / credential 变化允许在 Token TTL 内收敛。
 - 紧急事件可按 `jti`、principal、session、credential 或 minimum `authz_version` 更新服务本地 deny cache。
 - Token 合法复用不是业务幂等。所有有副作用 command 仍使用 tenant + caller + operation 范围内的 idempotency key。
-- 高危操作不能仅靠普通 ExecutionToken 防重放；必须使用另行冻结的 step-up / ActionGrant，绑定 operation、target、输入摘要和一次性消费。
+- 高危操作不能仅靠普通 ExecutionToken 防重放；必须使用有效 delegation、适用 step-up 和冻结的 ActionGrant。ActionGrant 绑定 operation、target、输入摘要与 idempotency reference，并由目标服务在业务写入事务中一次性消费。
 
 ## 9. Stable Error Categories
 

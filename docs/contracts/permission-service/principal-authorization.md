@@ -13,6 +13,7 @@ architectureTruthSource: docs/architecture/services/permission-service.md
 - `HUMAN` principal 通过已验证账号 / session identity 参与角色与 policy 判定。
 - `MACHINE` principal 引用 Identity Service 拥有的 Machine Principal，不创建伪用户账号。
 - `DELEGATED` 不是可长期绑定角色的独立主体；其结果由 HUMAN grant、delegation 与 agent/tool upper bound 共同约束。
+- Delegation credential 和 ActionGrant 均不归 Permission Service 签发；Permission 只返回可信 delegation reference、ToolContract 上限和目标 policy 的交集判定。
 - `PrincipalRoleBinding` 是 HUMAN / MACHINE 与 Role instance 的通用绑定事实，至少包含 principal type / id、role、scopeLevel、tenant、effective / expiry 与审计关联。
 - SYSTEM binding 只能指向 `SYSTEM_INSTANCE` 且 tenant 为空；TENANT binding 只能指向同 tenant `TENANT_INSTANCE`。
 
@@ -34,6 +35,7 @@ architectureTruthSource: docs/architecture/services/permission-service.md
 - requested Permission Code 集；
 - action / resource type 与服务拥有的最小 resource facts（如需要）；
 - delegation / session security reference（如适用）。
+- DELEGATED 时的 trusted delegation reference、AgentPrincipal / ToolContract identity and version、operation class 与 target resource facts。
 
 稳定输出包括：
 
@@ -105,3 +107,4 @@ Gateway HTTP `RequirePermissions` 保留。它与目标 gRPC BUSINESS authorizat
 6. AccountRole 到 HUMAN PrincipalRoleBinding 的迁移保持现有有效授权不变。
 7. 同一操作要求两个独立 Permission 时 `all` 正确拒绝只持有一个 Code 的主体。
 8. workload issuance policy 不允许时，即使 human 有上游 BUSINESS Permission 也不能申请目标 INTERNAL Code。
+9. 同一 HUMAN 的更高 Permission 不能扩大固定 ToolContract 的上限，也不能使被标为 ActionGrant-required 或 AI-forbidden 的 operation 自动放行。

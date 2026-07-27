@@ -45,7 +45,7 @@ The following five items are required but intentionally moved to separate design
 | DG-1 | Token cryptography and workload identity interoperability: allowed algorithm, issuer / audience registry, JWKS endpoint, `cnf` representation, trust domain and rotation | Production TG-0/TG-1/TG-2 security configuration |
 | DG-2 | Emergency ExecutionToken revocation event: owner, CloudEvents type/version, payload, ordering, delivery, deny-cache update and recovery | Emergency revoke implementation and production security acceptance |
 | DG-3 | External API Key security contract: identifier/secret format, HTTP exchange, hash/pepper, rate limit, rotation overlap, audit and leak response | External Integration credential creation and opening |
-| DG-4 | DELEGATED execution and ActionGrant: delegation lifecycle, tool upper bound, step-up, one-time consumption and forbidden operations | AI delegation and RPCs requiring one-time high-risk authorization |
+| DG-4 | **FROZEN** — [DELEGATED execution and ActionGrant](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/delegated-execution-and-action-grant.md): delegation lifecycle, tool upper bound, step-up, exact binding, one-time consumption and forbidden operations | AI delegation and RPCs requiring one-time high-risk authorization; implementation still consumes DG-1 binding and must use the paired capability command |
 | DG-5 | PrincipalRoleBinding persistence: uniqueness, effective-window overlap, revoke idempotency, migration invariants and rollback | Permission schema migration from AccountRole |
 
 Global Command must create independent design owners for DG-1 through DG-5. A blocked capability remains disabled; ordinary implementers cannot substitute local choices.
