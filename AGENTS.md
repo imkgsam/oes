@@ -313,6 +313,19 @@ Global Command Thread 只负责项目级规划、任务调度、依赖编排、�
 
 共享计划文件采用单写者规则。`docs/plans/oes-global-roadmap.md`、`docs/plans/oes-thread-control-board.md`、`docs/plans/oes-capability-dependency-map.md` 只能由 Global Command Thread 写入。其他 thread 通过结构化 handoff 回报给 owner。
 
+### 12.4 OES 协同框架 Git 隔离纪律
+
+当用户明确启用 OES 协同框架时，所有线程必须遵循 `docs/governance/oes-capability-collaboration-framework.md` 的 branch/worktree 生命周期；下列规则属于强制基线：
+
+- 项目根目录固定检出干净、可运行的 `main`；Design、Implementation、Review、Acceptance 线程不得直接在根目录开发或留下修改。
+- 每个并发写 owner 必须使用独立 branch + worktree；一个 worktree 同一时间只能有一个写 owner。禁止多个线程共享未提交文件、从 dirty working tree 派生任务或用 stash handoff。
+- Capability Command 只调度；每个 capability 只有一个 Integration Thread、一个 integration branch/worktree 和一个集成写 owner。
+- 模块必须先满足构建/类型检查与定向测试，再通过保留 ancestry 的正常 merge 进入 integration branch；正常流程禁止 cherry-pick、squash merge 或 rebase 已共享提交。
+- Acceptance Thread 只验收精确 candidate SHA，不修复实现；验收失败回原 owner/branch，设计缺口回 Design Thread，未通过不得进入 `main`。
+- 最终 integration 必须同步最新 `origin/main`、重新验证并以 `--ff-only` 进入本地 `main` 后正常 push；若远端 `main` 已变化，重新生成 candidate，不得直接在 `main` 解冲突。
+- branch/worktree 只在代码已进入 `origin/main`、ancestry 可证明、worktree clean、handoff/registry/子线程记录已收口后删除。正常清理使用 `git worktree remove` 与 `git branch -d`，禁止把 `-D`、`--force`、`reset --hard` 或批量 `git clean` 当作常规流程。
+- 运行或验收结果必须报告 cwd、branch、HEAD 和 dirty state，确保能明确回答“运行的是哪个版本”。
+
 ## 13. 交付输出要求
 
 每次完成一个任务片段后，应明确说明：

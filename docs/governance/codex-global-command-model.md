@@ -6,7 +6,7 @@
 
 核心目标是让 OES 像大型团队一样推进，而不是让多个 Codex thread 无差别修改代码。
 
-能力级协同的显式启用、Design Thread 与 Capability Command 一对一关系、批量验收及关闭规则，以 [`oes-capability-collaboration-framework.md`](./oes-capability-collaboration-framework.md) 为准。
+能力级协同的显式启用、Design Thread 与 Capability Command 一对一关系、branch/worktree 隔离、integration candidate、批量验收及关闭规则，以 [`oes-capability-collaboration-framework.md`](./oes-capability-collaboration-framework.md) 为唯一治理真相源。
 
 ## 2. Global Command Thread 红线
 
@@ -107,6 +107,10 @@ handoff 必须包含：
 - Return target
 - Branch
 - Worktree
+- Base SHA
+- Candidate / Last Commit SHA
+- Dirty State
+- Integration Target
 - Scope
 - Changed files
 - Design impact
@@ -118,6 +122,7 @@ handoff 必须包含：
 - New blockers
 - Conflicts detected
 - Verification
+- Cleanup State
 - Recommended next tasks
 
 Global Command 只根据结构化 handoff 更新全局 roadmap、依赖图与调度状态。

@@ -20,6 +20,8 @@
 - `docs/governance/codex-threading-rules.md`
 - `docs/governance/codex-workflow.md`
 
+若能力域已显式启用 OES 协同框架，Git 执行不得由本文件另行解释：`main` 保护、独立 branch/worktree、Integration Thread 单写者、candidate 验收、正常 merge 与清理门禁，统一以 `oes-capability-collaboration-framework.md` 第 5 节为准。feature packet 只登记对应 branch/worktree/commit 状态，不复制第二套 Git 规则。
+
 ## 2. 核心结论
 
 ### 2.1 不按“前端 / 后端”长期固定拆分
