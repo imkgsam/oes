@@ -1,4 +1,4 @@
-# OES Capability Collaboration Framework v1.2
+# OES Capability Collaboration Framework v1.3.2
 
 ## 1. 定位与启用规则
 
@@ -84,13 +84,43 @@ Capability Command ↔ Implementation / Focused Review / Acceptance / Integratio
 
 Capability Command 失联、工具不可用或中断时，Global Command 只能恢复或替换该 Capability Command，不能穿透接管其子任务。紧急穿透必须由用户明确授权，并记录 `emergencyOverride: true`、原因、范围、失效条件和恢复目标；Global Command 不得自行声明紧急状态。
 
+### 3.8 注册表驱动的单消费者 Pull 协议
+
+框架内正式线程通信采用 **Registry-Governed Single-Consumer Pull**，而不是子线程或 peer 向正在工作的控制线程主动推送 handoff。
+
+控制关系固定为：
+
+```text
+Global Command 主动拉取 Capability Command 的 capability-level terminal
+Capability Command 主动拉取配对 Design 与已登记 I/R/V/X 的 terminal
+```
+
+强制规则：
+
+- 每个控制线程在自己的 registry 中登记受控线程、`currentWorkItem`、运行状态、`deliveryLock` 与 `lastConsumedCursor`；同一时间只处理一个原子工作项。
+- 正式子线程完成、失败或阻塞后，只在自己的 terminal final record 留下结构化 handoff，不调用消息工具主动唤醒或打断 parent。多个 terminal 可以并行就绪，由 parent 串行拉取。
+- `ACTIVE` 线程的 `deliveryLock` 固定为 `CLOSED`。自动线程不得向其推送任务、handoff、scope、gate、返工或状态消息；结果继续保留在来源 terminal。
+- Parent 只能在 child 为 `IDLE` 时下发或恢复任务。Peer-to-peer 正式控制消息一律返回 `ROUTING_VIOLATION`。
+- Global Command 与 Capability Command 必须使用任务等待/读取机制消费 terminal，并在处理后记录精确 cursor；同一 terminal 不得重复裁定。
+- 当前原子工作只要仍有 `ACTIVE` child 或未消费 terminal，注册 parent 就必须保持本 turn，通过有界 wait/read 循环持续监控；wait 超时只产生状态更新，不构成结束条件。
+- 禁止控制线程用 `*_IN_PROGRESS`、`READY_FOR_PARENT_PULL`、“已派发”或“等待 child”作为 terminal final 后自行进入 idle。存在 active/ready child 时不属于安全检查点。
+- 控制线程只有在以下稳定状态才能结束 turn：当前能力/原子工作完成；等待 Design、跨能力前置或用户决定；已证实的环境/工具 blocker；`MERGED_WAITING_FOR_USER_CLEANUP`。terminal 必须准确命名该稳定状态。
+- 若 Codex 运行时意外结束控制 turn，由注册 owner 配置的轻量 liveness watchdog 只唤醒该 idle 控制线程继续原 `currentWorkItem`。watchdog 不读取或指挥 child、不消费 terminal、不裁定 gate、不创建任务、不承担业务状态，也不得作为 Inbox。
+- “处理完成”指当前原子工作达到上述稳定检查点并更新 registry，不要求整个 capability 结束。
+
+用户消息始终有效，但只有用户明确要求停止、切换、覆盖或优先处理时才抢占当前工作；当前任务补充合并处理，无关新任务等待当前原子工作达到安全检查点。
+
+自动抢占只允许注册 parent 对自己的 child 发出纯 `STOP_ONLY`，且仅限代码/数据破坏、凭据或敏感信息泄露、已确认共享文件并发写、未经授权的外部或破坏性操作。`STOP_ONLY` 只能要求停止并保存现场，不得夹带新任务、scope、gate 或返工指令；跨 capability 不得直接停止对方线程。
+
+超时不等于失败。只要 heartbeat、cursor、工具进程或状态仍变化就继续等待；child 已 idle 或留下 incomplete terminal 时恢复同一线程。连续三个监控窗口均无任何进度证据并确认失联后，注册 parent 才可执行恢复停止并恢复同一 thread/branch/worktree，禁止创建重复任务或工作面。
+
 ## 4. 标准生命周期
 
 1. **Explicit intake**：确认用户明确启用框架，记录 `capabilityKey`、目标、优先级和疑似依赖。
 2. **Pairing**：Global Command 创建一个 Design Thread 和一个同域 Capability Command，并锁定双方 ownership；此后 capability 内 I/R/V/X 的创建权转交 Capability Command。
 3. **Design**：Design Thread 与用户讨论，解决母分支下的分支问题；开放问题未冻结前不得派发实现。
 4. **Freeze**：将结论回写架构、ADR、contract 或 feature packet 等唯一真相源，形成下游可执行输入。
-5. **Dispatch**：Capability Command 先登记 integration branch/worktree，再按垂直切片创建独立 Implementation branch/worktree；只有确有必要时才创建额外 review。任何子任务未通过标题、父子关系和 Git 工作面校验前不得进入 active。
+5. **Dispatch**：Capability Command 先登记 integration branch/worktree，再按垂直切片即时创建独立 Implementation branch/worktree；只有确有必要时才创建额外 review。有前置依赖的未来 lane 在 predecessor gate 与精确 base SHA 就绪前只登记 planned lane，不创建正式 task 或 worktree。任何 writer 子任务未绑定从精确 base 创建的 canonical branch，或未通过标题、父子关系和 Git 工作面校验前，不得进入 active。
 6. **Lane gate**：每个实现 lane 在自己的 worktree 中完成构建、定向测试、提交和推送，工作区干净后才允许 handoff。
 7. **Capability integration**：Integration Thread 只合并已通过 lane gate 的分支，形成不可变 candidate commit。
 8. **Batch acceptance**：Acceptance Thread 针对 candidate commit 做统一验证，发现实现问题回 Command，发现设计问题回 Design Thread。
@@ -111,14 +141,14 @@ Capability Command 失联、工具不可用或中断时，Global Command 只能�
 
 ### 5.2 各角色的 Git 资源
 
-| 角色                            | Branch / worktree 规则                                                                                                     |
-| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Design Thread                   | 纯讨论时不创建；进入冻结写入时使用短生命周期 design branch/worktree。冻结文档先合并进 `main`，下游实现再从该稳定基线启动。 |
-| Capability Command              | 只调度和登记，不写代码，不创建自己的开发 branch/worktree。                                                                 |
-| Implementation / Focused Review | 每个并发写 owner 使用独立 branch/worktree；子线程若独立写文件，也必须获得自己的 branch/worktree 和路径 ownership。         |
-| Integration Thread              | 每个 capability 只允许一个 integration branch/worktree 和一个写 owner。                                                    |
-| Acceptance Thread               | 读取 Integration Thread 给出的精确 candidate SHA；优先使用 detached、只读验收 worktree，不创建可写业务分支，不修复实现。   |
-| Project root                    | 始终保持在 `main`；日常启动稳定系统只从此目录运行。                                                                        |
+| 角色                            | Branch / worktree 规则                                                                                                             |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Design Thread                   | 纯讨论时不创建；进入冻结写入时使用短生命周期 design branch/worktree。冻结文档先合并进 `main`，下游实现再从该稳定基线启动。         |
+| Capability Command              | 只调度和登记，不写代码，不创建自己的开发 branch/worktree。                                                                         |
+| Implementation / Focused Review | 每个并发写 owner 使用独立 canonical branch/worktree；从精确 predecessor SHA 即时创建，首次运行前必须已绑定 branch，禁止 detached。 |
+| Integration Thread              | 每个 capability 只允许一个 integration branch/worktree 和一个写 owner；首次运行前必须已绑定 canonical branch，禁止 detached。      |
+| Acceptance Thread               | 读取 Integration Thread 给出的精确 candidate SHA；优先使用 detached、只读验收 worktree，不创建可写业务分支，不修复实现。           |
+| Project root                    | 始终保持在 `main`；日常启动稳定系统只从此目录运行。                                                                                |
 
 ### 5.3 命名与 registry
 
@@ -150,18 +180,21 @@ codex/site/x01-integration
 
 - `d`、`i`、`r`、`x` 分别对应 Design、Implementation、Focused Review、Integration。
 - branch 名必须能映射到自动任务名，例如 `A/I/SITE/01` 对应 `codex/site/i01-<slug>`。
-- Global Command 只维护 capability 级 registry：`capabilityKey`、Design/Command thread、能力状态、跨能力依赖、candidate/main SHA、全局风险和待用户清理状态。
-- Capability Command 独占维护 capability 内部 registry：`threadId`、`hostId`、规范标题、parent/return target、owner、branch、worktree、base SHA、allowed/protected paths、dependency SHA、gate、last commit、dirty state、integration target、cleanup state。
+- Global Command 只维护 capability 级 registry：`capabilityKey`、Design/Command thread、能力状态、`currentWorkItem`、`deliveryLock`、`lastConsumedCursor`、跨能力依赖、candidate/main SHA、全局风险和待用户清理状态。
+- Capability Command 独占维护 capability 内部 registry：`threadId`、`hostId`、规范标题、parent/return target、owner、运行状态、`currentWorkItem`、`deliveryLock`、`lastConsumedCursor`、branch、worktree、base SHA、allowed/protected paths、dependency SHA、gate、last commit、dirty state、integration target、cleanup state。
+- Predecessor 未就绪的 future lane 只以 planned lane 记录 sequence、ownership、paths、dependency gate 与预计 base，不创建 threadId、branch 或 worktree。依赖满足后再解析精确 base SHA、创建 canonical branch，并以该 branch 作为正式 task 的 worktree starting state。
+- I/R/X writer worktree 的 `git branch --show-current` 必须等于登记的 canonical branch；detached HEAD 直接阻止 activation。激活前必须在 clean worktree 执行 `git update-index --refresh` 并成功，以无语义写入证明 linked-worktree Git metadata 可写。Detached worktree 仅可登记给只读 Acceptance，且不得执行 Git 写操作。
 - 未登记 branch/worktree 不得成为正式写入任务的工作面。
 
 ### 5.4 创建与依赖顺序
 
 1. 确认项目根目录位于干净且与 `origin/main` 同步的 `main`。
 2. 冻结设计先通过 design branch 合并到 `main`；未进入 `main` 的设计草稿不得作为多 lane 实现基线。
-3. Integration Thread 从最新 `origin/main` 创建 capability integration branch/worktree。
-4. 无依赖 lane 从当前 integration head 创建；有依赖 lane 必须等待 Producer/Contract lane 提交并合并到 integration 后，再从新的 integration head 创建或同步。
-5. dependency install、生成代码、构建和测试必须在 lane worktree 中执行；初始化后 `git status` 必须干净，生成物必须被正确忽略。
-6. shared proto、`src/common`、lockfile、权限、租户/operator context 等共享路径实行单写者；已经在 feature packet 或 Global Command ownership 授权中分配给当前 capability 的路径由 Capability Command 调度，未分配或与其他 capability 冲突时才升级 Global Command。不得通过共享 worktree 或复制 dirty baseline 规避依赖顺序。
+3. Integration Thread 从最新 `origin/main` 创建 capability integration canonical branch，并以该 branch 创建正式 task/worktree；不得先创建 detached writer worktree。
+4. 无依赖 lane 从当前 integration head 即时创建 canonical branch/task/worktree。有依赖 lane 在 Producer/Contract gate 前只登记 planned lane；依赖提交合入 integration 后，从新的精确 integration SHA 创建 canonical branch，再创建以该 branch 为 starting state 的正式 task/worktree。
+5. 正式 writer task 创建后必须在首次执行前回读并证明 cwd、canonical branch、精确 HEAD 与 clean status，并在该 clean worktree 执行 `git update-index --refresh` 成功以证明 Git metadata 可写；任何 detached、错误 base 或不可写状态都必须在 activation 前修复，不得把环境修复留给业务实现回合。
+6. dependency install、生成代码、构建和测试必须在 lane worktree 中执行；初始化后 `git status` 必须干净，生成物必须被正确忽略。
+7. shared proto、`src/common`、lockfile、权限、租户/operator context 等共享路径实行单写者；已经在 feature packet 或 Global Command ownership 授权中分配给当前 capability 的路径由 Capability Command 调度，未分配或与其他 capability 冲突时才升级 Global Command。不得通过共享 worktree 或复制 dirty baseline 规避依赖顺序。
 
 ### 5.5 模块本地绿
 
@@ -301,16 +334,17 @@ A/X/SITE/01 · Site Capability Integration
 ```text
 reserve sequence in registry
 → generate canonical title
-→ create project task
+→ wait for predecessor gate and resolve exact base SHA
+→ create canonical branch at that exact base
+→ create project task/worktree with the canonical branch as starting state
 → explicitly set UI title
 → read task back and verify title/threadId/hostId
-→ create and verify branch/worktree
-→ verify cwd/branch/HEAD/dirty state
+→ verify cwd/branch/HEAD/dirty state and run git update-index --refresh
 → register parent/return target/paths/dependencies/gate
 → activate task
 ```
 
-只把标题写入 prompt 不视为完成命名。创建工具不可用时，Capability Command 返回 `TOOL_BLOCKED` 并暂停；Global Command 只能恢复或替换 Capability Command 的工具环境，不得代建子任务。
+只把标题写入 prompt 不视为完成命名。Predecessor 未就绪时流程停在 planned lane，不得通过预创建 detached task/worktree 占位。创建工具不可用时，Capability Command 返回 `TOOL_BLOCKED` 并暂停；Global Command 只能恢复或替换 Capability Command 的工具环境，不得代建子任务。
 
 ## 10. 监控、恢复与跨能力升级
 
@@ -318,15 +352,16 @@ reserve sequence in registry
 
 Capability Command 创建子任务后保持执行所有权，通过任务等待机制监控已登记的活动子任务，不在派发后立即以“应启动”或“等待 Global Command”结束控制链。
 
-- 超时或无状态变化只继续等待，不重复读取完整上下文；
-- 子任务终态出现后完整读取一次 final record，再裁定 gate；
+- 子任务不得主动推送 handoff；Command 按第 3.8 节主动拉取已登记 terminal；
+- Command 在当前原子工作存在 active/ready child 时不得返回 terminal final；必须留在同一 turn，以有界 `wait_threads` 连续等待，超时后继续且不重复读取完整上下文；
+- 子任务终态出现后按 cursor 完整读取一次 final record，再裁定 gate 并记录已消费 cursor；
 - `idle`、部分结果或测试运行中不能视为完成；
 - 已有可信证据不重复执行完整测试，只补实际风险缺口；
 - 实现缺陷恢复原 Implementation，验收脚本/fixture 缺陷恢复原 Acceptance；
 - 设计/契约缺口直接回 Design Thread，Capability Command 标记 `WAITING_FOR_DESIGN`；
-- 中断后恢复同一个 Capability Command，并从既有 registry 与任务终态继续，不重新创建任务。
+- 连续三个监控窗口无任何进度证据且确认失联后，只恢复同一个 thread/branch/worktree，不重新创建任务。
 
-显式启用框架后可以建立只唤醒对应 Capability Command 的轻量恢复机制；它不得读取或指挥子任务，能力完成或用户停用框架后必须删除。
+Capability 进入执行态时必须建立或确认只唤醒对应 Capability Command 的轻量 liveness watchdog，作为 control turn 意外结束的兜底。watchdog 只在 Command 为 idle 且 registry 仍有非稳定 `currentWorkItem` 时恢复同一 Command；它不得读取或指挥子任务、消费 handoff、裁定 gate、创建任务或形成第二个 Inbox。Command 到达稳定终态、能力完成或用户停用框架后必须停用该 watchdog。
 
 ### 10.2 跨能力升级与授权
 

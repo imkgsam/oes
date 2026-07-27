@@ -320,6 +320,13 @@ Global Command Thread 只负责项目级规划、任务调度、依赖编排、�
 - 子任务只接受注册 `parentThreadId`/`returnTarget` 对应 Capability Command 的 scope/state 指令；其他任务或 Global Command 的直接指令返回 `ROUTING_VIOLATION`。用户指令始终有效，但改变范围时必须先同步 Capability Command 更新 registry。
 - Capability Command 失联或工具不可用时只能恢复或替换同一 Command，禁止 Global Command 穿透接管。紧急穿透必须由用户明确授权并记录原因、范围、失效条件和恢复目标。
 - 框架正式任务必须由 Capability Command 分配规范序号，创建后显式设置并读回确认 UI 标题；错误标题、父子关系或 Git 工作面不得进入 active。
+- 正式线程通信采用注册表驱动的单消费者 Pull：子线程只在自身 terminal 留下 handoff，注册 parent 通过 wait/read 主动拉取并按 cursor 串行消费；禁止自动线程向 `ACTIVE` target 推送消息。
+- GC registry 与 Capability Command registry 必须记录 `currentWorkItem`、`deliveryLock`、受控 child 与 `lastConsumedCursor`；同一线程同一时间只处理一个原子工作项，多个 ready terminal 留在来源线程等待拉取。
+- 注册 parent 的当前原子工作项只要仍有 `ACTIVE` child 或未消费 terminal，就必须保持本 turn 并持续使用 wait/read；不得用 `*_IN_PROGRESS`、`READY_FOR_PARENT_PULL` 或“已派发、等待结果”作为 terminal final 后自行进入 idle。
+- 控制线程只有在完成、等待 Design/跨能力前置/用户决定、明确环境或工具 blocker、`MERGED_WAITING_FOR_USER_CLEANUP` 等稳定状态才能结束 turn。若运行时意外令其 idle，由只唤醒该控制线程的轻量 watchdog 恢复；watchdog 不得读取或指挥 child、裁定 gate、创建任务或充当 Inbox。
+- Parent 只能向 `IDLE` child 下发或恢复任务；peer-to-peer 控制消息返回 `ROUTING_VIOLATION`。用户只有明确要求停止、切换、覆盖或优先处理时才抢占当前工作。
+- 注册 parent 仅可因代码/数据破坏、敏感信息泄露、确认的共享文件并发写或未经授权的破坏性操作，对自己的 child 发出不夹带新任务的 `STOP_ONLY`；跨 capability 不得直接停止。
+- 超时不等于失败；存在 heartbeat、工具进程或状态变化时继续等待。连续三个监控窗口均无进度证据并确认失联后，只能恢复同一 thread/branch/worktree，不得创建重复任务。
 
 ### 12.4 OES 协同框架 Git 隔离纪律
 
@@ -327,6 +334,8 @@ Global Command Thread 只负责项目级规划、任务调度、依赖编排、�
 
 - 项目根目录固定检出干净、可运行的 `main`；Design、Implementation、Review、Acceptance 线程不得直接在根目录开发或留下修改。
 - 每个并发写 owner 必须使用独立 branch + worktree；一个 worktree 同一时间只能有一个写 owner。禁止多个线程共享未提交文件、从 dirty working tree 派生任务或用 stash handoff。
+- 有前置依赖的未来 I/R/X lane 在 predecessor gate 与精确 base SHA 未就绪前只能作为 planned lane 登记，禁止提前创建正式 task、detached worktree 或占用写工作面。
+- I/R/X 正式 task 必须即时从精确 base 创建 canonical branch，并以该 branch 作为 starting state 一次创建 task/worktree；激活前必须用 `git update-index --refresh` 证明 linked-worktree Git metadata 可写。Writer worktree 禁止 detached HEAD；detached worktree 仅允许用于只读 Acceptance。
 - Capability Command 只调度；每个 capability 只有一个 Integration Thread、一个 integration branch/worktree 和一个集成写 owner。
 - 模块必须先满足构建/类型检查与定向测试，再通过保留 ancestry 的正常 merge 进入 integration branch；正常流程禁止 cherry-pick、squash merge 或 rebase 已共享提交。
 - Acceptance Thread 只验收精确 candidate SHA，不修复实现；验收失败回原 owner/branch，设计缺口回 Design Thread，未通过不得进入 `main`。
