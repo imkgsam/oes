@@ -76,6 +76,14 @@
 
 - Site 与 Asset 在 Site Media 选择、发布期解析、public delivery、publication reference protection、下架与可用性事实上的协同蓝图
 
+19. [external-api-key-security.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/external-api-key-security.md)
+
+- External API Key 在 Identity、Auth、Permission 与 API Gateway 间的 tenant Integration Machine、交换、授权、审计与泄漏处置协同蓝图
+
+20. [delegated-execution-and-action-grant.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/delegated-execution-and-action-grant.md)
+
+- AI / Robot 代表 HUMAN 执行时的委托、工具上限、step-up、单次高风险 ActionGrant、审计与消费协同蓝图
+
 ## 4. 新服务协同准入规则
 
 新增 `erp-service` 这类服务时：
