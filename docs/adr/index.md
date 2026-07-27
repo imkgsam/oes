@@ -1,6 +1,6 @@
 # OES ADR 索引
 
-更新时间：2026-06-10
+更新时间：2026-07-26
 
 > 涉及 permission-service 的当前服务职责、核心对象或 owner 边界时，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准；ADR 索引只导航历史架构决策。
 
@@ -24,5 +24,17 @@
   - 决定 Terminal-aware Account Security Phase 2 的登录方式、terminal MFA、PDA 设备绑定租户、session、trusted device、登录历史与受管设备清退协同边界。
 - `0008-tenant-scoped-tenant-party-primary-party-model.md`
   - 决定 OES 采用 tenant-scoped `TenantParty` 作为核心主体模型，替代 ADR 0003 的 system-wide Party + TenantParty binding 模型。
+- `0009-site-content-category-taxonomy.md`
+  - 决定以可本地化、可 SEO 的 Site Content Category 取代 legacy Topic，并保留文章的有序多分类关系。
+- `0010-site-publish-sync-concurrency.md`
+  - 决定同一 Site 正式发布串行化、pending revision 使用 CAS 清账，并让 Runtime 固定目标版本后自动追赶后续版本。
+- `0011-site-dynamic-slug-reservation-and-history.md`
+  - 决定 Site Service 以数据库约束保护 draft、canonical 与 historical slug 所有权，并让 Runtime 通过本地 alias index 单跳 301。
+- `0012-site-media-delivery-and-purge.md`
+  - 决定 Site Media 以本地到远端的单向 binding 迁移，P1 使用 OES 管理的 Cloudflare R2 + CDN，并以 origin block 加精确 purge 确认可完成下架。
+- `0013-nats-jetstream-event-bus-and-delivery-semantics.md`
+  - 决定 OES 第一版公共业务事实总线采用 NATS JetStream，并冻结每服务 transactional outbox、consumer inbox、至少一次投递、有限重试、DLQ 与受控重放边界。
+- `0014-cloudevents-and-service-owned-event-code-contracts.md`
+  - 决定公共事件采用 CloudEvents 1.0 Structured JSON，并按 owner service 在 `src/common/src/contracts/<service_snake_case>/events.ts` 维护 producer / consumer 共用的代码契约；异步 command lane 本期不实施。
 
 若后续涉及 bounded context、共享契约、事件模型、权限语义、租户模型、`src/common` 对外 API 或 AI 工具协议变更，应先在本目录新增 ADR，再进入实现。

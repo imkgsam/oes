@@ -17,7 +17,7 @@ Preview 只能由 OES Admin 登录用户发起。
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
 | `site_id` | 是 | 目标站点。 |
-| `resource_type` | 是 | `product / blog / news`；P1 不支持 category preview。 |
+| `resource_type` | 是 | `product / blog / news`；P1 不支持 category 或 article-category archive preview。 |
 | `resource_id` | 是 | 目标资源。 |
 | `locale` | 是 | preview locale。 |
 
@@ -35,6 +35,7 @@ Preview 只能由 OES Admin 登录用户发起。
 - token 绑定 site、resource、locale、operator。
 - token 固定 15 分钟过期。
 - issue token 不生成 publishVersion，不触发 webhook。
+- P1 只预览 detail 资源，不预览 Blog / News list、Content Category archive、sitemap 或 robots。
 
 ## 2. Preview View
 
@@ -72,6 +73,8 @@ Preview 只能由 OES Admin 登录用户发起。
 - Storefront Frontend 可以将 preview 5xx 转换为 200 安全 fallback 页面，用于保持预览入口可读；fallback 页面仍必须 `noindex`、`nofollow`、`no-store`。
 - Preview fallback 不得写入正式 local published store，不得生成或推进 `publish_version`，不得触发 webhook，也不得被解释为正式 published data。
 - Preview fallback 只适用于 preview route，不得影响正常公开页面读取旧 published data 的行为。
+- Storefront preview route 在 payload shape 与正式 resource detail 兼容时，应复用真实资源展示组件；只有 draft 不可用、payload 不兼容或 preview bridge 失败时才使用安全 fallback panel。
+- Content Category archive 修改先保存为草稿；发布 locale 修改后进入自动 Site Sync，并在 Runtime 拉取完整目标版本后体现在正式 published data 中。P1 不提供 Content Category archive draft composition preview；真实 Storefront 验证使用独立测试 Site publication，不新增 Category preview token 或特殊 Runtime route。
 
 主要错误：
 

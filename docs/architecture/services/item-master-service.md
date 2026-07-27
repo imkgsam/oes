@@ -177,17 +177,24 @@ Item.active = true
 
 ## 9. Attribute
 
-第一阶段只冻结 attribute 简版：
+Attribute 是 `ItemModel` 允许的规格维度；`AttributeOption` 是该规格维度下的可选值；`Item` 通过锁定一组 `AttributeOption`，形成稳定的执行层物料身份。
+
+第一阶段冻结 attribute 简版：
 
 | 对象 | 定义 |
 | --- | --- |
-| `AttributeDefinition` | 属性定义，例如颜色、孔位、坑距、密度、长度。 |
-| `AttributeOption` | 枚举属性值，例如无孔、单孔、centerset、widespread。 |
+| `AttributeDefinition` | 属性定义，例如颜色、尺寸、孔位、坑距、溢水孔、材质、表面处理、密度、长度。 |
+| `AttributeOption` | 枚举属性值，例如白色、600mm、无孔、单孔、有溢水孔、无溢水孔、centerset、widespread。 |
 | `ItemModelAttributeRule` | 某个 `ItemModel` 允许哪些 Attribute / AttributeOption。 |
 
 冻结规则：
 
-- Attribute 用于表达物料本体或规格识别属性。
+- Attribute 只用于表达物料本体或规格识别属性，即“这个物料本身是什么规格”。
+- Attribute 用于把同一 `ItemModel` 下的规格变化收敛为具体 `Item`，不用于表达过程结果、销售策略、库存状态或营销展示语义。
+- 同一产品族内的尺寸、孔位、溢水孔、颜色、材质、表面处理等可作为 Attribute；即使不同尺寸对应不同模具，也不妨碍尺寸作为同一 `ItemModel` 下的规格维度，具体生产约束由 `ProductionSpec / MoldDesign / BOM / Route` 等执行设计承接。
+- 如果某个差异已经代表不同产品族、不同长期设计模型、不同生命周期或不同主分类，应拆分为不同 `ItemModel`，而不是强行作为 Attribute。
+- 生产后、质检后或入库后产生的质量等级、瑕疵、返修状态、库存冻结、占用、库位、批次等不属于 Attribute，应分别归 MES / WMS / Sales 履约策略对象。
+- 官网、站点或营销侧可见的热销、新品、推荐、适用场景、卖点标签等不属于 Attribute；是否公开展示某个 Attribute 由 Sales / PIM / Site 展示策略决定。
 - 包装方式、客户包装、随箱配件、客户说明书、客户标签等不塞进 attribute。
 - 包装泡沫密度如果是包装规格的一部分，属于 `PackagingSpec / PACKAGING_BOM` 语义。
 - 如果泡沫密度是泡沫材料自身规格，属于泡沫这个 `ItemModel / Item` 的 attribute。

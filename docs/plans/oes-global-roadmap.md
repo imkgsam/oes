@@ -4,7 +4,7 @@
 
 本文档是 OES 项目级全局 roadmap 的长期沉淀。它只记录项目级能力层级、推进方向、依赖关系与当前优先级，不承载服务级详细设计。
 
-Global Command Thread 是本文档唯一写入 owner。其他 thread 只能通过 Hub handoff / blocker / failure 将信息回报给 Global Command。
+Global Command Thread 是本文档唯一写入 owner。其他 thread 通过结构化 handoff 将信息回报给 Global Command。
 
 ## 2. 能力层级
 
@@ -57,26 +57,23 @@ Global Command Thread 是本文档唯一写入 owner。其他 thread 只能通�
 
 ### 2.5 Collaboration / Command Layer
 
-- Codex Command Hub
 - global thread control
-- ownership registry
-- handoff / blocker / failure routing
-- roadmap export
+- explicit scope coordination
+- structured handoff
+- roadmap maintenance
 
 ## 3. 当前优先方向
 
-### P0：Codex Command Hub 与全局协作治理
+### P0：全局协作治理
 
 目的：
 
 - 固化 Global Command / Management / Worker Thread 的协作模式
-- 提供 task、ownership、handoff、blocker、failure 的统一入口
-- 降低多 thread 并行时的文件冲突和归因成本
+- 通过明确 scope、owner 与结构化 handoff 降低多 thread 并行时的文件冲突和归因成本
 
 前置：
 
 - `docs/governance/codex-global-command-model.md`
-- `docs/governance/codex-command-hub.md`
 
 ### P1：Browser Plugin + CRM Customer Workflow
 

@@ -4,6 +4,8 @@
 
 `Item` 是固定属性后的具体 SKU / 可执行物料身份 / variant。
 
+`Item` 由 `ItemModel + locked AttributeOption combination + optional PackagingSpec` 定义。`locked_attribute_option_ids[]` 只锁定物料本体规格，不锁定质量等级、瑕疵、库存状态、销售策略或营销展示标签。
+
 所有采购、销售、库存、生产、BOM 与包装执行最终以 `Item.active + Item.capabilities` 为准。
 
 ## 2. Read Model Shape
@@ -176,6 +178,7 @@ Item.item_type = PACKAGED_FINISHED_GOOD
 - `item_model_id` 必填。
 - `locked_attribute_option_ids[]` 必须符合所属 ItemModel 的 attribute rules。
 - 同一个 `ItemModel + lockedAttributes + optional packagingSpecId` 必须唯一。
+- `locked_attribute_option_ids[]` 只用于形成稳定 Item 身份；质量等级、瑕疵、返修、库存冻结、占用、客户 SKU、营销标签或临时销售要求不得通过 locked attributes 表达。
 - `PACKAGED_FINISHED_GOOD` 必须提供 `packaging_spec_id`，并且 `capabilities.packaged = true`。
 - `STANDARD` Item 的 `packaging_spec_id` 必须为空。
 

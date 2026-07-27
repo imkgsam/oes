@@ -10,9 +10,9 @@
 
 ---
 
-## Ownership Gate
+## Coordination Gate
 
-Do not start implementation until Hub claims succeed for:
+Before implementation, confirm the write scope with the current owners for:
 
 - `docs/architecture/services/crm-service.md`
 - `docs/contracts/api-gateway/extension-crm-workspace.md`
@@ -21,7 +21,7 @@ Do not start implementation until Hub claims succeed for:
 - `src/services/api-gateway/src/modules/crm-service/**`
 - `app/browser-extension/**`
 
-Current blocker was reported by thread `crm-archive-reason-lead-pc` on `2026-06-23`.
+The implementation record should name any unresolved cross-owner dependency.
 
 ## File Map
 

@@ -1,6 +1,6 @@
 # party-service 职责卡
 
-Last Updated: 2026-06-10
+Last Updated: 2026-06-27
 
 ## 1. Purpose
 
@@ -15,6 +15,7 @@ Last Updated: 2026-06-10
 - `TenantParty`：租户内现实主体主档。
 - `TenantParty.type`：`PERSON` 或 `ORGANIZATION`。
 - `TenantPartyIdentifier`：租户内主体标识，唯一性为 `tenantId + identifierType + issuerCountryOrRegion + normalizedValue`。
+- `TenantPartyProfileItem`：租户主体画像资料项，承载 email、phone、WhatsApp、domain、website、social profile、marketplace store 等可识别、可触达、可展示资料。
 - `TenantPartyAddress`：租户视角的主体地址簿正文。
 - `TenantPartyContact`：租户视角的主体联系人簿正文。
 - 供 CRM、SRM、HR、Tenant Org、Sales、Finance 等上下文受控引用的 `tenantPartyId` 主体基础事实。
@@ -34,6 +35,7 @@ Last Updated: 2026-06-10
 - 通过 `TenantParty.type` 区分 `PERSON` 与 `ORGANIZATION`，不再通过单独的 Person / Organization 运行时主模型表达。
 - 维护租户内主体生命周期状态、法定 / 官方名称、展示名、本地编码、注册国家或地区。
 - 维护租户内唯一的主体标识，支持按当前租户解析 identifier。
+- 维护租户主体画像资料项，支持按 profile item 搜索候选主体。
 - 为 HR onboarding 创建或复用 `PERSON` TenantParty。
 - 为 tenant onboarding 创建当前租户自己的 `ORGANIZATION` TenantParty。
 - 为 CRM / SRM / Sales / Finance 提供当前租户内 `tenantPartyId` / `customerTenantPartyId` / `supplierTenantPartyId` 引用基础。
@@ -65,9 +67,34 @@ Last Updated: 2026-06-10
 
 - 唯一性为 `tenantId + identifierType + issuerCountryOrRegion + normalizedValue`。
 - 名称不是唯一键。
+- `domain`、`website`、`email`、`phone`、`whatsapp`、`social profile` 不属于 `TenantPartyIdentifier`。
+- Identifier 命中可以作为强主体匹配依据；profile item 命中只能作为候选匹配依据，除非后续 ADR 明确提升某一类型的治理强度。
 - 同一个现实世界主体在不同租户中可以形成不同 `TenantParty`，本轮不建立跨租户同一性。
 
-### 5.3 Address / Contact
+### 5.3 TenantPartyProfileItem
+
+`TenantPartyProfileItem` 表达当前租户认为某个 `TenantParty` 关联的画像资料项。
+
+适用类型包括：
+
+- `EMAIL`
+- `PHONE`
+- `WHATSAPP`
+- `WECHAT`
+- `DOMAIN`
+- `WEBSITE`
+- `SOCIAL_PROFILE`
+- `MARKETPLACE_STORE`
+
+核心语义：
+
+- Profile item 不是强主体 identifier。
+- Profile item 可用于候选搜索、展示、触达与业务确认，但不得绕过 `TenantPartyIdentifier` 的强匹配边界。
+- `DOMAIN / WEBSITE` 表达外部主体与域名或站点的业务关联，不表达当前租户对该域名的 DNS 控制权。
+- 租户自有域名绑定、登录域名、自定义短链域名与 DNS 验证不属于 `party-service`；应由租户域名或 public-entry 相关能力单独拥有。
+- `TenantPartyProfileItem` 是唯一长期模型；email、phone、WhatsApp、domain、website 与 social profile 均按 profile item 归档。
+
+### 5.4 Address / Contact
 
 `party-service` 可拥有租户主体地址与联系人正文，但不拥有业务 usage。
 
@@ -101,6 +128,7 @@ Last Updated: 2026-06-10
 - `tenantPartyId` 对应的租户主体事实。
 - `TenantParty.type`、名称、展示名、本地编码、注册国家或地区、状态。
 - 租户内 identifier 解析结果。
+- 租户内 profile item 候选匹配结果。
 - 租户内候选主体列表。
 
 ## 8. Non-goals
@@ -108,7 +136,7 @@ Last Updated: 2026-06-10
 - 不做跨租户主体去重、合并、unmerge、redirect 或下游引用修复。
 - 不做 `CanonicalSubject / GlobalSubject`。
 - 不让业务域绕过 `TenantParty` 直接复制主体主数据。
-- 不保留旧 `partyId` 兼容字段作为运行时主路径。
+- 不保留旧 `partyId` 字段作为运行时主路径。
 
 ## 9. Current Runtime Alignment
 

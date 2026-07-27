@@ -14,6 +14,7 @@
 本文档属于执行治理规范，必须服从以下上游文档：
 
 - `AGENTS.md`
+- `docs/governance/oes-capability-collaboration-framework.md`（若能力域已显式启用）
 - `docs/architecture/*.md`
 - `docs/adr/*.md`
 - `docs/governance/codex-threading-rules.md`

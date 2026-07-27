@@ -4,14 +4,14 @@
 
 ```text
 designKey: notification-service-design
-designStatus: PAUSED_DESIGN_WORKSPACE
-implementationStatus: DESIGN_IN_PROGRESS
-lastUpdatedAt: 2026-06-17 15:43:55 CST
-lastUpdatedBy: Codex notification-service design discussion thread
-supersedes: notification-service discussion in current thread before archive
-truthSource: docs/architecture/08-notification-architecture.md; docs/contracts/events/README.md; docs/contracts/events/catalog.md; docs/contracts/events/collaboration-service.md
-doNotUseAsStableSource: false
-conflictResolution: 本文只记录 notification-service 本轮重新设计的过程、已确认结论、开放问题、当前进度与回写计划；若本文与稳定 architecture / ADR / contracts 冲突，以稳定真相源为准。本文中的已确认结论在回写到稳定真相源前，不替代 architecture / contracts。
+designStatus: SUPERSEDED_BY_TRUTH_SOURCE
+implementationStatus: FROZEN_NOTIFICATION_EVENT_CONSUMER_P1
+lastUpdatedAt: 2026-07-26 CST
+lastUpdatedBy: Codex notification-service event-consumer design thread
+supersedes: notification-service discussion history before the 2026-07-26 P1 consumer freeze
+truthSource: docs/architecture/services/notification-service.md; docs/contracts/notification-service/README.md; docs/contracts/notification-service/collaboration-task-event-consumer.md; docs/contracts/events/README.md; docs/contracts/events/catalog.md; docs/contracts/events/collaboration-service.md
+doNotUseAsStableSource: true
+conflictResolution: 本文仅保留历史设计过程。2026-07-26 已冻结的服务边界与 Collaboration Task P1 consumer 语义必须以列出的 service truth 与 contracts 为准；不得再在本 workspace 扩写为当前设计入口。
 ```
 
 ## 1. 目标

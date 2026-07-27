@@ -157,6 +157,8 @@ OES 不追求形式上的“全量 CQRS”，而采用“有收益才使用”�
 
 ### 5.3 Event Bus
 
+Event Bus 的 CloudEvents envelope、provider、按 service 归属的 common code contract、transactional outbox / consumer inbox、DLQ、replay、tenant 与运行边界，以 [17-event-bus-and-outbox-architecture.md](./17-event-bus-and-outbox-architecture.md) 为准；业务 event type、payload 与版本继续以 `docs/contracts/events/` 为准。
+
 负责：
 
 - 跨上下文事实广播

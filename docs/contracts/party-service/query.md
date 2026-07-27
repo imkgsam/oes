@@ -72,6 +72,10 @@
 - optional `party_type`
 - optional `registered_country`
 - optional `identifiers[]`
+- optional `domain`
+- optional `email`
+- optional `phone`
+- optional `whatsapp`
 
 响应关键字段：
 
@@ -81,6 +85,8 @@
 - `candidates[].match_signals[]`
 
 返回候选不代表自动合并、跨租户复用或自动绑定结论。
+
+`domain / email / phone / whatsapp` 基于 `TenantPartyProfileItem` 做候选搜索。它们属于弱匹配信号，只能返回 `CANDIDATES_FOUND`；不能像 `TenantPartyIdentifier` 一样直接形成强主体精确匹配。
 
 ## 5. 查询使用约束
 

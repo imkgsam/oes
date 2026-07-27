@@ -40,7 +40,9 @@ oes_site_cred_v1.<base64url(json)>
 安全规则：
 
 - OES 只在生成 credential 时展示一次 secret 明文。
-- Storefront Frontend 禁止持有 credential bundle。
+- Storefront Frontend 禁止持有 credential bundle、client secret、webhook signing secret、nonce 或任何签名材料。
+- Storefront Frontend 禁止直接调用 OES Site-facing API、`site-service` 内部接口或 OES Core 服务；只能通过 Site Runtime SSR / API 读取 public-safe 数据。
+- Storefront Frontend 禁止直接读取 Runtime SQLite / Local Published Store。
 - credential bundle 泄露时必须支持 revoke。
 - P1 支持手动 rotate，不要求自动轮换闭环。
 
@@ -75,7 +77,14 @@ Header 格式：
 | `x-oes-trace-id` | OES trace id；可映射到 W3C trace context。 |
 | `x-oes-signature` | `v1=<lowercase_hex_hmac_sha256>`。 |
 
-P1 Site Runtime 主要是读取 / sync 请求，不包含业务写入；但 preview 与未来 ingress 写入必须保留 idempotency 扩展位。
+P1 Site Runtime 主要是读取 / sync 请求；页面能力声明是受控的站点运行时治理写入，必须使用签名请求和幂等保护。Preview 与未来 ingress 写入仍保留 idempotency 扩展位。
+
+Preview 安全约束：
+
+- Preview 请求只能由持有 credential 的 Site Runtime 后端调用 OES draft view。
+- Preview response path 必须输出 `Cache-Control: no-store` 与 `X-Robots-Tag: noindex, nofollow` 或等价 head 语义。
+- Preview 不得写入正式 Runtime store，不得推进 `publishVersion`，不得触发 sync / webhook。
+- Storefront preview route 可以渲染安全 fallback，但 fallback 仍必须保持 noindex / nofollow / no-store，且不得被当作 published data。
 
 ## 3. Canonical Request
 
@@ -151,6 +160,7 @@ P1 scopes：
 | `site:sync` | 拉取 latest state、changed resources、执行 sync 相关读取。 |
 | `site:preview` | 使用 preview token 拉取 draft preview view。 |
 | `site:status` | 上报 runtime status 或访问受保护 runtime status 相关路径。 |
+| `site:capabilities` | 注册 Storefront 页面稳定身份与支持 locale 的完整能力声明，并查询注册处理结果。 |
 
 ## 6. Webhook Contract
 

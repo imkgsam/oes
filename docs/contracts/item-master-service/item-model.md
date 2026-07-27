@@ -6,6 +6,8 @@
 
 所有 `Item` 必须关联一个 `ItemModel`。一次性物料、简单采购件、无规格族管理的物料，也应创建轻量 `ItemModel` 后再创建 `Item`。
 
+`ItemModelAttributeRule` 定义某个 `ItemModel` 下允许哪些规格维度和选项。尺寸、孔位、溢水孔、颜色、材质、表面处理等同一产品族内的规格变化可以作为 Attribute；如果差异已经代表不同产品族、不同长期设计模型、不同生命周期或不同主分类，应拆分为不同 `ItemModel`。
+
 ## 2. Read Model Shape
 
 `ItemModel` 读取模型至少包含：

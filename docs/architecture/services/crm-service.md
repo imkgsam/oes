@@ -1,6 +1,6 @@
 # crm-service 职责卡
 
-Last Updated: 2026-06-18
+Last Updated: 2026-06-28
 
 ## 1. Truth Source Rule
 
@@ -49,6 +49,7 @@ CRM v2 phase 1 冻结核心对象模型、核心用例边界与 tenant-web CRM �
 Phase 1 稳定核心对象：
 
 - `CrmAccount`
+- `CrmAccountProfileItem`
 - `CrmContact`
 - `CrmSourceRecord`
 - `Opportunity`
@@ -72,6 +73,7 @@ Phase 1 不冻结：
 `crm-service` owns：
 
 - `CrmAccount`：CRM 客户开发与客户关系外壳，承载从草稿线索到正式客户的生命周期。
+- `CrmAccountProfileItem`：CRM Account 级画像资料项，承载销售对象本身的多 domain、多 website、多 email、多 phone、多 WhatsApp、多 social profile、多 marketplace store、多 identifier 等结构化资料。
 - `CrmContact`：CRM 中的联系人记录，不默认等于 `PERSON` 类型 `TenantParty`。
 - `CrmSourceRecord`：CRM 对象的结构化来源记录、来源证据与外部来源引用。
 - `Opportunity`：已正式化 CRM 对象下的具体销售机会。
@@ -121,6 +123,7 @@ Phase 1 不冻结：
   - `PERSON`
   - `ORGANIZATION`
 - `displayName`
+- `leadLegalName`
 - `leadCompanyName`
 - `leadPersonName`
 - `leadDomain`
@@ -191,19 +194,92 @@ Owner 规则：
 
 `priority` 是 `CrmAccount` 级业务优先级，贯穿 `LEAD / PROSPECT_CUSTOMER / CUSTOMER`，不代表生命周期阶段，也不代表成交状态。
 
-`leadCompanyName / leadPersonName / leadDomain / leadEmail / leadPhone / leadWhatsapp / leadCountry / leadIdentifiers[]` 是 CRM 线索阶段输入值，不是 `party-service` 主体真相。它们可以作为 `party-service` 候选搜索 evidence，但不能直接覆盖 `TenantParty` 主档。
+`displayName` 是 CRM account 的销售展示名；`leadLegalName` 是 CRM lead/PC 阶段收集到的法定或登记名称证据。二者必须分开保存，不能把展示名直接当成法定名称。
+
+Lead 创建与 Draft 阶段不强制填写 `leadLegalName`。CRM 可以提前保存 operator 已知的法定/登记名称，但不能为了创建 Lead 阻断早期线索采集。`ACTIVE + LEAD` 正式化为 `PROSPECT_CUSTOMER` 时必须提供法定/登记名称；该值来自本次正式化提交或已保存的 `leadLegalName`，并在创建新 `TenantParty` 时写入 `TenantParty.legalName`。
+
+`leadLegalName / leadCompanyName / leadPersonName / leadDomain / leadEmail / leadPhone / leadWhatsapp / leadCountry / leadIdentifiers[]` 是 CRM 线索阶段的紧凑首值录入与列表展示字段，不是 `party-service` 主体真相，也不是多值画像事实。account 级画像资料必须进入 `CrmAccountProfileItem`；Party 候选解析与正式主体注册只能消费 `CrmAccountProfileItem`、`leadLegalName` 与 strong identifiers。
 
 `leadIdentifiers[]` 只承载可能升级为 `TenantPartyIdentifier` 的强主体标识，例如税号、VAT No、GST No、统一社会信用代码、工商注册号、身份证号、护照号或其他官方主体编号。
 
+Strong identifier 维护规则：
+
+- `ACTIVE + LEAD` 可以维护 `leadIdentifiers[]`。
+- `ACTIVE + PROSPECT_CUSTOMER` 可以维护 CRM 侧 `leadIdentifiers[]`，前提是该 PC 不是已通过 strong identifier 形成 Party 绑定的记录。
+- 当前模型下，`PROSPECT_CUSTOMER` 同时满足 `tenantPartyId != null` 且 `leadIdentifiers[]` 非空时，视为 identifier-bound PC；其 `leadIdentifiers[]` 由后端锁定，不允许通过 UI、BFF 或 gRPC 修改。
+- CRM 侧修改 `leadIdentifiers[]` 不直接写 `party-service`。Party 侧 `TenantPartyIdentifier` 只能通过正式化、受控注册或后续明确的 Party 主数据治理用例写入。
+
 Phase 1 不冻结 `duplicateOfCrmAccountId / sourceSummary / qualificationBasis / hasOrdered / firstOrderAt / lastOrderAt`。这些字段不得作为 P1 稳定写模型字段实现。
 
-### 7.2 CrmContact
+### 7.2 CrmAccountProfileItem
+
+`CrmAccountProfileItem` 是 CRM Account 级画像资料项。
+
+它负责保存“销售对象本身”的多类型资料，不保存联系人个人资料。联系人个人资料应进入 `CrmContact`。
+
+适用类型包括：
+
+- `DOMAIN`
+- `WEBSITE`
+- `EMAIL`
+- `PHONE`
+- `WHATSAPP`
+- `WECHAT`
+- `SOCIAL_PROFILE`
+- `MARKETPLACE_STORE`
+- `IDENTIFIER`
+- `ADDRESS`
+- `BRAND_NAME`
+- `COMPANY_NAME`
+
+核心字段：
+
+- `id`
+- `tenantId`
+- `crmAccountId`
+- `itemType`
+- `rawValue`
+- `normalizedValue`
+- `label`
+- `role`
+  - `PRIMARY`
+  - `OFFICIAL`
+  - `REGIONAL`
+  - `SALES`
+  - `SUPPORT`
+  - `BILLING`
+  - `BRAND`
+  - `UNKNOWN`
+- `status`
+  - `ACTIVE`
+  - `REJECTED`
+  - `ARCHIVED`
+  - `PROMOTED`
+- `sourceRecordId`，nullable
+- `promotedTargetType`，nullable
+- `promotedTargetId`，nullable
+- `promotedAt`，nullable
+- `createdAt`
+- `updatedAt`
+
+规则：
+
+- `CrmAccountProfileItem` 只保存 account 级资料，例如公司官网、地区站、公司总机、通用邮箱、官方社媒、组织主体编号。
+- 已明确属于某个联系人的 email、phone、WhatsApp、LinkedIn 等不得作为 account profile item 保存，应进入 `CrmContact`。
+- `IDENTIFIER` 类型只表示 CRM 侧 account 画像资料；转正式主体时，只有强主体编号才能提升到 `TenantPartyIdentifier`。
+- `DOMAIN / WEBSITE / EMAIL / PHONE / WHATSAPP / SOCIAL_PROFILE / MARKETPLACE_STORE` 转正式主体时提升到 `party-service` 的 `TenantPartyProfileItem`。
+- `leadDomain / leadEmail / leadPhone / leadWhatsapp` 只是首值展示摘要；多值、候选解析和正式整理必须使用 `CrmAccountProfileItem`。
+- profile item 被提升到 Party 后不删除，必须保留 CRM 来源、销售上下文与 `promotedTarget*` 回链。
+
+### 7.3 CrmContact
 
 `CrmContact` 是 CRM 联系人记录，不默认等于 `PERSON` 类型 `TenantParty`。
 
 普通客户联系人、采购经理、展会名片联系人、WhatsApp 联系人、临时项目负责人或客户公司老板，都可以先作为 `CrmContact` 存在。
 
 只有当联系人本人需要成为交易主体、签约主体、员工主体、审计主体或跨模块复用主体时，才创建或绑定 `personTenantPartyId`。
+
+对于 `partyTypeHint = PERSON` 的个人销售对象，CRM Account 本人就是销售对象，默认不需要再创建同名 `CrmContact`。若后来确认该个人属于某家公司，应保留该个人 `TenantParty`，在组织型 `CrmAccount` 下创建 `CrmContact` 并通过 `personTenantPartyId` 指向该个人主体；原个人 `CrmAccount` 应归档为重分类结果或继续作为独立个人客户保留，不得直接改写为组织主体。
 
 `CrmContact` 核心字段：
 
@@ -227,7 +303,7 @@ Phase 1 不冻结 `duplicateOfCrmAccountId / sourceSummary / qualificationBasis 
 
 Phase 1 不冻结复杂联系人角色模型。`roleInSales / contactRole` 不作为稳定字段；第一阶段以 `title`、`department`、`isPrimary` 与 `note` 承接业务表达。
 
-### 7.3 CrmSourceRecord
+### 7.4 CrmSourceRecord
 
 `CrmSourceRecord` 是 CRM 对象的结构化来源记录。
 
@@ -514,7 +590,7 @@ CRM v2 将主体识别与业务角色正式化分层：
 `party-service` 负责：
 
 - 使用 `TenantPartyIdentifier` 做强主体识别。
-- 使用 `TenantPartyContactPoint / DigitalProfile / TenantPartyAddress / name` 做候选搜索 evidence。
+- 使用 `TenantPartyProfileItem / TenantPartyAddress / name` 做候选搜索 evidence。
 - 返回候选 `TenantParty`、匹配字段、置信度、主体类型和主体状态。
 - 维护 `TenantPartyIdentifier` 的租户内唯一性。
 
@@ -531,12 +607,13 @@ CRM v2 将主体识别与业务角色正式化分层：
 
 - `TenantParty`
 - `TenantPartyIdentifier`，用于税号、VAT、GST、注册号、身份证、护照等强主体标识
-- `TenantPartyContactPoint / DigitalProfile`，用于 email、phone、WhatsApp、website、domain 等联系点或数字资料
+- `TenantPartyProfileItem`，用于 email、phone、WhatsApp、website、domain、social profile、marketplace store 等主体画像资料
 - `TenantPartyAddress`
 
 `crm-service` owns：
 
 - `leadCompanyName`
+- `leadLegalName`
 - `leadPersonName`
 - `leadDomain`
 - `leadEmail`
@@ -544,13 +621,17 @@ CRM v2 将主体识别与业务角色正式化分层：
 - `leadWhatsapp`
 - `leadCountry`
 - `leadIdentifiers[]`
+- `CrmAccountProfileItem`
+- `CrmContact`
 - source、owner、priority、activity、opportunity 等 CRM 业务语义
 
-CRM 的 lead 输入值可以作为 `party-service` 搜索 evidence。只有当 `CrmAccount` 正式化为 `PROSPECT_CUSTOMER / CUSTOMER` 并创建或绑定 `TenantParty` 时，CRM 才能按字段性质把合适的数据写入 party 侧：
+CRM 的 lead 输入值和 account profile items 可以作为 `party-service` 搜索 evidence。只有当 `CrmAccount` 正式化为 `PROSPECT_CUSTOMER / CUSTOMER` 并创建或绑定 `TenantParty` 时，CRM 才能按字段性质把合适的数据写入 party 侧：
 
+- `leadLegalName` 写入新建 `TenantParty.legalName`；`displayName` 写入新建 `TenantParty.displayName`。
 - 强主体标识写入 `TenantPartyIdentifier`。
-- 官网、域名、邮箱、电话、WhatsApp 等写入 `TenantPartyContactPoint / DigitalProfile`。
+- account 级官网、域名、邮箱、电话、WhatsApp、social profile 等写入 `TenantPartyProfileItem`。
 - 地址正文写入 `TenantPartyAddress`。
+- 已明确属于某个联系人的邮箱、电话、WhatsApp、LinkedIn 等写入 `CrmContact`，不作为 account 级 profile item 提升。
 - CRM owner、source、priority、activity、opportunity 永远不写入 `party-service`。
 
 ### 10.3 party-service resolution result

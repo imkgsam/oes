@@ -40,4 +40,3 @@
 - org tree 或 org membership 管理。
 - system-wide Party、PersonParty、OrganizationParty。
 - global merge / unmerge / redirect / downstream repair。
-- 旧接口兼容 alias。

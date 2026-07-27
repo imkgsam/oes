@@ -2,7 +2,7 @@
 
 ## 1. 定位
 
-本文档是 OES Codex thread 调度状态的长期沉淀。实时状态以 OES Codex Command Hub 为准。
+本文档是 OES Codex thread 调度状态的长期沉淀。
 
 Global Command Thread 是本文档唯一写入 owner。其他 thread 不得直接修改本文档。
 
@@ -22,10 +22,7 @@ Global Command Thread 是本文档唯一写入 owner。其他 thread 不得直�
 
 ## 3. 当前主控任务
 
-| Thread | Type | Parent | Branch | Worktree | Status | Return Target |
-| --- | --- | --- | --- | --- | --- | --- |
-| control-global-roadmap | global-command | none | codex-command-hub-mvp | .worktrees/codex-command-hub-mvp | active | user |
-| feature-codex-command-hub-mvp | feature | control-global-roadmap | codex-command-hub-mvp | .worktrees/codex-command-hub-mvp | active | control-global-roadmap |
+当前没有需要在本文件中保留的主控任务。
 
 ## 4. 受保护共享文件
 

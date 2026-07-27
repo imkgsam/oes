@@ -209,4 +209,4 @@ pnpm --dir app/web --filter @oes/tenant-web typecheck
 
 - [ ] **Step 3: Record residual risks**
 
-Note any tests skipped because of local DB availability, and note Hub JSON parsing failure if unresolved.
+Note any tests skipped because of local DB availability and any unresolved local tooling issue.

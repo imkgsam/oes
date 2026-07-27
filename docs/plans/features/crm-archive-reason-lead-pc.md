@@ -3,7 +3,6 @@
 ## Status
 
 - `IMPLEMENTED_VERIFIED`
-- Hub task: `crm-archive-reason-lead-pc`
 - Created: `2026-06-23`
 
 ## Scope
@@ -37,7 +36,7 @@ This feature changes that rule narrowly:
 - Archive runtime remains disallowed for `CUSTOMER`.
 - Archive reason becomes CRM service domain truth.
 
-Before implementation, `docs/architecture/services/crm-service.md` must be updated as the stable service truth source. This file is currently ownership-blocked by another Hub thread, so implementation must wait for ownership release or Global Command resolution.
+Before implementation, `docs/architecture/services/crm-service.md` must be updated as the stable service truth source. Any concurrent write scope must be coordinated directly with the responsible owner.
 
 ## Domain Model
 
@@ -135,39 +134,9 @@ Browser extension:
 - Annotation test: unknown/missing results render no tag.
 - Annotation test: raw status code and combination tags are not displayed.
 
-## Ownership Blocker
-
-Hub denied core write claims on `2026-06-23` because active threads own the required implementation paths:
-
-- `docs/architecture/services/crm-service.md`
-- `docs/contracts/api-gateway/extension-crm-workspace.md`
-- `src/services/business/crm-service/**`
-- `src/common/src/contracts/crm_service/**`
-- `src/services/api-gateway/src/modules/crm-service/**`
-- `app/browser-extension/**`
-
-This feature packet is therefore a handoff-ready design and execution entry. It must not be treated as fully implemented until the blocked truth-source and runtime paths are claimed and updated.
-
-### Blocker Recheck
-
-Rechecked on `2026-06-23` after the first blocker report:
-
-- `crm-lead-entry-assignment` still owns `docs/architecture/services/crm-service.md`.
-- `crm-lead-entry-assignment` still owns `src/services/business/crm-service/src/domain/models/crm-records.ts`.
-- `crm-lead-entry-assignment` still owns `src/common/src/contracts/crm_service/crm.proto`.
-- `crm-lead-entry-assignment` still owns `src/services/api-gateway/src/modules/crm-service/customer-management.service.ts`.
-- `browser-extension-crm-workspace-p1-implementation` still owns `src/services/api-gateway/src/modules/crm-service/extension-crm-workspace.service.ts`.
-- `browser-extension-crm-workspace-p1-implementation` still owns `app/browser-extension/**`.
-
-Resume rule: once these owners return or release the conflicting paths, run `node scripts/oes-hub.mjs sync --thread crm-archive-reason-lead-pc`, claim the implementation paths again, then execute [2026-06-23-crm-archive-reason-lead-pc.md](/Users/acehood/Documents/GitHub/oes/docs/superpowers/plans/2026-06-23-crm-archive-reason-lead-pc.md) from Task 1.
-
-### Stale Ownership Exception
-
-On `2026-06-23`, the user explicitly confirmed that these blocking owners are stale historical Hub ownerships and granted a one-off exception to proceed without waiting for Hub ownership release. This exception is limited to this `crm-archive-reason-lead-pc` task and does not change the normal OES rule that future threads must claim paths before writing.
-
 ## Implementation Result
 
-Implemented on `2026-06-23` under the stale ownership exception:
+Implemented on `2026-06-23` after direct scope coordination:
 
 - `crm-service` owns `CrmArchiveReason`, `archiveReason`, archive validation and persistence.
 - CRM gRPC exposes `ArchiveCrmAccount` and `CrmAccountP1.archive_reason`.

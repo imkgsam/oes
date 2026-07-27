@@ -22,6 +22,10 @@
   - 头像资产上传、绑定、替换与地址解析契约
 - [employee-official-photo.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/asset-service/employee-official-photo.md)
   - 员工公开展示头像资产上传、绑定与地址解析契约
+- [site-media.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/asset-service/site-media.md)
+  - tenant-scoped Site 图片 / 视频的上传、选择、发布期解析、公开交付、引用保护与受控下架契约
+
+相关的 Asset 公共可订阅事件以 [asset-service Event Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/events/asset-service.md) 为准。
 
 ## 3. 全局调用约束
 

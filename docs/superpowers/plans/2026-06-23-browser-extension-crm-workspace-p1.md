@@ -474,15 +474,9 @@ Load `app/browser-extension/dist` in Chrome extension developer mode and verify:
 - search results view is read-only;
 - logout still clears session and returns to login.
 
-- [ ] **Step 5: Hub checkpoint**
+- [ ] **Step 5: Record implementation handoff**
 
-Run:
-
-```bash
-node scripts/oes-hub.mjs checkpoint --thread browser-extension-crm-p1-contract --message "Browser extension CRM workspace P1 implementation verified"
-```
-
-Expected: checkpoint recorded.
+Record the verified implementation scope, changed files, test evidence, and follow-up risks in the feature packet before handing the work to the next owner.
 
 ## Self-Review
 

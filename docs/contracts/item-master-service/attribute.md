@@ -2,13 +2,27 @@
 
 ## 1. Purpose
 
-Attribute 用于表达物料本体或规格识别属性。第一阶段只冻结简单 attribute 模型：
+Attribute 是 `ItemModel` 允许的规格维度；`AttributeOption` 是该规格维度下的可选值；`Item` 通过锁定一组 `AttributeOption`，形成稳定的执行层物料身份。
+
+Attribute 只表达物料本体或规格识别属性，即“这个物料本身是什么规格”。它不承载销售策略、质量结果、库存状态、生产过程参数或营销展示语义。
+
+第一阶段只冻结简单 attribute 模型：
 
 - `AttributeDefinition`
 - `AttributeOption`
 - `ItemModelAttributeRule`
 
-包装方式、客户包装、随箱配件、客户说明书、客户标签等不进入 attribute。
+典型 Attribute 包括颜色、尺寸、孔位、坑距、溢水孔、材质、表面处理、容量、电压、功率等会参与 `Item` 身份识别的规格维度。
+
+以下内容不进入 attribute：
+
+- 质量等级、瑕疵类型、返修状态、质检结论等生产 / 质量结果。
+- 库存冻结、占用、库位、批次、库存状态等 WMS 维度。
+- 客户 SKU、客户型号、一次性标签 / 贴标 / 包装要求等销售或客户侧语义。
+- 官网热销、新品、推荐、适用场景、营销标签等展示语义。
+- 包装方式、客户长期包装、随箱配件、客户说明书、客户标签等包装语义；长期包装应使用 `PackagingSpec / PACKAGING_BOM`。
+
+是否向客户公开某个 Attribute 是 Sales / PIM / Site 层展示策略，不改变 Attribute 的 item-master 主语义。
 
 ## 2. Read Model Shapes
 
@@ -201,4 +215,6 @@ Attribute 用于表达物料本体或规格识别属性。第一阶段只冻结�
 
 - 这是全量替换，不是 patch。
 - `allowed_option_ids[]` 必须属于对应 `attribute_definition_id`。
+- `rules[]` 只声明某个 `ItemModel` 允许的规格维度与选项范围，不表达质量、库存、销售策略、生产工艺或营销展示规则。
+- 创建 `Item` 时锁定的 `AttributeOption` 必须符合当前 `ItemModelAttributeRule`；锁定后的 option 组合参与 `Item` 唯一性。
 - 第一阶段不引入复杂 `AttributeCombinationRule`。

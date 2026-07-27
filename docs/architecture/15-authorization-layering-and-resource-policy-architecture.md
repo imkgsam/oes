@@ -287,6 +287,7 @@ Gateway 负责：
 - 登录态恢复
 - operator context 组装
 - 入口 DTO 校验
+- 对声明 tenant target 的路由执行 session tenant 与 target 的硬边界绑定
 - `checkPermission` 粗粒度门禁
 - 面向前端的流程编排入口，例如登录主流程 BFF
 
@@ -325,6 +326,7 @@ application 层负责：
 
 - 编排用例
 - 加载最小必要资源事实
+- 按已验证 tenant context 校验业务资源的 tenant ownership
 - 执行 `checkResource`
 - 执行 `buildQueryScope`
 - 调用领域对象与领域服务
@@ -487,6 +489,9 @@ infrastructure 层不应承载：
   - 租户隔离是平台硬边界。
   - 任何 policy、role 或 permission 不能授予跨租户读取或写入业务资源的能力。
   - 需要跨租户运维或系统级治理时，必须走显式 system scope、专用接口、审计和最小数据暴露，不得复用普通租户业务授权语义。
+  - 声明 tenant target 的入口必须先完成 session tenant 与 target binding，再执行 `checkPermission`；`TENANT` session 缓存或传播的 tenant 缺失时必须 fail closed。
+  - `checkPermission` 的 tenant 输入只可服务其自身授权或审计语义，不拥有 HTTP target binding；RBAC allow 不能覆盖 target mismatch。
+  - 入口 target binding 与业务服务按资源真相执行的 tenant ownership 校验必须同时存在，前者不能替代后者。
 - `authentication / session / token validity`
   - 认证状态、session 有效性、token 有效性由认证链路负责。
   - 未认证、session 失效或 token 无效时，不进入 permission policy 判定。
@@ -606,12 +611,13 @@ OES 当前只保留三类 policy：
 
 流程：
 
-1. 平台硬边界先执行，包括认证、operator context、tenant isolation、service-to-service trust 与审计前提
-2. Gateway 或子服务入口执行 `checkPermission`
-3. application 层加载最小 resource facts
-4. application 层通过 `ResourceAuthorizationService.checkResource` 执行资源授权
-5. domain 层执行业务规则
-6. 提交状态变更 / 返回详情
+1. 认证与 operator context 有效性先校验
+2. 对声明 tenant target 的入口执行 tenant-target binding
+3. Gateway 或子服务入口执行 `checkPermission`
+4. application 层加载最小 resource facts，并按已验证 tenant context 校验资源归属
+5. application 层通过 `ResourceAuthorizationService.checkResource` 执行资源授权
+6. domain 层执行业务规则
+7. 提交状态变更 / 返回详情
 
 适用接口：
 
@@ -627,11 +633,12 @@ OES 当前只保留三类 policy：
 
 流程：
 
-1. 平台硬边界先执行
-2. Gateway 或子服务入口执行 `checkPermission`
-3. query application 层通过 `ResourceAuthorizationService.buildQueryScope` 构造结构化范围
-4. repository / query adapter 将 `QueryScopeExpression` 转为自身持久化查询条件
-5. 返回结果
+1. 认证与 operator context 有效性先校验
+2. 对声明 tenant target 的入口执行 tenant-target binding
+3. Gateway 或子服务入口执行 `checkPermission`
+4. query application 层以已验证 tenant context 为硬边界，通过 `ResourceAuthorizationService.buildQueryScope` 构造结构化范围
+5. repository / query adapter 将 `QueryScopeExpression` 转为自身持久化查询条件
+6. 返回结果
 
 适用接口：
 

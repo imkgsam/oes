@@ -37,11 +37,12 @@
 15. `14-grpc-metadata-and-service-trust-architecture.md`
 16. `15-authorization-layering-and-resource-policy-architecture.md`
 17. `16-unified-web-account-context-architecture.md`
-18. `site-runtime-architecture.md`
-19. `site-runtime-kit.md`
-20. `service-collaboration-rules.md`
-21. `terminals/index.md`
-22. `frontends/index.md`
+18. `17-event-bus-and-outbox-architecture.md`
+19. `site-runtime-architecture.md`
+20. `site-runtime-kit.md`
+21. `service-collaboration-rules.md`
+22. `terminals/index.md`
+23. `frontends/index.md`
 
 ## 3. 文档职责
 
@@ -79,6 +80,8 @@
   - 定义粗粒度 `RBAC`、单资源 `checkResource`、列表 `buildQueryScope`、policy 分类、业务规则边界与跨服务派生协作授权规则
 - `16-unified-web-account-context-architecture.md`
   - 定义统一 Web Shell、scope-aware `UserAccount`、系统账号与租户账号、登录上下文选择、上下文切换、token 与菜单权限协作模型
+- `17-event-bus-and-outbox-architecture.md`
+  - 定义 CloudEvents + NATS JetStream 公共业务事实总线、按 service 归属的 common 事件 contract、每服务 transactional outbox / consumer inbox、重试、DLQ、重放、租户与服务身份、运行观测及实现 owner lanes
 - `site-runtime-architecture.md`
   - 定义 OES 与外部网站之间的顶层协作方式、webhook 通知、pull fallback 与 Site Runtime 的基础同步原则
 - `site-runtime-kit.md`

@@ -15,6 +15,20 @@ CRM v2 已原地替代旧 customer master phase 1 设计。
 - [object-reference.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/crm-service/object-reference.md)
   - `CrmAccount` 对象引用校验契约，供 `collaboration-service.annotation` P1 使用。
 
+## Status Note 2026-06-28
+
+CRM v2 P1 lead/customer workflow now exposes account-level profile items in the active proto surface:
+
+- `lead_legal_name` is optional on lead create, draft create/update, and duplicate-check requests, and is returned on `CrmAccountP1`.
+- `ConvertLeadToProspectCustomerRequest.legal_name` is required by the BFF/API Gateway before CRM formalizes a Lead into a Prospect Customer. The CRM formalization command must resolve a non-blank legal name from the submitted `legal_name` or the already saved `lead_legal_name`; otherwise conversion returns insufficient information.
+- `display_name` remains the CRM-facing display label; `lead_legal_name` is CRM-collected legal/registered-name evidence. When CRM creates a new TenantParty during formalization, the formalization legal name maps to `TenantParty.legalName` and `display_name` maps to `TenantParty.displayName`.
+- `CrmAccountProfileItemInput` is accepted by lead create, draft create/update, and duplicate-check requests.
+- `CrmAccountP1.profile_items` returns account-owned profile items for list/detail/mutation responses.
+- `lead_domain / lead_email / lead_phone / lead_whatsapp` are compact first-value display and entry fields only. Multi-value profile truth, duplicate profile matching, and Party promotion belong to `CrmAccountProfileItem`.
+- API Gateway maps tenant-web/browser-extension inputs to `profile_items`; browser extension capture materializes domain, visible emails, visible phones, and social links as account profile items.
+
+The service boundary and object semantics remain defined by [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md).
+
 ## 1. 目的
 
 本目录用于冻结 `crm-service` phase 1 最小客户主档的黑盒契约文档。

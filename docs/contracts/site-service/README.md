@@ -3,9 +3,12 @@
 ```text
 contractStatus: FROZEN_FOR_P1_IMPLEMENTATION
 featurePacket: docs/plans/features/external-site-integration-p1.md
+blogNewsFeaturePacket: docs/plans/features/blog-news-closed-loop-p1.md
+sitePageLocaleFeaturePacket: docs/plans/features/site-page-locale-governance-p1.md
+inspirationFeaturePacket: docs/plans/features/site-inspiration-management-p1.md
 serviceTruthSource: docs/architecture/services/site-service.md
 runtimeKitTruthSource: docs/architecture/site-runtime-kit.md
-lastUpdatedAt: 2026-06-16
+lastUpdatedAt: 2026-07-25
 ```
 
 ## 1. 目的
@@ -30,13 +33,25 @@ lastUpdatedAt: 2026-06-16
 - [sync-api.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/site-service/sync-api.md)
   - Site Runtime 拉取 latest state、changed resources、public views、snapshot 的 Site-facing API。
 - [public-views.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/site-service/public-views.md)
-  - `ProductPublicView`、`CategoryPublicView`、`BlogPublicView`、`NewsPublicView` 的 P1 数据契约。
+  - `ProductPublicView`、`CategoryPublicView`、`ArticlePublicView`、`ArticleCategoryPublicView`、`FaqDirectoryPublicView`、`InspirationItemPublicView`、`InspirationCategoryPublicView` 的稳定数据契约，以及对应 Runtime 本地读取语义。
 - [preview-and-runtime-status.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/site-service/preview-and-runtime-status.md)
   - preview token / draft preview view 与 Site Runtime status 契约。
+- [page-capabilities-and-exposure.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/site-service/page-capabilities-and-exposure.md)
+  - Storefront 页面能力注册、SitePage 页面治理、站点 locale 公开状态、capability drift 与 Runtime 本地公开状态契约。
 - [admin-bff.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/site-service/admin-bff.md)
   - OES Admin 的 Site Management P1 最小 BFF 契约。
 
 ## 3. 全局调用约束
+
+### 3.0 Site Ownership Boundary
+
+本目录所有契约都继承 [site-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/site-service.md) 的稳定边界：
+
+- OES 不提供 page builder、任意组件 CMS、主导航、Footer、前台 Logo 使用或 Storefront 视觉 contract。
+- OES `site_name` 只用于 Admin 识别、检索、审计，不作为 Header、SEO fallback 或 JSON-LD fallback。
+- OES 只管理 OES-owned resources 的 SEO、indexability、published public views 与 dynamic historical slug redirect eligibility。
+- Storefront 输出 `robots.txt` / `sitemap.xml`，并拥有静态 canonical pages、静态 redirects、营销 redirects、domain redirects 与 locale redirects。
+- Preview 是 draft-only read path，必须 `noindex`、`nofollow`、`no-store`，不得写正式 store、推进 publishVersion 或触发 webhook。
 
 ### 3.1 Admin 调用
 
@@ -84,11 +99,14 @@ Storefront Frontend 应通过 Site Runtime 的 SSR / API 路径读取本地 publ
 
 本目录当前是 `FROZEN_FOR_P1_IMPLEMENTATION`。
 
+Article taxonomy 已演进为 `articleType + category + tags`；它的稳定字段与 Runtime local filter contract 以 [public-views.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/site-service/public-views.md) 和 [site-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/site-service.md) 为准。现有 Blog / News / Content Category P1 contract 只作为兼容与迁移基线。
+
 已冻结：
 
 - 与 `site-runtime-kit.md` 对齐
 - 与 `site-service.md` 对齐
 - 与 `external-site-integration-p1.md` 对齐
+- Blog / News + Content Category SEO Archive P1 已按 [blog-news-closed-loop-p1.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/blog-news-closed-loop-p1.md) 回写到本目录。
 
 实现前仍需要在 implementation plan 中决定：
 

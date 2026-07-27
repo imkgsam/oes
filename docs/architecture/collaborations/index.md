@@ -41,21 +41,40 @@
 9. [item-master-sales-mes-wms-srm.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/item-master-sales-mes-wms-srm.md)
    - Item 主数据与销售、采购、制造、仓储、SRM 采用边界协同蓝图
 10. [srm-procurement-party-item-master.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/srm-procurement-party-item-master.md)
-   - SRM 最小供应商主档与 Procurement、Party、Item Master 的协同蓝图
+
+- SRM 最小供应商主档与 Procurement、Party、Item Master 的协同蓝图
+
 11. [procurement-srm-item-wms-finance.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/procurement-srm-item-wms-finance.md)
-   - Procurement phase 1 的 PR/PO、收货预期与 SRM、Item Master、WMS、Finance 的协同蓝图
+
+- Procurement phase 1 的 PR/PO、收货预期与 SRM、Item Master、WMS、Finance 的协同蓝图
+
 12. [sales-fulfillment-mes-wms-finance.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/sales-fulfillment-mes-wms-finance.md)
-   - 销售订单 handoff、制造放行、仓储执行与财务边界协同蓝图
+
+- 销售订单 handoff、制造放行、仓储执行与财务边界协同蓝图
+
 13. [sales-finance-order-to-cash.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/sales-finance-order-to-cash.md)
-   - Sales 与 Finance 的 order-to-cash、finance release、应收与标准汇率协同蓝图
+
+- Sales 与 Finance 的 order-to-cash、finance release、应收与标准汇率协同蓝图
+
 14. [object-activity-and-timeline.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/object-activity-and-timeline.md)
-   - 平台级 ObjectActivity 与 ObjectTimeline 协同蓝图
+
+- 平台级 ObjectActivity 与 ObjectTimeline 协同蓝图
+
 15. [terminal-access-policy.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/terminal-access-policy.md)
-   - 终端准入策略在 `permission-service`、`auth-service` 与 terminal-specific BFF 之间的协同蓝图
+
+- 终端准入策略在 `permission-service`、`auth-service` 与 terminal-specific BFF 之间的协同蓝图
+
 16. [managed-terminal-device-management.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/managed-terminal-device-management.md)
-   - 企业受管现场交互终端设备在 PDA BFF、Admin BFF、`terminal-device-service`、`auth-service` 与 `permission-service` 之间的入网、登录、禁用、heartbeat、版本策略与审计协同蓝图
+
+- 企业受管现场交互终端设备在 PDA BFF、Admin BFF、`terminal-device-service`、`auth-service` 与 `permission-service` 之间的入网、登录、禁用、heartbeat、版本策略与审计协同蓝图
+
 17. [terminal-aware-account-security.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/terminal-aware-account-security.md)
-   - Terminal-aware Account Security Phase 2 在 `auth-service`、`permission-service`、`identity-service`、`terminal-device-service` 与 BFF 之间的登录、MFA、session、trusted device、登录历史与设备状态清退协同蓝图
+
+- Terminal-aware Account Security Phase 2 在 `auth-service`、`permission-service`、`identity-service`、`terminal-device-service` 与 BFF 之间的登录、MFA、session、trusted device、登录历史与设备状态清退协同蓝图
+
+18. [site-asset-media.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/site-asset-media.md)
+
+- Site 与 Asset 在 Site Media 选择、发布期解析、public delivery、publication reference protection、下架与可用性事实上的协同蓝图
 
 ## 4. 新服务协同准入规则
 

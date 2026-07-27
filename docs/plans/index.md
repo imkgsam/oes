@@ -22,7 +22,7 @@
 3. `oes-global-roadmap.md`
    - OES 全局能力层级、优先方向与新功能 intake 模板；只能由 Global Command Thread 写入
 4. `oes-thread-control-board.md`
-   - OES Codex thread 调度状态、受保护共享文件与 handoff 模板；实时状态以 Command Hub 为准
+   - OES Codex thread 调度状态、受保护共享文件与 handoff 模板
 5. `ideas.md`
    - 随时记录的灵感池，目标是防遗忘，不直接进入实现
 6. `candidates.md`
@@ -57,29 +57,27 @@
    - 可观测性与审计基础实施计划
 21. `mfa-login-policy-and-factor-orchestration-implementation-plan.md`
    - 登录场景 MFA 策略、因子优先级与登录续流编排实施计划
-22. `features/codex-command-hub-mvp.md`
-   - Codex Command Hub 第一版 CLI feature packet
-23. `features/hr-service-foundation.md`
+22. `features/hr-service-foundation.md`
    - HR Service minimum 第一阶段 feature packet
-24. `features/sales-quote-order-core.md`
+23. `features/sales-quote-order-core.md`
     - Sales Service 第一阶段报价、正式版本、订单成立与 fulfillment handoff feature packet
-25. `features/finance-ar-credit-core.md`
+24. `features/finance-ar-credit-core.md`
     - Finance Service 第一阶段 AR、invoice、collection、allocation、credit、finance release 与 standard FX feature packet
-26. `features/object-activity-foundation.md`
+25. `features/object-activity-foundation.md`
     - 平台级 ObjectActivity / ObjectTimeline 第一阶段 foundation feature packet
-27. `features/crm-customer-master-foundation.md`
+26. `features/crm-customer-master-foundation.md`
     - CRM Service 最小客户主档闭环与 Sales selector 边界 feature packet
-28. `features/procurement-pr-po-foundation.md`
+27. `features/procurement-pr-po-foundation.md`
    - Procurement Service 第一阶段 PR、PO、allocation、收货预期与采购差异摘要 feature packet
-29. `features/collaboration-task-p1.md`
+28. `features/collaboration-task-p1.md`
     - Collaboration Service Task 第一阶段手动任务、private todo、assigned task、状态、权限、审计与事件 feature packet
-30. `features/collaboration-annotation-p1.md`
+29. `features/collaboration-annotation-p1.md`
     - Collaboration Service Annotation 第一阶段 CrmAccount 内部对象备注、Panel Notes tab、权限、审计与对象引用校验 feature packet
-31. `collaboration-task-p1-implementation-plan.md`
+30. `collaboration-task-p1-implementation-plan.md`
     - Collaboration Service Task P1 从 contracts 到 runtime、permission、gateway 与验证的实施计划
-32. `collaboration-annotation-p1-implementation-plan.md`
+31. `collaboration-annotation-p1-implementation-plan.md`
     - Collaboration Service Annotation P1 从 contracts 到 CRM object reference、runtime、gateway、tenant-web Panel 与验证的实施计划
-33. `pda-phase-1-foundation-implementation-plan.md`
+32. `pda-phase-1-foundation-implementation-plan.md`
     - PDA Android 设备端第一阶段系统基础能力、Android Shell、Vue3 Web、JS Bridge、PDA BFF 与真机验收实施计划
 
 ## 3. 使用规则

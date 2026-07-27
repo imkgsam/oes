@@ -2,7 +2,7 @@
 
 ## 1. Feature Status
 
-Current status: `implementation blocked on CRM/Gateway ownership`
+Current status: `requires CRM/Gateway scope coordination`
 
 This feature packet records the agreed boundary for adding a global `InternetDomain` value object and applying it to CRM Lead domain write and duplicate paths.
 
@@ -45,7 +45,7 @@ The immediate business outcome is that CRM Lead domain matching treats `www.vint
 
 CRM service remains the owner of Lead write/update/duplicate behavior.
 
-Once ownership is available, CRM should:
+Once CRM/Gateway write scope is confirmed, CRM should:
 
 - canonicalize `leadDomain` before saving Lead create values
 - canonicalize `leadDomain` before saving Draft Lead create values
@@ -70,7 +70,3 @@ The complete feature requires:
 - API Gateway extension CRM resolve/search tests showing `www.vintagetub.com` matches `vintagetub.com`
 - relevant typecheck/build commands for common, CRM service and API Gateway
 - live or semi-live extension CRM/search resolve smoke
-
-## 7. Current Blocker
-
-Hub ownership currently blocks the CRM service and Gateway extension CRM files required for full integration. The current thread may implement and verify the `@oes/common` value object, but the feature is not complete until those ownership conflicts are resolved.

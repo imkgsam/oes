@@ -5,7 +5,7 @@
 ```text
 designKey: item-master-model-item-bom-design
 designStatus: ACTIVE_DESIGN_WORKSPACE
-lastUpdatedAt: 2026-05-09 14:54:56 CST
+lastUpdatedAt: 2026-06-28 15:04:57 CST
 lastUpdatedBy: Codex design thread
 supersedes: old ProductModel / ItemModel alias discussion; old model-layer composition proposal
 conflictResolution: 当本文与更早的 item/product/model/composition 讨论冲突时，以本文 lastUpdatedAt 之后的冻结结论为准；稳定 architecture / ADR 明确覆盖本文时，以 architecture / ADR 为准。
@@ -398,3 +398,21 @@ MES Operation:
 - Sales / Procurement 如何从 `ItemModel + 配置` 解析到 `Item` 的接口契约。
 - `ProductionSpec` 与 manufacturable Item 的完整结构。
 - 条码追溯完成后是否增加 `traceable` capability。
+
+## 15. 后置 MES 讨论记录
+
+本节只记录 2026-06-28 讨论中出现的 MES 执行编排 idea，不作为 item-master 稳定设计，不冻结任何 MES contract 或运行模型。
+
+待后续 MES 设计线程继续讨论：
+
+- 对有步骤性的工单建立步骤链路能力，支持拆解、组装、测试、包装等相邻步骤串联执行。
+- 主数据 BOM 继续保持语义清晰，分别表达组成、转换、包装等输入输出关系；不要为了现场连续执行而合并 BOM 语义。
+- MES 执行层可以引入类似 `WorkOrderChain / FlowStep / StepLink / WipLot` 的对象，决定中间产物是正式入库、流转到下一步骤，还是作为 WIP 暂存。
+- 相邻步骤可以在现场合并成一张执行单，但逻辑步骤仍需可审计，便于记录拆出件、安装件、测试结果、包装消耗与最终入库。
+- 示例场景：库存为 `3124 R&T 已安装`，客户需要 `3124 HTD 已安装且包装成品`。执行上可能拆成拆解单、组装单、包装单，也可能把组装与包装作为相邻步骤串联执行。
+
+后续回写目标：
+
+- MES 服务真相源或 MES design workspace。
+- MES / WMS / item-master collaboration 文档。
+- 必要时新增 ADR，明确步骤链路、WIP 与正式库存边界。

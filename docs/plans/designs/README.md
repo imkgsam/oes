@@ -150,6 +150,7 @@ conflictResolution: 当本文与更早讨论冲突时，以本文 lastUpdatedAt 
 
 当前已建立或正在推进的 active design workspace 包括：
 
+- [article-content-model-exploration.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/article-content-model-exploration.md)
 - [after-sales-service-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/after-sales-service-design.md)
 - [customer-touchpoint-and-platform-integration-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/customer-touchpoint-and-platform-integration-design.md)
 - [crm-service-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/crm-service-design.md)
@@ -162,6 +163,7 @@ conflictResolution: 当本文与更早讨论冲突时，以本文 lastUpdatedAt 
 - [planning-workbench-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/planning-workbench-design.md)
 - [scan-identity-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/scan-identity-design.md)
 - [shortlink-public-entry-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/shortlink-public-entry-design.md)
+- [site-locale-exposure-governance.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/site-locale-exposure-governance.md)
 - [whatsapp-sales-inbox-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/whatsapp-sales-inbox-design.md)
 - [wms-service-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/wms-service-design.md)
 

@@ -6,6 +6,8 @@
 
 核心目标是让 OES 像大型团队一样推进，而不是让多个 Codex thread 无差别修改代码。
 
+能力级协同的显式启用、Design Thread 与 Capability Command 一对一关系、批量验收及关闭规则，以 [`oes-capability-collaboration-framework.md`](./oes-capability-collaboration-framework.md) 为准。
+
 ## 2. Global Command Thread 红线
 
 Global Command Thread 只负责项目级规划、调度、依赖编排与冲突协调。
@@ -60,6 +62,8 @@ OES Codex 协作采用四层结构：
 4. Subagents
    - 只在被父 thread 内部临时调用时作为辅助；如果独立写文件、独立 debug 或独立交付，必须注册为 child thread
 
+对于已显式启用的单一能力域，Management Thread 的职责由一个与 Design Thread 一对一配对的 Capability Command 承担；多个能力域可以并行建立各自的配对。未显式启用时，不得自动创建这组线程。
+
 ## 4. 小组方向
 
 初始方向管理小组如下：
@@ -89,7 +93,7 @@ OES Codex 协作采用四层结构：
 - `docs/contracts/**`：对应 Contract Thread
 - `docs/architecture/services/<service-name>.md`：对应服务 design thread 在冻结结论后更新
 
-其他 thread 只能读取这些文件，并通过 handoff / blocker / failure report 回报给 owner。
+其他 thread 只能读取这些文件，并通过结构化 handoff 或直接向 owner 报告变更、阻塞与失败。
 
 ## 6. Handoff 规则
 

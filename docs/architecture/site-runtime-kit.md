@@ -11,6 +11,7 @@
 - 安全通信能力
 - webhook 校验能力
 - 发布同步能力
+- 页面能力注册与 SitePage 公开治理读取能力
 - 本地 public view store
 - NestJS 集成能力
 
@@ -29,6 +30,7 @@
 - 执行 `syncToLatest()`
 - 将 OES 发布的 public view 写入本地 store
 - 为 Site Runtime 提供 `runtime.publicViews` 本地读取层
+- 在 Runtime 启动时注册 Storefront 的页面稳定身份与支持 locale，并向站点代码提供本地 SitePage / locale 公开治理读取能力
 - 提供 NestJS 默认接入模块
 - 提供 health 与 runtime status 能力
 
@@ -42,6 +44,13 @@
 - 搜索引擎、CDN purge、复杂缓存平台
 
 外部站点不得绕过 `@oes/site-runtime-kit` 直接调用 OES Core 内部 API。
+
+Storefront Frontend 的边界：
+
+- 不持有 `OES_SITE_CREDENTIAL`、client secret、webhook signing secret、nonce 或签名材料。
+- 不直接调用 OES Core、OES Site-facing API 或 `site-service` 内部接口。
+- 不直接读取 Runtime SQLite / Local Published Store。
+- 只能通过 Site Runtime SSR / API 读取 public-safe published data、preview fallback 或 SEO helper 输出。
 
 ## 3. P1 范围
 
@@ -60,6 +69,7 @@ P1 包含：
 - NestJS Integration
 - Health endpoints
 - Runtime status endpoint
+- Page capability registration
 - 基础 Error / Retry / Idempotency
 
 P1 public view 读取只覆盖：
@@ -69,6 +79,9 @@ P1 public view 读取只覆盖：
 - contents
 - blogs
 - news
+- article categories
+- FAQ directory
+- SitePage / locale public governance data required by Storefront routing and SEO execution
 
 P1 明确不包含：
 
@@ -267,7 +280,7 @@ Webhook 只通知事件，不传完整业务数据。
 syncToLatest()
 ```
 
-站点不要求同步到 webhook 中提示的指定 publishVersion。
+站点不直接把 webhook 中提示的 publishVersion 当作 target；Runtime 收到通知后仍先查询 latest committed publishVersion，再固定本轮 target。
 
 Webhook 必须基于 HMAC canonical request 验签，并校验：
 
@@ -299,7 +312,7 @@ P1 默认只执行：
 syncToLatest()
 ```
 
-webhook 只是唤醒信号。Site Runtime 不提供拉取指定 publishVersion 的站点能力。
+webhook 只是唤醒信号。站点不要求把 webhook 中提示的版本直接作为 target；Site Runtime 也不向操作者或 Storefront 提供任意历史版本拉取能力，但 Sync Engine 必须通过 latest-state 查询发现并在内部固定一次同步运行的 target publishVersion。
 
 同步主流程：
 
@@ -310,9 +323,11 @@ syncToLatest()
   ↓
 查询 latestVersion
   ↓
-获取 localVersion -> latestVersion 的 changed resource list
+固定 targetVersion = latestVersion
   ↓
-批量拉取 changed resources 的最新 publish view
+获取 localVersion -> targetVersion 的 changed resource list
+  ↓
+每个 batch / snapshot page 显式携带同一 targetVersion
   ↓
 写入 Local Published Store
   ↓
@@ -322,12 +337,21 @@ syncToLatest()
 Delta P1 定义为：
 
 ```text
-from localVersion to latestVersion 的聚合 changed resource list
+from localVersion to pinned targetVersion 的聚合 changed resource list
 ```
 
 Delta 不承载完整业务数据，也不作为业务动作日志。
 
 同一资源在版本区间内多次变化时，只同步最终最新 view。
+
+Target 传播不变量：
+
+- `GetLatestPublishState.latest_publish_version` 只负责发现目标；Runtime 将其固定为当前 sync run 的 target。
+- `ListChangedResources.to_publish_version`、每次 `BatchGetPublicViews.target_publish_version` 与每一页 `GetSnapshot.target_publish_version` 必须携带同一个 target。
+- batch 的 `server_publish_version`、snapshot 的 `snapshot_publish_version`、每个 public view 与 Site Exposure Publication 都必须匹配 target；任一不一致都丢弃整轮临时结果。
+- 当前 target 完成后才重新查询 latest 并追赶更高版本；新 webhook 只合并为 `pendingSync`，不能修改正在执行的 target。
+- `SYNC_TARGET_REQUIRED` 表示 Runtime / shared contract 版本不兼容；`SYNC_TARGET_NOT_COMMITTED` 或 `SYNC_TARGET_UNAVAILABLE` 使当前轮失败并重新发现 latest，不能退化成读取变化中的 latest。
+- FAQ 不拥有独立同步版本；`FaqDirectoryPublicView` 与其他公开数据一样只跟随本轮 Site target 原子提交。
 
 下架、隐藏、删除等外部展示变化统一表达为 publish view 的 `status` 变化。同步层可以写入非 `published` 状态，`runtime.publicViews` 展示读取层默认只返回 `status = published` 的资源。
 
@@ -389,7 +413,7 @@ Published business data：
 - `siteId`
 - `resourceType`
 - `resourceId`
-- `slug`
+- `slug`，仅带公开 URL 的资源必填；`faq` directory 不使用 slug
 - `locale`
 - `status`
 - `publishVersion`
@@ -403,8 +427,11 @@ Published business data：
 - content
 - blog
 - news
+- article
+- article-category
+- faq
 
-P1 不为 product、blog、news 等资源提前建立复杂专用表。后续只有在筛选、搜索或性能需求明确后，再引入 resource-specific read model 或索引表。
+P1 不为 product、blog、news 等资源提前建立复杂专用表。文章的 `article / article-category` 读模型是已冻结的例外：它必须支持多 Category 与 Tag 的本地组合过滤。其他资源只有在筛选、搜索或性能需求明确后，再引入 resource-specific read model 或索引表。
 
 ## 10. Public Views
 
@@ -437,12 +464,47 @@ P1 支持：
 - `runtime.publicViews.contents`
 - `runtime.publicViews.blogs`
 - `runtime.publicViews.news`
+- `runtime.publicViews.articles`
+- `runtime.publicViews.articleCategories`
+- `runtime.publicViews.faq`
+- `runtime.publicViews.inspirations`
+- `runtime.publicViews.inspirationCategories`
+- SitePage / locale governance reader for enabled, indexable and effective-locale decisions
 
 默认展示读取只返回：
 
 ```text
 status = published
 ```
+
+Frozen Content Category query rules:
+
+- `runtime.publicViews.articles` 必须只从本地 published `ArticlePublicView` 读取，并接受 `contentTypes[]`、`categorySlug`、`tagKeys[]`、`tagMatch = any | all`、排序与分页。
+- `runtime.publicViews.articleCategories` 读取已发布的 `ArticleCategoryPublicView`，用于前端建立 category archive、导航或筛选入口。
+- Runtime 不理解 `/blogs`、`/guides`、`/news`、`/blogs/category/:slug` 等 Storefront 页面含义，也不为每个 URL 建立专用 reader；Storefront 把自己的页面路由映射为通用 Article filter。
+- Tag 只存在于 Article payload 的轻量 `{ key, label }` 值中。Runtime 可以据此过滤或聚合，但不得把 Tag 自动升级为 public archive、独立 public view 或 sitemap route。
+- `runtime.publicViews.blogs / news` 继续读取已发布内容；它们只引用 `article-category` resources，绝不再读取 legacy taxonomy resources。
+
+Frozen FAQ reader rules:
+
+- `runtime.publicViews.faq` 只读取本地已提交的 `FaqDirectoryPublicView`，按 locale 返回已发布、已排序的 Category 与 Entry。
+- Runtime 不理解 FAQ 页面布局或 `/faqs` 之外的 Category URL；Storefront 使用同一 directory view 动态生成左侧导航、页面锚点、分类区块和 FAQPage JSON-LD。
+- Runtime 正常请求路径不得实时访问 OES；同步失败时保留上一份完整 FAQ directory，首次无可用 view 时返回 not found，不回退 Storefront 静态 fixture 或其他 locale。
+
+Frozen Inspiration media reader boundary:
+
+- `runtime.publicViews.inspirations` 只读取本地已提交的 `InspirationItemPublicView`，向 Storefront 提供 public-safe Asset 身份、图片地址、原始宽高与当前 locale alt；alt 缺失时返回空值，不回退其他语言。
+- `runtime.publicViews.inspirationCategories` 读取当前 locale 已发布的 `InspirationCategoryPublicView`，提供 Category display name、intro、slug、sort order 与 SEO 数据。
+- Runtime 不拥有图片文件、CDN 或裁切布局，也不在正常公开请求中调用 Asset Service；Asset 解析结果只通过 Site publish/sync 进入本地 store。
+- Storefront 继续拥有现有 masonry、lightbox、加载与响应式表现，并从图片原始宽高计算所需比例；不得把 Runtime reader 扩展成布局模板接口。
+- Runtime 按 Site 级 `item_rank` 提供 Inspiration Item 顺序；Category reader 只过滤 membership，不引入 Category-Item 关系级排序。分页在该稳定排序之后执行。
+- 根 `/inspirations` 页面的标题、简介和页面级 SEO 继续由 Storefront 自己维护；Runtime 不提供覆盖根页文案的 helper。Category 页面使用后续同步的 Category locale 数据，但仍由 Storefront 控制现有页面模板。
+- Category filter / route 与 Item 排序已冻结。Hotspot 几何可由 Site Service 保存，但在 Product target 身份冻结前 Runtime 不定义公开 Hotspot reader；未绑定或 `needs_review` Hotspot 不得作为占位数据输出。
+- Inspiration Item reader 接受 locale、可选 Category slug、cursor 与 limit，返回当前本地 publishVersion、稳定排序 Item、next cursor 与 has-more；Storefront 选择批次大小并保留当前 infinite-load 交互。
+- Cursor 绑定本地 publishVersion 与 filter。连续分页期间本地 publication 发生切换时，Runtime 返回 `PUBLICATION_CHANGED` 等价结果，Storefront 清空并从第一页重读，不能混合两个本地版本。
+- Category reader 只返回当前 locale 有 published Item 的 Category 与 count。空 / 未发布 Category not found；historical Category slug 通过 `inspiration-category` alias index 解析当前 canonical。
+- 根 `/inspirations` 无 published Item 时返回空结果而不是 fixture fallback；Storefront 保留前端自有标题 / 简介、显示固定空状态并输出 `noindex`。SitePage disabled / locale unavailable 仍优先按 exposure governance 处理。
+- Inspiration Sync 失败时 Local Published Store 保留上一份完整 publication；首次无完整数据时返回空 / unavailable，不回退 `westelm-kids-reference.ts` 或其他静态生产数据。
 
 price 与 inventory 后置到业务增强阶段。
 
@@ -455,10 +517,31 @@ price 与 inventory 后置到业务增强阶段。
 唯一性范围：
 
 ```text
-siteId + resourceType + locale
+siteId + namespace + locale + normalizedSlug
 ```
 
 同一 OES 内部资源在不同站点或不同 locale 下可以有不同 slug。
+
+P1 dynamic slug namespace 覆盖 `blog / news / article-category / inspiration-category`；Product / Collection 等资源等待自身归属设计冻结后再扩展。Runtime 不接收 draft reservation，只从同一 publishVersion 的 public views 接收 canonical `slug`、`historical_slugs[]` 与资源公开状态。
+
+Local Published Store 必须随 public views 原子维护 historical alias index：
+
+```text
+namespace + locale + normalized historical slug
+  -> stable resource identity
+  -> current canonical slug and status
+```
+
+公开请求不得扫描全部 public view JSON 查找历史值，也不得实时访问 OES：
+
+- canonical 命中且资源为 `published` 时返回公开 view；
+- historical alias 命中且目标仍为 `published` 时，Runtime 向 Storefront 返回稳定资源身份与当前 canonical，由 Storefront 组合自身 URL pattern 并执行 server-side 301；
+- 目标为 `unpublished / deleted / disabled`、locale 不公开或不存在时不得 redirect，P1 返回 not found；
+- alias 不指向 alias，所有历史值都经稳定资源身份直接解析当前 canonical，因此连续改名或换回不会产生多跳链；
+- `article-category` 的 Blog / News archive URL family 由 Storefront route context 决定，Runtime 不把 `/blogs/**` 或 `/news/**` 路径写入 alias index；
+- historical aliases 不进入 route index、canonical、sitemap 或 hreflang。
+
+Slug 所有权、unpublish / delete 保留与 retired namespace 规则以 [site-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/site-service.md) 和 [ADR 0011](/Users/acehood/Documents/GitHub/oes/docs/adr/0011-site-dynamic-slug-reservation-and-history.md) 为准。
 
 ### 10.2 Local SEO Data Helpers
 
@@ -476,6 +559,11 @@ P1 推荐的本地读取能力包括：
 - 正常公开 SEO 渲染不得实时调用 OES Core 或 OES Site-facing API。
 - public site config 不得暴露 credential、secret、签名材料、nonce、内部 endpoint 或 runtime status 细节。
 - route index 只包含当前 site、当前 active locale、`status = published` 的公开路由；preparing / disabled locale 不得进入 sitemap 或 hreflang。
+- route index 不包含 preview、historical slug redirect URL、`noindex` resource、空 archive 或 pagination page 2+。
+- Runtime 可以提供某个 Article filter 是否命中 published data 的本地结果；由 Storefront 决定该结果是否对应一个 canonical Category archive、其路径及其 sitemap entry。
+- Storefront 生成 sitemap 时可以合并自己拥有的静态 canonical pages；这些静态页面不进入 OES public view contract。
+- Storefront 自有静态页面不作为 OES 内容 public view，但其页面能力与支持 locale 通过 Runtime Kit 注册，页面公开与 index 治理状态通过本地 SitePage / locale governance data 读取。
+- Storefront 输出 robots 时应阻止 preview、API 与 admin 路径；preview/noindex 仍必须由页面 header/head 明确输出，不能依赖 robots。
 - P1 不把 route index 扩展为 CMS、page builder、导航 contract 或生产 CDN contract。
 - 若后续需要跨站强 contract，应在 `docs/contracts/**` 单独冻结；本节只冻结 runtime-kit P1 的本地 helper 架构边界。
 

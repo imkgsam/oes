@@ -14,12 +14,12 @@
 - 不让外部站点直接调用 OES Core 内部 API。
 - 不让 Storefront Frontend 持有高权限凭证或直接调用 OES Core API。
 - 不做集中式实时 Site Platform backend。
-- 不做 template、page builder、archive。
+- 不做 template、page builder、full CMS archive；Blog / News Topic SEO Archive 作为派生 P1 能力单独冻结。
 - 不做 price / inventory final validation。
 - 不做 inquiry、order、customer account、dealer account、payment / checkout。
 - 不做 third-party marketplace connector，例如 Amazon / 1688 / 淘宝 / 京东。
 - 不做 IM / Email / social channel 集成。
-- 不做多 runtime endpoint、复杂 redirect、CDN purge、自动翻译。
+- 不做多 runtime endpoint、全站复杂 redirect、CDN purge、自动翻译；Blog / News 与 Topic slug history 301 作为派生 P1 能力单独冻结。
 
 ## 3. 上游依赖
 
@@ -117,6 +117,8 @@ P1 public view read covers:
 - contents
 - blogs
 - news
+- FAQ directory
+- topics for Blog / News Topic SEO Archive, as frozen in [blog-news-closed-loop-p1.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/blog-news-closed-loop-p1.md)
 
 P1 excludes:
 
@@ -139,6 +141,7 @@ P1 包含:
 - `SiteCredential`
 - `SiteProductPublication`
 - site-scoped `SiteContentEntry` for Blog / News
+- site-scoped Blog / News Topic and `TopicPublicView`, as a Blog / News-specific archive capability rather than a full CMS archive
 - `SitePublicView`
 - `SiteSyncBatch`
 - sync resource list / changed resource index
@@ -154,6 +157,7 @@ P1 Admin workflows:
 - Site Overview
 - Products
 - Blog / News
+- Blog / News Topic management
 - Locales
 - Sync
 - Settings
@@ -164,7 +168,7 @@ P1 excludes:
 
 - template
 - page builder
-- archive
+- full CMS archive
 - automatic product master publish
 - automatic translation
 - complete CMS
@@ -309,6 +313,7 @@ Contracts 验收：
 - preview token / preview view contract 已冻结到 [preview-and-runtime-status.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/site-service/preview-and-runtime-status.md)。
 - runtime-status contract 已冻结到 [preview-and-runtime-status.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/site-service/preview-and-runtime-status.md)。
 - Admin BFF 最小站点管理 contract 已冻结到 [admin-bff.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/site-service/admin-bff.md)。
+- Blog / News + Topic SEO Archive 派生契约已冻结到 [blog-news-closed-loop-p1.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/blog-news-closed-loop-p1.md) 引用的 `docs/contracts/site-service/**`。
 
 Implementation readiness:
 

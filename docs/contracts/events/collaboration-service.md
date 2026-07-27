@@ -1,6 +1,6 @@
 # collaboration-service Event Contract
 
-更新时间：2026-06-14
+更新时间：2026-07-26
 
 本文冻结 `collaboration-service` Task P1 中供跨服务订阅的公共事件契约。`collaboration-service` 的长期职责、Task 对象、权限与状态语义以 [collaboration-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/collaboration-service.md) 为准；Task command 黑盒语义以 [task-command.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/collaboration-service/task-command.md) 为准。
 
@@ -24,57 +24,57 @@
 - task 与业务对象、workflow、project、team queue、annotation、comment 的后续协同事件
 - broker topic、outbox 表、重试、DLQ 或 schema registry 实现
 
-## Common Envelope
+## Common CloudEvents Envelope
 
-三个事件共享以下 envelope 语义：
+三个事件共享 CloudEvents `1.0` Structured JSON 外层；准确 wire mapping 以 [platform-transport.md](./platform-transport.md) 为准。本文继续使用 OES 业务语义名称描述 contract，其固定映射为：
 
-| 字段 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| `eventId` | string | 是 | 全局唯一事件 ID。 |
-| `eventType` | string | 是 | 本文冻结的 dot-case event type。 |
-| `eventVersion` | number | 是 | 当前固定为 `1`。 |
-| `ownerService` | string | 是 | 固定为 `collaboration-service`。 |
-| `occurredAt` | string | 是 | ISO-8601 时间，表示 Task 事实在 owner service 中成立的时间。 |
-| `tenantId` | string | 是 | Task 所属租户。 |
-| `orgId` | string \| null | 否 | P1 Task 可为空；后续组织范围由 collaboration-service 设计确认。 |
-| `aggregateType` | string | 是 | 固定为 `TASK`。 |
-| `aggregateId` | string | 是 | Task ID。 |
-| `actorAccountId` | string | 是 | 执行动作的账号。 |
-| `traceId` | string | 是 | 链路追踪 ID。 |
-| `correlationId` | string \| null | 否 | 跨消息或流程关联 ID。 |
-| `causationId` | string \| null | 否 | 触发本事件的 command / request / event ID。 |
-| `auditRef` | string \| null | 否 | collaboration-service 本地审计引用。 |
-| `payload` | object | 是 | 事件业务载荷。 |
+| OES 语义         | CloudEvents / OES extension | 类型           | 必填 | 说明                                             |
+| ---------------- | --------------------------- | -------------- | ---- | ------------------------------------------------ |
+| `eventId`        | `id`                        | string         | 是   | 全局唯一事件 ID。                                |
+| `eventType`      | `type`                      | string         | 是   | 本文冻结的 dot-case event type。                 |
+| `eventVersion`   | `oeseventversion`           | number         | 是   | 当前固定为 `1`；不是 `specversion`。             |
+| `ownerService`   | `source`                    | string         | 是   | 固定为 `urn:oes:service:collaboration-service`。 |
+| `occurredAt`     | `time`                      | string         | 是   | Task 事实在 owner service 中成立的时间。         |
+| `tenantId`       | `oestenantid`               | string         | 是   | Task 所属租户。                                  |
+| `orgId`          | `oesorgid`                  | string \| null | 否   | P1 Task 可为空。                                 |
+| `aggregateType`  | `oesaggregatetype`          | string         | 是   | 固定为 `TASK`。                                  |
+| `aggregateId`    | `subject / oesaggregateid`  | string         | 是   | 两者都等于 Task ID。                             |
+| `actorAccountId` | `oesactoraccountid`         | string         | 是   | 执行动作的账号，只用于归因。                     |
+| `traceId`        | `oestraceid`                | string         | 是   | 链路关联 ID。                                    |
+| `correlationId`  | `oescorrelationid`          | string \| null | 否   | 跨消息或流程关联 ID。                            |
+| `causationId`    | `oescausationid`            | string \| null | 否   | 触发本事件的 command / request / event ID。      |
+| `auditRef`       | `oesauditref`               | string \| null | 否   | collaboration-service 本地审计引用。             |
+| `payload`        | `data`                      | object         | 是   | 本文定义的事件业务载荷。                         |
 
-Consumer 必须容忍 envelope 新增 optional 字段。
+CloudEvents `specversion` 固定为 `1.0`，`datacontenttype` 固定为 `application/json`，`dataschema` 按 Event Catalog contract identity 生成。Consumer 必须容忍 envelope 新增 optional attribute。
 
 ## Common Payload Fields
 
 三个事件共享以下 payload 字段：
 
-| 字段 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| `taskId` | string | 是 | Task ID，必须等于 envelope `aggregateId`。 |
-| `createdByAccountId` | string | 是 | Task 创建人账号。 |
-| `assigneeAccountId` | string | 是 | Task 当前处理人账号。 |
-| `status` | string | 是 | 事件发生后的 Task 状态。 |
-| `previousStatus` | string \| null | 否 | 状态变化事件必须携带；非状态变化事件可为空。 |
-| `priority` | string | 是 | Task 优先级快照。 |
-| `dueAt` | string \| null | 否 | Task 到期时间快照。 |
-| `titleSnapshot` | string | 是 | Task 标题快照，用于通知或时间线摘要。 |
+| 字段                 | 类型           | 必填 | 说明                                                       |
+| -------------------- | -------------- | ---- | ---------------------------------------------------------- |
+| `taskId`             | string         | 是   | Task ID，必须等于 CloudEvents `subject / oesaggregateid`。 |
+| `createdByAccountId` | string         | 是   | Task 创建人账号。                                          |
+| `assigneeAccountId`  | string         | 是   | Task 当前处理人账号。                                      |
+| `status`             | string         | 是   | 事件发生后的 Task 状态。                                   |
+| `previousStatus`     | string \| null | 否   | 状态变化事件必须携带；非状态变化事件可为空。               |
+| `priority`           | string         | 是   | Task 优先级快照。                                          |
+| `dueAt`              | string \| null | 否   | Task 到期时间快照。                                        |
+| `titleSnapshot`      | string         | 是   | Task 标题快照，用于通知或时间线摘要。                      |
 
 payload 不携带 `description`。消费者不得把 `titleSnapshot` 当作 Task 当前标题真相；需要最新 Task 详情时必须通过 `collaboration-service` 查询契约读取。
 
 ## 1. `collaboration.task.assigned`
 
-| 属性 | 值 |
-| --- | --- |
-| Owner service | `collaboration-service` |
-| Status | `FROZEN_SUBSCRIBABLE` |
-| Event version | `1` |
-| Notification consumable | 是 |
-| Implementation alias | `TaskAssigned` |
-| Aggregate type | `TASK` |
+| 属性                    | 值                      |
+| ----------------------- | ----------------------- |
+| Owner service           | `collaboration-service` |
+| Status                  | `FROZEN_SUBSCRIBABLE`   |
+| Event version           | `1`                     |
+| Notification consumable | 是                      |
+| Implementation alias    | `TaskAssigned`          |
+| Aggregate type          | `TASK`                  |
 
 ### 触发条件
 
@@ -84,16 +84,16 @@ Self todo 创建不发布 `collaboration.task.assigned`。
 
 ### Payload
 
-| 字段 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| `taskId` | string | 是 | 已创建并被指派的 Task ID。 |
-| `createdByAccountId` | string | 是 | 创建并指派任务的账号。 |
-| `assigneeAccountId` | string | 是 | 被指派账号。 |
-| `status` | string | 是 | 固定为创建后的状态，P1 为 `OPEN`。 |
-| `previousStatus` | string \| null | 否 | 创建指派事件可为空。 |
-| `priority` | string | 是 | 创建时的优先级快照。 |
-| `dueAt` | string \| null | 否 | 创建时的到期时间快照。 |
-| `titleSnapshot` | string | 是 | 创建时的标题快照。 |
+| 字段                 | 类型           | 必填 | 说明                               |
+| -------------------- | -------------- | ---- | ---------------------------------- |
+| `taskId`             | string         | 是   | 已创建并被指派的 Task ID。         |
+| `createdByAccountId` | string         | 是   | 创建并指派任务的账号。             |
+| `assigneeAccountId`  | string         | 是   | 被指派账号。                       |
+| `status`             | string         | 是   | 固定为创建后的状态，P1 为 `OPEN`。 |
+| `previousStatus`     | string \| null | 否   | 创建指派事件可为空。               |
+| `priority`           | string         | 是   | 创建时的优先级快照。               |
+| `dueAt`              | string \| null | 否   | 创建时的到期时间快照。             |
+| `titleSnapshot`      | string         | 是   | 创建时的标题快照。                 |
 
 ### Consumer 语义
 
@@ -101,14 +101,14 @@ NotificationRule 可用该事件触发“任务被指派给你”类通知。通
 
 ## 2. `collaboration.task.completed`
 
-| 属性 | 值 |
-| --- | --- |
-| Owner service | `collaboration-service` |
-| Status | `FROZEN_SUBSCRIBABLE` |
-| Event version | `1` |
-| Notification consumable | 是 |
-| Implementation alias | `TaskCompleted` |
-| Aggregate type | `TASK` |
+| 属性                    | 值                      |
+| ----------------------- | ----------------------- |
+| Owner service           | `collaboration-service` |
+| Status                  | `FROZEN_SUBSCRIBABLE`   |
+| Event version           | `1`                     |
+| Notification consumable | 是                      |
+| Implementation alias    | `TaskCompleted`         |
+| Aggregate type          | `TASK`                  |
 
 ### 触发条件
 
@@ -118,18 +118,18 @@ NotificationRule 可用该事件触发“任务被指派给你”类通知。通
 
 ### Payload
 
-| 字段 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| `taskId` | string | 是 | 已完成的 Task ID。 |
-| `createdByAccountId` | string | 是 | Task 创建人账号。 |
-| `assigneeAccountId` | string | 是 | Task 完成时的处理人账号。 |
-| `status` | string | 是 | 固定为 `COMPLETED`。 |
-| `previousStatus` | string | 是 | 完成前状态，P1 为 `OPEN` 或 `IN_PROGRESS`。 |
-| `priority` | string | 是 | 完成时的优先级快照。 |
-| `dueAt` | string \| null | 否 | 完成时的到期时间快照。 |
-| `titleSnapshot` | string | 是 | 完成时的标题快照。 |
-| `completedByAccountId` | string | 是 | 执行完成动作的账号，通常等于 envelope `actorAccountId`。 |
-| `completedAt` | string | 是 | 完成时间。 |
+| 字段                   | 类型           | 必填 | 说明                                               |
+| ---------------------- | -------------- | ---- | -------------------------------------------------- |
+| `taskId`               | string         | 是   | 已完成的 Task ID。                                 |
+| `createdByAccountId`   | string         | 是   | Task 创建人账号。                                  |
+| `assigneeAccountId`    | string         | 是   | Task 完成时的处理人账号。                          |
+| `status`               | string         | 是   | 固定为 `COMPLETED`。                               |
+| `previousStatus`       | string         | 是   | 完成前状态，P1 为 `OPEN` 或 `IN_PROGRESS`。        |
+| `priority`             | string         | 是   | 完成时的优先级快照。                               |
+| `dueAt`                | string \| null | 否   | 完成时的到期时间快照。                             |
+| `titleSnapshot`        | string         | 是   | 完成时的标题快照。                                 |
+| `completedByAccountId` | string         | 是   | 执行完成动作的账号，通常等于 `oesactoraccountid`。 |
+| `completedAt`          | string         | 是   | 完成时间。                                         |
 
 ### Consumer 语义
 
@@ -137,14 +137,14 @@ NotificationRule 可用该事件触发“任务已完成”类通知。通知接
 
 ## 3. `collaboration.task.cancelled`
 
-| 属性 | 值 |
-| --- | --- |
-| Owner service | `collaboration-service` |
-| Status | `FROZEN_SUBSCRIBABLE` |
-| Event version | `1` |
-| Notification consumable | 是 |
-| Implementation alias | `TaskCancelled` |
-| Aggregate type | `TASK` |
+| 属性                    | 值                      |
+| ----------------------- | ----------------------- |
+| Owner service           | `collaboration-service` |
+| Status                  | `FROZEN_SUBSCRIBABLE`   |
+| Event version           | `1`                     |
+| Notification consumable | 是                      |
+| Implementation alias    | `TaskCancelled`         |
+| Aggregate type          | `TASK`                  |
 
 ### 触发条件
 
@@ -154,19 +154,19 @@ NotificationRule 可用该事件触发“任务已完成”类通知。通知接
 
 ### Payload
 
-| 字段 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| `taskId` | string | 是 | 已取消的 Task ID。 |
-| `createdByAccountId` | string | 是 | Task 创建人账号。 |
-| `assigneeAccountId` | string | 是 | Task 取消时的处理人账号。 |
-| `status` | string | 是 | 固定为 `CANCELLED`。 |
-| `previousStatus` | string | 是 | 取消前状态，P1 为 `OPEN` 或 `IN_PROGRESS`。 |
-| `priority` | string | 是 | 取消时的优先级快照。 |
-| `dueAt` | string \| null | 否 | 取消时的到期时间快照。 |
-| `titleSnapshot` | string | 是 | 取消时的标题快照。 |
-| `cancelledByAccountId` | string | 是 | 执行取消动作的账号，通常等于 envelope `actorAccountId`。 |
-| `cancelledAt` | string | 是 | 取消时间。 |
-| `cancelReasonSnapshot` | string \| null | 否 | 取消原因摘要；不得作为长文本正文存储来源。 |
+| 字段                   | 类型           | 必填 | 说明                                               |
+| ---------------------- | -------------- | ---- | -------------------------------------------------- |
+| `taskId`               | string         | 是   | 已取消的 Task ID。                                 |
+| `createdByAccountId`   | string         | 是   | Task 创建人账号。                                  |
+| `assigneeAccountId`    | string         | 是   | Task 取消时的处理人账号。                          |
+| `status`               | string         | 是   | 固定为 `CANCELLED`。                               |
+| `previousStatus`       | string         | 是   | 取消前状态，P1 为 `OPEN` 或 `IN_PROGRESS`。        |
+| `priority`             | string         | 是   | 取消时的优先级快照。                               |
+| `dueAt`                | string \| null | 否   | 取消时的到期时间快照。                             |
+| `titleSnapshot`        | string         | 是   | 取消时的标题快照。                                 |
+| `cancelledByAccountId` | string         | 是   | 执行取消动作的账号，通常等于 `oesactoraccountid`。 |
+| `cancelledAt`          | string         | 是   | 取消时间。                                         |
+| `cancelReasonSnapshot` | string \| null | 否   | 取消原因摘要；不得作为长文本正文存储来源。         |
 
 ### Consumer 语义
 

@@ -82,7 +82,7 @@ The extension workspace contract treats `archiveReason` as display-only data fro
 ## Risks
 
 - Existing duplicate check paths currently default to `DRAFT` and `ACTIVE`; archived records may need a separate lookup path for search-result display if duplicate check intentionally excludes archive status.
-- The browser extension implementation path is currently owned by another active Hub thread. Merging order must avoid overwriting its in-flight workspace implementation.
+- The browser extension implementation path requires explicit coordination before merging, so an in-flight workspace implementation is not overwritten.
 - Historical `ARCHIVED` rows can have `archiveReason = null`; UI must handle null reason as absent rather than inventing `OTHER`.
 
 ## Verification
@@ -95,4 +95,4 @@ Completion requires evidence from:
 - Typecheck/build for affected packages.
 - Updated CRM truth source and extension contract docs.
 
-This design is not complete as implementation until Hub ownership allows updating the truth-source and runtime files.
+This design is not complete as implementation until the truth-source and runtime file owners confirm the required write scope.

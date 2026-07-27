@@ -111,6 +111,7 @@ Gateway / BFF 负责应用接入与场景聚合能力，包括：
 - 面向外部客户端暴露 HTTP API
 - 入口 DTO 校验与参数归一化
 - JWT / session 接入与认证失败前置处理
+- 将 authenticated session scope 与路由声明的 tenant target 做显式绑定
 - operator context、tenant context、trace context 组装与向下传播
 - 调用下游 gRPC 服务
 - 面向前端的聚合接口
@@ -398,7 +399,33 @@ Gateway 是外部请求进入内部服务体系的第一层应用入口，因此
 - 将上下文写入下游 gRPC metadata
 - 统一缺失或非法上下文的拒绝策略
 
-### 9.2 设计约束
+### 9.2 Tenant Target Binding
+
+凡 HTTP 路由通过 path、query 或其他显式位置声明 tenant target，Gateway 必须把“当前 session 可以访问哪个 tenant”与“本次请求正在寻址哪个 tenant”作为独立于 `RBAC` 的平台硬边界进行绑定。
+
+稳定执行顺序固定为：
+
+1. session auth
+2. tenant-target binding
+3. permission
+4. handler / downstream
+
+稳定规则：
+
+- `TENANT` scope session 必须携带有效 tenant；缺失时属于无效认证上下文，必须 fail closed，且不得进入 permission、handler 或 downstream。
+- tenant target 必须先完成基础解析与归一化；segment 存在但为空或非法时返回 `400`，URL 缺少必需 segment 时由路由层返回 `404`。
+- `TENANT` session 的 tenant 与归一化 target 不一致时返回 `403`；该拒绝必须发生在 permission 调用、downstream 调用以及任何业务副作用之前。
+- `SYSTEM` session 不是 tenant-bound 路由的通用 bypass。只有未来被架构显式冻结为 system-targetable、具备对应 permission 与审计要求的路由才可以寻址 tenant；未冻结前一律拒绝。Site Management P1 的 tenant-bound 路由不支持 SYSTEM 跨租户访问。
+- Gateway 必须通过显式、可复用的 route guard / decorator 或等价 route metadata 机制声明该边界，不得把 tenant 比对散落到 controller 或 BFF use case 中。
+- 绑定成功后的 verified tenant target 是 BFF 下游 tenant context 的唯一来源；原始 path target 不能直接进入 downstream request、operator-scoped metadata 的业务映射或审计上下文。
+- `checkPermission` 只回答粗粒度能力准入，不能替代 tenant-target binding；即使权限请求携带 tenant 信息，也不改变二者 owner 与执行顺序。
+- 业务服务仍必须按自身资源真相校验 tenant ownership，作为独立的 defense-in-depth；Gateway 绑定成功不等于资源归属已经验证。
+
+上述规则复用既有 session context 与 tenant context，不要求新增 scope 字段、分页字段、permission RPC 字段或其他公共 contract 字段。
+
+当前 Site Management tenant-bound 路径尚未满足该稳定顺序：未经绑定的 route target 可以进入下游 Admin context，而现有 permission 门禁不能承担隔离职责。该缺口属于 High severity 的跨租户水平越权风险；在实现完成并通过 contract acceptance 前，不得把“RBAC 已通过”视为租户隔离闭环。
+
+### 9.3 设计约束
 
 需要特别强调：
 
@@ -412,7 +439,7 @@ Gateway 是外部请求进入内部服务体系的第一层应用入口，因此
 - 多跳 gRPC metadata 传播与服务信任模型以 [14-grpc-metadata-and-service-trust-architecture.md](./14-grpc-metadata-and-service-trust-architecture.md) 为准
 - 传输层 mTLS 属于部署层职责，Gateway 与各子服务代码层不再以“临时 TLS 过渡实现”作为目标方向
 
-### 9.3 当前实现与目标状态的关系
+### 9.4 当前实现与目标状态的关系
 
 截至当前代码状态，Gateway 下游 metadata 工厂仍会携带：
 
