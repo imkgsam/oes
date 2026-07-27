@@ -334,6 +334,8 @@ Global Command Thread 只负责项目级规划、任务调度、依赖编排、�
 
 - 项目根目录固定检出干净、可运行的 `main`；Design、Implementation、Review、Acceptance 线程不得直接在根目录开发或留下修改。
 - 每个并发写 owner 必须使用独立 branch + worktree；一个 worktree 同一时间只能有一个写 owner。禁止多个线程共享未提交文件、从 dirty working tree 派生任务或用 stash handoff。
+- 有前置依赖的未来 I/R/X lane 在 predecessor gate 与精确 base SHA 未就绪前只能作为 planned lane 登记，禁止提前创建正式 task、detached worktree 或占用写工作面。
+- I/R/X 正式 task 必须即时从精确 base 创建 canonical branch，并以该 branch 作为 starting state 一次创建 task/worktree；激活前必须用 `git update-index --refresh` 证明 linked-worktree Git metadata 可写。Writer worktree 禁止 detached HEAD；detached worktree 仅允许用于只读 Acceptance。
 - Capability Command 只调度；每个 capability 只有一个 Integration Thread、一个 integration branch/worktree 和一个集成写 owner。
 - 模块必须先满足构建/类型检查与定向测试，再通过保留 ancestry 的正常 merge 进入 integration branch；正常流程禁止 cherry-pick、squash merge 或 rebase 已共享提交。
 - Acceptance Thread 只验收精确 candidate SHA，不修复实现；验收失败回原 owner/branch，设计缺口回 Design Thread，未通过不得进入 `main`。
