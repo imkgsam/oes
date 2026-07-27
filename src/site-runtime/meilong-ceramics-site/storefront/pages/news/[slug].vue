@@ -2,12 +2,18 @@
 const route = useRoute()
 const { data: siteConfig } = await useSiteConfig()
 const { data: resource } = await usePublishedResource('news', String(route.params.slug))
+
 if (!resource.value) {
-  throw createError({ statusCode: 404, statusMessage: 'News entry not found' })
+  const redirectTo = await resolvePublishedRedirect('news', String(route.params.slug))
+  if (!redirectTo) {
+    throw createError({ statusCode: 404, statusMessage: 'News release not found' })
+  }
+  await navigateTo(redirectTo, { redirectCode: 301 })
+} else {
+  usePublishedSeo('news', resource, siteConfig)
 }
-usePublishedSeo('news', resource, siteConfig)
 </script>
 
 <template>
-  <PublishedResourcePage v-if="resource" collection="news" :resource="resource" />
+  <NewsArticleView v-if="resource" :resource="resource" />
 </template>

@@ -5,6 +5,7 @@ import { fetchSiteRuntime } from '../utils/site-runtime'
 export default defineEventHandler(async (event) => {
   const config = await fetchSiteRuntime<PublicSiteConfig>(event, '/api/public/site-config')
   setHeader(event, 'Content-Type', 'text/plain; charset=utf-8')
+  setHeader(event, 'X-OES-Site-Exposure-Version', String(config.committedPublishVersion))
   return [
     'User-agent: *',
     'Disallow: /preview/',

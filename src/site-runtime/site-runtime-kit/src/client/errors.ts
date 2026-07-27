@@ -54,5 +54,8 @@ export function isRetryableRuntimeError(error: unknown): boolean {
   if (error.httpStatus === 429 && error.retryAfterSeconds !== undefined) {
     return true
   }
+  if (error.code === 'REQUEST_TIMEOUT') {
+    return true
+  }
   return error.httpStatus === 502 || error.httpStatus === 503 || error.httpStatus === 504
 }

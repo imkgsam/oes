@@ -7,6 +7,12 @@ const repoRoot = join(root, '../../..')
 const storefrontRoot = join(root, 'storefront')
 const runtimeRoot = join(root, 'runtime')
 const templateRoot = join(repoRoot, 'src/site-runtime/external-site-template')
+const runtimePreviewController = join(root, 'runtime/src/modules/preview/preview.controller.ts')
+const runtimeCategoryArchiveService = join(root, 'runtime/src/modules/public-data/content-category-archive.service.ts')
+const storefrontPreviewApi = join(root, 'storefront/server/api/preview/[resourceType]/[resourceId].get.ts')
+const storefrontPreviewPage = join(root, 'storefront/pages/preview/[resourceType]/[resourceId].vue')
+const storefrontRobotsRoute = join(root, 'storefront/server/routes/robots.txt.ts')
+const storefrontSitemapRoute = join(root, 'storefront/server/routes/sitemap.xml.ts')
 
 const requiredFiles = [
   'README.md',
@@ -21,13 +27,37 @@ const requiredFiles = [
   'storefront/pages/index.vue',
   'storefront/pages/about.vue',
   'storefront/pages/contact.vue',
-  'storefront/pages/products/index.vue',
-  'storefront/pages/categories/index.vue',
-  'storefront/pages/blog/index.vue',
+  'storefront/pages/product/collections/index.vue',
+  'storefront/pages/products/[slug].vue',
+  'storefront/pages/collections/[collection].vue',
+  'storefront/pages/blogs/index.vue',
+  'storefront/pages/blogs/categories/[slug].vue',
   'storefront/pages/news/index.vue',
+  'storefront/pages/news/categories/[slug].vue',
   'storefront/server/routes/sitemap.xml.ts',
   'storefront/server/routes/robots.txt.ts',
   'storefront/composables/usePublishedSeo.ts'
+]
+
+const retiredRouteFiles = [
+  'storefront/pages/blog/index.vue',
+  'storefront/pages/blog/[slug].vue',
+  'storefront/pages/[locale]/blog/[slug].vue',
+  'storefront/pages/blogs/category/index.vue',
+  'storefront/pages/blogs/category/[slug].vue',
+  'storefront/pages/[locale]/blogs/category/index.vue',
+  'storefront/pages/[locale]/blogs/category/[slug].vue',
+  'storefront/pages/news/category/[slug].vue',
+  'storefront/pages/[locale]/news/category/[slug].vue',
+  'storefront/pages/categories/index.vue',
+  'storefront/pages/categories/[slug].vue',
+  'storefront/pages/[locale]/categories/[slug].vue',
+  'storefront/pages/products/index.vue',
+  'storefront/pages/collections/index.vue',
+  'storefront/server/routes/blogs/topic/[slug].ts',
+  'storefront/server/routes/[locale]/blogs/topic/[slug].ts',
+  'storefront/server/routes/news/topic/[slug].ts',
+  'storefront/server/routes/[locale]/news/topic/[slug].ts'
 ]
 
 const checks = []
@@ -73,6 +103,10 @@ function containsAny(records, patterns) {
 
 check('required Meilong instance files exist', () =>
   requiredFiles.filter((file) => !existsSync(join(root, file)))
+)
+
+check('retired Meilong public route files are physically absent', () =>
+  retiredRouteFiles.filter((file) => existsSync(join(root, file)))
 )
 
 check('Storefront does not hold OES credential or signing material', () => {
@@ -126,6 +160,72 @@ check('Storefront includes public SEO surfaces', () => {
   ]
     .filter(([, pattern]) => !pattern.test(combined))
     .map(([name]) => `missing ${name}`)
+})
+
+check('Preview routes force no-store and noindex without formal store writes', () => {
+  const previewFiles = [runtimePreviewController, storefrontPreviewApi]
+  const failures = []
+  for (const file of previewFiles) {
+    if (!existsSync(file)) {
+      failures.push(`${relative(root, file)} missing`)
+      continue
+    }
+    const body = readFileSync(file, 'utf8')
+    if (!/Cache-Control['"], ['"]no-store/.test(body)) {
+      failures.push(`${relative(root, file)} missing Cache-Control no-store`)
+    }
+    if (!/X-Robots-Tag['"], ['"]noindex, nofollow/.test(body)) {
+      failures.push(`${relative(root, file)} missing X-Robots-Tag noindex, nofollow`)
+    }
+    if (/upsertPublishedResources|replaceSnapshot|syncToLatest|publishVersion\s*\+\+|webhook/i.test(body)) {
+      failures.push(`${relative(root, file)} appears to write formal store, advance publish state, or trigger sync`)
+    }
+  }
+  return failures
+})
+
+check('Storefront preview page reuses real published resource rendering', () => {
+  const body = readFileSync(storefrontPreviewPage, 'utf8')
+  const failures = []
+  if (!body.includes('PublishedResourcePage')) {
+    failures.push('preview page does not render through PublishedResourcePage')
+  }
+  if (!body.includes('PublicViewEnvelope')) {
+    failures.push('preview page does not adapt draft payload into a public view envelope')
+  }
+  if (!/cache_policy.*no-store|no-store.*cache_policy/s.test(body)) {
+    failures.push('preview page does not preserve no-store preview semantics')
+  }
+  return failures
+})
+
+check('Storefront robots blocks preview API and admin paths without relying on robots for noindex', () => {
+  const body = readFileSync(storefrontRobotsRoute, 'utf8')
+  return [
+    ['preview', /Disallow: \/preview\//],
+    ['api', /Disallow: \/api\//],
+    ['admin', /Disallow: \/admin\//],
+    ['sitemap', /Sitemap: \$\{config\.publicBaseUrl\}\/sitemap\.xml/]
+  ]
+    .filter(([, pattern]) => !pattern.test(body))
+    .map(([name]) => `robots route missing ${name} rule`)
+})
+
+check('Sitemap uses the Runtime SEO route index and Content Category archives use published usage visibility', () => {
+  const sitemap = readFileSync(storefrontSitemapRoute, 'utf8')
+  const categoryArchive = readFileSync(runtimeCategoryArchiveService, 'utf8')
+  const failures = []
+  if (!sitemap.includes('/api/public/seo/route-index')) {
+    failures.push('sitemap does not read runtime SEO route index')
+  }
+  if (!categoryArchive.includes('listCategoryRouteIndex') || !categoryArchive.includes('listVisibleCategories')) {
+    failures.push('Content Category route index is not derived from visible published usage')
+  }
+  const routeIndexBody = categoryArchive.match(/async listCategoryRouteIndex[\s\S]*?return routes\n  \}/)?.[0] ?? ''
+  if (/\bpage\b/.test(routeIndexBody) || /pagination/.test(routeIndexBody)) {
+    failures.push('Content Category route index appears to include pagination pages')
+  }
+  return failures
 })
 
 check('External Site Template core is not polluted with Meilong business content', () => {

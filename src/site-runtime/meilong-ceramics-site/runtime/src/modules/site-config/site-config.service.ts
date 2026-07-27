@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common'
+import type { SiteExposurePublication } from '@oes/site-runtime-kit'
 
 export interface SiteLocaleConfig {
   locale: string
@@ -9,6 +10,7 @@ export interface SiteLocaleConfig {
 export interface PublicSiteConfig {
   siteName: string
   publicBaseUrl: string
+  committedPublishVersion: number
   defaultLocale: string
   activeLocales: SiteLocaleConfig[]
   preview: {
@@ -20,24 +22,17 @@ export interface PublicSiteConfig {
 // SiteConfigService exposes public-safe site identity and locale routing configuration to Storefront SSR.
 @Injectable()
 export class SiteConfigService {
-  private readonly defaultLocale = process.env.SITE_DEFAULT_LOCALE ?? 'en-US'
-  private readonly activeLocales = normalizeLocaleList(
-    process.env.SITE_ACTIVE_LOCALES,
-    this.defaultLocale
-  )
-
-  // getPublicConfig returns SEO-safe site config without OES credentials or signing material.
-  getPublicConfig(): PublicSiteConfig {
+  // getPublicConfig combines local public identity with the exact committed locale publication.
+  async getPublicConfig(publication: SiteExposurePublication): Promise<PublicSiteConfig> {
     return {
       siteName: process.env.SITE_NAME ?? 'Meilong Ceramics',
-      publicBaseUrl: trimTrailingSlash(
-        process.env.SITE_PUBLIC_BASE_URL ?? 'https://meilong-ceramics.com'
-      ),
-      defaultLocale: this.defaultLocale,
-      activeLocales: this.activeLocales.map((locale) => ({
+      publicBaseUrl: this.getPublicBaseUrl(),
+      committedPublishVersion: publication.publishVersion,
+      defaultLocale: publication.defaultLocale,
+      activeLocales: publication.activeLocales.map((locale) => ({
         locale,
-        isDefault: locale === this.defaultLocale,
-        routePrefix: locale === this.defaultLocale ? '' : `/${locale}`
+        isDefault: locale === publication.defaultLocale,
+        routePrefix: locale === publication.defaultLocale ? '' : `/${locale}`
       })),
       preview: {
         indexing: 'noindex',
@@ -46,25 +41,36 @@ export class SiteConfigService {
     }
   }
 
-  // isActiveLocale protects route and sitemap generation from preparing or disabled locales.
-  isActiveLocale(locale: string): boolean {
-    return this.activeLocales.includes(locale)
+  // getPublicBaseUrl returns the public-safe canonical origin without consulting OES or governance storage.
+  getPublicBaseUrl(): string {
+    return trimTrailingSlash(
+      process.env.SITE_PUBLIC_BASE_URL ?? 'https://meilong-ceramics.com'
+    )
   }
 
-  // resolvePublicPath applies the P1 default-English no-prefix and non-default locale prefix convention.
-  resolvePublicPath(locale: string, collection: string, slug: string): string {
-    const prefix = locale === this.defaultLocale ? '' : `/${locale}`
-    return `${prefix}/${collection}/${slug}`
+  // resolvePublicPath applies the committed default-locale prefix convention to one resource route.
+  resolvePublicPath(
+    publication: SiteExposurePublication,
+    locale: string,
+    collection: string,
+    slug: string
+  ): string {
+    const prefix = locale === publication.defaultLocale ? '' : `/${locale}`
+    const routeCollection = collection === 'blog' ? 'blogs' : collection
+    return `${prefix}/${routeCollection}/${slug}`
   }
-}
 
-// normalizeLocaleList guarantees the default locale is active and removes empty duplicate values.
-function normalizeLocaleList(rawLocales: string | undefined, defaultLocale: string): string[] {
-  const locales = (rawLocales ?? defaultLocale)
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean)
-  return Array.from(new Set([defaultLocale, ...locales]))
+  // resolveContentCategoryArchivePath applies the Blog / News Content Category archive route convention.
+  resolveContentCategoryArchivePath(
+    publication: SiteExposurePublication,
+    locale: string,
+    contentType: 'blog' | 'news',
+    slug: string
+  ): string {
+    const prefix = locale === publication.defaultLocale ? '' : `/${locale}`
+    const routeCollection = contentType === 'blog' ? 'blogs' : contentType
+    return `${prefix}/${routeCollection}/categories/${slug}`
+  }
 }
 
 // trimTrailingSlash normalizes configured public origins for canonical URL composition.

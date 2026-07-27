@@ -12,7 +12,7 @@ async function bootstrap(): Promise<void> {
     credentials: false
   })
   const port = Number(process.env.SITE_RUNTIME_PORT ?? 4301)
-  const host = process.env.SITE_RUNTIME_HOST ?? '127.0.0.1'
+  const host = process.env.SITE_RUNTIME_HOST ?? '0.0.0.0'
   await app.listen(port, host)
 }
 

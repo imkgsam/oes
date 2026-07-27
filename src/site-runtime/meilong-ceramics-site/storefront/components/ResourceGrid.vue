@@ -27,6 +27,16 @@ function resourceImage(item: PublicViewEnvelope): string {
   const value = item.payload.cover_image ?? item.payload.image
   return typeof value === 'string' ? value : '/images/meilong-showroom-hero.png'
 }
+
+// resourceImageAlt preserves published alt text before falling back to the visible title.
+function resourceImageAlt(item: PublicViewEnvelope): string {
+  const images = item.payload.images
+  if (Array.isArray(images) && typeof images[0]?.alt === 'string') {
+    return images[0].alt
+  }
+  const value = item.payload.cover_image_alt
+  return typeof value === 'string' && value.length > 0 ? value : resourceTitle(item)
+}
 </script>
 
 <template>
@@ -37,7 +47,7 @@ function resourceImage(item: PublicViewEnvelope): string {
       class="resource-tile"
       :to="`/${props.collection}/${item.slug}`"
     >
-      <img :src="resourceImage(item)" :alt="resourceTitle(item)" loading="lazy" />
+      <img :src="resourceImage(item)" :alt="resourceImageAlt(item)" loading="lazy" />
       <span class="tile-kicker">{{ item.resourceType }}</span>
       <strong>{{ resourceTitle(item) }}</strong>
       <p>{{ resourceSummary(item) }}</p>

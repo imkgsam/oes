@@ -1,6 +1,7 @@
 import { DynamicModule, Module, Provider } from '@nestjs/common'
 
 import { createSiteRuntimeFromEnv, type RuntimeEnvOverrides } from '../runtime/site-runtime'
+import type { SiteCapabilityManifest } from '../types'
 import {
   OesSiteRuntimeHealthController,
   OesSiteRuntimeStatusController,
@@ -11,6 +12,7 @@ import { OES_SITE_RUNTIME, OES_SITE_RUNTIME_MODULE_OPTIONS } from './tokens'
 
 export interface OesSiteRuntimeModuleOptions {
   controllers?: boolean
+  capabilityManifest?: SiteCapabilityManifest
   pullIntervalMs?: number
   runtimeOverrides?: RuntimeEnvOverrides
   now?: () => number
@@ -26,6 +28,8 @@ export class OesSiteRuntimeModule {
       useFactory: async () =>
         createSiteRuntimeFromEnv(process.env, {
           ...(options.runtimeOverrides ?? {}),
+          capabilityManifest:
+            options.capabilityManifest ?? options.runtimeOverrides?.capabilityManifest,
           pullIntervalMs: options.pullIntervalMs ?? options.runtimeOverrides?.pullIntervalMs,
           now: options.now ?? options.runtimeOverrides?.now
         })

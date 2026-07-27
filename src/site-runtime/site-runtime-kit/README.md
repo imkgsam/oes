@@ -16,6 +16,8 @@ It provides:
 
 It does not implement `site-service`, OES Core services, commerce writes, price or inventory validation, customer accounts, dealer portals, payments, CDN purge, distributed locks, Redis/Postgres/Mongo stores, or frontend access to OES.
 
+Storefront frontend code must not hold `OES_SITE_CREDENTIAL`, call OES directly, or read Runtime SQLite. It should read local published data through Site Runtime SSR/API routes backed by `runtime.publicViews`.
+
 ## Environment
 
 ```text
@@ -76,6 +78,7 @@ Site code should read published data through `runtime.publicViews`, not by readi
 ```ts
 const product = await runtime.publicViews.products.getBySlug('basin', 'en-US')
 const blogs = await runtime.publicViews.blogs.list({ locale: 'en-US', limit: 20 })
+const topics = await runtime.publicViews.topics.list({ locale: 'en-US', limit: 20 })
 ```
 
 P1 readers:
@@ -85,12 +88,17 @@ P1 readers:
 - `contents`
 - `blogs`
 - `news`
+- `topics`
 
 Readers default to `status = published`.
+
+Topic public views are stored locally, but visible Topic archive/filter lists and sitemap entries must be derived from published Blog / News usage. Compatibility fields named `show_in_blog_nav`, `show_in_news_nav`, and `nav_label` mean archive/filter visibility/display candidates; they do not make OES the owner of Storefront main navigation.
 
 ## Preview
 
 Use `runtime.getPreviewView(...)` or the signed client preview method from the site backend only. Preview views are returned to backend rendering code and are never written into `published_resources`.
+
+Preview routes must emit `noindex`, `nofollow`, and `no-store`. Preview must not advance local publish state, trigger sync/webhook behavior, or write draft views into the formal store.
 
 ## Local Verification
 

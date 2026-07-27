@@ -68,7 +68,7 @@ Dependencies:
 
 - OES `api-gateway` Site-facing API reachable from Runtime.
 - OES `site-service` with the Meilong site, credential, webhook URL, and runtime status URL configured.
-- A real credential bundle with `site:read`, `site:sync`, `site:preview`, and `site:status` scopes as applicable.
+- A real credential bundle with the same exact Runtime scopes issued by Site Management Admin: `site:read`, `site:sync`, `site:preview`, `site:status`, and `site:capabilities`.
 - Runtime endpoint reachable by the configured webhook URL.
 
 Do not put the real credential in repo files. Do not copy it into `storefront/.env.local`.
@@ -179,20 +179,25 @@ curl -sS http://127.0.0.1:4301/health/live
 curl -sS http://127.0.0.1:4301/health/ready
 curl -sS http://127.0.0.1:4301/api/public/site-config
 curl -sS http://127.0.0.1:4301/api/public/seo/route-index
-curl -sS 'http://127.0.0.1:4301/api/public/resources/products?locale=en-US'
-curl -sS 'http://127.0.0.1:4301/api/public/resources/categories?locale=en-US'
+curl -sS 'http://127.0.0.1:4301/api/public/resources/products/calacatta-royal-sintered-slab?locale=en-US'
 curl -sS 'http://127.0.0.1:4301/api/public/resources/blog?locale=en-US'
 curl -sS 'http://127.0.0.1:4301/api/public/resources/news?locale=en-US'
+curl -sS 'http://127.0.0.1:4301/api/public/article-archives/blog?locale=en-US&page=1&pageSize=12'
+curl -sS 'http://127.0.0.1:4301/api/public/article-categories/blog?pageKey=BLOG_LIST&locale=en-US'
+curl -sS 'http://127.0.0.1:4301/api/public/article-category-archives/blog/bathroom-sink?locale=en-US&page=1&pageSize=12'
 ```
 
 Storefront pages and SEO surfaces:
 
 ```bash
 curl -sS http://127.0.0.1:4300/
-curl -sS http://127.0.0.1:4300/products
-curl -sS http://127.0.0.1:4300/categories
-curl -sS http://127.0.0.1:4300/blog
+curl -sS http://127.0.0.1:4300/products/calacatta-royal-sintered-slab
+curl -sS http://127.0.0.1:4300/product/collections
+curl -sS http://127.0.0.1:4300/blogs
+curl -sS http://127.0.0.1:4300/blogs/categories/bathroom-sink
+curl -sS 'http://127.0.0.1:4300/blogs/categories/bathroom-sink?page=2'
 curl -sS http://127.0.0.1:4300/news
+curl -sS http://127.0.0.1:4300/news/categories/roca-group
 curl -sS http://127.0.0.1:4300/about
 curl -sS http://127.0.0.1:4300/contact
 curl -sS http://127.0.0.1:4300/sitemap.xml
@@ -201,14 +206,20 @@ curl -sS http://127.0.0.1:4300/robots.txt
 
 For localhost verification, page access may use `127.0.0.1`, but HTML canonical URLs, route index, and sitemap must still use `https://meilong-ceramics.com`.
 
+Preview routes are draft-only and must remain `noindex`, `nofollow`, and `no-store`. Runtime and Storefront preview bridges must not write draft data into the formal Runtime store, advance publish state, or trigger sync/webhook behavior. The foundation boundary verifier checks these invariants statically.
+
+The only documented Content Category archive routes are the frozen plural forms `/blogs/categories/:slug` and `/news/categories/:slug`. `/product/collections` is the retained Collection root. All retired development paths are terminal 404 responses without redirects or compatibility entry points. Existing `/collections/:slug` detail routes remain, but this runbook does not claim first-class Collection resource or locale-publication governance.
+
 ## Build And Static Verification
 
 Run from the Meilong root:
 
 ```bash
 pnpm --dir src/site-runtime/meilong-ceramics-site verify:boundaries
+pnpm --dir src/site-runtime/meilong-ceramics-site test:governance
 pnpm --dir src/site-runtime/meilong-ceramics-site typecheck
 pnpm --dir src/site-runtime/meilong-ceramics-site build
+pnpm --dir src/site-runtime/meilong-ceramics-site test:display
 pnpm --dir src/site-runtime/meilong-ceramics-site verify
 ```
 
@@ -225,11 +236,35 @@ Root scripts:
 | `build:runtime` | Builds the Runtime into `runtime/dist`. |
 | `build:storefront` | Builds the Storefront into `storefront/.output`. |
 | `build` | Runs both build scripts. |
+| `test:governance` | Runs the focused Runtime / Storefront governance Jest suite. |
+| `test:display` | Starts local seed Runtime + Storefront on isolated ports and verifies Blog / News / Content Category archive routing and SEO behavior. |
+| `test:acceptance:locale-governance` | Runs the strict Locale Governance acceptance gate described below. |
 | `verify:boundaries` | Runs static Meilong boundary checks. |
-| `verify` | Runs boundary checks, typecheck, and build. |
+| `verify` | Runs governance tests, boundary checks, typecheck, build, and the Blog / News display smoke. |
 | `clean:generated` / `clean` | Prints the generated-file policy; it does not delete local data. |
 
-`verify` intentionally does not run full OES live sync because that depends on external OES services and real credentials.
+`verify` intentionally does not run the cross-boundary acceptance gate because that gate requires an explicitly disposable PostgreSQL target. It must never reuse a development database implicitly.
+
+### Locale Governance Acceptance
+
+The repository has one formal Locale Governance acceptance command:
+
+```bash
+OES_LOCALE_GOVERNANCE_ACCEPTANCE_DATABASE_URL='postgresql://<acceptance-user>:<secret>@127.0.0.1:55432/oes?schema=oes_acceptance_phase_a' \
+OES_LOCALE_GOVERNANCE_ACCEPTANCE_DISPOSABLE=YES_DISPOSABLE_ACCEPTANCE_DATABASE \
+pnpm --dir src/site-runtime/meilong-ceramics-site test:acceptance:locale-governance
+```
+
+The command first generates protobuf and Prisma artifacts, builds `@oes/common`, `site-service`, and `api-gateway`, runs the strict no-emit acceptance TypeScript check, and runs the harness contract tests. Only after all of those gates pass does it start the acceptance runner.
+
+Database safety rules:
+
+- The runner accepts its database target only from `OES_LOCALE_GOVERNANCE_ACCEPTANCE_DATABASE_URL`; ordinary `DATABASE_URL` is intentionally ignored as an input and there is no development-database fallback.
+- `OES_LOCALE_GOVERNANCE_ACCEPTANCE_DISPOSABLE` must equal `YES_DISPOSABLE_ACCEPTANCE_DATABASE`.
+- The database or schema name must contain an explicit `acceptance`, `disposable`, or `test` marker recognized by the harness. Hostnames matching the implemented `prod`, `production`, or `prd` label pattern, including its supported numeric suffixes, are rejected; this is a targeted guard and not a claim that every possible production hostname can be recognized.
+- Use a migrated, disposable PostgreSQL database or isolated schema. The runner namespaces its rows, closes resources in reverse order, removes its owned rows and temporary Runtime SQLite directory, and does not print credential bundles, bearer values, passwords, or other secrets.
+
+On success, the runner emits machine-readable coverage together with `unifiedAcceptanceClosed`. Consumers must inspect those fields rather than treating process success alone as proof that the complete Unified acceptance gate is closed. Current execution status and evidence are tracked only in the [Site Page Locale Governance P1 feature packet](../../../docs/plans/features/site-page-locale-governance-p1.md).
 
 ## Generated Files And Local Data
 
@@ -254,9 +289,9 @@ The root `clean` scripts are intentionally non-destructive. If cleanup is needed
 
 - External Site Template P1 is available as the reusable engineering skeleton.
 - Meilong Ceramics local Site Runtime + Nuxt Storefront exists as the first concrete site instance.
-- Seed Preview Mode can render Meilong product/category/blog/news local published data.
-- OES live sync was previously confirmed in a dedicated integration thread: webhook sync, pull fallback sync, and Storefront rendering of real OES published data.
-- This runbook preserves the distinction between seed preview and OES live sync; it does not re-run the full live sync integration.
+- Seed Preview Mode can render Product detail, Blog / News lists and details, and Blog / News Content Category archives from local published data.
+- The acceptance command provides strict build, typecheck, harness, database-safety, cleanup, and machine-readable output gates; execution status is tracked in the feature packet.
+- This runbook preserves the distinction between seed preview, the gated acceptance harness, and deployed OES live sync with a real credential.
 
 ## Deferred
 
@@ -266,6 +301,8 @@ The root `clean` scripts are intentionally non-destructive. If cleanup is needed
 - P2 inquiry submission.
 - Order, payment, account, dealer portal, comments/reviews, and advanced search.
 - Price/inventory final validation.
+- Product Master–Site Product identity, mapping, selection, and publication lifecycle design.
+- First-class Collection resource and locale-publication governance; the current `/collections/:slug` detail route is not evidence that this design is complete.
 
 ## Troubleshooting
 
@@ -329,7 +366,7 @@ This site instance is ready for local engineering handoff when:
 - A developer can choose Seed Preview Mode or OES Live Sync Mode without mixing them.
 - Runtime and Storefront can be started from root scripts or the documented two-terminal flow.
 - Local domain/nginx and localhost verification strategies are both clear.
-- `verify:boundaries`, `typecheck`, `build`, and `verify` can be run from the root package.
+- `verify:boundaries`, `typecheck`, `build`, and `verify` can be run from the root package, while `test:acceptance:locale-governance` is used only with its explicit disposable-database safeguards.
 - Generated artifacts and local SQLite runtime data are understood as non-source local files.
 
 It is not production deployment ready and has not completed device QA.

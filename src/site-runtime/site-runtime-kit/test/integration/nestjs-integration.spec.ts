@@ -2,6 +2,7 @@ import { Test } from '@nestjs/testing'
 
 import {
   buildCanonicalRequest,
+  hashSiteCapabilityManifest,
   OesSiteRuntimeHealthController,
   OesSiteRuntimeModule,
   OesSiteRuntimeService,
@@ -61,15 +62,28 @@ describe('OesSiteRuntimeModule', () => {
   })
 
   it('registers service, health endpoints, webhook endpoint, and protected runtime status', async () => {
-    const syncToLatest = jest.fn(async () => ({ status: 'completed', localPublishVersion: 0 }))
+    const manifest = { pages: [{ pageKey: 'HOME', supportedLocales: ['en-US'] }] }
+    const syncToLatest = jest.fn(async () => ({ status: 'completed' as const, localPublishVersion: 0 }))
+    const registerPageCapabilities = jest.fn(async () => ({
+      accepted: true,
+      idempotent_replay: false,
+      manifest_hash: hashSiteCapabilityManifest(manifest),
+      discovered_count: 1,
+      unavailable_page_keys: [],
+      drift_page_keys: [],
+      recovered_page_keys: [],
+      registration_generation: '1'
+    }))
     const moduleRef = await Test.createTestingModule({
       imports: [
         OesSiteRuntimeModule.forRootFromEnv({
           controllers: true,
           pullIntervalMs: 0,
+          capabilityManifest: manifest,
           runtimeOverrides: {
             sync: { syncToLatest },
             client: {
+              registerPageCapabilities,
               getLatestPublishState: jest.fn(async () => ({
                 site_id: 'brand-us',
                 latest_publish_version: 0,
@@ -87,6 +101,12 @@ describe('OesSiteRuntimeModule', () => {
     await moduleRef.init()
 
     expect(moduleRef.get(OesSiteRuntimeService)).toBeInstanceOf(OesSiteRuntimeService)
+    expect(registerPageCapabilities).toHaveBeenCalledWith(
+      { pages: [{ pageKey: 'HOME', supportedLocales: ['en-US'] }] },
+      '0.1.0',
+      expect.stringMatching(/^site-capabilities:/),
+      '0'
+    )
     const healthController = moduleRef.get(OesSiteRuntimeHealthController)
     const statusController = moduleRef.get(OesSiteRuntimeStatusController)
     await expect(healthController.live()).resolves.toEqual({ live: true })

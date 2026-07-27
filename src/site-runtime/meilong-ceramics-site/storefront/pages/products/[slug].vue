@@ -1,13 +1,12 @@
 <script setup lang="ts">
-const route = useRoute()
-const { data: siteConfig } = await useSiteConfig()
-const { data: resource } = await usePublishedResource('products', String(route.params.slug))
-if (!resource.value) {
-  throw createError({ statusCode: 404, statusMessage: 'Product not found' })
-}
-usePublishedSeo('products', resource, siteConfig)
+import KohlerProductDetailReplica from '~/components/product/KohlerProductDetailReplica.vue'
+
+// The product route currently serves the high-fidelity PDP mock while backend product modeling is still in design.
+useHead({
+  title: 'Claude by Studio McGee 30" Console Table Bathroom Sink | KOHLER'
+})
 </script>
 
 <template>
-  <PublishedResourcePage v-if="resource" collection="products" :resource="resource" />
+  <KohlerProductDetailReplica />
 </template>

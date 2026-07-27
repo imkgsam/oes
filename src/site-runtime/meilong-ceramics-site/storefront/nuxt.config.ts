@@ -1,6 +1,31 @@
+import tailwindcss from '@tailwindcss/vite'
+
+// Keeps governance and crawler surfaces revalidated so a committed exposure switch cannot serve stale page policy.
+const routeRules = {
+  '/preview/**': {
+    headers: {
+      'cache-control': 'no-store',
+      'x-robots-tag': 'noindex, nofollow'
+    }
+  },
+  '/sitemap.xml': { headers: { 'cache-control': 'no-cache' } },
+  '/robots.txt': { headers: { 'cache-control': 'no-cache' } }
+}
+
+// Prevents browser history navigation from reusing CSS responses for Vite's JS style-module imports in local dev.
+const viteServerHeaders =
+  process.env.NODE_ENV === 'production'
+    ? undefined
+    : {
+        'cache-control': 'no-store, max-age=0',
+        vary: 'Origin, Sec-Fetch-Dest, Sec-Fetch-Mode, Accept'
+      }
+
 export default defineNuxtConfig({
   ssr: true,
-  css: ['~/assets/css/main.css'],
+  devtools: { enabled: false },
+  modules: ['@nuxt/image', '@nuxt/icon'],
+  css: ['~/assets/css/main.css', '~/assets/css/dxv-home.css', '~/assets/css/kohler-pdp.css'],
   runtimeConfig: {
     siteRuntimeBaseUrl: process.env.SITE_RUNTIME_BASE_URL ?? 'http://127.0.0.1:4301',
     public: {
@@ -8,24 +33,19 @@ export default defineNuxtConfig({
     }
   },
   nitro: {
-    routeRules: {
-      '/products/**': { swr: 300 },
-      '/categories/**': { swr: 300 },
-      '/blog/**': { swr: 300 },
-      '/news/**': { swr: 300 },
-      '/preview/**': {
-        headers: {
-          'cache-control': 'no-store',
-          'x-robots-tag': 'noindex, nofollow'
-        }
-      },
-      '/sitemap.xml': { headers: { 'cache-control': 'no-cache' } },
-      '/robots.txt': { headers: { 'cache-control': 'no-cache' } }
+    routeRules
+  },
+  image: {
+    domains: ['maidstonedxv.com', 'cdn.shopify.com', 'res.cloudinary.com']
+  },
+  vite: {
+    plugins: [tailwindcss()],
+    server: {
+      headers: viteServerHeaders
     }
   },
   app: {
     head: {
-      htmlAttrs: { lang: 'en-US' },
       meta: [{ name: 'viewport', content: 'width=device-width, initial-scale=1' }]
     }
   },

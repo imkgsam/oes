@@ -5,15 +5,23 @@
   "description": "Nuxt storefront for the Meilong Ceramics external site pilot.",
   "license": "UNLICENSED",
   "scripts": {
-    "dev": "NUXT_TELEMETRY_DISABLED=1 nuxt dev --host ${NUXT_HOST:-127.0.0.1} --port ${NUXT_PORT:-4300}",
+    "dev": "NUXT_TELEMETRY_DISABLED=1 nuxt dev --host ${NUXT_HOST:-0.0.0.0} --port ${NUXT_PORT:-4300}",
     "build": "NUXT_TELEMETRY_DISABLED=1 nuxt build",
     "typecheck": "NUXT_TELEMETRY_DISABLED=1 nuxt typecheck"
   },
   "dependencies": {
+    "@nuxt/fonts": "^0.14.0",
+    "@nuxt/icon": "^2.2.4",
+    "@nuxt/image": "^2.0.0",
+    "@tailwindcss/vite": "^4.3.1",
+    "gsap": "^3.15.0",
     "nuxt": "^4.0.0",
+    "tailwindcss": "^4.3.1",
     "vue": "^3.5.0"
   },
   "devDependencies": {
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vite": "^7.3.5",
+    "vue-tsc": "3.3.3"
   }
 }

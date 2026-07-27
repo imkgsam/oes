@@ -1,4 +1,12 @@
+<script setup lang="ts">
+// Keeps committed exposure head ownership alive across SSR hydration and client navigation.
+useSiteRouteHead()
+</script>
+
 <template>
   <NuxtRouteAnnouncer />
-  <NuxtPage />
+  <NuxtLayout>
+    <NuxtPage />
+  </NuxtLayout>
+  <GlobalBackToTop />
 </template>

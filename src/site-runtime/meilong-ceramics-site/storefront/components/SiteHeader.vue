@@ -8,9 +8,9 @@
       </span>
     </NuxtLink>
     <nav class="site-nav" aria-label="Primary">
-      <NuxtLink to="/categories">Categories</NuxtLink>
-      <NuxtLink to="/products">Products</NuxtLink>
-      <NuxtLink to="/blog">Insights</NuxtLink>
+      <NuxtLink to="/product/collections">Categories</NuxtLink>
+      <NuxtLink to="/product/collections">Products</NuxtLink>
+      <NuxtLink to="/blogs">Insights</NuxtLink>
       <NuxtLink to="/news">News</NuxtLink>
       <NuxtLink to="/about">About</NuxtLink>
       <NuxtLink class="nav-cta" to="/contact">Contact</NuxtLink>

@@ -101,7 +101,22 @@ describe('local Site Runtime E2E', () => {
                   }
                 ],
                 next_page_token: null,
-                is_complete: true
+                is_complete: true,
+                exposure_publication: {
+                  siteId: 'brand-us',
+                  publishVersion: 1,
+                  defaultLocale: 'en-US',
+                  activeLocales: ['en-US'],
+                  pages: [
+                    {
+                      pageKey: 'PRODUCT_DETAIL',
+                      enabled: true,
+                      indexable: true,
+                      supportedLocales: ['en-US']
+                    }
+                  ],
+                  publishedAt: '2026-06-15T00:00:00.000Z'
+                }
               })),
               listChangedResources: jest.fn(async () => ({
                 site_id: 'brand-us',
@@ -111,7 +126,7 @@ describe('local Site Runtime E2E', () => {
                 changed_resources: changed
               })),
               batchGetPublicViews: jest.fn(),
-              reportSyncResult: jest.fn(async () => ({ accepted: true }))
+              reportSyncResult: jest.fn(async () => ({ accepted: true, server_time: '2026-06-15T00:00:00.000Z' }))
             }
           },
           now: () => 1781488327000
@@ -132,6 +147,9 @@ describe('local Site Runtime E2E', () => {
     await expect(service.getRuntime().publicViews.products.getBySlug('basin', 'en-US')).resolves.toMatchObject({
       payload: { display_title: 'Basin' }
     })
+    await expect(
+      service.getRuntime().publicViews.exposure.getPagePolicy('PRODUCT_DETAIL', 'en-US')
+    ).resolves.toMatchObject({ accessible: true, indexEligible: true, committedPublishVersion: 1 })
     await expect(service.getRuntime().health.ready()).resolves.toEqual({
       ready: true,
       status: 'healthy'

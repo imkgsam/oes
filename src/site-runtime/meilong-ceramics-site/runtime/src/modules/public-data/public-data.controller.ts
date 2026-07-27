@@ -1,71 +1,75 @@
 import { Controller, Get, NotFoundException, Param, Query } from '@nestjs/common'
-import { OesSiteRuntimeService, type PublicViewEnvelope } from '@oes/site-runtime-kit'
+import type { PublicViewEnvelope } from '@oes/site-runtime-kit'
 
-import { SiteConfigService } from '../site-config/site-config.service'
+import {
+  parseOptionalIntegerInRange,
+  parseOptionalSingleQueryString
+} from '../site-exposure/public-query-parameters'
+import {
+  PublicDataService,
+  publicDetailDataCollections,
+  publicListDataCollections,
+  type PublicDetailDataCollection,
+  type PublicListDataCollection
+} from './public-data.service'
 
-type CollectionName = 'products' | 'categories' | 'blog' | 'news'
+const publicListDataCollectionSet = new Set<string>(publicListDataCollections)
+const publicDetailDataCollectionSet = new Set<string>(publicDetailDataCollections)
 
-const readerByCollection = {
-  products: 'products',
-  categories: 'categories',
-  blog: 'blogs',
-  news: 'news'
-} as const
-
-// PublicDataController adapts runtime.publicViews into Storefront-facing local published data APIs.
+// PublicDataController validates HTTP parameters and delegates public resource operations.
 @Controller('/api/public/resources')
 export class PublicDataController {
-  constructor(
-    private readonly runtimeService: OesSiteRuntimeService,
-    private readonly siteConfig: SiteConfigService
-  ) {}
+  constructor(private readonly publicData: PublicDataService) {}
 
-  // listResources returns local published resources for one public collection and active locale.
+  // getFaqDirectory exposes only the Runtime Kit's local published FAQ directory with no request-time OES call.
+  @Get('faqs')
+  getFaqDirectory(@Query('locale') locale?: unknown): Promise<PublicViewEnvelope> {
+    return this.publicData.getFaqDirectory(parseOptionalSingleQueryString(locale, 'locale'))
+  }
+
+  // listResources validates route/query values and maps the service result without changing its response shape.
   @Get(':collection')
   async listResources(
-    @Param('collection') collection: CollectionName,
-    @Query('locale') locale?: string,
-    @Query('limit') limit?: string
+    @Param('collection') collection: string,
+    @Query('locale') locale?: unknown,
+    @Query('limit') limit?: unknown,
+    @Query('cursor') cursor?: unknown
   ): Promise<{ items: PublicViewEnvelope[]; nextCursor: string | null }> {
-    const normalizedLocale = this.resolveLocale(locale)
-    const reader = this.getReader(collection)
-    return reader.list({
-      locale: normalizedLocale,
-      limit: limit ? Number(limit) : 48
+    return this.publicData.listResources({
+      collection: requirePublicListDataCollection(collection),
+      locale: parseOptionalSingleQueryString(locale, 'locale'),
+      limit: parseOptionalIntegerInRange(limit, 'limit', 1, 200) ?? 48,
+      cursor: parseOptionalSingleQueryString(cursor, 'cursor')
     })
   }
 
-  // getResourceBySlug returns one local published resource by site slug and active locale.
+  // getResourceBySlug validates the collection enum and delegates the exact slug lookup.
   @Get(':collection/:slug')
   async getResourceBySlug(
-    @Param('collection') collection: CollectionName,
+    @Param('collection') collection: string,
     @Param('slug') slug: string,
-    @Query('locale') locale?: string
+    @Query('locale') locale?: unknown
   ): Promise<PublicViewEnvelope> {
-    const normalizedLocale = this.resolveLocale(locale)
-    const item = await this.getReader(collection).getBySlug(slug, normalizedLocale)
-    if (!item) {
-      throw new NotFoundException('Published resource not found')
-    }
-    return item
+    return this.publicData.getResourceBySlug({
+      collection: requirePublicDetailDataCollection(collection),
+      slug,
+      locale: parseOptionalSingleQueryString(locale, 'locale')
+    })
   }
+}
 
-  // resolveLocale keeps preparing or disabled locales out of public reads.
-  private resolveLocale(locale: string | undefined): string {
-    const configured = this.siteConfig.getPublicConfig()
-    const requested = locale ?? configured.defaultLocale
-    if (!this.siteConfig.isActiveLocale(requested)) {
-      throw new NotFoundException('Locale is not active')
-    }
-    return requested
+// requirePublicListDataCollection rejects collections without a retained public list operation.
+function requirePublicListDataCollection(collection: string): PublicListDataCollection {
+  if (!publicListDataCollectionSet.has(collection)) {
+    throw new NotFoundException('Unsupported public collection')
   }
+  return collection as PublicListDataCollection
+}
 
-  // getReader maps route collection names to runtime-kit public view readers.
-  private getReader(collection: CollectionName) {
-    const readerKey = readerByCollection[collection]
-    if (!readerKey) {
-      throw new NotFoundException('Unsupported public collection')
-    }
-    return this.runtimeService.getRuntime().publicViews[readerKey]
+// requirePublicDetailDataCollection keeps Product detail public without reviving removed Product Category detail.
+function requirePublicDetailDataCollection(collection: string): PublicDetailDataCollection {
+  if (!publicDetailDataCollectionSet.has(collection)) {
+    throw new NotFoundException('Unsupported public collection')
   }
+  return collection as PublicDetailDataCollection
 }
