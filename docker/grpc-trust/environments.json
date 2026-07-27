@@ -1,0 +1,23 @@
+{
+  "local": {
+    "trustDomain": "spiffe://local.oes.internal",
+    "issuer": "https://issuer.local.oes.internal",
+    "leafTtlSeconds": 86400,
+    "renewBeforeLifetimeFraction": "2/3",
+    "signingKeySecretRef": "local-runtime-only:oes-local-jwt-es256"
+  },
+  "staging": {
+    "trustDomain": "spiffe://staging.oes.internal",
+    "issuer": "https://issuer.staging.oes.internal",
+    "leafTtlSeconds": 86400,
+    "renewBeforeLifetimeFraction": "2/3",
+    "signingKeySecretRef": "secret-manager://oes/staging/auth/jwt-es256"
+  },
+  "production": {
+    "trustDomain": "spiffe://oes.internal",
+    "issuer": "https://issuer.oes.internal",
+    "leafTtlSeconds": 86400,
+    "renewBeforeLifetimeFraction": "2/3",
+    "signingKeySecretRef": "kms://oes-production/auth/jwt-es256"
+  }
+}

@@ -1,0 +1,10 @@
+# Each entry receives a distinct X.509-SVID-style leaf certificate in local Compose.
+api-gateway
+auth-service
+identity-service
+permission-service
+entity-service
+resource-service
+grpc-transport-smoke-client
+grpc-transport-smoke-server
+grpc-transport-smoke-rogue
