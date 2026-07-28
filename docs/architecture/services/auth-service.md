@@ -256,13 +256,21 @@ The only production signing composition is `KmsHsmExecutionTokenClient` through 
 
 Local security integration uses the same port against a KMS/HSM-compatible protected test boundary with a non-exportable test key identified only by an opaque reference. A fake signer is limited to an isolated unit-test module. When the protected signer is unavailable, new exchange fails closed; resource services may only continue validating with already trusted cached JWKS and unexpired Tokens.
 
-#### 7.1.4 Protected signing provider ownership and bootstrap
+#### 7.1.6 Protected signing provider ownership and bootstrap
 
 Auth owns the composition and startup health of one protected signing provider, while deployment owns the provider implementation, KMS/HSM tenancy and credential-delivery mechanism. The provider receives an opaque signing-key reference and, only when workload identity cannot authenticate directly, an opaque credential reference resolved inside the infrastructure provider. Neither reference is a private key, and no resolved key material may cross into application/domain services, ordinary Nest config, logs or diagnostics.
 
 The mandatory runtime configuration is: exact issuer, absolute JWKS URI, opaque signing-key reference and immutable workload/audience registry; an opaque credential reference is optional and deployment-only. Before readiness, Auth constructs `KmsHsmExecutionTokenClient`, loads active and overlap public keys, validates the unique `kid`, P-256/ES256 JWK and complete publication timeline, then signs a bootstrap challenge and verifies it with the active public JWK. Only after this preflight passes may Auth expose ExecutionToken gRPC or issuer HTTPS metadata/JWKS routes. A placeholder client, absent provider, invalid reference, unavailable preflight, software key, PEM/private-JWK/env-key, or in-memory fallback is a startup failure.
 
 The issuer authority must terminate TLS itself or through an approved proxy that forwards only the metadata/JWKS routes over an authenticated local channel to Auth. A plain application HTTP listener or arbitrary Host-header routing is insufficient. After readiness, a protected-signing outage rejects new exchange; it does not cause resource services to bypass cached-JWKS local validation. Local integration uses the same preflight against a KMS/HSM-compatible non-exportable test key boundary; unit fakes never satisfy readiness outside their isolated test module.
+
+#### 7.1.7 Executable signer-agent asset
+
+The executable protected provider is `execution-token-signer-agent`, a per-Auth-workload deployment sidecar owned by the existing EXEC-CRYPTO capability. It is not an Auth business service: it has no public ingress, tenant state, business database or public OES API. Auth owns the repository client/adapter under `src/services/system/auth-service/src/infrastructure/execution-token-signer/**`; Deployment/SRE owns the paired Go static binary at `docker/grpc-trust/execution-token-signer/cmd/agent/**`, its local `go.mod`, image, local HSM harness, socket mount and PKCS#11 module binding.
+
+Auth connects only through the required pod-local `AUTH_EXECUTION_SIGNER_SOCKET_PATH` Unix socket. The path is deployment configuration, never request input; its mount permissions and peer authentication must restrict use to the Auth workload and signer-agent. Its newline-delimited JSON-RPC 2.0 protocol is restricted to `GetActiveKey`, `ListPublishedKeys` and `SignEs256`; signing accepts one published `kid` plus base64url JWS signing input and returns fixed-width base64url JOSE `r || s`. The agent uses workload identity to access a PKCS#11-compatible production HSM/KMS gateway or a local PKCS#11-compatible test HSM. It resolves opaque key and optional credential references internally, retains all private key material, and never exposes a DER private key, backend credential or arbitrary key selector.
+
+Signer-agent preflight is part of Auth readiness: socket identity/permission, active and overlap JWKs, rotation timeline, requested published `kid`, and a sign/verify challenge must all succeed. Missing sidecar, TCP/DNS endpoint substitution, unmounted PKCS#11 backend, reference mismatch, or failed preflight prevents exchange/JWKS serving. Local security integration runs the actual sidecar and non-exportable test key; isolated unit fakes remain unit-test-only.
 
 ## 8. Login Methods And Credentials
 
