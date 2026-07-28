@@ -182,6 +182,14 @@ Auth 模块只允许一条 fail-closed signing DI chain：deployment-provided `K
 
 Local security integration 复用相同 port 与 lifecycle，但连接 KMS/HSM-compatible protected test signing boundary 和 opaque test key reference。测试 fake 仅可在 isolated unit-test module 中使用；它不能成为 local、staging 或 production provider。KMS/HSM 不可用时 Exchange 必须 fail closed，资源服务继续只在已有可信 JWKS 与未过期 Token 范围内本地验证。
 
+### 5.6 DG-1 protected-signing provider lifecycle
+
+`KmsHsmExecutionTokenClient` 是 Auth infrastructure 的 deployment-bound provider boundary，不是应用层可选 mock。它只接受经启动配置解析的 opaque signing-key reference，以及在部署确有需要时由平台在 provider 内解析的 opaque credential reference；两种 reference 都不包含 private key bytes。默认认证使用 Auth workload identity。private key、PEM、private JWK、seed、可导出的 software key 或其序列化形式不得进入 process environment、Nest config、registry、日志、DI value 或应用内存。
+
+启动顺序固定为：解析精确 issuer、absolute JWKS URI、key reference、immutable workload/audience registry 与可选 credential reference → 构造 protected provider → 读取 active/public overlap keys → 验证唯一 `kid`、ES256/P-256 public JWK、publication/signing/retirement timeline → 使用 provider 签名启动 challenge 并以 active public JWK 本地验证 → 才挂载 gRPC exchange/JWKS 与 issuer HTTPS metadata route。任何一步失败都使 Auth readiness 失败；不能以空 provider、throwing placeholder、临时 memory signer 或明文 key 启动。
+
+issuer HTTPS route 必须在精确 issuer authority 上提供 TLS。若 TLS 在 approved deployment proxy 终止，proxy 只能把 RFC 8414 metadata 与 configured JWKS route 转发到 Auth metadata producer 的受认证本地 channel；普通 HTTP listen port、任意 Host header、或 proxy 静态伪造 JWKS 都不满足此要求。KMS/HSM outage after a successful bootstrap 使新的 exchange 失败；已有 resource-server JWKS cache 按既有 TTL / retirement window 独立工作。
+
 ## 6. 三种 RPC authorization mode
 
 每个 gRPC RPC 必须在方法旁显式声明且只能声明一种：
