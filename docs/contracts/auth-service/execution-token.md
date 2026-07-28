@@ -34,6 +34,14 @@ STS 只接受平台已经验证的输入：
 
 ## 3. ExchangeExecutionToken
 
+### Runtime host and protected signing binding
+
+`ExecutionTokenService.ExchangeExecutionToken` and `ExecutionTokenService.GetExecutionTokenJwks` are both mounted on the existing Auth `auth_service` gRPC host. The Auth transport must load the frozen ExecutionToken proto alongside the existing Auth proto; a standalone HTTP controller is not an implementation of either RPC. `ExchangeExecutionToken` accepts only the declared target audience and requested Permission Code fields. Verified workload identity, certificate thumbprint and current execution context are injected by the trusted Common transport/runtime and cannot be reconstructed from the request body or metadata headers.
+
+`GetExecutionTokenJwks` is the internal gRPC JWKS discovery path. Auth additionally publishes RFC 8414 authorization-server metadata on the exact configured HTTPS issuer host and the absolute `jwks_uri` advertised there. The HTTPS publisher exposes only the same public ES256 verification facts; it does not open ExecutionToken exchange over HTTP or replace the gRPC service.
+
+The Auth runtime has exactly one production signing binding: deployment-provided `KmsHsmExecutionTokenClient` → `KmsHsmExecutionTokenSigningAdapter` → `ExecutionTokenSigningPort`. Bootstrap requires an exact issuer, public metadata/JWKS endpoint, opaque signing-key reference and immutable workload/audience registry. An absent protected client, invalid configuration or invalid active/public key timeline prevents the runtime from accepting exchange or JWKS requests. A later protected signing failure makes new exchange fail closed; no in-memory, file, PEM, private-JWK or environment-secret signer fallback exists. Local security integration uses the same port against a KMS/HSM-compatible non-exportable test key boundary; fake signers are unit-test-only.
+
 ### Request semantics
 
 逻辑请求至少表达：
