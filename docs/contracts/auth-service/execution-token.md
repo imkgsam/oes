@@ -44,6 +44,14 @@ The Auth runtime has exactly one production signing binding: deployment-provided
 
 The protected provider accepts only an opaque signing-key reference and, when deployment cannot use workload identity directly, an opaque credential reference resolved inside the provider. Neither is private key material. Before readiness, Auth must read active and overlap public keys, validate unique `kid`, ES256/P-256 JWK and every publication/signing/retirement boundary, then sign a bootstrap challenge through the provider and verify it with the active public JWK. Failure rejects startup; a throwing placeholder is not a valid production binding. The exact issuer authority serves TLS itself or uses an approved proxy that forwards only RFC 8414 metadata and configured JWKS routes over an authenticated local channel; plain HTTP, arbitrary Host-header routing and proxy-synthesized JWKS are invalid.
 
+The executable provider is the pod-local `execution-token-signer-agent`, a Go static binary under `docker/grpc-trust/execution-token-signer/cmd/agent/**` with its own local `go.mod`, reached only through deployment-configured `AUTH_EXECUTION_SIGNER_SOCKET_PATH` Unix domain socket with least-privilege mount permissions and peer authentication. It is a sidecar infrastructure component, not a public OES service. Its backend is a PKCS#11-compatible HSM/KMS gateway with a non-exportable P-256 key; local integration uses the same agent protocol with a PKCS#11-compatible test HSM. The wire protocol is newline-delimited JSON-RPC 2.0. Auth may invoke only these operations:
+
+1. `GetActiveKey` returns the one active public JWK and its rotation facts.
+2. `ListPublishedKeys` returns public active/overlap JWKs and their rotation facts.
+3. `SignEs256(kid, signingInputBase64url)` accepts only a currently published `kid` and base64url JWS signing input, returning base64url fixed-width JOSE `r || s` signature.
+
+The agent resolves opaque key / optional credential references inside its own boundary, authenticates to the backend with workload identity, and never returns private material, backend credentials, a DER private key, or arbitrary key-reference selection. Socket/agent absence, permission or peer mismatch, backend/key-reference failure, invalid preflight, TCP/DNS endpoint substitution, or an attempt to sign with an unpublished `kid` rejects Auth readiness or the exchange request fail closed.
+
 ### Request semantics
 
 逻辑请求至少表达：

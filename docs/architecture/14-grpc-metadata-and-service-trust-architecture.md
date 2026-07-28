@@ -190,6 +190,14 @@ Local security integration 复用相同 port 与 lifecycle，但连接 KMS/HSM-c
 
 issuer HTTPS route 必须在精确 issuer authority 上提供 TLS。若 TLS 在 approved deployment proxy 终止，proxy 只能把 RFC 8414 metadata 与 configured JWKS route 转发到 Auth metadata producer 的受认证本地 channel；普通 HTTP listen port、任意 Host header、或 proxy 静态伪造 JWKS 都不满足此要求。KMS/HSM outage after a successful bootstrap 使新的 exchange 失败；已有 resource-server JWKS cache 按既有 TTL / retirement window 独立工作。
 
+### 5.7 DG-1 executable protected-signing asset allocation
+
+DG-1 的 concrete provider asset 是同一 capability 内、每个 Auth workload 一实例的 `execution-token-signer-agent` sidecar，而非新的 OES 业务服务或新的 capability。它没有外部 ingress、业务数据库、tenant state 或 gRPC 公共契约；只在 Auth pod / deployment 内通过 Unix domain socket 为 Auth 提供受保护签名。Auth repository 的 client / adapter path class 是 `src/services/system/auth-service/src/infrastructure/execution-token-signer/**`；deployment/SRE path class 是 `docker/grpc-trust/execution-token-signer/**`，其中 `cmd/agent/**` 和其 local `go.mod` 构成可运行的 Go static sidecar binary，负责 sidecar image、socket mount、security context、PKCS#11 module mount 与 local integration harness。二者均由既有 EXEC-CRYPTO capability 编排，不能转嫁给业务服务。
+
+agent 的 production backend 固定为 PKCS#11-compatible HSM or KMS gateway，且配置为 non-exportable P-256 signing key；local integration 使用同一 agent protocol 对接 local PKCS#11-compatible test HSM。它在自身受保护边界内解析 opaque key / optional credential reference，并以 workload identity 认证 backend。Auth 只可向 agent 请求：读取 active key、读取 published overlap keys、对指定已发布 `kid` 的 JWS signing input 执行 ES256 signing；agent 只返回 public JWK / rotation facts 和 fixed-width JOSE `r || s` signature，绝不返回 private material、backend credential 或可选 key reference。
+
+Auth 与 agent 的 endpoint 是 deployment-configured `AUTH_EXECUTION_SIGNER_SOCKET_PATH` Unix socket，必须有 pod-local mount、least-privilege filesystem ownership/permissions 与 peer authentication；不允许 TCP listener、service DNS、任意 endpoint URL 或 request-supplied socket path。socket protocol 固定为 newline-delimited JSON-RPC 2.0：`GetActiveKey`、`ListPublishedKeys` 和 `SignEs256` 三个 method；`SignEs256` 只接收 published `kid` 与 base64url JWS signing input，返回 base64url fixed-width JOSE `r || s` signature。Auth readiness 同时要求 socket agent preflight、public-key timeline 与 sign/verify challenge 成功。agent 缺失、socket identity / permission 不符、PKCS#11 backend 不可用或 key reference 不匹配时保持 fail closed。
+
 ## 6. 三种 RPC authorization mode
 
 每个 gRPC RPC 必须在方法旁显式声明且只能声明一种：
