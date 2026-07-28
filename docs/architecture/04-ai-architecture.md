@@ -1,442 +1,205 @@
-# OES AI 增强架构
-
-> 涉及 permission-service 的服务职责、核心对象或 owner 边界时，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准；本文只描述 AI 场景如何消费授权与 policy 能力。
-
-## 1. AI 在 OES 中的定位
-
-OES 中的 AI 不是一个孤立系统，也不是一个只负责调用大模型接口的技术附属模块。
-
-AI 的定位应当是：
-
-- 平台级增强能力
-- 面向多个业务域复用的能力层
-- 与企业知识、业务工具、权限边界、审计要求深度结合的能力体系
-
-这样定位的原因是：
-
-- 企业场景下，模型本身不是核心竞争力
-- 真正有价值的是模型、知识、工具、权限与流程的组合
-- 如果把 AI 做成孤立聊天模块，无法有效提升企业实际运营效率
-
-## 2. AI 能力分层
-
-OES 的 AI 架构建议分为五层。
-
-### 2.1 模型接入层
-
-职责：
-
-- 多模型供应商接入
-- 模型路由
-- 回退策略
-- 限流与成本控制
-- 提示模板治理
-
-作用：
-
-- 统一模型接入，避免业务服务各自直接调用外部模型
-
-### 2.2 知识层
-
-职责：
-
-- 企业文档接入
-- SOP、制度、FAQ、工艺文档沉淀
-- 结构化检索与向量检索
-- 权限感知的知识过滤
-- 知识来源与版本追踪
-
-作用：
-
-- 让 AI 基于企业知识做出可解释输出
-
-### 2.3 工具层
-
-职责：
-
-- 将业务域能力暴露为受控工具
-- 工具调用映射到应用服务或受控接口
-- 在工具层做权限校验与审计记录
-
-作用：
-
-- AI 不直接碰业务数据库
-- AI 只能通过业务域公开的能力入口行动
-
-### 2.4 代理层
-
-职责：
-
-- 多步推理
-- 多工具编排
-- 上下文组装
-- 需要时插入人工确认节点
-
-作用：
-
-- 支撑复杂任务型智能协作
-
-### 2.5 业务场景层
-
-职责：
-
-- 把 AI 能力映射到具体业务场景
-- 明确业务收益、角色边界与验收标准
-
-作用：
-
-- 避免 AI 建设停留在技术演示层
-
-## 3. 最适合优先 AI 化的业务场景
-
-当前阶段优先级最高的 AI 场景应包括：
-
-- 智能问答
-- 智能录单 / 录入
-- 智能邮件与消息处理
-- 智能预警解释
-- 智能排产建议
-- 智能采购建议
-- 智能仓储与补货建议
-
-优先这些场景的原因是：
-
-- 输入与输出边界相对清晰
-- 可以先作为辅助决策和辅助录入存在
-- 对业务主状态的直接破坏风险较低
-- ROI 相对更容易体现
-
-## 4. AI 与各业务模块的结合方式
-
-### 4.1 ERP
-
-适合做：
-
-- 财务或经营数据解释
-- 单据辅助录入
-- 异常摘要
-
-### 4.2 MES
-
-适合做：
-
-- 工单助手
-- 工艺知识问答
-- 生产异常辅助分析
-
-### 4.3 WMS
-
-适合做：
-
-- 库位建议
-- 补货建议
-- 拣货与调拨辅助
-- 库存异常解释
-
-### 4.4 APS
-
-适合做：
-
-- 约束建模辅助
-- 排产建议
-- 排产结果解释
-
-### 4.5 CRM / SRM
-
-适合做：
-
-- 沟通摘要
-- 跟进建议
-- 风险提示
-- 邮件与消息自动处理
-
-## 5. 关键 AI 场景总体方案
-
-### 5.1 智能问答
-
-基于知识层 + 权限过滤检索 + 模型总结生成。
-
-关键要求：
-
-- 必须基于已授权知识
-- 必须记录来源
-- 必须限制跨租户知识泄漏
-
-### 5.2 智能录单
-
-基于文档理解、字段抽取、业务校验、人工确认闭环。
-
-关键要求：
-
-- AI 只做识别、建议、预填
-- 最终提交仍由业务工具或应用服务完成
-
-### 5.3 智能排产
-
-基于 APS 约束、产能、库存、订单信息提供建议解，而不是直接强写计划真值。
-
-关键要求：
-
-- 给出建议与解释
-- 保留人工调整能力
-- 关键计划变更需要审批或确认
-
-### 5.4 智能预警
-
-基于事件流、指标、日志或业务数据生成异常解释与建议动作。
-
-### 5.5 智能节能
-
-结合设备、排程、产能与能源数据给出优化建议。
-
-### 5.6 智能邮件 / 消息处理
-
-对 Email / IM 做分类、摘要、指派、拟回复建议与任务触发。
-
-### 5.7 智能知识检索
-
-面向制度、SOP、客户资料、供应商资料、生产知识、仓储规则建立统一检索入口。
-
-## 6. 权限、审计、数据边界与安全控制
-
-AI 能力必须服从 OES 的平台级权限与审计规则。
-
-### 6.1 权限控制
-
-每次 AI 调用都必须明确：
-
-- 谁发起
-- 属于哪个租户
-- 可访问哪些知识
-- 可调用哪些工具
-
-### 6.2 审计
-
-必须记录：
-
-- 调用人
-- 调用时间
-- 输入摘要
-- 使用的模型
-- 调用的工具
-- 结果摘要
-- 是否经过人工确认
-
-### 6.3 数据边界
-
-必须控制：
-
-- 租户边界
-- 组织边界
-- 角色边界
-- 敏感字段边界
-
-### 6.4 成本控制
-
-必须具备：
-
-- 模型选择策略
-- Token 与调用成本统计
-- 高成本任务限额
-- 可回退到低成本模式的能力
-
-## 7. 如何避免 AI 侵入业务核心导致架构失控
-
-必须坚持以下原则：
-
-- AI 不拥有业务主模型
-- AI 不绕过权限系统
-- AI 不直接写业务核心表
-- AI 不把核心业务规则藏在 prompt 中
-- AI 只通过受控工具访问业务能力
-
-这是最重要的控制原则，因为一旦 AI 直接进入业务核心：
-
-- 规则会不可见
-- 审计会失真
-- 维护成本会迅速升高
-- 业务安全边界会被破坏
-
-## 8. 当前阶段的 AI 架构结论
-
-OES 当前阶段不应先做“大而全 AI 中台”，而应先做：
-
-- AI 架构边界定义
-- 模型接入与知识层基础
-- 工具层治理规则
-- 首批高价值低风险场景接入
-
-这样可以在控制风险的同时逐步建立企业级 AI 平台能力。
-## 9. Extension-First AI Platform Update (2026-03-25)
-
-### 9.1 Core decision
-
-OES AI architecture must not depend on a fixed list of AI scenario types.
-
-The platform must remain stable even when new AI ideas appear in the future, such as:
-
-- knowledge assistant
-- analytics assistant
-- workflow assistant
-- risk and governance assistant
-- quality and inspection assistant
-- optimization assistant
-- future AI forms that are not yet known
-
-Therefore, the architecture should be driven by stable extension points instead of hard-coded scenario branches.
-
-### 9.2 Stable extension points
-
-Future AI scenarios should be connected through the following stable platform objects:
-
-1. `AgentPrincipal`
-- the machine principal that runs the AI capability
-- must be stable, few in number, and governed
-
-2. `AgentProfile`
-- the scenario-specific profile
-- defines role, operating style, model policy, knowledge scope, allowed tools, and write mode
-
-3. `KnowledgeScope`
-- defines what the AI can read
-- must support tenant, org, source, visibility, and lifecycle filtering
-
-4. `ToolContract`
-- defines what the AI can call
-- input/output must be explicit
-- tools are the only allowed path to business actions
-
-5. `Policy`
-- defines risk gates, approval rules, delegation rules, and execution mode
-
-6. `ExecutionContext`
-- defines who initiated the action, for which tenant, in which session, under which trace
-
-7. `ModelRouting`
-- defines how local and remote models are selected
-- this is infrastructure policy, not identity policy
-
-### 9.3 Consequence for future AI onboarding
-
-When a new AI scenario is proposed, the default implementation path should be:
-
-- reuse an existing governed `AgentPrincipal` when possible
-- add or update an `AgentProfile`
-- bind the right `KnowledgeScope`
-- register or reuse the required `ToolContract`
-- configure `Policy`
-- execute under a per-request `ExecutionContext`
-
-This means most new AI scenarios should be introduced by configuration, bounded tool exposure, and profile extension, not by redesigning the base architecture.
-
-### 9.4 Service responsibilities in the future AI platform
-
-`identity-service`
-- owns machine identity truth such as governed AI service principals
-
-`auth-service`
-- authenticates machine principals
-- owns DelegationGrant / ActionGrant credential lifecycle and issues trusted delegation or execution context for AI-assisted operations
-
-`permission-service`
-- evaluates the upper bound of machine permissions
-- combines machine scope with human delegation scope when applicable
-
-future knowledge layer
-- owns document ingestion, metadata, retrieval, and citation filtering
-
-future tool layer / agent orchestration
-- owns controlled tool invocation, planning, user-facing confirmation gates, ToolContract identity / version and execution logs; it cannot issue credentials or redefine the business service's risk class
-
-### 9.5 AI scenario taxonomy is advisory, not architectural
-
-Scenario categories are useful for planning and communication, but they must not become rigid architectural partitions.
-
-They should be treated as profile groupings, not as separate identity or permission systems.
-
-### 9.6 High-risk actions
-
-For all future AI scenarios:
-
-- read and explanation scenarios may run directly under governed retrieval and query policies
-- draft generation scenarios may create proposals
-- submit and mutate scenarios must go through controlled tools
-- each tool operation is preclassified by its business owner as delegation-allowed, ActionGrant-required or AI-forbidden
-- high-risk actions require an exact, one-time ActionGrant after human confirmation; the stable collaboration rule is [delegated-execution-and-action-grant.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/delegated-execution-and-action-grant.md)
-
-This is required to satisfy OES audit, tenant isolation, and AI governance goals.
-
-## 10. AI Decision Context Reference (Draft)
-
-This section records a useful reference direction for future AI-assisted decision design.
-
-It is not yet a frozen object model. Names such as `DecisionType`, `ContextBuilder`, and `ContextPackage` are candidate terms only. Before implementation, the project must decide whether to adopt these exact concepts, rename them, merge them into `AgentProfile / KnowledgeScope / ToolContract`, or split them into a separate architecture / ADR.
-
-### 10.1 Reference principle
-
-OES should remain the source of truth and the execution boundary.
-
-AI should help with sense-making, judgment, simulation, and recommendations, but it should not decide by itself which raw business data it can access.
-
-For decision-oriented AI scenarios, the preferred direction is:
-
-- OES defines the decision scenario.
-- OES defines the allowed context.
-- OES builds a business-semantic context package.
-- AI consumes that context and returns a structured suggestion.
-- Any state-changing action goes back through OES approval, workflow, and controlled tools.
-
-### 10.2 Candidate flow
-
-The old design draft proposed the following flow as a reference:
+# OES AI Platform Architecture
 
 ```text
-DecisionType
-  -> ContextDefinition
-  -> ContextBuilder
-  -> ContextPackage
-  -> AI
-  -> Suggestion / Plan
-  -> Action / Workflow
+status: FROZEN
+frozenDate: 2026-07-28
+firstValidationScenario: Task Assistant
+taskAssistantCollaboration: docs/architecture/collaborations/task-assistant.md
+delegatedExecutionTruth: docs/architecture/collaborations/delegated-execution-and-action-grant.md
 ```
 
-The valuable idea is not the naming itself, but the direction:
+> 本文是 OES 项目级 AI 平台架构真相源，只冻结长期逻辑边界和跨能力责任，不决定服务数量、部署拓扑、proto、schema、模型供应商或 Agent 框架。涉及单个服务的职责与核心对象时，以对应 `docs/architecture/services/*.md` 为准。
 
-- AI should not query arbitrary source data.
-- Context should be business-semantic material, not raw tables or unrestricted dumps.
-- Each context package should be versioned, traceable, auditable, and replayable.
-- AI output should contain judgment, reasons, suggested actions, and risk points.
-- Human confirmation or policy-controlled workflow is required before high-risk execution.
+## 1. Position
 
-### 10.3 Reference scenarios
+AI 是 OES 的平台级增强能力，不是孤立聊天模块，也不是业务真相或业务规则 owner。平台把模型、知识、受控工具、权限、人工确认和审计组合成可复用能力；具体业务场景通过受治理配置与工具接入，不在业务服务内部重复建设本地 AI runtime。
 
-These scenarios are useful as future AI onboarding examples, but they do not define immediate implementation scope.
+稳定原则：
 
-`SalesRiskDecision`
-- Example question: which orders or opportunities may be lost?
-- Possible context: customer interaction history, quotation changes, sales cycle age, overdue follow-ups, recent order trend.
-- Expected output: risk level, reasons, suggested follow-up actions.
+- AI 不拥有业务主数据真相。
+- AI 不直接访问或写入业务数据库。
+- AI 不把核心业务规则、权限规则或 operation 风险分类藏在 prompt 中。
+- 业务读取与状态变化只能通过 owner 服务的公开能力完成。
+- 每次 AI 调用必须显式携带 tenant、适用的 org、可信 operator、trace 与审计上下文。
+- 任何状态变化都必须可鉴权、可确认、可追踪并能关联到最终业务结果。
+- 当前阶段只冻结最小可持续基础，不建设大而全 AI 中台。
 
-`ProductionAdjustDecision`
-- Example question: should the production plan be adjusted?
-- Possible context: current work orders, process capacity, equipment status, material availability, delivery pressure.
-- Expected output: adjustment suggestion, affected orders, bottleneck reason, risk warning.
+## 2. Stable Logical Layers
 
-`InventoryClearDecision`
-- Example question: which SKUs should be cleared, promoted, paused, or reprioritized?
-- Possible context: inventory age, sales in the last 90 days, production plan, gross margin, replacement products.
-- Expected output: SKU risk list, suggested action, business reason, financial risk.
+AI 平台采用稳定逻辑分层，但本轮不把每一层等同为独立微服务：
 
-`SupplierRiskDecision`
-- Example question: which suppliers may affect delivery or quality stability?
-- Possible context: delivery delay history, quality inspection results, price fluctuation, open purchase orders, complaint records.
-- Expected output: supplier risk level, reason, recommended mitigation.
+1. **Model layer**：统一模型接入、路由、回退、限流、成本统计与提示治理，避免业务服务直接绑定模型供应商。
+2. **Knowledge layer**：承接受治理的企业文档、SOP、制度、FAQ、来源版本、权限感知检索与引用；不承接业务交易真相副本。
+3. **Tool governance layer**：管理 `ToolContract` identity/version、允许的公开操作绑定与调用记录；工具是 AI 行动的唯一业务入口。
+4. **Orchestration layer**：执行场景 Profile、组装最小上下文、协调模型/知识/工具、插入人工确认并记录 AI Run。
+5. **Scenario layer**：定义可验收的业务辅助场景；Task Assistant 是第一个验证场景。
 
-Reference skill examples:
+新增 AI 场景默认扩展这些稳定层，不为每个场景建立独立身份、权限、知识、工具和审计体系。
 
-- `InventoryDiagnosisSkill`
-- `ProductionBottleneckSkill`
-- `SalesFunnelAnalysisSkill`
-- `CostAnomalyDetectionSkill`
+## 3. Stable Platform Concepts
 
-These skills should never hide core business rules in prompts. Business rules remain inside their owning business domains. Skills may only orchestrate AI prompts, context consumption, output structure, and validation around governed tools and approved data scopes.
+### 3.1 AgentPrincipal
+
+`AgentPrincipal` 是 AI 平台对 Identity-owned Machine Principal 的语义引用，不是第二套身份真相。当前 Identity 机器主体基础以 [identity-service.md](./services/identity-service.md) 中的 `ServiceAccount` 为准。
+
+稳定规则：
+
+- principal 按独立安全信任边界、工具权限上限和审计责任划分。
+- 不按用户、会话、Task 或单次执行创建机器主体。
+- 两个 Profile 只有在信任边界、工具权限上限和运行责任一致时才可以复用 principal。
+- principal lifecycle、scope、tenant reference 与 enabled state 仍由 Identity owner 管理。
+
+### 3.2 AgentProfile
+
+`AgentProfile` 是版本化的场景运行定义，描述角色、行为边界、模型策略、知识范围引用、允许的 ToolContract、执行模式和成本策略。它不授予权限，不保存业务主数据，也不能扩大 AgentPrincipal 或 HUMAN 的授权上限。
+
+### 3.3 KnowledgeScope
+
+`KnowledgeScope` 描述某个 Profile 可请求的知识来源、tenant/org、可见性、版本与 lifecycle 边界。知识 owner 必须在检索时执行实际过滤；Profile 中的 scope 只是收窄上限，不能替代知识 owner 的授权判定。
+
+### 3.4 ToolContract
+
+`ToolContract` 是 AI 工具治理层拥有的不可变 identity/version 与明确输入输出边界。它只绑定业务 owner 已公开且已分类的 operation，不能重新定义业务命令、状态机、resource policy 或 operation 风险等级。
+
+### 3.5 ExecutionContext
+
+`ExecutionContext` 是一次调用的临时执行上下文，必须关联触发 HUMAN、AgentPrincipal、AgentProfile version、tenant、适用的 org、session/request/trace、delegation 与审计信息。它不是 credential、Role、Permission 或业务 ownership；具体跨服务字段结构在共享契约获得独立 ownership 后再冻结。
+
+### 3.6 ModelRouting
+
+`ModelRouting` 管理模型选择、回退、限额与成本策略。它属于 AI 基础设施策略，不参与身份或业务授权判定。
+
+### 3.7 AgentRun
+
+AI 编排边界拥有一次 AI 执行的 `AgentRun` 事实与安全摘要，包括 Profile/model/tool/knowledge version 引用、步骤结果、确认节点、成本、错误类别和关联标识。`AgentRun` 不复制业务 owner 的最终写入真相，也不能把“已请求工具”记录成“业务命令已成功”。具体 schema 后置。
+
+## 4. Identity, Authorization And Delegation
+
+AI 调用必须保持 HUMAN 与 Agent 双重归因。有效操作上限是以下约束的严格交集：
+
+```text
+HUMAN grant
+∩ active AgentPrincipal grant
+∩ active DelegationGrant
+∩ AgentProfile bound ToolContract
+∩ ToolContract operation upper bound
+∩ tenant / org
+∩ target service method declaration
+∩ target resource policy
+∩ business domain rule
+```
+
+责任边界：
+
+- Identity 拥有 Machine Principal identity 与 lifecycle。
+- Auth 拥有机器认证、ExecutionToken、`DelegationGrant` 与 `ActionGrant` credential lifecycle。
+- Permission 拥有 HUMAN/MACHINE grant、policy 和 DELEGATED authorization intersection。
+- AI 平台拥有 Profile 执行、受控工具编排、用户侧确认节点与 AI Run。
+- 每个业务 owner 拥有 operation 风险分类、业务规则、状态变化和最终结果。
+
+高风险执行严格消费 [delegated-execution-and-action-grant.md](./collaborations/delegated-execution-and-action-grant.md)：业务 owner 将 operation 分类为 `DELEGATION_ALLOWED`、`ACTION_GRANT_REQUIRED` 或 `AI_FORBIDDEN`；AI 平台不能自行降低或推断该分类。
+
+## 5. Business Data And Knowledge Boundary
+
+- 实时业务事实必须通过 owner 服务的 query/application capability 按需读取。
+- AI 平台不得把业务表、业务聚合或业务 read model 复制成自己的主数据真相。
+- 企业制度、SOP、手册、FAQ 与其他知识内容由统一知识能力承接，并保留来源、版本、tenant/org 与可见性过滤。
+- 编排只组装当前执行所需的最小业务语义上下文，不向模型暴露不受控原始表或跨租户数据。
+- 输出必须能区分 owner-service 实时事实、知识来源内容和模型推断。
+- 若未来需要业务搜索索引或 AI projection，必须由 owner facts/event 构建可重建投影并单独冻结；向量库永远不是业务真相源。
+
+## 6. Tool And Execution Modes
+
+AI 场景按行为分为：
+
+- **read/explain**：只通过受控 query 或知识检索读取已授权信息。
+- **draft/propose**：生成建议或待确认的结构化动作，不改变业务状态。
+- **submit/mutate**：只能通过版本化 ToolContract 调用业务 owner command，并满足 delegation、owner-declared risk class、resource policy、domain rule 与 idempotency；仅在风险分类要求时才追加 exact confirmation、step-up 与 ActionGrant。
+- **unattended automation**：必须使用独立 MACHINE workflow，不得长期保留或静默续期 HUMAN delegation。
+
+任何工具调用失败都必须 fail closed。模型不得把 tool failure、timeout、permission denial 或 pending confirmation解释为业务成功。
+
+## 7. Audit And Replay Boundary
+
+各 owner 只记录自己拥有的事实，并通过稳定关联引用组成完整链路：
+
+- AI 平台：AgentRun、模型、知识引用、工具提议/调用、确认节点、成本与结果摘要。
+- Auth：认证、delegation、step-up 与 ActionGrant credential lifecycle。
+- Permission：授权决策、policy/version 与安全 reason。
+- 业务服务：领域命令、状态变化、幂等与最终业务结果。
+
+各服务禁止共享审计数据库或复制对方 owner 真相。集中观测/审计平台可以索引这些事实，但不取代任何本地 owner。审计与回放必须避免保存 credential、secret、ActionGrant 正文和不必要的敏感 prompt/tool payload。
+
+## 8. Task Assistant As First Validation Scenario
+
+Task Assistant 验证通用 AI 平台边界，而不改变 Collaboration Task：
+
+- 它是版本化 `AgentProfile`，运行于按安全边界治理的 AgentPrincipal。
+- 第一阶段只支持用户主动触发、人在回路的交互式 Copilot。
+- 它可以查询、总结、排序、解释 Task，并生成拟执行动作。
+- 它不得因模型推断自动创建、开始、完成、取消、重开或归档 Task。
+- 状态变化只有在用户明确执行意图、业务 owner 风险分类和受控工具校验全部满足后才可请求。
+- Task 的 `createdByAccountId`、`assigneeAccountId` 与参与者 ownership 始终是 HUMAN account；Agent 只作为 DELEGATED execution actor 进入审计。
+- Task 实时事实始终从 Collaboration Task Query 获取；AI 平台不复制 Task 主数据或把它写入场景私有知识库。
+
+完整协同以 [task-assistant.md](./collaborations/task-assistant.md) 为准；Task 长期职责仍以 [collaboration-service.md](./services/collaboration-service.md) 为唯一服务真相源。
+
+## 9. Stable Task Assistant Flow
+
+```text
+HUMAN request through Gateway / BFF
+  -> resolve trusted HUMAN context + governed AgentPrincipal/Profile
+  -> query current Task facts through registered read ToolContract
+  -> optionally retrieve governed enterprise knowledge
+  -> model produces explanation or proposed action
+  -> HUMAN expresses exact execution intent
+  -> business-owner risk class controls the path
+      -> DELEGATION_ALLOWED: delegated authorization + controlled command
+      -> ACTION_GRANT_REQUIRED: exact confirmation + ActionGrant + controlled command
+      -> AI_FORBIDDEN: refuse and route to human-only management flow
+  -> collaboration-service applies Task participant rules and domain transition
+  -> AI platform reports only the verified business result
+```
+
+## 10. Delivery Priority And Non-goals
+
+架构边界现在冻结，但 AI 实现优先级后置于核心业务能力和可信执行基础。推荐顺序：
+
+```text
+core business and platform security
+  -> Collaboration Task runtime
+  -> trusted execution / EXEC-CRYPTO and DG-4 runtime
+  -> minimal Task Assistant vertical validation
+  -> evidence-driven AI platform expansion
+```
+
+本轮不冻结：
+
+- 新服务数量、名称或部署拓扑；
+- proto、HTTP API、database schema 或公共 `src/common` 结构；
+- 模型供应商、Agent 框架、向量数据库或具体观测产品；
+- prompt 正文、长期记忆、多 Agent、无人值守自动化；
+- Task event subscription、AI Task projection 或自动完成；
+- 各 Task command 的 AI 风险分类。
+
+## 11. Implementation Gates
+
+任何 Task Assistant runtime 实现必须等待：
+
+1. 本架构与 [task-assistant.md](./collaborations/task-assistant.md) 已进入 `main`。
+2. `EXEC-CRYPTO MAIN_READY`，可信 ExecutionToken/JWS/mTLS runtime 可用。
+3. DG-4 DelegationGrant/ActionGrant runtime 满足冻结协同。
+4. Collaboration Task runtime 与既有 query/command contracts 可用。
+5. Collaboration owner 明确冻结可暴露给 AI 的 operation subset、每项风险分类、canonical action descriptor 与幂等约束；在该 gate 前 mutation 工具不得注册。
+6. 若首个 slice 包含制度/SOP 检索，统一知识能力的 owner、权限感知检索和引用边界已冻结并可用。
+7. 若实现需要新增服务、共享 proto、operator context、permission semantics、公共入口或 AI tool protocol 字段，先取得对应 truth-source/ADR/path ownership，不能由实现线程推断。
+
+## 12. Related Truth Sources
+
+- [identity-service.md](./services/identity-service.md)
+- [auth-service.md](./services/auth-service.md)
+- [permission-service.md](./services/permission-service.md)
+- [collaboration-service.md](./services/collaboration-service.md)
+- [delegated-execution-and-action-grant.md](./collaborations/delegated-execution-and-action-grant.md)
+- [task-assistant.md](./collaborations/task-assistant.md)
+- [ai-platform-foundation-plan.md](../plans/ai-platform-foundation-plan.md)

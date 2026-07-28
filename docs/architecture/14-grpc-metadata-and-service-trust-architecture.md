@@ -172,6 +172,16 @@ Token 合法复用不等同于攻击重放。防护分层为：
 - production mTLS 叶证书最长有效期为 24 小时，并在寿命的三分之二前自动续期；签名 key 至少每 90 天轮换且在疑似泄露后立即轮换。证书变更使旧 `cnf` Token 失效，调用方重新 exchange；进程内 Token cache key 必须包含证书指纹。
 - 本地环境同样运行真实 mTLS：使用独立 local trust domain、local CA、每 workload 独立证书和独立 JWT signing key。单元测试可 mock `VerifiedWorkloadIdentity`，但安全集成测试必须覆盖真实 TLS、跨证书重放、错误 SPIFFE ID 与证书/签名 key 轮换。
 
+### 5.5 DG-1 Auth runtime host and protected signer binding
+
+ExecutionToken 的冻结 proto `ExecutionTokenService` 是 Auth / STS 的内部 RPC surface，不是待实现 HTTP controller 的可选替代。Auth 必须在既有 `auth_service` gRPC host、既有 `GRPC_LISTEN_HOST:GRPC_LISTEN_PORT` 上同时加载 Auth proto 与 ExecutionToken proto，并挂载 `ExchangeExecutionToken` 和 `GetExecutionTokenJwks` 的 generated controller mapping。Exchange 只从 Common transport runtime 已验证的 workload identity 与 execution context 取得身份事实；proto request 只能携带 target audience 与精确 Permission Code 集。
+
+`GetExecutionTokenJwks` 是内部 gRPC verifier 的 JWKS 路径。与此同时，Auth 必须在精确 HTTPS issuer host 上真实发布 RFC 8414 authorization-server metadata 与该 metadata 所声明的 absolute `jwks_uri`；未被 HTTPS host 实际挂载的 controller 不构成发布。HTTP metadata 只发布 public verification facts，不能替代内部 gRPC service，也不能接受 Token 提供的 issuer、JWKS URL 或 trust-domain override。
+
+Auth 模块只允许一条 fail-closed signing DI chain：deployment-provided `KmsHsmExecutionTokenClient` → `KmsHsmExecutionTokenSigningAdapter` → `ExecutionTokenSigningPort` → exchange/JWKS application services。启动前必须解析并验证精确 issuer、metadata/JWKS public endpoint、opaque signing-key reference 与 immutable workload/audience registry；private key、PEM、private JWK 或本地 signing secret 不得进入 config、DI value 或应用进程。缺少受保护 client、key reference 或有效 key publication timeline 时，Auth 不得开始接受 ExecutionToken exchange 或 JWKS 请求，也不得回退为 memory/file signer。
+
+Local security integration 复用相同 port 与 lifecycle，但连接 KMS/HSM-compatible protected test signing boundary 和 opaque test key reference。测试 fake 仅可在 isolated unit-test module 中使用；它不能成为 local、staging 或 production provider。KMS/HSM 不可用时 Exchange 必须 fail closed，资源服务继续只在已有可信 JWKS 与未过期 Token 范围内本地验证。
+
 ## 6. 三种 RPC authorization mode
 
 每个 gRPC RPC 必须在方法旁显式声明且只能声明一种：

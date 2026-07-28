@@ -45,6 +45,8 @@ Execution Principal 只有三种稳定模式：
 - 目标服务本地校验签名、issuer、时间、audience、scope、tenant、`cnf` 与紧急 deny state；普通 RPC 不在线调用 Auth。
 - Auth 以无状态实例横向扩展，使用 `kid` / JWKS 轮换签名密钥。新 key 先发布、后签发，旧 public key 保留至最后 Token 过期及 clock-skew 窗口；签名 key 至少每 90 天轮换。普通撤销依赖短 TTL；紧急撤销通过安全事件更新本地 deny cache 或 minimum security version。
 - workload 使用独立短期 X.509-SVID 风格证书；production、staging 与 local 使用独立 trust domain。production leaf certificate 最长 24 小时并在寿命三分之二前自动续期；证书轮换后必须重新 exchange Token，不能跨证书复用。
+- ExecutionToken 的冻结 proto service 必须挂载在既有 Auth gRPC host；`ExchangeExecutionToken` 只消费 Common transport 注入的可信 execution / workload facts，`GetExecutionTokenJwks` 是内部 verifier 的 RPC discovery surface。Auth 还必须在精确 HTTPS issuer host 发布 RFC 8414 metadata 与 metadata 声明的 absolute `jwks_uri`；未挂载的 HTTP controller 不构成 JWKS 发布。
+- Auth 使用 deployment-bound `KmsHsmExecutionTokenClient`，经唯一 `KmsHsmExecutionTokenSigningAdapter` / `ExecutionTokenSigningPort` 链路签发。issuer、public metadata/JWKS endpoint、opaque signing-key reference 与 immutable registry 缺失或无效时启动 fail closed；禁止 memory/file/PEM/private-JWK/environment-secret signer。Local integration 使用同一非导出 protected-key boundary；unit fake 不得成为 runtime fallback。
 
 ### 4. 多跳与 cache
 

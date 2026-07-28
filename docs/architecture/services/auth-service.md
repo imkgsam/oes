@@ -226,6 +226,16 @@ ExecutionToken 是 service-to-service 的短期执行凭据，不是用户登录
 - Tokens carry `client_id` equal to the verified SPIFFE ID and `cnf.x5t#S256` equal to the presenting workload's current mTLS leaf certificate. Auth exchanges a new Token after certificate rotation; the Token cache key includes that certificate binding.
 - Production workload leaf certificates have a maximum 24-hour lifetime and renew automatically before two thirds of their lifetime. Local uses a separate trust domain, CA, issuer and signing key, but exercises the same mTLS, JWKS and rotation protocol.
 
+#### 7.1.3 ExecutionToken runtime binding and publication
+
+`auth-service` owns the runtime composition that exposes its frozen ExecutionToken contract. The generated `ExecutionTokenService` is mounted on the existing Auth gRPC host and serves both `ExchangeExecutionToken` and `GetExecutionTokenJwks`; an HTTP metadata controller without that generated gRPC mapping is incomplete. Exchange maps only its declared target / Code request and consumes workload identity plus execution facts injected by the trusted Common transport runtime, never caller-supplied identity DTO fields.
+
+Auth also owns the in-process producer of issuer HTTPS authorization-server metadata and its advertised JWKS document. Deployment routes the exact issuer host to this producer; the metadata location follows RFC 8414 for that exact issuer and advertises an absolute configured `jwks_uri`. This is public-key publication only: it does not expose a private key, replace the internal gRPC service or open an external execution exchange endpoint.
+
+The only production signing composition is `KmsHsmExecutionTokenClient` through `KmsHsmExecutionTokenSigningAdapter` into `ExecutionTokenSigningPort`. The protected client is a deployment binding, not a caller-selected SDK or a business-service dependency. Bootstrap requires a validated issuer, metadata/JWKS endpoint, opaque signing-key reference and immutable workload/audience registry; missing or invalid configuration, an absent protected client, or an invalid active/published key timeline prevents the STS runtime from accepting exchange or JWKS requests. Auth never falls back to an in-memory, file, PEM, private-JWK or environment-variable signing key.
+
+Local security integration uses the same port against a KMS/HSM-compatible protected test boundary with a non-exportable test key identified only by an opaque reference. A fake signer is limited to an isolated unit-test module. When the protected signer is unavailable, new exchange fails closed; resource services may only continue validating with already trusted cached JWKS and unexpired Tokens.
+
 ## 8. Login Methods And Credentials
 
 `auth-service` owns 认证可用性；`identity-service` owns 联系资产主数据。
