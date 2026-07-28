@@ -35,9 +35,19 @@ import {
   ListRolesResponse,
   ListRoleAccountsResponse,
   PagedRolesResponse,
-  RoleResponse
+  RoleResponse,
+  AssignAccountRoleRequest,
+  AssignAccountRoleResponse,
+  ListAccountRolesRequest,
+  ListAccountRolesResponse,
+  RevokeAccountRoleRequest,
+  RevokeAccountRoleResponse,
+  RevokePrincipalRoleBindingRequest,
+  RevokePrincipalRoleBindingResponse,
+  SetAccountRolesResponse
 } from '../../generated/permission_service/permission_management'
 
+/** Defines the shared permission management application boundary consumed by transport adapters. */
 export interface PermissionManagementPort {
   createPermission(req: CreatePermissionRequest): Promise<PermissionResponse>
   batchCreatePermissions(req: BatchCreatePermissionsRequest): Promise<ListPermissionsResponse>
@@ -64,10 +74,17 @@ export interface PermissionManagementPort {
   listRoleInstances(req: ListRoleInstancesRequest): Promise<PagedRolesResponse>
   listRoleTemplates(req: ListRoleTemplatesRequest): Promise<PagedRolesResponse>
   listRolePermissions(req: ListRolePermissionsRequest): Promise<ListPermissionsResponse>
+  assignAccountRole(req: AssignAccountRoleRequest): Promise<AssignAccountRoleResponse>
+  revokePrincipalRoleBinding(
+    req: RevokePrincipalRoleBindingRequest
+  ): Promise<RevokePrincipalRoleBindingResponse>
+  /** @deprecated Compatibility-window-only selector for legacy AccountRole records. */
+  revokeAccountRole(req: RevokeAccountRoleRequest): Promise<RevokeAccountRoleResponse>
+  listAccountRoles(req: ListAccountRolesRequest): Promise<ListAccountRolesResponse>
   listRoleAccounts(req: ListRoleAccountsRequest): Promise<ListRoleAccountsResponse>
   getAccountRoleSelection(
     req: GetAccountRoleSelectionRequest
   ): Promise<AccountRoleSelectionResponse>
   listAuditEvents(req: ListAuditEventsRequest): Promise<ListAuditEventsResponse>
-  setAccountRoles(req: SetAccountRolesRequest): Promise<ListRolesResponse>
+  setAccountRoles(req: SetAccountRolesRequest): Promise<SetAccountRolesResponse>
 }
