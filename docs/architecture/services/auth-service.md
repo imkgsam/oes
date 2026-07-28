@@ -190,6 +190,26 @@ ExecutionToken 是 service-to-service 的短期执行凭据，不是用户登录
 - 普通撤销接受短 TTL 收敛；紧急撤销发布 principal / credential / session / security-version deny fact。Auth 不要求所有服务共享 Bearer Token cache。
 - API Key 只在 Gateway / Auth 入口使用；认证成功后得到 Gateway-only external access token，Gateway 内部才换取 target-audience ExecutionToken。API Key 与 external token 都不能作为内部 gRPC credential 原样传播。
 
+#### 7.1.1 Emergency ExecutionToken revocation
+
+`auth-service` owns the `ExecutionTokenRevocation` security fact: its authorization, creation, immutable audit record, monotonic revocation version and publication intent. The owner-published fact is `auth.execution-token.revoked` at business version `1`; the Event platform owns its security-critical transport, catalog registration and consumer topology, while this service remains the sole source of revocation semantics.
+
+One revocation fact has exactly one selector. The permitted stable selector kinds are:
+
+- `TOKEN_JTI`: one exact ExecutionToken `jti`.
+- `PRINCIPAL`: all applicable Tokens for one execution principal.
+- `SESSION`: all applicable Tokens carrying one Auth session reference.
+- `CREDENTIAL`: all applicable Tokens issued from one Auth-owned credential reference.
+- `MINIMUM_AUTHZ_VERSION`: Tokens for one opaque security subject whose `authz_version` is below the newly required minimum.
+
+Selector references are opaque Auth-owned identifiers. Auth never publishes a bearer Token, API Key secret, credential verifier, raw incident evidence, free-text reason or unnecessary personal data. Each fact carries an Auth-owned strictly increasing version for that selector, an effective time, the last possible validity time of affected Tokens including clock-skew allowance, a sanitised reason category, and audit / trace correlation. A consumer keeps only the highest applicable version; duplicate, delayed or older facts can never restore access.
+
+Emergency revocation is limited to confirmed or suspected security incidents requiring action before normal Token TTL convergence, including compromised Tokens, sessions, principals or credentials, and urgent authorization-security changes. It may be triggered only by an Auth-controlled security workflow, an authorized security administrator, or a verified security detector. Other services may request an Auth security action through an authorized interface but cannot publish, forge or independently decide a revocation fact. Ordinary role, grant, session or credential changes continue to converge through short Token TTL and must not consume this emergency channel.
+
+Auth records the security decision, trigger source, selector kind/reference, monotonic version, reason category, effective / cleanup times, operator context and trace correlation in its local authentication audit before publishing the fact through the Event-owned security transport. Revocation is irreversible for already issued Tokens: correcting an incident never re-enables an old Token, and resumed access requires a newly exchanged Token with current security state. Auth permits denial-state cleanup only after every affected Token can no longer be valid; it does not emit an "unrevoke" fact.
+
+`auth-service` does not own resource-service deny caches, their readiness checks, event consumer databases, broker credentials, replay operations or transport freshness policy. Resource services apply the Event-owned security delivery contract locally, reject an affected Token as `EXECUTION_TOKEN_REVOKED`, and never call Auth on the normal RPC validation path. If a resource service cannot prove its revocation state is current, it must fail closed for the affected execution scope until it has caught up and established readiness.
+
 #### 7.1.2 External API Key Security
 
 `auth-service` owns the credential lifecycle for a tenant Integration Machine; it does not own the machine principal, external HTTP routing, or the external capability catalogue. The frozen cross-service flow is [external-api-key-security.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/external-api-key-security.md); credential-management behaviour is [external-api-key-security.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/external-api-key-security.md).
@@ -202,7 +222,7 @@ ExecutionToken 是 service-to-service 的短期执行凭据，不是用户登录
 - Credential expiry defaults to one year. A 90-day age is a rotation-health signal, not an automatic outage; tenant security policy may impose a shorter lifetime. Expiry never extends by use.
 - External callers never receive an internal `ExecutionToken`. They receive the Gateway-only short-lived external access token defined by the HTTP contract; Gateway exchanges trusted external context for target-audience ExecutionTokens only on its internal mTLS hop.
 
-#### 7.1.1 Delegation And ActionGrant
+#### 7.1.3 Delegation And ActionGrant
 
 `DelegationGrant` 与 `ActionGrant` 是认证域凭据，不是 role、业务审批或业务操作本身。
 
@@ -215,7 +235,7 @@ ExecutionToken 是 service-to-service 的短期执行凭据，不是用户登录
 - 用于 `ActionGrant` 的签名、issuer、audience 与 workload binding 必须使用 DG-1 冻结的 JWS / mTLS 互操作规则；不得引入第二套签名体系、共享 Bearer pool 或 body identity fallback。
 - 密码、MFA、recovery code、session、API Key、role / permission / policy、delegation 自身、审计记录和 AI 自己结果的批准属于 AI 永久禁止操作。精确规则以 [delegated-execution-and-action-grant.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/delegated-execution-and-action-grant.md) 为准。
 
-#### 7.1.2 Cryptography, Registry And Rotation
+#### 7.1.4 Cryptography, Registry And Rotation
 
 `auth-service` owns ExecutionToken issuer configuration, signing-key lifecycle, JWKS publication and the controlled registry of service audiences and permitted workload identities. Deployment owns the CA, trust bundle and workload certificate issuance; business services do not own any part of this registry or key material.
 
@@ -226,7 +246,7 @@ ExecutionToken 是 service-to-service 的短期执行凭据，不是用户登录
 - Tokens carry `client_id` equal to the verified SPIFFE ID and `cnf.x5t#S256` equal to the presenting workload's current mTLS leaf certificate. Auth exchanges a new Token after certificate rotation; the Token cache key includes that certificate binding.
 - Production workload leaf certificates have a maximum 24-hour lifetime and renew automatically before two thirds of their lifetime. Local uses a separate trust domain, CA, issuer and signing key, but exercises the same mTLS, JWKS and rotation protocol.
 
-#### 7.1.3 ExecutionToken runtime binding and publication
+#### 7.1.5 ExecutionToken runtime binding and publication
 
 `auth-service` owns the runtime composition that exposes its frozen ExecutionToken contract. The generated `ExecutionTokenService` is mounted on the existing Auth gRPC host and serves both `ExchangeExecutionToken` and `GetExecutionTokenJwks`; an HTTP metadata controller without that generated gRPC mapping is incomplete. Exchange maps only its declared target / Code request and consumes workload identity plus execution facts injected by the trusted Common transport runtime, never caller-supplied identity DTO fields.
 
