@@ -24,6 +24,21 @@ describe('PrincipalRoleBinding permission management contract', () => {
     assert.equal(replacement.fields.bindings?.repeated, true)
   })
 
+  it('exposes every onboarding grant binding identity from both active responses', () => {
+    const employeeGrant = root.lookupType(
+      'permission_service.GrantInitialAccessForEmployeeAccountResponse'
+    )
+    const tenantGrant = root.lookupType(
+      'permission_service.GrantInitialAccessForTenantAccountResponse'
+    )
+    const onboardingGrant = root.lookupType('permission_service.OnboardingGrantResponse')
+
+    assert.equal(employeeGrant.fields.grant?.type, 'OnboardingGrantResponse')
+    assert.equal(tenantGrant.fields.grant?.type, 'OnboardingGrantResponse')
+    assert.equal(onboardingGrant.fields.bindingIds?.id, 6)
+    assert.equal(onboardingGrant.fields.bindingIds?.repeated, true)
+  })
+
   it('keeps canonical revoke addressable only by immutable binding identity', () => {
     const method = service.methods.RevokePrincipalRoleBinding
     const request = root.lookupType('permission_service.RevokePrincipalRoleBindingRequest')

@@ -494,6 +494,8 @@ message OnboardingGrantResponse {
   string account_id = 3;
   repeated string role_ids = 4;
   string idempotency_key = 5;
+  // Immutable identities for each binding created by this onboarding grant.
+  repeated string binding_ids = 6;
 }
 
 message GrantInitialAccessForEmployeeAccountResponse {
