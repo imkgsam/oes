@@ -104,39 +104,25 @@ OES Codex 协作采用四层结构：
 
 每个正式 thread 完成、阻塞或失败时，必须提交结构化 handoff。
 
-handoff 必须包含：
+handoff 使用最小格式，必须包含：
 
-- Thread
-- Type
-- Parent
-- Return target
-- Branch
-- Worktree
-- Base SHA
-- Candidate / Last Commit SHA
-- Dirty State
-- Integration Target
-- Scope
-- Changed files
-- Design impact
-- Contract impact
-- Data impact
-- Permission impact
-- Tenant/operator/audit impact
-- Dependencies unlocked
-- New blockers
-- Conflicts detected
+- Thread、Parent、State
+- Branch、Worktree、Base、HEAD、Dirty
+- Changed paths
 - Verification
-- Cleanup State
-- Recommended next tasks
+- Blocker/dependency（如有）
+- Cleanup state
+- contract/data/permission/security impact 仅在非 `none` 时填写
 
 框架未启用时，Global Command 可以按普通流程消费下级 handoff。框架启用后，Implementation、Focused Review、Acceptance 与 Integration Thread 只向对应 Capability Command 回传；Global Command 只根据 Capability Command 的能力级汇总更新全局 roadmap、依赖图与调度状态。
 
-框架启用后的 handoff 不采用主动 push：下级线程把结构化结果留在自己的 terminal，由注册 parent 依据 registry 和 cursor 主动等待、读取并串行消费。Global Command 只拉取 Capability Command 的 capability-level terminal；Capability Command 只拉取配对 Design 与自身 I/R/V/X terminal。自动线程不得向 `ACTIVE` target 发送 handoff 或控制消息。
+框架启用后的 handoff 不采用主动消息推送：下级线程把结构化结果留在自己的 terminal，由注册 parent 在恢复时依据 registry 和 cursor 拉取并串行消费。Global Command 只拉取 Capability Command 的 capability-level terminal；Capability Command 只拉取配对 Design 与自身 I/R/V/X terminal。自动线程不得向 `ACTIVE` target 发送 handoff 或控制消息。
 
-Global Command registry 必须记录每个 Capability Command 的运行状态、`currentWorkItem`、`deliveryLock` 与 `lastConsumedCursor`。多个 Command 同时 terminal-ready 时，GC 一次只处理一个；其他结果留在来源 terminal，不另建 Inbox thread，也不因新结果抢占当前原子工作。
+Parent 派发 child 后可以进入稳定 `WAITING_FOR_CHILD` 并结束 turn，不持续占用会话。Global Command registry 只保存 capability state、跨能力依赖、candidate/main SHA、cleanup state 与 A/C cursor；子任务详细 registry 由 A/C 独占。多个 terminal 同时 ready 时一次只处理一个，其余保留在来源 terminal。
 
-Capability Command 的非稳定 `currentWorkItem` 进入执行态后，Global Command 只负责确认对应的轻量 liveness watchdog 已登记。watchdog 只能在该 Command 意外 idle 时恢复同一 Command，不得读取其 child、消费 child terminal、裁定 lane gate、创建或恢复 I/R/V/X，也不得成为第二个控制线程。Capability Command 不得以 `*_IN_PROGRESS`、`READY_FOR_PARENT_PULL`、“已派发”或“等待 child”作为 terminal final；Global Command 读到此类非稳定 final 时只执行 Command liveness recovery，不据此改变能力状态。
+项目禁止 per-command watchdog。只允许一个附着于 Global Command 的轻量状态检查器。GC runtime registry 对每个 capability 至少保存 `commandThreadId`、`currentObservedThreadId`、`lastObservedRevision` 和 `lastNotifiedApprovalRevision`；检查器只读取当前 observed route 的 status/revision，变化时只唤醒注册的直接 parent，不读取 terminal 正文、不裁定 gate、不创建任务、不修改 Git，也不形成 Inbox。A/C 报告 `WAITING_FOR_CHILD` 时由 GC 登记 child；checker 唤醒 A/C 后观察目标切回 A/C，GC 消费 capability terminal 后再更新或清空 route。禁止无路由地轮询或唤醒全部 Command；同一审批 revision 只通知一次，所有 capability 稳定后检查器自动停用。
+
+Capability 交付并 push main 后，A/C 自动 archive 已消费完成的 I/R/V/X 并把详细 registry 压缩为 cleanup manifest；Git branch/worktree 仍等待用户批准后才删除。清理完成后 GC 只保留 capability、main SHA、验证与关闭时间的不可变摘要。
 
 ## 7. 冲突升级
 
