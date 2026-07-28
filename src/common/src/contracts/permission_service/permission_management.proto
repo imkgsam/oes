@@ -40,7 +40,10 @@ service PermissionManagementService {
   rpc EnsureTenantRoleInstanceFromTemplate(EnsureTenantRoleInstanceFromTemplateRequest) returns (EnsureTenantRoleInstanceFromTemplateResponse);
   rpc GrantInitialAccessForEmployeeAccount(GrantInitialAccessForEmployeeAccountRequest) returns (GrantInitialAccessForEmployeeAccountResponse);
   rpc GrantInitialAccessForTenantAccount(GrantInitialAccessForTenantAccountRequest) returns (GrantInitialAccessForTenantAccountResponse);
-  rpc RevokeAccountRole(RevokeAccountRoleRequest) returns (RevokeAccountRoleResponse);
+  rpc RevokeAccountRole(RevokeAccountRoleRequest) returns (RevokeAccountRoleResponse) {
+    option deprecated = true;
+  }
+  rpc RevokePrincipalRoleBinding(RevokePrincipalRoleBindingRequest) returns (RevokePrincipalRoleBindingResponse);
   rpc ListAccountRoles(ListAccountRolesRequest) returns (ListAccountRolesResponse);
   rpc ListRoleAccounts(ListRoleAccountsRequest) returns (ListRoleAccountsResponse);
   rpc GetAccountRoleSelection(GetAccountRoleSelectionRequest) returns (GetAccountRoleSelectionResponse);
@@ -459,7 +462,9 @@ message AssignAccountRoleRequest {
   string scope_level = 8;
 }
 
-message AssignAccountRoleResponse {}
+message AssignAccountRoleResponse {
+  string binding_id = 1;
+}
 
 message EnsureTenantRoleInstanceFromTemplateRequest {
   string tenant_id = 1;
@@ -508,11 +513,31 @@ message GrantInitialAccessForTenantAccountResponse {
 }
 
 message RevokeAccountRoleRequest {
-  string account_id = 1;
-  string role_id = 2;
+  // Legacy compatibility selector only; canonical bindings must never be inferred from it.
+  string account_id = 1 [deprecated = true];
+  string role_id = 2 [deprecated = true];
 }
 
 message RevokeAccountRoleResponse {}
+
+// Targets exactly one immutable binding and never falls back to an account/role selector.
+message RevokePrincipalRoleBindingRequest {
+  string binding_id = 1;
+  string reason = 2;
+}
+
+// Preserves the facts recorded by the first successful revoke for every idempotent retry.
+message PrincipalRoleBindingRevokeResult {
+  string binding_id = 1;
+  string revoked_at = 2;
+  string revoked_by_operator_id = 3;
+  string reason = 4;
+  string audit_event_id = 5;
+}
+
+message RevokePrincipalRoleBindingResponse {
+  PrincipalRoleBindingRevokeResult result = 1;
+}
 
 message ListAccountRolesRequest {
   string account_id = 1;
@@ -544,6 +569,7 @@ message AccountRoleBindingResponse {
   string role_id = 3;
   string tenant_id = 4;
   string scope_level = 5;
+  string binding_id = 6;
 }
 
 message ListRoleAccountsResponse {
@@ -557,6 +583,7 @@ message AccountRoleSelectionResponse {
 
 message ListAccountRolesResponse {
   repeated RoleResponse roles = 1;
+  repeated AccountRoleBindingResponse bindings = 2;
 }
 
 message GetAccountRoleSelectionResponse {
@@ -566,6 +593,7 @@ message GetAccountRoleSelectionResponse {
 
 message SetAccountRolesResponse {
   repeated RoleResponse roles = 1;
+  repeated AccountRoleBindingResponse bindings = 2;
 }
 
 message ListAuditEventsRequest {
