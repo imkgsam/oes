@@ -58,7 +58,7 @@ JetStream message body 使用 CloudEvents `1.0` Structured JSON，media type 固
 
 - `specversion` 固定为 `1.0`；`oeseventversion` 是 Event Catalog business event version，两者不得混用。
 - `id` 等于 OES `eventId`；`source` 固定使用 `urn:oes:service:<owner-service>`；`type` 等于 Event Catalog event type；`time` 等于 owner 的 `occurredAt`；业务 `payload` 映射到 `data`。
-- `subject` 与 `oesaggregateid` 都等于稳定 aggregate ID，`oesaggregatetype` 保存 aggregate type；adapter 必须验证重复表达一致，不能猜测或修复。
+- owner contract 声明公共 aggregate 时，`subject` 与 `oesaggregateid` 都等于稳定 aggregate ID，`oesaggregatetype` 保存 aggregate type；adapter 必须验证重复表达一致，不能猜测或修复。contract-gated security event 未声明公共 aggregate 时，这三个属性必须同时缺失。
 - OES extension attributes 只使用小写字母和数字，并以 `oes` 开头。common codec 对应用代码提供 `eventVersion / tenantId / traceId` 等 camelCase 语义别名，但 wire body 不接受隐式 casing 猜测。
 - `dataschema` 必填，第一版使用稳定 `urn:oes:event:<eventType>:v<eventVersion>` 作为 contract identity；它不要求运行时网络获取 schema。
 - optional attribute 缺失和显式 `null` 的兼容性由对应 event contract 决定；adapter 不凭空补造业务值。
@@ -82,6 +82,7 @@ JetStream message body 使用 CloudEvents `1.0` Structured JSON，media type 固
 - security-critical `SYSTEM` event 携带任意 `oestenantid` 必须 fail closed，不接受 `SYSTEM`、全零 ID 或其他 sentinel；
 - 缺失/未知 `oesexecutionscope`、重复属性或 scope / tenant 组合冲突必须在 outbox commit 前拒绝，consumer 也必须独立拒绝；
 - `oesexecutionscope` 只表达 transport isolation scope，不授权 adapter 解析 `data`、推断 selector 或改变 Auth owner semantics；
+- 当前冻结的 `auth.execution-token.revoked` 没有 owner-declared public aggregate；其 `subject / oesaggregatetype / oesaggregateid` 必须缺失，平台不得把 Auth selector reference 复制或映射到 envelope；
 - 这是 transport version `1` 的 additive、contract-gated extension；现有已冻结事件的 canonical body 保持不变。
 
 ## 3. Subject 与 Stream Mapping
@@ -144,6 +145,17 @@ Event Catalog 登记为 security-critical 的 Auth-owned event type 映射为：
 
 ```text
 oes.security.events.<eventType>
+```
+
+当前冻结的精确 security route 是：
+
+```text
+eventType:   auth.execution-token.revoked
+source:      urn:oes:service:auth-service
+version:     1
+natsSubject: oes.security.events.auth.execution-token.revoked
+stream:      OES_SECURITY_EVENTS
+contract:    docs/contracts/events/auth-service.md
 ```
 
 规则：
@@ -211,7 +223,7 @@ producer 在同一个本地数据库事务内创建业务状态、required local
 
 - producer 引用 `src/common/src/contracts/<service_snake_case>/events.ts` 中当前 owner 的 `FROZEN_SUBSCRIBABLE` code contract；
 - CloudEvents `type / oeseventversion` 与 common contract 一致；
-- required CloudEvents attributes 与业务 `data` 字段存在；
+- required CloudEvents attributes 与业务 `data` 字段存在；aggregate attributes 按 owner contract / transport profile 条件验证，不得补造；
 - `source` 映射的 owner service 等于当前服务；
 - tenant-only event 的 `oestenantid` 来源于 verified local context；security-critical event 按第 2.1 节验证 `oesexecutionscope` 与条件 tenant；
 - security-critical event 的 frozen owner 必须是 `auth-service`，subject 必须属于 Catalog 批准的精确 `oes.security.events.<eventType>`；
@@ -269,19 +281,19 @@ HTTP/gRPC 等 transport error code 不属于本契约；provider adapter 必须�
 
 Inbox 最小语义：
 
-| 字段                       | 要求                                                                                                                                                                        |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `consumerName`             | 稳定逻辑订阅名。                                                                                                                                                            |
-| `eventId`                  | 原始 CloudEvents `id`；与 consumerName 组合唯一。                                                                                                                           |
-| `executionScope?`          | security-critical event 的原始 `oesexecutionscope`；普通 tenant-only event 不要求。                                                                                         |
-| `tenantId?`                | 普通/TENANT event 的原始 `oestenantid`；SYSTEM security event 必须缺失。                                                                                                    |
-| `identityTuple`            | 不可变 identity，至少含 `id/source/type/time/oeseventversion/oesaggregatetype/oesaggregateid`；security-critical 再含 `oesexecutionscope`，普通/TENANT 再含 `oestenantid`。 |
-| `canonicalBodyDigest`      | canonical Structured CloudEvent body 摘要，用于等价重复与 eventId 冲突判定。                                                                                                |
-| `eventType / eventVersion` | 原始 `type / oeseventversion` 的业务语义别名。                                                                                                                              |
-| `processedAt`              | 本地事务成功时间。                                                                                                                                                          |
-| `result`                   | 至少区分 applied / duplicate-equivalent / stale-ignored。                                                                                                                   |
-| `ownerVersion?`            | 事件 `data` 提供 aggregate/availability version 时记录。                                                                                                                    |
-| `traceId`                  | 原始 `oestraceid`，用于链路关联。                                                                                                                                           |
+| 字段                       | 要求                                                                                                                                                                                                                        |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `consumerName`             | 稳定逻辑订阅名。                                                                                                                                                                                                            |
+| `eventId`                  | 原始 CloudEvents `id`；与 consumerName 组合唯一。                                                                                                                                                                           |
+| `executionScope?`          | security-critical event 的原始 `oesexecutionscope`；普通 tenant-only event 不要求。                                                                                                                                         |
+| `tenantId?`                | 普通/TENANT event 的原始 `oestenantid`；SYSTEM security event 必须缺失。                                                                                                                                                    |
+| `identityTuple`            | 不可变 identity，至少含 `id/source/type/time/oeseventversion`；owner contract 声明 aggregate 时再含 `subject/oesaggregatetype/oesaggregateid`，security-critical 再含 `oesexecutionscope`，普通/TENANT 再含 `oestenantid`。 |
+| `canonicalBodyDigest`      | canonical Structured CloudEvent body 摘要，用于等价重复与 eventId 冲突判定。                                                                                                                                                |
+| `eventType / eventVersion` | 原始 `type / oeseventversion` 的业务语义别名。                                                                                                                                                                              |
+| `processedAt`              | 本地事务成功时间。                                                                                                                                                                                                          |
+| `result`                   | 至少区分 applied / duplicate-equivalent / stale-ignored。                                                                                                                                                                   |
+| `ownerVersion?`            | 事件 `data` 提供 aggregate/availability version 时记录。                                                                                                                                                                    |
+| `traceId`                  | 原始 `oestraceid`，用于链路关联。                                                                                                                                                                                           |
 
 Inbox 与数据库内副作用必须同一事务。若 `(consumerName,eventId)` 已存在，只有 identity tuple 与 body digest 等价时才返回 `DUPLICATE`；不等价必须 `EVENT_ID_CONFLICT` 并进入 DLQ，不能覆盖既有记录。Inbox 默认保留至少 `45` 天，且永远不得短于 Event Bus replay window。
 
@@ -363,6 +375,8 @@ Replay job 解码原始消息后先执行 execution scope / tenant / event filte
 
 - Transport contract `Oes-Transport-Version=1` 内允许新增 optional header 或 contract-gated CloudEvents extension，不允许删除或改变既有 required header / attribute 语义。
 - `oesexecutionscope` 是 additive、security-critical contract-gated extension：现有 tenant-only event 无需增加；一旦 owner contract 登记该 profile，publisher / consumer 必须按第 2.1 节强制验证，不能静默降级为 tenant-only。
+- `auth.execution-token.revoked` business version `1` 固定映射到 `SECURITY_CRITICAL` profile 与精确 subject `oes.security.events.auth.execution-token.revoked`。它没有公共 aggregate envelope；未来不得在同一 registration 中从 Auth selector 补造 aggregate 属性。
+- 将已登记事件改到另一 transport profile、Stream 或 publisher identity 属于 transport compatibility 变更，不能通过保留 business `eventVersion` 的运行时配置切换完成。
 - CloudEvents `specversion` 当前固定为 `1.0`；业务 `oeseventversion` 的兼容规则完全以 Event Catalog 为准。
 - 同一业务 event type 的版本不改变 subject；consumer 通过 `type / oeseventversion` 与 common code contract 声明并验证支持版本。
 - provider adapter 可替换，但必须继续产生本文 canonical body 和 broker-independent publisher / consumer outcomes。
@@ -391,3 +405,4 @@ Replay job 解码原始消息后先执行 execution scope / tenant / event filte
 18. security terminal failure 进入 `OES_SECURITY_EVENT_DLQ` 后相关 scope 仍 fail closed；获批 `SAFE_REDELIVERY` 只在 `OES_SECURITY_EVENTS` 使用 exact run durable，成功提交本地事务后才能关闭 gap。
 19. Auth outbox pending/quarantine/relay failure 与 security consumer lag/freshness 同时进入端到端告警；consumer broker catch-up 不得被报告为 Auth producer freshness 证明。
 20. checkpoint 落后于 security stream 最早 retained sequence 时，transport 返回不可证明完整恢复的 fail-closed outcome；不得自动清空 gap、伪造 snapshot 或恢复 readiness。
+21. `auth.execution-token.revoked` fixture 缺失 CloudEvents aggregate attributes 时按冻结 registration 合法；任一 publisher/adapter 从 selector 补造 `subject / oesaggregatetype / oesaggregateid` 时必须 fail closed。

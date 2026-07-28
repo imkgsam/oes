@@ -1,6 +1,6 @@
 # OES Event Catalog Contract
 
-更新时间：2026-07-26
+更新时间：2026-07-28
 
 本文冻结 OES 第一版文档化 Event Catalog / Event Contract 协作机制。它不是 broker 选型、schema registry、outbox 实现或消息中间件运行手册。
 
@@ -43,9 +43,11 @@ Event Catalog 不用于：
 
 - [catalog.md](./catalog.md)：全局事件索引。
 - [platform-transport.md](./platform-transport.md)：公共事件的 outbox / broker / inbox 黑盒传输契约，不定义业务 payload。
-- `<service-name>.md`：单个 owner service 的事件契约，例如 [collaboration-service.md](./collaboration-service.md)。
+- `<service-name>.md`：默认承载单个 owner service 的事件契约，例如 [collaboration-service.md](./collaboration-service.md)。
 
 每个 owner service 只能维护自己拥有的事件契约。其他服务、feature packet、design workspace 或 collaboration 文档可以引用这些契约，但不得重新定义同一事件的语义、payload 或版本规则。
+
+当 owner 已在自己的唯一服务 contract 中冻结事件语义，且跨 capability path ownership 不允许 Event Catalog 复制 payload 时，本目录可以建立只含 catalog identity、transport mapping 与 owner truth link 的 registration 文档。例如 [auth-service.md](./auth-service.md) 只登记安全事件接入，并直接引用 Auth-owned ExecutionToken contract；该 registration 不是第二份业务语义真相。
 
 ### 3.1 Common 代码契约
 
@@ -60,11 +62,12 @@ src/common/src/contracts/<service_snake_case>/events.ts
 ```text
 src/common/src/contracts/collaboration_service/events.ts
 src/common/src/contracts/asset_service/events.ts
+src/common/src/contracts/auth_service/events.ts
 ```
 
 该文件只定义本服务公共 event type/version/owner 常量、`data` payload TypeScript 类型、通用 `OesCloudEvent<TData>` 组合类型和运行时验证 descriptor，并由同目录 `index.ts` 导出。producer 与 consumer 必须从同一份 common contract 引用；不得各自复制字符串或 payload interface，也不得把 owner 的内部 domain type 暴露为公共 contract。
 
-本目录 Markdown owner contract 是业务语义真相；common `events.ts` 是冻结契约的编译期实现映射，不能先于文档定义新语义。第一版不要求独立 Schema Registry、平行 JSON Schema 目录或 AsyncAPI codegen；未来生成物不得成为第二份业务语义真相。
+owner semantic contract 是业务语义真相：通常位于本目录；采用 registration-by-reference 时则以 registration 明确链接的 owner service contract 为准。common `events.ts` 是冻结契约的编译期实现映射，不能先于文档定义新语义。第一版不要求独立 Schema Registry、平行 JSON Schema 目录或 AsyncAPI codegen；未来生成物不得成为第二份业务语义真相。
 
 ## 4. 事件状态
 
@@ -78,6 +81,19 @@ src/common/src/contracts/asset_service/events.ts
 | `SUPERSEDED`               | 已被替代事件覆盖，不再新增订阅。           | 否                                  |
 
 NotificationRule 只能引用 `FROZEN_SUBSCRIBABLE` 且 `notificationConsumable=true` 的事件。
+
+### 4.1 Transport Profile
+
+每个 `FROZEN_SUBSCRIBABLE` 事件还必须登记一个 transport profile：
+
+| Profile             | Semantics                                                                                                               |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `BUSINESS`          | 普通 tenant-only 公共事实；进入 `OES_BUSINESS_EVENTS`。                                                                 |
+| `SECURITY_CRITICAL` | 仅用于通过平台适用门禁的紧急安全事实；进入隔离的 security Stream/DLQ，并强制 execution scope、精确 ACL 与 fail-closed。 |
+
+transport profile 不是业务 event type 或 `eventVersion` 的组成部分，publisher 不得在运行时切换。profile、Stream 或 scope compatibility 的变更必须先更新 Event-owned architecture / transport contract 与 Catalog；业务 payload 仍只由 owner contract 决定。
+
+Catalog 只登记已由 transport contract 决定的 profile，不自行选择 broker、Stream、DLQ 或 retry 技术。
 
 ## 5. 命名规范
 
@@ -104,27 +120,30 @@ NotificationRule 只能引用 `FROZEN_SUBSCRIBABLE` 且 `notificationConsumable=
 
 所有公共可订阅事件采用 CloudEvents `1.0` Structured JSON。Event Catalog 使用 OES 业务语义名称，wire contract 以固定映射表达：
 
-| OES 业务语义         | CloudEvents / OES extension | 必填 | 说明                                          |
-| -------------------- | --------------------------- | ---- | --------------------------------------------- |
-| CloudEvents 标准版本 | `specversion`               | 是   | 固定为 `1.0`，不是业务事件版本。              |
-| `eventId`            | `id`                        | 是   | 全局唯一事件 ID。                             |
-| `eventType`          | `type`                      | 是   | 公共 dot-case event type。                    |
-| `eventVersion`       | `oeseventversion`           | 是   | OES 业务事件版本，初始为 `1`。                |
-| `ownerService`       | `source`                    | 是   | `urn:oes:service:<owner-service>`。           |
-| `occurredAt`         | `time`                      | 是   | owner service 确认事实成立的时间。            |
-| schema identity      | `dataschema`                | 是   | `urn:oes:event:<eventType>:v<eventVersion>`。 |
-| `tenantId`           | `oestenantid`               | 是   | 显式租户边界。                                |
-| `orgId`              | `oesorgid`                  | 否   | 场景适用时携带组织边界。                      |
-| `aggregateType`      | `oesaggregatetype`          | 是   | 事件所属对象类型。                            |
-| `aggregateId`        | `subject / oesaggregateid`  | 是   | 两者都映射到稳定 aggregate ID，必须一致。     |
-| `actorAccountId`     | `oesactoraccountid`         | 否   | 只用于归因，不是下游授权凭证。                |
-| `traceId`            | `oestraceid`                | 是   | OES 链路关联 ID。                             |
-| `correlationId`      | `oescorrelationid`          | 否   | 跨消息/流程关联 ID。                          |
-| `causationId`        | `oescausationid`            | 否   | 触发该事件的 command、event 或 request ID。   |
-| `auditRef`           | `oesauditref`               | 否   | owner service 本地审计引用。                  |
-| `payload`            | `data`                      | 是   | 事件业务载荷。                                |
+| OES 业务语义         | CloudEvents / OES extension | 必填 | 说明                                                 |
+| -------------------- | --------------------------- | ---- | ---------------------------------------------------- |
+| CloudEvents 标准版本 | `specversion`               | 是   | 固定为 `1.0`，不是业务事件版本。                     |
+| `eventId`            | `id`                        | 是   | 全局唯一事件 ID。                                    |
+| `eventType`          | `type`                      | 是   | 公共 dot-case event type。                           |
+| `eventVersion`       | `oeseventversion`           | 是   | OES 业务事件版本，初始为 `1`。                       |
+| `ownerService`       | `source`                    | 是   | `urn:oes:service:<owner-service>`。                  |
+| `occurredAt`         | `time`                      | 是   | owner service 确认事实成立的时间。                   |
+| schema identity      | `dataschema`                | 是   | `urn:oes:event:<eventType>:v<eventVersion>`。        |
+| `executionScope`     | `oesexecutionscope`         | 条件 | `SECURITY_CRITICAL` 必填；只允许 SYSTEM/TENANT。     |
+| `tenantId`           | `oestenantid`               | 条件 | 普通/TENANT 必填；SYSTEM security fact 必须缺失。    |
+| `orgId`              | `oesorgid`                  | 否   | 场景适用时携带组织边界。                             |
+| `aggregateType`      | `oesaggregatetype`          | 条件 | owner contract 声明公共 aggregate 时必填。           |
+| `aggregateId`        | `subject / oesaggregateid`  | 条件 | owner contract 声明公共 aggregate 时两者必填且一致。 |
+| `actorAccountId`     | `oesactoraccountid`         | 否   | 只用于归因，不是下游授权凭证。                       |
+| `traceId`            | `oestraceid`                | 是   | OES 链路关联 ID。                                    |
+| `correlationId`      | `oescorrelationid`          | 否   | 跨消息/流程关联 ID。                                 |
+| `causationId`        | `oescausationid`            | 否   | 触发该事件的 command、event 或 request ID。          |
+| `auditRef`           | `oesauditref`               | 否   | owner service 本地审计引用。                         |
+| `payload`            | `data`                      | 是   | 事件业务载荷。                                       |
 
 CloudEvents extension attribute 使用小写字母和数字；common codec 可以为 TypeScript 应用提供 camelCase 语义别名。准确 Structured JSON 与 NATS mapping 以 [platform-transport.md](./platform-transport.md) 为准。
+
+普通事件继续使用真实 tenant 与稳定 aggregate。security-critical contract 只有在 Catalog 显式登记后才能使用 `oesexecutionscope`；若 owner semantic contract 没有声明公共 aggregate，Event 平台不得从敏感 payload/selector 推导或补造 `subject / oesaggregatetype / oesaggregateid`。
 
 ## 7. Payload 记录方式
 
@@ -206,13 +225,14 @@ NotificationRule 额外要求：
 
 被替代事件不得继续扩展 payload 或新增消费者。
 
-## 12. 第一批冻结范围
+## 12. 当前冻结范围
 
-当前冻结 `collaboration-service` Task P1 中 Notification P1 需要消费的三个事件，以及 Site Media availability 供 `site-service` 消费的一个事件：
+当前冻结 `collaboration-service` Task P1 中 Notification P1 需要消费的三个事件、Site Media availability 供 `site-service` 消费的一个事件，以及 Auth-owned 紧急 ExecutionToken 撤销事实：
 
 - `collaboration.task.assigned`
 - `collaboration.task.completed`
 - `collaboration.task.cancelled`
 - `asset.site-media.availability.changed`
+- `auth.execution-token.revoked`
 
-其他服务事件、terminal device 事件、MES outbox 事件、Sales / Procurement / Finance / WMS deferred candidate events 均不在本次冻结范围内。
+除上述 Auth security fact 外，其他 auth / identity / permission 事件、terminal device 事件、MES outbox 事件、Sales / Procurement / Finance / WMS deferred candidate events 均不在当前冻结范围内。
