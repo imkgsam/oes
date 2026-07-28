@@ -120,7 +120,7 @@ handoff 使用最小格式，必须包含：
 
 Parent 派发 child 后可以进入稳定 `WAITING_FOR_CHILD` 并结束 turn，不持续占用会话。Global Command registry 只保存 capability state、跨能力依赖、candidate/main SHA、cleanup state 与 A/C cursor；子任务详细 registry 由 A/C 独占。多个 terminal 同时 ready 时一次只处理一个，其余保留在来源 terminal。
 
-项目禁止 per-command watchdog。只允许一个附着于 Global Command 的轻量状态检查器：仅在存在运行中 capability 时低频读取 thread status/revision，状态变化时只唤醒直接 parent；不得读取 terminal 正文、裁定 gate、创建任务、修改 Git 或形成 Inbox。用户可以要求立即检查；所有 capability 稳定后检查器自动停用。
+项目禁止 per-command watchdog。只允许一个附着于 Global Command 的轻量状态检查器。GC runtime registry 对每个 capability 至少保存 `commandThreadId`、`currentObservedThreadId`、`lastObservedRevision` 和 `lastNotifiedApprovalRevision`；检查器只读取当前 observed route 的 status/revision，变化时只唤醒注册的直接 parent，不读取 terminal 正文、不裁定 gate、不创建任务、不修改 Git，也不形成 Inbox。A/C 报告 `WAITING_FOR_CHILD` 时由 GC 登记 child；checker 唤醒 A/C 后观察目标切回 A/C，GC 消费 capability terminal 后再更新或清空 route。禁止无路由地轮询或唤醒全部 Command；同一审批 revision 只通知一次，所有 capability 稳定后检查器自动停用。
 
 Capability 交付并 push main 后，A/C 自动 archive 已消费完成的 I/R/V/X 并把详细 registry 压缩为 cleanup manifest；Git branch/worktree 仍等待用户批准后才删除。清理完成后 GC 只保留 capability、main SHA、验证与关闭时间的不可变摘要。
 

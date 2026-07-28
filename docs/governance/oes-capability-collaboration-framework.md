@@ -59,6 +59,7 @@ Global Command 只登记 A/C：
 - candidate/main SHA
 - cleanup state
 - A/C `lastConsumedCursor`
+- checker route：`commandThreadId`、`currentObservedThreadId`、`lastObservedRevision`、`lastNotifiedApprovalRevision`
 
 A/C 只登记自己的直接子任务：
 
@@ -90,12 +91,14 @@ v2 删除所有 per-command watchdog。整个项目只允许一个附着于 Glob
 
 - 只在至少一个 capability 存在运行中 child 时启用，默认每 5 分钟检查一次；
 - 用户说“立即跟进”时立即执行一次；
-- 只读取 thread status、revision 和 registry parent 映射，不读取 terminal 正文；
+- 只读取 registry 中非空 `currentObservedThreadId` 的 thread status/revision，不读取 terminal 正文；
 - child 完成、阻塞或等待审批时，只唤醒它的直接 A/C；
 - A/C 产生 capability-level terminal 时，只唤醒 GC；
 - 对同一审批 revision 最多通知用户一次，然后等待状态变化；
 - 所有 capability 都进入稳定状态后自动停用；
 - 不创建任务、不裁定 gate、不修改 Git、不承担 Inbox 或业务状态。
+
+路由状态只允许保存 `commandThreadId`、`currentObservedThreadId`、`lastObservedRevision` 和 `lastNotifiedApprovalRevision` 等调度元数据，禁止复制 child handoff 或结果正文。A/C 返回 `WAITING_FOR_CHILD` 时必须带回当前 child thread ID，由 GC 写入 `currentObservedThreadId`；checker 观察到变化并唤醒 A/C 后，将观察目标切回该 `commandThreadId`，等待 A/C 的 capability-level terminal；GC 消费后若无运行中 child 则清空该 route。禁止每五分钟无差别唤醒全部 A/C。
 
 状态检查器不是独立会话。它只是触发已有 parent 恢复 Pull。
 

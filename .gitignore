@@ -2,7 +2,7 @@
 /dist/
 src/services/**/dist/
 src/site-runtime/**/dist/
-/node_modules
+node_modules/
 /build
 */dict/*
 tsconfig.tsbuildinfo

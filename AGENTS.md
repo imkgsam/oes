@@ -322,7 +322,7 @@ Global Command Thread 只负责项目级规划、任务调度、依赖编排、�
 - 框架正式任务必须由 Capability Command 分配规范序号，创建后显式设置并读回确认 UI 标题；错误标题、父子关系或 Git 工作面不得进入 active。
 - 正式线程通信采用注册表驱动的单消费者 Pull：子线程只在自身 terminal 留下 handoff，注册 parent 通过 wait/read 主动拉取并按 cursor 串行消费；禁止自动线程向 `ACTIVE` target 推送消息。
 - Parent 派发 child 后可以进入稳定 `WAITING_FOR_CHILD` 并结束 turn，不得用持续 wait 循环占用会话。恢复时先执行一次即时状态检查，按 `lastConsumedCursor` 只消费 ready terminal 一次；多个 ready terminal 留在来源线程串行处理。
-- 禁止为每个 Command 建立 watchdog。项目只允许一个附着于 Global Command 的轻量状态检查器：仅在存在运行中 capability 时低频读取 thread status/revision，并只唤醒发生状态变化任务的直接 parent；不得读取 terminal 正文、裁定 gate、创建任务、修改 Git 或充当 Inbox。用户可以要求立即检查；所有 capability 稳定后检查器自动停用。
+- 禁止为每个 Command 建立 watchdog。项目只允许一个附着于 Global Command 的轻量状态检查器。GC runtime registry 对每个 capability 至少记录 `commandThreadId`、`currentObservedThreadId`、`lastObservedRevision`、`lastNotifiedApprovalRevision`；检查器只读取非空 `currentObservedThreadId` 的 status/revision，状态变化时只唤醒其注册的直接 parent，禁止无路由地轮询或唤醒全部 Command。它不得读取 terminal 正文、裁定 gate、创建任务、修改 Git 或充当 Inbox；同一审批 revision 只提醒一次。用户可以要求立即检查；所有 capability 稳定后清空 observed route 并停用检查器。
 - Global Command registry 只保存 capability 级状态；Capability Command registry 只保存直接 child。完成 child 的详细 registry 在 capability 交付后压缩为 cleanup manifest，不复制到 GC。
 - Parent 只能向 `IDLE` child 下发或恢复任务；peer-to-peer 控制消息返回 `ROUTING_VIOLATION`。用户只有明确要求停止、切换、覆盖或优先处理时才抢占当前工作。
 - 注册 parent 仅可因代码/数据破坏、敏感信息泄露、确认的共享文件并发写或未经授权的破坏性操作，对自己的 child 发出不夹带新任务的 `STOP_ONLY`；跨 capability 不得直接停止。
