@@ -70,7 +70,7 @@ export function validateSafeRedeliveryRequest(request: SafeRedeliveryRequest): v
 /** Limits replay to approved tenant and event filters before the consumer's normal typed handler runs. */
 function matchesReplayFilter(event: OesCloudEvent, request: SafeRedeliveryRequest): boolean {
   const filter = request.eventFilter
-  return request.tenantScope.includes(event.oestenantid)
+  return event.oestenantid !== undefined && request.tenantScope.includes(event.oestenantid)
     && (!filter.eventTypes?.length || filter.eventTypes.includes(event.type))
     && (!filter.eventIds?.length || filter.eventIds.includes(event.id))
 }
