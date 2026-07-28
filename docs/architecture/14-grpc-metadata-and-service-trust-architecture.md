@@ -198,6 +198,16 @@ agent 的 production backend 固定为 PKCS#11-compatible HSM or KMS gateway，�
 
 Auth 与 agent 的 endpoint 是 deployment-configured `AUTH_EXECUTION_SIGNER_SOCKET_PATH` Unix socket，必须有 pod-local mount、least-privilege filesystem ownership/permissions 与 peer authentication；不允许 TCP listener、service DNS、任意 endpoint URL 或 request-supplied socket path。socket protocol 固定为 newline-delimited JSON-RPC 2.0：`GetActiveKey`、`ListPublishedKeys` 和 `SignEs256` 三个 method；`SignEs256` 只接收 published `kid` 与 base64url JWS signing input，返回 base64url fixed-width JOSE `r || s` signature。Auth readiness 同时要求 socket agent preflight、public-key timeline 与 sign/verify challenge 成功。agent 缺失、socket identity / permission 不符、PKCS#11 backend 不可用或 key reference 不匹配时保持 fail closed。
 
+### 5.8 DG-1 PKCS#11 provider binding and local protected integration
+
+signing-key reference 的唯一编码是 RFC 7512 PKCS#11 URI。每个 deployment-configured reference 必须固定 token serial、private-key `CKA_ID`（`id`）和 `type=private` object class；可携带 canonical token / object selector 以消除歧义，但不能由 Auth request、`kid` 或 runtime discovery 改写。agent 以相同 token serial 与 `CKA_ID` 定位对应 P-256 public-key object；private key 必须是 non-extractable。Auth 只把这一已配置的 opaque reference 交给其 client binding，永不获得 private material、slot/session handle 或任何第二个 key selector。
+
+Deployment/SRE 在 `docker/grpc-trust/execution-token-signer/config/**` 拥有只读 rotation manifest，并通过 `EXECUTION_SIGNER_ROTATION_MANIFEST_PATH` 交给 agent。每条记录以 canonical PKCS#11 URI 和 expected `kid` 绑定一个 key，并以 RFC 3339 UTC timestamps 表达 `publishNotBefore`、`signingNotBefore`、`signingNotAfter` 与 `retireAfter`。agent 必须从 HSM public-key object 导出 ES256 P-256 JWK，按 RFC 7638 SHA-256 JWK thumbprint 计算 `kid` 并与 manifest 交叉验证；这使 `kid` 永不复用，retired key 也不得重新出现。任一时刻恰有一个 key 满足 `signingNotBefore <= now < signingNotAfter`；所有满足 `publishNotBefore <= now < retireAfter` 的 key 构成 JWKS active/overlap set。`retireAfter` 必须不早于 `signingNotAfter + 300s maximum Token TTL + 60s clock skew`。manifest 与 HSM key/JWK/kid/timeline 不一致、零或多个 active key 都是 readiness failure；agent 只通过既有三种 RPC 返回已验证的 public JWK 和 rotation facts。
+
+backend authentication 默认由 Auth/signer-agent workload identity 完成。只有 backend 明确需要额外认证时，deployment 才提供仅 agent 可读的 opaque credential reference；agent 通过 deployment secret broker 在自身边界解析它，而不是将 PIN、client secret 或 private key 放入 Auth、环境变量或普通 config。agent 只对 selected token/slot 以 `CKU_USER` 建立 time-bounded session lease，必须在到期前刷新；刷新或 login 失败时必须清零凭据缓冲、logout、close session 并拒绝签名。日志、Auth application/domain、DI value 与 RPC response 均不得获得 PIN、resolved credential、raw PKCS#11 session handle 或可选 key reference。
+
+local integration harness 固定为 `docker/grpc-trust/execution-token-signer/local/softhsm2/**` 的 SoftHSM2 PKCS#11-compatible asset，而不是 software signer fallback。它在 token 内生成 sensitive、non-extractable P-256 test key；token database 和 PIN 只以 permission-restricted secret file 挂载给 signer-agent，Auth 不读取 PIN，且不以 private-key environment variable 传递。集成测试必须运行实际 UDS agent 和 SoftHSM2，覆盖 sign/verify、active/overlap rotation、private-key export refusal、manifest/key mismatch、credential-session lease failure 以及 agent/HSM unavailable 时的 fail-closed 行为。
+
 ## 6. 三种 RPC authorization mode
 
 每个 gRPC RPC 必须在方法旁显式声明且只能声明一种：
