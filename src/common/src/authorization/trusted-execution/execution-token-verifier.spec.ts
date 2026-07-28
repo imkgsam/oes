@@ -1,196 +1,276 @@
-import { generateKeyPairSync, createHash, createSign } from 'node:crypto'
+import { generateKeyPairSync, sign } from 'node:crypto'
 import { CertificateBoundExecutionTokenCache } from './certificate-bound-execution-token-cache'
 import { ExecutionTokenJwksCache } from './execution-token-jwks-cache'
 import { ExecutionTokenVerifier } from './execution-token-verifier'
-import { StaticTrustedExecutionRegistry } from './trusted-execution-registry'
+import { TrustedExecutionRegistry } from './trusted-execution-registry'
 
 const ISSUER = 'https://auth.local.oes.example'
-const AUDIENCE = 'urn:oes:service:inventory-service'
-const SPIFFE_ID = 'spiffe://local.oes.example/workload/inventory-caller'
-const CERTIFICATE_DER = Buffer.from('current-workload-leaf-certificate')
-const EXECUTION = {
-  subject: 'machine-principal-1',
-  principalType: 'MACHINE',
-  tenantId: 'tenant-1'
+const AUDIENCE = 'urn:oes:service:asset-service'
+const SPIFFE_ID = 'spiffe://local.oes/ns/oes/sa/site-service'
+const THUMBPRINT = 'n4bQgYhMfWWaL-qgxVrQFaO_Tc3T6Wf6Qpq5bKz7g8A'
+const NOW_SECONDS = 1_800_000_000
+
+const signingKeys = generateKeyPairSync('ec', { namedCurve: 'P-256' })
+const publicJwk = signingKeys.publicKey.export({ format: 'jwk' })
+const DEFAULT_CLAIMS = {
+  iss: ISSUER,
+  aud: AUDIENCE,
+  sub: 'machine-123',
+  principal_type: 'MACHINE',
+  client_id: SPIFFE_ID,
+  tenant_id: 'tenant-123',
+  scope: 'asset.internal.site-media.resolve',
+  jti: 'token-123',
+  iat: NOW_SECONDS - 30,
+  nbf: NOW_SECONDS - 30,
+  exp: NOW_SECONDS + 240,
+  cnf: { 'x5t#S256': THUMBPRINT }
 } as const
 
-/** Signs compact ES256 fixtures using the same IEEE-P1363 representation required by JWS. */
-function signExecutionToken(
-  privateKey: ReturnType<typeof generateKeyPairSync>['privateKey'],
-  kid: string,
-  overrides: Record<string, unknown> = {},
-  headerOverrides: Record<string, unknown> = {}
+/** Creates a compact ES256 JWS for exercising the verifier's public contract. */
+function createToken(
+  overrides: {
+    readonly header?: Record<string, unknown>
+    readonly claims?: Record<string, unknown>
+    readonly rawClaimsJson?: string
+  } = {}
 ): string {
-  const encodedHeader = Buffer.from(
-    JSON.stringify({ alg: 'ES256', typ: 'at+jwt', kid, ...headerOverrides })
-  ).toString('base64url')
-  const encodedPayload = Buffer.from(
-    JSON.stringify({
-      iss: ISSUER,
-      aud: AUDIENCE,
-      sub: 'machine-principal-1',
-      principal_type: 'MACHINE',
-      client_id: SPIFFE_ID,
-      tenant_id: 'tenant-1',
-      scope: 'inventory.read',
-      jti: 'token-1',
-      iat: 1_700_000_000,
-      nbf: 1_700_000_000,
-      exp: 1_700_000_300,
-      cnf: { 'x5t#S256': createHash('sha256').update(CERTIFICATE_DER).digest('base64url') },
-      ...overrides
-    })
-  ).toString('base64url')
-  const signingInput = `${encodedHeader}.${encodedPayload}`
-  const signer = createSign('SHA256')
-  signer.update(signingInput)
-  signer.end()
-  const signature = signer
-    .sign({ key: privateKey, dsaEncoding: 'ieee-p1363' })
-    .toString('base64url')
+  const header = {
+    alg: 'ES256',
+    typ: 'at+jwt',
+    kid: 'local-es256-2027-01',
+    ...overrides.header
+  }
+  const claims = {
+    ...DEFAULT_CLAIMS,
+    ...overrides.claims
+  }
+  const encodedHeader = Buffer.from(JSON.stringify(header)).toString('base64url')
+  const encodedClaims = Buffer.from(overrides.rawClaimsJson ?? JSON.stringify(claims)).toString(
+    'base64url'
+  )
+  const signingInput = `${encodedHeader}.${encodedClaims}`
+  const signature = sign('sha256', Buffer.from(signingInput), {
+    key: signingKeys.privateKey,
+    dsaEncoding: 'ieee-p1363'
+  }).toString('base64url')
+
   return `${signingInput}.${signature}`
 }
 
-/** Exercises the frozen ES256-only verification and certificate-bound process-local cache behavior. */
-describe('ExecutionTokenVerifier', () => {
-  const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' })
-  const jwk = publicKey.export({ format: 'jwk' })
-  const registry = new StaticTrustedExecutionRegistry({
+/** Builds the immutable deployment registry used by verifier tests. */
+function createRegistry(): TrustedExecutionRegistry {
+  return new TrustedExecutionRegistry({
     issuer: ISSUER,
-    audiences: { 'inventory-service': AUDIENCE },
-    permittedSpiffeIds: [SPIFFE_ID]
+    audiences: [AUDIENCE],
+    workloadIdentities: [SPIFFE_ID]
   })
+}
 
-  it('accepts only a valid ES256 token bound to the exact issuer, audience and workload certificate', async () => {
-    const provider = {
-      fetch: jest.fn().mockResolvedValue({
-        issuer: ISSUER,
-        keys: [{ ...jwk, kid: 'key-1', alg: 'ES256', use: 'sig' }],
-        maxAgeSeconds: 300
-      })
-    }
-    const verifier = new ExecutionTokenVerifier(
-      registry,
-      new ExecutionTokenJwksCache(provider),
-      () => 1_700_000_100_000
-    )
+/** Builds a bounded JWKS cache backed by one configured loader. */
+function createJwksCache(
+  load = jest.fn(async () => ({
+    keys: [{ ...publicJwk, kid: 'local-es256-2027-01', alg: 'ES256', use: 'sig' }]
+  }))
+): ExecutionTokenJwksCache {
+  return new ExecutionTokenJwksCache({ load, maxAgeMs: 300_000, now: () => NOW_SECONDS * 1000 })
+}
 
-    await expect(
-      verifier.verify(
-        signExecutionToken(privateKey, 'key-1'),
-        {
-          spiffeId: SPIFFE_ID,
-          certificateDer: CERTIFICATE_DER
-        },
-        'inventory-service'
-      )
-    ).resolves.toMatchObject({ audience: AUDIENCE, subject: 'machine-principal-1' })
-    expect(provider.fetch).toHaveBeenCalledTimes(1)
-  })
+/** Exercises strict local ExecutionToken verification and its reusable supporting primitives. */
+describe('trusted execution token runtime', () => {
+  it('verifies a strict ES256 at+jwt against exact registry and transport identity bindings', async () => {
+    const verifier = new ExecutionTokenVerifier({
+      registry: createRegistry(),
+      jwksCache: createJwksCache(),
+      now: () => NOW_SECONDS
+    })
 
-  it('fails closed before JWKS discovery for unsupported JOSE headers and rejects cross-certificate replay', async () => {
-    const provider = { fetch: jest.fn() }
-    const verifier = new ExecutionTokenVerifier(
-      registry,
-      new ExecutionTokenJwksCache(provider),
-      () => 1_700_000_100_000
-    )
+    const verified = await verifier.verify({
+      token: createToken(),
+      targetAudience: AUDIENCE,
+      workloadIdentity: { spiffeId: SPIFFE_ID, certificateThumbprint: THUMBPRINT }
+    })
 
-    await expect(
-      verifier.verify(
-        signExecutionToken(privateKey, 'key-1', {}, { jku: 'https://attacker.invalid/keys' }),
-        {
-          spiffeId: SPIFFE_ID,
-          certificateDer: CERTIFICATE_DER
-        },
-        'inventory-service'
-      )
-    ).rejects.toThrow('unsupported JOSE header')
-    expect(provider.fetch).not.toHaveBeenCalled()
-
-    await expect(
-      verifier.verify(
-        signExecutionToken(privateKey, 'key-1', {}, { kid: 7 }),
-        {
-          spiffeId: SPIFFE_ID,
-          certificateDer: CERTIFICATE_DER
-        },
-        'inventory-service'
-      )
-    ).rejects.toThrow('unsupported ExecutionToken header')
-    expect(provider.fetch).not.toHaveBeenCalled()
-
-    provider.fetch.mockResolvedValue({
+    expect(verified).toMatchObject({
       issuer: ISSUER,
-      keys: [{ ...jwk, kid: 'key-1', alg: 'ES256', use: 'sig' }],
-      maxAgeSeconds: 300
+      audience: AUDIENCE,
+      subject: 'machine-123',
+      principalType: 'MACHINE',
+      clientId: SPIFFE_ID,
+      certificateThumbprint: THUMBPRINT,
+      permissionCodes: ['asset.internal.site-media.resolve']
     })
-    await expect(
-      verifier.verify(
-        signExecutionToken(privateKey, 'key-1'),
-        {
-          spiffeId: SPIFFE_ID,
-          certificateDer: Buffer.from('different-workload-leaf-certificate')
-        },
-        'inventory-service'
-      )
-    ).rejects.toThrow('certificate binding')
+    expect(Object.isFrozen(verified)).toBe(true)
+    expect(Object.isFrozen(verified.permissionCodes)).toBe(true)
   })
 
-  it('performs one controlled refresh for an unknown kid and never uses a token-supplied key source', async () => {
-    const provider = {
-      fetch: jest
-        .fn()
-        .mockResolvedValueOnce({
-          issuer: ISSUER,
-          keys: [{ ...jwk, kid: 'old-key', alg: 'ES256', use: 'sig' }],
-          maxAgeSeconds: 300
-        })
-        .mockResolvedValueOnce({
-          issuer: ISSUER,
-          keys: [{ ...jwk, kid: 'new-key', alg: 'ES256', use: 'sig' }],
-          maxAgeSeconds: 300
-        })
-    }
-    const verifier = new ExecutionTokenVerifier(
-      registry,
-      new ExecutionTokenJwksCache(provider),
-      () => 1_700_000_100_000
+  it.each([
+    ['non-ES256 algorithm', { header: { alg: 'HS256' } }, 'algorithm'],
+    ['wrong token type', { header: { typ: 'JWT' } }, 'type'],
+    ['dynamic key source', { header: { jku: 'https://attacker.example/jwks' } }, 'header'],
+    ['wrong issuer', { claims: { iss: 'https://attacker.example' } }, 'issuer'],
+    ['multi audience', { claims: { aud: [AUDIENCE] } }, 'audience'],
+    ['wrong client', { claims: { client_id: 'spiffe://local.oes/ns/oes/sa/other' } }, 'client_id'],
+    ['wrong certificate', { claims: { cnf: { 'x5t#S256': 'wrong' } } }, 'certificate'],
+    ['expired token', { claims: { exp: NOW_SECONDS - 61 } }, 'expired'],
+    ['future token', { claims: { nbf: NOW_SECONDS + 61 } }, 'not active'],
+    ['overlong token', { claims: { iat: NOW_SECONDS - 30, exp: NOW_SECONDS + 271 } }, 'lifetime']
+  ])('rejects %s without a fallback', async (_name, overrides, message) => {
+    const verifier = new ExecutionTokenVerifier({
+      registry: createRegistry(),
+      jwksCache: createJwksCache(),
+      now: () => NOW_SECONDS
+    })
+
+    await expect(
+      verifier.verify({
+        token: createToken(overrides),
+        targetAudience: AUDIENCE,
+        workloadIdentity: { spiffeId: SPIFFE_ID, certificateThumbprint: THUMBPRINT }
+      })
+    ).rejects.toThrow(message)
+  })
+
+  it.each([
+    ['object', {}],
+    ['boolean', true]
+  ])('rejects a signed %s authz_version before it enters trusted context', async (_name, value) => {
+    const verifier = new ExecutionTokenVerifier({
+      registry: createRegistry(),
+      jwksCache: createJwksCache(),
+      now: () => NOW_SECONDS
+    })
+
+    await expect(
+      verifier.verify({
+        token: createToken({ claims: { authz_version: value } }),
+        targetAudience: AUDIENCE,
+        workloadIdentity: { spiffeId: SPIFFE_ID, certificateThumbprint: THUMBPRINT }
+      })
+    ).rejects.toThrow('authz_version')
+  })
+
+  it('rejects a signed numeric authz_version that parses as non-finite', async () => {
+    const verifier = new ExecutionTokenVerifier({
+      registry: createRegistry(),
+      jwksCache: createJwksCache(),
+      now: () => NOW_SECONDS
+    })
+    const rawClaimsJson = JSON.stringify({ ...DEFAULT_CLAIMS, authz_version: 0 }).replace(
+      '"authz_version":0',
+      '"authz_version":1e400'
     )
 
     await expect(
-      verifier.verify(
-        signExecutionToken(privateKey, 'new-key'),
-        {
-          spiffeId: SPIFFE_ID,
-          certificateDer: CERTIFICATE_DER
-        },
-        'inventory-service'
-      )
-    ).resolves.toMatchObject({ keyId: 'new-key' })
-    expect(provider.fetch).toHaveBeenCalledTimes(2)
+      verifier.verify({
+        token: createToken({ rawClaimsJson }),
+        targetAudience: AUDIENCE,
+        workloadIdentity: { spiffeId: SPIFFE_ID, certificateThumbprint: THUMBPRINT }
+      })
+    ).rejects.toThrow('authz_version')
   })
 
-  it('scopes cached issued tokens to the current leaf-certificate thumbprint', () => {
-    const cache = new CertificateBoundExecutionTokenCache(() => 1_700_000_100_000)
-    cache.put({
-      token: 'signed-token',
-      expiresAtUnixSeconds: 1_700_000_300,
-      audience: AUDIENCE,
-      permissionCodes: ['inventory.read'],
-      certificateDer: CERTIFICATE_DER,
-      execution: EXECUTION
+  it.each([
+    ['string', 'security-v3'],
+    ['integer', 7]
+  ])('preserves a valid %s authz_version in immutable trusted context', async (_name, value) => {
+    const verifier = new ExecutionTokenVerifier({
+      registry: createRegistry(),
+      jwksCache: createJwksCache(),
+      now: () => NOW_SECONDS
     })
 
-    expect(cache.get(AUDIENCE, ['inventory.read'], CERTIFICATE_DER, EXECUTION)).toBe('signed-token')
-    expect(
-      cache.get(AUDIENCE, ['inventory.read'], Buffer.from('rotated-leaf-certificate'), EXECUTION)
-    ).toBeUndefined()
-    expect(
-      cache.get(AUDIENCE, ['inventory.read'], CERTIFICATE_DER, {
-        ...EXECUTION,
-        subject: 'another-machine-principal'
+    const verified = await verifier.verify({
+      token: createToken({ claims: { authz_version: value } }),
+      targetAudience: AUDIENCE,
+      workloadIdentity: { spiffeId: SPIFFE_ID, certificateThumbprint: THUMBPRINT }
+    })
+
+    expect(verified.authzVersion).toBe(value)
+    expect(Object.isFrozen(verified)).toBe(true)
+  })
+
+  it('refreshes an unknown kid once and fails closed when no trusted key appears', async () => {
+    const load = jest.fn(async () => ({ keys: [] }))
+    const verifier = new ExecutionTokenVerifier({
+      registry: createRegistry(),
+      jwksCache: createJwksCache(load),
+      now: () => NOW_SECONDS
+    })
+
+    await expect(
+      verifier.verify({
+        token: createToken({ header: { kid: 'another-unknown-kid' } }),
+        targetAudience: AUDIENCE,
+        workloadIdentity: { spiffeId: SPIFFE_ID, certificateThumbprint: THUMBPRINT }
       })
+    ).rejects.toThrow('kid')
+    expect(load).toHaveBeenCalledTimes(1)
+
+    await expect(
+      verifier.verify({
+        token: createToken(),
+        targetAudience: AUDIENCE,
+        workloadIdentity: { spiffeId: SPIFFE_ID, certificateThumbprint: THUMBPRINT }
+      })
+    ).rejects.toThrow('kid')
+    expect(load).toHaveBeenCalledTimes(1)
+  })
+
+  it('rejects reuse of an observed kid for different public key material', async () => {
+    const replacementKeys = generateKeyPairSync('ec', { namedCurve: 'P-256' })
+    const replacementJwk = replacementKeys.publicKey.export({ format: 'jwk' })
+    let now = NOW_SECONDS * 1000
+    const load = jest
+      .fn()
+      .mockResolvedValueOnce({
+        keys: [{ ...publicJwk, kid: 'local-es256-2027-01', alg: 'ES256', use: 'sig' }]
+      })
+      .mockResolvedValueOnce({
+        keys: [{ ...replacementJwk, kid: 'local-es256-2027-01', alg: 'ES256', use: 'sig' }]
+      })
+    const cache = new ExecutionTokenJwksCache({ load, maxAgeMs: 300_000, now: () => now })
+
+    await expect(cache.getKey('local-es256-2027-01')).resolves.toBeDefined()
+    now += 300_001
+
+    await expect(cache.getKey('local-es256-2027-01')).rejects.toThrow('reused')
+  })
+
+  it('rejects identities and audiences that are absent from the immutable deployment registry', () => {
+    const registry = createRegistry()
+
+    expect(() => registry.assertAudience('urn:oes:service:unknown-service')).toThrow('registered')
+    expect(() => registry.assertWorkloadIdentity('spiffe://local.oes/ns/oes/sa/unknown')).toThrow(
+      'registered'
+    )
+    expect(Object.isFrozen(registry.snapshot())).toBe(true)
+  })
+
+  it('keeps exact permission and certificate bindings in a process-local token cache key', () => {
+    const cache = new CertificateBoundExecutionTokenCache({
+      now: () => NOW_SECONDS,
+      refreshMarginSeconds: 30
+    })
+    const key = {
+      subject: 'machine-123',
+      principalType: 'MACHINE' as const,
+      tenantId: 'tenant-123',
+      targetAudience: AUDIENCE,
+      permissionCodes: ['asset.write', 'asset.read'],
+      workloadIdentity: SPIFFE_ID,
+      certificateThumbprint: THUMBPRINT
+    }
+
+    cache.set(key, { accessToken: 'bound-token', expiresAt: NOW_SECONDS + 60 })
+
+    expect(cache.get({ ...key, permissionCodes: ['asset.read', 'asset.write'] })?.accessToken).toBe(
+      'bound-token'
+    )
+    expect(cache.get({ ...key, certificateThumbprint: 'rotated-certificate' })).toBeUndefined()
+    expect(
+      cache.get({ ...key, workloadIdentity: 'spiffe://local.oes/ns/oes/sa/other' })
     ).toBeUndefined()
+    expect(cache.get({ ...key, permissionCodes: ['asset.read'] })).toBeUndefined()
   })
 })

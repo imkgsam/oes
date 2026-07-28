@@ -10,7 +10,12 @@ function verifyPublicBarrels() {
   assert.equal(typeof authorization.AuthorizeBusinessRpc, 'function')
   assert.equal(typeof authorization.AuthorizeSelfServiceRpc, 'function')
   assert.equal(typeof authorization.AuthorizeInternalCall, 'function')
+  assert.equal(typeof authorization.CertificateBoundExecutionTokenCache, 'function')
+  assert.equal(typeof authorization.ExecutionTokenJwksCache, 'function')
+  assert.equal(typeof authorization.ExecutionTokenVerifier, 'function')
+  assert.equal(typeof authorization.TrustedExecutionRegistry, 'function')
   assert.equal(typeof transport.buildGrpcAuthorizationModeInventory, 'function')
+  assert.equal(typeof transport.GrpcWorkloadIdentityProvider, 'function')
 }
 
 verifyPublicBarrels()

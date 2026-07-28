@@ -1,104 +1,109 @@
 import { createPublicKey, JsonWebKey, KeyObject } from 'node:crypto'
 
-export interface ExecutionTokenJwk {
-  kty: string
-  alg: string
-  crv: string
-  use: string
-  kid: string
-  x: string
-  y: string
+/** Represents the only JWKS shape accepted from the configured issuer loader. */
+export type ExecutionTokenJwks = {
+  readonly keys: readonly JsonWebKey[]
 }
 
-export interface PublishedExecutionTokenJwks {
-  issuer: string
-  keys: readonly ExecutionTokenJwk[]
-  maxAgeSeconds: number
+/** Configures a bounded process-local cache without accepting a token-supplied key URL. */
+export type ExecutionTokenJwksCacheOptions = {
+  readonly load: () => Promise<ExecutionTokenJwks>
+  readonly maxAgeMs: number
+  readonly now?: () => number
 }
 
-export interface ExecutionTokenJwksProvider {
-  fetch(): Promise<PublishedExecutionTokenJwks>
-}
-
-interface CachedJwks {
-  expiresAtMs: number
-  keysById: ReadonlyMap<string, KeyObject>
-}
-
-/** Caches issuer-pinned ES256 public keys and bounds unknown-kid refreshes to one retry per verification. */
+/** Caches configured-issuer ES256 public keys and performs at most one unknown-kid refresh per lookup. */
 export class ExecutionTokenJwksCache {
-  private cached?: CachedJwks
+  private readonly load: () => Promise<ExecutionTokenJwks>
+  private readonly maxAgeMs: number
+  private readonly now: () => number
+  private keys = new Map<string, KeyObject>()
+  private observedKeyMaterial = new Map<string, string>()
+  private unknownKidRefreshUsed = false
+  private expiresAt = 0
+  private refreshInFlight?: Promise<void>
 
-  constructor(
-    private readonly provider: ExecutionTokenJwksProvider,
-    private readonly now: () => number = Date.now,
-    private readonly maxAgeSeconds = 300
-  ) {}
-
-  /** Returns a trusted public key, performing one bounded refresh when its kid is unknown. */
-  async getKey(kid: string, expectedIssuer: string): Promise<KeyObject | undefined> {
-    await this.ensureCurrent(expectedIssuer)
-    const cachedKey = this.cached?.keysById.get(kid)
-    if (cachedKey) {
-      return cachedKey
+  constructor(options: ExecutionTokenJwksCacheOptions) {
+    if (!Number.isFinite(options.maxAgeMs) || options.maxAgeMs <= 0 || options.maxAgeMs > 300_000) {
+      throw new Error('ExecutionToken JWKS cache maximum age must be between 1 and 300000 ms')
     }
-
-    await this.refresh(expectedIssuer)
-    return this.cached?.keysById.get(kid)
+    this.load = options.load
+    this.maxAgeMs = options.maxAgeMs
+    this.now = options.now ?? Date.now
   }
 
-  /** Reuses a still-valid issuer-bound JWKS snapshot instead of making Auth part of the RPC hot path. */
-  private async ensureCurrent(expectedIssuer: string): Promise<void> {
-    if (!this.cached || this.cached.expiresAtMs <= this.now()) {
-      await this.refresh(expectedIssuer)
+  /** Resolves one trusted key and fails closed after a single controlled refresh when its kid is unknown. */
+  async getKey(kid: string): Promise<KeyObject> {
+    if (typeof kid !== 'string' || kid.length === 0) {
+      throw new Error('ExecutionToken kid must be a non-empty string')
     }
+
+    let refreshed = false
+    if (this.expiresAt === 0 || this.now() >= this.expiresAt) {
+      await this.refresh()
+      refreshed = true
+    }
+
+    let key = this.keys.get(kid)
+    if (key === undefined && !refreshed && !this.unknownKidRefreshUsed) {
+      await this.refresh()
+      refreshed = true
+      this.unknownKidRefreshUsed = true
+      key = this.keys.get(kid)
+    }
+
+    if (key === undefined) {
+      this.unknownKidRefreshUsed = true
+      throw new Error('ExecutionToken kid is not present in the trusted JWKS')
+    }
+    return key
   }
 
-  /** Fetches and validates an entire JWKS document before atomically replacing the local snapshot. */
-  private async refresh(expectedIssuer: string): Promise<void> {
-    const document = await this.provider.fetch()
-    if (document.issuer !== expectedIssuer) {
-      throw new Error('untrusted JWKS issuer')
+  /** Atomically replaces cached keys with a validated configured-issuer JWKS. */
+  private async refresh(): Promise<void> {
+    if (this.refreshInFlight === undefined) {
+      this.refreshInFlight = this.loadAndValidate().finally(() => {
+        this.refreshInFlight = undefined
+      })
     }
-    if (
-      !Number.isInteger(document.maxAgeSeconds) ||
-      document.maxAgeSeconds <= 0 ||
-      document.maxAgeSeconds > this.maxAgeSeconds
-    ) {
-      throw new Error('invalid JWKS cache lifetime')
+    await this.refreshInFlight
+  }
+
+  /** Validates the full JWKS before publishing any of its keys to concurrent verifiers. */
+  private async loadAndValidate(): Promise<void> {
+    const jwks = await this.load()
+    if (jwks === null || !Array.isArray(jwks.keys)) {
+      throw new Error('Configured ExecutionToken JWKS loader returned an invalid key set')
     }
 
-    const keysById = new Map<string, KeyObject>()
-    for (const jwk of document.keys) {
-      if (keysById.has(jwk.kid)) {
-        throw new Error('duplicate JWKS kid')
+    const nextKeys = new Map<string, KeyObject>()
+    const nextObservedKeyMaterial = new Map(this.observedKeyMaterial)
+    for (const jwk of jwks.keys) {
+      const kid = jwk.kid
+      if (
+        typeof kid !== 'string' ||
+        kid.length === 0 ||
+        nextKeys.has(kid) ||
+        jwk.kty !== 'EC' ||
+        jwk.crv !== 'P-256' ||
+        jwk.alg !== 'ES256' ||
+        jwk.d !== undefined ||
+        (jwk.use !== undefined && jwk.use !== 'sig')
+      ) {
+        throw new Error('Configured ExecutionToken JWKS contains an untrusted or duplicate key')
       }
-      keysById.set(jwk.kid, this.toEs256PublicKey(jwk))
+      const keyMaterial = `${jwk.kty}|${jwk.crv}|${jwk.x}|${jwk.y}`
+      const observedKeyMaterial = nextObservedKeyMaterial.get(kid)
+      if (observedKeyMaterial !== undefined && observedKeyMaterial !== keyMaterial) {
+        throw new Error('Configured ExecutionToken JWKS reused a kid for different key material')
+      }
+      nextObservedKeyMaterial.set(kid, keyMaterial)
+      nextKeys.set(kid, createPublicKey({ key: jwk, format: 'jwk' }))
     }
-    this.cached = {
-      expiresAtMs: this.now() + document.maxAgeSeconds * 1_000,
-      keysById
-    }
-  }
 
-  /** Converts only fully constrained P-256 signing JWKs into Node verification keys. */
-  private toEs256PublicKey(jwk: ExecutionTokenJwk): KeyObject {
-    if (
-      jwk.kty !== 'EC' ||
-      jwk.alg !== 'ES256' ||
-      jwk.crv !== 'P-256' ||
-      jwk.use !== 'sig' ||
-      !jwk.kid ||
-      !isP256Coordinate(jwk.x) ||
-      !isP256Coordinate(jwk.y)
-    ) {
-      throw new Error('untrusted JWKS key')
-    }
-    return createPublicKey({ key: jwk as unknown as JsonWebKey, format: 'jwk' })
+    this.keys = nextKeys
+    this.observedKeyMaterial = nextObservedKeyMaterial
+    this.unknownKidRefreshUsed = false
+    this.expiresAt = this.now() + this.maxAgeMs
   }
-}
-
-/** Confirms an unpadded base64url P-256 coordinate has the required 32-byte width. */
-function isP256Coordinate(value: string): boolean {
-  return /^[A-Za-z0-9_-]+$/.test(value) && Buffer.from(value, 'base64url').length === 32
 }

@@ -1,188 +1,308 @@
-import { createHash, createVerify } from 'node:crypto'
+import { verify as verifySignature } from 'node:crypto'
 import { ExecutionTokenJwksCache } from './execution-token-jwks-cache'
 import { TrustedExecutionRegistry } from './trusted-execution-registry'
 
-export interface VerifiedWorkloadIdentity {
-  spiffeId: string
-  certificateDer: Uint8Array
+const ALLOWED_HEADER_FIELDS = new Set(['alg', 'typ', 'kid'])
+const PRINCIPAL_TYPES = new Set(['HUMAN', 'MACHINE', 'DELEGATED'])
+
+/** Represents identity evidence already established by the trusted transport adapter. */
+export type VerifiedWorkloadIdentity = {
+  readonly spiffeId: string
+  readonly certificateThumbprint: string
 }
 
-export interface VerifiedExecutionToken {
-  issuer: string
-  audience: string
-  subject: string
-  principalType: string
-  tenantId: string
-  orgId?: string
-  permissionCodes: readonly string[]
-  keyId: string
-  tokenId: string
+/** Supplies the token and the resource server's non-caller-configurable verification expectations. */
+export type VerifyExecutionTokenInput = {
+  readonly token: string
+  readonly targetAudience: string
+  readonly workloadIdentity: VerifiedWorkloadIdentity
 }
 
-type CompactJwsHeader = { alg: string; typ: string; kid: string; [key: string]: unknown }
-type ExecutionTokenPayload = Record<string, unknown>
+/** Exposes immutable verified claims without retaining the original bearer token. */
+export type VerifiedExecutionToken = {
+  readonly issuer: string
+  readonly audience: string
+  readonly subject: string
+  readonly principalType: 'HUMAN' | 'MACHINE' | 'DELEGATED'
+  readonly clientId: string
+  readonly tenantId?: string
+  readonly orgId?: string
+  readonly permissionCodes: readonly string[]
+  readonly tokenId: string
+  readonly issuedAt: number
+  readonly notBefore: number
+  readonly expiresAt: number
+  readonly certificateThumbprint: string
+  readonly actor?: unknown
+  readonly delegationId?: string
+  readonly sessionId?: string
+  readonly authzVersion?: string | number
+}
 
-/** Verifies only frozen ES256 ExecutionTokens against local JWKS and the current mTLS workload identity. */
+/** Configures strict local verification against deployment registry and cached configured-issuer keys. */
+export type ExecutionTokenVerifierOptions = {
+  readonly registry: TrustedExecutionRegistry
+  readonly jwksCache: ExecutionTokenJwksCache
+  readonly clockSkewSeconds?: number
+  readonly now?: () => number
+}
+
+/** Verifies ES256 at+jwt credentials locally and enforces exact registry, time, and workload bindings. */
 export class ExecutionTokenVerifier {
-  constructor(
-    private readonly registry: TrustedExecutionRegistry,
-    private readonly jwks: ExecutionTokenJwksCache,
-    private readonly now: () => number = Date.now,
-    private readonly clockSkewSeconds = 60
-  ) {}
+  private readonly registry: TrustedExecutionRegistry
+  private readonly jwksCache: ExecutionTokenJwksCache
+  private readonly clockSkewSeconds: number
+  private readonly now: () => number
 
-  /** Validates JOSE, signature, claims, registered audience, SPIFFE identity, and certificate thumbprint as one fail-closed operation. */
-  async verify(
-    token: string,
-    workload: VerifiedWorkloadIdentity,
-    targetService: string
-  ): Promise<VerifiedExecutionToken> {
-    const [encodedHeader, encodedPayload, encodedSignature] = splitCompactJws(token)
-    const header = parseJsonSegment<CompactJwsHeader>(encodedHeader, 'header')
-    this.assertSupportedHeader(header)
-    const payload = parseJsonSegment<ExecutionTokenPayload>(encodedPayload, 'payload')
-    const expectedAudience = this.registry.audienceForService(targetService)
-    if (!expectedAudience) {
-      throw new Error('unregistered target audience')
+  constructor(options: ExecutionTokenVerifierOptions) {
+    const clockSkewSeconds = options.clockSkewSeconds ?? 60
+    if (!Number.isInteger(clockSkewSeconds) || clockSkewSeconds < 0 || clockSkewSeconds > 60) {
+      throw new Error('ExecutionToken clock skew must be an integer between 0 and 60 seconds')
     }
-    this.assertPayload(payload, expectedAudience, workload)
-
-    const key = await this.jwks.getKey(header.kid, this.registry.issuer)
-    if (!key) {
-      throw new Error('unknown JWKS kid')
-    }
-    const verifier = createVerify('SHA256')
-    verifier.update(`${encodedHeader}.${encodedPayload}`)
-    verifier.end()
-    if (!verifier.verify({ key, dsaEncoding: 'ieee-p1363' }, decodeBase64Url(encodedSignature))) {
-      throw new Error('invalid ExecutionToken signature')
-    }
-
-    return {
-      issuer: payload.iss as string,
-      audience: payload.aud as string,
-      subject: payload.sub as string,
-      principalType: payload.principal_type as string,
-      tenantId: payload.tenant_id as string,
-      orgId: asOptionalString(payload.org_id),
-      permissionCodes: (payload.scope as string).split(' ').filter(Boolean),
-      keyId: header.kid,
-      tokenId: payload.jti as string
-    }
+    this.registry = options.registry
+    this.jwksCache = options.jwksCache
+    this.clockSkewSeconds = clockSkewSeconds
+    this.now = options.now ?? (() => Math.floor(Date.now() / 1000))
   }
 
-  /** Rejects every JOSE extension so Tokens cannot select algorithms or remote key material. */
-  private assertSupportedHeader(header: CompactJwsHeader): void {
-    const keys = Object.keys(header)
-    if (keys.some((key) => key !== 'alg' && key !== 'typ' && key !== 'kid')) {
-      throw new Error('unsupported JOSE header')
-    }
+  /** Validates one bearer token without Auth introspection or any legacy identity fallback. */
+  async verify(input: VerifyExecutionTokenInput): Promise<VerifiedExecutionToken> {
+    this.registry.assertAudience(input.targetAudience)
+    this.registry.assertWorkloadIdentity(input.workloadIdentity.spiffeId)
+    validateThumbprint(input.workloadIdentity.certificateThumbprint, 'transport certificate')
+
+    const [encodedHeader, encodedClaims, encodedSignature] = splitCompactToken(input.token)
+    const header = decodeJsonObject(encodedHeader, 'header')
+    validateProtectedHeader(header)
+    const claims = decodeJsonObject(encodedClaims, 'claims')
+    const key = await this.jwksCache.getKey(header.kid as string)
+    const signature = Buffer.from(encodedSignature, 'base64url')
     if (
-      header.alg !== 'ES256' ||
-      header.typ !== 'at+jwt' ||
-      typeof header.kid !== 'string' ||
-      !header.kid.trim()
+      signature.length !== 64 ||
+      !verifySignature(
+        'sha256',
+        Buffer.from(`${encodedHeader}.${encodedClaims}`),
+        {
+          key,
+          dsaEncoding: 'ieee-p1363'
+        },
+        signature
+      )
     ) {
-      throw new Error('unsupported ExecutionToken header')
+      throw new Error('ExecutionToken signature is invalid')
     }
+
+    return this.validateClaims(claims, input)
   }
 
-  /** Enforces exact registry, temporal, SPIFFE client_id, and x5t#S256 certificate-binding claims. */
-  private assertPayload(
-    payload: ExecutionTokenPayload,
-    expectedAudience: string,
-    workload: VerifiedWorkloadIdentity
-  ): void {
-    if (!this.registry.permitsWorkload(workload.spiffeId)) {
-      throw new Error('untrusted SPIFFE workload')
-    }
-    if (
-      payload.iss !== this.registry.issuer ||
-      typeof payload.aud !== 'string' ||
-      payload.aud !== expectedAudience ||
-      payload.client_id !== workload.spiffeId
-    ) {
-      throw new Error('ExecutionToken issuer, audience, or workload mismatch')
-    }
-    for (const requiredClaim of ['sub', 'principal_type', 'tenant_id', 'scope', 'jti']) {
-      if (
-        typeof payload[requiredClaim] !== 'string' ||
-        !(payload[requiredClaim] as string).trim()
-      ) {
-        throw new Error(`missing ExecutionToken ${requiredClaim}`)
-      }
-    }
-    this.assertTimes(payload)
-    const cnf = payload.cnf
-    if (!isCnf(cnf) || cnf['x5t#S256'] !== certificateThumbprint(workload.certificateDer)) {
-      throw new Error('ExecutionToken certificate binding mismatch')
-    }
-  }
+  /** Enforces exact registered values, time bounds, and certificate-bound workload identity claims. */
+  private validateClaims(
+    claims: Record<string, unknown>,
+    input: VerifyExecutionTokenInput
+  ): VerifiedExecutionToken {
+    const issuer = requireStringClaim(claims, 'iss')
+    this.registry.assertIssuer(issuer)
 
-  /** Bounds token validity and rejects future-issued, not-yet-valid, expired, or overly long-lived credentials. */
-  private assertTimes(payload: ExecutionTokenPayload): void {
-    const issuedAt = payload.iat
-    const notBefore = payload.nbf
-    const expiresAt = payload.exp
-    if (![issuedAt, notBefore, expiresAt].every((value) => Number.isInteger(value))) {
-      throw new Error('invalid ExecutionToken timestamps')
+    if (typeof claims.aud !== 'string' || claims.aud !== input.targetAudience) {
+      throw new Error('ExecutionToken audience must equal the exact target audience')
     }
-    const nowSeconds = Math.floor(this.now() / 1_000)
-    if (
-      (issuedAt as number) > nowSeconds + this.clockSkewSeconds ||
-      (notBefore as number) > nowSeconds + this.clockSkewSeconds ||
-      (expiresAt as number) <= nowSeconds - this.clockSkewSeconds ||
-      (expiresAt as number) - (issuedAt as number) > 300
-    ) {
-      throw new Error('ExecutionToken temporal validation failed')
+    this.registry.assertAudience(claims.aud)
+
+    const clientId = requireStringClaim(claims, 'client_id')
+    if (clientId !== input.workloadIdentity.spiffeId) {
+      throw new Error('ExecutionToken client_id does not match the verified workload identity')
     }
+    this.registry.assertWorkloadIdentity(clientId)
+
+    const certificateThumbprint = readCertificateThumbprint(claims.cnf)
+    if (certificateThumbprint !== input.workloadIdentity.certificateThumbprint) {
+      throw new Error('ExecutionToken certificate binding does not match the current mTLS leaf')
+    }
+
+    const issuedAt = requireIntegerClaim(claims, 'iat')
+    const notBefore = requireIntegerClaim(claims, 'nbf')
+    const expiresAt = requireIntegerClaim(claims, 'exp')
+    const now = this.now()
+    if (expiresAt <= now - this.clockSkewSeconds) {
+      throw new Error('ExecutionToken is expired')
+    }
+    if (notBefore > now + this.clockSkewSeconds || issuedAt > now + this.clockSkewSeconds) {
+      throw new Error('ExecutionToken is not active yet')
+    }
+    if (expiresAt <= issuedAt || expiresAt - issuedAt > 300) {
+      throw new Error('ExecutionToken lifetime exceeds the frozen five-minute profile')
+    }
+
+    const principalType = requireStringClaim(claims, 'principal_type')
+    if (!PRINCIPAL_TYPES.has(principalType)) {
+      throw new Error('ExecutionToken principal_type is unsupported')
+    }
+    const tenantId = optionalStringClaim(claims, 'tenant_id')
+    if (tenantId === '*') {
+      throw new Error('ExecutionToken tenant_id wildcard is forbidden')
+    }
+
+    const permissionCodes = parseScope(claims.scope)
+    const authzVersion = readOptionalAuthzVersion(claims.authz_version)
+    return Object.freeze({
+      issuer,
+      audience: claims.aud,
+      subject: requireStringClaim(claims, 'sub'),
+      principalType: principalType as VerifiedExecutionToken['principalType'],
+      clientId,
+      ...(tenantId === undefined ? {} : { tenantId }),
+      ...optionalProperty(claims, 'org_id', 'orgId'),
+      permissionCodes: Object.freeze(permissionCodes),
+      tokenId: requireStringClaim(claims, 'jti'),
+      issuedAt,
+      notBefore,
+      expiresAt,
+      certificateThumbprint,
+      ...(claims.act === undefined ? {} : { actor: deepFreezeJson(claims.act) }),
+      ...optionalProperty(claims, 'delegation_id', 'delegationId'),
+      ...optionalProperty(claims, 'session_id', 'sessionId'),
+      ...(authzVersion === undefined ? {} : { authzVersion })
+    })
   }
 }
 
-/** Computes the required base64url SHA-256 thumbprint for a verified leaf certificate. */
-export function certificateThumbprint(certificateDer: Uint8Array): string {
-  return createHash('sha256').update(certificateDer).digest('base64url')
-}
-
-/** Splits a compact JWS while rejecting detached, nested, and malformed token forms. */
-function splitCompactJws(token: string): [string, string, string] {
+/** Splits and validates compact-JWS base64url segments before parsing. */
+function splitCompactToken(token: string): [string, string, string] {
+  if (typeof token !== 'string') {
+    throw new Error('ExecutionToken must be a compact JWS string')
+  }
   const segments = token.split('.')
   if (segments.length !== 3 || segments.some((segment) => !/^[A-Za-z0-9_-]+$/.test(segment))) {
-    throw new Error('invalid compact ExecutionToken')
+    throw new Error('ExecutionToken must use compact JWS encoding')
   }
   return segments as [string, string, string]
 }
 
-/** Decodes a base64url JSON segment without accepting non-object JSON values. */
-function parseJsonSegment<T extends Record<string, unknown>>(segment: string, label: string): T {
+/** Parses one JWS JSON object while rejecting arrays, primitives, and malformed data. */
+function decodeJsonObject(encoded: string, label: string): Record<string, unknown> {
   try {
-    const value: unknown = JSON.parse(decodeBase64Url(segment).toString('utf8'))
-    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    const decoded: unknown = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8'))
+    if (decoded === null || typeof decoded !== 'object' || Array.isArray(decoded)) {
       throw new Error('not an object')
     }
-    return value as T
+    return decoded as Record<string, unknown>
   } catch {
-    throw new Error(`invalid ExecutionToken ${label}`)
+    throw new Error(`ExecutionToken ${label} is invalid`)
   }
 }
 
-/** Decodes a strict base64url segment after compact-JWS validation. */
-function decodeBase64Url(value: string): Buffer {
-  return Buffer.from(value, 'base64url')
+/** Enforces the frozen minimal JOSE header and rejects all dynamic key-source extensions. */
+function validateProtectedHeader(header: Record<string, unknown>): void {
+  if (header.alg !== 'ES256') {
+    throw new Error('ExecutionToken algorithm must be ES256')
+  }
+  if (header.typ !== 'at+jwt') {
+    throw new Error('ExecutionToken type must be at+jwt')
+  }
+  if (typeof header.kid !== 'string' || header.kid.length === 0) {
+    throw new Error('ExecutionToken kid must be a non-empty string')
+  }
+  if (Object.keys(header).some((field) => !ALLOWED_HEADER_FIELDS.has(field))) {
+    throw new Error('ExecutionToken contains an unsupported JOSE header')
+  }
 }
 
-/** Narrows cnf to the sole standard certificate-thumbprint member. */
-function isCnf(value: unknown): value is { 'x5t#S256': string } {
-  return (
-    !!value &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    Object.keys(value).length === 1 &&
-    typeof (value as Record<string, unknown>)['x5t#S256'] === 'string'
-  )
+/** Reads a mandatory non-empty string claim. */
+function requireStringClaim(claims: Record<string, unknown>, name: string): string {
+  const value = claims[name]
+  if (typeof value !== 'string' || value.length === 0) {
+    throw new Error(`ExecutionToken ${name} claim must be a non-empty string`)
+  }
+  return value
 }
 
-/** Preserves an optional, already validated string claim for the immutable execution context. */
-function asOptionalString(value: unknown): string | undefined {
-  return typeof value === 'string' && value.trim() ? value : undefined
+/** Reads an optional non-empty string claim. */
+function optionalStringClaim(claims: Record<string, unknown>, name: string): string | undefined {
+  if (claims[name] === undefined) {
+    return undefined
+  }
+  return requireStringClaim(claims, name)
+}
+
+/** Reads a mandatory integer NumericDate claim. */
+function requireIntegerClaim(claims: Record<string, unknown>, name: string): number {
+  const value = claims[name]
+  if (!Number.isInteger(value)) {
+    throw new Error(`ExecutionToken ${name} claim must be an integer NumericDate`)
+  }
+  return value as number
+}
+
+/** Reads an optional authorization security version without allowing malformed signed data into trusted context. */
+function readOptionalAuthzVersion(value: unknown): string | number | undefined {
+  if (value === undefined) {
+    return undefined
+  }
+  if (typeof value === 'string' && value.length > 0) {
+    return value
+  }
+  if (typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value)) {
+    return value
+  }
+  throw new Error('ExecutionToken authz_version claim must be a non-empty string or finite integer')
+}
+
+/** Accepts the standard cnf object only when it contains exactly one valid x5t#S256 member. */
+function readCertificateThumbprint(cnf: unknown): string {
+  if (cnf === null || typeof cnf !== 'object' || Array.isArray(cnf)) {
+    throw new Error('ExecutionToken cnf claim must contain one certificate thumbprint')
+  }
+  const entries = Object.entries(cnf)
+  if (entries.length !== 1 || entries[0]?.[0] !== 'x5t#S256') {
+    throw new Error('ExecutionToken cnf claim must contain only x5t#S256')
+  }
+  return validateThumbprint(entries[0][1], 'certificate')
+}
+
+/** Validates an unpadded base64url SHA-256 thumbprint. */
+function validateThumbprint(value: unknown, label: string): string {
+  if (typeof value !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(value)) {
+    throw new Error(`ExecutionToken ${label} thumbprint is invalid`)
+  }
+  return value
+}
+
+/** Parses a canonical space-separated permission set while rejecting duplicates and malformed spacing. */
+function parseScope(scope: unknown): string[] {
+  if (typeof scope !== 'string') {
+    throw new Error('ExecutionToken scope claim must be a string')
+  }
+  if (scope.length === 0) {
+    return []
+  }
+  const permissionCodes = scope.split(' ')
+  if (
+    permissionCodes.some((code) => code.length === 0 || code.trim() !== code) ||
+    new Set(permissionCodes).size !== permissionCodes.length ||
+    [...permissionCodes].sort().join(' ') !== scope
+  ) {
+    throw new Error('ExecutionToken scope claim must be a unique canonically sorted permission set')
+  }
+  return permissionCodes
+}
+
+/** Copies an optional string claim to its public verified-token field. */
+function optionalProperty(
+  claims: Record<string, unknown>,
+  claimName: string,
+  propertyName: string
+): Record<string, string> {
+  const value = optionalStringClaim(claims, claimName)
+  return value === undefined ? {} : { [propertyName]: value }
+}
+
+/** Recursively freezes JSON actor attribution before exposing it to downstream runtime code. */
+function deepFreezeJson(value: unknown): unknown {
+  if (value !== null && typeof value === 'object') {
+    for (const nested of Object.values(value)) {
+      deepFreezeJson(nested)
+    }
+    Object.freeze(value)
+  }
+  return value
 }

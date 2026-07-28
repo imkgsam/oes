@@ -17,3 +17,4 @@ export {
   VerifiedGrpcTlsPeer
 } from './grpc-workload-identity.provider'
 export * from './authorization-mode-inventory'
+export * from './grpc-workload-identity.provider'

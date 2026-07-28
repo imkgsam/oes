@@ -89,6 +89,7 @@
 - 租户级绑定：`scopeLevel = TENANT`，`tenantId` 必填，role 必须是同 tenant 的 `TENANT_INSTANCE`。
 - `SYSTEM_TEMPLATE` 不得绑定 principal。
 - `bindingId` 是不可变 grant identity。一次成功授予只创建一个 binding；不得通过修改既有 binding 的 principal、role、scope、tenant 或时间窗口表达另一笔授权。
+- `bindingId` 是对外可引用的授权事实标识：grant 结果和 binding 查询必须返回它，revoke 必须以它精确定位目标 binding。`accountId + roleId` 只能在 legacy AccountRole 兼容窗口内标识旧记录，绝不作为 canonical revoke 的推断或回退选择器。
 - 同一 `(principalType, principalId, roleId, scopeLevel, tenantId)` 的有效窗口不得重叠。窗口采用 `[effectiveAt, endAt)`：`effectiveAt = null` 表示无下界，`endAt` 是较早的 `expiresAt` 与 `revokedAt`，两端相等不重叠。该规则必须同时由写入事务与持久化唯一性/排他约束保护，不能只依赖先查后写。
 - `effectiveAt < expiresAt` 是有 expiry binding 的前置条件；已过期、已撤销或尚未生效的 binding 都保留历史。授权解析只消费已生效、未撤销、未过期且 role enabled 的 binding。
 - HUMAN binding 的 `principalId` 必须是与 scope / tenant 相符的已验证 `UserAccount`；MACHINE binding 的 `principalId` 必须是 Identity Service 中与 scope / tenant 相符的 active Machine Principal。Permission Service 通过受控 identity 协作校验引用，不复制其主体真相。
@@ -105,6 +106,7 @@
 
 - 先新增 target storage 并执行可重复的 id-preserving backfill；在每个切换阶段比较 binding 数、有效授权集合、access summary 与审计关联，任何不一致都停止切换。
 - 在 canonical cutover 前，`AccountRole` 仍是旧版本的唯一写入面；在 canonical cutover 后，旧版本回退前必须冻结新授权写入、从 canonical HUMAN bindings 重建兼容 projection 并完成 parity 验证。
+- legacy AccountRole mutation 只在其兼容窗口内运行；canonical `bindingId` revoke 启用后，缺少精确 binding identity 的旧 selector 不得静默映射到“当前”或“最近”授权，以免延迟重试误撤销 regrant。
 - 旧 `AccountRole` 无法表示 MACHINE binding 或同一 logical binding 的多段历史。因此 rollback window 内不得启用这两类新写入语义；一旦启用，回退只能回到已支持 `PrincipalRoleBinding` 的版本，不能伪造或丢弃授权历史。
 - 只有 rollback window 结束、所有读写方都已切至 canonical binding 且迁移审计可验证后，才可删除 legacy projection。HR、Identity、TenantOrg、BFF 或其他服务只能请求授权 grant，不能直接写 binding。
 
