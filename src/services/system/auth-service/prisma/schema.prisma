@@ -327,3 +327,29 @@ model AuditEvent {
   @@index([operatorId, occurredAt])
   @@index([resourceType, resourceId, occurredAt])
 }
+
+model ExecutionTokenRevocation {
+  selectorKind      String
+  selectorRef       String
+  revocationVersion Int
+  effectiveAt       DateTime
+  denyUntil         DateTime
+  reasonCode        String
+  auditRef          String
+  traceId           String
+  correlationId     String?
+  createdAt         DateTime @default(now())
+
+  @@id([selectorKind, selectorRef])
+}
+
+model AuthEventOutbox {
+  eventId      String   @id
+  eventType    String
+  eventVersion Int
+  payload      Json
+  occurredAt   DateTime
+  createdAt    DateTime @default(now())
+
+  @@index([eventType, occurredAt])
+}
