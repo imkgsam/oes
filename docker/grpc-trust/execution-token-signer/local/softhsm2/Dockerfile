@@ -12,7 +12,6 @@ COPY . .
 RUN go test ./...
 
 ENV HOME=/tmp \
-    GOCACHE=/tmp/go-cache \
-    AUTH_EXECUTION_PKCS11_MODULE=/usr/lib/softhsm/libsofthsm2.so
+    GOCACHE=/tmp/go-cache
 
 ENTRYPOINT ["./local/softhsm2/run-host.sh"]

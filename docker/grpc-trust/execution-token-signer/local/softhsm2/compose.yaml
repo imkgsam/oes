@@ -12,4 +12,4 @@ services:
     cap_drop:
       - ALL
     tmpfs:
-      - /tmp:mode=1777,size=256m
+      - /tmp:mode=1777,exec,size=256m

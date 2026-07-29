@@ -18,8 +18,6 @@ trap cleanup EXIT INT TERM
 # require_command makes missing host prerequisites explicit before creating token state.
 require_command() { command -v "$1" >/dev/null 2>&1 || { echo "missing host prerequisite: $1" >&2; exit 1; }; }
 require_command go
-require_command softhsm2-util
-require_command pkcs11-tool
 require_command mktemp
 require_command openssl
 
@@ -53,16 +51,14 @@ AGENT_BINARY=$WORK_DIR/execution-token-signer-agent
 HOST_CHECK_BINARY=$WORK_DIR/execution-token-signer-host-check
 (cd "$SIGNER_ROOT" && go build -o "$AGENT_BINARY" ./cmd/agent && go build -o "$HOST_CHECK_BINARY" ./cmd/host-check)
 
-softhsm2-util --init-token --free --label "$EXECUTION_SIGNER_TOKEN_LABEL" --so-pin file:"$EXECUTION_SIGNER_PIN_FILE" --pin file:"$EXECUTION_SIGNER_PIN_FILE"
-SERIAL=$(softhsm2-util --show-slots | awk '/Serial number:/ {print $3; exit}')
+SERIAL=$($HOST_CHECK_BINARY init-token --module "$AUTH_EXECUTION_PKCS11_MODULE" --pin-file "$EXECUTION_SIGNER_PIN_FILE" --label "$EXECUTION_SIGNER_TOKEN_LABEL")
 [ -n "$SERIAL" ] || { echo "unable to resolve initialized token serial" >&2; exit 1; }
-
-pkcs11-tool --module "$AUTH_EXECUTION_PKCS11_MODULE" --login --pinfile "$EXECUTION_SIGNER_PIN_FILE" --keypairgen --key-type EC:prime256v1 --id 01 --label oes-active --usage-sign --private --sensitive
-pkcs11-tool --module "$AUTH_EXECUTION_PKCS11_MODULE" --login --pinfile "$EXECUTION_SIGNER_PIN_FILE" --keypairgen --key-type EC:prime256v1 --id 02 --label oes-overlap --usage-sign --private --sensitive
 
 ACTIVE_URI="pkcs11:token=$EXECUTION_SIGNER_TOKEN_LABEL;serial=$SERIAL;id=%01;type=private"
 OVERLAP_URI="pkcs11:token=$EXECUTION_SIGNER_TOKEN_LABEL;serial=$SERIAL;id=%02;type=private"
 AUTH_EXECUTION_KMS_KEY_REF=$ACTIVE_URI; export AUTH_EXECUTION_KMS_KEY_REF
+$HOST_CHECK_BINARY generate-keypair --module "$AUTH_EXECUTION_PKCS11_MODULE" --uri "$ACTIVE_URI" --pin-file "$EXECUTION_SIGNER_PIN_FILE" --label oes-active
+$HOST_CHECK_BINARY generate-keypair --module "$AUTH_EXECUTION_PKCS11_MODULE" --uri "$OVERLAP_URI" --pin-file "$EXECUTION_SIGNER_PIN_FILE" --label oes-overlap
 ACTIVE_KID=$($HOST_CHECK_BINARY derive-kid --module "$AUTH_EXECUTION_PKCS11_MODULE" --uri "$ACTIVE_URI" --pin-file "$EXECUTION_SIGNER_PIN_FILE")
 OVERLAP_KID=$($HOST_CHECK_BINARY derive-kid --module "$AUTH_EXECUTION_PKCS11_MODULE" --uri "$OVERLAP_URI" --pin-file "$EXECUTION_SIGNER_PIN_FILE")
 $HOST_CHECK_BINARY write-manifest --output "$EXECUTION_SIGNER_ROTATION_MANIFEST_PATH" --active-uri "$ACTIVE_URI" --active-kid "$ACTIVE_KID" --overlap-uri "$OVERLAP_URI" --overlap-kid "$OVERLAP_KID"
@@ -72,7 +68,7 @@ AGENT_PID=$!
 i=0; while [ "$i" -lt 30 ] && [ ! -S "$AUTH_EXECUTION_SIGNER_SOCKET_PATH" ]; do i=$((i + 1)); sleep 1; done
 test -S "$AUTH_EXECUTION_SIGNER_SOCKET_PATH"
 $HOST_CHECK_BINARY verify-uds --socket "$AUTH_EXECUTION_SIGNER_SOCKET_PATH" --active-kid "$ACTIVE_KID"
-! pkcs11-tool --module "$AUTH_EXECUTION_PKCS11_MODULE" --login --pinfile "$EXECUTION_SIGNER_PIN_FILE" --read-object --type privkey --id 01 >/dev/null 2>&1
+$HOST_CHECK_BINARY assert-private-nonexportable --module "$AUTH_EXECUTION_PKCS11_MODULE" --uri "$ACTIVE_URI" --pin-file "$EXECUTION_SIGNER_PIN_FILE"
 
 BAD_MANIFEST=$WORK_DIR/invalid-manifest.json
 $HOST_CHECK_BINARY write-manifest --output "$BAD_MANIFEST" --active-uri "$ACTIVE_URI" --active-kid invalid-expected-kid --overlap-uri "$OVERLAP_URI" --overlap-kid "$OVERLAP_KID"

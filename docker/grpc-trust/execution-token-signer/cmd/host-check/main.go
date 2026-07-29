@@ -3,6 +3,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -26,6 +27,10 @@ func main() {
 		fatal(errors.New("host-check command required"))
 	}
 	switch os.Args[1] {
+	case "init-token":
+		fatal(runInitToken(os.Args[2:]))
+	case "generate-keypair":
+		fatal(runGenerateKeyPair(os.Args[2:]))
 	case "derive-kid":
 		fatal(runDeriveKid(os.Args[2:]))
 	case "write-manifest":
@@ -34,9 +39,80 @@ func main() {
 		fatal(runVerifyUDS(os.Args[2:]))
 	case "assert-outage":
 		fatal(runAssertOutage(os.Args[2:]))
+	case "assert-private-nonexportable":
+		fatal(runAssertPrivateNonExportable(os.Args[2:]))
 	default:
 		fatal(errors.New("host-check command forbidden"))
 	}
+}
+
+// runInitToken initializes an isolated SoftHSM token and user PIN from the restricted file without exposing either PIN to a CLI argument.
+func runInitToken(arguments []string) error {
+	flags := flag.NewFlagSet("init-token", flag.ContinueOnError)
+	flags.SetOutput(ioDiscard{})
+	modulePath := flags.String("module", "", "")
+	pinFile := flags.String("pin-file", "", "")
+	label := flags.String("label", "", "")
+	if flags.Parse(arguments) != nil || *modulePath == "" || *pinFile == "" || *label == "" {
+		return errors.New("init-token requires module, pin-file, and label")
+	}
+	pin, err := credentialFromFile(*pinFile)
+	if err != nil {
+		return err
+	}
+	defer zero(pin)
+	module := pkcs11.New(*modulePath)
+	if module == nil {
+		return errors.New("PKCS11 module unavailable")
+	}
+	defer module.Destroy()
+	if err := module.Initialize(); err != nil {
+		return err
+	}
+	defer module.Finalize()
+	slot, err := findUninitializedSlot(module)
+	if err != nil {
+		return err
+	}
+	if err := module.InitToken(slot, string(pin), *label); err != nil {
+		return err
+	}
+	session, err := module.OpenSession(slot, pkcs11.CKF_SERIAL_SESSION|pkcs11.CKF_RW_SESSION)
+	if err != nil {
+		return err
+	}
+	defer module.CloseSession(session)
+	if err := module.Login(session, pkcs11.CKU_SO, string(pin)); err != nil {
+		return err
+	}
+	defer module.Logout(session)
+	if err := module.InitPIN(session, string(pin)); err != nil {
+		return err
+	}
+	info, err := module.GetTokenInfo(slot)
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Println(strings.TrimSpace(info.SerialNumber))
+	return err
+}
+
+// runGenerateKeyPair creates one sensitive, non-extractable P-256 pair without passing the token PIN through a process argument.
+func runGenerateKeyPair(arguments []string) error {
+	flags := flag.NewFlagSet("generate-keypair", flag.ContinueOnError)
+	flags.SetOutput(ioDiscard{})
+	module := flags.String("module", "", "")
+	uri := flags.String("uri", "", "")
+	pinFile := flags.String("pin-file", "", "")
+	label := flags.String("label", "", "")
+	if flags.Parse(arguments) != nil || *module == "" || *uri == "" || *pinFile == "" || *label == "" {
+		return errors.New("generate-keypair requires module, uri, pin-file, and label")
+	}
+	return withTokenSession(*module, *uri, *pinFile, func(module *pkcs11.Ctx, session pkcs11.SessionHandle, selector manifest.Selector) error {
+		public, private := keyPairTemplates(selector.ID, *label)
+		_, _, err := module.GenerateKeyPair(session, []*pkcs11.Mechanism{pkcs11.NewMechanism(pkcs11.CKM_EC_KEY_PAIR_GEN, nil)}, public, private)
+		return err
+	})
 }
 
 // runDeriveKid derives the manifest expected kid from an actual HSM public object using the agent's shared canonical implementation.
@@ -129,52 +205,124 @@ func runAssertOutage(arguments []string) error {
 	return nil
 }
 
+// runAssertPrivateNonExportable performs a real PKCS#11 private-value access attempt and requires the object to remain sensitive and non-extractable.
+func runAssertPrivateNonExportable(arguments []string) error {
+	flags := flag.NewFlagSet("assert-private-nonexportable", flag.ContinueOnError)
+	flags.SetOutput(ioDiscard{})
+	module := flags.String("module", "", "")
+	uri := flags.String("uri", "", "")
+	pinFile := flags.String("pin-file", "", "")
+	if flags.Parse(arguments) != nil || *module == "" || *uri == "" || *pinFile == "" {
+		return errors.New("assert-private-nonexportable requires module, uri, and pin-file")
+	}
+	return withTokenSession(*module, *uri, *pinFile, func(module *pkcs11.Ctx, session pkcs11.SessionHandle, selector manifest.Selector) error {
+		key, err := findOne(module, session, pkcs11.CKO_PRIVATE_KEY, selector.ID)
+		if err != nil {
+			return err
+		}
+		attributes, err := module.GetAttributeValue(session, key, []*pkcs11.Attribute{pkcs11.NewAttribute(pkcs11.CKA_SENSITIVE, nil), pkcs11.NewAttribute(pkcs11.CKA_EXTRACTABLE, nil)})
+		if err != nil || !bytes.Equal(attribute(attributes, pkcs11.CKA_SENSITIVE), []byte{1}) || !bytes.Equal(attribute(attributes, pkcs11.CKA_EXTRACTABLE), []byte{0}) {
+			return errors.New("private key attributes are exportable")
+		}
+		value, err := module.GetAttributeValue(session, key, []*pkcs11.Attribute{pkcs11.NewAttribute(pkcs11.CKA_VALUE, nil)})
+		if err == nil && len(attribute(value, pkcs11.CKA_VALUE)) != 0 {
+			return errors.New("private key export was allowed")
+		}
+		return nil
+	})
+}
+
 // publicJWK reads one selected public P-256 object without opening a signer socket or private-key export path.
 func publicJWK(modulePath, rawURI, pinFile string) (es256.PublicJWK, error) {
+	var public es256.PublicJWK
+	err := withTokenSession(modulePath, rawURI, pinFile, func(module *pkcs11.Ctx, session pkcs11.SessionHandle, selector manifest.Selector) error {
+		key, err := findOne(module, session, pkcs11.CKO_PUBLIC_KEY, selector.ID)
+		if err != nil {
+			return err
+		}
+		attributes, err := module.GetAttributeValue(session, key, []*pkcs11.Attribute{pkcs11.NewAttribute(pkcs11.CKA_EC_PARAMS, nil), pkcs11.NewAttribute(pkcs11.CKA_EC_POINT, nil)})
+		if err != nil || len(attributes) != 2 || string(attribute(attributes, pkcs11.CKA_EC_PARAMS)) != string(p256OID) {
+			return errors.New("selected public key is not P-256")
+		}
+		public, err = es256.FromDERPoint(attribute(attributes, pkcs11.CKA_EC_POINT))
+		return err
+	})
+	return public, err
+}
+
+// withTokenSession creates one authenticated local PKCS#11 session from a mode-restricted PIN file and zeroizes its buffer after the operation.
+func withTokenSession(modulePath, rawURI, pinFile string, operation func(*pkcs11.Ctx, pkcs11.SessionHandle, manifest.Selector) error) error {
 	selector, err := manifest.ParseSelector(rawURI)
 	if err != nil {
-		return es256.PublicJWK{}, err
+		return err
 	}
 	module := pkcs11.New(modulePath)
 	if module == nil {
-		return es256.PublicJWK{}, errors.New("PKCS11 module unavailable")
+		return errors.New("PKCS11 module unavailable")
 	}
 	defer module.Destroy()
 	if err := module.Initialize(); err != nil {
-		return es256.PublicJWK{}, err
+		return err
 	}
 	defer module.Finalize()
 	slot, err := findSlot(module, selector.TokenSerial)
 	if err != nil {
-		return es256.PublicJWK{}, err
+		return err
 	}
 	session, err := module.OpenSession(slot, pkcs11.CKF_SERIAL_SESSION|pkcs11.CKF_RW_SESSION)
 	if err != nil {
-		return es256.PublicJWK{}, err
+		return err
 	}
 	defer module.CloseSession(session)
-	pin, err := os.ReadFile(pinFile)
-	if err != nil || len(strings.TrimSpace(string(pin))) == 0 {
-		return es256.PublicJWK{}, errors.New("host credential unavailable")
+	pin, err := credentialFromFile(pinFile)
+	if err != nil {
+		return err
 	}
 	defer zero(pin)
-	if err := module.Login(session, pkcs11.CKU_USER, strings.TrimSpace(string(pin))); err != nil {
-		return es256.PublicJWK{}, err
+	if err := module.Login(session, pkcs11.CKU_USER, string(pin)); err != nil {
+		return err
 	}
 	defer module.Logout(session)
-	if err := module.FindObjectsInit(session, []*pkcs11.Attribute{pkcs11.NewAttribute(pkcs11.CKA_CLASS, pkcs11.CKO_PUBLIC_KEY), pkcs11.NewAttribute(pkcs11.CKA_KEY_TYPE, pkcs11.CKK_EC), pkcs11.NewAttribute(pkcs11.CKA_ID, selector.ID)}); err != nil {
-		return es256.PublicJWK{}, err
+	return operation(module, session, selector)
+}
+
+// credentialFromFile admits only agent-owned mode-600-style local PIN mounts and returns a caller-zeroed buffer.
+func credentialFromFile(path string) ([]byte, error) {
+	info, err := os.Stat(path)
+	if err != nil || info.Mode().Perm()&0o077 != 0 {
+		return nil, errors.New("host credential unavailable")
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	pin := append([]byte(nil), bytes.TrimSpace(raw)...)
+	zero(raw)
+	if len(pin) == 0 {
+		return nil, errors.New("host credential unavailable")
+	}
+	return pin, nil
+}
+
+// keyPairTemplates defines the only local key-generation attributes: token-resident, sensitive, non-extractable P-256 signing material.
+func keyPairTemplates(id []byte, label string) ([]*pkcs11.Attribute, []*pkcs11.Attribute) {
+	public := []*pkcs11.Attribute{pkcs11.NewAttribute(pkcs11.CKA_CLASS, pkcs11.CKO_PUBLIC_KEY), pkcs11.NewAttribute(pkcs11.CKA_KEY_TYPE, pkcs11.CKK_EC), pkcs11.NewAttribute(pkcs11.CKA_TOKEN, true), pkcs11.NewAttribute(pkcs11.CKA_PRIVATE, false), pkcs11.NewAttribute(pkcs11.CKA_LABEL, label), pkcs11.NewAttribute(pkcs11.CKA_ID, id), pkcs11.NewAttribute(pkcs11.CKA_EC_PARAMS, p256OID), pkcs11.NewAttribute(pkcs11.CKA_VERIFY, true)}
+	private := []*pkcs11.Attribute{pkcs11.NewAttribute(pkcs11.CKA_CLASS, pkcs11.CKO_PRIVATE_KEY), pkcs11.NewAttribute(pkcs11.CKA_KEY_TYPE, pkcs11.CKK_EC), pkcs11.NewAttribute(pkcs11.CKA_TOKEN, true), pkcs11.NewAttribute(pkcs11.CKA_PRIVATE, true), pkcs11.NewAttribute(pkcs11.CKA_LABEL, label), pkcs11.NewAttribute(pkcs11.CKA_ID, id), pkcs11.NewAttribute(pkcs11.CKA_SENSITIVE, true), pkcs11.NewAttribute(pkcs11.CKA_EXTRACTABLE, false), pkcs11.NewAttribute(pkcs11.CKA_SIGN, true)}
+	return public, private
+}
+
+// findOne resolves exactly one EC key object by the selector's binary CKA_ID without provider-order fallback.
+func findOne(module *pkcs11.Ctx, session pkcs11.SessionHandle, class uint, id []byte) (pkcs11.ObjectHandle, error) {
+	attributes := []*pkcs11.Attribute{pkcs11.NewAttribute(pkcs11.CKA_CLASS, class), pkcs11.NewAttribute(pkcs11.CKA_KEY_TYPE, pkcs11.CKK_EC), pkcs11.NewAttribute(pkcs11.CKA_ID, id)}
+	if err := module.FindObjectsInit(session, attributes); err != nil {
+		return 0, err
 	}
 	defer module.FindObjectsFinal(session)
 	objects, _, err := module.FindObjects(session, 2)
 	if err != nil || len(objects) != 1 {
-		return es256.PublicJWK{}, errors.New("selected public key unavailable")
+		return 0, errors.New("selected key unavailable")
 	}
-	attributes, err := module.GetAttributeValue(session, objects[0], []*pkcs11.Attribute{pkcs11.NewAttribute(pkcs11.CKA_EC_PARAMS, nil), pkcs11.NewAttribute(pkcs11.CKA_EC_POINT, nil)})
-	if err != nil || len(attributes) != 2 || string(attribute(attributes, pkcs11.CKA_EC_PARAMS)) != string(p256OID) {
-		return es256.PublicJWK{}, errors.New("selected public key is not P-256")
-	}
-	return es256.FromDERPoint(attribute(attributes, pkcs11.CKA_EC_POINT))
+	return objects[0], nil
 }
 
 // call performs one newline-delimited JSON-RPC request over the exact Unix-socket protocol and rejects remote errors.
@@ -214,6 +362,18 @@ func findSlot(module *pkcs11.Ctx, serial string) (uint, error) {
 		}
 	}
 	return 0, errors.New("selected token unavailable")
+}
+
+// findUninitializedSlot chooses a free slot only in the harness's isolated SoftHSM token directory.
+func findUninitializedSlot(module *pkcs11.Ctx) (uint, error) {
+	slots, err := module.GetSlotList(false)
+	if err != nil {
+		return 0, err
+	}
+	if len(slots) == 0 {
+		return 0, errors.New("no uninitialized SoftHSM slot available")
+	}
+	return slots[0], nil
 }
 
 // entry renders one UTC manifest timeline while preserving the fixed six-minute retirement overlap.
