@@ -1,4 +1,4 @@
-import { CLOUD_EVENTS_CONTENT_TYPE, EventContractError, encodeCloudEvent, subjectForEventType, validateCloudEvent, type W3cTraceHeaders } from '../cloud-events/codec'
+import { CLOUD_EVENTS_CONTENT_TYPE, EventContractError, encodeCloudEvent, subjectForContract, validateCloudEvent, type W3cTraceHeaders } from '../cloud-events/codec'
 import type { OesCloudEvent, OesEventContract } from '../cloud-events/types'
 
 /** Represents the provider-neutral header form required by the NATS adapter boundary. */
@@ -17,7 +17,7 @@ export type TransportValidation = { readonly ok: true } | { readonly ok: false; 
 
 /** Validates exact subject/header/envelope consistency and never repairs a conflicting transport message. */
 export function validateNatsTransport<TData>(input: NatsTransportInput<TData>): TransportValidation {
-  if (input.subject !== subjectForEventType(input.event.type)) return { ok: false, code: 'EVENT_SUBJECT_MISMATCH' }
+  if (input.subject !== subjectForContract(input.contract)) return { ok: false, code: 'EVENT_SUBJECT_MISMATCH' }
   if (input.event.type !== input.contract.eventType) return { ok: false, code: 'EVENT_TYPE_MISMATCH' }
   if (input.event.oeseventversion !== input.contract.eventVersion) return { ok: false, code: 'EVENT_VERSION_UNSUPPORTED' }
   if (input.event.source !== `urn:oes:service:${input.contract.ownerService}`) return { ok: false, code: 'EVENT_OWNER_MISMATCH' }
@@ -33,7 +33,7 @@ export function validateNatsTransport<TData>(input: NatsTransportInput<TData>): 
 export function toNatsPublishRequest<TData>(event: OesCloudEvent<TData>, contract: OesEventContract<TData>, traceHeaders?: W3cTraceHeaders): { readonly subject: string; readonly headers: EventHeaders; readonly body: Uint8Array } {
   const validatedEvent = validateCloudEvent(event, contract)
   const encoded = encodeCloudEvent(validatedEvent, traceHeaders)
-  const subject = subjectForEventType(validatedEvent.type)
+  const subject = subjectForContract(contract)
   assertNatsTransport({ subject, headers: encoded.headers, event: validatedEvent, contract })
   return { subject, headers: encoded.headers, body: encoded.body }
 }

@@ -6,6 +6,12 @@ import type { CreateOesCloudEventInput, OesCloudEvent, OesEventContract } from '
 export const CLOUD_EVENTS_CONTENT_TYPE = 'application/cloudevents+json' as const
 /** Sets the frozen first-release maximum UTF-8 structured-event size. */
 export const DEFAULT_EVENT_BODY_LIMIT_BYTES = 256 * 1024
+/** Identifies the only currently frozen SECURITY_CRITICAL transport descriptor without modeling owner payload semantics. */
+const FROZEN_SECURITY_CONTRACT = {
+  ownerService: 'auth-service',
+  eventType: 'auth.execution-token.revoked',
+  eventVersion: 1,
+} as const
 
 /** Holds the optional W3C context that travels in transport headers while OES trace identity remains in the body. */
 export interface W3cTraceHeaders {
@@ -37,14 +43,24 @@ export function subjectForEventType(eventType: string): string {
   return `oes.events.${eventType}`
 }
 
+/** Maps a frozen security event type to its isolated NATS security-event subject. */
+export function securitySubjectForEventType(eventType: string): string {
+  return `oes.security.events.${eventType}`
+}
+
+/** Selects the frozen subject namespace from the trusted contract profile. */
+export function subjectForContract(contract: OesEventContract): string {
+  return contract.transportProfile === 'SECURITY_CRITICAL'
+    ? securitySubjectForEventType(contract.eventType)
+    : subjectForEventType(contract.eventType)
+}
+
 /** Builds a complete immutable Structured CloudEvent before service-owned outbox persistence. */
 export function createOesCloudEvent<TData>(input: CreateOesCloudEventInput<TData>): OesCloudEvent<TData> {
   assertContract(input.contract)
   assertNonBlank(input.eventId, 'EVENT_ID_REQUIRED')
   assertUtcTimestamp(input.occurredAt)
-  assertNonBlank(input.tenantId, 'EVENT_TENANT_REQUIRED')
-  assertNonBlank(input.aggregateType, 'EVENT_AGGREGATE_TYPE_REQUIRED')
-  assertNonBlank(input.aggregateId, 'EVENT_AGGREGATE_ID_REQUIRED')
+  assertProfileInput(input)
   assertNonBlank(input.traceId, 'EVENT_TRACE_REQUIRED')
   assertOptionalNonBlank(input.actorAccountId, 'EVENT_ACTOR_INVALID')
   assertOptionalNonBlank(input.causationId, 'EVENT_CAUSATION_INVALID')
@@ -58,15 +74,20 @@ export function createOesCloudEvent<TData>(input: CreateOesCloudEventInput<TData
     id: input.eventId,
     source: sourceForOwner(input.contract.ownerService),
     type: input.contract.eventType,
-    subject: input.aggregateId,
+    ...(input.contract.transportProfile === 'SECURITY_CRITICAL' ? {
+      oesexecutionscope: input.executionScope,
+      ...(input.tenantId !== undefined ? { oestenantid: input.tenantId } : {}),
+    } : {
+      subject: input.aggregateId,
+      oestenantid: input.tenantId,
+      oesaggregatetype: input.aggregateType,
+      oesaggregateid: input.aggregateId,
+    }),
     time: input.occurredAt,
     datacontenttype: 'application/json',
     dataschema: dataSchemaForContract(input.contract),
     oeseventversion: input.contract.eventVersion,
-    oestenantid: input.tenantId,
     ...(input.orgId !== undefined ? { oesorgid: input.orgId } : {}),
-    oesaggregatetype: input.aggregateType,
-    oesaggregateid: input.aggregateId,
     oestraceid: input.traceId,
     ...(input.actorAccountId !== undefined ? { oesactoraccountid: input.actorAccountId } : {}),
     ...(input.correlationId !== undefined ? { oescorrelationid: input.correlationId } : {}),
@@ -133,18 +154,43 @@ export function validateCloudEvent<TData>(value: unknown, contract: OesEventCont
   if (event.source !== sourceForOwner(contract.ownerService)) throw new EventContractError('EVENT_OWNER_MISMATCH')
   if (event.dataschema !== dataSchemaForContract(contract)) throw new EventContractError('EVENT_DATASCHEMA_MISMATCH')
   if (event.datacontenttype !== 'application/json') throw new EventContractError('EVENT_DATACONTENTTYPE_INVALID')
-  for (const [valueToCheck, code] of [
-    [event.id, 'EVENT_ID_REQUIRED'], [event.subject, 'EVENT_SUBJECT_REQUIRED'], [event.time, 'EVENT_TIME_REQUIRED'],
-    [event.oestenantid, 'EVENT_TENANT_REQUIRED'], [event.oesaggregatetype, 'EVENT_AGGREGATE_TYPE_REQUIRED'],
-    [event.oesaggregateid, 'EVENT_AGGREGATE_ID_REQUIRED'], [event.oestraceid, 'EVENT_TRACE_REQUIRED'],
-  ] as const) assertNonBlank(valueToCheck, code)
+  for (const [valueToCheck, code] of [[event.id, 'EVENT_ID_REQUIRED'], [event.time, 'EVENT_TIME_REQUIRED'], [event.oestraceid, 'EVENT_TRACE_REQUIRED']] as const) assertNonBlank(valueToCheck, code)
+  assertProfileEvent(event, contract)
   assertOptionalNonBlank(event.oesactoraccountid, 'EVENT_ACTOR_INVALID')
   assertOptionalNonBlank(event.oescausationid, 'EVENT_CAUSATION_INVALID')
   assertOptionalNonBlank(event.oesauditref, 'EVENT_AUDIT_REF_INVALID')
   assertUtcTimestamp(event.time as string)
-  if (event.subject !== event.oesaggregateid) throw new EventContractError('EVENT_AGGREGATE_SUBJECT_MISMATCH')
   if (!contract.validateData(event.data)) throw new EventContractError('EVENT_DATA_INVALID')
   return deepFreeze(cloneJson(event) as OesCloudEvent<TData>)
+}
+
+/** Enforces profile-specific build inputs while preserving the complete legacy BUSINESS envelope. */
+function assertProfileInput<TData>(input: CreateOesCloudEventInput<TData>): void {
+  if (input.contract.transportProfile === 'SECURITY_CRITICAL') {
+    if (input.executionScope !== 'SYSTEM' && input.executionScope !== 'TENANT') throw new EventContractError('EVENT_SCOPE_REQUIRED')
+    if (input.executionScope === 'TENANT') assertNonBlank(input.tenantId, 'EVENT_TENANT_REQUIRED')
+    if (input.executionScope === 'SYSTEM' && input.tenantId !== undefined) throw new EventContractError('EVENT_SCOPE_TENANT_INVALID')
+    if (input.aggregateType !== undefined || input.aggregateId !== undefined) throw new EventContractError('EVENT_SECURITY_AGGREGATE_FORBIDDEN')
+    return
+  }
+  if (input.executionScope !== undefined) throw new EventContractError('EVENT_BUSINESS_SCOPE_FORBIDDEN')
+  assertNonBlank(input.tenantId, 'EVENT_TENANT_REQUIRED')
+  assertNonBlank(input.aggregateType, 'EVENT_AGGREGATE_TYPE_REQUIRED')
+  assertNonBlank(input.aggregateId, 'EVENT_AGGREGATE_ID_REQUIRED')
+}
+
+/** Enforces profile-specific wire attributes without deriving absent security aggregate metadata. */
+function assertProfileEvent(event: Partial<OesCloudEvent>, contract: OesEventContract): void {
+  if (contract.transportProfile === 'SECURITY_CRITICAL') {
+    if (event.oesexecutionscope !== 'SYSTEM' && event.oesexecutionscope !== 'TENANT') throw new EventContractError('EVENT_SCOPE_REQUIRED')
+    if (event.oesexecutionscope === 'TENANT') assertNonBlank(event.oestenantid, 'EVENT_TENANT_REQUIRED')
+    if (event.oesexecutionscope === 'SYSTEM' && event.oestenantid !== undefined) throw new EventContractError('EVENT_SCOPE_TENANT_INVALID')
+    if (event.subject !== undefined || event.oesaggregatetype !== undefined || event.oesaggregateid !== undefined) throw new EventContractError('EVENT_SECURITY_AGGREGATE_FORBIDDEN')
+    return
+  }
+  if (event.oesexecutionscope !== undefined) throw new EventContractError('EVENT_BUSINESS_SCOPE_FORBIDDEN')
+  for (const [valueToCheck, code] of [[event.subject, 'EVENT_SUBJECT_REQUIRED'], [event.oestenantid, 'EVENT_TENANT_REQUIRED'], [event.oesaggregatetype, 'EVENT_AGGREGATE_TYPE_REQUIRED'], [event.oesaggregateid, 'EVENT_AGGREGATE_ID_REQUIRED']] as const) assertNonBlank(valueToCheck, code)
+  if (event.subject !== event.oesaggregateid) throw new EventContractError('EVENT_AGGREGATE_SUBJECT_MISMATCH')
 }
 
 /** Produces the canonical body digest used by service-owned inbox identity comparisons. */
@@ -160,6 +206,18 @@ function assertContract(contract: OesEventContract): void {
     throw new EventContractError('EVENT_CONTRACT_VERSION_INVALID')
   }
   if (typeof contract?.validateData !== 'function') throw new EventContractError('EVENT_CONTRACT_VALIDATOR_REQUIRED')
+  if (contract.transportProfile === 'SECURITY_CRITICAL') assertFrozenSecurityContract(contract)
+}
+
+/** Restricts security transport to the frozen catalog identity without inspecting owner-owned data. */
+function assertFrozenSecurityContract(contract: OesEventContract): void {
+  if (
+    contract.ownerService !== FROZEN_SECURITY_CONTRACT.ownerService ||
+    contract.eventType !== FROZEN_SECURITY_CONTRACT.eventType ||
+    contract.eventVersion !== FROZEN_SECURITY_CONTRACT.eventVersion
+  ) {
+    throw new EventContractError('EVENT_SECURITY_CONTRACT_UNSUPPORTED')
+  }
 }
 
 /** Rejects empty identities instead of inventing fallback metadata. */

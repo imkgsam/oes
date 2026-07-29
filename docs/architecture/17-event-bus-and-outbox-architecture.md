@@ -18,7 +18,7 @@ securityCriticalTransportProfile: FROZEN
 
 Event Bus 只传播已经由 owner service 确认成立、且已经进入 Event Catalog 的公共事实。业务事件的语义、payload、版本、owner 与订阅资格，以 [Event Catalog Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/events/README.md) 和各 owner event contract 为准；本平台不得重新定义它们。
 
-Auth-owned 紧急安全事实可以在 Event Catalog 完成 owner contract 冻结后接入本文的 security-critical transport profile。该 profile 只冻结 SYSTEM / TENANT scope 的合法运输表达、独立 Stream、durable delivery、freshness gate、fail-closed recovery 与运维边界；Auth 仍独占 event type、payload、selector、撤销状态和本地 enforcement 语义。
+Auth-owned `auth.execution-token.revoked` 已在 owner contract 冻结并由 Event Catalog 登记接入 security-critical transport profile。该 profile 只冻结 SYSTEM / TENANT scope 的合法运输表达、独立 Stream、durable delivery、freshness gate、fail-closed recovery 与运维边界；Auth 仍独占 payload、selector、撤销状态和本地 enforcement 语义。
 
 本文不负责：
 
@@ -70,7 +70,7 @@ MES 当前本地 outbox、Terminal Device 的 Redis Pub/Sub 以及其他 deferre
 - 每个执行 ExecutionToken 本地验证的 consumer 已登记自己的 exact-subject durable、consumer-owned enforcement projection、Inbox 与 freshness gate；
 - SYSTEM / TENANT scope、失败隔离、追平与超过 retention 后的 fail-closed 边界已通过黑盒验收。
 
-本节不代表 Auth 事件已经进入 Catalog，也不授权平台线程发明 event type、payload 或 selector。Catalog 记录必须等待 Auth-owned contract handoff。
+Auth-owned contract handoff 已完成，当前唯一登记事件为 `auth.execution-token.revoked` v1；准确 Catalog registration 以 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/events/auth-service.md) 为准。本节仍不授权平台发明或复制 payload、selector 与撤销语义。
 
 ## 3. 总体拓扑
 
@@ -119,6 +119,7 @@ Consumer local database transaction
 ```text
 src/common/src/contracts/collaboration_service/events.ts
 src/common/src/contracts/asset_service/events.ts
+src/common/src/contracts/auth_service/events.ts
 ```
 
 每个 `events.ts` 只定义该服务已冻结公共事件的 type/version/owner 常量、`data` payload TypeScript 类型、与通用 `OesCloudEvent<TData>` 的组合类型和运行时验证 descriptor，并由同目录 `index.ts` 导出。producer 与 consumer 必须引用同一份 common contract；不得各自复制字符串、payload interface 或对方内部 domain type。
@@ -127,13 +128,13 @@ src/common/src/contracts/asset_service/events.ts
 
 ```text
 producer:
-  eventOutbox.append(localTransaction, contract, aggregateIdentity, data)
+  eventOutbox.append(localTransaction, contract, aggregateIdentity?, data)
 
 consumer:
   eventConsumer.subscribe(contract, consumerName, handler)
 ```
 
-这些是黑盒能力形态，不冻结具体 TypeScript symbol。producer 不直接调用 NATS 或手工拼 CloudEvents；common builder 根据已验证 command context 补充 `id`、`source`、tenant、trace、time 与 schema identity。consumer handler 接收已验证、已解码的 typed CloudEvent，不依赖 NATS client 类型。
+这些是黑盒能力形态，不冻结具体 TypeScript symbol。producer 不直接调用 NATS 或手工拼 CloudEvents；common builder 根据已验证 command context 补充 `id`、`source`、条件适用的 execution scope / tenant / aggregate、trace、time 与 schema identity。owner contract 没有公共 aggregate 时不得从 payload 推导或补造。consumer handler 接收已验证、已解码的 typed CloudEvent，不依赖 NATS client 类型。
 
 第一版不要求独立 Schema Registry、平行 JSON Schema 目录、AsyncAPI codegen 或新的 event-contract package。未来出现跨语言、外部事件接口或明显 schema drift 风险时再通过 ADR 引入生成链路，不得形成第二份业务语义真相。
 
@@ -170,18 +171,18 @@ owner service 必须在同一个本地数据库事务中完成：
 
 每个服务可以使用自己的表名和 ORM，但 outbox 至少保持以下语义：
 
-| 字段语义                                   | 要求                                                                                                                 |
-| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
-| `eventId` / CloudEvents `id`               | 全局唯一，生成后不可改变；outbox 唯一约束。                                                                          |
-| `eventType / eventVersion`                 | 映射到 `type / oeseventversion`，且必须对应 Event Catalog 已冻结版本。                                               |
-| `ownerService`                             | 映射到稳定 CloudEvents `source`，必须等于当前发布服务身份。                                                          |
-| `tenantId / orgId? / executionScope?`      | tenant-only 事实继续要求真实 tenant；security-critical fact 按 SYSTEM / TENANT profile 条件映射，不能使用 sentinel。 |
-| `aggregateType / aggregateId`              | 映射到 `subject` 与 OES extensions；不得由 relay 猜测。                                                              |
-| `occurredAt`                               | 映射到 CloudEvents `time`，是 owner 本地事实成立时间，不是 broker 接收时间。                                         |
-| `cloudEventBody / data`                    | 已冻结 Structured CloudEvent 与业务 payload 快照；写入后不可原地改写。                                               |
-| `status`                                   | 至少区分待发布、已发布与隔离失败。                                                                                   |
-| `attemptCount / nextAttemptAt / lastError` | 支撑 relay 重试与排障。                                                                                              |
-| `publishedAt`                              | broker 持久化确认后写入。                                                                                            |
+| 字段语义                                   | 要求                                                                                                                             |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| `eventId` / CloudEvents `id`               | 全局唯一，生成后不可改变；outbox 唯一约束。                                                                                      |
+| `eventType / eventVersion`                 | 映射到 `type / oeseventversion`，且必须对应 Event Catalog 已冻结版本。                                                           |
+| `ownerService`                             | 映射到稳定 CloudEvents `source`，必须等于当前发布服务身份。                                                                      |
+| `tenantId / orgId? / executionScope?`      | tenant-only 事实继续要求真实 tenant；security-critical fact 按 SYSTEM / TENANT profile 条件映射，不能使用 sentinel。             |
+| `aggregateType? / aggregateId?`            | owner contract 声明公共 aggregate 时映射到 `subject` 与 OES extensions；security profile 未声明时必须缺失且不得从 payload 猜测。 |
+| `occurredAt`                               | 映射到 CloudEvents `time`，是 owner 本地事实成立时间，不是 broker 接收时间。                                                     |
+| `cloudEventBody / data`                    | 已冻结 Structured CloudEvent 与业务 payload 快照；写入后不可原地改写。                                                           |
+| `status`                                   | 至少区分待发布、已发布与隔离失败。                                                                                               |
+| `attemptCount / nextAttemptAt / lastError` | 支撑 relay 重试与排障。                                                                                                          |
+| `publishedAt`                              | broker 持久化确认后写入。                                                                                                        |
 
 Relay 使用短租约或数据库等价并发声明机制领取记录，避免同一实例并发重复发送；这只是降低重复，不能替代 consumer inbox。
 
@@ -198,7 +199,7 @@ Relay 使用短租约或数据库等价并发声明机制领取记录，避免�
 
 ### 6.1 幂等边界
 
-每个逻辑 consumer 使用稳定 `consumerName`，并在自己的数据库中以 `(consumerName, eventId)` 建立唯一处理记录，其中 `eventId` 等于 CloudEvents `id`。Inbox 同时保存不可变的 envelope identity tuple（至少包括 `id`、`source`、`type`、`time`、`oeseventversion`、条件适用的 `oesexecutionscope / oestenantid`、`oesaggregatetype`、`oesaggregateid`）以及 canonical body digest。tenant-only / TENANT 事实必须保存 tenant 并参与查询、审计与运维过滤；SYSTEM security fact 必须保存 execution scope 且不得补造 tenant。
+每个逻辑 consumer 使用稳定 `consumerName`，并在自己的数据库中以 `(consumerName, eventId)` 建立唯一处理记录，其中 `eventId` 等于 CloudEvents `id`。Inbox 同时保存不可变的 envelope identity tuple（至少包括 `id`、`source`、`type`、`time`、`oeseventversion`、条件适用的 `oesexecutionscope / oestenantid / subject / oesaggregatetype / oesaggregateid`）以及 canonical body digest。tenant-only / TENANT 事实必须保存 tenant 并参与查询、审计与运维过滤；SYSTEM security fact 必须保存 execution scope 且不得补造 tenant；未声明公共 aggregate 的 security fact 不得补造 aggregate identity。
 
 对于数据库内副作用，consumer 必须在一个本地事务中完成：
 
@@ -319,6 +320,25 @@ src/common/src/contracts/asset_service/events.ts
 
 该事件不属于本 P1 的 Collaboration -> Notification 首条垂直切片。Asset producer、Site consumer、对应数据库迁移与平台 topology 必须在 common code contract、Asset/Site 实现门禁和独立黑盒验收通过后另行推进。契约对齐已不再阻塞 Event Bus 平台设计，但仍是 Asset 业务链路实现的前置门禁。
 
+### 8.2 Auth Security Event 接入状态
+
+Auth contract owner 已在 [ExecutionToken contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/execution-token.md#emergency-revocation-fact) 与 [auth-service truth](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md#711-emergency-executiontoken-revocation) 冻结紧急撤销事实。Event-owned [Auth security event registration](/Users/acehood/Documents/GitHub/oes/docs/contracts/events/auth-service.md) 与 [Event Catalog](/Users/acehood/Documents/GitHub/oes/docs/contracts/events/catalog.md) 现登记：
+
+| Registration item  | Frozen mapping                                     |
+| ------------------ | -------------------------------------------------- |
+| event type/version | `auth.execution-token.revoked` / `1`               |
+| owner/source       | `auth-service` / `urn:oes:service:auth-service`    |
+| transport profile  | `SECURITY_CRITICAL`                                |
+| NATS subject       | `oes.security.events.auth.execution-token.revoked` |
+| Stream             | `OES_SECURITY_EVENTS`                              |
+| notification       | `notificationConsumable=false`                     |
+
+该 registration 不复制 Auth payload。selector、payload、monotonic revocation version、trigger authorization、deny / cleanup 与 consumer token-matching semantics 继续只由上述 Auth-owned 真相源定义。
+
+Auth semantic contract 没有声明公共 aggregate，且平台不得从 selector 推导 envelope。因此该事件的 CloudEvents `subject / oesaggregatetype / oesaggregateid` 缺失；delivery identity 使用 CloudEvents `id`，owner 新旧判断继续使用 Auth contract 的 monotonic version。SYSTEM/TENANT isolation、exact Auth publisher ACL、durable、DLQ、replay 与 freshness 仍以 platform transport contract 为准。
+
+Catalog `FROZEN_SUBSCRIBABLE` 只表示设计契约可以被获批 consumer 依赖，不表示 common code contract、Auth outbox/relay、JetStream topology 或 consumer enforcement 已经实现。其实现与验收不属于本次文档收口。
+
 ## 9. Message 与数据边界
 
 - 常规事件目标大小小于 `64 KiB`，平台硬限制默认 `256 KiB`；具体限制为平台配置，不是业务字段。
@@ -429,6 +449,7 @@ Provider 端的 stream、consumer、ACL 与 retention 由平台 IaC / bootstrap 
 17. 新建或恢复的 security consumer 在 `DeliverAll` catch-up、连续 checkpoint 和 unresolved-gap 检查通过前不进入 ExecutionToken-protected readiness；已知 tenant gap 只允许隔离该 tenant，SYSTEM 或未知 scope gap 必须隔离全部。
 18. security-critical terminal failure 即使可靠进入 `OES_SECURITY_EVENT_DLQ` 也不能清除 freshness gap；只有获批 run-scoped `SAFE_REDELIVERY` 真正提交 Inbox + local enforcement state 后才允许恢复对应 scope。
 19. security Stream / DLQ 的权限、容量、告警和 replay 与普通业务 Stream 分离；业务流容量压力不能静默淘汰或授权读取安全事实。
+20. `auth.execution-token.revoked` 的 type/version/source/security subject 与 Catalog registration 一致；CloudEvents aggregate attributes 保持缺失，平台不得从 Auth selector 补造 envelope aggregate。
 
 ## 16. 已知实现差距
 
@@ -439,7 +460,7 @@ Provider 端的 stream、consumer、ACL 与 retention 由平台 IaC / bootstrap 
 - `src/common/src/contracts` 当前按 service 目录保存 gRPC Proto，但尚无任何 `<service>/events.ts` 公共事件代码契约；实现时必须由对应 owner 添加，不能由平台线程猜测 payload。
 - 当前仓库没有 JetStream 部署、credential、common adapter 或运行手册；本设计只冻结目标，不代表实现已存在。
 - 当前仓库没有 common DLQ/advisory/replay runner，也没有任何 consumer-owned operations module/job；实现按 `EV-OPS` 组合 lane 推进，不创建中央 Event Operations runtime。
-- 当前仓库没有 `OES_SECURITY_EVENTS` / `OES_SECURITY_EVENT_DLQ` topology、security-critical common profile、consumer freshness gate 或 Auth security event Catalog contract；本次只冻结 transport target，不代表 Auth event 或任何 consumer 已实现。
+- Auth security event 的 owner semantic contract 与 Event Catalog registration 已完成对齐；当前仓库仍没有 `src/common/src/contracts/auth_service/events.ts`、Auth outbox/relay、`OES_SECURITY_EVENTS` / `OES_SECURITY_EVENT_DLQ` topology、security-critical common profile、consumer freshness gate 或任何 consumer enforcement 实现。
 
 ## 17. 真相源与后续写入目标
 
@@ -456,6 +477,7 @@ Provider 端的 stream、consumer、ACL 与 retention 由平台 IaC / bootstrap 
 - `src/common` 公共 API 变更：通用 CloudEvents / event descriptor / codec / Outbox-Inbox ports，以及 retry / DLQ / advisory / replay runner 先形成实现 plan 与 API review；每个 owner 在自己的 `src/common/src/contracts/<service_snake_case>/events.ts` 维护公共事件代码契约，本文不冻结具体 TypeScript symbol。
 - 各 producer / consumer 的 Prisma schema：由服务 owner 在自己的数据库迁移中实现；consumer 同时在自身数据库保存其 subscription 的 DLQ resolution、replay request/result 与操作审计，不建立共享 operations database。
 - Asset common code contract、producer、Site consumer 与 migration：业务 contract/catalog 对齐已完成；后续由 Asset、Site 与 common contract owner 按第 8.1 节的平台接入门槛实现。
+- Auth security event common code contract、producer、consumer 与 migration：业务语义和 Catalog registration 已完成；后续实现必须分别服从 Auth-owned semantic contract 与第 8.2 节的 Event transport registration。
 - Notification、Site、Collaboration 的具体 handler / transaction：由对应服务 owner 实现并按第 15 节验收。
 - `docker-compose`、NATS advisory 持久监控、生产部署与 secret：由 Deployment / SRE lane 实现。
-- security-critical transport 的 common profile、独立 Stream / DLQ、Auth-only publisher ACL 与 freshness observability：由 A/C/EVENT 分派 Event 平台 I/R/V/X；Auth event type/payload/selector 与各 consumer deny semantics 仍由 EXEC-REVOKE owner 实现和验收。
+- security-critical transport 的 common profile、独立 Stream / DLQ、Auth-only publisher ACL 与 freshness observability：由 Event capability 后续实现与验收；Auth payload/selector 与各 consumer deny semantics 继续以各自 owner 真相源为准。

@@ -272,6 +272,14 @@ Auth connects only through the required pod-local `AUTH_EXECUTION_SIGNER_SOCKET_
 
 Signer-agent preflight is part of Auth readiness: socket identity/permission, active and overlap JWKs, rotation timeline, requested published `kid`, and a sign/verify challenge must all succeed. Missing sidecar, TCP/DNS endpoint substitution, unmounted PKCS#11 backend, reference mismatch, or failed preflight prevents exchange/JWKS serving. Local security integration runs the actual sidecar and non-exportable test key; isolated unit fakes remain unit-test-only.
 
+#### 7.1.8 PKCS#11 key selection, rotation and credential lease
+
+The configured signing-key reference is exactly one RFC 7512 PKCS#11 URI. It pins the token serial, private-key `CKA_ID` (`id`) and `type=private`; Auth never selects a slot, object or key from a request. The agent resolves the matching P-256 public key using that same token serial and `CKA_ID`, requires the private key to be non-extractable, derives its ES256 public JWK, and derives `kid` as the RFC 7638 SHA-256 JWK thumbprint. A retired `kid` can never return to the published set.
+
+Deployment/SRE owns the read-only rotation manifest at `docker/grpc-trust/execution-token-signer/config/**`, mounted to the agent through `EXECUTION_SIGNER_ROTATION_MANIFEST_PATH`. Every canonical PKCS#11 URI / expected-`kid` record carries RFC 3339 UTC `publishNotBefore`, `signingNotBefore`, `signingNotAfter` and `retireAfter`. The agent validates every declared JWK and `kid` against the HSM and permits exactly one active signer; it publishes the active/overlap keys only during their manifest windows. `retireAfter` is at least `signingNotAfter + 300 seconds + 60 seconds`, so verifiers can retain a JWKS key for every valid maximum-TTL Token and clock skew. Auth treats any manifest, HSM or timeline mismatch as a readiness failure, not a request-time choice or fallback.
+
+The normal provider credential is workload identity. If the backend requires a separate credential, deployment gives only the agent an opaque reference resolved through its secret broker; Auth never sees a PIN, resolved credential, private key or raw PKCS#11 handle. The agent logs in as `CKU_USER` only for the configured token/slot, maintains a leased session, refreshes it before expiry, and zeroizes, logs out, closes and fails closed on credential/session refresh failure. The approved local protected integration asset is SoftHSM2 at `docker/grpc-trust/execution-token-signer/local/softhsm2/**`: it generates a sensitive, non-extractable P-256 key inside its token and mounts token state/PIN only as a permission-restricted agent secret file. An actual agent-over-UDS integration test, not a fake signer, must prove export refusal, manifest mismatch, credential-lease failure, unavailable agent/HSM failure, signing verification and key rotation.
+
 ## 8. Login Methods And Credentials
 
 `auth-service` owns 认证可用性；`identity-service` owns 联系资产主数据。

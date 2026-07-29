@@ -29,8 +29,8 @@ export interface EventInboxPort {
 export interface EventInboxIdentity {
   readonly consumerName: string
   readonly eventId: string
-  readonly tenantId: string
-  readonly identityTuple: readonly [string, string, string, string, number, string, string, string]
+  readonly tenantId?: string
+  readonly identityTuple: readonly (string | number | undefined)[]
   readonly canonicalBodyDigest: string
   readonly eventType: string
   readonly eventVersion: number
@@ -40,7 +40,7 @@ export interface EventInboxIdentity {
 /** Provides provider-neutral trace metadata to service-owned relay and consumer observability hooks. */
 export interface EventTransportTraceContext {
   readonly eventId: string
-  readonly tenantId: string
+  readonly tenantId?: string
   readonly traceId: string
   readonly traceparent?: string
   readonly tracestate?: string

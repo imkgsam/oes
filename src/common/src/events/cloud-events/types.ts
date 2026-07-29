@@ -4,15 +4,16 @@ export interface OesCloudEvent<TData = unknown> {
   readonly id: string
   readonly source: string
   readonly type: string
-  readonly subject: string
+  readonly subject?: string
   readonly time: string
   readonly datacontenttype: 'application/json'
   readonly dataschema: string
   readonly oeseventversion: number
-  readonly oestenantid: string
+  readonly oesexecutionscope?: 'SYSTEM' | 'TENANT'
+  readonly oestenantid?: string
   readonly oesorgid?: string | null
-  readonly oesaggregatetype: string
-  readonly oesaggregateid: string
+  readonly oesaggregatetype?: string
+  readonly oesaggregateid?: string
   readonly oesactoraccountid?: string | null
   readonly oestraceid: string
   readonly oescorrelationid?: string | null
@@ -26,18 +27,20 @@ export interface OesEventContract<TData = unknown> {
   readonly eventType: string
   readonly eventVersion: number
   readonly ownerService: string
+  readonly transportProfile?: 'BUSINESS' | 'SECURITY_CRITICAL'
   readonly validateData: (data: unknown) => data is TData
 }
 
-/** Supplies verified service context and aggregate identity to the CloudEvents builder. */
+/** Supplies verified profile-specific context to the CloudEvents builder without fabricating owner facts. */
 export interface CreateOesCloudEventInput<TData> {
   readonly contract: OesEventContract<TData>
   readonly eventId: string
   readonly occurredAt: string
-  readonly tenantId: string
+  readonly executionScope?: 'SYSTEM' | 'TENANT'
+  readonly tenantId?: string
   readonly orgId?: string | null
-  readonly aggregateType: string
-  readonly aggregateId: string
+  readonly aggregateType?: string
+  readonly aggregateId?: string
   readonly actorAccountId?: string | null
   readonly traceId: string
   readonly correlationId?: string | null
