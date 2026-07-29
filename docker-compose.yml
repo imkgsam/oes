@@ -251,6 +251,10 @@ services:
       - OES_GRPC_TLS_KEY_PATH=/var/run/oes/grpc-trust/current/key.pem
       - OES_GRPC_TLS_MIN_VERSION=TLSv1.2
       - OES_WORKLOAD_SPIFFE_ID=spiffe://local.oes.internal/ns/oes/sa/auth-service
+      - AUTH_EXECUTION_ISSUER=https://issuer.local.oes.internal
+      - 'AUTH_EXECUTION_WORKLOAD_POLICIES=[{"spiffeId":"spiffe://local.oes.internal/ns/oes/sa/api-gateway","audiences":["urn:oes:service:permission-service"]}]'
+      - AUTH_EXECUTION_SIGNER_SOCKET_PATH=/var/run/oes/execution-token-signer/signer.sock
+      - AUTH_EXECUTION_KMS_KEY_REF=${AUTH_EXECUTION_KMS_KEY_REF:?AUTH_EXECUTION_KMS_KEY_REF must be the deployment-bound opaque PKCS#11 reference}
     ports:
       - '9202:9202'
     networks:
@@ -271,6 +275,10 @@ services:
         read_only: true
         volume:
           subpath: auth-service
+      - type: volume
+        source: execution_token_signer_runtime
+        target: /var/run/oes/execution-token-signer
+        read_only: true
 
   identity-service:
     build:
@@ -422,6 +430,7 @@ volumes:
   redis_data:
   grafana_data:
   grpc_trust_runtime:
+  execution_token_signer_runtime:
 
 networks:
   oes_network:

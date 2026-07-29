@@ -4,11 +4,18 @@ import { EXECUTION_TOKEN_EXCHANGE_CONTEXT } from '../../application/ports/execut
 import { ExecutionTokenExchangeService } from '../../application/services/execution-token-exchange.service'
 import { ExecutionTokenJwksService } from '../../application/services/execution-token-jwks.service'
 import { ExecutionTokenSigningPort } from '../../domain/ports/execution-token-signing.port'
-import { ExecutionTokenRegistry } from '../../domain/services/execution-token-registry'
+import {
+  ExecutionTokenRegistry,
+  WorkloadIssuancePolicy
+} from '../../domain/services/execution-token-registry'
 import {
   KmsHsmExecutionTokenClient,
   KmsHsmExecutionTokenSigningAdapter
 } from '../../infrastructure/services/kms-hsm-execution-token-signing.adapter'
+import {
+  createVerifiedExecutionTokenContext,
+  ExecutionTokenContextConfiguration
+} from '../../infrastructure/execution-token-signer/execution-token-context-bootstrap'
 import { UdsSignerClient } from '../../infrastructure/execution-token-signer/uds-signer.client'
 import { verifySignerBootstrap } from '../../infrastructure/execution-token-signer/signer-preflight'
 import { ExecutionTokenGrpcController } from '../../interfaces/grpc/execution-token.grpc.controller'
@@ -16,17 +23,26 @@ import { ExecutionTokenMetadataHttpController } from '../../interfaces/http/exec
 
 const KMS_HSM_EXECUTION_TOKEN_CLIENT = 'KmsHsmExecutionTokenClient'
 const EXECUTION_TOKEN_SIGNER = 'ExecutionTokenSigner'
+const EXECUTION_TOKEN_RUNTIME_CONFIGURATION = 'ExecutionTokenRuntimeConfiguration'
+
+type ExecutionTokenRuntimeConfiguration = ExecutionTokenContextConfiguration
 
 /** Assembles the fail-closed STS runtime; deployment must bind trusted context and a protected KMS/HSM client. */
 @Module({
   providers: [
     {
-      provide: ExecutionTokenRegistry,
-      useFactory: () =>
-        new ExecutionTokenRegistry({
+      provide: EXECUTION_TOKEN_RUNTIME_CONFIGURATION,
+      useFactory: (): ExecutionTokenRuntimeConfiguration =>
+        Object.freeze({
           issuer: requireEnv('AUTH_EXECUTION_ISSUER'),
           workloadPolicies: parsePolicies(requireEnv('AUTH_EXECUTION_WORKLOAD_POLICIES'))
         })
+    },
+    {
+      provide: ExecutionTokenRegistry,
+      useFactory: (configuration: ExecutionTokenRuntimeConfiguration) =>
+        new ExecutionTokenRegistry(configuration),
+      inject: [EXECUTION_TOKEN_RUNTIME_CONFIGURATION]
     },
     {
       provide: KMS_HSM_EXECUTION_TOKEN_CLIENT,
@@ -55,9 +71,9 @@ const EXECUTION_TOKEN_SIGNER = 'ExecutionTokenSigner'
     },
     {
       provide: EXECUTION_TOKEN_EXCHANGE_CONTEXT,
-      useFactory: () => {
-        throw new Error('verified execution context binding required')
-      }
+      useFactory: (configuration: ExecutionTokenRuntimeConfiguration) =>
+        createVerifiedExecutionTokenContext(configuration),
+      inject: [EXECUTION_TOKEN_RUNTIME_CONFIGURATION]
     }
   ],
   controllers: [ExecutionTokenGrpcController, ExecutionTokenMetadataHttpController]
@@ -71,9 +87,11 @@ function requireEnv(name: string): string {
   return value
 }
 /** Parses only deployment-owned SPIFFE-to-audience policy facts, never request-supplied registry data. */
-function parsePolicies(value: string) {
+function parsePolicies(value: string): readonly WorkloadIssuancePolicy[] {
   try {
-    return JSON.parse(value)
+    const parsed: unknown = JSON.parse(value)
+    if (!Array.isArray(parsed)) throw new Error('not an array')
+    return parsed as readonly WorkloadIssuancePolicy[]
   } catch {
     throw new Error('AUTH_EXECUTION_WORKLOAD_POLICIES must be valid JSON')
   }
