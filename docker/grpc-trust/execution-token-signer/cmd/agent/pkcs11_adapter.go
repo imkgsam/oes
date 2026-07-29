@@ -1,16 +1,13 @@
 package main
 
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
 	"crypto/sha256"
-	"encoding/base64"
 	"errors"
-	"math/big"
 	"strings"
 	"time"
 
 	"github.com/miekg/pkcs11"
+	"oes/execution-token-signer-agent/internal/es256"
 )
 
 var p256OID = []byte{0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07}
@@ -147,12 +144,11 @@ func (a *PKCS11Adapter) PublicJWK(binding Binding) (PublicJWK, error) {
 	if err != nil || len(attributes) != 2 || !equalAttribute(attributes, pkcs11.CKA_EC_PARAMS, p256OID) {
 		return PublicJWK{}, errors.New("manifest selected public key is not P-256")
 	}
-	point := valueForAttribute(attributes, pkcs11.CKA_EC_POINT)
-	point, err = decodeDEROctetString(point)
-	if err != nil || len(point) != 65 || point[0] != 0x04 {
+	public, err := es256.FromDERPoint(valueForAttribute(attributes, pkcs11.CKA_EC_POINT))
+	if err != nil {
 		return PublicJWK{}, errors.New("manifest selected public point is invalid")
 	}
-	return PublicJWK{Kty: "EC", Crv: "P-256", X: base64.RawURLEncoding.EncodeToString(point[1:33]), Y: base64.RawURLEncoding.EncodeToString(point[33:])}, nil
+	return PublicJWK(public), nil
 }
 
 // SignBindingES256 accepts only an agent-internal manifest binding and hashes the JWS signing input for CKM_ECDSA.
@@ -264,33 +260,12 @@ func (a *PKCS11Adapter) clearSession() {
 
 // ES256Kid calculates the RFC7638 SHA-256 thumbprint of canonical ES256 public-JWK members.
 func ES256Kid(x, y string) string {
-	canonical := []byte(`{"crv":"P-256","kty":"EC","x":"` + x + `","y":"` + y + `"}`)
-	digest := sha256.Sum256(canonical)
-	return base64.RawURLEncoding.EncodeToString(digest[:])
+	return es256.Kid(x, y)
 }
 
 // decodeDEROctetString unwraps the RFC5912 EC-point octet string returned by compliant PKCS#11 providers.
 func decodeDEROctetString(value []byte) ([]byte, error) {
-	if len(value) < 2 || value[0] != 0x04 {
-		return nil, errors.New("DER octet string required")
-	}
-	length := int(value[1])
-	offset := 2
-	if length&0x80 != 0 {
-		width := length & 0x7f
-		if width == 0 || width > 2 || len(value) < offset+width {
-			return nil, errors.New("invalid DER length")
-		}
-		length = 0
-		for _, part := range value[offset : offset+width] {
-			length = length<<8 | int(part)
-		}
-		offset += width
-	}
-	if length != len(value)-offset {
-		return nil, errors.New("invalid DER content length")
-	}
-	return value[offset:], nil
+	return es256.DecodeDEROctetString(value)
 }
 
 // equalAttribute compares one returned PKCS#11 attribute with the fixed P-256 OID bytes.
@@ -317,25 +292,5 @@ func zero(value []byte) {
 
 // verifyPublicSignature proves the public object with a manifest CKA_ID is the mate of the non-exportable private object.
 func verifyPublicSignature(publicJWK PublicJWK, input, signature []byte) error {
-	if publicJWK.Kty != "EC" || publicJWK.Crv != "P-256" || len(signature) != 64 {
-		return errors.New("manifest public signature is invalid")
-	}
-	x, err := base64.RawURLEncoding.DecodeString(publicJWK.X)
-	if err != nil || len(x) != 32 {
-		return errors.New("manifest public signature is invalid")
-	}
-	y, err := base64.RawURLEncoding.DecodeString(publicJWK.Y)
-	if err != nil || len(y) != 32 {
-		return errors.New("manifest public signature is invalid")
-	}
-	curve := elliptic.P256()
-	publicKey := ecdsa.PublicKey{Curve: curve, X: new(big.Int).SetBytes(x), Y: new(big.Int).SetBytes(y)}
-	if !curve.IsOnCurve(publicKey.X, publicKey.Y) {
-		return errors.New("manifest public signature is invalid")
-	}
-	digest := sha256.Sum256(input)
-	if !ecdsa.Verify(&publicKey, digest[:], new(big.Int).SetBytes(signature[:32]), new(big.Int).SetBytes(signature[32:])) {
-		return errors.New("manifest public/private key mismatch")
-	}
-	return nil
+	return es256.Verify(es256.PublicJWK(publicJWK), input, signature)
 }
