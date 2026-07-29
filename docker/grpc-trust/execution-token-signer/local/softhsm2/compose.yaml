@@ -1,0 +1,15 @@
+# Runs the local signer lifecycle without requiring SoftHSM2, OpenSC, or Go on the macOS host.
+services:
+  signer-host:
+    build:
+      context: ../..
+      dockerfile: local/softhsm2/Dockerfile
+    network_mode: none
+    read_only: true
+    user: "65532:65532"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:mode=1777,size=256m
