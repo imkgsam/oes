@@ -328,7 +328,7 @@ HTTP access token
 - 无人值守 Robot 不继承创建者权限。
 - 平台 Robot template 不是 principal；租户安装时创建独立 tenant machine principal。
 - DELEGATED AI 的有效权限为用户权限、AI / tool 上限、delegation grant、tenant 与目标 RPC 要求的交集。
-- 外部 App 只允许创建 tenant Integration Machine + API Key，经 Gateway/Auth 取得 Gateway-only external access token；Gateway 才在受信任的内部 mTLS hop 换取 target-audience ExecutionToken。API Key 与 external token 均不开放内部 gRPC。具体边界以 [External API Key Security Collaboration](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/external-api-key-security.md) 为准。Marketplace、第三方开发者平台、共享 App 主体与跨 tenant 安装模型已取消，不作为后续预留能力。
+- 外部 App 只允许创建 tenant Integration Machine + API Key，经 Gateway/Auth 取得 Gateway-only external access token；Gateway 才在受信任的内部 mTLS hop 换取 target-audience ExecutionToken。Auth 的唯一 Gateway/credential gRPC surface 是 `external_api_key.proto` 的 `ExternalApiKeyCredentialService`：管理方法使用可信 HUMAN context，交换方法只允许 Gateway INTERNAL caller 在 request field 传递 raw key。API Key 与 external token 均不开放内部 gRPC。具体边界以 [External API Key Security Collaboration](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/external-api-key-security.md) 为准。Marketplace、第三方开发者平台、共享 App 主体与跨 tenant 安装模型已取消，不作为后续预留能力。
 
 ## 10. Tenant 与业务目标
 
