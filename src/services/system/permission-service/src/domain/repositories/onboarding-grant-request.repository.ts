@@ -6,6 +6,7 @@ export interface OnboardingGrantRequestRepository {
     tenantId: string
     accountId: string
     roleIds: string[]
+    bindingIds: string[]
     fingerprint: string
   }): Promise<OnboardingGrantRequestEntity>
   findByIdempotencyKey(idempotencyKey: string): Promise<OnboardingGrantRequestEntity | null>
@@ -14,6 +15,7 @@ export interface OnboardingGrantRequestRepository {
     tenantId: string
     accountId: string
     roleIds: string[]
+    bindingIds: string[]
     fingerprint: string
   }): Promise<OnboardingGrantRequestEntity>
 }

@@ -13,6 +13,7 @@ export class PrismaOnboardingGrantRequestRepository implements OnboardingGrantRe
     tenantId: string
     accountId: string
     roleIds: string[]
+    bindingIds: string[]
     fingerprint: string
   }): Promise<OnboardingGrantRequestEntity> {
     const record = await this.prisma.onboardingGrantRequest.create({
@@ -21,6 +22,7 @@ export class PrismaOnboardingGrantRequestRepository implements OnboardingGrantRe
         tenantId: input.tenantId,
         accountId: input.accountId,
         roleIds: input.roleIds,
+        bindingIds: input.bindingIds,
         fingerprint: input.fingerprint,
         status: 'PENDING'
       }
@@ -44,6 +46,7 @@ export class PrismaOnboardingGrantRequestRepository implements OnboardingGrantRe
     tenantId: string
     accountId: string
     roleIds: string[]
+    bindingIds: string[]
     fingerprint: string
   }): Promise<OnboardingGrantRequestEntity> {
     const record = await this.prisma.onboardingGrantRequest.upsert({
@@ -54,6 +57,7 @@ export class PrismaOnboardingGrantRequestRepository implements OnboardingGrantRe
         tenantId: input.tenantId,
         accountId: input.accountId,
         roleIds: input.roleIds,
+        bindingIds: input.bindingIds,
         fingerprint: input.fingerprint,
         status: 'SUCCEEDED'
       },
@@ -62,6 +66,7 @@ export class PrismaOnboardingGrantRequestRepository implements OnboardingGrantRe
         tenantId: input.tenantId,
         accountId: input.accountId,
         roleIds: input.roleIds,
+        bindingIds: input.bindingIds,
         fingerprint: input.fingerprint,
         status: 'SUCCEEDED'
       }
@@ -77,6 +82,7 @@ function toEntity(record: {
   tenantId: string
   accountId: string
   roleIds: string[]
+  bindingIds: string[]
   fingerprint: string
   status: string
 }): OnboardingGrantRequestEntity {
@@ -87,6 +93,7 @@ function toEntity(record: {
     record.accountId,
     record.roleIds,
     record.fingerprint,
-    record.status as 'PENDING' | 'SUCCEEDED'
+    record.status as 'PENDING' | 'SUCCEEDED',
+    record.bindingIds
   )
 }

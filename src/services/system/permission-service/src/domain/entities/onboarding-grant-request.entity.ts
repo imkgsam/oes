@@ -7,6 +7,7 @@ export class OnboardingGrantRequestEntity {
     public readonly accountId: string,
     public readonly roleIds: string[],
     public readonly fingerprint: string,
-    public readonly status: 'PENDING' | 'SUCCEEDED'
+    public readonly status: 'PENDING' | 'SUCCEEDED',
+    public readonly bindingIds: string[] = []
   ) {}
 }

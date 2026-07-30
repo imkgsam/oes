@@ -12,13 +12,11 @@
     "test:l1": "jest --config jest.config.js --runInBand test/l1",
     "test:l2": "jest --config jest.config.js --runInBand test/l2",
     "test:l3": "jest --config jest.config.js --runInBand test/l3",
-    
     "build": "tsc -b",
     "dev:build": "tsc -b -w --preserveWatchOutput",
     "dev:start": "wait-on dist/main.js ../../../common/dist/index.js && nodemon --watch dist --watch ../../../common/dist --ext js,json --signal SIGTERM dist/main.js",
     "dev": "concurrently -k -n build,run \"pnpm run dev:build\" \"pnpm run dev:start\"",
     "start": "node dist/main.js",
-  
     "prisma:generate": "npx prisma generate --schema=./prisma/schema.prisma",
     "prisma:push": "node -r ts-node/register ./src/scripts/permission-prisma-push.ts",
     "seed:dry-run": "node -r ts-node/register ./src/scripts/permission-service-seed.ts",
@@ -26,7 +24,6 @@
     "seed:validate": "node -r ts-node/register ./src/scripts/permission-service-seed-validate.ts",
     "seed:apply": "node -r ts-node/register ./src/scripts/permission-service-seed-writer.ts",
     "permission-codes:generate-common": "node -r ts-node/register ./src/scripts/generate-common-permission-codes.ts",
-
     "clear:build": "rimraf dist && rimraf tsconfig.tsbuildinfo",
     "clear:nm": "rimraf node_modules",
     "clear": "pnpm run clear:build && pnpm run clear:nm",
@@ -58,22 +55,23 @@
     "@types/jest": "^29.5.14",
     "@types/node": "^22.10.7",
     "@types/supertest": "^6.0.2",
+    "concurrently": "^9.2.1",
     "eslint": "^9.18.0",
     "eslint-config-prettier": "^10.0.1",
     "eslint-plugin-prettier": "^5.2.2",
     "globals": "^16.0.0",
     "jest": "^29.7.0",
-    "concurrently": "^9.2.1",
     "nodemon": "^3.1.14",
     "prettier": "^3.4.2",
+    "prisma": "6.4.1",
     "source-map-support": "^0.5.21",
     "supertest": "^7.0.0",
     "ts-jest": "^29.2.5",
     "ts-loader": "^9.5.2",
     "ts-node": "^10.9.2",
-    "wait-on": "^8.0.5",
     "typescript": "^5.7.3",
-    "typescript-eslint": "^8.20.0"
+    "typescript-eslint": "^8.20.0",
+    "wait-on": "^8.0.5"
   },
   "jest": {
     "moduleFileExtensions": [
