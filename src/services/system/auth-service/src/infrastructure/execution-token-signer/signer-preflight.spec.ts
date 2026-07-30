@@ -1,0 +1,3 @@
+import { generateKeyPairSync, sign } from 'node:crypto'
+import { verifySignerBootstrap } from './signer-preflight'
+describe('verifySignerBootstrap',()=>{const pair=generateKeyPairSync('ec',{namedCurve:'prime256v1'});const input=Buffer.from('bootstrap');const signature=sign('sha256',input,{key:pair.privateKey,dsaEncoding:'ieee-p1363'});const jwk=pair.publicKey.export({format:'jwk'});it('accepts active P-256 ES256 signature',()=>expect(()=>verifySignerBootstrap(jwk,input,signature)).not.toThrow());it('fails closed for malformed key or signature',()=>{expect(()=>verifySignerBootstrap({...jwk,crv:'P-384'},input,signature)).toThrow();expect(()=>verifySignerBootstrap(jwk,input,signature.subarray(1))).toThrow()})})

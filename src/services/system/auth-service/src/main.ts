@@ -1,25 +1,24 @@
-import { resolveCommonProtoPath } from '@oes/common/contracts'
 import { initOtelSdk } from '@oes/common/tracing'
 import { AppLogger } from '@oes/common/logging'
+import { resolveCommonProtoPath } from '@oes/common/contracts'
 import { NestFactory } from '@nestjs/core'
-import { MicroserviceOptions, Transport } from '@nestjs/microservices'
 import { AppModule } from './app.module'
+import { createAuthGrpcMicroserviceOptions } from './infrastructure/execution-token-signer/auth-grpc-bootstrap'
+import { createAuthGrpcServerCredentials } from './infrastructure/execution-token-signer/auth-grpc-security'
 
 async function bootstrap() {
   initOtelSdk(process.env.MODULE_NAME || 'auth-service')
 
-  const microservice = await NestFactory.createMicroservice<MicroserviceOptions>(AppModule, {
-    bufferLogs: true,
-    transport: Transport.GRPC,
-    options: {
-      package: 'auth_service',
-      protoPath: resolveCommonProtoPath('auth_service/auth.proto'),
-      url: `${process.env.GRPC_LISTEN_HOST || '0.0.0.0'}:${process.env.GRPC_LISTEN_PORT || '50050'}`
-    }
-  })
-
-  microservice.useLogger(microservice.get(AppLogger))
-  await microservice.listen()
+  const app = await NestFactory.create(AppModule, { bufferLogs: true })
+  app.connectMicroservice(
+    createAuthGrpcMicroserviceOptions(createAuthGrpcServerCredentials(), [
+      resolveCommonProtoPath('auth_service/auth.proto'),
+      resolveCommonProtoPath('auth_service/execution_token.proto')
+    ])
+  )
+  app.useLogger(app.get(AppLogger))
+  await app.startAllMicroservices()
+  await app.listen(process.env.AUTH_HTTP_PORT || 50051)
 }
 
 bootstrap()

@@ -49,7 +49,7 @@ Public error responses use stable categories such as `EXTERNAL_API_AUTHENTICATIO
 ## 5. Revocation And Audit
 
 - A revoked, expired, disabled, or leaked key cannot obtain a new access token.
-- Before public opening, Gateway must consume the Auth credential-deny fact so a confirmed leak invalidates outstanding tokens before their five-minute expiry. DG-2 owns the event transport and recovery contract; this contract does not define a second revocation event.
+- Before public opening, Gateway must consume the frozen DG-2 `auth.execution-token.revoked` security-critical event for `CREDENTIAL` selectors, retain the highest selector version, and fail closed when its credential-deny consumer is not ready. This contract does not define a second revocation event.
 - Gateway audits exchange outcome, rate protection, approved external capability use, request/trace correlation, credential reference, Integration Machine, tenant, and safe source summary. It never logs API Key material, Bearer access tokens, internal ExecutionTokens, or request payloads by default.
 
 ## 6. Acceptance

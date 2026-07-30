@@ -77,6 +77,7 @@ import { EmailService } from '../../infrastructure/services/email.service'
 import { BcryptHashingService } from '../../infrastructure/services/hashing.service'
 import { SmsService } from '../../infrastructure/services/sms.service'
 import { AuthGrpcController } from '../../interfaces/grpc/auth.grpc.controller'
+import { ExecutionTokenModule } from '../token/execution-token.module'
 
 @Module({
   imports: [
@@ -85,7 +86,8 @@ import { AuthGrpcController } from '../../interfaces/grpc/auth.grpc.controller'
     PrismaModule,
     CommonJwtModule,
     AuthorizationModule,
-    ExternalServicesModule
+    ExternalServicesModule,
+    ExecutionTokenModule
   ],
   providers: [
     { provide: REPO.AUDIT_EVENT, useExisting: PrismaAuthAuditRepository },
