@@ -53,7 +53,7 @@ Authorization: ApiKey oek_live_<opaque-identifier>.<secret>
 ## 5. HTTP Entry And Internal Propagation
 
 1. The external server sends the API Key only to the frozen Gateway exchange endpoint over HTTPS. It must not send a credential in a URL, query parameter, cookie, request body, or to an OES internal endpoint.
-2. Gateway applies generic invalid-credential protection and forwards the credential over its mTLS internal path to Auth. Auth validates credential, Integration Machine lifecycle, tenant lifecycle, and the current permission decision.
+2. Gateway applies generic invalid-credential protection and calls Auth's frozen `ExternalApiKeyCredentialService.ExchangeExternalApiKey` over its mTLS internal path. The raw key is permitted only in that one sensitive gRPC request field, never in metadata, logs, traces, events, or a business-service DTO. Auth validates credential, Integration Machine lifecycle, tenant lifecycle, and the current permission decision.
 3. Auth returns a short-lived external-access result. Gateway returns the Gateway-only external access token to the external server; its maximum TTL is five minutes and it has no refresh token.
 4. The external access token is valid only at Gateway external HTTP endpoints. It is not an `ExecutionToken`, cannot be submitted to gRPC, and is rejected by Auth management, human session, MFA, and internal-only routes.
 5. For each approved external request, Gateway validates the external token locally, applies external-route and tenant checks, then uses the trusted context to obtain the separate target-audience, workload-bound ExecutionToken for its internal mTLS call.
@@ -72,8 +72,10 @@ The external access token is signed by Auth under the DG-1 frozen issuer and key
 
 Auth and Gateway record correlated, tenant-scoped audit facts for creation, reveal-once success, rotation start/completion, revocation, disablement, exchange success/failure category, rate protection, external capability use, and security-policy changes. Audit includes credential reference, Integration Machine, actor where applicable, tenant, requested/approved capability, request/trace correlation, timestamp, and safe source summary; it excludes secrets, tokens, Authorization headers, and business payloads.
 
+Credential management uses the existing trusted HUMAN execution context and current Permission Codes: `identity.machine.api_key.create`, `identity.machine.api_key.rotate`, and `identity.machine.api_key.revoke`. It does not require an API-Key-specific step-up MFA grant. Organisations that require stronger administrator assurance apply it through the shared session / conditional-access policy, not through a new credential-only MFA scenario.
+
 - A confirmed leak synchronously prevents new exchanges through Auth, disables the affected credential, records a high-severity audit fact, and requires replacement rather than reactivation.
-- Outstanding Gateway-only access tokens have a five-minute natural maximum. Before external opening, Gateway must also consume Auth's credential-deny fact so a confirmed leak stops outstanding tokens early. The exact emergency event transport, ordering, recovery, and deny-cache convergence are owned by DG-2; DG-3 does not invent a parallel revocation event.
+- Outstanding Gateway-only access tokens have a five-minute natural maximum. Before external opening, Gateway must subscribe to the frozen DG-2 `auth.execution-token.revoked` security-critical event, consume only `selectorKind=CREDENTIAL` facts for its credential references, retain the greatest selector version, and fail closed when its required deny state is not ready. DG-3 does not invent a parallel revocation event.
 - Suspicious use (for example repeated failures or anomalous volume) triggers rate protection and alerting without silently revoking a healthy integration. The security operator may revoke it after investigation.
 
 ## 8. Non-goals
