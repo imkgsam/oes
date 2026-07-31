@@ -4,6 +4,7 @@ import { Role } from '../../src/domain/aggregates/role.aggregate'
 import { PermissionModule } from '../../src/domain/enums/permission-module.enum'
 import { RoleKind } from '../../src/domain/enums/role-kind.enum'
 import { AccountType } from '../../src/domain/enums/account-type.enum'
+import { ScopeLevel } from '../../src/domain/enums/scope-level.enum'
 import { AccountRole } from '../../src/domain/vo/account-role.value-object'
 
 describe('PermissionManagementGrpcController Additional L3', () => {
@@ -19,12 +20,19 @@ describe('PermissionManagementGrpcController Additional L3', () => {
   const createPermission = (id: string, code: string) =>
     new Permission(id, code, PermissionModule.PERMISSION_SERVICE, `${code} description`)
 
-  const createRole = (id: string, code: string, tenantId: string | null = null, kind = RoleKind.SYSTEM_TEMPLATE) =>
-    new Role(id, `${code} name`, code, tenantId, kind, true, `${code} description`, null, [])
+  const createRole = (
+    id: string,
+    code: string,
+    tenantId: string | null = null,
+    kind = RoleKind.SYSTEM_TEMPLATE
+  ) => new Role(id, `${code} name`, code, tenantId, kind, true, `${code} description`, null, [])
 
   it('gRPC 批量创建权限 / 当请求合法时 / 应映射输入数组并返回 ListPermissionsResponse', async () => {
     const buses = createBuses()
-    const controller = new PermissionManagementGrpcController(buses.commandBus as any, buses.queryBus as any)
+    const controller = new PermissionManagementGrpcController(
+      buses.commandBus as any,
+      buses.queryBus as any
+    )
     buses.commandBus.execute.mockResolvedValue([
       createPermission('p1', 'permission.one'),
       createPermission('p2', 'permission.two')
@@ -45,7 +53,10 @@ describe('PermissionManagementGrpcController Additional L3', () => {
 
   it('gRPC 更新权限 / 当请求合法时 / 应映射为 UpdatePermissionCommand', async () => {
     const buses = createBuses()
-    const controller = new PermissionManagementGrpcController(buses.commandBus as any, buses.queryBus as any)
+    const controller = new PermissionManagementGrpcController(
+      buses.commandBus as any,
+      buses.queryBus as any
+    )
     buses.commandBus.execute.mockResolvedValue(
       new Permission('permission-id', 'permission.update', PermissionModule.AUTH_SERVICE, 'updated')
     )
@@ -65,7 +76,10 @@ describe('PermissionManagementGrpcController Additional L3', () => {
 
   it('gRPC 删除权限 / 当请求合法时 / 应映射为 DeletePermissionCommand', async () => {
     const buses = createBuses()
-    const controller = new PermissionManagementGrpcController(buses.commandBus as any, buses.queryBus as any)
+    const controller = new PermissionManagementGrpcController(
+      buses.commandBus as any,
+      buses.queryBus as any
+    )
 
     await controller.deletePermission({ id: 'permission-id' } as any)
 
@@ -76,7 +90,10 @@ describe('PermissionManagementGrpcController Additional L3', () => {
 
   it('gRPC 按 code 查询权限 / 当请求合法时 / 应映射为 GetPermissionByCodeQuery', async () => {
     const buses = createBuses()
-    const controller = new PermissionManagementGrpcController(buses.commandBus as any, buses.queryBus as any)
+    const controller = new PermissionManagementGrpcController(
+      buses.commandBus as any,
+      buses.queryBus as any
+    )
     buses.queryBus.execute.mockResolvedValue(createPermission('permission-id', 'permission.code'))
 
     const result = await controller.getPermissionByCode({ code: 'permission.code' } as any)
@@ -89,7 +106,10 @@ describe('PermissionManagementGrpcController Additional L3', () => {
 
   it('gRPC 创建角色模板 / 当请求合法时 / 应映射为 CreateRoleTemplateCommand 并返回 RoleResponse', async () => {
     const buses = createBuses()
-    const controller = new PermissionManagementGrpcController(buses.commandBus as any, buses.queryBus as any)
+    const controller = new PermissionManagementGrpcController(
+      buses.commandBus as any,
+      buses.queryBus as any
+    )
     buses.commandBus.execute.mockResolvedValue(createRole('role-id', 'ROLE_TEMPLATE'))
 
     const result = await controller.createRoleTemplate({
@@ -106,7 +126,10 @@ describe('PermissionManagementGrpcController Additional L3', () => {
 
   it('gRPC 创建角色实例 / 当请求合法时 / 应映射为 CreateRoleInstanceCommand', async () => {
     const buses = createBuses()
-    const controller = new PermissionManagementGrpcController(buses.commandBus as any, buses.queryBus as any)
+    const controller = new PermissionManagementGrpcController(
+      buses.commandBus as any,
+      buses.queryBus as any
+    )
     buses.commandBus.execute.mockResolvedValue(
       createRole('role-id', 'ROLE_INSTANCE', 'tenant-1', RoleKind.TENANT_INSTANCE)
     )
@@ -125,7 +148,10 @@ describe('PermissionManagementGrpcController Additional L3', () => {
 
   it('gRPC 查询角色模板 / 当按 id 查询时 / 应映射为 GetRoleTemplateByIdQuery', async () => {
     const buses = createBuses()
-    const controller = new PermissionManagementGrpcController(buses.commandBus as any, buses.queryBus as any)
+    const controller = new PermissionManagementGrpcController(
+      buses.commandBus as any,
+      buses.queryBus as any
+    )
     buses.queryBus.execute.mockResolvedValue(createRole('role-id', 'ROLE_TEMPLATE'))
 
     await controller.getRoleTemplateById({ id: 'role-id' } as any)
@@ -137,7 +163,10 @@ describe('PermissionManagementGrpcController Additional L3', () => {
 
   it('gRPC 更新角色模板 / 当请求合法时 / 应映射为 UpdateRoleTemplateCommand', async () => {
     const buses = createBuses()
-    const controller = new PermissionManagementGrpcController(buses.commandBus as any, buses.queryBus as any)
+    const controller = new PermissionManagementGrpcController(
+      buses.commandBus as any,
+      buses.queryBus as any
+    )
     buses.commandBus.execute.mockResolvedValue(createRole('role-id', 'ROLE_TEMPLATE'))
 
     await controller.updateRoleTemplate({ id: 'role-id', name: 'Updated Name' } as any)
@@ -150,7 +179,10 @@ describe('PermissionManagementGrpcController Additional L3', () => {
 
   it('gRPC 删除角色模板 / 当请求合法时 / 应映射为 DeleteRoleTemplateCommand', async () => {
     const buses = createBuses()
-    const controller = new PermissionManagementGrpcController(buses.commandBus as any, buses.queryBus as any)
+    const controller = new PermissionManagementGrpcController(
+      buses.commandBus as any,
+      buses.queryBus as any
+    )
 
     await controller.deleteRoleTemplate({ id: 'role-id' } as any)
 
@@ -161,7 +193,10 @@ describe('PermissionManagementGrpcController Additional L3', () => {
 
   it('gRPC 启停角色模板 / 当请求合法时 / 应映射为 SetRoleTemplateEnabledCommand', async () => {
     const buses = createBuses()
-    const controller = new PermissionManagementGrpcController(buses.commandBus as any, buses.queryBus as any)
+    const controller = new PermissionManagementGrpcController(
+      buses.commandBus as any,
+      buses.queryBus as any
+    )
     buses.commandBus.execute.mockResolvedValue(createRole('role-id', 'ROLE_TEMPLATE'))
 
     await controller.setRoleTemplateEnabled({ id: 'role-id', isEnabled: false } as any)
@@ -173,10 +208,17 @@ describe('PermissionManagementGrpcController Additional L3', () => {
 
   it('gRPC 角色模板权限列表 / 当请求合法时 / 应返回权限列表', async () => {
     const buses = createBuses()
-    const controller = new PermissionManagementGrpcController(buses.commandBus as any, buses.queryBus as any)
-    buses.queryBus.execute.mockResolvedValue([createPermission('permission-id', 'permission.template')])
+    const controller = new PermissionManagementGrpcController(
+      buses.commandBus as any,
+      buses.queryBus as any
+    )
+    buses.queryBus.execute.mockResolvedValue([
+      createPermission('permission-id', 'permission.template')
+    ])
 
-    const result = await controller.listRoleTemplatePermissions({ roleTemplateId: 'role-id' } as any)
+    const result = await controller.listRoleTemplatePermissions({
+      roleTemplateId: 'role-id'
+    } as any)
 
     const query = buses.queryBus.execute.mock.calls[0][0]
     expect(query.constructor.name).toBe('ListRoleTemplatePermissionsQuery')
@@ -185,18 +227,34 @@ describe('PermissionManagementGrpcController Additional L3', () => {
 
   it('gRPC 绑定和解绑角色模板权限 / 当请求合法时 / 应映射为对应命令', async () => {
     const buses = createBuses()
-    const controller = new PermissionManagementGrpcController(buses.commandBus as any, buses.queryBus as any)
+    const controller = new PermissionManagementGrpcController(
+      buses.commandBus as any,
+      buses.queryBus as any
+    )
 
-    await controller.assignRoleTemplatePermission({ roleTemplateId: 'role-id', permissionId: 'permission-id' } as any)
-    await controller.revokeRoleTemplatePermission({ roleTemplateId: 'role-id', permissionId: 'permission-id' } as any)
+    await controller.assignRoleTemplatePermission({
+      roleTemplateId: 'role-id',
+      permissionId: 'permission-id'
+    } as any)
+    await controller.revokeRoleTemplatePermission({
+      roleTemplateId: 'role-id',
+      permissionId: 'permission-id'
+    } as any)
 
-    expect(buses.commandBus.execute.mock.calls[0][0].constructor.name).toBe('AssignRoleTemplatePermissionCommand')
-    expect(buses.commandBus.execute.mock.calls[1][0].constructor.name).toBe('RevokeRoleTemplatePermissionCommand')
+    expect(buses.commandBus.execute.mock.calls[0][0].constructor.name).toBe(
+      'AssignRoleTemplatePermissionCommand'
+    )
+    expect(buses.commandBus.execute.mock.calls[1][0].constructor.name).toBe(
+      'RevokeRoleTemplatePermissionCommand'
+    )
   })
 
   it('gRPC 从模板创建角色实例 / 当请求合法时 / 应映射为 CreateRoleInstanceFromTemplateCommand', async () => {
     const buses = createBuses()
-    const controller = new PermissionManagementGrpcController(buses.commandBus as any, buses.queryBus as any)
+    const controller = new PermissionManagementGrpcController(
+      buses.commandBus as any,
+      buses.queryBus as any
+    )
     buses.commandBus.execute.mockResolvedValue(
       createRole('role-id', 'ROLE_INSTANCE', 'tenant-1', RoleKind.TENANT_INSTANCE)
     )
@@ -214,7 +272,10 @@ describe('PermissionManagementGrpcController Additional L3', () => {
 
   it('gRPC 更新和启停角色 / 当请求合法时 / 应映射为对应命令', async () => {
     const buses = createBuses()
-    const controller = new PermissionManagementGrpcController(buses.commandBus as any, buses.queryBus as any)
+    const controller = new PermissionManagementGrpcController(
+      buses.commandBus as any,
+      buses.queryBus as any
+    )
     buses.commandBus.execute
       .mockResolvedValueOnce(createRole('role-id', 'ROLE_INSTANCE'))
       .mockResolvedValueOnce(createRole('role-id', 'ROLE_INSTANCE'))
@@ -228,7 +289,10 @@ describe('PermissionManagementGrpcController Additional L3', () => {
 
   it('gRPC 删除和查询角色 / 当请求合法时 / 应映射为 DeleteRoleCommand 与 GetRoleByIdQuery', async () => {
     const buses = createBuses()
-    const controller = new PermissionManagementGrpcController(buses.commandBus as any, buses.queryBus as any)
+    const controller = new PermissionManagementGrpcController(
+      buses.commandBus as any,
+      buses.queryBus as any
+    )
     buses.queryBus.execute.mockResolvedValue(createRole('role-id', 'ROLE_INSTANCE'))
 
     await controller.deleteRole({ id: 'role-id' } as any)
@@ -240,7 +304,10 @@ describe('PermissionManagementGrpcController Additional L3', () => {
 
   it('gRPC 角色实例和模板分页查询 / 当请求合法时 / 应返回分页角色结构', async () => {
     const buses = createBuses()
-    const controller = new PermissionManagementGrpcController(buses.commandBus as any, buses.queryBus as any)
+    const controller = new PermissionManagementGrpcController(
+      buses.commandBus as any,
+      buses.queryBus as any
+    )
     buses.queryBus.execute
       .mockResolvedValueOnce({
         roles: [createRole('role-id-1', 'ROLE_INSTANCE', 'tenant-1', RoleKind.TENANT_INSTANCE)],
@@ -255,7 +322,11 @@ describe('PermissionManagementGrpcController Additional L3', () => {
         pageSize: 10
       })
 
-    const instances = await controller.listRoleInstances({ page: 1, pageSize: 10, tenantId: 'tenant-1' } as any)
+    const instances = await controller.listRoleInstances({
+      page: 1,
+      pageSize: 10,
+      tenantId: 'tenant-1'
+    } as any)
     const templates = await controller.listRoleTemplates({ page: 1, pageSize: 10 } as any)
 
     expect(buses.queryBus.execute.mock.calls[0][0].constructor.name).toBe('ListRoleInstancesQuery')
@@ -266,22 +337,52 @@ describe('PermissionManagementGrpcController Additional L3', () => {
 
   it('gRPC 角色权限列表与绑定操作 / 当请求合法时 / 应映射为对应 query 和 command', async () => {
     const buses = createBuses()
-    const controller = new PermissionManagementGrpcController(buses.commandBus as any, buses.queryBus as any)
+    const controller = new PermissionManagementGrpcController(
+      buses.commandBus as any,
+      buses.queryBus as any
+    )
     buses.queryBus.execute.mockResolvedValue([createPermission('permission-id', 'permission.role')])
 
     const list = await controller.listRolePermissions({ roleId: 'role-id' } as any)
-    await controller.assignRolePermission({ roleId: 'role-id', permissionId: 'permission-id' } as any)
-    await controller.revokeRolePermission({ roleId: 'role-id', permissionId: 'permission-id' } as any)
+    await controller.assignRolePermission({
+      roleId: 'role-id',
+      permissionId: 'permission-id'
+    } as any)
+    await controller.revokeRolePermission({
+      roleId: 'role-id',
+      permissionId: 'permission-id'
+    } as any)
 
-    expect(buses.queryBus.execute.mock.calls[0][0].constructor.name).toBe('ListRolePermissionsQuery')
-    expect(buses.commandBus.execute.mock.calls[0][0].constructor.name).toBe('AssignRolePermissionCommand')
-    expect(buses.commandBus.execute.mock.calls[1][0].constructor.name).toBe('RevokeRolePermissionCommand')
+    expect(buses.queryBus.execute.mock.calls[0][0].constructor.name).toBe(
+      'ListRolePermissionsQuery'
+    )
+    expect(buses.commandBus.execute.mock.calls[0][0].constructor.name).toBe(
+      'AssignRolePermissionCommand'
+    )
+    expect(buses.commandBus.execute.mock.calls[1][0].constructor.name).toBe(
+      'RevokeRolePermissionCommand'
+    )
     expect(list.permissions).toHaveLength(1)
   })
 
   it('gRPC 账号角色绑定操作 / 当请求合法时 / 应映射为 AssignAccountRoleCommand 与 RevokeAccountRoleCommand', async () => {
     const buses = createBuses()
-    const controller = new PermissionManagementGrpcController(buses.commandBus as any, buses.queryBus as any)
+    const controller = new PermissionManagementGrpcController(
+      buses.commandBus as any,
+      buses.queryBus as any
+    )
+    buses.commandBus.execute.mockResolvedValueOnce(
+      new AccountRole(
+        AccountType.USER,
+        'account-id',
+        'role-id',
+        'tenant-1',
+        ScopeLevel.TENANT,
+        null,
+        null,
+        'binding-id'
+      )
+    )
 
     await controller.assignAccountRole({
       accountId: 'account-id',
@@ -291,37 +392,79 @@ describe('PermissionManagementGrpcController Additional L3', () => {
     } as any)
     await controller.revokeAccountRole({ accountId: 'account-id', roleId: 'role-id' } as any)
 
-    expect(buses.commandBus.execute.mock.calls[0][0].constructor.name).toBe('AssignAccountRoleCommand')
-    expect(buses.commandBus.execute.mock.calls[1][0].constructor.name).toBe('RevokeAccountRoleCommand')
+    expect(buses.commandBus.execute.mock.calls[0][0].constructor.name).toBe(
+      'AssignAccountRoleCommand'
+    )
+    expect(buses.commandBus.execute.mock.calls[1][0].constructor.name).toBe(
+      'RevokeAccountRoleCommand'
+    )
   })
 
   it('gRPC 账号和角色关联查询 / 当请求合法时 / 应返回 roles 与 account bindings', async () => {
     const buses = createBuses()
-    const controller = new PermissionManagementGrpcController(buses.commandBus as any, buses.queryBus as any)
+    const controller = new PermissionManagementGrpcController(
+      buses.commandBus as any,
+      buses.queryBus as any
+    )
     buses.queryBus.execute
-      .mockResolvedValueOnce([createRole('role-id', 'ROLE_ACCOUNT', 'tenant-1', RoleKind.TENANT_INSTANCE)])
+      .mockResolvedValueOnce({
+        roles: [createRole('role-id', 'ROLE_ACCOUNT', 'tenant-1', RoleKind.TENANT_INSTANCE)],
+        bindings: [
+          new AccountRole(
+            AccountType.USER,
+            'account-id',
+            'role-id',
+            'tenant-1',
+            ScopeLevel.TENANT,
+            null,
+            null,
+            'binding-id'
+          )
+        ]
+      })
       .mockResolvedValueOnce([
-        new AccountRole(AccountType.USER, 'account-id', 'role-id', 'tenant-1')
+        new AccountRole(
+          AccountType.USER,
+          'account-id',
+          'role-id',
+          'tenant-1',
+          ScopeLevel.TENANT,
+          null,
+          null,
+          'binding-id'
+        )
       ])
       .mockResolvedValueOnce({
-        availableRoles: [createRole('role-id', 'ROLE_SELECT', 'tenant-1', RoleKind.TENANT_INSTANCE)],
+        availableRoles: [
+          createRole('role-id', 'ROLE_SELECT', 'tenant-1', RoleKind.TENANT_INSTANCE)
+        ],
         selectedRoleIds: ['role-id']
       })
 
-    const roles = await controller.listAccountRoles({ accountId: 'account-id', tenantId: 'tenant-1' } as any)
+    const roles = await controller.listAccountRoles({
+      accountId: 'account-id',
+      tenantId: 'tenant-1'
+    } as any)
     const accounts = await controller.listRoleAccounts({ roleId: 'role-id' } as any)
-    const selection = await controller.getAccountRoleSelection({ accountId: 'account-id', tenantId: 'tenant-1' } as any)
+    const selection = await controller.getAccountRoleSelection({
+      accountId: 'account-id',
+      tenantId: 'tenant-1'
+    } as any)
 
     expect(buses.queryBus.execute.mock.calls[0][0].constructor.name).toBe('ListAccountRolesQuery')
     expect(buses.queryBus.execute.mock.calls[1][0].constructor.name).toBe('ListRoleAccountsQuery')
-    expect(buses.queryBus.execute.mock.calls[2][0].constructor.name).toBe('GetAccountRoleSelectionQuery')
+    expect(buses.queryBus.execute.mock.calls[2][0].constructor.name).toBe(
+      'GetAccountRoleSelectionQuery'
+    )
     expect(roles.roles).toHaveLength(1)
     expect(accounts.accounts).toEqual([
       {
         accountId: 'account-id',
         accountType: AccountType.USER,
         roleId: 'role-id',
-        tenantId: 'tenant-1'
+        tenantId: 'tenant-1',
+        scopeLevel: ScopeLevel.TENANT,
+        bindingId: 'binding-id'
       }
     ])
     expect(selection.selectedRoleIds).toEqual(['role-id'])
@@ -329,10 +472,25 @@ describe('PermissionManagementGrpcController Additional L3', () => {
 
   it('gRPC 批量设置账号角色 / 当请求合法时 / 应映射为 SetAccountRolesCommand 并返回角色列表', async () => {
     const buses = createBuses()
-    const controller = new PermissionManagementGrpcController(buses.commandBus as any, buses.queryBus as any)
-    buses.commandBus.execute.mockResolvedValue([
-      createRole('role-id', 'ROLE_SET', 'tenant-1', RoleKind.TENANT_INSTANCE)
-    ])
+    const controller = new PermissionManagementGrpcController(
+      buses.commandBus as any,
+      buses.queryBus as any
+    )
+    buses.commandBus.execute.mockResolvedValue({
+      roles: [createRole('role-id', 'ROLE_SET', 'tenant-1', RoleKind.TENANT_INSTANCE)],
+      bindings: [
+        new AccountRole(
+          AccountType.USER,
+          'account-id',
+          'role-id',
+          'tenant-1',
+          ScopeLevel.TENANT,
+          null,
+          null,
+          'binding-id'
+        )
+      ]
+    })
 
     const result = await controller.setAccountRoles({
       accountId: 'account-id',

@@ -14,27 +14,27 @@ datasource db {
 // ============================================================
 
 model Role {
-  id             String   @id @default(uuid())
-  tenantId       String? // null = system template or system instance
-  scopeKey       String // "__SYSTEM_TEMPLATE__" for templates, "__SYSTEM__" for system instances, tenantId for tenant instances
-  code           String
-  name           String
-  description    String?
-  kind           RoleKind
-  templateRoleId String?
-  allowTenantPermissionOverride Boolean @default(true)
-  isProtected    Boolean  @default(false)
-  isEnabled      Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                            String   @id @default(uuid())
+  tenantId                      String? // null = system template or system instance
+  scopeKey                      String // "__SYSTEM_TEMPLATE__" for templates, "__SYSTEM__" for system instances, tenantId for tenant instances
+  code                          String
+  name                          String
+  description                   String?
+  kind                          RoleKind
+  templateRoleId                String?
+  allowTenantPermissionOverride Boolean  @default(true)
+  isProtected                   Boolean  @default(false)
+  isEnabled                     Boolean  @default(true)
+  createdAt                     DateTime @default(now())
+  updatedAt                     DateTime @updatedAt
 
-  permissions  RolePermission[]
-  accounts     AccountRole[]
-  terminalAccess RoleTerminalAccess?
+  permissions            RolePermission[]
+  principalRoleBindings  PrincipalRoleBinding[]
+  terminalAccess         RoleTerminalAccess?
   navigationVisibilities RoleNavigationVisibility[]
-  landingPolicies RoleLandingPolicy[]
-  templateRole Role?            @relation("RoleTemplateInstances", fields: [templateRoleId], references: [id])
-  instances    Role[]           @relation("RoleTemplateInstances")
+  landingPolicies        RoleLandingPolicy[]
+  templateRole           Role?                      @relation("RoleTemplateInstances", fields: [templateRoleId], references: [id])
+  instances              Role[]                     @relation("RoleTemplateInstances")
 
   @@unique([scopeKey, kind, code])
   @@index([tenantId, kind])
@@ -85,19 +85,28 @@ model RolePermission {
   @@unique([roleId, permissionId])
 }
 
-model AccountRole {
-  id          String      @id @default(uuid())
-  accountType AccountType
-  accountId   String
-  roleId      String
-  tenantId    String?
-  scopeLevel  ScopeLevel  @default(TENANT)
-  effectiveAt DateTime?
-  expiresAt   DateTime?
-  role        Role        @relation(fields: [roleId], references: [id])
+model PrincipalRoleBinding {
+  id                  String        @id @default(uuid())
+  principalType       PrincipalType
+  principalId         String
+  roleId              String
+  tenantId            String?
+  scopeLevel          ScopeLevel    @default(TENANT)
+  effectiveAt         DateTime?
+  expiresAt           DateTime?
+  revokedAt           DateTime?
+  revokedByOperatorId String?
+  revokeReason        String?
+  revokeAuditEventId  String?
+  createdByOperatorId String?
+  createdRequestId    String?
+  createdTraceId      String?
+  grantAuditEventId   String?
+  createdAt           DateTime      @default(now())
+  role                Role          @relation(fields: [roleId], references: [id])
 
-  @@unique([accountId, roleId])
-  @@index([accountId, scopeLevel, tenantId])
+  @@index([principalId, scopeLevel, tenantId])
+  @@index([roleId, revokedAt])
 }
 
 model OnboardingGrantRequest {
@@ -106,12 +115,31 @@ model OnboardingGrantRequest {
   tenantId       String
   accountId      String
   roleIds        String[]
+  bindingIds     String[]              @default([])
   fingerprint    String
   status         OnboardingGrantStatus @default(PENDING)
   createdAt      DateTime              @default(now())
   updatedAt      DateTime              @updatedAt
 
   @@index([tenantId, accountId])
+}
+
+model PrincipalRoleBindingMigrationAudit {
+  id                    String   @id
+  phase                 String
+  legacyBindingCount    Int
+  canonicalBindingCount Int
+  parityVerified        Boolean
+  recordedAt            DateTime @default(now())
+}
+
+model PrincipalRoleBindingRevokeTombstone {
+  bindingId             String   @id
+  revokedAt             DateTime
+  revokedByOperatorId   String
+  reason                String
+  opaqueRevokeOutcomeId String
+  createdAt             DateTime @default(now())
 }
 
 // ============================================================
@@ -131,18 +159,18 @@ model NavigationEntry {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  roleVisibilities   RoleNavigationVisibility[]
+  roleVisibilities    RoleNavigationVisibility[]
   roleLandingPolicies RoleLandingPolicy[]
 
   @@index([featureKey, enabled])
 }
 
 model RoleNavigationVisibility {
-  id         String @id @default(uuid())
-  roleId     String
-  entryKey   String
-  terminal   String
-  enabled    Boolean @default(true)
+  id       String  @id @default(uuid())
+  roleId   String
+  entryKey String
+  terminal String
+  enabled  Boolean @default(true)
 
   role  Role            @relation(fields: [roleId], references: [id])
   entry NavigationEntry @relation(fields: [entryKey], references: [entryKey])
@@ -285,9 +313,9 @@ enum Modules {
   NOTIFICATION_SERVICE
 }
 
-enum AccountType {
-  USER
-  SERVICE
+enum PrincipalType {
+  HUMAN
+  MACHINE
 }
 
 enum RoleKind {

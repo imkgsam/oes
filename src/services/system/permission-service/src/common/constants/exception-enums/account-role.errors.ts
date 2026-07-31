@@ -14,3 +14,10 @@ export const ACCOUNT_ROLE_TIME_WINDOW_INVALID: ExceptionDefinition = {
   messageKey: 'permission.account_role_time_window_invalid',
   rpcStatus: status.INVALID_ARGUMENT
 }
+
+export const PRINCIPAL_ROLE_BINDING_ID_REQUIRED: ExceptionDefinition = {
+  code: 'PRINCIPAL_ROLE_BINDING_ID_REQUIRED',
+  message: 'Canonical revoke requires an immutable principal role binding id',
+  messageKey: 'permission.principal_role_binding_id_required',
+  rpcStatus: status.INVALID_ARGUMENT
+}

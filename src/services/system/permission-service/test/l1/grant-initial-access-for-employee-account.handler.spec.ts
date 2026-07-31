@@ -11,6 +11,7 @@ import { RolePermission } from '../../src/domain/vo/role-permission.value-object
 import { IdentityAccountReferencePort } from '../../src/application/ports/identity-account-reference.port'
 import { buildTenantBoundQueryScope } from '../../src/application/authorization/operator-scope'
 import { OESExceptionBase } from '@oes/common/exceptions'
+import { AccountRole } from '../../src/domain/vo/account-role.value-object'
 
 function createRoleRepository(): jest.Mocked<RoleRepository> {
   return {
@@ -84,11 +85,7 @@ function tenantRole(id: string, tenantId = 'tenant-1') {
 }
 
 describe('GrantInitialAccessForEmployeeAccountHandler', () => {
-  const fingerprintFor = (input: {
-    tenantId: string
-    accountId: string
-    roleIds: string[]
-  }) =>
+  const fingerprintFor = (input: { tenantId: string; accountId: string; roleIds: string[] }) =>
     JSON.stringify({
       tenantId: input.tenantId,
       accountId: input.accountId,
@@ -111,18 +108,45 @@ describe('GrantInitialAccessForEmployeeAccountHandler', () => {
       tenantId: 'tenant-1',
       accountId: 'account-1',
       roleIds: ['role-1', 'role-2'],
+      bindingIds: ['binding-1', 'binding-2'],
       fingerprint: 'fp-1',
       status: 'PENDING'
     })
     roleRepository.findById
       .mockResolvedValueOnce(tenantRole('role-1'))
       .mockResolvedValueOnce(tenantRole('role-2'))
+    roleRepository.assignAccountRole
+      .mockResolvedValueOnce(
+        new AccountRole(
+          AccountType.USER,
+          'account-1',
+          'role-1',
+          'tenant-1',
+          ScopeLevel.TENANT,
+          null,
+          null,
+          'binding-1'
+        )
+      )
+      .mockResolvedValueOnce(
+        new AccountRole(
+          AccountType.USER,
+          'account-1',
+          'role-2',
+          'tenant-1',
+          ScopeLevel.TENANT,
+          null,
+          null,
+          'binding-2'
+        )
+      )
     requestRepository.markSucceeded.mockResolvedValue({
       id: 'grant-request-1',
       idempotencyKey: 'grant-key-1',
       tenantId: 'tenant-1',
       accountId: 'account-1',
       roleIds: ['role-1', 'role-2'],
+      bindingIds: ['binding-1', 'binding-2'],
       fingerprint: 'fp-1',
       status: 'SUCCEEDED'
     })
@@ -154,7 +178,8 @@ describe('GrantInitialAccessForEmployeeAccountHandler', () => {
     ).resolves.toMatchObject({
       idempotencyKey: 'grant-key-1',
       accountId: 'account-1',
-      roleIds: ['role-1', 'role-2']
+      roleIds: ['role-1', 'role-2'],
+      bindingIds: ['binding-1', 'binding-2']
     })
 
     expect(roleRepository.assignAccountRole).toHaveBeenCalledTimes(2)
@@ -164,7 +189,10 @@ describe('GrantInitialAccessForEmployeeAccountHandler', () => {
       'role-1',
       'tenant-1',
       ScopeLevel.TENANT,
-      AccountType.USER
+      AccountType.USER,
+      null,
+      null,
+      expect.objectContaining({ bindingId: 'binding-1' })
     )
     expect(roleRepository.assignAccountRole).toHaveBeenNthCalledWith(
       2,
@@ -172,7 +200,13 @@ describe('GrantInitialAccessForEmployeeAccountHandler', () => {
       'role-2',
       'tenant-1',
       ScopeLevel.TENANT,
-      AccountType.USER
+      AccountType.USER,
+      null,
+      null,
+      expect.objectContaining({ bindingId: 'binding-2' })
+    )
+    expect(requestRepository.markSucceeded).toHaveBeenCalledWith(
+      expect.objectContaining({ bindingIds: ['binding-1', 'binding-2'] })
     )
   })
 
@@ -254,7 +288,10 @@ describe('GrantInitialAccessForEmployeeAccountHandler', () => {
       'account-basic-role-id',
       'tenant-1',
       ScopeLevel.TENANT,
-      AccountType.USER
+      AccountType.USER,
+      null,
+      null,
+      expect.objectContaining({ bindingId: expect.any(String) })
     )
   })
 
@@ -272,7 +309,11 @@ describe('GrantInitialAccessForEmployeeAccountHandler', () => {
       true
     )
     accountBasicTemplate.addPermission(
-      new RolePermission('template-account-basic', 'permission-self-read', 'identity.account.self.read')
+      new RolePermission(
+        'template-account-basic',
+        'permission-self-read',
+        'identity.account.self.read'
+      )
     )
     roleRepository.findByScopeKindAndCode
       .mockResolvedValueOnce(null)
@@ -336,7 +377,10 @@ describe('GrantInitialAccessForEmployeeAccountHandler', () => {
       result.roleIds[0],
       'tenant-1',
       ScopeLevel.TENANT,
-      AccountType.USER
+      AccountType.USER,
+      null,
+      null,
+      expect.objectContaining({ bindingId: expect.any(String) })
     )
   })
 

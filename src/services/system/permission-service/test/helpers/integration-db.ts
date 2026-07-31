@@ -92,7 +92,7 @@ export async function cleanupByPrefix(prisma: PrismaService, prefix: string): Pr
     }
   })
 
-  await prisma.accountRole.deleteMany({
+  await prisma.principalRoleBinding.deleteMany({
     where: {
       OR: [
         {
@@ -103,7 +103,7 @@ export async function cleanupByPrefix(prisma: PrismaService, prefix: string): Pr
           }
         },
         {
-          accountId: {
+          principalId: {
             startsWith: prefix
           }
         }

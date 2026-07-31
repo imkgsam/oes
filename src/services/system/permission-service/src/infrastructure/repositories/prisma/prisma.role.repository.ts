@@ -1,4 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
+import { randomUUID } from 'node:crypto'
+import { ExceptionFactory } from '@oes/common/exceptions'
 import { Permission } from '../../../domain/aggregates/permission.aggregate'
 import { Role } from '../../../domain/aggregates/role.aggregate'
 import { AccountType } from '../../../domain/enums/account-type.enum'
@@ -10,14 +12,16 @@ import { Prisma } from '../../../../prisma/generated/prisma'
 import { PermissionMapper } from '../../mappers/permission.mapper'
 import { RoleMapper } from '../../mappers/role.mapper'
 import { PrismaService } from '../../prisma/prisma.service'
+import { ACCOUNT_ROLE_ALREADY_ASSIGNED } from '../../../common/constants/exception-enums'
 
 const ROLE_INCLUDE = {
   permissions: { include: { permission: true } }
 } as const
 
-function buildActiveAccountRoleWhere(now: Date): Prisma.AccountRoleWhereInput {
+function buildActivePrincipalRoleBindingWhere(now: Date): Prisma.PrincipalRoleBindingWhereInput {
   return {
     AND: [
+      { revokedAt: null },
       {
         OR: [{ effectiveAt: null }, { effectiveAt: { lte: now } }]
       },
@@ -58,7 +62,11 @@ export class PrismaRoleRepository implements RoleRepository {
     return found ? RoleMapper.toDomain(found) : null
   }
 
-  async findByScopeKindAndCode(scopeKey: string, kind: RoleKind, code: string): Promise<Role | null> {
+  async findByScopeKindAndCode(
+    scopeKey: string,
+    kind: RoleKind,
+    code: string
+  ): Promise<Role | null> {
     const found = await this.prisma.role.findFirst({
       where: { scopeKey, kind, code },
       include: ROLE_INCLUDE
@@ -218,7 +226,7 @@ export class PrismaRoleRepository implements RoleRepository {
   }
 
   async hasAssignedAccounts(roleId: string): Promise<boolean> {
-    const count = await this.prisma.accountRole.count({ where: { roleId } })
+    const count = await this.prisma.principalRoleBinding.count({ where: { roleId } })
     return count > 0
   }
 
@@ -262,10 +270,11 @@ export class PrismaRoleRepository implements RoleRepository {
 
   async findRolesForAccountId(accountId: string): Promise<Role[]> {
     const now = new Date()
-    const accountRoles = await this.prisma.accountRole.findMany({
+    const accountRoles = await this.prisma.principalRoleBinding.findMany({
       where: {
-        accountId,
-        ...buildActiveAccountRoleWhere(now),
+        principalType: 'HUMAN',
+        principalId: accountId,
+        ...buildActivePrincipalRoleBindingWhere(now),
         role: {
           isEnabled: true
         }
@@ -274,7 +283,11 @@ export class PrismaRoleRepository implements RoleRepository {
     })
     return accountRoles.map((ar) =>
       RoleMapper.toDomain(
-        (ar as Prisma.AccountRoleGetPayload<{ include: { role: { include: typeof ROLE_INCLUDE } } }>).role
+        (
+          ar as Prisma.PrincipalRoleBindingGetPayload<{
+            include: { role: { include: typeof ROLE_INCLUDE } }
+          }>
+        ).role
       )
     )
   }
@@ -286,38 +299,138 @@ export class PrismaRoleRepository implements RoleRepository {
     scopeLevel: ScopeLevel,
     accountType: AccountType,
     effectiveAt?: Date | null,
-    expiresAt?: Date | null
-  ): Promise<void> {
-    await this.prisma.accountRole.upsert({
-      where: {
-        accountId_roleId: {
-          accountId,
-          roleId
+    expiresAt?: Date | null,
+    auditContext?: {
+      operatorId: string
+      requestId?: string
+      traceId?: string
+      bindingId?: string
+    }
+  ): Promise<AccountRole> {
+    try {
+      const binding = await this.prisma.principalRoleBinding.create({
+        data: {
+          id: auditContext?.bindingId,
+          principalType: accountType === AccountType.SERVICE ? 'MACHINE' : 'HUMAN',
+          principalId: accountId,
+          roleId,
+          tenantId,
+          scopeLevel,
+          effectiveAt: effectiveAt ?? new Date(),
+          expiresAt: expiresAt ?? null,
+          createdByOperatorId: auditContext?.operatorId ?? null,
+          createdRequestId: auditContext?.requestId ?? null,
+          createdTraceId: auditContext?.traceId ?? null,
+          grantAuditEventId: randomUUID()
         }
-      },
-      update: {
-        tenantId,
-        scopeLevel,
-        accountType,
-        effectiveAt: effectiveAt ?? null,
-        expiresAt: expiresAt ?? null
-      },
-      create: {
-        accountId,
-        roleId,
-        tenantId,
-        scopeLevel,
-        accountType,
-        effectiveAt: effectiveAt ?? null,
-        expiresAt: expiresAt ?? null
+      })
+
+      return toAccountRole(binding)
+    } catch (error) {
+      if ((error as { code?: string })?.code === 'P2002' && auditContext?.bindingId) {
+        const existing = await this.prisma.principalRoleBinding.findUnique({
+          where: { id: auditContext.bindingId }
+        })
+        if (
+          existing &&
+          existing.principalId === accountId &&
+          existing.roleId === roleId &&
+          existing.scopeLevel === scopeLevel &&
+          existing.tenantId === tenantId &&
+          existing.principalType === (accountType === AccountType.SERVICE ? 'MACHINE' : 'HUMAN')
+        ) {
+          return toAccountRole(existing)
+        }
+      }
+      if (isBindingOverlapError(error)) {
+        throw ExceptionFactory.domain(ACCOUNT_ROLE_ALREADY_ASSIGNED, {
+          principalId: accountId,
+          roleId,
+          scopeLevel,
+          tenantId
+        })
+      }
+      throw error
+    }
+  }
+
+  /** revokeAccountRole intentionally refuses legacy selectors after canonical cutover. */
+  async revokeAccountRole(_accountId: string, _roleId: string): Promise<void> {
+    throw new Error('PRINCIPAL_ROLE_BINDING_ID_REQUIRED')
+  }
+
+  /** revokePrincipalRoleBinding atomically records or replays the first revoke facts. */
+  async revokePrincipalRoleBinding(input: {
+    bindingId: string
+    revokedAt: Date
+    revokedByOperatorId: string
+    reason: string
+    auditEventId: string
+  }) {
+    return this.prisma.$transaction(async (tx) => {
+      const update = await tx.principalRoleBinding.updateMany({
+        where: { id: input.bindingId, revokedAt: null },
+        data: {
+          revokedAt: input.revokedAt,
+          revokedByOperatorId: input.revokedByOperatorId,
+          revokeReason: input.reason,
+          revokeAuditEventId: input.auditEventId
+        }
+      })
+
+      const binding = await tx.principalRoleBinding.findUnique({
+        where: { id: input.bindingId }
+      })
+
+      if (!binding) {
+        const tombstone = await tx.principalRoleBindingRevokeTombstone.upsert({
+          where: { bindingId: input.bindingId },
+          update: {},
+          create: {
+            bindingId: input.bindingId,
+            revokedAt: input.revokedAt,
+            revokedByOperatorId: input.revokedByOperatorId,
+            reason: input.reason,
+            opaqueRevokeOutcomeId: input.auditEventId
+          }
+        })
+        return {
+          bindingId: tombstone.bindingId,
+          revokedAt: tombstone.revokedAt,
+          revokedByOperatorId: tombstone.revokedByOperatorId,
+          reason: tombstone.reason,
+          auditEventId: tombstone.opaqueRevokeOutcomeId,
+          revokedNow: false
+        }
+      }
+
+      return {
+        bindingId: binding.id,
+        revokedAt: binding.revokedAt!,
+        revokedByOperatorId: binding.revokedByOperatorId!,
+        reason: binding.revokeReason ?? '',
+        auditEventId: binding.revokeAuditEventId!,
+        revokedNow: update.count === 1
       }
     })
   }
 
-  async revokeAccountRole(accountId: string, roleId: string): Promise<void> {
-    await this.prisma.accountRole.deleteMany({
-      where: { accountId, roleId }
+  /** findPrincipalRoleBindings returns active HUMAN binding facts for compatibility-facing account reads. */
+  async findPrincipalRoleBindings(
+    principalId: string,
+    tenantId?: string | null,
+    scopeLevel: ScopeLevel = tenantId ? ScopeLevel.TENANT : ScopeLevel.SYSTEM
+  ): Promise<AccountRole[]> {
+    const records = await this.prisma.principalRoleBinding.findMany({
+      where: {
+        principalType: 'HUMAN',
+        principalId,
+        scopeLevel,
+        ...(scopeLevel === ScopeLevel.SYSTEM ? { tenantId: null } : { tenantId: tenantId! }),
+        ...buildActivePrincipalRoleBindingWhere(new Date())
+      }
     })
+    return records.map(toAccountRole)
   }
 
   async findAccountRoles(
@@ -326,12 +439,13 @@ export class PrismaRoleRepository implements RoleRepository {
     scopeLevel: ScopeLevel = tenantId ? ScopeLevel.TENANT : ScopeLevel.SYSTEM
   ): Promise<Role[]> {
     const now = new Date()
-    const accountRoles = await this.prisma.accountRole.findMany({
+    const accountRoles = await this.prisma.principalRoleBinding.findMany({
       where: {
-        accountId,
+        principalType: 'HUMAN',
+        principalId: accountId,
         scopeLevel,
         ...(scopeLevel === ScopeLevel.SYSTEM ? { tenantId: null } : { tenantId: tenantId! }),
-        ...buildActiveAccountRoleWhere(now),
+        ...buildActivePrincipalRoleBindingWhere(now),
         role: {
           isEnabled: true
         }
@@ -341,7 +455,11 @@ export class PrismaRoleRepository implements RoleRepository {
 
     const roles = accountRoles.map((ar) =>
       RoleMapper.toDomain(
-        (ar as Prisma.AccountRoleGetPayload<{ include: { role: { include: typeof ROLE_INCLUDE } } }>).role
+        (
+          ar as Prisma.PrincipalRoleBindingGetPayload<{
+            include: { role: { include: typeof ROLE_INCLUDE } }
+          }>
+        ).role
       )
     )
 
@@ -400,25 +518,15 @@ export class PrismaRoleRepository implements RoleRepository {
 
   async findRoleAccounts(roleId: string): Promise<AccountRole[]> {
     const now = new Date()
-    const accountRoles = await this.prisma.accountRole.findMany({
+    const accountRoles = await this.prisma.principalRoleBinding.findMany({
       where: {
+        principalType: 'HUMAN',
         roleId,
-        ...buildActiveAccountRoleWhere(now)
+        ...buildActivePrincipalRoleBindingWhere(now)
       }
     })
 
-    return accountRoles.map(
-      (accountRole) =>
-        new AccountRole(
-          accountRole.accountType as AccountType,
-          accountRole.accountId,
-          accountRole.roleId,
-          accountRole.tenantId ?? null,
-          accountRole.scopeLevel as ScopeLevel,
-          accountRole.effectiveAt ?? null,
-          accountRole.expiresAt ?? null
-        )
-    )
+    return accountRoles.map((accountRole) => toAccountRole(accountRole))
   }
 
   async replaceAccountRoles(
@@ -426,32 +534,39 @@ export class PrismaRoleRepository implements RoleRepository {
     tenantId: string | null,
     scopeLevel: ScopeLevel,
     accountType: AccountType,
-    roleIds: string[]
-  ): Promise<Role[]> {
+    roleIds: string[],
+    auditContext?: {
+      operatorId: string
+      requestId?: string
+      traceId?: string
+    }
+  ): Promise<{ roles: Role[]; bindings: AccountRole[] }> {
     const uniqueRoleIds = [...new Set(roleIds)]
 
     await this.prisma.$transaction(async (tx) => {
-      const existing = await tx.accountRole.findMany({
+      const now = new Date()
+      const existing = await tx.principalRoleBinding.findMany({
         where: {
-          accountId,
+          principalType: accountType === AccountType.SERVICE ? 'MACHINE' : 'HUMAN',
+          principalId: accountId,
           scopeLevel,
-          ...(scopeLevel === ScopeLevel.SYSTEM ? { tenantId: null } : { tenantId: tenantId! })
+          ...(scopeLevel === ScopeLevel.SYSTEM ? { tenantId: null } : { tenantId: tenantId! }),
+          ...buildActivePrincipalRoleBindingWhere(now)
         }
       })
       const existingRoleIds = new Set(existing.map((item) => item.roleId))
       const targetRoleIds = new Set(uniqueRoleIds)
 
-      const roleIdsToDelete = existing
-        .filter((item) => !targetRoleIds.has(item.roleId))
-        .map((item) => item.roleId)
+      const bindingsToRevoke = existing.filter((item) => !targetRoleIds.has(item.roleId))
 
-      if (roleIdsToDelete.length > 0) {
-        await tx.accountRole.deleteMany({
-          where: {
-            accountId,
-            scopeLevel,
-            ...(scopeLevel === ScopeLevel.SYSTEM ? { tenantId: null } : { tenantId: tenantId! }),
-            roleId: { in: roleIdsToDelete }
+      for (const binding of bindingsToRevoke) {
+        await tx.principalRoleBinding.update({
+          where: { id: binding.id },
+          data: {
+            revokedAt: now,
+            revokedByOperatorId: auditContext?.operatorId ?? 'system',
+            revokeReason: 'ACCOUNT_ROLE_SET_REPLACED',
+            revokeAuditEventId: randomUUID()
           }
         })
       }
@@ -459,18 +574,71 @@ export class PrismaRoleRepository implements RoleRepository {
       const roleIdsToCreate = uniqueRoleIds.filter((roleId) => !existingRoleIds.has(roleId))
 
       if (roleIdsToCreate.length > 0) {
-        await tx.accountRole.createMany({
+        await tx.principalRoleBinding.createMany({
           data: roleIdsToCreate.map((roleId) => ({
-            accountId,
+            principalType: accountType === AccountType.SERVICE ? 'MACHINE' : 'HUMAN',
+            principalId: accountId,
             tenantId,
             scopeLevel,
             roleId,
-            accountType
+            effectiveAt: now,
+            createdByOperatorId: auditContext?.operatorId ?? 'system',
+            createdRequestId: auditContext?.requestId ?? null,
+            createdTraceId: auditContext?.traceId ?? null,
+            grantAuditEventId: randomUUID()
           }))
         })
       }
     })
 
-    return this.findAccountRoles(accountId, tenantId, scopeLevel)
+    const [roles, bindings] = await Promise.all([
+      this.findAccountRoles(accountId, tenantId, scopeLevel),
+      this.findPrincipalRoleBindings(accountId, tenantId, scopeLevel)
+    ])
+    return { roles, bindings }
   }
+}
+
+/** toAccountRole maps canonical persistence into the compatibility-facing binding value object. */
+function toAccountRole(binding: {
+  id: string
+  principalType: string
+  principalId: string
+  roleId: string
+  tenantId: string | null
+  scopeLevel: string
+  effectiveAt: Date | null
+  expiresAt: Date | null
+  revokedAt: Date | null
+  revokedByOperatorId: string | null
+  revokeReason: string | null
+  revokeAuditEventId: string | null
+  grantAuditEventId?: string | null
+}): AccountRole {
+  return new AccountRole(
+    binding.principalType === 'MACHINE' ? AccountType.SERVICE : AccountType.USER,
+    binding.principalId,
+    binding.roleId,
+    binding.tenantId,
+    binding.scopeLevel as ScopeLevel,
+    binding.effectiveAt,
+    binding.expiresAt,
+    binding.id,
+    binding.revokedAt,
+    binding.revokedByOperatorId,
+    binding.revokeReason,
+    binding.revokeAuditEventId,
+    binding.grantAuditEventId ?? null
+  )
+}
+
+/** isBindingOverlapError recognizes PostgreSQL exclusion violations surfaced by Prisma. */
+function isBindingOverlapError(error: unknown): boolean {
+  const candidate = error as { code?: string; message?: string; meta?: { constraint?: string } }
+  return (
+    candidate?.meta?.constraint === 'principal_role_binding_non_overlapping_window' ||
+    candidate?.message?.includes('principal_role_binding_non_overlapping_window') === true ||
+    candidate?.code === 'P2004' ||
+    candidate?.code === 'P2002'
+  )
 }

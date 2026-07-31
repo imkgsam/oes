@@ -58,6 +58,7 @@ import { AssignAccountRoleHandler } from './assign-account-role.handler'
 import { GrantInitialAccessForEmployeeAccountHandler } from './grant-initial-access-for-employee-account.handler'
 import { GrantInitialAccessForTenantAccountHandler } from './grant-initial-access-for-tenant-account.handler'
 import { RevokeAccountRoleHandler } from './revoke-account-role.handler'
+import { RevokePrincipalRoleBindingHandler } from './revoke-principal-role-binding.handler'
 import { SetAccountRolesHandler } from './set-account-roles.handler'
 
 export const RoleTemplateCommandHandlers = [
@@ -86,6 +87,7 @@ export const AccountRoleCommandHandlers = [
   GrantInitialAccessForEmployeeAccountHandler,
   GrantInitialAccessForTenantAccountHandler,
   RevokeAccountRoleHandler,
+  RevokePrincipalRoleBindingHandler,
   SetAccountRolesHandler
 ]
 

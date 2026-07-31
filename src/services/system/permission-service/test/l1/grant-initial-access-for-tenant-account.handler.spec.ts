@@ -5,6 +5,7 @@ import { Role } from '../../src/domain/aggregates/role.aggregate'
 import { AccountType } from '../../src/domain/enums/account-type.enum'
 import { RoleKind } from '../../src/domain/enums/role-kind.enum'
 import { ScopeLevel } from '../../src/domain/enums/scope-level.enum'
+import { AccountRole } from '../../src/domain/vo/account-role.value-object'
 
 function createRoleRepository() {
   return {
@@ -38,8 +39,41 @@ describe('GrantInitialAccessForTenantAccountHandler', () => {
       scopeLevel: 'TENANT'
     })
     requestRepository.findByIdempotencyKey.mockResolvedValue(null)
+    requestRepository.createPending.mockResolvedValue({
+      id: 'grant-request-1',
+      idempotencyKey: 'tenant-onboarding-1:grant-admin-role',
+      tenantId: 'tenant-1',
+      accountId: 'account-1',
+      roleIds: ['role-tenant-admin'],
+      bindingIds: ['binding-admin-1'],
+      fingerprint: JSON.stringify({
+        tenantId: 'tenant-1',
+        accountId: 'account-1',
+        roleIds: ['role-tenant-admin']
+      }),
+      status: 'PENDING'
+    })
     roleRepository.findById.mockResolvedValue(
-      new Role('role-tenant-admin', 'Tenant Admin', 'tenant.admin', 'tenant-1', RoleKind.TENANT_INSTANCE, true)
+      new Role(
+        'role-tenant-admin',
+        'Tenant Admin',
+        'tenant.admin',
+        'tenant-1',
+        RoleKind.TENANT_INSTANCE,
+        true
+      )
+    )
+    roleRepository.assignAccountRole.mockResolvedValue(
+      new AccountRole(
+        AccountType.USER,
+        'account-1',
+        'role-tenant-admin',
+        'tenant-1',
+        ScopeLevel.TENANT,
+        null,
+        null,
+        'binding-admin-1'
+      )
     )
     requestRepository.markSucceeded.mockResolvedValue({
       id: 'grant-request-1',
@@ -47,7 +81,12 @@ describe('GrantInitialAccessForTenantAccountHandler', () => {
       tenantId: 'tenant-1',
       accountId: 'account-1',
       roleIds: ['role-tenant-admin'],
-      fingerprint: JSON.stringify({ tenantId: 'tenant-1', accountId: 'account-1', roleIds: ['role-tenant-admin'] }),
+      bindingIds: ['binding-admin-1'],
+      fingerprint: JSON.stringify({
+        tenantId: 'tenant-1',
+        accountId: 'account-1',
+        roleIds: ['role-tenant-admin']
+      }),
       status: 'SUCCEEDED'
     })
 
@@ -73,7 +112,8 @@ describe('GrantInitialAccessForTenantAccountHandler', () => {
     ).resolves.toMatchObject({
       grantId: 'grant-request-1',
       accountId: 'account-1',
-      roleIds: ['role-tenant-admin']
+      roleIds: ['role-tenant-admin'],
+      bindingIds: ['binding-admin-1']
     })
 
     expect(roleRepository.assignAccountRole).toHaveBeenCalledWith(
@@ -81,7 +121,13 @@ describe('GrantInitialAccessForTenantAccountHandler', () => {
       'role-tenant-admin',
       'tenant-1',
       ScopeLevel.TENANT,
-      AccountType.USER
+      AccountType.USER,
+      null,
+      null,
+      expect.objectContaining({ bindingId: 'binding-admin-1' })
+    )
+    expect(requestRepository.markSucceeded).toHaveBeenCalledWith(
+      expect.objectContaining({ bindingIds: ['binding-admin-1'] })
     )
   })
 })
