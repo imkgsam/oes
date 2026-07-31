@@ -1,45 +1,75 @@
 import { ApiKeyCredential } from '../../domain/api-key/api-key.credential'
-import { randomUUID } from 'crypto'
+import { randomUUID } from 'node:crypto'
+
+/** Persists Auth-owned API-key credential verifiers without any recoverable secret material. */
+export interface ExternalApiKeyCredentialStore {
+  create(credentialId: string, credential: ApiKeyCredential): Promise<void>
+  findByIdentifier(keyIdentifier: string): Promise<ApiKeyCredential | undefined>
+  listByMachine(integrationMachineId: string, tenantId: string): Promise<readonly ApiKeyCredential[]>
+  revoke(credentialId: string, revokedAt: Date): Promise<void>
+}
 
 export interface ExternalApiKeyManagementContext {
   trustedHuman: boolean
   permitted: boolean
+  tenantId: string
+  integrationMachineId: string
 }
 
 export interface ExternalApiKeyExchangeContext {
-  gatewayInternal: boolean
+  verifiedGatewayWorkload: boolean
+  registeredInternalPolicy: boolean
 }
 
 /** Enforces the Auth-owned API-key lifecycle boundary before any credential secret is issued or exchanged. */
 export class ExternalApiKeyCredentialService {
-  private readonly credentials = new Map<string, ApiKeyCredential>()
+  constructor(
+    private readonly credentials: ExternalApiKeyCredentialStore,
+    private readonly pepper: string,
+    private readonly now: () => Date = () => new Date()
+  ) {}
 
   /** Creates one server-generated credential only for an already authorized trusted human request. */
-  create(context: ExternalApiKeyManagementContext): { credentialId: string; apiKey: string } {
-    if (!context.trustedHuman || !context.permitted) {
+  async create(context: ExternalApiKeyManagementContext): Promise<{ credentialId: string; apiKey: string }> {
+    if (!context.trustedHuman || !context.permitted || !context.tenantId || !context.integrationMachineId) {
       throw new Error('EXTERNAL_API_KEY_MANAGEMENT_DENIED')
     }
+    this.assertPepper()
 
     const credentialId = randomUUID()
     const issued = ApiKeyCredential.issue({
-      integrationMachineId: 'trusted-machine',
-      tenantId: 'trusted-tenant',
-      pepper: process.env.EXTERNAL_API_KEY_PEPPER ?? 'development-only-pepper',
-      pepperVersion: 'configured'
+      integrationMachineId: context.integrationMachineId,
+      tenantId: context.tenantId,
+      pepper: this.pepper,
+      pepperVersion: 'configured',
+      now: this.now()
     })
-    this.credentials.set(credentialId, issued.credential)
+    await this.credentials.create(credentialId, issued.credential)
     return { credentialId, apiKey: issued.presentedKey }
   }
 
   /** Rejects all exchange callers except the verified Gateway internal issuance policy boundary. */
-  exchange(presentedKey: string, context: ExternalApiKeyExchangeContext): void {
-    if (!context.gatewayInternal) {
+  async exchange(presentedKey: string, context: ExternalApiKeyExchangeContext): Promise<void> {
+    if (!context.verifiedGatewayWorkload || !context.registeredInternalPolicy) {
       throw new Error('EXTERNAL_API_KEY_INVALID')
     }
-    const pepper = process.env.EXTERNAL_API_KEY_PEPPER ?? 'development-only-pepper'
-    const credential = [...this.credentials.values()].find((item) => item.verify(presentedKey, pepper))
-    if (!credential || !credential.canExchange()) {
+    this.assertPepper()
+    const keyIdentifier = readKeyIdentifier(presentedKey)
+    const credential = keyIdentifier
+      ? await this.credentials.findByIdentifier(keyIdentifier)
+      : undefined
+    if (!credential || !credential.verify(presentedKey, this.pepper) || !credential.canExchange(this.now())) {
       throw new Error('EXTERNAL_API_KEY_INVALID')
     }
   }
+
+  /** Fails closed when deployment has not supplied the protected verifier pepper. */
+  private assertPepper(): void {
+    if (!this.pepper) throw new Error('EXTERNAL_API_KEY_RUNTIME_UNAVAILABLE')
+  }
+}
+
+/** Extracts only the non-secret identifier so persistence never scans or receives full API-key material. */
+function readKeyIdentifier(presentedKey: string): string | undefined {
+  return /^oek_live_([A-Za-z0-9_-]+)\.[A-Za-z0-9_-]+$/.exec(presentedKey)?.[1]
 }
