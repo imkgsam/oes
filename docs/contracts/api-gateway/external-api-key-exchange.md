@@ -3,7 +3,9 @@
 ```text
 status: FROZEN_DG3
 architectureTruthSource: docs/architecture/collaborations/external-api-key-security.md
-externalOpening: DISABLED_PENDING_DG2
+revocationInvariant: BOUNDED_RESIDUAL_MAX_5_MINUTES
+dg2ExternalOpeningGate: false
+externalOpening: DISABLED_PENDING_DG3_IMPLEMENTATION_ACCEPTANCE
 ```
 
 > This is the public Gateway HTTP contract for a future external integration. It is frozen for implementation but is not open to callers until its security gates are met.

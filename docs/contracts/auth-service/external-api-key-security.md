@@ -4,7 +4,9 @@
 status: FROZEN_DG3
 architectureTruthSource: docs/architecture/services/auth-service.md
 collaborationTruthSource: docs/architecture/collaborations/external-api-key-security.md
-externalOpening: DISABLED_PENDING_DG2
+revocationInvariant: BOUNDED_RESIDUAL_MAX_5_MINUTES
+dg2ExternalOpeningGate: false
+externalOpening: DISABLED_PENDING_DG3_IMPLEMENTATION_ACCEPTANCE
 ```
 
 > This is the Auth black-box credential contract. It does not define Machine Principal ownership, tenant lifecycle, Permission internals, or the external HTTP exchange shape.

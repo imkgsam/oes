@@ -5,6 +5,9 @@ status: FROZEN_DG3
 capabilityKey: API-KEY
 designGate: DG-3
 predecessorGate: FROZEN_TRUSTED_GRPC_METADATA
+revocationInvariant: BOUNDED_RESIDUAL_MAX_5_MINUTES
+dg2ExternalOpeningGate: false
+externalOpening: DISABLED_PENDING_DG3_IMPLEMENTATION_ACCEPTANCE
 requiredForExternalOpening:
   - FROZEN_TOKEN_CRYPTOGRAPHY_AND_WORKLOAD_IDENTITY
 ```
