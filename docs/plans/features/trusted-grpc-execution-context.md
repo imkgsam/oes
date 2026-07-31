@@ -47,7 +47,7 @@ The following five items are required but intentionally moved to separate design
 | --- | --- | --- |
 | DG-1 | Token cryptography and workload identity interoperability: allowed algorithm, issuer / audience registry, JWKS endpoint, `cnf` representation, trust domain and rotation | Production TG-0/TG-1/TG-2 security configuration |
 | DG-2 | Emergency ExecutionToken revocation event: owner, CloudEvents type/version, payload, ordering, delivery, deny-cache update and recovery | Emergency revoke implementation and production security acceptance |
-| DG-3 | **FROZEN**: [External API Key Security Collaboration](../../architecture/collaborations/external-api-key-security.md), Auth/Gateway contracts, and `auth_service/external_api_key.proto` define identifier/secret, HTTP/internal exchange, verifier/pepper, rate protection, rotation, audit, leak response and Integration Machine boundary. | Credential implementation may start after Command dispatch; public external opening remains blocked by DG-2 credential-deny propagation. |
+| DG-3 | **FROZEN**: [External API Key Security Collaboration](../../architecture/collaborations/external-api-key-security.md), Auth/Gateway contracts, and `auth_service/external_api_key.proto` define identifier/secret, HTTP/internal exchange, verifier/pepper, rate protection, rotation, audit, leak response and Integration Machine boundary. | Credential implementation may start after Command dispatch. Gateway locally validates five-minute external access tokens; DG-2 remains scoped to internal ExecutionToken revocation. |
 | DG-4 | **FROZEN**: [DELEGATED execution and ActionGrant](../../architecture/collaborations/delegated-execution-and-action-grant.md) defines delegation lifecycle, tool upper bound, step-up, exact binding, one-time consumption and forbidden operations. | AI delegation and RPCs requiring one-time high-risk authorization; implementation still consumes DG-1 binding and must use the paired capability command. |
 | DG-5 | PrincipalRoleBinding persistence: uniqueness, effective-window overlap, revoke idempotency, migration invariants and rollback | Permission schema migration from AccountRole |
 
@@ -269,7 +269,7 @@ Final acceptance must prove:
 8. Multi-hop calls change audience / `cnf` and preserve allowed attribution and trace continuity.
 9. Cross-workload Token replay fails; repeated commands remain idempotent.
 10. Site Runtime credential proof remains independent from internal Token validation.
-11. External API Key never enters internal gRPC metadata. DG-3 is frozen; public external opening remains blocked until DG-2 provides credential-deny propagation.
+11. External API Key never enters internal gRPC metadata. DG-3 is frozen; Gateway locally validates the five-minute external access token, and credential revocation immediately blocks new exchange.
 12. Emergency revoke and DELEGATED/ActionGrant acceptance remain gated by DG-2/DG-4 rather than locally invented.
 13. Full workspace generation, build and service test matrix pass at the exact candidate SHA.
 14. Repository scans find zero legacy signer, guard, factory, header, trusted body identity and request-only client call.

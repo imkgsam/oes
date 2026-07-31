@@ -7,7 +7,6 @@ designGate: DG-3
 predecessorGate: FROZEN_TRUSTED_GRPC_METADATA
 requiredForExternalOpening:
   - FROZEN_TOKEN_CRYPTOGRAPHY_AND_WORKLOAD_IDENTITY
-  - emergency-credential-deny propagation from DG-2
 ```
 
 > This document freezes collaboration only. `auth-service`, `identity-service`, and `permission-service` ownership remains defined by their respective service truth sources. HTTP fields and errors are defined by the linked contracts.
@@ -21,7 +20,7 @@ This collaboration protects a tenant-owned external integration without creating
 | Participant | Stable collaboration responsibility | Does not own |
 | --- | --- | --- |
 | `identity-service` | Tenant Integration Machine identity, tenant reference, type, name, and active/disabled lifecycle. | API Key material or validation. |
-| `auth-service` | Credential lifecycle, secret verification, exchange decision, external access-token issuance, credential audit, and credential deny facts. | Machine identity, tenant truth, HTTP routing, or permission truth. |
+| `auth-service` | Credential lifecycle, secret verification, exchange decision, external access-token issuance, and credential audit. | Machine identity, tenant truth, HTTP routing, or permission truth. |
 | `permission-service` | Machine principal grants and the Permission Code decision used by Auth. | Credential, token signing, or external route exposure. |
 | `tenant-org-service` | Tenant lifecycle fact consumed by Auth and Gateway. | Machine, credential, or permission truth. |
 | `api-gateway` | Only external HTTP entry, header sanitisation, rate protection, external-token validation, external endpoint enforcement, and internal trusted-call composition. | Credential secret, machine lifecycle, role/grant truth, or direct external gRPC exposure. |
@@ -75,7 +74,7 @@ Auth and Gateway record correlated, tenant-scoped audit facts for creation, reve
 Credential management uses the existing trusted HUMAN execution context and current Permission Codes: `identity.machine.api_key.create`, `identity.machine.api_key.rotate`, and `identity.machine.api_key.revoke`. It does not require an API-Key-specific step-up MFA grant. Organisations that require stronger administrator assurance apply it through the shared session / conditional-access policy, not through a new credential-only MFA scenario.
 
 - A confirmed leak synchronously prevents new exchanges through Auth, disables the affected credential, records a high-severity audit fact, and requires replacement rather than reactivation.
-- Outstanding Gateway-only access tokens have a five-minute natural maximum. Before external opening, Gateway must subscribe to the frozen DG-2 `auth.execution-token.revoked` security-critical event, consume only `selectorKind=CREDENTIAL` facts for its credential references, retain the greatest selector version, and fail closed when its required deny state is not ready. DG-3 does not invent a parallel revocation event.
+- Outstanding Gateway-only access tokens have a five-minute natural maximum. Gateway does not persist an API Key allowlist or credential-deny cache, and it does not call Auth for every external API request. A confirmed credential revoke immediately blocks further exchange; a token issued before revocation remains usable only until its five-minute natural expiry. DG-2 continues to govern emergency revocation of internal ExecutionTokens and does not gate this external-token model.
 - Suspicious use (for example repeated failures or anomalous volume) triggers rate protection and alerting without silently revoking a healthy integration. The security operator may revoke it after investigation.
 
 ## 8. Non-goals

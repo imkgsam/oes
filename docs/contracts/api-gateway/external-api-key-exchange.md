@@ -37,7 +37,7 @@ The token represents the Integration Machine and its tenant; neither is caller-s
 ## 3. External Capability Enforcement
 
 - A route is usable only when its Gateway contract explicitly declares external exposure and the required existing BUSINESS Permission Code(s).
-- Gateway evaluates the route declaration, external-token tenant, current credential deny state, machine permission decision, tenant/resource boundary, rate protection, idempotency requirements, and the business service's own domain checks.
+- Gateway evaluates the route declaration, Auth-signed external-token tenant and expiry, machine permission snapshot, tenant/resource boundary, rate protection, idempotency requirements, and the business service's own domain checks. It validates the token locally with Auth's trusted public keys and does not persist an API Key allowlist or query Auth per request.
 - Configuring a machine's Permission grants does not expose any route that lacks the explicit external declaration. Internal gRPC, human admin, credential management, security, and MFA operations are permanently excluded from this contract.
 
 ## 4. Rate Protection And Errors
@@ -49,7 +49,7 @@ Public error responses use stable categories such as `EXTERNAL_API_AUTHENTICATIO
 ## 5. Revocation And Audit
 
 - A revoked, expired, disabled, or leaked key cannot obtain a new access token.
-- Before public opening, Gateway must consume the frozen DG-2 `auth.execution-token.revoked` security-critical event for `CREDENTIAL` selectors, retain the highest selector version, and fail closed when its credential-deny consumer is not ready. This contract does not define a second revocation event.
+- Gateway does not consume a credential-deny list for this short-lived external token. A revoked, expired, disabled, or leaked key cannot obtain a new token; a token issued before the change naturally expires within five minutes. DG-2's `auth.execution-token.revoked` event remains for internal ExecutionToken consumers and does not gate this external HTTP contract.
 - Gateway audits exchange outcome, rate protection, approved external capability use, request/trace correlation, credential reference, Integration Machine, tenant, and safe source summary. It never logs API Key material, Bearer access tokens, internal ExecutionTokens, or request payloads by default.
 
 ## 6. Acceptance
@@ -59,4 +59,4 @@ Public error responses use stable categories such as `EXTERNAL_API_AUTHENTICATIO
 3. An external token cannot call gRPC or any internal/human/security route.
 4. Gateway sends only a target-audience ExecutionToken downstream; API Key and external access token are absent from gRPC metadata and application DTOs.
 5. Cross-tenant target injection, disabled machines, revoked/expired credentials, disallowed capabilities, and rate violations fail before business side effects.
-6. Credential denial invalidates an outstanding external token according to the DG-2 opening gate.
+6. Credential revocation prevents all new exchange; an already-issued external token expires naturally within five minutes without a Gateway credential-deny cache.
