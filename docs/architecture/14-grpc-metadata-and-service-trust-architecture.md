@@ -408,7 +408,7 @@ Asset + Site 仍是第一个业务解阻优先链，但不再是本 capability �
 
 1. Token cryptography 与 workload identity 互操作 contract：阻塞 production mTLS、JWT verifier 与 key management 定稿。
 2. Execution emergency revocation event contract：阻塞紧急撤销和最终 production security acceptance。
-3. External API Key security contract 已冻结：外部 Integration credential 的创建、交换、轮换与开放以 [External API Key Security Collaboration](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/external-api-key-security.md) 为准；public opening 仍等待 DG-2 credential-deny propagation。
+3. External API Key security contract 已冻结：外部 Integration credential 的创建、交换、轮换与开放以 [External API Key Security Collaboration](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/external-api-key-security.md) 为准。Gateway locally verifies five-minute Auth-signed external access tokens; credential revocation stops new exchange and does not add a DG-2 external-token deny-cache dependency.
 4. DELEGATED execution 与 ActionGrant contract：已由 [ADR 0016](/Users/acehood/Documents/GitHub/oes/docs/adr/0016-delegated-execution-and-action-grant.md) 冻结；它解除 AI delegation 与一次性高危授权的设计阻塞，但不替代 DG-1 的签名 / workload binding 或 DG-2 的紧急撤销设计。
 5. PrincipalRoleBinding persistence contract：阻塞 Permission schema 与 AccountRole 数据迁移。
 
