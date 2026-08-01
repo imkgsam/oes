@@ -13,7 +13,8 @@ async function bootstrap() {
   app.connectMicroservice(
     createAuthGrpcMicroserviceOptions(createAuthGrpcServerCredentials(), [
       resolveCommonProtoPath('auth_service/auth.proto'),
-      resolveCommonProtoPath('auth_service/execution_token.proto')
+      resolveCommonProtoPath('auth_service/execution_token.proto'),
+      resolveCommonProtoPath('auth_service/external_api_key.proto')
     ])
   )
   app.useLogger(app.get(AppLogger))

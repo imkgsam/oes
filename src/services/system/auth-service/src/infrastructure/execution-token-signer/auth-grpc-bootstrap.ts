@@ -4,7 +4,7 @@ import { MicroserviceOptions, Transport } from '@nestjs/microservices'
 /** Builds Auth's single gRPC listener configuration with mandatory credentials supplied by the verified TLS boundary. */
 export function createAuthGrpcMicroserviceOptions(
   credentials: ServerCredentials,
-  protoPath: readonly [string, string]
+  protoPath: readonly [string, ...string[]]
 ): MicroserviceOptions {
   return {
     transport: Transport.GRPC,
