@@ -82,6 +82,9 @@ import { EXECUTION_TOKEN_SIGNER } from '../token/execution-token.module'
 import { GatewayExternalAccessTokenIssuer } from '../../application/services/gateway-external-access-token-issuer'
 import { EXTERNAL_API_KEY_PEPPER_PORT } from '../../application/ports/external-api-key-pepper.port'
 import { ProtectedExternalApiKeyPepperAdapter } from '../../infrastructure/services/protected-external-api-key-pepper.adapter'
+import { ExternalApiKeyRequestContextAdapter } from '../../interfaces/grpc/external-api-key-context.adapter'
+import { GrpcRequestContextStore } from '@oes/common/authorization'
+import { EXTERNAL_API_KEY_CONTEXT_PORT } from '../../common/constants/injection-tokens'
 import { ExternalApiKeyCredentialService } from '../../application/services/external-api-key-credential.service'
 import { PrismaExternalApiKeyCredentialRepository } from '../../infrastructure/repositories/prisma/prisma.external-api-key-credential.repository'
 import { EXTERNAL_API_KEY_IDENTITY_OWNER_PORT, EXTERNAL_API_KEY_PERMISSION_SNAPSHOT_PORT, EXTERNAL_API_KEY_PEPPER } from '../../common/constants/injection-tokens'
@@ -210,6 +213,9 @@ import { IDENTITY_SERVICE, PERMISSION_SERVICE } from '@oes/common/constants'
     PrismaTerminalMfaPolicyRepository,
     PrismaTrustedDeviceRepository,
     PrismaExternalApiKeyCredentialRepository,
+    GrpcRequestContextStore,
+    ExternalApiKeyRequestContextAdapter,
+    { provide: EXTERNAL_API_KEY_CONTEXT_PORT, useExisting: ExternalApiKeyRequestContextAdapter },
     { provide: EXTERNAL_API_KEY_IDENTITY_OWNER_PORT, useExisting: IDENTITY_SERVICE },
     { provide: EXTERNAL_API_KEY_PERMISSION_SNAPSHOT_PORT, useExisting: PERMISSION_SERVICE },
     { provide: EXTERNAL_API_KEY_PEPPER, useFactory: () => process.env.AUTH_EXTERNAL_API_KEY_PEPPER ?? '' },
