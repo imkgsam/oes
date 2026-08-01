@@ -35,6 +35,7 @@ import { WmsServiceProxyModule } from './modules/wms-service/wms-service.module'
 import { GatewayExceptionFilter } from './common/filters/gateway-exception.filter'
 import { ResponseTransformInterceptor } from './common/interceptors/response.interceptor'
 import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor'
+import { ExternalApiModule } from './common/external-api/external-api.module'
 
 /** resolveTenantOrgGrpcUrl avoids localhost IPv6 ambiguity for the local tenant-org fallback endpoint. */
 export function resolveTenantOrgGrpcUrl() {
@@ -337,6 +338,7 @@ const siteGrpcLoaderOptions = { longs: String, arrays: true }
     }),
 
     HealthModule,
+    ExternalApiModule,
     AuthBffModule,
     BrowserActivityBffModule,
     PdaBffModule,
