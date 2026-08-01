@@ -364,6 +364,7 @@ model ExternalApiKeyCredential {
   status String @default("ACTIVE")
   expiresAt DateTime
   supersedesCredentialId String?
+  predecessorValidUntil DateTime?
   revokedAt DateTime?
   lastUsedAt DateTime?
   createdAt DateTime @default(now())
