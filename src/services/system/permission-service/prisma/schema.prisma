@@ -67,12 +67,19 @@ model Permission {
   code        String   @unique
   description String?
   module      Modules
+  kind        PermissionKind @default(BUSINESS)
+  externalApiEligible Boolean @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   roles           RolePermission[]
   policies        Policy[]
   policyInstances PolicyInstance[]
+}
+
+enum PermissionKind {
+  BUSINESS
+  INTERNAL
 }
 
 model RolePermission {

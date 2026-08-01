@@ -18,6 +18,11 @@ import {
   CheckPermissionRequest,
   AuthorizationDecisionResponse
 } from '@oes/common/generated/permission_service'
+import {
+  ResolveExternalMachineAuthorizationSnapshotRequest,
+  ResolveExternalMachineAuthorizationSnapshotResponse
+} from '@oes/common/generated/permission_service'
+import { ResolveExternalMachineAuthorizationSnapshotQuery } from '../../application/queries/authorization/resolve-external-machine-authorization-snapshot.query'
 
 @Controller()
 @UseFilters(GrpcExceptionFilter)
@@ -104,5 +109,14 @@ export class PermissionCheckGrpcController implements PermissionCheckServiceCont
         explainCode: decision.explainCode ?? ''
       }))
     }
+  }
+
+  /** Serves Auth's trusted, fail-closed snapshot of externally eligible Machine BUSINESS grants. */
+  async resolveExternalMachineAuthorizationSnapshot(
+    request: ResolveExternalMachineAuthorizationSnapshotRequest
+  ): Promise<ResolveExternalMachineAuthorizationSnapshotResponse> {
+    return this.queryBus.execute(
+      new ResolveExternalMachineAuthorizationSnapshotQuery(request.integrationMachineId!, request.tenantId!)
+    )
   }
 }

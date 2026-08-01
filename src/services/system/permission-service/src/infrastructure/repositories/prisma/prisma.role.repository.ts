@@ -292,6 +292,25 @@ export class PrismaRoleRepository implements RoleRepository {
     )
   }
 
+  /** Resolves current tenant-machine grants that are explicitly safe for Auth's external-token snapshot. */
+  async resolveExternalMachineAuthorizationSnapshot(input: { principalId: string; tenantId: string }) {
+    const bindings = await this.prisma.principalRoleBinding.findMany({
+      where: {
+        principalType: 'MACHINE', principalId: input.principalId, tenantId: input.tenantId,
+        scopeLevel: ScopeLevel.TENANT, ...buildActivePrincipalRoleBindingWhere(new Date()),
+        role: { isEnabled: true, kind: RoleKind.TENANT_INSTANCE, tenantId: input.tenantId }
+      },
+      include: { role: { include: { permissions: { include: { permission: true } } } } }
+    })
+    const codes = [...new Set(bindings.flatMap((binding) => binding.role.permissions
+      .map((rolePermission) => rolePermission.permission)
+      .filter((permission) => permission.kind === 'BUSINESS' && permission.externalApiEligible)
+      .map((permission) => permission.code)))].sort()
+    if (codes.length === 0) return null
+    const authzVersion = bindings.map((binding) => `${binding.id}:${binding.updatedAt.toISOString()}`).sort().join('|')
+    return { permissionCodes: codes, authzVersion, decisionReference: `permission-snapshot:${input.principalId}:${authzVersion}` }
+  }
+
   async assignAccountRole(
     accountId: string,
     roleId: string,

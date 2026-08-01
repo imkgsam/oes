@@ -44,6 +44,11 @@ export interface RoleRepository {
   findOwnPermissions(roleId: string): Promise<Permission[]>
   findRolesByPermissionId(permissionId: string): Promise<Role[]>
   findRolesForAccountId(accountId: string): Promise<Role[]>
+  resolveExternalMachineAuthorizationSnapshot(input: { principalId: string; tenantId: string }): Promise<{
+    permissionCodes: string[]
+    authzVersion: string
+    decisionReference: string
+  } | null>
 
   // Account-Role binding
   assignAccountRole(

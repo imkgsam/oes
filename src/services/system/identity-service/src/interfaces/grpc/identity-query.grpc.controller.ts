@@ -46,6 +46,8 @@ import {
   GetUserByPhoneResponse,
   IdentityQueryServiceController,
   IdentityQueryServiceControllerMethods,
+  ResolveIntegrationMachineForAuthRequest,
+  ResolveIntegrationMachineForAuthResponse,
   ServiceAccount
 } from '@oes/common/generated/identity_service'
 import {
@@ -73,6 +75,7 @@ import {
   ListAccountWorkPhoneAssetsQuery,
   ResolveContactActionTargetsQuery,
   ResolveContactActionTargetsView,
+  ResolveIntegrationMachineForAuthQuery,
   ServiceAccountView,
   GetUserByIdQuery,
   UserSummaryView,
@@ -221,6 +224,18 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
     return {
       account: IdentityGrpcPresenter.toServiceAccount(account)
     }
+  }
+
+  /** Exposes the narrow generated Auth-only Integration Machine fact resolution RPC. */
+  async resolveIntegrationMachineForAuth(
+    request: ResolveIntegrationMachineForAuthRequest
+  ): Promise<ResolveIntegrationMachineForAuthResponse> {
+    const machine = await this.queryBus.execute<
+      ResolveIntegrationMachineForAuthQuery,
+      import('../../application/queries/service-account/resolve-integration-machine-for-auth.handler').IntegrationMachineForAuthView
+    >(new ResolveIntegrationMachineForAuthQuery(request.integrationMachineId!))
+
+    return machine
   }
 
   async listServiceAccounts(
