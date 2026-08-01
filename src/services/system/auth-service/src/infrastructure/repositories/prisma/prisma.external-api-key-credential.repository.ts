@@ -10,4 +10,6 @@ export class PrismaExternalApiKeyCredentialRepository {
     await this.prisma.externalApiKeyCredential.create({ data: input })
   }
   async revoke(id: string) { await this.prisma.externalApiKeyCredential.updateMany({ where: { id, status: 'ACTIVE' }, data: { status: 'REVOKED', revokedAt: new Date() } }) }
+  /** Reads masked lifecycle records only within the caller's trusted tenant-machine boundary. */
+  async listByMachine(integrationMachineId: string, tenantId: string) { return this.prisma.externalApiKeyCredential.findMany({ where: { integrationMachineId, tenantId }, orderBy: { createdAt: 'asc' } }) }
 }

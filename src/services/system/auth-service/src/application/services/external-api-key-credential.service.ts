@@ -53,6 +53,18 @@ export class ExternalApiKeyCredentialService {
     return { credentialId, apiKey: issued.presentedKey }
   }
 
+  /** Lists only non-secret credential metadata scoped to the already trusted machine and tenant. */
+  async list(context: Pick<ExternalApiKeyManagementContext, 'trustedHuman' | 'permitted' | 'tenantId' | 'integrationMachineId'>): Promise<readonly ApiKeyCredential[]> {
+    if (!context.trustedHuman || !context.permitted || !context.tenantId || !context.integrationMachineId) throw new Error('EXTERNAL_API_KEY_MANAGEMENT_DENIED')
+    return this.credentials.listByMachine(context.integrationMachineId, context.tenantId)
+  }
+
+  /** Revokes a credential permanently; repeating the operation leaves the first revocation fact intact. */
+  async revoke(credentialId: string, trustedHuman: boolean, permitted: boolean): Promise<void> {
+    if (!trustedHuman || !permitted || !credentialId) throw new Error('EXTERNAL_API_KEY_MANAGEMENT_DENIED')
+    await this.credentials.revoke(credentialId, this.now())
+  }
+
   /** Rejects all exchange callers except the verified Gateway internal issuance policy boundary. */
   async exchange(presentedKey: string, context: ExternalApiKeyExchangeContext): Promise<void> {
     if (context.trustedGatewayExchange !== true) {
