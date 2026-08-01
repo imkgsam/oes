@@ -17,15 +17,20 @@ export interface ExternalApiKeyManagementContext {
 }
 
 export interface ExternalApiKeyExchangeContext {
-  verifiedGatewayWorkload: boolean
-  registeredInternalPolicy: boolean
+  readonly trustedGatewayExchange: true
 }
+
+/** Auth consumes these narrow owner facts only through trusted service adapters. */
+export interface IntegrationMachineOwnerPort { resolve(id: string): Promise<{ eligible: boolean; tenantId: string }> }
+export interface ExternalMachineAuthorizationPort { snapshot(machineId: string, tenantId: string): Promise<{ codes: string[]; authzVersion: string }> }
 
 /** Enforces the Auth-owned API-key lifecycle boundary before any credential secret is issued or exchanged. */
 export class ExternalApiKeyCredentialService {
   constructor(
     private readonly credentials: ExternalApiKeyCredentialStore,
     private readonly pepper: string,
+    private readonly machineOwner?: IntegrationMachineOwnerPort,
+    private readonly authorization?: ExternalMachineAuthorizationPort,
     private readonly now: () => Date = () => new Date()
   ) {}
 
@@ -50,7 +55,7 @@ export class ExternalApiKeyCredentialService {
 
   /** Rejects all exchange callers except the verified Gateway internal issuance policy boundary. */
   async exchange(presentedKey: string, context: ExternalApiKeyExchangeContext): Promise<void> {
-    if (!context.verifiedGatewayWorkload || !context.registeredInternalPolicy) {
+    if (context.trustedGatewayExchange !== true) {
       throw new Error('EXTERNAL_API_KEY_INVALID')
     }
     this.assertPepper()
@@ -61,6 +66,10 @@ export class ExternalApiKeyCredentialService {
     if (!credential || !credential.verify(presentedKey, this.pepper) || !credential.canExchange(this.now())) {
       throw new Error('EXTERNAL_API_KEY_INVALID')
     }
+    const machine = await this.machineOwner?.resolve(credential.integrationMachineId)
+    if (!machine?.eligible || machine.tenantId !== credential.tenantId) throw new Error('EXTERNAL_INTEGRATION_MACHINE_INACTIVE')
+    const snapshot = await this.authorization?.snapshot(credential.integrationMachineId, credential.tenantId)
+    if (!snapshot || snapshot.codes.length === 0) throw new Error('EXTERNAL_CAPABILITY_NOT_ALLOWED')
   }
 
   /** Fails closed when deployment has not supplied the protected verifier pepper. */

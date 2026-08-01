@@ -353,3 +353,20 @@ model AuthEventOutbox {
 
   @@index([eventType, occurredAt])
 }
+
+model ExternalApiKeyCredential {
+  id String @id @default(uuid())
+  integrationMachineId String
+  tenantId String
+  keyIdentifier String @unique
+  verifier String
+  pepperVersion String
+  status String @default("ACTIVE")
+  expiresAt DateTime
+  supersedesCredentialId String?
+  revokedAt DateTime?
+  lastUsedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([integrationMachineId, tenantId])
+}

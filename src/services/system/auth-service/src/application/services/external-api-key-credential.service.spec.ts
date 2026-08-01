@@ -25,7 +25,7 @@ describe('ExternalApiKeyCredentialService', () => {
     const credentials = store()
     const service = new ExternalApiKeyCredentialService(credentials, 'pepper')
 
-    await expect(service.exchange('oek_live_identifier.secret', { verifiedGatewayWorkload: false, registeredInternalPolicy: false })).rejects.toThrow(
+    await expect(service.exchange('oek_live_identifier.secret', { trustedGatewayExchange: false as true })).rejects.toThrow(
       'EXTERNAL_API_KEY_INVALID'
     )
   })
