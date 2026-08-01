@@ -1,14 +1,18 @@
 import { Module } from '@nestjs/common'
+import { Reflector } from '@nestjs/core'
 import { CqrsModule } from '@nestjs/cqrs'
 import { EventEmitterModule } from '@nestjs/event-emitter'
 import Redis from 'ioredis'
 import { ValidatingCommandBus, ValidatingQueryBus } from '@oes/common/cqrs'
 import { CommonJwtModule } from '@oes/common/auth'
 import {
+  createLazyTrustedExecutionRuntime,
+  ExecutionTokenVerifier,
   OPERATOR_PERMISSION_RESOLVER,
   PermissionServicePermissionReadAdaptor,
   RoleBasedOperatorPermissionResolver,
-  AuthorizationModule
+  AuthorizationModule,
+  TrustedInternalExecutionGuard
 } from '@oes/common/authorization'
 import { REPO } from '../../common/constants'
 import {
@@ -93,6 +97,9 @@ import { ExternalApiKeyCredentialService } from '../../application/services/exte
 import { PrismaExternalApiKeyCredentialRepository } from '../../infrastructure/repositories/prisma/prisma.external-api-key-credential.repository'
 import { EXTERNAL_API_KEY_IDENTITY_OWNER_PORT, EXTERNAL_API_KEY_PERMISSION_SNAPSHOT_PORT } from '../../common/constants/injection-tokens'
 import { IDENTITY_SERVICE, PERMISSION_SERVICE } from '@oes/common/constants'
+import { GrpcWorkloadIdentityProvider } from '@oes/common/transport'
+
+const AUTH_SERVICE_AUDIENCE = 'urn:oes:service:auth-service'
 
 @Module({
   imports: [
@@ -217,6 +224,25 @@ import { IDENTITY_SERVICE, PERMISSION_SERVICE } from '@oes/common/constants'
     PrismaTerminalMfaPolicyRepository,
     PrismaTrustedDeviceRepository,
     PrismaExternalApiKeyCredentialRepository,
+    {
+      provide: ExecutionTokenVerifier,
+      useFactory: () => createLazyTrustedExecutionRuntime(AUTH_SERVICE_AUDIENCE).verifier
+    },
+    {
+      provide: GrpcWorkloadIdentityProvider,
+      useFactory: () => createLazyTrustedExecutionRuntime(AUTH_SERVICE_AUDIENCE).workloadIdentityProvider
+    },
+    {
+      provide: TrustedInternalExecutionGuard,
+      useFactory: (reflector: Reflector, verifier: ExecutionTokenVerifier, workloadIdentityProvider: GrpcWorkloadIdentityProvider) =>
+        new TrustedInternalExecutionGuard(
+          reflector,
+          verifier,
+          workloadIdentityProvider,
+          AUTH_SERVICE_AUDIENCE
+        ),
+      inject: [Reflector, ExecutionTokenVerifier, GrpcWorkloadIdentityProvider]
+    },
     GrpcRequestContextStore,
     ExternalApiKeyRequestContextAdapter,
     { provide: EXTERNAL_API_KEY_CONTEXT_PORT, useExisting: ExternalApiKeyRequestContextAdapter },

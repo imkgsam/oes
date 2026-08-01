@@ -1,6 +1,7 @@
 jest.mock('@oes/common/authorization', () => ({
   getAuthenticatedGrpcRequestContext: jest.fn((rpcData: any) => rpcData?.__context),
   AuthenticatedOperatorGuard: class AuthenticatedOperatorGuard {},
+  AuthorizeInternalCall: () => () => undefined,
   GrpcRequestContextInterceptor: class GrpcRequestContextInterceptor {},
   IDENTITY_MACHINE_PERMISSION_CODES: {
     CREATE_API_KEY: 'identity.machine.api_key.create',
@@ -10,7 +11,8 @@ jest.mock('@oes/common/authorization', () => ({
   InternalServiceGuard: class InternalServiceGuard {},
   PermissionGuard: class PermissionGuard {},
   RequireAuthenticatedOperator: () => () => undefined,
-  RequirePermissions: () => () => undefined
+  RequirePermissions: () => () => undefined,
+  TrustedInternalExecutionGuard: class TrustedInternalExecutionGuard {}
 }))
 
 import { ExternalApiKeyGrpcController } from './external-api-key.grpc.controller'
@@ -23,12 +25,15 @@ const trustedHumanRequest = {
 
 const trustedGatewayRequest = {
   __context: {
-    internalServiceName: 'api-gateway',
-    operatorContext: {
-      operator_type: 'MACHINE',
-      tenant_id: 'tenant-1',
-      operator_id: 'api-gateway',
-      operator_roles: ['auth.internal.external_api_key.exchange']
+    verifiedExecutionToken: {
+      audience: 'urn:oes:service:auth-service',
+      principalType: 'MACHINE',
+      subject: 'api-gateway',
+      clientId: 'spiffe://local.oes.internal/ns/oes/sa/api-gateway',
+      permissionCodes: ['auth.internal.external_api_key.exchange']
+    },
+    verifiedWorkloadIdentity: {
+      spiffeId: 'spiffe://local.oes.internal/ns/oes/sa/api-gateway'
     }
   }
 }

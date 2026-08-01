@@ -16,12 +16,20 @@ describe('external API-key context adapter', () => {
   it('recognizes trusted HUMAN management context and signed gateway exchange context', () => {
     const adapter = new ExternalApiKeyRequestContextAdapter({
       getContext: jest.fn().mockReturnValue({
-        internalServiceName: 'api-gateway',
         operatorContext: {
-          operator_type: 'MACHINE',
+          operator_type: 'HUMAN',
           tenant_id: 'tenant-1',
-          operator_id: 'api-gateway',
-          operator_roles: ['auth.internal.external_api_key.exchange']
+          operator_id: 'operator-1'
+        },
+        verifiedExecutionToken: {
+          audience: 'urn:oes:service:auth-service',
+          principalType: 'MACHINE',
+          subject: 'api-gateway',
+          clientId: 'spiffe://local.oes.internal/ns/oes/sa/api-gateway',
+          permissionCodes: ['auth.internal.external_api_key.exchange']
+        },
+        verifiedWorkloadIdentity: {
+          spiffeId: 'spiffe://local.oes.internal/ns/oes/sa/api-gateway'
         },
         requestId: 'req-1',
         traceId: 'trace-1'
@@ -31,9 +39,9 @@ describe('external API-key context adapter', () => {
     expect(
       adapter.resolve()
     ).toEqual({
-      trustedHuman: false,
+      trustedHuman: true,
       tenantId: 'tenant-1',
-      operatorId: 'api-gateway',
+      operatorId: 'operator-1',
       verifiedGatewayExchange: true,
       requestId: 'req-1',
       traceId: 'trace-1'

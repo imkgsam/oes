@@ -5,6 +5,7 @@ import {
   GrpcExceptionFilter
 } from '../../../../../../common/dist/core/filters'
 import { InternalServiceGuard } from '@oes/common/authorization'
+import { AuthorizeInternalCall, TrustedInternalExecutionGuard } from '@oes/common/authorization'
 import {
   BatchAuthorizationDecisionResponse,
   BatchCheckPermissionRequest
@@ -112,6 +113,8 @@ export class PermissionCheckGrpcController implements PermissionCheckServiceCont
   }
 
   /** Serves Auth's trusted, fail-closed snapshot of externally eligible Machine BUSINESS grants. */
+  @AuthorizeInternalCall({ all: ['permission.internal.external_machine.snapshot.resolve'] })
+  @UseGuards(TrustedInternalExecutionGuard)
   async resolveExternalMachineAuthorizationSnapshot(
     request: ResolveExternalMachineAuthorizationSnapshotRequest
   ): Promise<ResolveExternalMachineAuthorizationSnapshotResponse> {

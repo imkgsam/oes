@@ -1,6 +1,8 @@
 import { Controller, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common'
 import {
   AuthenticatedOperatorGuard,
+  AuthorizeInternalCall,
+  TrustedInternalExecutionGuard,
   GrpcRequestContextInterceptor,
   IDENTITY_MACHINE_PERMISSION_CODES,
   InternalServiceGuard,
@@ -55,7 +57,8 @@ export class ExternalApiKeyGrpcController implements ExternalApiKeyCredentialSer
     return { credential: { credentialId: request.credentialId ?? '', status: 'REVOKED' } }
   }
   @RequireAuthenticatedOperator()
-  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
+  @AuthorizeInternalCall({ all: ['auth.internal.external_api_key.exchange'] })
+  @UseGuards(TrustedInternalExecutionGuard)
   async exchangeExternalApiKey(request: any, _metadata?: unknown, call?: unknown): Promise<any> {
     if (!resolveExternalApiKeyContext(request).verifiedGatewayExchange) throw new Error('EXTERNAL_API_KEY_INVALID')
     const result = await this.service.exchangeExternalApiKey?.(request.presentedApiKey)

@@ -1,6 +1,7 @@
 import { resolveCommonProtoPath } from '@oes/common/contracts'
 import { initOtelSdk } from '@oes/common/tracing'
 import { AppLogger } from '@oes/common/logging'
+import { createGrpcServerCredentials } from '@oes/common/transport'
 import { NestFactory } from '@nestjs/core'
 import { AppModule } from './app.module'
 import { MicroserviceOptions, Transport } from '@nestjs/microservices'
@@ -13,7 +14,10 @@ async function bootstrap() {
     options: {
       package: 'identity_service',
       protoPath: [resolveCommonProtoPath('identity_service/identity_query.proto')],
-      url: `${process.env.GRPC_LISTEN_HOST || '0.0.0.0'}:${process.env.GRPC_LISTEN_PORT || '50052'}`
+      url: `${process.env.GRPC_LISTEN_HOST || '0.0.0.0'}:${process.env.GRPC_LISTEN_PORT || '50052'}`,
+      ...(process.env.OES_GRPC_TLS_ENABLED === 'true'
+        ? { credentials: createGrpcServerCredentials() }
+        : {})
     }
   })
 

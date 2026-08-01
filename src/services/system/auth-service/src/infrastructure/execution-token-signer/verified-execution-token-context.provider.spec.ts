@@ -87,4 +87,26 @@ describe('VerifiedExecutionTokenContextProvider', () => {
       )
     ).rejects.toThrow('verified execution permission context is unavailable')
   })
+
+  it('derives the frozen API-KEY root MACHINE execution context without signed operator metadata', async () => {
+    await expect(
+      new VerifiedExecutionTokenContextProvider(workload).resolve(
+        { request: {} },
+        {
+          targetAudience: 'urn:oes:service:auth-service',
+          requestedPermissionCodes: ['auth.internal.external_api_key.exchange']
+        }
+      )
+    ).resolves.toEqual({
+      workloadIdentity: expect.objectContaining({
+        spiffeId: 'spiffe://local.oes.internal/ns/oes/sa/api-gateway'
+      }),
+      execution: {
+        subject: 'api-gateway',
+        principalType: 'MACHINE',
+        tenantId: 'SYSTEM',
+        permissionCodes: ['auth.internal.external_api_key.exchange']
+      }
+    })
+  })
 })

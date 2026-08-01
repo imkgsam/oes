@@ -1,21 +1,24 @@
-import { CallHandler, ExecutionContext } from '@nestjs/common'
-import { Metadata } from '@grpc/grpc-js'
-import { of } from 'rxjs'
-import {
+const { Metadata } = require('@grpc/grpc-js')
+const { of } = require('rxjs')
+const {
   INTERNAL_SERVICE_NAME_METADATA_KEY,
   REQUEST_ID_METADATA_KEY,
   TRACE_ID_METADATA_KEY
-} from '../constants'
-import { attachInternalService, attachOperatorContext } from '../utils'
-import { GrpcRequestContextInterceptor } from './grpc-request-context.interceptor'
-import { GrpcRequestContextStore } from '../services/grpc-request-context.store'
+} = require('../constants')
+const {
+  attachInternalService,
+  attachOperatorContext,
+  attachVerifiedExecution
+} = require('../utils')
+const { GrpcRequestContextInterceptor } = require('./grpc-request-context.interceptor')
+const { GrpcRequestContextStore } = require('../services/grpc-request-context.store')
 
 describe('GrpcRequestContextInterceptor', () => {
   it('should write authenticated grpc context and metadata into the request context store', (done) => {
     const store = new GrpcRequestContextStore()
     const interceptor = new GrpcRequestContextInterceptor(store)
 
-    const rpcData: Record<string, unknown> = {}
+    const rpcData = {}
     attachInternalService(rpcData, 'api-gateway')
     attachOperatorContext(rpcData, {
       operator_id: 'operator-1',
@@ -30,6 +33,26 @@ describe('GrpcRequestContextInterceptor', () => {
       trace_id: 'trace-1',
       signature: 'signature'
     })
+    attachVerifiedExecution(rpcData, {
+      verifiedExecutionToken: {
+        issuer: 'https://auth.local.oes.example',
+        audience: 'urn:oes:service:auth-service',
+        subject: 'api-gateway',
+        principalType: 'MACHINE',
+        clientId: 'spiffe://local.oes.internal/ns/oes/sa/api-gateway',
+        tenantId: 'SYSTEM',
+        permissionCodes: ['auth.internal.external_api_key.exchange'],
+        tokenId: 'token-1',
+        issuedAt: 1,
+        notBefore: 1,
+        expiresAt: 2,
+        certificateThumbprint: 'A'.repeat(43)
+      },
+      verifiedWorkloadIdentity: {
+        spiffeId: 'spiffe://local.oes.internal/ns/oes/sa/api-gateway',
+        certificateThumbprint: 'A'.repeat(43)
+      }
+    })
 
     const metadata = new Metadata()
     metadata.set(INTERNAL_SERVICE_NAME_METADATA_KEY, 'api-gateway')
@@ -42,9 +65,9 @@ describe('GrpcRequestContextInterceptor', () => {
         getData: () => rpcData,
         getContext: () => metadata
       }))
-    } as unknown as ExecutionContext
+    }
 
-    const next: CallHandler = {
+    const next = {
       handle: jest.fn(() => {
         const current = store.getContext()
         expect(current).toEqual({
@@ -53,6 +76,13 @@ describe('GrpcRequestContextInterceptor', () => {
             operator_id: 'operator-1',
             tenant_id: 'tenant-1',
             org_id: 'org-1'
+          }),
+          verifiedExecutionToken: expect.objectContaining({
+            subject: 'api-gateway',
+            permissionCodes: ['auth.internal.external_api_key.exchange']
+          }),
+          verifiedWorkloadIdentity: expect.objectContaining({
+            spiffeId: 'spiffe://local.oes.internal/ns/oes/sa/api-gateway'
           }),
           requestId: 'req-1',
           traceId: 'trace-1'

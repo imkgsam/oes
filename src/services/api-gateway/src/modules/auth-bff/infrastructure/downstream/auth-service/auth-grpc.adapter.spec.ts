@@ -200,14 +200,18 @@ describe('AuthGrpcAdapter', () => {
   })
 
   it('forwards external API-key exchange with the signed MACHINE root context', async () => {
-    const svc = {
-      exchangeExternalApiKey: jest.fn().mockReturnValue(of({ accessToken: 'signed' }))
-    }
     const metadataFactory = {
       createInternalCallMetadata: jest.fn().mockReturnValue({ internal: true }),
-      createOperatorScopedMetadata: jest.fn().mockReturnValue({ machine: true })
     }
-    const adapter = new AuthGrpcAdapter({ getService: jest.fn().mockReturnValue(svc) } as any, metadataFactory as any)
+    const trustedClient = {
+      issueExchangeToken: jest.fn().mockResolvedValue('sts-token'),
+      exchangeExternalApiKey: jest.fn().mockResolvedValue({ accessToken: 'signed' })
+    }
+    const adapter = new AuthGrpcAdapter(
+      { getService: jest.fn().mockReturnValue({}) } as any,
+      metadataFactory as any,
+      trustedClient as any
+    )
     adapter.onModuleInit()
 
     await adapter.exchangeExternalApiKey(
@@ -215,18 +219,11 @@ describe('AuthGrpcAdapter', () => {
       { requestId: 'req-1', traceId: 'trace-1' }
     )
 
-    expect(svc.exchangeExternalApiKey).toHaveBeenCalledWith(
+    expect(trustedClient.issueExchangeToken).toHaveBeenCalledWith({ internal: true })
+    expect(trustedClient.exchangeExternalApiKey).toHaveBeenCalledWith(
       { presentedApiKey: 'oek_live_identifier.secret' },
-      expect.objectContaining({ machine: true })
-    )
-    expect(metadataFactory.createOperatorScopedMetadata).toHaveBeenCalledWith(
-      expect.objectContaining({
-        callerServiceName: 'api-gateway',
-        operatorContext: expect.objectContaining({
-          operatorId: 'api-gateway',
-          operatorType: 'MACHINE'
-        })
-      })
+      { internal: true },
+      'sts-token'
     )
   })
 })

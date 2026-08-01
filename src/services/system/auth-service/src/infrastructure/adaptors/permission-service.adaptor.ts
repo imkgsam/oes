@@ -1,6 +1,8 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { Metadata } from '@grpc/grpc-js'
 import { ClientGrpc } from '@nestjs/microservices'
 import { SERVICE_NAMES } from '@oes/common/constants'
+import { resolveCommonContractPath, resolveCommonProtoPath } from '@oes/common/contracts'
 import { PermissionCheckInput, PermissionCheckOutput } from '@oes/common/contracts'
 import { ExceptionFactory, InfrastructureException } from '@oes/common/exceptions'
 import {
@@ -24,14 +26,29 @@ import {
   PermissionTerminalAccessServiceClient,
   ResolveAccountTerminalAccessResponse
 } from '@oes/common/generated/permission_service'
+import { ClientProxyFactory, Transport } from '@nestjs/microservices'
+import {
+  EXECUTION_TOKEN_SERVICE_NAME,
+  ExecutionTokenServiceClient
+} from '@oes/common/generated/auth_service'
+import { createGrpcClientCredentials } from '@oes/common/transport'
 
 const PERMISSION_CHECK_SERVICE_NAME = 'PermissionCheckService'
+const PERMISSION_SERVICE_AUDIENCE = 'urn:oes:service:permission-service'
+const PERMISSION_INTERNAL_PERMISSION = 'permission.internal.external_machine.snapshot.resolve'
 
 interface PermissionCheckGrpcClient {
   checkPermission(
     request: PermissionCheckInput,
     ...rest: any[]
   ): Observable<PermissionCheckOutput & { allowed?: boolean }>
+  resolveExternalMachineAuthorizationSnapshot?(
+    request: { integrationMachineId: string; tenantId: string },
+    ...rest: any[]
+  ): Observable<{
+    externalBusinessPermissionCodes?: string[]
+    authzVersion?: string
+  }>
 }
 
 @Injectable()
@@ -40,6 +57,10 @@ export class PermissionServiceAdaptor implements IPermissionServicePort, OnModul
   private permissionService!: PermissionCheckGrpcClient
   private permissionAccessSummaryService!: PermissionAccessSummaryServiceClient
   private permissionTerminalAccessService!: PermissionTerminalAccessServiceClient
+  private trustedPermissionService?: PermissionCheckGrpcClient
+  private trustedPermissionClient?: ClientGrpc
+  private executionTokenService?: ExecutionTokenServiceClient
+  private executionTokenClient?: ClientGrpc
 
   constructor(
     @InjectGrpcClient(SERVICE_NAMES.PERMISSION)
@@ -209,7 +230,15 @@ export class PermissionServiceAdaptor implements IPermissionServicePort, OnModul
 
   /** Reads the Auth-only external-safe MACHINE permission snapshot through Permission's trusted boundary. */
   async resolveExternalMachineAuthorizationSnapshot(machineId: string, tenantId: string): Promise<{ codes: string[]; authzVersion: string }> {
-    const response: any = await safeGrpcCall((this.permissionService as any).resolveExternalMachineAuthorizationSnapshot({ integrationMachineId: machineId, tenantId }, this.metadata()), { caller: 'auth-service', method: 'PermissionCheckService.resolveExternalMachineAuthorizationSnapshot' })
+    const metadata = this.metadata()
+    metadata.set('authorization', `Bearer ${await this.issueInternalExecutionToken(metadata)}`)
+    const response: any = await safeGrpcCall(
+      this.trustedPermissionCheckService().resolveExternalMachineAuthorizationSnapshot(
+        { integrationMachineId: machineId, tenantId },
+        metadata
+      ),
+      { caller: 'auth-service', method: 'PermissionCheckService.resolveExternalMachineAuthorizationSnapshot' }
+    )
     return { codes: response.externalBusinessPermissionCodes ?? [], authzVersion: response.authzVersion ?? '' }
   }
 
@@ -221,4 +250,91 @@ export class PermissionServiceAdaptor implements IPermissionServicePort, OnModul
       traceId: current?.traceId
     })
   }
+
+  private async issueInternalExecutionToken(metadata: Metadata): Promise<string> {
+    const response = (await safeGrpcCall(
+      this.authExecutionTokenService().exchangeExecutionToken(
+        {
+          targetAudience: PERMISSION_SERVICE_AUDIENCE,
+          requestedPermissionCodes: [PERMISSION_INTERNAL_PERMISSION]
+        },
+        metadata
+      ),
+      {
+        caller: 'auth-service',
+        method: 'ExecutionTokenService.exchangeExecutionToken'
+      }
+    )) as { accessToken?: string }
+    if (!response.accessToken) {
+      throw new Error('trusted execution token is unavailable')
+    }
+    return response.accessToken
+  }
+
+  private trustedPermissionCheckService(): PermissionCheckGrpcClient {
+    if (!this.trustedPermissionService) {
+      this.trustedPermissionService =
+        this.trustedPermissionGrpcClient().getService<PermissionCheckGrpcClient>(
+          PERMISSION_CHECK_SERVICE_NAME
+        )
+    }
+    return this.trustedPermissionService
+  }
+
+  private authExecutionTokenService(): ExecutionTokenServiceClient {
+    if (!this.executionTokenService) {
+      this.executionTokenService = this.authExecutionTokenGrpcClient().getService<ExecutionTokenServiceClient>(
+        EXECUTION_TOKEN_SERVICE_NAME
+      )
+    }
+    return this.executionTokenService
+  }
+
+  private trustedPermissionGrpcClient(): ClientGrpc {
+    if (!this.trustedPermissionClient) {
+      this.trustedPermissionClient = ClientProxyFactory.create({
+        transport: Transport.GRPC,
+        options: {
+          url: resolveGrpcUrl('PERMISSION_SERVICE_GRPC_URL', '127.0.0.1:50051'),
+          package: 'permission_service',
+          protoPath: [
+            resolveCommonProtoPath('permission_service/permission_check.proto'),
+            resolveCommonProtoPath('permission_service/permission_management.proto'),
+            resolveCommonProtoPath('permission_service/permission_access_summary.proto'),
+            resolveCommonProtoPath('permission_service/permission_terminal_access.proto')
+          ],
+          loader: {
+            includeDirs: [
+              resolveCommonContractPath(),
+              resolveCommonContractPath('permission_service')
+            ]
+          },
+          credentials: createGrpcClientCredentials()
+        }
+      }) as unknown as ClientGrpc
+    }
+    return this.trustedPermissionClient
+  }
+
+  private authExecutionTokenGrpcClient(): ClientGrpc {
+    if (!this.executionTokenClient) {
+      this.executionTokenClient = ClientProxyFactory.create({
+        transport: Transport.GRPC,
+        options: {
+          url: resolveGrpcUrl('AUTH_SERVICE_GRPC_URL', '127.0.0.1:50050'),
+          package: 'auth_service',
+          protoPath: [
+            resolveCommonProtoPath('auth_service/auth.proto'),
+            resolveCommonProtoPath('auth_service/execution_token.proto')
+          ],
+          credentials: createGrpcClientCredentials()
+        }
+      }) as unknown as ClientGrpc
+    }
+    return this.executionTokenClient
+  }
+}
+
+function resolveGrpcUrl(envKey: string, fallbackUrl: string): string {
+  return process.env[envKey]?.trim() || fallbackUrl
 }

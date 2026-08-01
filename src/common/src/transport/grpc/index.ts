@@ -13,4 +13,5 @@ export {
 } from './grpc.interfaces'
 export { safeGrpcCall, SafeGrpcCallOptions } from './safe-grpc-call'
 export * from './authorization-mode-inventory'
+export * from './grpc-js-mtls'
 export * from './grpc-workload-identity.provider'

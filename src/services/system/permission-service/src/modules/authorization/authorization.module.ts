@@ -1,6 +1,13 @@
 import { Module } from '@nestjs/common'
+import { Reflector } from '@nestjs/core'
 import { CqrsModule } from '@nestjs/cqrs'
+import {
+  createLazyTrustedExecutionRuntime,
+  ExecutionTokenVerifier,
+  TrustedInternalExecutionGuard
+} from '@oes/common/authorization'
 import { ValidatingQueryBus } from '@oes/common/cqrs'
+import { GrpcWorkloadIdentityProvider } from '@oes/common/transport'
 import { PermissionModule } from '../permission/permission.module'
 import { RoleModule } from '../role/role.module'
 import { PolicyModule } from '../policy/policy.module'
@@ -27,6 +34,8 @@ import { ResourceAuthorizationGrpcController } from '../../interfaces/grpc/resou
 import { PermissionTerminalAccessGrpcController } from '../../interfaces/grpc/permission-terminal-access.grpc.controller'
 import { PermissionAuditModule } from '../audit/permission-audit.module'
 import { ManagementAuthorizationModule } from '../management-authorization/management-authorization.module'
+
+const PERMISSION_SERVICE_AUDIENCE = 'urn:oes:service:permission-service'
 
 @Module({
   imports: [
@@ -59,6 +68,30 @@ import { ManagementAuthorizationModule } from '../management-authorization/manag
       useFactory: (roleRepo: any, permRepo: any) =>
         new AccountAuthorizationService(roleRepo, permRepo),
       inject: [SYMBOLS.REPO.ROLE, SYMBOLS.REPO.PERMISSION]
+    },
+    {
+      provide: ExecutionTokenVerifier,
+      useFactory: () => createLazyTrustedExecutionRuntime(PERMISSION_SERVICE_AUDIENCE).verifier
+    },
+    {
+      provide: GrpcWorkloadIdentityProvider,
+      useFactory: () =>
+        createLazyTrustedExecutionRuntime(PERMISSION_SERVICE_AUDIENCE).workloadIdentityProvider
+    },
+    {
+      provide: TrustedInternalExecutionGuard,
+      useFactory: (
+        reflector: Reflector,
+        verifier: ExecutionTokenVerifier,
+        workloadIdentityProvider: GrpcWorkloadIdentityProvider
+      ) =>
+        new TrustedInternalExecutionGuard(
+          reflector,
+          verifier,
+          workloadIdentityProvider,
+          PERMISSION_SERVICE_AUDIENCE
+        ),
+      inject: [Reflector, ExecutionTokenVerifier, GrpcWorkloadIdentityProvider]
     },
     ValidatingQueryBus,
     ...AccessSummaryQueryHandlers,

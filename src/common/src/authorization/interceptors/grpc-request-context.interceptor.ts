@@ -28,6 +28,8 @@ export class GrpcRequestContextInterceptor implements NestInterceptor {
         authenticatedContext?.internalService?.serviceName ??
         getGrpcMetadataValue(metadata, INTERNAL_SERVICE_NAME_METADATA_KEY),
       operatorContext: authenticatedContext?.operatorContext,
+      verifiedExecutionToken: authenticatedContext?.verifiedExecutionToken,
+      verifiedWorkloadIdentity: authenticatedContext?.verifiedWorkloadIdentity,
       requestId: getGrpcMetadataValue(metadata, REQUEST_ID_METADATA_KEY),
       traceId: getGrpcMetadataValue(metadata, TRACE_ID_METADATA_KEY)
     }

@@ -103,9 +103,9 @@ import {
   DownstreamRequestSource,
   toInternalCallMetadataInput
 } from '../../../../../common/grpc/gateway-downstream-source.mapper'
+import { TrustedAuthApiKeyGrpcClient } from './trusted-auth-api-key.grpc.client'
 
 const CALLER = 'api-gateway'
-const EXTERNAL_API_KEY_EXCHANGE_PERMISSION = 'auth.internal.external_api_key.exchange'
 
 @Injectable()
 // Bridges auth-bff HTTP use cases to the downstream auth-service gRPC contract.
@@ -117,7 +117,8 @@ export class AuthGrpcAdapter implements OnModuleInit {
     @InjectGrpcClient(SERVICE_NAMES.AUTH)
     private readonly client: ClientGrpc,
     @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory
+    private readonly metadataFactory: GrpcMetadataPropagationFactory,
+    private readonly trustedApiKeyClient: TrustedAuthApiKeyGrpcClient = new TrustedAuthApiKeyGrpcClient()
   ) {}
 
   onModuleInit(): void {
@@ -130,10 +131,7 @@ export class AuthGrpcAdapter implements OnModuleInit {
     request: { presentedApiKey: string },
     source: DownstreamRequestSource
   ): Promise<ExchangeExternalApiKeyResponse> {
-    return this.call(
-      'exchangeExternalApiKey',
-      this.externalApiKeySvc.exchangeExternalApiKey(request, this.exchangeMetadata(source))
-    )
+    return this.exchangeExternalApiKeyTrusted(request, source)
   }
 
   loginWithEmailPassword(
@@ -1253,20 +1251,17 @@ export class AuthGrpcAdapter implements OnModuleInit {
     return this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
   }
 
-  /** Builds the signed MACHINE root context used for the Gateway-to-Auth external API-key exchange hop. */
-  private exchangeMetadata(source: DownstreamRequestSource) {
-    return this.metadataFactory.createOperatorScopedMetadata({
-      callerServiceName: CALLER,
-      requestId: source.requestId,
-      traceId: source.traceId,
-      operatorContext: {
-        operatorId: CALLER,
-        operatorType: 'MACHINE',
-        operatorRoles: [EXTERNAL_API_KEY_EXCHANGE_PERMISSION],
-        requestId: source.requestId,
-        traceId: source.traceId
-      }
-    })
+  /** Exchanges the API key through Auth's exact STS-backed INTERNAL caller path, never signed operator context. */
+  private async exchangeExternalApiKeyTrusted(
+    request: { presentedApiKey: string },
+    source: DownstreamRequestSource
+  ): Promise<ExchangeExternalApiKeyResponse> {
+    const exchangeToken = await this.trustedApiKeyClient.issueExchangeToken(this.metadata(source))
+    return this.trustedApiKeyClient.exchangeExternalApiKey(
+      request,
+      this.metadata(source),
+      exchangeToken
+    )
   }
 
   private toGrpcMfaBindingType(

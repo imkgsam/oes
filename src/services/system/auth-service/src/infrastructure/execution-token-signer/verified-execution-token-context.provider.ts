@@ -4,6 +4,7 @@ import type {
   ExchangeExecutionTokenInput,
   VerifiedExecutionWorkload
 } from '../../application/services/execution-token-exchange.service'
+import { resolveApiKeyRootExecutionContext } from './api-key-root-execution-context'
 
 type VerifiedWorkloadResolver = {
   getVerifiedWorkloadIdentity(call: unknown): Promise<VerifiedExecutionWorkload>
@@ -16,11 +17,18 @@ export class VerifiedExecutionTokenContextProvider implements ExecutionTokenExch
   /** Produces execution facts from verified runtime context and never reconstructs them from the exchange proto fields. */
   async resolve(
     call: unknown,
-    _request: Pick<ExchangeExecutionTokenInput, 'targetAudience' | 'requestedPermissionCodes'>
+    request: Pick<ExchangeExecutionTokenInput, 'targetAudience' | 'requestedPermissionCodes'>
   ): Promise<Omit<ExchangeExecutionTokenInput, 'targetAudience' | 'requestedPermissionCodes'>> {
     const workloadIdentity = await this.workloadResolver.getVerifiedWorkloadIdentity(call)
     const operatorContext = readVerifiedOperatorContext(readRpcData(call))
-    if (!operatorContext) throw new Error('verified execution context is unavailable')
+    if (!operatorContext) {
+      const rootExecution = resolveApiKeyRootExecutionContext(workloadIdentity, request)
+      if (!rootExecution) throw new Error('verified execution context is unavailable')
+      return Object.freeze({
+        workloadIdentity,
+        execution: rootExecution
+      })
+    }
     const principalType = asPrincipalType(operatorContext.operator_type)
     const permissionCodes = operatorContext.operator_roles?.filter(
       (code): code is string => typeof code === 'string' && code.length > 0
