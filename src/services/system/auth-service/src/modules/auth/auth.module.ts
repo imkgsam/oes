@@ -78,6 +78,8 @@ import { BcryptHashingService } from '../../infrastructure/services/hashing.serv
 import { SmsService } from '../../infrastructure/services/sms.service'
 import { AuthGrpcController } from '../../interfaces/grpc/auth.grpc.controller'
 import { ExecutionTokenModule } from '../token/execution-token.module'
+import { EXECUTION_TOKEN_SIGNER } from '../token/execution-token.module'
+import { GatewayExternalAccessTokenIssuer } from '../../application/services/gateway-external-access-token-issuer'
 import { ExternalApiKeyCredentialService } from '../../application/services/external-api-key-credential.service'
 import { PrismaExternalApiKeyCredentialRepository } from '../../infrastructure/repositories/prisma/prisma.external-api-key-credential.repository'
 import { EXTERNAL_API_KEY_IDENTITY_OWNER_PORT, EXTERNAL_API_KEY_PERMISSION_SNAPSHOT_PORT, EXTERNAL_API_KEY_PEPPER } from '../../common/constants/injection-tokens'
@@ -209,6 +211,11 @@ import { IDENTITY_SERVICE, PERMISSION_SERVICE } from '@oes/common/constants'
     { provide: EXTERNAL_API_KEY_IDENTITY_OWNER_PORT, useExisting: IDENTITY_SERVICE },
     { provide: EXTERNAL_API_KEY_PERMISSION_SNAPSHOT_PORT, useExisting: PERMISSION_SERVICE },
     { provide: EXTERNAL_API_KEY_PEPPER, useFactory: () => process.env.AUTH_EXTERNAL_API_KEY_PEPPER ?? '' },
+    {
+      provide: GatewayExternalAccessTokenIssuer,
+      useFactory: (signer: any) => new GatewayExternalAccessTokenIssuer(process.env.AUTH_EXECUTION_ISSUER ?? '', signer),
+      inject: [EXECUTION_TOKEN_SIGNER]
+    },
     {
       provide: ExternalApiKeyCredentialService,
       useFactory: (repository: PrismaExternalApiKeyCredentialRepository) =>

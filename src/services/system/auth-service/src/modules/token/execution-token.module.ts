@@ -22,7 +22,7 @@ import { ExecutionTokenGrpcController } from '../../interfaces/grpc/execution-to
 import { ExecutionTokenMetadataHttpController } from '../../interfaces/http/execution-token-metadata.http.controller'
 
 const KMS_HSM_EXECUTION_TOKEN_CLIENT = 'KmsHsmExecutionTokenClient'
-const EXECUTION_TOKEN_SIGNER = 'ExecutionTokenSigner'
+export const EXECUTION_TOKEN_SIGNER = 'ExecutionTokenSigner'
 const EXECUTION_TOKEN_RUNTIME_CONFIGURATION = 'ExecutionTokenRuntimeConfiguration'
 
 type ExecutionTokenRuntimeConfiguration = ExecutionTokenContextConfiguration
@@ -76,7 +76,8 @@ type ExecutionTokenRuntimeConfiguration = ExecutionTokenContextConfiguration
       inject: [EXECUTION_TOKEN_RUNTIME_CONFIGURATION]
     }
   ],
-  controllers: [ExecutionTokenGrpcController, ExecutionTokenMetadataHttpController]
+  controllers: [ExecutionTokenGrpcController, ExecutionTokenMetadataHttpController],
+  exports: [EXECUTION_TOKEN_SIGNER]
 })
 export class ExecutionTokenModule {}
 
