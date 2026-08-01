@@ -7,6 +7,7 @@ export interface ExternalApiKeyCredentialStore {
   findByIdentifier(keyIdentifier: string): Promise<ApiKeyCredential | undefined>
   listByMachine(integrationMachineId: string, tenantId: string): Promise<readonly ApiKeyCredential[]>
   revoke(credentialId: string, revokedAt: Date): Promise<void>
+  rotate?(input: { predecessorId: string; replacement: { id: string; integrationMachineId: string; tenantId: string; keyIdentifier: string; verifier: string; pepperVersion: string; expiresAt: Date }; overlapUntil: Date }): Promise<unknown>
 }
 
 export interface ExternalApiKeyManagementContext {
@@ -63,6 +64,19 @@ export class ExternalApiKeyCredentialService {
   async revoke(credentialId: string, trustedHuman: boolean, permitted: boolean): Promise<void> {
     if (!trustedHuman || !permitted || !credentialId) throw new Error('EXTERNAL_API_KEY_MANAGEMENT_DENIED')
     await this.credentials.revoke(credentialId, this.now())
+  }
+
+  /** Rotates an authorized machine credential with a bounded seven-day predecessor overlap. */
+  async rotate(credentialId: string, context: ExternalApiKeyManagementContext): Promise<{ credentialId: string; apiKey: string; predecessorValidUntil: Date }> {
+    if (!context.trustedHuman || !context.permitted || !this.credentials.rotate) throw new Error('EXTERNAL_API_KEY_MANAGEMENT_DENIED')
+    this.assertPepper()
+    const predecessor = (await this.credentials.listByMachine(context.integrationMachineId, context.tenantId)).find((item: any) => item.id === credentialId)
+    if (!predecessor) throw new Error('EXTERNAL_API_KEY_INVALID')
+    const now = this.now(); const overlapUntil = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+    const issued = ApiKeyCredential.issue({ integrationMachineId: context.integrationMachineId, tenantId: context.tenantId, pepper: this.pepper, pepperVersion: 'configured', now })
+    const replacementId = randomUUID()
+    await this.credentials.rotate({ predecessorId: credentialId, overlapUntil, replacement: { id: replacementId, integrationMachineId: context.integrationMachineId, tenantId: context.tenantId, keyIdentifier: issued.credential.keyIdentifier, verifier: issued.credential.verifier, pepperVersion: issued.credential.pepperVersion, expiresAt: issued.credential.expiresAt } })
+    return { credentialId: replacementId, apiKey: issued.presentedKey, predecessorValidUntil: overlapUntil }
   }
 
   /** Rejects all exchange callers except the verified Gateway internal issuance policy boundary. */
