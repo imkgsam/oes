@@ -18,3 +18,13 @@ it('maps masked list and safe idempotent revoke responses', async () => {
   expect(revoke).toEqual({ credential: { credentialId: 'c', status: 'REVOKED' } })
   expect(JSON.stringify({ list, revoke })).not.toMatch(/secret|verifier|pepper|token/i)
 })
+
+it('maps rotate with credentialId only and safe predecessor metadata', async () => {
+  const until = new Date('2026-08-08T00:00:00.000Z')
+  const service: any = { rotate: jest.fn().mockResolvedValue({ credentialId: 'replacement', apiKey: 'oek_live_new.secret', predecessorValidUntil: until }) }
+  const controller = new ExternalApiKeyGrpcController(service)
+  const response = await controller.rotateExternalApiKey({ credentialId: 'predecessor' }, undefined, undefined)
+  expect(service.rotate).toHaveBeenCalledWith('predecessor', expect.anything())
+  expect(response).toEqual({ apiKey: 'oek_live_new.secret', credential: { credentialId: 'replacement' }, predecessorCredentialId: 'predecessor', predecessorValidUntilUnixSeconds: String(Math.floor(until.getTime() / 1000)) })
+  expect(JSON.stringify(response)).not.toMatch(/verifier|pepper|token/i)
+})
