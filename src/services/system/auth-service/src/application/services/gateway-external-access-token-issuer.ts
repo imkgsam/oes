@@ -12,6 +12,6 @@ export class GatewayExternalAccessTokenIssuer {
     const body = Buffer.from(JSON.stringify({ iss: this.issuer, aud: 'api-gateway', sub: input.machineId, tenant_id: input.tenantId, credential_id: input.credentialId, scope: scope.join(' '), authz_version: input.authzVersion, jti: randomUUID(), iat, nbf: iat, exp })).toString('base64url')
     const signed = `${head}.${body}`; const token = `${signed}.${Buffer.from(await this.signer.sign(key.kid, Buffer.from(signed))).toString('base64url')}`
     if (Buffer.byteLength(token) > 4096) throw new Error('EXTERNAL_AUTHORIZATION_SNAPSHOT_TOO_LARGE')
-    return { accessToken: token, expiresAt: exp }
+    return { accessToken: token, tokenType: 'Bearer', expiresAtUnixSeconds: String(exp), expiresInSeconds: '300', credentialId: input.credentialId, integrationMachineId: input.machineId, tenantId: input.tenantId }
   }
 }

@@ -56,7 +56,7 @@ export class GatewayExceptionFilter implements ExceptionFilter {
       })
     } else if (exception instanceof HttpException) {
       httpStatus = exception.getStatus()
-      payload = this.mapHttpException(exception, traceId, requestId)
+      payload = this.mapHttpException(exception, traceId, requestId, req)
 
       this.logger.warn('HttpException', {
         module: moduleName,
@@ -163,7 +163,8 @@ export class GatewayExceptionFilter implements ExceptionFilter {
   private mapHttpException(
     exception: HttpException,
     traceId?: string,
-    requestId?: string
+    requestId?: string,
+    request?: Request
   ): HttpExceptionPayload {
     const response = exception.getResponse()
     const statusCode = exception.getStatus()
@@ -185,6 +186,45 @@ export class GatewayExceptionFilter implements ExceptionFilter {
             ? responseObject.messageKey
             : undefined,
         details: responseObject.details ?? responseObject,
+        meta: {
+          traceId,
+          requestId,
+          timestamp: new Date().toISOString()
+        }
+      }
+    }
+
+    if (request && isExternalApiRequest(request) && statusCode === HttpStatus.TOO_MANY_REQUESTS) {
+      return {
+        code: 'EXTERNAL_API_RATE_LIMITED',
+        message: 'External API rate limited',
+        details: responseObject,
+        meta: {
+          traceId,
+          requestId,
+          timestamp: new Date().toISOString()
+        }
+      }
+    }
+
+    if (request && isExternalApiRequest(request) && statusCode === HttpStatus.FORBIDDEN) {
+      return {
+        code: 'EXTERNAL_API_ACCESS_DENIED',
+        message: 'External API access denied',
+        details: responseObject,
+        meta: {
+          traceId,
+          requestId,
+          timestamp: new Date().toISOString()
+        }
+      }
+    }
+
+    if (request && isExternalApiRequest(request) && statusCode === HttpStatus.UNAUTHORIZED) {
+      return {
+        code: 'EXTERNAL_API_AUTHENTICATION_FAILED',
+        message: 'External API authentication failed',
+        details: responseObject,
         meta: {
           traceId,
           requestId,
@@ -219,4 +259,9 @@ export class GatewayExceptionFilter implements ExceptionFilter {
       }
     }
   }
+}
+
+/** Identifies the external Gateway contract surface so its public failures stay non-enumerating. */
+function isExternalApiRequest(request: Request): boolean {
+  return request.originalUrl.includes('/external/')
 }

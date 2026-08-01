@@ -9,11 +9,11 @@ describe('Gateway external API batch', () => {
   })
   it('rejects external bearer access on an unmarked route', () => {
     const reflector: any = { get: () => undefined }
-    const guard = new ExternalApiAccessGuard(reflector)
+    const guard = new ExternalApiAccessGuard(reflector, { get: jest.fn(() => false) } as any)
     expect(guard.canActivate({ switchToHttp: () => ({ getRequest: () => ({ externalApiContext: { scope: ['x'] } }) }), getHandler: () => function route() {} } as any)).toBe(false)
   })
   it('keeps scanner fail-closed for marked routes without permissions', () => {
-    const scanner = new ExternalApiRouteScanner({ getControllers: () => [] } as any, {} as any)
+    const scanner = new ExternalApiRouteScanner({ getControllers: () => [] } as any, {} as any, { get: jest.fn(() => false) } as any)
     expect(() => scanner.onModuleInit()).not.toThrow()
   })
 })

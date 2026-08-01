@@ -20,13 +20,17 @@ export const gatewayConfig = registerAs('gateway', () => ({
   swagger: {
     enabled: process.env.SWAGGER_ENABLED !== 'false'
   },
+  externalApi: {
+    externalOpening: process.env.GATEWAY_EXTERNAL_API_OPENING === 'true',
+    issuer: process.env.AUTH_EXECUTION_ISSUER?.trim() ?? ''
+  },
 
   // ── gRPC downstream services ──
   grpc: {
     services: {
       [SERVICE_NAMES.AUTH]: {
         serviceName: SERVICE_NAMES.AUTH,
-        protoPath: resolveCommonProtoPath('auth_service/auth.proto'),
+        protoPath: [resolveCommonProtoPath('auth_service/auth.proto'), resolveCommonProtoPath('auth_service/external_api_key.proto')],
         packageName: 'auth_service',
         url:
           process.env.AUTH_SERVICE_HOST && process.env.AUTH_SERVICE_PORT

@@ -90,7 +90,7 @@ import { EXTERNAL_API_KEY_AUDIT_PORT } from '../../common/constants/injection-to
 import { ExternalApiKeyAuditAdapter } from '../../infrastructure/adaptors/external-api-key-audit.adapter'
 import { ExternalApiKeyCredentialService } from '../../application/services/external-api-key-credential.service'
 import { PrismaExternalApiKeyCredentialRepository } from '../../infrastructure/repositories/prisma/prisma.external-api-key-credential.repository'
-import { EXTERNAL_API_KEY_IDENTITY_OWNER_PORT, EXTERNAL_API_KEY_PERMISSION_SNAPSHOT_PORT, EXTERNAL_API_KEY_PEPPER } from '../../common/constants/injection-tokens'
+import { EXTERNAL_API_KEY_IDENTITY_OWNER_PORT, EXTERNAL_API_KEY_PERMISSION_SNAPSHOT_PORT } from '../../common/constants/injection-tokens'
 import { IDENTITY_SERVICE, PERMISSION_SERVICE } from '@oes/common/constants'
 
 @Module({
@@ -221,15 +221,20 @@ import { IDENTITY_SERVICE, PERMISSION_SERVICE } from '@oes/common/constants'
     { provide: EXTERNAL_API_KEY_CONTEXT_PORT, useExisting: ExternalApiKeyRequestContextAdapter },
     {
       provide: ExternalApiKeyAuditAdapter,
-      useFactory: () => new ExternalApiKeyAuditAdapter(async () => undefined)
+      useFactory: (repository: PrismaAuthAuditRepository) => new ExternalApiKeyAuditAdapter(async (event) => repository.append(event as any)),
+      inject: [PrismaAuthAuditRepository]
     },
     { provide: EXTERNAL_API_KEY_AUDIT_PORT, useExisting: ExternalApiKeyAuditAdapter },
     { provide: EXTERNAL_API_KEY_IDENTITY_OWNER_PORT, useExisting: IDENTITY_SERVICE },
     { provide: EXTERNAL_API_KEY_PERMISSION_SNAPSHOT_PORT, useExisting: PERMISSION_SERVICE },
-    { provide: EXTERNAL_API_KEY_PEPPER, useFactory: () => process.env.AUTH_EXTERNAL_API_KEY_PEPPER ?? '' },
     {
       provide: EXTERNAL_API_KEY_PEPPER_PORT,
-      useFactory: () => new ProtectedExternalApiKeyPepperAdapter(undefined, undefined, undefined)
+      useFactory: () =>
+        new ProtectedExternalApiKeyPepperAdapter(
+          undefined,
+          process.env.AUTH_EXTERNAL_API_KEY_PEPPER_REFERENCE,
+          process.env.AUTH_EXTERNAL_API_KEY_PEPPER_VERSION
+        )
     },
     {
       provide: GatewayExternalAccessTokenIssuer,
@@ -238,9 +243,24 @@ import { IDENTITY_SERVICE, PERMISSION_SERVICE } from '@oes/common/constants'
     },
     {
       provide: ExternalApiKeyCredentialService,
-      useFactory: (repository: PrismaExternalApiKeyCredentialRepository) =>
-        new ExternalApiKeyCredentialService(repository as any),
-      inject: [PrismaExternalApiKeyCredentialRepository]
+      useFactory: (repository: PrismaExternalApiKeyCredentialRepository, pepper: any, identity: any, permission: any, context: any, audit: ExternalApiKeyAuditAdapter, issuer: GatewayExternalAccessTokenIssuer) =>
+        new ExternalApiKeyCredentialService(
+          {
+            create: async (credentialId, credential) => repository.create({ id: credentialId, integrationMachineId: credential.integrationMachineId, tenantId: credential.tenantId, keyIdentifier: credential.keyIdentifier, verifier: credential.verifier, pepperVersion: credential.pepperVersion, expiresAt: credential.expiresAt }),
+            findById: async (credentialId) => repository.findById(credentialId),
+            findByIdentifier: async (keyIdentifier) => repository.findByIdentifier(keyIdentifier),
+            listByMachine: async (integrationMachineId, tenantId) => repository.listByMachine(integrationMachineId, tenantId),
+            revoke: async (credentialId) => repository.revoke(credentialId),
+            rotate: async (input) => repository.rotate(input)
+          } as any,
+          pepper,
+          { resolve: (id: string) => identity.resolveIntegrationMachineForAuth(id) },
+          { snapshot: (id: string, tenantId: string) => permission.resolveExternalMachineAuthorizationSnapshot(id, tenantId) },
+          context,
+          audit,
+          issuer
+        ),
+      inject: [PrismaExternalApiKeyCredentialRepository, EXTERNAL_API_KEY_PEPPER_PORT, EXTERNAL_API_KEY_IDENTITY_OWNER_PORT, EXTERNAL_API_KEY_PERMISSION_SNAPSHOT_PORT, EXTERNAL_API_KEY_CONTEXT_PORT, EXTERNAL_API_KEY_AUDIT_PORT, GatewayExternalAccessTokenIssuer]
     },
     ...AuthCommandHandlers,
     ...AuthQueryHandlers

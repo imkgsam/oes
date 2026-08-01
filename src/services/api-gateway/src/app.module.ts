@@ -160,7 +160,7 @@ const siteGrpcLoaderOptions = { longs: String, arrays: true }
       services: {
         [SERVICE_NAMES.AUTH]: {
           serviceName: SERVICE_NAMES.AUTH,
-          protoPath: resolveCommonProtoPath('auth_service/auth.proto'),
+          protoPath: [resolveCommonProtoPath('auth_service/auth.proto'), resolveCommonProtoPath('auth_service/external_api_key.proto')],
           packageName: 'auth_service',
           url: resolveAuthGrpcUrl()
         },

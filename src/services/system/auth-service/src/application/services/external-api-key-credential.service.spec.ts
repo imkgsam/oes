@@ -15,7 +15,7 @@ describe('ExternalApiKeyCredentialService', () => {
     const credentials = store()
     const service = new ExternalApiKeyCredentialService(credentials)
 
-    await expect(service.create({ trustedHuman: false, permitted: true, tenantId: 'tenant-1', integrationMachineId: 'machine-1' })).rejects.toThrow(
+    await expect(service.create({ integrationMachineId: 'machine-1' })).rejects.toThrow(
       'EXTERNAL_API_KEY_MANAGEMENT_DENIED'
     )
     expect(credentials.create).not.toHaveBeenCalled()

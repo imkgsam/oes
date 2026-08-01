@@ -5,6 +5,7 @@ import { PrismaService } from '../../prisma/prisma.service'
 @Injectable()
 export class PrismaExternalApiKeyCredentialRepository {
   constructor(private readonly prisma: PrismaService) {}
+  async findById(id: string) { return this.prisma.externalApiKeyCredential.findUnique({ where: { id } }) }
   async findByIdentifier(keyIdentifier: string) { return this.prisma.externalApiKeyCredential.findUnique({ where: { keyIdentifier } }) }
   async create(input: { id: string; integrationMachineId: string; tenantId: string; keyIdentifier: string; verifier: string; pepperVersion: string; expiresAt: Date }) {
     await this.prisma.externalApiKeyCredential.create({ data: input })
