@@ -129,6 +129,10 @@ message ResolveExternalMachineAuthorizationSnapshotResponse {
   repeated string external_business_permission_codes = 1;
   string authz_version = 2;
   string decision_reference = 3;
+  bool allowed = 4;
+  string integration_machine_id = 5;
+  string tenant_id = 6;
+  string reason_code = 7;
 }
 
 message PolicyExplainEntry {

@@ -105,6 +105,7 @@ interface PermissionDefinitionGroup {
 
 - 值使用稳定英文标识，通常采用 `domain.resource.action`。
 - INTERNAL Code 必须显式包含 `.internal.`，例如 `asset.internal.site_media.resolve`。
+- API Key exchange 使用的技术调用 Code 固定为 `identity.internal.integration_machine.resolve` 与 `permission.internal.external_machine.snapshot.resolve`；它们只进入 Auth workload issuance policy，不进入 HUMAN/MACHINE role 或 external JWT。
 - value 是数据库、Token scope、decorator 与审计使用的稳定身份。
 - TypeScript key 只负责代码可读性。
 - 修改现有 value 视为契约变更；使用新增 + 显式 deprecated / migration，不做静默 rename。

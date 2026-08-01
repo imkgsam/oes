@@ -64,13 +64,15 @@ Auth accepts a presented key only from the trusted Gateway exchange path and ver
 
 1. Identifier/secret syntax and constant-time secret verifier match.
 2. Credential is ACTIVE and within its validity window.
-3. Referenced Integration Machine is active, `TENANT` scoped, and belongs to exactly one active tenant.
-4. The tenant is active.
-5. Through Permission Service's trusted external-machine authorization snapshot decision, the machine has at least one currently granted, externally eligible existing BUSINESS Permission Code. Auth derives the complete snapshot itself from the verified machine and tenant; neither Gateway nor the external caller supplies a requested capability or Permission Code.
+3. Auth calls `IdentityQueryService.ResolveIntegrationMachineForAuth` with only the credential-owned machine reference, using verified Auth mTLS and an `aud=identity-service` INTERNAL ExecutionToken with `identity.internal.integration_machine.resolve`. Identity must return `eligible=true`, the same machine id, `scope_level=TENANT`, `machine_type=EXTERNAL_INTEGRATION`, `lifecycle_status=ACTIVE`, a non-empty tenant and lifecycle version.
+4. Identity's tenant must exactly equal the Auth credential-owned tenant reference, and that tenant must be active. Caller-supplied tenant data has no authority.
+5. Auth calls `PermissionCheckService.ResolveExternalMachineAuthorizationSnapshot` with the Identity-returned machine/tenant, using verified Auth mTLS and an `aud=permission-service` INTERNAL ExecutionToken with `permission.internal.external_machine.snapshot.resolve`. Permission must return `allowed=true`, exact machine/tenant echo, a non-empty externally eligible existing BUSINESS Permission Code snapshot, `authz_version` and decision reference. Neither Gateway nor the external caller supplies a requested capability or Permission Code.
 
 Auth signs the resulting Gateway-only JWT with exact `aud = api-gateway`, Integration Machine subject, tenant, credential reference, `scope` containing only that externally eligible BUSINESS Permission Code snapshot, opaque `authz_version`, `jti` and a maximum five-minute expiry. The Token is not encrypted: codes included in `scope` are intentionally external-safe, while roles, policy graphs, INTERNAL Codes, resource facts, secrets and business data are excluded. Auth rejects a serialized Token over 4 KiB rather than silently truncating the snapshot. Gateway performs the later route-specific and tenant/resource checks; resource policy and domain rules are not decided by this exchange.
 
 Any failed condition returns a non-enumerating stable failure category. Auth never grants a partial requested set, changes a tenant, creates an internal grant, or treats an API Key as a human session.
+
+The runtime boundary is actionable and fixed: Identity implements the dedicated query on its existing query controller/application/repository path; Permission implements the dedicated query on its existing permission-check controller/authorization query/PrincipalRoleBinding catalog path; Auth uses dedicated infrastructure gRPC adapters injected into the external API-key application service. Missing client configuration or trust policy prevents external-exchange readiness. Timeout, unavailable dependency, malformed/ineligible result, tenant mismatch, empty/invalid snapshot or missing trust fails the request before JWT signing; Auth does not use legacy `AuthenticateApiKey`, generic account `CheckPermission`, direct database access or caller facts as fallback.
 
 ## 6. Rotation, Audit, And Leak Semantics
 
@@ -107,3 +109,5 @@ The HTTP status and public error envelope are defined by Gateway. Neither Auth n
 8. Audit and logs contain no secret, verifier, pepper, Authorization value, external access token, or internal ExecutionToken.
 9. Exchange accepts no caller-selected capability or Permission Code; Auth obtains the externally eligible MACHINE snapshot through Permission Service only after credential, machine and tenant validation.
 10. The signed external JWT has only externally safe existing BUSINESS Codes in `scope`, is no larger than 4 KiB, and Gateway can use existing route permission metadata to deny an undeclared or nonmatching external request before a business side effect.
+11. Identity lookup and Permission snapshot are separately protected by Auth mTLS plus their exact target-audience INTERNAL ExecutionTokens; Gateway or an external caller cannot invoke either interface successfully.
+12. Not found/inactive/wrong-type/wrong-scope machine, credential/Identity tenant mismatch, missing tenant lifecycle, denied/empty/invalid snapshot, malformed response, timeout or dependency unavailability causes no external JWT and no fallback path.
