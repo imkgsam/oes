@@ -1,3 +1,4 @@
+import { Injectable } from '@nestjs/common'
 import { ApiKeyCredential } from '../../domain/api-key/api-key.credential'
 import { randomUUID } from 'node:crypto'
 
@@ -26,6 +27,7 @@ export interface IntegrationMachineOwnerPort { resolve(id: string): Promise<{ el
 export interface ExternalMachineAuthorizationPort { snapshot(machineId: string, tenantId: string): Promise<{ codes: string[]; authzVersion: string }> }
 
 /** Enforces the Auth-owned API-key lifecycle boundary before any credential secret is issued or exchanged. */
+@Injectable()
 export class ExternalApiKeyCredentialService {
   constructor(
     private readonly credentials: ExternalApiKeyCredentialStore,
