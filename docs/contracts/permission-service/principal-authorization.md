@@ -88,6 +88,20 @@ architectureTruthSource: docs/architecture/services/permission-service.md
 - policy 只允许申请技术原语，不得把独立业务审批、删除、资金承诺或重要状态跃迁伪装为 INTERNAL。
 - 判定不签发 Token；Auth / STS 消费 decision 后签发并绑定 `aud / client_id / cnf`。
 
+### 4.1 ResolveExternalMachineAuthorizationSnapshot
+
+This narrow decision exists only for Auth's External API Key exchange after Auth has independently verified the referenced active tenant Integration Machine, its tenant, and the credential lifecycle. It is an Auth-only trusted internal call, authenticated by Auth's existing gRPC trust boundary and the caller's target-audience INTERNAL ExecutionToken; it is not a public API and is not callable by Gateway or an external client.
+
+The trusted input is the Auth-derived MACHINE principal reference and tenant reference. It contains no raw API Key, external JWT, caller-selected Permission Code, capability, role, target audience, expiry or resource facts.
+
+The stable output contains only:
+
+- the effective granted existing `BUSINESS` Permission Codes whose definition metadata marks them `externalApiEligible`;
+- the opaque `authzVersion` and safe decision reference; and
+- a stable denial category when the machine, tenant or grant state cannot produce an external authorization snapshot.
+
+The decision is coarse-grained: it does not expose Gateway routes or pre-authorize any business resource. Gateway must independently require explicit external-route metadata and compare the relevant existing `RequirePermissions` Code(s) to this snapshot; the target business service continues resource and domain authorization. Permission Service does not sign or store the external Token.
+
 ## 5. BUSINESS, SELF_SERVICE And INTERNAL Consumption
 
 - BUSINESS：目标服务验证 Token Code 后仍执行 tenant、resource ownership、状态机、审批分离、金额阈值与 domain rule。
@@ -132,3 +146,4 @@ Gateway HTTP `RequirePermissions` 保留。它与目标 gRPC BUSINESS authorizat
 11. 首次 revoke 关闭 binding 并保留可信审计关联；同一 binding 的重复 revoke 不改变首次撤销事实，也不产生重复审计。
 12. revoke 后的 regrant 返回新的 binding identity，旧 identity 仍可供审计与历史授权决策引用。
 13. AccountRole backfill 与任何回退前都证明 binding 数、有效授权、access summary 与审计关联一致；旧模型无法表示的新 MACHINE 或多段历史写入不允许伪造性回退。
+14. An external machine snapshot returns only currently effective, externally eligible BUSINESS Codes; it never returns INTERNAL Code, a role graph, a Gateway route catalogue, a credential secret or a resource authorization result.
