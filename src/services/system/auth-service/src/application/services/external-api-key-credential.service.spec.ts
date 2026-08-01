@@ -29,4 +29,11 @@ describe('ExternalApiKeyCredentialService', () => {
       'EXTERNAL_API_KEY_INVALID'
     )
   })
+
+  it('rejects exchange before credential lookup when trusted Gateway execution is absent', async () => {
+    const credentials = store()
+    const service = new ExternalApiKeyCredentialService(credentials)
+    await expect(service.exchange('oek_live_identifier.secret', { trustedGatewayExchange: false as true })).rejects.toThrow('EXTERNAL_API_KEY_INVALID')
+    expect(credentials.findByIdentifier).not.toHaveBeenCalled()
+  })
 })
