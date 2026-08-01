@@ -78,6 +78,8 @@ import { BcryptHashingService } from '../../infrastructure/services/hashing.serv
 import { SmsService } from '../../infrastructure/services/sms.service'
 import { AuthGrpcController } from '../../interfaces/grpc/auth.grpc.controller'
 import { ExecutionTokenModule } from '../token/execution-token.module'
+import { ExternalApiKeyCredentialService } from '../../application/services/external-api-key-credential.service'
+import { PrismaExternalApiKeyCredentialRepository } from '../../infrastructure/repositories/prisma/prisma.external-api-key-credential.repository'
 
 @Module({
   imports: [
@@ -201,9 +203,17 @@ import { ExecutionTokenModule } from '../token/execution-token.module'
     PrismaTerminalLoginPolicyRepository,
     PrismaTerminalMfaPolicyRepository,
     PrismaTrustedDeviceRepository,
+    PrismaExternalApiKeyCredentialRepository,
+    {
+      provide: ExternalApiKeyCredentialService,
+      useFactory: (repository: PrismaExternalApiKeyCredentialRepository) =>
+        new ExternalApiKeyCredentialService(repository as any, process.env.AUTH_EXTERNAL_API_KEY_PEPPER ?? ''),
+      inject: [PrismaExternalApiKeyCredentialRepository]
+    },
     ...AuthCommandHandlers,
     ...AuthQueryHandlers
   ],
-  controllers: [AuthGrpcController]
+  controllers: [AuthGrpcController],
+  exports: [ExternalApiKeyCredentialService]
 })
 export class AuthModule {}
