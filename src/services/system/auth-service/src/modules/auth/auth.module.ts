@@ -87,6 +87,7 @@ import { ExternalApiKeyRequestContextAdapter } from '../../interfaces/grpc/exter
 import { GrpcRequestContextStore } from '@oes/common/authorization'
 import { EXTERNAL_API_KEY_CONTEXT_PORT } from '../../common/constants/injection-tokens'
 import { EXTERNAL_API_KEY_AUDIT_PORT } from '../../common/constants/injection-tokens'
+import { TENANT_LIFECYCLE_ACCESS_PORT } from '../../common/constants/injection-tokens'
 import { ExternalApiKeyAuditAdapter } from '../../infrastructure/adaptors/external-api-key-audit.adapter'
 import { ExternalApiKeyCredentialService } from '../../application/services/external-api-key-credential.service'
 import { PrismaExternalApiKeyCredentialRepository } from '../../infrastructure/repositories/prisma/prisma.external-api-key-credential.repository'
@@ -243,7 +244,7 @@ import { IDENTITY_SERVICE, PERMISSION_SERVICE } from '@oes/common/constants'
     },
     {
       provide: ExternalApiKeyCredentialService,
-      useFactory: (repository: PrismaExternalApiKeyCredentialRepository, pepper: any, identity: any, permission: any, context: any, audit: ExternalApiKeyAuditAdapter, issuer: GatewayExternalAccessTokenIssuer) =>
+      useFactory: (repository: PrismaExternalApiKeyCredentialRepository, pepper: any, identity: any, tenantLifecycle: any, permission: any, context: any, audit: ExternalApiKeyAuditAdapter, issuer: GatewayExternalAccessTokenIssuer) =>
         new ExternalApiKeyCredentialService(
           {
             create: async (credentialId, credential) => repository.create({ id: credentialId, integrationMachineId: credential.integrationMachineId, tenantId: credential.tenantId, keyIdentifier: credential.keyIdentifier, verifier: credential.verifier, pepperVersion: credential.pepperVersion, expiresAt: credential.expiresAt }),
@@ -255,12 +256,13 @@ import { IDENTITY_SERVICE, PERMISSION_SERVICE } from '@oes/common/constants'
           } as any,
           pepper,
           { resolve: (id: string) => identity.resolveIntegrationMachineForAuth(id) },
+          tenantLifecycle,
           { snapshot: (id: string, tenantId: string) => permission.resolveExternalMachineAuthorizationSnapshot(id, tenantId) },
           context,
           audit,
           issuer
         ),
-      inject: [PrismaExternalApiKeyCredentialRepository, EXTERNAL_API_KEY_PEPPER_PORT, EXTERNAL_API_KEY_IDENTITY_OWNER_PORT, EXTERNAL_API_KEY_PERMISSION_SNAPSHOT_PORT, EXTERNAL_API_KEY_CONTEXT_PORT, EXTERNAL_API_KEY_AUDIT_PORT, GatewayExternalAccessTokenIssuer]
+      inject: [PrismaExternalApiKeyCredentialRepository, EXTERNAL_API_KEY_PEPPER_PORT, EXTERNAL_API_KEY_IDENTITY_OWNER_PORT, TENANT_LIFECYCLE_ACCESS_PORT, EXTERNAL_API_KEY_PERMISSION_SNAPSHOT_PORT, EXTERNAL_API_KEY_CONTEXT_PORT, EXTERNAL_API_KEY_AUDIT_PORT, GatewayExternalAccessTokenIssuer]
     },
     ...AuthCommandHandlers,
     ...AuthQueryHandlers

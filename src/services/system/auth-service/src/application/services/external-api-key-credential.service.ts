@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common'
 import { ApiKeyCredential } from '../../domain/api-key/api-key.credential'
 import { randomUUID } from 'node:crypto'
 import { ExternalApiKeyPepperPort } from '../ports/external-api-key-pepper.port'
+import { TenantLifecycleAccessPort } from '../ports/tenant-lifecycle-access.port'
 
 /** Persists Auth-owned API-key credential verifiers without any recoverable secret material. */
 export interface ExternalApiKeyCredentialStore {
@@ -18,6 +19,9 @@ export interface ExternalApiKeyManagementContext {
   permitted: boolean
   tenantId: string
   integrationMachineId: string
+  operatorId?: string
+  requestId?: string
+  traceId?: string
 }
 
 export interface ExternalApiKeyExchangeContext {
@@ -42,7 +46,7 @@ export interface StoredExternalApiKeyCredential {
 /** Auth consumes these narrow owner facts only through trusted service adapters. */
 export interface IntegrationMachineOwnerPort { resolve(id: string): Promise<{ eligible: boolean; tenantId: string }> }
 export interface ExternalMachineAuthorizationPort { snapshot(machineId: string, tenantId: string): Promise<{ codes: string[]; authzVersion: string }> }
-export interface ExternalApiKeyContextPort { resolve(): { trustedHuman: boolean; tenantId: string; operatorId: string; verifiedGatewayExchange: boolean } }
+export interface ExternalApiKeyContextPort { resolve(): { trustedHuman: boolean; tenantId: string; operatorId: string; verifiedGatewayExchange: boolean; requestId?: string; traceId?: string } }
 export interface ExternalApiKeyAuditPort { record(input: any): Promise<void> }
 
 /** Enforces the Auth-owned API-key lifecycle boundary before any credential secret is issued or exchanged. */
@@ -52,6 +56,7 @@ export class ExternalApiKeyCredentialService {
     private readonly credentials: ExternalApiKeyCredentialStore,
     private readonly protectedPepper?: ExternalApiKeyPepperPort,
     private readonly machineOwner?: IntegrationMachineOwnerPort,
+    private readonly tenantLifecycle?: TenantLifecycleAccessPort,
     private readonly authorization?: ExternalMachineAuthorizationPort,
     private readonly contextPort?: ExternalApiKeyContextPort,
     private readonly auditPort?: ExternalApiKeyAuditPort,
@@ -59,23 +64,41 @@ export class ExternalApiKeyCredentialService {
     private readonly now: () => Date = () => new Date()
   ) {}
 
+  /** Reads the current trusted request facts for deny-path audit without granting any authority by itself. */
+  private requestContext(): { trustedHuman: boolean; tenantId: string; operatorId: string; verifiedGatewayExchange: boolean; requestId?: string; traceId?: string } {
+    const context = this.contextPort?.resolve()
+    return {
+      trustedHuman: context?.trustedHuman === true,
+      tenantId: context?.tenantId ?? '',
+      operatorId: context?.operatorId ?? '',
+      verifiedGatewayExchange: context?.verifiedGatewayExchange === true,
+      ...(context?.requestId ? { requestId: context.requestId } : {}),
+      ...(context?.traceId ? { traceId: context.traceId } : {})
+    }
+  }
+
   /** Resolves management authority from the trusted request context; missing context is deny-by-default. */
   private managementContext(integrationMachineId = '') {
-    const context = this.contextPort?.resolve()
+    const context = this.requestContext()
     if (!context?.trustedHuman || !context.tenantId || !context.operatorId) throw new Error('EXTERNAL_API_KEY_MANAGEMENT_DENIED')
     return {
       trustedHuman: true,
       permitted: true,
       tenantId: context.tenantId,
       integrationMachineId,
-      operatorId: context.operatorId
+      operatorId: context.operatorId,
+      requestId: context.requestId,
+      traceId: context.traceId
     }
   }
 
   /** Creates one server-generated credential only for an already authorized trusted human request. */
   async create(input: Pick<ExternalApiKeyManagementContext, 'integrationMachineId'>): Promise<{ credentialId: string; apiKey: string; credential: StoredExternalApiKeyCredential }> {
-    const context = this.managementContext(input.integrationMachineId)
+    const deniedContext = this.requestContext()
     try {
+      const context = this.managementContext(input.integrationMachineId)
+      await this.assertEligibleManagementMachine(context.integrationMachineId, context.tenantId)
+      await this.assertTenantActive(context.tenantId)
       const protectedPepper = await this.resolveCreationPepper()
       const credentialId = randomUUID()
       const issued = ApiKeyCredential.issue({
@@ -87,78 +110,107 @@ export class ExternalApiKeyCredentialService {
       })
       const credential = toStoredCredential(credentialId, issued.credential)
       await this.credentials.create(credentialId, issued.credential)
-      await this.auditPort?.record({ eventType: 'CREATE', outcome: 'SUCCESS', credentialId, machineId: credential.integrationMachineId, tenantId: credential.tenantId, operatorId: context.operatorId })
+      await this.auditPort?.record({ eventType: 'CREATE', outcome: 'SUCCESS', credentialId, machineId: credential.integrationMachineId, tenantId: credential.tenantId, operatorId: context.operatorId, requestId: context.requestId, traceId: context.traceId })
       return { credentialId, apiKey: issued.presentedKey, credential }
     } catch (error) {
-      await this.auditPort?.record({ eventType: 'CREATE', outcome: 'DENIED', machineId: input.integrationMachineId ?? '', tenantId: context.tenantId, operatorId: context.operatorId })
+      await this.auditPort?.record({ eventType: 'CREATE', outcome: 'DENIED', machineId: input.integrationMachineId ?? '', tenantId: deniedContext.tenantId, operatorId: deniedContext.operatorId, requestId: deniedContext.requestId, traceId: deniedContext.traceId })
       throw error
     }
   }
 
   /** Lists only non-secret credential metadata scoped to the already trusted machine and tenant. */
   async list(input: Pick<ExternalApiKeyManagementContext, 'integrationMachineId'>): Promise<readonly StoredExternalApiKeyCredential[]> {
-    const context = this.managementContext(input.integrationMachineId)
-    return this.credentials.listByMachine(context.integrationMachineId, context.tenantId) as Promise<readonly StoredExternalApiKeyCredential[]>
+    const deniedContext = this.requestContext()
+    try {
+      const context = this.managementContext(input.integrationMachineId)
+      await this.assertEligibleManagementMachine(context.integrationMachineId, context.tenantId)
+      const records = await this.credentials.listByMachine(context.integrationMachineId, context.tenantId) as readonly StoredExternalApiKeyCredential[]
+      await this.auditPort?.record({ eventType: 'LIST', outcome: 'SUCCESS', machineId: context.integrationMachineId, tenantId: context.tenantId, operatorId: context.operatorId, requestId: context.requestId, traceId: context.traceId })
+      return records
+    } catch (error) {
+      await this.auditPort?.record({ eventType: 'LIST', outcome: 'DENIED', machineId: input.integrationMachineId ?? '', tenantId: deniedContext.tenantId, operatorId: deniedContext.operatorId, requestId: deniedContext.requestId, traceId: deniedContext.traceId })
+      throw error
+    }
   }
 
   /** Revokes a credential permanently; repeating the operation leaves the first revocation fact intact. */
   async revoke(credentialId: string): Promise<void> {
-    const context = this.managementContext('')
+    const deniedContext = this.requestContext()
+    let existing: StoredExternalApiKeyCredential | undefined
     if (!credentialId) throw new Error('EXTERNAL_API_KEY_MANAGEMENT_DENIED')
-    await this.credentials.revoke(credentialId, this.now())
-    await this.auditPort?.record({ eventType: 'REVOKE', outcome: 'SUCCESS', credentialId, machineId: '', tenantId: context.tenantId, operatorId: context.operatorId })
+    try {
+      const context = this.managementContext('')
+      existing = await this.credentials.findById?.(credentialId)
+      if (!existing || existing.tenantId !== context.tenantId) throw new Error('EXTERNAL_API_KEY_MANAGEMENT_DENIED')
+      await this.credentials.revoke(credentialId, this.now())
+      await this.auditPort?.record({ eventType: 'REVOKE', outcome: 'SUCCESS', credentialId, machineId: existing.integrationMachineId, tenantId: context.tenantId, operatorId: context.operatorId, requestId: context.requestId, traceId: context.traceId })
+    } catch (error) {
+      await this.auditPort?.record({ eventType: 'REVOKE', outcome: 'DENIED', credentialId, machineId: existing?.integrationMachineId ?? '', tenantId: existing?.tenantId ?? deniedContext.tenantId, operatorId: deniedContext.operatorId, requestId: deniedContext.requestId, traceId: deniedContext.traceId })
+      throw error
+    }
   }
 
   /** Rotates an authorized machine credential with a bounded seven-day predecessor overlap. */
   async rotate(credentialId: string, _input?: Pick<ExternalApiKeyManagementContext, 'integrationMachineId'>): Promise<{ credentialId: string; apiKey: string; predecessorValidUntil: Date; credential: StoredExternalApiKeyCredential }> {
-    const context = this.managementContext()
-    if (!this.credentials.rotate) throw new Error('EXTERNAL_API_KEY_MANAGEMENT_DENIED')
-    const protectedPepper = await this.resolveCreationPepper()
-    const predecessor = await this.credentials.findById?.(credentialId)
-    if (!predecessor) throw new Error('EXTERNAL_API_KEY_INVALID')
-    if (predecessor.tenantId !== context.tenantId) throw new Error('EXTERNAL_API_KEY_MANAGEMENT_DENIED')
-    const now = this.now(); const overlapUntil = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
-    const issued = ApiKeyCredential.issue({ integrationMachineId: predecessor.integrationMachineId, tenantId: context.tenantId, pepper: protectedPepper.material, pepperVersion: protectedPepper.version, now })
-    const replacementId = randomUUID()
-    await this.credentials.rotate({ predecessorId: credentialId, overlapUntil, replacement: { id: replacementId, integrationMachineId: predecessor.integrationMachineId, tenantId: context.tenantId, keyIdentifier: issued.credential.keyIdentifier, verifier: issued.credential.verifier, pepperVersion: issued.credential.pepperVersion, expiresAt: issued.credential.expiresAt } })
-    const credential = toStoredCredential(replacementId, issued.credential, predecessor.id)
-    await this.auditPort?.record({ eventType: 'ROTATE', outcome: 'SUCCESS', credentialId: replacementId, machineId: credential.integrationMachineId, tenantId: credential.tenantId, operatorId: context.operatorId })
-    return { credentialId: replacementId, apiKey: issued.presentedKey, predecessorValidUntil: overlapUntil, credential }
+    const deniedContext = this.requestContext()
+    let predecessor: StoredExternalApiKeyCredential | undefined
+    if (!credentialId) throw new Error('EXTERNAL_API_KEY_MANAGEMENT_DENIED')
+    try {
+      const context = this.managementContext()
+      if (!this.credentials.rotate) throw new Error('EXTERNAL_API_KEY_MANAGEMENT_DENIED')
+      const protectedPepper = await this.resolveCreationPepper()
+      predecessor = await this.credentials.findById?.(credentialId)
+      if (!predecessor) throw new Error('EXTERNAL_API_KEY_INVALID')
+      if (predecessor.tenantId !== context.tenantId) throw new Error('EXTERNAL_API_KEY_MANAGEMENT_DENIED')
+      await this.assertEligibleManagementMachine(predecessor.integrationMachineId, context.tenantId)
+      await this.assertTenantActive(context.tenantId)
+      const now = this.now(); const overlapUntil = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+      const issued = ApiKeyCredential.issue({ integrationMachineId: predecessor.integrationMachineId, tenantId: context.tenantId, pepper: protectedPepper.material, pepperVersion: protectedPepper.version, now })
+      const replacementId = randomUUID()
+      await this.credentials.rotate({ predecessorId: credentialId, overlapUntil, replacement: { id: replacementId, integrationMachineId: predecessor.integrationMachineId, tenantId: context.tenantId, keyIdentifier: issued.credential.keyIdentifier, verifier: issued.credential.verifier, pepperVersion: issued.credential.pepperVersion, expiresAt: issued.credential.expiresAt } })
+      const credential = toStoredCredential(replacementId, issued.credential, predecessor.id)
+      await this.auditPort?.record({ eventType: 'ROTATE', outcome: 'SUCCESS', credentialId: replacementId, machineId: credential.integrationMachineId, tenantId: credential.tenantId, operatorId: context.operatorId, requestId: context.requestId, traceId: context.traceId })
+      return { credentialId: replacementId, apiKey: issued.presentedKey, predecessorValidUntil: overlapUntil, credential }
+    } catch (error) {
+      await this.auditPort?.record({ eventType: 'ROTATE', outcome: 'DENIED', credentialId, machineId: predecessor?.integrationMachineId ?? '', tenantId: predecessor?.tenantId ?? deniedContext.tenantId, operatorId: deniedContext.operatorId, requestId: deniedContext.requestId, traceId: deniedContext.traceId })
+      throw error
+    }
   }
 
   /** Rejects all exchange callers except the verified Gateway internal issuance policy boundary. */
   async exchange(presentedKey: string, _legacyContext?: ExternalApiKeyExchangeContext): Promise<any> {
-    const context = this.contextPort?.resolve()
+    const context = this.requestContext()
     if (context?.verifiedGatewayExchange !== true) {
+      await this.auditPort?.record({ eventType: 'EXCHANGE', outcome: 'DENIED', machineId: '', tenantId: '', requestId: context?.requestId, traceId: context?.traceId })
       throw new Error('EXTERNAL_API_KEY_INVALID')
     }
-    const protectedPepper = await this.resolveCreationPepper()
-    const keyIdentifier = readKeyIdentifier(presentedKey)
-    const credential = keyIdentifier
-      ? await this.credentials.findByIdentifier(keyIdentifier)
-      : undefined
-    const now = this.now()
-    if (!credential) {
-      await this.auditPort?.record({ eventType: 'EXCHANGE', outcome: 'DENIED', machineId: '', tenantId: '' })
-      throw new Error('EXTERNAL_API_KEY_INVALID')
+    let credential: StoredExternalApiKeyCredential | undefined
+    try {
+      const protectedPepper = await this.resolveCreationPepper()
+      const keyIdentifier = readKeyIdentifier(presentedKey)
+      credential = keyIdentifier
+        ? await this.credentials.findByIdentifier(keyIdentifier)
+        : undefined
+      const now = this.now()
+      if (!credential) throw new Error('EXTERNAL_API_KEY_INVALID')
+      if (credential.pepperVersion !== protectedPepper.version || !matchesCredential(credential, presentedKey, protectedPepper.material)) {
+        throw new Error('EXTERNAL_API_KEY_INVALID')
+      }
+      const lifecycleError = resolveCredentialLifecycleError(credential, now)
+      if (lifecycleError) throw new Error(lifecycleError)
+      const machine = await this.machineOwner?.resolve(credential.integrationMachineId)
+      if (!machine?.eligible || machine.tenantId !== credential.tenantId) throw new Error('EXTERNAL_INTEGRATION_MACHINE_INACTIVE')
+      await this.assertTenantActive(credential.tenantId)
+      const snapshot = await this.authorization?.snapshot(credential.integrationMachineId, credential.tenantId)
+      if (!snapshot || snapshot.codes.length === 0 || !snapshot.authzVersion) throw new Error('EXTERNAL_CAPABILITY_NOT_ALLOWED')
+      if (!this.externalIssuer) throw new Error('EXTERNAL_API_KEY_RUNTIME_UNAVAILABLE')
+      const result = await this.externalIssuer.issue({ machineId: credential.integrationMachineId, tenantId: credential.tenantId, credentialId: credential.id ?? credential.keyIdentifier, scope: snapshot.codes, authzVersion: snapshot.authzVersion })
+      await this.auditPort?.record({ eventType: 'EXCHANGE', outcome: 'SUCCESS', credentialId: credential.id, machineId: credential.integrationMachineId, tenantId: credential.tenantId, correlationId: result.auditCorrelationId, requestId: context.requestId, traceId: context.traceId })
+      return result
+    } catch (error) {
+      await this.auditPort?.record({ eventType: 'EXCHANGE', outcome: 'DENIED', credentialId: credential?.id, machineId: credential?.integrationMachineId ?? '', tenantId: credential?.tenantId ?? '', requestId: context.requestId, traceId: context.traceId })
+      throw error
     }
-    if (credential.pepperVersion !== protectedPepper.version || !matchesCredential(credential, presentedKey, protectedPepper.material)) {
-      await this.auditPort?.record({ eventType: 'EXCHANGE', outcome: 'DENIED', credentialId: credential.id, machineId: credential.integrationMachineId, tenantId: credential.tenantId })
-      throw new Error('EXTERNAL_API_KEY_INVALID')
-    }
-    const lifecycleError = resolveCredentialLifecycleError(credential, now)
-    if (lifecycleError) {
-      await this.auditPort?.record({ eventType: 'EXCHANGE', outcome: 'DENIED', credentialId: credential.id, machineId: credential.integrationMachineId, tenantId: credential.tenantId })
-      throw new Error(lifecycleError)
-    }
-    const machine = await this.machineOwner?.resolve(credential.integrationMachineId)
-    if (!machine?.eligible || machine.tenantId !== credential.tenantId) throw new Error('EXTERNAL_INTEGRATION_MACHINE_INACTIVE')
-    const snapshot = await this.authorization?.snapshot(credential.integrationMachineId, credential.tenantId)
-    if (!snapshot || snapshot.codes.length === 0) throw new Error('EXTERNAL_CAPABILITY_NOT_ALLOWED')
-    if (!this.externalIssuer) throw new Error('EXTERNAL_API_KEY_RUNTIME_UNAVAILABLE')
-    const result = await this.externalIssuer.issue({ machineId: credential.integrationMachineId, tenantId: credential.tenantId, credentialId: credential.id ?? credential.keyIdentifier, scope: snapshot.codes, authzVersion: snapshot.authzVersion })
-    await this.auditPort?.record({ eventType: 'EXCHANGE', outcome: 'SUCCESS', credentialId: credential.id, machineId: credential.integrationMachineId, tenantId: credential.tenantId })
-    return result
   }
 
   async exchangeExternalApiKey(presentedKey: string): Promise<any> { return this.exchange(presentedKey) }
@@ -168,6 +220,19 @@ export class ExternalApiKeyCredentialService {
     const pepper = await this.protectedPepper?.resolve()
     if (!pepper?.version || !pepper.material) throw new Error('EXTERNAL_API_KEY_RUNTIME_UNAVAILABLE')
     return pepper
+  }
+
+  /** Verifies the trusted tenant machine boundary before management changes can touch credential state. */
+  private async assertEligibleManagementMachine(integrationMachineId: string, tenantId: string): Promise<void> {
+    if (!integrationMachineId) throw new Error('EXTERNAL_API_KEY_MANAGEMENT_DENIED')
+    const machine = await this.machineOwner?.resolve(integrationMachineId)
+    if (!machine?.eligible || machine.tenantId !== tenantId) throw new Error('EXTERNAL_INTEGRATION_MACHINE_INACTIVE')
+  }
+
+  /** Requires tenant-org ACTIVE before a credential can create, rotate, or exchange future external access. */
+  private async assertTenantActive(tenantId: string): Promise<void> {
+    const status = await this.tenantLifecycle?.getTenantStatus(tenantId)
+    if (status !== 'ACTIVE') throw new Error('EXTERNAL_INTEGRATION_TENANT_INACTIVE')
   }
 }
 

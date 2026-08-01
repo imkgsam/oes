@@ -105,6 +105,7 @@ import {
 } from '../../../../../common/grpc/gateway-downstream-source.mapper'
 
 const CALLER = 'api-gateway'
+const EXTERNAL_API_KEY_EXCHANGE_PERMISSION = 'auth.internal.external_api_key.exchange'
 
 @Injectable()
 // Bridges auth-bff HTTP use cases to the downstream auth-service gRPC contract.
@@ -131,7 +132,7 @@ export class AuthGrpcAdapter implements OnModuleInit {
   ): Promise<ExchangeExternalApiKeyResponse> {
     return this.call(
       'exchangeExternalApiKey',
-      this.externalApiKeySvc.exchangeExternalApiKey(request, this.metadata(source))
+      this.externalApiKeySvc.exchangeExternalApiKey(request, this.exchangeMetadata(source))
     )
   }
 
@@ -1250,6 +1251,22 @@ export class AuthGrpcAdapter implements OnModuleInit {
 
   private operatorMetadata(source: DownstreamRequestSource) {
     return this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+  }
+
+  /** Builds the signed MACHINE root context used for the Gateway-to-Auth external API-key exchange hop. */
+  private exchangeMetadata(source: DownstreamRequestSource) {
+    return this.metadataFactory.createOperatorScopedMetadata({
+      callerServiceName: CALLER,
+      requestId: source.requestId,
+      traceId: source.traceId,
+      operatorContext: {
+        operatorId: CALLER,
+        operatorType: 'MACHINE',
+        operatorRoles: [EXTERNAL_API_KEY_EXCHANGE_PERMISSION],
+        requestId: source.requestId,
+        traceId: source.traceId
+      }
+    })
   }
 
   private toGrpcMfaBindingType(
