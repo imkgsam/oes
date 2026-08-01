@@ -88,12 +88,12 @@ export class ExternalApiKeyCredentialService {
     if (context.trustedGatewayExchange !== true) {
       throw new Error('EXTERNAL_API_KEY_INVALID')
     }
-    this.assertPepper()
+    const protectedPepper = await this.resolveCreationPepper()
     const keyIdentifier = readKeyIdentifier(presentedKey)
     const credential = keyIdentifier
       ? await this.credentials.findByIdentifier(keyIdentifier)
       : undefined
-    if (!credential || !credential.verify(presentedKey, this.pepper) || !credential.canExchange(this.now())) {
+    if (!credential || credential.pepperVersion !== protectedPepper.version || !credential.verify(presentedKey, protectedPepper.material) || !credential.canExchange(this.now())) {
       throw new Error('EXTERNAL_API_KEY_INVALID')
     }
     const machine = await this.machineOwner?.resolve(credential.integrationMachineId)
