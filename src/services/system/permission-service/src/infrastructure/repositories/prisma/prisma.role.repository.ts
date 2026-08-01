@@ -307,7 +307,10 @@ export class PrismaRoleRepository implements RoleRepository {
       .filter((permission) => permission.kind === 'BUSINESS' && permission.externalApiEligible)
       .map((permission) => permission.code)))].sort()
     if (codes.length === 0) return null
-    const authzVersion = bindings.map((binding) => `${binding.id}:${binding.updatedAt.toISOString()}`).sort().join('|')
+    const authzVersion = bindings
+      .map((binding) => `${binding.id}:${binding.createdAt.toISOString()}:${binding.role.updatedAt.toISOString()}`)
+      .sort()
+      .join('|')
     return { permissionCodes: codes, authzVersion, decisionReference: `permission-snapshot:${input.principalId}:${authzVersion}` }
   }
 
