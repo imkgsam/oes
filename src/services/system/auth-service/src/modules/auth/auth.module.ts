@@ -77,6 +77,7 @@ import { EmailService } from '../../infrastructure/services/email.service'
 import { BcryptHashingService } from '../../infrastructure/services/hashing.service'
 import { SmsService } from '../../infrastructure/services/sms.service'
 import { AuthGrpcController } from '../../interfaces/grpc/auth.grpc.controller'
+import { ExternalApiKeyGrpcController } from '../../interfaces/grpc/external-api-key.grpc.controller'
 import { ExecutionTokenModule } from '../token/execution-token.module'
 import { EXECUTION_TOKEN_SIGNER } from '../token/execution-token.module'
 import { GatewayExternalAccessTokenIssuer } from '../../application/services/gateway-external-access-token-issuer'
@@ -244,7 +245,7 @@ import { IDENTITY_SERVICE, PERMISSION_SERVICE } from '@oes/common/constants'
     ...AuthCommandHandlers,
     ...AuthQueryHandlers
   ],
-  controllers: [AuthGrpcController],
+  controllers: [AuthGrpcController, ExternalApiKeyGrpcController],
   exports: [ExternalApiKeyCredentialService]
 })
 export class AuthModule {}
