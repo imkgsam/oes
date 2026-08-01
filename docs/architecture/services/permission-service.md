@@ -128,6 +128,8 @@ ExecutionToken 使用同一 Permission Code 词汇：Permission Service 提供�
 
 External API Key exchange 有一个额外的窄用途消费者：Auth 独立验证 Integration Machine 与 tenant 后，通过受信任的 machine-authorization contract 取得该 Machine 当前有效且 `externalApiEligible` 的 BUSINESS Code 快照与 `authzVersion`。Permission Service 不返回 Gateway route catalogue、credential fact、secret、Token 或 resource authorization result；Gateway 仍独占外部 HTTP route 是否开放的判断，目标业务服务仍执行 resource 与 domain authorization。
 
+该快照由现有 `PermissionCheckService.ResolveExternalMachineAuthorizationSnapshot` gRPC surface 提供，并在 `permission-check` interface/controller、authorization application query 与现有 PrincipalRoleBinding / Permission catalog repository 边界内实现。它是 Auth-only INTERNAL technical primitive，要求 verified `auth-service` workload、target audience `permission-service`、certificate binding 与 exact issuance Code `permission.internal.external_machine.snapshot.resolve`；Gateway、外部调用者和普通 HUMAN/MACHINE role 不能获得此 Code。输入 machine/tenant 必须来自 Auth 已验证的 Identity 结果，输出显式携带 allowed、machine/tenant echo、Code snapshot、`authzVersion`、decision reference 与 safe reason。空快照、tenant mismatch、未知/不合格 Code、trust failure 或 downstream unavailable 均 fail closed，Permission 不签发 Token。
+
 DELEGATED 判定必须同时受 HUMAN grant、未撤销的 delegation reference、固定 ToolContract / operation upper bound、tenant / org 与 resource policy 约束；任一输入不满足即拒绝。Tool 或 Agent 不能因用户有更高权限而自动获得更高上限，也不能把高风险 operation 重分类为低风险。
 
 ### 5.2 checkResource / buildQueryScope

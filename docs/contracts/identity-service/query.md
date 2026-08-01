@@ -371,6 +371,24 @@ Contact Asset query shapes 只描述调用方可消费的黑盒字段，不暴�
   - `account.name`
   - `account.status`
 
+### `ResolveIntegrationMachineForAuth`
+
+- 作用：仅供 Auth 在 External API Key exchange 中确认一个 machine reference 是否仍是可用于外部集成的 Identity-owned 主体事实。
+- 调用边界：调用方必须是 verified `auth-service` workload，并携带 `aud=identity-service`、`cnf` 匹配当前 mTLS certificate、`scope=identity.internal.integration_machine.resolve` 的 INTERNAL ExecutionToken；普通 Gateway、HUMAN/MACHINE role 与外部调用方均不得调用。
+- 请求唯一业务字段：
+  - `integration_machine_id`：由 Auth 从已验证 API Key credential 记录中取得；请求不接受 tenant、type、status、Permission Code 或 API Key。
+- 响应关键字段：
+  - `eligible`：只有 machine 存在、`scope_level=TENANT`、`machine_type=EXTERNAL_INTEGRATION`、`lifecycle_status=ACTIVE` 且 tenant reference 非空时为 true；
+  - `integration_machine_id`、`tenant_id`、`scope_level`、`machine_type`、`lifecycle_status`；
+  - opaque `lifecycle_version`、safe `decision_reference` 与 `reason_code`。
+- 权威与失败规则：
+  - tenant、scope、type 与 status 只来自 Identity repository；请求字段不能覆盖；
+  - not found、inactive、wrong type、wrong scope、missing tenant、mTLS/Token mismatch、timeout 或 Identity unavailable 均使 Auth exchange fail closed；
+  - Identity 返回的 tenant 必须与 Auth credential-owned tenant reference 相等，否则 Auth 以 tenant mismatch 拒绝；
+  - 任何外部 HTTP 响应不得区分上述内部原因。
+- 稳定 `reason_code`：`INTEGRATION_MACHINE_ACTIVE`、`INTEGRATION_MACHINE_NOT_FOUND`、`INTEGRATION_MACHINE_INACTIVE`、`INTEGRATION_MACHINE_WRONG_TYPE`、`INTEGRATION_MACHINE_WRONG_SCOPE`、`INTEGRATION_MACHINE_TENANT_MISSING`；只有第一项允许 `eligible=true`，其余均由 Auth 对外映射为不可枚举失败。
+- 运行时接入：现有 `IdentityQueryService` proto、`identity-query.grpc.controller.ts`、`application/queries/service-account/resolve-integration-machine-for-auth.*` 与既有 ServiceAccount repository 是唯一实现边界；不得复用 legacy `AuthenticateApiKey` 或管理查询的 operator-scope 语义替代。
+
 ### `ListServiceAccounts`
 
 - 作用：按条件列出机器账号
