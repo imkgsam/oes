@@ -201,6 +201,12 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
     }
   }
 
+  /** Reads Identity-owned machine lifecycle facts for Auth credential exchange. */
+  async resolveIntegrationMachineForAuth(integrationMachineId: string): Promise<{ eligible: boolean; tenantId: string }> {
+    const response: any = await safeGrpcCall((this.identityQueryService as any).resolveIntegrationMachineForAuth({ integrationMachineId }, this.metadata()), { caller: 'auth-service', method: 'IdentityQueryService.resolveIntegrationMachineForAuth' })
+    return { eligible: response.eligible === true, tenantId: response.tenantId?.trim() ?? '' }
+  }
+
   private rethrowIfInfrastructureError(
     error: unknown,
     method: string,

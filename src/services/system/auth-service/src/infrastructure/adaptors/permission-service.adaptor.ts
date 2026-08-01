@@ -207,6 +207,12 @@ export class PermissionServiceAdaptor implements IPermissionServicePort, OnModul
     }
   }
 
+  /** Reads the Auth-only external-safe MACHINE permission snapshot through Permission's trusted boundary. */
+  async resolveExternalMachineAuthorizationSnapshot(machineId: string, tenantId: string): Promise<{ codes: string[]; authzVersion: string }> {
+    const response: any = await safeGrpcCall((this.permissionService as any).resolveExternalMachineAuthorizationSnapshot({ integrationMachineId: machineId, tenantId }, this.metadata()), { caller: 'auth-service', method: 'PermissionCheckService.resolveExternalMachineAuthorizationSnapshot' })
+    return { codes: response.externalBusinessPermissionCodes ?? [], authzVersion: response.authzVersion ?? '' }
+  }
+
   private metadata() {
     const current = this.requestContextStore.getContext()
     return this.metadataFactory.createInternalCallMetadata({
