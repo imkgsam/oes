@@ -32,7 +32,6 @@ export interface ExternalMachineAuthorizationPort { snapshot(machineId: string, 
 export class ExternalApiKeyCredentialService {
   constructor(
     private readonly credentials: ExternalApiKeyCredentialStore,
-    private readonly pepper: string,
     private readonly protectedPepper?: ExternalApiKeyPepperPort,
     private readonly machineOwner?: IntegrationMachineOwnerPort,
     private readonly authorization?: ExternalMachineAuthorizationPort,
@@ -100,11 +99,6 @@ export class ExternalApiKeyCredentialService {
     if (!machine?.eligible || machine.tenantId !== credential.tenantId) throw new Error('EXTERNAL_INTEGRATION_MACHINE_INACTIVE')
     const snapshot = await this.authorization?.snapshot(credential.integrationMachineId, credential.tenantId)
     if (!snapshot || snapshot.codes.length === 0) throw new Error('EXTERNAL_CAPABILITY_NOT_ALLOWED')
-  }
-
-  /** Fails closed when deployment has not supplied the protected verifier pepper. */
-  private assertPepper(): void {
-    if (!this.pepper) throw new Error('EXTERNAL_API_KEY_RUNTIME_UNAVAILABLE')
   }
 
   /** Obtains creation verifier material only from the protected provider; no configuration fallback exists. */

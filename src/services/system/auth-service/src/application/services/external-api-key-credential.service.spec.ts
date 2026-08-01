@@ -13,7 +13,7 @@ const store = (): jest.Mocked<ExternalApiKeyCredentialStore> => ({
 describe('ExternalApiKeyCredentialService', () => {
   it('rejects management without trusted human context before issuing a secret', async () => {
     const credentials = store()
-    const service = new ExternalApiKeyCredentialService(credentials, 'pepper')
+    const service = new ExternalApiKeyCredentialService(credentials)
 
     await expect(service.create({ trustedHuman: false, permitted: true, tenantId: 'tenant-1', integrationMachineId: 'machine-1' })).rejects.toThrow(
       'EXTERNAL_API_KEY_MANAGEMENT_DENIED'
@@ -23,7 +23,7 @@ describe('ExternalApiKeyCredentialService', () => {
 
   it('does not accept a caller-supplied gateway flag as exchange trust evidence', async () => {
     const credentials = store()
-    const service = new ExternalApiKeyCredentialService(credentials, 'pepper')
+    const service = new ExternalApiKeyCredentialService(credentials)
 
     await expect(service.exchange('oek_live_identifier.secret', { trustedGatewayExchange: false as true })).rejects.toThrow(
       'EXTERNAL_API_KEY_INVALID'

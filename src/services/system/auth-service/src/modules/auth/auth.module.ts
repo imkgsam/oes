@@ -219,7 +219,7 @@ import { IDENTITY_SERVICE, PERMISSION_SERVICE } from '@oes/common/constants'
     {
       provide: ExternalApiKeyCredentialService,
       useFactory: (repository: PrismaExternalApiKeyCredentialRepository) =>
-        new ExternalApiKeyCredentialService(repository as any, process.env.AUTH_EXTERNAL_API_KEY_PEPPER ?? ''),
+        new ExternalApiKeyCredentialService(repository as any),
       inject: [PrismaExternalApiKeyCredentialRepository]
     },
     ...AuthCommandHandlers,
