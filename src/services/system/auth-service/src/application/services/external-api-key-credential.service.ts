@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { ApiKeyCredential } from '../../domain/api-key/api-key.credential'
 import { randomUUID } from 'node:crypto'
+import { ExternalApiKeyPepperPort } from '../ports/external-api-key-pepper.port'
 
 /** Persists Auth-owned API-key credential verifiers without any recoverable secret material. */
 export interface ExternalApiKeyCredentialStore {
@@ -32,6 +33,7 @@ export class ExternalApiKeyCredentialService {
   constructor(
     private readonly credentials: ExternalApiKeyCredentialStore,
     private readonly pepper: string,
+    private readonly protectedPepper?: ExternalApiKeyPepperPort,
     private readonly machineOwner?: IntegrationMachineOwnerPort,
     private readonly authorization?: ExternalMachineAuthorizationPort,
     private readonly now: () => Date = () => new Date()
@@ -42,14 +44,14 @@ export class ExternalApiKeyCredentialService {
     if (!context.trustedHuman || !context.permitted || !context.tenantId || !context.integrationMachineId) {
       throw new Error('EXTERNAL_API_KEY_MANAGEMENT_DENIED')
     }
-    this.assertPepper()
+    const protectedPepper = await this.resolveCreationPepper()
 
     const credentialId = randomUUID()
     const issued = ApiKeyCredential.issue({
       integrationMachineId: context.integrationMachineId,
       tenantId: context.tenantId,
-      pepper: this.pepper,
-      pepperVersion: 'configured',
+      pepper: protectedPepper.material,
+      pepperVersion: protectedPepper.version,
       now: this.now()
     })
     await this.credentials.create(credentialId, issued.credential)
@@ -103,6 +105,13 @@ export class ExternalApiKeyCredentialService {
   /** Fails closed when deployment has not supplied the protected verifier pepper. */
   private assertPepper(): void {
     if (!this.pepper) throw new Error('EXTERNAL_API_KEY_RUNTIME_UNAVAILABLE')
+  }
+
+  /** Obtains creation verifier material only from the protected provider; no configuration fallback exists. */
+  private async resolveCreationPepper(): Promise<{ version: string; material: string }> {
+    const pepper = await this.protectedPepper?.resolve()
+    if (!pepper?.version || !pepper.material) throw new Error('EXTERNAL_API_KEY_RUNTIME_UNAVAILABLE')
+    return pepper
   }
 }
 
