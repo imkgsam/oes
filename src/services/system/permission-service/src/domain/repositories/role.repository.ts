@@ -19,6 +19,15 @@ export interface PagedRoleResult {
   pageSize: number
 }
 
+export interface PrincipalRoleBindingRevokeResult {
+  bindingId: string
+  revokedAt: Date
+  revokedByOperatorId: string
+  reason: string
+  auditEventId: string
+  revokedNow: boolean
+}
+
 export interface RoleRepository {
   findById(id: string): Promise<Role | null>
   findByCode(code: string): Promise<Role | null>
@@ -44,10 +53,32 @@ export interface RoleRepository {
     scopeLevel: ScopeLevel,
     accountType: AccountType,
     effectiveAt?: Date | null,
-    expiresAt?: Date | null
-  ): Promise<void>
+    expiresAt?: Date | null,
+    auditContext?: {
+      operatorId: string
+      requestId?: string
+      traceId?: string
+      bindingId?: string
+    }
+  ): Promise<AccountRole>
   revokeAccountRole(accountId: string, roleId: string): Promise<void>
-  findAccountRoles(accountId: string, tenantId?: string | null, scopeLevel?: ScopeLevel): Promise<Role[]>
+  revokePrincipalRoleBinding(input: {
+    bindingId: string
+    revokedAt: Date
+    revokedByOperatorId: string
+    reason: string
+    auditEventId: string
+  }): Promise<PrincipalRoleBindingRevokeResult>
+  findAccountRoles(
+    accountId: string,
+    tenantId?: string | null,
+    scopeLevel?: ScopeLevel
+  ): Promise<Role[]>
+  findPrincipalRoleBindings(
+    principalId: string,
+    tenantId?: string | null,
+    scopeLevel?: ScopeLevel
+  ): Promise<AccountRole[]>
   findRoleAccounts(roleId: string): Promise<AccountRole[]>
   findTenantRoles(tenantId: string): Promise<Role[]>
   findSystemRoles(): Promise<Role[]>
@@ -57,6 +88,11 @@ export interface RoleRepository {
     tenantId: string | null,
     scopeLevel: ScopeLevel,
     accountType: AccountType,
-    roleIds: string[]
-  ): Promise<Role[]>
+    roleIds: string[],
+    auditContext?: {
+      operatorId: string
+      requestId?: string
+      traceId?: string
+    }
+  ): Promise<{ roles: Role[]; bindings: AccountRole[] }>
 }

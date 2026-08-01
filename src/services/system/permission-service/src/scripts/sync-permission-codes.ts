@@ -1,10 +1,4 @@
-import {
-  AccountType,
-  Modules,
-  PrismaClient,
-  RoleKind,
-  ScopeLevel
-} from '../../prisma/generated/prisma'
+import { Modules, PrismaClient, RoleKind, ScopeLevel } from '../../prisma/generated/prisma'
 import {
   AUTH_MANAGEMENT_PERMISSION_CODES,
   AUTH_SESSION_PERMISSION_CODES,
@@ -450,30 +444,31 @@ async function syncSystemAdminAccountBindings(
   let bindingCount = 0
 
   for (const accountId of accountIds) {
-    await prisma.accountRole.upsert({
+    const existing = await prisma.principalRoleBinding.findFirst({
       where: {
-        accountId_roleId: {
-          accountId,
-          roleId
-        }
-      },
-      create: {
-        accountType: AccountType.USER,
-        accountId,
+        principalType: 'HUMAN',
+        principalId: accountId,
         roleId,
         tenantId: null,
         scopeLevel: ScopeLevel.SYSTEM,
-        effectiveAt: null,
-        expiresAt: null
-      },
-      update: {
-        accountType: AccountType.USER,
-        tenantId: null,
-        scopeLevel: ScopeLevel.SYSTEM,
-        effectiveAt: null,
-        expiresAt: null
+        revokedAt: null,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }]
       }
     })
+    if (!existing) {
+      await prisma.principalRoleBinding.create({
+        data: {
+          principalType: 'HUMAN',
+          principalId: accountId,
+          roleId,
+          tenantId: null,
+          scopeLevel: ScopeLevel.SYSTEM,
+          effectiveAt: new Date(),
+          expiresAt: null,
+          createdByOperatorId: 'permission-seed'
+        }
+      })
+    }
     bindingCount += 1
   }
 
@@ -634,8 +629,10 @@ async function main() {
 
     const systemAdminRole = await syncSystemAdminRole(prisma, permissionIds)
     const builtInRoleTemplateCount = await syncBuiltInRoleTemplates(prisma, permissionIdByCode)
-    const builtInRoleInstancePermissionBackfillCount =
-      await syncBuiltInRoleInstanceBaselines(prisma, permissionIdByCode)
+    const builtInRoleInstancePermissionBackfillCount = await syncBuiltInRoleInstanceBaselines(
+      prisma,
+      permissionIdByCode
+    )
     const systemAdminAccountIds = readSystemAdminAccountIds()
     const systemAdminBindingCount = await syncSystemAdminAccountBindings(
       prisma,

@@ -4,7 +4,9 @@
 status: FROZEN_DG3
 architectureTruthSource: docs/architecture/services/auth-service.md
 collaborationTruthSource: docs/architecture/collaborations/external-api-key-security.md
-externalOpening: DISABLED_PENDING_DG2
+revocationInvariant: BOUNDED_RESIDUAL_MAX_5_MINUTES
+dg2ExternalOpeningGate: false
+externalOpening: DISABLED_PENDING_DG3_IMPLEMENTATION_ACCEPTANCE
 ```
 
 > This is the Auth black-box credential contract. It does not define Machine Principal ownership, tenant lifecycle, Permission internals, or the external HTTP exchange shape.
@@ -52,7 +54,7 @@ Creation and rotation always use server-generated values. The caller cannot prov
 | `ListExternalApiKeys` | Gateway with trusted HUMAN context and at least one API Key management permission. | `integration_machine_id`; no tenant or principal field. | Masked metadata only. |
 | `RotateExternalApiKey` | Gateway with trusted HUMAN context and `identity.machine.api_key.rotate`. | `credential_id`; no replacement secret, tenant, or principal field. | Replacement full `api_key` once plus predecessor metadata. |
 | `RevokeExternalApiKey` | Gateway with trusted HUMAN context and `identity.machine.api_key.revoke`, or an Auth security workflow. | `credential_id`; no caller-selected deny selector. | Masked revoked metadata only. |
-| `ExchangeExternalApiKey` | Gateway workload only, using its verified mTLS identity and registered INTERNAL issuance policy. | The sole sensitive field `presented_api_key`; no tenant, machine, Permission Code, audience, or expiry field. | Gateway-only five-minute external access token and safe correlation metadata. |
+| `ExchangeExternalApiKey` | Gateway workload only, using its verified mTLS identity and registered INTERNAL issuance policy. | The sole sensitive field `presented_api_key`; no tenant, machine, Permission Code, capability, role, audience, or expiry field. | Gateway-only five-minute external access token and safe correlation metadata. |
 
 `ExchangeExternalApiKey` is an INTERNAL technical primitive. It is called only by `api-gateway`, carries the Gateway root MACHINE execution context established by the frozen trusted runtime, and requires the exact INTERNAL issuance policy `api-gateway -> auth-service -> auth.internal.external_api_key.exchange`. No human role can receive this INTERNAL code. Auth rejects a caller that lacks verified Gateway workload identity, the registered issuance policy, or a current root context.
 
@@ -63,8 +65,10 @@ Auth accepts a presented key only from the trusted Gateway exchange path and ver
 1. Identifier/secret syntax and constant-time secret verifier match.
 2. Credential is ACTIVE and within its validity window.
 3. Referenced Integration Machine is active, `TENANT` scoped, and belongs to exactly one active tenant.
-4. The tenant is active and the requested Gateway external capability is allowed.
-5. The machine's current Permission decision contains every required external BUSINESS Permission Code and the target/resource policy has not denied the request.
+4. The tenant is active.
+5. Through Permission Service's trusted external-machine authorization snapshot decision, the machine has at least one currently granted, externally eligible existing BUSINESS Permission Code. Auth derives the complete snapshot itself from the verified machine and tenant; neither Gateway nor the external caller supplies a requested capability or Permission Code.
+
+Auth signs the resulting Gateway-only JWT with exact `aud = api-gateway`, Integration Machine subject, tenant, credential reference, `scope` containing only that externally eligible BUSINESS Permission Code snapshot, opaque `authz_version`, `jti` and a maximum five-minute expiry. The Token is not encrypted: codes included in `scope` are intentionally external-safe, while roles, policy graphs, INTERNAL Codes, resource facts, secrets and business data are excluded. Auth rejects a serialized Token over 4 KiB rather than silently truncating the snapshot. Gateway performs the later route-specific and tenant/resource checks; resource policy and domain rules are not decided by this exchange.
 
 Any failed condition returns a non-enumerating stable failure category. Auth never grants a partial requested set, changes a tenant, creates an internal grant, or treats an API Key as a human session.
 
@@ -74,6 +78,7 @@ Any failed condition returns a non-enumerating stable failure category. Auth nev
 - At 90 days Auth marks the credential for rotation-health reminders. This is advisory; expiry remains the configured date, defaulting to one year.
 - Auth records lifecycle and exchange audit facts without secrets or tokens. Gateway adds external HTTP usage and rate-protection audit facts using the supplied correlation reference.
 - A confirmed leak revokes the credential immediately, creates a security audit fact, and prevents reactivation. New exchanges fail immediately. Gateway does not retain a credential-deny cache or call Auth per request: already-issued Gateway-only access tokens remain valid for no more than their five-minute natural lifetime. DG-2's ExecutionToken revocation event remains an internal-token security contract and is not an external-opening dependency.
+- A machine grant removal prevents the next API Key exchange from receiving that Code. An already-issued external Token retains only its signed snapshot until its five-minute expiry; a later STS request for a target-audience ExecutionToken may deny the removed Code sooner under the current MACHINE grant. This bounded behavior is not an emergency credential-deny channel.
 
 ## 7. Stable Failure Categories
 
@@ -84,6 +89,7 @@ Any failed condition returns a non-enumerating stable failure category. Auth nev
 - `EXTERNAL_INTEGRATION_MACHINE_INACTIVE`
 - `EXTERNAL_INTEGRATION_TENANT_INACTIVE`
 - `EXTERNAL_CAPABILITY_NOT_ALLOWED`
+- `EXTERNAL_AUTHORIZATION_SNAPSHOT_TOO_LARGE`
 - `EXTERNAL_API_KEY_ROTATION_LIMIT`
 - `EXTERNAL_RATE_LIMITED`
 
@@ -99,3 +105,5 @@ The HTTP status and public error envelope are defined by Gateway. Neither Auth n
 6. Unauthorised management fails before a secret is generated; the decision consumes only trusted HUMAN context and the exact management Permission Code.
 7. Exchange rejects every workload other than the registered Gateway INTERNAL caller, including any caller-supplied tenant, machine, Permission Code, audience, or expiry value.
 8. Audit and logs contain no secret, verifier, pepper, Authorization value, external access token, or internal ExecutionToken.
+9. Exchange accepts no caller-selected capability or Permission Code; Auth obtains the externally eligible MACHINE snapshot through Permission Service only after credential, machine and tenant validation.
+10. The signed external JWT has only externally safe existing BUSINESS Codes in `scope`, is no larger than 4 KiB, and Gateway can use existing route permission metadata to deny an undeclared or nonmatching external request before a business side effect.

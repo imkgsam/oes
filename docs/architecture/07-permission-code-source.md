@@ -81,6 +81,7 @@ interface PermissionDefinition {
   kind: PermissionKind
   assignableTo: PermissionAssignee[]
   allowedScopeLevels: PermissionScopeLevel[]
+  externalApiEligible?: boolean
 }
 
 interface PermissionDefinitionGroup {
@@ -96,6 +97,7 @@ interface PermissionDefinitionGroup {
 - `kind=INTERNAL`：只可由 STS workload issuance policy 授予，不得加入人类或租户机器业务角色。
 - `assignableTo`：静态阻止把 INTERNAL Code 或不适配主体的 Code 绑定到角色。
 - `allowedScopeLevels`：阻止 SYSTEM / TENANT scope 错配，不替代运行时 tenant isolation。
+- `externalApiEligible`：仅允许在 `kind=BUSINESS` 时为 true，表示该稳定 Permission Code 可以安全出现在 Auth 签发的短期 Gateway-only external JWT 中。它不声明 Gateway route、不授予任何 principal、不建立第二套 scope 目录；未标记或标记为 false 的 Code 不得进入外部 JWT。
 
 不在第一版 metadata 中加入 speculative risk score、UI route、菜单、审批流或资源 schema。
 

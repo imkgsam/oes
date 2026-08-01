@@ -15,19 +15,20 @@ import { RoleKind } from '../../../domain/enums/role-kind.enum'
 import { ScopeLevel } from '../../../domain/enums/scope-level.enum'
 import { OnboardingGrantRequestRepository } from '../../../domain/repositories/onboarding-grant-request.repository'
 import { RoleRepository } from '../../../domain/repositories/role.repository'
-import { IDENTITY_ACCOUNT_REFERENCE_PORT, IdentityAccountReferencePort } from '../../ports/identity-account-reference.port'
+import {
+  IDENTITY_ACCOUNT_REFERENCE_PORT,
+  IdentityAccountReferencePort
+} from '../../ports/identity-account-reference.port'
 import { assertRoleScopeAccess } from '../../authorization/operator-scope'
 import { GrantInitialAccessForTenantAccountCommand } from './grant-initial-access-for-tenant-account.command'
+import { randomUUID } from 'node:crypto'
 
 /** GrantInitialAccessForTenantAccountHandler validates and persists first-admin tenant role grants idempotently. */
 @CommandHandler(GrantInitialAccessForTenantAccountCommand)
-export class GrantInitialAccessForTenantAccountHandler
-  implements
-    ICommandHandler<
-      GrantInitialAccessForTenantAccountCommand,
-      { grantId: string | null; idempotencyKey: string; accountId: string; roleIds: string[] }
-    >
-{
+export class GrantInitialAccessForTenantAccountHandler implements ICommandHandler<
+  GrantInitialAccessForTenantAccountCommand,
+  { grantId: string | null; idempotencyKey: string; accountId: string; roleIds: string[] }
+> {
   constructor(
     @Inject(SYMBOLS.REPO.ROLE)
     private readonly roleRepository: RoleRepository,
@@ -43,7 +44,10 @@ export class GrantInitialAccessForTenantAccountHandler
     const idempotencyKey = requireNonBlank(command.idempotencyKey, 'idempotencyKey')
     const roleIds = normalizeRoleIds(command.roleIds)
     if (roleIds.length === 0) {
-      throw ExceptionFactory.application(VALIDATION_FAILED, { field: 'roleIds', reason: 'required' })
+      throw ExceptionFactory.application(VALIDATION_FAILED, {
+        field: 'roleIds',
+        reason: 'required'
+      })
     }
 
     assertRoleScopeAccess(command.operatorScope, ScopeLevel.TENANT, tenantId, {
@@ -54,7 +58,11 @@ export class GrantInitialAccessForTenantAccountHandler
     if (!account) {
       throw ExceptionFactory.domain(ONBOARDING_GRANT_ACCOUNT_NOT_FOUND, { accountId })
     }
-    if (account.scopeLevel !== 'TENANT' || account.tenantId !== tenantId) {
+    if (
+      account.isActive === false ||
+      account.scopeLevel !== 'TENANT' ||
+      account.tenantId !== tenantId
+    ) {
       throw ExceptionFactory.domain(ONBOARDING_GRANT_ACCOUNT_TENANT_MISMATCH, {
         accountId,
         expectedTenantId: tenantId,
@@ -64,14 +72,31 @@ export class GrantInitialAccessForTenantAccountHandler
     }
 
     const fingerprint = JSON.stringify({ tenantId, accountId, roleIds })
-    const existing = await this.onboardingGrantRequestRepository.findByIdempotencyKey(idempotencyKey)
+    const existing =
+      await this.onboardingGrantRequestRepository.findByIdempotencyKey(idempotencyKey)
     if (existing) {
-      return this.resolveExisting(existing, fingerprint)
+      this.assertMatchingExisting(existing, fingerprint)
+      if (existing.status === 'SUCCEEDED') {
+        return this.toResult(existing)
+      }
     }
 
-    await this.onboardingGrantRequestRepository.createPending({ idempotencyKey, tenantId, accountId, roleIds, fingerprint })
+    const pending =
+      existing ??
+      (await this.onboardingGrantRequestRepository.createPending({
+        idempotencyKey,
+        tenantId,
+        accountId,
+        roleIds,
+        bindingIds: roleIds.map(() => randomUUID()),
+        fingerprint
+      }))
+    const bindingIds =
+      pending.bindingIds?.length === roleIds.length
+        ? pending.bindingIds
+        : roleIds.map(() => randomUUID())
 
-    for (const roleId of roleIds) {
+    for (const [index, roleId] of roleIds.entries()) {
       const role = await this.roleRepository.findById(roleId)
       if (!role) {
         throw ExceptionFactory.domain(ROLE_NOT_FOUND, { roleId })
@@ -86,23 +111,46 @@ export class GrantInitialAccessForTenantAccountHandler
         })
       }
 
-      await this.roleRepository.assignAccountRole(accountId, roleId, tenantId, ScopeLevel.TENANT, AccountType.USER)
+      await this.roleRepository.assignAccountRole(
+        accountId,
+        roleId,
+        tenantId,
+        ScopeLevel.TENANT,
+        AccountType.USER,
+        null,
+        null,
+        {
+          operatorId: command.operatorScope?.operatorId ?? 'system',
+          requestId: command.operatorScope?.requestId,
+          traceId: command.operatorScope?.traceId,
+          bindingId: bindingIds[index]
+        }
+      )
     }
 
     return this.toResult(
-      await this.onboardingGrantRequestRepository.markSucceeded({ idempotencyKey, tenantId, accountId, roleIds, fingerprint })
+      await this.onboardingGrantRequestRepository.markSucceeded({
+        idempotencyKey,
+        tenantId,
+        accountId,
+        roleIds,
+        bindingIds,
+        fingerprint
+      })
     )
   }
 
   /** resolveExisting returns prior identical grant output and rejects key reuse conflicts. */
-  private resolveExisting(existing: OnboardingGrantRequestEntity, fingerprint: string) {
+  private assertMatchingExisting(
+    existing: OnboardingGrantRequestEntity,
+    fingerprint: string
+  ): void {
     if (existing.fingerprint !== fingerprint) {
       throw ExceptionFactory.domain(ONBOARDING_GRANT_IDEMPOTENCY_CONFLICT, {
         idempotencyKey: existing.idempotencyKey,
         accountId: existing.accountId
       })
     }
-    return this.toResult(existing)
   }
 
   /** toResult maps an onboarding grant request entity into the gRPC-facing command result. */
@@ -111,7 +159,8 @@ export class GrantInitialAccessForTenantAccountHandler
       grantId: existing.id,
       idempotencyKey: existing.idempotencyKey,
       accountId: existing.accountId,
-      roleIds: existing.roleIds
+      roleIds: existing.roleIds,
+      bindingIds: existing.bindingIds
     }
   }
 }

@@ -62,10 +62,11 @@ Execution Principal 只有三种稳定模式：
 - `identity-service` 拥有 Machine Principal identity 与 lifecycle。
 - `auth-service` 拥有 API Key credential、认证、轮换、撤销、Gateway-only external access token 与内部 ExecutionToken exchange 的 STS 能力。
 - `permission-service` 拥有 HUMAN / MACHINE 的角色、grant、policy 与授权判定。
+- `permission-service` 可在现有 BUSINESS Permission Code metadata 上标记 `externalApiEligible`，供 Auth 在 API Key exchange 时返回最小外部授权快照；该标记不开放 Gateway route、不授予 principal，也不建立第二套 Scope 目录。
 - 长期绑定模型收敛为 `PrincipalRoleBinding`，显式记录 principal type / id、scope level、tenant 与 role；不把机器伪装为 `UserAccount`。
 - INTERNAL kind Permission Code 只由 STS workload issuance policy 授予，不能进入人类或租户机器业务角色。
 
-外部 App 只能创建 tenant-scoped Integration Machine 与 API Key，并通过 Gateway/Auth 取得 Gateway-only external access token；Gateway 才为其内部 mTLS call 换取 target-audience ExecutionToken。外部调用方不直接访问内部 gRPC。具体 credential/exchange 规则以 DG-3 External API Key contracts 为准。Marketplace、第三方开发者平台、共享 App 主体与一个 App 被多个 tenant 安装的模型已取消，不做架构预留。
+外部 App 只能创建 tenant-scoped Integration Machine 与 API Key，并通过 Gateway/Auth 取得 Gateway-only external access token；Auth 将已验证 Machine 的 externally eligible BUSINESS Code 快照写入该短期 JWT，Gateway 复用既有 `RequirePermissions` 元数据和显式外部 route opt-in 做入口判断，之后才为其内部 mTLS call 换取 target-audience ExecutionToken。外部调用方不直接访问内部 gRPC。具体 credential/exchange 规则以 DG-3 External API Key contracts 为准。Marketplace、第三方开发者平台、共享 App 主体与一个 App 被多个 tenant 安装的模型已取消，不做架构预留。
 
 ### 6. RPC authorization declaration
 

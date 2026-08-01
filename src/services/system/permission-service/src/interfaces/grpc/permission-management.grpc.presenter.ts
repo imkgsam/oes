@@ -67,7 +67,8 @@ export function toAccountRoleBindingResponse(accountRole: AccountRole): AccountR
     accountType: accountRole.accountType,
     roleId: accountRole.roleId,
     tenantId: accountRole.tenantId ?? '',
-    scopeLevel: accountRole.scopeLevel
+    scopeLevel: accountRole.scopeLevel,
+    bindingId: accountRole.bindingId
   }
 }
 

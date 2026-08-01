@@ -94,7 +94,7 @@
 - `effectiveAt < expiresAt` 是有 expiry binding 的前置条件；已过期、已撤销或尚未生效的 binding 都保留历史。授权解析只消费已生效、未撤销、未过期且 role enabled 的 binding。
 - HUMAN binding 的 `principalId` 必须是与 scope / tenant 相符的已验证 `UserAccount`；MACHINE binding 的 `principalId` 必须是 Identity Service 中与 scope / tenant 相符的 active Machine Principal。Permission Service 通过受控 identity 协作校验引用，不复制其主体真相。
 - 人类账号继续参与 access summary、navigation 与 terminal access；机器 grant 不生成 UI navigation，也不进入人类 terminal access 计算。
-- Permission metadata 必须允许对应 principal type 与 scopeLevel；INTERNAL kind Permission Code 不得绑定到 HUMAN / MACHINE role，只能由 Auth / STS workload issuance policy 授予。
+- Permission metadata 必须允许对应 principal type 与 scopeLevel；INTERNAL kind Permission Code 不得绑定到 HUMAN / MACHINE role，只能由 Auth / STS workload issuance policy 授予。现有 BUSINESS Code 可额外标记 `externalApiEligible`，表示该 Code 的稳定名称可安全出现在短期外部 Token 中；该标记不开放 HTTP route、不授予 Machine 权限、不建立第二套 scope 词汇，也不替代 Gateway 的外部 route 声明。
 - revoke 只将目标 binding 关闭并记录首次 `revokedAt`、可信操作者、原因与审计关联，绝不物理删除。对同一 `bindingId` 的重复 revoke 返回原撤销结果，不重写时间、操作者或重复产生撤销审计事实。
 - 已撤销 binding 的后续 regrant 必须创建新的 `bindingId`；不得复活、覆盖或改写旧授权。只有新窗口不与仍有效的同一逻辑 binding 重叠时才允许 regrant。
 - checkbox list 类 principal 角色设置使用按 scope 全量替换语义：省略的当前 binding 被 revoke，新增项创建新 binding，历史 binding 不被删除或改写；单条授予可支持有效期窗口。
@@ -125,6 +125,8 @@
 - subject identity、tenant、principal type 与 delegation 只能从已验证执行上下文或服务拥有的 identity facts 派生；调用方提交的 subject facts 不能提升授权。
 
 ExecutionToken 使用同一 Permission Code 词汇：Permission Service 提供有效 HUMAN / MACHINE grant 与 policy 判定，Auth / STS 取其允许子集签发目标 audience Token。Permission Service 不签发 Token，也不建立独立 Permission-to-Scope 映射。
+
+External API Key exchange 有一个额外的窄用途消费者：Auth 独立验证 Integration Machine 与 tenant 后，通过受信任的 machine-authorization contract 取得该 Machine 当前有效且 `externalApiEligible` 的 BUSINESS Code 快照与 `authzVersion`。Permission Service 不返回 Gateway route catalogue、credential fact、secret、Token 或 resource authorization result；Gateway 仍独占外部 HTTP route 是否开放的判断，目标业务服务仍执行 resource 与 domain authorization。
 
 DELEGATED 判定必须同时受 HUMAN grant、未撤销的 delegation reference、固定 ToolContract / operation upper bound、tenant / org 与 resource policy 约束；任一输入不满足即拒绝。Tool 或 Agent 不能因用户有更高权限而自动获得更高上限，也不能把高风险 operation 重分类为低风险。
 

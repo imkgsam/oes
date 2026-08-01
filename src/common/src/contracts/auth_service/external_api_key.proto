@@ -65,12 +65,12 @@ message RevokeExternalApiKeyResponse {
   ExternalApiKeyCredential credential = 1;
 }
 
-// Carries the raw API Key only across the verified Gateway-to-Auth mTLS hop and never in metadata.
+// Carries the raw API Key only across the verified Gateway-to-Auth mTLS hop and never in metadata; Auth derives all machine, tenant and external authorization facts server-side.
 message ExchangeExternalApiKeyRequest {
   string presented_api_key = 1;
 }
 
-// Returns only the short-lived Gateway-only external access token and safe correlation metadata.
+// Returns only the short-lived Gateway-only external access token and safe correlation metadata; the signed token carries Auth-derived external BUSINESS Code scope and never accepts caller-selected capability input.
 message ExchangeExternalApiKeyResponse {
   string access_token = 1;
   string token_type = 2;

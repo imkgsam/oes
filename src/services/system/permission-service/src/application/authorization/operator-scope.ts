@@ -7,6 +7,8 @@ export interface OperatorScope {
   operatorId: string
   tenantId?: string
   isSystemScope: boolean
+  requestId?: string
+  traceId?: string
 }
 
 export interface RoleInstanceQueryScope {
@@ -40,14 +42,13 @@ export function resolveOperatorScope(
   return {
     operatorId,
     tenantId,
-    isSystemScope: !tenantId
+    isSystemScope: !tenantId,
+    requestId: operatorContext?.request_id?.trim() || undefined,
+    traceId: operatorContext?.trace_id?.trim() || undefined
   }
 }
 
-export function assertSystemScope(
-  operatorScope: OperatorScope | undefined,
-  reason: string
-): void {
+export function assertSystemScope(operatorScope: OperatorScope | undefined, reason: string): void {
   if (operatorScope && !operatorScope.isSystemScope) {
     throw ExceptionFactory.application(AUTHORIZATION_DENIED, {
       operatorId: operatorScope.operatorId,
@@ -107,10 +108,7 @@ export function buildRoleInstanceQueryScope(
       })
     }
 
-    if (
-      normalizedRequestedTenantId &&
-      normalizedRequestedTenantId !== operatorScope.tenantId
-    ) {
+    if (normalizedRequestedTenantId && normalizedRequestedTenantId !== operatorScope.tenantId) {
       throw ExceptionFactory.application(AUTHORIZATION_DENIED, {
         operatorId: operatorScope.operatorId,
         tenantId: operatorScope.tenantId,
@@ -154,9 +152,8 @@ export function buildAccountRoleQueryScope(
   }
 
   return {
-    tenantId: operatorScope && !operatorScope.isSystemScope
-      ? operatorScope.tenantId!
-      : normalizedTenantId!,
+    tenantId:
+      operatorScope && !operatorScope.isSystemScope ? operatorScope.tenantId! : normalizedTenantId!,
     scopeLevel
   }
 }
@@ -171,9 +168,8 @@ export function buildTenantBoundQueryScope(
   assertTenantAccess(operatorScope, normalizedTenantId, details)
 
   return {
-    tenantId: operatorScope && !operatorScope.isSystemScope
-      ? operatorScope.tenantId!
-      : normalizedTenantId
+    tenantId:
+      operatorScope && !operatorScope.isSystemScope ? operatorScope.tenantId! : normalizedTenantId
   }
 }
 
