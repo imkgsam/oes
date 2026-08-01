@@ -8,3 +8,13 @@ describe('ExternalApiKeyGrpcController', () => {
     expect(service.create).toHaveBeenCalled(); expect(result).toEqual({ apiKey: 'oek_live_id.secret', credential: { credentialId: 'c' } }); expect(JSON.stringify(result)).not.toMatch(/verifier|pepper|trust/i)
   })
 })
+
+it('maps masked list and safe idempotent revoke responses', async () => {
+  const service: any = { list: jest.fn().mockResolvedValue([{ id: 'c', keyIdentifier: 'masked', integrationMachineId: 'm', status: 'ACTIVE' }]), revoke: jest.fn().mockResolvedValue(undefined) }
+  const controller = new ExternalApiKeyGrpcController(service)
+  const list = await controller.listExternalApiKeys({ integrationMachineId: 'm' }, undefined, undefined)
+  const revoke = await controller.revokeExternalApiKey({ credentialId: 'c' }, undefined, undefined)
+  expect(list).toEqual({ credentials: [{ credentialId: 'c', keyIdentifier: 'masked', integrationMachineId: 'm', status: 'ACTIVE' }] })
+  expect(revoke).toEqual({ credential: { credentialId: 'c', status: 'REVOKED' } })
+  expect(JSON.stringify({ list, revoke })).not.toMatch(/secret|verifier|pepper|token/i)
+})
