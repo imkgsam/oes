@@ -2,9 +2,12 @@
 
 ```text
 status: FROZEN_FOUNDATION_PATH
-updated: 2026-07-28
+updated: 2026-08-03
 architectureTruthSource: docs/architecture/04-ai-architecture.md
 firstValidationCollaboration: docs/architecture/collaborations/task-assistant.md
+toolContractTruthSource: docs/contracts/ai-platform/task-assistant-tool-contract.md
+predecessorDesignGate: FROZEN_AI_PLATFORM_TASK_ASSISTANT
+registrationGate: FROZEN_TOOL_CONTRACT_REGISTRATION_READY
 ```
 
 > 本计划只定义 AI 平台最小可持续交付顺序，不是服务设计、公共契约或 schema 真相源。涉及单个服务职责时，以 `docs/architecture/services/*.md` 为准。
@@ -37,7 +40,24 @@ Deliverables：
 
 - `docs/architecture/04-ai-architecture.md`
 - `docs/architecture/collaborations/task-assistant.md`
+- `docs/contracts/ai-platform/task-assistant-tool-contract.md`
 - 本计划
+
+### Gate A.1 — Immutable ToolContract registration
+
+This gate is registration-only and does not wait for ActionGrant runtime.
+
+It succeeds the prior `FROZEN_AI_PLATFORM_TASK_ASSISTANT` architecture gate and becomes `FROZEN_TOOL_CONTRACT_REGISTRATION_READY` only after the immutable AI-owned contract is integrated into `main`.
+
+Frozen registration：
+
+- identity `oes.ai.task-assistant.collaboration-task`；
+- immutable version `1.0.0`；
+- exact operation set: `ListTasks`、`GetTask`、draft Task creation、`CreateTask` self todo、`CreateTask` assigned task；
+- owner risk mappings copied by reference, never redefined；
+- runtime execution、mutation execution and public exposure all disabled。
+
+Repository-native artifact is a declarative JSON manifest under the AI-owned path frozen in section 7. No service、proto、schema、Gateway route、provider、UX or orchestration runtime is introduced.
 
 ### Gate B — Trusted execution predecessors
 
@@ -59,7 +79,7 @@ Deliverables：
 - 每个 mutation operation 具备 owner-declared risk class
 - `ACTION_GRANT_REQUIRED` operation 具备 canonical action descriptor 与 target-side idempotency/consumption 约束
 
-Gate C 之前只允许规划 read/draft slice，不注册 mutation 工具。
+Gate C 之前允许将 the frozen CreateTask variants 登记为 disabled metadata，但不得建立 runtime adapter、执行 mutation 或公开入口。
 
 ### Slice 1 — Minimal interactive Task Assistant
 
@@ -134,10 +154,31 @@ Gate C 之前只允许规划 read/draft slice，不注册 mutation 工具。
 6. AI/Auth/Permission/Collaboration 各自事实可通过关联引用追踪，且没有共享数据库。
 7. 成本和模型使用可度量，但观测工具不成为正式审计真相源。
 
-## 7. Explicit Non-goals
+## 7. ToolContract Registration A/I Lease
+
+One v2 Lite A/I receives exactly these writable paths：
+
+- `src/ai-platform/tool-contracts/registrations/task-assistant-collaboration-task.v1.json`
+- `src/ai-platform/tool-contracts/registrations/task-assistant-collaboration-task.v1.contract.test.mjs`
+
+All other paths are protected, including all service truths/code, `src/common`, proto/generated contracts, schemas, permission/operator context, Gateway/public routes, root package/lockfile, model/provider/UX/orchestration/runtime code and DG-4/Collaboration implementation.
+
+Acceptance must prove：
+
+1. manifest identity/version and the five-operation set match the frozen AI contract exactly；
+2. every owner mapping and risk class equals the cited owner truth；
+3. no duplicate or additional operation exists；
+4. global and per-operation runtime/mutation/public flags remain false；
+5. immutable `1.0.0` uses the versioned filename and no existing version is modified；
+6. candidate diff contains only the two leased paths；
+7. no production source imports or executes the manifest；
+8. `node --test src/ai-platform/tool-contracts/registrations/task-assistant-collaboration-task.v1.contract.test.mjs` passes。
+
+## 8. Explicit Non-goals
 
 - 当前不承诺 AI implementation date 或高于核心业务的优先级。
 - 当前不选择模型供应商、Agent framework、向量数据库或观测产品。
 - 当前不建立大而全 AI 中台。
 - 当前不设计长期记忆、自治 Agent 或跨业务自动化。
 - 当前不改变任何服务 truth source、Task contract 或 DG-4 semantics。
+- 当前不创建 ToolContract runtime registry service、adapter、execution API 或 public exposure。

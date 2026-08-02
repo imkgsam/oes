@@ -3,9 +3,13 @@
 ```text
 status: FROZEN
 frozenDate: 2026-07-28
+lastAmendedDate: 2026-08-03
 firstValidationScenario: Task Assistant
 taskAssistantCollaboration: docs/architecture/collaborations/task-assistant.md
+taskAssistantToolContract: docs/contracts/ai-platform/task-assistant-tool-contract.md
 delegatedExecutionTruth: docs/architecture/collaborations/delegated-execution-and-action-grant.md
+predecessorDesignGate: FROZEN_AI_PLATFORM_TASK_ASSISTANT
+registrationGate: FROZEN_TOOL_CONTRACT_REGISTRATION_READY
 ```
 
 > 本文是 OES 项目级 AI 平台架构真相源，只冻结长期逻辑边界和跨能力责任，不决定服务数量、部署拓扑、proto、schema、模型供应商或 Agent 框架。涉及单个服务的职责与核心对象时，以对应 `docs/architecture/services/*.md` 为准。
@@ -60,6 +64,8 @@ AI 平台采用稳定逻辑分层，但本轮不把每一层等同为独立微�
 ### 3.4 ToolContract
 
 `ToolContract` 是 AI 工具治理层拥有的不可变 identity/version 与明确输入输出边界。它只绑定业务 owner 已公开且已分类的 operation，不能重新定义业务命令、状态机、resource policy 或 operation 风险等级。
+
+Task Assistant 的第一个注册面固定消费 [task-assistant-tool-contract.md](../contracts/ai-platform/task-assistant-tool-contract.md)：identity 为 `oes.ai.task-assistant.collaboration-task`，immutable version 为 `1.0.0`。它通过 repository-native manifest 注册 owner 已冻结的 read/draft/CreateTask subset，但注册阶段不创建 runtime adapter，且 `runtimeExecutionEnabled`、`mutationExecutionEnabled` 与 `publicExposureEnabled` 全部为 `false`。同一 identity/version 一旦进入 `main` 不得原地修改；任何语义变化必须使用新 version 和新文件。
 
 ### 3.5 ExecutionContext
 
@@ -141,6 +147,7 @@ Task Assistant 验证通用 AI 平台边界，而不改变 Collaboration Task：
 - 状态变化只有在用户明确执行意图、业务 owner 风险分类和受控工具校验全部满足后才可请求。
 - Task 的 `createdByAccountId`、`assigneeAccountId` 与参与者 ownership 始终是 HUMAN account；Agent 只作为 DELEGATED execution actor 进入审计。
 - Task 实时事实始终从 Collaboration Task Query 获取；AI 平台不复制 Task 主数据或把它写入场景私有知识库。
+- 当前注册阶段只发布不可变 ToolContract manifest；read、draft 和 CreateTask operation 均不可由 runtime 调用，mutation 与公共入口保持关闭。
 
 完整协同以 [task-assistant.md](./collaborations/task-assistant.md) 为准；Task 长期职责仍以 [collaboration-service.md](./services/collaboration-service.md) 为唯一服务真相源。
 
@@ -167,8 +174,9 @@ HUMAN request through Gateway / BFF
 
 ```text
 core business and platform security
-  -> Collaboration Task runtime
-  -> trusted execution / EXEC-CRYPTO and DG-4 runtime
+  -> Collaboration owner contract and risk freeze
+  -> immutable Task Assistant ToolContract registration
+  -> Collaboration Task runtime + trusted execution / EXEC-CRYPTO and DG-4 runtime
   -> minimal Task Assistant vertical validation
   -> evidence-driven AI platform expansion
 ```
@@ -180,19 +188,23 @@ core business and platform security
 - 模型供应商、Agent 框架、向量数据库或具体观测产品；
 - prompt 正文、长期记忆、多 Agent、无人值守自动化；
 - Task event subscription、AI Task projection 或自动完成；
-- 各 Task command 的 AI 风险分类。
+- 对业务 owner 已冻结风险分类的重新定义。
 
 ## 11. Implementation Gates
 
-任何 Task Assistant runtime 实现必须等待：
+ToolContract registration phase 必须满足：
 
-1. 本架构与 [task-assistant.md](./collaborations/task-assistant.md) 已进入 `main`。
-2. `EXEC-CRYPTO MAIN_READY`，可信 ExecutionToken/JWS/mTLS runtime 可用。
-3. DG-4 DelegationGrant/ActionGrant runtime 满足冻结协同。
-4. Collaboration Task runtime 与既有 query/command contracts 可用。
-5. Collaboration owner 明确冻结可暴露给 AI 的 operation subset、每项风险分类、canonical action descriptor 与幂等约束；在该 gate 前 mutation 工具不得注册。
-6. 若首个 slice 包含制度/SOP 检索，统一知识能力的 owner、权限感知检索和引用边界已冻结并可用。
-7. 若实现需要新增服务、共享 proto、operator context、permission semantics、公共入口或 AI tool protocol 字段，先取得对应 truth-source/ADR/path ownership，不能由实现线程推断。
+1. 本架构、[task-assistant.md](./collaborations/task-assistant.md) 与 [task-assistant-tool-contract.md](../contracts/ai-platform/task-assistant-tool-contract.md) 已进入 `main`。
+2. Collaboration owner 已在既有 Task contracts 与 [delegated-task-action-grant.md](../plans/features/delegated-task-action-grant.md) 冻结 eligible operation subset、risk class 与 assigned-task descriptor。
+3. 实现只写 AI-owned registration manifest 与 contract test；不创建 service、runtime adapter、proto、schema、Gateway route 或 execution path。
+
+该 registration phase 不等待 ActionGrant runtime。任何 Task Assistant runtime 或 mutation opening 仍必须等待：
+
+1. `EXEC-CRYPTO MAIN_READY`，可信 ExecutionToken/JWS/mTLS runtime 可用。
+2. DG-4 DelegationGrant/ActionGrant runtime 满足冻结协同。
+3. Collaboration Task runtime 与既有 query/command contracts 可用，且 target-side idempotency/consumption gate 完成。
+4. 若 slice 包含制度/SOP 检索，统一知识能力的 owner、权限感知检索和引用边界已冻结并可用。
+5. 若实现需要新增服务、共享 proto、operator context、permission semantics、公共入口或 runtime AI tool protocol 字段，先取得对应 truth-source/ADR/path ownership，不能由实现线程推断。
 
 ## 12. Related Truth Sources
 
@@ -202,4 +214,5 @@ core business and platform security
 - [collaboration-service.md](./services/collaboration-service.md)
 - [delegated-execution-and-action-grant.md](./collaborations/delegated-execution-and-action-grant.md)
 - [task-assistant.md](./collaborations/task-assistant.md)
+- [task-assistant-tool-contract.md](../contracts/ai-platform/task-assistant-tool-contract.md)
 - [ai-platform-foundation-plan.md](../plans/ai-platform-foundation-plan.md)

@@ -3,9 +3,13 @@
 ```text
 status: FROZEN
 frozenDate: 2026-07-28
+lastAmendedDate: 2026-08-03
 aiArchitectureTruthSource: docs/architecture/04-ai-architecture.md
 collaborationTruthSource: docs/architecture/services/collaboration-service.md
 delegatedExecutionTruthSource: docs/architecture/collaborations/delegated-execution-and-action-grant.md
+toolContractTruthSource: docs/contracts/ai-platform/task-assistant-tool-contract.md
+predecessorDesignGate: FROZEN_AI_PLATFORM_TASK_ASSISTANT
+registrationGate: FROZEN_TOOL_CONTRACT_REGISTRATION_READY
 ```
 
 > 本文只冻结 Task Assistant 如何消费 AI 平台、Identity/Auth/Permission 与 Collaboration Task。它不重新定义任何服务职责、Task 对象、DG-4 credential、授权模型、API 字段或实现拓扑。
@@ -92,21 +96,34 @@ model proposes exact Task action
 
 ## 6. Frozen Contract Surfaces
 
-Task Assistant 只允许消费以下既有黑盒 surfaces：
+Task Assistant 使用唯一 AI-owned registration contract：[task-assistant-tool-contract.md](../../contracts/ai-platform/task-assistant-tool-contract.md)。其 immutable identity/version 固定为：
 
-- Collaboration Task Query：`ListTasks`、`GetTask`。
-- Collaboration Task Command：`CreateTask`、`UpdateTask`、`StartTask`、`CompleteTask`、`CancelTask`、`ReopenTask`、`ArchiveTask`、`UnarchiveTask`，但仅限 Collaboration owner 后续明确批准并分类的 subset。
-- Auth Delegated Execution / ActionGrant contract。
-- Permission Delegated Authorization contract。
+```text
+toolContractId: oes.ai.task-assistant.collaboration-task
+version: 1.0.0
+```
 
-本设计不自动把任何 command 注册为 AI tool。mutation registration 的前置 gate 是 Collaboration owner 冻结：
+精确 registered operation set 只有：
 
-1. allowed operation subset；
-2. 每项 `DELEGATION_ALLOWED / ACTION_GRANT_REQUIRED / AI_FORBIDDEN` 分类；
-3. canonical target/input descriptor；
-4. target-side idempotency 与 ActionGrant consumption 约束。
+| Tool operation key | Owner surface | Owner-declared risk | Registration phase |
+| --- | --- | --- | --- |
+| `collaboration.task.list.v1` | Task Query `ListTasks` | `DELEGATION_ALLOWED` | registered, runtime disabled |
+| `collaboration.task.get.v1` | Task Query `GetTask` | `DELEGATION_ALLOWED` | registered, runtime disabled |
+| `oes.ai.task-assistant.draft-task-create.v1` | no command; proposal only | not applicable | registered, runtime disabled |
+| `collaboration.task.create-self.v1` | Task Command `CreateTask` self todo variant | `DELEGATION_ALLOWED` | registered, mutation disabled |
+| `collaboration.task.create-assigned.v1` | Task Command `CreateTask` assigned variant | `ACTION_GRANT_REQUIRED` | registered, mutation disabled |
 
-该 gate 之前 Task Assistant 只能进入 read/draft slice。
+Risk class remains owned by Collaboration and is referenced from the Task contracts plus [delegated-task-action-grant.md](../../plans/features/delegated-task-action-grant.md); the AI registration cannot modify it. `UpdateTask`、`StartTask`、`CompleteTask`、`CancelTask`、`ReopenTask`、`ArchiveTask` 与 `UnarchiveTask` are absent and therefore unregistered; their Task Assistant P1 risk remains `AI_FORBIDDEN` in the owner contract.
+
+Registration phase invariants：
+
+- `registrationState = REGISTERED_DISABLED`；
+- `runtimeExecutionEnabled = false`；
+- `mutationExecutionEnabled = false`；
+- `publicExposureEnabled = false`；
+- no service binding、runtime adapter、proto、schema、Gateway route、provider、UX or orchestration topology。
+
+This phase does not wait for ActionGrant runtime because it cannot execute. Any later runtime opening requires a separately accepted candidate and all predecessor gates in section 9.
 
 ## 7. Business Data And Knowledge
 
@@ -129,18 +146,17 @@ AI 只能在收到 Collaboration 的明确成功结果后报告业务成功。�
 
 ## 9. Implementation Gates
 
-- `FROZEN_AI_PLATFORM_TASK_ASSISTANT` 已进入 main。
-- `EXEC-CRYPTO MAIN_READY`。
-- DG-4 runtime ready。
-- Collaboration Task runtime/query/command ready。
-- mutation slice 等待 Collaboration owner operation/risk/descriptor/idempotency gate。
+- `FROZEN_AI_PLATFORM_TASK_ASSISTANT` remains the predecessor architecture-freeze gate；`FROZEN_TOOL_CONTRACT_REGISTRATION_READY` is its registration-surface successor and requires the AI-owned contract to have entered main。
+- registration artifact may be implemented before ActionGrant runtime only while every execution/public flag remains disabled。
+- runtime opening waits for `EXEC-CRYPTO MAIN_READY`、DG-4 runtime and Collaboration Task runtime/query/command readiness。
+- mutation opening additionally waits for target-side descriptor/idempotency/ActionGrant-consumption readiness。
 - knowledge-backed slice 等待 governed knowledge owner readiness。
 - 新 service/proto/operator context/permission/public gateway changes 必须另获 truth-source 与 path ownership。
 
 ## 10. Non-goals
 
 - 不决定 AI 服务数量、部署拓扑、数据库或模型供应商。
-- 不修改 Task object、status、participant visibility、permission code 或 contracts。
+- 不修改 Task object、status、participant visibility、permission code 或 Task/DG-4 owner contracts。
 - 不定义新的 DG-4 credential、claim、error 或 cryptography。
 - 不建立长期记忆、多 Agent、后台自动化或 Task event consumer。
 - 不把观测系统、prompt 或向量库当作审计或业务真相源。
