@@ -1,4 +1,5 @@
 import { Injectable, OnModuleInit } from '@nestjs/common'
+import { Metadata } from '@grpc/grpc-js'
 import { ClientGrpc } from '@nestjs/microservices'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
@@ -224,7 +225,7 @@ export class TerminalDeviceAdminAdapter implements OnModuleInit {
         expiresAt: input.expiresAt,
         notes: input.notes ?? '',
         operatorContext: toOperatorContext(input.source)
-      }),
+      }, new Metadata()),
       this.opts('createEnrollment')
     )
 
@@ -249,7 +250,7 @@ export class TerminalDeviceAdminAdapter implements OnModuleInit {
         terminalDeviceType: input.terminalDeviceType ? toProtoDeviceType(input.terminalDeviceType) : undefined,
         status: input.status ? toProtoEnrollmentStatus(input.status) : undefined,
         pagination: toPagination(input.page, input.pageSize)
-      }),
+      }, new Metadata()),
       this.opts('listEnrollments')
     )
 
@@ -272,7 +273,7 @@ export class TerminalDeviceAdminAdapter implements OnModuleInit {
         enrollmentId: input.enrollmentId,
         reason: input.reason,
         operatorContext: toOperatorContext(input.source)
-      }),
+      }, new Metadata()),
       this.opts('revokeEnrollment')
     )
 
@@ -302,7 +303,7 @@ export class TerminalDeviceAdminAdapter implements OnModuleInit {
         presenceStatus: input.presenceStatus ? toProtoPresenceStatus(input.presenceStatus) : undefined,
         keyword: input.keyword ?? '',
         pagination: toPagination(input.page, input.pageSize)
-      }),
+      }, new Metadata()),
       this.opts('listTerminalDevices')
     )
 
@@ -338,7 +339,7 @@ export class TerminalDeviceAdminAdapter implements OnModuleInit {
         tenantId: input.tenantId,
         terminalDeviceId: input.terminalDeviceId,
         includeSensitiveIdentity: input.includeSensitiveIdentity
-      }),
+      }, new Metadata()),
       this.opts('getTerminalDevice')
     )
 
@@ -360,7 +361,7 @@ export class TerminalDeviceAdminAdapter implements OnModuleInit {
         displayName: input.displayName ?? '',
         notes: input.notes ?? '',
         operatorContext: toOperatorContext(input.source)
-      }),
+      }, new Metadata()),
       this.opts('updateTerminalDevice')
     )
 
@@ -394,7 +395,7 @@ export class TerminalDeviceAdminAdapter implements OnModuleInit {
         targetStatus: toProtoDeviceStatus(input.targetStatus),
         reason: input.reason ?? '',
         operatorContext: toOperatorContext(input.source)
-      }),
+      }, new Metadata()),
       this.opts('changeTerminalDeviceStatus')
     )
 
@@ -420,7 +421,7 @@ export class TerminalDeviceAdminAdapter implements OnModuleInit {
       this.versionPolicySvc.getVersionPolicy({
         tenantId: input.tenantId,
         terminalDeviceType: toProtoDeviceType(input.terminalDeviceType)
-      }),
+      }, new Metadata()),
       this.opts('getVersionPolicy')
     )
 
@@ -441,7 +442,7 @@ export class TerminalDeviceAdminAdapter implements OnModuleInit {
         releaseNotesUrl: input.releaseNotesUrl ?? '',
         reason: input.reason,
         operatorContext: toOperatorContext(input.source)
-      }),
+      }, new Metadata()),
       this.opts('upsertVersionPolicy')
     )
 
@@ -460,7 +461,7 @@ export class TerminalDeviceAdminAdapter implements OnModuleInit {
         tenantId: input.tenantId,
         terminalDeviceId: input.terminalDeviceId,
         pagination: toPagination(input.page, input.pageSize)
-      }),
+      }, new Metadata()),
       this.opts('listTerminalDeviceAuditEvents')
     )
 
@@ -492,7 +493,7 @@ export class TerminalDeviceAdminAdapter implements OnModuleInit {
         tenantId: input.tenantId,
         terminalDeviceId: input.terminalDeviceId,
         pagination: toPagination(input.page, input.pageSize)
-      }),
+      }, new Metadata()),
       this.opts('listHeartbeatRecords')
     )
 
@@ -530,7 +531,7 @@ export class TerminalDeviceAdminAdapter implements OnModuleInit {
         tenantId: input.tenantId,
         terminalDeviceId: input.terminalDeviceId,
         pagination: toPagination(input.page, input.pageSize)
-      }),
+      }, new Metadata()),
       this.opts('listDiagnosticLogs')
     )
 

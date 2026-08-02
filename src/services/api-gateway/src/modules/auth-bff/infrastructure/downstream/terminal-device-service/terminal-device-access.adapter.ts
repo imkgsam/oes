@@ -1,4 +1,5 @@
 import { Injectable, OnModuleInit } from '@nestjs/common'
+import { Metadata } from '@grpc/grpc-js'
 import { ClientGrpc } from '@nestjs/microservices'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
@@ -53,7 +54,7 @@ export class TerminalDeviceAccessAdapter implements OnModuleInit {
         requestPurpose: DeviceAccessRequestPurpose.DEVICE_ACCESS_REQUEST_PURPOSE_LOGIN,
         appVersion: this.normalize(input.deviceMetadata.appVersion),
         identity: this.toIdentity(input.deviceMetadata)
-      }),
+      }, new Metadata()),
       this.opts('resolveDeviceAccessDecision')
     )
     const decision = response.decision
