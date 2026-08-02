@@ -14,7 +14,7 @@ externalOpening: DISABLED_PENDING_DG3_IMPLEMENTATION_ACCEPTANCE
 
 ## 1. Scope
 
-This contract covers creation, one-time reveal, listing, rotation, revocation, expiry, audit, and the Gateway-to-Auth internal service contract for API Key credentials of an existing tenant Integration Machine. It is consumed through the authorised Gateway/BFF management path and Auth's trusted internal interface; it is not a public direct Auth API.
+This contract covers creation, one-time reveal, listing, rotation, revocation, verifier-version compromise response, expiry, audit, and the Gateway-to-Auth internal service contract for API Key credentials of an existing tenant Integration Machine. It is consumed through the authorised Gateway/BFF management path and Auth's trusted internal interface; it is not a public direct Auth API.
 
 ## 2. Credential Representation
 
@@ -54,7 +54,7 @@ ComputeExternalApiKeyVerifier(
 - The caller cannot provide an algorithm, HSM/KMS/backend key reference, domain label, arbitrary message, tenant, machine, Permission Code or expiry.
 - The calculation is exactly `HMAC-SHA-256(K_version, ASCII("oes.auth.external-api-key-verifier/v1") || 0x00 || ASCII(identifier) || 0x00 || BASE64URL_DECODE(secret))`.
 - The returned verifier is canonical unpadded base64url. Auth decodes candidate/stored values, requires equal 32-byte lengths, and compares them with a constant-time primitive.
-- The protected client may additionally call read-only `GetExternalApiKeyVerifierStatus`, which returns only the opaque active/verification versions and their lifecycle times. It never returns backend references or key material.
+- The protected client may additionally call read-only `GetExternalApiKeyVerifierStatus`, which returns opaque active/verification lifecycle data and may return terminal compromise evidence limited to logical version, safe incident reference/time and state revision. It never returns backend references or key material.
 - Before API-key capability readiness, Auth reads the distinct versions referenced by every active, unexpired or still-overlapping credential and requires status to contain all of them plus exactly one active issue version. Missing referenced state closes the capability before create/rotate/exchange.
 
 The production provider is the existing per-Auth `execution-token-signer-agent` UDS process owned by Deployment/EXEC-CRYPTO, extended only with these API-key-specific methods. It uses a distinct sensitive, non-exportable 256-bit HMAC key and does not change or generalise the ES256 signing methods. Auth owns the application port, adapter, credential comparison and capability-scoped readiness; Deployment/EXEC-CRYPTO owns the provider binary/profile, logical-version manifest, HSM/KMS key lifecycle, workload credential delivery and SoftHSM asset. No second sidecar or public OES service is introduced, and the historical signer-agent executable/path is retained during DG-3 rather than forcing an unrelated rename migration.
@@ -86,6 +86,7 @@ Creation and rotation always use server-generated values. The caller cannot prov
 | `RotateExternalApiKey` | Gateway with trusted HUMAN context and `identity.machine.api_key.rotate`. | `credential_id`; no replacement secret, tenant, or principal field. | Replacement full `api_key` once plus predecessor metadata. |
 | `RevokeExternalApiKey` | Gateway with trusted HUMAN context and `identity.machine.api_key.revoke`, or an Auth security workflow. | `credential_id`; no caller-selected deny selector. | Masked revoked metadata only. |
 | `ExchangeExternalApiKey` | Gateway workload only, using its verified mTLS identity and registered INTERNAL issuance policy. | The sole sensitive field `presented_api_key`; no tenant, machine, Permission Code, capability, role, audience, or expiry field. | Gateway-only five-minute external access token and safe correlation metadata. |
+| `CompromiseExternalApiKeyVerifierVersion` | Exact allowlisted deployment `security-operations-runner` only, with verified mTLS plus an `aud=auth-service`, certificate-bound SYSTEM INTERNAL ExecutionToken containing `auth.internal.external_api_key.verifier_version.compromise`. | Only `verifier_key_version`, safe opaque `incident_reference` and `occurred_at_unix_seconds`; trusted operator/workload/trace context is transport-owned. | Incident reference, matched/newly-revoked/already-revoked counts and server completion time only. |
 
 `ExchangeExternalApiKey` is an INTERNAL technical primitive. It is called only by `api-gateway`, carries the Gateway root MACHINE execution context established by the frozen trusted runtime, and requires the exact INTERNAL issuance policy `api-gateway -> auth-service -> auth.internal.external_api_key.exchange`. No human role can receive this INTERNAL code. Auth rejects a caller that lacks verified Gateway workload identity, the registered issuance policy, or a current root context.
 
@@ -104,6 +105,27 @@ Auth signs the resulting Gateway-only JWT with exact `aud = api-gateway`, Integr
 Any failed condition returns a non-enumerating stable failure category. Auth never grants a partial requested set, changes a tenant, creates an internal grant, or treats an API Key as a human session.
 
 The runtime boundary is actionable and fixed: Identity implements the dedicated query on its existing query controller/application/repository path; Permission implements the dedicated query on its existing permission-check controller/authorization query/PrincipalRoleBinding catalog path; Auth uses dedicated infrastructure gRPC adapters injected into the external API-key application service. Missing client configuration or trust policy prevents external-exchange readiness. Timeout, unavailable dependency, malformed/ineligible result, tenant mismatch, empty/invalid snapshot or missing trust fails the request before JWT signing; Auth does not use legacy `AuthenticateApiKey`, generic account `CheckPermission`, direct database access or caller facts as fallback.
+
+### 5.1 Confirmed verifier-version compromise command
+
+`CompromiseExternalApiKeyVerifierVersion` is an internal security-operation RPC on the existing Auth gRPC host and maps to the Auth-owned CQRS command of the same name. It has no external HTTP/Gateway route and is never callable through the trusted HUMAN management path. The registered caller must be one exact environment deployment `security-operations-runner` workload; no wildcard SPIFFE/workload identity, HUMAN/MACHINE role grant or tenant-scoped ExecutionToken is valid. The request cannot carry operator/tenant/machine/credential identity, backend key selector, verifier/key material, free-text reason or reactivation control. `incident_reference` is 1–128 ASCII characters matching `[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}`; invalid/empty reference or non-positive incident time is rejected before provider/database work.
+
+Before database mutation, Auth calls `GetExternalApiKeyVerifierStatus` and requires the exact logical version to be terminal `COMPROMISED_DISABLED`, with `incidentReference` and `occurredAt` equal to the request and a non-empty immutable/monotonic `stateRevision`. The provider may report that terminal state only after the agent operation allowlist denies the version and the configured KMS/HSM backend confirms it cannot perform MAC operations. `COMPROMISED_DISABLED` can never transition to `ACTIVE` or `VERIFY_ONLY`; a replacement uses a new logical version. Provider status absence, mismatch or unavailability changes no Auth row and returns an internal precondition/runtime failure.
+
+Auth stores one durable `ExternalApiKeyVerifierCompromiseIncident` completion fact. `incidentReference` is globally unique and `verifierKeyVersion` also has a unique compromise binding. The record contains the safe incident/version, provider `stateRevision`, evidence `occurredAt`, server `processedAt`, verified caller workload/trace and the matched/newly-revoked/already-revoked counts. `occurredAt` is evidence only; every new credential revocation uses the same server `processedAt`.
+
+One Auth database transaction must:
+
+1. resolve/create the unique incident completion;
+2. lock all credentials with the exact persisted `verifierKeyVersion`;
+3. leave already-`REVOKED` status, `revokedAt` and prior audit facts unchanged;
+4. set every other matched credential to `REVOKED` with one server `processedAt`;
+5. insert one safe tenant-scoped `EXTERNAL_API_KEY_REVOKED_BY_VERIFIER_COMPROMISE` audit for each newly revoked credential; and
+6. insert one SYSTEM-scope `EXTERNAL_API_KEY_VERIFIER_VERSION_COMPROMISE_COMPLETED` aggregate audit and the completed incident/count result.
+
+If any credential, incident or audit write fails, the transaction rolls back in full; partial revocation is not a valid outcome. The provider remains disabled, so retry cannot reopen exchange. An exact replay returns the stored result without rewriting credentials or audits. The same incident reference with another version/time, or the same version with another incident reference, returns `EXTERNAL_API_KEY_COMPROMISE_INCIDENT_CONFLICT`. Concurrent exact requests serialize on the two uniqueness constraints. A transaction rollback leaves no completed incident and the same request may retry.
+
+Per-credential audit contains only credential/machine/tenant reference, sanitised reason category, incident reference, server revocation time and trusted trace correlation. The aggregate contains only logical version, incident/provider evidence references, caller workload, evidence/processing times and counts. Neither audit nor response contains API Key secret, verifier, Authorization value, external/internal Token, backend reference/credential/handle, or a credential/tenant list. Already-issued Gateway-only external tokens retain the existing five-minute maximum and are not retrospectively extended or added to a new Gateway deny cache.
 
 ## 6. Rotation, Audit, And Leak Semantics
 
@@ -128,6 +150,8 @@ The runtime boundary is actionable and fixed: Identity implements the dedicated 
 - `EXTERNAL_API_KEY_ROTATION_LIMIT`
 - `EXTERNAL_RATE_LIMITED`
 - `EXTERNAL_API_KEY_RUNTIME_UNAVAILABLE` (internal/capability readiness only; public mapping remains non-enumerating)
+- `EXTERNAL_API_KEY_COMPROMISE_PRECONDITION_FAILED` (internal security operation only)
+- `EXTERNAL_API_KEY_COMPROMISE_INCIDENT_CONFLICT` (internal security operation only)
 
 The HTTP status and public error envelope are defined by Gateway. Neither Auth nor Gateway returns a reason that can be used to discover a valid key, its owner, or its grant graph.
 
@@ -151,3 +175,8 @@ The HTTP status and public error envelope are defined by Gateway. Neither Auth n
 16. Normal host development can exercise the same application port only through the explicit development profile; staging, production and security acceptance reject it. The actual UDS agent plus SoftHSM2 integration proves a separate `CKK_GENERIC_SECRET` / `CKM_SHA256_HMAC` key is sensitive, non-extractable, domain/algorithm fixed and unavailable-provider fail closed.
 17. A syntactically valid unknown identifier and a known identifier with a wrong secret both execute one bounded protected verifier computation and one equal-length constant-time comparison before the same public denial category; rate protection bounds this non-enumerating path.
 18. External opening evidence includes an operator runbook for the selected production KMS/HSM: HMAC-key provisioning, workload identity, opaque version manifest, rotation/retirement, compromise response, outage recovery, readiness checks and proof that the development provider is rejected.
+19. Only the exact registered deployment security-operation workload with the frozen INTERNAL Code can invoke version compromise; Gateway, external callers, HUMAN/tenant administrators, ordinary MACHINE roles and caller-supplied operator facts are rejected before mutation.
+20. Provider disablement/terminal evidence precedes Auth mutation. Missing/mismatched status or an `ACTIVE`/`VERIFY_ONLY` version produces no incident, credential or audit write; `COMPROMISED_DISABLED` can never reactivate under the same logical version.
+21. One transaction revokes every non-revoked credential for the version and writes per-newly-revoked plus aggregate audit facts. Injected failure at the first/middle/last credential, audit or incident write leaves all Auth credential/audit/incident state unchanged.
+22. Exact same-incident replay and concurrent duplicate invocation return the original counts with no duplicate audits; conflicting reference/version/time reuse is rejected. Existing revoked timestamps/facts remain unchanged and are represented only in the aggregate `alreadyRevokedCount`.
+23. The compromise response and audit prove safe counts/correlation while containing no secret, verifier, Token, backend selector/material/credential, credential list or caller-supplied operator identity. Outstanding external tokens remain bounded by five minutes.

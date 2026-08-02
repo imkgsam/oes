@@ -17,6 +17,8 @@ service ExternalApiKeyCredentialService {
   rpc RevokeExternalApiKey(RevokeExternalApiKeyRequest) returns (RevokeExternalApiKeyResponse);
   // Exchanges the one sensitive presented key field from the verified Gateway workload for a Gateway-only access token.
   rpc ExchangeExternalApiKey(ExchangeExternalApiKeyRequest) returns (ExchangeExternalApiKeyResponse);
+  // Atomically revokes every credential for one provider-confirmed compromised verifier version; callable only by the registered deployment security-operation workload.
+  rpc CompromiseExternalApiKeyVerifierVersion(CompromiseExternalApiKeyVerifierVersionRequest) returns (CompromiseExternalApiKeyVerifierVersionResponse);
 }
 
 // Carries only the referenced Integration Machine and caller-safe display/expiry preferences; trusted context supplies tenant and operator.
@@ -80,6 +82,22 @@ message ExchangeExternalApiKeyResponse {
   string integration_machine_id = 6;
   string tenant_id = 7;
   string audit_correlation_id = 8;
+}
+
+// Carries only safe provider-confirmed incident evidence; trusted transport supplies the security-operation workload/operator/trace context.
+message CompromiseExternalApiKeyVerifierVersionRequest {
+  string verifier_key_version = 1;
+  string incident_reference = 2;
+  int64 occurred_at_unix_seconds = 3;
+}
+
+// Returns only the immutable incident result and aggregate counts; no credential, verifier, secret, token or backend metadata is exposed.
+message CompromiseExternalApiKeyVerifierVersionResponse {
+  string incident_reference = 1;
+  int64 matched_credential_count = 2;
+  int64 newly_revoked_credential_count = 3;
+  int64 already_revoked_credential_count = 4;
+  int64 completed_at_unix_seconds = 5;
 }
 
 // Describes non-secret credential metadata returned by management methods.
