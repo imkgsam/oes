@@ -13,16 +13,21 @@
 
 ## Operations
 
+### Trusted Execution Cutover
+
+所有本节 RPC 都通过当前 channel 的 mTLS `VerifiedWorkloadIdentity` 与 `aud=urn:oes:service:asset-service` 的 Auth / STS `ExecutionToken` 建立上下文。当前 direct caller 是 `api-gateway` HR management module；Auth / STS 只向已注册的该 workload 发放本节所需的 Token。未来 service / worker 或不同 workload 必须先冻结自己的精确 workload-to-audience issuance policy，不能复用或放宽它。
+
+- `UploadEmployeeOfficialPhoto` 与 `BindEmployeeOfficialPhoto` 都声明 `BUSINESS all: [hr.employee.create]`。这是当前 Gateway 员工正式照片 HTTP entry 的既有 active Permission Code；不能用 INTERNAL 把 Asset lifecycle mutation 变成绕过业务授权的技术调用。HUMAN、拥有该 Code 的 MACHINE，以及通过 delegation / ToolContract 上限取得该 Code 的 DELEGATED 均按项目级 BUSINESS 规则处理。
+- Gateway 对两者使用统一 metadata producer 的 `forBusinessCall('urn:oes:service:asset-service', ['hr.employee.create'])`，Asset 重复核验可信 tenant、目标 Employee 与 Asset owner facts。HTTP `RequirePermissions` 与 Asset gRPC BUSINESS authorization 是两道边界。
+- legacy `scopeLevel`、`tenantId` 与 `operatorId` 请求字段在切换时删除：scope 固定为该受控资产类别的 `TENANT`，tenant 从 trusted context 取得，operator / actor / delegation、workload、requestId 与 trace 进入 Asset audit。`employeeId` 保留为业务目标；`newAssetId`、`previousAssetId` 也保留为业务引用，均不建立身份。
+
 ### `UploadEmployeeOfficialPhoto`
 
 - Purpose: upload one image asset candidate for an Employee official public display photo.
-- Callers: trusted internal services such as `api-gateway` HR management BFF.
-- Control model: internal service call with authenticated operator context and tenant-scoped Employee target.
+- Callers: `api-gateway` HR management module through its registered workload identity.
+- Control model: `BUSINESS all: [hr.employee.create]` with a tenant-scoped Employee business target.
 - Input semantics:
-  - `scopeLevel = TENANT`
-  - `tenantId`
   - `employeeId`
-  - `operatorId`
   - `category = EMPLOYEE_OFFICIAL_PHOTO`
   - `file`
   - `fileName`
@@ -46,13 +51,10 @@
 ### `BindEmployeeOfficialPhoto`
 
 - Purpose: finalize one uploaded employee photo asset after HR successfully updates the Employee official photo reference.
-- Callers: trusted internal services such as `api-gateway` HR management BFF.
-- Control model: internal service call with authenticated operator context.
+- Callers: `api-gateway` HR management module through its registered workload identity.
+- Control model: `BUSINESS all: [hr.employee.create]` with a tenant-scoped Employee business target.
 - Input semantics:
-  - `scopeLevel = TENANT`
-  - `tenantId`
   - `employeeId`
-  - `operatorId`
   - `newAssetId`
   - optional `previousAssetId`
 - Behavior constraints:
@@ -69,6 +71,7 @@
 
 - Purpose: resolve one employee photo asset display URL from a controlled asset reference.
 - Callers: trusted internal services building HR or public display read models.
+- Control model: the shared RPC is `INTERNAL all: [asset.internal.avatar.resolve_public_url]`; only its exact workload issuance policy can request a public-delivery projection.
 - Input semantics:
   - `assetId`
 - Response fields:
