@@ -1,4 +1,5 @@
 import { Injectable, OnModuleInit } from '@nestjs/common'
+import { Metadata } from '@grpc/grpc-js'
 import { ClientGrpc } from '@nestjs/microservices'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
@@ -147,7 +148,7 @@ export class PdaTerminalDeviceAdapter implements OnModuleInit {
         identity: toIdentity(input.device),
         software: toSoftware(input.device),
         traceId: input.traceId
-      }),
+      }, new Metadata()),
       this.opts('activateEnrollment')
     )
 
@@ -178,7 +179,7 @@ export class PdaTerminalDeviceAdapter implements OnModuleInit {
             }
           : undefined,
         traceId: normalize(input.traceId)
-      }),
+      }, new Metadata()),
       this.opts('resolveDeviceAccessDecision')
     )
 
@@ -204,7 +205,7 @@ export class PdaTerminalDeviceAdapter implements OnModuleInit {
         clientTime: input.clientTime,
         receivedAt: new Date().toISOString(),
         traceId: normalize(input.traceId)
-      }),
+      }, new Metadata()),
       this.opts('recordHeartbeat')
     )
 
@@ -239,7 +240,7 @@ export class PdaTerminalDeviceAdapter implements OnModuleInit {
           diagnosticMode: record.diagnosticMode,
           detailsJson: JSON.stringify(record.details)
         }))
-      }),
+      }, new Metadata()),
       this.opts('recordDiagnosticLogs')
     )
 
