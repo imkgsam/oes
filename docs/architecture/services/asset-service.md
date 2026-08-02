@@ -165,23 +165,21 @@ Asset + Site Media 是可信 gRPC 全仓 capability 的第一个业务优先 ser
 
 完整传输信任规则以 [14-grpc-metadata-and-service-trust-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/14-grpc-metadata-and-service-trust-architecture.md) 为准，黑盒媒体能力以 [site-media.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/asset-service/site-media.md) 为准。
 
-Site Media 的完整黑盒交互以 [site-media.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/asset-service/site-media.md) 为准；跨服务发布保护与消费行为以 [site-asset-media.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/site-asset-media.md) 为准。
+### 10.5 Avatar And Employee Official Photo Trusted RPC Cutover
 
-### 10.5 Existing Avatar RPC Authorization Freeze
+头像与员工正式照片是本服务与 Site Media 并列的既有受控资产切片；它们在可信 gRPC 切换中保持各自的业务语义，不因为共享底层 Asset metadata 而合并为同一授权模式。
 
-既有 `AssetService` 五个 RPC 的可信执行分类冻结如下；实现不得在 Controller、Guard 或调用方自行猜测另一种 mode：
+| RPC                           | 唯一 mode      | 冻结授权 / 目标语义                                                                                                                                                                                    |
+| ----------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `UploadAccountAvatar`         | `SELF_SERVICE` | `allowDelegated: true`。当前账号只从可信执行主体的 canonical account subject 派生；不得提交或覆盖 `accountId`。这是低风险资料媒体操作，DELEGATED 仍须经过有效的人类、delegation 和 ToolContract 上限。 |
+| `BindAccountAvatar`           | `SELF_SERVICE` | `allowDelegated: true`。当前账号同样只从可信 subject 派生；`newAssetId` 和可选 `previousAssetId` 是业务引用，Asset 必须校验其 scope / tenant / owner 与派生账号一致。                                  |
+| `UploadEmployeeOfficialPhoto` | `BUSINESS`     | `all: [hr.employee.create]`。该现有 active Code 已是 Gateway 员工正式照片入口的唯一权限门；`employeeId` 保留为业务目标，Asset 以可信 tenant 校验目标 Employee 与候选 Asset。                           |
+| `BindEmployeeOfficialPhoto`   | `BUSINESS`     | `all: [hr.employee.create]`。绑定会改变 Asset lifecycle，不能降格为技术旁路；保留 `employeeId`、`newAssetId` 与可选 `previousAssetId` 作为业务引用，并重复 tenant / owner 校验。                       |
+| `ResolveAssetPublicUrl`       | `INTERNAL`     | `all: [asset.internal.avatar.resolve_public_url]`。这是已完成上游读路径授权后的受限 public-delivery projection；只由精确获准 workload 申请，不能加入 HUMAN / MACHINE 业务角色。                        |
 
-| RPC | Mode | Exact authorization | Stable target rule |
-| --- | --- | --- | --- |
-| `UploadAccountAvatar` | `SELF_SERVICE` | 不要求 BUSINESS Permission Code；`allowDelegated = false` | 只允许 `HUMAN`，目标账号必须从已验证 `TrustedExecutionContext.subject` 对应的当前 `UserAccount` 派生。 |
-| `BindAccountAvatar` | `SELF_SERVICE` | 不要求 BUSINESS Permission Code；`allowDelegated = false` | 与上传相同；`newAssetId` / `previousAssetId` 是业务目标，但目标账号不能由 body 指定。 |
-| `UploadEmployeeOfficialPhoto` | `BUSINESS` | `all: [hr.employee.create]` | `employeeId` 是 HR-owned 业务目标并保留；Asset 将其绑定到可信 context tenant，不能把它解释为 principal。 |
-| `BindEmployeeOfficialPhoto` | `BUSINESS` | `all: [hr.employee.create]` | 与上传相同；Asset 还必须验证新旧 Asset 的 tenant、owner employee 与 category。 |
-| `ResolveAssetPublicUrl` | `INTERNAL` | `asset.internal.avatar.resolve_public_url` | `assetId` 是业务目标；Asset 加载自身 owner facts 后校验 SYSTEM / TENANT scope 与可信 context，不接受 caller 提交 owner identity。 |
+所有五个 RPC 都只接受 `aud=urn:oes:service:asset-service`、当前 channel mTLS workload identity 与由 Auth / STS 签发且绑定该 workload 的 ExecutionToken。`scopeLevel`、`tenantId` 与 `operatorId` 从请求体删除：scope / tenant 来自可信执行上下文并由 Asset 对已加载的归属事实复核；审计使用可信 subject、DELEGATED actor / delegation（如有）、workload、request 与 trace。`accountId` 从两个账号头像请求体删除；`employeeId` 是 Employee official photo 的合法业务目标而保留。`assetId`、`newAssetId` 与 `previousAssetId` 均为业务引用而不是身份来源。
 
-五个 RPC 的唯一 target audience 是 `urn:oes:service:asset-service`。当前 production-code 静态调用方只有 `api-gateway`；其直接 workload identity 使用环境注册的 `spiffe://<trust-domain>/ns/oes/sa/api-gateway`，Token 的 `client_id` 与 `cnf.x5t#S256` 必须绑定当前 Gateway mTLS 叶证书。
-
-`ResolveAssetPublicUrl` 的 workload issuance policy 只允许上述 `api-gateway -> urn:oes:service:asset-service -> asset.internal.avatar.resolve_public_url` 精确三元组。它不允许 wildcard audience / workload，不授予任意 tenant 读取，也不预授权未来 service 或 worker；新增直接 caller 必须先扩展本真相源、黑盒契约与 STS registry。账号 SELF_SERVICE 与员工 BUSINESS RPC 不从该 INTERNAL policy 继承权限。
+当前直接调用 workload 是 `api-gateway`（其中包含 auth-bff 与 HR management modules），其环境注册 identity 是 `spiffe://<trust-domain>/ns/oes/sa/api-gateway`。它必须对两个账号头像 RPC 使用统一 metadata producer 的 SELF_SERVICE exchange；对两个员工照片 RPC 使用 `BUSINESS` exchange，精确申请 `hr.employee.create`；对 URL resolve 使用 INTERNAL exchange，精确申请 `asset.internal.avatar.resolve_public_url`。`ResolveAssetPublicUrl` 的 workload issuance policy 只允许 `api-gateway -> urn:oes:service:asset-service -> asset.internal.avatar.resolve_public_url` 精确三元组；未来新增 direct caller、worker 或 workload 必须先冻结其独立 workload-to-audience issuance policy，不共享或放宽该 policy。
 
 Legacy request field disposition：
 
@@ -189,8 +187,12 @@ Legacy request field disposition：
 | --- | --- |
 | `scopeLevel` | 从四个 upload / bind request 删除；从可信 execution context 取得。员工照片只接受 `TENANT` context。 |
 | `tenantId` | 从四个 upload / bind request 删除；TENANT context 的 tenant 由 Token 提供，Asset owner facts 必须与其一致。 |
-| `accountId` | 从账号 upload / bind request 删除；由可信 HUMAN subject 派生。 |
+| `accountId` | 从账号 upload / bind request 删除；由可信 HUMAN / DELEGATED canonical account subject 派生。 |
 | `employeeId` | 在员工 upload / bind request 保留为业务目标；不得建立 operator、principal 或 tenant 身份。 |
-| `operatorId` | 从四个 upload / bind request 删除；审计使用可信 subject、DELEGATED actor（如 mode 允许）、workload、request 与 trace。 |
+| `operatorId` | 从四个 upload / bind request 删除；审计使用可信 subject、DELEGATED actor / delegation（如有）、workload、request 与 trace。 |
 
 Asset response 中的 `scopeLevel`、`tenantId`、`ownerAccountId`、`ownerEmployeeId` 是 Asset 加载或写入后的 owner facts，可以继续返回；它们不是调用方提交的可信输入。`assetId`、`newAssetId`、`previousAssetId`、文件内容与媒体声明仍是合法业务参数，但必须经过 owner、状态与内容校验。
+
+本节是五个 legacy avatar / official-photo RPC 的唯一 Asset mode mapping。切换同时移除 legacy signed operator metadata、request-body identity 信任、controller fallback 与依赖它们的 fixture；不得双读。
+
+Site Media 的完整黑盒交互以 [site-media.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/asset-service/site-media.md) 为准；跨服务发布保护与消费行为以 [site-asset-media.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/site-asset-media.md) 为准。

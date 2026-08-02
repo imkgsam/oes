@@ -15,10 +15,13 @@
 
 ## Trusted Execution Contract
 
-- 五个既有 Asset RPC 的唯一 audience 是 `urn:oes:service:asset-service`，当前直接 workload 只有环境注册的 `spiffe://<trust-domain>/ns/oes/sa/api-gateway`。
-- Gateway 必须使用当前 mTLS workload identity、certificate-bound ExecutionToken、`x-request-id`、`traceparent` / `tracestate` 与统一审计 metadata；不得继续使用 shared signed operator context。
-- `UploadAccountAvatar` 与 `BindAccountAvatar` 固定为 `SELF_SERVICE`，`allowDelegated = false`。它们只允许已验证 `HUMAN`，不建立已退出 active catalog 的 self-profile Permission Code。
-- `ResolveAssetPublicUrl` 固定为 `INTERNAL asset.internal.avatar.resolve_public_url`。STS 只允许 `api-gateway -> urn:oes:service:asset-service -> asset.internal.avatar.resolve_public_url`；没有 wildcard，也不为未来 caller 预授权。
+所有本节 RPC 都通过当前 channel 的 mTLS `VerifiedWorkloadIdentity` 与 `aud=urn:oes:service:asset-service` 的 Auth / STS `ExecutionToken` 建立上下文。legacy signed operator metadata、`scopeLevel`、`tenantId`、`accountId` 与 `operatorId` 请求字段在本切片切换时一并删除；它们不能作为 identity、scope 或授权依据。
+
+- 当前 direct caller 是 `api-gateway` 的 auth-bff module；其环境注册 identity 是 `spiffe://<trust-domain>/ns/oes/sa/api-gateway`，Token 的 `client_id` / `cnf.x5t#S256` 绑定当前 Gateway mTLS 叶证书。未来 service / worker 不能复用这一 issuance policy，必须先冻结自己的精确 workload policy。
+- `UploadAccountAvatar` 与 `BindAccountAvatar` 均声明 `SELF_SERVICE`，`allowDelegated: true`。当前 account target 固定从可信 ExecutionToken subject（Gateway 已建立的 canonical account principal）派生。DELEGATED 保持该 human account subject，另以 actor / delegation 归因；MACHINE 不可调用。
+- 不再请求 BUSINESS Permission Code；调用方使用统一 metadata producer 的 `forSelfServiceCall('urn:oes:service:asset-service')`。Asset 仍校验派生账号、可信 tenant / scope 与自身 Asset ownership facts。
+- `ResolveAssetPublicUrl` 声明 `INTERNAL all: [asset.internal.avatar.resolve_public_url]`。调用方使用 `forInternalCall('urn:oes:service:asset-service', ['asset.internal.avatar.resolve_public_url'])`；该 INTERNAL Code 不得进入 HUMAN / MACHINE role，且只有 Auth / STS registry 已明确允许的 `api-gateway` workload 可申请。
+- `assetId`、`newAssetId` 与可选 `previousAssetId` 保留为业务引用；Asset 在 server side 加载并验证它们。响应中的 asset scope / tenant / owner 是资源事实，不构成下一次调用的可信输入。审计从 trusted subject、DELEGATED actor / delegation（如有）、direct workload、requestId 与 trace 取得。
 - Asset 正常验证在本地完成，不在每次 RPC 调 Auth；Token / workload / mode 校验失败时不得读取 request body 或 legacy header 兜底。
 
 ## Operations
@@ -27,15 +30,15 @@
 
 - Purpose: upload one avatar candidate asset for the current authenticated account.
 - Current caller: `api-gateway` 的 `AuthController -> AccountAvatarUploadUseCase -> AssetGrpcAdapter`。
-- Control model: `SELF_SERVICE`，`allowDelegated = false`；target account 从可信 HUMAN subject 派生。
+- Control model: `SELF_SERVICE`，`allowDelegated: true`；target account 从可信 HUMAN / DELEGATED canonical account subject 派生，MACHINE 拒绝。
 - Input semantics:
   - `file`
   - `fileName`
   - `contentType`
 - Trusted context semantics:
   - `scopeLevel` 与 optional `tenantId` 来自 verified ExecutionToken
-  - `accountId` 来自 verified HUMAN subject 对应的当前 `UserAccount`
-  - operator / audit attribution 来自 trusted execution context
+  - `accountId` 来自 verified HUMAN，或 DELEGATED 保持的 canonical human account subject，对应当前 `UserAccount`
+  - operator / delegated actor / audit attribution 来自 trusted execution context
   - `category = ACCOUNT_AVATAR` 由 RPC 固定，不接受 caller 选择
 - Ownership constraints:
   - `TENANT` context must carry a valid `tenantId`
@@ -57,12 +60,12 @@
 
 - Purpose: finalize one uploaded avatar asset as the current account avatar after profile update succeeds.
 - Current caller: `api-gateway` 的 `AuthController -> AccountProfileUseCase -> AssetGrpcAdapter`。
-- Control model: `SELF_SERVICE`，`allowDelegated = false`；target account 从可信 HUMAN subject 派生。
+- Control model: `SELF_SERVICE` (`allowDelegated: true`); current account binding target is derived from trusted context.
 - Input semantics:
   - `newAssetId`
   - `previousAssetId` optional
 - Behavior constraints:
-  - `newAssetId` must belong to the same trusted `scopeLevel`, trusted `tenantId`, and derived current account
+  - `newAssetId` must belong to the same trusted derived scope, tenant and current account
   - `SYSTEM` binding must not reuse a tenant-owned asset
   - `TENANT` binding must not reuse a system-owned asset or an asset from another tenant
   - the previous active avatar asset, if any, is marked `REPLACED`
@@ -77,7 +80,7 @@
 
 - Purpose: resolve one asset display URL from a controlled asset reference.
 - Current callers: `api-gateway` 的 `SessionContextUseCase` 与 `PersonalCenterSummaryAdapter`，均经 `AssetGrpcAdapter` 建立 metadata。
-- Control model: `INTERNAL asset.internal.avatar.resolve_public_url`；只有精确 Gateway workload issuance policy 可以申请。
+- Control model: `INTERNAL all: [asset.internal.avatar.resolve_public_url]`; it does not grant a business role or accept a caller-selected tenant / account.
 - Input semantics:
   - `assetId`
 - Behavior constraints:

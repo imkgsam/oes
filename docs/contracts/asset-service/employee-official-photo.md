@@ -13,10 +13,12 @@
 
 ## Trusted Execution Contract
 
-- `UploadEmployeeOfficialPhoto` 与 `BindEmployeeOfficialPhoto` 固定为 `BUSINESS`，精确要求 `all: [hr.employee.create]`。这是当前 HR 管理入口已经使用的 active BUSINESS Code；Gateway 与 Asset 使用同一个稳定 Code，不建立 Permission-to-Scope 转换。
-- 唯一 audience 是 `urn:oes:service:asset-service`；当前唯一直接 workload 是环境注册的 `spiffe://<trust-domain>/ns/oes/sa/api-gateway`，Token 的 `client_id` / `cnf.x5t#S256` 必须绑定当前 Gateway mTLS 叶证书。
-- Gateway HTTP `RequirePermissions({ all: [hr.employee.create] })` 与 Asset gRPC BUSINESS authorization 是两道边界。Asset 仍校验 trusted tenant、Asset owner/category/status，不把 Gateway 已检查视为资源授权替代品。
-- HUMAN、具备该 BUSINESS grant 的 MACHINE 与满足 delegation / tool upper bound 的 DELEGATED 适用统一 BUSINESS 规则；本 RPC 不额外创造 workload INTERNAL grant。
+所有本节 RPC 都通过当前 channel 的 mTLS `VerifiedWorkloadIdentity` 与 `aud=urn:oes:service:asset-service` 的 Auth / STS `ExecutionToken` 建立上下文。当前 direct caller 是 `api-gateway` HR management module；Auth / STS 只向已注册的该 workload 发放本节所需的 Token。未来 service / worker 或不同 workload 必须先冻结自己的精确 workload-to-audience issuance policy，不能复用或放宽它。
+
+- 当前 workload 的环境注册 identity 是 `spiffe://<trust-domain>/ns/oes/sa/api-gateway`，Token 的 `client_id` / `cnf.x5t#S256` 绑定当前 Gateway mTLS 叶证书。
+- `UploadEmployeeOfficialPhoto` 与 `BindEmployeeOfficialPhoto` 都声明 `BUSINESS all: [hr.employee.create]`。这是当前 Gateway 员工正式照片 HTTP entry 的既有 active Permission Code；Gateway 与 Asset 使用同一个稳定 Code，不建立 Permission-to-Scope 转换，也不能用 INTERNAL 把 Asset lifecycle mutation 变成绕过业务授权的技术调用。HUMAN、拥有该 Code 的 MACHINE，以及通过 delegation / ToolContract 上限取得该 Code 的 DELEGATED 均按项目级 BUSINESS 规则处理。
+- Gateway 对两者使用统一 metadata producer 的 `forBusinessCall('urn:oes:service:asset-service', ['hr.employee.create'])`，Asset 重复核验可信 tenant、`employeeId` 业务目标与自身 Asset owner facts；Employee 是否存在及属于该 tenant 的 HR 真相仍由 Gateway 编排调用 HR owner 校验。HTTP `RequirePermissions` 与 Asset gRPC BUSINESS authorization 是两道边界。
+- legacy `scopeLevel`、`tenantId` 与 `operatorId` 请求字段在切换时删除：scope 固定为该受控资产类别的 `TENANT`，tenant 从 trusted context 取得，operator / actor / delegation、workload、requestId 与 trace 进入 Asset audit。`employeeId` 保留为业务目标；`newAssetId`、`previousAssetId` 也保留为业务引用，均不建立身份。
 - Token 或 metadata 验证失败时直接拒绝；不得从 body 中恢复 tenant、scope 或 operator，也不得接受 shared signed operator context。
 
 ## Operations
@@ -25,7 +27,7 @@
 
 - Purpose: upload one image asset candidate for an Employee official public display photo.
 - Current caller: `api-gateway` 的 `HrManagementController -> HrManagementService -> EmployeeOfficialPhotoAssetGrpcAdapter`。
-- Control model: `BUSINESS all: [hr.employee.create]` with one tenant-scoped Employee target.
+- Control model: `BUSINESS all: [hr.employee.create]` with a tenant-scoped Employee business target.
 - Input semantics:
   - `employeeId`
   - `file`
@@ -57,7 +59,7 @@
 
 - Purpose: finalize one uploaded employee photo asset after HR successfully updates the Employee official photo reference.
 - Current caller: `api-gateway` 的 `HrManagementService -> EmployeeOfficialPhotoAssetGrpcAdapter`。
-- Control model: `BUSINESS all: [hr.employee.create]`。
+- Control model: `BUSINESS all: [hr.employee.create]` with a tenant-scoped Employee business target.
 - Input semantics:
   - `employeeId`
   - `newAssetId`
@@ -77,7 +79,7 @@
 
 - Purpose: resolve one employee photo asset display URL from a controlled asset reference.
 - Current caller inventory: 当前没有 HR / public-entry service 直接调用；唯一 production-code caller 是 `api-gateway` 的 account-oriented read model，完整 policy 以 [avatar.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/asset-service/avatar.md) 为准。
-- Control model: `INTERNAL asset.internal.avatar.resolve_public_url`；未来 HR / public display direct caller 不能因本段描述自动获得 workload issuance。
+- Control model: the shared RPC is `INTERNAL all: [asset.internal.avatar.resolve_public_url]`; only its exact workload issuance policy can request a public-delivery projection，未来 HR / public display direct caller 不能因本段描述自动获得 workload issuance。
 - Input semantics:
   - `assetId`
 - Response fields:
