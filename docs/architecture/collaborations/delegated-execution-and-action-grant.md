@@ -52,7 +52,7 @@ Each business owner declares one immutable AI risk class per operation:
 
 ## 5. Exact Confirmation And ActionGrant
 
-The confirmation UI must show the action, target, material business impact and reason for confirmation. An ActionGrant binds the confirmed human, delegation, agent, tool version, tenant / org, target audience, operation key, canonical target reference, canonical input digest, idempotency reference, confirmation / step-up evidence and expiry. It cannot be transferred to another tool, workload, audience, target or input.
+The confirmation UI must show the action, target, material business impact and reason for confirmation. An ActionGrant binds the confirmed human, delegation, agent, tool version, tenant / org, target audience, operation key, canonical target reference, canonical input digest, idempotency reference, confirmation / step-up evidence and expiry. It cannot be transferred to another tool, workload, audience, target or input. The exact `ActionDescriptorV1` canonicalization and `x-oes-action-grant` metadata carrier are frozen by the [Auth ActionGrant Contract](../../contracts/auth-service/delegated-execution-and-action-grant.md).
 
 Changing a material value—such as amount, counterparty, target resource, operation or tool version—requires a new confirmation. Network retry of the unchanged command does not create a second business result.
 

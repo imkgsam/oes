@@ -28,7 +28,7 @@ Task P1 的 feature packet 是 [collaboration-task-p1.md](/Users/acehood/Documen
 ## 2. 模块划分
 
 - [task-command.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/collaboration-service/task-command.md)
-  - Task P1 手动任务写接口。
+  - Task P1 手动任务写接口，以及已冻结的 Task Assistant AI exposure、ActionDescriptor、一次性消费与幂等语义。
 - [task-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/collaboration-service/task-query.md)
   - Task P1 个人任务列表与详情查询接口。
 - [annotation-command.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/collaboration-service/annotation-command.md)

@@ -191,3 +191,7 @@ P1 不返回：
 - 不允许 query 直接拼接业务对象、workflow、notification 或 annotation 真相。
 - 不允许把 `overdue` 当作持久状态。
 - 不允许前端绕过 `api-gateway` / BFF 直接调用 `collaboration-service`。
+
+## 7. Task Assistant Consumption
+
+`ListTasks` 与 `GetTask` 是 Task Assistant P1 唯一可注册的 read ToolContract operation。它们在有效 DELEGATED ExecutionToken 下属于 `DELEGATION_ALLOWED`，不需要 ActionGrant；服务端仍按既有 tenant 与 participant visibility 验证，不提供 AI、machine、admin、org 或 team bypass。详情读取只在 HUMAN 已能读取对应 Task 时发生。

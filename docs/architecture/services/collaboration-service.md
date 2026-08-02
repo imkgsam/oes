@@ -484,7 +484,27 @@ P1 不发布：
 - trace context
 - audit context
 
-## 19. Deferred
+## 19. Task Assistant AI Exposure
+
+Task Assistant 只能通过受控工具消费本服务已冻结的 Task P1 黑盒能力；AI 不是 Task creator、assignee 或 participant，业务责任主体始终是可信 HUMAN account。
+
+首个 AI exposure subset 固定如下：
+
+| Operation | AI risk class | Stable rule |
+| --- | --- | --- |
+| `ListTasks` / `GetTask` | `DELEGATION_ALLOWED` | 只返回当前 HUMAN 按既有 participant rule 可见的实时 Task；不需要 ActionGrant。 |
+| Task action draft | no command | 只产生待确认提议，不写 Task。 |
+| `CreateTask` self todo | `DELEGATION_ALLOWED` | HUMAN 必须表达明确创建意图；创建者和 assignee 都由可信 HUMAN account 派生。 |
+| `CreateTask` assigned task | `ACTION_GRANT_REQUIRED` | 这是首个 Task ActionGrant operation；仅可指派同 tenant active account，仍要求 `collaboration.task.assign`。 |
+| `UpdateTask`、`StartTask`、`CompleteTask`、`CancelTask`、`ReopenTask`、`ArchiveTask`、`UnarchiveTask` | `AI_FORBIDDEN` for Task Assistant P1 | 仍可由既有 HUMAN 界面按原规则调用；任何未来 AI exposure 必须重新冻结风险分类与 descriptor。 |
+
+`CreateTask` assigned task 的稳定 operation key 为 `collaboration.task.create-assigned.v1`。其 `ActionDescriptorV1.toolContract` 是 AI-PLATFORM 注册的不可变 ToolContract identity/version；`target` 是 `{ tenantId, assigneeAccountId }`；`input` 是 `{ title, description, dueAt, priority }`，其中 `description` 与 `dueAt` 需显式区分 `null` 和值，`priority` 必须在 digest 前显式归一为最终值。`createdByAccountId`、`visibility = ASSIGNMENT_PARTICIPANTS` 与 `status = OPEN` 由服务从可信上下文推导，不能由 AI 或 request body 覆盖。
+
+本服务拥有该 operation 的 idempotency 与 ActionGrant consumption receipt。`CreateTask` AI 调用必须携带 idempotency key；任务、任务 audit、既有 outbox、receipt 与一次性消费事实必须在同一个 Collaboration 数据库事务中持久化。receipt 至少以 `actionGrantJti` 和 `(tenantId, operatorAccountId, operationKey, idempotencyKey)` 分别唯一约束，并保存 descriptor digest、Task id 与不可变结果引用。相同 descriptor 的重试返回已有结果；不同 descriptor 或 ActionGrant 重放不得新建 Task。现有 Task fact event 语义保持不变，不为 ActionGrant 新增公共事件。
+
+Task audit 继续由本服务拥有；其既有 payload 仅记录 delegation、AgentPrincipal、ToolContract、ActionGrant JTI、descriptor digest、idempotency key 与决策引用等非秘密关联值，不记录 ActionGrant 正文或不必要的任务正文副本。
+
+## 20. Deferred
 
 以下能力明确后置：
 

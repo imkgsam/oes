@@ -30,9 +30,28 @@ Auth requires all of the following:
 
 It returns one short-lived, signed ActionGrant. It is bound to the direct workload using the DG-1 JWS, audience and mTLS rules, and has no refresh, exchange or delegation path. Auth records issuance, revoke and expiry facts; it does not report that a business command succeeded.
 
+### Canonical Action Descriptor And Transport
+
+Every ActionGrant uses `ActionDescriptorV1`. The business-owner adapter constructs the following logical object before human confirmation:
+
+```text
+descriptorVersion
+operationKey
+toolContract
+target
+input
+idempotencyKey
+```
+
+`toolContract` is an object containing its immutable identity and version. `target` and `input` use owner-defined JSON-compatible values. The complete object is canonicalized with RFC 8785 JSON Canonicalization Scheme, UTF-8 encoded, SHA-256 hashed, and base64url encoded without padding. The resulting `descriptorDigest` is the credential binding; Auth signs that digest and the individual stable references, never a caller-provided digest alone. Changes to any logical value—including a ToolContract version or omitted versus explicit `null`—produce a different digest and require a new confirmation.
+
+The compact ActionGrant JWS uses protected header `typ=ag+jwt` and is carried only as the single gRPC metadata value `x-oes-action-grant`. It is never a DTO field, query parameter, event payload, log field or audit plaintext. The matching DELEGATED ExecutionToken remains mandatory in `authorization` metadata.
+
 ## 3. Target Consumption Contract
 
 Target services require the matching DELEGATED ExecutionToken and validate ActionGrant signature, issuer, expiry, exact audience, workload binding, human / tenant / delegation attribution and the complete descriptor. They must atomically persist the unique grant consumption alongside their idempotency result and business write. A target must not use ActionGrant as a generic bearer capability or as a fallback after ExecutionToken validation fails.
+
+The target receipt must enforce unique `actionGrantJti` and unique `(tenant, human operator, operationKey, idempotencyKey)`. Repeating the same idempotency key with the same descriptor returns the established result; reusing either key with a different descriptor fails closed.
 
 ## 4. Stable Error Categories
 

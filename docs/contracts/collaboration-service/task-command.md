@@ -377,3 +377,47 @@ P1 command 返回的 `task` 至少包含：
 - 不允许调用方把 task command 当作跨服务长事务协调器。
 - 不允许跨 tenant 指派任务。
 - 不允许物理删除任务。
+
+## 7. Task Assistant Command Consumption
+
+本节只定义 Task Assistant P1 已注册的 Task command，不扩大本服务其他命令的 AI exposure；长期 Task owner 边界仍以 [collaboration-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/collaboration-service.md) 为准。
+
+### 7.1 AI risk subset
+
+- `CreateTask` self todo：`DELEGATION_ALLOWED`，要求明确 HUMAN 创建意图和 idempotency key，但不需要 ActionGrant。
+- `CreateTask` assigned task：`ACTION_GRANT_REQUIRED`，必须同时提供匹配的 DELEGATED ExecutionToken 与 `x-oes-action-grant` metadata。
+- `UpdateTask`、`StartTask`、`CompleteTask`、`CancelTask`、`ReopenTask`、`ArchiveTask`、`UnarchiveTask`：Task Assistant P1 的 `AI_FORBIDDEN`；既有 HUMAN 调用语义不变。
+
+### 7.2 Assigned-task ActionDescriptorV1
+
+assigned-task 的 operation key 固定为 `collaboration.task.create-assigned.v1`。业务 owner 在用户确认前构造：
+
+```json
+{
+  "descriptorVersion": "v1",
+  "operationKey": "collaboration.task.create-assigned.v1",
+  "toolContract": {
+    "id": "registered Task Assistant tool identity",
+    "version": "immutable registered version"
+  },
+  "target": {
+    "tenantId": "trusted tenant",
+    "assigneeAccountId": "target account"
+  },
+  "input": {
+    "title": "normalized title",
+    "description": "string or null",
+    "dueAt": "RFC 3339 instant or null",
+    "priority": "LOW | NORMAL | HIGH | URGENT"
+  },
+  "idempotencyKey": "opaque client-generated key"
+}
+```
+
+The descriptor uses the Auth ActionGrant Contract’s JCS / SHA-256 canonicalization. `priority` is explicit after defaulting; omitted and `null` are not interchangeable. The service derives creator, visibility and initial status from the verified execution context and verifies they equal the P1 assigned-task semantics before it consumes the grant.
+
+### 7.3 Idempotency And Consumption
+
+`CreateTaskRequest` gains `idempotency_key`. AI callers must provide a non-blank key; non-AI P1 callers retain their existing contract until their own migration is frozen. The key is an idempotency reference, not an authorization credential and not an ActionGrant substitute.
+
+The Collaboration-owned receipt persistence enforces both unique `actionGrantJti` and unique `(tenantId, operatorAccountId, operationKey, idempotencyKey)`. In the same local transaction it writes the Task, task audit, existing Task outbox, receipt and ActionGrant consumption. Identical retries return the original Task result; any digest, target or ActionGrant mismatch fails before a new Task is written. No ActionGrant content is accepted in request body, event payload or audit plaintext.
