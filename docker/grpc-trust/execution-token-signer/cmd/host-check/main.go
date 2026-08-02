@@ -17,6 +17,7 @@ import (
 	"github.com/miekg/pkcs11"
 	"oes/execution-token-signer-agent/internal/es256"
 	"oes/execution-token-signer-agent/manifest"
+	verifiermanifest "oes/execution-token-signer-agent/verifiermanifest"
 )
 
 var p256OID = []byte{0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07}
@@ -41,6 +42,16 @@ func main() {
 		fatal(runAssertOutage(os.Args[2:]))
 	case "assert-private-nonexportable":
 		fatal(runAssertPrivateNonExportable(os.Args[2:]))
+	case "generate-secret-key":
+		fatal(runGenerateSecretKey(os.Args[2:]))
+	case "derive-verifier-version":
+		fatal(runDeriveVerifierVersion(os.Args[2:]))
+	case "write-verifier-manifest":
+		fatal(runWriteVerifierManifest(os.Args[2:]))
+	case "verify-verifier-uds":
+		fatal(runVerifyVerifierUDS(os.Args[2:]))
+	case "assert-secret-nonexportable":
+		fatal(runAssertSecretNonExportable(os.Args[2:]))
 	default:
 		fatal(errors.New("host-check command forbidden"))
 	}
@@ -216,7 +227,7 @@ func runAssertPrivateNonExportable(arguments []string) error {
 		return errors.New("assert-private-nonexportable requires module, uri, and pin-file")
 	}
 	return withTokenSession(*module, *uri, *pinFile, func(module *pkcs11.Ctx, session pkcs11.SessionHandle, selector manifest.Selector) error {
-		key, err := findOne(module, session, pkcs11.CKO_PRIVATE_KEY, selector.ID)
+		key, err := findOne(module, session, pkcs11.CKO_PRIVATE_KEY, pkcs11.CKK_EC, selector.ID)
 		if err != nil {
 			return err
 		}
@@ -232,11 +243,155 @@ func runAssertPrivateNonExportable(arguments []string) error {
 	})
 }
 
+// runGenerateSecretKey creates one sensitive, non-extractable generic-secret object for the protected verifier path.
+func runGenerateSecretKey(arguments []string) error {
+	flags := flag.NewFlagSet("generate-secret-key", flag.ContinueOnError)
+	flags.SetOutput(ioDiscard{})
+	module := flags.String("module", "", "")
+	uri := flags.String("uri", "", "")
+	pinFile := flags.String("pin-file", "", "")
+	label := flags.String("label", "", "")
+	if flags.Parse(arguments) != nil || *module == "" || *uri == "" || *pinFile == "" || *label == "" {
+		return errors.New("generate-secret-key requires module, uri, pin-file, and label")
+	}
+	return withVerifierTokenSession(*module, *uri, *pinFile, func(module *pkcs11.Ctx, session pkcs11.SessionHandle, selector verifiermanifest.Selector) error {
+		_, err := module.GenerateKey(session, []*pkcs11.Mechanism{pkcs11.NewMechanism(pkcs11.CKM_GENERIC_SECRET_KEY_GEN, nil)}, secretKeyTemplate(selector.ID, *label))
+		return err
+	})
+}
+
+// runDeriveVerifierVersion reports the manifest logical version for a selected HMAC key without exposing the key material.
+func runDeriveVerifierVersion(arguments []string) error {
+	flags := flag.NewFlagSet("derive-verifier-version", flag.ContinueOnError)
+	flags.SetOutput(ioDiscard{})
+	version := flags.String("version", "", "")
+	if flags.Parse(arguments) != nil || *version == "" {
+		return errors.New("derive-verifier-version requires version")
+	}
+	_, err := fmt.Println(*version)
+	return err
+}
+
+// runWriteVerifierManifest writes active, verify-only, and optional compromised verifier status timelines that are valid at command execution time.
+func runWriteVerifierManifest(arguments []string) error {
+	flags := flag.NewFlagSet("write-verifier-manifest", flag.ContinueOnError)
+	flags.SetOutput(ioDiscard{})
+	output := flags.String("output", "", "")
+	activeURI := flags.String("active-uri", "", "")
+	activeVersion := flags.String("active-version", "", "")
+	verifyOnlyURI := flags.String("verify-only-uri", "", "")
+	verifyOnlyVersion := flags.String("verify-only-version", "", "")
+	compromisedURI := flags.String("compromised-uri", "", "")
+	compromisedVersion := flags.String("compromised-version", "", "")
+	compromisedIncident := flags.String("compromised-incident", "", "")
+	compromisedStateRevision := flags.String("compromised-state-revision", "", "")
+	if flags.Parse(arguments) != nil || *output == "" || *activeURI == "" || *activeVersion == "" || *verifyOnlyURI == "" || *verifyOnlyVersion == "" {
+		return errors.New("write-verifier-manifest requires output and active/verify-only URI/version pairs")
+	}
+	if (*compromisedURI == "") != (*compromisedVersion == "") || (*compromisedURI == "") != (*compromisedIncident == "") || (*compromisedURI == "") != (*compromisedStateRevision == "") {
+		return errors.New("compromised verifier manifest arguments must be supplied together")
+	}
+	now := time.Now().UTC()
+	versions := []verifiermanifest.Entry{
+		verifierEntry(*activeURI, *activeVersion, verifiermanifest.Active, now.Add(-10*time.Minute)),
+		verifierEntryWithVerifyOnly(*verifyOnlyURI, *verifyOnlyVersion, now.Add(-20*time.Minute), now.Add(-15*time.Minute), now.Add(5*time.Minute)),
+	}
+	if *compromisedURI != "" {
+		versions = append(versions, verifierCompromisedEntry(*compromisedURI, *compromisedVersion, *compromisedIncident, *compromisedStateRevision, now.Add(-25*time.Minute)))
+	}
+	document := verifiermanifest.Document{Versions: versions}
+	if err := document.Validate(); err != nil {
+		return err
+	}
+	encoded, err := json.Marshal(document)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(*output, append(encoded, '\n'), 0o600)
+}
+
+// runVerifyVerifierUDS proves actual readiness, ISSUE verification, VERIFY-only verification, optional compromised denial, and canonical HMAC output over the Unix socket.
+func runVerifyVerifierUDS(arguments []string) error {
+	flags := flag.NewFlagSet("verify-verifier-uds", flag.ContinueOnError)
+	flags.SetOutput(ioDiscard{})
+	socket := flags.String("socket", "", "")
+	module := flags.String("module", "", "")
+	uri := flags.String("uri", "", "")
+	pinFile := flags.String("pin-file", "", "")
+	activeVersion := flags.String("active-version", "", "")
+	verifyOnlyVersion := flags.String("verify-only-version", "", "")
+	compromisedVersion := flags.String("compromised-version", "", "")
+	compromisedIncident := flags.String("compromised-incident", "", "")
+	compromisedStateRevision := flags.String("compromised-state-revision", "", "")
+	if flags.Parse(arguments) != nil || *socket == "" || *module == "" || *uri == "" || *pinFile == "" || *activeVersion == "" || *verifyOnlyVersion == "" {
+		return errors.New("verify-verifier-uds requires socket, module, uri, pin-file, active-version, and verify-only-version")
+	}
+	if (*compromisedVersion == "") != (*compromisedIncident == "") || (*compromisedVersion == "") != (*compromisedStateRevision == "") {
+		return errors.New("compromised verifier UDS assertions must be supplied together")
+	}
+	var status verifierStatusResponse
+	if err := call(*socket, "GetExternalApiKeyVerifierStatus", map[string]any{}, &status); err != nil || status.ActiveVerifierKeyVersion != *activeVersion {
+		return errors.New("verifier status verification failed")
+	}
+	identifier := base64.RawURLEncoding.EncodeToString(bytes.Repeat([]byte{0x11}, 18))
+	secret := base64.RawURLEncoding.EncodeToString(bytes.Repeat([]byte{0x22}, 32))
+	var issued verifierResponse
+	if err := call(*socket, "ComputeExternalApiKeyVerifier", map[string]any{"mode": "ISSUE", "identifier": identifier, "secret": secret}, &issued); err != nil || issued.VerifierKeyVersion != *activeVersion {
+		return errors.New("issue verifier verification failed")
+	}
+	var verified verifierResponse
+	if err := call(*socket, "ComputeExternalApiKeyVerifier", map[string]any{"mode": "VERIFY", "identifier": identifier, "secret": secret, "verifierKeyVersion": *verifyOnlyVersion}, &verified); err != nil || verified.VerifierKeyVersion != *verifyOnlyVersion {
+		return errors.New("verify-only verifier verification failed")
+	}
+	expected, err := computeExpectedVerifier(*module, *uri, *pinFile, identifier, secret)
+	if err != nil || verified.Verifier != expected {
+		return errors.New("canonical verifier output mismatch")
+	}
+	if *compromisedVersion != "" {
+		compromised, ok := findVerifierStatusVersion(status.Versions, *compromisedVersion)
+		if !ok || compromised.State != string(verifiermanifest.CompromisedDisabled) || compromised.IncidentReference != *compromisedIncident || compromised.StateRevision != *compromisedStateRevision || compromised.OccurredAtUnixSeconds <= 0 {
+			return errors.New("compromised verifier status verification failed")
+		}
+		var denied verifierResponse
+		if err := call(*socket, "ComputeExternalApiKeyVerifier", map[string]any{"mode": "VERIFY", "identifier": identifier, "secret": secret, "verifierKeyVersion": *compromisedVersion}, &denied); err == nil {
+			return errors.New("compromised verifier compute denial failed")
+		}
+	}
+	return nil
+}
+
+// runAssertSecretNonExportable performs a real PKCS#11 secret-value access attempt and requires the object to remain sensitive and non-extractable.
+func runAssertSecretNonExportable(arguments []string) error {
+	flags := flag.NewFlagSet("assert-secret-nonexportable", flag.ContinueOnError)
+	flags.SetOutput(ioDiscard{})
+	module := flags.String("module", "", "")
+	uri := flags.String("uri", "", "")
+	pinFile := flags.String("pin-file", "", "")
+	if flags.Parse(arguments) != nil || *module == "" || *uri == "" || *pinFile == "" {
+		return errors.New("assert-secret-nonexportable requires module, uri, and pin-file")
+	}
+	return withVerifierTokenSession(*module, *uri, *pinFile, func(module *pkcs11.Ctx, session pkcs11.SessionHandle, selector verifiermanifest.Selector) error {
+		key, err := findOne(module, session, pkcs11.CKO_SECRET_KEY, pkcs11.CKK_GENERIC_SECRET, selector.ID)
+		if err != nil {
+			return err
+		}
+		attributes, err := module.GetAttributeValue(session, key, []*pkcs11.Attribute{pkcs11.NewAttribute(pkcs11.CKA_SENSITIVE, nil), pkcs11.NewAttribute(pkcs11.CKA_EXTRACTABLE, nil)})
+		if err != nil || !bytes.Equal(attribute(attributes, pkcs11.CKA_SENSITIVE), []byte{1}) || !bytes.Equal(attribute(attributes, pkcs11.CKA_EXTRACTABLE), []byte{0}) {
+			return errors.New("secret key attributes are exportable")
+		}
+		value, err := module.GetAttributeValue(session, key, []*pkcs11.Attribute{pkcs11.NewAttribute(pkcs11.CKA_VALUE, nil)})
+		if err == nil && len(attribute(value, pkcs11.CKA_VALUE)) != 0 {
+			return errors.New("secret key export was allowed")
+		}
+		return nil
+	})
+}
+
 // publicJWK reads one selected public P-256 object without opening a signer socket or private-key export path.
 func publicJWK(modulePath, rawURI, pinFile string) (es256.PublicJWK, error) {
 	var public es256.PublicJWK
 	err := withTokenSession(modulePath, rawURI, pinFile, func(module *pkcs11.Ctx, session pkcs11.SessionHandle, selector manifest.Selector) error {
-		key, err := findOne(module, session, pkcs11.CKO_PUBLIC_KEY, selector.ID)
+		key, err := findOne(module, session, pkcs11.CKO_PUBLIC_KEY, pkcs11.CKK_EC, selector.ID)
 		if err != nil {
 			return err
 		}
@@ -250,9 +405,70 @@ func publicJWK(modulePath, rawURI, pinFile string) (es256.PublicJWK, error) {
 	return public, err
 }
 
+// computeExpectedVerifier computes the canonical HMAC verifier through the local HSM path for acceptance checks.
+func computeExpectedVerifier(modulePath, rawURI, pinFile, identifier, secret string) (string, error) {
+	var verifier string
+	err := withVerifierTokenSession(modulePath, rawURI, pinFile, func(module *pkcs11.Ctx, session pkcs11.SessionHandle, selector verifiermanifest.Selector) error {
+		input, err := externalVerifierInput(identifier, secret)
+		if err != nil {
+			return err
+		}
+		key, err := findOne(module, session, pkcs11.CKO_SECRET_KEY, pkcs11.CKK_GENERIC_SECRET, selector.ID)
+		if err != nil {
+			return err
+		}
+		if err := module.SignInit(session, []*pkcs11.Mechanism{pkcs11.NewMechanism(pkcs11.CKM_SHA256_HMAC, nil)}, key); err != nil {
+			return err
+		}
+		mac, err := module.Sign(session, input)
+		if err != nil {
+			return err
+		}
+		verifier = base64.RawURLEncoding.EncodeToString(mac)
+		return nil
+	})
+	return verifier, err
+}
+
 // withTokenSession creates one authenticated local PKCS#11 session from a mode-restricted PIN file and zeroizes its buffer after the operation.
 func withTokenSession(modulePath, rawURI, pinFile string, operation func(*pkcs11.Ctx, pkcs11.SessionHandle, manifest.Selector) error) error {
 	selector, err := manifest.ParseSelector(rawURI)
+	if err != nil {
+		return err
+	}
+	module := pkcs11.New(modulePath)
+	if module == nil {
+		return errors.New("PKCS11 module unavailable")
+	}
+	defer module.Destroy()
+	if err := module.Initialize(); err != nil {
+		return err
+	}
+	defer module.Finalize()
+	slot, err := findSlot(module, selector.TokenSerial)
+	if err != nil {
+		return err
+	}
+	session, err := module.OpenSession(slot, pkcs11.CKF_SERIAL_SESSION|pkcs11.CKF_RW_SESSION)
+	if err != nil {
+		return err
+	}
+	defer module.CloseSession(session)
+	pin, err := credentialFromFile(pinFile)
+	if err != nil {
+		return err
+	}
+	defer zero(pin)
+	if err := module.Login(session, pkcs11.CKU_USER, string(pin)); err != nil {
+		return err
+	}
+	defer module.Logout(session)
+	return operation(module, session, selector)
+}
+
+// withVerifierTokenSession creates one authenticated local PKCS#11 session for the verifier path.
+func withVerifierTokenSession(modulePath, rawURI, pinFile string, operation func(*pkcs11.Ctx, pkcs11.SessionHandle, verifiermanifest.Selector) error) error {
+	selector, err := verifiermanifest.ParseSelector(rawURI)
 	if err != nil {
 		return err
 	}
@@ -311,9 +527,14 @@ func keyPairTemplates(id []byte, label string) ([]*pkcs11.Attribute, []*pkcs11.A
 	return public, private
 }
 
+// secretKeyTemplate defines the only local HMAC-generation attributes: token-resident, sensitive, non-extractable generic secret material.
+func secretKeyTemplate(id []byte, label string) []*pkcs11.Attribute {
+	return []*pkcs11.Attribute{pkcs11.NewAttribute(pkcs11.CKA_CLASS, pkcs11.CKO_SECRET_KEY), pkcs11.NewAttribute(pkcs11.CKA_KEY_TYPE, pkcs11.CKK_GENERIC_SECRET), pkcs11.NewAttribute(pkcs11.CKA_TOKEN, true), pkcs11.NewAttribute(pkcs11.CKA_PRIVATE, true), pkcs11.NewAttribute(pkcs11.CKA_LABEL, label), pkcs11.NewAttribute(pkcs11.CKA_ID, id), pkcs11.NewAttribute(pkcs11.CKA_VALUE_LEN, 32), pkcs11.NewAttribute(pkcs11.CKA_SENSITIVE, true), pkcs11.NewAttribute(pkcs11.CKA_EXTRACTABLE, false), pkcs11.NewAttribute(pkcs11.CKA_SIGN, true), pkcs11.NewAttribute(pkcs11.CKA_VERIFY, true)}
+}
+
 // findOne resolves exactly one EC key object by the selector's binary CKA_ID without provider-order fallback.
-func findOne(module *pkcs11.Ctx, session pkcs11.SessionHandle, class uint, id []byte) (pkcs11.ObjectHandle, error) {
-	attributes := []*pkcs11.Attribute{pkcs11.NewAttribute(pkcs11.CKA_CLASS, class), pkcs11.NewAttribute(pkcs11.CKA_KEY_TYPE, pkcs11.CKK_EC), pkcs11.NewAttribute(pkcs11.CKA_ID, id)}
+func findOne(module *pkcs11.Ctx, session pkcs11.SessionHandle, class uint, keyType uint, id []byte) (pkcs11.ObjectHandle, error) {
+	attributes := []*pkcs11.Attribute{pkcs11.NewAttribute(pkcs11.CKA_CLASS, class), pkcs11.NewAttribute(pkcs11.CKA_KEY_TYPE, keyType), pkcs11.NewAttribute(pkcs11.CKA_ID, id)}
 	if err := module.FindObjectsInit(session, attributes); err != nil {
 		return 0, err
 	}
@@ -323,6 +544,65 @@ func findOne(module *pkcs11.Ctx, session pkcs11.SessionHandle, class uint, id []
 		return 0, errors.New("selected key unavailable")
 	}
 	return objects[0], nil
+}
+
+// externalVerifierInput mirrors the frozen Auth-side canonical verifier input exactly.
+func externalVerifierInput(identifier, secret string) ([]byte, error) {
+	identifierBytes, err := base64.RawURLEncoding.DecodeString(identifier)
+	if err != nil || base64.RawURLEncoding.EncodeToString(identifierBytes) != identifier || len(identifierBytes) != 18 {
+		return nil, errors.New("invalid identifier")
+	}
+	secretBytes, err := base64.RawURLEncoding.DecodeString(secret)
+	if err != nil || base64.RawURLEncoding.EncodeToString(secretBytes) != secret || len(secretBytes) != 32 {
+		return nil, errors.New("invalid secret")
+	}
+	return bytes.Join([][]byte{[]byte("oes.auth.external-api-key-verifier/v1"), {0}, []byte(identifier), {0}, secretBytes}, nil), nil
+}
+
+// verifierEntry renders one UTC verifier manifest timeline while preserving the fixed active-or-verify-only state.
+func verifierEntry(uri, version string, state verifiermanifest.State, activatedAt time.Time) verifiermanifest.Entry {
+	return verifiermanifest.Entry{PKCS11URI: uri, VerifierKeyVersion: version, State: state, ActivatedAt: activatedAt.Format(time.RFC3339)}
+}
+
+// verifierEntryWithVerifyOnly renders one verify-only verifier manifest timeline with explicit retirement timing.
+func verifierEntryWithVerifyOnly(uri, version string, activatedAt, verifyOnlyAt, retireAfter time.Time) verifiermanifest.Entry {
+	return verifiermanifest.Entry{PKCS11URI: uri, VerifierKeyVersion: version, State: verifiermanifest.VerifyOnly, ActivatedAt: activatedAt.Format(time.RFC3339), VerifyOnlyAt: verifyOnlyAt.Format(time.RFC3339), RetireAfter: retireAfter.Format(time.RFC3339)}
+}
+
+// verifierCompromisedEntry renders one terminal compromised-disabled verifier record with immutable safe evidence only.
+func verifierCompromisedEntry(uri, version, incidentReference, stateRevision string, occurredAt time.Time) verifiermanifest.Entry {
+	return verifiermanifest.Entry{PKCS11URI: uri, VerifierKeyVersion: version, State: verifiermanifest.CompromisedDisabled, IncidentReference: incidentReference, OccurredAt: occurredAt.Format(time.RFC3339), StateRevision: stateRevision}
+}
+
+type verifierStatusResponse struct {
+	ActiveVerifierKeyVersion string                  `json:"activeVerifierKeyVersion"`
+	Versions                 []verifierStatusVersion `json:"versions"`
+}
+
+type verifierStatusVersion struct {
+	VerifierKeyVersion      string `json:"verifierKeyVersion"`
+	State                   string `json:"state"`
+	ActivatedAtUnixSeconds  int64  `json:"activatedAtUnixSeconds,omitempty"`
+	VerifyOnlyAtUnixSeconds int64  `json:"verifyOnlyAtUnixSeconds,omitempty"`
+	RetireAfterUnixSeconds  int64  `json:"retireAfterUnixSeconds,omitempty"`
+	IncidentReference       string `json:"incidentReference,omitempty"`
+	OccurredAtUnixSeconds   int64  `json:"occurredAtUnixSeconds,omitempty"`
+	StateRevision           string `json:"stateRevision,omitempty"`
+}
+
+type verifierResponse struct {
+	Verifier           string `json:"verifier"`
+	VerifierKeyVersion string `json:"verifierKeyVersion"`
+}
+
+// findVerifierStatusVersion locates one logical verifier version in the read-only readiness response.
+func findVerifierStatusVersion(versions []verifierStatusVersion, version string) (verifierStatusVersion, bool) {
+	for _, candidate := range versions {
+		if candidate.VerifierKeyVersion == version {
+			return candidate, true
+		}
+	}
+	return verifierStatusVersion{}, false
 }
 
 // call performs one newline-delimited JSON-RPC request over the exact Unix-socket protocol and rejects remote errors.

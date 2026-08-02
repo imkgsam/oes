@@ -2,11 +2,13 @@ package main
 
 import (
 	"bytes"
+	"encoding/base64"
 	"errors"
 	"os"
 	"time"
 
 	"oes/execution-token-signer-agent/manifest"
+	verifiermanifest "oes/execution-token-signer-agent/verifiermanifest"
 )
 
 // CredentialResolver resolves optional backend credentials entirely inside the signer process.
@@ -46,14 +48,20 @@ type resolvedKey struct {
 
 // Runtime is the manifest-derived signer backend that owns time-window enforcement and the PKCS#11 adapter.
 type Runtime struct {
-	keys    []resolvedKey
-	now     func() time.Time
-	adapter *PKCS11Adapter
+	keys      []resolvedKey
+	verifiers []resolvedVerifier
+	now       func() time.Time
+	adapter   *PKCS11Adapter
 }
 
 // NewRuntime creates an already-validated runtime for tests or the PKCS#11 bootstrap path.
 func NewRuntime(keys []resolvedKey, now time.Time) *Runtime {
 	return &Runtime{keys: append([]resolvedKey(nil), keys...), now: func() time.Time { return now }}
+}
+
+// AttachVerifierRuntime binds the protected API-key verifier runtime after the signing runtime has already been bootstrapped.
+func (r *Runtime) AttachVerifierRuntime(verifiers []resolvedVerifier) {
+	r.verifiers = append([]resolvedVerifier(nil), verifiers...)
 }
 
 // BootstrapRuntime validates every manifest entry against its public and private PKCS#11 objects before serving requests.
@@ -168,6 +176,59 @@ func (r *Runtime) Close() error {
 	return r.adapter.Close()
 }
 
+// GetExternalApiKeyVerifierStatus returns the current active, verify-only, and terminal compromised logical versions.
+func (r *Runtime) GetExternalApiKeyVerifierStatus() (ExternalApiKeyVerifierStatusResponse, error) {
+	active, err := r.activeVerifier(r.clock())
+	if err != nil {
+		return ExternalApiKeyVerifierStatusResponse{}, err
+	}
+	versions := make([]ExternalApiKeyVerifierVersionResponse, 0, len(r.verifiers))
+	for _, verifier := range r.verifiers {
+		versions = append(versions, verifier.response)
+	}
+	return ExternalApiKeyVerifierStatusResponse{ActiveVerifierKeyVersion: active.response.VerifierKeyVersion, Versions: versions}, nil
+}
+
+// ComputeExternalApiKeyVerifier seals or verifies one canonical identifier and secret pair with a fixed HMAC input.
+func (r *Runtime) ComputeExternalApiKeyVerifier(mode string, identifier string, secret string, verifierKeyVersion string) (ExternalApiKeyVerifierResponse, error) {
+	if len(r.verifiers) == 0 {
+		return ExternalApiKeyVerifierResponse{}, errors.New("rotation manifest has no verifier keys")
+	}
+	input, err := externalApiKeyVerifierInput(identifier, secret)
+	if err != nil {
+		return ExternalApiKeyVerifierResponse{}, err
+	}
+	var selected resolvedVerifier
+	switch mode {
+	case "ISSUE":
+		if verifierKeyVersion != "" {
+			return ExternalApiKeyVerifierResponse{}, errors.New("issue verifier key version forbidden")
+		}
+		selected, err = r.activeVerifier(r.clock())
+		if err != nil {
+			return ExternalApiKeyVerifierResponse{}, err
+		}
+	case "VERIFY":
+		selected, err = r.verifierByVersion(verifierKeyVersion, r.clock())
+		if err != nil {
+			return ExternalApiKeyVerifierResponse{}, err
+		}
+	default:
+		return ExternalApiKeyVerifierResponse{}, errors.New("invalid verifier mode")
+	}
+	if selected.compute == nil {
+		return ExternalApiKeyVerifierResponse{}, errors.New("verifier version unavailable")
+	}
+	mac, err := selected.compute(input)
+	if err != nil || len(mac) != 32 {
+		return ExternalApiKeyVerifierResponse{}, errors.New("protected verifier computation failed")
+	}
+	return ExternalApiKeyVerifierResponse{
+		Verifier:           base64.RawURLEncoding.EncodeToString(mac),
+		VerifierKeyVersion: selected.response.VerifierKeyVersion,
+	}, nil
+}
+
 // activeKey verifies the one-and-only-one signing window instead of choosing a key by manifest order.
 func (r *Runtime) activeKey(now time.Time) (resolvedKey, error) {
 	var active *resolvedKey
@@ -192,4 +253,65 @@ func (r *Runtime) clock() time.Time {
 		return time.Now()
 	}
 	return r.now()
+}
+
+// activeVerifier verifies the one-and-only-one active verifier window instead of choosing a version by manifest order.
+func (r *Runtime) activeVerifier(now time.Time) (resolvedVerifier, error) {
+	var active *resolvedVerifier
+	for index := range r.verifiers {
+		verifier := &r.verifiers[index]
+		if verifier.response.State == string(verifiermanifest.Active) && verifier.response.ActivatedAtUnixSeconds <= now.Unix() {
+			if active != nil {
+				return resolvedVerifier{}, errors.New("verifier manifest has multiple active versions")
+			}
+			active = verifier
+		}
+	}
+	if active == nil {
+		return resolvedVerifier{}, errors.New("verifier manifest has no active version")
+	}
+	return *active, nil
+}
+
+// verifierByVersion resolves a known verifier version or fails closed if it is absent.
+func (r *Runtime) verifierByVersion(version string, now time.Time) (resolvedVerifier, error) {
+	if version == "" {
+		return resolvedVerifier{}, errors.New("verifier version required")
+	}
+	for index := range r.verifiers {
+		verifier := r.verifiers[index]
+		if verifier.response.VerifierKeyVersion != version || verifier.response.ActivatedAtUnixSeconds > now.Unix() {
+			continue
+		}
+		switch verifier.response.State {
+		case string(verifiermanifest.Active):
+			return verifier, nil
+		case string(verifiermanifest.VerifyOnly):
+			if verifier.response.VerifyOnlyAtUnixSeconds <= now.Unix() && now.Unix() < verifier.response.RetireAfterUnixSeconds {
+				return verifier, nil
+			}
+		case string(verifiermanifest.CompromisedDisabled):
+			return resolvedVerifier{}, errors.New("verifier version unavailable")
+		}
+	}
+	return resolvedVerifier{}, errors.New("verifier version unavailable")
+}
+
+// externalApiKeyVerifierInput enforces the canonical ADR 0017 input before the HMAC key is asked to compute a verifier.
+func externalApiKeyVerifierInput(identifier, secret string) ([]byte, error) {
+	decodedSecret, err := base64.RawURLEncoding.DecodeString(secret)
+	if err != nil || base64.RawURLEncoding.EncodeToString(decodedSecret) != secret || len(decodedSecret) != 32 {
+		return nil, errors.New("invalid external API-key secret")
+	}
+	decodedIdentifier, err := base64.RawURLEncoding.DecodeString(identifier)
+	if err != nil || base64.RawURLEncoding.EncodeToString(decodedIdentifier) != identifier || len(decodedIdentifier) != 18 {
+		return nil, errors.New("invalid external API-key identifier")
+	}
+	return bytes.Join([][]byte{
+		[]byte("oes.auth.external-api-key-verifier/v1"),
+		{0},
+		[]byte(identifier),
+		{0},
+		decodedSecret,
+	}, nil), nil
 }

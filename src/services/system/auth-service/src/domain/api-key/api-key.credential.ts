@@ -1,12 +1,22 @@
-import { createHmac, randomBytes, timingSafeEqual } from 'crypto'
+import { randomBytes, timingSafeEqual } from 'node:crypto'
 
 export type ApiKeyCredentialStatus = 'ACTIVE' | 'REVOKED'
+
+export interface GeneratedApiKeyPresentation {
+  keyIdentifier: string
+  secret: string
+  presentedKey: string
+  createdAt: Date
+  expiresAt: Date
+}
 
 export interface IssueApiKeyCredentialInput {
   integrationMachineId: string
   tenantId: string
-  pepper: string
-  pepperVersion: string
+  keyIdentifier: string
+  secret: string
+  verifier: string
+  verifierKeyVersion: string
   now?: Date
   expiresAt?: Date
 }
@@ -16,7 +26,11 @@ interface ApiKeyParts {
   secret: string
 }
 
-/** Represents an Auth-owned API key verifier without retaining its recoverable secret. */
+const API_KEY_PREFIX = 'oek_live_'
+const VERIFIER_BYTES = 32
+const DUMMY_VERIFIER = Buffer.alloc(VERIFIER_BYTES).toString('base64url')
+
+/** Represents an Auth-owned API-key verifier record without retaining its recoverable secret material. */
 export class ApiKeyCredential {
   private _status: ApiKeyCredentialStatus
   private _revokedAt?: Date
@@ -26,7 +40,7 @@ export class ApiKeyCredential {
     public readonly tenantId: string,
     public readonly keyIdentifier: string,
     public readonly verifier: string,
-    public readonly pepperVersion: string,
+    public readonly verifierKeyVersion: string,
     public readonly createdAt: Date,
     public readonly expiresAt: Date,
     status: ApiKeyCredentialStatus = 'ACTIVE',
@@ -46,45 +60,89 @@ export class ApiKeyCredential {
     return this._revokedAt
   }
 
-  /** Issues a cryptographically random, one-time-presented key and stores only its HMAC verifier. */
+  /** Generates the one-time identifier and secret pair that Auth later seals through the protected verifier provider. */
+  static generatePresentation(input?: {
+    now?: Date
+    expiresAt?: Date
+  }): GeneratedApiKeyPresentation {
+    const createdAt = input?.now ?? new Date()
+    const expiresAt = input?.expiresAt ?? ApiKeyCredential.defaultExpiry(createdAt)
+    const keyIdentifier = randomBytes(18).toString('base64url')
+    const secret = randomBytes(32).toString('base64url')
+    return {
+      keyIdentifier,
+      secret,
+      presentedKey: ApiKeyCredential.buildPresentedKey(keyIdentifier, secret),
+      createdAt,
+      expiresAt
+    }
+  }
+
+  /** Materializes one persisted credential from a provider-computed verifier and the generated presentation. */
   static issue(input: IssueApiKeyCredentialInput): {
     credential: ApiKeyCredential
     presentedKey: string
   } {
-    const now = input.now ?? new Date()
-    const expiresAt = input.expiresAt ?? ApiKeyCredential.defaultExpiry(now)
-    const identifier = randomBytes(18).toString('base64url')
-    const secret = randomBytes(32).toString('base64url')
-    const presentedKey = `oek_live_${identifier}.${secret}`
-
+    const createdAt = input.now ?? new Date()
+    const expiresAt = input.expiresAt ?? ApiKeyCredential.defaultExpiry(createdAt)
     return {
       credential: new ApiKeyCredential(
         input.integrationMachineId,
         input.tenantId,
-        identifier,
-        ApiKeyCredential.createVerifier(identifier, secret, input.pepper),
-        input.pepperVersion,
-        now,
+        input.keyIdentifier,
+        input.verifier,
+        input.verifierKeyVersion,
+        createdAt,
         expiresAt
       ),
-      presentedKey
+      presentedKey: ApiKeyCredential.buildPresentedKey(input.keyIdentifier, input.secret)
     }
   }
 
-  /** Verifies a presented key in constant time while rejecting malformed or mismatched credentials. */
-  verify(presentedKey: string, pepper: string): boolean {
-    const parts = ApiKeyCredential.parse(presentedKey)
-    if (!parts || parts.identifier !== this.keyIdentifier || !pepper) {
-      return false
+  /** Parses only the frozen external API-key presentation shape before Auth touches any provider path. */
+  static parse(presentedKey: string): ApiKeyParts | undefined {
+    const match = /^oek_live_([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)$/.exec(presentedKey)
+    if (!match) {
+      return undefined
     }
+    if (
+      !isCanonicalBase64UrlComponent(match[1], 18) ||
+      !isCanonicalBase64UrlComponent(match[2], 32)
+    ) {
+      return undefined
+    }
+    return { identifier: match[1], secret: match[2] }
+  }
 
-    const candidate = Buffer.from(
-      ApiKeyCredential.createVerifier(parts.identifier, parts.secret, pepper),
-      'hex'
+  /** Provides the fixed non-secret verifier value used by the unknown-identifier deny path. */
+  static dummyVerifier(): string {
+    return DUMMY_VERIFIER
+  }
+
+  /** Compares two canonical verifier values with equal-length constant-time semantics. */
+  static sameVerifier(candidate: string, expected: string): boolean {
+    const candidateBytes = decodeCanonicalVerifier(candidate)
+    const expectedBytes = decodeCanonicalVerifier(expected)
+    return (
+      candidateBytes !== undefined &&
+      expectedBytes !== undefined &&
+      candidateBytes.length === expectedBytes.length &&
+      timingSafeEqual(candidateBytes, expectedBytes)
     )
-    const expected = Buffer.from(this.verifier, 'hex')
+  }
 
-    return candidate.length === expected.length && timingSafeEqual(candidate, expected)
+  /** Verifies a presented key only after Auth has obtained a provider-computed candidate verifier. */
+  verify(presentedKey: string, candidateVerifier: string): boolean {
+    const parts = ApiKeyCredential.parse(presentedKey)
+    return (
+      parts?.identifier === this.keyIdentifier &&
+      ApiKeyCredential.sameVerifier(candidateVerifier, this.verifier)
+    )
+  }
+
+  /** Verifies a provider-computed candidate against the stored verifier with constant-time equality. */
+  matchesVerifier(candidateVerifier: string): boolean {
+    return ApiKeyCredential.sameVerifier(candidateVerifier, this.verifier)
   }
 
   /** Reports whether a credential remains active and strictly before its configured expiry. */
@@ -97,9 +155,13 @@ export class ApiKeyCredential {
     if (this.status === 'REVOKED') {
       return
     }
-
     this._status = 'REVOKED'
     this._revokedAt = revokedAt
+  }
+
+  /** Builds the frozen one-time API-key presentation string from its generated identifier and secret parts. */
+  private static buildPresentedKey(identifier: string, secret: string): string {
+    return `${API_KEY_PREFIX}${identifier}.${secret}`
   }
 
   /** Derives the one-year default expiration without allowing use to extend credential lifetime. */
@@ -108,19 +170,29 @@ export class ApiKeyCredential {
     expiresAt.setFullYear(expiresAt.getFullYear() + 1)
     return expiresAt
   }
+}
 
-  /** Produces the irreversible verifier over both key components to prevent cross-credential mixing. */
-  private static createVerifier(identifier: string, secret: string, pepper: string): string {
-    return createHmac('sha256', pepper).update(`${identifier}.${secret}`).digest('hex')
+/** Accepts only the frozen unpadded base64url component shape and decoded byte length. */
+function isCanonicalBase64UrlComponent(value: string, expectedBytes: number): boolean {
+  try {
+    const decoded = Buffer.from(value, 'base64url')
+    return decoded.length === expectedBytes && decoded.toString('base64url') === value
+  } catch {
+    return false
   }
+}
 
-  /** Parses only the frozen external API key presentation format. */
-  private static parse(presentedKey: string): ApiKeyParts | undefined {
-    const match = /^oek_live_([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)$/.exec(presentedKey)
-    if (!match) {
-      return undefined
-    }
-
-    return { identifier: match[1], secret: match[2] }
+/** Decodes only canonical base64url verifier values so Auth never compares malformed provider output. */
+function decodeCanonicalVerifier(value: string): Buffer | undefined {
+  if (!value) {
+    return undefined
+  }
+  try {
+    const decoded = Buffer.from(value, 'base64url')
+    return decoded.length === VERIFIER_BYTES && decoded.toString('base64url') === value
+      ? decoded
+      : undefined
+  } catch {
+    return undefined
   }
 }

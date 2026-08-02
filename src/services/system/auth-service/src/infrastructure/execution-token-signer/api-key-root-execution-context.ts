@@ -13,6 +13,13 @@ const ROOT_MACHINE_POLICIES = Object.freeze([
     permissionCodes: Object.freeze(['auth.internal.external_api_key.exchange'])
   }),
   Object.freeze({
+    subject: 'security-operations-runner',
+    workloadSuffix: '/security-operations-runner',
+    permissionCodes: Object.freeze([
+      'auth.internal.external_api_key.verifier_version.compromise'
+    ])
+  }),
+  Object.freeze({
     subject: 'auth-service',
     workloadSuffix: '/auth-service',
     permissionCodes: Object.freeze([

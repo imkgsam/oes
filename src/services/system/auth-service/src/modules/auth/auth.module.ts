@@ -84,9 +84,11 @@ import { AuthGrpcController } from '../../interfaces/grpc/auth.grpc.controller'
 import { ExternalApiKeyGrpcController } from '../../interfaces/grpc/external-api-key.grpc.controller'
 import { ExecutionTokenModule } from '../token/execution-token.module'
 import { EXECUTION_TOKEN_SIGNER } from '../token/execution-token.module'
+import { UdsSignerClient } from '../../infrastructure/execution-token-signer/uds-signer.client'
 import { GatewayExternalAccessTokenIssuer } from '../../application/services/gateway-external-access-token-issuer'
-import { EXTERNAL_API_KEY_PEPPER_PORT } from '../../application/ports/external-api-key-pepper.port'
-import { ProtectedExternalApiKeyPepperAdapter } from '../../infrastructure/services/protected-external-api-key-pepper.adapter'
+import { EXTERNAL_API_KEY_VERIFIER_PORT } from '../../application/ports/external-api-key-verifier.port'
+import { ProtectedExternalApiKeyVerifierAdapter } from '../../infrastructure/services/protected-external-api-key-verifier.adapter'
+import { LocalDevelopmentExternalApiKeyVerifier } from '../../infrastructure/services/local-development-external-api-key-verifier'
 import { ExternalApiKeyRequestContextAdapter } from '../../interfaces/grpc/external-api-key-context.adapter'
 import { GrpcRequestContextStore } from '@oes/common/authorization'
 import { EXTERNAL_API_KEY_CONTEXT_PORT } from '../../common/constants/injection-tokens'
@@ -94,8 +96,13 @@ import { EXTERNAL_API_KEY_AUDIT_PORT } from '../../common/constants/injection-to
 import { TENANT_LIFECYCLE_ACCESS_PORT } from '../../common/constants/injection-tokens'
 import { ExternalApiKeyAuditAdapter } from '../../infrastructure/adaptors/external-api-key-audit.adapter'
 import { ExternalApiKeyCredentialService } from '../../application/services/external-api-key-credential.service'
+import { ExternalApiKeyVerifierCompromiseService } from '../../application/services/external-api-key-verifier-compromise.service'
 import { PrismaExternalApiKeyCredentialRepository } from '../../infrastructure/repositories/prisma/prisma.external-api-key-credential.repository'
-import { EXTERNAL_API_KEY_IDENTITY_OWNER_PORT, EXTERNAL_API_KEY_PERMISSION_SNAPSHOT_PORT } from '../../common/constants/injection-tokens'
+import { PrismaExternalApiKeyVerifierCompromiseRepository } from '../../infrastructure/repositories/prisma/prisma.external-api-key-verifier-compromise.repository'
+import {
+  EXTERNAL_API_KEY_IDENTITY_OWNER_PORT,
+  EXTERNAL_API_KEY_PERMISSION_SNAPSHOT_PORT
+} from '../../common/constants/injection-tokens'
 import { IDENTITY_SERVICE, PERMISSION_SERVICE } from '@oes/common/constants'
 import { GrpcWorkloadIdentityProvider } from '@oes/common/transport'
 
@@ -224,17 +231,23 @@ const AUTH_SERVICE_AUDIENCE = 'urn:oes:service:auth-service'
     PrismaTerminalMfaPolicyRepository,
     PrismaTrustedDeviceRepository,
     PrismaExternalApiKeyCredentialRepository,
+    PrismaExternalApiKeyVerifierCompromiseRepository,
     {
       provide: ExecutionTokenVerifier,
       useFactory: () => createLazyTrustedExecutionRuntime(AUTH_SERVICE_AUDIENCE).verifier
     },
     {
       provide: GrpcWorkloadIdentityProvider,
-      useFactory: () => createLazyTrustedExecutionRuntime(AUTH_SERVICE_AUDIENCE).workloadIdentityProvider
+      useFactory: () =>
+        createLazyTrustedExecutionRuntime(AUTH_SERVICE_AUDIENCE).workloadIdentityProvider
     },
     {
       provide: TrustedInternalExecutionGuard,
-      useFactory: (reflector: Reflector, verifier: ExecutionTokenVerifier, workloadIdentityProvider: GrpcWorkloadIdentityProvider) =>
+      useFactory: (
+        reflector: Reflector,
+        verifier: ExecutionTokenVerifier,
+        workloadIdentityProvider: GrpcWorkloadIdentityProvider
+      ) =>
         new TrustedInternalExecutionGuard(
           reflector,
           verifier,
@@ -248,47 +261,83 @@ const AUTH_SERVICE_AUDIENCE = 'urn:oes:service:auth-service'
     { provide: EXTERNAL_API_KEY_CONTEXT_PORT, useExisting: ExternalApiKeyRequestContextAdapter },
     {
       provide: ExternalApiKeyAuditAdapter,
-      useFactory: (repository: PrismaAuthAuditRepository) => new ExternalApiKeyAuditAdapter(async (event) => repository.append(event as any)),
+      useFactory: (repository: PrismaAuthAuditRepository) =>
+        new ExternalApiKeyAuditAdapter(async (event) => repository.append(event as any)),
       inject: [PrismaAuthAuditRepository]
     },
     { provide: EXTERNAL_API_KEY_AUDIT_PORT, useExisting: ExternalApiKeyAuditAdapter },
     { provide: EXTERNAL_API_KEY_IDENTITY_OWNER_PORT, useExisting: IDENTITY_SERVICE },
     { provide: EXTERNAL_API_KEY_PERMISSION_SNAPSHOT_PORT, useExisting: PERMISSION_SERVICE },
     {
-      provide: EXTERNAL_API_KEY_PEPPER_PORT,
-      useFactory: () =>
-        new ProtectedExternalApiKeyPepperAdapter(
-          undefined,
-          process.env.AUTH_EXTERNAL_API_KEY_PEPPER_REFERENCE,
-          process.env.AUTH_EXTERNAL_API_KEY_PEPPER_VERSION
-        )
+      provide: EXTERNAL_API_KEY_VERIFIER_PORT,
+      useFactory: () => createExternalApiKeyVerifierProvider()
+    },
+    {
+      provide: ExternalApiKeyVerifierCompromiseService,
+      useFactory: (verifier: any, store: PrismaExternalApiKeyVerifierCompromiseRepository) =>
+        new ExternalApiKeyVerifierCompromiseService(verifier, store),
+      inject: [EXTERNAL_API_KEY_VERIFIER_PORT, PrismaExternalApiKeyVerifierCompromiseRepository]
     },
     {
       provide: GatewayExternalAccessTokenIssuer,
-      useFactory: (signer: any) => new GatewayExternalAccessTokenIssuer(process.env.AUTH_EXECUTION_ISSUER ?? '', signer),
+      useFactory: (signer: any) =>
+        new GatewayExternalAccessTokenIssuer(process.env.AUTH_EXECUTION_ISSUER ?? '', signer),
       inject: [EXECUTION_TOKEN_SIGNER]
     },
     {
       provide: ExternalApiKeyCredentialService,
-      useFactory: (repository: PrismaExternalApiKeyCredentialRepository, pepper: any, identity: any, tenantLifecycle: any, permission: any, context: any, audit: ExternalApiKeyAuditAdapter, issuer: GatewayExternalAccessTokenIssuer) =>
+      useFactory: (
+        repository: PrismaExternalApiKeyCredentialRepository,
+        verifier: any,
+        identity: any,
+        tenantLifecycle: any,
+        permission: any,
+        context: any,
+        audit: ExternalApiKeyAuditAdapter,
+        issuer: GatewayExternalAccessTokenIssuer
+      ) =>
         new ExternalApiKeyCredentialService(
           {
-            create: async (credentialId, credential) => repository.create({ id: credentialId, integrationMachineId: credential.integrationMachineId, tenantId: credential.tenantId, keyIdentifier: credential.keyIdentifier, verifier: credential.verifier, pepperVersion: credential.pepperVersion, expiresAt: credential.expiresAt }),
+            create: async (credentialId, credential) =>
+              repository.create({
+                id: credentialId,
+                integrationMachineId: credential.integrationMachineId,
+                tenantId: credential.tenantId,
+                keyIdentifier: credential.keyIdentifier,
+                verifier: credential.verifier,
+                verifierKeyVersion: credential.verifierKeyVersion,
+                expiresAt: credential.expiresAt
+              }),
             findById: async (credentialId) => repository.findById(credentialId),
             findByIdentifier: async (keyIdentifier) => repository.findByIdentifier(keyIdentifier),
-            listByMachine: async (integrationMachineId, tenantId) => repository.listByMachine(integrationMachineId, tenantId),
+            listByMachine: async (integrationMachineId, tenantId) =>
+              repository.listByMachine(integrationMachineId, tenantId),
+            listUsableVerifierKeyVersions: async (now) =>
+              repository.listUsableVerifierKeyVersions(now),
             revoke: async (credentialId) => repository.revoke(credentialId),
             rotate: async (input) => repository.rotate(input)
           } as any,
-          pepper,
+          verifier,
           { resolve: (id: string) => identity.resolveIntegrationMachineForAuth(id) },
           tenantLifecycle,
-          { snapshot: (id: string, tenantId: string) => permission.resolveExternalMachineAuthorizationSnapshot(id, tenantId) },
+          {
+            snapshot: (id: string, tenantId: string) =>
+              permission.resolveExternalMachineAuthorizationSnapshot(id, tenantId)
+          },
           context,
           audit,
           issuer
         ),
-      inject: [PrismaExternalApiKeyCredentialRepository, EXTERNAL_API_KEY_PEPPER_PORT, EXTERNAL_API_KEY_IDENTITY_OWNER_PORT, TENANT_LIFECYCLE_ACCESS_PORT, EXTERNAL_API_KEY_PERMISSION_SNAPSHOT_PORT, EXTERNAL_API_KEY_CONTEXT_PORT, EXTERNAL_API_KEY_AUDIT_PORT, GatewayExternalAccessTokenIssuer]
+      inject: [
+        PrismaExternalApiKeyCredentialRepository,
+        EXTERNAL_API_KEY_VERIFIER_PORT,
+        EXTERNAL_API_KEY_IDENTITY_OWNER_PORT,
+        TENANT_LIFECYCLE_ACCESS_PORT,
+        EXTERNAL_API_KEY_PERMISSION_SNAPSHOT_PORT,
+        EXTERNAL_API_KEY_CONTEXT_PORT,
+        EXTERNAL_API_KEY_AUDIT_PORT,
+        GatewayExternalAccessTokenIssuer
+      ]
     },
     ...AuthCommandHandlers,
     ...AuthQueryHandlers
@@ -297,3 +346,28 @@ const AUTH_SERVICE_AUDIENCE = 'urn:oes:service:auth-service'
   exports: [ExternalApiKeyCredentialService]
 })
 export class AuthModule {}
+
+/** Chooses the protected provider by default and allows the explicit local-development profile only when requested. */
+export function createExternalApiKeyVerifierProvider() {
+  if (process.env.AUTH_EXTERNAL_API_KEY_VERIFIER_PROVIDER?.trim() === 'local-development') {
+    return new LocalDevelopmentExternalApiKeyVerifier(
+      process.env.NODE_ENV,
+      process.env.AUTH_EXTERNAL_API_KEY_VERIFIER_SECURITY_PROFILE,
+      process.env.AUTH_EXTERNAL_API_KEY_LOCAL_VERIFIER_KEY_PATH,
+      process.env.AUTH_EXTERNAL_API_KEY_LOCAL_VERIFIER_KEY_VERSION
+    )
+  }
+  const socketPath = optionalAbsoluteUnixSocketPath('AUTH_EXECUTION_SIGNER_SOCKET_PATH')
+  return new ProtectedExternalApiKeyVerifierAdapter(
+    socketPath ? new UdsSignerClient(socketPath) : undefined
+  )
+}
+
+/** Admits only the sole permitted pod-local signer endpoint while leaving a missing/malformed binding capability-scoped and fail closed. */
+function optionalAbsoluteUnixSocketPath(name: string): string | undefined {
+  const value = process.env[name]?.trim()
+  if (!value || !value.startsWith('/')) {
+    return undefined
+  }
+  return value
+}

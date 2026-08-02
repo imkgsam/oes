@@ -123,15 +123,15 @@ enum OTPType {
 }
 
 model PasswordRecoveryGrant {
-  id            String   @id
+  id            String    @id
   userId        String
   loginMethodId String
-  challengeId   String   @unique
+  challengeId   String    @unique
   expiresAt     DateTime
   verifiedAt    DateTime
   consumedAt    DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   @@index([userId, createdAt])
   @@index([loginMethodId])
@@ -189,47 +189,47 @@ model MfaBinding {
 }
 
 model TenantMfaScenarioPolicy {
-  tenantId   String
-  scenario   TenantMfaScenario
-  required   Boolean            @default(false)
-  updatedBy  String?
-  updatedAt  DateTime           @updatedAt
-  createdAt  DateTime           @default(now())
+  tenantId  String
+  scenario  TenantMfaScenario
+  required  Boolean           @default(false)
+  updatedBy String?
+  updatedAt DateTime          @updatedAt
+  createdAt DateTime          @default(now())
 
   @@id([tenantId, scenario])
 }
 
 model TenantMfaFactorPolicy {
-  tenantId   String
-  factor     MfaType
-  enabled    Boolean  @default(true)
-  priority   Int
-  updatedBy  String?
-  updatedAt  DateTime @updatedAt
-  createdAt  DateTime @default(now())
+  tenantId  String
+  factor    MfaType
+  enabled   Boolean  @default(true)
+  priority  Int
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
 
   @@id([tenantId, factor])
 }
 
 model PlatformMfaScenarioPolicy {
-  scopeKey   String
-  scenario   TenantMfaScenario
-  required   Boolean            @default(false)
-  updatedBy  String?
-  updatedAt  DateTime           @updatedAt
-  createdAt  DateTime           @default(now())
+  scopeKey  String
+  scenario  TenantMfaScenario
+  required  Boolean           @default(false)
+  updatedBy String?
+  updatedAt DateTime          @updatedAt
+  createdAt DateTime          @default(now())
 
   @@id([scopeKey, scenario])
 }
 
 model PlatformMfaFactorPolicy {
-  scopeKey   String
-  factor     MfaType
-  enabled    Boolean  @default(true)
-  priority   Int
-  updatedBy  String?
-  updatedAt  DateTime @updatedAt
-  createdAt  DateTime @default(now())
+  scopeKey  String
+  factor    MfaType
+  enabled   Boolean  @default(true)
+  priority  Int
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
 
   @@id([scopeKey, factor])
 }
@@ -272,7 +272,7 @@ model TenantTerminalMfaPolicy {
 }
 
 model TrustedDevice {
-  id            String   @id @default(uuid())
+  id            String     @id @default(uuid())
   userId        String
   scopeLevel    ScopeLevel @default(TENANT)
   scopeKey      String     @default("")
@@ -283,12 +283,12 @@ model TrustedDevice {
   platform      String?
   userAgent     String?
   lastIpAddress String?
-  trustedAt     DateTime @default(now())
+  trustedAt     DateTime   @default(now())
   expiresAt     DateTime
   revokedAt     DateTime?
-  lastSeenAt    DateTime @default(now())
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  lastSeenAt    DateTime   @default(now())
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
 
   @@unique([userId, scopeKey, deviceId])
   @@index([scopeKey, userId])
@@ -355,19 +355,36 @@ model AuthEventOutbox {
 }
 
 model ExternalApiKeyCredential {
-  id String @id @default(uuid())
-  integrationMachineId String
-  tenantId String
-  keyIdentifier String @unique
-  verifier String
-  pepperVersion String
-  status String @default("ACTIVE")
-  expiresAt DateTime
+  id                     String    @id @default(uuid())
+  integrationMachineId   String
+  tenantId               String
+  keyIdentifier          String    @unique
+  verifier               String
+  verifierKeyVersion     String
+  status                 String    @default("ACTIVE")
+  expiresAt              DateTime
   supersedesCredentialId String?
-  predecessorValidUntil DateTime?
-  revokedAt DateTime?
-  lastUsedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  predecessorValidUntil  DateTime?
+  revokedAt              DateTime?
+  lastUsedAt             DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
   @@index([integrationMachineId, tenantId])
+}
+
+model ExternalApiKeyVerifierCompromiseIncident {
+  incidentReference             String   @id
+  verifierKeyVersion            String   @unique
+  occurredAt                    DateTime
+  processedAt                   DateTime
+  stateRevision                 String
+  workloadSubject               String
+  workloadClientId              String
+  requestId                     String?
+  traceId                       String?
+  matchedCredentialCount        Int
+  newlyRevokedCredentialCount   Int
+  alreadyRevokedCredentialCount Int
+  createdAt                     DateTime @default(now())
 }

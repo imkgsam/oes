@@ -102,7 +102,7 @@ func (a *PKCS11Adapter) EnsureSession(serial string, credential CredentialResolv
 
 // FindPrivateKey resolves only the agent-validated binary manifest CKA_ID and requires a unique private object.
 func (a *PKCS11Adapter) FindPrivateKey(id []byte) (pkcs11.ObjectHandle, error) {
-	return a.findKey(pkcs11.CKO_PRIVATE_KEY, id)
+	return a.findKey(pkcs11.CKO_PRIVATE_KEY, pkcs11.CKK_EC, id)
 }
 
 // FindPublicKey resolves the matching binary manifest CKA_ID and requires one P-256 public object.
@@ -110,12 +110,7 @@ func (a *PKCS11Adapter) FindPublicKey(id []byte) (pkcs11.ObjectHandle, error) {
 	if a == nil || a.module == nil || a.session == 0 || len(id) == 0 {
 		return 0, errors.New("protected public selector unavailable")
 	}
-	attributes := []*pkcs11.Attribute{
-		pkcs11.NewAttribute(pkcs11.CKA_CLASS, pkcs11.CKO_PUBLIC_KEY),
-		pkcs11.NewAttribute(pkcs11.CKA_KEY_TYPE, pkcs11.CKK_EC),
-		pkcs11.NewAttribute(pkcs11.CKA_ID, id),
-	}
-	return a.findUnique(attributes, "manifest selected public key unavailable")
+	return a.findKey(pkcs11.CKO_PUBLIC_KEY, pkcs11.CKK_EC, id)
 }
 
 // RequireNonExtractablePrivateKey prevents a manifest from binding an exportable signing object.
@@ -127,6 +122,24 @@ func (a *PKCS11Adapter) RequireNonExtractablePrivateKey(id []byte) error {
 	attributes, err := a.module.GetAttributeValue(a.session, key, []*pkcs11.Attribute{pkcs11.NewAttribute(pkcs11.CKA_EXTRACTABLE, nil)})
 	if err != nil || len(attributes) != 1 || len(attributes[0].Value) != 1 || attributes[0].Value[0] != 0 {
 		return errors.New("manifest selected private key is extractable")
+	}
+	return nil
+}
+
+// FindSecretKey resolves only the agent-validated binary manifest CKA_ID and requires a unique generic-secret object.
+func (a *PKCS11Adapter) FindSecretKey(id []byte) (pkcs11.ObjectHandle, error) {
+	return a.findKey(pkcs11.CKO_SECRET_KEY, pkcs11.CKK_GENERIC_SECRET, id)
+}
+
+// RequireNonExtractableSecretKey prevents a manifest from binding an exportable HMAC object.
+func (a *PKCS11Adapter) RequireNonExtractableSecretKey(id []byte) error {
+	key, err := a.FindSecretKey(id)
+	if err != nil {
+		return err
+	}
+	attributes, err := a.module.GetAttributeValue(a.session, key, []*pkcs11.Attribute{pkcs11.NewAttribute(pkcs11.CKA_SENSITIVE, nil), pkcs11.NewAttribute(pkcs11.CKA_EXTRACTABLE, nil)})
+	if err != nil || len(attributes) != 2 || len(attributes[0].Value) != 1 || len(attributes[1].Value) != 1 || attributes[0].Value[0] != 1 || attributes[1].Value[0] != 0 {
+		return errors.New("manifest selected secret key is extractable")
 	}
 	return nil
 }
@@ -179,6 +192,36 @@ func (a *PKCS11Adapter) SignSelectedES256(id, input []byte) ([]byte, error) {
 	return signature, nil
 }
 
+// ComputeHMACSHA256 produces the fixed-width 32-byte HMAC required by the protected verifier provider.
+func (a *PKCS11Adapter) ComputeHMACSHA256(id, input []byte) ([]byte, error) {
+	if a == nil || a.module == nil || a.session == 0 || len(id) == 0 || len(input) == 0 {
+		return nil, errors.New("protected PKCS11 session unavailable")
+	}
+	key, err := a.FindSecretKey(id)
+	if err != nil {
+		return nil, err
+	}
+	if err := a.module.SignInit(a.session, []*pkcs11.Mechanism{pkcs11.NewMechanism(pkcs11.CKM_SHA256_HMAC, nil)}, key); err != nil {
+		return nil, err
+	}
+	mac, err := a.module.Sign(a.session, input)
+	if err != nil || len(mac) != 32 {
+		return nil, errors.New("protected verifier computation failed")
+	}
+	return mac, nil
+}
+
+// ConfirmHMACSHA256Unavailable proves a compromised verifier key can no longer execute MAC operations.
+func (a *PKCS11Adapter) ConfirmHMACSHA256Unavailable(id []byte) error {
+	if a == nil || a.module == nil || a.session == 0 || len(id) == 0 {
+		return errors.New("protected PKCS11 session unavailable")
+	}
+	if _, err := a.ComputeHMACSHA256(id, []byte("oes-external-api-key-verifier-compromised-disabled-check")); err == nil {
+		return errors.New("compromised verifier secret still usable")
+	}
+	return nil
+}
+
 // LoginBytes uses a transient credential buffer that callers zero immediately after PKCS#11 login returns.
 func (a *PKCS11Adapter) LoginBytes(pin []byte) error {
 	if a == nil || a.module == nil || a.session == 0 || len(pin) == 0 {
@@ -220,14 +263,14 @@ func (a *PKCS11Adapter) clock() time.Time {
 	return a.now()
 }
 
-// findKey locates one unique private EC key selected by an already-validated binary CKA_ID.
-func (a *PKCS11Adapter) findKey(class uint, id []byte) (pkcs11.ObjectHandle, error) {
+// findKey locates one unique key object selected by an already-validated binary CKA_ID and fixed key type.
+func (a *PKCS11Adapter) findKey(class uint, keyType uint, id []byte) (pkcs11.ObjectHandle, error) {
 	if a == nil || a.module == nil || a.session == 0 || len(id) == 0 {
 		return 0, errors.New("protected PKCS11 selector unavailable")
 	}
 	attributes := []*pkcs11.Attribute{
 		pkcs11.NewAttribute(pkcs11.CKA_CLASS, class),
-		pkcs11.NewAttribute(pkcs11.CKA_KEY_TYPE, pkcs11.CKK_EC),
+		pkcs11.NewAttribute(pkcs11.CKA_KEY_TYPE, keyType),
 		pkcs11.NewAttribute(pkcs11.CKA_ID, id),
 	}
 	return a.findUnique(attributes, "manifest selected private key unavailable")

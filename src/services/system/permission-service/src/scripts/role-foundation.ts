@@ -302,7 +302,8 @@ export const BUILT_IN_ROLE_TEMPLATES: BuiltInRoleTemplateSeed[] = [
     id: '2cf72f72-e04a-4946-b8c0-22f120f82004',
     code: 'mes.forming_workshop.supervisor',
     name: '成型车间主管',
-    description: 'Built-in MES forming workshop supervisor template for the mold management minimum loop.',
+    description:
+      'Built-in MES forming workshop supervisor template for the mold management minimum loop.',
     allowTenantPermissionOverride: true,
     isEnabled: true,
     isProtected: false,
@@ -327,7 +328,8 @@ export const BUILT_IN_ROLE_TEMPLATES: BuiltInRoleTemplateSeed[] = [
     id: '2cf72f72-e04a-4946-b8c0-22f120f82005',
     code: 'item_master.product_data_manager',
     name: 'Item 主数据管理员',
-    description: 'Built-in Item product data manager template for tenant product master data maintenance.',
+    description:
+      'Built-in Item product data manager template for tenant product master data maintenance.',
     allowTenantPermissionOverride: true,
     isEnabled: true,
     isProtected: false,
@@ -370,7 +372,8 @@ export const BUILT_IN_ROLE_TEMPLATES: BuiltInRoleTemplateSeed[] = [
     id: '2cf72f72-e04a-4946-b8c0-22f120f82006',
     code: 'extension.designer',
     name: '插件设计师',
-    description: 'Built-in browser extension designer template for the product discovery demo loop.',
+    description:
+      'Built-in browser extension designer template for the product discovery demo loop.',
     allowTenantPermissionOverride: true,
     isEnabled: true,
     isProtected: false,
@@ -410,7 +413,8 @@ export const BUILT_IN_ROLE_TEMPLATES: BuiltInRoleTemplateSeed[] = [
     id: '2cf72f72-e04a-4946-b8c0-22f120f82008',
     code: 'crm.sales_manager',
     name: 'CRM 销售主管',
-    description: 'Built-in CRM sales manager template for team account governance and pipeline management.',
+    description:
+      'Built-in CRM sales manager template for team account governance and pipeline management.',
     allowTenantPermissionOverride: true,
     isEnabled: true,
     isProtected: false,
@@ -443,7 +447,7 @@ export function buildBuiltInRoleSeeds(): BuiltInRoleSeed[] {
 /** validateBuiltInRoleSeedDefinitions checks role seed consistency before any DB writer consumes it. */
 export function validateBuiltInRoleSeedDefinitions(): string[] {
   const errors: string[] = []
-  const permissionCodes = new Set(PERMISSION_CODE_SEED_ITEMS.map((item) => item.code))
+  const permissionByCode = new Map(PERMISSION_CODE_SEED_ITEMS.map((item) => [item.code, item]))
   const seenRoleKeys = new Set<string>()
 
   for (const role of buildBuiltInRoleSeeds()) {
@@ -491,8 +495,13 @@ export function validateBuiltInRoleSeedDefinitions(): string[] {
       }
       seenPermissionCodes.add(permissionCode)
 
-      if (!permissionCodes.has(permissionCode)) {
+      const permission = permissionByCode.get(permissionCode)
+      if (!permission) {
         errors.push(`${role.code}: unknown permission code ${permissionCode}`)
+      } else if (permission.kind === 'INTERNAL') {
+        errors.push(
+          `${role.code}: INTERNAL permission code ${permissionCode} cannot be granted to a role`
+        )
       }
     }
   }

@@ -46,6 +46,7 @@ export async function applyPermissionServiceSeed(
   seed: PermissionServiceSeed
 ): Promise<PermissionServiceSeedDryRunSummary> {
   const permissionIdByCode = new Map<string, string>()
+  const permissionByCode = new Map(seed.permissionCodes.map((item) => [item.code, item]))
 
   for (const item of seed.permissionCodes) {
     const permission = await prisma.permission.upsert({
@@ -53,11 +54,15 @@ export async function applyPermissionServiceSeed(
       create: {
         code: item.code,
         module: item.module,
-        description: item.description
+        description: item.description,
+        kind: item.kind,
+        externalApiEligible: item.externalApiEligible
       },
       update: {
         module: item.module,
-        description: item.description
+        description: item.description,
+        kind: item.kind,
+        externalApiEligible: item.externalApiEligible
       }
     })
     permissionIdByCode.set(permission.code, permission.id)
@@ -101,6 +106,7 @@ export async function applyPermissionServiceSeed(
 
   for (const roleSeed of seed.roles) {
     const permissionIds = roleSeed.permissionCodes
+      .filter((permissionCode) => permissionByCode.get(permissionCode)?.kind !== 'INTERNAL')
       .map((permissionCode) => permissionIdByCode.get(permissionCode))
       .filter((permissionId): permissionId is string => Boolean(permissionId))
 

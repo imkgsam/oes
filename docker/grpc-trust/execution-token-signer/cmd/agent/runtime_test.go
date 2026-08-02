@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"oes/execution-token-signer-agent/manifest"
+	verifiermanifest "oes/execution-token-signer-agent/verifiermanifest"
 )
 
 // TestRuntimeExposesOnlyTheActiveAndPublishedTimeline proves timeline selection cannot be request controlled.
@@ -80,6 +81,87 @@ func TestProtocolServesTheRuntimeOverUDSContract(t *testing.T) {
 	}
 }
 
+// TestVerifierRuntimeEnforcesLifecycle proves provider operations cannot use future active, retired verify-only, or compromised versions.
+func TestVerifierRuntimeEnforcesLifecycle(t *testing.T) {
+	now := time.Date(2026, 8, 2, 12, 0, 0, 0, time.UTC)
+	identifier := base64.RawURLEncoding.EncodeToString(bytes.Repeat([]byte{0x11}, 18))
+	secret := base64.RawURLEncoding.EncodeToString(bytes.Repeat([]byte{0x22}, 32))
+
+	t.Run("future active version", func(t *testing.T) {
+		runtime := NewRuntime(nil, now)
+		runtime.AttachVerifierRuntime([]resolvedVerifier{
+			resolvedTestVerifier("future", verifiermanifest.Active, now.Add(time.Minute), time.Time{}, time.Time{}),
+		})
+		if _, err := runtime.ComputeExternalApiKeyVerifier("ISSUE", identifier, secret, ""); err == nil {
+			t.Fatal("future active verifier accepted")
+		}
+	})
+
+	t.Run("retired verify-only version", func(t *testing.T) {
+		runtime := NewRuntime(nil, now)
+		runtime.AttachVerifierRuntime([]resolvedVerifier{
+			resolvedTestVerifier("active", verifiermanifest.Active, now.Add(-time.Hour), time.Time{}, time.Time{}),
+			resolvedTestVerifier("retired", verifiermanifest.VerifyOnly, now.Add(-2*time.Hour), now.Add(-time.Hour), now),
+		})
+		if _, err := runtime.ComputeExternalApiKeyVerifier("VERIFY", identifier, secret, "retired"); err == nil {
+			t.Fatal("retired verify-only verifier accepted")
+		}
+	})
+
+	t.Run("compromised-disabled version", func(t *testing.T) {
+		runtime := NewRuntime(nil, now)
+		runtime.AttachVerifierRuntime([]resolvedVerifier{
+			resolvedTestVerifier("active", verifiermanifest.Active, now.Add(-time.Hour), time.Time{}, time.Time{}),
+			resolvedCompromisedVerifier("compromised", "INC-1", "rev-7", now.Add(-2*time.Hour)),
+		})
+		status, err := runtime.GetExternalApiKeyVerifierStatus()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(status.Versions) != 2 || status.Versions[1].State != string(verifiermanifest.CompromisedDisabled) || status.Versions[1].IncidentReference != "INC-1" {
+			t.Fatalf("unexpected compromised status: %#v", status)
+		}
+		if _, err := runtime.ComputeExternalApiKeyVerifier("VERIFY", identifier, secret, "compromised"); err == nil {
+			t.Fatal("compromised-disabled verifier accepted")
+		}
+	})
+}
+
 func resolvedTestKey(kid string, publish, signing, signingEnd, retire time.Time) resolvedKey {
 	return resolvedKey{binding: Binding{Selector: manifest.Selector{TokenSerial: "serial", ID: []byte{1}}, ExpectedKID: kid}, response: KeyResponse{KID: kid, PublicJWK: PublicJWK{Kty: "EC", Crv: "P-256", X: "x", Y: "y"}, PublishNotBeforeUnixSeconds: publish.Unix(), SigningNotBeforeUnixSeconds: signing.Unix(), SigningNotAfterUnixSeconds: signingEnd.Unix(), RetireAfterUnixSeconds: retire.Unix()}, sign: func([]byte) ([]byte, error) { return bytes.Repeat([]byte{7}, 64), nil }}
+}
+
+// resolvedTestVerifier creates a deterministic verifier lifecycle with a real fixed-width HMAC-shaped result.
+func resolvedTestVerifier(version string, state verifiermanifest.State, activatedAt, verifyOnlyAt, retireAfter time.Time) resolvedVerifier {
+	return resolvedVerifier{
+		response: ExternalApiKeyVerifierVersionResponse{
+			VerifierKeyVersion:      version,
+			State:                   string(state),
+			ActivatedAtUnixSeconds:  activatedAt.Unix(),
+			VerifyOnlyAtUnixSeconds: unixSecondsOrZero(verifyOnlyAt),
+			RetireAfterUnixSeconds:  unixSecondsOrZero(retireAfter),
+		},
+		compute: func([]byte) ([]byte, error) { return bytes.Repeat([]byte{0x33}, 32), nil },
+	}
+}
+
+// resolvedCompromisedVerifier creates one terminal compromised-disabled status without any callable compute path.
+func resolvedCompromisedVerifier(version, incidentReference, stateRevision string, occurredAt time.Time) resolvedVerifier {
+	return resolvedVerifier{
+		response: ExternalApiKeyVerifierVersionResponse{
+			VerifierKeyVersion:    version,
+			State:                 string(verifiermanifest.CompromisedDisabled),
+			IncidentReference:     incidentReference,
+			OccurredAtUnixSeconds: occurredAt.Unix(),
+			StateRevision:         stateRevision,
+		},
+	}
+}
+
+// unixSecondsOrZero preserves the wire representation used for absent optional lifecycle boundaries.
+func unixSecondsOrZero(value time.Time) int64 {
+	if value.IsZero() {
+		return 0
+	}
+	return value.Unix()
 }

@@ -1,4 +1,10 @@
-import { Modules, PrismaClient, RoleKind, ScopeLevel } from '../../prisma/generated/prisma'
+import {
+  Modules,
+  PermissionKind,
+  PrismaClient,
+  RoleKind,
+  ScopeLevel
+} from '../../prisma/generated/prisma'
 import {
   AUTH_MANAGEMENT_PERMISSION_CODES,
   AUTH_SESSION_PERMISSION_CODES,
@@ -23,12 +29,18 @@ import {
 } from './navigation-foundation'
 import { BUILT_IN_ROLE_TEMPLATES } from './role-foundation'
 import { syncBuiltInRoleInstanceBaselines } from './role-instance-foundation'
+import { AUTH_INTERNAL_PERMISSION_CODES } from './permission-catalog'
 
 type PermissionSeedItem = {
   code: string
   module: Modules
   description?: string
+  kind: PermissionKind
+  externalApiEligible: boolean
 }
+
+type RawPermissionSeedItem = Omit<PermissionSeedItem, 'kind' | 'externalApiEligible'> &
+  Partial<Pick<PermissionSeedItem, 'kind' | 'externalApiEligible'>>
 
 const PERMISSION_DESCRIPTION_BY_CODE: Readonly<Record<string, string>> = {
   'permission.create': '创建权限定义',
@@ -221,7 +233,7 @@ function getPermissionDescription(code: string): string | undefined {
 
 // Builds the authoritative permission seed set from shared permission-code constants.
 export function buildPermissionSeedItems(): PermissionSeedItem[] {
-  const items: PermissionSeedItem[] = [
+  const items: RawPermissionSeedItem[] = [
     ...valuesOf(PERMISSION_MANAGEMENT_PERMISSION_CODES).map((code) => ({
       code,
       module: Modules.PERMISSION_SERVICE,
@@ -282,6 +294,13 @@ export function buildPermissionSeedItems(): PermissionSeedItem[] {
       module: Modules.AUTH_SERVICE,
       description: getPermissionDescription(code)
     })),
+    ...valuesOf(AUTH_INTERNAL_PERMISSION_CODES).map((code) => ({
+      code,
+      module: Modules.AUTH_SERVICE,
+      description: '触发 External API Key verifier version compromise 的内部安全处置调用',
+      kind: PermissionKind.INTERNAL,
+      externalApiEligible: false
+    })),
     ...valuesOf(COLLABORATION_TASK_PERMISSION_CODES).map((code) => ({
       code,
       module: Modules.COLLABORATION_SERVICE,
@@ -294,12 +313,23 @@ export function buildPermissionSeedItems(): PermissionSeedItem[] {
     }))
   ]
 
-  const unique = new Map<string, PermissionSeedItem>()
+  const unique = new Map<string, RawPermissionSeedItem>()
   for (const item of items) {
     unique.set(item.code, item)
   }
 
-  return Array.from(unique.values())
+  return Array.from(unique.values()).map((item) => ({
+    ...item,
+    kind: item.kind ?? PermissionKind.BUSINESS,
+    externalApiEligible: item.externalApiEligible ?? false
+  })) as PermissionSeedItem[]
+}
+
+/** filterRoleAssignablePermissionItems removes workload-policy-only codes before any role foundation is synchronized. */
+export function filterRoleAssignablePermissionItems(
+  items: readonly PermissionSeedItem[]
+): PermissionSeedItem[] {
+  return items.filter((item) => item.kind === PermissionKind.BUSINESS)
 }
 
 // Parses optional system admin account ids from environment variables used by local and deployment seeds.
@@ -605,33 +635,45 @@ async function main() {
 
   try {
     const items = buildPermissionSeedItems()
+    const roleAssignableCodes = new Set(
+      filterRoleAssignablePermissionItems(items).map((item) => item.code)
+    )
 
     let upserted = 0
-    const permissionIdByCode = new Map<string, string>()
-    const permissionIds: string[] = []
+    const roleAssignablePermissionIdByCode = new Map<string, string>()
+    const roleAssignablePermissionIds: string[] = []
     for (const item of items) {
       const permission = await prisma.permission.upsert({
         where: { code: item.code },
         create: {
           code: item.code,
           module: item.module,
-          description: item.description
+          description: item.description,
+          kind: item.kind,
+          externalApiEligible: item.externalApiEligible
         },
         update: {
           module: item.module,
-          description: item.description
+          description: item.description,
+          kind: item.kind,
+          externalApiEligible: item.externalApiEligible
         }
       })
-      permissionIds.push(permission.id)
-      permissionIdByCode.set(permission.code, permission.id)
+      if (roleAssignableCodes.has(item.code)) {
+        roleAssignablePermissionIds.push(permission.id)
+        roleAssignablePermissionIdByCode.set(permission.code, permission.id)
+      }
       upserted += 1
     }
 
-    const systemAdminRole = await syncSystemAdminRole(prisma, permissionIds)
-    const builtInRoleTemplateCount = await syncBuiltInRoleTemplates(prisma, permissionIdByCode)
+    const systemAdminRole = await syncSystemAdminRole(prisma, roleAssignablePermissionIds)
+    const builtInRoleTemplateCount = await syncBuiltInRoleTemplates(
+      prisma,
+      roleAssignablePermissionIdByCode
+    )
     const builtInRoleInstancePermissionBackfillCount = await syncBuiltInRoleInstanceBaselines(
       prisma,
-      permissionIdByCode
+      roleAssignablePermissionIdByCode
     )
     const systemAdminAccountIds = readSystemAdminAccountIds()
     const systemAdminBindingCount = await syncSystemAdminAccountBindings(

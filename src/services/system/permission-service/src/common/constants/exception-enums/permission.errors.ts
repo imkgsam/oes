@@ -28,3 +28,10 @@ export const PERMISSION_BATCH_CREATE_CONFLICT: ExceptionDefinition = {
   messageKey: 'permission.permission_batch_create_conflict',
   rpcStatus: status.ALREADY_EXISTS
 }
+
+export const PERMISSION_NOT_ROLE_ASSIGNABLE: ExceptionDefinition = {
+  code: 'PERMISSION_NOT_ROLE_ASSIGNABLE',
+  message: 'Internal permission cannot be assigned to a role',
+  messageKey: 'permission.permission_not_role_assignable',
+  rpcStatus: status.FAILED_PRECONDITION
+}

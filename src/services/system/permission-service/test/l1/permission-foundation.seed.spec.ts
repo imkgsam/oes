@@ -1,4 +1,5 @@
 import {
+  AUTH_INTERNAL_PERMISSION_CODES,
   AUTH_SELF_PERMISSION_CODES,
   COLLABORATION_ANNOTATION_PERMISSION_CODES,
   COLLABORATION_TASK_PERMISSION_CODES,
@@ -23,6 +24,11 @@ import {
   PERMISSION_CODE_SEED_ITEMS
 } from '../../src/scripts/permission-catalog'
 import { Modules } from '../../prisma/generated/prisma'
+import { buildBuiltInRoleSeeds } from '../../src/scripts/role-foundation'
+import {
+  buildPermissionSeedItems,
+  filterRoleAssignablePermissionItems
+} from '../../src/scripts/sync-permission-codes'
 
 // Verifies the migrated permission catalog assigns every current code to its owner-service module.
 describe('permission foundation seed', () => {
@@ -53,7 +59,10 @@ describe('permission foundation seed', () => {
       [Modules.SRM_SERVICE, Object.values(SRM_MANAGEMENT_PERMISSION_CODES)],
       [
         Modules.SALES_SERVICE,
-        [...Object.values(SALES_MANAGEMENT_PERMISSION_CODES), ...Object.values(SALES_PRICING_PERMISSION_CODES)]
+        [
+          ...Object.values(SALES_MANAGEMENT_PERMISSION_CODES),
+          ...Object.values(SALES_PRICING_PERMISSION_CODES)
+        ]
       ],
       [Modules.PROCUREMENT_SERVICE, Object.values(PROCUREMENT_MANAGEMENT_PERMISSION_CODES)],
       [Modules.FINANCE_SERVICE, Object.values(FINANCE_MANAGEMENT_PERMISSION_CODES)],
@@ -92,30 +101,53 @@ describe('permission foundation seed', () => {
   it('publishes item model permissions used by the item-management BFF', () => {
     const seedCodes = PERMISSION_CODE_SEED_ITEMS.map((item) => item.code)
 
-    expect(seedCodes).toEqual(expect.arrayContaining([
-      'item_master.item_model.list',
-      'item_master.item_model.get_by_id',
-      'item_master.item_model.create',
-      'item_master.item_model.manage'
-    ]))
+    expect(seedCodes).toEqual(
+      expect.arrayContaining([
+        'item_master.item_model.list',
+        'item_master.item_model.get_by_id',
+        'item_master.item_model.create',
+        'item_master.item_model.manage'
+      ])
+    )
+  })
+
+  it('marks the verifier compromise code INTERNAL and excludes it from every built-in role foundation', () => {
+    const compromiseCode =
+      AUTH_INTERNAL_PERMISSION_CODES.EXTERNAL_API_KEY_VERIFIER_VERSION_COMPROMISE
+    const item = PERMISSION_CODE_SEED_ITEMS.find((candidate) => candidate.code === compromiseCode)
+    const rolePermissionCodes = buildBuiltInRoleSeeds().flatMap((role) => role.permissionCodes)
+
+    expect(item).toMatchObject({
+      kind: 'INTERNAL',
+      externalApiEligible: false,
+      module: Modules.AUTH_SERVICE
+    })
+    expect(rolePermissionCodes).not.toContain(compromiseCode)
+    expect(
+      filterRoleAssignablePermissionItems(buildPermissionSeedItems()).map(
+        (candidate) => candidate.code
+      )
+    ).not.toContain(compromiseCode)
   })
 
   it('publishes Public Entry permissions required by ShortLink and BusinessCard Phase 1', () => {
     const seedCodes = PERMISSION_CODE_SEED_ITEMS.map((item) => item.code)
 
-    expect(seedCodes).toEqual(expect.arrayContaining([
-      'public-entry.short-link.read',
-      'public-entry.short-link.create',
-      'public-entry.short-link.update',
-      'public-entry.short-link.disable',
-      'public-entry.short-link.archive',
-      'public-entry.short-link.stats.read',
-      'public-entry.business-card.read',
-      'public-entry.business-card.manage',
-      'public-entry.business-card.enable',
-      'public-entry.business-card.disable',
-      'public-entry.business-card.public-entry.manage',
-      'public-entry.business-card.stats.read'
-    ]))
+    expect(seedCodes).toEqual(
+      expect.arrayContaining([
+        'public-entry.short-link.read',
+        'public-entry.short-link.create',
+        'public-entry.short-link.update',
+        'public-entry.short-link.disable',
+        'public-entry.short-link.archive',
+        'public-entry.short-link.stats.read',
+        'public-entry.business-card.read',
+        'public-entry.business-card.manage',
+        'public-entry.business-card.enable',
+        'public-entry.business-card.disable',
+        'public-entry.business-card.public-entry.manage',
+        'public-entry.business-card.stats.read'
+      ])
+    )
   })
 })

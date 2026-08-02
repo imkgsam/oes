@@ -6,6 +6,7 @@ import { ChangeOwnPasswordHandler } from './change-own-password.handler'
 import { CompleteStepUpMfaChallengeHandler } from './complete-step-up-mfa-challenge.handler'
 import { CompletePasswordRecoveryHandler } from './complete-password-recovery.handler'
 import { CompleteFirstLoginPasswordSetupHandler } from './complete-first-login-password-setup.handler'
+import { CompromiseExternalApiKeyVerifierVersionHandler } from './compromise-external-api-key-verifier-version.handler'
 import { DisableMfaBindingHandler } from './disable-mfa-binding.handler'
 import { EnableMfaBindingHandler } from './enable-mfa-binding.handler'
 import { InitializeRecoveryCodesHandler } from './initialize-recovery-codes.handler'
@@ -65,6 +66,8 @@ export * from './complete-password-recovery.command'
 export * from './complete-password-recovery.handler'
 export * from './complete-first-login-password-setup.command'
 export * from './complete-first-login-password-setup.handler'
+export * from './compromise-external-api-key-verifier-version.command'
+export * from './compromise-external-api-key-verifier-version.handler'
 export * from './disable-mfa-binding.command'
 export * from './disable-mfa-binding.handler'
 export * from './enable-mfa-binding.command'
@@ -146,6 +149,7 @@ export const AuthCommandHandlers = [
   CompleteStepUpMfaChallengeHandler,
   CompletePasswordRecoveryHandler,
   CompleteFirstLoginPasswordSetupHandler,
+  CompromiseExternalApiKeyVerifierVersionHandler,
   DisableMfaBindingHandler,
   EnableMfaBindingHandler,
   HandleTerminalDeviceUnavailableHandler,
