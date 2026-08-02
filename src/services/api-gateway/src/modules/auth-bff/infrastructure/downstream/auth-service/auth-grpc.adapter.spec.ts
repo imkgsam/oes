@@ -198,4 +198,32 @@ describe('AuthGrpcAdapter', () => {
       { operator: true }
     )
   })
+
+  it('forwards external API-key exchange with the signed MACHINE root context', async () => {
+    const metadataFactory = {
+      createInternalCallMetadata: jest.fn().mockReturnValue({ internal: true }),
+    }
+    const trustedClient = {
+      issueExchangeToken: jest.fn().mockResolvedValue('sts-token'),
+      exchangeExternalApiKey: jest.fn().mockResolvedValue({ accessToken: 'signed' })
+    }
+    const adapter = new AuthGrpcAdapter(
+      { getService: jest.fn().mockReturnValue({}) } as any,
+      metadataFactory as any,
+      trustedClient as any
+    )
+    adapter.onModuleInit()
+
+    await adapter.exchangeExternalApiKey(
+      { presentedApiKey: 'oek_live_identifier.secret' },
+      { requestId: 'req-1', traceId: 'trace-1' }
+    )
+
+    expect(trustedClient.issueExchangeToken).toHaveBeenCalledWith({ internal: true })
+    expect(trustedClient.exchangeExternalApiKey).toHaveBeenCalledWith(
+      { presentedApiKey: 'oek_live_identifier.secret' },
+      { internal: true },
+      'sts-token'
+    )
+  })
 })

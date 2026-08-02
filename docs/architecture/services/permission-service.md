@@ -89,11 +89,12 @@
 - 租户级绑定：`scopeLevel = TENANT`，`tenantId` 必填，role 必须是同 tenant 的 `TENANT_INSTANCE`。
 - `SYSTEM_TEMPLATE` 不得绑定 principal。
 - `bindingId` 是不可变 grant identity。一次成功授予只创建一个 binding；不得通过修改既有 binding 的 principal、role、scope、tenant 或时间窗口表达另一笔授权。
+- `bindingId` 是对外可引用的授权事实标识：grant 结果和 binding 查询必须返回它，revoke 必须以它精确定位目标 binding。`accountId + roleId` 只能在 legacy AccountRole 兼容窗口内标识旧记录，绝不作为 canonical revoke 的推断或回退选择器。
 - 同一 `(principalType, principalId, roleId, scopeLevel, tenantId)` 的有效窗口不得重叠。窗口采用 `[effectiveAt, endAt)`：`effectiveAt = null` 表示无下界，`endAt` 是较早的 `expiresAt` 与 `revokedAt`，两端相等不重叠。该规则必须同时由写入事务与持久化唯一性/排他约束保护，不能只依赖先查后写。
 - `effectiveAt < expiresAt` 是有 expiry binding 的前置条件；已过期、已撤销或尚未生效的 binding 都保留历史。授权解析只消费已生效、未撤销、未过期且 role enabled 的 binding。
 - HUMAN binding 的 `principalId` 必须是与 scope / tenant 相符的已验证 `UserAccount`；MACHINE binding 的 `principalId` 必须是 Identity Service 中与 scope / tenant 相符的 active Machine Principal。Permission Service 通过受控 identity 协作校验引用，不复制其主体真相。
 - 人类账号继续参与 access summary、navigation 与 terminal access；机器 grant 不生成 UI navigation，也不进入人类 terminal access 计算。
-- Permission metadata 必须允许对应 principal type 与 scopeLevel；INTERNAL kind Permission Code 不得绑定到 HUMAN / MACHINE role，只能由 Auth / STS workload issuance policy 授予。
+- Permission metadata 必须允许对应 principal type 与 scopeLevel；INTERNAL kind Permission Code 不得绑定到 HUMAN / MACHINE role，只能由 Auth / STS workload issuance policy 授予。现有 BUSINESS Code 可额外标记 `externalApiEligible`，表示该 Code 的稳定名称可安全出现在短期外部 Token 中；该标记不开放 HTTP route、不授予 Machine 权限、不建立第二套 scope 词汇，也不替代 Gateway 的外部 route 声明。
 - revoke 只将目标 binding 关闭并记录首次 `revokedAt`、可信操作者、原因与审计关联，绝不物理删除。对同一 `bindingId` 的重复 revoke 返回原撤销结果，不重写时间、操作者或重复产生撤销审计事实。
 - 已撤销 binding 的后续 regrant 必须创建新的 `bindingId`；不得复活、覆盖或改写旧授权。只有新窗口不与仍有效的同一逻辑 binding 重叠时才允许 regrant。
 - checkbox list 类 principal 角色设置使用按 scope 全量替换语义：省略的当前 binding 被 revoke，新增项创建新 binding，历史 binding 不被删除或改写；单条授予可支持有效期窗口。
@@ -105,6 +106,7 @@
 
 - 先新增 target storage 并执行可重复的 id-preserving backfill；在每个切换阶段比较 binding 数、有效授权集合、access summary 与审计关联，任何不一致都停止切换。
 - 在 canonical cutover 前，`AccountRole` 仍是旧版本的唯一写入面；在 canonical cutover 后，旧版本回退前必须冻结新授权写入、从 canonical HUMAN bindings 重建兼容 projection 并完成 parity 验证。
+- legacy AccountRole mutation 只在其兼容窗口内运行；canonical `bindingId` revoke 启用后，缺少精确 binding identity 的旧 selector 不得静默映射到“当前”或“最近”授权，以免延迟重试误撤销 regrant。
 - 旧 `AccountRole` 无法表示 MACHINE binding 或同一 logical binding 的多段历史。因此 rollback window 内不得启用这两类新写入语义；一旦启用，回退只能回到已支持 `PrincipalRoleBinding` 的版本，不能伪造或丢弃授权历史。
 - 只有 rollback window 结束、所有读写方都已切至 canonical binding 且迁移审计可验证后，才可删除 legacy projection。HR、Identity、TenantOrg、BFF 或其他服务只能请求授权 grant，不能直接写 binding。
 
@@ -123,6 +125,10 @@
 - subject identity、tenant、principal type 与 delegation 只能从已验证执行上下文或服务拥有的 identity facts 派生；调用方提交的 subject facts 不能提升授权。
 
 ExecutionToken 使用同一 Permission Code 词汇：Permission Service 提供有效 HUMAN / MACHINE grant 与 policy 判定，Auth / STS 取其允许子集签发目标 audience Token。Permission Service 不签发 Token，也不建立独立 Permission-to-Scope 映射。
+
+External API Key exchange 有一个额外的窄用途消费者：Auth 独立验证 Integration Machine 与 tenant 后，通过受信任的 machine-authorization contract 取得该 Machine 当前有效且 `externalApiEligible` 的 BUSINESS Code 快照与 `authzVersion`。Permission Service 不返回 Gateway route catalogue、credential fact、secret、Token 或 resource authorization result；Gateway 仍独占外部 HTTP route 是否开放的判断，目标业务服务仍执行 resource 与 domain authorization。
+
+该快照由现有 `PermissionCheckService.ResolveExternalMachineAuthorizationSnapshot` gRPC surface 提供，并在 `permission-check` interface/controller、authorization application query 与现有 PrincipalRoleBinding / Permission catalog repository 边界内实现。它是 Auth-only INTERNAL technical primitive，要求 verified `auth-service` workload、target audience `permission-service`、certificate binding 与 exact issuance Code `permission.internal.external_machine.snapshot.resolve`；Gateway、外部调用者和普通 HUMAN/MACHINE role 不能获得此 Code。输入 machine/tenant 必须来自 Auth 已验证的 Identity 结果，输出显式携带 allowed、machine/tenant echo、Code snapshot、`authzVersion`、decision reference 与 safe reason。空快照、tenant mismatch、未知/不合格 Code、trust failure 或 downstream unavailable 均 fail closed，Permission 不签发 Token。
 
 DELEGATED 判定必须同时受 HUMAN grant、未撤销的 delegation reference、固定 ToolContract / operation upper bound、tenant / org 与 resource policy 约束；任一输入不满足即拒绝。Tool 或 Agent 不能因用户有更高权限而自动获得更高上限，也不能把高风险 operation 重分类为低风险。
 

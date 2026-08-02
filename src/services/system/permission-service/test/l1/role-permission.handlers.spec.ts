@@ -1,5 +1,6 @@
 import {
   PERMISSION_NOT_FOUND,
+  PERMISSION_NOT_ROLE_ASSIGNABLE,
   ROLE_NOT_ASSIGNABLE,
   ROLE_NOT_FOUND
 } from '../../src/common/constants/exception-enums'
@@ -11,6 +12,7 @@ import { Permission } from '../../src/domain/aggregates/permission.aggregate'
 import { Role } from '../../src/domain/aggregates/role.aggregate'
 import { RoleKind } from '../../src/domain/enums/role-kind.enum'
 import { PermissionModule } from '../../src/domain/enums/permission-module.enum'
+import { PermissionKind } from '../../src/domain/enums/permission-kind.enum'
 import { PermissionRepository } from '../../src/domain/repositories/permission.repository'
 import { RoleRepository } from '../../src/domain/repositories/role.repository'
 import { RolePermission } from '../../src/domain/vo/role-permission.value-object'
@@ -144,6 +146,28 @@ describe('Role Permission Handlers', () => {
       new RolePermission('role-id', 'permission-id', 'permission.read')
     )
     expect(roleRepo.save).toHaveBeenCalledWith(role)
+  })
+
+  it('分配角色权限 / 当权限为 INTERNAL 时 / 应拒绝角色授予', async () => {
+    const roleRepo = createRoleRepository()
+    const permissionRepo = createPermissionRepository()
+    const handler = new AssignRolePermissionHandler(roleRepo, permissionRepo)
+    const role = createRole()
+    const internalPermission = new Permission(
+      'permission-id',
+      'auth.internal.external_api_key.verifier_version.compromise',
+      PermissionModule.AUTH_SERVICE,
+      'internal workload-only permission',
+      PermissionKind.INTERNAL
+    )
+
+    roleRepo.findById.mockResolvedValue(role)
+    permissionRepo.findById.mockResolvedValue(internalPermission)
+
+    await expect(
+      handler.execute(new AssignRolePermissionCommand('role-id', 'permission-id'))
+    ).rejects.toMatchObject({ definition: { code: PERMISSION_NOT_ROLE_ASSIGNABLE.code } })
+    expect(roleRepo.save).not.toHaveBeenCalled()
   })
 
   it('撤销角色权限 / 当角色不存在时 / 应返回 ROLE_NOT_FOUND', async () => {

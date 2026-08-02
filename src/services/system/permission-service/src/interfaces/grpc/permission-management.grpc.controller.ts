@@ -1,9 +1,7 @@
 import { Controller, UseFilters, UseGuards } from '@nestjs/common'
 import { Metadata } from '@grpc/grpc-js'
 import { ValidatingCommandBus, ValidatingQueryBus } from '@oes/common/cqrs'
-import {
-  GrpcExceptionFilter
-} from '../../../../../../common/dist/core/filters'
+import { GrpcExceptionFilter } from '../../../../../../common/dist/core/filters'
 import {
   AuthenticatedOperatorGuard,
   InternalServiceGuard,
@@ -15,6 +13,7 @@ import {
   PermissionManagementServiceController,
   PermissionManagementServiceControllerMethods,
   AssignAccountRoleRequest,
+  AssignAccountRoleResponse,
   EnsureTenantRoleInstanceFromTemplateRequest,
   EnsureTenantRoleInstanceFromTemplateResponse,
   GrantInitialAccessForEmployeeAccountRequest,
@@ -39,6 +38,7 @@ import {
   ListAuditEventsRequest,
   ListAuditEventsResponse,
   ListAccountRolesRequest,
+  ListAccountRolesResponse,
   ListNavigationEntriesRequest,
   ListNavigationEntriesResponse,
   ListPermissionRolesRequest,
@@ -55,6 +55,8 @@ import {
   PagedRolesResponse,
   PermissionResponse,
   RevokeAccountRoleRequest,
+  RevokePrincipalRoleBindingRequest,
+  RevokePrincipalRoleBindingResponse,
   RevokeRolePermissionRequest,
   RevokeRoleTemplatePermissionRequest,
   RoleResponse,
@@ -70,6 +72,7 @@ import {
   SetRoleNavigationVisibilityRequest,
   UpdateNavigationEntryRequest,
   SetAccountRolesRequest,
+  SetAccountRolesResponse,
   SetRoleEnabledRequest,
   SetRoleTemplateEnabledRequest,
   UpdatePermissionRequest,
@@ -124,6 +127,7 @@ import { AssignAccountRoleCommand } from '../../application/commands/role/assign
 import { GrantInitialAccessForEmployeeAccountCommand } from '../../application/commands/role/grant-initial-access-for-employee-account.command'
 import { GrantInitialAccessForTenantAccountCommand } from '../../application/commands/role/grant-initial-access-for-tenant-account.command'
 import { RevokeAccountRoleCommand } from '../../application/commands/role/revoke-account-role.command'
+import { RevokePrincipalRoleBindingCommand } from '../../application/commands/role/revoke-principal-role-binding.command'
 import { SetAccountRolesCommand } from '../../application/commands/role/set-account-roles.command'
 import { GetRoleByIdQuery } from '../../application/queries/role/get-role-by-id.query'
 import { GetRoleTemplateByIdQuery } from '../../application/queries/role/get-role-template-by-id.query'
@@ -463,7 +467,11 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     ...rest: any
   ): Promise<RoleResponse> {
     const role: Role = await this.commandBus.execute(
-      new SetRoleTemplateEnabledCommand(request.id!, request.isEnabled!, this.getOperatorScope(request))
+      new SetRoleTemplateEnabledCommand(
+        request.id!,
+        request.isEnabled!,
+        this.getOperatorScope(request)
+      )
     )
     const response = toRoleResponse(role)
     this.recordMutation(
@@ -528,7 +536,9 @@ export class PermissionManagementGrpcController implements PermissionManagementS
 
   @RequireManagementPermission(ROLE_INSTANCE_PERMISSION_CODES.DELETE)
   async deleteRole(request: DeleteRoleRequest, metadata?: Metadata, ...rest: any): Promise<void> {
-    await this.commandBus.execute(new DeleteRoleCommand(request.id!, this.getOperatorScope(request)))
+    await this.commandBus.execute(
+      new DeleteRoleCommand(request.id!, this.getOperatorScope(request))
+    )
     this.recordMutation(request, 'ROLE_DELETED', 'ROLE', request.id!)
   }
 
@@ -625,7 +635,11 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     ...rest: any
   ): Promise<void> {
     await this.commandBus.execute(
-      new AssignRolePermissionCommand(request.roleId!, request.permissionId!, this.getOperatorScope(request))
+      new AssignRolePermissionCommand(
+        request.roleId!,
+        request.permissionId!,
+        this.getOperatorScope(request)
+      )
     )
     this.recordMutation(
       request,
@@ -745,7 +759,11 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     ...rest: any
   ): Promise<void> {
     await this.commandBus.execute(
-      new RevokeRolePermissionCommand(request.roleId!, request.permissionId!, this.getOperatorScope(request))
+      new RevokeRolePermissionCommand(
+        request.roleId!,
+        request.permissionId!,
+        this.getOperatorScope(request)
+      )
     )
     this.recordMutation(
       request,
@@ -760,8 +778,8 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     request: AssignAccountRoleRequest,
     metadata?: Metadata,
     ...rest: any
-  ): Promise<void> {
-    await this.commandBus.execute(
+  ): Promise<AssignAccountRoleResponse> {
+    const binding: AccountRole = await this.commandBus.execute(
       new AssignAccountRoleCommand({
         accountId: request.accountId!,
         accountType: request.accountType! as AccountType,
@@ -777,7 +795,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
       request,
       'ACCOUNT_ROLE_ASSIGNED',
       'ACCOUNT_ROLE',
-      `${request.accountId!}:${request.roleId!}`,
+      binding.bindingId,
       undefined,
       {
         accountId: request.accountId!,
@@ -786,9 +804,12 @@ export class PermissionManagementGrpcController implements PermissionManagementS
         tenantId: request.tenantId!,
         scopeLevel: normalizeScopeLevel(request.scopeLevel),
         effectiveAt: request.effectiveAt || '',
-        expiresAt: request.expiresAt || ''
-      }
+        expiresAt: request.expiresAt || '',
+        bindingId: binding.bindingId
+      },
+      binding.grantAuditEventId ?? undefined
     )
+    return { bindingId: binding.bindingId }
   }
 
   @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.ASSIGN_ACCOUNT_ROLE)
@@ -828,7 +849,8 @@ export class PermissionManagementGrpcController implements PermissionManagementS
         tenantId: request.tenantId!,
         accountId: request.accountId!,
         roleIds: result.roleIds,
-        idempotencyKey: result.idempotencyKey
+        idempotencyKey: result.idempotencyKey,
+        bindingIds: result.bindingIds
       }
     }
   }
@@ -870,7 +892,8 @@ export class PermissionManagementGrpcController implements PermissionManagementS
         tenantId: request.tenantId!,
         accountId: request.accountId!,
         roleIds: result.roleIds,
-        idempotencyKey: result.idempotencyKey
+        idempotencyKey: result.idempotencyKey,
+        bindingIds: result.bindingIds
       }
     }
   }
@@ -882,7 +905,11 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     ...rest: any
   ): Promise<void> {
     await this.commandBus.execute(
-      new RevokeAccountRoleCommand(request.accountId!, request.roleId!, this.getOperatorScope(request))
+      new RevokeAccountRoleCommand(
+        request.accountId!,
+        request.roleId!,
+        this.getOperatorScope(request)
+      )
     )
     this.recordMutation(
       request,
@@ -892,13 +919,60 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     )
   }
 
+  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.REVOKE_ACCOUNT_ROLE)
+  /** revokePrincipalRoleBinding closes one exact binding and replays the original first-revoke facts. */
+  async revokePrincipalRoleBinding(
+    request: RevokePrincipalRoleBindingRequest,
+    metadata?: Metadata,
+    ...rest: any
+  ): Promise<RevokePrincipalRoleBindingResponse> {
+    const revoked = await this.commandBus.execute(
+      new RevokePrincipalRoleBindingCommand(
+        request.bindingId!,
+        request.reason || undefined,
+        this.getOperatorScope(request)
+      )
+    )
+
+    if (revoked.revokedNow) {
+      const operatorScope = this.getOperatorScope(request)
+      if (operatorScope) {
+        this.permissionAuditService.emitManagementMutation({
+          eventId: revoked.auditEventId,
+          actorId: operatorScope.operatorId,
+          tenantId: operatorScope.tenantId,
+          action: 'PRINCIPAL_ROLE_BINDING_REVOKED',
+          targetType: 'ACCOUNT_ROLE',
+          targetId: revoked.bindingId,
+          afterData: {
+            bindingId: revoked.bindingId,
+            revokedAt: revoked.revokedAt.toISOString(),
+            revokedByOperatorId: revoked.revokedByOperatorId,
+            reason: revoked.reason,
+            auditEventId: revoked.auditEventId
+          }
+        })
+      }
+    }
+
+    return {
+      result: {
+        bindingId: revoked.bindingId,
+        revokedAt: revoked.revokedAt.toISOString(),
+        revokedByOperatorId: revoked.revokedByOperatorId,
+        reason: revoked.reason,
+        auditEventId: revoked.auditEventId
+      }
+    }
+  }
+
   @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.VIEW_ACCOUNT_ROLE)
   async listAccountRoles(
     request: ListAccountRolesRequest,
     metadata?: Metadata,
     ...rest: any
-  ): Promise<ListRolesResponse> {
-    const roles: Role[] = await this.queryBus.execute(
+  ): Promise<ListAccountRolesResponse> {
+    const result: { roles: Role[]; bindings: AccountRole[] } = await this.queryBus.execute(
       new ListAccountRolesQuery(
         request.accountId!,
         request.tenantId || undefined,
@@ -906,7 +980,10 @@ export class PermissionManagementGrpcController implements PermissionManagementS
         normalizeScopeLevel(request.scopeLevel)
       )
     )
-    return { roles: roles.map(toRoleResponse) }
+    return {
+      roles: result.roles.map(toRoleResponse),
+      bindings: result.bindings.map(toAccountRoleBindingResponse)
+    }
   }
 
   @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.VIEW_ACCOUNT_ROLE)
@@ -946,8 +1023,8 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     request: SetAccountRolesRequest,
     metadata?: Metadata,
     ...rest: any
-  ): Promise<ListRolesResponse> {
-    const roles: Role[] = await this.commandBus.execute(
+  ): Promise<SetAccountRolesResponse> {
+    const result: { roles: Role[]; bindings: AccountRole[] } = await this.commandBus.execute(
       new SetAccountRolesCommand({
         accountId: request.accountId!,
         accountType: request.accountType! as AccountType,
@@ -968,10 +1045,14 @@ export class PermissionManagementGrpcController implements PermissionManagementS
         tenantId: request.tenantId!,
         scopeLevel: normalizeScopeLevel(request.scopeLevel),
         roleIds: request.roleIds ?? [],
-        resolvedRoles: roles.map((role) => toRoleResponse(role))
+        resolvedRoles: result.roles.map((role) => toRoleResponse(role)),
+        bindingIds: result.bindings.map((binding) => binding.bindingId)
       }
     )
-    return { roles: roles.map(toRoleResponse) }
+    return {
+      roles: result.roles.map(toRoleResponse),
+      bindings: result.bindings.map(toAccountRoleBindingResponse)
+    }
   }
 
   @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.VIEW_AUDIT_EVENT)
@@ -1019,7 +1100,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
         keyword: request.keyword || undefined,
         featureKey: request.featureKey || undefined,
         terminal: request.terminal || undefined,
-        enabled: request.hasEnabledFilter ? request.enabled ?? false : undefined
+        enabled: request.hasEnabledFilter ? (request.enabled ?? false) : undefined
       })
     )
 
@@ -1085,10 +1166,10 @@ export class PermissionManagementGrpcController implements PermissionManagementS
         entryKey: request.entryKey!,
         name: request.name || undefined,
         description: Object.prototype.hasOwnProperty.call(request, 'description')
-          ? request.description ?? null
+          ? (request.description ?? null)
           : undefined,
         featureKey: Object.prototype.hasOwnProperty.call(request, 'featureKey')
-          ? request.featureKey ?? null
+          ? (request.featureKey ?? null)
           : undefined,
         supportedTerminals: request.supportedTerminals,
         registryPriority: request.registryPriority,
@@ -1308,7 +1389,11 @@ export class PermissionManagementGrpcController implements PermissionManagementS
       })
     )
     const result: AccountTerminalAccessResult = await this.queryBus.execute(
-      new GetAccountTerminalAccessQuery(request.accountId!, request.tenantId || undefined, scopeLevel)
+      new GetAccountTerminalAccessQuery(
+        request.accountId!,
+        request.tenantId || undefined,
+        scopeLevel
+      )
     )
     const response = toAccountTerminalAccessResponse(result)
     this.recordMutation(
@@ -1338,7 +1423,11 @@ export class PermissionManagementGrpcController implements PermissionManagementS
       })
     )
     const result: AccountTerminalAccessResult = await this.queryBus.execute(
-      new GetAccountTerminalAccessQuery(request.accountId!, request.tenantId || undefined, scopeLevel)
+      new GetAccountTerminalAccessQuery(
+        request.accountId!,
+        request.tenantId || undefined,
+        scopeLevel
+      )
     )
     const response = toAccountTerminalAccessResponse(result)
     this.recordMutation(
@@ -1355,10 +1444,18 @@ export class PermissionManagementGrpcController implements PermissionManagementS
   private recordMutation(
     rpcData: unknown,
     action: string,
-    targetType: 'ROLE' | 'PERMISSION' | 'ACCOUNT_ROLE' | 'ROLE_PERMISSION' | 'NAVIGATION_ENTRY' | 'ROLE_NAVIGATION' | 'TERMINAL_ACCESS',
+    targetType:
+      | 'ROLE'
+      | 'PERMISSION'
+      | 'ACCOUNT_ROLE'
+      | 'ROLE_PERMISSION'
+      | 'NAVIGATION_ENTRY'
+      | 'ROLE_NAVIGATION'
+      | 'TERMINAL_ACCESS',
     targetId: string,
     targetCode?: string,
-    afterData?: Record<string, unknown>
+    afterData?: Record<string, unknown>,
+    eventId?: string
   ): void {
     const operatorContext = getAuthenticatedGrpcRequestContext(rpcData)?.operatorContext as
       | OperatorContextPayload
@@ -1370,6 +1467,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     }
 
     this.permissionAuditService.emitManagementMutation({
+      eventId,
       actorId: operatorId,
       tenantId: operatorContext?.tenant_id || undefined,
       action,

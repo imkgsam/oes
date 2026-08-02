@@ -5,5 +5,12 @@ export interface IdentityAccountReferencePort {
     accountId: string
     tenantId: string | null
     scopeLevel: 'SYSTEM' | 'TENANT'
+    isActive: boolean
+  } | null>
+  getServiceAccountById(serviceAccountId: string): Promise<{
+    principalId: string
+    tenantId: string | null
+    scopeLevel: 'SYSTEM' | 'TENANT'
+    isActive: boolean
   } | null>
 }

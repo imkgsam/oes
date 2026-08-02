@@ -1,0 +1,114 @@
+syntax = "proto3";
+
+package auth_service;
+
+option java_multiple_files = true;
+option java_package = "com.oes.auth.v1";
+
+// Defines the Auth-owned credential lifecycle and Gateway-only exchange surface for tenant Integration Machines.
+service ExternalApiKeyCredentialService {
+  // Creates one credential for a trusted tenant Integration Machine and returns its secret exactly once.
+  rpc CreateExternalApiKey(CreateExternalApiKeyRequest) returns (CreateExternalApiKeyResponse);
+  // Returns masked credential metadata for one machine without exposing recoverable secret material.
+  rpc ListExternalApiKeys(ListExternalApiKeysRequest) returns (ListExternalApiKeysResponse);
+  // Replaces one credential while preserving the bounded predecessor overlap.
+  rpc RotateExternalApiKey(RotateExternalApiKeyRequest) returns (RotateExternalApiKeyResponse);
+  // Irreversibly revokes one credential and triggers Auth-owned credential denial when required.
+  rpc RevokeExternalApiKey(RevokeExternalApiKeyRequest) returns (RevokeExternalApiKeyResponse);
+  // Exchanges the one sensitive presented key field from the verified Gateway workload for a Gateway-only access token.
+  rpc ExchangeExternalApiKey(ExchangeExternalApiKeyRequest) returns (ExchangeExternalApiKeyResponse);
+  // Atomically revokes every credential for one provider-confirmed compromised verifier version; callable only by the registered deployment security-operation workload.
+  rpc CompromiseExternalApiKeyVerifierVersion(CompromiseExternalApiKeyVerifierVersionRequest) returns (CompromiseExternalApiKeyVerifierVersionResponse);
+}
+
+// Carries only the referenced Integration Machine and caller-safe display/expiry preferences; trusted context supplies tenant and operator.
+message CreateExternalApiKeyRequest {
+  string integration_machine_id = 1;
+  string display_label = 2;
+  int64 requested_expires_at_unix_seconds = 3;
+}
+
+// Returns the full key exactly once together with safe credential metadata.
+message CreateExternalApiKeyResponse {
+  ExternalApiKeyCredential credential = 1;
+  string api_key = 2;
+}
+
+// Requests masked credential metadata for one machine; tenant and principal are always derived from trusted context.
+message ListExternalApiKeysRequest {
+  string integration_machine_id = 1;
+}
+
+// Returns only masked credential records in stable creation order.
+message ListExternalApiKeysResponse {
+  repeated ExternalApiKeyCredential credentials = 1;
+}
+
+// Identifies an existing credential to replace without accepting secret, tenant, or principal input.
+message RotateExternalApiKeyRequest {
+  string credential_id = 1;
+}
+
+// Returns the replacement key exactly once and safe predecessor metadata.
+message RotateExternalApiKeyResponse {
+  ExternalApiKeyCredential credential = 1;
+  string api_key = 2;
+  string predecessor_credential_id = 3;
+  int64 predecessor_valid_until_unix_seconds = 4;
+}
+
+// Identifies an existing credential for irreversible revocation without allowing a caller-selected denial selector.
+message RevokeExternalApiKeyRequest {
+  string credential_id = 1;
+}
+
+// Returns safe metadata for the revoked credential only.
+message RevokeExternalApiKeyResponse {
+  ExternalApiKeyCredential credential = 1;
+}
+
+// Carries the raw API Key only across the verified Gateway-to-Auth mTLS hop and never in metadata; Auth derives all machine, tenant and external authorization facts server-side.
+message ExchangeExternalApiKeyRequest {
+  string presented_api_key = 1;
+}
+
+// Returns only the short-lived Gateway-only external access token and safe correlation metadata; the signed token carries Auth-derived external BUSINESS Code scope and never accepts caller-selected capability input.
+message ExchangeExternalApiKeyResponse {
+  string access_token = 1;
+  string token_type = 2;
+  int64 expires_at_unix_seconds = 3;
+  int64 expires_in_seconds = 4;
+  string credential_id = 5;
+  string integration_machine_id = 6;
+  string tenant_id = 7;
+  string audit_correlation_id = 8;
+}
+
+// Carries only safe provider-confirmed incident evidence; trusted transport supplies the security-operation workload/operator/trace context.
+message CompromiseExternalApiKeyVerifierVersionRequest {
+  string verifier_key_version = 1;
+  string incident_reference = 2;
+  int64 occurred_at_unix_seconds = 3;
+}
+
+// Returns only the immutable incident result and aggregate counts; no credential, verifier, secret, token or backend metadata is exposed.
+message CompromiseExternalApiKeyVerifierVersionResponse {
+  string incident_reference = 1;
+  int64 matched_credential_count = 2;
+  int64 newly_revoked_credential_count = 3;
+  int64 already_revoked_credential_count = 4;
+  int64 completed_at_unix_seconds = 5;
+}
+
+// Describes non-secret credential metadata returned by management methods.
+message ExternalApiKeyCredential {
+  string credential_id = 1;
+  string integration_machine_id = 2;
+  string key_identifier = 3;
+  string display_label = 4;
+  string status = 5;
+  int64 created_at_unix_seconds = 6;
+  int64 expires_at_unix_seconds = 7;
+  int64 last_used_at_unix_seconds = 8;
+  string supersedes_credential_id = 9;
+}

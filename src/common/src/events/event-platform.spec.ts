@@ -10,12 +10,22 @@ import {
   decodeCloudEvent,
   encodeCloudEvent,
   runSafeRedelivery,
+  toNatsPublishRequest,
   transferToDlqThenTerm,
   validateNatsTransport,
 } from './index'
 
 /** Verifies the public common event transport boundary against the frozen wire contract. */
 describe('event platform CloudEvents codec', () => {
+  const securityContract = {
+    eventType: 'auth.execution-token.revoked',
+    eventVersion: 1,
+    ownerService: 'auth-service',
+    transportProfile: 'SECURITY_CRITICAL' as const,
+    validateData: (data: unknown): data is { value: string } =>
+      typeof data === 'object' && data !== null && typeof (data as { value?: unknown }).value === 'string',
+  }
+
   const input = {
     contract: {
       eventType: 'example.fact.happened',
@@ -108,6 +118,67 @@ describe('event platform CloudEvents codec', () => {
     expect(() => createOesCloudEvent({ ...input, actorAccountId: '' })).toThrow('EVENT_ACTOR_INVALID')
     const event = createOesCloudEvent(input)
     expect(() => decodeCloudEvent(Buffer.from(JSON.stringify({ ...event, oesauditref: '' })), input.contract)).toThrow('EVENT_AUDIT_REF_INVALID')
+  })
+
+  it('preserves the business profile by rejecting a security scope or missing aggregate attributes', () => {
+    expect(() => createOesCloudEvent({ ...input, executionScope: 'TENANT' })).toThrow('EVENT_BUSINESS_SCOPE_FORBIDDEN')
+    const { aggregateId: _aggregateId, ...missingAggregate } = input
+    expect(() => createOesCloudEvent(missingAggregate)).toThrow('EVENT_AGGREGATE_ID_REQUIRED')
+  })
+
+  it.each([
+    ['TENANT', 'tenant-1'],
+    ['SYSTEM', undefined],
+  ] as const)('round-trips a %s security event without fabricating a business aggregate', (executionScope, tenantId) => {
+    const event = createOesCloudEvent({
+      contract: securityContract,
+      eventId: `evt-security-${executionScope.toLowerCase()}`,
+      occurredAt: '2026-07-26T08:00:00.000Z',
+      executionScope,
+      ...(tenantId === undefined ? {} : { tenantId }),
+      traceId: 'trace-security',
+      data: { value: 'frozen' },
+    })
+
+    expect(event).toMatchObject({
+      oesexecutionscope: executionScope,
+      ...(tenantId === undefined ? {} : { oestenantid: tenantId }),
+    })
+    expect(event).not.toHaveProperty('subject')
+    expect(event).not.toHaveProperty('oesaggregatetype')
+    expect(event).not.toHaveProperty('oesaggregateid')
+    expect(toNatsPublishRequest(event, securityContract).subject).toBe('oes.security.events.auth.execution-token.revoked')
+    expect(decodeCloudEvent(encodeCloudEvent(event).body, securityContract)).toEqual(event)
+  })
+
+  it.each([
+    ['TENANT', undefined, 'EVENT_TENANT_REQUIRED'],
+    ['SYSTEM', 'tenant-1', 'EVENT_SCOPE_TENANT_INVALID'],
+  ] as const)('fails closed for an illegal %s security scope and tenant combination', (executionScope, tenantId, code) => {
+    expect(() => createOesCloudEvent({
+      contract: securityContract,
+      eventId: 'evt-security-invalid',
+      occurredAt: '2026-07-26T08:00:00.000Z',
+      executionScope,
+      ...(tenantId === undefined ? {} : { tenantId }),
+      traceId: 'trace-security',
+      data: { value: 'frozen' },
+    })).toThrow(code)
+  })
+
+  it.each([
+    ['owner', { ownerService: 'security-service' }],
+    ['type', { eventType: 'security.fact.happened' }],
+    ['version', { eventVersion: 2 }],
+  ])('fails closed for a non-frozen security %s descriptor', (_caseName, mutation) => {
+    expect(() => createOesCloudEvent({
+      contract: { ...securityContract, ...mutation },
+      eventId: 'evt-security-unfrozen',
+      occurredAt: '2026-07-26T08:00:00.000Z',
+      executionScope: 'SYSTEM',
+      traceId: 'trace-security',
+      data: { value: 'opaque' },
+    })).toThrow('EVENT_SECURITY_CONTRACT_UNSUPPORTED')
   })
 })
 

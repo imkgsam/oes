@@ -1,5 +1,6 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
+import { Metadata } from '@grpc/grpc-js'
 import { resolveCommonProtoPath } from '@oes/common/contracts'
 import {
   GetEmployeeByIdResponse,
@@ -31,7 +32,7 @@ export class HrEmployeeReferenceGrpcAdaptor implements HrEmployeeReferencePort, 
       const response = await safeGrpcCall<GetEmployeeByIdResponse>(
         this.hrQueryService.getEmployeeById({
           employeeId
-        }),
+        }, new Metadata()),
         {
           caller: 'identity-service',
           method: 'HrQueryService.getEmployeeById'

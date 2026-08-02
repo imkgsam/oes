@@ -1,5 +1,12 @@
 import { Module } from '@nestjs/common'
+import { Reflector } from '@nestjs/core'
 import { CqrsModule } from '@nestjs/cqrs'
+import {
+  createLazyTrustedExecutionRuntime,
+  ExecutionTokenVerifier,
+  TrustedInternalExecutionGuard
+} from '@oes/common/authorization'
+import { GrpcWorkloadIdentityProvider } from '@oes/common/transport'
 import { ValidatingCommandBus, ValidatingQueryBus } from '@oes/common/cqrs'
 import { SYMBOLS } from '../../common/constants'
 import {
@@ -34,6 +41,8 @@ import { PrismaUserRepository } from '../../infrastructure/repositories/prisma/p
 import { PrismaIdentityAuditRepository } from '../../infrastructure/repositories/prisma/prisma.identity-audit.repository'
 import { PrismaModule } from '../../infrastructure/prisma/prisma.module'
 import { IdentityQueryGrpcController } from '../../interfaces/grpc/identity-query.grpc.controller'
+
+const IDENTITY_SERVICE_AUDIENCE = 'urn:oes:service:identity-service'
 
 @Module({
   imports: [CqrsModule, PrismaModule],
@@ -102,6 +111,30 @@ import { IdentityQueryGrpcController } from '../../interfaces/grpc/identity-quer
     {
       provide: ACCOUNT_DELETION_BLOCKER_CHECKERS,
       useValue: []
+    },
+    {
+      provide: ExecutionTokenVerifier,
+      useFactory: () => createLazyTrustedExecutionRuntime(IDENTITY_SERVICE_AUDIENCE).verifier
+    },
+    {
+      provide: GrpcWorkloadIdentityProvider,
+      useFactory: () =>
+        createLazyTrustedExecutionRuntime(IDENTITY_SERVICE_AUDIENCE).workloadIdentityProvider
+    },
+    {
+      provide: TrustedInternalExecutionGuard,
+      useFactory: (
+        reflector: Reflector,
+        verifier: ExecutionTokenVerifier,
+        workloadIdentityProvider: GrpcWorkloadIdentityProvider
+      ) =>
+        new TrustedInternalExecutionGuard(
+          reflector,
+          verifier,
+          workloadIdentityProvider,
+          IDENTITY_SERVICE_AUDIENCE
+        ),
+      inject: [Reflector, ExecutionTokenVerifier, GrpcWorkloadIdentityProvider]
     },
     ...UserQueryHandlers,
     ...AccountQueryHandlers,

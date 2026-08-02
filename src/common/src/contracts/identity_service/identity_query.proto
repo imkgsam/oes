@@ -12,6 +12,8 @@ service IdentityQueryService {
   rpc ListAuditEvents(ListAuditEventsRequest) returns (ListAuditEventsResponse);
   rpc GetApiKeyById(GetApiKeyByIdRequest) returns (GetApiKeyByIdResponse);
   rpc GetServiceAccountById(GetServiceAccountByIdRequest) returns (GetServiceAccountByIdResponse);
+  // Resolves Identity-owned Integration Machine lifecycle facts only for Auth's trusted external API-key exchange.
+  rpc ResolveIntegrationMachineForAuth(ResolveIntegrationMachineForAuthRequest) returns (ResolveIntegrationMachineForAuthResponse);
   rpc ListApiKeysByServiceAccountId(ListApiKeysByServiceAccountIdRequest) returns (ListApiKeysByServiceAccountIdResponse);
   rpc ListServiceAccounts(ListServiceAccountsRequest) returns (ListServiceAccountsResponse);
   rpc ResolveContactActionTargets(ResolveContactActionTargetsRequest) returns (ResolveContactActionTargetsResponse);
@@ -626,6 +628,24 @@ message GetServiceAccountByIdRequest {
 
 message GetServiceAccountByIdResponse {
   ServiceAccount account = 1;
+}
+
+// Auth derives this machine reference from its verified credential record; tenant, type and lifecycle are never request authority.
+message ResolveIntegrationMachineForAuthRequest {
+  string integration_machine_id = 1;
+}
+
+// Returns only Identity-owned machine lifecycle facts and safe decision correlation for Auth's fail-closed exchange.
+message ResolveIntegrationMachineForAuthResponse {
+  bool eligible = 1;
+  string integration_machine_id = 2;
+  string tenant_id = 3;
+  string scope_level = 4;
+  string machine_type = 5;
+  string lifecycle_status = 6;
+  string lifecycle_version = 7;
+  string decision_reference = 8;
+  string reason_code = 9;
 }
 
 message UpdateUserBasicInfoResponse {

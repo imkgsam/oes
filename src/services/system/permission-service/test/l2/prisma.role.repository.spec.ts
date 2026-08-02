@@ -208,7 +208,7 @@ describe('PrismaRoleRepository L2', () => {
       AccountType.USER
     )
 
-    const roles = await repository.replaceAccountRoles(
+    const result = await repository.replaceAccountRoles(
       `${prefix}_account_2`,
       'tenant-1',
       ScopeLevel.TENANT,
@@ -216,7 +216,167 @@ describe('PrismaRoleRepository L2', () => {
       [roleB.id]
     )
 
-    expect(roles).toHaveLength(1)
-    expect(roles[0]?.id).toBe(roleB.id)
+    expect(result.roles).toHaveLength(1)
+    expect(result.roles[0]?.id).toBe(roleB.id)
+    expect(result.bindings).toHaveLength(1)
+    expect(result.bindings[0]?.roleId).toBe(roleB.id)
+
+    const historical = await prisma.principalRoleBinding.findMany({
+      where: { principalId: `${prefix}_account_2` },
+      orderBy: { createdAt: 'asc' }
+    })
+    expect(historical).toHaveLength(2)
+    expect(historical.find((binding) => binding.roleId === roleA.id)?.revokedAt).not.toBeNull()
+  })
+
+  it('绑定有效窗口 / 相邻窗口允许而重叠窗口由数据库排他约束拒绝', async () => {
+    const role = await prisma.role.create({
+      data: {
+        id: randomUUID(),
+        tenantId: 'tenant-1',
+        scopeKey: 'tenant-1',
+        code: `${prefix}_role_temporal`,
+        name: 'Temporal Role',
+        kind: 'TENANT_INSTANCE',
+        templateRoleId: null,
+        isEnabled: true
+      }
+    })
+    const principalId = `${prefix}_account_temporal`
+    const start = new Date(Date.now() + 60_000)
+    const boundary = new Date(start.getTime() + 60_000)
+    const end = new Date(boundary.getTime() + 60_000)
+
+    await repository.assignAccountRole(
+      principalId,
+      role.id,
+      'tenant-1',
+      ScopeLevel.TENANT,
+      AccountType.USER,
+      start,
+      boundary
+    )
+    await expect(
+      repository.assignAccountRole(
+        principalId,
+        role.id,
+        'tenant-1',
+        ScopeLevel.TENANT,
+        AccountType.USER,
+        boundary,
+        end
+      )
+    ).resolves.toMatchObject({ roleId: role.id })
+    await expect(
+      repository.assignAccountRole(
+        principalId,
+        role.id,
+        'tenant-1',
+        ScopeLevel.TENANT,
+        AccountType.USER,
+        new Date(start.getTime() + 30_000),
+        end
+      )
+    ).rejects.toMatchObject({
+      definition: { code: 'ACCOUNT_ROLE_ALREADY_ASSIGNED' }
+    })
+  })
+
+  it('绑定撤销 / 重试保留首次事实且后续 regrant 创建新 identity', async () => {
+    const role = await prisma.role.create({
+      data: {
+        id: randomUUID(),
+        tenantId: 'tenant-1',
+        scopeKey: 'tenant-1',
+        code: `${prefix}_role_regrant`,
+        name: 'Regrant Role',
+        kind: 'TENANT_INSTANCE',
+        templateRoleId: null,
+        isEnabled: true
+      }
+    })
+    const principalId = `${prefix}_account_regrant`
+    const firstBinding = await repository.assignAccountRole(
+      principalId,
+      role.id,
+      'tenant-1',
+      ScopeLevel.TENANT,
+      AccountType.USER
+    )
+    const firstRevokedAt = new Date()
+    const first = await repository.revokePrincipalRoleBinding({
+      bindingId: firstBinding.bindingId,
+      revokedAt: firstRevokedAt,
+      revokedByOperatorId: 'operator-1',
+      reason: 'rotation',
+      auditEventId: 'audit-first'
+    })
+    const retry = await repository.revokePrincipalRoleBinding({
+      bindingId: firstBinding.bindingId,
+      revokedAt: new Date(firstRevokedAt.getTime() + 60_000),
+      revokedByOperatorId: 'operator-2',
+      reason: 'different',
+      auditEventId: 'audit-second'
+    })
+    const regrant = await repository.assignAccountRole(
+      principalId,
+      role.id,
+      'tenant-1',
+      ScopeLevel.TENANT,
+      AccountType.USER
+    )
+
+    expect(first.revokedNow).toBe(true)
+    expect(retry).toEqual({ ...first, revokedNow: false })
+    expect(regrant.bindingId).not.toBe(firstBinding.bindingId)
+    expect(
+      await prisma.principalRoleBinding.count({ where: { principalId, roleId: role.id } })
+    ).toBe(2)
+  })
+
+  it('绑定数据库约束 / TENANT 无 tenantId 时拒绝且未来绑定可在生效前撤销', async () => {
+    const role = await prisma.role.create({
+      data: {
+        id: randomUUID(),
+        tenantId: 'tenant-1',
+        scopeKey: 'tenant-1',
+        code: `${prefix}_role_scope_constraint`,
+        name: 'Scope Constraint Role',
+        kind: 'TENANT_INSTANCE',
+        templateRoleId: null,
+        isEnabled: true
+      }
+    })
+
+    await expect(
+      prisma.principalRoleBinding.create({
+        data: {
+          principalType: 'HUMAN',
+          principalId: `${prefix}_invalid_scope`,
+          roleId: role.id,
+          tenantId: null,
+          scopeLevel: 'TENANT'
+        }
+      })
+    ).rejects.toBeDefined()
+
+    const scheduled = await repository.assignAccountRole(
+      `${prefix}_scheduled`,
+      role.id,
+      'tenant-1',
+      ScopeLevel.TENANT,
+      AccountType.USER,
+      new Date(Date.now() + 86_400_000),
+      null
+    )
+    await expect(
+      repository.revokePrincipalRoleBinding({
+        bindingId: scheduled.bindingId,
+        revokedAt: new Date(),
+        revokedByOperatorId: 'operator-1',
+        reason: 'cancel-scheduled',
+        auditEventId: 'audit-scheduled'
+      })
+    ).resolves.toMatchObject({ revokedNow: true })
   })
 })

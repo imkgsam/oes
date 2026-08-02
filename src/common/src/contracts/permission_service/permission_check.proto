@@ -13,6 +13,8 @@ service PermissionCheckService {
   rpc CheckPermission(CheckPermissionRequest) returns (CheckPermissionResponse);
   // 纯 RBAC 批量鉴权
   rpc BatchCheckPermission(BatchCheckPermissionRequest) returns (BatchCheckPermissionResponse);
+  // Returns Auth's trusted Integration Machine snapshot of currently granted external-safe BUSINESS codes without exposing roles or routes.
+  rpc ResolveExternalMachineAuthorizationSnapshot(ResolveExternalMachineAuthorizationSnapshotRequest) returns (ResolveExternalMachineAuthorizationSnapshotResponse);
 }
 
 enum EvaluationModeProto {
@@ -114,6 +116,23 @@ message BatchAuthorizationDecisionResponse {
 // BatchCheckPermissionResponse preserves the existing wire shape while satisfying RPC-specific response naming hygiene.
 message BatchCheckPermissionResponse {
   repeated BatchAuthorizationDecisionItem decisions = 1;
+}
+
+// Auth supplies these references only after validating the credential, Machine Principal and tenant through trusted internal context.
+message ResolveExternalMachineAuthorizationSnapshotRequest {
+  string integration_machine_id = 1;
+  string tenant_id = 2;
+}
+
+// Carries only effective external-safe existing BUSINESS Permission Codes and non-secret authorization correlation.
+message ResolveExternalMachineAuthorizationSnapshotResponse {
+  repeated string external_business_permission_codes = 1;
+  string authz_version = 2;
+  string decision_reference = 3;
+  bool allowed = 4;
+  string integration_machine_id = 5;
+  string tenant_id = 6;
+  string reason_code = 7;
 }
 
 message PolicyExplainEntry {

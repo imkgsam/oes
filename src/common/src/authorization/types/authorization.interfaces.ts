@@ -8,6 +8,10 @@ import {
   OperatorScopedMetadataInput
 } from './grpc-metadata-propagation.types'
 import { OperatorContextPayload, UnsignedOperatorContextPayload } from './operator-context-payload'
+import type {
+  VerifiedExecutionToken,
+  VerifiedWorkloadIdentity
+} from '../trusted-execution'
 
 export interface InternalServiceAuthenticator {
   authenticate(metadata?: Metadata): InternalServiceAuthenticationResult
@@ -39,4 +43,6 @@ export interface GrpcMetadataPropagationFactory {
 export interface AuthenticatedGrpcRequestContext {
   internalService?: InternalServicePrincipal
   operatorContext?: OperatorContextPayload
+  verifiedExecutionToken?: VerifiedExecutionToken
+  verifiedWorkloadIdentity?: VerifiedWorkloadIdentity
 }

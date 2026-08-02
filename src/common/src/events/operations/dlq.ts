@@ -9,7 +9,7 @@ export interface DlqRecord {
   readonly consumerName: string
   readonly subscriptionConfigVersion: number
   readonly eventId: string
-  readonly tenantId: string
+  readonly tenantId?: string
   readonly eventType: string
   readonly eventVersion: number
   readonly traceId: string

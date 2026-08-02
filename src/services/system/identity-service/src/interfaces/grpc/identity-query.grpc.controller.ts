@@ -1,11 +1,13 @@
 import { Controller, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common'
 import { GrpcMethod } from '@nestjs/microservices'
 import {
+  AuthorizeInternalCall,
   AuthenticatedOperatorGuard,
   GrpcRequestContextInterceptor,
   InternalServiceGuard,
   RequireAuthenticatedOperator
 } from '@oes/common/authorization'
+import { TrustedInternalExecutionGuard } from '@oes/common/authorization'
 import { ValidatingQueryBus } from '@oes/common/cqrs'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
@@ -46,6 +48,8 @@ import {
   GetUserByPhoneResponse,
   IdentityQueryServiceController,
   IdentityQueryServiceControllerMethods,
+  ResolveIntegrationMachineForAuthRequest,
+  ResolveIntegrationMachineForAuthResponse,
   ServiceAccount
 } from '@oes/common/generated/identity_service'
 import {
@@ -73,6 +77,7 @@ import {
   ListAccountWorkPhoneAssetsQuery,
   ResolveContactActionTargetsQuery,
   ResolveContactActionTargetsView,
+  ResolveIntegrationMachineForAuthQuery,
   ServiceAccountView,
   GetUserByIdQuery,
   UserSummaryView,
@@ -221,6 +226,20 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
     return {
       account: IdentityGrpcPresenter.toServiceAccount(account)
     }
+  }
+
+  /** Exposes the narrow generated Auth-only Integration Machine fact resolution RPC. */
+  @AuthorizeInternalCall({ all: ['identity.internal.integration_machine.resolve'] })
+  @UseGuards(TrustedInternalExecutionGuard)
+  async resolveIntegrationMachineForAuth(
+    request: ResolveIntegrationMachineForAuthRequest
+  ): Promise<ResolveIntegrationMachineForAuthResponse> {
+    const machine = await this.queryBus.execute<
+      ResolveIntegrationMachineForAuthQuery,
+      import('../../application/queries/service-account/resolve-integration-machine-for-auth.handler').IntegrationMachineForAuthView
+    >(new ResolveIntegrationMachineForAuthQuery(request.integrationMachineId!))
+
+    return machine
   }
 
   async listServiceAccounts(

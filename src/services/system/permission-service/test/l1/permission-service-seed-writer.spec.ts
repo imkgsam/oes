@@ -35,7 +35,9 @@ describe('permission service seed writer', () => {
   it('replaces seed-owned role navigation rows instead of leaving stale visibility behind', async () => {
     const seed = buildPermissionServiceSeed()
     const calls: string[] = []
-    const permissionIdByCode = new Map(seed.permissionCodes.map((permission) => [permission.code, `perm:${permission.code}`]))
+    const permissionIdByCode = new Map(
+      seed.permissionCodes.map((permission) => [permission.code, `perm:${permission.code}`])
+    )
     const prisma = {
       permission: {
         upsert: jest.fn(async ({ create }: any) => ({
@@ -110,9 +112,68 @@ describe('permission service seed writer', () => {
     expect(prisma.policyInstance.createMany).not.toHaveBeenCalled()
   })
 
+  it('upserts authoritative INTERNAL metadata and never includes it in a role binding', async () => {
+    const seed = buildPermissionServiceSeed()
+    const internal = seed.permissionCodes.find(
+      (item) => item.code === 'auth.internal.external_api_key.verifier_version.compromise'
+    )!
+    const prisma = {
+      permission: {
+        upsert: jest.fn(async ({ create }: any) => ({
+          id: `perm:${create.code}`,
+          code: create.code
+        }))
+      },
+      role: {
+        upsert: jest.fn(async () => ({})),
+        findMany: jest.fn(async () => []),
+        updateMany: jest.fn(async () => ({}))
+      },
+      rolePermission: {
+        findMany: jest.fn(async () => []),
+        deleteMany: jest.fn(async () => ({})),
+        createMany: jest.fn(async () => ({}))
+      },
+      navigationEntry: { upsert: jest.fn(async () => ({})), updateMany: jest.fn(async () => ({})) },
+      roleNavigationVisibility: {
+        findMany: jest.fn(async () => []),
+        deleteMany: jest.fn(async () => ({})),
+        createMany: jest.fn(async () => ({})),
+        updateMany: jest.fn(async () => ({}))
+      },
+      roleLandingPolicy: {
+        deleteMany: jest.fn(async () => ({})),
+        findMany: jest.fn(async () => []),
+        createMany: jest.fn(async () => ({})),
+        updateMany: jest.fn(async () => ({}))
+      },
+      roleTerminalAccess: { upsert: jest.fn(async () => ({})) },
+      policyInstance: {
+        deleteMany: jest.fn(async () => ({})),
+        createMany: jest.fn(async () => ({}))
+      }
+    }
+
+    await applyPermissionServiceSeed(prisma as any, seed)
+
+    expect(prisma.permission.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          code: internal.code,
+          kind: 'INTERNAL',
+          externalApiEligible: false
+        }),
+        update: expect.objectContaining({ kind: 'INTERNAL', externalApiEligible: false })
+      })
+    )
+    expect(JSON.stringify(prisma.rolePermission.createMany.mock.calls)).not.toContain(internal.code)
+  })
+
   it('backfills built-in tenant role instance navigation during seed apply', async () => {
     const seed = buildPermissionServiceSeed()
-    const permissionIdByCode = new Map(seed.permissionCodes.map((permission) => [permission.code, `perm:${permission.code}`]))
+    const permissionIdByCode = new Map(
+      seed.permissionCodes.map((permission) => [permission.code, `perm:${permission.code}`])
+    )
     const prisma = {
       permission: {
         upsert: jest.fn(async ({ create }: any) => ({
@@ -123,7 +184,9 @@ describe('permission service seed writer', () => {
       role: {
         upsert: jest.fn(async () => ({})),
         findMany: jest.fn(async (args: any) =>
-          args.where.OR?.some((item: { code?: string }) => item.code === 'item_master.product_data_manager')
+          args.where.OR?.some(
+            (item: { code?: string }) => item.code === 'item_master.product_data_manager'
+          )
             ? [
                 {
                   id: 'item-role-1',

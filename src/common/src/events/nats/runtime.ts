@@ -720,7 +720,7 @@ function selectReplayContract(
 function matchesSafeRedelivery(event: OesCloudEvent, request: SafeRedeliveryRequest): boolean {
   const filter = request.eventFilter
   return (
-    request.tenantScope.includes(event.oestenantid) &&
+    event.oestenantid !== undefined && request.tenantScope.includes(event.oestenantid) &&
     (!filter.eventTypes?.length || filter.eventTypes.includes(event.type)) &&
     (!filter.eventIds?.length || filter.eventIds.includes(event.id))
   )

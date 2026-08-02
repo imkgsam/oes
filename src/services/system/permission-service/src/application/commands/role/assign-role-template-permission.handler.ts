@@ -5,18 +5,18 @@ import { AssignRoleTemplatePermissionCommand } from './assign-role-template-perm
 import { RoleRepository } from '../../../domain/repositories/role.repository'
 import { PermissionRepository } from '../../../domain/repositories/permission.repository'
 import { RoleKind } from '../../../domain/enums/role-kind.enum'
+import { PermissionKind } from '../../../domain/enums/permission-kind.enum'
 import { RolePermission } from '../../../domain/vo/role-permission.value-object'
 import { SYMBOLS } from '../../../common/constants/symbols'
 import {
   PERMISSION_NOT_FOUND,
+  PERMISSION_NOT_ROLE_ASSIGNABLE,
   ROLE_TEMPLATE_NOT_FOUND
 } from '../../../common/constants/exception-enums'
 import { assertSystemScope } from '../../authorization/operator-scope'
 
 @CommandHandler(AssignRoleTemplatePermissionCommand)
-export class AssignRoleTemplatePermissionHandler
-  implements ICommandHandler<AssignRoleTemplatePermissionCommand>
-{
+export class AssignRoleTemplatePermissionHandler implements ICommandHandler<AssignRoleTemplatePermissionCommand> {
   constructor(
     @Inject(SYMBOLS.REPO.ROLE)
     private readonly roleRepo: RoleRepository,
@@ -34,6 +34,11 @@ export class AssignRoleTemplatePermissionHandler
 
     const permission = await this.permissionRepo.findById(command.permissionId)
     if (!permission) throw ExceptionFactory.domain(PERMISSION_NOT_FOUND)
+    if (permission.kind === PermissionKind.INTERNAL) {
+      throw ExceptionFactory.domain(PERMISSION_NOT_ROLE_ASSIGNABLE, {
+        permissionCode: permission.code
+      })
+    }
 
     role.addPermission(new RolePermission(role.id, permission.id, permission.code))
     await this.roleRepo.save(role)

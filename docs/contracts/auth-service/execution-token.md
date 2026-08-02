@@ -34,6 +34,34 @@ STS 只接受平台已经验证的输入：
 
 ## 3. ExchangeExecutionToken
 
+### Runtime host and protected signing binding
+
+`ExecutionTokenService.ExchangeExecutionToken` and `ExecutionTokenService.GetExecutionTokenJwks` are both mounted on the existing Auth `auth_service` gRPC host. The Auth transport must load the frozen ExecutionToken proto alongside the existing Auth proto; a standalone HTTP controller is not an implementation of either RPC. `ExchangeExecutionToken` accepts only the declared target audience and requested Permission Code fields. Verified workload identity, certificate thumbprint and current execution context are injected by the trusted Common transport/runtime and cannot be reconstructed from the request body or metadata headers.
+
+`GetExecutionTokenJwks` is the internal gRPC JWKS discovery path. Auth additionally publishes RFC 8414 authorization-server metadata on the exact configured HTTPS issuer host and the absolute `jwks_uri` advertised there. The HTTPS publisher exposes only the same public ES256 verification facts; it does not open ExecutionToken exchange over HTTP or replace the gRPC service.
+
+The Auth runtime has exactly one production signing binding: deployment-provided `KmsHsmExecutionTokenClient` → `KmsHsmExecutionTokenSigningAdapter` → `ExecutionTokenSigningPort`. Bootstrap requires an exact issuer, public metadata/JWKS endpoint, opaque signing-key reference and immutable workload/audience registry. An absent protected client, invalid configuration or invalid active/public key timeline prevents the runtime from accepting exchange or JWKS requests. A later protected signing failure makes new exchange fail closed; no in-memory, file, PEM, private-JWK or environment-secret signer fallback exists. Local security integration uses the same port against a KMS/HSM-compatible non-exportable test key boundary; fake signers are unit-test-only.
+
+The protected provider accepts only an opaque signing-key reference and, when deployment cannot use workload identity directly, an opaque credential reference resolved inside the provider. Neither is private key material. Before readiness, Auth must read active and overlap public keys, validate unique `kid`, ES256/P-256 JWK and every publication/signing/retirement boundary, then sign a bootstrap challenge through the provider and verify it with the active public JWK. Failure rejects startup; a throwing placeholder is not a valid production binding. The exact issuer authority serves TLS itself or uses an approved proxy that forwards only RFC 8414 metadata and configured JWKS routes over an authenticated local channel; plain HTTP, arbitrary Host-header routing and proxy-synthesized JWKS are invalid.
+
+The executable provider is the pod-local `execution-token-signer-agent`, a Go static binary under `docker/grpc-trust/execution-token-signer/cmd/agent/**` with its own local `go.mod`, reached only through deployment-configured `AUTH_EXECUTION_SIGNER_SOCKET_PATH` Unix domain socket with least-privilege mount permissions and peer authentication. It is a sidecar infrastructure component, not a public OES service. Its signing backend is a PKCS#11-compatible HSM/KMS gateway with a non-exportable P-256 key; local integration uses the same agent protocol with a PKCS#11-compatible test HSM. The wire protocol is newline-delimited JSON-RPC 2.0. The ExecutionToken client may invoke only these signing operations:
+
+1. `GetActiveKey` returns the one active public JWK and its rotation facts.
+2. `ListPublishedKeys` returns public active/overlap JWKs and their rotation facts.
+3. `SignEs256(kid, signingInputBase64url)` accepts only a currently published `kid` and base64url JWS signing input, returning base64url fixed-width JOSE `r || s` signature.
+
+ADR 0017 reuses the same Auth-local process/socket for the separately domain-bound `GetExternalApiKeyVerifierStatus` and `ComputeExternalApiKeyVerifier` methods defined only by the External API Key contract. Those methods use a distinct non-exportable HMAC key, cannot select or affect the ES256 key, and do not turn `SignEs256` into an arbitrary algorithm/key operation. The historical signer-agent name/path is retained during DG-3; no ExecutionToken claim, signing profile, key lifecycle or verifier behaviour changes.
+
+The agent resolves opaque key / optional credential references inside its own boundary, authenticates to the backend with workload identity, and never returns private material, backend credentials, a DER private key, or arbitrary key-reference selection. Socket/agent absence, permission or peer mismatch, backend/key-reference failure, invalid preflight, TCP/DNS endpoint substitution, or an attempt to sign with an unpublished `kid` rejects Auth readiness or the exchange request fail closed.
+
+### Protected provider binding semantics
+
+The configured signing-key reference is one RFC 7512 PKCS#11 URI which pins token serial, private-key `CKA_ID` (`id`) and `type=private`; it is opaque to callers and cannot be changed by a request, a `kid` or service discovery. The signer-agent obtains the matching non-extractable P-256 public-key object with the same token serial / `CKA_ID`, derives its public ES256 JWK, and derives `kid` as the RFC 7638 SHA-256 JWK thumbprint. Auth accepts neither an arbitrary slot/object selector nor a `kid` that has been retired and reintroduced.
+
+Deployment/SRE owns a read-only manifest under `docker/grpc-trust/execution-token-signer/config/**`, supplied only to the agent at `EXECUTION_SIGNER_ROTATION_MANIFEST_PATH`. A record binds canonical PKCS#11 URI and expected `kid` to RFC 3339 UTC `publishNotBefore`, `signingNotBefore`, `signingNotAfter` and `retireAfter`. The agent cross-checks the record with its HSM-derived JWK / `kid`; it has exactly one key eligible for signing (`signingNotBefore <= now < signingNotAfter`) and publishes all and only keys in their overlap window (`publishNotBefore <= now < retireAfter`). `retireAfter` must be no earlier than `signingNotAfter + 300 seconds maximum Token TTL + 60 seconds clock skew`. The existing agent operations expose only the validated public JWK and rotation facts; zero/multiple active keys or any manifest/key/timeline mismatch fails readiness.
+
+Workload identity is the default backend credential. If a PKCS#11 backend requires additional authentication, only the agent resolves an opaque credential reference through the deployment secret broker; no PIN, resolved credential, private key or raw session handle enters Auth configuration, DI, logs, application/domain code or the socket response. The agent logs in as `CKU_USER` only for the configured token/slot, keeps a time-bounded session lease, refreshes before expiry, and on failure zeroizes credential buffers, logs out, closes the session and fails the sign/readiness operation. The required local security integration asset is SoftHSM2 at `docker/grpc-trust/execution-token-signer/local/softhsm2/**`: a sensitive, non-extractable P-256 key is generated in its token and the token/PIN are mounted only to the agent as a permission-restricted secret file. Integration runs the actual agent over UDS and proves signature verification/rotation plus private-key export refusal, manifest mismatch, credential-lease failure and unavailable agent/HSM fail-closed behavior.
+
 ### Request semantics
 
 逻辑请求至少表达：
@@ -78,21 +106,21 @@ The issuer publishes authorization-server metadata and a HTTPS `jwks_uri`. Resou
 
 至少包含：
 
-| Claim | Required | Semantics |
-| --- | --- | --- |
-| `iss` | yes | Auth / STS registered issuer。 |
-| `aud` | yes | 唯一 target service audience。 |
-| `sub` | yes | 获授权 execution principal id。 |
-| `principal_type` | yes | `HUMAN`、`MACHINE` 或 `DELEGATED`。 |
-| `client_id` | yes | 申请并直接使用本 Token 的 verified SPIFFE ID。 |
-| `tenant_id` | TENANT | 唯一 tenant；不允许 wildcard。 |
-| `org_id` | conditional | 已验证且场景适用时携带。 |
-| `scope` | yes | 空格分隔、规范排序的 Permission Code 子集。 |
-| `jti` / `iat` / `nbf` / `exp` | yes | 唯一性与短期时效。 |
-| `cnf` | yes | 仅含标准 `x5t#S256`：当前 workload mTLS 叶证书 DER 的 SHA-256 base64url thumbprint。 |
-| `act` / `delegation_id` | DELEGATED | 代理归因与 delegation reference。 |
-| `session_id` | HUMAN / DELEGATED when applicable | 关联 active human session；不是资源服务在线 introspection 要求。 |
-| `authz_version` | conditional | principal / session / credential 最低安全版本。 |
+| Claim                         | Required                          | Semantics                                                                            |
+| ----------------------------- | --------------------------------- | ------------------------------------------------------------------------------------ |
+| `iss`                         | yes                               | Auth / STS registered issuer。                                                       |
+| `aud`                         | yes                               | 唯一 target service audience。                                                       |
+| `sub`                         | yes                               | 获授权 execution principal id。                                                      |
+| `principal_type`              | yes                               | `HUMAN`、`MACHINE` 或 `DELEGATED`。                                                  |
+| `client_id`                   | yes                               | 申请并直接使用本 Token 的 verified SPIFFE ID。                                       |
+| `tenant_id`                   | TENANT                            | 唯一 tenant；不允许 wildcard。                                                       |
+| `org_id`                      | conditional                       | 已验证且场景适用时携带。                                                             |
+| `scope`                       | yes                               | 空格分隔、规范排序的 Permission Code 子集。                                          |
+| `jti` / `iat` / `nbf` / `exp` | yes                               | 唯一性与短期时效。                                                                   |
+| `cnf`                         | yes                               | 仅含标准 `x5t#S256`：当前 workload mTLS 叶证书 DER 的 SHA-256 base64url thumbprint。 |
+| `act` / `delegation_id`       | DELEGATED                         | 代理归因与 delegation reference。                                                    |
+| `session_id`                  | HUMAN / DELEGATED when applicable | 关联 active human session；不是资源服务在线 introspection 要求。                     |
+| `authz_version`               | conditional                       | principal / session / credential 最低安全版本。                                      |
 
 Token TTL maximum is 5 minutes. Implementations may shorten it by risk but callers cannot request arbitrary lifetime. The allowed algorithm, issuer and registry are fixed by this contract; callers cannot select them.
 
@@ -127,14 +155,47 @@ Token TTL maximum is 5 minutes. Implementations may shorten it by risk but calle
 API Key is an external-entry credential, not an internal gRPC credential or an ExecutionToken. The full credential lifecycle is frozen in [external-api-key-security.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/external-api-key-security.md), and its public HTTP exchange is frozen in [external-api-key-exchange.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/external-api-key-exchange.md).
 
 - API Key belongs to one active TENANT Integration Machine; the key is not a principal and never enters gRPC metadata.
-- Gateway submits the credential to Auth over its trusted internal path. Auth verifies credential, machine and tenant status, resolves the machine's permitted external capabilities, and returns only a Gateway-bound external-access result.
+- Gateway submits the credential to Auth over its trusted internal path using the verified Gateway workload and exact INTERNAL issuance policy. Auth verifies its credential record, resolves the machine through Identity using Auth mTLS plus `identity.internal.integration_machine.resolve`, cross-checks the Identity tenant and lifecycle, then resolves the current `externalApiEligible` BUSINESS Code snapshot through Permission using Auth mTLS plus `permission.internal.external_machine.snapshot.resolve`. Any trust, owner-fact, tenant, snapshot or dependency failure denies before signing; no caller-selected machine, capability, role, tenant, audience or expiry is accepted.
+- Confirmed verifier-version compromise remediation has one separate SYSTEM INTERNAL issuance policy: the exact environment-registered deployment `security-operations-runner` workload may request only `auth.internal.external_api_key.verifier_version.compromise` for `aud=auth-service`, bound to its current mTLS certificate. No Gateway, HUMAN/tenant MACHINE role, wildcard workload or external JWT can obtain that Code. The RPC and provider-evidence/idempotency semantics remain owned by the External API Key contract.
 - The external caller receives a short-lived Gateway-only external access token. When it invokes an approved external HTTP endpoint, Gateway derives trusted execution context and obtains the separate target-audience ExecutionToken required for the internal mTLS hop.
 - Revoked, expired, superseded-after-overlap, disabled-machine, suspended-tenant, wrong-tenant, or disallowed-entry requests fail closed. Marketplace, shared third-party App principals, App installation and cross-tenant developer-platform models remain out of scope.
 
 ## 8. Revocation And Replay
 
+### Emergency revocation fact
+
+`auth-service` is the sole owner and publisher of the security fact `auth.execution-token.revoked`, with `eventVersion = 1`. The Event platform owns the CloudEvents security transport, event catalog, subjects, durable consumers and recovery topology. This contract owns the Auth meaning of the fact and must be the source used by that Event-owned recording.
+
+One event revokes exactly one selector; selectors cannot be combined into a broad, ambiguous payload:
+
+| Selector kind           | Matching Token claim / Auth fact                                  | Effect                                                  |
+| ----------------------- | ----------------------------------------------------------------- | ------------------------------------------------------- |
+| `TOKEN_JTI`             | exact `jti`                                                       | Rejects only that issued Token.                         |
+| `PRINCIPAL`             | exact `sub` and principal type                                    | Rejects applicable Tokens for that execution principal. |
+| `SESSION`               | exact `session_id`                                                | Rejects applicable Tokens bound to that Auth session.   |
+| `CREDENTIAL`            | Auth-owned credential reference                                   | Rejects applicable Tokens issued from that credential.  |
+| `MINIMUM_AUTHZ_VERSION` | one opaque security subject plus required minimum `authz_version` | Rejects Tokens below that minimum version.              |
+
+The Auth-owned semantic payload contains only the opaque selector reference, selector kind, a strictly increasing `revocationVersion` for that selector, `effectiveAt`, `denyUntil`, a sanitised `reasonCode`, and audit / trace correlation references. `denyUntil` is no earlier than the latest possible expiry of any affected Token plus the configured clock-skew allowance. Execution scope and its conditional tenant boundary belong to the Event-owned transport envelope and must not be duplicated or inferred from the selector.
+
+The payload must not contain an ExecutionToken bearer value, API Key secret, credential verifier, private key material, raw incident narrative, recoverable personal data, or a field that restores a revoked Token. `reasonCode` is a stable sanitised category such as `TOKEN_COMPROMISE`, `SESSION_COMPROMISE`, `PRINCIPAL_COMPROMISE`, `CREDENTIAL_COMPROMISE` or `EMERGENCY_AUTHORIZATION_CHANGE`; it is not an operator-supplied explanation.
+
+### Issuance, ordering and recovery
+
+- Auth creates the local security decision, immutable authentication audit fact and publication intent atomically. It publishes only through the Event-owned security-critical transport.
+- Only an Auth-controlled security workflow, an authorized security administrator, or a verified security detector may trigger an emergency revocation. Other services cannot publish a revocation fact or self-assert a selector.
+- The selector version is monotonic. Consumers retain the highest applicable version and treat same-version equivalent delivery as idempotent; duplicate, delayed or older delivery cannot reduce a deny decision or restore access.
+- Emergency revocation is for high-risk incidents requiring action before normal expiry. Ordinary role, grant, session and credential changes continue to converge through the short ExecutionToken TTL and do not publish emergency revocations.
+- A revocation is one-way for Tokens already issued. If an incident is corrected, the subject resumes only by obtaining a newly exchanged Token with the then-current security state; Auth does not publish an "unrevoke" event.
+- Auth may remove its revocation fact only after `denyUntil`. Resource services may remove equivalent local denial state only under the Event-owned delivery and recovery contract; neither cleanup path re-validates an old Token.
+
+### Consumer validation and availability
+
+Resource services validate the revocation state locally after normal JWT, issuer, audience, workload-binding and authorization checks. A matching selector or lower-than-required `authz_version` fails with `EXECUTION_TOKEN_REVOKED`; successful validation never causes Auth introspection.
+
+Consumers must apply the Event-owned security transport contract for durable catch-up, monotonic delivery, local state persistence, readiness, scope-aware failure and alerting. In particular, after startup, recovery or a detected delivery gap, a service cannot reopen its ExecutionToken-protected path until it proves that revocation state has caught up. While it cannot do so, it fails closed for the affected execution scope; it must not fall back to Token TTL, legacy body identity or an Auth hot-path lookup.
+
 - 普通 role / grant / session / credential 变化允许在 Token TTL 内收敛。
-- 紧急事件可按 `jti`、principal、session、credential 或 minimum `authz_version` 更新服务本地 deny cache。
 - Token 合法复用不是业务幂等。所有有副作用 command 仍使用 tenant + caller + operation 范围内的 idempotency key。
 - 高危操作不能仅靠普通 ExecutionToken 防重放；必须使用有效 delegation、适用 step-up 和冻结的 ActionGrant。ActionGrant 绑定 operation、target、输入摘要与 idempotency reference，并由目标服务在业务写入事务中一次性消费。
 
@@ -164,8 +225,9 @@ transport status 映射由 Gateway / common error boundary 统一处理；不得
 5. DELEGATED Token 的 Code 不超过 HUMAN grant、delegation 与 tool upper bound 的交集。
 6. API Key 不进入内部 gRPC metadata；下游只看到 target-audience ExecutionToken。
 7. key rotation overlap 期间新旧合法 Token 均可验签，过期旧 key 在安全窗口后退出。
-8. emergency deny fact 到达后，在自然过期前拒绝目标 Token / principal / version。
-9. `alg` 非 `ES256`、错误或复用的 `kid`、错误 `typ`、Token 自带 key-source header、错误 issuer 或 multi-audience Token 全部拒绝。
-10. unknown `kid` 只触发一次受控 JWKS refresh；无法从已配置 issuer 获得可信 key 时拒绝，不能访问 Token 提供的 URL。
-11. 正确 SPIFFE ID 但不同叶证书、或正确证书但错误 SPIFFE ID / `client_id` 的调用都因三重绑定失败；证书轮换后旧 Token 必须失败，新 exchange 的 Token 必须成功。
-12. local security integration 使用独立 local CA 与 trust domain 完成真实 TLS 握手，不以 mock identity 替代上述绑定与轮换验证。
+8. 每一种冻结 selector 的 emergency revocation 都只拒绝其精确范围；重复、延迟或旧版本事件不会恢复访问，且在 `denyUntil` 前拒绝目标 Token / principal / session / credential / version。
+9. security consumer 启动、恢复或发现 delivery gap 后，在 Event-owned catch-up 与 readiness 完成前，对受影响 execution scope fail closed；不会回退到 Token TTL、legacy identity 或 Auth hot-path lookup。
+10. `alg` 非 `ES256`、错误或复用的 `kid`、错误 `typ`、Token 自带 key-source header、错误 issuer 或 multi-audience Token 全部拒绝。
+11. unknown `kid` 只触发一次受控 JWKS refresh；无法从已配置 issuer 获得可信 key 时拒绝，不能访问 Token 提供的 URL。
+12. 正确 SPIFFE ID 但不同叶证书、或正确证书但错误 SPIFFE ID / `client_id` 的调用都因三重绑定失败；证书轮换后旧 Token 必须失败，新 exchange 的 Token 必须成功。
+13. local security integration 使用独立 local CA 与 trust domain 完成真实 TLS 握手，不以 mock identity 替代上述绑定与轮换验证。

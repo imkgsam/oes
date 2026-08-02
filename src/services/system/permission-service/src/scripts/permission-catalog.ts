@@ -1,14 +1,18 @@
-import { Modules } from '../../prisma/generated/prisma'
+import { Modules, PermissionKind } from '../../prisma/generated/prisma'
 
 export type PermissionSeedItem = {
   code: string
   module: Modules
   description?: string
+  kind: PermissionKind
+  externalApiEligible: boolean
 }
 
 type PermissionGroupEntry = {
   code: string
   description: string
+  kind?: PermissionKind
+  externalApiEligible?: boolean
 }
 
 type PermissionGroupDefinition<TCodes extends Record<string, PermissionGroupEntry>> = {
@@ -35,7 +39,9 @@ function definePermissionGroup<TCodes extends Record<string, PermissionGroupEntr
   const items = [...uniqueEntriesByCode.values()].map((entry) => ({
     code: entry.code,
     module,
-    description: entry.description
+    description: entry.description,
+    kind: entry.kind ?? PermissionKind.BUSINESS,
+    externalApiEligible: entry.externalApiEligible ?? false
   }))
 
   return {
@@ -738,7 +744,10 @@ const publicEntryBusinessCardManagement = definePermissionGroup(Modules.PUBLIC_E
     code: 'public-entry.business-card.public-entry.manage',
     description: '绑定或刷新员工数字名片主公开入口'
   },
-  STATS_READ: { code: 'public-entry.business-card.stats.read', description: '查看员工数字名片访问摘要' }
+  STATS_READ: {
+    code: 'public-entry.business-card.stats.read',
+    description: '查看员工数字名片访问摘要'
+  }
 })
 
 const wmsManagement = definePermissionGroup(Modules.WMS_SERVICE, {
@@ -851,6 +860,15 @@ const authSessionManagement = definePermissionGroup(Modules.AUTH_SERVICE, {
   }
 })
 
+const authInternal = definePermissionGroup(Modules.AUTH_SERVICE, {
+  EXTERNAL_API_KEY_VERIFIER_VERSION_COMPROMISE: {
+    code: 'auth.internal.external_api_key.verifier_version.compromise',
+    description: '触发 External API Key verifier version compromise 的内部安全处置调用',
+    kind: PermissionKind.INTERNAL,
+    externalApiEligible: false
+  }
+})
+
 const collaborationTask = definePermissionGroup(Modules.COLLABORATION_SERVICE, {
   ASSIGN: {
     code: 'collaboration.task.assign',
@@ -955,9 +973,15 @@ const siteManagement = definePermissionGroup(Modules.SITE_SERVICE, {
   MANAGE: { code: 'site.management.manage', description: '创建、更新或禁用站点配置' },
   LOCALE_MANAGE: { code: 'site.management.locale.manage', description: '维护站点语言生命周期' },
   PRODUCT_MANAGE: { code: 'site.management.product.manage', description: '维护站点产品发布配置' },
-  CONTENT_MANAGE: { code: 'site.management.content.manage', description: '维护站点 Blog / News 内容' },
+  CONTENT_MANAGE: {
+    code: 'site.management.content.manage',
+    description: '维护站点 Blog / News 内容'
+  },
   SYNC: { code: 'site.management.sync', description: '执行站点 public view 同步和 webhook 重投递' },
-  CREDENTIAL_MANAGE: { code: 'site.management.credential.manage', description: '生成、轮换或吊销站点 runtime credential' },
+  CREDENTIAL_MANAGE: {
+    code: 'site.management.credential.manage',
+    description: '生成、轮换或吊销站点 runtime credential'
+  },
   AUDIT_READ: { code: 'site.management.audit.read', description: '查看站点治理审计日志' },
   PREVIEW: { code: 'site.management.preview', description: '签发站点草稿预览 token' }
 })
@@ -986,6 +1010,7 @@ export const MES_MANAGEMENT_PERMISSION_CODES = mesManagement.codes
 export const AUTH_MANAGEMENT_PERMISSION_CODES = authManagement.codes
 export const AUTH_SELF_PERMISSION_CODES = authSelfManagement.codes
 export const AUTH_SESSION_PERMISSION_CODES = authSessionManagement.codes
+export const AUTH_INTERNAL_PERMISSION_CODES = authInternal.codes
 export const COLLABORATION_TASK_PERMISSION_CODES = collaborationTask.codes
 export const COLLABORATION_ANNOTATION_PERMISSION_CODES = collaborationAnnotation.codes
 export const TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES = terminalDeviceManagement.codes
@@ -1036,6 +1061,7 @@ export const PERMISSION_CODE_SEED_ITEMS: PermissionSeedItem[] = [
   ...authManagement.items,
   ...authSelfManagement.items,
   ...authSessionManagement.items,
+  ...authInternal.items,
   ...collaborationTask.items,
   ...collaborationAnnotation.items,
   ...terminalDeviceManagement.items,

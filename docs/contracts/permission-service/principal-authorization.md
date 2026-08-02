@@ -24,8 +24,10 @@ architectureTruthSource: docs/architecture/services/permission-service.md
 本节只定义调用方可观察的 binding 生命周期；对象 owner、字段归属与长期模型以 `permission-service` 服务真相源为准。
 
 - 一次 grant 返回一个不可变 binding / grant identity。对同一 HUMAN 或 MACHINE、role、scope 与 tenant 的再次 grant，只有在其有效窗口不与既有未关闭窗口重叠时才成功。
+- grant 与 binding 查询都必须公开该 identity；调用方保存它用于后续撤销、审计关联和重试，不能用 account / principal 与 role 的组合替代。
 - 有效窗口采用开始包含、结束排除的语义；到期或 revoke 都关闭窗口。相邻窗口可以衔接，重叠窗口必须被拒绝，即使并发请求同时通过了前置校验。
 - revoke 以 binding identity 为目标。首次成功 revoke 记录关闭时间与可信审计归因；对同一 identity 的重试返回同一已撤销结果，不产生第二次状态变化或审计事件。不存在的 identity 依既有幂等撤销语义处理，不可借此枚举主体授权。
+- legacy `AccountRole` 的 account / role selector 只允许在迁移兼容窗口内消费旧数据。canonical revoke 启用后，缺少 binding identity 的请求必须被迁移或拒绝，不能将其猜测为当前或最近 binding；这条规则防止过期撤销重试删除后续 regrant。
 - regrant 绝不复活或改写历史 binding，而是创建新的 identity。因而审计、授权决策和回放可以区分每次独立授予。
 - access summary、navigation、terminal access 与 `ResolvePrincipalAuthorization` 只使用当前生效、未撤销、未过期且 role enabled 的 HUMAN binding；MACHINE binding 只参与机器 BUSINESS grant / policy 判定，不出现在人类 UI 或终端访问结果。
 
@@ -35,6 +37,7 @@ architectureTruthSource: docs/architecture/services/permission-service.md
 - canonical cutover 后，`PrincipalRoleBinding` 是唯一授权写入真相。旧 `AccountRole` 名称如暂时保留，只能作为由 canonical HUMAN binding 重建的单向兼容 projection，调用方不得向两个模型分别写入。
 - 迁移必须在切换前和回退前验证 binding 数、有效授权集合、access summary 与审计关联的 parity，并保留可审计的 backfill / cutover / rollback 记录。
 - 旧模型不能表示 MACHINE binding 或同一逻辑 binding 的多段历史；在旧版本仍可回退的窗口内不得启用这些新写入语义。窗口结束后，回退目标必须是已支持 canonical binding 的版本，不能以删除、压缩或伪造历史换取回退。
+- `permission_management.proto` 必须在任何 canonical binding 实现前公开 grant/read 的 binding identity 与以该 identity revoke 的黑盒输入；具体 proto 字段、RPC 命名和生成代码路径属于受控共享契约写入，未获该路径 lease 的线程不得自行实现或替代。
 
 ## 2. Permission Kinds
 
@@ -85,6 +88,22 @@ architectureTruthSource: docs/architecture/services/permission-service.md
 - policy 只允许申请技术原语，不得把独立业务审批、删除、资金承诺或重要状态跃迁伪装为 INTERNAL。
 - 判定不签发 Token；Auth / STS 消费 decision 后签发并绑定 `aud / client_id / cnf`。
 
+### 4.1 ResolveExternalMachineAuthorizationSnapshot
+
+This narrow decision exists only for Auth's External API Key exchange after Auth has independently verified the credential and consumed Identity's eligible Integration Machine result. It is an Auth-only trusted internal call requiring verified `auth-service` workload identity, target audience `permission-service`, certificate binding and exact INTERNAL issuance Code `permission.internal.external_machine.snapshot.resolve`; it is not callable by Gateway, an external client, or a normal HUMAN/MACHINE role.
+
+The trusted input is the MACHINE principal reference derived from Auth's credential and the tenant reference returned by Identity. It contains no raw API Key, external JWT, caller-selected Permission Code, capability, role, target audience, expiry or resource facts.
+
+The stable output contains only:
+
+- `allowed`, the machine/tenant echo, and the effective granted existing `BUSINESS` Permission Codes whose definition metadata marks them `externalApiEligible`;
+- the opaque `authzVersion` and safe decision reference; and
+- a stable safe `reasonCode` when the machine, tenant, catalog or grant state cannot produce a non-empty external authorization snapshot.
+
+The decision is coarse-grained: it does not expose Gateway routes or pre-authorize any business resource. `allowed=true` requires a non-empty snapshot, exact tenant-scoped active MACHINE grants, and only known `externalApiEligible` BUSINESS Codes. Empty result, tenant mismatch, unknown/ineligible Code, mTLS/Token mismatch, timeout or Permission unavailable fails Auth's exchange closed. Gateway must independently require explicit external-route metadata and compare the relevant existing `RequirePermissions` Code(s) to this snapshot; the target business service continues resource and domain authorization. Permission Service does not sign or store the external Token.
+
+The runtime placement is fixed to the existing `PermissionCheckService` proto, `permission-check.grpc.controller.ts`, `application/queries/authorization/resolve-external-machine-authorization-snapshot.*`, and existing PrincipalRoleBinding / Permission catalog repository boundaries. No controller-local role expansion, Auth-side Permission database access or legacy account-only `CheckPermission` substitute is permitted.
+
 ## 5. BUSINESS, SELF_SERVICE And INTERNAL Consumption
 
 - BUSINESS：目标服务验证 Token Code 后仍执行 tenant、resource ownership、状态机、审批分离、金额阈值与 domain rule。
@@ -129,3 +148,5 @@ Gateway HTTP `RequirePermissions` 保留。它与目标 gRPC BUSINESS authorizat
 11. 首次 revoke 关闭 binding 并保留可信审计关联；同一 binding 的重复 revoke 不改变首次撤销事实，也不产生重复审计。
 12. revoke 后的 regrant 返回新的 binding identity，旧 identity 仍可供审计与历史授权决策引用。
 13. AccountRole backfill 与任何回退前都证明 binding 数、有效授权、access summary 与审计关联一致；旧模型无法表示的新 MACHINE 或多段历史写入不允许伪造性回退。
+14. An external machine snapshot returns only currently effective, externally eligible BUSINESS Codes; it never returns INTERNAL Code, a role graph, a Gateway route catalogue, a credential secret or a resource authorization result.
+15. Only the verified Auth workload with `permission.internal.external_machine.snapshot.resolve` can obtain a snapshot; missing trust, tenant mismatch, empty/invalid scope or dependency failure produces `allowed=false` or transport denial and Auth issues no external Token.

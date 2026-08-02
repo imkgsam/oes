@@ -165,6 +165,8 @@
 - Identity owns its display name、tenant reference、type and active/disabled lifecycle. It returns only the stable machine reference and lifecycle facts needed by Auth and Permission.
 - Auth may create and manage credentials only for an active Integration Machine. Identity never stores, verifies, lists, reveals, rotates, or revokes API Key secrets.
 - A disabled machine is not eligible for new credential exchange or external access. Credential and session invalidation semantics remain Auth-owned; the cross-service path is [external-api-key-security.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/external-api-key-security.md).
+- Identity exposes one Auth-only `ResolveIntegrationMachineForAuth` query on its existing `IdentityQueryService` gRPC surface. The request contains only the Auth-derived machine reference. Identity returns its owned machine id, tenant reference, scope, type, lifecycle status, opaque lifecycle version and safe decision reference; it never accepts a caller-supplied tenant as authority and never returns API Key material or permission facts.
+- The query is an INTERNAL technical primitive requiring verified `auth-service` workload identity, target audience `identity-service`, certificate binding and exact issuance Code `identity.internal.integration_machine.resolve`. Gateway, external callers and ordinary HUMAN/MACHINE roles cannot obtain this Code. Only `scopeLevel=TENANT`, `type=EXTERNAL_INTEGRATION`, `status=ACTIVE` and a non-empty tenant reference is eligible. Missing, wrong-type, wrong-scope or inactive machines return an ineligible decision; transport/trust failure is fail-closed for API Key exchange.
 
 当前注意事项：
 

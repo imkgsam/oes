@@ -38,6 +38,7 @@ export class PermissionAuditService {
    * emitManagementMutation publishes permission management audit facts through the local audit event pipeline.
    */
   emitManagementMutation(input: {
+    eventId?: string
     actorId: string
     actorType?: AuditActorType
     tenantId?: string
@@ -54,7 +55,7 @@ export class PermissionAuditService {
     this.eventEmitter.emit(
       PermissionAuditService.MANAGEMENT_EVENT_NAME,
       new PermissionAuditEvent(
-        randomUUID(),
+        input.eventId ?? randomUUID(),
         this.resolveManagementModule(input.targetType),
         input.action,
         new Date(),

@@ -14,7 +14,11 @@ import {
   PolicyInstanceFoundationSeed,
   buildPolicyInstanceFoundationSeeds
 } from './policy-instance-foundation'
-import { BuiltInRoleSeed, buildBuiltInRoleSeeds, validateBuiltInRoleSeedDefinitions } from './role-foundation'
+import {
+  BuiltInRoleSeed,
+  buildBuiltInRoleSeeds,
+  validateBuiltInRoleSeedDefinitions
+} from './role-foundation'
 
 export type PermissionServiceSeedOptions = {
   includeSmokePolicyInstances?: boolean
@@ -69,7 +73,9 @@ export function buildPermissionServiceSeed(
     deprecatedPermissionCodes: DEPRECATED_PERMISSION_CODES,
     navigationEntries: DEFAULT_NAVIGATION_ENTRIES,
     permissionCodes: PERMISSION_CODE_SEED_ITEMS,
-    policyInstances: options.includeSmokePolicyInstances ? buildPolicyInstanceFoundationSeeds() : [],
+    policyInstances: options.includeSmokePolicyInstances
+      ? buildPolicyInstanceFoundationSeeds()
+      : [],
     roleLandingPolicies: buildNavigationFoundationLandingSeeds(roles),
     roleNavigationVisibility: buildNavigationFoundationVisibilitySeeds(roles),
     rolePermissions: roles.flatMap((role) =>
@@ -91,8 +97,10 @@ export function buildPermissionServiceSeed(
 /** validatePermissionServiceSeed checks cross-object references before a DB writer consumes seed data. */
 export function validatePermissionServiceSeed(seed: PermissionServiceSeed): string[] {
   const errors = [...validateBuiltInRoleSeedDefinitions()]
-  const permissionCodes = new Set<string>()
-  const templateCodes = new Set(new BuiltInPolicyTemplateRegistry().list().map((template) => template.code))
+  const permissionByCode = new Map<string, PermissionSeedItem>()
+  const templateCodes = new Set(
+    new BuiltInPolicyTemplateRegistry().list().map((template) => template.code)
+  )
   const roleIds = new Set(seed.roles.map((role) => role.id))
   const navigationEntryKeys = new Set(seed.navigationEntries.map((entry) => entry.entryKey))
   const visibleEntryKeys = new Set(
@@ -102,14 +110,17 @@ export function validatePermissionServiceSeed(seed: PermissionServiceSeed): stri
   )
 
   for (const permission of seed.permissionCodes) {
-    if (permissionCodes.has(permission.code)) {
+    if (permissionByCode.has(permission.code)) {
       errors.push(`Duplicate permission code: ${permission.code}`)
     }
-    permissionCodes.add(permission.code)
+    permissionByCode.set(permission.code, permission)
+    if (permission.kind === 'INTERNAL' && permission.externalApiEligible) {
+      errors.push(`INTERNAL permission ${permission.code} cannot be external API eligible`)
+    }
   }
 
   for (const deprecatedCode of seed.deprecatedPermissionCodes) {
-    if (permissionCodes.has(deprecatedCode)) {
+    if (permissionByCode.has(deprecatedCode)) {
       errors.push(`Deprecated permission code is still present in seed catalog: ${deprecatedCode}`)
     }
   }
@@ -125,10 +136,19 @@ export function validatePermissionServiceSeed(seed: PermissionServiceSeed): stri
 
   for (const rolePermission of seed.rolePermissions) {
     if (!roleIds.has(rolePermission.roleId)) {
-      errors.push(`${rolePermission.roleCode}: role permission references unknown roleId ${rolePermission.roleId}`)
+      errors.push(
+        `${rolePermission.roleCode}: role permission references unknown roleId ${rolePermission.roleId}`
+      )
     }
-    if (!permissionCodes.has(rolePermission.permissionCode)) {
-      errors.push(`${rolePermission.roleCode}: role permission references unknown code ${rolePermission.permissionCode}`)
+    const permission = permissionByCode.get(rolePermission.permissionCode)
+    if (!permission) {
+      errors.push(
+        `${rolePermission.roleCode}: role permission references unknown code ${rolePermission.permissionCode}`
+      )
+    } else if (permission.kind === 'INTERNAL') {
+      errors.push(
+        `${rolePermission.roleCode}: INTERNAL permission code ${rolePermission.permissionCode} cannot be granted to a role`
+      )
     }
   }
 
@@ -147,11 +167,15 @@ export function validatePermissionServiceSeed(seed: PermissionServiceSeed): stri
     }
     policyInstanceIds.add(policyInstance.id)
 
-    if (!permissionCodes.has(policyInstance.permissionCode)) {
-      errors.push(`Policy instance ${policyInstance.id} references unknown permission ${policyInstance.permissionCode}`)
+    if (!permissionByCode.has(policyInstance.permissionCode)) {
+      errors.push(
+        `Policy instance ${policyInstance.id} references unknown permission ${policyInstance.permissionCode}`
+      )
     }
     if (!templateCodes.has(policyInstance.templateCode)) {
-      errors.push(`Policy instance ${policyInstance.id} references unknown template ${policyInstance.templateCode}`)
+      errors.push(
+        `Policy instance ${policyInstance.id} references unknown template ${policyInstance.templateCode}`
+      )
     }
     if (
       policyInstance.subjectSelector.type === 'ACCOUNT' &&

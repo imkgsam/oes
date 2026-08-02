@@ -190,7 +190,7 @@ export async function collectPermissionServiceSeedCleanupSnapshot(
       })
     ),
     countWhen(roleIds, () =>
-      prisma.accountRole.count({
+      prisma.principalRoleBinding.count({
         where: { roleId: { in: roleIds } }
       })
     ),
@@ -335,14 +335,13 @@ function buildExternalNavigationLandingWhere(entryKeys: string[], roleIds: strin
   }
 }
 
-async function countWhen<T>(
-  values: readonly T[],
-  count: () => Promise<number>
-): Promise<number> {
+async function countWhen<T>(values: readonly T[], count: () => Promise<number>): Promise<number> {
   return values.length > 0 ? count() : 0
 }
 
-function summarizePermissionServiceDatabaseTarget(databaseUrl?: string): PermissionServiceSeedCleanupDryRunPlan['target'] {
+function summarizePermissionServiceDatabaseTarget(
+  databaseUrl?: string
+): PermissionServiceSeedCleanupDryRunPlan['target'] {
   if (!databaseUrl) {
     return {
       service: 'permission-service',

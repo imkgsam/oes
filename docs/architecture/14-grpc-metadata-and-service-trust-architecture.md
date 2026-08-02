@@ -172,6 +172,42 @@ Token 合法复用不等同于攻击重放。防护分层为：
 - production mTLS 叶证书最长有效期为 24 小时，并在寿命的三分之二前自动续期；签名 key 至少每 90 天轮换且在疑似泄露后立即轮换。证书变更使旧 `cnf` Token 失效，调用方重新 exchange；进程内 Token cache key 必须包含证书指纹。
 - 本地环境同样运行真实 mTLS：使用独立 local trust domain、local CA、每 workload 独立证书和独立 JWT signing key。单元测试可 mock `VerifiedWorkloadIdentity`，但安全集成测试必须覆盖真实 TLS、跨证书重放、错误 SPIFFE ID 与证书/签名 key 轮换。
 
+### 5.5 DG-1 Auth runtime host and protected signer binding
+
+ExecutionToken 的冻结 proto `ExecutionTokenService` 是 Auth / STS 的内部 RPC surface，不是待实现 HTTP controller 的可选替代。Auth 必须在既有 `auth_service` gRPC host、既有 `GRPC_LISTEN_HOST:GRPC_LISTEN_PORT` 上同时加载 Auth proto 与 ExecutionToken proto，并挂载 `ExchangeExecutionToken` 和 `GetExecutionTokenJwks` 的 generated controller mapping。Exchange 只从 Common transport runtime 已验证的 workload identity 与 execution context 取得身份事实；proto request 只能携带 target audience 与精确 Permission Code 集。
+
+`GetExecutionTokenJwks` 是内部 gRPC verifier 的 JWKS 路径。与此同时，Auth 必须在精确 HTTPS issuer host 上真实发布 RFC 8414 authorization-server metadata 与该 metadata 所声明的 absolute `jwks_uri`；未被 HTTPS host 实际挂载的 controller 不构成发布。HTTP metadata 只发布 public verification facts，不能替代内部 gRPC service，也不能接受 Token 提供的 issuer、JWKS URL 或 trust-domain override。
+
+Auth 模块只允许一条 fail-closed signing DI chain：deployment-provided `KmsHsmExecutionTokenClient` → `KmsHsmExecutionTokenSigningAdapter` → `ExecutionTokenSigningPort` → exchange/JWKS application services。启动前必须解析并验证精确 issuer、metadata/JWKS public endpoint、opaque signing-key reference 与 immutable workload/audience registry；private key、PEM、private JWK 或本地 signing secret 不得进入 config、DI value 或应用进程。缺少受保护 client、key reference 或有效 key publication timeline 时，Auth 不得开始接受 ExecutionToken exchange 或 JWKS 请求，也不得回退为 memory/file signer。
+
+Local security integration 复用相同 port 与 lifecycle，但连接 KMS/HSM-compatible protected test signing boundary 和 opaque test key reference。测试 fake 仅可在 isolated unit-test module 中使用；它不能成为 local、staging 或 production provider。KMS/HSM 不可用时 Exchange 必须 fail closed，资源服务继续只在已有可信 JWKS 与未过期 Token 范围内本地验证。
+
+### 5.6 DG-1 protected-signing provider lifecycle
+
+`KmsHsmExecutionTokenClient` 是 Auth infrastructure 的 deployment-bound provider boundary，不是应用层可选 mock。它只接受经启动配置解析的 opaque signing-key reference，以及在部署确有需要时由平台在 provider 内解析的 opaque credential reference；两种 reference 都不包含 private key bytes。默认认证使用 Auth workload identity。private key、PEM、private JWK、seed、可导出的 software key 或其序列化形式不得进入 process environment、Nest config、registry、日志、DI value 或应用内存。
+
+启动顺序固定为：解析精确 issuer、absolute JWKS URI、key reference、immutable workload/audience registry 与可选 credential reference → 构造 protected provider → 读取 active/public overlap keys → 验证唯一 `kid`、ES256/P-256 public JWK、publication/signing/retirement timeline → 使用 provider 签名启动 challenge 并以 active public JWK 本地验证 → 才挂载 gRPC exchange/JWKS 与 issuer HTTPS metadata route。任何一步失败都使 Auth readiness 失败；不能以空 provider、throwing placeholder、临时 memory signer 或明文 key 启动。
+
+issuer HTTPS route 必须在精确 issuer authority 上提供 TLS。若 TLS 在 approved deployment proxy 终止，proxy 只能把 RFC 8414 metadata 与 configured JWKS route 转发到 Auth metadata producer 的受认证本地 channel；普通 HTTP listen port、任意 Host header、或 proxy 静态伪造 JWKS 都不满足此要求。KMS/HSM outage after a successful bootstrap 使新的 exchange 失败；已有 resource-server JWKS cache 按既有 TTL / retirement window 独立工作。
+
+### 5.7 DG-1 executable protected-signing asset allocation
+
+DG-1 的 concrete provider asset 是同一 capability 内、每个 Auth workload 一实例的 `execution-token-signer-agent` sidecar，而非新的 OES 业务服务或新的 capability。它没有外部 ingress、业务数据库、tenant state 或 gRPC 公共契约；只在 Auth pod / deployment 内通过 Unix domain socket 为 Auth 提供受保护签名。Auth repository 的 client / adapter path class 是 `src/services/system/auth-service/src/infrastructure/execution-token-signer/**`；deployment/SRE path class 是 `docker/grpc-trust/execution-token-signer/**`，其中 `cmd/agent/**` 和其 local `go.mod` 构成可运行的 Go static sidecar binary，负责 sidecar image、socket mount、security context、PKCS#11 module mount 与 local integration harness。二者均由既有 EXEC-CRYPTO capability 编排，不能转嫁给业务服务。
+
+agent 的 production signing backend 固定为 PKCS#11-compatible HSM or KMS gateway，且配置为 non-exportable P-256 signing key；local integration 使用同一 agent protocol 对接 local PKCS#11-compatible test HSM。它在自身受保护边界内解析 opaque key / optional credential reference，并以 workload identity 认证 backend。ExecutionToken client 只可向 agent 请求：读取 active key、读取 published overlap keys、对指定已发布 `kid` 的 JWS signing input 执行 ES256 signing；agent 只返回 public JWK / rotation facts 和 fixed-width JOSE `r || s` signature，绝不返回 private material、backend credential 或可选 key reference。ADR 0017 复用同一 process/socket 的独立 API-key verifier namespace 与另一把 non-exportable HMAC key；该扩展不改变本节的 ExecutionToken operation/key boundary。
+
+Auth 与 agent 的 endpoint 是 deployment-configured `AUTH_EXECUTION_SIGNER_SOCKET_PATH` Unix socket，必须有 pod-local mount、least-privilege filesystem ownership/permissions 与 peer authentication；不允许 TCP listener、service DNS、任意 endpoint URL 或 request-supplied socket path。socket protocol 固定为 newline-delimited JSON-RPC 2.0；ExecutionToken namespace 只有 `GetActiveKey`、`ListPublishedKeys` 和 `SignEs256` 三个 method，`SignEs256` 只接收 published `kid` 与 base64url JWS signing input，返回 base64url fixed-width JOSE `r || s` signature。ADR 0017 定义的 API-key namespace 不能接收任意消息、算法或 backend selector。Auth readiness 同时要求 socket agent preflight、public-key timeline 与 sign/verify challenge 成功。agent 缺失、socket identity / permission 不符、PKCS#11 backend 不可用或 key reference 不匹配时保持 fail closed。
+
+### 5.8 DG-1 PKCS#11 provider binding and local protected integration
+
+signing-key reference 的唯一编码是 RFC 7512 PKCS#11 URI。每个 deployment-configured reference 必须固定 token serial、private-key `CKA_ID`（`id`）和 `type=private` object class；可携带 canonical token / object selector 以消除歧义，但不能由 Auth request、`kid` 或 runtime discovery 改写。agent 以相同 token serial 与 `CKA_ID` 定位对应 P-256 public-key object；private key 必须是 non-extractable。Auth 只把这一已配置的 opaque reference 交给其 client binding，永不获得 private material、slot/session handle 或任何第二个 key selector。
+
+Deployment/SRE 在 `docker/grpc-trust/execution-token-signer/config/**` 拥有只读 rotation manifest，并通过 `EXECUTION_SIGNER_ROTATION_MANIFEST_PATH` 交给 agent。每条记录以 canonical PKCS#11 URI 和 expected `kid` 绑定一个 key，并以 RFC 3339 UTC timestamps 表达 `publishNotBefore`、`signingNotBefore`、`signingNotAfter` 与 `retireAfter`。agent 必须从 HSM public-key object 导出 ES256 P-256 JWK，按 RFC 7638 SHA-256 JWK thumbprint 计算 `kid` 并与 manifest 交叉验证；这使 `kid` 永不复用，retired key 也不得重新出现。任一时刻恰有一个 key 满足 `signingNotBefore <= now < signingNotAfter`；所有满足 `publishNotBefore <= now < retireAfter` 的 key 构成 JWKS active/overlap set。`retireAfter` 必须不早于 `signingNotAfter + 300s maximum Token TTL + 60s clock skew`。manifest 与 HSM key/JWK/kid/timeline 不一致、零或多个 active key 都是 readiness failure；agent 的 ExecutionToken namespace 只通过既有三种 RPC 返回已验证的 public JWK、rotation facts 和 signature。
+
+backend authentication 默认由 Auth/signer-agent workload identity 完成。只有 backend 明确需要额外认证时，deployment 才提供仅 agent 可读的 opaque credential reference；agent 通过 deployment secret broker 在自身边界解析它，而不是将 PIN、client secret 或 private key 放入 Auth、环境变量或普通 config。agent 只对 selected token/slot 以 `CKU_USER` 建立 time-bounded session lease，必须在到期前刷新；刷新或 login 失败时必须清零凭据缓冲、logout、close session 并拒绝签名。日志、Auth application/domain、DI value 与 RPC response 均不得获得 PIN、resolved credential、raw PKCS#11 session handle 或可选 key reference。
+
+local integration harness 固定为 `docker/grpc-trust/execution-token-signer/local/softhsm2/**` 的 SoftHSM2 PKCS#11-compatible asset，而不是 software signer fallback。它在 token 内生成 sensitive、non-extractable P-256 test key；token database 和 PIN 只以 permission-restricted secret file 挂载给 signer-agent，Auth 不读取 PIN，且不以 private-key environment variable 传递。集成测试必须运行实际 UDS agent 和 SoftHSM2，覆盖 sign/verify、active/overlap rotation、private-key export refusal、manifest/key mismatch、credential-session lease failure 以及 agent/HSM unavailable 时的 fail-closed 行为。
+
 ## 6. 三种 RPC authorization mode
 
 每个 gRPC RPC 必须在方法旁显式声明且只能声明一种：
@@ -292,7 +328,7 @@ HTTP access token
 - 无人值守 Robot 不继承创建者权限。
 - 平台 Robot template 不是 principal；租户安装时创建独立 tenant machine principal。
 - DELEGATED AI 的有效权限为用户权限、AI / tool 上限、delegation grant、tenant 与目标 RPC 要求的交集。
-- 外部 App 只允许创建 tenant Integration Machine + API Key，经 Gateway/Auth 取得 Gateway-only external access token；Gateway 才在受信任的内部 mTLS hop 换取 target-audience ExecutionToken。API Key 与 external token 均不开放内部 gRPC。具体边界以 [External API Key Security Collaboration](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/external-api-key-security.md) 为准。Marketplace、第三方开发者平台、共享 App 主体与跨 tenant 安装模型已取消，不作为后续预留能力。
+- 外部 App 只允许创建 tenant Integration Machine + API Key，经 Gateway/Auth 取得 Gateway-only external access token；Gateway 才在受信任的内部 mTLS hop 换取 target-audience ExecutionToken。Auth 的唯一 Gateway/credential gRPC surface 是 `external_api_key.proto` 的 `ExternalApiKeyCredentialService`：管理方法使用可信 HUMAN context，交换方法只允许 Gateway INTERNAL caller 在 request field 传递 raw key。API Key 与 external token 均不开放内部 gRPC。具体边界以 [External API Key Security Collaboration](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/external-api-key-security.md) 为准。Marketplace、第三方开发者平台、共享 App 主体与跨 tenant 安装模型已取消，不作为后续预留能力。
 
 ## 10. Tenant 与业务目标
 
@@ -372,7 +408,7 @@ Asset + Site 仍是第一个业务解阻优先链，但不再是本 capability �
 
 1. Token cryptography 与 workload identity 互操作 contract：阻塞 production mTLS、JWT verifier 与 key management 定稿。
 2. Execution emergency revocation event contract：阻塞紧急撤销和最终 production security acceptance。
-3. External API Key security contract 已冻结：外部 Integration credential 的创建、交换、轮换与开放以 [External API Key Security Collaboration](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/external-api-key-security.md) 为准；public opening 仍等待 DG-2 credential-deny propagation。
+3. External API Key security contract 已冻结：外部 Integration credential 的创建、交换、轮换与开放以 [External API Key Security Collaboration](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/external-api-key-security.md) 为准。Gateway locally verifies five-minute Auth-signed external access tokens; credential revocation stops new exchange and does not add a DG-2 external-token deny-cache dependency.
 4. DELEGATED execution 与 ActionGrant contract：已由 [ADR 0016](/Users/acehood/Documents/GitHub/oes/docs/adr/0016-delegated-execution-and-action-grant.md) 冻结；它解除 AI delegation 与一次性高危授权的设计阻塞，但不替代 DG-1 的签名 / workload binding 或 DG-2 的紧急撤销设计。
 5. PrincipalRoleBinding persistence contract：阻塞 Permission schema 与 AccountRole 数据迁移。
 

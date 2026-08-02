@@ -54,6 +54,8 @@ export async function collectPermissionServiceSeedValidationSnapshot(
       select: {
         code: true,
         description: true,
+        externalApiEligible: true,
+        kind: true,
         module: true
       }
     }),
@@ -132,6 +134,8 @@ export async function collectPermissionServiceSeedValidationSnapshot(
     permissions: permissions.map((permission) => ({
       code: permission.code,
       description: permission.description ?? undefined,
+      externalApiEligible: permission.externalApiEligible,
+      kind: permission.kind,
       module: permission.module
     })),
     roles: roles.map((role) => ({
@@ -213,7 +217,9 @@ function validatePermissions(
   snapshot: PermissionServiceSeedValidationSnapshot
 ): string[] {
   const errors: string[] = []
-  const actualByCode = new Map(snapshot.permissions.map((permission) => [permission.code, permission]))
+  const actualByCode = new Map(
+    snapshot.permissions.map((permission) => [permission.code, permission])
+  )
 
   for (const expected of seed.permissionCodes) {
     const actual = actualByCode.get(expected.code)
@@ -229,6 +235,14 @@ function validatePermissions(
       'description',
       expected.description ?? null,
       actual.description ?? null
+    )
+    pushFieldDrift(errors, `Permission ${expected.code}`, 'kind', expected.kind, actual.kind)
+    pushFieldDrift(
+      errors,
+      `Permission ${expected.code}`,
+      'externalApiEligible',
+      expected.externalApiEligible,
+      actual.externalApiEligible
     )
   }
 
@@ -266,8 +280,20 @@ function validateRoles(
       expected.allowTenantPermissionOverride,
       actual.allowTenantPermissionOverride
     )
-    pushFieldDrift(errors, `Role ${expected.code}`, 'isProtected', expected.isProtected, actual.isProtected)
-    pushFieldDrift(errors, `Role ${expected.code}`, 'isEnabled', expected.isEnabled, actual.isEnabled)
+    pushFieldDrift(
+      errors,
+      `Role ${expected.code}`,
+      'isProtected',
+      expected.isProtected,
+      actual.isProtected
+    )
+    pushFieldDrift(
+      errors,
+      `Role ${expected.code}`,
+      'isEnabled',
+      expected.isEnabled,
+      actual.isEnabled
+    )
   }
 
   return errors
@@ -314,7 +340,13 @@ function validateNavigationEntries(
       continue
     }
 
-    pushFieldDrift(errors, `NavigationEntry ${expected.entryKey}`, 'name', expected.name, actual.name)
+    pushFieldDrift(
+      errors,
+      `NavigationEntry ${expected.entryKey}`,
+      'name',
+      expected.name,
+      actual.name
+    )
     pushFieldDrift(
       errors,
       `NavigationEntry ${expected.entryKey}`,
@@ -368,7 +400,9 @@ function validateRoleNavigationVisibility(
 ): string[] {
   return validateSet(
     'RoleNavigationVisibility',
-    seed.roleNavigationVisibility.map((item) => `${item.roleId}:${item.entryKey}:${item.terminal}:${item.enabled}`),
+    seed.roleNavigationVisibility.map(
+      (item) => `${item.roleId}:${item.entryKey}:${item.terminal}:${item.enabled}`
+    ),
     snapshot.roleNavigationVisibility.map(
       (item) => `${item.roleId}:${item.entryKey}:${item.terminal}:${item.enabled}`
     )
@@ -420,7 +454,9 @@ function pushFieldDrift(
   actual: unknown
 ): void {
   if (expected !== actual) {
-    errors.push(`${subject} field ${field} drift: expected ${String(expected)}, got ${String(actual)}`)
+    errors.push(
+      `${subject} field ${field} drift: expected ${String(expected)}, got ${String(actual)}`
+    )
   }
 }
 
@@ -428,11 +464,11 @@ function roleKey(role: Pick<BuiltInRoleSeed, 'code' | 'kind' | 'scopeKey'>): str
   return `${role.scopeKey}:${role.kind}:${role.code}`
 }
 
-function groupValues<T extends Record<TKey | TValue, string>, TKey extends keyof T, TValue extends keyof T>(
-  rows: T[],
-  keyField: TKey,
-  valueField: TValue
-): Map<string, Set<string>> {
+function groupValues<
+  T extends Record<TKey | TValue, string>,
+  TKey extends keyof T,
+  TValue extends keyof T
+>(rows: T[], keyField: TKey, valueField: TValue): Map<string, Set<string>> {
   const grouped = new Map<string, Set<string>>()
   for (const row of rows) {
     const key = row[keyField]
@@ -453,7 +489,10 @@ function stableStringify(value: unknown): string {
   return JSON.stringify(value)
 }
 
-async function countableFindMany<T>(values: readonly unknown[], findMany: () => Promise<T[]>): Promise<T[]> {
+async function countableFindMany<T>(
+  values: readonly unknown[],
+  findMany: () => Promise<T[]>
+): Promise<T[]> {
   return values.length > 0 ? findMany() : []
 }
 

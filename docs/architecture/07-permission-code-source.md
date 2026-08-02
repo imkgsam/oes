@@ -81,6 +81,7 @@ interface PermissionDefinition {
   kind: PermissionKind
   assignableTo: PermissionAssignee[]
   allowedScopeLevels: PermissionScopeLevel[]
+  externalApiEligible?: boolean
 }
 
 interface PermissionDefinitionGroup {
@@ -96,6 +97,7 @@ interface PermissionDefinitionGroup {
 - `kind=INTERNAL`：只可由 STS workload issuance policy 授予，不得加入人类或租户机器业务角色。
 - `assignableTo`：静态阻止把 INTERNAL Code 或不适配主体的 Code 绑定到角色。
 - `allowedScopeLevels`：阻止 SYSTEM / TENANT scope 错配，不替代运行时 tenant isolation。
+- `externalApiEligible`：仅允许在 `kind=BUSINESS` 时为 true，表示该稳定 Permission Code 可以安全出现在 Auth 签发的短期 Gateway-only external JWT 中。它不声明 Gateway route、不授予任何 principal、不建立第二套 scope 目录；未标记或标记为 false 的 Code 不得进入外部 JWT。
 
 不在第一版 metadata 中加入 speculative risk score、UI route、菜单、审批流或资源 schema。
 
@@ -103,6 +105,7 @@ interface PermissionDefinitionGroup {
 
 - 值使用稳定英文标识，通常采用 `domain.resource.action`。
 - INTERNAL Code 必须显式包含 `.internal.`，例如 `asset.internal.site_media.resolve`。
+- API Key exchange 使用的技术调用 Code 固定为 `identity.internal.integration_machine.resolve` 与 `permission.internal.external_machine.snapshot.resolve`；Provider compromise remediation 使用 `auth.internal.external_api_key.verifier_version.compromise`。三者只进入各自精确 workload issuance policy，不进入 HUMAN/MACHINE role 或 external JWT。compromise Code 只允许环境注册的 deployment `security-operations-runner` 以 SYSTEM scope、`aud=auth-service` 与 certificate binding 取得，禁止 wildcard workload policy。
 - value 是数据库、Token scope、decorator 与审计使用的稳定身份。
 - TypeScript key 只负责代码可读性。
 - 修改现有 value 视为契约变更；使用新增 + 显式 deprecated / migration，不做静默 rename。

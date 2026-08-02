@@ -1,12 +1,15 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { Metadata } from '@grpc/grpc-js'
 import { ClientGrpc } from '@nestjs/microservices'
 import { SERVICE_NAMES } from '@oes/common/constants'
+import { resolveCommonProtoPath } from '@oes/common/contracts'
 import { ExceptionFactory, InfrastructureException } from '@oes/common/exceptions'
 import {
   GRPC_METADATA_PROPAGATION_FACTORY,
   GrpcMetadataPropagationFactory,
   GrpcRequestContextStore
 } from '@oes/common/authorization'
+import { ClientProxyFactory, Transport } from '@nestjs/microservices'
 import {
   GetAccountByIdRequest,
   GetAccountByIdResponse,
@@ -22,7 +25,11 @@ import {
   ResolveEmployeeLoginAccountRequest,
   ResolveEmployeeLoginAccountResponse
 } from '@oes/common/generated/identity_service'
-import { InjectGrpcClient, safeGrpcCall } from '@oes/common/transport'
+import {
+  EXECUTION_TOKEN_SERVICE_NAME,
+  ExecutionTokenServiceClient
+} from '@oes/common/generated/auth_service'
+import { InjectGrpcClient, createGrpcClientCredentials, safeGrpcCall } from '@oes/common/transport'
 import {
   AccountCandidateSummary,
   EmployeeLoginAccountSummary,
@@ -33,11 +40,17 @@ import {
 import { AUTH_IDENTITY_UPSTREAM_UNAVAILABLE } from '../../common/constants/exception-enums'
 
 const IDENTITY_QUERY_SERVICE_NAME = 'IdentityQueryService'
+const AUTH_SERVICE_AUDIENCE = 'urn:oes:service:identity-service'
+const AUTH_INTERNAL_PERMISSION = 'identity.internal.integration_machine.resolve'
 
 @Injectable()
 export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleInit {
   private readonly logger = new Logger(IdentityServiceAdaptor.name)
   private identityQueryService!: IdentityQueryServiceClient
+  private trustedIdentityQueryService?: IdentityQueryServiceClient
+  private trustedIdentityClient?: ClientGrpc
+  private executionTokenService?: ExecutionTokenServiceClient
+  private executionTokenClient?: ClientGrpc
 
   constructor(
     @InjectGrpcClient(SERVICE_NAMES.IDENTITY)
@@ -201,6 +214,17 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
     }
   }
 
+  /** Reads Identity-owned machine lifecycle facts for Auth credential exchange. */
+  async resolveIntegrationMachineForAuth(integrationMachineId: string): Promise<{ eligible: boolean; tenantId: string }> {
+    const metadata = this.metadata()
+    metadata.set('authorization', `Bearer ${await this.issueInternalExecutionToken(metadata)}`)
+    const response: any = await safeGrpcCall(
+      this.trustedIdentityService().resolveIntegrationMachineForAuth({ integrationMachineId }, metadata),
+      { caller: 'auth-service', method: 'IdentityQueryService.resolveIntegrationMachineForAuth' }
+    )
+    return { eligible: response.eligible === true, tenantId: response.tenantId?.trim() ?? '' }
+  }
+
   private rethrowIfInfrastructureError(
     error: unknown,
     method: string,
@@ -255,4 +279,79 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
       traceId: current?.traceId
     })
   }
+
+  private async issueInternalExecutionToken(metadata: Metadata): Promise<string> {
+    const response = (await safeGrpcCall(
+      this.authExecutionTokenService().exchangeExecutionToken(
+        {
+          targetAudience: AUTH_SERVICE_AUDIENCE,
+          requestedPermissionCodes: [AUTH_INTERNAL_PERMISSION]
+        },
+        metadata
+      ),
+      {
+        caller: 'auth-service',
+        method: 'ExecutionTokenService.exchangeExecutionToken'
+      }
+    )) as { accessToken?: string }
+    if (!response.accessToken) {
+      throw new Error('trusted execution token is unavailable')
+    }
+    return response.accessToken
+  }
+
+  private trustedIdentityService(): IdentityQueryServiceClient {
+    if (!this.trustedIdentityQueryService) {
+      this.trustedIdentityQueryService = this.trustedIdentityGrpcClient().getService<IdentityQueryServiceClient>(
+        IDENTITY_QUERY_SERVICE_NAME
+      )
+    }
+    return this.trustedIdentityQueryService
+  }
+
+  private authExecutionTokenService(): ExecutionTokenServiceClient {
+    if (!this.executionTokenService) {
+      this.executionTokenService = this.authExecutionTokenGrpcClient().getService<ExecutionTokenServiceClient>(
+        EXECUTION_TOKEN_SERVICE_NAME
+      )
+    }
+    return this.executionTokenService
+  }
+
+  private trustedIdentityGrpcClient(): ClientGrpc {
+    if (!this.trustedIdentityClient) {
+      this.trustedIdentityClient = ClientProxyFactory.create({
+        transport: Transport.GRPC,
+        options: {
+          url: resolveGrpcUrl('IDENTITY_SERVICE_GRPC_URL', '127.0.0.1:50052'),
+          package: 'identity_service',
+          protoPath: resolveCommonProtoPath('identity_service/identity_query.proto'),
+          credentials: createGrpcClientCredentials()
+        }
+      }) as unknown as ClientGrpc
+    }
+    return this.trustedIdentityClient
+  }
+
+  private authExecutionTokenGrpcClient(): ClientGrpc {
+    if (!this.executionTokenClient) {
+      this.executionTokenClient = ClientProxyFactory.create({
+        transport: Transport.GRPC,
+        options: {
+          url: resolveGrpcUrl('AUTH_SERVICE_GRPC_URL', '127.0.0.1:50050'),
+          package: 'auth_service',
+          protoPath: [
+            resolveCommonProtoPath('auth_service/auth.proto'),
+            resolveCommonProtoPath('auth_service/execution_token.proto')
+          ],
+          credentials: createGrpcClientCredentials()
+        }
+      }) as unknown as ClientGrpc
+    }
+    return this.executionTokenClient
+  }
+}
+
+function resolveGrpcUrl(envKey: string, fallbackUrl: string): string {
+  return process.env[envKey]?.trim() || fallbackUrl
 }

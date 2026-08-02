@@ -1,5 +1,41 @@
 # File: docker-compose.yml
 services:
+  # The bootstrap and rotator are the only local containers allowed to see the local CA private key.
+  grpc-trust-bootstrap:
+    image: alpine:3.21
+    container_name: oes_grpc_trust_bootstrap
+    command:
+      - /bin/sh
+      - -ec
+      - apk add --no-cache bash openssl && exec /scripts/bootstrap-local-trust.sh --output /trust
+    environment:
+      - OES_TRUST_ENV=local
+      - OES_TRUST_OUTPUT_DIRECTORY=/trust
+      - OES_ROTATION_CHECK_INTERVAL_SECONDS=300
+    volumes:
+      - ./docker/grpc-trust:/scripts:ro
+      - grpc_trust_runtime:/trust
+
+  # The local rotator renews the short-lived leaves before two-thirds of their lifetime elapses.
+  grpc-trust-rotator:
+    image: alpine:3.21
+    container_name: oes_grpc_trust_rotator
+    command:
+      - /bin/sh
+      - -ec
+      - apk add --no-cache bash openssl && exec /scripts/rotate-local-trust.sh
+    depends_on:
+      grpc-trust-bootstrap:
+        condition: service_completed_successfully
+    environment:
+      - OES_TRUST_ENV=local
+      - OES_TRUST_OUTPUT_DIRECTORY=/trust
+      - OES_ROTATION_CHECK_INTERVAL_SECONDS=300
+    restart: unless-stopped
+    volumes:
+      - ./docker/grpc-trust:/scripts:ro
+      - grpc_trust_runtime:/trust
+
   # ============ Infrastructure ============
   postgres:
     image: 'bitnami/postgresql:latest'
@@ -165,16 +201,36 @@ services:
       # ── Observability ──
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
       - OTEL_SERVICE_NAME=api-gateway
+      - OES_GRPC_TLS_ENABLED=true
+      - OES_GRPC_TLS_CA_PATH=/var/run/oes/grpc-trust/current/ca.pem
+      - OES_GRPC_TLS_CERT_PATH=/var/run/oes/grpc-trust/current/cert.pem
+      - OES_GRPC_TLS_KEY_PATH=/var/run/oes/grpc-trust/current/key.pem
+      - OES_GRPC_TLS_MIN_VERSION=TLSv1.2
+      - OES_WORKLOAD_SPIFFE_ID=spiffe://local.oes.internal/ns/oes/sa/api-gateway
     ports:
       - '9101:9101'
     networks:
       - oes_network
     depends_on:
-      - nacos
-      - otel-collector
-      - auth-service
-      - identity-service
-      - permission-service
+      nacos:
+        condition: service_started
+      otel-collector:
+        condition: service_started
+      auth-service:
+        condition: service_started
+      identity-service:
+        condition: service_started
+      permission-service:
+        condition: service_started
+      grpc-trust-bootstrap:
+        condition: service_completed_successfully
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /var/run/oes/grpc-trust
+        read_only: true
+        volume:
+          subpath: api-gateway
 
   auth-service:
     build:
@@ -189,6 +245,16 @@ services:
       - REDIS_PORT=6379
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
       - OTEL_SERVICE_NAME=auth-service
+      - OES_GRPC_TLS_ENABLED=true
+      - OES_GRPC_TLS_CA_PATH=/var/run/oes/grpc-trust/current/ca.pem
+      - OES_GRPC_TLS_CERT_PATH=/var/run/oes/grpc-trust/current/cert.pem
+      - OES_GRPC_TLS_KEY_PATH=/var/run/oes/grpc-trust/current/key.pem
+      - OES_GRPC_TLS_MIN_VERSION=TLSv1.2
+      - OES_WORKLOAD_SPIFFE_ID=spiffe://local.oes.internal/ns/oes/sa/auth-service
+      - AUTH_EXECUTION_ISSUER=https://issuer.local.oes.internal
+      - 'AUTH_EXECUTION_WORKLOAD_POLICIES=[{"spiffeId":"spiffe://local.oes.internal/ns/oes/sa/api-gateway","audiences":["urn:oes:service:permission-service"]}]'
+      - AUTH_EXECUTION_SIGNER_SOCKET_PATH=/var/run/oes/execution-token-signer/signer.sock
+      - AUTH_EXECUTION_KMS_KEY_REF=${AUTH_EXECUTION_KMS_KEY_REF:?AUTH_EXECUTION_KMS_KEY_REF must be the deployment-bound opaque PKCS#11 reference}
     ports:
       - '9202:9202'
     networks:
@@ -200,6 +266,19 @@ services:
         condition: service_healthy
       otel-collector:
         condition: service_started
+      grpc-trust-bootstrap:
+        condition: service_completed_successfully
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /var/run/oes/grpc-trust
+        read_only: true
+        volume:
+          subpath: auth-service
+      - type: volume
+        source: execution_token_signer_runtime
+        target: /var/run/oes/execution-token-signer
+        read_only: true
 
   identity-service:
     build:
@@ -212,6 +291,12 @@ services:
       - DATABASE_URL=postgresql://oes_user:oes_password@postgres:5432/oes_db
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
       - OTEL_SERVICE_NAME=identity-service
+      - OES_GRPC_TLS_ENABLED=true
+      - OES_GRPC_TLS_CA_PATH=/var/run/oes/grpc-trust/current/ca.pem
+      - OES_GRPC_TLS_CERT_PATH=/var/run/oes/grpc-trust/current/cert.pem
+      - OES_GRPC_TLS_KEY_PATH=/var/run/oes/grpc-trust/current/key.pem
+      - OES_GRPC_TLS_MIN_VERSION=TLSv1.2
+      - OES_WORKLOAD_SPIFFE_ID=spiffe://local.oes.internal/ns/oes/sa/identity-service
     ports:
       - '9402:9402'
     networks:
@@ -221,6 +306,15 @@ services:
         condition: service_healthy
       otel-collector:
         condition: service_started
+      grpc-trust-bootstrap:
+        condition: service_completed_successfully
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /var/run/oes/grpc-trust
+        read_only: true
+        volume:
+          subpath: identity-service
 
   permission-service:
     build:
@@ -233,6 +327,12 @@ services:
       - DATABASE_URL=postgresql://oes_user:oes_password@postgres:5432/oes_db
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
       - OTEL_SERVICE_NAME=permission-service
+      - OES_GRPC_TLS_ENABLED=true
+      - OES_GRPC_TLS_CA_PATH=/var/run/oes/grpc-trust/current/ca.pem
+      - OES_GRPC_TLS_CERT_PATH=/var/run/oes/grpc-trust/current/cert.pem
+      - OES_GRPC_TLS_KEY_PATH=/var/run/oes/grpc-trust/current/key.pem
+      - OES_GRPC_TLS_MIN_VERSION=TLSv1.2
+      - OES_WORKLOAD_SPIFFE_ID=spiffe://local.oes.internal/ns/oes/sa/permission-service
     ports:
       - '9302:9302'
     networks:
@@ -242,6 +342,15 @@ services:
         condition: service_healthy
       otel-collector:
         condition: service_started
+      grpc-trust-bootstrap:
+        condition: service_completed_successfully
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /var/run/oes/grpc-trust
+        read_only: true
+        volume:
+          subpath: permission-service
 
   entity-service:
     build:
@@ -254,6 +363,12 @@ services:
       - DATABASE_URL=postgresql://oes_user:oes_password@postgres:5432/oes_db
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
       - OTEL_SERVICE_NAME=entity-service
+      - OES_GRPC_TLS_ENABLED=true
+      - OES_GRPC_TLS_CA_PATH=/var/run/oes/grpc-trust/current/ca.pem
+      - OES_GRPC_TLS_CERT_PATH=/var/run/oes/grpc-trust/current/cert.pem
+      - OES_GRPC_TLS_KEY_PATH=/var/run/oes/grpc-trust/current/key.pem
+      - OES_GRPC_TLS_MIN_VERSION=TLSv1.2
+      - OES_WORKLOAD_SPIFFE_ID=spiffe://local.oes.internal/ns/oes/sa/entity-service
     ports:
       - '9502:9502'
     networks:
@@ -263,6 +378,15 @@ services:
         condition: service_healthy
       otel-collector:
         condition: service_started
+      grpc-trust-bootstrap:
+        condition: service_completed_successfully
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /var/run/oes/grpc-trust
+        read_only: true
+        volume:
+          subpath: entity-service
 
   # ============ Business Services ============
   resource-service:
@@ -276,6 +400,12 @@ services:
       - DATABASE_URL=postgresql://oes_user:oes_password@postgres:5432/oes_db
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
       - OTEL_SERVICE_NAME=resource-service
+      - OES_GRPC_TLS_ENABLED=true
+      - OES_GRPC_TLS_CA_PATH=/var/run/oes/grpc-trust/current/ca.pem
+      - OES_GRPC_TLS_CERT_PATH=/var/run/oes/grpc-trust/current/cert.pem
+      - OES_GRPC_TLS_KEY_PATH=/var/run/oes/grpc-trust/current/key.pem
+      - OES_GRPC_TLS_MIN_VERSION=TLSv1.2
+      - OES_WORKLOAD_SPIFFE_ID=spiffe://local.oes.internal/ns/oes/sa/resource-service
     ports:
       - '11502:11502'
     networks:
@@ -285,11 +415,22 @@ services:
         condition: service_healthy
       otel-collector:
         condition: service_started
+      grpc-trust-bootstrap:
+        condition: service_completed_successfully
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /var/run/oes/grpc-trust
+        read_only: true
+        volume:
+          subpath: resource-service
 
 volumes:
   postgres_data:
   redis_data:
   grafana_data:
+  grpc_trust_runtime:
+  execution_token_signer_runtime:
 
 networks:
   oes_network:

@@ -97,7 +97,13 @@ export class PrismaPermissionRepository implements PermissionRepository {
     const data = PermissionMapper.toPersistant(permission)
     const saved = await this.prisma.permission.upsert({
       where: { id: permission.id },
-      update: { code: data.code, module: data.module, description: data.description },
+      update: {
+        code: data.code,
+        module: data.module,
+        description: data.description,
+        kind: data.kind,
+        externalApiEligible: data.externalApiEligible
+      },
       create: data
     })
     return PermissionMapper.toDomain(saved)
