@@ -166,3 +166,31 @@ Asset + Site Media 是可信 gRPC 全仓 capability 的第一个业务优先 ser
 完整传输信任规则以 [14-grpc-metadata-and-service-trust-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/14-grpc-metadata-and-service-trust-architecture.md) 为准，黑盒媒体能力以 [site-media.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/asset-service/site-media.md) 为准。
 
 Site Media 的完整黑盒交互以 [site-media.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/asset-service/site-media.md) 为准；跨服务发布保护与消费行为以 [site-asset-media.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/site-asset-media.md) 为准。
+
+### 10.5 Existing Avatar RPC Authorization Freeze
+
+既有 `AssetService` 五个 RPC 的可信执行分类冻结如下；实现不得在 Controller、Guard 或调用方自行猜测另一种 mode：
+
+| RPC | Mode | Exact authorization | Stable target rule |
+| --- | --- | --- | --- |
+| `UploadAccountAvatar` | `SELF_SERVICE` | 不要求 BUSINESS Permission Code；`allowDelegated = false` | 只允许 `HUMAN`，目标账号必须从已验证 `TrustedExecutionContext.subject` 对应的当前 `UserAccount` 派生。 |
+| `BindAccountAvatar` | `SELF_SERVICE` | 不要求 BUSINESS Permission Code；`allowDelegated = false` | 与上传相同；`newAssetId` / `previousAssetId` 是业务目标，但目标账号不能由 body 指定。 |
+| `UploadEmployeeOfficialPhoto` | `BUSINESS` | `all: [hr.employee.create]` | `employeeId` 是 HR-owned 业务目标并保留；Asset 将其绑定到可信 context tenant，不能把它解释为 principal。 |
+| `BindEmployeeOfficialPhoto` | `BUSINESS` | `all: [hr.employee.create]` | 与上传相同；Asset 还必须验证新旧 Asset 的 tenant、owner employee 与 category。 |
+| `ResolveAssetPublicUrl` | `INTERNAL` | `asset.internal.avatar.resolve_public_url` | `assetId` 是业务目标；Asset 加载自身 owner facts 后校验 SYSTEM / TENANT scope 与可信 context，不接受 caller 提交 owner identity。 |
+
+五个 RPC 的唯一 target audience 是 `urn:oes:service:asset-service`。当前 production-code 静态调用方只有 `api-gateway`；其直接 workload identity 使用环境注册的 `spiffe://<trust-domain>/ns/oes/sa/api-gateway`，Token 的 `client_id` 与 `cnf.x5t#S256` 必须绑定当前 Gateway mTLS 叶证书。
+
+`ResolveAssetPublicUrl` 的 workload issuance policy 只允许上述 `api-gateway -> urn:oes:service:asset-service -> asset.internal.avatar.resolve_public_url` 精确三元组。它不允许 wildcard audience / workload，不授予任意 tenant 读取，也不预授权未来 service 或 worker；新增直接 caller 必须先扩展本真相源、黑盒契约与 STS registry。账号 SELF_SERVICE 与员工 BUSINESS RPC 不从该 INTERNAL policy 继承权限。
+
+Legacy request field disposition：
+
+| Field | Frozen disposition |
+| --- | --- |
+| `scopeLevel` | 从四个 upload / bind request 删除；从可信 execution context 取得。员工照片只接受 `TENANT` context。 |
+| `tenantId` | 从四个 upload / bind request 删除；TENANT context 的 tenant 由 Token 提供，Asset owner facts 必须与其一致。 |
+| `accountId` | 从账号 upload / bind request 删除；由可信 HUMAN subject 派生。 |
+| `employeeId` | 在员工 upload / bind request 保留为业务目标；不得建立 operator、principal 或 tenant 身份。 |
+| `operatorId` | 从四个 upload / bind request 删除；审计使用可信 subject、DELEGATED actor（如 mode 允许）、workload、request 与 trace。 |
+
+Asset response 中的 `scopeLevel`、`tenantId`、`ownerAccountId`、`ownerEmployeeId` 是 Asset 加载或写入后的 owner facts，可以继续返回；它们不是调用方提交的可信输入。`assetId`、`newAssetId`、`previousAssetId`、文件内容与媒体声明仍是合法业务参数，但必须经过 owner、状态与内容校验。

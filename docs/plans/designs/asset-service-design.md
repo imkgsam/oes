@@ -1,4 +1,12 @@
+---
+status: SUPERSEDED_BY_TRUTH_SOURCE
+truthSource: docs/architecture/services/asset-service.md
+doNotUseAsStableSource: true
+---
+
 # Asset Service Design
+
+> 本文件仅保留早期设计历史。稳定边界与可信 RPC 规则以 `docs/architecture/services/asset-service.md` 及 `docs/contracts/asset-service/**` 为准；下文关于 body `scopeLevel`、`tenantId`、`accountId`、`operatorId` 传播的旧实现描述不得用于当前迁移。
 
 ## 1. 文档目的
 
