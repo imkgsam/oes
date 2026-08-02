@@ -1,6 +1,6 @@
 # OES ADR 索引
 
-更新时间：2026-07-26
+更新时间：2026-08-02
 
 > 涉及 permission-service 的当前服务职责、核心对象或 owner 边界时，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准；ADR 索引只导航历史架构决策。
 
@@ -40,5 +40,7 @@
   - 决定 OES 以 mTLS / SPIFFE-compatible identity 证明直接工作负载，由 Auth / STS 独占签发单 audience、`cnf` 绑定的短期 ExecutionToken，并逐服务迁移全部 21 个 gRPC 服务、560 个 RPC，直至 legacy 信任引用归零。
 - `0016-delegated-execution-and-action-grant.md`
   - 决定 HUMAN delegation 采用限时可撤销的最小权限交集，高风险业务动作采用精确绑定、一次性消费的 ActionGrant，并划定 AI 永久禁止操作。
+- `0017-protected-external-api-key-verifier-provider.md`
+  - 决定 Auth 只拥有 API Key verifier 语义与恒定时间比较，Deployment/EXEC-CRYPTO 复用既有 Auth-local protected agent，以独立、不可导出的版本化 HMAC-SHA-256 key 提供固定 verifier 运算；正常轮换保留旧版本验证，开发主机与生产安全绑定显式分离。
 
 若后续涉及 bounded context、共享契约、事件模型、权限语义、租户模型、`src/common` 对外 API 或 AI 工具协议变更，应先在本目录新增 ADR，再进入实现。

@@ -8,8 +8,10 @@ predecessorGate: FROZEN_TRUSTED_GRPC_METADATA
 revocationInvariant: BOUNDED_RESIDUAL_MAX_5_MINUTES
 dg2ExternalOpeningGate: false
 externalOpening: DISABLED_PENDING_DG3_IMPLEMENTATION_ACCEPTANCE
+protectedVerifierDecision: docs/adr/0017-protected-external-api-key-verifier-provider.md
 requiredForExternalOpening:
   - FROZEN_TOKEN_CRYPTOGRAPHY_AND_WORKLOAD_IDENTITY
+  - FROZEN_PROTECTED_EXTERNAL_API_KEY_VERIFIER
 ```
 
 > This document freezes collaboration only. `auth-service`, `identity-service`, and `permission-service` ownership remains defined by their respective service truth sources. HTTP fields and errors are defined by the linked contracts.
@@ -47,10 +49,22 @@ Authorization: ApiKey oek_live_<opaque-identifier>.<secret>
 
 - `oek_live_` is a type/environment marker only. Identifier and secret are generated independently with cryptographically secure randomness; the secret has at least 256 bits of entropy and uses URL-safe encoding.
 - Auth displays the complete secret once, only in the create or rotate success response. Query, audit, error, support, and retry paths reveal only a masked identifier or non-secret metadata.
-- Auth stores an irreversible verifier calculated with a versioned KMS/HSM-held pepper and verifies it in constant time. Secret, verifier, and pepper never enter application logs, traces, metrics labels, events, backups intended for operational use, or downstream request context.
+- Auth stores an irreversible verifier and opaque `verifierKeyVersion` calculated through the frozen protected provider, then verifies equal-length candidate/stored values in constant time. The production Pepper is a distinct non-exportable 256-bit HMAC key; raw Pepper never enters Auth, Gateway, a business service, environment configuration, logs, traces, metrics labels, events, or an operational response.
 - Normal state is `ACTIVE`. Expired, disabled, revoked, or superseded-after-overlap credentials cannot exchange. A replacement may overlap its predecessor for at most seven days; a machine can have at most two valid credentials.
 - Default expiry is one year. At 90 days and before expiry, Auth produces rotation-health reminders; it does not silently expire a healthy integration at 90 days. Tenant security policy may enforce a shorter maximum.
 - Confirmed leakage revokes the credential immediately and permanently. A new credential is required; the leaked secret is never restored or reactivated.
+
+### 4.1 Protected verifier collaboration
+
+Auth owns API-key generation, parsing, verifier semantics, constant-time comparison, credential persistence and the application port. Deployment/EXEC-CRYPTO owns the KMS/HSM HMAC key, logical-version-to-backend-reference manifest, provider workload identity/credential delivery, UDS process binding and SoftHSM security asset. The provider is infrastructure inside the existing per-Auth protected-crypto boundary; it has no public ingress, tenant/business state or public OES API. DG-3 reuses the existing `execution-token-signer-agent` process and socket rather than adding another sidecar. The historical executable/path name remains during this capability; its ExecutionToken signing contract is not renamed or generalized.
+
+The provider exposes one domain-specific cryptographic method, `ComputeExternalApiKeyVerifier`, plus read-only `GetExternalApiKeyVerifierStatus`. `ISSUE` selects the unique provider-active version and forbids a caller version. `VERIFY` accepts only the credential-stored opaque version while it is `ACTIVE` or `VERIFY_ONLY`. Neither method accepts an algorithm, backend key/KMS reference, arbitrary payload or domain label, and neither returns Pepper/key material. The fixed calculation is HMAC-SHA-256 over the versioned OES external-API-key canonical input defined by the Auth contract.
+
+Ordinary provider rotation makes the previous version verify-only: new credentials use the new active version while existing credentials continue without forced replacement. Retirement requires no active/unexpired/overlap credential reference plus expiry of the declared backup/restore window. Confirmed provider-key compromise disables the affected version and permanently revokes its credentials. Provider/version outage or mismatch fails API-key create, rotate and exchange closed; list/revoke and unrelated Auth login/session capabilities remain available, and no already-issued external token exceeds its existing five-minute maximum.
+
+Normal host development may use an explicitly selected development-only software provider and repository-ignored, owner-readable local key. That provider is forbidden from staging, production and security acceptance. Security integration always runs the actual UDS provider against a distinct sensitive, non-extractable SoftHSM2 HMAC-SHA-256 object. Production uses workload identity and never delivers raw HMAC key material to Auth.
+
+Before external opening, the capability delivery must include an operator-facing deployment/readiness runbook covering production KMS/HSM HMAC-key creation, workload-identity permission, opaque version manifest/configuration, rotation and retirement, compromise response, outage recovery, readiness verification and the explicit prohibition on the development provider. This design records the required outcome; provider-specific cloud commands belong to deployment delivery once the target cloud is selected.
 
 ## 5. HTTP Entry And Internal Propagation
 
