@@ -44,7 +44,7 @@ ComputeExternalApiKeyVerifier(
 }
 ```
 
-`ISSUE` forbids a requested version and uses the provider's unique `ACTIVE` version. `VERIFY` requires exactly the version stored on the credential and accepts it only in `ACTIVE` or `VERIFY_ONLY` state. The provider also exposes read-only `GetExternalApiKeyVerifierStatus`, returning only opaque active/verification versions and lifecycle times for readiness.
+`ISSUE` forbids a requested version and uses the provider's unique `ACTIVE` version. `VERIFY` requires exactly the version stored on the credential and accepts it only in `ACTIVE` or `VERIFY_ONLY` state. The provider also exposes read-only `GetExternalApiKeyVerifierStatus`, returning opaque active/verification lifecycle data and the terminal safe compromise evidence defined in section 6, never backend references or material.
 
 The provider accepts no algorithm, backend key/KMS reference, domain label, arbitrary message, tenant, principal, Permission Code or expiry. The HMAC input is exactly:
 
@@ -84,6 +84,20 @@ This is capability-scoped failure: credential list and revoke remain available, 
 - Isolated unit tests may use a fake port.
 - Security integration runs the actual UDS agent against SoftHSM2. It creates a distinct `CKK_GENERIC_SECRET` / `CKM_SHA256_HMAC` object with 256-bit value, `CKA_SENSITIVE=true` and `CKA_EXTRACTABLE=false`; the signing P-256 object is not reused.
 - Acceptance proves raw-key export refusal, fixed algorithm/domain/input validation, arbitrary selector rejection, correct constant-time comparison, active/verify-only rotation, retirement guard, local-provider production rejection and provider/manifest/HSM failure closure.
+
+### 6. Confirmed compromise control plane
+
+The compromise workflow is ordered and fail-safe:
+
+1. Deployment/EXEC-CRYPTO records a safe opaque incident reference, removes the logical version from the agent compute allowlist and disables the backend HMAC version.
+2. `GetExternalApiKeyVerifierStatus` may expose terminal `COMPROMISED_DISABLED` only after both local denial and backend unusability are confirmed. Its evidence is limited to logical version, `incidentReference`, `occurredAt` and immutable/monotonic `stateRevision`; the state cannot be re-enabled.
+3. A dedicated, exactly allowlisted deployment `security-operations-runner` invokes Auth's existing internal gRPC host with mTLS plus a certificate-bound, `aud=auth-service`, SYSTEM-scope INTERNAL ExecutionToken containing only `auth.internal.external_api_key.verifier_version.compromise`.
+4. Auth validates exact provider evidence and runs `CompromiseExternalApiKeyVerifierVersion` as an internal CQRS command. There is no HTTP route, Gateway exposure, ordinary tenant-admin/HUMAN method or caller-selected backend/credential scope.
+5. One Auth database transaction creates the durable completion record, locks every credential for the version, preserves prior revocations, revokes all remaining rows at one server time and inserts per-newly-revoked plus aggregate audit facts. Any failure rolls back all Auth changes; the already-disabled provider continues denying exchange until retry succeeds.
+
+The request contains only `verifierKeyVersion`, a safe opaque `incidentReference` and evidence `occurredAt`; trusted operator/workload/trace context comes from the verified transport runtime. The incident reference is a 1–128 character ASCII identifier matching `[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}`, not free-text narrative. `incidentReference` is globally unique and `verifierKeyVersion` has at most one compromise incident. Exact replay returns the stored result and emits no duplicate audit; conflicting reference/version/time reuse is denied. The incident record persists provider `stateRevision`, evidence/processing times, caller workload/trace and matched/newly-revoked/already-revoked counts. The response returns only incident reference, those counts and completion time.
+
+This ordering deliberately avoids a cross-system distributed transaction. Provider disablement is the security gate; Auth's atomic transaction is the credential/audit truth. AWS KMS and Google Cloud KMS both make disabled keys/versions unusable for cryptographic operations, while NIST key-management guidance requires compromised keys to stop applying protection. OES adds the application-level bulk revocation and idempotent evidence record because KMS disablement alone cannot update Auth credential truth.
 
 ## Alternatives Rejected
 
@@ -128,6 +142,9 @@ Costs:
 - [Google Cloud KMS MAC signatures](https://cloud.google.com/kms/docs/mac-signatures)
 - [HashiCorp Vault Transit secrets engine](https://developer.hashicorp.com/vault/docs/secrets/transit)
 - [OWASP Password Storage Cheat Sheet: Peppering](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#peppering)
+- [AWS KMS enabling and disabling keys](https://docs.aws.amazon.com/kms/latest/developerguide/enabling-keys.html)
+- [Google Cloud KMS enable and disable key versions](https://cloud.google.com/kms/docs/enable-disable)
+- [NIST SP 800-57 Part 1 Rev. 5](https://nvlpubs.nist.gov/nistpubs/specialpublications/nist.sp.800-57pt1r5.pdf)
 - [Auth service truth source](../architecture/services/auth-service.md)
 - [External API Key collaboration](../architecture/collaborations/external-api-key-security.md)
 - [Auth External API Key contract](../contracts/auth-service/external-api-key-security.md)
