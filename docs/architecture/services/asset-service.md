@@ -165,4 +165,22 @@ Asset + Site Media 是可信 gRPC 全仓 capability 的第一个业务优先 ser
 
 完整传输信任规则以 [14-grpc-metadata-and-service-trust-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/14-grpc-metadata-and-service-trust-architecture.md) 为准，黑盒媒体能力以 [site-media.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/asset-service/site-media.md) 为准。
 
+### 10.5 Avatar And Employee Official Photo Trusted RPC Cutover
+
+头像与员工正式照片是本服务与 Site Media 并列的既有受控资产切片；它们在可信 gRPC 切换中保持各自的业务语义，不因为共享底层 Asset metadata 而合并为同一授权模式。
+
+| RPC                           | 唯一 mode      | 冻结授权 / 目标语义                                                                                                                                                                                    |
+| ----------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `UploadAccountAvatar`         | `SELF_SERVICE` | `allowDelegated: true`。当前账号只从可信执行主体的 canonical account subject 派生；不得提交或覆盖 `accountId`。这是低风险资料媒体操作，DELEGATED 仍须经过有效的人类、delegation 和 ToolContract 上限。 |
+| `BindAccountAvatar`           | `SELF_SERVICE` | `allowDelegated: true`。当前账号同样只从可信 subject 派生；`newAssetId` 和可选 `previousAssetId` 是业务引用，Asset 必须校验其 scope / tenant / owner 与派生账号一致。                                  |
+| `UploadEmployeeOfficialPhoto` | `BUSINESS`     | `all: [hr.employee.create]`。该现有 active Code 已是 Gateway 员工正式照片入口的唯一权限门；`employeeId` 保留为业务目标，Asset 以可信 tenant 校验目标 Employee 与候选 Asset。                           |
+| `BindEmployeeOfficialPhoto`   | `BUSINESS`     | `all: [hr.employee.create]`。绑定会改变 Asset lifecycle，不能降格为技术旁路；保留 `employeeId`、`newAssetId` 与可选 `previousAssetId` 作为业务引用，并重复 tenant / owner 校验。                       |
+| `ResolveAssetPublicUrl`       | `INTERNAL`     | `all: [asset.internal.avatar.resolve_public_url]`。这是已完成上游读路径授权后的受限 public-delivery projection；只由精确获准 workload 申请，不能加入 HUMAN / MACHINE 业务角色。                        |
+
+所有五个 RPC 都只接受 `aud=urn:oes:service:asset-service`、当前 channel mTLS workload identity 与由 Auth / STS 签发且绑定该 workload 的 ExecutionToken。`scopeLevel`、`tenantId` 与 `operatorId` 从请求体删除：scope / tenant 来自可信执行上下文并由 Asset 对已加载的归属事实复核；审计使用可信 subject、DELEGATED actor / delegation（如有）、workload、request 与 trace。`accountId` 从两个账号头像请求体删除；`employeeId` 是 Employee official photo 的合法业务目标而保留。`assetId`、`newAssetId` 与 `previousAssetId` 均为业务引用而不是身份来源。
+
+当前直接调用 workload 是 `api-gateway`（其中包含 auth-bff 与 HR management modules）。它必须对两个账号头像 RPC 使用统一 metadata producer 的 SELF_SERVICE exchange；对两个员工照片 RPC 使用 `BUSINESS` exchange，精确申请 `hr.employee.create`；对 URL resolve 使用 INTERNAL exchange，精确申请 `asset.internal.avatar.resolve_public_url`。Auth / STS 的 deployment registry 只为已注册的 `api-gateway` workload 发放上述 `aud=asset-service` Token；未来新增 direct caller、worker 或 workload 必须先冻结其独立 workload-to-audience issuance policy，不共享或放宽该 policy。
+
+本节是五个 legacy avatar / official-photo RPC 的唯一 Asset mode mapping。切换同时移除 legacy signed operator metadata、request-body identity 信任、controller fallback 与依赖它们的 fixture；不得双读。
+
 Site Media 的完整黑盒交互以 [site-media.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/asset-service/site-media.md) 为准；跨服务发布保护与消费行为以 [site-asset-media.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/site-asset-media.md) 为准。

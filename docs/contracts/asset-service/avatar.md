@@ -15,22 +15,29 @@
 
 ## Operations
 
+### Trusted Execution Cutover
+
+所有本节 RPC 都通过当前 channel 的 mTLS `VerifiedWorkloadIdentity` 与 `aud=urn:oes:service:asset-service` 的 Auth / STS `ExecutionToken` 建立上下文。legacy signed operator metadata、`scopeLevel`、`tenantId`、`accountId` 与 `operatorId` 请求字段在本切片切换时一并删除；它们不能作为 identity、scope 或授权依据。
+
+- 当前 direct caller 是 `api-gateway` 的 auth-bff module；它只能以已注册的 `api-gateway` workload 取得本服务 audience Token。未来 service / worker 不能复用这一 issuance policy，必须先冻结自己的精确 workload policy。
+- `UploadAccountAvatar` 与 `BindAccountAvatar` 均声明 `SELF_SERVICE`，`allowDelegated: true`。当前 account target 固定从可信 ExecutionToken subject（Gateway 已建立的 canonical account principal）派生。DELEGATED 保持该 human account subject，另以 actor / delegation 归因；MACHINE 不可调用。
+- 不再请求 BUSINESS Permission Code；调用方使用统一 metadata producer 的 `forSelfServiceCall('urn:oes:service:asset-service')`。Asset 仍校验派生账号、可信 tenant / scope 与自身 Asset ownership facts。
+- `ResolveAssetPublicUrl` 声明 `INTERNAL all: [asset.internal.avatar.resolve_public_url]`。调用方使用 `forInternalCall('urn:oes:service:asset-service', ['asset.internal.avatar.resolve_public_url'])`；该 INTERNAL Code 不得进入 HUMAN / MACHINE role，且只有 Auth / STS registry 已明确允许的 `api-gateway` workload 可申请。
+- `assetId`、`newAssetId` 与可选 `previousAssetId` 保留为业务引用；Asset 在 server side 加载并验证它们。响应中的 asset scope / tenant / owner 是资源事实，不构成下一次调用的可信输入。审计从 trusted subject、DELEGATED actor / delegation（如有）、direct workload、requestId 与 trace 取得。
+
 ### `UploadAccountAvatar`
 
 - Purpose: upload one avatar candidate asset for the current authenticated account.
-- Callers: trusted internal services such as `auth-bff`.
-- Control model: internal service call with authenticated operator context and current account binding target.
+- Callers: `api-gateway` auth-bff module through its registered workload identity.
+- Control model: `SELF_SERVICE` (`allowDelegated: true`); current account binding target is derived from trusted context.
 - Input semantics:
-  - `scopeLevel`
-  - `tenantId` optional
-  - `accountId`
-  - `operatorId`
   - `category = ACCOUNT_AVATAR`
   - `file`
+  - `fileName`
+  - `contentType`
 - Ownership constraints:
-  - `TENANT` context must carry a valid `tenantId`
-  - `SYSTEM` context must send `tenantId = null`
-  - the uploaded asset must be owned by the current authenticated `accountId` under the submitted scope
+  - `TENANT` / `SYSTEM` scope is derived from trusted context and verified account facts, not a request field
+  - the uploaded asset must be owned by the trusted current account under that derived scope
 - Validation baseline:
   - allowed MIME types: `image/jpeg`, `image/png`, `image/webp`
   - max size: `2MB`
@@ -45,17 +52,13 @@
 ### `BindAccountAvatar`
 
 - Purpose: finalize one uploaded avatar asset as the current account avatar after profile update succeeds.
-- Callers: trusted internal services such as `auth-bff`.
-- Control model: internal service call with authenticated operator context.
+- Callers: `api-gateway` auth-bff module through its registered workload identity.
+- Control model: `SELF_SERVICE` (`allowDelegated: true`); current account binding target is derived from trusted context.
 - Input semantics:
-  - `scopeLevel`
-  - `tenantId` optional
-  - `accountId`
-  - `operatorId`
   - `newAssetId`
   - `previousAssetId` optional
 - Behavior constraints:
-  - `newAssetId` must belong to the same `scopeLevel`, `tenantId`, and `accountId`
+  - `newAssetId` must belong to the same trusted derived scope, tenant and current account
   - `SYSTEM` binding must not reuse a tenant-owned asset
   - `TENANT` binding must not reuse a system-owned asset or an asset from another tenant
   - the previous active avatar asset, if any, is marked `REPLACED`
@@ -68,7 +71,8 @@
 ### `ResolveAssetPublicUrl`
 
 - Purpose: resolve one asset display URL from a controlled asset reference.
-- Callers: trusted internal services building account-oriented read models.
+- Callers: `api-gateway` account-oriented read models through the exact INTERNAL issuance policy.
+- Control model: `INTERNAL all: [asset.internal.avatar.resolve_public_url]`; it does not grant a business role or accept a caller-selected tenant / account.
 - Input semantics:
   - `assetId`
 - Response fields:
