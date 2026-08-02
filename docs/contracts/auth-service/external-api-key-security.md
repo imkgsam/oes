@@ -4,6 +4,7 @@
 status: FROZEN_DG3
 architectureTruthSource: docs/architecture/services/auth-service.md
 collaborationTruthSource: docs/architecture/collaborations/external-api-key-security.md
+protectedVerifierDecision: docs/adr/0017-protected-external-api-key-verifier-provider.md
 revocationInvariant: BOUNDED_RESIDUAL_MAX_5_MINUTES
 dg2ExternalOpeningGate: false
 externalOpening: DISABLED_PENDING_DG3_IMPLEMENTATION_ACCEPTANCE
@@ -30,7 +31,37 @@ The non-secret response and all later reads expose only:
 - predecessor/successor reference when rotating; and
 - rotation-health state and safe audit references.
 
-`secret`, verifier, pepper reference, external access token, and internal ExecutionToken are never listable, readable, exportable, or included in an audit response.
+`secret`, verifier, backend Pepper/key reference, external access token, and internal ExecutionToken are never listable, readable, exportable, or included in an audit response. The opaque logical `verifierKeyVersion` is credential-internal metadata used only to select an already provider-approved verification version; it is not a backend key reference and is never caller-controlled.
+
+### 2.1 Protected verifier contract
+
+Auth's final application port is operation-oriented and never resolves raw Pepper:
+
+```text
+ComputeExternalApiKeyVerifier(
+  mode: ISSUE | VERIFY,
+  identifier: canonical base64url(18 random bytes),
+  secret: canonical base64url(32 random bytes),
+  verifierKeyVersion?: opaque logical version
+) -> {
+  verifier: base64url(32-byte HMAC),
+  verifierKeyVersion: opaque logical version
+}
+```
+
+- `ISSUE` forbids `verifierKeyVersion`; the provider selects its unique `ACTIVE` version.
+- `VERIFY` requires the credential-stored `verifierKeyVersion`; the provider accepts only a manifest version in `ACTIVE` or `VERIFY_ONLY` state.
+- The caller cannot provide an algorithm, HSM/KMS/backend key reference, domain label, arbitrary message, tenant, machine, Permission Code or expiry.
+- The calculation is exactly `HMAC-SHA-256(K_version, ASCII("oes.auth.external-api-key-verifier/v1") || 0x00 || ASCII(identifier) || 0x00 || BASE64URL_DECODE(secret))`.
+- The returned verifier is canonical unpadded base64url. Auth decodes candidate/stored values, requires equal 32-byte lengths, and compares them with a constant-time primitive.
+- The protected client may additionally call read-only `GetExternalApiKeyVerifierStatus`, which returns only the opaque active/verification versions and their lifecycle times. It never returns backend references or key material.
+- Before API-key capability readiness, Auth reads the distinct versions referenced by every active, unexpired or still-overlapping credential and requires status to contain all of them plus exactly one active issue version. Missing referenced state closes the capability before create/rotate/exchange.
+
+The production provider is the existing per-Auth `execution-token-signer-agent` UDS process owned by Deployment/EXEC-CRYPTO, extended only with these API-key-specific methods. It uses a distinct sensitive, non-exportable 256-bit HMAC key and does not change or generalise the ES256 signing methods. Auth owns the application port, adapter, credential comparison and capability-scoped readiness; Deployment/EXEC-CRYPTO owns the provider binary/profile, logical-version manifest, HSM/KMS key lifecycle, workload credential delivery and SoftHSM asset. No second sidecar or public OES service is introduced, and the historical signer-agent executable/path is retained during DG-3 rather than forcing an unrelated rename migration.
+
+Production authenticates the agent to KMS/HSM with workload identity and grants only the declared signing and API-key HMAC usages on their separate keys. If a backend requires an additional credential, only the agent may resolve a deployment-supplied opaque credential reference through its secret broker; Auth never receives the resolved credential, PIN, key bytes or raw backend handle. The UDS request body, identifier, secret and verifier are excluded from agent/Auth logs, traces, metrics labels and diagnostics.
+
+The preliminary `resolve(): { version, material }` port/client shape is invalid and must be removed. Production/staging may never receive raw Pepper through environment, file, DI, provider response, logs or diagnostics. Normal host development may explicitly use `LocalDevelopmentExternalApiKeyVerifier` with a generated repository-ignored, owner-readable local key only under `NODE_ENV=development` plus a separate local-development security profile; production/staging and security acceptance must reject that binding.
 
 ## 3. Management Operations
 
@@ -42,7 +73,7 @@ The non-secret response and all later reads expose only:
 | Revoke | `identity.machine.api_key.revoke` in trusted HUMAN execution context, or trusted security operation. | Credential permanently unusable for exchange; idempotent when already revoked. |
 | Disable / expire | Tenant policy or Auth security process. | No future exchange; never reveals or restores the secret. |
 
-Creation and rotation always use server-generated values. The caller cannot provide identifier, secret, tenant, principal, expiry extension, permission set, or pepper version. `expiresAt` defaults to one year and may be shortened by tenant security policy; a caller cannot create a non-expiring credential. API Key management has no credential-specific MFA grant; shared organisation/session assurance policy may require stronger administrator authentication before Gateway establishes the trusted HUMAN context.
+Creation and rotation always use server-generated values. The caller cannot provide identifier, secret, tenant, principal, expiry extension, permission set, verifier key version, algorithm or backend key reference. `expiresAt` defaults to one year and may be shortened by tenant security policy; a caller cannot create a non-expiring credential. API Key management has no credential-specific MFA grant; shared organisation/session assurance policy may require stronger administrator authentication before Gateway establishes the trusted HUMAN context.
 
 ## 4. Frozen Internal gRPC Contract
 
@@ -77,6 +108,8 @@ The runtime boundary is actionable and fixed: Identity implements the dedicated 
 ## 6. Rotation, Audit, And Leak Semantics
 
 - Replacement overlap is no longer than seven days, after which the predecessor becomes unusable. At most two credentials can be usable for one Integration Machine.
+- Provider-key rotation is separate from credential rotation. Exactly one logical version is `ACTIVE` for issue; prior versions are `VERIFY_ONLY` for credentials already storing that version. A version cannot retire until Auth proves no active, unexpired or credential-overlap record references it and the deployment-declared backup/restore recovery window has elapsed.
+- A confirmed HMAC-key compromise disables that provider version, permanently revokes every credential associated with it and requires replacement. Ordinary provider rotation never silently revokes a healthy credential.
 - At 90 days Auth marks the credential for rotation-health reminders. This is advisory; expiry remains the configured date, defaulting to one year.
 - Auth records lifecycle and exchange audit facts without secrets or tokens. Gateway adds external HTTP usage and rate-protection audit facts using the supplied correlation reference.
 - A confirmed leak revokes the credential immediately, creates a security audit fact, and prevents reactivation. New exchanges fail immediately. Gateway does not retain a credential-deny cache or call Auth per request: already-issued Gateway-only access tokens remain valid for no more than their five-minute natural lifetime. DG-2's ExecutionToken revocation event remains an internal-token security contract and is not an external-opening dependency.
@@ -94,6 +127,7 @@ The runtime boundary is actionable and fixed: Identity implements the dedicated 
 - `EXTERNAL_AUTHORIZATION_SNAPSHOT_TOO_LARGE`
 - `EXTERNAL_API_KEY_ROTATION_LIMIT`
 - `EXTERNAL_RATE_LIMITED`
+- `EXTERNAL_API_KEY_RUNTIME_UNAVAILABLE` (internal/capability readiness only; public mapping remains non-enumerating)
 
 The HTTP status and public error envelope are defined by Gateway. Neither Auth nor Gateway returns a reason that can be used to discover a valid key, its owner, or its grant graph.
 
@@ -111,3 +145,9 @@ The HTTP status and public error envelope are defined by Gateway. Neither Auth n
 10. The signed external JWT has only externally safe existing BUSINESS Codes in `scope`, is no larger than 4 KiB, and Gateway can use existing route permission metadata to deny an undeclared or nonmatching external request before a business side effect.
 11. Identity lookup and Permission snapshot are separately protected by Auth mTLS plus their exact target-audience INTERNAL ExecutionTokens; Gateway or an external caller cannot invoke either interface successfully.
 12. Not found/inactive/wrong-type/wrong-scope machine, credential/Identity tenant mismatch, missing tenant lifecycle, denied/empty/invalid snapshot, malformed response, timeout or dependency unavailability causes no external JWT and no fallback path.
+13. Production/staging composition exposes no raw Pepper and rejects the preliminary material-returning port, environment/file/memory Pepper, arbitrary algorithm/domain/message/backend selector and unknown/retired logical version.
+14. `ISSUE` always uses the unique active provider version; `VERIFY` uses only the credential-stored active/verify-only version. Rotation keeps an existing healthy credential valid, while confirmed provider-key compromise revokes every associated credential.
+15. Provider absence, timeout, invalid status, zero/multiple active versions, manifest/backend mismatch or credential failure closes API-key create/rotate/exchange without disabling list/revoke or unrelated Auth login/session capabilities.
+16. Normal host development can exercise the same application port only through the explicit development profile; staging, production and security acceptance reject it. The actual UDS agent plus SoftHSM2 integration proves a separate `CKK_GENERIC_SECRET` / `CKM_SHA256_HMAC` key is sensitive, non-extractable, domain/algorithm fixed and unavailable-provider fail closed.
+17. A syntactically valid unknown identifier and a known identifier with a wrong secret both execute one bounded protected verifier computation and one equal-length constant-time comparison before the same public denial category; rate protection bounds this non-enumerating path.
+18. External opening evidence includes an operator runbook for the selected production KMS/HSM: HMAC-key provisioning, workload identity, opaque version manifest, rotation/retirement, compromise response, outage recovery, readiness checks and proof that the development provider is rejected.
