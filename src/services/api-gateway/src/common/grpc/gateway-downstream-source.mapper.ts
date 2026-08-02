@@ -1,8 +1,5 @@
 import { UnauthorizedException } from '@nestjs/common'
-import {
-  InternalCallMetadataInput,
-  OperatorScopedMetadataInput
-} from '@oes/common/authorization'
+import { InternalCallMetadataInput, OperatorScopedMetadataInput } from '@oes/common/authorization'
 
 const GATEWAY_SERVICE_NAME = 'api-gateway'
 
@@ -24,6 +21,7 @@ export interface GatewayAuthenticatedUser {
   passwordSetupRequired?: boolean
   roles?: string[]
   permissions?: string[]
+  authzVersion?: string | number
   exp?: number
 }
 
@@ -31,6 +29,8 @@ export interface DownstreamRequestSource {
   user?: GatewayAuthenticatedUser
   requestId?: string
   traceId?: string
+  traceparent?: string
+  tracestate?: string
 }
 
 export function toInternalCallMetadataInput(
