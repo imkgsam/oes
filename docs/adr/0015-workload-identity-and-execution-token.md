@@ -50,6 +50,8 @@ Execution Principal 只有三种稳定模式：
 - protected provider 只接收 opaque signing-key reference 和（仅当 workload identity 不足时）deployment-resolved opaque credential reference；reference 绝不承载或导出 private key。Auth readiness 必须以 active/overlap public-key timeline 校验和 provider-sign/bootstrap-challenge 的本地公钥验签为前置条件。issuer HTTPS authority 必须真实 TLS 终止或经 approved proxy 转发到 authenticated Auth metadata channel；plain HTTP、Host-header routing 或静态伪造 JWKS 不构成发布。
 - concrete provider asset 固定为每个 Auth workload 一实例的 `execution-token-signer-agent` sidecar：Auth infrastructure 通过 pod-local `AUTH_EXECUTION_SIGNER_SOCKET_PATH` Unix socket 调用，sidecar 以 workload identity 对接 PKCS#11-compatible HSM/KMS gateway，并持有 non-exportable P-256 key。它不是新的 OES 服务；没有 public ingress、业务数据库或跨 tenant state。Auth client/adapter 归 Auth infrastructure path class；Go static sidecar binary（`docker/grpc-trust/execution-token-signer/cmd/agent/**` 与 local `go.mod`）、socket mount、PKCS#11 module 与 local HSM harness 归既有 EXEC-CRYPTO deployment path class。ExecutionToken namespace 使用 newline-delimited JSON-RPC 2.0，只公开 active key、published overlap keys 与指定 published `kid` 的 ES256 signing，绝不返回私钥、backend credential 或任意 key selection。ADR 0017 可在同一 Auth-local process/socket 增加独立、固定的 API-key verifier namespace；它使用另一把 non-exportable HMAC key，不能选择或影响 ES256 key，且不改变本 ADR 的 ExecutionToken contract。
 - opaque signing-key reference 固定为 RFC 7512 PKCS#11 URI，pin token serial、private-key `CKA_ID` / `id` 与 `type=private`，由 agent 用同一 serial / ID 获取 public key；不得由 Auth request、`kid` 或 runtime discovery 选择其他 key。agent 从 HSM-derived ES256 P-256 JWK 计算 RFC 7638 thumbprint `kid`，并以 deployment/SRE 拥有的只读 `docker/grpc-trust/execution-token-signer/config/**` rotation manifest 校验 canonical URI、expected `kid` 与 RFC 3339 UTC publication/signing/retirement timeline。恰有一个 active signer；`retireAfter` 至少覆盖 `signingNotAfter + 300s Token TTL + 60s skew`，manifest/HSM mismatch fail closed。backend 默认使用 workload identity；额外 credential 只能由 agent 内的 secret broker 以 opaque reference 解析，并按 `CKU_USER` time-bounded session lease 刷新/失败清零、logout、close 和 fail closed。local integration 固定使用 `docker/grpc-trust/execution-token-signer/local/softhsm2/**` 的 SoftHSM2 token 内 sensitive、non-extractable P-256 key 与仅 agent 可读 PIN secret file；实际 UDS agent 测试必须证明 export refusal、rotation、manifest/credential mismatch 和 agent/HSM outage fail closed。
+- `requestedPermissionCodes` 仅是最小能力申请，绝不建立授权。Auth 从 Auth/Identity 可验证的 source credential 恢复 HUMAN/MACHINE/DELEGATED principal，以 Permission Service `ResolvePrincipalAuthorization` 的独立 decision 形成 BUSINESS 上限，以 `ResolveWorkloadIssuance` 形成 INTERNAL workload→audience→Code 上限；必须全部获准且 principal、tenant/org、workload、audience、kind、decision reference 与 `authzVersion` 一致后才签名。caller request、legacy operator roles、Auth 本地 Permission 副本或同源集合比较不能成为上限；依赖失败、部分批准或 mismatch 全部 fail closed。
+- source credential 只由 Common transport-private runtime 在 mTLS-protected exchange channel 携带：首跳使用 Auth 可复核的 active session/access credential，多跳使用当前 signed ExecutionToken 作为 subject credential 并要求其 `aud` 精确对应 verified exchanger workload，API Key root 使用既有 Gateway-only external credential，MACHINE/DELEGATED 使用对应 owner credential/reference。metadata 只是 opaque credential 的载体；裸 subject/tenant/Code、request body、ordinary metadata 与 signed operator-context 都不是 authority。Token 按 principal/tenant/audience/exact Code set/delegation/security version/`cnf` tuple 缓存和复用，不按 RPC 签发；目标服务继续独占 RPC mode、Code 与 resource/domain enforcement，Auth 不维护 target-RPC registry。
 
 ### 4. 多跳与 cache
 
@@ -107,6 +109,14 @@ Site Runtime 现有 HMAC、nonce、method/path/body hash 是独立的外部 cred
 ### Request-body fallback
 
 拒绝。tenant、operator、scopeLevel 或 permission 的 body 副本不能建立身份或授权。合法业务目标字段仍可保留，但必须与可信上下文和资源归属再次核对。
+
+### Auth-owned RPC registry 或 per-RPC Token
+
+拒绝。它复制目标服务声明、扩大同步与 rollout skew，并把 Token exchange QPS 推向业务 RPC QPS。OES 以 target audience + independently granted minimal Permission Code set 为可缓存 Token 粒度；目标服务在实际方法本地执行唯一 RPC declaration 与资源规则。
+
+### Caller-requested Code 作为 authorized set
+
+拒绝。request 与 authorization upper bound 必须来自独立 source；把 `requestedPermissionCodes` 复制到 execution context、再对同一集合做 subset/equality check 是自我授权，任何实现形态都不满足 STS trust boundary。
 
 ## Consequences
 
