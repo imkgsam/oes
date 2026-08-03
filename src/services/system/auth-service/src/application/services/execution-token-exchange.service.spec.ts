@@ -1,6 +1,9 @@
 import { generateKeyPairSync, sign, verify } from 'node:crypto'
 import { ExecutionTokenExchangeService } from './execution-token-exchange.service'
-import { ExecutionTokenSigningKey, ExecutionTokenSigningPort } from '../../domain/ports/execution-token-signing.port'
+import {
+  ExecutionTokenSigningKey,
+  ExecutionTokenSigningPort
+} from '../../domain/ports/execution-token-signing.port'
 import { ExecutionTokenRegistry } from '../../domain/services/execution-token-registry'
 
 /** Provides isolated P-256 signing material so the exchange test covers Auth's KMS/HSM boundary contract. */
@@ -95,5 +98,101 @@ describe('ExecutionTokenExchangeService', () => {
       grantedAudience: 'urn:oes:service:permission-service',
       grantedPermissionCodes: ['AUTH.READ']
     })
+  })
+
+  it('issues the declaration-controlled empty SELF_SERVICE business-Code set without weakening registry policy', async () => {
+    const signer = new FakeExecutionTokenSigningPort()
+    const service = new ExecutionTokenExchangeService(
+      new ExecutionTokenRegistry({
+        issuer: 'https://auth.local.oes.example',
+        workloadPolicies: [
+          {
+            spiffeId: 'spiffe://local.oes/gateway',
+            audiences: ['urn:oes:service:asset-service']
+          }
+        ]
+      }),
+      signer,
+      () => 1_700_000_300
+    )
+    const input = {
+      targetAudience: 'urn:oes:service:asset-service',
+      requestedPermissionCodes: [],
+      workloadIdentity: {
+        spiffeId: 'spiffe://local.oes/gateway',
+        certificateThumbprint: 'A'.repeat(43)
+      },
+      execution: {
+        subject: 'account-1',
+        principalType: 'HUMAN' as const,
+        tenantId: 'tenant-1',
+        permissionCodes: []
+      }
+    }
+
+    const result = await service.exchange(input)
+
+    const claims = JSON.parse(
+      Buffer.from(result.accessToken.split('.')[1], 'base64url').toString('utf8')
+    )
+    expect(result.grantedPermissionCodes).toEqual([])
+    expect(claims.scope).toBe('')
+    await expect(
+      service.exchange({
+        ...input,
+        targetAudience: 'urn:oes:service:permission-service'
+      })
+    ).rejects.toThrow('workload is not permitted')
+    await expect(
+      service.exchange({
+        ...input,
+        workloadIdentity: {
+          ...input.workloadIdentity,
+          spiffeId: 'spiffe://local.oes/rogue'
+        }
+      })
+    ).rejects.toThrow('workload is not permitted')
+  })
+
+  it('continues to reject duplicate and non-canonical non-empty permission sets', async () => {
+    const service = new ExecutionTokenExchangeService(
+      new ExecutionTokenRegistry({
+        issuer: 'https://auth.local.oes.example',
+        workloadPolicies: [
+          {
+            spiffeId: 'spiffe://local.oes/gateway',
+            audiences: ['urn:oes:service:asset-service']
+          }
+        ]
+      }),
+      new FakeExecutionTokenSigningPort(),
+      () => 1_700_000_300
+    )
+    const input = {
+      targetAudience: 'urn:oes:service:asset-service',
+      workloadIdentity: {
+        spiffeId: 'spiffe://local.oes/gateway',
+        certificateThumbprint: 'A'.repeat(43)
+      },
+      execution: {
+        subject: 'account-1',
+        principalType: 'HUMAN' as const,
+        tenantId: 'tenant-1',
+        permissionCodes: ['ASSET.READ', 'ASSET.WRITE']
+      }
+    }
+
+    await expect(
+      service.exchange({
+        ...input,
+        requestedPermissionCodes: ['ASSET.READ', 'ASSET.READ']
+      })
+    ).rejects.toThrow('unique and canonical')
+    await expect(
+      service.exchange({
+        ...input,
+        requestedPermissionCodes: ['ASSET.WRITE', 'ASSET.READ']
+      })
+    ).rejects.toThrow('unique and canonical')
   })
 })

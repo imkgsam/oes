@@ -1,4 +1,7 @@
-import { TrustedExecutionRegistry } from '@oes/common/authorization'
+import {
+  TrustedExecutionRegistry,
+  type TrustedExecutionContextAccessor
+} from '@oes/common/authorization'
 import { GrpcWorkloadIdentityProvider } from '@oes/common/transport'
 import type { WorkloadIssuancePolicy } from '../../domain/services/execution-token-registry'
 import { AuthGrpcVerifiedPeerAdapter } from './auth-grpc-security'
@@ -11,7 +14,8 @@ export type ExecutionTokenContextConfiguration = Readonly<{
 
 /** Creates the sole STS context boundary from Common's authenticated transport identity provider and immutable deployment policy. */
 export function createVerifiedExecutionTokenContext(
-  configuration: ExecutionTokenContextConfiguration
+  configuration: ExecutionTokenContextConfiguration,
+  executionContextAccessor: TrustedExecutionContextAccessor
 ): VerifiedExecutionTokenContextProvider {
   const trustedRegistry = new TrustedExecutionRegistry({
     issuer: configuration.issuer,
@@ -22,6 +26,7 @@ export function createVerifiedExecutionTokenContext(
     new GrpcWorkloadIdentityProvider({
       registry: trustedRegistry,
       adapter: new AuthGrpcVerifiedPeerAdapter()
-    })
+    }),
+    executionContextAccessor
   )
 }

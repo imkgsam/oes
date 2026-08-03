@@ -112,14 +112,14 @@ export class ExecutionTokenExchangeService {
   }
 }
 
-/** Requires a canonical, non-empty, exact permission subset so STS cannot silently issue a broader or partial token. */
+/** Canonicalizes the exact request, including the empty set bounded by workload, audience, and target RPC mode. */
 function normalizePermissionCodes(permissionCodes: readonly string[]): readonly string[] {
+  const canonical = [...permissionCodes].sort()
   if (
-    permissionCodes.length === 0 ||
     new Set(permissionCodes).size !== permissionCodes.length ||
-    permissionCodes.some((code, index) => !code || code !== [...permissionCodes].sort()[index])
+    permissionCodes.some((code, index) => !code || code !== canonical[index])
   ) {
-    throw new Error('execution token permissions must be non-empty, unique, and canonical')
+    throw new Error('execution token permissions must be unique and canonical')
   }
   return Object.freeze([...permissionCodes])
 }

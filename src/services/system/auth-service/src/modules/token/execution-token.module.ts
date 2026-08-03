@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common'
 import { randomBytes } from 'node:crypto'
+import { AsyncLocalTrustedExecutionContextAccessor } from '@oes/common/authorization'
 import { EXECUTION_TOKEN_EXCHANGE_CONTEXT } from '../../application/ports/execution-token-exchange-context.port'
 import { ExecutionTokenExchangeService } from '../../application/services/execution-token-exchange.service'
 import { ExecutionTokenJwksService } from '../../application/services/execution-token-jwks.service'
@@ -30,6 +31,7 @@ type ExecutionTokenRuntimeConfiguration = ExecutionTokenContextConfiguration
 /** Assembles the fail-closed STS runtime; deployment must bind trusted context and a protected KMS/HSM client. */
 @Module({
   providers: [
+    AsyncLocalTrustedExecutionContextAccessor,
     {
       provide: EXECUTION_TOKEN_RUNTIME_CONFIGURATION,
       useFactory: (): ExecutionTokenRuntimeConfiguration =>
@@ -71,9 +73,11 @@ type ExecutionTokenRuntimeConfiguration = ExecutionTokenContextConfiguration
     },
     {
       provide: EXECUTION_TOKEN_EXCHANGE_CONTEXT,
-      useFactory: (configuration: ExecutionTokenRuntimeConfiguration) =>
-        createVerifiedExecutionTokenContext(configuration),
-      inject: [EXECUTION_TOKEN_RUNTIME_CONFIGURATION]
+      useFactory: (
+        configuration: ExecutionTokenRuntimeConfiguration,
+        executionContextAccessor: AsyncLocalTrustedExecutionContextAccessor
+      ) => createVerifiedExecutionTokenContext(configuration, executionContextAccessor),
+      inject: [EXECUTION_TOKEN_RUNTIME_CONFIGURATION, AsyncLocalTrustedExecutionContextAccessor]
     }
   ],
   controllers: [ExecutionTokenGrpcController, ExecutionTokenMetadataHttpController],
