@@ -25,12 +25,15 @@ architectureTruthSource: docs/architecture/services/auth-service.md
 STS 只接受平台已经验证的输入：
 
 - 直接调用方的 `VerifiedWorkloadIdentity`，来自 mTLS / SPIFFE-compatible identity。
-- HUMAN 的 active session truth，或 MACHINE 的 active Machine Principal 与有效 API Key credential。
+- HUMAN 的 Auth-verifiable active session/access source credential，或 MACHINE 的 active Machine Principal 与有效 owner credential。
+- 多跳时的 current signed ExecutionToken subject credential；其 exact audience 必须标识当前 verified exchanging workload service。
 - DELEGATED 的 active human session / principal、delegation grant 与 agent/tool upper bound。
 - Permission Service 返回的 principal grant / policy decision 与 workload INTERNAL issuance decision。
 - 可信 tenant / org、target audience、精确 requested Permission Code 集、request / trace correlation。
 
-调用方不能通过 request body 自报或覆盖 subject、principal type、tenant、operator、workload identity、delegation upper bound、permission grant 或 `cnf`。
+Common 只在 mTLS-protected exchange channel 的 transport-private scope 携带 opaque source credential，不把 bearer 放入 `TrustedExecutionContext`、application/domain input、日志或审计。metadata 是 credential carrier，不是 authority；Auth 必须验证 session/access/subject Token、Gateway-only external credential 或 MACHINE/delegation owner reference 后才能建立 principal。调用方不能通过 request body、ordinary metadata、legacy signed operator context 自报或覆盖 subject、principal type、tenant、operator、workload identity、delegation upper bound、permission grant 或 `cnf`。
+
+The exact carrier on `ExchangeExecutionToken` is `authorization: Bearer <source-credential>`. This method interprets that bearer as an Auth-verifiable source/subject credential for token exchange, not as a caller-declared target-service grant. Credential type/profile, issuer, signature, lifetime, session/security state and owner references must validate before any Permission decision. For a multi-hop ExecutionToken subject credential, Auth additionally requires the Token's exact `aud` to identify the verified exchanging workload service; its original `client_id` / `cnf` remain upstream-hop evidence and are never rewritten as proof of the new hop. The newly issued Token binds the current exchanger's SPIFFE ID and certificate thumbprint.
 
 ## 3. ExchangeExecutionToken
 
@@ -62,22 +65,36 @@ Deployment/SRE owns a read-only manifest under `docker/grpc-trust/execution-toke
 
 Workload identity is the default backend credential. If a PKCS#11 backend requires additional authentication, only the agent resolves an opaque credential reference through the deployment secret broker; no PIN, resolved credential, private key or raw session handle enters Auth configuration, DI, logs, application/domain code or the socket response. The agent logs in as `CKU_USER` only for the configured token/slot, keeps a time-bounded session lease, refreshes before expiry, and on failure zeroizes credential buffers, logs out, closes the session and fails the sign/readiness operation. The required local security integration asset is SoftHSM2 at `docker/grpc-trust/execution-token-signer/local/softhsm2/**`: a sensitive, non-extractable P-256 key is generated in its token and the token/PIN are mounted only to the agent as a permission-restricted secret file. Integration runs the actual agent over UDS and proves signature verification/rotation plus private-key export refusal, manifest mismatch, credential-lease failure and unavailable agent/HSM fail-closed behavior.
 
+### Independent authority upper bound and Token reuse
+
+`requestedPermissionCodes` is a canonical minimum-scope request, never evidence that any Code is authorized. For BUSINESS, Auth supplies the verified principal/type, tenant/org, requested Codes and applicable session/delegation/security references to Permission Service `ResolvePrincipalAuthorization`. For INTERNAL, Auth supplies verified SPIFFE workload, exact target audience, requested INTERNAL Codes and attribution to `ResolveWorkloadIssuance`. Auth may sign only when every requested Code is independently granted, the decision kind and all trusted bindings match, and the response includes an auditable decision reference plus `authzVersion`. Unknown/denied/mixed-kind Code, partial approval, stale/mismatched decision, tenant/scope/workload/audience mismatch, timeout or Permission unavailability fails the complete exchange. Auth never reads Permission storage and never constructs `authorizedPermissionCodes` from the request, legacy operator roles or a local role/permission copy.
+
+`ResolvePrincipalAuthorization` and `ResolveWorkloadIssuance` are separate Auth-only INTERNAL Permission Service calls on the existing `PermissionCheckService` surface. Their request values are derived only after Auth has verified the source credential and workload; their response binds exact granted/denied Codes, tenant/scope/workload/audience as applicable, decision reference and `authzVersion`. Permission authenticates the Auth workload and its fixed INTERNAL policy before consuming those references. No resolver echoes requested Codes as granted without evaluating current catalog, binding and policy truth.
+
+The Token cache and issuance unit is the exact tuple of verified principal/type, tenant/org, target audience, canonical granted Code set, session/delegation/security version and current workload certificate thumbprint. One valid cached Token may be used for multiple RPCs in that audience when each target method's local declaration accepts the Token mode and Code set. There is no per-RPC Token or Auth-owned RPC authorization registry. A changed tuple produces a separate exchange/cache entry; ordinary target RPCs continue local validation with no Auth/Permission call.
+
+SELF_SERVICE is the only mode that consumes an empty Code set. Auth still requires a verified HUMAN source credential; DELEGATED remains subject to the target method's explicit `allowDelegated`, and MACHINE has no implicit self-service authority. BUSINESS and INTERNAL requests are non-empty. The target server derives self targets from trusted `sub`, validates current method mode/principal compatibility and `all/any` Codes, and applies tenant/resource/domain rules. A Token with an empty set cannot invoke BUSINESS/INTERNAL; a non-empty BUSINESS/INTERNAL Token does not bypass SELF_SERVICE subject derivation or method mode checks.
+
+Successful and denied exchange audit records source-credential kind/reference, verified principal/type/workload, tenant/org, audience, canonical requested/granted Codes, Permission decision reference, `authzVersion`, session/delegation reference, certificate thumbprint, `kid`/`jti`, result/reason and trace correlation. It excludes bearer values, API Key material, private key material and recoverable credentials.
+
 ### Request semantics
 
 逻辑请求至少表达：
 
 - `targetAudience`：一个 registered service audience。
-- `requestedPermissionCodes`：非空、去重、规范排序后的精确集合；SELF_SERVICE 可由 RPC declaration 形成受控的空业务 Code 集，但仍需 mode claim / server policy。
+- `requestedPermissionCodes`：去重、规范排序后的精确最小申请集；BUSINESS / INTERNAL 非空，SELF_SERVICE 固定为空。它不携带授权结果。
 - 当前可信 execution reference：由 server runtime 注入，不由业务 DTO 重建。
+
+The existing proto request keeps only `target_audience` and `requested_permission_codes`; no target RPC or caller-supplied mode field is added. The proto comment/contract test must permit an empty repeated field only for SELF_SERVICE semantics. The verified source credential is carried exclusively by the `authorization` metadata rule above.
 
 对于多跳 exchange，STS 保持可信 `sub`、principal type、tenant、org、session / delegation attribution 与 request correlation，但把 `client_id`、`aud` 和 `cnf` 绑定到申请当前下一跳的直接 workload。
 
 ### Authorization semantics
 
-- HUMAN / BUSINESS：requested Codes 必须是该 principal 在当前 scope / tenant / policy 下的有效子集。
-- MACHINE / BUSINESS：requested Codes 必须是 Machine Principal grant 的有效子集。
-- DELEGATED / BUSINESS：requested Codes 必须同时满足 HUMAN grant、delegation grant、agent/tool upper bound 与 target policy。
-- INTERNAL：requested Codes 必须是 `kind=INTERNAL`，且当前 workload 的 issuance policy 明确允许申请；INTERNAL Code 不从 HUMAN / MACHINE role 继承。
+- HUMAN / BUSINESS：Permission Service 必须独立确认 requested Codes 是该 principal 在当前 scope / tenant / policy 下的有效子集。
+- MACHINE / BUSINESS：Permission Service 必须独立确认 requested Codes 是 active Machine Principal grant 的有效子集。
+- DELEGATED / BUSINESS：Permission decision 必须独立计算 HUMAN grant、delegation grant、agent/tool upper bound 与 target policy 的交集。
+- INTERNAL：Permission decision 必须确认 requested Codes 是 `kind=INTERNAL`，且当前 verified workload → target audience issuance policy 明确允许；INTERNAL Code 不从 HUMAN / MACHINE role 继承。
 - SELF_SERVICE：STS 不把 body target 编入身份。目标服务从已验证 principal 派生 target，并按 RPC declaration 决定是否允许 DELEGATED。
 
 请求任何未获准 Code 时整体拒绝，不静默扩大，也不以“尽可能签发部分集合”掩盖调用方配置错误。调用方如需要更小集合，应显式重试更小请求。
@@ -231,3 +248,13 @@ transport status 映射由 Gateway / common error boundary 统一处理；不得
 11. unknown `kid` 只触发一次受控 JWKS refresh；无法从已配置 issuer 获得可信 key 时拒绝，不能访问 Token 提供的 URL。
 12. 正确 SPIFFE ID 但不同叶证书、或正确证书但错误 SPIFFE ID / `client_id` 的调用都因三重绑定失败；证书轮换后旧 Token 必须失败，新 exchange 的 Token 必须成功。
 13. local security integration 使用独立 local CA 与 trust domain 完成真实 TLS 握手，不以 mock identity 替代上述绑定与轮换验证。
+14. Auth unit test proves `requestedPermissionCodes` never populates the authorized/granted set before an independent Permission response; the signer is not called when that response is absent.
+15. A forged BUSINESS Code, a denied Code, a mixed BUSINESS/INTERNAL set, or a partial grant rejects the entire exchange and produces no Token.
+16. HUMAN and MACHINE BUSINESS exchange succeeds only with a current `ResolvePrincipalAuthorization` decision bound to the same principal, tenant/scope and requested set; DELEGATED additionally proves the human/delegation/tool intersection.
+17. INTERNAL exchange succeeds only with a current `ResolveWorkloadIssuance` decision for the exact SPIFFE workload, target audience and INTERNAL set; HUMAN/MACHINE business grant cannot substitute for it.
+18. SELF_SERVICE accepts the canonical empty set only from a verified eligible source principal. The target method derives its subject and rejects BUSINESS/INTERNAL or disallowed DELEGATED mode use; BUSINESS/INTERNAL exchange rejects an empty set.
+19. Missing, malformed, expired, revoked or wrong-profile source credential; legacy signed operator context; and raw subject/tenant/role metadata all fail before Permission lookup or signing.
+20. Multi-hop exchange rejects a subject ExecutionToken whose exact `aud` does not identify the verified exchanging workload service, and the new Token binds the exchanger's own SPIFFE ID/certificate rather than copying the prior hop `client_id`/`cnf`.
+21. Permission timeout/unavailability, decision-reference mismatch, stale/denied `authzVersion`, tenant mismatch and workload/audience mismatch fail closed and never invoke the signing port.
+22. Two target RPCs with the same principal/tenant/audience/Code/delegation/security/`cnf` tuple reuse one cached Token; changing any tuple member produces a separate cache miss/exchange. No per-RPC Token is introduced.
+23. Successful and denied issuance audits contain decision/workload/principal/audience/Code/version/trace evidence and contain no bearer, API Key secret, private key or recoverable credential.
