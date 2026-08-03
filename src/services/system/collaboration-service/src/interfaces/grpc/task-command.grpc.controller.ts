@@ -1,4 +1,5 @@
 import { Controller, UseFilters } from '@nestjs/common'
+import { Metadata } from '@grpc/grpc-js'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
   ArchiveTaskRequest,
@@ -21,7 +22,13 @@ import {
   UpdateTaskResponse
 } from '@oes/common/generated/collaboration_service'
 import { TaskCommandService } from '../../application/services/task-command.service'
-import { fromProtoPriority, mapTaskError, parseOptionalDate, requireCommandContext } from './task-grpc.mapping'
+import {
+  fromProtoPriority,
+  mapTaskError,
+  parseOptionalDate,
+  requireCommandContext,
+  resolveTaskDelegatedAuthority
+} from './task-grpc.mapping'
 import { presentTask } from './task-grpc.presenter'
 
 /** TaskCommandGrpcController exposes Task P1 write commands over internal gRPC. */
@@ -31,16 +38,18 @@ import { presentTask } from './task-grpc.presenter'
 export class TaskCommandGrpcController implements TaskCommandServiceController {
   constructor(private readonly taskCommandService: TaskCommandService) {}
 
-  async createTask(request: CreateTaskRequest): Promise<CreateTaskResponse> {
+  /** Maps CreateTask transport fields and verified delegated metadata into the Task command boundary. */
+  async createTask(request: CreateTaskRequest, metadata?: Metadata): Promise<CreateTaskResponse> {
     try {
-      const context = requireCommandContext(request)
+      const context = this.commandContext(request, metadata)
       const task = await this.taskCommandService.createTask({
         ...context,
         title: request.title ?? '',
         description: request.description,
         assigneeAccountId: request.assigneeAccountId,
         dueAt: parseOptionalDate(request.dueAt, 'due_at') ?? null,
-        priority: fromProtoPriority(request.priority)
+        priority: fromProtoPriority(request.priority),
+        idempotencyKey: request.idempotencyKey
       })
       return { task: presentTask(task) }
     } catch (error) {
@@ -48,9 +57,10 @@ export class TaskCommandGrpcController implements TaskCommandServiceController {
     }
   }
 
-  async updateTask(request: UpdateTaskRequest): Promise<UpdateTaskResponse> {
+  /** Maps UpdateTask while preserving the application layer's delegated-operation prohibition. */
+  async updateTask(request: UpdateTaskRequest, metadata?: Metadata): Promise<UpdateTaskResponse> {
     try {
-      const context = requireCommandContext(request)
+      const context = this.commandContext(request, metadata)
       const task = await this.taskCommandService.updateTask({
         ...context,
         taskId: request.taskId ?? '',
@@ -65,10 +75,11 @@ export class TaskCommandGrpcController implements TaskCommandServiceController {
     }
   }
 
-  async startTask(request: StartTaskRequest): Promise<StartTaskResponse> {
+  /** Maps StartTask with transport-derived authority and stable Task error conversion. */
+  async startTask(request: StartTaskRequest, metadata?: Metadata): Promise<StartTaskResponse> {
     try {
       const task = await this.taskCommandService.startTask({
-        ...requireCommandContext(request),
+        ...this.commandContext(request, metadata),
         taskId: request.taskId ?? ''
       })
       return { task: presentTask(task) }
@@ -77,10 +88,14 @@ export class TaskCommandGrpcController implements TaskCommandServiceController {
     }
   }
 
-  async completeTask(request: CompleteTaskRequest): Promise<CompleteTaskResponse> {
+  /** Maps CompleteTask with transport-derived authority and optional completion evidence. */
+  async completeTask(
+    request: CompleteTaskRequest,
+    metadata?: Metadata
+  ): Promise<CompleteTaskResponse> {
     try {
       const task = await this.taskCommandService.completeTask({
-        ...requireCommandContext(request),
+        ...this.commandContext(request, metadata),
         taskId: request.taskId ?? '',
         completionNote: request.completionNote
       })
@@ -90,10 +105,11 @@ export class TaskCommandGrpcController implements TaskCommandServiceController {
     }
   }
 
-  async cancelTask(request: CancelTaskRequest): Promise<CancelTaskResponse> {
+  /** Maps CancelTask with transport-derived authority and the caller's safe reason snapshot. */
+  async cancelTask(request: CancelTaskRequest, metadata?: Metadata): Promise<CancelTaskResponse> {
     try {
       const task = await this.taskCommandService.cancelTask({
-        ...requireCommandContext(request),
+        ...this.commandContext(request, metadata),
         taskId: request.taskId ?? '',
         cancelReason: request.cancelReason
       })
@@ -103,10 +119,11 @@ export class TaskCommandGrpcController implements TaskCommandServiceController {
     }
   }
 
-  async reopenTask(request: ReopenTaskRequest): Promise<ReopenTaskResponse> {
+  /** Maps ReopenTask while retaining the owner-defined Task state transition rules. */
+  async reopenTask(request: ReopenTaskRequest, metadata?: Metadata): Promise<ReopenTaskResponse> {
     try {
       const task = await this.taskCommandService.reopenTask({
-        ...requireCommandContext(request),
+        ...this.commandContext(request, metadata),
         taskId: request.taskId ?? '',
         reopenReason: request.reopenReason
       })
@@ -116,10 +133,14 @@ export class TaskCommandGrpcController implements TaskCommandServiceController {
     }
   }
 
-  async archiveTask(request: ArchiveTaskRequest): Promise<ArchiveTaskResponse> {
+  /** Maps ArchiveTask while preserving the application layer's HUMAN-only enforcement. */
+  async archiveTask(
+    request: ArchiveTaskRequest,
+    metadata?: Metadata
+  ): Promise<ArchiveTaskResponse> {
     try {
       const task = await this.taskCommandService.archiveTask({
-        ...requireCommandContext(request),
+        ...this.commandContext(request, metadata),
         taskId: request.taskId ?? ''
       })
       return { task: presentTask(task) }
@@ -128,15 +149,29 @@ export class TaskCommandGrpcController implements TaskCommandServiceController {
     }
   }
 
-  async unarchiveTask(request: UnarchiveTaskRequest): Promise<UnarchiveTaskResponse> {
+  /** Maps UnarchiveTask while preserving the application layer's HUMAN-only enforcement. */
+  async unarchiveTask(
+    request: UnarchiveTaskRequest,
+    metadata?: Metadata
+  ): Promise<UnarchiveTaskResponse> {
     try {
       const task = await this.taskCommandService.unarchiveTask({
-        ...requireCommandContext(request),
+        ...this.commandContext(request, metadata),
         taskId: request.taskId ?? ''
       })
       return { task: presentTask(task) }
     } catch (error) {
       mapTaskError(error)
     }
+  }
+
+  /** Combines required command correlation with transport-derived delegated authority when present. */
+  private commandContext(
+    request: Parameters<typeof requireCommandContext>[0],
+    metadata?: Metadata
+  ) {
+    const context = requireCommandContext(request)
+    const delegated = resolveTaskDelegatedAuthority(request, metadata)
+    return { ...context, ...(delegated ?? {}) }
   }
 }

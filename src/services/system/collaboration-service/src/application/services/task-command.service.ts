@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { Inject, Injectable } from '@nestjs/common'
+import { Inject, Injectable, Optional } from '@nestjs/common'
 import { COLLABORATION_TASK_PERMISSION_CODES } from '@oes/common/authorization'
 import {
   COLLABORATION_TASK_ASSIGNED_EVENT_CONTRACT,
@@ -13,10 +13,7 @@ import {
   TaskNotFoundError,
   TaskPermissionDeniedError
 } from '../../common/errors/task.errors'
-import {
-  ACCOUNT_REFERENCE_PORT,
-  AccountReferencePort
-} from '../ports/account-reference.port'
+import { ACCOUNT_REFERENCE_PORT, AccountReferencePort } from '../ports/account-reference.port'
 import { TaskAuditAction, type TaskAuditPort } from '../ports/task-audit.port'
 import {
   TASK_COMMAND_TRANSACTION_PORT,
@@ -34,6 +31,10 @@ import {
   TaskIdCommandInput,
   UpdateTaskInput
 } from '../dtos/task.dto'
+import {
+  TASK_DELEGATED_EXECUTION_POLICY_PORT,
+  type TaskDelegatedExecutionPolicyPort
+} from '../task/task-delegated-execution-policy.port'
 
 /** TaskCommandService orchestrates Task P1 commands through a single local state, audit, and outbox transaction. */
 @Injectable()
@@ -42,7 +43,10 @@ export class TaskCommandService {
     @Inject(TASK_REPOSITORY) private readonly repository: TaskRepository,
     @Inject(ACCOUNT_REFERENCE_PORT) private readonly accountReference: AccountReferencePort,
     @Inject(TASK_COMMAND_TRANSACTION_PORT) private readonly transaction: TaskCommandTransactionPort,
-    @Inject(TASK_PERMISSION_PORT) private readonly permissions: TaskPermissionPort
+    @Inject(TASK_PERMISSION_PORT) private readonly permissions: TaskPermissionPort,
+    @Optional()
+    @Inject(TASK_DELEGATED_EXECUTION_POLICY_PORT)
+    private readonly delegatedExecutionPolicy?: TaskDelegatedExecutionPolicyPort
   ) {}
 
   /** createTask creates either a private self todo or an assigned participant task. */
@@ -52,6 +56,24 @@ export class TaskCommandService {
     const operatorAccountId = requireText(input.operatorAccountId, 'operatorAccountId')
     const assigneeAccountId = normalizeText(input.assigneeAccountId) ?? operatorAccountId
     const isSelfTodo = assigneeAccountId === operatorAccountId
+    const title = requireText(input.title, 'title')
+    const description = normalizeText(input.description) ?? null
+    const priority = input.priority ?? TaskPriority.NORMAL
+    const dueAt = input.dueAt ?? null
+
+    const receipt = input.delegatedExecution
+      ? await this.requireDelegatedPolicy().authorizeCreate({
+          tenantId,
+          operatorAccountId,
+          assigneeAccountId,
+          title,
+          description,
+          dueAt,
+          priority,
+          idempotencyKey: input.idempotencyKey,
+          execution: input.delegatedExecution
+        })
+      : undefined
 
     if (!isSelfTodo) {
       await this.assertCanAssign(tenantId, operatorAccountId)
@@ -61,14 +83,14 @@ export class TaskCommandService {
     const task = new TaskEntity({
       id: randomUUID(),
       tenantId,
-      title: requireText(input.title, 'title'),
-      description: normalizeText(input.description),
+      title,
+      description,
       createdByAccountId: operatorAccountId,
       assigneeAccountId,
       visibility: isSelfTodo ? TaskVisibility.PRIVATE : TaskVisibility.ASSIGNMENT_PARTICIPANTS,
       status: TaskStatus.OPEN,
-      priority: input.priority ?? TaskPriority.NORMAL,
-      dueAt: input.dueAt ?? null,
+      priority,
+      dueAt,
       startedAt: null,
       completedAt: null,
       completedByAccountId: null,
@@ -85,13 +107,42 @@ export class TaskCommandService {
     return this.transaction.commit({
       operation: 'CREATE',
       task,
-      audit: this.auditInput('TASK_CREATED', task, input),
+      audit: this.auditInput(
+        'TASK_CREATED',
+        task,
+        input,
+        undefined,
+        receipt
+          ? {
+              delegationReference: receipt.delegationReference,
+              agentPrincipalId: receipt.agentPrincipalId,
+              toolContractId: receipt.toolContractId,
+              toolContractVersion: receipt.toolContractVersion,
+              actionGrantJti: receipt.actionGrantJti,
+              descriptorDigest: receipt.descriptorDigest,
+              idempotencyKey: receipt.idempotencyKey,
+              authorizationDecisionReference: receipt.authorizationDecisionReference
+            }
+          : undefined
+      ),
+      ...(receipt
+        ? {
+            receipt: {
+              ...receipt,
+              tenantId,
+              operatorAccountId,
+              taskId: task.id,
+              resultReference: task.id
+            }
+          }
+        : {}),
       ...(isSelfTodo ? {} : { publicEvent: this.publicEvent('TaskAssigned', task, input, now) })
     })
   }
 
   /** updateTask changes creator-owned active task basics without mutating status or assignee. */
   async updateTask(input: UpdateTaskInput): Promise<TaskEntity> {
+    this.assertHumanOnly(input)
     const task = await this.loadTask(input)
     if (task.createdByAccountId !== input.operatorAccountId) {
       throw new TaskPermissionDeniedError('only task creator can update task basics')
@@ -111,6 +162,7 @@ export class TaskCommandService {
 
   /** startTask starts a task by assignee and emits TaskStarted after persistence. */
   async startTask(input: TaskIdCommandInput): Promise<TaskEntity> {
+    this.assertHumanOnly(input)
     const task = await this.loadTask(input)
     const previousStatus = task.status
     task.start(input.operatorAccountId, input.now ?? new Date())
@@ -119,6 +171,7 @@ export class TaskCommandService {
 
   /** completeTask completes a task by creator or assignee and records the optional note snapshot. */
   async completeTask(input: CompleteTaskInput): Promise<TaskEntity> {
+    this.assertHumanOnly(input)
     const task = await this.loadTask(input)
     const previousStatus = task.status
     task.complete(input.operatorAccountId, input.completionNote ?? null, input.now ?? new Date())
@@ -133,6 +186,7 @@ export class TaskCommandService {
 
   /** cancelTask cancels an active task by creator and records the optional reason snapshot. */
   async cancelTask(input: CancelTaskInput): Promise<TaskEntity> {
+    this.assertHumanOnly(input)
     const task = await this.loadTask(input)
     const previousStatus = task.status
     task.cancel(input.operatorAccountId, input.cancelReason ?? null, input.now ?? new Date())
@@ -147,20 +201,16 @@ export class TaskCommandService {
 
   /** reopenTask reopens a terminal unarchived task under the frozen P1 participant rules. */
   async reopenTask(input: ReopenTaskInput): Promise<TaskEntity> {
+    this.assertHumanOnly(input)
     const task = await this.loadTask(input)
     const previousStatus = task.status
     task.reopen(input.operatorAccountId, input.now ?? new Date())
-    return this.saveAuditAndCommit(
-      task,
-      input,
-      'TASK_REOPENED',
-      previousStatus,
-      input.reopenReason
-    )
+    return this.saveAuditAndCommit(task, input, 'TASK_REOPENED', previousStatus, input.reopenReason)
   }
 
   /** archiveTask archives terminal tasks by creator only. */
   async archiveTask(input: TaskIdCommandInput): Promise<TaskEntity> {
+    this.assertHumanOnly(input)
     const task = await this.loadTask(input)
     const previousStatus = task.status
     task.archive(input.operatorAccountId, input.now ?? new Date())
@@ -169,15 +219,11 @@ export class TaskCommandService {
 
   /** unarchiveTask removes archive markers by creator only. */
   async unarchiveTask(input: TaskIdCommandInput): Promise<TaskEntity> {
+    this.assertHumanOnly(input)
     const task = await this.loadTask(input)
     const previousStatus = task.status
     task.unarchive(input.operatorAccountId, input.now ?? new Date())
-    return this.saveAuditAndCommit(
-      task,
-      input,
-      'TASK_UNARCHIVED',
-      previousStatus
-    )
+    return this.saveAuditAndCommit(task, input, 'TASK_UNARCHIVED', previousStatus)
   }
 
   /** loadTask fetches one task inside the tenant boundary and maps absence to the stable domain error. */
@@ -219,14 +265,21 @@ export class TaskCommandService {
     reasonSnapshot?: string | null
   ): Promise<TaskEntity> {
     const occurredAt = input.now ?? new Date()
-    const eventType = task.status !== previousStatus
-      ? task.status === TaskStatus.COMPLETED ? 'TaskCompleted' : task.status === TaskStatus.CANCELLED ? 'TaskCancelled' : undefined
-      : undefined
+    const eventType =
+      task.status !== previousStatus
+        ? task.status === TaskStatus.COMPLETED
+          ? 'TaskCompleted'
+          : task.status === TaskStatus.CANCELLED
+            ? 'TaskCancelled'
+            : undefined
+        : undefined
     return this.transaction.commit({
       operation: 'UPDATE',
       task,
       audit: this.auditInput(auditAction, task, input, reasonSnapshot),
-      ...(eventType ? { publicEvent: this.publicEvent(eventType, task, input, occurredAt, previousStatus) } : {})
+      ...(eventType
+        ? { publicEvent: this.publicEvent(eventType, task, input, occurredAt, previousStatus) }
+        : {})
     })
   }
 
@@ -235,7 +288,8 @@ export class TaskCommandService {
     action: TaskAuditAction,
     task: TaskEntity,
     input: CreateTaskInput | TaskIdCommandInput,
-    reasonSnapshot?: string | null
+    reasonSnapshot?: string | null,
+    payload?: Record<string, unknown>
   ): Parameters<TaskAuditPort['record']>[0] {
     return {
       tenantId: task.tenantId,
@@ -247,8 +301,20 @@ export class TaskCommandService {
       assigneeAccountId: task.assigneeAccountId,
       traceId: input.traceId,
       auditId: input.auditId,
-      reasonSnapshot: normalizeText(reasonSnapshot) ?? undefined
+      reasonSnapshot: normalizeText(reasonSnapshot) ?? undefined,
+      ...(payload ? { payload } : {})
     }
+  }
+
+  /** Rejects every delegated Task P1 mutation outside the two frozen CreateTask variants. */
+  private assertHumanOnly(input: TaskIdCommandInput): void {
+    if (input.delegatedExecution) throw new Error('ACTION_GRANT_FORBIDDEN_OPERATION')
+  }
+
+  /** Resolves the required delegated policy without falling back to legacy or body-based authority. */
+  private requireDelegatedPolicy(): TaskDelegatedExecutionPolicyPort {
+    if (!this.delegatedExecutionPolicy) throw new Error('DELEGATION_AUTHENTICATION_REQUIRED')
+    return this.delegatedExecutionPolicy
   }
 
   /** publicEvent creates only one of the three frozen public Collaboration Task facts before transaction commit. */
@@ -269,15 +335,19 @@ export class TaskCommandService {
       priority: task.priority,
       ...(task.dueAt ? { dueAt: task.dueAt.toISOString() } : {}),
       titleSnapshot: task.title,
-      ...(eventType === 'TaskCompleted' ? {
-        completedByAccountId: task.completedByAccountId,
-        completedAt: task.completedAt?.toISOString()
-      } : {}),
-      ...(eventType === 'TaskCancelled' ? {
-        cancelledByAccountId: task.cancelledByAccountId,
-        cancelledAt: task.cancelledAt?.toISOString(),
-        cancelReasonSnapshot: task.cancelReason
-      } : {})
+      ...(eventType === 'TaskCompleted'
+        ? {
+            completedByAccountId: task.completedByAccountId,
+            completedAt: task.completedAt?.toISOString()
+          }
+        : {}),
+      ...(eventType === 'TaskCancelled'
+        ? {
+            cancelledByAccountId: task.cancelledByAccountId,
+            cancelledAt: task.cancelledAt?.toISOString(),
+            cancelReasonSnapshot: task.cancelReason
+          }
+        : {})
     }
     return createOesCloudEvent({
       contract: contract as OesEventContract<typeof data>,
@@ -295,7 +365,9 @@ export class TaskCommandService {
 }
 
 /** contractForTaskFact maps only owner-approved public Task facts to their shared code descriptors. */
-function contractForTaskFact(eventType: 'TaskAssigned' | 'TaskCompleted' | 'TaskCancelled'): OesEventContract {
+function contractForTaskFact(
+  eventType: 'TaskAssigned' | 'TaskCompleted' | 'TaskCancelled'
+): OesEventContract {
   if (eventType === 'TaskAssigned') return COLLABORATION_TASK_ASSIGNED_EVENT_CONTRACT
   if (eventType === 'TaskCompleted') return COLLABORATION_TASK_COMPLETED_EVENT_CONTRACT
   return COLLABORATION_TASK_CANCELLED_EVENT_CONTRACT

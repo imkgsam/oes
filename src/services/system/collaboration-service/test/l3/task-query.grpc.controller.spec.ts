@@ -6,8 +6,15 @@ import {
 } from '@oes/common/generated/collaboration_service'
 import { TaskQueryService } from '../../src/application/services/task-query.service'
 import { TaskEntity } from '../../src/domain/entities/task.entity'
-import { TaskListScope, TaskPriority, TaskStatus, TaskVisibility } from '../../src/domain/value-objects/task.enums'
+import {
+  TaskListScope,
+  TaskPriority,
+  TaskStatus,
+  TaskVisibility
+} from '../../src/domain/value-objects/task.enums'
 import { TaskQueryGrpcController } from '../../src/interfaces/grpc/task-query.grpc.controller'
+import { Metadata } from '@grpc/grpc-js'
+import { attachVerifiedExecution } from '@oes/common/authorization'
 
 const TENANT_ID = 'tenant-1'
 const ACCOUNT_ID = 'account-1'
@@ -80,6 +87,45 @@ describe('TaskQueryGrpcController', () => {
       })
     ).rejects.toBeInstanceOf(BadRequestException)
     expect(service.listTasks).not.toHaveBeenCalled()
+  })
+
+  it('keeps delegated reads inside the verified HUMAN participant scope without an ActionGrant', async () => {
+    service.getTask.mockResolvedValue({
+      task: buildTask({ assigneeAccountId: 'human-1' }),
+      overdue: false
+    })
+    const request = {
+      tenantId: TENANT_ID,
+      operatorContext: { accountId: 'body-spoof', userId: 'user-1', tenantId: TENANT_ID },
+      traceContext: { traceId: TRACE_ID, spanId: 'span-1' },
+      taskId: 'task-1'
+    }
+    attachVerifiedExecution(request, {
+      verifiedExecutionToken: {
+        issuer: 'https://auth.local.oes.example',
+        audience: 'urn:oes:service:collaboration-service',
+        subject: 'agent-1',
+        principalType: 'DELEGATED',
+        clientId: 'spiffe://local.oes/ai-platform',
+        tenantId: TENANT_ID,
+        permissionCodes: [],
+        tokenId: 'execution-1',
+        issuedAt: 1,
+        notBefore: 1,
+        expiresAt: 300,
+        certificateThumbprint: 'A'.repeat(43),
+        actor: 'human-1',
+        delegationId: 'delegation-1'
+      },
+      verifiedWorkloadIdentity: {
+        spiffeId: 'spiffe://local.oes/ai-platform',
+        certificateThumbprint: 'A'.repeat(43)
+      }
+    })
+    await controller.getTask(request, new Metadata())
+    expect(service.getTask).toHaveBeenCalledWith(
+      expect.objectContaining({ operatorAccountId: 'human-1' })
+    )
   })
 })
 

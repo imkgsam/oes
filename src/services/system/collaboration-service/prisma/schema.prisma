@@ -136,6 +136,29 @@ model CollaborationTaskOutbox {
   @@index([leaseExpiresAt])
 }
 
+model CollaborationTaskCommandReceipt {
+  id                             String   @id @default(uuid()) @db.Uuid
+  tenantId                       String   @db.VarChar(100)
+  operatorAccountId              String   @db.VarChar(100)
+  operationKey                   String   @db.VarChar(180)
+  idempotencyKey                 String   @db.VarChar(180)
+  descriptorDigest               String   @db.VarChar(43)
+  actionGrantJti                 String?  @unique @db.Uuid
+  taskId                         String   @db.Uuid
+  resultReference                String   @db.VarChar(100)
+  delegationReference            String   @db.VarChar(100)
+  agentPrincipalId               String   @db.VarChar(100)
+  toolContractId                 String   @db.VarChar(180)
+  toolContractVersion            String   @db.VarChar(40)
+  authorizationDecisionReference String   @db.VarChar(100)
+  consumedAt                     DateTime @default(now())
+  createdAt                      DateTime @default(now())
+  updatedAt                      DateTime @updatedAt
+
+  @@unique([tenantId, operatorAccountId, operationKey, idempotencyKey], map: "collab_task_receipt_idempotency_key")
+  @@index([tenantId, taskId])
+}
+
 model CollaborationAnnotation {
   id                        String                            @id @default(uuid()) @db.Uuid
   tenantId                  String                            @db.VarChar(100)

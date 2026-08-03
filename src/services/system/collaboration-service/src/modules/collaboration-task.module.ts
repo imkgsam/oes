@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common'
 import { ClientsModule, Transport } from '@nestjs/microservices'
 import type { ClientProviderOptions } from '@nestjs/microservices/module/interfaces'
 import { AuthorizationModule } from '@oes/common/authorization'
+import { createLazyActionGrantVerifier } from '@oes/common/authorization'
 import { resolveCommonProtoPath } from '@oes/common/contracts'
 import {
   NatsJetStreamModule,
@@ -33,6 +34,8 @@ import { PrismaCollaborationTaskOutboxStore } from '../infrastructure/events/pri
 import { PrismaTaskRepository } from '../infrastructure/repositories/prisma-task.repository'
 import { TaskCommandGrpcController } from '../interfaces/grpc/task-command.grpc.controller'
 import { TaskQueryGrpcController } from '../interfaces/grpc/task-query.grpc.controller'
+import { TASK_DELEGATED_EXECUTION_POLICY_PORT } from '../application/task/task-delegated-execution-policy.port'
+import { TaskDelegatedExecutionPolicy } from '../application/task/task-delegated-execution-policy'
 
 /** resolveDownstreamGrpcUrl resolves standard downstream URLs while preserving local development defaults. */
 function resolveDownstreamGrpcUrl(
@@ -107,6 +110,13 @@ export function buildCollaborationTaskGrpcClients(): ClientProviderOptions[] {
     {
       provide: TASK_PERMISSION_PORT,
       useClass: TaskPermissionGrpcAdapter
+    },
+    {
+      provide: TASK_DELEGATED_EXECUTION_POLICY_PORT,
+      useFactory: () =>
+        new TaskDelegatedExecutionPolicy(
+          createLazyActionGrantVerifier('urn:oes:service:collaboration-service')
+        )
     }
   ],
   exports: [TaskCommandService, TaskQueryService]

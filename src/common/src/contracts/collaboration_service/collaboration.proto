@@ -108,6 +108,7 @@ message CreateTaskRequest {
   string assignee_account_id = 7;
   string due_at = 8;
   TaskPriority priority = 9;
+  string idempotency_key = 10;
 }
 
 message UpdateTaskRequest {

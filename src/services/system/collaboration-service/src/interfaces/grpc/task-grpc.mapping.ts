@@ -1,4 +1,15 @@
-import { BadRequestException, ForbiddenException, InternalServerErrorException, NotFoundException } from '@nestjs/common'
+import {
+  BadRequestException,
+  ForbiddenException,
+  InternalServerErrorException,
+  NotFoundException
+} from '@nestjs/common'
+import { Metadata } from '@grpc/grpc-js'
+import {
+  extractActionGrantMetadata,
+  getAuthenticatedGrpcRequestContext
+} from '@oes/common/authorization'
+import type { TaskDelegatedExecutionInput } from '../../application/task/task-delegated-execution-policy.port'
 import {
   AuditContext,
   OperatorContext,
@@ -24,6 +35,46 @@ export type GrpcCommandContext = {
   auditId?: string
 }
 
+export type GrpcTaskDelegatedAuthority = {
+  readonly operatorAccountId: string
+  readonly delegatedExecution?: TaskDelegatedExecutionInput
+}
+
+/** Derives delegated HUMAN authority only from guard-attached verified facts and the metadata-only ActionGrant carrier. */
+export function resolveTaskDelegatedAuthority(
+  request: { tenantId?: string },
+  metadata?: Metadata
+): GrpcTaskDelegatedAuthority | undefined {
+  const authenticated = getAuthenticatedGrpcRequestContext(request)
+  const actionGrant = extractActionGrantMetadata(metadata)
+  const token = authenticated?.verifiedExecutionToken
+  if (!token) {
+    if (actionGrant) throw new ForbiddenException('DELEGATION_AUTHENTICATION_REQUIRED')
+    return undefined
+  }
+  if (token.principalType !== 'DELEGATED') {
+    if (actionGrant) throw new ForbiddenException('ACTION_GRANT_FORBIDDEN_OPERATION')
+    return undefined
+  }
+  const tenantId = requireText(request.tenantId, 'tenant_id')
+  if (
+    token.audience !== 'urn:oes:service:collaboration-service' ||
+    token.tenantId !== tenantId ||
+    !token.delegationId ||
+    !authenticated?.verifiedWorkloadIdentity
+  ) {
+    throw new ForbiddenException('DELEGATION_AUTHENTICATION_REQUIRED')
+  }
+  return {
+    operatorAccountId: delegatedHumanId(token.actor),
+    delegatedExecution: {
+      executionToken: token,
+      workloadIdentity: authenticated.verifiedWorkloadIdentity,
+      ...(actionGrant === undefined ? {} : { actionGrant })
+    }
+  }
+}
+
 /** requireCommandContext validates Task P1 command context fields from gRPC requests. */
 export function requireCommandContext(input: {
   tenantId?: string
@@ -32,7 +83,10 @@ export function requireCommandContext(input: {
   auditContext?: AuditContext
 }): GrpcCommandContext {
   const tenantId = requireText(input.tenantId, 'tenant_id')
-  const operatorAccountId = requireText(input.operatorContext?.accountId, 'operator_context.account_id')
+  const operatorAccountId = requireText(
+    input.operatorContext?.accountId,
+    'operator_context.account_id'
+  )
   const traceId = requireText(input.traceContext?.traceId, 'trace_context.trace_id')
   if (!input.auditContext) {
     throw new BadRequestException('audit_context is required')
@@ -52,13 +106,19 @@ export function requireQueryContext(input: {
   traceContext?: TraceContext
 }): Omit<GrpcCommandContext, 'auditId'> {
   const tenantId = requireText(input.tenantId, 'tenant_id')
-  const operatorAccountId = requireText(input.operatorContext?.accountId, 'operator_context.account_id')
+  const operatorAccountId = requireText(
+    input.operatorContext?.accountId,
+    'operator_context.account_id'
+  )
   const traceId = requireText(input.traceContext?.traceId, 'trace_context.trace_id')
   return { tenantId, operatorAccountId, traceId }
 }
 
 /** parseOptionalDate converts optional ISO date strings from gRPC requests. */
-export function parseOptionalDate(value: string | undefined, fieldName: string): Date | null | undefined {
+export function parseOptionalDate(
+  value: string | undefined,
+  fieldName: string
+): Date | null | undefined {
   const normalized = normalizeText(value)
   if (!normalized) return undefined
   const parsed = new Date(normalized)
@@ -112,7 +172,11 @@ export function mapTaskError(error: unknown): never {
   if (error instanceof TaskDomainError) {
     if (error.code === TASK_NOT_FOUND) throw new NotFoundException(error.message)
     if (error.code === TASK_PERMISSION_DENIED) throw new ForbiddenException(error.message)
-    if (error.code === TASK_INVALID_ARGUMENT || error.code === TASK_INVALID_STATE || error.code === TASK_ASSIGNEE_NOT_ACTIVE) {
+    if (
+      error.code === TASK_INVALID_ARGUMENT ||
+      error.code === TASK_INVALID_STATE ||
+      error.code === TASK_ASSIGNEE_NOT_ACTIVE
+    ) {
       throw new BadRequestException(error.message)
     }
   }
@@ -130,4 +194,15 @@ function requireText(value: string | undefined, fieldName: string): string {
 function normalizeText(value: string | undefined): string | undefined {
   const normalized = value?.trim()
   return normalized ? normalized : undefined
+}
+
+/** Reads HUMAN attribution from the already verified DELEGATED token without consulting request body identity. */
+function delegatedHumanId(actor: unknown): string {
+  if (typeof actor === 'string' && actor.length > 0 && actor.trim() === actor) return actor
+  if (actor !== null && typeof actor === 'object' && !Array.isArray(actor)) {
+    const subject = (actor as Record<string, unknown>).sub
+    if (typeof subject === 'string' && subject.length > 0 && subject.trim() === subject)
+      return subject
+  }
+  throw new ForbiddenException('DELEGATION_AUTHENTICATION_REQUIRED')
 }

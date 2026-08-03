@@ -8,6 +8,8 @@ import { TaskCommandService } from '../../src/application/services/task-command.
 import { TaskEntity } from '../../src/domain/entities/task.entity'
 import { TaskPriority, TaskStatus, TaskVisibility } from '../../src/domain/value-objects/task.enums'
 import { TaskCommandGrpcController } from '../../src/interfaces/grpc/task-command.grpc.controller'
+import { Metadata } from '@grpc/grpc-js'
+import { attachVerifiedExecution } from '@oes/common/authorization'
 
 const TENANT_ID = 'tenant-1'
 const ACCOUNT_ID = 'account-1'
@@ -78,6 +80,93 @@ describe('TaskCommandGrpcController', () => {
       status: ProtoTaskStatus.TASK_STATUS_OPEN,
       priority: ProtoTaskPriority.TASK_PRIORITY_HIGH
     })
+  })
+
+  it('derives delegated HUMAN authority from verified execution and carries ActionGrant only from metadata', async () => {
+    service.createTask.mockResolvedValue(buildTask({ createdByAccountId: 'human-1' }))
+    const request = {
+      tenantId: TENANT_ID,
+      operatorContext: { accountId: 'body-spoof', userId: 'user-1', tenantId: TENANT_ID },
+      traceContext: { traceId: TRACE_ID, spanId: 'span-1' },
+      auditContext: { auditId: AUDIT_ID, reason: 'delegated', source: 'ai-platform' },
+      title: 'Prepare handoff',
+      assigneeAccountId: 'account-2',
+      idempotencyKey: 'idem-1'
+    }
+    attachVerifiedExecution(request, {
+      verifiedExecutionToken: {
+        issuer: 'https://auth.local.oes.example',
+        audience: 'urn:oes:service:collaboration-service',
+        subject: 'agent-1',
+        principalType: 'DELEGATED',
+        clientId: 'spiffe://local.oes/ai-platform',
+        tenantId: TENANT_ID,
+        permissionCodes: ['collaboration.task.assign'],
+        tokenId: 'execution-1',
+        issuedAt: 1,
+        notBefore: 1,
+        expiresAt: 300,
+        certificateThumbprint: 'A'.repeat(43),
+        actor: 'human-1',
+        delegationId: 'delegation-1'
+      },
+      verifiedWorkloadIdentity: {
+        spiffeId: 'spiffe://local.oes/ai-platform',
+        certificateThumbprint: 'A'.repeat(43)
+      }
+    })
+    const metadata = new Metadata()
+    metadata.set('x-oes-action-grant', 'a.b.c')
+
+    await controller.createTask(request, metadata)
+
+    expect(service.createTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operatorAccountId: 'human-1',
+        idempotencyKey: 'idem-1',
+        delegatedExecution: expect.objectContaining({ actionGrant: 'a.b.c' })
+      })
+    )
+  })
+
+  it('projects delegated execution onto AI-forbidden Task mutations for application enforcement', async () => {
+    service.startTask.mockResolvedValue(buildTask())
+    const request = {
+      tenantId: TENANT_ID,
+      operatorContext: { accountId: 'body-spoof', userId: 'user-1', tenantId: TENANT_ID },
+      traceContext: { traceId: TRACE_ID, spanId: 'span-1' },
+      auditContext: { auditId: AUDIT_ID, reason: 'delegated', source: 'ai-platform' },
+      taskId: 'task-1'
+    }
+    attachVerifiedExecution(request, {
+      verifiedExecutionToken: {
+        issuer: 'https://auth.local.oes.example',
+        audience: 'urn:oes:service:collaboration-service',
+        subject: 'agent-1',
+        principalType: 'DELEGATED',
+        clientId: 'spiffe://local.oes/ai-platform',
+        tenantId: TENANT_ID,
+        permissionCodes: [],
+        tokenId: 'execution-1',
+        issuedAt: 1,
+        notBefore: 1,
+        expiresAt: 300,
+        certificateThumbprint: 'A'.repeat(43),
+        actor: 'human-1',
+        delegationId: 'delegation-1'
+      },
+      verifiedWorkloadIdentity: {
+        spiffeId: 'spiffe://local.oes/ai-platform',
+        certificateThumbprint: 'A'.repeat(43)
+      }
+    })
+    await controller.startTask(request, new Metadata())
+    expect(service.startTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operatorAccountId: 'human-1',
+        delegatedExecution: expect.any(Object)
+      })
+    )
   })
 })
 

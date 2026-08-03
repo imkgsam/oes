@@ -12,42 +12,141 @@ export class PrismaTaskCommandTransaction implements TaskCommandTransactionPort 
 
   /** commit uses one Collaboration database transaction and never publishes to a broker inside it. */
   async commit(input: Parameters<TaskCommandTransactionPort['commit']>[0]): Promise<TaskEntity> {
-    return this.prisma.$transaction(async (transaction) => {
-      const task = input.operation === 'CREATE'
-        ? await transaction.collaborationTask.create({ data: taskPersistence(input.task) })
-        : await transaction.collaborationTask.update({ where: { id: input.task.id }, data: taskPersistence(input.task) })
-      await transaction.collaborationTaskAuditEnvelope.create({
-        data: {
-          tenantId: input.audit.tenantId,
-          taskId: input.audit.taskId,
-          action: input.audit.action,
-          result: input.audit.result,
-          operatorAccountId: input.audit.operatorAccountId,
-          createdByAccountId: input.audit.createdByAccountId,
-          assigneeAccountId: input.audit.assigneeAccountId,
-          traceId: input.audit.traceId,
-          auditId: input.audit.auditId,
-          reasonSnapshot: input.audit.reasonSnapshot,
-          payload: input.audit.payload as Prisma.InputJsonValue | undefined
+    try {
+      return await this.prisma.$transaction(async (transaction) => {
+        if (input.receipt) {
+          const established = await transaction.collaborationTaskCommandReceipt.findUnique({
+            where: {
+              tenantId_operatorAccountId_operationKey_idempotencyKey: {
+                tenantId: input.receipt.tenantId,
+                operatorAccountId: input.receipt.operatorAccountId,
+                operationKey: input.receipt.operationKey,
+                idempotencyKey: input.receipt.idempotencyKey
+              }
+            }
+          })
+          if (established) {
+            assertIdenticalReceipt(established, input.receipt)
+            const task = await transaction.collaborationTask.findUnique({
+              where: { id: established.taskId }
+            })
+            if (!task || task.tenantId !== input.receipt.tenantId)
+              throw new Error('ACTION_GRANT_REPLAYED')
+            return toDomain(task)
+          }
+          if (input.receipt.actionGrantJti) {
+            const consumed = await transaction.collaborationTaskCommandReceipt.findUnique({
+              where: { actionGrantJti: input.receipt.actionGrantJti }
+            })
+            if (consumed) throw new Error('ACTION_GRANT_REPLAYED')
+          }
         }
-      })
-      if (input.publicEvent) {
-        await transaction.collaborationTaskOutbox.create({
+        const task =
+          input.operation === 'CREATE'
+            ? await transaction.collaborationTask.create({ data: taskPersistence(input.task) })
+            : await transaction.collaborationTask.update({
+                where: { id: input.task.id },
+                data: taskPersistence(input.task)
+              })
+        await transaction.collaborationTaskAuditEnvelope.create({
           data: {
-            eventId: input.publicEvent.id,
-            eventType: input.publicEvent.type,
-            eventVersion: input.publicEvent.oeseventversion,
-            ownerService: ownerFromSource(input.publicEvent.source),
-            tenantId: input.publicEvent.oestenantid,
-            aggregateType: input.publicEvent.oesaggregatetype,
-            aggregateId: input.publicEvent.oesaggregateid,
-            occurredAt: new Date(input.publicEvent.time),
-            cloudEventBody: input.publicEvent as unknown as Prisma.InputJsonValue
+            tenantId: input.audit.tenantId,
+            taskId: input.audit.taskId,
+            action: input.audit.action,
+            result: input.audit.result,
+            operatorAccountId: input.audit.operatorAccountId,
+            createdByAccountId: input.audit.createdByAccountId,
+            assigneeAccountId: input.audit.assigneeAccountId,
+            traceId: input.audit.traceId,
+            auditId: input.audit.auditId,
+            reasonSnapshot: input.audit.reasonSnapshot,
+            payload: input.audit.payload as Prisma.InputJsonValue | undefined
           }
         })
+        if (input.publicEvent) {
+          await transaction.collaborationTaskOutbox.create({
+            data: {
+              eventId: input.publicEvent.id,
+              eventType: input.publicEvent.type,
+              eventVersion: input.publicEvent.oeseventversion,
+              ownerService: ownerFromSource(input.publicEvent.source),
+              tenantId: input.publicEvent.oestenantid,
+              aggregateType: input.publicEvent.oesaggregatetype,
+              aggregateId: input.publicEvent.oesaggregateid,
+              occurredAt: new Date(input.publicEvent.time),
+              cloudEventBody: input.publicEvent as unknown as Prisma.InputJsonValue
+            }
+          })
+        }
+        if (input.receipt) {
+          await transaction.collaborationTaskCommandReceipt.create({
+            data: {
+              tenantId: input.receipt.tenantId,
+              operatorAccountId: input.receipt.operatorAccountId,
+              operationKey: input.receipt.operationKey,
+              idempotencyKey: input.receipt.idempotencyKey,
+              descriptorDigest: input.receipt.descriptorDigest,
+              actionGrantJti: input.receipt.actionGrantJti,
+              taskId: input.receipt.taskId ?? input.task.id,
+              resultReference: input.receipt.resultReference ?? input.task.id,
+              delegationReference: input.receipt.delegationReference,
+              agentPrincipalId: input.receipt.agentPrincipalId,
+              toolContractId: input.receipt.toolContractId,
+              toolContractVersion: input.receipt.toolContractVersion,
+              authorizationDecisionReference: input.receipt.authorizationDecisionReference
+            }
+          })
+        }
+        return toDomain(task)
+      })
+    } catch (error) {
+      if (input.receipt && isUniqueConstraintError(error)) {
+        return this.resolveCommittedReceipt(input.receipt)
       }
-      return toDomain(task)
+      throw error
+    }
+  }
+
+  /** Resolves only an identical concurrently committed receipt after the losing transaction was fully rolled back. */
+  private async resolveCommittedReceipt(
+    attempted: NonNullable<Parameters<TaskCommandTransactionPort['commit']>[0]['receipt']>
+  ): Promise<TaskEntity> {
+    const established = await this.prisma.collaborationTaskCommandReceipt.findUnique({
+      where: {
+        tenantId_operatorAccountId_operationKey_idempotencyKey: {
+          tenantId: attempted.tenantId,
+          operatorAccountId: attempted.operatorAccountId,
+          operationKey: attempted.operationKey,
+          idempotencyKey: attempted.idempotencyKey
+        }
+      }
     })
+    if (!established) throw new Error('ACTION_GRANT_REPLAYED')
+    assertIdenticalReceipt(established, attempted)
+    const task = await this.prisma.collaborationTask.findUnique({
+      where: { id: established.taskId }
+    })
+    if (!task || task.tenantId !== attempted.tenantId) throw new Error('ACTION_GRANT_REPLAYED')
+    return toDomain(task)
+  }
+}
+
+/** Recognizes Prisma's unique-constraint race without treating unrelated transaction failures as idempotency. */
+function isUniqueConstraintError(error: unknown): boolean {
+  return (
+    error !== null && typeof error === 'object' && (error as { code?: unknown }).code === 'P2002'
+  )
+}
+
+/** Distinguishes an identical network retry from descriptor drift or grant substitution. */
+function assertIdenticalReceipt(
+  established: {
+    readonly descriptorDigest: string
+  },
+  attempted: NonNullable<Parameters<TaskCommandTransactionPort['commit']>[0]['receipt']>
+): void {
+  if (established.descriptorDigest !== attempted.descriptorDigest) {
+    throw new Error('ACTION_GRANT_DESCRIPTOR_MISMATCH')
   }
 }
 

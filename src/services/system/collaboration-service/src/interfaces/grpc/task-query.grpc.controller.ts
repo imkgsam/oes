@@ -1,4 +1,5 @@
 import { Controller, UseFilters } from '@nestjs/common'
+import { Metadata } from '@grpc/grpc-js'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
   GetTaskRequest,
@@ -9,7 +10,15 @@ import {
   TaskQueryServiceControllerMethods
 } from '@oes/common/generated/collaboration_service'
 import { TaskQueryService } from '../../application/services/task-query.service'
-import { fromProtoListScope, fromProtoPriority, fromProtoStatus, mapTaskError, parseOptionalDate, requireQueryContext } from './task-grpc.mapping'
+import {
+  fromProtoListScope,
+  fromProtoPriority,
+  fromProtoStatus,
+  mapTaskError,
+  parseOptionalDate,
+  requireQueryContext,
+  resolveTaskDelegatedAuthority
+} from './task-grpc.mapping'
 import { presentTask } from './task-grpc.presenter'
 
 /** TaskQueryGrpcController exposes Task P1 personal list and detail queries over internal gRPC. */
@@ -19,9 +28,10 @@ import { presentTask } from './task-grpc.presenter'
 export class TaskQueryGrpcController implements TaskQueryServiceController {
   constructor(private readonly taskQueryService: TaskQueryService) {}
 
-  async listTasks(request: ListTasksRequest): Promise<ListTasksResponse> {
+  /** Maps ListTasks into the verified HUMAN participant scope for both HUMAN and DELEGATED callers. */
+  async listTasks(request: ListTasksRequest, metadata?: Metadata): Promise<ListTasksResponse> {
     try {
-      const context = requireQueryContext(request)
+      const context = this.queryContext(request, metadata)
       const result = await this.taskQueryService.listTasks({
         tenantId: context.tenantId,
         operatorAccountId: context.operatorAccountId,
@@ -48,9 +58,10 @@ export class TaskQueryGrpcController implements TaskQueryServiceController {
     }
   }
 
-  async getTask(request: GetTaskRequest): Promise<GetTaskResponse> {
+  /** Maps GetTask into the verified HUMAN participant scope without accepting an ActionGrant. */
+  async getTask(request: GetTaskRequest, metadata?: Metadata): Promise<GetTaskResponse> {
     try {
-      const context = requireQueryContext(request)
+      const context = this.queryContext(request, metadata)
       const result = await this.taskQueryService.getTask({
         tenantId: context.tenantId,
         operatorAccountId: context.operatorAccountId,
@@ -60,5 +71,14 @@ export class TaskQueryGrpcController implements TaskQueryServiceController {
     } catch (error) {
       mapTaskError(error)
     }
+  }
+
+  /** Projects DELEGATED reads to the verified HUMAN while rejecting irrelevant ActionGrant presentation. */
+  private queryContext(request: Parameters<typeof requireQueryContext>[0], metadata?: Metadata) {
+    const context = requireQueryContext(request)
+    const delegated = resolveTaskDelegatedAuthority(request, metadata)
+    if (delegated?.delegatedExecution?.actionGrant)
+      throw new Error('ACTION_GRANT_FORBIDDEN_OPERATION')
+    return delegated ? { ...context, operatorAccountId: delegated.operatorAccountId } : context
   }
 }

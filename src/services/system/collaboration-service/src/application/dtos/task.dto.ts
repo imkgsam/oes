@@ -1,5 +1,6 @@
 import { TaskEntity } from '../../domain/entities/task.entity'
 import { TaskPriority } from '../../domain/value-objects/task.enums'
+import type { TaskDelegatedExecutionInput } from '../task/task-delegated-execution-policy.port'
 
 export type TaskCommandContext = {
   tenantId: string
@@ -7,6 +8,7 @@ export type TaskCommandContext = {
   traceId?: string
   auditId?: string
   now?: Date
+  delegatedExecution?: TaskDelegatedExecutionInput
 }
 
 export type CreateTaskInput = TaskCommandContext & {
@@ -15,6 +17,7 @@ export type CreateTaskInput = TaskCommandContext & {
   assigneeAccountId?: string | null
   dueAt?: Date | null
   priority?: TaskPriority
+  idempotencyKey?: string
 }
 
 export type UpdateTaskInput = TaskCommandContext & {
