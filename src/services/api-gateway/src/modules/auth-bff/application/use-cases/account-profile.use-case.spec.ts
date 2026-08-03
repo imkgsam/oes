@@ -92,18 +92,18 @@ describe('AccountProfileUseCase', () => {
         displayName: '陈双鹏',
         bio: '负责美隆陶瓷的外贸协同与重点客户经营。'
       },
-      expect.objectContaining({ user: { sub: 'user-1', aid: 'account-1', sid: 'session-1', tid: 'tenant-1' } })
+      expect.objectContaining({
+        user: { sub: 'user-1', aid: 'account-1', sid: 'session-1', tid: 'tenant-1' }
+      })
     )
     expect(identityAdapter.updateAccountProfile).not.toHaveBeenCalled()
     expect(assetAdapter.bindAccountAvatar).toHaveBeenCalledWith(
       {
-        accountId: 'account-1',
-        newAssetId: 'asset-1',
-        operatorId: 'account-1',
-        scopeLevel: 'TENANT',
-        tenantId: 'tenant-1'
+        newAssetId: 'asset-1'
       },
-      expect.objectContaining({ user: { sub: 'user-1', aid: 'account-1', sid: 'session-1', tid: 'tenant-1' } })
+      expect.objectContaining({
+        user: { sub: 'user-1', aid: 'account-1', sid: 'session-1', tid: 'tenant-1' }
+      })
     )
   })
 
@@ -165,10 +165,9 @@ describe('AccountProfileUseCase', () => {
     )
 
     await expect(
-      useCase.execute(
-        { avatarAssetId: 'asset-system-1' },
-        { user: { sub: 'user-1', aid: 'account-1', scopeLevel: 'SYSTEM' } } as any
-      )
+      useCase.execute({ avatarAssetId: 'asset-system-1' }, {
+        user: { sub: 'user-1', aid: 'account-1', scopeLevel: 'SYSTEM' }
+      } as any)
     ).resolves.toEqual({
       accountContext: {
         accountId: 'account-1',
@@ -187,11 +186,7 @@ describe('AccountProfileUseCase', () => {
 
     expect(assetAdapter.bindAccountAvatar).toHaveBeenCalledWith(
       {
-        accountId: 'account-1',
-        newAssetId: 'asset-system-1',
-        operatorId: 'account-1',
-        scopeLevel: 'SYSTEM',
-        tenantId: undefined
+        newAssetId: 'asset-system-1'
       },
       expect.objectContaining({ user: { sub: 'user-1', aid: 'account-1', scopeLevel: 'SYSTEM' } })
     )

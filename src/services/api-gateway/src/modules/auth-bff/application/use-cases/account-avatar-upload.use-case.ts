@@ -31,13 +31,9 @@ export class AccountAvatarUploadUseCase {
 
     const result = await this.assetAdapter.uploadAccountAvatar(
       {
-        accountId: self.accountId,
         contentType: file.mimetype,
         file: file.buffer,
-        fileName: file.originalname,
-        operatorId: self.accountId,
-        scopeLevel: self.scopeLevel,
-        tenantId: self.tenantId
+        fileName: file.originalname
       },
       source
     )

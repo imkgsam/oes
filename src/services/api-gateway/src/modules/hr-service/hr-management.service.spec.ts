@@ -130,7 +130,9 @@ describe('HrManagementService', () => {
       pageSize: 20,
       total: 2
     })
-    hrQueryAdapter.getActiveEmployment.mockRejectedValueOnce(new NotFoundException('no active employment'))
+    hrQueryAdapter.getActiveEmployment.mockRejectedValueOnce(
+      new NotFoundException('no active employment')
+    )
     hrQueryAdapter.getActiveEmployment.mockResolvedValueOnce({
       id: 'employment-1',
       tenantId: 'tenant-1',
@@ -227,7 +229,11 @@ describe('HrManagementService', () => {
       },
       source
     )
-    expect(hrQueryAdapter.getActiveEmployment).toHaveBeenNthCalledWith(1, 'employee-preboarding', source)
+    expect(hrQueryAdapter.getActiveEmployment).toHaveBeenNthCalledWith(
+      1,
+      'employee-preboarding',
+      source
+    )
     expect(hrQueryAdapter.getActiveEmployment).toHaveBeenNthCalledWith(2, 'employee-active', source)
     expect(hrQueryAdapter.getLatestOnboardingAccess).not.toHaveBeenCalled()
     expect(orgManagementService.getOrgUnitDetail).toHaveBeenCalledWith('tenant-1', 'org-1', source)
@@ -305,7 +311,9 @@ describe('HrManagementService', () => {
         }
       })
 
-    await expect(service.getEmployeeDetail('tenant-1', 'employee-1', source as any)).resolves.toEqual({
+    await expect(
+      service.getEmployeeDetail('tenant-1', 'employee-1', source as any)
+    ).resolves.toEqual({
       employee: {
         id: 'employee-1',
         tenantId: 'tenant-1',
@@ -368,7 +376,12 @@ describe('HrManagementService', () => {
       ]
     })
 
-    expect(orgManagementService.getOrgUnitDetail).toHaveBeenNthCalledWith(1, 'tenant-1', 'org-1', source)
+    expect(orgManagementService.getOrgUnitDetail).toHaveBeenNthCalledWith(
+      1,
+      'tenant-1',
+      'org-1',
+      source
+    )
     expect(orgManagementService.getOrgUnitDetail).toHaveBeenNthCalledWith(
       2,
       'tenant-1',
@@ -629,12 +642,12 @@ describe('HrManagementService', () => {
     ).resolves.toEqual({ employee: updatedEmployee })
 
     expect(assetAdapter.uploadEmployeeOfficialPhoto).toHaveBeenCalledWith(
-      expect.objectContaining({
-        tenantId: 'tenant-1',
+      {
         employeeId: 'employee-1',
-        operatorId: 'admin-account-1',
+        file: Buffer.from('png-bytes'),
+        fileName: 'official.png',
         contentType: 'image/png'
-      }),
+      },
       source
     )
     expect(hrMutationAdapter.updateEmployeeOfficialPhoto).toHaveBeenCalledWith(
@@ -647,11 +660,11 @@ describe('HrManagementService', () => {
       source
     )
     expect(assetAdapter.bindEmployeeOfficialPhoto).toHaveBeenCalledWith(
-      expect.objectContaining({
-        tenantId: 'tenant-1',
+      {
         employeeId: 'employee-1',
-        newAssetId: 'asset-1'
-      }),
+        newAssetId: 'asset-1',
+        previousAssetId: 'asset-old'
+      },
       source
     )
     expect(hrQueryAdapter.getEmployeeById.mock.invocationCallOrder[0]).toBeLessThan(
@@ -992,7 +1005,10 @@ describe('HrManagementService', () => {
       employeeCode: 'EMP-0AF-0003'
     })
 
-    expect(orgManagementService.getTenantEmployeeCodePrefix).toHaveBeenCalledWith('tenant-1', source)
+    expect(orgManagementService.getTenantEmployeeCodePrefix).toHaveBeenCalledWith(
+      'tenant-1',
+      source
+    )
     expect(hrQueryAdapter.listEmployees).toHaveBeenCalledWith(
       {
         tenantId: 'tenant-1',

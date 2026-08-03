@@ -1,2 +1,5 @@
 export * from './gateway-downstream-source.mapper'
+export * from './gateway-asset-grpc.client'
+export * from './gateway-auth-execution-token-exchange.client'
 export * from './gateway-trusted-grpc-execution-producer'
+export * from './gateway-trusted-grpc-execution.module'

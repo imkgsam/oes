@@ -67,7 +67,11 @@ export class HrManagementService {
       }))
     )
     const [employeeDisplayNameMap, orgUnitMap] = await Promise.all([
-      this.loadEmployeeDisplayNameMap(resolvedTenantId, items.map((item) => item.employee), source),
+      this.loadEmployeeDisplayNameMap(
+        resolvedTenantId,
+        items.map((item) => item.employee),
+        source
+      ),
       this.loadOrgUnitMap(
         resolvedTenantId,
         items.map((item) => item.activeEmployment?.orgUnitId),
@@ -105,7 +109,9 @@ export class HrManagementService {
     return {
       employee: this.attachEmployeeDisplayName(employee, employeeDisplayNameMap),
       activeEmployment: this.attachOrgUnitSummary(activeEmployment, orgUnitMap),
-      employments: employments.map((employment) => this.attachOrgUnitSummary(employment, orgUnitMap))
+      employments: employments.map((employment) =>
+        this.attachOrgUnitSummary(employment, orgUnitMap)
+      )
     }
   }
 
@@ -125,16 +131,11 @@ export class HrManagementService {
     ])
 
     const accountId = normalize(latestProcess?.accountId)
-    const account = accountId
-      ? await this.loadAccountSummary(accountId, source)
-      : undefined
-    const loginMethodResult =
-      account?.userId
-        ? await this.authAdapter.listLoginMethods(account.userId, source)
-        : { loginMethods: [], passwordSetupRequired: false }
-    const roles = accountId
-      ? await this.loadRoleSummaries(accountId, resolvedTenantId, source)
-      : []
+    const account = accountId ? await this.loadAccountSummary(accountId, source) : undefined
+    const loginMethodResult = account?.userId
+      ? await this.authAdapter.listLoginMethods(account.userId, source)
+      : { loginMethods: [], passwordSetupRequired: false }
+    const roles = accountId ? await this.loadRoleSummaries(accountId, resolvedTenantId, source) : []
 
     return this.buildEmployeeAccessSummary({
       activeEmploymentId: activeEmployment?.id,
@@ -161,20 +162,19 @@ export class HrManagementService {
     const employee = await this.assertEmployeeInTenant(resolvedTenantId, employeeId, source)
     const previousOfficialPhotoAssetId = normalize(employee.officialPhotoAssetId)
     const previousOfficialPhotoUrl = normalize(employee.officialPhotoUrl)
-    const operatorId = this.resolveOperatorId(source)
     const uploadResult = await this.officialPhotoAssetAdapter.uploadEmployeeOfficialPhoto(
       {
-        scopeLevel: 'TENANT',
-        tenantId: resolvedTenantId,
         employeeId: requireNonBlank(employeeId, 'employeeId'),
-        operatorId,
         file: file.buffer,
         fileName: file.originalname,
         contentType: requireNonBlank(file.mimetype, 'contentType')
       },
       source
     )
-    const officialPhotoAssetId = requireNonBlank(uploadResult.asset?.assetId, 'officialPhotoAssetId')
+    const officialPhotoAssetId = requireNonBlank(
+      uploadResult.asset?.assetId,
+      'officialPhotoAssetId'
+    )
     const officialPhotoUrl = requireNonBlank(uploadResult.asset?.publicUrl, 'officialPhotoUrl')
     const updatedEmployee = await this.hrManagementAdapter.updateEmployeeOfficialPhoto(
       {
@@ -189,10 +189,7 @@ export class HrManagementService {
     try {
       await this.officialPhotoAssetAdapter.bindEmployeeOfficialPhoto(
         {
-          scopeLevel: 'TENANT',
-          tenantId: resolvedTenantId,
           employeeId: requireNonBlank(employeeId, 'employeeId'),
-          operatorId,
           newAssetId: officialPhotoAssetId,
           previousAssetId: normalize(employee.officialPhotoAssetId)
         },
@@ -342,7 +339,10 @@ export class HrManagementService {
         },
         primaryEmployment: input.primaryEmployment
           ? {
-              effectiveFrom: requireNonBlank(input.primaryEmployment.effectiveFrom, 'primaryEmployment.effectiveFrom'),
+              effectiveFrom: requireNonBlank(
+                input.primaryEmployment.effectiveFrom,
+                'primaryEmployment.effectiveFrom'
+              ),
               orgUnitId: normalize(input.primaryEmployment.orgUnitId),
               positionName: normalize(input.primaryEmployment.positionName)
             }
@@ -483,7 +483,10 @@ export class HrManagementService {
     employeeId: string,
     source: DownstreamRequestSource
   ): Promise<HrEmployeeSummary> {
-    const employee = await this.hrQueryAdapter.getEmployeeById(requireNonBlank(employeeId, 'employeeId'), source)
+    const employee = await this.hrQueryAdapter.getEmployeeById(
+      requireNonBlank(employeeId, 'employeeId'),
+      source
+    )
     if (employee.tenantId !== tenantId) {
       throw new ForbiddenException('Employee does not belong to the requested tenant')
     }
@@ -501,7 +504,9 @@ export class HrManagementService {
       { employeeId: requireNonBlank(employeeId, 'employeeId') },
       source
     )
-    const employment = employments.find((item) => item.id === requireNonBlank(employmentId, 'employmentId'))
+    const employment = employments.find(
+      (item) => item.id === requireNonBlank(employmentId, 'employmentId')
+    )
     if (!employment) {
       throw new NotFoundException(`Employment ${employmentId} not found`)
     }
@@ -655,11 +660,17 @@ export class HrManagementService {
     orgUnitIds: Array<string | undefined>,
     source: DownstreamRequestSource
   ) {
-    const uniqueOrgUnitIds = [...new Set(orgUnitIds.map((orgUnitId) => normalize(orgUnitId)).filter(Boolean))]
+    const uniqueOrgUnitIds = [
+      ...new Set(orgUnitIds.map((orgUnitId) => normalize(orgUnitId)).filter(Boolean))
+    ]
     const entries = await Promise.all(
       uniqueOrgUnitIds.map(async (orgUnitId) => {
         try {
-          const result = await this.orgManagementService.getOrgUnitDetail(tenantId, orgUnitId!, source)
+          const result = await this.orgManagementService.getOrgUnitDetail(
+            tenantId,
+            orgUnitId!,
+            source
+          )
           return result.orgUnit?.id ? ([orgUnitId!, result.orgUnit] as const) : undefined
         } catch (error) {
           if (error instanceof NotFoundException) {
@@ -670,13 +681,20 @@ export class HrManagementService {
       })
     )
 
-    return new Map(entries.filter(Boolean) as Array<readonly [string, Awaited<ReturnType<OrgManagementService['getOrgUnitDetail']>>['orgUnit']]>)
+    return new Map(
+      entries.filter(Boolean) as Array<
+        readonly [string, Awaited<ReturnType<OrgManagementService['getOrgUnitDetail']>>['orgUnit']]
+      >
+    )
   }
 
   /** attachOrgUnitSummary decorates one employment read model with an optional org summary projection. */
   private attachOrgUnitSummary<TEmployment extends { orgUnitId?: string }>(
     employment: TEmployment | undefined,
-    orgUnitMap: Map<string, Awaited<ReturnType<OrgManagementService['getOrgUnitDetail']>>['orgUnit']>
+    orgUnitMap: Map<
+      string,
+      Awaited<ReturnType<OrgManagementService['getOrgUnitDetail']>>['orgUnit']
+    >
   ) {
     if (!employment) {
       return employment
@@ -710,7 +728,9 @@ export class HrManagementService {
     }
 
     if (!operatorTenantId || operatorTenantId !== requestedTenantId) {
-      throw new ForbiddenException('Tenant administrators can only manage employees in their current tenant')
+      throw new ForbiddenException(
+        'Tenant administrators can only manage employees in their current tenant'
+      )
     }
 
     return operatorTenantId
@@ -844,7 +864,11 @@ function toEmployeeUserCandidateResult(user: {
     items: [
       {
         userId: user.id,
-        displayName: normalize(user.username) ?? normalize(user.personalEmail) ?? normalize(user.personalPhone) ?? user.id,
+        displayName:
+          normalize(user.username) ??
+          normalize(user.personalEmail) ??
+          normalize(user.personalPhone) ??
+          user.id,
         maskedEmail: maskEmail(user.personalEmail),
         maskedPhone: maskPhone(user.personalPhone),
         isActive: user.isActive !== false
@@ -861,13 +885,15 @@ function normalizePersonIdentifiers(
     rawValue?: string
   }>
 ) {
-  return (identifiers ?? [])
-    .map((identifier) => ({
-      identifierType: requireNonBlank(identifier.identifierType, 'person.identifiers.identifierType'),
-      issuerCountryOrRegion: normalize(identifier.issuerCountryOrRegion),
-      normalizedValue: requireNonBlank(identifier.normalizedValue, 'person.identifiers.normalizedValue'),
-      rawValue: normalize(identifier.rawValue)
-    }))
+  return (identifiers ?? []).map((identifier) => ({
+    identifierType: requireNonBlank(identifier.identifierType, 'person.identifiers.identifierType'),
+    issuerCountryOrRegion: normalize(identifier.issuerCountryOrRegion),
+    normalizedValue: requireNonBlank(
+      identifier.normalizedValue,
+      'person.identifiers.normalizedValue'
+    ),
+    rawValue: normalize(identifier.rawValue)
+  }))
 }
 
 function buildEmployeeOnboardingIdempotencyKey(

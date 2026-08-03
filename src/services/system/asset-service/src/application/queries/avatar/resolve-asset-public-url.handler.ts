@@ -15,9 +15,10 @@ export interface ResolveAssetPublicUrlResult {
 @Injectable()
 @QueryHandler(ResolveAssetPublicUrlQuery)
 // ResolveAssetPublicUrlHandler exposes one controlled asset URL to trusted internal callers.
-export class ResolveAssetPublicUrlHandler
-  implements IQueryHandler<ResolveAssetPublicUrlQuery, ResolveAssetPublicUrlResult>
-{
+export class ResolveAssetPublicUrlHandler implements IQueryHandler<
+  ResolveAssetPublicUrlQuery,
+  ResolveAssetPublicUrlResult
+> {
   constructor(
     @Inject(SYMBOLS.REPO.ASSET)
     private readonly assetRepository: AssetRepository
@@ -28,6 +29,11 @@ export class ResolveAssetPublicUrlHandler
     if (!asset) {
       throw ExceptionFactory.application(VALIDATION_FAILED, {
         violations: ['assetId: asset does not exist']
+      })
+    }
+    if (asset.scopeLevel !== query.scopeLevel || asset.tenantId !== (query.tenantId ?? null)) {
+      throw ExceptionFactory.application(VALIDATION_FAILED, {
+        violations: ['assetId: asset does not belong to the trusted execution scope']
       })
     }
 

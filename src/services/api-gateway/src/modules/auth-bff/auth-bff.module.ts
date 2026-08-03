@@ -10,6 +10,7 @@ import {
   PdaAuthController
 } from './interfaces/http/controllers/terminal-auth.controller'
 import { AuthGrpcAdapter } from './infrastructure/downstream/auth-service/auth-grpc.adapter'
+import { TrustedAuthApiKeyGrpcClient } from './infrastructure/downstream/auth-service/trusted-auth-api-key.grpc.client'
 import { AssetGrpcAdapter } from './infrastructure/downstream/asset-service/asset-grpc.adapter'
 import { IdentityQueryGrpcAdapter } from './infrastructure/downstream/identity-service/identity-query-grpc.adapter'
 import { PartyQueryGrpcAdapter } from './infrastructure/downstream/party-service/party-query-grpc.adapter'
@@ -40,14 +41,15 @@ import { SelfContactBindingUseCase } from './application/use-cases/self-contact-
 import { StepUpMfaUseCase } from './application/use-cases/step-up-mfa.use-case'
 import { PERSONAL_CENTER_SUMMARY_PORT } from './application/ports/personal-center-summary.port'
 import { PersonalCenterSummaryAdapter } from './infrastructure/downstream/personal-center/personal-center-summary.adapter'
+import { GatewayTrustedGrpcExecutionModule } from '../../common/grpc'
 
 @Module({
   imports: [
     AuthorizationModule,
+    GatewayTrustedGrpcExecutionModule,
     PermissionServiceProxyModule,
     GrpcTransportModule.forFeature([
       SERVICE_NAMES.AUTH,
-      SERVICE_NAMES.ASSET,
       SERVICE_NAMES.IDENTITY,
       SERVICE_NAMES.PARTY,
       SERVICE_NAMES.PERMISSION,
@@ -58,6 +60,7 @@ import { PersonalCenterSummaryAdapter } from './infrastructure/downstream/person
   controllers: [AuthController, PdaAuthController, KioskAuthController, ExtensionAuthController],
   providers: [
     AuthGrpcAdapter,
+    TrustedAuthApiKeyGrpcClient,
     AssetGrpcAdapter,
     IdentityQueryGrpcAdapter,
     PartyQueryGrpcAdapter,

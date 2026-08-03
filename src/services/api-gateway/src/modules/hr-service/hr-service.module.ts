@@ -12,14 +12,15 @@ import { PartyTenantQueryGrpcAdapter } from './adapters/party-tenant-query-grpc.
 import { HrQueryGrpcAdapter } from './adapters/hr-query-grpc.adapter'
 import { HrManagementService } from './hr-management.service'
 import { HrManagementController } from './interface/http/controllers/hr-management.controller'
+import { GatewayTrustedGrpcExecutionModule } from '../../common/grpc'
 
 @Module({
   imports: [
     AuthorizationModule,
+    GatewayTrustedGrpcExecutionModule,
     PermissionServiceProxyModule,
     GrpcTransportModule.forFeature([
       SERVICE_NAMES.HR,
-      SERVICE_NAMES.ASSET,
       SERVICE_NAMES.AUTH,
       SERVICE_NAMES.IDENTITY,
       SERVICE_NAMES.PARTY

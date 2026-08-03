@@ -1,12 +1,5 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
-import { ClientGrpc } from '@nestjs/microservices'
+import { Injectable, OnModuleInit } from '@nestjs/common'
 import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory
-} from '@oes/common/authorization'
-import { SERVICE_NAMES } from '@oes/common/constants'
-import {
-  ASSET_SERVICE_NAME,
   AssetServiceClient,
   BindAccountAvatarRequest,
   BindAccountAvatarResponse,
@@ -15,13 +8,16 @@ import {
   UploadAccountAvatarRequest,
   UploadAccountAvatarResponse
 } from '@oes/common/generated/asset_service'
-import { InjectGrpcClient, SafeGrpcCallOptions, safeGrpcCall } from '@oes/common/transport'
+import { SafeGrpcCallOptions, safeGrpcCall } from '@oes/common/transport'
 import {
   DownstreamRequestSource,
-  toOperatorScopedMetadataInput
-} from '../../../../../common/grpc/gateway-downstream-source.mapper'
+  GatewayAssetGrpcClient,
+  GatewayTrustedGrpcExecutionProducer
+} from '../../../../../common/grpc'
 
 const CALLER = 'api-gateway'
+const ASSET_AUDIENCE = 'urn:oes:service:asset-service'
+const RESOLVE_PUBLIC_URL_PERMISSION = 'asset.internal.avatar.resolve_public_url'
 
 @Injectable()
 // AssetGrpcAdapter bridges auth-bff avatar orchestration to the internal asset-service gRPC contract.
@@ -29,48 +25,38 @@ export class AssetGrpcAdapter implements OnModuleInit {
   private svc!: AssetServiceClient
 
   constructor(
-    @InjectGrpcClient(SERVICE_NAMES.ASSET)
-    private readonly client: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory
+    private readonly client: GatewayAssetGrpcClient,
+    private readonly trustedExecutionProducer: GatewayTrustedGrpcExecutionProducer
   ) {}
 
   onModuleInit(): void {
-    this.svc = this.client.getService<AssetServiceClient>(ASSET_SERVICE_NAME)
+    this.svc = this.client.getService()
   }
 
-  uploadAccountAvatar(
+  async uploadAccountAvatar(
     request: UploadAccountAvatarRequest,
     source: DownstreamRequestSource
   ): Promise<UploadAccountAvatarResponse> {
-    return this.call(
-      'uploadAccountAvatar',
-      this.svc.uploadAccountAvatar(request, this.operatorMetadata(source))
-    )
+    const metadata = await this.trustedExecutionProducer.forSelfServiceCall(source, ASSET_AUDIENCE)
+    return this.call('uploadAccountAvatar', this.svc.uploadAccountAvatar(request, metadata))
   }
 
-  bindAccountAvatar(
+  async bindAccountAvatar(
     request: BindAccountAvatarRequest,
     source: DownstreamRequestSource
   ): Promise<BindAccountAvatarResponse> {
-    return this.call(
-      'bindAccountAvatar',
-      this.svc.bindAccountAvatar(request, this.operatorMetadata(source))
-    )
+    const metadata = await this.trustedExecutionProducer.forSelfServiceCall(source, ASSET_AUDIENCE)
+    return this.call('bindAccountAvatar', this.svc.bindAccountAvatar(request, metadata))
   }
 
-  resolveAssetPublicUrl(
+  async resolveAssetPublicUrl(
     request: ResolveAssetPublicUrlRequest,
     source: DownstreamRequestSource
   ): Promise<ResolveAssetPublicUrlResponse> {
-    return this.call(
-      'resolveAssetPublicUrl',
-      this.svc.resolveAssetPublicUrl(request, this.operatorMetadata(source))
-    )
-  }
-
-  private operatorMetadata(source: DownstreamRequestSource) {
-    return this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+    const metadata = await this.trustedExecutionProducer.forInternalCall(source, ASSET_AUDIENCE, [
+      RESOLVE_PUBLIC_URL_PERMISSION
+    ])
+    return this.call('resolveAssetPublicUrl', this.svc.resolveAssetPublicUrl(request, metadata))
   }
 
   private call<T>(method: string, call$: Parameters<typeof safeGrpcCall<T>>[0]): Promise<T> {
