@@ -9,6 +9,50 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model DelegationGrant {
+  id                             String    @id @db.Uuid
+  humanPrincipalId               String    @db.VarChar(100)
+  sessionId                      String    @db.VarChar(100)
+  tenantId                       String    @db.VarChar(100)
+  orgId                          String?   @db.VarChar(100)
+  agentPrincipalId               String    @db.VarChar(100)
+  toolContractId                 String    @db.VarChar(180)
+  toolContractVersion            String    @db.VarChar(40)
+  operationKeys                  String[]
+  permissionCodes                String[]
+  authzVersion                   String    @db.VarChar(100)
+  authorizationDecisionReference String    @db.VarChar(100)
+  expiresAt                      DateTime
+  revokedAt                      DateTime?
+  revokeReasonCategory           String?   @db.VarChar(80)
+  createdAt                      DateTime  @default(now())
+  updatedAt                      DateTime  @updatedAt
+
+  @@index([humanPrincipalId, tenantId, expiresAt])
+  @@index([tenantId, agentPrincipalId, expiresAt])
+}
+
+model DelegatedExecutionAudit {
+  id                             String   @id @db.Uuid
+  eventType                      String   @db.VarChar(80)
+  result                         String   @db.VarChar(40)
+  humanPrincipalId               String   @db.VarChar(100)
+  tenantId                       String   @db.VarChar(100)
+  orgId                          String?  @db.VarChar(100)
+  delegationReference            String   @db.Uuid
+  actionGrantJti                 String?  @db.Uuid
+  operationKey                   String?  @db.VarChar(180)
+  descriptorDigest               String?  @db.VarChar(43)
+  authorizationDecisionReference String   @db.VarChar(100)
+  traceId                        String   @db.VarChar(100)
+  occurredAt                     DateTime
+  createdAt                      DateTime @default(now())
+
+  @@index([tenantId, humanPrincipalId, occurredAt])
+  @@index([delegationReference, occurredAt])
+  @@index([actionGrantJti])
+}
+
 model LoginMethod {
   id          String          @id @default(uuid())
   userId      String //关联至identity-service 中的 user
