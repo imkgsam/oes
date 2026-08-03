@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package permission_service;
+
+option java_multiple_files = true;
+option java_package = "com.oes.permission.v1";
+
+// DelegatedAuthorizationService owns the current HUMAN/delegation/tool/policy intersection decision only.
+service DelegatedAuthorizationService {
+  rpc ResolveDelegatedAuthorization(ResolveDelegatedAuthorizationRequest) returns (ResolveDelegatedAuthorizationResponse);
+}
+
+enum DelegatedOperationRiskClass {
+  DELEGATED_OPERATION_RISK_CLASS_UNSPECIFIED = 0;
+  DELEGATED_OPERATION_RISK_CLASS_DELEGATION_ALLOWED = 1;
+  DELEGATED_OPERATION_RISK_CLASS_ACTION_GRANT_REQUIRED = 2;
+  DELEGATED_OPERATION_RISK_CLASS_AI_FORBIDDEN = 3;
+}
+
+// ResolveDelegatedAuthorizationRequest carries Auth-supplied fixed bounds and business-owner classification over trusted mTLS.
+message ResolveDelegatedAuthorizationRequest {
+  string human_principal_id = 1;
+  string delegation_reference = 2;
+  string agent_principal_id = 3;
+  string tool_contract_id = 4;
+  string tool_contract_version = 5;
+  string tenant_id = 6;
+  string org_id = 7;
+  string target_audience = 8;
+  string operation_key = 9;
+  repeated string requested_permission_codes = 10;
+  repeated string delegation_operation_keys = 11;
+  repeated string delegation_permission_codes = 12;
+  repeated string tool_operation_keys = 13;
+  repeated string tool_permission_codes = 14;
+  DelegatedOperationRiskClass owner_risk_class = 15;
+  string resource_facts_json = 16;
+}
+
+// ResolveDelegatedAuthorizationResponse contains only the auditable decision and exact allowed subset.
+message ResolveDelegatedAuthorizationResponse {
+  bool allowed = 1;
+  repeated string allowed_permission_codes = 2;
+  DelegatedOperationRiskClass risk_class = 3;
+  string effective_tenant_id = 4;
+  string effective_org_id = 5;
+  string authorization_decision_reference = 6;
+  string authz_version = 7;
+  string reason_category = 8;
+  bool step_up_required = 9;
+}

@@ -1,0 +1,77 @@
+syntax = "proto3";
+
+package auth_service;
+
+option java_multiple_files = true;
+option java_package = "com.oes.auth.v1";
+
+// DelegatedExecutionService exposes Auth-owned delegation lifecycle and descriptor-bound ActionGrant issuance.
+service DelegatedExecutionService {
+  // Creates one explicit bounded delegation from a transport-verified HUMAN context.
+  rpc CreateDelegationGrant(CreateDelegationGrantRequest) returns (CreateDelegationGrantResponse);
+  // Revokes one delegation through its HUMAN-owner or separately authorized HUMAN management path.
+  rpc RevokeDelegationGrant(RevokeDelegationGrantRequest) returns (RevokeDelegationGrantResponse);
+  // Issues one short-lived ag+jwt after exact confirmation and the current delegated authorization decision.
+  rpc RequestActionGrant(RequestActionGrantRequest) returns (RequestActionGrantResponse);
+}
+
+// CreateDelegationGrantRequest carries only the requested upper bound; HUMAN/session/tenant facts come from trusted transport.
+message CreateDelegationGrantRequest {
+  string agent_principal_id = 1;
+  string tool_contract_id = 2;
+  string tool_contract_version = 3;
+  repeated string operation_keys = 4;
+  repeated string requested_permission_codes = 5;
+  string expires_at = 6;
+}
+
+// CreateDelegationGrantResponse returns only opaque lifecycle and audit references.
+message CreateDelegationGrantResponse {
+  string delegation_reference = 1;
+  string effective_expires_at = 2;
+  string audit_reference = 3;
+}
+
+// RevokeDelegationGrantRequest identifies one opaque grant and a safe reason category.
+message RevokeDelegationGrantRequest {
+  string delegation_reference = 1;
+  string reason_category = 2;
+}
+
+// RevokeDelegationGrantResponse returns the immutable first-revoke result on retry.
+message RevokeDelegationGrantResponse {
+  string delegation_reference = 1;
+  string revoked_at = 2;
+  string audit_reference = 3;
+}
+
+// ActionDescriptorV1 carries the exact logical object whose target and input JSON are parsed then JCS-canonicalized by Auth.
+message ActionDescriptorV1 {
+  string descriptor_version = 1;
+  string operation_key = 2;
+  string tool_contract_id = 3;
+  string tool_contract_version = 4;
+  string target_json = 5;
+  string input_json = 6;
+  string idempotency_key = 7;
+}
+
+// RequestActionGrantRequest carries no identity, issuer, key, signature, audience-wildcard or workload override.
+message RequestActionGrantRequest {
+  string delegation_reference = 1;
+  string target_audience = 2;
+  ActionDescriptorV1 descriptor = 3;
+  string material_impact_summary = 4;
+  string confirmation_reference = 5;
+  string confirmation_descriptor_digest = 6;
+  string step_up_reference = 7;
+}
+
+// RequestActionGrantResponse returns the opaque metadata credential and safe correlation facts only.
+message RequestActionGrantResponse {
+  string action_grant = 1;
+  string action_grant_jti = 2;
+  string descriptor_digest = 3;
+  string expires_at = 4;
+  string audit_reference = 5;
+}

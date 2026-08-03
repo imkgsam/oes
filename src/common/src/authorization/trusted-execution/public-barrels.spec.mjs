@@ -17,6 +17,10 @@ function verifyPublicBarrels() {
   assert.equal(typeof authorization.createTrustedExecutionContext, 'function')
   assert.equal(typeof authorization.TrustedExecutionRegistry, 'function')
   assert.equal(typeof authorization.TrustedGrpcMetadataProvider, 'function')
+  assert.equal(typeof authorization.ActionGrantVerifier, 'function')
+  assert.equal(typeof authorization.actionDescriptorDigest, 'function')
+  assert.equal(typeof authorization.extractActionGrantMetadata, 'function')
+  assert.equal(authorization.ACTION_GRANT_METADATA_KEY, 'x-oes-action-grant')
   assert.equal(typeof transport.buildGrpcAuthorizationModeInventory, 'function')
   assert.equal(typeof transport.GrpcWorkloadIdentityProvider, 'function')
 }
