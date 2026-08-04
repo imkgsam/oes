@@ -35,9 +35,11 @@ programControlBranch: codex/oes-program-control-migration
 
 当前草案写入面：
 
-- worktree：`/Users/acehood/.codex/worktrees/2bb6/oes`
+- worktree：`/Users/acehood/Documents/GitHub/oes/.worktrees/program-control/migration`
 - branch：`codex/oes-program-control-migration`
 - base HEAD：`65e49258a0dc57b7daf3d40d5e8a63ea94dfc116`
+- inventory checkpoint：`1f5fdd690af817f8e9bb092fbafb769a31b2e1a6`；当前 branch HEAD 以运行时 `git rev-parse codex/oes-program-control-migration` 为准，避免在同一提交中记录自引用 SHA。
+- runtime note：原 Codex 临时 worktree `/Users/acehood/.codex/worktrees/2bb6/oes` 已被应用回收；分支、提交和迁移台账均已在上述固定 worktree 中恢复，未发生资产丢失。
 
 ## 3. 稳定真相源索引
 
@@ -187,7 +189,7 @@ AI A/V 虽已接受候选，但候选尚未基于当前 `main` 完成重建与�
 | `/Users/acehood/.codex/worktrees/10ab/oes` | detached | `7500bd66d3e11b7a39bb0de052141efe4bfa0d09` | clean |
 | `/Users/acehood/.codex/worktrees/1d99/oes` | detached | `0a321c0d35442a0cf94956734f33cf5fab696f88` | clean |
 | `/Users/acehood/.codex/worktrees/229b/oes` | detached | `c7ab0d9cf6767e63c499e7fc15a3d9d725b45cfc` | clean |
-| `/Users/acehood/.codex/worktrees/2bb6/oes` | `codex/oes-program-control-migration` | `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` | clean before this ledger |
+| `/Users/acehood/Documents/GitHub/oes/.worktrees/program-control/migration` | `codex/oes-program-control-migration` | live branch ref；inventory checkpoint `1f5fdd69` | clean；替代已回收的 Codex 临时 worktree |
 | `/Users/acehood/.codex/worktrees/44ef/oes` | `codex/exec-crypto/i06-auth-tg2-remediation` | `64ea8660687bbeb24349d11bcaed6f63d2373c4b` | clean |
 | `/Users/acehood/.codex/worktrees/475d/oes` | detached | `ddab5e77fdc7240750039c430f48a0e6fd76ab62` | clean |
 | `/Users/acehood/.codex/worktrees/4853/oes` | detached | `a0310fbbee37b7d17456e3a7f1bf6ea846c4dfb3` | clean |
@@ -240,7 +242,7 @@ AI A/V 虽已接受候选，但候选尚未基于当前 `main` 完成重建与�
 | `codex/grpc/i03-gateway-trusted-execution-producer` | `6973bcda1484ac2fccc522f5d8ee70dc989c7541` |
 | `codex/grpc/i04-source-credential-carrier` | `dced77ad8cb877ea9aad10f1c6a310ad32a924df` |
 | `codex/grpc/x01-integration` | `78329db36f13be30f293f2666720180da8991faa` |
-| `codex/oes-program-control-migration` | `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` before ledger commit |
+| `codex/oes-program-control-migration` | live branch ref；inventory checkpoint `1f5fdd690af817f8e9bb092fbafb769a31b2e1a6` |
 | `codex/trusted-grpc-execution-context/d-freeze` | `7500bd66d3e11b7a39bb0de052141efe4bfa0d09` |
 
 ## 8. 本轮验证记录
