@@ -1,0 +1,62 @@
+{
+  "kind": "OesAiToolContractRegistration",
+  "toolContractId": "oes.ai.task-assistant.collaboration-task",
+  "version": "1.0.0",
+  "registrationState": "REGISTERED_DISABLED",
+  "immutable": true,
+  "runtimeExecutionEnabled": false,
+  "mutationExecutionEnabled": false,
+  "publicExposureEnabled": false,
+  "operations": [
+    {
+      "operationKey": "collaboration.task.list.v1",
+      "mode": "READ",
+      "ownerContract": "docs/contracts/collaboration-service/task-query.md",
+      "ownerOperation": "ListTasks",
+      "ownerRiskClass": "DELEGATION_ALLOWED",
+      "riskSource": "docs/plans/features/delegated-task-action-grant.md",
+      "businessEffect": "READ_ONLY",
+      "runtimeEnabled": false
+    },
+    {
+      "operationKey": "collaboration.task.get.v1",
+      "mode": "READ",
+      "ownerContract": "docs/contracts/collaboration-service/task-query.md",
+      "ownerOperation": "GetTask",
+      "ownerRiskClass": "DELEGATION_ALLOWED",
+      "riskSource": "docs/plans/features/delegated-task-action-grant.md",
+      "businessEffect": "READ_ONLY",
+      "runtimeEnabled": false
+    },
+    {
+      "operationKey": "oes.ai.task-assistant.draft-task-create.v1",
+      "mode": "DRAFT_ONLY",
+      "ownerContract": null,
+      "ownerOperation": null,
+      "ownerRiskClass": null,
+      "riskSource": null,
+      "businessEffect": "PROPOSAL_ONLY",
+      "runtimeEnabled": false
+    },
+    {
+      "operationKey": "collaboration.task.create-self.v1",
+      "mode": "MUTATION",
+      "ownerContract": "docs/contracts/collaboration-service/task-command.md",
+      "ownerOperation": "CreateTask",
+      "ownerRiskClass": "DELEGATION_ALLOWED",
+      "riskSource": "docs/plans/features/delegated-task-action-grant.md",
+      "businessEffect": "TASK_CREATE",
+      "runtimeEnabled": false
+    },
+    {
+      "operationKey": "collaboration.task.create-assigned.v1",
+      "mode": "MUTATION",
+      "ownerContract": "docs/contracts/collaboration-service/task-command.md",
+      "ownerOperation": "CreateTask",
+      "ownerRiskClass": "ACTION_GRANT_REQUIRED",
+      "riskSource": "docs/plans/features/delegated-task-action-grant.md",
+      "businessEffect": "TASK_CREATE",
+      "runtimeEnabled": false
+    }
+  ]
+}
