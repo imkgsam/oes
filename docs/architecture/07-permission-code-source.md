@@ -105,6 +105,7 @@ interface PermissionDefinitionGroup {
 
 - 值使用稳定英文标识，通常采用 `domain.resource.action`。
 - INTERNAL Code 必须显式包含 `.internal.`，例如 `asset.internal.site_media.resolve`。
+- Principal BUSINESS issuance decision 使用的技术调用 Code 固定为 `permission.internal.principal_authorization.resolve`，只允许准确 `auth-service` workload 通过 `ResolveWorkloadIssuance` 为 `aud=permission-service` 申请，并绑定当前 Auth mTLS certificate；它不进入 HUMAN/MACHINE role、external JWT 或 wildcard workload policy。`ResolveWorkloadIssuance` 本身是 mTLS-only exact-Auth bootstrap authorization primitive，不为自身建立循环依赖的 Permission Code。
 - API Key exchange 使用的技术调用 Code 固定为 `identity.internal.integration_machine.resolve` 与 `permission.internal.external_machine.snapshot.resolve`；Provider compromise remediation 使用 `auth.internal.external_api_key.verifier_version.compromise`。三者只进入各自精确 workload issuance policy，不进入 HUMAN/MACHINE role 或 external JWT。compromise Code 只允许环境注册的 deployment `security-operations-runner` 以 SYSTEM scope、`aud=auth-service` 与 certificate binding 取得，禁止 wildcard workload policy。
 - value 是数据库、Token scope、decorator 与审计使用的稳定身份。
 - TypeScript key 只负责代码可读性。

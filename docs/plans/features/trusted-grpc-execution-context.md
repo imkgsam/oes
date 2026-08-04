@@ -19,6 +19,7 @@ migrationClosure: 21 services / 51 controllers / 560 RPCs / zero legacy trust re
 resolvedDesignGates:
   - DG-1: docs/architecture/services/auth-service.md
   - DG-3: docs/architecture/collaborations/external-api-key-security.md
+  - Principal issuance decisions: docs/contracts/permission-service/principal-authorization.md
 ```
 
 ## 1. Frozen Scope
@@ -126,7 +127,7 @@ This permits gradual delivery without a dual-trust resource server.
 | TG-1 | Common platform / contract owner | `src/common/src/contracts/buf.gen.yaml`, `src/common/src/generated/**`, `src/common/src/authorization/trusted-execution/**`, `src/common/src/transport/grpc/**`, reviewed exports and focused tests | `addGrpcMetadata=true`, decorators, verifier, immutable context, provider, mode scanner, process-local cache and inventory script |
 | TG-2 | Auth Service owner | `src/common/src/contracts/auth_service/execution_token.proto`, `src/services/system/auth-service/src/{application,domain,infrastructure,interfaces,modules}/**`, Auth Prisma and tests | STS exchange, signed single-audience Token, JWKS, cache-compatible TTL and audited issuance; DG-1/DG-2 gate production completion |
 | TG-3 | Identity + Auth credential migration owners | `src/common/src/contracts/identity_service/identity_query.proto`, `src/services/system/identity-service/src/application/{commands,queries}/service-account/**`, `src/services/system/identity-service/src/domain/{entities,repositories}/api-key*`, `src/services/system/identity-service/src/infrastructure/**/*api-key*`, `src/services/system/identity-service/src/interfaces/grpc/identity-machine-auth.grpc.controller.ts`, Identity/Auth `prisma/**` and focused tests | Machine Principal remains Identity-owned; API Key credential moves to Auth; DG-3 gates external opening |
-| TG-4 | Permission + Common Permission owners | `src/common/src/authorization/permission-codes/**`, `principal_authorization.proto`, Permission source / Prisma / tests | Common definitions, Principal authorization, INTERNAL issuance decision and catalog sync; DG-5 gates schema migration |
+| TG-4 | Permission + Common Permission owners | `src/common/src/authorization/permission-codes/**`, `src/common/src/contracts/permission_service/permission_check.proto`, generated output, Permission source / Prisma / tests | Existing `PermissionCheckService` gains Auth-only `ResolveWorkloadIssuance` mTLS bootstrap decision and ExecutionToken-protected `ResolvePrincipalAuthorization`; exact INTERNAL Code, all-or-nothing decisions, audit and catalog sync; DG-5 gates schema migration |
 | TG-5 | API Gateway owner | `src/services/api-gateway/src/common/grpc/**`, tenant-aware permission guard, all target-specific downstream adapters and tests | Session/root execution construction and target-specific producer preparation for every migrated service |
 | TG-VERIFY | Integration / Security owner | `scripts/local/trusted-grpc-*.mjs`, target-specific fixtures and deployment test configuration | Per-service acceptance evidence plus final repository-wide proof |
 

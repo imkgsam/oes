@@ -220,18 +220,20 @@ source credential 由 Common infrastructure 在受 mTLS 保护的 internal excha
 
 Auth issuance audit 至少记录 verified source-credential kind/reference、principal/type、tenant/org、verified workload、target audience、canonical requested/granted Codes、Permission decision reference、`authzVersion`、session/delegation reference、certificate thumbprint、`kid`、`jti`、结果、reason category 与 trace correlation；不得记录 bearer、session secret、API Key、private key 或可恢复 credential。验收必须证明 caller-requested Codes 与 independent Permission decision 来自不同 source，并覆盖 forged requested Code、empty/non-empty mode misuse、stale/denied `authzVersion`、workload/audience mismatch、Permission outage、cache reuse 与 target-service mode/resource denial。
 
+Permission issuance control plane 采用一个明确的非循环 trust root：`ResolveWorkloadIssuance` 是唯一不预先要求 ExecutionToken 的 bootstrap authorization primitive。它仍运行在 mTLS-protected Permission gRPC host，只消费 transport 注入且不可由 request/header 覆盖的 `VerifiedWorkloadIdentity`，并只允许环境注册的准确 `auth-service` SPIFFE identity 调用这一准确 method。该 method-specific bootstrap policy 不授予任何其他 Permission RPC、BUSINESS 能力或通用 INTERNAL 权限，也不允许 wildcard caller；Permission 仍独立评估 Auth 提交的 original verified workload -> target audience -> requested INTERNAL Code policy，并以全量申请语义返回 decision。`ResolvePrincipalAuthorization` 不是 bootstrap primitive，必须使用准确 Auth mTLS identity 加 `aud=permission-service`、certificate-bound、仅含 `permission.internal.principal_authorization.resolve` 的 ExecutionToken。除明确公共 metadata/JWKS、运维 readiness 与该唯一 bootstrap primitive 外，所有受保护内部 RPC 继续同时要求 mTLS workload identity 和目标专属 ExecutionToken。
+
 冻结的实现 ownership 与路径影响如下：
 
 - EXEC-CRYPTO / Auth owns `src/common/src/contracts/auth_service/execution_token.proto` 的既有 exchange message 语义、`src/services/system/auth-service/src/{application,domain,infrastructure,interfaces,modules}/**` 的 source-credential verifier、Permission adapters、issuance orchestration、audit 与 tests。Proto 不新增 `targetRpcId` / mode 字段，也不改变 claims；仅把 `requested_permission_codes` 从“始终非空”校正为 BUSINESS/INTERNAL 非空、SELF_SERVICE 可为空。
 - GRPC / Common owns `src/common/src/authorization/trusted-execution/**` 与 `src/common/src/transport/grpc/**` 的 transport-private source-credential accessor、exchange-client metadata wiring 和 cache propagation；Gateway owns `src/services/api-gateway/src/common/grpc/**` 及 target adapters 的 verified session/external credential supply。Exchange 固定以 `authorization: Bearer <source-credential>` 携带 opaque source credential；它不进入 request DTO 或 `TrustedExecutionContext`，也不恢复 operator-context signer/codec/guard。
-- Permission owner extends existing `src/common/src/contracts/permission_service/permission_check.proto` / generated output and `src/services/system/permission-service/**` with the already-frozen `ResolvePrincipalAuthorization` and `ResolveWorkloadIssuance` black-box decisions. Both are Auth-only trusted internal capabilities with exact Permission-owned INTERNAL issuance policies; Permission remains role/policy truth owner and Auth never reads its database. The Permission surface must be ready before Auth enables the new exchange path; bootstrap credentials/policies are fixed deployment inputs, never derived from the caller's requested business Codes.
+- Permission owner extends existing `src/common/src/contracts/permission_service/permission_check.proto` / generated output and `src/services/system/permission-service/**` with the frozen `ResolvePrincipalAuthorization` and `ResolveWorkloadIssuance` black-box decisions. Both are Auth-only issuance-control capabilities: `ResolveWorkloadIssuance` uses the exact mTLS-only Auth bootstrap policy above, while `ResolvePrincipalAuthorization` uses the exact Permission-owned INTERNAL Code and normal ExecutionToken path. Permission remains role/policy truth owner and Auth never reads its database or signs from requested Codes. The Permission surface must be ready before Auth enables the new exchange path; bootstrap SPIFFE registry / method policy are fixed deployment inputs, never caller-provided identity or business Code.
 - Each target-service owner retains its existing service truth/contract and method decorators as the sole RPC mode/Code source. No service publishes a second runtime RPC registry to Auth; caller/target contract tests prove adapter requested Codes match the target declaration, while the target's server runtime remains the enforcement point.
 
 Rollout order is fail-closed: first deliver Permission decisions and their Auth-only trust policy, then Common/Gateway source-credential transport, then Auth verification/adapters/audit, then atomically enable exchange only after all prerequisites pass readiness. During rollout, the rejected self-authorizing path stays disabled; there is no dual-authority window or fallback to signed operator context. After cutover, remove legacy context reconstruction and run focused security tests before resuming target-service migrations.
 
 ## 6. 三种 RPC authorization mode
 
-每个 gRPC RPC 必须在方法旁显式声明且只能声明一种：
+每个受保护业务或技术 gRPC RPC 必须在方法旁显式声明且只能声明一种。唯一例外是上节冻结的 `ResolveWorkloadIssuance` 发证 bootstrap primitive：它使用专用的 exact-Auth `VerifiedWorkloadIdentity` policy，不伪装为 SELF_SERVICE、BUSINESS 或一个需要自身先签发 Token 的 INTERNAL RPC。
 
 ```ts
 @AuthorizeBusinessRpc({ all: [PERMISSION_CODE] })
@@ -411,6 +413,9 @@ Asset + Site 仍是第一个业务解阻优先链，但不再是本 capability �
 16. `traceparent / tracestate` 按 W3C 规则传播，审计可用 request / trace / jti 关联完整调用链。
 17. 每个服务切换前全部直接 caller 已准备 target-audience Token；切换后 legacy caller 必须失败而不是触发 server fallback。
 18. 最终 21 个服务、51 个 Controller、560 个 RPC 全部恰有一个 mode，legacy signer / guard / factory / body identity 引用归零。
+19. `ResolveWorkloadIssuance` 在没有 ExecutionToken 时只接受 exact registered Auth SPIFFE identity；其他合法 workload certificate、header identity、wildcard 或对其他 Permission RPC 的同类调用全部失败。
+20. Auth 只有在该 bootstrap decision 全量批准 exact original workload / audience / INTERNAL Code 后才签名；unknown、mixed-kind、partial、mismatch 或 Permission unavailable 不产生 Token。
+21. `ResolvePrincipalAuthorization` 与其他受保护 Permission RPC 不能继承 bootstrap policy，仍同时要求 mTLS 与目标专属 ExecutionToken。
 
 ## 13. 兼容与删除纪律
 
