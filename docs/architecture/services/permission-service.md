@@ -172,7 +172,7 @@ Permission Service 在既有 `PermissionCheckService` 上提供两个只服务 A
 
 `ResolvePrincipalAuthorization` 不是 bootstrap primitive。它必须同时验证直接 `auth-service` mTLS identity、`aud=permission-service` 的 certificate-bound ExecutionToken 与精确 INTERNAL Code `permission.internal.principal_authorization.resolve`。该 Code 只能由 `ResolveWorkloadIssuance` 所有的准确 Auth workload -> Permission audience issuance policy 批准，不能进入 HUMAN / MACHINE role。输入只包含已验证 principal typed reference、scope / tenant / org、target audience、非空 requested BUSINESS Code 集以及适用的 session / delegation / AgentPrincipal / ToolContract reference；不接收 role id、admin flag、caller-computed grant、target RPC id、业务 resource facts 或 domain state。SELF_SERVICE 不调用该判定；目标服务从可信 HUMAN principal 派生 self target。
 
-两个判定都采用全量申请语义：requested Code 必须去重、规范排序且 kind 一致，只有全部获准时 `allowed=true`。未知、不可分配、部分批准、scope / tenant / audience / principal / delegation mismatch、stale decision 或依赖不可用都 fail closed；Permission 返回精确 granted / denied Code、安全 reason category、decision reference 与 `authzVersion`，Auth 不做部分签发。Permission 记录判定审计但不记录 source credential 或 Token 正文，也不签发、存储或消费 ExecutionToken。
+两个判定都采用全量申请语义：requested Code 必须去重、规范排序且 kind 一致，只有全部获准时 `allowed=true`。未知、不可分配、部分批准、scope / tenant / audience / principal / delegation mismatch、stale decision 或依赖不可用都 fail closed；Permission 返回精确 granted / denied Code、安全 reason category、decision reference 与 `authzVersion`，Auth 不做部分签发。Permission 记录判定审计但不记录 source credential 或 Token 正文，也不签发或存储 ExecutionToken；`ResolvePrincipalAuthorization` 只按受保护 resolver 契约验证随请求提交的 ExecutionToken，不取得其签发或授权真相所有权。
 
 ## 6. Policy
 
