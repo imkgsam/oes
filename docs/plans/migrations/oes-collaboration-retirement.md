@@ -28,8 +28,8 @@ programControlBranch: codex/oes-program-control-migration
 | `main` | `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` | 一致 |
 | `origin/main` | `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` | 一致（本地 remote-tracking ref；未 fetch） |
 | Legacy formal A/* threads | 101 | 仅保留 handoff 汇总计数；未读取或唤醒线程 |
-| Worktrees | 29 | 当前 30；新增项仅为本 Program Control worktree |
-| `codex/*` branches | 23 | 当前 24；新增项仅为 `codex/oes-program-control-migration` |
+| Worktrees | 29 | 当前 32；新增项为本 Program Control、AI Platform completion 与 Integration & Verification worktree |
+| `codex/*` branches | 23 | 当前 26；新增项为 `codex/oes-program-control-migration`、`codex/migration/ai-platform-completion` 与 `codex/integration/main-queue` |
 | Checker | disabled | handoff evidence；未唤醒旧 checker |
 | Root dirty state | clean | clean，暂存区与工作区均无变更 |
 
@@ -87,15 +87,18 @@ programControlBranch: codex/oes-program-control-migration
 - dependencies：GRPC carrier 与 Permission decision RPC。
 - target ownership：Platform Security。
 
-### 4.4 AI-PLATFORM — `MIGRATION_FROZEN`
+### 4.4 AI-PLATFORM — `CANDIDATE_READY`（legacy resources `MIGRATION_FROZEN`）
 
 - source threads：control `019fa317-f7eb-7d51-a1a5-63c1f90ef907`；A/I `019fc52d-3e6d-7d03-b5f2-27befd10c7d7`；A/V `019fcaac-840c-7072-b792-793396ea30b3`。
-- candidate：`6101933d3f054989e6dbfca27889a7141db16075`；branch/worktree `codex/ai-platform/i01-tool-contract-registration` / `/Users/acehood/.codex/worktrees/72ae/oes`；clean。
+- migration implementation thread：`019fcaeb-cc91-7f81-acf9-4e8a34c9701d`；已完成并 idle，不恢复旧 capability 任务。
+- accepted legacy candidate：`6101933d3f054989e6dbfca27889a7141db16075`；branch/worktree `codex/ai-platform/i01-tool-contract-registration` / `/Users/acehood/.codex/worktrees/72ae/oes`；作为历史验收与内容证据保留。
 - acceptance worktree：`/Users/acehood/.codex/worktrees/d69e/oes`；detached at exact candidate；clean。
-- handoff acceptance：`ACCEPTED`；contract tests 5/5、JSON parse、diff/path checks passed。本轮未重跑测试。
-- local Git validation：相对原 base `7500bd66d3e11b7a39bb0de052141efe4bfa0d09`，candidate 恰好新增 `src/ai-platform/tool-contracts/registrations/` 下两个文件。
-- integration state：未进入 `main`；当前 `main` 已前进至 `65e49258…`，因此必须在交付前重建并复验集成结果。
-- target ownership：临时 AI Platform completion lane；完成后再进入归档判定。
+- legacy handoff acceptance：`ACCEPTED`；contract tests 5/5、JSON parse、diff/path checks passed。
+- rebuilt candidate：`94094fe57a8d2f18750ef712f2730015be2d9514`；parent `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116`；branch/worktree `codex/migration/ai-platform-completion` / `/Users/acehood/Documents/GitHub/oes/.worktrees/migration/ai-platform-completion`；clean。
+- scope：相对 parent 精确新增 `src/ai-platform/tool-contracts/registrations/` 下两个 `task-assistant-collaboration-task.v1` 文件，共 272 行；两个 blob 与 accepted legacy candidate 完全一致。
+- implementation handoff verification：JSON parse passed；既有 contract tests 5/5 passed；diff/path/content/root-protection checks passed。Program Control 本轮未重跑测试，只读复核了 Git 结构与 blob 证据。
+- integration state：candidate 已排入唯一持久 Integration & Verification 任务 `019fcaf2-ca7b-7140-b46d-b6cacae58556`；任务已启动验收。当前尚未进入 `main`，未 push。
+- target ownership：AI Platform completion 写入 lease 已完成；候选与固定 worktree 保留。Integration & Verification 一次只消费该精确 candidate，验收通过前不取得 main integration lease。
 
 ### 4.5 ACTION-GRANT — `MIGRATION_FROZEN`
 
@@ -148,7 +151,7 @@ programControlBranch: codex/oes-program-control-migration
 
 ## 6. 建议交付顺序（仅迁移排序，不是治理冻结）
 
-1. AI candidate 基于当前 `main` 重建、复验、集成。
+1. AI rebuilt candidate `94094fe57…` 正由唯一持久 Integration & Verification 任务复核；只有全部 gate 通过才进入短时 main integration lease。
 2. GRPC carrier 验收、集成。
 3. Unified Design 解析 Permission 与 ActionGrant 的开放设计包，并将冻结结论回写唯一真相源。
 4. Platform Security 串行交付 Permission decision RPC 与 Auth STS。
@@ -164,7 +167,7 @@ programControlBranch: codex/oes-program-control-migration
 - EXEC-REVOKE closure record/thread resources：已有 `CLOSED` 与 main evidence。
 - API-KEY historical command/thread resources：可形成 immutable closure summary；其 dirty integration worktree 必须先有显式处置决定，Git 资源继续保留。
 
-AI A/V 虽已接受候选，但候选尚未基于当前 `main` 完成重建与集成，因此不列为当前 safe archive candidate。所有 `MIGRATION_FROZEN` control/design/implementation 线程在 ownership 迁移完成前均继续保留。
+AI legacy A/V 已接受历史候选，且新候选已基于当前 `main` 重建，但尚未经过迁移后的 I&V 与集成，因此不列为当前 safe archive candidate。所有仍承载候选、拒绝证据或未冻结设计上下文的 `MIGRATION_FROZEN` 旧任务继续保留。
 
 ### 7.2 Retained candidate/decision resources
 
@@ -175,13 +178,14 @@ AI A/V 虽已接受候选，但候选尚未基于当前 `main` 完成重建与�
 | Permission decision workspace | `codex/acprincipalrole-principalrolebinding-command@65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` | 待 Unified Design |
 | EXEC-CRYPTO writer | `codex/exec-crypto/i06-auth-tg2-remediation@64ea8660687bbeb24349d11bcaed6f63d2373c4b` | 保留上下文；无替代 candidate |
 | EXEC-CRYPTO rejected candidate | `c7ab0d9cf6767e63c499e7fc15a3d9d725b45cfc` | 保留拒绝证据 |
-| AI candidate | `codex/ai-platform/i01-tool-contract-registration@6101933d3f054989e6dbfca27889a7141db16075` | accepted，待重建复验/集成 |
+| AI accepted legacy candidate | `codex/ai-platform/i01-tool-contract-registration@6101933d3f054989e6dbfca27889a7141db16075` | 保留历史验收与 blob 对照证据 |
+| AI rebuilt candidate | `codex/migration/ai-platform-completion@94094fe57a8d2f18750ef712f2730015be2d9514` | 基于当前 main 重建，等待 I&V/集成 |
 | ACTION-GRANT candidate | `codex/action-grant/i01-delegated-task-runtime@ec2b2cf881fec81f1882b3260f397f33d618aaf0` | pending，待设计与串行整合 |
 | Closed-cycle main evidence | `0a321c0d35442a0cf94956734f33cf5fab696f88` | EVENT / EXEC-REVOKE closure evidence |
 
 ### 7.3 当前全部 worktree 清单
 
-迁移时观察到 30 个 worktree；除明确标记外均 clean。所有资源保持原状。
+当前观察到 32 个 worktree；除明确标记外均 clean。所有资源保持原状。
 
 | Worktree | Branch | HEAD | State |
 | --- | --- | --- | --- |
@@ -190,6 +194,8 @@ AI A/V 虽已接受候选，但候选尚未基于当前 `main` 完成重建与�
 | `/Users/acehood/.codex/worktrees/1d99/oes` | detached | `0a321c0d35442a0cf94956734f33cf5fab696f88` | clean |
 | `/Users/acehood/.codex/worktrees/229b/oes` | detached | `c7ab0d9cf6767e63c499e7fc15a3d9d725b45cfc` | clean |
 | `/Users/acehood/Documents/GitHub/oes/.worktrees/program-control/migration` | `codex/oes-program-control-migration` | live branch ref；inventory checkpoint `1f5fdd69` | clean；替代已回收的 Codex 临时 worktree |
+| `/Users/acehood/Documents/GitHub/oes/.worktrees/migration/ai-platform-completion` | `codex/migration/ai-platform-completion` | `94094fe57a8d2f18750ef712f2730015be2d9514` | clean；AI rebuilt candidate |
+| `/Users/acehood/Documents/GitHub/oes/.worktrees/integration/main-queue` | `codex/integration/main-queue` | `94094fe57a8d2f18750ef712f2730015be2d9514` | clean；唯一持久 I&V 固定工作面 |
 | `/Users/acehood/.codex/worktrees/44ef/oes` | `codex/exec-crypto/i06-auth-tg2-remediation` | `64ea8660687bbeb24349d11bcaed6f63d2373c4b` | clean |
 | `/Users/acehood/.codex/worktrees/475d/oes` | detached | `ddab5e77fdc7240750039c430f48a0e6fd76ab62` | clean |
 | `/Users/acehood/.codex/worktrees/4853/oes` | detached | `a0310fbbee37b7d17456e3a7f1bf6ea846c4dfb3` | clean |
@@ -242,6 +248,8 @@ AI A/V 虽已接受候选，但候选尚未基于当前 `main` 完成重建与�
 | `codex/grpc/i03-gateway-trusted-execution-producer` | `6973bcda1484ac2fccc522f5d8ee70dc989c7541` |
 | `codex/grpc/i04-source-credential-carrier` | `dced77ad8cb877ea9aad10f1c6a310ad32a924df` |
 | `codex/grpc/x01-integration` | `78329db36f13be30f293f2666720180da8991faa` |
+| `codex/integration/main-queue` | `94094fe57a8d2f18750ef712f2730015be2d9514` |
+| `codex/migration/ai-platform-completion` | `94094fe57a8d2f18750ef712f2730015be2d9514` |
 | `codex/oes-program-control-migration` | live branch ref；inventory checkpoint `1f5fdd690af817f8e9bb092fbafb769a31b2e1a6` |
 | `codex/trusted-grpc-execution-context/d-freeze` | `7500bd66d3e11b7a39bb0de052141efe4bfa0d09` |
 
@@ -258,6 +266,14 @@ AI A/V 虽已接受候选，但候选尚未基于当前 `main` 完成重建与�
 - `git merge-base --is-ancestor`：ActionGrant 三段 commit chain 顺序成立。
 - 上节列出的所有 truth-source 文件均存在。
 
+`AI_CANDIDATE_READY` 登记时新增只读验证：
+
+- `git rev-parse`：确认 rebuilt candidate `94094fe57…` 的 parent 为当前 `main@65e49258…`，branch ref 与固定 worktree HEAD 一致且 clean。
+- `git diff --stat/--name-status`：确认相对 parent 仅新增两个 registrations 文件，共 272 行。
+- `git rev-parse <candidate>:<path>`：确认两个 rebuilt blob 分别与 accepted legacy candidate 对应 blob 完全一致。
+- `git worktree list --porcelain` / `git for-each-ref`：AI candidate 登记时资源计数为 31 worktrees / 25 `codex/*` branches；唯一 I&V 固定工作面建立后为 32 / 26。
+- JSON parse、既有 contract tests 5/5 与 root-protection checks 为 implementation handoff evidence；Program Control 未重复运行测试。
+
 本轮没有运行 build、test、lint、安全审计或 acceptance；对应结果均仅作为 handoff evidence 保留，后续候选交付必须在精确重建后的 SHA 上重新验证。
 
 ## 9. Discrepancy register
@@ -266,9 +282,9 @@ AI A/V 虽已接受候选，但候选尚未基于当前 `main` 完成重建与�
 | --- | --- | --- | --- |
 | MIG-D01 | GRPC Asset handoff worktree path 当前绑定 carrier branch/HEAD，而不是 Asset branch/candidate | 不得把该 path 误作 Asset writer；后续恢复 Asset 前需显式选择/建立正确工作面 | 保留全部 refs/worktree，不修改 |
 | MIG-D02 | API-KEY x01 integration worktree 有 2 个未跟踪 domain 文件 | 禁止把该 worktree 当作可直接清理资源；需先确认文件来源与保留方式 | 保留 dirty state，不读取线程、不清理 |
-| MIG-D03 | 当前资源计数为 30 worktrees / 24 `codex/*` branches，高于 handoff 的 29/23 | 差额来自本 Program Control 隔离工作树/分支，并非旧资源漂移 | 在全局快照显式对账 |
+| MIG-D03 | 当前资源计数为 32 worktrees / 26 `codex/*` branches，高于 handoff 的 29/23 | 差额来自本 Program Control、AI Platform completion 与 Integration & Verification 的隔离工作树/分支，并非旧资源漂移 | 在全局快照显式对账 |
 | MIG-D04 | API-KEY、EVENT、EXEC-REVOKE 的具体 source thread IDs 未包含在 compact bundle | 台账只能保留 capability 状态与 Git evidence，不能形成完整 thread-level archive manifest | 不唤醒旧线程；等待后续显式补充或按现有证据形成 closure summary |
 
 ## 10. 下一阶段入口
 
-本草案需先由用户/legacy handoff owner 复核。复核前保持所有资源原状，不创建 Unified Design、实现或 Integration & Verification 线程。通过复核后，Program Control 才能根据第 6 节的排序建立稳定 write-ownership lease 与后续派发清单。
+用户已确认继续迁移。唯一持久 Unified Design 任务 `019fcaeb-cb2e-7e92-8c4e-aab7771d7254` 已完成首轮只读梳理，当前等待用户确认方案 A；确认前不得推进 Permission/ActionGrant 文档写入。唯一持久 Integration & Verification 任务 `019fcaf2-ca7b-7140-b46d-b6cacae58556` 已启动，正串行验收 AI rebuilt candidate `94094fe57…`；本阶段不创建其他任务、不启用 checker，也不恢复旧 capability 任务。
