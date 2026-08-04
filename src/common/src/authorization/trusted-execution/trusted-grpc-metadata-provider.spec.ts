@@ -5,16 +5,22 @@ import {
   createTrustedExecutionContext
 } from './trusted-execution-context'
 import {
+  AsyncLocalTransportPrivateSourceCredentialAccessor,
+  TransportPrivateSourceCredentialIssuer
+} from './transport-private-source-credential'
+import {
   ExecutionTokenExchangeClient,
   TrustedGrpcMetadataProvider
 } from './trusted-grpc-metadata-provider'
 import { TrustedExecutionRegistry } from './trusted-execution-registry'
+import { ExecutionTokenExchangeSourceCredentialCarrier } from '../../transport/grpc/execution-token-exchange-source-credential.carrier'
 
 const NOW_SECONDS = 1_800_000_000
 const AUDIENCE = 'urn:oes:service:asset-service'
 const SPIFFE_ID = 'spiffe://local.oes/ns/oes/sa/api-gateway'
 const THUMBPRINT = 'n4bQgYhMfWWaL-qgxVrQFaO_Tc3T6Wf6Qpq5bKz7g8A'
 const TRACEPARENT = '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01'
+const SOURCE_CREDENTIAL = 'verified.session.source-credential'
 
 /** Builds one immutable HUMAN execution root for metadata-provider tests. */
 function executionContext(tenantId = 'tenant-123') {
@@ -34,6 +40,8 @@ function executionContext(tenantId = 'tenant-123') {
 /** Builds the provider with a controllable exchange port and local certificate identity. */
 function providerFixture(exchange: ExecutionTokenExchangeClient) {
   const contextAccessor = new AsyncLocalTrustedExecutionContextAccessor()
+  const sourceCredentialAccessor = new AsyncLocalTransportPrivateSourceCredentialAccessor()
+  const sourceCredentialIssuer = new TransportPrivateSourceCredentialIssuer()
   let certificateThumbprint = THUMBPRINT
   const provider = new TrustedGrpcMetadataProvider({
     contextAccessor,
@@ -47,6 +55,9 @@ function providerFixture(exchange: ExecutionTokenExchangeClient) {
       refreshMarginSeconds: 30
     }),
     exchangeClient: exchange,
+    sourceCredentialCarrier: new ExecutionTokenExchangeSourceCredentialCarrier(
+      sourceCredentialAccessor
+    ),
     localWorkloadIdentity: {
       getVerifiedWorkloadIdentity: async () => ({
         spiffeId: SPIFFE_ID,
@@ -59,6 +70,15 @@ function providerFixture(exchange: ExecutionTokenExchangeClient) {
   return {
     contextAccessor,
     provider,
+    run: <T>(
+      context: ReturnType<typeof executionContext>,
+      callback: () => T,
+      sourceCredential = SOURCE_CREDENTIAL
+    ) =>
+      sourceCredentialAccessor.run(
+        sourceCredentialIssuer.issueVerifiedSessionAccessCredential(sourceCredential),
+        () => contextAccessor.run(context, callback)
+      ),
     rotateCertificate: () => {
       certificateThumbprint = 'A'.repeat(43)
     }
@@ -81,18 +101,24 @@ describe('TrustedGrpcMetadataProvider', () => {
     }
     const fixture = providerFixture(exchange)
 
-    const metadata = await fixture.contextAccessor.run(executionContext(), () =>
+    const metadata = await fixture.run(executionContext(), () =>
       fixture.provider.forBusinessCall(AUDIENCE, ['asset.write', ' asset.read '])
     )
 
-    expect(exchange.exchange).toHaveBeenCalledWith({
-      targetAudience: AUDIENCE,
-      requestedPermissionCodes: ['asset.read', 'asset.write']
-    })
+    expect(exchange.exchange).toHaveBeenCalledWith(
+      {
+        targetAudience: AUDIENCE,
+        requestedPermissionCodes: ['asset.read', 'asset.write']
+      },
+      expect.any(Metadata)
+    )
     expect(Object.keys((exchange.exchange as jest.Mock).mock.calls[0][0])).toEqual([
       'targetAudience',
       'requestedPermissionCodes'
     ])
+    const exchangeMetadata = (exchange.exchange as jest.Mock).mock.calls[0][1] as Metadata
+    expect(exchangeMetadata.get('authorization')).toEqual([`Bearer ${SOURCE_CREDENTIAL}`])
+    expect(exchangeMetadata.get('x-operator-context')).toEqual([])
     expect(metadata).toBeInstanceOf(Metadata)
     expect(metadata.get('authorization')).toEqual(['Bearer e30.e30.c2ln'])
     expect(metadata.get('x-request-id')).toEqual(['request-123'])
@@ -101,6 +127,8 @@ describe('TrustedGrpcMetadataProvider', () => {
     expect(metadata.get('tracestate')).toEqual(['vendor=value'])
     expect(metadata.get('x-internal-service-name')).toEqual([])
     expect(metadata.get('x-operator-context')).toEqual([])
+    expect(JSON.stringify(executionContext())).not.toContain(SOURCE_CREDENTIAL)
+    expect(JSON.stringify(metadata.getMap())).not.toContain(SOURCE_CREDENTIAL)
   })
 
   it('reuses only an exact authority and current certificate binding', async () => {
@@ -121,17 +149,19 @@ describe('TrustedGrpcMetadataProvider', () => {
     }
     const fixture = providerFixture(exchange)
 
-    await fixture.contextAccessor.run(executionContext(), () =>
+    await fixture.run(executionContext(), () =>
       fixture.provider.forInternalCall(AUDIENCE, ['asset.internal.resolve'])
     )
-    await fixture.contextAccessor.run(executionContext(), () =>
-      fixture.provider.forInternalCall(AUDIENCE, ['asset.internal.resolve'])
+    await fixture.run(
+      executionContext(),
+      () => fixture.provider.forInternalCall(AUDIENCE, ['asset.internal.resolve']),
+      'rotated.session.source-credential'
     )
-    await fixture.contextAccessor.run(executionContext('tenant-456'), () =>
+    await fixture.run(executionContext('tenant-456'), () =>
       fixture.provider.forInternalCall(AUDIENCE, ['asset.internal.resolve'])
     )
     fixture.rotateCertificate()
-    await fixture.contextAccessor.run(executionContext(), () =>
+    await fixture.run(executionContext(), () =>
       fixture.provider.forInternalCall(AUDIENCE, ['asset.internal.resolve'])
     )
 
@@ -152,18 +182,17 @@ describe('TrustedGrpcMetadataProvider', () => {
     }
     const fixture = providerFixture(exchange)
 
-    await fixture.contextAccessor.run(executionContext(), () =>
-      fixture.provider.forSelfServiceCall(AUDIENCE)
-    )
+    await fixture.run(executionContext(), () => fixture.provider.forSelfServiceCall(AUDIENCE))
 
-    expect(exchange.exchange).toHaveBeenCalledWith({
-      targetAudience: AUDIENCE,
-      requestedPermissionCodes: []
-    })
+    expect(exchange.exchange).toHaveBeenCalledWith(
+      {
+        targetAudience: AUDIENCE,
+        requestedPermissionCodes: []
+      },
+      expect.any(Metadata)
+    )
     await expect(
-      fixture.contextAccessor.run(executionContext(), () =>
-        fixture.provider.forBusinessCall(AUDIENCE, [])
-      )
+      fixture.run(executionContext(), () => fixture.provider.forBusinessCall(AUDIENCE, []))
     ).rejects.toThrow('BUSINESS')
   })
 
@@ -186,6 +215,11 @@ describe('TrustedGrpcMetadataProvider', () => {
     )
     await expect(
       fixture.contextAccessor.run(executionContext(), () =>
+        fixture.provider.forBusinessCall(AUDIENCE, ['asset.read'])
+      )
+    ).rejects.toThrow('source credential')
+    await expect(
+      fixture.run(executionContext(), () =>
         fixture.provider.forBusinessCall(AUDIENCE, ['asset.read'])
       )
     ).rejects.toThrow('audience')

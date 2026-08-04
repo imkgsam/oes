@@ -16,6 +16,7 @@ import {
 } from './trusted-execution-context'
 import { TrustedExecutionRegistry } from './trusted-execution-registry'
 import { VerifiedWorkloadIdentity } from './execution-token-verifier'
+import { ExecutionTokenExchangeSourceCredentialCarrier } from '../../transport/grpc/execution-token-exchange-source-credential.carrier'
 
 /** Carries exactly the two caller-prepared fields admitted by the frozen STS wire contract. */
 export type ExecutionTokenExchangeRequest = {
@@ -36,7 +37,10 @@ export type ExecutionTokenExchangeResult = {
 
 /** Abstracts the trusted Auth client while preventing identity or tenant facts from entering its request DTO. */
 export interface ExecutionTokenExchangeClient {
-  exchange(request: ExecutionTokenExchangeRequest): Promise<ExecutionTokenExchangeResult>
+  exchange(
+    request: ExecutionTokenExchangeRequest,
+    metadata: Metadata
+  ): Promise<ExecutionTokenExchangeResult>
 }
 
 /** Resolves the current process workload and leaf-certificate binding from trusted deployment transport. */
@@ -50,6 +54,7 @@ export type TrustedGrpcMetadataProviderOptions = {
   readonly registry: TrustedExecutionRegistry
   readonly tokenCache: CertificateBoundExecutionTokenCache
   readonly exchangeClient: ExecutionTokenExchangeClient
+  readonly sourceCredentialCarrier: ExecutionTokenExchangeSourceCredentialCarrier
   readonly localWorkloadIdentity: LocalWorkloadIdentityProvider
   readonly now?: () => number
 }
@@ -60,6 +65,7 @@ export class TrustedGrpcMetadataProvider {
   private readonly registry: TrustedExecutionRegistry
   private readonly tokenCache: CertificateBoundExecutionTokenCache
   private readonly exchangeClient: ExecutionTokenExchangeClient
+  private readonly sourceCredentialCarrier: ExecutionTokenExchangeSourceCredentialCarrier
   private readonly localWorkloadIdentity: LocalWorkloadIdentityProvider
   private readonly now: () => number
 
@@ -68,6 +74,7 @@ export class TrustedGrpcMetadataProvider {
     this.registry = options.registry
     this.tokenCache = options.tokenCache
     this.exchangeClient = options.exchangeClient
+    this.sourceCredentialCarrier = options.sourceCredentialCarrier
     this.localWorkloadIdentity = options.localWorkloadIdentity
     this.now = options.now ?? (() => Math.floor(Date.now() / 1000))
   }
@@ -100,6 +107,7 @@ export class TrustedGrpcMetadataProvider {
     permissionCodes: readonly string[]
   ): Promise<Metadata> {
     const context = this.contextAccessor.requireCurrent()
+    this.sourceCredentialCarrier.assertCurrent()
     this.registry.assertAudience(targetAudience)
     const normalizedPermissionCodes = normalizePermissionCodes(mode, permissionCodes)
     const workloadIdentity = await this.localWorkloadIdentity.getVerifiedWorkloadIdentity()
@@ -118,7 +126,10 @@ export class TrustedGrpcMetadataProvider {
         targetAudience,
         requestedPermissionCodes: Object.freeze(normalizedPermissionCodes)
       })
-      const exchanged = await this.exchangeClient.exchange(request)
+      const exchanged = await this.exchangeClient.exchange(
+        request,
+        this.sourceCredentialCarrier.createMetadata(context)
+      )
       const validated = validateExchangeResult(
         exchanged,
         targetAudience,
