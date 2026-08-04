@@ -71,7 +71,7 @@ programControlBranch: codex/oes-program-control-migration
 - next-queue preflight：carrier 可作为唯一 I&V lane 的下一候选主题，但精确 candidate 的 parent 为 `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116`，当前 `main@94094fe57…` 与其为 `1/1` 分叉；在 ff-only gate 下，派发前必须先形成基于届时 current main 的精确 rebuilt candidate。本轮只登记序位与 gate，不派发任务。
 - discrepancy：handoff 指定的 Asset retained writer worktree `/Users/acehood/Documents/GitHub/oes/.worktrees/grpc/i03-gateway-trusted-execution-producer` 当前实际绑定 carrier branch，并位于 `dced77ad8cb877ea9aad10f1c6a310ad32a924df`；Asset branch/candidate 仍保留，但当前没有绑定该 branch 的 worktree。
 
-### 4.2 PRINCIPAL-ROLE / Permission — `DESIGN_GAP_RETURNED`（legacy resources `MIGRATION_FROZEN`）
+### 4.2 PRINCIPAL-ROLE / Permission — `REPLACEMENT_CANDIDATE_READY`（legacy resources `MIGRATION_FROZEN`）
 
 - source threads：control `019fc879-f423-7b10-80ff-93557a6f51c7`；design `019fa287-0043-74d3-afbf-d12252837d9b`；decision-RPC A/I `019fc87b-1859-7ef2-88a6-a89c9a087024`。
 - legacy workspace：`/Users/acehood/.codex/worktrees/bf83/oes`；branch `codex/acprincipalrole-principalrolebinding-command`；HEAD `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116`；clean；只作历史引用。
@@ -81,8 +81,11 @@ programControlBranch: codex/oes-program-control-migration
 - frozen semantics：`ResolveWorkloadIssuance` 是唯一 mTLS-only Auth bootstrap issuance-decision entry；Permission 决策、Auth 签发 ExecutionToken；`ResolvePrincipalAuthorization` 要求 mTLS、Permission-audience ExecutionToken 与精确 INTERNAL Code；BUSINESS/INTERNAL issuance 为 all-or-nothing；SELF_SERVICE、resource facts 与 domain rules 不进入 principal resolver。
 - I&V terminal：唯一持久 Integration & Verification 任务 `019fcaf2-ca7b-7140-b46d-b6cacae58556` 返回 `DESIGN_GAP`。结构 gate、104 个本地 Markdown 链接、四条其余冻结语义、服务真相源引用和 contract/architecture 命名检查通过；未执行 fetch、root merge 或 push。
 - design gap：`docs/architecture/services/permission-service.md` 同一小节第 173 行要求 `ResolvePrincipalAuthorization` 验证 Permission-audience ExecutionToken，第 175 行又声明 Permission 不“消费 ExecutionToken”，与冻结语义及 feature packet 的 ExecutionToken-protected resolver 表述直接冲突。唯一服务真相源必须先消除该歧义并重建 candidate。
-- integration state：root `main`、本地/远端 `origin/main` 保持 `94094fe57…` 且 clean；固定 I&V worktree 已 ff-only 前移到 rejected design candidate `4f78cec8…` 并保持 clean。不得创建 Permission implementation 或 GRPC carrier rebuild。
-- target ownership：候选已退回同一 Unified Design 任务修正文档一致性；修正候选再次通过并集成后，Unified Design 才继续 ActionGrant completion，Platform Security 才可取得 Permission decision RPC implementation lease。
+- replacement candidate：`codex/unified-design/security-open-packets@fe395fb5254a620108882494eb601cfe00fd5701`；direct parent `4f78cec80b133fd186079fefc6b78ba42be86c28`；base ancestor/current root main `94094fe57a8d2f18750ef712f2730015be2d9514`；worktree clean。
+- correction scope：只修改 `docs/architecture/services/permission-service.md`，1 insertion / 1 deletion；删除“不消费 ExecutionToken”的歧义，明确 Permission 不签发、不存储、不记录 Token 正文，但 `ResolvePrincipalAuthorization` 必须按受保护 resolver 契约验证随请求提交的 ExecutionToken。未改变冻结方案 A，也未改写 rejected commit。
+- cumulative scope：相对 base `94094fe57…` 仍为精确 10 个 `docs/**` 文件，96 insertions / 27 deletions；非 docs 路径为 0。base ancestry、diff check、UTF-8、104 links 与五条冻结语义检查均为 exit 0 handoff evidence。
+- integration state：root `main`、本地/远端 `origin/main` 保持 `94094fe57…` 且 clean；replacement 等待同一持久 I&V 再验收。不得创建 Permission implementation 或 GRPC carrier rebuild。
+- target ownership：correction 写入 lease 已完成并释放；replacement 由 I&V 串行消费。通过并集成后，Unified Design 才继续 ActionGrant completion，Platform Security 才可取得 Permission decision RPC implementation lease。
 
 ### 4.3 EXEC-CRYPTO — `MIGRATION_FROZEN`
 
@@ -159,7 +162,7 @@ programControlBranch: codex/oes-program-control-migration
 ## 6. 建议交付顺序（仅迁移排序，不是治理冻结）
 
 1. AI rebuilt candidate `94094fe57…` 已完成独立验收、ff-only 集成与一次 main push。
-2. Principal Authorization design candidate `4f78cec8…` 因唯一服务真相源内部 ExecutionToken 表述冲突返回 `DESIGN_GAP`；同一 Unified Design 任务修正并形成 replacement candidate 后，再进入持久 I&V lane。
+2. Principal Authorization replacement candidate `fe395fb5…` 已消除 MIG-D06 歧义，等待同一持久 I&V lane 复验并在 gate 通过时 ff-only 集成。
 3. 设计候选集成后，同一 Unified Design 任务继续 ActionGrant completion；Program Control 最多创建一个具有稳定 Platform Security ownership 的 Permission decision RPC implementation 任务。
 4. GRPC carrier 在新的 main 已知后形成 current-main rebuilt candidate，再进入持久 I&V lane。
 5. Platform Security 串行完成 Permission decision RPC 与后续 Auth STS；GRPC Asset 再同步、重建、复验、集成。
@@ -183,7 +186,8 @@ AI legacy A/V 与 migration implementation 任务已有完整重建、独立 I&V
 | GRPC carrier | `codex/grpc/i04-source-credential-carrier@dced77ad8cb877ea9aad10f1c6a310ad32a924df` | 待验收/集成 |
 | GRPC Asset | `codex/grpc/i03-gateway-trusted-execution-producer@6973bcda1484ac2fccc522f5d8ee70dc989c7541` | 待 Platform Security 后重建复验 |
 | Permission decision legacy workspace | `codex/acprincipalrole-principalrolebinding-command@65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` | 保留旧上下文；不恢复旧任务 |
-| Principal Authorization rejected design candidate | `codex/unified-design/security-open-packets@4f78cec80b133fd186079fefc6b78ba42be86c28` | 保留 DESIGN_GAP 证据；等待同一 Unified Design replacement candidate |
+| Principal Authorization rejected design candidate | `4f78cec80b133fd186079fefc6b78ba42be86c28` | 保留 DESIGN_GAP 证据；已由同 branch 的 replacement supersede |
+| Principal Authorization replacement candidate | `codex/unified-design/security-open-packets@fe395fb5254a620108882494eb601cfe00fd5701` | 最小修正完成，等待独立 I&V/集成 |
 | EXEC-CRYPTO writer | `codex/exec-crypto/i06-auth-tg2-remediation@64ea8660687bbeb24349d11bcaed6f63d2373c4b` | 保留上下文；无替代 candidate |
 | EXEC-CRYPTO rejected candidate | `c7ab0d9cf6767e63c499e7fc15a3d9d725b45cfc` | 保留拒绝证据 |
 | AI accepted legacy candidate | `codex/ai-platform/i01-tool-contract-registration@6101933d3f054989e6dbfca27889a7141db16075` | 保留历史验收与 blob 对照证据 |
@@ -204,7 +208,7 @@ AI legacy A/V 与 migration implementation 任务已有完整重建、独立 I&V
 | `/Users/acehood/Documents/GitHub/oes/.worktrees/program-control/migration` | `codex/oes-program-control-migration` | live branch ref；inventory checkpoint `1f5fdd69` | clean；替代已回收的 Codex 临时 worktree |
 | `/Users/acehood/Documents/GitHub/oes/.worktrees/migration/ai-platform-completion` | `codex/migration/ai-platform-completion` | `94094fe57a8d2f18750ef712f2730015be2d9514` | clean；AI rebuilt candidate |
 | `/Users/acehood/Documents/GitHub/oes/.worktrees/integration/main-queue` | `codex/integration/main-queue` | `4f78cec80b133fd186079fefc6b78ba42be86c28` | clean；I&V 已前移到 rejected design candidate，root main 未变 |
-| `/Users/acehood/Documents/GitHub/oes/.worktrees/unified-design/security-open-packets` | `codex/unified-design/security-open-packets` | `4f78cec80b133fd186079fefc6b78ba42be86c28` | clean；Principal Authorization frozen design candidate |
+| `/Users/acehood/Documents/GitHub/oes/.worktrees/unified-design/security-open-packets` | `codex/unified-design/security-open-packets` | `fe395fb5254a620108882494eb601cfe00fd5701` | clean；Principal Authorization replacement candidate |
 | `/Users/acehood/.codex/worktrees/44ef/oes` | `codex/exec-crypto/i06-auth-tg2-remediation` | `64ea8660687bbeb24349d11bcaed6f63d2373c4b` | clean |
 | `/Users/acehood/.codex/worktrees/475d/oes` | detached | `ddab5e77fdc7240750039c430f48a0e6fd76ab62` | clean |
 | `/Users/acehood/.codex/worktrees/4853/oes` | detached | `a0310fbbee37b7d17456e3a7f1bf6ea846c4dfb3` | clean |
@@ -261,7 +265,7 @@ AI legacy A/V 与 migration implementation 任务已有完整重建、独立 I&V
 | `codex/migration/ai-platform-completion` | `94094fe57a8d2f18750ef712f2730015be2d9514` |
 | `codex/oes-program-control-migration` | live branch ref；inventory checkpoint `1f5fdd690af817f8e9bb092fbafb769a31b2e1a6` |
 | `codex/trusted-grpc-execution-context/d-freeze` | `7500bd66d3e11b7a39bb0de052141efe4bfa0d09` |
-| `codex/unified-design/security-open-packets` | `4f78cec80b133fd186079fefc6b78ba42be86c28` |
+| `codex/unified-design/security-open-packets` | `fe395fb5254a620108882494eb601cfe00fd5701` |
 
 ## 8. 本轮验证记录
 
@@ -300,6 +304,13 @@ AI legacy A/V 与 migration implementation 任务已有完整重建、独立 I&V
 - 唯一失败项是 Permission 服务真相源第 173/175 行对 ExecutionToken “必须验证”与“不消费”的直接矛盾。
 - I&V 未执行 fetch、root merge 或 push；root、本地/远端 main 均保持 `94094fe57…`，root 与 I&V worktree clean。
 
+`PRINCIPAL_AUTHORIZATION_REPLACEMENT_READY` 登记时新增只读验证：
+
+- replacement `fe395fb5…` 的 direct parent 为 rejected candidate `4f78cec8…`，base `94094fe57…` ancestry check exit 0；Unified Design worktree clean。
+- correction commit 仅修改 Permission 服务真相源 1 个文件，1 insertion / 1 deletion；未改写、重排或删除 rejected commit。
+- 相对 base 的累计候选仍精确为 10 个 `docs/**` 文件、96 insertions / 27 deletions，非 docs 路径为 0。
+- root `main` 与本地 `origin/main` 保持 `94094fe57…` 且 clean；未集成、未 push、未开始 ActionGrant。
+
 本轮没有运行 build、test、lint、安全审计或 acceptance；对应结果均仅作为 handoff evidence 保留，后续候选交付必须在精确重建后的 SHA 上重新验证。
 
 ## 9. Discrepancy register
@@ -311,8 +322,8 @@ AI legacy A/V 与 migration implementation 任务已有完整重建、独立 I&V
 | MIG-D03 | 当前资源计数为 33 worktrees / 27 `codex/*` branches，高于 handoff 的 29/23 | 差额来自本 Program Control、AI Platform completion、Integration & Verification 与 Unified Design 的隔离工作树/分支，并非旧资源漂移 | 在全局快照显式对账 |
 | MIG-D04 | API-KEY、EVENT、EXEC-REVOKE 的具体 source thread IDs 未包含在 compact bundle | 台账只能保留 capability 状态与 Git evidence，不能形成完整 thread-level archive manifest | 不唤醒旧线程；等待后续显式补充或按现有证据形成 closure summary |
 | MIG-D05 | GRPC carrier `dced77ad…` 的 parent 为 `65e49258…`，当前 main 已推进至 `94094fe57…`，两者为 `1/1` 分叉 | 旧 SHA 不能通过持久 I&V lane 的 ff-only integration gate | 保留原 candidate 证据；派发前先形成基于届时 current main 的精确 rebuilt candidate |
-| MIG-D06 | Principal Authorization candidate `4f78cec8…` 的 Permission 服务真相源同时要求验证 ExecutionToken 又声明不消费 ExecutionToken | 冻结语义在唯一真相源中自相矛盾，不能进入 main 或实现 | 返回同一 Unified Design 任务消除歧义并形成 replacement candidate；无需新设计任务 |
+| MIG-D06 | Principal Authorization candidate `4f78cec8…` 的 Permission 服务真相源同时要求验证 ExecutionToken 又声明不消费 ExecutionToken | 首个 candidate 不能进入 main 或实现 | replacement `fe395fb5…` 已最小修正该表述；等待独立 I&V 复验后关闭 discrepancy |
 
 ## 10. 下一阶段入口
 
-用户已确认 Principal Authorization 方案 A，但首个 frozen candidate `4f78cec8…` 被独立 I&V 以 `DESIGN_GAP` 退回。当前唯一动作是由同一 OES Unified Design 任务 `019fcaeb-cb2e-7e92-8c4e-aab7771d7254` 修正 MIG-D06 的唯一真相源表述并形成 replacement candidate；不新建设计任务。replacement candidate accepted/integrated 前，不创建 Permission implementation、GRPC rebuild 或其他任务，也不继续 ActionGrant 写入。GRPC carrier 继续受 MIG-D05 current-main rebuilt gate 约束。不启用 checker，也不恢复旧 capability 任务。
+Principal Authorization replacement candidate `fe395fb5…` 已由同一 OES Unified Design 任务形成，且保持方案 A 与 10 文档累计范围。当前唯一动作是复用持久 I&V 任务 `019fcaf2-ca7b-7140-b46d-b6cacae58556` 再验收 replacement，并在全部 gate 通过时 ff-only 集成。accepted/integrated 前，不创建 Permission implementation、GRPC rebuild 或其他任务，也不继续 ActionGrant 写入。GRPC carrier 继续受 MIG-D05 current-main rebuilt gate 约束。不启用 checker，也不恢复旧 capability 任务。
