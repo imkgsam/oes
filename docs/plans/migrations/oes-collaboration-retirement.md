@@ -154,6 +154,11 @@ programControlBranch: codex/oes-program-control-migration
 - task archive：implementation task `019fd13b-18a3-7be3-bdb9-972c7b8a4c89` 已在 terminal 证据消费后归档。
 - MACHINE boundary：current verifier 仅接受 active HUMAN session/access credential；MACHINE、DELEGATED、API-key、AI、ActionGrant 与多跳 subject ExecutionToken fail closed。MACHINE/workload source-verifier completion 仍是 GRPC Asset `ALL_CALLERS_READY`、token-only server cutover与完整服务迁移的前置。
 - next route：下一非 AI foundation 是 MACHINE/workload source-verifier completion；完成并验收前不创建 GRPC Asset rebuild task。
+- MACHINE implementation task：`OES Implementation · MACHINE Workload Source Verifier`，thread `019fd240-7062-76c3-a183-56e363e8fee4`，host `local`；标题已设置并读回，首次即时快照为 active，cwd 为只读 root且正在先读冻结真相源。
+- MACHINE fixed worktree：`/Users/acehood/Documents/GitHub/oes/.worktrees/migration/machine-workload-source-verifier`；branch `codex/migration/machine-workload-source-verifier`；base `1ca24f417a2d06bce8be79d4c8ed67bc6c518a65`。派发前确认 `.worktrees` ignored、目标 branch/worktree 不存在；首次快照时仍由任务待创建。
+- MACHINE provisional lease：仅允许 Auth/Platform Security 内与 verified mTLS/SPIFFE workload source identity、execution-token source verifier、signing boundary 及其定向 tests 直接相关的最小路径；任务必须在写入前完成 exact ownership audit并登记最终路径。proto/docs/Common/Permission、HUMAN slice与其他 Auth 能力默认受保护。
+- MACHINE design-gap gate：若 frozen DG-1 sources 不能唯一决定 workload source credential 与 verified workload identity 的绑定，或 subject/audience 表示方式，必须返回一个精确 gap 给 Unified Design，不得自行发明 contract、claim、proto 或公共抽象。
+- MACHINE security gate：requested INTERNAL Codes 只是请求，必须为 authoritative `ResolveWorkloadIssuance` granted subset；mismatch、unknown workload、requested-not-granted、tenant/org/scope/audience/cert-binding failures 均须在 signer 前 fail closed。DELEGATED、API-key、AI、ActionGrant、GRPC Asset、业务 feature与 public external opening禁止写入。
 - next route decision：EXEC-CRYPTO remediation 先于 GRPC Asset。原因是 Asset 明确等待 Platform Security 落地，而 EXEC-CRYPTO 的两项已登记依赖现已满足。
 - target ownership：Platform Security 独占上述 provisional lease；当前无并发 Auth writer。
 
@@ -370,7 +375,7 @@ AI legacy A/V 与 migration implementation 任务已有完整重建、独立 I&V
 
 branch refs 共 30：23 个 branch HEAD 已是 current main ancestor；7 个非 ancestor refs 已全部分类为 deferred ActionGrant runtime、AI legacy accepted evidence、API-KEY rejected prototype evidence、EXEC-CRYPTO legacy checkpoint、GRPC Asset candidate、原 GRPC carrier candidate 与 Program Control migration ledger。不存在未分类 branch ref。
 
-任务处置快照：handoff registry 仍登记 101 个 legacy formal A/* tasks，最终均须在直接证据消费后归档；最近 50 项应用快照可见其中 24 个 legacy A/* tasks，另可见 legacy Global Command 1 个。MIG-D04 导致部分 capability 缺少逐 task IDs，因此当前 thread archive manifest 尚未完整，不能把 101 项声明为已具备逐项归档条件。本轮未唤醒、归档或删除旧 capability 任务；checker 为 0。AI、Permission、GRPC rebuild 与 EXEC-CRYPTO remediation implementation tasks 均已归档，共 4 个 completed migration implementation tasks。持久 I&V idle；Program Control 与 Unified Design 继续保留到对应迁移职责结束。
+任务处置快照：handoff registry 仍登记 101 个 legacy formal A/* tasks，最终均须在直接证据消费后归档；最近 50 项应用快照可见其中 24 个 legacy A/* tasks，另可见 legacy Global Command 1 个。MIG-D04 导致部分 capability 缺少逐 task IDs，因此当前 thread archive manifest 尚未完整，不能把 101 项声明为已具备逐项归档条件。本轮未唤醒、归档或删除旧 capability 任务；checker 为 0。AI、Permission、GRPC rebuild 与 EXEC-CRYPTO remediation implementation tasks 均已归档，共 4 个 completed migration implementation tasks。MACHINE workload source-verifier task `019fd240-7062-76c3-a183-56e363e8fee4` active；持久 I&V idle，Program Control 与 Unified Design 继续保留到对应迁移职责结束。
 
 当前全局清理 blocker 共 4 类：MACHINE/workload source-verifier completion 与后续 GRPC Asset current-main rebuild/integration、EXEC-CRYPTO legacy checkpoint/rejected evidence disposition、deferred ActionGrant runtime candidate 的持久 disposition、Program Control ledger 集成与完整 thread archive manifest。API-KEY content-loss blocker 已转为 clean durable evidence ref，不再单独阻塞内容保全；仍随 final manifest 执行统一清理。任一 blocker 未关闭前，所有 worktree/branch 删除数保持 0。
 
@@ -502,4 +507,4 @@ EXEC-CRYPTO HUMAN foundation I&V terminal evidence：
 
 ## 10. 下一阶段入口
 
-EXEC-CRYPTO HUMAN-only foundation `1ca24f41…` 已 `ACCEPTED_AND_INTEGRATED`，本地与远端 main 一致，implementation task 已归档。当前迁移阶段为 `EXEC_CRYPTO_HUMAN_INTEGRATED_MACHINE_WORKLOAD_NEXT`：下一非 AI foundation 是 MACHINE/workload source-verifier completion；完成并验收前不得推进 GRPC Asset `ALL_CALLERS_READY`、token-only cutover或 current-main rebuild。GRPC Asset `6973bcda…` 与 main 为 `9/1` 分叉。retained `64ea8660…` 与 rejected `c7ab0d9c…` 仅作 evidence；AI/ActionGrant runtime 保持 deferred，API-KEY `755d857a…` 不进入 main。删除数保持 0，不启用 checker，也不恢复旧 capability 任务。
+EXEC-CRYPTO HUMAN-only foundation `1ca24f41…` 已 `ACCEPTED_AND_INTEGRATED`。当前迁移阶段为 `MACHINE_WORKLOAD_SOURCE_VERIFIER_ACTIVE`：单一 implementation task `019fd240-7062-76c3-a183-56e363e8fee4` 已启动，基于 current main 审计并完成 MACHINE/workload source-verifier；若 workload identity/subject/audience binding 未被冻结真相源唯一决定，则返回 Unified Design gap。完成并验收前不得推进 GRPC Asset `ALL_CALLERS_READY`、token-only cutover或 current-main rebuild。GRPC Asset `6973bcda…` 与 main 为 `9/1` 分叉；AI/ActionGrant runtime 保持 deferred，API-KEY `755d857a…` 不进入 main。删除数保持 0，不启用 checker，也不恢复旧 capability 任务。
