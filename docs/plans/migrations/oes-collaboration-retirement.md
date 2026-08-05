@@ -128,7 +128,7 @@ programControlBranch: codex/oes-program-control-migration
 - task archive：migration implementation task `019fcbff-ff44-7612-a187-045fa9f47333` 在 `main@45a7e306…` 集成证据完成后已归档；source candidate/worktree 继续保留到最终 Git 清理 gate。
 - target ownership：Permission implementation 与短时 main integration leases 已释放；GRPC carrier rebuild 已进入独立稳定写 lease。
 
-### 4.3 EXEC-CRYPTO — `MACHINE_FROZEN_DESIGN_REPLACEMENT_ACTIVE`
+### 4.3 EXEC-CRYPTO — `MACHINE_FROZEN_DESIGN_REPLACEMENT_IN_I&V`
 
 - source threads：control `019fc601-1f32-7912-a9a5-849cf22cfd23`；design `019fa287-01a8-7340-8fb3-b56df8652dcd`；I06 `019fc608-c9cf-7a82-a91a-0b9aa6d0cd5f`。
 - active retained writer：`/Users/acehood/.codex/worktrees/44ef/oes`；branch `codex/exec-crypto/i06-auth-tg2-remediation`；HEAD `64ea8660687bbeb24349d11bcaed6f63d2373c4b`；clean。
@@ -170,6 +170,9 @@ programControlBranch: codex/oes-program-control-migration
 - design I&V terminal：`DESIGN_GAP — RETURN_TO_UNIFIED_DESIGN`。结构、13 docs / 300+/32-、非 docs/runtime 0、diff check、UTF-8 13/13、146 local links 与主要 frozen ownership semantics 全部通过；未取得 root integration lease，未 fetch/merge/push。
 - status inconsistency：`docs/contracts/identity-service/README.md` 把第一方内部 MACHINE resolution列为“截至当前已开放”；`docs/architecture/07-permission-code-source.md` 把 `ResolveMachinePrincipalForAuth` 写成“既有”，但同候选又明确只冻结黑盒语义、Code属于未来最小lease。tracked tree证明resolver proto/runtime、Code registration与Machine credential runtime当前均不存在。
 - replacement route：同一 Unified Design task与同一branch/worktree保留rejected `d7b935fb…`，从其上形成最小replacement，只把未来能力统一标为 `FROZEN_PENDING_IMPLEMENTATION` 或等价状态。不得改变已冻结ownership/binding/API-key separation，不添加code/proto/schema/runtime，不恢复MACHINE implementation或GRPC Asset。
+- replacement candidate：`bbb7338fea7c7a06aab7a45baff39665c8248197`，direct parent `d7b935fb434f394ba5af9bee0a3c415b50c26ee1`，base/current main `1ca24f417a2d06bce8be79d4c8ed67bc6c518a65`；correction-only 13 docs / 27+/16-，cumulative 13 docs / 311+/32-，non-docs 0，source clean。
+- replacement semantics：13文档统一 `FROZEN_PENDING_IMPLEMENTATION`；Identity README不再列为当前开放，resolver明确待新增；credential runtime、binding persistence、resolver proto/runtime与Common Code registration均明确未实现。frozen owner/security semantics不变。
+- replacement I&V route：已复用同一持久 task独立复验correction/cumulative/status/tracked-tree；仅在main/origin未漂移时ff-only集成与一次push。不创建新任务。
 - next route decision：EXEC-CRYPTO remediation 先于 GRPC Asset。原因是 Asset 明确等待 Platform Security 落地，而 EXEC-CRYPTO 的两项已登记依赖现已满足。
 - target ownership：Platform Security 独占上述 provisional lease；当前无并发 Auth writer。
 
@@ -389,7 +392,7 @@ AI legacy A/V 与 migration implementation 任务已有完整重建、独立 I&V
 
 branch refs 共 31：24 个 branch HEAD 已是 current main ancestor；7 个非 ancestor refs 已全部分类为 deferred ActionGrant runtime、AI legacy accepted evidence、API-KEY rejected prototype evidence、EXEC-CRYPTO legacy checkpoint、GRPC Asset candidate、原 GRPC carrier candidate 与 Program Control migration ledger。MACHINE branch 当前等于 main。不存在未分类 branch ref。
 
-任务处置快照：handoff registry 仍登记 101 个 legacy formal A/* tasks，最终均须在直接证据消费后归档；最近 50 项应用快照可见其中 24 个 legacy A/* tasks，另可见 legacy Global Command 1 个。MIG-D04 导致部分 capability 缺少逐 task IDs，因此当前 thread archive manifest 尚未完整，不能把 101 项声明为已具备逐项归档条件。本轮未唤醒、归档或删除旧 capability 任务；checker 为 0。AI、Permission、GRPC rebuild 与 EXEC-CRYPTO remediation implementation tasks 均已归档，共 4 个 completed migration implementation tasks。MACHINE task `019fd240-7062-76c3-a183-56e363e8fee4` DESIGN_GAP/idle；持久 I&V已返回design gap并idle；Unified Design正在形成最小replacement，Program Control继续保留。
+任务处置快照：handoff registry 仍登记 101 个 legacy formal A/* tasks，最终均须在直接证据消费后归档；最近 50 项应用快照可见其中 24 个 legacy A/* tasks，另可见 legacy Global Command 1 个。MIG-D04 导致部分 capability 缺少逐 task IDs，因此当前 thread archive manifest 尚未完整，不能把 101 项声明为已具备逐项归档条件。本轮未唤醒、归档或删除旧 capability 任务；checker 为 0。AI、Permission、GRPC rebuild 与 EXEC-CRYPTO remediation implementation tasks 均已归档，共 4 个 completed migration implementation tasks。MACHINE task `019fd240-7062-76c3-a183-56e363e8fee4` DESIGN_GAP/idle；Unified Design replacement ready/idle；持久 I&V active，Program Control继续保留。
 
 当前全局清理 blocker 共 4 类：MACHINE owner/public-contract design freeze、source-verifier completion与后续 GRPC Asset current-main rebuild/integration；EXEC-CRYPTO legacy checkpoint/rejected evidence disposition；deferred ActionGrant runtime candidate 的持久 disposition；Program Control ledger 集成与完整 thread archive manifest。API-KEY content-loss blocker 已转为 clean durable evidence ref，不再单独阻塞内容保全；仍随 final manifest 执行统一清理。任一 blocker 未关闭前，所有 worktree/branch 删除数保持 0。
 
@@ -523,4 +526,4 @@ EXEC-CRYPTO HUMAN foundation I&V terminal evidence：
 
 ## 10. 下一阶段入口
 
-EXEC-CRYPTO HUMAN-only foundation `1ca24f41…` 已 `ACCEPTED_AND_INTEGRATED`。当前迁移阶段为 `MACHINE_FROZEN_DESIGN_REPLACEMENT_ACTIVE`：首个 frozen docs candidate `d7b935fb…` 因未来resolver/Code状态误报被I&V退回，未merge/push；同一 Unified Design task正在形成仅修正 `FROZEN_PENDING_IMPLEMENTATION` 状态的replacement。replacement验收/集成前不恢复MACHINE implementation。GRPC Asset仍等待MACHINE candidate，除非static inventory证明无pure MACHINE root caller。AI/ActionGrant runtime保持 deferred，API-KEY `755d857a…` 不进入main；无checker。
+EXEC-CRYPTO HUMAN-only foundation `1ca24f41…` 已 `ACCEPTED_AND_INTEGRATED`。当前迁移阶段为 `MACHINE_FROZEN_DESIGN_REPLACEMENT_IN_I&V`：replacement `bbb7338f…` 已修正全部future-runtime状态误报并路由既有I&V；验收/集成前不恢复MACHINE implementation。GRPC Asset仍等待MACHINE candidate，除非static inventory证明无pure MACHINE root caller。AI/ActionGrant runtime保持 deferred，API-KEY `755d857a…` 不进入main；无checker。
