@@ -77,7 +77,7 @@ architectureTruthSource: docs/architecture/services/permission-service.md
 
 调用方提供的 principal id、tenant 或 subject facts 必须与可信执行上下文及 owner facts 绑定；自由 DTO 中的 subject facts 不能建立或提升授权。Permission Service 不接受“调用方已判断用户是管理员”作为事实。
 
-对 MACHINE，Auth 调用本 RPC 前必须已经验证 Auth-owned `MachineWorkloadSourceCredential` 的 profile/signature/lifetime/revocation 与当前 SPIFFE/leaf binding，并取得 Identity `ResolveMachinePrincipalForAuth` 对 active principal、scope、tenant/org、`MachineWorkloadBinding` reference/version 的 allowed owner decision。Permission 只消费该 typed owner result 并计算 MACHINE BUSINESS grant；不接收 raw source credential、leaf certificate、SPIFFE-to-principal mapping 或 caller-computed grant。Identity decision 缺失、stale、mismatch 或不可用时不得进入本 RPC 或签名。
+该 MACHINE source credential/resolver chain 当前为 `FROZEN_PENDING_IMPLEMENTATION`。实现完成后，对 MACHINE，Auth 调用本 RPC 前必须已经验证 Auth-owned `MachineWorkloadSourceCredential` 的 profile/signature/lifetime/revocation 与当前 SPIFFE/leaf binding，并取得 Identity `ResolveMachinePrincipalForAuth` 对 active principal、scope、tenant/org、`MachineWorkloadBinding` reference/version 的 allowed owner decision。Permission 只消费该 typed owner result 并计算 MACHINE BUSINESS grant；不接收 raw source credential、leaf certificate、SPIFFE-to-principal mapping 或 caller-computed grant。Identity decision 缺失、stale、mismatch 或不可用时不得进入本 RPC 或签名。
 
 该 RPC 固定采用全量申请语义，不接受 caller-selectable `all / any`：只有全部 requested Code 当前存在、`kind=BUSINESS`、适用于 principal/scope 且通过 grant / policy upper bound 时 `allowed=true`。任一未知、不可分配、denied、mixed-kind、tenant/scope/audience/delegation mismatch 或依赖不可用都使整体 `allowed=false`；Permission 可以返回 granted / denied 明细供审计，但 Auth 不得部分签发。
 

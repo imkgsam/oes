@@ -171,11 +171,13 @@
 
 内部 Cron、Robot 与 worker 使用另一条 generic Machine Principal resolution，不复用 external Integration resolver：
 
+实现状态：`FROZEN_PENDING_IMPLEMENTATION`。下述 `MachineWorkloadBinding` persistence、resolver proto/runtime 与 INTERNAL Code registration 均为冻结后的未来 lease，不是当前已开放能力。
+
 - `MachineWorkloadBinding` 是 Identity-owned identity fact。一个 binding 以稳定 opaque reference 关联一个 Machine Principal、一个精确 workload SPIFFE ID、active/disabled lifecycle 与单调 binding version；它不保存 leaf certificate、Auth credential、Permission Code 或 grant。一个 SPIFFE workload 可以承载多个受控 machine binding，但一次 Auth source credential 必须引用唯一一个 binding，且该 binding 只能解析到唯一一个 principal；任何歧义均拒绝。
-- Identity 在既有 `IdentityQueryService` surface 新增 Auth-only `ResolveMachinePrincipalForAuth`。它与 `ResolveIntegrationMachineForAuth` 是两个目的明确的 resolver：前者只服务第一方 MACHINE root execution，后者继续只服务 external API-key exchange，不修改、不泛化，也不作为 fallback。
+- Identity 将在既有 `IdentityQueryService` surface 新增 Auth-only `ResolveMachinePrincipalForAuth`。它与 `ResolveIntegrationMachineForAuth` 是两个目的明确的 resolver：前者只服务第一方 MACHINE root execution，后者继续只服务 external API-key exchange，不修改、不泛化，也不作为 fallback。
 - Auth 只提交其已验证的 Machine Principal reference、binding reference、credential binding version 与当前 `VerifiedWorkloadIdentity.spiffeId`；不提交 raw source credential、leaf certificate、Permission grant 或 caller-computed tenant。Identity 要求 principal 与 binding 均 active、binding 唯一指向该 principal、SPIFFE ID 与 version 精确匹配，并返回 principal id（供 Auth 作为 `sub`）、`principal_type=MACHINE`、type、scope、tenant、适用 org reference、principal lifecycle version、binding reference/version 与 safe decision reference。
 - `TENANT` principal 必须返回同一 tenant 的有效引用；`SYSTEM` principal 的 tenant 必须为空。org 只作为适用时的受控引用返回，Identity 不取得 tenant/org tree 或 lifecycle 真相所有权。缺失、inactive、wrong type/scope、tenant/org mismatch、binding mismatch/stale 或 dependency unavailable 均 fail closed。
-- 该 resolver 是 normal protected INTERNAL RPC：只接受准确 `auth-service` workload、`aud=identity-service` 且绑定当前 Auth 叶证书的 ExecutionToken，以及 exact Code `identity.internal.machine_principal.resolve`。该 Code 只能由 Permission `ResolveWorkloadIssuance` 的准确 Auth workload -> Identity audience policy 批准；它不进入 HUMAN/MACHINE role、external JWT 或 wildcard policy，也不增加第二个 mTLS-only bootstrap method。
+- 实现后的 resolver 是 normal protected INTERNAL RPC：只接受准确 `auth-service` workload、`aud=identity-service` 且绑定当前 Auth 叶证书的 ExecutionToken，以及 exact Code `identity.internal.machine_principal.resolve`。该 Code 只能由 Permission `ResolveWorkloadIssuance` 的准确 Auth workload -> Identity audience policy 批准；它不进入 HUMAN/MACHINE role、external JWT 或 wildcard policy，也不增加第二个 mTLS-only bootstrap method。
 - Identity 不校验 Auth source-credential JWS 或 leaf thumbprint。Auth 先完成 credential profile/signature/lifetime/revocation 与当前 leaf thumbprint binding，再消费本 resolver 的 stable principal/SPIFFE/binding owner decision；两者任何 mismatch 都不得进入 Permission lookup 或 signing。
 
 黑盒语义以 [machine-principal-resolution.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/identity-service/machine-principal-resolution.md) 为准。

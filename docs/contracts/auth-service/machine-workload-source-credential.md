@@ -2,6 +2,7 @@
 
 ```text
 status: FROZEN
+implementationStatus: FROZEN_PENDING_IMPLEMENTATION
 decisionAdr: docs/adr/0015-workload-identity-and-execution-token.md
 architectureTruthSource: docs/architecture/services/auth-service.md
 identityContract: docs/contracts/identity-service/machine-principal-resolution.md

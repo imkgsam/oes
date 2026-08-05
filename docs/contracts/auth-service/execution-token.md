@@ -175,7 +175,9 @@ Token TTL maximum is 5 minutes. Implementations may shorten it by risk but calle
 
 ## 7. Machine Workload Root Exchange
 
-内部 Cron、Robot、worker 没有 HUMAN/session 或上游 ExecutionToken 时，使用专用 `MachineWorkloadSourceCredential` 作为 root source credential。它不是 target grant；Auth 在进入 Permission 前必须验证 dedicated profile/signature/lifetime/revocation、当前 SPIFFE/leaf certificate binding，以及 Identity-owned principal/binding/version decision。
+实现状态：`FROZEN_PENDING_IMPLEMENTATION`。本节是冻结的目标行为，不表示 MACHINE source credential、Identity resolver、INTERNAL Code 或关联 proto/runtime 已存在。
+
+实现完成后，内部 Cron、Robot、worker 没有 HUMAN/session 或上游 ExecutionToken 时，使用专用 `MachineWorkloadSourceCredential` 作为 root source credential。它不是 target grant；Auth 在进入 Permission 前必须验证 dedicated profile/signature/lifetime/revocation、当前 SPIFFE/leaf certificate binding，以及 Identity-owned principal/binding/version decision。
 
 - 最大 credential lifetime 为 15 分钟且不晚于当前 leaf certificate expiry；无 refresh token，证书轮换后受控重新签发。
 - credential 不含 Permission Code，不能替代 `ResolvePrincipalAuthorization` 或 `ResolveWorkloadIssuance`。
