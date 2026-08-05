@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import {
   DelegatedAuthorizationDecision,
   DelegatedAuthorizationInput,
@@ -28,12 +29,28 @@ export class PermissionDecisionPolicy {
   ): IssuanceAuthorizationDecision {
     const requested = canonicalCodes(input.requestedPermissionCodes)
     const invalidBinding = validatePrincipalBinding(input, requested)
-    if (invalidBinding) return denied(requested.values, invalidBinding)
+    if (invalidBinding) {
+      return denied(
+        requested.values,
+        invalidBinding,
+        principalDecisionAuthzVersion(input, facts, [])
+      )
+    }
 
     const catalogFailure = validateCatalog(requested.values, catalog, 'BUSINESS')
-    if (catalogFailure) return denied(requested.values, catalogFailure)
+    if (catalogFailure) {
+      return denied(
+        requested.values,
+        catalogFailure,
+        principalDecisionAuthzVersion(input, facts, [])
+      )
+    }
     if (!facts || !principalFactsMatch(input, facts)) {
-      return denied(requested.values, 'AUTHORIZATION_PRINCIPAL_INACTIVE')
+      return denied(
+        requested.values,
+        'AUTHORIZATION_PRINCIPAL_INACTIVE',
+        principalDecisionAuthzVersion(input, facts, [])
+      )
     }
 
     const grantedByRole = new Set(facts.permissionCodes)
@@ -50,7 +67,7 @@ export class PermissionDecisionPolicy {
         return denied(
           requested.values,
           upperBoundFailure,
-          facts.authzVersion,
+          principalDecisionAuthzVersion(input, facts, []),
           facts.decisionReference
         )
       }
@@ -83,7 +100,7 @@ export class PermissionDecisionPolicy {
       allowed: deniedCodes.length === 0,
       grantedPermissionCodes: effective,
       deniedPermissionCodes: deniedCodes,
-      authzVersion: composePrincipalAuthzVersion(facts, input.delegatedUpperBound),
+      authzVersion: principalDecisionAuthzVersion(input, facts, effective),
       policyDecisionReference: facts.decisionReference,
       reasonCode:
         deniedCodes.length === 0
@@ -100,11 +117,29 @@ export class PermissionDecisionPolicy {
   ): IssuanceAuthorizationDecision {
     const requested = canonicalCodes(input.requestedPermissionCodes)
     const bindingFailure = validateWorkloadBinding(input, requested)
-    if (bindingFailure) return denied(requested.values, bindingFailure)
+    if (bindingFailure) {
+      return denied(
+        requested.values,
+        bindingFailure,
+        workloadDecisionAuthzVersion(input, policy, [])
+      )
+    }
 
     const catalogFailure = validateCatalog(requested.values, catalog, 'INTERNAL')
-    if (catalogFailure) return denied(requested.values, catalogFailure)
-    if (!policy) return denied(requested.values, 'AUTHORIZATION_WORKLOAD_POLICY_DENIED')
+    if (catalogFailure) {
+      return denied(
+        requested.values,
+        catalogFailure,
+        workloadDecisionAuthzVersion(input, policy, [])
+      )
+    }
+    if (!policy) {
+      return denied(
+        requested.values,
+        'AUTHORIZATION_WORKLOAD_POLICY_DENIED',
+        workloadDecisionAuthzVersion(input, null, [])
+      )
+    }
 
     const policyMatches =
       policy.originalWorkloadSpiffeId === input.originalWorkloadSpiffeId &&
@@ -116,7 +151,7 @@ export class PermissionDecisionPolicy {
       return denied(
         requested.values,
         'AUTHORIZATION_DECISION_BINDING_MISMATCH',
-        policy.policyVersion,
+        workloadDecisionAuthzVersion(input, policy, []),
         workloadDecisionReference(policy)
       )
     }
@@ -127,7 +162,7 @@ export class PermissionDecisionPolicy {
       allowed: deniedCodes.length === 0,
       grantedPermissionCodes: granted,
       deniedPermissionCodes: deniedCodes,
-      authzVersion: policy.policyVersion,
+      authzVersion: workloadDecisionAuthzVersion(input, policy, granted),
       policyDecisionReference: workloadDecisionReference(policy),
       reasonCode:
         deniedCodes.length === 0 ? 'AUTHORIZATION_GRANTED' : 'AUTHORIZATION_WORKLOAD_POLICY_DENIED'
@@ -142,7 +177,12 @@ export class PermissionDecisionPolicy {
   ): DelegatedAuthorizationDecision {
     const requested = canonicalCodes(input.requestedPermissionCodes)
     const owner = input.ownerAuthorization
-    const base = delegatedDenied(input, requested.values, 'AUTHORIZATION_DELEGATION_DENIED')
+    const base = delegatedDenied(
+      input,
+      humanFacts,
+      requested.values,
+      'AUTHORIZATION_DELEGATION_DENIED'
+    )
     if (
       !requested.valid ||
       !isExact(input.humanPrincipalId) ||
@@ -212,7 +252,7 @@ export class PermissionDecisionPolicy {
       policyVersion: owner.policyVersion,
       resourcePolicyAllowed: owner.resourcePolicyAllowed,
       resourcePolicyReference: owner.resourcePolicyReference,
-      authzVersion: composeDelegatedAuthzVersion(humanFacts, input),
+      authzVersion: delegatedDecisionAuthzVersion(input, humanFacts, granted),
       policyDecisionReference: owner.policyReference,
       reasonCode:
         deniedCodes.length === 0 ? 'AUTHORIZATION_GRANTED' : 'AUTHORIZATION_DELEGATION_DENIED'
@@ -433,6 +473,7 @@ function denied(
 /** Creates a fail-closed delegated decision preserving only owner-safe risk and policy references. */
 function delegatedDenied(
   input: DelegatedAuthorizationInput,
+  facts: PrincipalAuthorizationFacts | null,
   requested: string[],
   reasonCode: string
 ): DelegatedAuthorizationDecision {
@@ -444,35 +485,134 @@ function delegatedDenied(
     policyVersion: input.ownerAuthorization?.policyVersion ?? '',
     resourcePolicyAllowed: false,
     resourcePolicyReference: input.ownerAuthorization?.resourcePolicyReference ?? '',
-    authzVersion: '',
+    authzVersion: delegatedDecisionAuthzVersion(input, facts, []),
     policyDecisionReference: input.ownerAuthorization?.policyReference ?? '',
     reasonCode
   }
 }
 
-/** Composes opaque authorization version evidence from current grant and delegated snapshots. */
-function composePrincipalAuthzVersion(
-  facts: PrincipalAuthorizationFacts,
-  upperBound?: DelegatedAuthorizationUpperBound
-): string {
-  if (!upperBound) return facts.authzVersion
-  return [
-    facts.authzVersion,
-    upperBound.delegationVersion,
-    upperBound.agentPrincipalVersion,
-    upperBound.toolContractVersion
-  ].join('|')
+type DecisionVersionScalar = string | number | boolean | null | undefined
+type DecisionVersionField = readonly [name: string, value: DecisionVersionScalar]
+
+/** Hashes canonical decision context and effective Codes without exposing raw version labels. */
+export function buildOpaqueDecisionAuthzVersion(input: {
+  decisionType: 'PRINCIPAL_AUTHORIZATION' | 'WORKLOAD_ISSUANCE' | 'DELEGATED_AUTHORIZATION'
+  fields: readonly DecisionVersionField[]
+  effectivePermissionCodes: readonly string[]
+}): string {
+  const fields = input.fields
+    .map(([name, value]) => [name, value === undefined ? null : value] as const)
+    .sort(
+      ([leftName, leftValue], [rightName, rightValue]) =>
+        leftName.localeCompare(rightName) || String(leftValue).localeCompare(String(rightValue))
+    )
+  const canonical = JSON.stringify({
+    decisionType: input.decisionType,
+    fields,
+    effectivePermissionCodes: normalizeCodes([...input.effectivePermissionCodes])
+  })
+  return createHash('sha256').update(canonical).digest('hex')
 }
 
-/** Composes delegated action authorization version evidence without credential plaintext. */
-function composeDelegatedAuthzVersion(
-  facts: PrincipalAuthorizationFacts,
-  input: DelegatedAuthorizationInput
+/** Binds principal issuance versions to identity, scope, upper bounds and effective BUSINESS Codes. */
+export function principalDecisionAuthzVersion(
+  input: PrincipalAuthorizationInput,
+  facts: PrincipalAuthorizationFacts | null,
+  effectivePermissionCodes: readonly string[]
 ): string {
-  return [
-    composePrincipalAuthzVersion(facts, input.delegatedUpperBound),
-    input.ownerAuthorization.policyVersion
-  ].join('|')
+  const upperBound = input.delegatedUpperBound
+  return buildOpaqueDecisionAuthzVersion({
+    decisionType: 'PRINCIPAL_AUTHORIZATION',
+    fields: [
+      ['principalType', input.principalType],
+      ['principalId', input.principalId],
+      ['scopeLevel', input.scopeLevel],
+      ['tenantId', input.tenantId],
+      ['orgId', input.orgId],
+      ['targetAudience', input.targetAudience],
+      ['requestedPermissionCodes', normalizeCodes(input.requestedPermissionCodes).join('\n')],
+      ['sessionReference', input.sessionReference],
+      ['securityReference', input.securityReference],
+      ['humanGrantVersion', facts?.authzVersion],
+      ['delegationReference', upperBound?.delegationReference],
+      ['delegationVersion', upperBound?.delegationVersion],
+      ['delegationActive', upperBound?.delegationActive],
+      ['agentPrincipalReference', upperBound?.agentPrincipalReference],
+      ['agentPrincipalVersion', upperBound?.agentPrincipalVersion],
+      ['agentPrincipalActive', upperBound?.agentPrincipalActive],
+      ['toolContractReference', upperBound?.toolContractReference],
+      ['toolContractVersion', upperBound?.toolContractVersion],
+      ['toolContractActive', upperBound?.toolContractActive]
+    ],
+    effectivePermissionCodes
+  })
+}
+
+/** Binds workload issuance versions to the exact attribution, policy and granted INTERNAL Codes. */
+export function workloadDecisionAuthzVersion(
+  input: WorkloadIssuanceInput,
+  policy: WorkloadIssuancePolicyFacts | null,
+  effectivePermissionCodes: readonly string[]
+): string {
+  return buildOpaqueDecisionAuthzVersion({
+    decisionType: 'WORKLOAD_ISSUANCE',
+    fields: [
+      ['originalWorkloadSpiffeId', input.originalWorkloadSpiffeId],
+      ['targetAudience', input.targetAudience],
+      ['scopeLevel', input.scopeLevel],
+      ['tenantId', input.tenantId],
+      ['orgId', input.orgId],
+      ['principalType', input.principalType],
+      ['principalId', input.principalId],
+      ['requestedPermissionCodes', normalizeCodes(input.requestedPermissionCodes).join('\n')],
+      ['requestedPolicyVersion', input.issuancePolicyVersion],
+      ['trustedPolicyVersion', policy?.policyVersion]
+    ],
+    effectivePermissionCodes
+  })
+}
+
+/** Binds delegated-action versions to every owner snapshot and final effective BUSINESS Codes. */
+export function delegatedDecisionAuthzVersion(
+  input: DelegatedAuthorizationInput,
+  facts: PrincipalAuthorizationFacts | null,
+  effectivePermissionCodes: readonly string[]
+): string {
+  const upperBound = input.delegatedUpperBound
+  const owner = input.ownerAuthorization
+  return buildOpaqueDecisionAuthzVersion({
+    decisionType: 'DELEGATED_AUTHORIZATION',
+    fields: [
+      ['humanPrincipalId', input.humanPrincipalId],
+      ['scopeLevel', input.scopeLevel],
+      ['tenantId', input.tenantId],
+      ['orgId', input.orgId],
+      ['targetAudience', input.targetAudience],
+      ['operationKey', input.operationKey],
+      ['requestedPermissionCodes', normalizeCodes(input.requestedPermissionCodes).join('\n')],
+      ['humanGrantVersion', facts?.authzVersion],
+      ['sessionReference', upperBound?.sessionReference],
+      ['securityReference', upperBound?.securityReference],
+      ['delegationReference', upperBound?.delegationReference],
+      ['delegationVersion', upperBound?.delegationVersion],
+      ['delegationActive', upperBound?.delegationActive],
+      ['agentPrincipalReference', upperBound?.agentPrincipalReference],
+      ['agentPrincipalVersion', upperBound?.agentPrincipalVersion],
+      ['agentPrincipalActive', upperBound?.agentPrincipalActive],
+      ['toolContractReference', upperBound?.toolContractReference],
+      ['toolContractVersion', upperBound?.toolContractVersion],
+      ['toolContractActive', upperBound?.toolContractActive],
+      ['actionReference', owner?.actionReference],
+      ['ownerPolicyReference', owner?.policyReference],
+      ['ownerPolicyVersion', owner?.policyVersion],
+      ['ownerCurrent', owner?.current],
+      ['codeRiskBaseline', owner?.codeRiskBaseline],
+      ['effectiveRiskClass', owner?.effectiveRiskClass],
+      ['resourcePolicyAllowed', owner?.resourcePolicyAllowed],
+      ['resourcePolicyReference', owner?.resourcePolicyReference]
+    ],
+    effectivePermissionCodes
+  })
 }
 
 /** Produces one safe workload policy decision reference from immutable policy facts. */

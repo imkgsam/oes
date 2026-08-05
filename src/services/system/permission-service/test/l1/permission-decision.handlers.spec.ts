@@ -54,6 +54,7 @@ describe('Permission decision query handlers', () => {
       allowed: false,
       reasonCode: 'AUTHORIZATION_DECISION_BINDING_MISMATCH'
     })
+    expect(result.authzVersion).toMatch(/^[a-f0-9]{64}$/)
     expect(dependencies.principalRepository.resolveAuthorizationFacts).not.toHaveBeenCalled()
   })
 
@@ -76,6 +77,7 @@ describe('Permission decision query handlers', () => {
       allowed: false,
       reasonCode: 'AUTHORIZATION_DECISION_BINDING_MISMATCH'
     })
+    expect(result.authzVersion).toMatch(/^[a-f0-9]{64}$/)
     expect(dependencies.principalRepository.resolveAuthorizationFacts).not.toHaveBeenCalled()
   })
 
@@ -129,6 +131,29 @@ describe('Permission decision query handlers', () => {
         policyVersion: 'owner-policy-v1'
       })
     )
+  })
+
+  it('returns an opaque delegated version before repository access when caller binding mismatches', async () => {
+    const dependencies = handlerDependencies()
+    const handler = new ResolveDelegatedAuthorizationHandler(
+      dependencies.principalRepository as never,
+      dependencies.permissionRepository as never,
+      new PermissionDecisionPolicy(),
+      dependencies.auditService as never
+    )
+    const caller = protectedCaller('DELEGATED')
+    caller.verifiedExecutionToken.subject = 'another-human'
+
+    const result = await handler.execute(
+      new ResolveDelegatedAuthorizationQuery(delegatedInput(), caller)
+    )
+
+    expect(result).toMatchObject({
+      allowed: false,
+      reasonCode: 'AUTHORIZATION_DECISION_BINDING_MISMATCH'
+    })
+    expect(result.authzVersion).toMatch(/^[a-f0-9]{64}$/)
+    expect(dependencies.principalRepository.resolveAuthorizationFacts).not.toHaveBeenCalled()
   })
 })
 

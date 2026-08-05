@@ -4,7 +4,11 @@ import { IQueryHandler, QueryHandler } from '@nestjs/cqrs'
 import { SYMBOLS } from '../../../common/constants/symbols'
 import { PermissionRepository } from '../../../domain/repositories/permission.repository'
 import { PrincipalAuthorizationRepository } from '../../../domain/repositories/principal-authorization.repository'
-import { PermissionDecisionPolicy } from '../../../domain/services/permission-decision-policy'
+import {
+  PermissionDecisionPolicy,
+  principalDecisionAuthzVersion
+} from '../../../domain/services/permission-decision-policy'
+import { PrincipalAuthorizationInput } from '../../../domain/authorization/permission-decision.types'
 import {
   PERMISSION_DECISION_AUDIT_PORT,
   PermissionDecisionAuditPort
@@ -29,7 +33,7 @@ export class ResolvePrincipalAuthorizationHandler implements IQueryHandler<Resol
   async execute(query: ResolvePrincipalAuthorizationQuery) {
     const decisionReference = `principal-authorization:${randomUUID()}`
     if (!principalCallerBindingMatches(query.input, query.caller)) {
-      const result = bindingDenied(query.input.requestedPermissionCodes, decisionReference)
+      const result = bindingDenied(query.input, decisionReference)
       this.emitAudit(query, result)
       return result
     }
@@ -82,12 +86,12 @@ export class ResolvePrincipalAuthorizationHandler implements IQueryHandler<Resol
 }
 
 /** Creates an application-level binding denial before any authorization repository lookup. */
-function bindingDenied(requestedPermissionCodes: string[], decisionReference: string) {
+function bindingDenied(input: PrincipalAuthorizationInput, decisionReference: string) {
   return {
     allowed: false,
     grantedPermissionCodes: [],
-    deniedPermissionCodes: [...new Set(requestedPermissionCodes)].sort(),
-    authzVersion: '',
+    deniedPermissionCodes: [...new Set(input.requestedPermissionCodes)].sort(),
+    authzVersion: principalDecisionAuthzVersion(input, null, []),
     policyDecisionReference: '',
     decisionReference,
     reasonCode: 'AUTHORIZATION_DECISION_BINDING_MISMATCH'

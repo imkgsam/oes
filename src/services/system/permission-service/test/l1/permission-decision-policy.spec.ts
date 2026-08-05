@@ -1,4 +1,7 @@
-import { PermissionDecisionPolicy } from '../../src/domain/services/permission-decision-policy'
+import {
+  buildOpaqueDecisionAuthzVersion,
+  PermissionDecisionPolicy
+} from '../../src/domain/services/permission-decision-policy'
 import {
   DelegatedAuthorizationInput,
   PrincipalAuthorizationFacts,
@@ -140,7 +143,6 @@ describe('PermissionDecisionPolicy', () => {
       allowed: true,
       grantedPermissionCodes: ['asset.internal.resolve'],
       deniedPermissionCodes: [],
-      authzVersion: 'policy-v1',
       reasonCode: 'AUTHORIZATION_GRANTED'
     })
   })
@@ -238,6 +240,167 @@ describe('PermissionDecisionPolicy', () => {
       allowed: false,
       reasonCode: 'AUTHORIZATION_OPERATION_FORBIDDEN_FOR_AI'
     })
+  })
+
+  it('returns opaque principal versions bound to trusted grant versions and effective Codes', () => {
+    const baseline = policy.resolvePrincipalAuthorization(
+      principalInput(),
+      principalFacts(['inventory.read']),
+      businessCatalog(['inventory.read'])
+    )
+    const changedVersion = policy.resolvePrincipalAuthorization(
+      principalInput(),
+      principalFacts(['inventory.read'], { authzVersion: 'grant-v2' }),
+      businessCatalog(['inventory.read'])
+    )
+    const changedCodes = policy.resolvePrincipalAuthorization(
+      principalInput({ requestedPermissionCodes: ['inventory.write'] }),
+      principalFacts(['inventory.write']),
+      businessCatalog(['inventory.write'])
+    )
+    const denied = policy.resolvePrincipalAuthorization(
+      principalInput(),
+      principalFacts([]),
+      businessCatalog(['inventory.read'])
+    )
+
+    expect(baseline.authzVersion).toMatch(/^[a-f0-9]{64}$/)
+    expect(baseline.authzVersion).not.toContain('grant-v1')
+    expect(changedVersion.authzVersion).not.toBe(baseline.authzVersion)
+    expect(changedCodes.authzVersion).not.toBe(baseline.authzVersion)
+    expect(denied.authzVersion).toMatch(/^[a-f0-9]{64}$/)
+  })
+
+  it('returns opaque workload versions bound to policy versions and granted INTERNAL Codes', () => {
+    const policyFacts = {
+      originalWorkloadSpiffeId: 'spiffe://local.test/site-service',
+      targetAudience: 'urn:oes:service:asset-service',
+      permissionCodes: ['asset.internal.resolve'],
+      scopeLevel: 'TENANT' as const,
+      tenantIds: ['tenant-1'],
+      policyVersion: 'policy-v1'
+    }
+    const baseline = policy.resolveWorkloadIssuance(
+      workloadInput(),
+      internalCatalog(['asset.internal.resolve']),
+      policyFacts
+    )
+    const changedVersion = policy.resolveWorkloadIssuance(
+      { ...workloadInput(), issuancePolicyVersion: 'policy-v2' },
+      internalCatalog(['asset.internal.resolve']),
+      { ...policyFacts, policyVersion: 'policy-v2' }
+    )
+    const changedCodes = policy.resolveWorkloadIssuance(
+      { ...workloadInput(), requestedPermissionCodes: ['asset.internal.write'] },
+      internalCatalog(['asset.internal.write']),
+      { ...policyFacts, permissionCodes: ['asset.internal.write'] }
+    )
+
+    expect(baseline.authzVersion).toMatch(/^[a-f0-9]{64}$/)
+    expect(baseline.authzVersion).not.toContain('policy-v1')
+    expect(changedVersion.authzVersion).not.toBe(baseline.authzVersion)
+    expect(changedCodes.authzVersion).not.toBe(baseline.authzVersion)
+  })
+
+  it('returns opaque delegated versions bound to every trusted version and effective Code set', () => {
+    const baselineInput = delegatedInput()
+    const baseline = policy.resolveDelegatedAuthorization(
+      baselineInput,
+      principalFacts(['collaboration.task.assign']),
+      businessCatalog(['collaboration.task.assign'])
+    )
+    const changedVersions = [
+      { humanAuthzVersion: 'grant-v2' },
+      { delegationVersion: 'delegation-v2' },
+      { agentPrincipalVersion: 'agent-v2' },
+      { toolContractVersion: 'tool-v2' },
+      { ownerPolicyVersion: 'owner-policy-v2' }
+    ].map((change) => {
+      const input = delegatedInput()
+      if (change.delegationVersion) {
+        input.delegatedUpperBound.delegationVersion = change.delegationVersion
+      }
+      if (change.agentPrincipalVersion) {
+        input.delegatedUpperBound.agentPrincipalVersion = change.agentPrincipalVersion
+      }
+      if (change.toolContractVersion) {
+        input.delegatedUpperBound.toolContractVersion = change.toolContractVersion
+      }
+      if (change.ownerPolicyVersion) {
+        input.ownerAuthorization.policyVersion = change.ownerPolicyVersion
+      }
+      return policy.resolveDelegatedAuthorization(
+        input,
+        principalFacts(['collaboration.task.assign'], {
+          authzVersion: change.humanAuthzVersion ?? 'grant-v1'
+        }),
+        businessCatalog(['collaboration.task.assign'])
+      )
+    })
+    const expandedInput = delegatedInput()
+    const expandedCodes = ['collaboration.task.assign', 'collaboration.task.read']
+    expandedInput.requestedPermissionCodes = expandedCodes
+    expandedInput.delegatedUpperBound.delegationPermissionCodes = expandedCodes
+    expandedInput.delegatedUpperBound.agentPermissionCodes = expandedCodes
+    expandedInput.delegatedUpperBound.toolPermissionCodes = expandedCodes
+    expandedInput.ownerAuthorization.permissionCodes = expandedCodes
+    const changedCodes = policy.resolveDelegatedAuthorization(
+      expandedInput,
+      principalFacts(expandedCodes),
+      businessCatalog(expandedCodes)
+    )
+
+    expect(baseline.authzVersion).toMatch(/^[a-f0-9]{64}$/)
+    for (const rawVersion of [
+      'grant-v1',
+      'delegation-v1',
+      'agent-v1',
+      'tool-v1',
+      'owner-policy-v1'
+    ]) {
+      expect(baseline.authzVersion).not.toContain(rawVersion)
+    }
+    for (const changed of changedVersions) {
+      expect(changed.authzVersion).not.toBe(baseline.authzVersion)
+    }
+    expect(changedCodes.authzVersion).not.toBe(baseline.authzVersion)
+  })
+
+  it('keeps opaque versions deterministic when equivalent grant facts are reordered or repeated', () => {
+    const canonical = policy.resolvePrincipalAuthorization(
+      principalInput(),
+      principalFacts(['inventory.read', 'inventory.write']),
+      businessCatalog(['inventory.read'])
+    )
+    const noisy = policy.resolvePrincipalAuthorization(
+      principalInput(),
+      principalFacts(['inventory.write', 'inventory.read', 'inventory.read']),
+      businessCatalog(['inventory.read'])
+    )
+
+    expect(noisy.authzVersion).toBe(canonical.authzVersion)
+  })
+
+  it('canonicalizes version fields and effective Codes before hashing', () => {
+    const baseline = buildOpaqueDecisionAuthzVersion({
+      decisionType: 'WORKLOAD_ISSUANCE',
+      fields: [
+        ['tenantId', 'tenant-1'],
+        ['trustedPolicyVersion', 'policy-v1']
+      ],
+      effectivePermissionCodes: ['z.internal.resolve', 'a.internal.resolve', 'a.internal.resolve']
+    })
+    const reordered = buildOpaqueDecisionAuthzVersion({
+      decisionType: 'WORKLOAD_ISSUANCE',
+      fields: [
+        ['trustedPolicyVersion', 'policy-v1'],
+        ['tenantId', 'tenant-1']
+      ],
+      effectivePermissionCodes: ['a.internal.resolve', 'z.internal.resolve']
+    })
+
+    expect(reordered).toBe(baseline)
+    expect(baseline).toMatch(/^[a-f0-9]{64}$/)
   })
 })
 

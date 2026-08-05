@@ -4,7 +4,10 @@ import { IQueryHandler, QueryHandler } from '@nestjs/cqrs'
 import { SYMBOLS } from '../../../common/constants/symbols'
 import { PermissionRepository } from '../../../domain/repositories/permission.repository'
 import { PrincipalAuthorizationRepository } from '../../../domain/repositories/principal-authorization.repository'
-import { PermissionDecisionPolicy } from '../../../domain/services/permission-decision-policy'
+import {
+  delegatedDecisionAuthzVersion,
+  PermissionDecisionPolicy
+} from '../../../domain/services/permission-decision-policy'
 import {
   PERMISSION_DECISION_AUDIT_PORT,
   PermissionDecisionAuditPort
@@ -38,7 +41,7 @@ export class ResolveDelegatedAuthorizationHandler implements IQueryHandler<Resol
         policyVersion: query.input.ownerAuthorization.policyVersion,
         resourcePolicyAllowed: false,
         resourcePolicyReference: query.input.ownerAuthorization.resourcePolicyReference,
-        authzVersion: '',
+        authzVersion: delegatedDecisionAuthzVersion(query.input, null, []),
         policyDecisionReference: '',
         reasonCode: 'AUTHORIZATION_DECISION_BINDING_MISMATCH'
       }

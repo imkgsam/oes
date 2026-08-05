@@ -6,20 +6,27 @@ import {
 import { WorkloadIssuancePolicyRepository } from '../../../domain/repositories/workload-issuance-policy.repository'
 
 const AUDIENCE_PATTERN = /^urn:oes:service:[a-z0-9][a-z0-9-]*$/
+const POLICY_FIELDS = new Set([
+  'originalWorkloadSpiffeId',
+  'targetAudience',
+  'permissionCodes',
+  'scopeLevel',
+  'tenantIds',
+  'policyVersion'
+])
 
 /** Resolves immutable workload issuance policies from one deployment-owned JSON configuration. */
 @Injectable()
 export class EnvironmentWorkloadIssuancePolicyRepository implements WorkloadIssuancePolicyRepository {
-  private policies?: readonly WorkloadIssuancePolicyFacts[]
+  private readonly policies: readonly WorkloadIssuancePolicyFacts[]
 
-  constructor(
-    private readonly rawPolicies: string | undefined = process.env
-      .PERMISSION_WORKLOAD_ISSUANCE_POLICIES
-  ) {}
+  constructor(rawPolicies = process.env.PERMISSION_WORKLOAD_ISSUANCE_POLICIES) {
+    this.policies = parsePolicies(rawPolicies)
+  }
 
   /** Returns only an exact workload, audience, scope and optional tenant policy match. */
   async findPolicy(input: Parameters<WorkloadIssuancePolicyRepository['findPolicy']>[0]) {
-    const matches = this.getPolicies().filter(
+    const matches = this.policies.filter(
       (policy) =>
         policy.originalWorkloadSpiffeId === input.originalWorkloadSpiffeId &&
         policy.targetAudience === input.targetAudience &&
@@ -31,13 +38,6 @@ export class EnvironmentWorkloadIssuancePolicyRepository implements WorkloadIssu
     }
     return matches[0] ?? null
   }
-
-  /** Parses and freezes configuration once so requests never mutate deployment authority. */
-  private getPolicies(): readonly WorkloadIssuancePolicyFacts[] {
-    if (this.policies) return this.policies
-    this.policies = parsePolicies(this.rawPolicies)
-    return this.policies
-  }
 }
 
 /** Parses only canonical exact workload policy entries and rejects wildcard or partial authority. */
@@ -46,18 +46,7 @@ function parsePolicies(raw: string | undefined): readonly WorkloadIssuancePolicy
     const parsed: unknown = JSON.parse(raw ?? '')
     if (!Array.isArray(parsed) || parsed.length === 0) throw new Error('empty policies')
     const policies = parsed.map(parsePolicy)
-    const identities = new Set(
-      policies.map((policy) =>
-        [
-          policy.originalWorkloadSpiffeId,
-          policy.targetAudience,
-          policy.scopeLevel,
-          ...(policy.tenantIds ?? []),
-          policy.policyVersion
-        ].join('|')
-      )
-    )
-    if (identities.size !== policies.length) throw new Error('duplicate policy')
+    assertUnambiguousPolicyTuples(policies)
     return Object.freeze(policies)
   } catch {
     throw new Error('PERMISSION_WORKLOAD_ISSUANCE_POLICIES must contain canonical exact policies')
@@ -68,14 +57,16 @@ function parsePolicies(raw: string | undefined): readonly WorkloadIssuancePolicy
 function parsePolicy(value: unknown): WorkloadIssuancePolicyFacts {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('invalid policy')
   const input = value as Record<string, unknown>
+  if (Object.keys(input).some((field) => !POLICY_FIELDS.has(field))) {
+    throw new Error('unsupported policy field')
+  }
   const originalWorkloadSpiffeId = exactString(input.originalWorkloadSpiffeId)
   const targetAudience = exactString(input.targetAudience)
   const permissionCodes = canonicalStrings(input.permissionCodes)
   const scopeLevel = input.scopeLevel as AuthorizationScopeLevel
   const policyVersion = exactString(input.policyVersion)
   if (
-    !originalWorkloadSpiffeId.startsWith('spiffe://') ||
-    originalWorkloadSpiffeId.includes('*') ||
+    !isExactSpiffeId(originalWorkloadSpiffeId) ||
     !AUDIENCE_PATTERN.test(targetAudience) ||
     permissionCodes.some((code) => !code.includes('.internal.')) ||
     (scopeLevel !== 'SYSTEM' && scopeLevel !== 'TENANT')
@@ -97,6 +88,44 @@ function parsePolicy(value: unknown): WorkloadIssuancePolicyFacts {
     ...(tenantIds ? { tenantIds: Object.freeze(tenantIds) as unknown as string[] } : {}),
     policyVersion
   })
+}
+
+/** Rejects policies whose expanded workload/audience/scope/tenant tuples overlap. */
+function assertUnambiguousPolicyTuples(policies: readonly WorkloadIssuancePolicyFacts[]): void {
+  const tuples = new Set<string>()
+  for (const policy of policies) {
+    const tenantIds = policy.scopeLevel === 'SYSTEM' ? [''] : (policy.tenantIds ?? [])
+    for (const tenantId of tenantIds) {
+      const tuple = JSON.stringify([
+        policy.originalWorkloadSpiffeId,
+        policy.targetAudience,
+        policy.scopeLevel,
+        tenantId
+      ])
+      if (tuples.has(tuple)) throw new Error('ambiguous policy tuple')
+      tuples.add(tuple)
+    }
+  }
+}
+
+/** Accepts only canonical SPIFFE URI values with a trust domain and workload path. */
+function isExactSpiffeId(value: string): boolean {
+  try {
+    const parsed = new URL(value)
+    return (
+      parsed.protocol === 'spiffe:' &&
+      parsed.hostname.length > 0 &&
+      parsed.pathname.length > 1 &&
+      parsed.username === '' &&
+      parsed.password === '' &&
+      parsed.search === '' &&
+      parsed.hash === '' &&
+      !value.includes('*') &&
+      parsed.toString() === value
+    )
+  } catch {
+    return false
+  }
 }
 
 /** Requires an exact non-empty string without trimming it into authority. */
