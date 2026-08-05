@@ -128,7 +128,7 @@ programControlBranch: codex/oes-program-control-migration
 - task archive：migration implementation task `019fcbff-ff44-7612-a187-045fa9f47333` 在 `main@45a7e306…` 集成证据完成后已归档；source candidate/worktree 继续保留到最终 Git 清理 gate。
 - target ownership：Permission implementation 与短时 main integration leases 已释放；GRPC carrier rebuild 已进入独立稳定写 lease。
 
-### 4.3 EXEC-CRYPTO — `MACHINE_SOURCE_VERIFIER_DESIGN_GAP`
+### 4.3 EXEC-CRYPTO — `MACHINE_FROZEN_DESIGN_CANDIDATE_IN_I&V`
 
 - source threads：control `019fc601-1f32-7912-a9a5-849cf22cfd23`；design `019fa287-01a8-7340-8fb3-b56df8652dcd`；I06 `019fc608-c9cf-7a82-a91a-0b9aa6d0cd5f`。
 - active retained writer：`/Users/acehood/.codex/worktrees/44ef/oes`；branch `codex/exec-crypto/i06-auth-tg2-remediation`；HEAD `64ea8660687bbeb24349d11bcaed6f63d2373c4b`；clean。
@@ -163,6 +163,10 @@ programControlBranch: codex/oes-program-control-migration
 - verified missing boundary：尚未冻结 MACHINE source credential owner/profile/verifier 与 expiry/revocation；credential 到 active Machine Principal、scope、tenant/org、subject 的唯一映射；与 `VerifiedWorkloadIdentity.spiffeId`/leaf certificate thumbprint 的精确绑定及 mismatch categories；以及 Auth-local 或 Identity-owned resolution 与对应 controlled contract/proto/Common lease。
 - exclusion evidence：当前 STS 只有 HUMAN session verifier；Common carrier 只是 verified-value wrapper；API-key-root mapping 是 API-key 专用且硬编码 permissions；Identity 现有 resolve RPC 明确只用于 external API-key exchange，均不能作为未冻结 MACHINE contract 直接复用。
 - Unified Design route：复用同一 `OES Unified Design` task `019fcaeb-cb2e-7e92-8c4e-aab7771d7254`，派发前 idle、即时快照 active。只读比较 Auth-local 与 Identity-owned machine resolution、expiry/revocation、binding、contract/proto/Common lease，并先向用户给出选项与单一推荐；用户冻结前不得写文档、恢复实现或推进 GRPC Asset。
+- frozen design candidate：`codex/unified-design/security-open-packets@d7b935fb434f394ba5af9bee0a3c415b50c26ee1`，direct parent/current main `1ca24f417a2d06bce8be79d4c8ed67bc6c518a65`；source worktree clean，未 merge/push；精确 13 docs、300 insertions / 32 deletions，`git diff-tree --check` exit 0，非 docs/proto/schema/runtime路径为0。
+- frozen ownership：Auth owns short-lived `MachineWorkloadSourceCredential`（最长15分钟、current-certificate bound、无 refresh token）；Identity owns `MachineWorkloadBinding` 与 controlled `ResolveMachinePrincipalForAuth` design；新增 `identity.internal.machine_principal.resolve` INTERNAL Code；Permission only authorizes，不解析 machine credential 或 SPIFFE mapping；`ResolveWorkloadIssuance` 保持唯一 mTLS-only bootstrap；internal MACHINE 与 external API-key paths 完全分离。
+- Asset condition：只有 static inventory 证明不存在 pure MACHINE root caller 时，Asset 才可独立进入 `ALL_CALLERS_READY`；否则必须等待 MACHINE runtime candidate 验收/集成。
+- design I&V route：exact candidate 已派发既有持久 task `019fcaf2-ca7b-7140-b46d-b6cacae58556`，即时快照 active；独立检查13文档的 owner/contract/expiry/revocation/binding/API-key exclusion一致性，并只在 main/origin未漂移时 ff-only集成与一次 main push。不创建新 acceptance task。
 - next route decision：EXEC-CRYPTO remediation 先于 GRPC Asset。原因是 Asset 明确等待 Platform Security 落地，而 EXEC-CRYPTO 的两项已登记依赖现已满足。
 - target ownership：Platform Security 独占上述 provisional lease；当前无并发 Auth writer。
 
@@ -382,7 +386,7 @@ AI legacy A/V 与 migration implementation 任务已有完整重建、独立 I&V
 
 branch refs 共 31：24 个 branch HEAD 已是 current main ancestor；7 个非 ancestor refs 已全部分类为 deferred ActionGrant runtime、AI legacy accepted evidence、API-KEY rejected prototype evidence、EXEC-CRYPTO legacy checkpoint、GRPC Asset candidate、原 GRPC carrier candidate 与 Program Control migration ledger。MACHINE branch 当前等于 main。不存在未分类 branch ref。
 
-任务处置快照：handoff registry 仍登记 101 个 legacy formal A/* tasks，最终均须在直接证据消费后归档；最近 50 项应用快照可见其中 24 个 legacy A/* tasks，另可见 legacy Global Command 1 个。MIG-D04 导致部分 capability 缺少逐 task IDs，因此当前 thread archive manifest 尚未完整，不能把 101 项声明为已具备逐项归档条件。本轮未唤醒、归档或删除旧 capability 任务；checker 为 0。AI、Permission、GRPC rebuild 与 EXEC-CRYPTO remediation implementation tasks 均已归档，共 4 个 completed migration implementation tasks。MACHINE task `019fd240-7062-76c3-a183-56e363e8fee4` DESIGN_GAP/idle；Unified Design `019fcaeb-cb2e-7e92-8c4e-aab7771d7254` active/read-only；持久 I&V idle，Program Control 继续保留。
+任务处置快照：handoff registry 仍登记 101 个 legacy formal A/* tasks，最终均须在直接证据消费后归档；最近 50 项应用快照可见其中 24 个 legacy A/* tasks，另可见 legacy Global Command 1 个。MIG-D04 导致部分 capability 缺少逐 task IDs，因此当前 thread archive manifest 尚未完整，不能把 101 项声明为已具备逐项归档条件。本轮未唤醒、归档或删除旧 capability 任务；checker 为 0。AI、Permission、GRPC rebuild 与 EXEC-CRYPTO remediation implementation tasks 均已归档，共 4 个 completed migration implementation tasks。MACHINE task `019fd240-7062-76c3-a183-56e363e8fee4` DESIGN_GAP/idle；Unified Design 已形成 frozen candidate；持久 I&V active，Program Control 继续保留。
 
 当前全局清理 blocker 共 4 类：MACHINE owner/public-contract design freeze、source-verifier completion与后续 GRPC Asset current-main rebuild/integration；EXEC-CRYPTO legacy checkpoint/rejected evidence disposition；deferred ActionGrant runtime candidate 的持久 disposition；Program Control ledger 集成与完整 thread archive manifest。API-KEY content-loss blocker 已转为 clean durable evidence ref，不再单独阻塞内容保全；仍随 final manifest 执行统一清理。任一 blocker 未关闭前，所有 worktree/branch 删除数保持 0。
 
@@ -515,4 +519,4 @@ EXEC-CRYPTO HUMAN foundation I&V terminal evidence：
 
 ## 10. 下一阶段入口
 
-EXEC-CRYPTO HUMAN-only foundation `1ca24f41…` 已 `ACCEPTED_AND_INTEGRATED`。当前迁移阶段为 `MACHINE_SOURCE_VERIFIER_UNIFIED_DESIGN_ACTIVE`：implementation task 已以 clean DESIGN_GAP 返回；同一 Unified Design task 正只读分析 Auth-local 与 Identity-owned machine resolution，并须先向用户给出选项与推荐。用户冻结 owner、credential profile/expiry/revocation、Machine Principal mapping、SPIFFE/leaf-cert binding及 contract/proto/Common lease 前，不写设计文档、不恢复实现、不推进 GRPC Asset。GRPC Asset `6973bcda…` 与 main 为 `9/1` 分叉；AI/ActionGrant runtime 保持 deferred，API-KEY `755d857a…` 不进入 main。删除数保持 0，不启用 checker，也不恢复旧 capability 任务。
+EXEC-CRYPTO HUMAN-only foundation `1ca24f41…` 已 `ACCEPTED_AND_INTEGRATED`。当前迁移阶段为 `MACHINE_FROZEN_DESIGN_CANDIDATE_IN_I&V`：frozen docs candidate `d7b935fb…` 已路由既有持久 I&V；验收/集成前不恢复 MACHINE implementation。若 accepted/integrated，原 task `019fd240-7062-76c3-a183-56e363e8fee4` 才可在同一 clean worktree/branch ff-only同步新main，并从冻结设计中显式审计/登记 proto/Common/Identity/Auth exact lease。GRPC Asset仍等待 MACHINE candidate，除非static inventory证明无pure MACHINE root caller。AI/ActionGrant runtime保持 deferred，API-KEY `755d857a…` 不进入main；无checker。
