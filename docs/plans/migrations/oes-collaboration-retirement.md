@@ -71,7 +71,7 @@ programControlBranch: codex/oes-program-control-migration
 - next-queue preflight：carrier 可作为唯一 I&V lane 的后续候选主题，但精确 candidate 的 parent 为 `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116`，当前 `main@fe395fb5…` 与其为 `3/1` 分叉；在 ff-only gate 下，派发前必须先形成基于 current main 的精确 rebuilt candidate。本轮只更新队列与 gate，不派发任务。
 - discrepancy：handoff 指定的 Asset retained writer worktree `/Users/acehood/Documents/GitHub/oes/.worktrees/grpc/i03-gateway-trusted-execution-producer` 当前实际绑定 carrier branch，并位于 `dced77ad8cb877ea9aad10f1c6a310ad32a924df`；Asset branch/candidate 仍保留，但当前没有绑定该 branch 的 worktree。
 
-### 4.2 PRINCIPAL-ROLE / Permission — `IMPLEMENTATION_CANDIDATE_READY`（legacy resources retained）
+### 4.2 PRINCIPAL-ROLE / Permission — `IMPLEMENTATION_REMEDIATION_REQUIRED`（legacy resources retained）
 
 - source threads：control `019fc879-f423-7b10-80ff-93557a6f51c7`；design `019fa287-0043-74d3-afbf-d12252837d9b`；decision-RPC A/I `019fc87b-1859-7ef2-88a6-a89c9a087024`。
 - legacy workspace：`/Users/acehood/.codex/worktrees/bf83/oes`；branch `codex/acprincipalrole-principalrolebinding-command`；HEAD `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116`；clean；只作历史引用。
@@ -95,7 +95,10 @@ programControlBranch: codex/oes-program-control-migration
 - exact scope：42 files，3418 insertions / 44 deletions；新增三个 Permission decision RPC contract/controller mappings、application/domain policies 与 ports、Prisma/config adapters、exact-Auth transport guard、DI/audit/tests，以及两个 Permission-owned INTERNAL Codes；未注册 Collaboration Code，未修改 docs、Auth、Gateway、Collaboration、AI 或 ActionGrant runtime。
 - implementation verification：L1 73 suites / 267 tests、L3 8 suites / 39 tests、Common contract 2/2、proto regen/lint、Common build、Permission build、Prettier、`git diff --check`、42/42 lease scan 与 bearer/TODO scan 均通过；generated outputs 保持 ignored。
 - environment-limited gates：L2 因本地 PostgreSQL `localhost:5432/permissiondb` 不可达而 exit 1；精确 ESLint 因仓库 parser 同时启用 `project` 与 `projectService`，38 files 均在 0:0 失败且未进入规则检查。lefthook 不在 PATH，但 commit exit 0。
-- target ownership：Platform Security implementation lease 已完成并释放；candidate 等待唯一持久 I&V 独立验收。GRPC carrier rebuild 继续排队，不在本阶段派发。
+- I&V terminal：唯一持久 Integration & Verification task 返回 `REJECTED`；结构、ancestry、42-file lease 与 diff check gate 通过，未取得 root integration lease，未 fetch、merge 或 push。
+- rejection 1：DELEGATED `authzVersion` 使用 `|` 直接拼接 HUMAN grant hash、delegation/agent/tool 与 owner policy versions，未形成绑定最终 delegated/effective BUSINESS Code 集的 opaque SHA-256；WORKLOAD 还直接回显 `policyVersion`。
+- rejection 2：environment workload issuance policy 在首次 `findPolicy()` 时才解析配置；缺失或非法配置不会阻止 Nest module bootstrap，不满足启动/readiness fail-closed。
+- target ownership：这两个问题属于实现/安全缺陷，不是 design gap 或 MIG-D08 环境限制；原 Platform Security lease 返回同一 Permission implementation task，在原 branch/worktree 追加 remediation commit。GRPC carrier rebuild 继续排队。
 
 ### 4.3 EXEC-CRYPTO — `MIGRATION_FROZEN`
 
@@ -206,7 +209,7 @@ AI legacy A/V 与 migration implementation 任务已有完整重建、独立 I&V
 | Principal Authorization rejected design candidate | `4f78cec80b133fd186079fefc6b78ba42be86c28` | 保留 DESIGN_GAP 证据；已由同 branch 的 replacement supersede |
 | Principal Authorization replacement candidate | `codex/unified-design/security-open-packets@fe395fb5254a620108882494eb601cfe00fd5701` | 已独立验收并集成；保留设计与修正证据 |
 | ActionGrant design candidate | `codex/unified-design/security-open-packets@634414557f14576c666d98276be80a230130b055` | 已独立验收并集成；保留设计与 Permission scope-gap closure 证据 |
-| Permission Decision RPC implementation candidate | `codex/migration/permission-decision-rpc@96eb67aa126cccbb98e91bb0fedf4f90cfd8399e` | 42-file candidate，等待独立 I&V/集成 |
+| Permission Decision RPC rejected candidate | `codex/migration/permission-decision-rpc@96eb67aa126cccbb98e91bb0fedf4f90cfd8399e` | 保留 I&V 安全拒绝证据；等待同 branch remediation candidate |
 | EXEC-CRYPTO writer | `codex/exec-crypto/i06-auth-tg2-remediation@64ea8660687bbeb24349d11bcaed6f63d2373c4b` | 保留上下文；无替代 candidate |
 | EXEC-CRYPTO rejected candidate | `c7ab0d9cf6767e63c499e7fc15a3d9d725b45cfc` | 保留拒绝证据 |
 | AI accepted legacy candidate | `codex/ai-platform/i01-tool-contract-registration@6101933d3f054989e6dbfca27889a7141db16075` | 保留历史验收与 blob 对照证据 |
@@ -227,7 +230,7 @@ AI legacy A/V 与 migration implementation 任务已有完整重建、独立 I&V
 | `/Users/acehood/Documents/GitHub/oes/.worktrees/program-control/migration` | `codex/oes-program-control-migration` | live branch ref；inventory checkpoint `1f5fdd69` | clean；替代已回收的 Codex 临时 worktree |
 | `/Users/acehood/Documents/GitHub/oes/.worktrees/migration/ai-platform-completion` | `codex/migration/ai-platform-completion` | `94094fe57a8d2f18750ef712f2730015be2d9514` | clean；AI rebuilt candidate |
 | `/Users/acehood/Documents/GitHub/oes/.worktrees/migration/permission-decision-rpc` | `codex/migration/permission-decision-rpc` | `96eb67aa126cccbb98e91bb0fedf4f90cfd8399e` | clean；Permission implementation candidate |
-| `/Users/acehood/Documents/GitHub/oes/.worktrees/integration/main-queue` | `codex/integration/main-queue` | `634414557f14576c666d98276be80a230130b055` | clean；ActionGrant design accepted/integrated，I&V 当前不持有新 candidate |
+| `/Users/acehood/Documents/GitHub/oes/.worktrees/integration/main-queue` | `codex/integration/main-queue` | `96eb67aa126cccbb98e91bb0fedf4f90cfd8399e` | clean；I&V 保留 rejected Permission candidate evidence，root main 未变 |
 | `/Users/acehood/Documents/GitHub/oes/.worktrees/unified-design/security-open-packets` | `codex/unified-design/security-open-packets` | `634414557f14576c666d98276be80a230130b055` | clean；ActionGrant design candidate |
 | `/Users/acehood/.codex/worktrees/44ef/oes` | `codex/exec-crypto/i06-auth-tg2-remediation` | `64ea8660687bbeb24349d11bcaed6f63d2373c4b` | clean |
 | `/Users/acehood/.codex/worktrees/475d/oes` | detached | `ddab5e77fdc7240750039c430f48a0e6fd76ab62` | clean |
@@ -281,7 +284,7 @@ AI legacy A/V 与 migration implementation 任务已有完整重建、独立 I&V
 | `codex/grpc/i03-gateway-trusted-execution-producer` | `6973bcda1484ac2fccc522f5d8ee70dc989c7541` |
 | `codex/grpc/i04-source-credential-carrier` | `dced77ad8cb877ea9aad10f1c6a310ad32a924df` |
 | `codex/grpc/x01-integration` | `78329db36f13be30f293f2666720180da8991faa` |
-| `codex/integration/main-queue` | `634414557f14576c666d98276be80a230130b055` |
+| `codex/integration/main-queue` | `96eb67aa126cccbb98e91bb0fedf4f90cfd8399e` |
 | `codex/migration/ai-platform-completion` | `94094fe57a8d2f18750ef712f2730015be2d9514` |
 | `codex/migration/permission-decision-rpc` | `96eb67aa126cccbb98e91bb0fedf4f90cfd8399e` |
 | `codex/oes-program-control-migration` | live branch ref；inventory checkpoint `1f5fdd690af817f8e9bb092fbafb769a31b2e1a6` |
@@ -359,6 +362,14 @@ ActionGrant design I&V terminal evidence：
 - task handoff 记录 L1/L3、Common contract、proto regen/lint、Common/Permission build、Prettier、diff/lease/security gates 通过；Program Control 未重复运行测试。
 - L2 数据库不可达与共享 ESLint parser 配置冲突作为环境限制保留，由 I&V 独立复核并决定 gate。
 
+首次 Permission implementation I&V terminal evidence：
+
+- 结论 `REJECTED`；candidate/parent、42 paths、3418+/44-、lease 与 diff check gate 通过；root main/origin-main 保持 `63441455…` 且 clean。
+- 独立断言确认 DELEGATED `authzVersion` 泄露内部版本组合且不是 SHA-256；WORKLOAD 直接返回 policy version；现有测试未覆盖最终 delegated/effective Code 集绑定。
+- 独立构造与 Nest bootstrap 回归确认 workload issuance policy 缺失/非法配置不会在启动阶段失败。
+- MIG-D08 独立复现：L2 因 I&V worktree 无 `.env` 在数据库连接前终止；ESLint 40 files 均在 0:0 parser config error。终态仍由两个安全失败决定，不是环境阻塞。
+- I&V 未 fetch、未 merge root、未 push；source/I&V worktree clean at rejected candidate。
+
 本轮没有运行 build、test、lint、安全审计或 acceptance；对应结果均仅作为 handoff evidence 保留，后续候选交付必须在精确重建后的 SHA 上重新验证。
 
 ## 9. Discrepancy register
@@ -373,7 +384,8 @@ ActionGrant design I&V terminal evidence：
 | MIG-D06 | Principal Authorization candidate `4f78cec8…` 的 Permission 服务真相源同时要求验证 ExecutionToken 又声明不消费 ExecutionToken | 首个 candidate 被 I&V 拒绝 | `CLOSED`：replacement `fe395fb5…` 已最小修正、复验、集成并 push |
 | MIG-D07 | Permission implementation inventory 发现 Common 缺少 principal-authorization INTERNAL Code 注册，且 DELEGATED issuance 缺少 owner upper-bound contract/runtime resolver | 原 Permission lease 不足，直接实现会复制跨域真相或读取 AI registration JSON | `CLOSED`：ActionGrant design `63441455…` 已冻结并集成最小 Common lease 与 owner/consumer boundary；恢复同一 Permission task |
 | MIG-D08 | Permission candidate 的 L2 受本地 PostgreSQL `permissiondb` 不可达限制；精确 ESLint 受共享 parser `project`/`projectService` 冲突限制 | 两个 gate 未提供代码级通过证据，但其失败均发生在环境/配置前置 | 保留字面失败证据；交由独立 I&V 复核，不在实现候选中修改数据库环境或共享 ESLint 配置 |
+| MIG-D09 | Permission candidate `96eb67aa…` 的最终 DELEGATED/WORKLOAD authzVersion 非 opaque SHA-256，且 workload policy 未在 bootstrap 解析 | 泄露内部版本结构、未绑定最终有效 Code 集；非法/缺失策略直到首个请求才失败 | I&V `REJECTED`；返回同一 Permission task 追加安全 remediation commit，不重开设计或任务 |
 
 ## 10. 下一阶段入口
 
-Permission Decision RPC candidate `96eb67aa…` 已形成且 clean。当前唯一动作是复用持久 I&V task `019fcaf2-ca7b-7140-b46d-b6cacae58556` 对 42-file candidate 执行独立安全/contract/runtime acceptance，并裁定 MIG-D08 的环境限制；仅在 accepted 且 root main 仍等于 parent 时 ff-only 集成/push。Permission implementation task 保持 idle，GRPC carrier 继续排队且与 main 为 `4/1` 分叉。不启用 checker，也不恢复旧 capability 任务。
+Permission Decision RPC candidate `96eb67aa…` 已被独立 I&V 以两个安全 gate 失败 `REJECTED`。当前唯一动作是恢复同一 Permission implementation task `019fcbff-ff44-7612-a187-045fa9f47333`，在原 branch/worktree 上追加 MIG-D09 remediation commit 并返回 replacement candidate；不修改设计、数据库环境或共享 ESLint 配置。GRPC carrier 继续排队且与 main 为 `4/1` 分叉。不启用 checker，也不恢复旧 capability 任务。
