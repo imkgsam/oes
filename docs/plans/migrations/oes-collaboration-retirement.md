@@ -128,7 +128,7 @@ programControlBranch: codex/oes-program-control-migration
 - task archive：migration implementation task `019fcbff-ff44-7612-a187-045fa9f47333` 在 `main@45a7e306…` 集成证据完成后已归档；source candidate/worktree 继续保留到最终 Git 清理 gate。
 - target ownership：Permission implementation 与短时 main integration leases 已释放；GRPC carrier rebuild 已进入独立稳定写 lease。
 
-### 4.3 EXEC-CRYPTO — `MACHINE_EXACT_LEASE_REPLACEMENT_ACTIVE`
+### 4.3 EXEC-CRYPTO — `MACHINE_EXACT_LEASE_CANDIDATE_READY`
 
 - source threads：control `019fc601-1f32-7912-a9a5-849cf22cfd23`；design `019fa287-01a8-7340-8fb3-b56df8652dcd`；I06 `019fc608-c9cf-7a82-a91a-0b9aa6d0cd5f`。
 - active retained writer：`/Users/acehood/.codex/worktrees/44ef/oes`；branch `codex/exec-crypto/i06-auth-tg2-remediation`；HEAD `64ea8660687bbeb24349d11bcaed6f63d2373c4b`；clean。
@@ -176,6 +176,11 @@ programControlBranch: codex/oes-program-control-migration
 - replacement I&V terminal：第二次 `DESIGN_GAP — RETURN_TO_UNIFIED_DESIGN`。correction/cumulative结构、13 docs、UTF-8、146 links、状态修复、tracked-tree零命中与六组frozen语义通过；未fetch/merge/push。
 - exact lease gap：完整MACHINE implementation lease仍是“Auth Prisma/tests/credential paths、Identity Machine Principal/binding paths”等描述性范围，且contract不冻结runtime class/schema。当前仅Permission catalog与两个Common Identity Code文件达到精确路径；I&V不得自行设计其他Auth/Identity/proto/Prisma/test/generated-input paths。
 - exact lease route：同一 Unified Design task只读inventory当前repo结构，并在不冻结字段/class/实现细节的前提下，形成完整、最小、逐文件的implementation lease manifest；generated outputs须区分输入与ignored/tracked验证，不作为writer ownership。保留前两次candidate，不恢复implementation或GRPC Asset。
+- exact lease candidate：`codex/unified-design/security-open-packets@22ed9ee468d0744b10dec4536856f29c10d3552f`，direct parent `bbb7338fea7c7a06aab7a45baff39665c8248197`，base/current main `1ca24f417a2d06bce8be79d4c8ed67bc6c518a65`；correction-only 精确 3 docs / 174 insertions / 5 deletions，cumulative 精确 13 docs / 480 insertions / 32 deletions；source worktree clean，无 code/proto/schema/runtime 实际变更。
+- exact lease manifest：封闭登记 64 个 tracked writer paths（Common contracts 3、Auth 29、Identity 25、Permission/Common Code 7）；27 个 `EXISTING` 均存在且 tracked，37 个固定单一文件名的 `NEW_TARGET` 均不存在、未 tracked、未 ignored。未列 tracked path 一律 deny-by-default。
+- derived/protected boundaries：7 个 ignored derived outputs（5 个 proto generated outputs、Auth/Identity 两个 Prisma generated roots）不属于 writer ownership；16 个重点 protected examples 覆盖 HUMAN session 3、external API Key 6、GRPC Asset 3、AI/ActionGrant 4；5 个共享文件带精确修改限制。Permission Code source/generator 与 tracked Common outputs 已明确分离。
+- exact lease evidence：correction/cumulative diff check、YAML manifest parse、64-path状态、generated-output分类、protected/shared-path检查、UTF-8 13/13、local links 146/146、`FROZEN_PENDING_IMPLEMENTATION` 13/13、tracked source中resolver/Code/credential/binding零命中、ancestry/HEAD/parent/clean-state checks 均 exit 0；manifest 登记 generation/build/focused-test/ownership 共 14 条未来批量验证命令。
+- exact lease I&V route：只复用持久 task `019fcaf2-ca7b-7140-b46d-b6cacae58556` 验收 exact candidate；独立复核第三次 correction、累计13文档、64-path manifest、27/37状态、7个derived outputs、protected/shared restrictions、冻结语义与当前 tracked-tree。仅当 root main/origin-main 仍等于 base 且全部验收通过，才允许 ff-only 集成并 push main 一次；验收前不恢复 MACHINE implementation 或 GRPC Asset。
 - next route decision：EXEC-CRYPTO remediation 先于 GRPC Asset。原因是 Asset 明确等待 Platform Security 落地，而 EXEC-CRYPTO 的两项已登记依赖现已满足。
 - target ownership：Platform Security 独占上述 provisional lease；当前无并发 Auth writer。
 
@@ -292,6 +297,7 @@ AI legacy A/V 与 migration implementation 任务已有完整重建、独立 I&V
 | EXEC-CRYPTO legacy checkpoint | `codex/exec-crypto/i06-auth-tg2-remediation@64ea8660687bbeb24349d11bcaed6f63d2373c4b` | 保留 merge checkpoint 上下文；HUMAN replacement 已集成，不直接复用 |
 | EXEC-CRYPTO rejected candidate | `c7ab0d9cf6767e63c499e7fc15a3d9d725b45cfc` | 保留拒绝证据 |
 | EXEC-CRYPTO HUMAN foundation | `codex/migration/exec-crypto-remediation@1ca24f417a2d06bce8be79d4c8ed67bc6c518a65` | 已独立验收并集成；仅 HUMAN，不代表 full TG-2/MACHINE |
+| MACHINE exact-lease design candidate | `codex/unified-design/security-open-packets@22ed9ee468d0744b10dec4536856f29c10d3552f` | 第三次 replacement；封闭登记 64-path implementation lease，待同一持久 I&V 验收 |
 | API-KEY rejected prototype evidence | `codex/api-key/x01-integration@755d857ab990520a916f73e859e39f1207085e32` | 精确保全原两个 untracked 文件；obsolete raw-pepper seam，永不进入 main |
 | AI accepted legacy candidate | `codex/ai-platform/i01-tool-contract-registration@6101933d3f054989e6dbfca27889a7141db16075` | 保留历史验收与 blob 对照证据 |
 | AI rebuilt candidate | `codex/migration/ai-platform-completion@94094fe57a8d2f18750ef712f2730015be2d9514` | 已独立验收并集成；保留交付证据，等待用户批准清理 |
@@ -526,8 +532,9 @@ EXEC-CRYPTO HUMAN foundation I&V terminal evidence：
 | MIG-D10 | EXEC-CRYPTO `1ca24f41…` 只完成 active HUMAN session/access credential source verifier，不是 full TG-2/MACHINE | 若直接推进 GRPC Asset `ALL_CALLERS_READY` 或 token-only cutover，会遗漏合格 MACHINE caller source principal | 保留 HUMAN foundation 集成证据；下一步先完成并验收 MACHINE/workload source-verifier，再允许 GRPC Asset rebuild |
 | MIG-D11 | MACHINE source credential owner/profile/expiry/revocation、active Machine Principal mapping、SPIFFE/leaf-cert binding 与 Auth-local/Identity-owned contract lease 未冻结 | 实现会被迫发明 public ownership/contract，或误用 API-key 专用 mapping | MACHINE worktree clean、无 candidate；复用 Unified Design 做只读选项/推荐，等待用户冻结后再恢复实现 |
 | MIG-D12 | MACHINE frozen design candidate `d7b935fb…` 把未来 Identity resolver/Code一处写成“当前已开放/既有”，同时又声明proto/Common/runtime尚未实现 | 文档会把 frozen pending contract误报为现有能力，导致implementation lease与运行现状不一致 | I&V返回DESIGN_GAP且未集成；同一 Unified Design task形成仅修正状态措辞的replacement |
-| MIG-D13 | MACHINE replacement `bbb7338f…` 修复状态误报，但Auth/Identity/proto/Prisma/tests/generated-input lease仍是描述性范围 | Program Control无法为恢复implementation登记完整exact path ownership，I&V也不能推断实现结构 | 未集成；同一 Unified Design task只读inventory并形成逐文件lease manifest的第三candidate |
+| MIG-D13 | MACHINE replacement `bbb7338f…` 修复状态误报，但Auth/Identity/proto/Prisma/tests/generated-input lease仍是描述性范围 | Program Control无法为恢复implementation登记完整exact path ownership，I&V也不能推断实现结构 | 第三candidate `22ed9ee4…` 已形成封闭64-path manifest，待同一I&V验收；旧candidate继续保留为DESIGN_GAP证据 |
+| MIG-D14 | MACHINE exact lease 跨 Common/Auth/Identity/Permission 且含新proto、Prisma输入、tracked codegen输出与ignored派生产物 | 路径或产物分类不精确会导致共享 ownership 漂移、误跟踪generated output或实现自行扩scope | `22ed9ee4…` 逐文件登记64个tracked writer paths、7个ignored outputs、16个protected examples与5个共享限制；未列tracked path默认禁止 |
 
 ## 10. 下一阶段入口
 
-EXEC-CRYPTO HUMAN-only foundation `1ca24f41…` 已 `ACCEPTED_AND_INTEGRATED`。当前迁移阶段为 `MACHINE_EXACT_LEASE_REPLACEMENT_ACTIVE`：第二candidate `bbb7338f…` 已关闭状态误报，但因完整implementation lease不精确被I&V退回、未集成；同一 Unified Design task正在形成逐文件exact lease第三candidate。验收/集成前不恢复MACHINE implementation或GRPC Asset。AI/ActionGrant runtime保持 deferred，API-KEY `755d857a…` 不进入main；无checker。
+EXEC-CRYPTO HUMAN-only foundation `1ca24f41…` 已 `ACCEPTED_AND_INTEGRATED`。当前迁移阶段为 `MACHINE_EXACT_LEASE_CANDIDATE_READY`：第三candidate `22ed9ee4…` 已在同一 Unified Design branch 上形成封闭64-path implementation lease，前两个DESIGN_GAP candidates继续保留为修正证据；现路由同一持久I&V独立验收。验收/集成前不恢复MACHINE implementation或GRPC Asset；若集成，恢复同一MACHINE task并先ff-only同步新main。AI/ActionGrant runtime保持 deferred，API-KEY `755d857a…` 不进入main；无checker。
