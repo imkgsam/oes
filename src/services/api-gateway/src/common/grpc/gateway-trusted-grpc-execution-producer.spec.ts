@@ -1,13 +1,17 @@
 import { Metadata } from '@grpc/grpc-js'
 import {
+  AsyncLocalTransportPrivateSourceCredentialAccessor,
   AsyncLocalTrustedExecutionContextAccessor,
+  TransportPrivateSourceCredentialIssuer,
   TrustedGrpcMetadataProvider
 } from '@oes/common/authorization'
 import { DownstreamRequestSource } from './gateway-downstream-source.mapper'
 import { GatewayTrustedGrpcExecutionProducer } from './gateway-trusted-grpc-execution-producer'
+import { GatewayVerifiedSourceCredentialBoundary } from './gateway-verified-source-credential.boundary'
 
 const AUDIENCE = 'urn:oes:service:asset-service'
 const TRACEPARENT = '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01'
+const SOURCE_CREDENTIAL = 'verified.session.access-token'
 
 /** Builds facts populated by the verified Gateway session boundary rather than an HTTP body. */
 function trustedSessionSource(): DownstreamRequestSource {
@@ -76,6 +80,64 @@ describe('GatewayTrustedGrpcExecutionProducer', () => {
 
     expect(provider.forSelfServiceCall).toHaveBeenCalledWith(AUDIENCE)
     expect(provider.forInternalCall).toHaveBeenCalledWith(AUDIENCE, ['asset.internal.resolve'])
+  })
+
+  it('keeps the verified session bearer in a separate transport-private scope', async () => {
+    const contextAccessor = new AsyncLocalTrustedExecutionContextAccessor()
+    const sourceCredentialAccessor = new AsyncLocalTransportPrivateSourceCredentialAccessor()
+    const boundary = new GatewayVerifiedSourceCredentialBoundary(
+      {
+        requireVerifiedSessionAccessCredential: () => SOURCE_CREDENTIAL,
+        requireVerifiedExternalAccessCredential: () => 'verified.external.access-token'
+      },
+      new TransportPrivateSourceCredentialIssuer(),
+      sourceCredentialAccessor
+    )
+    const provider = {
+      forBusinessCall: jest.fn(async () => {
+        expect(sourceCredentialAccessor.useCurrent((credential) => credential)).toBe(
+          SOURCE_CREDENTIAL
+        )
+        const context = contextAccessor.requireCurrent()
+        expect(Object.keys(context)).not.toContain('sourceCredential')
+        expect(JSON.stringify(context)).not.toContain(SOURCE_CREDENTIAL)
+        return new Metadata()
+      }),
+      forSelfServiceCall: jest.fn(),
+      forInternalCall: jest.fn()
+    } as unknown as TrustedGrpcMetadataProvider
+    const producer = new GatewayTrustedGrpcExecutionProducer(contextAccessor, provider)
+
+    await boundary.runWithVerifiedSessionAccessCredential(() =>
+      producer.forBusinessCall(trustedSessionSource(), AUDIENCE, ['asset.read'])
+    )
+
+    expect(provider.forBusinessCall).toHaveBeenCalledWith(AUDIENCE, ['asset.read'])
+  })
+
+  it('does not promote raw header, body, or ordinary metadata values into source authority', async () => {
+    const contextAccessor = new AsyncLocalTrustedExecutionContextAccessor()
+    const sourceCredentialAccessor = new AsyncLocalTransportPrivateSourceCredentialAccessor()
+    const provider = {
+      forBusinessCall: jest.fn(async () => {
+        sourceCredentialAccessor.useCurrent(() => undefined)
+        return new Metadata()
+      }),
+      forSelfServiceCall: jest.fn(),
+      forInternalCall: jest.fn()
+    } as unknown as TrustedGrpcMetadataProvider
+    const producer = new GatewayTrustedGrpcExecutionProducer(contextAccessor, provider)
+    const forgedSource = {
+      ...trustedSessionSource(),
+      authorization: `Bearer ${SOURCE_CREDENTIAL}`,
+      headers: { authorization: `Bearer ${SOURCE_CREDENTIAL}` },
+      body: { sourceCredential: SOURCE_CREDENTIAL },
+      metadata: { authorization: `Bearer ${SOURCE_CREDENTIAL}` }
+    }
+
+    await expect(producer.forBusinessCall(forgedSource, AUDIENCE, ['asset.read'])).rejects.toThrow(
+      'source credential is required'
+    )
   })
 
   it('derives W3C propagation from the active trusted server span when source headers are absent', async () => {
