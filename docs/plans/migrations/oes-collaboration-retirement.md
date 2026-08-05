@@ -38,8 +38,8 @@ programControlBranch: codex/oes-program-control-migration
 | `main` | `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` | 当前 `1ca24f417a2d06bce8be79d4c8ed67bc6c518a65`；AI、Principal Authorization、ActionGrant design、Permission、GRPC carrier 与 EXEC-CRYPTO HUMAN foundation 经唯一 I&V lane ff-only 推进 |
 | `origin/main` | `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` | 当前本地 remote-tracking ref 为 `1ca24f417a2d06bce8be79d4c8ed67bc6c518a65` |
 | Legacy formal A/* threads | 101 | 仅保留 handoff 汇总计数；未读取或唤醒线程 |
-| Worktrees | 29 | 当前 36；新增项为本 Program Control、AI Platform completion、Integration & Verification、Unified Design、Permission decision RPC、GRPC carrier rebuild 与 EXEC-CRYPTO remediation worktree |
-| `codex/*` branches | 23 | 当前 30；新增项为 `codex/oes-program-control-migration`、`codex/migration/ai-platform-completion`、`codex/integration/main-queue`、`codex/unified-design/security-open-packets`、`codex/migration/permission-decision-rpc`、`codex/migration/grpc-carrier-rebuild` 与 `codex/migration/exec-crypto-remediation` |
+| Worktrees | 29 | 当前 37；新增项为本 Program Control、AI Platform completion、Integration & Verification、Unified Design、Permission decision RPC、GRPC carrier rebuild、EXEC-CRYPTO remediation 与 MACHINE workload source-verifier worktree |
+| `codex/*` branches | 23 | 当前 31；新增项为 `codex/oes-program-control-migration`、`codex/migration/ai-platform-completion`、`codex/integration/main-queue`、`codex/unified-design/security-open-packets`、`codex/migration/permission-decision-rpc`、`codex/migration/grpc-carrier-rebuild`、`codex/migration/exec-crypto-remediation` 与 `codex/migration/machine-workload-source-verifier` |
 | Checker | disabled | handoff evidence；未唤醒旧 checker |
 | Root dirty state | clean | clean，暂存区与工作区均无变更 |
 
@@ -128,7 +128,7 @@ programControlBranch: codex/oes-program-control-migration
 - task archive：migration implementation task `019fcbff-ff44-7612-a187-045fa9f47333` 在 `main@45a7e306…` 集成证据完成后已归档；source candidate/worktree 继续保留到最终 Git 清理 gate。
 - target ownership：Permission implementation 与短时 main integration leases 已释放；GRPC carrier rebuild 已进入独立稳定写 lease。
 
-### 4.3 EXEC-CRYPTO — `HUMAN_FOUNDATION_ACCEPTED_MACHINE_PENDING`
+### 4.3 EXEC-CRYPTO — `MACHINE_SOURCE_VERIFIER_DESIGN_GAP`
 
 - source threads：control `019fc601-1f32-7912-a9a5-849cf22cfd23`；design `019fa287-01a8-7340-8fb3-b56df8652dcd`；I06 `019fc608-c9cf-7a82-a91a-0b9aa6d0cd5f`。
 - active retained writer：`/Users/acehood/.codex/worktrees/44ef/oes`；branch `codex/exec-crypto/i06-auth-tg2-remediation`；HEAD `64ea8660687bbeb24349d11bcaed6f63d2373c4b`；clean。
@@ -155,10 +155,14 @@ programControlBranch: codex/oes-program-control-migration
 - MACHINE boundary：current verifier 仅接受 active HUMAN session/access credential；MACHINE、DELEGATED、API-key、AI、ActionGrant 与多跳 subject ExecutionToken fail closed。MACHINE/workload source-verifier completion 仍是 GRPC Asset `ALL_CALLERS_READY`、token-only server cutover与完整服务迁移的前置。
 - next route：下一非 AI foundation 是 MACHINE/workload source-verifier completion；完成并验收前不创建 GRPC Asset rebuild task。
 - MACHINE implementation task：`OES Implementation · MACHINE Workload Source Verifier`，thread `019fd240-7062-76c3-a183-56e363e8fee4`，host `local`；标题已设置并读回，首次即时快照为 active，cwd 为只读 root且正在先读冻结真相源。
-- MACHINE fixed worktree：`/Users/acehood/Documents/GitHub/oes/.worktrees/migration/machine-workload-source-verifier`；branch `codex/migration/machine-workload-source-verifier`；base `1ca24f417a2d06bce8be79d4c8ed67bc6c518a65`。派发前确认 `.worktrees` ignored、目标 branch/worktree 不存在；首次快照时仍由任务待创建。
+- MACHINE fixed worktree：`/Users/acehood/Documents/GitHub/oes/.worktrees/migration/machine-workload-source-verifier`；branch `codex/migration/machine-workload-source-verifier`；HEAD/base `1ca24f417a2d06bce8be79d4c8ed67bc6c518a65`；clean，无代码或 candidate。
 - MACHINE provisional lease：仅允许 Auth/Platform Security 内与 verified mTLS/SPIFFE workload source identity、execution-token source verifier、signing boundary 及其定向 tests 直接相关的最小路径；任务必须在写入前完成 exact ownership audit并登记最终路径。proto/docs/Common/Permission、HUMAN slice与其他 Auth 能力默认受保护。
 - MACHINE design-gap gate：若 frozen DG-1 sources 不能唯一决定 workload source credential 与 verified workload identity 的绑定，或 subject/audience 表示方式，必须返回一个精确 gap 给 Unified Design，不得自行发明 contract、claim、proto 或公共抽象。
 - MACHINE security gate：requested INTERNAL Codes 只是请求，必须为 authoritative `ResolveWorkloadIssuance` granted subset；mismatch、unknown workload、requested-not-granted、tenant/org/scope/audience/cert-binding failures 均须在 signer 前 fail closed。DELEGATED、API-key、AI、ActionGrant、GRPC Asset、业务 feature与 public external opening禁止写入。
+- MACHINE implementation terminal：task `019fd240-7062-76c3-a183-56e363e8fee4` 返回 `DESIGN_GAP` 并 idle；未写 production code、未形成 candidate。
+- verified missing boundary：尚未冻结 MACHINE source credential owner/profile/verifier 与 expiry/revocation；credential 到 active Machine Principal、scope、tenant/org、subject 的唯一映射；与 `VerifiedWorkloadIdentity.spiffeId`/leaf certificate thumbprint 的精确绑定及 mismatch categories；以及 Auth-local 或 Identity-owned resolution 与对应 controlled contract/proto/Common lease。
+- exclusion evidence：当前 STS 只有 HUMAN session verifier；Common carrier 只是 verified-value wrapper；API-key-root mapping 是 API-key 专用且硬编码 permissions；Identity 现有 resolve RPC 明确只用于 external API-key exchange，均不能作为未冻结 MACHINE contract 直接复用。
+- Unified Design route：复用同一 `OES Unified Design` task `019fcaeb-cb2e-7e92-8c4e-aab7771d7254`，派发前 idle、即时快照 active。只读比较 Auth-local 与 Identity-owned machine resolution、expiry/revocation、binding、contract/proto/Common lease，并先向用户给出选项与单一推荐；用户冻结前不得写文档、恢复实现或推进 GRPC Asset。
 - next route decision：EXEC-CRYPTO remediation 先于 GRPC Asset。原因是 Asset 明确等待 Platform Security 落地，而 EXEC-CRYPTO 的两项已登记依赖现已满足。
 - target ownership：Platform Security 独占上述 provisional lease；当前无并发 Auth writer。
 
@@ -283,7 +287,7 @@ AI legacy A/V 与 migration implementation 任务已有完整重建、独立 I&V
 
 ### 7.3 当前全部 worktree 清单
 
-当前观察到 36 个 worktree；最新核验全部 clean。所有 legacy 资源保持原状。
+当前观察到 37 个 worktree；最新核验全部 clean。所有 legacy 资源保持原状。
 
 | Worktree | Branch | HEAD | State |
 | --- | --- | --- | --- |
@@ -322,6 +326,7 @@ AI legacy A/V 与 migration implementation 任务已有完整重建、独立 I&V
 | `/Users/acehood/Documents/GitHub/oes/.worktrees/grpc/x01-integration` | `codex/grpc/x01-integration` | `78329db36f13be30f293f2666720180da8991faa` | clean |
 | `/Users/acehood/Documents/GitHub/oes/.worktrees/migration/exec-crypto-remediation` | `codex/migration/exec-crypto-remediation` | `1ca24f417a2d06bce8be79d4c8ed67bc6c518a65` | clean；HUMAN-only candidate accepted/integrated，implementation task archived |
 | `/Users/acehood/Documents/GitHub/oes/.worktrees/migration/grpc-carrier-rebuild` | `codex/migration/grpc-carrier-rebuild` | `3e263e501341ea1b90049d5343c42db055f3c5ea` | clean；candidate accepted/integrated，implementation task archived |
+| `/Users/acehood/Documents/GitHub/oes/.worktrees/migration/machine-workload-source-verifier` | `codex/migration/machine-workload-source-verifier` | `1ca24f417a2d06bce8be79d4c8ed67bc6c518a65` | clean；DESIGN_GAP，无代码/candidate，implementation idle |
 | `/Users/acehood/Documents/GitHub/oes/.worktrees/trusted-grpc-execution-context/d-freeze` | `codex/trusted-grpc-execution-context/d-freeze` | `7500bd66d3e11b7a39bb0de052141efe4bfa0d09` | clean |
 
 ### 7.4 当前全部 `codex/*` branch refs
@@ -354,6 +359,7 @@ AI legacy A/V 与 migration implementation 任务已有完整重建、独立 I&V
 | `codex/migration/exec-crypto-remediation` | `1ca24f417a2d06bce8be79d4c8ed67bc6c518a65` |
 | `codex/migration/ai-platform-completion` | `94094fe57a8d2f18750ef712f2730015be2d9514` |
 | `codex/migration/grpc-carrier-rebuild` | `3e263e501341ea1b90049d5343c42db055f3c5ea` |
+| `codex/migration/machine-workload-source-verifier` | `1ca24f417a2d06bce8be79d4c8ed67bc6c518a65` |
 | `codex/migration/permission-decision-rpc` | `45a7e3065d66f3692493181120ebd08e47ec283f` |
 | `codex/oes-program-control-migration` | live branch ref；inventory checkpoint `1f5fdd690af817f8e9bb092fbafb769a31b2e1a6` |
 | `codex/trusted-grpc-execution-context/d-freeze` | `7500bd66d3e11b7a39bb0de052141efe4bfa0d09` |
@@ -368,25 +374,26 @@ AI legacy A/V 与 migration implementation 任务已有完整重建、独立 I&V
 | root main worktree | 1 | 最终唯一保留目标；当前 clean |
 | 非 root、HEAD 已是 main ancestor、clean | 25 | Git 内容已进入 main，但在 ledger 集成、任务证据消费与全局清理 gate 完成前不移除 |
 | newly integrated clean worktrees | 2 | GRPC carrier `3e263e50…` 与 EXEC-CRYPTO HUMAN foundation `1ca24f41…`；已独立验收并进入 main，等待 final cleanup manifest |
+| design-gap clean implementation worktrees | 1 | MACHINE workload source-verifier；HEAD 等于 main，无代码/candidate，等待 Unified Design 用户冻结 |
 | retained non-main candidate worktrees | 3 | EXEC-CRYPTO `64ea8660…`、GRPC carrier `dced77ad…`、deferred ActionGrant runtime `ec2b2cf…`；分别等待 dependency-ordered rebuild/验收或持久 deferred disposition |
 | superseded/rejected evidence worktrees | 4 | EXEC-CRYPTO rejected `c7ab0d9c…`、API-KEY prototype `755d857a…` 及 AI legacy candidate/acceptance 两个 `6101933d…` worktrees；证据已登记，仍待 ledger 入 main 后的清理 gate |
 | Program Control migration ledger worktree | 1 | 当前不在 main；必须先完成 ledger candidate 验收与集成 |
-| **worktree total** | **36** | 全部 worktree clean；持久 I&V idle，本轮删除/clean/reset 数为 0 |
+| **worktree total** | **37** | 全部 worktree clean；MACHINE implementation idle、Unified Design active，本轮删除/clean/reset 数为 0 |
 
-branch refs 共 30：23 个 branch HEAD 已是 current main ancestor；7 个非 ancestor refs 已全部分类为 deferred ActionGrant runtime、AI legacy accepted evidence、API-KEY rejected prototype evidence、EXEC-CRYPTO legacy checkpoint、GRPC Asset candidate、原 GRPC carrier candidate 与 Program Control migration ledger。不存在未分类 branch ref。
+branch refs 共 31：24 个 branch HEAD 已是 current main ancestor；7 个非 ancestor refs 已全部分类为 deferred ActionGrant runtime、AI legacy accepted evidence、API-KEY rejected prototype evidence、EXEC-CRYPTO legacy checkpoint、GRPC Asset candidate、原 GRPC carrier candidate 与 Program Control migration ledger。MACHINE branch 当前等于 main。不存在未分类 branch ref。
 
-任务处置快照：handoff registry 仍登记 101 个 legacy formal A/* tasks，最终均须在直接证据消费后归档；最近 50 项应用快照可见其中 24 个 legacy A/* tasks，另可见 legacy Global Command 1 个。MIG-D04 导致部分 capability 缺少逐 task IDs，因此当前 thread archive manifest 尚未完整，不能把 101 项声明为已具备逐项归档条件。本轮未唤醒、归档或删除旧 capability 任务；checker 为 0。AI、Permission、GRPC rebuild 与 EXEC-CRYPTO remediation implementation tasks 均已归档，共 4 个 completed migration implementation tasks。MACHINE workload source-verifier task `019fd240-7062-76c3-a183-56e363e8fee4` active；持久 I&V idle，Program Control 与 Unified Design 继续保留到对应迁移职责结束。
+任务处置快照：handoff registry 仍登记 101 个 legacy formal A/* tasks，最终均须在直接证据消费后归档；最近 50 项应用快照可见其中 24 个 legacy A/* tasks，另可见 legacy Global Command 1 个。MIG-D04 导致部分 capability 缺少逐 task IDs，因此当前 thread archive manifest 尚未完整，不能把 101 项声明为已具备逐项归档条件。本轮未唤醒、归档或删除旧 capability 任务；checker 为 0。AI、Permission、GRPC rebuild 与 EXEC-CRYPTO remediation implementation tasks 均已归档，共 4 个 completed migration implementation tasks。MACHINE task `019fd240-7062-76c3-a183-56e363e8fee4` DESIGN_GAP/idle；Unified Design `019fcaeb-cb2e-7e92-8c4e-aab7771d7254` active/read-only；持久 I&V idle，Program Control 继续保留。
 
-当前全局清理 blocker 共 4 类：MACHINE/workload source-verifier completion 与后续 GRPC Asset current-main rebuild/integration、EXEC-CRYPTO legacy checkpoint/rejected evidence disposition、deferred ActionGrant runtime candidate 的持久 disposition、Program Control ledger 集成与完整 thread archive manifest。API-KEY content-loss blocker 已转为 clean durable evidence ref，不再单独阻塞内容保全；仍随 final manifest 执行统一清理。任一 blocker 未关闭前，所有 worktree/branch 删除数保持 0。
+当前全局清理 blocker 共 4 类：MACHINE owner/public-contract design freeze、source-verifier completion与后续 GRPC Asset current-main rebuild/integration；EXEC-CRYPTO legacy checkpoint/rejected evidence disposition；deferred ActionGrant runtime candidate 的持久 disposition；Program Control ledger 集成与完整 thread archive manifest。API-KEY content-loss blocker 已转为 clean durable evidence ref，不再单独阻塞内容保全；仍随 final manifest 执行统一清理。任一 blocker 未关闭前，所有 worktree/branch 删除数保持 0。
 
 ## 8. 本轮验证记录
 
 只读验证覆盖：
 
 - `git rev-parse`：核验 root、Program Control、所有列出的 candidate/decision commit 与关键 branch refs。
-- `git worktree list --porcelain`：最新枚举 36 个当前 worktree。
+- `git worktree list --porcelain`：最新枚举 37 个当前 worktree。
 - 每个 worktree 的 `git status --porcelain=v1 --untracked-files=all`：最新核验全部 clean；GRPC rebuild 已形成候选并释放写入状态。
-- `git for-each-ref refs/heads/codex/`：最新枚举 30 个当前 `codex/*` branches；逐 ref 与 current main 做 ancestry/divergence 分类。
+- `git for-each-ref refs/heads/codex/`：最新枚举 31 个当前 `codex/*` branches；逐 ref 与 current main 做 ancestry/divergence 分类。
 - `git diff --name-status 7500bd66…..6101933d…`：AI candidate 相对其原 base 恰好新增两份 registrations 文件。
 - `git diff --name-only 65e49258…..dced77ad…`：GRPC carrier 的 13 个路径与 handoff 一致。
 - `git merge-base --is-ancestor`：ActionGrant 三段 commit chain 顺序成立。
@@ -496,7 +503,7 @@ EXEC-CRYPTO HUMAN foundation I&V terminal evidence：
 | --- | --- | --- | --- |
 | MIG-D01 | GRPC Asset handoff worktree path 当前绑定 carrier branch/HEAD，而不是 Asset branch/candidate | 不得把该 path 误作 Asset writer；后续恢复 Asset 前需显式选择/建立正确工作面 | 保留全部 refs/worktree，不修改 |
 | MIG-D02 | API-KEY x01 integration worktree 曾有 2 个未跟踪 domain 文件 | 测试文件与 rejected `b641e0e1…` 完全一致；实现文件 blob `e54f5f1f…` 唯一但使用 ADR-0017 已淘汰的 raw-pepper seam | `CLOSED_FOR_CONTENT_PRESERVATION`：两文件已精确提交为 clean rejected-prototype evidence `755d857a…`；永不进 main，待 final manifest 后清理 ref/worktree |
-| MIG-D03 | 当前资源计数为 36 worktrees / 30 `codex/*` branches，高于 handoff 的 29/23 | 差额来自本 Program Control、AI Platform completion、Integration & Verification、Unified Design、Permission decision RPC、GRPC carrier rebuild 与 EXEC-CRYPTO remediation 的隔离工作树/分支，并非旧资源漂移 | 在全局快照显式对账 |
+| MIG-D03 | 当前资源计数为 37 worktrees / 31 `codex/*` branches，高于 handoff 的 29/23 | 差额来自本 Program Control、AI Platform completion、Integration & Verification、Unified Design、Permission decision RPC、GRPC carrier rebuild、EXEC-CRYPTO remediation 与 MACHINE workload source-verifier 的隔离工作树/分支，并非旧资源漂移 | 在全局快照显式对账 |
 | MIG-D04 | API-KEY、EVENT、EXEC-REVOKE 的具体 source thread IDs 未包含在 compact bundle | 台账只能保留 capability 状态与 Git evidence，不能形成完整 thread-level archive manifest | 不唤醒旧线程；等待后续显式补充或按现有证据形成 closure summary |
 | MIG-D05 | GRPC carrier `dced77ad…` 的 parent 为 `65e49258…`，不能直接通过 current-main ff-only gate | 旧 SHA 必须仅作 evidence 并在 current main 重建 | `CLOSED`：rebuilt `3e263e50…` 已独立复验、ff-only 集成并 push；原 candidate 继续保留历史证据 |
 | MIG-D06 | Principal Authorization candidate `4f78cec8…` 的 Permission 服务真相源同时要求验证 ExecutionToken 又声明不消费 ExecutionToken | 首个 candidate 被 I&V 拒绝 | `CLOSED`：replacement `fe395fb5…` 已最小修正、复验、集成并 push |
@@ -504,7 +511,8 @@ EXEC-CRYPTO HUMAN foundation I&V terminal evidence：
 | MIG-D08 | Permission candidate 的 L2 受本地 PostgreSQL `permissiondb` 不可达限制；精确 ESLint 受共享 parser `project`/`projectService` 冲突限制 | 两个 gate 未提供代码级通过证据，但其失败均发生在环境/配置前置 | 保留字面失败证据；交由独立 I&V 复核，不在实现候选中修改数据库环境或共享 ESLint 配置 |
 | MIG-D09 | Permission candidate `96eb67aa…` 的最终 DELEGATED/WORKLOAD authzVersion 非 opaque SHA-256，且 workload policy 未在 bootstrap 解析 | 泄露内部版本结构、未绑定最终有效 Code 集；非法/缺失策略直到首个请求才失败 | `CLOSED`：remediation `45a7e306…` 已修正、独立复验、集成并 push |
 | MIG-D10 | EXEC-CRYPTO `1ca24f41…` 只完成 active HUMAN session/access credential source verifier，不是 full TG-2/MACHINE | 若直接推进 GRPC Asset `ALL_CALLERS_READY` 或 token-only cutover，会遗漏合格 MACHINE caller source principal | 保留 HUMAN foundation 集成证据；下一步先完成并验收 MACHINE/workload source-verifier，再允许 GRPC Asset rebuild |
+| MIG-D11 | MACHINE source credential owner/profile/expiry/revocation、active Machine Principal mapping、SPIFFE/leaf-cert binding 与 Auth-local/Identity-owned contract lease 未冻结 | 实现会被迫发明 public ownership/contract，或误用 API-key 专用 mapping | MACHINE worktree clean、无 candidate；复用 Unified Design 做只读选项/推荐，等待用户冻结后再恢复实现 |
 
 ## 10. 下一阶段入口
 
-EXEC-CRYPTO HUMAN-only foundation `1ca24f41…` 已 `ACCEPTED_AND_INTEGRATED`。当前迁移阶段为 `MACHINE_WORKLOAD_SOURCE_VERIFIER_ACTIVE`：单一 implementation task `019fd240-7062-76c3-a183-56e363e8fee4` 已启动，基于 current main 审计并完成 MACHINE/workload source-verifier；若 workload identity/subject/audience binding 未被冻结真相源唯一决定，则返回 Unified Design gap。完成并验收前不得推进 GRPC Asset `ALL_CALLERS_READY`、token-only cutover或 current-main rebuild。GRPC Asset `6973bcda…` 与 main 为 `9/1` 分叉；AI/ActionGrant runtime 保持 deferred，API-KEY `755d857a…` 不进入 main。删除数保持 0，不启用 checker，也不恢复旧 capability 任务。
+EXEC-CRYPTO HUMAN-only foundation `1ca24f41…` 已 `ACCEPTED_AND_INTEGRATED`。当前迁移阶段为 `MACHINE_SOURCE_VERIFIER_UNIFIED_DESIGN_ACTIVE`：implementation task 已以 clean DESIGN_GAP 返回；同一 Unified Design task 正只读分析 Auth-local 与 Identity-owned machine resolution，并须先向用户给出选项与推荐。用户冻结 owner、credential profile/expiry/revocation、Machine Principal mapping、SPIFFE/leaf-cert binding及 contract/proto/Common lease 前，不写设计文档、不恢复实现、不推进 GRPC Asset。GRPC Asset `6973bcda…` 与 main 为 `9/1` 分叉；AI/ActionGrant runtime 保持 deferred，API-KEY `755d857a…` 不进入 main。删除数保持 0，不启用 checker，也不恢复旧 capability 任务。
