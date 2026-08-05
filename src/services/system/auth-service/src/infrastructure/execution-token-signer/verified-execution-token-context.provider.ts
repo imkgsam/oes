@@ -1,74 +1,86 @@
-import type { OperatorContextPayload } from '@oes/common/authorization'
+import { Metadata } from '@grpc/grpc-js'
+import { getGrpcAuthorizationBearer, getGrpcMetadataValue } from '@oes/common/authorization'
 import type { ExecutionTokenExchangeContextPort } from '../../application/ports/execution-token-exchange-context.port'
 import type {
   ExchangeExecutionTokenInput,
+  ExecutionTokenAuthorizationDecision,
+  TrustedExecutionContext,
   VerifiedExecutionWorkload
 } from '../../application/services/execution-token-exchange.service'
-import { resolveApiKeyRootExecutionContext } from './api-key-root-execution-context'
 
 type VerifiedWorkloadResolver = {
   getVerifiedWorkloadIdentity(call: unknown): Promise<VerifiedExecutionWorkload>
 }
 
-/** Resolves STS principals only from Common-attached signed operator facts and Common's mTLS workload provider. */
-export class VerifiedExecutionTokenContextProvider implements ExecutionTokenExchangeContextPort {
-  constructor(private readonly workloadResolver: VerifiedWorkloadResolver) {}
+/** Verifies the carrier bearer with its owning Auth credential truth and returns no authorization set. */
+export interface ExecutionTokenSourceCredentialVerifier {
+  verify(
+    sourceCredential: string,
+    workloadIdentity: VerifiedExecutionWorkload
+  ): Promise<TrustedExecutionContext>
+}
 
-  /** Produces execution facts from verified runtime context and never reconstructs them from the exchange proto fields. */
+/** Resolves Permission's independently granted upper bound for one verified principal request. */
+export interface ExecutionTokenPermissionDecisionResolver {
+  resolve(input: {
+    request: Pick<ExchangeExecutionTokenInput, 'targetAudience' | 'requestedPermissionCodes'>
+    workloadIdentity: VerifiedExecutionWorkload
+    execution: TrustedExecutionContext
+    requestId?: string
+    traceparent?: string
+    tracestate?: string
+  }): Promise<ExecutionTokenAuthorizationDecision>
+}
+
+/** Resolves STS input only from the carrier bearer, Auth-owned credential verification, Permission, and mTLS. */
+export class VerifiedExecutionTokenContextProvider implements ExecutionTokenExchangeContextPort {
+  constructor(
+    private readonly workloadResolver: VerifiedWorkloadResolver,
+    private readonly sourceCredentialVerifier: ExecutionTokenSourceCredentialVerifier,
+    private readonly permissionDecisionResolver: ExecutionTokenPermissionDecisionResolver
+  ) {}
+
+  /** Produces request-bound execution and authorization facts without consulting DTO or legacy operator fields. */
   async resolve(
     call: unknown,
     request: Pick<ExchangeExecutionTokenInput, 'targetAudience' | 'requestedPermissionCodes'>
   ): Promise<Omit<ExchangeExecutionTokenInput, 'targetAudience' | 'requestedPermissionCodes'>> {
     const workloadIdentity = await this.workloadResolver.getVerifiedWorkloadIdentity(call)
-    const operatorContext = readVerifiedOperatorContext(readRpcData(call))
-    if (!operatorContext) {
-      const rootExecution = resolveApiKeyRootExecutionContext(workloadIdentity, request)
-      if (!rootExecution) throw new Error('verified execution context is unavailable')
-      return Object.freeze({
-        workloadIdentity,
-        execution: rootExecution
-      })
-    }
-    const principalType = asPrincipalType(operatorContext.operator_type)
-    const permissionCodes = operatorContext.operator_roles?.filter(
-      (code): code is string => typeof code === 'string' && code.length > 0
-    )
-    if (
-      !operatorContext.operator_id ||
-      !operatorContext.tenant_id ||
-      !principalType ||
-      !permissionCodes?.length
-    )
-      throw new Error('verified execution permission context is unavailable')
-    return Object.freeze({
-      workloadIdentity,
-      execution: Object.freeze({
-        subject: operatorContext.operator_id,
-        principalType,
-        tenantId: operatorContext.tenant_id,
-        ...(operatorContext.org_id ? { orgId: operatorContext.org_id } : {}),
-        permissionCodes: Object.freeze([...new Set(permissionCodes)])
-      })
+    const metadata = readCallMetadata(call)
+    const sourceCredential = getGrpcAuthorizationBearer(metadata)
+    if (!sourceCredential) throw new Error('verified source credential is required')
+
+    const execution = Object.freeze({
+      ...(await this.sourceCredentialVerifier.verify(sourceCredential, workloadIdentity))
     })
+    const authorizationDecision = Object.freeze(
+      await this.permissionDecisionResolver.resolve({
+        request,
+        workloadIdentity,
+        execution,
+        ...optionalMetadata(metadata, 'x-request-id', 'requestId'),
+        ...optionalMetadata(metadata, 'traceparent', 'traceparent'),
+        ...optionalMetadata(metadata, 'tracestate', 'tracestate')
+      })
+    )
+    return Object.freeze({ workloadIdentity, execution, authorizationDecision })
   }
 }
 
-/** Reads the opaque Common-attached operator fact while refusing any DTO field as an identity source. */
-function readVerifiedOperatorContext(rpcData: unknown): OperatorContextPayload | undefined {
-  if (!rpcData || typeof rpcData !== 'object') return undefined
-  const authenticated = (rpcData as { __oesOperatorContext?: { operatorContext?: unknown } })
-    .__oesOperatorContext
-  return authenticated?.operatorContext as OperatorContextPayload | undefined
+/** Reads only the grpc-js call metadata that the current private carrier writes. */
+function readCallMetadata(call: unknown): Metadata {
+  if (!call || typeof call !== 'object') throw new Error('gRPC exchange call is required')
+  const metadata = (call as { metadata?: unknown }).metadata
+  if (!(metadata instanceof Metadata)) throw new Error('gRPC exchange metadata is required')
+  return metadata
 }
 
-/** Reads only the rpc data object that Common guards mutate after signature verification, never controller request fields. */
-function readRpcData(call: unknown): unknown {
-  if (!call || typeof call !== 'object' || !('request' in call))
-    throw new Error('verified execution context is unavailable')
-  return (call as { request: unknown }).request
-}
-
-/** Narrows a Common-verified operator type to the frozen STS principal kinds. */
-function asPrincipalType(value: string): 'HUMAN' | 'MACHINE' | 'DELEGATED' | undefined {
-  return value === 'HUMAN' || value === 'MACHINE' || value === 'DELEGATED' ? value : undefined
+/** Copies one correlation value without promoting ordinary metadata into authorization authority. */
+function optionalMetadata(
+  metadata: Metadata,
+  metadataKey: string,
+  propertyName: string
+): Record<string, string> {
+  const value = getGrpcMetadataValue(metadata, metadataKey)
+  return value === undefined ? {} : { [propertyName]: value }
 }

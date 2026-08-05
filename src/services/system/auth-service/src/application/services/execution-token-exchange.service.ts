@@ -10,13 +10,32 @@ export interface VerifiedExecutionWorkload {
 export interface TrustedExecutionContext {
   readonly subject: string
   readonly principalType: 'HUMAN' | 'MACHINE' | 'DELEGATED'
-  readonly tenantId: string
+  readonly scopeLevel?: 'SYSTEM' | 'TENANT'
+  readonly tenantId?: string
   readonly orgId?: string
-  readonly permissionCodes: readonly string[]
+  /** @deprecated Legacy context field retained only for compile compatibility; the signing gate never reads it. */
+  readonly permissionCodes?: readonly string[]
   readonly sessionId?: string
   readonly delegationId?: string
   readonly actor?: unknown
-  readonly authzVersion?: string | number
+}
+
+/** Carries only Permission's authoritative, request-bound issuance upper bound into the signing gate. */
+export interface ExecutionTokenAuthorizationDecision {
+  readonly allowed: boolean
+  readonly kind: 'BUSINESS' | 'INTERNAL' | 'SELF_SERVICE'
+  readonly grantedPermissionCodes: readonly string[]
+  readonly deniedPermissionCodes: readonly string[]
+  readonly principalType: 'HUMAN' | 'MACHINE' | 'DELEGATED'
+  readonly principalId: string
+  readonly scopeLevel: 'SYSTEM' | 'TENANT'
+  readonly tenantId?: string
+  readonly orgId?: string
+  readonly targetAudience: string
+  readonly originalWorkloadSpiffeId?: string
+  readonly requestedPermissionCodes: readonly string[]
+  readonly decisionReference: string
+  readonly authzVersion: string
 }
 
 export interface ExchangeExecutionTokenInput {
@@ -24,6 +43,7 @@ export interface ExchangeExecutionTokenInput {
   readonly requestedPermissionCodes: readonly string[]
   readonly workloadIdentity: VerifiedExecutionWorkload
   readonly execution: TrustedExecutionContext
+  readonly authorizationDecision: ExecutionTokenAuthorizationDecision
 }
 
 export interface IssuedExecutionToken {
@@ -63,7 +83,7 @@ export class ExecutionTokenExchangeService {
       sub: input.execution.subject,
       principal_type: input.execution.principalType,
       client_id: input.workloadIdentity.spiffeId,
-      tenant_id: input.execution.tenantId,
+      ...(input.execution.tenantId === undefined ? {} : { tenant_id: input.execution.tenantId }),
       ...(input.execution.orgId === undefined ? {} : { org_id: input.execution.orgId }),
       scope: permissions.join(' '),
       jti: randomUUID(),
@@ -76,9 +96,7 @@ export class ExecutionTokenExchangeService {
         ? {}
         : { delegation_id: input.execution.delegationId }),
       ...(input.execution.actor === undefined ? {} : { act: input.execution.actor }),
-      ...(input.execution.authzVersion === undefined
-        ? {}
-        : { authz_version: input.execution.authzVersion })
+      authz_version: input.authorizationDecision.authzVersion
     })
     const signingInput = `${header}.${claims}`
     const signature = await this.signer.sign(signingKey.kid, Buffer.from(signingInput, 'utf8'))
@@ -94,7 +112,7 @@ export class ExecutionTokenExchangeService {
     })
   }
 
-  /** Validates only facts already established by upstream authorization and the mTLS transport boundary. */
+  /** Validates the transport facts and Permission-owned upper bound before the signing port is reachable. */
   private assertTrustedContext(
     input: ExchangeExecutionTokenInput,
     permissionCodes: readonly string[]
@@ -103,23 +121,79 @@ export class ExecutionTokenExchangeService {
       !input.workloadIdentity.spiffeId.startsWith('spiffe://') ||
       !isThumbprint(input.workloadIdentity.certificateThumbprint) ||
       !input.execution.subject ||
-      !input.execution.tenantId ||
-      permissionCodes.some((code) => !input.execution.permissionCodes.includes(code))
+      !authorizationDecisionMatches(input, permissionCodes)
     ) {
-      throw new Error('execution token exchange context is not trusted')
+      throw new Error('execution token exchange lacks an authoritative Permission decision')
     }
     this.registry.assertIssuanceAllowed(input.workloadIdentity.spiffeId, input.targetAudience)
   }
 }
 
-/** Requires a canonical, non-empty, exact permission subset so STS cannot silently issue a broader or partial token. */
+/** Requires requested Codes to be a true subset of Permission's bound authoritative grant. */
+function authorizationDecisionMatches(
+  input: ExchangeExecutionTokenInput,
+  requestedPermissionCodes: readonly string[]
+): boolean {
+  const decision = input.authorizationDecision
+  const granted = canonicalDecisionCodes(decision?.grantedPermissionCodes)
+  const denied = canonicalDecisionCodes(decision?.deniedPermissionCodes)
+  const requested = [...requestedPermissionCodes]
+  if (
+    !decision?.allowed ||
+    !isExact(decision.decisionReference) ||
+    !isExact(decision.authzVersion) ||
+    decision.principalType !== input.execution.principalType ||
+    decision.principalId !== input.execution.subject ||
+    decision.scopeLevel !== input.execution.scopeLevel ||
+    decision.tenantId !== input.execution.tenantId ||
+    decision.orgId !== input.execution.orgId ||
+    decision.targetAudience !== input.targetAudience ||
+    !sameCodes(decision.requestedPermissionCodes, requested) ||
+    granted === undefined ||
+    denied === undefined ||
+    requested.some((code) => !granted.includes(code) || denied.includes(code))
+  ) {
+    return false
+  }
+  if (decision.kind === 'SELF_SERVICE') {
+    return (
+      requested.length === 0 && granted.length === 0 && input.execution.principalType === 'HUMAN'
+    )
+  }
+  if (requested.length === 0) return false
+  return (
+    decision.kind === 'BUSINESS' ||
+    (decision.kind === 'INTERNAL' &&
+      decision.originalWorkloadSpiffeId === input.workloadIdentity.spiffeId)
+  )
+}
+
+/** Accepts only exact, unique, canonically sorted Code arrays from the decision boundary. */
+function canonicalDecisionCodes(
+  codes: readonly string[] | undefined
+): readonly string[] | undefined {
+  if (!Array.isArray(codes) || codes.some((code) => !isExact(code))) return undefined
+  const canonical = [...new Set(codes)].sort()
+  return sameCodes(codes, canonical) ? canonical : undefined
+}
+
+/** Compares two already-bounded Code lists without treating either list as authority by itself. */
+function sameCodes(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length && left.every((code, index) => code === right[index])
+}
+
+/** Requires a non-empty exact string for stable decision references and authorization versions. */
+function isExact(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0 && value.trim() === value
+}
+
+/** Requires an exact canonical request while reserving the empty set for the later SELF_SERVICE gate. */
 function normalizePermissionCodes(permissionCodes: readonly string[]): readonly string[] {
   if (
-    permissionCodes.length === 0 ||
     new Set(permissionCodes).size !== permissionCodes.length ||
     permissionCodes.some((code, index) => !code || code !== [...permissionCodes].sort()[index])
   ) {
-    throw new Error('execution token permissions must be non-empty, unique, and canonical')
+    throw new Error('execution token permissions must be unique and canonical')
   }
   return Object.freeze([...permissionCodes])
 }

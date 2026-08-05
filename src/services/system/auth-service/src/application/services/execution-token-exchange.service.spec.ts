@@ -1,6 +1,9 @@
 import { generateKeyPairSync, sign, verify } from 'node:crypto'
 import { ExecutionTokenExchangeService } from './execution-token-exchange.service'
-import { ExecutionTokenSigningKey, ExecutionTokenSigningPort } from '../../domain/ports/execution-token-signing.port'
+import {
+  ExecutionTokenSigningKey,
+  ExecutionTokenSigningPort
+} from '../../domain/ports/execution-token-signing.port'
 import { ExecutionTokenRegistry } from '../../domain/services/execution-token-registry'
 
 /** Provides isolated P-256 signing material so the exchange test covers Auth's KMS/HSM boundary contract. */
@@ -58,8 +61,22 @@ describe('ExecutionTokenExchangeService', () => {
       execution: {
         subject: 'account-1',
         principalType: 'HUMAN',
+        scopeLevel: 'TENANT',
+        tenantId: 'tenant-1'
+      },
+      authorizationDecision: {
+        allowed: true,
+        kind: 'BUSINESS',
+        grantedPermissionCodes: ['AUTH.READ'],
+        deniedPermissionCodes: [],
+        principalType: 'HUMAN',
+        principalId: 'account-1',
+        scopeLevel: 'TENANT',
         tenantId: 'tenant-1',
-        permissionCodes: ['AUTH.READ', 'AUTH.WRITE']
+        targetAudience: 'urn:oes:service:permission-service',
+        requestedPermissionCodes: ['AUTH.READ'],
+        decisionReference: 'decision-1',
+        authzVersion: 'authz-1'
       }
     })
 
@@ -95,5 +112,107 @@ describe('ExecutionTokenExchangeService', () => {
       grantedAudience: 'urn:oes:service:permission-service',
       grantedPermissionCodes: ['AUTH.READ']
     })
+  })
+
+  it('rejects a requested Code outside the authoritative Permission decision even when execution mirrors the request', async () => {
+    const signer = new FakeExecutionTokenSigningPort()
+    const signSpy = jest.spyOn(signer, 'sign')
+    const service = new ExecutionTokenExchangeService(
+      new ExecutionTokenRegistry({
+        issuer: 'https://auth.local.oes.example',
+        workloadPolicies: [
+          {
+            spiffeId: 'spiffe://local.oes/gateway',
+            audiences: ['urn:oes:service:permission-service']
+          }
+        ]
+      }),
+      signer,
+      () => 1_700_000_300
+    )
+
+    await expect(
+      service.exchange({
+        targetAudience: 'urn:oes:service:permission-service',
+        requestedPermissionCodes: ['AUTH.READ', 'AUTH.WRITE'],
+        workloadIdentity: {
+          spiffeId: 'spiffe://local.oes/gateway',
+          certificateThumbprint: 'A'.repeat(43)
+        },
+        execution: {
+          subject: 'account-1',
+          principalType: 'HUMAN',
+          scopeLevel: 'TENANT',
+          tenantId: 'tenant-1'
+        },
+        authorizationDecision: {
+          allowed: true,
+          kind: 'BUSINESS',
+          grantedPermissionCodes: ['AUTH.READ'],
+          deniedPermissionCodes: [],
+          principalType: 'HUMAN',
+          principalId: 'account-1',
+          scopeLevel: 'TENANT',
+          tenantId: 'tenant-1',
+          targetAudience: 'urn:oes:service:permission-service',
+          requestedPermissionCodes: ['AUTH.READ', 'AUTH.WRITE'],
+          decisionReference: 'decision-1',
+          authzVersion: 'authz-1'
+        }
+      } as any)
+    ).rejects.toThrow('authoritative Permission decision')
+    expect(signSpy).not.toHaveBeenCalled()
+  })
+
+  it('issues the canonical empty SELF_SERVICE scope only from a verified HUMAN session decision', async () => {
+    const service = new ExecutionTokenExchangeService(
+      new ExecutionTokenRegistry({
+        issuer: 'https://auth.local.oes.example',
+        workloadPolicies: [
+          {
+            spiffeId: 'spiffe://local.oes/gateway',
+            audiences: ['urn:oes:service:asset-service']
+          }
+        ]
+      }),
+      new FakeExecutionTokenSigningPort(),
+      () => 1_700_000_300
+    )
+
+    const result = await service.exchange({
+      targetAudience: 'urn:oes:service:asset-service',
+      requestedPermissionCodes: [],
+      workloadIdentity: {
+        spiffeId: 'spiffe://local.oes/gateway',
+        certificateThumbprint: 'A'.repeat(43)
+      },
+      execution: {
+        subject: 'account-1',
+        principalType: 'HUMAN',
+        scopeLevel: 'TENANT',
+        tenantId: 'tenant-1',
+        sessionId: 'session-1'
+      },
+      authorizationDecision: {
+        allowed: true,
+        kind: 'SELF_SERVICE',
+        grantedPermissionCodes: [],
+        deniedPermissionCodes: [],
+        principalType: 'HUMAN',
+        principalId: 'account-1',
+        scopeLevel: 'TENANT',
+        tenantId: 'tenant-1',
+        targetAudience: 'urn:oes:service:asset-service',
+        requestedPermissionCodes: [],
+        decisionReference: 'self-service-session:session-1',
+        authzVersion: 'session:session-1'
+      }
+    })
+
+    const claims = JSON.parse(
+      Buffer.from(result.accessToken.split('.')[1], 'base64url').toString('utf8')
+    )
+    expect(result.grantedPermissionCodes).toEqual([])
+    expect(claims.scope).toBe('')
   })
 })
