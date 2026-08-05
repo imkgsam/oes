@@ -128,7 +128,7 @@ programControlBranch: codex/oes-program-control-migration
 - task archive：migration implementation task `019fcbff-ff44-7612-a187-045fa9f47333` 在 `main@45a7e306…` 集成证据完成后已归档；source candidate/worktree 继续保留到最终 Git 清理 gate。
 - target ownership：Permission implementation 与短时 main integration leases 已释放；GRPC carrier rebuild 已进入独立稳定写 lease。
 
-### 4.3 EXEC-CRYPTO — `MACHINE_FROZEN_DESIGN_REPLACEMENT_IN_I&V`
+### 4.3 EXEC-CRYPTO — `MACHINE_EXACT_LEASE_REPLACEMENT_ACTIVE`
 
 - source threads：control `019fc601-1f32-7912-a9a5-849cf22cfd23`；design `019fa287-01a8-7340-8fb3-b56df8652dcd`；I06 `019fc608-c9cf-7a82-a91a-0b9aa6d0cd5f`。
 - active retained writer：`/Users/acehood/.codex/worktrees/44ef/oes`；branch `codex/exec-crypto/i06-auth-tg2-remediation`；HEAD `64ea8660687bbeb24349d11bcaed6f63d2373c4b`；clean。
@@ -173,6 +173,9 @@ programControlBranch: codex/oes-program-control-migration
 - replacement candidate：`bbb7338fea7c7a06aab7a45baff39665c8248197`，direct parent `d7b935fb434f394ba5af9bee0a3c415b50c26ee1`，base/current main `1ca24f417a2d06bce8be79d4c8ed67bc6c518a65`；correction-only 13 docs / 27+/16-，cumulative 13 docs / 311+/32-，non-docs 0，source clean。
 - replacement semantics：13文档统一 `FROZEN_PENDING_IMPLEMENTATION`；Identity README不再列为当前开放，resolver明确待新增；credential runtime、binding persistence、resolver proto/runtime与Common Code registration均明确未实现。frozen owner/security semantics不变。
 - replacement I&V route：已复用同一持久 task独立复验correction/cumulative/status/tracked-tree；仅在main/origin未漂移时ff-only集成与一次push。不创建新任务。
+- replacement I&V terminal：第二次 `DESIGN_GAP — RETURN_TO_UNIFIED_DESIGN`。correction/cumulative结构、13 docs、UTF-8、146 links、状态修复、tracked-tree零命中与六组frozen语义通过；未fetch/merge/push。
+- exact lease gap：完整MACHINE implementation lease仍是“Auth Prisma/tests/credential paths、Identity Machine Principal/binding paths”等描述性范围，且contract不冻结runtime class/schema。当前仅Permission catalog与两个Common Identity Code文件达到精确路径；I&V不得自行设计其他Auth/Identity/proto/Prisma/test/generated-input paths。
+- exact lease route：同一 Unified Design task只读inventory当前repo结构，并在不冻结字段/class/实现细节的前提下，形成完整、最小、逐文件的implementation lease manifest；generated outputs须区分输入与ignored/tracked验证，不作为writer ownership。保留前两次candidate，不恢复implementation或GRPC Asset。
 - next route decision：EXEC-CRYPTO remediation 先于 GRPC Asset。原因是 Asset 明确等待 Platform Security 落地，而 EXEC-CRYPTO 的两项已登记依赖现已满足。
 - target ownership：Platform Security 独占上述 provisional lease；当前无并发 Auth writer。
 
@@ -392,7 +395,7 @@ AI legacy A/V 与 migration implementation 任务已有完整重建、独立 I&V
 
 branch refs 共 31：24 个 branch HEAD 已是 current main ancestor；7 个非 ancestor refs 已全部分类为 deferred ActionGrant runtime、AI legacy accepted evidence、API-KEY rejected prototype evidence、EXEC-CRYPTO legacy checkpoint、GRPC Asset candidate、原 GRPC carrier candidate 与 Program Control migration ledger。MACHINE branch 当前等于 main。不存在未分类 branch ref。
 
-任务处置快照：handoff registry 仍登记 101 个 legacy formal A/* tasks，最终均须在直接证据消费后归档；最近 50 项应用快照可见其中 24 个 legacy A/* tasks，另可见 legacy Global Command 1 个。MIG-D04 导致部分 capability 缺少逐 task IDs，因此当前 thread archive manifest 尚未完整，不能把 101 项声明为已具备逐项归档条件。本轮未唤醒、归档或删除旧 capability 任务；checker 为 0。AI、Permission、GRPC rebuild 与 EXEC-CRYPTO remediation implementation tasks 均已归档，共 4 个 completed migration implementation tasks。MACHINE task `019fd240-7062-76c3-a183-56e363e8fee4` DESIGN_GAP/idle；Unified Design replacement ready/idle；持久 I&V active，Program Control继续保留。
+任务处置快照：handoff registry 仍登记 101 个 legacy formal A/* tasks，最终均须在直接证据消费后归档；最近 50 项应用快照可见其中 24 个 legacy A/* tasks，另可见 legacy Global Command 1 个。MIG-D04 导致部分 capability 缺少逐 task IDs，因此当前 thread archive manifest 尚未完整，不能把 101 项声明为已具备逐项归档条件。本轮未唤醒、归档或删除旧 capability 任务；checker 为 0。AI、Permission、GRPC rebuild 与 EXEC-CRYPTO remediation implementation tasks 均已归档，共 4 个 completed migration implementation tasks。MACHINE task `019fd240-7062-76c3-a183-56e363e8fee4` DESIGN_GAP/idle；持久 I&V已返回第二个design gap并idle；Unified Design active补齐exact lease，Program Control继续保留。
 
 当前全局清理 blocker 共 4 类：MACHINE owner/public-contract design freeze、source-verifier completion与后续 GRPC Asset current-main rebuild/integration；EXEC-CRYPTO legacy checkpoint/rejected evidence disposition；deferred ActionGrant runtime candidate 的持久 disposition；Program Control ledger 集成与完整 thread archive manifest。API-KEY content-loss blocker 已转为 clean durable evidence ref，不再单独阻塞内容保全；仍随 final manifest 执行统一清理。任一 blocker 未关闭前，所有 worktree/branch 删除数保持 0。
 
@@ -523,7 +526,8 @@ EXEC-CRYPTO HUMAN foundation I&V terminal evidence：
 | MIG-D10 | EXEC-CRYPTO `1ca24f41…` 只完成 active HUMAN session/access credential source verifier，不是 full TG-2/MACHINE | 若直接推进 GRPC Asset `ALL_CALLERS_READY` 或 token-only cutover，会遗漏合格 MACHINE caller source principal | 保留 HUMAN foundation 集成证据；下一步先完成并验收 MACHINE/workload source-verifier，再允许 GRPC Asset rebuild |
 | MIG-D11 | MACHINE source credential owner/profile/expiry/revocation、active Machine Principal mapping、SPIFFE/leaf-cert binding 与 Auth-local/Identity-owned contract lease 未冻结 | 实现会被迫发明 public ownership/contract，或误用 API-key 专用 mapping | MACHINE worktree clean、无 candidate；复用 Unified Design 做只读选项/推荐，等待用户冻结后再恢复实现 |
 | MIG-D12 | MACHINE frozen design candidate `d7b935fb…` 把未来 Identity resolver/Code一处写成“当前已开放/既有”，同时又声明proto/Common/runtime尚未实现 | 文档会把 frozen pending contract误报为现有能力，导致implementation lease与运行现状不一致 | I&V返回DESIGN_GAP且未集成；同一 Unified Design task形成仅修正状态措辞的replacement |
+| MIG-D13 | MACHINE replacement `bbb7338f…` 修复状态误报，但Auth/Identity/proto/Prisma/tests/generated-input lease仍是描述性范围 | Program Control无法为恢复implementation登记完整exact path ownership，I&V也不能推断实现结构 | 未集成；同一 Unified Design task只读inventory并形成逐文件lease manifest的第三candidate |
 
 ## 10. 下一阶段入口
 
-EXEC-CRYPTO HUMAN-only foundation `1ca24f41…` 已 `ACCEPTED_AND_INTEGRATED`。当前迁移阶段为 `MACHINE_FROZEN_DESIGN_REPLACEMENT_IN_I&V`：replacement `bbb7338f…` 已修正全部future-runtime状态误报并路由既有I&V；验收/集成前不恢复MACHINE implementation。GRPC Asset仍等待MACHINE candidate，除非static inventory证明无pure MACHINE root caller。AI/ActionGrant runtime保持 deferred，API-KEY `755d857a…` 不进入main；无checker。
+EXEC-CRYPTO HUMAN-only foundation `1ca24f41…` 已 `ACCEPTED_AND_INTEGRATED`。当前迁移阶段为 `MACHINE_EXACT_LEASE_REPLACEMENT_ACTIVE`：第二candidate `bbb7338f…` 已关闭状态误报，但因完整implementation lease不精确被I&V退回、未集成；同一 Unified Design task正在形成逐文件exact lease第三candidate。验收/集成前不恢复MACHINE implementation或GRPC Asset。AI/ActionGrant runtime保持 deferred，API-KEY `755d857a…` 不进入main；无checker。
