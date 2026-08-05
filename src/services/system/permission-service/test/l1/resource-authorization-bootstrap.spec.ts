@@ -10,10 +10,23 @@ import { AuthorizationModule } from '../../src/modules/authorization/authorizati
 
 describe('Resource authorization bootstrap containment', () => {
   let app: INestApplication | undefined
+  let originalAuthSpiffeId: string | undefined
 
+  // Supplies the exact Auth workload identity required by fail-closed module bootstrap.
+  beforeEach(() => {
+    originalAuthSpiffeId = process.env.PERMISSION_AUTH_SERVICE_SPIFFE_ID
+    process.env.PERMISSION_AUTH_SERVICE_SPIFFE_ID = 'spiffe://oes.test/ns/system/sa/auth-service'
+  })
+
+  // Closes the test application and restores the caller's environment.
   afterEach(async () => {
     await app?.close()
     app = undefined
+    if (originalAuthSpiffeId === undefined) {
+      delete process.env.PERMISSION_AUTH_SERVICE_SPIFFE_ID
+    } else {
+      process.env.PERMISSION_AUTH_SERVICE_SPIFFE_ID = originalAuthSpiffeId
+    }
   })
 
   it('AuthorizationModule / 应能解析内部 resource authorization provider 与 policy instance repository', async () => {

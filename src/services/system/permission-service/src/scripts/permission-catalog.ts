@@ -1,4 +1,5 @@
 import { Modules, PermissionKind } from '../../prisma/generated/prisma'
+import { PERMISSION_INTERNAL_PERMISSION_CODES as COMMON_PERMISSION_INTERNAL_PERMISSION_CODES } from '@oes/common/authorization'
 
 export type PermissionSeedItem = {
   code: string
@@ -113,6 +114,21 @@ const permissionManagement = definePermissionGroup(Modules.PERMISSION_SERVICE, {
   UPDATE_POLICY: { code: 'permission.policy.update', description: '更新权限策略' },
   DELETE_POLICY: { code: 'permission.policy.delete', description: '删除权限策略' },
   VIEW_POLICY: { code: 'permission.policy.list', description: '查看权限策略列表' }
+})
+
+const permissionInternal = definePermissionGroup(Modules.PERMISSION_SERVICE, {
+  PRINCIPAL_AUTHORIZATION_RESOLVE: {
+    code: COMMON_PERMISSION_INTERNAL_PERMISSION_CODES.PRINCIPAL_AUTHORIZATION_RESOLVE,
+    description: '解析 Auth 发证所需的 principal BUSINESS authorization upper bound',
+    kind: PermissionKind.INTERNAL,
+    externalApiEligible: false
+  },
+  DELEGATED_AUTHORIZATION_RESOLVE: {
+    code: COMMON_PERMISSION_INTERNAL_PERMISSION_CODES.DELEGATED_AUTHORIZATION_RESOLVE,
+    description: '解析 Auth 编排的 delegated action authorization upper bound',
+    kind: PermissionKind.INTERNAL,
+    externalApiEligible: false
+  }
 })
 
 const roleTemplateManagement = definePermissionGroup(Modules.PERMISSION_SERVICE, {
@@ -987,6 +1003,7 @@ const siteManagement = definePermissionGroup(Modules.SITE_SERVICE, {
 })
 
 export const PERMISSION_MANAGEMENT_PERMISSION_CODES = permissionManagement.codes
+export const PERMISSION_INTERNAL_PERMISSION_CODES = permissionInternal.codes
 export const ROLE_TEMPLATE_PERMISSION_CODES = roleTemplateManagement.codes
 export const ROLE_INSTANCE_PERMISSION_CODES = roleInstanceManagement.codes
 export const PERMISSION_ACCOUNT_SELF_PERMISSION_CODES = permissionAccountSelf.codes
@@ -1039,6 +1056,7 @@ export const DEPRECATED_PERMISSION_CODES = [
 /** PERMISSION_CODE_SEED_ITEMS publishes the owner-service permission catalog consumed by permission foundation sync. */
 export const PERMISSION_CODE_SEED_ITEMS: PermissionSeedItem[] = [
   ...permissionManagement.items,
+  ...permissionInternal.items,
   ...roleTemplateManagement.items,
   ...roleInstanceManagement.items,
   ...permissionAccountSelf.items,

@@ -4,6 +4,7 @@ import {
   AUTH_MANAGEMENT_PERMISSION_CODES,
   AUTH_SELF_PERMISSION_CODES,
   AUTH_SESSION_PERMISSION_CODES,
+  BROWSER_ACTIVITY_AUDIT_PERMISSION_CODES,
   COLLABORATION_ANNOTATION_PERMISSION_CODES,
   COLLABORATION_TASK_PERMISSION_CODES,
   CRM_MANAGEMENT_PERMISSION_CODES,
@@ -16,6 +17,7 @@ import {
   ITEM_MASTER_MANAGEMENT_PERMISSION_CODES,
   MES_MANAGEMENT_PERMISSION_CODES,
   PERMISSION_ACCOUNT_SELF_PERMISSION_CODES,
+  PERMISSION_INTERNAL_PERMISSION_CODES,
   PERMISSION_MANAGEMENT_PERMISSION_CODES,
   PROCUREMENT_MANAGEMENT_PERMISSION_CODES,
   PUBLIC_ENTRY_BUSINESS_CARD_PERMISSION_CODES,
@@ -59,6 +61,7 @@ const COMMON_PERMISSION_CODE_FILES: CommonPermissionCodeFileDefinition[] = [
     relativePath: 'index.ts',
     exports: [
       './auth',
+      './browser-activity',
       './collaboration',
       './crm',
       './finance',
@@ -79,8 +82,23 @@ const COMMON_PERMISSION_CODE_FILES: CommonPermissionCodeFileDefinition[] = [
   },
   {
     kind: 'index',
+    relativePath: 'browser-activity/index.ts',
+    exports: ['./audit.permission-codes']
+  },
+  {
+    kind: 'const',
+    relativePath: 'browser-activity/audit.permission-codes.ts',
+    constName: 'BROWSER_ACTIVITY_AUDIT_PERMISSION_CODES',
+    records: BROWSER_ACTIVITY_AUDIT_PERMISSION_CODES
+  },
+  {
+    kind: 'index',
     relativePath: 'auth/index.ts',
-    exports: ['./auth-management.permission-codes', './self.permission-codes', './session.permission-codes']
+    exports: [
+      './auth-management.permission-codes',
+      './self.permission-codes',
+      './session.permission-codes'
+    ]
   },
   {
     kind: 'const',
@@ -211,10 +229,17 @@ const COMMON_PERMISSION_CODE_FILES: CommonPermissionCodeFileDefinition[] = [
     relativePath: 'permission/index.ts',
     exports: [
       './account-self.permission-codes',
+      './internal.permission-codes',
       './management.permission-codes',
       './role-instance.permission-codes',
       './role-template.permission-codes'
     ]
+  },
+  {
+    kind: 'const',
+    relativePath: 'permission/internal.permission-codes.ts',
+    constName: 'PERMISSION_INTERNAL_PERMISSION_CODES',
+    records: PERMISSION_INTERNAL_PERMISSION_CODES
   },
   {
     kind: 'const',
@@ -344,14 +369,14 @@ const COMMON_PERMISSION_CODE_FILES: CommonPermissionCodeFileDefinition[] = [
 
 /** renderIndexFile preserves the current re-export layout for one common permission-code index file. */
 function renderIndexFile(exports: string[]): string {
-  return [GENERATED_FILE_BANNER, ...exports.map((specifier) => `export * from '${specifier}'`)].join('\n')
+  return [
+    GENERATED_FILE_BANNER,
+    ...exports.map((specifier) => `export * from '${specifier}'`)
+  ].join('\n')
 }
 
 /** renderPermissionCodeConstFile preserves the current object-literal export shape for one permission-code group file. */
-function renderPermissionCodeConstFile(
-  constName: string,
-  records: PermissionCodeRecord
-): string {
+function renderPermissionCodeConstFile(constName: string, records: PermissionCodeRecord): string {
   const entries = Object.entries(records)
   if (entries.length === 0) {
     return [GENERATED_FILE_BANNER, `export const ${constName} = {} as const`].join('\n')
@@ -366,12 +391,15 @@ function renderPermissionCodeConstFile(
 
 /** renderCommonPermissionCodeFiles returns the full common permission-code tree as relative paths plus file content. */
 export function renderCommonPermissionCodeFiles(): Map<string, string> {
-  const renderedEntries = COMMON_PERMISSION_CODE_FILES.map((definition) => [
-      definition.relativePath,
-      definition.kind === 'index'
-        ? renderIndexFile(definition.exports)
-        : renderPermissionCodeConstFile(definition.constName, definition.records)
-    ] as const)
+  const renderedEntries = COMMON_PERMISSION_CODE_FILES.map(
+    (definition) =>
+      [
+        definition.relativePath,
+        definition.kind === 'index'
+          ? renderIndexFile(definition.exports)
+          : renderPermissionCodeConstFile(definition.constName, definition.records)
+      ] as const
+  )
 
   return new Map(renderedEntries)
 }

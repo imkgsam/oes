@@ -58,4 +58,53 @@ describe('PermissionAuditService', () => {
       })
     )
   })
+
+  it('emits issuance decisions with exact binding evidence and no credential plaintext', () => {
+    const eventEmitter = { emit: jest.fn() } as any
+    const service = new PermissionAuditService({} as any, eventEmitter)
+
+    service.emitIssuanceDecision({
+      decisionType: 'PRINCIPAL_AUTHORIZATION',
+      decisionReference: 'principal-authorization:1',
+      allowed: false,
+      reasonCode: 'AUTHORIZATION_PERMISSION_DENIED',
+      principalType: 'HUMAN',
+      principalId: 'human-1',
+      tenantId: 'tenant-1',
+      directWorkloadSpiffeId: 'spiffe://local.test/auth-service',
+      certificateThumbprint: 'certificate-thumbprint',
+      targetAudience: 'urn:oes:service:inventory-service',
+      requestedPermissionCodes: ['inventory.read'],
+      grantedPermissionCodes: [],
+      deniedPermissionCodes: ['inventory.read'],
+      policyDecisionReference: 'grant-decision-1',
+      authzVersion: 'grant-v1',
+      requestId: 'request-1',
+      traceId: 'trace-1'
+    })
+
+    const event = eventEmitter.emit.mock.calls[0][1]
+    expect(eventEmitter.emit).toHaveBeenCalledWith(
+      PermissionAuditService.MANAGEMENT_EVENT_NAME,
+      expect.objectContaining({
+        module: 'authorization',
+        eventType: 'PRINCIPAL_AUTHORIZATION_RESOLVED',
+        result: 'REJECTED',
+        operator: {
+          operatorId: 'human-1',
+          operatorType: 'HUMAN'
+        },
+        scope: { tenantId: 'tenant-1', orgId: null },
+        trace: expect.objectContaining({ traceId: 'trace-1' }),
+        details: expect.objectContaining({
+          decisionReference: 'principal-authorization:1',
+          targetAudience: 'urn:oes:service:inventory-service',
+          requestedPermissionCodes: ['inventory.read'],
+          certificateThumbprint: 'certificate-thumbprint'
+        })
+      })
+    )
+    expect(JSON.stringify(event)).not.toContain('Bearer ')
+    expect(JSON.stringify(event)).not.toContain('accessToken')
+  })
 })

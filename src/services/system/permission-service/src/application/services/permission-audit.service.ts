@@ -6,6 +6,7 @@ import { AuditEventEntity } from '../../domain/entities/audit-event.entity'
 import { DecisionEventEntity } from '../../domain/entities/decision-event.entity'
 import { PermissionAuditEvent, PermissionAuditModule } from '../events/permission-audit.event'
 import { PrismaPermissionAuditRepository } from '../../infrastructure/repositories/prisma/prisma.permission-audit.repository'
+import { PermissionDecisionAuditPort } from '../ports/permission-decision-audit.port'
 
 type AuditActorType = 'USER' | 'SERVICE' | 'SYSTEM'
 type AuditTargetType =
@@ -24,7 +25,7 @@ type DecisionValue = 'ALLOW' | 'DENY'
  * PermissionAuditService emits management audit envelopes and persists decision events for permission-service.
  */
 @Injectable()
-export class PermissionAuditService {
+export class PermissionAuditService implements PermissionDecisionAuditPort {
   static readonly MANAGEMENT_EVENT_NAME = 'permission.audit.management'
 
   private readonly logger = new Logger(PermissionAuditService.name)
@@ -124,6 +125,58 @@ export class PermissionAuditService {
         error as Error
       )
     })
+  }
+
+  /** Emits one safe issuance/delegated decision envelope without bearer or owner-secret material. */
+  emitIssuanceDecision(
+    input: Parameters<PermissionDecisionAuditPort['emitIssuanceDecision']>[0]
+  ): void {
+    const activeTrace = captureEventTraceContext()
+    this.eventEmitter.emit(
+      PermissionAuditService.MANAGEMENT_EVENT_NAME,
+      new PermissionAuditEvent(
+        randomUUID(),
+        'authorization',
+        `${input.decisionType}_RESOLVED`,
+        new Date(),
+        input.allowed ? 'SUCCEEDED' : 'REJECTED',
+        {
+          operatorId: input.principalId,
+          operatorType: input.principalType === 'MACHINE' ? 'SYSTEM' : 'HUMAN'
+        },
+        {
+          tenantId: input.tenantId ?? null,
+          orgId: input.orgId ?? null
+        },
+        {
+          traceId: input.traceId ?? activeTrace.traceId,
+          spanId: activeTrace.spanId
+        },
+        {
+          resourceType: 'authorization-decision',
+          resourceId: input.decisionReference
+        },
+        {
+          decisionReference: input.decisionReference,
+          decisionType: input.decisionType,
+          allowed: input.allowed,
+          reasonCode: input.reasonCode,
+          principalType: input.principalType,
+          principalId: input.principalId,
+          directWorkloadSpiffeId: input.directWorkloadSpiffeId,
+          certificateThumbprint: input.certificateThumbprint,
+          targetAudience: input.targetAudience,
+          requestedPermissionCodes: input.requestedPermissionCodes,
+          grantedPermissionCodes: input.grantedPermissionCodes,
+          deniedPermissionCodes: input.deniedPermissionCodes,
+          policyDecisionReference: input.policyDecisionReference,
+          authzVersion: input.authzVersion,
+          policyVersion: input.policyVersion ?? null,
+          operationKey: input.operationKey ?? null,
+          requestId: input.requestId ?? null
+        }
+      )
+    )
   }
 
   /**

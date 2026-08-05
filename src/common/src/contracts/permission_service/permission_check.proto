@@ -15,6 +15,32 @@ service PermissionCheckService {
   rpc BatchCheckPermission(BatchCheckPermissionRequest) returns (BatchCheckPermissionResponse);
   // Returns Auth's trusted Integration Machine snapshot of currently granted external-safe BUSINESS codes without exposing roles or routes.
   rpc ResolveExternalMachineAuthorizationSnapshot(ResolveExternalMachineAuthorizationSnapshotRequest) returns (ResolveExternalMachineAuthorizationSnapshotResponse);
+  // Resolves Auth's all-or-nothing BUSINESS issuance upper bound for a verified HUMAN, MACHINE or DELEGATED principal.
+  rpc ResolvePrincipalAuthorization(ResolvePrincipalAuthorizationRequest) returns (ResolvePrincipalAuthorizationResponse);
+  // Resolves the sole mTLS-only bootstrap decision for original workload to target INTERNAL issuance.
+  rpc ResolveWorkloadIssuance(ResolveWorkloadIssuanceRequest) returns (ResolveWorkloadIssuanceResponse);
+  // Resolves one protected delegated action from owner-derived immutable upper-bound snapshots.
+  rpc ResolveDelegatedAuthorization(ResolveDelegatedAuthorizationRequest) returns (ResolveDelegatedAuthorizationResponse);
+}
+
+enum AuthorizationPrincipalTypeProto {
+  AUTHORIZATION_PRINCIPAL_TYPE_PROTO_UNSPECIFIED = 0;
+  AUTHORIZATION_PRINCIPAL_TYPE_PROTO_HUMAN = 1;
+  AUTHORIZATION_PRINCIPAL_TYPE_PROTO_MACHINE = 2;
+  AUTHORIZATION_PRINCIPAL_TYPE_PROTO_DELEGATED = 3;
+}
+
+enum AuthorizationScopeLevelProto {
+  AUTHORIZATION_SCOPE_LEVEL_PROTO_UNSPECIFIED = 0;
+  AUTHORIZATION_SCOPE_LEVEL_PROTO_SYSTEM = 1;
+  AUTHORIZATION_SCOPE_LEVEL_PROTO_TENANT = 2;
+}
+
+enum DelegatedRiskClassProto {
+  DELEGATED_RISK_CLASS_PROTO_UNSPECIFIED = 0;
+  DELEGATED_RISK_CLASS_PROTO_DELEGATION_ALLOWED = 1;
+  DELEGATED_RISK_CLASS_PROTO_ACTION_GRANT_REQUIRED = 2;
+  DELEGATED_RISK_CLASS_PROTO_AI_FORBIDDEN = 3;
 }
 
 enum EvaluationModeProto {
@@ -133,6 +159,123 @@ message ResolveExternalMachineAuthorizationSnapshotResponse {
   string integration_machine_id = 5;
   string tenant_id = 6;
   string reason_code = 7;
+}
+
+// Carries only Auth-orchestrated immutable references and restrictive Code upper bounds from their owning services.
+message DelegatedAuthorizationUpperBound {
+  string human_principal_id = 1;
+  string session_reference = 2;
+  string security_reference = 3;
+  string delegation_reference = 4;
+  string delegation_version = 5;
+  bool delegation_active = 6;
+  repeated string delegation_permission_codes = 7;
+  string agent_principal_reference = 8;
+  string agent_principal_version = 9;
+  bool agent_principal_active = 10;
+  repeated string agent_permission_codes = 11;
+  string tool_contract_reference = 12;
+  string tool_contract_version = 13;
+  bool tool_contract_active = 14;
+  repeated string tool_permission_codes = 15;
+}
+
+// Carries the business owner's protected action/policy result without resource plaintext or mutable caller assertions.
+message OwnerAuthorizationSnapshot {
+  string action_reference = 1;
+  string policy_reference = 2;
+  string policy_version = 3;
+  bool current = 4;
+  repeated string permission_codes = 5;
+  DelegatedRiskClassProto code_risk_baseline = 6;
+  DelegatedRiskClassProto effective_risk_class = 7;
+  bool resource_policy_allowed = 8;
+  string resource_policy_reference = 9;
+}
+
+message ResolvePrincipalAuthorizationRequest {
+  AuthorizationPrincipalTypeProto principal_type = 1;
+  string principal_id = 2;
+  AuthorizationScopeLevelProto scope_level = 3;
+  string tenant_id = 4;
+  string org_id = 5;
+  string target_audience = 6;
+  repeated string requested_business_permission_codes = 7;
+  string session_reference = 8;
+  string security_reference = 9;
+  DelegatedAuthorizationUpperBound delegated_upper_bound = 10;
+}
+
+message ResolvePrincipalAuthorizationResponse {
+  bool allowed = 1;
+  repeated string granted_permission_codes = 2;
+  repeated string denied_permission_codes = 3;
+  AuthorizationPrincipalTypeProto principal_type = 4;
+  string principal_id = 5;
+  AuthorizationScopeLevelProto scope_level = 6;
+  string tenant_id = 7;
+  string org_id = 8;
+  string target_audience = 9;
+  repeated string requested_permission_codes = 10;
+  string decision_reference = 11;
+  string authz_version = 12;
+  string reason_code = 13;
+}
+
+message ResolveWorkloadIssuanceRequest {
+  string original_workload_spiffe_id = 1;
+  string target_audience = 2;
+  repeated string requested_internal_permission_codes = 3;
+  AuthorizationScopeLevelProto scope_level = 4;
+  string tenant_id = 5;
+  string org_id = 6;
+  AuthorizationPrincipalTypeProto principal_type = 7;
+  string principal_id = 8;
+  string issuance_policy_version = 9;
+}
+
+message ResolveWorkloadIssuanceResponse {
+  bool allowed = 1;
+  repeated string granted_permission_codes = 2;
+  repeated string denied_permission_codes = 3;
+  string original_workload_spiffe_id = 4;
+  string target_audience = 5;
+  AuthorizationScopeLevelProto scope_level = 6;
+  string tenant_id = 7;
+  string org_id = 8;
+  AuthorizationPrincipalTypeProto principal_type = 9;
+  string principal_id = 10;
+  repeated string requested_permission_codes = 11;
+  string decision_reference = 12;
+  string authz_version = 13;
+  string reason_code = 14;
+}
+
+message ResolveDelegatedAuthorizationRequest {
+  string human_principal_id = 1;
+  AuthorizationScopeLevelProto scope_level = 2;
+  string tenant_id = 3;
+  string org_id = 4;
+  string target_audience = 5;
+  string operation_key = 6;
+  repeated string requested_permission_codes = 7;
+  DelegatedAuthorizationUpperBound delegated_upper_bound = 8;
+  OwnerAuthorizationSnapshot owner_authorization = 9;
+}
+
+message ResolveDelegatedAuthorizationResponse {
+  bool allowed = 1;
+  repeated string allowed_permission_codes = 2;
+  repeated string denied_permission_codes = 3;
+  DelegatedRiskClassProto risk_class = 4;
+  string policy_version = 5;
+  string tenant_id = 6;
+  string org_id = 7;
+  bool resource_policy_allowed = 8;
+  string resource_policy_reference = 9;
+  string decision_reference = 10;
+  string authz_version = 11;
+  string reason_code = 12;
 }
 
 message PolicyExplainEntry {
