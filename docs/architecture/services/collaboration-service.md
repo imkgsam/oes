@@ -1,6 +1,6 @@
 # collaboration-service 职责卡
 
-Last Updated: 2026-06-18
+Last Updated: 2026-08-05
 
 ## 1. Truth Source Rule
 
@@ -61,6 +61,8 @@ Task P1 只提供租户内手动工作待办能力，用于：
 - Task 状态、优先级、到期时间、完成、取消、重开与归档事实。
 - Task P1 的参与者可见性规则。
 - Task P1 的命令审计与任务事实事件。
+- Task Assistant P1 operation 的 code risk baseline、tenant-only tightening、canonical action facts 与 policy version。
+- Task Assistant P1 的 owner-action resolution、business command receipt、每个 ActionGrant JTI consumption 与最终 result reconciliation。
 - Task P1 的列表查询范围：我的 todo、别人指派给我的任务、我分派的任务。
 - `Annotation`：P1 中围绕 `CrmAccount` 的纯文本内部对象备注。
 - Annotation 作者、可见性、编辑、软删除、对象级置顶与本地审计事实。
@@ -79,6 +81,7 @@ Task P1 只提供租户内手动工作待办能力，用于：
 - recurrence 规则与周期性任务实例生成真相。
 - team queue、项目、里程碑或项目计划真相。
 - 员工任职、组织树、汇报线、账号、角色、权限或授权判定真相。
+- AI Run / Conversation、AgentPrincipal、ToolContract、DelegationGrant、HUMAN confirmation evidence、ActionGrant credential 或 Permission intersection 真相。
 - CRM、SRM、Sales、Procurement、MES、WMS 等服务的本地 Activity 真相或全局 ObjectActivity / ObjectTimeline 投影能力。
 
 ## 6. Annotation P1 Boundary
@@ -326,6 +329,14 @@ P1 冻结以下 commands：
 - 清空 `archivedAt`、`archivedByAccountId`。
 
 P1 不支持 `DeleteTask`。错误任务通过 `CancelTask + ArchiveTask` 收口。
+
+### 13.9 Task Assistant ActionGrant Boundary
+
+Task Assistant P1 的 owner baseline 固定为：Task read 与 self todo 为 `DELEGATION_ALLOWED`，assigned-task create 为 `ACTION_GRANT_REQUIRED`，其余 Task commands 为 `AI_FORBIDDEN`。租户受控配置只能关闭、要求 step-up 或向更严格类别移动，不能降低 code baseline；P1 不提供 org、role 或 personal override。每次 owner resolution 都返回 canonical action facts、effective class 与 policy version，缺失、陈旧或无效配置 fail closed。
+
+Auth 只能通过 Collaboration-owned protected owner-action resolver 取得上述事实。该 resolver 使用 INTERNAL Code `collaboration.internal.ai_action.resolve`，要求准确 Auth mTLS identity 与 certificate-bound Collaboration-audience ExecutionToken；request/AI/registration manifest 不能自报 risk、target facts 或 policy version。它不签发 credential，也不替代 Permission intersection 或 Task command validation。
+
+Task command 将 business idempotency receipt 与 ActionGrant JTI consumption 作为不同事实：一个 owner-defined action 只有一个业务结果，但同一 confirmed descriptor 在不确定响应下可以出现 replacement JTI；每个接受的 JTI 都绑定同一 receipt/result，任何 changed descriptor、substituted idempotency identity 或 reused JTI 都 fail closed。停止 AI Run 只阻止后续工作与 pending confirmation，不回滚已提交 Task；reversal 必须是新的 owner-defined action。
 
 ## 14. Task P1 Query Scope
 

@@ -3,7 +3,7 @@
 ```text
 status: FROZEN
 frozenDate: 2026-07-28
-lastAmendedDate: 2026-08-03
+lastAmendedDate: 2026-08-05
 firstValidationScenario: Task Assistant
 taskAssistantCollaboration: docs/architecture/collaborations/task-assistant.md
 taskAssistantToolContract: docs/contracts/ai-platform/task-assistant-tool-contract.md
@@ -67,6 +67,8 @@ AI 平台采用稳定逻辑分层，但本轮不把每一层等同为独立微�
 
 Task Assistant 的第一个注册面固定消费 [task-assistant-tool-contract.md](../contracts/ai-platform/task-assistant-tool-contract.md)：identity 为 `oes.ai.task-assistant.collaboration-task`，immutable version 为 `1.0.0`。它通过 repository-native manifest 注册 owner 已冻结的 read/draft/CreateTask subset，但注册阶段不创建 runtime adapter，且 `runtimeExecutionEnabled`、`mutationExecutionEnabled` 与 `publicExposureEnabled` 全部为 `false`。同一 identity/version 一旦进入 `main` 不得原地修改；任何语义变化必须使用新 version 和新文件。
 
+Repository manifest 是注册与审查输入，不是运行时授权真相。任何 execution flag 打开前，AI 平台必须提供 owner-controlled runtime resolution contract，使 Auth 能取得当前 active ToolContract identity/version、operation upper bound 与安全版本引用；Auth、Permission 和业务服务不得在运行时读取 registration JSON、prompt 或调用方字段来重建该上限。
+
 ### 3.5 ExecutionContext
 
 `ExecutionContext` 是一次调用的临时执行上下文，必须关联触发 HUMAN、AgentPrincipal、AgentProfile version、tenant、适用的 org、session/request/trace、delegation 与审计信息。它不是 credential、Role、Permission 或业务 ownership；具体跨服务字段结构在共享契约获得独立 ownership 后再冻结。
@@ -78,6 +80,8 @@ Task Assistant 的第一个注册面固定消费 [task-assistant-tool-contract.m
 ### 3.7 AgentRun
 
 AI 编排边界拥有一次 AI 执行的 `AgentRun` 事实与安全摘要，包括 Profile/model/tool/knowledge version 引用、步骤结果、确认节点、成本、错误类别和关联标识。`AgentRun` 不复制业务 owner 的最终写入真相，也不能把“已请求工具”记录成“业务命令已成功”。具体 schema 后置。
+
+一个用户指令创建一个 bounded `AgentRun`；Conversation 只是可长期保留的交互上下文，不是授权容器。继续同一 Conversation 的新指令仍创建新 Run，并由 Auth 基于当前 HUMAN session、AgentPrincipal、ToolContract 与 policy truth 形成新 delegation。Conversation 未关闭不会延长、续期或复活旧 Run 的 authority。
 
 ## 4. Identity, Authorization And Delegation
 
@@ -98,10 +102,10 @@ HUMAN grant
 责任边界：
 
 - Identity 拥有 Machine Principal identity 与 lifecycle。
-- Auth 拥有机器认证、ExecutionToken、`DelegationGrant` 与 `ActionGrant` credential lifecycle。
-- Permission 拥有 HUMAN/MACHINE grant、policy 和 DELEGATED authorization intersection。
-- AI 平台拥有 Profile 执行、受控工具编排、用户侧确认节点与 AI Run。
-- 每个业务 owner 拥有 operation 风险分类、业务规则、状态变化和最终结果。
+- Auth 拥有机器认证、ExecutionToken、`DelegationGrant`、HUMAN confirmation evidence 与 `ActionGrant` credential lifecycle；它从 Identity 与 AI 平台 owner contract 解析当前 AgentPrincipal / ToolContract facts，并向 Permission 提交固定的可信 delegation upper bound。
+- Permission 拥有 HUMAN/MACHINE grant、policy 和 DELEGATED authorization intersection；它独立解析 HUMAN grants，不查询 Auth storage、AI registration artifact 或业务 owner database。
+- AI 平台拥有 Profile 执行、受控工具编排、用户侧确认展示与 AI Run；确认事实本身由 Auth 持有。
+- 每个业务 owner 拥有 operation 风险基线、tenant-only tightening、canonical action facts、业务规则、状态变化和最终结果。
 
 高风险执行严格消费 [delegated-execution-and-action-grant.md](./collaborations/delegated-execution-and-action-grant.md)：业务 owner 将 operation 分类为 `DELEGATION_ALLOWED`、`ACTION_GRANT_REQUIRED` 或 `AI_FORBIDDEN`；AI 平台不能自行降低或推断该分类。
 

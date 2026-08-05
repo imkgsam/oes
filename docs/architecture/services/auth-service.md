@@ -235,9 +235,11 @@ Auth records the security decision, trigger source, selector kind/reference, mon
 稳定规则：
 
 - `DelegationGrant` 只能由已验证 HUMAN 明确创建，必须绑定 human principal、tenant / org、受控 AgentPrincipal、ToolContract 版本、允许的 operation / Permission Code 上限、最晚失效时间与审计关联；它不能创建独立的 DELEGATED role。
-- 授权默认短时、可撤销且不可静默续期；到期、用户撤销、human session / principal 失效、tenant 不可用或有效授权不再满足时，后续 delegation 和 ActionGrant 签发必须失败。长期无人值守自动化使用单独的 MACHINE principal 与流程授权，不复用 HUMAN delegation。
-- `ActionGrant` 只能在有效 delegation、Permission 的交集判定、明确的用户确认以及适用时的 step-up 完成后签发。它是短时、单一目标服务、单一 operation、单一 target 与单一 canonical input digest 的一次性凭据。
-- `ActionGrant` 不替代目标服务的状态机、审批分离、金额阈值、资源授权或 command idempotency。目标服务在自己的事务中记录唯一的消费事实并写入业务结果；Auth 不跨服务共享数据库或接管业务提交。
+- 每个用户指令创建一个 bounded AI Run 与 fresh Run-bound `DelegationGrant`；Conversation 只保留上下文。授权默认短时、可撤销且不可静默续期；Run 完成/停止/过期、用户撤销、human session / principal 失效、tenant 不可用或有效授权不再满足时，后续 delegation 和 ActionGrant 签发必须失败。长期无人值守自动化使用单独的 MACHINE principal 与流程授权，不复用 HUMAN delegation。
+- Auth 在创建 delegation 或请求 DELEGATED issuance 前，从 Identity owner contract 取得 active AgentPrincipal fact、从 AI Platform owner contract 取得 active ToolContract identity/version 与 operation upper bound，并与当前 HUMAN/session 和 Auth-owned DelegationGrant 形成固定可信 upper-bound snapshot/reference 交给 Permission。Auth 不读取 AI registration JSON；Permission 不反向查询 Auth storage，因此调用链不得形成 Permission -> Auth -> Permission 同步循环。
+- `ActionGrant` 只能在有效 delegation、Permission 的交集判定、业务 owner 返回的 canonical action facts/effective risk class/policy version、明确的用户确认以及适用时的 step-up 完成后签发。AI Platform 展示确认，Auth 独占不可变 HUMAN confirmation evidence；caller 或 AI 字段不能自报确认、风险或 target facts。
+- 一次确认和一个 `ActionGrant` 只覆盖一个 owner-defined business action，而不是一个技术 RPC 或任意 batch。它是短时、单一目标服务、单一 operation、单一 target、单一 canonical input digest 与 owner policy version 的一次性凭据。
+- `ActionGrant` 不替代目标服务的状态机、审批分离、金额阈值、资源授权或 command idempotency。目标服务在自己的事务中分别记录 business idempotency receipt 与每个 JTI consumption，并写入业务结果；相同 descriptor 的 replacement JTI 可绑定既有结果，但不能产生第二次写入。Auth 不跨服务共享数据库或接管业务提交。
 - 用于 `ActionGrant` 的签名、issuer、audience 与 workload binding 必须使用 DG-1 冻结的 JWS / mTLS 互操作规则；不得引入第二套签名体系、共享 Bearer pool 或 body identity fallback。
 - 密码、MFA、recovery code、session、API Key、role / permission / policy、delegation 自身、审计记录和 AI 自己结果的批准属于 AI 永久禁止操作。精确规则以 [delegated-execution-and-action-grant.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/delegated-execution-and-action-grant.md) 为准。
 

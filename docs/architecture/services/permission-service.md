@@ -174,6 +174,10 @@ Permission Service 在既有 `PermissionCheckService` 上提供两个只服务 A
 
 两个判定都采用全量申请语义：requested Code 必须去重、规范排序且 kind 一致，只有全部获准时 `allowed=true`。未知、不可分配、部分批准、scope / tenant / audience / principal / delegation mismatch、stale decision 或依赖不可用都 fail closed；Permission 返回精确 granted / denied Code、安全 reason category、decision reference 与 `authzVersion`，Auth 不做部分签发。Permission 记录判定审计但不记录 source credential 或 Token 正文，也不签发或存储 ExecutionToken；`ResolvePrincipalAuthorization` 只按受保护 resolver 契约验证随请求提交的 ExecutionToken，不取得其签发或授权真相所有权。
 
+ActionGrant completion 在同一 `PermissionCheckService` 增加受保护的 `ResolveDelegatedAuthorization`，不建立独立 Permission service surface。调用必须同时满足准确 `auth-service` mTLS identity、certificate-bound `aud=permission-service` ExecutionToken 与 `permission.internal.delegated_authorization.resolve`；它不是 bootstrap primitive。Auth 提供的可信 upper bound 必须来自当前 HUMAN/session、Auth-owned DelegationGrant、Identity-owned active AgentPrincipal 与 AI Platform-owned active ToolContract runtime resolution。`ResolvePrincipalAuthorization` 的 DELEGATED issuance 与 `ResolveDelegatedAuthorization` 消费同一 owner-derived upper-bound 语义；Permission 独立解析当前 HUMAN grants 并求交集。
+
+Permission 不读取 AI registration JSON、prompt 或 caller/body-supplied bounds，不查询 Auth storage，也不复制 DelegationGrant、ActionGrant、AgentPrincipal、ToolContract 或 business-owner risk truth。业务 owner 的受保护 resolver 提供 canonical action facts、code baseline、tenant-only tightening 与 policy version；Permission 只消费该可信 owner decision 并执行 HUMAN grant ∩ DelegationGrant ∩ AgentPrincipal ∩ ToolContract ∩ owner action/policy 的 fail-closed 交集。缺失、陈旧、版本不匹配、风险降低或任一 owner 依赖不可用均拒绝；P1 不接受 org、role 或 personal risk override。
+
 ## 6. Policy
 
 `Policy` 是围绕 permission 的历史 AST 授权策略事实。

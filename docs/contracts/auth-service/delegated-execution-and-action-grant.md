@@ -11,24 +11,24 @@ collaborationTruthSource: docs/architecture/collaborations/delegated-execution-a
 
 ## 1. DelegationGrant
 
-A logical create request is made only from a trusted HUMAN execution context and identifies an approved AgentPrincipal, immutable ToolContract identity/version, tenant / org, bounded requested operation / Permission Code set and expiry. Auth derives the human, session, tenant and trace from trusted context; caller body fields cannot substitute them.
+A logical create request is made only when a trusted HUMAN instruction starts one bounded AI Run. Auth derives the human, session, tenant and trace from trusted context, resolves the current active AgentPrincipal from Identity and the current active ToolContract identity/version/operation upper bound from the AI Platform runtime owner contract, and binds those facts with the requested operation / Permission Code set and expiry. Caller fields and repository registration JSON cannot substitute for owner resolution.
 
-Auth creates a grant only if Permission authorizes the exact requested upper bound. Successful output exposes an opaque delegation reference, effective expiry and safe audit reference; it never exposes signing material, role graph or a reusable user credential.
+Auth creates a fresh Run-bound grant only if Permission authorizes the exact trusted upper bound. Permission receives a fixed safe snapshot/reference and independently intersects current HUMAN grants; it does not query Auth storage. Successful output exposes an opaque delegation reference, effective expiry and safe audit reference; it never exposes signing material, role graph or a reusable user credential.
 
-A grant can be revoked by its human owner or an authorized human-management flow. It cannot be widened, transferred, silently renewed or converted to MACHINE authorization.
+A grant can be revoked by its human owner or an authorized human-management flow. It cannot be widened, transferred, silently renewed or converted to MACHINE authorization. Conversation continuity never extends it; every later user instruction starts a new Run and obtains current authority.
 
 ## 2. RequestActionGrant
 
-A logical request identifies the existing delegation reference plus a business-owner supplied, canonical action descriptor: target audience, operation key, target reference, canonical input digest, ToolContract identity/version, idempotency reference and material-impact summary.
+A logical request identifies the existing Run/delegation reference plus a business-owner supplied, canonical action descriptor: target audience, operation key, target reference, canonical input digest, ToolContract identity/version, idempotency reference and material-impact summary. The protected owner resolution also supplies the code baseline, effective tenant-tightened risk class and policy version; caller or AI fields cannot lower or replace them.
 
 Auth requires all of the following:
 
 1. active human / tenant / delegation and unchanged AgentPrincipal / ToolContract binding;
-2. an allowed delegated-authorization decision for that exact operation;
-3. a user confirmation matching the descriptor exactly;
+2. an allowed delegated-authorization decision for that exact owner facts and policy version;
+3. immutable Auth-owned HUMAN confirmation evidence matching the descriptor exactly;
 4. step-up evidence when the owner policy requires it.
 
-It returns one short-lived, signed ActionGrant. It is bound to the direct workload using the DG-1 JWS, audience and mTLS rules, and has no refresh, exchange or delegation path. Auth records issuance, revoke and expiry facts; it does not report that a business command succeeded.
+AI Platform presents the human-readable confirmation, but Auth owns the confirmation fact and rejects an AI/body assertion of confirmation. It returns one short-lived, signed ActionGrant bound to one owner-defined business action and its policy version, not one technical RPC or arbitrary batch. It is bound to the direct workload using the DG-1 JWS, audience and mTLS rules, and has no refresh, exchange or delegation path. Auth records issuance, revoke and expiry facts; it does not report that a business command succeeded.
 
 ### Canonical Action Descriptor And Transport
 
@@ -49,9 +49,9 @@ The compact ActionGrant JWS uses protected header `typ=ag+jwt` and is carried on
 
 ## 3. Target Consumption Contract
 
-Target services require the matching DELEGATED ExecutionToken and validate ActionGrant signature, issuer, expiry, exact audience, workload binding, human / tenant / delegation attribution and the complete descriptor. They must atomically persist the unique grant consumption alongside their idempotency result and business write. A target must not use ActionGrant as a generic bearer capability or as a fallback after ExecutionToken validation fails.
+Target services require the matching DELEGATED ExecutionToken and validate ActionGrant signature, issuer, expiry, exact audience, workload binding, human / tenant / delegation attribution, owner policy version and the complete descriptor. They must atomically persist the business receipt/result, presented JTI consumption and business write. A target must not use ActionGrant as a generic bearer capability or as a fallback after ExecutionToken validation fails.
 
-The target receipt must enforce unique `actionGrantJti` and unique `(tenant, human operator, operationKey, idempotencyKey)`. Repeating the same idempotency key with the same descriptor returns the established result; reusing either key with a different descriptor fails closed.
+The target owns one immutable business receipt keyed by `(tenant, human operator, operationKey, idempotencyKey)` and separate immutable consumption facts keyed by `actionGrantJti`. Repeating the same idempotency identity with the same descriptor returns the established result. When response/signing uncertainty requires a replacement ActionGrant for that unchanged confirmed descriptor, the new JTI is consumed against the same receipt/result and cannot create another business write. Reusing a JTI, changing the descriptor/policy version, or substituting the idempotency identity fails closed.
 
 ## 4. Stable Error Categories
 
@@ -77,3 +77,5 @@ Errors do not reveal secrets, hidden policy graph or a near-match target.
 4. A high-risk action without matching confirmation or required step-up fails before business mutation.
 5. The same grant cannot create a second business result; an unchanged network retry returns the idempotent outcome.
 6. Auth records credential lifecycle but does not share a database or falsely claim target command completion.
+7. A long-lived Conversation and a stopped/completed Run cannot retain or revive delegation authority.
+8. Auth obtains AgentPrincipal and ToolContract bounds only through owner runtime contracts; disabled registration JSON never authorizes execution.
