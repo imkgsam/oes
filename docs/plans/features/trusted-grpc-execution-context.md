@@ -20,6 +20,8 @@ resolvedDesignGates:
   - DG-1: docs/architecture/services/auth-service.md
   - DG-3: docs/architecture/collaborations/external-api-key-security.md
   - Principal issuance decisions: docs/contracts/permission-service/principal-authorization.md
+  - MACHINE workload source credential: docs/contracts/auth-service/machine-workload-source-credential.md
+  - Machine Principal resolution: docs/contracts/identity-service/machine-principal-resolution.md
 ```
 
 ## 1. Frozen Scope
@@ -29,7 +31,7 @@ This capability now includes the complete current gRPC repository boundary:
 - Common generated metadata signatures and trusted client/server runtime.
 - Deployment workload identity and channel authentication.
 - Auth / STS issuance, local validation support and process-local Token cache.
-- Identity Machine Principal ownership and Permission principal authorization integration.
+- Auth MACHINE source credential, Identity Machine Principal/workload binding ownership and Permission principal authorization integration.
 - API Gateway and every service-to-service caller.
 - All 21 gRPC services, 51 Controller files and 560 proto RPCs.
 - Cron, Robot, AI and technical callers represented in current or newly frozen contracts.
@@ -125,9 +127,9 @@ This permits gradual delivery without a dual-trust resource server.
 | --- | --- | --- | --- |
 | TG-0 | Deployment / SRE | `docker-compose.yml`, new `docker/grpc-trust/**`, new `docs/runbooks/trusted-grpc-workload-identity.md`, new `scripts/local/trusted-grpc-transport-smoke.mjs`, assigned production deployment repository | Per-workload certificates / SPIFFE-compatible identity, trust bundle, rotation and transport acceptance; DG-1 gates production values |
 | TG-1 | Common platform / contract owner | `src/common/src/contracts/buf.gen.yaml`, `src/common/src/generated/**`, `src/common/src/authorization/trusted-execution/**`, `src/common/src/transport/grpc/**`, reviewed exports and focused tests | `addGrpcMetadata=true`, decorators, verifier, immutable context, provider, mode scanner, process-local cache and inventory script |
-| TG-2 | Auth Service owner | `src/common/src/contracts/auth_service/execution_token.proto`, `src/services/system/auth-service/src/{application,domain,infrastructure,interfaces,modules}/**`, Auth Prisma and tests | STS exchange, signed single-audience Token, JWKS, cache-compatible TTL and audited issuance; DG-1/DG-2 gate production completion |
-| TG-3 | Identity + Auth credential migration owners | `src/common/src/contracts/identity_service/identity_query.proto`, `src/services/system/identity-service/src/application/{commands,queries}/service-account/**`, `src/services/system/identity-service/src/domain/{entities,repositories}/api-key*`, `src/services/system/identity-service/src/infrastructure/**/*api-key*`, `src/services/system/identity-service/src/interfaces/grpc/identity-machine-auth.grpc.controller.ts`, Identity/Auth `prisma/**` and focused tests | Machine Principal remains Identity-owned; API Key credential moves to Auth; DG-3 gates external opening |
-| TG-4 | Permission + Common Permission owners | `src/common/src/authorization/permission-codes/**`, `src/common/src/contracts/permission_service/permission_check.proto`, generated output, Permission source / Prisma / tests | Existing `PermissionCheckService` gains Auth-only `ResolveWorkloadIssuance` mTLS bootstrap decision and ExecutionToken-protected `ResolvePrincipalAuthorization`; exact INTERNAL Code, all-or-nothing decisions, audit and catalog sync; DG-5 gates schema migration |
+| TG-2 | Auth Service owner | `src/common/src/contracts/auth_service/execution_token.proto`, `src/services/system/auth-service/src/{application,domain,infrastructure,interfaces,modules}/**`, Auth Prisma and tests | STS exchange, signed single-audience Token, JWKS, cache-compatible TTL, audited issuance and dedicated MACHINE source-credential lifecycle/verifier; DG-1/DG-2 gate production completion |
+| TG-3 | Identity + Auth credential migration owners | `src/common/src/contracts/identity_service/identity_query.proto`, Identity Machine Principal/binding paths, Auth credential paths, Identity/Auth `prisma/**` and focused tests | Machine Principal and `MachineWorkloadBinding` remain Identity-owned; `ResolveMachinePrincipalForAuth` uses the existing Identity surface; MACHINE source credential and API Key remain distinct Auth-owned profiles; DG-3 gates external opening |
+| TG-4 | Permission + Common Permission owners | `src/common/src/authorization/permission-codes/**`, `src/common/src/contracts/permission_service/permission_check.proto`, generated output, Permission source / Prisma / tests | Existing `PermissionCheckService` gains Auth-only `ResolveWorkloadIssuance` mTLS bootstrap decision and ExecutionToken-protected `ResolvePrincipalAuthorization`; exact INTERNAL Codes including `identity.internal.machine_principal.resolve`, all-or-nothing decisions, audit and catalog sync; DG-5 gates schema migration |
 | TG-5 | API Gateway owner | `src/services/api-gateway/src/common/grpc/**`, tenant-aware permission guard, all target-specific downstream adapters and tests | Session/root execution construction and target-specific producer preparation for every migrated service |
 | TG-VERIFY | Integration / Security owner | `scripts/local/trusted-grpc-*.mjs`, target-specific fixtures and deployment test configuration | Per-service acceptance evidence plus final repository-wide proof |
 
@@ -152,6 +154,8 @@ Static generated-contract imports currently show these service-to-service edges:
 - Site -> Asset is the frozen new Site Media edge.
 
 Gateway edges, dynamic client lookup, Cron/worker callers and tests are added by the inventory script and must be included before each target cutover.
+
+For every target, the static caller inventory must distinguish pure root MACHINE callers from multi-hop callers. A Cron/Robot/worker with no inbound HUMAN/session or subject ExecutionToken blocks that target's `ALL_CALLERS_READY` until the frozen MACHINE source credential + Identity binding resolution path is implemented and verified. A service call that already carries a verified upstream ExecutionToken, such as the current Site -> Asset flow, remains multi-hop and does not become a MACHINE root merely because the caller runs in a service process.
 
 Recommended implementation/verification order:
 
@@ -253,6 +257,7 @@ Asset and Site retain the previously frozen exact behavior:
 - Site -> Asset exchanges `aud=asset-service` and exact `asset.internal.*` Codes.
 - Site Runtime HMAC, nonce, method/path/body hash remains independently mandatory.
 - Asset/Site body identity and fixture fallbacks reach zero before moving past the Site slice.
+- Asset may reach `ALL_CALLERS_READY` without waiting for the pure MACHINE root implementation only if a fresh static caller/fixture inventory proves that every Asset caller is Gateway HUMAN/session or verified multi-hop and that no Cron/Robot/worker starts a root MACHINE call. Discovery of any pure MACHINE caller blocks Asset token-only cutover until that caller has the frozen source-credential path.
 
 This priority does not exempt any later service.
 
@@ -272,8 +277,9 @@ Final acceptance must prove:
 10. Site Runtime credential proof remains independent from internal Token validation.
 11. External API Key never enters internal gRPC metadata. DG-3 is frozen; Gateway locally validates the five-minute external access token, and credential revocation immediately blocks new exchange.
 12. Emergency revoke and DELEGATED/ActionGrant acceptance remain gated by DG-2/DG-4 rather than locally invented.
-13. Full workspace generation, build and service test matrix pass at the exact candidate SHA.
-14. Repository scans find zero legacy signer, guard, factory, header, trusted body identity and request-only client call.
+13. Every pure MACHINE root caller proves the dedicated Auth source credential, current SPIFFE/leaf binding and Identity principal/binding/version path; wrong or stale binding fails before Permission/signing. A target with no such caller proves that absence through fresh static inventory rather than assuming readiness.
+14. Full workspace generation, build and service test matrix pass at the exact candidate SHA.
+15. Repository scans find zero legacy signer, guard, factory, header, trusted body identity and request-only client call.
 
 ## 11. Verification Commands
 
@@ -320,6 +326,7 @@ The capability closes only when:
 
 - TG-0 through TG-5 and TG-VERIFY outputs are integrated.
 - DG-1 and DG-3 are frozen for their enabled capabilities; DG-2, DG-4 and DG-5 are either closed for enabled capabilities or the corresponding capability is demonstrably disabled; no local substitute exists.
+- Every pure MACHINE root caller uses the frozen Auth source credential and Identity binding resolver; external API Key, legacy Identity API-key auth and hardcoded root mapping are absent from this path.
 - All 21 service rows are `LEGACY_REFERENCES_ZERO`.
 - All 51 Controller files and 560 RPCs are covered by the authorization-mode architecture test.
 - The 19 request-only caller baseline reaches zero and the full generated caller inventory is explicit-metadata compliant.

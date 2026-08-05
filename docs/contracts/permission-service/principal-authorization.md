@@ -77,6 +77,8 @@ architectureTruthSource: docs/architecture/services/permission-service.md
 
 调用方提供的 principal id、tenant 或 subject facts 必须与可信执行上下文及 owner facts 绑定；自由 DTO 中的 subject facts 不能建立或提升授权。Permission Service 不接受“调用方已判断用户是管理员”作为事实。
 
+对 MACHINE，Auth 调用本 RPC 前必须已经验证 Auth-owned `MachineWorkloadSourceCredential` 的 profile/signature/lifetime/revocation 与当前 SPIFFE/leaf binding，并取得 Identity `ResolveMachinePrincipalForAuth` 对 active principal、scope、tenant/org、`MachineWorkloadBinding` reference/version 的 allowed owner decision。Permission 只消费该 typed owner result 并计算 MACHINE BUSINESS grant；不接收 raw source credential、leaf certificate、SPIFFE-to-principal mapping 或 caller-computed grant。Identity decision 缺失、stale、mismatch 或不可用时不得进入本 RPC 或签名。
+
 该 RPC 固定采用全量申请语义，不接受 caller-selectable `all / any`：只有全部 requested Code 当前存在、`kind=BUSINESS`、适用于 principal/scope 且通过 grant / policy upper bound 时 `allowed=true`。任一未知、不可分配、denied、mixed-kind、tenant/scope/audience/delegation mismatch 或依赖不可用都使整体 `allowed=false`；Permission 可以返回 granted / denied 明细供审计，但 Auth 不得部分签发。
 
 ## 4. ResolveWorkloadIssuance
@@ -133,6 +135,7 @@ Gateway HTTP `RequirePermissions` 保留。它与目标 gRPC BUSINESS authorizat
 - Robot template 不带 grant；安装后创建的 tenant principal 独立授权、撤销和审计。
 - 个人创建的定时任务若需代表用户，必须使用有时效、有上限的 delegation，不把创建者当前全部角色复制给 MACHINE。
 - 外部 Integration 固定为每 tenant 一个 Machine Principal；Marketplace、共享 App principal 与跨 tenant installation model 已取消。
+- 第一方 Cron、Robot、worker 的 root MACHINE authentication 使用 Auth-owned 短期 `MachineWorkloadSourceCredential` + current mTLS workload/certificate binding + Identity-owned `MachineWorkloadBinding` resolution；它与 external API Key path 完全分离。上述认证链不授予 BUSINESS/INTERNAL Code，仍分别依赖本契约的 principal/workload decision。
 
 ## 7. Stable Error Categories
 
@@ -173,3 +176,4 @@ Gateway HTTP `RequirePermissions` 保留。它与目标 gRPC BUSINESS authorizat
 18. BUSINESS and INTERNAL issuance decisions allow only when every canonical requested Code is granted; unknown, mixed-kind, partial or mismatched decisions cause no Token signing.
 19. `ResolvePrincipalAuthorization` does not accept resource facts, domain state or caller-derived roles; SELF_SERVICE and concrete resource/domain authorization remain at their existing target-service boundaries.
 20. A successful or denied issuance decision binds principal/workload, scope, tenant/org, audience, exact Code set, decision reference and `authzVersion`, and its audit contains no source credential or Token plaintext.
+21. MACHINE BUSINESS decision only consumes the active principal/scope/tenant owner result produced after Auth source-credential and Identity binding verification; Permission never parses that credential, resolves SPIFFE identity or substitutes external API-key/hardcoded root mapping.

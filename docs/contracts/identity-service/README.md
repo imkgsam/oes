@@ -36,6 +36,8 @@ Proto 契约来源仍然是：
   - 管理型写接口与 Contact Asset 统一治理语义
 - [machine-auth.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/identity-service/machine-auth.md)
   - API Key 机器认证接口
+- [machine-principal-resolution.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/identity-service/machine-principal-resolution.md)
+  - Auth-only 第一方 Machine Principal / `MachineWorkloadBinding` resolution；不复用 external API-key resolver
 - [employee-binding.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/identity-service/employee-binding.md)
   - `UserAccount <-> Employee` 绑定补充契约
 
@@ -52,11 +54,12 @@ Proto 契约来源仍然是：
 
 ## 4. 当前能力范围
 
-截至当前，`identity-service` 已开放四类能力：
+截至当前，`identity-service` 已开放以下能力：
 
 - 人类身份与账户查询
 - 兼容性组织归属查询 / 管理与 Contact Asset 查询、公开解析、治理管理
 - 机器身份与 API Key 管理 / 认证
+- 第一方内部 MACHINE root execution 的 Machine Principal / workload binding resolution
 - `UserAccount <-> Employee` 绑定管理
 - tenant account 创建时可通过 `CreateUserAccountRequest.tenant_party_id` 显式复用上游已解析的当前租户 `TenantParty`
 

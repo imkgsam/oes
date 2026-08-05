@@ -35,12 +35,13 @@
 - 机器主体基础身份：
   - `ServiceAccount`
   - machine principal scope / type / lifecycle
+  - `MachineWorkloadBinding`：Machine Principal 与受控 workload SPIFFE ID 的稳定绑定及其 lifecycle/version
 - 面向认证、授权、BFF 与业务服务的受控身份查询结果。
 
 ## 3. Does Not Own
 
 - 密码、OTP、MFA、login method、session、token、refresh token、认证 challenge 或认证审计真相；这些归属 `auth-service`。
-- API Key secret / hash、credential 认证、轮换、撤销、STS 与 ExecutionToken 签发；这些归属 `auth-service`。
+- API Key secret / hash、内部 `MachineWorkloadSourceCredential`、credential 认证/签发/轮换/撤销、STS 与 ExecutionToken 签发；这些归属 `auth-service`。
 - 权限码、角色、scope、policy、terminal access policy、授权判定、权限摘要或导航授权真相；这些以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。
 - `Tenant`、tenant lifecycle、`OrgUnit`、org tree、org hierarchy、org reference validation 或 `organizationTenantPartyId` 真相；这些以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准。
 - `Employee`、`Employment`、正式 `人 -> org` 任职关系或 onboarding 业务结果；这些归属 `hr-service`。
@@ -61,7 +62,7 @@
 - 为 `api-gateway` / BFF 提供 account context、账号目录、身份展示摘要与必要的用户发现能力。
 - 维护 `UserAccount <-> Employee` 绑定结果，并在绑定时校验同 tenant 与同自然人主体约束。
 - 维护工作邮箱、工作手机号、公司受控社交账号、员工个人社交联系方式展示引用与外部通信账号展示摘要这类账号联系资产的分配、回收、启停、交接和主联系方式语义。
-- 维护机器主体基础身份，并向 Auth / Permission 提供稳定 principal id、type、scope、tenant reference 与 lifecycle；不保存认证 secret 或签发 token。
+- 维护机器主体基础身份及其 `MachineWorkloadBinding`，并向 Auth / Permission 提供稳定 principal id、type、scope、tenant/org reference、lifecycle 与 workload-binding decision；不保存认证 secret、叶证书或签发 token。
 - 区分登录标识、联系资产、真实姓名与展示名，不把一个字段扩张成多种真相。
 - 对当前账号自助资料修改与管理员资料管理使用显式分离的接口边界，不允许长期复用同一个 management 写接口承载 self-service 语义。
 
@@ -168,11 +169,23 @@
 - Identity exposes one Auth-only `ResolveIntegrationMachineForAuth` query on its existing `IdentityQueryService` gRPC surface. The request contains only the Auth-derived machine reference. Identity returns its owned machine id, tenant reference, scope, type, lifecycle status, opaque lifecycle version and safe decision reference; it never accepts a caller-supplied tenant as authority and never returns API Key material or permission facts.
 - The query is an INTERNAL technical primitive requiring verified `auth-service` workload identity, target audience `identity-service`, certificate binding and exact issuance Code `identity.internal.integration_machine.resolve`. Gateway, external callers and ordinary HUMAN/MACHINE roles cannot obtain this Code. Only `scopeLevel=TENANT`, `type=EXTERNAL_INTEGRATION`, `status=ACTIVE` and a non-empty tenant reference is eligible. Missing, wrong-type, wrong-scope or inactive machines return an ineligible decision; transport/trust failure is fail-closed for API Key exchange.
 
+内部 Cron、Robot 与 worker 使用另一条 generic Machine Principal resolution，不复用 external Integration resolver：
+
+- `MachineWorkloadBinding` 是 Identity-owned identity fact。一个 binding 以稳定 opaque reference 关联一个 Machine Principal、一个精确 workload SPIFFE ID、active/disabled lifecycle 与单调 binding version；它不保存 leaf certificate、Auth credential、Permission Code 或 grant。一个 SPIFFE workload 可以承载多个受控 machine binding，但一次 Auth source credential 必须引用唯一一个 binding，且该 binding 只能解析到唯一一个 principal；任何歧义均拒绝。
+- Identity 在既有 `IdentityQueryService` surface 新增 Auth-only `ResolveMachinePrincipalForAuth`。它与 `ResolveIntegrationMachineForAuth` 是两个目的明确的 resolver：前者只服务第一方 MACHINE root execution，后者继续只服务 external API-key exchange，不修改、不泛化，也不作为 fallback。
+- Auth 只提交其已验证的 Machine Principal reference、binding reference、credential binding version 与当前 `VerifiedWorkloadIdentity.spiffeId`；不提交 raw source credential、leaf certificate、Permission grant 或 caller-computed tenant。Identity 要求 principal 与 binding 均 active、binding 唯一指向该 principal、SPIFFE ID 与 version 精确匹配，并返回 principal id（供 Auth 作为 `sub`）、`principal_type=MACHINE`、type、scope、tenant、适用 org reference、principal lifecycle version、binding reference/version 与 safe decision reference。
+- `TENANT` principal 必须返回同一 tenant 的有效引用；`SYSTEM` principal 的 tenant 必须为空。org 只作为适用时的受控引用返回，Identity 不取得 tenant/org tree 或 lifecycle 真相所有权。缺失、inactive、wrong type/scope、tenant/org mismatch、binding mismatch/stale 或 dependency unavailable 均 fail closed。
+- 该 resolver 是 normal protected INTERNAL RPC：只接受准确 `auth-service` workload、`aud=identity-service` 且绑定当前 Auth 叶证书的 ExecutionToken，以及 exact Code `identity.internal.machine_principal.resolve`。该 Code 只能由 Permission `ResolveWorkloadIssuance` 的准确 Auth workload -> Identity audience policy 批准；它不进入 HUMAN/MACHINE role、external JWT 或 wildcard policy，也不增加第二个 mTLS-only bootstrap method。
+- Identity 不校验 Auth source-credential JWS 或 leaf thumbprint。Auth 先完成 credential profile/signature/lifetime/revocation 与当前 leaf thumbprint binding，再消费本 resolver 的 stable principal/SPIFFE/binding owner decision；两者任何 mismatch 都不得进入 Permission lookup 或 signing。
+
+黑盒语义以 [machine-principal-resolution.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/identity-service/machine-principal-resolution.md) 为准。
+
 当前注意事项：
 
 - 现有 machine auth contract 中由 Identity 执行 `AuthenticateApiKey` 的部分是 legacy 兼容形态，目标状态由 [ADR 0015](/Users/acehood/Documents/GitHub/oes/docs/adr/0015-workload-identity-and-execution-token.md) 与 Auth [execution-token.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/execution-token.md) 取代。
 - `APIKey` 是 credential，不是主体。
 - API Key credential、认证、轮换与撤销归 `auth-service`；Identity 只保存 Auth credential 所引用的 machine principal identity，不保存 secret 或 hash。
+- 内部 `MachineWorkloadSourceCredential` 同样归 `auth-service`；Identity 只保存 credential 所引用的 Machine Principal 与 `MachineWorkloadBinding`，不保存 JWS、verifier 或证书 thumbprint。
 - `permission-service` 通过通用 `PrincipalRoleBinding` 与 policy 管理机器授权；机器不伪装为 `UserAccount`。
 - 平台 Robot template 不是 machine principal；租户启用 template 时创建独立 TENANT principal。外部 Integration 同样固定为 tenant-owned principal；Marketplace、共享第三方 App principal 与跨 tenant installation model 已取消，不在 Identity 预留对应对象。
 

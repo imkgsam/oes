@@ -52,7 +52,7 @@ Execution Principal 只有三种稳定模式：
 - opaque signing-key reference 固定为 RFC 7512 PKCS#11 URI，pin token serial、private-key `CKA_ID` / `id` 与 `type=private`，由 agent 用同一 serial / ID 获取 public key；不得由 Auth request、`kid` 或 runtime discovery 选择其他 key。agent 从 HSM-derived ES256 P-256 JWK 计算 RFC 7638 thumbprint `kid`，并以 deployment/SRE 拥有的只读 `docker/grpc-trust/execution-token-signer/config/**` rotation manifest 校验 canonical URI、expected `kid` 与 RFC 3339 UTC publication/signing/retirement timeline。恰有一个 active signer；`retireAfter` 至少覆盖 `signingNotAfter + 300s Token TTL + 60s skew`，manifest/HSM mismatch fail closed。backend 默认使用 workload identity；额外 credential 只能由 agent 内的 secret broker 以 opaque reference 解析，并按 `CKU_USER` time-bounded session lease 刷新/失败清零、logout、close 和 fail closed。local integration 固定使用 `docker/grpc-trust/execution-token-signer/local/softhsm2/**` 的 SoftHSM2 token 内 sensitive、non-extractable P-256 key 与仅 agent 可读 PIN secret file；实际 UDS agent 测试必须证明 export refusal、rotation、manifest/credential mismatch 和 agent/HSM outage fail closed。
 - `requestedPermissionCodes` 仅是最小能力申请，绝不建立授权。Auth 从 Auth/Identity 可验证的 source credential 恢复 HUMAN/MACHINE/DELEGATED principal，以 Permission Service `ResolvePrincipalAuthorization` 的独立 decision 形成 BUSINESS 上限，以 `ResolveWorkloadIssuance` 形成 INTERNAL workload→audience→Code 上限；必须全部获准且 principal、tenant/org、workload、audience、kind、decision reference 与 `authzVersion` 一致后才签名。caller request、legacy operator roles、Auth 本地 Permission 副本或同源集合比较不能成为上限；依赖失败、部分批准或 mismatch 全部 fail closed。
 - Permission issuance control plane 使用现有 mTLS / SPIFFE workload identity 建立非循环 trust root：`ResolveWorkloadIssuance` 是唯一不预先要求 ExecutionToken 的 bootstrap authorization primitive，只接受环境注册的准确 `auth-service` identity 调用这一准确方法，并独立判断 original verified workload → target audience → INTERNAL Code。该 method policy 不能扩散到其他 Permission RPC、其他 workload 或 wildcard。`ResolvePrincipalAuthorization` 仍要求准确 Auth mTLS identity 加 certificate-bound `aud=permission-service` ExecutionToken 与 exact Code `permission.internal.principal_authorization.resolve`；它只形成 HUMAN/MACHINE/DELEGATED BUSINESS Code 发证上限，不接收 resource/domain facts，SELF_SERVICE 不调用。Permission 不签发 Token，Auth 对任一 denied/partial/mismatch decision 均不签名。
-- source credential 只由 Common transport-private runtime 在 mTLS-protected exchange channel 携带：首跳使用 Auth 可复核的 active session/access credential，多跳使用当前 signed ExecutionToken 作为 subject credential 并要求其 `aud` 精确对应 verified exchanger workload，API Key root 使用既有 Gateway-only external credential，MACHINE/DELEGATED 使用对应 owner credential/reference。metadata 只是 opaque credential 的载体；裸 subject/tenant/Code、request body、ordinary metadata 与 signed operator-context 都不是 authority。Token 按 principal/tenant/audience/exact Code set/delegation/security version/`cnf` tuple 缓存和复用，不按 RPC 签发；目标服务继续独占 RPC mode、Code 与 resource/domain enforcement，Auth 不维护 target-RPC registry。
+- source credential 只由 Common transport-private runtime 在 mTLS-protected exchange channel 携带：首跳使用 Auth 可复核的 active session/access credential，多跳使用当前 signed ExecutionToken 作为 subject credential 并要求其 `aud` 精确对应 verified exchanger workload，API Key root 使用既有 Gateway-only external credential，MACHINE root 使用 Auth-owned `MachineWorkloadSourceCredential` 与 Identity-owned binding resolution，DELEGATED 使用对应 owner credential/reference。metadata 只是 opaque credential 的载体；裸 subject/tenant/Code、request body、ordinary metadata 与 signed operator-context 都不是 authority。Token 按 principal/tenant/audience/exact Code set/delegation/security version/`cnf` tuple 缓存和复用，不按 RPC 签发；目标服务继续独占 RPC mode、Code 与 resource/domain enforcement，Auth 不维护 target-RPC registry。
 
 ### 4. 多跳与 cache
 
@@ -62,14 +62,16 @@ Execution Principal 只有三种稳定模式：
 
 ### 5. API Key 与机器授权 owner
 
-- `identity-service` 拥有 Machine Principal identity 与 lifecycle。
-- `auth-service` 拥有 API Key credential、认证、轮换、撤销、Gateway-only external access token 与内部 ExecutionToken exchange 的 STS 能力。
+- `identity-service` 拥有 Machine Principal identity、scope/tenant/lifecycle，以及 Machine Principal 与 workload SPIFFE ID 的 `MachineWorkloadBinding`。
+- `auth-service` 拥有 API Key credential，也独立拥有第一方内部 `MachineWorkloadSourceCredential` 的 profile、受控登记/签发、验证、expiry、revocation 与认证审计；两者不能复用。Auth 继续独占 Gateway-only external access token 与内部 ExecutionToken exchange 的 STS 能力。
 - `permission-service` 拥有 HUMAN / MACHINE 的角色、grant、policy 与授权判定。
 - `permission-service` 可在现有 BUSINESS Permission Code metadata 上标记 `externalApiEligible`，供 Auth 在 API Key exchange 时返回最小外部授权快照；该标记不开放 Gateway route、不授予 principal，也不建立第二套 Scope 目录。
 - 长期绑定模型收敛为 `PrincipalRoleBinding`，显式记录 principal type / id、scope level、tenant 与 role；不把机器伪装为 `UserAccount`。
 - INTERNAL kind Permission Code 只由 STS workload issuance policy 授予，不能进入人类或租户机器业务角色。
 
 外部 App 只能创建 tenant-scoped Integration Machine 与 API Key，并通过 Gateway/Auth 取得 Gateway-only external access token；Auth 将已验证 Machine 的 externally eligible BUSINESS Code 快照写入该短期 JWT，Gateway 复用既有 `RequirePermissions` 元数据和显式外部 route opt-in 做入口判断，之后才为其内部 mTLS call 换取 target-audience ExecutionToken。外部调用方不直接访问内部 gRPC。具体 credential/exchange 规则以 DG-3 External API Key contracts 为准。Marketplace、第三方开发者平台、共享 App 主体与一个 App 被多个 tenant 安装的模型已取消，不做架构预留。
+
+无入站 HUMAN/session 或上游 Token 的第一方 Cron、Robot、worker 使用专用 Auth-signed `MachineWorkloadSourceCredential` 建立 root MACHINE execution。该 source JWS 最长 15 分钟且不得超过当前 leaf certificate expiry，不含 Permission Code、没有 refresh token，并同时绑定 Identity `MachineWorkloadBinding` reference/version、准确 SPIFFE ID 与当前 leaf thumbprint。Auth 先验证 credential，再使用受正常 INTERNAL ExecutionToken 保护的 `IdentityQueryService.ResolveMachinePrincipalForAuth` 确认 active principal/binding，最后按 BUSINESS / INTERNAL 分别取得 Permission decision。Machine/binding/credential 任一 disabled、revoked、stale 或 mismatch 都在签发前 fail closed；普通已签发 Token 在 5 分钟最大 TTL 内收敛，紧急场景复用 DG-2 既有 selector，不新增撤销系统。
 
 ### 6. RPC authorization declaration
 
@@ -125,6 +127,7 @@ Site Runtime 现有 HMAC、nonce、method/path/body hash 是独立的外部 cred
 
 - Auth 不在普通 RPC 热路径；验签成本由目标服务本地承担，STS 仅在 cache miss 或上下文变化时参与。
 - HUMAN、MACHINE、DELEGATED 与纯技术调用使用同一执行模型。
+- mTLS workload、MACHINE source credential 与 Machine Principal identity 分工明确：证书证明连接来源，source credential 证明受控 root credential，Identity binding 决定 `sub` 与 scope/tenant；任何一层都不能单独替代另外两层。
 - audience、Permission Code 与 workload binding 将多跳权限收敛到最小集合。
 - 所有 gRPC 服务最终不再因重复 body tenant/operator 形成 confused-deputy 边界。
 - Permission Code 继续作为 RBAC 与 Token scope 的同一能力词汇，不引入平行授权目录。
@@ -141,6 +144,8 @@ Site Runtime 现有 HMAC、nonce、method/path/body hash 是独立的外部 cred
 - [可信 gRPC Metadata 架构](/Users/acehood/Documents/GitHub/oes/docs/architecture/14-grpc-metadata-and-service-trust-architecture.md)
 - [Permission Code 语义源](/Users/acehood/Documents/GitHub/oes/docs/architecture/07-permission-code-source.md)
 - [ExecutionToken Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/execution-token.md)
+- [Machine Workload Source Credential Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/machine-workload-source-credential.md)
+- [Machine Principal Resolution Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/identity-service/machine-principal-resolution.md)
 - [External API Key Credential Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/external-api-key-security.md)
 - [External API Key Exchange Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/external-api-key-exchange.md)
 - [Principal Authorization Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/principal-authorization.md)
