@@ -128,7 +128,7 @@ programControlBranch: codex/oes-program-control-migration
 - task archive：migration implementation task `019fcbff-ff44-7612-a187-045fa9f47333` 在 `main@45a7e306…` 集成证据完成后已归档；source candidate/worktree 继续保留到最终 Git 清理 gate。
 - target ownership：Permission implementation 与短时 main integration leases 已释放；GRPC carrier rebuild 已进入独立稳定写 lease。
 
-### 4.3 EXEC-CRYPTO — `MACHINE_WIRE_SCHEMA_CANDIDATE_READY`
+### 4.3 EXEC-CRYPTO — `MACHINE_ACCEPTANCE_COMMAND_GAP`
 
 - source threads：control `019fc601-1f32-7912-a9a5-849cf22cfd23`；design `019fa287-01a8-7340-8fb3-b56df8652dcd`；I06 `019fc608-c9cf-7a82-a91a-0b9aa6d0cd5f`。
 - active retained writer：`/Users/acehood/.codex/worktrees/44ef/oes`；branch `codex/exec-crypto/i06-auth-tg2-remediation`；HEAD `64ea8660687bbeb24349d11bcaed6f63d2373c4b`；clean。
@@ -191,6 +191,9 @@ programControlBranch: codex/oes-program-control-migration
 - frozen wire packet：冻结 Machine Principal ↔ Worker SPIFFE binding；Auth最长15分钟 source credential 的 issuance/reissuance/revocation 与 dedicated JWS profile；2个Auth RPC与3个Identity RPC的精确message fields/field numbers、caller trust与safe denial；Auth credential/Identity binding Prisma PK/FK/unique/version/status/revocation及同事务audit规则；Identity binding manage与Auth credential revoke两个management Permission Codes。
 - lease expansion：exact tracked writer lease 从64扩展为66 paths；新增路径只用于已冻结 wire/schema/audit packet，既有 deny-by-default、ignored generated outputs、protected examples与shared-file restrictions继续有效。external API Key、Principal Authorization不变；AI/ActionGrant runtime继续deferred。
 - wire/schema I&V route：只复用持久 task `019fcaf2-ca7b-7140-b46d-b6cacae58556` 独立验收 candidate/parent、9-doc exact diff、字段编号/RPC计数、Prisma与transactional audit语义、Permission Codes、64→66 lease增量及保护边界；仅在root/local origin/remote main仍等于parent且全部通过时ff-only集成并push main一次。验收前不恢复implementation或GRPC Asset。
+- wire/schema I&V terminal：`DESIGN_GAP — RETURN_TO_UNIFIED_DESIGN`。candidate object/parent/ancestry、9 docs / 200+/14-、非docs 0、diff check、UTF-8 9/9、links 92/92、2 Auth RPC / 3 Identity RPC、全部message field-number tables且collision=0、JWS/Prisma/transactional audit/Permission semantics，以及66-path YAML（3+29+25+9；29 `EXISTING` / 37 `NEW_TARGET`）均通过；未取得root lease，未fetch/merge/push。
+- acceptance-command gap：66-path lease含13个 `NEW_TARGET *.spec.ts`，冻结 focused commands 仅执行10个。未覆盖 `src/common/src/contracts/auth_service/machine_workload_source_credential.contract.spec.ts`、`src/services/system/identity-service/test/l1/machine-workload-binding-management.handlers.spec.ts` 与 `src/services/system/identity-service/test/l1/machine-workload-binding-management.grpc-controller.spec.ts`；`proto:lint`只做Buf lint，Common build只做`tsc -b`，均不执行这些断言。
+- correction route：复用同一 Unified Design task，保留 `43c3c0ad…` 为DESIGN_GAP证据，只对 feature packet/exact lease 的 frozen acceptance commands 做最小修正，确保所有13个新增spec都由字面命令执行。不得改wire/schema/Prisma/audit/Permission语义，不添加code/proto/schema/runtime，不恢复MACHINE implementation或GRPC Asset；形成replacement后仍走同一I&V。
 - next route decision：EXEC-CRYPTO remediation 先于 GRPC Asset。原因是 Asset 明确等待 Platform Security 落地，而 EXEC-CRYPTO 的两项已登记依赖现已满足。
 - target ownership：MACHINE implementation 写入 lease 暂停；Platform Security worktree 保持 idle/clean，等待 wire/schema/persistence/audit packet 经用户冻结并由 I&V 集成。当前无并发 Auth writer。
 
@@ -407,7 +410,7 @@ AI legacy A/V 与 migration implementation 任务已有完整重建、独立 I&V
 | retained non-main candidate worktrees | 3 | EXEC-CRYPTO `64ea8660…`、GRPC carrier `dced77ad…`、deferred ActionGrant runtime `ec2b2cf…`；分别等待 dependency-ordered rebuild/验收或持久 deferred disposition |
 | superseded/rejected evidence worktrees | 4 | EXEC-CRYPTO rejected `c7ab0d9c…`、API-KEY prototype `755d857a…` 及 AI legacy candidate/acceptance 两个 `6101933d…` worktrees；证据已登记，仍待 ledger 入 main 后的清理 gate |
 | Program Control migration ledger worktree | 1 | 当前不在 main；必须先完成 ledger candidate 验收与集成 |
-| **worktree total** | **37** | 当前全部 worktree clean；MACHINE implementation idle，Unified Design 已形成wire/schema frozen candidate，I&V待复用，本轮删除/clean/reset 数为 0 |
+| **worktree total** | **37** | 当前全部 worktree clean；MACHINE implementation idle，I&V因acceptance-command gap返回，Unified Design待复用形成最小replacement，本轮删除/clean/reset 数为 0 |
 
 branch refs 共 31：24 个 branch HEAD 已是 current main ancestor；7 个非 ancestor refs 已全部分类为 deferred ActionGrant runtime、AI legacy accepted evidence、API-KEY rejected prototype evidence、EXEC-CRYPTO legacy checkpoint、GRPC Asset candidate、原 GRPC carrier candidate 与 Program Control migration ledger。MACHINE branch 当前等于 main。不存在未分类 branch ref。
 
@@ -545,7 +548,8 @@ EXEC-CRYPTO HUMAN foundation I&V terminal evidence：
 | MIG-D13 | MACHINE replacement `bbb7338f…` 修复状态误报，但Auth/Identity/proto/Prisma/tests/generated-input lease仍是描述性范围 | Program Control无法为恢复implementation登记完整exact path ownership，I&V也不能推断实现结构 | `CLOSED`：第三candidate `22ed9ee4…` 的封闭64-path manifest已独立验收并集成；旧candidate继续保留为DESIGN_GAP证据 |
 | MIG-D14 | MACHINE exact lease 跨 Common/Auth/Identity/Permission 且含新proto、Prisma输入、tracked codegen输出与ignored派生产物 | 路径或产物分类不精确会导致共享 ownership 漂移、误跟踪generated output或实现自行扩scope | `CLOSED_FOR_DISPATCH`：`22ed9ee4…` 的64 writer paths、7 ignored outputs、16 protected examples与5共享限制已独立验收；恢复实现仍须先本地复核再登记lease |
 | MIG-D15 | 64-path lease 只冻结 ownership，未冻结 MACHINE wire fields/field numbers、Prisma PK/FK/unique/lifecycle/revocation、caller trust 与审计持久化路径 | 实现会被迫发明公共契约和持久化语义，或在无 tracked audit lease 情况下绕过审计边界 | frozen candidate `43c3c0ad…` 已形成9-doc wire/schema/audit packet并扩展为66-path lease，待同一I&V验收；implementation继续idle/clean |
+| MIG-D16 | 66-path lease登记13个新增spec，但frozen focused commands仅执行10个 | candidate可以在3个公共wire/Identity management断言从未执行的情况下被误判为完成 | I&V返回DESIGN_GAP且未集成；同一 Unified Design 只修正acceptance commands，覆盖Common Auth contract spec与两个Identity management specs后形成replacement |
 
 ## 10. 下一阶段入口
 
-MACHINE wire/schema design candidate `43c3c0ad…` 已冻结并登记。当前迁移阶段为 `MACHINE_WIRE_SCHEMA_CANDIDATE_READY`：精确9 docs / 200+/14-，冻结2个Auth RPC、3个Identity RPC、Prisma与transactional audit语义、2个management Permission Codes并将exact lease从64扩展为66 paths；现只路由同一持久I&V。验收/集成前同一implementation task保持idle/clean且不推进GRPC Asset；AI/ActionGrant runtime保持deferred，API-KEY `755d857a…`不进入main；无checker。
+MACHINE wire/schema design candidate `43c3c0ad…` 的契约、持久化、审计与66-path lease本体已通过独立检查，但因3个新增spec未被frozen commands执行而未集成。当前迁移阶段为 `MACHINE_ACCEPTANCE_COMMAND_GAP`：同一 Unified Design 只形成acceptance-command最小replacement，随后仍走同一I&V；同一implementation task保持idle/clean且不推进GRPC Asset。AI/ActionGrant runtime保持deferred，API-KEY `755d857a…`不进入main；无checker。
