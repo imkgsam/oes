@@ -35,8 +35,8 @@ programControlBranch: codex/oes-program-control-migration
 | 项目 | Handoff 状态 | 2026-08-04 本地只读核验 |
 | --- | --- | --- |
 | Repository root | `/Users/acehood/Documents/GitHub/oes` | 路径存在；`main` 工作树 clean |
-| `main` | `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` | 当前 `22ed9ee468d0744b10dec4536856f29c10d3552f`；AI、Principal Authorization、ActionGrant design、Permission、GRPC carrier、EXEC-CRYPTO HUMAN foundation 与 MACHINE exact-lease design 经唯一 I&V lane ff-only 推进 |
-| `origin/main` | `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` | 当前本地 remote-tracking ref 为 `22ed9ee468d0744b10dec4536856f29c10d3552f` |
+| `main` | `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` | 当前 `7cb5c4d3dae6900c345f688dadad2b7822ac8278`；AI、Principal Authorization、ActionGrant design、Permission、GRPC carrier、EXEC-CRYPTO HUMAN foundation及MACHINE exact-lease/wire-schema design经唯一I&V lane ff-only推进 |
+| `origin/main` | `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` | 当前本地 remote-tracking ref 为 `7cb5c4d3dae6900c345f688dadad2b7822ac8278` |
 | Legacy formal A/* threads | 101 | 仅保留 handoff 汇总计数；未读取或唤醒线程 |
 | Worktrees | 29 | 当前 37；新增项为本 Program Control、AI Platform completion、Integration & Verification、Unified Design、Permission decision RPC、GRPC carrier rebuild、EXEC-CRYPTO remediation 与 MACHINE workload source-verifier worktree |
 | `codex/*` branches | 23 | 当前 31；新增项为 `codex/oes-program-control-migration`、`codex/migration/ai-platform-completion`、`codex/integration/main-queue`、`codex/unified-design/security-open-packets`、`codex/migration/permission-decision-rpc`、`codex/migration/grpc-carrier-rebuild`、`codex/migration/exec-crypto-remediation` 与 `codex/migration/machine-workload-source-verifier` |
@@ -128,7 +128,7 @@ programControlBranch: codex/oes-program-control-migration
 - task archive：migration implementation task `019fcbff-ff44-7612-a187-045fa9f47333` 在 `main@45a7e306…` 集成证据完成后已归档；source candidate/worktree 继续保留到最终 Git 清理 gate。
 - target ownership：Permission implementation 与短时 main integration leases 已释放；GRPC carrier rebuild 已进入独立稳定写 lease。
 
-### 4.3 EXEC-CRYPTO — `MACHINE_WIRE_SCHEMA_REPLACEMENT_READY`
+### 4.3 EXEC-CRYPTO — `MACHINE_IMPLEMENTATION_ACTIVE`
 
 - source threads：control `019fc601-1f32-7912-a9a5-849cf22cfd23`；design `019fa287-01a8-7340-8fb3-b56df8652dcd`；I06 `019fc608-c9cf-7a82-a91a-0b9aa6d0cd5f`。
 - active retained writer：`/Users/acehood/.codex/worktrees/44ef/oes`；branch `codex/exec-crypto/i06-auth-tg2-remediation`；HEAD `64ea8660687bbeb24349d11bcaed6f63d2373c4b`；clean。
@@ -197,6 +197,10 @@ programControlBranch: codex/oes-program-control-migration
 - acceptance-command replacement：`codex/unified-design/security-open-packets@7cb5c4d3dae6900c345f688dadad2b7822ac8278`，direct parent `43c3c0ad33b0454d92aef0bbcdfd088a6d2fb05d`，base/current main `22ed9ee468d0744b10dec4536856f29c10d3552f`；correction-only 1 doc / 2 insertions / 1 deletion，cumulative 9 docs / 202 insertions / 15 deletions，source clean。
 - replacement evidence：只修改 `docs/plans/features/trusted-grpc-execution-context.md` 的两条focused commands；新增Common contract spec直接Jest命令并把两个Identity management specs加入定向Jest。correction/cumulative diff check、YAML、UTF-8 9/9、links 92/92、66-path lease与13/13 NEW_TARGET spec command coverage通过；wire/JWS/Prisma/audit/Permission语义未变，非docs 0。
 - replacement I&V route：仍复用同一持久I&V复验原9-doc packet与最小correction，重点证明13/13新增spec均会执行且命令可运行；仅在root/local origin/remote main仍等于base时ff-only集成replacement并push一次。验收前implementation继续idle/clean。
+- replacement I&V terminal：`ACCEPTED_AND_INTEGRATED`。correction 1 doc / 2+/1-、cumulative 9 docs / 202+/15-、diff/UTF-8 9/9/links 92/92、2 Auth RPC / 3 Identity RPC、field collisions=0、JWS/Prisma/transactional audit、66 writers（3+29+25+9；29 `EXISTING`/37 `NEW_TARGET`）、generated/protected/shared boundaries与tracked-source zero-hit均通过。
+- coverage closure：focused commands=4、全部frozen commands=15、13个NEW_TARGET specs覆盖13/13。Common命令形态用现有同类spec验证1 suite/2 tests pass；Identity过滤命令形态1 suite/4 tests pass。source docs worktree因无Jest binary首次代理exit 254，仅作依赖环境证据；在依赖完整root相同命令形态exit 0，未来尚不存在的MACHINE tests未运行。
+- final integration evidence：fetch、root ff-only merge、fresh root cumulative docs/wire/YAML/coverage checks与唯一一次main push通过；root/local `origin/main`/remote main均为 `7cb5c4d3dae6900c345f688dadad2b7822ac8278` 且root/source clean。
+- implementation resume route：恢复同一 task `019fd240-7062-76c3-a183-56e363e8fee4`，先在原clean worktree/branch从`22ed9ee4…` ff-only同步`7cb5c4d3…`，再完整复核66-path lease与frozen wire/schema/audit packet；仅在复核一致后执行实现、TDD及15条frozen commands，不扩path/语义。
 - next route decision：EXEC-CRYPTO remediation 先于 GRPC Asset。原因是 Asset 明确等待 Platform Security 落地，而 EXEC-CRYPTO 的两项已登记依赖现已满足。
 - target ownership：MACHINE implementation 写入 lease 暂停；Platform Security worktree 保持 idle/clean，等待 wire/schema/persistence/audit packet 经用户冻结并由 I&V 集成。当前无并发 Auth writer。
 
@@ -413,7 +417,7 @@ AI legacy A/V 与 migration implementation 任务已有完整重建、独立 I&V
 | retained non-main candidate worktrees | 3 | EXEC-CRYPTO `64ea8660…`、GRPC carrier `dced77ad…`、deferred ActionGrant runtime `ec2b2cf…`；分别等待 dependency-ordered rebuild/验收或持久 deferred disposition |
 | superseded/rejected evidence worktrees | 4 | EXEC-CRYPTO rejected `c7ab0d9c…`、API-KEY prototype `755d857a…` 及 AI legacy candidate/acceptance 两个 `6101933d…` worktrees；证据已登记，仍待 ledger 入 main 后的清理 gate |
 | Program Control migration ledger worktree | 1 | 当前不在 main；必须先完成 ledger candidate 验收与集成 |
-| **worktree total** | **37** | 当前全部 worktree clean；MACHINE implementation idle，I&V因acceptance-command gap返回，Unified Design待复用形成最小replacement，本轮删除/clean/reset 数为 0 |
+| **worktree total** | **37** | I&V集成完成时全部worktree clean；MACHINE implementation恢复为唯一66-path writer，Unified Design与I&V idle，本轮删除/clean/reset数为0 |
 
 branch refs 共 31：24 个 branch HEAD 已是 current main ancestor；7 个非 ancestor refs 已全部分类为 deferred ActionGrant runtime、AI legacy accepted evidence、API-KEY rejected prototype evidence、EXEC-CRYPTO legacy checkpoint、GRPC Asset candidate、原 GRPC carrier candidate 与 Program Control migration ledger。MACHINE branch 当前等于 main。不存在未分类 branch ref。
 
@@ -550,9 +554,9 @@ EXEC-CRYPTO HUMAN foundation I&V terminal evidence：
 | MIG-D12 | MACHINE frozen design candidate `d7b935fb…` 把未来 Identity resolver/Code一处写成“当前已开放/既有”，同时又声明proto/Common/runtime尚未实现 | 文档会把 frozen pending contract误报为现有能力，导致implementation lease与运行现状不一致 | I&V返回DESIGN_GAP且未集成；同一 Unified Design task形成仅修正状态措辞的replacement |
 | MIG-D13 | MACHINE replacement `bbb7338f…` 修复状态误报，但Auth/Identity/proto/Prisma/tests/generated-input lease仍是描述性范围 | Program Control无法为恢复implementation登记完整exact path ownership，I&V也不能推断实现结构 | `CLOSED`：第三candidate `22ed9ee4…` 的封闭64-path manifest已独立验收并集成；旧candidate继续保留为DESIGN_GAP证据 |
 | MIG-D14 | MACHINE exact lease 跨 Common/Auth/Identity/Permission 且含新proto、Prisma输入、tracked codegen输出与ignored派生产物 | 路径或产物分类不精确会导致共享 ownership 漂移、误跟踪generated output或实现自行扩scope | `CLOSED_FOR_DISPATCH`：`22ed9ee4…` 的64 writer paths、7 ignored outputs、16 protected examples与5共享限制已独立验收；恢复实现仍须先本地复核再登记lease |
-| MIG-D15 | 64-path lease 只冻结 ownership，未冻结 MACHINE wire fields/field numbers、Prisma PK/FK/unique/lifecycle/revocation、caller trust 与审计持久化路径 | 实现会被迫发明公共契约和持久化语义，或在无 tracked audit lease 情况下绕过审计边界 | frozen candidate `43c3c0ad…` 已形成9-doc wire/schema/audit packet并扩展为66-path lease，待同一I&V验收；implementation继续idle/clean |
-| MIG-D16 | 66-path lease登记13个新增spec，但frozen focused commands仅执行10个 | candidate可以在3个公共wire/Identity management断言从未执行的情况下被误判为完成 | replacement `7cb5c4d3…` 已最小补齐Common Auth contract与两个Identity management specs，静态覆盖13/13，待同一I&V复验 |
+| MIG-D15 | 64-path lease 只冻结 ownership，未冻结 MACHINE wire fields/field numbers、Prisma PK/FK/unique/lifecycle/revocation、caller trust 与审计持久化路径 | 实现会被迫发明公共契约和持久化语义，或在无 tracked audit lease 情况下绕过审计边界 | `CLOSED`：9-doc wire/schema/audit packet与66-path lease已通过replacement `7cb5c4d3…`独立验收、集成并push |
+| MIG-D16 | 66-path lease登记13个新增spec，但frozen focused commands仅执行10个 | candidate可以在3个公共wire/Identity management断言从未执行的情况下被误判为完成 | `CLOSED`：replacement `7cb5c4d3…`补齐并独立验证13/13覆盖，已ff-only集成并push |
 
 ## 10. 下一阶段入口
 
-MACHINE wire/schema replacement `7cb5c4d3…` 已最小关闭3个漏执行spec的acceptance-command gap，累计packet保持9 docs与66-path lease，wire/schema/persistence/audit语义不变。当前迁移阶段为 `MACHINE_WIRE_SCHEMA_REPLACEMENT_READY`：现只路由同一持久I&V；验收/集成前同一implementation task保持idle/clean且不推进GRPC Asset。AI/ActionGrant runtime保持deferred，API-KEY `755d857a…`不进入main；无checker。
+MACHINE wire/schema replacement `7cb5c4d3…` 已 `ACCEPTED_AND_INTEGRATED`，66-path lease、wire/schema/persistence/audit packet与13/13 test-command coverage均已冻结。当前迁移阶段为 `MACHINE_IMPLEMENTATION_ACTIVE`：恢复同一implementation task，在原clean worktree先ff-only同步新main并复核66-path/frozen packet，随后只在该lease内实现和验证。MACHINE candidate验收/集成前不推进GRPC Asset；AI/ActionGrant runtime保持deferred，API-KEY `755d857a…`不进入main；无checker。
