@@ -299,8 +299,9 @@ machineWorkloadImplementationLease:
       - pnpm --filter identity-service build
       - pnpm --filter permission-service build
     focusedTests:
+      - pnpm exec jest --runInBand --runTestsByPath src/common/src/contracts/auth_service/machine_workload_source_credential.contract.spec.ts
       - pnpm --filter auth-service exec jest --runInBand
-      - pnpm --filter identity-service exec jest --config jest.config.js --runInBand test/l1/resolve-machine-principal-for-auth.handler.spec.ts test/l1/resolve-machine-principal-for-auth.grpc-controller.spec.ts test/l2/prisma.machine-workload-binding.repository.spec.ts test/l2/machine-workload-binding-database-constraints.spec.ts
+      - pnpm --filter identity-service exec jest --config jest.config.js --runInBand test/l1/machine-workload-binding-management.handlers.spec.ts test/l1/machine-workload-binding-management.grpc-controller.spec.ts test/l1/resolve-machine-principal-for-auth.handler.spec.ts test/l1/resolve-machine-principal-for-auth.grpc-controller.spec.ts test/l2/prisma.machine-workload-binding.repository.spec.ts test/l2/machine-workload-binding-database-constraints.spec.ts
       - pnpm --filter permission-service exec jest --config jest.config.js --runInBand test/l1/common-permission-code-generator.spec.ts test/l1/permission-foundation.seed.spec.ts test/l1/permission-service-seed.spec.ts
     ownership:
       - git diff --name-only <base>..<candidate>
