@@ -179,10 +179,14 @@ Token TTL maximum is 5 minutes. Implementations may shorten it by risk but calle
 
 实现完成后，内部 Cron、Robot、worker 没有 HUMAN/session 或上游 ExecutionToken 时，使用专用 `MachineWorkloadSourceCredential` 作为 root source credential。它不是 target grant；Auth 在进入 Permission 前必须验证 dedicated profile/signature/lifetime/revocation、当前 SPIFFE/leaf certificate binding，以及 Identity-owned principal/binding/version decision。
 
+- 受权管理者先通过正常 ExecutionToken-protected Identity management RPC 建立 exact Machine Principal ↔ SPIFFE binding。Workload 然后用当前 mTLS 与 principal/binding/version selector 调用 `MachineWorkloadSourceCredentialService.IssueMachineWorkloadSourceCredential`；Auth 只在 Identity owner decision 证明 active binding 精确匹配当前 SPIFFE 后签发。
+- initial issuance 和 controlled reissuance 共用 Issue RPC；每 binding 同时最多一个 active credential，新签发 transactionally supersedes 旧 credential。Revoke 是正常 BUSINESS management RPC，不是 mTLS-only bootstrap。
 - 最大 credential lifetime 为 15 分钟且不晚于当前 leaf certificate expiry；无 refresh token，证书轮换后受控重新签发。
 - credential 不含 Permission Code，不能替代 `ResolvePrincipalAuthorization` 或 `ResolveWorkloadIssuance`。
 - Machine/binding/credential disable、revoke、stale 或 mismatch 立即阻止新 exchange；已签发 Token 按 5 分钟 TTL 或既有 DG-2 selector 收敛。
 - API Key、Gateway external token、DELEGATED reference、legacy operator context 与 Auth hardcoded root mapping 不能替代该 profile。
+
+Source credential 的 exact `typ=oes-machine-source+jwt`、Auth audience、field numbers、binding version、Prisma constraints、safe errors 与 transactional audit 以 [machine-workload-source-credential.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/machine-workload-source-credential.md) 为准。`ExchangeExecutionTokenRequest` 仍只包含 target audience 与 requested Permission Code；不增加 principal、tenant、SPIFFE、binding 或 certificate body field。
 
 完整黑盒规则以 [machine-workload-source-credential.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/machine-workload-source-credential.md) 与 Identity [machine-principal-resolution.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/identity-service/machine-principal-resolution.md) 为准。
 

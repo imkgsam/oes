@@ -4,7 +4,7 @@
 
 **Goal:** Replace every repository gRPC request-body/operator-header trust path with mTLS workload identity, Auth / STS ExecutionToken, explicit RPC authorization mode and trusted multi-hop propagation.
 
-**Architecture:** Common supplies one generated metadata signature and one client/server runtime. Migration proceeds target service by target service: prepare all callers, switch one target to Token-only enforcement, run service-level acceptance, delete that target’s legacy trust path, then continue. Only an irreducible strongly connected service group may share one server cutover; all 21 services and 560 RPCs must reach zero legacy references before the capability closes.
+**Architecture:** Common supplies one generated metadata signature and one client/server runtime. Migration proceeds target service by target service: prepare all callers, switch one target to Token-only enforcement, run service-level acceptance, delete that target’s legacy trust path, then continue. Only an irreducible strongly connected service group may share one server cutover; all 21 services and the current 560-RPC baseline plus five frozen MACHINE RPCs must reach zero legacy references before the capability closes.
 
 **Tech Stack:** NestJS, gRPC, `ts-proto` / Buf, TypeScript, JWT / JWKS, Prisma, Jest, W3C Trace Context, deployment-managed mTLS.
 
@@ -15,13 +15,14 @@ status: DESIGN_FROZEN_IMPLEMENTATION_NOT_DISPATCHED
 freezeToken: FROZEN_TRUSTED_GRPC_METADATA
 decisionAdr: docs/adr/0015-workload-identity-and-execution-token.md
 architectureTruthSource: docs/architecture/14-grpc-metadata-and-service-trust-architecture.md
-migrationClosure: 21 services / 51 controllers / 560 RPCs / zero legacy trust references
+migrationClosure: 21 services / 51 existing controllers plus the frozen MACHINE Auth surface / 565 planned RPCs / zero legacy trust references
 resolvedDesignGates:
   - DG-1: docs/architecture/services/auth-service.md
   - DG-3: docs/architecture/collaborations/external-api-key-security.md
   - Principal issuance decisions: docs/contracts/permission-service/principal-authorization.md
   - MACHINE workload source credential: docs/contracts/auth-service/machine-workload-source-credential.md
   - Machine Principal resolution: docs/contracts/identity-service/machine-principal-resolution.md
+  - MACHINE wire/schema: docs/contracts/auth-service/machine-workload-source-credential.md + docs/contracts/identity-service/machine-principal-resolution.md
 ```
 
 ## 1. Frozen Scope
@@ -33,7 +34,7 @@ This capability now includes the complete current gRPC repository boundary:
 - Auth / STS issuance, local validation support and process-local Token cache.
 - Auth MACHINE source credential, Identity Machine Principal/workload binding ownership and Permission principal authorization integration.
 - API Gateway and every service-to-service caller.
-- All 21 gRPC services, 51 Controller files and 560 proto RPCs.
+- Current integrated baseline of 21 gRPC services, 51 Controller files and 560 proto RPCs, plus the frozen Auth MACHINE controller and five MACHINE RPCs defined by the owner contracts.
 - Cron, Robot, AI and technical callers represented in current or newly frozen contracts.
 - All tests, fixtures and generated-call compatibility repairs.
 - Final deletion of shared signed operator context, self-reported service identity and body identity fields.
@@ -137,7 +138,7 @@ This permits gradual delivery without a dual-trust resource server.
 
 ### 5.1 MACHINE root exact implementation lease
 
-Status is `FROZEN_PENDING_IMPLEMENTATION`. This manifest registers path ownership only; it does not define proto fields, Prisma fields, runtime class names, cryptographic internals or implementation sequencing. For this MACHINE sub-slice, every tracked path not listed under `trackedWriterPaths` is protected by default. `EXISTING` means the file exists at base `1ca24f417a2d06bce8be79d4c8ed67bc6c518a65`; `NEW_TARGET` is the one exact permitted future file and must not be replaced by a sibling name or directory-wide lease.
+Status is `FROZEN_PENDING_IMPLEMENTATION`. This manifest registers path ownership only; exact proto field numbers, JWS profile, Prisma invariants, actors, error mapping and audit semantics are frozen in the Auth/Identity MACHINE contracts named above. Runtime class names, implementation algorithms and implementation sequencing remain implementation concerns. For this MACHINE sub-slice, every tracked path not listed under `trackedWriterPaths` is protected by default. `EXISTING` means the file exists at base `1ca24f417a2d06bce8be79d4c8ed67bc6c518a65`; `NEW_TARGET` is the one exact permitted future file and must not be replaced by a sibling name or directory-wide lease.
 
 ```yaml
 machineWorkloadImplementationLease:
@@ -208,6 +209,8 @@ machineWorkloadImplementationLease:
     permissionAndTrackedCommonCode:
       - { state: EXISTING, path: src/services/system/permission-service/src/scripts/permission-catalog.ts }
       - { state: EXISTING, path: src/services/system/permission-service/src/scripts/generate-common-permission-codes.ts }
+      - { state: EXISTING, path: src/common/src/authorization/permission-codes/auth/auth-management.permission-codes.ts }
+      - { state: EXISTING, path: src/common/src/authorization/permission-codes/identity/machine.permission-codes.ts }
       - { state: NEW_TARGET, path: src/common/src/authorization/permission-codes/identity/internal.permission-codes.ts }
       - { state: EXISTING, path: src/common/src/authorization/permission-codes/identity/index.ts }
       - { state: EXISTING, path: src/services/system/permission-service/test/l1/common-permission-code-generator.spec.ts }
@@ -220,6 +223,8 @@ machineWorkloadImplementationLease:
         - src/services/system/permission-service/src/scripts/permission-catalog.ts
         - src/services/system/permission-service/src/scripts/generate-common-permission-codes.ts
       outputs:
+        - src/common/src/authorization/permission-codes/auth/auth-management.permission-codes.ts
+        - src/common/src/authorization/permission-codes/identity/machine.permission-codes.ts
         - src/common/src/authorization/permission-codes/identity/internal.permission-codes.ts
         - src/common/src/authorization/permission-codes/identity/index.ts
       command: pnpm --filter permission-service permission-codes:generate-common
@@ -279,7 +284,7 @@ machineWorkloadImplementationLease:
       - path: src/services/system/identity-service/src/interfaces/grpc/identity-query.grpc.controller.ts
         restriction: add only the new protected resolver mapping; preserve external Integration and ordinary query behavior
       - path: src/services/system/permission-service/src/scripts/permission-catalog.ts
-        restriction: add only identity.internal.machine_principal.resolve under Identity-owned INTERNAL metadata
+        restriction: add only identity.internal.machine_principal.resolve, identity.machine.workload_binding.manage and auth.machine_workload_source_credential.revoke with the frozen owner/kind/scope metadata
 
   verificationCommands:
     generation:
@@ -303,6 +308,8 @@ machineWorkloadImplementationLease:
 ```
 
 The manifest is closed rather than advisory: adding another tracked file, renaming a `NEW_TARGET`, tracking ignored generated output, touching a protected path, or needing a contract/schema/runtime path not listed here is a design-scope change and must return to Unified Design before implementation continues. Shared files remain single-writer under the registered capability owner.
+
+Audit reuse does not add another tracked writer path. Auth reuses `src/services/system/auth-service/prisma/schema.prisma` model `AuditEvent`; the leased new `prisma.machine-workload-source-credential.repository.ts` owns the transaction that writes credential state and its audit row together. Identity follows the same pattern with its existing `AuditEvent` model and leased new `prisma.machine-workload-binding.repository.ts`. Existing generic audit repositories/listeners remain protected and need no modification; no new audit table, event bus, outbox or central-audit owner is introduced by this MACHINE slice.
 
 ## 6. Static Dependency Evidence And Recommended Order
 
@@ -383,7 +390,7 @@ Each owner can modify only its service path, its owner proto/contract, its Permi
 ### A. Classification gate
 
 - [ ] Enumerate every proto RPC, generated handler, Controller method and direct caller.
-- [ ] Record exactly one mode for each RPC in the owner service truth/contract.
+- [ ] Record exactly one enforcement declaration for each RPC in the owner service truth/contract: BUSINESS / SELF_SERVICE / INTERNAL, or one of the two named exact bootstrap policies when and only when the RPC is `ResolveWorkloadIssuance` or `IssueMachineWorkloadSourceCredential`.
 - [ ] BUSINESS methods reference active BUSINESS Permission Code with correct `all / any`.
 - [ ] SELF_SERVICE derives target from trusted principal and explicitly decides DELEGATED allowance.
 - [ ] INTERNAL references active INTERNAL Code and an exact workload -> audience issuance policy.
@@ -434,7 +441,7 @@ This priority does not exempt any later service.
 
 Final acceptance must prove:
 
-1. All 560 RPCs have exactly one authorization mode; missing or duplicate mode fails architecture tests/startup.
+1. All 565 planned RPCs have exactly one enforcement declaration: BUSINESS / SELF_SERVICE / INTERNAL after context establishment, or one exact non-reusable bootstrap policy for `ResolveWorkloadIssuance` / `IssueMachineWorkloadSourceCredential`; missing, duplicate or widened bootstrap declarations fail architecture tests/startup.
 2. All 21 services validate exact issuer, time, audience, `cnf`, tenant and required Permission Codes locally.
 3. Normal RPC validation makes no Auth network call; only Token exchange/cache miss does.
 4. No RPC trusts `x-internal-service-name`, shared signed operator payload or identity body duplicates.
@@ -497,7 +504,7 @@ The capability closes only when:
 - DG-1 and DG-3 are frozen for their enabled capabilities; DG-2, DG-4 and DG-5 are either closed for enabled capabilities or the corresponding capability is demonstrably disabled; no local substitute exists.
 - Every pure MACHINE root caller uses the frozen Auth source credential and Identity binding resolver; external API Key, legacy Identity API-key auth and hardcoded root mapping are absent from this path.
 - All 21 service rows are `LEGACY_REFERENCES_ZERO`.
-- All 51 Controller files and 560 RPCs are covered by the authorization-mode architecture test.
+- All existing 51 Controller files plus the frozen new Auth MACHINE controller and all 565 planned RPCs are covered by the enforcement-declaration architecture test.
 - The 19 request-only caller baseline reaches zero and the full generated caller inventory is explicit-metadata compliant.
 - Every service-level handoff contains fresh build/test/security evidence.
 - Full repository black-box acceptance passes at one candidate SHA.

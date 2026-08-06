@@ -38,6 +38,61 @@ Auth 独占 credential profile、受控登记/签发、验证、expiry、revocat
 5. credential revoke 立即阻止新 STS exchange；Machine Principal 或 binding disabled/stale 同样阻止新 exchange。
 6. 已签发 ExecutionToken 的普通收敛仍使用既有 5 分钟最大 TTL；紧急事件只复用 DG-2 `CREDENTIAL`、`PRINCIPAL` 或 `MINIMUM_AUTHZ_VERSION` selector。
 
+### 2.1 Controlled actors and transport
+
+- `IdentityManagementService.EnrollMachineWorkloadBinding` 与 `DisableMachineWorkloadBinding` 只接受普通 mTLS + target-audience ExecutionToken 保护的 HUMAN 或受控 SYSTEM MACHINE 管理调用，并要求 BUSINESS Code `identity.machine.workload_binding.manage`。
+- `MachineWorkloadSourceCredentialService.IssueMachineWorkloadSourceCredential` 只接受当前 workload 本身的 mTLS connection。该调用不依赖一个尚未建立的 ExecutionToken，但也不是“仅持有 mTLS 即放行”：Auth 必须使用请求中的非秘密 principal/binding selector 调用 Identity owner resolver，确认该 active binding 精确绑定当前 transport-verified SPIFFE ID。
+- initial issuance 和 reissuance 共用同一 `IssueMachineWorkloadSourceCredential` RPC。调用方不能请求 lifetime、tenant、org、Permission Code 或 certificate thumbprint。
+- `RevokeMachineWorkloadSourceCredential` 只接受普通 mTLS + target-audience ExecutionToken 保护的 HUMAN 或受控 SYSTEM MACHINE 管理调用，并要求 BUSINESS Code `auth.machine_workload_source_credential.revoke`。
+- 上述 RPC 都挂载在既有 Auth / Identity internal gRPC host，不增加 public HTTP、external gRPC 或第二个 Permission mTLS-only bootstrap。`ResolveWorkloadIssuance` 仍是 Permission 发证控制面唯一的 mTLS-only bootstrap primitive。
+
+### 2.2 Frozen Auth proto surface
+
+Future proto `src/common/src/contracts/auth_service/machine_workload_source_credential.proto` 使用 package `auth_service` 与新 service `MachineWorkloadSourceCredentialService`。
+
+```proto
+service MachineWorkloadSourceCredentialService {
+  rpc IssueMachineWorkloadSourceCredential(IssueMachineWorkloadSourceCredentialRequest) returns (IssueMachineWorkloadSourceCredentialResponse);
+  rpc RevokeMachineWorkloadSourceCredential(RevokeMachineWorkloadSourceCredentialRequest) returns (RevokeMachineWorkloadSourceCredentialResponse);
+}
+```
+
+`IssueMachineWorkloadSourceCredential` request 字段与 field number 固定为：
+
+| Field | Number | Type | Meaning |
+| --- | ---: | --- | --- |
+| `machine_principal_id` | 1 | `string` | 非秘密 principal selector；必须由 Identity owner decision 复核。 |
+| `machine_workload_binding_id` | 2 | `string` | 非秘密 binding selector；不单独构成 authority。 |
+| `machine_workload_binding_version` | 3 | `int64` | 调用方已知的精确 binding version；任何 stale value 拒绝。 |
+
+response 字段与 field number 固定为：
+
+| Field | Number | Type |
+| --- | ---: | --- |
+| `source_credential` | 1 | `string` |
+| `credential_id` | 2 | `string` |
+| `token_type` | 3 | `string`，成功时固定 `Bearer` |
+| `issued_at_unix_seconds` | 4 | `int64` |
+| `expires_at_unix_seconds` | 5 | `int64` |
+| `machine_principal_id` | 6 | `string` |
+| `machine_workload_binding_id` | 7 | `string` |
+| `machine_workload_binding_version` | 8 | `int64` |
+| `audit_correlation_id` | 9 | `string` |
+| `supersedes_credential_id` | 10 | `string` |
+
+`RevokeMachineWorkloadSourceCredential` request 固定为 `string credential_id = 1` 与 allowlisted `string reason_code = 2`。response 固定为 `string credential_id = 1`、`string status = 2`、`int64 revoked_at_unix_seconds = 3`、`bool already_revoked = 4`、`string audit_correlation_id = 5`。对同一 credential 重复 revoke 返回首次撤销事实，不改写时间、操作者或重复产生审计事实。
+
+### 2.3 Frozen JWS profile
+
+Source credential 复用 DG-1 既有 protected ES256 signer / issuer / JWKS lifecycle，但使用与 ExecutionToken 不同的 strict profile：
+
+- protected header：`typ=oes-machine-source+jwt`、`alg=ES256`、已发布且不可复用的 `kid`；
+- standard claims：exact Auth `iss`、`aud=urn:oes:service:auth-service`、`sub=machine principal id`、`jti=credential_id`、`iat`、`nbf`、`exp`；
+- workload binding claims：`client_id=verified workload SPIFFE ID`、`cnf.x5t#S256=current leaf thumbprint`、`machine_workload_binding_id`、`machine_workload_binding_version`、`profile_version=1`；
+- 禁止 tenant/org、Permission Code、role/grant、target service audience 或 caller-selected lifetime claim。
+
+Verifier 必须固定检查该 `typ`、Auth audience、profile version、signature/time/revocation 以及当前 SPIFFE/leaf binding；它不能把 `typ=at+jwt` ExecutionToken 或其他 Auth-signed JWT 当作该 profile。
+
 ## 3. Presentation And Verification
 
 worker 使用当前 mTLS connection 调用既有 `ExecutionTokenService.ExchangeExecutionToken`，并通过 transport-private `authorization: Bearer <source-credential>` 提交该 credential。请求 body 不新增 principal、tenant、SPIFFE、certificate 或 credential 字段。
@@ -78,11 +133,29 @@ Identity resolver 调用本身使用 Auth verified mTLS identity、`aud=identity
 
 错误响应不得泄露 credential 内容、签名匹配细节、可枚举 principal/binding 信息、grant graph 或 certificate material。
 
+Identity owner reason 只允许 `MACHINE_PRINCIPAL_NOT_ELIGIBLE`、`MACHINE_PRINCIPAL_SCOPE_INVALID`、`MACHINE_WORKLOAD_BINDING_NOT_ELIGIBLE`、`MACHINE_WORKLOAD_BINDING_PRINCIPAL_MISMATCH`、`MACHINE_WORKLOAD_BINDING_STALE`、`MACHINE_WORKLOAD_SPIFFE_MISMATCH` 与 `MACHINE_RESOLUTION_DEPENDENCY_UNAVAILABLE`。Auth 将 not-found/inactive 合并为不可枚举的 stable MACHINE error；不把 owner storage 细节透出 gRPC boundary。
+
+transport trust failure 使用 `UNAUTHENTICATED` / `PERMISSION_DENIED`，malformed field 使用 `INVALID_ARGUMENT`，inactive/stale/state mismatch 使用 `FAILED_PRECONDITION`，Identity/Permission/signer/audit dependency failure 使用 `UNAVAILABLE`。
+
 ## 6. Audit
 
 成功与失败记录至少包括 opaque credential/binding reference、principal reference/type、scope、tenant/org、verified SPIFFE ID、leaf thumbprint、binding/lifecycle version、target audience、result、safe reason category 与 trace correlation。
 
 审计不得记录 bearer JWS、私钥、可恢复 credential、API Key、Permission grant graph 或 request-body identity fallback。
+
+Auth 复用既有 local `AuditEvent` sink，稳定 event category 为 `MACHINE_SOURCE_CREDENTIAL_ISSUED`、`MACHINE_SOURCE_CREDENTIAL_REISSUED`、`MACHINE_SOURCE_CREDENTIAL_REVOKED`、`MACHINE_SOURCE_CREDENTIAL_VERIFIED` 与 `MACHINE_SOURCE_CREDENTIAL_REJECTED`。Issue/reissue/revoke 的 credential state 与 audit fact 必须在同一 Auth database transaction 中持久化；未能持久化安全审计时不返回 credential 或成功撤销结果。
+
+### 6.1 Persistence semantics
+
+Auth Prisma 模型 `MachineWorkloadSourceCredential` 固定保存：UUID `id` / JWS `jti`、principal/binding reference、`BigInt` binding version、SPIFFE ID、SHA-256 leaf thumbprint、leaf `notAfter`、profile version、signing `kid`、`issuedAt/expiresAt`、`ACTIVE | SUPERSEDED | REVOKED` state、predecessor reference、revocation facts 与 issuance/revocation audit reference。它不保存 bearer JWS。
+
+Database 和 transaction 必须同时保证：
+
+- `expiresAt > issuedAt`、`expiresAt <= issuedAt + 15 minutes` 且 `expiresAt <= certificateNotAfter`；
+- 每个 binding 同时最多一个 `ACTIVE` credential；reissuance 先在同一 transaction 把前一个 active row 标记 `SUPERSEDED`；
+- predecessor 与 audit reference 使用 Auth-local FK / uniqueness；principal 与 binding 只是经 owner resolver 验证的跨服务 reference，禁止跨 Identity database FK；
+- expired 由 `expiresAt` 推导，不需要后台任务改写为第四个 state；
+- source credential 签名完成但 database/audit transaction 失败时，该 bearer 不得返回调用方。
 
 ## 7. Acceptance
 

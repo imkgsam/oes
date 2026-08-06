@@ -180,6 +180,17 @@
 - 实现后的 resolver 是 normal protected INTERNAL RPC：只接受准确 `auth-service` workload、`aud=identity-service` 且绑定当前 Auth 叶证书的 ExecutionToken，以及 exact Code `identity.internal.machine_principal.resolve`。该 Code 只能由 Permission `ResolveWorkloadIssuance` 的准确 Auth workload -> Identity audience policy 批准；它不进入 HUMAN/MACHINE role、external JWT 或 wildcard policy，也不增加第二个 mTLS-only bootstrap method。
 - Identity 不校验 Auth source-credential JWS 或 leaf thumbprint。Auth 先完成 credential profile/signature/lifetime/revocation 与当前 leaf thumbprint binding，再消费本 resolver 的 stable principal/SPIFFE/binding owner decision；两者任何 mismatch 都不得进入 Permission lookup 或 signing。
 
+精确管理、wire 与 persistence 冻结为：
+
+- `IdentityManagementService` 新增 `EnrollMachineWorkloadBinding` 与 `DisableMachineWorkloadBinding`，只接受正常 mTLS + target-audience ExecutionToken 保护的 HUMAN 或受控 SYSTEM MACHINE 管理调用，并要求 BUSINESS Code `identity.machine.workload_binding.manage`。
+- Enroll 只接受 principal id、exact SPIFFE ID 与 idempotency key；Disable 只接受 binding id、expected exact version 与 allowlisted reason。tenant/org/operator 必须来自 trusted context 和 principal owner fact，不从 body 建立 authority。
+- 第一阶段 internal resolver 只允许 `INTERNAL_SERVICE` 与 `AUTOMATION_BOT`；`EXTERNAL_INTEGRATION` 继续只走 external API-key resolver，`AI_AGENT` runtime 继续 deferred。
+- Identity 持久化 `MachineWorkloadBinding` UUID、local `ServiceAccount` FK、exact SPIFFE ID、`ACTIVE | DISABLED` state、monotonic version、created/disabled operator/time/reason 与 local audit references。对 `ServiceAccount` 使用 `ON DELETE RESTRICT`；不建立跨 Auth/tenant/org database FK。
+- 同一 `(Machine Principal, SPIFFE ID)` 同时最多一个 active binding；同一 SPIFFE ID 可承载多个经管理者显式登记的不同 principal binding。Disable 是终态；恢复时创建新 binding，不复活历史。
+- enroll/disable state 与 Identity-local `AuditEvent` 在同一 database transaction 中持久化；resolver allowed/denied decision 在响应前记录 safe principal/binding/version/SPIFFE correlation，不记录 source bearer 或 leaf material。
+
+`ResolveMachinePrincipalForAuth` 的精确 request/response field number、management message、safe reason 与 database constraint 以 [machine-principal-resolution.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/identity-service/machine-principal-resolution.md) 为准。
+
 黑盒语义以 [machine-principal-resolution.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/identity-service/machine-principal-resolution.md) 为准。
 
 当前注意事项：

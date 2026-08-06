@@ -16,7 +16,56 @@ Identity 将在既有 `IdentityQueryService` gRPC surface 新增 Auth-only `Reso
 
 它不修改或泛化既有 `ResolveIntegrationMachineForAuth`。后者继续只服务 external API-key exchange；两个 resolver 不互为 fallback。
 
-本文冻结黑盒语义，不冻结 proto 字段、数据库 schema 或 runtime class 名。
+本文冻结黑盒语义、proto wire 与 owner persistence invariants；runtime class 名与具体实现算法仍属 implementation concern。
+
+### 1.1 Frozen query wire
+
+`IdentityQueryService` 新增 `ResolveMachinePrincipalForAuth`。Request 字段与 field number 固定为：
+
+```proto
+rpc ResolveMachinePrincipalForAuth(ResolveMachinePrincipalForAuthRequest) returns (ResolveMachinePrincipalForAuthResponse);
+```
+
+| Field | Number | Type |
+| --- | ---: | --- |
+| `machine_principal_id` | 1 | `string` |
+| `machine_workload_binding_id` | 2 | `string` |
+| `machine_workload_binding_version` | 3 | `int64` |
+| `workload_spiffe_id` | 4 | `string` |
+
+Response 字段与 field number 固定为：
+
+| Field | Number | Type |
+| --- | ---: | --- |
+| `allowed` | 1 | `bool` |
+| `machine_principal_id` | 2 | `string` |
+| `principal_type` | 3 | `string`，成功时固定 `MACHINE` |
+| `machine_type` | 4 | `string` |
+| `scope_level` | 5 | `string` |
+| `tenant_id` | 6 | `string` |
+| `org_id` | 7 | `string` |
+| `principal_lifecycle_status` | 8 | `string` |
+| `principal_lifecycle_version` | 9 | `string` |
+| `machine_workload_binding_id` | 10 | `string` |
+| `machine_workload_binding_version` | 11 | `int64` |
+| `workload_spiffe_id` | 12 | `string` |
+| `decision_reference` | 13 | `string` |
+| `reason_code` | 14 | `string` |
+
+denied response 只回显 request principal/binding selector、`allowed=false`、safe decision reference 与 reason category；tenant/org、lifecycle 和其他 owner facts 留空，不允许通过 reason 枚举 principal 或 binding 存在性。
+
+### 1.2 Frozen management wire
+
+`IdentityManagementService` 新增 `EnrollMachineWorkloadBinding` 与 `DisableMachineWorkloadBinding`。两者使用普通 mTLS + target-audience ExecutionToken 和 BUSINESS Code `identity.machine.workload_binding.manage`，不是 bootstrap RPC。
+
+```proto
+rpc EnrollMachineWorkloadBinding(EnrollMachineWorkloadBindingRequest) returns (EnrollMachineWorkloadBindingResponse);
+rpc DisableMachineWorkloadBinding(DisableMachineWorkloadBindingRequest) returns (DisableMachineWorkloadBindingResponse);
+```
+
+`EnrollMachineWorkloadBindingRequest` 固定为 `string machine_principal_id = 1`、`string workload_spiffe_id = 2`、`string idempotency_key = 3`。`DisableMachineWorkloadBindingRequest` 固定为 `string machine_workload_binding_id = 1`、`int64 expected_binding_version = 2`、allowlisted `string reason_code = 3`。
+
+两个 response 都使用 `MachineWorkloadBinding` message：`string binding_id = 1`、`string machine_principal_id = 2`、`string workload_spiffe_id = 3`、`string status = 4`、`int64 binding_version = 5`、`int64 created_at_unix_seconds = 6`、`int64 disabled_at_unix_seconds = 7`、`string disable_reason_code = 8`。Enroll response 为 `MachineWorkloadBinding binding = 1`、`string audit_correlation_id = 2`；Disable response 为 `MachineWorkloadBinding binding = 1`、`bool already_disabled = 2`、`string audit_correlation_id = 3`。
 
 ## 2. Identity-owned Facts
 
@@ -29,6 +78,19 @@ Identity owns：
 `MachineWorkloadBinding` 不保存 mTLS leaf certificate、certificate thumbprint、Auth credential、Permission Code、role/grant 或 ExecutionToken。
 
 一个 SPIFFE workload 可以承载多个受控 machine binding；resolver 的唯一性来自 Auth 已验证 credential 提供的 principal reference + binding reference。该 binding 必须唯一指向该 principal，且其 SPIFFE ID/version 必须精确匹配；ambiguous result 永远不是 allowed result。
+
+第一阶段 internal resolver 只允许 `INTERNAL_SERVICE` 与 `AUTOMATION_BOT` Machine Principal。`EXTERNAL_INTEGRATION` 继续只走 external API-key resolver；`AI_AGENT` runtime 继续 deferred，不因本 contract 开放。
+
+### 2.1 Persistence invariants
+
+Identity Prisma 模型 `MachineWorkloadBinding` 固定保存 UUID `id`、Auth-independent `serviceAccountId`、exact SPIFFE ID、`ACTIVE | DISABLED` state、`BigInt` monotonic version、created/disabled operator、time、allowlisted reason 与 enrollment/disable audit reference。
+
+- `serviceAccountId` 对本地 `ServiceAccount.id` 建立 `ON DELETE RESTRICT` FK；不对 tenant/org 或 Auth 建立跨服务 FK。
+- 同一 `(serviceAccountId, workloadSpiffeId)` 同时最多一个 active binding；同一 SPIFFE ID 可合法绑定多个不同 principal。
+- binding 没有 expiry 或 revoked state；disable 是终态。需要恢复时创建新 binding，不复活或改写旧历史。
+- 任何 lifecycle 变更递增 version；resolver 必须比较 exact version，不容许“至少”或近似匹配。
+- binding row 不存 leaf certificate、thumbprint、Auth credential、Permission Code、role/grant 或 ExecutionToken。
+- enroll/disable state 和 local `AuditEvent` 在同一 Identity database transaction 中提交；resolver allowed/denied decision 在响应前记录同一 local audit sink。
 
 ## 3. Trust And Logical Input
 
@@ -73,6 +135,18 @@ Identity 不返回 source credential、leaf thumbprint、Permission grant、role
 not found、inactive、wrong type/scope、tenant/org mismatch、binding missing/disabled/stale、SPIFFE mismatch、ambiguous mapping、trust failure、timeout 或 dependency unavailable 均 fail closed。
 
 Identity 返回安全 reason category；Auth 将其稳定映射为 MACHINE execution error。不得回退到 `ResolveIntegrationMachineForAuth`、legacy `AuthenticateApiKey`、Auth hardcoded root mapping、service-name header 或 caller/body principal fields。
+
+stable reason category 只允许：
+
+- `MACHINE_PRINCIPAL_NOT_ELIGIBLE`
+- `MACHINE_PRINCIPAL_SCOPE_INVALID`
+- `MACHINE_WORKLOAD_BINDING_NOT_ELIGIBLE`
+- `MACHINE_WORKLOAD_BINDING_PRINCIPAL_MISMATCH`
+- `MACHINE_WORKLOAD_BINDING_STALE`
+- `MACHINE_WORKLOAD_SPIFFE_MISMATCH`
+- `MACHINE_RESOLUTION_DEPENDENCY_UNAVAILABLE`
+
+transport mTLS / ExecutionToken / INTERNAL Code failure 使用 gRPC `UNAUTHENTICATED` 或 `PERMISSION_DENIED`，malformed field 使用 `INVALID_ARGUMENT`，owner dependency/audit unavailable 使用 `UNAVAILABLE`。这些 transport error 不伪装为 `allowed=false` owner decision。
 
 ## 6. Acceptance
 

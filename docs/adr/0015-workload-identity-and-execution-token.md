@@ -73,9 +73,11 @@ Execution Principal 只有三种稳定模式：
 
 该 MACHINE root path 的设计状态是 `FROZEN_PENDING_IMPLEMENTATION`，不表示 source-credential runtime、`MachineWorkloadBinding` persistence、resolver proto/runtime 或 INTERNAL Code registration 已存在。实现完成后，无入站 HUMAN/session 或上游 Token 的第一方 Cron、Robot、worker 使用专用 Auth-signed `MachineWorkloadSourceCredential` 建立 root MACHINE execution。该 source JWS 最长 15 分钟且不得超过当前 leaf certificate expiry，不含 Permission Code、没有 refresh token，并同时绑定 Identity `MachineWorkloadBinding` reference/version、准确 SPIFFE ID 与当前 leaf thumbprint。Auth 先验证 credential，再使用受正常 INTERNAL ExecutionToken 保护的 `IdentityQueryService.ResolveMachinePrincipalForAuth` 确认 active principal/binding，最后按 BUSINESS / INTERNAL 分别取得 Permission decision。Machine/binding/credential 任一 disabled、revoked、stale 或 mismatch 都在签发前 fail closed；普通已签发 Token 在 5 分钟最大 TTL 内收敛，紧急场景复用 DG-2 既有 selector，不新增撤销系统。
 
+MACHINE wire/schema completion 进一步冻结：Identity 管理者先用正常 ExecutionToken-protected `EnrollMachineWorkloadBinding` 把 Machine Principal 与 exact SPIFFE ID 登记；workload 再以当前 mTLS + 该 active binding 调用 Auth `IssueMachineWorkloadSourceCredential`。这不是“仅 mTLS 即签发”，Identity owner decision 是不可缺少的第二信任事实。Issue 同时承担 controlled reissuance，每 binding 最多一个 active source credential，新签发以同一 transaction supersede 旧记录。Credential revoke 与 binding disable 都是正常 BUSINESS management RPC，使用 `auth.machine_workload_source_credential.revoke` 与 `identity.machine.workload_binding.manage`；它们不改变 `ResolveWorkloadIssuance` 作为 Permission 唯一 mTLS-only bootstrap primitive 的决定。精确 proto field number、strict JWS profile、Prisma invariant、safe error 与 transactional audit 以 Auth/Identity MACHINE contracts 为准。
+
 ### 6. RPC authorization declaration
 
-每个 gRPC RPC 必须且只能声明一种方法级模式：`BUSINESS`、`SELF_SERVICE` 或 `INTERNAL`。Gateway HTTP `RequirePermissions` 保留为外部入口第一层授权；服务端仍独立验证 ExecutionToken 和资源边界。漏标或重复标注必须由启动扫描或架构测试阻止。
+每个已建立 execution context 后的 gRPC RPC 必须且只能声明一种方法级模式：`BUSINESS`、`SELF_SERVICE` 或 `INTERNAL`。两个 pre-context exact method 必须声明自己不可复用的 bootstrap policy：Permission `ResolveWorkloadIssuance` 是 exact-Auth mTLS-only bootstrap；Auth `IssueMachineWorkloadSourceCredential` 是 current mTLS + pre-enrolled active Identity binding bootstrap。后者不因 mTLS 本身授权。Gateway HTTP `RequirePermissions` 保留为外部入口第一层授权；服务端仍独立验证 ExecutionToken 和资源边界。漏标、重复标注或 bootstrap policy 扩散必须由启动扫描或架构测试阻止。
 
 ### 7. 全仓迁移边界
 

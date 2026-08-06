@@ -247,6 +247,17 @@ Auth records the security decision, trigger source, selector kind/reference, mon
 - credential revoke、Machine Principal disable 或 binding disable/stale 会立即阻止新的 STS exchange；已签发 ExecutionToken 在普通情况下按现有 5 分钟最大 TTL 收敛。需要更快阻断时复用 DG-2 的 `CREDENTIAL`、`PRINCIPAL` 或 `MINIMUM_AUTHZ_VERSION` selector，不建立 MACHINE 专用 emergency revocation 系统。
 - 任何 profile、signature、expiry、revocation、principal、scope、tenant、SPIFFE、binding version、leaf thumbprint 或 owner dependency mismatch 都在 Permission lookup 与签名前 fail closed；Auth 审计只记录 opaque credential/binding reference 与安全 reason category，不记录 bearer 正文。
 
+精确管理与发证边界冻结为：
+
+- Auth 在独立 `machine_workload_source_credential.proto` 中拥有 `MachineWorkloadSourceCredentialService`，只提供 `IssueMachineWorkloadSourceCredential` 与 `RevokeMachineWorkloadSourceCredential`；initial issuance 与 reissuance 共用 Issue，不增加 refresh/list/reveal RPC。
+- Issue 由当前 workload 本身通过 mTLS 调用，并只接受 principal reference、binding reference 与 exact binding version。mTLS 本身不授权；Auth 必须在签名前得到 Identity 对当前 SPIFFE + active binding 的 allowed owner decision。
+- Revoke 是正常 ExecutionToken-protected BUSINESS management RPC，只允许获得 `auth.machine_workload_source_credential.revoke` 的 HUMAN 或受控 SYSTEM MACHINE；Identity binding enroll/disable 使用 `identity.machine.workload_binding.manage`。
+- Source credential 复用既有 protected ES256 signer / issuer / JWKS lifecycle，但使用 strict `typ=oes-machine-source+jwt`、`aud=urn:oes:service:auth-service`、`sub=machine principal id`、`client_id=SPIFFE ID`、`cnf.x5t#S256=current leaf`、binding reference/version 与 `profile_version=1`。它不包含 tenant/org、Permission Code、role/grant 或 caller-selected lifetime。
+- Auth 只持久化 non-secret credential record，不持久化 bearer JWS。每个 binding 同时最多一个 active credential；reissue 在同一 transaction 中 supersede 旧记录，因而证书轮换后旧 credential 立即失去新 exchange 资格。
+- issue/reissue/revoke state 与既有 Auth-local `AuditEvent` 在同一 database transaction 中持久化；verification success/denial 也记录 safe category。audit 或 owner dependency 不可用时不返回 credential 或签发 ExecutionToken。
+
+精确 wire field number、Prisma constraint、reason mapping 与 acceptance 以 [machine-workload-source-credential.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/machine-workload-source-credential.md) 为准；其他文档不得创建第二份 profile 或 schema 定义。
+
 黑盒 credential 规则以 [machine-workload-source-credential.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/machine-workload-source-credential.md) 为准；Identity owner resolution 以 [machine-principal-resolution.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/identity-service/machine-principal-resolution.md) 为准。
 
 #### 7.1.4 Delegation And ActionGrant
