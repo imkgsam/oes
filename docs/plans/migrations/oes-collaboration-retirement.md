@@ -128,7 +128,7 @@ programControlBranch: codex/oes-program-control-migration
 - task archive：migration implementation task `019fcbff-ff44-7612-a187-045fa9f47333` 在 `main@45a7e306…` 集成证据完成后已归档；source candidate/worktree 继续保留到最终 Git 清理 gate。
 - target ownership：Permission implementation 与短时 main integration leases 已释放；GRPC carrier rebuild 已进入独立稳定写 lease。
 
-### 4.3 EXEC-CRYPTO — `MACHINE_IMPLEMENTATION_ACTIVE`
+### 4.3 EXEC-CRYPTO — `MACHINE_REACCEPTANCE_ACTIVE`
 
 - source threads：control `019fc601-1f32-7912-a9a5-849cf22cfd23`；design `019fa287-01a8-7340-8fb3-b56df8652dcd`；I06 `019fc608-c9cf-7a82-a91a-0b9aa6d0cd5f`。
 - active retained writer：`/Users/acehood/.codex/worktrees/44ef/oes`；branch `codex/exec-crypto/i06-auth-tg2-remediation`；HEAD `64ea8660687bbeb24349d11bcaed6f63d2373c4b`；clean。
@@ -222,6 +222,10 @@ programControlBranch: codex/oes-program-control-migration
 - important rework：Auth/Identity migration缺少每binding/principal+SPIFFE最多一个ACTIVE的partial uniqueness或等价约束，Auth缺predecessor FK且updateMany+create并发不安全；JWS硬编码issuer且verifier未严格检查issuer/iat/nbf/max TTL/kid/exp/profileVersion与persisted facts；REISSUED/VERIFIED/REJECTED及Identity resolver allow/deny local audit不完整。
 - missing frozen tests：68-path manifest中4个NEW_TARGET spec未交付：issue handler spec、revoke handler spec、MACHINE verifier spec与MACHINE gRPC controller spec。candidate path validator记录`missing_new_targets=4`。
 - rework route：完整I&V报告已返回同一current owner `019fdb21-4731-7341-86d6-c24a593b9fc1`；即时快照active，继续在同一branch/worktree以`45fbb312…`为保留拒绝证据追加修复提交，不重写历史、不创建新Git面。必须TDD覆盖exchange/Identity refresh、revoke authz、真实PostgreSQL FK/partial uniqueness/predecessor/concurrency、strict JWS/audit及4个missing specs，再形成replacement candidate。
+- corrected candidate：`codex/migration/machine-workload-source-verifier@b6cd70dd70d0edf1161f3fcb1584ff3fa7a8d3df`，direct parent `407f3d4e0bedb7807f39b2ecfdb6bf7515739b98`，base/current main `8e4ecff16479d8d15db469a469bf2c15acc6e0b5`；source clean。保留`45fbb312…`后追加5个corrective commits；correction-only 23 files / 169 insertions / 28 deletions，cumulative 60 files / 1397 insertions / 25 deletions，diff check通过。
+- reported correction closure：MACHINE/HUMAN verifier组合分流并在Permission前刷新Identity facts；revoke管理鉴权；audit-first FK安全事务、predecessor/reissue事实、partial uniqueness/concurrency；configured issuer与strict JWS/persisted-state checks；Identity allow/deny及Auth reissue/verified/rejected audits；4个missing frozen specs均已加入。
+- replacement verification：proto generation/lint与Common/Auth/Identity/Permission四包build通过；Common contract/provider focused 5 tests、Identity 6 suites/10 tests、Permission 3 suites/9 tests通过。Auth full为116/119 suites、350/353 tests，剩余3项与clean main baseline完全相同。
+- reacceptance route：exact candidate已路由同一持久I&V `019fcaf2-ca7b-7140-b46d-b6cacae58556`，即时快照active；重新核验68-path、安全阻断项、真实DB约束/事务、strict JWS/audit、4 specs及baseline-neutral full suite。本轮只读验收，明确不merge/push；implementation owner idle等待终态。
 - next route decision：EXEC-CRYPTO remediation 先于 GRPC Asset。原因是 Asset 明确等待 Platform Security 落地，而 EXEC-CRYPTO 的两项已登记依赖现已满足。
 - target ownership：新execution owner `019fdb21-4731-7341-86d6-c24a593b9fc1` 保留MACHINE 66-path lease与现有WIP ownership但暂停写入；Unified Design仅写docs，候选集成前不得授权Common provider runtime路径。当前无并发Auth/Identity/Permission/Common runtime writer。
 
@@ -438,7 +442,7 @@ AI legacy A/V 与 migration implementation 任务已有完整重建、独立 I&V
 | retained non-main candidate worktrees | 3 | EXEC-CRYPTO `64ea8660…`、GRPC carrier `dced77ad…`、deferred ActionGrant runtime `ec2b2cf…`；分别等待 dependency-ordered rebuild/验收或持久 deferred disposition |
 | superseded/rejected evidence worktrees | 4 | EXEC-CRYPTO rejected `c7ab0d9c…`、API-KEY prototype `755d857a…` 及 AI legacy candidate/acceptance 两个 `6101933d…` worktrees；证据已登记，仍待 ledger 入 main 后的清理 gate |
 | Program Control migration ledger worktree | 1 | 当前不在 main；必须先完成 ledger candidate 验收与集成 |
-| **worktree total** | **37** | MACHINE worktree clean at rejected `45fbb312…`，current owner active追加修复；root与Program Control核验面clean。删除/clean/reset数为0 |
+| **worktree total** | **37** | MACHINE worktree clean at corrected `b6cd70dd…`，implementation owner idle、同一I&V只读reacceptance active；root与Program Control核验面clean。删除/clean/reset数为0 |
 
 branch refs 共 31：24 个 branch HEAD 已是 current main ancestor；7 个非 ancestor refs 已全部分类为 deferred ActionGrant runtime、AI legacy accepted evidence、API-KEY rejected prototype evidence、EXEC-CRYPTO legacy checkpoint、GRPC Asset candidate、原 GRPC carrier candidate 与 Program Control migration ledger。MACHINE branch 当前等于 main。不存在未分类 branch ref。
 
@@ -579,8 +583,8 @@ EXEC-CRYPTO HUMAN foundation I&V terminal evidence：
 | MIG-D16 | 66-path lease登记13个新增spec，但frozen focused commands仅执行10个 | candidate可以在3个公共wire/Identity management断言从未执行的情况下被误判为完成 | `CLOSED`：replacement `7cb5c4d3…`补齐并独立验证13/13覆盖，已ff-only集成并push |
 | MIG-D17 | 原MACHINE execution task反复在普通批次边界结束并产生直接回显/固定拒绝placeholder，且WIP含2个根级out-of-lease文件 | 继续使用原delivery owner会交付不完整candidate；直接清理会丢失未提交WIP与失败证据 | 用户已归档旧task并指定新owner `019fdb21…`；同一worktree/WIP完整保留，新owner须TDD重写placeholder、重建有用语义到leased paths并显式处置两份已哈希误路径 |
 | MIG-D18 | Common gRPC workload provider丢弃transport-verified leaf `notAfter`，而Auth issuance必须证明`exp <= leaf notAfter`且proto禁止caller输入该事实 | Auth若本地补值会绕过certificate upper bound；当前66-path lease又保护Common provider，无法正确完成controller/composition | `CLOSED`：docs candidate `8e4ecff1…` 的provider+spec最小amendment与68-path lease已验收、ff-only集成并push；implementation已恢复 |
-| MIG-D19 | MACHINE candidate `45fbb312…` build/focused green但verifier未装配/刷新Identity、revoke无authz、audit FK顺序错误，且DB并发约束/JWS/audit/4 specs不完整 | 仅靠定向green会交付可绕过revocation与scope事实、无法真实插入或并发破坏唯一性的安全实现 | I&V `REJECTED`且main未变；同一owner在原branch追加TDD replacement，必须关闭全部critical/important与missing-spec gates后再路由同一I&V |
+| MIG-D19 | MACHINE candidate `45fbb312…` build/focused green但verifier未装配/刷新Identity、revoke无authz、audit FK顺序错误，且DB并发约束/JWS/audit/4 specs不完整 | 仅靠定向green会交付可绕过revocation与scope事实、无法真实插入或并发破坏唯一性的安全实现 | corrected `b6cd70dd…` 已追加5个修复提交并报告关闭全部gate，现由同一I&V exact reacceptance；main保持不变 |
 
 ## 10. 下一阶段入口
 
-当前迁移阶段为 `MACHINE_IMPLEMENTATION_ACTIVE`，但首个implementation candidate `45fbb312…` 已由I&V拒绝并作为证据保留。current owner `019fdb21-4731-7341-86d6-c24a593b9fc1` 正在同一branch/worktree追加replacement，重点关闭exchange/Identity refresh、revoke authz、真实DB约束/事务、strict JWS/audit与4个missing specs。main保持`8e4ecff1…`；replacement验收/集成前不推进GRPC Asset，AI/ActionGrant runtime保持deferred，API-KEY `755d857a…`不进入main；无checker。
+当前迁移阶段为 `MACHINE_REACCEPTANCE_ACTIVE`：corrected candidate `b6cd70dd…` 在保留`45fbb312…`拒绝历史的同一branch上形成，正在持久I&V做exact只读复验；本轮不merge/push。implementation owner idle等待终态，main保持`8e4ecff1…`。candidate正式验收/后续明确integration lease前不推进GRPC Asset，AI/ActionGrant runtime保持deferred，API-KEY `755d857a…`不进入main；无checker。
