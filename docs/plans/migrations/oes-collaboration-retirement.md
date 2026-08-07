@@ -35,8 +35,8 @@ programControlBranch: codex/oes-program-control-migration
 | 项目 | Handoff 状态 | 2026-08-04 本地只读核验 |
 | --- | --- | --- |
 | Repository root | `/Users/acehood/Documents/GitHub/oes` | 路径存在；`main` 工作树 clean |
-| `main` | `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` | 当前 `7cb5c4d3dae6900c345f688dadad2b7822ac8278`；AI、Principal Authorization、ActionGrant design、Permission、GRPC carrier、EXEC-CRYPTO HUMAN foundation及MACHINE exact-lease/wire-schema design经唯一I&V lane ff-only推进 |
-| `origin/main` | `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` | 当前本地 remote-tracking ref 为 `7cb5c4d3dae6900c345f688dadad2b7822ac8278` |
+| `main` | `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` | 当前 `8e4ecff16479d8d15db469a469bf2c15acc6e0b5`；AI、Principal Authorization、ActionGrant design、Permission、GRPC carrier、EXEC-CRYPTO HUMAN foundation及MACHINE exact-lease/wire-schema/leaf-expiry design经唯一I&V lane ff-only推进 |
+| `origin/main` | `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` | 当前本地 remote-tracking ref 为 `8e4ecff16479d8d15db469a469bf2c15acc6e0b5` |
 | Legacy formal A/* threads | 101 | 仅保留 handoff 汇总计数；未读取或唤醒线程 |
 | Worktrees | 29 | 当前 37；新增项为本 Program Control、AI Platform completion、Integration & Verification、Unified Design、Permission decision RPC、GRPC carrier rebuild、EXEC-CRYPTO remediation 与 MACHINE workload source-verifier worktree |
 | `codex/*` branches | 23 | 当前 31；新增项为 `codex/oes-program-control-migration`、`codex/migration/ai-platform-completion`、`codex/integration/main-queue`、`codex/unified-design/security-open-packets`、`codex/migration/permission-decision-rpc`、`codex/migration/grpc-carrier-rebuild`、`codex/migration/exec-crypto-remediation` 与 `codex/migration/machine-workload-source-verifier` |
@@ -128,7 +128,7 @@ programControlBranch: codex/oes-program-control-migration
 - task archive：migration implementation task `019fcbff-ff44-7612-a187-045fa9f47333` 在 `main@45a7e306…` 集成证据完成后已归档；source candidate/worktree 继续保留到最终 Git 清理 gate。
 - target ownership：Permission implementation 与短时 main integration leases 已释放；GRPC carrier rebuild 已进入独立稳定写 lease。
 
-### 4.3 EXEC-CRYPTO — `MACHINE_LEAF_NOT_AFTER_CANDIDATE_ACCEPTANCE`
+### 4.3 EXEC-CRYPTO — `MACHINE_IMPLEMENTATION_ACTIVE`
 
 - source threads：control `019fc601-1f32-7912-a9a5-849cf22cfd23`；design `019fa287-01a8-7340-8fb3-b56df8652dcd`；I06 `019fc608-c9cf-7a82-a91a-0b9aa6d0cd5f`。
 - active retained writer：`/Users/acehood/.codex/worktrees/44ef/oes`；branch `codex/exec-crypto/i06-auth-tg2-remediation`；HEAD `64ea8660687bbeb24349d11bcaed6f63d2373c4b`；clean。
@@ -213,6 +213,9 @@ programControlBranch: codex/oes-program-control-migration
 - frozen amendment：Common provider必须从同一transport-verified certificate DER派生可信`certificateNotAfter`，invalid DER/validTo或expired leaf在resolution时fail closed；保持现有SPIFFE/thumbprint行为与generic identity contract稳定。Auth MACHINE issuance仅消费该transport-derived `Date`并保持15分钟/leaf upper bound，caller仍不得输入certificate/lifetime。
 - lease expansion：tracked writer manifest从66扩展为68 paths：新增`commonTrustedTransport=2`，其余Common contracts 3、Auth 29、Identity 25、Permission/Common Code 9不变；总计31 `EXISTING` / 37 `NEW_TARGET`。新增路径精确为provider与provider spec，未授权目录级Common改动。
 - I&V route：candidate已路由同一持久task `019fcaf2-ca7b-7140-b46d-b6cacae58556`，即时快照active；独立复核4-doc exact diff、trusted DER/notAfter derivation、structural subtype边界、fail-closed语义与68-path manifest。只有root/local origin/remote main仍等于parent且验收通过时才ff-only集成并push一次；implementation owner继续idle。
+- I&V acceptance：`ACCEPTED`。candidate/parent/ancestry、4 docs / 16+/2-、非docs 0、diff check、UTF-8 4/4、links 52/52、6组semantic checks、68-path manifest（31 `EXISTING` / 37 `NEW_TARGET`）及Common provider baseline 2 tests均通过；同DER派生、不可由caller覆盖、invalid/expired fail closed、generic identity稳定与Auth min-lifetime语义一致。
+- final integration evidence：Program Control随后向同一I&V授予短时integration lease；root ff-only merge与main push成功。root/local `origin/main`均为`8e4ecff16479d8d15db469a469bf2c15acc6e0b5`且clean。
+- implementation resume：current owner `019fdb21-4731-7341-86d6-c24a593b9fc1`恢复；同一dirty worktree/branch已在保留51-file WIP情况下ff-only同步到`8e4ecff1…`，未reset/rebase/clean。后续只新增已租赁Common provider/spec实现，接通Auth controller/composition，完成全部68-path/15-command验证并形成clean candidate。
 - next route decision：EXEC-CRYPTO remediation 先于 GRPC Asset。原因是 Asset 明确等待 Platform Security 落地，而 EXEC-CRYPTO 的两项已登记依赖现已满足。
 - target ownership：新execution owner `019fdb21-4731-7341-86d6-c24a593b9fc1` 保留MACHINE 66-path lease与现有WIP ownership但暂停写入；Unified Design仅写docs，候选集成前不得授权Common provider runtime路径。当前无并发Auth/Identity/Permission/Common runtime writer。
 
@@ -429,7 +432,7 @@ AI legacy A/V 与 migration implementation 任务已有完整重建、独立 I&V
 | retained non-main candidate worktrees | 3 | EXEC-CRYPTO `64ea8660…`、GRPC carrier `dced77ad…`、deferred ActionGrant runtime `ec2b2cf…`；分别等待 dependency-ordered rebuild/验收或持久 deferred disposition |
 | superseded/rejected evidence worktrees | 4 | EXEC-CRYPTO rejected `c7ab0d9c…`、API-KEY prototype `755d857a…` 及 AI legacy candidate/acceptance 两个 `6101933d…` worktrees；证据已登记，仍待 ledger 入 main 后的清理 gate |
 | Program Control migration ledger worktree | 1 | 当前不在 main；必须先完成 ledger candidate 验收与集成 |
-| **worktree total** | **37** | MACHINE fixed worktree保留51-file dirty WIP且implementation owner暂停；leaf-notAfter docs candidate在既有I&V验收，root与Program Control核验面clean。删除/clean/reset数为0 |
+| **worktree total** | **37** | MACHINE fixed worktree在保留51-file dirty WIP下已ff-only同步`8e4ecff1…`并恢复current owner；root与Program Control核验面clean。删除/clean/reset数为0 |
 
 branch refs 共 31：24 个 branch HEAD 已是 current main ancestor；7 个非 ancestor refs 已全部分类为 deferred ActionGrant runtime、AI legacy accepted evidence、API-KEY rejected prototype evidence、EXEC-CRYPTO legacy checkpoint、GRPC Asset candidate、原 GRPC carrier candidate 与 Program Control migration ledger。MACHINE branch 当前等于 main。不存在未分类 branch ref。
 
@@ -569,8 +572,8 @@ EXEC-CRYPTO HUMAN foundation I&V terminal evidence：
 | MIG-D15 | 64-path lease 只冻结 ownership，未冻结 MACHINE wire fields/field numbers、Prisma PK/FK/unique/lifecycle/revocation、caller trust 与审计持久化路径 | 实现会被迫发明公共契约和持久化语义，或在无 tracked audit lease 情况下绕过审计边界 | `CLOSED`：9-doc wire/schema/audit packet与66-path lease已通过replacement `7cb5c4d3…`独立验收、集成并push |
 | MIG-D16 | 66-path lease登记13个新增spec，但frozen focused commands仅执行10个 | candidate可以在3个公共wire/Identity management断言从未执行的情况下被误判为完成 | `CLOSED`：replacement `7cb5c4d3…`补齐并独立验证13/13覆盖，已ff-only集成并push |
 | MIG-D17 | 原MACHINE execution task反复在普通批次边界结束并产生直接回显/固定拒绝placeholder，且WIP含2个根级out-of-lease文件 | 继续使用原delivery owner会交付不完整candidate；直接清理会丢失未提交WIP与失败证据 | 用户已归档旧task并指定新owner `019fdb21…`；同一worktree/WIP完整保留，新owner须TDD重写placeholder、重建有用语义到leased paths并显式处置两份已哈希误路径 |
-| MIG-D18 | Common gRPC workload provider丢弃transport-verified leaf `notAfter`，而Auth issuance必须证明`exp <= leaf notAfter`且proto禁止caller输入该事实 | Auth若本地补值会绕过certificate upper bound；当前66-path lease又保护Common provider，无法正确完成controller/composition | docs candidate `8e4ecff1…` 冻结provider+spec最小amendment并扩展68-path lease，已路由同一I&V；集成前implementation继续idle |
+| MIG-D18 | Common gRPC workload provider丢弃transport-verified leaf `notAfter`，而Auth issuance必须证明`exp <= leaf notAfter`且proto禁止caller输入该事实 | Auth若本地补值会绕过certificate upper bound；当前66-path lease又保护Common provider，无法正确完成controller/composition | `CLOSED`：docs candidate `8e4ecff1…` 的provider+spec最小amendment与68-path lease已验收、ff-only集成并push；implementation已恢复 |
 
 ## 10. 下一阶段入口
 
-当前迁移阶段为 `MACHINE_LEAF_NOT_AFTER_CANDIDATE_ACCEPTANCE`：docs-only candidate `8e4ecff1…` 已冻结transport-derived leaf notAfter与68-path exact lease，正在同一持久I&V验收。execution owner `019fdb21-4731-7341-86d6-c24a593b9fc1`保持idle并完整保留51-file WIP；只有candidate集成后才恢复。此前不推进GRPC Asset；AI/ActionGrant runtime保持deferred，API-KEY `755d857a…`不进入main；无checker。
+当前迁移阶段为 `MACHINE_IMPLEMENTATION_ACTIVE`：leaf-notAfter design `8e4ecff1…` 已验收集成，current owner `019fdb21-4731-7341-86d6-c24a593b9fc1` 的同一dirty worktree已无损ff-only同步到新main。它只在68-path lease内实现Common provider/spec、完成Auth接线和全量frozen验证，再形成clean candidate。此前不推进GRPC Asset；AI/ActionGrant runtime保持deferred，API-KEY `755d857a…`不进入main；无checker。
