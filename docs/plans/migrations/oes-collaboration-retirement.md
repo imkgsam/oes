@@ -128,7 +128,7 @@ programControlBranch: codex/oes-program-control-migration
 - task archive：migration implementation task `019fcbff-ff44-7612-a187-045fa9f47333` 在 `main@45a7e306…` 集成证据完成后已归档；source candidate/worktree 继续保留到最终 Git 清理 gate。
 - target ownership：Permission implementation 与短时 main integration leases 已释放；GRPC carrier rebuild 已进入独立稳定写 lease。
 
-### 4.3 EXEC-CRYPTO — `MACHINE_REACCEPTANCE_ACTIVE`
+### 4.3 EXEC-CRYPTO — `MACHINE_SECOND_REWORK_ACTIVE`
 
 - source threads：control `019fc601-1f32-7912-a9a5-849cf22cfd23`；design `019fa287-01a8-7340-8fb3-b56df8652dcd`；I06 `019fc608-c9cf-7a82-a91a-0b9aa6d0cd5f`。
 - active retained writer：`/Users/acehood/.codex/worktrees/44ef/oes`；branch `codex/exec-crypto/i06-auth-tg2-remediation`；HEAD `64ea8660687bbeb24349d11bcaed6f63d2373c4b`；clean。
@@ -226,6 +226,10 @@ programControlBranch: codex/oes-program-control-migration
 - reported correction closure：MACHINE/HUMAN verifier组合分流并在Permission前刷新Identity facts；revoke管理鉴权；audit-first FK安全事务、predecessor/reissue事实、partial uniqueness/concurrency；configured issuer与strict JWS/persisted-state checks；Identity allow/deny及Auth reissue/verified/rejected audits；4个missing frozen specs均已加入。
 - replacement verification：proto generation/lint与Common/Auth/Identity/Permission四包build通过；Common contract/provider focused 5 tests、Identity 6 suites/10 tests、Permission 3 suites/9 tests通过。Auth full为116/119 suites、350/353 tests，剩余3项与clean main baseline完全相同。
 - reacceptance route：exact candidate已路由同一持久I&V `019fcaf2-ca7b-7140-b46d-b6cacae58556`，即时快照active；重新核验68-path、安全阻断项、真实DB约束/事务、strict JWS/audit、4 specs及baseline-neutral full suite。本轮只读验收，明确不merge/push；implementation owner idle等待终态。
+- reacceptance terminal：`REJECTED`，candidate未编辑、未merge/push。已确认MACHINE composite verifier接线、Identity refresh调用、audit FK顺序、partial uniqueness/predecessor FK、exact issuer与部分审计事件落地；generation/proto lint/四包build、68-path lease、全部NEW_TARGET存在、focused suites与Auth baseline-neutral对比通过。
+- remaining critical：(1) Auth `main.ts`未加载`machine_workload_source_credential.proto`，controller不会注册到runtime host；(2) revoke仍只有`@RequirePermissions`元数据，无mTLS/ExecutionToken/operator/Permission guards或operator传递；(3) Identity adaptor/port丢弃principal ID/type/status/version、binding ID/version、SPIFFE echo与decision reference，verifier只检查`allowed`和scopeLevel，malformed owner facts可进入Permission。
+- remaining important：NumericDate仍接受future `iat`且未严格绑定`iat/nbf/exp`与persisted timestamps；controller仍返回空`supersedesCredentialId`，Identity同idempotency并发/disable后重试不能稳定返回原事实；MACHINE denial matrix不完整，production diff仍有Auth repository/adapter与Identity mapper等`any`类型缺口。
+- second rework route：完整报告返回同一owner `019fdb21-4731-7341-86d6-c24a593b9fc1`，继续在clean `b6cd70dd…`同branch追加提交。必须增加host registration test、真实guard/operator enforcement tests、完整Identity owner-fact binding、strict NumericDate/persisted-time tests、stable predecessor/idempotency race处理、denial matrix与production `any`清理后再形成replacement。
 - next route decision：EXEC-CRYPTO remediation 先于 GRPC Asset。原因是 Asset 明确等待 Platform Security 落地，而 EXEC-CRYPTO 的两项已登记依赖现已满足。
 - target ownership：新execution owner `019fdb21-4731-7341-86d6-c24a593b9fc1` 保留MACHINE 66-path lease与现有WIP ownership但暂停写入；Unified Design仅写docs，候选集成前不得授权Common provider runtime路径。当前无并发Auth/Identity/Permission/Common runtime writer。
 
@@ -442,7 +446,7 @@ AI legacy A/V 与 migration implementation 任务已有完整重建、独立 I&V
 | retained non-main candidate worktrees | 3 | EXEC-CRYPTO `64ea8660…`、GRPC carrier `dced77ad…`、deferred ActionGrant runtime `ec2b2cf…`；分别等待 dependency-ordered rebuild/验收或持久 deferred disposition |
 | superseded/rejected evidence worktrees | 4 | EXEC-CRYPTO rejected `c7ab0d9c…`、API-KEY prototype `755d857a…` 及 AI legacy candidate/acceptance 两个 `6101933d…` worktrees；证据已登记，仍待 ledger 入 main 后的清理 gate |
 | Program Control migration ledger worktree | 1 | 当前不在 main；必须先完成 ledger candidate 验收与集成 |
-| **worktree total** | **37** | MACHINE worktree clean at corrected `b6cd70dd…`，implementation owner idle、同一I&V只读reacceptance active；root与Program Control核验面clean。删除/clean/reset数为0 |
+| **worktree total** | **37** | MACHINE worktree clean at second rejected `b6cd70dd…`，同一owner追加第二轮修复；root与Program Control核验面clean。删除/clean/reset数为0 |
 
 branch refs 共 31：24 个 branch HEAD 已是 current main ancestor；7 个非 ancestor refs 已全部分类为 deferred ActionGrant runtime、AI legacy accepted evidence、API-KEY rejected prototype evidence、EXEC-CRYPTO legacy checkpoint、GRPC Asset candidate、原 GRPC carrier candidate 与 Program Control migration ledger。MACHINE branch 当前等于 main。不存在未分类 branch ref。
 
@@ -584,7 +588,8 @@ EXEC-CRYPTO HUMAN foundation I&V terminal evidence：
 | MIG-D17 | 原MACHINE execution task反复在普通批次边界结束并产生直接回显/固定拒绝placeholder，且WIP含2个根级out-of-lease文件 | 继续使用原delivery owner会交付不完整candidate；直接清理会丢失未提交WIP与失败证据 | 用户已归档旧task并指定新owner `019fdb21…`；同一worktree/WIP完整保留，新owner须TDD重写placeholder、重建有用语义到leased paths并显式处置两份已哈希误路径 |
 | MIG-D18 | Common gRPC workload provider丢弃transport-verified leaf `notAfter`，而Auth issuance必须证明`exp <= leaf notAfter`且proto禁止caller输入该事实 | Auth若本地补值会绕过certificate upper bound；当前66-path lease又保护Common provider，无法正确完成controller/composition | `CLOSED`：docs candidate `8e4ecff1…` 的provider+spec最小amendment与68-path lease已验收、ff-only集成并push；implementation已恢复 |
 | MIG-D19 | MACHINE candidate `45fbb312…` build/focused green但verifier未装配/刷新Identity、revoke无authz、audit FK顺序错误，且DB并发约束/JWS/audit/4 specs不完整 | 仅靠定向green会交付可绕过revocation与scope事实、无法真实插入或并发破坏唯一性的安全实现 | corrected `b6cd70dd…` 已追加5个修复提交并报告关闭全部gate，现由同一I&V exact reacceptance；main保持不变 |
+| MIG-D20 | corrected `b6cd70dd…` 仍未挂载Auth host、revoke guard未执行、Identity refreshed facts被adapter丢弃，并存在future-iat、稳定supersession/idempotency与denial/type-safety缺口 | focused green仍无法证明RPC可调用、管理鉴权实际执行或owner facts/时间边界完整绑定 | I&V第二次`REJECTED`且main未变；同一owner追加host/guard/fact-binding/time/idempotency/denial-matrix修复后再路由同一I&V |
 
 ## 10. 下一阶段入口
 
-当前迁移阶段为 `MACHINE_REACCEPTANCE_ACTIVE`：corrected candidate `b6cd70dd…` 在保留`45fbb312…`拒绝历史的同一branch上形成，正在持久I&V做exact只读复验；本轮不merge/push。implementation owner idle等待终态，main保持`8e4ecff1…`。candidate正式验收/后续明确integration lease前不推进GRPC Asset，AI/ActionGrant runtime保持deferred，API-KEY `755d857a…`不进入main；无checker。
+当前迁移阶段为 `MACHINE_SECOND_REWORK_ACTIVE`：corrected `b6cd70dd…` 已被I&V第二次拒绝并保留，main仍为`8e4ecff1…`。同一owner在原branch追加host registration、实际revoke guards、完整Identity fact binding、strict time、stable idempotency/supersession、denial matrix与type-safety修复。新replacement通过只读验收且获得后续明确integration lease前不推进GRPC Asset，AI/ActionGrant runtime保持deferred，API-KEY `755d857a…`不进入main；无checker。
