@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { PrismaService } from '../../prisma/prisma.service'
+import { randomUUID } from 'node:crypto'
 import { MachineWorkloadSourceCredentialRepository } from '../../../domain/repositories/machine-workload-source-credential.repository'
 
 /** Persists a certificate-bound MACHINE credential and its local audit fact atomically. */
@@ -35,5 +36,10 @@ export class PrismaMachineWorkloadSourceCredentialRepository implements MachineW
       const credential = await tx.machineWorkloadSourceCredential.update({ where: { id: input.credentialId }, data: { status: 'REVOKED', revokedAt, revokedReasonCode: input.reasonCode } })
       return { credential, alreadyRevoked: false }
     })
+  }
+
+  /** Persists a non-secret verification outcome so acceptance and rejection are both locally auditable. */
+  async recordVerificationOutcome(input: { credentialId?: string; eventType: 'MACHINE_SOURCE_CREDENTIAL_VERIFIED' | 'MACHINE_SOURCE_CREDENTIAL_REJECTED'; reasonCode: string; workloadSpiffeId?: string }): Promise<void> {
+    await (this.prisma as any).auditEvent.create({ data: { id: `machine-source-verify:${randomUUID()}`, service: 'auth-service', module: 'machine_workload', eventType: input.eventType, occurredAt: new Date(), result: input.eventType.endsWith('VERIFIED') ? 'SUCCEEDED' : 'REJECTED', operatorId: null, operatorType: 'SYSTEM', tenantId: null, orgId: null, traceId: null, resourceType: 'machine_workload_source_credential', resourceId: input.credentialId ?? null, details: { credentialId: input.credentialId ?? null, workloadSpiffeId: input.workloadSpiffeId ?? null, reasonCode: input.reasonCode } } })
   }
 }

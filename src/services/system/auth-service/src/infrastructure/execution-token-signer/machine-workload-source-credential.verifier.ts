@@ -9,6 +9,21 @@ export class MachineWorkloadSourceCredentialVerifier {
   constructor(private readonly repository: MachineWorkloadSourceCredentialRepository, private readonly signer: ExecutionTokenSigningPort, private readonly identity: IIdentityServicePort, private readonly issuer: string, private readonly now: () => number = () => Math.floor(Date.now() / 1_000)) {}
 
   async verify(sourceCredential: string, workload: VerifiedExecutionWorkload): Promise<TrustedExecutionContext> {
+    let credentialId: string | undefined
+    try {
+      credentialId = readCredentialId(sourceCredential)
+      const context = await this.verifyUnchecked(sourceCredential, workload)
+      await this.repository.recordVerificationOutcome({ credentialId, eventType: 'MACHINE_SOURCE_CREDENTIAL_VERIFIED', reasonCode: '', workloadSpiffeId: workload.spiffeId })
+      return context
+    } catch (error) {
+      const reasonCode = error instanceof Error && error.message.startsWith('EXECUTION_MACHINE_') ? error.message : 'EXECUTION_MACHINE_SOURCE_CREDENTIAL_INVALID'
+      await this.repository.recordVerificationOutcome({ credentialId, eventType: 'MACHINE_SOURCE_CREDENTIAL_REJECTED', reasonCode, workloadSpiffeId: workload.spiffeId })
+      throw error
+    }
+  }
+
+  /** Performs strict source validation before Permission can receive a MACHINE principal. */
+  private async verifyUnchecked(sourceCredential: string, workload: VerifiedExecutionWorkload): Promise<TrustedExecutionContext> {
     const [headerPart, claimsPart, signaturePart, extra] = sourceCredential.split('.')
     if (!headerPart || !claimsPart || !signaturePart || extra) throw new Error('EXECUTION_MACHINE_SOURCE_CREDENTIAL_INVALID')
     const header = decode(headerPart)
@@ -31,3 +46,10 @@ export class MachineWorkloadSourceCredentialVerifier {
 
 /** Decodes compact-JWS JSON segments only after their structural presence was checked. */
 function decode(value: string): Record<string, unknown> { try { return JSON.parse(Buffer.from(value, 'base64url').toString('utf8')) as Record<string, unknown> } catch { throw new Error('EXECUTION_MACHINE_SOURCE_CREDENTIAL_INVALID') } }
+
+/** Extracts only an opaque JTI selector for rejection audit; malformed inputs never expose bearer contents. */
+function readCredentialId(sourceCredential: string): string | undefined {
+  const claims = sourceCredential.split('.')[1]
+  if (!claims) return undefined
+  try { const jti = decode(claims).jti; return typeof jti === 'string' ? jti : undefined } catch { return undefined }
+}
