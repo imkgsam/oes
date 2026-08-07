@@ -30,6 +30,8 @@ export class PrismaMachineWorkloadBindingRepository implements MachineWorkloadBi
   }) {
     const enrollmentAuditRef = `machine-binding-enroll:${input.idempotencyKey}`
     const row = await this.prisma.$transaction(async (transaction) => {
+      const byKey = await transaction.machineWorkloadBinding.findUnique({ where: { idempotencyKey: input.idempotencyKey } })
+      if (byKey) return byKey
       const existing = await transaction.machineWorkloadBinding.findFirst({
         where: { serviceAccountId: input.serviceAccountId, workloadSpiffeId: input.workloadSpiffeId, status: 'ACTIVE' }
       })
@@ -45,6 +47,7 @@ export class PrismaMachineWorkloadBindingRepository implements MachineWorkloadBi
           id: randomUUID(),
           serviceAccountId: input.serviceAccountId,
           workloadSpiffeId: input.workloadSpiffeId,
+          idempotencyKey: input.idempotencyKey,
           createdBy: input.operatorId ?? null,
           enrollmentAuditRef
         }

@@ -13,6 +13,7 @@ export class MachineWorkloadSourceCredentialEntity {
     public readonly issuedAt: Date,
     public readonly expiresAt: Date,
     public readonly status: 'ACTIVE' | 'SUPERSEDED' | 'REVOKED',
+    public readonly predecessorId: string | null,
     public readonly auditId: string,
     public readonly revokedAt: Date | null = null,
     public readonly revokedReasonCode: string | null = null

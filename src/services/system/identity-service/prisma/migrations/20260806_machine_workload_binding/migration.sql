@@ -2,6 +2,7 @@ CREATE TABLE "MachineWorkloadBinding" (
   "id" TEXT NOT NULL,
   "serviceAccountId" TEXT NOT NULL,
   "workloadSpiffeId" TEXT NOT NULL,
+  "idempotencyKey" TEXT NOT NULL,
   "status" TEXT NOT NULL DEFAULT 'ACTIVE',
   "version" BIGINT NOT NULL DEFAULT 1,
   "createdBy" TEXT,
@@ -15,6 +16,7 @@ CREATE TABLE "MachineWorkloadBinding" (
   CONSTRAINT "MachineWorkloadBinding_pkey" PRIMARY KEY ("id")
 );
 CREATE UNIQUE INDEX "MachineWorkloadBinding_enrollmentAuditRef_key" ON "MachineWorkloadBinding"("enrollmentAuditRef");
+CREATE UNIQUE INDEX "MachineWorkloadBinding_idempotencyKey_key" ON "MachineWorkloadBinding"("idempotencyKey");
 CREATE UNIQUE INDEX "MachineWorkloadBinding_disableAuditRef_key" ON "MachineWorkloadBinding"("disableAuditRef");
 CREATE INDEX "MachineWorkloadBinding_serviceAccountId_status_idx" ON "MachineWorkloadBinding"("serviceAccountId", "status");
 CREATE INDEX "MachineWorkloadBinding_workloadSpiffeId_status_idx" ON "MachineWorkloadBinding"("workloadSpiffeId", "status");

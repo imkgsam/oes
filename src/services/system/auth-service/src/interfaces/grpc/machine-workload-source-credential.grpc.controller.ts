@@ -17,7 +17,7 @@ export class MachineWorkloadSourceCredentialGrpcController implements MachineWor
     const workloadIdentity = await this.workloadIdentityProvider.getVerifiedWorkloadIssuanceIdentity(call)
     const result = await this.commandBus.execute(new IssueMachineWorkloadSourceCredentialCommand({ machinePrincipalId: request.machinePrincipalId!, bindingId: request.machineWorkloadBindingId!, bindingVersion: BigInt(request.machineWorkloadBindingVersion!), workloadIdentity }))
     const credential: MachineWorkloadSourceCredentialEntity = result.credential
-    return { sourceCredential: result.sourceCredential, credentialId: credential.id, tokenType: 'Bearer', issuedAtUnixSeconds: Math.floor(credential.issuedAt.getTime() / 1_000).toString(), expiresAtUnixSeconds: Math.floor(credential.expiresAt.getTime() / 1_000).toString(), machinePrincipalId: credential.machinePrincipalId, machineWorkloadBindingId: credential.machineWorkloadBindingId, machineWorkloadBindingVersion: credential.machineWorkloadBindingVersion.toString(), auditCorrelationId: credential.auditId, supersedesCredentialId: '' }
+    return { sourceCredential: result.sourceCredential, credentialId: credential.id, tokenType: 'Bearer', issuedAtUnixSeconds: Math.floor(credential.issuedAt.getTime() / 1_000).toString(), expiresAtUnixSeconds: Math.floor(credential.expiresAt.getTime() / 1_000).toString(), machinePrincipalId: credential.machinePrincipalId, machineWorkloadBindingId: credential.machineWorkloadBindingId, machineWorkloadBindingVersion: credential.machineWorkloadBindingVersion.toString(), auditCorrelationId: credential.auditId, supersedesCredentialId: result.supersedesCredentialId }
   }
 
   /** Revokes one credential through the normal protected management identity path. */

@@ -139,6 +139,7 @@ model MachineWorkloadBinding {
   id                 String   @id @default(uuid())
   serviceAccountId   String
   workloadSpiffeId   String
+  idempotencyKey     String   @unique
   status             String   @default("ACTIVE")
   version            BigInt   @default(1)
   createdBy          String?

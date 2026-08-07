@@ -4,6 +4,7 @@ export class MachineWorkloadBindingEntity {
     public readonly id: string,
     public readonly serviceAccountId: string,
     public readonly workloadSpiffeId: string,
+    public readonly idempotencyKey: string,
     public readonly status: 'ACTIVE' | 'DISABLED',
     public readonly version: bigint,
     public readonly createdAt: Date,

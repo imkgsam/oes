@@ -8,6 +8,7 @@ export class PrismaMachineWorkloadBindingMapper {
       row.id,
       row.serviceAccountId,
       row.workloadSpiffeId,
+      row.idempotencyKey,
       row.status === 'ACTIVE' ? 'ACTIVE' : 'DISABLED',
       BigInt(row.version),
       row.createdAt,

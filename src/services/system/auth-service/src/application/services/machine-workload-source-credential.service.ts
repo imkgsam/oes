@@ -30,7 +30,7 @@ export class MachineWorkloadSourceCredentialService {
     bindingId: string
     bindingVersion: bigint
     workloadIdentity: WorkloadIdentity
-  }): Promise<{ sourceCredential: string; credential: MachineWorkloadSourceCredentialEntity }> {
+  }): Promise<{ sourceCredential: string; credential: MachineWorkloadSourceCredentialEntity; supersedesCredentialId: string }> {
     const decision = await this.identity.resolveMachinePrincipalForAuth({
       machinePrincipalId: input.machinePrincipalId,
       bindingId: input.bindingId,
@@ -52,7 +52,7 @@ export class MachineWorkloadSourceCredentialService {
     const signature = await this.signer.sign(key.kid, Buffer.from(signingInput, 'utf8'))
     const sourceCredential = `${signingInput}.${Buffer.from(signature).toString('base64url')}`
     const credential = await this.repository.issue({ id, machinePrincipalId: input.machinePrincipalId, machineWorkloadBindingId: input.bindingId, machineWorkloadBindingVersion: input.bindingVersion, workloadSpiffeId: input.workloadIdentity.spiffeId, certificateThumbprint: input.workloadIdentity.certificateThumbprint, certificateNotAfter: input.workloadIdentity.certificateNotAfter, signingKid: key.kid, issuedAt: new Date(issuedAt * 1_000), expiresAt: new Date(expiresAt * 1_000), auditId: `machine-source-issue:${id}`, traceId: null })
-    return { sourceCredential, credential }
+    return { sourceCredential, credential, supersedesCredentialId: credential.predecessorId ?? '' }
   }
 
   /** Delegates idempotent revocation to the transactional Auth-local lifecycle repository. */
