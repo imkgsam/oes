@@ -296,7 +296,7 @@ const AUTH_SERVICE_AUDIENCE = 'urn:oes:service:auth-service'
         identity: IIdentityServicePort,
         repository: PrismaMachineWorkloadSourceCredentialRepository,
         signer: ExecutionTokenSigningPort
-      ) => new MachineWorkloadSourceCredentialService(identity, repository, signer),
+      ) => new MachineWorkloadSourceCredentialService(identity, repository, signer, requireMachineIssuer()),
       inject: [IDENTITY_SERVICE, PrismaMachineWorkloadSourceCredentialRepository, EXECUTION_TOKEN_SIGNER]
     },
     {
@@ -361,6 +361,13 @@ const AUTH_SERVICE_AUDIENCE = 'urn:oes:service:auth-service'
   exports: [ExternalApiKeyCredentialService]
 })
 export class AuthModule {}
+
+/** Reads the same deployment-bound issuer source used by the execution-token signer configuration. */
+function requireMachineIssuer(): string {
+  const issuer = process.env.AUTH_EXECUTION_ISSUER?.trim()
+  if (!issuer) throw new Error('AUTH_EXECUTION_ISSUER is required')
+  return issuer
+}
 
 /** Chooses the protected provider by default and allows the explicit local-development profile only when requested. */
 export function createExternalApiKeyVerifierProvider() {

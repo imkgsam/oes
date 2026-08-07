@@ -8,6 +8,7 @@ export class MachineWorkloadSourceCredentialEntity {
     public readonly workloadSpiffeId: string,
     public readonly certificateThumbprint: string,
     public readonly certificateNotAfter: Date,
+    public readonly profileVersion: number,
     public readonly signingKid: string,
     public readonly issuedAt: Date,
     public readonly expiresAt: Date,

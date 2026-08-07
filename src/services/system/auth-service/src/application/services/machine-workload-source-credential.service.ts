@@ -20,6 +20,7 @@ export class MachineWorkloadSourceCredentialService {
     private readonly identity: IdentityResolver,
     private readonly repository: MachineWorkloadSourceCredentialRepository,
     private readonly signer: ExecutionTokenSigningPort,
+    private readonly issuer: string,
     private readonly now: () => number = () => Math.floor(Date.now() / 1_000)
   ) {}
 
@@ -45,7 +46,7 @@ export class MachineWorkloadSourceCredentialService {
     const key = await this.signer.currentSigningKey()
     const id = randomUUID()
     const header = encode({ alg: 'ES256', typ: 'oes-machine-source+jwt', kid: key.kid })
-    const claims = encode({ iss: 'auth-service', aud: 'urn:oes:service:auth-service', sub: input.machinePrincipalId, jti: id, iat: issuedAt, nbf: issuedAt, exp: expiresAt, client_id: input.workloadIdentity.spiffeId, cnf: { 'x5t#S256': input.workloadIdentity.certificateThumbprint }, machine_workload_binding_id: input.bindingId, machine_workload_binding_version: input.bindingVersion.toString(), profile_version: 1 })
+    const claims = encode({ iss: this.issuer, aud: 'urn:oes:service:auth-service', sub: input.machinePrincipalId, jti: id, iat: issuedAt, nbf: issuedAt, exp: expiresAt, client_id: input.workloadIdentity.spiffeId, cnf: { 'x5t#S256': input.workloadIdentity.certificateThumbprint }, machine_workload_binding_id: input.bindingId, machine_workload_binding_version: input.bindingVersion.toString(), profile_version: 1 })
     const signingInput = `${header}.${claims}`
     const signature = await this.signer.sign(key.kid, Buffer.from(signingInput, 'utf8'))
     const sourceCredential = `${signingInput}.${Buffer.from(signature).toString('base64url')}`
