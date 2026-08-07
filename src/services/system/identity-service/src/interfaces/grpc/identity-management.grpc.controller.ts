@@ -28,6 +28,10 @@ import {
   DeleteAccountResponse,
   CreateApiKeyRequest,
   CreateApiKeyResponse,
+  DisableMachineWorkloadBindingRequest,
+  DisableMachineWorkloadBindingResponse,
+  EnrollMachineWorkloadBindingRequest,
+  EnrollMachineWorkloadBindingResponse,
   CreateServiceAccountRequest,
   CreateUserAccountRequest,
   GetAccountDeletionImpactRequest,
@@ -82,7 +86,9 @@ import {
   SetServiceAccountEnabledCommand,
   SetAccountWorkEmailAssetStatusCommand,
   SetAccountWorkPhoneAssetStatusCommand,
-  UnbindAccountFromEmployeeCommand
+  UnbindAccountFromEmployeeCommand,
+  DisableMachineWorkloadBindingCommand,
+  EnrollMachineWorkloadBindingCommand
 } from '../../application/commands'
 import { AccountDeletionImpactView, GetAccountDeletionImpactQuery } from '../../application/queries'
 import { IdentityAuditService } from '../../application/services/identity-audit.service'
@@ -308,6 +314,42 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
         }
       }
     )
+  }
+
+  /** Maps protected management enrollment into Identity's idempotent workload-binding command. */
+  @RequirePermissions({ all: ['identity.machine.workload_binding.manage'] })
+  async enrollMachineWorkloadBinding(
+    request: EnrollMachineWorkloadBindingRequest
+  ): Promise<EnrollMachineWorkloadBindingResponse> {
+    const binding = await this.commandBus.execute(
+      new EnrollMachineWorkloadBindingCommand({
+        machinePrincipalId: request.machinePrincipalId!,
+        workloadSpiffeId: request.workloadSpiffeId!,
+        idempotencyKey: request.idempotencyKey!,
+        operatorId: getRequiredOperatorId(request)
+      })
+    )
+    return { binding: toMachineWorkloadBinding(binding), auditCorrelationId: binding.enrollmentAuditRef }
+  }
+
+  /** Maps protected optimistic disable into Identity's irreversible workload-binding command. */
+  @RequirePermissions({ all: ['identity.machine.workload_binding.manage'] })
+  async disableMachineWorkloadBinding(
+    request: DisableMachineWorkloadBindingRequest
+  ): Promise<DisableMachineWorkloadBindingResponse> {
+    const result = await this.commandBus.execute(
+      new DisableMachineWorkloadBindingCommand({
+        bindingId: request.machineWorkloadBindingId!,
+        expectedVersion: BigInt(request.expectedBindingVersion!),
+        reasonCode: request.reasonCode!,
+        operatorId: getRequiredOperatorId(request)
+      })
+    )
+    return {
+      binding: toMachineWorkloadBinding(result.binding),
+      alreadyDisabled: result.alreadyDisabled,
+      auditCorrelationId: result.binding.disableAuditRef ?? ''
+    }
   }
 
   @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.CREATE_ACCOUNT] })
@@ -1078,5 +1120,28 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
         requiredPermission: permissionCode
       })
     }
+  }
+}
+
+/** Converts Identity-owned binding facts to their frozen gRPC representation without exposing credentials or grants. */
+function toMachineWorkloadBinding(binding: {
+  id: string
+  serviceAccountId: string
+  workloadSpiffeId: string
+  status: string
+  version: bigint
+  createdAt: Date
+  disabledAt: Date | null
+  disableReasonCode: string | null
+}) {
+  return {
+    bindingId: binding.id,
+    machinePrincipalId: binding.serviceAccountId,
+    workloadSpiffeId: binding.workloadSpiffeId,
+    status: binding.status,
+    bindingVersion: binding.version.toString(),
+    createdAtUnixSeconds: Math.floor(binding.createdAt.getTime() / 1000).toString(),
+    disabledAtUnixSeconds: binding.disabledAt ? Math.floor(binding.disabledAt.getTime() / 1000).toString() : '0',
+    disableReasonCode: binding.disableReasonCode ?? ''
   }
 }

@@ -49,6 +49,8 @@ import { VerifyPasswordRecoveryChallengeHandler } from './verify-password-recove
 import { RequirePasswordSetupHandler } from './require-password-setup.handler'
 import { VerifyEmailBindingHandler } from './verify-email-binding.handler'
 import { VerifyPhoneBindingHandler } from './verify-phone-binding.handler'
+import { IssueMachineWorkloadSourceCredentialHandler } from './issue-machine-workload-source-credential.handler'
+import { RevokeMachineWorkloadSourceCredentialHandler } from './revoke-machine-workload-source-credential.handler'
 
 export * from './admin-delete-account-sessions.command'
 export * from './admin-delete-account-sessions.handler'
@@ -139,6 +141,10 @@ export * from './verify-email-binding.command'
 export * from './verify-email-binding.handler'
 export * from './verify-phone-binding.command'
 export * from './verify-phone-binding.handler'
+export * from './issue-machine-workload-source-credential.command'
+export * from './issue-machine-workload-source-credential.handler'
+export * from './revoke-machine-workload-source-credential.command'
+export * from './revoke-machine-workload-source-credential.handler'
 
 export const AuthCommandHandlers = [
   AdminDeleteAccountSessionsHandler,
@@ -189,5 +195,7 @@ export const AuthCommandHandlers = [
   UpdateTenantMfaPolicyHandler,
   VerifyPasswordRecoveryChallengeHandler,
   VerifyEmailBindingHandler,
-  VerifyPhoneBindingHandler
+  VerifyPhoneBindingHandler,
+  IssueMachineWorkloadSourceCredentialHandler,
+  RevokeMachineWorkloadSourceCredentialHandler
 ]

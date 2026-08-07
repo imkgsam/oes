@@ -33,4 +33,10 @@ export interface IIdentityServicePort {
     tenantId: string
     employeeId: string
   }): Promise<EmployeeLoginAccountSummary | null>
+  resolveMachinePrincipalForAuth(input: {
+    machinePrincipalId: string
+    bindingId: string
+    bindingVersion: bigint
+    workloadSpiffeId: string
+  }): Promise<{ allowed: boolean; reasonCode?: string }>
 }

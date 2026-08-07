@@ -99,6 +99,11 @@ import { ExternalApiKeyCredentialService } from '../../application/services/exte
 import { ExternalApiKeyVerifierCompromiseService } from '../../application/services/external-api-key-verifier-compromise.service'
 import { PrismaExternalApiKeyCredentialRepository } from '../../infrastructure/repositories/prisma/prisma.external-api-key-credential.repository'
 import { PrismaExternalApiKeyVerifierCompromiseRepository } from '../../infrastructure/repositories/prisma/prisma.external-api-key-verifier-compromise.repository'
+import { PrismaMachineWorkloadSourceCredentialRepository } from '../../infrastructure/repositories/prisma/prisma.machine-workload-source-credential.repository'
+import { MachineWorkloadSourceCredentialService } from '../../application/services/machine-workload-source-credential.service'
+import { MachineWorkloadSourceCredentialGrpcController } from '../../interfaces/grpc/machine-workload-source-credential.grpc.controller'
+import { IIdentityServicePort } from '../../application/ports/identity-service.port'
+import { ExecutionTokenSigningPort } from '../../domain/ports/execution-token-signing.port'
 import {
   EXTERNAL_API_KEY_IDENTITY_OWNER_PORT,
   EXTERNAL_API_KEY_PERMISSION_SNAPSHOT_PORT
@@ -231,6 +236,7 @@ const AUTH_SERVICE_AUDIENCE = 'urn:oes:service:auth-service'
     PrismaTerminalMfaPolicyRepository,
     PrismaTrustedDeviceRepository,
     PrismaExternalApiKeyCredentialRepository,
+    PrismaMachineWorkloadSourceCredentialRepository,
     PrismaExternalApiKeyVerifierCompromiseRepository,
     {
       provide: ExecutionTokenVerifier,
@@ -283,6 +289,15 @@ const AUTH_SERVICE_AUDIENCE = 'urn:oes:service:auth-service'
       useFactory: (signer: any) =>
         new GatewayExternalAccessTokenIssuer(process.env.AUTH_EXECUTION_ISSUER ?? '', signer),
       inject: [EXECUTION_TOKEN_SIGNER]
+    },
+    {
+      provide: MachineWorkloadSourceCredentialService,
+      useFactory: (
+        identity: IIdentityServicePort,
+        repository: PrismaMachineWorkloadSourceCredentialRepository,
+        signer: ExecutionTokenSigningPort
+      ) => new MachineWorkloadSourceCredentialService(identity, repository, signer),
+      inject: [IDENTITY_SERVICE, PrismaMachineWorkloadSourceCredentialRepository, EXECUTION_TOKEN_SIGNER]
     },
     {
       provide: ExternalApiKeyCredentialService,
@@ -342,7 +357,7 @@ const AUTH_SERVICE_AUDIENCE = 'urn:oes:service:auth-service'
     ...AuthCommandHandlers,
     ...AuthQueryHandlers
   ],
-  controllers: [AuthGrpcController, ExternalApiKeyGrpcController],
+  controllers: [AuthGrpcController, ExternalApiKeyGrpcController, MachineWorkloadSourceCredentialGrpcController],
   exports: [ExternalApiKeyCredentialService]
 })
 export class AuthModule {}

@@ -3,6 +3,7 @@ import { GetServiceAccountByIdHandler } from './get-service-account-by-id.handle
 import { ListApiKeysByServiceAccountIdHandler } from './list-api-keys-by-service-account-id.handler'
 import { ListServiceAccountsHandler } from './list-service-accounts.handler'
 import { ResolveIntegrationMachineForAuthHandler } from './resolve-integration-machine-for-auth.handler'
+import { ResolveMachinePrincipalForAuthHandler } from './resolve-machine-principal-for-auth.handler'
 
 export * from './get-api-key-by-id.query'
 export * from './get-service-account-by-id.query'
@@ -11,11 +12,14 @@ export * from './list-service-accounts.query'
 export * from './service-account-query.result'
 export * from './resolve-integration-machine-for-auth.query'
 export * from './resolve-integration-machine-for-auth.handler'
+export * from './resolve-machine-principal-for-auth.query'
+export * from './resolve-machine-principal-for-auth.handler'
 
 export const ServiceAccountQueryHandlers = [
   GetApiKeyByIdHandler,
   GetServiceAccountByIdHandler,
   ListApiKeysByServiceAccountIdHandler,
   ListServiceAccountsHandler,
-  ResolveIntegrationMachineForAuthHandler
+  ResolveIntegrationMachineForAuthHandler,
+  ResolveMachinePrincipalForAuthHandler
 ]

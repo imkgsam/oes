@@ -4,5 +4,6 @@ export const AUTH_MANAGEMENT_PERMISSION_CODES = {
   BOOTSTRAP_ACCOUNT_CREDENTIALS: 'auth.account_credentials.bootstrap',
   MANAGE_ACCOUNT_LOGIN_METHODS: 'auth.account_login_methods.manage',
   MANAGE_TENANT_MFA_POLICY: 'auth.mfa_policy.manage',
-  MANAGE_PLATFORM_MFA_POLICY: 'auth.platform_mfa_policy.manage'
+  MANAGE_PLATFORM_MFA_POLICY: 'auth.platform_mfa_policy.manage',
+  REVOKE_MACHINE_WORKLOAD_SOURCE_CREDENTIAL: 'auth.machine_workload_source_credential.revoke'
 } as const

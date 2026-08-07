@@ -12,6 +12,7 @@ import {
   HR_MANAGEMENT_PERMISSION_CODES,
   IDENTITY_ACCOUNT_PERMISSION_CODES,
   IDENTITY_ACCOUNT_SELF_PERMISSION_CODES,
+  IDENTITY_INTERNAL_PERMISSION_CODES,
   IDENTITY_MACHINE_PERMISSION_CODES,
   IDENTITY_TENANT_PERMISSION_CODES,
   ITEM_MASTER_MANAGEMENT_PERMISSION_CODES,
@@ -174,9 +175,16 @@ const COMMON_PERMISSION_CODE_FILES: CommonPermissionCodeFileDefinition[] = [
     exports: [
       './account.permission-codes',
       './account-self.permission-codes',
+      './internal.permission-codes',
       './machine.permission-codes',
       './tenant.permission-codes'
     ]
+  },
+  {
+    kind: 'const',
+    relativePath: 'identity/internal.permission-codes.ts',
+    constName: 'IDENTITY_INTERNAL_PERMISSION_CODES',
+    records: IDENTITY_INTERNAL_PERMISSION_CODES
   },
   {
     kind: 'const',

@@ -264,6 +264,19 @@ const identityMachineManagement = definePermissionGroup(Modules.IDENTITY_SERVICE
   ROTATE_API_KEY: {
     code: 'identity.machine.api_key.rotate',
     description: '轮换 API Key'
+  },
+  MANAGE_WORKLOAD_BINDING: {
+    code: 'identity.machine.workload_binding.manage',
+    description: '管理第一方机器工作负载绑定'
+  }
+})
+
+const identityInternal = definePermissionGroup(Modules.IDENTITY_SERVICE, {
+  MACHINE_PRINCIPAL_RESOLVE: {
+    code: 'identity.internal.machine_principal.resolve',
+    description: '解析 Auth 发证所需的第一方机器主体绑定事实',
+    kind: PermissionKind.INTERNAL,
+    externalApiEligible: false
   }
 })
 
@@ -849,6 +862,10 @@ const authManagement = definePermissionGroup(Modules.AUTH_SERVICE, {
   MANAGE_PLATFORM_MFA_POLICY: {
     code: 'auth.platform_mfa_policy.manage',
     description: '管理平台 MFA 策略'
+  },
+  REVOKE_MACHINE_WORKLOAD_SOURCE_CREDENTIAL: {
+    code: 'auth.machine_workload_source_credential.revoke',
+    description: '撤销第一方机器工作负载源凭据'
   }
 })
 
@@ -1010,6 +1027,7 @@ export const PERMISSION_ACCOUNT_SELF_PERMISSION_CODES = permissionAccountSelf.co
 export const IDENTITY_ACCOUNT_PERMISSION_CODES = identityAccountManagement.codes
 export const IDENTITY_ACCOUNT_SELF_PERMISSION_CODES = identityAccountSelf.codes
 export const IDENTITY_MACHINE_PERMISSION_CODES = identityMachineManagement.codes
+export const IDENTITY_INTERNAL_PERMISSION_CODES = identityInternal.codes
 export const IDENTITY_TENANT_PERMISSION_CODES = {} as const
 export const TENANT_ORG_MANAGEMENT_PERMISSION_CODES = tenantOrgManagement.codes
 export const HR_MANAGEMENT_PERMISSION_CODES = hrManagement.codes
@@ -1063,6 +1081,7 @@ export const PERMISSION_CODE_SEED_ITEMS: PermissionSeedItem[] = [
   ...identityAccountManagement.items,
   ...identityAccountSelf.items,
   ...identityMachineManagement.items,
+  ...identityInternal.items,
   ...tenantOrgManagement.items,
   ...hrManagement.items,
   ...itemMasterManagement.items,

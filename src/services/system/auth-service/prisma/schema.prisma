@@ -321,6 +321,7 @@ model AuditEvent {
   resourceId   String?
   details      Json
   createdAt    DateTime @default(now())
+  machineWorkloadSourceCredentials MachineWorkloadSourceCredential[]
 
   @@index([service, module, eventType, occurredAt])
   @@index([tenantId, occurredAt])
@@ -371,6 +372,31 @@ model ExternalApiKeyCredential {
   updatedAt              DateTime  @updatedAt
 
   @@index([integrationMachineId, tenantId])
+}
+
+model MachineWorkloadSourceCredential {
+  id                            String   @id
+  machinePrincipalId            String
+  machineWorkloadBindingId      String
+  machineWorkloadBindingVersion BigInt
+  workloadSpiffeId              String
+  certificateThumbprint         String
+  certificateNotAfter           DateTime
+  profileVersion                Int
+  signingKid                    String
+  issuedAt                      DateTime
+  expiresAt                     DateTime
+  status                        String
+  predecessorId                 String?
+  revokedAt                     DateTime?
+  revokedReasonCode             String?
+  auditId                       String    @unique
+  traceId                       String?
+  createdAt                     DateTime  @default(now())
+  audit                         AuditEvent @relation(fields: [auditId], references: [id], onDelete: Restrict)
+
+  @@index([machineWorkloadBindingId, status])
+  @@index([machinePrincipalId, expiresAt])
 }
 
 model ExternalApiKeyVerifierCompromiseIncident {
