@@ -14,7 +14,7 @@ function fixture(overrides: Record<string, unknown> = {}) {
   const credential = { id: 'credential', status: 'ACTIVE', signingKid: 'kid', profileVersion: 1, issuedAt: new Date((claims.iat as number) * 1000), expiresAt: new Date((claims.exp as number) * 1000), machinePrincipalId: 'principal', machineWorkloadBindingId: 'binding', machineWorkloadBindingVersion: 2n, workloadSpiffeId: workload.spiffeId, certificateThumbprint: workload.certificateThumbprint }
   const repository = { findById: jest.fn().mockResolvedValue(credential), recordVerificationOutcome: jest.fn().mockResolvedValue(undefined) }
   const signer = { publishedKeys: jest.fn().mockResolvedValue([{ kid: 'kid', publicJwk: pair.publicKey.export({ format: 'jwk' }) }]) }
-  const identity = { resolveMachinePrincipalForAuth: jest.fn().mockResolvedValue({ allowed: true, principalId: 'principal', principalType: 'MACHINE', principalLifecycleStatus: 'ACTIVE', principalLifecycleVersion: 'v1', bindingId: 'binding', bindingVersion: 2n, bindingStatus: 'ACTIVE', workloadSpiffeId: workload.spiffeId, decisionReference: 'decision', scopeLevel: 'TENANT', tenantId: 'tenant' }) }
+  const identity = { resolveMachinePrincipalForAuth: jest.fn().mockResolvedValue({ allowed: true, principalId: 'principal', principalType: 'MACHINE', machineType: 'AUTOMATION_BOT', principalLifecycleStatus: 'ACTIVE', principalLifecycleVersion: 'v1', bindingId: 'binding', bindingVersion: 2n, bindingStatus: 'ACTIVE', workloadSpiffeId: workload.spiffeId, decisionReference: 'decision', scopeLevel: 'TENANT', tenantId: 'tenant' }) }
   return { token, repository, signer, identity }
 }
 

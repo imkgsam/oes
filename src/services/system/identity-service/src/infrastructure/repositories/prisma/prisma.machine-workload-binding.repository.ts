@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { MachineWorkloadBindingRepository } from '../../../domain/repositories/machine-workload-binding.repository'
 import { PrismaService } from '../../prisma/prisma.service'
 import { PrismaMachineWorkloadBindingMapper } from '../../mappers/prisma-machine-workload-binding.mapper'
+import { Prisma } from '../../../../prisma/generated/prisma/index'
 
 /** Persists binding lifecycle and its local audit facts atomically without crossing Identity's database boundary. */
 @Injectable()
@@ -29,7 +30,9 @@ export class PrismaMachineWorkloadBindingRepository implements MachineWorkloadBi
     idempotencyKey: string
   }) {
     const enrollmentAuditRef = `machine-binding-enroll:${input.idempotencyKey}`
-    const row = await this.prisma.$transaction(async (transaction) => {
+    let row
+    try {
+      row = await this.prisma.$transaction(async (transaction) => {
       const byKey = await transaction.machineWorkloadBinding.findUnique({ where: { idempotencyKey: input.idempotencyKey } })
       if (byKey) return byKey
       const existing = await transaction.machineWorkloadBinding.findFirst({
@@ -52,7 +55,13 @@ export class PrismaMachineWorkloadBindingRepository implements MachineWorkloadBi
           enrollmentAuditRef
         }
       })
-    })
+      })
+    } catch (error) {
+      if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') throw error
+      const raced = await this.prisma.machineWorkloadBinding.findUnique({ where: { idempotencyKey: input.idempotencyKey } })
+      if (!raced) throw error
+      row = raced
+    }
     return PrismaMachineWorkloadBindingMapper.toDomain(row)
   }
 

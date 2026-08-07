@@ -40,7 +40,7 @@ export class MachineWorkloadSourceCredentialVerifier {
     if (!credential || credential.status === 'REVOKED') throw new Error('EXECUTION_MACHINE_SOURCE_CREDENTIAL_REVOKED')
     if (credential.status !== 'ACTIVE' || credential.signingKid !== header.kid || credential.profileVersion !== 1 || Math.floor(credential.issuedAt.getTime() / 1_000) !== iat || Math.floor(credential.expiresAt.getTime() / 1_000) !== exp || credential.machinePrincipalId !== claims.sub || credential.machineWorkloadBindingId !== claims.machine_workload_binding_id || credential.machineWorkloadBindingVersion.toString() !== String(claims.machine_workload_binding_version) || credential.workloadSpiffeId !== workload.spiffeId || credential.certificateThumbprint !== workload.certificateThumbprint) throw new Error('EXECUTION_MACHINE_WORKLOAD_BINDING_MISMATCH')
     const decision = await this.identity.resolveMachinePrincipalForAuth({ machinePrincipalId: credential.machinePrincipalId, bindingId: credential.machineWorkloadBindingId, bindingVersion: credential.machineWorkloadBindingVersion, workloadSpiffeId: workload.spiffeId })
-    if (!decision.allowed || decision.principalId !== credential.machinePrincipalId || decision.principalType !== 'MACHINE' || decision.principalLifecycleStatus !== 'ACTIVE' || !decision.principalLifecycleVersion || decision.bindingId !== credential.machineWorkloadBindingId || decision.bindingVersion !== credential.machineWorkloadBindingVersion || decision.bindingStatus !== 'ACTIVE' || decision.workloadSpiffeId !== workload.spiffeId || !decision.decisionReference || !decision.scopeLevel || (decision.scopeLevel === 'SYSTEM' && decision.tenantId) || (decision.scopeLevel === 'TENANT' && !decision.tenantId)) throw new Error('EXECUTION_MACHINE_BINDING_STALE')
+    if (!decision.allowed || decision.principalId !== credential.machinePrincipalId || decision.principalType !== 'MACHINE' || !isAllowedMachineType(decision.machineType) || decision.principalLifecycleStatus !== 'ACTIVE' || !decision.principalLifecycleVersion || decision.bindingId !== credential.machineWorkloadBindingId || decision.bindingVersion !== credential.machineWorkloadBindingVersion || decision.bindingStatus !== 'ACTIVE' || decision.workloadSpiffeId !== workload.spiffeId || !decision.decisionReference || !decision.scopeLevel || (decision.scopeLevel === 'SYSTEM' && decision.tenantId) || (decision.scopeLevel === 'TENANT' && !decision.tenantId)) throw new Error('EXECUTION_MACHINE_BINDING_STALE')
     return Object.freeze({ subject: credential.machinePrincipalId, principalType: 'MACHINE', scopeLevel: decision.scopeLevel, ...(decision.tenantId ? { tenantId: decision.tenantId } : {}), ...(decision.orgId ? { orgId: decision.orgId } : {}) })
   }
 }
@@ -50,6 +50,9 @@ function decode(value: string): Record<string, unknown> { try { return JSON.pars
 
 /** Accepts only finite integral JWT NumericDate values. */
 function isNumericDate(value: unknown): value is number { return typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value) }
+
+/** Applies the frozen first-party internal machine type boundary independently of Identity's allow decision. */
+function isAllowedMachineType(value: unknown): boolean { return value === 'INTERNAL_SERVICE' || value === 'AUTOMATION_BOT' }
 
 /** Extracts only an opaque JTI selector for rejection audit; malformed inputs never expose bearer contents. */
 function readCredentialId(sourceCredential: string): string | undefined {
