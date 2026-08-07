@@ -38,5 +38,5 @@ export interface IIdentityServicePort {
     bindingId: string
     bindingVersion: bigint
     workloadSpiffeId: string
-  }): Promise<{ allowed: boolean; reasonCode?: string; scopeLevel?: 'SYSTEM' | 'TENANT'; tenantId?: string; orgId?: string }>
+  }): Promise<{ allowed: boolean; reasonCode?: string; principalId?: string; principalType?: string; machineType?: string; principalLifecycleStatus?: string; principalLifecycleVersion?: string; bindingId?: string; bindingVersion?: bigint; bindingStatus?: 'ACTIVE'; workloadSpiffeId?: string; decisionReference?: string; scopeLevel?: 'SYSTEM' | 'TENANT'; tenantId?: string; orgId?: string }>
 }
