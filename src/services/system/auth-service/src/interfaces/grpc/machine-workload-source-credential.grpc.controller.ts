@@ -1,7 +1,7 @@
-import { Controller, Inject } from '@nestjs/common'
+import { Controller, Inject, UseGuards } from '@nestjs/common'
 import { GrpcWorkloadIdentityProvider } from '@oes/common/transport'
 import { ValidatingCommandBus } from '@oes/common/cqrs'
-import { RequirePermissions, AUTH_MANAGEMENT_PERMISSION_CODES } from '@oes/common/authorization'
+import { RequirePermissions, AUTH_MANAGEMENT_PERMISSION_CODES, InternalServiceGuard, AuthenticatedOperatorGuard, PermissionGuard, getAuthenticatedGrpcRequestContext } from '@oes/common/authorization'
 import { MachineWorkloadSourceCredentialServiceController, MachineWorkloadSourceCredentialServiceControllerMethods, IssueMachineWorkloadSourceCredentialRequest, IssueMachineWorkloadSourceCredentialResponse, RevokeMachineWorkloadSourceCredentialRequest, RevokeMachineWorkloadSourceCredentialResponse } from '@oes/common/generated/auth_service'
 import { IssueMachineWorkloadSourceCredentialCommand, RevokeMachineWorkloadSourceCredentialCommand } from '../../application/commands/auth'
 
@@ -21,9 +21,12 @@ export class MachineWorkloadSourceCredentialGrpcController implements MachineWor
 
   /** Revokes one credential through the normal protected management identity path. */
   @RequirePermissions({ all: [AUTH_MANAGEMENT_PERMISSION_CODES.REVOKE_MACHINE_WORKLOAD_SOURCE_CREDENTIAL] })
+  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard, PermissionGuard)
   async revokeMachineWorkloadSourceCredential(request: RevokeMachineWorkloadSourceCredentialRequest): Promise<RevokeMachineWorkloadSourceCredentialResponse> {
     if (!MACHINE_SOURCE_REVOCATION_REASONS.has(request.reasonCode ?? '')) throw new Error('EXECUTION_MACHINE_SOURCE_CREDENTIAL_INVALID')
-    const result = await this.commandBus.execute(new RevokeMachineWorkloadSourceCredentialCommand({ credentialId: request.credentialId!, reasonCode: request.reasonCode! }))
+    const operatorId = getAuthenticatedGrpcRequestContext(request)?.operatorContext?.operator_id
+    if (!operatorId) throw new Error('operator context is required')
+    const result = await this.commandBus.execute(new RevokeMachineWorkloadSourceCredentialCommand({ credentialId: request.credentialId!, reasonCode: request.reasonCode!, operatorId }))
     return { credentialId: result.credential.id, status: result.credential.status, revokedAtUnixSeconds: Math.floor(result.credential.revokedAt.getTime() / 1_000).toString(), alreadyRevoked: result.alreadyRevoked, auditCorrelationId: `machine-source-revoke:${result.credential.id}` }
   }
 }
