@@ -4,6 +4,7 @@ import { ValidatingCommandBus } from '@oes/common/cqrs'
 import { RequirePermissions, AUTH_MANAGEMENT_PERMISSION_CODES, InternalServiceGuard, AuthenticatedOperatorGuard, PermissionGuard, getAuthenticatedGrpcRequestContext } from '@oes/common/authorization'
 import { MachineWorkloadSourceCredentialServiceController, MachineWorkloadSourceCredentialServiceControllerMethods, IssueMachineWorkloadSourceCredentialRequest, IssueMachineWorkloadSourceCredentialResponse, RevokeMachineWorkloadSourceCredentialRequest, RevokeMachineWorkloadSourceCredentialResponse } from '@oes/common/generated/auth_service'
 import { IssueMachineWorkloadSourceCredentialCommand, RevokeMachineWorkloadSourceCredentialCommand } from '../../application/commands/auth'
+import { MachineWorkloadSourceCredentialEntity } from '../../domain/entities/machine-workload-source-credential.entity'
 
 /** Maps only frozen non-secret selectors to Auth application commands while deriving all certificate facts from the verified transport call. */
 @Controller()
@@ -15,7 +16,7 @@ export class MachineWorkloadSourceCredentialGrpcController implements MachineWor
   async issueMachineWorkloadSourceCredential(request: IssueMachineWorkloadSourceCredentialRequest, _metadata?: unknown, call?: unknown): Promise<IssueMachineWorkloadSourceCredentialResponse> {
     const workloadIdentity = await this.workloadIdentityProvider.getVerifiedWorkloadIssuanceIdentity(call)
     const result = await this.commandBus.execute(new IssueMachineWorkloadSourceCredentialCommand({ machinePrincipalId: request.machinePrincipalId!, bindingId: request.machineWorkloadBindingId!, bindingVersion: BigInt(request.machineWorkloadBindingVersion!), workloadIdentity }))
-    const credential = result.credential as { id: string; machinePrincipalId: string; machineWorkloadBindingId: string; machineWorkloadBindingVersion: bigint; issuedAt: Date; expiresAt: Date; auditId: string }
+    const credential: MachineWorkloadSourceCredentialEntity = result.credential
     return { sourceCredential: result.sourceCredential, credentialId: credential.id, tokenType: 'Bearer', issuedAtUnixSeconds: Math.floor(credential.issuedAt.getTime() / 1_000).toString(), expiresAtUnixSeconds: Math.floor(credential.expiresAt.getTime() / 1_000).toString(), machinePrincipalId: credential.machinePrincipalId, machineWorkloadBindingId: credential.machineWorkloadBindingId, machineWorkloadBindingVersion: credential.machineWorkloadBindingVersion.toString(), auditCorrelationId: credential.auditId, supersedesCredentialId: '' }
   }
 

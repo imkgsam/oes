@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { ExecutionTokenSigningPort } from '../../domain/ports/execution-token-signing.port'
 import { MachineWorkloadSourceCredentialRepository } from '../../domain/repositories/machine-workload-source-credential.repository'
+import { MachineWorkloadSourceCredentialEntity } from '../../domain/entities/machine-workload-source-credential.entity'
 
 type WorkloadIdentity = { spiffeId: string; certificateThumbprint: string; certificateNotAfter: Date }
 type IdentityResolver = {
@@ -29,7 +30,7 @@ export class MachineWorkloadSourceCredentialService {
     bindingId: string
     bindingVersion: bigint
     workloadIdentity: WorkloadIdentity
-  }): Promise<{ sourceCredential: string; credential: unknown }> {
+  }): Promise<{ sourceCredential: string; credential: MachineWorkloadSourceCredentialEntity }> {
     const decision = await this.identity.resolveMachinePrincipalForAuth({
       machinePrincipalId: input.machinePrincipalId,
       bindingId: input.bindingId,
