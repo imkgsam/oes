@@ -24,6 +24,7 @@ import {
   IdentityQueryServiceClient,
   ResolveEmployeeLoginAccountRequest,
   ResolveEmployeeLoginAccountResponse
+  ,ResolveMachinePrincipalForAuthResponse
 } from '@oes/common/generated/identity_service'
 import {
   EXECUTION_TOKEN_SERVICE_NAME,
@@ -230,7 +231,7 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
   async resolveMachinePrincipalForAuth(input: { machinePrincipalId: string; bindingId: string; bindingVersion: bigint; workloadSpiffeId: string }): Promise<{ allowed: boolean; reasonCode?: string; scopeLevel?: 'SYSTEM' | 'TENANT'; tenantId?: string; orgId?: string }> {
     const metadata = this.metadata()
     metadata.set('authorization', `Bearer ${await this.issueInternalExecutionToken(metadata, MACHINE_PRINCIPAL_RESOLVE_PERMISSION)}`)
-    const response: any = await safeGrpcCall(this.trustedIdentityService().resolveMachinePrincipalForAuth({ machinePrincipalId: input.machinePrincipalId, machineWorkloadBindingId: input.bindingId, machineWorkloadBindingVersion: input.bindingVersion.toString(), workloadSpiffeId: input.workloadSpiffeId }, metadata), { caller: 'auth-service', method: 'IdentityQueryService.resolveMachinePrincipalForAuth' })
+    const response = await safeGrpcCall<ResolveMachinePrincipalForAuthResponse>(this.trustedIdentityService().resolveMachinePrincipalForAuth({ machinePrincipalId: input.machinePrincipalId, machineWorkloadBindingId: input.bindingId, machineWorkloadBindingVersion: input.bindingVersion.toString(), workloadSpiffeId: input.workloadSpiffeId }, metadata), { caller: 'auth-service', method: 'IdentityQueryService.resolveMachinePrincipalForAuth' })
     return { allowed: response.allowed === true, reasonCode: response.reasonCode || undefined, scopeLevel: response.scopeLevel === 'SYSTEM' ? 'SYSTEM' : response.scopeLevel === 'TENANT' ? 'TENANT' : undefined, tenantId: response.tenantId || undefined, orgId: response.orgId || undefined }
   }
 
