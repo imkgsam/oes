@@ -143,6 +143,10 @@ Status is `FROZEN_PENDING_IMPLEMENTATION`. This manifest registers path ownershi
 ```yaml
 machineWorkloadImplementationLease:
   trackedWriterPaths:
+    commonTrustedTransport:
+      - { state: EXISTING, path: src/common/src/transport/grpc/grpc-workload-identity.provider.ts }
+      - { state: EXISTING, path: src/common/src/transport/grpc/grpc-workload-identity.provider.spec.ts }
+
     commonContracts:
       - { state: NEW_TARGET, path: src/common/src/contracts/auth_service/machine_workload_source_credential.proto }
       - { state: NEW_TARGET, path: src/common/src/contracts/auth_service/machine_workload_source_credential.contract.spec.ts }
@@ -275,6 +279,8 @@ machineWorkloadImplementationLease:
       - docs/contracts/auth-service/delegated-execution-and-action-grant.md
       - docs/plans/features/delegated-task-action-grant.md
     sharedPathRestrictions:
+      - path: src/common/src/transport/grpc/grpc-workload-identity.provider.ts
+        restriction: derive certificateNotAfter only from the same transport-verified leaf DER used for the thumbprint, return it only as an issuance structural extension, keep generic VerifiedWorkloadIdentity stable, and fail closed on parse, invalid-date or expired-leaf evidence
       - path: src/services/system/auth-service/src/modules/token/execution-token.module.ts
         restriction: add MACHINE composition without changing AuthSessionSourceCredentialVerifier HUMAN behavior
       - path: src/services/system/auth-service/src/infrastructure/adaptors/identity-service.adaptor.ts
@@ -299,6 +305,7 @@ machineWorkloadImplementationLease:
       - pnpm --filter identity-service build
       - pnpm --filter permission-service build
     focusedTests:
+      - pnpm exec jest --runInBand --runTestsByPath src/common/src/transport/grpc/grpc-workload-identity.provider.spec.ts
       - pnpm exec jest --runInBand --runTestsByPath src/common/src/contracts/auth_service/machine_workload_source_credential.contract.spec.ts
       - pnpm --filter auth-service exec jest --runInBand
       - pnpm --filter identity-service exec jest --config jest.config.js --runInBand test/l1/machine-workload-binding-management.handlers.spec.ts test/l1/machine-workload-binding-management.grpc-controller.spec.ts test/l1/resolve-machine-principal-for-auth.handler.spec.ts test/l1/resolve-machine-principal-for-auth.grpc-controller.spec.ts test/l2/prisma.machine-workload-binding.repository.spec.ts test/l2/machine-workload-binding-database-constraints.spec.ts
@@ -308,7 +315,7 @@ machineWorkloadImplementationLease:
       - git status --short
 ```
 
-The manifest is closed rather than advisory: adding another tracked file, renaming a `NEW_TARGET`, tracking ignored generated output, touching a protected path, or needing a contract/schema/runtime path not listed here is a design-scope change and must return to Unified Design before implementation continues. Shared files remain single-writer under the registered capability owner.
+The manifest is closed rather than advisory and contains exactly 68 tracked writer paths: adding another tracked file, renaming a `NEW_TARGET`, tracking ignored generated output, touching a protected path, or needing a contract/schema/runtime path not listed here is a design-scope change and must return to Unified Design before implementation continues. Shared files remain single-writer under the registered capability owner.
 
 Audit reuse does not add another tracked writer path. Auth reuses `src/services/system/auth-service/prisma/schema.prisma` model `AuditEvent`; the leased new `prisma.machine-workload-source-credential.repository.ts` owns the transaction that writes credential state and its audit row together. Identity follows the same pattern with its existing `AuditEvent` model and leased new `prisma.machine-workload-binding.repository.ts`. Existing generic audit repositories/listeners remain protected and need no modification; no new audit table, event bus, outbox or central-audit owner is introduced by this MACHINE slice.
 
@@ -454,7 +461,7 @@ Final acceptance must prove:
 10. Site Runtime credential proof remains independent from internal Token validation.
 11. External API Key never enters internal gRPC metadata. DG-3 is frozen; Gateway locally validates the five-minute external access token, and credential revocation immediately blocks new exchange.
 12. Emergency revoke and DELEGATED/ActionGrant acceptance remain gated by DG-2/DG-4 rather than locally invented.
-13. Every pure MACHINE root caller proves the dedicated Auth source credential, current SPIFFE/leaf binding and Identity principal/binding/version path; wrong or stale binding fails before Permission/signing. A target with no such caller proves that absence through fresh static inventory rather than assuming readiness.
+13. Every pure MACHINE root caller proves the dedicated Auth source credential, current SPIFFE/leaf binding, transport-derived unexpired leaf `notAfter` and Identity principal/binding/version path; caller-supplied lifetime, malformed/expired certificate evidence and wrong or stale binding fail before Permission/signing. A target with no such caller proves that absence through fresh static inventory rather than assuming readiness.
 14. Full workspace generation, build and service test matrix pass at the exact candidate SHA.
 15. Repository scans find zero legacy signer, guard, factory, header, trusted body identity and request-only client call.
 

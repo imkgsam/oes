@@ -43,6 +43,8 @@ Auth 独占 credential profile、受控登记/签发、验证、expiry、revocat
 - `IdentityManagementService.EnrollMachineWorkloadBinding` 与 `DisableMachineWorkloadBinding` 只接受普通 mTLS + target-audience ExecutionToken 保护的 HUMAN 或受控 SYSTEM MACHINE 管理调用，并要求 BUSINESS Code `identity.machine.workload_binding.manage`。
 - `MachineWorkloadSourceCredentialService.IssueMachineWorkloadSourceCredential` 只接受当前 workload 本身的 mTLS connection。该调用不依赖一个尚未建立的 ExecutionToken，但也不是“仅持有 mTLS 即放行”：Auth 必须使用请求中的非秘密 principal/binding selector 调用 Identity owner resolver，确认该 active binding 精确绑定当前 transport-verified SPIFFE ID。
 - initial issuance 和 reissuance 共用同一 `IssueMachineWorkloadSourceCredential` RPC。调用方不能请求 lifetime、tenant、org、Permission Code 或 certificate thumbprint。
+- Issue controller 取得的 `certificateNotAfter: Date` 必须与 SPIFFE ID、leaf thumbprint 一样来自 Common `GrpcWorkloadIdentityProvider` 的同一次 transport-verified peer resolution；Common 从同一份 leaf certificate DER 解析 `notAfter`，不得读取 request、metadata、environment 或 caller configuration 中的证书到期事实。该值是 issuance-only 的结构扩展，不改变通用 `VerifiedWorkloadIdentity` 契约，也不是 proto 字段。
+- Common 在 DER 解析失败、`notAfter` 不是有效时间或 `notAfter <= resolution time` 时必须在进入 Auth issuance 前 fail closed。Auth 仍计算 `min(now + 15 minutes, certificateNotAfter)`，结果不晚于 `now` 时不签名、不持久化 credential，也不调用 Permission。
 - `RevokeMachineWorkloadSourceCredential` 只接受普通 mTLS + target-audience ExecutionToken 保护的 HUMAN 或受控 SYSTEM MACHINE 管理调用，并要求 BUSINESS Code `auth.machine_workload_source_credential.revoke`。
 - 上述 RPC 都挂载在既有 Auth / Identity internal gRPC host，不增加 public HTTP、external gRPC 或第二个 Permission mTLS-only bootstrap。`ResolveWorkloadIssuance` 仍是 Permission 发证控制面唯一的 mTLS-only bootstrap primitive。
 
@@ -136,6 +138,8 @@ Identity resolver 调用本身使用 Auth verified mTLS identity、`aud=identity
 Identity owner reason 只允许 `MACHINE_PRINCIPAL_NOT_ELIGIBLE`、`MACHINE_PRINCIPAL_SCOPE_INVALID`、`MACHINE_WORKLOAD_BINDING_NOT_ELIGIBLE`、`MACHINE_WORKLOAD_BINDING_PRINCIPAL_MISMATCH`、`MACHINE_WORKLOAD_BINDING_STALE`、`MACHINE_WORKLOAD_SPIFFE_MISMATCH` 与 `MACHINE_RESOLUTION_DEPENDENCY_UNAVAILABLE`。Auth 将 not-found/inactive 合并为不可枚举的 stable MACHINE error；不把 owner storage 细节透出 gRPC boundary。
 
 transport trust failure 使用 `UNAUTHENTICATED` / `PERMISSION_DENIED`，malformed field 使用 `INVALID_ARGUMENT`，inactive/stale/state mismatch 使用 `FAILED_PRECONDITION`，Identity/Permission/signer/audit dependency failure 使用 `UNAVAILABLE`。
+
+leaf DER 无法解析、证书到期时间无效或证书在 transport identity resolution 时已经到期，属于 transport trust failure，不新增可枚举的 certificate-detail error。可信 `certificateNotAfter` 已取得但 Auth 计算得到 non-positive issuance lifetime 时，使用既有 `EXECUTION_MACHINE_CERTIFICATE_BINDING_MISMATCH`，且不得泄露 leaf validity 值。
 
 ## 6. Audit
 

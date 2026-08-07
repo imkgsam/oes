@@ -302,6 +302,8 @@ forInternalCall(targetAudience, requiredInternalPermissionCodes)
 
 MACHINE root path 实现完成后，无入站请求的 Cron / Robot 先用当前 mTLS `VerifiedWorkloadIdentity` 与 Auth-owned `MachineWorkloadSourceCredential` 建立 root execution context：Auth 验证 source JWS 的 profile/signature/lifetime/revocation、SPIFFE 与当前 leaf thumbprint binding，再用 Identity `ResolveMachinePrincipalForAuth` 验证 active principal 与 `MachineWorkloadBinding` version；随后才按 BUSINESS / INTERNAL 分别取得 Permission decision 并签发既有 ExecutionToken。它继续使用同一 provider，不建立另一套 metadata 工厂。
 
+MACHINE source credential issuance 对 leaf lifetime 的可信输入也由该既有 provider 提供：`GrpcWorkloadIdentityProvider` 必须从 grpc-js adapter 已释放的同一份 transport-verified leaf DER 同时派生 SHA-256 thumbprint 与 `certificateNotAfter: Date`。后者仅作为 provider 返回值的结构扩展交给 Auth Issue path；通用 `VerifiedWorkloadIdentity` 保持不变，其他 ExecutionToken verifier consumer 可以继续只消费 SPIFFE ID 与 thumbprint。metadata、request、environment 与 caller configuration 不能注入或覆盖 `notAfter`；DER parse failure、无效日期或已到期 leaf 在 provider boundary fail closed。
+
 ### 7.3 Server runtime
 
 公共 server runtime 负责：
