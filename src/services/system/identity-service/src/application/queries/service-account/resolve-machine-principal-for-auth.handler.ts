@@ -38,24 +38,24 @@ export class ResolveMachinePrincipalForAuthHandler
   async execute(query: ResolveMachinePrincipalForAuthQuery): Promise<MachinePrincipalForAuthView> {
     const input = query.input
     const binding = await this.bindingRepository.findById(input.bindingId)
-    if (!binding || binding.status !== 'ACTIVE') return denied(input, 'MACHINE_WORKLOAD_BINDING_NOT_ELIGIBLE')
-    if (binding.serviceAccountId !== input.machinePrincipalId) return denied(input, 'MACHINE_WORKLOAD_BINDING_PRINCIPAL_MISMATCH')
-    if (binding.version !== input.bindingVersion) return denied(input, 'MACHINE_WORKLOAD_BINDING_STALE')
-    if (binding.workloadSpiffeId !== input.workloadSpiffeId) return denied(input, 'MACHINE_WORKLOAD_SPIFFE_MISMATCH')
+    if (!binding || binding.status !== 'ACTIVE') return this.record(input, denied(input, 'MACHINE_WORKLOAD_BINDING_NOT_ELIGIBLE'))
+    if (binding.serviceAccountId !== input.machinePrincipalId) return this.record(input, denied(input, 'MACHINE_WORKLOAD_BINDING_PRINCIPAL_MISMATCH'))
+    if (binding.version !== input.bindingVersion) return this.record(input, denied(input, 'MACHINE_WORKLOAD_BINDING_STALE'))
+    if (binding.workloadSpiffeId !== input.workloadSpiffeId) return this.record(input, denied(input, 'MACHINE_WORKLOAD_SPIFFE_MISMATCH'))
 
     const principal = await this.serviceAccountRepository.findById(input.machinePrincipalId)
     if (!principal || principal.status !== MACHINE_PRINCIPAL_STATUSES.ACTIVE || !isEligibleType(principal.type)) {
-      return denied(input, 'MACHINE_PRINCIPAL_NOT_ELIGIBLE')
+      return this.record(input, denied(input, 'MACHINE_PRINCIPAL_NOT_ELIGIBLE'))
     }
     if (
       (principal.scopeLevel === MACHINE_PRINCIPAL_SCOPE_LEVELS.SYSTEM && principal.tenantId) ||
       (principal.scopeLevel === MACHINE_PRINCIPAL_SCOPE_LEVELS.TENANT && !principal.tenantId)
     ) {
-      return denied(input, 'MACHINE_PRINCIPAL_SCOPE_INVALID')
+      return this.record(input, denied(input, 'MACHINE_PRINCIPAL_SCOPE_INVALID'))
     }
 
     const lifecycleVersion = principal.updatedAt.toISOString()
-    return {
+    return this.record(input, {
       allowed: true,
       machinePrincipalId: principal.id,
       principalType: 'MACHINE',
@@ -70,7 +70,13 @@ export class ResolveMachinePrincipalForAuthHandler
       workloadSpiffeId: binding.workloadSpiffeId,
       decisionReference: `identity-machine-binding:${principal.id}:${binding.id}:${binding.version}`,
       reasonCode: ''
-    }
+    })
+  }
+
+  /** Persists the safe owner decision before it crosses Identity's protected resolver boundary. */
+  private async record(input: ResolveMachinePrincipalForAuthQuery['input'], decision: MachinePrincipalForAuthView): Promise<MachinePrincipalForAuthView> {
+    await this.bindingRepository.recordResolution({ allowed: decision.allowed, machinePrincipalId: input.machinePrincipalId, bindingId: input.bindingId, reasonCode: decision.reasonCode })
+    return decision
   }
 }
 

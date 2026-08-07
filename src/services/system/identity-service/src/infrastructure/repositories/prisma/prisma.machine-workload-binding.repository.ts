@@ -86,4 +86,9 @@ export class PrismaMachineWorkloadBindingRepository implements MachineWorkloadBi
     })
     return { binding: PrismaMachineWorkloadBindingMapper.toDomain(result.row), alreadyDisabled: result.alreadyDisabled }
   }
+
+  /** Writes a safe local resolver decision audit without recording source credentials or certificate material. */
+  async recordResolution(input: { allowed: boolean; machinePrincipalId: string; bindingId: string; reasonCode: string }): Promise<void> {
+    await this.prisma.auditEvent.create({ data: { eventId: `machine-resolution:${randomUUID()}`, service: 'identity-service', module: 'machine', eventType: input.allowed ? 'MACHINE_PRINCIPAL_RESOLUTION_ALLOWED' : 'MACHINE_PRINCIPAL_RESOLUTION_DENIED', occurredAt: new Date(), result: input.allowed ? 'SUCCEEDED' : 'REJECTED', operatorId: null, operatorType: 'SYSTEM', tenantId: null, orgId: null, traceId: null, resourceType: 'machine_workload_binding', resourceId: input.bindingId, details: { machinePrincipalId: input.machinePrincipalId, bindingId: input.bindingId, reasonCode: input.reasonCode } } })
+  }
 }

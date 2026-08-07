@@ -19,4 +19,5 @@ export interface MachineWorkloadBindingRepository {
     reasonCode: string
     operatorId?: string
   }): Promise<{ binding: MachineWorkloadBindingEntity; alreadyDisabled: boolean }>
+  recordResolution(input: { allowed: boolean; machinePrincipalId: string; bindingId: string; reasonCode: string }): Promise<void>
 }

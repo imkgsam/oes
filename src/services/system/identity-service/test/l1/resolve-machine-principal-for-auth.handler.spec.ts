@@ -13,7 +13,7 @@ describe('ResolveMachinePrincipalForAuthHandler', () => {
       {
         findById: jest.fn().mockResolvedValue({
           id: 'binding-1', serviceAccountId: 'machine-1', workloadSpiffeId: 'spiffe://oes/workload/robot', status: 'ACTIVE', version: 4n
-        })
+        }), recordResolution: jest.fn().mockResolvedValue(undefined)
       } as never
     )
 
@@ -30,7 +30,7 @@ describe('ResolveMachinePrincipalForAuthHandler', () => {
       {
         findById: jest.fn().mockResolvedValue({
           id: 'binding-1', serviceAccountId: 'machine-1', workloadSpiffeId: 'spiffe://oes/workload/robot', status: 'ACTIVE', version: 5n
-        })
+        }), recordResolution: jest.fn().mockResolvedValue(undefined)
       } as never
     )
 

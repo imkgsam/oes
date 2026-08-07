@@ -15,6 +15,7 @@ describe('PrismaMachineWorkloadSourceCredentialRepository', () => {
     expect(tx.machineWorkloadSourceCredential.update).toHaveBeenCalledWith(expect.objectContaining({ data: { status: 'SUPERSEDED' } }))
     expect(tx.machineWorkloadSourceCredential.create).toHaveBeenCalled()
     expect(tx.auditEvent.create).toHaveBeenCalled()
+    expect(tx.auditEvent.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ eventType: 'MACHINE_SOURCE_CREDENTIAL_REISSUED', details: expect.objectContaining({ predecessorCredentialId: 'old' }) }) }))
     expect(tx.auditEvent.create.mock.invocationCallOrder[0]).toBeLessThan(tx.machineWorkloadSourceCredential.create.mock.invocationCallOrder[0])
   })
 })
