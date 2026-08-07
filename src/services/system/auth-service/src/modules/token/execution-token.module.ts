@@ -50,6 +50,12 @@ import { UdsSignerClient } from '../../infrastructure/execution-token-signer/uds
 import { verifySignerBootstrap } from '../../infrastructure/execution-token-signer/signer-preflight'
 import { ExecutionTokenGrpcController } from '../../interfaces/grpc/execution-token.grpc.controller'
 import { ExecutionTokenMetadataHttpController } from '../../interfaces/http/execution-token-metadata.http.controller'
+import { MachineWorkloadSourceCredentialVerifier } from '../../infrastructure/execution-token-signer/machine-workload-source-credential.verifier'
+import { PrismaMachineWorkloadSourceCredentialRepository } from '../../infrastructure/repositories/prisma/prisma.machine-workload-source-credential.repository'
+import { PrismaModule } from '../../infrastructure/prisma/prisma.module'
+import { ExternalServicesModule } from '../../infrastructure/modules/external-services.module'
+import { IDENTITY_SERVICE } from '@oes/common/constants'
+import { IIdentityServicePort } from '../../application/ports/identity-service.port'
 
 const KMS_HSM_EXECUTION_TOKEN_CLIENT = 'KmsHsmExecutionTokenClient'
 export const EXECUTION_TOKEN_SIGNER = 'ExecutionTokenSigner'
@@ -70,7 +76,7 @@ const PRINCIPAL_AUTHORIZATION_CODE =
 
 /** Assembles the fail-closed STS runtime; deployment must bind trusted context and a protected KMS/HSM client. */
 @Module({
-  imports: [CqrsModule, GrpcTransportModule.forFeature([SERVICE_NAMES.PERMISSION])],
+  imports: [CqrsModule, PrismaModule, ExternalServicesModule, GrpcTransportModule.forFeature([SERVICE_NAMES.PERMISSION])],
   providers: [
     {
       provide: EXECUTION_TOKEN_RUNTIME_CONFIGURATION,
@@ -117,8 +123,8 @@ const PRINCIPAL_AUTHORIZATION_CODE =
     },
     {
       provide: EXECUTION_TOKEN_SOURCE_CREDENTIAL_VERIFIER,
-      useFactory: (queryBus: QueryBus) => new AuthSessionSourceCredentialVerifier(queryBus),
-      inject: [QueryBus]
+      useFactory: (queryBus: QueryBus, repository: PrismaMachineWorkloadSourceCredentialRepository, signer: ExecutionTokenSigningPort, identity: IIdentityServicePort, configuration: ExecutionTokenRuntimeConfiguration) => new CompositeSourceCredentialVerifier(new AuthSessionSourceCredentialVerifier(queryBus), new MachineWorkloadSourceCredentialVerifier(repository, signer, identity, configuration.issuer)),
+      inject: [QueryBus, PrismaMachineWorkloadSourceCredentialRepository, EXECUTION_TOKEN_SIGNER, IDENTITY_SERVICE, EXECUTION_TOKEN_RUNTIME_CONFIGURATION]
     },
     {
       provide: EXECUTION_TOKEN_PERMISSION_DECISION_RESOLVER,
@@ -156,7 +162,8 @@ const PRINCIPAL_AUTHORIZATION_CODE =
         EXECUTION_TOKEN_SOURCE_CREDENTIAL_VERIFIER,
         EXECUTION_TOKEN_PERMISSION_DECISION_RESOLVER
       ]
-    }
+    },
+    PrismaMachineWorkloadSourceCredentialRepository
   ],
   controllers: [ExecutionTokenGrpcController, ExecutionTokenMetadataHttpController],
   exports: [EXECUTION_TOKEN_SIGNER]
@@ -184,6 +191,21 @@ export class AuthSessionSourceCredentialVerifier implements ExecutionTokenSource
       sessionId: session.sessionId
     })
   }
+}
+
+/** Preserves HUMAN session validation while routing only the dedicated machine JWS profile to its strict verifier. */
+export class CompositeSourceCredentialVerifier implements ExecutionTokenSourceCredentialVerifier {
+  constructor(private readonly human: AuthSessionSourceCredentialVerifier, private readonly machine: MachineWorkloadSourceCredentialVerifier) {}
+  async verify(sourceCredential: string, workloadIdentity: VerifiedExecutionWorkload): Promise<TrustedExecutionContext> {
+    return isMachineSourceProfile(sourceCredential) ? this.machine.verify(sourceCredential, workloadIdentity) : this.human.verify(sourceCredential, workloadIdentity)
+  }
+}
+
+/** Detects only the exact protected type before selection; malformed or alternate JWTs remain on the unchanged HUMAN path. */
+function isMachineSourceProfile(sourceCredential: string): boolean {
+  const [header] = sourceCredential.split('.')
+  if (!header) return false
+  try { return (JSON.parse(Buffer.from(header, 'base64url').toString('utf8')) as { typ?: unknown }).typ === 'oes-machine-source+jwt' } catch { return false }
 }
 
 /** Calls Permission's current issuance RPCs and returns their outputs as the sole privilege upper bound. */
