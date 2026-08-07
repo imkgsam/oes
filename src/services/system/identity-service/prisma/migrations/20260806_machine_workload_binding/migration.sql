@@ -18,6 +18,7 @@ CREATE UNIQUE INDEX "MachineWorkloadBinding_enrollmentAuditRef_key" ON "MachineW
 CREATE UNIQUE INDEX "MachineWorkloadBinding_disableAuditRef_key" ON "MachineWorkloadBinding"("disableAuditRef");
 CREATE INDEX "MachineWorkloadBinding_serviceAccountId_status_idx" ON "MachineWorkloadBinding"("serviceAccountId", "status");
 CREATE INDEX "MachineWorkloadBinding_workloadSpiffeId_status_idx" ON "MachineWorkloadBinding"("workloadSpiffeId", "status");
+CREATE UNIQUE INDEX "MachineWorkloadBinding_one_active_per_principal_spiffe" ON "MachineWorkloadBinding"("serviceAccountId", "workloadSpiffeId") WHERE "status" = 'ACTIVE';
 ALTER TABLE "MachineWorkloadBinding" ADD CONSTRAINT "MachineWorkloadBinding_serviceAccountId_fkey" FOREIGN KEY ("serviceAccountId") REFERENCES "ServiceAccount"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "MachineWorkloadBinding" ADD CONSTRAINT "MachineWorkloadBinding_enrollmentAuditRef_fkey" FOREIGN KEY ("enrollmentAuditRef") REFERENCES "AuditEvent"("eventId") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "MachineWorkloadBinding" ADD CONSTRAINT "MachineWorkloadBinding_disableAuditRef_fkey" FOREIGN KEY ("disableAuditRef") REFERENCES "AuditEvent"("eventId") ON DELETE RESTRICT ON UPDATE CASCADE;

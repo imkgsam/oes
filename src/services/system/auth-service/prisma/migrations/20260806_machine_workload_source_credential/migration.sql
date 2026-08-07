@@ -23,4 +23,6 @@ CREATE TABLE "MachineWorkloadSourceCredential" (
 CREATE UNIQUE INDEX "MachineWorkloadSourceCredential_auditId_key" ON "MachineWorkloadSourceCredential"("auditId");
 CREATE INDEX "MachineWorkloadSourceCredential_machineWorkloadBindingId_status_idx" ON "MachineWorkloadSourceCredential"("machineWorkloadBindingId", "status");
 CREATE INDEX "MachineWorkloadSourceCredential_machinePrincipalId_expiresAt_idx" ON "MachineWorkloadSourceCredential"("machinePrincipalId", "expiresAt");
+CREATE UNIQUE INDEX "MachineWorkloadSourceCredential_one_active_per_binding" ON "MachineWorkloadSourceCredential"("machineWorkloadBindingId") WHERE "status" = 'ACTIVE';
 ALTER TABLE "MachineWorkloadSourceCredential" ADD CONSTRAINT "MachineWorkloadSourceCredential_auditId_fkey" FOREIGN KEY ("auditId") REFERENCES "AuditEvent"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "MachineWorkloadSourceCredential" ADD CONSTRAINT "MachineWorkloadSourceCredential_predecessorId_fkey" FOREIGN KEY ("predecessorId") REFERENCES "MachineWorkloadSourceCredential"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

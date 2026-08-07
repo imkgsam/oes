@@ -10,9 +10,10 @@ export class PrismaMachineWorkloadSourceCredentialRepository implements MachineW
   /** Supersedes the active binding credential before recording the new non-bearer credential state and audit. */
   async issue(input: any) {
     return (this.prisma as any).$transaction(async (tx: any) => {
-      await tx.machineWorkloadSourceCredential.updateMany({ where: { machineWorkloadBindingId: input.machineWorkloadBindingId, status: 'ACTIVE' }, data: { status: 'SUPERSEDED' } })
-      const credential = await tx.machineWorkloadSourceCredential.create({ data: { ...input, status: 'ACTIVE', profileVersion: 1, predecessorId: null, revokedAt: null, revokedReasonCode: null } })
       await tx.auditEvent.create({ data: { id: input.auditId, service: 'auth-service', module: 'machine_workload', eventType: 'MACHINE_SOURCE_CREDENTIAL_ISSUED', occurredAt: input.issuedAt, result: 'SUCCEEDED', operatorId: null, operatorType: 'MACHINE', tenantId: null, orgId: null, traceId: input.traceId, resourceType: 'machine_workload_source_credential', resourceId: input.id, details: { credentialId: input.id, bindingId: input.machineWorkloadBindingId } } })
+      const active = await tx.machineWorkloadSourceCredential.findFirst({ where: { machineWorkloadBindingId: input.machineWorkloadBindingId, status: 'ACTIVE' }, select: { id: true } })
+      if (active) await tx.machineWorkloadSourceCredential.update({ where: { id: active.id }, data: { status: 'SUPERSEDED' } })
+      const credential = await tx.machineWorkloadSourceCredential.create({ data: { ...input, status: 'ACTIVE', profileVersion: 1, predecessorId: active?.id ?? null, revokedAt: null, revokedReasonCode: null } })
       return credential
     })
   }

@@ -394,6 +394,8 @@ model MachineWorkloadSourceCredential {
   traceId                       String?
   createdAt                     DateTime  @default(now())
   audit                         AuditEvent @relation(fields: [auditId], references: [id], onDelete: Restrict)
+  predecessor                   MachineWorkloadSourceCredential? @relation("MachineWorkloadCredentialSupersession", fields: [predecessorId], references: [id], onDelete: Restrict)
+  successors                    MachineWorkloadSourceCredential[] @relation("MachineWorkloadCredentialSupersession")
 
   @@index([machineWorkloadBindingId, status])
   @@index([machinePrincipalId, expiresAt])
