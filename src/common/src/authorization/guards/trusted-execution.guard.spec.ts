@@ -10,7 +10,7 @@ const WORKLOAD = {
 /** Builds an RPC execution context that records whether controller-visible request data was attached. */
 function guardFixture(declaration: unknown, verified: Record<string, unknown>) {
   const metadata = new Metadata()
-  metadata.set('authorization', 'Bearer execution.token')
+  metadata.set('authorization', 'Bearer e30.e30.e30')
   const data = {}
   const reflector = { getAllAndOverride: jest.fn(() => declaration) }
   const verifier = { verify: jest.fn(async () => verified) }
@@ -51,22 +51,35 @@ describe('TrustedExecutionGuard', () => {
   })
 
   it.each([
-    ['delegated', 'DELEGATED', []],
-    ['coded human', 'HUMAN', ['asset.read']]
+    ['human', 'HUMAN', {}, []],
+    ['delegated', 'DELEGATED', { actor: 'actor-1', delegationId: 'delegation-1' }, []]
   ])(
-    'rejects SELF_SERVICE %s tokens before controller execution',
-    async (_name, principalType, permissionCodes) => {
+    'allows SELF_SERVICE %s tokens when the declaration admits the principal',
+    async (_name, principalType, delegation, permissionCodes) => {
       const fixture = guardFixture(
         { mode: 'SELF_SERVICE', allowDelegated: true },
-        { principalType, permissionCodes }
+        { principalType, ...delegation, permissionCodes }
       )
 
-      await expect(fixture.guard.canActivate(fixture.context as never)).rejects.toThrow(
-        'Access denied'
-      )
-      expect(fixture.data).toEqual({})
+      await expect(fixture.guard.canActivate(fixture.context as never)).resolves.toBe(true)
+      expect(fixture.data).toHaveProperty('__oesOperatorContext.verifiedExecutionToken')
     }
   )
+
+  it.each([
+    ['delegated when disabled', { mode: 'SELF_SERVICE', allowDelegated: false }, 'DELEGATED'],
+    ['machine', { mode: 'SELF_SERVICE', allowDelegated: true }, 'MACHINE'],
+    ['coded human', { mode: 'SELF_SERVICE', allowDelegated: true }, 'HUMAN']
+  ])('rejects SELF_SERVICE %s before controller execution', async (_name, declaration, principalType) => {
+    const fixture = guardFixture(declaration, {
+      principalType,
+      permissionCodes: principalType === 'HUMAN' ? ['asset.read'] : [],
+      ...(principalType === 'DELEGATED' ? { actor: 'actor-1', delegationId: 'delegation-1' } : {})
+    })
+
+    await expect(fixture.guard.canActivate(fixture.context as never)).rejects.toThrow('Access denied')
+    expect(fixture.data).toEqual({})
+  })
 
   it.each([
     ['wrong permission codes', { principalType: 'HUMAN', permissionCodes: ['asset.read'] }],

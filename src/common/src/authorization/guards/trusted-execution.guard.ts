@@ -47,7 +47,9 @@ export class TrustedExecutionGuard implements CanActivate {
 /** Applies exact mode declarations without interpreting legacy body identity or signed operator metadata. */
 function authorize(declaration: RpcAuthorizationModeDeclaration, principalType: string, codes: readonly string[]): void {
   if (declaration.mode === 'SELF_SERVICE') {
-    if (principalType !== 'HUMAN' || codes.length !== 0) {
+    const principalAllowed =
+      principalType === 'HUMAN' || (principalType === 'DELEGATED' && declaration.allowDelegated)
+    if (!principalAllowed || codes.length !== 0) {
       throw denied('self-service execution principal is not allowed')
     }
     return
