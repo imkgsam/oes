@@ -302,6 +302,8 @@ forInternalCall(targetAudience, requiredInternalPermissionCodes)
 - 生成 `authorization`、`x-request-id`、`traceparent`、`tracestate` 与兼容日志关联字段。
 - 不接受调用方传入原始 operator、任意 tenant 或已签名 Token 字符串。
 
+Provider 的组装接缝也固定在 Common 内部：公开 `TrustedGrpcMetadataProviderOptions` 只接受既有的 `AsyncLocalTransportPrivateSourceCredentialAccessor`，不接受 `ExecutionTokenExchangeSourceCredentialCarrier` 具体类型。Provider 在自身内部根据同一 accessor 创建并持有私有 Carrier；Carrier 仍不从 `src/common/src/transport/grpc/index.ts` 或其他公共 barrel 导出，也不允许 Gateway 通过 deep import 构造它。`assertCurrent()` 在 cache hit 与 exchange miss 都保持，`createMetadata()` 只在 exchange miss 中输出 Auth STS 所需的私有 bearer metadata。Gateway DI 必须将同一 accessor 实例同时交给 Vault/Interceptor boundary 与 Provider；这是组装接缝澄清，不是新的 carrier 语义或公共传输途径。
+
 MACHINE root path 实现完成后，无入站请求的 Cron / Robot 先用当前 mTLS `VerifiedWorkloadIdentity` 与 Auth-owned `MachineWorkloadSourceCredential` 建立 root execution context：Auth 验证 source JWS 的 profile/signature/lifetime/revocation、SPIFFE 与当前 leaf thumbprint binding，再用 Identity `ResolveMachinePrincipalForAuth` 验证 active principal 与 `MachineWorkloadBinding` version；随后才按 BUSINESS / INTERNAL 分别取得 Permission decision 并签发既有 ExecutionToken。它继续使用同一 provider，不建立另一套 metadata 工厂。
 
 MACHINE source credential issuance 对 leaf lifetime 的可信输入也由该既有 provider 提供：`GrpcWorkloadIdentityProvider` 必须从 grpc-js adapter 已释放的同一份 transport-verified leaf DER 同时派生 SHA-256 thumbprint 与 `certificateNotAfter: Date`。后者仅作为 provider 返回值的结构扩展交给 Auth Issue path；通用 `VerifiedWorkloadIdentity` 保持不变，其他 ExecutionToken verifier consumer 可以继续只消费 SPIFFE ID 与 thumbprint。metadata、request、environment 与 caller configuration 不能注入或覆盖 `notAfter`；DER parse failure、无效日期或已到期 leaf 在 provider boundary fail closed。
