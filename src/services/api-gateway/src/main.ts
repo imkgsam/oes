@@ -9,6 +9,7 @@ import { AppModule } from './app.module'
 import { GatewayExceptionFilter } from './common/filters/gateway-exception.filter'
 import { ResponseTransformInterceptor } from './common/interceptors/response.interceptor'
 import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor'
+import { GatewayVerifiedSourceCredentialScopeInterceptor } from './common/interceptors/gateway-verified-source-credential-scope.interceptor'
 import { resolveCorsOrigin } from './config/cors-origin.util'
 import { GATEWAY_GLOBAL_PREFIX_EXCLUDES } from './config/gateway-global-prefix'
 import { setupSwagger } from './config/swagger.setup'
@@ -42,7 +43,11 @@ async function bootstrap() {
     })
   )
 
-  app.useGlobalInterceptors(app.get(TimeoutInterceptor), app.get(ResponseTransformInterceptor))
+  app.useGlobalInterceptors(
+    app.get(GatewayVerifiedSourceCredentialScopeInterceptor),
+    app.get(TimeoutInterceptor),
+    app.get(ResponseTransformInterceptor)
+  )
   app.useGlobalFilters(app.get(GatewayExceptionFilter))
 
   const gatewayExceptionFilter = app.get(GatewayExceptionFilter)

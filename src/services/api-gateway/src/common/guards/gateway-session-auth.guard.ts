@@ -4,14 +4,18 @@ import { AccountType, IS_PUBLIC_KEY } from '@oes/common/auth'
 import { ExceptionFactory } from '@oes/common/exceptions'
 import { JWT_INVALID, JWT_MISSING } from '@oes/common/exceptions'
 import { RpcException } from '@nestjs/microservices'
+import { TransportPrivateSourceCredentialIssuer } from '@oes/common/authorization'
 import { AuthGrpcAdapter } from '../../modules/auth-bff/infrastructure/downstream/auth-service/auth-grpc.adapter'
+import { GatewayVerifiedSourceCredentialVault } from '../grpc/gateway-verified-source-credential.vault'
 
 // Validates gateway bearer tokens against auth-service session truth before protected requests proceed.
 @Injectable()
 export class GatewaySessionAuthGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
-    private readonly authAdapter: AuthGrpcAdapter
+    private readonly authAdapter: AuthGrpcAdapter,
+    private readonly vault: GatewayVerifiedSourceCredentialVault,
+    private readonly sourceCredentialIssuer = new TransportPrivateSourceCredentialIssuer()
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -66,6 +70,10 @@ export class GatewaySessionAuthGuard implements CanActivate {
       roles: result.roleIds ?? [],
       typ: AccountType.USER
     }
+    this.vault.admitHumanSession(
+      request,
+      this.sourceCredentialIssuer.issueVerifiedSessionAccessCredential(token)
+    )
     return true
   }
 

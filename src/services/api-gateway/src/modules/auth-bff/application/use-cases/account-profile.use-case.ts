@@ -55,11 +55,8 @@ export class AccountProfileUseCase {
       dto.avatarAssetId
         ? await this.assetAdapter.bindAccountAvatar(
             {
-              accountId: self.accountId,
               newAssetId: dto.avatarAssetId,
-              operatorId: self.accountId,
-              scopeLevel: self.scopeLevel,
-              tenantId: self.tenantId
+              previousAssetId: undefined
             },
             source
           )

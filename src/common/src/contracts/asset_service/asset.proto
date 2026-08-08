@@ -15,10 +15,8 @@ service AssetService {
 }
 
 message UploadAccountAvatarRequest {
-  string scope_level = 1;
-  string tenant_id = 2;
-  string account_id = 3;
-  string operator_id = 4;
+  reserved 1, 2, 3, 4;
+  reserved "scope_level", "tenant_id", "account_id", "operator_id";
   bytes file = 5;
   string file_name = 6;
   string content_type = 7;
@@ -46,10 +44,8 @@ message UploadAccountAvatarResponse {
 }
 
 message BindAccountAvatarRequest {
-  string scope_level = 1;
-  string tenant_id = 2;
-  string account_id = 3;
-  string operator_id = 4;
+  reserved 1, 2, 3, 4;
+  reserved "scope_level", "tenant_id", "account_id", "operator_id";
   string new_asset_id = 5;
   string previous_asset_id = 6;
 }
@@ -60,10 +56,9 @@ message BindAccountAvatarResponse {
 }
 
 message UploadEmployeeOfficialPhotoRequest {
-  string scope_level = 1;
-  string tenant_id = 2;
+  reserved 1, 2, 4;
+  reserved "scope_level", "tenant_id", "operator_id";
   string employee_id = 3;
-  string operator_id = 4;
   bytes file = 5;
   string file_name = 6;
   string content_type = 7;
@@ -74,10 +69,9 @@ message UploadEmployeeOfficialPhotoResponse {
 }
 
 message BindEmployeeOfficialPhotoRequest {
-  string scope_level = 1;
-  string tenant_id = 2;
+  reserved 1, 2, 4;
+  reserved "scope_level", "tenant_id", "operator_id";
   string employee_id = 3;
-  string operator_id = 4;
   string new_asset_id = 5;
   string previous_asset_id = 6;
 }

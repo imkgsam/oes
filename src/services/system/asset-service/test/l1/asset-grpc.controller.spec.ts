@@ -3,6 +3,7 @@ import {
   BindEmployeeOfficialPhotoRequest,
   UploadEmployeeOfficialPhotoRequest
 } from '@oes/common/generated/asset_service'
+import { attachVerifiedExecution } from '@oes/common/authorization'
 import { AssetGrpcController } from '../../src/interfaces/grpc/asset.grpc.controller'
 import {
   BindEmployeeOfficialPhotoCommand,
@@ -40,6 +41,17 @@ function buildEmployeePhotoAsset(overrides: Partial<ConstructorParameters<typeof
 }
 
 describe('AssetGrpcController', () => {
+  /** Attaches a token-derived tenant identity to a generated request without reviving body identity fields. */
+  function trustedTenantRequest<T extends object>(request: T): T {
+    attachVerifiedExecution(request, {
+      verifiedExecutionToken: {
+        subject: 'account-trusted',
+        tenantId: 'tenant-1'
+      } as never,
+      verifiedWorkloadIdentity: {} as never
+    })
+    return request
+  }
   it('exposes generated employee official photo gRPC methods', () => {
     const decoratorSource = AssetServiceControllerMethods.toString()
 
@@ -56,15 +68,12 @@ describe('AssetGrpcController', () => {
       execute: jest.fn()
     }
     const controller = new AssetGrpcController(commandBus as never, queryBus as never)
-    const request: UploadEmployeeOfficialPhotoRequest = {
-      scopeLevel: 'TENANT',
-      tenantId: 'tenant-1',
+    const request = trustedTenantRequest<UploadEmployeeOfficialPhotoRequest>({
       employeeId: 'employee-1',
-      operatorId: 'admin-1',
       file: Buffer.from('avatar'),
       fileName: 'official.webp',
       contentType: 'image/webp'
-    }
+    })
 
     const response = await controller.uploadEmployeeOfficialPhoto(request)
 
@@ -73,7 +82,7 @@ describe('AssetGrpcController', () => {
       scopeLevel: 'TENANT',
       tenantId: 'tenant-1',
       employeeId: 'employee-1',
-      operatorId: 'admin-1',
+      operatorId: 'account-trusted',
       fileName: 'official.webp',
       contentType: 'image/webp'
     })
@@ -97,14 +106,11 @@ describe('AssetGrpcController', () => {
       execute: jest.fn()
     }
     const controller = new AssetGrpcController(commandBus as never, queryBus as never)
-    const request: BindEmployeeOfficialPhotoRequest = {
-      scopeLevel: 'TENANT',
-      tenantId: 'tenant-1',
+    const request = trustedTenantRequest<BindEmployeeOfficialPhotoRequest>({
       employeeId: 'employee-1',
-      operatorId: 'admin-1',
       newAssetId: 'asset-employee-2',
       previousAssetId: 'asset-employee-1'
-    }
+    })
 
     const response = await controller.bindEmployeeOfficialPhoto(request)
 
@@ -113,7 +119,7 @@ describe('AssetGrpcController', () => {
       scopeLevel: 'TENANT',
       tenantId: 'tenant-1',
       employeeId: 'employee-1',
-      operatorId: 'admin-1',
+      operatorId: 'account-trusted',
       newAssetId: 'asset-employee-2',
       previousAssetId: 'asset-employee-1'
     })

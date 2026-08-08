@@ -8,6 +8,11 @@ import { S3CompatibleObjectStorageAdaptor } from '../../infrastructure/adaptors/
 import { PrismaModule } from '../../infrastructure/prisma/prisma.module'
 import { PrismaAssetRepository } from '../../infrastructure/repositories/prisma/prisma.asset.repository'
 import { AssetGrpcController } from '../../interfaces/grpc/asset.grpc.controller'
+import { createLazyTrustedExecutionRuntime, TrustedExecutionGuard } from '@oes/common/authorization'
+import { Reflector } from '@nestjs/core'
+
+const ASSET_AUDIENCE = 'urn:oes:service:asset-service'
+const trustedExecutionRuntime = createLazyTrustedExecutionRuntime(ASSET_AUDIENCE)
 
 @Module({
   imports: [CqrsModule, PrismaModule],
@@ -22,6 +27,17 @@ import { AssetGrpcController } from '../../interfaces/grpc/asset.grpc.controller
     },
     ValidatingCommandBus,
     ValidatingQueryBus,
+    {
+      provide: TrustedExecutionGuard,
+      useFactory: (reflector: Reflector) =>
+        new TrustedExecutionGuard(
+          reflector,
+          trustedExecutionRuntime.verifier,
+          trustedExecutionRuntime.workloadIdentityProvider,
+          ASSET_AUDIENCE
+        ),
+      inject: [Reflector]
+    },
     ...AvatarCommandHandlers,
     ...AvatarQueryHandlers
   ],

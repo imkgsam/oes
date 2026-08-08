@@ -2,6 +2,7 @@ export { GrpcTransportModule } from './grpc-transport.module'
 export { GrpcClientManager } from './grpc-client.manager'
 export { GrpcConnectionPool } from './grpc-connection-pool'
 export { InjectGrpcClient } from './grpc-client.decorator'
+export { ExecutionTokenExchangeSourceCredentialCarrier } from './execution-token-exchange-source-credential.carrier'
 export { getGrpcClientToken, GRPC_MODULE_OPTIONS } from './grpc.constants'
 export {
   GrpcModuleOptions,
