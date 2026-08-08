@@ -131,7 +131,7 @@ This permits gradual delivery without a dual-trust resource server.
 | TG-2 | Auth Service owner | `src/common/src/contracts/auth_service/execution_token.proto`, `src/services/system/auth-service/src/{application,domain,infrastructure,interfaces,modules}/**`, Auth Prisma and tests | STS exchange, signed single-audience Token, JWKS, cache-compatible TTL, audited issuance and dedicated MACHINE source-credential lifecycle/verifier; the MACHINE sub-slice may write only the exact §5.1 manifest; DG-1/DG-2 gate production completion |
 | TG-3 | Identity + Auth credential migration owners | `src/common/src/contracts/identity_service/identity_query.proto`, Identity Machine Principal/binding paths, Auth credential paths, Identity/Auth `prisma/**` and focused tests | `FROZEN_PENDING_IMPLEMENTATION`: Machine Principal and `MachineWorkloadBinding` remain Identity-owned; implementation will add `ResolveMachinePrincipalForAuth` on the existing Identity surface; the MACHINE sub-slice may write only the exact §5.1 manifest; API Key remains a distinct Auth-owned profile; DG-3 gates external opening |
 | TG-4 | Permission + Common Permission owners | `src/common/src/authorization/permission-codes/**`, `src/common/src/contracts/permission_service/permission_check.proto`, generated output, Permission source / Prisma / tests | Existing `PermissionCheckService` gains Auth-only `ResolveWorkloadIssuance` mTLS bootstrap decision and ExecutionToken-protected `ResolvePrincipalAuthorization`; exact INTERNAL Codes including `identity.internal.machine_principal.resolve`, all-or-nothing decisions, audit and catalog sync; the MACHINE sub-slice may write only the exact §5.1 manifest; DG-5 gates schema migration |
-| TG-5 | API Gateway owner | `src/services/api-gateway/src/common/grpc/**`, tenant-aware permission guard, all target-specific downstream adapters and tests | Session/root execution construction and target-specific producer preparation for every migrated service |
+| TG-5 | API Gateway owner | Target-specific downstream adapters/tests plus the exact Gateway lifecycle paths frozen by §5.2; descriptive Gateway directory ranges do not grant this lifecycle slice additional writes | Per-request verified source-credential lifecycle, session/root execution construction and target-specific producer preparation for every migrated service |
 | TG-VERIFY | Integration / Security owner | `scripts/local/trusted-grpc-*.mjs`, target-specific fixtures and deployment test configuration | Per-service acceptance evidence plus final repository-wide proof |
 
 `src/common/src/generated/**` is changed only through `pnpm proto:regen`. Shared paths remain single-writer.
@@ -318,6 +318,77 @@ machineWorkloadImplementationLease:
 The manifest is closed rather than advisory and contains exactly 68 tracked writer paths: adding another tracked file, renaming a `NEW_TARGET`, tracking ignored generated output, touching a protected path, or needing a contract/schema/runtime path not listed here is a design-scope change and must return to Unified Design before implementation continues. Shared files remain single-writer under the registered capability owner.
 
 Audit reuse does not add another tracked writer path. Auth reuses `src/services/system/auth-service/prisma/schema.prisma` model `AuditEvent`; the leased new `prisma.machine-workload-source-credential.repository.ts` owns the transaction that writes credential state and its audit row together. Identity follows the same pattern with its existing `AuditEvent` model and leased new `prisma.machine-workload-binding.repository.ts`. Existing generic audit repositories/listeners remain protected and need no modification; no new audit table, event bus, outbox or central-audit owner is introduced by this MACHINE slice.
+
+### 5.2 Gateway verified source credential exact implementation lease
+
+Status is `FROZEN_PENDING_IMPLEMENTATION`. This lease implements only the Gateway request lifecycle frozen in [Gateway / BFF architecture](../../architecture/11-gateway-and-bff-architecture.md) §9.5. It does not grant Asset RPC changes, target-adapter migration, Common carrier changes, Auth/session semantics, external API-key changes, proto/schema/runtime outside Gateway, or any other Gateway path. `EXISTING` means the file exists at base `024579598c1293807d3f1cd5e7003aefd8e8fa0a`; `NEW_TARGET` is the exact permitted future file name.
+
+```yaml
+gatewayVerifiedSourceCredentialLifecycleLease:
+  trackedWriterPaths:
+    gatewayEntryAndComposition:
+      - { state: EXISTING, path: src/services/api-gateway/src/app.module.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/main.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/security/index.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/security/composition/gateway-source-credential.providers.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/security/composition/gateway-source-credential.providers.spec.ts }
+
+    verifiedSessionAdmission:
+      - { state: EXISTING, path: src/services/api-gateway/src/common/guards/gateway-session-auth.guard.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/common/guards/gateway-session-auth.guard.spec.ts }
+
+    privateVaultAndScope:
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-verified-source-credential.vault.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-verified-source-credential.vault.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-verified-source-credential.boundary.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-verified-source-credential.boundary.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution-producer.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/index.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/common/interceptors/gateway-verified-source-credential-scope.interceptor.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/common/interceptors/gateway-verified-source-credential-scope.interceptor.spec.ts }
+
+  protectedPaths:
+    - src/common/src/authorization/trusted-execution/transport-private-source-credential.ts
+    - src/services/api-gateway/src/common/external-api/**
+    - src/services/api-gateway/src/modules/**
+    - src/services/system/**
+    - src/common/src/contracts/**
+    - src/common/src/generated/**
+
+  frozenLifecycle:
+    owner: GatewayVerifiedSourceCredentialVault
+    storage: request-keyed private WeakMap containing only credential kind plus Common opaque handle
+    admission: only after the owning verifier succeeds; HUMAN_SESSION is admitted by GatewaySessionAuthGuard
+    scopeOwner: GatewayVerifiedSourceCredentialScopeInterceptor registered explicitly in main.ts
+    interceptorOrder: credential-scope, timeout, response-transform, controller-and-awaited-downstream
+    subscriptionRule: next.handle actual subscription occurs inside the Common transport-private accessor scope
+    cleanup: idempotent on later-guard rejection, complete, error, timeout, cancel, unsubscribe and disconnect
+    isolation: one scope per protected external request; concurrent requests never share entries
+    absentScope: public, invalid and sessionless routes create no credential scope
+    credentialKinds: HUMAN_SESSION and EXTERNAL_API remain verifier-separated and non-interchangeable
+    cacheRule: every ExecutionToken exchange or cache hit requires the current verified request scope
+
+  focusedAcceptance:
+    - no scope exists before successful owner verification or for public, invalid and sessionless routes
+    - one verified request exposes its credential only during the actual nested awaited downstream subscription
+    - concurrent requests cannot observe or consume each other's entry
+    - complete, error, timeout, cancel, unsubscribe, disconnect and later-guard denial leave no reusable entry
+    - raw bearer and opaque handle are absent from request.user, enumerable request state, DTO, TrustedExecutionContext, logs, errors, JSON and Node inspection
+    - adapter/header/body injection cannot create authority and adapters do not reread HTTP Authorization
+    - an ExecutionToken cache hit fails without the current verified request source credential
+    - provider tests prove the fixed Guard order and explicit main.ts interceptor order; APP_INTERCEPTOR and request-scoped-provider registration are absent
+
+  verificationCommands:
+    build:
+      - pnpm --filter api-gateway build
+    focusedTests:
+      - pnpm --filter api-gateway exec jest --runInBand --runTestsByPath src/common/guards/gateway-session-auth.guard.spec.ts src/common/grpc/gateway-verified-source-credential.vault.spec.ts src/common/grpc/gateway-verified-source-credential.boundary.spec.ts src/common/grpc/gateway-trusted-grpc-execution-producer.spec.ts src/common/interceptors/gateway-verified-source-credential-scope.interceptor.spec.ts src/security/composition/gateway-source-credential.providers.spec.ts src/security/composition/gateway-guard.providers.spec.ts
+    ownership:
+      - git diff --name-only <base>..<candidate>
+      - git status --short
+```
+
+The lifecycle manifest is closed rather than advisory and contains exactly 15 tracked writer paths. Any additional tracked file, renamed `NEW_TARGET`, Common carrier change, target adapter write, external verifier write or alternate DI seam is a design-scope change and returns to Unified Design. Existing Common opaque-handle and AsyncLocal accessor behavior is consumed as frozen infrastructure rather than redefined here.
 
 ## 6. Static Dependency Evidence And Recommended Order
 
