@@ -17,6 +17,7 @@ import {
 import { TrustedExecutionRegistry } from './trusted-execution-registry'
 import { VerifiedWorkloadIdentity } from './execution-token-verifier'
 import { ExecutionTokenExchangeSourceCredentialCarrier } from '../../transport/grpc/execution-token-exchange-source-credential.carrier'
+import { AsyncLocalTransportPrivateSourceCredentialAccessor } from './transport-private-source-credential'
 
 /** Carries exactly the two caller-prepared fields admitted by the frozen STS wire contract. */
 export type ExecutionTokenExchangeRequest = {
@@ -54,7 +55,7 @@ export type TrustedGrpcMetadataProviderOptions = {
   readonly registry: TrustedExecutionRegistry
   readonly tokenCache: CertificateBoundExecutionTokenCache
   readonly exchangeClient: ExecutionTokenExchangeClient
-  readonly sourceCredentialCarrier: ExecutionTokenExchangeSourceCredentialCarrier
+  readonly sourceCredentialAccessor: AsyncLocalTransportPrivateSourceCredentialAccessor
   readonly localWorkloadIdentity: LocalWorkloadIdentityProvider
   readonly now?: () => number
 }
@@ -74,7 +75,9 @@ export class TrustedGrpcMetadataProvider {
     this.registry = options.registry
     this.tokenCache = options.tokenCache
     this.exchangeClient = options.exchangeClient
-    this.sourceCredentialCarrier = options.sourceCredentialCarrier
+    this.sourceCredentialCarrier = new ExecutionTokenExchangeSourceCredentialCarrier(
+      options.sourceCredentialAccessor
+    )
     this.localWorkloadIdentity = options.localWorkloadIdentity
     this.now = options.now ?? (() => Math.floor(Date.now() / 1000))
   }

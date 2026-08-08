@@ -1,6 +1,10 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { renderCommonPermissionCodeFiles } from '../../src/scripts/generate-common-permission-codes'
+import {
+  ASSET_INTERNAL_PERMISSION_CODES,
+  PERMISSION_CODE_SEED_ITEMS
+} from '../../src/scripts/permission-catalog'
 
 function collectRelativeFiles(rootDir: string, currentDir = rootDir): string[] {
   return readdirSync(currentDir, { withFileTypes: true }).flatMap((entry) => {
@@ -70,5 +74,21 @@ describe('common permission code generator', () => {
 
       expect(parseConstExport(renderedContent ?? '')).toEqual(parseConstExport(currentContent))
     }
+  })
+
+  it('derives Asset internal codes and seed rows from the canonical catalog', () => {
+    const assetCode = ASSET_INTERNAL_PERMISSION_CODES.AVATAR_RESOLVE_PUBLIC_URL
+    const renderedAssetCodes = renderCommonPermissionCodeFiles().get(
+      'asset/internal.permission-codes.ts'
+    )
+    const assetSeed = PERMISSION_CODE_SEED_ITEMS.find((item) => item.code === assetCode)
+
+    expect(assetCode).toBe('asset.internal.avatar.resolve_public_url')
+    expect(renderedAssetCodes).toContain(`AVATAR_RESOLVE_PUBLIC_URL: '${assetCode}'`)
+    expect(assetSeed).toMatchObject({
+      code: assetCode,
+      kind: 'INTERNAL',
+      externalApiEligible: false
+    })
   })
 })

@@ -25,15 +25,37 @@ describe('GatewayVerifiedSourceCredentialVault', () => {
   it('retains only opaque, non-enumerable bearer handles', () => {
     const vault = new GatewayVerifiedSourceCredentialVault()
     const request = {}
-    const handle = new TransportPrivateSourceCredentialIssuer().issueVerifiedSessionAccessCredential(
-      'session.credential.redacted'
-    )
+    const handle =
+      new TransportPrivateSourceCredentialIssuer().issueVerifiedSessionAccessCredential(
+        'session.credential.redacted'
+      )
 
     vault.admitHumanSession(request, handle)
     const entry = vault.consume(request)!
 
     expect(JSON.stringify(entry)).not.toContain('session.credential.redacted')
     expect(String(entry.credential)).not.toContain('session.credential.redacted')
-    expect(new AsyncLocalTransportPrivateSourceCredentialAccessor().run(entry.credential, () => true)).toBe(true)
+    expect(
+      new AsyncLocalTransportPrivateSourceCredentialAccessor().run(entry.credential, () => true)
+    ).toBe(true)
+  })
+
+  it('cleans later-guard rejections and terminal response events idempotently', () => {
+    const vault = new GatewayVerifiedSourceCredentialVault()
+    const request = {}
+    const response = new (require('node:events').EventEmitter)()
+    const credential =
+      new TransportPrivateSourceCredentialIssuer().issueVerifiedSessionAccessCredential(
+        'session.lifecycle.credential'
+      )
+
+    vault.admitHumanSession(request, credential, response)
+    response.emit('finish')
+    response.emit('close')
+    vault.clear(request)
+
+    expect(vault.consume(request)).toBeUndefined()
+    expect(response.listenerCount('finish')).toBe(0)
+    expect(response.listenerCount('close')).toBe(0)
   })
 })

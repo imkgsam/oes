@@ -1019,6 +1019,15 @@ const siteManagement = definePermissionGroup(Modules.SITE_SERVICE, {
   PREVIEW: { code: 'site.management.preview', description: '签发站点草稿预览 token' }
 })
 
+const assetInternal = definePermissionGroup(Modules.ASSET_SERVICE, {
+  AVATAR_RESOLVE_PUBLIC_URL: {
+    code: 'asset.internal.avatar.resolve_public_url',
+    description: '解析受控头像公开展示地址',
+    kind: PermissionKind.INTERNAL,
+    externalApiEligible: false
+  }
+})
+
 export const PERMISSION_MANAGEMENT_PERMISSION_CODES = permissionManagement.codes
 export const PERMISSION_INTERNAL_PERMISSION_CODES = permissionInternal.codes
 export const ROLE_TEMPLATE_PERMISSION_CODES = roleTemplateManagement.codes
@@ -1052,6 +1061,7 @@ export const TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES = terminalDeviceManagem
 export const BROWSER_EXTENSION_DESIGNER_PERMISSION_CODES = browserExtensionDesigner.codes
 export const BROWSER_ACTIVITY_AUDIT_PERMISSION_CODES = browserActivityAudit.codes
 export const SITE_MANAGEMENT_PERMISSION_CODES = siteManagement.codes
+export const ASSET_INTERNAL_PERMISSION_CODES = assetInternal.codes
 
 /** DEPRECATED_PERMISSION_CODES tracks legacy permission rows that should be cleaned from local/dev seed data. */
 export const DEPRECATED_PERMISSION_CODES = [
@@ -1104,5 +1114,6 @@ export const PERMISSION_CODE_SEED_ITEMS: PermissionSeedItem[] = [
   ...terminalDeviceManagement.items,
   ...browserExtensionDesigner.items,
   ...browserActivityAudit.items,
-  ...siteManagement.items
+  ...siteManagement.items,
+  ...assetInternal.items
 ]

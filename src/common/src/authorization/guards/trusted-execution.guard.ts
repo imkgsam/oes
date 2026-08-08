@@ -23,19 +23,22 @@ export class TrustedExecutionGuard implements CanActivate {
       RPC_AUTHORIZATION_MODE_METADATA_KEY,
       [context.getHandler(), context.getClass()]
     )
-    if (declaration === undefined) return true
+    if (declaration === undefined) throw denied('trusted execution authorization mode is missing')
     const rpc = context.switchToRpc()
     const token = getGrpcAuthorizationBearer(rpc.getContext<Metadata>(), AUTHORIZATION_METADATA_KEY)
     if (!token) throw denied('trusted execution token is missing')
+    const workloadIdentity = await this.workloadIdentityProvider.getVerifiedWorkloadIdentity(
+      context.getArgByIndex(2)
+    )
     const verified = await this.verifier.verify({
       token,
       targetAudience: this.targetAudience,
-      workloadIdentity: await this.workloadIdentityProvider.getVerifiedWorkloadIdentity(context.getArgByIndex(2))
+      workloadIdentity
     })
     authorize(declaration, verified.principalType, verified.permissionCodes)
     attachVerifiedExecution(rpc.getData(), {
       verifiedExecutionToken: verified,
-      verifiedWorkloadIdentity: await this.workloadIdentityProvider.getVerifiedWorkloadIdentity(context.getArgByIndex(2))
+      verifiedWorkloadIdentity: workloadIdentity
     })
     return true
   }
@@ -44,7 +47,7 @@ export class TrustedExecutionGuard implements CanActivate {
 /** Applies exact mode declarations without interpreting legacy body identity or signed operator metadata. */
 function authorize(declaration: RpcAuthorizationModeDeclaration, principalType: string, codes: readonly string[]): void {
   if (declaration.mode === 'SELF_SERVICE') {
-    if (principalType !== 'HUMAN' && !(declaration.allowDelegated && principalType === 'DELEGATED')) {
+    if (principalType !== 'HUMAN' || codes.length !== 0) {
       throw denied('self-service execution principal is not allowed')
     }
     return

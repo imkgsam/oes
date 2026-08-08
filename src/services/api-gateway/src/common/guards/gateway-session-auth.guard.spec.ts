@@ -16,11 +16,12 @@ describe('GatewaySessionAuthGuard', () => {
     const request = {
       headers: { authorization: 'Bearer verified.session.credential' }
     }
+    const response = { once: jest.fn(), removeListener: jest.fn() }
     const context = {
       getType: () => 'http',
       getHandler: () => undefined,
       getClass: () => undefined,
-      switchToHttp: () => ({ getRequest: () => request })
+      switchToHttp: () => ({ getRequest: () => request, getResponse: () => response })
     }
     const reflector = { getAllAndOverride: jest.fn().mockReturnValue(false) }
 
@@ -28,7 +29,7 @@ describe('GatewaySessionAuthGuard', () => {
       new (GatewaySessionAuthGuard as any)(reflector, authAdapter, vault).canActivate(context)
     ).resolves.toBe(true)
 
-    expect(vault.admitHumanSession).toHaveBeenCalledWith(request, expect.any(Object))
+    expect(vault.admitHumanSession).toHaveBeenCalledWith(request, expect.any(Object), response)
     expect(request).not.toHaveProperty('sourceCredential')
     expect(request).not.toHaveProperty('user.sourceCredential')
   })

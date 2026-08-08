@@ -13,7 +13,6 @@ import {
   TrustedGrpcMetadataProvider
 } from './trusted-grpc-metadata-provider'
 import { TrustedExecutionRegistry } from './trusted-execution-registry'
-import { ExecutionTokenExchangeSourceCredentialCarrier } from '../../transport/grpc/execution-token-exchange-source-credential.carrier'
 
 const NOW_SECONDS = 1_800_000_000
 const AUDIENCE = 'urn:oes:service:asset-service'
@@ -55,9 +54,7 @@ function providerFixture(exchange: ExecutionTokenExchangeClient) {
       refreshMarginSeconds: 30
     }),
     exchangeClient: exchange,
-    sourceCredentialCarrier: new ExecutionTokenExchangeSourceCredentialCarrier(
-      sourceCredentialAccessor
-    ),
+    sourceCredentialAccessor,
     localWorkloadIdentity: {
       getVerifiedWorkloadIdentity: async () => ({
         spiffeId: SPIFFE_ID,

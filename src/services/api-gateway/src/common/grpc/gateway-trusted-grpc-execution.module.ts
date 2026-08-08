@@ -6,7 +6,7 @@ import {
   TrustedExecutionRegistry,
   TrustedGrpcMetadataProvider
 } from '@oes/common/authorization'
-import { ExecutionTokenExchangeSourceCredentialCarrier, readLocalVerifiedWorkloadIdentity } from '@oes/common/transport'
+import { readLocalVerifiedWorkloadIdentity } from '@oes/common/transport'
 import { GatewayAssetGrpcClient } from './gateway-asset-grpc.client'
 import { GatewayAuthExecutionTokenExchangeClient } from './gateway-auth-execution-token-exchange.client'
 import { GatewayTrustedGrpcExecutionProducer } from './gateway-trusted-grpc-execution-producer'
@@ -19,12 +19,6 @@ const ASSET_AUDIENCE = 'urn:oes:service:asset-service'
   providers: [
     AsyncLocalTransportPrivateSourceCredentialAccessor,
     AsyncLocalTrustedExecutionContextAccessor,
-    {
-      provide: ExecutionTokenExchangeSourceCredentialCarrier,
-      useFactory: (accessor: AsyncLocalTransportPrivateSourceCredentialAccessor) =>
-        new ExecutionTokenExchangeSourceCredentialCarrier(accessor),
-      inject: [AsyncLocalTransportPrivateSourceCredentialAccessor]
-    },
     GatewayAssetGrpcClient,
     {
       provide: GatewayAuthExecutionTokenExchangeClient,
@@ -48,16 +42,16 @@ const ASSET_AUDIENCE = 'urn:oes:service:asset-service'
         registry: TrustedExecutionRegistry,
         tokenCache: CertificateBoundExecutionTokenCache,
         exchangeClient: GatewayAuthExecutionTokenExchangeClient,
-        sourceCredentialCarrier: ExecutionTokenExchangeSourceCredentialCarrier
+        sourceCredentialAccessor: AsyncLocalTransportPrivateSourceCredentialAccessor
       ) => new TrustedGrpcMetadataProvider({
         contextAccessor,
         registry,
         tokenCache,
         exchangeClient,
-        sourceCredentialCarrier,
+        sourceCredentialAccessor,
         localWorkloadIdentity: { getVerifiedWorkloadIdentity: async () => readLocalVerifiedWorkloadIdentity() }
       }),
-      inject: [AsyncLocalTrustedExecutionContextAccessor, TrustedExecutionRegistry, CertificateBoundExecutionTokenCache, GatewayAuthExecutionTokenExchangeClient, ExecutionTokenExchangeSourceCredentialCarrier]
+      inject: [AsyncLocalTrustedExecutionContextAccessor, TrustedExecutionRegistry, CertificateBoundExecutionTokenCache, GatewayAuthExecutionTokenExchangeClient, AsyncLocalTransportPrivateSourceCredentialAccessor]
     },
     {
       provide: GatewayTrustedGrpcExecutionProducer,

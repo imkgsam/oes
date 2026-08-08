@@ -4,6 +4,7 @@ import {
   AUTH_MANAGEMENT_PERMISSION_CODES,
   AUTH_SELF_PERMISSION_CODES,
   AUTH_SESSION_PERMISSION_CODES,
+  ASSET_INTERNAL_PERMISSION_CODES,
   BROWSER_ACTIVITY_AUDIT_PERMISSION_CODES,
   COLLABORATION_ANNOTATION_PERMISSION_CODES,
   COLLABORATION_TASK_PERMISSION_CODES,
@@ -62,6 +63,7 @@ const COMMON_PERMISSION_CODE_FILES: CommonPermissionCodeFileDefinition[] = [
     relativePath: 'index.ts',
     exports: [
       './auth',
+      './asset',
       './browser-activity',
       './collaboration',
       './crm',
@@ -80,6 +82,17 @@ const COMMON_PERMISSION_CODE_FILES: CommonPermissionCodeFileDefinition[] = [
       './terminal-device',
       './wms'
     ]
+  },
+  {
+    kind: 'index',
+    relativePath: 'asset/index.ts',
+    exports: ['./internal.permission-codes']
+  },
+  {
+    kind: 'const',
+    relativePath: 'asset/internal.permission-codes.ts',
+    constName: 'ASSET_INTERNAL_PERMISSION_CODES',
+    records: ASSET_INTERNAL_PERMISSION_CODES
   },
   {
     kind: 'index',

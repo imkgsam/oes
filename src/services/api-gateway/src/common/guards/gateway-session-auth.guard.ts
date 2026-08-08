@@ -5,7 +5,7 @@ import { ExceptionFactory } from '@oes/common/exceptions'
 import { JWT_INVALID, JWT_MISSING } from '@oes/common/exceptions'
 import { RpcException } from '@nestjs/microservices'
 import { TransportPrivateSourceCredentialIssuer } from '@oes/common/authorization'
-import { AuthGrpcAdapter } from '../../modules/auth-bff/infrastructure/downstream/auth-service/auth-grpc.adapter'
+import type { AuthGrpcAdapter } from '../../modules/auth-bff/infrastructure/downstream/auth-service/auth-grpc.adapter'
 import { GatewayVerifiedSourceCredentialVault } from '../grpc/gateway-verified-source-credential.vault'
 
 // Validates gateway bearer tokens against auth-service session truth before protected requests proceed.
@@ -28,7 +28,8 @@ export class GatewaySessionAuthGuard implements CanActivate {
 
     if (context.getType() !== 'http') return false
 
-    const request = context.switchToHttp().getRequest()
+    const http = context.switchToHttp()
+    const request = http.getRequest()
     const authHeader = request.headers['authorization'] || request.headers['Authorization']
     if (!authHeader || !String(authHeader).startsWith('Bearer ')) {
       throw ExceptionFactory.application(JWT_MISSING)
@@ -72,7 +73,8 @@ export class GatewaySessionAuthGuard implements CanActivate {
     }
     this.vault.admitHumanSession(
       request,
-      this.sourceCredentialIssuer.issueVerifiedSessionAccessCredential(token)
+      this.sourceCredentialIssuer.issueVerifiedSessionAccessCredential(token),
+      http.getResponse()
     )
     return true
   }

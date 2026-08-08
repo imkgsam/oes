@@ -17,7 +17,12 @@ export class GatewayVerifiedSourceCredentialScopeInterceptor implements NestInte
     const request = context.switchToHttp().getRequest<object>()
     const response = context.switchToHttp().getResponse<Response>()
     const entry = this.vault.consume(request)
-    if (entry === undefined) return next.handle()
+    if (entry === undefined) {
+      if ((request as Record<string, unknown>).user !== undefined) {
+        throw new Error('Verified source credential is required for a protected request')
+      }
+      return next.handle()
+    }
 
     return new Observable((subscriber) => {
       let subscription: Subscription | undefined
