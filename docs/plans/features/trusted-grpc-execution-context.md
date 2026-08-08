@@ -127,7 +127,7 @@ This permits gradual delivery without a dual-trust resource server.
 | Lane | Owner | Allowed write paths | Required output |
 | --- | --- | --- | --- |
 | TG-0 | Deployment / SRE | `docker-compose.yml`, new `docker/grpc-trust/**`, new `docs/runbooks/trusted-grpc-workload-identity.md`, new `scripts/local/trusted-grpc-transport-smoke.mjs`, assigned production deployment repository | Per-workload certificates / SPIFFE-compatible identity, trust bundle, rotation and transport acceptance; DG-1 gates production values |
-| TG-1 | Common platform / contract owner | `src/common/src/contracts/buf.gen.yaml`, `src/common/src/generated/**`, `src/common/src/authorization/trusted-execution/**`, `src/common/src/transport/grpc/**`, reviewed exports and focused tests | `addGrpcMetadata=true`, decorators, verifier, immutable context, provider, mode scanner, process-local cache and inventory script |
+| TG-1 | Common platform / contract owner | `src/common/src/contracts/buf.gen.yaml`, `src/common/src/generated/**`, `src/common/src/authorization/trusted-execution/**`, `src/common/src/transport/grpc/**`, reviewed exports and focused tests; the Provider composition seam is restricted by the exact §5.3 lease | `addGrpcMetadata=true`, decorators, verifier, immutable context, provider, mode scanner, process-local cache and inventory script |
 | TG-2 | Auth Service owner | `src/common/src/contracts/auth_service/execution_token.proto`, `src/services/system/auth-service/src/{application,domain,infrastructure,interfaces,modules}/**`, Auth Prisma and tests | STS exchange, signed single-audience Token, JWKS, cache-compatible TTL, audited issuance and dedicated MACHINE source-credential lifecycle/verifier; the MACHINE sub-slice may write only the exact §5.1 manifest; DG-1/DG-2 gate production completion |
 | TG-3 | Identity + Auth credential migration owners | `src/common/src/contracts/identity_service/identity_query.proto`, Identity Machine Principal/binding paths, Auth credential paths, Identity/Auth `prisma/**` and focused tests | `FROZEN_PENDING_IMPLEMENTATION`: Machine Principal and `MachineWorkloadBinding` remain Identity-owned; implementation will add `ResolveMachinePrincipalForAuth` on the existing Identity surface; the MACHINE sub-slice may write only the exact §5.1 manifest; API Key remains a distinct Auth-owned profile; DG-3 gates external opening |
 | TG-4 | Permission + Common Permission owners | `src/common/src/authorization/permission-codes/**`, `src/common/src/contracts/permission_service/permission_check.proto`, generated output, Permission source / Prisma / tests | Existing `PermissionCheckService` gains Auth-only `ResolveWorkloadIssuance` mTLS bootstrap decision and ExecutionToken-protected `ResolvePrincipalAuthorization`; exact INTERNAL Codes including `identity.internal.machine_principal.resolve`, all-or-nothing decisions, audit and catalog sync; the MACHINE sub-slice may write only the exact §5.1 manifest; DG-5 gates schema migration |
@@ -389,6 +389,56 @@ gatewayVerifiedSourceCredentialLifecycleLease:
 ```
 
 The lifecycle manifest is closed rather than advisory and contains exactly 15 tracked writer paths. Any additional tracked file, renamed `NEW_TARGET`, Common carrier change, target adapter write, external verifier write or alternate DI seam is a design-scope change and returns to Unified Design. Existing Common opaque-handle and AsyncLocal accessor behavior is consumed as frozen infrastructure rather than redefined here.
+
+### 5.3 Common STS source-credential composition exact implementation lease
+
+Status is `FROZEN_PENDING_IMPLEMENTATION`. This is the only Common change needed to make Gateway composition use the already-frozen private source-credential carrier. `EXISTING` means the file exists at base `32607c7aa017df9539d2999f97f9b274dbd46a78`; no new file, proto, schema, barrel export or carrier path is permitted.
+
+```yaml
+commonStsSourceCredentialCompositionLease:
+  trackedWriterPaths:
+    provider:
+      - { state: EXISTING, path: src/common/src/authorization/trusted-execution/trusted-grpc-metadata-provider.ts }
+      - { state: EXISTING, path: src/common/src/authorization/trusted-execution/trusted-grpc-metadata-provider.spec.ts }
+
+  protectedPaths:
+    - src/common/src/transport/grpc/execution-token-exchange-source-credential.carrier.ts
+    - src/common/src/transport/grpc/index.ts
+    - src/common/src/authorization/index.ts
+    - src/common/src/authorization/trusted-execution/index.ts
+    - src/common/src/generated/**
+    - src/common/src/contracts/**
+    - src/services/api-gateway/src/**
+
+  frozenSeam:
+    publicOption: "TrustedGrpcMetadataProviderOptions accepts sourceCredentialAccessor: AsyncLocalTransportPrivateSourceCredentialAccessor"
+    privateConstruction: TrustedGrpcMetadataProvider constructs its private ExecutionTokenExchangeSourceCredentialCarrier internally from that accessor
+    sharedInstance: Gateway supplies the same accessor instance to its Vault/Interceptor boundary and TrustedGrpcMetadataProvider
+    cacheGate: assertCurrent remains mandatory on both cache hit and exchange miss
+    exchangeMetadata: createMetadata remains the only place that emits Auth STS authorization metadata, and only on exchange miss
+    visibility: carrier stays non-exported from transport/grpc/index.ts and all other public barrels; no deep import
+    semantics: carrier validation, metadata shape, mTLS transport and ExecutionToken claims remain unchanged
+
+  focusedAcceptance:
+    - Provider can be constructed with the public accessor option and no private carrier is imported by Gateway
+    - Common public barrel does not export ExecutionTokenExchangeSourceCredentialCarrier
+    - missing current source credential fails closed before both cache reuse and exchange
+    - current source credential is used only for Auth STS exchange metadata and never enters target metadata, DTO or TrustedExecutionContext
+    - exact target audience, canonical Permission Code set, cache key and certificate binding behavior remain unchanged
+
+  verificationCommands:
+    build:
+      - pnpm --filter @oes/common build
+    focusedTests:
+      - pnpm exec jest --runInBand --runTestsByPath src/common/src/authorization/trusted-execution/trusted-grpc-metadata-provider.spec.ts
+      - pnpm --filter api-gateway exec jest --runInBand --runTestsByPath src/security/composition/gateway-source-credential.providers.spec.ts
+    ownership:
+      - git diff --name-only <base>..<candidate>
+      - git diff --check <base>..<candidate>
+      - git status --short
+```
+
+This Common lease contains exactly two existing writer paths. A change to the carrier, transport barrel, public export surface, Gateway files, proto/schema/generated output or Token semantics is a design-scope change and returns to Unified Design.
 
 ## 6. Static Dependency Evidence And Recommended Order
 
