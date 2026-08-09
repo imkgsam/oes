@@ -35,8 +35,8 @@ programControlBranch: codex/oes-program-control-migration
 | 项目 | Handoff 状态 | 2026-08-04 本地只读核验 |
 | --- | --- | --- |
 | Repository root | `/Users/acehood/Documents/GitHub/oes` | 路径存在；`main` 工作树 clean |
-| `main` | `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` | 当前 `c7bda1c487aafc95e356d456a878ba81626c235d`；AI、Principal Authorization、ActionGrant design、Permission、GRPC carrier、EXEC-CRYPTO HUMAN、完整MACHINE source-verifier、GRPC Asset token-only cutover及SITE recovery design经唯一I&V lane ff-only推进 |
-| `origin/main` | `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` | 当前本地 remote-tracking ref 与 I&V 记录的 remote `refs/heads/main` 均为 `c7bda1c487aafc95e356d456a878ba81626c235d` |
+| `main` | `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` | 当前 `547a0c5d55f9a955543779ec584a16e9b05cf453`；AI、Principal Authorization、ActionGrant design、Permission、GRPC carrier、EXEC-CRYPTO HUMAN、完整MACHINE source-verifier、GRPC Asset token-only cutover及SITE recovery经唯一I&V lane ff-only推进 |
+| `origin/main` | `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` | 当前本地 remote-tracking ref 与 I&V 记录的 remote `refs/heads/main` 均为 `547a0c5d55f9a955543779ec584a16e9b05cf453` |
 | Legacy formal A/* threads | 101 | 仅保留 handoff 汇总计数；未读取或唤醒线程 |
 | Worktrees | 29 | 当前 39；新增项为本 Program Control、AI Platform completion、Integration & Verification、Unified Design、Permission decision RPC、GRPC carrier rebuild、EXEC-CRYPTO remediation、MACHINE workload source-verifier、GRPC Asset current-main rebuild与SITE trusted-gRPC recovery worktree |
 | `codex/*` branches | 23 | 当前 33；新增项为 `codex/oes-program-control-migration`、`codex/migration/ai-platform-completion`、`codex/integration/main-queue`、`codex/unified-design/security-open-packets`、`codex/migration/permission-decision-rpc`、`codex/migration/grpc-carrier-rebuild`、`codex/migration/exec-crypto-remediation`、`codex/migration/machine-workload-source-verifier`、`codex/migration/grpc-asset-rebuild` 与 `codex/migration/site-trusted-grpc-recovery` |
@@ -106,7 +106,7 @@ programControlBranch: codex/oes-program-control-migration
 - Asset task/resource closure：implementation owners `019fdb88-0e48-7792-be29-a4c806129ac8`、`019fe09f-b176-7ab2-b15a-b6d00295ce1a`、`019fe1b0-7def-7633-8e96-b4b2a0e9c23d` 与 `019fe1ea-2d97-7743-b040-147fdfb7a223` 已在WIP/candidate无损交接后归档；后两项因不可见approval失效而退役。source `codex/migration/grpc-asset-rebuild@a82e5ea6…` 与 fixed worktree clean，标记 `MERGED_WAITING_FOR_USER_CLEANUP`；迁移final cleanup前保留。持久I&V继续保留为idle可复用任务；全程checker为0。
 - Asset execution-owner replacement：原 owner `019fdb88-0e48-7792-be29-a4c806129ac8` 因不可见普通操作审批停滞而按用户批准迁移政策 archived；新 sole writer `019fe09f-b176-7ab2-b15a-b6d00295ce1a` 复用同一固定worktree/branch，无新Git资源。handoff WIP为 `src/services/api-gateway/src/common/guards/gateway-session-auth.guard.spec.ts` RED spec，已保留；该RED因vault admission尚未实现而预期exit 1。两个 setup-only symlink（worktree根`node_modules`、`src/services/api-gateway/node_modules`）已登记为candidate前必须移除的临时依赖链接，不属于tracked WIP；不允许清理其他untracked内容。
 
-### 4.1.1 SITE — `DESIGN_ACCEPTED_AND_IMPLEMENTATION_READY`
+### 4.1.1 SITE — `IMPLEMENTATION_ACCEPTED_AND_INTEGRATED`
 
 - recovery audit：current main 的Site surface为Admin 59 RPC与Runtime 7 RPC；Gateway是唯一直接production caller，未发现Cron/Robot/worker root。审计确认Site server尚未完成trusted-gRPC server enforcement、Admin仍携带body identity、Runtime仍需MACHINE ExecutionToken与`SignedSiteContext` HMAC双重验证；Site Media 11 RPC、Asset outbox到Site inbox、Cloudflare R2 precise purge与persistent retry亦未落地，因此实现前先回同一Unified Design冻结唯一真相源与closed lease。
 - initial design candidate：`d3e6109b32ca29d6196d68bd024d46190b6e4206`，base `a82e5ea69a7773d4e0e8f5a91dcdf7a599897c1d`，7 docs / 359+/12-。I&V只发现一项稳定contract自相矛盾：`site-media.md`前文称不定义field number，后文第8节却冻结完整字段号；candidate未集成，其他59+7+11、Code、lease、UTF-8、links与YAML gate均通过。
@@ -114,7 +114,10 @@ programControlBranch: codex/oes-program-control-migration
 - design I&V terminal：`ACCEPTED_AND_INTEGRATED`。Admin 59/59 BUSINESS映射、Runtime 7/7 INTERNAL映射、Site Media 11/11 wire/behavior/Code、13个新增Permission Codes、Admin body identity removal/reservation、MACHINE ET + HMAC双重验证、Asset outbox到Site inbox、R2/CDN precise purge/retry语义、UTF-8 7/7、48 local links、YAML、diff与closed lease全部通过。root ff-only integration与唯一一次main push完成；root/main/local origin/main/remote main均为`c7bda1c4…`且clean。source design worktree clean并标记`MERGED_PRESERVE_UNTIL_FINAL_CLEANUP`。
 - implementation gate：`FROZEN_PENDING_IMPLEMENTATION`已关闭为`IMPLEMENTATION_READY`。唯一允许写面是已集成trusted-gRPC feature packet登记的109个逐文件writer paths（54 `EXISTING` + 55 `NEW_TARGET`）；不得扩展为目录ownership，不得触碰AI Platform/ActionGrant runtime。
 - required serial batches：Common Permission/proto/generated foundations；Site trusted guard/context与Admin 59 + Runtime 7；Site Media 11与Asset outbox到Site inbox；Gateway adapters/credential composition；Cloudflare R2 precise purge/persistent retry；最后统一batch verification。单一writer不得拆分并发lane，candidate只交既有persistent I&V `019fcaf2-ca7b-7140-b46d-b6cacae58556`，接受前不得merge/push。
-- implementation route：唯一task `OES Implementation · SITE Trusted gRPC & Media Recovery`，thread `019fe45e-29c4-7991-9e3d-6c1f2114525e`，host `local`；标题已设置并读回。固定工作面`/Users/acehood/Documents/GitHub/oes/.worktrees/migration/site-trusted-grpc-recovery`、branch `codex/migration/site-trusted-grpc-recovery`从exact main `c7bda1c487aafc95e356d456a878ba81626c235d`建立并核验clean；task首次状态为active，初始cwd为只读root并已收到立即切换固定worktree的约束。它是109-path lease的唯一writer，不得创建Git资源、子task或并发lane；candidate只返回Program Control路由既有I&V。
+- implementation route：唯一task `OES Implementation · SITE Trusted gRPC & Media Recovery`，thread `019fe45e-29c4-7991-9e3d-6c1f2114525e`，host `local`；标题已设置并读回。固定工作面`/Users/acehood/Documents/GitHub/oes/.worktrees/migration/site-trusted-grpc-recovery`、branch `codex/migration/site-trusted-grpc-recovery`从exact main `c7bda1c487aafc95e356d456a878ba81626c235d`建立；全程保持109-path single-writer lease，无子task、并发lane或checker。
+- implementation candidate：`547a0c5d55f9a955543779ec584a16e9b05cf453`，direct parent `55e474ff0fc1dff37791fe7ec04780cb51672134`，相对冻结base `c7bda1c4…`累计86 paths / 3139+/422-，全部位于109-path closed lease；source branch/worktree clean。完成Site Admin 59 BUSINESS ET、Runtime 7 INTERNAL MACHINE ET与独立`SignedSiteContext`、Site Media 11 RPC、Gateway Media、Site到Asset multi-hop、R2/storage/purge、transactional outbox/NATS/Site inbox+DLQ、migrations与冻结测试。
+- implementation/I&V verification：proto generate/lint、Prisma、四服务build与signature inventory通过；Site L1 382、Site L3 83、Gateway focused 110、Asset full 43、Permission focused 10、Common contracts 5全部通过。I&V返回`ACCEPTED_AND_INTEGRATED`，root/main/local origin/main/remote main均为`547a0c5d…`且root clean。
+- resource state：SITE source `codex/migration/site-trusted-grpc-recovery@547a0c5d…` clean，标记`MERGED_WAITING_FOR_USER_CLEANUP`；本轮不删除worktree/branch，不启动后续implementation。AI Platform/ActionGrant runtime继续deferred。
 
 ### 4.2 PRINCIPAL-ROLE / Permission — `IMPLEMENTATION_ACCEPTED_AND_INTEGRATED`（legacy resources retained）
 
@@ -467,7 +470,7 @@ AI legacy A/V 与 migration implementation 任务已有完整重建、独立 I&V
 | `codex/migration/grpc-carrier-rebuild` | `3e263e501341ea1b90049d5343c42db055f3c5ea` |
 | `codex/migration/machine-workload-source-verifier` | `024579598c1293807d3f1cd5e7003aefd8e8fa0a` |
 | `codex/migration/permission-decision-rpc` | `45a7e3065d66f3692493181120ebd08e47ec283f` |
-| `codex/migration/site-trusted-grpc-recovery` | `c7bda1c487aafc95e356d456a878ba81626c235d` |
+| `codex/migration/site-trusted-grpc-recovery` | `547a0c5d55f9a955543779ec584a16e9b05cf453` |
 | `codex/oes-program-control-migration` | live branch ref；inventory checkpoint `1f5fdd690af817f8e9bb092fbafb769a31b2e1a6` |
 | `codex/trusted-grpc-execution-context/d-freeze` | `7500bd66d3e11b7a39bb0de052141efe4bfa0d09` |
 | `codex/unified-design/security-open-packets` | `c7bda1c487aafc95e356d456a878ba81626c235d` |
@@ -480,17 +483,17 @@ AI legacy A/V 与 migration implementation 任务已有完整重建、独立 I&V
 | --- | ---: | --- |
 | root main worktree | 1 | 最终唯一保留目标；当前 clean |
 | 非 root、HEAD 已是 main ancestor、clean | 25 | Git 内容已进入 main，但在 ledger 集成、任务证据消费与全局清理 gate 完成前不移除 |
-| newly integrated clean worktrees | 4 | GRPC carrier `3e263e50…`、EXEC-CRYPTO HUMAN foundation `1ca24f41…`、MACHINE source-verifier `02457959…`与GRPC Asset `a82e5ea6…`；已独立验收并进入main，等待final cleanup manifest |
+| newly integrated clean worktrees | 5 | GRPC carrier `3e263e50…`、EXEC-CRYPTO HUMAN foundation `1ca24f41…`、MACHINE source-verifier `02457959…`、GRPC Asset `a82e5ea6…`与SITE recovery `547a0c5d…`；已独立验收并进入main，等待final cleanup manifest |
 | design-gap clean implementation worktrees | 0 | MACHINE design/implementation gaps已关闭 |
 | retained non-main candidate worktrees | 3 | EXEC-CRYPTO `64ea8660…`、GRPC carrier `dced77ad…`、deferred ActionGrant runtime `ec2b2cf…`；分别作为已消费的历史证据或等待持久 deferred disposition；GRPC Asset旧candidate仅保留branch/ref，current-main rebuild source已集成并另列于newly integrated clean worktrees |
 | superseded/rejected evidence worktrees | 4 | EXEC-CRYPTO rejected `c7ab0d9c…`、API-KEY prototype `755d857a…` 及 AI legacy candidate/acceptance 两个 `6101933d…` worktrees；证据已登记，仍待 ledger 入 main 后的清理 gate |
 | Program Control migration ledger worktree | 1 | 当前不在 main；必须先完成 ledger candidate 验收与集成 |
-| active current-main implementation worktree | 1 | SITE fixed worktree `codex/migration/site-trusted-grpc-recovery@c7bda1c4…` clean，唯一single writer task `019fe45e-29c4-7991-9e3d-6c1f2114525e` active |
-| **worktree total** | **39** | MACHINE与Asset source worktrees均clean并等待final cleanup；SITE writer从exact current main建立；root clean。删除/clean/reset数为0 |
+| active current-main implementation worktree | 0 | SITE source已clean at integrated `547a0c5d…`并标记`MERGED_WAITING_FOR_USER_CLEANUP`；当前无active implementation writer |
+| **worktree total** | **39** | MACHINE、Asset与SITE source worktrees均clean并等待final cleanup；root clean。删除/clean/reset数为0 |
 
-branch refs 共 33：26 个 branch HEAD 已是 current main ancestor（Asset rebuild、Unified Design与新SITE implementation branch当前等于main）；7 个非 ancestor refs 已全部分类为 deferred ActionGrant runtime、AI legacy accepted evidence、API-KEY rejected prototype evidence、EXEC-CRYPTO legacy checkpoint、GRPC Asset legacy candidate、原 GRPC carrier candidate与Program Control migration ledger。MACHINE branch已是current main ancestor。不存在未分类branch ref。
+branch refs 共 33：26 个 branch HEAD 已是 current main ancestor（SITE implementation branch当前等于main；Asset rebuild与Unified Design均为main ancestor）；7 个非 ancestor refs 已全部分类为 deferred ActionGrant runtime、AI legacy accepted evidence、API-KEY rejected prototype evidence、EXEC-CRYPTO legacy checkpoint、GRPC Asset legacy candidate、原 GRPC carrier candidate与Program Control migration ledger。MACHINE branch已是current main ancestor。不存在未分类branch ref。
 
-任务处置快照：handoff registry 仍登记 101 个 legacy formal A/* tasks，最终均须在直接证据消费后归档；最近 50 项应用快照可见其中 24 个 legacy A/* tasks，另可见 legacy Global Command 1 个。MIG-D04 导致部分 capability 缺少逐 task IDs，因此当前 thread archive manifest 尚未完整，不能把 101 项声明为已具备逐项归档条件。本轮未唤醒或删除旧 capability 资源；checker为0。AI、Permission、GRPC rebuild、EXEC-CRYPTO remediation、MACHINE replacement owner及四个Asset执行owners均已完成/退役并归档。持久I&V与Unified Design保留复用；SITE single writer active；Program Control继续保留。
+任务处置快照：handoff registry 仍登记 101 个 legacy formal A/* tasks，最终均须在直接证据消费后归档；最近 50 项应用快照可见其中 24 个 legacy A/* tasks，另可见 legacy Global Command 1 个。MIG-D04 导致部分 capability 缺少逐 task IDs，因此当前 thread archive manifest 尚未完整，不能把 101 项声明为已具备逐项归档条件。本轮未唤醒或删除旧 capability 资源；checker为0。AI、Permission、GRPC rebuild、EXEC-CRYPTO remediation、MACHINE replacement owner及四个Asset执行owners均已完成/退役并归档。SITE implementation已验收集成；持久I&V与Unified Design保留复用，Program Control继续保留。
 
 当前全局清理 blocker 共 3 类：EXEC-CRYPTO legacy checkpoint/rejected evidence disposition；deferred ActionGrant runtime candidate 的持久 disposition；Program Control ledger 集成与完整 thread archive manifest。GRPC Asset、MACHINE与API-KEY content-loss blockers均已转为clean durable refs，不再单独阻塞内容保全；仍随final manifest执行统一清理。任一 blocker 未关闭前，所有worktree/branch删除数保持0。
 
@@ -651,4 +654,4 @@ EXEC-CRYPTO HUMAN foundation I&V terminal evidence：
 
 ## 10. 下一阶段入口
 
-SITE recovery docs replacement `c7bda1c487aafc95e356d456a878ba81626c235d` 已 `ACCEPTED_AND_INTEGRATED`；root/local origin/remote main同SHA且clean，MIG-D24关闭，109-path implementation gate开放。唯一SITE implementation task `019fe45e-29c4-7991-9e3d-6c1f2114525e`在固定`codex/migration/site-trusted-grpc-recovery`工作面串行执行Common/proto、Site 59+7、Site Media 11/Event、Gateway credential与R2/CDN purge/retry批次；不得拆writer或越过54 EXISTING + 55 NEW_TARGET lease。candidate完成后仅交persistent I&V，不在实现lane merge/push。AI/ActionGrant runtime保持deferred，API-KEY `755d857a…`不进入main；无checker，当前不执行cleanup。Program Control ledger仍只在`codex/oes-program-control-migration`本地提交，待final ledger integration gate后才进入main并清理worktree。
+SITE recovery implementation `547a0c5d55f9a955543779ec584a16e9b05cf453` 已 `ACCEPTED_AND_INTEGRATED`；root/local origin/remote main同SHA且clean，Site 59+7、Site Media 11、Gateway/Asset/Event/R2-purge链与验证矩阵完成。source branch/worktree标记`MERGED_WAITING_FOR_USER_CLEANUP`并保留；本轮不启动新implementation、不删除Git资源。AI/ActionGrant runtime保持deferred，API-KEY `755d857a…`不进入main；无checker。Program Control ledger仍只在`codex/oes-program-control-migration`本地提交，待final ledger integration gate后才进入main并清理worktree。
