@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
+import { spawn } from 'node:child_process'
 import { Observable } from 'rxjs'
 import { SiteMediaDeliveryBinding } from '../../domain/entities/site-media-delivery-binding.entity'
 import { SiteMediaLifecycleOperation, SiteMediaOperationKind } from '../../domain/entities/site-media-lifecycle-operation.entity'
@@ -41,8 +42,7 @@ export class SiteMediaApplicationService {
     if (existing && existing.requestHash !== requestHash) throw new Error('ASSET_IDEMPOTENCY_CONFLICT')
     if (existing) return existing
     const operation = new SiteMediaLifecycleOperation(randomUUID(), input.tenantId, input.assetId, input.idempotencyKey, requestHash, input.kind ?? 'TAKEDOWN_PURGE', 'PENDING', input.immutableTargetUrl ?? null)
-    await this.repository.saveOperation(operation)
-    return operation
+    return this.repository.saveOperation(operation)
   }
 
   async store(input: { key: string; body: Buffer; contentType: string }) { return this.storage.put(input) }
@@ -54,7 +54,7 @@ export class SiteMediaApplicationService {
     const start = frames[0]?.start
     if (!start?.idempotencyKey || !start.siteId || !start.requestedMediaKind || !start.declaredContentType || frames.some((frame, index) => index === 0 ? !frame.start : !!frame.start || !frame.contentChunk?.length)) throw new Error('ASSET_MEDIA_VALIDATION_FAILED')
     const body = Buffer.concat(frames.slice(1).map((frame) => frame.contentChunk as Buffer))
-    const facts = inspectMediaBytes(body, start.declaredContentType, start.requestedMediaKind)
+    const facts = await inspectMediaBytes(body, start.declaredContentType, start.requestedMediaKind)
     const requestHash = createHash('sha256').update(JSON.stringify({ siteId: start.siteId, mediaKind: start.requestedMediaKind, contentType: start.declaredContentType, checksum: facts.checksum })).digest('hex')
     const existing = await this.repository.findSiteMediaByUploadIdentity({ tenantId: scope.tenantId, siteId: start.siteId, idempotencyKey: start.idempotencyKey })
     if (existing) {
@@ -181,43 +181,41 @@ export class SiteMediaApplicationService {
   }
 }
 
-/** inspectMediaBytes derives supported media facts from magic/header bytes and rejects declared-kind mismatches. */
-function inspectMediaBytes(body: Buffer, declaredContentType: string, requestedMediaKind: string): { checksum: string; width: number; height: number; durationMs: string; codec: string } {
+/** inspectMediaBytes uses the installed ffprobe decoder boundary for complete image/video integrity and technical facts. */
+async function inspectMediaBytes(body: Buffer, declaredContentType: string, requestedMediaKind: string): Promise<{ checksum: string; width: number; height: number; durationMs: string; codec: string }> {
   const checksum = createHash('sha256').update(body).digest('hex')
-  if (requestedMediaKind !== 'IMAGE') throw new Error('ASSET_MEDIA_KIND_UNSUPPORTED')
-  if (body.length >= 24 && body.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) {
-    if (declaredContentType !== 'image/png') throw new Error('ASSET_MEDIA_CONTENT_TYPE_MISMATCH')
-    return { checksum, width: body.readUInt32BE(16), height: body.readUInt32BE(20), durationMs: '0', codec: 'png' }
+  const probe = await probeMedia(body)
+  if (requestedMediaKind === 'IMAGE') {
+    const codecs: Record<string, string> = { 'image/jpeg': 'mjpeg', 'image/png': 'png', 'image/webp': 'webp' }
+    const expectedCodec = codecs[declaredContentType]
+    if (!expectedCodec) throw new Error('ASSET_MEDIA_CONTENT_TYPE_MISMATCH')
+    const video = probe.streams.find((stream) => stream.codec_type === 'video')
+    if (!video || video.codec_name !== expectedCodec || !video.width || !video.height || probe.streams.some((stream) => stream.codec_type === 'audio')) throw new Error('ASSET_MEDIA_BYTES_UNSUPPORTED')
+    return { checksum, width: video.width, height: video.height, durationMs: '0', codec: video.codec_name }
   }
-  if (body.length >= 10 && (body.subarray(0, 6).toString('ascii') === 'GIF87a' || body.subarray(0, 6).toString('ascii') === 'GIF89a')) {
-    if (declaredContentType !== 'image/gif') throw new Error('ASSET_MEDIA_CONTENT_TYPE_MISMATCH')
-    return { checksum, width: body.readUInt16LE(6), height: body.readUInt16LE(8), durationMs: '0', codec: 'gif' }
-  }
-  if (body.length >= 12 && body.subarray(0, 4).toString('ascii') === 'RIFF' && body.subarray(8, 12).toString('ascii') === 'WEBP') {
-    if (declaredContentType !== 'image/webp') throw new Error('ASSET_MEDIA_CONTENT_TYPE_MISMATCH')
-    if (body.length < 30 || body.subarray(12, 16).toString('ascii') !== 'VP8X') throw new Error('ASSET_MEDIA_DIMENSIONS_UNAVAILABLE')
-    const width = 1 + body[24] + (body[25] << 8) + (body[26] << 16)
-    const height = 1 + body[27] + (body[28] << 8) + (body[29] << 16)
-    return { checksum, width, height, durationMs: '0', codec: 'webp' }
-  }
-  if (body.length >= 4 && body[0] === 0xff && body[1] === 0xd8) {
-    if (declaredContentType !== 'image/jpeg') throw new Error('ASSET_MEDIA_CONTENT_TYPE_MISMATCH')
-    const dimensions = jpegDimensions(body)
-    return { checksum, width: dimensions.width, height: dimensions.height, durationMs: '0', codec: 'jpeg' }
-  }
-  throw new Error('ASSET_MEDIA_BYTES_UNSUPPORTED')
+  if (requestedMediaKind !== 'VIDEO' || declaredContentType !== 'video/mp4') throw new Error('ASSET_MEDIA_CONTENT_TYPE_MISMATCH')
+  if (!probe.format_name.includes('mp4')) throw new Error('ASSET_MEDIA_CONTAINER_UNSUPPORTED')
+  const video = probe.streams.find((stream) => stream.codec_type === 'video')
+  const audio = probe.streams.find((stream) => stream.codec_type === 'audio')
+  const duration = Number(video?.duration ?? probe.duration)
+  if (!video || video.codec_name !== 'h264' || !audio || audio.codec_name !== 'aac' || !video.width || !video.height || !Number.isFinite(duration) || duration <= 0) throw new Error('ASSET_MEDIA_VIDEO_PROFILE_UNSUPPORTED')
+  return { checksum, width: video.width, height: video.height, durationMs: String(Math.round(duration * 1000)), codec: 'h264/aac' }
 }
 
-/** jpegDimensions reads the first SOF marker without decoding or trusting declared dimensions. */
-function jpegDimensions(body: Buffer): { width: number; height: number } {
-  let offset = 2
-  while (offset + 9 < body.length) {
-    if (body[offset] !== 0xff) { offset++; continue }
-    const marker = body[offset + 1]
-    const length = body.readUInt16BE(offset + 2)
-    if (marker >= 0xc0 && marker <= 0xc3) return { height: body.readUInt16BE(offset + 5), width: body.readUInt16BE(offset + 7) }
-    if (length < 2) break
-    offset += 2 + length
-  }
-  throw new Error('ASSET_MEDIA_DIMENSIONS_UNAVAILABLE')
+type ProbeStream = { codec_type?: string; codec_name?: string; width?: number; height?: number; duration?: string }
+type ProbeResult = { streams: ProbeStream[]; format_name: string; duration?: string }
+
+/** probeMedia delegates complete container/decoder validation to the installed ffprobe executable. */
+function probeMedia(body: Buffer): Promise<ProbeResult> {
+  return new Promise((resolve, reject) => {
+    const process = spawn('ffprobe', ['-v', 'error', '-show_entries', 'stream=codec_type,codec_name,width,height,duration:format=format_name,duration', '-of', 'json', '-i', 'pipe:0'])
+    const output: Buffer[] = []; const errors: Buffer[] = []
+    process.stdout.on('data', (chunk: Buffer) => output.push(chunk)); process.stderr.on('data', (chunk: Buffer) => errors.push(chunk))
+    process.once('error', () => reject(new Error('ASSET_MEDIA_PROBE_UNAVAILABLE')))
+    process.once('close', (code) => {
+      if (code !== 0) return reject(new Error(errors.join('').trim() || 'ASSET_MEDIA_BYTES_UNSUPPORTED'))
+      try { const parsed = JSON.parse(Buffer.concat(output).toString('utf8')) as { streams?: ProbeStream[]; format?: { format_name?: string; duration?: string } }; resolve({ streams: parsed.streams ?? [], format_name: parsed.format?.format_name ?? '', duration: parsed.format?.duration }) } catch { reject(new Error('ASSET_MEDIA_PROBE_INVALID')) }
+    })
+    process.stdin.end(body)
+  })
 }

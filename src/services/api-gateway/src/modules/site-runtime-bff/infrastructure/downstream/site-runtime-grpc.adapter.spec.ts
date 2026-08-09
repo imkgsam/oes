@@ -32,7 +32,7 @@ describe('SiteRuntimeGrpcAdapter', () => {
   }
   const metadata = { metadata: 'internal' }
   const machineExecution = {
-    forInternalCall: jest.fn((_audience: string, _code: string, callback: (value: unknown) => unknown) =>
+    forInternalCall: jest.fn((_audience: string, _code: string, _trace: unknown, callback: (value: unknown) => unknown) =>
       callback(metadata)
     )
   }
@@ -50,7 +50,8 @@ describe('SiteRuntimeGrpcAdapter', () => {
       'x-oes-nonce': 'nonce_a',
       'x-oes-signature': 'v1=abc',
       'x-oes-request-id': 'request_runtime',
-      'x-oes-trace-id': 'trace_runtime'
+      'x-oes-trace-id': 'trace_runtime',
+      traceparent: '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01'
     },
     body: { site_id: 'malicious_body_site', local_publish_version: 7 },
     rawBody
@@ -122,24 +123,28 @@ describe('SiteRuntimeGrpcAdapter', () => {
       1,
       'urn:oes:service:site-service',
       'site.internal.runtime.capability.register',
+      expect.objectContaining({ requestId: 'request_runtime', traceparent: expect.any(String) }),
       expect.any(Function)
     )
     expect(machineExecution.forInternalCall).toHaveBeenNthCalledWith(
       2,
       'urn:oes:service:site-service',
       'site.internal.runtime.publication.read',
+      expect.objectContaining({ requestId: 'request_runtime', traceparent: expect.any(String) }),
       expect.any(Function)
     )
     expect(machineExecution.forInternalCall).toHaveBeenNthCalledWith(
       3,
       'urn:oes:service:site-service',
       'site.internal.runtime.sync.report',
+      expect.objectContaining({ requestId: 'request_runtime', traceparent: expect.any(String) }),
       expect.any(Function)
     )
     expect(machineExecution.forInternalCall).toHaveBeenNthCalledWith(
       4,
       'urn:oes:service:site-service',
       'site.internal.runtime.preview.read',
+      expect.objectContaining({ requestId: 'request_runtime', traceparent: expect.any(String) }),
       expect.any(Function)
     )
     expect(runtimeService.registerPageCapabilities.mock.calls[0][0]).toEqual(

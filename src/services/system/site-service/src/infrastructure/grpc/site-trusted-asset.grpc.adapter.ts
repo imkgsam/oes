@@ -26,9 +26,10 @@ export class SiteTrustedAssetGrpcAdapter implements AssetSiteMediaPort {
     const bearer = getGrpcAuthorizationBearer(metadata)
     if (!verified) throw new Error('SITE_INBOUND_EXECUTION_CONTEXT_REQUIRED')
     if (!bearer) throw new Error('SITE_INBOUND_EXECUTION_CREDENTIAL_REQUIRED')
-    const traceId = randomHex(32)
-    const parentId = randomHex(16)
-    const context = createTrustedExecutionContext({ subject: verified.subject, principalType: verified.principalType, tenantId: verified.tenantId, orgId: verified.orgId, actor: typeof verified.actor === 'string' ? verified.actor : undefined, delegationId: verified.delegationId, authzVersion: verified.authzVersion, requestId: getMetadata(metadata, 'x-request-id') ?? randomHex(16), traceparent: getMetadata(metadata, 'traceparent') ?? `00-${traceId}-${parentId}-01` })
+    const requestId = getMetadata(metadata, 'x-request-id')
+    const traceparent = getMetadata(metadata, 'traceparent')
+    if (!requestId || !traceparent || !/^00-[0-9a-f]{32}-[0-9a-f]{16}-0[1-9a-f]$/u.test(traceparent)) throw new Error('SITE_INBOUND_TRACE_CONTEXT_REQUIRED')
+    const context = createTrustedExecutionContext({ subject: verified.subject, principalType: verified.principalType, tenantId: verified.tenantId, orgId: verified.orgId, actor: typeof verified.actor === 'string' ? verified.actor : undefined, delegationId: verified.delegationId, authzVersion: verified.authzVersion, requestId, traceparent })
     const handle = this.issuer.issueVerifiedExecutionTokenSubjectCredential(bearer)
     return this.context.run(context, () => this.source.run(handle, callback))
   }
@@ -39,9 +40,4 @@ export class SiteTrustedAssetGrpcAdapter implements AssetSiteMediaPort {
 function getMetadata(metadata: Metadata, key: string): string | undefined {
   const value = metadata.get(key)[0]
   return typeof value === 'string' ? value : Buffer.isBuffer(value) ? value.toString('utf8') : undefined
-}
-
-/** randomHex creates correlation identifiers for internal scope when transport correlation is absent. */
-function randomHex(length: number): string {
-  return [...Array(length)].map(() => Math.floor(Math.random() * 16).toString(16)).join('')
 }

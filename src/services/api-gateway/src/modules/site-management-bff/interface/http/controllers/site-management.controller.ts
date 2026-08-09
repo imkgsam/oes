@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Post, Query, Req } from '@nestjs/common'
 import type { Request } from 'express'
-import { isObservable, Observable } from 'rxjs'
+import { Observable } from 'rxjs'
 import { UploadSiteMediaRequest } from '@oes/common/generated/asset_service'
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { RequirePermissions, SITE_MANAGEMENT_PERMISSION_CODES } from '@oes/common/authorization'
@@ -712,11 +712,38 @@ type SiteMediaActivateBody = { idempotencyKey: string }
 type SiteMediaIdempotencyBody = { idempotencyKey: string }
 type SiteMediaTakeDownBody = SiteMediaIdempotencyBody & { reasonCode: string; reasonNote?: string }
 type SiteMediaDeleteBody = SiteMediaIdempotencyBody & { deletionReason: string }
-type SiteMediaStreamRequest = Request & { siteMediaStream?: unknown }
+const MAX_SITE_MEDIA_UPLOAD_BYTES = 512 * 1024 * 1024
+const SITE_MEDIA_UPLOAD_CHUNK_BYTES = 64 * 1024
 
-/** mediaUploadStream accepts only the gateway's bounded decoded gRPC frame stream and never aggregates raw bytes. */
+/** mediaUploadStream converts the authenticated HTTP body into a bounded first-frame-plus-chunks Asset gRPC stream. */
 function mediaUploadStream(request: Request, siteId: string): Observable<UploadSiteMediaRequest> {
-  const stream = (request as SiteMediaStreamRequest).siteMediaStream
-  if (!isObservable(stream)) throw new Error('SITE_MEDIA_STREAM_REQUIRED')
-  return stream as Observable<UploadSiteMediaRequest>
+  const idempotencyKey = requiredUploadHeader(request, 'x-idempotency-key')
+  const requestedMediaKind = requiredUploadHeader(request, 'x-oes-media-kind').toUpperCase()
+  const declaredContentType = requiredUploadHeader(request, 'content-type').split(';', 1)[0].trim().toLowerCase()
+  if (requestedMediaKind !== 'IMAGE' && requestedMediaKind !== 'VIDEO') throw new Error('SITE_MEDIA_KIND_INVALID')
+  const originalFileName = request.header('x-oes-original-file-name')?.trim() || undefined
+  return new Observable<UploadSiteMediaRequest>((subscriber) => {
+    let received = 0
+    const finish = () => subscriber.complete()
+    const fail = (error: Error) => { cleanup(); subscriber.error(error) }
+    const onData = (value: Buffer | string) => {
+      const chunk = Buffer.isBuffer(value) ? value : Buffer.from(value)
+      received += chunk.byteLength
+      if (received > MAX_SITE_MEDIA_UPLOAD_BYTES) return fail(new Error('SITE_MEDIA_UPLOAD_SIZE_EXCEEDED'))
+      for (let offset = 0; offset < chunk.length; offset += SITE_MEDIA_UPLOAD_CHUNK_BYTES) subscriber.next({ contentChunk: chunk.subarray(offset, Math.min(chunk.length, offset + SITE_MEDIA_UPLOAD_CHUNK_BYTES)) })
+    }
+    const cleanup = () => { request.off('data', onData); request.off('end', finish); request.off('error', fail) }
+    subscriber.next({ start: { idempotencyKey, siteId, requestedMediaKind, originalFileName, declaredContentType } })
+    request.on('data', onData)
+    request.once('end', finish)
+    request.once('error', fail)
+    return cleanup
+  })
+}
+
+/** requiredUploadHeader accepts only transport metadata needed to construct the gateway-owned start frame. */
+function requiredUploadHeader(request: Request, name: string): string {
+  const value = request.header(name)?.trim()
+  if (!value) throw new Error(`SITE_MEDIA_${name.toUpperCase().replaceAll('-', '_')}_REQUIRED`)
+  return value
 }

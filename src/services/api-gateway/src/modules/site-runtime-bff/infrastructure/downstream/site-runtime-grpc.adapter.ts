@@ -71,7 +71,7 @@ export class SiteRuntimeGrpcAdapter implements SiteRuntimeDownstream, OnModuleIn
     }
     return this.call<unknown>(
       'registerPageCapabilities',
-      this.runtime.registerPageCapabilities(input, await this.internalMetadata('registerPageCapabilities'))
+      this.runtime.registerPageCapabilities(input, await this.internalMetadata('registerPageCapabilities', request))
     ).then(mapRegisterPageCapabilitiesResponse)
   }
 
@@ -86,7 +86,7 @@ export class SiteRuntimeGrpcAdapter implements SiteRuntimeDownstream, OnModuleIn
 
     return this.call(
       'getLatestPublishState',
-      this.runtime.getLatestPublishState(input, await this.internalMetadata('getLatestPublishState'))
+      this.runtime.getLatestPublishState(input, await this.internalMetadata('getLatestPublishState', request))
     )
   }
 
@@ -105,7 +105,7 @@ export class SiteRuntimeGrpcAdapter implements SiteRuntimeDownstream, OnModuleIn
 
     return this.call(
       'listChangedResources',
-      this.runtime.listChangedResources(input, await this.internalMetadata('listChangedResources'))
+      this.runtime.listChangedResources(input, await this.internalMetadata('listChangedResources', request))
     )
   }
 
@@ -133,7 +133,7 @@ export class SiteRuntimeGrpcAdapter implements SiteRuntimeDownstream, OnModuleIn
 
     return this.call(
       'batchGetPublicViews',
-      this.runtime.batchGetPublicViews(input, await this.internalMetadata('batchGetPublicViews'))
+      this.runtime.batchGetPublicViews(input, await this.internalMetadata('batchGetPublicViews', request))
     )
   }
 
@@ -150,7 +150,7 @@ export class SiteRuntimeGrpcAdapter implements SiteRuntimeDownstream, OnModuleIn
       )
     }
 
-    return this.call('getSnapshot', this.runtime.getSnapshot(input, await this.internalMetadata('getSnapshot')))
+    return this.call('getSnapshot', this.runtime.getSnapshot(input, await this.internalMetadata('getSnapshot', request)))
   }
 
   /** reportSyncResult forwards runtime sync status reports to site-service. */
@@ -170,7 +170,7 @@ export class SiteRuntimeGrpcAdapter implements SiteRuntimeDownstream, OnModuleIn
 
     return this.call(
       'reportSyncResult',
-      this.runtime.reportSyncResult(input, await this.internalMetadata('reportSyncResult'))
+      this.runtime.reportSyncResult(input, await this.internalMetadata('reportSyncResult', request))
     )
   }
 
@@ -184,7 +184,7 @@ export class SiteRuntimeGrpcAdapter implements SiteRuntimeDownstream, OnModuleIn
       locale: stringField(request.body.locale)
     }
 
-    return this.call('getPreviewView', this.runtime.getPreviewView(input, await this.internalMetadata('getPreviewView')))
+    return this.call('getPreviewView', this.runtime.getPreviewView(input, await this.internalMetadata('getPreviewView', request)))
   }
 
   /** signedContext converts required OES signing headers and canonical request fields into gRPC input. */
@@ -207,9 +207,12 @@ export class SiteRuntimeGrpcAdapter implements SiteRuntimeDownstream, OnModuleIn
   }
 
   /** metadata creates internal gRPC metadata for the site-service runtime verification boundary. */
-  private async internalMetadata(method: string) {
+  private async internalMetadata(method: string, request: SiteRuntimeSignedHttpRequest) {
     const code = method === 'registerPageCapabilities' ? SITE_MANAGEMENT_INTERNAL_PERMISSION_CODES.RUNTIME_CAPABILITY_REGISTER : method === 'reportSyncResult' ? SITE_MANAGEMENT_INTERNAL_PERMISSION_CODES.RUNTIME_SYNC_REPORT : method === 'getPreviewView' ? SITE_MANAGEMENT_INTERNAL_PERMISSION_CODES.RUNTIME_PREVIEW_READ : SITE_MANAGEMENT_INTERNAL_PERMISSION_CODES.RUNTIME_PUBLICATION_READ
-    return this.machineExecution.forInternalCall(SITE_AUDIENCE, code, async (metadata) => metadata)
+    const requestId = header(request, 'x-oes-request-id')
+    const traceparent = header(request, 'traceparent') ?? header(request, 'x-oes-traceparent')
+    if (!requestId || !traceparent) throw new BadRequestException('verified machine trace context is required')
+    return this.machineExecution.forInternalCall(SITE_AUDIENCE, code, { requestId, traceparent, tracestate: header(request, 'tracestate') }, async (metadata) => metadata)
   }
 
   /** call wraps one site runtime gRPC call with the shared gateway safety behavior. */

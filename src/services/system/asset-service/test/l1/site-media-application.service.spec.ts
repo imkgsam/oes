@@ -1,12 +1,13 @@
 import { createHash } from 'node:crypto'
 import { of } from 'rxjs'
 import { SiteMediaApplicationService, SiteMediaExecutionAuthority } from '../../src/application/services/site-media-application.service'
+import { SiteMediaLifecycleOperation } from '../../src/domain/entities/site-media-lifecycle-operation.entity'
 import { SiteMediaRepository, SiteMediaRecord } from '../../src/domain/repositories/site-media.repository'
 
 /** Verifies Site Media use cases consume only guard-derived authority and typed persistence seams. */
 describe('SiteMediaApplicationService', () => {
   const authority: SiteMediaExecutionAuthority = { subject: 'operator-1', principalType: 'HUMAN', tenantId: 'tenant-1', workload: 'spiffe://oes/asset' }
-  const mediaBody = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1])
+  const mediaBody = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64')
   const record = (overrides: Partial<SiteMediaRecord> = {}): SiteMediaRecord => ({
     assetId: 'asset-real-1', tenantId: 'tenant-1', siteId: 'site-1', ownerSubject: 'operator-1', mediaKind: 'IMAGE', lifecycleStatus: 'ACTIVE', deliveryStatus: 'LOCAL_ONLY', storageKey: 'site-media/key', immutablePublicUrl: null, checksum: 'checksum', requestHash: 'request-hash', size: mediaBody.length, contentType: 'image/png', width: 1, height: 1, durationMs: '0', codec: 'png', availabilityVersion: '1', protectedReferenceCount: 0, createdAt: new Date('2026-08-09T00:00:00.000Z'), ...overrides
   })
@@ -27,7 +28,7 @@ describe('SiteMediaApplicationService', () => {
       findBinding: jest.fn().mockResolvedValue(null),
       saveBinding: jest.fn().mockResolvedValue(undefined),
       findOperation: jest.fn().mockResolvedValue(null),
-      saveOperation: jest.fn().mockResolvedValue(undefined),
+      saveOperation: jest.fn().mockImplementation((operation) => Promise.resolve(operation)),
       claimDuePurgeOperations: jest.fn().mockResolvedValue([]),
       confirmTakedownWithEvent: jest.fn().mockResolvedValue(undefined),
       schedulePurgeRetry: jest.fn().mockResolvedValue(undefined),
@@ -99,5 +100,17 @@ describe('SiteMediaApplicationService', () => {
 
     await expect(service.takeDownSiteMedia({ assetId: 'asset-real-1', idempotencyKey: 'take-1' }, authority)).resolves.toEqual({ operationId: expect.any(String), deliveryStatus: 'PURGE_PENDING' })
     expect(repo.saveOperation).toHaveBeenCalledWith(expect.objectContaining({ immutableTargetUrl: 'https://media.example/site-media/key' }))
+  })
+
+  it('returns the one persisted operation winner under concurrent idempotent commands', async () => {
+    let persisted: SiteMediaLifecycleOperation | undefined
+    const repo = repository({
+      saveOperation: jest.fn(async (candidate: SiteMediaLifecycleOperation) => persisted ?? (persisted = candidate)),
+      findOperation: jest.fn(async () => persisted ?? null)
+    })
+    const service = new SiteMediaApplicationService(repo, { put: jest.fn() })
+    const results = await Promise.all(Array.from({ length: 8 }, () => service.createOperation({ tenantId: 'tenant-1', assetId: 'asset-real-1', idempotencyKey: 'same-key', canonicalInput: { assetId: 'asset-real-1' }, kind: 'DELETE' })))
+    expect(new Set(results.map((result) => result.operationId)).size).toBe(1)
+    expect(repo.saveOperation).toHaveBeenCalled()
   })
 })

@@ -16,7 +16,7 @@ describe('SiteTrustedAssetGrpcAdapter', () => {
   })
 
   it('creates a private inbound scope and exchanges a different next-hop credential', async () => {
-    const inbound = new Metadata(); inbound.set('authorization', 'Bearer eyJhbGciOiJub25lIn0.eyJzdWIiOiJpbiJ9.sig')
+    const inbound = new Metadata(); inbound.set('authorization', 'Bearer eyJhbGciOiJub25lIn0.eyJzdWIiOiJpbiJ9.sig'); inbound.set('x-request-id', 'request-1'); inbound.set('traceparent', '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01')
     const nextHop = new Metadata(); nextHop.set('authorization', 'Bearer next-hop-token')
     const client: any = { resolveSiteMediaForPublication: jest.fn().mockReturnValue(of({ resolved: {} })) }
     const provider = { forInternalCall: jest.fn().mockResolvedValue(nextHop) }

@@ -25,6 +25,13 @@ import {
 import { SiteCapabilityRegistrationError } from '../../src/domain/site-page/site-capability-registration'
 import { SiteAdminGrpcController } from '../../src/interfaces/grpc/site-admin.grpc.controller'
 import { SiteRuntimeGrpcController } from '../../src/interfaces/grpc/site-runtime.grpc.controller'
+import { RPC_OPERATOR_CONTEXT_KEY } from '@oes/common/authorization'
+
+const assetScope = { runWithInboundScope: async (_data: object, _metadata: unknown, callback: () => Promise<unknown>) => callback() }
+
+function verifiedAdminRequest<T extends object>(request: T): T {
+  return { ...request, [RPC_OPERATOR_CONTEXT_KEY]: { verifiedExecutionToken: { subject: 'operator_a', principalType: 'HUMAN', tenantId: 'tenant_a' } } } as T
+}
 
 /** serializeGrpcError passes one application error through the real common gRPC exception filter. */
 async function serializeGrpcError(error: unknown, path: string) {
@@ -475,17 +482,17 @@ describe('site-service gRPC controllers L3', () => {
       const application = new SiteAdminApplicationService(repository as never, {
         previewTokenSecret: 'site-service-local-preview-secret'
       })
-      const controller = new SiteAdminGrpcController(application)
+      const controller = new SiteAdminGrpcController(application, assetScope as never)
       const signer = jest.spyOn(previewTokenDomain, 'issuePreviewToken')
       const applicationError = await controller
-        .issuePreviewToken({
+        .issuePreviewToken(verifiedAdminRequest({
           context: { tenantId: 'tenant_a', operatorId: 'operator_a' },
           siteId: 'site_a',
           resourceType: 'blog',
           resourceId: 'admin_input_resource_secret',
           locale: 'en-US',
           ...patch
-        })
+        }))
         .catch((caught: unknown) => caught)
       const { descriptor, payload } = await serializeGrpcError(
         applicationError,
@@ -534,7 +541,7 @@ describe('site-service gRPC controllers L3', () => {
         ]
       })
     }
-    const controller = new SiteAdminGrpcController(app as never)
+    const controller = new SiteAdminGrpcController(app as never, assetScope as never)
     const createRequest: CreateSiteRequest = {
       tenantId: 'tenant_a',
       operatorId: 'operator_a',
@@ -550,12 +557,12 @@ describe('site-service gRPC controllers L3', () => {
       operatorId: 'operator_a',
       traceId: 'trace_a'
     }
-    await expect(controller.createSite(createRequest)).resolves.toEqual({
+    await expect(controller.createSite(verifiedAdminRequest(createRequest))).resolves.toEqual({
       siteId: 'site_a',
       status: 'draft',
       defaultLocale: 'en-US'
     })
-    await expect(controller.listSiteCards(listRequest)).resolves.toEqual({
+    await expect(controller.listSiteCards(verifiedAdminRequest(listRequest))).resolves.toEqual({
       cards: [
         expect.objectContaining({
           siteId: 'site_a',
@@ -563,8 +570,8 @@ describe('site-service gRPC controllers L3', () => {
         })
       ]
     })
-    expect(app.createSite).toHaveBeenCalledWith(createRequest)
-    expect(app.listSiteCards).toHaveBeenCalledWith(listRequest)
+    expect(app.createSite).toHaveBeenCalledWith(expect.objectContaining({ siteName: createRequest.siteName, context: expect.objectContaining({ tenantId: 'tenant_a', operatorId: 'operator_a' }) }))
+    expect(app.listSiteCards).toHaveBeenCalledWith(expect.objectContaining({ context: expect.objectContaining({ tenantId: 'tenant_a', operatorId: 'operator_a' }) }))
   })
 
   it('Runtime gRPC / maps latest state and sync result reports to the application service', async () => {
@@ -1238,12 +1245,12 @@ describe('site-service Content descendant ownership gRPC L3', () => {
       const application = new SiteAdminApplicationService(calls as never, {
         previewTokenSecret: 'site-service-local-preview-secret'
       })
-      const controller = new SiteAdminGrpcController(application)
+      const controller = new SiteAdminGrpcController(application, assetScope as never)
       const selected = invokeRequest(operation, locale)
-      const request = {
+      const request = (context.operatorId ? verifiedAdminRequest({
         ...selected.request,
         context
-      } as never
+      } as never) : { ...selected.request, context } as never)
 
       const applicationError = await controller[selected.method](request).catch(
         (caught: unknown) => caught

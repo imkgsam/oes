@@ -72,7 +72,7 @@ export interface SiteMediaRepository {
   findBinding(input: { tenantId: string; siteId: string }): Promise<SiteMediaDeliveryBinding | null>
   saveBinding(binding: SiteMediaDeliveryBinding): Promise<void>
   findOperation(input: { tenantId: string; assetId: string; idempotencyKey: string }): Promise<SiteMediaLifecycleOperation | null>
-  saveOperation(operation: SiteMediaLifecycleOperation): Promise<void>
+  saveOperation(operation: SiteMediaLifecycleOperation): Promise<SiteMediaLifecycleOperation>
   claimDuePurgeOperations(now: Date, limit: number): Promise<readonly SiteMediaLifecycleOperation[]>
   confirmTakedownWithEvent(operationId: string, providerRequestId: string, confirmedAt: Date): Promise<void>
   schedulePurgeRetry(operationId: string, attempts: number, nextAttemptAt: Date, safeError: string): Promise<void>

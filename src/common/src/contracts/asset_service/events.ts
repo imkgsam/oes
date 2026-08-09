@@ -1,4 +1,5 @@
-import { createOesCloudEvent, OesCloudEvent, OesEventContract } from '../../events'
+import { createOesCloudEvent } from '../../events/cloud-events/codec'
+import { OesCloudEvent, OesEventContract } from '../../events/cloud-events/types'
 
 /** Frozen Asset-owned Site Media availability event identity. */
 export const ASSET_SITE_MEDIA_AVAILABILITY_CHANGED = 'asset.site-media.availability.changed' as const

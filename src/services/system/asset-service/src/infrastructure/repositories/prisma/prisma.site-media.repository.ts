@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { Prisma, SiteMediaAsset as PrismaSiteMediaAsset } from '../../../../prisma/generated/prisma'
 import { PrismaService } from '../../prisma/prisma.service'
-import { createAssetSiteMediaAvailabilityEvent } from '@oes/common/contracts'
+import { createAssetSiteMediaAvailabilityEvent } from '@oes/common'
 import { SiteMediaBindingStatus, SiteMediaDeliveryBinding } from '../../../domain/entities/site-media-delivery-binding.entity'
 import { SiteMediaLifecycleOperation, SiteMediaOperationKind, SiteMediaOperationStatus } from '../../../domain/entities/site-media-lifecycle-operation.entity'
 import {
@@ -106,13 +106,15 @@ export class PrismaSiteMediaRepository implements SiteMediaRepository {
       if (binding.status === 'REMOTE_ACTIVE' && operation.status === 'CONFIRMED') return { deliveryBindingStatus: binding.status, migrationOperationId: operation.operationId }
       if (binding.status !== 'MIGRATING' && binding.status !== 'REMOTE_ACTIVE') throw new Error('ASSET_REMOTE_DELIVERY_NOT_READY')
       const now = new Date()
+      if (!(await tx.siteMediaLifecycleOperation.updateMany({ where: { operationId: operation.operationId, status: { in: ['PENDING', 'RETRY'] } }, data: { status: 'CONFIRMED', confirmedAt: now } })).count) return this.replayActivation(tx, input, operation.operationId)
       await tx.siteMediaDeliveryBinding.update({ where: { tenantId_siteId: { tenantId: input.tenantId, siteId: input.siteId } }, data: { status: 'REMOTE_ACTIVE' } })
       const assets = await tx.siteMediaAsset.findMany({ where: { tenantId: input.tenantId, siteId: input.siteId, lifecycleStatus: { not: 'DELETED' } } })
       for (const asset of assets) {
-        const updated = await tx.siteMediaAsset.update({ where: { assetId: asset.assetId }, data: { deliveryStatus: 'REMOTE_ACTIVE', availabilityVersion: { increment: BigInt(1) } } })
+        const claimed = await tx.siteMediaAsset.updateMany({ where: { assetId: asset.assetId, availabilityVersion: asset.availabilityVersion, deliveryStatus: asset.deliveryStatus }, data: { deliveryStatus: 'REMOTE_ACTIVE', availabilityVersion: { increment: BigInt(1) } } })
+        if (!claimed.count) throw new Error('ASSET_LIFECYCLE_CONCURRENT_UPDATE')
+        const updated = await tx.siteMediaAsset.findUniqueOrThrow({ where: { assetId: asset.assetId } })
         await this.appendAvailabilityEvent(tx, updated, operation.operationId, 'REMOTE_ACTIVATED', now)
       }
-      await tx.siteMediaLifecycleOperation.update({ where: { operationId: operation.operationId }, data: { status: 'CONFIRMED', confirmedAt: now } })
       return { deliveryBindingStatus: 'REMOTE_ACTIVE', migrationOperationId: operation.operationId }
     })
   }
@@ -124,8 +126,9 @@ export class PrismaSiteMediaRepository implements SiteMediaRepository {
       if (asset.lifecycleStatus === 'ARCHIVED') return this.toRecord(asset)
       if (asset.protectedReferenceCount > 0) throw new Error('ASSET_MEDIA_PROTECTED')
       const now = new Date()
-      const updated = await tx.siteMediaAsset.update({ where: { assetId: asset.assetId }, data: { lifecycleStatus: 'ARCHIVED', availabilityVersion: { increment: BigInt(1) } } })
-      await tx.siteMediaLifecycleOperation.update({ where: { operationId: operation.operationId }, data: { status: 'CONFIRMED', confirmedAt: now } })
+      if (!(await tx.siteMediaLifecycleOperation.updateMany({ where: { operationId: operation.operationId, status: { in: ['PENDING', 'RETRY'] } }, data: { status: 'CONFIRMED', confirmedAt: now } })).count) return this.replayAsset(tx, asset.assetId, 'ARCHIVED')
+      if (!(await tx.siteMediaAsset.updateMany({ where: { assetId: asset.assetId, lifecycleStatus: asset.lifecycleStatus, availabilityVersion: asset.availabilityVersion }, data: { lifecycleStatus: 'ARCHIVED', availabilityVersion: { increment: BigInt(1) } } })).count) throw new Error('ASSET_LIFECYCLE_CONCURRENT_UPDATE')
+      const updated = await tx.siteMediaAsset.findUniqueOrThrow({ where: { assetId: asset.assetId } })
       await this.appendAvailabilityEvent(tx, updated, operation.operationId, 'ARCHIVED', now)
       return this.toRecord(updated)
     })
@@ -150,8 +153,9 @@ export class PrismaSiteMediaRepository implements SiteMediaRepository {
       if (asset.lifecycleStatus === 'DELETED') return { operationId: operation.operationId, deletionStatus: 'DELETED' }
       if (asset.protectedReferenceCount > 0) throw new Error('ASSET_MEDIA_PROTECTED')
       const now = new Date()
-      const updated = await tx.siteMediaAsset.update({ where: { assetId: asset.assetId }, data: { lifecycleStatus: 'DELETED', deliveryStatus: 'UNAVAILABLE', availabilityVersion: { increment: BigInt(1) } } })
-      await tx.siteMediaLifecycleOperation.update({ where: { operationId: operation.operationId }, data: { status: 'CONFIRMED', confirmedAt: now } })
+      if (!(await tx.siteMediaLifecycleOperation.updateMany({ where: { operationId: operation.operationId, status: { in: ['PENDING', 'RETRY'] } }, data: { status: 'CONFIRMED', confirmedAt: now } })).count) return { operationId: operation.operationId, deletionStatus: 'DELETED' }
+      if (!(await tx.siteMediaAsset.updateMany({ where: { assetId: asset.assetId, lifecycleStatus: asset.lifecycleStatus, availabilityVersion: asset.availabilityVersion }, data: { lifecycleStatus: 'DELETED', deliveryStatus: 'UNAVAILABLE', availabilityVersion: { increment: BigInt(1) } } })).count) throw new Error('ASSET_LIFECYCLE_CONCURRENT_UPDATE')
+      const updated = await tx.siteMediaAsset.findUniqueOrThrow({ where: { assetId: asset.assetId } })
       await this.appendAvailabilityEvent(tx, updated, operation.operationId, 'DELETED', now)
       return { operationId: operation.operationId, deletionStatus: 'DELETED' }
     })
@@ -171,13 +175,15 @@ export class PrismaSiteMediaRepository implements SiteMediaRepository {
     return row ? new SiteMediaLifecycleOperation(row.operationId, row.tenantId, row.assetId, row.idempotencyKey, row.requestHash, row.kind as SiteMediaOperationKind, row.status as SiteMediaOperationStatus, row.immutableTargetUrl, row.attempts, row.nextAttemptAt, row.providerRequestId, row.lastSafeError, row.confirmedAt) : null
   }
 
-  async saveOperation(operation: SiteMediaLifecycleOperation): Promise<void> {
+  async saveOperation(operation: SiteMediaLifecycleOperation): Promise<SiteMediaLifecycleOperation> {
     try {
       await this.prisma.siteMediaLifecycleOperation.create({ data: { operationId: operation.operationId, tenantId: operation.tenantId, assetId: operation.assetId, idempotencyKey: operation.idempotencyKey, requestHash: operation.requestHash, status: operation.status, kind: operation.kind, immutableTargetUrl: operation.immutableTargetUrl, attempts: operation.attempts, nextAttemptAt: operation.nextAttemptAt, providerRequestId: operation.providerRequestId, lastSafeError: operation.lastSafeError, confirmedAt: operation.confirmedAt } })
+      return operation
     } catch (error) {
       if (!isPrismaUniqueViolation(error)) throw error
       const existing = await this.findOperation({ tenantId: operation.tenantId, assetId: operation.assetId, idempotencyKey: operation.idempotencyKey })
       if (!existing || existing.requestHash !== operation.requestHash) throw new Error('ASSET_IDEMPOTENCY_CONFLICT')
+      return existing
     }
   }
 
@@ -191,8 +197,9 @@ export class PrismaSiteMediaRepository implements SiteMediaRepository {
       if (operation.kind !== 'TAKEDOWN_PURGE') throw new Error('ASSET_OPERATION_KIND_INVALID')
       const asset = await tx.siteMediaAsset.findFirst({ where: { tenantId: operation.tenantId, assetId: operation.assetId } })
       if (!asset) throw new Error('ASSET_SCOPE_FORBIDDEN')
-      const updated = await tx.siteMediaAsset.update({ where: { assetId: asset.assetId }, data: { deliveryStatus: 'UNAVAILABLE', availabilityVersion: { increment: BigInt(1) } } })
-      await tx.siteMediaLifecycleOperation.update({ where: { operationId }, data: { status: 'CONFIRMED', providerRequestId, confirmedAt } })
+      if (!(await tx.siteMediaLifecycleOperation.updateMany({ where: { operationId, status: { in: ['PENDING', 'RETRY'] } }, data: { status: 'CONFIRMED', providerRequestId, confirmedAt } })).count) return
+      if (!(await tx.siteMediaAsset.updateMany({ where: { assetId: asset.assetId, deliveryStatus: asset.deliveryStatus, availabilityVersion: asset.availabilityVersion }, data: { deliveryStatus: 'UNAVAILABLE', availabilityVersion: { increment: BigInt(1) } } })).count) throw new Error('ASSET_LIFECYCLE_CONCURRENT_UPDATE')
+      const updated = await tx.siteMediaAsset.findUniqueOrThrow({ where: { assetId: asset.assetId } })
       await this.appendAvailabilityEvent(tx, updated, operation.operationId, 'TAKEDOWN_CONFIRMED', confirmedAt)
     })
   }
@@ -211,6 +218,20 @@ export class PrismaSiteMediaRepository implements SiteMediaRepository {
     ])
     if (!asset || !operation || operation.tenantId !== input.tenantId || operation.assetId !== input.assetId) throw new Error('ASSET_SCOPE_FORBIDDEN')
     return { asset, operation }
+  }
+
+  /** replayActivation reads the winner's persisted state instead of creating a second availability transition. */
+  private async replayActivation(tx: Prisma.TransactionClient, input: { tenantId: string; siteId: string }, operationId: string): Promise<{ deliveryBindingStatus: string; migrationOperationId: string }> {
+    const binding = await tx.siteMediaDeliveryBinding.findUnique({ where: { tenantId_siteId: input } })
+    if (!binding || binding.status !== 'REMOTE_ACTIVE') throw new Error('ASSET_LIFECYCLE_CONCURRENT_UPDATE')
+    return { deliveryBindingStatus: binding.status, migrationOperationId: operationId }
+  }
+
+  /** replayAsset returns a previously-applied terminal state without incrementing version or duplicating outbox. */
+  private async replayAsset(tx: Prisma.TransactionClient, assetId: string, expectedStatus: string): Promise<SiteMediaRecord> {
+    const asset = await tx.siteMediaAsset.findUnique({ where: { assetId } })
+    if (!asset || asset.lifecycleStatus !== expectedStatus) throw new Error('ASSET_LIFECYCLE_CONCURRENT_UPDATE')
+    return this.toRecord(asset)
   }
 
   /** appendAvailabilityEvent persists the canonical pre-built envelope; the relay only transports this exact payload. */

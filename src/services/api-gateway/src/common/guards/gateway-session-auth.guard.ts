@@ -1,11 +1,11 @@
-import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common'
+import { CanActivate, ExecutionContext, Inject, Injectable, Optional } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
 import { AccountType, IS_PUBLIC_KEY } from '@oes/common/auth'
 import { ExceptionFactory } from '@oes/common/exceptions'
 import { JWT_INVALID, JWT_MISSING } from '@oes/common/exceptions'
 import { RpcException } from '@nestjs/microservices'
 import { TransportPrivateSourceCredentialIssuer } from '@oes/common/authorization'
-import type { AuthGrpcAdapter } from '../../modules/auth-bff/infrastructure/downstream/auth-service/auth-grpc.adapter'
+import { AuthGrpcAdapter } from '../../modules/auth-bff/infrastructure/downstream/auth-service/auth-grpc.adapter'
 import { GatewayVerifiedSourceCredentialVault } from '../grpc/gateway-verified-source-credential.vault'
 
 // Validates gateway bearer tokens against auth-service session truth before protected requests proceed.
@@ -13,8 +13,9 @@ import { GatewayVerifiedSourceCredentialVault } from '../grpc/gateway-verified-s
 export class GatewaySessionAuthGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
-    private readonly authAdapter: AuthGrpcAdapter,
+    @Inject(AuthGrpcAdapter) private readonly authAdapter: AuthGrpcAdapter,
     private readonly vault: GatewayVerifiedSourceCredentialVault,
+    @Optional()
     private readonly sourceCredentialIssuer = new TransportPrivateSourceCredentialIssuer()
   ) {}
 

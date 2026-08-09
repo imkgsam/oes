@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config'
 import { LoggingModule } from '@oes/common/logging'
 import { RegistryModule } from '@oes/common/registry'
 import { GrpcTransportModule, readLocalVerifiedWorkloadIdentity } from '@oes/common/transport'
+import { NatsJetStreamModule, NatsJetStreamRuntimeConfig, NatsDurablePullRunner } from '@oes/common/events'
 import { AsyncLocalTransportPrivateSourceCredentialAccessor, AsyncLocalTrustedExecutionContextAccessor, CertificateBoundExecutionTokenCache, TrustedExecutionRegistry, TrustedGrpcMetadataProvider } from '@oes/common/authorization'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import { AssetSiteMediaAvailabilityConsumer } from '../infrastructure/events/asset-site-media-availability.consumer'
@@ -40,6 +41,7 @@ import {
 import { ASSET_SITE_MEDIA_PORT } from '../application/ports/asset-site-media.port'
 import { SiteTrustedAssetGrpcAdapter } from '../infrastructure/grpc/site-trusted-asset.grpc.adapter'
 import { SiteAuthExecutionTokenExchangeClient } from '../infrastructure/grpc/site-auth-execution-token-exchange.client'
+import { AssetSiteMediaAvailabilityWorker } from '../infrastructure/events/asset-site-media-availability.worker'
 
 const SITE_AUDIENCE = 'urn:oes:service:site-service'
 const siteTrustedRuntime = createLazyTrustedExecutionRuntime(SITE_AUDIENCE)
@@ -53,11 +55,12 @@ const siteTrustedRuntime = createLazyTrustedExecutionRuntime(SITE_AUDIENCE)
     }),
     LoggingModule.forRoot({ serviceName: 'site-service' }),
     RegistryModule,
-    GrpcTransportModule.forFeature([SERVICE_NAMES.ASSET])
+    GrpcTransportModule.forFeature([SERVICE_NAMES.ASSET]),
+    NatsJetStreamModule.forRoot(NatsJetStreamRuntimeConfig.fromEnvironment(process.env))
   ],
   controllers: [SiteAdminGrpcController, SiteRuntimeGrpcController],
   providers: [
-    PrismaAssetSiteMediaInboxRepository,
+    PrismaAssetSiteMediaInboxRepository, AssetSiteMediaAvailabilityWorker,
     { provide: AssetSiteMediaAvailabilityConsumer, useFactory: (inbox: PrismaAssetSiteMediaInboxRepository) => new AssetSiteMediaAvailabilityConsumer(inbox), inject: [PrismaAssetSiteMediaInboxRepository] },
     {
       provide: TrustedExecutionGuard,

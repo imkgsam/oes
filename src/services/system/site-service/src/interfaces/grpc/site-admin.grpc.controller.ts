@@ -1,7 +1,9 @@
-import { Controller, Inject, Optional, UseFilters, UseGuards } from '@nestjs/common'
+import { Controller, Inject, UseFilters, UseGuards } from '@nestjs/common'
+import { RpcException } from '@nestjs/microservices'
 import { Metadata } from '@grpc/grpc-js'
 import { AuthorizeBusinessRpc, getAuthenticatedGrpcRequestContext, SITE_MANAGEMENT_PERMISSION_CODES, TrustedExecutionGuard } from '@oes/common/authorization'
 import { GrpcExceptionFilter } from '@oes/common/filters'
+import { UNAUTHENTICATED } from '@oes/common/exceptions'
 import {
   ActivateLocaleRequest,
   ActivateLocaleResponse,
@@ -181,8 +183,8 @@ export class SiteAdminGrpcController implements SiteAdminManagementServiceContro
   constructor(
     @Inject(SITE_ADMIN_APPLICATION)
     application: SiteAdminApplicationPort,
-    @Optional() @Inject(ASSET_SITE_MEDIA_PORT)
-    private readonly assetScope?: SiteTrustedAssetGrpcAdapter
+    @Inject(ASSET_SITE_MEDIA_PORT)
+    private readonly assetScope: SiteTrustedAssetGrpcAdapter
   ) {
     this.application = trustedAdminApplication(application)
   }
@@ -358,7 +360,7 @@ export class SiteAdminGrpcController implements SiteAdminManagementServiceContro
   }
 
   syncAllPendingChanges(request: SyncAllPendingChangesRequest, metadata?: Metadata): Promise<SyncAllPendingChangesResponse> {
-    if (!this.assetScope || !metadata) return this.application.syncAllPendingChanges(request)
+    if (!metadata) throw new Error('SITE_INBOUND_EXECUTION_CREDENTIAL_REQUIRED')
     return this.assetScope.runWithInboundScope(request, metadata, () => this.application.syncAllPendingChanges(request))
   }
 
@@ -401,7 +403,7 @@ function trustedAdminApplication(application: SiteAdminApplicationPort): SiteAdm
     get(target, property, receiver) {
       const method = Reflect.get(target, property, receiver)
       if (typeof method !== 'function') return method
-      return (request: object, ...rest: unknown[]) => method.call(target, withTrustedAdminContext(request), ...rest)
+      return (request: object, ...rest: unknown[]) => Promise.resolve().then(() => method.call(target, withTrustedAdminContext(request), ...rest))
     }
   })
 }
@@ -409,7 +411,7 @@ function trustedAdminApplication(application: SiteAdminApplicationPort): SiteAdm
 /** Creates the internal-only context used by legacy application signatures from verified ExecutionToken claims. */
 function withTrustedAdminContext<T extends object>(request: T): T {
   const verified = getAuthenticatedGrpcRequestContext(request)?.verifiedExecutionToken
-  if (!verified?.tenantId || !verified.subject) throw new Error('Trusted Admin execution context is required')
+  if (!verified?.tenantId || !verified.subject) throw new RpcException({ grpcStatus: 16, code: UNAUTHENTICATED.code, message: 'Trusted Admin execution context is required' })
   return Object.freeze({ ...request, context: Object.freeze({ tenantId: verified.tenantId, orgId: verified.orgId, operatorId: verified.subject }) }) as T
 }
 
