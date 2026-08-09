@@ -11,7 +11,7 @@ closureDate: 2026-08-09
 programControlCandidate: f4db239e2e80f6d975bcf7d547a3cb8adda7668b
 closureRecord: current-document-commit
 retainedEvidenceBranches: 6
-unarchivedFormalTasks: 15
+unarchivedFormalTasks: 11
 ```
 
 > 本文只记录旧协同框架退役时的资源、证据、依赖、迁移排序与最终关闭结果，不定义新的治理框架，也不重新定义任何服务、契约或领域真相。稳定设计必须以本文链接的 architecture、ADR、collaboration 与 contract 真相源为准。
@@ -41,7 +41,7 @@ unarchivedFormalTasks: 15
 | Repository root | `/Users/acehood/Documents/GitHub/oes` | 路径存在；`main` 工作树 clean |
 | `main` | `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` | AI、Principal Authorization、ActionGrant design、Permission、GRPC carrier、EXEC-CRYPTO HUMAN、完整 MACHINE source-verifier、GRPC Asset token-only cutover、SITE recovery 与本关闭记录均已进入当前文档所在的主线提交 |
 | `origin/main` | `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` | 关闭提交推送后，本地 remote-tracking ref 与 remote `refs/heads/main` 与当前文档提交一致；精确 SHA 由运行时 Git 复核，不在文档内自引用 |
-| Legacy formal A/* threads | 101 | handoff历史聚合计数；post-closure exact-ID复核发现19项`archived=0`，SITE A/C与A/D、PRINCIPAL-ROLE A/C与A/D已通过应用接口归档并复核4/4；当前15项中，本批次已完成EXEC-CRYPTO四项归档前证据审计 |
+| Legacy formal A/* threads | 101 | handoff历史聚合计数；post-closure exact-ID复核发现19项`archived=0`，SITE、PRINCIPAL-ROLE与EXEC-CRYPTO共8项已通过应用接口归档并复核8/8，当前其余11项逐能力审计 |
 | Worktrees | 29 | 峰值 39；最终只保留 `/Users/acehood/Documents/GitHub/oes` 根目录 `main` worktree |
 | `codex/*` branches | 23 | 峰值 33；27 个已进入 main 的分支已用 `git branch -d` 正常删除，6 个非合并历史证据分支保留 |
 | Checker | disabled | handoff evidence；未唤醒旧 checker |
@@ -563,7 +563,7 @@ branch refs 共 33：26 个 branch HEAD 已是 current main ancestor（SITE impl
 - truth/status sync：docs-only candidate `22f07cccbeac1421b86780f1416b66626650494f`（parent `b902ac91…`）仅修改6个既有ADR/service truth/contract/feature文档，15+/15-；把已集成 MACHINE、Gateway/Common/Asset 与 SITE slices 从 `FROZEN_PENDING_IMPLEMENTATION` 校正为 `IMPLEMENTED_VERIFIED`。persistent I&V 独立确认 exact six-path docs-only、UTF-8 6/6、74 links、4个YAML lease manifest与parent byte-identical、deferred边界不变，随后ff-only集成并只push main一次；最终 root/origin/remote为 `22f07ccc…`且clean。
 - frozen/deferred boundary：ADR-0015为 `ACCEPTED`，ExecutionToken与Principal Authorization contracts均为 `FROZEN`；当前没有未消费EXEC-CRYPTO设计决策。DELEGATED、AI、ActionGrant runtime 与外部API-key的独立后置/边界不因本批次改变。
 - Git disposition：唯一关联非main evidence ref为 `codex/exec-crypto/i06-auth-tg2-remediation@64ea8660687bbeb24349d11bcaed6f63d2373c4b`；无绑定worktree、无dirty WIP，不路由main，继续保留到最终cleanup manifest。
-- executable archive gate：本段进入main后，仅通过Codex应用接口归档上述四项，不直接写state database、不唤醒线程。归档后按exact ID复核4/4 `archived=1`且仍可读取；全局未归档数预计由15降为11。
+- EXEC-CRYPTO archive terminal：本段进入main后，已通过Codex应用接口仅归档上述四项；不直接写state database，未唤醒线程。exact-ID只读复核为4/4 `archived=1`且仍可读取；A/C、A/D、I06的`archived_at=1786291848`，A/V02的`archived_at=1786291849`。全局未归档数由15降为11，其余11项留给后续逐能力审计。
 
 ## 8. 本轮验证记录
 
@@ -722,10 +722,10 @@ EXEC-CRYPTO HUMAN foundation I&V terminal evidence：
 | MIG-D25 | Site Inspiration packet仍把trusted gRPC、Event/outbox与CDN purge标为“尚未实现”，但SITE recovery已集成这些平台前置 | 后续实现与legacy archive会误判Site仍在等待平台设计/实现 | `CLOSED`：one-doc candidate `9e6b590a…`只校正状态与依赖完成度，经I&V验收、ff-only集成及push；Inspiration业务实现与Product Hotspot deferral语义不变 |
 | MIG-D26 | legacy GC按canonical `title`统计并宣称formal tasks 41/41 archived，但UI重命名线程的底层`title`仍是delegation正文 | SITE A/C/A/D实际仍为`archived=0`，迁移关闭记录高估归档完成度 | `SITE_BATCH_CLOSED`：exact-ID复核得到全局19项未归档；SITE两项已通过应用接口归档并复核2/2，当前剩余17项逐能力处理 |
 | MIG-D27 | PRINCIPAL-ROLE A/C terminal仍把Permission authority decision RPC记录为未冻结`DESIGN_GAP`，A/D停在是否拆独立`PERMISSION-AUTHORITY`的讨论 | 恢复旧线程会重复已由Unified Design、ActionGrant设计与Permission remediation关闭的边界，并误判current main缺少resolver实现 | `PRINCIPAL_ROLE_BATCH_CLOSED`：冻结真相源与`45a7e306…`实现已覆盖全部旧gap；两项已通过应用接口归档并复核2/2，当前剩余15项 |
-| MIG-D28 | EXEC-CRYPTO A/V/02正确拒绝`c7ab0d9c…`的请求自授权恒真门，但旧A/C、A/D、I06与A/V02仍为`archived=0`，且已实现MACHINE/Gateway/Common/SITE slices仍带pending状态文字 | 若只按旧A/V terminal判断，会把已由Permission-backed HUMAN/MACHINE replacements关闭的问题误作未完成；若直接归档又会遗漏拒绝证据与状态偏移 | `OPEN_EXEC_CRYPTO_ARCHIVE_GATE`：`1ca24f41…`/`02457959…`与fresh 3 suites/10 tests证明缺陷已修复；status-sync `22f07ccc…`已验收集成；本台账进入main后归档四项并exact-ID复核，预计剩余11项 |
+| MIG-D28 | EXEC-CRYPTO A/V/02正确拒绝`c7ab0d9c…`的请求自授权恒真门；本批次开始时旧A/C、A/D、I06与A/V02均为`archived=0`，且已实现MACHINE/Gateway/Common/SITE slices仍带pending状态文字 | 若只按旧A/V terminal判断，会把已由Permission-backed HUMAN/MACHINE replacements关闭的问题误作未完成；若归档前未记录状态偏移与拒绝证据，会丢失迁移闭环 | `EXEC_CRYPTO_BATCH_CLOSED`：`1ca24f41…`/`02457959…`与fresh 3 suites/10 tests证明缺陷已修复；status-sync `22f07ccc…`已验收集成；四项已通过应用接口归档并exact-ID复核4/4，当前剩余11项 |
 
 ## 10. 最终关闭结果
 
 SITE recovery implementation `547a0c5d55f9a955543779ec584a16e9b05cf453` 已 `ACCEPTED_AND_INTEGRATED`；Site 59+7、Site Media 11、Gateway/Asset/Event/R2-purge 链与验证矩阵完成。AI/ActionGrant runtime 保持 deferred，API-KEY rejected prototype 永不进入 main；无 checker。
 
-本次退役迁移的Git与内容保全阶段已经完成：有用设计与实现已进入`main`或持久evidence ref，拒绝/取代证据已分类。legacy task archive阶段仍在纠错收口：post-closure exact-ID复核发现19项`archived=0`，SITE与PRINCIPAL-ROLE共4项已关闭；当前15项中，EXEC-CRYPTO四项已完成归档前证据审计，等待本台账进入main后执行应用归档并复核。临时closure Git资源在各批次记录集成后正常移除，最终继续只保留root `main`。本文件只承担迁移关闭证据与归档manifest，不作为设计或实现真相源。
+本次退役迁移的Git与内容保全阶段已经完成：有用设计与实现已进入`main`或持久evidence ref，拒绝/取代证据已分类。legacy task archive阶段仍在纠错收口：post-closure exact-ID复核发现19项`archived=0`，SITE、PRINCIPAL-ROLE与EXEC-CRYPTO共8项已关闭，当前其余11项按能力逐项审计。临时closure Git资源在各批次记录集成后正常移除，最终继续只保留root `main`。本文件只承担迁移关闭证据与归档manifest，不作为设计或实现真相源。
