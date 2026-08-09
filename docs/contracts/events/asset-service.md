@@ -82,8 +82,17 @@ The later implementation target is:
 
 ```text
 src/common/src/contracts/asset_service/events.ts
+src/common/src/contracts/asset_service/events.spec.ts
 ```
 
 It must be owned by `asset-service` and export the frozen event type, business event version, owner identity, `data` payload TypeScript type, `OesCloudEvent<AssetSiteMediaAvailabilityChangedData>` composition and runtime validation descriptor. `src/common/src/contracts/asset_service/index.ts` must re-export it.
+
+Producer and consumer persistence semantics are frozen with the compiled contract:
+
+- Asset commits the lifecycle/delivery state, strictly increasing `availabilityVersion`, audit fact and immutable serialized CloudEvent outbox body in one local database transaction.
+- The relay publishes the stored body without reconstructing the event. Retry preserves the same CloudEvents `id`, body and business version.
+- Site deduplicates on `(consumerName, eventId)` and stores a canonical body digest. The same identity and digest is a durable duplicate; the same identity with a different digest is a contract conflict routed to the consumer DLQ.
+- For one Asset, a greater `availabilityVersion` applies; an equal or lower version is durably recorded as stale/ignored. The payload is a current availability snapshot, so Site does not require every intermediate version.
+- Site commits inbox result, availability projection and any degraded/pending reaction in one Site-local transaction. Consumer failure uses delayed NAK; once the platform delivery limit is reached, the consumer first persists the DLQ record and then terminates the original delivery.
 
 This Markdown contract remains the business semantic truth. No code is added by this alignment task; producer and consumer must not hand-copy event strings or payload interfaces before the compiled target exists.

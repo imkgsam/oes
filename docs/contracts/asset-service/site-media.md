@@ -195,7 +195,7 @@ Asset Service 对已知 consumer 发布可消费的生命周期事实，包括�
 - 已发布 Asset 因受控下架 / 隔离变为不可用时，Site 必须将受影响资源标记为待处理或 degraded，阻止其以该 Asset 进入后续新版本；是否替换图片或取消发布由 Site operator 明确决定。
 - Asset 的正常 archive / cleanup 不得破坏受保护的 Site publication；合规或安全强制下架是有意撤销 delivery 的例外。
 
-事件 topic、payload schema、gRPC method 与 common contract 的具体字段必须在本契约和协同蓝图被冻结后另行按 shared-contract 流程设计；实现不得私自从现有 avatar proto 复用或猜测字段。
+事件 topic / payload 以 [asset-service Event Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/events/asset-service.md) 为准，gRPC service / method / field number 以本契约第 8 节为准。实现不得私自从现有 avatar proto 复用、重编号或猜测字段。
 
 ## 8. Shared gRPC And Event Wire Contract
 
@@ -213,9 +213,67 @@ Asset Service 对已知 consumer 发布可消费的生命周期事实，包括�
 
 #### Repository Implementation Prerequisite
 
-截至本合同冻结时，仓库的 shared proto generator 仍配置为 `addGrpcMetadata=false`，现有 Asset RPC 也从 body 读取 tenant / operator 字段。这是已确认的实现缺口，不是兼容 contract。实现必须按 [trusted-grpc-execution-context.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/trusted-grpc-execution-context.md) 原子更新 generator、Gateway / BFF producer、Site multi-hop caller、Asset controller 与 fixture；Asset / Site 不保留 body 或 legacy signed-operator fallback。
+截至本次 Site Recovery 冻结，shared proto explicit-metadata generation、Gateway verified source-credential lifecycle、MACHINE/workload verifier、trusted carrier 与既有 Asset 五 RPC cutover 已集成。仍待实现的是 Site 59+7 RPC cutover、`SiteMediaAssetService`、对应 Permission registration、Site multi-hop caller、Asset outbox、Site inbox 与 Cloudflare precise purge。实现必须按 [trusted-grpc-execution-context.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/trusted-grpc-execution-context.md) 的关闭式 lease 推进；Asset / Site 不保留 body identity、legacy signed-operator 或 ordinary metadata fallback。
 
 ### 8.2 `SiteMediaAssetService` Operations
+
+The frozen wire owner is the new proto `src/common/src/contracts/asset_service/site_media.proto`, with package `asset_service` and service `SiteMediaAssetService`. Generated output under `src/common/src/generated/` is ignored build output and is never a writer-owned tracked path.
+
+Shared messages use these exact fields and numbers:
+
+```text
+UploadSiteMediaStart
+  1 idempotency_key:string
+  2 site_id:string
+  3 requested_media_kind:string
+  4 original_file_name:string
+  5 declared_content_type:string
+
+UploadSiteMediaChunk
+  oneof payload
+    1 start:UploadSiteMediaStart
+    2 content_chunk:bytes
+
+SiteMediaAssetSummary
+  1 asset_id:string
+  2 media_kind:string
+  3 lifecycle_status:string
+  4 delivery_status:string
+  5 preview_url:string
+  6 width:uint32
+  7 height:uint32
+  8 duration_ms:uint64
+  9 created_at:string
+  10 availability_version:uint64
+
+ResolvedSiteMedia
+  1 asset_id:string
+  2 media_kind:string
+  3 lifecycle_status:string
+  4 delivery_status:string
+  5 public_url:string
+  6 width:uint32
+  7 height:uint32
+  8 duration_ms:uint64
+  9 codec:string
+  10 availability_version:uint64
+```
+
+Each RPC request and response uses these exact field numbers:
+
+| RPC | Request fields | Response fields |
+| --- | --- | --- |
+| `UploadSiteMedia(stream UploadSiteMediaChunk)` | stream message above | `asset=1` |
+| `ListAuthorizedSiteMedia` | `site_id=1`, `query=2`, `media_kind_filter=3`, `include_archived=4`, `page_size=5`, `page_token=6` | `assets=1`, `next_page_token=2` |
+| `ResolveSiteMediaForPublication` | `site_id=1`, `asset_id=2`, `required_media_kind=3` | `resolved=1` |
+| `PrepareSiteMediaRemoteDelivery` | `idempotency_key=1`, `site_id=2`, `media_host=3` | `delivery_binding_status=1`, `validation_operation_id=2` |
+| `ActivateSiteMediaRemoteDelivery` | `idempotency_key=1`, `site_id=2` | `delivery_binding_status=1`, `migration_operation_id=2` |
+| `ProtectSitePublicationReferences` | `idempotency_key=1`, `site_id=2`, `publish_version:uint64=3`, `asset_ids=4` | `protected_asset_ids=1`, `protection_status=2` |
+| `ReleaseSitePublicationReferences` | `idempotency_key=1`, `site_id=2`, `publish_version:uint64=3` | `released_asset_ids=1`, `release_status=2` |
+| `ArchiveSiteMedia` | `idempotency_key=1`, `asset_id=2` | `asset=1` |
+| `TakeDownSiteMedia` | `idempotency_key=1`, `asset_id=2`, `reason_code=3`, `reason_note=4` | `operation_id=1`, `delivery_status=2` |
+| `GetSiteMediaDeliveryStatus` | `asset_id=1` | `asset_id=1`, `lifecycle_status=2`, `delivery_status=3`, `availability_version:uint64=4`, `last_operation_id=5` |
+| `DeleteSiteMedia` | `idempotency_key=1`, `asset_id=2`, `deletion_reason=3` | `operation_id=1`, `deletion_status=2` |
 
 | RPC                                            | Request body                                                                                                                                                | Response body                                                                              | Stable behavior                                                                                                        |
 | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
@@ -247,6 +305,8 @@ INTERNAL 三个 publication primitive 只允许 Site workload 按 STS issuance p
 
 `UploadSiteMediaChunk` 使用 proto `oneof`，只允许第一帧为 `start`、后续帧为 `content_chunk`；空 content、第二个 start 或超出受控上传限制必须拒绝。流实际大小、解析结果与 checksum 由 Asset 计算，不能信任调用方声明。
 
+Upload 失败、取消或 client disconnect 不得留下 active Asset 或可选 delivery。幂等输入包含最终 Asset-calculated checksum：相同 key 与相同 canonical input 返回原结果，相同 key 与不同 input 返回 `ASSET_IDEMPOTENCY_CONFLICT`。
+
 `SiteMediaAssetSummary` 最小字段：`asset_id`、`media_kind`、`lifecycle_status`、`delivery_status`、`preview_url`、`width`、`height`、`duration_ms`（视频适用）、`created_at`、`availability_version`。`preview_url` 必须仍是 public-safe delivery reference，不能是 storage URL。
 
 `ResolvedSiteMedia` 最小字段：`asset_id`、`media_kind`、`lifecycle_status`、`delivery_status`、`public_url`、`width`、`height`、`duration_ms`（视频适用）、`codec`（视频适用）、`availability_version`。`public_url + asset_id + width + height` 是 Inspiration public view 必须冻结的最小事实；video technical facts 不改变 Inspiration 仅图片的约束。
@@ -273,6 +333,16 @@ CloudEvents 1.0 Structured JSON envelope、Asset-owned `data` payload、`availab
 - `ASSET_IDEMPOTENCY_CONFLICT`：同一幂等键被用于不同语义输入。
 - `ASSET_REMOTE_DELIVERY_NOT_READY`：Site 的远端 DNS / TLS / origin / purge 验证未完成，或远端迁移尚未成功。
 - `ASSET_REMOTE_DELIVERY_IRREVERSIBLE`：已激活远端交付的 Site 请求回退到 local。
+
+Stable gRPC transport mapping:
+
+| Category | gRPC status |
+| --- | --- |
+| media validation or kind mismatch | `INVALID_ARGUMENT` |
+| tenant / scope denial | `PERMISSION_DENIED` |
+| state, publication protection, public delivery or remote readiness precondition | `FAILED_PRECONDITION` |
+| lifecycle operation already in progress | `ABORTED` |
+| idempotency key conflict | `ALREADY_EXISTS` |
 
 ## 9. Audit And Acceptance
 

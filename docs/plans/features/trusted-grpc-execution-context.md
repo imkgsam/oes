@@ -566,6 +566,190 @@ Asset and Site retain the previously frozen exact behavior:
 
 This priority does not exempt any later service.
 
+### 9.1 SITE Recovery Exact Implementation Lease
+
+Status: `FROZEN_PENDING_IMPLEMENTATION`. This lease covers only the Site 59+7 trusted-gRPC slice and its directly required Site Media collaboration. Every tracked path not listed below is protected by default. `EXISTING` means the tracked file exists and may be modified; `NEW_TARGET` is the only allowed new tracked file name.
+
+```yaml
+siteRecoveryExactLease:
+  sharedContractAndPermission:
+    - { state: EXISTING, path: src/common/src/contracts/site_service/site.proto }
+    - { state: NEW_TARGET, path: src/common/src/contracts/asset_service/site_media.proto }
+    - { state: NEW_TARGET, path: src/common/src/contracts/asset_service/site_media.contract.spec.ts }
+    - { state: EXISTING, path: src/common/src/contracts/asset_service/index.ts }
+    - { state: NEW_TARGET, path: src/common/src/contracts/asset_service/events.ts }
+    - { state: NEW_TARGET, path: src/common/src/contracts/asset_service/events.spec.ts }
+    - { state: EXISTING, path: src/services/system/permission-service/src/scripts/permission-catalog.ts }
+    - { state: EXISTING, path: src/services/system/permission-service/src/scripts/generate-common-permission-codes.ts }
+    - { state: EXISTING, path: src/services/system/permission-service/test/l1/common-permission-code-generator.spec.ts }
+    - { state: EXISTING, path: src/services/system/permission-service/test/l1/permission-foundation.seed.spec.ts }
+    - { state: EXISTING, path: src/services/system/permission-service/test/l1/permission-service-seed.spec.ts }
+    - { state: EXISTING, path: src/common/src/authorization/permission-codes/asset/index.ts }
+    - { state: EXISTING, path: src/common/src/authorization/permission-codes/asset/internal.permission-codes.ts }
+    - { state: NEW_TARGET, path: src/common/src/authorization/permission-codes/asset/site-media.permission-codes.ts }
+    - { state: EXISTING, path: src/common/src/authorization/permission-codes/site-management/index.ts }
+    - { state: EXISTING, path: src/common/src/authorization/permission-codes/site-management/management.permission-codes.ts }
+    - { state: NEW_TARGET, path: src/common/src/authorization/permission-codes/site-management/internal.permission-codes.ts }
+  gatewaySiteCallersAndMachineRoot:
+    - { state: EXISTING, path: src/services/api-gateway/src/app.module.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution.module.ts }
+    - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution.module.spec.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution-producer.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution-producer.spec.ts }
+    - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-auth-machine-workload-source-credential.client.ts }
+    - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-auth-machine-workload-source-credential.client.spec.ts }
+    - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-machine-workload-source-credential.provider.ts }
+    - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-machine-workload-source-credential.provider.spec.ts }
+    - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-machine-trusted-grpc-execution-producer.ts }
+    - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-machine-trusted-grpc-execution-producer.spec.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/site-management-bff/infrastructure/downstream/site-admin-grpc.adapter.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/site-management-bff/infrastructure/downstream/site-admin-grpc.adapter.spec.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/site-management-bff/site-management.service.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/site-management-bff/site-management.service.spec.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/site-management-bff/interface/http/controllers/site-management.controller.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/site-management-bff/interface/http/controllers/site-management.controller.spec.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/site-runtime-bff/infrastructure/downstream/site-runtime-grpc.adapter.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/site-runtime-bff/infrastructure/downstream/site-runtime-grpc.adapter.spec.ts }
+  siteTrustedCutoverAndEventConsumer:
+    - { state: EXISTING, path: src/services/system/site-service/src/main.ts }
+    - { state: EXISTING, path: src/services/system/site-service/src/app.module.ts }
+    - { state: EXISTING, path: src/services/system/site-service/src/modules/site-service.module.ts }
+    - { state: EXISTING, path: src/services/system/site-service/src/interfaces/grpc/site-admin.grpc.controller.ts }
+    - { state: EXISTING, path: src/services/system/site-service/src/interfaces/grpc/site-runtime.grpc.controller.ts }
+    - { state: EXISTING, path: src/services/system/site-service/src/application/services/site-admin-application.service.ts }
+    - { state: EXISTING, path: src/services/system/site-service/src/application/audit/site-audit-envelope.ts }
+    - { state: EXISTING, path: src/services/system/site-service/prisma/schema.prisma }
+    - { state: NEW_TARGET, path: src/services/system/site-service/prisma/migrations/202608090001_asset_site_media_availability_inbox/migration.sql }
+    - { state: NEW_TARGET, path: src/services/system/site-service/src/infrastructure/prisma/prisma.module.ts }
+    - { state: NEW_TARGET, path: src/services/system/site-service/src/application/ports/asset-site-media-inbox.port.ts }
+    - { state: NEW_TARGET, path: src/services/system/site-service/src/application/events/asset-site-media-availability.handler.ts }
+    - { state: NEW_TARGET, path: src/services/system/site-service/src/infrastructure/events/asset-site-media-availability.consumer.ts }
+    - { state: NEW_TARGET, path: src/services/system/site-service/src/infrastructure/events/asset-site-media-availability.worker.ts }
+    - { state: NEW_TARGET, path: src/services/system/site-service/src/infrastructure/repositories/prisma-asset-site-media-inbox.repository.ts }
+    - { state: NEW_TARGET, path: src/services/system/site-service/src/modules/asset-site-media-events.module.ts }
+  siteExistingTests:
+    - { state: EXISTING, path: src/services/system/site-service/test/l1/site-admin-ownership.spec.ts }
+    - { state: EXISTING, path: src/services/system/site-service/test/l1/site-application-services.spec.ts }
+    - { state: EXISTING, path: src/services/system/site-service/test/l1/site-content-descendant-ownership.spec.ts }
+    - { state: EXISTING, path: src/services/system/site-service/test/l1/site-credential-sync-ownership.spec.ts }
+    - { state: EXISTING, path: src/services/system/site-service/test/l1/site-domain-foundation.spec.ts }
+    - { state: EXISTING, path: src/services/system/site-service/test/l1/site-preview-ownership.spec.ts }
+    - { state: EXISTING, path: src/services/system/site-service/test/l1/site-publication-sync.spec.ts }
+    - { state: EXISTING, path: src/services/system/site-service/test/l1/site-service-module.spec.ts }
+    - { state: EXISTING, path: src/services/system/site-service/test/l2/prisma-site-content-descendant-ownership.spec.ts }
+    - { state: EXISTING, path: src/services/system/site-service/test/l2/prisma-site-credential-sync-ownership.spec.ts }
+    - { state: EXISTING, path: src/services/system/site-service/test/l2/prisma-site-slug-ledger.spec.ts }
+    - { state: EXISTING, path: src/services/system/site-service/test/l2/prisma-site-sync-concurrency.spec.ts }
+    - { state: EXISTING, path: src/services/system/site-service/test/l2/site-page-governance.repositories.spec.ts }
+    - { state: EXISTING, path: src/services/system/site-service/test/l2/site-service-application-closed-loop.spec.ts }
+    - { state: EXISTING, path: src/services/system/site-service/test/l3/site-grpc.controllers.spec.ts }
+    - { state: EXISTING, path: src/services/system/site-service/test/l3/site-grpc-uint64-transport.spec.ts }
+  siteNewTests:
+    - { state: NEW_TARGET, path: src/services/system/site-service/test/l1/asset-site-media-availability.handler.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/site-service/test/l1/asset-site-media-availability.consumer.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/site-service/test/l1/asset-site-media-availability.worker.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/site-service/test/l2/asset-site-media-inbox.persistence.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/site-service/test/l3/site-trusted-grpc-security.spec.ts }
+  assetSiteMediaR2PurgeAndOutbox:
+    - { state: EXISTING, path: src/services/system/asset-service/package.json }
+    - { state: EXISTING, path: src/services/system/asset-service/prisma/schema.prisma }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/prisma/migrations/202608090001_site_media_foundation/migration.sql }
+    - { state: EXISTING, path: src/services/system/asset-service/src/main.ts }
+    - { state: EXISTING, path: src/services/system/asset-service/src/app.module.ts }
+    - { state: EXISTING, path: src/services/system/asset-service/src/domain/entities/asset.entity.ts }
+    - { state: EXISTING, path: src/services/system/asset-service/src/common/constants/symbols/port.symbols.ts }
+    - { state: EXISTING, path: src/services/system/asset-service/src/common/constants/symbols/repo.symbols.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/src/domain/entities/site-media-delivery-binding.entity.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/src/domain/entities/site-media-lifecycle-operation.entity.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/src/domain/repositories/site-media.repository.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/src/domain/ports/site-media-storage.port.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/src/domain/ports/asset-delivery-purge.port.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/src/application/services/site-media-application.service.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/src/interfaces/grpc/site-media.grpc.controller.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/src/modules/site-media/site-media.module.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/src/infrastructure/adaptors/storage/s3-compatible-site-media-storage.adaptor.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/src/infrastructure/adaptors/storage/cloudflare-r2-site-media-storage.adaptor.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/src/infrastructure/adaptors/delivery/cloudflare-site-media-delivery-purge.adaptor.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/src/infrastructure/repositories/prisma/prisma.site-media.repository.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/src/infrastructure/events/prisma-asset-site-media-outbox.store.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/src/infrastructure/events/asset-site-media-outbox.relay.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/src/infrastructure/events/asset-site-media-outbox.worker.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/src/infrastructure/workers/site-media-lifecycle-operation.worker.ts }
+  assetNewTests:
+    - { state: NEW_TARGET, path: src/services/system/asset-service/test/l1/site-media-grpc.controller.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/test/l1/site-media-application.service.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/test/l1/s3-compatible-site-media-storage.adaptor.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/test/l1/cloudflare-r2-site-media-storage.adaptor.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/test/l1/cloudflare-site-media-delivery-purge.adaptor.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/test/l1/asset-site-media-outbox-relay.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/test/l1/asset-site-media-outbox-worker.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/test/l1/site-media-lifecycle-operation.worker.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/test/l1/site-media-module.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/test/l2/prisma-site-media.repository.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/test/l2/site-media-database-constraints.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/test/l3/site-media-grpc-security.spec.ts }
+  ignoredGeneratedOutputs:
+    generatorInput:
+      - src/common/src/contracts/site_service/site.proto
+      - src/common/src/contracts/asset_service/site_media.proto
+    ignoredOutputs:
+      - src/common/src/generated/site_service/site.ts
+      - src/common/src/generated/asset_service/site_media.ts
+      - src/common/src/generated/asset_service/index.ts
+    generationCommand: pnpm proto:regen
+    verificationCommand: pnpm --filter @oes/common build
+  protectedBoundaries:
+    - Auth and Identity MACHINE credential implementation
+    - existing Asset five-RPC wire and runtime semantics
+    - Common trusted carrier/runtime outside its already integrated public seams
+    - external API-key and DELEGATED/AI/ActionGrant runtime
+    - Site Inspiration Item/Category/Hotspot and Runtime local store/Storefront
+    - Product Master-Site Product, BYOC, multi-CDN, DNS automation and video transcoding
+```
+
+Implementation dependency order is: shared proto/Permission registration; Gateway and Site trusted cutover preparation; Asset Site Media persistence/provider/runtime; Asset outbox and Site inbox; then cross-service acceptance. No server may enter token-only mode while a direct caller still uses legacy metadata or body identity.
+
+Focused generation, build and test commands:
+
+```bash
+pnpm --filter permission-service permission-codes:generate-common
+pnpm proto:regen
+pnpm proto:lint
+pnpm --filter asset-service prisma:generate
+pnpm --filter site-service prisma:generate
+
+pnpm --filter @oes/common build
+pnpm --filter permission-service build
+pnpm --filter api-gateway build
+pnpm --filter asset-service build
+pnpm --filter site-service build
+
+pnpm exec jest --runInBand --runTestsByPath \
+  src/common/src/contracts/asset_service/site_media.contract.spec.ts \
+  src/common/src/contracts/asset_service/events.spec.ts
+
+pnpm --filter permission-service exec jest --config jest.config.js --runInBand \
+  test/l1/common-permission-code-generator.spec.ts \
+  test/l1/permission-foundation.seed.spec.ts \
+  test/l1/permission-service-seed.spec.ts
+
+pnpm --filter api-gateway exec jest --runInBand --runTestsByPath \
+  src/common/grpc/gateway-trusted-grpc-execution.module.spec.ts \
+  src/common/grpc/gateway-auth-machine-workload-source-credential.client.spec.ts \
+  src/common/grpc/gateway-machine-workload-source-credential.provider.spec.ts \
+  src/common/grpc/gateway-machine-trusted-grpc-execution-producer.spec.ts \
+  src/modules/site-management-bff/infrastructure/downstream/site-admin-grpc.adapter.spec.ts \
+  src/modules/site-runtime-bff/infrastructure/downstream/site-runtime-grpc.adapter.spec.ts
+
+pnpm --filter asset-service test
+pnpm --filter site-service test:l1
+pnpm --filter site-service test:l2
+pnpm --filter site-service test:l3
+node scripts/architecture/trusted-grpc-signature-inventory.mjs
+```
+
+Acceptance additionally proves: 59/59 Admin, 7/7 Runtime and 11/11 Site Media RPCs each have exactly one declaration; all 13 new Code values come only from the canonical catalog/generator; Admin body identity and legacy Gateway metadata references are zero; `SignedSiteContext` remains intact; wrong audience/`cnf`, missing Code and body injection fail closed; the public Site Media event does not use process-local `EventEmitter`; and the tracked diff is a strict subset of this lease.
+
 ## 10. Repository-wide Security Acceptance
 
 Final acceptance must prove:

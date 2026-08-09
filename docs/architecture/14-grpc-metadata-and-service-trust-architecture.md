@@ -361,6 +361,8 @@ HTTP access token
 - 租户 Robot 使用 TENANT Machine Principal 与自己的 role / policy。
 - 无人值守 Robot 不继承创建者权限。
 - 平台 Robot template 不是 principal；租户安装时创建独立 tenant machine principal。
+- Gateway 代表外部 Site Runtime 调用 `site-service` 时，复用现有 `MachineWorkloadSourceCredential`，不新增 Site 专用 credential profile：Gateway workload + current certificate-bound、max-15-minute、no-refresh source credential 作为 STS root，换取 `aud=site-service` 与精确 `site.internal.runtime.*` Code 的 ExecutionToken。
+- 上述内部 MACHINE 证明与 `SignedSiteContext` 是并行且都必须成立的两层证明。前者只证明 Gateway workload 和内部 RPC authority；后者只证明外部 Site Runtime 请求的 HMAC、nonce、time、method、path 与 body hash。HMAC 不进入 source-credential carrier，也不成为 principal / tenant authority；MACHINE Token 不替代 Site 对 HMAC 的独立验证。
 - DELEGATED AI 的有效权限为用户权限、AI / tool 上限、delegation grant、tenant 与目标 RPC 要求的交集。
 - 外部 App 只允许创建 tenant Integration Machine + API Key，经 Gateway/Auth 取得 Gateway-only external access token；Gateway 才在受信任的内部 mTLS hop 换取 target-audience ExecutionToken。Auth 的唯一 Gateway/credential gRPC surface 是 `external_api_key.proto` 的 `ExternalApiKeyCredentialService`：管理方法使用可信 HUMAN context，交换方法只允许 Gateway INTERNAL caller 在 request field 传递 raw key。API Key 与 external token 均不开放内部 gRPC。具体边界以 [External API Key Security Collaboration](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/external-api-key-security.md) 为准。Marketplace、第三方开发者平台、共享 App 主体与跨 tenant 安装模型已取消，不作为后续预留能力。
 

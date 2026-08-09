@@ -64,7 +64,7 @@ Site formal Sync
 - Site 在公开包含 Asset 的新 public view 前，为该 Asset 建立针对对应 publication 的保护。
 - 保护覆盖当前 publication、Runtime last-complete 与 Site 支持保留窗口中仍可 target-addressable 的历史 publication。
 - Site 只在某个 publication 不再被承诺读取后释放其保护。Site 草稿更改、latest 引用替换或 CDN request log 都不是提前释放依据。
-- Asset 拒绝仍受保护 Asset 的 ordinary physical delete；服务间协调的具体 gRPC / event / outbox 细节需在 shared contract 阶段实现，但不得破坏上述不变量。
+- Asset 拒绝仍受保护 Asset 的 ordinary physical delete；具体 gRPC primitive 以 [Site Media contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/asset-service/site-media.md) 为准，event / outbox / inbox 以第 7 节与 [Asset event contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/events/asset-service.md) 为准。
 
 ## 6. Archive, Takedown And Failure Reaction
 
@@ -85,6 +85,37 @@ Site formal Sync
 - Asset 向已知 consumer 传播 [asset.site-media.availability.changed](../../contracts/events/asset-service.md) `eventVersion = 1`；其 `availabilityVersion` 是 Site 去重与拒绝过期事实的唯一 owner ordering，具体 CloudEvents envelope 与 payload 以 Asset event contract 为准。
 - Site 在自身范围内记录 Item / Category / publication audit；Asset 记录 Asset lifecycle、delivery purge 与保护 / 释放 audit。任一服务不得写对方数据库。
 - 同步调用必须携带 mTLS workload identity、target-audience ExecutionToken、tenant、execution principal（适用时）、trace 与审计关联；事实传播继续携带 tenant、actor attribution、trace 与 audit reference。跨 tenant、audience、`cnf` 或 scope mismatch 一律 fail closed。
+
+### 7.1 Outbox To Inbox Boundary
+
+```text
+Asset state + availabilityVersion + Asset audit + immutable outbox
+  -> one Asset-local transaction
+  -> Event Bus relay/retry with stable event id and body
+  -> Site inbox dedupe/body-digest check
+  -> Site projection + degraded reaction + inbox result
+  -> one Site-local transaction
+```
+
+- Asset relay does not reconstruct the event from the latest row. Site does not call Asset during event consumption to recover ordering.
+- Site inbox key is `(consumerName, eventId)`. Same identity and canonical body is a duplicate; same identity with a different body is a contract violation and goes to consumer-owned DLQ.
+- `availabilityVersion` is monotonic per Asset. Greater versions apply; equal or lower versions are durably stale-ignored. A later snapshot may safely skip intermediate states.
+- Failed consumption uses delayed NAK. After the platform retry ceiling, Site persists the DLQ fact before acknowledging termination of the original delivery.
+
+### 7.2 Persistence And Purge Invariants
+
+Asset-owned persistence consists of:
+
+- `SiteMediaDeliveryBinding`, unique by `(tenantId, siteId)`.
+- `SiteMediaDeliveryMapping`, unique by `(bindingId, assetId)` with a unique immutable public URL and checksum equal to the canonical Asset binary.
+- `SiteMediaPublicationProtection`, unique by `(tenantId, siteId, publishVersion, assetId)`.
+- `SiteMediaLifecycleOperation`, carrying stable operation identity, canonical request hash and idempotency scope.
+- `SiteMediaPurgeAttempt`, unique by `(operationId, mappingId, attemptNumber)`.
+- `AssetEventOutbox`, unique by event identity with immutable body, and `AssetAuditEvent` for every lifecycle/delivery transition.
+
+Site-owned persistence consists of `AssetSiteMediaAvailabilityProjection`, unique by `(tenantId, assetId)`, and `SiteEventInbox`, unique by `(consumerName, eventId)`. No cross-service foreign key is permitted.
+
+For takedown, Asset first removes or isolates every Site delivery object, then precise-purges every immutable URL. Only after all provider acknowledgements may the owner state become `UNAVAILABLE` and publish the availability fact. A timeout or provider error remains `PURGE_PENDING`; persistent workers retry with bounded backoff and append sanitized audit facts. Provider tokens, R2 credentials, canonical object keys and raw provider error bodies never enter database fields, events, logs or audit.
 
 ## 8. Implementation Sequencing
 
