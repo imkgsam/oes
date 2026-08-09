@@ -568,7 +568,7 @@ This priority does not exempt any later service.
 
 ### 9.1 SITE Recovery Exact Implementation Lease
 
-Status: `FROZEN_PENDING_IMPLEMENTATION`. This lease covers only the Site 59+7 trusted-gRPC slice and its directly required Site Media collaboration. The manifest contains 120 paths: 58 `EXISTING` and 62 `NEW_TARGET`. Every tracked path not listed below is protected by default. `EXISTING` means the tracked file exists and may be modified; `NEW_TARGET` is the only allowed new tracked file name.
+Status: `FROZEN_PENDING_IMPLEMENTATION`. This lease covers only the Site 59+7 trusted-gRPC slice and its directly required Site Media collaboration. The manifest contains 122 paths: 58 `EXISTING` and 64 `NEW_TARGET`. Every tracked path not listed below is protected by default. `EXISTING` means the tracked file exists and may be modified; `NEW_TARGET` is the only allowed new tracked file name.
 
 ```yaml
 siteRecoveryExactLease:
@@ -625,6 +625,7 @@ siteRecoveryExactLease:
     - { state: EXISTING, path: src/services/system/site-service/src/application/audit/site-audit-envelope.ts }
     - { state: EXISTING, path: src/services/system/site-service/prisma/schema.prisma }
     - { state: NEW_TARGET, path: src/services/system/site-service/prisma/migrations/202608090001_asset_site_media_availability_inbox/migration.sql }
+    - { state: NEW_TARGET, path: src/services/system/site-service/prisma/migrations/202608090001_asset_site_media_dlq/migration.sql }
     - { state: NEW_TARGET, path: src/services/system/site-service/src/application/ports/asset-site-media.port.ts }
     - { state: NEW_TARGET, path: src/services/system/site-service/src/infrastructure/prisma/prisma.module.ts }
     - { state: NEW_TARGET, path: src/services/system/site-service/src/application/ports/asset-site-media-inbox.port.ts }
@@ -663,6 +664,7 @@ siteRecoveryExactLease:
     - { state: EXISTING, path: src/services/system/asset-service/package.json }
     - { state: EXISTING, path: src/services/system/asset-service/prisma/schema.prisma }
     - { state: NEW_TARGET, path: src/services/system/asset-service/prisma/migrations/202608090001_site_media_foundation/migration.sql }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/prisma/migrations/202608090003_site_media_purge_lease/migration.sql }
     - { state: NEW_TARGET, path: src/services/system/asset-service/prisma/migrations/202608090002_site_media_asset_identity/migration.sql }
     - { state: EXISTING, path: src/services/system/asset-service/src/main.ts }
     - { state: EXISTING, path: src/services/system/asset-service/src/app.module.ts }
