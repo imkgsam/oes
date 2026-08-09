@@ -1,7 +1,7 @@
 # OES 协同框架退役迁移关闭记录
 
 ```yaml
-status: MIGRATION_COMPLETED
+status: MIGRATION_CONTENT_PRESERVED_ARCHIVE_IN_PROGRESS
 documentRole: historical-migration-closure-record
 governanceFramework: false
 frozenDecisionSource: false
@@ -11,7 +11,7 @@ closureDate: 2026-08-09
 programControlCandidate: f4db239e2e80f6d975bcf7d547a3cb8adda7668b
 closureRecord: current-document-commit
 retainedEvidenceBranches: 6
-unarchivedFormalTasks: 0
+unarchivedFormalTasks: 19
 ```
 
 > 本文只记录旧协同框架退役时的资源、证据、依赖、迁移排序与最终关闭结果，不定义新的治理框架，也不重新定义任何服务、契约或领域真相。稳定设计必须以本文链接的 architecture、ADR、collaboration 与 contract 真相源为准。
@@ -41,7 +41,7 @@ unarchivedFormalTasks: 0
 | Repository root | `/Users/acehood/Documents/GitHub/oes` | 路径存在；`main` 工作树 clean |
 | `main` | `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` | AI、Principal Authorization、ActionGrant design、Permission、GRPC carrier、EXEC-CRYPTO HUMAN、完整 MACHINE source-verifier、GRPC Asset token-only cutover、SITE recovery 与本关闭记录均已进入当前文档所在的主线提交 |
 | `origin/main` | `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` | 关闭提交推送后，本地 remote-tracking ref 与 remote `refs/heads/main` 与当前文档提交一致；精确 SHA 由运行时 Git 复核，不在文档内自引用 |
-| Legacy formal A/* threads | 101 | handoff 历史聚合计数；本机 canonical formal tasks 共 41 项，最终 41/41 已归档 |
+| Legacy formal A/* threads | 101 | handoff历史聚合计数；post-closure exact-ID复核确认本机仍有19项`archived=0`。本SITE批次先处理A/C与A/D两项，完成后其余17项逐能力审计 |
 | Worktrees | 29 | 峰值 39；最终只保留 `/Users/acehood/Documents/GitHub/oes` 根目录 `main` worktree |
 | `codex/*` branches | 23 | 峰值 33；27 个已进入 main 的分支已用 `git branch -d` 正常删除，6 个非合并历史证据分支保留 |
 | Checker | disabled | handoff evidence；未唤醒旧 checker |
