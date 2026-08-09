@@ -10,8 +10,12 @@ import { readLocalVerifiedWorkloadIdentity } from '@oes/common/transport'
 import { GatewayAssetGrpcClient } from './gateway-asset-grpc.client'
 import { GatewayAuthExecutionTokenExchangeClient } from './gateway-auth-execution-token-exchange.client'
 import { GatewayTrustedGrpcExecutionProducer } from './gateway-trusted-grpc-execution-producer'
+import { GatewayAuthMachineWorkloadSourceCredentialClient } from './gateway-auth-machine-workload-source-credential.client'
+import { GatewayMachineWorkloadSourceCredentialProvider } from './gateway-machine-workload-source-credential.provider'
+import { GatewayMachineTrustedGrpcExecutionProducer } from './gateway-machine-trusted-grpc-execution-producer'
 
 const ASSET_AUDIENCE = 'urn:oes:service:asset-service'
+const SITE_AUDIENCE = 'urn:oes:service:site-service'
 
 /** Composes the sole Gateway target-token producer with the same request-private source-credential accessor. */
 @Global()
@@ -20,6 +24,8 @@ const ASSET_AUDIENCE = 'urn:oes:service:asset-service'
     AsyncLocalTransportPrivateSourceCredentialAccessor,
     AsyncLocalTrustedExecutionContextAccessor,
     GatewayAssetGrpcClient,
+    GatewayAuthMachineWorkloadSourceCredentialClient,
+    { provide: GatewayMachineWorkloadSourceCredentialProvider, useFactory: (client: GatewayAuthMachineWorkloadSourceCredentialClient, accessor: AsyncLocalTransportPrivateSourceCredentialAccessor) => new GatewayMachineWorkloadSourceCredentialProvider(client, undefined, accessor), inject: [GatewayAuthMachineWorkloadSourceCredentialClient, AsyncLocalTransportPrivateSourceCredentialAccessor] },
     {
       provide: GatewayAuthExecutionTokenExchangeClient,
       useFactory: (context: AsyncLocalTrustedExecutionContextAccessor) =>
@@ -30,7 +36,7 @@ const ASSET_AUDIENCE = 'urn:oes:service:asset-service'
       provide: TrustedExecutionRegistry,
       useFactory: () => new TrustedExecutionRegistry({
         issuer: requireEnvironment('AUTH_EXECUTION_ISSUER'),
-        audiences: [ASSET_AUDIENCE],
+        audiences: [ASSET_AUDIENCE, SITE_AUDIENCE],
         workloadIdentities: [requireEnvironment('OES_WORKLOAD_SPIFFE_ID')]
       })
     },
@@ -57,12 +63,15 @@ const ASSET_AUDIENCE = 'urn:oes:service:asset-service'
       provide: GatewayTrustedGrpcExecutionProducer,
       useFactory: (context: AsyncLocalTrustedExecutionContextAccessor, metadata: TrustedGrpcMetadataProvider) => new GatewayTrustedGrpcExecutionProducer(context, metadata),
       inject: [AsyncLocalTrustedExecutionContextAccessor, TrustedGrpcMetadataProvider]
-    }
+    },
+    { provide: GatewayMachineTrustedGrpcExecutionProducer, useFactory: (source: GatewayMachineWorkloadSourceCredentialProvider, metadata: TrustedGrpcMetadataProvider) => new GatewayMachineTrustedGrpcExecutionProducer(source, metadata), inject: [GatewayMachineWorkloadSourceCredentialProvider, TrustedGrpcMetadataProvider] }
   ],
   exports: [
     AsyncLocalTransportPrivateSourceCredentialAccessor,
     GatewayAssetGrpcClient,
-    GatewayTrustedGrpcExecutionProducer
+    GatewayTrustedGrpcExecutionProducer,
+    GatewayMachineWorkloadSourceCredentialProvider,
+    GatewayMachineTrustedGrpcExecutionProducer
   ]
 })
 export class GatewayTrustedGrpcExecutionModule {}

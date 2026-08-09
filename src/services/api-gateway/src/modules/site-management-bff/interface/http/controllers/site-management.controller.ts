@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common'
+import { Body, Controller, Delete, Get, Param, Post, Query, Req } from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { RequirePermissions, SITE_MANAGEMENT_PERMISSION_CODES } from '@oes/common/authorization'
 import { DownstreamSource } from '../../../../../common/decorators/downstream-source.decorator'
@@ -675,4 +675,30 @@ export class SiteManagementController {
   ) {
     return this.service.listSiteAuditLogs(tenantId, siteId, source)
   }
+
+  /** Site Media Admin routes preserve stream/protocol boundaries and delegate target authorization to Gateway guards. */
+  @Post('sites/:siteId/media')
+  @RequirePermissions({ all: [SITE_MANAGEMENT_PERMISSION_CODES.MANAGE] })
+  uploadSiteMedia(@Param('siteId') siteId: string, @Req() request: any, @DownstreamSource() source: DownstreamRequestSource) { return (this.service as any).uploadSiteMedia(siteId, request, source) }
+  @Get('sites/:siteId/media')
+  @RequirePermissions({ all: [SITE_MANAGEMENT_PERMISSION_CODES.READ] })
+  listAuthorizedSiteMedia(@Param('siteId') siteId: string, @Query() query: any, @DownstreamSource() source: DownstreamRequestSource) { return (this.service as any).listAuthorizedSiteMedia(siteId, query, source) }
+  @Post('sites/:siteId/media/delivery/prepare')
+  @RequirePermissions({ all: [SITE_MANAGEMENT_PERMISSION_CODES.MANAGE] })
+  prepareSiteMediaRemoteDelivery(@Param('siteId') siteId: string, @Body() body: any, @DownstreamSource() source: DownstreamRequestSource) { return (this.service as any).prepareSiteMediaRemoteDelivery(siteId, body, source) }
+  @Post('sites/:siteId/media/delivery/activate')
+  @RequirePermissions({ all: [SITE_MANAGEMENT_PERMISSION_CODES.MANAGE] })
+  activateSiteMediaRemoteDelivery(@Param('siteId') siteId: string, @Body() body: any, @DownstreamSource() source: DownstreamRequestSource) { return (this.service as any).activateSiteMediaRemoteDelivery(siteId, body, source) }
+  @Post('sites/:siteId/media/:assetId/archive')
+  @RequirePermissions({ all: [SITE_MANAGEMENT_PERMISSION_CODES.MANAGE] })
+  archiveSiteMedia(@Param('siteId') siteId: string, @Param('assetId') assetId: string, @Body() body: any, @DownstreamSource() source: DownstreamRequestSource) { return (this.service as any).archiveSiteMedia(siteId, assetId, body, source) }
+  @Post('sites/:siteId/media/:assetId/takedown')
+  @RequirePermissions({ all: [SITE_MANAGEMENT_PERMISSION_CODES.MANAGE] })
+  takeDownSiteMedia(@Param('siteId') siteId: string, @Param('assetId') assetId: string, @Body() body: any, @DownstreamSource() source: DownstreamRequestSource) { return (this.service as any).takeDownSiteMedia(siteId, assetId, body, source) }
+  @Get('sites/:siteId/media/:assetId/status')
+  @RequirePermissions({ all: [SITE_MANAGEMENT_PERMISSION_CODES.READ] })
+  getSiteMediaDeliveryStatus(@Param('siteId') _siteId: string, @Param('assetId') assetId: string, @DownstreamSource() source: DownstreamRequestSource) { return (this.service as any).getSiteMediaDeliveryStatus(assetId, source) }
+  @Delete('sites/:siteId/media/:assetId')
+  @RequirePermissions({ all: [SITE_MANAGEMENT_PERMISSION_CODES.MANAGE] })
+  deleteSiteMedia(@Param('siteId') siteId: string, @Param('assetId') assetId: string, @Body() body: any, @DownstreamSource() source: DownstreamRequestSource) { return (this.service as any).deleteSiteMedia(siteId, assetId, body, source) }
 }

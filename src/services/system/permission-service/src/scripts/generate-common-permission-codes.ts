@@ -5,6 +5,8 @@ import {
   AUTH_SELF_PERMISSION_CODES,
   AUTH_SESSION_PERMISSION_CODES,
   ASSET_INTERNAL_PERMISSION_CODES,
+  ASSET_SITE_MEDIA_INTERNAL_PERMISSION_CODES,
+  ASSET_SITE_MEDIA_PERMISSION_CODES,
   BROWSER_ACTIVITY_AUDIT_PERMISSION_CODES,
   COLLABORATION_ANNOTATION_PERMISSION_CODES,
   COLLABORATION_TASK_PERMISSION_CODES,
@@ -29,6 +31,7 @@ import {
   SALES_MANAGEMENT_PERMISSION_CODES,
   SALES_PRICING_PERMISSION_CODES,
   SITE_MANAGEMENT_PERMISSION_CODES,
+  SITE_MANAGEMENT_INTERNAL_PERMISSION_CODES,
   SRM_MANAGEMENT_PERMISSION_CODES,
   TENANT_ORG_MANAGEMENT_PERMISSION_CODES,
   TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES,
@@ -86,13 +89,19 @@ const COMMON_PERMISSION_CODE_FILES: CommonPermissionCodeFileDefinition[] = [
   {
     kind: 'index',
     relativePath: 'asset/index.ts',
-    exports: ['./internal.permission-codes']
+    exports: ['./internal.permission-codes', './site-media.permission-codes']
   },
   {
     kind: 'const',
     relativePath: 'asset/internal.permission-codes.ts',
     constName: 'ASSET_INTERNAL_PERMISSION_CODES',
     records: ASSET_INTERNAL_PERMISSION_CODES
+  },
+  {
+    kind: 'const',
+    relativePath: 'asset/site-media.permission-codes.ts',
+    constName: 'ASSET_SITE_MEDIA_PERMISSION_CODES',
+    records: { ...ASSET_SITE_MEDIA_PERMISSION_CODES, ...ASSET_SITE_MEDIA_INTERNAL_PERMISSION_CODES }
   },
   {
     kind: 'index',
@@ -334,13 +343,19 @@ const COMMON_PERMISSION_CODE_FILES: CommonPermissionCodeFileDefinition[] = [
   {
     kind: 'index',
     relativePath: 'site-management/index.ts',
-    exports: ['./management.permission-codes']
+    exports: ['./management.permission-codes', './internal.permission-codes']
   },
   {
     kind: 'const',
     relativePath: 'site-management/management.permission-codes.ts',
     constName: 'SITE_MANAGEMENT_PERMISSION_CODES',
     records: SITE_MANAGEMENT_PERMISSION_CODES
+  },
+  {
+    kind: 'const',
+    relativePath: 'site-management/internal.permission-codes.ts',
+    constName: 'SITE_MANAGEMENT_INTERNAL_PERMISSION_CODES',
+    records: SITE_MANAGEMENT_INTERNAL_PERMISSION_CODES
   },
   {
     kind: 'index',

@@ -30,6 +30,14 @@ export interface SiteManagementAdminContext {
 }
 
 export interface SiteManagementDownstream {
+  uploadSiteMedia(stream: any, source: DownstreamRequestSource): Promise<unknown>
+  listAuthorizedSiteMedia(input: { siteId: string; query?: string; mediaKindFilter?: string; pageSize?: number; pageToken?: string }, source: DownstreamRequestSource): Promise<unknown>
+  prepareSiteMediaRemoteDelivery(input: { idempotencyKey: string; siteId: string; mediaHost: string }, source: DownstreamRequestSource): Promise<unknown>
+  activateSiteMediaRemoteDelivery(input: { idempotencyKey: string; siteId: string }, source: DownstreamRequestSource): Promise<unknown>
+  archiveSiteMedia(input: { idempotencyKey: string; assetId: string }, source: DownstreamRequestSource): Promise<unknown>
+  takeDownSiteMedia(input: { idempotencyKey: string; assetId: string; reasonCode: string; reasonNote?: string }, source: DownstreamRequestSource): Promise<unknown>
+  getSiteMediaDeliveryStatus(input: { assetId: string }, source: DownstreamRequestSource): Promise<unknown>
+  deleteSiteMedia(input: { idempotencyKey: string; assetId: string; deletionReason: string }, source: DownstreamRequestSource): Promise<unknown>
   listSiteCards(
     context: SiteManagementAdminContext,
     source: DownstreamRequestSource
@@ -884,6 +892,16 @@ export class SiteManagementService {
       source
     )
   }
+
+  /** uploadSiteMedia forwards the verified tenant-bound upload stream without buffering it into an HTTP body. */
+  uploadSiteMedia(stream: any, source: DownstreamRequestSource) { if (!source.user) throw new Error('verified operator context is required'); return this.downstream.uploadSiteMedia(stream, source) }
+  listAuthorizedSiteMedia(tenantId: VerifiedTenantTarget, input: { siteId: string; query?: string; mediaKindFilter?: string; pageSize?: number; pageToken?: string }, source: DownstreamRequestSource) { return this.downstream.listAuthorizedSiteMedia({ ...input, siteId: input.siteId }, source) }
+  prepareSiteMediaRemoteDelivery(tenantId: VerifiedTenantTarget, input: { idempotencyKey: string; siteId: string; mediaHost: string }, source: DownstreamRequestSource) { return this.downstream.prepareSiteMediaRemoteDelivery(input, source) }
+  activateSiteMediaRemoteDelivery(tenantId: VerifiedTenantTarget, input: { idempotencyKey: string; siteId: string }, source: DownstreamRequestSource) { return this.downstream.activateSiteMediaRemoteDelivery(input, source) }
+  archiveSiteMedia(tenantId: VerifiedTenantTarget, input: { idempotencyKey: string; assetId: string }, source: DownstreamRequestSource) { return this.downstream.archiveSiteMedia(input, source) }
+  takeDownSiteMedia(tenantId: VerifiedTenantTarget, input: { idempotencyKey: string; assetId: string; reasonCode: string; reasonNote?: string }, source: DownstreamRequestSource) { return this.downstream.takeDownSiteMedia(input, source) }
+  getSiteMediaDeliveryStatus(tenantId: VerifiedTenantTarget, assetId: string, source: DownstreamRequestSource) { return this.downstream.getSiteMediaDeliveryStatus({ assetId }, source) }
+  deleteSiteMedia(tenantId: VerifiedTenantTarget, input: { idempotencyKey: string; assetId: string; deletionReason: string }, source: DownstreamRequestSource) { return this.downstream.deleteSiteMedia(input, source) }
 }
 
 /** buildAdminContext maps gateway identity and trace inputs into the site-service Admin context contract. */

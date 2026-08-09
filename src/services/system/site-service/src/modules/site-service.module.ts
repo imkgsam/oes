@@ -2,6 +2,10 @@ import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { LoggingModule } from '@oes/common/logging'
 import { RegistryModule } from '@oes/common/registry'
+import { AssetSiteMediaAvailabilityConsumer } from '../infrastructure/events/asset-site-media-availability.consumer'
+import { PrismaAssetSiteMediaInboxRepository } from '../infrastructure/repositories/prisma-asset-site-media-inbox.repository'
+import { createLazyTrustedExecutionRuntime, TrustedExecutionGuard, TrustedInternalExecutionGuard } from '@oes/common/authorization'
+import { Reflector } from '@nestjs/core'
 import {
   SITE_ADMIN_APPLICATION_REPOSITORY,
   SiteAdminApplicationService
@@ -31,6 +35,9 @@ import {
   SiteRuntimeGrpcController
 } from '../interfaces/grpc/site-runtime.grpc.controller'
 
+const SITE_AUDIENCE = 'urn:oes:service:site-service'
+const siteTrustedRuntime = createLazyTrustedExecutionRuntime(SITE_AUDIENCE)
+
 /** SiteServiceModule assembles site-service application, persistence, and gRPC interface adapters. */
 @Module({
   imports: [
@@ -43,6 +50,18 @@ import {
   ],
   controllers: [SiteAdminGrpcController, SiteRuntimeGrpcController],
   providers: [
+    PrismaAssetSiteMediaInboxRepository,
+    { provide: AssetSiteMediaAvailabilityConsumer, useFactory: (inbox: PrismaAssetSiteMediaInboxRepository) => new AssetSiteMediaAvailabilityConsumer(inbox), inject: [PrismaAssetSiteMediaInboxRepository] },
+    {
+      provide: TrustedExecutionGuard,
+      useFactory: (reflector: Reflector) => new TrustedExecutionGuard(reflector, siteTrustedRuntime.verifier, siteTrustedRuntime.workloadIdentityProvider, SITE_AUDIENCE),
+      inject: [Reflector]
+    },
+    {
+      provide: TrustedInternalExecutionGuard,
+      useFactory: (reflector: Reflector) => new TrustedInternalExecutionGuard(reflector, siteTrustedRuntime.verifier, siteTrustedRuntime.workloadIdentityProvider, SITE_AUDIENCE),
+      inject: [Reflector]
+    },
     PrismaService,
     PrismaSiteRepository,
     PrismaSiteTransactionRunner,

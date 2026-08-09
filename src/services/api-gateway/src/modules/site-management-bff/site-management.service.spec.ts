@@ -62,7 +62,15 @@ describe('SiteManagementService', () => {
     updateFaqEntryLocaleVersion: jest.fn(),
     unpublishFaqEntry: jest.fn(),
     checkFaqCompleteness: jest.fn(),
-    listSiteAuditLogs: jest.fn()
+    listSiteAuditLogs: jest.fn(),
+    uploadSiteMedia: jest.fn(),
+    listAuthorizedSiteMedia: jest.fn(),
+    prepareSiteMediaRemoteDelivery: jest.fn(),
+    activateSiteMediaRemoteDelivery: jest.fn(),
+    archiveSiteMedia: jest.fn(),
+    takeDownSiteMedia: jest.fn(),
+    getSiteMediaDeliveryStatus: jest.fn(),
+    deleteSiteMedia: jest.fn()
   }
   const service = new SiteManagementService(downstream)
   const verifiedTenantTarget = 'tenant_path' as VerifiedTenantTarget

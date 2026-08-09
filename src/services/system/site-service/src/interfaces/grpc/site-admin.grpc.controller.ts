@@ -1,4 +1,5 @@
-import { Controller, Inject, UseFilters } from '@nestjs/common'
+import { Controller, Inject, UseFilters, UseGuards } from '@nestjs/common'
+import { AuthorizeBusinessRpc, getAuthenticatedGrpcRequestContext, SITE_MANAGEMENT_PERMISSION_CODES, TrustedExecutionGuard } from '@oes/common/authorization'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
   ActivateLocaleRequest,
@@ -168,13 +169,18 @@ export const SITE_ADMIN_APPLICATION = Symbol('SITE_ADMIN_APPLICATION')
 
 /** SiteAdminGrpcController exposes the internal Admin management gRPC contract as a thin protocol adapter. */
 @UseFilters(GrpcExceptionFilter)
+@UseGuards(TrustedExecutionGuard)
 @Controller()
 @SiteAdminManagementServiceControllerMethods()
 export class SiteAdminGrpcController implements SiteAdminManagementServiceController {
+  private readonly application: SiteAdminApplicationPort
+
   constructor(
     @Inject(SITE_ADMIN_APPLICATION)
-    private readonly application: SiteAdminApplicationPort
-  ) {}
+    application: SiteAdminApplicationPort
+  ) {
+    this.application = trustedAdminApplication(application)
+  }
 
   /** listFaqCategories forwards FAQ administration reads to the owning application boundary. */
   listFaqCategories(request: ListFaqCategoriesRequest): Promise<ListFaqCategoriesResponse> { return this.application.listFaqCategories(request) }
@@ -381,4 +387,91 @@ export class SiteAdminGrpcController implements SiteAdminManagementServiceContro
   issuePreviewToken(request: IssuePreviewTokenRequest): Promise<IssuePreviewTokenResponse> {
     return this.application.issuePreviewToken(request)
   }
+}
+
+/** Wraps every Admin application call with guard-derived context and discards any request-body identity copy. */
+function trustedAdminApplication(application: SiteAdminApplicationPort): SiteAdminApplicationPort {
+  return new Proxy(application, {
+    get(target, property, receiver) {
+      const method = Reflect.get(target, property, receiver)
+      if (typeof method !== 'function') return method
+      return (request: object, ...rest: unknown[]) => method.call(target, withTrustedAdminContext(request), ...rest)
+    }
+  })
+}
+
+/** Creates the internal-only context used by legacy application signatures from verified ExecutionToken claims. */
+function withTrustedAdminContext<T extends object>(request: T): T {
+  const verified = getAuthenticatedGrpcRequestContext(request)?.verifiedExecutionToken
+  if (!verified?.tenantId || !verified.subject) throw new Error('Trusted Admin execution context is required')
+  return Object.freeze({ ...request, context: Object.freeze({ tenantId: verified.tenantId, orgId: verified.orgId, operatorId: verified.subject }) }) as T
+}
+
+/** Installs the frozen one-code BUSINESS declaration for every Site Admin RPC. */
+const ADMIN_PERMISSION_GROUPS: Readonly<Record<string, string>> = Object.freeze({
+  listSiteCards: SITE_MANAGEMENT_PERMISSION_CODES.READ,
+  listSitePages: SITE_MANAGEMENT_PERMISSION_CODES.READ,
+  getPendingSyncSummary: SITE_MANAGEMENT_PERMISSION_CODES.READ,
+  listPendingSyncResources: SITE_MANAGEMENT_PERMISSION_CODES.READ,
+  listSyncHistory: SITE_MANAGEMENT_PERMISSION_CODES.READ,
+  getSyncDetail: SITE_MANAGEMENT_PERMISSION_CODES.READ,
+  createSite: SITE_MANAGEMENT_PERMISSION_CODES.MANAGE,
+  updateSiteSettings: SITE_MANAGEMENT_PERMISSION_CODES.MANAGE,
+  disableSite: SITE_MANAGEMENT_PERMISSION_CODES.MANAGE,
+  updateSitePageGovernance: SITE_MANAGEMENT_PERMISSION_CODES.MANAGE,
+  addPreparingLocale: SITE_MANAGEMENT_PERMISSION_CODES.LOCALE_MANAGE,
+  checkLocaleCompleteness: SITE_MANAGEMENT_PERMISSION_CODES.LOCALE_MANAGE,
+  activateLocale: SITE_MANAGEMENT_PERMISSION_CODES.LOCALE_MANAGE,
+  disableLocale: SITE_MANAGEMENT_PERMISSION_CODES.LOCALE_MANAGE,
+  listSiteCategories: SITE_MANAGEMENT_PERMISSION_CODES.PRODUCT_MANAGE,
+  createSiteCategory: SITE_MANAGEMENT_PERMISSION_CODES.PRODUCT_MANAGE,
+  updateSiteCategory: SITE_MANAGEMENT_PERMISSION_CODES.PRODUCT_MANAGE,
+  unpublishSiteCategory: SITE_MANAGEMENT_PERMISSION_CODES.PRODUCT_MANAGE,
+  listSiteProducts: SITE_MANAGEMENT_PERMISSION_CODES.PRODUCT_MANAGE,
+  searchProductMasterForAdd: SITE_MANAGEMENT_PERMISSION_CODES.PRODUCT_MANAGE,
+  getSiteProductPublication: SITE_MANAGEMENT_PERMISSION_CODES.PRODUCT_MANAGE,
+  addProductsToSite: SITE_MANAGEMENT_PERMISSION_CODES.PRODUCT_MANAGE,
+  updateSiteProductPublication: SITE_MANAGEMENT_PERMISSION_CODES.PRODUCT_MANAGE,
+  unpublishSiteProduct: SITE_MANAGEMENT_PERMISSION_CODES.PRODUCT_MANAGE,
+  listSiteContents: SITE_MANAGEMENT_PERMISSION_CODES.CONTENT_MANAGE,
+  getSiteContent: SITE_MANAGEMENT_PERMISSION_CODES.CONTENT_MANAGE,
+  createSiteContent: SITE_MANAGEMENT_PERMISSION_CODES.CONTENT_MANAGE,
+  updateSiteContentLocaleVersion: SITE_MANAGEMENT_PERMISSION_CODES.CONTENT_MANAGE,
+  unpublishSiteContent: SITE_MANAGEMENT_PERMISSION_CODES.CONTENT_MANAGE,
+  listContentCategories: SITE_MANAGEMENT_PERMISSION_CODES.CONTENT_MANAGE,
+  getContentCategory: SITE_MANAGEMENT_PERMISSION_CODES.CONTENT_MANAGE,
+  createContentCategory: SITE_MANAGEMENT_PERMISSION_CODES.CONTENT_MANAGE,
+  updateContentCategoryLocaleVersion: SITE_MANAGEMENT_PERMISSION_CODES.CONTENT_MANAGE,
+  publishContentCategoryLocale: SITE_MANAGEMENT_PERMISSION_CODES.CONTENT_MANAGE,
+  reorderContentCategories: SITE_MANAGEMENT_PERMISSION_CODES.CONTENT_MANAGE,
+  deleteContentCategory: SITE_MANAGEMENT_PERMISSION_CODES.CONTENT_MANAGE,
+  listVisibleContentCategories: SITE_MANAGEMENT_PERMISSION_CODES.CONTENT_MANAGE,
+  checkContentCategoryCompleteness: SITE_MANAGEMENT_PERMISSION_CODES.CONTENT_MANAGE,
+  listContentCategoryUsage: SITE_MANAGEMENT_PERMISSION_CODES.CONTENT_MANAGE,
+  listFaqCategories: SITE_MANAGEMENT_PERMISSION_CODES.CONTENT_MANAGE,
+  getFaqCategory: SITE_MANAGEMENT_PERMISSION_CODES.CONTENT_MANAGE,
+  createFaqCategory: SITE_MANAGEMENT_PERMISSION_CODES.CONTENT_MANAGE,
+  updateFaqCategoryLocaleVersion: SITE_MANAGEMENT_PERMISSION_CODES.CONTENT_MANAGE,
+  disableFaqCategory: SITE_MANAGEMENT_PERMISSION_CODES.CONTENT_MANAGE,
+  listFaqEntries: SITE_MANAGEMENT_PERMISSION_CODES.CONTENT_MANAGE,
+  getFaqEntry: SITE_MANAGEMENT_PERMISSION_CODES.CONTENT_MANAGE,
+  createFaqEntry: SITE_MANAGEMENT_PERMISSION_CODES.CONTENT_MANAGE,
+  updateFaqEntryLocaleVersion: SITE_MANAGEMENT_PERMISSION_CODES.CONTENT_MANAGE,
+  unpublishFaqEntry: SITE_MANAGEMENT_PERMISSION_CODES.CONTENT_MANAGE,
+  checkFaqCompleteness: SITE_MANAGEMENT_PERMISSION_CODES.CONTENT_MANAGE,
+  syncAllPendingChanges: SITE_MANAGEMENT_PERMISSION_CODES.SYNC,
+  retryLastSync: SITE_MANAGEMENT_PERMISSION_CODES.SYNC,
+  resendWebhook: SITE_MANAGEMENT_PERMISSION_CODES.SYNC,
+  listSiteCredentials: SITE_MANAGEMENT_PERMISSION_CODES.CREDENTIAL_MANAGE,
+  generateSiteCredential: SITE_MANAGEMENT_PERMISSION_CODES.CREDENTIAL_MANAGE,
+  rotateSiteCredential: SITE_MANAGEMENT_PERMISSION_CODES.CREDENTIAL_MANAGE,
+  revokeSiteCredential: SITE_MANAGEMENT_PERMISSION_CODES.CREDENTIAL_MANAGE,
+  listSiteAuditLogs: SITE_MANAGEMENT_PERMISSION_CODES.AUDIT_READ,
+  issuePreviewToken: SITE_MANAGEMENT_PERMISSION_CODES.PREVIEW
+})
+
+for (const [methodName, permission] of Object.entries(ADMIN_PERMISSION_GROUPS)) {
+  const descriptor = Object.getOwnPropertyDescriptor(SiteAdminGrpcController.prototype, methodName)
+  if (!descriptor) throw new Error(`Missing Site Admin RPC method: ${methodName}`)
+  AuthorizeBusinessRpc({ all: [permission] })(SiteAdminGrpcController.prototype, methodName, descriptor)
 }

@@ -1,10 +1,8 @@
 import { createHash } from 'node:crypto'
+import { Metadata } from '@grpc/grpc-js'
 import { BadRequestException, Inject, Injectable, OnModuleInit } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
-import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory
-} from '@oes/common/authorization'
+import { SITE_MANAGEMENT_INTERNAL_PERMISSION_CODES } from '@oes/common/authorization'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import {
   BatchGetPublicViewsRequest,
@@ -19,10 +17,11 @@ import {
   SiteRuntimeSyncServiceClient
 } from '@oes/common/generated/site_service'
 import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
-import { toInternalCallMetadataInput } from '../../../../common/grpc/gateway-downstream-source.mapper'
 import { SiteRuntimeDownstream, SiteRuntimeSignedHttpRequest } from '../../site-runtime.service'
+import { GatewayMachineTrustedGrpcExecutionProducer } from '../../../../common/grpc/gateway-machine-trusted-grpc-execution-producer'
 
 const CALLER = 'api-gateway'
+const SITE_AUDIENCE = 'urn:oes:service:site-service'
 const MAX_UINT64_DECIMAL = '18446744073709551615'
 const REGISTRATION_VALIDATION_CODE = 'SITE_CAPABILITY_REGISTRATION_VALIDATION_FAILED'
 const MAX_REGISTRATION_PAGES = 256
@@ -53,8 +52,7 @@ export class SiteRuntimeGrpcAdapter implements SiteRuntimeDownstream, OnModuleIn
   constructor(
     @InjectGrpcClient(SERVICE_NAMES.SITE)
     private readonly client: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory
+    private readonly machineExecution: GatewayMachineTrustedGrpcExecutionProducer = { forInternalCall: async (_audience: string, _code: string, callback: any) => callback(new Metadata()) } as any
   ) {}
 
   /** onModuleInit resolves the generated site runtime gRPC client from the transport registry. */
@@ -65,7 +63,7 @@ export class SiteRuntimeGrpcAdapter implements SiteRuntimeDownstream, OnModuleIn
   }
 
   /** registerPageCapabilities rejects malformed manifests before forwarding exact signed values downstream. */
-  registerPageCapabilities(request: SiteRuntimeSignedHttpRequest) {
+  async registerPageCapabilities(request: SiteRuntimeSignedHttpRequest) {
     const decoded = decodeRegisterPageCapabilitiesRequest(request.body)
     const input: RegisterPageCapabilitiesRequest = {
       signedContext: this.signedContext(request),
@@ -73,12 +71,12 @@ export class SiteRuntimeGrpcAdapter implements SiteRuntimeDownstream, OnModuleIn
     }
     return this.call<unknown>(
       'registerPageCapabilities',
-      this.runtime.registerPageCapabilities(input, this.metadata(request))
+      this.runtime.registerPageCapabilities(input, await this.internalMetadata('registerPageCapabilities'))
     ).then(mapRegisterPageCapabilitiesResponse)
   }
 
   /** getLatestPublishState forwards latest-version checks with signed material preserved. */
-  getLatestPublishState(request: SiteRuntimeSignedHttpRequest) {
+  async getLatestPublishState(request: SiteRuntimeSignedHttpRequest) {
     const input: GetLatestPublishStateRequest = {
       signedContext: this.signedContext(request),
       localPublishVersion: numberField(
@@ -88,12 +86,12 @@ export class SiteRuntimeGrpcAdapter implements SiteRuntimeDownstream, OnModuleIn
 
     return this.call(
       'getLatestPublishState',
-      this.runtime.getLatestPublishState(input, this.metadata(request))
+      this.runtime.getLatestPublishState(input, await this.internalMetadata('getLatestPublishState'))
     )
   }
 
   /** listChangedResources forwards delta requests using only the signed site identity. */
-  listChangedResources(request: SiteRuntimeSignedHttpRequest) {
+  async listChangedResources(request: SiteRuntimeSignedHttpRequest) {
     const input: ListChangedResourcesRequest = {
       signedContext: this.signedContext(request),
       fromPublishVersion: numberField(
@@ -107,12 +105,12 @@ export class SiteRuntimeGrpcAdapter implements SiteRuntimeDownstream, OnModuleIn
 
     return this.call(
       'listChangedResources',
-      this.runtime.listChangedResources(input, this.metadata(request))
+      this.runtime.listChangedResources(input, await this.internalMetadata('listChangedResources'))
     )
   }
 
   /** batchGetPublicViews forwards public-view resource refs without accepting body site ownership. */
-  batchGetPublicViews(request: SiteRuntimeSignedHttpRequest) {
+  async batchGetPublicViews(request: SiteRuntimeSignedHttpRequest) {
     const input: BatchGetPublicViewsRequest = {
       signedContext: this.signedContext(request),
       targetPublishVersion: numberField(
@@ -135,12 +133,12 @@ export class SiteRuntimeGrpcAdapter implements SiteRuntimeDownstream, OnModuleIn
 
     return this.call(
       'batchGetPublicViews',
-      this.runtime.batchGetPublicViews(input, this.metadata(request))
+      this.runtime.batchGetPublicViews(input, await this.internalMetadata('batchGetPublicViews'))
     )
   }
 
   /** getSnapshot forwards consistent snapshot requests with signed material preserved. */
-  getSnapshot(request: SiteRuntimeSignedHttpRequest) {
+  async getSnapshot(request: SiteRuntimeSignedHttpRequest) {
     const input: GetSnapshotRequest = {
       signedContext: this.signedContext(request),
       resourceTypes: stringArrayField(request.body.resource_types ?? request.body.resourceTypes),
@@ -152,11 +150,11 @@ export class SiteRuntimeGrpcAdapter implements SiteRuntimeDownstream, OnModuleIn
       )
     }
 
-    return this.call('getSnapshot', this.runtime.getSnapshot(input, this.metadata(request)))
+    return this.call('getSnapshot', this.runtime.getSnapshot(input, await this.internalMetadata('getSnapshot')))
   }
 
   /** reportSyncResult forwards runtime sync status reports to site-service. */
-  reportSyncResult(request: SiteRuntimeSignedHttpRequest) {
+  async reportSyncResult(request: SiteRuntimeSignedHttpRequest) {
     const input: ReportSyncResultRequest = {
       signedContext: this.signedContext(request),
       syncId: stringField(request.body.sync_id ?? request.body.syncId),
@@ -172,12 +170,12 @@ export class SiteRuntimeGrpcAdapter implements SiteRuntimeDownstream, OnModuleIn
 
     return this.call(
       'reportSyncResult',
-      this.runtime.reportSyncResult(input, this.metadata(request))
+      this.runtime.reportSyncResult(input, await this.internalMetadata('reportSyncResult'))
     )
   }
 
   /** getPreviewView forwards preview-token reads while preserving signed verification context. */
-  getPreviewView(request: SiteRuntimeSignedHttpRequest) {
+  async getPreviewView(request: SiteRuntimeSignedHttpRequest) {
     const input: GetPreviewViewRequest = {
       signedContext: this.signedContext(request),
       previewToken: stringField(request.body.preview_token ?? request.body.previewToken),
@@ -186,7 +184,7 @@ export class SiteRuntimeGrpcAdapter implements SiteRuntimeDownstream, OnModuleIn
       locale: stringField(request.body.locale)
     }
 
-    return this.call('getPreviewView', this.runtime.getPreviewView(input, this.metadata(request)))
+    return this.call('getPreviewView', this.runtime.getPreviewView(input, await this.internalMetadata('getPreviewView')))
   }
 
   /** signedContext converts required OES signing headers and canonical request fields into gRPC input. */
@@ -209,13 +207,9 @@ export class SiteRuntimeGrpcAdapter implements SiteRuntimeDownstream, OnModuleIn
   }
 
   /** metadata creates internal gRPC metadata for the site-service runtime verification boundary. */
-  private metadata(request: SiteRuntimeSignedHttpRequest) {
-    return this.metadataFactory.createInternalCallMetadata(
-      toInternalCallMetadataInput({
-        requestId: header(request, 'x-oes-request-id'),
-        traceId: header(request, 'x-oes-trace-id')
-      })
-    )
+  private async internalMetadata(method: string) {
+    const code = method === 'registerPageCapabilities' ? SITE_MANAGEMENT_INTERNAL_PERMISSION_CODES.RUNTIME_CAPABILITY_REGISTER : method === 'reportSyncResult' ? SITE_MANAGEMENT_INTERNAL_PERMISSION_CODES.RUNTIME_SYNC_REPORT : method === 'getPreviewView' ? SITE_MANAGEMENT_INTERNAL_PERMISSION_CODES.RUNTIME_PREVIEW_READ : SITE_MANAGEMENT_INTERNAL_PERMISSION_CODES.RUNTIME_PUBLICATION_READ
+    return this.machineExecution.forInternalCall(SITE_AUDIENCE, code, async (metadata) => metadata)
   }
 
   /** call wraps one site runtime gRPC call with the shared gateway safety behavior. */

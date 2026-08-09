@@ -56,6 +56,25 @@ model Site {
   @@index([tenantId, status])
 }
 
+model SiteEventInbox {
+  consumerName String
+  eventId      String
+  bodyDigest   String
+  status       String
+  createdAt    DateTime @default(now())
+  @@id([consumerName, eventId])
+}
+
+model AssetSiteMediaAvailabilityProjection {
+  tenantId            String
+  assetId             String
+  availabilityVersion BigInt
+  lifecycleStatus     String
+  deliveryStatus      String
+  updatedAt           DateTime @updatedAt
+  @@id([tenantId, assetId])
+}
+
 model SiteLocale {
   id        String   @id @default(uuid()) @db.Uuid
   siteId    String   @db.VarChar(128)

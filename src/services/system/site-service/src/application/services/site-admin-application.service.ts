@@ -8,7 +8,6 @@ import {
   VALIDATION_FAILED
 } from '@oes/common/exceptions'
 import {
-  AdminRequestContext,
   CreateSiteRequest,
   CreateSiteResponse,
   CreateSiteContentRequest,
@@ -83,6 +82,8 @@ import {
   UpdateFaqEntryLocaleVersionRequest, UpdateFaqEntryLocaleVersionResponse, UnpublishFaqEntryRequest, UnpublishFaqEntryResponse,
   CheckFaqCompletenessRequest, CheckFaqCompletenessResponse
 } from '@oes/common/generated/site_service'
+
+type AdminRequestContext = { tenantId?: string; orgId?: string; operatorId?: string; traceId?: string }
 import {
   buildBlogPublicView,
   buildCategoryPublicView,
@@ -570,16 +571,18 @@ export class SiteAdminApplicationService {
 
   /** listSiteCards returns the tenant-scoped card workspace read model. */
   async listSiteCards(request: ListSiteCardsRequest): Promise<ListSiteCardsResponse> {
+    const context = trustedAdminContext(request)
     return {
-      cards: (await this.repository.listSiteCards(required(request.tenantId, 'tenantId'))) as any
+      cards: (await this.repository.listSiteCards(required(context.tenantId, 'tenantId'))) as any
     }
   }
 
   /** createSite creates a draft site with one active default locale and records audit. */
   async createSite(request: CreateSiteRequest): Promise<CreateSiteResponse> {
+    const context = trustedAdminContext(request)
     const siteId = this.id('site')
-    const tenantId = required(request.tenantId, 'tenantId')
-    const operatorId = required(request.operatorId, 'operatorId')
+    const tenantId = required(context.tenantId, 'tenantId')
+    const operatorId = required(context.operatorId, 'operatorId')
     const defaultLocale = required(request.defaultLocale, 'defaultLocale')
 
     await this.ensureSystemLocaleEnabled(defaultLocale)
@@ -613,16 +616,17 @@ export class SiteAdminApplicationService {
   async generateSiteCredential(
     request: GenerateSiteCredentialRequest
   ): Promise<GenerateSiteCredentialResponse> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId)
-    const operatorId = required(request.context?.operatorId, 'operatorId')
+    const context = trustedAdminContext(request)
+    const siteId = await this.assertSiteOwnership(context, request.siteId)
+    const operatorId = required(context.operatorId, 'operatorId')
     const scopes = request.scopes?.length ? request.scopes : DEFAULT_CREDENTIAL_SCOPES
     const credential = await this.persistSiteCredential({ siteId, operatorId, scopes })
     await this.audit({
       eventType: 'site_credential.generated',
-      tenantId: nullable(request.context?.tenantId),
-      orgId: nullable(request.context?.orgId),
+      tenantId: nullable(context.tenantId),
+      orgId: nullable(context.orgId),
       operatorId,
-      traceId: nullable(request.context?.traceId),
+      traceId: nullable(context.traceId),
       resourceType: 'site_credential',
       resourceId: credential.credentialId,
       details: { siteId, scopes }
@@ -634,7 +638,7 @@ export class SiteAdminApplicationService {
   async listSiteCredentials(
     request: ListSiteCredentialsRequest
   ): Promise<ListSiteCredentialsResponse> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId)
+    const siteId = await this.assertSiteOwnership(trustedAdminContext(request), request.siteId)
     const credentials = await this.repository.listSiteCredentials({
       siteId
     })
@@ -655,8 +659,9 @@ export class SiteAdminApplicationService {
   async syncAllPendingChanges(
     request: SyncAllPendingChangesRequest
   ): Promise<SyncAllPendingChangesResponse> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId)
-    const operatorId = required(request.context?.operatorId, 'operatorId')
+    const context = trustedAdminContext(request)
+    const siteId = await this.assertSiteOwnership(context, request.siteId)
+    const operatorId = required(context.operatorId, 'operatorId')
     const publishTransaction = this.repository.runPublishTransaction
       ? (callback: () => Promise<any>) => this.repository.runPublishTransaction!(siteId, callback)
       : (callback: () => Promise<any>) => this.repository.runInTransaction(callback)
@@ -794,7 +799,7 @@ export class SiteAdminApplicationService {
 
     if (outcome.kind === 'blocked') {
       const firstIssue = outcome.preflightIssues[0]
-      await this.auditFromContext(request.context, 'site_sync.blocked', 'site', siteId, {
+      await this.auditFromContext(context, 'site_sync.blocked', 'site', siteId, {
         siteId,
         reason: firstIssue.code,
         issues: outcome.preflightIssues
@@ -825,7 +830,7 @@ export class SiteAdminApplicationService {
 
   /** issuePreviewToken creates a short-lived resource-bound preview token without embedding draft content. */
   async issuePreviewToken(request: IssuePreviewTokenRequest): Promise<IssuePreviewTokenResponse> {
-    const context = this.requireCompleteAdminContext(request.context)
+    const context = this.requireCompleteAdminContext(trustedAdminContext(request))
     const siteId = await this.assertSiteOwnershipForTenant(context.tenantId, request.siteId)
     const resourceType = requirePreviewResourceType(request.resourceType)
     const resourceId = requiredPreviewInput(request.resourceId)
@@ -875,7 +880,8 @@ export class SiteAdminApplicationService {
   async updateSiteSettings(
     request: UpdateSiteSettingsRequest
   ): Promise<UpdateSiteSettingsResponse> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId)
+    const context = trustedAdminContext(request)
+    const siteId = await this.assertSiteOwnership(context, request.siteId)
     await this.repository.updateSiteSettings({
       siteId,
       siteName: nullable(request.siteName),
@@ -885,7 +891,7 @@ export class SiteAdminApplicationService {
       runtimeStatusUrl: nullable(request.runtimeStatusUrl),
       allowedOrigins: request.allowedOrigins ?? []
     })
-    await this.auditFromContext(request.context, 'site.settings_updated', 'site', request.siteId, {
+    await this.auditFromContext(context, 'site.settings_updated', 'site', request.siteId, {
       siteId: request.siteId
     })
     return { updated: true }
@@ -893,13 +899,14 @@ export class SiteAdminApplicationService {
 
   /** disableSite is the Admin lifecycle command boundary for disabling a site. */
   async disableSite(request: DisableSiteRequest): Promise<DisableSiteResponse> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId)
+    const context = trustedAdminContext(request)
+    const siteId = await this.assertSiteOwnership(context, request.siteId)
     await this.repository.disableSite({
       siteId,
       disabledAt: this.now(),
       reason: nullable(request.reason)
     })
-    await this.auditFromContext(request.context, 'site.disabled', 'site', siteId, {
+    await this.auditFromContext(context, 'site.disabled', 'site', siteId, {
       siteId,
       reason: nullable(request.reason)
     })
@@ -910,12 +917,13 @@ export class SiteAdminApplicationService {
   async addPreparingLocale(
     request: AddPreparingLocaleRequest
   ): Promise<AddPreparingLocaleResponse> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId)
+    const context = trustedAdminContext(request)
+    const siteId = await this.assertSiteOwnership(context, request.siteId)
     const locale = required(request.locale, 'locale')
     await this.ensureSystemLocaleEnabled(locale)
     await this.repository.addPreparingLocale({ siteId, locale })
     await this.auditFromContext(
-      request.context,
+      context,
       'site_locale.added',
       'site_locale',
       `${siteId}:${locale}`,
@@ -928,7 +936,7 @@ export class SiteAdminApplicationService {
   async checkLocaleCompleteness(
     request: CheckLocaleCompletenessRequest
   ): Promise<CheckLocaleCompletenessResponse> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId)
+    const siteId = await this.assertSiteOwnership(trustedAdminContext(request), request.siteId)
     const locale = required(request.locale, 'locale')
     const completeness = await this.repository.checkLocaleCompleteness({ siteId, locale })
     const pagePreflight = await this.repository.checkSitePagePreflight?.({
@@ -948,7 +956,8 @@ export class SiteAdminApplicationService {
 
   /** activateLocale is the Admin locale lifecycle boundary for publishing a prepared locale. */
   async activateLocale(request: ActivateLocaleRequest): Promise<ActivateLocaleResponse> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId)
+    const context = trustedAdminContext(request)
+    const siteId = await this.assertSiteOwnership(context, request.siteId)
     const locale = required(request.locale, 'locale')
     const completeness = await this.repository.checkLocaleCompleteness({ siteId, locale })
     const pagePreflight = await this.repository.checkSitePagePreflight?.({
@@ -968,7 +977,7 @@ export class SiteAdminApplicationService {
     await this.repository.activateLocale({ siteId, locale })
     await this.repository.markSiteExposurePending?.({ siteId })
     await this.auditFromContext(
-      request.context,
+      context,
       'site_locale.activated',
       'site_locale',
       `${siteId}:${locale}`,
@@ -979,13 +988,14 @@ export class SiteAdminApplicationService {
 
   /** disableLocale is the Admin locale lifecycle boundary for hiding a locale. */
   async disableLocale(request: DisableLocaleRequest): Promise<DisableLocaleResponse> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId)
+    const context = trustedAdminContext(request)
+    const siteId = await this.assertSiteOwnership(context, request.siteId)
     const locale = required(request.locale, 'locale')
     await this.repository.disableLocale({ siteId, locale })
     await this.repository.markLocaleResourcesPending({ siteId, locale })
     await this.repository.markSiteExposurePending?.({ siteId })
     await this.auditFromContext(
-      request.context,
+      context,
       'site_locale.disabled',
       'site_locale',
       `${siteId}:${locale}`,
@@ -996,7 +1006,7 @@ export class SiteAdminApplicationService {
 
   /** listSitePages returns discovery and page-wide governance for the Admin Pages section. */
   async listSitePages(request: ListSitePagesRequest): Promise<ListSitePagesResponse> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId)
+    const context = trustedAdminContext(request); const siteId = await this.assertSiteOwnership(context, request.siteId)
     const pages = await this.repository.listSitePages?.({
       siteId
     })
@@ -1007,7 +1017,8 @@ export class SiteAdminApplicationService {
   async updateSitePageGovernance(
     request: UpdateSitePageGovernanceRequest
   ): Promise<UpdateSitePageGovernanceResponse> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId)
+    const context = trustedAdminContext(request)
+    const siteId = await this.assertSiteOwnership(context, request.siteId)
     const pageKey = required(request.pageKey, 'pageKey')
     const page = await this.repository.updateSitePageGovernance?.({
       siteId,
@@ -1017,7 +1028,7 @@ export class SiteAdminApplicationService {
     })
     await this.repository.markSiteExposurePending?.({ siteId })
     await this.auditFromContext(
-      request.context,
+      context,
       'site_page.governance_updated',
       'site_page',
       `${siteId}:${pageKey}`,
@@ -1037,7 +1048,7 @@ export class SiteAdminApplicationService {
     siteId?: string
     locale?: string
   }): Promise<{ categories: any[] }> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId)
+    const siteId = await this.assertSiteOwnership(trustedAdminContext(request), request.siteId)
     return {
       categories: (await this.repository.listSiteCategories({
         siteId,
@@ -1062,13 +1073,14 @@ export class SiteAdminApplicationService {
     seoDescription?: string
     seoImage?: string
   }): Promise<{ category: any }> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId)
+    const context = trustedAdminContext(request)
+    const siteId = await this.assertSiteOwnership(context, request.siteId)
     const locale = required(request.locale, 'locale')
     await this.ensureSiteLocaleWritable(siteId, locale)
     const category = await this.repository.createSiteCategory({
       categoryId: this.id('category'),
       siteId,
-      tenantId: required(request.context?.tenantId, 'tenantId'),
+      tenantId: required(context.tenantId, 'tenantId'),
       parentCategoryId: nullable(request.parentCategoryId),
       sourceCategoryId: nullable(request.sourceCategoryId),
       locale,
@@ -1084,7 +1096,7 @@ export class SiteAdminApplicationService {
       syncStatus: 'pending'
     })
     await this.auditFromContext(
-      request.context,
+      context,
       'site_category.created',
       'site_category',
       (category as any).categoryId ?? siteId,
@@ -1102,9 +1114,10 @@ export class SiteAdminApplicationService {
     siteId?: string
     category?: any
   }): Promise<{ category: any }> {
+    const context = trustedAdminContext(request)
     const category = request.category
     const siteId = await this.assertSiteOwnership(
-      request.context,
+      context,
       request.siteId ?? category?.siteId
     )
     if (!category) {
@@ -1127,7 +1140,7 @@ export class SiteAdminApplicationService {
       syncStatus: 'pending'
     })
     await this.auditFromContext(
-      request.context,
+      context,
       'site_category.updated',
       'site_category',
       category.categoryId,
@@ -1146,12 +1159,13 @@ export class SiteAdminApplicationService {
     categoryId?: string
     locale?: string
   }): Promise<{ unpublished: boolean }> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId)
+    const context = trustedAdminContext(request)
+    const siteId = await this.assertSiteOwnership(context, request.siteId)
     const categoryId = required(request.categoryId, 'categoryId')
     const locale = required(request.locale, 'locale')
     await this.repository.unpublishSiteCategory({ siteId, categoryId, locale })
     await this.auditFromContext(
-      request.context,
+      context,
       'site_category.unpublished',
       'site_category',
       categoryId,
@@ -1162,7 +1176,7 @@ export class SiteAdminApplicationService {
 
   /** listSiteProducts is the Admin product publication query boundary. */
   async listSiteProducts(request: ListSiteProductsRequest): Promise<ListSiteProductsResponse> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId)
+    const siteId = await this.assertSiteOwnership(trustedAdminContext(request), request.siteId)
     return {
       products: (await this.repository.listSiteProducts({
         siteId,
@@ -1175,7 +1189,7 @@ export class SiteAdminApplicationService {
   async searchProductMasterForAdd(
     request: SearchProductMasterForAddRequest
   ): Promise<SearchProductMasterForAddResponse> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId)
+    const siteId = await this.assertSiteOwnership(trustedAdminContext(request), request.siteId)
     return this.repository.searchProductMasterForAdd({
       siteId,
       keyword: nullable(request.keyword) ?? undefined,
@@ -1188,7 +1202,7 @@ export class SiteAdminApplicationService {
   async getSiteProductPublication(
     request: GetSiteProductPublicationRequest
   ): Promise<GetSiteProductPublicationResponse> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId)
+    const siteId = await this.assertSiteOwnership(trustedAdminContext(request), request.siteId)
     return {
       publication: (await this.repository.getSiteProductPublication({
         siteId,
@@ -1199,8 +1213,9 @@ export class SiteAdminApplicationService {
 
   /** addProductsToSite is the Admin command boundary for adding Product Master refs to a site. */
   async addProductsToSite(request: AddProductsToSiteRequest): Promise<AddProductsToSiteResponse> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId)
-    const tenantId = required(request.context?.tenantId, 'tenantId')
+    const context = trustedAdminContext(request)
+    const siteId = await this.assertSiteOwnership(context, request.siteId)
+    const tenantId = required(context.tenantId, 'tenantId')
     const productIds = request.productIds ?? []
     const locales = request.locales ?? []
     const publications = []
@@ -1233,7 +1248,7 @@ export class SiteAdminApplicationService {
       }
     }
     await this.auditFromContext(
-      request.context,
+      context,
       'site_product.added',
       'site_product_publication',
       siteId,
@@ -1250,8 +1265,9 @@ export class SiteAdminApplicationService {
   async updateSiteProductPublication(
     request: UpdateSiteProductPublicationRequest
   ): Promise<UpdateSiteProductPublicationResponse> {
+    const context = trustedAdminContext(request)
     const publication = request.publication
-    const siteId = await this.assertSiteOwnership(request.context, publication?.siteId)
+    const siteId = await this.assertSiteOwnership(context, publication?.siteId)
     if (!publication) {
       throw new Error('publication is required')
     }
@@ -1270,7 +1286,7 @@ export class SiteAdminApplicationService {
       syncStatus: 'pending'
     })
     await this.auditFromContext(
-      request.context,
+      context,
       'site_product.updated',
       'site_product_publication',
       publication.publicationId,
@@ -1286,11 +1302,12 @@ export class SiteAdminApplicationService {
   async unpublishSiteProduct(
     request: UnpublishSiteProductRequest
   ): Promise<UnpublishSiteProductResponse> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId)
+    const context = trustedAdminContext(request)
+    const siteId = await this.assertSiteOwnership(context, request.siteId)
     const publicationId = required(request.publicationId, 'publicationId')
     await this.repository.unpublishSiteProduct({ siteId, publicationId })
     await this.auditFromContext(
-      request.context,
+      context,
       'site_product.unpublished',
       'site_product_publication',
       publicationId,
@@ -1304,7 +1321,7 @@ export class SiteAdminApplicationService {
 
   /** listSiteContents is the Admin Blog/News list query boundary. */
   async listSiteContents(request: ListSiteContentsRequest): Promise<ListSiteContentsResponse> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId)
+    const siteId = await this.assertSiteOwnership(trustedAdminContext(request), request.siteId)
     return {
       contents: (await this.repository.listSiteContents({
         siteId,
@@ -1315,13 +1332,13 @@ export class SiteAdminApplicationService {
 
   /** listFaqCategories exposes tenant-authorized, locale-filtered FAQ Category read models. */
   async listFaqCategories(request: ListFaqCategoriesRequest): Promise<ListFaqCategoriesResponse> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId)
+    const siteId = await this.assertSiteOwnership(trustedAdminContext(request), request.siteId)
     return { categories: ((await this.repository.listFaqCategories?.({ siteId, locale: nullable(request.locale) ?? undefined })) ?? []).map(toFaqCategoryRecord) }
   }
 
   /** getFaqCategory verifies tenant and descendant ownership before returning one Category. */
   async getFaqCategory(request: GetFaqCategoryRequest): Promise<GetFaqCategoryResponse> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId)
+    const siteId = await this.assertSiteOwnership(trustedAdminContext(request), request.siteId)
     const category = await this.repository.getFaqCategory?.({ siteId, categoryId: required(request.categoryId, 'categoryId') })
     if (!category) throw new NotFoundException('faq category not found')
     return { category: toFaqCategoryRecord(category) }
@@ -1329,16 +1346,16 @@ export class SiteAdminApplicationService {
 
   /** createFaqCategory creates a flat site-owned FAQ Category and emits its audit fact. */
   async createFaqCategory(request: CreateFaqCategoryRequest): Promise<CreateFaqCategoryResponse> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId)
-    const category = await this.repository.createFaqCategory?.({ categoryId: this.id('faq_category'), siteId, tenantId: required(request.context?.tenantId, 'tenantId') })
+    const context = trustedAdminContext(request); const siteId = await this.assertSiteOwnership(context, request.siteId)
+    const category = await this.repository.createFaqCategory?.({ categoryId: this.id('faq_category'), siteId, tenantId: required(context.tenantId, 'tenantId') })
     if (!category) throw new Error('faq repository is not configured')
-    await this.auditFromContext(request.context, 'faq_category.created', 'faq_category', category.categoryId, { siteId, categoryId: category.categoryId })
+    await this.auditFromContext(context, 'faq_category.created', 'faq_category', category.categoryId, { siteId, categoryId: category.categoryId })
     return { category: toFaqCategoryRecord(category) }
   }
 
   /** updateFaqCategoryLocaleVersion saves one writable-locale Category revision and directory pending state. */
   async updateFaqCategoryLocaleVersion(request: UpdateFaqCategoryLocaleVersionRequest): Promise<UpdateFaqCategoryLocaleVersionResponse> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId)
+    const context = trustedAdminContext(request); const siteId = await this.assertSiteOwnership(context, request.siteId)
     const version = request.version
     if (!version) throw new Error('version is required')
     const categoryId = required(version.categoryId, 'categoryId')
@@ -1346,58 +1363,58 @@ export class SiteAdminApplicationService {
     const locale = required(version.locale, 'locale'); await this.ensureSiteLocaleWritable(siteId, locale)
     const saved = await this.repository.updateFaqCategoryLocaleVersion?.({ categoryVersionId: version.categoryVersionId || this.id('faq_category_version'), categoryId, siteId, locale, title: required(version.title, 'title'), anchorKey: required(version.anchorKey, 'anchorKey'), sortOrder: version.sortOrder ?? 0 })
     if (!saved) throw new Error('faq repository is not configured')
-    await this.auditFromContext(request.context, 'faq_category.updated', 'faq_category', categoryId, { siteId, categoryId, locale })
+    await this.auditFromContext(context, 'faq_category.updated', 'faq_category', categoryId, { siteId, categoryId, locale })
     return { version: toFaqCategoryVersionRecord(saved) }
   }
 
   /** disableFaqCategory denies the transition when published Entries still belong to the Category. */
   async disableFaqCategory(request: DisableFaqCategoryRequest): Promise<DisableFaqCategoryResponse> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId); const categoryId = required(request.categoryId, 'categoryId')
+    const context = trustedAdminContext(request); const siteId = await this.assertSiteOwnership(context, request.siteId); const categoryId = required(request.categoryId, 'categoryId')
     if (!await this.repository.getFaqCategory?.({ siteId, categoryId })) throw new NotFoundException('faq category not found')
-    await this.repository.disableFaqCategory?.({ siteId, categoryId }); await this.auditFromContext(request.context, 'faq_category.disabled', 'faq_category', categoryId, { siteId, categoryId })
+    await this.repository.disableFaqCategory?.({ siteId, categoryId }); await this.auditFromContext(context, 'faq_category.disabled', 'faq_category', categoryId, { siteId, categoryId })
     return { disabled: true }
   }
 
   /** listFaqEntries returns only Entries under an owned site and optional flat Category. */
   async listFaqEntries(request: ListFaqEntriesRequest): Promise<ListFaqEntriesResponse> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId)
+    const siteId = await this.assertSiteOwnership(trustedAdminContext(request), request.siteId)
     if (request.categoryId && !await this.repository.getFaqCategory?.({ siteId, categoryId: request.categoryId })) throw new NotFoundException('faq category not found')
     return { entries: ((await this.repository.listFaqEntries?.({ siteId, categoryId: nullable(request.categoryId) ?? undefined, locale: nullable(request.locale) ?? undefined })) ?? []).map(toFaqEntryRecord) }
   }
 
   /** getFaqEntry verifies site descendant ownership before returning an Entry. */
   async getFaqEntry(request: GetFaqEntryRequest): Promise<GetFaqEntryResponse> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId); const entry = await this.repository.getFaqEntry?.({ siteId, entryId: required(request.entryId, 'entryId') })
+    const siteId = await this.assertSiteOwnership(trustedAdminContext(request), request.siteId); const entry = await this.repository.getFaqEntry?.({ siteId, entryId: required(request.entryId, 'entryId') })
     if (!entry) throw new NotFoundException('faq entry not found'); return { entry: toFaqEntryRecord(entry) }
   }
 
   /** createFaqEntry binds exactly one Entry to one owned FAQ Category. */
   async createFaqEntry(request: CreateFaqEntryRequest): Promise<CreateFaqEntryResponse> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId); const categoryId = required(request.categoryId, 'categoryId')
+    const context = trustedAdminContext(request); const siteId = await this.assertSiteOwnership(context, request.siteId); const categoryId = required(request.categoryId, 'categoryId')
     if (!await this.repository.getFaqCategory?.({ siteId, categoryId })) throw new NotFoundException('faq category not found')
-    const entry = await this.repository.createFaqEntry?.({ entryId: this.id('faq_entry'), siteId, tenantId: required(request.context?.tenantId, 'tenantId'), categoryId }); if (!entry) throw new Error('faq repository is not configured')
-    await this.auditFromContext(request.context, 'faq_entry.created', 'faq_entry', entry.entryId, { siteId, categoryId, entryId: entry.entryId }); return { entry: toFaqEntryRecord(entry) }
+    const entry = await this.repository.createFaqEntry?.({ entryId: this.id('faq_entry'), siteId, tenantId: required(context.tenantId, 'tenantId'), categoryId }); if (!entry) throw new Error('faq repository is not configured')
+    await this.auditFromContext(context, 'faq_entry.created', 'faq_entry', entry.entryId, { siteId, categoryId, entryId: entry.entryId }); return { entry: toFaqEntryRecord(entry) }
   }
 
   /** updateFaqEntryLocaleVersion stores a sanitized-on-publication FAQ answer in one writable locale. */
   async updateFaqEntryLocaleVersion(request: UpdateFaqEntryLocaleVersionRequest): Promise<UpdateFaqEntryLocaleVersionResponse> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId); const version = request.version; if (!version) throw new Error('version is required')
+    const context = trustedAdminContext(request); const siteId = await this.assertSiteOwnership(context, request.siteId); const version = request.version; if (!version) throw new Error('version is required')
     const entryId = required(version.entryId, 'entryId'); if (!await this.repository.getFaqEntry?.({ siteId, entryId })) throw new NotFoundException('faq entry not found')
     const locale = required(version.locale, 'locale'); await this.ensureSiteLocaleWritable(siteId, locale)
     const saved = await this.repository.updateFaqEntryLocaleVersion?.({ entryVersionId: version.entryVersionId || this.id('faq_entry_version'), entryId, siteId, locale, question: required(version.question, 'question'), answerHtml: required(version.answerHtml, 'answerHtml'), sortOrder: version.sortOrder ?? 0 }); if (!saved) throw new Error('faq repository is not configured')
-    await this.auditFromContext(request.context, 'faq_entry.updated', 'faq_entry', entryId, { siteId, entryId, locale }); return { version: toFaqEntryVersionRecord(saved) }
+    await this.auditFromContext(context, 'faq_entry.updated', 'faq_entry', entryId, { siteId, entryId, locale }); return { version: toFaqEntryVersionRecord(saved) }
   }
 
   /** unpublishFaqEntry withdraws one locale without touching other locale revisions. */
   async unpublishFaqEntry(request: UnpublishFaqEntryRequest): Promise<UnpublishFaqEntryResponse> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId); const entryId = required(request.entryId, 'entryId'); if (!await this.repository.getFaqEntry?.({ siteId, entryId })) throw new NotFoundException('faq entry not found')
+    const context = trustedAdminContext(request); const siteId = await this.assertSiteOwnership(context, request.siteId); const entryId = required(request.entryId, 'entryId'); if (!await this.repository.getFaqEntry?.({ siteId, entryId })) throw new NotFoundException('faq entry not found')
     const locale = required(request.locale, 'locale'); const unpublished = await this.repository.unpublishFaqEntry?.({ siteId, entryId, locale }); if (!unpublished) throw new NotFoundException('faq entry locale not found')
-    await this.auditFromContext(request.context, 'faq_entry.unpublished', 'faq_entry', entryId, { siteId, entryId, locale }); return { unpublished: true }
+    await this.auditFromContext(context, 'faq_entry.unpublished', 'faq_entry', entryId, { siteId, entryId, locale }); return { unpublished: true }
   }
 
   /** checkFaqCompleteness validates required locale fields before an FAQ directory can publish. */
   async checkFaqCompleteness(request: CheckFaqCompletenessRequest): Promise<CheckFaqCompletenessResponse> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId); const locale = required(request.locale, 'locale')
+    const siteId = await this.assertSiteOwnership(trustedAdminContext(request), request.siteId); const locale = required(request.locale, 'locale')
     const categories = (await this.repository.listFaqCategories?.({ siteId, locale })) ?? []; const entries = (await this.repository.listFaqEntries?.({ siteId, locale })) ?? []; const issues: string[] = []
     const anchors = new Set<string>(); for (const category of categories) for (const version of category.versions ?? []) { if (!version.title || !version.anchorKey) issues.push(`category ${category.categoryId} is incomplete`); if (anchors.has(version.anchorKey)) issues.push(`duplicate anchor_key ${version.anchorKey}`); anchors.add(version.anchorKey) }
     for (const entry of entries) for (const version of entry.versions ?? []) if (!version.question || !version.answerHtml || !entry.categoryId) issues.push(`entry ${entry.entryId} is incomplete`)
@@ -1406,7 +1423,7 @@ export class SiteAdminApplicationService {
 
   /** getSiteContent is the Admin Blog/News detail query boundary. */
   async getSiteContent(request: GetSiteContentRequest): Promise<GetSiteContentResponse> {
-    const context = this.requireCompleteAdminContext(request.context)
+    const context = this.requireCompleteAdminContext(trustedAdminContext(request))
     const siteId = await this.assertSiteOwnershipForTenant(context.tenantId, request.siteId)
     const ownership = await this.assertContentOwnership(siteId, request.contentId)
     const content = await this.repository.getSiteContent({
@@ -1421,11 +1438,11 @@ export class SiteAdminApplicationService {
 
   /** createSiteContent creates the site-scoped Blog/News container before locale drafts are saved. */
   async createSiteContent(request: CreateSiteContentRequest): Promise<CreateSiteContentResponse> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId)
+    const siteId = await this.assertSiteOwnership(trustedAdminContext(request), request.siteId)
     const content = await this.repository.createContentEntry({
       contentId: this.id('content'),
       siteId,
-      tenantId: required(request.context?.tenantId, 'tenantId'),
+      tenantId: required(trustedAdminContext(request).tenantId, 'tenantId'),
       contentType: required(request.contentType, 'contentType'),
       status: 'draft'
     })
@@ -1437,7 +1454,7 @@ export class SiteAdminApplicationService {
   async updateSiteContentLocaleVersion(
     request: UpdateSiteContentLocaleVersionRequest
   ): Promise<UpdateSiteContentLocaleVersionResponse> {
-    const context = this.requireCompleteAdminContext(request.context)
+    const context = this.requireCompleteAdminContext(trustedAdminContext(request))
     const siteId = await this.assertSiteOwnershipForTenant(context.tenantId, request.siteId)
     const version = request.version
     const contentId = required(version?.contentId, 'contentId')
@@ -1519,18 +1536,18 @@ export class SiteAdminApplicationService {
     sortOrder?: number
     initialLocaleVersion?: { locale?: string; slug?: string; displayName?: string; archiveIntro?: string; archiveLabel?: string; seoTitle?: string; seoDescription?: string; seoImage?: string }
   }): Promise<{ category: any }> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId)
+    const context = trustedAdminContext(request); const siteId = await this.assertSiteOwnership(context, request.siteId)
     const initial = request.initialLocaleVersion
     if (!initial) throw new Error('initialLocaleVersion is required')
     const defaultLocale = await this.repository.getDefaultSiteLocale(siteId)
     if (required(initial.locale, 'initialLocaleVersion.locale') !== defaultLocale) throw new Error('initialLocaleVersion.locale must equal the site default locale')
     const category = await this.repository.runInTransaction(async () => {
-      const created = await this.repository.createContentCategory({ categoryId: this.id('content_category'), siteId, tenantId: required(request.context?.tenantId, 'tenantId'), sortOrder: request.sortOrder ?? 0, syncStatus: 'pending' }) as any
+      const created = await this.repository.createContentCategory({ categoryId: this.id('content_category'), siteId, tenantId: required(context.tenantId, 'tenantId'), sortOrder: request.sortOrder ?? 0, syncStatus: 'pending' }) as any
       await this.repository.updateContentCategoryLocaleVersion({ categoryVersionId: this.id('content_category_version'), categoryId: created.categoryId, siteId, locale: defaultLocale, slug: required(initial.slug, 'initialLocaleVersion.slug'), displayName: required(initial.displayName, 'initialLocaleVersion.displayName'), archiveIntro: nullable(initial.archiveIntro), archiveLabel: nullable(initial.archiveLabel), seoTitle: nullable(initial.seoTitle), seoDescription: nullable(initial.seoDescription), seoImage: nullable(initial.seoImage), syncStatus: 'pending' })
       return (await this.repository.getContentCategory({ siteId, categoryId: created.categoryId })) as any
     })
     await this.auditFromContext(
-      request.context,
+      context,
       'content_category.created',
       'article-category',
       (category as any).categoryId ?? siteId,
@@ -1558,8 +1575,9 @@ export class SiteAdminApplicationService {
       seoImage?: string
     }
   }): Promise<{ version: any }> {
+    const context = trustedAdminContext(request)
     const version = request.version
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId)
+    const siteId = await this.assertSiteOwnership(context, request.siteId)
     if (!version) {
       throw new Error('version is required')
     }
@@ -1582,7 +1600,7 @@ export class SiteAdminApplicationService {
           syncStatus: 'pending'
         })
         await this.auditFromContext(
-          request.context,
+          context,
           'content_category.updated',
           'article-category',
           version.categoryId,
@@ -1607,7 +1625,7 @@ export class SiteAdminApplicationService {
     categoryId?: string
     locale?: string
   }): Promise<{ version: any }> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId)
+    const context = trustedAdminContext(request); const siteId = await this.assertSiteOwnership(context, request.siteId)
     const categoryId = required(request.categoryId, 'categoryId')
     const locale = required(request.locale, 'locale')
     const category = await this.repository.getContentCategory({ siteId, categoryId }) as any
@@ -1615,23 +1633,23 @@ export class SiteAdminApplicationService {
     if (!draft?.displayName || !draft?.slug) throw new Error('content category locale is incomplete')
     if (!this.repository.requestContentCategoryLocalePublication) throw new Error('content category publication is unavailable')
     const published = await this.repository.requestContentCategoryLocalePublication({ siteId, categoryId, locale })
-    await this.auditFromContext(request.context, 'content_category.locale_published', 'article-category', categoryId, { siteId, categoryId, locale })
+    await this.auditFromContext(context, 'content_category.locale_published', 'article-category', categoryId, { siteId, categoryId, locale })
     return { version: published }
   }
 
   /** deleteContentCategory enforces draft/published reference blockers and records the resulting tombstone. */
   async deleteContentCategory(request: { context?: AdminRequestContext; siteId?: string; categoryId?: string }): Promise<{ deleted: boolean; tombstoned: boolean }> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId)
+    const context = trustedAdminContext(request); const siteId = await this.assertSiteOwnership(context, request.siteId)
     const categoryId = required(request.categoryId, 'categoryId')
     if (!this.repository.deleteContentCategory) throw new Error('content category deletion is unavailable')
     const result = await this.repository.deleteContentCategory({ siteId, categoryId })
-    await this.auditFromContext(request.context, 'content_category.deleted', 'article-category', categoryId, { siteId, categoryId, tombstoned: result.tombstoned })
+    await this.auditFromContext(context, 'content_category.deleted', 'article-category', categoryId, { siteId, categoryId, tombstoned: result.tombstoned })
     return { deleted: true, tombstoned: result.tombstoned }
   }
 
   /** reorderContentCategories commits the complete neutral Category rank sequence for one site. */
   async reorderContentCategories(request: { context?: AdminRequestContext; siteId?: string; orderedCategoryIds?: string[] }): Promise<{ categories: any[] }> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId)
+    const siteId = await this.assertSiteOwnership(trustedAdminContext(request), request.siteId)
     const orderedCategoryIds = request.orderedCategoryIds ?? []
     if (!this.repository.reorderContentCategories) throw new Error('content category reordering is unavailable')
     return { categories: await this.repository.reorderContentCategories({ siteId, orderedCategoryIds }) as any[] }
@@ -1643,7 +1661,7 @@ export class SiteAdminApplicationService {
     siteId?: string
     locale?: string
   }): Promise<{ categories: any[] }> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId)
+    const siteId = await this.assertSiteOwnership(trustedAdminContext(request), request.siteId)
     return {
       categories: (await this.repository.listContentCategories({
         siteId,
@@ -1658,7 +1676,7 @@ export class SiteAdminApplicationService {
     siteId?: string
     categoryId?: string
   }): Promise<{ category: any }> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId)
+    const siteId = await this.assertSiteOwnership(trustedAdminContext(request), request.siteId)
     return {
       category: (await this.repository.getContentCategory({
         siteId,
@@ -1669,7 +1687,7 @@ export class SiteAdminApplicationService {
 
   /** listVisibleContentCategories returns only Categories with same-locale published Article usage for the requested type. */
   async listVisibleContentCategories(request: { context?: AdminRequestContext; siteId?: string; contentType?: string; locale?: string }): Promise<{ categories: any[] }> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId)
+    const siteId = await this.assertSiteOwnership(trustedAdminContext(request), request.siteId)
     const contentType = required(request.contentType, 'contentType')
     if (contentType !== 'blog' && contentType !== 'news') throw new Error('contentType must be blog or news')
     const locale = required(request.locale, 'locale')
@@ -1684,7 +1702,7 @@ export class SiteAdminApplicationService {
 
   /** checkContentCategoryCompleteness reports publication readiness without inventing SEO blockers. */
   async checkContentCategoryCompleteness(request: { context?: AdminRequestContext; siteId?: string; categoryId?: string; locale?: string }): Promise<{ complete: boolean; issues: string[] }> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId)
+    const siteId = await this.assertSiteOwnership(trustedAdminContext(request), request.siteId)
     const category = await this.repository.getContentCategory({ siteId, categoryId: required(request.categoryId, 'categoryId') }) as any
     const version = category?.localeVersions?.find((item: any) => item.locale === required(request.locale, 'locale'))
     const issues = [!version ? 'locale version does not exist' : '', !version?.displayName ? 'displayName is required' : '', !version?.slug ? 'slug is required' : ''].filter(Boolean)
@@ -1693,7 +1711,7 @@ export class SiteAdminApplicationService {
 
   /** listContentCategoryUsage exposes Article reference projections rather than legacy applicability flags. */
   async listContentCategoryUsage(request: { context?: AdminRequestContext; siteId?: string; categoryId?: string }): Promise<{ usage: any }> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId)
+    const siteId = await this.assertSiteOwnership(trustedAdminContext(request), request.siteId)
     const usage = await this.repository.getContentCategoryUsage?.({ siteId, categoryId: required(request.categoryId, 'categoryId') })
     return { usage: usage ?? { blogCount: 0, newsCount: 0, draftReferenceCount: 0 } }
   }
@@ -1702,7 +1720,7 @@ export class SiteAdminApplicationService {
   async unpublishSiteContent(
     request: UnpublishSiteContentRequest
   ): Promise<{ unpublished: boolean }> {
-    const context = this.requireCompleteAdminContext(request.context)
+    const context = this.requireCompleteAdminContext(trustedAdminContext(request))
     const siteId = await this.assertSiteOwnershipForTenant(context.tenantId, request.siteId)
     const contentId = required(request.contentId, 'contentId')
     await this.repository.runInTransaction(async () => {
@@ -1729,7 +1747,7 @@ export class SiteAdminApplicationService {
   async getPendingSyncSummary(
     request: GetPendingSyncSummaryRequest
   ): Promise<GetPendingSyncSummaryResponse> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId)
+    const siteId = await this.assertSiteOwnership(trustedAdminContext(request), request.siteId)
     return this.repository.getPendingSyncSummary({ siteId })
   }
 
@@ -1737,7 +1755,7 @@ export class SiteAdminApplicationService {
   async listPendingSyncResources(
     request: ListPendingSyncResourcesRequest
   ): Promise<ListPendingSyncResourcesResponse> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId)
+    const siteId = await this.assertSiteOwnership(trustedAdminContext(request), request.siteId)
     return {
       resources: (await this.repository.listPendingSyncResources(siteId)) as any
     }
@@ -1745,7 +1763,7 @@ export class SiteAdminApplicationService {
 
   /** listSyncHistory is the Admin sync history query boundary. */
   async listSyncHistory(request: ListSyncHistoryRequest): Promise<ListSyncHistoryResponse> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId)
+    const siteId = await this.assertSiteOwnership(trustedAdminContext(request), request.siteId)
     return {
       batches: (await this.repository.listSyncHistory({
         siteId
@@ -1755,7 +1773,7 @@ export class SiteAdminApplicationService {
 
   /** getSyncDetail is the Admin sync detail query boundary. */
   async getSyncDetail(request: GetSyncDetailRequest): Promise<GetSyncDetailResponse> {
-    const context = this.requireCompleteAdminContext(request.context)
+    const context = this.requireCompleteAdminContext(trustedAdminContext(request))
     const ownership = await this.assertSyncOwnership(context.tenantId, request.syncId)
     const batch = await this.repository.getSyncDetail({
       siteId: ownership.siteId,
@@ -1771,7 +1789,8 @@ export class SiteAdminApplicationService {
 
   /** retryLastSync is the Admin sync retry command boundary. */
   async retryLastSync(request: RetryLastSyncRequest): Promise<RetryLastSyncResponse> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId)
+    const context = trustedAdminContext(request)
+    const siteId = await this.assertSiteOwnership(context, request.siteId)
     const last = await this.repository.getLastSyncBatch({
       siteId
     })
@@ -1781,12 +1800,12 @@ export class SiteAdminApplicationService {
     await this.recordPublishAvailableWebhook({
       syncId: last.syncId,
       siteId,
-      tenantId: required(request.context?.tenantId, 'tenantId'),
+      tenantId: required(context.tenantId, 'tenantId'),
       publishVersion: last.publishVersion,
       resent: true
     })
     await this.auditFromContext(
-      request.context,
+      context,
       'site_sync.retried',
       'site_sync_batch',
       last.syncId,
@@ -1800,7 +1819,7 @@ export class SiteAdminApplicationService {
 
   /** resendWebhook is the Admin webhook resend command boundary that must not create a new version. */
   async resendWebhook(request: ResendWebhookRequest): Promise<ResendWebhookResponse> {
-    const context = this.requireCompleteAdminContext(request.context)
+    const context = this.requireCompleteAdminContext(trustedAdminContext(request))
     const ownership = await this.assertSyncOwnership(context.tenantId, request.syncId)
     const sync = await this.repository.getSyncDetail({
       siteId: ownership.siteId,
@@ -1831,7 +1850,7 @@ export class SiteAdminApplicationService {
   async rotateSiteCredential(
     request: RotateSiteCredentialRequest
   ): Promise<RotateSiteCredentialResponse> {
-    const context = this.requireCompleteAdminContext(request.context)
+    const context = this.requireCompleteAdminContext(trustedAdminContext(request))
     const siteId = await this.assertSiteOwnershipForTenant(context.tenantId, request.siteId)
     const credentialId = await this.assertCredentialOwnership(siteId, request.credentialId)
     const rotate = async () => {
@@ -1864,7 +1883,7 @@ export class SiteAdminApplicationService {
   async revokeSiteCredential(
     request: RevokeSiteCredentialRequest
   ): Promise<RevokeSiteCredentialResponse> {
-    const context = this.requireCompleteAdminContext(request.context)
+    const context = this.requireCompleteAdminContext(trustedAdminContext(request))
     const siteId = await this.assertSiteOwnershipForTenant(context.tenantId, request.siteId)
     const credentialId = await this.assertCredentialOwnership(siteId, request.credentialId)
     const revoke = async () => {
@@ -1891,10 +1910,11 @@ export class SiteAdminApplicationService {
 
   /** listSiteAuditLogs is the Admin audit query boundary. */
   async listSiteAuditLogs(request: ListSiteAuditLogsRequest): Promise<ListSiteAuditLogsResponse> {
-    const siteId = await this.assertSiteOwnership(request.context, request.siteId)
+    const context = trustedAdminContext(request)
+    const siteId = await this.assertSiteOwnership(context, request.siteId)
     const logs = await this.repository.listSiteAuditLogs({
       siteId,
-      tenantId: nullable(request.context?.tenantId) ?? undefined
+      tenantId: nullable(context.tenantId) ?? undefined
     })
     return {
       auditLogs: (logs as any[]).map((log) => ({
@@ -2481,4 +2501,11 @@ function withSyncResourceStatus<TView extends { status: string }>(
     ...view,
     status
   }
+}
+
+/** Reads only the controller-injected Admin context; request-body identity is not an authority source. */
+function trustedAdminContext(request: object): { tenantId?: string; orgId?: string; operatorId?: string; traceId?: string } {
+  const context = (request as { context?: unknown }).context
+  if (!context || typeof context !== 'object') throw new Error('Trusted Admin context is required')
+  return context as { tenantId?: string; orgId?: string; operatorId?: string; traceId?: string }
 }

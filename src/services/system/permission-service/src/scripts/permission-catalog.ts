@@ -1019,6 +1019,22 @@ const siteManagement = definePermissionGroup(Modules.SITE_SERVICE, {
   PREVIEW: { code: 'site.management.preview', description: '签发站点草稿预览 token' }
 })
 
+const siteManagementInternal = definePermissionGroup(Modules.SITE_SERVICE, {
+  RUNTIME_CAPABILITY_REGISTER: { code: 'site.internal.runtime.capability.register', description: '注册 Site Runtime 页面能力', kind: PermissionKind.INTERNAL, externalApiEligible: false },
+  RUNTIME_PUBLICATION_READ: { code: 'site.internal.runtime.publication.read', description: '读取 Site Runtime 已发布视图', kind: PermissionKind.INTERNAL, externalApiEligible: false },
+  RUNTIME_SYNC_REPORT: { code: 'site.internal.runtime.sync.report', description: '上报 Site Runtime 同步结果', kind: PermissionKind.INTERNAL, externalApiEligible: false },
+  RUNTIME_PREVIEW_READ: { code: 'site.internal.runtime.preview.read', description: '读取 Site Runtime 预览视图', kind: PermissionKind.INTERNAL, externalApiEligible: false }
+})
+
+const assetSiteMedia = definePermissionGroup(Modules.ASSET_SERVICE, {
+  UPLOAD: { code: 'asset.site_media.upload', description: '上传受控 Site Media' },
+  READ: { code: 'asset.site_media.read', description: '读取受控 Site Media' },
+  DELIVERY_MANAGE: { code: 'asset.site_media.delivery.manage', description: '管理 Site Media 交付绑定' },
+  ARCHIVE: { code: 'asset.site_media.archive', description: '归档 Site Media' },
+  TAKEDOWN: { code: 'asset.site_media.takedown', description: '下架 Site Media' },
+  DELETE: { code: 'asset.site_media.delete', description: '删除 Site Media' }
+})
+
 const assetInternal = definePermissionGroup(Modules.ASSET_SERVICE, {
   AVATAR_RESOLVE_PUBLIC_URL: {
     code: 'asset.internal.avatar.resolve_public_url',
@@ -1026,6 +1042,12 @@ const assetInternal = definePermissionGroup(Modules.ASSET_SERVICE, {
     kind: PermissionKind.INTERNAL,
     externalApiEligible: false
   }
+})
+
+const assetSiteMediaInternal = definePermissionGroup(Modules.ASSET_SERVICE, {
+  RESOLVE: { code: 'asset.internal.site_media.resolve', description: '解析 Site 发布媒体', kind: PermissionKind.INTERNAL, externalApiEligible: false },
+  PUBLICATION_PROTECT: { code: 'asset.internal.site_media.publication.protect', description: '保护 Site 发布媒体引用', kind: PermissionKind.INTERNAL, externalApiEligible: false },
+  PUBLICATION_RELEASE: { code: 'asset.internal.site_media.publication.release', description: '释放 Site 发布媒体引用保护', kind: PermissionKind.INTERNAL, externalApiEligible: false }
 })
 
 export const PERMISSION_MANAGEMENT_PERMISSION_CODES = permissionManagement.codes
@@ -1062,6 +1084,9 @@ export const BROWSER_EXTENSION_DESIGNER_PERMISSION_CODES = browserExtensionDesig
 export const BROWSER_ACTIVITY_AUDIT_PERMISSION_CODES = browserActivityAudit.codes
 export const SITE_MANAGEMENT_PERMISSION_CODES = siteManagement.codes
 export const ASSET_INTERNAL_PERMISSION_CODES = assetInternal.codes
+export const ASSET_SITE_MEDIA_PERMISSION_CODES = assetSiteMedia.codes
+export const ASSET_SITE_MEDIA_INTERNAL_PERMISSION_CODES = assetSiteMediaInternal.codes
+export const SITE_MANAGEMENT_INTERNAL_PERMISSION_CODES = siteManagementInternal.codes
 
 /** DEPRECATED_PERMISSION_CODES tracks legacy permission rows that should be cleaned from local/dev seed data. */
 export const DEPRECATED_PERMISSION_CODES = [
