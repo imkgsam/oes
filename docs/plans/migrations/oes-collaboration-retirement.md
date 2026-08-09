@@ -541,6 +541,15 @@ branch refs 共 33：26 个 branch HEAD 已是 current main ancestor（SITE impl
 - status-sync candidate：docs-only `9e6b590a2a5072d8b8fc95776aabd8c0c6183c26`（parent `87f24059072829d23aa20842a1d05b64f0a617ec`）仅修改`docs/plans/features/site-inspiration-management-p1.md` 9+/9-，把状态校正为`DESIGN_FROZEN_IMPLEMENTATION_NOT_DISPATCHED`并登记trusted gRPC、Site Media、Event/outbox/inbox、R2 precise purge/retry平台前置已集成；Inspiration Core业务实现仍未派发，Product Hotspot与fallback禁令不变。candidate已由persistent I&V独立验收、ff-only集成并push，main/local origin/remote均为`9e6b590a…`且clean。
 - SITE archive terminal：本台账纠错进入main后，已通过Codex应用接口仅归档上述A/C/SITE与A/D/SITE两项；未直接写state database，未唤醒线程。exact-ID只读复核为2/2 `archived=1`，`archived_at=1786286470`；两线程仍可按ID只读访问。全局未归档数由19降为17，其余17项留给后续逐能力审计，不在本批次处理。
 
+### 7.9 PRINCIPAL-ROLE archive manifest（2026-08-09）
+
+- exact state：`A/C/PRINCIPAL-ROLE · PrincipalRoleBinding Command` `019fc879-f423-7b10-80ff-93557a6f51c7` 与 `A/D/PRINCIPAL-ROLE · PrincipalRoleBinding Persistence` `019fa287-0043-74d3-afbf-d12252837d9b` 均为 `archived=0` / `notLoaded`。最终 legacy A/I/05 `019fc87b-1859-7ef2-88a6-a89c9a087024` 已为 `archived=1`，历史 I/R/V/X、旧/替换 Command与迁移implementation也均已归档。
+- stale handoff disposition：A/C terminal `MIGRATION_FROZEN` 当时记录Permission authority decision RPC处于`DESIGN_GAP`、无candidate；这些缺口后来已由Principal Authorization replacement `fe395fb5…`、ActionGrant design `63441455…`与Permission remediation `45a7e306…`关闭。`ResolvePrincipalAuthorization`、`ResolveWorkloadIssuance`、`ResolveDelegatedAuthorization`、INTERNAL Code、authority registry、审计与opaque `authzVersion`现均有冻结真相源和current-main实现。
+- truth sources：`docs/architecture/services/permission-service.md`是唯一服务真相源；`docs/architecture/09-role-based-permission-resolution.md`状态为`FROZEN_PRINCIPAL_PERMISSION_RESOLUTION`，`docs/contracts/permission-service/principal-authorization.md`状态为`FROZEN`，ADR-0015为`ACCEPTED`。A/D最后建议的`PERMISSION-AUTHORITY`独立边界已由现有Unified Design/Permission实现消费，不再需要恢复旧A/D扩写。
+- implementation evidence：Permission candidate `45a7e3065d66f3692493181120ebd08e47ec283f`已独立验收并集成；proto generation/lint、Common/Permission build、L1 285、L3 39、focused 41与contract gates通过。L2数据库与ESLint parser历史环境限制已原样登记，不构成未消费production WIP。
+- Git state：PRINCIPAL-ROLE legacy线程没有独立worktree或branch；旧`bf83` cwd已失效，所有有用commits均由current main覆盖。当前无dirty、candidate、rejected或active writer资源需要保留。
+- executable manifest：在本段进入main后，仅通过Codex应用接口归档上述A/C与A/D两项；不直接写state database、不唤醒线程。归档后exact-ID复核必须为2/2 `archived=1`且仍可按ID读取；全局未归档数由17降为15，其余15项后续逐能力处理。
+
 ## 8. 本轮验证记录
 
 只读验证覆盖：
@@ -697,9 +706,10 @@ EXEC-CRYPTO HUMAN foundation I&V terminal evidence：
 | MIG-D24 | SITE initial design candidate `d3e6109b…` 的Site Media contract前文排除field-number ownership，后文第8节却冻结11 RPC完整字段号 | 实现方不能唯一判断wire field numbers是否属于受支持稳定契约 | `CLOSED`：单文件1+/1- replacement `c7bda1c4…`明确第8节拥有字段与field numbers；累计7-doc packet经I&V复验、ff-only集成及push，109-path implementation gate已开放 |
 | MIG-D25 | Site Inspiration packet仍把trusted gRPC、Event/outbox与CDN purge标为“尚未实现”，但SITE recovery已集成这些平台前置 | 后续实现与legacy archive会误判Site仍在等待平台设计/实现 | `CLOSED`：one-doc candidate `9e6b590a…`只校正状态与依赖完成度，经I&V验收、ff-only集成及push；Inspiration业务实现与Product Hotspot deferral语义不变 |
 | MIG-D26 | legacy GC按canonical `title`统计并宣称formal tasks 41/41 archived，但UI重命名线程的底层`title`仍是delegation正文 | SITE A/C/A/D实际仍为`archived=0`，迁移关闭记录高估归档完成度 | `SITE_BATCH_CLOSED`：exact-ID复核得到全局19项未归档；SITE两项已通过应用接口归档并复核2/2，当前剩余17项逐能力处理 |
+| MIG-D27 | PRINCIPAL-ROLE A/C terminal仍把Permission authority decision RPC记录为未冻结`DESIGN_GAP`，A/D停在是否拆独立`PERMISSION-AUTHORITY`的讨论 | 恢复旧线程会重复已由Unified Design、ActionGrant设计与Permission remediation关闭的边界，并误判current main缺少resolver实现 | `OPEN_PRINCIPAL_ROLE_BATCH`：冻结真相源与`45a7e306…`实现已覆盖全部旧gap；台账集成后归档A/C/A/D两项并复核，预计剩余15项 |
 
 ## 10. 最终关闭结果
 
 SITE recovery implementation `547a0c5d55f9a955543779ec584a16e9b05cf453` 已 `ACCEPTED_AND_INTEGRATED`；Site 59+7、Site Media 11、Gateway/Asset/Event/R2-purge 链与验证矩阵完成。AI/ActionGrant runtime 保持 deferred，API-KEY rejected prototype 永不进入 main；无 checker。
 
-本次退役迁移的Git与内容保全阶段已经完成：有用设计与实现已进入`main`或持久evidence ref，拒绝/取代证据已分类。legacy task archive阶段仍在纠错收口：post-closure exact-ID复核发现19项`archived=0`，SITE A/C/A/D两项已归档并复核，当前其余17项按能力逐项审计。临时SITE closure Git资源在本记录集成后正常移除，最终继续只保留root `main`。本文件只承担迁移关闭证据与归档manifest，不作为设计或实现真相源。
+本次退役迁移的Git与内容保全阶段已经完成：有用设计与实现已进入`main`或持久evidence ref，拒绝/取代证据已分类。legacy task archive阶段仍在纠错收口：post-closure exact-ID复核发现19项`archived=0`，SITE两项已关闭，当前17项中本批次处理PRINCIPAL-ROLE A/C/A/D两项，完成后剩余15项。临时closure Git资源在各批次记录集成后正常移除，最终继续只保留root `main`。本文件只承担迁移关闭证据与归档manifest，不作为设计或实现真相源。
