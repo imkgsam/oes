@@ -1,17 +1,20 @@
-# OES 协同框架退役迁移台账（最终处置候选）
+# OES 协同框架退役迁移关闭记录
 
 ```yaml
-status: FINAL_DISPOSITION_CANDIDATE
-documentRole: migration-ledger-only
+status: MIGRATION_COMPLETED
+documentRole: historical-migration-closure-record
 governanceFramework: false
 frozenDecisionSource: false
 sourceThreadId: 019f7325-177e-77a1-9189-b36a10d94c3c
 inventoryDate: 2026-08-09
-programControlBranch: codex/oes-program-control-migration
-currentMain: 547a0c5d55f9a955543779ec584a16e9b05cf453
+closureDate: 2026-08-09
+programControlCandidate: f4db239e2e80f6d975bcf7d547a3cb8adda7668b
+closureRecord: current-document-commit
+retainedEvidenceBranches: 6
+unarchivedFormalTasks: 0
 ```
 
-> 本文只记录旧协同框架退役时的资源、证据、依赖与迁移排序，不定义新的治理框架，也不重新定义任何服务、契约或领域真相。稳定设计必须以本文链接的 architecture、ADR、collaboration 与 contract 真相源为准。
+> 本文只记录旧协同框架退役时的资源、证据、依赖、迁移排序与最终关闭结果，不定义新的治理框架，也不重新定义任何服务、契约或领域真相。稳定设计必须以本文链接的 architecture、ADR、collaboration 与 contract 真相源为准。
 
 ## 1. 范围与冻结边界
 
@@ -36,22 +39,20 @@ currentMain: 547a0c5d55f9a955543779ec584a16e9b05cf453
 | 项目 | Handoff 状态 | 2026-08-09 本地核验 |
 | --- | --- | --- |
 | Repository root | `/Users/acehood/Documents/GitHub/oes` | 路径存在；`main` 工作树 clean |
-| `main` | `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` | 当前 `547a0c5d55f9a955543779ec584a16e9b05cf453`；AI、Principal Authorization、ActionGrant design、Permission、GRPC carrier、EXEC-CRYPTO HUMAN、完整MACHINE source-verifier、GRPC Asset token-only cutover及SITE recovery经唯一I&V lane ff-only推进 |
-| `origin/main` | `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` | 当前本地 remote-tracking ref 与 I&V 记录的 remote `refs/heads/main` 均为 `547a0c5d55f9a955543779ec584a16e9b05cf453` |
-| Legacy formal A/* threads | 101 | handoff 历史聚合计数；当前本机 canonical formal tasks 为 41 项，其中 36 已归档、5 待最终归档 |
-| Worktrees | 29 | 当前 39；新增项为本 Program Control、AI Platform completion、Integration & Verification、Unified Design、Permission decision RPC、GRPC carrier rebuild、EXEC-CRYPTO remediation、MACHINE workload source-verifier、GRPC Asset current-main rebuild与SITE trusted-gRPC recovery worktree |
-| `codex/*` branches | 23 | 当前 33；新增项为 `codex/oes-program-control-migration`、`codex/migration/ai-platform-completion`、`codex/integration/main-queue`、`codex/unified-design/security-open-packets`、`codex/migration/permission-decision-rpc`、`codex/migration/grpc-carrier-rebuild`、`codex/migration/exec-crypto-remediation`、`codex/migration/machine-workload-source-verifier`、`codex/migration/grpc-asset-rebuild` 与 `codex/migration/site-trusted-grpc-recovery` |
+| `main` | `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` | AI、Principal Authorization、ActionGrant design、Permission、GRPC carrier、EXEC-CRYPTO HUMAN、完整 MACHINE source-verifier、GRPC Asset token-only cutover、SITE recovery 与本关闭记录均已进入当前文档所在的主线提交 |
+| `origin/main` | `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` | 关闭提交推送后，本地 remote-tracking ref 与 remote `refs/heads/main` 与当前文档提交一致；精确 SHA 由运行时 Git 复核，不在文档内自引用 |
+| Legacy formal A/* threads | 101 | handoff 历史聚合计数；本机 canonical formal tasks 共 41 项，最终 41/41 已归档 |
+| Worktrees | 29 | 峰值 39；最终只保留 `/Users/acehood/Documents/GitHub/oes` 根目录 `main` worktree |
+| `codex/*` branches | 23 | 峰值 33；27 个已进入 main 的分支已用 `git branch -d` 正常删除，6 个非合并历史证据分支保留 |
 | Checker | disabled | handoff evidence；未唤醒旧 checker |
 | Root dirty state | clean | clean，暂存区与工作区均无变更 |
 
-当前候选写入面：
+关闭集成证据：
 
-- worktree：`/Users/acehood/Documents/GitHub/oes/.worktrees/program-control/migration`
-- branch：`codex/oes-program-control-migration`
-- original inventory base：`65e49258a0dc57b7daf3d40d5e8a63ea94dfc116`
-- synchronized main：`547a0c5d55f9a955543779ec584a16e9b05cf453`；2026-08-09 已通过普通 merge 无冲突同步到本候选分支，未 rebase、reset 或覆盖历史台账提交。
-- inventory checkpoint：`1f5fdd690af817f8e9bb092fbafb769a31b2e1a6`；当前 branch HEAD 以运行时 `git rev-parse codex/oes-program-control-migration` 为准，避免在同一提交中记录自引用 SHA。
-- runtime note：原 Codex 临时 worktree `/Users/acehood/.codex/worktrees/2bb6/oes` 已被应用回收；分支、提交和迁移台账均已在上述固定 worktree 中恢复，未发生资产丢失。
+- original inventory base：`65e49258a0dc57b7daf3d40d5e8a63ea94dfc116`。
+- Program Control candidate：`f4db239e2e80f6d975bcf7d547a3cb8adda7668b`；已无冲突同步 `main@547a0c5d…`，经 root `--ff-only` 集成并推送。
+- 原固定 Program Control worktree 与 branch 均已正常移除；未使用 rebase、reset、force 或 bulk clean。
+- runtime note：原 Codex 临时 worktree `/Users/acehood/.codex/worktrees/2bb6/oes` 曾被应用回收，分支、提交和迁移台账已恢复并最终进入 `main`，未发生资产丢失。
 
 ## 3. 稳定真相源索引
 
@@ -516,6 +517,21 @@ branch refs 共 33：26 个 branch HEAD 已是 current main ancestor（SITE impl
 
 迁移控制任务 `OES Program Control`、`OES Unified Design`、`OES Integration & Verification` 与本 legacy migration handoff 任务在 Git 清理完成前保留；最终只读复核完成后再归档，不进入新的开发循环。
 
+### 7.7 最终清理结果
+
+- worktree：从峰值 39 个收敛为 1 个；只保留 `/Users/acehood/Documents/GitHub/oes`，branch 为 `main`。
+- merged branches：27 个已进入 `main` 的 `codex/*` branch 均通过 `git branch -d` 正常删除。
+- retained evidence branches：以下 6 个非合并 ref 未使用 `-D` 或其他强制方式删除；它们不绑定 worktree，不构成 active writer：
+  - `codex/action-grant/i01-delegated-task-runtime@ec2b2cf…`：deferred runtime，另有已推送 annotated evidence tag。
+  - `codex/ai-platform/i01-tool-contract-registration@6101933d…`：已被 current-main registration replacement supersede 的历史验收证据。
+  - `codex/api-key/x01-integration@755d857a…`：rejected raw-pepper prototype evidence，永不进入 main。
+  - `codex/exec-crypto/i06-auth-tg2-remediation@64ea8660…`：已被 current-main HUMAN/MACHINE replacements supersede 的历史 checkpoint。
+  - `codex/grpc/i03-gateway-trusted-execution-producer@6973bcda…`：已被 current-main Asset replacement supersede 的历史候选。
+  - `codex/grpc/i04-source-credential-carrier@dced77ad…`：已被 current-main carrier rebuild supersede 的历史候选。
+- thread archive：本机 canonical formal tasks 从 36/41 已归档收口为 41/41；归档通过 Codex 应用接口完成，未直接写 state database。
+- durable deferred evidence：`migration-evidence/action-grant-runtime-deferred-20260809` 已推送 origin，peeled commit 为 `ec2b2cf881fec81f1882b3260f397f33d618aaf0`。
+- safeguards：整个清理过程未使用 `git branch -D`、`git worktree remove --force`、`git reset --hard`、bulk `git clean` 或 checker。
+
 ## 8. 本轮验证记录
 
 只读验证覆盖：
@@ -671,14 +687,8 @@ EXEC-CRYPTO HUMAN foundation I&V terminal evidence：
 | MIG-D23 | Asset replacement `7e5f393f…` 的 `TrustedExecutionGuard` 无条件拒绝 `SELF_SERVICE` 的 DELEGATED principal，忽略冻结声明 `allowDelegated:true` | Upload/Bind Account Avatar 的合法委托调用在controller前被拒绝，声明与runtime enforcement冲突 | `CLOSED`：两文件TDD correction `a82e5ea6…`允许HUMAN或`DELEGATED && allowDelegated`并保持空Code gate；完整矩阵复验后已ff-only集成及push |
 | MIG-D24 | SITE initial design candidate `d3e6109b…` 的Site Media contract前文排除field-number ownership，后文第8节却冻结11 RPC完整字段号 | 实现方不能唯一判断wire field numbers是否属于受支持稳定契约 | `CLOSED`：单文件1+/1- replacement `c7bda1c4…`明确第8节拥有字段与field numbers；累计7-doc packet经I&V复验、ff-only集成及push，109-path implementation gate已开放 |
 
-## 10. 最终关闭入口
+## 10. 最终关闭结果
 
-SITE recovery implementation `547a0c5d55f9a955543779ec584a16e9b05cf453` 已 `ACCEPTED_AND_INTEGRATED`；root/local origin/remote main 同 SHA 且 clean，Site 59+7、Site Media 11、Gateway/Asset/Event/R2-purge 链与验证矩阵完成。AI/ActionGrant runtime 保持 deferred，API-KEY `755d857a…` 永不进入 main；无 checker。
+SITE recovery implementation `547a0c5d55f9a955543779ec584a16e9b05cf453` 已 `ACCEPTED_AND_INTEGRATED`；Site 59+7、Site Media 11、Gateway/Asset/Event/R2-purge 链与验证矩阵完成。AI/ActionGrant runtime 保持 deferred，API-KEY rejected prototype 永不进入 main；无 checker。
 
-最终关闭按以下顺序执行：
-
-1. 建立 deferred ActionGrant runtime 的持久 evidence ref，确认 EXEC-CRYPTO legacy/rejected evidence 已被本台账完整消费。
-2. 生成可执行的 task archive manifest；缺少历史 thread ID 的 capability 使用本台账中的 capability-level closure summary，不重新唤醒旧任务补采。
-3. 验证并提交本台账候选，经独立检查后以 `--ff-only` 进入 root `main` 并同步远端。
-4. 台账进入 `main` 后，先归档已完成旧任务，再正常移除非 root worktree 与已消费 branch；不得使用 force、reset 或批量 clean。
-5. 最终复核只剩 `/Users/acehood/Documents/GitHub/oes` 的 clean `main` worktree，`main == origin/main`，并把本文件标记为 `MIGRATION_COMPLETED`。
+本次退役迁移已经完成：有用设计与实现已进入 `main` 或持久 evidence ref，拒绝/取代证据已分类，旧 formal tasks 已全部归档，Git 工作面只剩唯一 root `main`。本文件从此只作为历史关闭记录，不再作为 active plan、设计入口或任务调度入口。
