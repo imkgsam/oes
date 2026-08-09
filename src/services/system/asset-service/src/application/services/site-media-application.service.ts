@@ -1,4 +1,8 @@
 import { createHash, randomUUID } from 'node:crypto'
+import { createReadStream } from 'node:fs'
+import { mkdtemp, rm, open } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { spawn } from 'node:child_process'
 import { Observable } from 'rxjs'
 import { SiteMediaDeliveryBinding } from '../../domain/entities/site-media-delivery-binding.entity'
@@ -45,27 +49,32 @@ export class SiteMediaApplicationService {
     return this.repository.saveOperation(operation)
   }
 
-  async store(input: { key: string; body: Buffer; contentType: string }) { return this.storage.put(input) }
-
   /** uploadSiteMedia validates the ordered stream and persists a repository-generated asset identity under verified tenant scope. */
   async uploadSiteMedia(stream: Observable<UploadFrame>, authority: SiteMediaExecutionAuthority): Promise<object> {
     const scope = this.requireAuthority(authority)
-    const frames = await this.collectUploadFrames(stream)
-    const start = frames[0]?.start
-    if (!start?.idempotencyKey || !start.siteId || !start.requestedMediaKind || !start.declaredContentType || frames.some((frame, index) => index === 0 ? !frame.start : !!frame.start || !frame.contentChunk?.length)) throw new Error('ASSET_MEDIA_VALIDATION_FAILED')
-    const body = Buffer.concat(frames.slice(1).map((frame) => frame.contentChunk as Buffer))
-    const facts = await inspectMediaBytes(body, start.declaredContentType, start.requestedMediaKind)
+    const upload = await writeUploadToTemp(stream)
+    const { start, filePath, size, checksum } = upload
+    if (!start?.idempotencyKey || !start.siteId || !start.requestedMediaKind || !start.declaredContentType) {
+      await rm(upload.directory, { recursive: true, force: true }); throw new Error('ASSET_MEDIA_VALIDATION_FAILED')
+    }
+    try {
+    const facts = await inspectMediaFile(filePath, start.declaredContentType, start.requestedMediaKind, checksum, size)
     const requestHash = createHash('sha256').update(JSON.stringify({ siteId: start.siteId, mediaKind: start.requestedMediaKind, contentType: start.declaredContentType, checksum: facts.checksum })).digest('hex')
     const existing = await this.repository.findSiteMediaByUploadIdentity({ tenantId: scope.tenantId, siteId: start.siteId, idempotencyKey: start.idempotencyKey })
     if (existing) {
       if (existing.requestHash !== requestHash) throw new Error('ASSET_IDEMPOTENCY_CONFLICT')
-      return { asset: this.summary(existing), checksum: existing.checksum }
+      if (existing.lifecycleStatus === 'UPLOADING') throw new Error('ASSET_UPLOAD_IN_PROGRESS')
+      await rm(upload.directory, { recursive: true, force: true }); return { asset: this.summary(existing), checksum: existing.checksum }
     }
-    const storageKey = `site-media/${createHash('sha256').update(`${scope.tenantId}:${start.siteId}:${start.idempotencyKey}`).digest('hex')}`
-    const stored = await this.store({ key: storageKey, body, contentType: start.declaredContentType })
-    if (stored.checksum !== facts.checksum || stored.size !== body.length) throw new Error('SITE_MEDIA_STORAGE_FACTS_MISMATCH')
-    const asset = await this.repository.createSiteMediaAsset({ tenantId: scope.tenantId, siteId: start.siteId, ownerSubject: scope.subject, mediaKind: start.requestedMediaKind, storageKey, checksum: facts.checksum, size: stored.size, contentType: start.declaredContentType, width: facts.width, height: facts.height, durationMs: facts.durationMs, codec: facts.codec, idempotencyKey: start.idempotencyKey, requestHash })
-    return { asset: this.summary(asset), checksum: stored.checksum }
+    const assetId = randomUUID()
+    const storageKey = `site-media/${assetId}/${facts.checksum}`
+      const winner = await this.repository.reserveSiteMediaAsset({ assetId, tenantId: scope.tenantId, siteId: start.siteId, ownerSubject: scope.subject, mediaKind: start.requestedMediaKind, storageKey, checksum: facts.checksum, size: facts.size, contentType: start.declaredContentType, width: facts.width, height: facts.height, durationMs: facts.durationMs, codec: facts.codec, idempotencyKey: start.idempotencyKey, requestHash })
+      if (winner.assetId !== assetId || winner.lifecycleStatus !== 'UPLOADING') { await rm(upload.directory, { recursive: true, force: true }); return { asset: this.summary(winner), checksum: winner.checksum } }
+      const stored = await this.storage.put({ key: storageKey, body: createReadStream(filePath), size: facts.size, checksum: facts.checksum, contentType: start.declaredContentType })
+      if (stored.checksum !== facts.checksum || stored.size !== facts.size) throw new Error('SITE_MEDIA_STORAGE_FACTS_MISMATCH')
+      const asset = await this.repository.completeSiteMediaAsset({ tenantId: scope.tenantId, assetId, checksum: facts.checksum, size: facts.size })
+      return { asset: this.summary(asset), checksum: stored.checksum }
+    } finally { await rm(upload.directory, { recursive: true, force: true }) }
   }
 
   /** listAuthorizedSiteMedia delegates a tenant/site/owner-scoped query to the typed repository projection. */
@@ -167,31 +176,63 @@ export class SiteMediaApplicationService {
     return { tenantId: authority.tenantId, subject: authority.subject }
   }
 
-  /** collectUploadFrames materializes only the bounded gRPC frame sequence needed for checksum/idempotency validation. */
-  private collectUploadFrames(stream: Observable<UploadFrame>): Promise<UploadFrame[]> {
-    return new Promise((resolve, reject) => {
-      const frames: UploadFrame[] = []
-      stream.subscribe({ next: (frame) => frames.push(frame), error: reject, complete: () => resolve(frames) })
-    })
-  }
-
   /** summary converts a typed Asset projection into the generated Site Media response shape. */
   private summary(asset: SiteMediaRecord): object {
     return { assetId: asset.assetId, mediaKind: asset.mediaKind, lifecycleStatus: asset.lifecycleStatus, deliveryStatus: asset.deliveryStatus, previewUrl: asset.immutablePublicUrl ?? '', width: asset.width, height: asset.height, durationMs: asset.durationMs, availabilityVersion: asset.availabilityVersion, createdAt: asset.createdAt.toISOString() }
   }
 }
 
-/** inspectMediaBytes uses the installed ffprobe decoder boundary for complete image/video integrity and technical facts. */
-async function inspectMediaBytes(body: Buffer, declaredContentType: string, requestedMediaKind: string): Promise<{ checksum: string; width: number; height: number; durationMs: string; codec: string }> {
-  const checksum = createHash('sha256').update(body).digest('hex')
-  const probe = await probeMedia(body)
+/** writeUploadToTemp consumes exactly one start frame and incrementally writes bounded chunks to an isolated temp file. */
+async function writeUploadToTemp(stream: Observable<UploadFrame>): Promise<{ directory: string; filePath: string; start: NonNullable<UploadFrame['start']>; checksum: string; size: number }> {
+  const directory = await mkdtemp(join(tmpdir(), 'oes-site-media-'))
+  const filePath = join(directory, 'media')
+  const handle = await open(filePath, 'wx', 0o600)
+  const digest = createHash('sha256')
+  let start: UploadFrame['start']
+  let size = 0
+  let seenStart = false
+  let failed: Error | undefined
+  let writeChain = Promise.resolve()
+  try {
+    await new Promise<void>((resolve, reject) => {
+      stream.subscribe({
+        next: (frame) => {
+          if (failed) return
+          if (frame.start) {
+            if (seenStart || frame.contentChunk?.length) { failed = new Error('ASSET_MEDIA_VALIDATION_FAILED'); reject(failed); return }
+            if (!frame.start.idempotencyKey || !frame.start.siteId || !frame.start.requestedMediaKind || !frame.start.declaredContentType) { failed = new Error('ASSET_MEDIA_VALIDATION_FAILED'); reject(failed); return }
+            seenStart = true; start = frame.start; return
+          }
+          const chunk = frame.contentChunk
+          if (!seenStart || !chunk?.length) { failed = new Error('ASSET_MEDIA_VALIDATION_FAILED'); reject(failed); return }
+          size += chunk.byteLength
+          if (size > 512 * 1024 * 1024) { failed = new Error('ASSET_MEDIA_UPLOAD_SIZE_EXCEEDED'); reject(failed); return }
+          digest.update(chunk)
+          writeChain = writeChain.then(() => handle.write(chunk).then(() => undefined))
+        },
+        error: reject,
+        complete: () => writeChain.then(resolve, reject)
+      })
+    })
+    if (!seenStart || !start || !size) throw new Error('ASSET_MEDIA_VALIDATION_FAILED')
+    return { directory, filePath, start, checksum: digest.digest('hex'), size }
+  } catch (error) {
+    await handle.close(); await rm(directory, { recursive: true, force: true })
+    throw error
+  } finally { await handle.close().catch(() => undefined) }
+}
+
+/** inspectMediaFile uses full ffprobe and ffmpeg decoding over the bounded temporary file before object upload. */
+async function inspectMediaFile(filePath: string, declaredContentType: string, requestedMediaKind: string, checksum: string, size: number): Promise<{ checksum: string; size: number; width: number; height: number; durationMs: string; codec: string }> {
+  const probe = await probeMedia(filePath)
   if (requestedMediaKind === 'IMAGE') {
     const codecs: Record<string, string> = { 'image/jpeg': 'mjpeg', 'image/png': 'png', 'image/webp': 'webp' }
     const expectedCodec = codecs[declaredContentType]
     if (!expectedCodec) throw new Error('ASSET_MEDIA_CONTENT_TYPE_MISMATCH')
     const video = probe.streams.find((stream) => stream.codec_type === 'video')
     if (!video || video.codec_name !== expectedCodec || !video.width || !video.height || probe.streams.some((stream) => stream.codec_type === 'audio')) throw new Error('ASSET_MEDIA_BYTES_UNSUPPORTED')
-    return { checksum, width: video.width, height: video.height, durationMs: '0', codec: video.codec_name }
+    await decodeMediaFully(filePath)
+    return { checksum, size, width: video.width, height: video.height, durationMs: '0', codec: video.codec_name }
   }
   if (requestedMediaKind !== 'VIDEO' || declaredContentType !== 'video/mp4') throw new Error('ASSET_MEDIA_CONTENT_TYPE_MISMATCH')
   if (!probe.format_name.includes('mp4')) throw new Error('ASSET_MEDIA_CONTAINER_UNSUPPORTED')
@@ -199,23 +240,35 @@ async function inspectMediaBytes(body: Buffer, declaredContentType: string, requ
   const audio = probe.streams.find((stream) => stream.codec_type === 'audio')
   const duration = Number(video?.duration ?? probe.duration)
   if (!video || video.codec_name !== 'h264' || !audio || audio.codec_name !== 'aac' || !video.width || !video.height || !Number.isFinite(duration) || duration <= 0) throw new Error('ASSET_MEDIA_VIDEO_PROFILE_UNSUPPORTED')
-  return { checksum, width: video.width, height: video.height, durationMs: String(Math.round(duration * 1000)), codec: 'h264/aac' }
+  await decodeMediaFully(filePath)
+  return { checksum, size, width: video.width, height: video.height, durationMs: String(Math.round(duration * 1000)), codec: 'h264/aac' }
 }
 
 type ProbeStream = { codec_type?: string; codec_name?: string; width?: number; height?: number; duration?: string }
 type ProbeResult = { streams: ProbeStream[]; format_name: string; duration?: string }
 
-/** probeMedia delegates complete container/decoder validation to the installed ffprobe executable. */
-function probeMedia(body: Buffer): Promise<ProbeResult> {
+/** probeMedia extracts codec facts from the bounded temporary file without retaining upload bytes in memory. */
+function probeMedia(filePath: string): Promise<ProbeResult> {
   return new Promise((resolve, reject) => {
-    const process = spawn('ffprobe', ['-v', 'error', '-show_entries', 'stream=codec_type,codec_name,width,height,duration:format=format_name,duration', '-of', 'json', '-i', 'pipe:0'])
-    const output: Buffer[] = []; const errors: Buffer[] = []
-    process.stdout.on('data', (chunk: Buffer) => output.push(chunk)); process.stderr.on('data', (chunk: Buffer) => errors.push(chunk))
+    const process = spawn('ffprobe', ['-v', 'error', '-show_entries', 'stream=codec_type,codec_name,width,height,duration:format=format_name,duration', '-of', 'json', '-i', filePath])
+    let output = ''; let errors = ''
+    process.stdout.on('data', (chunk: Buffer) => { output += chunk.toString('utf8'); if (output.length > 65536) process.kill('SIGKILL') }); process.stderr.on('data', (chunk: Buffer) => { errors += chunk.toString('utf8'); if (errors.length > 65536) process.kill('SIGKILL') })
     process.once('error', () => reject(new Error('ASSET_MEDIA_PROBE_UNAVAILABLE')))
     process.once('close', (code) => {
-      if (code !== 0) return reject(new Error(errors.join('').trim() || 'ASSET_MEDIA_BYTES_UNSUPPORTED'))
-      try { const parsed = JSON.parse(Buffer.concat(output).toString('utf8')) as { streams?: ProbeStream[]; format?: { format_name?: string; duration?: string } }; resolve({ streams: parsed.streams ?? [], format_name: parsed.format?.format_name ?? '', duration: parsed.format?.duration }) } catch { reject(new Error('ASSET_MEDIA_PROBE_INVALID')) }
+      if (code !== 0) return reject(new Error(errors.trim() || 'ASSET_MEDIA_BYTES_UNSUPPORTED'))
+      try { const parsed = JSON.parse(output) as { streams?: ProbeStream[]; format?: { format_name?: string; duration?: string } }; resolve({ streams: parsed.streams ?? [], format_name: parsed.format?.format_name ?? '', duration: parsed.format?.duration }) } catch { reject(new Error('ASSET_MEDIA_PROBE_INVALID')) }
     })
-    process.stdin.end(body)
+  })
+}
+
+/** decodeMediaFully sends every decoded frame to null and bounds process lifetime and diagnostics. */
+function decodeMediaFully(filePath: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const process = spawn('ffmpeg', ['-v', 'error', '-xerror', '-i', filePath, '-map', '0', '-f', 'null', '-'])
+    let errors = ''
+    const timer = setTimeout(() => process.kill('SIGKILL'), 30_000)
+    process.stderr.on('data', (chunk: Buffer) => { errors += chunk.toString('utf8'); if (errors.length > 65536) process.kill('SIGKILL') })
+    process.once('error', () => { clearTimeout(timer); reject(new Error('ASSET_MEDIA_DECODER_UNAVAILABLE')) })
+    process.once('close', (code) => { clearTimeout(timer); code === 0 ? resolve() : reject(new Error(errors.trim() || 'ASSET_MEDIA_BYTES_UNSUPPORTED')) })
   })
 }

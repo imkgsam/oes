@@ -112,9 +112,11 @@ model SiteMediaLifecycleOperation {
   providerRequestId String?
   lastSafeError  String?
   confirmedAt    DateTime?
+  leaseExpiresAt DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   @@unique([tenantId, assetId, idempotencyKey])
+  @@index([kind, status, nextAttemptAt, leaseExpiresAt])
 }
 
 model AssetEventOutbox {

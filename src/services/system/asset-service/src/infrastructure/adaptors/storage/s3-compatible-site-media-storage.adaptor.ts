@@ -1,5 +1,5 @@
-import { createHash } from 'node:crypto'
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
+import { Readable } from 'node:stream'
 import { SiteMediaStoragePort } from '../../../domain/ports/site-media-storage.port'
 
 /** S3CompatibleSiteMediaStorageAdaptor writes bounded media bytes to the configured S3-compatible bucket. */
@@ -18,15 +18,15 @@ export class S3CompatibleSiteMediaStorageAdaptor implements SiteMediaStoragePort
     })
   }
 
-  async put(input: { key: string; body: Buffer; contentType: string }): Promise<{ checksum: string; size: number }> {
+  async put(input: { key: string; body: AsyncIterable<Uint8Array>; size: number; checksum: string; contentType: string }): Promise<{ checksum: string; size: number }> {
     const endpoint = process.env.SITE_MEDIA_S3_ENDPOINT?.trim()
     const bucket = process.env.SITE_MEDIA_S3_BUCKET?.trim()
     if (!endpoint || !bucket) throw new Error('SITE_MEDIA_STORAGE_PROVIDER_NOT_CONFIGURED')
-    if (!input.body.length || !input.key.trim() || !input.contentType.trim()) throw new Error('ASSET_MEDIA_VALIDATION_FAILED')
-    const checksum = createHash('sha256').update(input.body).digest('hex')
-    const checksumBase64 = Buffer.from(checksum, 'hex').toString('base64')
-    const result = await this.client.send(new PutObjectCommand({ Bucket: bucket, Key: input.key, Body: input.body, ContentType: input.contentType, ContentLength: input.body.length, ChecksumSHA256: checksumBase64 }))
+    if (!input.size || !/^[0-9a-f]{64}$/u.test(input.checksum) || !input.key.trim() || !input.contentType.trim()) throw new Error('ASSET_MEDIA_VALIDATION_FAILED')
+    const checksumBase64 = Buffer.from(input.checksum, 'hex').toString('base64')
+    const body = input.body instanceof Readable ? input.body : Readable.from(input.body)
+    const result = await this.client.send(new PutObjectCommand({ Bucket: bucket, Key: input.key, Body: body, ContentType: input.contentType, ContentLength: input.size, ChecksumSHA256: checksumBase64 }))
     if (result.ChecksumSHA256 && result.ChecksumSHA256 !== checksumBase64) throw new Error('SITE_MEDIA_STORAGE_CHECKSUM_MISMATCH')
-    return { checksum, size: input.body.length }
+    return { checksum: input.checksum, size: input.size }
   }
 }

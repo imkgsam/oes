@@ -20,6 +20,34 @@ export class PrismaSiteMediaRepository implements SiteMediaRepository {
     return row ? this.toRecord(row) : null
   }
 
+  /** reserveSiteMediaAsset persists the checksum-bound idempotency winner before any external upload. */
+  async reserveSiteMediaAsset(input: {
+    assetId: string; tenantId: string; siteId: string; ownerSubject: string; mediaKind: string; storageKey: string; checksum: string; size: number; contentType: string
+    width: number; height: number; durationMs: string; codec: string; idempotencyKey: string; requestHash: string
+  }): Promise<SiteMediaRecord> {
+    try {
+      const row = await this.prisma.siteMediaAsset.create({ data: { ...input, lifecycleStatus: 'UPLOADING', durationMs: BigInt(input.durationMs) } })
+      return this.toRecord(row)
+    } catch (error) {
+      if (!isPrismaUniqueViolation(error)) throw error
+      const existing = await this.findSiteMediaByUploadIdentity({ tenantId: input.tenantId, siteId: input.siteId, idempotencyKey: input.idempotencyKey })
+      if (!existing || existing.requestHash !== input.requestHash) throw new Error('ASSET_IDEMPOTENCY_CONFLICT')
+      if (existing.lifecycleStatus === 'UPLOADING') throw new Error('ASSET_UPLOAD_IN_PROGRESS')
+      return existing
+    }
+  }
+
+  /** completeSiteMediaAsset publishes the reserved row only after storage has verified checksum and size. */
+  async completeSiteMediaAsset(input: { tenantId: string; assetId: string; checksum: string; size: number }): Promise<SiteMediaRecord> {
+    const claimed = await this.prisma.siteMediaAsset.updateMany({ where: { tenantId: input.tenantId, assetId: input.assetId, lifecycleStatus: 'UPLOADING', checksum: input.checksum, size: input.size }, data: { lifecycleStatus: 'ACTIVE' } })
+    if (!claimed.count) {
+      const existing = await this.prisma.siteMediaAsset.findFirst({ where: { tenantId: input.tenantId, assetId: input.assetId } })
+      if (existing?.lifecycleStatus === 'ACTIVE' && existing.checksum === input.checksum && existing.size === input.size) return this.toRecord(existing)
+      throw new Error('ASSET_UPLOAD_COMPLETION_CONFLICT')
+    }
+    return this.toRecord(await this.prisma.siteMediaAsset.findUniqueOrThrow({ where: { assetId: input.assetId } }))
+  }
+
   async createSiteMediaAsset(input: {
     tenantId: string
     siteId: string
@@ -172,12 +200,12 @@ export class PrismaSiteMediaRepository implements SiteMediaRepository {
 
   async findOperation(input: { tenantId: string; assetId: string; idempotencyKey: string }) {
     const row = await this.prisma.siteMediaLifecycleOperation.findUnique({ where: { tenantId_assetId_idempotencyKey: input } })
-    return row ? new SiteMediaLifecycleOperation(row.operationId, row.tenantId, row.assetId, row.idempotencyKey, row.requestHash, row.kind as SiteMediaOperationKind, row.status as SiteMediaOperationStatus, row.immutableTargetUrl, row.attempts, row.nextAttemptAt, row.providerRequestId, row.lastSafeError, row.confirmedAt) : null
+    return row ? this.toOperation(row) : null
   }
 
   async saveOperation(operation: SiteMediaLifecycleOperation): Promise<SiteMediaLifecycleOperation> {
     try {
-      await this.prisma.siteMediaLifecycleOperation.create({ data: { operationId: operation.operationId, tenantId: operation.tenantId, assetId: operation.assetId, idempotencyKey: operation.idempotencyKey, requestHash: operation.requestHash, status: operation.status, kind: operation.kind, immutableTargetUrl: operation.immutableTargetUrl, attempts: operation.attempts, nextAttemptAt: operation.nextAttemptAt, providerRequestId: operation.providerRequestId, lastSafeError: operation.lastSafeError, confirmedAt: operation.confirmedAt } })
+      await this.prisma.siteMediaLifecycleOperation.create({ data: { operationId: operation.operationId, tenantId: operation.tenantId, assetId: operation.assetId, idempotencyKey: operation.idempotencyKey, requestHash: operation.requestHash, status: operation.status, kind: operation.kind, immutableTargetUrl: operation.immutableTargetUrl, attempts: operation.attempts, nextAttemptAt: operation.nextAttemptAt, providerRequestId: operation.providerRequestId, lastSafeError: operation.lastSafeError, confirmedAt: operation.confirmedAt, leaseExpiresAt: operation.leaseExpiresAt } })
       return operation
     } catch (error) {
       if (!isPrismaUniqueViolation(error)) throw error
@@ -187,7 +215,17 @@ export class PrismaSiteMediaRepository implements SiteMediaRepository {
     }
   }
 
-  async claimDuePurgeOperations(now: Date, limit: number) { const rows = await this.prisma.siteMediaLifecycleOperation.findMany({ where: { kind: 'TAKEDOWN_PURGE', status: { in: ['PENDING', 'RETRY'] }, nextAttemptAt: { lte: now } }, orderBy: { createdAt: 'asc' }, take: limit }); return rows.map((row) => new SiteMediaLifecycleOperation(row.operationId, row.tenantId, row.assetId, row.idempotencyKey, row.requestHash, row.kind as SiteMediaOperationKind, row.status as SiteMediaOperationStatus, row.immutableTargetUrl, row.attempts, row.nextAttemptAt, row.providerRequestId, row.lastSafeError, row.confirmedAt)) }
+  /** claimDuePurgeOperations atomically leases due or expired work so only one replica may call the provider. */
+  async claimDuePurgeOperations(now: Date, limit: number) {
+    const rows = await this.prisma.siteMediaLifecycleOperation.findMany({ where: { kind: 'TAKEDOWN_PURGE', OR: [{ status: { in: ['PENDING', 'RETRY'] }, nextAttemptAt: { lte: now } }, { status: 'PROCESSING', leaseExpiresAt: { lte: now } }] }, orderBy: { createdAt: 'asc' }, take: limit })
+    const leaseExpiresAt = new Date(now.getTime() + 60_000)
+    const claimed: SiteMediaLifecycleOperation[] = []
+    for (const row of rows) {
+      const where = row.status === 'PROCESSING' ? { operationId: row.operationId, status: 'PROCESSING', leaseExpiresAt: row.leaseExpiresAt ?? undefined } : { operationId: row.operationId, status: row.status, nextAttemptAt: row.nextAttemptAt }
+      if ((await this.prisma.siteMediaLifecycleOperation.updateMany({ where, data: { status: 'PROCESSING', leaseExpiresAt } })).count) claimed.push(this.toOperation({ ...row, status: 'PROCESSING', leaseExpiresAt }))
+    }
+    return claimed
+  }
   /** confirmTakedownWithEvent records UNAVAILABLE only after the precise purge provider acknowledged the immutable target. */
   async confirmTakedownWithEvent(operationId: string, providerRequestId: string, confirmedAt: Date): Promise<void> {
     await this.withLifecycleTransaction(async (tx) => {
@@ -197,13 +235,13 @@ export class PrismaSiteMediaRepository implements SiteMediaRepository {
       if (operation.kind !== 'TAKEDOWN_PURGE') throw new Error('ASSET_OPERATION_KIND_INVALID')
       const asset = await tx.siteMediaAsset.findFirst({ where: { tenantId: operation.tenantId, assetId: operation.assetId } })
       if (!asset) throw new Error('ASSET_SCOPE_FORBIDDEN')
-      if (!(await tx.siteMediaLifecycleOperation.updateMany({ where: { operationId, status: { in: ['PENDING', 'RETRY'] } }, data: { status: 'CONFIRMED', providerRequestId, confirmedAt } })).count) return
+      if (!(await tx.siteMediaLifecycleOperation.updateMany({ where: { operationId, status: 'PROCESSING' }, data: { status: 'CONFIRMED', providerRequestId, confirmedAt, leaseExpiresAt: null } })).count) return
       if (!(await tx.siteMediaAsset.updateMany({ where: { assetId: asset.assetId, deliveryStatus: asset.deliveryStatus, availabilityVersion: asset.availabilityVersion }, data: { deliveryStatus: 'UNAVAILABLE', availabilityVersion: { increment: BigInt(1) } } })).count) throw new Error('ASSET_LIFECYCLE_CONCURRENT_UPDATE')
       const updated = await tx.siteMediaAsset.findUniqueOrThrow({ where: { assetId: asset.assetId } })
       await this.appendAvailabilityEvent(tx, updated, operation.operationId, 'TAKEDOWN_CONFIRMED', confirmedAt)
     })
   }
-  async schedulePurgeRetry(operationId: string, attempts: number, nextAttemptAt: Date, safeError: string) { await this.prisma.siteMediaLifecycleOperation.update({ where: { operationId }, data: { status: 'RETRY', attempts, nextAttemptAt, lastSafeError: safeError } }) }
+  async schedulePurgeRetry(operationId: string, attempts: number, nextAttemptAt: Date, safeError: string) { await this.prisma.siteMediaLifecycleOperation.updateMany({ where: { operationId, status: 'PROCESSING' }, data: { status: 'RETRY', attempts, nextAttemptAt, lastSafeError: safeError, leaseExpiresAt: null } }) }
 
   /** withLifecycleTransaction keeps lifecycle state, monotonically-versioned availability, and outbox persistence inseparable. */
   private async withLifecycleTransaction<T>(callback: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
@@ -272,6 +310,11 @@ export class PrismaSiteMediaRepository implements SiteMediaRepository {
       protectedReferenceCount: row.protectedReferenceCount,
       createdAt: row.createdAt
     }
+  }
+
+  /** toOperation restores one persisted lifecycle lease without exposing Prisma types to application code. */
+  private toOperation(row: { operationId: string; tenantId: string; assetId: string; idempotencyKey: string; requestHash: string; kind: string; status: string; immutableTargetUrl: string | null; attempts: number; nextAttemptAt: Date; providerRequestId: string | null; lastSafeError: string | null; confirmedAt: Date | null; leaseExpiresAt: Date | null }): SiteMediaLifecycleOperation {
+    return new SiteMediaLifecycleOperation(row.operationId, row.tenantId, row.assetId, row.idempotencyKey, row.requestHash, row.kind as SiteMediaOperationKind, row.status as SiteMediaOperationStatus, row.immutableTargetUrl, row.attempts, row.nextAttemptAt, row.providerRequestId, row.lastSafeError, row.confirmedAt, row.leaseExpiresAt)
   }
 }
 

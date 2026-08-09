@@ -75,6 +75,21 @@ model AssetSiteMediaAvailabilityProjection {
   @@id([tenantId, assetId])
 }
 
+/// Site-owned terminal capture for Asset availability deliveries that exceeded bounded retry.
+model SiteAssetSiteMediaDlq {
+  consumerName  String
+  eventId       String
+  bodyDigest    String
+  retryCount    Int
+  lastSafeError String
+  envelope      Json
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@id([consumerName, eventId, bodyDigest])
+  @@index([consumerName, createdAt])
+}
+
 model SiteLocale {
   id        String   @id @default(uuid()) @db.Uuid
   siteId    String   @db.VarChar(128)

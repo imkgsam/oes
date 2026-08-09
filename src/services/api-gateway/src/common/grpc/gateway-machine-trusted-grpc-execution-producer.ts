@@ -21,12 +21,13 @@ export class GatewayMachineTrustedGrpcExecutionProducer {
     const subject = process.env.GATEWAY_MACHINE_PRINCIPAL_ID?.trim()
     if (!subject) throw new Error('MACHINE_WORKLOAD_SOURCE_CONFIGURATION_REQUIRED')
     if (!trace.requestId.trim() || !isTraceparent(trace.traceparent)) throw new Error('MACHINE_TRACE_CONTEXT_REQUIRED')
-    const trusted = createTrustedExecutionContext({ subject, principalType: 'MACHINE', requestId: trace.requestId, traceparent: trace.traceparent })
+    const trusted = createTrustedExecutionContext({ subject, principalType: 'MACHINE', requestId: trace.requestId, traceparent: trace.traceparent, tracestate: trace.tracestate })
     return this.context.run(trusted, () => this.source.run(async () => callback(await this.metadata.forInternalCall(targetAudience, [code]))))
   }
 }
 
 /** isTraceparent accepts only an active W3C trace context supplied by verified ingress. */
 function isTraceparent(value: string): boolean {
-  return /^00-[0-9a-f]{32}-[0-9a-f]{16}-0[1-9a-f]$/u.test(value.trim())
+  const match = /^00-([0-9a-f]{32})-([0-9a-f]{16})-([0-9a-f]{2})$/u.exec(value.trim())
+  return !!match && !/^0+$/u.test(match[1]) && !/^0+$/u.test(match[2])
 }

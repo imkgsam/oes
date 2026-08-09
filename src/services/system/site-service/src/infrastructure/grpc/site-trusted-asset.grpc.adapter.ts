@@ -28,8 +28,9 @@ export class SiteTrustedAssetGrpcAdapter implements AssetSiteMediaPort {
     if (!bearer) throw new Error('SITE_INBOUND_EXECUTION_CREDENTIAL_REQUIRED')
     const requestId = getMetadata(metadata, 'x-request-id')
     const traceparent = getMetadata(metadata, 'traceparent')
-    if (!requestId || !traceparent || !/^00-[0-9a-f]{32}-[0-9a-f]{16}-0[1-9a-f]$/u.test(traceparent)) throw new Error('SITE_INBOUND_TRACE_CONTEXT_REQUIRED')
-    const context = createTrustedExecutionContext({ subject: verified.subject, principalType: verified.principalType, tenantId: verified.tenantId, orgId: verified.orgId, actor: typeof verified.actor === 'string' ? verified.actor : undefined, delegationId: verified.delegationId, authzVersion: verified.authzVersion, requestId, traceparent })
+    const tracestate = getMetadata(metadata, 'tracestate')
+    if (!requestId || !traceparent || !isTraceparent(traceparent)) throw new Error('SITE_INBOUND_TRACE_CONTEXT_REQUIRED')
+    const context = createTrustedExecutionContext({ subject: verified.subject, principalType: verified.principalType, tenantId: verified.tenantId, orgId: verified.orgId, actor: typeof verified.actor === 'string' ? verified.actor : undefined, delegationId: verified.delegationId, authzVersion: verified.authzVersion, requestId, traceparent, tracestate })
     const handle = this.issuer.issueVerifiedExecutionTokenSubjectCredential(bearer)
     return this.context.run(context, () => this.source.run(handle, callback))
   }
@@ -40,4 +41,10 @@ export class SiteTrustedAssetGrpcAdapter implements AssetSiteMediaPort {
 function getMetadata(metadata: Metadata, key: string): string | undefined {
   const value = metadata.get(key)[0]
   return typeof value === 'string' ? value : Buffer.isBuffer(value) ? value.toString('utf8') : undefined
+}
+
+/** isTraceparent accepts W3C version 00 including unsampled flags, while rejecting all-zero identifiers. */
+function isTraceparent(value: string): boolean {
+  const match = /^00-([0-9a-f]{32})-([0-9a-f]{16})-[0-9a-f]{2}$/u.exec(value.trim())
+  return !!match && !/^0+$/u.test(match[1]) && !/^0+$/u.test(match[2])
 }

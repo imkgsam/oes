@@ -44,6 +44,24 @@ export interface SiteMediaDeliveryStatus {
 /** SiteMediaRepository isolates Site Media persistence and idempotency ownership. */
 export interface SiteMediaRepository {
   findSiteMediaByUploadIdentity(input: { tenantId: string; siteId: string; idempotencyKey: string }): Promise<SiteMediaRecord | null>
+  reserveSiteMediaAsset(input: {
+    assetId: string
+    tenantId: string
+    siteId: string
+    ownerSubject: string
+    mediaKind: string
+    storageKey: string
+    checksum: string
+    size: number
+    contentType: string
+    width: number
+    height: number
+    durationMs: string
+    codec: string
+    idempotencyKey: string
+    requestHash: string
+  }): Promise<SiteMediaRecord>
+  completeSiteMediaAsset(input: { tenantId: string; assetId: string; checksum: string; size: number }): Promise<SiteMediaRecord>
   createSiteMediaAsset(input: {
     tenantId: string
     siteId: string

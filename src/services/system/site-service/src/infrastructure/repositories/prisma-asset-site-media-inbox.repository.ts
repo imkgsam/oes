@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { Prisma } from '../../../prisma/generated/prisma'
 import { PrismaService } from '../prisma/prisma.service'
 
 /** PrismaAssetSiteMediaInboxRepository atomically deduplicates and applies monotonic Asset availability facts. */
@@ -16,4 +17,17 @@ export class PrismaAssetSiteMediaInboxRepository {
       return stale ? 'STALE_IGNORED' : 'APPLIED'
     })
   }
+
+  /** recordTerminalFailure durably captures one immutable delivery before the worker acknowledges its terminal attempt. */
+  async recordTerminalFailure(input: { eventId: string; bodyDigest: string; retryCount: number; safeError: string; envelope: unknown }): Promise<void> {
+    const consumerName = 'site-service__asset-site-media__v1'
+    await this.prisma.$transaction((tx) => tx.siteAssetSiteMediaDlq.upsert({
+      where: { consumerName_eventId_bodyDigest: { consumerName, eventId: input.eventId, bodyDigest: input.bodyDigest } },
+      create: { consumerName, eventId: input.eventId, bodyDigest: input.bodyDigest, retryCount: input.retryCount, lastSafeError: input.safeError, envelope: immutableJson(input.envelope) },
+      update: { retryCount: input.retryCount, lastSafeError: input.safeError }
+    }))
+  }
 }
+
+/** immutableJson stores an envelope snapshot without retaining a mutable caller reference. */
+function immutableJson(value: unknown): Prisma.InputJsonValue { return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue }
