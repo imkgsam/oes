@@ -52,7 +52,7 @@ export class SiteRuntimeGrpcAdapter implements SiteRuntimeDownstream, OnModuleIn
   constructor(
     @InjectGrpcClient(SERVICE_NAMES.SITE)
     private readonly client: ClientGrpc,
-    private readonly machineExecution: GatewayMachineTrustedGrpcExecutionProducer = { forInternalCall: async (_audience: string, _code: string, callback: any) => callback(new Metadata()) } as any
+    private readonly machineExecution: GatewayMachineTrustedGrpcExecutionProducer
   ) {}
 
   /** onModuleInit resolves the generated site runtime gRPC client from the transport registry. */

@@ -11,6 +11,10 @@ CREATE TABLE "SiteMediaAsset" (
   "checksum" TEXT NOT NULL,
   "size" INTEGER NOT NULL,
   "contentType" TEXT NOT NULL,
+  "width" INTEGER NOT NULL DEFAULT 0,
+  "height" INTEGER NOT NULL DEFAULT 0,
+  "durationMs" BIGINT NOT NULL DEFAULT 0,
+  "codec" TEXT NOT NULL DEFAULT 'unknown',
   "idempotencyKey" TEXT NOT NULL,
   "requestHash" TEXT NOT NULL,
   "availabilityVersion" BIGINT NOT NULL DEFAULT 1,
@@ -21,6 +25,7 @@ CREATE TABLE "SiteMediaAsset" (
 );
 CREATE UNIQUE INDEX "SiteMediaAsset_storageKey_key" ON "SiteMediaAsset"("storageKey");
 CREATE UNIQUE INDEX "SiteMediaAsset_tenantId_siteId_idempotencyKey_key" ON "SiteMediaAsset"("tenantId", "siteId", "idempotencyKey");
+CREATE UNIQUE INDEX "SiteMediaAsset_tenantId_assetId_key" ON "SiteMediaAsset"("tenantId", "assetId");
 CREATE INDEX "SiteMediaAsset_tenantId_siteId_lifecycleStatus_idx" ON "SiteMediaAsset"("tenantId", "siteId", "lifecycleStatus");
 CREATE INDEX "SiteMediaAsset_tenantId_assetId_idx" ON "SiteMediaAsset"("tenantId", "assetId");
 
@@ -33,3 +38,4 @@ CREATE TABLE "SiteMediaPublicationReference" (
   CONSTRAINT "SiteMediaPublicationReference_pkey" PRIMARY KEY ("tenantId", "siteId", "publishVersion", "assetId")
 );
 CREATE INDEX "SiteMediaPublicationReference_tenantId_assetId_idx" ON "SiteMediaPublicationReference"("tenantId", "assetId");
+ALTER TABLE "SiteMediaPublicationReference" ADD CONSTRAINT "SiteMediaPublicationReference_asset_fkey" FOREIGN KEY ("tenantId", "assetId") REFERENCES "SiteMediaAsset"("tenantId", "assetId") ON DELETE RESTRICT ON UPDATE CASCADE;

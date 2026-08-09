@@ -100,6 +100,7 @@ import { createCredentialBundle } from '../../domain/security/site-request-signi
 import { createSyncBatchPlan, PendingSyncResource } from '../../domain/sync/sync-batch-planner'
 import { NoopSiteWebhookPublisher } from '../ports/site-webhook-publisher.port'
 import type { SiteWebhookPublisher } from '../ports/site-webhook-publisher.port'
+import type { AssetSiteMediaPort } from '../ports/asset-site-media.port'
 
 export interface SiteAdminApplicationRepository {
   runInTransaction<T>(callback: () => Promise<T>): Promise<T>
@@ -566,7 +567,8 @@ export class SiteAdminApplicationService {
     @Inject(SITE_ADMIN_APPLICATION_REPOSITORY)
     private readonly repository: SiteAdminApplicationRepository,
     private readonly options: SiteAdminApplicationOptions,
-    private readonly webhookPublisher: SiteWebhookPublisher = new NoopSiteWebhookPublisher()
+    private readonly webhookPublisher: SiteWebhookPublisher = new NoopSiteWebhookPublisher(),
+    private readonly assetSiteMedia?: AssetSiteMediaPort
   ) {}
 
   /** listSiteCards returns the tenant-scoped card workspace read model. */
@@ -690,6 +692,11 @@ export class SiteAdminApplicationService {
       const syncId = this.id('sync')
       const updatedAt = this.now()
       for (const resource of plan.resources) {
+        if (String(resource.resourceType) === 'site-media') {
+          if (!this.assetSiteMedia) throw new Error('SITE_MEDIA_OUTBOUND_PORT_REQUIRED')
+          await this.assetSiteMedia.resolve({ siteId, assetId: resource.resourceId, requiredMediaKind: resource.locale || 'IMAGE' })
+          await this.assetSiteMedia.protect({ idempotencyKey: syncId, siteId, publishVersion: String(plan.publishVersion), assetIds: [resource.resourceId] })
+        }
         if (resource.resourceType === 'site-exposure') {
           await this.repository.publishSiteExposure?.({
             siteId,

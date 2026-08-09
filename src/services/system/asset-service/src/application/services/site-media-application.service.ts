@@ -54,7 +54,8 @@ export class SiteMediaApplicationService {
     const start = frames[0]?.start
     if (!start?.idempotencyKey || !start.siteId || !start.requestedMediaKind || !start.declaredContentType || frames.some((frame, index) => index === 0 ? !frame.start : !!frame.start || !frame.contentChunk?.length)) throw new Error('ASSET_MEDIA_VALIDATION_FAILED')
     const body = Buffer.concat(frames.slice(1).map((frame) => frame.contentChunk as Buffer))
-    const requestHash = createHash('sha256').update(JSON.stringify({ siteId: start.siteId, mediaKind: start.requestedMediaKind, contentType: start.declaredContentType, checksum: createHash('sha256').update(body).digest('hex') })).digest('hex')
+    const facts = inspectMediaBytes(body, start.declaredContentType, start.requestedMediaKind)
+    const requestHash = createHash('sha256').update(JSON.stringify({ siteId: start.siteId, mediaKind: start.requestedMediaKind, contentType: start.declaredContentType, checksum: facts.checksum })).digest('hex')
     const existing = await this.repository.findSiteMediaByUploadIdentity({ tenantId: scope.tenantId, siteId: start.siteId, idempotencyKey: start.idempotencyKey })
     if (existing) {
       if (existing.requestHash !== requestHash) throw new Error('ASSET_IDEMPOTENCY_CONFLICT')
@@ -62,7 +63,8 @@ export class SiteMediaApplicationService {
     }
     const storageKey = `site-media/${createHash('sha256').update(`${scope.tenantId}:${start.siteId}:${start.idempotencyKey}`).digest('hex')}`
     const stored = await this.store({ key: storageKey, body, contentType: start.declaredContentType })
-    const asset = await this.repository.createSiteMediaAsset({ tenantId: scope.tenantId, siteId: start.siteId, ownerSubject: scope.subject, mediaKind: start.requestedMediaKind, storageKey, checksum: stored.checksum, size: stored.size, contentType: start.declaredContentType, idempotencyKey: start.idempotencyKey, requestHash })
+    if (stored.checksum !== facts.checksum || stored.size !== body.length) throw new Error('SITE_MEDIA_STORAGE_FACTS_MISMATCH')
+    const asset = await this.repository.createSiteMediaAsset({ tenantId: scope.tenantId, siteId: start.siteId, ownerSubject: scope.subject, mediaKind: start.requestedMediaKind, storageKey, checksum: facts.checksum, size: stored.size, contentType: start.declaredContentType, width: facts.width, height: facts.height, durationMs: facts.durationMs, codec: facts.codec, idempotencyKey: start.idempotencyKey, requestHash })
     return { asset: this.summary(asset), checksum: stored.checksum }
   }
 
@@ -81,7 +83,7 @@ export class SiteMediaApplicationService {
     const result = await this.repository.resolveSiteMedia({ tenantId: scope.tenantId, siteId: request.siteId, assetId: request.assetId })
     if (!result || !result.immutablePublicUrl || result.deliveryStatus !== 'REMOTE_ACTIVE' || result.lifecycleStatus === 'DELETED') throw new Error('ASSET_PUBLIC_DELIVERY_UNAVAILABLE')
     if (request.requiredMediaKind && result.mediaKind !== request.requiredMediaKind) throw new Error('ASSET_MEDIA_KIND_MISMATCH')
-    return { resolved: { assetId: result.assetId, mediaKind: result.mediaKind, lifecycleStatus: result.lifecycleStatus, deliveryStatus: result.deliveryStatus, publicUrl: result.immutablePublicUrl, width: 0, height: 0, durationMs: '0', codec: result.contentType, availabilityVersion: result.availabilityVersion } }
+    return { resolved: { assetId: result.assetId, mediaKind: result.mediaKind, lifecycleStatus: result.lifecycleStatus, deliveryStatus: result.deliveryStatus, publicUrl: result.immutablePublicUrl, width: result.width, height: result.height, durationMs: result.durationMs, codec: result.codec, availabilityVersion: result.availabilityVersion } }
   }
 
   /** prepareSiteMediaRemoteDelivery creates or reuses a tenant-scoped binding and validation operation. */
@@ -95,7 +97,7 @@ export class SiteMediaApplicationService {
     return { deliveryBindingStatus: binding.deliveryStatus, validationOperationId: operation.operationId }
   }
 
-  /** activateSiteMediaRemoteDelivery moves a prepared binding into migration with an idempotent operation. */
+  /** activateSiteMediaRemoteDelivery confirms the prepared binding through the repository's atomic availability/outbox boundary. */
   async activateSiteMediaRemoteDelivery(request: { idempotencyKey?: string; siteId?: string }, authority: SiteMediaExecutionAuthority): Promise<object> {
     const scope = this.requireAuthority(authority)
     if (!request.siteId || !request.idempotencyKey) throw new Error('ASSET_REMOTE_DELIVERY_NOT_READY')
@@ -103,7 +105,7 @@ export class SiteMediaApplicationService {
     if (!binding || binding.deliveryStatus !== 'REMOTE_READY') throw new Error('ASSET_REMOTE_DELIVERY_NOT_READY')
     const operation = await this.createOperation({ tenantId: scope.tenantId, assetId: request.siteId, idempotencyKey: request.idempotencyKey, canonicalInput: request, kind: 'TAKEDOWN_PURGE' })
     binding.transition('MIGRATING'); await this.repository.saveBinding(binding)
-    return { deliveryBindingStatus: binding.deliveryStatus, migrationOperationId: operation.operationId }
+    return this.repository.confirmRemoteActivationWithEvent({ tenantId: scope.tenantId, siteId: request.siteId, operationId: operation.operationId })
   }
 
   /** protectSitePublicationReferences records idempotent tenant/site/publish-version reference facts. */
@@ -124,12 +126,12 @@ export class SiteMediaApplicationService {
     return { releasedAssetIds: ids, releaseStatus: 'RELEASED' }
   }
 
-  /** archiveSiteMedia enforces owner scope and delegates lifecycle protection checks to the typed repository. */
+  /** archiveSiteMedia delegates its terminal state and immutable availability fact to one repository transaction. */
   async archiveSiteMedia(request: { assetId?: string; idempotencyKey?: string }, authority: SiteMediaExecutionAuthority): Promise<object> {
     const scope = this.requireAuthority(authority)
     if (!request.assetId || !request.idempotencyKey) throw new Error('ASSET_SCOPE_FORBIDDEN')
     const operation = await this.createOperation({ tenantId: scope.tenantId, assetId: request.assetId, idempotencyKey: request.idempotencyKey, canonicalInput: request, kind: 'DELETE' })
-    return { asset: this.summary(await this.repository.archiveSiteMedia({ tenantId: scope.tenantId, assetId: request.assetId, ownerSubject: scope.subject, operationId: operation.operationId })) }
+    return { asset: this.summary(await this.repository.archiveWithEvent({ tenantId: scope.tenantId, assetId: request.assetId, ownerSubject: scope.subject, operationId: operation.operationId })) }
   }
 
   /** takeDownSiteMedia persists a purge operation and leaves delivery pending until the worker confirms the provider. */
@@ -151,12 +153,12 @@ export class SiteMediaApplicationService {
     return status
   }
 
-  /** deleteSiteMedia refuses protected assets and records an idempotent lifecycle operation before deletion. */
+  /** deleteSiteMedia delegates protection validation, deletion, versioning, and event persistence to one transaction. */
   async deleteSiteMedia(request: { assetId?: string; idempotencyKey?: string; deletionReason?: string }, authority: SiteMediaExecutionAuthority): Promise<object> {
     const scope = this.requireAuthority(authority)
     if (!request.assetId || !request.idempotencyKey) throw new Error('ASSET_SCOPE_FORBIDDEN')
     const operation = await this.createOperation({ tenantId: scope.tenantId, assetId: request.assetId, idempotencyKey: request.idempotencyKey, canonicalInput: request, kind: 'DELETE' })
-    return this.repository.deleteSiteMedia({ tenantId: scope.tenantId, assetId: request.assetId, ownerSubject: scope.subject, operationId: operation.operationId })
+    return this.repository.deleteWithEvent({ tenantId: scope.tenantId, assetId: request.assetId, ownerSubject: scope.subject, operationId: operation.operationId })
   }
 
   /** requireAuthority rejects missing verified tenant/subject claims before any repository or storage access. */
@@ -175,6 +177,47 @@ export class SiteMediaApplicationService {
 
   /** summary converts a typed Asset projection into the generated Site Media response shape. */
   private summary(asset: SiteMediaRecord): object {
-    return { assetId: asset.assetId, mediaKind: asset.mediaKind, lifecycleStatus: asset.lifecycleStatus, deliveryStatus: asset.deliveryStatus, previewUrl: asset.immutablePublicUrl ?? '', width: 0, height: 0, durationMs: '0', availabilityVersion: asset.availabilityVersion, createdAt: asset.createdAt.toISOString() }
+    return { assetId: asset.assetId, mediaKind: asset.mediaKind, lifecycleStatus: asset.lifecycleStatus, deliveryStatus: asset.deliveryStatus, previewUrl: asset.immutablePublicUrl ?? '', width: asset.width, height: asset.height, durationMs: asset.durationMs, availabilityVersion: asset.availabilityVersion, createdAt: asset.createdAt.toISOString() }
   }
+}
+
+/** inspectMediaBytes derives supported media facts from magic/header bytes and rejects declared-kind mismatches. */
+function inspectMediaBytes(body: Buffer, declaredContentType: string, requestedMediaKind: string): { checksum: string; width: number; height: number; durationMs: string; codec: string } {
+  const checksum = createHash('sha256').update(body).digest('hex')
+  if (requestedMediaKind !== 'IMAGE') throw new Error('ASSET_MEDIA_KIND_UNSUPPORTED')
+  if (body.length >= 24 && body.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) {
+    if (declaredContentType !== 'image/png') throw new Error('ASSET_MEDIA_CONTENT_TYPE_MISMATCH')
+    return { checksum, width: body.readUInt32BE(16), height: body.readUInt32BE(20), durationMs: '0', codec: 'png' }
+  }
+  if (body.length >= 10 && (body.subarray(0, 6).toString('ascii') === 'GIF87a' || body.subarray(0, 6).toString('ascii') === 'GIF89a')) {
+    if (declaredContentType !== 'image/gif') throw new Error('ASSET_MEDIA_CONTENT_TYPE_MISMATCH')
+    return { checksum, width: body.readUInt16LE(6), height: body.readUInt16LE(8), durationMs: '0', codec: 'gif' }
+  }
+  if (body.length >= 12 && body.subarray(0, 4).toString('ascii') === 'RIFF' && body.subarray(8, 12).toString('ascii') === 'WEBP') {
+    if (declaredContentType !== 'image/webp') throw new Error('ASSET_MEDIA_CONTENT_TYPE_MISMATCH')
+    if (body.length < 30 || body.subarray(12, 16).toString('ascii') !== 'VP8X') throw new Error('ASSET_MEDIA_DIMENSIONS_UNAVAILABLE')
+    const width = 1 + body[24] + (body[25] << 8) + (body[26] << 16)
+    const height = 1 + body[27] + (body[28] << 8) + (body[29] << 16)
+    return { checksum, width, height, durationMs: '0', codec: 'webp' }
+  }
+  if (body.length >= 4 && body[0] === 0xff && body[1] === 0xd8) {
+    if (declaredContentType !== 'image/jpeg') throw new Error('ASSET_MEDIA_CONTENT_TYPE_MISMATCH')
+    const dimensions = jpegDimensions(body)
+    return { checksum, width: dimensions.width, height: dimensions.height, durationMs: '0', codec: 'jpeg' }
+  }
+  throw new Error('ASSET_MEDIA_BYTES_UNSUPPORTED')
+}
+
+/** jpegDimensions reads the first SOF marker without decoding or trusting declared dimensions. */
+function jpegDimensions(body: Buffer): { width: number; height: number } {
+  let offset = 2
+  while (offset + 9 < body.length) {
+    if (body[offset] !== 0xff) { offset++; continue }
+    const marker = body[offset + 1]
+    const length = body.readUInt16BE(offset + 2)
+    if (marker >= 0xc0 && marker <= 0xc3) return { height: body.readUInt16BE(offset + 5), width: body.readUInt16BE(offset + 7) }
+    if (length < 2) break
+    offset += 2 + length
+  }
+  throw new Error('ASSET_MEDIA_DIMENSIONS_UNAVAILABLE')
 }

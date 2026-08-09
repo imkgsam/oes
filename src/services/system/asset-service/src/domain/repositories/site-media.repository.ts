@@ -16,6 +16,10 @@ export interface SiteMediaRecord {
   readonly requestHash: string
   readonly size: number
   readonly contentType: string
+  readonly width: number
+  readonly height: number
+  readonly durationMs: string
+  readonly codec: string
   readonly availabilityVersion: string
   readonly protectedReferenceCount: number
   readonly createdAt: Date
@@ -30,6 +34,7 @@ export interface SiteMediaListResult {
 /** SiteMediaDeliveryStatus is the typed lifecycle projection used by status calls. */
 export interface SiteMediaDeliveryStatus {
   readonly assetId: string
+  readonly siteId: string
   readonly lifecycleStatus: string
   readonly deliveryStatus: string
   readonly availabilityVersion: string
@@ -48,6 +53,10 @@ export interface SiteMediaRepository {
     checksum: string
     size: number
     contentType: string
+    width: number
+    height: number
+    durationMs: string
+    codec: string
     idempotencyKey: string
     requestHash: string
   }): Promise<SiteMediaRecord>
@@ -55,15 +64,16 @@ export interface SiteMediaRepository {
   resolveSiteMedia(input: { tenantId: string; siteId: string; assetId: string }): Promise<SiteMediaRecord | null>
   protectPublicationReferences(input: { tenantId: string; siteId: string; publishVersion: string; assetIds: readonly string[]; operationId: string }): Promise<readonly string[]>
   releasePublicationReferences(input: { tenantId: string; siteId: string; publishVersion: string; operationId: string }): Promise<readonly string[]>
-  archiveSiteMedia(input: { tenantId: string; assetId: string; ownerSubject: string; operationId: string }): Promise<SiteMediaRecord>
+  confirmRemoteActivationWithEvent(input: { tenantId: string; siteId: string; operationId: string }): Promise<{ deliveryBindingStatus: string; migrationOperationId: string }>
+  archiveWithEvent(input: { tenantId: string; assetId: string; ownerSubject: string; operationId: string }): Promise<SiteMediaRecord>
   getImmutableDeliveryUrl(input: { tenantId: string; assetId: string }): Promise<string | null>
   getSiteMediaDeliveryStatus(input: { tenantId: string; assetId: string }): Promise<SiteMediaDeliveryStatus | null>
-  deleteSiteMedia(input: { tenantId: string; assetId: string; ownerSubject: string; operationId: string }): Promise<{ operationId: string; deletionStatus: string }>
+  deleteWithEvent(input: { tenantId: string; assetId: string; ownerSubject: string; operationId: string }): Promise<{ operationId: string; deletionStatus: string }>
   findBinding(input: { tenantId: string; siteId: string }): Promise<SiteMediaDeliveryBinding | null>
   saveBinding(binding: SiteMediaDeliveryBinding): Promise<void>
   findOperation(input: { tenantId: string; assetId: string; idempotencyKey: string }): Promise<SiteMediaLifecycleOperation | null>
   saveOperation(operation: SiteMediaLifecycleOperation): Promise<void>
   claimDuePurgeOperations(now: Date, limit: number): Promise<readonly SiteMediaLifecycleOperation[]>
-  acknowledgePurge(operationId: string, providerRequestId: string, confirmedAt: Date): Promise<void>
+  confirmTakedownWithEvent(operationId: string, providerRequestId: string, confirmedAt: Date): Promise<void>
   schedulePurgeRetry(operationId: string, attempts: number, nextAttemptAt: Date, safeError: string): Promise<void>
 }

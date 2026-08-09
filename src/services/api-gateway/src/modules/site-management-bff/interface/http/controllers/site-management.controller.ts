@@ -1,4 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Post, Query, Req } from '@nestjs/common'
+import type { Request } from 'express'
+import { isObservable, Observable } from 'rxjs'
+import { UploadSiteMediaRequest } from '@oes/common/generated/asset_service'
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { RequirePermissions, SITE_MANAGEMENT_PERMISSION_CODES } from '@oes/common/authorization'
 import { DownstreamSource } from '../../../../../common/decorators/downstream-source.decorator'
@@ -679,26 +682,41 @@ export class SiteManagementController {
   /** Site Media Admin routes preserve stream/protocol boundaries and delegate target authorization to Gateway guards. */
   @Post('sites/:siteId/media')
   @RequirePermissions({ all: [SITE_MANAGEMENT_PERMISSION_CODES.MANAGE] })
-  uploadSiteMedia(@Param('siteId') siteId: string, @Req() request: any, @DownstreamSource() source: DownstreamRequestSource) { return (this.service as any).uploadSiteMedia(siteId, request, source) }
+  uploadSiteMedia(@VerifiedTenantTarget() tenantId: VerifiedTenantTarget, @Param('siteId') siteId: string, @Req() request: Request, @DownstreamSource() source: DownstreamRequestSource) { return this.service.uploadSiteMedia(mediaUploadStream(request, siteId), source) }
   @Get('sites/:siteId/media')
   @RequirePermissions({ all: [SITE_MANAGEMENT_PERMISSION_CODES.READ] })
-  listAuthorizedSiteMedia(@Param('siteId') siteId: string, @Query() query: any, @DownstreamSource() source: DownstreamRequestSource) { return (this.service as any).listAuthorizedSiteMedia(siteId, query, source) }
+  listAuthorizedSiteMedia(@VerifiedTenantTarget() tenantId: VerifiedTenantTarget, @Param('siteId') siteId: string, @Query() query: SiteMediaListQuery, @DownstreamSource() source: DownstreamRequestSource) { return this.service.listAuthorizedSiteMedia(tenantId, { siteId, ...query }, source) }
   @Post('sites/:siteId/media/delivery/prepare')
   @RequirePermissions({ all: [SITE_MANAGEMENT_PERMISSION_CODES.MANAGE] })
-  prepareSiteMediaRemoteDelivery(@Param('siteId') siteId: string, @Body() body: any, @DownstreamSource() source: DownstreamRequestSource) { return (this.service as any).prepareSiteMediaRemoteDelivery(siteId, body, source) }
+  prepareSiteMediaRemoteDelivery(@VerifiedTenantTarget() tenantId: VerifiedTenantTarget, @Param('siteId') siteId: string, @Body() body: SiteMediaPrepareBody, @DownstreamSource() source: DownstreamRequestSource) { return this.service.prepareSiteMediaRemoteDelivery(tenantId, { ...body, siteId }, source) }
   @Post('sites/:siteId/media/delivery/activate')
   @RequirePermissions({ all: [SITE_MANAGEMENT_PERMISSION_CODES.MANAGE] })
-  activateSiteMediaRemoteDelivery(@Param('siteId') siteId: string, @Body() body: any, @DownstreamSource() source: DownstreamRequestSource) { return (this.service as any).activateSiteMediaRemoteDelivery(siteId, body, source) }
+  activateSiteMediaRemoteDelivery(@VerifiedTenantTarget() tenantId: VerifiedTenantTarget, @Param('siteId') siteId: string, @Body() body: SiteMediaActivateBody, @DownstreamSource() source: DownstreamRequestSource) { return this.service.activateSiteMediaRemoteDelivery(tenantId, { ...body, siteId }, source) }
   @Post('sites/:siteId/media/:assetId/archive')
   @RequirePermissions({ all: [SITE_MANAGEMENT_PERMISSION_CODES.MANAGE] })
-  archiveSiteMedia(@Param('siteId') siteId: string, @Param('assetId') assetId: string, @Body() body: any, @DownstreamSource() source: DownstreamRequestSource) { return (this.service as any).archiveSiteMedia(siteId, assetId, body, source) }
+  archiveSiteMedia(@VerifiedTenantTarget() tenantId: VerifiedTenantTarget, @Param('siteId') siteId: string, @Param('assetId') assetId: string, @Body() body: SiteMediaIdempotencyBody, @DownstreamSource() source: DownstreamRequestSource) { return this.service.archiveSiteMedia(tenantId, { ...body, siteId, assetId }, source) }
   @Post('sites/:siteId/media/:assetId/takedown')
   @RequirePermissions({ all: [SITE_MANAGEMENT_PERMISSION_CODES.MANAGE] })
-  takeDownSiteMedia(@Param('siteId') siteId: string, @Param('assetId') assetId: string, @Body() body: any, @DownstreamSource() source: DownstreamRequestSource) { return (this.service as any).takeDownSiteMedia(siteId, assetId, body, source) }
+  takeDownSiteMedia(@VerifiedTenantTarget() tenantId: VerifiedTenantTarget, @Param('siteId') siteId: string, @Param('assetId') assetId: string, @Body() body: SiteMediaTakeDownBody, @DownstreamSource() source: DownstreamRequestSource) { return this.service.takeDownSiteMedia(tenantId, { ...body, siteId, assetId }, source) }
   @Get('sites/:siteId/media/:assetId/status')
   @RequirePermissions({ all: [SITE_MANAGEMENT_PERMISSION_CODES.READ] })
-  getSiteMediaDeliveryStatus(@Param('siteId') _siteId: string, @Param('assetId') assetId: string, @DownstreamSource() source: DownstreamRequestSource) { return (this.service as any).getSiteMediaDeliveryStatus(assetId, source) }
+  getSiteMediaDeliveryStatus(@VerifiedTenantTarget() tenantId: VerifiedTenantTarget, @Param('siteId') siteId: string, @Param('assetId') assetId: string, @DownstreamSource() source: DownstreamRequestSource) { return this.service.getSiteMediaDeliveryStatus(tenantId, siteId, assetId, source) }
   @Delete('sites/:siteId/media/:assetId')
   @RequirePermissions({ all: [SITE_MANAGEMENT_PERMISSION_CODES.MANAGE] })
-  deleteSiteMedia(@Param('siteId') siteId: string, @Param('assetId') assetId: string, @Body() body: any, @DownstreamSource() source: DownstreamRequestSource) { return (this.service as any).deleteSiteMedia(siteId, assetId, body, source) }
+  deleteSiteMedia(@VerifiedTenantTarget() tenantId: VerifiedTenantTarget, @Param('siteId') siteId: string, @Param('assetId') assetId: string, @Body() body: SiteMediaDeleteBody, @DownstreamSource() source: DownstreamRequestSource) { return this.service.deleteSiteMedia(tenantId, { ...body, siteId, assetId }, source) }
+}
+
+type SiteMediaListQuery = { query?: string; mediaKindFilter?: string; pageSize?: number; pageToken?: string }
+type SiteMediaPrepareBody = { idempotencyKey: string; mediaHost: string }
+type SiteMediaActivateBody = { idempotencyKey: string }
+type SiteMediaIdempotencyBody = { idempotencyKey: string }
+type SiteMediaTakeDownBody = SiteMediaIdempotencyBody & { reasonCode: string; reasonNote?: string }
+type SiteMediaDeleteBody = SiteMediaIdempotencyBody & { deletionReason: string }
+type SiteMediaStreamRequest = Request & { siteMediaStream?: unknown }
+
+/** mediaUploadStream accepts only the gateway's bounded decoded gRPC frame stream and never aggregates raw bytes. */
+function mediaUploadStream(request: Request, siteId: string): Observable<UploadSiteMediaRequest> {
+  const stream = (request as SiteMediaStreamRequest).siteMediaStream
+  if (!isObservable(stream)) throw new Error('SITE_MEDIA_STREAM_REQUIRED')
+  return stream as Observable<UploadSiteMediaRequest>
 }

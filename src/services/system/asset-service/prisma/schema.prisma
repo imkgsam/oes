@@ -70,13 +70,19 @@ model SiteMediaAsset {
   checksum                String
   size                    Int
   contentType             String
+  width                   Int      @default(0)
+  height                  Int      @default(0)
+  durationMs              BigInt   @default(0)
+  codec                   String
   idempotencyKey          String
   requestHash             String
   availabilityVersion    BigInt   @default(1)
   protectedReferenceCount Int      @default(0)
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
+  publicationReferences   SiteMediaPublicationReference[]
   @@unique([tenantId, siteId, idempotencyKey])
+  @@unique([tenantId, assetId])
   @@index([tenantId, siteId, lifecycleStatus])
   @@index([tenantId, assetId])
 }
@@ -87,6 +93,7 @@ model SiteMediaPublicationReference {
   publishVersion String
   assetId        String
   createdAt      DateTime @default(now())
+  asset          SiteMediaAsset @relation(fields: [tenantId, assetId], references: [tenantId, assetId], onDelete: Restrict)
   @@id([tenantId, siteId, publishVersion, assetId])
   @@index([tenantId, assetId])
 }

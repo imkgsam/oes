@@ -64,7 +64,7 @@ const SITE_AUDIENCE = 'urn:oes:service:site-service'
       useFactory: (context: AsyncLocalTrustedExecutionContextAccessor, metadata: TrustedGrpcMetadataProvider) => new GatewayTrustedGrpcExecutionProducer(context, metadata),
       inject: [AsyncLocalTrustedExecutionContextAccessor, TrustedGrpcMetadataProvider]
     },
-    { provide: GatewayMachineTrustedGrpcExecutionProducer, useFactory: (source: GatewayMachineWorkloadSourceCredentialProvider, metadata: TrustedGrpcMetadataProvider) => new GatewayMachineTrustedGrpcExecutionProducer(source, metadata), inject: [GatewayMachineWorkloadSourceCredentialProvider, TrustedGrpcMetadataProvider] }
+    { provide: GatewayMachineTrustedGrpcExecutionProducer, useFactory: (source: GatewayMachineWorkloadSourceCredentialProvider, metadata: TrustedGrpcMetadataProvider, context: AsyncLocalTrustedExecutionContextAccessor) => new GatewayMachineTrustedGrpcExecutionProducer(source, metadata, context), inject: [GatewayMachineWorkloadSourceCredentialProvider, TrustedGrpcMetadataProvider, AsyncLocalTrustedExecutionContextAccessor] }
   ],
   exports: [
     AsyncLocalTransportPrivateSourceCredentialAccessor,

@@ -13,7 +13,10 @@ async function bootstrap() {
     transport: Transport.GRPC,
     options: {
       package: 'asset_service',
-      protoPath: [resolveCommonProtoPath('asset_service/asset.proto')],
+      protoPath: [
+        resolveCommonProtoPath('asset_service/asset.proto'),
+        resolveCommonProtoPath('asset_service/site_media.proto')
+      ],
       url: `${process.env.GRPC_LISTEN_HOST || '0.0.0.0'}:${process.env.GRPC_LISTEN_PORT || '50056'}`,
       credentials: createGrpcServerCredentials()
     }

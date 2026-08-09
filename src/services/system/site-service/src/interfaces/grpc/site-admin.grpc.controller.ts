@@ -1,4 +1,5 @@
-import { Controller, Inject, UseFilters, UseGuards } from '@nestjs/common'
+import { Controller, Inject, Optional, UseFilters, UseGuards } from '@nestjs/common'
+import { Metadata } from '@grpc/grpc-js'
 import { AuthorizeBusinessRpc, getAuthenticatedGrpcRequestContext, SITE_MANAGEMENT_PERMISSION_CODES, TrustedExecutionGuard } from '@oes/common/authorization'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
@@ -102,6 +103,8 @@ import {
   UpdateSitePageGovernanceResponse
   , ListFaqCategoriesRequest, ListFaqCategoriesResponse, GetFaqCategoryRequest, GetFaqCategoryResponse, CreateFaqCategoryRequest, CreateFaqCategoryResponse, UpdateFaqCategoryLocaleVersionRequest, UpdateFaqCategoryLocaleVersionResponse, DisableFaqCategoryRequest, DisableFaqCategoryResponse, ListFaqEntriesRequest, ListFaqEntriesResponse, GetFaqEntryRequest, GetFaqEntryResponse, CreateFaqEntryRequest, CreateFaqEntryResponse, UpdateFaqEntryLocaleVersionRequest, UpdateFaqEntryLocaleVersionResponse, UnpublishFaqEntryRequest, UnpublishFaqEntryResponse, CheckFaqCompletenessRequest, CheckFaqCompletenessResponse
 } from '@oes/common/generated/site_service'
+import { ASSET_SITE_MEDIA_PORT } from '../../application/ports/asset-site-media.port'
+import { SiteTrustedAssetGrpcAdapter } from '../../infrastructure/grpc/site-trusted-asset.grpc.adapter'
 
 export interface SiteAdminApplicationPort {
   listSiteCards(request: ListSiteCardsRequest): Promise<ListSiteCardsResponse>
@@ -177,7 +180,9 @@ export class SiteAdminGrpcController implements SiteAdminManagementServiceContro
 
   constructor(
     @Inject(SITE_ADMIN_APPLICATION)
-    application: SiteAdminApplicationPort
+    application: SiteAdminApplicationPort,
+    @Optional() @Inject(ASSET_SITE_MEDIA_PORT)
+    private readonly assetScope?: SiteTrustedAssetGrpcAdapter
   ) {
     this.application = trustedAdminApplication(application)
   }
@@ -352,8 +357,9 @@ export class SiteAdminGrpcController implements SiteAdminManagementServiceContro
     return this.application.getSyncDetail(request)
   }
 
-  syncAllPendingChanges(request: SyncAllPendingChangesRequest): Promise<SyncAllPendingChangesResponse> {
-    return this.application.syncAllPendingChanges(request)
+  syncAllPendingChanges(request: SyncAllPendingChangesRequest, metadata?: Metadata): Promise<SyncAllPendingChangesResponse> {
+    if (!this.assetScope || !metadata) return this.application.syncAllPendingChanges(request)
+    return this.assetScope.runWithInboundScope(request, metadata, () => this.application.syncAllPendingChanges(request))
   }
 
   retryLastSync(request: RetryLastSyncRequest): Promise<RetryLastSyncResponse> {
