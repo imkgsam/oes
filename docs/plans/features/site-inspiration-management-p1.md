@@ -1,7 +1,7 @@
 # Site Inspiration Management P1
 
 ```text
-status: FROZEN_CORE_WAITING_FOR_SITE_PLATFORM_IMPLEMENTATION
+status: DESIGN_FROZEN_IMPLEMENTATION_NOT_DISPATCHED
 truthSource: docs/architecture/services/site-service.md
 publicContract: docs/contracts/site-service/public-views.md
 adminContract: docs/contracts/site-service/admin-bff.md
@@ -53,13 +53,13 @@ Asset owner 已冻结 tenant-scoped Site Media：
 
 Asset contract 已覆盖 tenant-safe upload / selection / resolve、不可静默替换的 Asset identity、long-lived CDN delivery、authoritative dimensions、publication protection / release、availability facts、archive / takedown / deletion 与 optional SEO image 使用边界。
 
-Site Recovery 已冻结以下三个实现前置条件，但尚未实现：
+Site Recovery 的平台前置已通过验收并集成到 current main：
 
-- trusted gRPC metadata generation / propagation / consumption；
-- cross-service Event Bus + outbox delivery；
-- CDN delivery / precise purge provider。
+- trusted gRPC metadata generation / propagation / consumption，以及 Site Admin 59 RPC、Runtime 7 RPC 的可信调用链；
+- Asset Site Media 11 RPC，以及 cross-service NATS Event Bus、Asset outbox、Site inbox / DLQ；
+- Cloudflare R2 delivery、CDN precise purge、持久化 retry 与 audit。
 
-具体语义、wire fields、事件可靠性、Cloudflare precise purge 与关闭式路径 lease 以 Site / Asset 稳定真相源、Site Media contract、协同蓝图和 trusted-gRPC feature packet 为准。Global Command 只能在 docs-only design candidate 被接收并集成后编排实现与 Asset conformance；Site Inspiration 在此之前保持 `FROZEN_CORE_WAITING_FOR_SITE_PLATFORM_IMPLEMENTATION`。
+这些已集成能力现在是未来 Inspiration Core 业务实现可直接依赖的平台基线，不代表 Items / Categories / Hotspot、Runtime reader 或 Storefront migration 已经实现或派发。具体语义、wire fields、事件可靠性、Cloudflare precise purge 与关闭式路径 lease 仍以 Site / Asset 稳定真相源、Site Media contract、协同蓝图和 trusted-gRPC feature packet 为准。
 
 Site 实现不得以 request-body tenant/operator、进程内 EventEmitter、origin-delete/no-op purge、普通 URL、直接对象存储访问或复制 Asset 元数据真相绕过前置条件。
 
@@ -74,9 +74,9 @@ Site 实现不得以 request-body tenant/operator、进程内 EventEmitter、ori
 
 ## 6. Required Sequencing
 
-1. Site Recovery docs-only candidate 通过既有 I&V 并集成，固定 59+7 Site RPC cutover、Site Media wire、Event/outbox/inbox、Cloudflare precise purge 与 exact writer lease。
-2. Global Command 按已冻结 lease 编排 shared platform implementation，并组织 Asset contract conformance。
-3. Program Control 在 Asset Site Media 实现达到可消费状态并核对 shared ownership 与允许路径后，安排 shared Site contracts / generated types 的实现。
+1. **已完成的平台前置**：Site Recovery design 通过 I&V 并集成，固定 59+7 Site RPC cutover、Site Media wire、Event/outbox/inbox、Cloudflare precise purge 与 exact writer lease。
+2. **已完成的平台前置**：trusted gRPC、Asset Site Media、Event/outbox/inbox 与 Cloudflare R2 precise purge/retry 实现通过验收并集成。
+3. **已完成的平台前置**：Asset Site Media 已可消费，shared contracts / generated types 与 ownership boundary 已就绪。
 4. Site Service / Admin BFF 实现 Category、Item、Hotspot geometry、Asset resolve / protect / release、availability reaction、publication 与 sync materialization。
 5. Runtime Kit / Meilong Runtime 实现本地 store 与 reader。
 6. Storefront 在 Runtime reader 可用后替换 production fixture data；不得提前建立临时 HTTP / URL fallback。
