@@ -20,7 +20,7 @@ consumerReferences:
 
 本文定义 `asset-service` 向 Site consumer 提供的受控图片 / 视频能力。它用于当前 Inspiration 图片与 Category 可选 SEO / OG 图片，并为未来另行冻结的 Site 静态页面媒体 consumer 提供同一受控边界。
 
-`asset-service` 的长期职责、Asset 对象与生命周期真相以 [asset-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/asset-service.md) 为准。本文只定义调用方可依赖的黑盒行为；不定义 proto field number、数据库 schema 或 provider credential。P1 provider 选择、域名配置与 portability decision 以 [ADR 0012](/Users/acehood/Documents/GitHub/oes/docs/adr/0012-site-media-delivery-and-purge.md) 为准。
+`asset-service` 的长期职责、Asset 对象与生命周期真相以 [asset-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/asset-service.md) 为准。本文定义调用方可依赖的黑盒行为，并由第 8 节拥有和冻结 `SiteMediaAssetService` 11 个 RPC 的 wire 字段与 proto field numbers；proto 实现必须逐项遵循并按兼容性规则 reserve，不得自行重编号。本文不定义数据库 schema 或 provider credential。P1 provider 选择、域名配置与 portability decision 以 [ADR 0012](/Users/acehood/Documents/GitHub/oes/docs/adr/0012-site-media-delivery-and-purge.md) 为准。
 
 当前 Inspiration P1 只消费图片。视频是 Site Media 能力的一部分，但不因此扩展 Inspiration Item 为视频、多媒体相册或页面构建器。
 
