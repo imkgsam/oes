@@ -568,7 +568,7 @@ This priority does not exempt any later service.
 
 ### 9.1 SITE Recovery Exact Implementation Lease
 
-Status: `FROZEN_PENDING_IMPLEMENTATION`. This lease covers only the Site 59+7 trusted-gRPC slice and its directly required Site Media collaboration. The manifest contains 115 paths: 55 `EXISTING` and 60 `NEW_TARGET`. Every tracked path not listed below is protected by default. `EXISTING` means the tracked file exists and may be modified; `NEW_TARGET` is the only allowed new tracked file name.
+Status: `FROZEN_PENDING_IMPLEMENTATION`. This lease covers only the Site 59+7 trusted-gRPC slice and its directly required Site Media collaboration. The manifest contains 117 paths: 55 `EXISTING` and 62 `NEW_TARGET`. Every tracked path not listed below is protected by default. `EXISTING` means the tracked file exists and may be modified; `NEW_TARGET` is the only allowed new tracked file name.
 
 ```yaml
 siteRecoveryExactLease:
@@ -629,6 +629,7 @@ siteRecoveryExactLease:
     - { state: NEW_TARGET, path: src/services/system/site-service/src/infrastructure/events/asset-site-media-availability.consumer.ts }
     - { state: NEW_TARGET, path: src/services/system/site-service/src/infrastructure/events/asset-site-media-availability.worker.ts }
     - { state: NEW_TARGET, path: src/services/system/site-service/src/infrastructure/repositories/prisma-asset-site-media-inbox.repository.ts }
+    - { state: NEW_TARGET, path: src/services/system/site-service/src/infrastructure/grpc/site-auth-execution-token-exchange.client.ts }
     - { state: NEW_TARGET, path: src/services/system/site-service/src/infrastructure/grpc/site-trusted-asset.grpc.adapter.ts }
     - { state: NEW_TARGET, path: src/services/system/site-service/src/modules/asset-site-media-events.module.ts }
   siteExistingTests:
@@ -678,6 +679,7 @@ siteRecoveryExactLease:
     - { state: NEW_TARGET, path: src/services/system/asset-service/src/infrastructure/adaptors/delivery/cloudflare-site-media-delivery-purge.adaptor.ts }
     - { state: NEW_TARGET, path: src/services/system/asset-service/src/infrastructure/repositories/prisma/prisma.site-media.repository.ts }
     - { state: NEW_TARGET, path: src/services/system/asset-service/src/infrastructure/events/prisma-asset-site-media-outbox.store.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/src/infrastructure/events/nats-asset-site-media-event.publisher.ts }
     - { state: NEW_TARGET, path: src/services/system/asset-service/src/infrastructure/events/asset-site-media-outbox.relay.ts }
     - { state: NEW_TARGET, path: src/services/system/asset-service/src/infrastructure/events/asset-site-media-outbox.worker.ts }
     - { state: NEW_TARGET, path: src/services/system/asset-service/src/infrastructure/workers/site-media-lifecycle-operation.worker.ts }
