@@ -56,7 +56,7 @@ const siteTrustedRuntime = createLazyTrustedExecutionRuntime(SITE_AUDIENCE)
     LoggingModule.forRoot({ serviceName: 'site-service' }),
     RegistryModule,
     GrpcTransportModule.forFeature([SERVICE_NAMES.ASSET]),
-    NatsJetStreamModule.forRoot(NatsJetStreamRuntimeConfig.fromEnvironment(process.env))
+    NatsJetStreamModule.forRoot(deferredSiteNatsRuntimeOptions())
   ],
   controllers: [SiteAdminGrpcController, SiteRuntimeGrpcController],
   providers: [
@@ -128,4 +128,15 @@ function requireEnv(name: string): string {
   const value = process.env[name]?.trim()
   if (!value) throw new Error(`${name} is required`)
   return value
+}
+
+/** deferredSiteNatsRuntimeOptions delays required NATS environment resolution until Nest initializes the broker client. */
+function deferredSiteNatsRuntimeOptions(): import('@oes/common/events').NatsJetStreamRuntimeOptions {
+  const resolve = () => NatsJetStreamRuntimeConfig.fromEnvironment(process.env)
+  return Object.defineProperties({}, {
+    servers: { enumerable: true, get: () => resolve().servers },
+    user: { enumerable: true, get: () => resolve().user },
+    password: { enumerable: true, get: () => resolve().password },
+    name: { enumerable: true, get: () => resolve().name }
+  }) as import('@oes/common/events').NatsJetStreamRuntimeOptions
 }

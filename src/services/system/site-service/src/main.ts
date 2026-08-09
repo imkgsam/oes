@@ -7,7 +7,7 @@ import { createGrpcServerCredentials } from '@oes/common/transport'
 import { AppModule } from './app.module'
 
 /** bootstrap starts site-service as the internal gRPC control plane for external site publishing. */
-async function bootstrap() {
+export async function bootstrap() {
   initOtelSdk(process.env.MODULE_NAME || 'site-service')
   const app = await NestFactory.createMicroservice<MicroserviceOptions>(AppModule, {
     bufferLogs: true,
@@ -25,4 +25,4 @@ async function bootstrap() {
   await app.listen()
 }
 
-void bootstrap()
+if (require.main === module) void bootstrap()

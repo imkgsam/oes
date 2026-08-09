@@ -603,9 +603,9 @@ export class SiteAdminApplicationService {
     await this.audit({
       eventType: 'site.created',
       tenantId,
-      orgId: nullable(request.orgId),
+      orgId: nullable(context.orgId),
       operatorId,
-      traceId: nullable(request.traceId),
+      traceId: nullable(context.traceId),
       resourceType: 'site',
       resourceId: siteId,
       details: { siteId, siteName: request.siteName }
