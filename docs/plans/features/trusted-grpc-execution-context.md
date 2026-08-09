@@ -568,11 +568,12 @@ This priority does not exempt any later service.
 
 ### 9.1 SITE Recovery Exact Implementation Lease
 
-Status: `FROZEN_PENDING_IMPLEMENTATION`. This lease covers only the Site 59+7 trusted-gRPC slice and its directly required Site Media collaboration. The manifest contains 117 paths: 55 `EXISTING` and 62 `NEW_TARGET`. Every tracked path not listed below is protected by default. `EXISTING` means the tracked file exists and may be modified; `NEW_TARGET` is the only allowed new tracked file name.
+Status: `FROZEN_PENDING_IMPLEMENTATION`. This lease covers only the Site 59+7 trusted-gRPC slice and its directly required Site Media collaboration. The manifest contains 120 paths: 58 `EXISTING` and 62 `NEW_TARGET`. Every tracked path not listed below is protected by default. `EXISTING` means the tracked file exists and may be modified; `NEW_TARGET` is the only allowed new tracked file name.
 
 ```yaml
 siteRecoveryExactLease:
   sharedContractAndPermission:
+    - { state: EXISTING, path: src/common/src/events/index.ts }
     - { state: EXISTING, path: src/common/src/contracts/site_service/site.proto }
     - { state: NEW_TARGET, path: src/common/src/contracts/asset_service/site_media.proto }
     - { state: NEW_TARGET, path: src/common/src/contracts/asset_service/site_media.contract.spec.ts }
@@ -592,6 +593,7 @@ siteRecoveryExactLease:
     - { state: NEW_TARGET, path: src/common/src/authorization/permission-codes/site-management/internal.permission-codes.ts }
   gatewaySiteCallersAndMachineRoot:
     - { state: EXISTING, path: src/services/api-gateway/src/app.module.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/common/guards/gateway-session-auth.guard.ts }
     - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution.module.ts }
     - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution.module.spec.ts }
     - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution-producer.ts }
@@ -610,6 +612,7 @@ siteRecoveryExactLease:
     - { state: EXISTING, path: src/services/api-gateway/src/modules/site-management-bff/site-management.service.spec.ts }
     - { state: EXISTING, path: src/services/api-gateway/src/modules/site-management-bff/interface/http/controllers/site-management.controller.ts }
     - { state: EXISTING, path: src/services/api-gateway/src/modules/site-management-bff/interface/http/controllers/site-management.controller.spec.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/site-management-bff/interface/http/controllers/site-management.integration.spec.ts }
     - { state: EXISTING, path: src/services/api-gateway/src/modules/site-runtime-bff/infrastructure/downstream/site-runtime-grpc.adapter.ts }
     - { state: EXISTING, path: src/services/api-gateway/src/modules/site-runtime-bff/infrastructure/downstream/site-runtime-grpc.adapter.spec.ts }
   siteTrustedCutoverAndEventConsumer:
