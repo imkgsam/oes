@@ -129,7 +129,7 @@ This permits gradual delivery without a dual-trust resource server.
 | TG-0 | Deployment / SRE | `docker-compose.yml`, new `docker/grpc-trust/**`, new `docs/runbooks/trusted-grpc-workload-identity.md`, new `scripts/local/trusted-grpc-transport-smoke.mjs`, assigned production deployment repository | Per-workload certificates / SPIFFE-compatible identity, trust bundle, rotation and transport acceptance; DG-1 gates production values |
 | TG-1 | Common platform / contract owner | `src/common/src/contracts/buf.gen.yaml`, `src/common/src/generated/**`, `src/common/src/authorization/trusted-execution/**`, `src/common/src/transport/grpc/**`, reviewed exports and focused tests; the Provider composition seam is restricted by the exact §5.3 lease | `addGrpcMetadata=true`, decorators, verifier, immutable context, provider, mode scanner, process-local cache and inventory script |
 | TG-2 | Auth Service owner | `src/common/src/contracts/auth_service/execution_token.proto`, `src/services/system/auth-service/src/{application,domain,infrastructure,interfaces,modules}/**`, Auth Prisma and tests | STS exchange, signed single-audience Token, JWKS, cache-compatible TTL, audited issuance and dedicated MACHINE source-credential lifecycle/verifier; the MACHINE sub-slice may write only the exact §5.1 manifest; DG-1/DG-2 gate production completion |
-| TG-3 | Identity + Auth credential migration owners | `src/common/src/contracts/identity_service/identity_query.proto`, Identity Machine Principal/binding paths, Auth credential paths, Identity/Auth `prisma/**` and focused tests | `FROZEN_PENDING_IMPLEMENTATION`: Machine Principal and `MachineWorkloadBinding` remain Identity-owned; implementation will add `ResolveMachinePrincipalForAuth` on the existing Identity surface; the MACHINE sub-slice may write only the exact §5.1 manifest; API Key remains a distinct Auth-owned profile; DG-3 gates external opening |
+| TG-3 | Identity + Auth credential migration owners | `src/common/src/contracts/identity_service/identity_query.proto`, Identity Machine Principal/binding paths, Auth credential paths, Identity/Auth `prisma/**` and focused tests | `IMPLEMENTED_VERIFIED`: Machine Principal, `MachineWorkloadBinding` and `ResolveMachinePrincipalForAuth` remain Identity-owned and were integrated by `024579598c1293807d3f1cd5e7003aefd8e8fa0a`; the §5.1 manifest remains historical ownership evidence; API Key remains a distinct Auth-owned profile; DG-3 gates external opening |
 | TG-4 | Permission + Common Permission owners | `src/common/src/authorization/permission-codes/**`, `src/common/src/contracts/permission_service/permission_check.proto`, generated output, Permission source / Prisma / tests | Existing `PermissionCheckService` gains Auth-only `ResolveWorkloadIssuance` mTLS bootstrap decision and ExecutionToken-protected `ResolvePrincipalAuthorization`; exact INTERNAL Codes including `identity.internal.machine_principal.resolve`, all-or-nothing decisions, audit and catalog sync; the MACHINE sub-slice may write only the exact §5.1 manifest; DG-5 gates schema migration |
 | TG-5 | API Gateway owner | Target-specific downstream adapters/tests plus the exact Gateway lifecycle paths frozen by §5.2; descriptive Gateway directory ranges do not grant this lifecycle slice additional writes | Per-request verified source-credential lifecycle, session/root execution construction and target-specific producer preparation for every migrated service |
 | TG-VERIFY | Integration / Security owner | `scripts/local/trusted-grpc-*.mjs`, target-specific fixtures and deployment test configuration | Per-service acceptance evidence plus final repository-wide proof |
@@ -138,7 +138,7 @@ This permits gradual delivery without a dual-trust resource server.
 
 ### 5.1 MACHINE root exact implementation lease
 
-Status is `FROZEN_PENDING_IMPLEMENTATION`. This manifest registers path ownership only; exact proto field numbers, JWS profile, Prisma invariants, actors, error mapping and audit semantics are frozen in the Auth/Identity MACHINE contracts named above. Runtime class names, implementation algorithms and implementation sequencing remain implementation concerns. For this MACHINE sub-slice, every tracked path not listed under `trackedWriterPaths` is protected by default. `EXISTING` means the file exists at base `1ca24f417a2d06bce8be79d4c8ed67bc6c518a65`; `NEW_TARGET` is the one exact permitted future file and must not be replaced by a sibling name or directory-wide lease.
+Status is `IMPLEMENTED_VERIFIED`: the HUMAN foundation `1ca24f417a2d06bce8be79d4c8ed67bc6c518a65` and MACHINE completion `024579598c1293807d3f1cd5e7003aefd8e8fa0a` were accepted and integrated. This manifest remains historical path-ownership evidence; exact proto field numbers, JWS profile, Prisma invariants, actors, error mapping and audit semantics remain frozen in the Auth/Identity MACHINE contracts named above. Runtime class names and algorithms remain implementation details. The original classification is preserved: `EXISTING` means the file existed at base `1ca24f417a2d06bce8be79d4c8ed67bc6c518a65`; `NEW_TARGET` identifies the exact file introduced by that implementation slice.
 
 ```yaml
 machineWorkloadImplementationLease:
@@ -321,7 +321,7 @@ Audit reuse does not add another tracked writer path. Auth reuses `src/services/
 
 ### 5.2 Gateway verified source credential exact implementation lease
 
-Status is `FROZEN_PENDING_IMPLEMENTATION`. This lease implements only the Gateway request lifecycle frozen in [Gateway / BFF architecture](../../architecture/11-gateway-and-bff-architecture.md) §9.5. It does not grant Asset RPC changes, target-adapter migration, Common carrier changes, Auth/session semantics, external API-key changes, proto/schema/runtime outside Gateway, or any other Gateway path. `EXISTING` means the file exists at base `024579598c1293807d3f1cd5e7003aefd8e8fa0a`; `NEW_TARGET` is the exact permitted future file name.
+Status is `IMPLEMENTED_VERIFIED`: the Gateway verified source-credential lifecycle was accepted and is present in current main through `a82e5ea69a7773d4e0e8f5a91dcdf7a599897c1d`. This historical lease covers only the Gateway request lifecycle frozen in [Gateway / BFF architecture](../../architecture/11-gateway-and-bff-architecture.md) §9.5; it does not grant Asset RPC changes, target-adapter migration, Common carrier changes, Auth/session semantics, external API-key changes, proto/schema/runtime outside Gateway, or any other Gateway path. The original classification is preserved: `EXISTING` means the file existed at base `024579598c1293807d3f1cd5e7003aefd8e8fa0a`; `NEW_TARGET` identifies the exact file introduced by that implementation slice.
 
 ```yaml
 gatewayVerifiedSourceCredentialLifecycleLease:
@@ -392,7 +392,7 @@ The lifecycle manifest is closed rather than advisory and contains exactly 15 tr
 
 ### 5.3 Common STS source-credential composition exact implementation lease
 
-Status is `FROZEN_PENDING_IMPLEMENTATION`. This is the only Common change needed to make Gateway composition use the already-frozen private source-credential carrier. `EXISTING` means the file exists at base `32607c7aa017df9539d2999f97f9b274dbd46a78`; no new file, proto, schema, barrel export or carrier path is permitted.
+Status is `IMPLEMENTED_VERIFIED`: the Common private source-credential composition seam was accepted and is present in current main through `a82e5ea69a7773d4e0e8f5a91dcdf7a599897c1d`. This historical lease records the only Common change used by Gateway composition. `EXISTING` retains its original meaning at base `32607c7aa017df9539d2999f97f9b274dbd46a78`; no additional file, proto, schema, barrel export or carrier path was granted.
 
 ```yaml
 commonStsSourceCredentialCompositionLease:
@@ -568,7 +568,7 @@ This priority does not exempt any later service.
 
 ### 9.1 SITE Recovery Exact Implementation Lease
 
-Status: `FROZEN_PENDING_IMPLEMENTATION`. This lease covers only the Site 59+7 trusted-gRPC slice and its directly required Site Media collaboration. The manifest contains 122 paths: 58 `EXISTING` and 64 `NEW_TARGET`. Every tracked path not listed below is protected by default. `EXISTING` means the tracked file exists and may be modified; `NEW_TARGET` is the only allowed new tracked file name.
+Status: `IMPLEMENTED_VERIFIED`. The Site 59+7 trusted-gRPC slice and directly required Site Media collaboration were accepted and integrated by `547a0c5d55f9a955543779ec584a16e9b05cf453`. The 122-path manifest remains historical closed-lease evidence: 58 paths were `EXISTING` at the implementation base and 64 were exact `NEW_TARGET` paths; paths outside that manifest were protected by default.
 
 ```yaml
 siteRecoveryExactLease:

@@ -231,7 +231,7 @@ Auth records the security decision, trigger source, selector kind/reference, mon
 
 #### 7.1.3 Internal Machine Workload Source Credential
 
-实现状态：`FROZEN_PENDING_IMPLEMENTATION`。本节冻结目标行为和 owner 边界，不表示 source-credential profile、enrollment/verifier/revocation runtime、Identity resolver、proto 或 Common Code 已存在。
+实现状态：`IMPLEMENTED_VERIFIED`。本节冻结的 source-credential profile、enrollment/verifier/revocation runtime、Identity resolver、proto 与 Common Code 已由 `024579598c1293807d3f1cd5e7003aefd8e8fa0a` 验收并集成到 current main；owner 与安全边界保持不变。
 
 `MachineWorkloadSourceCredential` 只用于没有入站 HUMAN/session 或上游 ExecutionToken 的第一方 Cron、Robot、worker 建立 root MACHINE execution。它是 Auth 签名、绑定当前 workload certificate 的独立短期 JWS profile，不是 ExecutionToken、外部 API Key、Gateway external token、Permission grant 或可复用 refresh token；它不携带 Permission Code，也不开放外部 HTTP/API Key 入口。
 
@@ -240,9 +240,9 @@ Auth records the security decision, trigger source, selector kind/reference, mon
 - Auth 独占该 credential 的 profile、受控登记/签发、验证、expiry、revocation 与认证域审计。首次签发只能发生在 Identity 已存在 active Machine Principal 与 active `MachineWorkloadBinding` 之后；后续只能受控重新签发，不存在 refresh token 或静默续期。
 - credential 最长有效 15 分钟，且 `exp` 绝不能晚于签发时所绑定 mTLS leaf certificate 的 `notAfter`。证书轮换后必须重新取得绑定新 leaf 的 credential，旧 credential 不能跨证书使用。
 - 签发使用的 `certificateNotAfter` 只能由 Common `GrpcWorkloadIdentityProvider` 从产生当前 leaf thumbprint 的同一份 transport-verified certificate DER 解析，并以 `Date` 作为该 provider 返回值的 issuance-only 结构扩展交给 Auth；request、metadata、environment 或 caller configuration 都不能提供或覆盖该事实。DER 无法解析、`notAfter` 无效或在解析时已到期时，transport identity resolution 必须 fail closed。通用 `VerifiedWorkloadIdentity` 继续只包含 SPIFFE ID 与 thumbprint，不把证书寿命扩散为所有 ExecutionToken verifier 的输入。
-- 实现完成后，credential 通过既有 mTLS-protected `ExchangeExecutionToken` transport-private `authorization: Bearer ...` carrier 提交。Common 只传递 opaque value；不得解析 profile、principal、tenant、binding 或 Permission，也不得把 bearer 放入 `TrustedExecutionContext`、业务 DTO、日志或审计。
+- credential 通过既有 mTLS-protected `ExchangeExecutionToken` transport-private `authorization: Bearer ...` carrier 提交。Common 只传递 opaque value；不得解析 profile、principal、tenant、binding 或 Permission，也不得把 bearer 放入 `TrustedExecutionContext`、业务 DTO、日志或审计。
 - Auth 在 Permission 查询或签名前先验证专用 profile、issuer、签名、时效、撤销状态以及不可歧义的 Machine Principal / binding reference；随后要求 credential 中的 workload SPIFFE ID 等于当前 `VerifiedWorkloadIdentity.spiffeId`，certificate binding 等于当前 leaf certificate SHA-256 thumbprint。
-- Auth 实现完成后再通过 Identity 既有 `IdentityQueryService` surface 上待新增的 Auth-only `ResolveMachinePrincipalForAuth` 取得 owner decision。该调用使用 Auth 自身 verified mTLS identity、`aud=identity-service` 的 certificate-bound INTERNAL ExecutionToken 与 `identity.internal.machine_principal.resolve`；该 INTERNAL Token 仍由 Permission `ResolveWorkloadIssuance` 的唯一 bootstrap policy 签发，因此不为 MACHINE credential verification 增加第二个 mTLS-only 例外。
+- Auth 通过 Identity 既有 `IdentityQueryService` surface 上已集成的 Auth-only `ResolveMachinePrincipalForAuth` 取得 owner decision。该调用使用 Auth 自身 verified mTLS identity、`aud=identity-service` 的 certificate-bound INTERNAL ExecutionToken 与 `identity.internal.machine_principal.resolve`；该 INTERNAL Token 仍由 Permission `ResolveWorkloadIssuance` 的唯一 bootstrap policy 签发，因此不为 MACHINE credential verification 增加第二个 mTLS-only 例外。
 - Identity decision 必须确认 Machine Principal active、type/scope/tenant 与适用 org reference 有效，credential reference 唯一对应同一 active binding，且 binding 的 SPIFFE ID 与版本匹配。Auth 只从该 owner decision 派生 ExecutionToken 的 `sub`、`principal_type=MACHINE`、scope、tenant/org；caller 或 credential 中重复的主体字段不能覆盖 owner facts。
 - 完成认证后，BUSINESS Code 仍调用 `ResolvePrincipalAuthorization`；INTERNAL Code 仍调用 `ResolveWorkloadIssuance`。Auth 不从 credential 构造 Permission grant，也不读取 Identity/Permission storage。
 - credential revoke、Machine Principal disable 或 binding disable/stale 会立即阻止新的 STS exchange；已签发 ExecutionToken 在普通情况下按现有 5 分钟最大 TTL 收敛。需要更快阻断时复用 DG-2 的 `CREDENTIAL`、`PRINCIPAL` 或 `MINIMUM_AUTHZ_VERSION` selector，不建立 MACHINE 专用 emergency revocation 系统。

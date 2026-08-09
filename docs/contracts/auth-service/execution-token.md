@@ -175,9 +175,9 @@ Token TTL maximum is 5 minutes. Implementations may shorten it by risk but calle
 
 ## 7. Machine Workload Root Exchange
 
-实现状态：`FROZEN_PENDING_IMPLEMENTATION`。本节是冻结的目标行为，不表示 MACHINE source credential、Identity resolver、INTERNAL Code 或关联 proto/runtime 已存在。
+实现状态：`IMPLEMENTED_VERIFIED`。本节冻结的 MACHINE source credential、Identity resolver、INTERNAL Code 与关联 proto/runtime 已由 `024579598c1293807d3f1cd5e7003aefd8e8fa0a` 验收并集成到 current main。
 
-实现完成后，内部 Cron、Robot、worker 没有 HUMAN/session 或上游 ExecutionToken 时，使用专用 `MachineWorkloadSourceCredential` 作为 root source credential。它不是 target grant；Auth 在进入 Permission 前必须验证 dedicated profile/signature/lifetime/revocation、当前 SPIFFE/leaf certificate binding，以及 Identity-owned principal/binding/version decision。
+内部 Cron、Robot、worker 没有 HUMAN/session 或上游 ExecutionToken 时，使用专用 `MachineWorkloadSourceCredential` 作为 root source credential。它不是 target grant；Auth 在进入 Permission 前必须验证 dedicated profile/signature/lifetime/revocation、当前 SPIFFE/leaf certificate binding，以及 Identity-owned principal/binding/version decision。
 
 - 受权管理者先通过正常 ExecutionToken-protected Identity management RPC 建立 exact Machine Principal ↔ SPIFFE binding。Workload 然后用当前 mTLS 与 principal/binding/version selector 调用 `MachineWorkloadSourceCredentialService.IssueMachineWorkloadSourceCredential`；Auth 只在 Identity owner decision 证明 active binding 精确匹配当前 SPIFFE 后签发。
 - initial issuance 和 controlled reissuance 共用 Issue RPC；每 binding 同时最多一个 active credential，新签发 transactionally supersedes 旧 credential。Revoke 是正常 BUSINESS management RPC，不是 mTLS-only bootstrap。
