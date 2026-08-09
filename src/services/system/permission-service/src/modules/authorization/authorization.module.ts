@@ -1,13 +1,25 @@
 import { Module } from '@nestjs/common'
-import { Reflector } from '@nestjs/core'
 import { CqrsModule } from '@nestjs/cqrs'
 import {
   createLazyTrustedExecutionRuntime,
-  ExecutionTokenVerifier,
-  TrustedInternalExecutionGuard
+  ExecutionTokenVerifier
 } from '@oes/common/authorization'
 import { ValidatingQueryBus } from '@oes/common/cqrs'
 import { GrpcWorkloadIdentityProvider } from '@oes/common/transport'
+import { PermissionAuditService } from '../../application/services/permission-audit.service'
+import { PERMISSION_DECISION_AUDIT_PORT } from '../../application/ports/permission-decision-audit.port'
+import { PermissionDecisionPolicy } from '../../domain/services/permission-decision-policy'
+import { PrismaPrincipalAuthorizationRepository } from '../../infrastructure/repositories/prisma/prisma.principal-authorization.repository'
+import { EnvironmentWorkloadIssuancePolicyRepository } from '../../infrastructure/repositories/config/environment-workload-issuance-policy.repository'
+import { PrismaService } from '../../infrastructure/prisma/prisma.service'
+import { PrismaModule } from '../../infrastructure/prisma/prisma.module'
+import {
+  PERMISSION_SERVICE_AUDIENCE,
+  PERMISSION_AUTH_SERVICE_SPIFFE_ID,
+  PERMISSION_DECISION_TARGET_AUDIENCE,
+  PermissionDecisionTransportGuard,
+  PermissionTrustedInternalExecutionGuard
+} from '../../interfaces/guards'
 import { PermissionModule } from '../permission/permission.module'
 import { RoleModule } from '../role/role.module'
 import { PolicyModule } from '../policy/policy.module'
@@ -35,11 +47,10 @@ import { PermissionTerminalAccessGrpcController } from '../../interfaces/grpc/pe
 import { PermissionAuditModule } from '../audit/permission-audit.module'
 import { ManagementAuthorizationModule } from '../management-authorization/management-authorization.module'
 
-const PERMISSION_SERVICE_AUDIENCE = 'urn:oes:service:permission-service'
-
 @Module({
   imports: [
     CqrsModule,
+    PrismaModule,
     PermissionModule,
     RoleModule,
     PolicyModule,
@@ -78,21 +89,30 @@ const PERMISSION_SERVICE_AUDIENCE = 'urn:oes:service:permission-service'
       useFactory: () =>
         createLazyTrustedExecutionRuntime(PERMISSION_SERVICE_AUDIENCE).workloadIdentityProvider
     },
+    PermissionTrustedInternalExecutionGuard,
+    PermissionDecisionPolicy,
     {
-      provide: TrustedInternalExecutionGuard,
-      useFactory: (
-        reflector: Reflector,
-        verifier: ExecutionTokenVerifier,
-        workloadIdentityProvider: GrpcWorkloadIdentityProvider
-      ) =>
-        new TrustedInternalExecutionGuard(
-          reflector,
-          verifier,
-          workloadIdentityProvider,
-          PERMISSION_SERVICE_AUDIENCE
-        ),
-      inject: [Reflector, ExecutionTokenVerifier, GrpcWorkloadIdentityProvider]
+      provide: SYMBOLS.REPO.PRINCIPAL_AUTHORIZATION,
+      useFactory: (prisma: PrismaService) => new PrismaPrincipalAuthorizationRepository(prisma),
+      inject: [PrismaService]
     },
+    {
+      provide: SYMBOLS.REPO.WORKLOAD_ISSUANCE_POLICY,
+      useFactory: () =>
+        new EnvironmentWorkloadIssuancePolicyRepository(
+          process.env.PERMISSION_WORKLOAD_ISSUANCE_POLICIES
+        )
+    },
+    {
+      provide: PERMISSION_DECISION_AUDIT_PORT,
+      useExisting: PermissionAuditService
+    },
+    {
+      provide: PERMISSION_AUTH_SERVICE_SPIFFE_ID,
+      useFactory: requireExactAuthSpiffeId
+    },
+    { provide: PERMISSION_DECISION_TARGET_AUDIENCE, useValue: PERMISSION_SERVICE_AUDIENCE },
+    PermissionDecisionTransportGuard,
     ValidatingQueryBus,
     ...AccessSummaryQueryHandlers,
     ...TerminalAccessRuntimeQueryHandlers,
@@ -108,3 +128,12 @@ const PERMISSION_SERVICE_AUDIENCE = 'urn:oes:service:permission-service'
   exports: [ResourceAuthorizationService]
 })
 export class AuthorizationModule {}
+
+/** Loads the exact deployment-registered Auth identity and rejects wildcard bootstrap trust. */
+function requireExactAuthSpiffeId(): string {
+  const value = process.env.PERMISSION_AUTH_SERVICE_SPIFFE_ID?.trim()
+  if (!value || !value.startsWith('spiffe://') || value.includes('*')) {
+    throw new Error('PERMISSION_AUTH_SERVICE_SPIFFE_ID must be an exact SPIFFE ID')
+  }
+  return value
+}

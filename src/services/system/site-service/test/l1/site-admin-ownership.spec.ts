@@ -640,17 +640,14 @@ describe('SiteAdmin Site ownership gate', () => {
 
     await expect(
       harness.application.createSite({
-        tenantId: 'tenant_a',
-        orgId: 'org_a',
-        operatorId: 'operator_a',
-        traceId: 'trace_a',
+        context: MATCHING_CONTEXT,
         siteName: 'New Site',
         siteType: 'brand',
         defaultLocale: 'en-US'
       })
     ).resolves.toEqual({ siteId: 'site_fixed', status: 'draft', defaultLocale: 'en-US' })
     await expect(
-      harness.application.listSiteCards({ tenantId: 'tenant_a', operatorId: 'operator_a' })
+      harness.application.listSiteCards({ context: MATCHING_CONTEXT })
     ).resolves.toEqual({ cards: [] })
 
     expect(harness.calls.findTenantIdForSite).not.toHaveBeenCalled()

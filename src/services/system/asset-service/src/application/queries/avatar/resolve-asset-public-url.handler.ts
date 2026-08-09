@@ -30,6 +30,11 @@ export class ResolveAssetPublicUrlHandler
         violations: ['assetId: asset does not exist']
       })
     }
+    if (asset.scopeLevel !== query.scopeLevel || asset.tenantId !== (query.tenantId ?? null)) {
+      throw ExceptionFactory.application(VALIDATION_FAILED, {
+        violations: ['assetId: asset does not belong to the trusted execution scope']
+      })
+    }
 
     return {
       assetId: asset.id,

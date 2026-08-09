@@ -47,3 +47,86 @@ enum AssetStatus {
   REPLACED
   DELETED
 }
+
+model SiteMediaDeliveryBinding {
+  tenantId   String
+  siteId     String
+  status     String   @default("LOCAL_ONLY")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  @@id([tenantId, siteId])
+}
+
+model SiteMediaAsset {
+  assetId                 String   @id
+  tenantId                String
+  siteId                  String
+  ownerSubject            String
+  mediaKind               String
+  lifecycleStatus         String   @default("ACTIVE")
+  deliveryStatus          String   @default("LOCAL_ONLY")
+  storageKey              String   @unique
+  immutablePublicUrl      String?
+  checksum                String
+  size                    Int
+  contentType             String
+  width                   Int      @default(0)
+  height                  Int      @default(0)
+  durationMs              BigInt   @default(0)
+  codec                   String
+  idempotencyKey          String
+  requestHash             String
+  availabilityVersion    BigInt   @default(1)
+  protectedReferenceCount Int      @default(0)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+  publicationReferences   SiteMediaPublicationReference[]
+  @@unique([tenantId, siteId, idempotencyKey])
+  @@unique([tenantId, assetId])
+  @@index([tenantId, siteId, lifecycleStatus])
+  @@index([tenantId, assetId])
+}
+
+model SiteMediaPublicationReference {
+  tenantId       String
+  siteId         String
+  publishVersion String
+  assetId        String
+  createdAt      DateTime @default(now())
+  asset          SiteMediaAsset @relation(fields: [tenantId, assetId], references: [tenantId, assetId], onDelete: Restrict)
+  @@id([tenantId, siteId, publishVersion, assetId])
+  @@index([tenantId, assetId])
+}
+
+model SiteMediaLifecycleOperation {
+  operationId    String   @id
+  tenantId       String
+  assetId        String
+  idempotencyKey String
+  requestHash    String
+  status         String   @default("PENDING")
+  kind           String   @default("TAKEDOWN_PURGE")
+  immutableTargetUrl String?
+  attempts       Int      @default(0)
+  nextAttemptAt  DateTime @default(now())
+  providerRequestId String?
+  lastSafeError  String?
+  confirmedAt    DateTime?
+  leaseExpiresAt DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  @@unique([tenantId, assetId, idempotencyKey])
+  @@index([kind, status, nextAttemptAt, leaseExpiresAt])
+}
+
+model AssetEventOutbox {
+  eventId       String   @id
+  eventType     String
+  payload       Json
+  status        String   @default("PENDING")
+  attempts      Int      @default(0)
+  nextAttemptAt DateTime @default(now())
+  publishedAt   DateTime?
+  createdAt     DateTime @default(now())
+  @@index([status, nextAttemptAt])
+}

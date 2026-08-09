@@ -164,10 +164,7 @@ export class HrManagementService {
     const operatorId = this.resolveOperatorId(source)
     const uploadResult = await this.officialPhotoAssetAdapter.uploadEmployeeOfficialPhoto(
       {
-        scopeLevel: 'TENANT',
-        tenantId: resolvedTenantId,
         employeeId: requireNonBlank(employeeId, 'employeeId'),
-        operatorId,
         file: file.buffer,
         fileName: file.originalname,
         contentType: requireNonBlank(file.mimetype, 'contentType')
@@ -189,10 +186,7 @@ export class HrManagementService {
     try {
       await this.officialPhotoAssetAdapter.bindEmployeeOfficialPhoto(
         {
-          scopeLevel: 'TENANT',
-          tenantId: resolvedTenantId,
           employeeId: requireNonBlank(employeeId, 'employeeId'),
-          operatorId,
           newAssetId: officialPhotoAssetId,
           previousAssetId: normalize(employee.officialPhotoAssetId)
         },

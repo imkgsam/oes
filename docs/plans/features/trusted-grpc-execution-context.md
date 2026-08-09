@@ -4,7 +4,7 @@
 
 **Goal:** Replace every repository gRPC request-body/operator-header trust path with mTLS workload identity, Auth / STS ExecutionToken, explicit RPC authorization mode and trusted multi-hop propagation.
 
-**Architecture:** Common supplies one generated metadata signature and one client/server runtime. Migration proceeds target service by target service: prepare all callers, switch one target to Token-only enforcement, run service-level acceptance, delete that target’s legacy trust path, then continue. Only an irreducible strongly connected service group may share one server cutover; all 21 services and 560 RPCs must reach zero legacy references before the capability closes.
+**Architecture:** Common supplies one generated metadata signature and one client/server runtime. Migration proceeds target service by target service: prepare all callers, switch one target to Token-only enforcement, run service-level acceptance, delete that target’s legacy trust path, then continue. Only an irreducible strongly connected service group may share one server cutover; all 21 services and the current 560-RPC baseline plus five frozen MACHINE RPCs must reach zero legacy references before the capability closes.
 
 **Tech Stack:** NestJS, gRPC, `ts-proto` / Buf, TypeScript, JWT / JWKS, Prisma, Jest, W3C Trace Context, deployment-managed mTLS.
 
@@ -15,10 +15,14 @@ status: DESIGN_FROZEN_IMPLEMENTATION_NOT_DISPATCHED
 freezeToken: FROZEN_TRUSTED_GRPC_METADATA
 decisionAdr: docs/adr/0015-workload-identity-and-execution-token.md
 architectureTruthSource: docs/architecture/14-grpc-metadata-and-service-trust-architecture.md
-migrationClosure: 21 services / 51 controllers / 560 RPCs / zero legacy trust references
+migrationClosure: 21 services / 51 existing controllers plus the frozen MACHINE Auth surface / 565 planned RPCs / zero legacy trust references
 resolvedDesignGates:
   - DG-1: docs/architecture/services/auth-service.md
   - DG-3: docs/architecture/collaborations/external-api-key-security.md
+  - Principal issuance decisions: docs/contracts/permission-service/principal-authorization.md
+  - MACHINE workload source credential: docs/contracts/auth-service/machine-workload-source-credential.md
+  - Machine Principal resolution: docs/contracts/identity-service/machine-principal-resolution.md
+  - MACHINE wire/schema: docs/contracts/auth-service/machine-workload-source-credential.md + docs/contracts/identity-service/machine-principal-resolution.md
 ```
 
 ## 1. Frozen Scope
@@ -28,9 +32,9 @@ This capability now includes the complete current gRPC repository boundary:
 - Common generated metadata signatures and trusted client/server runtime.
 - Deployment workload identity and channel authentication.
 - Auth / STS issuance, local validation support and process-local Token cache.
-- Identity Machine Principal ownership and Permission principal authorization integration.
+- Auth MACHINE source credential, Identity Machine Principal/workload binding ownership and Permission principal authorization integration.
 - API Gateway and every service-to-service caller.
-- All 21 gRPC services, 51 Controller files and 560 proto RPCs.
+- Current integrated baseline of 21 gRPC services, 51 Controller files and 560 proto RPCs, plus the frozen Auth MACHINE controller and five MACHINE RPCs defined by the owner contracts.
 - Cron, Robot, AI and technical callers represented in current or newly frozen contracts.
 - All tests, fixtures and generated-call compatibility repairs.
 - Final deletion of shared signed operator context, self-reported service identity and body identity fields.
@@ -123,14 +127,318 @@ This permits gradual delivery without a dual-trust resource server.
 | Lane | Owner | Allowed write paths | Required output |
 | --- | --- | --- | --- |
 | TG-0 | Deployment / SRE | `docker-compose.yml`, new `docker/grpc-trust/**`, new `docs/runbooks/trusted-grpc-workload-identity.md`, new `scripts/local/trusted-grpc-transport-smoke.mjs`, assigned production deployment repository | Per-workload certificates / SPIFFE-compatible identity, trust bundle, rotation and transport acceptance; DG-1 gates production values |
-| TG-1 | Common platform / contract owner | `src/common/src/contracts/buf.gen.yaml`, `src/common/src/generated/**`, `src/common/src/authorization/trusted-execution/**`, `src/common/src/transport/grpc/**`, reviewed exports and focused tests | `addGrpcMetadata=true`, decorators, verifier, immutable context, provider, mode scanner, process-local cache and inventory script |
-| TG-2 | Auth Service owner | `src/common/src/contracts/auth_service/execution_token.proto`, `src/services/system/auth-service/src/{application,domain,infrastructure,interfaces,modules}/**`, Auth Prisma and tests | STS exchange, signed single-audience Token, JWKS, cache-compatible TTL and audited issuance; DG-1/DG-2 gate production completion |
-| TG-3 | Identity + Auth credential migration owners | `src/common/src/contracts/identity_service/identity_query.proto`, `src/services/system/identity-service/src/application/{commands,queries}/service-account/**`, `src/services/system/identity-service/src/domain/{entities,repositories}/api-key*`, `src/services/system/identity-service/src/infrastructure/**/*api-key*`, `src/services/system/identity-service/src/interfaces/grpc/identity-machine-auth.grpc.controller.ts`, Identity/Auth `prisma/**` and focused tests | Machine Principal remains Identity-owned; API Key credential moves to Auth; DG-3 gates external opening |
-| TG-4 | Permission + Common Permission owners | `src/common/src/authorization/permission-codes/**`, `principal_authorization.proto`, Permission source / Prisma / tests | Common definitions, Principal authorization, INTERNAL issuance decision and catalog sync; DG-5 gates schema migration |
-| TG-5 | API Gateway owner | `src/services/api-gateway/src/common/grpc/**`, tenant-aware permission guard, all target-specific downstream adapters and tests | Session/root execution construction and target-specific producer preparation for every migrated service |
+| TG-1 | Common platform / contract owner | `src/common/src/contracts/buf.gen.yaml`, `src/common/src/generated/**`, `src/common/src/authorization/trusted-execution/**`, `src/common/src/transport/grpc/**`, reviewed exports and focused tests; the Provider composition seam is restricted by the exact §5.3 lease | `addGrpcMetadata=true`, decorators, verifier, immutable context, provider, mode scanner, process-local cache and inventory script |
+| TG-2 | Auth Service owner | `src/common/src/contracts/auth_service/execution_token.proto`, `src/services/system/auth-service/src/{application,domain,infrastructure,interfaces,modules}/**`, Auth Prisma and tests | STS exchange, signed single-audience Token, JWKS, cache-compatible TTL, audited issuance and dedicated MACHINE source-credential lifecycle/verifier; the MACHINE sub-slice may write only the exact §5.1 manifest; DG-1/DG-2 gate production completion |
+| TG-3 | Identity + Auth credential migration owners | `src/common/src/contracts/identity_service/identity_query.proto`, Identity Machine Principal/binding paths, Auth credential paths, Identity/Auth `prisma/**` and focused tests | `FROZEN_PENDING_IMPLEMENTATION`: Machine Principal and `MachineWorkloadBinding` remain Identity-owned; implementation will add `ResolveMachinePrincipalForAuth` on the existing Identity surface; the MACHINE sub-slice may write only the exact §5.1 manifest; API Key remains a distinct Auth-owned profile; DG-3 gates external opening |
+| TG-4 | Permission + Common Permission owners | `src/common/src/authorization/permission-codes/**`, `src/common/src/contracts/permission_service/permission_check.proto`, generated output, Permission source / Prisma / tests | Existing `PermissionCheckService` gains Auth-only `ResolveWorkloadIssuance` mTLS bootstrap decision and ExecutionToken-protected `ResolvePrincipalAuthorization`; exact INTERNAL Codes including `identity.internal.machine_principal.resolve`, all-or-nothing decisions, audit and catalog sync; the MACHINE sub-slice may write only the exact §5.1 manifest; DG-5 gates schema migration |
+| TG-5 | API Gateway owner | Target-specific downstream adapters/tests plus the exact Gateway lifecycle paths frozen by §5.2; descriptive Gateway directory ranges do not grant this lifecycle slice additional writes | Per-request verified source-credential lifecycle, session/root execution construction and target-specific producer preparation for every migrated service |
 | TG-VERIFY | Integration / Security owner | `scripts/local/trusted-grpc-*.mjs`, target-specific fixtures and deployment test configuration | Per-service acceptance evidence plus final repository-wide proof |
 
 `src/common/src/generated/**` is changed only through `pnpm proto:regen`. Shared paths remain single-writer.
+
+### 5.1 MACHINE root exact implementation lease
+
+Status is `FROZEN_PENDING_IMPLEMENTATION`. This manifest registers path ownership only; exact proto field numbers, JWS profile, Prisma invariants, actors, error mapping and audit semantics are frozen in the Auth/Identity MACHINE contracts named above. Runtime class names, implementation algorithms and implementation sequencing remain implementation concerns. For this MACHINE sub-slice, every tracked path not listed under `trackedWriterPaths` is protected by default. `EXISTING` means the file exists at base `1ca24f417a2d06bce8be79d4c8ed67bc6c518a65`; `NEW_TARGET` is the one exact permitted future file and must not be replaced by a sibling name or directory-wide lease.
+
+```yaml
+machineWorkloadImplementationLease:
+  trackedWriterPaths:
+    commonTrustedTransport:
+      - { state: EXISTING, path: src/common/src/transport/grpc/grpc-workload-identity.provider.ts }
+      - { state: EXISTING, path: src/common/src/transport/grpc/grpc-workload-identity.provider.spec.ts }
+
+    commonContracts:
+      - { state: NEW_TARGET, path: src/common/src/contracts/auth_service/machine_workload_source_credential.proto }
+      - { state: NEW_TARGET, path: src/common/src/contracts/auth_service/machine_workload_source_credential.contract.spec.ts }
+      - { state: EXISTING, path: src/common/src/contracts/identity_service/identity_query.proto }
+
+    authService:
+      - { state: EXISTING, path: src/services/system/auth-service/prisma/schema.prisma }
+      - { state: NEW_TARGET, path: src/services/system/auth-service/prisma/migrations/20260806_machine_workload_source_credential/migration.sql }
+      - { state: NEW_TARGET, path: src/services/system/auth-service/src/domain/entities/machine-workload-source-credential.entity.ts }
+      - { state: NEW_TARGET, path: src/services/system/auth-service/src/domain/repositories/machine-workload-source-credential.repository.ts }
+      - { state: NEW_TARGET, path: src/services/system/auth-service/src/application/commands/auth/issue-machine-workload-source-credential.command.ts }
+      - { state: NEW_TARGET, path: src/services/system/auth-service/src/application/commands/auth/issue-machine-workload-source-credential.handler.ts }
+      - { state: NEW_TARGET, path: src/services/system/auth-service/src/application/commands/auth/issue-machine-workload-source-credential.handler.spec.ts }
+      - { state: NEW_TARGET, path: src/services/system/auth-service/src/application/commands/auth/revoke-machine-workload-source-credential.command.ts }
+      - { state: NEW_TARGET, path: src/services/system/auth-service/src/application/commands/auth/revoke-machine-workload-source-credential.handler.ts }
+      - { state: NEW_TARGET, path: src/services/system/auth-service/src/application/commands/auth/revoke-machine-workload-source-credential.handler.spec.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/application/commands/auth/index.ts }
+      - { state: NEW_TARGET, path: src/services/system/auth-service/src/application/services/machine-workload-source-credential.service.ts }
+      - { state: NEW_TARGET, path: src/services/system/auth-service/src/application/services/machine-workload-source-credential.service.spec.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/application/ports/identity-service.port.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/common/constants/exception-enums/auth.errors.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/infrastructure/adaptors/identity-service.adaptor.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/infrastructure/adaptors/identity-service.adaptor.spec.ts }
+      - { state: NEW_TARGET, path: src/services/system/auth-service/src/infrastructure/repositories/prisma/prisma.machine-workload-source-credential.repository.ts }
+      - { state: NEW_TARGET, path: src/services/system/auth-service/src/infrastructure/repositories/prisma/prisma.machine-workload-source-credential.repository.spec.ts }
+      - { state: NEW_TARGET, path: src/services/system/auth-service/src/infrastructure/execution-token-signer/machine-workload-source-credential.verifier.ts }
+      - { state: NEW_TARGET, path: src/services/system/auth-service/src/infrastructure/execution-token-signer/machine-workload-source-credential.verifier.spec.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/infrastructure/execution-token-signer/verified-execution-token-context.provider.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/infrastructure/execution-token-signer/verified-execution-token-context.provider.spec.ts }
+      - { state: NEW_TARGET, path: src/services/system/auth-service/src/interfaces/grpc/machine-workload-source-credential.grpc.controller.ts }
+      - { state: NEW_TARGET, path: src/services/system/auth-service/src/interfaces/grpc/machine-workload-source-credential.grpc.controller.spec.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/modules/auth/auth.module.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/modules/token/execution-token.module.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/modules/token/execution-token.module.spec.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/main.ts }
+
+    identityService:
+      - { state: EXISTING, path: src/services/system/identity-service/prisma/schema.prisma }
+      - { state: NEW_TARGET, path: src/services/system/identity-service/prisma/migrations/20260806_machine_workload_binding/migration.sql }
+      - { state: EXISTING, path: src/services/system/identity-service/src/common/constants/symbols/repo.symbols.ts }
+      - { state: NEW_TARGET, path: src/services/system/identity-service/src/domain/entities/machine-workload-binding.entity.ts }
+      - { state: NEW_TARGET, path: src/services/system/identity-service/src/domain/repositories/machine-workload-binding.repository.ts }
+      - { state: NEW_TARGET, path: src/services/system/identity-service/src/infrastructure/mappers/prisma-machine-workload-binding.mapper.ts }
+      - { state: NEW_TARGET, path: src/services/system/identity-service/src/infrastructure/repositories/prisma/prisma.machine-workload-binding.repository.ts }
+      - { state: NEW_TARGET, path: src/services/system/identity-service/src/application/commands/service-account/enroll-machine-workload-binding.command.ts }
+      - { state: NEW_TARGET, path: src/services/system/identity-service/src/application/commands/service-account/enroll-machine-workload-binding.handler.ts }
+      - { state: NEW_TARGET, path: src/services/system/identity-service/src/application/commands/service-account/disable-machine-workload-binding.command.ts }
+      - { state: NEW_TARGET, path: src/services/system/identity-service/src/application/commands/service-account/disable-machine-workload-binding.handler.ts }
+      - { state: EXISTING, path: src/services/system/identity-service/src/application/commands/service-account/index.ts }
+      - { state: NEW_TARGET, path: src/services/system/identity-service/src/application/queries/service-account/resolve-machine-principal-for-auth.query.ts }
+      - { state: NEW_TARGET, path: src/services/system/identity-service/src/application/queries/service-account/resolve-machine-principal-for-auth.handler.ts }
+      - { state: EXISTING, path: src/services/system/identity-service/src/application/queries/service-account/index.ts }
+      - { state: EXISTING, path: src/services/system/identity-service/src/interfaces/grpc/identity-management.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/system/identity-service/src/interfaces/grpc/identity-query.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/system/identity-service/src/modules/identity-management/identity-management.module.ts }
+      - { state: EXISTING, path: src/services/system/identity-service/src/modules/identity-query/identity-query.module.ts }
+      - { state: NEW_TARGET, path: src/services/system/identity-service/test/l1/machine-workload-binding-management.handlers.spec.ts }
+      - { state: NEW_TARGET, path: src/services/system/identity-service/test/l1/machine-workload-binding-management.grpc-controller.spec.ts }
+      - { state: NEW_TARGET, path: src/services/system/identity-service/test/l1/resolve-machine-principal-for-auth.handler.spec.ts }
+      - { state: NEW_TARGET, path: src/services/system/identity-service/test/l1/resolve-machine-principal-for-auth.grpc-controller.spec.ts }
+      - { state: NEW_TARGET, path: src/services/system/identity-service/test/l2/prisma.machine-workload-binding.repository.spec.ts }
+      - { state: NEW_TARGET, path: src/services/system/identity-service/test/l2/machine-workload-binding-database-constraints.spec.ts }
+
+    permissionAndTrackedCommonCode:
+      - { state: EXISTING, path: src/services/system/permission-service/src/scripts/permission-catalog.ts }
+      - { state: EXISTING, path: src/services/system/permission-service/src/scripts/generate-common-permission-codes.ts }
+      - { state: EXISTING, path: src/common/src/authorization/permission-codes/auth/auth-management.permission-codes.ts }
+      - { state: EXISTING, path: src/common/src/authorization/permission-codes/identity/machine.permission-codes.ts }
+      - { state: NEW_TARGET, path: src/common/src/authorization/permission-codes/identity/internal.permission-codes.ts }
+      - { state: EXISTING, path: src/common/src/authorization/permission-codes/identity/index.ts }
+      - { state: EXISTING, path: src/services/system/permission-service/test/l1/common-permission-code-generator.spec.ts }
+      - { state: EXISTING, path: src/services/system/permission-service/test/l1/permission-foundation.seed.spec.ts }
+      - { state: EXISTING, path: src/services/system/permission-service/test/l1/permission-service-seed.spec.ts }
+
+  generatedOutputs:
+    trackedAndCommitted:
+      source:
+        - src/services/system/permission-service/src/scripts/permission-catalog.ts
+        - src/services/system/permission-service/src/scripts/generate-common-permission-codes.ts
+      outputs:
+        - src/common/src/authorization/permission-codes/auth/auth-management.permission-codes.ts
+        - src/common/src/authorization/permission-codes/identity/machine.permission-codes.ts
+        - src/common/src/authorization/permission-codes/identity/internal.permission-codes.ts
+        - src/common/src/authorization/permission-codes/identity/index.ts
+      command: pnpm --filter permission-service permission-codes:generate-common
+
+    ignoredNotCommitted:
+      proto:
+        inputs:
+          - src/common/src/contracts/auth_service/machine_workload_source_credential.proto
+          - src/common/src/contracts/identity_service/identity_query.proto
+        outputs:
+          - src/common/src/generated/auth_service/machine_workload_source_credential.ts
+          - src/common/src/generated/auth_service/index.ts
+          - src/common/src/generated/identity_service/identity_query.ts
+          - src/common/src/generated/identity_service/index.ts
+          - src/common/src/generated/index.ts
+        command: pnpm proto:regen
+      prisma:
+        inputs:
+          - src/services/system/auth-service/prisma/schema.prisma
+          - src/services/system/identity-service/prisma/schema.prisma
+        outputRoots:
+          - src/services/system/auth-service/prisma/generated/prisma/
+          - src/services/system/identity-service/prisma/generated/prisma/
+        commands:
+          - pnpm --filter auth-service prisma:generate
+          - pnpm --filter identity-service prisma:generate
+
+  protectedPaths:
+    denyByDefault: every tracked path not present in trackedWriterPaths
+    humanSessionExamples:
+      - src/services/system/auth-service/src/application/queries/session/validate-access-token.query.ts
+      - src/services/system/auth-service/src/application/queries/session/validate-access-token.handler.ts
+      - src/services/system/auth-service/src/application/queries/session/validate-access-token.handler.spec.ts
+    externalApiKeyExamples:
+      - src/common/src/contracts/auth_service/external_api_key.proto
+      - src/services/system/auth-service/src/domain/api-key/api-key.credential.ts
+      - src/services/system/auth-service/src/application/services/external-api-key-credential.service.ts
+      - src/services/system/auth-service/src/infrastructure/execution-token-signer/api-key-root-execution-context.ts
+      - src/services/system/identity-service/src/application/queries/service-account/resolve-integration-machine-for-auth.query.ts
+      - src/services/system/identity-service/src/application/queries/service-account/resolve-integration-machine-for-auth.handler.ts
+    grpcAssetExamples:
+      - src/common/src/contracts/asset_service/asset.proto
+      - docs/architecture/services/asset-service.md
+      - docs/architecture/collaborations/site-asset-media.md
+    aiActionGrantExamples:
+      - docs/adr/0016-delegated-execution-and-action-grant.md
+      - docs/architecture/collaborations/delegated-execution-and-action-grant.md
+      - docs/contracts/auth-service/delegated-execution-and-action-grant.md
+      - docs/plans/features/delegated-task-action-grant.md
+    sharedPathRestrictions:
+      - path: src/common/src/transport/grpc/grpc-workload-identity.provider.ts
+        restriction: derive certificateNotAfter only from the same transport-verified leaf DER used for the thumbprint, return it only as an issuance structural extension, keep generic VerifiedWorkloadIdentity stable, and fail closed on parse, invalid-date or expired-leaf evidence
+      - path: src/services/system/auth-service/src/modules/token/execution-token.module.ts
+        restriction: add MACHINE composition without changing AuthSessionSourceCredentialVerifier HUMAN behavior
+      - path: src/services/system/auth-service/src/infrastructure/adaptors/identity-service.adaptor.ts
+        restriction: add the new machine resolver call without changing ResolveIntegrationMachineForAuth or its external API-key path
+      - path: src/common/src/contracts/identity_service/identity_query.proto
+        restriction: add only the frozen machine resolver surface; preserve existing RPC semantics and field numbers
+      - path: src/services/system/identity-service/src/interfaces/grpc/identity-query.grpc.controller.ts
+        restriction: add only the new protected resolver mapping; preserve external Integration and ordinary query behavior
+      - path: src/services/system/permission-service/src/scripts/permission-catalog.ts
+        restriction: add only identity.internal.machine_principal.resolve, identity.machine.workload_binding.manage and auth.machine_workload_source_credential.revoke with the frozen owner/kind/scope metadata
+
+  verificationCommands:
+    generation:
+      - pnpm --filter permission-service permission-codes:generate-common
+      - pnpm proto:regen
+      - pnpm proto:lint
+      - pnpm --filter auth-service prisma:generate
+      - pnpm --filter identity-service prisma:generate
+    build:
+      - pnpm --filter @oes/common build
+      - pnpm --filter auth-service build
+      - pnpm --filter identity-service build
+      - pnpm --filter permission-service build
+    focusedTests:
+      - pnpm exec jest --runInBand --runTestsByPath src/common/src/transport/grpc/grpc-workload-identity.provider.spec.ts
+      - pnpm exec jest --runInBand --runTestsByPath src/common/src/contracts/auth_service/machine_workload_source_credential.contract.spec.ts
+      - pnpm --filter auth-service exec jest --runInBand
+      - pnpm --filter identity-service exec jest --config jest.config.js --runInBand test/l1/machine-workload-binding-management.handlers.spec.ts test/l1/machine-workload-binding-management.grpc-controller.spec.ts test/l1/resolve-machine-principal-for-auth.handler.spec.ts test/l1/resolve-machine-principal-for-auth.grpc-controller.spec.ts test/l2/prisma.machine-workload-binding.repository.spec.ts test/l2/machine-workload-binding-database-constraints.spec.ts
+      - pnpm --filter permission-service exec jest --config jest.config.js --runInBand test/l1/common-permission-code-generator.spec.ts test/l1/permission-foundation.seed.spec.ts test/l1/permission-service-seed.spec.ts
+    ownership:
+      - git diff --name-only <base>..<candidate>
+      - git status --short
+```
+
+The manifest is closed rather than advisory and contains exactly 68 tracked writer paths: adding another tracked file, renaming a `NEW_TARGET`, tracking ignored generated output, touching a protected path, or needing a contract/schema/runtime path not listed here is a design-scope change and must return to Unified Design before implementation continues. Shared files remain single-writer under the registered capability owner.
+
+Audit reuse does not add another tracked writer path. Auth reuses `src/services/system/auth-service/prisma/schema.prisma` model `AuditEvent`; the leased new `prisma.machine-workload-source-credential.repository.ts` owns the transaction that writes credential state and its audit row together. Identity follows the same pattern with its existing `AuditEvent` model and leased new `prisma.machine-workload-binding.repository.ts`. Existing generic audit repositories/listeners remain protected and need no modification; no new audit table, event bus, outbox or central-audit owner is introduced by this MACHINE slice.
+
+### 5.2 Gateway verified source credential exact implementation lease
+
+Status is `FROZEN_PENDING_IMPLEMENTATION`. This lease implements only the Gateway request lifecycle frozen in [Gateway / BFF architecture](../../architecture/11-gateway-and-bff-architecture.md) §9.5. It does not grant Asset RPC changes, target-adapter migration, Common carrier changes, Auth/session semantics, external API-key changes, proto/schema/runtime outside Gateway, or any other Gateway path. `EXISTING` means the file exists at base `024579598c1293807d3f1cd5e7003aefd8e8fa0a`; `NEW_TARGET` is the exact permitted future file name.
+
+```yaml
+gatewayVerifiedSourceCredentialLifecycleLease:
+  trackedWriterPaths:
+    gatewayEntryAndComposition:
+      - { state: EXISTING, path: src/services/api-gateway/src/app.module.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/main.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/security/index.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/security/composition/gateway-source-credential.providers.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/security/composition/gateway-source-credential.providers.spec.ts }
+
+    verifiedSessionAdmission:
+      - { state: EXISTING, path: src/services/api-gateway/src/common/guards/gateway-session-auth.guard.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/common/guards/gateway-session-auth.guard.spec.ts }
+
+    privateVaultAndScope:
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-verified-source-credential.vault.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-verified-source-credential.vault.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-verified-source-credential.boundary.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-verified-source-credential.boundary.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution-producer.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/index.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/common/interceptors/gateway-verified-source-credential-scope.interceptor.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/common/interceptors/gateway-verified-source-credential-scope.interceptor.spec.ts }
+
+  protectedPaths:
+    - src/common/src/authorization/trusted-execution/transport-private-source-credential.ts
+    - src/services/api-gateway/src/common/external-api/**
+    - src/services/api-gateway/src/modules/**
+    - src/services/system/**
+    - src/common/src/contracts/**
+    - src/common/src/generated/**
+
+  frozenLifecycle:
+    owner: GatewayVerifiedSourceCredentialVault
+    storage: request-keyed private WeakMap containing only credential kind plus Common opaque handle
+    admission: only after the owning verifier succeeds; HUMAN_SESSION is admitted by GatewaySessionAuthGuard
+    scopeOwner: GatewayVerifiedSourceCredentialScopeInterceptor registered explicitly in main.ts
+    interceptorOrder: credential-scope, timeout, response-transform, controller-and-awaited-downstream
+    subscriptionRule: next.handle actual subscription occurs inside the Common transport-private accessor scope
+    cleanup: idempotent on later-guard rejection, complete, error, timeout, cancel, unsubscribe and disconnect
+    isolation: one scope per protected external request; concurrent requests never share entries
+    absentScope: public, invalid and sessionless routes create no credential scope
+    credentialKinds: HUMAN_SESSION and EXTERNAL_API remain verifier-separated and non-interchangeable
+    cacheRule: every ExecutionToken exchange or cache hit requires the current verified request scope
+
+  focusedAcceptance:
+    - no scope exists before successful owner verification or for public, invalid and sessionless routes
+    - one verified request exposes its credential only during the actual nested awaited downstream subscription
+    - concurrent requests cannot observe or consume each other's entry
+    - complete, error, timeout, cancel, unsubscribe, disconnect and later-guard denial leave no reusable entry
+    - raw bearer and opaque handle are absent from request.user, enumerable request state, DTO, TrustedExecutionContext, logs, errors, JSON and Node inspection
+    - adapter/header/body injection cannot create authority and adapters do not reread HTTP Authorization
+    - an ExecutionToken cache hit fails without the current verified request source credential
+    - provider tests prove the fixed Guard order and explicit main.ts interceptor order; APP_INTERCEPTOR and request-scoped-provider registration are absent
+
+  verificationCommands:
+    build:
+      - pnpm --filter api-gateway build
+    focusedTests:
+      - pnpm --filter api-gateway exec jest --runInBand --runTestsByPath src/common/guards/gateway-session-auth.guard.spec.ts src/common/grpc/gateway-verified-source-credential.vault.spec.ts src/common/grpc/gateway-verified-source-credential.boundary.spec.ts src/common/grpc/gateway-trusted-grpc-execution-producer.spec.ts src/common/interceptors/gateway-verified-source-credential-scope.interceptor.spec.ts src/security/composition/gateway-source-credential.providers.spec.ts src/security/composition/gateway-guard.providers.spec.ts
+    ownership:
+      - git diff --name-only <base>..<candidate>
+      - git status --short
+```
+
+The lifecycle manifest is closed rather than advisory and contains exactly 15 tracked writer paths. Any additional tracked file, renamed `NEW_TARGET`, Common carrier change, target adapter write, external verifier write or alternate DI seam is a design-scope change and returns to Unified Design. Existing Common opaque-handle and AsyncLocal accessor behavior is consumed as frozen infrastructure rather than redefined here.
+
+### 5.3 Common STS source-credential composition exact implementation lease
+
+Status is `FROZEN_PENDING_IMPLEMENTATION`. This is the only Common change needed to make Gateway composition use the already-frozen private source-credential carrier. `EXISTING` means the file exists at base `32607c7aa017df9539d2999f97f9b274dbd46a78`; no new file, proto, schema, barrel export or carrier path is permitted.
+
+```yaml
+commonStsSourceCredentialCompositionLease:
+  trackedWriterPaths:
+    provider:
+      - { state: EXISTING, path: src/common/src/authorization/trusted-execution/trusted-grpc-metadata-provider.ts }
+      - { state: EXISTING, path: src/common/src/authorization/trusted-execution/trusted-grpc-metadata-provider.spec.ts }
+
+  protectedPaths:
+    - src/common/src/transport/grpc/execution-token-exchange-source-credential.carrier.ts
+    - src/common/src/transport/grpc/index.ts
+    - src/common/src/authorization/index.ts
+    - src/common/src/authorization/trusted-execution/index.ts
+    - src/common/src/generated/**
+    - src/common/src/contracts/**
+    - src/services/api-gateway/src/**
+
+  frozenSeam:
+    publicOption: "TrustedGrpcMetadataProviderOptions accepts sourceCredentialAccessor: AsyncLocalTransportPrivateSourceCredentialAccessor"
+    privateConstruction: TrustedGrpcMetadataProvider constructs its private ExecutionTokenExchangeSourceCredentialCarrier internally from that accessor
+    sharedInstance: Gateway supplies the same accessor instance to its Vault/Interceptor boundary and TrustedGrpcMetadataProvider
+    cacheGate: assertCurrent remains mandatory on both cache hit and exchange miss
+    exchangeMetadata: createMetadata remains the only place that emits Auth STS authorization metadata, and only on exchange miss
+    visibility: carrier stays non-exported from transport/grpc/index.ts and all other public barrels; no deep import
+    semantics: carrier validation, metadata shape, mTLS transport and ExecutionToken claims remain unchanged
+
+  focusedAcceptance:
+    - Provider can be constructed with the public accessor option and no private carrier is imported by Gateway
+    - Common public barrel does not export ExecutionTokenExchangeSourceCredentialCarrier
+    - missing current source credential fails closed before both cache reuse and exchange
+    - current source credential is used only for Auth STS exchange metadata and never enters target metadata, DTO or TrustedExecutionContext
+    - exact target audience, canonical Permission Code set, cache key and certificate binding behavior remain unchanged
+
+  verificationCommands:
+    build:
+      - pnpm --filter @oes/common build
+    focusedTests:
+      - pnpm exec jest --runInBand --runTestsByPath src/common/src/authorization/trusted-execution/trusted-grpc-metadata-provider.spec.ts
+      - pnpm --filter api-gateway exec jest --runInBand --runTestsByPath src/security/composition/gateway-source-credential.providers.spec.ts
+    ownership:
+      - git diff --name-only <base>..<candidate>
+      - git diff --check <base>..<candidate>
+      - git status --short
+```
+
+This Common lease contains exactly two existing writer paths. A change to the carrier, transport barrel, public export surface, Gateway files, proto/schema/generated output or Token semantics is a design-scope change and returns to Unified Design.
 
 ## 6. Static Dependency Evidence And Recommended Order
 
@@ -151,6 +459,8 @@ Static generated-contract imports currently show these service-to-service edges:
 - Site -> Asset is the frozen new Site Media edge.
 
 Gateway edges, dynamic client lookup, Cron/worker callers and tests are added by the inventory script and must be included before each target cutover.
+
+For every target, the static caller inventory must distinguish pure root MACHINE callers from multi-hop callers. A Cron/Robot/worker with no inbound HUMAN/session or subject ExecutionToken blocks that target's `ALL_CALLERS_READY` until the frozen MACHINE source credential + Identity binding resolution path is implemented and verified. A service call that already carries a verified upstream ExecutionToken, such as the current Site -> Asset flow, remains multi-hop and does not become a MACHINE root merely because the caller runs in a service process.
 
 Recommended implementation/verification order:
 
@@ -209,7 +519,7 @@ Each owner can modify only its service path, its owner proto/contract, its Permi
 ### A. Classification gate
 
 - [ ] Enumerate every proto RPC, generated handler, Controller method and direct caller.
-- [ ] Record exactly one mode for each RPC in the owner service truth/contract.
+- [ ] Record exactly one enforcement declaration for each RPC in the owner service truth/contract: BUSINESS / SELF_SERVICE / INTERNAL, or one of the two named exact bootstrap policies when and only when the RPC is `ResolveWorkloadIssuance` or `IssueMachineWorkloadSourceCredential`.
 - [ ] BUSINESS methods reference active BUSINESS Permission Code with correct `all / any`.
 - [ ] SELF_SERVICE derives target from trusted principal and explicitly decides DELEGATED allowance.
 - [ ] INTERNAL references active INTERNAL Code and an exact workload -> audience issuance policy.
@@ -252,14 +562,212 @@ Asset and Site retain the previously frozen exact behavior:
 - Site -> Asset exchanges `aud=asset-service` and exact `asset.internal.*` Codes.
 - Site Runtime HMAC, nonce, method/path/body hash remains independently mandatory.
 - Asset/Site body identity and fixture fallbacks reach zero before moving past the Site slice.
+- Asset may reach `ALL_CALLERS_READY` without waiting for the pure MACHINE root implementation only if a fresh static caller/fixture inventory proves that every Asset caller is Gateway HUMAN/session or verified multi-hop and that no Cron/Robot/worker starts a root MACHINE call. Discovery of any pure MACHINE caller blocks Asset token-only cutover until that caller has the frozen source-credential path.
 
 This priority does not exempt any later service.
+
+### 9.1 SITE Recovery Exact Implementation Lease
+
+Status: `FROZEN_PENDING_IMPLEMENTATION`. This lease covers only the Site 59+7 trusted-gRPC slice and its directly required Site Media collaboration. The manifest contains 122 paths: 58 `EXISTING` and 64 `NEW_TARGET`. Every tracked path not listed below is protected by default. `EXISTING` means the tracked file exists and may be modified; `NEW_TARGET` is the only allowed new tracked file name.
+
+```yaml
+siteRecoveryExactLease:
+  sharedContractAndPermission:
+    - { state: EXISTING, path: src/common/src/events/index.ts }
+    - { state: EXISTING, path: src/common/src/contracts/site_service/site.proto }
+    - { state: NEW_TARGET, path: src/common/src/contracts/asset_service/site_media.proto }
+    - { state: NEW_TARGET, path: src/common/src/contracts/asset_service/site_media.contract.spec.ts }
+    - { state: EXISTING, path: src/common/src/contracts/asset_service/index.ts }
+    - { state: NEW_TARGET, path: src/common/src/contracts/asset_service/events.ts }
+    - { state: NEW_TARGET, path: src/common/src/contracts/asset_service/events.spec.ts }
+    - { state: EXISTING, path: src/services/system/permission-service/src/scripts/permission-catalog.ts }
+    - { state: EXISTING, path: src/services/system/permission-service/src/scripts/generate-common-permission-codes.ts }
+    - { state: EXISTING, path: src/services/system/permission-service/test/l1/common-permission-code-generator.spec.ts }
+    - { state: EXISTING, path: src/services/system/permission-service/test/l1/permission-foundation.seed.spec.ts }
+    - { state: EXISTING, path: src/services/system/permission-service/test/l1/permission-service-seed.spec.ts }
+    - { state: EXISTING, path: src/common/src/authorization/permission-codes/asset/index.ts }
+    - { state: EXISTING, path: src/common/src/authorization/permission-codes/asset/internal.permission-codes.ts }
+    - { state: NEW_TARGET, path: src/common/src/authorization/permission-codes/asset/site-media.permission-codes.ts }
+    - { state: EXISTING, path: src/common/src/authorization/permission-codes/site-management/index.ts }
+    - { state: EXISTING, path: src/common/src/authorization/permission-codes/site-management/management.permission-codes.ts }
+    - { state: NEW_TARGET, path: src/common/src/authorization/permission-codes/site-management/internal.permission-codes.ts }
+  gatewaySiteCallersAndMachineRoot:
+    - { state: EXISTING, path: src/services/api-gateway/src/app.module.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/common/guards/gateway-session-auth.guard.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution.module.ts }
+    - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution.module.spec.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution-producer.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution-producer.spec.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-asset-grpc.client.ts }
+    - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-auth-machine-workload-source-credential.client.ts }
+    - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-auth-machine-workload-source-credential.client.spec.ts }
+    - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-machine-workload-source-credential.provider.ts }
+    - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-machine-workload-source-credential.provider.spec.ts }
+    - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-machine-trusted-grpc-execution-producer.ts }
+    - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-machine-trusted-grpc-execution-producer.spec.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/site-management-bff/infrastructure/downstream/site-admin-grpc.adapter.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/site-management-bff/infrastructure/downstream/site-admin-grpc.adapter.spec.ts }
+    - { state: NEW_TARGET, path: src/services/api-gateway/src/modules/site-management-bff/infrastructure/downstream/site-admin-grpc.media.spec.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/site-management-bff/site-management.service.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/site-management-bff/site-management.service.spec.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/site-management-bff/interface/http/controllers/site-management.controller.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/site-management-bff/interface/http/controllers/site-management.controller.spec.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/site-management-bff/interface/http/controllers/site-management.integration.spec.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/site-runtime-bff/infrastructure/downstream/site-runtime-grpc.adapter.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/site-runtime-bff/infrastructure/downstream/site-runtime-grpc.adapter.spec.ts }
+  siteTrustedCutoverAndEventConsumer:
+    - { state: EXISTING, path: src/services/system/site-service/src/main.ts }
+    - { state: EXISTING, path: src/services/system/site-service/src/app.module.ts }
+    - { state: EXISTING, path: src/services/system/site-service/src/modules/site-service.module.ts }
+    - { state: EXISTING, path: src/services/system/site-service/src/interfaces/grpc/site-admin.grpc.controller.ts }
+    - { state: EXISTING, path: src/services/system/site-service/src/interfaces/grpc/site-runtime.grpc.controller.ts }
+    - { state: EXISTING, path: src/services/system/site-service/src/application/services/site-admin-application.service.ts }
+    - { state: EXISTING, path: src/services/system/site-service/src/application/audit/site-audit-envelope.ts }
+    - { state: EXISTING, path: src/services/system/site-service/prisma/schema.prisma }
+    - { state: NEW_TARGET, path: src/services/system/site-service/prisma/migrations/202608090001_asset_site_media_availability_inbox/migration.sql }
+    - { state: NEW_TARGET, path: src/services/system/site-service/prisma/migrations/202608090001_asset_site_media_dlq/migration.sql }
+    - { state: NEW_TARGET, path: src/services/system/site-service/src/application/ports/asset-site-media.port.ts }
+    - { state: NEW_TARGET, path: src/services/system/site-service/src/infrastructure/prisma/prisma.module.ts }
+    - { state: NEW_TARGET, path: src/services/system/site-service/src/application/ports/asset-site-media-inbox.port.ts }
+    - { state: NEW_TARGET, path: src/services/system/site-service/src/application/events/asset-site-media-availability.handler.ts }
+    - { state: NEW_TARGET, path: src/services/system/site-service/src/infrastructure/events/asset-site-media-availability.consumer.ts }
+    - { state: NEW_TARGET, path: src/services/system/site-service/src/infrastructure/events/asset-site-media-availability.worker.ts }
+    - { state: NEW_TARGET, path: src/services/system/site-service/src/infrastructure/repositories/prisma-asset-site-media-inbox.repository.ts }
+    - { state: NEW_TARGET, path: src/services/system/site-service/src/infrastructure/grpc/site-auth-execution-token-exchange.client.ts }
+    - { state: NEW_TARGET, path: src/services/system/site-service/src/infrastructure/grpc/site-trusted-asset.grpc.adapter.ts }
+    - { state: NEW_TARGET, path: src/services/system/site-service/src/modules/asset-site-media-events.module.ts }
+  siteExistingTests:
+    - { state: EXISTING, path: src/services/system/site-service/test/l1/site-admin-ownership.spec.ts }
+    - { state: EXISTING, path: src/services/system/site-service/test/l1/site-application-services.spec.ts }
+    - { state: EXISTING, path: src/services/system/site-service/test/l1/site-content-descendant-ownership.spec.ts }
+    - { state: EXISTING, path: src/services/system/site-service/test/l1/site-credential-sync-ownership.spec.ts }
+    - { state: EXISTING, path: src/services/system/site-service/test/l1/site-domain-foundation.spec.ts }
+    - { state: EXISTING, path: src/services/system/site-service/test/l1/site-preview-ownership.spec.ts }
+    - { state: EXISTING, path: src/services/system/site-service/test/l1/site-publication-sync.spec.ts }
+    - { state: EXISTING, path: src/services/system/site-service/test/l1/site-service-module.spec.ts }
+    - { state: EXISTING, path: src/services/system/site-service/test/l2/prisma-site-content-descendant-ownership.spec.ts }
+    - { state: EXISTING, path: src/services/system/site-service/test/l2/prisma-site-credential-sync-ownership.spec.ts }
+    - { state: EXISTING, path: src/services/system/site-service/test/l2/prisma-site-slug-ledger.spec.ts }
+    - { state: EXISTING, path: src/services/system/site-service/test/l2/prisma-site-sync-concurrency.spec.ts }
+    - { state: EXISTING, path: src/services/system/site-service/test/l2/site-page-governance.repositories.spec.ts }
+    - { state: EXISTING, path: src/services/system/site-service/test/l2/site-service-application-closed-loop.spec.ts }
+    - { state: EXISTING, path: src/services/system/site-service/test/l3/site-grpc.controllers.spec.ts }
+    - { state: EXISTING, path: src/services/system/site-service/test/l3/site-grpc-uint64-transport.spec.ts }
+  siteNewTests:
+    - { state: NEW_TARGET, path: src/services/system/site-service/test/l1/asset-site-media-availability.handler.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/site-service/test/l1/asset-site-media-availability.consumer.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/site-service/test/l1/asset-site-media-availability.worker.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/site-service/test/l2/asset-site-media-inbox.persistence.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/site-service/test/l3/site-trusted-grpc-security.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/site-service/test/l3/site-trusted-asset.grpc.adapter.spec.ts }
+  assetSiteMediaR2PurgeAndOutbox:
+    - { state: EXISTING, path: src/services/system/asset-service/package.json }
+    - { state: EXISTING, path: src/services/system/asset-service/prisma/schema.prisma }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/prisma/migrations/202608090001_site_media_foundation/migration.sql }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/prisma/migrations/202608090003_site_media_purge_lease/migration.sql }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/prisma/migrations/202608090002_site_media_asset_identity/migration.sql }
+    - { state: EXISTING, path: src/services/system/asset-service/src/main.ts }
+    - { state: EXISTING, path: src/services/system/asset-service/src/app.module.ts }
+    - { state: EXISTING, path: src/services/system/asset-service/src/domain/entities/asset.entity.ts }
+    - { state: EXISTING, path: src/services/system/asset-service/src/common/constants/symbols/port.symbols.ts }
+    - { state: EXISTING, path: src/services/system/asset-service/src/common/constants/symbols/repo.symbols.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/src/domain/entities/site-media-delivery-binding.entity.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/src/domain/entities/site-media-lifecycle-operation.entity.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/src/domain/repositories/site-media.repository.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/src/domain/ports/site-media-storage.port.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/src/domain/ports/asset-delivery-purge.port.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/src/application/services/site-media-application.service.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/src/interfaces/grpc/site-media.grpc.controller.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/src/modules/site-media/site-media.module.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/src/infrastructure/adaptors/storage/s3-compatible-site-media-storage.adaptor.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/src/infrastructure/adaptors/storage/cloudflare-r2-site-media-storage.adaptor.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/src/infrastructure/adaptors/delivery/cloudflare-site-media-delivery-purge.adaptor.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/src/infrastructure/repositories/prisma/prisma.site-media.repository.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/src/infrastructure/events/prisma-asset-site-media-outbox.store.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/src/infrastructure/events/nats-asset-site-media-event.publisher.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/src/infrastructure/events/asset-site-media-outbox.relay.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/src/infrastructure/events/asset-site-media-outbox.worker.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/src/infrastructure/workers/site-media-lifecycle-operation.worker.ts }
+  assetNewTests:
+    - { state: NEW_TARGET, path: src/services/system/asset-service/test/l1/site-media-grpc.controller.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/test/l1/site-media-application.service.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/test/l1/s3-compatible-site-media-storage.adaptor.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/test/l1/cloudflare-r2-site-media-storage.adaptor.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/test/l1/cloudflare-site-media-delivery-purge.adaptor.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/test/l1/asset-site-media-outbox-relay.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/test/l1/asset-site-media-outbox-worker.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/test/l1/site-media-lifecycle-operation.worker.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/test/l1/site-media-module.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/test/l2/prisma-site-media.repository.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/test/l2/site-media-database-constraints.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/test/l3/site-media-grpc-security.spec.ts }
+  ignoredGeneratedOutputs:
+    generatorInput:
+      - src/common/src/contracts/site_service/site.proto
+      - src/common/src/contracts/asset_service/site_media.proto
+    ignoredOutputs:
+      - src/common/src/generated/site_service/site.ts
+      - src/common/src/generated/asset_service/site_media.ts
+      - src/common/src/generated/asset_service/index.ts
+    generationCommand: pnpm proto:regen
+    verificationCommand: pnpm --filter @oes/common build
+  protectedBoundaries:
+    - Auth and Identity MACHINE credential implementation
+    - existing Asset five-RPC wire and runtime semantics
+    - Common trusted carrier/runtime outside its already integrated public seams
+    - external API-key and DELEGATED/AI/ActionGrant runtime
+    - Site Inspiration Item/Category/Hotspot and Runtime local store/Storefront
+    - Product Master-Site Product, BYOC, multi-CDN, DNS automation and video transcoding
+```
+
+Implementation dependency order is: shared proto/Permission registration; Gateway and Site trusted cutover preparation; Asset Site Media persistence/provider/runtime; Asset outbox and Site inbox; then cross-service acceptance. No server may enter token-only mode while a direct caller still uses legacy metadata or body identity.
+
+Focused generation, build and test commands:
+
+```bash
+pnpm --filter permission-service permission-codes:generate-common
+pnpm proto:regen
+pnpm proto:lint
+pnpm --filter asset-service prisma:generate
+pnpm --filter site-service prisma:generate
+
+pnpm --filter @oes/common build
+pnpm --filter permission-service build
+pnpm --filter api-gateway build
+pnpm --filter asset-service build
+pnpm --filter site-service build
+
+pnpm exec jest --runInBand --runTestsByPath \
+  src/common/src/contracts/asset_service/site_media.contract.spec.ts \
+  src/common/src/contracts/asset_service/events.spec.ts
+
+pnpm --filter permission-service exec jest --config jest.config.js --runInBand \
+  test/l1/common-permission-code-generator.spec.ts \
+  test/l1/permission-foundation.seed.spec.ts \
+  test/l1/permission-service-seed.spec.ts
+
+pnpm --filter api-gateway exec jest --runInBand --runTestsByPath \
+  src/common/grpc/gateway-trusted-grpc-execution.module.spec.ts \
+  src/common/grpc/gateway-auth-machine-workload-source-credential.client.spec.ts \
+  src/common/grpc/gateway-machine-workload-source-credential.provider.spec.ts \
+  src/common/grpc/gateway-machine-trusted-grpc-execution-producer.spec.ts \
+  src/modules/site-management-bff/infrastructure/downstream/site-admin-grpc.adapter.spec.ts \
+  src/modules/site-runtime-bff/infrastructure/downstream/site-runtime-grpc.adapter.spec.ts
+
+pnpm --filter asset-service test
+pnpm --filter site-service test:l1
+pnpm --filter site-service test:l2
+pnpm --filter site-service test:l3
+node scripts/architecture/trusted-grpc-signature-inventory.mjs
+```
+
+Acceptance additionally proves: 59/59 Admin, 7/7 Runtime and 11/11 Site Media RPCs each have exactly one declaration; all 13 new Code values come only from the canonical catalog/generator; Admin body identity and legacy Gateway metadata references are zero; `SignedSiteContext` remains intact; wrong audience/`cnf`, missing Code and body injection fail closed; the public Site Media event does not use process-local `EventEmitter`; and the tracked diff is a strict subset of this lease.
 
 ## 10. Repository-wide Security Acceptance
 
 Final acceptance must prove:
 
-1. All 560 RPCs have exactly one authorization mode; missing or duplicate mode fails architecture tests/startup.
+1. All 565 planned RPCs have exactly one enforcement declaration: BUSINESS / SELF_SERVICE / INTERNAL after context establishment, or one exact non-reusable bootstrap policy for `ResolveWorkloadIssuance` / `IssueMachineWorkloadSourceCredential`; missing, duplicate or widened bootstrap declarations fail architecture tests/startup.
 2. All 21 services validate exact issuer, time, audience, `cnf`, tenant and required Permission Codes locally.
 3. Normal RPC validation makes no Auth network call; only Token exchange/cache miss does.
 4. No RPC trusts `x-internal-service-name`, shared signed operator payload or identity body duplicates.
@@ -271,8 +779,9 @@ Final acceptance must prove:
 10. Site Runtime credential proof remains independent from internal Token validation.
 11. External API Key never enters internal gRPC metadata. DG-3 is frozen; Gateway locally validates the five-minute external access token, and credential revocation immediately blocks new exchange.
 12. Emergency revoke and DELEGATED/ActionGrant acceptance remain gated by DG-2/DG-4 rather than locally invented.
-13. Full workspace generation, build and service test matrix pass at the exact candidate SHA.
-14. Repository scans find zero legacy signer, guard, factory, header, trusted body identity and request-only client call.
+13. Every pure MACHINE root caller proves the dedicated Auth source credential, current SPIFFE/leaf binding, transport-derived unexpired leaf `notAfter` and Identity principal/binding/version path; caller-supplied lifetime, malformed/expired certificate evidence and wrong or stale binding fail before Permission/signing. A target with no such caller proves that absence through fresh static inventory rather than assuming readiness.
+14. Full workspace generation, build and service test matrix pass at the exact candidate SHA.
+15. Repository scans find zero legacy signer, guard, factory, header, trusted body identity and request-only client call.
 
 ## 11. Verification Commands
 
@@ -319,8 +828,9 @@ The capability closes only when:
 
 - TG-0 through TG-5 and TG-VERIFY outputs are integrated.
 - DG-1 and DG-3 are frozen for their enabled capabilities; DG-2, DG-4 and DG-5 are either closed for enabled capabilities or the corresponding capability is demonstrably disabled; no local substitute exists.
+- Every pure MACHINE root caller uses the frozen Auth source credential and Identity binding resolver; external API Key, legacy Identity API-key auth and hardcoded root mapping are absent from this path.
 - All 21 service rows are `LEGACY_REFERENCES_ZERO`.
-- All 51 Controller files and 560 RPCs are covered by the authorization-mode architecture test.
+- All existing 51 Controller files plus the frozen new Auth MACHINE controller and all 565 planned RPCs are covered by the enforcement-declaration architecture test.
 - The 19 request-only caller baseline reaches zero and the full generated caller inventory is explicit-metadata compliant.
 - Every service-level handoff contains fresh build/test/security evidence.
 - Full repository black-box acceptance passes at one candidate SHA.

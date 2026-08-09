@@ -4,5 +4,6 @@ export const IDENTITY_MACHINE_PERMISSION_CODES = {
   UPDATE_SERVICE_ACCOUNT_STATUS: 'identity.machine.service_account.update_status',
   CREATE_API_KEY: 'identity.machine.api_key.create',
   REVOKE_API_KEY: 'identity.machine.api_key.revoke',
-  ROTATE_API_KEY: 'identity.machine.api_key.rotate'
+  ROTATE_API_KEY: 'identity.machine.api_key.rotate',
+  MANAGE_WORKLOAD_BINDING: 'identity.machine.workload_binding.manage'
 } as const

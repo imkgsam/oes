@@ -12,7 +12,7 @@ import { GrpcTransportModule } from '@oes/common/transport'
 import { gatewayConfig } from './config/gateway.config'
 import { HealthModule } from './health/health.module'
 import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware'
-import { createGatewayGuardProviders } from './security'
+import { createGatewayGuardProviders, createGatewaySourceCredentialProviders } from './security'
 import { AuthBffModule } from './modules/auth-bff/auth-bff.module'
 import { BrowserActivityBffModule } from './modules/browser-activity-bff/browser-activity-bff.module'
 import { PdaBffModule } from './modules/pda-bff/pda-bff.module'
@@ -36,6 +36,7 @@ import { GatewayExceptionFilter } from './common/filters/gateway-exception.filte
 import { ResponseTransformInterceptor } from './common/interceptors/response.interceptor'
 import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor'
 import { ExternalApiModule } from './common/external-api/external-api.module'
+import { GatewayTrustedGrpcExecutionModule } from './common/grpc/gateway-trusted-grpc-execution.module'
 
 /** resolveTenantOrgGrpcUrl avoids localhost IPv6 ambiguity for the local tenant-org fallback endpoint. */
 export function resolveTenantOrgGrpcUrl() {
@@ -338,6 +339,7 @@ const siteGrpcLoaderOptions = { longs: String, arrays: true }
     }),
 
     HealthModule,
+    GatewayTrustedGrpcExecutionModule,
     ExternalApiModule,
     AuthBffModule,
     BrowserActivityBffModule,
@@ -360,6 +362,7 @@ const siteGrpcLoaderOptions = { longs: String, arrays: true }
     WmsServiceProxyModule
   ],
   providers: [
+    ...createGatewaySourceCredentialProviders(),
     GatewayPermissionGuard,
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     ...createGatewayGuardProviders(),

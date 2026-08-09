@@ -460,6 +460,23 @@ Gateway 是外部请求进入内部服务体系的第一层应用入口，因此
 - 尚未轮到的目标服务只能在自己的 legacy RPC 内保持现有兼容逻辑，不得扩散；本 capability 必须继续迁移直至全部目标归零
 - Gateway 当前 metadata 工厂按目标服务逐个由 `common` 的 `TrustedGrpcMetadataProvider` 取代；任一 server cutover 都不保留 legacy fallback
 
+### 9.5 已验证 source credential 的请求生命周期
+
+每个受保护的外部 HTTP request 有且仅有一个临时 source-credential lifecycle，它不是 user-level 或 session-level 的长期存储。同一用户的并发请求建立相互隔离的 scope；一个请求可在该 scope 中执行零个、一个或多个 downstream call，每个 target audience / canonical Permission Code set 仍按 ExecutionToken cache key 独立取得或复用 Token。
+
+唯一 handoff owner 固定为 Gateway-private `GatewayVerifiedSourceCredentialVault`：
+
+1. `GatewaySessionAuthGuard` 先调用 Auth 验证 access token 与 session；只有成功结果才允许由 Common issuer 封装 `HUMAN_SESSION` opaque handle 并 admit 到 vault。
+2. vault 仅以 HTTP request object 作为 `WeakMap` key，entry 仅有 credential kind 与不可序列化 handle；不保存 raw bearer，不向 request property、`request.user`、DTO 或可枚举 provider state 暴露 handle。
+3. Guards 顺序保持 `Throttler -> GatewaySessionAuthGuard -> TenantTargetBindingGuard -> ExternalApiAccessGuard -> GatewayPermissionGuard`。Guard 只交接，不试图包围 handler。
+4. `GatewayVerifiedSourceCredentialScopeInterceptor` 由 `main.ts` 显式注册为第一个 global interceptor，顺序固定为 `credential scope -> timeout -> response transform -> controller/downstream`；不使用 `APP_INTERCEPTOR` 或 request-scoped provider 隐藏顺序和 lifecycle。
+5. Interceptor 在 Guards 全部成功后 consume entry，必须在 Common `AsyncLocalTransportPrivateSourceCredentialAccessor.run(...)` 内订阅 `next.handle()`，使 controller、use case 及所有 nested/awaited adapter call 处于同一 scope；仅在 scope 内创建 Observable 但在 scope 外订阅不符合设计。
+6. admission 同时注册 response `finish/close` cleanup，以覆盖后续 Guard 拒绝而 Interceptor 未执行的路径；Interceptor finalization 覆盖 complete、error、timeout、unsubscribe/cancel 与 disconnect。清理必须幂等。
+7. public、invalid 与 sessionless route 没有 entry 且不建立 scope；protected route 不得在缺少已验证 entry 时进入 downstream。每次 ExecutionToken exchange 或 cache hit 都必须看到当前 request scope，防止在 session 已失效的新请求中仅凭旧 cache 继续调用。
+8. `HUMAN_SESSION` 与 `EXTERNAL_API` 使用独立 kind 和各自 owner verifier；本 lifecycle 不允许二者相互降级、转换或共用 raw bearer。Adapter 只声明 target audience 与 Permission Codes，不重读 HTTP `Authorization`。
+
+日志、异常、审计、JSON 序列化、Node inspection 与 request dump 都不得恢复 bearer。精确 writer paths 与 focused acceptance 以 [trusted gRPC execution context feature packet](../plans/features/trusted-grpc-execution-context.md) §5.2 为准；该 slice 不改 Asset RPC、ExecutionToken claims、Common carrier、external API-key 边界或其他 Gateway target adapter。
+
 ## 10. 错误模型与返回语义
 
 Gateway 对外必须输出统一的 HTTP 错误模型，而不能把下游 gRPC 状态码、供应商错误或内部技术细节直接泄漏给前端。

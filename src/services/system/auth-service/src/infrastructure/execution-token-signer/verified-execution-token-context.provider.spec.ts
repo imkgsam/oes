@@ -1,81 +1,122 @@
+import { Metadata } from '@grpc/grpc-js'
 import { VerifiedExecutionTokenContextProvider } from './verified-execution-token-context.provider'
 
-/** Proves STS context is composed from Common's verified mTLS identity and signed operator facts, never from the proto body. */
+const WORKLOAD_IDENTITY = {
+  spiffeId: 'spiffe://local.oes.internal/ns/oes/sa/api-gateway',
+  certificateThumbprint: 'A'.repeat(43)
+}
+
+/** Builds only metadata emitted by the current transport-private source-credential carrier. */
+function carrierMetadata(): Metadata {
+  const metadata = new Metadata()
+  metadata.set('authorization', 'Bearer verified.session.access-token')
+  metadata.set('x-request-id', 'request-1')
+  metadata.set('traceparent', '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01')
+  return metadata
+}
+
+/** Proves STS composes source verification, Permission authority, and mTLS without legacy reconstruction. */
 describe('VerifiedExecutionTokenContextProvider', () => {
   const workload = {
-    getVerifiedWorkloadIdentity: jest.fn().mockResolvedValue({
-      spiffeId: 'spiffe://local.oes.internal/ns/oes/sa/api-gateway',
-      certificateThumbprint: 'A'.repeat(43)
-    })
+    getVerifiedWorkloadIdentity: jest.fn().mockResolvedValue(WORKLOAD_IDENTITY)
   }
 
-  it('resolves only Common-attached verified operator facts and a verified workload identity', async () => {
-    const provider = new VerifiedExecutionTokenContextProvider(workload)
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  it('uses the carrier bearer and authoritative Permission decision instead of mirrored request or legacy roles', async () => {
+    const sourceCredentialVerifier = {
+      verify: jest.fn().mockResolvedValue({
+        subject: 'account-1',
+        principalType: 'HUMAN',
+        scopeLevel: 'TENANT',
+        tenantId: 'tenant-1',
+        sessionId: 'session-1'
+      })
+    }
+    const permissionDecisionResolver = {
+      resolve: jest.fn().mockResolvedValue({
+        allowed: false,
+        kind: 'BUSINESS',
+        grantedPermissionCodes: ['AUTH.READ'],
+        deniedPermissionCodes: ['AUTH.WRITE'],
+        principalType: 'HUMAN',
+        principalId: 'account-1',
+        scopeLevel: 'TENANT',
+        tenantId: 'tenant-1',
+        targetAudience: 'urn:oes:service:permission-service',
+        requestedPermissionCodes: ['AUTH.READ', 'AUTH.WRITE'],
+        decisionReference: 'decision-1',
+        authzVersion: 'authz-1'
+      })
+    }
+    const provider = new VerifiedExecutionTokenContextProvider(
+      workload,
+      sourceCredentialVerifier,
+      permissionDecisionResolver
+    )
+
     const result = await provider.resolve(
       {
+        metadata: carrierMetadata(),
         request: {
+          permissionCodes: ['AUTH.READ', 'AUTH.WRITE'],
           __oesOperatorContext: {
             operatorContext: {
-              operator_id: 'account-1',
-              operator_type: 'HUMAN',
-              tenant_id: 'tenant-1',
-              org_id: 'org-1',
-              operator_roles: ['AUTH.READ'],
-              issued_at: '2026-07-29T00:00:00Z',
-              expires_at: '2026-07-30T00:00:00Z',
-              issuer: 'identity-service',
-              signature: 'verified-by-common'
+              operator_id: 'legacy-account',
+              tenant_id: 'legacy-tenant',
+              operator_roles: ['AUTH.READ', 'AUTH.WRITE']
             }
           }
         }
       },
       {
         targetAudience: 'urn:oes:service:permission-service',
-        requestedPermissionCodes: ['AUTH.READ']
+        requestedPermissionCodes: ['AUTH.READ', 'AUTH.WRITE']
       }
     )
 
-    expect(result).toEqual({
-      workloadIdentity: expect.objectContaining({
-        spiffeId: 'spiffe://local.oes.internal/ns/oes/sa/api-gateway'
-      }),
-      execution: {
-        subject: 'account-1',
-        principalType: 'HUMAN',
-        tenantId: 'tenant-1',
-        orgId: 'org-1',
-        permissionCodes: ['AUTH.READ']
-      }
-    })
-  })
-
-  it('fails closed when Common did not attach a verified operator context', async () => {
-    await expect(
-      new VerifiedExecutionTokenContextProvider(workload).resolve(
-        { request: {} },
-        {
+    expect(sourceCredentialVerifier.verify).toHaveBeenCalledWith(
+      'verified.session.access-token',
+      WORKLOAD_IDENTITY
+    )
+    expect(permissionDecisionResolver.resolve).toHaveBeenCalledWith(
+      expect.objectContaining({
+        execution: expect.objectContaining({ subject: 'account-1', tenantId: 'tenant-1' }),
+        request: {
           targetAudience: 'urn:oes:service:permission-service',
-          requestedPermissionCodes: ['AUTH.READ']
-        }
-      )
-    ).rejects.toThrow('verified execution context is unavailable')
+          requestedPermissionCodes: ['AUTH.READ', 'AUTH.WRITE']
+        },
+        requestId: 'request-1',
+        traceparent: '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01'
+      })
+    )
+    expect(result.authorizationDecision.grantedPermissionCodes).toEqual(['AUTH.READ'])
+    expect(result.execution).not.toHaveProperty('permissionCodes')
   })
 
-  it('fails closed when trusted operator roles cannot bound requested permissions', async () => {
+  it('fails closed without carrier authority even when legacy operator facts mirror the request', async () => {
+    const metadata = carrierMetadata()
+    metadata.remove('authorization')
+    const sourceCredentialVerifier = { verify: jest.fn() }
+    const permissionDecisionResolver = { resolve: jest.fn() }
+    const provider = new VerifiedExecutionTokenContextProvider(
+      workload,
+      sourceCredentialVerifier,
+      permissionDecisionResolver
+    )
+
     await expect(
-      new VerifiedExecutionTokenContextProvider(workload).resolve(
+      provider.resolve(
         {
+          metadata,
           request: {
             __oesOperatorContext: {
               operatorContext: {
-                operator_id: 'account-1',
-                operator_type: 'HUMAN',
-                tenant_id: 'tenant-1',
-                operator_roles: [],
-                issued_at: '2026-07-29T00:00:00Z',
-                expires_at: '2026-07-30T00:00:00Z',
-                issuer: 'identity-service',
-                signature: 'verified-by-common'
+                operator_id: 'legacy-account',
+                tenant_id: 'legacy-tenant',
+                operator_roles: ['AUTH.READ']
               }
             }
           }
@@ -85,28 +126,34 @@ describe('VerifiedExecutionTokenContextProvider', () => {
           requestedPermissionCodes: ['AUTH.READ']
         }
       )
-    ).rejects.toThrow('verified execution permission context is unavailable')
+    ).rejects.toThrow('source credential is required')
+    expect(sourceCredentialVerifier.verify).not.toHaveBeenCalled()
+    expect(permissionDecisionResolver.resolve).not.toHaveBeenCalled()
   })
 
-  it('derives the frozen API-KEY root MACHINE execution context without signed operator metadata', async () => {
+  it('fails closed before credential or Permission resolution when mTLS peer verification fails', async () => {
+    const sourceCredentialVerifier = { verify: jest.fn() }
+    const permissionDecisionResolver = { resolve: jest.fn() }
+    const provider = new VerifiedExecutionTokenContextProvider(
+      {
+        getVerifiedWorkloadIdentity: jest
+          .fn()
+          .mockRejectedValue(new Error('gRPC workload identity is unavailable'))
+      },
+      sourceCredentialVerifier,
+      permissionDecisionResolver
+    )
+
     await expect(
-      new VerifiedExecutionTokenContextProvider(workload).resolve(
-        { request: {} },
+      provider.resolve(
+        { metadata: carrierMetadata() },
         {
-          targetAudience: 'urn:oes:service:auth-service',
-          requestedPermissionCodes: ['auth.internal.external_api_key.exchange']
+          targetAudience: 'urn:oes:service:permission-service',
+          requestedPermissionCodes: ['AUTH.READ']
         }
       )
-    ).resolves.toEqual({
-      workloadIdentity: expect.objectContaining({
-        spiffeId: 'spiffe://local.oes.internal/ns/oes/sa/api-gateway'
-      }),
-      execution: {
-        subject: 'api-gateway',
-        principalType: 'MACHINE',
-        tenantId: 'SYSTEM',
-        permissionCodes: ['auth.internal.external_api_key.exchange']
-      }
-    })
+    ).rejects.toThrow('workload identity')
+    expect(sourceCredentialVerifier.verify).not.toHaveBeenCalled()
+    expect(permissionDecisionResolver.resolve).not.toHaveBeenCalled()
   })
 })

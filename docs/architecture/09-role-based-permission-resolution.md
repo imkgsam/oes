@@ -64,7 +64,7 @@ Permission Service 根据 active principal、有效 binding、enabled role、rol
 
 ### 4.3 INTERNAL
 
-INTERNAL Code 不进入 HUMAN / MACHINE role。Permission Service 的 workload issuance policy 只回答：已验证 caller workload 能否为 target audience 申请指定 INTERNAL Code。Auth / STS 消费该 decision 并签发绑定 audience 与 `cnf` 的 Token。
+INTERNAL Code 不进入 HUMAN / MACHINE role。Permission Service 的 `ResolveWorkloadIssuance` 只回答：Auth 已验证的 original caller workload 能否为 target audience 申请指定 INTERNAL Code。它是发证控制面唯一不预先要求 ExecutionToken 的 bootstrap authorization primitive，只接受 transport-verified 的准确 `auth-service` mTLS / SPIFFE identity 调用这一准确方法；其他 Permission RPC 不继承该 trust policy。Auth / STS 消费该 decision 并签发绑定 audience、直接 workload 与 `cnf` 的 Token。
 
 ## 5. 三个消费点
 
@@ -74,7 +74,7 @@ Gateway 验证 HTTP session / API credential，绑定可信 tenant target，并�
 
 ### 5.2 Auth / STS
 
-STS 在 Token cache miss、audience 变化、Code 集变化或安全版本变化时解析授权，签发 exact subset。请求任意未获准 Code 时整体拒绝，不静默签发更大集合或伪装成功。
+STS 在 Token cache miss、audience 变化、Code 集变化或安全版本变化时解析授权。INTERNAL 使用上述 mTLS-only bootstrap decision；BUSINESS 使用 Permission 的 `ResolvePrincipalAuthorization`，后者要求准确 Auth mTLS identity、`aud=permission-service` certificate-bound ExecutionToken 与精确 Code `permission.internal.principal_authorization.resolve`。两个 issuance decision 都是 Auth-only 发证控制面，不供 Gateway 或普通 application 直接调用；请求任意未获准 Code 时整体拒绝，Auth 不做 partial issuance。
 
 ### 5.3 Target Service
 
@@ -88,7 +88,7 @@ STS 在 Token cache miss、audience 变化、Code 集变化或安全版本变化
 
 ## 7. Cache 与失效
 
-- Gateway / STS 可以缓存授权 decision 或有效 Permission 子集，但 cache key 必须包含 principal、scope、tenant、requested Code、policy / authz version 与 delegation。
+- Gateway 可以按其入口契约缓存粗粒度授权 decision；STS 以 Permission decision 签发后只复用精确 tuple 的未过期 ExecutionToken，不把 caller request 或过期 decision 当作授权。相关 key 必须包含 principal、scope、tenant、requested Code、policy / authz version 与 delegation。
 - 调用服务的 ExecutionToken cache 只存在本进程，key 还必须包含 audience 与 `cnf`。
 - Role / grant 普通变更通过短 Token TTL 收敛；紧急变化通过 Auth / Permission 安全版本与撤销事实更新本地 deny cache。
 - 不使用 Redis 共享 Bearer Token；Redis 可以保存非凭据型授权事实和安全版本。

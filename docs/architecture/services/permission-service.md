@@ -12,7 +12,7 @@
 - `Role`、`RoleTemplate`、`PrincipalRoleBinding`、role-permission 绑定与 HUMAN / MACHINE principal grant 真相。
 - `Scope`、`Policy`、授权判定、授权决策记录与 policy AST 评估能力。
 - `PolicyTemplate`、`PolicyInstance` 资源授权配置事实、资源授权判定与查询范围构造能力。
-- workload-to-INTERNAL-Permission issuance policy 与授权判定；Auth / STS 负责认证 workload、签发和执行该判定结果。
+- workload-to-INTERNAL-Permission issuance policy、发证控制面 bootstrap trust policy 与授权判定；Auth / STS 负责认证 workload、签发和执行该判定结果。
 - DELEGATED authorization 的有效上限判定：将 HUMAN grant、有效 delegation、ToolContract 上限、tenant / org、resource policy 与目标 operation 取交集；Auth 负责 delegation credential 与 ActionGrant，Permission 不签发任一凭据。
 - 当前 session 的 access summary：effective roles、effective action codes、运行时权限摘要。
 - 第一阶段 navigation governance 真相：
@@ -27,7 +27,8 @@
 
 ## 3. Does Not Own
 
-- 用户或机器认证、API Key credential、MFA、OTP、challenge、session、refresh token、access token、STS 或 ExecutionToken 签发语义。
+- 用户或机器认证、API Key credential、内部 `MachineWorkloadSourceCredential`、MFA、OTP、challenge、session、refresh token、access token、STS 或 ExecutionToken 签发语义；这些认证与 credential 真相归 `auth-service`。
+- Machine Principal、`MachineWorkloadBinding`、SPIFFE-to-principal resolution 或其 lifecycle；这些身份真相归 `identity-service`。
 - `User`、`UserAccount`、账号登录身份、contact asset、machine principal 或 employee binding 真相。
 - 租户、组织、员工、Party 或业务资源主数据；员工与任职真相以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准。
 - 前端 route、菜单层级、icon、layout、页面文案、terminal-specific UI 呈现配置。
@@ -160,6 +161,25 @@ DELEGATED 判定必须同时受 HUMAN grant、未撤销的 delegation reference�
 - 不作为新业务资源授权的标准接入方式。
 - 不应继续被新业务当作统一资源授权 RPC 扩散。
 - 新业务资源授权必须优先落到 application 层 `checkResource / buildQueryScope`。
+
+### 5.4 Auth / STS issuance decisions
+
+Permission Service 在既有 `PermissionCheckService` 上提供两个只服务 Auth / STS 发证控制面的黑盒判定；它们不替代 Gateway 入口门禁、普通 `CheckPermission`、`checkResource / buildQueryScope` 或目标服务领域规则：
+
+- `ResolveWorkloadIssuance` 只判断一个已验证 workload 是否可为指定 target audience 申请精确 INTERNAL Permission Code 集。
+- `ResolvePrincipalAuthorization` 只判断 HUMAN、MACHINE 或 DELEGATED principal 在可信 scope / tenant / org 下是否可为指定 target audience 申请精确 BUSINESS Permission Code 集。
+
+`ResolveWorkloadIssuance` 是 ExecutionToken 发证链路唯一的 bootstrap authorization primitive。调用它不预先要求 ExecutionToken；Permission 必须直接消费平台 mTLS / SPIFFE transport 注入的 `VerifiedWorkloadIdentity`，并只接受环境注册的准确 `auth-service` workload 调用这一准确方法。该 bootstrap trust policy 不是 Permission Code、Role grant、Bearer credential 或通用 mTLS 放行规则，不能被其他 workload、其他 Permission RPC、service-name header、网络位置或 wildcard policy 复用。Auth 提交的原始 caller workload、target audience、tenant / org attribution 与 requested INTERNAL Code 必须来自其已验证 exchange context；Permission 仍独立按 workload -> audience -> Code policy 判定。
+
+`ResolvePrincipalAuthorization` 不是 bootstrap primitive。它必须同时验证直接 `auth-service` mTLS identity、`aud=permission-service` 的 certificate-bound ExecutionToken 与精确 INTERNAL Code `permission.internal.principal_authorization.resolve`。该 Code 只能由 `ResolveWorkloadIssuance` 所有的准确 Auth workload -> Permission audience issuance policy 批准，不能进入 HUMAN / MACHINE role。输入只包含已验证 principal typed reference、scope / tenant / org、target audience、非空 requested BUSINESS Code 集以及适用的 session / delegation / AgentPrincipal / ToolContract reference；不接收 role id、admin flag、caller-computed grant、target RPC id、业务 resource facts 或 domain state。SELF_SERVICE 不调用该判定；目标服务从可信 HUMAN principal 派生 self target。
+
+MACHINE source credential/resolver 链当前为 `FROZEN_PENDING_IMPLEMENTATION`。实现完成后，MACHINE 调用进入 `ResolvePrincipalAuthorization` 前，Auth 必须已经验证 Auth-owned `MachineWorkloadSourceCredential` 与当前 mTLS leaf binding，并通过 Identity-owned `ResolveMachinePrincipalForAuth` decision 得到 active principal、scope、tenant/org 与 `MachineWorkloadBinding` reference/version。Permission 只消费这些经过 owner resolution 的 typed facts，并独立计算当前 MACHINE BUSINESS grant；它不接收 raw source credential 或 leaf certificate，不解析 SPIFFE-to-principal mapping，不读取 Identity/Auth storage，也不允许 credential 或 caller 自报的 tenant/grant 扩大授权。Identity resolution 缺失、stale、mismatch 或不可用时 Auth 不得调用本判定或签名。
+
+两个判定都采用全量申请语义：requested Code 必须去重、规范排序且 kind 一致，只有全部获准时 `allowed=true`。未知、不可分配、部分批准、scope / tenant / audience / principal / delegation mismatch、stale decision 或依赖不可用都 fail closed；Permission 返回精确 granted / denied Code、安全 reason category、decision reference 与 `authzVersion`，Auth 不做部分签发。Permission 记录判定审计但不记录 source credential 或 Token 正文，也不签发或存储 ExecutionToken；`ResolvePrincipalAuthorization` 只按受保护 resolver 契约验证随请求提交的 ExecutionToken，不取得其签发或授权真相所有权。
+
+ActionGrant completion 在同一 `PermissionCheckService` 增加受保护的 `ResolveDelegatedAuthorization`，不建立独立 Permission service surface。调用必须同时满足准确 `auth-service` mTLS identity、certificate-bound `aud=permission-service` ExecutionToken 与 `permission.internal.delegated_authorization.resolve`；它不是 bootstrap primitive。Auth 提供的可信 upper bound 必须来自当前 HUMAN/session、Auth-owned DelegationGrant、Identity-owned active AgentPrincipal 与 AI Platform-owned active ToolContract runtime resolution。`ResolvePrincipalAuthorization` 的 DELEGATED issuance 与 `ResolveDelegatedAuthorization` 消费同一 owner-derived upper-bound 语义；Permission 独立解析当前 HUMAN grants 并求交集。
+
+Permission 不读取 AI registration JSON、prompt 或 caller/body-supplied bounds，不查询 Auth storage，也不复制 DelegationGrant、ActionGrant、AgentPrincipal、ToolContract 或 business-owner risk truth。业务 owner 的受保护 resolver 提供 canonical action facts、code baseline、tenant-only tightening 与 policy version；Permission 只消费该可信 owner decision 并执行 HUMAN grant ∩ DelegationGrant ∩ AgentPrincipal ∩ ToolContract ∩ owner action/policy 的 fail-closed 交集。缺失、陈旧、版本不匹配、风险降低或任一 owner 依赖不可用均拒绝；P1 不接受 org、role 或 personal risk override。
 
 ## 6. Policy
 
@@ -323,6 +343,7 @@ Terminal Access Policy 控制账号是否允许从指定人类交互终端建立
 
 典型契约位置：
 
+- [permission-service/principal-authorization.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/principal-authorization.md)
 - [permission-service/access-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/access-summary.md)
 - [permission-service/terminal-access.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/terminal-access.md)
 - [permission-service/onboarding-grant.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/onboarding-grant.md)

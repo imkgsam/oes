@@ -1,17 +1,22 @@
-import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common'
+import { CanActivate, ExecutionContext, Inject, Injectable, Optional } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
 import { AccountType, IS_PUBLIC_KEY } from '@oes/common/auth'
 import { ExceptionFactory } from '@oes/common/exceptions'
 import { JWT_INVALID, JWT_MISSING } from '@oes/common/exceptions'
 import { RpcException } from '@nestjs/microservices'
+import { TransportPrivateSourceCredentialIssuer } from '@oes/common/authorization'
 import { AuthGrpcAdapter } from '../../modules/auth-bff/infrastructure/downstream/auth-service/auth-grpc.adapter'
+import { GatewayVerifiedSourceCredentialVault } from '../grpc/gateway-verified-source-credential.vault'
 
 // Validates gateway bearer tokens against auth-service session truth before protected requests proceed.
 @Injectable()
 export class GatewaySessionAuthGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
-    private readonly authAdapter: AuthGrpcAdapter
+    @Inject(AuthGrpcAdapter) private readonly authAdapter: AuthGrpcAdapter,
+    private readonly vault: GatewayVerifiedSourceCredentialVault,
+    @Optional()
+    private readonly sourceCredentialIssuer = new TransportPrivateSourceCredentialIssuer()
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -24,7 +29,8 @@ export class GatewaySessionAuthGuard implements CanActivate {
 
     if (context.getType() !== 'http') return false
 
-    const request = context.switchToHttp().getRequest()
+    const http = context.switchToHttp()
+    const request = http.getRequest()
     const authHeader = request.headers['authorization'] || request.headers['Authorization']
     if (!authHeader || !String(authHeader).startsWith('Bearer ')) {
       throw ExceptionFactory.application(JWT_MISSING)
@@ -66,6 +72,11 @@ export class GatewaySessionAuthGuard implements CanActivate {
       roles: result.roleIds ?? [],
       typ: AccountType.USER
     }
+    this.vault.admitHumanSession(
+      request,
+      this.sourceCredentialIssuer.issueVerifiedSessionAccessCredential(token),
+      http.getResponse()
+    )
     return true
   }
 

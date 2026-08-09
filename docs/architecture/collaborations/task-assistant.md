@@ -3,7 +3,7 @@
 ```text
 status: FROZEN
 frozenDate: 2026-07-28
-lastAmendedDate: 2026-08-03
+lastAmendedDate: 2026-08-05
 aiArchitectureTruthSource: docs/architecture/04-ai-architecture.md
 collaborationTruthSource: docs/architecture/services/collaboration-service.md
 delegatedExecutionTruthSource: docs/architecture/collaborations/delegated-execution-and-action-grant.md
@@ -34,6 +34,8 @@ Task Assistant 是通用 AI 平台的第一个验证场景。第一阶段限定�
 - Collaboration owns：Task、participant visibility、state transition、operation risk class、command idempotency、local audit、facts/events 与最终业务结果。
 
 Task Assistant 不拥有或复制 Task、账号、角色、session、credential、policy 或业务审计真相。
+
+Conversation 可以长期继续，但只承载上下文；每条新的用户指令创建新的 bounded AI Run。Run 完成、停止或过期后不能继续调用工具，未关闭 Conversation 也不会把 delegation 变成长期授权。
 
 ## 3. Business Ownership And Attribution
 
@@ -90,8 +92,10 @@ model proposes exact Task action
 
 - mutation 必须消费 [task-command.md](../../contracts/collaboration-service/task-command.md) 与 DG-4 冻结契约，不重新定义 command。
 - AI 平台只展示和编排 owner-declared risk class，不得自行分类或降级。
+- AI Platform 只展示 owner action facts；Auth 持有 HUMAN confirmation evidence。每个 high-risk business action 都单独确认，low-risk Run 不增加授权弹窗。
 - ActionGrant 不能替代 Task participant rule、state transition、tenant isolation 或 idempotency。
-- pending、timeout、tool error、authorization denial 和 confirmation denial 都不能被报告为业务成功。
+- pending、timeout、tool error、authorization denial 和 confirmation denial 都不能被报告为业务成功；不确定结果显示为 pending，直到 Collaboration 返回明确 owner result。
+- stop 取消当前 Run 的后续 work/pending confirmation，不回滚已提交 Task；Conversation 仍可继续并以新 Run 处理下一条指令。
 - 长期无人值守自动化必须使用独立 MACHINE workflow，不能保留 HUMAN DelegationGrant。
 
 ## 6. Frozen Contract Surfaces
@@ -114,6 +118,8 @@ version: 1.0.0
 | `collaboration.task.create-assigned.v1` | Task Command `CreateTask` assigned variant | `ACTION_GRANT_REQUIRED` | registered, mutation disabled |
 
 Risk class remains owned by Collaboration and is referenced from the Task contracts plus [delegated-task-action-grant.md](../../plans/features/delegated-task-action-grant.md); the AI registration cannot modify it. `UpdateTask`、`StartTask`、`CompleteTask`、`CancelTask`、`ReopenTask`、`ArchiveTask` 与 `UnarchiveTask` are absent and therefore unregistered; their Task Assistant P1 risk remains `AI_FORBIDDEN` in the owner contract.
+
+The repository registration manifest is not runtime authorization truth. Before runtime opening, AI Platform must expose an owner runtime resolution contract for the active ToolContract identity/version and operation upper bound; Auth consumes that contract together with Identity-owned AgentPrincipal facts. Auth and Permission never authorize by reading the disabled registration JSON.
 
 Registration phase invariants：
 
@@ -149,6 +155,7 @@ AI 只能在收到 Collaboration 的明确成功结果后报告业务成功。�
 - `FROZEN_AI_PLATFORM_TASK_ASSISTANT` remains the predecessor architecture-freeze gate；`FROZEN_TOOL_CONTRACT_REGISTRATION_READY` is its registration-surface successor and requires the AI-owned contract to have entered main。
 - registration artifact may be implemented before ActionGrant runtime only while every execution/public flag remains disabled。
 - runtime opening waits for `EXEC-CRYPTO MAIN_READY`、DG-4 runtime and Collaboration Task runtime/query/command readiness。
+- runtime opening also waits for the AI-owned ToolContract runtime resolver and Common registration of all required INTERNAL Codes; a disabled manifest alone is insufficient。
 - mutation opening additionally waits for target-side descriptor/idempotency/ActionGrant-consumption readiness。
 - knowledge-backed slice 等待 governed knowledge owner readiness。
 - 新 service/proto/operator context/permission/public gateway changes 必须另获 truth-source 与 path ownership。
@@ -156,7 +163,7 @@ AI 只能在收到 Collaboration 的明确成功结果后报告业务成功。�
 ## 10. Non-goals
 
 - 不决定 AI 服务数量、部署拓扑、数据库或模型供应商。
-- 不修改 Task object、status、participant visibility、permission code 或 Task/DG-4 owner contracts。
+- Task Assistant 不自行修改 Task object、status、participant visibility、owner risk class、Permission Code 或 DG-4 owner contracts；本文件只引用各 owner 已冻结的事实与 readiness gate。
 - 不定义新的 DG-4 credential、claim、error 或 cryptography。
 - 不建立长期记忆、多 Agent、后台自动化或 Task event consumer。
 - 不把观测系统、prompt 或向量库当作审计或业务真相源。

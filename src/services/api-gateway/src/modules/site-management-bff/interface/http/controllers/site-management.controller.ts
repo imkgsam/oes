@@ -1,4 +1,7 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common'
+import { Body, Controller, Delete, Get, Param, Post, Query, Req } from '@nestjs/common'
+import type { Request } from 'express'
+import { Observable } from 'rxjs'
+import { UploadSiteMediaRequest } from '@oes/common/generated/asset_service'
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { RequirePermissions, SITE_MANAGEMENT_PERMISSION_CODES } from '@oes/common/authorization'
 import { DownstreamSource } from '../../../../../common/decorators/downstream-source.decorator'
@@ -675,4 +678,72 @@ export class SiteManagementController {
   ) {
     return this.service.listSiteAuditLogs(tenantId, siteId, source)
   }
+
+  /** Site Media Admin routes preserve stream/protocol boundaries and delegate target authorization to Gateway guards. */
+  @Post('sites/:siteId/media')
+  @RequirePermissions({ all: [SITE_MANAGEMENT_PERMISSION_CODES.MANAGE] })
+  uploadSiteMedia(@VerifiedTenantTarget() tenantId: VerifiedTenantTarget, @Param('siteId') siteId: string, @Req() request: Request, @DownstreamSource() source: DownstreamRequestSource) { return this.service.uploadSiteMedia(mediaUploadStream(request, siteId), source) }
+  @Get('sites/:siteId/media')
+  @RequirePermissions({ all: [SITE_MANAGEMENT_PERMISSION_CODES.READ] })
+  listAuthorizedSiteMedia(@VerifiedTenantTarget() tenantId: VerifiedTenantTarget, @Param('siteId') siteId: string, @Query() query: SiteMediaListQuery, @DownstreamSource() source: DownstreamRequestSource) { return this.service.listAuthorizedSiteMedia(tenantId, { siteId, ...query }, source) }
+  @Post('sites/:siteId/media/delivery/prepare')
+  @RequirePermissions({ all: [SITE_MANAGEMENT_PERMISSION_CODES.MANAGE] })
+  prepareSiteMediaRemoteDelivery(@VerifiedTenantTarget() tenantId: VerifiedTenantTarget, @Param('siteId') siteId: string, @Body() body: SiteMediaPrepareBody, @DownstreamSource() source: DownstreamRequestSource) { return this.service.prepareSiteMediaRemoteDelivery(tenantId, { ...body, siteId }, source) }
+  @Post('sites/:siteId/media/delivery/activate')
+  @RequirePermissions({ all: [SITE_MANAGEMENT_PERMISSION_CODES.MANAGE] })
+  activateSiteMediaRemoteDelivery(@VerifiedTenantTarget() tenantId: VerifiedTenantTarget, @Param('siteId') siteId: string, @Body() body: SiteMediaActivateBody, @DownstreamSource() source: DownstreamRequestSource) { return this.service.activateSiteMediaRemoteDelivery(tenantId, { ...body, siteId }, source) }
+  @Post('sites/:siteId/media/:assetId/archive')
+  @RequirePermissions({ all: [SITE_MANAGEMENT_PERMISSION_CODES.MANAGE] })
+  archiveSiteMedia(@VerifiedTenantTarget() tenantId: VerifiedTenantTarget, @Param('siteId') siteId: string, @Param('assetId') assetId: string, @Body() body: SiteMediaIdempotencyBody, @DownstreamSource() source: DownstreamRequestSource) { return this.service.archiveSiteMedia(tenantId, { ...body, siteId, assetId }, source) }
+  @Post('sites/:siteId/media/:assetId/takedown')
+  @RequirePermissions({ all: [SITE_MANAGEMENT_PERMISSION_CODES.MANAGE] })
+  takeDownSiteMedia(@VerifiedTenantTarget() tenantId: VerifiedTenantTarget, @Param('siteId') siteId: string, @Param('assetId') assetId: string, @Body() body: SiteMediaTakeDownBody, @DownstreamSource() source: DownstreamRequestSource) { return this.service.takeDownSiteMedia(tenantId, { ...body, siteId, assetId }, source) }
+  @Get('sites/:siteId/media/:assetId/status')
+  @RequirePermissions({ all: [SITE_MANAGEMENT_PERMISSION_CODES.READ] })
+  getSiteMediaDeliveryStatus(@VerifiedTenantTarget() tenantId: VerifiedTenantTarget, @Param('siteId') siteId: string, @Param('assetId') assetId: string, @DownstreamSource() source: DownstreamRequestSource) { return this.service.getSiteMediaDeliveryStatus(tenantId, siteId, assetId, source) }
+  @Delete('sites/:siteId/media/:assetId')
+  @RequirePermissions({ all: [SITE_MANAGEMENT_PERMISSION_CODES.MANAGE] })
+  deleteSiteMedia(@VerifiedTenantTarget() tenantId: VerifiedTenantTarget, @Param('siteId') siteId: string, @Param('assetId') assetId: string, @Body() body: SiteMediaDeleteBody, @DownstreamSource() source: DownstreamRequestSource) { return this.service.deleteSiteMedia(tenantId, { ...body, siteId, assetId }, source) }
+}
+
+type SiteMediaListQuery = { query?: string; mediaKindFilter?: string; pageSize?: number; pageToken?: string }
+type SiteMediaPrepareBody = { idempotencyKey: string; mediaHost: string }
+type SiteMediaActivateBody = { idempotencyKey: string }
+type SiteMediaIdempotencyBody = { idempotencyKey: string }
+type SiteMediaTakeDownBody = SiteMediaIdempotencyBody & { reasonCode: string; reasonNote?: string }
+type SiteMediaDeleteBody = SiteMediaIdempotencyBody & { deletionReason: string }
+const MAX_SITE_MEDIA_UPLOAD_BYTES = 512 * 1024 * 1024
+const SITE_MEDIA_UPLOAD_CHUNK_BYTES = 64 * 1024
+
+/** mediaUploadStream converts the authenticated HTTP body into a bounded first-frame-plus-chunks Asset gRPC stream. */
+function mediaUploadStream(request: Request, siteId: string): Observable<UploadSiteMediaRequest> {
+  const idempotencyKey = requiredUploadHeader(request, 'x-idempotency-key')
+  const requestedMediaKind = requiredUploadHeader(request, 'x-oes-media-kind').toUpperCase()
+  const declaredContentType = requiredUploadHeader(request, 'content-type').split(';', 1)[0].trim().toLowerCase()
+  if (requestedMediaKind !== 'IMAGE' && requestedMediaKind !== 'VIDEO') throw new Error('SITE_MEDIA_KIND_INVALID')
+  const originalFileName = request.header('x-oes-original-file-name')?.trim() || undefined
+  return new Observable<UploadSiteMediaRequest>((subscriber) => {
+    let received = 0
+    const finish = () => subscriber.complete()
+    const fail = (error: Error) => { cleanup(); subscriber.error(error) }
+    const onData = (value: Buffer | string) => {
+      const chunk = Buffer.isBuffer(value) ? value : Buffer.from(value)
+      received += chunk.byteLength
+      if (received > MAX_SITE_MEDIA_UPLOAD_BYTES) return fail(new Error('SITE_MEDIA_UPLOAD_SIZE_EXCEEDED'))
+      for (let offset = 0; offset < chunk.length; offset += SITE_MEDIA_UPLOAD_CHUNK_BYTES) subscriber.next({ contentChunk: chunk.subarray(offset, Math.min(chunk.length, offset + SITE_MEDIA_UPLOAD_CHUNK_BYTES)) })
+    }
+    const cleanup = () => { request.off('data', onData); request.off('end', finish); request.off('error', fail) }
+    subscriber.next({ start: { idempotencyKey, siteId, requestedMediaKind, originalFileName, declaredContentType } })
+    request.on('data', onData)
+    request.once('end', finish)
+    request.once('error', fail)
+    return cleanup
+  })
+}
+
+/** requiredUploadHeader accepts only transport metadata needed to construct the gateway-owned start frame. */
+function requiredUploadHeader(request: Request, name: string): string {
+  const value = request.header(name)?.trim()
+  if (!value) throw new Error(`SITE_MEDIA_${name.toUpperCase().replaceAll('-', '_')}_REQUIRED`)
+  return value
 }

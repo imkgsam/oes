@@ -4,6 +4,10 @@ import {
   AUTH_MANAGEMENT_PERMISSION_CODES,
   AUTH_SELF_PERMISSION_CODES,
   AUTH_SESSION_PERMISSION_CODES,
+  ASSET_INTERNAL_PERMISSION_CODES,
+  ASSET_SITE_MEDIA_INTERNAL_PERMISSION_CODES,
+  ASSET_SITE_MEDIA_PERMISSION_CODES,
+  BROWSER_ACTIVITY_AUDIT_PERMISSION_CODES,
   COLLABORATION_ANNOTATION_PERMISSION_CODES,
   COLLABORATION_TASK_PERMISSION_CODES,
   CRM_MANAGEMENT_PERMISSION_CODES,
@@ -11,11 +15,13 @@ import {
   HR_MANAGEMENT_PERMISSION_CODES,
   IDENTITY_ACCOUNT_PERMISSION_CODES,
   IDENTITY_ACCOUNT_SELF_PERMISSION_CODES,
+  IDENTITY_INTERNAL_PERMISSION_CODES,
   IDENTITY_MACHINE_PERMISSION_CODES,
   IDENTITY_TENANT_PERMISSION_CODES,
   ITEM_MASTER_MANAGEMENT_PERMISSION_CODES,
   MES_MANAGEMENT_PERMISSION_CODES,
   PERMISSION_ACCOUNT_SELF_PERMISSION_CODES,
+  PERMISSION_INTERNAL_PERMISSION_CODES,
   PERMISSION_MANAGEMENT_PERMISSION_CODES,
   PROCUREMENT_MANAGEMENT_PERMISSION_CODES,
   PUBLIC_ENTRY_BUSINESS_CARD_PERMISSION_CODES,
@@ -25,6 +31,7 @@ import {
   SALES_MANAGEMENT_PERMISSION_CODES,
   SALES_PRICING_PERMISSION_CODES,
   SITE_MANAGEMENT_PERMISSION_CODES,
+  SITE_MANAGEMENT_INTERNAL_PERMISSION_CODES,
   SRM_MANAGEMENT_PERMISSION_CODES,
   TENANT_ORG_MANAGEMENT_PERMISSION_CODES,
   TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES,
@@ -59,6 +66,8 @@ const COMMON_PERMISSION_CODE_FILES: CommonPermissionCodeFileDefinition[] = [
     relativePath: 'index.ts',
     exports: [
       './auth',
+      './asset',
+      './browser-activity',
       './collaboration',
       './crm',
       './finance',
@@ -79,8 +88,40 @@ const COMMON_PERMISSION_CODE_FILES: CommonPermissionCodeFileDefinition[] = [
   },
   {
     kind: 'index',
+    relativePath: 'asset/index.ts',
+    exports: ['./internal.permission-codes', './site-media.permission-codes']
+  },
+  {
+    kind: 'const',
+    relativePath: 'asset/internal.permission-codes.ts',
+    constName: 'ASSET_INTERNAL_PERMISSION_CODES',
+    records: ASSET_INTERNAL_PERMISSION_CODES
+  },
+  {
+    kind: 'const',
+    relativePath: 'asset/site-media.permission-codes.ts',
+    constName: 'ASSET_SITE_MEDIA_PERMISSION_CODES',
+    records: { ...ASSET_SITE_MEDIA_PERMISSION_CODES, ...ASSET_SITE_MEDIA_INTERNAL_PERMISSION_CODES }
+  },
+  {
+    kind: 'index',
+    relativePath: 'browser-activity/index.ts',
+    exports: ['./audit.permission-codes']
+  },
+  {
+    kind: 'const',
+    relativePath: 'browser-activity/audit.permission-codes.ts',
+    constName: 'BROWSER_ACTIVITY_AUDIT_PERMISSION_CODES',
+    records: BROWSER_ACTIVITY_AUDIT_PERMISSION_CODES
+  },
+  {
+    kind: 'index',
     relativePath: 'auth/index.ts',
-    exports: ['./auth-management.permission-codes', './self.permission-codes', './session.permission-codes']
+    exports: [
+      './auth-management.permission-codes',
+      './self.permission-codes',
+      './session.permission-codes'
+    ]
   },
   {
     kind: 'const',
@@ -156,9 +197,16 @@ const COMMON_PERMISSION_CODE_FILES: CommonPermissionCodeFileDefinition[] = [
     exports: [
       './account.permission-codes',
       './account-self.permission-codes',
+      './internal.permission-codes',
       './machine.permission-codes',
       './tenant.permission-codes'
     ]
+  },
+  {
+    kind: 'const',
+    relativePath: 'identity/internal.permission-codes.ts',
+    constName: 'IDENTITY_INTERNAL_PERMISSION_CODES',
+    records: IDENTITY_INTERNAL_PERMISSION_CODES
   },
   {
     kind: 'const',
@@ -211,10 +259,17 @@ const COMMON_PERMISSION_CODE_FILES: CommonPermissionCodeFileDefinition[] = [
     relativePath: 'permission/index.ts',
     exports: [
       './account-self.permission-codes',
+      './internal.permission-codes',
       './management.permission-codes',
       './role-instance.permission-codes',
       './role-template.permission-codes'
     ]
+  },
+  {
+    kind: 'const',
+    relativePath: 'permission/internal.permission-codes.ts',
+    constName: 'PERMISSION_INTERNAL_PERMISSION_CODES',
+    records: PERMISSION_INTERNAL_PERMISSION_CODES
   },
   {
     kind: 'const',
@@ -288,13 +343,19 @@ const COMMON_PERMISSION_CODE_FILES: CommonPermissionCodeFileDefinition[] = [
   {
     kind: 'index',
     relativePath: 'site-management/index.ts',
-    exports: ['./management.permission-codes']
+    exports: ['./management.permission-codes', './internal.permission-codes']
   },
   {
     kind: 'const',
     relativePath: 'site-management/management.permission-codes.ts',
     constName: 'SITE_MANAGEMENT_PERMISSION_CODES',
     records: SITE_MANAGEMENT_PERMISSION_CODES
+  },
+  {
+    kind: 'const',
+    relativePath: 'site-management/internal.permission-codes.ts',
+    constName: 'SITE_MANAGEMENT_INTERNAL_PERMISSION_CODES',
+    records: SITE_MANAGEMENT_INTERNAL_PERMISSION_CODES
   },
   {
     kind: 'index',
@@ -344,14 +405,14 @@ const COMMON_PERMISSION_CODE_FILES: CommonPermissionCodeFileDefinition[] = [
 
 /** renderIndexFile preserves the current re-export layout for one common permission-code index file. */
 function renderIndexFile(exports: string[]): string {
-  return [GENERATED_FILE_BANNER, ...exports.map((specifier) => `export * from '${specifier}'`)].join('\n')
+  return [
+    GENERATED_FILE_BANNER,
+    ...exports.map((specifier) => `export * from '${specifier}'`)
+  ].join('\n')
 }
 
 /** renderPermissionCodeConstFile preserves the current object-literal export shape for one permission-code group file. */
-function renderPermissionCodeConstFile(
-  constName: string,
-  records: PermissionCodeRecord
-): string {
+function renderPermissionCodeConstFile(constName: string, records: PermissionCodeRecord): string {
   const entries = Object.entries(records)
   if (entries.length === 0) {
     return [GENERATED_FILE_BANNER, `export const ${constName} = {} as const`].join('\n')
@@ -366,12 +427,15 @@ function renderPermissionCodeConstFile(
 
 /** renderCommonPermissionCodeFiles returns the full common permission-code tree as relative paths plus file content. */
 export function renderCommonPermissionCodeFiles(): Map<string, string> {
-  const renderedEntries = COMMON_PERMISSION_CODE_FILES.map((definition) => [
-      definition.relativePath,
-      definition.kind === 'index'
-        ? renderIndexFile(definition.exports)
-        : renderPermissionCodeConstFile(definition.constName, definition.records)
-    ] as const)
+  const renderedEntries = COMMON_PERMISSION_CODE_FILES.map(
+    (definition) =>
+      [
+        definition.relativePath,
+        definition.kind === 'index'
+          ? renderIndexFile(definition.exports)
+          : renderPermissionCodeConstFile(definition.constName, definition.records)
+      ] as const
+  )
 
   return new Map(renderedEntries)
 }

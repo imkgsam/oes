@@ -14,6 +14,8 @@ service IdentityQueryService {
   rpc GetServiceAccountById(GetServiceAccountByIdRequest) returns (GetServiceAccountByIdResponse);
   // Resolves Identity-owned Integration Machine lifecycle facts only for Auth's trusted external API-key exchange.
   rpc ResolveIntegrationMachineForAuth(ResolveIntegrationMachineForAuthRequest) returns (ResolveIntegrationMachineForAuthResponse);
+  // Resolves only an Auth-verified first-party MACHINE principal and exact workload binding.
+  rpc ResolveMachinePrincipalForAuth(ResolveMachinePrincipalForAuthRequest) returns (ResolveMachinePrincipalForAuthResponse);
   rpc ListApiKeysByServiceAccountId(ListApiKeysByServiceAccountIdRequest) returns (ListApiKeysByServiceAccountIdResponse);
   rpc ListServiceAccounts(ListServiceAccountsRequest) returns (ListServiceAccountsResponse);
   rpc ResolveContactActionTargets(ResolveContactActionTargetsRequest) returns (ResolveContactActionTargetsResponse);
@@ -89,6 +91,10 @@ service IdentityManagementService {
   rpc SetAccountPrimaryWorkPhoneAsset(SetAccountPrimaryWorkPhoneAssetRequest) returns (SetAccountPrimaryWorkPhoneAssetResponse);
   rpc BindAccountToEmployee(BindAccountToEmployeeRequest) returns (BindAccountToEmployeeResponse);
   rpc UnbindAccountFromEmployee(UnbindAccountFromEmployeeRequest) returns (UnbindAccountFromEmployeeResponse);
+  // Enrolls one first-party Machine Principal to one exact workload SPIFFE identity.
+  rpc EnrollMachineWorkloadBinding(EnrollMachineWorkloadBindingRequest) returns (EnrollMachineWorkloadBindingResponse);
+  // Disables one binding with optimistic version matching and no historical resurrection.
+  rpc DisableMachineWorkloadBinding(DisableMachineWorkloadBindingRequest) returns (DisableMachineWorkloadBindingResponse);
 }
 
 service IdentityMachineAuthService {
@@ -678,4 +684,67 @@ message CreateServiceAccountRequest {
 message SetServiceAccountEnabledRequest {
   string service_account_id = 1;
   bool enabled = 2;
+}
+
+// Carries Auth-verified, non-secret selectors for one Identity-owned MACHINE binding decision.
+message ResolveMachinePrincipalForAuthRequest {
+  string machine_principal_id = 1;
+  string machine_workload_binding_id = 2;
+  int64 machine_workload_binding_version = 3;
+  string workload_spiffe_id = 4;
+}
+
+// Returns safe owner facts only when the requested principal, binding, version, and SPIFFE identity match exactly.
+message ResolveMachinePrincipalForAuthResponse {
+  bool allowed = 1;
+  string machine_principal_id = 2;
+  string principal_type = 3;
+  string machine_type = 4;
+  string scope_level = 5;
+  string tenant_id = 6;
+  string org_id = 7;
+  string principal_lifecycle_status = 8;
+  string principal_lifecycle_version = 9;
+  string machine_workload_binding_id = 10;
+  int64 machine_workload_binding_version = 11;
+  string workload_spiffe_id = 12;
+  string decision_reference = 13;
+  string reason_code = 14;
+}
+
+// Enrolls one exact principal-to-SPIFFE binding under the existing protected management surface.
+message EnrollMachineWorkloadBindingRequest {
+  string machine_principal_id = 1;
+  string workload_spiffe_id = 2;
+  string idempotency_key = 3;
+}
+
+// Disables one binding only at the supplied current version.
+message DisableMachineWorkloadBindingRequest {
+  string machine_workload_binding_id = 1;
+  int64 expected_binding_version = 2;
+  string reason_code = 3;
+}
+
+// Represents the bounded lifecycle of one Identity-owned MACHINE workload binding.
+message MachineWorkloadBinding {
+  string binding_id = 1;
+  string machine_principal_id = 2;
+  string workload_spiffe_id = 3;
+  string status = 4;
+  int64 binding_version = 5;
+  int64 created_at_unix_seconds = 6;
+  int64 disabled_at_unix_seconds = 7;
+  string disable_reason_code = 8;
+}
+
+message EnrollMachineWorkloadBindingResponse {
+  MachineWorkloadBinding binding = 1;
+  string audit_correlation_id = 2;
+}
+
+message DisableMachineWorkloadBindingResponse {
+  MachineWorkloadBinding binding = 1;
+  bool already_disabled = 2;
+  string audit_correlation_id = 3;
 }

@@ -1,4 +1,5 @@
 import { MODULE_METADATA } from '@nestjs/common/constants'
+import { NATS_JETSTREAM_RUNTIME_OPTIONS } from '@oes/common/events'
 import { SiteAdminApplicationService } from '../../src/application/services/site-admin-application.service'
 import { SiteRuntimeApplicationService } from '../../src/application/services/site-runtime-application.service'
 import { SiteServiceModule } from '../../src/modules/site-service.module'
@@ -21,6 +22,7 @@ function siteServiceProviders(): FactoryProvider[] {
 describe('SiteServiceModule preview secret composition', () => {
   const originalNodeEnv = process.env.NODE_ENV
   const originalPreviewSecret = process.env.SITE_PREVIEW_TOKEN_SECRET
+  const originalNats = { url: process.env.NATS_URL, user: process.env.NATS_USER, password: process.env.NATS_PASSWORD }
 
   afterEach(() => {
     if (originalNodeEnv === undefined) {
@@ -33,6 +35,9 @@ describe('SiteServiceModule preview secret composition', () => {
     } else {
       process.env.SITE_PREVIEW_TOKEN_SECRET = originalPreviewSecret
     }
+    if (originalNats.url === undefined) delete process.env.NATS_URL; else process.env.NATS_URL = originalNats.url
+    if (originalNats.user === undefined) delete process.env.NATS_USER; else process.env.NATS_USER = originalNats.user
+    if (originalNats.password === undefined) delete process.env.NATS_PASSWORD; else process.env.NATS_PASSWORD = originalNats.password
   })
 
   it.each([
@@ -70,5 +75,17 @@ describe('SiteServiceModule preview secret composition', () => {
     expect(secretProvider?.useFactory?.()).toBe('module_preview_secret')
     expect(adminProvider?.inject).toContain(secretProvider?.provide)
     expect(runtimeProvider?.inject).toContain(secretProvider?.provide)
+  })
+
+  it('keeps module metadata deterministic while resolving missing NATS configuration only as the broker runtime starts', () => {
+    const imports = Reflect.getMetadata(MODULE_METADATA.IMPORTS, SiteServiceModule) as Array<{ module?: unknown; providers?: FactoryProvider[] }>
+    const nats = imports.find((entry) => String(entry?.module).includes('NatsJetStreamModule'))
+    const options = nats?.providers?.find((provider) => provider.provide === NATS_JETSTREAM_RUNTIME_OPTIONS)?.useFactory
+    expect(options).toBeUndefined()
+    const value = nats?.providers?.find((provider) => provider.provide === NATS_JETSTREAM_RUNTIME_OPTIONS) as { useValue?: object }
+    const descriptor = Object.getOwnPropertyDescriptor(value.useValue ?? {}, 'servers')
+    expect(descriptor?.get).toEqual(expect.any(Function))
+    delete process.env.NATS_URL; delete process.env.NATS_USER; delete process.env.NATS_PASSWORD
+    expect(() => descriptor?.get?.()).toThrow('NATS_URL_REQUIRED')
   })
 })

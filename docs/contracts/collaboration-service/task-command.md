@@ -387,6 +387,9 @@ P1 command 返回的 `task` 至少包含：
 - `CreateTask` self todo：`DELEGATION_ALLOWED`，要求明确 HUMAN 创建意图和 idempotency key，但不需要 ActionGrant。
 - `CreateTask` assigned task：`ACTION_GRANT_REQUIRED`，必须同时提供匹配的 DELEGATED ExecutionToken 与 `x-oes-action-grant` metadata。
 - `UpdateTask`、`StartTask`、`CompleteTask`、`CancelTask`、`ReopenTask`、`ArchiveTask`、`UnarchiveTask`：Task Assistant P1 的 `AI_FORBIDDEN`；既有 HUMAN 调用语义不变。
+- 上述 code baseline 是最低风险边界。受控 tenant policy 只能关闭、要求 step-up 或向更严格类别移动；P1 不接受 org、role 或 personal override。ActionGrant 必须绑定 owner resolver 返回的 effective class 与 policy version。
+
+Auth 通过 Collaboration-owned protected owner-action resolver 获取 canonical Task action facts、code baseline、tenant tightening 与 policy version。该 resolver 要求准确 Auth mTLS identity 加 certificate-bound Collaboration-audience ExecutionToken 中的 `collaboration.internal.ai_action.resolve`；它不是 mTLS-only bootstrap，request body、AI ToolContract registration 或 prompt 不能自报 risk/target/policy facts。
 
 ### 7.2 Assigned-task ActionDescriptorV1
 
@@ -420,4 +423,4 @@ The descriptor uses the Auth ActionGrant Contract’s JCS / SHA-256 canonicaliza
 
 `CreateTaskRequest` gains `idempotency_key`. AI callers must provide a non-blank key; non-AI P1 callers retain their existing contract until their own migration is frozen. The key is an idempotency reference, not an authorization credential and not an ActionGrant substitute.
 
-The Collaboration-owned receipt persistence enforces both unique `actionGrantJti` and unique `(tenantId, operatorAccountId, operationKey, idempotencyKey)`. In the same local transaction it writes the Task, task audit, existing Task outbox, receipt and ActionGrant consumption. Identical retries return the original Task result; any digest, target or ActionGrant mismatch fails before a new Task is written. No ActionGrant content is accepted in request body, event payload or audit plaintext.
+Collaboration owns one immutable business receipt per `(tenantId, operatorAccountId, operationKey, idempotencyKey)` and separate immutable consumption facts per `actionGrantJti`. The first success writes the Task, task audit, existing Task outbox, receipt and presented JTI consumption in one local transaction. Identical retries return the original Task result; a replacement JTI for the same confirmed descriptor is consumed against that receipt/result without another Task write. Reused JTI, changed digest/policy version/target or substituted idempotency identity fails closed. Timeout remains `RESULT_PENDING` until the owner result is reconciled, and no ActionGrant content is accepted in request body, event payload or audit plaintext.

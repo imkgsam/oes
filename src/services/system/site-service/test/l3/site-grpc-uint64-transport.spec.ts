@@ -13,6 +13,7 @@ jest.mock('@nestjs/core', () => ({
   }
 }))
 jest.mock('@oes/common/tracing', () => ({ initOtelSdk: jest.fn() }))
+jest.mock('@oes/common/transport', () => ({ createGrpcServerCredentials: jest.fn(() => ({})) }))
 jest.mock('../../src/app.module', () => ({
   /** MockAppModule isolates bootstrap transport configuration from application dependencies. */
   AppModule: class MockAppModule {}
@@ -20,8 +21,10 @@ jest.mock('../../src/app.module', () => ({
 
 // Verifies the live site-service bootstrap loader preserves uint64 registration fencing values.
 describe('site-service uint64 gRPC transport', () => {
-  beforeAll(() => {
-    require('../../src/main')
+  beforeAll(async () => {
+    const { bootstrap } = require('../../src/main') as { bootstrap: () => Promise<void> }
+    expect(NestFactory.createMicroservice).not.toHaveBeenCalled()
+    await bootstrap()
   })
 
   it.each(['0', MAX_UINT64])(

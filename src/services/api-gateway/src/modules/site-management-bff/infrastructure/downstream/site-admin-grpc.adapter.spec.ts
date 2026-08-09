@@ -1,74 +1,30 @@
 import { of } from 'rxjs'
 import { SiteAdminGrpcAdapter } from './site-admin-grpc.adapter'
 
-// Verifies the Admin downstream adapter maps BFF context into the internal site-service gRPC contract.
+/** Verifies Admin requests contain business fields only and use trusted target metadata. */
 describe('SiteAdminGrpcAdapter', () => {
-  const siteAdminService = {
-    listSiteCards: jest.fn(),
-    createSite: jest.fn(),
-    syncAllPendingChanges: jest.fn(),
-    issuePreviewToken: jest.fn()
-  }
-  const client = {
-    getService: jest.fn().mockReturnValue(siteAdminService)
-  }
-  const metadata = { metadata: 'operator-scoped' }
-  const metadataFactory = {
-    createOperatorScopedMetadata: jest.fn().mockReturnValue(metadata)
-  }
-  const adapter = new SiteAdminGrpcAdapter(client as never, metadataFactory as never)
-  const source = {
-    requestId: 'request_admin',
-    traceId: 'trace_admin',
-    user: { holderId: 'operator_a', tenantId: 'tenant_a', orgId: 'org_a' }
-  }
-  const context = {
-    tenantId: 'tenant_a',
-    orgId: 'org_a',
-    operatorId: 'operator_a',
-    requestId: 'request_admin',
-    traceId: 'trace_admin'
-  }
-
-  beforeEach(() => {
-    jest.clearAllMocks()
+  it('uses trusted producer metadata and strips identity fields from list/create', async () => {
+    const service: any = { listSiteCards: jest.fn().mockReturnValue(of({ cards: [] })), createSite: jest.fn().mockReturnValue(of({ siteId: 's-1' })) }
+    const producer: any = { forBusinessCall: jest.fn().mockResolvedValue({}) }
+    const adapter = new SiteAdminGrpcAdapter({ getService: () => service } as any, producer)
     adapter.onModuleInit()
-  })
-
-  it('forwards Site Management requests through the generated gRPC client', async () => {
-    siteAdminService.listSiteCards.mockReturnValue(of({ cards: [] }))
-    siteAdminService.createSite.mockReturnValue(of({ siteId: 'site_a', status: 'draft', defaultLocale: 'en-US' }))
-    siteAdminService.syncAllPendingChanges.mockReturnValue(of({ syncId: 'sync_a', publishVersion: 3 }))
-    siteAdminService.issuePreviewToken.mockReturnValue(of({ previewToken: 'preview_a' }))
-
-    await adapter.listSiteCards(context, source)
-    await adapter.createSite({ ...context, siteName: 'Brand US', siteType: 'brand', defaultLocale: 'en-US' }, source)
-    await adapter.syncAllPendingChanges({ context, siteId: 'site_a' }, source)
-    await adapter.issuePreviewToken(
-      { context, siteId: 'site_a', resourceType: 'blog', resourceId: 'blog_a', locale: 'en-US' },
-      source
+    const source: any = { requestId: 'r-1', traceId: 't-1', user: { holderId: 'op-1', tenantId: 'tenant-1' } }
+    await adapter.listSiteCards({ tenantId: 'tenant-1', operatorId: 'op-1' } as any, source)
+    await adapter.createSite({ tenantId: 'tenant-1', operatorId: 'op-1', siteName: 'Site', siteType: 'brand', defaultLocale: 'en-US' } as any, source)
+    expect(producer.forBusinessCall).toHaveBeenNthCalledWith(
+      1,
+      source,
+      'urn:oes:service:site-service',
+      ['site.management.read']
     )
-
-    expect(siteAdminService.listSiteCards).toHaveBeenCalledWith(
-      { tenantId: 'tenant_a', operatorId: 'operator_a', traceId: 'trace_admin' },
-      metadata
+    expect(producer.forBusinessCall).toHaveBeenNthCalledWith(
+      2,
+      source,
+      'urn:oes:service:site-service',
+      ['site.management.manage']
     )
-    expect(siteAdminService.createSite).toHaveBeenCalledWith(
-      {
-        tenantId: 'tenant_a',
-        orgId: 'org_a',
-        operatorId: 'operator_a',
-        traceId: 'trace_admin',
-        siteName: 'Brand US',
-        siteType: 'brand',
-        defaultLocale: 'en-US'
-      },
-      metadata
-    )
-    expect(siteAdminService.syncAllPendingChanges).toHaveBeenCalledWith({ context, siteId: 'site_a' }, metadata)
-    expect(siteAdminService.issuePreviewToken).toHaveBeenCalledWith(
-      { context, siteId: 'site_a', resourceType: 'blog', resourceId: 'blog_a', locale: 'en-US' },
-      metadata
-    )
+    expect(service.listSiteCards).toHaveBeenCalledWith({}, expect.anything())
+    expect(service.createSite).toHaveBeenCalledWith(expect.objectContaining({ siteName: 'Site' }), expect.anything())
+    expect(service.createSite.mock.calls[0][0]).not.toEqual(expect.objectContaining({ tenantId: expect.anything(), operatorId: expect.anything(), traceId: expect.anything(), orgId: expect.anything(), requestId: expect.anything() }))
   })
 })

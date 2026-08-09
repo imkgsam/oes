@@ -37,6 +37,7 @@ import { PrismaApiKeyRepository } from '../../infrastructure/repositories/prisma
 import { PrismaAccountRepository } from '../../infrastructure/repositories/prisma/prisma.account.repository'
 import { PrismaEmployeeBindingRepository } from '../../infrastructure/repositories/prisma/prisma.employee-binding.repository'
 import { PrismaServiceAccountRepository } from '../../infrastructure/repositories/prisma/prisma.service-account.repository'
+import { PrismaMachineWorkloadBindingRepository } from '../../infrastructure/repositories/prisma/prisma.machine-workload-binding.repository'
 import { PrismaUserRepository } from '../../infrastructure/repositories/prisma/prisma.user.repository'
 import { PrismaIdentityAuditRepository } from '../../infrastructure/repositories/prisma/prisma.identity-audit.repository'
 import { PrismaModule } from '../../infrastructure/prisma/prisma.module'
@@ -74,6 +75,10 @@ const IDENTITY_SERVICE_AUDIENCE = 'urn:oes:service:identity-service'
     {
       provide: SYMBOLS.REPO.SERVICE_ACCOUNT,
       useClass: PrismaServiceAccountRepository
+    },
+    {
+      provide: SYMBOLS.REPO.MACHINE_WORKLOAD_BINDING,
+      useClass: PrismaMachineWorkloadBindingRepository
     },
     ValidatingCommandBus,
     ValidatingQueryBus,

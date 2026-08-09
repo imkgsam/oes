@@ -1,4 +1,5 @@
-import { Controller, Inject, UseFilters } from '@nestjs/common'
+import { Controller, Inject, UseFilters, UseGuards } from '@nestjs/common'
+import { AuthorizeInternalCall, SITE_MANAGEMENT_INTERNAL_PERMISSION_CODES, TrustedInternalExecutionGuard } from '@oes/common/authorization'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
   BatchGetPublicViewsRequest,
@@ -38,6 +39,7 @@ export const SITE_RUNTIME_APPLICATION = Symbol('SITE_RUNTIME_APPLICATION')
 
 /** SiteRuntimeGrpcController exposes signed Site Runtime sync APIs as a thin protocol adapter. */
 @UseFilters(GrpcExceptionFilter)
+@UseGuards(TrustedInternalExecutionGuard)
 @Controller()
 @SiteRuntimeSyncServiceControllerMethods()
 export class SiteRuntimeGrpcController implements SiteRuntimeSyncServiceController {
@@ -46,6 +48,7 @@ export class SiteRuntimeGrpcController implements SiteRuntimeSyncServiceControll
     private readonly application: SiteRuntimeApplicationPort
   ) {}
 
+  @AuthorizeInternalCall({ all: [SITE_MANAGEMENT_INTERNAL_PERMISSION_CODES.RUNTIME_PUBLICATION_READ] })
   getLatestPublishState(
     request: GetLatestPublishStateRequest
   ): Promise<GetLatestPublishStateResponse> {
@@ -53,6 +56,7 @@ export class SiteRuntimeGrpcController implements SiteRuntimeSyncServiceControll
   }
 
   /** registerPageCapabilities preserves stable domain errors as typed OES gRPC payloads. */
+  @AuthorizeInternalCall({ all: [SITE_MANAGEMENT_INTERNAL_PERMISSION_CODES.RUNTIME_CAPABILITY_REGISTER] })
   async registerPageCapabilities(
     request: RegisterPageCapabilitiesRequest
   ): Promise<RegisterPageCapabilitiesResponse> {
@@ -63,24 +67,29 @@ export class SiteRuntimeGrpcController implements SiteRuntimeSyncServiceControll
     }
   }
 
+  @AuthorizeInternalCall({ all: [SITE_MANAGEMENT_INTERNAL_PERMISSION_CODES.RUNTIME_PUBLICATION_READ] })
   listChangedResources(
     request: ListChangedResourcesRequest
   ): Promise<ListChangedResourcesResponse> {
     return this.application.listChangedResources(request)
   }
 
+  @AuthorizeInternalCall({ all: [SITE_MANAGEMENT_INTERNAL_PERMISSION_CODES.RUNTIME_PUBLICATION_READ] })
   batchGetPublicViews(request: BatchGetPublicViewsRequest): Promise<BatchGetPublicViewsResponse> {
     return this.application.batchGetPublicViews(request)
   }
 
+  @AuthorizeInternalCall({ all: [SITE_MANAGEMENT_INTERNAL_PERMISSION_CODES.RUNTIME_PUBLICATION_READ] })
   getSnapshot(request: GetSnapshotRequest): Promise<GetSnapshotResponse> {
     return this.application.getSnapshot(request)
   }
 
+  @AuthorizeInternalCall({ all: [SITE_MANAGEMENT_INTERNAL_PERMISSION_CODES.RUNTIME_SYNC_REPORT] })
   reportSyncResult(request: ReportSyncResultRequest): Promise<ReportSyncResultResponse> {
     return this.application.reportSyncResult(request)
   }
 
+  @AuthorizeInternalCall({ all: [SITE_MANAGEMENT_INTERNAL_PERMISSION_CODES.RUNTIME_PREVIEW_READ] })
   getPreviewView(request: GetPreviewViewRequest): Promise<GetPreviewViewResponse> {
     return this.application.getPreviewView(request)
   }

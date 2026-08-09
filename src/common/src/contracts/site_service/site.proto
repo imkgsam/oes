@@ -77,11 +77,10 @@ service SiteRuntimeSyncService {
   rpc GetPreviewView(GetPreviewViewRequest) returns (GetPreviewViewResponse);
 }
 
+// Transitional definition retained until all 57 request declarations are migrated together.
 message AdminRequestContext {
-  string tenant_id = 1;
-  string org_id = 2;
-  string operator_id = 3;
-  string trace_id = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "org_id", "operator_id", "trace_id";
   string request_id = 5;
 }
 
@@ -102,9 +101,8 @@ message SignedSiteContext {
 }
 
 message ListSiteCardsRequest {
-  string tenant_id = 1;
-  string operator_id = 2;
-  string trace_id = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator_id", "trace_id";
 }
 
 message SiteCard {
@@ -152,7 +150,8 @@ message CreateSiteResponse {
 }
 
 message UpdateSiteSettingsRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
   string site_name = 3;
   string primary_domain = 4;
@@ -167,7 +166,8 @@ message UpdateSiteSettingsResponse {
 }
 
 message DisableSiteRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
   string reason = 3;
 }
@@ -177,7 +177,8 @@ message DisableSiteResponse {
 }
 
 message AddPreparingLocaleRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
   string locale = 3;
 }
@@ -187,7 +188,8 @@ message AddPreparingLocaleResponse {
 }
 
 message CheckLocaleCompletenessRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
   string locale = 3;
 }
@@ -199,7 +201,8 @@ message CheckLocaleCompletenessResponse {
 }
 
 message ActivateLocaleRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
   string locale = 3;
 }
@@ -209,7 +212,8 @@ message ActivateLocaleResponse {
 }
 
 message DisableLocaleRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
   string locale = 3;
 }
@@ -236,7 +240,8 @@ message SitePagePreflightIssue {
 }
 
 message ListSitePagesRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
 }
 
@@ -245,7 +250,8 @@ message ListSitePagesResponse {
 }
 
 message UpdateSitePageGovernanceRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
   string page_key = 3;
   bool enabled = 4;
@@ -275,7 +281,8 @@ message SiteCategoryRecord {
 }
 
 message ListSiteCategoriesRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
   string locale = 3;
 }
@@ -285,7 +292,8 @@ message ListSiteCategoriesResponse {
 }
 
 message CreateSiteCategoryRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
   string parent_category_id = 3;
   string source_category_id = 4;
@@ -305,7 +313,8 @@ message CreateSiteCategoryResponse {
 }
 
 message UpdateSiteCategoryRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
   SiteCategoryRecord category = 3;
 }
@@ -315,7 +324,8 @@ message UpdateSiteCategoryResponse {
 }
 
 message UnpublishSiteCategoryRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
   string category_id = 3;
   string locale = 4;
@@ -343,7 +353,8 @@ message SiteProductPublicationRecord {
 }
 
 message ListSiteProductsRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
   string locale = 3;
 }
@@ -353,7 +364,8 @@ message ListSiteProductsResponse {
 }
 
 message SearchProductMasterForAddRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
   string keyword = 3;
   uint32 page = 4;
@@ -374,7 +386,8 @@ message SearchProductMasterForAddResponse {
 }
 
 message GetSiteProductPublicationRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
   string publication_id = 3;
 }
@@ -384,7 +397,8 @@ message GetSiteProductPublicationResponse {
 }
 
 message AddProductsToSiteRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
   repeated string product_ids = 3;
   repeated string locales = 4;
@@ -396,7 +410,8 @@ message AddProductsToSiteResponse {
 }
 
 message UpdateSiteProductPublicationRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   SiteProductPublicationRecord publication = 2;
 }
 
@@ -405,7 +420,8 @@ message UpdateSiteProductPublicationResponse {
 }
 
 message UnpublishSiteProductRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
   string publication_id = 3;
 }
@@ -445,7 +461,8 @@ message SiteContentLocaleVersionRecord {
 }
 
 message ListSiteContentsRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
   string content_type = 3;
 }
@@ -455,7 +472,8 @@ message ListSiteContentsResponse {
 }
 
 message GetSiteContentRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
   string content_id = 3;
 }
@@ -465,7 +483,8 @@ message GetSiteContentResponse {
 }
 
 message CreateSiteContentRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
   string content_type = 3;
 }
@@ -475,7 +494,8 @@ message CreateSiteContentResponse {
 }
 
 message UpdateSiteContentLocaleVersionRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
   SiteContentLocaleVersionRecord version = 3;
 }
@@ -485,7 +505,8 @@ message UpdateSiteContentLocaleVersionResponse {
 }
 
 message UnpublishSiteContentRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
   string content_id = 3;
   string locale = 4;
@@ -524,7 +545,8 @@ message ContentCategoryLocaleVersionRecord {
 }
 
 message ListContentCategoriesRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
   string locale = 3;
 }
@@ -534,7 +556,8 @@ message ListContentCategoriesResponse {
 }
 
 message GetContentCategoryRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
   string category_id = 3;
 }
@@ -544,7 +567,8 @@ message GetContentCategoryResponse {
 }
 
 message CreateContentCategoryRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
   uint32 sort_order = 3;
   ContentCategoryLocaleVersionRecord initial_locale_version = 4;
@@ -555,7 +579,8 @@ message CreateContentCategoryResponse {
 }
 
 message UpdateContentCategoryLocaleVersionRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
   ContentCategoryLocaleVersionRecord version = 3;
 }
@@ -565,7 +590,8 @@ message UpdateContentCategoryLocaleVersionResponse {
 }
 
 message PublishContentCategoryLocaleRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
   string category_id = 3;
   string locale = 4;
@@ -576,7 +602,8 @@ message PublishContentCategoryLocaleResponse {
 }
 
 message ReorderContentCategoriesRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
   repeated string ordered_category_ids = 3;
 }
@@ -586,7 +613,8 @@ message ReorderContentCategoriesResponse {
 }
 
 message DeleteContentCategoryRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
   string category_id = 3;
 }
@@ -597,7 +625,8 @@ message DeleteContentCategoryResponse {
 }
 
 message ListVisibleContentCategoriesRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
   string content_type = 3;
   string locale = 4;
@@ -608,7 +637,8 @@ message ListVisibleContentCategoriesResponse {
 }
 
 message CheckContentCategoryCompletenessRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
   string category_id = 3;
   string locale = 4;
@@ -626,7 +656,8 @@ message ContentCategoryUsageRecord {
 }
 
 message ListContentCategoryUsageRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
   string category_id = 3;
 }
@@ -672,31 +703,43 @@ message FaqEntryRecord {
   repeated FaqEntryLocaleVersionRecord locale_versions = 6;
 }
 
-message ListFaqCategoriesRequest { AdminRequestContext context = 1; string site_id = 2; string locale = 3; }
+message ListFaqCategoriesRequest { reserved 1;
+  reserved "context"; string site_id = 2; string locale = 3; }
 message ListFaqCategoriesResponse { repeated FaqCategoryRecord categories = 1; }
-message GetFaqCategoryRequest { AdminRequestContext context = 1; string site_id = 2; string category_id = 3; }
+message GetFaqCategoryRequest { reserved 1;
+  reserved "context"; string site_id = 2; string category_id = 3; }
 message GetFaqCategoryResponse { FaqCategoryRecord category = 1; }
-message CreateFaqCategoryRequest { AdminRequestContext context = 1; string site_id = 2; }
+message CreateFaqCategoryRequest { reserved 1;
+  reserved "context"; string site_id = 2; }
 message CreateFaqCategoryResponse { FaqCategoryRecord category = 1; }
-message UpdateFaqCategoryLocaleVersionRequest { AdminRequestContext context = 1; string site_id = 2; FaqCategoryLocaleVersionRecord version = 3; }
+message UpdateFaqCategoryLocaleVersionRequest { reserved 1;
+  reserved "context"; string site_id = 2; FaqCategoryLocaleVersionRecord version = 3; }
 message UpdateFaqCategoryLocaleVersionResponse { FaqCategoryLocaleVersionRecord version = 1; }
-message DisableFaqCategoryRequest { AdminRequestContext context = 1; string site_id = 2; string category_id = 3; }
+message DisableFaqCategoryRequest { reserved 1;
+  reserved "context"; string site_id = 2; string category_id = 3; }
 message DisableFaqCategoryResponse { bool disabled = 1; }
-message ListFaqEntriesRequest { AdminRequestContext context = 1; string site_id = 2; string category_id = 3; string locale = 4; }
+message ListFaqEntriesRequest { reserved 1;
+  reserved "context"; string site_id = 2; string category_id = 3; string locale = 4; }
 message ListFaqEntriesResponse { repeated FaqEntryRecord entries = 1; }
-message GetFaqEntryRequest { AdminRequestContext context = 1; string site_id = 2; string entry_id = 3; }
+message GetFaqEntryRequest { reserved 1;
+  reserved "context"; string site_id = 2; string entry_id = 3; }
 message GetFaqEntryResponse { FaqEntryRecord entry = 1; }
-message CreateFaqEntryRequest { AdminRequestContext context = 1; string site_id = 2; string category_id = 3; }
+message CreateFaqEntryRequest { reserved 1;
+  reserved "context"; string site_id = 2; string category_id = 3; }
 message CreateFaqEntryResponse { FaqEntryRecord entry = 1; }
-message UpdateFaqEntryLocaleVersionRequest { AdminRequestContext context = 1; string site_id = 2; FaqEntryLocaleVersionRecord version = 3; }
+message UpdateFaqEntryLocaleVersionRequest { reserved 1;
+  reserved "context"; string site_id = 2; FaqEntryLocaleVersionRecord version = 3; }
 message UpdateFaqEntryLocaleVersionResponse { FaqEntryLocaleVersionRecord version = 1; }
-message UnpublishFaqEntryRequest { AdminRequestContext context = 1; string site_id = 2; string entry_id = 3; string locale = 4; }
+message UnpublishFaqEntryRequest { reserved 1;
+  reserved "context"; string site_id = 2; string entry_id = 3; string locale = 4; }
 message UnpublishFaqEntryResponse { bool unpublished = 1; }
-message CheckFaqCompletenessRequest { AdminRequestContext context = 1; string site_id = 2; string locale = 3; }
+message CheckFaqCompletenessRequest { reserved 1;
+  reserved "context"; string site_id = 2; string locale = 3; }
 message CheckFaqCompletenessResponse { bool complete = 1; repeated string issues = 2; }
 
 message GetPendingSyncSummaryRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
 }
 
@@ -714,7 +757,8 @@ message SiteSyncResourceRecord {
 }
 
 message ListPendingSyncResourcesRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
 }
 
@@ -734,7 +778,8 @@ message SiteSyncBatchRecord {
 }
 
 message ListSyncHistoryRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
 }
 
@@ -743,7 +788,8 @@ message ListSyncHistoryResponse {
 }
 
 message GetSyncDetailRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string sync_id = 2;
 }
 
@@ -752,7 +798,8 @@ message GetSyncDetailResponse {
 }
 
 message SyncAllPendingChangesRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
 }
 
@@ -765,7 +812,8 @@ message SyncAllPendingChangesResponse {
 }
 
 message RetryLastSyncRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
 }
 
@@ -775,7 +823,8 @@ message RetryLastSyncResponse {
 }
 
 message ResendWebhookRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string sync_id = 2;
 }
 
@@ -794,7 +843,8 @@ message SiteCredentialMetadata {
 }
 
 message ListSiteCredentialsRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
 }
 
@@ -803,7 +853,8 @@ message ListSiteCredentialsResponse {
 }
 
 message GenerateSiteCredentialRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
   repeated string scopes = 3;
 }
@@ -814,7 +865,8 @@ message GenerateSiteCredentialResponse {
 }
 
 message RotateSiteCredentialRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
   string credential_id = 3;
 }
@@ -825,7 +877,8 @@ message RotateSiteCredentialResponse {
 }
 
 message RevokeSiteCredentialRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
   string credential_id = 3;
 }
@@ -848,7 +901,8 @@ message SiteAuditLogRecord {
 }
 
 message ListSiteAuditLogsRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
 }
 
@@ -857,7 +911,8 @@ message ListSiteAuditLogsResponse {
 }
 
 message IssuePreviewTokenRequest {
-  AdminRequestContext context = 1;
+  reserved 1;
+  reserved "context";
   string site_id = 2;
   string resource_type = 3;
   string resource_id = 4;

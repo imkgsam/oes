@@ -31,6 +31,7 @@ import { PrismaApiKeyRepository } from '../../infrastructure/repositories/prisma
 import { PrismaAccountRepository } from '../../infrastructure/repositories/prisma/prisma.account.repository'
 import { PrismaEmployeeBindingRepository } from '../../infrastructure/repositories/prisma/prisma.employee-binding.repository'
 import { PrismaServiceAccountRepository } from '../../infrastructure/repositories/prisma/prisma.service-account.repository'
+import { PrismaMachineWorkloadBindingRepository } from '../../infrastructure/repositories/prisma/prisma.machine-workload-binding.repository'
 import { PrismaUserRepository } from '../../infrastructure/repositories/prisma/prisma.user.repository'
 import {
   HR_GRPC_CLIENT,
@@ -85,6 +86,10 @@ import { IdentityAuditModule } from '../identity-audit/identity-audit.module'
     {
       provide: SYMBOLS.REPO.SERVICE_ACCOUNT,
       useClass: PrismaServiceAccountRepository
+    },
+    {
+      provide: SYMBOLS.REPO.MACHINE_WORKLOAD_BINDING,
+      useClass: PrismaMachineWorkloadBindingRepository
     },
     {
       provide: PARTY_REGISTRATION_PORT,

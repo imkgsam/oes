@@ -1,4 +1,5 @@
 import { Modules, PermissionKind } from '../../prisma/generated/prisma'
+import { PERMISSION_INTERNAL_PERMISSION_CODES as COMMON_PERMISSION_INTERNAL_PERMISSION_CODES } from '@oes/common/authorization'
 
 export type PermissionSeedItem = {
   code: string
@@ -113,6 +114,21 @@ const permissionManagement = definePermissionGroup(Modules.PERMISSION_SERVICE, {
   UPDATE_POLICY: { code: 'permission.policy.update', description: '更新权限策略' },
   DELETE_POLICY: { code: 'permission.policy.delete', description: '删除权限策略' },
   VIEW_POLICY: { code: 'permission.policy.list', description: '查看权限策略列表' }
+})
+
+const permissionInternal = definePermissionGroup(Modules.PERMISSION_SERVICE, {
+  PRINCIPAL_AUTHORIZATION_RESOLVE: {
+    code: COMMON_PERMISSION_INTERNAL_PERMISSION_CODES.PRINCIPAL_AUTHORIZATION_RESOLVE,
+    description: '解析 Auth 发证所需的 principal BUSINESS authorization upper bound',
+    kind: PermissionKind.INTERNAL,
+    externalApiEligible: false
+  },
+  DELEGATED_AUTHORIZATION_RESOLVE: {
+    code: COMMON_PERMISSION_INTERNAL_PERMISSION_CODES.DELEGATED_AUTHORIZATION_RESOLVE,
+    description: '解析 Auth 编排的 delegated action authorization upper bound',
+    kind: PermissionKind.INTERNAL,
+    externalApiEligible: false
+  }
 })
 
 const roleTemplateManagement = definePermissionGroup(Modules.PERMISSION_SERVICE, {
@@ -248,6 +264,19 @@ const identityMachineManagement = definePermissionGroup(Modules.IDENTITY_SERVICE
   ROTATE_API_KEY: {
     code: 'identity.machine.api_key.rotate',
     description: '轮换 API Key'
+  },
+  MANAGE_WORKLOAD_BINDING: {
+    code: 'identity.machine.workload_binding.manage',
+    description: '管理第一方机器工作负载绑定'
+  }
+})
+
+const identityInternal = definePermissionGroup(Modules.IDENTITY_SERVICE, {
+  MACHINE_PRINCIPAL_RESOLVE: {
+    code: 'identity.internal.machine_principal.resolve',
+    description: '解析 Auth 发证所需的第一方机器主体绑定事实',
+    kind: PermissionKind.INTERNAL,
+    externalApiEligible: false
   }
 })
 
@@ -833,6 +862,10 @@ const authManagement = definePermissionGroup(Modules.AUTH_SERVICE, {
   MANAGE_PLATFORM_MFA_POLICY: {
     code: 'auth.platform_mfa_policy.manage',
     description: '管理平台 MFA 策略'
+  },
+  REVOKE_MACHINE_WORKLOAD_SOURCE_CREDENTIAL: {
+    code: 'auth.machine_workload_source_credential.revoke',
+    description: '撤销第一方机器工作负载源凭据'
   }
 })
 
@@ -986,13 +1019,46 @@ const siteManagement = definePermissionGroup(Modules.SITE_SERVICE, {
   PREVIEW: { code: 'site.management.preview', description: '签发站点草稿预览 token' }
 })
 
+const siteManagementInternal = definePermissionGroup(Modules.SITE_SERVICE, {
+  RUNTIME_CAPABILITY_REGISTER: { code: 'site.internal.runtime.capability.register', description: '注册 Site Runtime 页面能力', kind: PermissionKind.INTERNAL, externalApiEligible: false },
+  RUNTIME_PUBLICATION_READ: { code: 'site.internal.runtime.publication.read', description: '读取 Site Runtime 已发布视图', kind: PermissionKind.INTERNAL, externalApiEligible: false },
+  RUNTIME_SYNC_REPORT: { code: 'site.internal.runtime.sync.report', description: '上报 Site Runtime 同步结果', kind: PermissionKind.INTERNAL, externalApiEligible: false },
+  RUNTIME_PREVIEW_READ: { code: 'site.internal.runtime.preview.read', description: '读取 Site Runtime 预览视图', kind: PermissionKind.INTERNAL, externalApiEligible: false }
+})
+
+const assetSiteMedia = definePermissionGroup(Modules.ASSET_SERVICE, {
+  UPLOAD: { code: 'asset.site_media.upload', description: '上传受控 Site Media' },
+  READ: { code: 'asset.site_media.read', description: '读取受控 Site Media' },
+  DELIVERY_MANAGE: { code: 'asset.site_media.delivery.manage', description: '管理 Site Media 交付绑定' },
+  ARCHIVE: { code: 'asset.site_media.archive', description: '归档 Site Media' },
+  TAKEDOWN: { code: 'asset.site_media.takedown', description: '下架 Site Media' },
+  DELETE: { code: 'asset.site_media.delete', description: '删除 Site Media' }
+})
+
+const assetInternal = definePermissionGroup(Modules.ASSET_SERVICE, {
+  AVATAR_RESOLVE_PUBLIC_URL: {
+    code: 'asset.internal.avatar.resolve_public_url',
+    description: '解析受控头像公开展示地址',
+    kind: PermissionKind.INTERNAL,
+    externalApiEligible: false
+  }
+})
+
+const assetSiteMediaInternal = definePermissionGroup(Modules.ASSET_SERVICE, {
+  RESOLVE: { code: 'asset.internal.site_media.resolve', description: '解析 Site 发布媒体', kind: PermissionKind.INTERNAL, externalApiEligible: false },
+  PUBLICATION_PROTECT: { code: 'asset.internal.site_media.publication.protect', description: '保护 Site 发布媒体引用', kind: PermissionKind.INTERNAL, externalApiEligible: false },
+  PUBLICATION_RELEASE: { code: 'asset.internal.site_media.publication.release', description: '释放 Site 发布媒体引用保护', kind: PermissionKind.INTERNAL, externalApiEligible: false }
+})
+
 export const PERMISSION_MANAGEMENT_PERMISSION_CODES = permissionManagement.codes
+export const PERMISSION_INTERNAL_PERMISSION_CODES = permissionInternal.codes
 export const ROLE_TEMPLATE_PERMISSION_CODES = roleTemplateManagement.codes
 export const ROLE_INSTANCE_PERMISSION_CODES = roleInstanceManagement.codes
 export const PERMISSION_ACCOUNT_SELF_PERMISSION_CODES = permissionAccountSelf.codes
 export const IDENTITY_ACCOUNT_PERMISSION_CODES = identityAccountManagement.codes
 export const IDENTITY_ACCOUNT_SELF_PERMISSION_CODES = identityAccountSelf.codes
 export const IDENTITY_MACHINE_PERMISSION_CODES = identityMachineManagement.codes
+export const IDENTITY_INTERNAL_PERMISSION_CODES = identityInternal.codes
 export const IDENTITY_TENANT_PERMISSION_CODES = {} as const
 export const TENANT_ORG_MANAGEMENT_PERMISSION_CODES = tenantOrgManagement.codes
 export const HR_MANAGEMENT_PERMISSION_CODES = hrManagement.codes
@@ -1017,6 +1083,10 @@ export const TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES = terminalDeviceManagem
 export const BROWSER_EXTENSION_DESIGNER_PERMISSION_CODES = browserExtensionDesigner.codes
 export const BROWSER_ACTIVITY_AUDIT_PERMISSION_CODES = browserActivityAudit.codes
 export const SITE_MANAGEMENT_PERMISSION_CODES = siteManagement.codes
+export const ASSET_INTERNAL_PERMISSION_CODES = assetInternal.codes
+export const ASSET_SITE_MEDIA_PERMISSION_CODES = assetSiteMedia.codes
+export const ASSET_SITE_MEDIA_INTERNAL_PERMISSION_CODES = assetSiteMediaInternal.codes
+export const SITE_MANAGEMENT_INTERNAL_PERMISSION_CODES = siteManagementInternal.codes
 
 /** DEPRECATED_PERMISSION_CODES tracks legacy permission rows that should be cleaned from local/dev seed data. */
 export const DEPRECATED_PERMISSION_CODES = [
@@ -1039,12 +1109,14 @@ export const DEPRECATED_PERMISSION_CODES = [
 /** PERMISSION_CODE_SEED_ITEMS publishes the owner-service permission catalog consumed by permission foundation sync. */
 export const PERMISSION_CODE_SEED_ITEMS: PermissionSeedItem[] = [
   ...permissionManagement.items,
+  ...permissionInternal.items,
   ...roleTemplateManagement.items,
   ...roleInstanceManagement.items,
   ...permissionAccountSelf.items,
   ...identityAccountManagement.items,
   ...identityAccountSelf.items,
   ...identityMachineManagement.items,
+  ...identityInternal.items,
   ...tenantOrgManagement.items,
   ...hrManagement.items,
   ...itemMasterManagement.items,
@@ -1067,5 +1139,6 @@ export const PERMISSION_CODE_SEED_ITEMS: PermissionSeedItem[] = [
   ...terminalDeviceManagement.items,
   ...browserExtensionDesigner.items,
   ...browserActivityAudit.items,
-  ...siteManagement.items
+  ...siteManagement.items,
+  ...assetInternal.items
 ]

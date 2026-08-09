@@ -31,10 +31,12 @@ describe('SiteRuntimeGrpcAdapter', () => {
     getService: jest.fn().mockReturnValue(runtimeService)
   }
   const metadata = { metadata: 'internal' }
-  const metadataFactory = {
-    createInternalCallMetadata: jest.fn().mockReturnValue(metadata)
+  const machineExecution = {
+    forInternalCall: jest.fn((_audience: string, _code: string, _trace: unknown, callback: (value: unknown) => unknown) =>
+      callback(metadata)
+    )
   }
-  const adapter = new SiteRuntimeGrpcAdapter(client as never, metadataFactory as never)
+  const adapter = new SiteRuntimeGrpcAdapter(client as never, machineExecution as never)
   const rawBody = Buffer.from('{"site_id":"malicious_body_site","local_publish_version":7}')
   const signedRequest = {
     method: 'POST',
@@ -48,7 +50,8 @@ describe('SiteRuntimeGrpcAdapter', () => {
       'x-oes-nonce': 'nonce_a',
       'x-oes-signature': 'v1=abc',
       'x-oes-request-id': 'request_runtime',
-      'x-oes-trace-id': 'trace_runtime'
+      'x-oes-trace-id': 'trace_runtime',
+      traceparent: '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01'
     },
     body: { site_id: 'malicious_body_site', local_publish_version: 7 },
     rawBody
@@ -93,6 +96,60 @@ describe('SiteRuntimeGrpcAdapter', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     adapter.onModuleInit()
+  })
+
+  it('uses the machine producer with the frozen audience and exact internal codes', async () => {
+    runtimeService.registerPageCapabilities.mockReturnValue(of(registrationResponse()))
+    runtimeService.getLatestPublishState.mockReturnValue(of({}))
+    runtimeService.reportSyncResult.mockReturnValue(of({}))
+    runtimeService.getPreviewView.mockReturnValue(of({}))
+
+    await adapter.registerPageCapabilities(registrationRequest(registrationBody()))
+    await adapter.getLatestPublishState(signedRequest)
+    await adapter.reportSyncResult({
+      ...signedRequest,
+      path: '/api/v1/site/sync/report',
+      body: {},
+      rawBody: Buffer.from('{}')
+    })
+    await adapter.getPreviewView({
+      ...signedRequest,
+      path: '/api/v1/site/preview',
+      body: {},
+      rawBody: Buffer.from('{}')
+    })
+
+    expect(machineExecution.forInternalCall).toHaveBeenNthCalledWith(
+      1,
+      'urn:oes:service:site-service',
+      'site.internal.runtime.capability.register',
+      expect.objectContaining({ requestId: 'request_runtime', traceparent: expect.any(String) }),
+      expect.any(Function)
+    )
+    expect(machineExecution.forInternalCall).toHaveBeenNthCalledWith(
+      2,
+      'urn:oes:service:site-service',
+      'site.internal.runtime.publication.read',
+      expect.objectContaining({ requestId: 'request_runtime', traceparent: expect.any(String) }),
+      expect.any(Function)
+    )
+    expect(machineExecution.forInternalCall).toHaveBeenNthCalledWith(
+      3,
+      'urn:oes:service:site-service',
+      'site.internal.runtime.sync.report',
+      expect.objectContaining({ requestId: 'request_runtime', traceparent: expect.any(String) }),
+      expect.any(Function)
+    )
+    expect(machineExecution.forInternalCall).toHaveBeenNthCalledWith(
+      4,
+      'urn:oes:service:site-service',
+      'site.internal.runtime.preview.read',
+      expect.objectContaining({ requestId: 'request_runtime', traceparent: expect.any(String) }),
+      expect.any(Function)
+    )
+    expect(runtimeService.registerPageCapabilities.mock.calls[0][0]).toEqual(
+      expect.objectContaining({ signedContext: expect.any(Object) })
+    )
   })
 
   it('maps latest-state requests without trusting body site_id', async () => {
@@ -222,7 +279,7 @@ describe('SiteRuntimeGrpcAdapter', () => {
       rawBody: Buffer.from(JSON.stringify(body))
     }
 
-    expect(() => adapter.registerPageCapabilities(request)).toThrow(
+    await expect(adapter.registerPageCapabilities(request)).rejects.toThrow(
       'expected_registration_generation must be a canonical uint64 decimal string'
     )
     expect(runtimeService.registerPageCapabilities).not.toHaveBeenCalled()
@@ -390,11 +447,11 @@ describe('SiteRuntimeGrpcAdapter', () => {
           ]
         })
     ]
-  ])('rejects malformed registration input: %s', (_case, makeBody) => {
+  ])('rejects malformed registration input: %s', async (_case, makeBody) => {
     const request = registrationRequest(makeBody())
     let error: unknown
     try {
-      adapter.registerPageCapabilities(request)
+      await adapter.registerPageCapabilities(request)
     } catch (caught) {
       error = caught
     }

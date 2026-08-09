@@ -1,4 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common'
+import { Observable } from 'rxjs'
+import { UploadSiteMediaRequest } from '@oes/common/generated/asset_service'
 import { SITE_SUPPORTED_LOCALE_OPTIONS } from '@oes/common/contracts'
 import { DownstreamRequestSource } from '../../common/grpc/gateway-downstream-source.mapper'
 import { VerifiedTenantTarget } from '../../common/tenant-target'
@@ -30,6 +32,14 @@ export interface SiteManagementAdminContext {
 }
 
 export interface SiteManagementDownstream {
+  uploadSiteMedia(stream: Observable<UploadSiteMediaRequest>, source: DownstreamRequestSource): Promise<unknown>
+  listAuthorizedSiteMedia(input: { siteId: string; query?: string; mediaKindFilter?: string; pageSize?: number; pageToken?: string }, source: DownstreamRequestSource): Promise<unknown>
+  prepareSiteMediaRemoteDelivery(input: { idempotencyKey: string; siteId: string; mediaHost: string }, source: DownstreamRequestSource): Promise<unknown>
+  activateSiteMediaRemoteDelivery(input: { idempotencyKey: string; siteId: string }, source: DownstreamRequestSource): Promise<unknown>
+  archiveSiteMedia(input: { idempotencyKey: string; assetId: string }, source: DownstreamRequestSource): Promise<unknown>
+  takeDownSiteMedia(input: { idempotencyKey: string; assetId: string; reasonCode: string; reasonNote?: string }, source: DownstreamRequestSource): Promise<unknown>
+  getSiteMediaDeliveryStatus(input: { assetId: string }, source: DownstreamRequestSource): Promise<unknown>
+  deleteSiteMedia(input: { idempotencyKey: string; assetId: string; deletionReason: string }, source: DownstreamRequestSource): Promise<unknown>
   listSiteCards(
     context: SiteManagementAdminContext,
     source: DownstreamRequestSource
@@ -884,6 +894,29 @@ export class SiteManagementService {
       source
     )
   }
+
+  /** uploadSiteMedia forwards the verified tenant-bound upload stream without buffering it into an HTTP body. */
+  uploadSiteMedia(stream: Observable<UploadSiteMediaRequest>, source: DownstreamRequestSource) { if (!source.user) throw new Error('verified operator context is required'); return this.downstream.uploadSiteMedia(stream, source) }
+  listAuthorizedSiteMedia(tenantId: VerifiedTenantTarget, input: { siteId: string; query?: string; mediaKindFilter?: string; pageSize?: number; pageToken?: string }, source: DownstreamRequestSource) { return this.downstream.listAuthorizedSiteMedia({ ...input, siteId: input.siteId }, source) }
+  prepareSiteMediaRemoteDelivery(tenantId: VerifiedTenantTarget, input: { idempotencyKey: string; siteId: string; mediaHost: string }, source: DownstreamRequestSource) { return this.downstream.prepareSiteMediaRemoteDelivery(input, source) }
+  activateSiteMediaRemoteDelivery(tenantId: VerifiedTenantTarget, input: { idempotencyKey: string; siteId: string }, source: DownstreamRequestSource) { return this.downstream.activateSiteMediaRemoteDelivery(input, source) }
+  async archiveSiteMedia(_tenantId: VerifiedTenantTarget, input: { siteId: string; idempotencyKey: string; assetId: string }, source: DownstreamRequestSource) { await this.assertAssetBoundToSite(input.siteId, input.assetId, source); return this.downstream.archiveSiteMedia({ idempotencyKey: input.idempotencyKey, assetId: input.assetId }, source) }
+  async takeDownSiteMedia(_tenantId: VerifiedTenantTarget, input: { siteId: string; idempotencyKey: string; assetId: string; reasonCode: string; reasonNote?: string }, source: DownstreamRequestSource) { await this.assertAssetBoundToSite(input.siteId, input.assetId, source); return this.downstream.takeDownSiteMedia({ idempotencyKey: input.idempotencyKey, assetId: input.assetId, reasonCode: input.reasonCode, reasonNote: input.reasonNote }, source) }
+  async getSiteMediaDeliveryStatus(_tenantId: VerifiedTenantTarget, siteId: string, assetId: string, source: DownstreamRequestSource) { await this.assertAssetBoundToSite(siteId, assetId, source); return this.downstream.getSiteMediaDeliveryStatus({ assetId }, source) }
+  async deleteSiteMedia(_tenantId: VerifiedTenantTarget, input: { siteId: string; idempotencyKey: string; assetId: string; deletionReason: string }, source: DownstreamRequestSource) { await this.assertAssetBoundToSite(input.siteId, input.assetId, source); return this.downstream.deleteSiteMedia({ idempotencyKey: input.idempotencyKey, assetId: input.assetId, deletionReason: input.deletionReason }, source) }
+
+  /** assertAssetBoundToSite performs the Asset-owned list lookup because Gateway never reads Asset persistence. */
+  private async assertAssetBoundToSite(siteId: string, assetId: string, source: DownstreamRequestSource): Promise<void> {
+    const response = await this.downstream.listAuthorizedSiteMedia({ siteId, query: assetId, pageSize: 1 }, source)
+    if (!hasExactAsset(response, assetId)) throw new Error('SITE_MEDIA_ASSET_SITE_BINDING_FORBIDDEN')
+  }
+}
+
+/** hasExactAsset rejects partial/foreign lookup results before a site-scoped lifecycle command proceeds. */
+function hasExactAsset(value: unknown, assetId: string): boolean {
+  if (typeof value !== 'object' || value === null || !('assets' in value)) return false
+  const assets = (value as { assets?: unknown }).assets
+  return Array.isArray(assets) && assets.some((asset) => typeof asset === 'object' && asset !== null && (asset as { assetId?: unknown }).assetId === assetId)
 }
 
 /** buildAdminContext maps gateway identity and trace inputs into the site-service Admin context contract. */

@@ -88,6 +88,57 @@ P1 稳定规则：
 - `siteId`、resource id 与合法 `targetTenantId` 是业务目标，不是身份来源；application 层始终加载 Site ownership 并与可信 tenant 比较。
 - SYSTEM principal 当前不能绕过 Site Management P1 的 TENANT 边界。未来平台跨租户操作必须通过专用 BUSINESS RPC、平台 Permission Code、目标 tenant 与高风险审计另行冻结。
 
+#### 2.2.2 Frozen Admin RPC Authorization Map
+
+`SiteAdminManagementService` 的 59 个 RPC 全部使用 `BUSINESS` mode，且每个 RPC 只声明一个 Code。稳定映射如下；分组中的 RPC 数量总和必须保持为 59，新增或改名必须先更新本真相源与对应 contract。
+
+| Permission Code | RPCs |
+| --- | --- |
+| `site.management.read` | `ListSiteCards`, `ListSitePages`, `GetPendingSyncSummary`, `ListPendingSyncResources`, `ListSyncHistory`, `GetSyncDetail` |
+| `site.management.manage` | `CreateSite`, `UpdateSiteSettings`, `DisableSite`, `UpdateSitePageGovernance` |
+| `site.management.locale.manage` | `AddPreparingLocale`, `CheckLocaleCompleteness`, `ActivateLocale`, `DisableLocale` |
+| `site.management.product.manage` | `ListSiteCategories`, `CreateSiteCategory`, `UpdateSiteCategory`, `UnpublishSiteCategory`, `ListSiteProducts`, `SearchProductMasterForAdd`, `GetSiteProductPublication`, `AddProductsToSite`, `UpdateSiteProductPublication`, `UnpublishSiteProduct` |
+| `site.management.content.manage` | `ListSiteContents`, `GetSiteContent`, `CreateSiteContent`, `UpdateSiteContentLocaleVersion`, `UnpublishSiteContent`, `ListContentCategories`, `GetContentCategory`, `CreateContentCategory`, `UpdateContentCategoryLocaleVersion`, `PublishContentCategoryLocale`, `ReorderContentCategories`, `DeleteContentCategory`, `ListVisibleContentCategories`, `CheckContentCategoryCompleteness`, `ListContentCategoryUsage`, `ListFaqCategories`, `GetFaqCategory`, `CreateFaqCategory`, `UpdateFaqCategoryLocaleVersion`, `DisableFaqCategory`, `ListFaqEntries`, `GetFaqEntry`, `CreateFaqEntry`, `UpdateFaqEntryLocaleVersion`, `UnpublishFaqEntry`, `CheckFaqCompleteness` |
+| `site.management.sync` | `SyncAllPendingChanges`, `RetryLastSync`, `ResendWebhook` |
+| `site.management.credential.manage` | `ListSiteCredentials`, `GenerateSiteCredential`, `RotateSiteCredential`, `RevokeSiteCredential` |
+| `site.management.audit.read` | `ListSiteAuditLogs` |
+| `site.management.preview` | `IssuePreviewToken` |
+
+Admin request identity migration is destructive and fail-closed rather than dual-read:
+
+- The 57 request messages whose field `1` is `AdminRequestContext context` remove that field and declare both `reserved 1;` and `reserved "context";`.
+- `ListSiteCardsRequest` removes and reserves numbers `1, 2, 3` and names `tenant_id`, `operator_id`, `trace_id`.
+- `CreateSiteRequest` removes and reserves numbers `1, 2, 3, 4` and names `tenant_id`, `org_id`, `operator_id`, `trace_id`; its business fields retain their existing numbers beginning at `5`.
+- `AdminRequestContext` is removed after references reach zero. Response and audit `operator_id` facts remain, but the service derives them from the verified execution principal rather than request body.
+- Controllers translate immutable `TrustedExecutionContext` facts into application input. They never pass Token text, metadata, certificate data or body identity into domain code.
+
+#### 2.2.3 Frozen Runtime RPC Authorization And Root Composition
+
+`SiteRuntimeSyncService` uses exactly these `INTERNAL` declarations:
+
+| Permission Code | RPCs |
+| --- | --- |
+| `site.internal.runtime.capability.register` | `RegisterPageCapabilities` |
+| `site.internal.runtime.publication.read` | `GetLatestPublishState`, `ListChangedResources`, `BatchGetPublicViews`, `GetSnapshot` |
+| `site.internal.runtime.sync.report` | `ReportSyncResult` |
+| `site.internal.runtime.preview.read` | `GetPreviewView` |
+
+The complete Runtime ingress proof is intentionally two-layered:
+
+```text
+Site Runtime SignedSiteContext
+  -> Gateway verifies the external request admission
+  -> Gateway uses its existing MACHINE/workload source credential
+  -> Auth / STS issues aud=site-service INTERNAL ExecutionToken
+  -> Site verifies mTLS + ExecutionToken
+  -> Site independently verifies SignedSiteContext HMAC, nonce, time, method, path and body hash
+```
+
+- The Gateway credential is the existing Auth-owned, current-certificate-bound `MachineWorkloadSourceCredential`: at most 15 minutes, no refresh, and held only through the Common opaque transport-private handle. This Site slice does not add another credential profile or bearer propagation seam.
+- The credential may be reused within its validity, while every external request still receives an isolated AsyncLocal source-credential scope. A cache hit remains admissible only while the current source credential is present and valid.
+- `SignedSiteContext` proves which external Site Runtime request was admitted. It remains request data for independent HMAC verification and never becomes tenant, principal, workload or Permission authority.
+- The MACHINE ExecutionToken proves the internal Gateway workload and exact Runtime RPC authorization. It does not replace the HMAC proof, and the HMAC proof does not authorize the internal gRPC call.
+
 ### 2.3 Frozen Dynamic Slug Ownership
 
 `site-service` 在自身边界内维护轻量的 dynamic slug reservation / history ledger，作为 OES-owned 动态资源 URL 所有权的唯一真相。它是内部领域与持久化机制，不是独立 `slug-service`，也不是供运营人员维护任意跳转规则的 Redirect Manager。
@@ -854,7 +905,7 @@ Sales / Order / Pricing / WMS / CRM services
 - `@oes/site-runtime-kit`
 - Site Runtime backend
 
-具体 HTTP / gRPC / event contracts 后续在 `docs/contracts/**` 中冻结。
+具体 HTTP / gRPC / event 黑盒契约以 `docs/contracts/**` 为准；已冻结的 Site Media 与 Asset event contract 不得由实现重新定义，尚未列入 contract 的新 surface 仍须先冻结。
 
 `site-service` 不直接面向公网暴露 Site Runtime API。外部 Site Runtime 必须通过 `api-gateway` 的 Site-facing BFF / Site API 访问 OES。
 

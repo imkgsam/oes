@@ -13,7 +13,7 @@ architectureTruthSource: docs/architecture/services/permission-service.md
 - `HUMAN` principal 通过已验证账号 / session identity 参与角色与 policy 判定。
 - `MACHINE` principal 引用 Identity Service 拥有的 Machine Principal，不创建伪用户账号。
 - `DELEGATED` 不是可长期绑定角色的独立主体；其结果由 HUMAN grant、delegation 与 agent/tool upper bound 共同约束。
-- Delegation credential 和 ActionGrant 均不归 Permission Service 签发；Permission 只返回可信 delegation reference、ToolContract 上限和目标 policy 的交集判定。
+- Delegation credential 和 ActionGrant 均不归 Permission Service 签发；principal issuance decision 只返回 HUMAN grant、可信 delegation reference 与 ToolContract Code 上限的交集，具体 operation / target / resource policy 由独立 delegated authorization 与目标服务继续判定。
 - `PrincipalRoleBinding` 是 HUMAN / MACHINE 与 Role instance 的通用绑定事实，至少包含 principal type / id、role、scopeLevel、tenant、effective / expiry 与审计关联。
 - SYSTEM binding 只能指向 `SYSTEM_INSTANCE` 且 tenant 为空；TENANT binding 只能指向同 tenant `TENANT_INSTANCE`。
 
@@ -48,36 +48,50 @@ architectureTruthSource: docs/architecture/services/permission-service.md
 
 ## 3. ResolvePrincipalAuthorization
 
-该黑盒判定供 Gateway guard、Auth / STS 与受保护 application capability 使用。逻辑输入包括：
+该黑盒判定只供 Auth / STS 在签发 BUSINESS ExecutionToken 前取得独立 principal authorization upper bound。Gateway guard 继续使用 tenant-aware 入口门禁，目标 application 继续使用 `checkResource / buildQueryScope` 与 domain rule；二者不得把本 RPC 扩展为通用在线授权入口。
+
+调用信任固定为：
+
+- 直接 caller 必须是平台 mTLS / SPIFFE transport 已验证的准确 `auth-service` workload；
+- caller 必须同时提交 `aud=permission-service`、绑定当前 Auth mTLS 叶证书且含精确 INTERNAL Code `permission.internal.principal_authorization.resolve` 的 ExecutionToken；
+- 该 INTERNAL Code 只允许由准确 Auth workload -> Permission audience 的 `ResolveWorkloadIssuance` policy 批准，不进入 HUMAN / MACHINE role，也不接受 wildcard workload policy。
+
+逻辑输入包括：
 
 - trusted principal reference 与 type；
 - trusted scopeLevel、tenant / org；
-- requested Permission Code 集；
-- action / resource type 与服务拥有的最小 resource facts（如需要）；
-- delegation / session security reference（如适用）。
-- DELEGATED 时的 trusted delegation reference、AgentPrincipal / ToolContract identity and version、operation class 与 target resource facts。
+- 一个精确 target service audience；
+- 非空、去重并规范排序的 requested BUSINESS Permission Code 集；
+- session / security reference（如适用）；
+- DELEGATED 时的 trusted human account、delegation reference、AgentPrincipal 与 ToolContract identity / version。
+
+输入不包含 role id、admin flag、caller-computed granted set、target RPC id、action / resource type、业务 resource facts 或 domain state。DELEGATED 的 Token issuance upper bound 只约束可签入 Token 的 Code；operation risk class、具体 target/input、resource policy 与 ActionGrant 仍由后续 delegated authorization / target-service contract 执行。SELF_SERVICE 不调用本 RPC。
 
 稳定输出包括：
 
 - `allowed`；
 - 精确 granted / denied Code；
-- scope / tenant decision；
+- principal type / reference、scope / tenant / org、target audience 与 requested Code 的 decision binding；
 - policy / grant decision reference 与 `authzVersion`；
 - 可安全审计的 reason category。
 
 调用方提供的 principal id、tenant 或 subject facts 必须与可信执行上下文及 owner facts 绑定；自由 DTO 中的 subject facts 不能建立或提升授权。Permission Service 不接受“调用方已判断用户是管理员”作为事实。
 
-`all` 要求全部 Code 获准；`any` 只用于多个 Code 对同一动作均构成充分授权。body 值选择不同状态跃迁时，调用方必须拆 command 或在 application 层按目标动作检查，不能用一个宽泛 `any` 放行。
+该 MACHINE source credential/resolver chain 当前为 `FROZEN_PENDING_IMPLEMENTATION`。实现完成后，对 MACHINE，Auth 调用本 RPC 前必须已经验证 Auth-owned `MachineWorkloadSourceCredential` 的 profile/signature/lifetime/revocation 与当前 SPIFFE/leaf binding，并取得 Identity `ResolveMachinePrincipalForAuth` 对 active principal、scope、tenant/org、`MachineWorkloadBinding` reference/version 的 allowed owner decision。Permission 只消费该 typed owner result 并计算 MACHINE BUSINESS grant；不接收 raw source credential、leaf certificate、SPIFFE-to-principal mapping 或 caller-computed grant。Identity decision 缺失、stale、mismatch 或不可用时不得进入本 RPC 或签名。
+
+该 RPC 固定采用全量申请语义，不接受 caller-selectable `all / any`：只有全部 requested Code 当前存在、`kind=BUSINESS`、适用于 principal/scope 且通过 grant / policy upper bound 时 `allowed=true`。任一未知、不可分配、denied、mixed-kind、tenant/scope/audience/delegation mismatch 或依赖不可用都使整体 `allowed=false`；Permission 可以返回 granted / denied 明细供审计，但 Auth 不得部分签发。
 
 ## 4. ResolveWorkloadIssuance
 
 该判定供 Auth / STS 决定一个已验证 workload 能否为指定 target audience 申请 INTERNAL Code。
 
+本 RPC 是 ExecutionToken 发证控制面唯一不预先要求 ExecutionToken 的 bootstrap authorization primitive。它仍要求平台 mTLS / SPIFFE transport 注入的可信 `VerifiedWorkloadIdentity`，且直接 caller 必须是环境注册的准确 `auth-service` workload。该 method-specific bootstrap trust policy 不是 Permission Code、Role grant、Bearer credential 或通用服务白名单；其他 workload、其他 Permission RPC、service-name header、网络位置与 wildcard policy 都不能复用它。
+
 逻辑输入包括：
 
-- verified caller workload identity；
+- Auth 从当前 exchange context 独立验证的 original caller workload identity；
 - target audience；
-- requested INTERNAL Code 集；
+- 非空、去重并规范排序的 requested INTERNAL Code 集；
 - execution tenant / org 与 principal attribution；
 - issuance policy version。
 
@@ -86,7 +100,9 @@ architectureTruthSource: docs/architecture/services/permission-service.md
 - 每个 requested Code 必须 `kind=INTERNAL`，并由 policy 明确允许 caller workload -> target audience -> Code。
 - 默认拒绝；网络位置、service name header、同一集群或 HUMAN 业务权限都不能推导 INTERNAL grant。
 - policy 只允许申请技术原语，不得把独立业务审批、删除、资金承诺或重要状态跃迁伪装为 INTERNAL。
-- 判定不签发 Token；Auth / STS 消费 decision 后签发并绑定 `aud / client_id / cnf`。
+- 只有全部 requested Code 获准时 `allowed=true`；任一未知、非 INTERNAL、denied、部分批准、workload/audience/tenant mismatch、stale policy version 或依赖不可用都整体拒绝，Auth 不做部分签发。
+- 输出绑定 original workload、target audience、tenant / org attribution 与 requested / granted / denied Code，并返回安全 reason category、decision reference 与 `authzVersion`。
+- 判定不签发 Token；Auth / STS 消费 decision 后签发并绑定 `aud / client_id / cnf`。Permission 不接收或记录 source credential / bearer 正文。
 
 ### 4.1 ResolveExternalMachineAuthorizationSnapshot
 
@@ -119,6 +135,7 @@ Gateway HTTP `RequirePermissions` 保留。它与目标 gRPC BUSINESS authorizat
 - Robot template 不带 grant；安装后创建的 tenant principal 独立授权、撤销和审计。
 - 个人创建的定时任务若需代表用户，必须使用有时效、有上限的 delegation，不把创建者当前全部角色复制给 MACHINE。
 - 外部 Integration 固定为每 tenant 一个 Machine Principal；Marketplace、共享 App principal 与跨 tenant installation model 已取消。
+- 第一方 Cron、Robot、worker 的 root MACHINE authentication 使用 Auth-owned 短期 `MachineWorkloadSourceCredential` + current mTLS workload/certificate binding + Identity-owned `MachineWorkloadBinding` resolution；它与 external API Key path 完全分离。上述认证链不授予 BUSINESS/INTERNAL Code，仍分别依赖本契约的 principal/workload decision。
 
 ## 7. Stable Error Categories
 
@@ -127,11 +144,15 @@ Gateway HTTP `RequirePermissions` 保留。它与目标 gRPC BUSINESS authorizat
 - `AUTHORIZATION_SCOPE_MISMATCH`
 - `AUTHORIZATION_TENANT_MISMATCH`
 - `AUTHORIZATION_PERMISSION_UNKNOWN`
+- `AUTHORIZATION_PERMISSION_KIND_MISMATCH`
 - `AUTHORIZATION_PERMISSION_NOT_ASSIGNABLE`
 - `AUTHORIZATION_PERMISSION_DENIED`
 - `AUTHORIZATION_DELEGATION_DENIED`
+- `AUTHORIZATION_CALLER_WORKLOAD_UNTRUSTED`
+- `AUTHORIZATION_TARGET_AUDIENCE_INVALID`
+- `AUTHORIZATION_DECISION_BINDING_MISMATCH`
 - `AUTHORIZATION_WORKLOAD_POLICY_DENIED`
-- `AUTHORIZATION_RESOURCE_FACTS_INVALID`
+- `AUTHORIZATION_DEPENDENCY_UNAVAILABLE`
 
 ## 8. Acceptance
 
@@ -150,3 +171,9 @@ Gateway HTTP `RequirePermissions` 保留。它与目标 gRPC BUSINESS authorizat
 13. AccountRole backfill 与任何回退前都证明 binding 数、有效授权、access summary 与审计关联一致；旧模型无法表示的新 MACHINE 或多段历史写入不允许伪造性回退。
 14. An external machine snapshot returns only currently effective, externally eligible BUSINESS Codes; it never returns INTERNAL Code, a role graph, a Gateway route catalogue, a credential secret or a resource authorization result.
 15. Only the verified Auth workload with `permission.internal.external_machine.snapshot.resolve` can obtain a snapshot; missing trust, tenant mismatch, empty/invalid scope or dependency failure produces `allowed=false` or transport denial and Auth issues no external Token.
+16. `ResolveWorkloadIssuance` accepts no pre-existing ExecutionToken, but only the exact transport-verified `auth-service` mTLS identity can call that exact method; another valid workload certificate, a header identity or a call to another Permission RPC is denied.
+17. `ResolvePrincipalAuthorization` requires both the exact Auth mTLS identity and a certificate-bound `aud=permission-service` ExecutionToken carrying only `permission.internal.principal_authorization.resolve`.
+18. BUSINESS and INTERNAL issuance decisions allow only when every canonical requested Code is granted; unknown, mixed-kind, partial or mismatched decisions cause no Token signing.
+19. `ResolvePrincipalAuthorization` does not accept resource facts, domain state or caller-derived roles; SELF_SERVICE and concrete resource/domain authorization remain at their existing target-service boundaries.
+20. A successful or denied issuance decision binds principal/workload, scope, tenant/org, audience, exact Code set, decision reference and `authzVersion`, and its audit contains no source credential or Token plaintext.
+21. MACHINE BUSINESS decision only consumes the active principal/scope/tenant owner result produced after Auth source-credential and Identity binding verification; Permission never parses that credential, resolves SPIFFE identity or substitutes external API-key/hardcoded root mapping.

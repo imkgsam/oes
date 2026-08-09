@@ -1,0 +1,2 @@
+import { PrismaMachineWorkloadBindingRepository } from '../../src/infrastructure/repositories/prisma/prisma.machine-workload-binding.repository'
+describe('PrismaMachineWorkloadBindingRepository', () => { it('maps an exact binding', async () => { const r = new PrismaMachineWorkloadBindingRepository({ machineWorkloadBinding: { findUnique: jest.fn().mockResolvedValue({ id:'b',serviceAccountId:'m',workloadSpiffeId:'spiffe://x',status:'ACTIVE',version:1n }) } } as any); await expect(r.findById('b')).resolves.toMatchObject({ id:'b',version:1n }) }) })

@@ -38,6 +38,7 @@
 - service-to-service 执行凭据真相：
   - STS token exchange
   - 短期 ExecutionToken 签发、issuer、audience、TTL 与 key rotation
+  - 内部 `MachineWorkloadSourceCredential` 的 profile、受控登记/签发、验证、过期、撤销与认证审计
   - workload issuance policy 的认证执行
   - ExecutionToken 紧急撤销版本 / deny fact
 - DELEGATED execution credential 真相：
@@ -80,7 +81,7 @@
 - 当前用户可用 account context 列表与 account 展示摘要真相；这些归属 `identity-service`。
 - tenant lifecycle 与 org tree 真相；这些以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准。
 - 角色、权限、policy、授权判定、权限摘要与导航授权真相；这些以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。
-- Machine Principal identity、类型、scope 与 lifecycle；这些归属 `identity-service`。API Key 是 `auth-service` 拥有的 credential，不是机器主体。
+- Machine Principal identity、类型、scope、tenant、lifecycle 与 `MachineWorkloadBinding`；这些归属 `identity-service`。API Key 与内部 `MachineWorkloadSourceCredential` 是 `auth-service` 拥有的两类不同 credential，都不是机器主体。
 - 通知模板、渠道、provider、投递任务、投递状态、回执与成本治理真相；这些归属 `notification-service`。
 - API Gateway / BFF 的 HTTP contract、前端响应聚合形状、captcha 校验与前端 shell 状态。
 - 企业受管共享终端设备 registry、绑定租户、设备禁用、丢失、版本策略或设备运行快照真相；这些归属 `terminal-device-service`。
@@ -228,20 +229,54 @@ Auth records the security decision, trigger source, selector kind/reference, mon
 - Credential expiry defaults to one year. A 90-day age is a rotation-health signal, not an automatic outage; tenant security policy may impose a shorter lifetime. Expiry never extends by use.
 - External callers never receive an internal `ExecutionToken`. They receive the Gateway-only short-lived external access token defined by the HTTP contract; Gateway exchanges trusted external context for target-audience ExecutionTokens only on its internal mTLS hop.
 
-#### 7.1.3 Delegation And ActionGrant
+#### 7.1.3 Internal Machine Workload Source Credential
+
+实现状态：`FROZEN_PENDING_IMPLEMENTATION`。本节冻结目标行为和 owner 边界，不表示 source-credential profile、enrollment/verifier/revocation runtime、Identity resolver、proto 或 Common Code 已存在。
+
+`MachineWorkloadSourceCredential` 只用于没有入站 HUMAN/session 或上游 ExecutionToken 的第一方 Cron、Robot、worker 建立 root MACHINE execution。它是 Auth 签名、绑定当前 workload certificate 的独立短期 JWS profile，不是 ExecutionToken、外部 API Key、Gateway external token、Permission grant 或可复用 refresh token；它不携带 Permission Code，也不开放外部 HTTP/API Key 入口。
+
+稳定规则：
+
+- Auth 独占该 credential 的 profile、受控登记/签发、验证、expiry、revocation 与认证域审计。首次签发只能发生在 Identity 已存在 active Machine Principal 与 active `MachineWorkloadBinding` 之后；后续只能受控重新签发，不存在 refresh token 或静默续期。
+- credential 最长有效 15 分钟，且 `exp` 绝不能晚于签发时所绑定 mTLS leaf certificate 的 `notAfter`。证书轮换后必须重新取得绑定新 leaf 的 credential，旧 credential 不能跨证书使用。
+- 签发使用的 `certificateNotAfter` 只能由 Common `GrpcWorkloadIdentityProvider` 从产生当前 leaf thumbprint 的同一份 transport-verified certificate DER 解析，并以 `Date` 作为该 provider 返回值的 issuance-only 结构扩展交给 Auth；request、metadata、environment 或 caller configuration 都不能提供或覆盖该事实。DER 无法解析、`notAfter` 无效或在解析时已到期时，transport identity resolution 必须 fail closed。通用 `VerifiedWorkloadIdentity` 继续只包含 SPIFFE ID 与 thumbprint，不把证书寿命扩散为所有 ExecutionToken verifier 的输入。
+- 实现完成后，credential 通过既有 mTLS-protected `ExchangeExecutionToken` transport-private `authorization: Bearer ...` carrier 提交。Common 只传递 opaque value；不得解析 profile、principal、tenant、binding 或 Permission，也不得把 bearer 放入 `TrustedExecutionContext`、业务 DTO、日志或审计。
+- Auth 在 Permission 查询或签名前先验证专用 profile、issuer、签名、时效、撤销状态以及不可歧义的 Machine Principal / binding reference；随后要求 credential 中的 workload SPIFFE ID 等于当前 `VerifiedWorkloadIdentity.spiffeId`，certificate binding 等于当前 leaf certificate SHA-256 thumbprint。
+- Auth 实现完成后再通过 Identity 既有 `IdentityQueryService` surface 上待新增的 Auth-only `ResolveMachinePrincipalForAuth` 取得 owner decision。该调用使用 Auth 自身 verified mTLS identity、`aud=identity-service` 的 certificate-bound INTERNAL ExecutionToken 与 `identity.internal.machine_principal.resolve`；该 INTERNAL Token 仍由 Permission `ResolveWorkloadIssuance` 的唯一 bootstrap policy 签发，因此不为 MACHINE credential verification 增加第二个 mTLS-only 例外。
+- Identity decision 必须确认 Machine Principal active、type/scope/tenant 与适用 org reference 有效，credential reference 唯一对应同一 active binding，且 binding 的 SPIFFE ID 与版本匹配。Auth 只从该 owner decision 派生 ExecutionToken 的 `sub`、`principal_type=MACHINE`、scope、tenant/org；caller 或 credential 中重复的主体字段不能覆盖 owner facts。
+- 完成认证后，BUSINESS Code 仍调用 `ResolvePrincipalAuthorization`；INTERNAL Code 仍调用 `ResolveWorkloadIssuance`。Auth 不从 credential 构造 Permission grant，也不读取 Identity/Permission storage。
+- credential revoke、Machine Principal disable 或 binding disable/stale 会立即阻止新的 STS exchange；已签发 ExecutionToken 在普通情况下按现有 5 分钟最大 TTL 收敛。需要更快阻断时复用 DG-2 的 `CREDENTIAL`、`PRINCIPAL` 或 `MINIMUM_AUTHZ_VERSION` selector，不建立 MACHINE 专用 emergency revocation 系统。
+- 任何 profile、signature、expiry、revocation、principal、scope、tenant、SPIFFE、binding version、leaf thumbprint 或 owner dependency mismatch 都在 Permission lookup 与签名前 fail closed；Auth 审计只记录 opaque credential/binding reference 与安全 reason category，不记录 bearer 正文。
+
+精确管理与发证边界冻结为：
+
+- Auth 在独立 `machine_workload_source_credential.proto` 中拥有 `MachineWorkloadSourceCredentialService`，只提供 `IssueMachineWorkloadSourceCredential` 与 `RevokeMachineWorkloadSourceCredential`；initial issuance 与 reissuance 共用 Issue，不增加 refresh/list/reveal RPC。
+- Issue 由当前 workload 本身通过 mTLS 调用，并只接受 principal reference、binding reference 与 exact binding version。mTLS 本身不授权；Auth 必须在签名前得到 Identity 对当前 SPIFFE + active binding 的 allowed owner decision。
+- Revoke 是正常 ExecutionToken-protected BUSINESS management RPC，只允许获得 `auth.machine_workload_source_credential.revoke` 的 HUMAN 或受控 SYSTEM MACHINE；Identity binding enroll/disable 使用 `identity.machine.workload_binding.manage`。
+- Source credential 复用既有 protected ES256 signer / issuer / JWKS lifecycle，但使用 strict `typ=oes-machine-source+jwt`、`aud=urn:oes:service:auth-service`、`sub=machine principal id`、`client_id=SPIFFE ID`、`cnf.x5t#S256=current leaf`、binding reference/version 与 `profile_version=1`。它不包含 tenant/org、Permission Code、role/grant 或 caller-selected lifetime。
+- Auth 只持久化 non-secret credential record，不持久化 bearer JWS。每个 binding 同时最多一个 active credential；reissue 在同一 transaction 中 supersede 旧记录，因而证书轮换后旧 credential 立即失去新 exchange 资格。
+- issue/reissue/revoke state 与既有 Auth-local `AuditEvent` 在同一 database transaction 中持久化；verification success/denial 也记录 safe category。audit 或 owner dependency 不可用时不返回 credential 或签发 ExecutionToken。
+
+精确 wire field number、Prisma constraint、reason mapping 与 acceptance 以 [machine-workload-source-credential.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/machine-workload-source-credential.md) 为准；其他文档不得创建第二份 profile 或 schema 定义。
+
+黑盒 credential 规则以 [machine-workload-source-credential.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/machine-workload-source-credential.md) 为准；Identity owner resolution 以 [machine-principal-resolution.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/identity-service/machine-principal-resolution.md) 为准。
+
+#### 7.1.4 Delegation And ActionGrant
 
 `DelegationGrant` 与 `ActionGrant` 是认证域凭据，不是 role、业务审批或业务操作本身。
 
 稳定规则：
 
 - `DelegationGrant` 只能由已验证 HUMAN 明确创建，必须绑定 human principal、tenant / org、受控 AgentPrincipal、ToolContract 版本、允许的 operation / Permission Code 上限、最晚失效时间与审计关联；它不能创建独立的 DELEGATED role。
-- 授权默认短时、可撤销且不可静默续期；到期、用户撤销、human session / principal 失效、tenant 不可用或有效授权不再满足时，后续 delegation 和 ActionGrant 签发必须失败。长期无人值守自动化使用单独的 MACHINE principal 与流程授权，不复用 HUMAN delegation。
-- `ActionGrant` 只能在有效 delegation、Permission 的交集判定、明确的用户确认以及适用时的 step-up 完成后签发。它是短时、单一目标服务、单一 operation、单一 target 与单一 canonical input digest 的一次性凭据。
-- `ActionGrant` 不替代目标服务的状态机、审批分离、金额阈值、资源授权或 command idempotency。目标服务在自己的事务中记录唯一的消费事实并写入业务结果；Auth 不跨服务共享数据库或接管业务提交。
+- 每个用户指令创建一个 bounded AI Run 与 fresh Run-bound `DelegationGrant`；Conversation 只保留上下文。授权默认短时、可撤销且不可静默续期；Run 完成/停止/过期、用户撤销、human session / principal 失效、tenant 不可用或有效授权不再满足时，后续 delegation 和 ActionGrant 签发必须失败。长期无人值守自动化使用单独的 MACHINE principal 与流程授权，不复用 HUMAN delegation。
+- Auth 在创建 delegation 或请求 DELEGATED issuance 前，从 Identity owner contract 取得 active AgentPrincipal fact、从 AI Platform owner contract 取得 active ToolContract identity/version 与 operation upper bound，并与当前 HUMAN/session 和 Auth-owned DelegationGrant 形成固定可信 upper-bound snapshot/reference 交给 Permission。Auth 不读取 AI registration JSON；Permission 不反向查询 Auth storage，因此调用链不得形成 Permission -> Auth -> Permission 同步循环。
+- `ActionGrant` 只能在有效 delegation、Permission 的交集判定、业务 owner 返回的 canonical action facts/effective risk class/policy version、明确的用户确认以及适用时的 step-up 完成后签发。AI Platform 展示确认，Auth 独占不可变 HUMAN confirmation evidence；caller 或 AI 字段不能自报确认、风险或 target facts。
+- 一次确认和一个 `ActionGrant` 只覆盖一个 owner-defined business action，而不是一个技术 RPC 或任意 batch。它是短时、单一目标服务、单一 operation、单一 target、单一 canonical input digest 与 owner policy version 的一次性凭据。
+- `ActionGrant` 不替代目标服务的状态机、审批分离、金额阈值、资源授权或 command idempotency。目标服务在自己的事务中分别记录 business idempotency receipt 与每个 JTI consumption，并写入业务结果；相同 descriptor 的 replacement JTI 可绑定既有结果，但不能产生第二次写入。Auth 不跨服务共享数据库或接管业务提交。
 - 用于 `ActionGrant` 的签名、issuer、audience 与 workload binding 必须使用 DG-1 冻结的 JWS / mTLS 互操作规则；不得引入第二套签名体系、共享 Bearer pool 或 body identity fallback。
 - 密码、MFA、recovery code、session、API Key、role / permission / policy、delegation 自身、审计记录和 AI 自己结果的批准属于 AI 永久禁止操作。精确规则以 [delegated-execution-and-action-grant.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/delegated-execution-and-action-grant.md) 为准。
 
-#### 7.1.4 Cryptography, Registry And Rotation
+#### 7.1.5 Cryptography, Registry And Rotation
 
 `auth-service` owns ExecutionToken issuer configuration, signing-key lifecycle, JWKS publication and the controlled registry of service audiences and permitted workload identities. Deployment owns the CA, trust bundle and workload certificate issuance; business services do not own any part of this registry or key material.
 
@@ -252,7 +287,7 @@ Auth records the security decision, trigger source, selector kind/reference, mon
 - Tokens carry `client_id` equal to the verified SPIFFE ID and `cnf.x5t#S256` equal to the presenting workload's current mTLS leaf certificate. Auth exchanges a new Token after certificate rotation; the Token cache key includes that certificate binding.
 - Production workload leaf certificates have a maximum 24-hour lifetime and renew automatically before two thirds of their lifetime. Local uses a separate trust domain, CA, issuer and signing key, but exercises the same mTLS, JWKS and rotation protocol.
 
-#### 7.1.5 ExecutionToken runtime binding and publication
+#### 7.1.6 ExecutionToken runtime binding and publication
 
 `auth-service` owns the runtime composition that exposes its frozen ExecutionToken contract. The generated `ExecutionTokenService` is mounted on the existing Auth gRPC host and serves both `ExchangeExecutionToken` and `GetExecutionTokenJwks`; an HTTP metadata controller without that generated gRPC mapping is incomplete. Exchange maps only its declared target / Code request and consumes workload identity plus execution facts injected by the trusted Common transport runtime, never caller-supplied identity DTO fields.
 
@@ -262,7 +297,7 @@ The only production signing composition is `KmsHsmExecutionTokenClient` through 
 
 Local security integration uses the same port against a KMS/HSM-compatible protected test boundary with a non-exportable test key identified only by an opaque reference. A fake signer is limited to an isolated unit-test module. When the protected signer is unavailable, new exchange fails closed; resource services may only continue validating with already trusted cached JWKS and unexpired Tokens.
 
-#### 7.1.6 Protected signing provider ownership and bootstrap
+#### 7.1.7 Protected signing provider ownership and bootstrap
 
 Auth owns the composition and startup health of one protected signing provider, while deployment owns the provider implementation, KMS/HSM tenancy and credential-delivery mechanism. The provider receives an opaque signing-key reference and, only when workload identity cannot authenticate directly, an opaque credential reference resolved inside the infrastructure provider. Neither reference is a private key, and no resolved key material may cross into application/domain services, ordinary Nest config, logs or diagnostics.
 
@@ -270,7 +305,7 @@ The mandatory runtime configuration is: exact issuer, absolute JWKS URI, opaque 
 
 The issuer authority must terminate TLS itself or through an approved proxy that forwards only the metadata/JWKS routes over an authenticated local channel to Auth. A plain application HTTP listener or arbitrary Host-header routing is insufficient. After readiness, a protected-signing outage rejects new exchange; it does not cause resource services to bypass cached-JWKS local validation. Local integration uses the same preflight against a KMS/HSM-compatible non-exportable test key boundary; unit fakes never satisfy readiness outside their isolated test module.
 
-#### 7.1.7 Executable signer-agent asset
+#### 7.1.8 Executable signer-agent asset
 
 The executable protected provider is `execution-token-signer-agent`, a per-Auth-workload deployment sidecar owned by the existing EXEC-CRYPTO capability. It is the existing Auth-local protected-crypto process and is not an Auth business service: it has no public ingress, tenant state, business database or public OES API. Auth owns the repository client/adapter under `src/services/system/auth-service/src/infrastructure/execution-token-signer/**`; Deployment/SRE owns the paired Go static binary at `docker/grpc-trust/execution-token-signer/cmd/agent/**`, its local `go.mod`, image, local HSM harness, socket mount and PKCS#11 module binding. DG-3 reuses this process rather than adding a second sidecar or public service; its historical executable/path name is retained in this capability to avoid an unrelated EXEC-CRYPTO migration.
 
@@ -278,7 +313,7 @@ Auth connects only through the required pod-local `AUTH_EXECUTION_SIGNER_SOCKET_
 
 Signer-agent preflight is part of Auth readiness: socket identity/permission, active and overlap JWKs, rotation timeline, requested published `kid`, and a sign/verify challenge must all succeed. Missing sidecar, TCP/DNS endpoint substitution, unmounted PKCS#11 backend, reference mismatch, or failed preflight prevents exchange/JWKS serving. Local security integration runs the actual sidecar and non-exportable test key; isolated unit fakes remain unit-test-only.
 
-#### 7.1.8 PKCS#11 key selection, rotation and credential lease
+#### 7.1.9 PKCS#11 key selection, rotation and credential lease
 
 The configured signing-key reference is exactly one RFC 7512 PKCS#11 URI. It pins the token serial, private-key `CKA_ID` (`id`) and `type=private`; Auth never selects a slot, object or key from a request. The agent resolves the matching P-256 public key using that same token serial and `CKA_ID`, requires the private key to be non-extractable, derives its ES256 public JWK, and derives `kid` as the RFC 7638 SHA-256 JWK thumbprint. A retired `kid` can never return to the published set.
 
@@ -286,7 +321,7 @@ Deployment/SRE owns the read-only rotation manifest at `docker/grpc-trust/execut
 
 The normal provider credential is workload identity. If the backend requires a separate credential, deployment gives only the agent an opaque reference resolved through its secret broker; Auth never sees a PIN, resolved credential, private key or raw PKCS#11 handle. The agent logs in as `CKU_USER` only for the configured token/slot, maintains a leased session, refreshes it before expiry, and zeroizes, logs out, closes and fails closed on credential/session refresh failure. The approved local protected integration asset is SoftHSM2 at `docker/grpc-trust/execution-token-signer/local/softhsm2/**`: it generates a sensitive, non-extractable P-256 key inside its token and mounts token state/PIN only as a permission-restricted agent secret file. An actual agent-over-UDS integration test, not a fake signer, must prove export refusal, manifest mismatch, credential-lease failure, unavailable agent/HSM failure, signing verification and key rotation.
 
-#### 7.1.9 Protected external API-key verifier provider
+#### 7.1.10 Protected external API-key verifier provider
 
 Auth owns API-key verifier semantics and the application port; Deployment/EXEC-CRYPTO owns the protected provider asset, HMAC key lifecycle, backend reference manifest, workload credential delivery and SoftHSM integration. The final Auth port is operation-oriented: it computes a verifier and returns an opaque logical version. It never resolves or returns Pepper material. The preliminary `resolve(): { version, material }` seam is prohibited from production composition and must be replaced rather than retained as a fallback.
 
@@ -298,7 +333,7 @@ Production/staging use the existing per-Auth UDS agent with workload identity an
 
 Day-to-day host development may explicitly bind `LocalDevelopmentExternalApiKeyVerifier` to a generated, repository-ignored, owner-readable local key only when the runtime proves `NODE_ENV=development` and a separate local-development security profile. It never satisfies staging/production or security-acceptance readiness; those environments must reject it. The required security integration still runs the actual UDS agent with SoftHSM2, using a distinct `CKK_GENERIC_SECRET` / `CKM_SHA256_HMAC` object marked sensitive and non-extractable. Acceptance covers raw-key export refusal, fixed domain/algorithm enforcement, arbitrary selector rejection, version overlap/retirement, constant-time comparison, local-provider production rejection and unavailable/mismatched provider fail-closed behavior.
 
-#### 7.1.10 Verifier-version compromise workflow
+#### 7.1.11 Verifier-version compromise workflow
 
 Auth owns the internal CQRS command `CompromiseExternalApiKeyVerifierVersion` and durable `ExternalApiKeyVerifierCompromiseIncident` completion fact. Deployment/EXEC-CRYPTO owns the decision/evidence that one logical verifier version is compromised and the provider/backend action that makes it unusable. This is a fail-safe ordered workflow rather than a distributed transaction: Deployment first removes the version from every compute allowlist and confirms the backend version is disabled, then its dedicated security-operation runner invokes Auth. If Auth is unavailable or its transaction fails, the provider remains disabled and new exchanges using that version remain impossible while the command is retried.
 
@@ -312,9 +347,13 @@ Within one Auth database transaction the handler creates or resolves the unique 
 
 The stored incident fact includes incident/version, provider `stateRevision`, evidence/processed times, caller workload and trace correlation, matched/newly-revoked/already-revoked counts. Per-credential audit is emitted only for newly revoked rows; already-revoked credentials keep their original revocation facts and appear only in the aggregate count. Neither response nor audit includes secret, verifier, backend reference, Authorization value, external/internal Token or credential list. The response returns only `incidentReference`, the three counts and `completedAt`. Already-issued Gateway-only access tokens retain the existing five-minute maximum; this workflow does not reopen DG-2 or add a Gateway deny cache.
 
-#### 7.1.11 ExecutionToken authority upper bound and source credential
+#### 7.1.12 ExecutionToken authority upper bound and source credential
 
 Auth owns ExecutionToken exchange orchestration, but it does not own role, Permission or target-service RPC semantics. `requestedPermissionCodes` is a minimum-scope request only. Auth first resolves an independently verifiable source credential into the current HUMAN, MACHINE or DELEGATED execution principal, then consumes Permission Service's `ResolvePrincipalAuthorization` decision for BUSINESS or `ResolveWorkloadIssuance` for INTERNAL. Auth signs only when every requested Code is granted and the decision matches the trusted principal, tenant/org, verified workload and target audience; unknown, denied, mixed-kind, partial, stale or unavailable decisions fail the whole exchange. Assigning the requested set to an `authorized`, `permissionCodes` or equivalent field before the Permission decision is prohibited self-authorization.
+
+The Permission issuance-control trust path is deliberately non-circular. Auth calls `ResolveWorkloadIssuance` without a pre-existing ExecutionToken, over the existing mTLS / SPIFFE transport; Permission accepts only Auth's exact registered `VerifiedWorkloadIdentity` for that exact method and independently evaluates the original verified workload -> target audience -> INTERNAL Code policy. Auth cannot use this bootstrap path for any other Permission RPC or treat its own mTLS identity as an INTERNAL grant. After Permission allows the exact Code set, Auth signs a certificate-bound `aud=permission-service` Token containing `permission.internal.principal_authorization.resolve` before calling `ResolvePrincipalAuthorization`. That BUSINESS resolver and every other protected Permission capability continue to require normal mTLS plus target-audience ExecutionToken enforcement.
+
+`ResolvePrincipalAuthorization` is an Auth-only coarse BUSINESS issuance upper bound, not a Gateway/application resource authorization API. Auth supplies typed HUMAN / MACHINE / DELEGATED reference, trusted scope / tenant / org, target audience, canonical non-empty BUSINESS Code set and applicable session/delegation/tool references; it never supplies roles, admin flags, resource facts, domain state or a caller-computed granted set. SELF_SERVICE does not consume this resolver. Permission returns an all-or-nothing decision with exact granted/denied Codes, binding echo, safe reason, decision reference and `authzVersion`; Auth never signs a partial subset from a denied request.
 
 The source credential is opaque transport authority, separate from the exchange request DTO. Common carries it only through the mTLS-protected internal exchange channel: an Auth-verifiable active session/access credential for a HUMAN root, the current signed ExecutionToken as a multi-hop subject credential, the existing Gateway-only external credential for an API Key root, or the applicable Auth/Identity-owned MACHINE/delegation credential/reference. Auth verifies the credential with its owner truth; for a multi-hop subject Token it additionally requires that the Token's exact audience identifies the verified exchanging workload service. A subject/tenant/role/Code copied from a body, ordinary metadata or legacy signed operator context is not a credential and never enters the issuance decision.
 

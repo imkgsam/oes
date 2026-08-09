@@ -50,6 +50,8 @@ import {
   IdentityQueryServiceControllerMethods,
   ResolveIntegrationMachineForAuthRequest,
   ResolveIntegrationMachineForAuthResponse,
+  ResolveMachinePrincipalForAuthRequest,
+  ResolveMachinePrincipalForAuthResponse,
   ServiceAccount
 } from '@oes/common/generated/identity_service'
 import {
@@ -78,6 +80,7 @@ import {
   ResolveContactActionTargetsQuery,
   ResolveContactActionTargetsView,
   ResolveIntegrationMachineForAuthQuery,
+  ResolveMachinePrincipalForAuthQuery,
   ServiceAccountView,
   GetUserByIdQuery,
   UserSummaryView,
@@ -240,6 +243,22 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
     >(new ResolveIntegrationMachineForAuthQuery(request.integrationMachineId!))
 
     return machine
+  }
+
+  /** Exposes only the protected Auth-to-Identity exact MACHINE owner-fact resolver. */
+  @AuthorizeInternalCall({ all: ['identity.internal.machine_principal.resolve'] })
+  @UseGuards(TrustedInternalExecutionGuard)
+  async resolveMachinePrincipalForAuth(
+    request: ResolveMachinePrincipalForAuthRequest
+  ): Promise<ResolveMachinePrincipalForAuthResponse> {
+    return this.queryBus.execute(
+      new ResolveMachinePrincipalForAuthQuery({
+        machinePrincipalId: request.machinePrincipalId!,
+        bindingId: request.machineWorkloadBindingId!,
+        bindingVersion: BigInt(request.machineWorkloadBindingVersion!),
+        workloadSpiffeId: request.workloadSpiffeId!
+      })
+    )
   }
 
   async listServiceAccounts(

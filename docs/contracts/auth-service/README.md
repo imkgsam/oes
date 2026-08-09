@@ -49,6 +49,8 @@ Proto 契约来源仍然是：
   - Web trusted browser 与 future Mobile remembered device 语义
 - [execution-token.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/execution-token.md)
   - Workload / API Key 认证、STS exchange、单 audience ExecutionToken、JWKS、cache 与紧急撤销语义；external callers receive only the separate Gateway-only access token
+- [machine-workload-source-credential.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/machine-workload-source-credential.md)
+  - `FROZEN_PENDING_IMPLEMENTATION`：第一方内部 Cron / Robot / worker 的短期 MACHINE root source credential、workload/certificate binding、Identity resolution 与 fail-closed 语义
 - [external-api-key-security.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/external-api-key-security.md)
   - tenant Integration Machine 的 API Key 创建、轮换、撤销、审计、泄漏处置与 `external_api_key.proto` Gateway/Auth gRPC 语义
 - [delegated-execution-and-action-grant.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/delegated-execution-and-action-grant.md)

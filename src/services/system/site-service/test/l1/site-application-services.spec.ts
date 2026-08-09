@@ -98,6 +98,8 @@ describe('site-service application services L1', () => {
     publish: jest.fn()
   }
   const now = new Date('2026-06-15T08:00:00.000Z')
+  /** Mirrors the immutable controller-injected Admin authority; body identity is never the fixture source. */
+  const trustedAdmin = { tenantId: 'tenant_a', orgId: 'org_a', operatorId: 'operator_a', traceId: 'trace_a' }
   const admin = new SiteAdminApplicationService(
     repository as never,
     {
@@ -143,10 +145,7 @@ describe('site-service application services L1', () => {
 
     await expect(
       admin.createSite({
-        tenantId: 'tenant_a',
-        orgId: 'org_a',
-        operatorId: 'operator_a',
-        traceId: 'trace_a',
+        context: trustedAdmin,
         siteName: 'Brand US',
         siteType: 'brand',
         defaultLocale: 'en-US',
@@ -155,7 +154,7 @@ describe('site-service application services L1', () => {
       })
     ).resolves.toEqual({ siteId: 'site_fixed', status: 'draft', defaultLocale: 'en-US' })
     await expect(
-      admin.listSiteCards({ tenantId: 'tenant_a', operatorId: 'operator_a', traceId: 'trace_a' })
+      admin.listSiteCards({ context: trustedAdmin })
     ).resolves.toEqual({
       cards: [{ siteId: 'site_fixed', siteName: 'Brand US' }]
     })
@@ -193,10 +192,7 @@ describe('site-service application services L1', () => {
   it('rejects site and preparing-locale writes when the locale is not in the common enum', async () => {
     await expect(
       admin.createSite({
-        tenantId: 'tenant_a',
-        orgId: 'org_a',
-        operatorId: 'operator_a',
-        traceId: 'trace_a',
+        context: trustedAdmin,
         siteName: 'Brand Esperanto',
         siteType: 'brand',
         defaultLocale: 'eo-EO'

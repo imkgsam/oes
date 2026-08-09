@@ -5,6 +5,7 @@ import { NacosConfigModule } from '@oes/common/config'
 import { LoggingModule } from '@oes/common/logging'
 import { RegistryModule } from '@oes/common/registry'
 import { AssetManagementModule } from './modules/asset-management/asset-management.module'
+import { SiteMediaModule } from './modules/site-media/site-media.module'
 
 @Module({
   imports: [
@@ -16,7 +17,8 @@ import { AssetManagementModule } from './modules/asset-management/asset-manageme
     RegistryModule,
     NacosConfigModule,
     EventEmitterModule.forRoot(),
-    AssetManagementModule
+    AssetManagementModule,
+    SiteMediaModule
   ]
 })
 // AppModule wires asset-service infrastructure and exposes the avatar asset gRPC surface.
