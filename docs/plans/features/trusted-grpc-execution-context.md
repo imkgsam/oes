@@ -568,7 +568,7 @@ This priority does not exempt any later service.
 
 ### 9.1 SITE Recovery Exact Implementation Lease
 
-Status: `FROZEN_PENDING_IMPLEMENTATION`. This lease covers only the Site 59+7 trusted-gRPC slice and its directly required Site Media collaboration. Every tracked path not listed below is protected by default. `EXISTING` means the tracked file exists and may be modified; `NEW_TARGET` is the only allowed new tracked file name.
+Status: `FROZEN_PENDING_IMPLEMENTATION`. This lease covers only the Site 59+7 trusted-gRPC slice and its directly required Site Media collaboration. The manifest contains 115 paths: 55 `EXISTING` and 60 `NEW_TARGET`. Every tracked path not listed below is protected by default. `EXISTING` means the tracked file exists and may be modified; `NEW_TARGET` is the only allowed new tracked file name.
 
 ```yaml
 siteRecoveryExactLease:
@@ -596,6 +596,7 @@ siteRecoveryExactLease:
     - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution.module.spec.ts }
     - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution-producer.ts }
     - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution-producer.spec.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-asset-grpc.client.ts }
     - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-auth-machine-workload-source-credential.client.ts }
     - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-auth-machine-workload-source-credential.client.spec.ts }
     - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-machine-workload-source-credential.provider.ts }
@@ -604,6 +605,7 @@ siteRecoveryExactLease:
     - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-machine-trusted-grpc-execution-producer.spec.ts }
     - { state: EXISTING, path: src/services/api-gateway/src/modules/site-management-bff/infrastructure/downstream/site-admin-grpc.adapter.ts }
     - { state: EXISTING, path: src/services/api-gateway/src/modules/site-management-bff/infrastructure/downstream/site-admin-grpc.adapter.spec.ts }
+    - { state: NEW_TARGET, path: src/services/api-gateway/src/modules/site-management-bff/infrastructure/downstream/site-admin-grpc.media.spec.ts }
     - { state: EXISTING, path: src/services/api-gateway/src/modules/site-management-bff/site-management.service.ts }
     - { state: EXISTING, path: src/services/api-gateway/src/modules/site-management-bff/site-management.service.spec.ts }
     - { state: EXISTING, path: src/services/api-gateway/src/modules/site-management-bff/interface/http/controllers/site-management.controller.ts }
@@ -620,12 +622,14 @@ siteRecoveryExactLease:
     - { state: EXISTING, path: src/services/system/site-service/src/application/audit/site-audit-envelope.ts }
     - { state: EXISTING, path: src/services/system/site-service/prisma/schema.prisma }
     - { state: NEW_TARGET, path: src/services/system/site-service/prisma/migrations/202608090001_asset_site_media_availability_inbox/migration.sql }
+    - { state: NEW_TARGET, path: src/services/system/site-service/src/application/ports/asset-site-media.port.ts }
     - { state: NEW_TARGET, path: src/services/system/site-service/src/infrastructure/prisma/prisma.module.ts }
     - { state: NEW_TARGET, path: src/services/system/site-service/src/application/ports/asset-site-media-inbox.port.ts }
     - { state: NEW_TARGET, path: src/services/system/site-service/src/application/events/asset-site-media-availability.handler.ts }
     - { state: NEW_TARGET, path: src/services/system/site-service/src/infrastructure/events/asset-site-media-availability.consumer.ts }
     - { state: NEW_TARGET, path: src/services/system/site-service/src/infrastructure/events/asset-site-media-availability.worker.ts }
     - { state: NEW_TARGET, path: src/services/system/site-service/src/infrastructure/repositories/prisma-asset-site-media-inbox.repository.ts }
+    - { state: NEW_TARGET, path: src/services/system/site-service/src/infrastructure/grpc/site-trusted-asset.grpc.adapter.ts }
     - { state: NEW_TARGET, path: src/services/system/site-service/src/modules/asset-site-media-events.module.ts }
   siteExistingTests:
     - { state: EXISTING, path: src/services/system/site-service/test/l1/site-admin-ownership.spec.ts }
@@ -650,10 +654,12 @@ siteRecoveryExactLease:
     - { state: NEW_TARGET, path: src/services/system/site-service/test/l1/asset-site-media-availability.worker.spec.ts }
     - { state: NEW_TARGET, path: src/services/system/site-service/test/l2/asset-site-media-inbox.persistence.spec.ts }
     - { state: NEW_TARGET, path: src/services/system/site-service/test/l3/site-trusted-grpc-security.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/site-service/test/l3/site-trusted-asset.grpc.adapter.spec.ts }
   assetSiteMediaR2PurgeAndOutbox:
     - { state: EXISTING, path: src/services/system/asset-service/package.json }
     - { state: EXISTING, path: src/services/system/asset-service/prisma/schema.prisma }
     - { state: NEW_TARGET, path: src/services/system/asset-service/prisma/migrations/202608090001_site_media_foundation/migration.sql }
+    - { state: NEW_TARGET, path: src/services/system/asset-service/prisma/migrations/202608090002_site_media_asset_identity/migration.sql }
     - { state: EXISTING, path: src/services/system/asset-service/src/main.ts }
     - { state: EXISTING, path: src/services/system/asset-service/src/app.module.ts }
     - { state: EXISTING, path: src/services/system/asset-service/src/domain/entities/asset.entity.ts }
