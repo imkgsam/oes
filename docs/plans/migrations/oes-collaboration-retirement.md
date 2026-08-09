@@ -11,7 +11,7 @@ closureDate: 2026-08-09
 programControlCandidate: f4db239e2e80f6d975bcf7d547a3cb8adda7668b
 closureRecord: current-document-commit
 retainedEvidenceBranches: 6
-unarchivedFormalTasks: 19
+unarchivedFormalTasks: 17
 ```
 
 > 本文只记录旧协同框架退役时的资源、证据、依赖、迁移排序与最终关闭结果，不定义新的治理框架，也不重新定义任何服务、契约或领域真相。稳定设计必须以本文链接的 architecture、ADR、collaboration 与 contract 真相源为准。
@@ -41,7 +41,7 @@ unarchivedFormalTasks: 19
 | Repository root | `/Users/acehood/Documents/GitHub/oes` | 路径存在；`main` 工作树 clean |
 | `main` | `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` | AI、Principal Authorization、ActionGrant design、Permission、GRPC carrier、EXEC-CRYPTO HUMAN、完整 MACHINE source-verifier、GRPC Asset token-only cutover、SITE recovery 与本关闭记录均已进入当前文档所在的主线提交 |
 | `origin/main` | `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` | 关闭提交推送后，本地 remote-tracking ref 与 remote `refs/heads/main` 与当前文档提交一致；精确 SHA 由运行时 Git 复核，不在文档内自引用 |
-| Legacy formal A/* threads | 101 | handoff历史聚合计数；post-closure exact-ID复核确认本机仍有19项`archived=0`。本SITE批次先处理A/C与A/D两项，完成后其余17项逐能力审计 |
+| Legacy formal A/* threads | 101 | handoff历史聚合计数；post-closure exact-ID复核发现19项`archived=0`，SITE A/C与A/D已通过应用接口归档并复核2/2，当前其余17项逐能力审计 |
 | Worktrees | 29 | 峰值 39；最终只保留 `/Users/acehood/Documents/GitHub/oes` 根目录 `main` worktree |
 | `codex/*` branches | 23 | 峰值 33；27 个已进入 main 的分支已用 `git branch -d` 正常删除，6 个非合并历史证据分支保留 |
 | Checker | disabled | handoff evidence；未唤醒旧 checker |
@@ -535,11 +535,11 @@ branch refs 共 33：26 个 branch HEAD 已是 current main ancestor（SITE impl
 ### 7.8 Post-closure SITE archive correction（2026-08-09）
 
 - archive-count root cause：旧 closure 查询按 canonical `title` 匹配 formal tasks；部分线程通过 UI 设置了显示标题，但本机 `state_5.sqlite.threads.title` 仍保存完整初始 delegation，导致这些任务未进入旧 41 项集合。只读 exact-ID 复核发现整个 legacy collaboration formal set 仍有19项 `archived=0`，旧“41/41”结论失效。
-- SITE exact state：`A/C/SITE · Site Management Command` `019f8fb8-84bf-7c90-ad1f-51853220ac0a` 与 `A/D/SITE · Site Management Design` `019f8fb8-834c-7b21-9e39-d2e0fdf0c7ff` 均为 `archived=0` / `notLoaded`。历史FAQ与Article Category I/V/closure children已归档，A/C terminal为`MIGRATION_FROZEN`，无active child/candidate。
+- SITE pre-archive state：`A/C/SITE · Site Management Command` `019f8fb8-84bf-7c90-ad1f-51853220ac0a` 与 `A/D/SITE · Site Management Design` `019f8fb8-834c-7b21-9e39-d2e0fdf0c7ff` 在本批次开始时均为 `archived=0` / `notLoaded`。历史FAQ与Article Category I/V/closure children已归档，A/C terminal为`MIGRATION_FROZEN`，无active child/candidate。
 - Git state：SITE legacy A/C/A/D没有独立worktree或branch；仓库只保留root main worktree。FAQ、Article Category以及SITE recovery实现均已进入main，当前SITE closure不持有代码writer lease。
 - truth-source closure：Site lifecycle、Runtime health、publish/sync、FAQ、Article Category、Inspiration对象/ownership/四端范围与Product Hotspot Phase 2 deferral已进入稳定真相源。原Site governance workspace为`SUPERSEDED_BY_TRUTH_SOURCE`。
 - status-sync candidate：docs-only `9e6b590a2a5072d8b8fc95776aabd8c0c6183c26`（parent `87f24059072829d23aa20842a1d05b64f0a617ec`）仅修改`docs/plans/features/site-inspiration-management-p1.md` 9+/9-，把状态校正为`DESIGN_FROZEN_IMPLEMENTATION_NOT_DISPATCHED`并登记trusted gRPC、Site Media、Event/outbox/inbox、R2 precise purge/retry平台前置已集成；Inspiration Core业务实现仍未派发，Product Hotspot与fallback禁令不变。candidate已由persistent I&V独立验收、ff-only集成并push，main/local origin/remote均为`9e6b590a…`且clean。
-- executable SITE archive manifest：在本台账纠错进入main后，通过Codex应用接口仅归档上述A/C/SITE与A/D/SITE两项；不得直接写state database，不唤醒线程。归档后exact-ID复核必须为2/2 `archived=1`；其余17项legacy formal tasks留给后续逐能力审计，不在本批次处理。
+- SITE archive terminal：本台账纠错进入main后，已通过Codex应用接口仅归档上述A/C/SITE与A/D/SITE两项；未直接写state database，未唤醒线程。exact-ID只读复核为2/2 `archived=1`，`archived_at=1786286470`；两线程仍可按ID只读访问。全局未归档数由19降为17，其余17项留给后续逐能力审计，不在本批次处理。
 
 ## 8. 本轮验证记录
 
@@ -696,10 +696,10 @@ EXEC-CRYPTO HUMAN foundation I&V terminal evidence：
 | MIG-D23 | Asset replacement `7e5f393f…` 的 `TrustedExecutionGuard` 无条件拒绝 `SELF_SERVICE` 的 DELEGATED principal，忽略冻结声明 `allowDelegated:true` | Upload/Bind Account Avatar 的合法委托调用在controller前被拒绝，声明与runtime enforcement冲突 | `CLOSED`：两文件TDD correction `a82e5ea6…`允许HUMAN或`DELEGATED && allowDelegated`并保持空Code gate；完整矩阵复验后已ff-only集成及push |
 | MIG-D24 | SITE initial design candidate `d3e6109b…` 的Site Media contract前文排除field-number ownership，后文第8节却冻结11 RPC完整字段号 | 实现方不能唯一判断wire field numbers是否属于受支持稳定契约 | `CLOSED`：单文件1+/1- replacement `c7bda1c4…`明确第8节拥有字段与field numbers；累计7-doc packet经I&V复验、ff-only集成及push，109-path implementation gate已开放 |
 | MIG-D25 | Site Inspiration packet仍把trusted gRPC、Event/outbox与CDN purge标为“尚未实现”，但SITE recovery已集成这些平台前置 | 后续实现与legacy archive会误判Site仍在等待平台设计/实现 | `CLOSED`：one-doc candidate `9e6b590a…`只校正状态与依赖完成度，经I&V验收、ff-only集成及push；Inspiration业务实现与Product Hotspot deferral语义不变 |
-| MIG-D26 | legacy GC按canonical `title`统计并宣称formal tasks 41/41 archived，但UI重命名线程的底层`title`仍是delegation正文 | 至少SITE A/C/A/D仍为`archived=0`，迁移关闭记录高估归档完成度 | `OPEN_SITE_BATCH`：exact-ID复核得到全局19项未归档；本批次先在台账集成后归档SITE两项并复核2/2，其余17项逐能力处理 |
+| MIG-D26 | legacy GC按canonical `title`统计并宣称formal tasks 41/41 archived，但UI重命名线程的底层`title`仍是delegation正文 | SITE A/C/A/D实际仍为`archived=0`，迁移关闭记录高估归档完成度 | `SITE_BATCH_CLOSED`：exact-ID复核得到全局19项未归档；SITE两项已通过应用接口归档并复核2/2，当前剩余17项逐能力处理 |
 
 ## 10. 最终关闭结果
 
 SITE recovery implementation `547a0c5d55f9a955543779ec584a16e9b05cf453` 已 `ACCEPTED_AND_INTEGRATED`；Site 59+7、Site Media 11、Gateway/Asset/Event/R2-purge 链与验证矩阵完成。AI/ActionGrant runtime 保持 deferred，API-KEY rejected prototype 永不进入 main；无 checker。
 
-本次退役迁移的Git与内容保全阶段已经完成：有用设计与实现已进入`main`或持久evidence ref，拒绝/取代证据已分类，Git工作面已收敛到唯一root `main`。legacy task archive阶段仍在纠错收口：post-closure exact-ID复核发现19项`archived=0`，本批次先关闭SITE A/C/A/D两项，其余17项按能力逐项审计。本文件继续只承担迁移关闭证据与归档manifest，不作为设计或实现真相源。
+本次退役迁移的Git与内容保全阶段已经完成：有用设计与实现已进入`main`或持久evidence ref，拒绝/取代证据已分类。legacy task archive阶段仍在纠错收口：post-closure exact-ID复核发现19项`archived=0`，SITE A/C/A/D两项已归档并复核，当前其余17项按能力逐项审计。临时SITE closure Git资源在本记录集成后正常移除，最终继续只保留root `main`。本文件只承担迁移关闭证据与归档manifest，不作为设计或实现真相源。
