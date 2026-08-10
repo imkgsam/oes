@@ -61,7 +61,7 @@
 
 稳定规则：
 
-- 访问事实只接受来自已认证 `BROWSER_EXTENSION` session 的 BFF 写入，客户端不得自报 tenant、operator、role、permission 或 terminal truth。
+- 访问事实只接受来自已认证 `BROWSER_EXTENSION` session 的 BFF 写入；目标服务以 `aud=urn:oes:service:browser-activity-service` ExecutionToken 中 Auth 签名的 `sub`、`tenant_id`、`session_id` 与 `session_terminal` 建立身份，客户端不得自报 tenant、operator、session、role、permission 或 terminal truth。
 - 未登录插件、session 失效、员工审计授权未开启、terminal access denied 或账号不属于 tenant 时，不得创建访问事实。
 - 同一 URL 在 30 秒内切出又切回，可由插件或服务按同一 visit merge key 合并为一条访问会话。
 - P1 固定 active window 为 5 分钟；active / idle 时长必须可由会话摘要复算或验证。
@@ -113,7 +113,7 @@
 2. 当前 session 是 tenant-scope account，且携带 tenant context。
 3. 当前账号仍允许从 `BROWSER_EXTENSION` terminal 建立或继续 session。
 4. 当前账号的 `BrowserActivityEmployeeAuditGrant.enabled = true`。
-5. 上报请求通过 API Gateway / BFF，tenant、operator、trace、audit context 由服务端构造。
+5. 上报请求通过 API Gateway / BFF，目标服务已验证 mTLS、Browser Activity audience ExecutionToken、`principal_type=HUMAN` 与 `session_terminal=BROWSER_EXTENSION`；tenant、account、session 与 trace 来自可信执行上下文，审计 action 由目标 RPC 固定生成。
 
 任一条件不满足时：
 
@@ -121,6 +121,34 @@
 - 插件不得 heartbeat。
 - 插件不得缓存未登录期间的 URL 访问事实等待登录后补报。
 - 服务端不得接受访问事实写入。
+
+### 5.1 Trusted gRPC Entry
+
+`BrowserActivityService` 的 13 个 RPC 只接受 Gateway 作为当前 production direct caller，并使用唯一 audience `urn:oes:service:browser-activity-service`。每个 RPC 必须声明且只声明以下一种模式；当前全部拒绝 `MACHINE` 与 `DELEGATED`：
+
+| RPC | Required principal/session terminal | Mode | Permission Code |
+| --- | --- | --- | --- |
+| `GetPolicy` | `HUMAN` / `WEB` | `BUSINESS` | `browser_activity.policy.read` |
+| `UpdatePolicy` | `HUMAN` / `WEB` | `BUSINESS` | `browser_activity.policy.manage` |
+| `GetEmployeeAuditGrants` | `HUMAN` / `WEB` | `BUSINESS` | `browser_activity.overview.read` |
+| `UpdateEmployeeAuditGrant` | `HUMAN` / `WEB` | `BUSINESS` | `browser_activity.policy.manage` |
+| `GetOverview` | `HUMAN` / `WEB` | `BUSINESS` | `browser_activity.overview.read` |
+| `GetEmployeeTimeline` | `HUMAN` / `WEB` | `BUSINESS` | `browser_activity.employee_detail.read` |
+| `GetDomainAggregation` | `HUMAN` / `WEB` | `BUSINESS` | `browser_activity.url_detail.read` |
+| `SearchUrls` | `HUMAN` / `WEB` | `BUSINESS` | `browser_activity.url_detail.read` |
+| `GetOnlinePresence` | `HUMAN` / `WEB` | `BUSINESS` | `browser_activity.overview.read` |
+| `GetAuditControl` | `HUMAN` / `BROWSER_EXTENSION` | `SELF_SERVICE` | empty set |
+| `AppendVisitSessions` | `HUMAN` / `BROWSER_EXTENSION` | `SELF_SERVICE` | empty set |
+| `Heartbeat` | `HUMAN` / `BROWSER_EXTENSION` | `SELF_SERVICE` | empty set |
+| `Disconnect` | `HUMAN` / `BROWSER_EXTENSION` | `SELF_SERVICE` | empty set |
+
+稳定信任规则：
+
+- `session_terminal` 由 Auth 从与 `session_id` 相同的 active session truth 签入；Gateway route guard 是入口第一层，不能替代目标服务的 exact terminal check。
+- `SELF_SERVICE` 的 tenant、account 与 extension session 分别从 `tenant_id`、`sub` 与 `session_id` 派生；request 中的 `extension_session_id` 不能成为 authority。
+- `account_ids`、`account_id`、`employee_account_id`、period、status、keyword、URL/domain summary 与 timestamps 是 tenant-scoped business target/payload，不能覆盖执行身份；目标资源必须再次执行 tenant/resource ownership check。
+- request body 的 tenant/operator/trace/audit 副本与 legacy signed-operator/header path 在 token-only cutover 时删除并 reserve，不存在 Token 失败后的 fallback。
+- `UpdatePolicy`、`UpdateEmployeeAuditGrant` 分别记录 append-only management audit；`GetEmployeeTimeline`、`GetDomainAggregation`、`SearchUrls` 分别记录 method-owned sensitive-read audit。操作者、tenant、target、trace 与 session evidence 来自可信上下文，reason/action 使用服务端稳定枚举，审计失败时不返回成功结果。
 
 ## 6. Metrics
 
@@ -144,9 +172,9 @@ P1 固定时间口径：
 
 ## 7. Collaboration
 
-- `api-gateway` owns HTTP/BFF surface and constructs tenant/operator/terminal context from authenticated sessions.
+- `api-gateway` owns HTTP/BFF surface, validates the external access token/session and exchanges an exact-audience ExecutionToken; it does not construct a second body identity or become terminal authority.
 - `permission-service` owns action codes, navigation visibility, terminal access decision and access summary.
-- `auth-service` owns extension session validation, session refresh and logout truth.
+- `auth-service` owns extension session validation, session refresh, logout truth and the signed `session_terminal` claim bound to `session_id`.
 - `browser-extension` owns local browser event observation and visit summary calculation, but not audit truth.
 - `tenant-web` owns administrator UI rendering and action affordances, not browser activity facts.
 

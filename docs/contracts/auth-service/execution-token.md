@@ -77,7 +77,7 @@ Workload identity is the default backend credential. If a PKCS#11 backend requir
 
 `ResolvePrincipalAuthorization` is not a bootstrap method. Auth calls it with its exact mTLS identity plus a certificate-bound `aud=permission-service` ExecutionToken containing the exact INTERNAL Code `permission.internal.principal_authorization.resolve`; that Code is obtainable only through the workload issuance policy above. The resolver accepts typed HUMAN / MACHINE / DELEGATED identity, trusted scope / tenant / org, one target audience, canonical non-empty BUSINESS Codes and applicable session/delegation/tool references. It accepts no role/admin assertion, target RPC id, resource facts or domain state, and SELF_SERVICE does not use it. Both decisions use whole-request semantics: any unknown, wrong-kind, denied, partial or binding mismatch rejects the exchange and the signing port is not called.
 
-The Token cache and issuance unit is the exact tuple of verified principal/type, tenant/org, target audience, canonical granted Code set, session/delegation/security version and current workload certificate thumbprint. One valid cached Token may be used for multiple RPCs in that audience when each target method's local declaration accepts the Token mode and Code set. There is no per-RPC Token or Auth-owned RPC authorization registry. A changed tuple produces a separate exchange/cache entry; ordinary target RPCs continue local validation with no Auth/Permission call.
+The Token cache and issuance unit is the exact tuple of verified principal/type, tenant/org, target audience, canonical granted Code set, session/delegation/security version, applicable `session_terminal` and current workload certificate thumbprint. One valid cached Token may be used for multiple RPCs in that audience when each target method's local declaration accepts the Token mode, terminal constraint and Code set. There is no per-RPC Token or Auth-owned RPC authorization registry. A changed tuple produces a separate exchange/cache entry; ordinary target RPCs continue local validation with no Auth/Permission call.
 
 SELF_SERVICE is the only mode that consumes an empty Code set. Auth still requires a verified HUMAN source credential; DELEGATED remains subject to the target method's explicit `allowDelegated`, and MACHINE has no implicit self-service authority. BUSINESS and INTERNAL requests are non-empty. The target server derives self targets from trusted `sub`, validates current method mode/principal compatibility and `all/any` Codes, and applies tenant/resource/domain rules. A Token with an empty set cannot invoke BUSINESS/INTERNAL; a non-empty BUSINESS/INTERNAL Token does not bypass SELF_SERVICE subject derivation or method mode checks.
 
@@ -143,6 +143,7 @@ The issuer publishes authorization-server metadata and a HTTPS `jwks_uri`. Resou
 | `cnf`                         | yes                               | 仅含标准 `x5t#S256`：当前 workload mTLS 叶证书 DER 的 SHA-256 base64url thumbprint。 |
 | `act` / `delegation_id`       | DELEGATED                         | 代理归因与 delegation reference。                                                    |
 | `session_id`                  | HUMAN / DELEGATED when applicable | 关联 active human session；不是资源服务在线 introspection 要求。                     |
+| `session_terminal`            | HUMAN session                     | Auth 从与 `session_id` 相同的 active session truth 签入的稳定 terminal，例如 `WEB`、`BROWSER_EXTENSION` 或 `PDA`；调用方不能提交。 |
 | `authz_version`               | conditional                       | principal / session / credential 最低安全版本。                                      |
 
 Token TTL maximum is 5 minutes. Implementations may shorten it by risk but callers cannot request arbitrary lifetime. The allowed algorithm, issuer and registry are fixed by this contract; callers cannot select them.
@@ -159,7 +160,8 @@ Token TTL maximum is 5 minutes. Implementations may shorten it by risk but calle
 6. tenant / org 与 RPC mode、resource ownership 一致。
 7. required Permission Code 的 `all / any` 规则。
 8. principal type、delegation 与 SELF / BUSINESS / INTERNAL mode 兼容。
-9. 本地 emergency deny cache / minimum security version 未拒绝。
+9. RPC 声明了 session-terminal 约束时，`session_terminal` 必须存在并精确匹配；MACHINE 或另一 terminal 不能满足该声明。
+10. 本地 emergency deny cache / minimum security version 未拒绝。
 
 验签成功的正常 RPC 不调用 Auth introspection。JWKS cache maximum age is 5 minutes. Unknown `kid` can trigger one controlled JWKS refresh; refresh failure, an untrusted key, an issuer mismatch or any unsupported header must fail closed without bypassing signature validation.
 
@@ -297,3 +299,5 @@ transport status 映射由 Gateway / common error boundary 统一处理；不得
 28. Correct SPIFFE with another leaf certificate, correct leaf binding with another SPIFFE, disabled/stale binding, inactive principal, scope/tenant mismatch or Identity unavailable rejects the complete exchange.
 29. Certificate rotation invalidates the prior source credential; controlled reissuance against the new leaf permits exchange without introducing a refresh token or long-lived API Key.
 30. `ResolveMachinePrincipalForAuth` uses exact Auth mTLS plus an Identity-audience ExecutionToken carrying `identity.internal.machine_principal.resolve`; it cannot reuse the Permission bootstrap exception or external Integration/API-key resolver.
+31. A HUMAN source credential signs `session_terminal` only from the same active Auth session as `session_id`; a caller-supplied terminal, a missing terminal on a session-bound Token, or a resource-method terminal mismatch fails closed.
+32. Token cache entries for different `session_terminal` values cannot alias, and Browser Activity acceptance proves `WEB` and `BROWSER_EXTENSION` Tokens cannot invoke each other's declared RPC group.

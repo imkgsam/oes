@@ -798,6 +798,121 @@ node scripts/architecture/trusted-grpc-signature-inventory.mjs
 
 Acceptance additionally proves: 59/59 Admin, 7/7 Runtime and 11/11 Site Media RPCs each have exactly one declaration; all 13 new Code values come only from the canonical catalog/generator; Admin body identity and legacy Gateway metadata references are zero; `SignedSiteContext` remains intact; wrong audience/`cnf`, missing Code and body injection fail closed; the public Site Media event does not use process-local `EventEmitter`; and the tracked diff is a strict subset of this lease.
 
+### 9.2 Browser Activity 13-RPC frozen cutover lease
+
+Status: `FROZEN_PENDING_IMPLEMENTATION`. Browser Activity is the next target after Asset and Site. Current-main evidence is 13 RPCs / one controller, Gateway as the sole production direct caller, no discovered pure MACHINE root, 49 proto legacy-context references, zero trusted execution declarations and a Gateway adapter still using `GrpcMetadataPropagationFactory`. This section freezes the service slice without dispatching implementation.
+
+The audience is exactly `urn:oes:service:browser-activity-service`. The nine management/query RPCs are BUSINESS, `HUMAN`, `session_terminal=WEB`; the four extension RPCs are SELF_SERVICE with empty Code set, `HUMAN`, `session_terminal=BROWSER_EXTENSION`. All 13 reject MACHINE and DELEGATED. Auth derives `session_terminal` from the same active session truth as `session_id`; Common carries it in the signed Token, trusted context, declaration enforcement and cache key. This authentication fact does not change Principal Authorization, Permission Code ownership or the three authorization modes.
+
+| RPC | Mode | Exact Code |
+| --- | --- | --- |
+| `GetPolicy` | BUSINESS | `browser_activity.policy.read` |
+| `UpdatePolicy` | BUSINESS | `browser_activity.policy.manage` |
+| `GetEmployeeAuditGrants` | BUSINESS | `browser_activity.overview.read` |
+| `UpdateEmployeeAuditGrant` | BUSINESS | `browser_activity.policy.manage` |
+| `GetOverview` | BUSINESS | `browser_activity.overview.read` |
+| `GetEmployeeTimeline` | BUSINESS | `browser_activity.employee_detail.read` |
+| `GetDomainAggregation` | BUSINESS | `browser_activity.url_detail.read` |
+| `SearchUrls` | BUSINESS | `browser_activity.url_detail.read` |
+| `GetOnlinePresence` | BUSINESS | `browser_activity.overview.read` |
+| `GetAuditControl` | SELF_SERVICE | empty set |
+| `AppendVisitSessions` | SELF_SERVICE | empty set |
+| `Heartbeat` | SELF_SERVICE | empty set |
+| `Disconnect` | SELF_SERVICE | empty set |
+
+The five Browser Activity Codes already exist in the canonical Permission catalog and generated Common output; this slice adds no Code and grants no Permission writer path. Proto removes and reserves the exact body authority fields/numbers frozen in [Browser Activity P1 Contract](../../contracts/browser-activity-service/browser-activity-p1.md) §2.2. `extension_session_id` on ingest/heartbeat/disconnect is derived from verified `session_id`; target account/query fields remain tenant-scoped business targets. Update Policy/Grant management audit and Timeline/Domain/URL sensitive-read audit are method-owned, append-only and fail closed. Token/body/header/signed-operator fallback is forbidden.
+
+```yaml
+browserActivityTrustedGrpcImplementationLease:
+  totalTrackedWriterPaths: 47
+  stateCounts: { EXISTING: 41, NEW_TARGET: 6 }
+  trackedWriterPaths:
+    commonSessionTerminalContract:
+      - { state: EXISTING, path: src/common/src/authorization/trusted-execution/declarations/index.ts }
+      - { state: EXISTING, path: src/common/src/authorization/trusted-execution/declarations.spec.ts }
+      - { state: EXISTING, path: src/common/src/authorization/trusted-execution/trusted-execution-context.ts }
+      - { state: EXISTING, path: src/common/src/authorization/trusted-execution/certificate-bound-execution-token-cache.ts }
+      - { state: EXISTING, path: src/common/src/authorization/trusted-execution/execution-token-verifier.ts }
+      - { state: EXISTING, path: src/common/src/authorization/trusted-execution/execution-token-verifier.spec.ts }
+      - { state: EXISTING, path: src/common/src/authorization/trusted-execution/trusted-grpc-metadata-provider.ts }
+      - { state: EXISTING, path: src/common/src/authorization/trusted-execution/trusted-grpc-metadata-provider.spec.ts }
+      - { state: EXISTING, path: src/common/src/authorization/guards/trusted-execution.guard.ts }
+      - { state: EXISTING, path: src/common/src/authorization/guards/trusted-execution.guard.spec.ts }
+
+    authSessionTerminalIssuance:
+      - { state: EXISTING, path: src/services/system/auth-service/src/modules/token/execution-token.module.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/modules/token/execution-token.module.spec.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/application/services/execution-token-exchange.service.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/application/services/execution-token-exchange.service.spec.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/infrastructure/execution-token-signer/verified-execution-token-context.provider.spec.ts }
+
+    browserActivityProto:
+      - { state: EXISTING, path: src/common/src/contracts/browser_activity_service/browser_activity.proto }
+      - { state: NEW_TARGET, path: src/common/src/contracts/browser_activity_service/browser_activity.contract.spec.ts }
+
+    gatewayTrustedRuntime:
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution-producer.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution-producer.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution.module.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution.module.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/index.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-browser-activity-grpc.client.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-browser-activity-grpc.client.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/app.module.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/app.module.spec.ts }
+
+    gatewayBrowserActivityBff:
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/browser-activity-bff/adapters/browser-activity-grpc.adapter.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/modules/browser-activity-bff/adapters/browser-activity-grpc.adapter.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/browser-activity-bff/browser-activity-bff.module.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/browser-activity-bff/browser-activity-bff.service.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/browser-activity-bff/browser-activity-bff.service.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/browser-activity-bff/interfaces/http/dtos/browser-activity.dto.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/browser-activity-bff/interfaces/http/controllers/browser-activity.controller.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/browser-activity-bff/interfaces/http/controllers/extension-browser-activity.controller.spec.ts }
+
+    browserActivityServer:
+      - { state: EXISTING, path: src/services/system/browser-activity-service/src/main.ts }
+      - { state: EXISTING, path: src/services/system/browser-activity-service/src/app.module.ts }
+      - { state: EXISTING, path: src/services/system/browser-activity-service/src/interfaces/grpc/browser-activity.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/system/browser-activity-service/src/application/browser-activity-application.ts }
+      - { state: EXISTING, path: src/services/system/browser-activity-service/src/infrastructure/prisma/prisma-browser-activity-application.ts }
+      - { state: EXISTING, path: src/services/system/browser-activity-service/prisma/schema.prisma }
+      - { state: NEW_TARGET, path: src/services/system/browser-activity-service/prisma/migrations/202608100001_browser_activity_trusted_audit/migration.sql }
+      - { state: EXISTING, path: src/services/system/browser-activity-service/test/helpers/integration-db.ts }
+      - { state: EXISTING, path: src/services/system/browser-activity-service/test/l1/browser-activity-application.spec.ts }
+      - { state: EXISTING, path: src/services/system/browser-activity-service/test/l2/prisma-browser-activity-application.spec.ts }
+      - { state: EXISTING, path: src/services/system/browser-activity-service/test/l3/browser-activity.grpc.controller.spec.ts }
+      - { state: EXISTING, path: src/services/system/browser-activity-service/test/l3/browser-activity.module-di.spec.ts }
+      - { state: NEW_TARGET, path: src/services/system/browser-activity-service/test/l3/browser-activity.trusted-grpc.spec.ts }
+
+  ignoredGeneratedOutputs:
+    - path: src/common/src/generated/browser_activity_service/browser_activity.ts
+      input: src/common/src/contracts/browser_activity_service/browser_activity.proto
+      command: pnpm proto:regen
+
+  protectedByDefault:
+    - canonical Permission catalog/generator and generated Permission Code files
+    - other Auth claims, source profiles, Permission decisions and ExecutionToken wire RPC fields
+    - AI, ActionGrant, DELEGATED and MACHINE runtime
+    - every non-Browser Gateway adapter and every other service cutover
+
+  focusedAcceptanceCommands:
+    - pnpm proto:lint
+    - pnpm proto:regen
+    - node scripts/architecture/trusted-grpc-signature-inventory.mjs
+    - pnpm --filter @oes/common build
+    - pnpm --filter auth-service build
+    - pnpm --filter api-gateway build
+    - pnpm --filter browser-activity-service build
+    - pnpm --filter browser-activity-service test
+    - pnpm exec jest --runInBand --runTestsByPath src/common/src/contracts/browser_activity_service/browser_activity.contract.spec.ts src/common/src/authorization/trusted-execution/declarations.spec.ts src/common/src/authorization/trusted-execution/execution-token-verifier.spec.ts src/common/src/authorization/trusted-execution/trusted-grpc-metadata-provider.spec.ts src/common/src/authorization/guards/trusted-execution.guard.spec.ts
+    - pnpm --filter auth-service exec jest --runInBand --runTestsByPath src/application/services/execution-token-exchange.service.spec.ts src/modules/token/execution-token.module.spec.ts src/infrastructure/execution-token-signer/verified-execution-token-context.provider.spec.ts
+    - pnpm --filter api-gateway exec jest --runInBand --runTestsByPath src/common/grpc/gateway-trusted-grpc-execution-producer.spec.ts src/common/grpc/gateway-trusted-grpc-execution.module.spec.ts src/common/grpc/gateway-browser-activity-grpc.client.spec.ts src/modules/browser-activity-bff/adapters/browser-activity-grpc.adapter.spec.ts src/modules/browser-activity-bff/browser-activity-bff.service.spec.ts src/modules/browser-activity-bff/interfaces/http/controllers/browser-activity.controller.spec.ts src/modules/browser-activity-bff/interfaces/http/controllers/extension-browser-activity.controller.spec.ts
+```
+
+Acceptance proves 13/13 methods have one exact declaration; WEB and BROWSER_EXTENSION Tokens cannot cross-call; wrong principal type/audience/`cnf`/Code/terminal fails before controller data; SELF_SERVICE derives tenant/account/session only from verified claims; all 46 active legacy input authority fields are removed/reserved while response session facts remain service-derived; Gateway no longer registers or uses the legacy Browser client/metadata factory; management and three sensitive reads persist the required audit; cache entries include `session_terminal`; no pure MACHINE caller appears; generated output is regenerated from the leased proto; and the candidate diff is a strict subset of these 47 paths.
+
 ## 10. Repository-wide Security Acceptance
 
 Final acceptance must prove:

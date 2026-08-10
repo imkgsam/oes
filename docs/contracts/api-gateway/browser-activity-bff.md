@@ -10,7 +10,7 @@ Browser Activity BFF exposes two endpoint groups:
 - `/browser-activity/*` for tenant-web administrator policy and query workflows.
 - `/browser-activity/employees/:accountId/audit-grant` for tenant account collection authorization.
 
-BFF owns HTTP shape, session-derived context construction, permission guard composition, terminal guard composition, and view model mapping. BFF does not own browser activity facts or employee master data.
+BFF owns HTTP shape, access-token/session verification, permission and terminal guard composition, exact Browser Activity ExecutionToken exchange and view model mapping. BFF does not own browser activity facts, employee master data or downstream identity authority. The target audience is exactly `urn:oes:service:browser-activity-service`; Gateway sends mTLS plus target Token and never reconstructs tenant/operator/terminal/session authority in the gRPC body.
 
 ## 2. Collection Gate
 
@@ -31,8 +31,10 @@ If the plugin is not logged in, the front end has no access token and must not c
 | `GET /extension/browser-activity/audit-control` | `BROWSER_EXTENSION` | Read whether the authenticated plugin account may start browser audit collection. |
 | `POST /extension/browser-activity/visit-sessions` | `BROWSER_EXTENSION` | Ingest visit session summaries. |
 | `POST /extension/browser-activity/heartbeat` | `BROWSER_EXTENSION` | Record authenticated plugin heartbeat. |
+| `POST /extension/browser-activity/disconnect` | `BROWSER_EXTENSION` | Mark the authenticated plugin session offline. |
 | `GET /browser-activity/policy` | `WEB` | Read tenant policy. |
 | `PUT /browser-activity/policy` | `WEB` | Update tenant policy. |
+| `GET /browser-activity/employees/audit-grants` | `WEB` | Read employee collection grants. |
 | `PUT /browser-activity/employees/:accountId/audit-grant` | `WEB` | Enable or disable one employee browser audit collection grant. |
 | `GET /browser-activity/overview` | `WEB` | Read tenant overview and employee ranking. |
 | `GET /browser-activity/online-presence` | `WEB` | Read browser-extension online presence by employee. |
@@ -72,7 +74,7 @@ Response when collection is disabled for the authenticated account:
 Rules:
 
 - BFF ignores any client-supplied tenant, account, operator, role, permission, or terminal fields.
-- BFF builds tenant/operator/trace context from the authenticated `BROWSER_EXTENSION` session.
+- BFF validates the authenticated `BROWSER_EXTENSION` session and requests an empty-scope SELF_SERVICE target Token; no identity context is copied into the gRPC body.
 - The endpoint does not accept URL, Domain, page title, duration, active tab, or user activity fields.
 - The endpoint does not write online presence and must not be used by tenant-web to infer online status.
 - Browser extensions use this as the control plane while the data channel is disabled, so administrator re-enablement can resume collection without requiring plugin logout/login.
@@ -91,7 +93,6 @@ Request:
   "sessions": [
     {
       "clientVisitId": "visit_7d9b8b6f",
-      "extensionSessionId": "ext_session_01HX",
       "url": "https://supplier-portal.example/orders",
       "domain": "supplier-portal.example",
       "pageTitle": "Supplier Orders",
@@ -133,7 +134,8 @@ Disabled response:
 BFF rules:
 
 - ignores any client-supplied tenant, operator, role, permission, or terminal fields.
-- builds tenant/operator/trace/audit context from authenticated session and request metadata.
+- requests a SELF_SERVICE Token with empty Code set from the verified `BROWSER_EXTENSION` session and forwards no tenant/operator/trace/audit/session body duplicate.
+- removes client `extensionSessionId`; Auth-signed `session_id` is the downstream source of the extension session fact.
 - rejects prohibited raw data fields before forwarding.
 - forwards only bounded visit summaries to `browser-activity-service`.
 - when the downstream response has `policyEnabled = false`, the plugin must stop data collection and discard pending local summaries.
@@ -157,7 +159,6 @@ Request:
 
 ```json
 {
-  "extensionSessionId": "ext_session_01HX",
   "observedAt": "2026-06-25T09:30:00.000Z"
 }
 ```
@@ -177,6 +178,23 @@ Rules:
 - Heartbeat is part of the audit data channel and is only sent while collection is enabled.
 - If heartbeat returns `accepted = false` or `policyEnabled = false`, the plugin must stop data collection and switch to audit-control polling.
 - Tenant-web online status is derived from this heartbeat only, never from audit-control polling.
+
+### 4.4 Disconnect
+
+```http
+POST /extension/browser-activity/disconnect
+Authorization: Bearer <extension-access-token>
+```
+
+Request:
+
+```json
+{
+  "observedAt": "2026-06-25T09:31:00.000Z"
+}
+```
+
+Gateway validates the current `BROWSER_EXTENSION` session and requests a SELF_SERVICE target Token. The downstream session id comes from that Token; client `extensionSessionId` is ignored/rejected and is never forwarded as authority.
 
 ## 5. Tenant-Web Endpoints
 
@@ -235,6 +253,14 @@ Rules:
 ### 5.2A Employee Audit Grant
 
 ```http
+GET /browser-activity/employees/audit-grants?accountIds=account_chen&accountIds=account_lin
+```
+
+Permission:
+
+- `browser_activity.overview.read`
+
+```http
 PUT /browser-activity/employees/:accountId/audit-grant
 ```
 
@@ -252,7 +278,7 @@ Request:
 
 Rules:
 
-- BFF constructs tenant/operator/trace context from the authenticated WEB session.
+- BFF validates the authenticated `WEB` session and requests the exact BUSINESS target Token; downstream identity and trace travel only through the trusted gRPC runtime.
 - When `enabled = true`, BFF must call permission-service account terminal access and require `BROWSER_EXTENSION` in the effective terminal list.
 - If the target account cannot login through Browser Extension, BFF rejects the request and does not mutate browser-activity-service grant state.
 - BFF must not infer plugin-login capability from previous heartbeats or visit facts.
@@ -266,6 +292,10 @@ GET /browser-activity/online-presence?status=ALL&includeOfflineWithinMinutes=144
 Permission:
 
 - `browser_activity.overview.read`
+
+Rules:
+
+- BFF requests the exact BUSINESS Code above using a verified HUMAN `WEB` session.
 
 Response:
 
@@ -315,7 +345,7 @@ Permission:
 
 Rules:
 
-- BFF records sensitive read audit context before forwarding.
+- BFF requests the exact BUSINESS Code; the target writes method-owned sensitive-read audit from ET and trusted trace context before returning.
 - `accountId` is treated as tenant-scoped employee account id, not global user id.
 
 ### 5.5 Domain Aggregation
@@ -326,7 +356,12 @@ GET /browser-activity/domains?period=LAST_7_DAYS&employeeAccountId=account_chen
 
 Permission:
 
-- `browser_activity.overview.read`
+- `browser_activity.url_detail.read`
+
+Rules:
+
+- BFF requests the exact BUSINESS Code above and the target writes `BROWSER_ACTIVITY_DOMAIN_AGGREGATION_READ` sensitive-read audit before returning domain facts.
+- optional `employeeAccountId` remains a tenant-scoped query target and never overrides the ET principal or tenant.
 
 ### 5.6 URL Search
 
@@ -341,7 +376,7 @@ Permission:
 Rules:
 
 - empty keyword returns `400`.
-- BFF records sensitive read audit context before forwarding.
+- BFF requests the exact BUSINESS Code; the target derives actor/tenant/session/trace from ET and writes method-owned sensitive-read audit before returning.
 - response must not include screenshots, page body, DOM, keyboard input or request logs.
 
 ## 6. Error Model

@@ -13,37 +13,56 @@ P1 contract 支持两个调用方向：
 
 ## 2. Common Context
 
-所有请求必须由调用方显式传递服务端可信上下文。
-
-```json
-{
-  "tenantId": "tenant_meilong",
-  "orgId": "org_sales",
-  "operator": {
-    "userId": "user_chen",
-    "accountId": "account_chen",
-    "displayName": "陈双鹏",
-    "terminal": "BROWSER_EXTENSION"
-  },
-  "trace": {
-    "traceId": "trace_01HX",
-    "requestId": "req_01HX"
-  },
-  "audit": {
-    "reason": "BROWSER_EXTENSION_INGEST",
-    "sourceIp": "127.0.0.1",
-    "userAgent": "Chrome Extension"
-  }
-}
-```
+所有 13 个 RPC 使用唯一 audience `urn:oes:service:browser-activity-service`，同时验证当前 Gateway mTLS workload、certificate-bound ExecutionToken 和方法声明。请求 body 不携带可信身份。
 
 Rules:
 
-- `tenantId` is required for every P1 request.
-- ingest / heartbeat require `operator.terminal = BROWSER_EXTENSION`.
-- admin read / policy calls require `operator.terminal = WEB`.
-- service rejects client-supplied terminal claims when the BFF has not normalized them into trusted context.
-- audit context is required for policy updates and sensitive admin reads.
+- tenant、account、org、session、terminal 与 trace 从 guard-verified execution context 取得；`session_terminal` 必须由 Auth 从与 `session_id` 相同的 active session truth 签入。
+- management/query RPCs require `principal_type=HUMAN` and `session_terminal=WEB`；extension RPCs require `principal_type=HUMAN` and `session_terminal=BROWSER_EXTENSION`。
+- all 13 RPCs reject `MACHINE` and `DELEGATED` in this contract version.
+- request body 中的 tenant/operator/trace/audit/session 副本不构成 authority，也不存在 legacy header、signed operator 或 body fallback。
+- management 与 sensitive-read audit action 由目标方法固定生成；actor、tenant、session、target 与 trace 来自可信上下文。
+
+### 2.1 RPC authorization matrix
+
+| RPC | Mode | Required Permission Code |
+| --- | --- | --- |
+| `GetPolicy` | `BUSINESS` / `HUMAN WEB` | `browser_activity.policy.read` |
+| `UpdatePolicy` | `BUSINESS` / `HUMAN WEB` | `browser_activity.policy.manage` |
+| `GetEmployeeAuditGrants` | `BUSINESS` / `HUMAN WEB` | `browser_activity.overview.read` |
+| `UpdateEmployeeAuditGrant` | `BUSINESS` / `HUMAN WEB` | `browser_activity.policy.manage` |
+| `GetOverview` | `BUSINESS` / `HUMAN WEB` | `browser_activity.overview.read` |
+| `GetEmployeeTimeline` | `BUSINESS` / `HUMAN WEB` | `browser_activity.employee_detail.read` |
+| `GetDomainAggregation` | `BUSINESS` / `HUMAN WEB` | `browser_activity.url_detail.read` |
+| `SearchUrls` | `BUSINESS` / `HUMAN WEB` | `browser_activity.url_detail.read` |
+| `GetOnlinePresence` | `BUSINESS` / `HUMAN WEB` | `browser_activity.overview.read` |
+| `GetAuditControl` | `SELF_SERVICE` / `HUMAN BROWSER_EXTENSION` | empty set |
+| `AppendVisitSessions` | `SELF_SERVICE` / `HUMAN BROWSER_EXTENSION` | empty set |
+| `Heartbeat` | `SELF_SERVICE` / `HUMAN BROWSER_EXTENSION` | empty set |
+| `Disconnect` | `SELF_SERVICE` / `HUMAN BROWSER_EXTENSION` | empty set |
+
+### 2.2 Proto removal and reservation
+
+Token-only cutover removes the following legacy request fields and reserves both their existing names and field numbers. All unlisted business payload/target fields retain their current names and numbers.
+
+| Message | Reserved legacy fields |
+| --- | --- |
+| `GetPolicyRequest` | `tenant_id=1`, `operator=2`, `trace=3` |
+| `UpdatePolicyRequest` | `tenant_id=1`, `operator=3`, `trace=4`, `audit=5` |
+| `GetEmployeeAuditGrantsRequest` | `tenant_id=1`, `operator=3`, `trace=4` |
+| `UpdateEmployeeAuditGrantRequest` | `tenant_id=1`, `operator=4`, `trace=5`, `audit=6` |
+| `GetAuditControlRequest` | `tenant_id=1`, `operator=2`, `trace=3` |
+| `AppendVisitSessionsRequest` | `tenant_id=1`, `operator=2`, `trace=3`, `audit=4` |
+| `HeartbeatRequest` | `tenant_id=1`, `extension_session_id=2`, `operator=4`, `trace=5` |
+| `DisconnectRequest` | `tenant_id=1`, `extension_session_id=2`, `operator=4`, `trace=5` |
+| `GetOverviewRequest` | `tenant_id=1`, `operator=3`, `trace=4` |
+| `GetEmployeeTimelineRequest` | `tenant_id=1`, `operator=4`, `trace=5` |
+| `GetDomainAggregationRequest` | `tenant_id=1`, `operator=4`, `trace=5` |
+| `SearchUrlsRequest` | `tenant_id=1`, `operator=4`, `trace=5`, `audit=6` |
+| `GetOnlinePresenceRequest` | `tenant_id=1`, `operator=4`, `trace=5` |
+| `BrowserActivityVisitSessionSummary` | `extension_session_id=2` |
+
+`HeartbeatRequest.observed_at=3`、`DisconnectRequest.observed_at=3`、`AppendVisitSessionsRequest.sessions=5` and every listed query/command target remain business fields. Stored/output `OnlinePresenceEmployee.extension_session_id=4` remains a service-derived read fact populated from verified `session_id`.
 
 ## 3. Core Types
 
@@ -70,7 +89,6 @@ Defaults:
 ```json
 {
   "clientVisitId": "visit_7d9b8b6f",
-  "extensionSessionId": "ext_session_01HX",
   "url": "https://supplier-portal.example/orders",
   "domain": "supplier-portal.example",
   "pageTitle": "Supplier Orders",
@@ -87,7 +105,7 @@ Defaults:
 
 Rules:
 
-- `clientVisitId`, `extensionSessionId`, `url`, `domain`, `startedAt`, `endedAt`, and duration fields are required.
+- `clientVisitId`, `url`, `domain`, `startedAt`, `endedAt`, and duration fields are required; `extensionSessionId` is stamped from verified `session_id` and is not accepted from the payload.
 - `pageTitle` may be empty but must be bounded by service validation.
 - durations must be non-negative integers.
 - service rejects raw input streams such as key values, mouse coordinates, DOM snapshots, screenshots, full page body, request logs, or form values.
@@ -166,11 +184,15 @@ Rules:
 
 - `rawRetentionDays` must be between 30 and 365.
 - `aggregateRetentionDays` must be between 90 and 1095.
-- update records management audit.
+- update atomically records append-only `BROWSER_ACTIVITY_POLICY_UPDATE` management audit from verified execution facts.
 
 ## 4A. Employee Audit Grant
 
 ### 4A.1 Get Employee Audit Grants
+
+Required permission:
+
+- `browser_activity.overview.read`
 
 Request:
 
@@ -201,6 +223,10 @@ Response:
 
 ### 4A.2 Update Employee Audit Grant
 
+Required permission:
+
+- `browser_activity.policy.manage`
+
 Request:
 
 ```json
@@ -214,7 +240,7 @@ Rules:
 
 - request requires trusted `WEB` operator context.
 - BFF must verify target account supports `BROWSER_EXTENSION` terminal before enabling.
-- service records the grant fact and management audit metadata.
+- service atomically records the grant fact and append-only `BROWSER_ACTIVITY_EMPLOYEE_GRANT_UPDATE` management audit from verified execution facts.
 
 ## 5. Extension Ingest
 
@@ -227,13 +253,7 @@ Purpose:
 Request:
 
 ```json
-{
-  "tenantId": "tenant_meilong",
-  "operator": {
-    "accountId": "account_chen",
-    "terminal": "BROWSER_EXTENSION"
-  }
-}
+{}
 ```
 
 Response when collection is enabled:
@@ -276,7 +296,6 @@ Request:
   "sessions": [
     {
       "clientVisitId": "visit_7d9b8b6f",
-      "extensionSessionId": "ext_session_01HX",
       "url": "https://supplier-portal.example/orders",
       "domain": "supplier-portal.example",
       "pageTitle": "Supplier Orders",
@@ -318,7 +337,7 @@ Disabled response:
 Reject conditions:
 
 - missing authenticated extension context
-- `operator.terminal` is not `BROWSER_EXTENSION`
+- signed `session_terminal` is missing or is not `BROWSER_EXTENSION`
 - session tenant/account context is missing or inconsistent
 - payload contains prohibited raw data fields
 - summary duration fields are invalid
@@ -338,7 +357,6 @@ Request:
 
 ```json
 {
-  "extensionSessionId": "ext_session_01HX",
   "observedAt": "2026-06-25T09:30:00.000Z"
 }
 ```
@@ -368,6 +386,26 @@ Rules:
 - heartbeat is part of the audit data channel and is only sent while collection is enabled.
 - when employee audit grant is disabled, service must not update online presence and must return `accepted = false`.
 - after receiving `accepted = false` or `policyEnabled = false`, the extension must stop heartbeat and visit upload, discard pending local summaries, and switch to audit-control polling.
+
+### 5.4 Disconnect
+
+Purpose:
+
+- Mark the authenticated extension session offline immediately on logout, account switch or controlled plugin shutdown.
+
+Request:
+
+```json
+{
+  "observedAt": "2026-06-25T09:31:00.000Z"
+}
+```
+
+Rules:
+
+- the service derives tenant, account and extension session from the verified SELF_SERVICE execution context.
+- a `WEB`, another session terminal, `MACHINE`, `DELEGATED`, body-supplied session id or cross-tenant target is rejected before presence mutation.
+- repeated disconnect for the same verified session is idempotent.
 
 ## 6. Admin Queries
 
@@ -438,7 +476,7 @@ Required permission:
 
 Sensitive read audit:
 
-- required
+- required as method-owned `BROWSER_ACTIVITY_EMPLOYEE_TIMELINE_READ`; failure prevents a successful response.
 
 Request:
 
@@ -475,7 +513,11 @@ Response:
 
 Required permission:
 
-- `browser_activity.overview.read`
+- `browser_activity.url_detail.read`
+
+Sensitive read audit:
+
+- required as method-owned `BROWSER_ACTIVITY_DOMAIN_AGGREGATION_READ`; failure prevents a successful response.
 
 Request:
 
@@ -512,7 +554,7 @@ Required permission:
 
 Sensitive read audit:
 
-- required
+- required as method-owned `BROWSER_ACTIVITY_URL_DETAIL_SEARCH`; failure prevents a successful response.
 
 Request:
 

@@ -113,6 +113,7 @@ scope
 jti / iat / nbf / exp
 cnf
 act? / delegation_id? / session_id?
+session_terminal?
 authz_version?
 ```
 
@@ -123,6 +124,7 @@ authz_version?
 - `client_id` 是申请本 Token 的直接调用工作负载。
 - `scope` 是空格分隔的 Permission Code 子集，不是另一套权限命名。
 - `act` 仅在 DELEGATED 时记录受控代理主体。
+- `session_terminal` 仅来自 Auth active session truth，并与同一 Token 的 `session_id` 绑定；HUMAN session Token 必须携带，MACHINE Token 不携带。它允许目标方法声明精确的 `WEB`、`BROWSER_EXTENSION`、`PDA` 等 session-entry constraint，不是 Permission Code 或 caller body field。
 - `cnf` 绑定当前调用工作负载的 mTLS certificate / proof-of-possession identity。
 - TENANT 数据面 Token 必须有唯一 `tenant_id`；不存在 `tenant=*`。
 - SYSTEM Token 只表示平台控制面，不自动允许访问任意 tenant 数据。
@@ -134,6 +136,7 @@ authz_version?
 - 只有 `auth-service` / STS 持有 ExecutionToken 签发权。
 - Auth 实例无状态横向扩展，通过 `kid` 与 JWKS 支持密钥轮换。
 - 目标服务本地验证签名、issuer、时间、audience、scope、cnf 与紧急 deny cache。
+- 若方法声明 exact session terminal，目标服务同时本地验证签名 `session_terminal`；Gateway 的路由检查不能替代该资源服务约束。
 - 普通 RPC 不在线访问 Auth；Auth 不在每次调用的热路径。
 - 普通撤销允许受短 TTL 限制的收敛窗口；紧急撤销通过安全事件更新本地 deny cache / minimum security version。
 
