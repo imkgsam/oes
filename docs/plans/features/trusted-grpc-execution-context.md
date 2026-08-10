@@ -96,6 +96,41 @@ Additional baseline:
 
 The implementation inventory script at `scripts/architecture/trusted-grpc-signature-inventory.mjs` becomes the machine-verifiable source for updated counts; this packet records the freeze baseline, not a permanently hard-coded repository metric.
 
+### 3.1 Current-main global cutover status
+
+Overall execution status is `GRPC_FOUNDATION_COMPLETE_GLOBAL_SERVICE_CUTOVER_PENDING` at current-main `6f259dc1cca555936ca8c2e358c05d6a21374e59`. The 54 generated files expose all 590 required explicit metadata signatures with zero missing signatures; this proves the shared call-signature foundation only. It does not prove that a target service has classified every contract, prepared every caller, enabled Token-only server enforcement or removed its legacy trust path.
+
+The persistent execution owner is **OES Trusted gRPC Service Migration** (`019fe9f8-5a44-76e1-b5a4-110db9da6d59`). The former A/C/GRPC lane is historical, migration-frozen evidence and is not the active controller for the remaining cutover.
+
+`C/A/T/L` means `CONTRACT_CLASSIFIED` / `ALL_CALLERS_READY` / `TOKEN_ONLY_SERVER_CUTOVER` / `LEGACY_PATH_REMOVED`:
+
+| Service | RPCs / controllers | C | A | T | L | Proven callers / ordering note |
+| --- | ---: | :-: | :-: | :-: | :-: | --- |
+| Asset | 5 / 1 | Y | Y | Y | Y | Gateway, Site Media; complete |
+| Site | 66 / 2 | Y | Y | Y | Y | Gateway; complete |
+| Browser Activity | 13 / 1 | N | N | N | N | Gateway; no pure MACHINE root found; next target |
+| Notification | 2 / 1 | N | N | N | N | Auth; pending |
+| Terminal Device | 17 / 1 | N | N | N | N | Gateway; pending |
+| Finance | 27 / 2 | N | N | N | N | Gateway; pending |
+| Public Entry | 23 / 2 | N | N | N | N | Gateway; pending |
+| Sales | 27 / 4 | N | N | N | N | Gateway; pending |
+| MES | 32 / 4 | N | N | N | N | Gateway; pending |
+| Collaboration | 16 / 4 | N | N | N | N | Gateway; second batch |
+| CRM | 15 / 3 | N | N | N | N | Gateway, Collaboration; second batch |
+| Procurement | 21 / 2 | N | N | N | N | Gateway, WMS; second batch |
+| SRM | 13 / 2 | N | N | N | N | Gateway, Procurement; second batch |
+| Item Master | 50 / 2 | N | N | N | N | Gateway, MES, WMS; high fan-in |
+| WMS | 15 / 2 | N | N | N | N | Gateway; dependency-heavy |
+| HR | 15 / 2 | N | N | N | N | Gateway, Auth, Identity; dependency-heavy |
+| Party | 6 / 2 | N | N | N | N | Gateway, CRM, HR, TenantOrg; high fan-in |
+| TenantOrg | 20 / 2 | N | N | N | N | Gateway, Auth, HR, Identity; high fan-in |
+| Identity | 41 / 3 | N | N | N | N | Gateway, Auth, Permission, HR; foundation partial only |
+| Permission | 66 / 8 | N | N | N | N | Gateway, Auth, HR, TenantOrg, WMS; bootstrap partial only |
+| Auth | 70 / 1 | N | N | N | N | Gateway, HR, Site, TenantOrg; MACHINE foundation complete, full service pending |
+| **Total / proven state** | **560 / 51** | **2 Y / 19 N** | **2 Y / 19 N** | **2 Y / 19 N** | **2 Y / 19 N** | **Asset and Site complete; 19 services pending** |
+
+The frozen order in §6 remains authoritative. Migration continues one target service at a time; completing the Auth, Identity, Permission, Gateway or Common foundation does not implicitly advance an unverified service row.
+
 ## 4. Per-service Migration State Machine
 
 Every target service advances through exactly these states:
