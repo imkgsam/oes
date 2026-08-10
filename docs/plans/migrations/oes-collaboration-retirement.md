@@ -565,6 +565,50 @@ branch refs 共 33：26 个 branch HEAD 已是 current main ancestor（SITE impl
 - Git disposition：唯一关联非main evidence ref为 `codex/exec-crypto/i06-auth-tg2-remediation@64ea8660687bbeb24349d11bcaed6f63d2373c4b`；无绑定worktree、无dirty WIP，不路由main，继续保留到最终cleanup manifest。
 - EXEC-CRYPTO archive terminal：本段进入main后，已通过Codex应用接口仅归档上述四项；不直接写state database，未唤醒线程。exact-ID只读复核为4/4 `archived=1`且仍可读取；A/C、A/D、I06的`archived_at=1786291848`，A/V02的`archived_at=1786291849`。全局未归档数由15降为11，其余11项留给后续逐能力审计。
 
+### 7.11 GRPC global cutover handoff/archive manifest（2026-08-10）
+
+- current-main handoff：docs-only status candidate `4dd7659ea98edc942e95bf593e74ec150e2606db` 已由 persistent I&V 独立验收、ff-only 集成并只 push `main` 一次；root/local `origin/main`/remote `refs/heads/main` 均为该 SHA 且 clean。该提交只更新 [trusted gRPC feature packet](../features/trusted-grpc-execution-context.md)，未改变既有 lease、服务顺序、安全语义或 AI/ActionGrant runtime deferred 边界。
+- replacement execution owner：`OES Trusted gRPC Service Migration`，thread `019fe9f8-5a44-76e1-b5a4-110db9da6d59`，host `local`。标题已设置并读回；首轮只读审计 terminal 为 `GRPC_GLOBAL_CUTOVER_AUDIT_READY`，当前 `idle`，cwd 为只读 root，未创建 branch/worktree。它是后续逐服务 cutover 的唯一持久 owner；旧 A/C/GRPC 不再作为 controller。
+- current inventory：21 services / 51 baseline controllers / 560 baseline RPCs，另有 5 个冻结的 MACHINE planned RPC；54 generated files 的 explicit metadata signatures 为 590/590、missing 0。签名完整只证明共享调用签名基础，不等于服务完成 token-only cutover。
+
+`C/A/T/L` 分别表示 `CONTRACT_CLASSIFIED` / `ALL_CALLERS_READY` / `TOKEN_ONLY_SERVER_CUTOVER` / `LEGACY_PATH_REMOVED`：
+
+| Service | RPCs / controllers | C/A/T/L | 主要 caller / disposition |
+| --- | ---: | --- | --- |
+| Asset | 5 / 1 | Y/Y/Y/Y | Gateway、Site Media；`a82e5ea6…` current-main replacement 已完成 |
+| Site | 66 / 2 | Y/Y/Y/Y | Gateway；`547a0c5d…` Site/Media/Event/R2-purge slice 已完成 |
+| Browser Activity | 13 / 1 | N/N/N/N | Gateway；下一目标，`DESIGN_PENDING` |
+| Notification | 2 / 1 | N/N/N/N | Auth |
+| Terminal Device | 17 / 1 | N/N/N/N | Gateway |
+| Finance | 27 / 2 | N/N/N/N | Gateway |
+| Public Entry | 23 / 2 | N/N/N/N | Gateway |
+| Sales | 27 / 4 | N/N/N/N | Gateway |
+| MES | 32 / 4 | N/N/N/N | Gateway |
+| Collaboration | 16 / 4 | N/N/N/N | Gateway；第二批 |
+| CRM | 15 / 3 | N/N/N/N | Gateway、Collaboration；第二批 |
+| Procurement | 21 / 2 | N/N/N/N | Gateway、WMS；第二批 |
+| SRM | 13 / 2 | N/N/N/N | Gateway、Procurement；第二批 |
+| Item Master | 50 / 2 | N/N/N/N | Gateway、MES、WMS；高扇入 |
+| WMS | 15 / 2 | N/N/N/N | Gateway；依赖后置 |
+| HR | 15 / 2 | N/N/N/N | Gateway、Auth、Identity；依赖后置 |
+| Party | 6 / 2 | N/N/N/N | Gateway、CRM、HR、TenantOrg；高扇入 |
+| TenantOrg | 20 / 2 | N/N/N/N | Gateway、Auth、HR、Identity；高扇入 |
+| Identity | 41 / 3 | N/N/N/N | Gateway、Auth、Permission、HR；foundation partial only |
+| Permission | 66 / 8 | N/N/N/N | Gateway、Auth、HR、TenantOrg、WMS；bootstrap partial only |
+| Auth | 70 / 1 | N/N/N/N | Gateway、HR、Site、TenantOrg；MACHINE foundation complete，full service pending |
+| **Total / proven state** | **560 / 51** | **2 Y / 19 N** | **Asset/Site complete；19 services pending** |
+
+- Browser gate：current main 的 13 RPC / 1 controller 仍有 49 个 proto legacy-context references，zero trusted guard/mode declaration；production direct caller 仅 Gateway，静态审计未发现 pure MACHINE root。现有 truth sources 未完整冻结 13 RPC 的 mode、Permission Code、subject/audience、delegation 与 field disposition，因此状态为 `DESIGN_PENDING`；必须由现有 Unified Design 在用户明确冻结后回写 Browser service truth/contract/proto feature sources，冻结前不创建 Browser implementation candidate。
+- retained evidence refs：`codex/grpc/i04-source-credential-carrier@dced77ad8cb877ea9aad10f1c6a310ad32a924df` 已由 current-main carrier rebuild `3e263e501341ea1b90049d5343c42db055f3c5ea` 消费并取代；`codex/grpc/i03-gateway-trusted-execution-producer@6973bcda1484ac2fccc522f5d8ee70dc989c7541` 已由 current-main Asset replacement `a82e5ea69a7773d4e0e8f5a91dcdf7a599897c1d` 消费并取代。两条旧 ref 均无绑定 worktree、无 dirty WIP、无 active writer，不路由 main，保留为 `SUPERSEDED_IMPLEMENTATION_EVIDENCE` 至 final cleanup。
+- design evidence consumption：A/D/GRPC 的 metadata/Asset five-RPC frozen conclusions 已进入稳定真相源并由 carrier/Asset current-main replacements 落地；A/D/ASSET 的五 RPC classification 已由 `a82e5ea6…` 覆盖；A/D/CDN 的 delivery/purge 结论已由 SITE recovery `547a0c5d…` 覆盖。旧 design tasks 不再持有开放决定或稳定写面。
+- exact pre-archive gate：以下五项已按 exact ID 读回，均为 `archived=0` / `notLoaded`，没有 active child、active writer 或未消费候选；须在本段进入 main 后才通过 Codex 应用接口归档并逐项读回，不唤醒线程、不删除 Git 资源：
+  - `A/C/GRPC · Trusted gRPC Execution Context Command` `019fc87a-54b3-7463-ad9d-5750e8bab94b`；terminal `MIGRATION_FROZEN`。
+  - `A/D/GRPC · Trusted Metadata Migration` `019f99f6-c707-7eb0-8c93-267c67288475`；frozen metadata/Asset design 已消费。
+  - `A/D/ASSET · Site Media Asset Contract` `019f983c-152a-7051-8011-9a25ca0987d7`；terminal `FROZEN_ASSET_FIVE_RPC_TRUSTED_EXECUTION_CLASSIFICATION`。
+  - `A/D/CDN · Asset Delivery and Purge` `019f99f6-c49a-7731-a5a3-fa3c10c9f154`；terminal `FROZEN_CDN_DELIVERY_PURGE`。
+  - `A/I/GRPC/04 · Transport-Private Source Credential Carrier` `019fc563-a9c4-76b0-9774-283206d2f1f0`；terminal `CANDIDATE_READY@dced77ad…`，已由 `3e263e50…` 重建消费。
+- archive count gate：当前 `unarchivedFormalTasks` 保持 11；本段进入 main 并完成 exact-ID 归档/复核后，应由 11 降为 6，再以独立台账提交登记 terminal。归档不代表全仓 gRPC 迁移完成；剩余 19 服务由新持久 owner 串行推进。
+
 ## 8. 本轮验证记录
 
 只读验证覆盖：
@@ -723,6 +767,7 @@ EXEC-CRYPTO HUMAN foundation I&V terminal evidence：
 | MIG-D26 | legacy GC按canonical `title`统计并宣称formal tasks 41/41 archived，但UI重命名线程的底层`title`仍是delegation正文 | SITE A/C/A/D实际仍为`archived=0`，迁移关闭记录高估归档完成度 | `SITE_BATCH_CLOSED`：exact-ID复核得到全局19项未归档；SITE两项已通过应用接口归档并复核2/2，当前剩余17项逐能力处理 |
 | MIG-D27 | PRINCIPAL-ROLE A/C terminal仍把Permission authority decision RPC记录为未冻结`DESIGN_GAP`，A/D停在是否拆独立`PERMISSION-AUTHORITY`的讨论 | 恢复旧线程会重复已由Unified Design、ActionGrant设计与Permission remediation关闭的边界，并误判current main缺少resolver实现 | `PRINCIPAL_ROLE_BATCH_CLOSED`：冻结真相源与`45a7e306…`实现已覆盖全部旧gap；两项已通过应用接口归档并复核2/2，当前剩余15项 |
 | MIG-D28 | EXEC-CRYPTO A/V/02正确拒绝`c7ab0d9c…`的请求自授权恒真门；本批次开始时旧A/C、A/D、I06与A/V02均为`archived=0`，且已实现MACHINE/Gateway/Common/SITE slices仍带pending状态文字 | 若只按旧A/V terminal判断，会把已由Permission-backed HUMAN/MACHINE replacements关闭的问题误作未完成；若归档前未记录状态偏移与拒绝证据，会丢失迁移闭环 | `EXEC_CRYPTO_BATCH_CLOSED`：`1ca24f41…`/`02457959…`与fresh 3 suites/10 tests证明缺陷已修复；status-sync `22f07ccc…`已验收集成；四项已通过应用接口归档并exact-ID复核4/4，当前剩余11项 |
+| MIG-D29 | legacy A/C/GRPC terminal停在`MIGRATION_FROZEN`且只覆盖旧foundation/Asset范围；current main虽已完成carrier、MACHINE、Asset与Site，剩余19服务仍未证明完整C/A/T/L | 直接关闭旧GRPC控制面而不建立新owner会丢失全仓cutover职责；继续恢复旧A/C又会重启已退役capability framework | `OPEN_GRPC_GLOBAL_HANDOFF_ARCHIVE_GATE`：`4dd7659e…`已把21服务矩阵与新持久owner写入feature packet；待本段I&V集成后归档5个exact legacy线程并复核11→6，不删除两条superseded evidence refs |
 
 ## 10. 最终关闭结果
 
