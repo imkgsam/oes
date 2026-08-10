@@ -108,7 +108,7 @@ The persistent execution owner is **OES Trusted gRPC Service Migration** (`019fe
 | --- | ---: | :-: | :-: | :-: | :-: | --- |
 | Asset | 5 / 1 | Y | Y | Y | Y | Gateway, Site Media; complete |
 | Site | 66 / 2 | Y | Y | Y | Y | Gateway; complete |
-| Browser Activity | 13 / 1 | N | N | N | N | Gateway; no pure MACHINE root found; next target |
+| Browser Activity | 13 / 1 | Y | Y | Y | Y | Gateway; implemented and verified at `bf0723472ad0cb430dce99d4547671b216c81ba4` |
 | Notification | 2 / 1 | N | N | N | N | Auth; pending |
 | Terminal Device | 17 / 1 | N | N | N | N | Gateway; pending |
 | Finance | 27 / 2 | N | N | N | N | Gateway; pending |
@@ -127,7 +127,7 @@ The persistent execution owner is **OES Trusted gRPC Service Migration** (`019fe
 | Identity | 41 / 3 | N | N | N | N | Gateway, Auth, Permission, HR; foundation partial only |
 | Permission | 66 / 8 | N | N | N | N | Gateway, Auth, HR, TenantOrg, WMS; bootstrap partial only |
 | Auth | 70 / 1 | N | N | N | N | Gateway, HR, Site, TenantOrg; MACHINE foundation complete, full service pending |
-| **Total / proven state** | **560 / 51** | **2 Y / 19 N** | **2 Y / 19 N** | **2 Y / 19 N** | **2 Y / 19 N** | **Asset and Site complete; 19 services pending** |
+| **Total / proven state** | **560 / 51** | **3 Y / 18 N** | **3 Y / 18 N** | **3 Y / 18 N** | **3 Y / 18 N** | **Asset, Site and Browser Activity complete; 18 services pending** |
 
 The frozen order in §6 remains authoritative. Migration continues one target service at a time; completing the Auth, Identity, Permission, Gateway or Common foundation does not implicitly advance an unverified service row.
 
@@ -800,7 +800,7 @@ Acceptance additionally proves: 59/59 Admin, 7/7 Runtime and 11/11 Site Media RP
 
 ### 9.2 Browser Activity 13-RPC frozen cutover lease
 
-Status: `FROZEN_PENDING_IMPLEMENTATION`. Browser Activity is the next target after Asset and Site. Current-main evidence is 13 RPCs / one controller, Gateway as the sole production direct caller, no discovered pure MACHINE root, 49 proto legacy-context references, zero trusted execution declarations and a Gateway adapter still using `GrpcMetadataPropagationFactory`. This section freezes the service slice without dispatching implementation.
+Status: `IMPLEMENTED_VERIFIED`. Browser Activity was accepted and integrated at `bf0723472ad0cb430dce99d4547671b216c81ba4`: the cumulative implementation used 39 of the 47 leased paths (`1773` insertions / `707` deletions), preserved the exact 13-RPC matrix and all 46 field reservations, rejected MACHINE, DELEGATED and missing/wrong `session_terminal`, and passed proto/inventory, four package builds, focused tests and root gates. The accepted evidence preserves the baseline date-window and L2 environment limitations; it does not treat either limitation as a Browser cutover regression or as proof for any remaining service.
 
 The audience is exactly `urn:oes:service:browser-activity-service`. The nine management/query RPCs are BUSINESS, `HUMAN`, `session_terminal=WEB`; the four extension RPCs are SELF_SERVICE with empty Code set, `HUMAN`, `session_terminal=BROWSER_EXTENSION`. All 13 reject MACHINE and DELEGATED. Auth derives `session_terminal` from the same active session truth as `session_id`; Common carries it in the signed Token, trusted context, declaration enforcement and cache key. This authentication fact does not change Principal Authorization, Permission Code ownership or the three authorization modes.
 
