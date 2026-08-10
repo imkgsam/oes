@@ -827,7 +827,7 @@ browserActivityTrustedGrpcImplementationLease:
   totalTrackedWriterPaths: 47
   stateCounts: { EXISTING: 41, NEW_TARGET: 6 }
   trackedWriterPaths:
-    commonSessionTerminalContract:
+    authCommonSessionTerminal:
       - { state: EXISTING, path: src/common/src/authorization/trusted-execution/declarations/index.ts }
       - { state: EXISTING, path: src/common/src/authorization/trusted-execution/declarations.spec.ts }
       - { state: EXISTING, path: src/common/src/authorization/trusted-execution/trusted-execution-context.ts }
@@ -839,18 +839,17 @@ browserActivityTrustedGrpcImplementationLease:
       - { state: EXISTING, path: src/common/src/authorization/guards/trusted-execution.guard.ts }
       - { state: EXISTING, path: src/common/src/authorization/guards/trusted-execution.guard.spec.ts }
 
-    authSessionTerminalIssuance:
       - { state: EXISTING, path: src/services/system/auth-service/src/modules/token/execution-token.module.ts }
       - { state: EXISTING, path: src/services/system/auth-service/src/modules/token/execution-token.module.spec.ts }
       - { state: EXISTING, path: src/services/system/auth-service/src/application/services/execution-token-exchange.service.ts }
       - { state: EXISTING, path: src/services/system/auth-service/src/application/services/execution-token-exchange.service.spec.ts }
       - { state: EXISTING, path: src/services/system/auth-service/src/infrastructure/execution-token-signer/verified-execution-token-context.provider.spec.ts }
 
-    browserActivityProto:
+    browserActivityProtoContract:
       - { state: EXISTING, path: src/common/src/contracts/browser_activity_service/browser_activity.proto }
       - { state: NEW_TARGET, path: src/common/src/contracts/browser_activity_service/browser_activity.contract.spec.ts }
 
-    gatewayTrustedRuntime:
+    gatewayBrowserActivity:
       - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution-producer.ts }
       - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution-producer.spec.ts }
       - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution.module.ts }
@@ -861,7 +860,6 @@ browserActivityTrustedGrpcImplementationLease:
       - { state: EXISTING, path: src/services/api-gateway/src/app.module.ts }
       - { state: EXISTING, path: src/services/api-gateway/src/app.module.spec.ts }
 
-    gatewayBrowserActivityBff:
       - { state: EXISTING, path: src/services/api-gateway/src/modules/browser-activity-bff/adapters/browser-activity-grpc.adapter.ts }
       - { state: NEW_TARGET, path: src/services/api-gateway/src/modules/browser-activity-bff/adapters/browser-activity-grpc.adapter.spec.ts }
       - { state: EXISTING, path: src/services/api-gateway/src/modules/browser-activity-bff/browser-activity-bff.module.ts }
@@ -871,7 +869,7 @@ browserActivityTrustedGrpcImplementationLease:
       - { state: EXISTING, path: src/services/api-gateway/src/modules/browser-activity-bff/interfaces/http/controllers/browser-activity.controller.spec.ts }
       - { state: EXISTING, path: src/services/api-gateway/src/modules/browser-activity-bff/interfaces/http/controllers/extension-browser-activity.controller.spec.ts }
 
-    browserActivityServer:
+    browserActivityService:
       - { state: EXISTING, path: src/services/system/browser-activity-service/src/main.ts }
       - { state: EXISTING, path: src/services/system/browser-activity-service/src/app.module.ts }
       - { state: EXISTING, path: src/services/system/browser-activity-service/src/interfaces/grpc/browser-activity.grpc.controller.ts }

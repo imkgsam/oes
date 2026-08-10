@@ -10,7 +10,7 @@ Browser Activity BFF exposes two endpoint groups:
 - `/browser-activity/*` for tenant-web administrator policy and query workflows.
 - `/browser-activity/employees/:accountId/audit-grant` for tenant account collection authorization.
 
-BFF owns HTTP shape, access-token/session verification, permission and terminal guard composition, exact Browser Activity ExecutionToken exchange and view model mapping. BFF does not own browser activity facts, employee master data or downstream identity authority. The target audience is exactly `urn:oes:service:browser-activity-service`; Gateway sends mTLS plus target Token and never reconstructs tenant/operator/terminal/session authority in the gRPC body.
+BFF owns HTTP shape, access-token/session verification, permission and terminal guard composition, exact Browser Activity ExecutionToken exchange and view model mapping. BFF does not own browser activity facts, employee master data or downstream identity authority. The target audience is exactly `urn:oes:service:browser-activity-service`; Auth binds the verified session terminal into signed `session_terminal`, Gateway sends mTLS plus that target Token, and it never reconstructs tenant/operator/terminal/session authority in the gRPC body.
 
 ## 2. Collection Gate
 
