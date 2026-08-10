@@ -16,6 +16,7 @@ export interface TrustedExecutionContext {
   /** @deprecated Legacy context field retained only for compile compatibility; the signing gate never reads it. */
   readonly permissionCodes?: readonly string[]
   readonly sessionId?: string
+  readonly sessionTerminal?: string
   readonly delegationId?: string
   readonly actor?: unknown
 }
@@ -92,6 +93,9 @@ export class ExecutionTokenExchangeService {
       exp: expiresAtUnixSeconds,
       cnf: { 'x5t#S256': input.workloadIdentity.certificateThumbprint },
       ...(input.execution.sessionId === undefined ? {} : { session_id: input.execution.sessionId }),
+      ...(input.execution.sessionTerminal === undefined
+        ? {}
+        : { session_terminal: input.execution.sessionTerminal }),
       ...(input.execution.delegationId === undefined
         ? {}
         : { delegation_id: input.execution.delegationId }),

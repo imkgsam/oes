@@ -8,6 +8,7 @@ import {
 } from '@oes/common/authorization'
 import { readLocalVerifiedWorkloadIdentity } from '@oes/common/transport'
 import { GatewayAssetGrpcClient } from './gateway-asset-grpc.client'
+import { GatewayBrowserActivityGrpcClient } from './gateway-browser-activity-grpc.client'
 import { GatewayAuthExecutionTokenExchangeClient } from './gateway-auth-execution-token-exchange.client'
 import { GatewayTrustedGrpcExecutionProducer } from './gateway-trusted-grpc-execution-producer'
 import { GatewayAuthMachineWorkloadSourceCredentialClient } from './gateway-auth-machine-workload-source-credential.client'
@@ -16,6 +17,7 @@ import { GatewayMachineTrustedGrpcExecutionProducer } from './gateway-machine-tr
 
 const ASSET_AUDIENCE = 'urn:oes:service:asset-service'
 const SITE_AUDIENCE = 'urn:oes:service:site-service'
+const BROWSER_ACTIVITY_AUDIENCE = 'urn:oes:service:browser-activity-service'
 
 /** Composes the sole Gateway target-token producer with the same request-private source-credential accessor. */
 @Global()
@@ -24,8 +26,19 @@ const SITE_AUDIENCE = 'urn:oes:service:site-service'
     AsyncLocalTransportPrivateSourceCredentialAccessor,
     AsyncLocalTrustedExecutionContextAccessor,
     GatewayAssetGrpcClient,
+    GatewayBrowserActivityGrpcClient,
     GatewayAuthMachineWorkloadSourceCredentialClient,
-    { provide: GatewayMachineWorkloadSourceCredentialProvider, useFactory: (client: GatewayAuthMachineWorkloadSourceCredentialClient, accessor: AsyncLocalTransportPrivateSourceCredentialAccessor) => new GatewayMachineWorkloadSourceCredentialProvider(client, undefined, accessor), inject: [GatewayAuthMachineWorkloadSourceCredentialClient, AsyncLocalTransportPrivateSourceCredentialAccessor] },
+    {
+      provide: GatewayMachineWorkloadSourceCredentialProvider,
+      useFactory: (
+        client: GatewayAuthMachineWorkloadSourceCredentialClient,
+        accessor: AsyncLocalTransportPrivateSourceCredentialAccessor
+      ) => new GatewayMachineWorkloadSourceCredentialProvider(client, undefined, accessor),
+      inject: [
+        GatewayAuthMachineWorkloadSourceCredentialClient,
+        AsyncLocalTransportPrivateSourceCredentialAccessor
+      ]
+    },
     {
       provide: GatewayAuthExecutionTokenExchangeClient,
       useFactory: (context: AsyncLocalTrustedExecutionContextAccessor) =>
@@ -34,13 +47,17 @@ const SITE_AUDIENCE = 'urn:oes:service:site-service'
     },
     {
       provide: TrustedExecutionRegistry,
-      useFactory: () => new TrustedExecutionRegistry({
-        issuer: requireEnvironment('AUTH_EXECUTION_ISSUER'),
-        audiences: [ASSET_AUDIENCE, SITE_AUDIENCE],
-        workloadIdentities: [requireEnvironment('OES_WORKLOAD_SPIFFE_ID')]
-      })
+      useFactory: () =>
+        new TrustedExecutionRegistry({
+          issuer: requireEnvironment('AUTH_EXECUTION_ISSUER'),
+          audiences: [ASSET_AUDIENCE, SITE_AUDIENCE, BROWSER_ACTIVITY_AUDIENCE],
+          workloadIdentities: [requireEnvironment('OES_WORKLOAD_SPIFFE_ID')]
+        })
     },
-    { provide: CertificateBoundExecutionTokenCache, useFactory: () => new CertificateBoundExecutionTokenCache({ refreshMarginSeconds: 30 }) },
+    {
+      provide: CertificateBoundExecutionTokenCache,
+      useFactory: () => new CertificateBoundExecutionTokenCache({ refreshMarginSeconds: 30 })
+    },
     {
       provide: TrustedGrpcMetadataProvider,
       useFactory: (
@@ -49,26 +66,51 @@ const SITE_AUDIENCE = 'urn:oes:service:site-service'
         tokenCache: CertificateBoundExecutionTokenCache,
         exchangeClient: GatewayAuthExecutionTokenExchangeClient,
         sourceCredentialAccessor: AsyncLocalTransportPrivateSourceCredentialAccessor
-      ) => new TrustedGrpcMetadataProvider({
-        contextAccessor,
-        registry,
-        tokenCache,
-        exchangeClient,
-        sourceCredentialAccessor,
-        localWorkloadIdentity: { getVerifiedWorkloadIdentity: async () => readLocalVerifiedWorkloadIdentity() }
-      }),
-      inject: [AsyncLocalTrustedExecutionContextAccessor, TrustedExecutionRegistry, CertificateBoundExecutionTokenCache, GatewayAuthExecutionTokenExchangeClient, AsyncLocalTransportPrivateSourceCredentialAccessor]
+      ) =>
+        new TrustedGrpcMetadataProvider({
+          contextAccessor,
+          registry,
+          tokenCache,
+          exchangeClient,
+          sourceCredentialAccessor,
+          localWorkloadIdentity: {
+            getVerifiedWorkloadIdentity: async () => readLocalVerifiedWorkloadIdentity()
+          }
+        }),
+      inject: [
+        AsyncLocalTrustedExecutionContextAccessor,
+        TrustedExecutionRegistry,
+        CertificateBoundExecutionTokenCache,
+        GatewayAuthExecutionTokenExchangeClient,
+        AsyncLocalTransportPrivateSourceCredentialAccessor
+      ]
     },
     {
       provide: GatewayTrustedGrpcExecutionProducer,
-      useFactory: (context: AsyncLocalTrustedExecutionContextAccessor, metadata: TrustedGrpcMetadataProvider) => new GatewayTrustedGrpcExecutionProducer(context, metadata),
+      useFactory: (
+        context: AsyncLocalTrustedExecutionContextAccessor,
+        metadata: TrustedGrpcMetadataProvider
+      ) => new GatewayTrustedGrpcExecutionProducer(context, metadata),
       inject: [AsyncLocalTrustedExecutionContextAccessor, TrustedGrpcMetadataProvider]
     },
-    { provide: GatewayMachineTrustedGrpcExecutionProducer, useFactory: (source: GatewayMachineWorkloadSourceCredentialProvider, metadata: TrustedGrpcMetadataProvider, context: AsyncLocalTrustedExecutionContextAccessor) => new GatewayMachineTrustedGrpcExecutionProducer(source, metadata, context), inject: [GatewayMachineWorkloadSourceCredentialProvider, TrustedGrpcMetadataProvider, AsyncLocalTrustedExecutionContextAccessor] }
+    {
+      provide: GatewayMachineTrustedGrpcExecutionProducer,
+      useFactory: (
+        source: GatewayMachineWorkloadSourceCredentialProvider,
+        metadata: TrustedGrpcMetadataProvider,
+        context: AsyncLocalTrustedExecutionContextAccessor
+      ) => new GatewayMachineTrustedGrpcExecutionProducer(source, metadata, context),
+      inject: [
+        GatewayMachineWorkloadSourceCredentialProvider,
+        TrustedGrpcMetadataProvider,
+        AsyncLocalTrustedExecutionContextAccessor
+      ]
+    }
   ],
   exports: [
     AsyncLocalTransportPrivateSourceCredentialAccessor,
     GatewayAssetGrpcClient,
+    GatewayBrowserActivityGrpcClient,
     GatewayTrustedGrpcExecutionProducer,
     GatewayMachineWorkloadSourceCredentialProvider,
     GatewayMachineTrustedGrpcExecutionProducer

@@ -32,7 +32,8 @@ describe('VerifiedExecutionTokenContextProvider', () => {
         principalType: 'HUMAN',
         scopeLevel: 'TENANT',
         tenantId: 'tenant-1',
-        sessionId: 'session-1'
+        sessionId: 'session-1',
+        sessionTerminal: 'WEB'
       })
     }
     const permissionDecisionResolver = {

@@ -76,7 +76,12 @@ const PRINCIPAL_AUTHORIZATION_CODE =
 
 /** Assembles the fail-closed STS runtime; deployment must bind trusted context and a protected KMS/HSM client. */
 @Module({
-  imports: [CqrsModule, PrismaModule, ExternalServicesModule, GrpcTransportModule.forFeature([SERVICE_NAMES.PERMISSION])],
+  imports: [
+    CqrsModule,
+    PrismaModule,
+    ExternalServicesModule,
+    GrpcTransportModule.forFeature([SERVICE_NAMES.PERMISSION])
+  ],
   providers: [
     {
       provide: EXECUTION_TOKEN_RUNTIME_CONFIGURATION,
@@ -123,8 +128,29 @@ const PRINCIPAL_AUTHORIZATION_CODE =
     },
     {
       provide: EXECUTION_TOKEN_SOURCE_CREDENTIAL_VERIFIER,
-      useFactory: (queryBus: QueryBus, repository: PrismaMachineWorkloadSourceCredentialRepository, signer: ExecutionTokenSigningPort, identity: IIdentityServicePort, configuration: ExecutionTokenRuntimeConfiguration) => new CompositeSourceCredentialVerifier(new AuthSessionSourceCredentialVerifier(queryBus), new MachineWorkloadSourceCredentialVerifier(repository, signer, identity, configuration.issuer)),
-      inject: [QueryBus, PrismaMachineWorkloadSourceCredentialRepository, EXECUTION_TOKEN_SIGNER, IDENTITY_SERVICE, EXECUTION_TOKEN_RUNTIME_CONFIGURATION]
+      useFactory: (
+        queryBus: QueryBus,
+        repository: PrismaMachineWorkloadSourceCredentialRepository,
+        signer: ExecutionTokenSigningPort,
+        identity: IIdentityServicePort,
+        configuration: ExecutionTokenRuntimeConfiguration
+      ) =>
+        new CompositeSourceCredentialVerifier(
+          new AuthSessionSourceCredentialVerifier(queryBus),
+          new MachineWorkloadSourceCredentialVerifier(
+            repository,
+            signer,
+            identity,
+            configuration.issuer
+          )
+        ),
+      inject: [
+        QueryBus,
+        PrismaMachineWorkloadSourceCredentialRepository,
+        EXECUTION_TOKEN_SIGNER,
+        IDENTITY_SERVICE,
+        EXECUTION_TOKEN_RUNTIME_CONFIGURATION
+      ]
     },
     {
       provide: EXECUTION_TOKEN_PERMISSION_DECISION_RESOLVER,
@@ -188,16 +214,33 @@ export class AuthSessionSourceCredentialVerifier implements ExecutionTokenSource
       principalType: 'HUMAN',
       scopeLevel: session.scopeLevel,
       ...(session.tenantId === undefined ? {} : { tenantId: session.tenantId }),
-      sessionId: session.sessionId
+      sessionId: session.sessionId,
+      sessionTerminal: requireSessionTerminal(session.terminal)
     })
   }
 }
 
+/** Requires the terminal fact returned by Auth's active-session query before it is signed. */
+function requireSessionTerminal(terminal: string): string {
+  if (typeof terminal !== 'string' || terminal.length === 0 || terminal.trim() !== terminal) {
+    throw new Error('active session terminal is required')
+  }
+  return terminal
+}
+
 /** Preserves HUMAN session validation while routing only the dedicated machine JWS profile to its strict verifier. */
 export class CompositeSourceCredentialVerifier implements ExecutionTokenSourceCredentialVerifier {
-  constructor(private readonly human: AuthSessionSourceCredentialVerifier, private readonly machine: MachineWorkloadSourceCredentialVerifier) {}
-  async verify(sourceCredential: string, workloadIdentity: VerifiedExecutionWorkload): Promise<TrustedExecutionContext> {
-    return isMachineSourceProfile(sourceCredential) ? this.machine.verify(sourceCredential, workloadIdentity) : this.human.verify(sourceCredential, workloadIdentity)
+  constructor(
+    private readonly human: AuthSessionSourceCredentialVerifier,
+    private readonly machine: MachineWorkloadSourceCredentialVerifier
+  ) {}
+  async verify(
+    sourceCredential: string,
+    workloadIdentity: VerifiedExecutionWorkload
+  ): Promise<TrustedExecutionContext> {
+    return isMachineSourceProfile(sourceCredential)
+      ? this.machine.verify(sourceCredential, workloadIdentity)
+      : this.human.verify(sourceCredential, workloadIdentity)
   }
 }
 
@@ -205,7 +248,14 @@ export class CompositeSourceCredentialVerifier implements ExecutionTokenSourceCr
 function isMachineSourceProfile(sourceCredential: string): boolean {
   const [header] = sourceCredential.split('.')
   if (!header) return false
-  try { return (JSON.parse(Buffer.from(header, 'base64url').toString('utf8')) as { typ?: unknown }).typ === 'oes-machine-source+jwt' } catch { return false }
+  try {
+    return (
+      (JSON.parse(Buffer.from(header, 'base64url').toString('utf8')) as { typ?: unknown }).typ ===
+      'oes-machine-source+jwt'
+    )
+  } catch {
+    return false
+  }
 }
 
 /** Calls Permission's current issuance RPCs and returns their outputs as the sole privilege upper bound. */

@@ -161,15 +161,12 @@ const siteGrpcLoaderOptions = { longs: String, arrays: true }
       services: {
         [SERVICE_NAMES.AUTH]: {
           serviceName: SERVICE_NAMES.AUTH,
-          protoPath: [resolveCommonProtoPath('auth_service/auth.proto'), resolveCommonProtoPath('auth_service/external_api_key.proto')],
+          protoPath: [
+            resolveCommonProtoPath('auth_service/auth.proto'),
+            resolveCommonProtoPath('auth_service/external_api_key.proto')
+          ],
           packageName: 'auth_service',
           url: resolveAuthGrpcUrl()
-        },
-        [SERVICE_NAMES.BROWSER_ACTIVITY]: {
-          serviceName: SERVICE_NAMES.BROWSER_ACTIVITY,
-          protoPath: resolveCommonProtoPath('browser_activity_service/browser_activity.proto'),
-          packageName: 'browser_activity_service',
-          url: resolveBrowserActivityGrpcUrl()
         },
         [SERVICE_NAMES.ASSET]: {
           serviceName: SERVICE_NAMES.ASSET,

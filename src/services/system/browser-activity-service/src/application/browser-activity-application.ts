@@ -16,6 +16,17 @@ export interface BrowserActivityOperatorContext {
   userId?: string
 }
 
+/** Carries method-owned audit facts derived from verified execution rather than request authority. */
+export interface BrowserActivityAuditContext {
+  action: string
+  operatorAccountId: string
+  sessionId: string
+  tenantId: string
+  traceId?: string
+  employeeAccountId?: string
+  keyword?: string
+}
+
 export interface BrowserActivityPolicy {
   aggregateRetentionDays: number
   enabled: boolean
@@ -43,6 +54,7 @@ export interface GetPolicyInput {
 }
 
 export interface UpdatePolicyInput {
+  audit?: BrowserActivityAuditContext
   operator: BrowserActivityOperatorContext
   policy: BrowserActivityPolicy
   tenantId: string
@@ -69,6 +81,7 @@ export interface UpdateEmployeeAuditGrantInput {
   enabled: boolean
   operator: BrowserActivityOperatorContext
   tenantId: string
+  audit?: BrowserActivityAuditContext
 }
 
 export interface AppendVisitSessionsInput {
@@ -202,7 +215,10 @@ const DEFAULT_POLICY: BrowserActivityPolicy = {
 
 // BrowserActivityApplication coordinates P1 policy and visit-summary use cases for tests and adapters.
 export class BrowserActivityApplication {
-  private readonly employeeAuditGrants = new Map<string, Map<string, BrowserActivityEmployeeAuditGrant>>()
+  private readonly employeeAuditGrants = new Map<
+    string,
+    Map<string, BrowserActivityEmployeeAuditGrant>
+  >()
   private readonly policies = new Map<string, BrowserActivityPolicy>()
   private readonly presence = new Map<string, Map<string, StoredOnlinePresence>>()
   private readonly now: () => number
@@ -227,8 +243,12 @@ export class BrowserActivityApplication {
   }
 
   // getEmployeeAuditGrants returns account-level collection grants and defaults requested accounts to disabled.
-  async getEmployeeAuditGrants(input: GetEmployeeAuditGrantsInput): Promise<GetEmployeeAuditGrantsResponse> {
-    const tenantGrants = this.employeeAuditGrants.get(input.tenantId) ?? new Map<string, BrowserActivityEmployeeAuditGrant>()
+  async getEmployeeAuditGrants(
+    input: GetEmployeeAuditGrantsInput
+  ): Promise<GetEmployeeAuditGrantsResponse> {
+    const tenantGrants =
+      this.employeeAuditGrants.get(input.tenantId) ??
+      new Map<string, BrowserActivityEmployeeAuditGrant>()
     const accountIds = input.accountIds?.length ? input.accountIds : [...tenantGrants.keys()]
     return {
       grants: accountIds.map((accountId) => ({
@@ -241,9 +261,13 @@ export class BrowserActivityApplication {
   }
 
   // updateEmployeeAuditGrant replaces one account-level browser activity collection grant.
-  async updateEmployeeAuditGrant(input: UpdateEmployeeAuditGrantInput): Promise<BrowserActivityEmployeeAuditGrant> {
+  async updateEmployeeAuditGrant(
+    input: UpdateEmployeeAuditGrantInput
+  ): Promise<BrowserActivityEmployeeAuditGrant> {
     assertWebOperator(input.operator)
-    const tenantGrants = this.employeeAuditGrants.get(input.tenantId) ?? new Map<string, BrowserActivityEmployeeAuditGrant>()
+    const tenantGrants =
+      this.employeeAuditGrants.get(input.tenantId) ??
+      new Map<string, BrowserActivityEmployeeAuditGrant>()
     const grant = {
       accountId: requiredAccountId(input.accountId),
       enabled: input.enabled,
@@ -256,7 +280,9 @@ export class BrowserActivityApplication {
   }
 
   // getAuditControl returns the extension control-plane decision without writing heartbeat or visit facts.
-  async getAuditControl(input: BrowserActivityAuditControlInput): Promise<BrowserActivityAuditControlResult> {
+  async getAuditControl(
+    input: BrowserActivityAuditControlInput
+  ): Promise<BrowserActivityAuditControlResult> {
     assertExtensionOperator(input.operator)
     const grant = await this.getEmployeeGrant(input.tenantId, input.operator.accountId)
     return toAuditControlResult(grant.enabled)
@@ -277,13 +303,17 @@ export class BrowserActivityApplication {
 
     const existing = this.visitSessions.get(input.tenantId) ?? []
     const storedSessions = input.sessions.map((session) => ({
-        ...session,
-        employeeAccountId: input.operator.accountId,
-        employeeDisplayName: input.operator.displayName ?? input.operator.accountId
-      }))
+      ...session,
+      employeeAccountId: input.operator.accountId,
+      employeeDisplayName: input.operator.displayName ?? input.operator.accountId
+    }))
     existing.push(...storedSessions)
     this.visitSessions.set(input.tenantId, existing)
-    this.updateLastObservedDomain(input.tenantId, input.operator.accountId, storedSessions.at(-1)?.domain)
+    this.updateLastObservedDomain(
+      input.tenantId,
+      input.operator.accountId,
+      storedSessions.at(-1)?.domain
+    )
 
     return {
       acceptedCount: input.sessions.length,
@@ -314,7 +344,9 @@ export class BrowserActivityApplication {
   }
 
   // disconnect removes the authenticated extension session from online presence immediately on logout.
-  async disconnect(input: BrowserActivityDisconnectInput): Promise<BrowserActivityDisconnectResult> {
+  async disconnect(
+    input: BrowserActivityDisconnectInput
+  ): Promise<BrowserActivityDisconnectResult> {
     assertExtensionOperator(input.operator)
     parseDate(input.observedAt)
     const tenantPresence = this.presence.get(input.tenantId)
@@ -330,7 +362,9 @@ export class BrowserActivityApplication {
   async getOverview(input: BrowserActivityPeriodQuery) {
     const visits = this.listVisits(input.tenantId, input.period)
     const presence = await this.getOnlinePresence({ tenantId: input.tenantId, status: 'ALL' })
-    const presenceByAccount = new Map(presence.employees.map((employee) => [employee.accountId, employee]))
+    const presenceByAccount = new Map(
+      presence.employees.map((employee) => [employee.accountId, employee])
+    )
     const employees = [...groupBy(visits, (visit) => visit.employeeAccountId).entries()]
       .map(([accountId, employeeVisits]) => ({
         accountId,
@@ -363,10 +397,14 @@ export class BrowserActivityApplication {
   }
 
   // getEmployeeTimeline returns chronological URL visit facts for one employee account.
-  async getEmployeeTimeline(input: EmployeeTimelineQuery) {
+  async getEmployeeTimeline(
+    input: EmployeeTimelineQuery & { audit?: BrowserActivityAuditContext }
+  ) {
     const visits = this.listVisits(input.tenantId, input.period)
       .filter((visit) => visit.employeeAccountId === input.employeeAccountId)
-      .sort((left, right) => new Date(left.startedAt).getTime() - new Date(right.startedAt).getTime())
+      .sort(
+        (left, right) => new Date(left.startedAt).getTime() - new Date(right.startedAt).getTime()
+      )
 
     return {
       employeeAccountId: input.employeeAccountId,
@@ -386,22 +424,28 @@ export class BrowserActivityApplication {
   }
 
   // getDomainAggregation returns domain-level factual aggregates for a tenant or selected employee.
-  async getDomainAggregation(input: EmployeeScopedBrowserActivityQuery) {
+  async getDomainAggregation(
+    input: EmployeeScopedBrowserActivityQuery & { audit?: BrowserActivityAuditContext }
+  ) {
     const visits = this.listVisits(input.tenantId, input.period).filter(
       (visit) => !input.employeeAccountId || visit.employeeAccountId === input.employeeAccountId
     )
-    const domains = [...groupBy(visits, (visit) => visit.domain).entries()].map(([domain, domainVisits]) => ({
-      activeDurationSeconds: sum(domainVisits, 'activeDurationSeconds'),
-      domain,
-      employeeCount: new Set(domainVisits.map((visit) => visit.employeeAccountId)).size,
-      foregroundDurationSeconds: sum(domainVisits, 'foregroundDurationSeconds'),
-      idleDurationSeconds: sum(domainVisits, 'idleDurationSeconds'),
-      urlCount: new Set(domainVisits.map((visit) => visit.url)).size,
-      visitCount: domainVisits.length
-    }))
+    const domains = [...groupBy(visits, (visit) => visit.domain).entries()].map(
+      ([domain, domainVisits]) => ({
+        activeDurationSeconds: sum(domainVisits, 'activeDurationSeconds'),
+        domain,
+        employeeCount: new Set(domainVisits.map((visit) => visit.employeeAccountId)).size,
+        foregroundDurationSeconds: sum(domainVisits, 'foregroundDurationSeconds'),
+        idleDurationSeconds: sum(domainVisits, 'idleDurationSeconds'),
+        urlCount: new Set(domainVisits.map((visit) => visit.url)).size,
+        visitCount: domainVisits.length
+      })
+    )
 
     return {
-      domains: domains.sort((left, right) => right.activeDurationSeconds - left.activeDurationSeconds)
+      domains: domains.sort(
+        (left, right) => right.activeDurationSeconds - left.activeDurationSeconds
+      )
     }
   }
 
@@ -416,31 +460,36 @@ export class BrowserActivityApplication {
       `${visit.url} ${visit.domain} ${visit.pageTitle}`.toLowerCase().includes(keyword)
     )
 
-    const results = [...groupBy(visits, (visit) => `${visit.employeeAccountId}:${visit.url}`).values()].map(
-      (urlVisits) => {
-        const latest = [...urlVisits].sort(
-          (left, right) => new Date(right.endedAt).getTime() - new Date(left.endedAt).getTime()
-        )[0]!
+    const results = [
+      ...groupBy(visits, (visit) => `${visit.employeeAccountId}:${visit.url}`).values()
+    ].map((urlVisits) => {
+      const latest = [...urlVisits].sort(
+        (left, right) => new Date(right.endedAt).getTime() - new Date(left.endedAt).getTime()
+      )[0]!
 
-        return {
-          activeDurationSeconds: sum(urlVisits, 'activeDurationSeconds'),
-          domain: latest.domain,
-          employeeDisplayName: latest.employeeDisplayName,
-          lastVisitedAt: latest.endedAt,
-          pageTitle: latest.pageTitle,
-          url: latest.url,
-          visitCount: urlVisits.length
-        }
+      return {
+        activeDurationSeconds: sum(urlVisits, 'activeDurationSeconds'),
+        domain: latest.domain,
+        employeeDisplayName: latest.employeeDisplayName,
+        lastVisitedAt: latest.endedAt,
+        pageTitle: latest.pageTitle,
+        url: latest.url,
+        visitCount: urlVisits.length
       }
-    )
+    })
 
     return {
-      results: results.sort((left, right) => new Date(right.lastVisitedAt).getTime() - new Date(left.lastVisitedAt).getTime())
+      results: results.sort(
+        (left, right) =>
+          new Date(right.lastVisitedAt).getTime() - new Date(left.lastVisitedAt).getTime()
+      )
     }
   }
 
   // getOnlinePresence returns heartbeat-derived collection-channel status for tenant accounts.
-  async getOnlinePresence(input: BrowserActivityOnlinePresenceQuery): Promise<BrowserActivityOnlinePresenceResponse> {
+  async getOnlinePresence(
+    input: BrowserActivityOnlinePresenceQuery
+  ): Promise<BrowserActivityOnlinePresenceResponse> {
     const serverTimeMs = this.now()
     const employees = [...(this.presence.get(input.tenantId)?.values() ?? [])]
       .map((presence) => ({
@@ -448,7 +497,11 @@ export class BrowserActivityApplication {
         onlineStatus: resolveBrowserActivityOnlineStatus(presence.lastHeartbeatAt, serverTimeMs)
       }))
       .filter((presence) => shouldIncludePresence(presence, input, serverTimeMs))
-      .sort((left, right) => comparePresence(left.onlineStatus, right.onlineStatus) || left.displayName.localeCompare(right.displayName))
+      .sort(
+        (left, right) =>
+          comparePresence(left.onlineStatus, right.onlineStatus) ||
+          left.displayName.localeCompare(right.displayName)
+      )
 
     return {
       employees,
@@ -459,7 +512,8 @@ export class BrowserActivityApplication {
         staleCount: employees.filter((employee) => employee.onlineStatus === 'STALE').length
       },
       thresholds: {
-        heartbeatIntervalSeconds: BROWSER_ACTIVITY_ONLINE_PRESENCE_THRESHOLDS.heartbeatIntervalSeconds,
+        heartbeatIntervalSeconds:
+          BROWSER_ACTIVITY_ONLINE_PRESENCE_THRESHOLDS.heartbeatIntervalSeconds,
         onlineWithinSeconds: BROWSER_ACTIVITY_ONLINE_PRESENCE_THRESHOLDS.onlineWithinSeconds,
         staleWithinSeconds: BROWSER_ACTIVITY_ONLINE_PRESENCE_THRESHOLDS.staleWithinSeconds
       }
@@ -475,13 +529,20 @@ export class BrowserActivityApplication {
   }
 
   // getEmployeeGrant resolves one account grant without falling back to tenant-level policy state.
-  private async getEmployeeGrant(tenantId: string, accountId: string): Promise<BrowserActivityEmployeeAuditGrant> {
+  private async getEmployeeGrant(
+    tenantId: string,
+    accountId: string
+  ): Promise<BrowserActivityEmployeeAuditGrant> {
     const result = await this.getEmployeeAuditGrants({ accountIds: [accountId], tenantId })
     return result.grants[0] ?? { accountId, enabled: false }
   }
 
   // updateLastObservedDomain records the latest accepted visit domain on an existing presence row only.
-  private updateLastObservedDomain(tenantId: string, accountId: string, domain: string | undefined): void {
+  private updateLastObservedDomain(
+    tenantId: string,
+    accountId: string,
+    domain: string | undefined
+  ): void {
     if (!domain) {
       return
     }
@@ -501,10 +562,13 @@ export class BrowserActivityApplication {
     tenantId: string
   }): void {
     const observedAt = parseDate(input.observedAt).toISOString()
-    const tenantPresence = this.presence.get(input.tenantId) ?? new Map<string, StoredOnlinePresence>()
+    const tenantPresence =
+      this.presence.get(input.tenantId) ?? new Map<string, StoredOnlinePresence>()
     const existing = tenantPresence.get(input.accountId)
     const sessionStartedAt =
-      existing?.extensionSessionId === input.extensionSessionId ? existing.sessionStartedAt : observedAt
+      existing?.extensionSessionId === input.extensionSessionId
+        ? existing.sessionStartedAt
+        : observedAt
     tenantPresence.set(input.accountId, {
       accountId: input.accountId,
       displayName: input.displayName,
@@ -585,8 +649,14 @@ function parseDate(value: string): Date {
 }
 
 // resolveBrowserActivityOnlineStatus applies the frozen P1.1 heartbeat thresholds to one presence row.
-export function resolveBrowserActivityOnlineStatus(lastHeartbeatAt: string, serverTimeMs: number): BrowserActivityOnlineStatus {
-  const ageSeconds = Math.max(0, Math.floor((serverTimeMs - parseDate(lastHeartbeatAt).getTime()) / 1000))
+export function resolveBrowserActivityOnlineStatus(
+  lastHeartbeatAt: string,
+  serverTimeMs: number
+): BrowserActivityOnlineStatus {
+  const ageSeconds = Math.max(
+    0,
+    Math.floor((serverTimeMs - parseDate(lastHeartbeatAt).getTime()) / 1000)
+  )
   if (ageSeconds <= BROWSER_ACTIVITY_ONLINE_PRESENCE_THRESHOLDS.onlineWithinSeconds) {
     return 'ONLINE'
   }
@@ -613,7 +683,10 @@ function shouldIncludePresence(
 }
 
 // comparePresence keeps active collection-channel states first in administrator lists.
-function comparePresence(left: BrowserActivityOnlineStatus, right: BrowserActivityOnlineStatus): number {
+function comparePresence(
+  left: BrowserActivityOnlineStatus,
+  right: BrowserActivityOnlineStatus
+): number {
   const rank: Record<BrowserActivityOnlineStatus, number> = {
     ONLINE: 0,
     STALE: 1,

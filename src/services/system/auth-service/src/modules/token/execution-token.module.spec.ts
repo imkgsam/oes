@@ -60,6 +60,7 @@ describe('ExecutionTokenModule authority wiring', () => {
       userId: 'user-1',
       tenantId: 'tenant-1',
       sessionId: 'session-1',
+      terminal: 'WEB',
       scopeLevel: 'TENANT',
       roles: ['legacy-role'],
       permissions: ['requested.code']
@@ -79,7 +80,8 @@ describe('ExecutionTokenModule authority wiring', () => {
       principalType: 'HUMAN',
       scopeLevel: 'TENANT',
       tenantId: 'tenant-1',
-      sessionId: 'session-1'
+      sessionId: 'session-1',
+      sessionTerminal: 'WEB'
     })
     expect(result).not.toHaveProperty('permissionCodes')
   })

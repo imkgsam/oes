@@ -36,6 +36,7 @@ export type VerifiedExecutionToken = {
   readonly actor?: unknown
   readonly delegationId?: string
   readonly sessionId?: string
+  readonly sessionTerminal?: string
   readonly authzVersion?: string | number
 }
 
@@ -161,6 +162,7 @@ export class ExecutionTokenVerifier {
       ...(claims.act === undefined ? {} : { actor: deepFreezeJson(claims.act) }),
       ...optionalProperty(claims, 'delegation_id', 'delegationId'),
       ...optionalProperty(claims, 'session_id', 'sessionId'),
+      ...optionalProperty(claims, 'session_terminal', 'sessionTerminal'),
       ...(authzVersion === undefined ? {} : { authzVersion })
     })
   }

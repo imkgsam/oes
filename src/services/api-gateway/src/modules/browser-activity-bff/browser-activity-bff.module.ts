@@ -1,7 +1,5 @@
 import { Module } from '@nestjs/common'
 import { AuthorizationModule } from '@oes/common/authorization'
-import { SERVICE_NAMES } from '@oes/common/constants'
-import { GrpcTransportModule } from '@oes/common/transport'
 import { BrowserActivityGrpcAdapter } from './adapters/browser-activity-grpc.adapter'
 import { BROWSER_ACTIVITY_CLIENT, BrowserActivityBffService } from './browser-activity-bff.service'
 import { BrowserActivityController } from './interfaces/http/controllers/browser-activity.controller'
@@ -9,11 +7,7 @@ import { ExtensionBrowserActivityController } from './interfaces/http/controller
 import { PermissionServiceProxyModule } from '../permission-service/permission-service.module'
 
 @Module({
-  imports: [
-    AuthorizationModule,
-    GrpcTransportModule.forFeature([SERVICE_NAMES.BROWSER_ACTIVITY]),
-    PermissionServiceProxyModule
-  ],
+  imports: [AuthorizationModule, PermissionServiceProxyModule],
   controllers: [BrowserActivityController, ExtensionBrowserActivityController],
   providers: [
     BrowserActivityGrpcAdapter,

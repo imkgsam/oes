@@ -15,12 +15,14 @@ export type RpcPermissionRequirement =
 export type BusinessRpcAuthorizationDeclaration = {
   readonly mode: 'BUSINESS'
   readonly permissions: RpcPermissionRequirement
+  readonly sessionTerminal?: string
 }
 
 /** Represents a structural SELF_SERVICE declaration without binding a principal. */
 export type SelfServiceRpcAuthorizationDeclaration = {
   readonly mode: 'SELF_SERVICE'
   readonly allowDelegated: boolean
+  readonly sessionTerminal?: string
 }
 
 /** Represents a structural INTERNAL declaration without validating a workload or policy. */
@@ -36,17 +38,26 @@ export type RpcAuthorizationModeDeclaration =
   | InternalRpcAuthorizationDeclaration
 
 /** Declares BUSINESS metadata on a method without installing authorization enforcement. */
-export const AuthorizeBusinessRpc = (permissions: RpcPermissionRequirement) =>
+export const AuthorizeBusinessRpc = (
+  permissions: RpcPermissionRequirement,
+  options: { readonly sessionTerminal?: string } = {}
+) =>
   SetMetadata(
     RPC_AUTHORIZATION_MODE_METADATA_KEY,
-    createBusinessRpcAuthorizationDeclaration(permissions)
+    createBusinessRpcAuthorizationDeclaration(permissions, options.sessionTerminal)
   )
 
 /** Declares SELF_SERVICE metadata on a method without binding it to any principal. */
-export const AuthorizeSelfServiceRpc = ({ allowDelegated }: { readonly allowDelegated: boolean }) =>
+export const AuthorizeSelfServiceRpc = ({
+  allowDelegated,
+  sessionTerminal
+}: {
+  readonly allowDelegated: boolean
+  readonly sessionTerminal?: string
+}) =>
   SetMetadata(
     RPC_AUTHORIZATION_MODE_METADATA_KEY,
-    createSelfServiceRpcAuthorizationDeclaration(allowDelegated)
+    createSelfServiceRpcAuthorizationDeclaration(allowDelegated, sessionTerminal)
   )
 
 /** Declares INTERNAL metadata on a method without validating any workload identity or policy. */
@@ -67,23 +78,42 @@ export const getRpcAuthorizationModeDeclaration = (
 
 /** Creates an immutable BUSINESS declaration after validating its local metadata shape. */
 function createBusinessRpcAuthorizationDeclaration(
-  permissions: RpcPermissionRequirement
+  permissions: RpcPermissionRequirement,
+  sessionTerminal?: string
 ): BusinessRpcAuthorizationDeclaration {
   return Object.freeze({
     mode: 'BUSINESS',
-    permissions: normalizePermissionRequirement('BUSINESS', permissions)
+    permissions: normalizePermissionRequirement('BUSINESS', permissions),
+    ...(sessionTerminal === undefined
+      ? {}
+      : { sessionTerminal: normalizeSessionTerminal(sessionTerminal) })
   })
 }
 
 /** Creates an immutable SELF_SERVICE declaration after validating its local metadata shape. */
 function createSelfServiceRpcAuthorizationDeclaration(
-  allowDelegated: boolean
+  allowDelegated: boolean,
+  sessionTerminal?: string
 ): SelfServiceRpcAuthorizationDeclaration {
   if (typeof allowDelegated !== 'boolean') {
     throw new Error('SELF_SERVICE authorization allowDelegated must be a boolean')
   }
 
-  return Object.freeze({ mode: 'SELF_SERVICE', allowDelegated })
+  return Object.freeze({
+    mode: 'SELF_SERVICE',
+    allowDelegated,
+    ...(sessionTerminal === undefined
+      ? {}
+      : { sessionTerminal: normalizeSessionTerminal(sessionTerminal) })
+  })
+}
+
+/** Restricts terminal declarations to one exact Auth-signed session fact. */
+function normalizeSessionTerminal(value: string): string {
+  if (typeof value !== 'string' || value.length === 0 || value.trim() !== value) {
+    throw new Error('RPC session terminal must be an exact non-empty string')
+  }
+  return value
 }
 
 /** Creates an immutable INTERNAL declaration after validating its local metadata shape. */

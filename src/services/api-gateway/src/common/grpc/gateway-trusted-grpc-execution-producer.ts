@@ -88,6 +88,7 @@ export class GatewayTrustedGrpcExecutionProducer {
       ...optionalValue(user.tenantId ?? user.tid, 'tenantId'),
       ...optionalValue(user.orgId, 'orgId'),
       sessionId: requireExactValue(user.sid, 'verified Gateway session id'),
+      sessionTerminal: requireExactValue(user.terminal, 'verified Gateway session terminal'),
       ...optionalAuthzVersion(user.authzVersion),
       requestId: requireExactValue(source.requestId, 'verified Gateway request id'),
       traceparent: requireExactValue(

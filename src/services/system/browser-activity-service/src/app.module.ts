@@ -9,6 +9,11 @@ import {
 } from './interfaces/grpc/browser-activity.grpc.controller'
 import { PrismaBrowserActivityApplication } from './infrastructure/prisma/prisma-browser-activity-application'
 import { PrismaService } from './infrastructure/prisma/prisma.service'
+import { Reflector } from '@nestjs/core'
+import { createLazyTrustedExecutionRuntime, TrustedExecutionGuard } from '@oes/common/authorization'
+
+const BROWSER_ACTIVITY_AUDIENCE = 'urn:oes:service:browser-activity-service'
+const trustedExecutionRuntime = createLazyTrustedExecutionRuntime(BROWSER_ACTIVITY_AUDIENCE)
 
 @Module({
   imports: [
@@ -24,6 +29,17 @@ import { PrismaService } from './infrastructure/prisma/prisma.service'
   providers: [
     PrismaService,
     PrismaBrowserActivityApplication,
+    {
+      provide: TrustedExecutionGuard,
+      useFactory: (reflector: Reflector) =>
+        new TrustedExecutionGuard(
+          reflector,
+          trustedExecutionRuntime.verifier,
+          trustedExecutionRuntime.workloadIdentityProvider,
+          BROWSER_ACTIVITY_AUDIENCE
+        ),
+      inject: [Reflector]
+    },
     {
       provide: BROWSER_ACTIVITY_APPLICATION,
       useExisting: PrismaBrowserActivityApplication

@@ -7,6 +7,7 @@ import {
   BROWSER_ACTIVITY_ONLINE_PRESENCE_THRESHOLDS,
   BrowserActivityAuditControlInput,
   BrowserActivityAuditControlResult,
+  BrowserActivityAuditContext,
   BrowserActivityHeartbeatInput,
   BrowserActivityHeartbeatResult,
   BrowserActivityDisconnectInput,
@@ -90,7 +91,7 @@ export class PrismaBrowserActivityApplication {
   async updatePolicy(input: UpdatePolicyInput): Promise<BrowserActivityPolicy> {
     assertWebOperator(input.operator)
     assertPolicyRetention(input.policy)
-    const policy = await this.prisma.browserActivityPolicy.upsert({
+    const policyWrite = this.prisma.browserActivityPolicy.upsert({
       create: {
         aggregateRetentionDays: input.policy.aggregateRetentionDays,
         enabled: input.policy.enabled,
@@ -106,6 +107,9 @@ export class PrismaBrowserActivityApplication {
       },
       where: { tenantId: input.tenantId }
     })
+    const policy = input.audit
+      ? (await this.prisma.$transaction([policyWrite, this.auditWrite(input.audit)]))[0]
+      : await policyWrite
 
     return {
       aggregateRetentionDays: policy.aggregateRetentionDays,
@@ -115,7 +119,9 @@ export class PrismaBrowserActivityApplication {
   }
 
   // getEmployeeAuditGrants returns persisted account-level collection grants and defaults requested accounts to disabled.
-  async getEmployeeAuditGrants(input: GetEmployeeAuditGrantsInput): Promise<GetEmployeeAuditGrantsResponse> {
+  async getEmployeeAuditGrants(
+    input: GetEmployeeAuditGrantsInput
+  ): Promise<GetEmployeeAuditGrantsResponse> {
     const records = await this.prisma.browserActivityEmployeeAuditGrant.findMany({
       where: {
         tenantId: input.tenantId,
@@ -123,7 +129,9 @@ export class PrismaBrowserActivityApplication {
       }
     })
     const byAccount = new Map(records.map((record) => [record.accountId, record]))
-    const accountIds = input.accountIds?.length ? input.accountIds : records.map((record) => record.accountId)
+    const accountIds = input.accountIds?.length
+      ? input.accountIds
+      : records.map((record) => record.accountId)
 
     return {
       grants: accountIds.map((accountId) => {
@@ -146,7 +154,7 @@ export class PrismaBrowserActivityApplication {
   // updateEmployeeAuditGrant replaces one tenant-account browser activity collection grant.
   async updateEmployeeAuditGrant(input: UpdateEmployeeAuditGrantInput) {
     assertWebOperator(input.operator)
-    const grant = await this.prisma.browserActivityEmployeeAuditGrant.upsert({
+    const grantWrite = this.prisma.browserActivityEmployeeAuditGrant.upsert({
       create: {
         accountId: requiredAccountId(input.accountId),
         enabled: input.enabled,
@@ -164,6 +172,9 @@ export class PrismaBrowserActivityApplication {
         }
       }
     })
+    const grant = input.audit
+      ? (await this.prisma.$transaction([grantWrite, this.auditWrite(input.audit)]))[0]
+      : await grantWrite
 
     return {
       accountId: grant.accountId,
@@ -249,7 +260,9 @@ export class PrismaBrowserActivityApplication {
   }
 
   // getAuditControl reads account-level collection authorization without writing heartbeat or visit facts.
-  async getAuditControl(input: BrowserActivityAuditControlInput): Promise<BrowserActivityAuditControlResult> {
+  async getAuditControl(
+    input: BrowserActivityAuditControlInput
+  ): Promise<BrowserActivityAuditControlResult> {
     assertExtensionOperator(input.operator)
     const grant = await this.getEmployeeGrant(input.tenantId, input.operator.accountId)
     return {
@@ -274,7 +287,9 @@ export class PrismaBrowserActivityApplication {
         }
       })
       const sessionStartedAt =
-        existing?.extensionSessionId === input.extensionSessionId ? existing.sessionStartedAt : observedAt
+        existing?.extensionSessionId === input.extensionSessionId
+          ? existing.sessionStartedAt
+          : observedAt
       await this.prisma.$transaction([
         this.prisma.browserActivityHeartbeat.create({
           data: {
@@ -317,7 +332,9 @@ export class PrismaBrowserActivityApplication {
   }
 
   // disconnect removes one authenticated extension session from online presence immediately on logout.
-  async disconnect(input: BrowserActivityDisconnectInput): Promise<BrowserActivityDisconnectResult> {
+  async disconnect(
+    input: BrowserActivityDisconnectInput
+  ): Promise<BrowserActivityDisconnectResult> {
     assertExtensionOperator(input.operator)
     parseDate(input.observedAt)
     await this.prisma.browserActivityOnlinePresence.deleteMany({
@@ -335,7 +352,9 @@ export class PrismaBrowserActivityApplication {
   async getOverview(input: BrowserActivityPeriodQuery) {
     const visits = await this.listVisits(input.tenantId, input.period)
     const presence = await this.getOnlinePresence({ tenantId: input.tenantId, status: 'ALL' })
-    const presenceByAccount = new Map(presence.employees.map((employee) => [employee.accountId, employee]))
+    const presenceByAccount = new Map(
+      presence.employees.map((employee) => [employee.accountId, employee])
+    )
     const employees = [...groupBy(visits, (visit) => visit.employeeAccountId).entries()]
       .map(([accountId, employeeVisits]) => ({
         accountId,
@@ -368,11 +387,14 @@ export class PrismaBrowserActivityApplication {
   }
 
   // getEmployeeTimeline returns chronological visit facts for one employee account.
-  async getEmployeeTimeline(input: EmployeeTimelineQuery) {
+  async getEmployeeTimeline(
+    input: EmployeeTimelineQuery & { audit?: BrowserActivityAuditContext }
+  ) {
     const visits = (await this.listVisits(input.tenantId, input.period))
       .filter((visit) => visit.employeeAccountId === input.employeeAccountId)
       .sort((left, right) => left.startedAt.getTime() - right.startedAt.getTime())
 
+    if (input.audit) await this.auditWrite(input.audit)
     return {
       employeeAccountId: input.employeeAccountId,
       visits: visits.map((visit) => ({
@@ -391,27 +413,41 @@ export class PrismaBrowserActivityApplication {
   }
 
   // getDomainAggregation returns domain-level aggregates for the tenant or selected employee.
-  async getDomainAggregation(input: EmployeeScopedBrowserActivityQuery) {
+  async getDomainAggregation(
+    input: EmployeeScopedBrowserActivityQuery & { audit?: BrowserActivityAuditContext }
+  ) {
     const visits = (await this.listVisits(input.tenantId, input.period)).filter(
       (visit) => !input.employeeAccountId || visit.employeeAccountId === input.employeeAccountId
     )
-    const domains = [...groupBy(visits, (visit) => visit.domain).entries()].map(([domain, domainVisits]) => ({
-      activeDurationSeconds: sum(domainVisits, 'activeDurationSeconds'),
-      domain,
-      employeeCount: new Set(domainVisits.map((visit) => visit.employeeAccountId)).size,
-      foregroundDurationSeconds: sum(domainVisits, 'foregroundDurationSeconds'),
-      idleDurationSeconds: sum(domainVisits, 'idleDurationSeconds'),
-      urlCount: new Set(domainVisits.map((visit) => visit.url)).size,
-      visitCount: domainVisits.length
-    }))
+    const domains = [...groupBy(visits, (visit) => visit.domain).entries()].map(
+      ([domain, domainVisits]) => ({
+        activeDurationSeconds: sum(domainVisits, 'activeDurationSeconds'),
+        domain,
+        employeeCount: new Set(domainVisits.map((visit) => visit.employeeAccountId)).size,
+        foregroundDurationSeconds: sum(domainVisits, 'foregroundDurationSeconds'),
+        idleDurationSeconds: sum(domainVisits, 'idleDurationSeconds'),
+        urlCount: new Set(domainVisits.map((visit) => visit.url)).size,
+        visitCount: domainVisits.length
+      })
+    )
 
+    if (input.audit) await this.auditWrite(input.audit)
     return {
-      domains: domains.sort((left, right) => right.activeDurationSeconds - left.activeDurationSeconds)
+      domains: domains.sort(
+        (left, right) => right.activeDurationSeconds - left.activeDurationSeconds
+      )
     }
   }
 
   // searchUrls records a sensitive read audit and returns URL/title matches.
-  async searchUrls(input: UrlSearchQuery & { operator?: BrowserActivityOperatorContext; reason?: string; traceId?: string }) {
+  async searchUrls(
+    input: UrlSearchQuery & {
+      operator?: BrowserActivityOperatorContext
+      reason?: string
+      sessionId?: string
+      traceId?: string
+    }
+  ) {
     const keyword = input.keyword.trim().toLowerCase()
     if (!keyword) {
       throw new Error('URL search keyword is required')
@@ -423,6 +459,7 @@ export class PrismaBrowserActivityApplication {
         keyword: input.keyword,
         operatorAccountId: input.operator?.accountId ?? 'UNKNOWN',
         reason: input.reason ?? null,
+        sessionId: input.sessionId ?? null,
         tenantId: input.tenantId,
         traceId: input.traceId ?? null
       }
@@ -431,31 +468,52 @@ export class PrismaBrowserActivityApplication {
     const visits = (await this.listVisits(input.tenantId, input.period)).filter((visit) =>
       `${visit.url} ${visit.domain} ${visit.pageTitle}`.toLowerCase().includes(keyword)
     )
-    const results = [...groupBy(visits, (visit) => `${visit.employeeAccountId}:${visit.url}`).values()].map(
-      (urlVisits) => {
-        const latest = [...urlVisits].sort(
-          (left, right) => right.endedAt.getTime() - left.endedAt.getTime()
-        )[0]!
+    const results = [
+      ...groupBy(visits, (visit) => `${visit.employeeAccountId}:${visit.url}`).values()
+    ].map((urlVisits) => {
+      const latest = [...urlVisits].sort(
+        (left, right) => right.endedAt.getTime() - left.endedAt.getTime()
+      )[0]!
 
-        return {
-          activeDurationSeconds: sum(urlVisits, 'activeDurationSeconds'),
-          domain: latest.domain,
-          employeeDisplayName: latest.employeeDisplayName,
-          lastVisitedAt: latest.endedAt.toISOString(),
-          pageTitle: latest.pageTitle,
-          url: latest.url,
-          visitCount: urlVisits.length
-        }
+      return {
+        activeDurationSeconds: sum(urlVisits, 'activeDurationSeconds'),
+        domain: latest.domain,
+        employeeDisplayName: latest.employeeDisplayName,
+        lastVisitedAt: latest.endedAt.toISOString(),
+        pageTitle: latest.pageTitle,
+        url: latest.url,
+        visitCount: urlVisits.length
       }
-    )
+    })
 
     return {
-      results: results.sort((left, right) => new Date(right.lastVisitedAt).getTime() - new Date(left.lastVisitedAt).getTime())
+      results: results.sort(
+        (left, right) =>
+          new Date(right.lastVisitedAt).getTime() - new Date(left.lastVisitedAt).getTime()
+      )
     }
   }
 
+  /** Writes one immutable audit fact and lets its failure fail the owning method closed. */
+  private auditWrite(input: BrowserActivityAuditContext) {
+    return this.prisma.browserActivityReadAudit.create({
+      data: {
+        action: input.action,
+        employeeAccountId: input.employeeAccountId ?? null,
+        keyword: input.keyword ?? null,
+        operatorAccountId: input.operatorAccountId,
+        reason: input.action,
+        sessionId: input.sessionId,
+        tenantId: input.tenantId,
+        traceId: input.traceId ?? null
+      }
+    })
+  }
+
   // getOnlinePresence returns heartbeat-derived collection-channel status for tenant accounts.
-  async getOnlinePresence(input: BrowserActivityOnlinePresenceQuery): Promise<BrowserActivityOnlinePresenceResponse> {
+  async getOnlinePresence(
+    input: BrowserActivityOnlinePresenceQuery
+  ): Promise<BrowserActivityOnlinePresenceResponse> {
     const serverTimeMs = this.now()
     const records = await this.prisma.browserActivityOnlinePresence.findMany({
       where: { tenantId: input.tenantId }
@@ -474,7 +532,11 @@ export class PrismaBrowserActivityApplication {
         sessionStartedAt: record.sessionStartedAt.toISOString()
       }))
       .filter((presence) => shouldIncludePresence(presence, input, serverTimeMs))
-      .sort((left, right) => comparePresence(left.onlineStatus, right.onlineStatus) || left.displayName.localeCompare(right.displayName))
+      .sort(
+        (left, right) =>
+          comparePresence(left.onlineStatus, right.onlineStatus) ||
+          left.displayName.localeCompare(right.displayName)
+      )
 
     return {
       employees,
@@ -489,7 +551,10 @@ export class PrismaBrowserActivityApplication {
   }
 
   // listVisits loads privacy-bounded visit facts inside the selected rolling monitoring period.
-  private async listVisits(tenantId: string, period: BrowserActivityPeriod): Promise<StoredVisitSession[]> {
+  private async listVisits(
+    tenantId: string,
+    period: BrowserActivityPeriod
+  ): Promise<StoredVisitSession[]> {
     const records = await this.prisma.browserActivityVisitSession.findMany({
       orderBy: { startedAt: 'asc' },
       where: {
@@ -597,7 +662,10 @@ function shouldIncludePresence(
 }
 
 // comparePresence keeps active collection-channel states before delayed and offline states.
-function comparePresence(left: BrowserActivityOnlineStatus, right: BrowserActivityOnlineStatus): number {
+function comparePresence(
+  left: BrowserActivityOnlineStatus,
+  right: BrowserActivityOnlineStatus
+): number {
   const rank: Record<BrowserActivityOnlineStatus, number> = {
     ONLINE: 0,
     STALE: 1,
@@ -618,5 +686,8 @@ function groupBy<T>(items: T[], getKey: (item: T) => string): Map<string, T[]> {
 
 // sum totals one numeric visit metric.
 function sum<T>(items: T[], key: keyof T): number {
-  return items.reduce((total, item) => total + Number((item as Record<string, unknown>)[String(key)] ?? 0), 0)
+  return items.reduce(
+    (total, item) => total + Number((item as Record<string, unknown>)[String(key)] ?? 0),
+    0
+  )
 }

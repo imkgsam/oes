@@ -95,6 +95,7 @@ model BrowserActivityReadAudit {
   keyword           String?
   employeeAccountId String?
   traceId           String?
+  sessionId         String?
   occurredAt        DateTime @default(now())
 
   @@index([tenantId, operatorAccountId, occurredAt])

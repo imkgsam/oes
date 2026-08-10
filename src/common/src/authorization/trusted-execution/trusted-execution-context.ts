@@ -12,6 +12,7 @@ export type TrustedExecutionContextInput = {
   readonly tenantId?: string
   readonly orgId?: string
   readonly sessionId?: string
+  readonly sessionTerminal?: string
   readonly authzVersion?: string | number
   readonly requestId: string
   readonly traceparent: string
@@ -63,6 +64,7 @@ export function createTrustedExecutionContext(
     ...(tenantId === undefined ? {} : { tenantId }),
     ...optionalProperty(input.orgId, 'orgId', 'org id'),
     ...optionalProperty(input.sessionId, 'sessionId', 'session id'),
+    ...optionalProperty(input.sessionTerminal, 'sessionTerminal', 'session terminal'),
     ...(authzVersion === undefined ? {} : { authzVersion }),
     requestId: requireExactValue(input.requestId, 'request id'),
     traceparent,

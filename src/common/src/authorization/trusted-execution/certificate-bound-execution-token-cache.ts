@@ -11,6 +11,7 @@ export type CertificateBoundExecutionTokenCacheKey = {
   readonly workloadIdentity: string
   readonly certificateThumbprint: string
   readonly sessionId?: string
+  readonly sessionTerminal?: string
   readonly authzVersion?: string | number
 }
 
@@ -106,6 +107,7 @@ function buildCacheKey(key: CertificateBoundExecutionTokenCacheKey): string {
     workloadIdentity: key.workloadIdentity,
     certificateThumbprint: key.certificateThumbprint,
     sessionId: key.sessionId ?? null,
+    sessionTerminal: key.sessionTerminal ?? null,
     authzVersion: key.authzVersion ?? null
   })
 }

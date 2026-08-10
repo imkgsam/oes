@@ -190,6 +190,7 @@ function buildCacheKey(
     workloadIdentity: workloadIdentity.spiffeId,
     certificateThumbprint: workloadIdentity.certificateThumbprint,
     ...(context.sessionId === undefined ? {} : { sessionId: context.sessionId }),
+    ...(context.sessionTerminal === undefined ? {} : { sessionTerminal: context.sessionTerminal }),
     ...(context.authzVersion === undefined ? {} : { authzVersion: context.authzVersion })
   }
 }

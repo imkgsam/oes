@@ -62,7 +62,9 @@ describe('ExecutionTokenExchangeService', () => {
         subject: 'account-1',
         principalType: 'HUMAN',
         scopeLevel: 'TENANT',
-        tenantId: 'tenant-1'
+        tenantId: 'tenant-1',
+        sessionId: 'session-1',
+        sessionTerminal: 'WEB'
       },
       authorizationDecision: {
         allowed: true,
@@ -93,7 +95,8 @@ describe('ExecutionTokenExchangeService', () => {
         client_id: 'spiffe://local.oes/gateway',
         cnf: { 'x5t#S256': 'A'.repeat(43) },
         scope: 'AUTH.READ',
-        exp: 1_700_000_600
+        exp: 1_700_000_600,
+        session_terminal: 'WEB'
       })
     )
     expect(
@@ -191,7 +194,8 @@ describe('ExecutionTokenExchangeService', () => {
         principalType: 'HUMAN',
         scopeLevel: 'TENANT',
         tenantId: 'tenant-1',
-        sessionId: 'session-1'
+        sessionId: 'session-1',
+        sessionTerminal: 'BROWSER_EXTENSION'
       },
       authorizationDecision: {
         allowed: true,
@@ -214,5 +218,6 @@ describe('ExecutionTokenExchangeService', () => {
     )
     expect(result.grantedPermissionCodes).toEqual([])
     expect(claims.scope).toBe('')
+    expect(claims.session_terminal).toBe('BROWSER_EXTENSION')
   })
 })

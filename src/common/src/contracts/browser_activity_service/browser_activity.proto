@@ -51,7 +51,8 @@ message BrowserActivityPolicy {
 // BrowserActivityVisitSessionSummary is a privacy-bounded browser visit summary.
 message BrowserActivityVisitSessionSummary {
   string client_visit_id = 1;
-  string extension_session_id = 2;
+  reserved 2;
+  reserved "extension_session_id";
   string merge_key = 3;
   string url = 4;
   string domain = 5;
@@ -66,17 +67,14 @@ message BrowserActivityVisitSessionSummary {
 }
 
 message GetPolicyRequest {
-  string tenant_id = 1;
-  BrowserActivityOperatorContext operator = 2;
-  BrowserActivityTraceContext trace = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator", "trace";
 }
 
 message UpdatePolicyRequest {
-  string tenant_id = 1;
+  reserved 1, 3, 4, 5;
+  reserved "tenant_id", "operator", "trace", "audit";
   BrowserActivityPolicy policy = 2;
-  BrowserActivityOperatorContext operator = 3;
-  BrowserActivityTraceContext trace = 4;
-  BrowserActivityAuditContext audit = 5;
 }
 
 message GetPolicyResponse {
@@ -96,10 +94,9 @@ message EmployeeAuditGrant {
 }
 
 message GetEmployeeAuditGrantsRequest {
-  string tenant_id = 1;
+  reserved 1, 3, 4;
+  reserved "tenant_id", "operator", "trace";
   repeated string account_ids = 2;
-  BrowserActivityOperatorContext operator = 3;
-  BrowserActivityTraceContext trace = 4;
 }
 
 message GetEmployeeAuditGrantsResponse {
@@ -107,12 +104,10 @@ message GetEmployeeAuditGrantsResponse {
 }
 
 message UpdateEmployeeAuditGrantRequest {
-  string tenant_id = 1;
+  reserved 1, 4, 5, 6;
+  reserved "tenant_id", "operator", "trace", "audit";
   string account_id = 2;
   bool enabled = 3;
-  BrowserActivityOperatorContext operator = 4;
-  BrowserActivityTraceContext trace = 5;
-  BrowserActivityAuditContext audit = 6;
 }
 
 message UpdateEmployeeAuditGrantResponse {
@@ -120,17 +115,14 @@ message UpdateEmployeeAuditGrantResponse {
 }
 
 message AppendVisitSessionsRequest {
-  string tenant_id = 1;
-  BrowserActivityOperatorContext operator = 2;
-  BrowserActivityTraceContext trace = 3;
-  BrowserActivityAuditContext audit = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator", "trace", "audit";
   repeated BrowserActivityVisitSessionSummary sessions = 5;
 }
 
 message GetAuditControlRequest {
-  string tenant_id = 1;
-  BrowserActivityOperatorContext operator = 2;
-  BrowserActivityTraceContext trace = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator", "trace";
 }
 
 message GetAuditControlResponse {
@@ -147,11 +139,9 @@ message AppendVisitSessionsResponse {
 }
 
 message HeartbeatRequest {
-  string tenant_id = 1;
-  string extension_session_id = 2;
+  reserved 1, 2, 4, 5;
+  reserved "tenant_id", "extension_session_id", "operator", "trace";
   string observed_at = 3;
-  BrowserActivityOperatorContext operator = 4;
-  BrowserActivityTraceContext trace = 5;
 }
 
 message HeartbeatResponse {
@@ -161,11 +151,9 @@ message HeartbeatResponse {
 }
 
 message DisconnectRequest {
-  string tenant_id = 1;
-  string extension_session_id = 2;
+  reserved 1, 2, 4, 5;
+  reserved "tenant_id", "extension_session_id", "operator", "trace";
   string observed_at = 3;
-  BrowserActivityOperatorContext operator = 4;
-  BrowserActivityTraceContext trace = 5;
 }
 
 message DisconnectResponse {
@@ -173,10 +161,9 @@ message DisconnectResponse {
 }
 
 message GetOverviewRequest {
-  string tenant_id = 1;
+  reserved 1, 3, 4;
+  reserved "tenant_id", "operator", "trace";
   string period = 2;
-  BrowserActivityOperatorContext operator = 3;
-  BrowserActivityTraceContext trace = 4;
 }
 
 message BrowserActivityEmployeeSummary {
@@ -210,11 +197,10 @@ message GetOverviewResponse {
 }
 
 message GetEmployeeTimelineRequest {
-  string tenant_id = 1;
+  reserved 1, 4, 5;
+  reserved "tenant_id", "operator", "trace";
   string employee_account_id = 2;
   string period = 3;
-  BrowserActivityOperatorContext operator = 4;
-  BrowserActivityTraceContext trace = 5;
 }
 
 message BrowserActivityVisit {
@@ -236,11 +222,10 @@ message GetEmployeeTimelineResponse {
 }
 
 message GetDomainAggregationRequest {
-  string tenant_id = 1;
+  reserved 1, 4, 5;
+  reserved "tenant_id", "operator", "trace";
   string employee_account_id = 2;
   string period = 3;
-  BrowserActivityOperatorContext operator = 4;
-  BrowserActivityTraceContext trace = 5;
 }
 
 message DomainAggregationItem {
@@ -258,12 +243,10 @@ message GetDomainAggregationResponse {
 }
 
 message SearchUrlsRequest {
-  string tenant_id = 1;
+  reserved 1, 4, 5, 6;
+  reserved "tenant_id", "operator", "trace", "audit";
   string keyword = 2;
   string period = 3;
-  BrowserActivityOperatorContext operator = 4;
-  BrowserActivityTraceContext trace = 5;
-  BrowserActivityAuditContext audit = 6;
 }
 
 message UrlSearchResult {
@@ -281,11 +264,10 @@ message SearchUrlsResponse {
 }
 
 message GetOnlinePresenceRequest {
-  string tenant_id = 1;
+  reserved 1, 4, 5;
+  reserved "tenant_id", "operator", "trace";
   string status = 2;
   int32 include_offline_within_minutes = 3;
-  BrowserActivityOperatorContext operator = 4;
-  BrowserActivityTraceContext trace = 5;
 }
 
 message OnlinePresenceThresholds {

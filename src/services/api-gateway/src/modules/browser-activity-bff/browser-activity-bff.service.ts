@@ -61,106 +61,163 @@ export class BrowserActivityBffService {
   async appendVisitSessions(input: { sessions?: unknown[] }, source: DownstreamRequestSource) {
     const context = resolveExtensionContext(source)
 
-    return this.browserActivityClient.appendVisitSessions({
-      audit: {
-        reason: 'BROWSER_EXTENSION_INGEST'
-      },
-      operator: context.operator,
-      sessions: input.sessions ?? [],
-      tenantId: context.tenantId,
-      trace: context.trace
-    })
+    return this.browserActivityClient.appendVisitSessions(
+      withSource(
+        {
+          audit: {
+            reason: 'BROWSER_EXTENSION_INGEST'
+          },
+          operator: context.operator,
+          sessions: input.sessions ?? [],
+          tenantId: context.tenantId,
+          trace: context.trace
+        },
+        source
+      )
+    )
   }
 
   /** heartbeat forwards authenticated extension heartbeat without trusting client tenant claims. */
-  async heartbeat(input: { extensionSessionId: string; observedAt: string }, source: DownstreamRequestSource) {
+  async heartbeat(
+    input: { extensionSessionId: string; observedAt: string },
+    source: DownstreamRequestSource
+  ) {
     const context = resolveExtensionContext(source)
 
-    return this.browserActivityClient.heartbeat({
-      extensionSessionId: input.extensionSessionId,
-      observedAt: input.observedAt,
-      operator: context.operator,
-      tenantId: context.tenantId,
-      trace: context.trace
-    })
+    return this.browserActivityClient.heartbeat(
+      withSource(
+        {
+          extensionSessionId: input.extensionSessionId,
+          observedAt: input.observedAt,
+          operator: context.operator,
+          tenantId: context.tenantId,
+          trace: context.trace
+        },
+        source
+      )
+    )
   }
 
   /** disconnect marks the authenticated extension collection session offline without trusting client tenant claims. */
-  async disconnect(input: { extensionSessionId: string; observedAt: string }, source: DownstreamRequestSource) {
+  async disconnect(
+    input: { extensionSessionId: string; observedAt: string },
+    source: DownstreamRequestSource
+  ) {
     const context = resolveExtensionContext(source)
 
-    return this.browserActivityClient.disconnect({
-      extensionSessionId: input.extensionSessionId,
-      observedAt: input.observedAt,
-      operator: context.operator,
-      tenantId: context.tenantId,
-      trace: context.trace
-    })
+    return this.browserActivityClient.disconnect(
+      withSource(
+        {
+          extensionSessionId: input.extensionSessionId,
+          observedAt: input.observedAt,
+          operator: context.operator,
+          tenantId: context.tenantId,
+          trace: context.trace
+        },
+        source
+      )
+    )
   }
 
   /** getAuditControl lets the extension poll collection authorization without writing audit heartbeat facts. */
   async getAuditControl(_input: Record<string, never>, source: DownstreamRequestSource) {
     const context = resolveExtensionContext(source)
 
-    return this.browserActivityClient.getAuditControl({
-      operator: context.operator,
-      tenantId: context.tenantId,
-      trace: context.trace
-    })
+    return this.browserActivityClient.getAuditControl(
+      withSource(
+        {
+          operator: context.operator,
+          tenantId: context.tenantId,
+          trace: context.trace
+        },
+        source
+      )
+    )
   }
 
   /** getPolicy reads the tenant browser-activity policy from trusted web administrator context. */
   async getPolicy(source: DownstreamRequestSource) {
     const context = resolveWebContext(source, 'browser activity policy read requires web terminal')
 
-    return this.browserActivityClient.getPolicy(context)
+    return this.browserActivityClient.getPolicy(withSource(context, source))
   }
 
   /** updatePolicy updates the tenant browser-activity policy without accepting client tenant claims. */
   async updatePolicy(input: BrowserActivityPolicyPayload, source: DownstreamRequestSource) {
-    const context = resolveWebContext(source, 'browser activity policy update requires web terminal')
+    const context = resolveWebContext(
+      source,
+      'browser activity policy update requires web terminal'
+    )
 
-    return this.browserActivityClient.updatePolicy({
-      audit: {
-        reason: 'BROWSER_ACTIVITY_POLICY_UPDATE'
-      },
-      operator: context.operator,
-      policy: {
-        aggregateRetentionDays: input.aggregateRetentionDays,
-        enabled: input.enabled,
-        rawRetentionDays: input.rawRetentionDays
-      },
-      tenantId: context.tenantId,
-      trace: context.trace
-    })
+    return this.browserActivityClient.updatePolicy(
+      withSource(
+        {
+          audit: {
+            reason: 'BROWSER_ACTIVITY_POLICY_UPDATE'
+          },
+          operator: context.operator,
+          policy: {
+            aggregateRetentionDays: input.aggregateRetentionDays,
+            enabled: input.enabled,
+            rawRetentionDays: input.rawRetentionDays
+          },
+          tenantId: context.tenantId,
+          trace: context.trace
+        },
+        source
+      )
+    )
   }
 
   /** getOverview reads tenant browser-activity overview facts for tenant-web administrators. */
   async getOverview(query: BrowserActivityQuery, source: DownstreamRequestSource) {
     const context = resolveWebContext(source, 'browser activity overview requires web terminal')
 
-    const overview = await this.browserActivityClient.getOverview({
-      ...context,
-      period: normalizePeriod(query.period)
-    }) as { employees?: Array<Record<string, unknown>> }
+    const overview = (await this.browserActivityClient.getOverview(
+      withSource(
+        {
+          ...context,
+          period: normalizePeriod(query.period)
+        },
+        source
+      )
+    )) as { employees?: Array<Record<string, unknown>> }
 
     return this.enrichOverviewEmployees(overview, context, source)
   }
 
   /** updateEmployeeAuditGrant enables or disables one employee collection grant after terminal access validation. */
   async getEmployeeAuditGrants(query: BrowserActivityQuery, source: DownstreamRequestSource) {
-    const context = resolveWebContext(source, 'browser activity employee grant read requires web terminal')
+    const context = resolveWebContext(
+      source,
+      'browser activity employee grant read requires web terminal'
+    )
     const accountIds = normalizeAccountIds(query.accountIds)
-    const grantsResult = await this.browserActivityClient.getEmployeeAuditGrants({
-      ...context,
-      accountIds
-    }) as { grants?: Array<{ accountId?: string; enabled?: boolean; updatedAt?: string; updatedBy?: string }> }
+    const grantsResult = (await this.browserActivityClient.getEmployeeAuditGrants(
+      withSource(
+        {
+          ...context,
+          accountIds
+        },
+        source
+      )
+    )) as {
+      grants?: Array<{
+        accountId?: string
+        enabled?: boolean
+        updatedAt?: string
+        updatedBy?: string
+      }>
+    }
     const terminalAccessByAccount = new Map(
       await Promise.all(
-        accountIds.map(async (accountId) => [
-          accountId,
-          await this.getAccountTerminalAccess(accountId, context.tenantId, source)
-        ] as const)
+        accountIds.map(
+          async (accountId) =>
+            [
+              accountId,
+              await this.getAccountTerminalAccess(accountId, context.tenantId, source)
+            ] as const
+        )
       )
     )
 
@@ -169,8 +226,9 @@ export class BrowserActivityBffService {
         const accountId = String(grant.accountId ?? '')
         return {
           ...grant,
-          browserExtensionLoginAllowed:
-            hasBrowserExtensionTerminalAccess(terminalAccessByAccount.get(accountId))
+          browserExtensionLoginAllowed: hasBrowserExtensionTerminalAccess(
+            terminalAccessByAccount.get(accountId)
+          )
         }
       })
     }
@@ -182,39 +240,61 @@ export class BrowserActivityBffService {
     input: BrowserActivityEmployeeAuditGrantPayload,
     source: DownstreamRequestSource
   ) {
-    const context = resolveWebContext(source, 'browser activity employee grant update requires web terminal')
+    const context = resolveWebContext(
+      source,
+      'browser activity employee grant update requires web terminal'
+    )
     const accountId = normalize(employeeAccountId)
     if (!accountId) {
       throw new BadRequestException('employee account id is required')
     }
     if (input.enabled) {
-      const terminalAccess = await this.getAccountTerminalAccess(accountId, context.tenantId, source)
+      const terminalAccess = await this.getAccountTerminalAccess(
+        accountId,
+        context.tenantId,
+        source
+      )
       if (!hasBrowserExtensionTerminalAccess(terminalAccess)) {
-        throw new BadRequestException('Browser Extension terminal access is required before enabling audit collection')
+        throw new BadRequestException(
+          'Browser Extension terminal access is required before enabling audit collection'
+        )
       }
     }
 
-    return this.browserActivityClient.updateEmployeeAuditGrant({
-      audit: {
-        reason: 'BROWSER_ACTIVITY_EMPLOYEE_GRANT_UPDATE'
-      },
-      accountId,
-      enabled: input.enabled,
-      operator: context.operator,
-      tenantId: context.tenantId,
-      trace: context.trace
-    })
+    return this.browserActivityClient.updateEmployeeAuditGrant(
+      withSource(
+        {
+          audit: {
+            reason: 'BROWSER_ACTIVITY_EMPLOYEE_GRANT_UPDATE'
+          },
+          accountId,
+          enabled: input.enabled,
+          operator: context.operator,
+          tenantId: context.tenantId,
+          trace: context.trace
+        },
+        source
+      )
+    )
   }
 
   /** getOnlinePresence reads heartbeat-derived extension collection-channel status for tenant employees. */
   async getOnlinePresence(query: BrowserActivityQuery, source: DownstreamRequestSource) {
-    const context = resolveWebContext(source, 'browser activity online presence requires web terminal')
+    const context = resolveWebContext(
+      source,
+      'browser activity online presence requires web terminal'
+    )
 
-    return this.browserActivityClient.getOnlinePresence({
-      ...context,
-      includeOfflineWithinMinutes: normalizePositiveInteger(query.includeOfflineWithinMinutes),
-      status: normalizePresenceStatus(query.status)
-    })
+    return this.browserActivityClient.getOnlinePresence(
+      withSource(
+        {
+          ...context,
+          includeOfflineWithinMinutes: normalizePositiveInteger(query.includeOfflineWithinMinutes),
+          status: normalizePresenceStatus(query.status)
+        },
+        source
+      )
+    )
   }
 
   /** getEmployeeTimeline reads one employee visit timeline through trusted web administrator context. */
@@ -223,24 +303,40 @@ export class BrowserActivityBffService {
     query: BrowserActivityQuery,
     source: DownstreamRequestSource
   ) {
-    const context = resolveWebContext(source, 'browser activity employee timeline requires web terminal')
+    const context = resolveWebContext(
+      source,
+      'browser activity employee timeline requires web terminal'
+    )
 
-    return this.browserActivityClient.getEmployeeTimeline({
-      ...context,
-      employeeAccountId,
-      period: normalizePeriod(query.period)
-    })
+    return this.browserActivityClient.getEmployeeTimeline(
+      withSource(
+        {
+          ...context,
+          employeeAccountId,
+          period: normalizePeriod(query.period)
+        },
+        source
+      )
+    )
   }
 
   /** getDomainAggregation reads domain aggregates for the tenant or selected employee. */
   async getDomainAggregation(query: BrowserActivityQuery, source: DownstreamRequestSource) {
-    const context = resolveWebContext(source, 'browser activity domain aggregation requires web terminal')
+    const context = resolveWebContext(
+      source,
+      'browser activity domain aggregation requires web terminal'
+    )
 
-    return this.browserActivityClient.getDomainAggregation({
-      ...context,
-      employeeAccountId: normalize(query.employeeAccountId),
-      period: normalizePeriod(query.period)
-    })
+    return this.browserActivityClient.getDomainAggregation(
+      withSource(
+        {
+          ...context,
+          employeeAccountId: normalize(query.employeeAccountId),
+          period: normalizePeriod(query.period)
+        },
+        source
+      )
+    )
   }
 
   /** searchUrls reads sensitive URL detail facts and records a dedicated read-audit reason. */
@@ -251,14 +347,19 @@ export class BrowserActivityBffService {
       throw new BadRequestException('URL search keyword is required')
     }
 
-    return this.browserActivityClient.searchUrls({
-      audit: {
-        reason: 'BROWSER_ACTIVITY_URL_DETAIL_SEARCH'
-      },
-      ...context,
-      keyword,
-      period: normalizePeriod(query.period)
-    })
+    return this.browserActivityClient.searchUrls(
+      withSource(
+        {
+          audit: {
+            reason: 'BROWSER_ACTIVITY_URL_DETAIL_SEARCH'
+          },
+          ...context,
+          keyword,
+          period: normalizePeriod(query.period)
+        },
+        source
+      )
+    )
   }
 
   // enrichOverviewEmployees adds account-level audit grant and plugin-login eligibility without moving ownership.
@@ -268,22 +369,34 @@ export class BrowserActivityBffService {
     source: DownstreamRequestSource
   ) {
     const employees = overview.employees ?? []
-    const accountIds = employees.map((employee) => normalize(String(employee.accountId ?? ''))).filter(Boolean) as string[]
+    const accountIds = employees
+      .map((employee) => normalize(String(employee.accountId ?? '')))
+      .filter(Boolean) as string[]
     if (accountIds.length === 0) {
       return overview
     }
 
-    const grantsResult = await this.browserActivityClient.getEmployeeAuditGrants({
-      ...context,
-      accountIds
-    }) as { grants?: Array<{ accountId?: string; enabled?: boolean }> }
-    const grantsByAccount = new Map((grantsResult.grants ?? []).map((grant) => [grant.accountId, grant]))
+    const grantsResult = (await this.browserActivityClient.getEmployeeAuditGrants(
+      withSource(
+        {
+          ...context,
+          accountIds
+        },
+        source
+      )
+    )) as { grants?: Array<{ accountId?: string; enabled?: boolean }> }
+    const grantsByAccount = new Map(
+      (grantsResult.grants ?? []).map((grant) => [grant.accountId, grant])
+    )
     const terminalAccessByAccount = new Map(
       await Promise.all(
-        accountIds.map(async (accountId) => [
-          accountId,
-          await this.getAccountTerminalAccess(accountId, context.tenantId, source)
-        ] as const)
+        accountIds.map(
+          async (accountId) =>
+            [
+              accountId,
+              await this.getAccountTerminalAccess(accountId, context.tenantId, source)
+            ] as const
+        )
       )
     )
 
@@ -302,13 +415,29 @@ export class BrowserActivityBffService {
   }
 
   // getAccountTerminalAccess reads permission-service's source of truth for plugin login eligibility.
-  private async getAccountTerminalAccess(accountId: string, tenantId: string, source: DownstreamRequestSource) {
-    return this.permissionService.getAccountTerminalAccess({
-      accountId,
-      scopeLevel: 'TENANT',
-      tenantId
-    }, source)
+  private async getAccountTerminalAccess(
+    accountId: string,
+    tenantId: string,
+    source: DownstreamRequestSource
+  ) {
+    return this.permissionService.getAccountTerminalAccess(
+      {
+        accountId,
+        scopeLevel: 'TENANT',
+        tenantId
+      },
+      source
+    )
   }
+}
+
+/** Carries the verified Gateway source privately so adapters can exchange a target token without body identity. */
+function withSource(
+  input: Record<string, unknown>,
+  source: DownstreamRequestSource
+): Record<string, unknown> {
+  Object.defineProperty(input, '__trustedSource', { value: source, enumerable: false })
+  return input
 }
 
 // resolveExtensionContext extracts the trusted tenant and operator context from gateway auth claims.
@@ -318,7 +447,8 @@ function resolveExtensionContext(source: DownstreamRequestSource) {
   }
 
   const tenantId = normalize(source.user.tenantId) ?? normalize(source.user.tid)
-  const accountId = normalize(source.user.aid) ?? normalize(source.user.id) ?? normalize(source.user.sub)
+  const accountId =
+    normalize(source.user.aid) ?? normalize(source.user.id) ?? normalize(source.user.sub)
   if (!tenantId || !accountId) {
     throw new ForbiddenException('browser activity ingest requires tenant account context')
   }
@@ -345,7 +475,8 @@ function resolveWebContext(source: DownstreamRequestSource, message: string) {
   }
 
   const tenantId = normalize(source.user.tenantId) ?? normalize(source.user.tid)
-  const accountId = normalize(source.user.aid) ?? normalize(source.user.id) ?? normalize(source.user.sub)
+  const accountId =
+    normalize(source.user.aid) ?? normalize(source.user.id) ?? normalize(source.user.sub)
   if (!tenantId || !accountId) {
     throw new ForbiddenException('browser activity admin access requires tenant account context')
   }
@@ -381,7 +512,9 @@ function normalizePeriod(value?: string): BrowserActivityPeriod {
 }
 
 // normalizePresenceStatus keeps status filters on heartbeat-derived collection-channel states.
-function normalizePresenceStatus(value?: string): 'ALL' | 'OFFLINE' | 'ONLINE' | 'STALE' | undefined {
+function normalizePresenceStatus(
+  value?: string
+): 'ALL' | 'OFFLINE' | 'ONLINE' | 'STALE' | undefined {
   if (value === 'ALL' || value === 'ONLINE' || value === 'STALE' || value === 'OFFLINE') {
     return value
   }
@@ -407,11 +540,13 @@ function hasBrowserExtensionTerminalAccess(value: unknown): boolean {
 
 // normalizeStringArray treats omitted proto repeated fields as empty arrays.
 function normalizeStringArray(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string')
+    : []
 }
 
 // normalizeAccountIds accepts repeated or comma-separated query values from tenant-web.
 function normalizeAccountIds(value?: string | string[]): string[] {
-  const values = Array.isArray(value) ? value : value?.split(',') ?? []
+  const values = Array.isArray(value) ? value : (value?.split(',') ?? [])
   return [...new Set(values.map((item) => normalize(item)).filter(Boolean))] as string[]
 }

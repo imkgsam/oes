@@ -22,6 +22,7 @@ function trustedSessionSource(): DownstreamRequestSource {
       tenantId: 'tenant-123',
       orgId: 'org-123',
       sid: 'session-123',
+      terminal: 'WEB',
       roles: ['role-that-must-not-propagate'],
       permissions: ['body.authority.must.not.propagate']
     },
@@ -45,6 +46,7 @@ describe('GatewayTrustedGrpcExecutionProducer', () => {
           tenantId: 'tenant-123',
           orgId: 'org-123',
           sessionId: 'session-123',
+          sessionTerminal: 'WEB',
           requestId: 'request-123',
           traceparent: TRACEPARENT,
           tracestate: 'vendor=value'

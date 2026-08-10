@@ -1,120 +1,200 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
-import { ClientGrpc } from '@nestjs/microservices'
-import { GRPC_METADATA_PROPAGATION_FACTORY, GrpcMetadataPropagationFactory } from '@oes/common/authorization'
-import { SERVICE_NAMES } from '@oes/common/constants'
+import { Injectable, OnModuleInit } from '@nestjs/common'
+import { BrowserActivityServiceClient } from '@oes/common/generated/browser_activity_service'
+import { SafeGrpcCallOptions, safeGrpcCall } from '@oes/common/transport'
 import {
-  BROWSER_ACTIVITY_SERVICE_NAME,
-  BrowserActivityServiceClient
-} from '@oes/common/generated/browser_activity_service'
-import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
-import { toInternalCallMetadataInput } from '../../../common/grpc/gateway-downstream-source.mapper'
+  DownstreamRequestSource,
+  GatewayBrowserActivityGrpcClient,
+  GatewayTrustedGrpcExecutionProducer
+} from '../../../common/grpc'
 import { BrowserActivityClientPort } from '../browser-activity-bff.service'
 
 const CALLER = 'api-gateway'
+const BROWSER_ACTIVITY_AUDIENCE = 'urn:oes:service:browser-activity-service'
 
-// BrowserActivityGrpcAdapter forwards the Browser Activity BFF to browser-activity-service over gRPC.
+/** Forwards Browser Activity calls over exact-audience BUSINESS/SELF_SERVICE metadata. */
 @Injectable()
 export class BrowserActivityGrpcAdapter implements BrowserActivityClientPort, OnModuleInit {
   private svc!: BrowserActivityServiceClient
 
   constructor(
-    @InjectGrpcClient(SERVICE_NAMES.BROWSER_ACTIVITY)
-    private readonly client: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory
+    private readonly client: GatewayBrowserActivityGrpcClient,
+    private readonly trustedExecutionProducer: GatewayTrustedGrpcExecutionProducer
   ) {}
 
-  // onModuleInit resolves the generated browser activity gRPC client from the transport registry.
   onModuleInit(): void {
-    this.svc = this.client.getService<BrowserActivityServiceClient>(BROWSER_ACTIVITY_SERVICE_NAME)
+    this.svc = this.client.getService()
   }
 
-  // appendVisitSessions forwards authenticated extension visit summaries to browser-activity-service.
   async appendVisitSessions(input: Record<string, unknown>) {
-    return this.call('appendVisitSessions', this.svc.appendVisitSessions(input as any, this.metadata(input)))
-  }
-
-  // heartbeat forwards authenticated extension liveness facts to browser-activity-service.
-  async heartbeat(input: Record<string, unknown>) {
-    return this.call('heartbeat', this.svc.heartbeat(input as any, this.metadata(input)))
-  }
-
-  // disconnect forwards authenticated extension logout signals to browser-activity-service.
-  async disconnect(input: Record<string, unknown>) {
-    return this.call('disconnect', this.svc.disconnect(input as any, this.metadata(input)))
-  }
-
-  // getAuditControl forwards extension control-plane checks without writing heartbeat facts.
-  async getAuditControl(input: Record<string, unknown>) {
-    return this.call('getAuditControl', this.svc.getAuditControl(input as any, this.metadata(input)))
-  }
-
-  // getPolicy forwards tenant policy reads and unwraps the proto response for tenant-web.
-  async getPolicy(input: Record<string, unknown>) {
-    const response = await this.call<any>('getPolicy', this.svc.getPolicy(input as any, this.metadata(input)))
-    return response.policy
-  }
-
-  // updatePolicy forwards tenant policy writes and unwraps the proto response for tenant-web.
-  async updatePolicy(input: Record<string, unknown>) {
-    const response = await this.call<any>('updatePolicy', this.svc.updatePolicy(input as any, this.metadata(input)))
-    return response.policy
-  }
-
-  // getEmployeeAuditGrants forwards account-level collection grant reads.
-  async getEmployeeAuditGrants(input: Record<string, unknown>) {
-    return this.call('getEmployeeAuditGrants', this.svc.getEmployeeAuditGrants(input as any, this.metadata(input)))
-  }
-
-  // updateEmployeeAuditGrant forwards one account collection grant mutation and unwraps the grant.
-  async updateEmployeeAuditGrant(input: Record<string, unknown>) {
-    const response = await this.call<any>('updateEmployeeAuditGrant', this.svc.updateEmployeeAuditGrant(input as any, this.metadata(input)))
-    return response.grant
-  }
-
-  // getOverview forwards tenant activity overview reads.
-  async getOverview(input: Record<string, unknown>) {
-    return this.call('getOverview', this.svc.getOverview(input as any, this.metadata(input)))
-  }
-
-  // getOnlinePresence forwards heartbeat-derived online presence reads.
-  async getOnlinePresence(input: Record<string, unknown>) {
-    return this.call('getOnlinePresence', this.svc.getOnlinePresence(input as any, this.metadata(input)))
-  }
-
-  // getEmployeeTimeline forwards one employee activity timeline read.
-  async getEmployeeTimeline(input: Record<string, unknown>) {
-    return this.call('getEmployeeTimeline', this.svc.getEmployeeTimeline(input as any, this.metadata(input)))
-  }
-
-  // getDomainAggregation forwards domain aggregate reads.
-  async getDomainAggregation(input: Record<string, unknown>) {
-    return this.call('getDomainAggregation', this.svc.getDomainAggregation(input as any, this.metadata(input)))
-  }
-
-  // searchUrls forwards sensitive URL detail reads to browser-activity-service.
-  async searchUrls(input: Record<string, unknown>) {
-    return this.call('searchUrls', this.svc.searchUrls(input as any, this.metadata(input)))
-  }
-
-  // metadata creates internal metadata from the trusted trace context included by the BFF.
-  private metadata(input: Record<string, unknown>) {
-    const trace = (input.trace ?? {}) as { requestId?: string; traceId?: string }
-    return this.metadataFactory.createInternalCallMetadata(
-      toInternalCallMetadataInput({
-        requestId: trace.requestId,
-        traceId: trace.traceId
-      })
+    const source = sourceFrom(input)
+    const metadata = await this.trustedExecutionProducer.forSelfServiceCall(
+      source,
+      BROWSER_ACTIVITY_AUDIENCE
+    )
+    return this.call(
+      'appendVisitSessions',
+      this.svc.appendVisitSessions(stripAuthority(input), metadata)
     )
   }
 
-  // call wraps one browser-activity-service RPC with shared gateway transport error handling.
-  private call<TResponse>(method: string, call$: any): Promise<TResponse> {
-    return safeGrpcCall<TResponse>(call$, this.opts(method))
+  async heartbeat(input: Record<string, unknown>) {
+    const source = sourceFrom(input)
+    const metadata = await this.trustedExecutionProducer.forSelfServiceCall(
+      source,
+      BROWSER_ACTIVITY_AUDIENCE
+    )
+    return this.call('heartbeat', this.svc.heartbeat(stripAuthority(input), metadata))
   }
 
-  // opts identifies the gateway caller and downstream method for transport error context.
-  private opts(method: string): SafeGrpcCallOptions {
-    return { caller: CALLER, method }
+  async disconnect(input: Record<string, unknown>) {
+    const source = sourceFrom(input)
+    const metadata = await this.trustedExecutionProducer.forSelfServiceCall(
+      source,
+      BROWSER_ACTIVITY_AUDIENCE
+    )
+    return this.call('disconnect', this.svc.disconnect(stripAuthority(input), metadata))
   }
+
+  async getAuditControl(input: Record<string, unknown>) {
+    const source = sourceFrom(input)
+    const metadata = await this.trustedExecutionProducer.forSelfServiceCall(
+      source,
+      BROWSER_ACTIVITY_AUDIENCE
+    )
+    return this.call('getAuditControl', this.svc.getAuditControl(stripAuthority(input), metadata))
+  }
+
+  async getPolicy(input: Record<string, unknown>) {
+    const source = sourceFrom(input)
+    return this.call(
+      'getPolicy',
+      this.svc.getPolicy(
+        stripAuthority(input),
+        await this.businessMetadata(source, ['browser_activity.policy.read'])
+      )
+    ).then((response: any) => response.policy)
+  }
+
+  async updatePolicy(input: Record<string, unknown>) {
+    const source = sourceFrom(input)
+    return this.call(
+      'updatePolicy',
+      this.svc.updatePolicy(
+        stripAuthority(input),
+        await this.businessMetadata(source, ['browser_activity.policy.manage'])
+      )
+    ).then((response: any) => response.policy)
+  }
+
+  async getEmployeeAuditGrants(input: Record<string, unknown>) {
+    const source = sourceFrom(input)
+    return this.call(
+      'getEmployeeAuditGrants',
+      this.svc.getEmployeeAuditGrants(
+        stripAuthority(input),
+        await this.businessMetadata(source, ['browser_activity.overview.read'])
+      )
+    )
+  }
+
+  async updateEmployeeAuditGrant(input: Record<string, unknown>) {
+    const source = sourceFrom(input)
+    return this.call(
+      'updateEmployeeAuditGrant',
+      this.svc.updateEmployeeAuditGrant(
+        stripAuthority(input),
+        await this.businessMetadata(source, ['browser_activity.policy.manage'])
+      )
+    ).then((response: any) => response.grant)
+  }
+
+  async getOverview(input: Record<string, unknown>) {
+    const source = sourceFrom(input)
+    return this.call(
+      'getOverview',
+      this.svc.getOverview(
+        stripAuthority(input),
+        await this.businessMetadata(source, ['browser_activity.overview.read'])
+      )
+    )
+  }
+
+  async getOnlinePresence(input: Record<string, unknown>) {
+    const source = sourceFrom(input)
+    return this.call(
+      'getOnlinePresence',
+      this.svc.getOnlinePresence(
+        stripAuthority(input),
+        await this.businessMetadata(source, ['browser_activity.overview.read'])
+      )
+    )
+  }
+
+  async getEmployeeTimeline(input: Record<string, unknown>) {
+    const source = sourceFrom(input)
+    return this.call(
+      'getEmployeeTimeline',
+      this.svc.getEmployeeTimeline(
+        stripAuthority(input),
+        await this.businessMetadata(source, ['browser_activity.employee_detail.read'])
+      )
+    )
+  }
+
+  async getDomainAggregation(input: Record<string, unknown>) {
+    const source = sourceFrom(input)
+    return this.call(
+      'getDomainAggregation',
+      this.svc.getDomainAggregation(
+        stripAuthority(input),
+        await this.businessMetadata(source, ['browser_activity.url_detail.read'])
+      )
+    )
+  }
+
+  async searchUrls(input: Record<string, unknown>) {
+    const source = sourceFrom(input)
+    return this.call(
+      'searchUrls',
+      this.svc.searchUrls(
+        stripAuthority(input),
+        await this.businessMetadata(source, ['browser_activity.url_detail.read'])
+      )
+    )
+  }
+
+  private businessMetadata(source: DownstreamRequestSource, codes: readonly string[]) {
+    return this.trustedExecutionProducer.forBusinessCall(source, BROWSER_ACTIVITY_AUDIENCE, codes)
+  }
+
+  private call<TResponse>(
+    method: string,
+    call$: Parameters<typeof safeGrpcCall<TResponse>>[0]
+  ): Promise<TResponse> {
+    return safeGrpcCall<TResponse>(call$, {
+      caller: CALLER,
+      method: `BrowserActivityService.${method}`
+    } satisfies SafeGrpcCallOptions)
+  }
+}
+
+/** Removes all legacy body authority fields before the generated request reaches gRPC. */
+function stripAuthority(input: Record<string, unknown>): Record<string, unknown> {
+  const {
+    tenantId: _tenantId,
+    operator: _operator,
+    trace: _trace,
+    audit: _audit,
+    extensionSessionId: _extensionSessionId,
+    __trustedSource: _trustedSource,
+    ...business
+  } = input
+  return business
+}
+
+/** Reads only the non-enumerable source handoff and rejects adapters invoked without a verified root. */
+function sourceFrom(input: Record<string, unknown>): DownstreamRequestSource {
+  const source = input.__trustedSource
+  if (!source || typeof source !== 'object') throw new Error('verified Gateway source is required')
+  return source as DownstreamRequestSource
 }
