@@ -24,6 +24,7 @@ describe('Browser Activity trusted gRPC declarations', () => {
       ).toEqual({
         mode: 'BUSINESS',
         permissions: { all: [code] },
+        principalType: 'HUMAN',
         sessionTerminal: 'WEB'
       })
     }
@@ -38,36 +39,35 @@ describe('Browser Activity trusted gRPC declarations', () => {
     }
   })
 
-  it('rejects wrong terminal and MACHINE/DELEGATED claims before controller data', async () => {
-    const guard = new TrustedExecutionGuard(
-      new Reflector(),
-      {
-        verify: jest
-          .fn()
-          .mockResolvedValue({
-            principalType: 'HUMAN',
+  it.each(['MACHINE', 'DELEGATED'] as const)(
+    'rejects HUMAN-only BUSINESS %s claims before controller data',
+    async (principalType) => {
+      const guard = new TrustedExecutionGuard(
+        new Reflector(),
+        {
+          verify: jest.fn().mockResolvedValue({
+            principalType,
             permissionCodes: ['browser_activity.policy.read'],
-            sessionTerminal: 'BROWSER_EXTENSION'
+            sessionTerminal: 'WEB'
           })
-      } as any,
-      {
-        getVerifiedWorkloadIdentity: jest
-          .fn()
-          .mockResolvedValue({
+        } as any,
+        {
+          getVerifiedWorkloadIdentity: jest.fn().mockResolvedValue({
             spiffeId: 'spiffe://gateway',
             certificateThumbprint: 'A'.repeat(43)
           })
-      } as any,
-      'urn:oes:service:browser-activity-service'
-    )
-    const metadata = new Metadata()
-    metadata.set('authorization', 'Bearer token')
-    const context = {
-      getHandler: () => BrowserActivityGrpcController.prototype.getPolicy,
-      getClass: () => BrowserActivityGrpcController,
-      getArgByIndex: () => ({}),
-      switchToRpc: () => ({ getContext: () => metadata, getData: () => ({}) })
-    } as any
-    await expect(guard.canActivate(context)).rejects.toBeDefined()
-  })
+        } as any,
+        'urn:oes:service:browser-activity-service'
+      )
+      const metadata = new Metadata()
+      metadata.set('authorization', 'Bearer token')
+      const context = {
+        getHandler: () => BrowserActivityGrpcController.prototype.getPolicy,
+        getClass: () => BrowserActivityGrpcController,
+        getArgByIndex: () => ({}),
+        switchToRpc: () => ({ getContext: () => metadata, getData: () => ({}) })
+      } as any
+      await expect(guard.canActivate(context)).rejects.toBeDefined()
+    }
+  )
 })

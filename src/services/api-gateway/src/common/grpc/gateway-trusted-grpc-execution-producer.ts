@@ -3,6 +3,7 @@ import { isSpanContextValid, trace } from '@opentelemetry/api'
 import {
   AsyncLocalTrustedExecutionContextAccessor,
   createTrustedExecutionContext,
+  requireTrustedSessionTerminal,
   TrustedExecutionContext,
   TrustedGrpcMetadataProvider
 } from '@oes/common/authorization'
@@ -88,7 +89,9 @@ export class GatewayTrustedGrpcExecutionProducer {
       ...optionalValue(user.tenantId ?? user.tid, 'tenantId'),
       ...optionalValue(user.orgId, 'orgId'),
       sessionId: requireExactValue(user.sid, 'verified Gateway session id'),
-      sessionTerminal: requireExactValue(user.terminal, 'verified Gateway session terminal'),
+      sessionTerminal: requireTrustedSessionTerminal(
+        requireExactValue(user.terminal, 'verified Gateway session terminal')
+      ),
       ...optionalAuthzVersion(user.authzVersion),
       requestId: requireExactValue(source.requestId, 'verified Gateway request id'),
       traceparent: requireExactValue(

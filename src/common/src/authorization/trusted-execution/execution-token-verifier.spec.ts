@@ -273,4 +273,47 @@ describe('trusted execution token runtime', () => {
     ).toBeUndefined()
     expect(cache.get({ ...key, permissionCodes: ['asset.read'] })).toBeUndefined()
   })
+
+  it.each(['UNKNOWN', 'web', ' WEB', 'WEB '] as const)(
+    'rejects signed non-canonical session_terminal %s before trusted context',
+    async (sessionTerminal) => {
+      const verifier = new ExecutionTokenVerifier({
+        registry: createRegistry(),
+        jwksCache: createJwksCache(),
+        now: () => NOW_SECONDS
+      })
+
+      await expect(
+        verifier.verify({
+          token: createToken({ claims: { session_terminal: sessionTerminal } }),
+          targetAudience: AUDIENCE,
+          workloadIdentity: { spiffeId: SPIFFE_ID, certificateThumbprint: THUMBPRINT }
+        })
+      ).rejects.toThrow('session terminal')
+    }
+  )
+
+  it.each(['UNKNOWN', 'web', ' WEB', 'WEB '] as const)(
+    'rejects non-canonical session_terminal cache keys',
+    (sessionTerminal) => {
+      const cache = new CertificateBoundExecutionTokenCache({
+        now: () => NOW_SECONDS,
+        refreshMarginSeconds: 30
+      })
+      expect(() =>
+        cache.set(
+          {
+            subject: 'human-123',
+            principalType: 'HUMAN',
+            targetAudience: AUDIENCE,
+            permissionCodes: [],
+            workloadIdentity: SPIFFE_ID,
+            certificateThumbprint: THUMBPRINT,
+            sessionTerminal
+          } as never,
+          { accessToken: 'bound-token', expiresAt: NOW_SECONDS + 60 }
+        )
+      ).toThrow('session terminal')
+    }
+  )
 })

@@ -184,4 +184,28 @@ describe('GatewayTrustedGrpcExecutionProducer', () => {
     ).rejects.toThrow('traceparent')
     expect(provider.forBusinessCall).not.toHaveBeenCalled()
   })
+
+  it.each(['UNKNOWN', 'web', ' WEB', 'WEB '] as const)(
+    'rejects non-canonical verified session terminal %s before exchange',
+    async (terminal) => {
+      const provider = {
+        forBusinessCall: jest.fn(),
+        forSelfServiceCall: jest.fn(),
+        forInternalCall: jest.fn()
+      } as unknown as TrustedGrpcMetadataProvider
+      const producer = new GatewayTrustedGrpcExecutionProducer(
+        new AsyncLocalTrustedExecutionContextAccessor(),
+        provider
+      )
+
+      await expect(
+        producer.forBusinessCall(
+          { ...trustedSessionSource(), user: { ...trustedSessionSource().user!, terminal } },
+          AUDIENCE,
+          ['asset.read']
+        )
+      ).rejects.toThrow('session terminal')
+      expect(provider.forBusinessCall).not.toHaveBeenCalled()
+    }
+  )
 })

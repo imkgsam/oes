@@ -5,6 +5,7 @@ import { CqrsModule, QueryBus } from '@nestjs/cqrs'
 import { ClientGrpc } from '@nestjs/microservices'
 import { firstValueFrom } from 'rxjs'
 import { SERVICE_NAMES } from '@oes/common/constants'
+import { requireTrustedSessionTerminal, TrustedSessionTerminal } from '@oes/common/authorization'
 import {
   AuthorizationPrincipalTypeProto,
   AuthorizationScopeLevelProto,
@@ -221,11 +222,8 @@ export class AuthSessionSourceCredentialVerifier implements ExecutionTokenSource
 }
 
 /** Requires the terminal fact returned by Auth's active-session query before it is signed. */
-function requireSessionTerminal(terminal: string): string {
-  if (typeof terminal !== 'string' || terminal.length === 0 || terminal.trim() !== terminal) {
-    throw new Error('active session terminal is required')
-  }
-  return terminal
+function requireSessionTerminal(terminal: string): TrustedSessionTerminal {
+  return requireTrustedSessionTerminal(terminal)
 }
 
 /** Preserves HUMAN session validation while routing only the dedicated machine JWS profile to its strict verifier. */

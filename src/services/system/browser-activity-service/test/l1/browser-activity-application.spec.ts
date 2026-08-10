@@ -19,6 +19,18 @@ function validVisitSession() {
   }
 }
 
+/** Provides the complete trusted facts mandatory for Browser Activity management and sensitive reads. */
+function trustedAudit(action = 'TEST_BROWSER_ACTIVITY_AUDIT', tenantId = 'tenant-1') {
+  return {
+    action,
+    operatorAccountId: 'admin-1',
+    requestId: 'request-1',
+    sessionId: 'session-1',
+    tenantId,
+    traceId: 'trace-1'
+  }
+}
+
 async function enableEmployeeGrant(
   service: BrowserActivityApplication,
   tenantId = 'tenant-1',
@@ -31,6 +43,7 @@ async function enableEmployeeGrant(
       accountId: 'admin-1',
       terminal: 'WEB'
     },
+    audit: trustedAudit('BROWSER_ACTIVITY_EMPLOYEE_GRANT_UPDATE', tenantId),
     tenantId
   })
 }
@@ -121,7 +134,9 @@ describe('browser activity application', () => {
       rejectedCount: 1
     })
 
-    await expect(service.getOverview({ period: 'LAST_7_DAYS', tenantId: 'tenant-1' })).resolves.toEqual(
+    await expect(
+      service.getOverview({ period: 'LAST_7_DAYS', tenantId: 'tenant-1' })
+    ).resolves.toEqual(
       expect.objectContaining({
         metrics: expect.objectContaining({
           employeeCount: 0,
@@ -216,7 +231,9 @@ describe('browser activity application', () => {
       tenantId: 'tenant-1'
     })
 
-    await expect(service.getOnlinePresence({ tenantId: 'tenant-1', status: 'ALL' })).resolves.toEqual({
+    await expect(
+      service.getOnlinePresence({ tenantId: 'tenant-1', status: 'ALL' })
+    ).resolves.toEqual({
       employees: [
         expect.objectContaining({
           accountId: 'account-online',
@@ -287,7 +304,9 @@ describe('browser activity application', () => {
       })
     ).resolves.toEqual({ accepted: true })
 
-    await expect(service.getOverview({ period: 'LAST_1_DAY', tenantId: 'tenant-1' })).resolves.toEqual(
+    await expect(
+      service.getOverview({ period: 'LAST_1_DAY', tenantId: 'tenant-1' })
+    ).resolves.toEqual(
       expect.objectContaining({
         employees: [
           expect.objectContaining({
@@ -328,7 +347,9 @@ describe('browser activity application', () => {
       tenantId: 'tenant-1'
     })
 
-    await expect(service.getOverview({ period: 'LAST_7_DAYS', tenantId: 'tenant-1' })).resolves.toEqual(
+    await expect(
+      service.getOverview({ period: 'LAST_7_DAYS', tenantId: 'tenant-1' })
+    ).resolves.toEqual(
       expect.objectContaining({
         employees: [
           expect.objectContaining({
@@ -375,7 +396,9 @@ describe('browser activity application', () => {
       tenantId: 'tenant-1'
     })
 
-    await expect(service.getOverview({ period: 'LAST_7_DAYS', tenantId: 'tenant-1' })).resolves.toEqual(
+    await expect(
+      service.getOverview({ period: 'LAST_7_DAYS', tenantId: 'tenant-1' })
+    ).resolves.toEqual(
       expect.objectContaining({
         employees: [
           expect.objectContaining({
@@ -397,6 +420,7 @@ describe('browser activity application', () => {
 
     await expect(
       service.getEmployeeTimeline({
+        audit: trustedAudit('BROWSER_ACTIVITY_EMPLOYEE_TIMELINE_READ'),
         employeeAccountId: 'account-1',
         period: 'LAST_7_DAYS',
         tenantId: 'tenant-1'
@@ -419,6 +443,7 @@ describe('browser activity application', () => {
 
     await expect(
       service.getDomainAggregation({
+        audit: trustedAudit('BROWSER_ACTIVITY_DOMAIN_AGGREGATION_READ'),
         employeeAccountId: 'account-1',
         period: 'LAST_7_DAYS',
         tenantId: 'tenant-1'
@@ -440,6 +465,7 @@ describe('browser activity application', () => {
 
     await expect(
       service.searchUrls({
+        audit: trustedAudit('BROWSER_ACTIVITY_URL_DETAIL_SEARCH'),
         keyword: 'inbox',
         period: 'LAST_7_DAYS',
         tenantId: 'tenant-1'
@@ -501,7 +527,9 @@ describe('browser activity application', () => {
       tenantId: 'tenant-1'
     })
 
-    await expect(service.getOverview({ period: 'LAST_1_HOUR', tenantId: 'tenant-1' })).resolves.toEqual(
+    await expect(
+      service.getOverview({ period: 'LAST_1_HOUR', tenantId: 'tenant-1' })
+    ).resolves.toEqual(
       expect.objectContaining({
         metrics: expect.objectContaining({
           activeDurationSeconds: 600,
@@ -512,6 +540,7 @@ describe('browser activity application', () => {
     )
     await expect(
       service.getEmployeeTimeline({
+        audit: trustedAudit('BROWSER_ACTIVITY_EMPLOYEE_TIMELINE_READ'),
         employeeAccountId: 'account-1',
         period: 'LAST_1_HOUR',
         tenantId: 'tenant-1'
@@ -527,6 +556,7 @@ describe('browser activity application', () => {
     })
     await expect(
       service.getDomainAggregation({
+        audit: trustedAudit('BROWSER_ACTIVITY_DOMAIN_AGGREGATION_READ'),
         employeeAccountId: 'account-1',
         period: 'LAST_1_HOUR',
         tenantId: 'tenant-1'
@@ -539,5 +569,47 @@ describe('browser activity application', () => {
         })
       ]
     })
+  })
+
+  it('rejects direct management and sensitive reads before state can bypass a trusted audit envelope', async () => {
+    const service = createInMemoryBrowserActivityApplication()
+    const update = {
+      operator: { accountId: 'admin-1', terminal: 'WEB' },
+      policy: { aggregateRetentionDays: 365, enabled: true, rawRetentionDays: 90 },
+      tenantId: 'tenant-1'
+    }
+
+    await expect(service.updatePolicy(update as never)).rejects.toThrow(
+      'Trusted browser activity audit action is required'
+    )
+    await expect(service.getPolicy({ tenantId: 'tenant-1' })).resolves.toEqual({
+      aggregateRetentionDays: 365,
+      enabled: false,
+      rawRetentionDays: 90
+    })
+    await expect(
+      service.searchUrls({
+        keyword: 'supplier',
+        period: 'LAST_1_DAY',
+        tenantId: 'tenant-1'
+      } as never)
+    ).rejects.toThrow('Trusted browser activity audit action is required')
+
+    for (const field of [
+      'operatorAccountId',
+      'sessionId',
+      'tenantId',
+      'requestId',
+      'traceId'
+    ] as const) {
+      const audit = { ...trustedAudit(), [field]: ' ' }
+      await expect(
+        service.getDomainAggregation({
+          audit,
+          period: 'LAST_1_DAY',
+          tenantId: 'tenant-1'
+        })
+      ).rejects.toThrow('Trusted browser activity audit')
+    }
   })
 })

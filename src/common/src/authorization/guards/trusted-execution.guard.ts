@@ -80,6 +80,13 @@ function authorize(
     }
     return
   }
+  if (
+    declaration.mode === 'BUSINESS' &&
+    declaration.principalType !== undefined &&
+    declaration.principalType !== principalType
+  ) {
+    throw denied('trusted execution token has an invalid principal type')
+  }
   const requirement = declaration.permissions
   const allowed =
     'all' in requirement

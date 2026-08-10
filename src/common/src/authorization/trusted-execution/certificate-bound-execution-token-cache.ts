@@ -1,3 +1,5 @@
+import { requireTrustedSessionTerminal, TrustedSessionTerminal } from './trusted-execution-context'
+
 /** Identifies every authority dimension that permits one local ExecutionToken reuse. */
 export type CertificateBoundExecutionTokenCacheKey = {
   readonly subject: string
@@ -11,7 +13,7 @@ export type CertificateBoundExecutionTokenCacheKey = {
   readonly workloadIdentity: string
   readonly certificateThumbprint: string
   readonly sessionId?: string
-  readonly sessionTerminal?: string
+  readonly sessionTerminal?: TrustedSessionTerminal
   readonly authzVersion?: string | number
 }
 
@@ -107,7 +109,8 @@ function buildCacheKey(key: CertificateBoundExecutionTokenCacheKey): string {
     workloadIdentity: key.workloadIdentity,
     certificateThumbprint: key.certificateThumbprint,
     sessionId: key.sessionId ?? null,
-    sessionTerminal: key.sessionTerminal ?? null,
+    sessionTerminal:
+      key.sessionTerminal === undefined ? null : requireTrustedSessionTerminal(key.sessionTerminal),
     authzVersion: key.authzVersion ?? null
   })
 }

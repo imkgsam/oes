@@ -10,6 +10,8 @@ function trusted<T extends object>(
 ): T {
   return Object.assign(request, {
     [RPC_OPERATOR_CONTEXT_KEY]: {
+      requestId: 'request-1',
+      traceId: 'trace-1',
       verifiedExecutionToken: {
         subject: terminal === 'WEB' ? 'admin-1' : 'account-1',
         principalType: 'HUMAN',

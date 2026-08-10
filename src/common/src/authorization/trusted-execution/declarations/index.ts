@@ -1,4 +1,5 @@
 import { SetMetadata } from '@nestjs/common'
+import { requireTrustedSessionTerminal, TrustedSessionTerminal } from '../trusted-execution-context'
 
 /** Identifies the three authorization declarations that a gRPC method may eventually use. */
 export const RPC_AUTHORIZATION_MODES = ['BUSINESS', 'SELF_SERVICE', 'INTERNAL'] as const
@@ -15,14 +16,15 @@ export type RpcPermissionRequirement =
 export type BusinessRpcAuthorizationDeclaration = {
   readonly mode: 'BUSINESS'
   readonly permissions: RpcPermissionRequirement
-  readonly sessionTerminal?: string
+  readonly principalType?: 'HUMAN' | 'MACHINE' | 'DELEGATED'
+  readonly sessionTerminal?: TrustedSessionTerminal
 }
 
 /** Represents a structural SELF_SERVICE declaration without binding a principal. */
 export type SelfServiceRpcAuthorizationDeclaration = {
   readonly mode: 'SELF_SERVICE'
   readonly allowDelegated: boolean
-  readonly sessionTerminal?: string
+  readonly sessionTerminal?: TrustedSessionTerminal
 }
 
 /** Represents a structural INTERNAL declaration without validating a workload or policy. */
@@ -40,11 +42,14 @@ export type RpcAuthorizationModeDeclaration =
 /** Declares BUSINESS metadata on a method without installing authorization enforcement. */
 export const AuthorizeBusinessRpc = (
   permissions: RpcPermissionRequirement,
-  options: { readonly sessionTerminal?: string } = {}
+  options: {
+    readonly principalType?: 'HUMAN' | 'MACHINE' | 'DELEGATED'
+    readonly sessionTerminal?: TrustedSessionTerminal
+  } = {}
 ) =>
   SetMetadata(
     RPC_AUTHORIZATION_MODE_METADATA_KEY,
-    createBusinessRpcAuthorizationDeclaration(permissions, options.sessionTerminal)
+    createBusinessRpcAuthorizationDeclaration(permissions, options)
   )
 
 /** Declares SELF_SERVICE metadata on a method without binding it to any principal. */
@@ -53,7 +58,7 @@ export const AuthorizeSelfServiceRpc = ({
   sessionTerminal
 }: {
   readonly allowDelegated: boolean
-  readonly sessionTerminal?: string
+  readonly sessionTerminal?: TrustedSessionTerminal
 }) =>
   SetMetadata(
     RPC_AUTHORIZATION_MODE_METADATA_KEY,
@@ -79,14 +84,18 @@ export const getRpcAuthorizationModeDeclaration = (
 /** Creates an immutable BUSINESS declaration after validating its local metadata shape. */
 function createBusinessRpcAuthorizationDeclaration(
   permissions: RpcPermissionRequirement,
-  sessionTerminal?: string
+  options: {
+    readonly principalType?: 'HUMAN' | 'MACHINE' | 'DELEGATED'
+    readonly sessionTerminal?: TrustedSessionTerminal
+  }
 ): BusinessRpcAuthorizationDeclaration {
   return Object.freeze({
     mode: 'BUSINESS',
     permissions: normalizePermissionRequirement('BUSINESS', permissions),
-    ...(sessionTerminal === undefined
+    ...(options.principalType === undefined ? {} : { principalType: options.principalType }),
+    ...(options.sessionTerminal === undefined
       ? {}
-      : { sessionTerminal: normalizeSessionTerminal(sessionTerminal) })
+      : { sessionTerminal: normalizeSessionTerminal(options.sessionTerminal) })
   })
 }
 
@@ -109,11 +118,8 @@ function createSelfServiceRpcAuthorizationDeclaration(
 }
 
 /** Restricts terminal declarations to one exact Auth-signed session fact. */
-function normalizeSessionTerminal(value: string): string {
-  if (typeof value !== 'string' || value.length === 0 || value.trim() !== value) {
-    throw new Error('RPC session terminal must be an exact non-empty string')
-  }
-  return value
+function normalizeSessionTerminal(value: string): TrustedSessionTerminal {
+  return requireTrustedSessionTerminal(value)
 }
 
 /** Creates an immutable INTERNAL declaration after validating its local metadata shape. */

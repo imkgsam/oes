@@ -1,6 +1,22 @@
 import { PrismaBrowserActivityApplication } from '../../src/infrastructure/prisma/prisma-browser-activity-application'
 import { PrismaService } from '../../src/infrastructure/prisma/prisma.service'
-import { cleanupByPrefix, createPrismaForIntegration, createTestPrefix } from '../helpers/integration-db'
+import {
+  cleanupByPrefix,
+  createPrismaForIntegration,
+  createTestPrefix
+} from '../helpers/integration-db'
+
+/** Supplies the exact trusted audit facts required by Browser Activity sensitive operations. */
+function trustedAudit(prefix: string, tenantId: string, action = 'TEST_BROWSER_ACTIVITY_AUDIT') {
+  return {
+    action,
+    operatorAccountId: `${prefix}_admin_1`,
+    requestId: `${prefix}_request_1`,
+    sessionId: `${prefix}_session_1`,
+    tenantId,
+    traceId: `${prefix}_trace_1`
+  }
+}
 
 function visit(prefix: string) {
   return {
@@ -49,6 +65,7 @@ describe('browser-activity-service Prisma application L2', () => {
     const tenantId = `${prefix}_tenant_1`
 
     await service.updatePolicy({
+      audit: trustedAudit(prefix, tenantId, 'BROWSER_ACTIVITY_POLICY_UPDATE'),
       operator: {
         accountId: `${prefix}_admin_1`,
         terminal: 'WEB'
@@ -67,6 +84,7 @@ describe('browser-activity-service Prisma application L2', () => {
         accountId: `${prefix}_admin_1`,
         terminal: 'WEB'
       },
+      audit: trustedAudit(prefix, tenantId, 'BROWSER_ACTIVITY_EMPLOYEE_GRANT_UPDATE'),
       tenantId
     })
     await service.appendVisitSessions({
@@ -116,6 +134,7 @@ describe('browser-activity-service Prisma application L2', () => {
         accountId: `${prefix}_admin_1`,
         terminal: 'WEB'
       },
+      audit: trustedAudit(prefix, tenantId, 'BROWSER_ACTIVITY_EMPLOYEE_GRANT_UPDATE'),
       tenantId
     })
     await service.updateEmployeeAuditGrant({
@@ -125,6 +144,7 @@ describe('browser-activity-service Prisma application L2', () => {
         accountId: `${prefix}_admin_1`,
         terminal: 'WEB'
       },
+      audit: trustedAudit(prefix, tenantId, 'BROWSER_ACTIVITY_EMPLOYEE_GRANT_UPDATE'),
       tenantId
     })
     await service.heartbeat({
@@ -216,6 +236,7 @@ describe('browser-activity-service Prisma application L2', () => {
         accountId: `${prefix}_admin_1`,
         terminal: 'WEB'
       },
+      audit: trustedAudit(prefix, tenantId, 'BROWSER_ACTIVITY_EMPLOYEE_GRANT_UPDATE'),
       tenantId
     })
 
@@ -250,6 +271,33 @@ describe('browser-activity-service Prisma application L2', () => {
           enabled: false
         }
       ]
+    })
+  })
+
+  it('fails closed for missing audit facts and leaves a management write uncommitted when audit persistence fails', async () => {
+    const service = new PrismaBrowserActivityApplication(prisma)
+    const tenantId = `${prefix}_tenant_atomic`
+    const input = {
+      audit: trustedAudit(prefix, tenantId, 'BROWSER_ACTIVITY_POLICY_UPDATE'),
+      operator: { accountId: `${prefix}_admin_1`, terminal: 'WEB' },
+      policy: { aggregateRetentionDays: 365, enabled: true, rawRetentionDays: 90 },
+      tenantId
+    }
+
+    await expect(service.updatePolicy({ ...input, audit: undefined } as never)).rejects.toThrow(
+      'Trusted browser activity audit action is required'
+    )
+
+    const transaction = jest
+      .spyOn(prisma, '$transaction')
+      .mockRejectedValueOnce(new Error('audit persistence unavailable'))
+    await expect(service.updatePolicy(input)).rejects.toThrow('audit persistence unavailable')
+    transaction.mockRestore()
+
+    await expect(service.getPolicy({ tenantId })).resolves.toEqual({
+      aggregateRetentionDays: 365,
+      enabled: false,
+      rawRetentionDays: 90
     })
   })
 })

@@ -90,6 +90,9 @@ export class PrismaBrowserActivityApplication {
   // updatePolicy upserts one tenant policy after enforcing administrator terminal and retention bounds.
   async updatePolicy(input: UpdatePolicyInput): Promise<BrowserActivityPolicy> {
     assertWebOperator(input.operator)
+    assertTrustedAudit(input.audit)
+    assertAuditMatchesTenant(input.audit, input.tenantId)
+    assertAuditMatchesWrite(input.audit, input.operator, input.tenantId)
     assertPolicyRetention(input.policy)
     const policyWrite = this.prisma.browserActivityPolicy.upsert({
       create: {
@@ -107,9 +110,7 @@ export class PrismaBrowserActivityApplication {
       },
       where: { tenantId: input.tenantId }
     })
-    const policy = input.audit
-      ? (await this.prisma.$transaction([policyWrite, this.auditWrite(input.audit)]))[0]
-      : await policyWrite
+    const policy = (await this.prisma.$transaction([policyWrite, this.auditWrite(input.audit)]))[0]
 
     return {
       aggregateRetentionDays: policy.aggregateRetentionDays,
@@ -154,6 +155,9 @@ export class PrismaBrowserActivityApplication {
   // updateEmployeeAuditGrant replaces one tenant-account browser activity collection grant.
   async updateEmployeeAuditGrant(input: UpdateEmployeeAuditGrantInput) {
     assertWebOperator(input.operator)
+    assertTrustedAudit(input.audit)
+    assertAuditMatchesTenant(input.audit, input.tenantId)
+    assertAuditMatchesWrite(input.audit, input.operator, input.tenantId)
     const grantWrite = this.prisma.browserActivityEmployeeAuditGrant.upsert({
       create: {
         accountId: requiredAccountId(input.accountId),
@@ -172,9 +176,7 @@ export class PrismaBrowserActivityApplication {
         }
       }
     })
-    const grant = input.audit
-      ? (await this.prisma.$transaction([grantWrite, this.auditWrite(input.audit)]))[0]
-      : await grantWrite
+    const grant = (await this.prisma.$transaction([grantWrite, this.auditWrite(input.audit)]))[0]
 
     return {
       accountId: grant.accountId,
@@ -387,14 +389,14 @@ export class PrismaBrowserActivityApplication {
   }
 
   // getEmployeeTimeline returns chronological visit facts for one employee account.
-  async getEmployeeTimeline(
-    input: EmployeeTimelineQuery & { audit?: BrowserActivityAuditContext }
-  ) {
+  async getEmployeeTimeline(input: EmployeeTimelineQuery & { audit: BrowserActivityAuditContext }) {
+    assertTrustedAudit(input.audit)
+    assertAuditMatchesTenant(input.audit, input.tenantId)
+    await this.auditWrite(input.audit)
     const visits = (await this.listVisits(input.tenantId, input.period))
       .filter((visit) => visit.employeeAccountId === input.employeeAccountId)
       .sort((left, right) => left.startedAt.getTime() - right.startedAt.getTime())
 
-    if (input.audit) await this.auditWrite(input.audit)
     return {
       employeeAccountId: input.employeeAccountId,
       visits: visits.map((visit) => ({
@@ -414,8 +416,11 @@ export class PrismaBrowserActivityApplication {
 
   // getDomainAggregation returns domain-level aggregates for the tenant or selected employee.
   async getDomainAggregation(
-    input: EmployeeScopedBrowserActivityQuery & { audit?: BrowserActivityAuditContext }
+    input: EmployeeScopedBrowserActivityQuery & { audit: BrowserActivityAuditContext }
   ) {
+    assertTrustedAudit(input.audit)
+    assertAuditMatchesTenant(input.audit, input.tenantId)
+    await this.auditWrite(input.audit)
     const visits = (await this.listVisits(input.tenantId, input.period)).filter(
       (visit) => !input.employeeAccountId || visit.employeeAccountId === input.employeeAccountId
     )
@@ -431,7 +436,6 @@ export class PrismaBrowserActivityApplication {
       })
     )
 
-    if (input.audit) await this.auditWrite(input.audit)
     return {
       domains: domains.sort(
         (left, right) => right.activeDurationSeconds - left.activeDurationSeconds
@@ -440,30 +444,15 @@ export class PrismaBrowserActivityApplication {
   }
 
   // searchUrls records a sensitive read audit and returns URL/title matches.
-  async searchUrls(
-    input: UrlSearchQuery & {
-      operator?: BrowserActivityOperatorContext
-      reason?: string
-      sessionId?: string
-      traceId?: string
-    }
-  ) {
+  async searchUrls(input: UrlSearchQuery & { audit: BrowserActivityAuditContext }) {
+    assertTrustedAudit(input.audit)
+    assertAuditMatchesTenant(input.audit, input.tenantId)
     const keyword = input.keyword.trim().toLowerCase()
     if (!keyword) {
       throw new Error('URL search keyword is required')
     }
 
-    await this.prisma.browserActivityReadAudit.create({
-      data: {
-        action: 'URL_SEARCH',
-        keyword: input.keyword,
-        operatorAccountId: input.operator?.accountId ?? 'UNKNOWN',
-        reason: input.reason ?? null,
-        sessionId: input.sessionId ?? null,
-        tenantId: input.tenantId,
-        traceId: input.traceId ?? null
-      }
-    })
+    await this.auditWrite({ ...input.audit, keyword: input.keyword })
 
     const visits = (await this.listVisits(input.tenantId, input.period)).filter((visit) =>
       `${visit.url} ${visit.domain} ${visit.pageTitle}`.toLowerCase().includes(keyword)
@@ -502,10 +491,11 @@ export class PrismaBrowserActivityApplication {
         employeeAccountId: input.employeeAccountId ?? null,
         keyword: input.keyword ?? null,
         operatorAccountId: input.operatorAccountId,
+        requestId: input.requestId,
         reason: input.action,
         sessionId: input.sessionId,
         tenantId: input.tenantId,
-        traceId: input.traceId ?? null
+        traceId: input.traceId
       }
     })
   }
@@ -598,6 +588,40 @@ function assertExtensionOperator(operator: BrowserActivityOperatorContext): void
 function assertWebOperator(operator: BrowserActivityOperatorContext): void {
   if (operator.terminal !== 'WEB') {
     throw new Error('WEB terminal is required')
+  }
+}
+
+/** Rejects incomplete trusted audit envelopes before the database is touched. */
+function assertTrustedAudit(audit: BrowserActivityAuditContext): void {
+  for (const [label, value] of Object.entries({
+    action: audit?.action,
+    operator: audit?.operatorAccountId,
+    request: audit?.requestId,
+    session: audit?.sessionId,
+    tenant: audit?.tenantId,
+    trace: audit?.traceId
+  })) {
+    if (typeof value !== 'string' || value.length === 0 || value.trim() !== value) {
+      throw new Error(`Trusted browser activity audit ${label} is required`)
+    }
+  }
+}
+
+/** Binds write audit attribution to the already-authenticated operator and tenant inputs. */
+function assertAuditMatchesWrite(
+  audit: BrowserActivityAuditContext,
+  operator: BrowserActivityOperatorContext,
+  tenantId: string
+): void {
+  if (audit.operatorAccountId !== operator.accountId || audit.tenantId !== tenantId) {
+    throw new Error('Trusted browser activity audit does not match the execution context')
+  }
+}
+
+/** Rejects direct callers that try to separate a sensitive query from its trusted tenant audit fact. */
+function assertAuditMatchesTenant(audit: BrowserActivityAuditContext, tenantId: string): void {
+  if (audit.tenantId !== tenantId) {
+    throw new Error('Trusted browser activity audit does not match the execution context')
   }
 }
 

@@ -86,6 +86,27 @@ describe('ExecutionTokenModule authority wiring', () => {
     expect(result).not.toHaveProperty('permissionCodes')
   })
 
+  it.each(['UNKNOWN', 'web', ' WEB', 'WEB '] as const)(
+    'rejects non-canonical active-session terminal %s before signing context is created',
+    async (terminal) => {
+      const verifier = new AuthSessionSourceCredentialVerifier({
+        execute: jest.fn().mockResolvedValue({
+          accountId: 'account-1',
+          scopeLevel: 'TENANT',
+          sessionId: 'session-1',
+          terminal
+        })
+      } as any)
+
+      await expect(
+        verifier.verify('verified.session.access-token', {
+          spiffeId: 'spiffe://local.oes.internal/ns/oes/sa/api-gateway',
+          certificateThumbprint: 'A'.repeat(43)
+        })
+      ).rejects.toThrow('session terminal')
+    }
+  )
+
   it('preserves a partial current workload decision so the signing gate can reject it', async () => {
     const resolveWorkloadIssuance = jest.fn().mockReturnValue(
       of({

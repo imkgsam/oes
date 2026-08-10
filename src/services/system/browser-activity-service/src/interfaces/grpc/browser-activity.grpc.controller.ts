@@ -58,13 +58,13 @@ interface BrowserActivityApplicationPort {
     employeeAccountId?: string
     period: BrowserActivityPeriod
     tenantId: string
-    audit?: import('../../application/browser-activity-application').BrowserActivityAuditContext
+    audit: import('../../application/browser-activity-application').BrowserActivityAuditContext
   }): Promise<GetDomainAggregationResponse>
   getEmployeeTimeline(input: {
     employeeAccountId: string
     period: BrowserActivityPeriod
     tenantId: string
-    audit?: import('../../application/browser-activity-application').BrowserActivityAuditContext
+    audit: import('../../application/browser-activity-application').BrowserActivityAuditContext
   }): Promise<GetEmployeeTimelineResponse>
   getOverview(input: {
     period: BrowserActivityPeriod
@@ -79,15 +79,12 @@ interface BrowserActivityApplicationPort {
   disconnect(input: BrowserActivityDisconnectInput): Promise<DisconnectResponse>
   searchUrls(input: {
     keyword: string
-    operator?: BrowserActivityOperatorContext
+    audit: import('../../application/browser-activity-application').BrowserActivityAuditContext
     period: BrowserActivityPeriod
-    reason?: string
-    sessionId?: string
     tenantId: string
-    traceId?: string
   }): Promise<SearchUrlsResponse>
   updatePolicy(input: {
-    audit?: import('../../application/browser-activity-application').BrowserActivityAuditContext
+    audit: import('../../application/browser-activity-application').BrowserActivityAuditContext
     operator: BrowserActivityOperatorContext
     policy: BrowserActivityPolicy
     tenantId: string
@@ -117,7 +114,10 @@ export class BrowserActivityGrpcController implements BrowserActivityServiceCont
   ) {}
 
   // getPolicy maps one policy request into the application read use case.
-  @AuthorizeBusinessRpc({ all: ['browser_activity.policy.read'] }, { sessionTerminal: 'WEB' })
+  @AuthorizeBusinessRpc(
+    { all: ['browser_activity.policy.read'] },
+    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+  )
   async getPolicy(request: GetPolicyRequest): Promise<GetPolicyResponse> {
     return {
       policy: await this.application.getPolicy({ tenantId: tenantFrom(request) })
@@ -125,7 +125,10 @@ export class BrowserActivityGrpcController implements BrowserActivityServiceCont
   }
 
   // updatePolicy maps one administrator policy update into the application command.
-  @AuthorizeBusinessRpc({ all: ['browser_activity.policy.manage'] }, { sessionTerminal: 'WEB' })
+  @AuthorizeBusinessRpc(
+    { all: ['browser_activity.policy.manage'] },
+    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+  )
   async updatePolicy(request: UpdatePolicyRequest): Promise<UpdatePolicyResponse> {
     return {
       policy: await this.application.updatePolicy({
@@ -138,7 +141,10 @@ export class BrowserActivityGrpcController implements BrowserActivityServiceCont
   }
 
   // getEmployeeAuditGrants maps account-level collection grant reads into application state.
-  @AuthorizeBusinessRpc({ all: ['browser_activity.overview.read'] }, { sessionTerminal: 'WEB' })
+  @AuthorizeBusinessRpc(
+    { all: ['browser_activity.overview.read'] },
+    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+  )
   async getEmployeeAuditGrants(
     request: GetEmployeeAuditGrantsRequest
   ): Promise<GetEmployeeAuditGrantsResponse> {
@@ -149,7 +155,10 @@ export class BrowserActivityGrpcController implements BrowserActivityServiceCont
   }
 
   // updateEmployeeAuditGrant maps one administrator account grant change into the application command.
-  @AuthorizeBusinessRpc({ all: ['browser_activity.policy.manage'] }, { sessionTerminal: 'WEB' })
+  @AuthorizeBusinessRpc(
+    { all: ['browser_activity.policy.manage'] },
+    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+  )
   async updateEmployeeAuditGrant(
     request: UpdateEmployeeAuditGrantRequest
   ): Promise<UpdateEmployeeAuditGrantResponse> {
@@ -210,7 +219,10 @@ export class BrowserActivityGrpcController implements BrowserActivityServiceCont
   }
 
   // getOverview maps one tenant dashboard read into application read models.
-  @AuthorizeBusinessRpc({ all: ['browser_activity.overview.read'] }, { sessionTerminal: 'WEB' })
+  @AuthorizeBusinessRpc(
+    { all: ['browser_activity.overview.read'] },
+    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+  )
   async getOverview(request: GetOverviewRequest): Promise<any> {
     return this.application.getOverview({
       period: normalizePeriod(request.period),
@@ -219,7 +231,10 @@ export class BrowserActivityGrpcController implements BrowserActivityServiceCont
   }
 
   // getOnlinePresence maps tenant online-presence reads into heartbeat-derived application state.
-  @AuthorizeBusinessRpc({ all: ['browser_activity.overview.read'] }, { sessionTerminal: 'WEB' })
+  @AuthorizeBusinessRpc(
+    { all: ['browser_activity.overview.read'] },
+    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+  )
   async getOnlinePresence(request: GetOnlinePresenceRequest): Promise<GetOnlinePresenceResponse> {
     return this.application.getOnlinePresence({
       includeOfflineWithinMinutes: request.includeOfflineWithinMinutes || undefined,
@@ -231,7 +246,7 @@ export class BrowserActivityGrpcController implements BrowserActivityServiceCont
   // getEmployeeTimeline maps one employee timeline request into application read models.
   @AuthorizeBusinessRpc(
     { all: ['browser_activity.employee_detail.read'] },
-    { sessionTerminal: 'WEB' }
+    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
   )
   async getEmployeeTimeline(
     request: GetEmployeeTimelineRequest
@@ -249,7 +264,10 @@ export class BrowserActivityGrpcController implements BrowserActivityServiceCont
   }
 
   // getDomainAggregation maps tenant or employee-scoped domain aggregate reads.
-  @AuthorizeBusinessRpc({ all: ['browser_activity.url_detail.read'] }, { sessionTerminal: 'WEB' })
+  @AuthorizeBusinessRpc(
+    { all: ['browser_activity.url_detail.read'] },
+    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+  )
   async getDomainAggregation(
     request: GetDomainAggregationRequest
   ): Promise<GetDomainAggregationResponse> {
@@ -266,16 +284,16 @@ export class BrowserActivityGrpcController implements BrowserActivityServiceCont
   }
 
   // searchUrls maps sensitive URL detail reads and passes audit reason to the application.
-  @AuthorizeBusinessRpc({ all: ['browser_activity.url_detail.read'] }, { sessionTerminal: 'WEB' })
+  @AuthorizeBusinessRpc(
+    { all: ['browser_activity.url_detail.read'] },
+    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+  )
   async searchUrls(request: SearchUrlsRequest): Promise<SearchUrlsResponse> {
     return this.application.searchUrls({
       keyword: required(request.keyword),
-      operator: operatorFrom(request),
       period: normalizePeriod(request.period),
-      reason: 'BROWSER_ACTIVITY_URL_DETAIL_SEARCH',
-      sessionId: sessionIdFrom(request),
       tenantId: tenantFrom(request),
-      traceId: undefined
+      audit: auditFrom(request, 'BROWSER_ACTIVITY_URL_DETAIL_SEARCH', undefined, request.keyword)
     })
   }
 }
@@ -309,17 +327,19 @@ function sessionIdFrom(request: object): string {
 }
 
 /** Builds a stable method-owned audit record from the verified execution context. */
-function auditFrom(request: object, action: string, employeeAccountId?: string) {
+function auditFrom(request: object, action: string, employeeAccountId?: string, keyword?: string) {
   const context = getAuthenticatedGrpcRequestContext(request) as ReturnType<
     typeof getAuthenticatedGrpcRequestContext
   > & { requestId?: string; traceId?: string }
   return {
     action,
     operatorAccountId: verifiedToken(request).subject,
+    requestId: required(context?.requestId),
     sessionId: sessionIdFrom(request),
     tenantId: tenantFrom(request),
-    ...(context?.traceId === undefined ? {} : { traceId: context.traceId }),
-    ...(employeeAccountId === undefined ? {} : { employeeAccountId })
+    traceId: required(context?.traceId),
+    ...(employeeAccountId === undefined ? {} : { employeeAccountId: required(employeeAccountId) }),
+    ...(keyword === undefined ? {} : { keyword: required(keyword) })
   }
 }
 

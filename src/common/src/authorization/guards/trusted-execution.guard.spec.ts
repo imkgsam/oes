@@ -70,16 +70,21 @@ describe('TrustedExecutionGuard', () => {
     ['delegated when disabled', { mode: 'SELF_SERVICE', allowDelegated: false }, 'DELEGATED'],
     ['machine', { mode: 'SELF_SERVICE', allowDelegated: true }, 'MACHINE'],
     ['coded human', { mode: 'SELF_SERVICE', allowDelegated: true }, 'HUMAN']
-  ])('rejects SELF_SERVICE %s before controller execution', async (_name, declaration, principalType) => {
-    const fixture = guardFixture(declaration, {
-      principalType,
-      permissionCodes: principalType === 'HUMAN' ? ['asset.read'] : [],
-      ...(principalType === 'DELEGATED' ? { actor: 'actor-1', delegationId: 'delegation-1' } : {})
-    })
+  ])(
+    'rejects SELF_SERVICE %s before controller execution',
+    async (_name, declaration, principalType) => {
+      const fixture = guardFixture(declaration, {
+        principalType,
+        permissionCodes: principalType === 'HUMAN' ? ['asset.read'] : [],
+        ...(principalType === 'DELEGATED' ? { actor: 'actor-1', delegationId: 'delegation-1' } : {})
+      })
 
-    await expect(fixture.guard.canActivate(fixture.context as never)).rejects.toThrow('Access denied')
-    expect(fixture.data).toEqual({})
-  })
+      await expect(fixture.guard.canActivate(fixture.context as never)).rejects.toThrow(
+        'Access denied'
+      )
+      expect(fixture.data).toEqual({})
+    }
+  )
 
   it.each([
     ['wrong permission codes', { principalType: 'HUMAN', permissionCodes: ['asset.read'] }],
@@ -99,4 +104,28 @@ describe('TrustedExecutionGuard', () => {
     await expect(fixture.guard.canActivate(fixture.context as never)).rejects.toThrow()
     expect(fixture.data).toEqual({})
   })
+
+  it.each(['MACHINE', 'DELEGATED'] as const)(
+    'rejects a Browser HUMAN-only BUSINESS declaration for %s before attachment',
+    async (principalType) => {
+      const fixture = guardFixture(
+        {
+          mode: 'BUSINESS',
+          permissions: { all: ['browser_activity.policy.read'] },
+          principalType: 'HUMAN',
+          sessionTerminal: 'WEB'
+        },
+        {
+          principalType,
+          permissionCodes: ['browser_activity.policy.read'],
+          sessionTerminal: 'WEB'
+        }
+      )
+
+      await expect(fixture.guard.canActivate(fixture.context as never)).rejects.toThrow(
+        'Access denied'
+      )
+      expect(fixture.data).toEqual({})
+    }
+  )
 })

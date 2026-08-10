@@ -20,9 +20,10 @@ export interface BrowserActivityOperatorContext {
 export interface BrowserActivityAuditContext {
   action: string
   operatorAccountId: string
+  requestId: string
   sessionId: string
   tenantId: string
-  traceId?: string
+  traceId: string
   employeeAccountId?: string
   keyword?: string
 }
@@ -54,7 +55,7 @@ export interface GetPolicyInput {
 }
 
 export interface UpdatePolicyInput {
-  audit?: BrowserActivityAuditContext
+  audit: BrowserActivityAuditContext
   operator: BrowserActivityOperatorContext
   policy: BrowserActivityPolicy
   tenantId: string
@@ -81,7 +82,7 @@ export interface UpdateEmployeeAuditGrantInput {
   enabled: boolean
   operator: BrowserActivityOperatorContext
   tenantId: string
-  audit?: BrowserActivityAuditContext
+  audit: BrowserActivityAuditContext
 }
 
 export interface AppendVisitSessionsInput {
@@ -236,6 +237,9 @@ export class BrowserActivityApplication {
   // updatePolicy stores one tenant policy after enforcing P1 retention bounds.
   async updatePolicy(input: UpdatePolicyInput): Promise<BrowserActivityPolicy> {
     assertWebOperator(input.operator)
+    assertTrustedAudit(input.audit)
+    assertAuditMatchesTenant(input.audit, input.tenantId)
+    assertAuditMatchesWrite(input.audit, input.operator, input.tenantId)
     assertPolicyRetention(input.policy)
     const policy = { ...input.policy }
     this.policies.set(input.tenantId, policy)
@@ -265,6 +269,9 @@ export class BrowserActivityApplication {
     input: UpdateEmployeeAuditGrantInput
   ): Promise<BrowserActivityEmployeeAuditGrant> {
     assertWebOperator(input.operator)
+    assertTrustedAudit(input.audit)
+    assertAuditMatchesTenant(input.audit, input.tenantId)
+    assertAuditMatchesWrite(input.audit, input.operator, input.tenantId)
     const tenantGrants =
       this.employeeAuditGrants.get(input.tenantId) ??
       new Map<string, BrowserActivityEmployeeAuditGrant>()
@@ -397,9 +404,9 @@ export class BrowserActivityApplication {
   }
 
   // getEmployeeTimeline returns chronological URL visit facts for one employee account.
-  async getEmployeeTimeline(
-    input: EmployeeTimelineQuery & { audit?: BrowserActivityAuditContext }
-  ) {
+  async getEmployeeTimeline(input: EmployeeTimelineQuery & { audit: BrowserActivityAuditContext }) {
+    assertTrustedAudit(input.audit)
+    assertAuditMatchesTenant(input.audit, input.tenantId)
     const visits = this.listVisits(input.tenantId, input.period)
       .filter((visit) => visit.employeeAccountId === input.employeeAccountId)
       .sort(
@@ -425,8 +432,10 @@ export class BrowserActivityApplication {
 
   // getDomainAggregation returns domain-level factual aggregates for a tenant or selected employee.
   async getDomainAggregation(
-    input: EmployeeScopedBrowserActivityQuery & { audit?: BrowserActivityAuditContext }
+    input: EmployeeScopedBrowserActivityQuery & { audit: BrowserActivityAuditContext }
   ) {
+    assertTrustedAudit(input.audit)
+    assertAuditMatchesTenant(input.audit, input.tenantId)
     const visits = this.listVisits(input.tenantId, input.period).filter(
       (visit) => !input.employeeAccountId || visit.employeeAccountId === input.employeeAccountId
     )
@@ -450,7 +459,9 @@ export class BrowserActivityApplication {
   }
 
   // searchUrls returns URL/title matches without classifying site purpose or performance impact.
-  async searchUrls(input: UrlSearchQuery) {
+  async searchUrls(input: UrlSearchQuery & { audit: BrowserActivityAuditContext }) {
+    assertTrustedAudit(input.audit)
+    assertAuditMatchesTenant(input.audit, input.tenantId)
     const keyword = input.keyword.trim().toLowerCase()
     if (!keyword) {
       throw new Error('URL search keyword is required')
@@ -637,6 +648,40 @@ function requiredAccountId(value: string): string {
     throw new Error('Browser activity employee account id is required')
   }
   return normalized
+}
+
+/** Rejects incomplete audit envelopes before a sensitive read or management mutation can proceed. */
+function assertTrustedAudit(audit: BrowserActivityAuditContext): void {
+  for (const [label, value] of Object.entries({
+    action: audit?.action,
+    operator: audit?.operatorAccountId,
+    request: audit?.requestId,
+    session: audit?.sessionId,
+    tenant: audit?.tenantId,
+    trace: audit?.traceId
+  })) {
+    if (typeof value !== 'string' || value.length === 0 || value.trim() !== value) {
+      throw new Error(`Trusted browser activity audit ${label} is required`)
+    }
+  }
+}
+
+/** Binds write audit attribution to the already-authenticated operator and tenant inputs. */
+function assertAuditMatchesWrite(
+  audit: BrowserActivityAuditContext,
+  operator: BrowserActivityOperatorContext,
+  tenantId: string
+): void {
+  if (audit.operatorAccountId !== operator.accountId || audit.tenantId !== tenantId) {
+    throw new Error('Trusted browser activity audit does not match the execution context')
+  }
+}
+
+/** Rejects direct callers that try to separate a sensitive query from its trusted tenant audit fact. */
+function assertAuditMatchesTenant(audit: BrowserActivityAuditContext, tenantId: string): void {
+  if (audit.tenantId !== tenantId) {
+    throw new Error('Trusted browser activity audit does not match the execution context')
+  }
 }
 
 // parseDate rejects malformed timestamps before they become audit facts.

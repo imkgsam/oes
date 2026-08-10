@@ -13,7 +13,9 @@ describe('browser-activity-service module DI', () => {
           enabled: true,
           rawRetentionDays: 90
         })
-      }
+      },
+      browserActivityReadAudit: { create: jest.fn().mockResolvedValue({}) },
+      $transaction: jest.fn(async (operations: Promise<unknown>[]) => Promise.all(operations))
     }
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -29,6 +31,14 @@ describe('browser-activity-service module DI', () => {
 
     await expect(
       application.updatePolicy({
+        audit: {
+          action: 'BROWSER_ACTIVITY_POLICY_UPDATE',
+          operatorAccountId: 'admin-1',
+          requestId: 'request-1',
+          sessionId: 'session-1',
+          tenantId: 'tenant-1',
+          traceId: 'trace-1'
+        },
         operator: {
           accountId: 'admin-1',
           terminal: 'WEB'

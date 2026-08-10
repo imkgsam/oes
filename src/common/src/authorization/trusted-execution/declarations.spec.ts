@@ -23,6 +23,23 @@ describe('trusted gRPC authorization declarations', () => {
     expect(RPC_AUTHORIZATION_MODE_METADATA_KEY).toBe('oes:trusted-execution:rpc-authorization-mode')
   })
 
+  it('preserves an optional method-local BUSINESS principal constraint', () => {
+    class BrowserController {
+      @AuthorizeBusinessRpc(
+        { all: ['browser_activity.policy.read'] },
+        { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+      )
+      getPolicy(): void {}
+    }
+
+    expect(getRpcAuthorizationModeDeclaration(BrowserController.prototype, 'getPolicy')).toEqual({
+      mode: 'BUSINESS',
+      permissions: { all: ['browser_activity.policy.read'] },
+      principalType: 'HUMAN',
+      sessionTerminal: 'WEB'
+    })
+  })
+
   // Proves the other two structural modes exist without selecting a service RPC mapping.
   it('declares SELF_SERVICE and INTERNAL modes without performing authorization', () => {
     class StructuralController {

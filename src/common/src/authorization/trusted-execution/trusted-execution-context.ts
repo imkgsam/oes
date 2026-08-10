@@ -1,7 +1,12 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 
 const PRINCIPAL_TYPES = new Set(['HUMAN', 'MACHINE', 'DELEGATED'])
+export const TRUSTED_SESSION_TERMINALS = ['WEB', 'BROWSER_EXTENSION', 'PDA'] as const
+const SESSION_TERMINALS = new Set<string>(TRUSTED_SESSION_TERMINALS)
 const TRACEPARENT_PATTERN = /^00-([0-9a-f]{32})-([0-9a-f]{16})-([0-9a-f]{2})$/i
+
+/** Identifies the exact Auth-signed platform terminal values permitted in trusted execution. */
+export type TrustedSessionTerminal = (typeof TRUSTED_SESSION_TERMINALS)[number]
 
 /** Describes only authority and correlation facts already established by a trusted root or server runtime. */
 export type TrustedExecutionContextInput = {
@@ -12,7 +17,7 @@ export type TrustedExecutionContextInput = {
   readonly tenantId?: string
   readonly orgId?: string
   readonly sessionId?: string
-  readonly sessionTerminal?: string
+  readonly sessionTerminal?: TrustedSessionTerminal
   readonly authzVersion?: string | number
   readonly requestId: string
   readonly traceparent: string
@@ -64,12 +69,22 @@ export function createTrustedExecutionContext(
     ...(tenantId === undefined ? {} : { tenantId }),
     ...optionalProperty(input.orgId, 'orgId', 'org id'),
     ...optionalProperty(input.sessionId, 'sessionId', 'session id'),
-    ...optionalProperty(input.sessionTerminal, 'sessionTerminal', 'session terminal'),
+    ...(input.sessionTerminal === undefined
+      ? {}
+      : { sessionTerminal: requireTrustedSessionTerminal(input.sessionTerminal) }),
     ...(authzVersion === undefined ? {} : { authzVersion }),
     requestId: requireExactValue(input.requestId, 'request id'),
     traceparent,
     ...(tracestate === undefined ? {} : { tracestate })
   })
+}
+
+/** Rejects non-platform, case-shifted, and whitespace-padded session-terminal claims. */
+export function requireTrustedSessionTerminal(value: string): TrustedSessionTerminal {
+  if (typeof value !== 'string' || !SESSION_TERMINALS.has(value)) {
+    throw new Error('Trusted execution session terminal is unsupported')
+  }
+  return value as TrustedSessionTerminal
 }
 
 /** Keeps one immutable trusted execution context across an async request or job call chain. */

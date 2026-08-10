@@ -1,6 +1,7 @@
 import { verify as verifySignature } from 'node:crypto'
 import { ExecutionTokenJwksCache } from './execution-token-jwks-cache'
 import { TrustedExecutionRegistry } from './trusted-execution-registry'
+import { requireTrustedSessionTerminal, TrustedSessionTerminal } from './trusted-execution-context'
 
 const ALLOWED_HEADER_FIELDS = new Set(['alg', 'typ', 'kid'])
 const PRINCIPAL_TYPES = new Set(['HUMAN', 'MACHINE', 'DELEGATED'])
@@ -36,7 +37,7 @@ export type VerifiedExecutionToken = {
   readonly actor?: unknown
   readonly delegationId?: string
   readonly sessionId?: string
-  readonly sessionTerminal?: string
+  readonly sessionTerminal?: TrustedSessionTerminal
   readonly authzVersion?: string | number
 }
 
@@ -162,7 +163,13 @@ export class ExecutionTokenVerifier {
       ...(claims.act === undefined ? {} : { actor: deepFreezeJson(claims.act) }),
       ...optionalProperty(claims, 'delegation_id', 'delegationId'),
       ...optionalProperty(claims, 'session_id', 'sessionId'),
-      ...optionalProperty(claims, 'session_terminal', 'sessionTerminal'),
+      ...(claims.session_terminal === undefined
+        ? {}
+        : {
+            sessionTerminal: requireTrustedSessionTerminal(
+              requireStringClaim(claims, 'session_terminal')
+            )
+          }),
       ...(authzVersion === undefined ? {} : { authzVersion })
     })
   }
