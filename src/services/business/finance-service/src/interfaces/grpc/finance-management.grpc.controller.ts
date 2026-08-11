@@ -1,4 +1,5 @@
-import { Controller, UseFilters } from '@nestjs/common'
+import { Controller, UseFilters, UseGuards } from '@nestjs/common'
+import { AuthorizeBusinessRpc, TrustedExecutionGuard } from '@oes/common/authorization'
 import { ValidatingCommandBus } from '@oes/common/cqrs'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
@@ -81,6 +82,7 @@ import { FinanceRpcContextValidator } from './finance-rpc-context.validator'
 
 /** FinanceManagementGrpcController exposes the phase 1A finance command contract with local audit envelope recording. */
 @UseFilters(GrpcExceptionFilter)
+@UseGuards(TrustedExecutionGuard)
 @Controller()
 @FinancialAccountManagementServiceControllerMethods()
 @ReceivableManagementServiceControllerMethods()
@@ -96,10 +98,17 @@ export class FinanceManagementGrpcController
     private readonly auditService: FinanceAuditService
   ) {}
 
+  @AuthorizeBusinessRpc(
+    { all: ['finance.financial_account.create'] },
+    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+  )
   async createFinancialAccount(
     request: CreateFinancialAccountRequest
   ): Promise<CreateFinancialAccountResponse> {
-    const context = FinanceRpcContextValidator.assertManagementContext(request)
+    const context = FinanceRpcContextValidator.assertManagementContext(
+      request,
+      'CreateFinancialAccount'
+    )
     return this.auditService.recordCommand(
       {
         tenantId: context.tenantId,
@@ -117,8 +126,8 @@ export class FinanceManagementGrpcController
       async () => {
         const result = await this.commandBus.execute(
           new CreateFinancialAccountCommand({
-            tenantId: request.tenantId ?? '',
-            orgId: request.orgId ?? undefined,
+            tenantId: context.tenantId,
+            orgId: context.orgId,
             accountType: toDomainFinancialAccountType(request.accountType),
             accountName: request.accountName ?? '',
             currencyCode: request.currencyCode ?? '',
@@ -134,10 +143,17 @@ export class FinanceManagementGrpcController
     )
   }
 
+  @AuthorizeBusinessRpc(
+    { all: ['finance.financial_account.update_basics'] },
+    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+  )
   async updateFinancialAccountBasics(
     request: UpdateFinancialAccountBasicsRequest
   ): Promise<UpdateFinancialAccountBasicsResponse> {
-    const context = FinanceRpcContextValidator.assertManagementContext(request)
+    const context = FinanceRpcContextValidator.assertManagementContext(
+      request,
+      'UpdateFinancialAccountBasics'
+    )
     return this.auditService.recordCommand(
       {
         tenantId: context.tenantId,
@@ -155,7 +171,7 @@ export class FinanceManagementGrpcController
       async () => {
         const result = await this.commandBus.execute(
           new UpdateFinancialAccountBasicsCommand({
-            tenantId: request.tenantId ?? '',
+            tenantId: context.tenantId,
             financialAccountId: request.financialAccountId ?? '',
             accountName: request.accountName ?? '',
             institutionName: request.institutionName ?? undefined,
@@ -171,10 +187,17 @@ export class FinanceManagementGrpcController
     )
   }
 
+  @AuthorizeBusinessRpc(
+    { all: ['finance.account_transaction.import'] },
+    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+  )
   async importAccountTransactions(
     request: ImportAccountTransactionsRequest
   ): Promise<ImportAccountTransactionsResponse> {
-    const context = FinanceRpcContextValidator.assertManagementContext(request)
+    const context = FinanceRpcContextValidator.assertManagementContext(
+      request,
+      'ImportAccountTransactions'
+    )
     return this.auditService.recordCommand(
       {
         tenantId: context.tenantId,
@@ -192,13 +215,13 @@ export class FinanceManagementGrpcController
       async () => {
         const result = await this.commandBus.execute(
           new ImportAccountTransactionsCommand({
-            tenantId: request.tenantId ?? '',
+            tenantId: context.tenantId,
             financialAccountId: request.financialAccountId ?? '',
             sourceType: toDomainSourceType(request.sourceType),
             sourceBatchReference: request.sourceBatchReference ?? undefined,
             fileAssetId: request.fileAssetId ?? undefined,
             attachmentRef: request.attachmentRef ?? undefined,
-            importedBy: request.importedBy ?? '',
+            importedBy: context.operatorContext.operatorId,
             transactions: (request.transactions ?? []).map((item) => ({
               direction: item.direction === 2 ? 'OUTFLOW' : 'INFLOW',
               amount: item.amount ?? '',
@@ -218,10 +241,17 @@ export class FinanceManagementGrpcController
     )
   }
 
+  @AuthorizeBusinessRpc(
+    { all: ['finance.account_transaction.record'] },
+    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+  )
   async recordAccountTransaction(
     request: RecordAccountTransactionRequest
   ): Promise<RecordAccountTransactionResponse> {
-    const context = FinanceRpcContextValidator.assertManagementContext(request)
+    const context = FinanceRpcContextValidator.assertManagementContext(
+      request,
+      'RecordAccountTransaction'
+    )
     return this.auditService.recordCommand(
       {
         tenantId: context.tenantId,
@@ -240,11 +270,13 @@ export class FinanceManagementGrpcController
       async () => {
         const result = await this.commandBus.execute(
           new RecordAccountTransactionCommand({
-            tenantId: request.tenantId ?? '',
+            tenantId: context.tenantId,
             financialAccountId: request.financialAccountId ?? '',
-            direction: request.direction === AccountTransactionDirection.ACCOUNT_TRANSACTION_DIRECTION_OUTFLOW
-              ? 'OUTFLOW'
-              : 'INFLOW',
+            direction:
+              request.direction ===
+              AccountTransactionDirection.ACCOUNT_TRANSACTION_DIRECTION_OUTFLOW
+                ? 'OUTFLOW'
+                : 'INFLOW',
             amount: request.amount ?? '',
             currencyCode: request.currencyCode ?? '',
             transactionTime: request.transactionTime ?? '',
@@ -267,10 +299,17 @@ export class FinanceManagementGrpcController
     )
   }
 
+  @AuthorizeBusinessRpc(
+    { all: ['finance.customer_financial_account.register'] },
+    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+  )
   async registerCustomerFinancialAccount(
     request: RegisterCustomerFinancialAccountRequest
   ): Promise<RegisterCustomerFinancialAccountResponse> {
-    const context = FinanceRpcContextValidator.assertManagementContext(request)
+    const context = FinanceRpcContextValidator.assertManagementContext(
+      request,
+      'RegisterCustomerFinancialAccount'
+    )
     return this.auditService.recordCommand(
       {
         tenantId: context.tenantId,
@@ -287,7 +326,7 @@ export class FinanceManagementGrpcController
       async () => {
         const result = await this.commandBus.execute(
           new RegisterCustomerFinancialAccountCommand({
-            tenantId: request.tenantId ?? '',
+            tenantId: context.tenantId,
             customerTenantPartyId: request.customerTenantPartyId ?? '',
             accountHolderName: request.accountHolderName ?? '',
             accountProviderType: toDomainCustomerAccountProviderType(request.accountProviderType),
@@ -304,8 +343,12 @@ export class FinanceManagementGrpcController
     )
   }
 
+  @AuthorizeBusinessRpc(
+    { all: ['finance.exchange_rate.set'] },
+    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+  )
   async setExchangeRate(request: SetExchangeRateRequest): Promise<SetExchangeRateResponse> {
-    const context = FinanceRpcContextValidator.assertManagementContext(request)
+    const context = FinanceRpcContextValidator.assertManagementContext(request, 'SetExchangeRate')
     return this.auditService.recordCommand(
       {
         tenantId: context.tenantId,
@@ -323,12 +366,12 @@ export class FinanceManagementGrpcController
       async () => {
         const result = await this.commandBus.execute(
           new SetExchangeRateCommand({
-            tenantId: request.tenantId ?? '',
+            tenantId: context.tenantId,
             baseCurrencyCode: request.baseCurrencyCode ?? '',
             quoteCurrencyCode: request.quoteCurrencyCode ?? '',
             rateValue: request.rateValue ?? '',
             effectiveAt: request.effectiveAt ?? '',
-            setBy: request.setBy ?? ''
+            setBy: context.operatorContext.operatorId
           })
         )
 
@@ -339,10 +382,17 @@ export class FinanceManagementGrpcController
     )
   }
 
+  @AuthorizeBusinessRpc(
+    { all: ['finance.receivable_schedule.create_from_sales_order'] },
+    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+  )
   async createReceivableScheduleFromSalesOrder(
     request: CreateReceivableScheduleFromSalesOrderRequest
   ): Promise<CreateReceivableScheduleFromSalesOrderResponse> {
-    const context = FinanceRpcContextValidator.assertManagementContext(request)
+    const context = FinanceRpcContextValidator.assertManagementContext(
+      request,
+      'CreateReceivableScheduleFromSalesOrder'
+    )
     return this.auditService.recordCommand(
       {
         tenantId: context.tenantId,
@@ -360,8 +410,8 @@ export class FinanceManagementGrpcController
       async () => {
         const result = await this.commandBus.execute(
           new CreateReceivableScheduleFromSalesOrderCommand({
-            tenantId: request.tenantId ?? '',
-            orgId: request.orgId ?? undefined,
+            tenantId: context.tenantId,
+            orgId: context.orgId,
             salesOrderId: request.salesOrderId ?? '',
             customerTenantPartyId: request.customerTenantPartyId ?? '',
             customerSnapshot: request.customerSnapshot ?? '',
@@ -381,10 +431,17 @@ export class FinanceManagementGrpcController
     )
   }
 
+  @AuthorizeBusinessRpc(
+    { all: ['finance.finance_release_signal.set'] },
+    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+  )
   async setFinanceReleaseSignal(
     request: SetFinanceReleaseSignalRequest
   ): Promise<SetFinanceReleaseSignalResponse> {
-    const context = FinanceRpcContextValidator.assertManagementContext(request)
+    const context = FinanceRpcContextValidator.assertManagementContext(
+      request,
+      'SetFinanceReleaseSignal'
+    )
     return this.auditService.recordCommand(
       {
         tenantId: context.tenantId,
@@ -402,7 +459,7 @@ export class FinanceManagementGrpcController
       async () => {
         const result = await this.commandBus.execute(
           new SetFinanceReleaseSignalCommand({
-            tenantId: request.tenantId ?? '',
+            tenantId: context.tenantId,
             salesOrderId: request.salesOrderId ?? '',
             customerTenantPartyId: request.customerTenantPartyId ?? '',
             signalStatus: toDomainFinanceReleaseStatus(request.signalStatus),
@@ -421,10 +478,17 @@ export class FinanceManagementGrpcController
     )
   }
 
+  @AuthorizeBusinessRpc(
+    { all: ['finance.payable.create_from_purchase_order'] },
+    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+  )
   async createPayableScheduleFromPurchaseOrder(
     request: CreatePayableScheduleFromPurchaseOrderRequest
   ): Promise<CreatePayableScheduleFromPurchaseOrderResponse> {
-    const context = FinanceRpcContextValidator.assertManagementContext(request)
+    const context = FinanceRpcContextValidator.assertManagementContext(
+      request,
+      'CreatePayableScheduleFromPurchaseOrder'
+    )
     return this.auditService.recordCommand(
       {
         tenantId: context.tenantId,
@@ -442,8 +506,8 @@ export class FinanceManagementGrpcController
       async () => {
         const result = await this.commandBus.execute(
           new CreatePayableScheduleFromPurchaseOrderCommand({
-            tenantId: request.tenantId ?? '',
-            orgId: request.orgId ?? undefined,
+            tenantId: context.tenantId,
+            orgId: context.orgId,
             purchaseOrderId: request.purchaseOrderId ?? '',
             purchaseOrderNo: request.purchaseOrderNo ?? undefined,
             procurementSnapshotReference: request.procurementSnapshotReference ?? undefined,
@@ -466,10 +530,17 @@ export class FinanceManagementGrpcController
     )
   }
 
+  @AuthorizeBusinessRpc(
+    { all: ['finance.payable.adjust_from_purchase_order_change'] },
+    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+  )
   async applyPayableScheduleAdjustmentFromPurchaseOrderChange(
     request: ApplyPayableScheduleAdjustmentFromPurchaseOrderChangeRequest
   ): Promise<ApplyPayableScheduleAdjustmentFromPurchaseOrderChangeResponse> {
-    const context = FinanceRpcContextValidator.assertManagementContext(request)
+    const context = FinanceRpcContextValidator.assertManagementContext(
+      request,
+      'ApplyPayableScheduleAdjustmentFromPurchaseOrderChange'
+    )
     return this.auditService.recordCommand(
       {
         tenantId: context.tenantId,
@@ -487,8 +558,8 @@ export class FinanceManagementGrpcController
       async () => {
         const result = await this.commandBus.execute(
           new ApplyPayableScheduleAdjustmentFromPurchaseOrderChangeCommand({
-            tenantId: request.tenantId ?? '',
-            orgId: request.orgId ?? undefined,
+            tenantId: context.tenantId,
+            orgId: context.orgId,
             purchaseOrderId: request.purchaseOrderId ?? '',
             purchaseOrderChangeId: request.purchaseOrderChangeId ?? '',
             procurementSnapshotReference: request.procurementSnapshotReference ?? undefined,
@@ -519,10 +590,17 @@ export class FinanceManagementGrpcController
     )
   }
 
+  @AuthorizeBusinessRpc(
+    { all: ['finance.payment_request.create'] },
+    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+  )
   async createPaymentRequest(
     request: CreatePaymentRequestRequest
   ): Promise<CreatePaymentRequestResponse> {
-    const context = FinanceRpcContextValidator.assertManagementContext(request)
+    const context = FinanceRpcContextValidator.assertManagementContext(
+      request,
+      'CreatePaymentRequest'
+    )
     return this.auditService.recordCommand(
       {
         tenantId: context.tenantId,
@@ -540,8 +618,8 @@ export class FinanceManagementGrpcController
       async () => {
         const result = await this.commandBus.execute(
           new CreatePaymentRequestCommand({
-            tenantId: request.tenantId ?? '',
-            orgId: request.orgId ?? undefined,
+            tenantId: context.tenantId,
+            orgId: context.orgId,
             requestSource: (request.requestSource ?? '') as
               | 'PROCUREMENT_INITIATED'
               | 'FINANCE_INITIATED',
@@ -578,10 +656,17 @@ export class FinanceManagementGrpcController
     )
   }
 
+  @AuthorizeBusinessRpc(
+    { all: ['finance.payment_request.decide'] },
+    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+  )
   async decidePaymentRequest(
     request: DecidePaymentRequestRequest
   ): Promise<DecidePaymentRequestResponse> {
-    const context = FinanceRpcContextValidator.assertManagementContext(request)
+    const context = FinanceRpcContextValidator.assertManagementContext(
+      request,
+      'DecidePaymentRequest'
+    )
     return this.auditService.recordCommand(
       {
         tenantId: context.tenantId,
@@ -599,7 +684,7 @@ export class FinanceManagementGrpcController
       async () => {
         const result = await this.commandBus.execute(
           new DecidePaymentRequestCommand({
-            tenantId: request.tenantId ?? '',
+            tenantId: context.tenantId,
             paymentRequestId: request.paymentRequestId ?? '',
             decision: (request.decision ?? '') as 'APPROVED' | 'REJECTED',
             decisionReason: request.decisionReason ?? undefined
@@ -611,10 +696,17 @@ export class FinanceManagementGrpcController
     )
   }
 
+  @AuthorizeBusinessRpc(
+    { all: ['finance.payment_execution.create'] },
+    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+  )
   async executePaymentRequest(
     request: ExecutePaymentRequestRequest
   ): Promise<ExecutePaymentRequestResponse> {
-    const context = FinanceRpcContextValidator.assertManagementContext(request)
+    const context = FinanceRpcContextValidator.assertManagementContext(
+      request,
+      'ExecutePaymentRequest'
+    )
     return this.auditService.recordCommand(
       {
         tenantId: context.tenantId,
@@ -632,7 +724,7 @@ export class FinanceManagementGrpcController
       async () => {
         const result = await this.commandBus.execute(
           new ExecutePaymentRequestCommand({
-            tenantId: request.tenantId ?? '',
+            tenantId: context.tenantId,
             paymentRequestId: request.paymentRequestId ?? '',
             sourceFinancialAccountId: request.sourceFinancialAccountId ?? '',
             executedAmount: request.executedAmount ?? '',
@@ -649,10 +741,17 @@ export class FinanceManagementGrpcController
     )
   }
 
+  @AuthorizeBusinessRpc(
+    { all: ['finance.payment_allocation.create'] },
+    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+  )
   async allocatePaymentToPayable(
     request: AllocatePaymentToPayableRequest
   ): Promise<AllocatePaymentToPayableResponse> {
-    const context = FinanceRpcContextValidator.assertManagementContext(request)
+    const context = FinanceRpcContextValidator.assertManagementContext(
+      request,
+      'AllocatePaymentToPayable'
+    )
     return this.auditService.recordCommand(
       {
         tenantId: context.tenantId,
@@ -670,7 +769,7 @@ export class FinanceManagementGrpcController
       async () => {
         const result = await this.commandBus.execute(
           new AllocatePaymentToPayableCommand({
-            tenantId: request.tenantId ?? '',
+            tenantId: context.tenantId,
             accountTransactionId: request.accountTransactionId ?? '',
             paymentExecutionId: request.paymentExecutionId ?? undefined,
             allocations: (request.allocations ?? []).map((allocation) => ({
@@ -688,10 +787,17 @@ export class FinanceManagementGrpcController
     )
   }
 
+  @AuthorizeBusinessRpc(
+    { all: ['finance.payment_allocation.allocate_to_receivable'] },
+    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+  )
   async allocatePaymentToReceivable(
     request: AllocatePaymentToReceivableRequest
   ): Promise<AllocatePaymentToReceivableResponse> {
-    const context = FinanceRpcContextValidator.assertManagementContext(request)
+    const context = FinanceRpcContextValidator.assertManagementContext(
+      request,
+      'AllocatePaymentToReceivable'
+    )
     return this.auditService.recordCommand(
       {
         tenantId: context.tenantId,
@@ -709,7 +815,7 @@ export class FinanceManagementGrpcController
       async () => {
         const result = await this.commandBus.execute(
           new AllocatePaymentToReceivableCommand({
-            tenantId: request.tenantId ?? '',
+            tenantId: context.tenantId,
             accountTransactionId: request.accountTransactionId ?? '',
             allocations: (request.allocations ?? []).map((allocation) => ({
               receivableScheduleId: allocation.receivableScheduleId ?? '',

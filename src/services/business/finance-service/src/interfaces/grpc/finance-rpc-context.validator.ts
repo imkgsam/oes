@@ -1,3 +1,4 @@
+import { getAuthenticatedGrpcRequestContext } from '@oes/common/authorization'
 import {
   assertAuditContext,
   assertOperatorContext,
@@ -12,6 +13,7 @@ import {
 
 export interface FinanceQueryContext {
   tenantId: string
+  orgId?: string
   operatorContext: FinanceOperatorContext
   traceContext: FinanceTraceContext
 }
@@ -20,74 +22,43 @@ export interface FinanceManagementContext extends FinanceQueryContext {
   auditContext: FinanceAuditContext
 }
 
-/** FinanceRpcContextValidator validates the explicit tenant, operator, trace, and audit contexts frozen in the finance contracts. */
+/** Derives every Finance authority and audit fact solely from guard-attached verified execution context. */
 export class FinanceRpcContextValidator {
-  /** assertQueryContext validates the read-path explicit tenant, operator, and trace context payload. */
-  static assertQueryContext(request: {
-    tenantId?: string
-    operatorContext?: {
-      operatorId?: string | null
-      operatorType?: string | null
-      orgId?: string | null
-    } | null
-    traceContext?: {
-      traceId?: string | null
-      requestId?: string | null
-    } | null
-  }): FinanceQueryContext {
-    assertRequiredString(request.tenantId ?? '', 'tenantId')
+  /** Establishes the tenant, operator, organization, and correlation facts for one Finance query. */
+  static assertQueryContext(request: object): FinanceQueryContext {
+    const context = getAuthenticatedGrpcRequestContext(request)
+    const token = context?.verifiedExecutionToken
+    if (!token) throw new Error('Trusted execution context is required')
+    assertRequiredString(token.tenantId ?? '', 'tenantId')
+    const operatorId = token.subject
+    assertRequiredString(operatorId, 'operatorId')
+    const correlation = context as
+      | (typeof context & { requestId?: string; traceId?: string })
+      | undefined
+    const requestId = correlation?.requestId
+    const traceId = correlation?.traceId
     return {
-      tenantId: request.tenantId ?? '',
-      operatorContext: assertOperatorContext(
-        request.operatorContext
-          ? {
-              operatorId: request.operatorContext.operatorId ?? '',
-              operatorType: request.operatorContext.operatorType ?? '',
-              orgId: request.operatorContext.orgId ?? null
-            }
-          : null
-      ),
-      traceContext: assertTraceContext(
-        request.traceContext
-          ? {
-              traceId: request.traceContext.traceId ?? '',
-              requestId: request.traceContext.requestId ?? ''
-            }
-          : null
-      )
+      tenantId: token.tenantId ?? '',
+      ...(token.orgId === undefined ? {} : { orgId: token.orgId }),
+      operatorContext: assertOperatorContext({
+        operatorId,
+        operatorType: token.principalType,
+        orgId: token.orgId ?? null
+      }),
+      traceContext: assertTraceContext({ traceId: traceId ?? '', requestId: requestId ?? '' })
     }
   }
 
-  /** assertManagementContext validates the write-path explicit tenant, operator, trace, and audit contexts. */
-  static assertManagementContext(request: {
-    tenantId?: string
-    operatorContext?: {
-      operatorId?: string | null
-      operatorType?: string | null
-      orgId?: string | null
-    } | null
-    traceContext?: {
-      traceId?: string | null
-      requestId?: string | null
-    } | null
-    auditContext?: {
-      auditId?: string | null
-      reason?: string | null
-      source?: string | null
-    } | null
-  }): FinanceManagementContext {
+  /** Establishes a method-owned audit record from trusted claims rather than caller payload fields. */
+  static assertManagementContext(request: object, commandName: string): FinanceManagementContext {
     const queryContext = this.assertQueryContext(request)
     return {
       ...queryContext,
-      auditContext: assertAuditContext(
-        request.auditContext
-          ? {
-              auditId: request.auditContext.auditId ?? '',
-              reason: request.auditContext.reason ?? '',
-              source: request.auditContext.source ?? ''
-            }
-          : null
-      )
+      auditContext: assertAuditContext({
+        auditId: queryContext.traceContext.requestId,
+        reason: commandName,
+        source: 'trusted-execution'
+      })
     }
   }
 }

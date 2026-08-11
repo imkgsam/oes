@@ -56,7 +56,8 @@ describe('GatewayTrustedGrpcExecutionModule wiring', () => {
       'urn:oes:service:asset-service',
       'urn:oes:service:site-service',
       'urn:oes:service:browser-activity-service',
-      'urn:oes:service:terminal-device-service'
+      'urn:oes:service:terminal-device-service',
+      'urn:oes:service:finance-service'
     ])
   })
 

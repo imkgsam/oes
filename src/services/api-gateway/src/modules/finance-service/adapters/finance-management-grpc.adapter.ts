@@ -1,4 +1,4 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
+import { Injectable, OnModuleInit } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
 import {
   AllocatePaymentToReceivableRequest,
@@ -38,26 +38,19 @@ import {
   UpdateFinancialAccountBasicsRequest,
   UpdateFinancialAccountBasicsResponse
 } from '@oes/common/generated/finance_service'
-import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory
-} from '@oes/common/authorization'
-import { SERVICE_NAMES } from '@oes/common/constants'
-import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
+import { safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
 import {
   DownstreamRequestSource,
-  toOperatorScopedMetadataInput
-} from '../../../common/grpc/gateway-downstream-source.mapper'
-import {
-  buildFinanceAuditContext,
-  buildFinanceOperatorContext,
-  buildFinanceTraceContext
-} from './finance-grpc-context'
+  GatewayFinanceGrpcClient,
+  GatewayTrustedGrpcExecutionProducer
+} from '../../../common/grpc'
 
 const CALLER = 'api-gateway'
+const FINANCE_AUDIENCE = 'urn:oes:service:finance-service'
 
 interface ManagementInputBase {
   auditReason?: string
+  [key: string]: unknown
 }
 
 /** FinanceManagementGrpcAdapter proxies the frozen phase 1A/1B finance command RPCs from api-gateway into finance-service. */
@@ -68,27 +61,29 @@ export class FinanceManagementGrpcAdapter implements OnModuleInit {
   private paymentSvc!: PaymentManagementServiceClient
 
   constructor(
-    @InjectGrpcClient(SERVICE_NAMES.FINANCE)
-    private readonly client: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory
+    private readonly client: GatewayFinanceGrpcClient,
+    private readonly trustedExecution: GatewayTrustedGrpcExecutionProducer
   ) {}
 
   onModuleInit(): void {
-    this.financialAccountSvc = this.client.getService<FinancialAccountManagementServiceClient>(
+    const client: ClientGrpc = this.client.getClient()
+    this.financialAccountSvc = client.getService<FinancialAccountManagementServiceClient>(
       FINANCIAL_ACCOUNT_MANAGEMENT_SERVICE_NAME
     )
-    this.receivableSvc = this.client.getService<ReceivableManagementServiceClient>(
+    this.receivableSvc = client.getService<ReceivableManagementServiceClient>(
       RECEIVABLE_MANAGEMENT_SERVICE_NAME
     )
-    this.paymentSvc = this.client.getService<PaymentManagementServiceClient>(
+    this.paymentSvc = client.getService<PaymentManagementServiceClient>(
       PAYMENT_MANAGEMENT_SERVICE_NAME
     )
   }
 
   /** createFinancialAccount forwards one finance company-account creation command. */
-  createFinancialAccount(
-    input: Omit<CreateFinancialAccountRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
+  async createFinancialAccount(
+    input: Omit<
+      CreateFinancialAccountRequest,
+      'auditContext' | 'operatorContext' | 'traceContext'
+    > &
       ManagementInputBase,
     source: DownstreamRequestSource
   ): Promise<CreateFinancialAccountResponse> {
@@ -100,13 +95,13 @@ export class FinanceManagementGrpcAdapter implements OnModuleInit {
           source,
           input.auditReason ?? 'create financial account from api-gateway'
         ),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['finance.financial_account.create'])
       )
     )
   }
 
   /** updateFinancialAccountBasics forwards one finance account-basics mutation command. */
-  updateFinancialAccountBasics(
+  async updateFinancialAccountBasics(
     input: Omit<
       UpdateFinancialAccountBasicsRequest,
       'auditContext' | 'operatorContext' | 'traceContext'
@@ -122,14 +117,17 @@ export class FinanceManagementGrpcAdapter implements OnModuleInit {
           source,
           input.auditReason ?? 'update financial account basics from api-gateway'
         ),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['finance.financial_account.update_basics'])
       )
     )
   }
 
   /** importAccountTransactions forwards one finance batch-import command for real account transactions. */
-  importAccountTransactions(
-    input: Omit<ImportAccountTransactionsRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
+  async importAccountTransactions(
+    input: Omit<
+      ImportAccountTransactionsRequest,
+      'auditContext' | 'operatorContext' | 'traceContext'
+    > &
       ManagementInputBase,
     source: DownstreamRequestSource
   ): Promise<ImportAccountTransactionsResponse> {
@@ -141,14 +139,17 @@ export class FinanceManagementGrpcAdapter implements OnModuleInit {
           source,
           input.auditReason ?? 'import account transactions from api-gateway'
         ),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['finance.account_transaction.import'])
       )
     )
   }
 
   /** recordAccountTransaction forwards one finance manual transaction-recording command. */
-  recordAccountTransaction(
-    input: Omit<RecordAccountTransactionRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
+  async recordAccountTransaction(
+    input: Omit<
+      RecordAccountTransactionRequest,
+      'auditContext' | 'operatorContext' | 'traceContext'
+    > &
       ManagementInputBase,
     source: DownstreamRequestSource
   ): Promise<RecordAccountTransactionResponse> {
@@ -160,13 +161,13 @@ export class FinanceManagementGrpcAdapter implements OnModuleInit {
           source,
           input.auditReason ?? 'record account transaction from api-gateway'
         ),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['finance.account_transaction.record'])
       )
     )
   }
 
   /** registerCustomerFinancialAccount forwards one finance customer remittance-account registration command. */
-  registerCustomerFinancialAccount(
+  async registerCustomerFinancialAccount(
     input: Omit<
       RegisterCustomerFinancialAccountRequest,
       'auditContext' | 'operatorContext' | 'traceContext'
@@ -182,13 +183,13 @@ export class FinanceManagementGrpcAdapter implements OnModuleInit {
           source,
           input.auditReason ?? 'register customer financial account from api-gateway'
         ),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['finance.customer_financial_account.register'])
       )
     )
   }
 
   /** setExchangeRate forwards one finance standard-FX write command. */
-  setExchangeRate(
+  async setExchangeRate(
     input: Omit<SetExchangeRateRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
       ManagementInputBase,
     source: DownstreamRequestSource
@@ -201,13 +202,13 @@ export class FinanceManagementGrpcAdapter implements OnModuleInit {
           source,
           input.auditReason ?? 'set exchange rate from api-gateway'
         ),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['finance.exchange_rate.set'])
       )
     )
   }
 
   /** createReceivableScheduleFromSalesOrder forwards one finance receivable schedule creation command. */
-  createReceivableScheduleFromSalesOrder(
+  async createReceivableScheduleFromSalesOrder(
     input: Omit<
       CreateReceivableScheduleFromSalesOrderRequest,
       'auditContext' | 'operatorContext' | 'traceContext'
@@ -223,14 +224,17 @@ export class FinanceManagementGrpcAdapter implements OnModuleInit {
           source,
           input.auditReason ?? 'create receivable schedule from api-gateway'
         ),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['finance.receivable_schedule.create_from_sales_order'])
       )
     )
   }
 
   /** setFinanceReleaseSignal forwards one finance-release write command. */
-  setFinanceReleaseSignal(
-    input: Omit<SetFinanceReleaseSignalRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
+  async setFinanceReleaseSignal(
+    input: Omit<
+      SetFinanceReleaseSignalRequest,
+      'auditContext' | 'operatorContext' | 'traceContext'
+    > &
       ManagementInputBase,
     source: DownstreamRequestSource
   ): Promise<SetFinanceReleaseSignalResponse> {
@@ -242,13 +246,13 @@ export class FinanceManagementGrpcAdapter implements OnModuleInit {
           source,
           input.auditReason ?? 'set finance release signal from api-gateway'
         ),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['finance.finance_release_signal.set'])
       )
     )
   }
 
   /** allocatePaymentToReceivable forwards one finance receipt-allocation command. */
-  allocatePaymentToReceivable(
+  async allocatePaymentToReceivable(
     input: Omit<
       AllocatePaymentToReceivableRequest,
       'auditContext' | 'operatorContext' | 'traceContext'
@@ -264,13 +268,13 @@ export class FinanceManagementGrpcAdapter implements OnModuleInit {
           source,
           input.auditReason ?? 'allocate payment to receivable from api-gateway'
         ),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['finance.payment_allocation.allocate_to_receivable'])
       )
     )
   }
 
   /** createPayableScheduleFromPurchaseOrder forwards one PO-derived payable schedule creation command. */
-  createPayableScheduleFromPurchaseOrder(
+  async createPayableScheduleFromPurchaseOrder(
     input: Omit<
       CreatePayableScheduleFromPurchaseOrderRequest,
       'auditContext' | 'operatorContext' | 'traceContext'
@@ -286,13 +290,13 @@ export class FinanceManagementGrpcAdapter implements OnModuleInit {
           source,
           input.auditReason ?? 'create payable schedule from api-gateway'
         ),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['finance.payable.create_from_purchase_order'])
       )
     )
   }
 
   /** applyPayableScheduleAdjustmentFromPurchaseOrderChange forwards one controlled PO-change payable adjustment command. */
-  applyPayableScheduleAdjustmentFromPurchaseOrderChange(
+  async applyPayableScheduleAdjustmentFromPurchaseOrderChange(
     input: Omit<
       ApplyPayableScheduleAdjustmentFromPurchaseOrderChangeRequest,
       'auditContext' | 'operatorContext' | 'traceContext'
@@ -308,13 +312,13 @@ export class FinanceManagementGrpcAdapter implements OnModuleInit {
           source,
           input.auditReason ?? 'adjust payable schedule from api-gateway'
         ),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['finance.payable.adjust_from_purchase_order_change'])
       )
     )
   }
 
   /** createPaymentRequest forwards one phase 1B payment governance request command. */
-  createPaymentRequest(
+  async createPaymentRequest(
     input: Omit<CreatePaymentRequestRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
       ManagementInputBase,
     source: DownstreamRequestSource
@@ -327,13 +331,13 @@ export class FinanceManagementGrpcAdapter implements OnModuleInit {
           source,
           input.auditReason ?? 'create payment request from api-gateway'
         ),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['finance.payment_request.create'])
       )
     )
   }
 
   /** decidePaymentRequest forwards one approve/reject command without treating approval as payment execution. */
-  decidePaymentRequest(
+  async decidePaymentRequest(
     input: Omit<DecidePaymentRequestRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
       ManagementInputBase,
     source: DownstreamRequestSource
@@ -346,13 +350,13 @@ export class FinanceManagementGrpcAdapter implements OnModuleInit {
           source,
           input.auditReason ?? 'decide payment request from api-gateway'
         ),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['finance.payment_request.decide'])
       )
     )
   }
 
   /** executePaymentRequest forwards one payment execution record command without creating account-transaction truth. */
-  executePaymentRequest(
+  async executePaymentRequest(
     input: Omit<ExecutePaymentRequestRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
       ManagementInputBase,
     source: DownstreamRequestSource
@@ -365,14 +369,17 @@ export class FinanceManagementGrpcAdapter implements OnModuleInit {
           source,
           input.auditReason ?? 'execute payment request from api-gateway'
         ),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['finance.payment_execution.create'])
       )
     )
   }
 
   /** allocatePaymentToPayable forwards one real outflow allocation command against payable lines. */
-  allocatePaymentToPayable(
-    input: Omit<AllocatePaymentToPayableRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
+  async allocatePaymentToPayable(
+    input: Omit<
+      AllocatePaymentToPayableRequest,
+      'auditContext' | 'operatorContext' | 'traceContext'
+    > &
       ManagementInputBase,
     source: DownstreamRequestSource
   ): Promise<AllocatePaymentToPayableResponse> {
@@ -384,23 +391,35 @@ export class FinanceManagementGrpcAdapter implements OnModuleInit {
           source,
           input.auditReason ?? 'allocate payment to payable from api-gateway'
         ),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['finance.payment_allocation.create'])
       )
     )
   }
 
-  /** attachManagementContext injects the explicit finance command operator, trace, and audit contract fields. */
+  /** Removes all Finance authority and caller-identity fields before the generated request reaches gRPC. */
   private attachManagementContext<TInput extends ManagementInputBase & object>(
     input: TInput,
     source: DownstreamRequestSource,
-    reason: string
+    _reason: string
   ) {
-    return {
-      ...input,
-      auditContext: buildFinanceAuditContext(source, reason),
-      operatorContext: buildFinanceOperatorContext(source),
-      traceContext: buildFinanceTraceContext(source)
-    }
+    const {
+      tenantId: _tenantId,
+      orgId: _orgId,
+      operatorContext: _operatorContext,
+      traceContext: _traceContext,
+      auditContext: _auditContext,
+      importedBy: _importedBy,
+      setBy: _setBy,
+      auditReason: _auditReason,
+      ...business
+    } = input as TInput & Record<string, unknown>
+    void source
+    return business as TInput
+  }
+
+  /** Mints an exact-audience HUMAN/WEB execution token for one Finance command. */
+  private metadata(source: DownstreamRequestSource, codes: readonly string[]) {
+    return this.trustedExecution.forBusinessCall(source, FINANCE_AUDIENCE, codes)
   }
 
   /** call wraps one gateway finance command RPC with the shared safe gRPC transport helpers. */

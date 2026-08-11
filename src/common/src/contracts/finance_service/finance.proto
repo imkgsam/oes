@@ -137,20 +137,18 @@ enum FinanceReleaseSignalStatus {
 }
 
 message OperatorContext {
-  string operator_id = 1;
-  string operator_type = 2;
-  string org_id = 3;
+  reserved 1, 2, 3;
+  reserved "operator_id", "operator_type", "org_id";
 }
 
 message TraceContext {
-  string trace_id = 1;
-  string request_id = 2;
+  reserved 1, 2;
+  reserved "trace_id", "request_id";
 }
 
 message AuditContext {
-  string audit_id = 1;
-  string reason = 2;
-  string source = 3;
+  reserved 1, 2, 3;
+  reserved "audit_id", "reason", "source";
 }
 
 message FinancialAccount {
@@ -443,11 +441,8 @@ message PaymentExecutionSummary {
 }
 
 message CreateFinancialAccountRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
-  string org_id = 5;
+  reserved 1, 2, 3, 4, 5;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context", "org_id";
   FinancialAccountType account_type = 6;
   string account_name = 7;
   string currency_code = 8;
@@ -462,10 +457,8 @@ message CreateFinancialAccountResponse {
 }
 
 message UpdateFinancialAccountBasicsRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string financial_account_id = 5;
   string account_name = 6;
   string institution_name = 7;
@@ -490,15 +483,12 @@ message ImportAccountTransactionInput {
 }
 
 message ImportAccountTransactionsRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4, 9;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context", "imported_by";
   string financial_account_id = 5;
   string source_batch_reference = 6;
   string file_asset_id = 7;
   string attachment_ref = 8;
-  string imported_by = 9;
   AccountTransactionSourceType source_type = 10;
   repeated ImportAccountTransactionInput transactions = 11;
 }
@@ -509,10 +499,8 @@ message ImportAccountTransactionsResponse {
 }
 
 message RecordAccountTransactionRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string financial_account_id = 5;
   AccountTransactionDirection direction = 6;
   string amount = 7;
@@ -534,10 +522,8 @@ message RecordAccountTransactionResponse {
 }
 
 message RegisterCustomerFinancialAccountRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string customer_tenant_party_id = 5;
   string account_holder_name = 6;
   CustomerFinancialAccountProviderType account_provider_type = 7;
@@ -551,15 +537,12 @@ message RegisterCustomerFinancialAccountResponse {
 }
 
 message SetExchangeRateRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4, 9;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context", "set_by";
   string base_currency_code = 5;
   string quote_currency_code = 6;
   string rate_value = 7;
   string effective_at = 8;
-  string set_by = 9;
 }
 
 message SetExchangeRateResponse {
@@ -567,9 +550,8 @@ message SetExchangeRateResponse {
 }
 
 message GetFinancialAccountRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   string financial_account_id = 4;
 }
 
@@ -578,10 +560,8 @@ message GetFinancialAccountResponse {
 }
 
 message SearchFinancialAccountsRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  string org_id = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "org_id";
   string keyword = 5;
   FinancialAccountType account_type = 6;
   string currency_code = 7;
@@ -598,10 +578,8 @@ message SearchFinancialAccountsResponse {
 }
 
 message SearchAccountTransactionsRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  string org_id = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "org_id";
   string financial_account_id = 5;
   AccountTransactionDirection direction = 6;
   AccountTransactionSourceType source_type = 7;
@@ -621,9 +599,8 @@ message SearchAccountTransactionsResponse {
 }
 
 message GetExchangeRateRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   string base_currency_code = 4;
   string quote_currency_code = 5;
   string effective_at = 6;
@@ -641,11 +618,8 @@ message CreateReceivableScheduleLineInput {
 }
 
 message CreateReceivableScheduleFromSalesOrderRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
-  string org_id = 5;
+  reserved 1, 2, 3, 4, 5;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context", "org_id";
   string sales_order_id = 6;
   string customer_tenant_party_id = 7;
   string customer_snapshot = 8;
@@ -659,10 +633,8 @@ message CreateReceivableScheduleFromSalesOrderResponse {
 }
 
 message SetFinanceReleaseSignalRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string sales_order_id = 5;
   string customer_tenant_party_id = 6;
   FinanceReleaseSignalStatus signal_status = 7;
@@ -678,9 +650,8 @@ message SetFinanceReleaseSignalResponse {
 }
 
 message GetReceivableScheduleRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   string receivable_schedule_id = 4;
 }
 
@@ -689,10 +660,8 @@ message GetReceivableScheduleResponse {
 }
 
 message SearchReceivableSchedulesRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  string org_id = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "org_id";
   string keyword = 5;
   string customer_tenant_party_id = 6;
   string source_sales_order_id = 7;
@@ -713,9 +682,8 @@ message SearchReceivableSchedulesResponse {
 }
 
 message GetFinanceReleaseSignalRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   string sales_order_id = 4;
 }
 
@@ -733,11 +701,8 @@ message CreatePayableScheduleFromPurchaseOrderLine {
 }
 
 message CreatePayableScheduleFromPurchaseOrderRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
-  string org_id = 5;
+  reserved 1, 2, 3, 4, 5;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context", "org_id";
   string purchase_order_id = 6;
   string purchase_order_no = 7;
   string procurement_snapshot_reference = 8;
@@ -763,11 +728,8 @@ message ApplyPayableScheduleAdjustmentItem {
 }
 
 message ApplyPayableScheduleAdjustmentFromPurchaseOrderChangeRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
-  string org_id = 5;
+  reserved 1, 2, 3, 4, 5;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context", "org_id";
   string purchase_order_id = 6;
   string purchase_order_change_id = 7;
   string procurement_snapshot_reference = 8;
@@ -796,11 +758,8 @@ message SupplierBillEvidenceSnapshotInput {
 }
 
 message CreatePaymentRequestRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
-  string org_id = 5;
+  reserved 1, 2, 3, 4, 5;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context", "org_id";
   string request_source = 6;
   string source_purchase_order_id = 7;
   string supplier_tenant_party_id = 8;
@@ -817,10 +776,8 @@ message CreatePaymentRequestResponse {
 }
 
 message DecidePaymentRequestRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string payment_request_id = 5;
   string decision = 6;
   string decision_reason = 7;
@@ -831,10 +788,8 @@ message DecidePaymentRequestResponse {
 }
 
 message ExecutePaymentRequestRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string payment_request_id = 5;
   string source_financial_account_id = 6;
   string executed_amount = 7;
@@ -857,10 +812,8 @@ message AllocatePaymentToPayableItem {
 }
 
 message AllocatePaymentToPayableRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string account_transaction_id = 5;
   string payment_execution_id = 6;
   repeated AllocatePaymentToPayableItem allocations = 7;
@@ -871,9 +824,8 @@ message AllocatePaymentToPayableResponse {
 }
 
 message GetPayableScheduleRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   string payable_schedule_id = 4;
 }
 
@@ -882,10 +834,8 @@ message GetPayableScheduleResponse {
 }
 
 message SearchPayableSchedulesRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  string org_id = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "org_id";
   string keyword = 5;
   string supplier_tenant_party_id = 6;
   string source_purchase_order_id = 7;
@@ -906,10 +856,8 @@ message SearchPayableSchedulesResponse {
 }
 
 message SearchPaymentRequestsRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  string org_id = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "org_id";
   string request_source = 5;
   string supplier_tenant_party_id = 6;
   string source_purchase_order_id = 7;
@@ -929,10 +877,8 @@ message SearchPaymentRequestsResponse {
 }
 
 message SearchPaymentExecutionsRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  string org_id = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "org_id";
   string payment_request_id = 5;
   string supplier_tenant_party_id = 6;
   string source_financial_account_id = 7;
@@ -958,10 +904,8 @@ message AllocatePaymentToReceivableItem {
 }
 
 message AllocatePaymentToReceivableRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string account_transaction_id = 5;
   repeated AllocatePaymentToReceivableItem allocations = 6;
 }
@@ -971,9 +915,8 @@ message AllocatePaymentToReceivableResponse {
 }
 
 message SearchPaymentAllocationsRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   string account_transaction_id = 4;
   string receivable_schedule_id = 5;
   string receivable_schedule_line_id = 6;

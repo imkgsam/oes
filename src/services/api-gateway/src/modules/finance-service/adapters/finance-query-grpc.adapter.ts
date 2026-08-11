@@ -1,4 +1,4 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
+import { Injectable, OnModuleInit } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
 import {
   FINANCIAL_ACCOUNT_QUERY_SERVICE_NAME,
@@ -32,22 +32,16 @@ import {
   SearchReceivableSchedulesRequest,
   SearchReceivableSchedulesResponse
 } from '@oes/common/generated/finance_service'
-import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory
-} from '@oes/common/authorization'
-import { SERVICE_NAMES } from '@oes/common/constants'
-import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
+import { safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
 import {
   DownstreamRequestSource,
-  toOperatorScopedMetadataInput
-} from '../../../common/grpc/gateway-downstream-source.mapper'
-import {
-  buildFinanceOperatorContext,
-  buildFinanceTraceContext
-} from './finance-grpc-context'
+  GatewayFinanceGrpcClient,
+  GatewayTrustedGrpcExecutionProducer
+} from '../../../common/grpc'
 
 const CALLER = 'api-gateway'
+const FINANCE_AUDIENCE = 'urn:oes:service:finance-service'
+type FinanceQueryInput<T> = T & { [key: string]: unknown }
 
 /** FinanceQueryGrpcAdapter proxies the frozen phase 1A/1B finance query RPCs from api-gateway into finance-service. */
 @Injectable()
@@ -57,202 +51,209 @@ export class FinanceQueryGrpcAdapter implements OnModuleInit {
   private paymentSvc!: PaymentQueryServiceClient
 
   constructor(
-    @InjectGrpcClient(SERVICE_NAMES.FINANCE)
-    private readonly client: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory
+    private readonly client: GatewayFinanceGrpcClient,
+    private readonly trustedExecution: GatewayTrustedGrpcExecutionProducer
   ) {}
 
   onModuleInit(): void {
-    this.financialAccountSvc = this.client.getService<FinancialAccountQueryServiceClient>(
+    const client: ClientGrpc = this.client.getClient()
+    this.financialAccountSvc = client.getService<FinancialAccountQueryServiceClient>(
       FINANCIAL_ACCOUNT_QUERY_SERVICE_NAME
     )
-    this.receivableSvc = this.client.getService<ReceivableQueryServiceClient>(
+    this.receivableSvc = client.getService<ReceivableQueryServiceClient>(
       RECEIVABLE_QUERY_SERVICE_NAME
     )
-    this.paymentSvc = this.client.getService<PaymentQueryServiceClient>(
-      PAYMENT_QUERY_SERVICE_NAME
-    )
+    this.paymentSvc = client.getService<PaymentQueryServiceClient>(PAYMENT_QUERY_SERVICE_NAME)
   }
 
   /** getFinancialAccount forwards one finance account detail read. */
-  getFinancialAccount(
-    input: Omit<GetFinancialAccountRequest, 'operatorContext' | 'traceContext'>,
+  async getFinancialAccount(
+    input: FinanceQueryInput<GetFinancialAccountRequest>,
     source: DownstreamRequestSource
   ): Promise<GetFinancialAccountResponse> {
     return this.call(
       'getFinancialAccount',
       this.financialAccountSvc.getFinancialAccount(
         this.attachQueryContext(input, source),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['finance.financial_account.get_by_id'])
       )
     )
   }
 
   /** searchFinancialAccounts forwards one tenant-scoped finance account directory query. */
-  searchFinancialAccounts(
-    input: Omit<SearchFinancialAccountsRequest, 'operatorContext' | 'traceContext'>,
+  async searchFinancialAccounts(
+    input: FinanceQueryInput<SearchFinancialAccountsRequest>,
     source: DownstreamRequestSource
   ): Promise<SearchFinancialAccountsResponse> {
     return this.call(
       'searchFinancialAccounts',
       this.financialAccountSvc.searchFinancialAccounts(
         this.attachQueryContext(input, source),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['finance.financial_account.list'])
       )
     )
   }
 
   /** searchAccountTransactions forwards one finance account-transaction directory query. */
-  searchAccountTransactions(
-    input: Omit<SearchAccountTransactionsRequest, 'operatorContext' | 'traceContext'>,
+  async searchAccountTransactions(
+    input: FinanceQueryInput<SearchAccountTransactionsRequest>,
     source: DownstreamRequestSource
   ): Promise<SearchAccountTransactionsResponse> {
     return this.call(
       'searchAccountTransactions',
       this.financialAccountSvc.searchAccountTransactions(
         this.attachQueryContext(input, source),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['finance.account_transaction.list'])
       )
     )
   }
 
   /** getExchangeRate forwards one finance standard-FX read. */
-  getExchangeRate(
-    input: Omit<GetExchangeRateRequest, 'operatorContext' | 'traceContext'>,
+  async getExchangeRate(
+    input: FinanceQueryInput<GetExchangeRateRequest>,
     source: DownstreamRequestSource
   ): Promise<GetExchangeRateResponse> {
     return this.call(
       'getExchangeRate',
       this.financialAccountSvc.getExchangeRate(
         this.attachQueryContext(input, source),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['finance.exchange_rate.get'])
       )
     )
   }
 
   /** getReceivableSchedule forwards one receivable detail read. */
-  getReceivableSchedule(
-    input: Omit<GetReceivableScheduleRequest, 'operatorContext' | 'traceContext'>,
+  async getReceivableSchedule(
+    input: FinanceQueryInput<GetReceivableScheduleRequest>,
     source: DownstreamRequestSource
   ): Promise<GetReceivableScheduleResponse> {
     return this.call(
       'getReceivableSchedule',
       this.receivableSvc.getReceivableSchedule(
         this.attachQueryContext(input, source),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['finance.receivable_schedule.get_by_id'])
       )
     )
   }
 
   /** searchReceivableSchedules forwards one receivable directory query. */
-  searchReceivableSchedules(
-    input: Omit<SearchReceivableSchedulesRequest, 'operatorContext' | 'traceContext'>,
+  async searchReceivableSchedules(
+    input: FinanceQueryInput<SearchReceivableSchedulesRequest>,
     source: DownstreamRequestSource
   ): Promise<SearchReceivableSchedulesResponse> {
     return this.call(
       'searchReceivableSchedules',
       this.receivableSvc.searchReceivableSchedules(
         this.attachQueryContext(input, source),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['finance.receivable_schedule.list'])
       )
     )
   }
 
   /** getFinanceReleaseSignal forwards one finance-release read by sales order. */
-  getFinanceReleaseSignal(
-    input: Omit<GetFinanceReleaseSignalRequest, 'operatorContext' | 'traceContext'>,
+  async getFinanceReleaseSignal(
+    input: FinanceQueryInput<GetFinanceReleaseSignalRequest>,
     source: DownstreamRequestSource
   ): Promise<GetFinanceReleaseSignalResponse> {
     return this.call(
       'getFinanceReleaseSignal',
       this.receivableSvc.getFinanceReleaseSignal(
         this.attachQueryContext(input, source),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['finance.finance_release_signal.get'])
       )
     )
   }
 
   /** searchPaymentAllocations forwards one receivable-allocation directory query. */
-  searchPaymentAllocations(
-    input: Omit<SearchPaymentAllocationsRequest, 'operatorContext' | 'traceContext'>,
+  async searchPaymentAllocations(
+    input: FinanceQueryInput<SearchPaymentAllocationsRequest>,
     source: DownstreamRequestSource
   ): Promise<SearchPaymentAllocationsResponse> {
     return this.call(
       'searchPaymentAllocations',
       this.paymentSvc.searchPaymentAllocations(
         this.attachQueryContext(input, source),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['finance.payment_allocation.list'])
       )
     )
   }
 
   /** getPayableSchedule forwards one payable schedule detail read without treating payment requests as payable truth. */
-  getPayableSchedule(
-    input: Omit<GetPayableScheduleRequest, 'operatorContext' | 'traceContext'>,
+  async getPayableSchedule(
+    input: FinanceQueryInput<GetPayableScheduleRequest>,
     source: DownstreamRequestSource
   ): Promise<GetPayableScheduleResponse> {
     return this.call(
       'getPayableSchedule',
       this.paymentSvc.getPayableSchedule(
         this.attachQueryContext(input, source),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['finance.payable.read'])
       )
     )
   }
 
   /** searchPayableSchedules forwards one payable schedule directory query. */
-  searchPayableSchedules(
-    input: Omit<SearchPayableSchedulesRequest, 'operatorContext' | 'traceContext'>,
+  async searchPayableSchedules(
+    input: FinanceQueryInput<SearchPayableSchedulesRequest>,
     source: DownstreamRequestSource
   ): Promise<SearchPayableSchedulesResponse> {
     return this.call(
       'searchPayableSchedules',
       this.paymentSvc.searchPayableSchedules(
         this.attachQueryContext(input, source),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['finance.payable.read'])
       )
     )
   }
 
   /** searchPaymentRequests forwards one payment-request governance directory query. */
-  searchPaymentRequests(
-    input: Omit<SearchPaymentRequestsRequest, 'operatorContext' | 'traceContext'>,
+  async searchPaymentRequests(
+    input: FinanceQueryInput<SearchPaymentRequestsRequest>,
     source: DownstreamRequestSource
   ): Promise<SearchPaymentRequestsResponse> {
     return this.call(
       'searchPaymentRequests',
       this.paymentSvc.searchPaymentRequests(
         this.attachQueryContext(input, source),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['finance.payable.read'])
       )
     )
   }
 
   /** searchPaymentExecutions forwards one payment-execution directory query without mixing it with account transactions. */
-  searchPaymentExecutions(
-    input: Omit<SearchPaymentExecutionsRequest, 'operatorContext' | 'traceContext'>,
+  async searchPaymentExecutions(
+    input: FinanceQueryInput<SearchPaymentExecutionsRequest>,
     source: DownstreamRequestSource
   ): Promise<SearchPaymentExecutionsResponse> {
     return this.call(
       'searchPaymentExecutions',
       this.paymentSvc.searchPaymentExecutions(
         this.attachQueryContext(input, source),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['finance.payable.read'])
       )
     )
   }
 
-  /** attachQueryContext injects the explicit finance query operator and trace contract fields. */
+  /** Removes all Finance authority fields before the generated request reaches gRPC. */
   private attachQueryContext<TInput extends object>(
     input: TInput,
     source: DownstreamRequestSource
   ) {
-    return {
-      ...input,
-      operatorContext: buildFinanceOperatorContext(source),
-      traceContext: buildFinanceTraceContext(source)
-    }
+    const {
+      tenantId: _tenantId,
+      orgId: _orgId,
+      operatorContext: _operatorContext,
+      traceContext: _traceContext,
+      auditContext: _auditContext,
+      ...business
+    } = input as TInput & Record<string, unknown>
+    void source
+    return business as TInput
+  }
+
+  /** Mints an exact-audience HUMAN/WEB execution token for one Finance RPC. */
+  private metadata(source: DownstreamRequestSource, codes: readonly string[]) {
+    return this.trustedExecution.forBusinessCall(source, FINANCE_AUDIENCE, codes)
   }
 
   /** call wraps one gateway finance query RPC with the shared safe gRPC transport helpers. */

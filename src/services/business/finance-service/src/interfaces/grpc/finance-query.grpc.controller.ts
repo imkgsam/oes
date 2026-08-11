@@ -1,4 +1,5 @@
-import { Controller, UseFilters } from '@nestjs/common'
+import { Controller, UseFilters, UseGuards } from '@nestjs/common'
+import { AuthorizeBusinessRpc, TrustedExecutionGuard } from '@oes/common/authorization'
 import { ValidatingQueryBus } from '@oes/common/cqrs'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
@@ -76,6 +77,7 @@ import { FinanceRpcContextValidator } from './finance-rpc-context.validator'
 
 /** FinanceQueryGrpcController exposes the phase 1A read-only finance query contract. */
 @UseFilters(GrpcExceptionFilter)
+@UseGuards(TrustedExecutionGuard)
 @Controller()
 @FinancialAccountQueryServiceControllerMethods()
 @ReceivableQueryServiceControllerMethods()
@@ -88,22 +90,32 @@ export class FinanceQueryGrpcController
 {
   constructor(private readonly queryBus: ValidatingQueryBus) {}
 
-  async getFinancialAccount(request: GetFinancialAccountRequest): Promise<GetFinancialAccountResponse> {
-    FinanceRpcContextValidator.assertQueryContext(request)
+  @AuthorizeBusinessRpc(
+    { all: ['finance.financial_account.get_by_id'] },
+    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+  )
+  async getFinancialAccount(
+    request: GetFinancialAccountRequest
+  ): Promise<GetFinancialAccountResponse> {
+    const context = FinanceRpcContextValidator.assertQueryContext(request)
     const account = await this.queryBus.execute(
-      new GetFinancialAccountQuery(request.tenantId ?? '', request.financialAccountId ?? '')
+      new GetFinancialAccountQuery(context.tenantId, request.financialAccountId ?? '')
     )
     return FinanceGrpcPresenter.toGetFinancialAccountResponse(account)
   }
 
+  @AuthorizeBusinessRpc(
+    { all: ['finance.financial_account.list'] },
+    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+  )
   async searchFinancialAccounts(
     request: SearchFinancialAccountsRequest
   ): Promise<SearchFinancialAccountsResponse> {
-    FinanceRpcContextValidator.assertQueryContext(request)
+    const context = FinanceRpcContextValidator.assertQueryContext(request)
     const result = await this.queryBus.execute(
       new SearchFinancialAccountsQuery({
-        tenantId: request.tenantId ?? '',
-        orgId: request.orgId ?? undefined,
+        tenantId: context.tenantId,
+        orgId: context.orgId,
         keyword: request.keyword ?? undefined,
         accountType: toDomainFinancialAccountType(request.accountType),
         currencyCode: request.currencyCode ?? undefined,
@@ -116,14 +128,18 @@ export class FinanceQueryGrpcController
     return FinanceGrpcPresenter.toSearchFinancialAccountsResponse(result)
   }
 
+  @AuthorizeBusinessRpc(
+    { all: ['finance.account_transaction.list'] },
+    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+  )
   async searchAccountTransactions(
     request: SearchAccountTransactionsRequest
   ): Promise<SearchAccountTransactionsResponse> {
-    FinanceRpcContextValidator.assertQueryContext(request)
+    const context = FinanceRpcContextValidator.assertQueryContext(request)
     const result = await this.queryBus.execute(
       new SearchAccountTransactionsQuery({
-        tenantId: request.tenantId ?? '',
-        orgId: request.orgId ?? undefined,
+        tenantId: context.tenantId,
+        orgId: context.orgId,
         financialAccountId: request.financialAccountId ?? undefined,
         direction: toDomainDirection(request.direction),
         sourceType: toDomainSourceType(request.sourceType),
@@ -139,11 +155,15 @@ export class FinanceQueryGrpcController
     return FinanceGrpcPresenter.toSearchAccountTransactionsResponse(result)
   }
 
+  @AuthorizeBusinessRpc(
+    { all: ['finance.exchange_rate.get'] },
+    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+  )
   async getExchangeRate(request: GetExchangeRateRequest): Promise<GetExchangeRateResponse> {
-    FinanceRpcContextValidator.assertQueryContext(request)
+    const context = FinanceRpcContextValidator.assertQueryContext(request)
     const rate = await this.queryBus.execute(
       new GetExchangeRateQuery({
-        tenantId: request.tenantId ?? '',
+        tenantId: context.tenantId,
         baseCurrencyCode: request.baseCurrencyCode ?? '',
         quoteCurrencyCode: request.quoteCurrencyCode ?? '',
         effectiveAt: request.effectiveAt ?? undefined
@@ -152,24 +172,32 @@ export class FinanceQueryGrpcController
     return FinanceGrpcPresenter.toGetExchangeRateResponse(rate)
   }
 
+  @AuthorizeBusinessRpc(
+    { all: ['finance.receivable_schedule.get_by_id'] },
+    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+  )
   async getReceivableSchedule(
     request: GetReceivableScheduleRequest
   ): Promise<GetReceivableScheduleResponse> {
-    FinanceRpcContextValidator.assertQueryContext(request)
+    const context = FinanceRpcContextValidator.assertQueryContext(request)
     const schedule = await this.queryBus.execute(
-      new GetReceivableScheduleQuery(request.tenantId ?? '', request.receivableScheduleId ?? '')
+      new GetReceivableScheduleQuery(context.tenantId, request.receivableScheduleId ?? '')
     )
     return FinanceGrpcPresenter.toGetReceivableScheduleResponse(schedule)
   }
 
+  @AuthorizeBusinessRpc(
+    { all: ['finance.receivable_schedule.list'] },
+    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+  )
   async searchReceivableSchedules(
     request: SearchReceivableSchedulesRequest
   ): Promise<SearchReceivableSchedulesResponse> {
-    FinanceRpcContextValidator.assertQueryContext(request)
+    const context = FinanceRpcContextValidator.assertQueryContext(request)
     const result = await this.queryBus.execute(
       new SearchReceivableSchedulesQuery({
-        tenantId: request.tenantId ?? '',
-        orgId: request.orgId ?? undefined,
+        tenantId: context.tenantId,
+        orgId: context.orgId,
         keyword: request.keyword ?? undefined,
         customerTenantPartyId: request.customerTenantPartyId ?? undefined,
         sourceSalesOrderId: request.sourceSalesOrderId ?? undefined,
@@ -185,40 +213,53 @@ export class FinanceQueryGrpcController
     return FinanceGrpcPresenter.toSearchReceivableSchedulesResponse(result)
   }
 
+  @AuthorizeBusinessRpc(
+    { all: ['finance.finance_release_signal.get'] },
+    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+  )
   async getFinanceReleaseSignal(
     request: GetFinanceReleaseSignalRequest
   ): Promise<GetFinanceReleaseSignalResponse> {
-    FinanceRpcContextValidator.assertQueryContext(request)
+    const context = FinanceRpcContextValidator.assertQueryContext(request)
     const signal = await this.queryBus.execute(
-      new GetFinanceReleaseSignalQuery(request.tenantId ?? '', request.salesOrderId ?? '')
+      new GetFinanceReleaseSignalQuery(context.tenantId, request.salesOrderId ?? '')
     )
     return FinanceGrpcPresenter.toGetFinanceReleaseSignalResponse(signal)
   }
 
+  @AuthorizeBusinessRpc(
+    { all: ['finance.payable.read'] },
+    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+  )
   async getPayableSchedule(
     request: GetPayableScheduleRequest
   ): Promise<GetPayableScheduleResponse> {
-    FinanceRpcContextValidator.assertQueryContext(request)
+    const context = FinanceRpcContextValidator.assertQueryContext(request)
     const schedule = await this.queryBus.execute(
-      new GetPayableScheduleQuery(request.tenantId ?? '', request.payableScheduleId ?? '')
+      new GetPayableScheduleQuery(context.tenantId, request.payableScheduleId ?? '')
     )
     return FinanceGrpcPresenter.toGetPayableScheduleResponse(schedule)
   }
 
+  @AuthorizeBusinessRpc(
+    { all: ['finance.payable.read'] },
+    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+  )
   async searchPayableSchedules(
     request: SearchPayableSchedulesRequest
   ): Promise<SearchPayableSchedulesResponse> {
-    FinanceRpcContextValidator.assertQueryContext(request)
+    const context = FinanceRpcContextValidator.assertQueryContext(request)
     const result = await this.queryBus.execute(
       new SearchPayableSchedulesQuery({
-        tenantId: request.tenantId ?? '',
-        orgId: request.orgId ?? undefined,
+        tenantId: context.tenantId,
+        orgId: context.orgId,
         keyword: request.keyword ?? undefined,
         supplierTenantPartyId: request.supplierTenantPartyId ?? undefined,
         sourcePurchaseOrderId: request.sourcePurchaseOrderId ?? undefined,
         status: request.status as PayableScheduleStatus | undefined,
-        requestGovernanceStatus:
-          request.requestGovernanceStatus as PayableLineRequestGovernanceStatus | undefined,
+        requestGovernanceStatus: request.requestGovernanceStatus as
+          | PayableLineRequestGovernanceStatus
+          | undefined,
         overdueOnly: request.overdueOnly ?? undefined,
         dueFrom: request.dueFrom ?? undefined,
         dueTo: request.dueTo ?? undefined,
@@ -229,14 +270,18 @@ export class FinanceQueryGrpcController
     return FinanceGrpcPresenter.toSearchPayableSchedulesResponse(result)
   }
 
+  @AuthorizeBusinessRpc(
+    { all: ['finance.payable.read'] },
+    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+  )
   async searchPaymentRequests(
     request: SearchPaymentRequestsRequest
   ): Promise<SearchPaymentRequestsResponse> {
-    FinanceRpcContextValidator.assertQueryContext(request)
+    const context = FinanceRpcContextValidator.assertQueryContext(request)
     const result = await this.queryBus.execute(
       new SearchPaymentRequestsQuery({
-        tenantId: request.tenantId ?? '',
-        orgId: request.orgId ?? undefined,
+        tenantId: context.tenantId,
+        orgId: context.orgId,
         requestSource: request.requestSource as PaymentRequestSource | undefined,
         supplierTenantPartyId: request.supplierTenantPartyId ?? undefined,
         sourcePurchaseOrderId: request.sourcePurchaseOrderId ?? undefined,
@@ -252,14 +297,18 @@ export class FinanceQueryGrpcController
     return FinanceGrpcPresenter.toSearchPaymentRequestsResponse(result)
   }
 
+  @AuthorizeBusinessRpc(
+    { all: ['finance.payable.read'] },
+    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+  )
   async searchPaymentExecutions(
     request: SearchPaymentExecutionsRequest
   ): Promise<SearchPaymentExecutionsResponse> {
-    FinanceRpcContextValidator.assertQueryContext(request)
+    const context = FinanceRpcContextValidator.assertQueryContext(request)
     const result = await this.queryBus.execute(
       new SearchPaymentExecutionsQuery({
-        tenantId: request.tenantId ?? '',
-        orgId: request.orgId ?? undefined,
+        tenantId: context.tenantId,
+        orgId: context.orgId,
         paymentRequestId: request.paymentRequestId ?? undefined,
         supplierTenantPartyId: request.supplierTenantPartyId ?? undefined,
         sourceFinancialAccountId: request.sourceFinancialAccountId ?? undefined,
@@ -274,13 +323,17 @@ export class FinanceQueryGrpcController
     return FinanceGrpcPresenter.toSearchPaymentExecutionsResponse(result)
   }
 
+  @AuthorizeBusinessRpc(
+    { all: ['finance.payment_allocation.list'] },
+    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+  )
   async searchPaymentAllocations(
     request: SearchPaymentAllocationsRequest
   ): Promise<SearchPaymentAllocationsResponse> {
-    FinanceRpcContextValidator.assertQueryContext(request)
+    const context = FinanceRpcContextValidator.assertQueryContext(request)
     const result = await this.queryBus.execute(
       new SearchPaymentAllocationsQuery({
-        tenantId: request.tenantId ?? '',
+        tenantId: context.tenantId,
         accountTransactionId: request.accountTransactionId ?? undefined,
         paymentExecutionId: request.paymentExecutionId ?? undefined,
         targetType: request.targetType as PaymentAllocationTargetType | undefined,
@@ -319,9 +372,7 @@ function toDomainFinancialAccountType(value?: number): DomainFinancialAccountTyp
   }
 }
 
-function toDomainFinancialAccountStatus(
-  value?: number
-): DomainFinancialAccountStatus | undefined {
+function toDomainFinancialAccountStatus(value?: number): DomainFinancialAccountStatus | undefined {
   switch (value) {
     case FinancialAccountStatus.FINANCIAL_ACCOUNT_STATUS_ACTIVE:
       return DomainFinancialAccountStatus.ACTIVE
@@ -358,7 +409,9 @@ function toDomainSourceType(value?: number): DomainSourceType | undefined {
 }
 
 function toDomainAllocationStatus(value?: number): DomainAllocationStatus | undefined {
-  if (value === AccountTransactionAllocationStatus.ACCOUNT_TRANSACTION_ALLOCATION_STATUS_UNALLOCATED) {
+  if (
+    value === AccountTransactionAllocationStatus.ACCOUNT_TRANSACTION_ALLOCATION_STATUS_UNALLOCATED
+  ) {
     return DomainAllocationStatus.UNALLOCATED
   }
   if (
