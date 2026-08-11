@@ -45,7 +45,7 @@ describe('PdaDeviceLogsUseCase', () => {
           }
         }
       ]
-    })
+    }, trustedSource())
 
     expect(result).toEqual(
       expect.objectContaining({
@@ -127,7 +127,7 @@ describe('PdaDeviceLogsUseCase', () => {
           }
         }
       ]
-    })
+    }, trustedSource())
 
     expect(terminalDeviceAdapter.recordDiagnosticLogs).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -161,4 +161,8 @@ function allowDecision() {
     shouldClearLocalTerminalDeviceId: false,
     versionPolicy: null
   }
+}
+
+function trustedSource() {
+  return { requestId: 'request-1', traceparent: '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01' }
 }

@@ -104,7 +104,8 @@ describe('TerminalDeviceAdminUseCase', () => {
       tenantId: 'tenant-1',
       terminalDeviceId: 'tdv-1',
       page: 1,
-      pageSize: 20
+      pageSize: 20,
+      source: sourceWithTenant()
     })
     expect(result.items).toEqual([expect.objectContaining({ heartbeatId: 'heartbeat-1' })])
   })
@@ -144,7 +145,8 @@ describe('TerminalDeviceAdminUseCase', () => {
       tenantId: 'tenant-1',
       terminalDeviceId: 'tdv-1',
       page: 1,
-      pageSize: 20
+      pageSize: 20,
+      source: sourceWithTenant()
     })
     expect(result).toMatchObject({
       items: [

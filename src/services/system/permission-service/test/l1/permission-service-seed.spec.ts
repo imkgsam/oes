@@ -22,7 +22,8 @@ const EXPECTED_TERMINAL_DEVICE_PERMISSION_CODES = [
   'terminal-device.status.mark-maintenance',
   'terminal-device.status.restore-active',
   'terminal-device.version-policy.manage',
-  'terminal-device.audit.read'
+  'terminal-device.audit.read',
+  'terminal-device.update'
 ] as const
 
 // Verifies the consolidated permission-service seed source is complete and DB-write free.
@@ -31,7 +32,7 @@ describe('permission service seed source', () => {
     const seed = buildPermissionServiceSeed()
 
     expect(validatePermissionServiceSeed(seed)).toEqual([])
-    expect(seed.permissionCodes).toHaveLength(264)
+    expect(seed.permissionCodes).toHaveLength(269)
     expect(Object.values(TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES)).toEqual([
       ...EXPECTED_TERMINAL_DEVICE_PERMISSION_CODES
     ])
@@ -110,7 +111,7 @@ describe('permission service seed source', () => {
 
   it('renders a stable dry-run summary for audit output', () => {
     expect(renderPermissionServiceSeedDryRunSummary(buildPermissionServiceSeed())).toEqual({
-      permissionCodeCount: 264,
+      permissionCodeCount: 269,
       deprecatedPermissionCodeCount: 14,
       roleCount: 9,
       rolePermissionCount: 248,

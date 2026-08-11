@@ -26,7 +26,7 @@ describe('GatewayTrustedGrpcExecutionModule wiring', () => {
     else process.env.OES_WORKLOAD_SPIFFE_ID = saved.workload
   })
 
-  it('registers and exports both trusted producers with exact Site and Asset target audiences', () => {
+  it('registers and exports both trusted producers with all frozen target audiences', () => {
     const providers = Reflect.getMetadata(
       'providers',
       GatewayTrustedGrpcExecutionModule
@@ -55,7 +55,8 @@ describe('GatewayTrustedGrpcExecutionModule wiring', () => {
     expect([...value.audiences]).toEqual([
       'urn:oes:service:asset-service',
       'urn:oes:service:site-service',
-      'urn:oes:service:browser-activity-service'
+      'urn:oes:service:browser-activity-service',
+      'urn:oes:service:terminal-device-service'
     ])
   })
 

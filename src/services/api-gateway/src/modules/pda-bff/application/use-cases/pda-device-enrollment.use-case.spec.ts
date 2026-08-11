@@ -55,7 +55,8 @@ describe('PdaDeviceEnrollmentUseCase', () => {
           manufacturerSerial: 'SEUIC-SN-123456'
         })
       }),
-      traceId: 'trace-1'
+      traceId: 'trace-1',
+      source: { traceId: 'trace-1' }
     })
     expect(terminalDeviceAdapter.resolveDeviceAccessDecision).toHaveBeenCalledWith(
       expect.objectContaining({
