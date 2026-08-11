@@ -3,6 +3,7 @@ import { CommandHandler, ICommand, ICommandHandler } from '@nestjs/cqrs'
 import { randomUUID } from 'crypto'
 import { SYMBOLS } from '../../../common/constants/symbols'
 import { TerminalDeviceHeartbeatRecordEntity } from '../../../domain/entities/terminal-device-heartbeat-record.entity'
+import { TerminalDeviceEntity } from '../../../domain/entities/terminal-device.entity'
 import { TerminalDeviceRuntimeSnapshotEntity } from '../../../domain/entities/terminal-device-runtime-snapshot.entity'
 import { AppState, NetworkStatus, NetworkType, TerminalDeviceType } from '../../../domain/enums/terminal-device.enums'
 import { TerminalDeviceError } from '../../../domain/errors/terminal-device.error'
@@ -96,11 +97,26 @@ export class RecordHeartbeatHandler implements ICommandHandler<RecordHeartbeatCo
     }
 
     const rotation = this.credentialVerifier.rotate(device, receivedAt)
-    if (rotation.device !== device) await this.terminalDeviceRepository.update(rotation.device)
+    const credentialCommitter = this.terminalDeviceRepository as TerminalDeviceCredentialCommitter
+    let effectiveDevice = device
+    let rotatedDeviceCredential: string | null = null
+    if (rotation.issued) {
+      const committed = await credentialCommitter.compareAndSwapCredential(device, rotation.device)
+      if (committed) {
+        effectiveDevice = committed
+        rotatedDeviceCredential = rotation.issued.credential
+      } else {
+        const persisted = await this.terminalDeviceRepository.findById(command.terminalDeviceId)
+        if (!persisted) {
+          throw new TerminalDeviceError('TERMINAL_DEVICE_NOT_FOUND', 'Terminal device not found')
+        }
+        effectiveDevice = persisted
+      }
+    }
     const snapshot = await this.runtimeSnapshotRepository.upsert(
       new TerminalDeviceRuntimeSnapshotEntity({
-        terminalDeviceId: device.terminalDeviceId,
-        tenantId: device.tenantId,
+        terminalDeviceId: effectiveDevice.terminalDeviceId,
+        tenantId: effectiveDevice.tenantId,
         presenceStatus: 'ONLINE',
         lastHeartbeatAt: receivedAt,
         lastClientTime: command.lastClientTime,
@@ -118,8 +134,8 @@ export class RecordHeartbeatHandler implements ICommandHandler<RecordHeartbeatCo
     await this.runtimeSnapshotRepository.appendHeartbeatRecord(
       new TerminalDeviceHeartbeatRecordEntity({
         heartbeatId: randomUUID(),
-        terminalDeviceId: device.terminalDeviceId,
-        tenantId: device.tenantId,
+        terminalDeviceId: effectiveDevice.terminalDeviceId,
+        tenantId: effectiveDevice.tenantId,
         presenceStatus: 'ONLINE',
         receivedAt,
         clientTime: command.lastClientTime,
@@ -137,8 +153,8 @@ export class RecordHeartbeatHandler implements ICommandHandler<RecordHeartbeatCo
     )
 
     const decision = await this.deviceAccessDecisionService.resolve({
-      tenantId: device.tenantId,
-      terminalDeviceId: device.terminalDeviceId,
+      tenantId: effectiveDevice.tenantId,
+      terminalDeviceId: effectiveDevice.terminalDeviceId,
       terminalDeviceType: command.terminalDeviceType,
       requestPurpose: 'HEARTBEAT',
       appVersion: command.appVersion,
@@ -148,9 +164,16 @@ export class RecordHeartbeatHandler implements ICommandHandler<RecordHeartbeatCo
     return {
       snapshot,
       decision,
-      rotatedDeviceCredential: rotation.issued?.credential ?? null,
-      deviceCredentialExpiresAt: rotation.device.deviceCredentialExpiresAt,
-      deviceCredentialVersion: rotation.device.deviceCredentialVersion
+      rotatedDeviceCredential,
+      deviceCredentialExpiresAt: effectiveDevice.deviceCredentialExpiresAt,
+      deviceCredentialVersion: effectiveDevice.deviceCredentialVersion
     }
   }
+}
+
+type TerminalDeviceCredentialCommitter = TerminalDeviceRepository & {
+  compareAndSwapCredential(
+    expected: TerminalDeviceEntity,
+    replacement: TerminalDeviceEntity
+  ): Promise<TerminalDeviceEntity | null>
 }

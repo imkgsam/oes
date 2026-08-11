@@ -19,6 +19,7 @@ import {
   UpsertVersionPolicyHandler
 } from '../../src/application/commands/version-policy/upsert-version-policy.command'
 import { DeviceAccessDecisionService } from '../../src/application/services/device-access-decision.service'
+import { TerminalDeviceCredentialVerifierService } from '../../src/application/services/terminal-device-credential-verifier.service'
 import { TerminalDeviceEntity } from '../../src/domain/entities/terminal-device.entity'
 import { TerminalDeviceRuntimeSnapshotEntity } from '../../src/domain/entities/terminal-device-runtime-snapshot.entity'
 import { TerminalDeviceVersionPolicyEntity } from '../../src/domain/entities/terminal-device-version-policy.entity'
@@ -576,6 +577,48 @@ describe('Task 4 device governance application services', () => {
       })
     })
 
+    it('atomically elects one heartbeat rotation winner and never returns an immediately invalid next credential', async () => {
+      const context = await createDecisionContext('ACTIVE')
+      const now = new Date('2026-05-16T00:00:00.000Z')
+      const verifier = new TerminalDeviceCredentialVerifierService()
+      const issued = verifier.issue(new Date(now.getTime() - TerminalDeviceCredentialVerifierService.MAX_AGE_MS + 24 * 60 * 60 * 1000))
+      await context.deviceRepository.update(new TerminalDeviceEntity({
+        ...createDevice('ACTIVE'),
+        deviceCredentialHash: issued.hash,
+        deviceCredentialVersion: issued.version,
+        deviceCredentialExpiresAt: new Date(now.getTime() + 60 * 60 * 1000),
+        deviceCredentialState: 'ACTIVE'
+      }))
+      const handler = new RecordHeartbeatHandler(context.deviceRepository, context.runtimeSnapshotRepository, context.decisionService)
+      const command = () => new RecordHeartbeatCommand({
+        terminalDeviceId: 'terminal-device-1', terminalDeviceType: 'PDA', appVersion: '2.1.0',
+        networkStatus: 'ONLINE', networkType: 'WIFI', appState: 'FOREGROUND', receivedAt: now
+      })
+
+      const results = await Promise.all([handler.execute(command()), handler.execute(command())])
+      const winner = results.filter((result) => result.rotatedDeviceCredential !== null)
+      const persisted = await context.deviceRepository.findById('terminal-device-1')
+
+      expect(winner).toHaveLength(1)
+      expect(persisted?.deviceCredentialVersion).toBe(2)
+      expect(() => verifier.verify(persisted!, winner[0]!.rotatedDeviceCredential!, 'install-1', now)).not.toThrow()
+      expect(results.map((result) => result.deviceCredentialVersion)).toEqual([2, 2])
+    })
+
+    it('rolls lifecycle and credential state back when its atomic audit commit fails', async () => {
+      const context = await createLifecycleContext('ACTIVE')
+      jest.spyOn(context.deviceRepository, 'commitStatusChange').mockRejectedValue(new Error('audit insert failed'))
+      const handler = new ChangeTerminalDeviceStatusHandler(context.deviceRepository, context.auditRepository)
+
+      await expect(handler.execute(new ChangeTerminalDeviceStatusCommand({
+        tenantId: 'tenant-1', terminalDeviceId: 'terminal-device-1', targetStatus: 'LOST',
+        operatorContext: { operatorAccountId: 'operator-1' }
+      }))).rejects.toThrow('audit insert failed')
+
+      expect((await context.deviceRepository.findById('terminal-device-1'))?.status).toBe('ACTIVE')
+      expect(await context.auditRepository.listByTerminalDeviceId('tenant-1', 'terminal-device-1')).toHaveLength(0)
+    })
+
     it('derives management presence from heartbeat age instead of keeping stale snapshots online forever', async () => {
       const context = await createDecisionContext('ACTIVE')
       await context.runtimeSnapshotRepository.upsert(createRuntimeSnapshot({
@@ -694,7 +737,7 @@ describe('Task 4 device governance application services', () => {
 // createDecisionContext assembles the in-memory repositories and seeded device state used by access decision tests.
 async function createDecisionContext(status: TerminalDeviceStatus = 'ACTIVE') {
   const store = new InMemoryTerminalDeviceStore()
-  const deviceRepository = new InMemoryTerminalDeviceRepository(store)
+  const deviceRepository = new AtomicTerminalDeviceRepository(store)
   const runtimeSnapshotRepository = new InMemoryTerminalDeviceRuntimeSnapshotRepository()
   const versionPolicyRepository = new InMemoryTerminalDeviceVersionPolicyRepository()
 
@@ -718,14 +761,50 @@ async function createDecisionContext(status: TerminalDeviceStatus = 'ACTIVE') {
 // createLifecycleContext assembles in-memory repositories and seeded device state used by status transition tests.
 async function createLifecycleContext(status: TerminalDeviceStatus) {
   const store = new InMemoryTerminalDeviceStore()
-  const deviceRepository = new InMemoryTerminalDeviceRepository(store)
   const auditRepository = new InMemoryTerminalDeviceAuditEventRepository(store)
+  const deviceRepository = new AtomicTerminalDeviceRepository(store, auditRepository)
 
   await deviceRepository.create(createDevice(status))
 
   return {
     deviceRepository,
     auditRepository
+  }
+}
+
+// AtomicTerminalDeviceRepository is a leased test double for the Prisma CAS and transaction capabilities.
+class AtomicTerminalDeviceRepository extends InMemoryTerminalDeviceRepository {
+  private readonly credentialClaims = new Set<string>()
+
+  constructor(
+    store: InMemoryTerminalDeviceStore,
+    private readonly auditRepository?: InMemoryTerminalDeviceAuditEventRepository
+  ) {
+    super(store)
+  }
+
+  // Applies a credential replacement only when the preceding version, digest, lifecycle and state are unchanged.
+  async compareAndSwapCredential(expected: TerminalDeviceEntity, replacement: TerminalDeviceEntity) {
+    const claim = `${expected.terminalDeviceId}:${expected.deviceCredentialVersion}:${expected.deviceCredentialHash ?? ''}`
+    if (this.credentialClaims.has(claim)) return null
+    this.credentialClaims.add(claim)
+    const current = await this.findById(expected.terminalDeviceId)
+    if (
+      !current || current.deviceCredentialVersion !== expected.deviceCredentialVersion ||
+      current.deviceCredentialHash !== expected.deviceCredentialHash || current.deviceCredentialState !== expected.deviceCredentialState ||
+      current.status !== expected.status
+    ) {
+      this.credentialClaims.delete(claim)
+      return null
+    }
+    return this.update(replacement)
+  }
+
+  // Writes audit before replacing the test record so a simulated audit failure leaves lifecycle state untouched.
+  async commitStatusChange(entity: TerminalDeviceEntity, audit: import('../../src/domain/entities/terminal-device-audit-event.entity').TerminalDeviceAuditEventEntity) {
+    if (!this.auditRepository) throw new Error('audit repository is required')
+    await this.auditRepository.create(audit)
+    return this.update(entity)
   }
 }
 

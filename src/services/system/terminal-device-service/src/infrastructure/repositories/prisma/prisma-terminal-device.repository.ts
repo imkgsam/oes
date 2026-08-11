@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { TerminalDeviceEntity } from '../../../domain/entities/terminal-device.entity'
+import { TerminalDeviceAuditEventEntity } from '../../../domain/entities/terminal-device-audit-event.entity'
 import { TerminalDeviceError } from '../../../domain/errors/terminal-device.error'
 import {
   TerminalDeviceIdentityMatchInput,
@@ -33,6 +34,49 @@ export class PrismaTerminalDeviceRepository implements TerminalDeviceRepository 
         data: PrismaTerminalDeviceMapper.toDeviceData(entity) as any
       })
       return PrismaTerminalDeviceMapper.toDeviceEntity(record)
+    } catch (error) {
+      throw mapDeviceWriteError(error)
+    }
+  }
+
+  // Commits lifecycle/credential state and its required audit fact in one Prisma transaction.
+  async commitStatusChange(
+    entity: TerminalDeviceEntity,
+    auditEvent: TerminalDeviceAuditEventEntity
+  ): Promise<TerminalDeviceEntity> {
+    try {
+      return await this.prisma.$transaction(async (transaction) => {
+        const record = await transaction.terminalDevice.update({
+          where: { terminalDeviceId: entity.terminalDeviceId },
+          data: PrismaTerminalDeviceMapper.toDeviceData(entity) as any
+        })
+        await transaction.terminalDeviceAuditEvent.create({
+          data: PrismaTerminalDeviceMapper.toAuditEventData(auditEvent) as any
+        })
+        return PrismaTerminalDeviceMapper.toDeviceEntity(record)
+      })
+    } catch (error) {
+      throw mapDeviceWriteError(error)
+    }
+  }
+
+  // Replaces device credential material only when the persisted version and digest still match the heartbeat read.
+  async compareAndSwapCredential(
+    expected: TerminalDeviceEntity,
+    replacement: TerminalDeviceEntity
+  ): Promise<TerminalDeviceEntity | null> {
+    try {
+      const result = await this.prisma.terminalDevice.updateMany({
+        where: {
+          terminalDeviceId: expected.terminalDeviceId,
+          deviceCredentialVersion: expected.deviceCredentialVersion,
+          deviceCredentialHash: expected.deviceCredentialHash,
+          deviceCredentialState: expected.deviceCredentialState,
+          status: expected.status
+        },
+        data: PrismaTerminalDeviceMapper.toDeviceData(replacement) as any
+      })
+      return result.count === 1 ? replacement : null
     } catch (error) {
       throw mapDeviceWriteError(error)
     }

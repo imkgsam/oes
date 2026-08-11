@@ -7,6 +7,7 @@ import {
   InMemoryTerminalDeviceRepository,
   InMemoryTerminalDeviceStore
 } from '../../src/infrastructure/repositories/in-memory'
+import { PrismaTerminalDeviceRepository } from '../../src/infrastructure/repositories/prisma/prisma-terminal-device.repository'
 
 describe('terminal device module and in-memory repositories', () => {
   it('persists an enrollment and device in memory', async () => {
@@ -141,4 +142,55 @@ describe('terminal device module and in-memory repositories', () => {
     await auditEventRepository.create(event)
     await expect(auditEventRepository.create(event)).rejects.toThrow('Terminal device audit event already exists')
   })
+
+  it('uses credential version and hash as the Prisma compare-and-swap predicate', async () => {
+    const updateMany = jest.fn().mockResolvedValue({ count: 0 })
+    const repository = new PrismaTerminalDeviceRepository({ terminalDevice: { updateMany } } as never)
+    const current = credentialDevice()
+    const replacement = new TerminalDeviceEntity({ ...current, deviceCredentialHash: 'hash-2', deviceCredentialVersion: 2 })
+
+    await expect(repository.compareAndSwapCredential(current, replacement)).resolves.toBeNull()
+    expect(updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        terminalDeviceId: 'terminal-device-cas-1',
+        deviceCredentialVersion: 1,
+        deviceCredentialHash: 'hash-1',
+        deviceCredentialState: 'ACTIVE',
+        status: 'ACTIVE'
+      })
+    }))
+  })
+
+  it('encloses lifecycle and audit writes in one Prisma transaction', async () => {
+    const current = credentialDevice()
+    const audit = new TerminalDeviceAuditEventEntity({
+      auditEventId: 'audit-transaction-1', tenantId: current.tenantId, operatorAccountId: 'operator-1', operatorOrgId: null,
+      action: 'STATUS_CHANGED', targetTerminalDeviceId: current.terminalDeviceId, beforeJson: { status: 'ACTIVE' },
+      afterJson: { status: 'LOST' }, reason: 'lost', traceId: 'trace-1', occurredAt: new Date('2026-08-11T00:00:00.000Z')
+    })
+    const update = jest.fn().mockResolvedValue(current)
+    const create = jest.fn().mockRejectedValue(new Error('audit insert failed'))
+    const transaction = jest.fn(async (callback) => callback({
+      terminalDevice: { update }, terminalDeviceAuditEvent: { create }
+    }))
+    const repository = new PrismaTerminalDeviceRepository({ $transaction: transaction } as never)
+
+    await expect(repository.commitStatusChange(current, audit)).rejects.toMatchObject({
+      code: 'TERMINAL_DEVICE_PERSISTENCE_ERROR'
+    })
+    expect(transaction).toHaveBeenCalledTimes(1)
+    expect(update).toHaveBeenCalledTimes(1)
+    expect(create).toHaveBeenCalledTimes(1)
+  })
 })
+
+// Builds a credential-bearing active device fixture for Prisma mutation tests.
+function credentialDevice(): TerminalDeviceEntity {
+  return new TerminalDeviceEntity({
+    terminalDeviceId: 'terminal-device-cas-1', tenantId: 'tenant-1', terminalDeviceType: 'PDA', displayName: 'PDA 1',
+    status: 'ACTIVE', statusReason: null, enrollmentId: null, manufacturerSerial: null, androidId: null,
+    appInstallationId: 'install-1', manufacturer: null, model: null, androidVersion: null,
+    registeredAt: new Date('2026-08-11T00:00:00.000Z'), updatedAt: new Date('2026-08-11T00:00:00.000Z'), notes: null,
+    deviceCredentialHash: 'hash-1', deviceCredentialVersion: 1, deviceCredentialState: 'ACTIVE'
+  })
+}

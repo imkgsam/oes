@@ -453,11 +453,8 @@ message ActivateEnrollmentRequest {
   TerminalDeviceType terminal_device_type = 2;
   TerminalDeviceIdentityInput identity = 3;
   TerminalDeviceSoftware software = 4;
-  reserved 5;
-  reserved "trace_id";
-  string device_credential = 8;
-  string device_credential_expires_at = 9;
-  int32 device_credential_version = 10;
+  reserved 5, 8, 9, 10;
+  reserved "trace_id", "device_credential", "device_credential_expires_at", "device_credential_version";
 }
 
 // ActivateEnrollmentResponse returns the activation result and created terminal device id.

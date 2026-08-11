@@ -89,40 +89,37 @@ export class ChangeTerminalDeviceStatusHandler
 
     assertTransitionAllowed(device.status, command.targetStatus)
 
-    const updated = await this.terminalDeviceRepository.update(
-      new TerminalDeviceEntity({
-        ...device,
-        status: command.targetStatus,
-        statusReason: command.reason,
-        deviceCredentialState: credentialStateFor(command.targetStatus, device.deviceCredentialState),
-        ...(command.targetStatus === 'DECOMMISSIONED'
-          ? { deviceCredentialHash: null, deviceCredentialPreviousHash: null, deviceCredentialPreviousVersion: null, deviceCredentialExpiresAt: null, deviceCredentialPreviousExpiresAt: null }
-          : {}),
-        updatedAt: now
-      })
-    )
-
-    await this.auditEventRepository.create(
-      new TerminalDeviceAuditEventEntity({
-        auditEventId: randomUUID(),
-        tenantId: device.tenantId,
-        operatorAccountId: command.operatorContext.operatorAccountId,
-        operatorOrgId: command.operatorContext.operatorOrgId ?? null,
-        action: 'STATUS_CHANGED',
-        targetTerminalDeviceId: device.terminalDeviceId,
-        beforeJson: {
-          status: device.status,
-          statusReason: device.statusReason
-        },
-        afterJson: {
-          status: updated.status,
-          statusReason: updated.statusReason
-        },
-        reason: command.reason,
-        traceId: command.operatorContext.traceId ?? null,
-        occurredAt: now
-      })
-    )
+    const next = new TerminalDeviceEntity({
+      ...device,
+      status: command.targetStatus,
+      statusReason: command.reason,
+      deviceCredentialState: credentialStateFor(command.targetStatus, device.deviceCredentialState),
+      ...(command.targetStatus === 'DECOMMISSIONED'
+        ? { deviceCredentialHash: null, deviceCredentialPreviousHash: null, deviceCredentialPreviousVersion: null, deviceCredentialExpiresAt: null, deviceCredentialPreviousExpiresAt: null }
+        : {}),
+      updatedAt: now
+    })
+    const audit = new TerminalDeviceAuditEventEntity({
+      auditEventId: randomUUID(),
+      tenantId: device.tenantId,
+      operatorAccountId: command.operatorContext.operatorAccountId,
+      operatorOrgId: command.operatorContext.operatorOrgId ?? null,
+      action: 'STATUS_CHANGED',
+      targetTerminalDeviceId: device.terminalDeviceId,
+      beforeJson: {
+        status: device.status,
+        statusReason: device.statusReason
+      },
+      afterJson: {
+        status: next.status,
+        statusReason: next.statusReason
+      },
+      reason: command.reason,
+      traceId: command.operatorContext.traceId ?? null,
+      occurredAt: now
+    })
+    const writer = this.terminalDeviceRepository as TerminalDeviceStatusChangeCommitter
+    const updated = await writer.commitStatusChange(next, audit)
 
     if (isUnavailableStatus(updated.status)) {
       await this.unavailableEventPublisher?.publish({
@@ -157,6 +154,13 @@ export class ChangeTerminalDeviceStatusHandler
           }
     }
   }
+}
+
+type TerminalDeviceStatusChangeCommitter = TerminalDeviceRepository & {
+  commitStatusChange(
+    entity: TerminalDeviceEntity,
+    auditEvent: TerminalDeviceAuditEventEntity
+  ): Promise<TerminalDeviceEntity>
 }
 
 /** Maps lifecycle transitions onto the frozen device-proof state without affecting the Redis event contract. */
