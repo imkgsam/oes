@@ -1043,8 +1043,8 @@ The stable repository consistency contract is owned by [terminal-device-service.
 
 ```yaml
 terminalDeviceTrustedGrpcImplementationLease:
-  totalTrackedWriterPaths: 83
-  stateCounts: { EXISTING: 74, NEW_TARGET: 9 }
+  totalTrackedWriterPaths: 84
+  stateCounts: { EXISTING: 75, NEW_TARGET: 9 }
   trackedWriterPaths:
     commonProtoPermissionCode:
       - { state: EXISTING, path: src/common/src/contracts/terminal_device_service/terminal_device.proto }
@@ -1091,6 +1091,7 @@ terminalDeviceTrustedGrpcImplementationLease:
       - { state: EXISTING, path: src/services/api-gateway/src/modules/pda-bff/application/use-cases/pda-device-logs.use-case.spec.ts }
       - { state: EXISTING, path: src/services/api-gateway/src/modules/pda-bff/application/use-cases/pda-session-bootstrap.use-case.ts }
       - { state: EXISTING, path: src/services/api-gateway/src/modules/pda-bff/application/use-cases/pda-session-bootstrap.use-case.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/pda-bff/application/use-cases/pda-managed-device-flow.use-case.spec.ts }
       - { state: EXISTING, path: src/services/api-gateway/src/modules/pda-bff/interfaces/http/view-models/pda-device.view-model.ts }
       - { state: EXISTING, path: src/services/api-gateway/src/modules/auth-bff/infrastructure/downstream/terminal-device-service/terminal-device-access.adapter.ts }
       - { state: EXISTING, path: src/services/api-gateway/src/modules/auth-bff/infrastructure/downstream/terminal-device-service/terminal-device-access.adapter.spec.ts }
@@ -1168,7 +1169,7 @@ terminalDeviceTrustedGrpcImplementationLease:
     - pnpm --filter terminal-device-service exec jest --config jest.config.js --runInBand test/l1/terminal-device-unavailable-event-publisher.spec.ts
 ```
 
-Acceptance proves 17/17 exact declarations; 13 BUSINESS versus four INTERNAL with no SELF_SERVICE/DELEGATED; Admin HUMAN WEB and Gateway SYSTEM MACHINE cannot cross-call; target audience/workload/`cnf`/Code and status-to-Code binding fail closed; body tenant/operator/session/trace/server-time/sensitive flags have no authority; the five new Codes are exactly `terminal-device.update` plus the four Gateway INTERNAL Codes; enrollment/device credential hash/state/version, one-time return, 30-day maximum, seven-day rotation threshold, five-minute overlap, expiry/suspension/revocation/replay and no-log rules hold; credential-less or mismatched LOGIN/BOOTSTRAP/heartbeat/diagnostic requests fail; sensitive projection/history and mutation audit are enforced; the Redis unavailable path remains unchanged; and the implementation diff is a strict subset of these 83 paths.
+Acceptance proves 17/17 exact declarations; 13 BUSINESS versus four INTERNAL with no SELF_SERVICE/DELEGATED; Admin HUMAN WEB and Gateway SYSTEM MACHINE cannot cross-call; target audience/workload/`cnf`/Code and status-to-Code binding fail closed; body tenant/operator/session/trace/server-time/sensitive flags have no authority; the five new Codes are exactly `terminal-device.update` plus the four Gateway INTERNAL Codes; enrollment/device credential hash/state/version, one-time return, 30-day maximum, seven-day rotation threshold, five-minute overlap, expiry/suspension/revocation/replay and no-log rules hold; credential-less or mismatched LOGIN/BOOTSTRAP/heartbeat/diagnostic requests fail; sensitive projection/history and mutation audit are enforced; the Redis unavailable path remains unchanged; and the implementation diff is a strict subset of these 84 paths.
 
 Read-only baseline evidence at design freeze: Common root-config, Permission filter-config and Gateway filter Jest command shapes execute successfully. Terminal Device's filter-config entry also executes, and the independent Redis publisher spec passes 1/1; the existing `terminal-device-grpc-surface.spec.ts` baseline currently reports 4 pass / 10 fail because its fixture/controller constructor alignment is stale. That exact existing spec is leased and must be made green by the implementation candidate; the baseline failure does not relax any 17-RPC acceptance assertion or authorize production-code fallback.
 
