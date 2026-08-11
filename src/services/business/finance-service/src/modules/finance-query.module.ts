@@ -20,10 +20,11 @@ import {
   SearchReceivableSchedulesHandler
 } from '../application/queries/receivable-query.handlers'
 import { FinanceQueryGrpcController } from '../interfaces/grpc/finance-query.grpc.controller'
+import { FinanceTrustedExecutionModule } from './finance-trusted-execution.module'
 
 /** FinanceQueryModule wires the phase 1A finance query handlers and gRPC controller surface. */
 @Module({
-  imports: [CqrsModule],
+  imports: [CqrsModule, FinanceTrustedExecutionModule],
   providers: [
     ValidatingQueryBus,
     GetFinancialAccountHandler,

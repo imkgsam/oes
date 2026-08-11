@@ -1,10 +1,12 @@
 import 'reflect-metadata'
+import { Test } from '@nestjs/testing'
 import {
   getRpcAuthorizationModeDeclaration,
   TrustedExecutionGuard
 } from '@oes/common/authorization'
 import { FinanceManagementGrpcController } from '../../src/interfaces/grpc/finance-management.grpc.controller'
 import { FinanceQueryGrpcController } from '../../src/interfaces/grpc/finance-query.grpc.controller'
+import { AppModule } from '../../src/app.module'
 
 const HUMAN_WEB = { principalType: 'HUMAN', sessionTerminal: 'WEB' }
 
@@ -96,5 +98,20 @@ describe('finance trusted gRPC security L3', () => {
     for (const controller of [FinanceQueryGrpcController, FinanceManagementGrpcController]) {
       expect(Reflect.getMetadata('__guards__', controller)).toContain(TrustedExecutionGuard)
     }
+  })
+
+  it('compiles the production AppModule graph and resolves both guarded controller owners', async () => {
+    const module = await Test.createTestingModule({ imports: [AppModule] }).compile()
+    expect(module.get(FinanceQueryGrpcController)).toBeInstanceOf(FinanceQueryGrpcController)
+    expect(module.get(FinanceManagementGrpcController)).toBeInstanceOf(
+      FinanceManagementGrpcController
+    )
+    await module.close()
+  })
+
+  it('fails compilation when a guarded controller owner omits the required trusted-execution provider', async () => {
+    await expect(
+      Test.createTestingModule({ providers: [TrustedExecutionGuard] }).compile()
+    ).rejects.toThrow('ExecutionTokenVerifier')
   })
 })

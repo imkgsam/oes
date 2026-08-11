@@ -25,10 +25,11 @@ import {
 } from '../application/commands/receivable-management.handlers'
 import { FinanceAuditService } from '../application/services/finance-audit.service'
 import { FinanceManagementGrpcController } from '../interfaces/grpc/finance-management.grpc.controller'
+import { FinanceTrustedExecutionModule } from './finance-trusted-execution.module'
 
 /** FinanceManagementModule wires the phase 1A finance command handlers, audit service, and gRPC management controller. */
 @Module({
-  imports: [CqrsModule],
+  imports: [CqrsModule, FinanceTrustedExecutionModule],
   providers: [
     ValidatingCommandBus,
     FinanceAuditService,
