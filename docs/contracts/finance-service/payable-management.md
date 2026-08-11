@@ -6,14 +6,7 @@
 
 ## 2. 通用上下文要求
 
-所有 phase 1B management command 统一要求：
-
-- `tenant_id`
-- 场景适用时的 `org_id`
-- internal service context
-- operator context
-- trace context
-- audit context
+所有当前 management command 都按 [Finance trusted gRPC baseline](README.md#6-security--context-baseline) 执行；tenant、org scope、operator、trace 与 audit identity 只来自 trusted context，以下 request 表只列业务 payload。
 
 ## 3. 写入基线语义
 
@@ -49,8 +42,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `org_id` | 否 | 适用时的组织边界 |
 | `purchase_order_id` | 是 | 来源 `PurchaseOrder` 标识 |
 | `purchase_order_no` | 否 | 来源 `PO` 编号摘要 |
 | `procurement_snapshot_reference` | 否 | Procurement 交易快照引用摘要 |
@@ -90,8 +81,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `org_id` | 否 | 适用时的组织边界 |
 | `purchase_order_id` | 是 | 来源 `PurchaseOrder` 标识 |
 | `purchase_order_change_id` | 是 | 来源 `PurchaseOrderChange` 标识 |
 | `procurement_snapshot_reference` | 否 | 变更后的 Procurement 快照引用摘要 |
@@ -132,7 +121,7 @@ phase 1B payable management 统一暴露以下错误面：
 | 错误码 | 语义 |
 | --- | --- |
 | `INVALID_ARGUMENT` | 请求字段缺失、格式非法、金额非法、调整动作非法或字段组合冲突 |
-| `UNAUTHENTICATED` | 缺少有效 internal service context、operator context、trace context 或 audit context |
+| `UNAUTHENTICATED` | 缺少或无法验证 exact-audience HUMAN WEB ExecutionToken / mTLS binding |
 | `PERMISSION_DENIED` | 调用方存在上下文，但没有执行该 tenant / org / command 的权限 |
 | `NOT_FOUND` | 目标 `PurchaseOrder`、`PurchaseOrderChange`、`PayableSchedule` 或来源引用不存在 |
 | `ALREADY_EXISTS` | 尝试为同一活动 `PO` 重复创建 payable schedule，或重复应用同一变更结果 |

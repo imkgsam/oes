@@ -11,14 +11,7 @@
 
 ## 2. 通用上下文要求
 
-所有 phase 1B management command 统一要求：
-
-- `tenant_id`
-- 场景适用时的 `org_id`
-- internal service context
-- operator context
-- trace context
-- audit context
+所有当前 management command 都按 [Finance trusted gRPC baseline](README.md#6-security--context-baseline) 执行；tenant、org scope、operator、trace 与 audit identity 只来自 trusted context，以下 request 表只列业务 payload。
 
 ## 3. 写入基线语义
 
@@ -67,8 +60,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `org_id` | 否 | 适用时的组织边界 |
 | `request_source` | 是 | `PROCUREMENT_INITIATED / FINANCE_INITIATED` |
 | `source_purchase_order_id` | 否 | 从采购侧发起时的来源 `PO` |
 | `supplier_tenant_party_id` | 是 | 目标供应商主体引用 |
@@ -122,7 +113,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `payment_request_id` | 是 | 目标付款申请标识 |
 | `decision` | 是 | `APPROVED / REJECTED` |
 | `decision_reason` | 否 | optional 决策原因 |
@@ -146,7 +136,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `payment_request_id` | 是 | 目标付款申请标识 |
 | `source_financial_account_id` | 是 | 出款公司资金账户 |
 | `executed_amount` | 是 | 执行金额 |
@@ -179,7 +168,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `account_transaction_id` | 是 | 目标真实流水标识 |
 | `allocations[]` | 是 | 应收核销集合 |
 
@@ -211,7 +199,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `account_transaction_id` | 是 | 目标真实流水标识 |
 | `payment_execution_id` | 否 | optional 关联的付款执行记录 |
 | `allocations[]` | 是 | 应付核销集合 |
@@ -244,7 +231,7 @@ phase 1B payment management 统一暴露以下错误面：
 | 错误码 | 语义 |
 | --- | --- |
 | `INVALID_ARGUMENT` | 请求字段缺失、格式非法、金额非法、方向非法、early request 缺少 reason，或命令字段互斥冲突 |
-| `UNAUTHENTICATED` | 缺少有效 internal service context、operator context、trace context 或 audit context |
+| `UNAUTHENTICATED` | 缺少或无法验证 exact-audience HUMAN WEB ExecutionToken / mTLS binding |
 | `PERMISSION_DENIED` | 调用方存在上下文，但没有执行该 tenant / org / command 的权限 |
 | `NOT_FOUND` | 目标计划、目标付款申请、目标账户、目标流水或依赖引用不存在 |
 | `ALREADY_EXISTS` | 尝试创建重复付款申请、重复付款执行记录、重复 evidence snapshot 绑定或重复核销结果 |

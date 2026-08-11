@@ -8,12 +8,8 @@
 
 - 接口类型：内部 `gRPC`
 - 服务：`PaymentQueryService`
-- 所有 `RPC` 显式带 `tenant_id`
-- 场景适用时显式带 `org_id`
-- 所有 `RPC` 都要求：
-  - internal service context
-  - operator context
-  - trace context
+- 所有 RPC 按 [Finance trusted gRPC baseline](README.md#6-security--context-baseline) 接受 exact-audience `BUSINESS / HUMAN / WEB` ExecutionToken
+- tenant、org scope、operator 与 trace 由 trusted context 派生；以下 request 表只列业务 payload
 
 phase 1B query 只覆盖：
 
@@ -290,7 +286,6 @@ phase 1B 列表读取最小 shape：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `payable_schedule_id` | 是 | 目标应付计划标识 |
 
 响应最小 shape：
@@ -312,8 +307,6 @@ phase 1B 列表读取最小 shape：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `org_id` | 否 | 按组织范围过滤 |
 | `keyword` | 否 | 按 `schedule_no / purchase_order_no / supplier` 轻量检索 |
 | `supplier_tenant_party_id` | 否 | 按供应商过滤 |
 | `source_purchase_order_id` | 否 | 按采购单过滤 |
@@ -346,8 +339,6 @@ phase 1B 列表读取最小 shape：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `org_id` | 否 | 按组织范围过滤 |
 | `request_source` | 否 | `PROCUREMENT_INITIATED / FINANCE_INITIATED` |
 | `supplier_tenant_party_id` | 否 | 按供应商过滤 |
 | `source_purchase_order_id` | 否 | 按来源采购单过滤 |
@@ -379,8 +370,6 @@ phase 1B 列表读取最小 shape：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `org_id` | 否 | 按组织范围过滤 |
 | `payment_request_id` | 否 | 按付款申请过滤 |
 | `supplier_tenant_party_id` | 否 | 按供应商过滤 |
 | `source_financial_account_id` | 否 | 按公司出款账户过滤 |
@@ -412,7 +401,6 @@ phase 1B 列表读取最小 shape：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `account_transaction_id` | 否 | 按真实流水过滤 |
 | `payment_execution_id` | 否 | 按付款执行记录过滤 |
 | `target_type` | 否 | `PAYABLE_SCHEDULE_LINE / RECEIVABLE_SCHEDULE_LINE` |
@@ -443,7 +431,7 @@ phase 1B query 统一暴露以下错误面：
 | 错误码 | 语义 |
 | --- | --- |
 | `INVALID_ARGUMENT` | 请求字段缺失、格式非法、分页参数非法或搜索条件冲突 |
-| `UNAUTHENTICATED` | 缺少有效 internal service context、operator context 或 trace context |
+| `UNAUTHENTICATED` | 缺少或无法验证 exact-audience HUMAN WEB ExecutionToken / mTLS binding |
 | `PERMISSION_DENIED` | 调用方存在上下文，但没有读取该 tenant / org / payable object 的权限 |
 | `NOT_FOUND` | `GetPayableSchedule` 的目标对象不存在 |
 | `ALREADY_EXISTS` | phase 1B query `RPC` 不使用该错误；调用方不应依赖此返回 |

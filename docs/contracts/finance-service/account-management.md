@@ -6,18 +6,11 @@
 
 ## 2. 通用上下文要求
 
-所有 phase 1 management command 统一要求：
-
-- `tenant_id`
-- 场景适用时的 `org_id`
-- internal service context
-- operator context
-- trace context
-- audit context
+所有当前 management command 都按 [Finance trusted gRPC baseline](README.md#6-security--context-baseline) 执行：仅接受 Gateway 的 `BUSINESS / HUMAN / WEB` ExecutionToken；tenant、org scope、operator、trace 与 audit identity 由 trusted context 派生，不再出现在 request body。
 
 补充约束：
 
-- 本文件只冻结“必须要求这些上下文存在”，不展开完整内部字段结构
+- 本文件以下 request 表只列业务 payload；已删除/保留的 authority field number 以 README §6.1 为准
 - 所有 command 都必须按 command 语义处理，不得被调用方当作 query 或同步缓存接口使用
 - phase 1 不冻结 command metadata header、幂等键设计、审计落库结构或重试策略
 
@@ -60,8 +53,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `org_id` | 否 | 适用时的组织边界 |
 | `account_type` | 是 | `BANK / CASH / WECHAT / ALIPAY / PAYPAL / STRIPE / OTHER_PSP` |
 | `account_name` | 是 | 账户显示名 |
 | `currency_code` | 是 | 账户基准币种 |
@@ -89,7 +80,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `financial_account_id` | 是 | 目标资金账户标识 |
 | `account_name` | 是 | 更新后的账户显示名 |
 | `institution_name` | 否 | 更新后的机构摘要 |
@@ -115,7 +105,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `financial_account_id` | 是 | 目标公司资金账户 |
 | `source_batch_reference` | 否 | optional 导入批次摘要 |
 | `transactions[]` | 是 | 批量导入的流水集合 |
@@ -155,7 +144,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `financial_account_id` | 是 | 目标公司资金账户 |
 | `direction` | 是 | `INFLOW / OUTFLOW` |
 | `amount` | 是 | 流水金额 |
@@ -185,7 +173,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `customer_tenant_party_id` | 是 | 目标客户主体引用 |
 | `account_holder_name` | 是 | 开户名 / 账户名 |
 | `account_provider_type` | 是 | `BANK / WECHAT / ALIPAY / PAYPAL / STRIPE / OTHER` |
@@ -203,7 +190,7 @@
 
 - 它只记录收款参考账号，不改变 Customer owner truth
 
-### `RegisterSupplierFinancialAccount`
+### `RegisterSupplierFinancialAccount` (`DEFERRED_NOT_IN_CURRENT_PROTO`)
 
 - 作用：登记供应商收款账号引用
 
@@ -211,7 +198,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `supplier_tenant_party_id` | 是 | 目标供应商主体引用 |
 | `account_holder_name` | 是 | 开户名 / 账户名 |
 | `account_provider_type` | 是 | `BANK / WECHAT / ALIPAY / PAYPAL / STRIPE / OTHER` |
@@ -237,7 +223,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `base_currency_code` | 是 | 基准币种 |
 | `quote_currency_code` | 是 | 报价币种 |
 | `rate_value` | 是 | 标准汇率值 |
@@ -262,7 +247,7 @@ phase 1 management 统一暴露以下错误面：
 | 错误码 | 语义 |
 | --- | --- |
 | `INVALID_ARGUMENT` | 请求字段缺失、格式非法、金额非法、账号信息非法或命令字段互斥冲突 |
-| `UNAUTHENTICATED` | 缺少有效 internal service context、operator context、trace context 或 audit context |
+| `UNAUTHENTICATED` | 缺少或无法验证 exact-audience HUMAN WEB ExecutionToken / mTLS binding |
 | `PERMISSION_DENIED` | 调用方存在上下文，但没有执行该 tenant / org / command 的权限 |
 | `NOT_FOUND` | 目标账户、目标主体或依赖引用不存在 |
 | `ALREADY_EXISTS` | 尝试创建重复资金账户、重复对手方账号引用或重复汇率真相 |

@@ -8,12 +8,8 @@
 
 - 接口类型：内部 gRPC
 - 服务：`FinancialAccountQueryService`
-- 所有 RPC 显式带 `tenant_id`
-- 场景适用时显式带 `org_id`
-- 所有 RPC 都要求：
-  - internal service context
-  - operator context
-  - trace context
+- 所有 RPC 按 [Finance trusted gRPC baseline](README.md#6-security--context-baseline) 接受 exact-audience `BUSINESS / HUMAN / WEB` ExecutionToken
+- tenant、org scope、operator 与 trace 由 trusted context 派生；以下 request 表只列业务 payload
 
 phase 1 query 只覆盖：
 
@@ -169,7 +165,6 @@ phase 1 列表读取最小 shape：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `financial_account_id` | 是 | 目标资金账户标识 |
 
 响应最小 shape：
@@ -191,8 +186,6 @@ phase 1 列表读取最小 shape：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `org_id` | 否 | 按组织范围过滤 |
 | `keyword` | 否 | 按 `account_no / account_name / institution_name` 轻量检索 |
 | `account_type` | 否 | 按账户类型过滤 |
 | `currency_code` | 否 | 按币种过滤 |
@@ -222,8 +215,6 @@ phase 1 列表读取最小 shape：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `org_id` | 否 | 按组织范围过滤 |
 | `financial_account_id` | 否 | 按公司资金账户过滤 |
 | `direction` | 否 | `INFLOW / OUTFLOW` |
 | `source_type` | 否 | `MANUAL / CSV_IMPORT / FUTURE_API` |
@@ -255,7 +246,6 @@ phase 1 列表读取最小 shape：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `base_currency_code` | 是 | 基准币种 |
 | `quote_currency_code` | 是 | 报价币种 |
 | `effective_at` | 否 | 生效时间点；未传时读取当前有效汇率 |
@@ -278,7 +268,7 @@ phase 1 query 统一暴露以下错误面：
 | 错误码 | 语义 |
 | --- | --- |
 | `INVALID_ARGUMENT` | 请求字段缺失、格式非法、分页参数非法或搜索条件冲突 |
-| `UNAUTHENTICATED` | 缺少有效 internal service context、operator context 或 trace context |
+| `UNAUTHENTICATED` | 缺少或无法验证 exact-audience HUMAN WEB ExecutionToken / mTLS binding |
 | `PERMISSION_DENIED` | 调用方存在上下文，但没有读取该 tenant / org / account 的权限 |
 | `NOT_FOUND` | `GetFinancialAccount` 或 `GetExchangeRate` 的目标对象不存在 |
 | `FAILED_PRECONDITION` | 资源存在，但当前读取前提不满足 |

@@ -14,6 +14,8 @@
 
 ## 2. 基线原则
 
+- Trusted gRPC cutover 只迁移当前 27 个 Gateway HUMAN RPC；本文件的 Sales / Procurement integration input/output 不进入该实现 lease。
+- 当前 RPC 不得同时接受 Gateway HUMAN 与 service INTERNAL mode。本轮不新增 INTERNAL RPC、Code、event contract、consumer、outbox 或 inbox；后续同步 service-to-service 或事件实现必须另行冻结独立 contract 与 closed lease。
 - `finance-service` 只消费上游已经成立的交易事实，不接管 `SalesOrder` 或 `PurchaseOrder` owner truth
 - `finance-service` 只向下游发布可消费摘要，不要求下游复制 Finance 内部对象真相
 - 当前请求必须立即拿到答案的协作走同步 `gRPC`

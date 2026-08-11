@@ -1174,6 +1174,112 @@ Acceptance proves 17/17 exact declarations; 13 BUSINESS versus four INTERNAL wit
 
 Historical design-freeze evidence recorded Common root-config, Permission filter-config and Gateway filter Jest command success, independent Redis publisher 1/1, and a stale `terminal-device-grpc-surface.spec.ts` fixture/controller baseline of 4 pass / 10 fail. Final acceptance at `4667305797a90fe8789067183b8f5ef732ee6f02` closed that baseline gap and passed all final gates; the historical limitation never relaxed any 17-RPC acceptance assertion or authorized production-code fallback.
 
+### 9.5 Finance 27-RPC frozen cutover lease
+
+Status: `FROZEN_PENDING_IMPLEMENTATION`. This packet migrates only the 27 RPCs already present in `finance.proto`; it does not add or expand Finance business capability. Static current-main inventory at base `f82b8880606d372cb08dd70d852c1586f5fca5c3` finds Gateway and fixtures as the only callers, 27 legacy body-context validations, 27 legacy Gateway metadata constructions, zero trusted server declarations and no pure MACHINE root. Finance therefore remains `N/N/N/N` in §3.1 until exact implementation and acceptance complete.
+
+All 27 RPCs are `BUSINESS / HUMAN / WEB`, require `aud=urn:oes:service:finance-service`, exact mTLS/`cnf` binding and `all [exactCode]`, and reject MACHINE, DELEGATED, SELF_SERVICE and non-WEB sessions:
+
+| RPC | Exact existing Code |
+| --- | --- |
+| `GetFinancialAccount` | `finance.financial_account.get_by_id` |
+| `SearchFinancialAccounts` | `finance.financial_account.list` |
+| `SearchAccountTransactions` | `finance.account_transaction.list` |
+| `GetExchangeRate` | `finance.exchange_rate.get` |
+| `CreateFinancialAccount` | `finance.financial_account.create` |
+| `UpdateFinancialAccountBasics` | `finance.financial_account.update_basics` |
+| `ImportAccountTransactions` | `finance.account_transaction.import` |
+| `RecordAccountTransaction` | `finance.account_transaction.record` |
+| `RegisterCustomerFinancialAccount` | `finance.customer_financial_account.register` |
+| `SetExchangeRate` | `finance.exchange_rate.set` |
+| `GetReceivableSchedule` | `finance.receivable_schedule.get_by_id` |
+| `SearchReceivableSchedules` | `finance.receivable_schedule.list` |
+| `GetFinanceReleaseSignal` | `finance.finance_release_signal.get` |
+| `CreateReceivableScheduleFromSalesOrder` | `finance.receivable_schedule.create_from_sales_order` |
+| `SetFinanceReleaseSignal` | `finance.finance_release_signal.set` |
+| `GetPayableSchedule` | `finance.payable.read` |
+| `SearchPayableSchedules` | `finance.payable.read` |
+| `SearchPaymentRequests` | `finance.payable.read` |
+| `SearchPaymentExecutions` | `finance.payable.read` |
+| `SearchPaymentAllocations` | `finance.payment_allocation.list` |
+| `CreatePayableScheduleFromPurchaseOrder` | `finance.payable.create_from_purchase_order` |
+| `ApplyPayableScheduleAdjustmentFromPurchaseOrderChange` | `finance.payable.adjust_from_purchase_order_change` |
+| `CreatePaymentRequest` | `finance.payment_request.create` |
+| `DecidePaymentRequest` | `finance.payment_request.decide` |
+| `ExecutePaymentRequest` | `finance.payment_execution.create` |
+| `AllocatePaymentToPayable` | `finance.payment_allocation.create` |
+| `AllocatePaymentToReceivable` | `finance.payment_allocation.allocate_to_receivable` |
+
+The existing canonical catalog already owns every Code above, so no Permission writer path is leased. Proto removes/reserves the exact request authority fields frozen in [Finance contract](../../contracts/finance-service/README.md) §6.1: 96 tenant/operator/trace/audit fields, 11 request `org_id` fields and two caller-identity duplicates (`imported_by=9`, `set_by=9`). Six Finance-owned projection `tenant_id` fields remain unchanged. Tenant, org scope, operator, trace, request and audit identity are derived from trusted execution context; body, ordinary metadata and signed-operator fallback are forbidden.
+
+The current 27 RPC business payloads, rules, errors, audit, idempotency, transactions and persistence remain unchanged. Existing RPCs do not gain a second INTERNAL mode. Sales/Procurement synchronous integration, order lifecycle events, new INTERNAL Codes/RPCs, event catalog, consumer, outbox and inbox are explicitly deferred to separate future design and implementation packets.
+
+```yaml
+financeTrustedGrpcImplementationLease:
+  totalTrackedWriterPaths: 27
+  stateCounts: { EXISTING: 23, NEW_TARGET: 4 }
+  trackedWriterPaths:
+    financeProtoContract:
+      - { state: EXISTING, path: src/common/src/contracts/finance_service/finance.proto }
+      - { state: NEW_TARGET, path: src/common/src/contracts/finance_service/finance.contract.spec.ts }
+
+    gatewayFinanceHumanProducer:
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution-producer.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution-producer.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution.module.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution.module.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/index.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-finance-grpc.client.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-finance-grpc.client.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/app.module.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/app.module.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/finance-service/adapters/finance-grpc-context.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/finance-service/adapters/finance-query-grpc.adapter.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/finance-service/adapters/finance-management-grpc.adapter.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/finance-service/finance-service.module.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/finance-service/finance.service.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/finance-service/finance.service.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/finance-service/interface/http/controllers/finance.controller.spec.ts }
+
+    financeTrustedRuntime:
+      - { state: EXISTING, path: src/services/business/finance-service/src/main.ts }
+      - { state: EXISTING, path: src/services/business/finance-service/src/app.module.ts }
+      - { state: EXISTING, path: src/services/business/finance-service/src/interfaces/grpc/finance-query.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/business/finance-service/src/interfaces/grpc/finance-management.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/business/finance-service/src/interfaces/grpc/finance-rpc-context.validator.ts }
+
+    financeSecurityTests:
+      - { state: EXISTING, path: src/services/business/finance-service/test/l3/finance-grpc-context.spec.ts }
+      - { state: EXISTING, path: src/services/business/finance-service/test/l3/finance-cqrs-validation.spec.ts }
+      - { state: EXISTING, path: src/services/business/finance-service/test/l3/finance-payables-cqrs-validation.spec.ts }
+      - { state: NEW_TARGET, path: src/services/business/finance-service/test/l3/finance-trusted-grpc-security.spec.ts }
+
+  ignoredGeneratedOutputs:
+    - path: src/common/src/generated/finance_service/finance.ts
+      input: src/common/src/contracts/finance_service/finance.proto
+      command: pnpm proto:regen
+
+  protectedByDefault:
+    - canonical Permission catalog/generator and generated Permission Code files
+    - Sales, Procurement and every other service caller, contract, proto, runtime and cutover
+    - Finance application/domain/persistence/schema/business-rule paths not listed above
+    - event catalog, consumer, outbox, inbox, package, lock, deployment, AI and ActionGrant paths
+    - Common trusted runtime and every unlisted Gateway or Finance path
+
+  focusedAcceptanceCommands:
+    - pnpm proto:lint
+    - pnpm proto:regen
+    - node scripts/architecture/trusted-grpc-signature-inventory.mjs
+    - pnpm --filter @oes/common build
+    - pnpm --filter api-gateway build
+    - pnpm --filter finance-service build
+    - pnpm exec jest --config package.json --runInBand --runTestsByPath src/common/src/contracts/finance_service/finance.contract.spec.ts
+    - pnpm --filter api-gateway exec jest --runInBand --runTestsByPath src/common/grpc/gateway-trusted-grpc-execution-producer.spec.ts src/common/grpc/gateway-trusted-grpc-execution.module.spec.ts src/common/grpc/gateway-finance-grpc.client.spec.ts src/modules/finance-service/finance.service.spec.ts src/modules/finance-service/interface/http/controllers/finance.controller.spec.ts
+    - pnpm --filter finance-service exec jest --config jest.config.js --runInBand --runTestsByPath test/l3/finance-grpc-context.spec.ts test/l3/finance-cqrs-validation.spec.ts test/l3/finance-payables-cqrs-validation.spec.ts test/l3/finance-trusted-grpc-security.spec.ts
+```
+
+Acceptance proves 27/27 exact BUSINESS declarations and zero unclassified/duplicate methods; Gateway exchanges current HUMAN WEB source credential for the Finance audience and never places AT/ET in DTO/body/ordinary metadata; Finance rejects missing/wrong issuer, time, audience, `cnf`, tenant, principal type, terminal and Code before controller data; all removed body authority and caller identity fields are reserved while the six service-owned tenant projections remain; all existing Finance behavior tests remain green; no direct non-Gateway or pure MACHINE caller appears in fresh inventory; and the implementation diff is a strict subset of these 27 paths.
+
 ## 10. Repository-wide Security Acceptance
 
 Final acceptance must prove:

@@ -174,26 +174,60 @@ phase 1 contract 明确围绕以下 owner 边界展开：
 
 ## 6. Security / Context Baseline
 
-所有 phase 1 RPC 统一遵循以下基线：
+本次 trusted gRPC cutover 只迁移当前 proto 的 27 个 RPC，不新增 Finance RPC、Permission Code、业务对象或跨服务能力。27 个 RPC 全部固定为 `BUSINESS / HUMAN / WEB`，audience 固定为 `urn:oes:service:finance-service`，Code 规则统一为 `all [exactCode]`：
 
-- 全部为内部 gRPC 契约，不直接对外部客户端开放
-- 所有 RPC 显式携带 `tenant_id`
-- 场景适用时必须显式携带 `org_id`
-- 所有 query RPC 都要求：
-  - internal service context
-  - operator context
-  - trace context
-- 所有 management command 都要求：
-  - internal service context
-  - operator context
-  - trace context
-  - audit context
+| RPC | Exact existing Code |
+| --- | --- |
+| `GetFinancialAccount` | `finance.financial_account.get_by_id` |
+| `SearchFinancialAccounts` | `finance.financial_account.list` |
+| `SearchAccountTransactions` | `finance.account_transaction.list` |
+| `GetExchangeRate` | `finance.exchange_rate.get` |
+| `CreateFinancialAccount` | `finance.financial_account.create` |
+| `UpdateFinancialAccountBasics` | `finance.financial_account.update_basics` |
+| `ImportAccountTransactions` | `finance.account_transaction.import` |
+| `RecordAccountTransaction` | `finance.account_transaction.record` |
+| `RegisterCustomerFinancialAccount` | `finance.customer_financial_account.register` |
+| `SetExchangeRate` | `finance.exchange_rate.set` |
+| `GetReceivableSchedule` | `finance.receivable_schedule.get_by_id` |
+| `SearchReceivableSchedules` | `finance.receivable_schedule.list` |
+| `GetFinanceReleaseSignal` | `finance.finance_release_signal.get` |
+| `CreateReceivableScheduleFromSalesOrder` | `finance.receivable_schedule.create_from_sales_order` |
+| `SetFinanceReleaseSignal` | `finance.finance_release_signal.set` |
+| `GetPayableSchedule` | `finance.payable.read` |
+| `SearchPayableSchedules` | `finance.payable.read` |
+| `SearchPaymentRequests` | `finance.payable.read` |
+| `SearchPaymentExecutions` | `finance.payable.read` |
+| `SearchPaymentAllocations` | `finance.payment_allocation.list` |
+| `CreatePayableScheduleFromPurchaseOrder` | `finance.payable.create_from_purchase_order` |
+| `ApplyPayableScheduleAdjustmentFromPurchaseOrderChange` | `finance.payable.adjust_from_purchase_order_change` |
+| `CreatePaymentRequest` | `finance.payment_request.create` |
+| `DecidePaymentRequest` | `finance.payment_request.decide` |
+| `ExecutePaymentRequest` | `finance.payment_execution.create` |
+| `AllocatePaymentToPayable` | `finance.payment_allocation.create` |
+| `AllocatePaymentToReceivable` | `finance.payment_allocation.allocate_to_receivable` |
 
-补充说明：
+Finance 必须在 controller 业务数据前本地验证签名、时效、`aud`、mTLS workload/`cnf`、trusted tenant、HUMAN Principal、`session_terminal=WEB` 与 exact Code。所有 27 个 RPC 拒绝 MACHINE、DELEGATED、SELF_SERVICE、非 WEB、错误 audience/`cnf`/Code；Gateway edge permission 不能替代 Finance 服务端声明和验证，也不存在 body/header/signed-operator fallback。
 
-- 本目录只冻结“必须可观察到的上下文与行为边界”，不展开 metadata header、guard、幂等键或 tracing 实现
-- management command 必须按 command 语义使用，不得以 query 方式绕过写边界
-- phase 1 只冻结同步 `gRPC` contract 与 integration 语义，不冻结完整事件目录
+### 6.1 Request authority field disposition
+
+当前 102 个 legacy authority declaration 由 96 个 request authority 字段和 6 个 service-owned response/projection `tenant_id` 组成：
+
+- 12 个 query request 删除并保留 `tenant_id=1`、`operator_context=2`、`trace_context=3`：`GetFinancialAccount`、`SearchFinancialAccounts`、`SearchAccountTransactions`、`GetExchangeRate`、`GetReceivableSchedule`、`SearchReceivableSchedules`、`GetFinanceReleaseSignal`、`GetPayableSchedule`、`SearchPayableSchedules`、`SearchPaymentRequests`、`SearchPaymentExecutions`、`SearchPaymentAllocations`。
+- 15 个 management request 删除并保留 `tenant_id=1`、`operator_context=2`、`trace_context=3`、`audit_context=4`：`CreateFinancialAccount`、`UpdateFinancialAccountBasics`、`ImportAccountTransactions`、`RecordAccountTransaction`、`RegisterCustomerFinancialAccount`、`SetExchangeRate`、`CreateReceivableScheduleFromSalesOrder`、`SetFinanceReleaseSignal`、`CreatePayableScheduleFromPurchaseOrder`、`ApplyPayableScheduleAdjustmentFromPurchaseOrderChange`、`CreatePaymentRequest`、`DecidePaymentRequest`、`ExecutePaymentRequest`、`AllocatePaymentToPayable`、`AllocatePaymentToReceivable`。
+- 六个 search request 另删除并保留 `org_id=4`：`SearchFinancialAccounts`、`SearchAccountTransactions`、`SearchReceivableSchedules`、`SearchPayableSchedules`、`SearchPaymentRequests`、`SearchPaymentExecutions`。
+- 五个 create/integration request 另删除并保留 `org_id=5`：`CreateFinancialAccount`、`CreateReceivableScheduleFromSalesOrder`、`CreatePayableScheduleFromPurchaseOrder`、`ApplyPayableScheduleAdjustmentFromPurchaseOrderChange`、`CreatePaymentRequest`。
+- `ImportAccountTransactionsRequest.imported_by=9` 与 `SetExchangeRateRequest.set_by=9` 也是 legacy caller identity duplicate，删除并保留；真实 operator 由 trusted context 派生。
+- `OperatorContext` 作为 compatibility tombstone 保留号码 `operator_id=1`、`operator_type=2`、`org_id=3`；`TraceContext` 保留 `trace_id=1`、`request_id=2`；`AuditContext` 保留 `audit_id=1`、`reason=2`、`source=3`。这些号码不得复用为新 authority。
+- `FinancialAccount.tenant_id=3`、`ExchangeRate.tenant_id=2`、`ReceivableSchedule.tenant_id=3`、`FinanceReleaseSignal.tenant_id=2`、`PayableSchedule.tenant_id=3`、`PaymentRequest.tenant_id=3` 是 Finance-owned projection，继续保留；它们不是 caller authority。
+
+删除 request `org_id` 不删除已有 Finance 对象的组织归属。当前 operator 的可信组织作用域由 ET 建立，Finance 继续按既有数据语义应用该作用域；本轮不得新增跨组织查询或代操作能力。所有其他字段保持原 field number 和现有业务语义。
+
+### 6.2 Audit and migration scope
+
+- management audit 的 tenant、operator、trace、request 与 source 来自 trusted context；调用者提供的业务理由只能作为非权威补充，不能覆盖可信身份。
+- management command 继续按 command 语义处理，现有审计、幂等、事务和错误规则不变。
+- `RegisterSupplierFinancialAccount` 未出现在当前 proto 27-RPC surface，本次不实现、不迁移也不据此扩展 proto。
+- Sales synchronous FX/credit/release、`SalesOrderEstablished` receivable、`PurchaseOrderIssued/Changed` payable 等协同不属于本次 cutover；不新增 INTERNAL RPC、Code、event contract、consumer、outbox 或 inbox。
 
 ## 7. 同步 / 异步边界
 
