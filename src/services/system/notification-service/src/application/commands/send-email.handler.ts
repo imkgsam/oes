@@ -1,6 +1,7 @@
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs'
 import { Inject } from '@nestjs/common'
 import { createHash } from 'node:crypto'
+import { domainToASCII } from 'node:url'
 import {
   DispatchPriority,
   DispatchStatus,
@@ -62,8 +63,7 @@ export function prepareAuthDispatch(request: any, channel: 'EMAIL' | 'SMS'): Pre
     : (templateKey === 'AUTH_OTP_SMS' ? { category: 'AUTH_OTP' as const, required: ['code', 'ttlMinutes', 'maskedDestination'], optional: [], limit: 192, otp: true }
       : templateKey === 'ACCOUNT_INVITATION_SMS' ? { category: 'AUTH_SECURITY_ALERT' as const, required: ['recipient', 'loginMode'], optional: ['displayName'], limit: 160, otp: false } : undefined)
   if (!expected || category !== expected.category) return 'INVALID_DISPATCH_PROFILE'
-  const subjectOverride = exact(request.subjectOverride)
-  if (channel === 'EMAIL' && subjectOverride) return 'INVALID_DISPATCH_PROFILE'
+  if (channel === 'EMAIL' && request.subjectOverride !== undefined && request.subjectOverride !== '') return 'INVALID_DISPATCH_PROFILE'
   const variables: Record<string, string> = {}
   for (const item of request.variables ?? []) {
     const key = exact(item?.key); const value = typeof item?.value === 'string' ? item.value : undefined
@@ -74,11 +74,13 @@ export function prepareAuthDispatch(request: any, channel: 'EMAIL' | 'SMS'): Pre
   if (Object.keys(variables).some((key) => !allowed.has(key)) || expected.required.some((key) => variables[key] === undefined)) return 'INVALID_TEMPLATE_VARIABLES'
   if (Object.values(variables).reduce((size, value) => size + Buffer.byteLength(value, 'utf8'), 0) > expected.limit) return 'INVALID_TEMPLATE_VARIABLES'
   if (expected.otp) {
-    if (displayName || !/^[\x21-\x7e]{1,16}$/u.test(variables.code) || !/^(?:[1-9]|1[0-5])$/u.test(variables.ttlMinutes) || invalidDisplayText(variables.maskedDestination, 160)) return 'INVALID_TEMPLATE_VARIABLES'
+    const maskedDestination = normalizeVisibleText(variables.maskedDestination, 160)
+    if (displayName || !/^[\x21-\x7e]{1,16}$/u.test(variables.code) || !/^(?:[1-9]|1[0-5])$/u.test(variables.ttlMinutes) || !maskedDestination) return 'INVALID_TEMPLATE_VARIABLES'
+    variables.maskedDestination = maskedDestination
   } else {
     if (variables.recipient !== recipient || variables.loginMode !== 'OTP_FIRST' || (variables.displayName ?? '') !== (displayName ?? '')) return 'INVALID_TEMPLATE_VARIABLES'
   }
-  return { recipient, ...(displayName ? { displayName } : {}), templateKey, variables, idempotencyKey, ...(subjectOverride ? { subjectOverride } : {}), category }
+  return { recipient, ...(displayName ? { displayName } : {}), templateKey, variables, idempotencyKey, category }
 }
 
 function normalizeRecipient(value: string | undefined, channel: 'EMAIL' | 'SMS'): string | undefined {
@@ -87,10 +89,13 @@ function normalizeRecipient(value: string | undefined, channel: 'EMAIL' | 'SMS')
     const normalized = value.trim().replace(/[ \-()]/gu, '')
     return /^(?:\+)?\d{6,20}$/u.test(normalized) && normalized.length <= 21 ? normalized : undefined
   }
-  const normalized = value.trim().normalize('NFC').toLowerCase()
+  const normalized = trimAscii(value).normalize('NFC').toLowerCase()
   if (/\s|[\u0000\r\n\p{C}]/u.test(normalized) || normalized.length < 3 || Buffer.byteLength(normalized) > 254) return undefined
   const parts = normalized.split('@')
-  return parts.length === 2 && Buffer.byteLength(parts[0]) <= 64 && parts[0].length > 0 && parts[1].length > 0 && Buffer.byteLength(parts[1]) <= 253 && parts[1].split('.').every((part) => part.length > 0) ? normalized : undefined
+  if (parts.length !== 2 || parts[0].length === 0 || Buffer.byteLength(parts[0]) > 64) return undefined
+  const domain = domainToASCII(parts[1])
+  if (!domain || Buffer.byteLength(domain) > 253 || domain.split('.').some((part) => part.length === 0 || part.length > 63 || !/^[a-z0-9-]+$/u.test(part) || part.startsWith('-') || part.endsWith('-'))) return undefined
+  return `${parts[0]}@${domain}`
 }
 
 function normalizeDisplayName(value: unknown): string | null | undefined {
@@ -99,6 +104,12 @@ function normalizeDisplayName(value: unknown): string | null | undefined {
   const normalized = value.trim().normalize('NFC')
   return invalidDisplayText(normalized, 120) ? null : normalized
 }
+function normalizeVisibleText(value: unknown, limit: number): string | undefined {
+  if (typeof value !== 'string') return undefined
+  const normalized = value.normalize('NFC')
+  return normalized.length > 0 && !invalidDisplayText(normalized, limit) ? normalized : undefined
+}
+function trimAscii(value: string): string { return value.replace(/^[\t\n\v\f\r ]+|[\t\n\v\f\r ]+$/gu, '') }
 function invalidDisplayText(value: string, limit: number): boolean { return Buffer.byteLength(value, 'utf8') > limit || /[\u0000\r\n\p{C}]/u.test(value) }
 function exact(value: unknown): string | undefined { return typeof value === 'string' && value.trim() === value && value.length > 0 ? value : undefined }
 function categoryOf(value: NotificationCategory): DomainCategory | undefined { return value === NotificationCategory.NOTIFICATION_CATEGORY_AUTH_OTP ? 'AUTH_OTP' : value === NotificationCategory.NOTIFICATION_CATEGORY_AUTH_SECURITY_ALERT ? 'AUTH_SECURITY_ALERT' : undefined }

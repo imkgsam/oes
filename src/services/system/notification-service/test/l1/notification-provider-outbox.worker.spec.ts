@@ -1,8 +1,38 @@
-import { DeploymentNotificationDeliveryPayloadProtector } from '../../src/infrastructure/security/deployment-notification-delivery-payload-protector'
+// @ts-nocheck
+const { NotificationProviderOutboxWorker } = require('../../dist/infrastructure/outbox/notification-provider-outbox.worker.js')
+const { DeploymentNotificationDeliveryPayloadProtector } = require('../../dist/infrastructure/security/deployment-notification-delivery-payload-protector.js')
 
-/** Confirms provider payloads are encrypted and inaccessible after their bounded TTL. */
-describe('Notification provider payload protection', () => {
-  it('rejects expired delivery payloads', () => {
+/** Exercises the shared atomic lease so concurrent replicas cannot send one provider job twice. */
+describe('Notification provider outbox worker', () => {
+  it('allows only one of two replicas to claim and deliver one job', async () => {
+    const now = new Date('2026-08-11T00:00:00.000Z')
+    const job: any = { id: 'job-1', dispatchId: 'dispatch-1', channel: 'EMAIL', encryptedPayload: 'payload', payloadExpiresAt: new Date(now.valueOf() + 60_000), status: 'PENDING', attempts: 0, nextAttemptAt: now, leaseOwner: null, leaseExpiresAt: null, createdAt: now }
+    const dispatch: any = { id: 'dispatch-1', channel: 'EMAIL', category: 'AUTH_OTP', sourceService: 'spiffe://auth', machinePrincipal: 'machine-1', recipientAddress: 'user@example.com', templateKey: 'AUTH_OTP_EMAIL', variablePayload: {}, commandDigest: 'digest', protectedPayload: 'payload', protectedPayloadExpiresAt: job.payloadExpiresAt, idempotencyKey: 'key', status: 'QUEUED', createdAt: now, updatedAt: now, acceptedAt: now }
+    const prisma: any = {
+      notificationProviderOutbox: {
+        findMany: jest.fn(async () => [job]),
+        findUnique: jest.fn(async ({ where }: any) => where.id === 'job-1' ? job : null),
+        updateMany: jest.fn(async ({ where, data }: any) => {
+          if (data.leaseOwner) { if (job.leaseOwner) return { count: 0 }; job.leaseOwner = data.leaseOwner; job.leaseExpiresAt = data.leaseExpiresAt; return { count: 1 } }
+          if (where.leaseOwner !== job.leaseOwner) return { count: 0 }
+          Object.assign(job, data); return { count: 1 }
+        })
+      },
+      notificationDispatch: { findUnique: jest.fn(async () => dispatch), update: jest.fn(async ({ data }: any) => { Object.assign(dispatch, data); return dispatch }) },
+      notificationDispatchAudit: { create: jest.fn(async () => ({})) },
+      $transaction: jest.fn(async (callback: any) => callback(prisma))
+    }
+    const provider = { send: jest.fn(async () => undefined) }
+    const protector = { unprotect: jest.fn(() => ({ code: '123456' })) }
+    const one = new NotificationProviderOutboxWorker(prisma, protector, provider, provider)
+    const two = new NotificationProviderOutboxWorker(prisma, protector, provider, provider)
+    await Promise.all([one.runOnce(now), two.runOnce(now)])
+    expect(provider.send).toHaveBeenCalledTimes(1)
+    expect(job.encryptedPayload).toBe('')
+    expect(dispatch.protectedPayload).toBe('')
+  })
+
+  it('rejects expired payloads after authenticated encryption', () => {
     const protector = new DeploymentNotificationDeliveryPayloadProtector(Buffer.alloc(32, 1).toString('base64'))
     const payload = protector.protect({ code: '123456' }, new Date(Date.now() - 1))
     expect(() => protector.unprotect(payload, new Date())).toThrow('expired')

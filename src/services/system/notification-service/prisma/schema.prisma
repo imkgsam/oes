@@ -34,7 +34,10 @@ model NotificationDispatch {
   updatedAt            DateTime             @updatedAt
   acceptedAt           DateTime?
 
-  @@unique([sourceService, channel, idempotencyKey])
+  audits               NotificationDispatchAudit[]
+  providerOutbox       NotificationProviderOutbox?
+
+  @@unique([sourceService, machinePrincipal, channel, idempotencyKey])
   @@index([tenantId, channel, createdAt])
   @@index([sourceService, createdAt])
 }
@@ -54,6 +57,7 @@ model NotificationDispatchAudit {
   result         String
   reason         String?
   createdAt      DateTime @default(now())
+  dispatch       NotificationDispatch @relation(fields: [dispatchId], references: [id], onDelete: Restrict)
 
   @@index([dispatchId, createdAt])
 }
@@ -68,8 +72,11 @@ model NotificationProviderOutbox {
   attempts       Int      @default(0)
   nextAttemptAt  DateTime @default(now())
   terminalReason String?
+  leaseOwner     String?
+  leaseExpiresAt DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  dispatch       NotificationDispatch @relation(fields: [dispatchId], references: [id], onDelete: Restrict)
 
   @@index([status, nextAttemptAt])
 }

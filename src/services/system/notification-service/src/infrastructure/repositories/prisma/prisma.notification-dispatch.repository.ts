@@ -11,13 +11,15 @@ export class PrismaNotificationDispatchRepository implements INotificationDispat
 
   async findByIdempotencyKey(
     sourceService: string,
+    machinePrincipal: string,
     channel: string,
     idempotencyKey: string
   ): Promise<NotificationDispatch | null> {
     const record = await this.prisma.notificationDispatch.findUnique({
       where: {
-        sourceService_channel_idempotencyKey: {
+        sourceService_machinePrincipal_channel_idempotencyKey: {
           sourceService,
+          machinePrincipal,
           channel: channel as 'EMAIL' | 'SMS',
           idempotencyKey
         }
@@ -30,11 +32,13 @@ export class PrismaNotificationDispatchRepository implements INotificationDispat
   /** Persists acceptance, redacted audit, and encrypted outbox together so QUEUED always has durable work. */
   async accept(dispatch: NotificationDispatch): Promise<NotificationDispatch> {
     const persisted = NotificationDispatchMapper.toPersistence(dispatch)
-    const record = await this.prisma.$transaction(async (transaction) => {
+    try {
+      const record = await this.prisma.$transaction(async (transaction) => {
       const existing = await transaction.notificationDispatch.findUnique({
         where: {
-          sourceService_channel_idempotencyKey: {
+          sourceService_machinePrincipal_channel_idempotencyKey: {
             sourceService: persisted.sourceService,
+            machinePrincipal: persisted.machinePrincipal,
             channel: persisted.channel,
             idempotencyKey: persisted.idempotencyKey
           }
@@ -74,7 +78,28 @@ export class PrismaNotificationDispatchRepository implements INotificationDispat
         }
       })
       return created
-    })
-    return NotificationDispatchMapper.toDomain(record)
+      })
+      return NotificationDispatchMapper.toDomain(record)
+    } catch (error) {
+      if (!isUniqueConstraintError(error)) throw error
+      const winner = await this.prisma.notificationDispatch.findUnique({
+        where: {
+          sourceService_machinePrincipal_channel_idempotencyKey: {
+            sourceService: persisted.sourceService,
+            machinePrincipal: persisted.machinePrincipal,
+            channel: persisted.channel,
+            idempotencyKey: persisted.idempotencyKey
+          }
+        }
+      })
+      if (!winner) throw error
+      if (winner.commandDigest !== persisted.commandDigest) throw new Error('IDEMPOTENCY_CONFLICT')
+      return NotificationDispatchMapper.toDomain(winner)
+    }
   }
+}
+
+/** Recognizes Prisma's concurrent unique-key winner so identical idempotent callers can read it safely. */
+function isUniqueConstraintError(error: unknown): error is { code: string } {
+  return typeof error === 'object' && error !== null && (error as { code?: unknown }).code === 'P2002'
 }

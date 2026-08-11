@@ -1150,5 +1150,6 @@ export const PERMISSION_CODE_SEED_ITEMS: PermissionSeedItem[] = [
   ...browserExtensionDesigner.items,
   ...browserActivityAudit.items,
   ...siteManagement.items,
-  ...assetInternal.items
+  ...assetInternal.items,
+  ...notificationInternal.items
 ]
