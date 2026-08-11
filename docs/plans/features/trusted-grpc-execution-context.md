@@ -1041,14 +1041,15 @@ Proto compatibility removes/reserves request tenant/operator/trace/session/serve
 
 ```yaml
 terminalDeviceTrustedGrpcImplementationLease:
-  totalTrackedWriterPaths: 78
-  stateCounts: { EXISTING: 69, NEW_TARGET: 9 }
+  totalTrackedWriterPaths: 81
+  stateCounts: { EXISTING: 72, NEW_TARGET: 9 }
   trackedWriterPaths:
     commonProtoPermissionCode:
       - { state: EXISTING, path: src/common/src/contracts/terminal_device_service/terminal_device.proto }
       - { state: NEW_TARGET, path: src/common/src/contracts/terminal_device_service/terminal_device.contract.spec.ts }
       - { state: EXISTING, path: src/services/system/permission-service/src/scripts/permission-catalog.ts }
       - { state: EXISTING, path: src/services/system/permission-service/src/scripts/generate-common-permission-codes.ts }
+      - { state: EXISTING, path: src/services/system/permission-service/src/scripts/sync-permission-codes.ts }
       - { state: EXISTING, path: src/services/system/permission-service/test/l1/common-permission-code-generator.spec.ts }
       - { state: EXISTING, path: src/services/system/permission-service/test/l1/permission-foundation.seed.spec.ts }
       - { state: EXISTING, path: src/services/system/permission-service/test/l1/permission-service-seed.spec.ts }
@@ -1115,7 +1116,9 @@ terminalDeviceTrustedGrpcImplementationLease:
       - { state: EXISTING, path: src/services/system/terminal-device-service/src/application/services/device-access-decision.service.ts }
       - { state: EXISTING, path: src/services/system/terminal-device-service/src/application/commands/runtime/record-heartbeat.command.ts }
       - { state: EXISTING, path: src/services/system/terminal-device-service/src/application/commands/runtime/record-diagnostic-logs.command.ts }
+      - { state: EXISTING, path: src/services/system/terminal-device-service/src/application/services/index.ts }
       - { state: EXISTING, path: src/services/system/terminal-device-service/src/common/constants/symbols/repo.symbols.ts }
+      - { state: EXISTING, path: src/services/system/terminal-device-service/src/domain/errors/terminal-device.error.ts }
       - { state: EXISTING, path: src/services/system/terminal-device-service/src/infrastructure/repositories/prisma/prisma-terminal-device.mapper.ts }
       - { state: EXISTING, path: src/services/system/terminal-device-service/src/infrastructure/repositories/prisma/prisma-terminal-device-activation.repository.ts }
       - { state: EXISTING, path: src/services/system/terminal-device-service/src/infrastructure/repositories/prisma/prisma-terminal-device.repository.ts }
@@ -1161,7 +1164,7 @@ terminalDeviceTrustedGrpcImplementationLease:
     - pnpm --filter terminal-device-service exec jest --config jest.config.js --runInBand test/l1/terminal-device-unavailable-event-publisher.spec.ts
 ```
 
-Acceptance proves 17/17 exact declarations; 13 BUSINESS versus four INTERNAL with no SELF_SERVICE/DELEGATED; Admin HUMAN WEB and Gateway SYSTEM MACHINE cannot cross-call; target audience/workload/`cnf`/Code and status-to-Code binding fail closed; body tenant/operator/session/trace/server-time/sensitive flags have no authority; the five new Codes are exactly `terminal-device.update` plus the four Gateway INTERNAL Codes; enrollment/device credential hash/state/version, one-time return, 30-day maximum, seven-day rotation threshold, five-minute overlap, expiry/suspension/revocation/replay and no-log rules hold; credential-less or mismatched LOGIN/BOOTSTRAP/heartbeat/diagnostic requests fail; sensitive projection/history and mutation audit are enforced; the Redis unavailable path remains unchanged; and the implementation diff is a strict subset of these 78 paths.
+Acceptance proves 17/17 exact declarations; 13 BUSINESS versus four INTERNAL with no SELF_SERVICE/DELEGATED; Admin HUMAN WEB and Gateway SYSTEM MACHINE cannot cross-call; target audience/workload/`cnf`/Code and status-to-Code binding fail closed; body tenant/operator/session/trace/server-time/sensitive flags have no authority; the five new Codes are exactly `terminal-device.update` plus the four Gateway INTERNAL Codes; enrollment/device credential hash/state/version, one-time return, 30-day maximum, seven-day rotation threshold, five-minute overlap, expiry/suspension/revocation/replay and no-log rules hold; credential-less or mismatched LOGIN/BOOTSTRAP/heartbeat/diagnostic requests fail; sensitive projection/history and mutation audit are enforced; the Redis unavailable path remains unchanged; and the implementation diff is a strict subset of these 81 paths.
 
 Read-only baseline evidence at design freeze: Common root-config, Permission filter-config and Gateway filter Jest command shapes execute successfully. Terminal Device's filter-config entry also executes, and the independent Redis publisher spec passes 1/1; the existing `terminal-device-grpc-surface.spec.ts` baseline currently reports 4 pass / 10 fail because its fixture/controller constructor alignment is stale. That exact existing spec is leased and must be made green by the implementation candidate; the baseline failure does not relax any 17-RPC acceptance assertion or authorize production-code fallback.
 
