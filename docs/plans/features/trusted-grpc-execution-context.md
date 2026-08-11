@@ -98,9 +98,9 @@ The implementation inventory script at `scripts/architecture/trusted-grpc-signat
 
 ### 3.1 Current-main global cutover status
 
-Overall execution status is `GRPC_FOUNDATION_COMPLETE_GLOBAL_SERVICE_CUTOVER_PENDING` at current-main `4667305797a90fe8789067183b8f5ef732ee6f02`. The 54 generated files expose all 590 required explicit metadata signatures with zero missing signatures; this proves the shared call-signature foundation only. It does not prove that a target service has classified every contract, prepared every caller, enabled Token-only server enforcement or removed its legacy trust path.
+Overall execution status is `GRPC_FOUNDATION_COMPLETE_GLOBAL_SERVICE_CUTOVER_PENDING` at current-main `caa7a5c08c0d30792317b328b27a14ef625ef6cc`. The 54 generated files expose all 590 required explicit metadata signatures with zero missing signatures; this proves the shared call-signature foundation only. It does not prove that a target service has classified every contract, prepared every caller, enabled Token-only server enforcement or removed its legacy trust path.
 
-The persistent execution owner is **OES Trusted gRPC Service Migration** (`019ff07e-d441-7731-acdb-1a9d262661a9`). The approval-stalled predecessor `019fe9f8-5a44-76e1-b5a4-110db9da6d59` is archived with its WIP history preserved. The former A/C/GRPC lane is historical, migration-frozen evidence and is not the active controller for the remaining cutover.
+The persistent execution owner is **OES Trusted gRPC Service Migration** (`019ff138-ed1c-7b82-8cd4-865bdb6529bd`). The prior delivery-mode owner `019ff07e-d441-7731-acdb-1a9d262661a9` and approval-stalled predecessor `019fe9f8-5a44-76e1-b5a4-110db9da6d59` are archived with their WIP histories preserved. The former A/C/GRPC lane is historical, migration-frozen evidence and is not the active controller for the remaining cutover.
 
 `C/A/T/L` means `CONTRACT_CLASSIFIED` / `ALL_CALLERS_READY` / `TOKEN_ONLY_SERVER_CUTOVER` / `LEGACY_PATH_REMOVED`:
 
@@ -111,7 +111,7 @@ The persistent execution owner is **OES Trusted gRPC Service Migration** (`019ff
 | Browser Activity | 13 / 1 | Y | Y | Y | Y | Gateway; implemented and verified at `bf0723472ad0cb430dce99d4547671b216c81ba4` |
 | Notification | 2 / 1 | Y | Y | Y | Y | Auth; implemented and verified at `cc253986a86c6b8a063984cbb1874cf00fd20a60` |
 | Terminal Device | 17 / 1 | Y | Y | Y | Y | Gateway; implemented and verified at `4667305797a90fe8789067183b8f5ef732ee6f02` |
-| Finance | 27 / 2 | N | N | N | N | Gateway; pending |
+| Finance | 27 / 2 | Y | Y | Y | Y | Gateway; implemented and verified at `caa7a5c08c0d30792317b328b27a14ef625ef6cc` |
 | Public Entry | 23 / 2 | N | N | N | N | Gateway; pending |
 | Sales | 27 / 4 | N | N | N | N | Gateway; pending |
 | MES | 32 / 4 | N | N | N | N | Gateway; pending |
@@ -127,7 +127,7 @@ The persistent execution owner is **OES Trusted gRPC Service Migration** (`019ff
 | Identity | 41 / 3 | N | N | N | N | Gateway, Auth, Permission, HR; foundation partial only |
 | Permission | 66 / 8 | N | N | N | N | Gateway, Auth, HR, TenantOrg, WMS; bootstrap partial only |
 | Auth | 70 / 1 | N | N | N | N | Gateway, HR, Site, TenantOrg; MACHINE foundation complete, full service pending |
-| **Total / proven state** | **560 / 51** | **5 Y / 16 N** | **5 Y / 16 N** | **5 Y / 16 N** | **5 Y / 16 N** | **Asset, Site, Browser Activity, Notification and Terminal Device complete; 16 services pending** |
+| **Total / proven state** | **560 / 51** | **6 Y / 15 N** | **6 Y / 15 N** | **6 Y / 15 N** | **6 Y / 15 N** | **Asset, Site, Browser Activity, Notification, Terminal Device and Finance complete; 15 services pending** |
 
 The frozen order in §6 remains authoritative. Migration continues one target service at a time; completing the Auth, Identity, Permission, Gateway or Common foundation does not implicitly advance an unverified service row.
 
@@ -1176,7 +1176,7 @@ Historical design-freeze evidence recorded Common root-config, Permission filter
 
 ### 9.5 Finance 27-RPC frozen cutover lease
 
-Status: `FROZEN_PENDING_IMPLEMENTATION`. This packet migrates only the 27 RPCs already present in `finance.proto`; it does not add or expand Finance business capability. Static current-main inventory at base `f82b8880606d372cb08dd70d852c1586f5fca5c3` finds Gateway and fixtures as the only callers, 27 legacy body-context validations, 27 legacy Gateway metadata constructions, zero trusted server declarations and no pure MACHINE root. Finance therefore remains `N/N/N/N` in §3.1 until exact implementation and acceptance complete. Preserved corrective candidate `43e747afd2228ca3c926c45feeedefe397f13fa3` changes 20 of the 30 leased paths and remains pending exact I&V acceptance.
+Status: `IMPLEMENTED_VERIFIED`. Finance trusted gRPC was accepted and integrated at `caa7a5c08c0d30792317b328b27a14ef625ef6cc`, using 20 of the 30 leased paths. Final acceptance proved 27/27 exact BUSINESS HUMAN WEB declarations, Token-only Finance server enforcement, removal of legacy body/ordinary-metadata authority, Gateway caller cutover, exact wire reservations and canonical Codes, shared fail-closed Finance DI through both controller-owning feature modules, and successful proto/inventory, Common/Gateway/Finance builds, focused tests, root gates and real `AppModule` compile. The 30-path manifest remains historical closed-lease evidence.
 
 All 27 RPCs are `BUSINESS / HUMAN / WEB`, require `aud=urn:oes:service:finance-service`, exact mTLS/`cnf` binding and `all [exactCode]`, and reject MACHINE, DELEGATED, SELF_SERVICE and non-WEB sessions:
 
