@@ -211,3 +211,9 @@ Phase 1 seeds only the minimal PDA entry:
 - `pda.home`
 
 Business entries such as receiving, inventory, production, or quality execution are outside this terminal access contract and must be added by their own feature designs.
+
+## 7. Managed PDA device proof
+
+Phase 2 PDA login requires the dedicated HTTPS header `X-OES-Terminal-Device-Credential` together with the existing terminalDeviceId/device metadata. Before Auth credential validation, Gateway calls `TerminalDeviceAccessDecisionService.ResolveDeviceAccessDecision` with purpose LOGIN using its exact SYSTEM MACHINE ET and forwards the opaque credential only in the owner proto field. Terminal Device Service resolves the device-bound tenant and verifies credential/device/app-installation binding; Gateway does not accept tenant, device status or credential validity from the body.
+
+The device credential is not a user access token, Machine Principal or business grant. A successful device decision only permits the login flow to continue; Auth still verifies the HUMAN credential, resolves the account inside the device-bound tenant, applies Terminal Access Policy and issues the PDA session. Missing/invalid/suspended/revoked device credential denies before Auth credential validation without revealing whether the device or account exists.

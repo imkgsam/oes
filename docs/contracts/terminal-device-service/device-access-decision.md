@@ -136,3 +136,13 @@ Enrollment-specific denial codes may be returned by enrollment activation:
 - Identity signals are used for diagnostics, conflict detection and risk handling.
 - Matching manufacturer serial without local `terminalDeviceId` must not auto-recover old devices.
 - Identity conflict must return a decision requiring administrator handling.
+
+## 11. Trusted execution and device proof freeze
+
+`ResolveDeviceAccessDecision` 是 `INTERNAL`，只接受准确 Gateway SYSTEM Machine Principal、Gateway SPIFFE workload、certificate-bound `aud=urn:oes:service:terminal-device-service` ET 与 all `terminal-device.internal.gateway.access.resolve`。HUMAN、TENANT MACHINE、DELEGATED、其他 workload、错误 audience/Code/`cnf` 均在进入应用逻辑前拒绝。
+
+LOGIN、BOOTSTRAP、HEARTBEAT 与 DIAGNOSTIC_LOG purpose 共用这一稳定 INTERNAL 模式；即使 BOOTSTRAP 已有 PDA HUMAN session，也不把本 RPC 切换成 HUMAN。当前 HUMAN session 只由 Gateway/Auth 的其他链路使用，不能通过本请求建立 Terminal Device authority。
+
+`ResolveDeviceAccessDecisionRequest` 删除并 reserve `tenant_id=1`, `session=7`, `trace_id=8`，保留 `terminal_device_id=2`, `terminal_device_type=3`, `request_purpose=4`, `app_version=5`, `identity=6`，新增 `device_credential=9`。Terminal Device 从现有 device registry 解析 tenant；identity 使用只包含 wire `1..5` 的 device-signal input message，不能建立 principal。credential 必须与 terminalDeviceId、当前 appInstallationId 和 ACTIVE credential state 匹配。
+
+Credential 不匹配、缺失或永久撤销统一返回安全 device-proof denial，不泄露“device 是否存在”“哪个 signal 接近匹配”或 hash 状态。生命周期/版本/identity conflict decision 只在 credential 验证成功后执行；`DECOMMISSIONED` 可返回清理本地 device/session 的安全收敛结果，但不恢复 credential。

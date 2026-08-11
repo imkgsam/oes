@@ -72,6 +72,8 @@ OES 目标信任模型由三部分组成：
 - 建立第二套 Scope 目录或 Permission Code 到 Scope 的转换表。
 - 为任何服务增加 feature-specific body fallback。
 
+Terminal Device 的 PDA 设备证明不改变这三层模型：Gateway SYSTEM MACHINE ET 证明内部 caller/workload，Terminal Device Service 自有的随机 `deviceCredential` 只证明外部请求持有某台已 enrollment PDA 的设备 secret。它不是 ExecutionToken source credential、Machine Principal、Permission grant 或普通 metadata；只能进入该 owner 的设备判定/heartbeat/diagnostic request 字段并由 owner 验证。Admin 13 RPC 使用 HUMAN WEB BUSINESS ET，PDA 四 RPC 使用准确 Gateway MACHINE INTERNAL ET；两组统一使用 `aud=urn:oes:service:terminal-device-service`，拒绝 DELEGATED 和 body authority。
+
 ## 4. 两类身份
 
 ### 4.1 Workload Identity

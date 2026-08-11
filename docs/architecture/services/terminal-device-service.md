@@ -271,6 +271,47 @@ PDA BFF 与 Admin BFF 只拥有外部 HTTP 契约、DTO 映射、权限聚合和
 
 `/pda/device/logs` 的上传入口仍由 PDA BFF 暴露，但 Phase 2 的后台可查询诊断日志历史由 `terminal-device-service` 持久化；Admin BFF 不以 gateway 进程内存作为日志历史真相。
 
+### 8.1 Trusted gRPC execution boundary
+
+Terminal Device 的 17 个 RPC 统一使用 audience `urn:oes:service:terminal-device-service`，且每个 RPC 恰有一种方法级模式。Admin 管理面是 `HUMAN`、`session_terminal=WEB` 的 `BUSINESS` 调用；PDA 入网、登录前设备判定、heartbeat 与诊断写入是准确 Gateway SYSTEM Machine Principal 发起的 `INTERNAL` 调用。两组都拒绝 `DELEGATED`，不得因已登录 PDA 用户存在而让同一个设备治理 RPC 在 HUMAN/MACHINE 模式间切换。
+
+| RPC | Mode / principal | Exact Code rule |
+| --- | --- | --- |
+| `CreateEnrollment` | BUSINESS / HUMAN WEB | all `terminal-device.enrollment.create` |
+| `ListEnrollments` | BUSINESS / HUMAN WEB | all `terminal-device.read` |
+| `RevokeEnrollment` | BUSINESS / HUMAN WEB | all `terminal-device.enrollment.revoke` |
+| `ActivateEnrollment` | INTERNAL / Gateway SYSTEM MACHINE | all `terminal-device.internal.gateway.enrollment.activate` |
+| `ResolveDeviceAccessDecision` | INTERNAL / Gateway SYSTEM MACHINE | all `terminal-device.internal.gateway.access.resolve` |
+| `ListTerminalDevices` | BUSINESS / HUMAN WEB | all `terminal-device.read` |
+| `GetTerminalDevice` | BUSINESS / HUMAN WEB | all `terminal-device.read`; unmasked identity additionally requires `terminal-device.sensitive.read` in the same ET |
+| `UpdateTerminalDevice` | BUSINESS / HUMAN WEB | all `terminal-device.update` |
+| `ChangeTerminalDeviceStatus` | BUSINESS / HUMAN WEB | any lifecycle Code, followed by exact target-status-to-Code matching |
+| `ListTerminalDeviceAuditEvents` | BUSINESS / HUMAN WEB | all `terminal-device.audit.read` |
+| `RecordHeartbeat` | INTERNAL / Gateway SYSTEM MACHINE | all `terminal-device.internal.gateway.heartbeat.record` |
+| `GetRuntimeSnapshot` | BUSINESS / HUMAN WEB | all `terminal-device.sensitive.read` |
+| `ListHeartbeatRecords` | BUSINESS / HUMAN WEB | all `terminal-device.sensitive.read` |
+| `RecordDiagnosticLogs` | INTERNAL / Gateway SYSTEM MACHINE | all `terminal-device.internal.gateway.diagnostic_log.record` |
+| `ListDiagnosticLogs` | BUSINESS / HUMAN WEB | all `terminal-device.sensitive.read` |
+| `GetVersionPolicy` | BUSINESS / HUMAN WEB | all `terminal-device.read` |
+| `UpsertVersionPolicy` | BUSINESS / HUMAN WEB | all `terminal-device.version-policy.manage` |
+
+`ChangeTerminalDeviceStatus` 必须在 guard 的 `any` 通过后继续执行目标绑定：`DISABLED -> terminal-device.status.disable`、`LOST -> terminal-device.status.mark-lost`、`MAINTENANCE -> terminal-device.status.mark-maintenance`、`ACTIVE -> terminal-device.status.restore-active`、`DECOMMISSIONED -> terminal-device.status.decommission`。本 RPC 不允许把目标设为 `PENDING_APPROVAL`。
+
+BUSINESS 请求的 tenant、account、org、operator 与 trace 只来自 verified ExecutionToken / trusted transport；设备、enrollment 与分页字段只是当前 tenant 内的业务 target。四个 INTERNAL 请求只接受环境 registry 中准确 Gateway SPIFFE workload 的 certificate-bound ET；Gateway 复用既有 Machine workload source credential、STS、`ResolveWorkloadIssuance` 与最多五分钟的进程内 target-token cache，不新增 Auth credential profile。SYSTEM Machine Token 不携带或伪造 tenant；Terminal Device 从 enrollment 或现有设备 registry 解析 tenant。
+
+### 8.2 Device credential boundary
+
+Gateway MACHINE ET 只证明内部调用者是 Gateway，不能证明外部请求来自其自报的 PDA。Phase 2 因此冻结一个 Terminal Device Service 自有的随机 `deviceCredential`：
+
+- enrollment 激活成功时生成高熵随机值，只向 PDA 返回一次；PDA 使用 Android Keystore 加密保存，服务端只保存 hash 与状态，不保存可恢复原文；
+- credential 绑定 `terminalDeviceId + appInstallationId`，是设备证明而不是 Execution Principal、Auth credential、Permission grant 或用户 session；
+- `ResolveDeviceAccessDecision`、`RecordHeartbeat` 与 `RecordDiagnosticLogs` 必须同时验证准确 credential；只提交 terminalDeviceId、serial、Android ID 或 installation ID 不能建立设备 authority；
+- `DISABLED / LOST / MAINTENANCE` 暂停 credential 使用，受审计的 `ACTIVE` restore 才恢复；`DECOMMISSIONED` 与重新 enrollment 永久撤销旧 credential；
+- credential、hash、enrollment code、source bearer 与完整设备敏感标识不得进入日志、错误、普通审计或普通 response；
+- device credential 只允许设备准入、heartbeat 与诊断用途。库存、生产、管理或任何业务动作仍要求对应 HUMAN/session 与业务授权。
+
+本阶段不引入每设备 Machine Principal、设备 mTLS PKI、硬件私钥签名、MDM 或自动 credential rotation。未来只有出现离线高风险业务或明确防克隆要求时，才另行冻结 hardware-backed proof-of-possession。
+
 ## 9. Upstream Dependencies
 
 - `auth-service`
@@ -314,8 +355,14 @@ PDA BFF 与 Admin BFF 只拥有外部 HTTP 契约、DTO 映射、权限聚合和
 - `terminal-device.status.restore-active`
 - `terminal-device.version-policy.manage`
 - `terminal-device.audit.read`
+- `terminal-device.update`
+- `terminal-device.status.decommission`
+- `terminal-device.internal.gateway.enrollment.activate`
+- `terminal-device.internal.gateway.access.resolve`
+- `terminal-device.internal.gateway.heartbeat.record`
+- `terminal-device.internal.gateway.diagnostic_log.record`
 
-`terminal-device-service` 执行命令时必须接收 operator context、tenant context、trace context 与审计元数据；不得把权限判定语义本地复制为长期真相。
+`terminal-device-service` 执行命令时必须从 trusted execution context 接收 operator、tenant/org、trace 与审计元数据；request body 不再携带这些 authority。Permission Code 授权真相仍归 Permission Service，Terminal Device 只执行方法声明、敏感 projection、目标状态与 Code 的精确匹配以及本域资源/生命周期规则。
 
 ## 12. Non-goals
 

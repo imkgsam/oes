@@ -233,3 +233,29 @@ Audit event shape:
 ```
 
 Gateway access log does not replace this audit event.
+
+## 10. Trusted execution and field authority freeze
+
+五个 RPC 都是 `BUSINESS`、`HUMAN`、`session_terminal=WEB`，使用 `aud=urn:oes:service:terminal-device-service` 并拒绝 MACHINE/DELEGATED：
+
+| RPC | Exact Code rule |
+| --- | --- |
+| `ListTerminalDevices` | all `terminal-device.read` |
+| `GetTerminalDevice` | all `terminal-device.read`; unmasked identity additionally requires `terminal-device.sensitive.read` in the same ET |
+| `UpdateTerminalDevice` | all `terminal-device.update` |
+| `ChangeTerminalDeviceStatus` | any lifecycle Code plus exact target binding below |
+| `ListTerminalDeviceAuditEvents` | all `terminal-device.audit.read` |
+
+Status 绑定固定为：`DISABLED -> terminal-device.status.disable`、`LOST -> terminal-device.status.mark-lost`、`MAINTENANCE -> terminal-device.status.mark-maintenance`、`ACTIVE -> terminal-device.status.restore-active`、`DECOMMISSIONED -> terminal-device.status.decommission`。`PENDING_APPROVAL` 不能由该 RPC 直接设置；持有任一其他 lifecycle Code 不能执行不匹配的 target transition。
+
+Proto 删除并 reserve：
+
+- `ListTerminalDevicesRequest.tenant_id=1`；
+- `GetTerminalDeviceRequest.tenant_id=1` 与 `include_sensitive_identity=3`；
+- `UpdateTerminalDeviceRequest.tenant_id=1` 与 `operator_context=5`；
+- `ChangeTerminalDeviceStatusRequest.tenant_id=1` 与 `operator_context=5`；
+- `ListTerminalDeviceAuditEventsRequest.tenant_id=1`。
+
+其余 device target、filter、pagination、display、notes、target status 与 reason 字段保留原号码。Tenant、operator account/org、trace 与 sensitive projection 只从 verified ET / trusted context 得到。Full serial/android identity 只在 ET 同时含 `terminal-device.sensitive.read` 时返回并写敏感读取审计；caller boolean 不能扩大 projection。
+
+Create/update/status/version-policy 变更与 enrollment 使用/撤销必须写本地治理审计。状态变更、审计与 credential state transition 构成同一 consistency boundary：`DISABLED / LOST / MAINTENANCE` 暂停 credential；受审计的 ACTIVE restore 恢复；DECOMMISSIONED 永久撤销。`terminal-device.unavailable` Redis fact 继续是独立异步 session-cleanup 路径，不是 gRPC 授权或同步成功的替代品。

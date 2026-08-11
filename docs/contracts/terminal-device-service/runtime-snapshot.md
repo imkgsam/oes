@@ -131,3 +131,29 @@ Rules:
 - PDA BFF remains responsible for Phase 1 redaction rules before calling `terminal-device-service`.
 - Admin BFF must query `terminal-device-service`; it must not rely on gateway process memory for log history.
 - Diagnostic logs are troubleshooting evidence only and do not replace audit events or observability pipelines.
+
+## 10. Trusted execution, device proof and wire freeze
+
+| RPC | Mode / principal | Exact Code |
+| --- | --- | --- |
+| `RecordHeartbeat` | INTERNAL / exact Gateway SYSTEM MACHINE | all `terminal-device.internal.gateway.heartbeat.record` |
+| `RecordDiagnosticLogs` | INTERNAL / exact Gateway SYSTEM MACHINE | all `terminal-device.internal.gateway.diagnostic_log.record` |
+| `GetRuntimeSnapshot` | BUSINESS / HUMAN WEB | all `terminal-device.sensitive.read` |
+| `ListHeartbeatRecords` | BUSINESS / HUMAN WEB | all `terminal-device.sensitive.read` |
+| `ListDiagnosticLogs` | BUSINESS / HUMAN WEB | all `terminal-device.sensitive.read` |
+
+所有方法使用 `aud=urn:oes:service:terminal-device-service` 并拒绝 DELEGATED。两个写入 RPC 使用 Gateway MACHINE ET，但仍必须验证 Terminal Device Service 自有的 device credential；ET 证明 Gateway，credential 证明请求持有当前设备的入网秘密，两者不能互相替代。三个管理读取从 HUMAN ET 派生 tenant/operator，device ID 是 tenant-scoped target。
+
+Proto 删除并 reserve：
+
+- `RecordHeartbeatRequest.tenant_id=1`, `received_at=9`, `trace_id=10`；保留 terminal device/type、identity、software、runtime、`reported_session=7` 与 `client_time=8`，新增 `device_credential=11`；
+- `GetRuntimeSnapshotRequest.tenant_id=1`；
+- `ListHeartbeatRecordsRequest.tenant_id=1`；
+- `RecordDiagnosticLogsRequest.tenant_id=1`，新增 `device_credential=4`；
+- `ListDiagnosticLogsRequest.tenant_id=1`。
+
+`reported_session` 只保留为诊断附件；已验证 session 存在时 Gateway 可以覆盖为 verified account/session 摘要，未登录时为空，Terminal Device 不以它建立 tenant、当前登录或 authorization。Heartbeat received time 与 trace 使用服务时钟/trusted transport。
+
+`RecordDiagnosticLogsRequest.logs=3` 改用独立 input message，兼容保留 `client_time=6`, `level=8`, `event_type=9`, `message=10`, `error_code=13`, `diagnostic_mode=14`, `details_json=15`；删除并 reserve caller-supplied `diagnostic_log_id=1`, `tenant_id=2`, `terminal_device_id=3`, `received_at=7`, `trace_id=11`, `request_id=12`。`account_id=4` / `session_id=5` 只改名为 `reported_account_id` / `reported_session_id` 并保留 wire number。输出 projection 继续由服务生成。
+
+Gateway 的第一轮 redaction 不替代服务端第二轮 secret、大小、条数与 details allowlist 校验。Heartbeat/diagnostic 是受限诊断能力，不赋予业务操作权限，也不把 presence、reported session 或 device credential 写成审计/登录真相。

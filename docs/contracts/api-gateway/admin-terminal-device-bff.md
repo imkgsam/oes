@@ -475,4 +475,12 @@ Rules:
 - Admin BFF must not copy lifecycle transition rules.
 - Admin BFF must not treat heartbeat `lastReportedAccount` as current session truth.
 - Admin BFF must not expose sensitive identity fields without permission.
+
+## 18. Trusted gRPC caller freeze
+
+All Admin Terminal Device HTTP endpoints require an active WEB HUMAN session. Gateway verifies the HTTP access credential first, then exchanges the request-private verified source credential for a certificate-bound `aud=urn:oes:service:terminal-device-service` HUMAN ExecutionToken carrying the exact Code set required by the downstream RPC. Gateway does not use its SYSTEM MACHINE root for Admin calls and does not forward the HTTP access token to Terminal Device Service.
+
+Gateway no longer sends `tenant_id`, `operator_context`, body trace or `include_sensitive_identity` to Terminal Device Service. Tenant/account/org/terminal/trace come from the same verified session and ET. For device detail, a normal caller obtains an ET with `terminal-device.read`; an authorized sensitive projection obtains the exact set `terminal-device.read + terminal-device.sensitive.read`. The service derives masking from that Code set and records sensitive-read audit; a query/body boolean cannot request unmasked values.
+
+The BFF permission decorators remain the external-entry gate and must match the 13-RPC matrix in the Terminal Device service truth source. `ChangeTerminalDeviceStatus` additionally maps the submitted target status to its exact lifecycle Code; an ET containing another lifecycle Code cannot be reused for a different target status. DELEGATED and non-WEB sessions are not supported by this Admin contract.
 - Admin BFF must not implement MDM, automatic upgrade, remote wipe or remote lock in Phase 2.

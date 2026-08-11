@@ -331,3 +331,20 @@ Rules:
 - Automatic log upload.
 - General file or photo upload.
 - WMS / MES business scan contracts.
+
+## 8. Managed device credential and trusted downstream calls
+
+Enrollment activation returns a one-time `deviceCredential` in addition to `terminalDeviceId`. The Android shell encrypts it with Android Keystore and never exposes it to Vue logs, URL/query, analytics, crash reports or ordinary storage. Subsequent `/pda/device/heartbeat`, `/pda/device/logs`, `/pda/session/bootstrap` and PDA login device checks send it in the dedicated HTTPS header `X-OES-Terminal-Device-Credential`; it is absent from JSON DTOs and API responses after activation.
+
+Gateway treats this value as an opaque Terminal Device Service credential. It does not validate it locally, persist it, map it to a HUMAN/MACHINE principal, put it in ordinary gRPC metadata or use it as an Auth STS source credential. Gateway forwards it only in the exact terminal-device proto field of `ResolveDeviceAccessDecision`, `RecordHeartbeat` or `RecordDiagnosticLogs`, after request logging/redaction has excluded the value.
+
+The four PDA-side downstream methods are INTERNAL calls made with the existing Gateway SYSTEM MACHINE root:
+
+- `ActivateEnrollment -> terminal-device.internal.gateway.enrollment.activate`;
+- `ResolveDeviceAccessDecision -> terminal-device.internal.gateway.access.resolve`;
+- `RecordHeartbeat -> terminal-device.internal.gateway.heartbeat.record`;
+- `RecordDiagnosticLogs -> terminal-device.internal.gateway.diagnostic_log.record`.
+
+All use `aud=urn:oes:service:terminal-device-service`, the exact Gateway SPIFFE workload, current mTLS leaf binding and the existing process-local ET cache. This remains true when an optional PDA HUMAN session exists: session facts can be attached only as reported diagnostics or used by the separate Auth/bootstrap aggregation, and never switch these four Terminal Device RPCs to HUMAN.
+
+Missing/invalid/suspended/revoked device credential fails closed. Device credential proves only possession of the enrolled PDA secret; it grants no WMS/MES/business or Admin permission. Marking the device unavailable still returns the existing cleanup decision; Redis `terminal-device.unavailable` remains a separate async session-cleanup path.

@@ -176,3 +176,26 @@ Rules:
 - `REVOKED`
 
 Expiration may be materialized by background job or evaluated lazily at validation time.
+
+## 8. Trusted execution and wire compatibility freeze
+
+| RPC | Mode | Principal / terminal | Exact Code |
+| --- | --- | --- | --- |
+| `CreateEnrollment` | BUSINESS | HUMAN / WEB | all `terminal-device.enrollment.create` |
+| `ListEnrollments` | BUSINESS | HUMAN / WEB | all `terminal-device.read` |
+| `RevokeEnrollment` | BUSINESS | HUMAN / WEB | all `terminal-device.enrollment.revoke` |
+| `ActivateEnrollment` | INTERNAL | exact Gateway SYSTEM MACHINE | all `terminal-device.internal.gateway.enrollment.activate` |
+
+所有 RPC 使用 `aud=urn:oes:service:terminal-device-service` 并拒绝 DELEGATED。前三个 Admin RPC 的 tenant、operator、org 与 trace 从 trusted execution context 派生；设备/enrollment target 必须在该 tenant 内。`ActivateEnrollment` 只接受准确 Gateway SPIFFE workload 的 certificate-bound ET，tenant 从 enrollment 解析，enrollment code 是一次性 activation credential，不是 principal 或 Permission grant。
+
+Proto 删除并 reserve 下列 request 字段号与名称：
+
+- `CreateEnrollmentRequest`: `tenant_id=1`, `operator_context=7`；保留 `terminal_device_type=2`, `display_name=3`, `expected_manufacturer_serial=4`, `expires_at=5`, `notes=6`。
+- `ListEnrollmentsRequest`: `tenant_id=1`；保留 `terminal_device_type=2`, `status=3`, `pagination=4`。
+- `RevokeEnrollmentRequest`: `tenant_id=1`, `operator_context=4`；保留 `enrollment_id=2`, `reason=3`。
+- `ActivateEnrollmentRequest`: `trace_id=5`；保留 `enrollment_code=1`, `terminal_device_type=2`, `identity=3`, `software=4`。
+- `OperatorContext` 成为 compatibility tombstone，reserve `1,2,3` 与 `operator_account_id`, `operator_org_id`, `trace_id`。
+
+Activation 的 `identity=3` 改用只包含当前 wire `manufacturer_serial=1`, `android_id=2`, `app_installation_id=3`, `manufacturer=4`, `model=5` 的 input message；caller 不能提交服务端 projection 的 identity source、confidence 或 masked values。
+
+`ActivateEnrollmentResponse` 保留现有 `1..7`，新增 `device_credential=8`。成功事务原子创建 Device、保存 credential hash/ACTIVE 状态、消费 enrollment 并写安全审计；原始 credential 只返回一次，不进入持久化明文、日志或审计。失败 response 不返回 credential。`DISABLED / LOST / MAINTENANCE` 暂停使用，`ACTIVE` restore 恢复；`DECOMMISSIONED` 与重新 enrollment 永久撤销。

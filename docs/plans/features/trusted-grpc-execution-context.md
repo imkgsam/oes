@@ -1031,6 +1031,138 @@ notificationAuthDispatchTrustedGrpcImplementationLease:
 
 Acceptance proves both methods have one INTERNAL declaration; only exact Auth SYSTEM MACHINE execution succeeds; body/legacy source authority is absent; the four template profiles and all payload constraints fail closed; idempotency conflict and concurrency do not duplicate dispatch; dispatch/audit/outbox commit atomically; protected payload expires and never enters logs/audit/ordinary dispatch JSON; Auth runtime has no local fallback/effective-code override; the Collaboration Task NATS consumer paths and tests are unchanged; and the implementation diff is a strict subset of these 68 paths.
 
+### 9.4 Terminal Device 17-RPC frozen cutover lease
+
+Status: `FROZEN_PENDING_IMPLEMENTATION`. Terminal Device freezes 17/17 methods as 13 BUSINESS HUMAN WEB and four exact Gateway SYSTEM MACHINE INTERNAL RPCs, all with `aud=urn:oes:service:terminal-device-service` and no DELEGATED mode. The complete method/Code mapping, target-status binding, device credential, field reservations and audit semantics are owned by [terminal-device-service.md](../../architecture/services/terminal-device-service.md) and its five black-box contracts.
+
+The public/sessionless PDA routes are pure MACHINE roots at the internal hop: Gateway reuses its accepted Machine workload source credential and process-local certificate-bound ET producer. This proves the direct Gateway workload only. Terminal Device separately verifies its own random device credential, issued once during enrollment activation, Keystore-encrypted on PDA and stored only as a server-side hash/state. It is not an Auth source credential, Machine Principal, Permission grant or business authorization. Admin calls continue from the request-private verified HUMAN source credential and never reuse the Gateway MACHINE root.
+
+Proto compatibility removes/reserves request tenant/operator/trace/session/server-time/sensitive-projection authority while retaining business targets and diagnostic facts at their current field numbers. Activation adds `device_credential=8`; Resolve adds `device_credential=9`; Heartbeat adds `device_credential=11`; diagnostic write adds `device_credential=4`. Generated outputs are regenerated from the leased proto and are not hand-edited.
+
+```yaml
+terminalDeviceTrustedGrpcImplementationLease:
+  totalTrackedWriterPaths: 78
+  stateCounts: { EXISTING: 69, NEW_TARGET: 9 }
+  trackedWriterPaths:
+    commonProtoPermissionCode:
+      - { state: EXISTING, path: src/common/src/contracts/terminal_device_service/terminal_device.proto }
+      - { state: NEW_TARGET, path: src/common/src/contracts/terminal_device_service/terminal_device.contract.spec.ts }
+      - { state: EXISTING, path: src/services/system/permission-service/src/scripts/permission-catalog.ts }
+      - { state: EXISTING, path: src/services/system/permission-service/src/scripts/generate-common-permission-codes.ts }
+      - { state: EXISTING, path: src/services/system/permission-service/test/l1/common-permission-code-generator.spec.ts }
+      - { state: EXISTING, path: src/services/system/permission-service/test/l1/permission-foundation.seed.spec.ts }
+      - { state: EXISTING, path: src/services/system/permission-service/test/l1/permission-service-seed.spec.ts }
+      - { state: EXISTING, path: src/services/system/permission-service/test/l1/permission-service-seed-validate.spec.ts }
+      - { state: EXISTING, path: src/common/src/authorization/permission-codes/terminal-device/index.ts }
+      - { state: EXISTING, path: src/common/src/authorization/permission-codes/terminal-device/management.permission-codes.ts }
+      - { state: NEW_TARGET, path: src/common/src/authorization/permission-codes/terminal-device/internal.permission-codes.ts }
+
+    gatewayHumanAdmin:
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution-producer.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution-producer.spec.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-terminal-device-grpc.client.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-terminal-device-grpc.client.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution.module.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution.module.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/terminal-device-admin-bff/infrastructure/downstream/terminal-device-admin.adapter.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/terminal-device-admin-bff/infrastructure/downstream/terminal-device-admin.adapter.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/terminal-device-admin-bff/application/use-cases/terminal-device-admin.use-case.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/terminal-device-admin-bff/application/use-cases/terminal-device-admin.use-case.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/terminal-device-admin-bff/terminal-device-admin-bff.module.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/terminal-device-admin-bff/interfaces/http/controllers/terminal-device-admin.controller.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/modules/terminal-device-admin-bff/terminal-device-admin.trusted-grpc.spec.ts }
+
+    gatewayPdaMachine:
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-machine-trusted-grpc-execution-producer.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-machine-trusted-grpc-execution-producer.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/pda-bff/infrastructure/downstream/terminal-device-service/pda-terminal-device.adapter.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/pda-bff/infrastructure/downstream/terminal-device-service/pda-terminal-device.adapter.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/pda-bff/pda-bff.module.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/pda-bff/interfaces/http/controllers/pda-device.controller.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/pda-bff/interfaces/http/controllers/pda-session.controller.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/pda-bff/application/use-cases/pda-device-enrollment.use-case.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/pda-bff/application/use-cases/pda-device-enrollment.use-case.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/pda-bff/application/use-cases/pda-device-heartbeat.use-case.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/pda-bff/application/use-cases/pda-device-heartbeat.use-case.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/pda-bff/application/use-cases/pda-device-logs.use-case.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/pda-bff/application/use-cases/pda-device-logs.use-case.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/pda-bff/application/use-cases/pda-session-bootstrap.use-case.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/pda-bff/application/use-cases/pda-session-bootstrap.use-case.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/pda-bff/interfaces/http/view-models/pda-device.view-model.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/auth-bff/infrastructure/downstream/terminal-device-service/terminal-device-access.adapter.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/auth-bff/infrastructure/downstream/terminal-device-service/terminal-device-access.adapter.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/auth-bff/interfaces/http/controllers/terminal-auth.controller.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/auth-bff/interfaces/http/controllers/terminal-auth.controller.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/auth-bff/application/use-cases/login.use-case.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/auth-bff/application/use-cases/login.use-case.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/auth-bff/auth-bff.module.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/auth-bff/auth-bff.module.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/middleware/request-logger.middleware.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/middleware/request-logger.middleware.spec.ts }
+
+    terminalTrustedRuntime:
+      - { state: EXISTING, path: src/services/system/terminal-device-service/src/main.ts }
+      - { state: EXISTING, path: src/services/system/terminal-device-service/src/app.module.ts }
+      - { state: EXISTING, path: src/services/system/terminal-device-service/src/modules/terminal-device/terminal-device.module.ts }
+      - { state: EXISTING, path: src/services/system/terminal-device-service/src/interfaces/grpc/terminal-device.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/system/terminal-device-service/src/interfaces/grpc/terminal-device-grpc.presenter.ts }
+      - { state: EXISTING, path: src/services/system/terminal-device-service/prisma/schema.prisma }
+      - { state: NEW_TARGET, path: src/services/system/terminal-device-service/prisma/migrations/202608110001_terminal_device_credential/migration.sql }
+      - { state: EXISTING, path: src/services/system/terminal-device-service/src/domain/entities/terminal-device.entity.ts }
+      - { state: EXISTING, path: src/services/system/terminal-device-service/src/domain/repositories/terminal-device-activation.repository.ts }
+      - { state: EXISTING, path: src/services/system/terminal-device-service/src/application/commands/enrollment/activate-enrollment.command.ts }
+      - { state: EXISTING, path: src/services/system/terminal-device-service/src/application/commands/device/change-terminal-device-status.command.ts }
+      - { state: EXISTING, path: src/services/system/terminal-device-service/src/application/services/device-access-decision.service.ts }
+      - { state: EXISTING, path: src/services/system/terminal-device-service/src/application/commands/runtime/record-heartbeat.command.ts }
+      - { state: EXISTING, path: src/services/system/terminal-device-service/src/application/commands/runtime/record-diagnostic-logs.command.ts }
+      - { state: EXISTING, path: src/services/system/terminal-device-service/src/common/constants/symbols/repo.symbols.ts }
+      - { state: EXISTING, path: src/services/system/terminal-device-service/src/infrastructure/repositories/prisma/prisma-terminal-device.mapper.ts }
+      - { state: EXISTING, path: src/services/system/terminal-device-service/src/infrastructure/repositories/prisma/prisma-terminal-device-activation.repository.ts }
+      - { state: EXISTING, path: src/services/system/terminal-device-service/src/infrastructure/repositories/prisma/prisma-terminal-device.repository.ts }
+      - { state: EXISTING, path: src/services/system/terminal-device-service/src/infrastructure/repositories/in-memory/in-memory-terminal-device-activation.repository.ts }
+      - { state: EXISTING, path: src/services/system/terminal-device-service/src/infrastructure/repositories/in-memory/in-memory-terminal-device-store.ts }
+      - { state: NEW_TARGET, path: src/services/system/terminal-device-service/src/application/services/terminal-device-credential-verifier.service.ts }
+      - { state: NEW_TARGET, path: src/services/system/terminal-device-service/src/application/services/terminal-device-credential-verifier.service.spec.ts }
+      - { state: EXISTING, path: src/services/system/terminal-device-service/test/l1/enrollment-commands.spec.ts }
+      - { state: EXISTING, path: src/services/system/terminal-device-service/test/l1/device-governance-task4.spec.ts }
+      - { state: EXISTING, path: src/services/system/terminal-device-service/test/l1/module-and-in-memory-repositories.spec.ts }
+      - { state: EXISTING, path: src/services/system/terminal-device-service/test/l2/prisma-terminal-device.repositories.spec.ts }
+      - { state: EXISTING, path: src/services/system/terminal-device-service/test/l3/terminal-device-grpc-surface.spec.ts }
+      - { state: NEW_TARGET, path: src/services/system/terminal-device-service/test/l3/terminal-device-trusted-grpc-security.spec.ts }
+
+  ignoredGeneratedOutputs:
+    - { path: src/common/src/generated/terminal_device_service/terminal_device.ts, input: src/common/src/contracts/terminal_device_service/terminal_device.proto, command: "pnpm proto:regen" }
+    - { path: src/services/system/terminal-device-service/prisma/generated/prisma/**, input: src/services/system/terminal-device-service/prisma/schema.prisma, command: "pnpm --filter terminal-device-service prisma:generate" }
+
+  protectedByDefault:
+    - Redis terminal-device.unavailable publisher/subscriber/event contract and session-cleanup semantics
+    - Auth login/session/Terminal Access Policy semantics beyond forwarding the exact device credential to the owner decision
+    - WMS, MES, other service cutovers, external API-key, DELEGATED, AI and ActionGrant runtime
+    - Common trusted carrier/runtime, deployment, package and lock paths not listed above
+    - every unlisted Gateway and Terminal Device path
+
+  focusedAcceptanceCommands:
+    - pnpm proto:lint
+    - pnpm proto:regen
+    - node scripts/architecture/trusted-grpc-signature-inventory.mjs
+    - pnpm --filter permission-service permission-codes:generate-common
+    - pnpm --filter terminal-device-service prisma:generate
+    - pnpm --filter @oes/common build
+    - pnpm --filter permission-service build
+    - pnpm --filter api-gateway build
+    - pnpm --filter terminal-device-service build
+    - pnpm exec jest --config package.json --runInBand --runTestsByPath src/common/src/contracts/terminal_device_service/terminal_device.contract.spec.ts
+    - pnpm --filter permission-service exec jest --config jest.config.js --runInBand test/l1/common-permission-code-generator.spec.ts test/l1/permission-foundation.seed.spec.ts test/l1/permission-service-seed.spec.ts test/l1/permission-service-seed-validate.spec.ts
+    - pnpm --filter api-gateway exec jest --runInBand --runTestsByPath src/common/grpc/gateway-terminal-device-grpc.client.spec.ts src/common/grpc/gateway-trusted-grpc-execution.module.spec.ts src/common/grpc/gateway-trusted-grpc-execution-producer.spec.ts src/common/grpc/gateway-machine-trusted-grpc-execution-producer.spec.ts src/modules/terminal-device-admin-bff/infrastructure/downstream/terminal-device-admin.adapter.spec.ts src/modules/terminal-device-admin-bff/application/use-cases/terminal-device-admin.use-case.spec.ts src/modules/terminal-device-admin-bff/terminal-device-admin.trusted-grpc.spec.ts
+    - pnpm --filter api-gateway exec jest --runInBand --runTestsByPath src/modules/pda-bff/infrastructure/downstream/terminal-device-service/pda-terminal-device.adapter.spec.ts src/modules/pda-bff/application/use-cases/pda-device-enrollment.use-case.spec.ts src/modules/pda-bff/application/use-cases/pda-device-heartbeat.use-case.spec.ts src/modules/pda-bff/application/use-cases/pda-device-logs.use-case.spec.ts src/modules/pda-bff/application/use-cases/pda-session-bootstrap.use-case.spec.ts src/modules/auth-bff/infrastructure/downstream/terminal-device-service/terminal-device-access.adapter.spec.ts src/modules/auth-bff/interfaces/http/controllers/terminal-auth.controller.spec.ts src/modules/auth-bff/application/use-cases/login.use-case.spec.ts src/common/middleware/request-logger.middleware.spec.ts
+    - pnpm --filter terminal-device-service exec jest --config jest.config.js --runInBand test/l1/enrollment-commands.spec.ts test/l1/device-governance-task4.spec.ts test/l1/module-and-in-memory-repositories.spec.ts src/application/services/terminal-device-credential-verifier.service.spec.ts test/l2/prisma-terminal-device.repositories.spec.ts test/l3/terminal-device-grpc-surface.spec.ts test/l3/terminal-device-trusted-grpc-security.spec.ts
+    - pnpm --filter terminal-device-service exec jest --config jest.config.js --runInBand test/l1/terminal-device-unavailable-event-publisher.spec.ts
+```
+
+Acceptance proves 17/17 exact declarations; 13 BUSINESS versus four INTERNAL with no SELF_SERVICE/DELEGATED; Admin HUMAN WEB and Gateway SYSTEM MACHINE cannot cross-call; target audience/workload/`cnf`/Code and status-to-Code binding fail closed; body tenant/operator/session/trace/server-time/sensitive flags have no authority; enrollment/device credential hash, state, one-time return, suspension/revocation and no-log rules hold; credential-less or mismatched LOGIN/BOOTSTRAP/heartbeat/diagnostic requests fail; sensitive projection/history and mutation audit are enforced; the Redis unavailable path remains unchanged; and the implementation diff is a strict subset of these 78 paths.
+
+Read-only baseline evidence at design freeze: Common root-config, Permission filter-config and Gateway filter Jest command shapes execute successfully. Terminal Device's filter-config entry also executes, and the independent Redis publisher spec passes 1/1; the existing `terminal-device-grpc-surface.spec.ts` baseline currently reports 4 pass / 10 fail because its fixture/controller constructor alignment is stale. That exact existing spec is leased and must be made green by the implementation candidate; the baseline failure does not relax any 17-RPC acceptance assertion or authorize production-code fallback.
+
 ## 10. Repository-wide Security Acceptance
 
 Final acceptance must prove:

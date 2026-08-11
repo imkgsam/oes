@@ -196,6 +196,24 @@ Decorator 使用：
 
 `notification.internal.auth.dispatch` 是 Notification-owned `kind=INTERNAL` Code，精确映射 `NotificationService.SendEmail` / `SendSms` 的 Auth-only SYSTEM dispatch。它只允许环境注册的准确 `auth-service` workload 通过 `ResolveWorkloadIssuance` 为 `aud=notification-service` 申请，`assignableTo=WORKLOAD_POLICY`、`allowedScopeLevels=[SYSTEM]`、`externalApiEligible=false`；不得进入 HUMAN/MACHINE 业务角色、external token、wildcard workload policy 或 Collaboration Task event consumer。
 
+### 7.5 Terminal Device trusted gRPC completion
+
+Terminal Device 新增两个 `kind=BUSINESS` Code：
+
+- `terminal-device.update`：更新非生命周期设备展示字段；
+- `terminal-device.status.decommission`：把设备迁移到不可直接恢复的退役状态。
+
+既有 `terminal-device.status.disable`、`mark-lost`、`mark-maintenance`、`restore-active` 与新 decommission Code 在同一 RPC 的 `any` declaration 后，仍必须由 Terminal Device Service 执行 exact target-status-to-Code matching；持有任一 Code 不能执行另一种 transition。`terminal-device.sensitive.read` 继续作为 `GetTerminalDevice` unmasked projection 的附加 Code，并单独保护 runtime snapshot、heartbeat history 与 diagnostic history。
+
+Terminal Device 新增四个 owner=`terminal-device-service`、`kind=INTERNAL`、`assignableTo=WORKLOAD_POLICY`、`allowedScopeLevels=[SYSTEM]`、`externalApiEligible=false` 的 Code：
+
+- `terminal-device.internal.gateway.enrollment.activate`；
+- `terminal-device.internal.gateway.access.resolve`；
+- `terminal-device.internal.gateway.heartbeat.record`；
+- `terminal-device.internal.gateway.diagnostic_log.record`。
+
+四者只允许环境 registry 中准确 `api-gateway` SPIFFE workload 通过 `ResolveWorkloadIssuance` 为 `aud=urn:oes:service:terminal-device-service` 申请；不得进入 HUMAN/TENANT MACHINE role、external token、DELEGATED grant、wildcard workload policy 或其他 service audience。
+
 ## 8. Asset + Site 第一优先链新增 Code
 
 Site Media 第一优先 service slice 至少需要：
