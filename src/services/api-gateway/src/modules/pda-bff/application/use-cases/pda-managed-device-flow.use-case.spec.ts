@@ -2,6 +2,7 @@ import { PdaDeviceHeartbeatUseCase } from './pda-device-heartbeat.use-case'
 import { PdaDeviceLogsUseCase } from './pda-device-logs.use-case'
 import { PdaSessionBootstrapUseCase } from './pda-session-bootstrap.use-case'
 import { InMemoryPdaDeviceDiagnosticLogStore } from '../../infrastructure/in-memory-pda-device-diagnostic-log.store'
+import { PdaDeviceController } from '../../interfaces/http/controllers/pda-device.controller'
 
 describe('PDA managed device BFF flow', () => {
   it('bootstrap resolves device decision using the authenticated PDA session tenant', async () => {
@@ -169,6 +170,54 @@ describe('PDA managed device BFF flow', () => {
         }
       })
     )
+  })
+
+  it('puts the activation secret only in the dedicated header while returning credential lifecycle facts in the body', async () => {
+    const activation = {
+      enrolled: true,
+      deviceCredentialExpiresAt: '2026-06-15T10:00:00.000Z',
+      deviceCredentialVersion: 2
+    }
+    Object.defineProperty(activation, 'deviceCredential', { value: 'credential-1', enumerable: false })
+    const controller = new PdaDeviceController(
+      { execute: jest.fn().mockResolvedValue(activation) } as any,
+      {} as any,
+      {} as any
+    )
+    const response = { setHeader: jest.fn() }
+
+    const result = await controller.enroll({} as any, {} as any, response)
+
+    expect(response.setHeader).toHaveBeenCalledWith('X-OES-Terminal-Device-Credential', 'credential-1')
+    expect(JSON.parse(JSON.stringify(result))).toEqual(expect.objectContaining({ deviceCredentialExpiresAt: '2026-06-15T10:00:00.000Z', deviceCredentialVersion: 2 }))
+    expect(JSON.stringify(result)).not.toContain('credential-1')
+  })
+
+  it('returns heartbeat rotation lifecycle facts without emitting stale facts when no rotation occurs', async () => {
+    const rotation = {
+      accepted: true,
+      deviceCredentialExpiresAt: '2026-06-15T10:00:00.000Z',
+      deviceCredentialVersion: 2
+    }
+    Object.defineProperty(rotation, 'rotatedDeviceCredential', { value: 'rotated-credential-2', enumerable: false })
+    const heartbeatUseCase = {
+      execute: jest.fn()
+        .mockResolvedValueOnce(rotation)
+        .mockResolvedValueOnce({ accepted: true })
+    }
+    const controller = new PdaDeviceController({} as any, heartbeatUseCase as any, {} as any)
+    const rotatedResponse = { setHeader: jest.fn() }
+    const unchangedResponse = { setHeader: jest.fn() }
+
+    const rotated = await controller.heartbeat({} as any, 'credential-1', {} as any, rotatedResponse)
+    const unchanged = await controller.heartbeat({} as any, 'credential-1', {} as any, unchangedResponse)
+
+    expect(rotatedResponse.setHeader).toHaveBeenCalledWith('X-OES-Terminal-Device-Credential', 'rotated-credential-2')
+    expect(JSON.parse(JSON.stringify(rotated))).toEqual(expect.objectContaining({ deviceCredentialExpiresAt: '2026-06-15T10:00:00.000Z', deviceCredentialVersion: 2 }))
+    expect(JSON.stringify(rotated)).not.toContain('rotated-credential-2')
+    expect(unchangedResponse.setHeader).not.toHaveBeenCalled()
+    expect(unchanged).not.toHaveProperty('deviceCredentialExpiresAt')
+    expect(unchanged).not.toHaveProperty('deviceCredentialVersion')
   })
 })
 

@@ -43,7 +43,13 @@ export class PdaDeviceHeartbeatUseCase {
       heartbeatIntervalSeconds: heartbeat.heartbeatIntervalSeconds,
       serverTime
     }
-    if (heartbeat.rotatedDeviceCredential) Object.defineProperties(result, { rotatedDeviceCredential: { value: heartbeat.rotatedDeviceCredential, enumerable: false }, deviceCredentialExpiresAt: { value: heartbeat.deviceCredentialExpiresAt, enumerable: false }, deviceCredentialVersion: { value: heartbeat.deviceCredentialVersion, enumerable: false } })
+    if (heartbeat.rotatedDeviceCredential) {
+      Object.defineProperty(result, 'rotatedDeviceCredential', { value: heartbeat.rotatedDeviceCredential, enumerable: false })
+      Object.assign(result, {
+        deviceCredentialExpiresAt: heartbeat.deviceCredentialExpiresAt ?? undefined,
+        deviceCredentialVersion: heartbeat.deviceCredentialVersion ?? undefined
+      })
+    }
     return result
   }
 }

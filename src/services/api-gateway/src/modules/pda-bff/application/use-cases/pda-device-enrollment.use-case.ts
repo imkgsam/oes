@@ -62,7 +62,13 @@ export class PdaDeviceEnrollmentUseCase {
       decision,
       serverTime: new Date().toISOString()
     }
-    if (activation.deviceCredential) Object.defineProperties(result, { deviceCredential: { value: activation.deviceCredential, enumerable: false }, deviceCredentialExpiresAt: { value: activation.deviceCredentialExpiresAt, enumerable: false }, deviceCredentialVersion: { value: activation.deviceCredentialVersion, enumerable: false } })
+    if (activation.deviceCredential) {
+      Object.defineProperty(result, 'deviceCredential', { value: activation.deviceCredential, enumerable: false })
+      Object.assign(result, {
+        deviceCredentialExpiresAt: activation.deviceCredentialExpiresAt ?? undefined,
+        deviceCredentialVersion: activation.deviceCredentialVersion ?? undefined
+      })
+    }
     return result
   }
 }

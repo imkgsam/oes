@@ -9,7 +9,10 @@ describe('PdaDeviceEnrollmentUseCase', () => {
         tenantId: 'tenant-1',
         terminalDeviceType: 'PDA',
         deviceStatus: 'ACTIVE',
-        decisionCode: 'ALLOW'
+        decisionCode: 'ALLOW',
+        deviceCredential: 'credential-1',
+        deviceCredentialExpiresAt: '2026-06-15T10:00:00.000Z',
+        deviceCredentialVersion: 2
       }),
       resolveDeviceAccessDecision: jest.fn().mockResolvedValue({
         allowed: true,
@@ -76,6 +79,13 @@ describe('PdaDeviceEnrollmentUseCase', () => {
         })
       })
     )
+    expect(JSON.parse(JSON.stringify(result))).toEqual(
+      expect.objectContaining({
+        deviceCredentialExpiresAt: '2026-06-15T10:00:00.000Z',
+        deviceCredentialVersion: 2
+      })
+    )
+    expect(JSON.stringify(result)).not.toContain('credential-1')
   })
 
   it('maps rejected enrollment without decoding tenant from the QR payload', async () => {

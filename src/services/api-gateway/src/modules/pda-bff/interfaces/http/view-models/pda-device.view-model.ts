@@ -61,6 +61,12 @@ export class PdaEnrollmentViewModel {
   @ApiProperty({ nullable: true })
   deviceStatus?: string | null
 
+  @ApiProperty({ required: false })
+  deviceCredentialExpiresAt?: string
+
+  @ApiProperty({ required: false })
+  deviceCredentialVersion?: number
+
   @ApiProperty({ type: PdaDeviceAccessDecisionViewModel })
   decision!: PdaDeviceAccessDecision
 
@@ -78,6 +84,12 @@ export class PdaHeartbeatViewModel {
 
   @ApiProperty()
   heartbeatIntervalSeconds!: number
+
+  @ApiProperty({ required: false })
+  deviceCredentialExpiresAt?: string
+
+  @ApiProperty({ required: false })
+  deviceCredentialVersion?: number
 
   @ApiProperty()
   serverTime!: string

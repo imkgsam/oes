@@ -8,7 +8,10 @@ describe('PdaDeviceHeartbeatUseCase', () => {
         terminalDeviceId: 'terminal-device-1',
         lastHeartbeatAt: '2026-05-14T10:00:01.000Z',
         presenceStatus: 'ONLINE',
-        heartbeatIntervalSeconds: 300
+        heartbeatIntervalSeconds: 300,
+        rotatedDeviceCredential: 'rotated-credential-2',
+        deviceCredentialExpiresAt: '2026-06-15T10:00:00.000Z',
+        deviceCredentialVersion: 2
       }),
       resolveDeviceAccessDecision: jest.fn().mockResolvedValue(allowDecision())
     }
@@ -48,7 +51,7 @@ describe('PdaDeviceHeartbeatUseCase', () => {
       expect.objectContaining({
         terminalDeviceId: 'terminal-device-1',
         requestPurpose: 'HEARTBEAT',
-        deviceCredential: 'credential-1'
+        deviceCredential: 'rotated-credential-2'
       })
     )
     expect(result).toEqual(
@@ -59,6 +62,13 @@ describe('PdaDeviceHeartbeatUseCase', () => {
         serverTime: expect.any(String)
       })
     )
+    expect(JSON.parse(JSON.stringify(result))).toEqual(
+      expect.objectContaining({
+        deviceCredentialExpiresAt: '2026-06-15T10:00:00.000Z',
+        deviceCredentialVersion: 2
+      })
+    )
+    expect(JSON.stringify(result)).not.toContain('rotated-credential-2')
   })
 
   it('passes authenticated session summary when PDA web includes it', async () => {
@@ -71,7 +81,7 @@ describe('PdaDeviceHeartbeatUseCase', () => {
     }
     const useCase = new PdaDeviceHeartbeatUseCase(terminalDeviceAdapter as any)
 
-    await useCase.execute({
+    const result = await useCase.execute({
       device: {
         terminalDeviceId: 'terminal-device-1',
         terminalDeviceType: 'PDA',
@@ -103,6 +113,8 @@ describe('PdaDeviceHeartbeatUseCase', () => {
         deviceCredential: 'credential-1'
       })
     )
+    expect(result).not.toHaveProperty('deviceCredentialExpiresAt')
+    expect(result).not.toHaveProperty('deviceCredentialVersion')
   })
 })
 
