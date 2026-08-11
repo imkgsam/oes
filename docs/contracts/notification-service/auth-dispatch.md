@@ -65,14 +65,35 @@ message SourceContext {
 | `SendEmailRequest` | `category=2`, `template_key=3`, `recipient=4`, `variables=5`, `idempotency_key=6`, `priority=7`, `subject_override=8` |
 | `SendSmsRequest` | `category=2`, `template_key=3`, `recipient=4`, `variables=5`, `idempotency_key=6`, `priority=7` |
 
-Payload rules：
+### 3.1 Exact Auth template profiles
 
-- 当前只允许 `AUTH_OTP` 与 `AUTH_SECURITY_ALERT`，并要求 channel/category/template 精确匹配 `AUTH_OTP_EMAIL`、`AUTH_OTP_SMS`、`ACCOUNT_INVITATION_EMAIL` 或 `ACCOUNT_INVITATION_SMS`；
-- 每个 template 有固定 required/optional variable names、长度与数量上限；未知、重复、缺失或超限变量拒绝；
-- recipient address 必填并按 channel 规范化；display name 只是有界快照；
-- priority 必须属于 template allowlist；`UNSPECIFIED` 拒绝；
-- `subject_override` 只允许明确支持它的 Email template，必须有长度与控制字符限制；OTP 与 account invitation 当前不允许 override；
-- raw OTP、完整 variables、source bearer 与未掩码 recipient 不进入普通日志、错误或审计。
+这四个 profile 只约束当前 Auth dispatch，不限制 Notification 未来增加其他 owner 已冻结的模板、channel 或 event-driven notification。
+
+| Template | Channel | Category | Required variables | Optional variables | Aggregate variable-value limit | Priority | Non-empty `subject_override` |
+| --- | --- | --- | --- | --- | ---: | --- | --- |
+| `AUTH_OTP_EMAIL` | `EMAIL` | `AUTH_OTP` | `code`, `ttlMinutes`, `maskedDestination` | none | 192 UTF-8 bytes | only `HIGH` | forbidden |
+| `AUTH_OTP_SMS` | `SMS` | `AUTH_OTP` | `code`, `ttlMinutes`, `maskedDestination` | none | 192 UTF-8 bytes | only `HIGH` | field absent |
+| `ACCOUNT_INVITATION_EMAIL` | `EMAIL` | `AUTH_SECURITY_ALERT` | `recipient`, `loginMode` | `displayName` | 384 UTF-8 bytes | only `HIGH` | forbidden |
+| `ACCOUNT_INVITATION_SMS` | `SMS` | `AUTH_SECURITY_ALERT` | `recipient`, `loginMode` | `displayName` | 160 UTF-8 bytes | only `HIGH` | field absent |
+
+Variable values use their UTF-8 encoded byte length after the normalization below. Keys are the exact case-sensitive ASCII names in the matrix; duplicate, unknown, missing required or excess keys reject the command. Aggregate limits sum value bytes, not key bytes.
+
+| Variable | Exact bound and normalization |
+| --- | --- |
+| `code` | 1..16 visible ASCII bytes; whitespace and control characters are forbidden. It is always secret payload and Notification does not decide OTP validity or shape. |
+| `ttlMinutes` | Canonical decimal integer string `1`..`15`; no sign, leading zero, decimal point or surrounding whitespace. |
+| `maskedDestination` | 1..160 UTF-8 bytes after NFC normalization; NUL, CR/LF and Unicode control characters are forbidden. |
+| `displayName` | Optional; 0..120 UTF-8 bytes after trim and NFC normalization; NUL, CR/LF and Unicode control characters are forbidden; renderer output is escaped. |
+| `recipient` | Required invitation variable; after the channel normalization below it must byte-equal `RecipientSnapshot.address`. |
+| `loginMode` | Exact literal `OTP_FIRST`; no other value or casing is valid. |
+
+Recipient profile：
+
+- Email：trim surrounding ASCII whitespace, NFC-normalize, lowercase the address and IDNA-canonicalize the domain; require exactly one `@`, local part 1..64 bytes, domain 1..253 bytes and total 3..254 bytes; embedded whitespace, NUL, CR/LF, control characters, empty labels and an invalid canonical domain reject. `RecipientSnapshot.display_name` is optional and follows the `displayName` bound.
+- SMS：trim, remove only ASCII space, `-`, `(` and `)`, preserve at most one leading `+`, then require optional `+` plus 6..20 digits and total length at most 21 bytes; every other character rejects. `RecipientSnapshot.display_name` is optional and follows the `displayName` bound.
+- OTP profiles require `RecipientSnapshot.display_name` absent/empty. Invitation `displayName`, when present, must equal the normalized `RecipientSnapshot.display_name`; an omitted/empty pair is valid.
+
+Prohibited combinations：wrong channel/category/template, any priority other than `HIGH`, a non-empty Email `subject_override`, invitation variables on an OTP profile, OTP variables on an invitation profile, `code` in any invitation, recipient-variable/address mismatch, or any value/aggregate limit breach. Any of these returns `INVALID_DISPATCH_PROFILE` or `INVALID_TEMPLATE_VARIABLES` before persistence/provider work. Raw OTP、完整 variables、source bearer 与未掩码 recipient 不进入普通日志、错误或审计。
 
 `SendEmailResponse` / `SendSmsResponse` 字段号保持：`accepted=1`, `dispatch_id=2`, `status=3`, `rejection_reason=4`。Notification response 不返回、替换或派生 OTP `effectiveCode`。
 
