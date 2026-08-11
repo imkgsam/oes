@@ -10,6 +10,7 @@ import { PrismaService } from '../prisma/prisma.service'
 const LEASE_MS = 60_000
 const LEASE_RENEWAL_MS = 15_000
 const PROVIDER_CALL_DEADLINE_MS = 30_000
+const MAX_PROVIDER_ATTEMPTS = 5
 
 /** Schedules and atomically leases committed provider jobs so multiple Notification replicas cannot deliver one job together. */
 @Injectable()
@@ -82,13 +83,11 @@ export class NotificationProviderOutboxWorker implements OnModuleInit, OnModuleD
       })
     } catch (error) {
       const attempts = job.attempts + 1
-      if (error instanceof ProviderCallDeadlineError) {
-        return this.clearLeasedSecret(id, leaseOwner, 'TERMINAL', 'PROVIDER_CALL_DEADLINE_EXCEEDED', now, attempts)
-      }
-      if (attempts >= 5) return this.clearLeasedSecret(id, leaseOwner, 'TERMINAL', 'PROVIDER_FAILURE', now, attempts)
+      const reason = error instanceof ProviderCallDeadlineError ? 'PROVIDER_CALL_DEADLINE_EXCEEDED' : 'PROVIDER_FAILURE'
+      if (attempts >= MAX_PROVIDER_ATTEMPTS) return this.clearLeasedSecret(id, leaseOwner, 'TERMINAL', reason, now, attempts)
       await this.prisma.notificationProviderOutbox.updateMany({
         where: { id, leaseOwner },
-        data: { attempts, status: 'RETRYING', nextAttemptAt: new Date(now.valueOf() + attempts * 30_000), leaseOwner: null, leaseExpiresAt: null }
+        data: { attempts, status: 'RETRYING', nextAttemptAt: new Date(now.valueOf() + retryDelayMs(attempts)), leaseOwner: null, leaseExpiresAt: null }
       })
     }
     return true
@@ -153,6 +152,11 @@ function pollIntervalMs(): number {
 
 /** Marks a provider call that exceeded the abort-aware deadline while its lease was actively renewed. */
 class ProviderCallDeadlineError extends Error {}
+
+/** Doubles retries from thirty seconds while keeping the queue's recovery window bounded. */
+function retryDelayMs(attempts: number): number {
+  return Math.min(30_000 * 2 ** (attempts - 1), 15 * 60_000)
+}
 
 /** Produces delivery audit facts without including recipient, bearer, variables, or OTP material. */
 function safeAudit(dispatch: ReturnType<ReturnType<typeof NotificationDispatchMapper.toDomain>['getProps']>, result: string, reason?: string) {

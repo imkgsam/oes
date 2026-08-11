@@ -51,7 +51,7 @@ export function prepareAuthDispatch(request: any, channel: 'EMAIL' | 'SMS'): Pre
   const templateKey = exact(request.templateKey)
   const idempotencyKey = exact(request.idempotencyKey)
   if (!idempotencyKey || idempotencyKey.length > 160) return 'INVALID_DISPATCH_PROFILE'
-  const recipient = normalizeRecipient(exact(request.recipient?.address), channel)
+  const recipient = normalizeRecipient(request.recipient?.address, channel)
   if (!recipient) return 'INVALID_RECIPIENT'
   const displayName = normalizeDisplayName(request.recipient?.displayName)
   if (displayName === null) return 'INVALID_RECIPIENT'
@@ -78,17 +78,17 @@ export function prepareAuthDispatch(request: any, channel: 'EMAIL' | 'SMS'): Pre
     if (displayName || !/^[\x21-\x7e]{1,16}$/u.test(variables.code) || !/^(?:[1-9]|1[0-5])$/u.test(variables.ttlMinutes) || !maskedDestination) return 'INVALID_TEMPLATE_VARIABLES'
     variables.maskedDestination = maskedDestination
   } else {
-    const variableRecipient = normalizeRecipient(exact(variables.recipient), channel)
+    const variableRecipient = normalizeRecipient(variables.recipient, channel)
     if (!variableRecipient || variableRecipient !== recipient || variables.loginMode !== 'OTP_FIRST' || (variables.displayName ?? '') !== (displayName ?? '')) return 'INVALID_TEMPLATE_VARIABLES'
     variables.recipient = variableRecipient
   }
   return { recipient, ...(displayName ? { displayName } : {}), templateKey, variables, idempotencyKey, category }
 }
 
-function normalizeRecipient(value: string | undefined, channel: 'EMAIL' | 'SMS'): string | undefined {
-  if (!value) return undefined
+function normalizeRecipient(value: unknown, channel: 'EMAIL' | 'SMS'): string | undefined {
+  if (typeof value !== 'string' || value.length === 0) return undefined
   if (channel === 'SMS') {
-    const normalized = value.trim().replace(/[ \-()]/gu, '')
+    const normalized = trimAscii(value).replace(/[ \-()]/gu, '')
     return /^(?:\+)?\d{6,20}$/u.test(normalized) && normalized.length <= 21 ? normalized : undefined
   }
   const normalized = trimAscii(value).normalize('NFC').toLowerCase()
