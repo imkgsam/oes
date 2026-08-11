@@ -737,7 +737,7 @@ describe('Task 4 device governance application services', () => {
 // createDecisionContext assembles the in-memory repositories and seeded device state used by access decision tests.
 async function createDecisionContext(status: TerminalDeviceStatus = 'ACTIVE') {
   const store = new InMemoryTerminalDeviceStore()
-  const deviceRepository = new AtomicTerminalDeviceRepository(store)
+  const deviceRepository = new InMemoryTerminalDeviceRepository(store)
   const runtimeSnapshotRepository = new InMemoryTerminalDeviceRuntimeSnapshotRepository()
   const versionPolicyRepository = new InMemoryTerminalDeviceVersionPolicyRepository()
 
@@ -762,7 +762,7 @@ async function createDecisionContext(status: TerminalDeviceStatus = 'ACTIVE') {
 async function createLifecycleContext(status: TerminalDeviceStatus) {
   const store = new InMemoryTerminalDeviceStore()
   const auditRepository = new InMemoryTerminalDeviceAuditEventRepository(store)
-  const deviceRepository = new AtomicTerminalDeviceRepository(store, auditRepository)
+  const deviceRepository = new InMemoryTerminalDeviceRepository(store)
 
   await deviceRepository.create(createDevice(status))
 
@@ -772,41 +772,6 @@ async function createLifecycleContext(status: TerminalDeviceStatus) {
   }
 }
 
-// AtomicTerminalDeviceRepository is a leased test double for the Prisma CAS and transaction capabilities.
-class AtomicTerminalDeviceRepository extends InMemoryTerminalDeviceRepository {
-  private readonly credentialClaims = new Set<string>()
-
-  constructor(
-    store: InMemoryTerminalDeviceStore,
-    private readonly auditRepository?: InMemoryTerminalDeviceAuditEventRepository
-  ) {
-    super(store)
-  }
-
-  // Applies a credential replacement only when the preceding version, digest, lifecycle and state are unchanged.
-  async compareAndSwapCredential(expected: TerminalDeviceEntity, replacement: TerminalDeviceEntity) {
-    const claim = `${expected.terminalDeviceId}:${expected.deviceCredentialVersion}:${expected.deviceCredentialHash ?? ''}`
-    if (this.credentialClaims.has(claim)) return null
-    this.credentialClaims.add(claim)
-    const current = await this.findById(expected.terminalDeviceId)
-    if (
-      !current || current.deviceCredentialVersion !== expected.deviceCredentialVersion ||
-      current.deviceCredentialHash !== expected.deviceCredentialHash || current.deviceCredentialState !== expected.deviceCredentialState ||
-      current.status !== expected.status
-    ) {
-      this.credentialClaims.delete(claim)
-      return null
-    }
-    return this.update(replacement)
-  }
-
-  // Writes audit before replacing the test record so a simulated audit failure leaves lifecycle state untouched.
-  async commitStatusChange(entity: TerminalDeviceEntity, audit: import('../../src/domain/entities/terminal-device-audit-event.entity').TerminalDeviceAuditEventEntity) {
-    if (!this.auditRepository) throw new Error('audit repository is required')
-    await this.auditRepository.create(audit)
-    return this.update(entity)
-  }
-}
 
 // createDevice builds a terminal device entity with a variable lifecycle status for Task 4 tests.
 function createDevice(status: TerminalDeviceStatus): TerminalDeviceEntity {

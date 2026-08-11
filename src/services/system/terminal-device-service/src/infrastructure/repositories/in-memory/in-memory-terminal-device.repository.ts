@@ -1,4 +1,5 @@
 import { TerminalDeviceEntity } from '../../../domain/entities/terminal-device.entity'
+import { TerminalDeviceAuditEventEntity } from '../../../domain/entities/terminal-device-audit-event.entity'
 import { TerminalDeviceError } from '../../../domain/errors/terminal-device.error'
 import {
   TerminalDeviceIdentityMatchInput,
@@ -47,6 +48,28 @@ export class InMemoryTerminalDeviceRepository implements TerminalDeviceRepositor
 
     this.store.devices.set(entity.terminalDeviceId, entity)
     return entity
+  }
+
+  // Commits lifecycle state and its audit fact against the shared in-memory consistency boundary.
+  async commitStatusChange(entity: TerminalDeviceEntity, auditEvent: TerminalDeviceAuditEventEntity): Promise<TerminalDeviceEntity> {
+    if (this.store.auditEventIds.has(auditEvent.auditEventId)) {
+      throw new TerminalDeviceError('AUDIT_EVENT_ALREADY_EXISTS', 'Terminal device audit event already exists')
+    }
+    if (!this.store.devices.has(entity.terminalDeviceId)) {
+      throw new TerminalDeviceError('TERMINAL_DEVICE_NOT_FOUND', 'Terminal device not found')
+    }
+    this.store.devices.set(entity.terminalDeviceId, entity)
+    this.store.auditEvents.push(auditEvent)
+    this.store.auditEventIds.add(auditEvent.auditEventId)
+    return entity
+  }
+
+  // Replaces credential state only when the persisted version, digest, state and lifecycle snapshot still match.
+  async compareAndSwapCredential(expected: TerminalDeviceEntity, replacement: TerminalDeviceEntity): Promise<TerminalDeviceEntity | null> {
+    const current = this.store.devices.get(expected.terminalDeviceId)
+    if (!current || current.deviceCredentialVersion !== expected.deviceCredentialVersion || current.deviceCredentialHash !== expected.deviceCredentialHash || current.deviceCredentialState !== expected.deviceCredentialState || current.status !== expected.status) return null
+    this.store.devices.set(replacement.terminalDeviceId, replacement)
+    return replacement
   }
 
   // Loads a terminal device entity from memory by its service-owned identifier.

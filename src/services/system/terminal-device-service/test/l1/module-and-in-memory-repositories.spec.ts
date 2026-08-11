@@ -182,6 +182,24 @@ describe('terminal device module and in-memory repositories', () => {
     expect(update).toHaveBeenCalledTimes(1)
     expect(create).toHaveBeenCalledTimes(1)
   })
+
+  it('leaves the shipped in-memory device unchanged when its atomic audit commit is rejected', async () => {
+    const store = new InMemoryTerminalDeviceStore()
+    const repository = new InMemoryTerminalDeviceRepository(store)
+    const current = credentialDevice()
+    await repository.create(current)
+    store.auditEventIds.add('audit-duplicate-1')
+    const audit = new TerminalDeviceAuditEventEntity({
+      auditEventId: 'audit-duplicate-1', tenantId: current.tenantId, operatorAccountId: 'operator-1', operatorOrgId: null,
+      action: 'STATUS_CHANGED', targetTerminalDeviceId: current.terminalDeviceId, beforeJson: { status: 'ACTIVE' },
+      afterJson: { status: 'LOST' }, reason: 'lost', traceId: null, occurredAt: new Date('2026-08-11T00:00:00.000Z')
+    })
+
+    await expect(repository.commitStatusChange(new TerminalDeviceEntity({ ...current, status: 'LOST' }), audit)).rejects.toMatchObject({
+      code: 'AUDIT_EVENT_ALREADY_EXISTS'
+    })
+    expect((await repository.findById(current.terminalDeviceId))?.status).toBe('ACTIVE')
+  })
 })
 
 // Builds a credential-bearing active device fixture for Prisma mutation tests.

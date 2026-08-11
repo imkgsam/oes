@@ -97,11 +97,10 @@ export class RecordHeartbeatHandler implements ICommandHandler<RecordHeartbeatCo
     }
 
     const rotation = this.credentialVerifier.rotate(device, receivedAt)
-    const credentialCommitter = this.terminalDeviceRepository as TerminalDeviceCredentialCommitter
     let effectiveDevice = device
     let rotatedDeviceCredential: string | null = null
     if (rotation.issued) {
-      const committed = await credentialCommitter.compareAndSwapCredential(device, rotation.device)
+      const committed = await this.terminalDeviceRepository.compareAndSwapCredential(device, rotation.device)
       if (committed) {
         effectiveDevice = committed
         rotatedDeviceCredential = rotation.issued.credential
@@ -169,11 +168,4 @@ export class RecordHeartbeatHandler implements ICommandHandler<RecordHeartbeatCo
       deviceCredentialVersion: effectiveDevice.deviceCredentialVersion
     }
   }
-}
-
-type TerminalDeviceCredentialCommitter = TerminalDeviceRepository & {
-  compareAndSwapCredential(
-    expected: TerminalDeviceEntity,
-    replacement: TerminalDeviceEntity
-  ): Promise<TerminalDeviceEntity | null>
 }

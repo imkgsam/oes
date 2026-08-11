@@ -118,8 +118,7 @@ export class ChangeTerminalDeviceStatusHandler
       traceId: command.operatorContext.traceId ?? null,
       occurredAt: now
     })
-    const writer = this.terminalDeviceRepository as TerminalDeviceStatusChangeCommitter
-    const updated = await writer.commitStatusChange(next, audit)
+    const updated = await this.terminalDeviceRepository.commitStatusChange(next, audit)
 
     if (isUnavailableStatus(updated.status)) {
       await this.unavailableEventPublisher?.publish({
@@ -154,13 +153,6 @@ export class ChangeTerminalDeviceStatusHandler
           }
     }
   }
-}
-
-type TerminalDeviceStatusChangeCommitter = TerminalDeviceRepository & {
-  commitStatusChange(
-    entity: TerminalDeviceEntity,
-    auditEvent: TerminalDeviceAuditEventEntity
-  ): Promise<TerminalDeviceEntity>
 }
 
 /** Maps lifecycle transitions onto the frozen device-proof state without affecting the Redis event contract. */
