@@ -2,6 +2,14 @@
 
 Updated: 2026-03-30 +09:00
 
+```text
+status: SUPERSEDED_BY_TRUTH_SOURCE
+truthSource: docs/contracts/notification-service/auth-dispatch.md
+doNotUseAsStableSource: true
+```
+
+> 本文仅保留第一轮实现草案的历史解释价值。Auth Email/SMS dispatch 的当前稳定 wire、trusted execution、SYSTEM scope、幂等、事务与 provider 语义只以 [Notification Auth Dispatch Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/notification-service/auth-dispatch.md) 为准；下文 `SourceContext` 与 request `source=1` 形状已被正式 contract 删除并 reserve，不得继续作为实现输入。
+
 ## 1. Purpose
 
 This document freezes the first implementation-oriented contract draft for `notification-service`.

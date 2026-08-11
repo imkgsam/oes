@@ -29,7 +29,7 @@
 1. 客户端通过 `api-gateway` 发起登录或 challenge 相关请求
 2. `api-gateway` 将认证意图映射到 `auth-service`
 3. `auth-service` 在需要时调用 `identity-service` 获取受控身份查询支撑
-4. 若需 OTP 或安全提醒，`auth-service` 同步调用 `notification-service`
+4. 若需 OTP 或安全提醒，`auth-service` 先完成认证域判断，再用自身 SYSTEM MACHINE INTERNAL ExecutionToken 同步调用 `notification-service`
 5. `auth-service` 返回认证结果、续流状态或会话结果
 6. `api-gateway` 负责聚合为前端消费友好的 HTTP 响应
 
@@ -54,6 +54,9 @@
 - 不让 `api-gateway` 直接拥有认证真相
 - 不让 `auth-service` 复制 `identity-service` 的长期主数据模型
 - 不让 `notification-service` 接管 OTP 或 challenge 业务语义
+- 不把上游用户请求直接传播成 Notification HUMAN 授权；Notification 只验证准确 Auth workload、SYSTEM MACHINE principal、target audience 与 `notification.internal.auth.dispatch`
+- 不在 body 传递 source/tenant/org authority；sessionless/pre-login dispatch 使用明确 SYSTEM scope，不伪造 `system` tenant
+- 不允许 Auth runtime/local development 绕过 Notification；isolated unit-test fake 不构成 runtime fallback
 - 不让 personal-center 或账户安全 self-service 入口继续复用管理员权限门
 
 ## 8. Self-service 与 Admin-management 边界

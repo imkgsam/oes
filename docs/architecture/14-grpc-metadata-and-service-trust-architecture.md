@@ -356,6 +356,8 @@ HTTP access token
 - 新 Token 保持 subject、tenant、delegation 与 trace 归因，但 audience、scope、client/cnf 绑定到新一跳。
 - 如果下游 RPC 本身能独立完成业务承诺，应使用 BUSINESS，并继续验证对应业务 Permission Code，而不是 INTERNAL。
 
+Auth -> Notification 的认证通知是 INTERNAL 的明确实例：用户只向 Auth 请求登录、MFA、contact binding、password recovery 或邀请流程；Auth 完成认证域判断后，以自己的 SYSTEM Machine Principal、准确 Auth workload 与 `notification.internal.auth.dispatch` 调用 Notification。两个 Notification RPC 不接受 HUMAN/DELEGATED/TENANT MACHINE，不消费 body `SourceContext`，也不新增 credential profile。Auth 使用既有 MACHINE source credential、`ResolveWorkloadIssuance` 与进程内 target-ET cache；Notification 的 durable acceptance/provider outbox 不与 Collaboration Task NATS Inbox/DLQ consumer 合并。
+
 ## 9. Machine、Robot、AI 与 API Key
 
 - 第一方内部服务通过 workload identity 向 STS 认证，不使用长期 API Key。

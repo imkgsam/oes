@@ -266,7 +266,7 @@
 - 稳定语义：
   - 返回通用 accepted 语义，避免暴露账号存在性
   - OTP challenge 与校验语义以 `auth-service` 唯一真相源为准
-  - `notification-service` 只负责通知 dispatch；local / mock delivery 只属于开发、测试或兼容运行方式，不是服务边界真相
+  - `notification-service` 只负责通知 dispatch；production 与普通 local development 均通过 trusted gRPC boundary，只有 isolated unit test 可以注入不修改 OTP 的 fake port
 
 ### `InspectPasswordRecoveryChannels`
 

@@ -192,6 +192,10 @@ Decorator 使用：
 - Browser Activity Code 的 owner/module 改为 `browser-activity-service`，不再归 `permission-service`。
 - Asset、Party、Notification 当前缺失的 INTERNAL Code 随真实跨服务 contract 引入，不为没有调用者的想象场景预建。
 
+### 7.4 Notification Auth dispatch
+
+`notification.internal.auth.dispatch` 是 Notification-owned `kind=INTERNAL` Code，精确映射 `NotificationService.SendEmail` / `SendSms` 的 Auth-only SYSTEM dispatch。它只允许环境注册的准确 `auth-service` workload 通过 `ResolveWorkloadIssuance` 为 `aud=notification-service` 申请，`assignableTo=WORKLOAD_POLICY`、`allowedScopeLevels=[SYSTEM]`、`externalApiEligible=false`；不得进入 HUMAN/MACHINE 业务角色、external token、wildcard workload policy 或 Collaboration Task event consumer。
+
 ## 8. Asset + Site 第一优先链新增 Code
 
 Site Media 第一优先 service slice 至少需要：

@@ -109,7 +109,7 @@ The persistent execution owner is **OES Trusted gRPC Service Migration** (`019fe
 | Asset | 5 / 1 | Y | Y | Y | Y | Gateway, Site Media; complete |
 | Site | 66 / 2 | Y | Y | Y | Y | Gateway; complete |
 | Browser Activity | 13 / 1 | Y | Y | Y | Y | Gateway; implemented and verified at `bf0723472ad0cb430dce99d4547671b216c81ba4` |
-| Notification | 2 / 1 | N | N | N | N | Auth; pending |
+| Notification | 2 / 1 | Y | N | N | N | Auth; contract classified, implementation pending |
 | Terminal Device | 17 / 1 | N | N | N | N | Gateway; pending |
 | Finance | 27 / 2 | N | N | N | N | Gateway; pending |
 | Public Entry | 23 / 2 | N | N | N | N | Gateway; pending |
@@ -127,7 +127,7 @@ The persistent execution owner is **OES Trusted gRPC Service Migration** (`019fe
 | Identity | 41 / 3 | N | N | N | N | Gateway, Auth, Permission, HR; foundation partial only |
 | Permission | 66 / 8 | N | N | N | N | Gateway, Auth, HR, TenantOrg, WMS; bootstrap partial only |
 | Auth | 70 / 1 | N | N | N | N | Gateway, HR, Site, TenantOrg; MACHINE foundation complete, full service pending |
-| **Total / proven state** | **560 / 51** | **3 Y / 18 N** | **3 Y / 18 N** | **3 Y / 18 N** | **3 Y / 18 N** | **Asset, Site and Browser Activity complete; 18 services pending** |
+| **Total / proven state** | **560 / 51** | **4 Y / 17 N** | **3 Y / 18 N** | **3 Y / 18 N** | **3 Y / 18 N** | **Asset, Site and Browser Activity complete; Notification classified; 18 services pending** |
 
 The frozen order in §6 remains authoritative. Migration continues one target service at a time; completing the Auth, Identity, Permission, Gateway or Common foundation does not implicitly advance an unverified service row.
 
@@ -910,6 +910,123 @@ browserActivityTrustedGrpcImplementationLease:
 ```
 
 Acceptance proves 13/13 methods have one exact declaration; WEB and BROWSER_EXTENSION Tokens cannot cross-call; wrong principal type/audience/`cnf`/Code/terminal fails before controller data; SELF_SERVICE derives tenant/account/session only from verified claims; all 46 active legacy input authority fields are removed/reserved while response session facts remain service-derived; Gateway no longer registers or uses the legacy Browser client/metadata factory; management and three sensitive reads persist the required audit; cache entries include `session_terminal`; no pure MACHINE caller appears; generated output is regenerated from the leased proto; and the candidate diff is a strict subset of these 47 paths.
+
+### 9.3 Notification Auth dispatch 2-RPC frozen cutover lease
+
+Status: `FROZEN_PENDING_IMPLEMENTATION`. `NotificationService.SendEmail` and `SendSms` are both Auth-only INTERNAL RPCs requiring the environment-registered exact Auth SPIFFE workload, `aud=urn:oes:service:notification-service`, a dedicated SYSTEM Machine Principal and Code `notification.internal.auth.dispatch`. HUMAN, DELEGATED, TENANT MACHINE and other workloads are rejected. The existing MACHINE source credential, Identity binding, `ResolveWorkloadIssuance`, Common trusted metadata provider and five-minute process-local ET cache are reused without a new credential profile or bootstrap exception.
+
+Both requests delete and reserve `source=1`; the unused `SourceContext` becomes a tombstone reserving `source_service=1`, `tenant_id=2`, `org_id=3`, `trace_id=4`, `request_id=5`. Category/template/recipient/variables/idempotency/priority and Email subject override retain their current field numbers and are constrained by the [Notification Auth dispatch contract](../../contracts/notification-service/auth-dispatch.md). SYSTEM dispatch has no tenant/org and never writes a fake `system` tenant. Durable acceptance atomically persists dispatch, safe audit and protected provider outbox; provider delivery occurs after commit. Auth runtime/local development has no local dispatch fallback and Notification never returns or changes Auth-owned OTP.
+
+```yaml
+notificationAuthDispatchTrustedGrpcImplementationLease:
+  totalTrackedWriterPaths: 69
+  stateCounts: { EXISTING: 49, NEW_TARGET: 20 }
+  trackedWriterPaths:
+    commonPermissionAndProto:
+      - { state: EXISTING, path: src/common/src/contracts/notification_service/notification.proto }
+      - { state: NEW_TARGET, path: src/common/src/contracts/notification_service/notification.contract.spec.ts }
+      - { state: EXISTING, path: src/services/system/permission-service/src/scripts/permission-catalog.ts }
+      - { state: EXISTING, path: src/services/system/permission-service/src/scripts/generate-common-permission-codes.ts }
+      - { state: EXISTING, path: src/services/system/permission-service/test/l1/common-permission-code-generator.spec.ts }
+      - { state: EXISTING, path: src/services/system/permission-service/test/l1/permission-foundation.seed.spec.ts }
+      - { state: EXISTING, path: src/services/system/permission-service/test/l1/permission-service-seed.spec.ts }
+      - { state: EXISTING, path: src/services/system/permission-service/test/l1/permission-service-seed-validate.spec.ts }
+      - { state: EXISTING, path: src/common/src/authorization/permission-codes/index.ts }
+      - { state: NEW_TARGET, path: src/common/src/authorization/permission-codes/notification/index.ts }
+      - { state: NEW_TARGET, path: src/common/src/authorization/permission-codes/notification/internal.permission-codes.ts }
+
+    authTrustedNotificationProducer:
+      - { state: EXISTING, path: src/services/system/auth-service/src/domain/services/notification-dispatch.port.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/infrastructure/adaptors/notification-service.grpc.adaptor.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/infrastructure/adaptors/notification-service.grpc.adaptor.spec.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/infrastructure/adaptors/local-notification-dispatch.adaptor.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/infrastructure/services/email.service.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/infrastructure/services/sms.service.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/modules/auth/auth.module.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/modules/auth/auth.module.spec.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/infrastructure/modules/external-services.module.ts }
+      - { state: NEW_TARGET, path: src/services/system/auth-service/src/infrastructure/adaptors/auth-notification-execution-token-exchange.client.ts }
+      - { state: NEW_TARGET, path: src/services/system/auth-service/src/infrastructure/adaptors/auth-notification-execution-token-exchange.client.spec.ts }
+      - { state: NEW_TARGET, path: src/services/system/auth-service/src/infrastructure/adaptors/auth-notification-machine-source-credential.client.ts }
+      - { state: NEW_TARGET, path: src/services/system/auth-service/src/infrastructure/adaptors/auth-notification-machine-source-credential.client.spec.ts }
+      - { state: NEW_TARGET, path: src/services/system/auth-service/src/infrastructure/adaptors/auth-notification-machine-source-credential.provider.ts }
+      - { state: NEW_TARGET, path: src/services/system/auth-service/src/infrastructure/adaptors/auth-notification-machine-source-credential.provider.spec.ts }
+      - { state: NEW_TARGET, path: src/services/system/auth-service/src/infrastructure/adaptors/auth-notification-trusted-grpc-execution.producer.ts }
+      - { state: NEW_TARGET, path: src/services/system/auth-service/src/infrastructure/adaptors/auth-notification-trusted-grpc-execution.producer.spec.ts }
+
+    authOtpOwnershipCleanup:
+      - { state: EXISTING, path: src/services/system/auth-service/src/application/services/email-otp-login.service.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/application/services/email-otp-login.service.spec.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/application/services/phone-otp-login.service.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/application/services/phone-otp-login.service.spec.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/application/services/password-recovery.service.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/application/services/password-recovery.service.spec.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/application/services/contact-binding-verification.service.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/application/services/contact-binding-verification.service.spec.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/application/services/mfa/email-otp-mfa-challenge.service.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/application/services/mfa/email-otp-mfa-challenge.service.spec.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/application/services/mfa/phone-otp-mfa-challenge.service.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/application/services/mfa/phone-otp-mfa-challenge.service.spec.ts }
+
+    notificationTrustedServerAndDelivery:
+      - { state: EXISTING, path: src/services/system/notification-service/package.json }
+      - { state: EXISTING, path: src/services/system/notification-service/src/main.ts }
+      - { state: EXISTING, path: src/services/system/notification-service/src/app.module.ts }
+      - { state: EXISTING, path: src/services/system/notification-service/src/modules/notification/notification.module.ts }
+      - { state: EXISTING, path: src/services/system/notification-service/src/interfaces/grpc/notification.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/system/notification-service/src/application/commands/index.ts }
+      - { state: EXISTING, path: src/services/system/notification-service/src/application/commands/send-email.command.ts }
+      - { state: EXISTING, path: src/services/system/notification-service/src/application/commands/send-email.handler.ts }
+      - { state: EXISTING, path: src/services/system/notification-service/src/application/commands/send-sms.command.ts }
+      - { state: EXISTING, path: src/services/system/notification-service/src/application/commands/send-sms.handler.ts }
+      - { state: EXISTING, path: src/services/system/notification-service/src/domain/aggregates/notification-dispatch.aggregate.ts }
+      - { state: EXISTING, path: src/services/system/notification-service/src/domain/repositories/notification-dispatch.repository.ts }
+      - { state: EXISTING, path: src/services/system/notification-service/src/domain/services/email-provider.port.ts }
+      - { state: EXISTING, path: src/services/system/notification-service/src/domain/services/sms-provider.port.ts }
+      - { state: EXISTING, path: src/services/system/notification-service/src/common/constants/injection-tokens.ts }
+      - { state: EXISTING, path: src/services/system/notification-service/prisma/schema.prisma }
+      - { state: EXISTING, path: src/services/system/notification-service/src/infrastructure/mappers/notification-dispatch.mapper.ts }
+      - { state: EXISTING, path: src/services/system/notification-service/src/infrastructure/repositories/prisma/prisma.notification-dispatch.repository.ts }
+      - { state: EXISTING, path: src/services/system/notification-service/src/infrastructure/providers/local-email-provider.adaptor.ts }
+      - { state: EXISTING, path: src/services/system/notification-service/src/infrastructure/providers/local-sms-provider.adaptor.ts }
+      - { state: NEW_TARGET, path: src/services/system/notification-service/prisma/migrations/202608110001_notification_auth_dispatch_trust/migration.sql }
+      - { state: NEW_TARGET, path: src/services/system/notification-service/src/domain/services/notification-delivery-payload-protection.port.ts }
+      - { state: NEW_TARGET, path: src/services/system/notification-service/src/infrastructure/outbox/notification-provider-outbox.worker.ts }
+      - { state: NEW_TARGET, path: src/services/system/notification-service/src/infrastructure/security/deployment-notification-delivery-payload-protector.ts }
+      - { state: NEW_TARGET, path: src/services/system/notification-service/test/l1/notification-auth-dispatch.handlers.spec.ts }
+      - { state: NEW_TARGET, path: src/services/system/notification-service/test/l1/notification-provider-outbox.worker.spec.ts }
+      - { state: NEW_TARGET, path: src/services/system/notification-service/test/l2/notification-auth-dispatch.persistence.spec.ts }
+      - { state: NEW_TARGET, path: src/services/system/notification-service/test/l3/notification-auth-dispatch.trusted-grpc.spec.ts }
+      - { state: NEW_TARGET, path: src/services/system/notification-service/test/l3/notification-auth-dispatch.module-di.spec.ts }
+
+  ignoredGeneratedOutputs:
+    - path: src/common/src/generated/notification_service/notification.ts
+      input: src/common/src/contracts/notification_service/notification.proto
+      command: pnpm proto:regen
+
+  protectedByDefault:
+    - Collaboration Task event contract, NATS consumer, Inbox, DLQ, replay and operations paths
+    - Auth login/MFA/password/invitation semantics outside removal of effectiveCode consumption
+    - existing MACHINE credential, Identity binding, Permission resolver and ExecutionToken wire semantics
+    - every non-Notification service cutover, external API-key, DELEGATED, AI and ActionGrant runtime
+    - deployment/package/lock paths not listed above
+
+  focusedAcceptanceCommands:
+    - pnpm proto:lint
+    - pnpm proto:regen
+    - node scripts/architecture/trusted-grpc-signature-inventory.mjs
+    - pnpm --filter permission-service permission-codes:generate-common
+    - pnpm --filter @oes/common build
+    - pnpm --filter permission-service build
+    - pnpm --filter auth-service build
+    - pnpm --filter notification-service build
+    - pnpm exec jest --runInBand --runTestsByPath src/common/src/contracts/notification_service/notification.contract.spec.ts
+    - pnpm --filter permission-service exec jest --config jest.config.js --runInBand test/l1/common-permission-code-generator.spec.ts test/l1/permission-foundation.seed.spec.ts test/l1/permission-service-seed.spec.ts test/l1/permission-service-seed-validate.spec.ts
+    - pnpm --filter auth-service exec jest --runInBand --runTestsByPath src/infrastructure/adaptors/notification-service.grpc.adaptor.spec.ts src/infrastructure/adaptors/auth-notification-execution-token-exchange.client.spec.ts src/infrastructure/adaptors/auth-notification-machine-source-credential.client.spec.ts src/infrastructure/adaptors/auth-notification-machine-source-credential.provider.spec.ts src/infrastructure/adaptors/auth-notification-trusted-grpc-execution.producer.spec.ts src/application/services/email-otp-login.service.spec.ts src/application/services/phone-otp-login.service.spec.ts src/application/services/password-recovery.service.spec.ts src/application/services/contact-binding-verification.service.spec.ts src/application/services/mfa/email-otp-mfa-challenge.service.spec.ts src/application/services/mfa/phone-otp-mfa-challenge.service.spec.ts src/modules/auth/auth.module.spec.ts
+    - pnpm --filter notification-service exec jest --runInBand --runTestsByPath test/l1/notification-auth-dispatch.handlers.spec.ts test/l1/notification-provider-outbox.worker.spec.ts test/l2/notification-auth-dispatch.persistence.spec.ts test/l3/notification-auth-dispatch.trusted-grpc.spec.ts test/l3/notification-auth-dispatch.module-di.spec.ts
+```
+
+Acceptance proves both methods have one INTERNAL declaration; only exact Auth SYSTEM MACHINE execution succeeds; body/legacy source authority is absent; the four template profiles and all payload constraints fail closed; idempotency conflict and concurrency do not duplicate dispatch; dispatch/audit/outbox commit atomically; protected payload expires and never enters logs/audit/ordinary dispatch JSON; Auth runtime has no local fallback/effective-code override; the Collaboration Task NATS consumer paths and tests are unchanged; and the implementation diff is a strict subset of these 69 paths.
 
 ## 10. Repository-wide Security Acceptance
 

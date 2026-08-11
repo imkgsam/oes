@@ -414,7 +414,9 @@ OTP 与通知投递必须分离 owner。
 
 `auth-service` 可以同步调用 `notification-service` 获取“通知请求已被受理 / 拒绝”的结果，但不得同步等待外部供应商真正送达。`notification-service` 不拥有 OTP 真相，也不判断 OTP 是否正确。
 
-`auth-service` 内部 local notification fallback 只属于开发、测试或兼容运行方式，不是长期服务边界真相。
+该下游调用不是 HUMAN 直接操作 Notification。`SendEmail` / `SendSms` 固定由 Auth 使用既有 MACHINE root 建立 SYSTEM execution，以 `aud=urn:oes:service:notification-service`、INTERNAL Code `notification.internal.auth.dispatch` 的 certificate-bound ExecutionToken 调用；上游 session/challenge/user/admin 归因保留在 Auth 审计，不传播为 Notification 授权。精确语义以 [Notification Auth dispatch contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/notification-service/auth-dispatch.md) 为准。
+
+Auth production 与普通 local development 都必须通过 trusted gRPC Notification boundary。历史 `LocalNotificationDispatchAdaptor`、Auth-local Email/SMS service 与 `effectiveCode` 不属于 runtime 或兼容 fallback；isolated unit test 可以注入不修改 OTP 的 fake port。缺少 source credential、target ET producer 或 Notification client 时 readiness fail closed。
 
 ## 10. MFA Policy And Challenge
 
@@ -596,7 +598,7 @@ Contract 文档只描述黑盒调用语义、字段、错误与当前接口形�
 - 不拥有 Machine Principal identity 或 lifecycle，也不把 API Key credential 建模成 principal。
 - 不复制 `terminal-device-service` 的 managed terminal device registry、设备绑定、设备状态或版本策略真相。
 - 不直接对接 Email / SMS provider。
-- 不将 local notification fallback 视为长期平台通知边界。
+- 不保留 local notification runtime fallback，也不允许 Notification 回写或替换 Auth-owned OTP。
 - 不在本文冻结 Redis、Prisma 或其他存储实现方案。
 - 不把基础 self-service 能力建模为普通 RBAC 岗位权限。
 - 不让租户配置 primary login method。
