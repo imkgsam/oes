@@ -98,9 +98,9 @@ The implementation inventory script at `scripts/architecture/trusted-grpc-signat
 
 ### 3.1 Current-main global cutover status
 
-Overall execution status is `GRPC_FOUNDATION_COMPLETE_GLOBAL_SERVICE_CUTOVER_PENDING` at current-main `6f259dc1cca555936ca8c2e358c05d6a21374e59`. The 54 generated files expose all 590 required explicit metadata signatures with zero missing signatures; this proves the shared call-signature foundation only. It does not prove that a target service has classified every contract, prepared every caller, enabled Token-only server enforcement or removed its legacy trust path.
+Overall execution status is `GRPC_FOUNDATION_COMPLETE_GLOBAL_SERVICE_CUTOVER_PENDING` at current-main `4667305797a90fe8789067183b8f5ef732ee6f02`. The 54 generated files expose all 590 required explicit metadata signatures with zero missing signatures; this proves the shared call-signature foundation only. It does not prove that a target service has classified every contract, prepared every caller, enabled Token-only server enforcement or removed its legacy trust path.
 
-The persistent execution owner is **OES Trusted gRPC Service Migration** (`019fe9f8-5a44-76e1-b5a4-110db9da6d59`). The former A/C/GRPC lane is historical, migration-frozen evidence and is not the active controller for the remaining cutover.
+The persistent execution owner is **OES Trusted gRPC Service Migration** (`019ff07e-d441-7731-acdb-1a9d262661a9`). The approval-stalled predecessor `019fe9f8-5a44-76e1-b5a4-110db9da6d59` is archived with its WIP history preserved. The former A/C/GRPC lane is historical, migration-frozen evidence and is not the active controller for the remaining cutover.
 
 `C/A/T/L` means `CONTRACT_CLASSIFIED` / `ALL_CALLERS_READY` / `TOKEN_ONLY_SERVER_CUTOVER` / `LEGACY_PATH_REMOVED`:
 
@@ -110,7 +110,7 @@ The persistent execution owner is **OES Trusted gRPC Service Migration** (`019fe
 | Site | 66 / 2 | Y | Y | Y | Y | Gateway; complete |
 | Browser Activity | 13 / 1 | Y | Y | Y | Y | Gateway; implemented and verified at `bf0723472ad0cb430dce99d4547671b216c81ba4` |
 | Notification | 2 / 1 | Y | Y | Y | Y | Auth; implemented and verified at `cc253986a86c6b8a063984cbb1874cf00fd20a60` |
-| Terminal Device | 17 / 1 | N | N | N | N | Gateway; pending |
+| Terminal Device | 17 / 1 | Y | Y | Y | Y | Gateway; implemented and verified at `4667305797a90fe8789067183b8f5ef732ee6f02` |
 | Finance | 27 / 2 | N | N | N | N | Gateway; pending |
 | Public Entry | 23 / 2 | N | N | N | N | Gateway; pending |
 | Sales | 27 / 4 | N | N | N | N | Gateway; pending |
@@ -127,7 +127,7 @@ The persistent execution owner is **OES Trusted gRPC Service Migration** (`019fe
 | Identity | 41 / 3 | N | N | N | N | Gateway, Auth, Permission, HR; foundation partial only |
 | Permission | 66 / 8 | N | N | N | N | Gateway, Auth, HR, TenantOrg, WMS; bootstrap partial only |
 | Auth | 70 / 1 | N | N | N | N | Gateway, HR, Site, TenantOrg; MACHINE foundation complete, full service pending |
-| **Total / proven state** | **560 / 51** | **4 Y / 17 N** | **4 Y / 17 N** | **4 Y / 17 N** | **4 Y / 17 N** | **Asset, Site, Browser Activity and Notification complete; 17 services pending** |
+| **Total / proven state** | **560 / 51** | **5 Y / 16 N** | **5 Y / 16 N** | **5 Y / 16 N** | **5 Y / 16 N** | **Asset, Site, Browser Activity, Notification and Terminal Device complete; 16 services pending** |
 
 The frozen order in §6 remains authoritative. Migration continues one target service at a time; completing the Auth, Identity, Permission, Gateway or Common foundation does not implicitly advance an unverified service row.
 
@@ -1033,7 +1033,7 @@ Acceptance proves both methods have one INTERNAL declaration; only exact Auth SY
 
 ### 9.4 Terminal Device 17-RPC frozen cutover lease
 
-Status: `FROZEN_PENDING_IMPLEMENTATION`. Terminal Device freezes 17/17 methods as 13 BUSINESS HUMAN WEB and four exact Gateway SYSTEM MACHINE INTERNAL RPCs, all with `aud=urn:oes:service:terminal-device-service` and no DELEGATED mode. The complete method/Code mapping, target-status binding, device credential, field reservations and audit semantics are owned by [terminal-device-service.md](../../architecture/services/terminal-device-service.md) and its five black-box contracts.
+Status: `IMPLEMENTED_VERIFIED`. Terminal Device trusted gRPC was accepted and integrated at `4667305797a90fe8789067183b8f5ef732ee6f02`, using 61 of the 84 leased paths with all final gates passing. The frozen design covers 17/17 methods as 13 BUSINESS HUMAN WEB and four exact Gateway SYSTEM MACHINE INTERNAL RPCs, all with `aud=urn:oes:service:terminal-device-service` and no DELEGATED mode. The complete method/Code mapping, target-status binding, device credential, field reservations and audit semantics are owned by [terminal-device-service.md](../../architecture/services/terminal-device-service.md) and its five black-box contracts.
 
 The public/sessionless PDA routes are pure MACHINE roots at the internal hop: Gateway reuses its accepted Machine workload source credential and process-local certificate-bound ET producer. This proves the direct Gateway workload only. Terminal Device separately verifies its own random device credential, issued once during enrollment activation, default-valid for 30 days, rotated by heartbeat with seven days remaining and at most five minutes old/new overlap, Keystore-encrypted on PDA and stored only as a server-side hash/state/version. It is not an Auth source credential, Machine Principal, Permission grant or business authorization. Admin calls continue from the request-private verified HUMAN source credential and never reuse the Gateway MACHINE root.
 
@@ -1172,7 +1172,7 @@ terminalDeviceTrustedGrpcImplementationLease:
 
 Acceptance proves 17/17 exact declarations; 13 BUSINESS versus four INTERNAL with no SELF_SERVICE/DELEGATED; Admin HUMAN WEB and Gateway SYSTEM MACHINE cannot cross-call; target audience/workload/`cnf`/Code and status-to-Code binding fail closed; body tenant/operator/session/trace/server-time/sensitive flags have no authority; the five new Codes are exactly `terminal-device.update` plus the four Gateway INTERNAL Codes; enrollment/device credential hash/state/version, one-time return, 30-day maximum, seven-day rotation threshold, five-minute overlap, expiry/suspension/revocation/replay and no-log rules hold; credential-less or mismatched LOGIN/BOOTSTRAP/heartbeat/diagnostic requests fail; sensitive projection/history and mutation audit are enforced; the Redis unavailable path remains unchanged; and the implementation diff is a strict subset of these 84 paths.
 
-Read-only baseline evidence at design freeze: Common root-config, Permission filter-config and Gateway filter Jest command shapes execute successfully. Terminal Device's filter-config entry also executes, and the independent Redis publisher spec passes 1/1; the existing `terminal-device-grpc-surface.spec.ts` baseline currently reports 4 pass / 10 fail because its fixture/controller constructor alignment is stale. That exact existing spec is leased and must be made green by the implementation candidate; the baseline failure does not relax any 17-RPC acceptance assertion or authorize production-code fallback.
+Historical design-freeze evidence recorded Common root-config, Permission filter-config and Gateway filter Jest command success, independent Redis publisher 1/1, and a stale `terminal-device-grpc-surface.spec.ts` fixture/controller baseline of 4 pass / 10 fail. Final acceptance at `4667305797a90fe8789067183b8f5ef732ee6f02` closed that baseline gap and passed all final gates; the historical limitation never relaxed any 17-RPC acceptance assertion or authorized production-code fallback.
 
 ## 10. Repository-wide Security Acceptance
 
