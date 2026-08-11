@@ -32,6 +32,40 @@ describe('Notification provider outbox worker', () => {
     expect(dispatch.protectedPayload).toBe('')
   })
 
+  it('renews ownership while an in-flight provider call crosses the original lease expiry', async () => {
+    jest.useFakeTimers()
+    const now = new Date('2026-08-11T00:00:00.000Z')
+    jest.setSystemTime(now)
+    let resolveProvider: (() => void) | undefined
+    const pending = new Promise<void>((resolve) => { resolveProvider = resolve })
+    const job: any = { id: 'job-2', dispatchId: 'dispatch-2', channel: 'EMAIL', encryptedPayload: 'payload', payloadExpiresAt: new Date(now.valueOf() + 600_000), status: 'PENDING', attempts: 0, nextAttemptAt: now, leaseOwner: null, leaseExpiresAt: null, createdAt: now }
+    const dispatch: any = { id: 'dispatch-2', channel: 'EMAIL', category: 'AUTH_OTP', sourceService: 'spiffe://auth', machinePrincipal: 'machine-1', recipientAddress: 'user@example.com', templateKey: 'AUTH_OTP_EMAIL', variablePayload: {}, commandDigest: 'digest', protectedPayload: 'payload', protectedPayloadExpiresAt: job.payloadExpiresAt, idempotencyKey: 'key-2', status: 'QUEUED', createdAt: now, updatedAt: now, acceptedAt: now }
+    const prisma: any = {
+      notificationProviderOutbox: {
+        findMany: jest.fn(async () => [job]), findUnique: jest.fn(async () => job),
+        updateMany: jest.fn(async ({ where, data }: any) => {
+          if (data.leaseOwner) { if (job.leaseOwner) return { count: 0 }; Object.assign(job, data); return { count: 1 } }
+          if (where.leaseOwner !== job.leaseOwner) return { count: 0 }
+          Object.assign(job, data); return { count: 1 }
+        })
+      },
+      notificationDispatch: { findUnique: jest.fn(async () => dispatch), update: jest.fn(async ({ data }: any) => { Object.assign(dispatch, data); return dispatch }) },
+      notificationDispatchAudit: { create: jest.fn(async () => ({})) }, $transaction: jest.fn(async (callback: any) => callback(prisma))
+    }
+    const provider = { send: jest.fn(() => pending) }
+    const protector = { unprotect: jest.fn(() => ({ code: '123456' })) }
+    const first = new NotificationProviderOutboxWorker(prisma, protector, provider, provider)
+    const second = new NotificationProviderOutboxWorker(prisma, protector, provider, provider)
+    const firstRun = first.runOnce(now)
+    await Promise.resolve()
+    await jest.advanceTimersByTimeAsync(61_000)
+    await second.runOnce(new Date(Date.now()))
+    expect(provider.send).toHaveBeenCalledTimes(1)
+    resolveProvider?.()
+    await firstRun
+    jest.useRealTimers()
+  })
+
   it('rejects expired payloads after authenticated encryption', () => {
     const protector = new DeploymentNotificationDeliveryPayloadProtector(Buffer.alloc(32, 1).toString('base64'))
     const payload = protector.protect({ code: '123456' }, new Date(Date.now() - 1))

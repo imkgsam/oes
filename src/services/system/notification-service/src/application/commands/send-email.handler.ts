@@ -78,7 +78,9 @@ export function prepareAuthDispatch(request: any, channel: 'EMAIL' | 'SMS'): Pre
     if (displayName || !/^[\x21-\x7e]{1,16}$/u.test(variables.code) || !/^(?:[1-9]|1[0-5])$/u.test(variables.ttlMinutes) || !maskedDestination) return 'INVALID_TEMPLATE_VARIABLES'
     variables.maskedDestination = maskedDestination
   } else {
-    if (variables.recipient !== recipient || variables.loginMode !== 'OTP_FIRST' || (variables.displayName ?? '') !== (displayName ?? '')) return 'INVALID_TEMPLATE_VARIABLES'
+    const variableRecipient = normalizeRecipient(exact(variables.recipient), channel)
+    if (!variableRecipient || variableRecipient !== recipient || variables.loginMode !== 'OTP_FIRST' || (variables.displayName ?? '') !== (displayName ?? '')) return 'INVALID_TEMPLATE_VARIABLES'
+    variables.recipient = variableRecipient
   }
   return { recipient, ...(displayName ? { displayName } : {}), templateKey, variables, idempotencyKey, category }
 }

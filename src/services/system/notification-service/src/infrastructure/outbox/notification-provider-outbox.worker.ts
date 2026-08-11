@@ -8,6 +8,8 @@ import { NotificationDispatchMapper } from '../mappers/notification-dispatch.map
 import { PrismaService } from '../prisma/prisma.service'
 
 const LEASE_MS = 60_000
+const LEASE_RENEWAL_MS = 15_000
+const PROVIDER_CALL_DEADLINE_MS = 30_000
 
 /** Schedules and atomically leases committed provider jobs so multiple Notification replicas cannot deliver one job together. */
 @Injectable()
@@ -68,8 +70,7 @@ export class NotificationProviderOutboxWorker implements OnModuleInit, OnModuleD
     try {
       const payload = this.protector.unprotect(job.encryptedPayload, now)
       const dispatch = NotificationDispatchMapper.toDomain(dispatchRecord)
-      if (job.channel === 'EMAIL') await this.email.send(dispatch, payload)
-      else await this.sms.send(dispatch, payload)
+      await this.callProviderWithLease(id, leaseOwner, job.channel, dispatch, payload)
       await this.prisma.$transaction(async (transaction) => {
         const settled = await transaction.notificationProviderOutbox.updateMany({
           where: { id, leaseOwner },
@@ -79,8 +80,11 @@ export class NotificationProviderOutboxWorker implements OnModuleInit, OnModuleD
         await transaction.notificationDispatch.update({ where: { id: job.dispatchId }, data: { protectedPayload: '', protectedPayloadExpiresAt: now } })
         await transaction.notificationDispatchAudit.create({ data: safeAudit(dispatch.getProps(), 'DELIVERED') })
       })
-    } catch {
+    } catch (error) {
       const attempts = job.attempts + 1
+      if (error instanceof ProviderCallDeadlineError) {
+        return this.clearLeasedSecret(id, leaseOwner, 'TERMINAL', 'PROVIDER_CALL_DEADLINE_EXCEEDED', now, attempts)
+      }
       if (attempts >= 5) return this.clearLeasedSecret(id, leaseOwner, 'TERMINAL', 'PROVIDER_FAILURE', now, attempts)
       await this.prisma.notificationProviderOutbox.updateMany({
         where: { id, leaseOwner },
@@ -88,6 +92,39 @@ export class NotificationProviderOutboxWorker implements OnModuleInit, OnModuleD
       })
     }
     return true
+  }
+
+  /** Keeps the opaque owner lease fresh while an abort-aware provider call is in flight. */
+  private async callProviderWithLease(
+    id: string,
+    leaseOwner: string,
+    channel: 'EMAIL' | 'SMS',
+    dispatch: ReturnType<typeof NotificationDispatchMapper.toDomain>,
+    payload: Record<string, unknown>
+  ): Promise<void> {
+    const controller = new AbortController()
+    let ownershipLost = false
+    const renew = async () => {
+      const renewed = await this.prisma.notificationProviderOutbox.updateMany({
+        where: { id, leaseOwner, status: { in: ['PENDING', 'RETRYING'] } },
+        data: { leaseExpiresAt: new Date(Date.now() + LEASE_MS) }
+      })
+      if (renewed.count !== 1) { ownershipLost = true; controller.abort() }
+    }
+    const renewal = setInterval(() => { void renew() }, LEASE_RENEWAL_MS)
+    const deadline = setTimeout(() => controller.abort(), PROVIDER_CALL_DEADLINE_MS)
+    try {
+      if (channel === 'EMAIL') await this.email.send(dispatch, payload, controller.signal)
+      else await this.sms.send(dispatch, payload, controller.signal)
+      if (controller.signal.aborted) throw new ProviderCallDeadlineError()
+      if (ownershipLost) throw new Error('NOTIFICATION_OUTBOX_LEASE_OWNERSHIP_LOST')
+    } catch (error) {
+      if (controller.signal.aborted && !ownershipLost) throw new ProviderCallDeadlineError()
+      throw error
+    } finally {
+      clearInterval(renewal)
+      clearTimeout(deadline)
+    }
   }
 
   /** Clears both encrypted copies in one transaction once a job has a terminal result or expires. */
@@ -113,6 +150,9 @@ function pollIntervalMs(): number {
   const value = Number.parseInt(process.env.NOTIFICATION_PROVIDER_OUTBOX_POLL_MS ?? '5000', 10)
   return Number.isInteger(value) && value >= 1_000 && value <= 60_000 ? value : 5_000
 }
+
+/** Marks a provider call that exceeded the abort-aware deadline while its lease was actively renewed. */
+class ProviderCallDeadlineError extends Error {}
 
 /** Produces delivery audit facts without including recipient, bearer, variables, or OTP material. */
 function safeAudit(dispatch: ReturnType<ReturnType<typeof NotificationDispatchMapper.toDomain>['getProps']>, result: string, reason?: string) {
