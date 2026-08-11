@@ -1039,10 +1039,12 @@ The public/sessionless PDA routes are pure MACHINE roots at the internal hop: Ga
 
 Proto compatibility removes/reserves request tenant/operator/trace/session/server-time/sensitive-projection authority while retaining business targets and diagnostic facts at their current field numbers. Activation adds `device_credential=8`, `device_credential_expires_at=9`, `device_credential_version=10`; Resolve adds `device_credential=9`; Heartbeat adds `device_credential=11` and response rotation fields `5..7`; diagnostic write adds `device_credential=4`. Generated outputs are regenerated from the leased proto and are not hand-edited.
 
+The stable repository consistency contract is owned by [terminal-device-service.md](../../architecture/services/terminal-device-service.md) §8.3: credential rotation CAS and lifecycle/credential/audit atomic commit are declared on `TerminalDeviceRepository`, Prisma and in-memory adapters implement the same semantics, and application-local casts or test-only repository capabilities are prohibited.
+
 ```yaml
 terminalDeviceTrustedGrpcImplementationLease:
-  totalTrackedWriterPaths: 81
-  stateCounts: { EXISTING: 72, NEW_TARGET: 9 }
+  totalTrackedWriterPaths: 83
+  stateCounts: { EXISTING: 74, NEW_TARGET: 9 }
   trackedWriterPaths:
     commonProtoPermissionCode:
       - { state: EXISTING, path: src/common/src/contracts/terminal_device_service/terminal_device.proto }
@@ -1110,6 +1112,7 @@ terminalDeviceTrustedGrpcImplementationLease:
       - { state: EXISTING, path: src/services/system/terminal-device-service/prisma/schema.prisma }
       - { state: NEW_TARGET, path: src/services/system/terminal-device-service/prisma/migrations/202608110001_terminal_device_credential/migration.sql }
       - { state: EXISTING, path: src/services/system/terminal-device-service/src/domain/entities/terminal-device.entity.ts }
+      - { state: EXISTING, path: src/services/system/terminal-device-service/src/domain/repositories/terminal-device.repository.ts }
       - { state: EXISTING, path: src/services/system/terminal-device-service/src/domain/repositories/terminal-device-activation.repository.ts }
       - { state: EXISTING, path: src/services/system/terminal-device-service/src/application/commands/enrollment/activate-enrollment.command.ts }
       - { state: EXISTING, path: src/services/system/terminal-device-service/src/application/commands/device/change-terminal-device-status.command.ts }
@@ -1123,6 +1126,7 @@ terminalDeviceTrustedGrpcImplementationLease:
       - { state: EXISTING, path: src/services/system/terminal-device-service/src/infrastructure/repositories/prisma/prisma-terminal-device-activation.repository.ts }
       - { state: EXISTING, path: src/services/system/terminal-device-service/src/infrastructure/repositories/prisma/prisma-terminal-device.repository.ts }
       - { state: EXISTING, path: src/services/system/terminal-device-service/src/infrastructure/repositories/in-memory/in-memory-terminal-device-activation.repository.ts }
+      - { state: EXISTING, path: src/services/system/terminal-device-service/src/infrastructure/repositories/in-memory/in-memory-terminal-device.repository.ts }
       - { state: EXISTING, path: src/services/system/terminal-device-service/src/infrastructure/repositories/in-memory/in-memory-terminal-device-store.ts }
       - { state: NEW_TARGET, path: src/services/system/terminal-device-service/src/application/services/terminal-device-credential-verifier.service.ts }
       - { state: NEW_TARGET, path: src/services/system/terminal-device-service/src/application/services/terminal-device-credential-verifier.service.spec.ts }
@@ -1164,7 +1168,7 @@ terminalDeviceTrustedGrpcImplementationLease:
     - pnpm --filter terminal-device-service exec jest --config jest.config.js --runInBand test/l1/terminal-device-unavailable-event-publisher.spec.ts
 ```
 
-Acceptance proves 17/17 exact declarations; 13 BUSINESS versus four INTERNAL with no SELF_SERVICE/DELEGATED; Admin HUMAN WEB and Gateway SYSTEM MACHINE cannot cross-call; target audience/workload/`cnf`/Code and status-to-Code binding fail closed; body tenant/operator/session/trace/server-time/sensitive flags have no authority; the five new Codes are exactly `terminal-device.update` plus the four Gateway INTERNAL Codes; enrollment/device credential hash/state/version, one-time return, 30-day maximum, seven-day rotation threshold, five-minute overlap, expiry/suspension/revocation/replay and no-log rules hold; credential-less or mismatched LOGIN/BOOTSTRAP/heartbeat/diagnostic requests fail; sensitive projection/history and mutation audit are enforced; the Redis unavailable path remains unchanged; and the implementation diff is a strict subset of these 81 paths.
+Acceptance proves 17/17 exact declarations; 13 BUSINESS versus four INTERNAL with no SELF_SERVICE/DELEGATED; Admin HUMAN WEB and Gateway SYSTEM MACHINE cannot cross-call; target audience/workload/`cnf`/Code and status-to-Code binding fail closed; body tenant/operator/session/trace/server-time/sensitive flags have no authority; the five new Codes are exactly `terminal-device.update` plus the four Gateway INTERNAL Codes; enrollment/device credential hash/state/version, one-time return, 30-day maximum, seven-day rotation threshold, five-minute overlap, expiry/suspension/revocation/replay and no-log rules hold; credential-less or mismatched LOGIN/BOOTSTRAP/heartbeat/diagnostic requests fail; sensitive projection/history and mutation audit are enforced; the Redis unavailable path remains unchanged; and the implementation diff is a strict subset of these 83 paths.
 
 Read-only baseline evidence at design freeze: Common root-config, Permission filter-config and Gateway filter Jest command shapes execute successfully. Terminal Device's filter-config entry also executes, and the independent Redis publisher spec passes 1/1; the existing `terminal-device-grpc-surface.spec.ts` baseline currently reports 4 pass / 10 fail because its fixture/controller constructor alignment is stale. That exact existing spec is leased and must be made green by the implementation candidate; the baseline failure does not relax any 17-RPC acceptance assertion or authorize production-code fallback.
 
