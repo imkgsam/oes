@@ -109,7 +109,7 @@ The persistent execution owner is **OES Trusted gRPC Service Migration** (`019fe
 | Asset | 5 / 1 | Y | Y | Y | Y | Gateway, Site Media; complete |
 | Site | 66 / 2 | Y | Y | Y | Y | Gateway; complete |
 | Browser Activity | 13 / 1 | Y | Y | Y | Y | Gateway; implemented and verified at `bf0723472ad0cb430dce99d4547671b216c81ba4` |
-| Notification | 2 / 1 | N | N | N | N | Auth; frozen design pending implementation |
+| Notification | 2 / 1 | Y | Y | Y | Y | Auth; implemented and verified at `cc253986a86c6b8a063984cbb1874cf00fd20a60` |
 | Terminal Device | 17 / 1 | N | N | N | N | Gateway; pending |
 | Finance | 27 / 2 | N | N | N | N | Gateway; pending |
 | Public Entry | 23 / 2 | N | N | N | N | Gateway; pending |
@@ -127,7 +127,7 @@ The persistent execution owner is **OES Trusted gRPC Service Migration** (`019fe
 | Identity | 41 / 3 | N | N | N | N | Gateway, Auth, Permission, HR; foundation partial only |
 | Permission | 66 / 8 | N | N | N | N | Gateway, Auth, HR, TenantOrg, WMS; bootstrap partial only |
 | Auth | 70 / 1 | N | N | N | N | Gateway, HR, Site, TenantOrg; MACHINE foundation complete, full service pending |
-| **Total / proven state** | **560 / 51** | **3 Y / 18 N** | **3 Y / 18 N** | **3 Y / 18 N** | **3 Y / 18 N** | **Asset, Site and Browser Activity complete; Notification design frozen; 18 services pending** |
+| **Total / proven state** | **560 / 51** | **4 Y / 17 N** | **4 Y / 17 N** | **4 Y / 17 N** | **4 Y / 17 N** | **Asset, Site, Browser Activity and Notification complete; 17 services pending** |
 
 The frozen order in §6 remains authoritative. Migration continues one target service at a time; completing the Auth, Identity, Permission, Gateway or Common foundation does not implicitly advance an unverified service row.
 
@@ -913,7 +913,9 @@ Acceptance proves 13/13 methods have one exact declaration; WEB and BROWSER_EXTE
 
 ### 9.3 Notification Auth dispatch 2-RPC frozen cutover lease
 
-Status: `FROZEN_PENDING_IMPLEMENTATION`. `NotificationService.SendEmail` and `SendSms` are both Auth-only INTERNAL RPCs requiring the environment-registered exact Auth SPIFFE workload, `aud=urn:oes:service:notification-service`, a dedicated SYSTEM Machine Principal and Code `notification.internal.auth.dispatch`. HUMAN, DELEGATED, TENANT MACHINE and other workloads are rejected. The existing MACHINE source credential, Identity binding, `ResolveWorkloadIssuance`, Common trusted metadata provider and five-minute process-local ET cache are reused without a new credential profile or bootstrap exception.
+Status: `IMPLEMENTED_VERIFIED`. Notification Auth dispatch was accepted and integrated at `cc253986a86c6b8a063984cbb1874cf00fd20a60`; the implementation used 55 of the 68 leased paths. Final acceptance proved 2/2 trusted RPC declarations, exact Auth SYSTEM MACHINE workload/audience/Code enforcement and rejection of HUMAN, DELEGATED, TENANT MACHINE and wrong trust; preserved the wire reservations and all four template profiles; verified the canonical Code, atomic dispatch/audit/outbox, idempotency, protected TTL payload and redaction; removed the Auth local fallback and `effectiveCode`; kept the Collaboration Task consumer unchanged; and passed proto/generation, build, focused and root gates. The 68-path manifest remains historical closed-lease evidence.
+
+`NotificationService.SendEmail` and `SendSms` are both Auth-only INTERNAL RPCs requiring the environment-registered exact Auth SPIFFE workload, `aud=urn:oes:service:notification-service`, a dedicated SYSTEM Machine Principal and Code `notification.internal.auth.dispatch`. HUMAN, DELEGATED, TENANT MACHINE and other workloads are rejected. The existing MACHINE source credential, Identity binding, `ResolveWorkloadIssuance`, Common trusted metadata provider and five-minute process-local ET cache are reused without a new credential profile or bootstrap exception.
 
 Both requests delete and reserve `source=1`; the unused `SourceContext` becomes a tombstone reserving `source_service=1`, `tenant_id=2`, `org_id=3`, `trace_id=4`, `request_id=5`. Category/template/recipient/variables/idempotency/priority and Email subject override retain their current field numbers and are constrained by the [Notification Auth dispatch contract](../../contracts/notification-service/auth-dispatch.md). SYSTEM dispatch has no tenant/org and never writes a fake `system` tenant. Durable acceptance atomically persists dispatch, safe audit and protected provider outbox; provider delivery occurs after commit. Auth runtime/local development has no local dispatch fallback and Notification never returns or changes Auth-owned OTP.
 

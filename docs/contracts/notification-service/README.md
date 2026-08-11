@@ -13,7 +13,7 @@ serviceTruthSource: docs/architecture/services/notification-service.md
 | Contract | 状态 | 说明 |
 | --- | --- | --- |
 | [Collaboration Task event consumer](./collaboration-task-event-consumer.md) | `FROZEN` | 三个 Collaboration Task 公共事实到 Notification 本地系统内通知的输入、结果、幂等、租户与 replay 语义。 |
-| [Auth Email/SMS dispatch](./auth-dispatch.md) | `FROZEN_PENDING_IMPLEMENTATION` | Auth-only SYSTEM MACHINE INTERNAL dispatch 的两 RPC、wire tombstone、模板、幂等、事务、审计和 provider outbox 语义。 |
+| [Auth Email/SMS dispatch](./auth-dispatch.md) | `IMPLEMENTED_VERIFIED` | Auth-only SYSTEM MACHINE INTERNAL dispatch 的两 RPC、wire tombstone、模板、幂等、事务、审计和 provider outbox 语义。 |
 
 ## 不在本目录当前冻结范围
 

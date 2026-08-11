@@ -4,7 +4,7 @@
 status: FROZEN_NOTIFICATION_EVENT_CONSUMER_AND_AUTH_DISPATCH
 lastUpdated: 2026-08-11
 serviceTruthSource: true
-runtimeStatus: PARTIALLY_IMPLEMENTED
+runtimeStatus: IMPLEMENTED_VERIFIED
 ```
 
 ## 1. 服务职责

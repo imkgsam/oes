@@ -1,7 +1,7 @@
 # Notification Auth Dispatch Contract
 
 ```text
-status: FROZEN_PENDING_IMPLEMENTATION
+status: IMPLEMENTED_VERIFIED
 architectureTruthSource: docs/architecture/services/notification-service.md
 trustedGrpcArchitecture: docs/architecture/14-grpc-metadata-and-service-trust-architecture.md
 ```
