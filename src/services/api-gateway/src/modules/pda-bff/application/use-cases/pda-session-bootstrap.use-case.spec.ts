@@ -58,7 +58,8 @@ describe('PdaSessionBootstrapUseCase', () => {
           terminal: 'PDA'
         }
       } as any,
-      'terminal-device-1'
+      'terminal-device-1',
+      'credential-1'
     )
 
     expect(terminalDeviceAdapter.resolveDeviceAccessDecision).toHaveBeenCalledWith(
@@ -66,6 +67,7 @@ describe('PdaSessionBootstrapUseCase', () => {
         tenantId: 'tenant-1',
         terminalDeviceId: 'terminal-device-1',
         requestPurpose: 'BOOTSTRAP',
+        deviceCredential: 'credential-1',
         session: {
           accountId: 'account-1',
           sessionId: 'session-1'

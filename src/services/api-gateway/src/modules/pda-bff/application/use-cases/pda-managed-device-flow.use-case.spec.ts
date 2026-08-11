@@ -27,14 +27,16 @@ describe('PDA managed device BFF flow', () => {
           terminal: 'PDA'
         }
       } as any,
-      'tdv-1'
+      'tdv-1',
+      'credential-1'
     )
 
     expect(terminalDeviceAdapter.resolveDeviceAccessDecision).toHaveBeenCalledWith(
       expect.objectContaining({
         tenantId: 'tenant-1',
         terminalDeviceId: 'tdv-1',
-        requestPurpose: 'BOOTSTRAP'
+        requestPurpose: 'BOOTSTRAP',
+        deviceCredential: 'credential-1'
       })
     )
     expect(result.device).toEqual(
@@ -45,6 +47,7 @@ describe('PDA managed device BFF flow', () => {
       })
     )
     expect(result.decision).toEqual(expect.objectContaining({ decisionCode: 'ALLOW' }))
+    expect(result).not.toHaveProperty('deviceCredential')
   })
 
   it('heartbeat records runtime state and returns cleanup decision from terminal-device-service', async () => {
@@ -77,13 +80,21 @@ describe('PDA managed device BFF flow', () => {
         sessionId: 'session-1'
       },
       clientTime: '2026-05-16T10:10:00.000Z'
-    })
+    }, trustedSource(), 'credential-1')
 
     expect(terminalDeviceAdapter.recordHeartbeat).toHaveBeenCalledWith(
       expect.objectContaining({
         terminalDeviceId: 'tdv-1',
         tenantId: 'tenant-1',
-        runtime: expect.objectContaining({ networkStatus: 'ONLINE' })
+        runtime: expect.objectContaining({ networkStatus: 'ONLINE' }),
+        deviceCredential: 'credential-1'
+      })
+    )
+    expect(terminalDeviceAdapter.resolveDeviceAccessDecision).toHaveBeenCalledWith(
+      expect.objectContaining({
+        terminalDeviceId: 'tdv-1',
+        requestPurpose: 'HEARTBEAT',
+        deviceCredential: 'credential-1'
       })
     )
     expect(result).toEqual(
@@ -96,11 +107,13 @@ describe('PDA managed device BFF flow', () => {
         })
       })
     )
+    expect(result).not.toHaveProperty('rotatedDeviceCredential')
   })
 
   it('diagnostic log upload consumes device decision while keeping sanitized local log storage', async () => {
     const store = new InMemoryPdaDeviceDiagnosticLogStore()
     const terminalDeviceAdapter = {
+      recordDiagnosticLogs: jest.fn().mockResolvedValue({ accepted: true, receivedCount: 1 }),
       resolveDeviceAccessDecision: jest.fn().mockResolvedValue(allowDecision())
     }
     const useCase = new PdaDeviceLogsUseCase(store, terminalDeviceAdapter as any)
@@ -125,12 +138,19 @@ describe('PDA managed device BFF flow', () => {
           }
         }
       ]
-    })
+    }, trustedSource(), 'credential-1')
 
     expect(terminalDeviceAdapter.resolveDeviceAccessDecision).toHaveBeenCalledWith(
       expect.objectContaining({
         terminalDeviceId: 'tdv-1',
-        requestPurpose: 'DIAGNOSTIC_LOG'
+        requestPurpose: 'DIAGNOSTIC_LOG',
+        deviceCredential: 'credential-1'
+      })
+    )
+    expect(terminalDeviceAdapter.recordDiagnosticLogs).toHaveBeenCalledWith(
+      expect.objectContaining({
+        terminalDeviceId: 'tdv-1',
+        deviceCredential: 'credential-1'
       })
     )
     expect(result).toEqual(
@@ -140,6 +160,7 @@ describe('PDA managed device BFF flow', () => {
         decision: expect.objectContaining({ decisionCode: 'ALLOW' })
       })
     )
+    expect(result).not.toHaveProperty('deviceCredential')
     expect(store.getRecent('tdv-1')[0]).toEqual(
       expect.objectContaining({
         details: {
@@ -165,6 +186,13 @@ function managedDevice(terminalDeviceId: string) {
       webViewVersion: '66.0.3359.158',
       appVersion: '2.0.0'
     }
+  }
+}
+
+function trustedSource() {
+  return {
+    requestId: 'request-1',
+    traceparent: '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01'
   }
 }
 

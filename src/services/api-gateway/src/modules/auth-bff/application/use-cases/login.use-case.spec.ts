@@ -83,7 +83,8 @@ describe('LoginUseCase', () => {
       },
       { requestId: 'req-1' },
       {},
-      'PDA'
+      'PDA',
+      'credential-1'
     )
 
     expect(authAdapter.loginWithEmailPassword).toHaveBeenCalledWith(
@@ -222,7 +223,8 @@ describe('LoginUseCase', () => {
       },
       { requestId: 'req-1' },
       { userAgent: ' OES-PDA/1.0 ', ipAddress: ' 10.0.0.7 ' },
-      'PDA'
+      'PDA',
+      'credential-1'
     )
 
     expect(authAdapter.loginWithEmployeeCodePin).toHaveBeenCalledWith(
@@ -374,12 +376,14 @@ describe('LoginUseCase', () => {
       },
       { requestId: 'req-1', traceId: 'trace-1' },
       { userAgent: ' OES-PDA/1.0 ', ipAddress: ' 10.0.0.7 ' },
-      'PDA'
+      'PDA',
+      'credential-1'
     )
 
     expect(calls).toEqual(['terminal-device', 'auth'])
     expect(terminalDeviceAdapter.resolveLoginDeviceContext).toHaveBeenCalledWith({
       terminalDeviceId: 'terminal-device-1',
+      deviceCredential: 'credential-1',
       deviceMetadata: expect.objectContaining({
         deviceName: 'Warehouse PDA',
         manufacturerSerial: 'SEUIC-SN-123456',

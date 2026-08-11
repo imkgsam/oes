@@ -21,6 +21,7 @@ const AUDIENCE = 'urn:oes:service:terminal-device-service'
 export interface ResolveLoginDeviceContextInput {
   terminalDeviceId: string
   deviceMetadata: Record<string, unknown>
+  deviceCredential: string
   source?: Pick<DownstreamRequestSource, 'requestId' | 'traceparent' | 'tracestate'>
 }
 
@@ -58,7 +59,8 @@ export class TerminalDeviceAccessAdapter implements OnModuleInit {
         terminalDeviceType: TerminalDeviceType.TERMINAL_DEVICE_TYPE_PDA,
         requestPurpose: DeviceAccessRequestPurpose.DEVICE_ACCESS_REQUEST_PURPOSE_LOGIN,
         appVersion: this.normalize(input.deviceMetadata.appVersion),
-        identity: this.toIdentity(input.deviceMetadata)
+        identity: this.toIdentity(input.deviceMetadata),
+        deviceCredential: input.deviceCredential
       }, metadata),
       this.opts('resolveDeviceAccessDecision')
     ))

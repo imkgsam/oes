@@ -9,7 +9,7 @@ import { DownstreamRequestSource } from '../../../../common/grpc/gateway-downstr
 export class PdaDeviceHeartbeatUseCase {
   constructor(private readonly terminalDeviceAdapter: PdaTerminalDeviceAdapter) {}
 
-  async execute(dto: PdaHeartbeatDto, source: Pick<DownstreamRequestSource, 'requestId' | 'traceparent' | 'tracestate'>): Promise<PdaHeartbeatViewModel> {
+  async execute(dto: PdaHeartbeatDto, source: Pick<DownstreamRequestSource, 'requestId' | 'traceparent' | 'tracestate'>, deviceCredential: string): Promise<PdaHeartbeatViewModel & { rotatedDeviceCredential?: string; deviceCredentialExpiresAt?: string; deviceCredentialVersion?: number }> {
     const serverTime = new Date().toISOString()
     const terminalDeviceId = requireTerminalDeviceId(dto.device.terminalDeviceId)
     const reportedSession = dto.session
@@ -26,7 +26,7 @@ export class PdaDeviceHeartbeatUseCase {
       runtime: dto.runtime,
       session: reportedSession,
       clientTime: dto.clientTime,
-      source
+      source, deviceCredential
     })
     const decision = await this.terminalDeviceAdapter.resolveDeviceAccessDecision({
       tenantId: normalizeNullable(dto.session?.tenantId ?? undefined),
@@ -34,15 +34,17 @@ export class PdaDeviceHeartbeatUseCase {
       requestPurpose: 'HEARTBEAT',
       device: dto.device,
       session: reportedSession,
-      source
+      source, deviceCredential: heartbeat.rotatedDeviceCredential ?? deviceCredential
     })
 
-    return {
+    const result = {
       accepted: true,
       decision,
       heartbeatIntervalSeconds: heartbeat.heartbeatIntervalSeconds,
       serverTime
     }
+    if (heartbeat.rotatedDeviceCredential) Object.defineProperties(result, { rotatedDeviceCredential: { value: heartbeat.rotatedDeviceCredential, enumerable: false }, deviceCredentialExpiresAt: { value: heartbeat.deviceCredentialExpiresAt, enumerable: false }, deviceCredentialVersion: { value: heartbeat.deviceCredentialVersion, enumerable: false } })
+    return result
   }
 }
 

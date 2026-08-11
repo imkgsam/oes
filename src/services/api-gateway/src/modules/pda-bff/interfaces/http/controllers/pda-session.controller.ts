@@ -1,4 +1,4 @@
-import { Controller, Get, Query } from '@nestjs/common'
+import { Controller, Get, Headers, Query, UnauthorizedException } from '@nestjs/common'
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger'
 import { DownstreamSource } from '../../../../../common/decorators/downstream-source.decorator'
 import { DownstreamRequestSource } from '../../../../../common/grpc/gateway-downstream-source.mapper'
@@ -16,8 +16,10 @@ export class PdaSessionController {
   @ApiResponse({ status: 200, type: PdaBootstrapViewModel })
   async bootstrap(
     @DownstreamSource() source: DownstreamRequestSource,
-    @Query('terminalDeviceId') terminalDeviceId: string
+    @Query('terminalDeviceId') terminalDeviceId: string,
+    @Headers('x-oes-terminal-device-credential') deviceCredential: string | undefined
   ): Promise<PdaBootstrapViewModel> {
-    return this.bootstrapUseCase.execute(source, terminalDeviceId)
+    if (!deviceCredential?.trim()) throw new UnauthorizedException('Terminal device credential is required')
+    return this.bootstrapUseCase.execute(source, terminalDeviceId, deviceCredential.trim())
   }
 }

@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from '@nestjs/common'
+import { Body, Controller, Headers, Post, Res, UnauthorizedException } from '@nestjs/common'
 import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger'
 import { Public } from '@oes/common/auth'
 import { DownstreamSource } from '../../../../../common/decorators/downstream-source.decorator'
@@ -28,11 +28,14 @@ export class PdaDeviceController {
   @ApiOperation({ summary: 'Activate a managed PDA device enrollment code' })
   @ApiBody({ type: PdaEnrollmentDto })
   @ApiResponse({ status: 201, type: PdaEnrollmentViewModel })
-  enroll(
+  async enroll(
     @Body() dto: PdaEnrollmentDto,
-    @DownstreamSource() source: DownstreamRequestSource
+    @DownstreamSource() source: DownstreamRequestSource,
+    @Res({ passthrough: true }) response: { setHeader(name: string, value: string): void }
   ): Promise<PdaEnrollmentViewModel> {
-    return this.enrollmentUseCase.execute(dto, source)
+    const result = await this.enrollmentUseCase.execute(dto, source)
+    if (result.deviceCredential) response.setHeader('X-OES-Terminal-Device-Credential', result.deviceCredential)
+    return result
   }
 
   @Post('heartbeat')
@@ -40,8 +43,11 @@ export class PdaDeviceController {
   @ApiOperation({ summary: 'Record the latest PDA device heartbeat diagnostic state' })
   @ApiBody({ type: PdaHeartbeatDto })
   @ApiResponse({ status: 201, type: PdaHeartbeatViewModel })
-  heartbeat(@Body() dto: PdaHeartbeatDto, @DownstreamSource() source: DownstreamRequestSource): Promise<PdaHeartbeatViewModel> {
-    return this.heartbeatUseCase.execute(dto, source)
+  async heartbeat(@Body() dto: PdaHeartbeatDto, @Headers('x-oes-terminal-device-credential') credential: string | undefined, @DownstreamSource() source: DownstreamRequestSource, @Res({ passthrough: true }) response: { setHeader(name: string, value: string): void }): Promise<PdaHeartbeatViewModel> {
+    if (!credential?.trim()) throw new UnauthorizedException('Terminal device credential is required')
+    const result = await this.heartbeatUseCase.execute(dto, source, credential.trim())
+    if (result.rotatedDeviceCredential) response.setHeader('X-OES-Terminal-Device-Credential', result.rotatedDeviceCredential)
+    return result
   }
 
   @Post('logs')
@@ -49,7 +55,8 @@ export class PdaDeviceController {
   @ApiOperation({ summary: 'Accept manually uploaded PDA diagnostic logs' })
   @ApiBody({ type: PdaDeviceLogsDto })
   @ApiResponse({ status: 201, type: PdaDeviceLogsViewModel })
-  logs(@Body() dto: PdaDeviceLogsDto, @DownstreamSource() source: DownstreamRequestSource): Promise<PdaDeviceLogsViewModel> {
-    return this.logsUseCase.execute(dto, source)
+  logs(@Body() dto: PdaDeviceLogsDto, @Headers('x-oes-terminal-device-credential') credential: string | undefined, @DownstreamSource() source: DownstreamRequestSource): Promise<PdaDeviceLogsViewModel> {
+    if (!credential?.trim()) throw new UnauthorizedException('Terminal device credential is required')
+    return this.logsUseCase.execute(dto, source, credential.trim())
   }
 }

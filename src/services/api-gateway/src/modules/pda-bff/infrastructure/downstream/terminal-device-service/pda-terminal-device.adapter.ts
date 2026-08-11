@@ -57,6 +57,9 @@ export interface PdaActivateEnrollmentResult {
   terminalDeviceType: 'PDA' | null
   deviceStatus: string | null
   decisionCode: string
+  deviceCredential: string | null
+  deviceCredentialExpiresAt: string | null
+  deviceCredentialVersion: number | null
 }
 
 export interface PdaResolveDecisionInput {
@@ -67,6 +70,7 @@ export interface PdaResolveDecisionInput {
   session?: { accountId?: string | null; sessionId?: string | null } | null
   traceId?: string
   source?: Partial<Pick<DownstreamRequestSource, 'requestId' | 'traceparent' | 'tracestate'>>
+  deviceCredential: string
 }
 
 export interface PdaRecordHeartbeatInput {
@@ -83,6 +87,7 @@ export interface PdaRecordHeartbeatInput {
   clientTime: string
   traceId?: string
   source?: Partial<Pick<DownstreamRequestSource, 'requestId' | 'traceparent' | 'tracestate'>>
+  deviceCredential: string
 }
 
 export interface PdaRecordHeartbeatResult {
@@ -91,6 +96,9 @@ export interface PdaRecordHeartbeatResult {
   lastHeartbeatAt: string | null
   presenceStatus: string | null
   heartbeatIntervalSeconds: number
+  rotatedDeviceCredential: string | null
+  deviceCredentialExpiresAt: string | null
+  deviceCredentialVersion: number | null
 }
 
 export interface PdaDiagnosticLogRecordInput {
@@ -115,6 +123,7 @@ export interface PdaRecordDiagnosticLogsInput {
   terminalDeviceId: string
   records: PdaDiagnosticLogRecordInput[]
   source?: Partial<Pick<DownstreamRequestSource, 'requestId' | 'traceparent' | 'tracestate'>>
+  deviceCredential: string
 }
 
 export interface PdaRecordDiagnosticLogsResult {
@@ -166,6 +175,9 @@ export class PdaTerminalDeviceAdapter implements OnModuleInit {
       terminalDeviceType: response.terminalDeviceType === TerminalDeviceType.TERMINAL_DEVICE_TYPE_PDA ? 'PDA' : null,
       deviceStatus: toStatus(response.deviceStatus),
       decisionCode: toDecisionCode(response.decisionCode)
+      ,deviceCredential: normalize(response.deviceCredential) ?? null
+      ,deviceCredentialExpiresAt: normalize(response.deviceCredentialExpiresAt) ?? null
+      ,deviceCredentialVersion: response.deviceCredentialVersion || null
     }
   }
 
@@ -178,7 +190,7 @@ export class PdaTerminalDeviceAdapter implements OnModuleInit {
         requestPurpose: toPurpose(input.requestPurpose),
         appVersion: normalize(input.device?.software.appVersion),
         identity: input.device ? toIdentity(input.device) : undefined,
-        deviceCredential: (input.device as any)?.deviceCredential
+        deviceCredential: input.deviceCredential
       }, metadata),
       this.opts('resolveDeviceAccessDecision')
     ))
@@ -202,7 +214,7 @@ export class PdaTerminalDeviceAdapter implements OnModuleInit {
             }
           : undefined,
         clientTime: input.clientTime,
-        deviceCredential: (input.device as any)?.deviceCredential
+        deviceCredential: input.deviceCredential
       }, metadata),
       this.opts('recordHeartbeat')
     ))
@@ -213,6 +225,9 @@ export class PdaTerminalDeviceAdapter implements OnModuleInit {
       lastHeartbeatAt: normalize(response.lastHeartbeatAt) ?? null,
       presenceStatus: toPresenceStatus(response.presenceStatus),
       heartbeatIntervalSeconds: 300
+      ,rotatedDeviceCredential: normalize(response.rotatedDeviceCredential) ?? null
+      ,deviceCredentialExpiresAt: normalize(response.deviceCredentialExpiresAt) ?? null
+      ,deviceCredentialVersion: response.deviceCredentialVersion || null
     }
   }
 
@@ -232,7 +247,7 @@ export class PdaTerminalDeviceAdapter implements OnModuleInit {
           diagnosticMode: record.diagnosticMode,
           detailsJson: JSON.stringify(record.details)
         })),
-        deviceCredential: (input as any).deviceCredential
+        deviceCredential: input.deviceCredential
       }, metadata),
       this.opts('recordDiagnosticLogs')
     ))

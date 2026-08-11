@@ -17,7 +17,7 @@ export class PdaDeviceLogsUseCase {
     private readonly terminalDeviceAdapter: PdaTerminalDeviceAdapter
   ) {}
 
-  async execute(dto: PdaDeviceLogsDto, source: Pick<DownstreamRequestSource, 'requestId' | 'traceparent' | 'tracestate'>): Promise<PdaDeviceLogsViewModel> {
+  async execute(dto: PdaDeviceLogsDto, source: Pick<DownstreamRequestSource, 'requestId' | 'traceparent' | 'tracestate'>, deviceCredential: string): Promise<PdaDeviceLogsViewModel> {
     const serverTime = new Date().toISOString()
     const records = dto.logs.map((log) => this.toRecord(dto, log, serverTime))
     const terminalDeviceId = dto.device.terminalDeviceId?.trim() || 'unbound-pda'
@@ -32,7 +32,7 @@ export class PdaDeviceLogsUseCase {
             sessionId: normalizeNullable(dto.session.sessionId)
           }
         : null,
-      source
+      source, deviceCredential
     })
 
     this.store.saveBatch(terminalDeviceId, records)
@@ -45,7 +45,7 @@ export class PdaDeviceLogsUseCase {
           ...record,
           tenantId
         })),
-        source
+        source, deviceCredential
       })
     }
 

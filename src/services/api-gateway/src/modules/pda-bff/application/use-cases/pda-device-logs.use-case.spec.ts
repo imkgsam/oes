@@ -45,7 +45,7 @@ describe('PdaDeviceLogsUseCase', () => {
           }
         }
       ]
-    }, trustedSource())
+    }, trustedSource(), 'credential-1')
 
     expect(result).toEqual(
       expect.objectContaining({
@@ -58,13 +58,15 @@ describe('PdaDeviceLogsUseCase', () => {
     expect(terminalDeviceAdapter.resolveDeviceAccessDecision).toHaveBeenCalledWith(
       expect.objectContaining({
         terminalDeviceId: 'terminal-device-1',
-        requestPurpose: 'DIAGNOSTIC_LOG'
+        requestPurpose: 'DIAGNOSTIC_LOG',
+        deviceCredential: 'credential-1'
       })
     )
     expect(terminalDeviceAdapter.recordDiagnosticLogs).toHaveBeenCalledWith(
       expect.objectContaining({
         tenantId: 'tenant-1',
         terminalDeviceId: 'terminal-device-1',
+        deviceCredential: 'credential-1',
         records: [
           expect.objectContaining({
             deviceId: 'terminal-device-1',
@@ -127,7 +129,7 @@ describe('PdaDeviceLogsUseCase', () => {
           }
         }
       ]
-    }, trustedSource())
+    }, trustedSource(), 'credential-1')
 
     expect(terminalDeviceAdapter.recordDiagnosticLogs).toHaveBeenCalledWith(
       expect.objectContaining({

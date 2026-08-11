@@ -34,19 +34,21 @@ describe('PdaDeviceHeartbeatUseCase', () => {
       },
       session: null,
       clientTime: '2026-05-14T10:00:00.000Z'
-    }, trustedSource())
+    }, trustedSource(), 'credential-1')
 
     expect(terminalDeviceAdapter.recordHeartbeat).toHaveBeenCalledWith(
       expect.objectContaining({
         tenantId: null,
         terminalDeviceId: 'terminal-device-1',
-        runtime: expect.objectContaining({ appState: 'FOREGROUND' })
+        runtime: expect.objectContaining({ appState: 'FOREGROUND' }),
+        deviceCredential: 'credential-1'
       })
     )
     expect(terminalDeviceAdapter.resolveDeviceAccessDecision).toHaveBeenCalledWith(
       expect.objectContaining({
         terminalDeviceId: 'terminal-device-1',
-        requestPurpose: 'HEARTBEAT'
+        requestPurpose: 'HEARTBEAT',
+        deviceCredential: 'credential-1'
       })
     )
     expect(result).toEqual(
@@ -88,7 +90,7 @@ describe('PdaDeviceHeartbeatUseCase', () => {
         sessionId: 'session-1'
       },
       clientTime: '2026-05-14T10:00:00.000Z'
-    }, trustedSource())
+    }, trustedSource(), 'credential-1')
 
     expect(terminalDeviceAdapter.recordHeartbeat).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -97,7 +99,8 @@ describe('PdaDeviceHeartbeatUseCase', () => {
         session: {
           accountId: 'account-1',
           sessionId: 'session-1'
-        }
+        },
+        deviceCredential: 'credential-1'
       })
     )
   })

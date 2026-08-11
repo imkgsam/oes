@@ -18,7 +18,7 @@ export class PdaDeviceEnrollmentUseCase {
   async execute(
     dto: PdaEnrollmentDto,
     source: Pick<DownstreamRequestSource, 'traceId' | 'requestId' | 'traceparent' | 'tracestate'>
-  ): Promise<PdaEnrollmentViewModel> {
+  ): Promise<PdaEnrollmentViewModel & { deviceCredential?: string; deviceCredentialExpiresAt?: string; deviceCredentialVersion?: number }> {
     const activation = await this.terminalDeviceAdapter.activateEnrollment({
       enrollmentCode: dto.enrollmentCode,
       device: dto.device,
@@ -48,19 +48,22 @@ export class PdaDeviceEnrollmentUseCase {
         terminalDeviceId: activation.terminalDeviceId
       },
       traceId: source.traceId,
-      source
+      source,
+      deviceCredential: activation.deviceCredential ?? ''
     })
 
-    return {
+    const result = {
       enrolled: true,
       terminalDeviceId: activation.terminalDeviceId,
       tenantId: activation.tenantId,
-      terminalDeviceType: 'PDA',
+      terminalDeviceType: 'PDA' as const,
       displayName: null,
       deviceStatus: activation.deviceStatus,
       decision,
       serverTime: new Date().toISOString()
     }
+    if (activation.deviceCredential) Object.defineProperties(result, { deviceCredential: { value: activation.deviceCredential, enumerable: false }, deviceCredentialExpiresAt: { value: activation.deviceCredentialExpiresAt, enumerable: false }, deviceCredentialVersion: { value: activation.deviceCredentialVersion, enumerable: false } })
+    return result
   }
 }
 

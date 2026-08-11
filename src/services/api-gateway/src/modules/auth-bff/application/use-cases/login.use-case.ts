@@ -69,12 +69,13 @@ export class LoginUseCase {
     dto: LoginDto,
     source: DownstreamRequestSource,
     clientContext: LoginClientContext,
-    terminal: LoginTerminal = 'WEB'
+    terminal: LoginTerminal = 'WEB',
+    deviceCredential?: string
   ): Promise<AuthResponseViewModel> {
     const pdaDeviceContext = await this.resolvePdaDeviceContextIfNeeded(
       dto,
       clientContext,
-      terminal
+      terminal, deviceCredential
     )
     if (pdaDeviceContext && !pdaDeviceContext.allowed) {
       return this.toPdaTerminalDeviceDeniedResponse(pdaDeviceContext.reasonCode)
@@ -318,7 +319,8 @@ export class LoginUseCase {
   private async resolvePdaDeviceContextIfNeeded(
     dto: PdaDeviceMetadataCarrier,
     clientContext: LoginClientContext,
-    terminal: LoginTerminal
+    terminal: LoginTerminal,
+    deviceCredential?: string
   ): Promise<(PdaLoginDeviceContext & { allowed: boolean; reasonCode?: string }) | undefined> {
     if (terminal !== 'PDA') {
       return undefined
@@ -338,7 +340,8 @@ export class LoginUseCase {
 
     return this.terminalDeviceAdapter.resolveLoginDeviceContext({
       terminalDeviceId,
-      deviceMetadata: this.toPdaDeviceMetadata(dto, { deviceName, userAgent, ipAddress })
+      deviceMetadata: this.toPdaDeviceMetadata(dto, { deviceName, userAgent, ipAddress }),
+      deviceCredential: deviceCredential?.trim() ?? ''
     })
   }
 

@@ -62,7 +62,8 @@ abstract class TerminalAuthControllerBase {
     @Body() dto: LoginDto,
     @DownstreamSource() source: DownstreamRequestSource,
     @Headers('user-agent') userAgent?: string,
-    @Ip() ipAddress?: string
+    @Ip() ipAddress?: string,
+    @Headers('x-oes-terminal-device-credential') deviceCredential?: string
   ): Promise<AuthResponseViewModel> {
     return this.loginUseCase.execute(
       dto,
@@ -71,7 +72,8 @@ abstract class TerminalAuthControllerBase {
         traceId: source.traceId
       },
       { userAgent, ipAddress },
-      this.terminal
+      this.terminal,
+      deviceCredential
     )
   }
 

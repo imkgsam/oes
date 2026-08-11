@@ -65,7 +65,8 @@ describe('PdaAuthController', () => {
       }),
       { requestId: 'req-1', traceId: 'trace-1' },
       { userAgent: 'OES-PDA/1.0', ipAddress: '10.0.0.7' },
-      'PDA'
+      'PDA',
+      undefined
     )
   })
 
@@ -146,7 +147,8 @@ describe('ExtensionAuthController', () => {
       }),
       { requestId: 'req-1', traceId: 'trace-1' },
       { userAgent: 'Chrome Extension/1.0', ipAddress: '10.0.0.8' },
-      'BROWSER_EXTENSION'
+      'BROWSER_EXTENSION',
+      undefined
     )
   })
 

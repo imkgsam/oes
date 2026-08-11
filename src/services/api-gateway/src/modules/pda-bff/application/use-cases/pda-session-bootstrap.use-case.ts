@@ -15,7 +15,7 @@ export class PdaSessionBootstrapUseCase {
   ) {}
 
   /** Returns PDA bootstrap data without owning auth, identity, permission, or device-management truth. */
-  async execute(source: DownstreamRequestSource, terminalDeviceId: string): Promise<PdaBootstrapViewModel> {
+  async execute(source: DownstreamRequestSource, terminalDeviceId: string, deviceCredential: string): Promise<PdaBootstrapViewModel> {
     const terminal = source.user?.terminal
     if (terminal && terminal !== 'PDA') {
       throw new UnauthorizedException('PDA bootstrap requires a PDA terminal session')
@@ -32,7 +32,8 @@ export class PdaSessionBootstrapUseCase {
         sessionId: source.user?.sid
       },
       traceId: source.traceId,
-      source: { requestId: source.requestId, traceparent: source.traceparent, tracestate: source.tracestate }
+      source: { requestId: source.requestId, traceparent: source.traceparent, tracestate: source.tracestate },
+      deviceCredential
     })
 
     return {
