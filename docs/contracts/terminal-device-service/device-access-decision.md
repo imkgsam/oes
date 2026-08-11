@@ -21,7 +21,6 @@ service TerminalDeviceAccessDecisionService {
 
 ```json
 {
-  "tenantId": "tenant_001",
   "terminalDeviceId": "tdv_001",
   "terminalDeviceType": "PDA",
   "requestPurpose": "LOGIN",
@@ -33,15 +32,11 @@ service TerminalDeviceAccessDecisionService {
     "manufacturer": "Seuic",
     "model": "Cruise Ge"
   },
-  "session": {
-    "accountId": "acc_001",
-    "sessionId": "sess_001"
-  },
-  "traceId": "trace_001"
+  "deviceCredential": "opaque-device-credential"
 }
 ```
 
-`tenantId` may be absent for PDA login before tenant is resolved. In that case the service resolves tenant from `terminalDeviceId`.
+The supported post-cutover request carries no tenant authority or session/trace authority. The service always resolves tenant from the registered `terminalDeviceId`; trusted trace facts come from transport context.
 
 ## 4. Request Purpose
 

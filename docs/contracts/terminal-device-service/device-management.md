@@ -55,7 +55,6 @@ Request:
 
 ```json
 {
-  "tenantId": "tenant_001",
   "terminalDeviceType": "PDA",
   "status": "ACTIVE",
   "presenceStatus": "ONLINE",
@@ -98,9 +97,7 @@ Request:
 
 ```json
 {
-  "tenantId": "tenant_001",
-  "terminalDeviceId": "tdv_001",
-  "includeSensitiveIdentity": false
+  "terminalDeviceId": "tdv_001"
 }
 ```
 
@@ -150,14 +147,9 @@ Request:
 
 ```json
 {
-  "tenantId": "tenant_001",
   "terminalDeviceId": "tdv_001",
   "displayName": "PDA-Warehouse-01",
-  "notes": "Assigned to pilot",
-  "operatorContext": {
-    "operatorAccountId": "acc_admin",
-    "traceId": "trace_001"
-  }
+  "notes": "Assigned to pilot"
 }
 ```
 
@@ -178,14 +170,9 @@ Request:
 
 ```json
 {
-  "tenantId": "tenant_001",
   "terminalDeviceId": "tdv_001",
   "targetStatus": "DISABLED",
-  "reason": "Device removed from pilot",
-  "operatorContext": {
-    "operatorAccountId": "acc_admin",
-    "traceId": "trace_002"
-  }
+  "reason": "Device removed from pilot"
 }
 ```
 

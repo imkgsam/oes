@@ -51,7 +51,6 @@ Request:
 
 ```json
 {
-  "tenantId": "tenant_001",
   "terminalDeviceType": "PDA"
 }
 ```
@@ -79,7 +78,6 @@ Request:
 
 ```json
 {
-  "tenantId": "tenant_001",
   "terminalDeviceType": "PDA",
   "minSupportedAppVersion": "2.0.0",
   "latestAppVersion": "2.1.0",
@@ -87,11 +85,7 @@ Request:
   "upgradeRecommended": true,
   "apkDownloadUrl": null,
   "releaseNotesUrl": null,
-  "reason": "Pilot rollout baseline",
-  "operatorContext": {
-    "operatorAccountId": "acc_admin",
-    "traceId": "trace_001"
-  }
+  "reason": "Pilot rollout baseline"
 }
 ```
 

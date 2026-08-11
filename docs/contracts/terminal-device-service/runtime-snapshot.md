@@ -24,7 +24,6 @@ service TerminalDeviceRuntimeSnapshotService {
 
 ```json
 {
-  "tenantId": "tenant_001",
   "terminalDeviceId": "tdv_001",
   "terminalDeviceType": "PDA",
   "identity": {
@@ -47,12 +46,10 @@ service TerminalDeviceRuntimeSnapshotService {
   },
   "reportedSession": {
     "accountId": "acc_001",
-    "tenantId": "tenant_001",
     "sessionId": "sess_001"
   },
   "clientTime": "2026-05-16T10:10:00Z",
-  "receivedAt": "2026-05-16T10:10:03Z",
-  "traceId": "trace_001"
+  "deviceCredential": "opaque-device-credential"
 }
 ```
 
@@ -65,9 +62,14 @@ service TerminalDeviceRuntimeSnapshotService {
   "accepted": true,
   "terminalDeviceId": "tdv_001",
   "lastHeartbeatAt": "2026-05-16T10:10:03Z",
-  "presenceStatus": "ONLINE"
+  "presenceStatus": "ONLINE",
+  "rotatedDeviceCredential": "opaque-rotated-device-credential",
+  "deviceCredentialExpiresAt": "2026-06-15T10:10:03Z",
+  "deviceCredentialVersion": 2
 }
 ```
+
+`rotatedDeviceCredential` is empty when no rotation occurs; expiry and version still describe the currently accepted credential.
 
 ## 5. Runtime Snapshot
 

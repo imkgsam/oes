@@ -40,17 +40,11 @@ Request:
 
 ```json
 {
-  "tenantId": "tenant_001",
   "terminalDeviceType": "PDA",
   "displayName": "PDA-Warehouse-01",
   "expectedManufacturerSerial": "SEUIC-SN-123456",
   "expiresAt": "2026-05-17T10:00:00Z",
-  "notes": "Issued for warehouse pilot",
-  "operatorContext": {
-    "operatorAccountId": "acc_admin",
-    "operatorOrgId": null,
-    "traceId": "trace_001"
-  }
+  "notes": "Issued for warehouse pilot"
 }
 ```
 
@@ -95,8 +89,7 @@ Request:
     "androidVersion": "9",
     "webViewVersion": "66.0.3359.158",
     "appVersion": "2.0.0"
-  },
-  "traceId": "trace_002"
+  }
 }
 ```
 
@@ -110,7 +103,10 @@ Response:
   "terminalDeviceType": "PDA",
   "deviceStatus": "ACTIVE",
   "enrollmentId": "enr_001",
-  "decisionCode": "ALLOW"
+  "decisionCode": "ALLOW",
+  "deviceCredential": "opaque-device-credential",
+  "deviceCredentialExpiresAt": "2026-06-15T10:00:03Z",
+  "deviceCredentialVersion": 1
 }
 ```
 
@@ -141,13 +137,8 @@ Request:
 
 ```json
 {
-  "tenantId": "tenant_001",
   "enrollmentId": "enr_001",
-  "reason": "Issued by mistake",
-  "operatorContext": {
-    "operatorAccountId": "acc_admin",
-    "traceId": "trace_003"
-  }
+  "reason": "Issued by mistake"
 }
 ```
 
