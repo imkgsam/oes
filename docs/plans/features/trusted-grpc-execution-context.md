@@ -1035,9 +1035,9 @@ Acceptance proves both methods have one INTERNAL declaration; only exact Auth SY
 
 Status: `FROZEN_PENDING_IMPLEMENTATION`. Terminal Device freezes 17/17 methods as 13 BUSINESS HUMAN WEB and four exact Gateway SYSTEM MACHINE INTERNAL RPCs, all with `aud=urn:oes:service:terminal-device-service` and no DELEGATED mode. The complete method/Code mapping, target-status binding, device credential, field reservations and audit semantics are owned by [terminal-device-service.md](../../architecture/services/terminal-device-service.md) and its five black-box contracts.
 
-The public/sessionless PDA routes are pure MACHINE roots at the internal hop: Gateway reuses its accepted Machine workload source credential and process-local certificate-bound ET producer. This proves the direct Gateway workload only. Terminal Device separately verifies its own random device credential, issued once during enrollment activation, Keystore-encrypted on PDA and stored only as a server-side hash/state. It is not an Auth source credential, Machine Principal, Permission grant or business authorization. Admin calls continue from the request-private verified HUMAN source credential and never reuse the Gateway MACHINE root.
+The public/sessionless PDA routes are pure MACHINE roots at the internal hop: Gateway reuses its accepted Machine workload source credential and process-local certificate-bound ET producer. This proves the direct Gateway workload only. Terminal Device separately verifies its own random device credential, issued once during enrollment activation, default-valid for 30 days, rotated by heartbeat with seven days remaining and at most five minutes old/new overlap, Keystore-encrypted on PDA and stored only as a server-side hash/state/version. It is not an Auth source credential, Machine Principal, Permission grant or business authorization. Admin calls continue from the request-private verified HUMAN source credential and never reuse the Gateway MACHINE root.
 
-Proto compatibility removes/reserves request tenant/operator/trace/session/server-time/sensitive-projection authority while retaining business targets and diagnostic facts at their current field numbers. Activation adds `device_credential=8`; Resolve adds `device_credential=9`; Heartbeat adds `device_credential=11`; diagnostic write adds `device_credential=4`. Generated outputs are regenerated from the leased proto and are not hand-edited.
+Proto compatibility removes/reserves request tenant/operator/trace/session/server-time/sensitive-projection authority while retaining business targets and diagnostic facts at their current field numbers. Activation adds `device_credential=8`, `device_credential_expires_at=9`, `device_credential_version=10`; Resolve adds `device_credential=9`; Heartbeat adds `device_credential=11` and response rotation fields `5..7`; diagnostic write adds `device_credential=4`. Generated outputs are regenerated from the leased proto and are not hand-edited.
 
 ```yaml
 terminalDeviceTrustedGrpcImplementationLease:
@@ -1057,7 +1057,7 @@ terminalDeviceTrustedGrpcImplementationLease:
       - { state: EXISTING, path: src/common/src/authorization/permission-codes/terminal-device/management.permission-codes.ts }
       - { state: NEW_TARGET, path: src/common/src/authorization/permission-codes/terminal-device/internal.permission-codes.ts }
 
-    gatewayHumanAdmin:
+    gatewayAdminHumanProducer:
       - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution-producer.ts }
       - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution-producer.spec.ts }
       - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-terminal-device-grpc.client.ts }
@@ -1072,7 +1072,7 @@ terminalDeviceTrustedGrpcImplementationLease:
       - { state: EXISTING, path: src/services/api-gateway/src/modules/terminal-device-admin-bff/interfaces/http/controllers/terminal-device-admin.controller.ts }
       - { state: NEW_TARGET, path: src/services/api-gateway/src/modules/terminal-device-admin-bff/terminal-device-admin.trusted-grpc.spec.ts }
 
-    gatewayPdaMachine:
+    gatewayPdaMachineProducer:
       - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-machine-trusted-grpc-execution-producer.ts }
       - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-machine-trusted-grpc-execution-producer.spec.ts }
       - { state: EXISTING, path: src/services/api-gateway/src/modules/pda-bff/infrastructure/downstream/terminal-device-service/pda-terminal-device.adapter.ts }
@@ -1123,6 +1123,8 @@ terminalDeviceTrustedGrpcImplementationLease:
       - { state: EXISTING, path: src/services/system/terminal-device-service/src/infrastructure/repositories/in-memory/in-memory-terminal-device-store.ts }
       - { state: NEW_TARGET, path: src/services/system/terminal-device-service/src/application/services/terminal-device-credential-verifier.service.ts }
       - { state: NEW_TARGET, path: src/services/system/terminal-device-service/src/application/services/terminal-device-credential-verifier.service.spec.ts }
+
+    terminalSecurityTests:
       - { state: EXISTING, path: src/services/system/terminal-device-service/test/l1/enrollment-commands.spec.ts }
       - { state: EXISTING, path: src/services/system/terminal-device-service/test/l1/device-governance-task4.spec.ts }
       - { state: EXISTING, path: src/services/system/terminal-device-service/test/l1/module-and-in-memory-repositories.spec.ts }
@@ -1159,7 +1161,7 @@ terminalDeviceTrustedGrpcImplementationLease:
     - pnpm --filter terminal-device-service exec jest --config jest.config.js --runInBand test/l1/terminal-device-unavailable-event-publisher.spec.ts
 ```
 
-Acceptance proves 17/17 exact declarations; 13 BUSINESS versus four INTERNAL with no SELF_SERVICE/DELEGATED; Admin HUMAN WEB and Gateway SYSTEM MACHINE cannot cross-call; target audience/workload/`cnf`/Code and status-to-Code binding fail closed; body tenant/operator/session/trace/server-time/sensitive flags have no authority; enrollment/device credential hash, state, one-time return, suspension/revocation and no-log rules hold; credential-less or mismatched LOGIN/BOOTSTRAP/heartbeat/diagnostic requests fail; sensitive projection/history and mutation audit are enforced; the Redis unavailable path remains unchanged; and the implementation diff is a strict subset of these 78 paths.
+Acceptance proves 17/17 exact declarations; 13 BUSINESS versus four INTERNAL with no SELF_SERVICE/DELEGATED; Admin HUMAN WEB and Gateway SYSTEM MACHINE cannot cross-call; target audience/workload/`cnf`/Code and status-to-Code binding fail closed; body tenant/operator/session/trace/server-time/sensitive flags have no authority; the five new Codes are exactly `terminal-device.update` plus the four Gateway INTERNAL Codes; enrollment/device credential hash/state/version, one-time return, 30-day maximum, seven-day rotation threshold, five-minute overlap, expiry/suspension/revocation/replay and no-log rules hold; credential-less or mismatched LOGIN/BOOTSTRAP/heartbeat/diagnostic requests fail; sensitive projection/history and mutation audit are enforced; the Redis unavailable path remains unchanged; and the implementation diff is a strict subset of these 78 paths.
 
 Read-only baseline evidence at design freeze: Common root-config, Permission filter-config and Gateway filter Jest command shapes execute successfully. Terminal Device's filter-config entry also executes, and the independent Redis publisher spec passes 1/1; the existing `terminal-device-grpc-surface.spec.ts` baseline currently reports 4 pass / 10 fail because its fixture/controller constructor alignment is stale. That exact existing spec is leased and must be made green by the implementation candidate; the baseline failure does not relax any 17-RPC acceptance assertion or authorize production-code fallback.
 

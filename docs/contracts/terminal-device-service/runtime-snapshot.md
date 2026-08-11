@@ -152,7 +152,9 @@ Proto 删除并 reserve：
 - `RecordDiagnosticLogsRequest.tenant_id=1`，新增 `device_credential=4`；
 - `ListDiagnosticLogsRequest.tenant_id=1`。
 
-`reported_session` 只保留为诊断附件；已验证 session 存在时 Gateway 可以覆盖为 verified account/session 摘要，未登录时为空，Terminal Device 不以它建立 tenant、当前登录或 authorization。Heartbeat received time 与 trace 使用服务时钟/trusted transport。
+`RecordHeartbeatResponse` 保留现有 `1..4`，新增 `rotated_device_credential=5`, `device_credential_expires_at=6`, `device_credential_version=7`；没有轮换时 credential 字段为空，服务端仍返回当前 expiry/version。
+
+`reported_session` 只保留为诊断附件；已验证 session 存在时 Gateway 可以覆盖为 verified account/session 摘要，未登录时为空，Terminal Device 不以它建立 tenant、当前登录或 authorization。Heartbeat received time 与 trace 使用服务时钟/trusted transport。Credential 在剩余 7 天内轮换并以新旧版本最多 5 分钟重叠收敛；超期、撤销或重放旧版本均 fail closed。Heartbeat 的重复 payload 只形成诊断幂等结果，不改变生命周期或授权。
 
 `RecordDiagnosticLogsRequest.logs=3` 改用独立 input message，兼容保留 `client_time=6`, `level=8`, `event_type=9`, `message=10`, `error_code=13`, `diagnostic_mode=14`, `details_json=15`；删除并 reserve caller-supplied `diagnostic_log_id=1`, `tenant_id=2`, `terminal_device_id=3`, `received_at=7`, `trace_id=11`, `request_id=12`。`account_id=4` / `session_id=5` 只改名为 `reported_account_id` / `reported_session_id` 并保留 wire number。输出 projection 继续由服务生成。
 

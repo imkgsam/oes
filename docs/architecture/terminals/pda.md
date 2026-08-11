@@ -106,7 +106,7 @@ Phase 1 最小 BFF 能力：
 - `/pda/session/bootstrap` 是 PDA 启动聚合接口，一次返回 account、session、access、device policy、version policy、workbench 与 server time。
 - `/pda/device/heartbeat` 用于保存最近设备 / App 状态，允许未登录和已登录状态上报。
 - `/pda/device/logs` 用于手动上传诊断日志，Phase 1 允许诊断日志携带完整扫码值，但必须标记 `diagnosticMode`。
-- 受管设备 enrollment 激活后由 Terminal Device Service 返回一次性 `deviceCredential`；Android shell 使用 Keystore 加密保存，后续登录前设备判定、heartbeat、bootstrap 与诊断上传必须携带。该 credential 只证明设备 secret 持有，不代表 HUMAN session 或业务权限。
+- 受管设备 enrollment 激活后由 Terminal Device Service 返回一次性 `deviceCredential`、expiry 与 version；Android shell 使用 Keystore 加密保存，后续登录前设备判定、heartbeat、bootstrap 与诊断上传必须携带。Credential 默认最长 30 天，剩余 7 天内由 heartbeat 轮换，新旧版本最多重叠 5 分钟。它只证明设备 secret 持有，不代表 HUMAN session 或业务权限。
 - 后续 WMS / MES PDA 能力应通过 `/pda/*` 场景契约暴露，但业务规则仍由对应业务服务拥有。
 
 ## 8. JS Bridge Boundary

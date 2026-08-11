@@ -295,7 +295,7 @@ Terminal Device 的 17 个 RPC 统一使用 audience `urn:oes:service:terminal-d
 | `GetVersionPolicy` | BUSINESS / HUMAN WEB | all `terminal-device.read` |
 | `UpsertVersionPolicy` | BUSINESS / HUMAN WEB | all `terminal-device.version-policy.manage` |
 
-`ChangeTerminalDeviceStatus` 必须在 guard 的 `any` 通过后继续执行目标绑定：`DISABLED -> terminal-device.status.disable`、`LOST -> terminal-device.status.mark-lost`、`MAINTENANCE -> terminal-device.status.mark-maintenance`、`ACTIVE -> terminal-device.status.restore-active`、`DECOMMISSIONED -> terminal-device.status.decommission`。本 RPC 不允许把目标设为 `PENDING_APPROVAL`。
+`ChangeTerminalDeviceStatus` 必须在 guard 的 `any` 通过后继续执行目标绑定：`DISABLED -> terminal-device.status.disable`、`LOST -> terminal-device.status.mark-lost`、`MAINTENANCE -> terminal-device.status.mark-maintenance`、`ACTIVE -> terminal-device.status.restore-active`、`DECOMMISSIONED -> terminal-device.status.disable`。`DECOMMISSIONED` 仍由服务端作为不可恢复终态处理，并要求高风险原因与审计；本 RPC 不允许把目标设为 `PENDING_APPROVAL`。
 
 BUSINESS 请求的 tenant、account、org、operator 与 trace 只来自 verified ExecutionToken / trusted transport；设备、enrollment 与分页字段只是当前 tenant 内的业务 target。四个 INTERNAL 请求只接受环境 registry 中准确 Gateway SPIFFE workload 的 certificate-bound ET；Gateway 复用既有 Machine workload source credential、STS、`ResolveWorkloadIssuance` 与最多五分钟的进程内 target-token cache，不新增 Auth credential profile。SYSTEM Machine Token 不携带或伪造 tenant；Terminal Device 从 enrollment 或现有设备 registry 解析 tenant。
 
@@ -304,7 +304,8 @@ BUSINESS 请求的 tenant、account、org、operator 与 trace 只来自 verifie
 Gateway MACHINE ET 只证明内部调用者是 Gateway，不能证明外部请求来自其自报的 PDA。Phase 2 因此冻结一个 Terminal Device Service 自有的随机 `deviceCredential`：
 
 - enrollment 激活成功时生成高熵随机值，只向 PDA 返回一次；PDA 使用 Android Keystore 加密保存，服务端只保存 hash 与状态，不保存可恢复原文；
-- credential 绑定 `terminalDeviceId + appInstallationId`，是设备证明而不是 Execution Principal、Auth credential、Permission grant 或用户 session；
+- credential 绑定 `terminalDeviceId + appInstallationId`，带服务端 `credentialVersion`，默认最长 30 天；是设备证明而不是 Execution Principal、Auth credential、Permission grant 或用户 session；
+- heartbeat 在 credential 剩余 7 天或更短时原子签发新 credential/version；新旧 credential 最多重叠 5 分钟，仅用于设备收敛，过期旧版本随后拒绝；
 - `ResolveDeviceAccessDecision`、`RecordHeartbeat` 与 `RecordDiagnosticLogs` 必须同时验证准确 credential；只提交 terminalDeviceId、serial、Android ID 或 installation ID 不能建立设备 authority；
 - `DISABLED / LOST / MAINTENANCE` 暂停 credential 使用，受审计的 `ACTIVE` restore 才恢复；`DECOMMISSIONED` 与重新 enrollment 永久撤销旧 credential；
 - credential、hash、enrollment code、source bearer 与完整设备敏感标识不得进入日志、错误、普通审计或普通 response；
@@ -356,7 +357,6 @@ Gateway MACHINE ET 只证明内部调用者是 Gateway，不能证明外部请�
 - `terminal-device.version-policy.manage`
 - `terminal-device.audit.read`
 - `terminal-device.update`
-- `terminal-device.status.decommission`
 - `terminal-device.internal.gateway.enrollment.activate`
 - `terminal-device.internal.gateway.access.resolve`
 - `terminal-device.internal.gateway.heartbeat.record`

@@ -198,12 +198,11 @@ Decorator 使用：
 
 ### 7.5 Terminal Device trusted gRPC completion
 
-Terminal Device 新增两个 `kind=BUSINESS` Code：
+Terminal Device 新增一个 `kind=BUSINESS` Code：
 
 - `terminal-device.update`：更新非生命周期设备展示字段；
-- `terminal-device.status.decommission`：把设备迁移到不可直接恢复的退役状态。
 
-既有 `terminal-device.status.disable`、`mark-lost`、`mark-maintenance`、`restore-active` 与新 decommission Code 在同一 RPC 的 `any` declaration 后，仍必须由 Terminal Device Service 执行 exact target-status-to-Code matching；持有任一 Code 不能执行另一种 transition。`terminal-device.sensitive.read` 继续作为 `GetTerminalDevice` unmasked projection 的附加 Code，并单独保护 runtime snapshot、heartbeat history 与 diagnostic history。
+既有 `terminal-device.status.disable`、`mark-lost`、`mark-maintenance`、`restore-active` 在同一 RPC 的 `any` declaration 后，仍必须由 Terminal Device Service 执行 exact target-status-to-Code matching；`DECOMMISSIONED` 复用 `terminal-device.status.disable` 但仍是服务端不可恢复终态，并要求高风险 reason 与审计。持有任一 Code 不能执行另一种 transition。`terminal-device.sensitive.read` 继续作为 `GetTerminalDevice` unmasked projection 的附加 Code，并单独保护 runtime snapshot、heartbeat history 与 diagnostic history。
 
 Terminal Device 新增四个 owner=`terminal-device-service`、`kind=INTERNAL`、`assignableTo=WORKLOAD_POLICY`、`allowedScopeLevels=[SYSTEM]`、`externalApiEligible=false` 的 Code：
 

@@ -198,4 +198,4 @@ Proto 删除并 reserve 下列 request 字段号与名称：
 
 Activation 的 `identity=3` 改用只包含当前 wire `manufacturer_serial=1`, `android_id=2`, `app_installation_id=3`, `manufacturer=4`, `model=5` 的 input message；caller 不能提交服务端 projection 的 identity source、confidence 或 masked values。
 
-`ActivateEnrollmentResponse` 保留现有 `1..7`，新增 `device_credential=8`。成功事务原子创建 Device、保存 credential hash/ACTIVE 状态、消费 enrollment 并写安全审计；原始 credential 只返回一次，不进入持久化明文、日志或审计。失败 response 不返回 credential。`DISABLED / LOST / MAINTENANCE` 暂停使用，`ACTIVE` restore 恢复；`DECOMMISSIONED` 与重新 enrollment 永久撤销。
+`ActivateEnrollmentResponse` 保留现有 `1..7`，新增 `device_credential=8`, `device_credential_expires_at=9`, `device_credential_version=10`。成功事务原子创建 Device、保存 credential hash/ACTIVE 状态、消费 enrollment 并写安全审计；原始 credential 只返回一次，不进入持久化明文、日志或审计。Credential 默认最长 30 天；heartbeat 在剩余 7 天内原子轮换，新旧版本最多重叠 5 分钟。失败 response 不返回 credential。`DISABLED / LOST / MAINTENANCE` 暂停使用，`ACTIVE` restore 恢复；`DECOMMISSIONED` 与重新 enrollment 永久撤销。

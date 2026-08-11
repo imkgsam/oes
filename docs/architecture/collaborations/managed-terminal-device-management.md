@@ -83,7 +83,7 @@ tenant-web admin
 -> terminal-device-service validates enrollment and identity signals
 -> terminal-device-service creates TerminalDevice(status=ACTIVE)
 -> terminal-device-service marks enrollment USED
--> terminal-device-service returns one-time deviceCredential and stores only its hash/state
+-> terminal-device-service returns one-time deviceCredential/expiry/version and stores only hash/state/version
 -> PDA stores terminalDeviceId and Keystore-encrypted deviceCredential
 ```
 
@@ -96,7 +96,7 @@ tenant-web admin
 - 使用成功后 enrollment 变为 `USED`，不可复用。
 - 正常激活成功后才创建正式 `TerminalDevice`，状态直接为 `ACTIVE`。
 - `PENDING_APPROVAL` 只用于异常场景，不是正常入网必经状态。
-- `deviceCredential` 是 Terminal Device Service 自有的设备证明，不是 Auth credential、Execution Principal、Permission grant 或 session。之后的设备判定、heartbeat 与诊断写入同时要求 Gateway MACHINE ET 与准确 device credential。
+- `deviceCredential` 是 Terminal Device Service 自有的设备证明，不是 Auth credential、Execution Principal、Permission grant 或 session。它默认 30 天有效，剩余 7 天内由 heartbeat 轮换，新旧版本最多重叠 5 分钟；之后的设备判定、heartbeat 与诊断写入同时要求 Gateway MACHINE ET 与准确、未过期 device credential。
 - `DISABLED / LOST / MAINTENANCE` 暂停 credential，受审计的 ACTIVE restore 恢复；`DECOMMISSIONED` 与重新 enrollment 永久撤销旧 credential。Phase 2 不引入每设备 Machine Principal、设备 mTLS PKI 或硬件私钥签名。
 - 使用过期、已使用或已撤销 enrollment 时，PDA BFF 必须拒绝入网并返回 PDA-friendly 错误。
 - identity 与预期 serial 不一致、疑似重复设备或 identity conflict 时，PDA 端只展示“需要管理员确认”，不得让现场人员自行恢复旧设备或注册新设备。

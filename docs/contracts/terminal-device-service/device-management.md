@@ -246,7 +246,7 @@ Gateway access log does not replace this audit event.
 | `ChangeTerminalDeviceStatus` | any lifecycle Code plus exact target binding below |
 | `ListTerminalDeviceAuditEvents` | all `terminal-device.audit.read` |
 
-Status 绑定固定为：`DISABLED -> terminal-device.status.disable`、`LOST -> terminal-device.status.mark-lost`、`MAINTENANCE -> terminal-device.status.mark-maintenance`、`ACTIVE -> terminal-device.status.restore-active`、`DECOMMISSIONED -> terminal-device.status.decommission`。`PENDING_APPROVAL` 不能由该 RPC 直接设置；持有任一其他 lifecycle Code 不能执行不匹配的 target transition。
+Status 绑定固定为：`DISABLED -> terminal-device.status.disable`、`LOST -> terminal-device.status.mark-lost`、`MAINTENANCE -> terminal-device.status.mark-maintenance`、`ACTIVE -> terminal-device.status.restore-active`、`DECOMMISSIONED -> terminal-device.status.disable`。`DECOMMISSIONED` 仍是服务端不可恢复终态，必须填写高风险 reason 并审计；`PENDING_APPROVAL` 不能由该 RPC 直接设置；持有任一其他 lifecycle Code 不能执行不匹配的 target transition。
 
 Proto 删除并 reserve：
 

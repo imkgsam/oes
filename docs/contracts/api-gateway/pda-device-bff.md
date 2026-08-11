@@ -334,7 +334,7 @@ Rules:
 
 ## 8. Managed device credential and trusted downstream calls
 
-Enrollment activation returns a one-time `deviceCredential` in addition to `terminalDeviceId`. The Android shell encrypts it with Android Keystore and never exposes it to Vue logs, URL/query, analytics, crash reports or ordinary storage. Subsequent `/pda/device/heartbeat`, `/pda/device/logs`, `/pda/session/bootstrap` and PDA login device checks send it in the dedicated HTTPS header `X-OES-Terminal-Device-Credential`; it is absent from JSON DTOs and API responses after activation.
+Enrollment activation returns a one-time `deviceCredential`, `deviceCredentialExpiresAt` and `deviceCredentialVersion` in addition to `terminalDeviceId`. The default lifetime is 30 days. The Android shell encrypts it with Android Keystore and never exposes it to Vue logs, URL/query, analytics, crash reports or ordinary storage. Heartbeat rotates it when seven days or less remain; old/new values overlap for at most five minutes. Subsequent `/pda/device/heartbeat`, `/pda/device/logs`, `/pda/session/bootstrap` and PDA login device checks send it in the dedicated HTTPS header `X-OES-Terminal-Device-Credential`; it is absent from JSON DTOs and API responses after activation.
 
 Gateway treats this value as an opaque Terminal Device Service credential. It does not validate it locally, persist it, map it to a HUMAN/MACHINE principal, put it in ordinary gRPC metadata or use it as an Auth STS source credential. Gateway forwards it only in the exact terminal-device proto field of `ResolveDeviceAccessDecision`, `RecordHeartbeat` or `RecordDiagnosticLogs`, after request logging/redaction has excluded the value.
 
