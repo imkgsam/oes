@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common'
+import { createHash, randomUUID } from 'node:crypto'
 import { NotificationDispatch } from '../../../domain/aggregates/notification-dispatch.aggregate'
 import { INotificationDispatchRepository } from '../../../domain/repositories/notification-dispatch.repository'
 import { NotificationDispatchMapper } from '../../mappers/notification-dispatch.mapper'
@@ -8,23 +9,72 @@ import { PrismaService } from '../../prisma/prisma.service'
 export class PrismaNotificationDispatchRepository implements INotificationDispatchRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findByIdempotencyKey(idempotencyKey: string): Promise<NotificationDispatch | null> {
+  async findByIdempotencyKey(
+    sourceService: string,
+    channel: string,
+    idempotencyKey: string
+  ): Promise<NotificationDispatch | null> {
     const record = await this.prisma.notificationDispatch.findUnique({
-      where: { idempotencyKey }
+      where: {
+        sourceService_channel_idempotencyKey: {
+          sourceService,
+          channel: channel as 'EMAIL' | 'SMS',
+          idempotencyKey
+        }
+      }
     })
 
     return record ? NotificationDispatchMapper.toDomain(record) : null
   }
 
-  async save(dispatch: NotificationDispatch): Promise<NotificationDispatch> {
+  /** Persists acceptance, redacted audit, and encrypted outbox together so QUEUED always has durable work. */
+  async accept(dispatch: NotificationDispatch): Promise<NotificationDispatch> {
     const persisted = NotificationDispatchMapper.toPersistence(dispatch)
+    const record = await this.prisma.$transaction(async (transaction) => {
+      const existing = await transaction.notificationDispatch.findUnique({
+        where: {
+          sourceService_channel_idempotencyKey: {
+            sourceService: persisted.sourceService,
+            channel: persisted.channel,
+            idempotencyKey: persisted.idempotencyKey
+          }
+        }
+      })
+      if (existing) {
+        if (existing.commandDigest !== persisted.commandDigest) {
+          throw new Error('IDEMPOTENCY_CONFLICT')
+        }
+        return existing
+      }
 
-    const record = await this.prisma.notificationDispatch.upsert({
-      where: { id: persisted.id },
-      update: persisted,
-      create: persisted
+      const created = await transaction.notificationDispatch.create({ data: persisted })
+      await transaction.notificationDispatchAudit.create({
+        data: {
+          id: randomUUID(),
+          dispatchId: created.id,
+          sourceService: created.sourceService,
+          machinePrincipal: created.machinePrincipal,
+          channel: created.channel,
+          category: created.category,
+          templateKey: created.templateKey,
+          idempotencyRef: createHash('sha256').update(created.idempotencyKey).digest('hex'),
+          recipientFingerprint: createHash('sha256').update(created.recipientAddress).digest('hex'),
+          traceId: created.traceId,
+          requestId: created.requestId,
+          result: 'QUEUED'
+        }
+      })
+      await transaction.notificationProviderOutbox.create({
+        data: {
+          id: randomUUID(),
+          dispatchId: created.id,
+          channel: created.channel,
+          encryptedPayload: created.protectedPayload,
+          payloadExpiresAt: created.protectedPayloadExpiresAt
+        }
+      })
+      return created
     })
-
     return NotificationDispatchMapper.toDomain(record)
   }
 }

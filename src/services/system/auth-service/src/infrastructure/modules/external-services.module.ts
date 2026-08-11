@@ -5,7 +5,6 @@ import { TENANT_LIFECYCLE_ACCESS_PORT } from '../../common/constants/injection-t
 import {
   IdentityServiceAdaptor,
   HrServiceAdaptor,
-  NotificationServiceGrpcAdaptor,
   PermissionServiceAdaptor,
   TenantOrgLifecycleGrpcAdaptor
 } from '../adaptors'
@@ -16,7 +15,6 @@ import {
       SERVICE_NAMES.IDENTITY,
       SERVICE_NAMES.HR,
       SERVICE_NAMES.PERMISSION,
-      SERVICE_NAMES.NOTIFICATION,
       SERVICE_NAMES.TENANT_ORG
     ])
   ],
@@ -36,16 +34,14 @@ import {
     {
       provide: TENANT_LIFECYCLE_ACCESS_PORT,
       useClass: TenantOrgLifecycleGrpcAdaptor
-    },
-    NotificationServiceGrpcAdaptor
+    }
   ],
   exports: [
     GrpcTransportModule,
     IDENTITY_SERVICE,
     HR_SERVICE,
     PERMISSION_SERVICE,
-    TENANT_LIFECYCLE_ACCESS_PORT,
-    NotificationServiceGrpcAdaptor
+    TENANT_LIFECYCLE_ACCESS_PORT
   ]
 })
 export class ExternalServicesModule {}

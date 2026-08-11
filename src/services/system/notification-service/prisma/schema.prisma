@@ -13,7 +13,8 @@ model NotificationDispatch {
   channel              NotificationChannel
   category             NotificationCategory
   sourceService        String
-  tenantId             String
+  machinePrincipal     String
+  tenantId             String?
   orgId                String?
   traceId              String?
   requestId            String?
@@ -21,7 +22,10 @@ model NotificationDispatch {
   recipientDisplayName String?
   templateKey          String
   variablePayload      Json
-  idempotencyKey       String               @unique
+  commandDigest        String
+  protectedPayload     String
+  protectedPayloadExpiresAt DateTime
+  idempotencyKey       String
   status               NotificationDispatchStatus
   rejectionReason      String?
   subjectOverride      String?
@@ -30,8 +34,44 @@ model NotificationDispatch {
   updatedAt            DateTime             @updatedAt
   acceptedAt           DateTime?
 
+  @@unique([sourceService, channel, idempotencyKey])
   @@index([tenantId, channel, createdAt])
   @@index([sourceService, createdAt])
+}
+
+model NotificationDispatchAudit {
+  id             String   @id
+  dispatchId     String
+  sourceService  String
+  machinePrincipal String
+  channel        NotificationChannel
+  category       NotificationCategory
+  templateKey    String
+  idempotencyRef String
+  recipientFingerprint String
+  traceId        String?
+  requestId      String?
+  result         String
+  reason         String?
+  createdAt      DateTime @default(now())
+
+  @@index([dispatchId, createdAt])
+}
+
+model NotificationProviderOutbox {
+  id             String   @id
+  dispatchId     String   @unique
+  channel        NotificationChannel
+  encryptedPayload String
+  payloadExpiresAt DateTime
+  status         NotificationProviderOutboxStatus @default(PENDING)
+  attempts       Int      @default(0)
+  nextAttemptAt  DateTime @default(now())
+  terminalReason String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([status, nextAttemptAt])
 }
 
 model NotificationInboxEvent {
@@ -212,4 +252,12 @@ enum NotificationDispatchStatus {
   ACCEPTED
   QUEUED
   REJECTED
+}
+
+enum NotificationProviderOutboxStatus {
+  PENDING
+  RETRYING
+  DELIVERED
+  TERMINAL
+  EXPIRED
 }

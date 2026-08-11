@@ -6,10 +6,10 @@ import { SmsProviderPort } from '../../domain/services/sms-provider.port'
 export class LocalSmsProviderAdaptor implements SmsProviderPort {
   private readonly logger = new Logger(LocalSmsProviderAdaptor.name)
 
-  async send(dispatch: NotificationDispatch): Promise<void> {
+  async send(dispatch: NotificationDispatch, _payload: Record<string, unknown>): Promise<void> {
     const props = dispatch.getProps()
     this.logger.log(
-      `[local-sms] dispatch=${props.id} recipient=${props.recipientAddress} template=${props.templateKey}`
+      `[local-sms] dispatch=${props.id} recipient=redacted template=${props.templateKey}`
     )
   }
 }

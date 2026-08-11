@@ -135,15 +135,6 @@ export class PasswordRecoveryService {
       })
     }
 
-    if (
-      !this.isMockOtpMode() &&
-      dispatch.effectiveCode &&
-      dispatch.effectiveCode !== otp.getProps().code
-    ) {
-      otp.updateCode(dispatch.effectiveCode)
-      await this.otpRepository.save(otp)
-    }
-
     await this.otpRiskThrottleService.recordSend(
       target.identifier,
       OTP_USAGES.RESET_PASSWORD

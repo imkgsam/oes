@@ -73,11 +73,6 @@ export class PhoneOtpMfaChallengeService {
       })
     }
 
-    if (dispatch.effectiveCode && dispatch.effectiveCode !== otp.getProps().code) {
-      otp.updateCode(dispatch.effectiveCode)
-      await this.oneTimeTokenRepo.save(otp)
-    }
-
     await this.otpRiskThrottleService.recordSend(phoneLoginMethod.identifier, OTP_USAGES.MFA_VERIFY)
 
     return {

@@ -73,13 +73,14 @@ import { RedisLoginRiskRepository } from '../../infrastructure/repositories/redi
 import { RedisOtpSendThrottleRepository } from '../../infrastructure/repositories/redis/risk/redis-otp-send-throttle.repository'
 import { RedisUserSessionRepository } from '../../infrastructure/repositories/redis/session/redis-user-session.repository'
 import { NotificationServiceGrpcAdaptor } from '../../infrastructure/adaptors/notification-service.grpc.adaptor'
+import { AuthNotificationExecutionTokenExchangeClient } from '../../infrastructure/adaptors/auth-notification-execution-token-exchange.client'
+import { AuthNotificationMachineSourceCredentialClient } from '../../infrastructure/adaptors/auth-notification-machine-source-credential.client'
+import { AuthNotificationMachineSourceCredentialProvider } from '../../infrastructure/adaptors/auth-notification-machine-source-credential.provider'
+import { AuthNotificationTrustedGrpcExecutionProducer } from '../../infrastructure/adaptors/auth-notification-trusted-grpc-execution.producer'
 import { AuthAuditListener } from '../../infrastructure/listeners/auth-audit.listener'
 import { TerminalDeviceUnavailableSubscriber } from '../../infrastructure/listeners/terminal-device-unavailable.subscriber'
 import { ExternalServicesModule } from '../../infrastructure/modules/external-services.module'
-import { LocalNotificationDispatchAdaptor } from '../../infrastructure/adaptors/local-notification-dispatch.adaptor'
-import { EmailService } from '../../infrastructure/services/email.service'
 import { BcryptHashingService } from '../../infrastructure/services/hashing.service'
-import { SmsService } from '../../infrastructure/services/sms.service'
 import { AuthGrpcController } from '../../interfaces/grpc/auth.grpc.controller'
 import { ExternalApiKeyGrpcController } from '../../interfaces/grpc/external-api-key.grpc.controller'
 import { ExecutionTokenModule } from '../token/execution-token.module'
@@ -158,13 +159,7 @@ const AUTH_SERVICE_AUDIENCE = 'urn:oes:service:auth-service'
     { provide: HASHING_SERVICE, useClass: BcryptHashingService },
     {
       provide: NOTIFICATION_DISPATCH_PORT,
-      useFactory: (
-        localAdaptor: LocalNotificationDispatchAdaptor,
-        grpcAdaptor: NotificationServiceGrpcAdaptor
-      ) => {
-        return process.env.AUTH_NOTIFICATION_TRANSPORT === 'grpc' ? grpcAdaptor : localAdaptor
-      },
-      inject: [LocalNotificationDispatchAdaptor, NotificationServiceGrpcAdaptor]
+      useExisting: NotificationServiceGrpcAdaptor
     },
     PermissionServicePermissionReadAdaptor,
     RoleBasedOperatorPermissionResolver,
@@ -223,10 +218,23 @@ const AUTH_SERVICE_AUDIENCE = 'urn:oes:service:auth-service'
     TrustedDeviceService,
     EmailPasswordStrategy,
     PhonePasswordStrategy,
-    LocalNotificationDispatchAdaptor,
+    AuthNotificationMachineSourceCredentialClient,
+    AuthNotificationExecutionTokenExchangeClient,
+    {
+      provide: AuthNotificationMachineSourceCredentialProvider,
+      useFactory: (client: AuthNotificationMachineSourceCredentialClient) =>
+        new AuthNotificationMachineSourceCredentialProvider(client),
+      inject: [AuthNotificationMachineSourceCredentialClient]
+    },
+    {
+      provide: AuthNotificationTrustedGrpcExecutionProducer,
+      useFactory: (
+        source: AuthNotificationMachineSourceCredentialProvider,
+        exchange: AuthNotificationExecutionTokenExchangeClient
+      ) => new AuthNotificationTrustedGrpcExecutionProducer(source, exchange),
+      inject: [AuthNotificationMachineSourceCredentialProvider, AuthNotificationExecutionTokenExchangeClient]
+    },
     NotificationServiceGrpcAdaptor,
-    EmailService,
-    SmsService,
     PrismaAuthAuditRepository,
     PrismaPasswordRecoveryGrantRepository,
     PrismaPasswordSetupRequirementRepository,

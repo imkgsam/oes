@@ -1050,6 +1050,15 @@ const assetSiteMediaInternal = definePermissionGroup(Modules.ASSET_SERVICE, {
   PUBLICATION_RELEASE: { code: 'asset.internal.site_media.publication.release', description: '释放 Site 发布媒体引用保护', kind: PermissionKind.INTERNAL, externalApiEligible: false }
 })
 
+const notificationInternal = definePermissionGroup(Modules.NOTIFICATION_SERVICE, {
+  AUTH_DISPATCH: {
+    code: 'notification.internal.auth.dispatch',
+    description: '受理 Auth 的 SYSTEM 认证通知投递命令',
+    kind: PermissionKind.INTERNAL,
+    externalApiEligible: false
+  }
+})
+
 export const PERMISSION_MANAGEMENT_PERMISSION_CODES = permissionManagement.codes
 export const PERMISSION_INTERNAL_PERMISSION_CODES = permissionInternal.codes
 export const ROLE_TEMPLATE_PERMISSION_CODES = roleTemplateManagement.codes
@@ -1086,6 +1095,7 @@ export const SITE_MANAGEMENT_PERMISSION_CODES = siteManagement.codes
 export const ASSET_INTERNAL_PERMISSION_CODES = assetInternal.codes
 export const ASSET_SITE_MEDIA_PERMISSION_CODES = assetSiteMedia.codes
 export const ASSET_SITE_MEDIA_INTERNAL_PERMISSION_CODES = assetSiteMediaInternal.codes
+export const NOTIFICATION_INTERNAL_PERMISSION_CODES = notificationInternal.codes
 export const SITE_MANAGEMENT_INTERNAL_PERMISSION_CODES = siteManagementInternal.codes
 
 /** DEPRECATED_PERMISSION_CODES tracks legacy permission rows that should be cleaned from local/dev seed data. */

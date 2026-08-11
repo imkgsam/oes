@@ -44,15 +44,13 @@ message RecipientSnapshot {
 }
 
 message SourceContext {
-  string source_service = 1;
-  string tenant_id = 2;
-  string org_id = 3;
-  string trace_id = 4;
-  string request_id = 5;
+  reserved 1, 2, 3, 4, 5;
+  reserved "source_service", "tenant_id", "org_id", "trace_id", "request_id";
 }
 
 message SendEmailRequest {
-  SourceContext source = 1;
+  reserved 1;
+  reserved "source";
   NotificationCategory category = 2;
   string template_key = 3;
   RecipientSnapshot recipient = 4;
@@ -63,7 +61,8 @@ message SendEmailRequest {
 }
 
 message SendSmsRequest {
-  SourceContext source = 1;
+  reserved 1;
+  reserved "source";
   NotificationCategory category = 2;
   string template_key = 3;
   RecipientSnapshot recipient = 4;

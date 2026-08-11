@@ -211,8 +211,7 @@ describe('PasswordRecoveryService', () => {
     }
     const notificationDispatchPort = {
       sendAuthOtpSms: jest.fn().mockResolvedValue({
-        accepted: true,
-        effectiveCode: '654321'
+        accepted: true
       })
     }
     const otpRiskThrottleService = {

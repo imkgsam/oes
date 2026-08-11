@@ -13,14 +13,18 @@ export interface NotificationDispatchProps {
   channel: NotificationChannel
   category: NotificationCategory
   sourceService: string
-  tenantId: string
+  machinePrincipal: string
+  tenantId?: string
   orgId?: string
   traceId?: string
   requestId?: string
   recipientAddress: string
   recipientDisplayName?: string
   templateKey: string
-  variablePayload: Record<string, string>
+  variablePayload: Record<string, never>
+  commandDigest: string
+  protectedPayload: string
+  protectedPayloadExpiresAt: Date
   idempotencyKey: string
   status: NotificationDispatchStatus
   rejectionReason?: string
@@ -38,17 +42,18 @@ export class NotificationDispatch {
     channel: NotificationChannel
     category: NotificationCategory
     sourceService: string
-    tenantId: string
-    orgId?: string
     traceId?: string
     requestId?: string
     recipientAddress: string
     recipientDisplayName?: string
     templateKey: string
-    variablePayload: Record<string, string>
     idempotencyKey: string
     subjectOverride?: string
     providerRoute?: string
+    machinePrincipal: string
+    commandDigest: string
+    protectedPayload: string
+    protectedPayloadExpiresAt: Date
   }): NotificationDispatch {
     const now = new Date()
 
@@ -57,16 +62,18 @@ export class NotificationDispatch {
       channel: input.channel,
       category: input.category,
       sourceService: input.sourceService,
-      tenantId: input.tenantId,
-      orgId: input.orgId,
+      machinePrincipal: input.machinePrincipal,
       traceId: input.traceId,
       requestId: input.requestId,
       recipientAddress: input.recipientAddress,
       recipientDisplayName: input.recipientDisplayName,
       templateKey: input.templateKey,
-      variablePayload: input.variablePayload,
+      variablePayload: {},
       idempotencyKey: input.idempotencyKey,
-      status: 'ACCEPTED',
+      commandDigest: input.commandDigest,
+      protectedPayload: input.protectedPayload,
+      protectedPayloadExpiresAt: input.protectedPayloadExpiresAt,
+      status: 'QUEUED',
       subjectOverride: input.subjectOverride,
       providerRoute: input.providerRoute,
       createdAt: now,

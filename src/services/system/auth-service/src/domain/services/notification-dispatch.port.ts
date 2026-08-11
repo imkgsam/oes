@@ -1,7 +1,6 @@
 export interface NotificationDispatchResult {
   accepted: boolean
   dispatchId?: string
-  effectiveCode?: string
   rejectionReason?: string
 }
 

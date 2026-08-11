@@ -107,11 +107,6 @@ export class ContactBindingVerificationService {
       })
     }
 
-    if (dispatch.effectiveCode && dispatch.effectiveCode !== otp.getProps().code) {
-      otp.updateCode(dispatch.effectiveCode)
-      await this.otpRepository.save(otp)
-    }
-
     await this.otpRiskThrottleService.recordSend(identifier, OTP_USAGES.REGISTER)
 
     return {

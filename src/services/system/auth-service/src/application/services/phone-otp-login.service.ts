@@ -72,11 +72,6 @@ export class PhoneOtpLoginService {
       })
     }
 
-    if (dispatch.effectiveCode && dispatch.effectiveCode !== otp.getProps().code) {
-      otp.updateCode(dispatch.effectiveCode)
-      await this.otpRepository.save(otp)
-    }
-
     await this.otpRiskThrottleService.recordSend(normalizedPhone, OTP_USAGES.LOGIN)
 
     return {

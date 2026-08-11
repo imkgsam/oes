@@ -1,113 +1,30 @@
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs'
-import {
-  DispatchStatus,
-  NotificationCategory,
-  SendSmsResponse
-} from '@oes/common/generated/notification_service'
 import { Inject } from '@nestjs/common'
-import { REPO_NOTIFICATION_DISPATCH, SMS_PROVIDER_PORT } from '../../common/constants/injection-tokens'
-import {
-  NotificationCategory as NotificationCategoryType,
-  NotificationDispatch
-} from '../../domain/aggregates/notification-dispatch.aggregate'
+import { createHash } from 'node:crypto'
+import { DispatchStatus, SendSmsResponse } from '@oes/common/generated/notification_service'
+import { NOTIFICATION_DELIVERY_PAYLOAD_PROTECTOR, REPO_NOTIFICATION_DISPATCH } from '../../common/constants/injection-tokens'
+import { NotificationDispatch } from '../../domain/aggregates/notification-dispatch.aggregate'
 import { INotificationDispatchRepository } from '../../domain/repositories/notification-dispatch.repository'
-import { SmsProviderPort } from '../../domain/services/sms-provider.port'
+import { NotificationDeliveryPayloadProtector } from '../../domain/services/notification-delivery-payload-protection.port'
 import { SendSmsCommand } from './send-sms.command'
+import { prepareAuthDispatch, reject } from './send-email.handler'
 
+/** Accepts only the frozen Auth SMS profiles and queues their encrypted payload after atomic acceptance. */
 @CommandHandler(SendSmsCommand)
 export class SendSmsHandler implements ICommandHandler<SendSmsCommand, SendSmsResponse> {
-  constructor(
-    @Inject(REPO_NOTIFICATION_DISPATCH)
-    private readonly dispatchRepository: INotificationDispatchRepository,
-    @Inject(SMS_PROVIDER_PORT)
-    private readonly smsProvider: SmsProviderPort
-  ) {}
+  constructor(@Inject(REPO_NOTIFICATION_DISPATCH) private readonly dispatchRepository: INotificationDispatchRepository, @Inject(NOTIFICATION_DELIVERY_PAYLOAD_PROTECTOR) private readonly protector: NotificationDeliveryPayloadProtector) {}
 
   async execute(command: SendSmsCommand): Promise<SendSmsResponse> {
-    const request = command.request
-    const recipient = request.recipient?.address?.trim()
-    const templateKey = request.templateKey?.trim()
-    const idempotencyKey = request.idempotencyKey?.trim()
-    const tenantId = request.source?.tenantId?.trim()
-    const sourceService = request.source?.sourceService?.trim()
-
-    if (!recipient) {
-      return this.reject('INVALID_RECIPIENT')
-    }
-
-    if (!templateKey) {
-      return this.reject('TEMPLATE_NOT_FOUND')
-    }
-
-    if (!idempotencyKey || !tenantId || !sourceService) {
-      return this.reject('INTERNAL_REJECTION')
-    }
-
-    const existing = await this.dispatchRepository.findByIdempotencyKey(idempotencyKey)
-    if (existing) {
-      return this.accept(existing)
-    }
-
-    const dispatch = NotificationDispatch.accept({
-      channel: 'SMS',
-      category: this.mapCategory(request.category),
-      sourceService,
-      tenantId,
-      orgId: request.source?.orgId || undefined,
-      traceId: request.source?.traceId || undefined,
-      requestId: request.source?.requestId || undefined,
-      recipientAddress: recipient,
-      recipientDisplayName: request.recipient?.displayName || undefined,
-      templateKey,
-      variablePayload: this.mapVariables(request.variables ?? []),
-      idempotencyKey
-    })
-
-    const saved = await this.dispatchRepository.save(dispatch)
-    await this.smsProvider.send(saved)
-
-    return this.accept(saved)
-  }
-
-  private accept(dispatch: NotificationDispatch): SendSmsResponse {
-    return {
-      accepted: true,
-      dispatchId: dispatch.getProps().id,
-      status: DispatchStatus.DISPATCH_STATUS_ACCEPTED
-    }
-  }
-
-  private reject(reason: string): SendSmsResponse {
-    return {
-      accepted: false,
-      dispatchId: '',
-      status: DispatchStatus.DISPATCH_STATUS_REJECTED,
-      rejectionReason: reason
-    }
-  }
-
-  private mapVariables(
-    variables: Array<{ key?: string; value?: string }>
-  ): Record<string, string> {
-    return variables.reduce<Record<string, string>>((acc, item) => {
-      if (item.key) {
-        acc[item.key] = item.value ?? ''
-      }
-      return acc
-    }, {})
-  }
-
-  private mapCategory(category?: NotificationCategory): NotificationCategoryType {
-    switch (category) {
-      case NotificationCategory.NOTIFICATION_CATEGORY_AUTH_SECURITY_ALERT:
-        return 'AUTH_SECURITY_ALERT'
-      case NotificationCategory.NOTIFICATION_CATEGORY_WORKFLOW_REMINDER:
-        return 'WORKFLOW_REMINDER'
-      case NotificationCategory.NOTIFICATION_CATEGORY_BUSINESS_STATUS:
-        return 'BUSINESS_STATUS'
-      case NotificationCategory.NOTIFICATION_CATEGORY_AUTH_OTP:
-      default:
-        return 'AUTH_OTP'
+    const prepared = prepareAuthDispatch(command.request, 'SMS')
+    if (typeof prepared === 'string') return reject(prepared)
+    try {
+      const expiresAt = new Date(Date.now() + 15 * 60_000)
+      const digest = createHash('sha256').update(JSON.stringify({ channel: 'SMS', ...prepared, variables: Object.entries(prepared.variables).sort(([a], [b]) => a.localeCompare(b)) })).digest('hex')
+      const dispatch = NotificationDispatch.accept({ channel: 'SMS', category: prepared.category, sourceService: command.authority.sourceService, machinePrincipal: command.authority.machinePrincipal, traceId: command.authority.traceId, requestId: command.authority.requestId, recipientAddress: prepared.recipient, recipientDisplayName: prepared.displayName, templateKey: prepared.templateKey, idempotencyKey: prepared.idempotencyKey, commandDigest: digest, protectedPayload: this.protector.protect({ recipient: prepared.recipient, displayName: prepared.displayName, variables: prepared.variables }, expiresAt), protectedPayloadExpiresAt: expiresAt })
+      const saved = await this.dispatchRepository.accept(dispatch)
+      return { accepted: true, dispatchId: saved.getProps().id, status: DispatchStatus.DISPATCH_STATUS_QUEUED }
+    } catch (error) {
+      return reject(error instanceof Error && error.message === 'IDEMPOTENCY_CONFLICT' ? 'IDEMPOTENCY_CONFLICT' : 'DISPATCH_ACCEPTANCE_UNAVAILABLE')
     }
   }
 }

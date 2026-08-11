@@ -73,11 +73,6 @@ export class EmailOtpMfaChallengeService {
       })
     }
 
-    if (dispatch.effectiveCode && dispatch.effectiveCode !== otp.getProps().code) {
-      otp.updateCode(dispatch.effectiveCode)
-      await this.oneTimeTokenRepo.save(otp)
-    }
-
     await this.otpRiskThrottleService.recordSend(emailLoginMethod.identifier, OTP_USAGES.MFA_VERIFY)
 
     return {

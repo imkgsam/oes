@@ -1,12 +1,7 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { ClientGrpc } from '@nestjs/microservices'
-import { SERVICE_NAMES } from '@oes/common/constants'
+import { ClientGrpc, ClientProxyFactory, Transport } from '@nestjs/microservices'
 import { ExceptionFactory, InfrastructureException } from '@oes/common/exceptions'
-import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory,
-  GrpcRequestContextStore
-} from '@oes/common/authorization'
+import { GrpcRequestContextStore } from '@oes/common/authorization'
 import {
   DispatchPriority,
   NotificationCategory,
@@ -17,31 +12,27 @@ import {
   SendSmsResponse,
   SendSmsRequest
 } from '@oes/common/generated/notification_service'
-import { InjectGrpcClient, safeGrpcCall } from '@oes/common/transport'
+import { createGrpcClientCredentials, safeGrpcCall } from '@oes/common/transport'
+import { resolveCommonProtoPath } from '@oes/common/contracts'
 import { AUTH_NOTIFICATION_UPSTREAM_UNAVAILABLE } from '../../common/constants/exception-enums'
 import { NotificationDispatchPort, NotificationDispatchResult } from '../../domain/services/notification-dispatch.port'
-
-const AUTH_PRELOGIN_TENANT_ID = 'system'
+import { AuthNotificationTrustedGrpcExecutionProducer } from './auth-notification-trusted-grpc-execution.producer'
 
 type NotificationDispatchResponse = SendEmailResponse | SendSmsResponse
 
 @Injectable()
 export class NotificationServiceGrpcAdaptor implements NotificationDispatchPort, OnModuleInit {
   private readonly logger = new Logger(NotificationServiceGrpcAdaptor.name)
-  private notificationService!: NotificationServiceClient
+  private notificationClient?: ClientGrpc
+  private notificationService?: NotificationServiceClient
 
   constructor(
-    @InjectGrpcClient(SERVICE_NAMES.NOTIFICATION)
-    private readonly notificationClient: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory,
-    private readonly requestContextStore: GrpcRequestContextStore
+    private readonly requestContextStore: GrpcRequestContextStore,
+    private readonly trustedExecution: AuthNotificationTrustedGrpcExecutionProducer
   ) {}
 
   onModuleInit() {
-    this.notificationService = this.notificationClient.getService<NotificationServiceClient>(
-      NOTIFICATION_SERVICE_NAME
-    )
+    this.service()
   }
 
   async sendAuthOtpEmail(input: {
@@ -53,7 +44,7 @@ export class NotificationServiceGrpcAdaptor implements NotificationDispatchPort,
   }): Promise<NotificationDispatchResult> {
     try {
       const response = await safeGrpcCall<SendEmailResponse>(
-        this.notificationService.sendEmail(this.buildEmailRequest(input), this.metadata()),
+        this.service().sendEmail(this.buildEmailRequest(input), await this.metadata()),
         {
           caller: 'auth-service',
           method: 'NotificationService.sendEmail'
@@ -79,7 +70,7 @@ export class NotificationServiceGrpcAdaptor implements NotificationDispatchPort,
   }): Promise<NotificationDispatchResult> {
     try {
       const response = await safeGrpcCall<SendSmsResponse>(
-        this.notificationService.sendSms(this.buildSmsRequest(input), this.metadata()),
+        this.service().sendSms(this.buildSmsRequest(input), await this.metadata()),
         {
           caller: 'auth-service',
           method: 'NotificationService.sendSms'
@@ -104,14 +95,8 @@ export class NotificationServiceGrpcAdaptor implements NotificationDispatchPort,
   }): Promise<NotificationDispatchResult> {
     try {
       const response = await safeGrpcCall<SendEmailResponse>(
-        this.notificationService.sendEmail(
+        this.service().sendEmail(
           {
-            source: {
-              sourceService: 'auth-service',
-              tenantId: AUTH_PRELOGIN_TENANT_ID,
-              traceId: this.requestContextStore.getContext()?.traceId ?? '',
-              requestId: this.requestContextStore.getContext()?.requestId ?? ''
-            },
             category: NotificationCategory.NOTIFICATION_CATEGORY_AUTH_SECURITY_ALERT,
             templateKey: 'ACCOUNT_INVITATION_EMAIL',
             recipient: {
@@ -126,7 +111,7 @@ export class NotificationServiceGrpcAdaptor implements NotificationDispatchPort,
             idempotencyKey: `account:invite:email:${input.accountId}`,
             priority: DispatchPriority.DISPATCH_PRIORITY_HIGH
           },
-          this.metadata()
+          await this.metadata()
         ),
         {
           caller: 'auth-service',
@@ -152,14 +137,8 @@ export class NotificationServiceGrpcAdaptor implements NotificationDispatchPort,
   }): Promise<NotificationDispatchResult> {
     try {
       const response = await safeGrpcCall<SendSmsResponse>(
-        this.notificationService.sendSms(
+        this.service().sendSms(
           {
-            source: {
-              sourceService: 'auth-service',
-              tenantId: AUTH_PRELOGIN_TENANT_ID,
-              traceId: this.requestContextStore.getContext()?.traceId ?? '',
-              requestId: this.requestContextStore.getContext()?.requestId ?? ''
-            },
             category: NotificationCategory.NOTIFICATION_CATEGORY_AUTH_SECURITY_ALERT,
             templateKey: 'ACCOUNT_INVITATION_SMS',
             recipient: {
@@ -174,7 +153,7 @@ export class NotificationServiceGrpcAdaptor implements NotificationDispatchPort,
             idempotencyKey: `account:invite:sms:${input.accountId}`,
             priority: DispatchPriority.DISPATCH_PRIORITY_HIGH
           },
-          this.metadata()
+          await this.metadata()
         ),
         {
           caller: 'auth-service',
@@ -199,15 +178,7 @@ export class NotificationServiceGrpcAdaptor implements NotificationDispatchPort,
     maskedDestination?: string
     ttlMinutes: number
   }): SendEmailRequest {
-    const current = this.requestContextStore.getContext()
-
     return {
-      source: {
-        sourceService: 'auth-service',
-        tenantId: AUTH_PRELOGIN_TENANT_ID,
-        traceId: current?.traceId ?? '',
-        requestId: current?.requestId ?? ''
-      },
       category: NotificationCategory.NOTIFICATION_CATEGORY_AUTH_OTP,
       templateKey: 'AUTH_OTP_EMAIL',
       recipient: {
@@ -230,15 +201,7 @@ export class NotificationServiceGrpcAdaptor implements NotificationDispatchPort,
     maskedDestination?: string
     ttlMinutes: number
   }): SendSmsRequest {
-    const current = this.requestContextStore.getContext()
-
     return {
-      source: {
-        sourceService: 'auth-service',
-        tenantId: AUTH_PRELOGIN_TENANT_ID,
-        traceId: current?.traceId ?? '',
-        requestId: current?.requestId ?? ''
-      },
       category: NotificationCategory.NOTIFICATION_CATEGORY_AUTH_OTP,
       templateKey: 'AUTH_OTP_SMS',
       recipient: {
@@ -281,10 +244,31 @@ export class NotificationServiceGrpcAdaptor implements NotificationDispatchPort,
 
   private metadata() {
     const current = this.requestContextStore.getContext()
-    return this.metadataFactory.createInternalCallMetadata({
-      callerServiceName: 'auth-service',
-      requestId: current?.requestId,
-      traceId: current?.traceId
-    })
+    return this.trustedExecution.createMetadata(current?.requestId, current?.traceId)
   }
+
+  /** Builds the dedicated mTLS Notification client instead of reusing legacy discovery metadata. */
+  private service(): NotificationServiceClient {
+    if (this.notificationService) return this.notificationService
+    this.notificationClient ??= ClientProxyFactory.create({
+      transport: Transport.GRPC,
+      options: {
+        package: 'notification_service',
+        protoPath: resolveCommonProtoPath('notification_service/notification.proto'),
+        url: notificationUrl(),
+        credentials: createGrpcClientCredentials()
+      }
+    }) as unknown as ClientGrpc
+    this.notificationService = this.notificationClient.getService<NotificationServiceClient>(NOTIFICATION_SERVICE_NAME)
+    return this.notificationService
+  }
+}
+
+/** Resolves the dedicated Notification endpoint and rejects an implicit production fallback. */
+function notificationUrl(): string {
+  const host = process.env.NOTIFICATION_SERVICE_HOST?.trim()
+  const port = process.env.NOTIFICATION_SERVICE_PORT?.trim()
+  if (host && port) return `${host === 'localhost' ? '127.0.0.1' : host}:${port}`
+  if ((process.env.NODE_ENV ?? 'development') !== 'production') return '127.0.0.1:50066'
+  throw new Error('trusted notification-service gRPC url is unavailable')
 }

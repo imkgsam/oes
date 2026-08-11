@@ -1,16 +1,17 @@
 import { of } from 'rxjs'
 import { ClientGrpc } from '@nestjs/microservices'
 import { Metadata } from '@grpc/grpc-js'
-import { GrpcMetadataPropagationFactory, GrpcRequestContextStore } from '@oes/common/authorization'
+import { GrpcRequestContextStore } from '@oes/common/authorization'
 import {
   DispatchStatus,
   SendEmailResponse,
   SendSmsResponse
 } from '@oes/common/generated/notification_service'
 import { NotificationServiceGrpcAdaptor } from './notification-service.grpc.adaptor'
+import { AuthNotificationTrustedGrpcExecutionProducer } from './auth-notification-trusted-grpc-execution.producer'
 
 describe('NotificationServiceGrpcAdaptor', () => {
-  it('should propagate metadata and write trace/request ids into notification source context', async () => {
+  it('uses the target-bound trusted metadata producer and never restores body source authority', async () => {
     const emailResponse: SendEmailResponse = {
       accepted: true,
       dispatchId: 'dispatch-1',
@@ -26,19 +27,17 @@ describe('NotificationServiceGrpcAdaptor', () => {
     } as unknown as ClientGrpc
 
     const metadata = new Metadata()
-    const metadataFactory: GrpcMetadataPropagationFactory = {
-      createInternalCallMetadata: jest.fn(() => metadata),
-      createOperatorScopedMetadata: jest.fn()
-    }
     const store = new GrpcRequestContextStore()
-    const adaptor = new NotificationServiceGrpcAdaptor(client, metadataFactory, store)
+    const trustedExecution = { createMetadata: jest.fn(async () => metadata) }
+    const adaptor = new NotificationServiceGrpcAdaptor(store, trustedExecution as unknown as AuthNotificationTrustedGrpcExecutionProducer)
+    ;(adaptor as any).notificationService = client.getService('NotificationService')
     adaptor.onModuleInit()
 
     await store.run(
       {
         internalServiceName: 'api-gateway',
         requestId: 'req-notification',
-        traceId: 'trace-notification'
+          traceId: '00-0123456789abcdef0123456789abcdef-0123456789abcdef-01'
       },
       async () => {
         const result = await adaptor.sendAuthOtpEmail({
@@ -56,19 +55,14 @@ describe('NotificationServiceGrpcAdaptor', () => {
       }
     )
 
-    expect(metadataFactory.createInternalCallMetadata).toHaveBeenCalledWith({
-      callerServiceName: 'auth-service',
-      requestId: 'req-notification',
-      traceId: 'trace-notification'
-    })
+    expect(trustedExecution.createMetadata).toHaveBeenCalledWith(
+      'req-notification',
+      '00-0123456789abcdef0123456789abcdef-0123456789abcdef-01'
+    )
     expect(sendEmail).toHaveBeenCalledWith(
       expect.objectContaining({
-        source: expect.objectContaining({
-          sourceService: 'auth-service',
-          tenantId: 'system',
-          traceId: 'trace-notification',
-          requestId: 'req-notification'
-        })
+        category: expect.any(Number),
+        templateKey: 'AUTH_OTP_EMAIL'
       }),
       metadata
     )
@@ -89,12 +83,10 @@ describe('NotificationServiceGrpcAdaptor', () => {
     } as unknown as ClientGrpc
 
     const metadata = new Metadata()
-    const metadataFactory: GrpcMetadataPropagationFactory = {
-      createInternalCallMetadata: jest.fn(() => metadata),
-      createOperatorScopedMetadata: jest.fn()
-    }
     const store = new GrpcRequestContextStore()
-    const adaptor = new NotificationServiceGrpcAdaptor(client, metadataFactory, store)
+    const trustedExecution = { createMetadata: jest.fn(async () => metadata) }
+    const adaptor = new NotificationServiceGrpcAdaptor(store, trustedExecution as unknown as AuthNotificationTrustedGrpcExecutionProducer)
+    ;(adaptor as any).notificationService = client.getService('NotificationService')
     adaptor.onModuleInit()
 
     const result = await adaptor.sendAuthOtpSms({

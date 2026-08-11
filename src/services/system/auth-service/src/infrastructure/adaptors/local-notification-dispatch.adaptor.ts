@@ -1,89 +1,14 @@
 import { Injectable } from '@nestjs/common'
-import { EmailService } from '../services/email.service'
-import { SmsService } from '../services/sms.service'
-import {
-  NotificationDispatchPort,
-  NotificationDispatchResult
-} from '../../domain/services/notification-dispatch.port'
+import { NotificationDispatchPort, NotificationDispatchResult } from '../../domain/services/notification-dispatch.port'
 
+/** Provides an isolated test double only; Auth runtime composition always uses the trusted Notification gRPC adaptor. */
 @Injectable()
 export class LocalNotificationDispatchAdaptor implements NotificationDispatchPort {
-  constructor(
-    private readonly emailService: EmailService,
-    private readonly smsService: SmsService
-  ) {}
-
-  async sendAccountInvitationEmail(input: {
-    accountId: string
-    displayName?: string
-    email?: string
-    recipient: string
-  }): Promise<NotificationDispatchResult> {
-    const effectiveCode = await this.emailService.sendEmailVerificationCode(
-      input.recipient,
-      input.accountId
-    )
-
-    return {
-      accepted: true,
-      dispatchId: `local-account-invite-email-${input.accountId}`,
-      effectiveCode
-    }
-  }
-
-  async sendAccountInvitationSms(input: {
-    accountId: string
-    displayName?: string
-    phone?: string
-    recipient: string
-  }): Promise<NotificationDispatchResult> {
-    const effectiveCode = await this.smsService.sendPhoneVerificationCode(
-      input.recipient,
-      input.accountId
-    )
-
-    return {
-      accepted: true,
-      dispatchId: `local-account-invite-sms-${input.accountId}`,
-      effectiveCode
-    }
-  }
-
-  async sendAuthOtpEmail(input: {
-    recipient: string
-    code: string
-    challengeId: string
-    maskedDestination?: string
-    ttlMinutes: number
-  }): Promise<NotificationDispatchResult> {
-    const effectiveCode = await this.emailService.sendEmailVerificationCode(
-      input.recipient,
-      input.code
-    )
-
-    return {
-      accepted: true,
-      dispatchId: `local-email-${input.challengeId}`,
-      effectiveCode
-    }
-  }
-
-  async sendAuthOtpSms(input: {
-    recipient: string
-    code: string
-    challengeId: string
-    maskedDestination?: string
-    ttlMinutes: number
-  }): Promise<NotificationDispatchResult> {
-    const effectiveCode = await this.smsService.sendPhoneVerificationCode(
-      input.recipient,
-      input.code
-    )
-
-    return {
-      accepted: true,
-      dispatchId: `local-sms-${input.challengeId}`,
-      effectiveCode
-    }
-  }
+  async sendAccountInvitationEmail(input: { accountId: string; displayName?: string; email?: string; recipient: string }): Promise<NotificationDispatchResult> { return accepted(`local-account-invite-email-${input.accountId}`) }
+  async sendAccountInvitationSms(input: { accountId: string; displayName?: string; phone?: string; recipient: string }): Promise<NotificationDispatchResult> { return accepted(`local-account-invite-sms-${input.accountId}`) }
+  async sendAuthOtpEmail(input: { recipient: string; code: string; challengeId: string; maskedDestination?: string; ttlMinutes: number }): Promise<NotificationDispatchResult> { return accepted(`local-email-${input.challengeId}`) }
+  async sendAuthOtpSms(input: { recipient: string; code: string; challengeId: string; maskedDestination?: string; ttlMinutes: number }): Promise<NotificationDispatchResult> { return accepted(`local-sms-${input.challengeId}`) }
 }
+
+/** Returns acceptance without manufacturing or replacing Auth-owned OTP material. */
+function accepted(dispatchId: string): NotificationDispatchResult { return { accepted: true, dispatchId } }

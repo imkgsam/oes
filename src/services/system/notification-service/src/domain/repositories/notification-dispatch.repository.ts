@@ -1,6 +1,6 @@
 import { NotificationDispatch } from '../aggregates/notification-dispatch.aggregate'
 
 export interface INotificationDispatchRepository {
-  findByIdempotencyKey(idempotencyKey: string): Promise<NotificationDispatch | null>
-  save(dispatch: NotificationDispatch): Promise<NotificationDispatch>
+  findByIdempotencyKey(sourceService: string, channel: string, idempotencyKey: string): Promise<NotificationDispatch | null>
+  accept(dispatch: NotificationDispatch): Promise<NotificationDispatch>
 }
