@@ -9,6 +9,7 @@ import { TerminalDeviceError } from '../../../domain/errors/terminal-device.erro
 import { TerminalDeviceRepository } from '../../../domain/repositories/terminal-device.repository'
 import { TerminalDeviceRuntimeSnapshotRepository } from '../../../domain/repositories/terminal-device-runtime-snapshot.repository'
 import { DeviceAccessDecision, DeviceAccessDecisionService } from '../../services/device-access-decision.service'
+import { TerminalDeviceCredentialVerifierService } from '../../services/terminal-device-credential-verifier.service'
 
 export interface RecordHeartbeatSessionInput {
   accountId?: string | null
@@ -18,6 +19,9 @@ export interface RecordHeartbeatSessionInput {
 export interface RecordHeartbeatResult {
   snapshot: TerminalDeviceRuntimeSnapshotEntity
   decision: DeviceAccessDecision
+  rotatedDeviceCredential: string | null
+  deviceCredentialExpiresAt: Date | null
+  deviceCredentialVersion: number | null
 }
 
 export interface RecordHeartbeatCommandInput {
@@ -79,7 +83,8 @@ export class RecordHeartbeatHandler implements ICommandHandler<RecordHeartbeatCo
     private readonly terminalDeviceRepository: TerminalDeviceRepository,
     @Inject(SYMBOLS.REPO.RUNTIME_SNAPSHOT)
     private readonly runtimeSnapshotRepository: TerminalDeviceRuntimeSnapshotRepository,
-    private readonly deviceAccessDecisionService: DeviceAccessDecisionService
+    private readonly deviceAccessDecisionService: DeviceAccessDecisionService,
+    private readonly credentialVerifier = new TerminalDeviceCredentialVerifierService()
   ) {}
 
   // Executes heartbeat recording with server receive time as the authoritative heartbeat timestamp.
@@ -90,6 +95,8 @@ export class RecordHeartbeatHandler implements ICommandHandler<RecordHeartbeatCo
       throw new TerminalDeviceError('TERMINAL_DEVICE_NOT_FOUND', 'Terminal device not found')
     }
 
+    const rotation = this.credentialVerifier.rotate(device, receivedAt)
+    if (rotation.device !== device) await this.terminalDeviceRepository.update(rotation.device)
     const snapshot = await this.runtimeSnapshotRepository.upsert(
       new TerminalDeviceRuntimeSnapshotEntity({
         terminalDeviceId: device.terminalDeviceId,
@@ -140,7 +147,10 @@ export class RecordHeartbeatHandler implements ICommandHandler<RecordHeartbeatCo
 
     return {
       snapshot,
-      decision
+      decision,
+      rotatedDeviceCredential: rotation.issued?.credential ?? null,
+      deviceCredentialExpiresAt: rotation.device.deviceCredentialExpiresAt,
+      deviceCredentialVersion: rotation.device.deviceCredentialVersion
     }
   }
 }

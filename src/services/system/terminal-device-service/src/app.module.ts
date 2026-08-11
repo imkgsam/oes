@@ -5,6 +5,7 @@ import { LoggingModule } from '@oes/common/logging'
 import { RegistryModule } from '@oes/common/registry'
 import { TerminalDeviceModule } from './modules/terminal-device/terminal-device.module'
 
+
 @Module({
   imports: [
     ConfigModule.forRoot({

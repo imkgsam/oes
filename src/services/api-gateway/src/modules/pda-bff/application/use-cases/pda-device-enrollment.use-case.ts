@@ -17,12 +17,13 @@ export class PdaDeviceEnrollmentUseCase {
 
   async execute(
     dto: PdaEnrollmentDto,
-    source: Pick<DownstreamRequestSource, 'traceId'>
+    source: Pick<DownstreamRequestSource, 'traceId' | 'requestId' | 'traceparent' | 'tracestate'>
   ): Promise<PdaEnrollmentViewModel> {
     const activation = await this.terminalDeviceAdapter.activateEnrollment({
       enrollmentCode: dto.enrollmentCode,
       device: dto.device,
-      traceId: source.traceId
+      traceId: source.traceId,
+      source
     })
 
     if (!activation.activated || !activation.terminalDeviceId) {
@@ -46,7 +47,8 @@ export class PdaDeviceEnrollmentUseCase {
         ...dto.device,
         terminalDeviceId: activation.terminalDeviceId
       },
-      traceId: source.traceId
+      traceId: source.traceId,
+      source
     })
 
     return {

@@ -26,6 +26,7 @@ import { GetRuntimeSnapshotQuery } from '../../src/application/queries/runtime'
 import { GetVersionPolicyQuery } from '../../src/application/queries/version-policy'
 import { DeviceAccessDecisionService } from '../../src/application/services'
 import { TerminalDeviceGrpcController } from '../../src/interfaces/grpc/terminal-device.grpc.controller'
+import { attachVerifiedExecution } from '@oes/common/authorization'
 
 // buildController creates the gRPC controller with focused fake application dependencies.
 function buildController(overrides: Partial<ControllerDeps> = {}): {
@@ -37,6 +38,7 @@ function buildController(overrides: Partial<ControllerDeps> = {}): {
     activateEnrollmentHandler: { execute: jest.fn() },
     deviceAccessDecisionService: { resolve: jest.fn() },
     recordHeartbeatHandler: { execute: jest.fn() },
+    recordDiagnosticLogsHandler: { execute: jest.fn() },
     getVersionPolicyHandler: { execute: jest.fn() },
     upsertVersionPolicyHandler: { execute: jest.fn() },
     listTerminalDevicesHandler: { execute: jest.fn() },
@@ -46,6 +48,10 @@ function buildController(overrides: Partial<ControllerDeps> = {}): {
     listEnrollmentsHandler: { execute: jest.fn() },
     listTerminalDeviceAuditEventsHandler: { execute: jest.fn() },
     getRuntimeSnapshotHandler: { execute: jest.fn() },
+    listHeartbeatRecordsHandler: { execute: jest.fn() },
+    listDiagnosticLogsHandler: { execute: jest.fn() },
+    credentialVerifier: { verify: jest.fn(), rotate: jest.fn((device) => ({ device })) },
+    terminalDeviceRepository: { findById: jest.fn().mockResolvedValue({ terminalDeviceId: 'device-1', tenantId: 'tenant-1', appInstallationId: 'install-1', deviceCredentialState: 'ACTIVE' }) },
     ...overrides
   }
 
@@ -56,6 +62,7 @@ function buildController(overrides: Partial<ControllerDeps> = {}): {
       deps.activateEnrollmentHandler as never,
       deps.deviceAccessDecisionService as never,
       deps.recordHeartbeatHandler as never,
+      deps.recordDiagnosticLogsHandler as never,
       deps.getVersionPolicyHandler as never,
       deps.upsertVersionPolicyHandler as never,
       deps.listTerminalDevicesHandler as never,
@@ -65,6 +72,10 @@ function buildController(overrides: Partial<ControllerDeps> = {}): {
       deps.listEnrollmentsHandler as never,
       deps.listTerminalDeviceAuditEventsHandler as never,
       deps.getRuntimeSnapshotHandler as never
+      ,deps.listHeartbeatRecordsHandler as never
+      ,deps.listDiagnosticLogsHandler as never
+      ,deps.credentialVerifier as never
+      ,deps.terminalDeviceRepository as never
     )
   }
 }
@@ -74,6 +85,7 @@ interface ControllerDeps {
   activateEnrollmentHandler: { execute: jest.Mock }
   deviceAccessDecisionService: Pick<DeviceAccessDecisionService, 'resolve'> & { resolve: jest.Mock }
   recordHeartbeatHandler: { execute: jest.Mock }
+  recordDiagnosticLogsHandler: { execute: jest.Mock }
   getVersionPolicyHandler: { execute: jest.Mock }
   upsertVersionPolicyHandler: { execute: jest.Mock }
   listTerminalDevicesHandler: { execute: jest.Mock }
@@ -83,6 +95,25 @@ interface ControllerDeps {
   listEnrollmentsHandler: { execute: jest.Mock }
   listTerminalDeviceAuditEventsHandler: { execute: jest.Mock }
   getRuntimeSnapshotHandler: { execute: jest.Mock }
+  listHeartbeatRecordsHandler: { execute: jest.Mock }
+  listDiagnosticLogsHandler: { execute: jest.Mock }
+  credentialVerifier: { verify: jest.Mock; rotate: jest.Mock }
+  terminalDeviceRepository: { findById: jest.Mock }
+}
+
+/** Attaches one verified HUMAN WEB token to direct controller fixtures. */
+function human<T extends object>(request: T): T {
+  attachVerifiedExecution(request, { verifiedExecutionToken: { subject: 'operator-1', principalType: 'HUMAN', tenantId: 'tenant-1', orgId: 'org-1', permissionCodes: ['terminal-device.enrollment.create', 'terminal-device.read', 'terminal-device.enrollment.revoke', 'terminal-device.update', 'terminal-device.status.disable', 'terminal-device.status.restore-active', 'terminal-device.audit.read', 'terminal-device.version-policy.manage'], clientId: 'gateway', issuer: 'auth', audience: 'urn:oes:service:terminal-device-service', tokenId: 'token', issuedAt: 1, notBefore: 1, expiresAt: 9999999999, certificateThumbprint: 'thumb', sessionTerminal: 'WEB' }, verifiedWorkloadIdentity: { spiffeId: 'gateway', certificateThumbprint: 'thumb' } } as never)
+  Object.assign((request as Record<string, unknown>).__oesOperatorContext as object, { traceId: 'trace-1', requestId: 'request-1' })
+  return request
+}
+
+/** Attaches the exact Gateway SYSTEM MACHINE proof used by INTERNAL fixture calls. */
+function machine<T extends object>(request: T): T {
+  process.env.GATEWAY_TERMINAL_DEVICE_SPIFFE_ID = 'gateway'
+  attachVerifiedExecution(request, { verifiedExecutionToken: { subject: 'gateway-machine', principalType: 'MACHINE', permissionCodes: ['terminal-device.internal.gateway.enrollment.activate', 'terminal-device.internal.gateway.access.resolve', 'terminal-device.internal.gateway.heartbeat.record', 'terminal-device.internal.gateway.diagnostic_log.record'], clientId: 'gateway', issuer: 'auth', audience: 'urn:oes:service:terminal-device-service', tokenId: 'token', issuedAt: 1, notBefore: 1, expiresAt: 9999999999, certificateThumbprint: 'thumb' }, verifiedWorkloadIdentity: { spiffeId: 'gateway', certificateThumbprint: 'thumb' } } as never)
+  Object.assign((request as Record<string, unknown>).__oesOperatorContext as object, { traceId: 'trace-1', requestId: 'request-1' })
+  return request
 }
 
 describe('terminal-device-service grpc surface L3', () => {
@@ -99,7 +130,7 @@ describe('terminal-device-service grpc surface L3', () => {
       createdAt: new Date('2026-05-16T00:00:00.000Z')
     })
 
-    const response = await controller.createEnrollment({
+    const response = await controller.createEnrollment(human({
       tenantId: 'tenant-1',
       terminalDeviceType: ProtoDeviceType.TERMINAL_DEVICE_TYPE_PDA,
       displayName: 'Dock PDA',
@@ -111,7 +142,7 @@ describe('terminal-device-service grpc surface L3', () => {
         operatorOrgId: 'org-1',
         traceId: 'trace-1'
       }
-    })
+    }))
 
     expect(deps.createEnrollmentHandler.execute).toHaveBeenCalledWith(expect.any(CreateEnrollmentCommand))
     expect(deps.createEnrollmentHandler.execute.mock.calls[0][0]).toMatchObject({
@@ -152,7 +183,7 @@ describe('terminal-device-service grpc surface L3', () => {
       decisionCode: 'ALLOW'
     })
 
-    const response = await controller.activateEnrollment({
+    const response = await controller.activateEnrollment(machine({
       enrollmentCode: 'ENR-123',
       terminalDeviceType: ProtoDeviceType.TERMINAL_DEVICE_TYPE_PDA,
       identity: {
@@ -170,7 +201,7 @@ describe('terminal-device-service grpc surface L3', () => {
         appVersion: '2.4.0'
       },
       traceId: 'trace-1'
-    })
+    }))
 
     expect(deps.activateEnrollmentHandler.execute).toHaveBeenCalledWith(expect.any(ActivateEnrollmentCommand))
     expect(deps.activateEnrollmentHandler.execute.mock.calls[0][0]).toMatchObject({
@@ -197,7 +228,10 @@ describe('terminal-device-service grpc surface L3', () => {
       terminalDeviceType: ProtoDeviceType.TERMINAL_DEVICE_TYPE_PDA,
       deviceStatus: ProtoDeviceStatus.TERMINAL_DEVICE_STATUS_ACTIVE,
       enrollmentId: 'enrollment-1',
-      decisionCode: ProtoDecisionCode.DEVICE_ACCESS_DECISION_CODE_ALLOW
+      decisionCode: ProtoDecisionCode.DEVICE_ACCESS_DECISION_CODE_ALLOW,
+      deviceCredential: '',
+      deviceCredentialExpiresAt: '',
+      deviceCredentialVersion: 0
     })
   })
 
@@ -226,14 +260,14 @@ describe('terminal-device-service grpc surface L3', () => {
       shouldRevokeServerSessions: false
     })
 
-    const response = await controller.resolveDeviceAccessDecision({
+    const response = await controller.resolveDeviceAccessDecision(machine({
       tenantId: 'tenant-1',
       terminalDeviceId: 'device-1',
       terminalDeviceType: ProtoDeviceType.TERMINAL_DEVICE_TYPE_PDA,
       requestPurpose: ProtoRequestPurpose.DEVICE_ACCESS_REQUEST_PURPOSE_LOGIN,
       appVersion: '1.5.0',
       traceId: 'trace-1'
-    })
+    }))
 
     expect(deps.deviceAccessDecisionService.resolve).toHaveBeenCalledWith({
       tenantId: 'tenant-1',
@@ -285,7 +319,7 @@ describe('terminal-device-service grpc surface L3', () => {
       }
     })
 
-    const response = await controller.recordHeartbeat({
+    const response = await controller.recordHeartbeat(machine({
       tenantId: 'tenant-1',
       terminalDeviceId: 'device-1',
       terminalDeviceType: ProtoDeviceType.TERMINAL_DEVICE_TYPE_PDA,
@@ -307,7 +341,7 @@ describe('terminal-device-service grpc surface L3', () => {
       clientTime: '2026-05-16T01:02:00.000Z',
       receivedAt: '2026-05-16T01:02:03.000Z',
       traceId: 'trace-1'
-    })
+    }))
 
     expect(deps.recordHeartbeatHandler.execute).toHaveBeenCalledWith(expect.any(RecordHeartbeatCommand))
     expect(deps.recordHeartbeatHandler.execute.mock.calls[0][0]).toMatchObject({
@@ -328,7 +362,10 @@ describe('terminal-device-service grpc surface L3', () => {
       accepted: true,
       terminalDeviceId: 'device-1',
       lastHeartbeatAt: '2026-05-16T01:02:03.000Z',
-      presenceStatus: ProtoPresenceStatus.PRESENCE_STATUS_ONLINE
+      presenceStatus: ProtoPresenceStatus.PRESENCE_STATUS_ONLINE,
+      rotatedDeviceCredential: '',
+      deviceCredentialExpiresAt: '',
+      deviceCredentialVersion: 0
     })
   })
 
@@ -347,10 +384,10 @@ describe('terminal-device-service grpc surface L3', () => {
       updatedBy: 'operator-1'
     })
 
-    const response = await controller.getVersionPolicy({
+    const response = await controller.getVersionPolicy(human({
       tenantId: 'tenant-1',
       terminalDeviceType: ProtoDeviceType.TERMINAL_DEVICE_TYPE_PDA
-    })
+    }))
 
     expect(deps.getVersionPolicyHandler.execute).toHaveBeenCalledWith(expect.any(GetVersionPolicyQuery))
     expect(response.policy).toEqual({
@@ -382,7 +419,7 @@ describe('terminal-device-service grpc surface L3', () => {
       updatedBy: 'operator-1'
     })
 
-    const response = await controller.upsertVersionPolicy({
+    const response = await controller.upsertVersionPolicy(human({
       tenantId: 'tenant-1',
       terminalDeviceType: ProtoDeviceType.TERMINAL_DEVICE_TYPE_PDA,
       minSupportedAppVersion: '2.0.0',
@@ -396,7 +433,7 @@ describe('terminal-device-service grpc surface L3', () => {
         operatorAccountId: 'operator-1',
         traceId: 'trace-1'
       }
-    })
+    }))
 
     expect(deps.upsertVersionPolicyHandler.execute).toHaveBeenCalledWith(expect.any(UpsertVersionPolicyCommand))
     expect(deps.upsertVersionPolicyHandler.execute.mock.calls[0][0]).toMatchObject({
@@ -447,7 +484,7 @@ describe('terminal-device-service grpc surface L3', () => {
       total: 1
     })
 
-    const response = await controller.listTerminalDevices({
+    const response = await controller.listTerminalDevices(human({
       tenantId: 'tenant-1',
       terminalDeviceType: ProtoDeviceType.TERMINAL_DEVICE_TYPE_PDA,
       status: ProtoDeviceStatus.TERMINAL_DEVICE_STATUS_ACTIVE,
@@ -457,7 +494,7 @@ describe('terminal-device-service grpc surface L3', () => {
         page: 2,
         pageSize: 10
       }
-    })
+    }))
 
     expect(deps.listTerminalDevicesHandler.execute).toHaveBeenCalledWith(expect.any(ListTerminalDevicesQuery))
     expect(deps.listTerminalDevicesHandler.execute.mock.calls[0][0]).toMatchObject({
@@ -516,11 +553,11 @@ describe('terminal-device-service grpc surface L3', () => {
       }
     })
 
-    const response = await controller.getTerminalDevice({
+    const response = await controller.getTerminalDevice(human({
       tenantId: 'tenant-1',
       terminalDeviceId: 'device-1',
       includeSensitiveIdentity: false
-    })
+    }))
 
     expect(deps.getTerminalDeviceHandler.execute).toHaveBeenCalledWith(expect.any(GetTerminalDeviceQuery))
     expect(deps.getTerminalDeviceHandler.execute.mock.calls[0][0]).toMatchObject({
@@ -573,7 +610,7 @@ describe('terminal-device-service grpc surface L3', () => {
       }
     })
 
-    const response = await controller.changeTerminalDeviceStatus({
+    const response = await controller.changeTerminalDeviceStatus(human({
       tenantId: 'tenant-1',
       terminalDeviceId: 'device-1',
       targetStatus: ProtoDeviceStatus.TERMINAL_DEVICE_STATUS_DISABLED,
@@ -583,7 +620,7 @@ describe('terminal-device-service grpc surface L3', () => {
         operatorOrgId: 'org-1',
         traceId: 'trace-1'
       }
-    })
+    }))
 
     expect(deps.changeTerminalDeviceStatusHandler.execute).toHaveBeenCalledWith(
       expect.any(ChangeTerminalDeviceStatusCommand)
@@ -625,7 +662,7 @@ describe('terminal-device-service grpc surface L3', () => {
       sessionRevokeIntent: null
     })
 
-    const response = await controller.changeTerminalDeviceStatus({
+    const response = await controller.changeTerminalDeviceStatus(human({
       tenantId: 'tenant-1',
       terminalDeviceId: 'device-1',
       targetStatus: ProtoDeviceStatus.TERMINAL_DEVICE_STATUS_ACTIVE,
@@ -633,7 +670,7 @@ describe('terminal-device-service grpc surface L3', () => {
       operatorContext: {
         operatorAccountId: 'operator-1'
       }
-    })
+    }))
 
     expect(response).toEqual({
       terminalDeviceId: 'device-1',
@@ -670,12 +707,12 @@ describe('terminal-device-service grpc surface L3', () => {
       total: 21
     })
 
-    const response = await controller.listEnrollments({
+    const response = await controller.listEnrollments(human({
       tenantId: 'tenant-1',
       terminalDeviceType: ProtoDeviceType.TERMINAL_DEVICE_TYPE_PDA,
       status: ProtoEnrollmentStatus.ENROLLMENT_STATUS_ISSUED,
       pagination: { page: 2, pageSize: 10 }
-    })
+    }))
 
     expect(deps.listEnrollmentsHandler.execute).toHaveBeenCalledWith(expect.any(ListEnrollmentsQuery))
     expect(deps.listEnrollmentsHandler.execute.mock.calls[0][0]).toMatchObject({
@@ -706,7 +743,7 @@ describe('terminal-device-service grpc surface L3', () => {
       updatedAt: new Date('2026-05-16T06:00:00.000Z')
     })
 
-    const response = await controller.updateTerminalDevice({
+    const response = await controller.updateTerminalDevice(human({
       tenantId: 'tenant-1',
       terminalDeviceId: 'device-1',
       displayName: 'PDA-Warehouse-01',
@@ -715,7 +752,7 @@ describe('terminal-device-service grpc surface L3', () => {
         operatorAccountId: 'operator-1',
         traceId: 'trace-1'
       }
-    })
+    }))
 
     expect(deps.updateTerminalDeviceHandler.execute).toHaveBeenCalledWith(expect.any(UpdateTerminalDeviceCommand))
     expect(deps.updateTerminalDeviceHandler.execute.mock.calls[0][0]).toMatchObject({
@@ -759,11 +796,11 @@ describe('terminal-device-service grpc surface L3', () => {
       total: 1
     })
 
-    const response = await controller.listTerminalDeviceAuditEvents({
+    const response = await controller.listTerminalDeviceAuditEvents(human({
       tenantId: 'tenant-1',
       terminalDeviceId: 'device-1',
       pagination: { page: 1, pageSize: 20 }
-    })
+    }))
 
     expect(deps.listTerminalDeviceAuditEventsHandler.execute).toHaveBeenCalledWith(
       expect.any(ListTerminalDeviceAuditEventsQuery)
@@ -800,10 +837,10 @@ describe('terminal-device-service grpc surface L3', () => {
       lastReportedSessionId: 'session-1'
     })
 
-    const response = await controller.getRuntimeSnapshot({
+    const response = await controller.getRuntimeSnapshot(human({
       tenantId: 'tenant-1',
       terminalDeviceId: 'device-1'
-    })
+    }))
 
     expect(deps.getRuntimeSnapshotHandler.execute).toHaveBeenCalledWith(expect.any(GetRuntimeSnapshotQuery))
     expect(deps.getRuntimeSnapshotHandler.execute.mock.calls[0][0]).toMatchObject({

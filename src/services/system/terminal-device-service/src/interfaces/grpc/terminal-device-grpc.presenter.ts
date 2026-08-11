@@ -275,6 +275,9 @@ export class TerminalDeviceGrpcPresenter {
     deviceStatus: ProtoTerminalDeviceStatus
     enrollmentId: string
     decisionCode: ProtoDeviceAccessDecisionCode
+    deviceCredential: string
+    deviceCredentialExpiresAt: string
+    deviceCredentialVersion: number
   } {
     return {
       activated: result.activated,
@@ -287,7 +290,10 @@ export class TerminalDeviceGrpcPresenter {
         ? toProtoTerminalDeviceStatus(result.deviceStatus)
         : ProtoTerminalDeviceStatus.TERMINAL_DEVICE_STATUS_UNSPECIFIED,
       enrollmentId: result.enrollmentId ?? '',
-      decisionCode: toProtoAccessDecisionCode(result.decisionCode)
+      decisionCode: toProtoAccessDecisionCode(result.decisionCode),
+      deviceCredential: result.deviceCredential ?? '',
+      deviceCredentialExpiresAt: toIsoString(result.deviceCredentialExpiresAt),
+      deviceCredentialVersion: result.deviceCredentialVersion ?? 0
     }
   }
 
@@ -320,12 +326,18 @@ export class TerminalDeviceGrpcPresenter {
     terminalDeviceId: string
     lastHeartbeatAt: string
     presenceStatus: ProtoPresenceStatus
+    rotatedDeviceCredential: string
+    deviceCredentialExpiresAt: string
+    deviceCredentialVersion: number
   } {
     return {
       accepted: result.decision.allowed,
       terminalDeviceId: result.snapshot.terminalDeviceId,
       lastHeartbeatAt: result.snapshot.lastHeartbeatAt.toISOString(),
-      presenceStatus: toProtoPresenceStatus(result.snapshot.presenceStatus)
+      presenceStatus: toProtoPresenceStatus(result.snapshot.presenceStatus),
+      rotatedDeviceCredential: result.rotatedDeviceCredential ?? '',
+      deviceCredentialExpiresAt: toIsoString(result.deviceCredentialExpiresAt),
+      deviceCredentialVersion: result.deviceCredentialVersion ?? 0
     }
   }
 

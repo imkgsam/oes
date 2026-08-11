@@ -3,6 +3,8 @@ import { Metadata } from '@grpc/grpc-js'
 import { ClientGrpc } from '@nestjs/microservices'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
+import { GatewayMachineTrustedGrpcExecutionProducer } from '../../../../../common/grpc/gateway-machine-trusted-grpc-execution-producer'
+import { DownstreamRequestSource } from '../../../../../common/grpc/gateway-downstream-source.mapper'
 import {
   DeviceAccessDecisionCode,
   DeviceAccessRequestPurpose,
@@ -14,10 +16,12 @@ import {
 } from '@oes/common/generated/terminal_device_service'
 
 const CALLER = 'api-gateway'
+const AUDIENCE = 'urn:oes:service:terminal-device-service'
 
 export interface ResolveLoginDeviceContextInput {
   terminalDeviceId: string
   deviceMetadata: Record<string, unknown>
+  source?: Pick<DownstreamRequestSource, 'requestId' | 'traceparent' | 'tracestate'>
 }
 
 export interface ResolvedLoginDeviceContext {
@@ -34,7 +38,8 @@ export class TerminalDeviceAccessAdapter implements OnModuleInit {
 
   constructor(
     @InjectGrpcClient(SERVICE_NAMES.TERMINAL_DEVICE)
-    private readonly client: ClientGrpc
+    private readonly client: ClientGrpc,
+    private readonly machine: GatewayMachineTrustedGrpcExecutionProducer
   ) {}
 
   onModuleInit(): void {
@@ -47,16 +52,16 @@ export class TerminalDeviceAccessAdapter implements OnModuleInit {
   async resolveLoginDeviceContext(
     input: ResolveLoginDeviceContextInput
   ): Promise<ResolvedLoginDeviceContext> {
-    const response = await safeGrpcCall<ResolveDeviceAccessDecisionResponse>(
+    const response = await this.machine.forInternalCall(AUDIENCE, 'terminal-device.internal.gateway.access.resolve', { requestId: input.source?.requestId ?? '', traceparent: input.source?.traceparent ?? '', tracestate: input.source?.tracestate }, async (metadata) => safeGrpcCall<ResolveDeviceAccessDecisionResponse>(
       this.svc.resolveDeviceAccessDecision({
         terminalDeviceId: input.terminalDeviceId,
         terminalDeviceType: TerminalDeviceType.TERMINAL_DEVICE_TYPE_PDA,
         requestPurpose: DeviceAccessRequestPurpose.DEVICE_ACCESS_REQUEST_PURPOSE_LOGIN,
         appVersion: this.normalize(input.deviceMetadata.appVersion),
         identity: this.toIdentity(input.deviceMetadata)
-      }, new Metadata()),
+      }, metadata),
       this.opts('resolveDeviceAccessDecision')
-    )
+    ))
     const decision = response.decision
 
     return {

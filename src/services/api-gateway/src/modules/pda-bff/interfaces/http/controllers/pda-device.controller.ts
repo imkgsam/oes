@@ -40,8 +40,8 @@ export class PdaDeviceController {
   @ApiOperation({ summary: 'Record the latest PDA device heartbeat diagnostic state' })
   @ApiBody({ type: PdaHeartbeatDto })
   @ApiResponse({ status: 201, type: PdaHeartbeatViewModel })
-  heartbeat(@Body() dto: PdaHeartbeatDto): Promise<PdaHeartbeatViewModel> {
-    return this.heartbeatUseCase.execute(dto)
+  heartbeat(@Body() dto: PdaHeartbeatDto, @DownstreamSource() source: DownstreamRequestSource): Promise<PdaHeartbeatViewModel> {
+    return this.heartbeatUseCase.execute(dto, source)
   }
 
   @Post('logs')
@@ -49,7 +49,7 @@ export class PdaDeviceController {
   @ApiOperation({ summary: 'Accept manually uploaded PDA diagnostic logs' })
   @ApiBody({ type: PdaDeviceLogsDto })
   @ApiResponse({ status: 201, type: PdaDeviceLogsViewModel })
-  logs(@Body() dto: PdaDeviceLogsDto): Promise<PdaDeviceLogsViewModel> {
-    return this.logsUseCase.execute(dto)
+  logs(@Body() dto: PdaDeviceLogsDto, @DownstreamSource() source: DownstreamRequestSource): Promise<PdaDeviceLogsViewModel> {
+    return this.logsUseCase.execute(dto, source)
   }
 }

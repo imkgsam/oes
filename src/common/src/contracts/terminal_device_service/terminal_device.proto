@@ -169,9 +169,8 @@ enum AppState {
 
 // OperatorContext carries audit metadata for administrative commands.
 message OperatorContext {
-  string operator_account_id = 1;
-  string operator_org_id = 2;
-  string trace_id = 3;
+  reserved 1, 2, 3;
+  reserved "operator_account_id", "operator_org_id", "trace_id";
 }
 
 // TerminalDeviceIdentity contains device identity signals reported by the PDA shell.
@@ -185,6 +184,15 @@ message TerminalDeviceIdentity {
   IdentityConfidence identity_confidence = 7;
   string manufacturer_serial_masked = 8;
   string android_id_masked = 9;
+}
+
+// TerminalDeviceIdentityInput contains only caller-reported activation/runtime signals.
+message TerminalDeviceIdentityInput {
+  string manufacturer_serial = 1;
+  string android_id = 2;
+  string app_installation_id = 3;
+  string manufacturer = 4;
+  string model = 5;
 }
 
 // TerminalDeviceSoftware contains PDA OS, WebView, and App version facts.
@@ -344,6 +352,21 @@ message TerminalDeviceDiagnosticLog {
   string details_json = 15;
 }
 
+// TerminalDeviceDiagnosticLogInput carries sanitized caller diagnostics without server-owned identity fields.
+message TerminalDeviceDiagnosticLogInput {
+  reserved 1, 2, 3, 7, 11, 12;
+  reserved "diagnostic_log_id", "tenant_id", "terminal_device_id", "received_at", "trace_id", "request_id";
+  string reported_account_id = 4;
+  string reported_session_id = 5;
+  string client_time = 6;
+  string level = 8;
+  string event_type = 9;
+  string message = 10;
+  string error_code = 13;
+  bool diagnostic_mode = 14;
+  string details_json = 15;
+}
+
 // TerminalDeviceAuditEvent is the device governance audit event projection.
 message TerminalDeviceAuditEvent {
   string audit_event_id = 1;
@@ -381,13 +404,13 @@ message PaginationResponse {
 
 // CreateEnrollmentRequest creates an administrator-issued enrollment authorization.
 message CreateEnrollmentRequest {
-  string tenant_id = 1;
+  reserved 1, 7;
+  reserved "tenant_id", "operator_context";
   TerminalDeviceType terminal_device_type = 2;
   string display_name = 3;
   string expected_manufacturer_serial = 4;
   string expires_at = 5;
   string notes = 6;
-  OperatorContext operator_context = 7;
 }
 
 // CreateEnrollmentResponse returns the created enrollment and one-time enrollment code.
@@ -398,7 +421,8 @@ message CreateEnrollmentResponse {
 
 // ListEnrollmentsRequest filters enrollments in a tenant.
 message ListEnrollmentsRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   TerminalDeviceType terminal_device_type = 2;
   EnrollmentStatus status = 3;
   PaginationRequest pagination = 4;
@@ -412,10 +436,10 @@ message ListEnrollmentsResponse {
 
 // RevokeEnrollmentRequest revokes an unused enrollment authorization.
 message RevokeEnrollmentRequest {
-  string tenant_id = 1;
+  reserved 1, 4;
+  reserved "tenant_id", "operator_context";
   string enrollment_id = 2;
   string reason = 3;
-  OperatorContext operator_context = 4;
 }
 
 // RevokeEnrollmentResponse returns the revoked enrollment.
@@ -427,9 +451,13 @@ message RevokeEnrollmentResponse {
 message ActivateEnrollmentRequest {
   string enrollment_code = 1;
   TerminalDeviceType terminal_device_type = 2;
-  TerminalDeviceIdentity identity = 3;
+  TerminalDeviceIdentityInput identity = 3;
   TerminalDeviceSoftware software = 4;
-  string trace_id = 5;
+  reserved 5;
+  reserved "trace_id";
+  string device_credential = 8;
+  string device_credential_expires_at = 9;
+  int32 device_credential_version = 10;
 }
 
 // ActivateEnrollmentResponse returns the activation result and created terminal device id.
@@ -441,18 +469,21 @@ message ActivateEnrollmentResponse {
   TerminalDeviceStatus device_status = 5;
   string enrollment_id = 6;
   DeviceAccessDecisionCode decision_code = 7;
+  string device_credential = 8;
+  string device_credential_expires_at = 9;
+  int32 device_credential_version = 10;
 }
 
 // ResolveDeviceAccessDecisionRequest asks whether a device may perform a request purpose.
 message ResolveDeviceAccessDecisionRequest {
-  string tenant_id = 1;
+  reserved 1, 7, 8;
+  reserved "tenant_id", "session", "trace_id";
   string terminal_device_id = 2;
   TerminalDeviceType terminal_device_type = 3;
   DeviceAccessRequestPurpose request_purpose = 4;
   string app_version = 5;
-  TerminalDeviceIdentity identity = 6;
-  ReportedSession session = 7;
-  string trace_id = 8;
+  TerminalDeviceIdentityInput identity = 6;
+  string device_credential = 9;
 }
 
 // ResolveDeviceAccessDecisionResponse returns the managed terminal device access decision.
@@ -462,7 +493,8 @@ message ResolveDeviceAccessDecisionResponse {
 
 // ListTerminalDevicesRequest filters managed terminal devices in a tenant.
 message ListTerminalDevicesRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   TerminalDeviceType terminal_device_type = 2;
   TerminalDeviceStatus status = 3;
   PresenceStatus presence_status = 4;
@@ -478,9 +510,9 @@ message ListTerminalDevicesResponse {
 
 // GetTerminalDeviceRequest loads one managed terminal device.
 message GetTerminalDeviceRequest {
-  string tenant_id = 1;
+  reserved 1, 3;
+  reserved "tenant_id", "include_sensitive_identity";
   string terminal_device_id = 2;
-  bool include_sensitive_identity = 3;
 }
 
 // GetTerminalDeviceResponse returns terminal device detail.
@@ -492,11 +524,11 @@ message GetTerminalDeviceResponse {
 
 // UpdateTerminalDeviceRequest updates non-lifecycle device display fields.
 message UpdateTerminalDeviceRequest {
-  string tenant_id = 1;
+  reserved 1, 5;
+  reserved "tenant_id", "operator_context";
   string terminal_device_id = 2;
   string display_name = 3;
   string notes = 4;
-  OperatorContext operator_context = 5;
 }
 
 // UpdateTerminalDeviceResponse returns updated non-lifecycle display fields.
@@ -509,11 +541,11 @@ message UpdateTerminalDeviceResponse {
 
 // ChangeTerminalDeviceStatusRequest changes lifecycle status.
 message ChangeTerminalDeviceStatusRequest {
-  string tenant_id = 1;
+  reserved 1, 5;
+  reserved "tenant_id", "operator_context";
   string terminal_device_id = 2;
   TerminalDeviceStatus target_status = 3;
   string reason = 4;
-  OperatorContext operator_context = 5;
 }
 
 // ChangeTerminalDeviceStatusResponse returns lifecycle transition outcome.
@@ -528,7 +560,8 @@ message ChangeTerminalDeviceStatusResponse {
 
 // ListTerminalDeviceAuditEventsRequest filters device governance audit events.
 message ListTerminalDeviceAuditEventsRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string terminal_device_id = 2;
   PaginationRequest pagination = 3;
 }
@@ -541,16 +574,16 @@ message ListTerminalDeviceAuditEventsResponse {
 
 // RecordHeartbeatRequest records a PDA runtime heartbeat.
 message RecordHeartbeatRequest {
-  string tenant_id = 1;
+  reserved 1, 9, 10;
+  reserved "tenant_id", "received_at", "trace_id";
   string terminal_device_id = 2;
   TerminalDeviceType terminal_device_type = 3;
-  TerminalDeviceIdentity identity = 4;
+  TerminalDeviceIdentityInput identity = 4;
   TerminalDeviceSoftware software = 5;
   TerminalDeviceRuntime runtime = 6;
   ReportedSession reported_session = 7;
   string client_time = 8;
-  string received_at = 9;
-  string trace_id = 10;
+  string device_credential = 11;
 }
 
 // RecordHeartbeatResponse returns the updated heartbeat marker.
@@ -559,11 +592,15 @@ message RecordHeartbeatResponse {
   string terminal_device_id = 2;
   string last_heartbeat_at = 3;
   PresenceStatus presence_status = 4;
+  string rotated_device_credential = 5;
+  string device_credential_expires_at = 6;
+  int32 device_credential_version = 7;
 }
 
 // GetRuntimeSnapshotRequest loads the current runtime snapshot for one device.
 message GetRuntimeSnapshotRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string terminal_device_id = 2;
 }
 
@@ -574,7 +611,8 @@ message GetRuntimeSnapshotResponse {
 
 // ListHeartbeatRecordsRequest loads immutable heartbeat diagnostics for one device.
 message ListHeartbeatRecordsRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string terminal_device_id = 2;
   PaginationRequest pagination = 3;
 }
@@ -587,9 +625,11 @@ message ListHeartbeatRecordsResponse {
 
 // RecordDiagnosticLogsRequest persists sanitized PDA diagnostic logs for one managed device.
 message RecordDiagnosticLogsRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string terminal_device_id = 2;
-  repeated TerminalDeviceDiagnosticLog logs = 3;
+  repeated TerminalDeviceDiagnosticLogInput logs = 3;
+  string device_credential = 4;
 }
 
 // RecordDiagnosticLogsResponse returns the accepted diagnostic log count.
@@ -600,7 +640,8 @@ message RecordDiagnosticLogsResponse {
 
 // ListDiagnosticLogsRequest loads sanitized PDA diagnostic logs for one managed device.
 message ListDiagnosticLogsRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string terminal_device_id = 2;
   PaginationRequest pagination = 3;
 }
@@ -613,7 +654,8 @@ message ListDiagnosticLogsResponse {
 
 // GetVersionPolicyRequest reads version policy by tenant and terminal device type.
 message GetVersionPolicyRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   TerminalDeviceType terminal_device_type = 2;
 }
 
@@ -624,7 +666,8 @@ message GetVersionPolicyResponse {
 
 // UpsertVersionPolicyRequest creates or updates version policy.
 message UpsertVersionPolicyRequest {
-  string tenant_id = 1;
+  reserved 1, 10;
+  reserved "tenant_id", "operator_context";
   TerminalDeviceType terminal_device_type = 2;
   string min_supported_app_version = 3;
   string latest_app_version = 4;
@@ -633,7 +676,6 @@ message UpsertVersionPolicyRequest {
   string apk_download_url = 7;
   string release_notes_url = 8;
   string reason = 9;
-  OperatorContext operator_context = 10;
 }
 
 // UpsertVersionPolicyResponse returns the updated version policy.

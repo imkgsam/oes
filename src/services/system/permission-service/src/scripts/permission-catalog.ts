@@ -960,6 +960,33 @@ const terminalDeviceManagement = definePermissionGroup(Modules.TERMINAL_DEVICE_S
   READ_AUDIT: {
     code: 'terminal-device.audit.read',
     description: '查看受管终端设备治理审计'
+  },
+  UPDATE_DEVICE: {
+    code: 'terminal-device.update',
+    description: '更新受管终端设备展示字段'
+  }
+})
+
+const terminalDeviceInternal = definePermissionGroup(Modules.TERMINAL_DEVICE_SERVICE, {
+  ACTIVATE_ENROLLMENT: {
+    code: 'terminal-device.internal.gateway.enrollment.activate',
+    description: 'Gateway MACHINE 激活终端设备 enrollment',
+    kind: PermissionKind.INTERNAL
+  },
+  RESOLVE_ACCESS: {
+    code: 'terminal-device.internal.gateway.access.resolve',
+    description: 'Gateway MACHINE 解析终端设备准入',
+    kind: PermissionKind.INTERNAL
+  },
+  RECORD_HEARTBEAT: {
+    code: 'terminal-device.internal.gateway.heartbeat.record',
+    description: 'Gateway MACHINE 写入终端设备 heartbeat',
+    kind: PermissionKind.INTERNAL
+  },
+  RECORD_DIAGNOSTIC_LOG: {
+    code: 'terminal-device.internal.gateway.diagnostic_log.record',
+    description: 'Gateway MACHINE 写入终端设备诊断日志',
+    kind: PermissionKind.INTERNAL
   }
 })
 
@@ -1089,6 +1116,7 @@ export const AUTH_INTERNAL_PERMISSION_CODES = authInternal.codes
 export const COLLABORATION_TASK_PERMISSION_CODES = collaborationTask.codes
 export const COLLABORATION_ANNOTATION_PERMISSION_CODES = collaborationAnnotation.codes
 export const TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES = terminalDeviceManagement.codes
+export const TERMINAL_DEVICE_INTERNAL_PERMISSION_CODES = terminalDeviceInternal.codes
 export const BROWSER_EXTENSION_DESIGNER_PERMISSION_CODES = browserExtensionDesigner.codes
 export const BROWSER_ACTIVITY_AUDIT_PERMISSION_CODES = browserActivityAudit.codes
 export const SITE_MANAGEMENT_PERMISSION_CODES = siteManagement.codes
@@ -1147,6 +1175,7 @@ export const PERMISSION_CODE_SEED_ITEMS: PermissionSeedItem[] = [
   ...collaborationTask.items,
   ...collaborationAnnotation.items,
   ...terminalDeviceManagement.items,
+  ...terminalDeviceInternal.items,
   ...browserExtensionDesigner.items,
   ...browserActivityAudit.items,
   ...siteManagement.items,

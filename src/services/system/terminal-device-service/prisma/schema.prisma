@@ -19,6 +19,13 @@ model TerminalDevice {
   manufacturerSerial   String?
   androidId            String?
   appInstallationId    String?
+  deviceCredentialHash String?
+  deviceCredentialPreviousHash String?
+  deviceCredentialVersion Int @default(1)
+  deviceCredentialPreviousVersion Int?
+  deviceCredentialExpiresAt DateTime?
+  deviceCredentialPreviousExpiresAt DateTime?
+  deviceCredentialState DeviceCredentialState @default(ACTIVE)
   manufacturer         String?
   model                String?
   androidVersion       String?
@@ -204,4 +211,10 @@ enum AppState {
   BACKGROUND
   CLOSED
   UNKNOWN
+}
+
+enum DeviceCredentialState {
+  ACTIVE
+  SUSPENDED
+  REVOKED
 }

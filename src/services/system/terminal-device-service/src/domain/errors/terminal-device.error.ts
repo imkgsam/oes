@@ -15,6 +15,7 @@ export type TerminalDeviceErrorCode =
   | 'TERMINAL_DEVICE_DECOMMISSIONED_CANNOT_RESTORE'
   | 'TERMINAL_DEVICE_VERSION_POLICY_REASON_REQUIRED'
   | 'TERMINAL_DEVICE_PERSISTENCE_ERROR'
+  | 'TERMINAL_DEVICE_CREDENTIAL_INVALID'
   | 'AUDIT_EVENT_ALREADY_EXISTS'
 
 // TerminalDeviceError carries stable service error codes for application and gRPC mapping.

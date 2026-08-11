@@ -3,6 +3,8 @@ import { Metadata } from '@grpc/grpc-js'
 import { ClientGrpc } from '@nestjs/microservices'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
+import { GatewayMachineTrustedGrpcExecutionProducer } from '../../../../../common/grpc/gateway-machine-trusted-grpc-execution-producer'
+import { DownstreamRequestSource } from '../../../../../common/grpc/gateway-downstream-source.mapper'
 import {
   ActivateEnrollmentResponse,
   DeviceAccessDecisionCode,
@@ -17,7 +19,7 @@ import {
   TERMINAL_DEVICE_RUNTIME_SNAPSHOT_SERVICE_NAME,
   TerminalDeviceAccessDecisionServiceClient,
   TerminalDeviceEnrollmentServiceClient,
-  TerminalDeviceIdentity,
+  TerminalDeviceIdentityInput,
   TerminalDeviceRuntime,
   TerminalDeviceRuntimeSnapshotServiceClient,
   TerminalDeviceSoftware,
@@ -32,6 +34,7 @@ import {
 } from '../../../interfaces/http/view-models/pda-device.view-model'
 
 const CALLER = 'api-gateway'
+const AUDIENCE = 'urn:oes:service:terminal-device-service'
 
 export type PdaDeviceAccessPurpose =
   | 'BOOTSTRAP'
@@ -44,6 +47,7 @@ export interface PdaActivateEnrollmentInput {
   enrollmentCode: string
   device: PdaManagedDeviceDescriptor
   traceId?: string
+  source?: Partial<Pick<DownstreamRequestSource, 'requestId' | 'traceparent' | 'tracestate'>>
 }
 
 export interface PdaActivateEnrollmentResult {
@@ -62,6 +66,7 @@ export interface PdaResolveDecisionInput {
   device?: PdaManagedDeviceDescriptor
   session?: { accountId?: string | null; sessionId?: string | null } | null
   traceId?: string
+  source?: Partial<Pick<DownstreamRequestSource, 'requestId' | 'traceparent' | 'tracestate'>>
 }
 
 export interface PdaRecordHeartbeatInput {
@@ -77,6 +82,7 @@ export interface PdaRecordHeartbeatInput {
   session?: { accountId?: string | null; sessionId?: string | null } | null
   clientTime: string
   traceId?: string
+  source?: Partial<Pick<DownstreamRequestSource, 'requestId' | 'traceparent' | 'tracestate'>>
 }
 
 export interface PdaRecordHeartbeatResult {
@@ -108,6 +114,7 @@ export interface PdaRecordDiagnosticLogsInput {
   tenantId: string
   terminalDeviceId: string
   records: PdaDiagnosticLogRecordInput[]
+  source?: Partial<Pick<DownstreamRequestSource, 'requestId' | 'traceparent' | 'tracestate'>>
 }
 
 export interface PdaRecordDiagnosticLogsResult {
@@ -124,7 +131,8 @@ export class PdaTerminalDeviceAdapter implements OnModuleInit {
 
   constructor(
     @InjectGrpcClient(SERVICE_NAMES.TERMINAL_DEVICE)
-    private readonly client: ClientGrpc
+    private readonly client: ClientGrpc,
+    private readonly machine: GatewayMachineTrustedGrpcExecutionProducer
   ) {}
 
   onModuleInit(): void {
@@ -141,16 +149,15 @@ export class PdaTerminalDeviceAdapter implements OnModuleInit {
 
   // Activates an administrator-issued enrollment code through terminal-device-service.
   async activateEnrollment(input: PdaActivateEnrollmentInput): Promise<PdaActivateEnrollmentResult> {
-    const response = await safeGrpcCall<ActivateEnrollmentResponse>(
+    const response = await this.internal(input.source, 'terminal-device.internal.gateway.enrollment.activate', async (metadata) => safeGrpcCall<ActivateEnrollmentResponse>(
       this.enrollmentSvc.activateEnrollment({
         enrollmentCode: input.enrollmentCode,
         terminalDeviceType: TerminalDeviceType.TERMINAL_DEVICE_TYPE_PDA,
         identity: toIdentity(input.device),
-        software: toSoftware(input.device),
-        traceId: input.traceId
-      }, new Metadata()),
+        software: toSoftware(input.device)
+      }, metadata),
       this.opts('activateEnrollment')
-    )
+    ))
 
     return {
       activated: Boolean(response.activated),
@@ -164,33 +171,25 @@ export class PdaTerminalDeviceAdapter implements OnModuleInit {
 
   // Resolves the central device governance decision for one PDA request purpose.
   async resolveDeviceAccessDecision(input: PdaResolveDecisionInput): Promise<PdaDeviceAccessDecision> {
-    const response = await safeGrpcCall<ResolveDeviceAccessDecisionResponse>(
+    const response = await this.internal(input.source, 'terminal-device.internal.gateway.access.resolve', async (metadata) => safeGrpcCall<ResolveDeviceAccessDecisionResponse>(
       this.decisionSvc.resolveDeviceAccessDecision({
-        tenantId: normalize(input.tenantId),
         terminalDeviceId: normalize(input.terminalDeviceId ?? input.device?.terminalDeviceId),
         terminalDeviceType: TerminalDeviceType.TERMINAL_DEVICE_TYPE_PDA,
         requestPurpose: toPurpose(input.requestPurpose),
         appVersion: normalize(input.device?.software.appVersion),
         identity: input.device ? toIdentity(input.device) : undefined,
-        session: input.session
-          ? {
-              accountId: normalize(input.session.accountId),
-              sessionId: normalize(input.session.sessionId)
-            }
-          : undefined,
-        traceId: normalize(input.traceId)
-      }, new Metadata()),
+        deviceCredential: (input.device as any)?.deviceCredential
+      }, metadata),
       this.opts('resolveDeviceAccessDecision')
-    )
+    ))
 
     return toDeviceAccessDecision(response.decision)
   }
 
   // Records the latest PDA runtime heartbeat snapshot through terminal-device-service.
   async recordHeartbeat(input: PdaRecordHeartbeatInput): Promise<PdaRecordHeartbeatResult> {
-    const response = await safeGrpcCall<RecordHeartbeatResponse>(
+    const response = await this.internal(input.source, 'terminal-device.internal.gateway.heartbeat.record', async (metadata) => safeGrpcCall<RecordHeartbeatResponse>(
       this.runtimeSvc.recordHeartbeat({
-        tenantId: normalize(input.tenantId),
         terminalDeviceId: input.terminalDeviceId,
         terminalDeviceType: TerminalDeviceType.TERMINAL_DEVICE_TYPE_PDA,
         identity: toIdentity(input.device),
@@ -203,11 +202,10 @@ export class PdaTerminalDeviceAdapter implements OnModuleInit {
             }
           : undefined,
         clientTime: input.clientTime,
-        receivedAt: new Date().toISOString(),
-        traceId: normalize(input.traceId)
-      }, new Metadata()),
+        deviceCredential: (input.device as any)?.deviceCredential
+      }, metadata),
       this.opts('recordHeartbeat')
-    )
+    ))
 
     return {
       accepted: Boolean(response.accepted),
@@ -220,29 +218,24 @@ export class PdaTerminalDeviceAdapter implements OnModuleInit {
 
   // Persists sanitized manual PDA diagnostic logs through terminal-device-service.
   async recordDiagnosticLogs(input: PdaRecordDiagnosticLogsInput): Promise<PdaRecordDiagnosticLogsResult> {
-    const response = await safeGrpcCall<RecordDiagnosticLogsResponse>(
+    const response = await this.internal(input.source, 'terminal-device.internal.gateway.diagnostic_log.record', async (metadata) => safeGrpcCall<RecordDiagnosticLogsResponse>(
       this.runtimeSvc.recordDiagnosticLogs({
-        tenantId: input.tenantId,
         terminalDeviceId: input.terminalDeviceId,
         logs: input.records.map((record) => ({
-          terminalDeviceId: input.terminalDeviceId,
-          tenantId: input.tenantId,
-          accountId: normalize(record.accountId),
-          sessionId: normalize(record.sessionId),
+          reportedAccountId: normalize(record.accountId),
+          reportedSessionId: normalize(record.sessionId),
           clientTime: record.clientTime,
-          receivedAt: record.receivedAt,
           level: record.level,
           eventType: record.eventType,
           message: record.message,
-          traceId: normalize(record.traceId),
-          requestId: normalize(record.requestId),
           errorCode: normalize(record.errorCode),
           diagnosticMode: record.diagnosticMode,
           detailsJson: JSON.stringify(record.details)
-        }))
-      }, new Metadata()),
+        })),
+        deviceCredential: (input as any).deviceCredential
+      }, metadata),
       this.opts('recordDiagnosticLogs')
-    )
+    ))
 
     return {
       accepted: Boolean(response.accepted),
@@ -254,10 +247,15 @@ export class PdaTerminalDeviceAdapter implements OnModuleInit {
   private opts(method: string): SafeGrpcCallOptions {
     return { caller: CALLER, method }
   }
+
+  /** Issues a target-bound SYSTEM MACHINE token from verified ingress trace facts only. */
+  private internal<T>(source: Partial<Pick<DownstreamRequestSource, 'requestId' | 'traceparent' | 'tracestate'>> | undefined, code: string, callback: (metadata: Metadata) => Promise<T>): Promise<T> {
+    return this.machine.forInternalCall(AUDIENCE, code, { requestId: source?.requestId ?? '', traceparent: source?.traceparent ?? '', tracestate: source?.tracestate }, callback)
+  }
 }
 
 // Maps the PDA HTTP device descriptor into terminal-device-service identity signals.
-function toIdentity(device: PdaManagedDeviceDescriptor): TerminalDeviceIdentity {
+function toIdentity(device: PdaManagedDeviceDescriptor): TerminalDeviceIdentityInput {
   return {
     manufacturerSerial: normalize(device.identity.manufacturerSerial),
     androidId: normalize(device.identity.androidId),

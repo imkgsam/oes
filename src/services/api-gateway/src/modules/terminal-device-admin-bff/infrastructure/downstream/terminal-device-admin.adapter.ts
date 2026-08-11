@@ -1,8 +1,9 @@
 import { Injectable, OnModuleInit } from '@nestjs/common'
-import { Metadata } from '@grpc/grpc-js'
 import { ClientGrpc } from '@nestjs/microservices'
-import { SERVICE_NAMES } from '@oes/common/constants'
-import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
+import { safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
+import { TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES } from '@oes/common/authorization'
+import { GatewayTerminalDeviceGrpcClient } from '../../../../common/grpc/gateway-terminal-device-grpc.client'
+import { GatewayTrustedGrpcExecutionProducer } from '../../../../common/grpc/gateway-trusted-grpc-execution-producer'
 import {
   ChangeTerminalDeviceStatusResponse,
   CreateEnrollmentResponse,
@@ -35,6 +36,7 @@ import {
 import { DownstreamRequestSource } from '../../../../common/grpc/gateway-downstream-source.mapper'
 
 const CALLER = 'api-gateway'
+const AUDIENCE = 'urn:oes:service:terminal-device-service'
 
 export type AdminTerminalDeviceType = 'PDA' | 'TOUCH_PANEL'
 export type AdminTerminalDeviceStatus =
@@ -187,21 +189,22 @@ export class TerminalDeviceAdminAdapter implements OnModuleInit {
   private versionPolicySvc!: TerminalDeviceVersionPolicyServiceClient
 
   constructor(
-    @InjectGrpcClient(SERVICE_NAMES.TERMINAL_DEVICE)
-    private readonly client: ClientGrpc
+    private readonly trustedClient: GatewayTerminalDeviceGrpcClient,
+    private readonly producer: GatewayTrustedGrpcExecutionProducer
   ) {}
 
   onModuleInit(): void {
-    this.enrollmentSvc = this.client.getService<TerminalDeviceEnrollmentServiceClient>(
+    const client: ClientGrpc = this.trustedClient.getClient()
+    this.enrollmentSvc = client.getService<TerminalDeviceEnrollmentServiceClient>(
       TERMINAL_DEVICE_ENROLLMENT_SERVICE_NAME
     )
-    this.managementSvc = this.client.getService<TerminalDeviceManagementServiceClient>(
+    this.managementSvc = client.getService<TerminalDeviceManagementServiceClient>(
       TERMINAL_DEVICE_MANAGEMENT_SERVICE_NAME
     )
-    this.runtimeSvc = this.client.getService<TerminalDeviceRuntimeSnapshotServiceClient>(
+    this.runtimeSvc = client.getService<TerminalDeviceRuntimeSnapshotServiceClient>(
       TERMINAL_DEVICE_RUNTIME_SNAPSHOT_SERVICE_NAME
     )
-    this.versionPolicySvc = this.client.getService<TerminalDeviceVersionPolicyServiceClient>(
+    this.versionPolicySvc = client.getService<TerminalDeviceVersionPolicyServiceClient>(
       TERMINAL_DEVICE_VERSION_POLICY_SERVICE_NAME
     )
   }
@@ -218,14 +221,12 @@ export class TerminalDeviceAdminAdapter implements OnModuleInit {
   }): Promise<AdminEnrollment> {
     const response = await safeGrpcCall<CreateEnrollmentResponse>(
       this.enrollmentSvc.createEnrollment({
-        tenantId: input.tenantId,
         terminalDeviceType: toProtoDeviceType(input.terminalDeviceType),
         displayName: input.displayName,
         expectedManufacturerSerial: input.expectedManufacturerSerial ?? '',
         expiresAt: input.expiresAt,
         notes: input.notes ?? '',
-        operatorContext: toOperatorContext(input.source)
-      }, new Metadata()),
+      }, await this.metadata(input.source, [TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.CREATE_ENROLLMENT])),
       this.opts('createEnrollment')
     )
 
@@ -243,14 +244,14 @@ export class TerminalDeviceAdminAdapter implements OnModuleInit {
     status?: AdminEnrollmentStatus
     page?: number
     pageSize?: number
+    source: DownstreamRequestSource
   }): Promise<{ items: AdminEnrollment[] } & AdminPagination> {
     const response = await safeGrpcCall<ListEnrollmentsResponse>(
       this.enrollmentSvc.listEnrollments({
-        tenantId: input.tenantId,
         terminalDeviceType: input.terminalDeviceType ? toProtoDeviceType(input.terminalDeviceType) : undefined,
         status: input.status ? toProtoEnrollmentStatus(input.status) : undefined,
         pagination: toPagination(input.page, input.pageSize)
-      }, new Metadata()),
+      }, await this.metadata(input.source, [TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.READ_DEVICE])),
       this.opts('listEnrollments')
     )
 
@@ -269,11 +270,9 @@ export class TerminalDeviceAdminAdapter implements OnModuleInit {
   }): Promise<{ enrollmentId: string; status: 'REVOKED'; revokedAt: string; revokedBy: string }> {
     const response = await safeGrpcCall<RevokeEnrollmentResponse>(
       this.enrollmentSvc.revokeEnrollment({
-        tenantId: input.tenantId,
         enrollmentId: input.enrollmentId,
         reason: input.reason,
-        operatorContext: toOperatorContext(input.source)
-      }, new Metadata()),
+      }, await this.metadata(input.source, [TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.REVOKE_ENROLLMENT])),
       this.opts('revokeEnrollment')
     )
 
@@ -294,16 +293,16 @@ export class TerminalDeviceAdminAdapter implements OnModuleInit {
     keyword?: string
     page?: number
     pageSize?: number
+    source: DownstreamRequestSource
   }): Promise<{ items: AdminDeviceSummary[] } & AdminPagination> {
     const response = await safeGrpcCall<ListTerminalDevicesResponse>(
       this.managementSvc.listTerminalDevices({
-        tenantId: input.tenantId,
         terminalDeviceType: input.terminalDeviceType ? toProtoDeviceType(input.terminalDeviceType) : undefined,
         status: input.status ? toProtoDeviceStatus(input.status) : undefined,
         presenceStatus: input.presenceStatus ? toProtoPresenceStatus(input.presenceStatus) : undefined,
         keyword: input.keyword ?? '',
         pagination: toPagination(input.page, input.pageSize)
-      }, new Metadata()),
+      }, await this.metadata(input.source, [TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.READ_DEVICE])),
       this.opts('listTerminalDevices')
     )
 
@@ -333,13 +332,12 @@ export class TerminalDeviceAdminAdapter implements OnModuleInit {
     tenantId: string
     terminalDeviceId: string
     includeSensitiveIdentity: boolean
+    source: DownstreamRequestSource
   }): Promise<AdminDeviceDetail> {
     const response = await safeGrpcCall<GetTerminalDeviceResponse>(
       this.managementSvc.getTerminalDevice({
-        tenantId: input.tenantId,
         terminalDeviceId: input.terminalDeviceId,
-        includeSensitiveIdentity: input.includeSensitiveIdentity
-      }, new Metadata()),
+      }, await this.metadata(input.source, [TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.READ_DEVICE, ...(input.includeSensitiveIdentity ? [TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.READ_SENSITIVE_DEVICE] : [])])),
       this.opts('getTerminalDevice')
     )
 
@@ -356,12 +354,10 @@ export class TerminalDeviceAdminAdapter implements OnModuleInit {
   }): Promise<{ terminalDeviceId: string; displayName: string; notes?: string | null; updatedAt: string }> {
     const response = await safeGrpcCall<UpdateTerminalDeviceResponse>(
       this.managementSvc.updateTerminalDevice({
-        tenantId: input.tenantId,
         terminalDeviceId: input.terminalDeviceId,
         displayName: input.displayName ?? '',
         notes: input.notes ?? '',
-        operatorContext: toOperatorContext(input.source)
-      }, new Metadata()),
+      }, await this.metadata(input.source, [TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.UPDATE_DEVICE])),
       this.opts('updateTerminalDevice')
     )
 
@@ -390,12 +386,10 @@ export class TerminalDeviceAdminAdapter implements OnModuleInit {
   }> {
     const response = await safeGrpcCall<ChangeTerminalDeviceStatusResponse>(
       this.managementSvc.changeTerminalDeviceStatus({
-        tenantId: input.tenantId,
         terminalDeviceId: input.terminalDeviceId,
         targetStatus: toProtoDeviceStatus(input.targetStatus),
         reason: input.reason ?? '',
-        operatorContext: toOperatorContext(input.source)
-      }, new Metadata()),
+      }, await this.metadata(input.source, [statusCode(input.targetStatus)])),
       this.opts('changeTerminalDeviceStatus')
     )
 
@@ -416,12 +410,12 @@ export class TerminalDeviceAdminAdapter implements OnModuleInit {
   async getVersionPolicy(input: {
     tenantId: string
     terminalDeviceType: AdminTerminalDeviceType
+    source: DownstreamRequestSource
   }): Promise<AdminVersionPolicy> {
     const response = await safeGrpcCall<GetVersionPolicyResponse>(
       this.versionPolicySvc.getVersionPolicy({
-        tenantId: input.tenantId,
         terminalDeviceType: toProtoDeviceType(input.terminalDeviceType)
-      }, new Metadata()),
+      }, await this.metadata(input.source, [TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.READ_DEVICE])),
       this.opts('getVersionPolicy')
     )
 
@@ -432,7 +426,6 @@ export class TerminalDeviceAdminAdapter implements OnModuleInit {
   async upsertVersionPolicy(input: AdminVersionPolicy & { reason: string; source: DownstreamRequestSource }): Promise<AdminVersionPolicy> {
     const response = await safeGrpcCall<UpsertVersionPolicyResponse>(
       this.versionPolicySvc.upsertVersionPolicy({
-        tenantId: input.tenantId,
         terminalDeviceType: toProtoDeviceType(input.terminalDeviceType),
         minSupportedAppVersion: input.minSupportedAppVersion,
         latestAppVersion: input.latestAppVersion,
@@ -441,8 +434,7 @@ export class TerminalDeviceAdminAdapter implements OnModuleInit {
         apkDownloadUrl: input.apkDownloadUrl ?? '',
         releaseNotesUrl: input.releaseNotesUrl ?? '',
         reason: input.reason,
-        operatorContext: toOperatorContext(input.source)
-      }, new Metadata()),
+      }, await this.metadata(input.source, [TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.MANAGE_VERSION_POLICY])),
       this.opts('upsertVersionPolicy')
     )
 
@@ -455,13 +447,13 @@ export class TerminalDeviceAdminAdapter implements OnModuleInit {
     terminalDeviceId: string
     page?: number
     pageSize?: number
+    source: DownstreamRequestSource
   }): Promise<{ items: AdminAuditEvent[] } & AdminPagination> {
     const response = await safeGrpcCall<ListTerminalDeviceAuditEventsResponse>(
       this.managementSvc.listTerminalDeviceAuditEvents({
-        tenantId: input.tenantId,
         terminalDeviceId: input.terminalDeviceId,
         pagination: toPagination(input.page, input.pageSize)
-      }, new Metadata()),
+      }, await this.metadata(input.source, [TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.READ_AUDIT])),
       this.opts('listTerminalDeviceAuditEvents')
     )
 
@@ -487,13 +479,13 @@ export class TerminalDeviceAdminAdapter implements OnModuleInit {
     terminalDeviceId: string
     page?: number
     pageSize?: number
+    source: DownstreamRequestSource
   }): Promise<{ items: AdminHeartbeatRecord[] } & AdminPagination> {
     const response = await safeGrpcCall<ListHeartbeatRecordsResponse>(
       this.runtimeSvc.listHeartbeatRecords({
-        tenantId: input.tenantId,
         terminalDeviceId: input.terminalDeviceId,
         pagination: toPagination(input.page, input.pageSize)
-      }, new Metadata()),
+      }, await this.metadata(input.source, [TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.READ_SENSITIVE_DEVICE])),
       this.opts('listHeartbeatRecords')
     )
 
@@ -525,13 +517,13 @@ export class TerminalDeviceAdminAdapter implements OnModuleInit {
     terminalDeviceId: string
     page?: number
     pageSize?: number
+    source: DownstreamRequestSource
   }): Promise<{ items: AdminDiagnosticLog[] } & AdminPagination> {
     const response = await safeGrpcCall<ListDiagnosticLogsResponse>(
       this.runtimeSvc.listDiagnosticLogs({
-        tenantId: input.tenantId,
         terminalDeviceId: input.terminalDeviceId,
         pagination: toPagination(input.page, input.pageSize)
-      }, new Metadata()),
+      }, await this.metadata(input.source, [TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.READ_SENSITIVE_DEVICE])),
       this.opts('listDiagnosticLogs')
     )
 
@@ -561,15 +553,12 @@ export class TerminalDeviceAdminAdapter implements OnModuleInit {
   private opts(method: string): SafeGrpcCallOptions {
     return { caller: CALLER, method }
   }
+
+  /** Exchanges only request-verified HUMAN authority for one Terminal Device BUSINESS target token. */
+  private metadata(source: DownstreamRequestSource, codes: readonly string[]) { return this.producer.forBusinessCall(source, AUDIENCE, codes) }
 }
 
-function toOperatorContext(source: DownstreamRequestSource) {
-  return {
-    operatorAccountId: source.user?.aid ?? source.user?.holderId ?? source.user?.sub ?? '',
-    operatorOrgId: source.user?.orgId ?? '',
-    traceId: source.traceId ?? ''
-  }
-}
+function statusCode(status: AdminTerminalDeviceStatus): string { return status === 'LOST' ? TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.MARK_LOST_DEVICE : status === 'MAINTENANCE' ? TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.MARK_MAINTENANCE_DEVICE : status === 'ACTIVE' ? TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.RESTORE_ACTIVE_DEVICE : TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.DISABLE_DEVICE }
 
 function toPagination(page?: number, pageSize?: number) {
   return { page: page ?? 1, pageSize: pageSize ?? 20 }

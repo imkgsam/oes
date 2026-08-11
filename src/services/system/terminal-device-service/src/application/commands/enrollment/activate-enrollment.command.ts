@@ -10,6 +10,7 @@ import { TerminalDeviceActivationRepository } from '../../../domain/repositories
 import { TerminalDeviceEnrollmentRepository } from '../../../domain/repositories/terminal-device-enrollment.repository'
 import { TerminalDeviceRepository } from '../../../domain/repositories/terminal-device.repository'
 import { hashEnrollmentCode } from './create-enrollment.command'
+import { TerminalDeviceCredentialVerifierService } from '../../services/terminal-device-credential-verifier.service'
 
 export type ActivateEnrollmentDecisionCode =
   | 'ALLOW'
@@ -43,6 +44,9 @@ export interface ActivateEnrollmentResult {
   deviceStatus: TerminalDeviceStatus | null
   enrollmentId: string | null
   decisionCode: ActivateEnrollmentDecisionCode
+  deviceCredential?: string | null
+  deviceCredentialExpiresAt?: Date | null
+  deviceCredentialVersion?: number | null
 }
 
 export interface ActivateEnrollmentCommandInput {
@@ -84,7 +88,8 @@ export class ActivateEnrollmentHandler implements ICommandHandler<ActivateEnroll
     @Inject(SYMBOLS.REPO.TERMINAL_DEVICE)
     private readonly terminalDeviceRepository: TerminalDeviceRepository,
     @Inject(SYMBOLS.REPO.ACTIVATION)
-    private readonly activationRepository: TerminalDeviceActivationRepository
+    private readonly activationRepository: TerminalDeviceActivationRepository,
+    private readonly credentialVerifier = new TerminalDeviceCredentialVerifierService()
   ) {}
 
   // Executes activation, rejecting invalid lifecycle states without recovering existing devices.
@@ -126,6 +131,7 @@ export class ActivateEnrollmentHandler implements ICommandHandler<ActivateEnroll
       return rejected('DEVICE_IDENTITY_CONFLICT')
     }
 
+    const issuedCredential = this.credentialVerifier.issue(now)
     const device = new TerminalDeviceEntity({
       terminalDeviceId: randomUUID(),
       tenantId: enrollment.tenantId,
@@ -137,6 +143,13 @@ export class ActivateEnrollmentHandler implements ICommandHandler<ActivateEnroll
       manufacturerSerial: command.identity.manufacturerSerial ?? null,
       androidId: command.identity.androidId ?? null,
       appInstallationId: command.identity.appInstallationId ?? null,
+      deviceCredentialHash: issuedCredential.hash,
+      deviceCredentialPreviousHash: null,
+      deviceCredentialVersion: issuedCredential.version,
+      deviceCredentialPreviousVersion: null,
+      deviceCredentialExpiresAt: issuedCredential.expiresAt,
+      deviceCredentialPreviousExpiresAt: null,
+      deviceCredentialState: 'ACTIVE',
       manufacturer: command.identity.manufacturer ?? null,
       model: command.identity.model ?? null,
       androidVersion: command.software.androidVersion ?? null,
@@ -188,7 +201,10 @@ export class ActivateEnrollmentHandler implements ICommandHandler<ActivateEnroll
       terminalDeviceType: device.terminalDeviceType,
       deviceStatus: device.status,
       enrollmentId: enrollment.enrollmentId,
-      decisionCode: 'ALLOW'
+      decisionCode: 'ALLOW',
+      deviceCredential: issuedCredential.credential,
+      deviceCredentialExpiresAt: device.deviceCredentialExpiresAt,
+      deviceCredentialVersion: device.deviceCredentialVersion
     }
   }
 }

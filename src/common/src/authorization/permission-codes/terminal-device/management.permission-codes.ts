@@ -9,5 +9,6 @@ export const TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES = {
   MARK_MAINTENANCE_DEVICE: 'terminal-device.status.mark-maintenance',
   RESTORE_ACTIVE_DEVICE: 'terminal-device.status.restore-active',
   MANAGE_VERSION_POLICY: 'terminal-device.version-policy.manage',
-  READ_AUDIT: 'terminal-device.audit.read'
+  READ_AUDIT: 'terminal-device.audit.read',
+  UPDATE_DEVICE: 'terminal-device.update'
 } as const

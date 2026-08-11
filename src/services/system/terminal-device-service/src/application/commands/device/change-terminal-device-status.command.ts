@@ -94,6 +94,10 @@ export class ChangeTerminalDeviceStatusHandler
         ...device,
         status: command.targetStatus,
         statusReason: command.reason,
+        deviceCredentialState: credentialStateFor(command.targetStatus, device.deviceCredentialState),
+        ...(command.targetStatus === 'DECOMMISSIONED'
+          ? { deviceCredentialHash: null, deviceCredentialPreviousHash: null, deviceCredentialPreviousVersion: null, deviceCredentialExpiresAt: null, deviceCredentialPreviousExpiresAt: null }
+          : {}),
         updatedAt: now
       })
     )
@@ -153,6 +157,14 @@ export class ChangeTerminalDeviceStatusHandler
           }
     }
   }
+}
+
+/** Maps lifecycle transitions onto the frozen device-proof state without affecting the Redis event contract. */
+function credentialStateFor(status: TerminalDeviceStatus, current: 'ACTIVE' | 'SUSPENDED' | 'REVOKED'): 'ACTIVE' | 'SUSPENDED' | 'REVOKED' {
+  if (status === 'DECOMMISSIONED') return 'REVOKED'
+  if (status === 'DISABLED' || status === 'LOST' || status === 'MAINTENANCE') return 'SUSPENDED'
+  if (status === 'ACTIVE' && current === 'SUSPENDED') return 'ACTIVE'
+  return current
 }
 
 // isUnavailableStatus identifies lifecycle states that make existing auth sessions unsafe to keep.

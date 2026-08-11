@@ -46,7 +46,8 @@ export class TerminalDeviceAdminUseCase {
   }, source: DownstreamRequestSource) {
     return this.terminalDeviceAdapter.listEnrollments({
       tenantId: requireTenantId(source),
-      ...query
+      ...query,
+      source
     })
   }
 
@@ -71,7 +72,8 @@ export class TerminalDeviceAdminUseCase {
   }, source: DownstreamRequestSource) {
     return this.terminalDeviceAdapter.listDevices({
       tenantId: requireTenantId(source),
-      ...query
+      ...query,
+      source
     })
   }
 
@@ -84,7 +86,8 @@ export class TerminalDeviceAdminUseCase {
     const detail = await this.terminalDeviceAdapter.getDevice({
       tenantId,
       terminalDeviceId,
-      includeSensitiveIdentity: hasPermission(source, 'terminal-device.sensitive.read')
+      includeSensitiveIdentity: hasPermission(source, 'terminal-device.sensitive.read'),
+      source
     })
     const terminal = detail.device.terminalDeviceType === 'TOUCH_PANEL' ? 'KIOSK' : detail.device.terminalDeviceType
     const sessions = (await this.authAdapter.adminListTerminalDeviceSessions(terminalDeviceId, source, terminal)).sessions ?? []
@@ -163,7 +166,8 @@ export class TerminalDeviceAdminUseCase {
   getVersionPolicy(query: { terminalDeviceType: AdminTerminalDeviceType }, source: DownstreamRequestSource) {
     return this.terminalDeviceAdapter.getVersionPolicy({
       tenantId: requireTenantId(source),
-      terminalDeviceType: query.terminalDeviceType
+      terminalDeviceType: query.terminalDeviceType,
+      source
     })
   }
 
@@ -191,7 +195,8 @@ export class TerminalDeviceAdminUseCase {
       tenantId: requireTenantId(source),
       terminalDeviceId,
       page: query.page,
-      pageSize: query.pageSize
+      pageSize: query.pageSize,
+      source
     })
   }
 
@@ -201,7 +206,8 @@ export class TerminalDeviceAdminUseCase {
       tenantId: requireTenantId(source),
       terminalDeviceId,
       page: query.page,
-      pageSize: query.pageSize
+      pageSize: query.pageSize,
+      source
     })
   }
 
@@ -211,7 +217,8 @@ export class TerminalDeviceAdminUseCase {
       tenantId: requireTenantId(source),
       terminalDeviceId,
       page: query.page,
-      pageSize: query.pageSize
+      pageSize: query.pageSize,
+      source
     })
   }
 }

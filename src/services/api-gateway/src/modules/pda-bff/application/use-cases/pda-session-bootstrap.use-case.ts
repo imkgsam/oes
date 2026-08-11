@@ -31,7 +31,8 @@ export class PdaSessionBootstrapUseCase {
         accountId: context.account.accountId,
         sessionId: source.user?.sid
       },
-      traceId: source.traceId
+      traceId: source.traceId,
+      source: { requestId: source.requestId, traceparent: source.traceparent, tracestate: source.tracestate }
     })
 
     return {

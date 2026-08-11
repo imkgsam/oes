@@ -36,6 +36,7 @@ import {
   SRM_MANAGEMENT_PERMISSION_CODES,
   TENANT_ORG_MANAGEMENT_PERMISSION_CODES,
   TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES,
+  TERMINAL_DEVICE_INTERNAL_PERMISSION_CODES,
   WMS_MANAGEMENT_PERMISSION_CODES
 } from './permission-catalog'
 
@@ -395,13 +396,19 @@ const COMMON_PERMISSION_CODE_FILES: CommonPermissionCodeFileDefinition[] = [
   {
     kind: 'index',
     relativePath: 'terminal-device/index.ts',
-    exports: ['./management.permission-codes']
+    exports: ['./internal.permission-codes', './management.permission-codes']
   },
   {
     kind: 'const',
     relativePath: 'terminal-device/management.permission-codes.ts',
     constName: 'TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES',
     records: TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES
+  },
+  {
+    kind: 'const',
+    relativePath: 'terminal-device/internal.permission-codes.ts',
+    constName: 'TERMINAL_DEVICE_INTERNAL_PERMISSION_CODES',
+    records: TERMINAL_DEVICE_INTERNAL_PERMISSION_CODES
   },
   {
     kind: 'index',

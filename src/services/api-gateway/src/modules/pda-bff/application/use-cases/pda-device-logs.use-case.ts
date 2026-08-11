@@ -3,6 +3,7 @@ import { InMemoryPdaDeviceDiagnosticLogStore } from '../../infrastructure/in-mem
 import { PdaTerminalDeviceAdapter } from '../../infrastructure/downstream/terminal-device-service/pda-terminal-device.adapter'
 import { PdaDeviceLogsDto, PdaDiagnosticLogEntryDto } from '../../interfaces/http/dtos/pda-device.dto'
 import { PdaDeviceLogsViewModel } from '../../interfaces/http/view-models/pda-device.view-model'
+import { DownstreamRequestSource } from '../../../../common/grpc/gateway-downstream-source.mapper'
 
 const REDACTED_VALUE = '[REDACTED]'
 const REDACTED_SCAN_VALUE = '[REDACTED_DIAGNOSTIC_MODE_REQUIRED]'
@@ -16,7 +17,7 @@ export class PdaDeviceLogsUseCase {
     private readonly terminalDeviceAdapter: PdaTerminalDeviceAdapter
   ) {}
 
-  async execute(dto: PdaDeviceLogsDto): Promise<PdaDeviceLogsViewModel> {
+  async execute(dto: PdaDeviceLogsDto, source: Pick<DownstreamRequestSource, 'requestId' | 'traceparent' | 'tracestate'>): Promise<PdaDeviceLogsViewModel> {
     const serverTime = new Date().toISOString()
     const records = dto.logs.map((log) => this.toRecord(dto, log, serverTime))
     const terminalDeviceId = dto.device.terminalDeviceId?.trim() || 'unbound-pda'
@@ -30,7 +31,8 @@ export class PdaDeviceLogsUseCase {
             accountId: normalizeNullable(dto.session.accountId),
             sessionId: normalizeNullable(dto.session.sessionId)
           }
-        : null
+        : null,
+      source
     })
 
     this.store.saveBatch(terminalDeviceId, records)
@@ -42,7 +44,8 @@ export class PdaDeviceLogsUseCase {
         records: records.map((record) => ({
           ...record,
           tenantId
-        }))
+        })),
+        source
       })
     }
 

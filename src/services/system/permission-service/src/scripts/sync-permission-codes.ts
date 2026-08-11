@@ -211,7 +211,12 @@ const PERMISSION_DESCRIPTION_BY_CODE: Readonly<Record<string, string>> = {
   'terminal-device.status.mark-maintenance': '标记受管终端设备维修中',
   'terminal-device.status.restore-active': '将受管终端设备恢复为可用状态',
   'terminal-device.version-policy.manage': '维护受管终端设备版本策略',
-  'terminal-device.audit.read': '查看受管终端设备治理审计'
+  'terminal-device.audit.read': '查看受管终端设备治理审计',
+  'terminal-device.update': '更新受管终端设备展示字段',
+  'terminal-device.internal.gateway.enrollment.activate': 'Gateway MACHINE 激活终端设备 enrollment',
+  'terminal-device.internal.gateway.access.resolve': 'Gateway MACHINE 解析终端设备准入',
+  'terminal-device.internal.gateway.heartbeat.record': 'Gateway MACHINE 写入终端设备 heartbeat',
+  'terminal-device.internal.gateway.diagnostic_log.record': 'Gateway MACHINE 写入终端设备诊断日志'
 } as const
 
 const SYSTEM_ADMIN_ROLE = {

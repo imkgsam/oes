@@ -1,4 +1,12 @@
-import { Controller, Optional } from '@nestjs/common'
+import { Controller, Inject, Optional, UseGuards } from '@nestjs/common'
+import {
+  AuthorizeBusinessRpc,
+  AuthorizeInternalCall,
+  getAuthenticatedGrpcRequestContext,
+  TERMINAL_DEVICE_INTERNAL_PERMISSION_CODES,
+  TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES,
+  TrustedExecutionGuard
+} from '@oes/common/authorization'
 import {
   ActivateEnrollmentRequest,
   ActivateEnrollmentResponse,
@@ -84,11 +92,14 @@ import {
   ListHeartbeatRecordsQuery
 } from '../../application/queries/runtime'
 import { GetVersionPolicyHandler, GetVersionPolicyQuery } from '../../application/queries/version-policy'
-import { DeviceAccessDecisionService } from '../../application/services'
+import { DeviceAccessDecisionService, TerminalDeviceCredentialVerifierService } from '../../application/services'
+import { SYMBOLS } from '../../common/constants/symbols'
+import { TerminalDeviceRepository } from '../../domain/repositories/terminal-device.repository'
 import { TerminalDeviceError } from '../../domain/errors/terminal-device.error'
 import { TerminalDeviceGrpcPresenter } from './terminal-device-grpc.presenter'
 
 @Controller()
+@UseGuards(TrustedExecutionGuard)
 @TerminalDeviceEnrollmentServiceControllerMethods()
 @TerminalDeviceAccessDecisionServiceControllerMethods()
 @TerminalDeviceManagementServiceControllerMethods()
@@ -120,21 +131,25 @@ export class TerminalDeviceGrpcController
     private readonly getRuntimeSnapshotHandler: GetRuntimeSnapshotHandler,
     private readonly listHeartbeatRecordsHandler: ListHeartbeatRecordsHandler,
     private readonly listDiagnosticLogsHandler: ListDiagnosticLogsHandler,
+    private readonly credentialVerifier: TerminalDeviceCredentialVerifierService,
+    @Inject(SYMBOLS.REPO.TERMINAL_DEVICE)
+    private readonly terminalDeviceRepository: TerminalDeviceRepository,
     @Optional()
     private readonly revokeEnrollmentHandler?: RevokeEnrollmentHandler
   ) {}
 
   // Handles enrollment creation by mapping the proto request into the application command.
+  @AuthorizeBusinessRpc({ all: [TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.CREATE_ENROLLMENT] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async createEnrollment(request: CreateEnrollmentRequest): Promise<CreateEnrollmentResponse> {
     const result = await this.createEnrollmentHandler.execute(
       new CreateEnrollmentCommand({
-        tenantId: request.tenantId ?? '',
+        tenantId: tenantFrom(request),
         terminalDeviceType: TerminalDeviceGrpcPresenter.fromProtoTerminalDeviceType(request.terminalDeviceType),
         displayName: request.displayName ?? '',
         expectedManufacturerSerial: emptyToNull(request.expectedManufacturerSerial),
         expiresAt: parseRequiredDate(request.expiresAt),
         notes: emptyToNull(request.notes),
-        operatorContext: toOperatorContext(request.operatorContext)
+        operatorContext: operatorFrom(request)
       })
     )
 
@@ -145,10 +160,11 @@ export class TerminalDeviceGrpcController
   }
 
   // Handles enrollment listing by mapping tenant and lifecycle filters into the application query.
+  @AuthorizeBusinessRpc({ all: [TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.READ_DEVICE] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async listEnrollments(request: ListEnrollmentsRequest): Promise<ListEnrollmentsResponse> {
     const result = await this.listEnrollmentsHandler.execute(
       new ListEnrollmentsQuery({
-        tenantId: request.tenantId ?? '',
+        tenantId: tenantFrom(request),
         terminalDeviceType: TerminalDeviceGrpcPresenter.fromOptionalProtoTerminalDeviceType(request.terminalDeviceType),
         status: TerminalDeviceGrpcPresenter.fromOptionalProtoEnrollmentStatus(request.status),
         page: request.pagination?.page,
@@ -160,6 +176,7 @@ export class TerminalDeviceGrpcController
   }
 
   // Handles enrollment revocation by delegating to the existing application command when available.
+  @AuthorizeBusinessRpc({ all: [TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.REVOKE_ENROLLMENT] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async revokeEnrollment(request: RevokeEnrollmentRequest): Promise<RevokeEnrollmentResponse> {
     if (!this.revokeEnrollmentHandler) {
       throw new TerminalDeviceError('ENROLLMENT_NOT_FOUND', 'Revoke enrollment handler is not available')
@@ -167,10 +184,10 @@ export class TerminalDeviceGrpcController
 
     const result = await this.revokeEnrollmentHandler.execute(
       new RevokeEnrollmentCommand({
-        tenantId: request.tenantId ?? '',
+        tenantId: tenantFrom(request),
         enrollmentId: request.enrollmentId ?? '',
         reason: request.reason ?? '',
-        operatorContext: toOperatorContext(request.operatorContext)
+        operatorContext: operatorFrom(request)
       })
     )
 
@@ -185,7 +202,9 @@ export class TerminalDeviceGrpcController
   }
 
   // Handles device activation by mapping enrollment, identity and software facts into the application command.
+  @AuthorizeInternalCall({ all: [TERMINAL_DEVICE_INTERNAL_PERMISSION_CODES.ACTIVATE_ENROLLMENT] })
   async activateEnrollment(request: ActivateEnrollmentRequest): Promise<ActivateEnrollmentResponse> {
+    internalGatewayFrom(request)
     const result = await this.activateEnrollmentHandler.execute(
       new ActivateEnrollmentCommand({
         enrollmentCode: request.enrollmentCode ?? '',
@@ -202,7 +221,7 @@ export class TerminalDeviceGrpcController
           webViewVersion: emptyToNull(request.software?.webViewVersion),
           appVersion: emptyToNull(request.software?.appVersion)
         },
-        traceId: emptyToNull(request.traceId)
+        traceId: traceFrom(request)
       })
     )
 
@@ -210,11 +229,14 @@ export class TerminalDeviceGrpcController
   }
 
   // Handles access decision requests by delegating governance decisions to the application service.
+  @AuthorizeInternalCall({ all: [TERMINAL_DEVICE_INTERNAL_PERMISSION_CODES.RESOLVE_ACCESS] })
   async resolveDeviceAccessDecision(
     request: ResolveDeviceAccessDecisionRequest
   ): Promise<ResolveDeviceAccessDecisionResponse> {
+    internalGatewayFrom(request)
+    const device = await this.requireDeviceCredential(request.terminalDeviceId, request.deviceCredential, request.identity?.appInstallationId)
     const decision = await this.deviceAccessDecisionService.resolve({
-      tenantId: emptyToNull(request.tenantId),
+      tenantId: device.tenantId,
       terminalDeviceId: emptyToNull(request.terminalDeviceId),
       terminalDeviceType: TerminalDeviceGrpcPresenter.fromProtoTerminalDeviceType(request.terminalDeviceType),
       requestPurpose: TerminalDeviceGrpcPresenter.fromProtoRequestPurpose(request.requestPurpose),
@@ -227,10 +249,11 @@ export class TerminalDeviceGrpcController
   }
 
   // Handles terminal device listing by mapping filters into the application query.
+  @AuthorizeBusinessRpc({ all: [TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.READ_DEVICE] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async listTerminalDevices(request: ListTerminalDevicesRequest): Promise<ListTerminalDevicesResponse> {
     const result = await this.listTerminalDevicesHandler.execute(
       new ListTerminalDevicesQuery({
-        tenantId: request.tenantId ?? '',
+        tenantId: tenantFrom(request),
         terminalDeviceType: TerminalDeviceGrpcPresenter.fromOptionalProtoTerminalDeviceType(request.terminalDeviceType),
         status: TerminalDeviceGrpcPresenter.fromOptionalProtoTerminalDeviceStatus(request.status),
         presenceStatus: TerminalDeviceGrpcPresenter.fromOptionalProtoPresenceStatus(request.presenceStatus),
@@ -244,12 +267,13 @@ export class TerminalDeviceGrpcController
   }
 
   // Handles terminal device detail lookups by mapping tenant scope into the application query.
+  @AuthorizeBusinessRpc({ all: [TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.READ_DEVICE] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async getTerminalDevice(request: GetTerminalDeviceRequest): Promise<GetTerminalDeviceResponse> {
     const result = await this.getTerminalDeviceHandler.execute(
       new GetTerminalDeviceQuery({
-        tenantId: request.tenantId ?? '',
+        tenantId: tenantFrom(request),
         terminalDeviceId: request.terminalDeviceId ?? '',
-        includeSensitiveIdentity: request.includeSensitiveIdentity ?? false
+        includeSensitiveIdentity: hasCode(request, TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.READ_SENSITIVE_DEVICE)
       })
     )
 
@@ -261,14 +285,15 @@ export class TerminalDeviceGrpcController
   }
 
   // Handles non-lifecycle device updates by delegating field ownership to the application command.
+  @AuthorizeBusinessRpc({ all: [TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.UPDATE_DEVICE] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async updateTerminalDevice(request: UpdateTerminalDeviceRequest): Promise<UpdateTerminalDeviceResponse> {
     const result = await this.updateTerminalDeviceHandler.execute(
       new UpdateTerminalDeviceCommand({
-        tenantId: request.tenantId ?? '',
+        tenantId: tenantFrom(request),
         terminalDeviceId: request.terminalDeviceId ?? '',
         displayName: emptyToNull(request.displayName),
         notes: request.notes ?? null,
-        operatorContext: toOperatorContext(request.operatorContext)
+        operatorContext: operatorFrom(request)
       })
     )
 
@@ -276,16 +301,18 @@ export class TerminalDeviceGrpcController
   }
 
   // Handles lifecycle status changes by delegating transition rules to the application command.
+  @AuthorizeBusinessRpc({ any: [TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.DISABLE_DEVICE, TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.MARK_LOST_DEVICE, TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.MARK_MAINTENANCE_DEVICE, TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.RESTORE_ACTIVE_DEVICE] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async changeTerminalDeviceStatus(
     request: ChangeTerminalDeviceStatusRequest
   ): Promise<ChangeTerminalDeviceStatusResponse> {
+    assertStatusCode(request, TerminalDeviceGrpcPresenter.fromProtoTerminalDeviceStatus(request.targetStatus))
     const result = await this.changeTerminalDeviceStatusHandler.execute(
       new ChangeTerminalDeviceStatusCommand({
-        tenantId: request.tenantId ?? '',
+        tenantId: tenantFrom(request),
         terminalDeviceId: request.terminalDeviceId ?? '',
         targetStatus: TerminalDeviceGrpcPresenter.fromProtoTerminalDeviceStatus(request.targetStatus),
         reason: emptyToNull(request.reason),
-        operatorContext: toOperatorContext(request.operatorContext)
+        operatorContext: operatorFrom(request)
       })
     )
 
@@ -293,12 +320,13 @@ export class TerminalDeviceGrpcController
   }
 
   // Handles device governance audit listing by mapping tenant scope and pagination into the query handler.
+  @AuthorizeBusinessRpc({ all: [TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.READ_AUDIT] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async listTerminalDeviceAuditEvents(
     request: ListTerminalDeviceAuditEventsRequest
   ): Promise<ListTerminalDeviceAuditEventsResponse> {
     const result = await this.listTerminalDeviceAuditEventsHandler.execute(
       new ListTerminalDeviceAuditEventsQuery({
-        tenantId: request.tenantId ?? '',
+        tenantId: tenantFrom(request),
         terminalDeviceId: request.terminalDeviceId ?? '',
         page: request.pagination?.page,
         pageSize: request.pagination?.pageSize
@@ -309,7 +337,10 @@ export class TerminalDeviceGrpcController
   }
 
   // Handles runtime heartbeat recording by mapping diagnostics into the application command.
+  @AuthorizeInternalCall({ all: [TERMINAL_DEVICE_INTERNAL_PERMISSION_CODES.RECORD_HEARTBEAT] })
   async recordHeartbeat(request: RecordHeartbeatRequest): Promise<RecordHeartbeatResponse> {
+    internalGatewayFrom(request)
+    await this.requireDeviceCredential(request.terminalDeviceId, request.deviceCredential, request.identity?.appInstallationId)
     const result = await this.recordHeartbeatHandler.execute(
       new RecordHeartbeatCommand({
         terminalDeviceId: request.terminalDeviceId ?? '',
@@ -328,8 +359,8 @@ export class TerminalDeviceGrpcController
               sessionId: emptyToNull(request.reportedSession.sessionId)
             }
           : null,
-        traceId: emptyToNull(request.traceId),
-        receivedAt: parseOptionalDate(request.receivedAt) ?? undefined
+        traceId: traceFrom(request),
+        receivedAt: undefined
       })
     )
 
@@ -337,10 +368,11 @@ export class TerminalDeviceGrpcController
   }
 
   // Handles current runtime snapshot lookups without treating heartbeat as login truth.
+  @AuthorizeBusinessRpc({ all: [TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.READ_SENSITIVE_DEVICE] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async getRuntimeSnapshot(request: GetRuntimeSnapshotRequest): Promise<GetRuntimeSnapshotResponse> {
     const snapshot = await this.getRuntimeSnapshotHandler.execute(
       new GetRuntimeSnapshotQuery({
-        tenantId: request.tenantId ?? '',
+        tenantId: tenantFrom(request),
         terminalDeviceId: request.terminalDeviceId ?? ''
       })
     )
@@ -351,10 +383,11 @@ export class TerminalDeviceGrpcController
   }
 
   // Handles immutable heartbeat history lookups for admin diagnostics.
+  @AuthorizeBusinessRpc({ all: [TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.READ_SENSITIVE_DEVICE] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async listHeartbeatRecords(request: ListHeartbeatRecordsRequest): Promise<ListHeartbeatRecordsResponse> {
     const result = await this.listHeartbeatRecordsHandler.execute(
       new ListHeartbeatRecordsQuery({
-        tenantId: request.tenantId ?? '',
+        tenantId: tenantFrom(request),
         terminalDeviceId: request.terminalDeviceId ?? '',
         page: request.pagination?.page,
         pageSize: request.pagination?.pageSize
@@ -372,21 +405,24 @@ export class TerminalDeviceGrpcController
   }
 
   // Handles sanitized diagnostic log persistence for manually uploaded PDA logs.
+  @AuthorizeInternalCall({ all: [TERMINAL_DEVICE_INTERNAL_PERMISSION_CODES.RECORD_DIAGNOSTIC_LOG] })
   async recordDiagnosticLogs(request: RecordDiagnosticLogsRequest): Promise<RecordDiagnosticLogsResponse> {
+    internalGatewayFrom(request)
+    const device = await this.requireDeviceCredential(request.terminalDeviceId, request.deviceCredential, null)
     const result = await this.recordDiagnosticLogsHandler.execute(
       new RecordDiagnosticLogsCommand({
-        tenantId: request.tenantId ?? '',
+        tenantId: device.tenantId,
         terminalDeviceId: request.terminalDeviceId ?? '',
         logs: (request.logs ?? []).map((log) => ({
-          accountId: emptyToNull(log.accountId),
-          sessionId: emptyToNull(log.sessionId),
+          accountId: emptyToNull(log.reportedAccountId),
+          sessionId: emptyToNull(log.reportedSessionId),
           clientTime: parseRequiredDate(log.clientTime),
-          receivedAt: parseRequiredDate(log.receivedAt),
+          receivedAt: new Date(),
           level: log.level ?? '',
           eventType: log.eventType ?? '',
           message: log.message ?? '',
-          traceId: emptyToNull(log.traceId),
-          requestId: emptyToNull(log.requestId),
+          traceId: traceFrom(request),
+          requestId: requestIdFrom(request),
           errorCode: emptyToNull(log.errorCode),
           diagnosticMode: log.diagnosticMode ?? false,
           details: parseDetailsJson(log.detailsJson)
@@ -401,10 +437,11 @@ export class TerminalDeviceGrpcController
   }
 
   // Handles persisted diagnostic log history lookups for admin diagnostics.
+  @AuthorizeBusinessRpc({ all: [TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.READ_SENSITIVE_DEVICE] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async listDiagnosticLogs(request: ListDiagnosticLogsRequest): Promise<ListDiagnosticLogsResponse> {
     const result = await this.listDiagnosticLogsHandler.execute(
       new ListDiagnosticLogsQuery({
-        tenantId: request.tenantId ?? '',
+        tenantId: tenantFrom(request),
         terminalDeviceId: request.terminalDeviceId ?? '',
         page: request.pagination?.page,
         pageSize: request.pagination?.pageSize
@@ -422,10 +459,11 @@ export class TerminalDeviceGrpcController
   }
 
   // Handles version policy reads by mapping tenant and device type into the application query.
+  @AuthorizeBusinessRpc({ all: [TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.READ_DEVICE] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async getVersionPolicy(request: GetVersionPolicyRequest): Promise<GetVersionPolicyResponse> {
     const policy = await this.getVersionPolicyHandler.execute(
       new GetVersionPolicyQuery({
-        tenantId: request.tenantId ?? '',
+        tenantId: tenantFrom(request),
         terminalDeviceType: TerminalDeviceGrpcPresenter.fromProtoTerminalDeviceType(request.terminalDeviceType)
       })
     )
@@ -436,10 +474,11 @@ export class TerminalDeviceGrpcController
   }
 
   // Handles version policy upserts by mapping administrator input into the application command.
+  @AuthorizeBusinessRpc({ all: [TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.MANAGE_VERSION_POLICY] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async upsertVersionPolicy(request: UpsertVersionPolicyRequest): Promise<UpsertVersionPolicyResponse> {
     const policy = await this.upsertVersionPolicyHandler.execute(
       new UpsertVersionPolicyCommand({
-        tenantId: request.tenantId ?? '',
+        tenantId: tenantFrom(request),
         terminalDeviceType: TerminalDeviceGrpcPresenter.fromProtoTerminalDeviceType(request.terminalDeviceType),
         minSupportedAppVersion: request.minSupportedAppVersion ?? '',
         latestAppVersion: request.latestAppVersion ?? '',
@@ -448,13 +487,21 @@ export class TerminalDeviceGrpcController
         apkDownloadUrl: emptyToNull(request.apkDownloadUrl),
         releaseNotesUrl: emptyToNull(request.releaseNotesUrl),
         reason: emptyToNull(request.reason),
-        operatorContext: toOperatorContext(request.operatorContext)
+        operatorContext: operatorFrom(request)
       })
     )
 
     return {
       policy: TerminalDeviceGrpcPresenter.toVersionPolicy(policy)
     }
+  }
+
+  /** Validates the service-owned device proof before a Gateway INTERNAL handler reaches application logic. */
+  private async requireDeviceCredential(terminalDeviceId: string | undefined, credential: string | undefined, appInstallationId: string | null | undefined) {
+    const device = await this.terminalDeviceRepository.findById(terminalDeviceId ?? '')
+    if (!device) throw new TerminalDeviceError('TERMINAL_DEVICE_CREDENTIAL_INVALID', 'Terminal device credential is invalid')
+    this.credentialVerifier.verify(device, credential, appInstallationId ?? device.appInstallationId)
+    return device
   }
 }
 
@@ -487,15 +534,44 @@ function parseDetailsJson(value?: string | null): Record<string, unknown> {
   }
 }
 
-// toOperatorContext maps generated operator context into the application audit metadata shape.
-function toOperatorContext(context?: {
-  operatorAccountId?: string
-  operatorOrgId?: string
-  traceId?: string
-}): { operatorAccountId: string; operatorOrgId: string | null; traceId: string | null } {
-  return {
-    operatorAccountId: context?.operatorAccountId ?? '',
-    operatorOrgId: emptyToNull(context?.operatorOrgId),
-    traceId: emptyToNull(context?.traceId)
+/** Derives tenant authority solely from the verified ExecutionToken attached by the trusted guard. */
+function tenantFrom(request: object): string {
+  const tenantId = getAuthenticatedGrpcRequestContext(request)?.verifiedExecutionToken?.tenantId
+  if (!tenantId) throw new TerminalDeviceError('TERMINAL_DEVICE_CREDENTIAL_INVALID', 'Trusted tenant is required')
+  return tenantId
+}
+
+/** Derives audit actor, organization and trace from verified transport instead of removed request fields. */
+function operatorFrom(request: object): { operatorAccountId: string; operatorOrgId: string | null; traceId: string | null } {
+  const context = getAuthenticatedGrpcRequestContext(request)
+  const token = context?.verifiedExecutionToken
+  if (!token?.subject) throw new TerminalDeviceError('TERMINAL_DEVICE_CREDENTIAL_INVALID', 'Trusted operator is required')
+  return { operatorAccountId: token.subject, operatorOrgId: token.orgId ?? null, traceId: (context as { traceId?: string } | undefined)?.traceId ?? null }
+}
+
+function traceFrom(request: object): string | null { return (getAuthenticatedGrpcRequestContext(request) as { traceId?: string } | undefined)?.traceId ?? null }
+function requestIdFrom(request: object): string | null { return (getAuthenticatedGrpcRequestContext(request) as { requestId?: string } | undefined)?.requestId ?? null }
+function hasCode(request: object, code: string): boolean { return getAuthenticatedGrpcRequestContext(request)?.verifiedExecutionToken?.permissionCodes.includes(code) ?? false }
+
+/** Narrows generic INTERNAL proof to the exact configured Gateway SYSTEM MACHINE workload. */
+function internalGatewayFrom(request: object): void {
+  const context = getAuthenticatedGrpcRequestContext(request)
+  const token = context?.verifiedExecutionToken
+  const workload = context?.verifiedWorkloadIdentity
+  const expected = process.env.GATEWAY_TERMINAL_DEVICE_SPIFFE_ID
+  if (!expected || expected.trim() !== expected || token?.principalType !== 'MACHINE' || token.tenantId !== undefined || token.orgId !== undefined || token.actor !== undefined || token.delegationId !== undefined || token.clientId !== expected || workload?.spiffeId !== expected) {
+    throw new TerminalDeviceError('TERMINAL_DEVICE_CREDENTIAL_INVALID', 'Gateway machine execution is invalid')
   }
+}
+
+/** Enforces frozen lifecycle target-to-Code binding after the trusted BUSINESS declaration admits one lifecycle code. */
+function assertStatusCode(request: object, status: string): void {
+  const required: Record<string, string> = {
+    DISABLED: TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.DISABLE_DEVICE,
+    LOST: TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.MARK_LOST_DEVICE,
+    MAINTENANCE: TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.MARK_MAINTENANCE_DEVICE,
+    ACTIVE: TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.RESTORE_ACTIVE_DEVICE,
+    DECOMMISSIONED: TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.DISABLE_DEVICE
+  }
+  if (!required[status] || !hasCode(request, required[status])) throw new TerminalDeviceError('TERMINAL_DEVICE_CREDENTIAL_INVALID', 'Lifecycle permission does not match target status')
 }

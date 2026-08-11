@@ -1,6 +1,7 @@
 import { resolveCommonProtoPath } from '@oes/common/contracts'
 import { AppLogger } from '@oes/common/logging'
 import { initOtelSdk } from '@oes/common/tracing'
+import { createGrpcServerCredentials } from '@oes/common/transport'
 import { NestFactory } from '@nestjs/core'
 import { MicroserviceOptions, Transport } from '@nestjs/microservices'
 import { AppModule } from './app.module'
@@ -14,7 +15,8 @@ async function bootstrap() {
     options: {
       package: 'terminal_device_service',
       protoPath: [resolveCommonProtoPath('terminal_device_service/terminal_device.proto')],
-      url: `${process.env.GRPC_LISTEN_HOST || '0.0.0.0'}:${process.env.GRPC_LISTEN_PORT || '50057'}`
+      url: `${process.env.GRPC_LISTEN_HOST || '0.0.0.0'}:${process.env.GRPC_LISTEN_PORT || '50057'}`,
+      credentials: createGrpcServerCredentials()
     }
   })
 
