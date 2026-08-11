@@ -1176,7 +1176,7 @@ Historical design-freeze evidence recorded Common root-config, Permission filter
 
 ### 9.5 Finance 27-RPC frozen cutover lease
 
-Status: `FROZEN_PENDING_IMPLEMENTATION`. This packet migrates only the 27 RPCs already present in `finance.proto`; it does not add or expand Finance business capability. Static current-main inventory at base `f82b8880606d372cb08dd70d852c1586f5fca5c3` finds Gateway and fixtures as the only callers, 27 legacy body-context validations, 27 legacy Gateway metadata constructions, zero trusted server declarations and no pure MACHINE root. Finance therefore remains `N/N/N/N` in §3.1 until exact implementation and acceptance complete.
+Status: `FROZEN_PENDING_IMPLEMENTATION`. This packet migrates only the 27 RPCs already present in `finance.proto`; it does not add or expand Finance business capability. Static current-main inventory at base `f82b8880606d372cb08dd70d852c1586f5fca5c3` finds Gateway and fixtures as the only callers, 27 legacy body-context validations, 27 legacy Gateway metadata constructions, zero trusted server declarations and no pure MACHINE root. Finance therefore remains `N/N/N/N` in §3.1 until exact implementation and acceptance complete. Preserved corrective candidate `43e747afd2228ca3c926c45feeedefe397f13fa3` changes 20 of the 30 leased paths and remains pending exact I&V acceptance.
 
 All 27 RPCs are `BUSINESS / HUMAN / WEB`, require `aud=urn:oes:service:finance-service`, exact mTLS/`cnf` binding and `all [exactCode]`, and reject MACHINE, DELEGATED, SELF_SERVICE and non-WEB sessions:
 
@@ -1216,8 +1216,8 @@ The current 27 RPC business payloads, rules, errors, audit, idempotency, transac
 
 ```yaml
 financeTrustedGrpcImplementationLease:
-  totalTrackedWriterPaths: 27
-  stateCounts: { EXISTING: 23, NEW_TARGET: 4 }
+  totalTrackedWriterPaths: 30
+  stateCounts: { EXISTING: 25, NEW_TARGET: 5 }
   trackedWriterPaths:
     financeProtoContract:
       - { state: EXISTING, path: src/common/src/contracts/finance_service/finance.proto }
@@ -1247,6 +1247,9 @@ financeTrustedGrpcImplementationLease:
       - { state: EXISTING, path: src/services/business/finance-service/src/interfaces/grpc/finance-query.grpc.controller.ts }
       - { state: EXISTING, path: src/services/business/finance-service/src/interfaces/grpc/finance-management.grpc.controller.ts }
       - { state: EXISTING, path: src/services/business/finance-service/src/interfaces/grpc/finance-rpc-context.validator.ts }
+      - { state: EXISTING, path: src/services/business/finance-service/src/modules/finance-management.module.ts }
+      - { state: EXISTING, path: src/services/business/finance-service/src/modules/finance-query.module.ts }
+      - { state: NEW_TARGET, path: src/services/business/finance-service/src/modules/finance-trusted-execution.module.ts }
 
     financeSecurityTests:
       - { state: EXISTING, path: src/services/business/finance-service/test/l3/finance-grpc-context.spec.ts }
@@ -1278,7 +1281,7 @@ financeTrustedGrpcImplementationLease:
     - pnpm --filter finance-service exec jest --config jest.config.js --runInBand --runTestsByPath test/l3/finance-grpc-context.spec.ts test/l3/finance-cqrs-validation.spec.ts test/l3/finance-payables-cqrs-validation.spec.ts test/l3/finance-trusted-grpc-security.spec.ts
 ```
 
-Acceptance proves 27/27 exact BUSINESS declarations and zero unclassified/duplicate methods; Gateway exchanges current HUMAN WEB source credential for the Finance audience and never places AT/ET in DTO/body/ordinary metadata; Finance rejects missing/wrong issuer, time, audience, `cnf`, tenant, principal type, terminal and Code before controller data; all removed body authority and caller identity fields are reserved while the six service-owned tenant projections remain; all existing Finance behavior tests remain green; no direct non-Gateway or pure MACHINE caller appears in fresh inventory; and the implementation diff is a strict subset of these 27 paths.
+Acceptance proves 27/27 exact BUSINESS declarations and zero unclassified/duplicate methods; Gateway exchanges current HUMAN WEB source credential for the Finance audience and never places AT/ET in DTO/body/ordinary metadata; Finance rejects missing/wrong issuer, time, audience, `cnf`, tenant, principal type, terminal and Code before controller data; both controller-owning feature modules import the shared Finance trusted-execution module so the Guard/verifier/workload provider fail closed through Nest DI; all removed body authority and caller identity fields are reserved while the six service-owned tenant projections remain; all existing Finance behavior tests remain green; no direct non-Gateway or pure MACHINE caller appears in fresh inventory; and the implementation diff is a strict subset of these 30 paths.
 
 ## 10. Repository-wide Security Acceptance
 
