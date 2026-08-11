@@ -109,7 +109,7 @@ The persistent execution owner is **OES Trusted gRPC Service Migration** (`019fe
 | Asset | 5 / 1 | Y | Y | Y | Y | Gateway, Site Media; complete |
 | Site | 66 / 2 | Y | Y | Y | Y | Gateway; complete |
 | Browser Activity | 13 / 1 | Y | Y | Y | Y | Gateway; implemented and verified at `bf0723472ad0cb430dce99d4547671b216c81ba4` |
-| Notification | 2 / 1 | Y | N | N | N | Auth; contract classified, implementation pending |
+| Notification | 2 / 1 | N | N | N | N | Auth; frozen design pending implementation |
 | Terminal Device | 17 / 1 | N | N | N | N | Gateway; pending |
 | Finance | 27 / 2 | N | N | N | N | Gateway; pending |
 | Public Entry | 23 / 2 | N | N | N | N | Gateway; pending |
@@ -127,7 +127,7 @@ The persistent execution owner is **OES Trusted gRPC Service Migration** (`019fe
 | Identity | 41 / 3 | N | N | N | N | Gateway, Auth, Permission, HR; foundation partial only |
 | Permission | 66 / 8 | N | N | N | N | Gateway, Auth, HR, TenantOrg, WMS; bootstrap partial only |
 | Auth | 70 / 1 | N | N | N | N | Gateway, HR, Site, TenantOrg; MACHINE foundation complete, full service pending |
-| **Total / proven state** | **560 / 51** | **4 Y / 17 N** | **3 Y / 18 N** | **3 Y / 18 N** | **3 Y / 18 N** | **Asset, Site and Browser Activity complete; Notification classified; 18 services pending** |
+| **Total / proven state** | **560 / 51** | **3 Y / 18 N** | **3 Y / 18 N** | **3 Y / 18 N** | **3 Y / 18 N** | **Asset, Site and Browser Activity complete; Notification design frozen; 18 services pending** |
 
 The frozen order in §6 remains authoritative. Migration continues one target service at a time; completing the Auth, Identity, Permission, Gateway or Common foundation does not implicitly advance an unverified service row.
 
@@ -919,10 +919,10 @@ Both requests delete and reserve `source=1`; the unused `SourceContext` becomes 
 
 ```yaml
 notificationAuthDispatchTrustedGrpcImplementationLease:
-  totalTrackedWriterPaths: 69
-  stateCounts: { EXISTING: 49, NEW_TARGET: 20 }
+  totalTrackedWriterPaths: 68
+  stateCounts: { EXISTING: 48, NEW_TARGET: 20 }
   trackedWriterPaths:
-    commonPermissionAndProto:
+    commonProtoPermissionCode:
       - { state: EXISTING, path: src/common/src/contracts/notification_service/notification.proto }
       - { state: NEW_TARGET, path: src/common/src/contracts/notification_service/notification.contract.spec.ts }
       - { state: EXISTING, path: src/services/system/permission-service/src/scripts/permission-catalog.ts }
@@ -954,7 +954,6 @@ notificationAuthDispatchTrustedGrpcImplementationLease:
       - { state: NEW_TARGET, path: src/services/system/auth-service/src/infrastructure/adaptors/auth-notification-trusted-grpc-execution.producer.ts }
       - { state: NEW_TARGET, path: src/services/system/auth-service/src/infrastructure/adaptors/auth-notification-trusted-grpc-execution.producer.spec.ts }
 
-    authOtpOwnershipCleanup:
       - { state: EXISTING, path: src/services/system/auth-service/src/application/services/email-otp-login.service.ts }
       - { state: EXISTING, path: src/services/system/auth-service/src/application/services/email-otp-login.service.spec.ts }
       - { state: EXISTING, path: src/services/system/auth-service/src/application/services/phone-otp-login.service.ts }
@@ -968,8 +967,7 @@ notificationAuthDispatchTrustedGrpcImplementationLease:
       - { state: EXISTING, path: src/services/system/auth-service/src/application/services/mfa/phone-otp-mfa-challenge.service.ts }
       - { state: EXISTING, path: src/services/system/auth-service/src/application/services/mfa/phone-otp-mfa-challenge.service.spec.ts }
 
-    notificationTrustedServerAndDelivery:
-      - { state: EXISTING, path: src/services/system/notification-service/package.json }
+    notificationTrustedDispatch:
       - { state: EXISTING, path: src/services/system/notification-service/src/main.ts }
       - { state: EXISTING, path: src/services/system/notification-service/src/app.module.ts }
       - { state: EXISTING, path: src/services/system/notification-service/src/modules/notification/notification.module.ts }
@@ -993,6 +991,8 @@ notificationAuthDispatchTrustedGrpcImplementationLease:
       - { state: NEW_TARGET, path: src/services/system/notification-service/src/domain/services/notification-delivery-payload-protection.port.ts }
       - { state: NEW_TARGET, path: src/services/system/notification-service/src/infrastructure/outbox/notification-provider-outbox.worker.ts }
       - { state: NEW_TARGET, path: src/services/system/notification-service/src/infrastructure/security/deployment-notification-delivery-payload-protector.ts }
+
+    notificationSecurityTests:
       - { state: NEW_TARGET, path: src/services/system/notification-service/test/l1/notification-auth-dispatch.handlers.spec.ts }
       - { state: NEW_TARGET, path: src/services/system/notification-service/test/l1/notification-provider-outbox.worker.spec.ts }
       - { state: NEW_TARGET, path: src/services/system/notification-service/test/l2/notification-auth-dispatch.persistence.spec.ts }
@@ -1026,7 +1026,7 @@ notificationAuthDispatchTrustedGrpcImplementationLease:
     - pnpm --filter notification-service exec jest --runInBand --runTestsByPath test/l1/notification-auth-dispatch.handlers.spec.ts test/l1/notification-provider-outbox.worker.spec.ts test/l2/notification-auth-dispatch.persistence.spec.ts test/l3/notification-auth-dispatch.trusted-grpc.spec.ts test/l3/notification-auth-dispatch.module-di.spec.ts
 ```
 
-Acceptance proves both methods have one INTERNAL declaration; only exact Auth SYSTEM MACHINE execution succeeds; body/legacy source authority is absent; the four template profiles and all payload constraints fail closed; idempotency conflict and concurrency do not duplicate dispatch; dispatch/audit/outbox commit atomically; protected payload expires and never enters logs/audit/ordinary dispatch JSON; Auth runtime has no local fallback/effective-code override; the Collaboration Task NATS consumer paths and tests are unchanged; and the implementation diff is a strict subset of these 69 paths.
+Acceptance proves both methods have one INTERNAL declaration; only exact Auth SYSTEM MACHINE execution succeeds; body/legacy source authority is absent; the four template profiles and all payload constraints fail closed; idempotency conflict and concurrency do not duplicate dispatch; dispatch/audit/outbox commit atomically; protected payload expires and never enters logs/audit/ordinary dispatch JSON; Auth runtime has no local fallback/effective-code override; the Collaboration Task NATS consumer paths and tests are unchanged; and the implementation diff is a strict subset of these 68 paths.
 
 ## 10. Repository-wide Security Acceptance
 
