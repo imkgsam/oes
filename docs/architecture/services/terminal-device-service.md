@@ -313,6 +313,15 @@ Gateway MACHINE ET 只证明内部调用者是 Gateway，不能证明外部请�
 
 本阶段不引入每设备 Machine Principal、设备 mTLS PKI、硬件私钥签名、MDM 或自动 credential rotation。未来只有出现离线高风险业务或明确防克隆要求时，才另行冻结 hardware-backed proof-of-possession。
 
+### 8.3 Domain repository consistency port
+
+`TerminalDeviceRepository` 是设备生命周期与 credential 状态写入的稳定 domain port，必须显式声明下列两个原子操作；application handler 不得通过私有 structural cast、可选方法或 test-only substitute 定义生产能力：
+
+- `compareAndSwapCredential(expected, replacement) -> updated | null`：仅当持久化记录的 `terminalDeviceId`、credential version/hash/state 与 lifecycle status 仍等于 `expected` 快照时提交 `replacement`。同一旧版本的并发轮换只能有一个成功者；冲突返回 `null`，调用方重新读取 owner 真相，不得覆盖赢家或返回未持久化的新 credential。
+- `commitStatusChange(nextDevice, auditEvent) -> updated`：在一个 consistency boundary 内提交 lifecycle 状态、由该状态派生的 credential suspend/restore/revoke/material transition，以及对应 `TerminalDeviceAuditEvent`。任一写入失败时，device 与 audit 都不得部分可见；Redis `terminal-device.unavailable` 仍只在成功提交后作为独立异步事实发布。
+
+Prisma 与仓库内提供的 in-memory adapter 必须实现同一个 declared port 和相同可观察语义；测试替身也只能实现该 port，不能成为生产 contract 的唯一来源。
+
 ## 9. Upstream Dependencies
 
 - `auth-service`
