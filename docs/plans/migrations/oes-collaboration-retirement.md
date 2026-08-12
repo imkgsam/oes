@@ -8,7 +8,7 @@ frozenDecisionSource: false
 sourceThreadId: 019f7325-177e-77a1-9189-b36a10d94c3c
 inventoryDate: 2026-08-09
 closureDate: 2026-08-09
-programControlCandidate: f4db239e2e80f6d975bcf7d547a3cb8adda7668b
+programControlCandidate: cf9ff6035e5f8581d96246e40aaf32549e6fe042
 closureRecord: current-document-commit
 retainedEvidenceBranches: 6
 unarchivedFormalTasks: 6
@@ -28,7 +28,7 @@ unarchivedFormalTasks: 6
 
 - AI Platform 与 ActionGrant 的已冻结设计继续以 architecture、ADR、collaboration、contract 与 feature packet 真相源为准，但其 runtime/feature implementation 延后到核心业务能力完成之后。本迁移阶段不得创建或恢复 AI Platform runtime、Task Assistant runtime、ActionGrant runtime、DelegationGrant runtime、AI tool execution、confirmation UI 或 ActionGrant consumer implementation 任务。
 - 已集成的 `task-assistant-collaboration-task.v1` registration 保持 disabled，仅作为设计/契约及迁移证据；不得据此启动 AI feature runtime。
-- 本次迁移范围内的非 AI 基础能力已经按依赖顺序完成：Permission Decision RPC、GRPC carrier、EXEC-CRYPTO HUMAN/MACHINE foundation、GRPC Asset current-main rebuild 与 SITE recovery 均已验收并集成；当前不再启动新的 runtime implementation。
+- 本次迁移范围内已完成的非 AI 基础能力与当前后续主线：Permission Decision RPC、GRPC carrier、EXEC-CRYPTO HUMAN/MACHINE foundation、GRPC Asset、SITE recovery 与 Public Entry trusted-gRPC slice 均已验收并集成；全仓 trusted-gRPC cutover 仍是独立后续执行主线，Public Entry 之后按冻结顺序进入下一服务审计（当前候选为 Sales），不启动 AI/ActionGrant runtime。
 - 迁移保全是删除前硬 gate：每个旧 worktree、branch、task 必须先归入“已集成 current main”“保留并重建/集成的候选”“已持久登记的 superseded/rejected evidence”或“dirty/untracked 待捕获处置”之一。未分类资源不得 reset、clean、删除或覆盖。
 - 最终 Git 验收态只保留最新完整 root `main` worktree；迁移台账必须先进入 `main`，再移除 Program Control migration worktree。所有有用代码、设计、候选、拒绝证据、测试记录和 dirty 内容必须先集成或持久登记。
 - 旧 capability-collaboration Command/design/I/R/V/X/checker tasks 在证据消费后归档；已完成的 migration implementation tasks 及时归档。Program Control、Unified Design 与持久 I&V 仅在仍有迁移职责时保留，最终迁移关闭时归档 migration-only control tasks；全程不启用 checker。
@@ -71,6 +71,15 @@ unarchivedFormalTasks: 6
 | Execution revocation | [ADR-0015](../../adr/0015-workload-identity-and-execution-token.md)、[auth-service](../../architecture/services/auth-service.md)、[execution-token contract](../../contracts/auth-service/execution-token.md) |
 
 ## 4. Capability 迁移记录
+
+### 4.0 Public Entry — `IMPLEMENTATION_ACCEPTED_AND_INTEGRATED`
+
+- frozen design chain: `e883eeac…` initial packet, `52e6564ea7d23fdb6e5b39bd5fe965710d4fd31e` lease amendment; current main before implementation was `52e6564e…`.
+- implementation owner: `019ff519-c105-7630-be96-3af217f385cf`, title `OES Trusted gRPC · Public Entry Implementation Recovery`; fixed worktree `/Users/acehood/Documents/GitHub/oes/.worktrees/migration/public-entry-trusted-grpc`, branch `codex/migration/public-entry-trusted-grpc`.
+- rejection/rework chain preserved: `f394c400…` fixed status-specific admission but failed anonymous trace propagation; `03512928…` fixed valid W3C traceparent propagation but retained raw unauthenticated live-smoke; `14e07e8e…` moved smoke to Gateway HTTP but lost raw redirect `Location` and tracestate; final `bda36bffbdc28132872d4bed967adb93c2a92b9e` closed both findings.
+- final scope: exact 52-path lease (`45 EXISTING + 7 NEW_TARGET`), 23 RPC mappings, status-specific ChangeShortLinkStatus guard/controller matrix, private carrier barrel, Gateway HTTP-only smoke, and anonymous MACHINE traceparent/tracestate propagation. AI/ActionGrant and unrelated outbound service migrations remained excluded.
+- I&V `019fcaf2-ca7b-7140-b46d-b6cacae58556` independently accepted the final candidate: proto/build/focused/fixture/inventory/lease/legacy/hygiene gates all passed; raw ClientProxyFactory/Transport.GRPC/new Metadata smoke scan is zero.
+- integration: root preflight confirmed main/local origin/main/remote at `52e6564e…`; `git merge --ff-only bda36bff…` exit 0; final root matrix passed; one `git push origin main` exit 0. Final main/local origin/main/remote = `bda36bff…`, root clean. Source branch/worktree clean and marked `MERGED_WAITING_FOR_USER_CLEANUP`; no deletion in this turn.
 
 ### 4.1 GRPC — `CARRIER_ACCEPTED_AND_INTEGRATED`
 
