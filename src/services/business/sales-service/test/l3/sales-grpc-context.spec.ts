@@ -1,147 +1,35 @@
-import { status } from '@grpc/grpc-js'
-import { SalesManagementGrpcController } from '../../src/interfaces/grpc/sales-management.grpc.controller'
-import { SalesQueryGrpcController } from '../../src/interfaces/grpc/sales-query.grpc.controller'
+import { attachVerifiedExecution } from '@oes/common/authorization'
+import { SalesRpcContextValidator } from '../../src/interfaces/grpc/sales-rpc-context.validator'
 
-function createManagementController() {
-  return new SalesManagementGrpcController(
-    {
-      execute: jest.fn()
-    } as never,
-    {
-      recordCommand: jest.fn()
-    } as never
-  )
+/** Attaches only the facts exposed by TrustedExecutionGuard to Sales handlers. */
+function trustedRequest(overrides: Record<string, unknown> = {}) {
+  const request = { tenantId: 'forged-tenant', operatorContext: { operatorId: 'forged' }, ...overrides }
+  const context = attachVerifiedExecution(request, {
+    verifiedExecutionToken: {
+      issuer: 'https://auth.example.test', audience: 'urn:oes:service:sales-service', subject: 'operator-1', principalType: 'HUMAN', clientId: 'spiffe://oes/gateway', tenantId: 'tenant-1', orgId: 'org-1', permissionCodes: ['sales.quote.create'], tokenId: 'token-1', issuedAt: 1, notBefore: 1, expiresAt: 2, certificateThumbprint: 'A'.repeat(43), sessionId: 'session-1', sessionTerminal: 'WEB'
+    },
+    verifiedWorkloadIdentity: { spiffeId: 'spiffe://oes/gateway', certificateThumbprint: 'A'.repeat(43) }
+  }) as { requestId?: string; traceId?: string }
+  context.requestId = 'request-1'; context.traceId = 'trace-1'; return request
 }
 
-function createQueryController() {
-  return new SalesQueryGrpcController({
-    execute: jest.fn()
-  } as never)
-}
-
-describe('sales-service grpc context validation L3', () => {
-  it('CreateQuote / when tenant_id is missing / should reject with INVALID_ARGUMENT', async () => {
-    const controller = createManagementController()
-
-    await expect(
-      controller.createQuote({
-        tenantId: '',
-        operatorContext: {
-          operatorId: 'operator-1',
-          operatorType: 'HUMAN',
-          orgId: 'org-1'
-        },
-        traceContext: {
-          traceId: 'trace-1',
-          requestId: 'request-1'
-        },
-        auditContext: {
-          auditId: 'audit-1',
-          reason: 'create quote',
-          source: 'sales-workspace'
-        },
-        customerTenantPartyId: 'party-1',
-        draftLines: []
-      } as never)
-    ).rejects.toMatchObject({
-      definition: {
-        rpcStatus: status.INVALID_ARGUMENT
-      }
+/** Verifies Sales derives tenant, operator, trace, and audit authority from trusted ET claims. */
+describe('sales-service trusted gRPC context L3', () => {
+  it('ignores forged body identity and derives query context from verified execution', () => {
+    expect(SalesRpcContextValidator.assertQueryContext(trustedRequest())).toEqual({
+      tenantId: 'tenant-1', orgId: 'org-1',
+      operatorContext: { operatorId: 'operator-1', operatorType: 'HUMAN', orgId: 'org-1' },
+      traceContext: { requestId: 'request-1', traceId: 'trace-1' }
     })
   })
 
-  it('CreateQuote / when operator_context is missing / should reject with UNAUTHENTICATED', async () => {
-    const controller = createManagementController()
-
-    await expect(
-      controller.createQuote({
-        tenantId: 'tenant-1',
-        traceContext: {
-          traceId: 'trace-1',
-          requestId: 'request-1'
-        },
-        auditContext: {
-          auditId: 'audit-1',
-          reason: 'create quote',
-          source: 'sales-workspace'
-        },
-        customerTenantPartyId: 'party-1',
-        draftLines: []
-      } as never)
-    ).rejects.toMatchObject({
-      definition: {
-        rpcStatus: status.UNAUTHENTICATED
-      }
+  it('derives trusted audit identity while retaining only a bounded business reason', () => {
+    expect(SalesRpcContextValidator.assertManagementContext(trustedRequest({ reason: ' customer requested update ' }), 'CreateQuote')).toMatchObject({
+      auditContext: { auditId: 'request-1', reason: 'customer requested update', source: 'trusted-execution' }
     })
   })
 
-  it('CreateQuote / when trace_context is missing / should reject with UNAUTHENTICATED', async () => {
-    const controller = createManagementController()
-
-    await expect(
-      controller.createQuote({
-        tenantId: 'tenant-1',
-        operatorContext: {
-          operatorId: 'operator-1',
-          operatorType: 'HUMAN',
-          orgId: 'org-1'
-        },
-        auditContext: {
-          auditId: 'audit-1',
-          reason: 'create quote',
-          source: 'sales-workspace'
-        },
-        customerTenantPartyId: 'party-1',
-        draftLines: []
-      } as never)
-    ).rejects.toMatchObject({
-      definition: {
-        rpcStatus: status.UNAUTHENTICATED
-      }
-    })
-  })
-
-  it('CreateQuote / when audit_context is missing / should reject with UNAUTHENTICATED', async () => {
-    const controller = createManagementController()
-
-    await expect(
-      controller.createQuote({
-        tenantId: 'tenant-1',
-        operatorContext: {
-          operatorId: 'operator-1',
-          operatorType: 'HUMAN',
-          orgId: 'org-1'
-        },
-        traceContext: {
-          traceId: 'trace-1',
-          requestId: 'request-1'
-        },
-        customerTenantPartyId: 'party-1',
-        draftLines: []
-      } as never)
-    ).rejects.toMatchObject({
-      definition: {
-        rpcStatus: status.UNAUTHENTICATED
-      }
-    })
-  })
-
-  it('GetQuote / when query operator_context is missing / should reject with UNAUTHENTICATED', async () => {
-    const controller = createQueryController()
-
-    await expect(
-      controller.getQuote({
-        tenantId: 'tenant-1',
-        traceContext: {
-          traceId: 'trace-1',
-          requestId: 'request-1'
-        },
-        quoteId: 'quote-1'
-      } as never)
-    ).rejects.toMatchObject({
-      definition: {
-        rpcStatus: status.UNAUTHENTICATED
-      }
-    })
+  it('fails closed without guard-attached execution context', () => {
+    expect(() => SalesRpcContextValidator.assertQueryContext({ tenantId: 'tenant-1' })).toThrow('Trusted execution context is required')
   })
 })

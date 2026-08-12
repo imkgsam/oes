@@ -1,4 +1,4 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
+import { Injectable, OnModuleInit } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
 import {
   GetQuoteRequest,
@@ -16,19 +16,11 @@ import {
   SearchSalesOrdersRequest,
   SearchSalesOrdersResponse
 } from '@oes/common/generated/sales_service'
-import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory
-} from '@oes/common/authorization'
-import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
-import {
-  DownstreamRequestSource,
-  toOperatorScopedMetadataInput
-} from '../../../common/grpc/gateway-downstream-source.mapper'
-import { buildSalesOperatorContext, buildSalesTraceContext } from './sales-grpc-context'
+import { safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
+import { DownstreamRequestSource, GatewaySalesGrpcClient, GatewayTrustedGrpcExecutionProducer } from '../../../common/grpc'
 
 const CALLER = 'api-gateway'
-const SALES_SERVICE_TOKEN = 'sales-service'
+const SALES_AUDIENCE = 'urn:oes:service:sales-service'
 
 @Injectable()
 // Proxies the frozen phase 1 sales query RPCs from api-gateway into sales-service.
@@ -36,120 +28,88 @@ export class SalesQueryGrpcAdapter implements OnModuleInit {
   private svc!: SalesQueryServiceClient
 
   constructor(
-    @InjectGrpcClient(SALES_SERVICE_TOKEN)
-    private readonly client: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory
+    private readonly client: GatewaySalesGrpcClient,
+    private readonly trustedExecution: GatewayTrustedGrpcExecutionProducer
   ) {}
 
   onModuleInit(): void {
-    this.svc = this.client.getService<SalesQueryServiceClient>(SALES_QUERY_SERVICE_NAME)
+    this.svc = this.client.getClient().getService<SalesQueryServiceClient>(SALES_QUERY_SERVICE_NAME)
   }
 
   /** searchQuotes forwards one tenant-scoped quote directory query with explicit operator and trace payloads. */
-  searchQuotes(
-    input: Omit<SearchQuotesRequest, 'operatorContext' | 'traceContext'>,
+  async searchQuotes(
+    input: any,
     source: DownstreamRequestSource
   ): Promise<SearchQuotesResponse> {
     return this.call(
       'searchQuotes',
       this.svc.searchQuotes(
-        {
-          ...input,
-          operatorContext: buildSalesOperatorContext(source),
-          traceContext: buildSalesTraceContext(source)
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        this.request(input), await this.metadata(source, ['sales.quote.list'])
       )
     )
   }
 
   /** getQuote forwards one current quote draft read. */
-  getQuote(
-    input: Omit<GetQuoteRequest, 'operatorContext' | 'traceContext'>,
+  async getQuote(
+    input: any,
     source: DownstreamRequestSource
   ): Promise<GetQuoteResponse> {
     return this.call(
       'getQuote',
       this.svc.getQuote(
-        {
-          ...input,
-          operatorContext: buildSalesOperatorContext(source),
-          traceContext: buildSalesTraceContext(source)
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        this.request(input), await this.metadata(source, ['sales.quote.get_by_id'])
       )
     )
   }
 
   /** listQuoteVersions forwards one published quote history read. */
-  listQuoteVersions(
-    input: Omit<ListQuoteVersionsRequest, 'operatorContext' | 'traceContext'>,
+  async listQuoteVersions(
+    input: any,
     source: DownstreamRequestSource
   ): Promise<ListQuoteVersionsResponse> {
     return this.call(
       'listQuoteVersions',
       this.svc.listQuoteVersions(
-        {
-          ...input,
-          operatorContext: buildSalesOperatorContext(source),
-          traceContext: buildSalesTraceContext(source)
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        this.request(input), await this.metadata(source, ['sales.quote.get_by_id'])
       )
     )
   }
 
   /** getQuoteVersion forwards one single published quote version read. */
-  getQuoteVersion(
-    input: Omit<GetQuoteVersionRequest, 'operatorContext' | 'traceContext'>,
+  async getQuoteVersion(
+    input: any,
     source: DownstreamRequestSource
   ): Promise<GetQuoteVersionResponse> {
     return this.call(
       'getQuoteVersion',
       this.svc.getQuoteVersion(
-        {
-          ...input,
-          operatorContext: buildSalesOperatorContext(source),
-          traceContext: buildSalesTraceContext(source)
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        this.request(input), await this.metadata(source, ['sales.quote.get_by_id'])
       )
     )
   }
 
   /** searchSalesOrders forwards one tenant-scoped sales order directory query. */
-  searchSalesOrders(
-    input: Omit<SearchSalesOrdersRequest, 'operatorContext' | 'traceContext'>,
+  async searchSalesOrders(
+    input: any,
     source: DownstreamRequestSource
   ): Promise<SearchSalesOrdersResponse> {
     return this.call(
       'searchSalesOrders',
       this.svc.searchSalesOrders(
-        {
-          ...input,
-          operatorContext: buildSalesOperatorContext(source),
-          traceContext: buildSalesTraceContext(source)
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        this.request(input), await this.metadata(source, ['sales.order.list'])
       )
     )
   }
 
   /** getSalesOrder forwards one established sales order read. */
-  getSalesOrder(
-    input: Omit<GetSalesOrderRequest, 'operatorContext' | 'traceContext'>,
+  async getSalesOrder(
+    input: any,
     source: DownstreamRequestSource
   ): Promise<GetSalesOrderResponse> {
     return this.call(
       'getSalesOrder',
       this.svc.getSalesOrder(
-        {
-          ...input,
-          operatorContext: buildSalesOperatorContext(source),
-          traceContext: buildSalesTraceContext(source)
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        this.request(input), await this.metadata(source, ['sales.order.get_by_id'])
       )
     )
   }
@@ -162,5 +122,16 @@ export class SalesQueryGrpcAdapter implements OnModuleInit {
   /** opts builds the shared gateway caller metadata for one proxied sales query. */
   private opts(method: string): SafeGrpcCallOptions {
     return { caller: CALLER, method }
+  }
+
+  /** Removes obsolete body authority fields before a Sales query crosses the process boundary. */
+  private request(input: Record<string, unknown>): Record<string, unknown> {
+    const { tenantId: _tenantId, operatorContext: _operatorContext, traceContext: _traceContext, ...request } = input
+    return request
+  }
+
+  /** Exchanges the request-private HUMAN WEB source credential for an exact Sales audience token. */
+  private metadata(source: DownstreamRequestSource, requiredCodes: string[]) {
+    return this.trustedExecution.forBusinessCall(source, SALES_AUDIENCE, requiredCodes)
   }
 }

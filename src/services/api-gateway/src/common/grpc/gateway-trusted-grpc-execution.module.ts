@@ -11,6 +11,7 @@ import { GatewayAssetGrpcClient } from './gateway-asset-grpc.client'
 import { GatewayBrowserActivityGrpcClient } from './gateway-browser-activity-grpc.client'
 import { GatewayTerminalDeviceGrpcClient } from './gateway-terminal-device-grpc.client'
 import { GatewayFinanceGrpcClient } from './gateway-finance-grpc.client'
+import { GatewaySalesGrpcClient } from './gateway-sales-grpc.client'
 import { GatewayAuthExecutionTokenExchangeClient } from './gateway-auth-execution-token-exchange.client'
 import { GatewayTrustedGrpcExecutionProducer } from './gateway-trusted-grpc-execution-producer'
 import { GatewayAuthMachineWorkloadSourceCredentialClient } from './gateway-auth-machine-workload-source-credential.client'
@@ -23,6 +24,7 @@ const SITE_AUDIENCE = 'urn:oes:service:site-service'
 const BROWSER_ACTIVITY_AUDIENCE = 'urn:oes:service:browser-activity-service'
 const TERMINAL_DEVICE_AUDIENCE = 'urn:oes:service:terminal-device-service'
 const FINANCE_AUDIENCE = 'urn:oes:service:finance-service'
+const SALES_AUDIENCE = 'urn:oes:service:sales-service'
 const PUBLIC_ENTRY_AUDIENCE = 'urn:oes:service:public-entry-service'
 
 /** Composes the sole Gateway target-token producer with the same request-private source-credential accessor. */
@@ -35,6 +37,7 @@ const PUBLIC_ENTRY_AUDIENCE = 'urn:oes:service:public-entry-service'
     GatewayBrowserActivityGrpcClient,
     GatewayTerminalDeviceGrpcClient,
     GatewayFinanceGrpcClient,
+    GatewaySalesGrpcClient,
     GatewayPublicEntryGrpcClient,
     GatewayAuthMachineWorkloadSourceCredentialClient,
     {
@@ -65,6 +68,7 @@ const PUBLIC_ENTRY_AUDIENCE = 'urn:oes:service:public-entry-service'
             BROWSER_ACTIVITY_AUDIENCE,
             TERMINAL_DEVICE_AUDIENCE,
             FINANCE_AUDIENCE,
+            SALES_AUDIENCE,
             PUBLIC_ENTRY_AUDIENCE
           ],
           workloadIdentities: [requireEnvironment('OES_WORKLOAD_SPIFFE_ID')]

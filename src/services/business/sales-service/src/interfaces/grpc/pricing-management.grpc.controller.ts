@@ -1,4 +1,5 @@
-import { Controller, UseFilters } from '@nestjs/common'
+import { Controller, UseFilters, UseGuards } from '@nestjs/common'
+import { AuthorizeBusinessRpc, TrustedExecutionGuard } from '@oes/common/authorization'
 import { ValidatingCommandBus } from '@oes/common/cqrs'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
@@ -35,6 +36,7 @@ import { SalesRpcContextValidator } from './sales-rpc-context.validator'
 
 /** PricingManagementGrpcController exposes the phase 1 pricing command contract with local audit envelope recording. */
 @UseFilters(GrpcExceptionFilter)
+@UseGuards(TrustedExecutionGuard)
 @Controller()
 @PricingManagementServiceControllerMethods()
 export class PricingManagementGrpcController implements PricingManagementServiceController {
@@ -43,8 +45,9 @@ export class PricingManagementGrpcController implements PricingManagementService
     private readonly auditService: SalesAuditService
   ) {}
 
+  @AuthorizeBusinessRpc({ all: ['sales.pricing.price_list.manage'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async createPriceList(request: CreatePriceListRequest): Promise<CreatePriceListResponse> {
-    const context = SalesRpcContextValidator.assertManagementContext(request)
+    const context = SalesRpcContextValidator.assertManagementContext(request, 'CreatePriceList')
     return this.auditService.recordCommand(
       {
         tenantId: context.tenantId,
@@ -62,7 +65,7 @@ export class PricingManagementGrpcController implements PricingManagementService
       async () => {
         const result = await this.commandBus.execute(
           new CreatePriceListCommand({
-            tenantId: request.tenantId ?? '',
+            tenantId: context.tenantId,
             priceListName: request.priceListName ?? '',
             priceListType: toDomainPriceListType(request.priceListType) ?? 'STANDARD',
             currencyCode: (request.currencyCode ?? 'USD') as 'USD' | 'CNY',
@@ -83,8 +86,9 @@ export class PricingManagementGrpcController implements PricingManagementService
     )
   }
 
+  @AuthorizeBusinessRpc({ all: ['sales.pricing.price_list.manage'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async updatePriceList(request: UpdatePriceListRequest): Promise<UpdatePriceListResponse> {
-    const context = SalesRpcContextValidator.assertManagementContext(request)
+    const context = SalesRpcContextValidator.assertManagementContext(request, 'UpdatePriceList')
     return this.auditService.recordCommand(
       {
         tenantId: context.tenantId,
@@ -101,7 +105,7 @@ export class PricingManagementGrpcController implements PricingManagementService
       async () => {
         const result = await this.commandBus.execute(
           new UpdatePriceListCommand({
-            tenantId: request.tenantId ?? '',
+            tenantId: context.tenantId,
             priceListId: request.priceListId ?? '',
             priceListName: request.priceListName ?? undefined,
             effectiveFrom: request.effectiveFrom ?? undefined,
@@ -114,10 +118,11 @@ export class PricingManagementGrpcController implements PricingManagementService
     )
   }
 
+  @AuthorizeBusinessRpc({ all: ['sales.pricing.price_list.manage'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async replacePriceListLines(
     request: ReplacePriceListLinesRequest
   ): Promise<ReplacePriceListLinesResponse> {
-    const context = SalesRpcContextValidator.assertManagementContext(request)
+    const context = SalesRpcContextValidator.assertManagementContext(request, 'ReplacePriceListLines')
     return this.auditService.recordCommand(
       {
         tenantId: context.tenantId,
@@ -135,7 +140,7 @@ export class PricingManagementGrpcController implements PricingManagementService
       async () => {
         const result = await this.commandBus.execute(
           new ReplacePriceListLinesCommand({
-            tenantId: request.tenantId ?? '',
+            tenantId: context.tenantId,
             priceListId: request.priceListId ?? '',
             lines: (request.lines ?? []).map((line) => ({
               itemId: line.itemId ?? '',
@@ -152,10 +157,11 @@ export class PricingManagementGrpcController implements PricingManagementService
     )
   }
 
+  @AuthorizeBusinessRpc({ all: ['sales.pricing.price_list.manage'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async changePriceListStatus(
     request: ChangePriceListStatusRequest
   ): Promise<ChangePriceListStatusResponse> {
-    const context = SalesRpcContextValidator.assertManagementContext(request)
+    const context = SalesRpcContextValidator.assertManagementContext(request, 'ChangePriceListStatus')
     return this.auditService.recordCommand(
       {
         tenantId: context.tenantId,
@@ -173,7 +179,7 @@ export class PricingManagementGrpcController implements PricingManagementService
       async () => {
         const result = await this.commandBus.execute(
           new ChangePriceListStatusCommand({
-            tenantId: request.tenantId ?? '',
+            tenantId: context.tenantId,
             priceListId: request.priceListId ?? '',
             targetStatus: toDomainPriceListStatus(request.targetStatus) ?? 'DRAFT'
           })
@@ -184,10 +190,11 @@ export class PricingManagementGrpcController implements PricingManagementService
     )
   }
 
+  @AuthorizeBusinessRpc({ all: ['sales.pricing.customer_agreement.manage'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async createCustomerPriceAgreement(
     request: CreateCustomerPriceAgreementRequest
   ): Promise<CreateCustomerPriceAgreementResponse> {
-    const context = SalesRpcContextValidator.assertManagementContext(request)
+    const context = SalesRpcContextValidator.assertManagementContext(request, 'CreateCustomerPriceAgreement')
     return this.auditService.recordCommand(
       {
         tenantId: context.tenantId,
@@ -205,7 +212,7 @@ export class PricingManagementGrpcController implements PricingManagementService
       async () => {
         const result = await this.commandBus.execute(
           new CreateCustomerPriceAgreementCommand({
-            tenantId: request.tenantId ?? '',
+            tenantId: context.tenantId,
             customerTenantPartyId: request.customerTenantPartyId ?? '',
             currencyCode: (request.currencyCode ?? 'USD') as 'USD' | 'CNY',
             initialLines: (request.initialLines ?? []).map((line) => ({
@@ -223,10 +230,11 @@ export class PricingManagementGrpcController implements PricingManagementService
     )
   }
 
+  @AuthorizeBusinessRpc({ all: ['sales.pricing.customer_agreement.manage'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async updateCustomerPriceAgreementDraft(
     request: UpdateCustomerPriceAgreementDraftRequest
   ): Promise<UpdateCustomerPriceAgreementDraftResponse> {
-    const context = SalesRpcContextValidator.assertManagementContext(request)
+    const context = SalesRpcContextValidator.assertManagementContext(request, 'UpdateCustomerPriceAgreementDraft')
     return this.auditService.recordCommand(
       {
         tenantId: context.tenantId,
@@ -245,7 +253,7 @@ export class PricingManagementGrpcController implements PricingManagementService
       async () => {
         const result = await this.commandBus.execute(
           new UpdateCustomerPriceAgreementDraftCommand({
-            tenantId: request.tenantId ?? '',
+            tenantId: context.tenantId,
             customerPriceAgreementId: request.customerPriceAgreementId ?? '',
             draftMutation: {
               upserts: (request.draftMutation?.upserts ?? []).map((line) => ({
@@ -268,10 +276,11 @@ export class PricingManagementGrpcController implements PricingManagementService
     )
   }
 
+  @AuthorizeBusinessRpc({ all: ['sales.pricing.customer_agreement.manage'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async publishCustomerPriceAgreementVersion(
     request: PublishCustomerPriceAgreementVersionRequest
   ): Promise<PublishCustomerPriceAgreementVersionResponse> {
-    const context = SalesRpcContextValidator.assertManagementContext(request)
+    const context = SalesRpcContextValidator.assertManagementContext(request, 'PublishCustomerPriceAgreementVersion')
     return this.auditService.recordCommand(
       {
         tenantId: context.tenantId,
@@ -288,7 +297,7 @@ export class PricingManagementGrpcController implements PricingManagementService
       async () => {
         const result = await this.commandBus.execute(
           new PublishCustomerPriceAgreementVersionCommand({
-            tenantId: request.tenantId ?? '',
+            tenantId: context.tenantId,
             customerPriceAgreementId: request.customerPriceAgreementId ?? ''
           })
         )
@@ -298,10 +307,11 @@ export class PricingManagementGrpcController implements PricingManagementService
     )
   }
 
+  @AuthorizeBusinessRpc({ all: ['sales.pricing.customer_agreement.manage'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async createCustomerPriceAgreementFromSalesOrderLine(
     request: CreateCustomerPriceAgreementFromSalesOrderLineRequest
   ): Promise<CreateCustomerPriceAgreementFromSalesOrderLineResponse> {
-    const context = SalesRpcContextValidator.assertManagementContext(request)
+    const context = SalesRpcContextValidator.assertManagementContext(request, 'CreateCustomerPriceAgreementFromSalesOrderLine')
     return this.auditService.recordCommand(
       {
         tenantId: context.tenantId,
@@ -318,7 +328,7 @@ export class PricingManagementGrpcController implements PricingManagementService
       async () => {
         const result = await this.commandBus.execute(
           new CreateCustomerPriceAgreementFromSalesOrderLineCommand({
-            tenantId: request.tenantId ?? '',
+            tenantId: context.tenantId,
             salesOrderLineId: request.salesOrderLineId ?? ''
           })
         )

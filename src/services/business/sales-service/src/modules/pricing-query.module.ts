@@ -9,10 +9,11 @@ import { ListCustomerPriceAgreementVersionsHandler } from '../application/querie
 import { PreviewQuoteLinePricingHandler } from '../application/queries/preview-quote-line-pricing.handler'
 import { SearchPriceListsHandler } from '../application/queries/search-price-lists.handler'
 import { PricingQueryGrpcController } from '../interfaces/grpc/pricing-query.grpc.controller'
+import { SalesTrustedExecutionModule } from './sales-trusted-execution.module'
 
 /** PricingQueryModule wires the phase 1 pricing query handlers and gRPC controller surface. */
 @Module({
-  imports: [CqrsModule],
+  imports: [CqrsModule, SalesTrustedExecutionModule],
   providers: [
     ValidatingQueryBus,
     SearchPriceListsHandler,

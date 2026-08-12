@@ -104,20 +104,18 @@ enum PricingExceptionStatus {
 }
 
 message OperatorContext {
-  string operator_id = 1;
-  string operator_type = 2;
-  string org_id = 3;
+  reserved 1, 2, 3;
+  reserved "operator_id", "operator_type", "org_id";
 }
 
 message TraceContext {
-  string trace_id = 1;
-  string request_id = 2;
+  reserved 1, 2;
+  reserved "trace_id", "request_id";
 }
 
 message AuditContext {
-  string audit_id = 1;
-  string reason = 2;
-  string source = 3;
+  reserved 1, 2, 3;
+  reserved "audit_id", "reason", "source";
 }
 
 message OpportunityRefSummary {
@@ -360,9 +358,8 @@ message CustomerPriceAgreementVersionSummary {
 }
 
 message GetQuoteRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   string quote_id = 4;
 }
 
@@ -371,9 +368,8 @@ message GetQuoteResponse {
 }
 
 message SearchQuotesRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   string keyword = 4;
   string customer_tenant_party_id = 5;
   QuoteStatus status = 6;
@@ -389,9 +385,8 @@ message SearchQuotesResponse {
 }
 
 message GetQuoteVersionRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   string quote_version_id = 4;
 }
 
@@ -400,9 +395,8 @@ message GetQuoteVersionResponse {
 }
 
 message ListQuoteVersionsRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   string quote_id = 4;
   uint32 page = 5;
   uint32 page_size = 6;
@@ -416,9 +410,8 @@ message ListQuoteVersionsResponse {
 }
 
 message GetSalesOrderRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   string sales_order_id = 4;
 }
 
@@ -427,9 +420,8 @@ message GetSalesOrderResponse {
 }
 
 message SearchSalesOrdersRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   string keyword = 4;
   string customer_tenant_party_id = 5;
   string quote_version_id = 6;
@@ -448,13 +440,12 @@ message SearchSalesOrdersResponse {
 }
 
 message CreateQuoteRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string customer_tenant_party_id = 5;
   OpportunityRefSummary opportunity_ref = 6;
   repeated QuoteLineInput draft_lines = 7;
+  optional string reason = 8;
 }
 
 message CreateQuoteResponse {
@@ -462,12 +453,11 @@ message CreateQuoteResponse {
 }
 
 message UpdateQuoteDraftRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string quote_id = 5;
   QuoteDraftMutation draft_mutation = 6;
+  optional string reason = 7;
 }
 
 message UpdateQuoteDraftResponse {
@@ -475,11 +465,10 @@ message UpdateQuoteDraftResponse {
 }
 
 message PublishQuoteRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string quote_id = 5;
+  optional string reason = 6;
 }
 
 message PublishQuoteResponse {
@@ -488,11 +477,10 @@ message PublishQuoteResponse {
 }
 
 message ConvertQuoteVersionToOrderRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string quote_version_id = 5;
+  optional string reason = 6;
 }
 
 message ConvertQuoteVersionToOrderResponse {
@@ -500,13 +488,12 @@ message ConvertQuoteVersionToOrderResponse {
 }
 
 message SetOrderCommercialGateRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string sales_order_id = 5;
   CommercialGateName gate_name = 6;
   bool allowed = 7;
+  optional string reason = 8;
 }
 
 message SetOrderCommercialGateResponse {
@@ -515,11 +502,10 @@ message SetOrderCommercialGateResponse {
 }
 
 message SubmitFulfillmentHandoffRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string sales_order_id = 5;
+  optional string reason = 6;
 }
 
 message SubmitFulfillmentHandoffResponse {
@@ -529,9 +515,8 @@ message SubmitFulfillmentHandoffResponse {
 }
 
 message SearchPriceListsRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   string keyword = 4;
   PriceListType price_list_type = 5;
   PriceListStatus status = 6;
@@ -549,9 +534,8 @@ message SearchPriceListsResponse {
 }
 
 message GetPriceListRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   string price_list_id = 4;
 }
 
@@ -560,9 +544,8 @@ message GetPriceListResponse {
 }
 
 message GetPriceListLinesRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   string price_list_id = 4;
   string item_id = 5;
   uint32 page = 6;
@@ -577,9 +560,8 @@ message GetPriceListLinesResponse {
 }
 
 message GetActiveCustomerPriceAgreementRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   string customer_tenant_party_id = 4;
   string currency_code = 5;
 }
@@ -589,9 +571,8 @@ message GetActiveCustomerPriceAgreementResponse {
 }
 
 message GetCustomerPriceAgreementRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   string customer_price_agreement_id = 4;
   optional uint32 version_no = 5;
 }
@@ -601,9 +582,8 @@ message GetCustomerPriceAgreementResponse {
 }
 
 message ListCustomerPriceAgreementVersionsRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   string customer_price_agreement_id = 4;
   uint32 page = 5;
   uint32 page_size = 6;
@@ -617,9 +597,8 @@ message ListCustomerPriceAgreementVersionsResponse {
 }
 
 message PreviewQuoteLinePricingRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   string customer_tenant_party_id = 4;
   string item_id = 5;
   string brand_key = 6;
@@ -640,16 +619,15 @@ message PreviewQuoteLinePricingResponse {
 }
 
 message CreatePriceListRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string price_list_name = 5;
   PriceListType price_list_type = 6;
   string currency_code = 7;
   string effective_from = 8;
   string effective_to = 9;
   repeated PriceListLineInput initial_lines = 10;
+  optional string reason = 11;
 }
 
 message CreatePriceListResponse {
@@ -657,14 +635,13 @@ message CreatePriceListResponse {
 }
 
 message UpdatePriceListRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string price_list_id = 5;
   string price_list_name = 6;
   string effective_from = 7;
   string effective_to = 8;
+  optional string reason = 9;
 }
 
 message UpdatePriceListResponse {
@@ -672,12 +649,11 @@ message UpdatePriceListResponse {
 }
 
 message ReplacePriceListLinesRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string price_list_id = 5;
   repeated PriceListLineInput lines = 6;
+  optional string reason = 7;
 }
 
 message ReplacePriceListLinesResponse {
@@ -686,12 +662,11 @@ message ReplacePriceListLinesResponse {
 }
 
 message ChangePriceListStatusRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string price_list_id = 5;
   PriceListStatus target_status = 6;
+  optional string reason = 7;
 }
 
 message ChangePriceListStatusResponse {
@@ -699,13 +674,12 @@ message ChangePriceListStatusResponse {
 }
 
 message CreateCustomerPriceAgreementRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string customer_tenant_party_id = 5;
   string currency_code = 6;
   repeated CustomerPriceAgreementLineInput initial_lines = 7;
+  optional string reason = 8;
 }
 
 message CreateCustomerPriceAgreementResponse {
@@ -713,12 +687,11 @@ message CreateCustomerPriceAgreementResponse {
 }
 
 message UpdateCustomerPriceAgreementDraftRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string customer_price_agreement_id = 5;
   CustomerPriceAgreementDraftMutation draft_mutation = 6;
+  optional string reason = 7;
 }
 
 message UpdateCustomerPriceAgreementDraftResponse {
@@ -726,11 +699,10 @@ message UpdateCustomerPriceAgreementDraftResponse {
 }
 
 message PublishCustomerPriceAgreementVersionRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string customer_price_agreement_id = 5;
+  optional string reason = 6;
 }
 
 message PublishCustomerPriceAgreementVersionResponse {
@@ -738,11 +710,10 @@ message PublishCustomerPriceAgreementVersionResponse {
 }
 
 message CreateCustomerPriceAgreementFromSalesOrderLineRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string sales_order_line_id = 5;
+  optional string reason = 6;
 }
 
 message CreateCustomerPriceAgreementFromSalesOrderLineResponse {

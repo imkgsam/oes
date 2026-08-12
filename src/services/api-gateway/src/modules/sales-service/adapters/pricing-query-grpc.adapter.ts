@@ -1,5 +1,4 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
-import { ClientGrpc } from '@nestjs/microservices'
+import { Injectable, OnModuleInit } from '@nestjs/common'
 import {
   GetActiveCustomerPriceAgreementRequest,
   GetActiveCustomerPriceAgreementResponse,
@@ -18,172 +17,78 @@ import {
   SearchPriceListsRequest,
   SearchPriceListsResponse
 } from '@oes/common/generated/sales_service'
-import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory
-} from '@oes/common/authorization'
-import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
+import { safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
 import {
   DownstreamRequestSource,
-  toOperatorScopedMetadataInput
-} from '../../../common/grpc/gateway-downstream-source.mapper'
-import { buildSalesOperatorContext, buildSalesTraceContext } from './sales-grpc-context'
+  GatewaySalesGrpcClient,
+  GatewayTrustedGrpcExecutionProducer
+} from '../../../common/grpc'
 
 const CALLER = 'api-gateway'
-const SALES_SERVICE_TOKEN = 'sales-service'
+const SALES_AUDIENCE = 'urn:oes:service:sales-service'
 
+/** Proxies Sales pricing reads with an exact HUMAN WEB ExecutionToken. */
 @Injectable()
-// Proxies the frozen phase 1 pricing query RPCs from api-gateway into sales-service.
 export class PricingQueryGrpcAdapter implements OnModuleInit {
   private svc!: PricingQueryServiceClient
 
   constructor(
-    @InjectGrpcClient(SALES_SERVICE_TOKEN)
-    private readonly client: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory
+    private readonly client: GatewaySalesGrpcClient,
+    private readonly trustedExecution: GatewayTrustedGrpcExecutionProducer
   ) {}
 
   onModuleInit(): void {
-    this.svc = this.client.getService<PricingQueryServiceClient>(PRICING_QUERY_SERVICE_NAME)
+    this.svc = this.client.getClient().getService<PricingQueryServiceClient>(PRICING_QUERY_SERVICE_NAME)
   }
 
-  /** searchPriceLists forwards one tenant-scoped price-list catalog query. */
-  searchPriceLists(
-    input: Omit<SearchPriceListsRequest, 'operatorContext' | 'traceContext'>,
-    source: DownstreamRequestSource
-  ): Promise<SearchPriceListsResponse> {
-    return this.call(
-      'searchPriceLists',
-      this.svc.searchPriceLists(
-        {
-          ...input,
-          operatorContext: buildSalesOperatorContext(source),
-          traceContext: buildSalesTraceContext(source)
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
-      )
-    )
+  async searchPriceLists(input: any, source: DownstreamRequestSource): Promise<SearchPriceListsResponse> {
+    return this.call('searchPriceLists', this.svc.searchPriceLists(
+        this.request(input), await this.metadata(source, ['sales.pricing.price_list.read'])))
   }
 
-  /** getPriceList forwards one single price-list read. */
-  getPriceList(
-    input: Omit<GetPriceListRequest, 'operatorContext' | 'traceContext'>,
-    source: DownstreamRequestSource
-  ): Promise<GetPriceListResponse> {
-    return this.call(
-      'getPriceList',
-      this.svc.getPriceList(
-        {
-          ...input,
-          operatorContext: buildSalesOperatorContext(source),
-          traceContext: buildSalesTraceContext(source)
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
-      )
-    )
+  async getPriceList(input: any, source: DownstreamRequestSource): Promise<GetPriceListResponse> {
+    return this.call('getPriceList', this.svc.getPriceList(
+        this.request(input), await this.metadata(source, ['sales.pricing.price_list.read'])))
   }
 
-  /** getPriceListLines forwards one price-list line page read. */
-  getPriceListLines(
-    input: Omit<GetPriceListLinesRequest, 'operatorContext' | 'traceContext'>,
-    source: DownstreamRequestSource
-  ): Promise<GetPriceListLinesResponse> {
-    return this.call(
-      'getPriceListLines',
-      this.svc.getPriceListLines(
-        {
-          ...input,
-          operatorContext: buildSalesOperatorContext(source),
-          traceContext: buildSalesTraceContext(source)
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
-      )
-    )
+  async getPriceListLines(input: any, source: DownstreamRequestSource): Promise<GetPriceListLinesResponse> {
+    return this.call('getPriceListLines', this.svc.getPriceListLines(
+        this.request(input), await this.metadata(source, ['sales.pricing.price_list.read'])))
   }
 
-  /** getActiveCustomerPriceAgreement forwards one active-agreement lookup. */
-  getActiveCustomerPriceAgreement(
-    input: Omit<GetActiveCustomerPriceAgreementRequest, 'operatorContext' | 'traceContext'>,
-    source: DownstreamRequestSource
-  ): Promise<GetActiveCustomerPriceAgreementResponse> {
-    return this.call(
-      'getActiveCustomerPriceAgreement',
-      this.svc.getActiveCustomerPriceAgreement(
-        {
-          ...input,
-          operatorContext: buildSalesOperatorContext(source),
-          traceContext: buildSalesTraceContext(source)
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
-      )
-    )
+  async getActiveCustomerPriceAgreement(input: any, source: DownstreamRequestSource): Promise<GetActiveCustomerPriceAgreementResponse> {
+    return this.call('getActiveCustomerPriceAgreement', this.svc.getActiveCustomerPriceAgreement(
+        this.request(input), await this.metadata(source, ['sales.pricing.customer_agreement.read'])))
   }
 
-  /** getCustomerPriceAgreement forwards one agreement head-or-version read. */
-  getCustomerPriceAgreement(
-    input: Omit<GetCustomerPriceAgreementRequest, 'operatorContext' | 'traceContext'>,
-    source: DownstreamRequestSource
-  ): Promise<GetCustomerPriceAgreementResponse> {
-    return this.call(
-      'getCustomerPriceAgreement',
-      this.svc.getCustomerPriceAgreement(
-        {
-          ...input,
-          operatorContext: buildSalesOperatorContext(source),
-          traceContext: buildSalesTraceContext(source)
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
-      )
-    )
+  async getCustomerPriceAgreement(input: any, source: DownstreamRequestSource): Promise<GetCustomerPriceAgreementResponse> {
+    return this.call('getCustomerPriceAgreement', this.svc.getCustomerPriceAgreement(
+        this.request(input), await this.metadata(source, ['sales.pricing.customer_agreement.read'])))
   }
 
-  /** listCustomerPriceAgreementVersions forwards one paged agreement version directory read. */
-  listCustomerPriceAgreementVersions(
-    input: Omit<
-      ListCustomerPriceAgreementVersionsRequest,
-      'operatorContext' | 'traceContext'
-    >,
-    source: DownstreamRequestSource
-  ): Promise<ListCustomerPriceAgreementVersionsResponse> {
-    return this.call(
-      'listCustomerPriceAgreementVersions',
-      this.svc.listCustomerPriceAgreementVersions(
-        {
-          ...input,
-          operatorContext: buildSalesOperatorContext(source),
-          traceContext: buildSalesTraceContext(source)
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
-      )
-    )
+  async listCustomerPriceAgreementVersions(input: any, source: DownstreamRequestSource): Promise<ListCustomerPriceAgreementVersionsResponse> {
+    return this.call('listCustomerPriceAgreementVersions', this.svc.listCustomerPriceAgreementVersions(
+        this.request(input), await this.metadata(source, ['sales.pricing.customer_agreement.read'])))
   }
 
-  /** previewQuoteLinePricing forwards one non-mutating quote-line pricing preview. */
-  previewQuoteLinePricing(
-    input: Omit<PreviewQuoteLinePricingRequest, 'operatorContext' | 'traceContext'>,
-    source: DownstreamRequestSource
-  ): Promise<PreviewQuoteLinePricingResponse> {
-    return this.call(
-      'previewQuoteLinePricing',
-      this.svc.previewQuoteLinePricing(
-        {
-          ...input,
-          operatorContext: buildSalesOperatorContext(source),
-          traceContext: buildSalesTraceContext(source)
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
-      )
-    )
+  async previewQuoteLinePricing(input: any, source: DownstreamRequestSource): Promise<PreviewQuoteLinePricingResponse> {
+    return this.call('previewQuoteLinePricing', this.svc.previewQuoteLinePricing(
+        this.request(input), await this.metadata(source, ['sales.pricing.preview_quote_line'])))
   }
 
-  /** call wraps one gateway pricing query RPC with the shared safe gRPC transport helpers. */
+  /** Wraps each pricing RPC with standard Gateway error mapping. */
   private call<TResponse>(method: string, call$: any): Promise<TResponse> {
-    return safeGrpcCall<TResponse>(call$, this.opts(method))
+    return safeGrpcCall<TResponse>(call$, { caller: CALLER, method })
   }
 
-  /** opts builds the shared gateway caller metadata for one proxied pricing query. */
-  private opts(method: string): SafeGrpcCallOptions {
-    return { caller: CALLER, method }
+  /** Removes obsolete body authority fields before a Sales pricing query crosses the process boundary. */
+  private request(input: Record<string, unknown>): Record<string, unknown> {
+    const { tenantId: _tenantId, operatorContext: _operatorContext, traceContext: _traceContext, ...request } = input
+    return request
+  }
+
+  /** Exchanges the request-private HUMAN WEB source credential for an exact Sales token. */
+  private metadata(source: DownstreamRequestSource, requiredCodes: string[]): ReturnType<GatewayTrustedGrpcExecutionProducer['forBusinessCall']> {
+    return this.trustedExecution.forBusinessCall(source, SALES_AUDIENCE, requiredCodes)
   }
 }

@@ -1,4 +1,5 @@
-import { Controller, UseFilters } from '@nestjs/common'
+import { Controller, UseFilters, UseGuards } from '@nestjs/common'
+import { AuthorizeBusinessRpc, TrustedExecutionGuard } from '@oes/common/authorization'
 import { ValidatingCommandBus } from '@oes/common/cqrs'
 import { ExceptionFactory } from '@oes/common/exceptions'
 import { GrpcExceptionFilter } from '@oes/common/filters'
@@ -34,6 +35,7 @@ import { SalesRpcContextValidator } from './sales-rpc-context.validator'
 
 /** SalesManagementGrpcController exposes the phase 1 sales command contract with local audit envelope recording. */
 @UseFilters(GrpcExceptionFilter)
+@UseGuards(TrustedExecutionGuard)
 @Controller()
 @SalesManagementServiceControllerMethods()
 export class SalesManagementGrpcController implements SalesManagementServiceController {
@@ -42,8 +44,9 @@ export class SalesManagementGrpcController implements SalesManagementServiceCont
     private readonly auditService: SalesAuditService
   ) {}
 
+  @AuthorizeBusinessRpc({ all: ['sales.quote.create'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async createQuote(request: CreateQuoteRequest): Promise<CreateQuoteResponse> {
-    const context = SalesRpcContextValidator.assertManagementContext(request)
+    const context = SalesRpcContextValidator.assertManagementContext(request, 'CreateQuote')
     return this.auditService.recordCommand(
       {
         tenantId: context.tenantId,
@@ -61,7 +64,7 @@ export class SalesManagementGrpcController implements SalesManagementServiceCont
       async () => {
         const quote = await this.commandBus.execute(
           new CreateQuoteCommand({
-            tenantId: request.tenantId ?? '',
+            tenantId: context.tenantId,
             customerTenantPartyId: request.customerTenantPartyId ?? '',
             opportunityRef: request.opportunityRef
               ? {
@@ -79,8 +82,9 @@ export class SalesManagementGrpcController implements SalesManagementServiceCont
     )
   }
 
+  @AuthorizeBusinessRpc({ all: ['sales.quote.update_draft'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async updateQuoteDraft(request: UpdateQuoteDraftRequest): Promise<UpdateQuoteDraftResponse> {
-    const context = SalesRpcContextValidator.assertManagementContext(request)
+    const context = SalesRpcContextValidator.assertManagementContext(request, 'UpdateQuoteDraft')
     return this.auditService.recordCommand(
       {
         tenantId: context.tenantId,
@@ -98,7 +102,7 @@ export class SalesManagementGrpcController implements SalesManagementServiceCont
       async () => {
         const quote = await this.commandBus.execute(
           new UpdateQuoteDraftCommand({
-            tenantId: request.tenantId ?? '',
+            tenantId: context.tenantId,
             quoteId: request.quoteId ?? '',
             draftMutation: {
               customerTenantPartyId: request.draftMutation?.customerTenantPartyId ?? '',
@@ -121,8 +125,9 @@ export class SalesManagementGrpcController implements SalesManagementServiceCont
     )
   }
 
+  @AuthorizeBusinessRpc({ all: ['sales.quote.publish'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async publishQuote(request: PublishQuoteRequest): Promise<PublishQuoteResponse> {
-    const context = SalesRpcContextValidator.assertManagementContext(request)
+    const context = SalesRpcContextValidator.assertManagementContext(request, 'PublishQuote')
     return this.auditService.recordCommand(
       {
         tenantId: context.tenantId,
@@ -139,7 +144,7 @@ export class SalesManagementGrpcController implements SalesManagementServiceCont
       async () => {
         const result = await this.commandBus.execute(
           new PublishQuoteCommand({
-            tenantId: request.tenantId ?? '',
+            tenantId: context.tenantId,
             quoteId: request.quoteId ?? ''
           })
         )
@@ -149,10 +154,11 @@ export class SalesManagementGrpcController implements SalesManagementServiceCont
     )
   }
 
+  @AuthorizeBusinessRpc({ all: ['sales.quote.convert_to_order'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async convertQuoteVersionToOrder(
     request: ConvertQuoteVersionToOrderRequest
   ): Promise<ConvertQuoteVersionToOrderResponse> {
-    const context = SalesRpcContextValidator.assertManagementContext(request)
+    const context = SalesRpcContextValidator.assertManagementContext(request, 'ConvertQuoteVersionToOrder')
     return this.auditService.recordCommand(
       {
         tenantId: context.tenantId,
@@ -169,7 +175,7 @@ export class SalesManagementGrpcController implements SalesManagementServiceCont
       async () => {
         const order = await this.commandBus.execute(
           new ConvertQuoteVersionToOrderCommand({
-            tenantId: request.tenantId ?? '',
+            tenantId: context.tenantId,
             quoteVersionId: request.quoteVersionId ?? ''
           })
         )
@@ -179,10 +185,11 @@ export class SalesManagementGrpcController implements SalesManagementServiceCont
     )
   }
 
+  @AuthorizeBusinessRpc({ all: ['sales.order.set_commercial_gate'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async setOrderCommercialGate(
     request: SetOrderCommercialGateRequest
   ): Promise<SetOrderCommercialGateResponse> {
-    const context = SalesRpcContextValidator.assertManagementContext(request)
+    const context = SalesRpcContextValidator.assertManagementContext(request, 'SetOrderCommercialGate')
     return this.auditService.recordCommand(
       {
         tenantId: context.tenantId,
@@ -201,7 +208,7 @@ export class SalesManagementGrpcController implements SalesManagementServiceCont
       async () => {
         const order = await this.commandBus.execute(
           new SetOrderCommercialGateCommand({
-            tenantId: request.tenantId ?? '',
+            tenantId: context.tenantId,
             salesOrderId: request.salesOrderId ?? '',
             gateName: toDomainGateName(request.gateName),
             allowed: request.allowed ?? false
@@ -213,10 +220,11 @@ export class SalesManagementGrpcController implements SalesManagementServiceCont
     )
   }
 
+  @AuthorizeBusinessRpc({ all: ['sales.order.submit_fulfillment_handoff'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async submitFulfillmentHandoff(
     request: SubmitFulfillmentHandoffRequest
   ): Promise<SubmitFulfillmentHandoffResponse> {
-    const context = SalesRpcContextValidator.assertManagementContext(request)
+    const context = SalesRpcContextValidator.assertManagementContext(request, 'SubmitFulfillmentHandoff')
     return this.auditService.recordCommand(
       {
         tenantId: context.tenantId,
@@ -233,7 +241,7 @@ export class SalesManagementGrpcController implements SalesManagementServiceCont
       async () => {
         const order = await this.commandBus.execute(
           new SubmitFulfillmentHandoffCommand({
-            tenantId: request.tenantId ?? '',
+            tenantId: context.tenantId,
             salesOrderId: request.salesOrderId ?? ''
           })
         )

@@ -11,10 +11,11 @@ import { UpdateCustomerPriceAgreementDraftHandler } from '../application/command
 import { UpdatePriceListHandler } from '../application/commands/update-price-list.handler'
 import { SalesAuditService } from '../application/services/sales-audit.service'
 import { PricingManagementGrpcController } from '../interfaces/grpc/pricing-management.grpc.controller'
+import { SalesTrustedExecutionModule } from './sales-trusted-execution.module'
 
 /** PricingManagementModule wires the phase 1 pricing command handlers, audit service, and gRPC management controller. */
 @Module({
-  imports: [CqrsModule],
+  imports: [CqrsModule, SalesTrustedExecutionModule],
   providers: [
     ValidatingCommandBus,
     SalesAuditService,

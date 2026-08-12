@@ -9,10 +9,11 @@ import { SubmitFulfillmentHandoffHandler } from '../application/commands/submit-
 import { UpdateQuoteDraftHandler } from '../application/commands/update-quote-draft.handler'
 import { SalesAuditService } from '../application/services/sales-audit.service'
 import { SalesManagementGrpcController } from '../interfaces/grpc/sales-management.grpc.controller'
+import { SalesTrustedExecutionModule } from './sales-trusted-execution.module'
 
 /** SalesManagementModule wires the phase 1 sales command handlers, audit service, and gRPC management controller. */
 @Module({
-  imports: [CqrsModule],
+  imports: [CqrsModule, SalesTrustedExecutionModule],
   providers: [
     ValidatingCommandBus,
     SalesAuditService,

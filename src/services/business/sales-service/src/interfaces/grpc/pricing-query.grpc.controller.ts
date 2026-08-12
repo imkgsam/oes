@@ -1,4 +1,5 @@
-import { Controller, UseFilters } from '@nestjs/common'
+import { Controller, UseFilters, UseGuards } from '@nestjs/common'
+import { AuthorizeBusinessRpc, TrustedExecutionGuard } from '@oes/common/authorization'
 import { ValidatingQueryBus } from '@oes/common/cqrs'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
@@ -31,16 +32,18 @@ import { SalesRpcContextValidator } from './sales-rpc-context.validator'
 
 /** PricingQueryGrpcController exposes the phase 1 read-only pricing query contract. */
 @UseFilters(GrpcExceptionFilter)
+@UseGuards(TrustedExecutionGuard)
 @Controller()
 @PricingQueryServiceControllerMethods()
 export class PricingQueryGrpcController implements PricingQueryServiceController {
   constructor(private readonly queryBus: ValidatingQueryBus) {}
 
+  @AuthorizeBusinessRpc({ all: ['sales.pricing.price_list.read'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async searchPriceLists(request: SearchPriceListsRequest): Promise<SearchPriceListsResponse> {
-    SalesRpcContextValidator.assertQueryContext(request)
+    const context = SalesRpcContextValidator.assertQueryContext(request)
     const result = await this.queryBus.execute(
       new SearchPriceListsQuery({
-        tenantId: request.tenantId ?? '',
+        tenantId: context.tenantId,
         keyword: request.keyword ?? undefined,
         priceListType: toDomainPriceListType(request.priceListType),
         status: toDomainPriceListStatus(request.status),
@@ -54,19 +57,21 @@ export class PricingQueryGrpcController implements PricingQueryServiceController
     return PricingGrpcPresenter.toSearchPriceListsResponse(result)
   }
 
+  @AuthorizeBusinessRpc({ all: ['sales.pricing.price_list.read'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async getPriceList(request: GetPriceListRequest): Promise<GetPriceListResponse> {
-    SalesRpcContextValidator.assertQueryContext(request)
+    const context = SalesRpcContextValidator.assertQueryContext(request)
     const result = await this.queryBus.execute(
-      new GetPriceListQuery(request.tenantId ?? '', request.priceListId ?? '')
+      new GetPriceListQuery(context.tenantId, request.priceListId ?? '')
     )
     return PricingGrpcPresenter.toGetPriceListResponse(result)
   }
 
+  @AuthorizeBusinessRpc({ all: ['sales.pricing.price_list.read'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async getPriceListLines(request: GetPriceListLinesRequest): Promise<GetPriceListLinesResponse> {
-    SalesRpcContextValidator.assertQueryContext(request)
+    const context = SalesRpcContextValidator.assertQueryContext(request)
     const result = await this.queryBus.execute(
       new GetPriceListLinesQuery({
-        tenantId: request.tenantId ?? '',
+        tenantId: context.tenantId,
         priceListId: request.priceListId ?? '',
         itemId: request.itemId ?? undefined,
         page: request.page ?? undefined,
@@ -77,13 +82,14 @@ export class PricingQueryGrpcController implements PricingQueryServiceController
     return PricingGrpcPresenter.toGetPriceListLinesResponse(result)
   }
 
+  @AuthorizeBusinessRpc({ all: ['sales.pricing.customer_agreement.read'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async getActiveCustomerPriceAgreement(
     request: GetActiveCustomerPriceAgreementRequest
   ): Promise<GetActiveCustomerPriceAgreementResponse> {
-    SalesRpcContextValidator.assertQueryContext(request)
+    const context = SalesRpcContextValidator.assertQueryContext(request)
     const result = await this.queryBus.execute(
       new GetActiveCustomerPriceAgreementQuery({
-        tenantId: request.tenantId ?? '',
+        tenantId: context.tenantId,
         customerTenantPartyId: request.customerTenantPartyId ?? '',
         currencyCode: (request.currencyCode ?? 'USD') as 'USD' | 'CNY'
       })
@@ -92,13 +98,14 @@ export class PricingQueryGrpcController implements PricingQueryServiceController
     return PricingGrpcPresenter.toGetActiveCustomerPriceAgreementResponse(result)
   }
 
+  @AuthorizeBusinessRpc({ all: ['sales.pricing.customer_agreement.read'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async getCustomerPriceAgreement(
     request: GetCustomerPriceAgreementRequest
   ): Promise<GetCustomerPriceAgreementResponse> {
-    SalesRpcContextValidator.assertQueryContext(request)
+    const context = SalesRpcContextValidator.assertQueryContext(request)
     const result = await this.queryBus.execute(
       new GetCustomerPriceAgreementQuery({
-        tenantId: request.tenantId ?? '',
+        tenantId: context.tenantId,
         customerPriceAgreementId: request.customerPriceAgreementId ?? '',
         versionNo: request.versionNo ?? undefined
       })
@@ -107,13 +114,14 @@ export class PricingQueryGrpcController implements PricingQueryServiceController
     return PricingGrpcPresenter.toGetCustomerPriceAgreementResponse(result)
   }
 
+  @AuthorizeBusinessRpc({ all: ['sales.pricing.customer_agreement.read'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async listCustomerPriceAgreementVersions(
     request: ListCustomerPriceAgreementVersionsRequest
   ): Promise<ListCustomerPriceAgreementVersionsResponse> {
-    SalesRpcContextValidator.assertQueryContext(request)
+    const context = SalesRpcContextValidator.assertQueryContext(request)
     const result = await this.queryBus.execute(
       new ListCustomerPriceAgreementVersionsQuery({
-        tenantId: request.tenantId ?? '',
+        tenantId: context.tenantId,
         customerPriceAgreementId: request.customerPriceAgreementId ?? '',
         page: request.page ?? undefined,
         pageSize: request.pageSize ?? undefined
@@ -123,13 +131,14 @@ export class PricingQueryGrpcController implements PricingQueryServiceController
     return PricingGrpcPresenter.toListCustomerPriceAgreementVersionsResponse(result)
   }
 
+  @AuthorizeBusinessRpc({ all: ['sales.pricing.preview_quote_line'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async previewQuoteLinePricing(
     request: PreviewQuoteLinePricingRequest
   ): Promise<PreviewQuoteLinePricingResponse> {
-    SalesRpcContextValidator.assertQueryContext(request)
+    const context = SalesRpcContextValidator.assertQueryContext(request)
     const result = await this.queryBus.execute(
       new PreviewQuoteLinePricingQuery({
-        tenantId: request.tenantId ?? '',
+        tenantId: context.tenantId,
         customerTenantPartyId: request.customerTenantPartyId ?? '',
         itemId: request.itemId ?? '',
         brandKey: request.brandKey ?? undefined,

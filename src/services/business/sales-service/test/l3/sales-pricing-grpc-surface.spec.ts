@@ -1,3 +1,4 @@
+import { attachVerifiedExecution } from '@oes/common/authorization'
 import { PricingManagementGrpcController } from '../../src/interfaces/grpc/pricing-management.grpc.controller'
 import { PricingQueryGrpcController } from '../../src/interfaces/grpc/pricing-query.grpc.controller'
 
@@ -16,6 +17,17 @@ function createPricingQueryController() {
   return new PricingQueryGrpcController({
     execute: jest.fn()
   } as never)
+}
+
+function trustedRequest(overrides: Record<string, unknown> = {}) {
+  const request = { ...overrides }
+  const context = attachVerifiedExecution(request, {
+    verifiedExecutionToken: {
+      issuer: 'https://auth.example.test', audience: 'urn:oes:service:sales-service', subject: 'operator-1', principalType: 'HUMAN', clientId: 'spiffe://oes/gateway', tenantId: 'tenant-1', orgId: 'org-1', permissionCodes: ['sales.pricing.price_list.manage'], tokenId: 'token-1', issuedAt: 1, notBefore: 1, expiresAt: 2, certificateThumbprint: 'A'.repeat(43), sessionId: 'session-1', sessionTerminal: 'WEB'
+    },
+    verifiedWorkloadIdentity: { spiffeId: 'spiffe://oes/gateway', certificateThumbprint: 'A'.repeat(43) }
+  }) as { requestId?: string; traceId?: string }
+  context.requestId = 'request-1'; context.traceId = 'trace-1'; return request
 }
 
 describe('sales-service pricing grpc surface L3', () => {
@@ -62,7 +74,7 @@ describe('sales-service pricing grpc surface L3', () => {
       ]
     })
 
-    const response = await controller.previewQuoteLinePricing({
+    const response = await controller.previewQuoteLinePricing(trustedRequest({
       tenantId: 'tenant-1',
       operatorContext: {
         operatorId: 'operator-1',
@@ -80,7 +92,7 @@ describe('sales-service pricing grpc surface L3', () => {
       requestedQuantity: '40',
       quantityUomCode: 'PCS',
       exchangeRateTargetCurrencyCode: 'CNY'
-    } as never)
+    }) as never)
 
     expect(response.priceSnapshot?.sourceType).toBe(1)
     expect(response.priceSnapshot?.unitPriceAmount).toBe('90.00')
@@ -105,7 +117,7 @@ describe('sales-service pricing grpc surface L3', () => {
       lines: []
     })
 
-    const response = await controller.createPriceList({
+    const response = await controller.createPriceList(trustedRequest({
       tenantId: 'tenant-1',
       operatorContext: {
         operatorId: 'operator-1',
@@ -127,7 +139,7 @@ describe('sales-service pricing grpc surface L3', () => {
       effectiveFrom: '2026-04-01T00:00:00.000Z',
       effectiveTo: '2026-05-31T23:59:59.000Z',
       initialLines: []
-    } as never)
+    }) as never)
 
     expect(recordCommand).toHaveBeenCalledTimes(1)
     expect(response.priceList?.priceListId).toBe('price-list-1')

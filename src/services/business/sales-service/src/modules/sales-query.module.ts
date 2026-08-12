@@ -8,10 +8,11 @@ import { ListQuoteVersionsHandler } from '../application/queries/list-quote-vers
 import { SearchQuotesHandler } from '../application/queries/search-quotes.handler'
 import { SearchSalesOrdersHandler } from '../application/queries/search-sales-orders.handler'
 import { SalesQueryGrpcController } from '../interfaces/grpc/sales-query.grpc.controller'
+import { SalesTrustedExecutionModule } from './sales-trusted-execution.module'
 
 /** SalesQueryModule wires the phase 1 sales query handlers and gRPC controller surface. */
 @Module({
-  imports: [CqrsModule],
+  imports: [CqrsModule, SalesTrustedExecutionModule],
   providers: [
     ValidatingQueryBus,
     GetQuoteHandler,
