@@ -6,16 +6,11 @@
 
 ## 2. 通用上下文要求
 
-所有 phase 1 management command 统一要求：
-
-- `tenant_id`
-- operator context
-- trace context
-- audit context
+所有 phase 1 management command 都按 [Sales trusted execution contract](README.md#5-trusted-execution-contract) 接受 `BUSINESS / HUMAN / WEB` ExecutionToken。tenant、operator、org、trace 与审计身份/来源由 trusted context 提供，不再出现在 request body。
 
 补充约束：
 
-- 本文件只冻结“必须要求这些上下文存在”，不展开它们的完整内部字段结构
+- trusted context 的验证与字段处置以 README §5 为准，本文件只描述 management 业务语义
 - 所有 command 都必须按 command 语义处理，不得被调用方当作 query 或幂等读取接口使用
 - phase 1 不冻结 command metadata header、审计落库结构、重试策略或幂等键设计
 
@@ -74,13 +69,10 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `operator_context` | 是 | 操作人上下文 |
-| `trace_context` | 是 | 链路追踪上下文 |
-| `audit_context` | 是 | 审计上下文 |
 | `customer_tenant_party_id` | 是 | 客户主体稳定引用 |
 | `opportunity_ref` | 否 | optional CRM opportunity 引用摘要 |
 | `draft_lines[]` | 否 | 初始化草稿行；允许空草稿创建 |
+| `reason` | 否 | optional 用户操作说明；边界与字段号见 README §5.3 |
 
 响应最小 shape：
 
@@ -101,12 +93,9 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `operator_context` | 是 | 操作人上下文 |
-| `trace_context` | 是 | 链路追踪上下文 |
-| `audit_context` | 是 | 审计上下文 |
 | `quote_id` | 是 | 目标 Quote 标识 |
 | `draft_mutation` | 是 | 草稿头信息与草稿行的本次修改内容 |
+| `reason` | 否 | optional 用户操作说明；边界与字段号见 README §5.3 |
 
 响应最小 shape：
 
@@ -127,11 +116,8 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `operator_context` | 是 | 操作人上下文 |
-| `trace_context` | 是 | 链路追踪上下文 |
-| `audit_context` | 是 | 审计上下文 |
 | `quote_id` | 是 | 目标 Quote 标识 |
+| `reason` | 否 | optional 用户操作说明；边界与字段号见 README §5.3 |
 
 响应最小 shape：
 
@@ -160,11 +146,8 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `operator_context` | 是 | 操作人上下文 |
-| `trace_context` | 是 | 链路追踪上下文 |
-| `audit_context` | 是 | 审计上下文 |
 | `quote_version_id` | 是 | 成立依据的 QuoteVersion 标识 |
+| `reason` | 否 | optional 用户操作说明；边界与字段号见 README §5.3 |
 
 响应最小 shape：
 
@@ -196,13 +179,10 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `operator_context` | 是 | 操作人上下文 |
-| `trace_context` | 是 | 链路追踪上下文 |
-| `audit_context` | 是 | 审计上下文 |
 | `sales_order_id` | 是 | 目标 SalesOrder 标识 |
 | `gate_name` | 是 | `production_gate / stocking_gate / shipping_gate` 之一 |
 | `allowed` | 是 | 当前是否允许该 gate |
+| `reason` | 否 | optional 用户操作说明；边界与字段号见 README §5.3 |
 
 响应最小 shape：
 
@@ -230,11 +210,8 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `operator_context` | 是 | 操作人上下文 |
-| `trace_context` | 是 | 链路追踪上下文 |
-| `audit_context` | 是 | 审计上下文 |
 | `sales_order_id` | 是 | 目标 SalesOrder 标识 |
+| `reason` | 否 | optional 用户操作说明；边界与字段号见 README §5.3 |
 
 响应最小 shape：
 
@@ -262,7 +239,7 @@ phase 1 management 只冻结以下错误面：
 | 错误码 | 语义 |
 | --- | --- |
 | `INVALID_ARGUMENT` | 请求字段缺失、格式非法，或 `gate_name` 非法 |
-| `UNAUTHENTICATED` | 缺少有效 operator context、trace context 或 audit context |
+| `UNAUTHENTICATED` | 缺少或无法验证目标 ExecutionToken / mTLS binding |
 | `PERMISSION_DENIED` | 调用方存在上下文，但没有在该 tenant / quote / order 上执行命令的权限 |
 | `NOT_FOUND` | 目标 Quote、QuoteVersion 或 SalesOrder 不存在 |
 | `ALREADY_EXISTS` | 资源或一对一成立关系已存在，例如同一 `QuoteVersion` 已成立过 `SalesOrder` |

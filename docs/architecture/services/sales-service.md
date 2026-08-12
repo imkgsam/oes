@@ -93,3 +93,13 @@ phase 1 只冻结报价与订单核心交易边界，不展开 proto、运行时
 - phase 1 聚焦 `Quote -> QuoteVersion -> SalesOrder -> SalesOrderLine -> fulfillment handoff`。
 - 长期 `CustomerItemMapping` 只作为 `Sales / CRM` 协同候选能力存在；phase 1 只承诺 line-level `customerItemSnapshot`。
 - `Contract / CLM`、完整 finance integration、完整 fulfillment service 形态、pricing engine 与客户产品目录均 deferred。
+
+## 10. Trusted gRPC Boundary
+
+现有四个 gRPC service 的 27 个 RPC 是面向租户后台销售人员的既有业务操作，统一冻结为 `BUSINESS / HUMAN / WEB`，目标 audience 为 `urn:oes:service:sales-service`。当前唯一生产入口是 API Gateway Sales BFF；未发现纯 MACHINE 生产调用方。Sales 只接受由 Gateway 当前 HUMAN WEB 会话换取、且与 mTLS 叶证书绑定的目标 ExecutionToken，并按每个 RPC 的 canonical Sales Permission Code 执行 `all` 判定。现有 RPC 不接受 MACHINE、DELEGATED、SELF_SERVICE 或非 WEB terminal，也不得同时声明第二种 INTERNAL 模式。
+
+Request body 中的 `tenant_id`、`operator_context`、`trace_context`、`audit_context` 是迁移前兼容输入，不再构成 authority。迁移后 tenant、org、operator、request、trace 与审计身份/来源全部来自 verified ExecutionToken 和 trusted transport context；普通 metadata、body identity 或 Gateway fallback 字符串不能补足或覆盖。管理命令可以保留一个有长度限制、由用户填写的 `reason` 业务字段，但它不能提供 audit id、source 或 principal authority。
+
+现有 27 个 RPC 的精确分类、Code、field tombstone 与新 `reason` 字段号以 [Sales contracts](../../contracts/sales-service/README.md) 为准；实现闭合范围以 [trusted gRPC feature packet](../../plans/features/trusted-grpc-execution-context.md) 为准。
+
+未来确有自动化协同时，必须根据真实流程另行冻结窄范围 INTERNAL RPC 或事件：例如 Finance 读取订单结算摘要、MES 查询生产准备事实，或 WMS/fulfillment 消费 handoff 事实。该后续登记不是当前可调用契约，不新增业务能力；不得直接把当前 HUMAN RPC 改成双模式或让服务凭 body 冒充系统调用方。Sales 到 CRM、Party、Item、WMS、MES、Finance 的既有 outbound 与候选事件边界在本次迁移中保持不变。

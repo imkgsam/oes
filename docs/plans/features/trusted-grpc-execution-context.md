@@ -98,7 +98,7 @@ The implementation inventory script at `scripts/architecture/trusted-grpc-signat
 
 ### 3.1 Current-main global cutover status
 
-Overall execution status is `GRPC_FOUNDATION_COMPLETE_GLOBAL_SERVICE_CUTOVER_PENDING` at current-main `caa7a5c08c0d30792317b328b27a14ef625ef6cc`. The 54 generated files expose all 590 required explicit metadata signatures with zero missing signatures; this proves the shared call-signature foundation only. It does not prove that a target service has classified every contract, prepared every caller, enabled Token-only server enforcement or removed its legacy trust path.
+Overall execution status is `GRPC_FOUNDATION_COMPLETE_GLOBAL_SERVICE_CUTOVER_PENDING` at current-main `bda36bffbdc28132872d4bed967adb93c2a92b9e`. The 54 generated files expose all 590 required explicit metadata signatures with zero missing signatures; this proves the shared call-signature foundation only. It does not prove that a target service has classified every contract, prepared every caller, enabled Token-only server enforcement or removed its legacy trust path.
 
 The persistent execution owner is **OES Trusted gRPC Service Migration** (`019ff138-ed1c-7b82-8cd4-865bdb6529bd`). The prior delivery-mode owner `019ff07e-d441-7731-acdb-1a9d262661a9` and approval-stalled predecessor `019fe9f8-5a44-76e1-b5a4-110db9da6d59` are archived with their WIP histories preserved. The former A/C/GRPC lane is historical, migration-frozen evidence and is not the active controller for the remaining cutover.
 
@@ -113,7 +113,7 @@ The persistent execution owner is **OES Trusted gRPC Service Migration** (`019ff
 | Terminal Device | 17 / 1 | Y | Y | Y | Y | Gateway; implemented and verified at `4667305797a90fe8789067183b8f5ef732ee6f02` |
 | Finance | 27 / 2 | Y | Y | Y | Y | Gateway; implemented and verified at `caa7a5c08c0d30792317b328b27a14ef625ef6cc` |
 | Public Entry | 23 / 2 | N | N | N | N | Gateway; pending |
-| Sales | 27 / 4 | N | N | N | N | Gateway; pending |
+| Sales | 27 / 4 | Y | N | N | N | Gateway; contract frozen, implementation pending |
 | MES | 32 / 4 | N | N | N | N | Gateway; pending |
 | Collaboration | 16 / 4 | N | N | N | N | Gateway; second batch |
 | CRM | 15 / 3 | N | N | N | N | Gateway, Collaboration; second batch |
@@ -127,7 +127,7 @@ The persistent execution owner is **OES Trusted gRPC Service Migration** (`019ff
 | Identity | 41 / 3 | N | N | N | N | Gateway, Auth, Permission, HR; foundation partial only |
 | Permission | 66 / 8 | N | N | N | N | Gateway, Auth, HR, TenantOrg, WMS; bootstrap partial only |
 | Auth | 70 / 1 | N | N | N | N | Gateway, HR, Site, TenantOrg; MACHINE foundation complete, full service pending |
-| **Total / proven state** | **560 / 51** | **6 Y / 15 N** | **6 Y / 15 N** | **6 Y / 15 N** | **6 Y / 15 N** | **Asset, Site, Browser Activity, Notification, Terminal Device and Finance complete; 15 services pending** |
+| **Total / proven state** | **560 / 51** | **7 Y / 14 N** | **6 Y / 15 N** | **6 Y / 15 N** | **6 Y / 15 N** | **Asset, Site, Browser Activity, Notification, Terminal Device and Finance complete; Sales contract classified; 15 services pending implementation/cutover** |
 
 The frozen order in §6 remains authoritative. Migration continues one target service at a time; completing the Auth, Identity, Permission, Gateway or Common foundation does not implicitly advance an unverified service row.
 
@@ -1385,6 +1385,130 @@ publicEntryTrustedGrpcImplementationLease:
 ```
 
 Acceptance proves all 23 RPCs have exactly one declaration and no dual-mode method; the 19 HUMAN WEB, one SELF_SERVICE HUMAN WEB and three exact Gateway SYSTEM MACHINE calls reject wrong audience, `cnf`, principal, session terminal, Code, body authority and legacy metadata; the 41 field reservations and 12 canonical Codes remain unchanged; `GetOwnBusinessCardPreview` is bound to the verified subject; anonymous public lookups enforce owner-owned status/expiry/readiness/public-safe facts without a tenant wildcard; duplicate BusinessCard runtime Permission checks are retired after ET admission while local tenant/resource/domain/audit checks remain; all current Gateway/admin/self/public fixtures use the corresponding HTTP or trusted gRPC path; the raw unauthenticated live-gRPC caller is gone; outbound target-service contracts remain untouched; and the implementation diff is a strict subset of these 51 paths.
+
+### 9.7 Sales 27-RPC frozen cutover lease
+
+Status: `FROZEN_PENDING_IMPLEMENTATION`. This slice only migrates the existing 27 Sales RPCs from legacy body/ordinary-metadata authority to trusted gRPC. It adds no Sales business capability, Permission Code, database object, cross-service RPC, event or outbound-service cutover.
+
+All 27 RPCs are `BUSINESS / HUMAN / WEB`, require `aud=urn:oes:service:sales-service`, exact mTLS/`cnf` binding and `all [exactCode]`, and reject MACHINE, DELEGATED, SELF_SERVICE and non-WEB sessions:
+
+| RPC | Exact existing Code |
+| --- | --- |
+| `GetQuote` | `sales.quote.get_by_id` |
+| `SearchQuotes` | `sales.quote.list` |
+| `GetQuoteVersion` | `sales.quote.get_by_id` |
+| `ListQuoteVersions` | `sales.quote.get_by_id` |
+| `GetSalesOrder` | `sales.order.get_by_id` |
+| `SearchSalesOrders` | `sales.order.list` |
+| `CreateQuote` | `sales.quote.create` |
+| `UpdateQuoteDraft` | `sales.quote.update_draft` |
+| `PublishQuote` | `sales.quote.publish` |
+| `ConvertQuoteVersionToOrder` | `sales.quote.convert_to_order` |
+| `SetOrderCommercialGate` | `sales.order.set_commercial_gate` |
+| `SubmitFulfillmentHandoff` | `sales.order.submit_fulfillment_handoff` |
+| `SearchPriceLists` | `sales.pricing.price_list.read` |
+| `GetPriceList` | `sales.pricing.price_list.read` |
+| `GetPriceListLines` | `sales.pricing.price_list.read` |
+| `GetActiveCustomerPriceAgreement` | `sales.pricing.customer_agreement.read` |
+| `GetCustomerPriceAgreement` | `sales.pricing.customer_agreement.read` |
+| `ListCustomerPriceAgreementVersions` | `sales.pricing.customer_agreement.read` |
+| `PreviewQuoteLinePricing` | `sales.pricing.preview_quote_line` |
+| `CreatePriceList` | `sales.pricing.price_list.manage` |
+| `UpdatePriceList` | `sales.pricing.price_list.manage` |
+| `ReplacePriceListLines` | `sales.pricing.price_list.manage` |
+| `ChangePriceListStatus` | `sales.pricing.price_list.manage` |
+| `CreateCustomerPriceAgreement` | `sales.pricing.customer_agreement.manage` |
+| `UpdateCustomerPriceAgreementDraft` | `sales.pricing.customer_agreement.manage` |
+| `PublishCustomerPriceAgreementVersion` | `sales.pricing.customer_agreement.manage` |
+| `CreateCustomerPriceAgreementFromSalesOrderLine` | `sales.pricing.customer_agreement.manage` |
+
+The canonical catalog already owns all 15 Codes. Proto removes and reserves 95 request authority fields: `tenant_id=1`, `operator_context=2`, `trace_context=3` on all 27 requests and `audit_context=4` on all 14 management requests. The eight nested compatibility fields of `OperatorContext`, `TraceContext` and `AuditContext` are also tombstoned. The 14 optional business `reason` fields use the exact next field numbers frozen in [Sales contracts](../../contracts/sales-service/README.md) §5.3. Sales-owned response projections and every other business field remain unchanged. Gateway exchanges its current HUMAN WEB source credential for the Sales audience; no AT/ET appears in DTO/body/ordinary metadata, and Sales derives tenant/org/operator/request/trace/audit authority only from trusted context.
+
+The historical `src/services/business/sales-service/scripts/sales-smoke.mjs` raw gRPC test caller is deleted together with its package command, rather than adapted into a MACHINE caller. Future automated Sales collaboration is recorded but not opened: verified needs such as a narrow Finance/MES fact read must return for a separately classified INTERNAL RPC design, while order/handoff fact propagation should return for an event contract design. Existing HUMAN methods never become dual-mode, and Sales→CRM/Party/Item/WMS/MES/Finance outbound and event paths remain protected in this slice.
+
+```yaml
+salesTrustedGrpcImplementationLease:
+  totalTrackedWriterPaths: 42
+  stateCounts: { EXISTING: 36, NEW_TARGET: 6 }
+  trackedWriterPaths:
+    salesProtoContract:
+      - { state: EXISTING, path: src/common/src/contracts/sales_service/sales.proto }
+      - { state: NEW_TARGET, path: src/common/src/contracts/sales_service/sales.contract.spec.ts }
+
+    gatewaySalesHumanProducer:
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution-producer.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution-producer.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution.module.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution.module.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/index.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-sales-grpc.client.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-sales-grpc.client.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/app.module.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/app.module.spec.ts }
+
+    gatewaySalesAdaptersAndHttp:
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/sales-service/sales-service.module.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/sales-service/adapters/sales-grpc-context.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/sales-service/adapters/sales-query-grpc.adapter.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/sales-service/adapters/sales-management-grpc.adapter.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/sales-service/adapters/pricing-query-grpc.adapter.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/sales-service/adapters/pricing-management-grpc.adapter.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/sales-service/sales.service.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/sales-service/sales.service.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/sales-service/interface/http/controllers/sales.controller.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/sales-service/interface/http/controllers/sales.controller.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/sales-service/interface/http/dtos/sales.dto.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/modules/sales-service/adapters/sales-dedicated-client.spec.ts }
+
+    salesTrustedRuntime:
+      - { state: EXISTING, path: src/services/business/sales-service/src/main.ts }
+      - { state: EXISTING, path: src/services/business/sales-service/src/app.module.ts }
+      - { state: EXISTING, path: src/services/business/sales-service/src/interfaces/grpc/sales-query.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/business/sales-service/src/interfaces/grpc/sales-management.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/business/sales-service/src/interfaces/grpc/pricing-query.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/business/sales-service/src/interfaces/grpc/pricing-management.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/business/sales-service/src/interfaces/grpc/sales-rpc-context.validator.ts }
+      - { state: EXISTING, path: src/services/business/sales-service/src/modules/sales-query.module.ts }
+      - { state: EXISTING, path: src/services/business/sales-service/src/modules/sales-management.module.ts }
+      - { state: EXISTING, path: src/services/business/sales-service/src/modules/pricing-query.module.ts }
+      - { state: EXISTING, path: src/services/business/sales-service/src/modules/pricing-management.module.ts }
+      - { state: NEW_TARGET, path: src/services/business/sales-service/src/modules/sales-trusted-execution.module.ts }
+
+    salesSecurityAndLegacyRemoval:
+      - { state: EXISTING, path: src/services/business/sales-service/src/application/services/sales-audit.service.ts }
+      - { state: EXISTING, path: src/services/business/sales-service/src/application/support/sales-assertions.ts }
+      - { state: EXISTING, path: src/services/business/sales-service/package.json }
+      - { state: EXISTING, path: src/services/business/sales-service/scripts/sales-smoke.mjs }
+      - { state: EXISTING, path: src/services/business/sales-service/test/l3/sales-grpc-context.spec.ts }
+      - { state: EXISTING, path: src/services/business/sales-service/test/l3/sales-pricing-grpc-surface.spec.ts }
+      - { state: NEW_TARGET, path: src/services/business/sales-service/test/l3/sales-trusted-grpc-security.spec.ts }
+
+  ignoredGeneratedOutputs:
+    - path: src/common/src/generated/sales_service/sales.ts
+      input: src/common/src/contracts/sales_service/sales.proto
+      command: pnpm proto:regen
+
+  protectedByDefault:
+    - canonical Permission catalog/generator and generated Permission Code files
+    - Sales application/domain/persistence/schema/business-rule paths not listed above
+    - CRM, Party, Item, WMS, MES, Finance and fulfillment contracts, callers, runtime and cutovers
+    - event catalog, producer, consumer, outbox, inbox and every candidate INTERNAL RPC
+    - Common trusted runtime paths not listed above, package/lock/deployment, AI and ActionGrant paths
+    - every non-Sales Gateway adapter and every other service cutover
+
+  focusedAcceptanceCommands:
+    - pnpm proto:lint
+    - pnpm proto:regen
+    - node scripts/architecture/trusted-grpc-signature-inventory.mjs
+    - pnpm --filter @oes/common build
+    - pnpm --filter api-gateway build
+    - pnpm --filter sales-service build
+    - pnpm exec jest --config package.json --runInBand --runTestsByPath src/common/src/contracts/sales_service/sales.contract.spec.ts
+    - pnpm --filter api-gateway exec jest --runInBand --runTestsByPath src/common/grpc/gateway-trusted-grpc-execution-producer.spec.ts src/common/grpc/gateway-trusted-grpc-execution.module.spec.ts src/common/grpc/gateway-sales-grpc.client.spec.ts src/modules/sales-service/adapters/sales-dedicated-client.spec.ts src/modules/sales-service/sales.service.spec.ts src/modules/sales-service/interface/http/controllers/sales.controller.spec.ts
+    - pnpm --filter sales-service exec jest --config jest.config.js --runInBand --runTestsByPath test/l3/sales-grpc-context.spec.ts test/l3/sales-pricing-grpc-surface.spec.ts test/l3/sales-trusted-grpc-security.spec.ts
+```
+
+Acceptance proves 27/27 exact BUSINESS declarations and zero unclassified or dual-mode methods; Gateway and Sales reject wrong issuer/time/audience/`cnf`/tenant/principal/terminal/Code before controller data; all 95 request authority fields and eight nested tombstone fields are removed/reserved while 14 bounded business reasons and Sales-owned projections remain; trusted audit identity/source cannot be overridden by reason; all four Gateway adapters resolve the dedicated Sales mTLS client and legacy body/ordinary-metadata/fallback context is absent; the raw smoke script and package command are absent; all 15 Codes remain canonical and unchanged; no pure MACHINE caller or current INTERNAL surface appears; outbound/event paths are untouched; and the implementation diff is a strict subset of these 42 paths.
 
 ## 10. Repository-wide Security Acceptance
 

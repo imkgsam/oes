@@ -8,10 +8,8 @@
 
 - 接口类型：内部 gRPC
 - 服务：`SalesQueryService`
-- 所有 RPC 显式带 `tenant_id`
-- 所有 RPC 都要求：
-  - operator context
-  - trace context
+- 所有 RPC 都按 [Sales trusted execution contract](README.md#5-trusted-execution-contract) 接受 `BUSINESS / HUMAN / WEB` ExecutionToken
+- tenant、operator、org、request 与 trace 来自 trusted context，不出现在 request body
 
 phase 1 query 只覆盖：
 
@@ -140,7 +138,6 @@ phase 1 `CommercialGateSummary` 最小读取 shape：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `quote_id` | 是 | 目标 Quote 标识 |
 
 响应最小 shape：
@@ -162,7 +159,6 @@ phase 1 `CommercialGateSummary` 最小读取 shape：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `keyword` | 否 | 按 `quote_no` 或客户显示摘要检索 |
 | `customer_tenant_party_id` | 否 | 按客户主体过滤 |
 | `status` | 否 | 按 Quote 工作态过滤 |
@@ -191,7 +187,6 @@ phase 1 `CommercialGateSummary` 最小读取 shape：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `quote_version_id` | 是 | 目标 QuoteVersion 标识 |
 
 响应最小 shape：
@@ -213,7 +208,6 @@ phase 1 `CommercialGateSummary` 最小读取 shape：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `quote_id` | 是 | 目标 Quote 标识 |
 | `page` | 否 | 1-based 页码 |
 | `page_size` | 否 | 页大小 |
@@ -241,7 +235,6 @@ phase 1 `CommercialGateSummary` 最小读取 shape：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `sales_order_id` | 是 | 目标 SalesOrder 标识 |
 
 响应最小 shape：
@@ -263,7 +256,6 @@ phase 1 `CommercialGateSummary` 最小读取 shape：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `keyword` | 否 | 按 `sales_order_no` 或客户显示摘要检索 |
 | `customer_tenant_party_id` | 否 | 按客户主体过滤 |
 | `quote_version_id` | 否 | 按来源 QuoteVersion 过滤 |
@@ -294,7 +286,7 @@ phase 1 query 只冻结以下错误面：
 | 错误码 | 语义 |
 | --- | --- |
 | `INVALID_ARGUMENT` | 请求字段缺失、格式非法或分页参数非法 |
-| `UNAUTHENTICATED` | 缺少有效 operator context 或 trace context |
+| `UNAUTHENTICATED` | 缺少或无法验证目标 ExecutionToken / mTLS binding |
 | `PERMISSION_DENIED` | 调用方存在上下文，但没有读取该 tenant / quote / order 的权限 |
 | `NOT_FOUND` | 单对象读取目标不存在，或 `ListQuoteVersions` 的 `quote_id` 不存在 |
 | `ALREADY_EXISTS` | query RPC 不应使用该错误码；phase 1 保留但不在 query 侧展开业务语义 |

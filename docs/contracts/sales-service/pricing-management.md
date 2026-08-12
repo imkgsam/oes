@@ -19,18 +19,13 @@ phase 1 management 不覆盖：
 
 ## 2. 通用上下文要求
 
-所有 phase 1 pricing management command 统一要求：
-
-- `tenant_id`
-- operator context
-- trace context
-- audit context
+所有 phase 1 pricing management command 都按 [Sales trusted execution contract](README.md#5-trusted-execution-contract) 接受 `BUSINESS / HUMAN / WEB` ExecutionToken。tenant、operator、org、trace 与审计身份/来源由 trusted context 提供，不再出现在 request body。
 
 补充约束：
 
 - phase 1 仅支持 `USD / CNY`
 - command 必须按 command 语义处理，不得被调用方当作 query 使用
-- 本文件只冻结“必须要求这些上下文存在”，不展开 metadata header、幂等键或审计落库结构
+- trusted context 的验证与字段处置以 README §5 为准，本文件不展开幂等键或审计落库结构
 
 ## 3. 写入基线语义
 
@@ -78,16 +73,13 @@ phase 1 management 不覆盖：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `operator_context` | 是 | 操作人上下文 |
-| `trace_context` | 是 | 链路追踪上下文 |
-| `audit_context` | 是 | 审计上下文 |
 | `price_list_name` | 是 | PriceList 显示名 |
 | `price_list_type` | 是 | `STANDARD | ACTIVITY | EXHIBITION` |
 | `currency_code` | 是 | `USD | CNY` |
 | `effective_from` | 是 | 生效起点 |
 | `effective_to` | 否 | optional 生效终点 |
 | `initial_lines[]` | 否 | 初始化行；允许空表创建 |
+| `reason` | 否 | optional 用户操作说明；边界与字段号见 README §5.3 |
 
 响应最小 shape：
 
@@ -108,14 +100,11 @@ phase 1 management 不覆盖：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `operator_context` | 是 | 操作人上下文 |
-| `trace_context` | 是 | 链路追踪上下文 |
-| `audit_context` | 是 | 审计上下文 |
 | `price_list_id` | 是 | 目标 `PriceList` 标识 |
 | `price_list_name` | 否 | 新显示名 |
 | `effective_from` | 否 | 新起点 |
 | `effective_to` | 否 | 新终点 |
+| `reason` | 否 | optional 用户操作说明；边界与字段号见 README §5.3 |
 
 响应最小 shape：
 
@@ -136,12 +125,9 @@ phase 1 management 不覆盖：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `operator_context` | 是 | 操作人上下文 |
-| `trace_context` | 是 | 链路追踪上下文 |
-| `audit_context` | 是 | 审计上下文 |
 | `price_list_id` | 是 | 目标 `PriceList` 标识 |
 | `lines[]` | 是 | 替换后的完整行集合 |
+| `reason` | 否 | optional 用户操作说明；边界与字段号见 README §5.3 |
 
 `lines[]` 最小 shape：
 
@@ -172,12 +158,9 @@ phase 1 management 不覆盖：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `operator_context` | 是 | 操作人上下文 |
-| `trace_context` | 是 | 链路追踪上下文 |
-| `audit_context` | 是 | 审计上下文 |
 | `price_list_id` | 是 | 目标 `PriceList` 标识 |
 | `target_status` | 是 | `DRAFT | ACTIVE | INACTIVE` |
+| `reason` | 否 | optional 用户操作说明；边界与字段号见 README §5.3 |
 
 响应最小 shape：
 
@@ -198,13 +181,10 @@ phase 1 management 不覆盖：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `operator_context` | 是 | 操作人上下文 |
-| `trace_context` | 是 | 链路追踪上下文 |
-| `audit_context` | 是 | 审计上下文 |
 | `customer_tenant_party_id` | 是 | 客户主体稳定引用 |
 | `currency_code` | 是 | `USD | CNY` |
 | `initial_lines[]` | 否 | 初始化 draft 行；允许空 draft |
+| `reason` | 否 | optional 用户操作说明；边界与字段号见 README §5.3 |
 
 `initial_lines[]` 最小 shape：
 
@@ -234,12 +214,9 @@ phase 1 management 不覆盖：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `operator_context` | 是 | 操作人上下文 |
-| `trace_context` | 是 | 链路追踪上下文 |
-| `audit_context` | 是 | 审计上下文 |
 | `customer_price_agreement_id` | 是 | 协议家族标识 |
 | `draft_mutation` | 是 | 本次 draft 修改内容 |
+| `reason` | 否 | optional 用户操作说明；边界与字段号见 README §5.3 |
 
 `draft_mutation` 最小语义：
 
@@ -268,11 +245,8 @@ phase 1 management 不覆盖：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `operator_context` | 是 | 操作人上下文 |
-| `trace_context` | 是 | 链路追踪上下文 |
-| `audit_context` | 是 | 审计上下文 |
 | `customer_price_agreement_id` | 是 | 协议家族标识 |
+| `reason` | 否 | optional 用户操作说明；边界与字段号见 README §5.3 |
 
 响应最小 shape：
 
@@ -295,11 +269,8 @@ phase 1 management 不覆盖：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `operator_context` | 是 | 操作人上下文 |
-| `trace_context` | 是 | 链路追踪上下文 |
-| `audit_context` | 是 | 审计上下文 |
 | `sales_order_line_id` | 是 | 来源订单行标识 |
+| `reason` | 否 | optional 用户操作说明；边界与字段号见 README §5.3 |
 
 响应最小 shape：
 
@@ -322,7 +293,7 @@ phase 1 pricing management 只冻结以下错误面：
 | 错误码 | 语义 |
 | --- | --- |
 | `INVALID_ARGUMENT` | 请求字段缺失、格式非法、状态非法、重复 item 行、币种不在 `USD / CNY` 内 |
-| `UNAUTHENTICATED` | 缺少有效 operator context、trace context 或 audit context |
+| `UNAUTHENTICATED` | 缺少或无法验证目标 ExecutionToken / mTLS binding |
 | `PERMISSION_DENIED` | 调用方存在上下文，但没有在该 tenant pricing 资源上执行命令的权限 |
 | `NOT_FOUND` | 目标 `PriceList`、协议家族或 `SalesOrderLine` 不存在 |
 | `ALREADY_EXISTS` | 资源已存在，例如 `customer + currency` 协议家族已存在 |

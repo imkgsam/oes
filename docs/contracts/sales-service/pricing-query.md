@@ -8,10 +8,8 @@
 
 - 接口类型：内部 gRPC
 - 服务：`PricingQueryService`
-- 所有 RPC 显式带 `tenant_id`
-- 所有 RPC 都要求：
-  - operator context
-  - trace context
+- 所有 RPC 都按 [Sales trusted execution contract](README.md#5-trusted-execution-contract) 接受 `BUSINESS / HUMAN / WEB` ExecutionToken
+- tenant、operator、org、request 与 trace 来自 trusted context，不出现在 request body
 - phase 1 仅支持 `USD / CNY`
 
 phase 1 pricing query 只覆盖：
@@ -240,7 +238,6 @@ phase 1 pricing preview 的返回值必须可直接冻结进 line snapshot，而
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `keyword` | 否 | 按 `price_list_name` 检索 |
 | `price_list_type` | 否 | `STANDARD | ACTIVITY | EXHIBITION` |
 | `status` | 否 | `DRAFT | ACTIVE | INACTIVE` |
@@ -271,7 +268,6 @@ phase 1 pricing preview 的返回值必须可直接冻结进 line snapshot，而
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `price_list_id` | 是 | 目标 `PriceList` 标识 |
 
 响应最小 shape：
@@ -292,7 +288,6 @@ phase 1 pricing preview 的返回值必须可直接冻结进 line snapshot，而
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `price_list_id` | 是 | 目标 `PriceList` 标识 |
 | `item_id` | 否 | 按 `Item` 精确过滤 |
 | `page` | 否 | 1-based 页码 |
@@ -320,7 +315,6 @@ phase 1 pricing preview 的返回值必须可直接冻结进 line snapshot，而
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `customer_tenant_party_id` | 是 | 客户主体稳定引用 |
 | `currency_code` | 是 | `USD | CNY` |
 
@@ -343,7 +337,6 @@ phase 1 pricing preview 的返回值必须可直接冻结进 line snapshot，而
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `customer_price_agreement_id` | 是 | 协议家族标识 |
 | `version_no` | 否 | 指定版本；为空时默认读取当前头版本 |
 
@@ -372,7 +365,6 @@ phase 1 pricing preview 的返回值必须可直接冻结进 line snapshot，而
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `customer_price_agreement_id` | 是 | 协议家族标识 |
 | `page` | 否 | 1-based 页码 |
 | `page_size` | 否 | 页大小 |
@@ -399,7 +391,6 @@ phase 1 pricing preview 的返回值必须可直接冻结进 line snapshot，而
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `customer_tenant_party_id` | 是 | 客户主体稳定引用 |
 | `item_id` | 是 | 目标 Item |
 | `currency_code` | 是 | 交易币种，`USD | CNY` |
@@ -438,7 +429,7 @@ phase 1 pricing query 只冻结以下错误面：
 | 错误码 | 语义 |
 | --- | --- |
 | `INVALID_ARGUMENT` | 请求字段缺失、格式非法、分页参数非法、币种不在 `USD / CNY` 内 |
-| `UNAUTHENTICATED` | 缺少有效 operator context 或 trace context |
+| `UNAUTHENTICATED` | 缺少或无法验证目标 ExecutionToken / mTLS binding |
 | `PERMISSION_DENIED` | 调用方存在上下文，但没有读取该 tenant pricing 资源的权限 |
 | `NOT_FOUND` | 单对象读取目标不存在，或 active 协议不存在 |
 | `ALREADY_EXISTS` | query RPC 不应使用该错误码；phase 1 保留但不展开业务语义 |
