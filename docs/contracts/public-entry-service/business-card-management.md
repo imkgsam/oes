@@ -14,7 +14,11 @@ It answers:
 
 ## 2. Control Model
 
-All management commands and protected queries require:
+Trusted gRPC cutover 后，tenant/operator/trace/audit identity 只来自 verified execution context。本文 request JSON 中出现的 `tenantId` 与 `operatorContext` 仅是 `LEGACY_PRE_CUTOVER` 标注字段，不属于当前 supported request payload；阅读示例时必须删除这些属性。准确字段删除/保留号码及 10 个 admin RPC 的 Code 以 [README §3](README.md#3-trusted-grpc-23-rpc-contract) 为准。
+
+Legacy pre-cutover examples below show the old authority envelope for historical comparison only. Current supported requests carry only business payload; tenant/operator/trace/audit facts come from the verified execution context.
+
+Legacy pre-cutover management envelope:
 
 ```json
 {
@@ -240,7 +244,7 @@ Permission:
 - `public-entry.business-card.read`
 - Return all cards in the tenant after the read permission passes.
 
-Request:
+Request (`LEGACY_PRE_CUTOVER`; current wire request carries business fields only):
 
 ```json
 {
@@ -294,7 +298,7 @@ Permission:
 - `public-entry.business-card.read`
 - Card must belong to the requested tenant after the read permission passes.
 
-Request:
+Request (`LEGACY_PRE_CUTOVER`; current wire request carries business fields only):
 
 ```json
 {
@@ -362,7 +366,7 @@ Permission:
 - `public-entry.business-card.manage`
 - Card must belong to the requested tenant after the manage permission passes.
 
-Request:
+Request (`LEGACY_PRE_CUTOVER`; current wire request carries business fields only):
 
 ```json
 {
@@ -436,7 +440,7 @@ Permission:
 - `public-entry.business-card.read`
 - Card must belong to the requested tenant after the read permission passes.
 
-Request:
+Request (`LEGACY_PRE_CUTOVER`; current wire request carries business fields only):
 
 ```json
 {
@@ -484,7 +488,7 @@ Permission:
 - Card must belong to the requested tenant after the public-entry manage permission passes.
 - This BusinessCard permission lets the BusinessCard application consume ShortLink internally; it does not grant generic `public-entry.short-link.create`.
 
-Request:
+Request (`LEGACY_PRE_CUTOVER`; current wire request carries business fields only):
 
 ```json
 {
@@ -537,7 +541,7 @@ Permission:
 - Card must belong to the requested tenant after the enable permission passes.
 - Enable is intentionally independent from `public-entry.business-card.manage`.
 
-Request:
+Request (`LEGACY_PRE_CUTOVER`; current wire request carries business fields only):
 
 ```json
 {
@@ -583,7 +587,7 @@ Permission:
 - Card must belong to the requested tenant after the disable permission passes.
 - Disable is intentionally independent from `public-entry.business-card.manage`.
 
-Request:
+Request (`LEGACY_PRE_CUTOVER`; current wire request carries business fields only):
 
 ```json
 {
@@ -625,7 +629,7 @@ Permission:
 - `public-entry.business-card.read`
 - Card must belong to the requested tenant after the read permission passes.
 
-Request:
+Request (`LEGACY_PRE_CUTOVER`; current wire request carries business fields only):
 
 ```json
 {
@@ -677,7 +681,7 @@ Permission:
 - `public-entry.business-card.stats.read`
 - Card must belong to the requested tenant after the stats permission passes.
 
-Request:
+Request (`LEGACY_PRE_CUTOVER`; current wire request carries business fields only):
 
 ```json
 {

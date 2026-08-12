@@ -47,6 +47,7 @@ Rules:
 - Resolver transport is replaceable.
 - Phase 1 does not use gRPC.
 - Future cross-service targets may use gRPC or explicit internal contract without changing ShortLink domain model.
+- Trusted gRPC cutover does not turn this in-process resolver into another RPC. For public redirect, resolver tenant/target facts continue to come only from the ShortLink record found by owner code, never from anonymous or Gateway request authority.
 
 ## 4. Request
 

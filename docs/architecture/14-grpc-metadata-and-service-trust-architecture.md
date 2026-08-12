@@ -276,6 +276,12 @@ Rollout order is fail-closed: first deliver Permission decisions and their Auth-
 - 需要 INTERNAL kind Permission Code，并验证直接 workload 与 STS issuance policy。
 - 能独立完成审批、删除、重要状态跃迁、资金承诺或业务承诺的 RPC 不得标为 INTERNAL。
 
+### 6.4 Anonymous HTTP ingress to token-only gRPC
+
+匿名 HTTP route 不等于匿名 internal gRPC。当前唯一冻结的 Public Entry 入口是 Gateway 的三个方法：`ResolvePublicRedirect`、`RenderPublicBusinessCard`、`GenerateBusinessCardVCard`。外部访客没有 HUMAN credential；Gateway 使用既有 MACHINE source credential 换取 certificate-bound、`aud=urn:oes:service:public-entry-service` 的 SYSTEM MACHINE BUSINESS ET，并分别只申请现有 `public-entry.short-link.read` 或 `public-entry.business-card.read`。这不建立第四种 RPC mode，也不允许 no-ET gRPC。
+
+目标方法必须同时约束准确 Gateway workload、MACHINE principal、audience/`cnf` 与 exact Code。SYSTEM 不携带虚构 tenant、不是 tenant wildcard；Public Entry owner 通过 shortCode/businessCardId 查找自己的 tenant/resource facts，再执行 active/expiry/readiness/public-safe projection。该 narrow pattern 不能扩散为通用 public bypass、其他 workload 权限或 Gateway 内业务规则复制。
+
 限流、审计、设备绑定、资源事实、幂等、nonce 与防重放不统一塞进这三个 decorator；它们由对应的 transport interceptor、application/domain 或基础设施组件负责。
 
 ## 7. 公共 client/server runtime

@@ -1283,6 +1283,108 @@ financeTrustedGrpcImplementationLease:
 
 Acceptance proves 27/27 exact BUSINESS declarations and zero unclassified/duplicate methods; Gateway exchanges current HUMAN WEB source credential for the Finance audience and never places AT/ET in DTO/body/ordinary metadata; Finance rejects missing/wrong issuer, time, audience, `cnf`, tenant, principal type, terminal and Code before controller data; both controller-owning feature modules import the shared Finance trusted-execution module so the Guard/verifier/workload provider fail closed through Nest DI; all removed body authority and caller identity fields are reserved while the six service-owned tenant projections remain; all existing Finance behavior tests remain green; no direct non-Gateway or pure MACHINE caller appears in fresh inventory; and the implementation diff is a strict subset of these 30 paths.
 
+### 9.6 Public Entry 23-RPC frozen cutover lease
+
+Status: `FROZEN_PENDING_IMPLEMENTATION`. Public Entry remains the next target after the six integrated services. This slice only replaces the current legacy gRPC trust inputs for the existing 23 RPCs; it adds no Public Entry business capability, Permission Code, database object, outbound-service cutover or anonymous no-Token gRPC mode.
+
+The exact matrix is frozen in [Public Entry contracts](../../contracts/public-entry-service/README.md) §3: 19 admin RPCs are `BUSINESS / HUMAN / WEB`, `GetOwnBusinessCardPreview` is `SELF_SERVICE / HUMAN / WEB` with an empty Code set and `allowDelegated=false`, and `ResolvePublicRedirect`, `RenderPublicBusinessCard` and `GenerateBusinessCardVCard` are narrow `BUSINESS / SYSTEM MACHINE` calls from the exact Gateway workload. The public calls use only the existing read Codes (`public-entry.short-link.read` and `public-entry.business-card.read`) with `aud=urn:oes:service:public-entry-service`; SYSTEM is not a tenant wildcard and Public Entry derives tenant/resource facts from its own records. `ChangeShortLinkStatus` keeps its existing three-Code status binding and validates the target status before mutation. The 41 request authority fields and `OperatorContext` tombstone reservations in the contract are deleted from supported wire input; observation fields remain bounded telemetry payload. All legacy body, ordinary-metadata and signed-operator fallback is rejected. HR, Identity, Permission and TenantOrg outbound edges stay on their current contracts and migrate only with those target services.
+
+The three anonymous HTTP routes have no HUMAN ET. Gateway reuses the existing MACHINE source-credential and mTLS channel, and the existing machine producer/provider gains a BUSINESS metadata-producing entry point for the two existing public read Codes; this is caller plumbing for the already frozen `BUSINESS` declaration, not a new authorization mode or credential profile. Admin and self-view HTTP fixtures use authenticated Gateway routes; public render, vCard and redirect fixtures use anonymous Gateway routes. The historical raw gRPC live-smoke script is converted to those HTTP paths, while controller/security tests retain direct internal assertions.
+
+```yaml
+publicEntryTrustedGrpcImplementationLease:
+  totalTrackedWriterPaths: 51
+  stateCounts: { EXISTING: 45, NEW_TARGET: 6 }
+  trackedWriterPaths:
+    publicEntryProtoContract:
+      - { state: EXISTING, path: src/common/src/contracts/public_entry_service/public_entry.proto }
+      - { state: NEW_TARGET, path: src/common/src/contracts/public_entry_service/public_entry.contract.spec.ts }
+
+    gatewayPublicEntryHumanAndMachineProducer:
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution-producer.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution-producer.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-machine-trusted-grpc-execution-producer.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-machine-trusted-grpc-execution-producer.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution.module.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution.module.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-downstream-source.mapper.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/decorators/downstream-source.decorator.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/index.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/app.module.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/app.module.spec.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-public-entry-grpc.client.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-public-entry-grpc.client.spec.ts }
+
+    gatewayPublicEntryAdaptersAndHttp:
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/public-entry-service/public-entry-service.module.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/public-entry-service/adapters/public-entry-short-link-grpc.adapter.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/public-entry-service/adapters/public-entry-business-card-grpc.adapter.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/public-entry-service/public-entry-short-link.service.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/public-entry-service/public-entry-short-link.service.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/public-entry-service/public-entry-business-card.service.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/public-entry-service/public-entry-business-card.service.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/public-entry-service/interface/http/controllers/public-entry-short-link.controller.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/public-entry-service/interface/http/controllers/public-entry-short-link.controller.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/public-entry-service/interface/http/controllers/public-entry-business-card.controller.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/public-entry-service/interface/http/controllers/public-entry-business-card.controller.spec.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/modules/public-entry-service/interface/http/controllers/public-entry.integration.spec.ts }
+
+    publicEntryTrustedRuntime:
+      - { state: EXISTING, path: src/services/system/public-entry-service/src/main.ts }
+      - { state: EXISTING, path: src/services/system/public-entry-service/src/app.module.ts }
+      - { state: EXISTING, path: src/services/system/public-entry-service/src/modules/short-link/short-link.module.ts }
+      - { state: EXISTING, path: src/services/system/public-entry-service/src/modules/business-card/business-card.module.ts }
+      - { state: NEW_TARGET, path: src/services/system/public-entry-service/src/modules/public-entry-trusted-execution.module.ts }
+      - { state: EXISTING, path: src/services/system/public-entry-service/src/interfaces/grpc/public-entry-short-link.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/system/public-entry-service/src/interfaces/grpc/public-entry-business-card.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/system/public-entry-service/src/application/services/short-link-application.service.ts }
+      - { state: EXISTING, path: src/services/system/public-entry-service/src/application/services/public-redirect.service.ts }
+      - { state: EXISTING, path: src/services/system/public-entry-service/src/application/services/business-card-application.service.ts }
+      - { state: EXISTING, path: src/services/system/public-entry-service/src/application/ports/business-card.ports.ts }
+      - { state: EXISTING, path: src/services/system/public-entry-service/src/infrastructure/adapters/permission-business-card-authorization.adapter.ts }
+      - { state: EXISTING, path: src/services/system/public-entry-service/src/domain/types/short-link.types.ts }
+      - { state: EXISTING, path: src/services/system/public-entry-service/src/domain/types/business-card.types.ts }
+      - { state: EXISTING, path: src/services/system/public-entry-service/test/l1/business-card.module.spec.ts }
+      - { state: EXISTING, path: src/services/system/public-entry-service/test/l1/business-card-permission.adapter.spec.ts }
+      - { state: EXISTING, path: src/services/system/public-entry-service/test/l3/short-link.grpc.controller.spec.ts }
+      - { state: EXISTING, path: src/services/system/public-entry-service/test/l3/business-card.grpc.controller.spec.ts }
+      - { state: NEW_TARGET, path: src/services/system/public-entry-service/test/l3/public-entry-trusted-grpc-security.spec.ts }
+
+    publicEntrySecurityAndSmokeTests:
+      - { state: EXISTING, path: src/services/system/public-entry-service/scripts/business-card-live-smoke.ts }
+      - { state: EXISTING, path: src/services/system/public-entry-service/test/l1/business-card-live-smoke.spec.ts }
+      - { state: EXISTING, path: src/services/system/public-entry-service/test/live/business-card-live-smoke.live.spec.ts }
+      - { state: EXISTING, path: scripts/local/business-card-live-fixtures.mjs }
+      - { state: EXISTING, path: scripts/local/business-card-live-fixtures.spec.mjs }
+
+  ignoredGeneratedOutputs:
+    - path: src/common/src/generated/public_entry_service/public_entry.ts
+      input: src/common/src/contracts/public_entry_service/public_entry.proto
+      command: pnpm proto:regen
+
+  protectedByDefault:
+    - canonical Permission catalog/generator and generated Permission Code files
+    - Auth source profiles, STS issuance, ExecutionToken wire fields and all Common trusted runtime paths not listed above
+    - HR, Identity, Permission and TenantOrg contracts, callers and runtime; their outbound cutovers remain separate service slices
+    - Public Entry Prisma schema/migrations, repositories and business-rule/domain paths not listed above
+    - package, lock, deployment, provider-secret, event-bus, AI and ActionGrant paths
+    - every non-Public Entry Gateway adapter and every other service cutover
+
+  focusedAcceptanceCommands:
+    - pnpm proto:lint
+    - pnpm proto:regen
+    - node scripts/architecture/trusted-grpc-signature-inventory.mjs
+    - pnpm --filter @oes/common build
+    - pnpm --filter api-gateway build
+    - pnpm --filter public-entry-service build
+    - pnpm exec jest --config package.json --runInBand --runTestsByPath src/common/src/contracts/public_entry_service/public_entry.contract.spec.ts
+    - pnpm --filter api-gateway exec jest --runInBand --runTestsByPath src/common/grpc/gateway-trusted-grpc-execution-producer.spec.ts src/common/grpc/gateway-machine-trusted-grpc-execution-producer.spec.ts src/common/grpc/gateway-public-entry-grpc.client.spec.ts src/modules/public-entry-service/public-entry-short-link.service.spec.ts src/modules/public-entry-service/public-entry-business-card.service.spec.ts src/modules/public-entry-service/interface/http/controllers/public-entry-short-link.controller.spec.ts src/modules/public-entry-service/interface/http/controllers/public-entry-business-card.controller.spec.ts src/modules/public-entry-service/interface/http/controllers/public-entry.integration.spec.ts
+    - pnpm --filter public-entry-service exec jest --config jest.config.js --runInBand --runTestsByPath test/l1/business-card.module.spec.ts test/l1/business-card-permission.adapter.spec.ts test/l3/short-link.grpc.controller.spec.ts test/l3/business-card.grpc.controller.spec.ts test/l3/public-entry-trusted-grpc-security.spec.ts test/l1/business-card-live-smoke.spec.ts
+    - node --test scripts/local/business-card-live-fixtures.spec.mjs
+```
+
+Acceptance proves all 23 RPCs have exactly one declaration and no dual-mode method; the 19 HUMAN WEB, one SELF_SERVICE HUMAN WEB and three exact Gateway SYSTEM MACHINE calls reject wrong audience, `cnf`, principal, session terminal, Code, body authority and legacy metadata; the 41 field reservations and 12 canonical Codes remain unchanged; `GetOwnBusinessCardPreview` is bound to the verified subject; anonymous public lookups enforce owner-owned status/expiry/readiness/public-safe facts without a tenant wildcard; duplicate BusinessCard runtime Permission checks are retired after ET admission while local tenant/resource/domain/audit checks remain; all current Gateway/admin/self/public fixtures use the corresponding HTTP or trusted gRPC path; the raw unauthenticated live-gRPC caller is gone; outbound target-service contracts remain untouched; and the implementation diff is a strict subset of these 51 paths.
+
 ## 10. Repository-wide Security Acceptance
 
 Final acceptance must prove:

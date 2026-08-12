@@ -14,6 +14,8 @@ ShortLink redirect 到 BusinessCard 后，匿名访问者如何查看公开名�
 
 ## 2. Public URL Boundary
 
+匿名 HTTP 访问者没有 HUMAN Token。Gateway 使用准确 SYSTEM MACHINE identity、mTLS 与 `aud=urn:oes:service:public-entry-service` 的 ET 调用 `RenderPublicBusinessCard` / `GenerateBusinessCardVCard`，且只携带现有 `public-entry.business-card.read` Code。`tenant_id=1` 与 `trace_id=3` 在两个 request 中删除并保留；Public Entry 只能根据 `business_card_id=2` 查找 service-owned tenant，再执行 public-safe rules。
+
 BusinessCard resolver owns public BusinessCard page URL construction.
 
 Rules:

@@ -14,6 +14,8 @@ It answers:
 
 ## 2. Endpoint
 
+匿名 HTTP 访问者没有 HUMAN Token。Gateway 使用准确 SYSTEM MACHINE identity、mTLS 与 `aud=urn:oes:service:public-entry-service` 的 ET 调用 `ResolvePublicRedirect`，且只携带现有 `public-entry.short-link.read` Code。Public Entry 根据 `shortCode` 解析 tenant/resource 并执行公开状态规则；SYSTEM 不是 tenant wildcard。`trace_id=6` 已删除并保留，trace 只来自 trusted metadata/context。
+
 ```http
 GET /c/{shortCode}
 ```

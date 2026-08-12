@@ -32,7 +32,9 @@ Employee self-view does not allow:
 
 ## 3. Control Model
 
-Self-view requires authenticated session / account context:
+Current gRPC mode is `SELF_SERVICE / HUMAN / WEB` with an empty Code set and `allowDelegated=false`. `tenant_id=1`、`account_id=2`、`trace_id=3` are deleted and reserved. The JSON below is `LEGACY_PRE_CUTOVER` only for those three authority properties; current Public Entry derives tenant/account from verified HUMAN claims and the employee/card target from the controlled Identity binding.
+
+Legacy pre-cutover self-view envelope:
 
 ```json
 {
@@ -63,7 +65,7 @@ Purpose:
 
 - Return the current user's own BusinessCard view summary.
 
-Request:
+Request (`LEGACY_PRE_CUTOVER`; current wire request has no authority fields):
 
 ```json
 {

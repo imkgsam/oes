@@ -14,7 +14,11 @@ Admin management is used by:
 
 ## 2. Control Model
 
-All admin management commands and queries require:
+Trusted gRPC cutover 后，tenant/operator/trace/audit identity 只来自 verified execution context。本文 request JSON 中出现的 `tenantId` 与 `operatorContext` 仅是 `LEGACY_PRE_CUTOVER` 标注字段，不属于当前 supported request payload；阅读示例时必须删除这些属性。准确字段删除/保留号码及 9 个 admin RPC 的 Code 以 [README §3](README.md#3-trusted-grpc-23-rpc-contract) 为准。
+
+Legacy pre-cutover examples below show the old authority envelope for historical comparison only. Current supported requests carry only business payload; tenant/operator/trace/audit facts come from the verified execution context.
+
+Legacy pre-cutover management envelope:
 
 ```json
 {
@@ -119,7 +123,7 @@ Purpose:
 
 - Create a ShortLink for either INTERNAL_REF or EXTERNAL_URL.
 
-Request:
+Request (`LEGACY_PRE_CUTOVER`; current wire request carries business fields only):
 
 ```json
 {
@@ -182,7 +186,7 @@ Purpose:
 
 - Migrate a ShortLink target without changing public URL.
 
-Request:
+Request (`LEGACY_PRE_CUTOVER`; current wire request carries business fields only):
 
 ```json
 {
@@ -232,7 +236,7 @@ Purpose:
 
 - Update display and attribution fields.
 
-Request:
+Request (`LEGACY_PRE_CUTOVER`; current wire request carries business fields only):
 
 ```json
 {
@@ -278,7 +282,7 @@ Purpose:
 
 - Disable, enable, or archive a ShortLink.
 
-Request:
+Request (`LEGACY_PRE_CUTOVER`; current wire request carries business fields only):
 
 ```json
 {
@@ -308,13 +312,14 @@ Response:
 Rules:
 
 - Supported target statuses: `ACTIVE`, `DISABLED`, `ARCHIVED`.
+- Exact server rule: `ACTIVE` requires `public-entry.short-link.update`; `DISABLED` requires `public-entry.short-link.disable`; `ARCHIVED` requires `public-entry.short-link.archive`. Generic `any` permission does not authorize a mismatched target status.
 - Changing to `DISABLED` or `ARCHIVED` should require a reason at caller boundary.
 - Status changes must audit before / after.
 - `ARCHIVED` links should not be reused as active public entries without an explicit restore decision; Phase 1 may disallow `ARCHIVED -> ACTIVE`.
 
 ## 8. GetShortLink
 
-Request:
+Request (`LEGACY_PRE_CUTOVER`; current wire request carries business fields only):
 
 ```json
 {
@@ -350,7 +355,7 @@ Response:
 
 ## 9. ListShortLinksByTarget
 
-Request:
+Request (`LEGACY_PRE_CUTOVER`; current wire request carries business fields only):
 
 ```json
 {
@@ -397,7 +402,7 @@ Purpose:
 
 - Return VisitEvent-derived statistics.
 
-Request:
+Request (`LEGACY_PRE_CUTOVER`; current wire request carries business fields only):
 
 ```json
 {
@@ -446,7 +451,7 @@ Purpose:
 
 - Generate or download a basic QR image whose content is the ShortLink public URL.
 
-Request:
+Request (`LEGACY_PRE_CUTOVER`; current wire request carries business fields only):
 
 ```json
 {

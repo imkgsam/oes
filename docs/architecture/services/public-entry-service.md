@@ -383,3 +383,16 @@ Phase 1 does not do:
 - [employee-digital-business-card.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/employee-digital-business-card.md)
 - [scan-identity-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/scan-identity-design.md)
 - [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
+
+## 13. Trusted gRPC Migration Boundary
+
+本轮只迁移当前 `public_entry.proto` 的 23 个 RPC，不新增 Public Entry 业务能力、Permission Code、数据库对象或跨服务能力。稳定信任边界如下：
+
+- 19 个后台管理 RPC 是 `BUSINESS / HUMAN / WEB`，由 `api-gateway` 代表已经验证的网页登录会话调用；每个方法只接受 [Public Entry contracts](../../contracts/public-entry-service/README.md) §3 冻结的一个准确现有 Code。
+- `GetOwnBusinessCardPreview` 是 `SELF_SERVICE / HUMAN / WEB`，Code 为空、拒绝 DELEGATED；tenant/account/employee/card 只能从验证后的 HUMAN subject 与受控 Identity binding 派生，request 不得选择另一个 account、employee 或 card。
+- `ResolvePublicRedirect`、`RenderPublicBusinessCard`、`GenerateBusinessCardVCard` 是匿名 HTTP 后面的受限 `BUSINESS / GATEWAY SYSTEM MACHINE` 内部调用。匿名访问者不拥有 ET；Gateway 使用既有 MACHINE source credential 换取 `aud=urn:oes:service:public-entry-service` 的 certificate-bound ET，分别只申请现有 `public-entry.short-link.read` 或 `public-entry.business-card.read`。
+- 三个公开 RPC 只允许准确 Gateway workload；SYSTEM 不是 tenant wildcard。ShortLink/BusinessCard owner 从服务自有记录解析 tenant，并继续执行 status、expiry、readiness、employee activity、public-safe projection 与 generic error 规则；caller-supplied tenant 没有 authority。
+- 23 个 RPC 均拒绝错误 audience、`cnf`、principal、terminal、Code 与 legacy body/header/signed-operator authority。后台 HUMAN、SELF_SERVICE HUMAN 与公开 Gateway MACHINE Token 不得交叉调用。
+- `ChangeShortLinkStatus` 使用 target-status-to-Code 绑定：`ACTIVE -> public-entry.short-link.update`、`DISABLED -> public-entry.short-link.disable`、`ARCHIVED -> public-entry.short-link.archive`；未知状态或 Code mismatch 在 mutation 前拒绝。
+- 当前 Public Entry 向 HR、Identity、Permission、TenantOrg 的 legacy outbound 调用不在本轮迁移中扩张或重设计；其目标服务按全仓顺序独立 cutover。BusinessCard 入口不再重复调用 Permission 做同一 BUSINESS Code 判定，但保留服务内 tenant/resource/domain/audit owner 检查。
+- 具体 23-RPC matrix、request field reservation 与 closed implementation lease 以 [Public Entry contracts](../../contracts/public-entry-service/README.md) §3 和 [trusted gRPC feature packet](../../plans/features/trusted-grpc-execution-context.md) §9.6 为准。
