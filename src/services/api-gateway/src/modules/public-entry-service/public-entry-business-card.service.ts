@@ -22,18 +22,14 @@ export class PublicEntryBusinessCardService {
 
   ensurePrimaryCard(tenantId: string, body: EnsurePrimaryBusinessCardDto, source: DownstreamRequestSource) {
     return this.adapter.ensurePrimaryBusinessCard({
-      tenantId,
       employeeId: body.employeeId,
-      operatorContext: toOperatorContext(source)
     }, source).then(normalizeBusinessCardResponse)
   }
 
   listCards(tenantId: string, query: { page?: string; pageSize?: string }, source: DownstreamRequestSource) {
     return this.adapter.listBusinessCards({
-      tenantId,
       page: parsePositiveInt(query.page, 1),
-      pageSize: parsePositiveInt(query.pageSize, 20),
-      operatorContext: toOperatorContext(source)
+      pageSize: parsePositiveInt(query.pageSize, 20)
     }, source).then((result) => ({
       ...result,
       items: (result.items ?? []).map(normalizeBusinessCardRecord)
@@ -42,74 +38,57 @@ export class PublicEntryBusinessCardService {
 
   getCardDetail(tenantId: string, businessCardId: string, source: DownstreamRequestSource) {
     return this.adapter.getBusinessCardDetail({
-      tenantId,
       businessCardId,
-      operatorContext: toOperatorContext(source)
     }, source).then(normalizeBusinessCardResponse)
   }
 
   updateConfig(tenantId: string, businessCardId: string, body: UpdateBusinessCardConfigDto, source: DownstreamRequestSource) {
     return this.adapter.updateBusinessCardConfig({
-      tenantId,
       businessCardId,
       templateKey: body.templateKey,
-      visibilityConfig: body.visibilityConfig,
-      operatorContext: toOperatorContext(source)
+      visibilityConfig: body.visibilityConfig
     }, source).then(normalizeBusinessCardResponse)
   }
 
   updateContactActions(tenantId: string, businessCardId: string, body: UpdateBusinessCardContactActionsDto, source: DownstreamRequestSource) {
     return this.adapter.updateBusinessCardContactActions({
-      tenantId,
       businessCardId,
       contactActionConfigs: body.contactActionConfigs.map((config) => ({
         ...config,
         targetRefType: toGrpcTargetRefType(config.targetRefType)
       })),
-      visibilityConfig: body.visibilityConfig,
-      operatorContext: toOperatorContext(source)
+      visibilityConfig: body.visibilityConfig
     }, source).then(normalizeBusinessCardResponse)
   }
 
   enableCard(tenantId: string, businessCardId: string, source: DownstreamRequestSource) {
     return this.adapter.enableBusinessCard({
-      tenantId,
       businessCardId,
-      operatorContext: toOperatorContext(source)
     }, source)
   }
 
   disableCard(tenantId: string, businessCardId: string, source: DownstreamRequestSource) {
     return this.adapter.disableBusinessCard({
-      tenantId,
       businessCardId,
-      operatorContext: toOperatorContext(source)
     }, source)
   }
 
   bindPublicEntry(tenantId: string, businessCardId: string, source: DownstreamRequestSource) {
     return this.adapter.bindOrRefreshBusinessCardPublicEntry({
-      tenantId,
       businessCardId,
-      operatorContext: toOperatorContext(source)
     }, source)
   }
 
   getVisitSummary(tenantId: string, businessCardId: string, query: { from?: string; to?: string }, source: DownstreamRequestSource) {
     return this.adapter.getBusinessCardVisitSummary({
-      tenantId,
       businessCardId,
       from: query.from,
-      to: query.to,
-      operatorContext: toOperatorContext(source)
+      to: query.to
     }, source)
   }
 
   getOwnPreview(tenantId: string, source: DownstreamRequestSource) {
     return this.adapter.getOwnBusinessCardPreview({
-      tenantId,
-      accountId: source.user?.holderId || source.user?.aid || source.user?.id || source.user?.sub || '',
-      traceId: source.traceId
     }, source)
   }
 
@@ -129,11 +108,11 @@ export class PublicEntryBusinessCardService {
   }
 
   renderPublicCard(businessCardId: string, source: Pick<DownstreamRequestSource, 'requestId' | 'traceId'>) {
-    return this.adapter.renderPublicBusinessCard({ businessCardId, traceId: source.traceId }, source)
+    return this.adapter.renderPublicBusinessCard({ businessCardId }, source)
   }
 
   generateVCard(businessCardId: string, source: Pick<DownstreamRequestSource, 'requestId' | 'traceId'>) {
-    return this.adapter.generateBusinessCardVCard({ businessCardId, traceId: source.traceId }, source)
+    return this.adapter.generateBusinessCardVCard({ businessCardId }, source)
   }
 }
 

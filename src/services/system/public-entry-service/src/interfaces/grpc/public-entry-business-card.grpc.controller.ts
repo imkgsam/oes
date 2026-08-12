@@ -1,4 +1,5 @@
-import { Controller } from '@nestjs/common'
+import { Controller, UseGuards } from '@nestjs/common'
+import { AuthorizeBusinessRpc, AuthorizeSelfServiceRpc, getAuthenticatedGrpcRequestContext, TrustedExecutionGuard } from '@oes/common/authorization'
 import {
   BusinessCardPublicEntryRefRecord,
   BusinessCardRecord as GrpcBusinessCardRecord,
@@ -18,7 +19,6 @@ import {
   BindOrRefreshBusinessCardPublicEntryRequest,
   ListBusinessCardsRequest,
   ListBusinessCardsResponse,
-  OperatorContext as GrpcOperatorContext,
   GetOwnBusinessCardPreviewResponse,
   PublicEntryBusinessCardServiceController,
   PublicEntryBusinessCardServiceControllerMethods,
@@ -45,6 +45,7 @@ import {
 
 // PublicEntryBusinessCardGrpcController maps BusinessCard gRPC calls onto application services.
 @Controller()
+@UseGuards(TrustedExecutionGuard)
 @PublicEntryBusinessCardServiceControllerMethods()
 export class PublicEntryBusinessCardGrpcController
   implements PublicEntryBusinessCardServiceController
@@ -53,19 +54,19 @@ export class PublicEntryBusinessCardGrpcController
 
   async ensurePrimaryBusinessCard(request: EnsurePrimaryBusinessCardRequest) {
     const result = await this.service.ensurePrimaryCard({
-      tenantId: request.tenantId ?? '',
+      tenantId: tenantFrom(request),
       employeeId: request.employeeId ?? '',
-      operatorContext: fromGrpcOperatorContext(request.operatorContext)
+      operatorContext: operatorFrom(request)
     })
     return { businessCard: toGrpcBusinessCard(result.businessCard) }
   }
 
   async listBusinessCards(request: ListBusinessCardsRequest): Promise<ListBusinessCardsResponse> {
     const result = await this.service.listCards({
-      tenantId: request.tenantId ?? '',
+      tenantId: tenantFrom(request),
       page: request.page,
       pageSize: request.pageSize,
-      operatorContext: fromGrpcOperatorContext(request.operatorContext)
+      operatorContext: operatorFrom(request)
     })
     return {
       items: result.items.map((item) => toGrpcBusinessCard(item)),
@@ -77,9 +78,9 @@ export class PublicEntryBusinessCardGrpcController
 
   async getBusinessCardDetail(request: GetBusinessCardDetailRequest) {
     const result = await this.service.getCardDetail({
-      tenantId: request.tenantId ?? '',
+      tenantId: tenantFrom(request),
       businessCardId: request.businessCardId ?? '',
-      operatorContext: fromGrpcOperatorContext(request.operatorContext)
+      operatorContext: operatorFrom(request)
     })
     return {
       businessCard: toGrpcBusinessCard(result.businessCard),
@@ -89,26 +90,26 @@ export class PublicEntryBusinessCardGrpcController
 
   async updateBusinessCardConfig(request: UpdateBusinessCardConfigRequest) {
     const result = await this.service.updateCardConfig({
-      tenantId: request.tenantId ?? '',
+      tenantId: tenantFrom(request),
       businessCardId: request.businessCardId ?? '',
       templateKey: request.templateKey,
       visibilityConfig: request.visibilityConfig
         ? fromGrpcVisibilityConfig(request.visibilityConfig)
         : undefined,
-      operatorContext: fromGrpcOperatorContext(request.operatorContext)
+      operatorContext: operatorFrom(request)
     })
     return { businessCard: toGrpcBusinessCard(result.businessCard) }
   }
 
   async updateBusinessCardContactActions(request: UpdateBusinessCardContactActionsRequest) {
     const result = await this.service.updateContactActions({
-      tenantId: request.tenantId ?? '',
+      tenantId: tenantFrom(request),
       businessCardId: request.businessCardId ?? '',
       contactActionConfigs: (request.contactActionConfigs ?? []).map(fromGrpcContactActionConfig),
       visibilityConfig: request.visibilityConfig
         ? fromGrpcVisibilityConfig(request.visibilityConfig)
         : undefined,
-      operatorContext: fromGrpcOperatorContext(request.operatorContext)
+      operatorContext: operatorFrom(request)
     })
     return { businessCard: toGrpcBusinessCard(result.businessCard) }
   }
@@ -117,9 +118,9 @@ export class PublicEntryBusinessCardGrpcController
     request: EnableBusinessCardRequest
   ): Promise<EnableBusinessCardResponse> {
     const result = await this.service.enableCard({
-      tenantId: request.tenantId ?? '',
+      tenantId: tenantFrom(request),
       businessCardId: request.businessCardId ?? '',
-      operatorContext: fromGrpcOperatorContext(request.operatorContext)
+      operatorContext: operatorFrom(request)
     })
     return toGrpcChangeStatusResponse(result)
   }
@@ -128,37 +129,37 @@ export class PublicEntryBusinessCardGrpcController
     request: DisableBusinessCardRequest
   ): Promise<DisableBusinessCardResponse> {
     const result = await this.service.disableCard({
-      tenantId: request.tenantId ?? '',
+      tenantId: tenantFrom(request),
       businessCardId: request.businessCardId ?? '',
-      operatorContext: fromGrpcOperatorContext(request.operatorContext)
+      operatorContext: operatorFrom(request)
     })
     return toGrpcChangeStatusResponse(result)
   }
 
   async runBusinessCardReadinessCheck(request: RunBusinessCardReadinessCheckRequest) {
     return this.service.runReadinessCheck({
-      tenantId: request.tenantId ?? '',
+      tenantId: tenantFrom(request),
       businessCardId: request.businessCardId ?? '',
-      operatorContext: fromGrpcOperatorContext(request.operatorContext)
+      operatorContext: operatorFrom(request)
     })
   }
 
   async bindOrRefreshBusinessCardPublicEntry(request: BindOrRefreshBusinessCardPublicEntryRequest) {
     const result = await this.service.bindOrRefreshMainPublicEntry({
-      tenantId: request.tenantId ?? '',
+      tenantId: tenantFrom(request),
       businessCardId: request.businessCardId ?? '',
-      operatorContext: fromGrpcOperatorContext(request.operatorContext)
+      operatorContext: operatorFrom(request)
     })
     return { publicEntryRef: toGrpcPublicEntryRef(result.publicEntryRef) }
   }
 
   async getBusinessCardVisitSummary(request: GetBusinessCardVisitSummaryRequest) {
     const result = await this.service.getVisitSummary({
-      tenantId: request.tenantId ?? '',
+      tenantId: tenantFrom(request),
       businessCardId: request.businessCardId ?? '',
       from: request.from,
       to: request.to,
-      operatorContext: fromGrpcOperatorContext(request.operatorContext)
+      operatorContext: operatorFrom(request)
     })
     return {
       shortLinkId: result.shortLinkId,
@@ -175,9 +176,9 @@ export class PublicEntryBusinessCardGrpcController
     request: GetOwnBusinessCardPreviewRequest
   ): Promise<GetOwnBusinessCardPreviewResponse> {
     const result = await this.service.getOwnCardPreview({
-      tenantId: request.tenantId ?? '',
-      accountId: request.accountId ?? '',
-      traceId: request.traceId
+      tenantId: tenantFrom(request),
+      accountId: subjectFrom(request),
+      traceId: traceFrom(request)
     })
     return {
       businessCardId: result.businessCardId,
@@ -194,15 +195,15 @@ export class PublicEntryBusinessCardGrpcController
   async renderPublicBusinessCard(
     request: RenderPublicBusinessCardRequest
   ): Promise<RenderPublicBusinessCardResponse> {
-    const result = request.tenantId
+    const result = false
       ? await this.service.renderPublicCard({
-          tenantId: request.tenantId,
+          tenantId: tenantFrom(request),
           businessCardId: request.businessCardId ?? '',
-          traceId: request.traceId
+          traceId: traceFrom(request)
         })
       : await this.service.renderPublicCardById({
           businessCardId: request.businessCardId ?? '',
-          traceId: request.traceId
+          traceId: traceFrom(request)
         })
     return toGrpcPublicRenderResult(result)
   }
@@ -210,12 +211,54 @@ export class PublicEntryBusinessCardGrpcController
   async generateBusinessCardVCard(
     request: GenerateBusinessCardVCardRequest
   ): Promise<GenerateBusinessCardVCardResponse> {
-    return this.service.generateVCard({
-      tenantId: request.tenantId ?? '',
-      businessCardId: request.businessCardId ?? '',
-      traceId: request.traceId
-    })
+    return this.service.generateVCard({ businessCardId: request.businessCardId ?? '', traceId: traceFrom(request) })
   }
+}
+
+function trusted(request: object) {
+  const context = getAuthenticatedGrpcRequestContext(request)
+  if (!context?.verifiedExecutionToken) throw new Error('Trusted execution context is required')
+  return context
+}
+function tenantFrom(request: object): string { return trusted(request).verifiedExecutionToken.tenantId ?? (() => { throw new Error('Trusted tenant context is required') })() }
+function subjectFrom(request: object): string { return trusted(request).verifiedExecutionToken.subject }
+function traceFrom(request: object): string | undefined { return (trusted(request) as { traceId?: string }).traceId }
+function operatorFrom(request: object): OperatorContext {
+  const token = trusted(request).verifiedExecutionToken
+  return { operatorAccountId: token.subject, operatorOrgId: token.orgId, traceId: traceFrom(request) }
+}
+
+/** Installs the frozen one-mode BusinessCard declarations for HUMAN and Gateway MACHINE callers. */
+const businessCardBusinessDeclarations: Readonly<Record<string, string>> = Object.freeze({
+  ensurePrimaryBusinessCard: 'public-entry.business-card.manage',
+  listBusinessCards: 'public-entry.business-card.read',
+  getBusinessCardDetail: 'public-entry.business-card.read',
+  updateBusinessCardConfig: 'public-entry.business-card.manage',
+  updateBusinessCardContactActions: 'public-entry.business-card.manage',
+  enableBusinessCard: 'public-entry.business-card.enable',
+  disableBusinessCard: 'public-entry.business-card.disable',
+  runBusinessCardReadinessCheck: 'public-entry.business-card.read',
+  bindOrRefreshBusinessCardPublicEntry: 'public-entry.business-card.public-entry.manage',
+  getBusinessCardVisitSummary: 'public-entry.business-card.stats.read'
+})
+for (const [method, code] of Object.entries(businessCardBusinessDeclarations)) {
+  AuthorizeBusinessRpc({ all: [code] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })(
+    PublicEntryBusinessCardGrpcController.prototype,
+    method,
+    Object.getOwnPropertyDescriptor(PublicEntryBusinessCardGrpcController.prototype, method)!
+  )
+}
+AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })(
+  PublicEntryBusinessCardGrpcController.prototype,
+  'getOwnBusinessCardPreview',
+  Object.getOwnPropertyDescriptor(PublicEntryBusinessCardGrpcController.prototype, 'getOwnBusinessCardPreview')!
+)
+for (const method of ['renderPublicBusinessCard', 'generateBusinessCardVCard']) {
+  AuthorizeBusinessRpc({ all: ['public-entry.business-card.read'] }, { principalType: 'MACHINE' })(
+    PublicEntryBusinessCardGrpcController.prototype,
+    method,
+    Object.getOwnPropertyDescriptor(PublicEntryBusinessCardGrpcController.prototype, method)!
+  )
 }
 
 // toGrpcBusinessCardStatus converts domain BusinessCard status into generated enum values.
@@ -228,14 +271,6 @@ export function toGrpcBusinessCardStatus(status: BusinessCardStatus): GrpcBusine
   }[status]
 }
 
-// fromGrpcOperatorContext maps generated operator context into the application shape.
-function fromGrpcOperatorContext(context?: GrpcOperatorContext): OperatorContext {
-  return {
-    operatorAccountId: context?.operatorAccountId ?? '',
-    operatorOrgId: context?.operatorOrgId || undefined,
-    traceId: context?.traceId || undefined
-  }
-}
 
 // toGrpcBusinessCard maps application BusinessCard summaries into generated records.
 function toGrpcBusinessCard(record: BusinessCardSummary): GrpcBusinessCardRecord {

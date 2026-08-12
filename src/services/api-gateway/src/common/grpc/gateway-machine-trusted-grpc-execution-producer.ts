@@ -24,6 +24,15 @@ export class GatewayMachineTrustedGrpcExecutionProducer {
     const trusted = createTrustedExecutionContext({ subject, principalType: 'MACHINE', requestId: trace.requestId, traceparent: trace.traceparent, tracestate: trace.tracestate })
     return this.context.run(trusted, () => this.source.run(async () => callback(await this.metadata.forInternalCall(targetAudience, [code]))))
   }
+
+  /** Produces an exact BUSINESS MACHINE token for the three anonymous Public Entry routes. */
+  async forBusinessCall<T>(targetAudience: string, code: string, trace: VerifiedMachineTrace, callback: (metadata: Metadata) => Promise<T>): Promise<T> {
+    const subject = process.env.GATEWAY_MACHINE_PRINCIPAL_ID?.trim()
+    if (!subject) throw new Error('MACHINE_WORKLOAD_SOURCE_CONFIGURATION_REQUIRED')
+    if (!trace.requestId.trim() || !isTraceparent(trace.traceparent)) throw new Error('MACHINE_TRACE_CONTEXT_REQUIRED')
+    const trusted = createTrustedExecutionContext({ subject, principalType: 'MACHINE', requestId: trace.requestId, traceparent: trace.traceparent, tracestate: trace.tracestate })
+    return this.context.run(trusted, () => this.source.run(async () => callback(await this.metadata.forBusinessCall(targetAudience, [code]))))
+  }
 }
 
 /** isTraceparent accepts only an active W3C trace context supplied by verified ingress. */

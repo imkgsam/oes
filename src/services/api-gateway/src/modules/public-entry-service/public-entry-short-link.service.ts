@@ -27,14 +27,12 @@ export class PublicEntryShortLinkService {
   ) {
     const result = await this.adapter.createShortLink(
       {
-        tenantId,
         displayName: body.displayName,
         target: toGrpcTarget(body.target),
         entryPurpose: body.entryPurpose,
         sourcePlacement: body.sourcePlacement,
         campaignRef: body.campaignRef,
         expiresAt: body.expiresAt,
-        operatorContext: toOperatorContext(source)
       },
       source
     )
@@ -42,7 +40,7 @@ export class PublicEntryShortLinkService {
   }
 
   async getShortLink(tenantId: string, shortLinkId: string, source: DownstreamRequestSource) {
-    const result = await this.adapter.getShortLink({ tenantId, shortLinkId }, source)
+    const result = await this.adapter.getShortLink({ shortLinkId }, source)
     return { ...result, shortLink: normalizeShortLinkRecord(result.shortLink) }
   }
 
@@ -53,7 +51,6 @@ export class PublicEntryShortLinkService {
   ) {
     const result = await this.adapter.listShortLinksByTarget(
       {
-        tenantId,
         targetType: query.targetType ?? '',
         targetResourceId: query.targetResourceId ?? '',
         page: parsePositiveInt(query.page, 1),
@@ -74,7 +71,6 @@ export class PublicEntryShortLinkService {
   ) {
     const result = await this.adapter.listShortLinks(
       {
-        tenantId,
         targetKind: toGrpcOptionalTargetKind(query.targetKind),
         targetType: normalizeOptionalQuery(query.targetType),
         page: parsePositiveInt(query.page, 1),
@@ -96,11 +92,9 @@ export class PublicEntryShortLinkService {
   ) {
     return this.adapter.updateShortLinkTarget(
       {
-        tenantId,
         shortLinkId,
         target: toGrpcTarget(body.target),
-        reason: body.reason,
-        operatorContext: toOperatorContext(source)
+        reason: body.reason
       },
       source
     )
@@ -114,14 +108,12 @@ export class PublicEntryShortLinkService {
   ) {
     const result = await this.adapter.updateShortLinkMetadata(
       {
-        tenantId,
         shortLinkId,
         displayName: body.displayName,
         entryPurpose: body.entryPurpose,
         sourcePlacement: body.sourcePlacement,
         campaignRef: body.campaignRef,
-        expiresAt: body.expiresAt,
-        operatorContext: toOperatorContext(source)
+        expiresAt: body.expiresAt
       },
       source
     )
@@ -136,11 +128,9 @@ export class PublicEntryShortLinkService {
   ) {
     return this.adapter.changeShortLinkStatus(
       {
-        tenantId,
         shortLinkId,
         targetStatus: toGrpcStatus(body.targetStatus),
-        reason: body.reason,
-        operatorContext: toOperatorContext(source)
+        reason: body.reason
       },
       source
     )
@@ -153,13 +143,13 @@ export class PublicEntryShortLinkService {
     source: DownstreamRequestSource
   ) {
     return this.adapter.getShortLinkStats(
-      { tenantId, shortLinkId, from: query.from, to: query.to },
+      { shortLinkId, from: query.from, to: query.to },
       source
     )
   }
 
   async generateQr(tenantId: string, shortLinkId: string, source: DownstreamRequestSource) {
-    return this.adapter.generateShortLinkQr({ tenantId, shortLinkId }, source)
+    return this.adapter.generateShortLinkQr({ shortLinkId }, source)
   }
 
   async resolvePublicRedirect(
@@ -179,8 +169,7 @@ export class PublicEntryShortLinkService {
         userAgent: request.userAgent,
         ipAddress: request.ipAddress,
         acceptLanguage: request.acceptLanguage,
-        referrer: request.referrer,
-        traceId: request.traceId
+        referrer: request.referrer
       },
       { requestId: request.requestId, traceId: request.traceId }
     )

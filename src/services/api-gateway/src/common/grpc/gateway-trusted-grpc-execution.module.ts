@@ -16,12 +16,14 @@ import { GatewayTrustedGrpcExecutionProducer } from './gateway-trusted-grpc-exec
 import { GatewayAuthMachineWorkloadSourceCredentialClient } from './gateway-auth-machine-workload-source-credential.client'
 import { GatewayMachineWorkloadSourceCredentialProvider } from './gateway-machine-workload-source-credential.provider'
 import { GatewayMachineTrustedGrpcExecutionProducer } from './gateway-machine-trusted-grpc-execution-producer'
+import { GatewayPublicEntryGrpcClient } from './gateway-public-entry-grpc.client'
 
 const ASSET_AUDIENCE = 'urn:oes:service:asset-service'
 const SITE_AUDIENCE = 'urn:oes:service:site-service'
 const BROWSER_ACTIVITY_AUDIENCE = 'urn:oes:service:browser-activity-service'
 const TERMINAL_DEVICE_AUDIENCE = 'urn:oes:service:terminal-device-service'
 const FINANCE_AUDIENCE = 'urn:oes:service:finance-service'
+const PUBLIC_ENTRY_AUDIENCE = 'urn:oes:service:public-entry-service'
 
 /** Composes the sole Gateway target-token producer with the same request-private source-credential accessor. */
 @Global()
@@ -33,6 +35,7 @@ const FINANCE_AUDIENCE = 'urn:oes:service:finance-service'
     GatewayBrowserActivityGrpcClient,
     GatewayTerminalDeviceGrpcClient,
     GatewayFinanceGrpcClient,
+    GatewayPublicEntryGrpcClient,
     GatewayAuthMachineWorkloadSourceCredentialClient,
     {
       provide: GatewayMachineWorkloadSourceCredentialProvider,
@@ -56,12 +59,13 @@ const FINANCE_AUDIENCE = 'urn:oes:service:finance-service'
       useFactory: () =>
         new TrustedExecutionRegistry({
           issuer: requireEnvironment('AUTH_EXECUTION_ISSUER'),
-          audiences: [
+            audiences: [
             ASSET_AUDIENCE,
             SITE_AUDIENCE,
             BROWSER_ACTIVITY_AUDIENCE,
             TERMINAL_DEVICE_AUDIENCE,
-            FINANCE_AUDIENCE
+            FINANCE_AUDIENCE,
+            PUBLIC_ENTRY_AUDIENCE
           ],
           workloadIdentities: [requireEnvironment('OES_WORKLOAD_SPIFFE_ID')]
         })
@@ -125,6 +129,7 @@ const FINANCE_AUDIENCE = 'urn:oes:service:finance-service'
     GatewayBrowserActivityGrpcClient,
     GatewayTerminalDeviceGrpcClient,
     GatewayFinanceGrpcClient,
+    GatewayPublicEntryGrpcClient,
     GatewayTrustedGrpcExecutionProducer,
     GatewayMachineWorkloadSourceCredentialProvider,
     GatewayMachineTrustedGrpcExecutionProducer

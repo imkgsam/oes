@@ -44,11 +44,7 @@ describe('PublicEntryBusinessCardService', () => {
     })
 
     expect(adapter.getOwnBusinessCardPreview).toHaveBeenCalledWith(
-      {
-        tenantId: 'tenant-1',
-        accountId: 'account-1',
-        traceId: 'trace-1'
-      },
+      {},
       source
     )
     expect(JSON.stringify(adapter.getOwnBusinessCardPreview.mock.calls)).not.toContain('employeeId')
@@ -88,7 +84,6 @@ describe('PublicEntryBusinessCardService', () => {
 
     expect(adapter.updateBusinessCardContactActions).toHaveBeenCalledWith(
       {
-        tenantId: 'tenant-1',
         businessCardId: 'card-1',
         contactActionConfigs: [
           expect.objectContaining({
@@ -100,12 +95,7 @@ describe('PublicEntryBusinessCardService', () => {
             targetRefType: ContactActionTargetRefType.CONTACT_ACTION_TARGET_REF_TYPE_NONE
           })
         ],
-        visibilityConfig: undefined,
-        operatorContext: {
-          operatorAccountId: 'account-1',
-          operatorOrgId: 'org-1',
-          traceId: 'trace-1'
-        }
+        visibilityConfig: undefined
       },
       source
     )
@@ -198,11 +188,11 @@ describe('PublicEntryBusinessCardService', () => {
     await service.generateVCard('card-1', source)
 
     expect(adapter.renderPublicBusinessCard).toHaveBeenCalledWith(
-      { businessCardId: 'card-1', traceId: 'trace-1' },
+      { businessCardId: 'card-1' },
       source
     )
     expect(adapter.generateBusinessCardVCard).toHaveBeenCalledWith(
-      { businessCardId: 'card-1', traceId: 'trace-1' },
+      { businessCardId: 'card-1' },
       source
     )
     expect(JSON.stringify(adapter.renderPublicBusinessCard.mock.calls)).not.toContain('tenantId')

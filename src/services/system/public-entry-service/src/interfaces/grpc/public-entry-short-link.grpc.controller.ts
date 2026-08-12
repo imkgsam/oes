@@ -27,7 +27,8 @@ import {
   UpdateShortLinkTargetRequest,
   UpdateShortLinkTargetResponse
 } from '@oes/common/generated/public_entry_service'
-import { Controller } from '@nestjs/common'
+import { Controller, UseGuards } from '@nestjs/common'
+import { AuthorizeBusinessRpc, getAuthenticatedGrpcRequestContext, TrustedExecutionGuard } from '@oes/common/authorization'
 import { ShortLinkApplicationService } from '../../application/services/short-link-application.service'
 import { PublicRedirectService } from '../../application/services/public-redirect.service'
 import {
@@ -39,6 +40,7 @@ import {
 
 // PublicEntryShortLinkGrpcController maps public-entry gRPC contract calls to ShortLink application services.
 @Controller()
+@UseGuards(TrustedExecutionGuard)
 @PublicEntryShortLinkServiceControllerMethods()
 export class PublicEntryShortLinkGrpcController implements PublicEntryShortLinkServiceController {
   constructor(
@@ -48,21 +50,21 @@ export class PublicEntryShortLinkGrpcController implements PublicEntryShortLinkS
 
   async createShortLink(request: CreateShortLinkRequest): Promise<CreateShortLinkResponse> {
     const result = await this.shortLinkService.createShortLink({
-      tenantId: request.tenantId ?? '',
+      tenantId: tenantFrom(request),
       displayName: request.displayName ?? '',
       target: fromGrpcTarget(request.target),
       entryPurpose: request.entryPurpose ?? '',
       sourcePlacement: request.sourcePlacement ?? '',
       campaignRef: request.campaignRef,
       expiresAt: request.expiresAt,
-      operatorContext: fromGrpcOperatorContext(request.operatorContext)
+      operatorContext: operatorFrom(request)
     })
     return { shortLink: toGrpcShortLink(result.shortLink) }
   }
 
   async getShortLink(request: GetShortLinkRequest): Promise<GetShortLinkResponse> {
     const result = await this.shortLinkService.getShortLink({
-      tenantId: request.tenantId ?? '',
+      tenantId: tenantFrom(request),
       shortLinkId: request.shortLinkId ?? ''
     })
     return { shortLink: toGrpcShortLink(result.shortLink) }
@@ -70,7 +72,7 @@ export class PublicEntryShortLinkGrpcController implements PublicEntryShortLinkS
 
   async listShortLinks(request: ListShortLinksRequest): Promise<ListShortLinksResponse> {
     const result = await this.shortLinkService.listShortLinks({
-      tenantId: request.tenantId ?? '',
+      tenantId: tenantFrom(request),
       targetKind: fromGrpcOptionalTargetKind(request.targetKind),
       targetType: request.targetType,
       page: request.page,
@@ -88,7 +90,7 @@ export class PublicEntryShortLinkGrpcController implements PublicEntryShortLinkS
     request: ListShortLinksByTargetRequest
   ): Promise<ListShortLinksByTargetResponse> {
     const result = await this.shortLinkService.listByTarget({
-      tenantId: request.tenantId ?? '',
+      tenantId: tenantFrom(request),
       targetType: request.targetType ?? '',
       targetResourceId: request.targetResourceId ?? '',
       page: request.page,
@@ -106,11 +108,11 @@ export class PublicEntryShortLinkGrpcController implements PublicEntryShortLinkS
     request: UpdateShortLinkTargetRequest
   ): Promise<UpdateShortLinkTargetResponse> {
     const result = await this.shortLinkService.updateTarget({
-      tenantId: request.tenantId ?? '',
+      tenantId: tenantFrom(request),
       shortLinkId: request.shortLinkId ?? '',
       target: fromGrpcTarget(request.target),
       reason: request.reason,
-      operatorContext: fromGrpcOperatorContext(request.operatorContext)
+      operatorContext: operatorFrom(request)
     })
     return {
       shortLinkId: result.shortLinkId,
@@ -125,14 +127,14 @@ export class PublicEntryShortLinkGrpcController implements PublicEntryShortLinkS
     request: UpdateShortLinkMetadataRequest
   ): Promise<UpdateShortLinkMetadataResponse> {
     const result = await this.shortLinkService.updateMetadata({
-      tenantId: request.tenantId ?? '',
+      tenantId: tenantFrom(request),
       shortLinkId: request.shortLinkId ?? '',
       displayName: request.displayName,
       entryPurpose: request.entryPurpose,
       sourcePlacement: request.sourcePlacement,
       campaignRef: request.campaignRef,
       expiresAt: request.expiresAt,
-      operatorContext: fromGrpcOperatorContext(request.operatorContext)
+      operatorContext: operatorFrom(request)
     })
     return { shortLink: toGrpcShortLink(result.shortLink) }
   }
@@ -140,12 +142,19 @@ export class PublicEntryShortLinkGrpcController implements PublicEntryShortLinkS
   async changeShortLinkStatus(
     request: ChangeShortLinkStatusRequest
   ): Promise<ChangeShortLinkStatusResponse> {
+    if (
+      request.targetStatus !== GrpcShortLinkStatus.SHORT_LINK_STATUS_ACTIVE &&
+      request.targetStatus !== GrpcShortLinkStatus.SHORT_LINK_STATUS_DISABLED &&
+      request.targetStatus !== GrpcShortLinkStatus.SHORT_LINK_STATUS_ARCHIVED
+    ) {
+      throw new Error('ShortLink target status is invalid')
+    }
     const result = await this.shortLinkService.changeStatus({
-      tenantId: request.tenantId ?? '',
+      tenantId: tenantFrom(request),
       shortLinkId: request.shortLinkId ?? '',
       targetStatus: fromGrpcShortLinkStatus(request.targetStatus),
       reason: request.reason,
-      operatorContext: fromGrpcOperatorContext(request.operatorContext)
+      operatorContext: operatorFrom(request)
     })
     return {
       shortLinkId: result.shortLinkId,
@@ -157,7 +166,7 @@ export class PublicEntryShortLinkGrpcController implements PublicEntryShortLinkS
 
   async getShortLinkStats(request: GetShortLinkStatsRequest): Promise<GetShortLinkStatsResponse> {
     const result = await this.shortLinkService.getStats({
-      tenantId: request.tenantId ?? '',
+      tenantId: tenantFrom(request),
       shortLinkId: request.shortLinkId ?? '',
       from: request.from,
       to: request.to
@@ -177,7 +186,7 @@ export class PublicEntryShortLinkGrpcController implements PublicEntryShortLinkS
     request: GenerateShortLinkQrRequest
   ): Promise<GenerateShortLinkQrResponse> {
     return this.shortLinkService.generateQr({
-      tenantId: request.tenantId ?? '',
+      tenantId: tenantFrom(request),
       shortLinkId: request.shortLinkId ?? ''
     })
   }
@@ -192,7 +201,7 @@ export class PublicEntryShortLinkGrpcController implements PublicEntryShortLinkS
         ipAddress: request.ipAddress,
         acceptLanguage: request.acceptLanguage,
         referrer: request.referrer,
-        traceId: request.traceId
+        traceId: traceFrom(request)
       }
     })
     if (result.type === 'REDIRECT') {
@@ -210,6 +219,48 @@ export class PublicEntryShortLinkGrpcController implements PublicEntryShortLinkS
     }
   }
 }
+
+function tenantFrom(request: object): string {
+  const tenantId = getAuthenticatedGrpcRequestContext(request)?.verifiedExecutionToken?.tenantId
+  if (!tenantId) throw new Error('Trusted tenant context is required')
+  return tenantId
+}
+
+function operatorFrom(request: object): OperatorContext {
+  const context = getAuthenticatedGrpcRequestContext(request) as (ReturnType<typeof getAuthenticatedGrpcRequestContext> & { traceId?: string }) | undefined
+  const token = context?.verifiedExecutionToken
+  if (!token?.subject) throw new Error('Trusted operator context is required')
+  return { operatorAccountId: token.subject, operatorOrgId: token.orgId, traceId: context?.traceId }
+}
+
+function traceFrom(request: object): string | undefined {
+  return (getAuthenticatedGrpcRequestContext(request) as (ReturnType<typeof getAuthenticatedGrpcRequestContext> & { traceId?: string }) | undefined)?.traceId
+}
+
+/** Installs the frozen one-mode Public Entry declarations without exposing legacy request authority. */
+const shortLinkBusinessDeclarations: Readonly<Record<string, string>> = Object.freeze({
+  createShortLink: 'public-entry.short-link.create',
+  getShortLink: 'public-entry.short-link.read',
+  listShortLinks: 'public-entry.short-link.read',
+  listShortLinksByTarget: 'public-entry.short-link.read',
+  updateShortLinkTarget: 'public-entry.short-link.update',
+  updateShortLinkMetadata: 'public-entry.short-link.update',
+  changeShortLinkStatus: 'public-entry.short-link.update',
+  getShortLinkStats: 'public-entry.short-link.stats.read',
+  generateShortLinkQr: 'public-entry.short-link.read'
+})
+for (const [method, code] of Object.entries(shortLinkBusinessDeclarations)) {
+  AuthorizeBusinessRpc({ all: [code] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })(
+    PublicEntryShortLinkGrpcController.prototype,
+    method,
+    Object.getOwnPropertyDescriptor(PublicEntryShortLinkGrpcController.prototype, method)!
+  )
+}
+AuthorizeBusinessRpc({ all: ['public-entry.short-link.read'] }, { principalType: 'MACHINE' })(
+  PublicEntryShortLinkGrpcController.prototype,
+  'resolvePublicRedirect',
+  Object.getOwnPropertyDescriptor(PublicEntryShortLinkGrpcController.prototype, 'resolvePublicRedirect')!
+)
 
 // toGrpcShortLinkStatus converts domain status strings to generated enum values.
 export function toGrpcShortLinkStatus(status: ShortLinkStatus): GrpcShortLinkStatus {

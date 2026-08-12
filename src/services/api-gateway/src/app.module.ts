@@ -112,13 +112,6 @@ export function resolveMesGrpcUrl() {
     : 'localhost:50065'
 }
 
-/** resolvePublicEntryGrpcUrl centralizes the local public-entry-service fallback endpoint used by api-gateway. */
-export function resolvePublicEntryGrpcUrl() {
-  return process.env.PUBLIC_ENTRY_SERVICE_HOST && process.env.PUBLIC_ENTRY_SERVICE_PORT
-    ? `${process.env.PUBLIC_ENTRY_SERVICE_HOST}:${process.env.PUBLIC_ENTRY_SERVICE_PORT}`
-    : 'localhost:50067'
-}
-
 /** resolveSiteGrpcUrl centralizes the local site-service endpoint used by Admin and Site-facing BFFs. */
 export function resolveSiteGrpcUrl() {
   const host = process.env.SITE_SERVICE_HOST?.trim()
@@ -263,12 +256,6 @@ const siteGrpcLoaderOptions = { longs: String, arrays: true }
             process.env.PROCUREMENT_SERVICE_HOST && process.env.PROCUREMENT_SERVICE_PORT
               ? `${process.env.PROCUREMENT_SERVICE_HOST}:${process.env.PROCUREMENT_SERVICE_PORT}`
               : 'localhost:50062'
-        },
-        [SERVICE_NAMES.PUBLIC_ENTRY]: {
-          serviceName: SERVICE_NAMES.PUBLIC_ENTRY,
-          protoPath: resolveCommonProtoPath('public_entry_service/public_entry.proto'),
-          packageName: 'public_entry_service',
-          url: resolvePublicEntryGrpcUrl()
         },
         [SERVICE_NAMES.SITE]: {
           serviceName: SERVICE_NAMES.SITE,

@@ -10,12 +10,10 @@ import { ShortCodeGenerator } from '../../src/domain/services/short-code-generat
 import { ShortLinkTargetResolverRegistry } from '../../src/application/services/short-link-target-resolver.registry'
 import { QrCodeService } from '../../src/application/services/qr-code.service'
 import { ShortLinkApplicationService } from '../../src/application/services/short-link-application.service'
+import { attachVerifiedExecution } from '@oes/common/authorization'
 
-const operatorContext = {
-  operatorAccountId: 'acc_admin',
-  operatorOrgId: 'org_001',
-  traceId: 'trace_001'
-}
+function human<T extends object>(request: T): T { attachVerifiedExecution(request, { verifiedExecutionToken: { tenantId: 'tenant_001', subject: 'acc_admin', orgId: 'org_001' } as any, verifiedWorkloadIdentity: {} as any }); return request }
+function machine<T extends object>(request: T): T { attachVerifiedExecution(request, { verifiedExecutionToken: { subject: 'gateway-machine' } as any, verifiedWorkloadIdentity: {} as any }); return request }
 
 // buildController wires the BusinessCard gRPC controller directly for transport mapping tests.
 function buildController() {
@@ -78,17 +76,11 @@ describe('PublicEntryBusinessCardGrpcController', () => {
   it('maps management, public render, and vCard calls through generated contract shapes', async () => {
     const { controller } = buildController()
 
-    const created = await controller.ensurePrimaryBusinessCard({
-      tenantId: 'tenant_001',
-      employeeId: 'emp_001',
-      operatorContext
-    })
+    const created = await controller.ensurePrimaryBusinessCard(human({ employeeId: 'emp_001' }))
     expect(created.businessCard?.status).toBe(GrpcBusinessCardStatus.BUSINESS_CARD_STATUS_DRAFT)
 
-    await controller.updateBusinessCardContactActions({
-      tenantId: 'tenant_001',
+    await controller.updateBusinessCardContactActions(human({
       businessCardId: created.businessCard?.businessCardId,
-      operatorContext,
       contactActionConfigs: [
         {
           contactActionType: 'CALL_PHONE',
@@ -100,34 +92,20 @@ describe('PublicEntryBusinessCardGrpcController', () => {
           includeInVCard: true
         }
       ]
-    } as any)
+    } as any))
 
-    const publicEntry = await controller.bindOrRefreshBusinessCardPublicEntry({
-      tenantId: 'tenant_001',
-      businessCardId: created.businessCard?.businessCardId,
-      operatorContext
-    })
+    const publicEntry = await controller.bindOrRefreshBusinessCardPublicEntry(human({ businessCardId: created.businessCard?.businessCardId }))
     expect(publicEntry.publicEntryRef?.publicUrl).toMatch(/^\/c\//)
 
-    const enabled = await controller.enableBusinessCard({
-      tenantId: 'tenant_001',
-      businessCardId: created.businessCard?.businessCardId,
-      operatorContext
-    })
+    const enabled = await controller.enableBusinessCard(human({ businessCardId: created.businessCard?.businessCardId }))
     expect(enabled.status).toBe(GrpcBusinessCardStatus.BUSINESS_CARD_STATUS_ACTIVE)
 
-    const rendered = await controller.renderPublicBusinessCard({
-      tenantId: 'tenant_001',
-      businessCardId: created.businessCard?.businessCardId
-    })
+    const rendered = await controller.renderPublicBusinessCard(machine({ businessCardId: created.businessCard?.businessCardId }))
     expect(rendered.state).toBe('AVAILABLE')
     expect(rendered.view?.person?.displayName).toBe('Alex Chen')
     expect(rendered.view?.contactActions?.[0]?.contactActionType).toBe('CALL_PHONE')
 
-    const vcard = await controller.generateBusinessCardVCard({
-      tenantId: 'tenant_001',
-      businessCardId: created.businessCard?.businessCardId
-    })
+    const vcard = await controller.generateBusinessCardVCard(machine({ businessCardId: created.businessCard?.businessCardId }))
     expect(vcard.contentType).toBe('text/vcard')
     expect(vcard.body).toContain('FN:Alex Chen')
   })

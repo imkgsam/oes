@@ -17,9 +17,7 @@ describe('BusinessCard live smoke flow', () => {
     const client: BusinessCardLiveSmokeClient = {
       ensurePrimaryBusinessCard: jest.fn(async (request) => {
         calls.push('ensurePrimaryBusinessCard')
-        expect(request.tenantId).toBe('tenant-1')
         expect(request.employeeId).toBe('employee-1')
-        expect(request.operatorContext?.operatorAccountId).toBe('operator-1')
         return {
           businessCard: {
             businessCardId: 'card-1',
@@ -124,11 +122,7 @@ describe('BusinessCard live smoke flow', () => {
       }),
       getOwnBusinessCardPreview: jest.fn(async (request) => {
         calls.push('getOwnBusinessCardPreview')
-        expect(request).toEqual({
-          tenantId: 'tenant-1',
-          accountId: 'self-account-1',
-          traceId: 'business-card-live-smoke-test'
-        })
+        expect(request).toEqual({})
         return {
           businessCardId: 'card-1',
           employeeId: 'employee-1',

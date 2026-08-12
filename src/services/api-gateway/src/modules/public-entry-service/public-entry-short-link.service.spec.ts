@@ -58,7 +58,6 @@ describe('PublicEntryShortLinkService', () => {
 
     expect(adapter.createShortLink).toHaveBeenCalledWith(
       {
-        tenantId: 'tenant-1',
         displayName: 'Customer portal entry',
         target: {
           targetKind: ShortLinkTargetKind.SHORT_LINK_TARGET_KIND_EXTERNAL_URL,
@@ -69,12 +68,7 @@ describe('PublicEntryShortLinkService', () => {
         entryPurpose: 'BUSINESS_CARD',
         sourcePlacement: 'ADMIN',
         campaignRef: 'launch-2026',
-        expiresAt: '2026-08-01T00:00:00.000Z',
-        operatorContext: {
-          operatorAccountId: 'account-1',
-          operatorOrgId: 'org-1',
-          traceId: 'trace-1'
-        }
+        expiresAt: '2026-08-01T00:00:00.000Z'
       },
       source
     )
@@ -128,7 +122,6 @@ describe('PublicEntryShortLinkService', () => {
 
     expect(adapter.updateShortLinkTarget).toHaveBeenCalledWith(
       expect.objectContaining({
-        tenantId: 'tenant-1',
         shortLinkId: 'short-link-1',
         reason: 'move to governed internal target',
         target: {
@@ -142,7 +135,6 @@ describe('PublicEntryShortLinkService', () => {
     )
     expect(adapter.updateShortLinkMetadata).toHaveBeenCalledWith(
       expect.objectContaining({
-        tenantId: 'tenant-1',
         shortLinkId: 'short-link-1',
         displayName: 'Updated link'
       }),
@@ -150,7 +142,6 @@ describe('PublicEntryShortLinkService', () => {
     )
     expect(adapter.changeShortLinkStatus).toHaveBeenCalledWith(
       expect.objectContaining({
-        tenantId: 'tenant-1',
         shortLinkId: 'short-link-1',
         targetStatus: ShortLinkStatus.SHORT_LINK_STATUS_DISABLED
       }),
@@ -158,7 +149,6 @@ describe('PublicEntryShortLinkService', () => {
     )
     expect(adapter.getShortLinkStats).toHaveBeenCalledWith(
       {
-        tenantId: 'tenant-1',
         shortLinkId: 'short-link-1',
         from: '2026-07-01T00:00:00.000Z',
         to: '2026-07-31T00:00:00.000Z'
@@ -166,7 +156,7 @@ describe('PublicEntryShortLinkService', () => {
       source
     )
     expect(adapter.generateShortLinkQr).toHaveBeenCalledWith(
-      { tenantId: 'tenant-1', shortLinkId: 'short-link-1' },
+      { shortLinkId: 'short-link-1' },
       source
     )
   })
@@ -236,7 +226,6 @@ describe('PublicEntryShortLinkService', () => {
 
     expect(adapter.listShortLinksByTarget).toHaveBeenCalledWith(
       {
-        tenantId: 'tenant-1',
         targetType: 'BUSINESS_CARD',
         targetResourceId: 'card-1',
         page: 1,
@@ -250,8 +239,7 @@ describe('PublicEntryShortLinkService', () => {
         userAgent: 'Mozilla/5.0',
         ipAddress: '203.0.113.8',
         acceptLanguage: 'zh-CN',
-        referrer: 'https://example.com',
-        traceId: 'trace-public'
+        referrer: 'https://example.com'
       },
       { requestId: 'req-public', traceId: 'trace-public' }
     )
@@ -305,7 +293,6 @@ describe('PublicEntryShortLinkService', () => {
 
     expect(adapter.listShortLinks).toHaveBeenCalledWith(
       {
-        tenantId: 'tenant-1',
         page: 1,
         pageSize: 20,
         targetKind: undefined,

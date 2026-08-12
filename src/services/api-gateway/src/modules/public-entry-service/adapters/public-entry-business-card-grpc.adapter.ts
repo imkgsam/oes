@@ -1,5 +1,4 @@
 import { Injectable, OnModuleInit } from '@nestjs/common'
-import { ClientGrpc } from '@nestjs/microservices'
 import {
   EnableBusinessCardRequest,
   EnableBusinessCardResponse,
@@ -26,18 +25,9 @@ import {
   UpdateBusinessCardConfigRequest,
   UpdateBusinessCardContactActionsRequest
 } from '@oes/common/generated/public_entry_service'
-import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory
-} from '@oes/common/authorization'
-import { Inject } from '@nestjs/common'
-import { SERVICE_NAMES } from '@oes/common/constants'
-import { InjectGrpcClient, safeGrpcCall } from '@oes/common/transport'
-import {
-  DownstreamRequestSource,
-  toInternalCallMetadataInput,
-  toOperatorScopedMetadataInput
-} from '../../../common/grpc/gateway-downstream-source.mapper'
+import { GatewayMachineTrustedGrpcExecutionProducer, GatewayPublicEntryGrpcClient, GatewayTrustedGrpcExecutionProducer } from '../../../common/grpc'
+import { safeGrpcCall } from '@oes/common/transport'
+import { DownstreamRequestSource } from '../../../common/grpc/gateway-downstream-source.mapper'
 
 // PublicEntryBusinessCardGrpcAdapter proxies gateway calls to public-entry-service BusinessCard RPCs.
 @Injectable()
@@ -45,14 +35,13 @@ export class PublicEntryBusinessCardGrpcAdapter implements OnModuleInit {
   private svc!: PublicEntryBusinessCardServiceClient
 
   constructor(
-    @InjectGrpcClient(SERVICE_NAMES.PUBLIC_ENTRY)
-    private readonly client: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory
+    private readonly publicEntryClient: GatewayPublicEntryGrpcClient,
+    private readonly trustedExecution: GatewayTrustedGrpcExecutionProducer,
+    private readonly machineExecution: GatewayMachineTrustedGrpcExecutionProducer
   ) {}
 
   onModuleInit(): void {
-    this.svc = this.client.getService<PublicEntryBusinessCardServiceClient>(
+    this.svc = this.publicEntryClient.getClient().getService<PublicEntryBusinessCardServiceClient>(
       PUBLIC_ENTRY_BUSINESS_CARD_SERVICE_NAME
     )
   }
@@ -61,123 +50,71 @@ export class PublicEntryBusinessCardGrpcAdapter implements OnModuleInit {
     input: EnsurePrimaryBusinessCardRequest,
     source: DownstreamRequestSource
   ): Promise<EnsurePrimaryBusinessCardResponse> {
-    return this.call(
-      'ensurePrimaryBusinessCard',
-      this.svc.ensurePrimaryBusinessCard(input, this.operatorMetadata(source))
-    )
+    return this.trustedExecution.forBusinessCall(source, 'urn:oes:service:public-entry-service', ['public-entry.business-card.manage']).then((metadata) => this.call('ensurePrimaryBusinessCard', this.svc.ensurePrimaryBusinessCard(input, metadata)))
   }
 
   listBusinessCards(
     input: ListBusinessCardsRequest,
     source: DownstreamRequestSource
-  ): Promise<ListBusinessCardsResponse> {
-    return this.call(
-      'listBusinessCards',
-      this.svc.listBusinessCards(input, this.operatorMetadata(source))
-    )
+  ): Promise<ListBusinessCardsResponse> { return this.trustedExecution.forBusinessCall(source, 'urn:oes:service:public-entry-service', ['public-entry.business-card.read']).then((metadata) => this.call('listBusinessCards', this.svc.listBusinessCards(input, metadata)))
   }
 
   getBusinessCardDetail(
     input: GetBusinessCardDetailRequest,
     source: DownstreamRequestSource
-  ): Promise<GetBusinessCardDetailResponse> {
-    return this.call(
-      'getBusinessCardDetail',
-      this.svc.getBusinessCardDetail(input, this.operatorMetadata(source))
-    )
+  ): Promise<GetBusinessCardDetailResponse> { return this.trustedExecution.forBusinessCall(source, 'urn:oes:service:public-entry-service', ['public-entry.business-card.read']).then((metadata) => this.call('getBusinessCardDetail', this.svc.getBusinessCardDetail(input, metadata)))
   }
 
   updateBusinessCardConfig(
     input: UpdateBusinessCardConfigRequest,
     source: DownstreamRequestSource
-  ): Promise<UpdateBusinessCardConfigResponse> {
-    return this.call(
-      'updateBusinessCardConfig',
-      this.svc.updateBusinessCardConfig(input, this.operatorMetadata(source))
-    )
+  ): Promise<UpdateBusinessCardConfigResponse> { return this.trustedExecution.forBusinessCall(source, 'urn:oes:service:public-entry-service', ['public-entry.business-card.manage']).then((metadata) => this.call('updateBusinessCardConfig', this.svc.updateBusinessCardConfig(input, metadata)))
   }
 
   updateBusinessCardContactActions(
     input: UpdateBusinessCardContactActionsRequest,
     source: DownstreamRequestSource
-  ): Promise<UpdateBusinessCardContactActionsResponse> {
-    return this.call(
-      'updateBusinessCardContactActions',
-      this.svc.updateBusinessCardContactActions(input, this.operatorMetadata(source))
-    )
+  ): Promise<UpdateBusinessCardContactActionsResponse> { return this.trustedExecution.forBusinessCall(source, 'urn:oes:service:public-entry-service', ['public-entry.business-card.manage']).then((metadata) => this.call('updateBusinessCardContactActions', this.svc.updateBusinessCardContactActions(input, metadata)))
   }
 
   enableBusinessCard(
     input: EnableBusinessCardRequest,
     source: DownstreamRequestSource
-  ): Promise<EnableBusinessCardResponse> {
-    return this.call(
-      'enableBusinessCard',
-      this.svc.enableBusinessCard(input, this.operatorMetadata(source))
-    )
+  ): Promise<EnableBusinessCardResponse> { return this.trustedExecution.forBusinessCall(source, 'urn:oes:service:public-entry-service', ['public-entry.business-card.enable']).then((metadata) => this.call('enableBusinessCard', this.svc.enableBusinessCard(input, metadata)))
   }
 
   disableBusinessCard(
     input: DisableBusinessCardRequest,
     source: DownstreamRequestSource
-  ): Promise<DisableBusinessCardResponse> {
-    return this.call(
-      'disableBusinessCard',
-      this.svc.disableBusinessCard(input, this.operatorMetadata(source))
-    )
+  ): Promise<DisableBusinessCardResponse> { return this.trustedExecution.forBusinessCall(source, 'urn:oes:service:public-entry-service', ['public-entry.business-card.disable']).then((metadata) => this.call('disableBusinessCard', this.svc.disableBusinessCard(input, metadata)))
   }
 
   bindOrRefreshBusinessCardPublicEntry(
     input: GetBusinessCardDetailRequest,
     source: DownstreamRequestSource
-  ): Promise<BindOrRefreshBusinessCardPublicEntryResponse> {
-    return this.call(
-      'bindOrRefreshBusinessCardPublicEntry',
-      this.svc.bindOrRefreshBusinessCardPublicEntry(input, this.operatorMetadata(source))
-    )
+  ): Promise<BindOrRefreshBusinessCardPublicEntryResponse> { return this.trustedExecution.forBusinessCall(source, 'urn:oes:service:public-entry-service', ['public-entry.business-card.public-entry.manage']).then((metadata) => this.call('bindOrRefreshBusinessCardPublicEntry', this.svc.bindOrRefreshBusinessCardPublicEntry(input, metadata)))
   }
 
   getBusinessCardVisitSummary(
     input: GetBusinessCardVisitSummaryRequest,
     source: DownstreamRequestSource
-  ): Promise<GetBusinessCardVisitSummaryResponse> {
-    return this.call(
-      'getBusinessCardVisitSummary',
-      this.svc.getBusinessCardVisitSummary(input, this.operatorMetadata(source))
-    )
+  ): Promise<GetBusinessCardVisitSummaryResponse> { return this.trustedExecution.forBusinessCall(source, 'urn:oes:service:public-entry-service', ['public-entry.business-card.stats.read']).then((metadata) => this.call('getBusinessCardVisitSummary', this.svc.getBusinessCardVisitSummary(input, metadata)))
   }
 
   getOwnBusinessCardPreview(
     input: GetOwnBusinessCardPreviewRequest,
     source: DownstreamRequestSource
-  ) {
-    return this.call(
-      'getOwnBusinessCardPreview',
-      this.svc.getOwnBusinessCardPreview(input, this.operatorMetadata(source))
-    )
+  ) { return this.trustedExecution.forSelfServiceCall(source, 'urn:oes:service:public-entry-service').then((metadata) => this.call('getOwnBusinessCardPreview', this.svc.getOwnBusinessCardPreview(input, metadata)))
   }
 
-  renderPublicBusinessCard(input: RenderPublicBusinessCardRequest, source: Pick<DownstreamRequestSource, 'requestId' | 'traceId'>): Promise<RenderPublicBusinessCardResponse> {
-    return this.call(
-      'renderPublicBusinessCard',
-      this.svc.renderPublicBusinessCard(input, this.internalMetadata(source))
-    )
+  renderPublicBusinessCard(input: RenderPublicBusinessCardRequest, source: DownstreamRequestSource): Promise<RenderPublicBusinessCardResponse> {
+    return this.machineExecution.forBusinessCall('urn:oes:service:public-entry-service', 'public-entry.business-card.read', { requestId: source.requestId ?? '', traceparent: source.traceparent ?? '', tracestate: source.tracestate }, (metadata) => this.call('renderPublicBusinessCard', this.svc.renderPublicBusinessCard(input, metadata)))
   }
 
-  generateBusinessCardVCard(input: GenerateBusinessCardVCardRequest, source: Pick<DownstreamRequestSource, 'requestId' | 'traceId'>): Promise<GenerateBusinessCardVCardResponse> {
-    return this.call(
-      'generateBusinessCardVCard',
-      this.svc.generateBusinessCardVCard(input, this.internalMetadata(source))
-    )
+  generateBusinessCardVCard(input: GenerateBusinessCardVCardRequest, source: DownstreamRequestSource): Promise<GenerateBusinessCardVCardResponse> {
+    return this.machineExecution.forBusinessCall('urn:oes:service:public-entry-service', 'public-entry.business-card.read', { requestId: source.requestId ?? '', traceparent: source.traceparent ?? '', tracestate: source.tracestate }, (metadata) => this.call('generateBusinessCardVCard', this.svc.generateBusinessCardVCard(input, metadata)))
   }
 
-  private operatorMetadata(source: DownstreamRequestSource) {
-    return this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
-  }
-
-  private internalMetadata(source: Pick<DownstreamRequestSource, 'requestId' | 'traceId'>) {
-    return this.metadataFactory.createInternalCallMetadata(toInternalCallMetadataInput(source))
-  }
 
   private call<T>(method: string, observable: Parameters<typeof safeGrpcCall<T>>[0]): Promise<T> {
     return safeGrpcCall<T>(observable, {

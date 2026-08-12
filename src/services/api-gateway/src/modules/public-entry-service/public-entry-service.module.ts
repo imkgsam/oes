@@ -12,7 +12,7 @@ import { PublicEntryShortLinkService } from './public-entry-short-link.service'
 
 // PublicEntryServiceProxyModule wires gateway HTTP/BFF endpoints to public-entry-service gRPC contracts.
 @Module({
-  imports: [AuthorizationModule, GrpcTransportModule.forFeature([SERVICE_NAMES.PUBLIC_ENTRY, SERVICE_NAMES.IDENTITY])],
+  imports: [AuthorizationModule, GrpcTransportModule.forFeature([SERVICE_NAMES.IDENTITY])],
   controllers: [PublicEntryShortLinkController, PublicEntryBusinessCardController],
   providers: [
     IdentityContactAssetGrpcAdapter,

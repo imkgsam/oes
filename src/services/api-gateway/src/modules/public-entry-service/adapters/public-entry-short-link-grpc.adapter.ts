@@ -1,5 +1,4 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
-import { ClientGrpc } from '@nestjs/microservices'
+import { Injectable, OnModuleInit } from '@nestjs/common'
 import {
   ChangeShortLinkStatusRequest,
   ChangeShortLinkStatusResponse,
@@ -24,17 +23,9 @@ import {
   UpdateShortLinkTargetRequest,
   UpdateShortLinkTargetResponse
 } from '@oes/common/generated/public_entry_service'
-import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory
-} from '@oes/common/authorization'
-import { SERVICE_NAMES } from '@oes/common/constants'
-import { InjectGrpcClient, safeGrpcCall } from '@oes/common/transport'
-import {
-  DownstreamRequestSource,
-  toInternalCallMetadataInput,
-  toOperatorScopedMetadataInput
-} from '../../../common/grpc/gateway-downstream-source.mapper'
+import { GatewayMachineTrustedGrpcExecutionProducer, GatewayPublicEntryGrpcClient, GatewayTrustedGrpcExecutionProducer } from '../../../common/grpc'
+import { safeGrpcCall } from '@oes/common/transport'
+import { DownstreamRequestSource } from '../../../common/grpc/gateway-downstream-source.mapper'
 
 // PublicEntryShortLinkGrpcAdapter proxies gateway calls to public-entry-service ShortLink RPCs.
 @Injectable()
@@ -42,14 +33,13 @@ export class PublicEntryShortLinkGrpcAdapter implements OnModuleInit {
   private svc!: PublicEntryShortLinkServiceClient
 
   constructor(
-    @InjectGrpcClient(SERVICE_NAMES.PUBLIC_ENTRY)
-    private readonly client: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory
+    private readonly publicEntryClient: GatewayPublicEntryGrpcClient,
+    private readonly trustedExecution: GatewayTrustedGrpcExecutionProducer,
+    private readonly machineExecution: GatewayMachineTrustedGrpcExecutionProducer
   ) {}
 
   onModuleInit(): void {
-    this.svc = this.client.getService<PublicEntryShortLinkServiceClient>(
+    this.svc = this.publicEntryClient.getClient().getService<PublicEntryShortLinkServiceClient>(
       PUBLIC_ENTRY_SHORT_LINK_SERVICE_NAME
     )
   }
@@ -58,105 +48,78 @@ export class PublicEntryShortLinkGrpcAdapter implements OnModuleInit {
     input: CreateShortLinkRequest,
     source: DownstreamRequestSource
   ): Promise<CreateShortLinkResponse> {
-    return this.call(
-      'createShortLink',
-      this.svc.createShortLink(input, this.operatorMetadata(source))
-    )
+    return this.businessCall('createShortLink', input, source, 'public-entry.short-link.create')
   }
 
   getShortLink(
     input: GetShortLinkRequest,
     source: DownstreamRequestSource
   ): Promise<GetShortLinkResponse> {
-    return this.call('getShortLink', this.svc.getShortLink(input, this.operatorMetadata(source)))
+    return this.businessCall('getShortLink', input, source, 'public-entry.short-link.read')
   }
 
   listShortLinksByTarget(
     input: ListShortLinksByTargetRequest,
     source: DownstreamRequestSource
   ): Promise<ListShortLinksByTargetResponse> {
-    return this.call(
-      'listShortLinksByTarget',
-      this.svc.listShortLinksByTarget(input, this.operatorMetadata(source))
-    )
+    return this.businessCall('listShortLinksByTarget', input, source, 'public-entry.short-link.read')
   }
 
   listShortLinks(
     input: ListShortLinksRequest,
     source: DownstreamRequestSource
   ): Promise<ListShortLinksResponse> {
-    return this.call(
-      'listShortLinks',
-      this.svc.listShortLinks(input, this.operatorMetadata(source))
-    )
+    return this.businessCall('listShortLinks', input, source, 'public-entry.short-link.read')
   }
 
   updateShortLinkTarget(
     input: UpdateShortLinkTargetRequest,
     source: DownstreamRequestSource
   ): Promise<UpdateShortLinkTargetResponse> {
-    return this.call(
-      'updateShortLinkTarget',
-      this.svc.updateShortLinkTarget(input, this.operatorMetadata(source))
-    )
+    return this.businessCall('updateShortLinkTarget', input, source, 'public-entry.short-link.update')
   }
 
   updateShortLinkMetadata(
     input: UpdateShortLinkMetadataRequest,
     source: DownstreamRequestSource
   ): Promise<UpdateShortLinkMetadataResponse> {
-    return this.call(
-      'updateShortLinkMetadata',
-      this.svc.updateShortLinkMetadata(input, this.operatorMetadata(source))
-    )
+    return this.businessCall('updateShortLinkMetadata', input, source, 'public-entry.short-link.update')
   }
 
   changeShortLinkStatus(
     input: ChangeShortLinkStatusRequest,
     source: DownstreamRequestSource
   ): Promise<ChangeShortLinkStatusResponse> {
-    return this.call(
-      'changeShortLinkStatus',
-      this.svc.changeShortLinkStatus(input, this.operatorMetadata(source))
-    )
+    const code = input.targetStatus === 2 ? 'public-entry.short-link.disable' : input.targetStatus === 3 ? 'public-entry.short-link.archive' : 'public-entry.short-link.update'
+    return this.businessCall('changeShortLinkStatus', input, source, code)
   }
 
   getShortLinkStats(
     input: GetShortLinkStatsRequest,
     source: DownstreamRequestSource
   ): Promise<GetShortLinkStatsResponse> {
-    return this.call(
-      'getShortLinkStats',
-      this.svc.getShortLinkStats(input, this.operatorMetadata(source))
-    )
+    return this.businessCall('getShortLinkStats', input, source, 'public-entry.short-link.stats.read')
   }
 
   generateShortLinkQr(
     input: GenerateShortLinkQrRequest,
     source: DownstreamRequestSource
   ): Promise<GenerateShortLinkQrResponse> {
-    return this.call(
-      'generateShortLinkQr',
-      this.svc.generateShortLinkQr(input, this.operatorMetadata(source))
-    )
+    return this.businessCall('generateShortLinkQr', input, source, 'public-entry.short-link.read')
   }
 
   resolvePublicRedirect(
     input: ResolvePublicRedirectRequest,
-    source: Pick<DownstreamRequestSource, 'requestId' | 'traceId'>
+    source: DownstreamRequestSource
   ): Promise<ResolvePublicRedirectResponse> {
-    return this.call(
-      'resolvePublicRedirect',
-      this.svc.resolvePublicRedirect(input, this.internalMetadata(source))
-    )
+    return this.machineCall('resolvePublicRedirect', input, source, 'public-entry.short-link.read')
   }
 
-  private operatorMetadata(source: DownstreamRequestSource) {
-    return this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+  private businessCall<T>(method: string, input: object, source: DownstreamRequestSource, code: string): Promise<T> {
+    return this.trustedExecution.forBusinessCall(source, 'urn:oes:service:public-entry-service', [code]).then((metadata) => this.call<T>(method, (this.svc as any)[method](input, metadata)))
   }
-
-  private internalMetadata(source: Pick<DownstreamRequestSource, 'requestId' | 'traceId'>) {
-    return this.metadataFactory.createInternalCallMetadata(toInternalCallMetadataInput(source))
+  private machineCall<T>(method: string, input: object, source: DownstreamRequestSource, code: string): Promise<T> {
+    return this.machineExecution.forBusinessCall('urn:oes:service:public-entry-service', code, { requestId: source.requestId ?? '', traceparent: source.traceparent ?? '', tracestate: source.tracestate }, (metadata) => this.call<T>(method, (this.svc as any)[method](input, metadata)))
   }
 
   private call<T>(method: string, observable: Parameters<typeof safeGrpcCall<T>>[0]): Promise<T> {

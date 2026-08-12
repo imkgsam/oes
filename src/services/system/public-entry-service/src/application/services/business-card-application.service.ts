@@ -362,8 +362,8 @@ export class BusinessCardApplicationService {
     }
   }
 
-  async generateVCard(input: PublicCardInput) {
-    const rendered = input.tenantId
+  async generateVCard(input: PublicCardInput | { businessCardId: string; traceId?: string }) {
+    const rendered = 'tenantId' in input
       ? await this.renderPublicCard(input)
       : await this.renderPublicCardById({
           businessCardId: input.businessCardId,
