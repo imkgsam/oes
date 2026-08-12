@@ -16,7 +16,9 @@ export const DownstreamSource = createParamDecorator(
     return {
       user: request.user,
       requestId: getHeaderValue(request, 'x-request-id')?.trim() || undefined,
-      traceId: getHeaderValue(request, 'x-trace-id')?.trim() || undefined
+      traceId: getHeaderValue(request, 'x-trace-id')?.trim() || undefined,
+      traceparent: getHeaderValue(request, 'traceparent')?.trim() || undefined,
+      tracestate: getHeaderValue(request, 'tracestate')?.trim() || undefined
     }
   }
 )

@@ -11,8 +11,8 @@ import { ShortLinkTargetResolverRegistry } from '../../src/application/services/
 import { QrCodeService } from '../../src/application/services/qr-code.service'
 import { attachVerifiedExecution } from '@oes/common/authorization'
 
-function human<T extends object>(request: T): T {
-  attachVerifiedExecution(request, { verifiedExecutionToken: { tenantId: 'tenant_001', subject: 'acc_admin', orgId: 'org_001' } as any, verifiedWorkloadIdentity: {} as any })
+function human<T extends object>(request: T, permissionCodes: string[] = ['public-entry.short-link.update']): T {
+  attachVerifiedExecution(request, { verifiedExecutionToken: { tenantId: 'tenant_001', subject: 'acc_admin', orgId: 'org_001', permissionCodes } as any, verifiedWorkloadIdentity: {} as any })
   return request
 }
 function machine<T extends object>(request: T): T {
@@ -80,12 +80,25 @@ describe('PublicEntryShortLinkGrpcController', () => {
       shortLinkId: created.shortLink?.id,
       targetStatus: toGrpcShortLinkStatus('DISABLED'),
       reason: 'Pause public access'
-    } as any))
+    } as any, ['public-entry.short-link.disable']))
     expect(status.status).toBe(toGrpcShortLinkStatus('DISABLED'))
   })
 
   it('rejects an unspecified status before any mutation', async () => {
     const { controller } = buildController()
     await expect(controller.changeShortLinkStatus(human({ shortLinkId: 'short-link-1', targetStatus: 0 } as any))).rejects.toThrow('ShortLink target status is invalid')
+  })
+
+  it.each([
+    [1, 'public-entry.short-link.update'],
+    [2, 'public-entry.short-link.disable'],
+    [3, 'public-entry.short-link.archive']
+  ])('requires exact status Code for %s', async (status, code) => {
+    const { controller } = buildController()
+    const request = human({ shortLinkId: 'missing', targetStatus: status } as any, [code])
+    await expect(controller.changeShortLinkStatus(request as any)).rejects.toThrow('ShortLink not found')
+    for (const wrong of ['public-entry.short-link.update', 'public-entry.short-link.disable', 'public-entry.short-link.archive'].filter((candidate) => candidate !== code)) {
+      await expect(controller.changeShortLinkStatus(human({ shortLinkId: 'missing', targetStatus: status } as any, [wrong]) as any)).rejects.toThrow('ShortLink status permission mismatch')
+    }
   })
 })

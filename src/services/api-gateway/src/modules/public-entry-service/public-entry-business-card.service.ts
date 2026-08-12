@@ -107,11 +107,11 @@ export class PublicEntryBusinessCardService {
     )
   }
 
-  renderPublicCard(businessCardId: string, source: Pick<DownstreamRequestSource, 'requestId' | 'traceId'>) {
+  renderPublicCard(businessCardId: string, source: Pick<DownstreamRequestSource, 'requestId' | 'traceId' | 'traceparent' | 'tracestate'>) {
     return this.adapter.renderPublicBusinessCard({ businessCardId }, source)
   }
 
-  generateVCard(businessCardId: string, source: Pick<DownstreamRequestSource, 'requestId' | 'traceId'>) {
+  generateVCard(businessCardId: string, source: Pick<DownstreamRequestSource, 'requestId' | 'traceId' | 'traceparent' | 'tracestate'>) {
     return this.adapter.generateBusinessCardVCard({ businessCardId }, source)
   }
 }

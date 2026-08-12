@@ -161,6 +161,8 @@ export class PublicEntryShortLinkService {
       referrer?: string
       requestId?: string
       traceId?: string
+      traceparent?: string
+      tracestate?: string
     }
   ) {
     const result = await this.adapter.resolvePublicRedirect(
@@ -171,7 +173,7 @@ export class PublicEntryShortLinkService {
         acceptLanguage: request.acceptLanguage,
         referrer: request.referrer
       },
-      { requestId: request.requestId, traceId: request.traceId }
+      { requestId: request.requestId, traceId: request.traceId, traceparent: request.traceparent, tracestate: request.tracestate }
     )
     return {
       type:

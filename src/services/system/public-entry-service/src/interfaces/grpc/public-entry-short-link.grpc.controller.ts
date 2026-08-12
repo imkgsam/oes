@@ -149,6 +149,7 @@ export class PublicEntryShortLinkGrpcController implements PublicEntryShortLinkS
     ) {
       throw new Error('ShortLink target status is invalid')
     }
+    assertStatusPermission(request, request.targetStatus)
     const result = await this.shortLinkService.changeStatus({
       tenantId: tenantFrom(request),
       shortLinkId: request.shortLinkId ?? '',
@@ -245,7 +246,6 @@ const shortLinkBusinessDeclarations: Readonly<Record<string, string>> = Object.f
   listShortLinksByTarget: 'public-entry.short-link.read',
   updateShortLinkTarget: 'public-entry.short-link.update',
   updateShortLinkMetadata: 'public-entry.short-link.update',
-  changeShortLinkStatus: 'public-entry.short-link.update',
   getShortLinkStats: 'public-entry.short-link.stats.read',
   generateShortLinkQr: 'public-entry.short-link.read'
 })
@@ -255,6 +255,27 @@ for (const [method, code] of Object.entries(shortLinkBusinessDeclarations)) {
     method,
     Object.getOwnPropertyDescriptor(PublicEntryShortLinkGrpcController.prototype, method)!
   )
+}
+AuthorizeBusinessRpc(
+  { any: ['public-entry.short-link.update', 'public-entry.short-link.disable', 'public-entry.short-link.archive'] },
+  { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+)(
+  PublicEntryShortLinkGrpcController.prototype,
+  'changeShortLinkStatus',
+  Object.getOwnPropertyDescriptor(PublicEntryShortLinkGrpcController.prototype, 'changeShortLinkStatus')!
+)
+
+/** Enforces the second-stage target-status-to-Code binding after Guard admission. */
+export function assertStatusPermission(request: object, status: GrpcShortLinkStatus): void {
+  const expected = {
+    [GrpcShortLinkStatus.SHORT_LINK_STATUS_ACTIVE]: 'public-entry.short-link.update',
+    [GrpcShortLinkStatus.SHORT_LINK_STATUS_DISABLED]: 'public-entry.short-link.disable',
+    [GrpcShortLinkStatus.SHORT_LINK_STATUS_ARCHIVED]: 'public-entry.short-link.archive'
+  }[status]
+  const codes = getAuthenticatedGrpcRequestContext(request)?.verifiedExecutionToken?.permissionCodes ?? []
+  if (!expected || codes.length !== 1 || codes[0] !== expected) {
+    throw new Error('ShortLink status permission mismatch')
+  }
 }
 AuthorizeBusinessRpc({ all: ['public-entry.short-link.read'] }, { principalType: 'MACHINE' })(
   PublicEntryShortLinkGrpcController.prototype,

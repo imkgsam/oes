@@ -9,6 +9,7 @@ import {
   buildBusinessCardLiveSmokeInputFromEnv,
   runBusinessCardLiveSmokeFlow
 } from '../../scripts/business-card-live-smoke'
+import { createPublicEntryBusinessCardLiveSmokeClient } from '../../scripts/business-card-live-smoke'
 
 // Verifies the live smoke orchestrates the real BusinessCard gRPC contract without accepting arbitrary self-view targets.
 describe('BusinessCard live smoke flow', () => {
@@ -205,5 +206,24 @@ describe('BusinessCard live smoke flow', () => {
     })
 
     expect(input.hrOfficialPhotoUrl).toBe('')
+  })
+
+  it('keeps Gateway redirects manual and sends the same W3C trace headers', async () => {
+    const saved = { traceparent: process.env.BUSINESS_CARD_LIVE_TRACEPARENT, tracestate: process.env.BUSINESS_CARD_LIVE_TRACESTATE }
+    process.env.BUSINESS_CARD_LIVE_TRACEPARENT = '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01'
+    process.env.BUSINESS_CARD_LIVE_TRACESTATE = 'vendor=value'
+    const fetchMock = jest.spyOn(globalThis, 'fetch').mockResolvedValue({ status: 302, headers: new Headers({ location: '/public/card' }) } as Response)
+    try {
+      const client = createPublicEntryBusinessCardLiveSmokeClient('http://gateway.test')
+      await expect(client.resolvePublicRedirect({ shortCode: 'abc' })).resolves.toEqual({ resultType: PublicRedirectResultType.PUBLIC_REDIRECT_RESULT_TYPE_REDIRECT, location: '/public/card' })
+      expect(fetchMock).toHaveBeenCalledWith('http://gateway.test/c/abc', expect.objectContaining({ redirect: 'manual', headers: expect.any(Headers) }))
+      const headers = (fetchMock.mock.calls[0][1] as RequestInit).headers as Headers
+      expect(headers.get('traceparent')).toBe(process.env.BUSINESS_CARD_LIVE_TRACEPARENT)
+      expect(headers.get('tracestate')).toBe('vendor=value')
+    } finally {
+      fetchMock.mockRestore()
+      if (saved.traceparent === undefined) delete process.env.BUSINESS_CARD_LIVE_TRACEPARENT; else process.env.BUSINESS_CARD_LIVE_TRACEPARENT = saved.traceparent
+      if (saved.tracestate === undefined) delete process.env.BUSINESS_CARD_LIVE_TRACESTATE; else process.env.BUSINESS_CARD_LIVE_TRACESTATE = saved.tracestate
+    }
   })
 })

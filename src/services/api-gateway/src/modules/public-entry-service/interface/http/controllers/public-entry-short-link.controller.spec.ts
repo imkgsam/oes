@@ -80,6 +80,7 @@ describe('PublicEntryShortLinkController', () => {
           referer: 'https://source.example',
           'x-request-id': 'req-public',
           'x-trace-id': 'trace-public'
+          , traceparent: '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01'
         },
         ip: '10.0.0.2'
       } as never,
@@ -93,6 +94,7 @@ describe('PublicEntryShortLinkController', () => {
       referrer: 'https://source.example',
       requestId: 'req-public',
       traceId: 'trace-public'
+      , traceparent: '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01'
     })
     expect(redirectResponse.redirect).toHaveBeenCalledWith(302, 'https://example.com/card')
     expect(redirectResponse.send).not.toHaveBeenCalled()

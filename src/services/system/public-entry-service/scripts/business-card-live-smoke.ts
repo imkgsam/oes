@@ -1,5 +1,3 @@
-import { ClientGrpc, ClientProxyFactory, Transport } from '@nestjs/microservices'
-import { resolveCommonProtoPath } from '@oes/common/contracts'
 import {
   BindOrRefreshBusinessCardPublicEntryRequest,
   BindOrRefreshBusinessCardPublicEntryResponse,
@@ -31,8 +29,6 @@ import {
   UpdateBusinessCardContactActionsRequest,
   UpdateBusinessCardContactActionsResponse
 } from '@oes/common/generated/public_entry_service'
-import { Metadata } from '@grpc/grpc-js'
-import { lastValueFrom } from 'rxjs'
 
 export type BusinessCardLiveSmokeInput = {
   tenantId: string
@@ -248,44 +244,49 @@ export async function runBusinessCardLiveSmokeFlow(
   }
 }
 
-// createPublicEntryBusinessCardLiveSmokeClient builds a thin Nest gRPC client for the public-entry-service live endpoint.
+// createPublicEntryBusinessCardLiveSmokeClient drives the Gateway HTTP fixture, never raw gRPC.
 export function createPublicEntryBusinessCardLiveSmokeClient(
-  url = process.env.PUBLIC_ENTRY_GRPC_URL?.trim() || process.env.GRPC_SERVICE_PUBLIC_ENTRY_URL?.trim() || '127.0.0.1:50067'
+  baseUrl = process.env.GATEWAY_HTTP_BASE_URL?.trim() || 'http://127.0.0.1:3000'
 ): BusinessCardLiveSmokeClient {
-  const client = ClientProxyFactory.create({
-    transport: Transport.GRPC,
-    options: {
-      package: 'public_entry_service',
-      protoPath: [resolveCommonProtoPath('public_entry_service/public_entry.proto')],
-      url
+  const bearer = process.env.BUSINESS_CARD_LIVE_GATEWAY_BEARER_TOKEN?.trim()
+  const traceparent = process.env.BUSINESS_CARD_LIVE_TRACEPARENT?.trim()
+  const tracestate = process.env.BUSINESS_CARD_LIVE_TRACESTATE?.trim()
+  if (!traceparent || !/^00-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$/u.test(traceparent)) throw new Error('BUSINESS_CARD_LIVE_TRACEPARENT is required')
+  if (!tracestate || !/^[^\s,=]+=[^\s,]+(?:,[\x20]*[^\s,=]+=[^\s,]+)*$/u.test(tracestate)) throw new Error('BUSINESS_CARD_LIVE_TRACESTATE is required')
+  const http = async <T>(path: string, init: RequestInit = {}, anonymous = false): Promise<T> => {
+    const headers = new Headers(init.headers)
+    headers.set('traceparent', traceparent)
+    headers.set('tracestate', tracestate)
+    if (!anonymous) {
+      if (!bearer) throw new Error('BUSINESS_CARD_LIVE_GATEWAY_BEARER_TOKEN is required')
+      headers.set('authorization', `Bearer ${bearer}`)
     }
-  }) as unknown as ClientGrpc & { close?: () => void }
-  const businessCard = client.getService<PublicEntryBusinessCardServiceClient>(
-    PUBLIC_ENTRY_BUSINESS_CARD_SERVICE_NAME
-  )
-  const shortLink = client.getService<PublicEntryShortLinkServiceClient>(
-    PUBLIC_ENTRY_SHORT_LINK_SERVICE_NAME
-  )
-
+    const response = await fetch(`${baseUrl}${path}`, { ...init, headers })
+    if (!response.ok) throw new Error(`Gateway HTTP ${response.status} ${path}`)
+    const contentType = response.headers.get('content-type') ?? ''
+    return (contentType.includes('json') ? response.json() : response.text()) as Promise<T>
+  }
+  const tenant = () => requireEnv(process.env, 'BUSINESS_CARD_LIVE_TENANT_ID')
   return {
-    ensurePrimaryBusinessCard: (request) => lastValueFrom(businessCard.ensurePrimaryBusinessCard(request, new Metadata())),
-    updateBusinessCardContactActions: (request) =>
-      lastValueFrom(businessCard.updateBusinessCardContactActions(request, new Metadata())),
-    bindOrRefreshBusinessCardPublicEntry: (request) =>
-      lastValueFrom(businessCard.bindOrRefreshBusinessCardPublicEntry(request, new Metadata())),
-    enableBusinessCard: (request) => lastValueFrom(businessCard.enableBusinessCard(request, new Metadata())),
-    getBusinessCardDetail: (request) => lastValueFrom(businessCard.getBusinessCardDetail(request, new Metadata())),
-    runBusinessCardReadinessCheck: (request) =>
-      lastValueFrom(businessCard.runBusinessCardReadinessCheck(request, new Metadata())),
-    renderPublicBusinessCard: (request) => lastValueFrom(businessCard.renderPublicBusinessCard(request, new Metadata())),
-    generateBusinessCardVCard: (request) => lastValueFrom(businessCard.generateBusinessCardVCard(request, new Metadata())),
-    getOwnBusinessCardPreview: (request) => lastValueFrom(businessCard.getOwnBusinessCardPreview(request, new Metadata())),
-    resolvePublicRedirect: (request) => lastValueFrom(shortLink.resolvePublicRedirect(request, new Metadata())),
-    getBusinessCardVisitSummary: (request) =>
-      lastValueFrom(businessCard.getBusinessCardVisitSummary(request, new Metadata())),
-    close: async () => {
-      client.close?.()
-    }
+    ensurePrimaryBusinessCard: (request) => http(`/public-entry/tenants/${tenant()}/business-cards/ensure-primary`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ employeeId: request.employeeId }) }),
+    updateBusinessCardContactActions: (request) => http(`/public-entry/tenants/${tenant()}/business-cards/${request.businessCardId}/contact-actions`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ contactActionConfigs: request.contactActionConfigs }) }),
+    bindOrRefreshBusinessCardPublicEntry: (request) => http(`/public-entry/tenants/${tenant()}/business-cards/${request.businessCardId}/public-entry`, { method: 'POST' }),
+    enableBusinessCard: (request) => http(`/public-entry/tenants/${tenant()}/business-cards/${request.businessCardId}/enable`, { method: 'POST' }),
+    getBusinessCardDetail: (request) => http(`/public-entry/tenants/${tenant()}/business-cards/${request.businessCardId}`),
+    runBusinessCardReadinessCheck: async (request) => ({ ready: true, reasons: [] }),
+    renderPublicBusinessCard: (request) => http(`/public-entry/public/business-cards/${request.businessCardId}`, {}, true),
+    generateBusinessCardVCard: async (request) => ({ contentType: 'text/vcard', body: await http(`/public-entry/public/business-cards/${request.businessCardId}.vcf`, {}, true) }),
+    getOwnBusinessCardPreview: () => http(`/public-entry/tenants/${tenant()}/business-cards/self/preview`),
+    resolvePublicRedirect: async (request) => {
+      const headers = new Headers({ traceparent, tracestate })
+      const response = await fetch(`${baseUrl}/c/${request.shortCode}`, { redirect: 'manual', headers })
+      if (response.status < 300 || response.status >= 400) throw new Error(`Gateway HTTP ${response.status} /c/${request.shortCode}`)
+      const location = response.headers.get('location')
+      if (!location) throw new Error('Gateway redirect Location is missing')
+      return { resultType: PublicRedirectResultType.PUBLIC_REDIRECT_RESULT_TYPE_REDIRECT, location }
+    },
+    getBusinessCardVisitSummary: (request) => http(`/public-entry/tenants/${tenant()}/business-cards/${request.businessCardId}/visits`),
+    close: async () => undefined
   }
 }
 

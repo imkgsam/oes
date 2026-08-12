@@ -38,7 +38,9 @@ export class PublicEntryShortLinkController {
       acceptLanguage: getHeaderValue(request, 'accept-language'),
       referrer: getHeaderValue(request, 'referer'),
       requestId: getHeaderValue(request, 'x-request-id'),
-      traceId: getHeaderValue(request, 'x-trace-id')
+      traceId: getHeaderValue(request, 'x-trace-id'),
+      traceparent: getHeaderValue(request, 'traceparent'),
+      tracestate: getHeaderValue(request, 'tracestate')
     })
 
     if (result.type === 'REDIRECT') {
