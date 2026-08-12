@@ -133,6 +133,7 @@ const PUBLIC_ENTRY_AUDIENCE = 'urn:oes:service:public-entry-service'
     GatewayBrowserActivityGrpcClient,
     GatewayTerminalDeviceGrpcClient,
     GatewayFinanceGrpcClient,
+    GatewaySalesGrpcClient,
     GatewayPublicEntryGrpcClient,
     GatewayTrustedGrpcExecutionProducer,
     GatewayMachineWorkloadSourceCredentialProvider,

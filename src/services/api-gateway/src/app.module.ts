@@ -294,15 +294,6 @@ const siteGrpcLoaderOptions = { longs: String, arrays: true }
               ? `${process.env.WMS_SERVICE_HOST}:${process.env.WMS_SERVICE_PORT}`
               : 'localhost:50064'
         },
-        'sales-service': {
-          serviceName: 'sales-service',
-          protoPath: resolveCommonProtoPath('sales_service/sales.proto'),
-          packageName: 'sales_service',
-          url:
-            process.env.SALES_SERVICE_HOST && process.env.SALES_SERVICE_PORT
-              ? `${process.env.SALES_SERVICE_HOST}:${process.env.SALES_SERVICE_PORT}`
-              : 'localhost:50059'
-        }
       },
       defaultPoolConfig: { minSize: 3, maxSize: 3 }
     }),

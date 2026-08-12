@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common'
-import { AuthorizationModule } from '@oes/common/authorization'
-import { GrpcTransportModule } from '@oes/common/transport'
+import { GatewayTrustedGrpcExecutionModule } from '../../common/grpc/gateway-trusted-grpc-execution.module'
 import { PricingManagementGrpcAdapter } from './adapters/pricing-management-grpc.adapter'
 import { PricingQueryGrpcAdapter } from './adapters/pricing-query-grpc.adapter'
 import { SalesManagementGrpcAdapter } from './adapters/sales-management-grpc.adapter'
@@ -9,7 +8,7 @@ import { SalesController } from './interface/http/controllers/sales.controller'
 import { SalesService } from './sales.service'
 
 @Module({
-  imports: [AuthorizationModule, GrpcTransportModule.forFeature(['sales-service'])],
+  imports: [GatewayTrustedGrpcExecutionModule],
   controllers: [SalesController],
   providers: [
     SalesQueryGrpcAdapter,

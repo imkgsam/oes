@@ -2,6 +2,9 @@ import { GatewayMachineTrustedGrpcExecutionProducer } from './gateway-machine-tr
 import { GatewayMachineWorkloadSourceCredentialProvider } from './gateway-machine-workload-source-credential.provider'
 import { GatewayTrustedGrpcExecutionModule } from './gateway-trusted-grpc-execution.module'
 import { GatewayTrustedGrpcExecutionProducer } from './gateway-trusted-grpc-execution-producer'
+import { GatewaySalesGrpcClient } from './gateway-sales-grpc.client'
+import { Module } from '@nestjs/common'
+import { Test } from '@nestjs/testing'
 
 type FactoryProvider = {
   provide: unknown
@@ -37,6 +40,7 @@ describe('GatewayTrustedGrpcExecutionModule wiring', () => {
     ).toEqual(
       expect.arrayContaining([
         GatewayTrustedGrpcExecutionProducer,
+        GatewaySalesGrpcClient,
         GatewayMachineWorkloadSourceCredentialProvider,
         GatewayMachineTrustedGrpcExecutionProducer
       ])
@@ -44,6 +48,7 @@ describe('GatewayTrustedGrpcExecutionModule wiring', () => {
     expect(exports).toEqual(
       expect.arrayContaining([
         GatewayTrustedGrpcExecutionProducer,
+        GatewaySalesGrpcClient,
         GatewayMachineWorkloadSourceCredentialProvider,
         GatewayMachineTrustedGrpcExecutionProducer
       ])
@@ -61,6 +66,13 @@ describe('GatewayTrustedGrpcExecutionModule wiring', () => {
       'urn:oes:service:sales-service',
       'urn:oes:service:public-entry-service'
     ])
+  })
+
+  it('exports the dedicated Sales client to a consumer module through the real Nest DI graph', async () => {
+    @Module({ imports: [GatewayTrustedGrpcExecutionModule] })
+    class ConsumerModule {}
+    const module = await Test.createTestingModule({ imports: [ConsumerModule] }).compile()
+    expect(module.get(GatewaySalesGrpcClient)).toBeInstanceOf(GatewaySalesGrpcClient)
   })
 
   it('fails closed when deployment trust configuration is absent instead of installing a default producer', () => {
