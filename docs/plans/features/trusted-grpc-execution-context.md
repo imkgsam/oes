@@ -1293,8 +1293,8 @@ The three anonymous HTTP routes have no HUMAN ET. Gateway reuses the existing MA
 
 ```yaml
 publicEntryTrustedGrpcImplementationLease:
-  totalTrackedWriterPaths: 51
-  stateCounts: { EXISTING: 45, NEW_TARGET: 6 }
+  totalTrackedWriterPaths: 52
+  stateCounts: { EXISTING: 45, NEW_TARGET: 7 }
   trackedWriterPaths:
     publicEntryProtoContract:
       - { state: EXISTING, path: src/common/src/contracts/public_entry_service/public_entry.proto }
@@ -1328,6 +1328,7 @@ publicEntryTrustedGrpcImplementationLease:
       - { state: EXISTING, path: src/services/api-gateway/src/modules/public-entry-service/interface/http/controllers/public-entry-business-card.controller.ts }
       - { state: EXISTING, path: src/services/api-gateway/src/modules/public-entry-service/interface/http/controllers/public-entry-business-card.controller.spec.ts }
       - { state: NEW_TARGET, path: src/services/api-gateway/src/modules/public-entry-service/interface/http/controllers/public-entry.integration.spec.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/modules/public-entry-service/adapters/public-entry-dedicated-client.spec.ts }
 
     publicEntryTrustedRuntime:
       - { state: EXISTING, path: src/services/system/public-entry-service/src/main.ts }
