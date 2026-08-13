@@ -806,6 +806,8 @@ The next and only active implementation lane is one current-main Collaboration w
 
 Collaboration implementation completed and integrated: corrective candidate `c8c8a810108ec19f35a527e25ace6cdead433e93` over `759ea14054427c6c8f109df51c486db64e429e1e` was accepted by the persistent I&V and fast-forward integrated/pushed once. Final main/local origin/main/remote are `c8c8a810`, root is clean, and the implementation task `019ffa89-db00-7763-b5a7-df21daaa3fc7` is archived. The source branch/worktree `codex/migration/collaboration-trusted-grpc` / `.worktrees/migration/collaboration-trusted-grpc` is `MERGED_WAITING_FOR_USER_CLEANUP`; rejected `759ea140` remains preserved as superseded evidence.
 
+Party routing correction: a temporary second UD `019ffaf0-2086-7da3-96a2-5fdf65a9bc31` was created in error, performed read-only analysis only, and was immediately archived without document writes or implementation dispatch. Party design is returned to the sole persistent UD `019fcaeb-cb2e-7e92-8c4e-aab7771d7254`; its unused design worktree/branch remains preserved and clean until final cleanup.
+
 SITE recovery implementation `547a0c5d55f9a955543779ec584a16e9b05cf453` 已 `ACCEPTED_AND_INTEGRATED`；Site 59+7、Site Media 11、Gateway/Asset/Event/R2-purge 链与验证矩阵完成。AI/ActionGrant runtime 保持 deferred，API-KEY rejected prototype 永不进入 main；无 checker。
 
 本次退役迁移的Git与内容保全阶段已经完成：有用设计与实现已进入`main`或持久evidence ref，拒绝/取代证据已分类。legacy task archive阶段仍在纠错收口：post-closure exact-ID复核发现19项`archived=0`，SITE、PRINCIPAL-ROLE、EXEC-CRYPTO与GRPC共13项已关闭，当前其余6项按能力逐项审计。全仓 trusted gRPC service cutover 是独立的后续执行主线，目前仅 Asset/Site 完成、19服务 pending，不因 legacy GRPC 线程归档而关闭。临时closure Git资源在各批次记录集成后正常移除，最终继续只保留root `main`。本文件只承担迁移关闭证据与归档manifest，不作为设计或实现真相源。
