@@ -98,7 +98,7 @@ The implementation inventory script at `scripts/architecture/trusted-grpc-signat
 
 ### 3.1 Current-main global cutover status
 
-Overall execution status is `GRPC_FOUNDATION_COMPLETE_GLOBAL_SERVICE_CUTOVER_PENDING` at current-main `584be36794435f8c4688a09197e2f49ee9cf336a`. The 54 generated files expose all 590 required explicit metadata signatures with zero missing signatures; this proves the shared call-signature foundation only. It does not prove that a target service has classified every contract, prepared every caller, enabled Token-only server enforcement or removed its legacy trust path.
+Overall execution status is `GRPC_FOUNDATION_COMPLETE_GLOBAL_SERVICE_CUTOVER_PENDING` at current-main `ec1ef2b19f66da2ef0287b887f7d2805534c6764`. The 54 generated files expose all 590 required explicit metadata signatures with zero missing signatures; this proves the shared call-signature foundation only. It does not prove that a target service has classified every contract, prepared every caller, enabled Token-only server enforcement or removed its legacy trust path.
 
 The persistent execution owner is **OES Trusted gRPC Service Migration** (`019ff138-ed1c-7b82-8cd4-865bdb6529bd`). The prior delivery-mode owner `019ff07e-d441-7731-acdb-1a9d262661a9` and approval-stalled predecessor `019fe9f8-5a44-76e1-b5a4-110db9da6d59` are archived with their WIP histories preserved. The former A/C/GRPC lane is historical, migration-frozen evidence and is not the active controller for the remaining cutover.
 
@@ -112,9 +112,9 @@ The persistent execution owner is **OES Trusted gRPC Service Migration** (`019ff
 | Notification | 2 / 1 | Y | Y | Y | Y | Auth; implemented and verified at `cc253986a86c6b8a063984cbb1874cf00fd20a60` |
 | Terminal Device | 17 / 1 | Y | Y | Y | Y | Gateway; implemented and verified at `4667305797a90fe8789067183b8f5ef732ee6f02` |
 | Finance | 27 / 2 | Y | Y | Y | Y | Gateway; implemented and verified at `caa7a5c08c0d30792317b328b27a14ef625ef6cc` |
-| Public Entry | 23 / 2 | N | N | N | N | Gateway; pending |
+| Public Entry | 23 / 2 | Y | Y | Y | Y | Gateway; implemented and verified at `bda36bffbdc28132872d4bed967adb93c2a92b9e` |
 | Sales | 27 / 4 | Y | Y | Y | Y | Gateway; implemented and verified in current main at `584be36794435f8c4688a09197e2f49ee9cf336a` |
-| MES | 32 / 4 | Y | N | N | N | Gateway; contract frozen, implementation pending |
+| MES | 32 / 4 | Y | Y | Y | Y | Gateway; implemented and verified at `ec1ef2b19f66da2ef0287b887f7d2805534c6764` |
 | Collaboration | 16 / 4 | N | N | N | N | Gateway; second batch |
 | CRM | 15 / 3 | N | N | N | N | Gateway, Collaboration; second batch |
 | Procurement | 21 / 2 | N | N | N | N | Gateway, WMS; second batch |
@@ -127,7 +127,7 @@ The persistent execution owner is **OES Trusted gRPC Service Migration** (`019ff
 | Identity | 41 / 3 | N | N | N | N | Gateway, Auth, Permission, HR; foundation partial only |
 | Permission | 66 / 8 | N | N | N | N | Gateway, Auth, HR, TenantOrg, WMS; bootstrap partial only |
 | Auth | 70 / 1 | N | N | N | N | Gateway, HR, Site, TenantOrg; MACHINE foundation complete, full service pending |
-| **Total / proven state** | **560 / 51** | **8 Y / 13 N** | **7 Y / 14 N** | **7 Y / 14 N** | **7 Y / 14 N** | **Asset, Site, Browser Activity, Notification, Terminal Device, Finance and Sales complete; MES contract classified; 14 services pending implementation/cutover** |
+| **Total / proven state** | **560 / 51** | **9 Y / 12 N** | **9 Y / 12 N** | **9 Y / 12 N** | **9 Y / 12 N** | **Asset, Site, Browser Activity, Notification, Terminal Device, Finance, Public Entry, Sales and MES complete; 12 services pending implementation/cutover** |
 
 The frozen order in §6 remains authoritative. Migration continues one target service at a time; completing the Auth, Identity, Permission, Gateway or Common foundation does not implicitly advance an unverified service row.
 
@@ -1285,7 +1285,7 @@ Acceptance proves 27/27 exact BUSINESS declarations and zero unclassified/duplic
 
 ### 9.6 Public Entry 23-RPC frozen cutover lease
 
-Status: `FROZEN_PENDING_IMPLEMENTATION` in the authoritative matrix. This slice only replaces the current legacy gRPC trust inputs for the existing 23 RPCs; it adds no Public Entry business capability, Permission Code, database object, outbound-service cutover or anonymous no-Token gRPC mode.
+Status: `IMPLEMENTED_VERIFIED`. Public Entry trusted gRPC was accepted and integrated at `bda36bffbdc28132872d4bed967adb93c2a92b9e`; the implementation preserved the exact 23-RPC contract and remains within the frozen 52-path lease. This slice adds no Public Entry business capability, Permission Code, database object, outbound-service cutover or anonymous no-Token gRPC mode.
 
 The exact matrix is frozen in [Public Entry contracts](../../contracts/public-entry-service/README.md) §3: 19 admin RPCs are `BUSINESS / HUMAN / WEB`, `GetOwnBusinessCardPreview` is `SELF_SERVICE / HUMAN / WEB` with an empty Code set and `allowDelegated=false`, and `ResolvePublicRedirect`, `RenderPublicBusinessCard` and `GenerateBusinessCardVCard` are narrow `BUSINESS / SYSTEM MACHINE` calls from the exact Gateway workload. The public calls use only the existing read Codes (`public-entry.short-link.read` and `public-entry.business-card.read`) with `aud=urn:oes:service:public-entry-service`; SYSTEM is not a tenant wildcard and Public Entry derives tenant/resource facts from its own records. `ChangeShortLinkStatus` keeps its existing three-Code status binding and validates the target status before mutation. The 41 request authority fields and `OperatorContext` tombstone reservations in the contract are deleted from supported wire input; observation fields remain bounded telemetry payload. All legacy body, ordinary-metadata and signed-operator fallback is rejected. HR, Identity, Permission and TenantOrg outbound edges stay on their current contracts and migrate only with those target services.
 
@@ -1512,7 +1512,7 @@ Acceptance proves 27/27 exact BUSINESS declarations and zero unclassified or dua
 
 ### 9.8 MES 32-RPC frozen cutover lease
 
-Status: `FROZEN_PENDING_IMPLEMENTATION`. This slice only migrates the existing 32 MES RPCs from legacy body/ordinary-metadata authority to trusted gRPC. It adds no MES business capability, Permission Code, database object, cross-service RPC, event, PDA/device mode or outbound-service cutover.
+Status: `IMPLEMENTED_VERIFIED`. MES trusted gRPC was accepted and integrated at `ec1ef2b19f66da2ef0287b887f7d2805534c6764`, using 28 of the 39 frozen writer paths. Final acceptance proved 32/32 BUSINESS HUMAN WEB declarations, exact Code and tenant-scope enforcement, Token-only mTLS transport, removal of legacy body/ordinary-metadata authority and the raw smoke caller, and the focused proto, inventory, Common/Gateway/MES build and security gates. The repository L2 command remained environment-limited because `DATABASE_URL` was unavailable; this is preserved as a literal verification limitation and is not represented as an L2 pass. The implementation adds no MES business capability, Permission Code, database object, cross-service RPC, event, PDA/device mode or outbound-service cutover.
 
 All 32 RPCs are `BUSINESS / HUMAN / WEB`, require `aud=urn:oes:service:mes-service`, exact mTLS/`cnf` binding and `all [exactCode]`, and reject MACHINE, DELEGATED, SELF_SERVICE and non-WEB sessions:
 
