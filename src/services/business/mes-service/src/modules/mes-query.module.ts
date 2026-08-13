@@ -4,10 +4,11 @@ import { ProductionSpecQueryService } from '../application/services/production-s
 import { MesMoldQueryService } from '../application/services/mes-mold-query.service'
 import { ProductionSpecQueryGrpcController } from '../interfaces/grpc/production-spec-query.grpc.controller'
 import { MesQueryGrpcController } from '../interfaces/grpc/mes-query.grpc.controller'
+import { MesTrustedExecutionModule } from './mes-trusted-execution.module'
 
 /** MesQueryModule wires the current ProductionSpec and Mold / Tooling query services and gRPC controllers. */
 @Module({
-  imports: [CqrsModule],
+  imports: [CqrsModule, MesTrustedExecutionModule],
   providers: [MesMoldQueryService, ProductionSpecQueryService],
   controllers: [MesQueryGrpcController, ProductionSpecQueryGrpcController]
 })

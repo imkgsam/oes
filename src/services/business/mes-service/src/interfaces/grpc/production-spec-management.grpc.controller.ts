@@ -1,7 +1,8 @@
-import { Controller, UseFilters } from '@nestjs/common'
+import { Controller, UseFilters, UseGuards } from '@nestjs/common'
 import { GrpcRequestContextStore } from '@oes/common/authorization'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import { GrpcExceptionFilter } from '@oes/common/filters'
+import { AuthorizeBusinessRpc, TrustedExecutionGuard } from '@oes/common/authorization'
 import {
   ActivateProductionSpecRequest,
   ActivateProductionSpecResponse,
@@ -20,6 +21,7 @@ import { MesRpcContextValidator } from './mes-rpc-context.validator'
 
 /** ProductionSpecManagementGrpcController maps the generated ProductionSpec command contract into application use cases. */
 @UseFilters(GrpcExceptionFilter)
+@UseGuards(TrustedExecutionGuard)
 @Controller()
 @ProductionSpecManagementServiceControllerMethods()
 export class ProductionSpecManagementGrpcController implements ProductionSpecManagementServiceController {
@@ -29,8 +31,9 @@ export class ProductionSpecManagementGrpcController implements ProductionSpecMan
   ) {}
 
   /** createProductionSpec validates the RPC envelope and forwards the command payload without domain rules. */
+  @AuthorizeBusinessRpc({ all: ['mes.production_spec.manage'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async createProductionSpec(request: CreateProductionSpecRequest): Promise<CreateProductionSpecResponse> {
-    const context = MesRpcContextValidator.assertManagementContext(request)
+    const context = MesRpcContextValidator.assertManagementContext(request, 'CreateProductionSpec')
     return this.runWithContext(context, async () =>
       ProductionSpecGrpcPresenter.toCreateProductionSpecResponse(
         await this.managementService.createProductionSpec({
@@ -49,8 +52,9 @@ export class ProductionSpecManagementGrpcController implements ProductionSpecMan
   }
 
   /** updateProductionSpec validates the RPC envelope and forwards mutable fields to the application layer. */
+  @AuthorizeBusinessRpc({ all: ['mes.production_spec.manage'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async updateProductionSpec(request: UpdateProductionSpecRequest): Promise<UpdateProductionSpecResponse> {
-    const context = MesRpcContextValidator.assertManagementContext(request)
+    const context = MesRpcContextValidator.assertManagementContext(request, 'UpdateProductionSpec')
     return this.runWithContext(context, async () =>
       ProductionSpecGrpcPresenter.toUpdateProductionSpecResponse(
         await this.managementService.updateProductionSpec({
@@ -68,8 +72,9 @@ export class ProductionSpecManagementGrpcController implements ProductionSpecMan
   }
 
   /** activateProductionSpec validates the RPC envelope and forwards the lifecycle transition command. */
+  @AuthorizeBusinessRpc({ all: ['mes.production_spec.manage'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async activateProductionSpec(request: ActivateProductionSpecRequest): Promise<ActivateProductionSpecResponse> {
-    const context = MesRpcContextValidator.assertManagementContext(request)
+    const context = MesRpcContextValidator.assertManagementContext(request, 'ActivateProductionSpec')
     return this.runWithContext(context, async () =>
       ProductionSpecGrpcPresenter.toActivateProductionSpecResponse(
         await this.managementService.activateProductionSpec({
@@ -84,8 +89,9 @@ export class ProductionSpecManagementGrpcController implements ProductionSpecMan
   }
 
   /** retireProductionSpec validates the RPC envelope and forwards the lifecycle transition command. */
+  @AuthorizeBusinessRpc({ all: ['mes.production_spec.manage'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async retireProductionSpec(request: RetireProductionSpecRequest): Promise<RetireProductionSpecResponse> {
-    const context = MesRpcContextValidator.assertManagementContext(request)
+    const context = MesRpcContextValidator.assertManagementContext(request, 'RetireProductionSpec')
     return this.runWithContext(context, async () =>
       ProductionSpecGrpcPresenter.toRetireProductionSpecResponse(
         await this.managementService.retireProductionSpec({

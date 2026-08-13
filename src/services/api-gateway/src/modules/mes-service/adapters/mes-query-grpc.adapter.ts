@@ -1,4 +1,4 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
+import { Injectable, OnModuleInit } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
 import {
   GetMoldDesignRequest,
@@ -34,17 +34,12 @@ import {
   ResolveProductionSpecsForMoldRequest,
   ResolveProductionSpecsForMoldResponse
 } from '@oes/common/generated/mes_service'
+
+import { safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
 import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory
-} from '@oes/common/authorization'
-import { SERVICE_NAMES } from '@oes/common/constants'
-import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
-import {
-  DownstreamRequestSource,
-  toOperatorScopedMetadataInput
+  DownstreamRequestSource
 } from '../../../common/grpc/gateway-downstream-source.mapper'
-import { buildMesOperatorContext, buildMesTraceContext } from './mes-grpc-context'
+import { GatewayMesGrpcClient, GatewayTrustedGrpcExecutionProducer } from '../../../common/grpc'
 
 const CALLER = 'api-gateway'
 
@@ -55,10 +50,8 @@ export class MesQueryGrpcAdapter implements OnModuleInit {
   private moldSvc!: MoldQueryServiceClient
 
   constructor(
-    @InjectGrpcClient(SERVICE_NAMES.MES)
-    private readonly client: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory
+    private readonly client: GatewayMesGrpcClient,
+    private readonly trustedExecution: GatewayTrustedGrpcExecutionProducer
   ) {}
 
   /** onModuleInit resolves the generated MES query service clients. */
@@ -70,7 +63,7 @@ export class MesQueryGrpcAdapter implements OnModuleInit {
   }
 
   /** getProductionSpec forwards one ProductionSpec detail read. */
-  getProductionSpec(
+  async getProductionSpec(
     input: Omit<GetProductionSpecRequest, 'operatorContext' | 'traceContext'>,
     source: DownstreamRequestSource
   ): Promise<GetProductionSpecResponse> {
@@ -78,13 +71,13 @@ export class MesQueryGrpcAdapter implements OnModuleInit {
       'getProductionSpec',
       this.productionSpecSvc.getProductionSpec(
         this.attachQueryContext(input, source),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['mes.production_spec.read'])
       )
     )
   }
 
   /** listProductionSpecs forwards one ProductionSpec directory read. */
-  listProductionSpecs(
+  async listProductionSpecs(
     input: Omit<ListProductionSpecsRequest, 'operatorContext' | 'traceContext'>,
     source: DownstreamRequestSource
   ): Promise<ListProductionSpecsResponse> {
@@ -92,13 +85,13 @@ export class MesQueryGrpcAdapter implements OnModuleInit {
       'listProductionSpecs',
       this.productionSpecSvc.listProductionSpecs(
         this.attachQueryContext(input, source),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['mes.production_spec.read'])
       )
     )
   }
 
   /** resolveProductionSpecsForMold forwards one mold-facing ProductionSpec resolution query. */
-  resolveProductionSpecsForMold(
+  async resolveProductionSpecsForMold(
     input: Omit<ResolveProductionSpecsForMoldRequest, 'operatorContext' | 'traceContext'>,
     source: DownstreamRequestSource
   ): Promise<ResolveProductionSpecsForMoldResponse> {
@@ -106,13 +99,13 @@ export class MesQueryGrpcAdapter implements OnModuleInit {
       'resolveProductionSpecsForMold',
       this.productionSpecSvc.resolveProductionSpecsForMold(
         this.attachQueryContext(input, source),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['mes.production_spec.read'])
       )
     )
   }
 
   /** getMoldDesign forwards one MoldDesign detail read. */
-  getMoldDesign(
+  async getMoldDesign(
     input: Omit<GetMoldDesignRequest, 'operatorContext' | 'traceContext'>,
     source: DownstreamRequestSource
   ): Promise<GetMoldDesignResponse> {
@@ -120,13 +113,13 @@ export class MesQueryGrpcAdapter implements OnModuleInit {
       'getMoldDesign',
       this.moldSvc.getMoldDesign(
         this.attachQueryContext(input, source),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['mes.mold_design.read'])
       )
     )
   }
 
   /** listMoldDesigns forwards one MoldDesign directory read. */
-  listMoldDesigns(
+  async listMoldDesigns(
     input: Omit<ListMoldDesignsRequest, 'operatorContext' | 'traceContext'>,
     source: DownstreamRequestSource
   ): Promise<ListMoldDesignsResponse> {
@@ -134,13 +127,13 @@ export class MesQueryGrpcAdapter implements OnModuleInit {
       'listMoldDesigns',
       this.moldSvc.listMoldDesigns(
         this.attachQueryContext(input, source),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['mes.mold_design.read'])
       )
     )
   }
 
   /** getMasterMold forwards one MasterMold detail read. */
-  getMasterMold(
+  async getMasterMold(
     input: Omit<GetMasterMoldRequest, 'operatorContext' | 'traceContext'>,
     source: DownstreamRequestSource
   ): Promise<GetMasterMoldResponse> {
@@ -148,13 +141,13 @@ export class MesQueryGrpcAdapter implements OnModuleInit {
       'getMasterMold',
       this.moldSvc.getMasterMold(
         this.attachQueryContext(input, source),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['mes.production_mold.read'])
       )
     )
   }
 
   /** listMasterMolds forwards one MasterMold directory read. */
-  listMasterMolds(
+  async listMasterMolds(
     input: Omit<ListMasterMoldsRequest, 'operatorContext' | 'traceContext'>,
     source: DownstreamRequestSource
   ): Promise<ListMasterMoldsResponse> {
@@ -162,13 +155,13 @@ export class MesQueryGrpcAdapter implements OnModuleInit {
       'listMasterMolds',
       this.moldSvc.listMasterMolds(
         this.attachQueryContext(input, source),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['mes.production_mold.read'])
       )
     )
   }
 
   /** getProductionMold forwards one ProductionMold detail read. */
-  getProductionMold(
+  async getProductionMold(
     input: Omit<GetProductionMoldRequest, 'operatorContext' | 'traceContext'>,
     source: DownstreamRequestSource
   ): Promise<GetProductionMoldResponse> {
@@ -176,13 +169,13 @@ export class MesQueryGrpcAdapter implements OnModuleInit {
       'getProductionMold',
       this.moldSvc.getProductionMold(
         this.attachQueryContext(input, source),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['mes.production_mold.read'])
       )
     )
   }
 
   /** listProductionMolds forwards the tenant-wide ProductionMold directory read. */
-  listProductionMolds(
+  async listProductionMolds(
     input: Omit<ListProductionMoldsRequest, 'operatorContext' | 'traceContext'>,
     source: DownstreamRequestSource
   ): Promise<ListProductionMoldsResponse> {
@@ -190,13 +183,13 @@ export class MesQueryGrpcAdapter implements OnModuleInit {
       'listProductionMolds',
       this.moldSvc.listProductionMolds(
         this.attachQueryContext(input, source),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['mes.production_mold.read'])
       )
     )
   }
 
   /** listProductionMoldsByDesign forwards one MoldDesign-scoped ProductionMold directory read. */
-  listProductionMoldsByDesign(
+  async listProductionMoldsByDesign(
     input: Omit<ListProductionMoldsByDesignRequest, 'operatorContext' | 'traceContext'>,
     source: DownstreamRequestSource
   ): Promise<ListProductionMoldsByDesignResponse> {
@@ -204,13 +197,13 @@ export class MesQueryGrpcAdapter implements OnModuleInit {
       'listProductionMoldsByDesign',
       this.moldSvc.listProductionMoldsByDesign(
         this.attachQueryContext(input, source),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['mes.production_mold.read'])
       )
     )
   }
 
   /** getToolingCurrentPlacement forwards one current tooling placement query. */
-  getToolingCurrentPlacement(
+  async getToolingCurrentPlacement(
     input: Omit<GetToolingCurrentPlacementRequest, 'operatorContext' | 'traceContext'>,
     source: DownstreamRequestSource
   ): Promise<GetToolingCurrentPlacementResponse> {
@@ -218,13 +211,13 @@ export class MesQueryGrpcAdapter implements OnModuleInit {
       'getToolingCurrentPlacement',
       this.moldSvc.getToolingCurrentPlacement(
         this.attachQueryContext(input, source),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['mes.tooling_installation.read'])
       )
     )
   }
 
   /** getMoldUsageHistory forwards one mold history query. */
-  getMoldUsageHistory(
+  async getMoldUsageHistory(
     input: Omit<GetMoldUsageHistoryRequest, 'operatorContext' | 'traceContext'>,
     source: DownstreamRequestSource
   ): Promise<GetMoldUsageHistoryResponse> {
@@ -232,13 +225,13 @@ export class MesQueryGrpcAdapter implements OnModuleInit {
       'getMoldUsageHistory',
       this.moldSvc.getMoldUsageHistory(
         this.attachQueryContext(input, source),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['mes.production_mold.read'])
       )
     )
   }
 
   /** listCurrentMoldsByWorkCenter forwards one work-center current mold read. */
-  listCurrentMoldsByWorkCenter(
+  async listCurrentMoldsByWorkCenter(
     input: Omit<ListCurrentMoldsByWorkCenterRequest, 'operatorContext' | 'traceContext'>,
     source: DownstreamRequestSource
   ): Promise<ListCurrentMoldsByWorkCenterResponse> {
@@ -246,13 +239,13 @@ export class MesQueryGrpcAdapter implements OnModuleInit {
       'listCurrentMoldsByWorkCenter',
       this.moldSvc.listCurrentMoldsByWorkCenter(
         this.attachQueryContext(input, source),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['mes.tooling_installation.read'])
       )
     )
   }
 
   /** listMoldLifeCounters forwards one mold life counter directory read. */
-  listMoldLifeCounters(
+  async listMoldLifeCounters(
     input: Omit<ListMoldLifeCountersRequest, 'operatorContext' | 'traceContext'>,
     source: DownstreamRequestSource
   ): Promise<ListMoldLifeCountersResponse> {
@@ -260,19 +253,15 @@ export class MesQueryGrpcAdapter implements OnModuleInit {
       'listMoldLifeCounters',
       this.moldSvc.listMoldLifeCounters(
         this.attachQueryContext(input, source),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['mes.production_mold.read'])
       )
     )
   }
 
   /** attachQueryContext injects the explicit MES operator and trace contexts required by query contracts. */
-  private attachQueryContext<TInput extends object>(input: TInput, source: DownstreamRequestSource) {
-    return {
-      ...input,
-      operatorContext: buildMesOperatorContext(source),
-      traceContext: buildMesTraceContext(source)
-    }
-  }
+  private attachQueryContext<TInput extends object>(input: TInput, _source: DownstreamRequestSource) { return input }
+
+  private metadata(source: DownstreamRequestSource, codes: string[]) { return this.trustedExecution.forBusinessCall(source, 'urn:oes:service:mes-service', codes) }
 
   /** call wraps one gateway MES query RPC with the shared safe gRPC transport helpers. */
   private call<TResponse>(method: string, call$: any): Promise<TResponse> {

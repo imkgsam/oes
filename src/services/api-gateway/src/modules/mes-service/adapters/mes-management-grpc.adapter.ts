@@ -1,4 +1,4 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
+import { Injectable, OnModuleInit } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
 import {
   ActivateProductionSpecRequest,
@@ -42,17 +42,9 @@ import {
   UpdateProductionSpecRequest,
   UpdateProductionSpecResponse
 } from '@oes/common/generated/mes_service'
-import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory
-} from '@oes/common/authorization'
-import { SERVICE_NAMES } from '@oes/common/constants'
-import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
-import {
-  DownstreamRequestSource,
-  toOperatorScopedMetadataInput
-} from '../../../common/grpc/gateway-downstream-source.mapper'
-import { buildMesAuditContext, buildMesOperatorContext, buildMesTraceContext } from './mes-grpc-context'
+import { safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
+import { DownstreamRequestSource } from '../../../common/grpc/gateway-downstream-source.mapper'
+import { GatewayMesGrpcClient, GatewayTrustedGrpcExecutionProducer } from '../../../common/grpc'
 
 const CALLER = 'api-gateway'
 
@@ -67,10 +59,8 @@ export class MesManagementGrpcAdapter implements OnModuleInit {
   private moldSvc!: MoldManagementServiceClient
 
   constructor(
-    @InjectGrpcClient(SERVICE_NAMES.MES)
-    private readonly client: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory
+    private readonly client: GatewayMesGrpcClient,
+    private readonly trustedExecution: GatewayTrustedGrpcExecutionProducer
   ) {}
 
   /** onModuleInit resolves the generated MES gRPC service clients. */
@@ -82,7 +72,7 @@ export class MesManagementGrpcAdapter implements OnModuleInit {
   }
 
   /** createProductionSpec forwards one ProductionSpec creation command. */
-  createProductionSpec(
+  async createProductionSpec(
     input: Omit<CreateProductionSpecRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
       ManagementInputBase,
     source: DownstreamRequestSource
@@ -91,13 +81,13 @@ export class MesManagementGrpcAdapter implements OnModuleInit {
       'createProductionSpec',
       this.productionSpecSvc.createProductionSpec(
         this.attachManagementContext(input, source, input.auditReason ?? 'create production spec from api-gateway'),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['mes.production_spec.manage'])
       )
     )
   }
 
   /** activateProductionSpec forwards one ProductionSpec activation command. */
-  activateProductionSpec(
+  async activateProductionSpec(
     input: Omit<ActivateProductionSpecRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
       ManagementInputBase,
     source: DownstreamRequestSource
@@ -106,13 +96,13 @@ export class MesManagementGrpcAdapter implements OnModuleInit {
       'activateProductionSpec',
       this.productionSpecSvc.activateProductionSpec(
         this.attachManagementContext(input, source, input.auditReason ?? 'activate production spec from api-gateway'),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['mes.production_spec.manage'])
       )
     )
   }
 
   /** updateProductionSpec forwards one ProductionSpec update command. */
-  updateProductionSpec(
+  async updateProductionSpec(
     input: Omit<UpdateProductionSpecRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
       ManagementInputBase,
     source: DownstreamRequestSource
@@ -121,13 +111,13 @@ export class MesManagementGrpcAdapter implements OnModuleInit {
       'updateProductionSpec',
       this.productionSpecSvc.updateProductionSpec(
         this.attachManagementContext(input, source, input.auditReason ?? 'update production spec from api-gateway'),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['mes.production_spec.manage'])
       )
     )
   }
 
   /** retireProductionSpec forwards one ProductionSpec retirement command. */
-  retireProductionSpec(
+  async retireProductionSpec(
     input: Omit<RetireProductionSpecRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
       ManagementInputBase,
     source: DownstreamRequestSource
@@ -136,13 +126,13 @@ export class MesManagementGrpcAdapter implements OnModuleInit {
       'retireProductionSpec',
       this.productionSpecSvc.retireProductionSpec(
         this.attachManagementContext(input, source, input.auditReason ?? 'retire production spec from api-gateway'),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['mes.production_spec.manage'])
       )
     )
   }
 
   /** registerMoldDesign forwards one MoldDesign registration command. */
-  registerMoldDesign(
+  async registerMoldDesign(
     input: Omit<RegisterMoldDesignRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
       ManagementInputBase,
     source: DownstreamRequestSource
@@ -151,13 +141,13 @@ export class MesManagementGrpcAdapter implements OnModuleInit {
       'registerMoldDesign',
       this.moldSvc.registerMoldDesign(
         this.attachManagementContext(input, source, input.auditReason ?? 'register mold design from api-gateway'),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['mes.mold_design.manage'])
       )
     )
   }
 
   /** registerMasterMold forwards one MasterMold registration command. */
-  registerMasterMold(
+  async registerMasterMold(
     input: Omit<RegisterMasterMoldRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
       ManagementInputBase,
     source: DownstreamRequestSource
@@ -166,13 +156,13 @@ export class MesManagementGrpcAdapter implements OnModuleInit {
       'registerMasterMold',
       this.moldSvc.registerMasterMold(
         this.attachManagementContext(input, source, input.auditReason ?? 'register master mold from api-gateway'),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['mes.production_mold.manage'])
       )
     )
   }
 
   /** registerProductionMold forwards one ProductionMold registration command. */
-  registerProductionMold(
+  async registerProductionMold(
     input: Omit<RegisterProductionMoldRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
       ManagementInputBase,
     source: DownstreamRequestSource
@@ -181,13 +171,13 @@ export class MesManagementGrpcAdapter implements OnModuleInit {
       'registerProductionMold',
       this.moldSvc.registerProductionMold(
         this.attachManagementContext(input, source, input.auditReason ?? 'register production mold from api-gateway'),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['mes.production_mold.manage'])
       )
     )
   }
 
   /** acceptProductionMold forwards one ProductionMold acceptance command. */
-  acceptProductionMold(
+  async acceptProductionMold(
     input: Omit<AcceptProductionMoldRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
       ManagementInputBase,
     source: DownstreamRequestSource
@@ -196,13 +186,13 @@ export class MesManagementGrpcAdapter implements OnModuleInit {
       'acceptProductionMold',
       this.moldSvc.acceptProductionMold(
         this.attachManagementContext(input, source, input.auditReason ?? 'accept production mold from api-gateway'),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['mes.production_mold.manage'])
       )
     )
   }
 
   /** confirmProductionMoldArrival forwards the first-stage physical arrival confirmation command. */
-  confirmProductionMoldArrival(
+  async confirmProductionMoldArrival(
     input: Omit<ConfirmProductionMoldArrivalRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
       ManagementInputBase,
     source: DownstreamRequestSource
@@ -211,13 +201,13 @@ export class MesManagementGrpcAdapter implements OnModuleInit {
       'confirmProductionMoldArrival',
       this.moldSvc.confirmProductionMoldArrival(
         this.attachManagementContext(input, source, input.auditReason ?? 'confirm production mold arrival from api-gateway'),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['mes.production_mold.manage'])
       )
     )
   }
 
   /** moveTooling forwards one storage or carrier placement command. */
-  moveTooling(
+  async moveTooling(
     input: Omit<MoveToolingRequest, 'auditContext' | 'operatorContext' | 'traceContext'> & ManagementInputBase,
     source: DownstreamRequestSource
   ): Promise<MoveToolingResponse> {
@@ -225,13 +215,13 @@ export class MesManagementGrpcAdapter implements OnModuleInit {
       'moveTooling',
       this.moldSvc.moveTooling(
         this.attachManagementContext(input, source, input.auditReason ?? 'move tooling from api-gateway'),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['mes.tooling_installation.manage'])
       )
     )
   }
 
   /** installTooling forwards one tooling installation command. */
-  installTooling(
+  async installTooling(
     input: Omit<InstallToolingRequest, 'auditContext' | 'operatorContext' | 'traceContext'> & ManagementInputBase,
     source: DownstreamRequestSource
   ): Promise<InstallToolingResponse> {
@@ -239,13 +229,13 @@ export class MesManagementGrpcAdapter implements OnModuleInit {
       'installTooling',
       this.moldSvc.installTooling(
         this.attachManagementContext(input, source, input.auditReason ?? 'install tooling from api-gateway'),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['mes.tooling_installation.manage'])
       )
     )
   }
 
   /** unmountTooling forwards one tooling unmount command. */
-  unmountTooling(
+  async unmountTooling(
     input: Omit<UnmountToolingRequest, 'auditContext' | 'operatorContext' | 'traceContext'> & ManagementInputBase,
     source: DownstreamRequestSource
   ): Promise<UnmountToolingResponse> {
@@ -253,13 +243,13 @@ export class MesManagementGrpcAdapter implements OnModuleInit {
       'unmountTooling',
       this.moldSvc.unmountTooling(
         this.attachManagementContext(input, source, input.auditReason ?? 'unmount tooling from api-gateway'),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['mes.tooling_installation.manage'])
       )
     )
   }
 
   /** confirmInstalledMoldReady forwards readiness confirmation after installation maintenance. */
-  confirmInstalledMoldReady(
+  async confirmInstalledMoldReady(
     input: Omit<ConfirmInstalledMoldReadyRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
       ManagementInputBase,
     source: DownstreamRequestSource
@@ -268,13 +258,13 @@ export class MesManagementGrpcAdapter implements OnModuleInit {
       'confirmInstalledMoldReady',
       this.moldSvc.confirmInstalledMoldReady(
         this.attachManagementContext(input, source, input.auditReason ?? 'confirm installed mold ready from api-gateway'),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['mes.tooling_installation.manage'])
       )
     )
   }
 
   /** markInstalledMoldMaintenance forwards a ready installed mold back to maintenance. */
-  markInstalledMoldMaintenance(
+  async markInstalledMoldMaintenance(
     input: Omit<MarkInstalledMoldMaintenanceRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
       ManagementInputBase,
     source: DownstreamRequestSource
@@ -283,13 +273,13 @@ export class MesManagementGrpcAdapter implements OnModuleInit {
       'markInstalledMoldMaintenance',
       this.moldSvc.markInstalledMoldMaintenance(
         this.attachManagementContext(input, source, input.auditReason ?? input.reason ?? 'mark installed mold maintenance from api-gateway'),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['mes.tooling_installation.manage'])
       )
     )
   }
 
   /** recordMoldUsage forwards one mold usage fact command. */
-  recordMoldUsage(
+  async recordMoldUsage(
     input: Omit<RecordMoldUsageRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
       ManagementInputBase,
     source: DownstreamRequestSource
@@ -298,13 +288,13 @@ export class MesManagementGrpcAdapter implements OnModuleInit {
       'recordMoldUsage',
       this.moldSvc.recordMoldUsage(
         this.attachManagementContext(input, source, input.auditReason ?? 'record mold usage from api-gateway'),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['mes.mold_usage.record'])
       )
     )
   }
 
   /** recordMoldUsageBatch forwards one transactional work-center usage batch. */
-  recordMoldUsageBatch(
+  async recordMoldUsageBatch(
     input: Omit<RecordMoldUsageBatchRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
       ManagementInputBase,
     source: DownstreamRequestSource
@@ -313,13 +303,13 @@ export class MesManagementGrpcAdapter implements OnModuleInit {
       'recordMoldUsageBatch',
       this.moldSvc.recordMoldUsageBatch(
         this.attachManagementContext(input, source, input.auditReason ?? 'record mold usage batch from api-gateway'),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['mes.mold_usage.record'])
       )
     )
   }
 
   /** adjustMoldLifeCounter forwards one mold life counter correction command. */
-  adjustMoldLifeCounter(
+  async adjustMoldLifeCounter(
     input: Omit<AdjustMoldLifeCounterRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
       ManagementInputBase,
     source: DownstreamRequestSource
@@ -328,13 +318,13 @@ export class MesManagementGrpcAdapter implements OnModuleInit {
       'adjustMoldLifeCounter',
       this.moldSvc.adjustMoldLifeCounter(
         this.attachManagementContext(input, source, input.auditReason ?? 'adjust mold life counter from api-gateway'),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['mes.mold_life.manage'])
       )
     )
   }
 
   /** markProductionMoldForScrap forwards the first step of the production mold scrap lifecycle. */
-  markProductionMoldForScrap(
+  async markProductionMoldForScrap(
     input: Omit<MarkProductionMoldForScrapRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
       ManagementInputBase,
     source: DownstreamRequestSource
@@ -347,26 +337,15 @@ export class MesManagementGrpcAdapter implements OnModuleInit {
           source,
           input.auditReason ?? 'mark production mold for scrap from api-gateway'
         ),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.metadata(source, ['mes.production_mold.manage'])
       )
     )
   }
 
   /** attachManagementContext injects the explicit MES operator, trace, and audit contexts required by commands. */
-  private attachManagementContext<TInput extends { auditReason?: string }>(
-    input: TInput,
-    source: DownstreamRequestSource,
-    defaultReason: string
-  ) {
-    const { auditReason: _auditReason, ...rest } = input
+  private attachManagementContext<TInput extends object>(input: TInput, _source: DownstreamRequestSource, _defaultReason: string) { const { auditReason, ...request } = input as TInput & { auditReason?: string }; return auditReason ? { ...request, reason: auditReason } : request }
 
-    return {
-      ...rest,
-      auditContext: buildMesAuditContext(source, input.auditReason ?? defaultReason),
-      operatorContext: buildMesOperatorContext(source),
-      traceContext: buildMesTraceContext(source)
-    }
-  }
+  private metadata(source: DownstreamRequestSource, codes: string[]) { return this.trustedExecution.forBusinessCall(source, 'urn:oes:service:mes-service', codes) }
 
   /** call wraps one gateway MES command RPC with the shared safe gRPC transport helpers. */
   private call<TResponse>(method: string, call$: any): Promise<TResponse> {

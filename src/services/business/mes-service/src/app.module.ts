@@ -9,6 +9,7 @@ import { GrpcTransportModule } from '@oes/common/transport'
 import { MesInfrastructureModule } from './modules/mes-infrastructure.module'
 import { MesManagementModule } from './modules/mes-management.module'
 import { MesQueryModule } from './modules/mes-query.module'
+import { MesTrustedExecutionModule } from './modules/mes-trusted-execution.module'
 
 function resolveGrpcUrl(envKey: string, fallbackUrl: string): string | undefined {
   const explicitUrl = process.env[envKey]?.trim()
@@ -42,6 +43,7 @@ function resolveGrpcUrl(envKey: string, fallbackUrl: string): string | undefined
       }
     }),
     AuthorizationModule,
+    MesTrustedExecutionModule,
     RegistryModule,
     MesInfrastructureModule,
     MesQueryModule,
