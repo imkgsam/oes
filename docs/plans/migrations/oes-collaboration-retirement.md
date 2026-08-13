@@ -798,6 +798,12 @@ EXEC-CRYPTO HUMAN foundation I&V terminal evidence：
 
 ## 10. 最终关闭结果
 
+### 10.1 Collaboration trusted-gRPC continuation
+
+Collaboration docs-only design candidate `ff8ae91c614950a4c9e0c8321bbb081f2f7c527e` was reviewed and integrated into `main` with one ff-only merge and one push. The candidate has parent `4e00df22546674ffdff8155a73e425be4df3b8ff`, exactly 11 design/contract paths, and a closed 54-path implementation lease (`48 EXISTING + 6 NEW_TARGET`) for the 16-RPC HUMAN/WEB trusted-gRPC slice. Task Assistant, ActionGrant, DELEGATED and MACHINE runtime remain deferred. The Unified Design worktree remains preserved until final cleanup.
+
+The next and only active implementation lane is one current-main Collaboration writer, followed by its own self-verification and the existing persistent I&V task. No parallel writer, checker, or additional design/I&V task is created.
+
 SITE recovery implementation `547a0c5d55f9a955543779ec584a16e9b05cf453` 已 `ACCEPTED_AND_INTEGRATED`；Site 59+7、Site Media 11、Gateway/Asset/Event/R2-purge 链与验证矩阵完成。AI/ActionGrant runtime 保持 deferred，API-KEY rejected prototype 永不进入 main；无 checker。
 
 本次退役迁移的Git与内容保全阶段已经完成：有用设计与实现已进入`main`或持久evidence ref，拒绝/取代证据已分类。legacy task archive阶段仍在纠错收口：post-closure exact-ID复核发现19项`archived=0`，SITE、PRINCIPAL-ROLE、EXEC-CRYPTO与GRPC共13项已关闭，当前其余6项按能力逐项审计。全仓 trusted gRPC service cutover 是独立的后续执行主线，目前仅 Asset/Site 完成、19服务 pending，不因 legacy GRPC 线程归档而关闭。临时closure Git资源在各批次记录集成后正常移除，最终继续只保留root `main`。本文件只承担迁移关闭证据与归档manifest，不作为设计或实现真相源。
