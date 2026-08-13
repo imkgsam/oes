@@ -4,6 +4,7 @@ import { GatewayTrustedGrpcExecutionModule } from './gateway-trusted-grpc-execut
 import { GatewayTrustedGrpcExecutionProducer } from './gateway-trusted-grpc-execution-producer'
 import { GatewaySalesGrpcClient } from './gateway-sales-grpc.client'
 import { GatewayMesGrpcClient } from './gateway-mes-grpc.client'
+import { GatewayCollaborationGrpcClient } from './gateway-collaboration-grpc.client'
 import { Module } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 
@@ -43,6 +44,7 @@ describe('GatewayTrustedGrpcExecutionModule wiring', () => {
         GatewayTrustedGrpcExecutionProducer,
         GatewaySalesGrpcClient,
         GatewayMesGrpcClient,
+        GatewayCollaborationGrpcClient,
         GatewayMachineWorkloadSourceCredentialProvider,
         GatewayMachineTrustedGrpcExecutionProducer
       ])
@@ -52,6 +54,7 @@ describe('GatewayTrustedGrpcExecutionModule wiring', () => {
         GatewayTrustedGrpcExecutionProducer,
         GatewaySalesGrpcClient,
         GatewayMesGrpcClient,
+        GatewayCollaborationGrpcClient,
         GatewayMachineWorkloadSourceCredentialProvider,
         GatewayMachineTrustedGrpcExecutionProducer
       ])
@@ -68,7 +71,8 @@ describe('GatewayTrustedGrpcExecutionModule wiring', () => {
       'urn:oes:service:finance-service',
       'urn:oes:service:sales-service',
       'urn:oes:service:public-entry-service',
-      'urn:oes:service:mes-service'
+      'urn:oes:service:mes-service',
+      'urn:oes:service:collaboration-service'
     ])
   })
 

@@ -1,4 +1,5 @@
 import { BadRequestException } from '@nestjs/common'
+import { attachVerifiedExecution, RPC_OPERATOR_CONTEXT_KEY } from '@oes/common/authorization'
 import {
   AnnotationVisibility as ProtoAnnotationVisibility
 } from '@oes/common/generated/collaboration_service'
@@ -31,7 +32,7 @@ describe('AnnotationCommandGrpcController', () => {
     controller = new AnnotationCommandGrpcController(service)
   })
 
-  it('rejects command requests that omit audit context', async () => {
+  it('rejects body authority when the trusted guard context is absent', async () => {
     await expect(
       controller.createAnnotation({
         tenantId: TENANT_ID,
@@ -47,15 +48,11 @@ describe('AnnotationCommandGrpcController', () => {
   it('maps CreateAnnotation into the application command and presents the saved note', async () => {
     service.createAnnotation.mockResolvedValue(buildAnnotation({ visibility: AnnotationVisibility.PRIVATE }))
 
-    const response = await controller.createAnnotation({
-      tenantId: TENANT_ID,
-      operatorContext: { accountId: ACCOUNT_ID, userId: 'user-1', tenantId: TENANT_ID },
-      traceContext: { traceId: TRACE_ID, spanId: 'span-1' },
-      auditContext: { auditId: AUDIT_ID, reason: 'manual', source: 'tenant-web' },
+    const response = await controller.createAnnotation(trusted({
       objectRef: OBJECT_REF,
       bodyText: 'Account note',
       visibility: ProtoAnnotationVisibility.ANNOTATION_VISIBILITY_PRIVATE
-    })
+    }))
 
     expect(service.createAnnotation).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -78,14 +75,10 @@ describe('AnnotationCommandGrpcController', () => {
   it('maps pin commands without allowing missing context through', async () => {
     service.setAnnotationPinned.mockResolvedValue(buildAnnotation({ pinned: true }))
 
-    const response = await controller.setAnnotationPinned({
-      tenantId: TENANT_ID,
-      operatorContext: { accountId: ACCOUNT_ID, userId: 'user-1', tenantId: TENANT_ID },
-      traceContext: { traceId: TRACE_ID, spanId: 'span-1' },
-      auditContext: { auditId: AUDIT_ID, reason: 'pin', source: 'tenant-web' },
+    const response = await controller.setAnnotationPinned(trusted({
       annotationId: 'annotation-1',
       pinned: true
-    })
+    }))
 
     expect(service.setAnnotationPinned).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -121,4 +114,14 @@ function buildAnnotation(overrides: Partial<ConstructorParameters<typeof Annotat
     updatedAt: new Date('2026-06-18T08:00:00.000Z'),
     ...overrides
   })
+}
+
+/** trusted binds verified execution claims as the guard does before controller invocation. */
+function trusted<T extends object>(request: T): T {
+  attachVerifiedExecution(request, {
+    verifiedExecutionToken: { tenantId: TENANT_ID, subject: ACCOUNT_ID, principalType: 'HUMAN', sessionTerminal: 'WEB' } as any,
+    verifiedWorkloadIdentity: {} as any
+  })
+  Object.assign((request as Record<string, unknown>)[RPC_OPERATOR_CONTEXT_KEY] as object, { traceId: TRACE_ID, requestId: AUDIT_ID })
+  return request
 }

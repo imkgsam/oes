@@ -33,6 +33,7 @@ import { PrismaCollaborationTaskOutboxStore } from '../infrastructure/events/pri
 import { PrismaTaskRepository } from '../infrastructure/repositories/prisma-task.repository'
 import { TaskCommandGrpcController } from '../interfaces/grpc/task-command.grpc.controller'
 import { TaskQueryGrpcController } from '../interfaces/grpc/task-query.grpc.controller'
+import { CollaborationTrustedExecutionModule } from './collaboration-trusted-execution.module'
 
 /** resolveDownstreamGrpcUrl resolves standard downstream URLs while preserving local development defaults. */
 function resolveDownstreamGrpcUrl(
@@ -75,6 +76,7 @@ export function buildCollaborationTaskGrpcClients(): ClientProviderOptions[] {
 @Module({
   imports: [
     AuthorizationModule,
+    CollaborationTrustedExecutionModule,
     PrismaModule,
     NatsJetStreamModule.forRoot(NatsJetStreamRuntimeConfig.fromEnvironment(process.env)),
     ClientsModule.register(buildCollaborationTaskGrpcClients())

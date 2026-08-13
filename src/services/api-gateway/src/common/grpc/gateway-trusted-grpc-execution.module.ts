@@ -19,6 +19,7 @@ import { GatewayMachineWorkloadSourceCredentialProvider } from './gateway-machin
 import { GatewayMachineTrustedGrpcExecutionProducer } from './gateway-machine-trusted-grpc-execution-producer'
 import { GatewayPublicEntryGrpcClient } from './gateway-public-entry-grpc.client'
 import { GatewayMesGrpcClient } from './gateway-mes-grpc.client'
+import { GatewayCollaborationGrpcClient } from './gateway-collaboration-grpc.client'
 
 const ASSET_AUDIENCE = 'urn:oes:service:asset-service'
 const SITE_AUDIENCE = 'urn:oes:service:site-service'
@@ -28,6 +29,7 @@ const FINANCE_AUDIENCE = 'urn:oes:service:finance-service'
 const SALES_AUDIENCE = 'urn:oes:service:sales-service'
 const PUBLIC_ENTRY_AUDIENCE = 'urn:oes:service:public-entry-service'
 const MES_AUDIENCE = 'urn:oes:service:mes-service'
+const COLLABORATION_AUDIENCE = 'urn:oes:service:collaboration-service'
 
 /** Composes the sole Gateway target-token producer with the same request-private source-credential accessor. */
 @Global()
@@ -42,6 +44,7 @@ const MES_AUDIENCE = 'urn:oes:service:mes-service'
     GatewaySalesGrpcClient,
     GatewayPublicEntryGrpcClient,
     GatewayMesGrpcClient,
+    GatewayCollaborationGrpcClient,
     GatewayAuthMachineWorkloadSourceCredentialClient,
     {
       provide: GatewayMachineWorkloadSourceCredentialProvider,
@@ -74,6 +77,7 @@ const MES_AUDIENCE = 'urn:oes:service:mes-service'
             SALES_AUDIENCE,
             PUBLIC_ENTRY_AUDIENCE,
             MES_AUDIENCE
+            , COLLABORATION_AUDIENCE
           ],
           workloadIdentities: [requireEnvironment('OES_WORKLOAD_SPIFFE_ID')]
         })
@@ -140,6 +144,7 @@ const MES_AUDIENCE = 'urn:oes:service:mes-service'
     GatewaySalesGrpcClient,
     GatewayPublicEntryGrpcClient,
     GatewayMesGrpcClient,
+    GatewayCollaborationGrpcClient,
     GatewayTrustedGrpcExecutionProducer,
     GatewayMachineWorkloadSourceCredentialProvider,
     GatewayMachineTrustedGrpcExecutionProducer

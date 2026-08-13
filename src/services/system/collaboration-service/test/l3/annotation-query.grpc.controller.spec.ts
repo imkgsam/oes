@@ -1,4 +1,5 @@
 import { BadRequestException } from '@nestjs/common'
+import { attachVerifiedExecution, RPC_OPERATOR_CONTEXT_KEY } from '@oes/common/authorization'
 import {
   AnnotationVisibility as ProtoAnnotationVisibility
 } from '@oes/common/generated/collaboration_service'
@@ -36,15 +37,12 @@ describe('AnnotationQueryGrpcController', () => {
       total: 1
     })
 
-    const response = await controller.listAnnotationsForObject({
-      tenantId: TENANT_ID,
-      operatorContext: { accountId: ACCOUNT_ID, userId: 'user-1', tenantId: TENANT_ID },
-      traceContext: { traceId: TRACE_ID, spanId: 'span-1' },
+    const response = await controller.listAnnotationsForObject(trusted({
       objectRef: OBJECT_REF,
       includePrivate: true,
       page: 2,
       pageSize: 10
-    })
+    }))
 
     expect(service.listAnnotationsForObject).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -70,7 +68,7 @@ describe('AnnotationQueryGrpcController', () => {
     })
   })
 
-  it('rejects query requests that omit operator context', async () => {
+  it('rejects body authority when the trusted guard context is absent', async () => {
     await expect(
       controller.listAnnotationsForObject({
         tenantId: TENANT_ID,
@@ -106,4 +104,14 @@ function buildAnnotation(overrides: Partial<ConstructorParameters<typeof Annotat
     updatedAt: new Date('2026-06-18T08:00:00.000Z'),
     ...overrides
   })
+}
+
+/** trusted binds verified execution claims as the guard does before controller invocation. */
+function trusted<T extends object>(request: T): T {
+  attachVerifiedExecution(request, {
+    verifiedExecutionToken: { tenantId: TENANT_ID, subject: ACCOUNT_ID, principalType: 'HUMAN', sessionTerminal: 'WEB' } as any,
+    verifiedWorkloadIdentity: {} as any
+  })
+  Object.assign((request as Record<string, unknown>)[RPC_OPERATOR_CONTEXT_KEY] as object, { traceId: TRACE_ID, requestId: 'request-1' })
+  return request
 }

@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import { DownstreamRequestSource } from '../../../common/grpc/gateway-downstream-source.mapper'
 import { IdentityQueryGrpcAdapter } from '../../auth-bff/infrastructure/downstream/identity-service/identity-query-grpc.adapter'
 import { TaskCommandGrpcAdapter } from '../adapters/task-command-grpc.adapter'
@@ -18,7 +18,6 @@ export class TaskBffService {
   async listTasks(tenantId: string, query: ListTasksDto, source: DownstreamRequestSource) {
     const result = await this.queryAdapter.listTasks(
       {
-        ...this.context(tenantId, source),
         scope: toProtoScope(query.scope),
         status: asArray(query.status).map(toProtoStatus),
         priority: asArray(query.priority).map((priority) => toProtoPriority(priority)).filter(Boolean),
@@ -37,7 +36,7 @@ export class TaskBffService {
   }
 
   async getTask(tenantId: string, taskId: string, source: DownstreamRequestSource) {
-    const result = await this.queryAdapter.getTask({ ...this.context(tenantId, source), taskId }, source)
+    const result = await this.queryAdapter.getTask({ taskId }, source)
     return this.enrichTaskResponse(result, source)
   }
 
@@ -45,7 +44,6 @@ export class TaskBffService {
     const result = await this.commandAdapter.call(
       'createTask',
       {
-        ...this.commandContext(tenantId, source),
         title: body.title,
         description: body.description,
         assigneeAccountId: body.assigneeAccountId,
@@ -61,7 +59,6 @@ export class TaskBffService {
     const result = await this.commandAdapter.call(
       'updateTask',
       {
-        ...this.commandContext(tenantId, source),
         taskId,
         title: body.title,
         description: body.description,
@@ -74,14 +71,14 @@ export class TaskBffService {
   }
 
   async startTask(tenantId: string, taskId: string, source: DownstreamRequestSource) {
-    const result = await this.commandAdapter.call('startTask', { ...this.commandContext(tenantId, source), taskId }, source)
+    const result = await this.commandAdapter.call('startTask', { taskId }, source)
     return this.enrichTaskResponse(result, source)
   }
 
   async completeTask(tenantId: string, taskId: string, body: CompleteTaskDto, source: DownstreamRequestSource) {
     const result = await this.commandAdapter.call(
       'completeTask',
-      { ...this.commandContext(tenantId, source), taskId, completionNote: body.completionNote },
+      { taskId, completionNote: body.completionNote },
       source
     )
     return this.enrichTaskResponse(result, source)
@@ -90,7 +87,7 @@ export class TaskBffService {
   async cancelTask(tenantId: string, taskId: string, body: CancelTaskDto, source: DownstreamRequestSource) {
     const result = await this.commandAdapter.call(
       'cancelTask',
-      { ...this.commandContext(tenantId, source), taskId, cancelReason: body.cancelReason },
+      { taskId, cancelReason: body.cancelReason },
       source
     )
     return this.enrichTaskResponse(result, source)
@@ -99,19 +96,19 @@ export class TaskBffService {
   async reopenTask(tenantId: string, taskId: string, body: ReopenTaskDto, source: DownstreamRequestSource) {
     const result = await this.commandAdapter.call(
       'reopenTask',
-      { ...this.commandContext(tenantId, source), taskId, reopenReason: body.reopenReason },
+      { taskId, reopenReason: body.reopenReason },
       source
     )
     return this.enrichTaskResponse(result, source)
   }
 
   async archiveTask(tenantId: string, taskId: string, source: DownstreamRequestSource) {
-    const result = await this.commandAdapter.call('archiveTask', { ...this.commandContext(tenantId, source), taskId }, source)
+    const result = await this.commandAdapter.call('archiveTask', { taskId }, source)
     return this.enrichTaskResponse(result, source)
   }
 
   async unarchiveTask(tenantId: string, taskId: string, source: DownstreamRequestSource) {
-    const result = await this.commandAdapter.call('unarchiveTask', { ...this.commandContext(tenantId, source), taskId }, source)
+    const result = await this.commandAdapter.call('unarchiveTask', { taskId }, source)
     return this.enrichTaskResponse(result, source)
   }
 
@@ -176,33 +173,6 @@ export class TaskBffService {
     }
   }
 
-  /** context builds the explicit Task P1 query context from gateway auth state. */
-  private context(tenantId: string, source: DownstreamRequestSource) {
-    const operatorAccountId = source.user?.holderId || source.user?.aid || source.user?.id || source.user?.sub
-    if (!operatorAccountId) throw new BadRequestException('operator account context is required')
-    return {
-      tenantId,
-      operatorContext: {
-        accountId: operatorAccountId,
-        userId: source.user?.userId || source.user?.sub,
-        tenantId
-      },
-      traceContext: {
-        traceId: source.traceId || source.requestId || `gateway-${Date.now()}`
-      }
-    }
-  }
-
-  /** commandContext extends query context with audit metadata for Task P1 command calls. */
-  private commandContext(tenantId: string, source: DownstreamRequestSource) {
-    return {
-      ...this.context(tenantId, source),
-      auditContext: {
-        auditId: source.requestId,
-        source: 'api-gateway'
-      }
-    }
-  }
 }
 
 /** normalize returns a trimmed string value when an external payload field is usable. */

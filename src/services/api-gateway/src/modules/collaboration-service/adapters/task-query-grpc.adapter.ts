@@ -1,19 +1,11 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
-import { ClientGrpc } from '@nestjs/microservices'
-import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory
-} from '@oes/common/authorization'
-import { SERVICE_NAMES } from '@oes/common/constants'
+import { Injectable, OnModuleInit } from '@nestjs/common'
 import {
   TASK_QUERY_SERVICE_NAME,
   TaskQueryServiceClient
 } from '@oes/common/generated/collaboration_service'
-import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
-import {
-  DownstreamRequestSource,
-  toOperatorScopedMetadataInput
-} from '../../../common/grpc/gateway-downstream-source.mapper'
+import { safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
+import { GatewayCollaborationGrpcClient, GatewayTrustedGrpcExecutionProducer } from '../../../common/grpc'
+import { DownstreamRequestSource } from '../../../common/grpc/gateway-downstream-source.mapper'
 import { mapTaskView } from './task-grpc-mappers'
 
 const CALLER = 'api-gateway'
@@ -24,19 +16,18 @@ export class TaskQueryGrpcAdapter implements OnModuleInit {
   private svc!: TaskQueryServiceClient
 
   constructor(
-    @InjectGrpcClient(SERVICE_NAMES.COLLABORATION)
-    private readonly client: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory
+    private readonly client: GatewayCollaborationGrpcClient,
+    private readonly trustedExecution: GatewayTrustedGrpcExecutionProducer
   ) {}
 
   onModuleInit(): void {
-    this.svc = this.client.getService<TaskQueryServiceClient>(TASK_QUERY_SERVICE_NAME)
+    this.svc = this.client.getClient().getService<TaskQueryServiceClient>(TASK_QUERY_SERVICE_NAME)
   }
 
   async listTasks(request: Record<string, unknown>, source: DownstreamRequestSource) {
+    const metadata = await this.trustedExecution.forSelfServiceCall(source, 'urn:oes:service:collaboration-service')
     const response = await safeGrpcCall(
-      this.svc.listTasks(request as any, this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))),
+      this.svc.listTasks(stripAuthority(request) as any, metadata),
       this.opts('listTasks')
     )
     return {
@@ -48,8 +39,9 @@ export class TaskQueryGrpcAdapter implements OnModuleInit {
   }
 
   async getTask(request: Record<string, unknown>, source: DownstreamRequestSource) {
+    const metadata = await this.trustedExecution.forSelfServiceCall(source, 'urn:oes:service:collaboration-service')
     const response = await safeGrpcCall(
-      this.svc.getTask(request as any, this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))),
+      this.svc.getTask(stripAuthority(request) as any, metadata),
       this.opts('getTask')
     )
     return { task: mapTaskView(response.task) }
@@ -58,4 +50,9 @@ export class TaskQueryGrpcAdapter implements OnModuleInit {
   private opts(method: string): SafeGrpcCallOptions {
     return { caller: CALLER, method: `TaskQueryService.${method}` }
   }
+}
+
+function stripAuthority(request: Record<string, unknown>): Record<string, unknown> {
+  const { tenantId, operatorContext, traceContext, ...business } = request
+  return business
 }

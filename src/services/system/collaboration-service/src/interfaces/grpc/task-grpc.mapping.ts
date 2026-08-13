@@ -1,11 +1,9 @@
 import { BadRequestException, ForbiddenException, InternalServerErrorException, NotFoundException } from '@nestjs/common'
+import { getAuthenticatedGrpcRequestContext } from '@oes/common/authorization'
 import {
-  AuditContext,
-  OperatorContext,
   TaskListScope as ProtoTaskListScope,
   TaskPriority as ProtoTaskPriority,
-  TaskStatus as ProtoTaskStatus,
-  TraceContext
+  TaskStatus as ProtoTaskStatus
 } from '@oes/common/generated/collaboration_service'
 import {
   TASK_ASSIGNEE_NOT_ACTIVE,
@@ -25,35 +23,27 @@ export type GrpcCommandContext = {
 }
 
 /** requireCommandContext validates Task P1 command context fields from gRPC requests. */
-export function requireCommandContext(input: {
-  tenantId?: string
-  operatorContext?: OperatorContext
-  traceContext?: TraceContext
-  auditContext?: AuditContext
-}): GrpcCommandContext {
-  const tenantId = requireText(input.tenantId, 'tenant_id')
-  const operatorAccountId = requireText(input.operatorContext?.accountId, 'operator_context.account_id')
-  const traceId = requireText(input.traceContext?.traceId, 'trace_context.trace_id')
-  if (!input.auditContext) {
-    throw new BadRequestException('audit_context is required')
-  }
+export function requireCommandContext(input: object): GrpcCommandContext {
+  const context = getAuthenticatedGrpcRequestContext(input)
+  const token = context?.verifiedExecutionToken
+  const tenantId = requireText(token?.tenantId, 'trusted tenant')
+  const operatorAccountId = requireText(token?.subject, 'trusted subject')
+  const traceId = requireText((context as ({ traceId?: string } | undefined))?.traceId, 'trusted trace')
   return {
     tenantId,
     operatorAccountId,
     traceId,
-    auditId: normalizeText(input.auditContext?.auditId)
+    auditId: requireText((context as ({ requestId?: string } | undefined))?.requestId, 'trusted request')
   }
 }
 
 /** requireQueryContext validates Task P1 query context fields from gRPC requests. */
-export function requireQueryContext(input: {
-  tenantId?: string
-  operatorContext?: OperatorContext
-  traceContext?: TraceContext
-}): Omit<GrpcCommandContext, 'auditId'> {
-  const tenantId = requireText(input.tenantId, 'tenant_id')
-  const operatorAccountId = requireText(input.operatorContext?.accountId, 'operator_context.account_id')
-  const traceId = requireText(input.traceContext?.traceId, 'trace_context.trace_id')
+export function requireQueryContext(input: object): Omit<GrpcCommandContext, 'auditId'> {
+  const context = getAuthenticatedGrpcRequestContext(input)
+  const token = context?.verifiedExecutionToken
+  const tenantId = requireText(token?.tenantId, 'trusted tenant')
+  const operatorAccountId = requireText(token?.subject, 'trusted subject')
+  const traceId = requireText((context as ({ traceId?: string } | undefined))?.traceId, 'trusted trace')
   return { tenantId, operatorAccountId, traceId }
 }
 

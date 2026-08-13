@@ -1,4 +1,5 @@
-import { Controller, UseFilters } from '@nestjs/common'
+import { Controller, UseFilters, UseGuards } from '@nestjs/common'
+import { AuthorizeSelfServiceRpc, TrustedExecutionGuard } from '@oes/common/authorization'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
   AnnotationQueryServiceController,
@@ -18,6 +19,7 @@ import { presentAnnotation } from './annotation-grpc.presenter'
 
 /** AnnotationQueryGrpcController exposes Annotation P1 read queries over internal gRPC. */
 @UseFilters(GrpcExceptionFilter)
+@UseGuards(TrustedExecutionGuard)
 @Controller()
 @AnnotationQueryServiceControllerMethods()
 export class AnnotationQueryGrpcController implements AnnotationQueryServiceController {
@@ -56,4 +58,12 @@ export class AnnotationQueryGrpcController implements AnnotationQueryServiceCont
       mapAnnotationError(error)
     }
   }
+}
+
+for (const method of ['listAnnotationsForObject', 'getAnnotation'] as const) {
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })(
+    AnnotationQueryGrpcController.prototype,
+    method,
+    Object.getOwnPropertyDescriptor(AnnotationQueryGrpcController.prototype, method)!
+  )
 }

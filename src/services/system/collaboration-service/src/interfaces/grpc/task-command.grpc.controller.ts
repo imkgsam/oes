@@ -1,4 +1,5 @@
-import { Controller, UseFilters } from '@nestjs/common'
+import { Controller, UseFilters, UseGuards } from '@nestjs/common'
+import { AuthorizeBusinessRpc, AuthorizeSelfServiceRpc, TrustedExecutionGuard } from '@oes/common/authorization'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
   ArchiveTaskRequest,
@@ -26,6 +27,7 @@ import { presentTask } from './task-grpc.presenter'
 
 /** TaskCommandGrpcController exposes Task P1 write commands over internal gRPC. */
 @UseFilters(GrpcExceptionFilter)
+@UseGuards(TrustedExecutionGuard)
 @Controller()
 @TaskCommandServiceControllerMethods()
 export class TaskCommandGrpcController implements TaskCommandServiceController {
@@ -140,3 +142,17 @@ export class TaskCommandGrpcController implements TaskCommandServiceController {
     }
   }
 }
+
+const selfServiceTaskCommands = ['updateTask', 'startTask', 'completeTask', 'cancelTask', 'reopenTask', 'archiveTask', 'unarchiveTask'] as const
+for (const method of selfServiceTaskCommands) {
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })(
+    TaskCommandGrpcController.prototype,
+    method,
+    Object.getOwnPropertyDescriptor(TaskCommandGrpcController.prototype, method)!
+  )
+}
+AuthorizeBusinessRpc({ all: ['collaboration.task.create'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })(
+  TaskCommandGrpcController.prototype,
+  'createTask',
+  Object.getOwnPropertyDescriptor(TaskCommandGrpcController.prototype, 'createTask')!
+)

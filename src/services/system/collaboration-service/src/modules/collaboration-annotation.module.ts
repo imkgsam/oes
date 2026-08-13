@@ -22,6 +22,7 @@ import { PrismaModule } from '../infrastructure/prisma/prisma.module'
 import { PrismaAnnotationRepository } from '../infrastructure/repositories/prisma-annotation.repository'
 import { AnnotationCommandGrpcController } from '../interfaces/grpc/annotation-command.grpc.controller'
 import { AnnotationQueryGrpcController } from '../interfaces/grpc/annotation-query.grpc.controller'
+import { CollaborationTrustedExecutionModule } from './collaboration-trusted-execution.module'
 
 /** resolveDownstreamGrpcUrl resolves standard downstream URLs while preserving local development defaults. */
 function resolveDownstreamGrpcUrl(
@@ -64,6 +65,7 @@ export function buildCollaborationAnnotationGrpcClients(): ClientProviderOptions
 @Module({
   imports: [
     AuthorizationModule,
+    CollaborationTrustedExecutionModule,
     PrismaModule,
     ClientsModule.register(buildCollaborationAnnotationGrpcClients())
   ],

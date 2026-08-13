@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import { DownstreamRequestSource } from '../../../common/grpc/gateway-downstream-source.mapper'
 import { AnnotationCommandGrpcAdapter } from '../adapters/annotation-command-grpc.adapter'
 import { toProtoAnnotationVisibility } from '../adapters/annotation-grpc-mappers'
@@ -28,7 +28,6 @@ export class AnnotationBffService {
   ) {
     return this.queryAdapter.listAnnotationsForObject(
       {
-        ...this.context(source),
         objectRef: this.objectRef(ownerService, objectType, objectId),
         includePrivate: query.includePrivate === undefined ? true : toBoolean(query.includePrivate),
         page: toPositiveInt(query.page, 1),
@@ -48,7 +47,6 @@ export class AnnotationBffService {
     return this.commandAdapter.call(
       'createAnnotation',
       {
-        ...this.commandContext(source),
         objectRef: this.objectRef(ownerService, objectType, objectId),
         bodyText: body.bodyText,
         visibility: toProtoAnnotationVisibility(body.visibility)
@@ -61,7 +59,6 @@ export class AnnotationBffService {
     return this.commandAdapter.call(
       'updateAnnotation',
       {
-        ...this.commandContext(source),
         annotationId,
         bodyText: body.bodyText,
         visibility: toProtoAnnotationVisibility(body.visibility)
@@ -74,7 +71,6 @@ export class AnnotationBffService {
     return this.commandAdapter.call(
       'deleteAnnotation',
       {
-        ...this.commandContext(source),
         annotationId,
         deleteReason: body.deleteReason
       },
@@ -86,7 +82,6 @@ export class AnnotationBffService {
     return this.commandAdapter.call(
       'setAnnotationPinned',
       {
-        ...this.commandContext(source),
         annotationId,
         pinned: Boolean(body.pinned)
       },
@@ -103,36 +98,6 @@ export class AnnotationBffService {
     }
   }
 
-  /** context builds the explicit Annotation P1 query context from gateway auth state. */
-  private context(source: DownstreamRequestSource) {
-    const tenantId = source.user?.tenantId || source.user?.tid
-    const operatorAccountId = source.user?.holderId || source.user?.aid || source.user?.id || source.user?.sub
-    if (!tenantId) throw new BadRequestException('tenant context is required')
-    if (!operatorAccountId) throw new BadRequestException('operator account context is required')
-    return {
-      tenantId,
-      operatorContext: {
-        accountId: operatorAccountId,
-        userId: source.user?.userId || source.user?.sub,
-        tenantId,
-        displayName: normalizeText(source.user?.displayName)
-      },
-      traceContext: {
-        traceId: source.traceId || source.requestId || `gateway-${Date.now()}`
-      }
-    }
-  }
-
-  /** commandContext extends query context with audit metadata for Annotation P1 command calls. */
-  private commandContext(source: DownstreamRequestSource) {
-    return {
-      ...this.context(source),
-      auditContext: {
-        auditId: source.requestId,
-        source: 'api-gateway'
-      }
-    }
-  }
 }
 
 /** toBoolean normalizes bool query params from strings and booleans. */
@@ -144,10 +109,4 @@ function toBoolean(value: boolean | string | undefined): boolean {
 function toPositiveInt(value: number | string | undefined, fallback: number): number {
   const parsed = Number(value ?? fallback)
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback
-}
-
-/** normalizeText trims optional BFF text values before they enter downstream contracts. */
-function normalizeText(value?: string): string | undefined {
-  const normalized = value?.trim()
-  return normalized ? normalized : undefined
 }

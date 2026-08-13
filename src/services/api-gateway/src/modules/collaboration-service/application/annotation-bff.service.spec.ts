@@ -1,4 +1,3 @@
-import { BadRequestException } from '@nestjs/common'
 import { AnnotationBffService } from './annotation-bff.service'
 
 const source = {
@@ -28,7 +27,7 @@ describe('AnnotationBffService', () => {
     service = new AnnotationBffService(commandAdapter as never, queryAdapter as never)
   })
 
-  it('maps object-scoped list requests to collaboration-service query context', async () => {
+  it('maps object-scoped list requests without recreating trusted authority in the body', async () => {
     await service.listAnnotationsForObject(
       'crm-service',
       'CrmAccount',
@@ -39,9 +38,6 @@ describe('AnnotationBffService', () => {
 
     expect(queryAdapter.listAnnotationsForObject).toHaveBeenCalledWith(
       expect.objectContaining({
-        tenantId: 'tenant-1',
-        operatorContext: { accountId: 'account-1', userId: 'user-1', tenantId: 'tenant-1', displayName: '陈双鹏' },
-        traceContext: { traceId: 'trace-1' },
         objectRef: {
           objectOwnerService: 'crm-service',
           objectType: 'CrmAccount',
@@ -55,7 +51,7 @@ describe('AnnotationBffService', () => {
     )
   })
 
-  it('maps create and pin commands with audit context and proto visibility', async () => {
+  it('maps create and pin commands with business fields and proto visibility', async () => {
     await service.createAnnotation(
       'crm-service',
       'CrmAccount',
@@ -68,9 +64,6 @@ describe('AnnotationBffService', () => {
     expect(commandAdapter.call).toHaveBeenCalledWith(
       'createAnnotation',
       expect.objectContaining({
-        tenantId: 'tenant-1',
-        operatorContext: expect.objectContaining({ displayName: '陈双鹏' }),
-        auditContext: { auditId: 'request-1', source: 'api-gateway' },
         visibility: 1
       }),
       source
@@ -85,10 +78,4 @@ describe('AnnotationBffService', () => {
     )
   })
 
-  it('rejects requests without tenant context before calling downstream services', async () => {
-    await expect(
-      service.listAnnotationsForObject('crm-service', 'CrmAccount', 'crm-account-1', {}, { user: { aid: 'account-1' } })
-    ).rejects.toThrow(BadRequestException)
-    expect(queryAdapter.listAnnotationsForObject).not.toHaveBeenCalled()
-  })
 })

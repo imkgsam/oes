@@ -3,13 +3,9 @@ import { createRequire } from 'node:module'
 import {
   createAnnotationP1SmokeSeed,
   runCollaborationAnnotationP1GatewaySmokeFlow,
-  runCollaborationAnnotationP1SmokeFlow,
 } from './collaboration-annotation-p1-smoke-lib.mjs'
 
 const require = createRequire(import.meta.url)
-const grpc = require('@grpc/grpc-js')
-const protoLoader = require('@grpc/proto-loader')
-const { resolveCommonProtoPath } = require('../../src/common/dist/contracts')
 const { PrismaClient: CollaborationPrismaClient } = require(
   '../../src/services/system/collaboration-service/prisma/generated/prisma',
 )
@@ -23,7 +19,6 @@ const { PrismaClient: PermissionPrismaClient } = require(
 const DEFAULT_COLLABORATION_DATABASE_URL = 'postgres://imkgsam:imkgsam@localhost:5432/collaborationdb'
 const DEFAULT_CRM_DATABASE_URL = 'postgres://imkgsam:imkgsam@127.0.0.1:5432/crmdb'
 const DEFAULT_PERMISSION_DATABASE_URL = 'postgres://imkgsam:imkgsam@localhost:5432/permissiondb'
-const DEFAULT_COLLABORATION_GRPC_URL = '127.0.0.1:50068'
 const DEFAULT_GATEWAY_BASE_URL = 'http://127.0.0.1:9101/api/v1'
 
 const CREATE_PERMISSION = 'collaboration.annotation.create'
@@ -42,44 +37,6 @@ function resolveDatabaseUrl(envKeys, fallbackUrl, schema) {
     parsed.searchParams.set('schema', schema)
   }
   return parsed.toString()
-}
-
-// createAnnotationGrpcClient opens typed callback clients for the live collaboration-service gRPC surface.
-function createAnnotationGrpcClient() {
-  const packageDefinition = protoLoader.loadSync(
-    resolveCommonProtoPath('collaboration_service/collaboration.proto'),
-    {
-      defaults: true,
-      enums: Number,
-      keepCase: false,
-      longs: String,
-      oneofs: true,
-    },
-  )
-  const collaborationPackage = grpc.loadPackageDefinition(packageDefinition).collaboration_service
-  const target = process.env.COLLABORATION_ANNOTATION_SMOKE_GRPC_URL || DEFAULT_COLLABORATION_GRPC_URL
-  const commandClient = new collaborationPackage.AnnotationCommandService(
-    target,
-    grpc.credentials.createInsecure(),
-  )
-  const queryClient = new collaborationPackage.AnnotationQueryService(
-    target,
-    grpc.credentials.createInsecure(),
-  )
-
-  return {
-    close: () => {
-      commandClient.close()
-      queryClient.close()
-    },
-    createAnnotation: (request) => grpcCall(commandClient, 'createAnnotation', request),
-    deleteAnnotation: (request) => grpcCall(commandClient, 'deleteAnnotation', request),
-    getAnnotation: (request) => grpcCall(queryClient, 'getAnnotation', request),
-    listAnnotationsForObject: (request) =>
-      grpcCall(queryClient, 'listAnnotationsForObject', request),
-    setAnnotationPinned: (request) => grpcCall(commandClient, 'setAnnotationPinned', request),
-    updateAnnotation: (request) => grpcCall(commandClient, 'updateAnnotation', request),
-  }
 }
 
 // createGatewayAnnotationClient adapts authenticated API Gateway routes to the smoke flow contract.
@@ -208,25 +165,6 @@ function objectAnnotationPath(objectRef) {
 // toGatewayVisibility maps proto-loader enum numbers to Gateway string DTO values.
 function toGatewayVisibility(value) {
   return value === 1 ? 'PRIVATE' : 'OBJECT_VISIBLE'
-}
-
-// grpcCall converts a unary callback API into an awaitable smoke assertion boundary.
-function grpcCall(client, method, request) {
-  return new Promise((resolve, reject) => {
-    client.waitForReady(Date.now() + 8000, (readyError) => {
-      if (readyError) {
-        reject(readyError)
-        return
-      }
-      client[method](request, (error, response) => {
-        if (error) {
-          reject(error)
-          return
-        }
-        resolve(response)
-      })
-    })
-  })
 }
 
 // createFixtureStore prepares local CRM and permission fixtures while runtime validation still uses gRPC.
@@ -430,9 +368,7 @@ function createAuditStore() {
 // main runs the live Annotation P1 smoke and prints a compact verification summary.
 async function main() {
   const seed = createAnnotationP1SmokeSeed()
-  const mode = process.env.COLLABORATION_ANNOTATION_SMOKE_MODE || 'grpc'
-  const annotations =
-    mode === 'gateway' ? await createGatewayAnnotationClient(seed) : createAnnotationGrpcClient()
+  const annotations = await createGatewayAnnotationClient(seed)
   const auditStore = createAuditStore()
   const fixtureStore = createFixtureStore()
 
@@ -442,10 +378,7 @@ async function main() {
       auditStore,
       fixtureStore,
     }
-    const result =
-      mode === 'gateway'
-        ? await runCollaborationAnnotationP1GatewaySmokeFlow(dependencies, seed)
-        : await runCollaborationAnnotationP1SmokeFlow(dependencies, seed)
+    const result = await runCollaborationAnnotationP1GatewaySmokeFlow(dependencies, seed)
     console.log(JSON.stringify(result, null, 2))
   } finally {
     annotations.close()

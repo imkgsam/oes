@@ -1,4 +1,5 @@
-import { Controller, UseFilters } from '@nestjs/common'
+import { Controller, UseFilters, UseGuards } from '@nestjs/common'
+import { AuthorizeSelfServiceRpc, TrustedExecutionGuard } from '@oes/common/authorization'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
   GetTaskRequest,
@@ -14,6 +15,7 @@ import { presentTask } from './task-grpc.presenter'
 
 /** TaskQueryGrpcController exposes Task P1 personal list and detail queries over internal gRPC. */
 @UseFilters(GrpcExceptionFilter)
+@UseGuards(TrustedExecutionGuard)
 @Controller()
 @TaskQueryServiceControllerMethods()
 export class TaskQueryGrpcController implements TaskQueryServiceController {
@@ -61,4 +63,12 @@ export class TaskQueryGrpcController implements TaskQueryServiceController {
       mapTaskError(error)
     }
   }
+}
+
+for (const method of ['listTasks', 'getTask'] as const) {
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })(
+    TaskQueryGrpcController.prototype,
+    method,
+    Object.getOwnPropertyDescriptor(TaskQueryGrpcController.prototype, method)!
+  )
 }

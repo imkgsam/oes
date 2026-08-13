@@ -5,12 +5,10 @@ import {
   NotFoundException,
   PreconditionFailedException
 } from '@nestjs/common'
+import { getAuthenticatedGrpcRequestContext } from '@oes/common/authorization'
 import {
   AnnotationVisibility as ProtoAnnotationVisibility,
-  AuditContext,
-  ObjectRef,
-  OperatorContext,
-  TraceContext
+  ObjectRef
 } from '@oes/common/generated/collaboration_service'
 import {
   ANNOTATION_FAILED_PRECONDITION,
@@ -24,39 +22,28 @@ import { AnnotationVisibility } from '../../domain/value-objects/annotation.enum
 export type AnnotationGrpcCommandContext = {
   tenantId: string
   operatorAccountId: string
-  operatorDisplayName?: string
   traceId: string
   auditId?: string
 }
 
 /** requireAnnotationCommandContext validates Annotation P1 command context fields from gRPC requests. */
-export function requireAnnotationCommandContext(input: {
-  tenantId?: string
-  operatorContext?: OperatorContext
-  traceContext?: TraceContext
-  auditContext?: AuditContext
-}): AnnotationGrpcCommandContext {
+export function requireAnnotationCommandContext(input: object): AnnotationGrpcCommandContext {
   const context = requireAnnotationQueryContext(input)
-  if (!input.auditContext) {
-    throw new BadRequestException('audit_context is required')
-  }
+  const trusted = getAuthenticatedGrpcRequestContext(input)
   return {
     ...context,
-    auditId: normalizeText(input.auditContext.auditId)
+    auditId: requireText((trusted as ({ requestId?: string } | undefined))?.requestId, 'trusted request')
   }
 }
 
 /** requireAnnotationQueryContext validates Annotation P1 query context fields from gRPC requests. */
-export function requireAnnotationQueryContext(input: {
-  tenantId?: string
-  operatorContext?: OperatorContext
-  traceContext?: TraceContext
-}): Omit<AnnotationGrpcCommandContext, 'auditId'> {
+export function requireAnnotationQueryContext(input: object): Omit<AnnotationGrpcCommandContext, 'auditId'> {
+  const context = getAuthenticatedGrpcRequestContext(input)
+  const token = context?.verifiedExecutionToken
   return {
-    tenantId: requireText(input.tenantId, 'tenant_id'),
-    operatorAccountId: requireText(input.operatorContext?.accountId, 'operator_context.account_id'),
-    operatorDisplayName: normalizeText(input.operatorContext?.displayName),
-    traceId: requireText(input.traceContext?.traceId, 'trace_context.trace_id')
+    tenantId: requireText(token?.tenantId, 'trusted tenant'),
+    operatorAccountId: requireText(token?.subject, 'trusted subject'),
+    traceId: requireText((context as ({ traceId?: string } | undefined))?.traceId, 'trusted trace')
   }
 }
 

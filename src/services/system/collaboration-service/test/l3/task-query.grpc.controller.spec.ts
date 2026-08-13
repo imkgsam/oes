@@ -1,4 +1,5 @@
 import { BadRequestException } from '@nestjs/common'
+import { attachVerifiedExecution, RPC_OPERATOR_CONTEXT_KEY } from '@oes/common/authorization'
 import {
   TaskListScope as ProtoTaskListScope,
   TaskPriority as ProtoTaskPriority,
@@ -33,10 +34,7 @@ describe('TaskQueryGrpcController', () => {
       total: 1
     })
 
-    const response = await controller.listTasks({
-      tenantId: TENANT_ID,
-      operatorContext: { accountId: ACCOUNT_ID, userId: 'user-1', tenantId: TENANT_ID },
-      traceContext: { traceId: TRACE_ID, spanId: 'span-1' },
+    const response = await controller.listTasks(trusted({
       scope: ProtoTaskListScope.TASK_LIST_SCOPE_ASSIGNED_TO_ME,
       status: [ProtoTaskStatus.TASK_STATUS_OPEN],
       priority: [ProtoTaskPriority.TASK_PRIORITY_HIGH],
@@ -47,7 +45,7 @@ describe('TaskQueryGrpcController', () => {
       archivedOnly: false,
       page: 2,
       pageSize: 10
-    })
+    }))
 
     expect(service.listTasks).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -71,13 +69,9 @@ describe('TaskQueryGrpcController', () => {
     })
   })
 
-  it('rejects list requests without a valid scope', async () => {
+  it('rejects list requests without a valid scope even with trusted context', async () => {
     await expect(
-      controller.listTasks({
-        tenantId: TENANT_ID,
-        operatorContext: { accountId: ACCOUNT_ID, userId: 'user-1', tenantId: TENANT_ID },
-        traceContext: { traceId: TRACE_ID, spanId: 'span-1' }
-      })
+      controller.listTasks(trusted({}))
     ).rejects.toBeInstanceOf(BadRequestException)
     expect(service.listTasks).not.toHaveBeenCalled()
   })
@@ -109,4 +103,14 @@ function buildTask(overrides: Partial<ConstructorParameters<typeof TaskEntity>[0
     updatedAt: new Date('2026-06-14T09:00:00.000Z'),
     ...overrides
   })
+}
+
+/** trusted binds verified execution claims as the guard does before controller invocation. */
+function trusted<T extends object>(request: T): T {
+  attachVerifiedExecution(request, {
+    verifiedExecutionToken: { tenantId: TENANT_ID, subject: ACCOUNT_ID, principalType: 'HUMAN', sessionTerminal: 'WEB' } as any,
+    verifiedWorkloadIdentity: {} as any
+  })
+  Object.assign((request as Record<string, unknown>)[RPC_OPERATOR_CONTEXT_KEY] as object, { traceId: TRACE_ID, requestId: 'request-1' })
+  return request
 }

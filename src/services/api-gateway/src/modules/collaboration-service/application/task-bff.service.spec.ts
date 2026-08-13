@@ -14,7 +14,7 @@ describe('TaskBffService', () => {
     traceId: 'trace-1'
   }
 
-  it('maps list query scope and filters to collaboration-service gRPC request shape', async () => {
+  it('maps list query scope and filters without recreating trusted authority in the body', async () => {
     const command = { call: jest.fn() } as unknown as TaskCommandGrpcAdapter
     const query = {
       listTasks: jest.fn().mockResolvedValue({ items: [], page: 1, pageSize: 20, total: 0 }),
@@ -37,9 +37,6 @@ describe('TaskBffService', () => {
 
     expect(query.listTasks).toHaveBeenCalledWith(
       expect.objectContaining({
-        tenantId: 'tenant-1',
-        operatorContext: expect.objectContaining({ accountId: 'account-1' }),
-        traceContext: expect.objectContaining({ traceId: 'trace-1' }),
         scope: TaskListScope.TASK_LIST_SCOPE_ASSIGNED_TO_ME,
         priority: [TaskPriority.TASK_PRIORITY_HIGH],
         includeArchived: true,
@@ -50,7 +47,7 @@ describe('TaskBffService', () => {
     )
   })
 
-  it('adds command audit context when creating tasks', async () => {
+  it('maps task business fields without putting audit authority in the body', async () => {
     const command = {
       call: jest.fn().mockResolvedValue({ task: { taskId: 'task-1' } })
     } as unknown as TaskCommandGrpcAdapter
@@ -74,10 +71,8 @@ describe('TaskBffService', () => {
     expect(command.call).toHaveBeenCalledWith(
       'createTask',
       expect.objectContaining({
-        tenantId: 'tenant-1',
         title: 'Prepare shift notes',
-        priority: TaskPriority.TASK_PRIORITY_NORMAL,
-        auditContext: expect.objectContaining({ auditId: 'request-1', source: 'api-gateway' })
+        priority: TaskPriority.TASK_PRIORITY_NORMAL
       }),
       source
     )

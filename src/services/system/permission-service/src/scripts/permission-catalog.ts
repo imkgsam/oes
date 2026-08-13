@@ -903,6 +903,10 @@ const authInternal = definePermissionGroup(Modules.AUTH_SERVICE, {
 })
 
 const collaborationTask = definePermissionGroup(Modules.COLLABORATION_SERVICE, {
+  CREATE: {
+    code: 'collaboration.task.create',
+    description: '创建协作任务或个人待办'
+  },
   ASSIGN: {
     code: 'collaboration.task.assign',
     description: '指派协作任务给租户内其他账号'

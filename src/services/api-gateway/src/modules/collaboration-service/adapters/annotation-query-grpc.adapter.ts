@@ -1,19 +1,11 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
-import { ClientGrpc } from '@nestjs/microservices'
-import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory
-} from '@oes/common/authorization'
-import { SERVICE_NAMES } from '@oes/common/constants'
+import { Injectable, OnModuleInit } from '@nestjs/common'
 import {
   ANNOTATION_QUERY_SERVICE_NAME,
   AnnotationQueryServiceClient
 } from '@oes/common/generated/collaboration_service'
-import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
-import {
-  DownstreamRequestSource,
-  toOperatorScopedMetadataInput
-} from '../../../common/grpc/gateway-downstream-source.mapper'
+import { safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
+import { DownstreamRequestSource } from '../../../common/grpc/gateway-downstream-source.mapper'
+import { GatewayCollaborationGrpcClient, GatewayTrustedGrpcExecutionProducer } from '../../../common/grpc'
 import { mapAnnotationView } from './annotation-grpc-mappers'
 
 const CALLER = 'api-gateway'
@@ -24,22 +16,17 @@ export class AnnotationQueryGrpcAdapter implements OnModuleInit {
   private svc!: AnnotationQueryServiceClient
 
   constructor(
-    @InjectGrpcClient(SERVICE_NAMES.COLLABORATION)
-    private readonly client: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory
+    private readonly client: GatewayCollaborationGrpcClient,
+    private readonly trustedExecution: GatewayTrustedGrpcExecutionProducer
   ) {}
 
   onModuleInit(): void {
-    this.svc = this.client.getService<AnnotationQueryServiceClient>(ANNOTATION_QUERY_SERVICE_NAME)
+    this.svc = this.client.getClient().getService<AnnotationQueryServiceClient>(ANNOTATION_QUERY_SERVICE_NAME)
   }
 
   async listAnnotationsForObject(request: Record<string, unknown>, source: DownstreamRequestSource) {
     const response = await safeGrpcCall(
-      this.svc.listAnnotationsForObject(
-        request as any,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
-      ),
+      this.svc.listAnnotationsForObject(stripAuthority(request) as any, await this.trustedExecution.forSelfServiceCall(source, 'urn:oes:service:collaboration-service')),
       this.opts('listAnnotationsForObject')
     )
     return {
@@ -52,10 +39,7 @@ export class AnnotationQueryGrpcAdapter implements OnModuleInit {
 
   async getAnnotation(request: Record<string, unknown>, source: DownstreamRequestSource) {
     const response = await safeGrpcCall(
-      this.svc.getAnnotation(
-        request as any,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
-      ),
+      this.svc.getAnnotation(stripAuthority(request) as any, await this.trustedExecution.forSelfServiceCall(source, 'urn:oes:service:collaboration-service')),
       this.opts('getAnnotation')
     )
     return { annotation: mapAnnotationView(response.annotation) }
@@ -65,4 +49,9 @@ export class AnnotationQueryGrpcAdapter implements OnModuleInit {
   private opts(method: string): SafeGrpcCallOptions {
     return { caller: CALLER, method: `AnnotationQueryService.${method}` }
   }
+}
+
+function stripAuthority(request: Record<string, unknown>): Record<string, unknown> {
+  const { tenantId, operatorContext, traceContext, ...business } = request
+  return business
 }
