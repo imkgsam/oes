@@ -28,7 +28,7 @@ Task P1 的 feature packet 是 [collaboration-task-p1.md](/Users/acehood/Documen
 ## 2. 模块划分
 
 - [task-command.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/collaboration-service/task-command.md)
-  - Task P1 手动任务写接口，以及已冻结的 Task Assistant AI exposure、ActionDescriptor、一次性消费与幂等语义。
+  - Task P1 手动任务写接口；Task Assistant、ActionGrant 与 DELEGATED exposure 保持后置。
 - [task-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/collaboration-service/task-query.md)
   - Task P1 个人任务列表与详情查询接口。
 - [annotation-command.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/collaboration-service/annotation-command.md)
@@ -41,17 +41,9 @@ Task P1 的 feature packet 是 [collaboration-task-p1.md](/Users/acehood/Documen
 - 所有接口均为内部 gRPC 接口，不对外部客户端直接开放。
 - 外部客户端必须通过 `api-gateway` / BFF 消费 task 与 annotation 能力。
 - 所有调用方都应把 `collaboration-service` 当作 black box，不依赖其内部实现或数据库结构。
-- 查询接口要求：
-  - internal service context
-  - authenticated operator context
-  - trace context
-  - 显式 `tenant_id`
-- 写接口要求：
-  - internal service context
-  - authenticated operator context
-  - trace context
-  - audit context
-  - 显式 `tenant_id`
+- 查询与写接口都通过 trusted HUMAN WEB ExecutionToken 建立 tenant/operator/trace authority；request body 不再承载这些 authority 字段。
+- 写接口的 audit identity/source 也来自 verified execution context；业务 reason、note、target 与 objectRef 仍是普通业务数据。
+- Gateway 是当前唯一生产 inbound caller；未来 MACHINE、DELEGATED、ActionGrant 与自动化调用不得复用这些 HUMAN RPC。
 
 ## 4. 当前能力范围
 
@@ -106,11 +98,12 @@ Annotation P1 不支持：
 
 ## 5. 权限基线
 
-Task P1 只冻结一个显式权限码：
+Task P1 冻结两个显式权限码：
 
+- `collaboration.task.create`
 - `collaboration.task.assign`
 
-该权限只控制是否可以创建 `assignee_account_id != operator.account_id` 的任务。
+`collaboration.task.create` 是 `CreateTask` 的入口能力；`collaboration.task.assign` 只控制是否可以创建 `assignee_account_id != operator.account_id` 的任务。后者由 Collaboration 在读取业务目标后按需向 Permission Service 查询，不要求所有 self todo 用户持有 assign。
 
 其他操作由 task participant rule 控制，具体见 [task-command.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/collaboration-service/task-command.md) 与 [task-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/collaboration-service/task-query.md)。
 

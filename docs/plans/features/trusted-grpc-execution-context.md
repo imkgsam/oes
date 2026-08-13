@@ -98,7 +98,7 @@ The implementation inventory script at `scripts/architecture/trusted-grpc-signat
 
 ### 3.1 Current-main global cutover status
 
-Overall execution status is `GRPC_FOUNDATION_COMPLETE_GLOBAL_SERVICE_CUTOVER_PENDING` at current-main `ec1ef2b19f66da2ef0287b887f7d2805534c6764`. The 54 generated files expose all 590 required explicit metadata signatures with zero missing signatures; this proves the shared call-signature foundation only. It does not prove that a target service has classified every contract, prepared every caller, enabled Token-only server enforcement or removed its legacy trust path.
+Overall execution status is `GRPC_FOUNDATION_COMPLETE_GLOBAL_SERVICE_CUTOVER_PENDING` at current-main `4e00df22546674ffdff8155a73e425be4df3b8ff`. The 54 generated files expose all 590 required explicit metadata signatures with zero missing signatures; this proves the shared call-signature foundation only. It does not prove that a target service has classified every contract, prepared every caller, enabled Token-only server enforcement or removed its legacy trust path.
 
 The persistent execution owner is **OES Trusted gRPC Service Migration** (`019ff138-ed1c-7b82-8cd4-865bdb6529bd`). The prior delivery-mode owner `019ff07e-d441-7731-acdb-1a9d262661a9` and approval-stalled predecessor `019fe9f8-5a44-76e1-b5a4-110db9da6d59` are archived with their WIP histories preserved. The former A/C/GRPC lane is historical, migration-frozen evidence and is not the active controller for the remaining cutover.
 
@@ -115,7 +115,7 @@ The persistent execution owner is **OES Trusted gRPC Service Migration** (`019ff
 | Public Entry | 23 / 2 | Y | Y | Y | Y | Gateway; implemented and verified at `bda36bffbdc28132872d4bed967adb93c2a92b9e` |
 | Sales | 27 / 4 | Y | Y | Y | Y | Gateway; implemented and verified in current main at `584be36794435f8c4688a09197e2f49ee9cf336a` |
 | MES | 32 / 4 | Y | Y | Y | Y | Gateway; implemented and verified at `ec1ef2b19f66da2ef0287b887f7d2805534c6764` |
-| Collaboration | 16 / 4 | N | N | N | N | Gateway; second batch |
+| Collaboration | 16 / 4 | Y | N | N | N | Gateway; trusted contract frozen, implementation pending |
 | CRM | 15 / 3 | N | N | N | N | Gateway, Collaboration; second batch |
 | Procurement | 21 / 2 | N | N | N | N | Gateway, WMS; second batch |
 | SRM | 13 / 2 | N | N | N | N | Gateway, Procurement; second batch |
@@ -127,7 +127,7 @@ The persistent execution owner is **OES Trusted gRPC Service Migration** (`019ff
 | Identity | 41 / 3 | N | N | N | N | Gateway, Auth, Permission, HR; foundation partial only |
 | Permission | 66 / 8 | N | N | N | N | Gateway, Auth, HR, TenantOrg, WMS; bootstrap partial only |
 | Auth | 70 / 1 | N | N | N | N | Gateway, HR, Site, TenantOrg; MACHINE foundation complete, full service pending |
-| **Total / proven state** | **560 / 51** | **9 Y / 12 N** | **9 Y / 12 N** | **9 Y / 12 N** | **9 Y / 12 N** | **Asset, Site, Browser Activity, Notification, Terminal Device, Finance, Public Entry, Sales and MES complete; 12 services pending implementation/cutover** |
+| **Total / proven state** | **560 / 51** | **10 Y / 11 N** | **9 Y / 12 N** | **9 Y / 12 N** | **9 Y / 12 N** | **Asset, Site, Browser Activity, Notification, Terminal Device, Finance, Public Entry, Sales and MES complete; Collaboration contract classified; 11 services pending implementation/cutover** |
 
 The frozen order in §6 remains authoritative. Migration continues one target service at a time; completing the Auth, Identity, Permission, Gateway or Common foundation does not implicitly advance an unverified service row.
 
@@ -1637,6 +1637,132 @@ mesTrustedGrpcImplementationLease:
 ```
 
 Acceptance proves 32/32 exact BUSINESS declarations and zero unclassified or dual-mode methods; Gateway and MES reject wrong issuer/time/audience/`cnf`/tenant/principal/terminal/Code before controller data; all 148 request fields and eight nested tombstone fields are removed/reserved while 16 new and two existing bounded business reasons remain; trusted audit identity/source and capture source cannot be overridden; both Gateway adapters resolve the dedicated MES mTLS client and legacy body/ordinary-metadata/fallback context is absent; the raw smoke script and package command are absent while isolated business tests remain; all ten Codes remain canonical and unchanged; no pure MACHINE caller, PDA declaration or current INTERNAL surface appears; MES outbound/event paths and business state machines are untouched; and the implementation diff is a strict subset of these 39 paths.
+
+### 9.9 Collaboration Task + Annotation 16-RPC frozen cutover lease
+
+Status: `FROZEN_PENDING_IMPLEMENTATION`. This slice migrates the existing 16 Collaboration RPCs without adding Task, Annotation, AI, ActionGrant, event or object capabilities. The business API remains unified: `CreateTask` admits self todo and assigned task through one RPC; `DeleteAnnotation` admits author deletion and governance deletion through one RPC. The base `collaboration.task.create` Code is checked at trusted admission; `collaboration.task.assign` is checked by Collaboration only when the verified assignee differs from the verified operator. `collaboration.annotation.manage` is checked by Collaboration only when the verified operator is not the Annotation author.
+
+All 16 RPCs use `aud=urn:oes:service:collaboration-service`, certificate-bound `HUMAN` ExecutionToken and `session_terminal=WEB`; all reject MACHINE, DELEGATED, wrong audience/`cnf`/terminal/issuer and body authority. Query RPCs use the empty SELF_SERVICE Code set only where the operation is participant/author-bound; BUSINESS RPCs use the exact existing or newly frozen Code below. Resource, author, creator and assignee facts remain service-owned business targets and are never authority sources.
+
+| RPC | Mode | Code / condition |
+| --- | --- | --- |
+| `CreateTask` | BUSINESS | `all [collaboration.task.create]`; service checks `collaboration.task.assign` only for another assignee |
+| `UpdateTask` | SELF_SERVICE | empty Code; creator rule |
+| `StartTask` | SELF_SERVICE | empty Code; assignee rule |
+| `CompleteTask` | SELF_SERVICE | empty Code; creator/assignee rule |
+| `CancelTask` | SELF_SERVICE | empty Code; creator rule |
+| `ReopenTask` | SELF_SERVICE | empty Code; existing creator/assignee state rules |
+| `ArchiveTask` | SELF_SERVICE | empty Code; creator rule |
+| `UnarchiveTask` | SELF_SERVICE | empty Code; creator rule |
+| `ListTasks` | SELF_SERVICE | empty Code; participant query scope |
+| `GetTask` | SELF_SERVICE | empty Code; creator/assignee visibility |
+| `CreateAnnotation` | BUSINESS | `all [collaboration.annotation.create]` plus CRM object read/capability check |
+| `UpdateAnnotation` | SELF_SERVICE | empty Code; author rule |
+| `DeleteAnnotation` | SELF_SERVICE | empty Code at admission; service checks author, otherwise `collaboration.annotation.manage` |
+| `SetAnnotationPinned` | BUSINESS | `all [collaboration.annotation.manage]` |
+| `ListAnnotationsForObject` | SELF_SERVICE | empty Code plus CRM object read check |
+| `GetAnnotation` | SELF_SERVICE | empty Code plus author/private and CRM object read check |
+
+Every request removes and reserves `tenant_id=1`, `operator_context=2`, `trace_context=3`; command requests additionally remove and reserve `audit_context=4`. The nested `OperatorContext` fields 1..4, `TraceContext` fields 1..2 and `AuditContext` fields 1..3 are compatibility tombstones. All remaining title, task target, notes, reasons, objectRef, visibility and query fields retain business meaning and existing numbers.
+
+The old direct insecure Annotation gRPC smoke path is not a production caller and must be removed from live acceptance; Gateway HTTP smoke remains the only live entry. Collaboration outbound calls to CRM, Identity and Permission, the Gateway Identity display-name client, Task events/outbox, Notification consumer, Prisma/schema and all ActionGrant/AI paths remain protected.
+
+```yaml
+collaborationTrustedGrpcImplementationLease:
+  totalTrackedWriterPaths: 54
+  stateCounts: { EXISTING: 48, NEW_TARGET: 6 }
+  trackedWriterPaths:
+    commonProtoPermissionCode:
+      - { state: EXISTING, path: src/common/src/contracts/collaboration_service/collaboration.proto }
+      - { state: EXISTING, path: src/common/src/authorization/permission-codes/collaboration/task.permission-codes.ts }
+      - { state: EXISTING, path: src/common/src/authorization/permission-codes/collaboration/annotation.permission-codes.ts }
+      - { state: EXISTING, path: src/common/src/authorization/permission-codes/collaboration/index.ts }
+      - { state: EXISTING, path: src/services/system/permission-service/src/scripts/permission-catalog.ts }
+      - { state: EXISTING, path: src/services/system/permission-service/src/scripts/generate-common-permission-codes.ts }
+      - { state: NEW_TARGET, path: src/common/src/contracts/collaboration_service/collaboration.contract.spec.ts }
+
+    gatewayCollaborationHumanProducer:
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution-producer.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution-producer.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution.module.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution.module.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/index.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-collaboration-grpc.client.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-collaboration-grpc.client.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/app.module.ts }
+
+    gatewayCollaborationAdaptersAndBff:
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/collaboration-service/collaboration-service.module.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/collaboration-service/adapters/task-command-grpc.adapter.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/collaboration-service/adapters/task-query-grpc.adapter.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/collaboration-service/adapters/annotation-command-grpc.adapter.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/collaboration-service/adapters/annotation-query-grpc.adapter.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/collaboration-service/application/task-bff.service.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/collaboration-service/application/task-bff.service.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/collaboration-service/application/annotation-bff.service.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/collaboration-service/application/annotation-bff.service.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/collaboration-service/interface/http/controllers/task.controller.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/collaboration-service/interface/http/controllers/task.controller.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/collaboration-service/interface/http/controllers/annotation.controller.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/collaboration-service/interface/http/dtos/task.dto.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/collaboration-service/interface/http/dtos/annotation.dto.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/modules/collaboration-service/adapters/collaboration-dedicated-client.spec.ts }
+
+    collaborationTrustedRuntime:
+      - { state: EXISTING, path: src/services/system/collaboration-service/src/main.ts }
+      - { state: EXISTING, path: src/services/system/collaboration-service/src/app.module.ts }
+      - { state: EXISTING, path: src/services/system/collaboration-service/src/interfaces/grpc/task-command.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/system/collaboration-service/src/interfaces/grpc/task-query.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/system/collaboration-service/src/interfaces/grpc/task-grpc.mapping.ts }
+      - { state: EXISTING, path: src/services/system/collaboration-service/src/interfaces/grpc/task-grpc.presenter.ts }
+      - { state: EXISTING, path: src/services/system/collaboration-service/src/interfaces/grpc/annotation-command.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/system/collaboration-service/src/interfaces/grpc/annotation-query.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/system/collaboration-service/src/interfaces/grpc/annotation-grpc.mapping.ts }
+      - { state: EXISTING, path: src/services/system/collaboration-service/src/interfaces/grpc/annotation-grpc.presenter.ts }
+      - { state: EXISTING, path: src/services/system/collaboration-service/src/modules/collaboration-task.module.ts }
+      - { state: EXISTING, path: src/services/system/collaboration-service/src/modules/collaboration-annotation.module.ts }
+      - { state: NEW_TARGET, path: src/services/system/collaboration-service/src/modules/collaboration-trusted-execution.module.ts }
+
+    collaborationSecurityAndSmoke:
+      - { state: EXISTING, path: src/services/system/collaboration-service/package.json }
+      - { state: EXISTING, path: src/services/system/collaboration-service/test/l3/task-command.grpc.controller.spec.ts }
+      - { state: EXISTING, path: src/services/system/collaboration-service/test/l3/task-query.grpc.controller.spec.ts }
+      - { state: EXISTING, path: src/services/system/collaboration-service/test/l3/annotation-command.grpc.controller.spec.ts }
+      - { state: EXISTING, path: src/services/system/collaboration-service/test/l3/annotation-query.grpc.controller.spec.ts }
+      - { state: EXISTING, path: scripts/local/collaboration-task-p1-smoke.mjs }
+      - { state: EXISTING, path: scripts/local/collaboration-task-p1-smoke-lib.mjs }
+      - { state: EXISTING, path: scripts/local/collaboration-task-p1-smoke.spec.mjs }
+      - { state: EXISTING, path: scripts/local/collaboration-annotation-p1-smoke.mjs }
+      - { state: EXISTING, path: scripts/local/collaboration-annotation-p1-smoke-lib.mjs }
+      - { state: NEW_TARGET, path: src/services/system/collaboration-service/test/l3/collaboration-trusted-grpc-security.spec.ts }
+
+  ignoredGeneratedOutputs:
+    - path: src/common/src/generated/collaboration_service/collaboration.ts
+      input: src/common/src/contracts/collaboration_service/collaboration.proto
+      command: pnpm proto:regen
+
+  protectedByDefault:
+    - Collaboration application/domain/repository/Prisma/schema/outbox/event paths not listed above
+    - outbound CRM object reference, Identity account reference and Permission access-summary adapters and contracts
+    - Gateway Identity generic client used for participant display labels
+    - Notification Collaboration Task consumer and all event consumers
+    - Task Assistant, ActionGrant, AI Platform, DELEGATED and every future MACHINE caller
+    - package/lock/deployment, tenant-web internals and every other service cutover
+
+  focusedAcceptanceCommands:
+    - pnpm proto:lint
+    - pnpm proto:regen
+    - node scripts/architecture/trusted-grpc-signature-inventory.mjs
+    - pnpm --filter @oes/common build
+    - pnpm --filter api-gateway build
+    - pnpm --filter collaboration-service build
+    - pnpm exec jest --config package.json --runInBand --runTestsByPath src/common/src/contracts/collaboration_service/collaboration.contract.spec.ts
+    - pnpm --filter api-gateway exec jest --runInBand --runTestsByPath src/common/grpc/gateway-trusted-grpc-execution-producer.spec.ts src/common/grpc/gateway-trusted-grpc-execution.module.spec.ts src/common/grpc/gateway-collaboration-grpc.client.spec.ts src/modules/collaboration-service/adapters/collaboration-dedicated-client.spec.ts src/modules/collaboration-service/application/task-bff.service.spec.ts src/modules/collaboration-service/application/annotation-bff.service.spec.ts src/modules/collaboration-service/interface/http/controllers/task.controller.spec.ts
+    - pnpm --filter collaboration-service exec jest --config jest.config.js --runInBand --runTestsByPath test/l3/task-command.grpc.controller.spec.ts test/l3/task-query.grpc.controller.spec.ts test/l3/annotation-command.grpc.controller.spec.ts test/l3/annotation-query.grpc.controller.spec.ts test/l3/collaboration-trusted-grpc-security.spec.ts
+    - node --test scripts/local/collaboration-task-p1-smoke.spec.mjs
+```
+
+Acceptance proves exactly 16 declared RPCs, one mode per RPC, one base Task create Code, service-layer conditional assign/manage checks, 100% body authority tombstones, claims-derived tenant/operator/trace/audit, no MACHINE/DELEGATED/ActionGrant admission, dedicated Gateway mTLS client wiring, raw insecure Annotation smoke removed from live acceptance, and untouched Collaboration outbound/event/schema/AI boundaries. Implementation must be a strict subset of this 54-path lease.
 
 ## 10. Repository-wide Security Acceptance
 

@@ -10,12 +10,7 @@ P1 query 只支持按当前 objectRef 查询 `CrmAccount` Notes，不提供全�
 
 ## 2. 通用上下文要求
 
-所有 Annotation P1 query 统一要求：
-
-- `tenant_id`
-- internal service context
-- authenticated operator context
-- trace context
+所有 Annotation P1 query 统一通过 trusted HUMAN WEB ExecutionToken 建立 tenant、operator 与 trace authority；这些字段不再由 request body 提供。
 
 补充约束：
 
@@ -63,9 +58,6 @@ P1 列表排序：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `operator_context` | 是 | 操作人上下文 |
-| `trace_context` | 是 | 链路追踪上下文 |
 | `object_ref` | 是 | 目标业务对象引用；P1 只允许 `crm-service / CrmAccount` |
 | `include_private` | 否 | 是否包含当前作者自己的 private notes；默认 true |
 | `page` | 否 | 页码；未传由服务采用默认值 |
@@ -104,9 +96,6 @@ P1 列表排序：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `operator_context` | 是 | 操作人上下文 |
-| `trace_context` | 是 | 链路追踪上下文 |
 | `annotation_id` | 是 | 目标 Annotation 标识 |
 
 响应最小 shape：

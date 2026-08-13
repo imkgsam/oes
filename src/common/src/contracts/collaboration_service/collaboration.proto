@@ -69,21 +69,18 @@ enum AnnotationVisibility {
 }
 
 message OperatorContext {
-  string account_id = 1;
-  string user_id = 2;
-  string tenant_id = 3;
-  string display_name = 4;
+  reserved 1 to 4;
+  reserved "account_id", "user_id", "tenant_id", "display_name";
 }
 
 message TraceContext {
-  string trace_id = 1;
-  string span_id = 2;
+  reserved 1 to 2;
+  reserved "trace_id", "span_id";
 }
 
 message AuditContext {
-  string audit_id = 1;
-  string reason = 2;
-  string source = 3;
+  reserved 1 to 3;
+  reserved "audit_id", "reason", "source";
 }
 
 message ObjectRef {
@@ -99,10 +96,8 @@ message ObjectDisplaySnapshot {
 }
 
 message CreateTaskRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1 to 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string title = 5;
   string description = 6;
   string assignee_account_id = 7;
@@ -111,10 +106,8 @@ message CreateTaskRequest {
 }
 
 message UpdateTaskRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1 to 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string task_id = 5;
   string title = 6;
   string description = 7;
@@ -123,10 +116,8 @@ message UpdateTaskRequest {
 }
 
 message StartTaskRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1 to 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string task_id = 5;
 }
 
@@ -135,10 +126,8 @@ message StartTaskResponse {
 }
 
 message CompleteTaskRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1 to 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string task_id = 5;
   string completion_note = 6;
 }
@@ -148,10 +137,8 @@ message CompleteTaskResponse {
 }
 
 message CancelTaskRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1 to 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string task_id = 5;
   string cancel_reason = 6;
 }
@@ -161,10 +148,8 @@ message CancelTaskResponse {
 }
 
 message ReopenTaskRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1 to 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string task_id = 5;
   string reopen_reason = 6;
 }
@@ -174,10 +159,8 @@ message ReopenTaskResponse {
 }
 
 message ArchiveTaskRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1 to 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string task_id = 5;
 }
 
@@ -186,10 +169,8 @@ message ArchiveTaskResponse {
 }
 
 message UnarchiveTaskRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1 to 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string task_id = 5;
 }
 
@@ -198,9 +179,8 @@ message UnarchiveTaskResponse {
 }
 
 message ListTasksRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1 to 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   TaskListScope scope = 4;
   repeated TaskStatus status = 5;
   repeated TaskPriority priority = 6;
@@ -215,9 +195,8 @@ message ListTasksRequest {
 }
 
 message GetTaskRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1 to 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   string task_id = 4;
 }
 
@@ -281,10 +260,8 @@ message AnnotationView {
 }
 
 message CreateAnnotationRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1 to 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   ObjectRef object_ref = 5;
   string body_text = 6;
   AnnotationVisibility visibility = 7;
@@ -295,10 +272,8 @@ message CreateAnnotationResponse {
 }
 
 message UpdateAnnotationRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1 to 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string annotation_id = 5;
   string body_text = 6;
   AnnotationVisibility visibility = 7;
@@ -309,10 +284,8 @@ message UpdateAnnotationResponse {
 }
 
 message DeleteAnnotationRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1 to 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string annotation_id = 5;
   string delete_reason = 6;
 }
@@ -322,10 +295,8 @@ message DeleteAnnotationResponse {
 }
 
 message SetAnnotationPinnedRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1 to 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string annotation_id = 5;
   bool pinned = 6;
 }
@@ -335,9 +306,8 @@ message SetAnnotationPinnedResponse {
 }
 
 message ListAnnotationsForObjectRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1 to 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   ObjectRef object_ref = 4;
   bool include_private = 5;
   int32 page = 6;
@@ -352,9 +322,8 @@ message ListAnnotationsForObjectResponse {
 }
 
 message GetAnnotationRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1 to 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   string annotation_id = 4;
 }
 

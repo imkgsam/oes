@@ -10,13 +10,7 @@ P1 command 只处理围绕 `crm-service / CrmAccount` 的内部纯文本备注�
 
 ## 2. 通用上下文要求
 
-所有 Annotation P1 command 统一要求：
-
-- `tenant_id`
-- internal service context
-- authenticated operator context
-- trace context
-- audit context
+所有 Annotation P1 command 统一通过 trusted HUMAN WEB ExecutionToken 建立 tenant、operator、trace 与 audit authority；这些字段不再由 request body 提供。
 
 补充约束：
 
@@ -68,6 +62,7 @@ P1 冻结两个权限语义：
 - 编辑备注：P1 只允许作者编辑自己的备注。
 - 软删除自己的备注：作者规则允许，不单独要求权限码。
 - 软删除他人备注：需要 `collaboration.annotation.manage`。
+- `DeleteAnnotation` 保持一个统一业务接口；服务先比较 verified operator 与 author，再仅在非作者路径向 Permission Service 查询 `collaboration.annotation.manage`。
 - 置顶 / 取消置顶：需要 `collaboration.annotation.manage`。
 - P1 不允许管理员编辑他人备注正文。
 
@@ -88,10 +83,6 @@ P1 冻结两个权限语义：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `operator_context` | 是 | 操作人上下文 |
-| `trace_context` | 是 | 链路追踪上下文 |
-| `audit_context` | 是 | 审计上下文 |
 | `object_ref` | 是 | 目标业务对象引用；P1 只允许 `crm-service / CrmAccount` |
 | `body_text` | 是 | 纯文本备注正文 |
 | `visibility` | 否 | `PRIVATE / OBJECT_VISIBLE`；为空时默认 `OBJECT_VISIBLE` |
@@ -125,10 +116,6 @@ P1 冻结两个权限语义：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `operator_context` | 是 | 操作人上下文 |
-| `trace_context` | 是 | 链路追踪上下文 |
-| `audit_context` | 是 | 审计上下文 |
 | `annotation_id` | 是 | 目标 Annotation |
 | `body_text` | 否 | 更新后的纯文本正文；传入时不得为空白 |
 | `visibility` | 否 | 更新后的 `PRIVATE / OBJECT_VISIBLE` |
@@ -162,10 +149,6 @@ P1 冻结两个权限语义：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `operator_context` | 是 | 操作人上下文 |
-| `trace_context` | 是 | 链路追踪上下文 |
-| `audit_context` | 是 | 审计上下文 |
 | `annotation_id` | 是 | 目标 Annotation |
 | `delete_reason` | 否 | 治理删除原因摘要 |
 
@@ -197,10 +180,6 @@ P1 冻结两个权限语义：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `operator_context` | 是 | 操作人上下文 |
-| `trace_context` | 是 | 链路追踪上下文 |
-| `audit_context` | 是 | 审计上下文 |
 | `annotation_id` | 是 | 目标 Annotation |
 | `pinned` | 是 | true 表示置顶，false 表示取消置顶 |
 

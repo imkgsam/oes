@@ -10,13 +10,7 @@ P1 command 只处理 manual task，不处理业务对象绑定、source binding�
 
 ## 2. 通用上下文要求
 
-所有 Task P1 command 统一要求：
-
-- `tenant_id`
-- internal service context
-- authenticated operator context
-- trace context
-- audit context
+所有 Task P1 command 统一通过 trusted HUMAN WEB ExecutionToken 建立 tenant、operator、trace 与 audit authority；这些字段不再由 request body 提供。
 
 补充约束：
 
@@ -43,8 +37,9 @@ P1 command 只处理 manual task，不处理业务对象绑定、source binding�
 
 ### 3.3 权限语义
 
-- self todo 创建不需要 `collaboration.task.assign`，只要求 authenticated operator。
+- `CreateTask` 需要入口 Code `collaboration.task.create`；self todo 创建不需要 `collaboration.task.assign`。
 - 当 `assignee_account_id != operator.account_id` 时，调用方必须具备 `collaboration.task.assign`。
+- 该条件权限由 Collaboration 在 service 层读取 `assignee_account_id` 后向 Permission Service 查询；trusted gRPC guard 不拆分 `CreateTask`，也不把 assign Code错误地施加到 self todo。
 - P1 不按组织层级、汇报关系、项目成员或团队队列限制指派范围。
 - 指派目标必须是同 tenant active account。
 
@@ -87,10 +82,6 @@ P1 状态：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `operator_context` | 是 | 操作人上下文 |
-| `trace_context` | 是 | 链路追踪上下文 |
-| `audit_context` | 是 | 审计上下文 |
 | `title` | 是 | 任务标题 |
 | `description` | 否 | 纯文本任务说明 |
 | `assignee_account_id` | 否 | 处理人；为空时默认为 operator 自己 |
@@ -109,6 +100,7 @@ P1 状态：
 - self todo 成功后 `createdByAccountId = assigneeAccountId = operator.account_id`，`visibility = PRIVATE`，`status = OPEN`。
 - 当 `assignee_account_id != operator.account_id` 时，必须校验 operator 具备 `collaboration.task.assign`。
 - assigned task 成功后 `createdByAccountId = operator.account_id`，`assigneeAccountId = assignee_account_id`，`visibility = ASSIGNMENT_PARTICIPANTS`，`status = OPEN`。
+- `collaboration.task.create` 只证明 operator 可以进入任务创建能力；`collaboration.task.assign` 是 service 层按目标条件执行的额外权限。
 - 成功创建 self todo 后发布 `TaskCreated`。
 - 成功创建 assigned task 后发布 `TaskCreated` 与 `TaskAssigned`。
 
@@ -127,7 +119,6 @@ P1 状态：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `task_id` | 是 | 目标 Task 标识 |
 | `title` | 否 | 更新后的标题 |
 | `description` | 否 | 更新后的纯文本说明 |
@@ -163,7 +154,6 @@ P1 状态：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `task_id` | 是 | 目标 Task 标识 |
 
 响应最小 shape：
@@ -194,7 +184,6 @@ P1 状态：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `task_id` | 是 | 目标 Task 标识 |
 | `completion_note` | 否 | 完成说明纯文本 |
 
@@ -226,7 +215,6 @@ P1 状态：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `task_id` | 是 | 目标 Task 标识 |
 | `cancel_reason` | 否 | 取消原因纯文本 |
 
@@ -258,7 +246,6 @@ P1 状态：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `task_id` | 是 | 目标 Task 标识 |
 | `reopen_reason` | 否 | 重开原因纯文本 |
 
@@ -290,7 +277,6 @@ P1 状态：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `task_id` | 是 | 目标 Task 标识 |
 
 响应最小 shape：
@@ -321,7 +307,6 @@ P1 状态：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `task_id` | 是 | 目标 Task 标识 |
 
 响应最小 shape：
@@ -378,49 +363,6 @@ P1 command 返回的 `task` 至少包含：
 - 不允许跨 tenant 指派任务。
 - 不允许物理删除任务。
 
-## 7. Task Assistant Command Consumption
+## 7. Task Assistant / ActionGrant (Deferred)
 
-本节只定义 Task Assistant P1 已注册的 Task command，不扩大本服务其他命令的 AI exposure；长期 Task owner 边界仍以 [collaboration-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/collaboration-service.md) 为准。
-
-### 7.1 AI risk subset
-
-- `CreateTask` self todo：`DELEGATION_ALLOWED`，要求明确 HUMAN 创建意图和 idempotency key，但不需要 ActionGrant。
-- `CreateTask` assigned task：`ACTION_GRANT_REQUIRED`，必须同时提供匹配的 DELEGATED ExecutionToken 与 `x-oes-action-grant` metadata。
-- `UpdateTask`、`StartTask`、`CompleteTask`、`CancelTask`、`ReopenTask`、`ArchiveTask`、`UnarchiveTask`：Task Assistant P1 的 `AI_FORBIDDEN`；既有 HUMAN 调用语义不变。
-- 上述 code baseline 是最低风险边界。受控 tenant policy 只能关闭、要求 step-up 或向更严格类别移动；P1 不接受 org、role 或 personal override。ActionGrant 必须绑定 owner resolver 返回的 effective class 与 policy version。
-
-Auth 通过 Collaboration-owned protected owner-action resolver 获取 canonical Task action facts、code baseline、tenant tightening 与 policy version。该 resolver 要求准确 Auth mTLS identity 加 certificate-bound Collaboration-audience ExecutionToken 中的 `collaboration.internal.ai_action.resolve`；它不是 mTLS-only bootstrap，request body、AI ToolContract registration 或 prompt 不能自报 risk/target/policy facts。
-
-### 7.2 Assigned-task ActionDescriptorV1
-
-assigned-task 的 operation key 固定为 `collaboration.task.create-assigned.v1`。业务 owner 在用户确认前构造：
-
-```json
-{
-  "descriptorVersion": "v1",
-  "operationKey": "collaboration.task.create-assigned.v1",
-  "toolContract": {
-    "id": "registered Task Assistant tool identity",
-    "version": "immutable registered version"
-  },
-  "target": {
-    "tenantId": "trusted tenant",
-    "assigneeAccountId": "target account"
-  },
-  "input": {
-    "title": "normalized title",
-    "description": "string or null",
-    "dueAt": "RFC 3339 instant or null",
-    "priority": "LOW | NORMAL | HIGH | URGENT"
-  },
-  "idempotencyKey": "opaque client-generated key"
-}
-```
-
-The descriptor uses the Auth ActionGrant Contract’s JCS / SHA-256 canonicalization. `priority` is explicit after defaulting; omitted and `null` are not interchangeable. The service derives creator, visibility and initial status from the verified execution context and verifies they equal the P1 assigned-task semantics before it consumes the grant.
-
-### 7.3 Idempotency And Consumption
-
-`CreateTaskRequest` gains `idempotency_key`. AI callers must provide a non-blank key; non-AI P1 callers retain their existing contract until their own migration is frozen. The key is an idempotency reference, not an authorization credential and not an ActionGrant substitute.
-
-Collaboration owns one immutable business receipt per `(tenantId, operatorAccountId, operationKey, idempotencyKey)` and separate immutable consumption facts per `actionGrantJti`. The first success writes the Task, task audit, existing Task outbox, receipt and presented JTI consumption in one local transaction. Identical retries return the original Task result; a replacement JTI for the same confirmed descriptor is consumed against that receipt/result without another Task write. Reused JTI, changed digest/policy version/target or substituted idempotency identity fails closed. Timeout remains `RESULT_PENDING` until the owner result is reconciled, and no ActionGrant content is accepted in request body, event payload or audit plaintext.
+Task Assistant、ActionGrant 与 DELEGATED runtime 不属于当前 HUMAN WEB Task RPC 契约。当前不定义 delegated operation、ActionDescriptor、owner-action resolver、JTI consumption 或 AI-specific idempotency receipt；未来需要这些能力时，必须通过独立设计和契约冻结后再实现。当前 HUMAN RPC 拒绝 DELEGATED、MACHINE 和 AI caller。

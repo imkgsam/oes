@@ -56,6 +56,7 @@
 - P1 支持多条对象级置顶，排序为置顶优先，组内按创建时间倒序。
 - P1 使用白名单 object reference adapter，只允许 `crm-service / CrmAccount`。
 - P1 使用 `collaboration-service.annotation` 本地审计，并对齐 OES audit envelope。
+- trusted gRPC 迁移保留一个 `DeleteAnnotation` RPC；服务按 verified operator 是否为作者决定作者删除，非作者路径再向 Permission Service 检查 `collaboration.annotation.manage`。
 - P1 不冻结公共事件，不依赖 ObjectActivity / ObjectTimeline。
 
 长期职责、对象边界与 deferred 清单以 [collaboration-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/collaboration-service.md) 为准。

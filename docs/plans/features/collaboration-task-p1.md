@@ -45,12 +45,13 @@
 - `collaboration-service` 是独立服务，`task` 是第一模块。
 - P1 只实现 manual task。
 - P1 支持 self todo 与 assigned task。
-- P1 的唯一显式权限码是 `collaboration.task.assign`。
+- `CreateTask` 使用入口 Code `collaboration.task.create`；`collaboration.task.assign` 仍只在 service 层按 assignee 条件检查。
 - P1 状态为 `OPEN / IN_PROGRESS / COMPLETED / CANCELLED`。
 - P1 通过 `dueAt` 派生 overdue，不把 overdue 建模为状态。
 - P1 支持 creator 归档终态任务，不支持 delete。
 - P1 每个 command 写 audit。
 - P1 本地事务成功后发布 task fact events。
+- trusted gRPC 迁移保留一个 `CreateTask` RPC，不拆 self todo / assigned task；verified ET 建立基础入口后，Collaboration 按 assignee 调 Permission Service 做条件授权。
 
 长期职责、对象模型与 deferred 清单以 [collaboration-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/collaboration-service.md) 为准。
 
@@ -126,7 +127,7 @@
 - 已明确 Task P1 owns / does-not-own。
 - 已明确 Task P1 不绑定业务对象、不监听业务事件、不自动完成。
 - 已冻结 Task P1 字段、状态、命令、查询、权限、审计与事件。
-- 已明确 P1 唯一显式权限码为 `collaboration.task.assign`。
+- 已明确 `collaboration.task.create` 为入口 Code，`collaboration.task.assign` 为条件指派 Code。
 - 已明确 P1 不支持 delete，终态任务通过 creator archive 收口。
 - 已明确 deferred 清单，后续线程不得把 deferred 能力当作 P1 已承诺范围。
 

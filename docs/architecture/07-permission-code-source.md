@@ -23,6 +23,8 @@ Common definitions
   -> Permission Service runtime catalog sync
 ```
 
+Collaboration Task P1 uses `collaboration.task.create` as the base HUMAN create capability alongside `collaboration.task.assign`. The base Code admits the unified `CreateTask` RPC; Collaboration still checks `collaboration.task.assign` in its application layer when the requested assignee differs from the verified operator. The canonical Common definition and Permission runtime catalog must be updated together by the future Collaboration implementation lease; no Code is granted to MACHINE, DELEGATED or ActionGrant callers in this inbound cutover.
+
 禁止：
 
 - Permission Service 私有脚本定义全项目业务域 Permission Code，再反向生成 Common。

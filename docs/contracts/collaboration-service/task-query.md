@@ -10,12 +10,7 @@ P1 query 只支持参与者视角，不提供管理视图、组织视图、团�
 
 ## 2. 通用上下文要求
 
-所有 Task P1 query 统一要求：
-
-- `tenant_id`
-- internal service context
-- authenticated operator context
-- trace context
+所有 Task P1 query 统一通过 trusted HUMAN WEB ExecutionToken 建立 tenant、operator 与 trace authority；这些字段不再由 request body 提供。
 
 补充约束：
 
@@ -72,9 +67,6 @@ P1 不发布 `TaskOverdue` 事件，不实现 overdue scheduler。
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `operator_context` | 是 | 操作人上下文 |
-| `trace_context` | 是 | 链路追踪上下文 |
 | `scope` | 是 | `MY_TODO / ASSIGNED_TO_ME / CREATED_BY_ME` |
 | `status` | 否 | 可多选；为空时默认 `OPEN / IN_PROGRESS` |
 | `priority` | 否 | 可多选 |
@@ -124,9 +116,6 @@ P1 不发布 `TaskOverdue` 事件，不实现 overdue scheduler。
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `operator_context` | 是 | 操作人上下文 |
-| `trace_context` | 是 | 链路追踪上下文 |
 | `task_id` | 是 | 目标 Task 标识 |
 
 响应最小 shape：
@@ -192,6 +181,6 @@ P1 不返回：
 - 不允许把 `overdue` 当作持久状态。
 - 不允许前端绕过 `api-gateway` / BFF 直接调用 `collaboration-service`。
 
-## 7. Task Assistant Consumption
+## 7. Task Assistant Consumption (Deferred)
 
-`ListTasks` 与 `GetTask` 是 Task Assistant P1 唯一可注册的 read ToolContract operation。它们在有效 DELEGATED ExecutionToken 下属于 `DELEGATION_ALLOWED`，不需要 ActionGrant；服务端仍按既有 tenant 与 participant visibility 验证，不提供 AI、machine、admin、org 或 team bypass。详情读取只在 HUMAN 已能读取对应 Task 时发生。
+`ListTasks` 与 `GetTask` 的 Task Assistant/DELEGATED 注册保持后置。当前 trusted HUMAN WEB RPC 不接受 DELEGATED、AI 或 MACHINE ExecutionToken；未来如需 read ToolContract，必须另行冻结执行类别、权限和审计语义。

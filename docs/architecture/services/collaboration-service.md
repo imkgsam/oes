@@ -330,13 +330,9 @@ P1 冻结以下 commands：
 
 P1 不支持 `DeleteTask`。错误任务通过 `CancelTask + ArchiveTask` 收口。
 
-### 13.9 Task Assistant ActionGrant Boundary
+### 13.9 Task Assistant / ActionGrant Boundary
 
-Task Assistant P1 的 owner baseline 固定为：Task read 与 self todo 为 `DELEGATION_ALLOWED`，assigned-task create 为 `ACTION_GRANT_REQUIRED`，其余 Task commands 为 `AI_FORBIDDEN`。租户受控配置只能关闭、要求 step-up 或向更严格类别移动，不能降低 code baseline；P1 不提供 org、role 或 personal override。每次 owner resolution 都返回 canonical action facts、effective class 与 policy version，缺失、陈旧或无效配置 fail closed。
-
-Auth 只能通过 Collaboration-owned protected owner-action resolver 取得上述事实。该 resolver 使用 INTERNAL Code `collaboration.internal.ai_action.resolve`，要求准确 Auth mTLS identity 与 certificate-bound Collaboration-audience ExecutionToken；request/AI/registration manifest 不能自报 risk、target facts 或 policy version。它不签发 credential，也不替代 Permission intersection 或 Task command validation。
-
-Task command 将 business idempotency receipt 与 ActionGrant JTI consumption 作为不同事实：一个 owner-defined action 只有一个业务结果，但同一 confirmed descriptor 在不确定响应下可以出现 replacement JTI；每个接受的 JTI 都绑定同一 receipt/result，任何 changed descriptor、substituted idempotency identity 或 reused JTI 都 fail closed。停止 AI Run 只阻止后续工作与 pending confirmation，不回滚已提交 Task；reversal 必须是新的 owner-defined action。
+Task Assistant、ActionGrant 与 DELEGATED runtime 均保持后置，不属于当前 16 个 HUMAN WEB RPC 的可执行入口。当前设计不冻结 delegated read/create operation、owner-action resolver、ActionDescriptor、JTI consumption 或 AI-specific idempotency receipt；这些能力未来必须单独定义并通过独立设计与契约冻结。当前 HUMAN RPC 不接受 DELEGATED、MACHINE 或 AI caller。
 
 ## 14. Task P1 Query Scope
 
@@ -482,38 +478,15 @@ P1 不发布：
 - application 层执行参与者规则、指派权限与审计编排。
 - 本地事务成功后发布事件。
 
-所有 query 必须显式携带：
-
-- `tenantId`
-- operator context
-- trace context
-
-所有 command 必须显式携带：
-
-- `tenantId`
-- operator context
-- trace context
-- audit context
+所有 query 与 command 都通过 verified HUMAN WEB ExecutionToken 和 trusted transport context 建立 tenant、operator、trace authority；command 的 audit identity/source 也由该上下文提供。request body 不再承载这些 authority 字段，业务 target、reason 与 objectRef 仍是普通业务数据。
 
 ## 19. Task Assistant AI Exposure
 
-Task Assistant 只能通过受控工具消费本服务已冻结的 Task P1 黑盒能力；AI 不是 Task creator、assignee 或 participant，业务责任主体始终是可信 HUMAN account。
+Task Assistant 的任何工具消费保持后置；AI 不是当前 16 个 HUMAN RPC 的 creator、assignee 或 participant，业务责任主体始终是可信 HUMAN account。
 
-首个 AI exposure subset 固定如下：
+未来 AI exposure 的 operation、风险等级、ActionGrant 与审计规则不在本轮冻结。
 
-| Operation | AI risk class | Stable rule |
-| --- | --- | --- |
-| `ListTasks` / `GetTask` | `DELEGATION_ALLOWED` | 只返回当前 HUMAN 按既有 participant rule 可见的实时 Task；不需要 ActionGrant。 |
-| Task action draft | no command | 只产生待确认提议，不写 Task。 |
-| `CreateTask` self todo | `DELEGATION_ALLOWED` | HUMAN 必须表达明确创建意图；创建者和 assignee 都由可信 HUMAN account 派生。 |
-| `CreateTask` assigned task | `ACTION_GRANT_REQUIRED` | 这是首个 Task ActionGrant operation；仅可指派同 tenant active account，仍要求 `collaboration.task.assign`。 |
-| `UpdateTask`、`StartTask`、`CompleteTask`、`CancelTask`、`ReopenTask`、`ArchiveTask`、`UnarchiveTask` | `AI_FORBIDDEN` for Task Assistant P1 | 仍可由既有 HUMAN 界面按原规则调用；任何未来 AI exposure 必须重新冻结风险分类与 descriptor。 |
-
-`CreateTask` assigned task 的稳定 operation key 为 `collaboration.task.create-assigned.v1`。其 `ActionDescriptorV1.toolContract` 是 AI-PLATFORM 注册的不可变 ToolContract identity/version；`target` 是 `{ tenantId, assigneeAccountId }`；`input` 是 `{ title, description, dueAt, priority }`，其中 `description` 与 `dueAt` 需显式区分 `null` 和值，`priority` 必须在 digest 前显式归一为最终值。`createdByAccountId`、`visibility = ASSIGNMENT_PARTICIPANTS` 与 `status = OPEN` 由服务从可信上下文推导，不能由 AI 或 request body 覆盖。
-
-本服务拥有该 operation 的 idempotency 与 ActionGrant consumption receipt。`CreateTask` AI 调用必须携带 idempotency key；任务、任务 audit、既有 outbox、receipt 与一次性消费事实必须在同一个 Collaboration 数据库事务中持久化。receipt 至少以 `actionGrantJti` 和 `(tenantId, operatorAccountId, operationKey, idempotencyKey)` 分别唯一约束，并保存 descriptor digest、Task id 与不可变结果引用。相同 descriptor 的重试返回已有结果；不同 descriptor 或 ActionGrant 重放不得新建 Task。现有 Task fact event 语义保持不变，不为 ActionGrant 新增公共事件。
-
-Task audit 继续由本服务拥有；其既有 payload 仅记录 delegation、AgentPrincipal、ToolContract、ActionGrant JTI、descriptor digest、idempotency key 与决策引用等非秘密关联值，不记录 ActionGrant 正文或不必要的任务正文副本。
+当前不定义 AI operation matrix、ActionDescriptor、ActionGrant receipt 或 AI-specific idempotency；这些均须未来单独冻结。
 
 ## 20. Deferred
 
@@ -540,3 +513,11 @@ Task audit 继续由本服务拥有；其既有 payload 仅记录 delegation、A
 - notification closed loop
 - admin / org management views
 - delete task
+
+## 21. Trusted gRPC Inbound Boundary
+
+The existing 16 Task and Annotation RPCs remain one business API per operation. `CreateTask` is intentionally not split: a self todo and an assigned task are two outcomes of the same create operation. Trusted gRPC admission requires the base Code `collaboration.task.create`; after ET claims are established, Collaboration compares `assigneeAccountId` with the verified operator. Self assignment proceeds without another Permission lookup; assigning another account calls Permission Service for `collaboration.task.assign` and then verifies the target is an active account in the same tenant. `DeleteAnnotation` likewise remains one operation: the service compares the verified operator with `authorAccountId`, allowing the author rule, or calls Permission Service for `collaboration.annotation.manage` for governance deletion of another author's note.
+
+All 16 inbound RPCs use `aud=urn:oes:service:collaboration-service`, certificate-bound HUMAN ExecutionToken, `session_terminal=WEB`, and reject MACHINE, DELEGATED, missing/wrong audience, certificate binding, terminal or Code. Tenant, operator, trace and audit facts come only from verified ET/transport context. The request body never establishes authority. `ActionGrant`, Task Assistant and DELEGATED execution remain deferred and cannot use these HUMAN RPCs.
+
+This transport migration does not alter Task participant rules, Annotation author/visibility rules, CRM object-reference checks, local audit, Task events/outbox, Prisma/schema, or Collaboration outbound calls to CRM, Identity and Permission. The existing Gateway Identity client used for participant display names remains required.
