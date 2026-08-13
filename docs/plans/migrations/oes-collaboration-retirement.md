@@ -808,6 +808,8 @@ Collaboration implementation completed and integrated: corrective candidate `c8c
 
 Party routing correction: a temporary second UD `019ffaf0-2086-7da3-96a2-5fdf65a9bc31` was created in error, performed read-only analysis only, and was immediately archived without document writes or implementation dispatch. Party design is returned to the sole persistent UD `019fcaeb-cb2e-7e92-8c4e-aab7771d7254`; its unused design worktree/branch remains preserved and clean until final cleanup.
 
+Party trusted-gRPC design is now frozen and integrated at `150443aa1236019e1aa67038d2ce6a35810be806` (parent `c8c8a810108ec19f35a527e25ace6cdead433e93`), with seven docs/proto paths and a 30-path implementation lease (`25 EXISTING + 5 NEW_TARGET`). The six Party RPCs are SYSTEM MACHINE certificate-bound ET only; request tenant authority is removed/reserved; no new Party business capability is included. Root/main/origin/remote are `150443aa` and clean. The next single writer is Party implementation, followed by the persistent I&V; no parallel writer or extra design/I&V task.
+
 SITE recovery implementation `547a0c5d55f9a955543779ec584a16e9b05cf453` 已 `ACCEPTED_AND_INTEGRATED`；Site 59+7、Site Media 11、Gateway/Asset/Event/R2-purge 链与验证矩阵完成。AI/ActionGrant runtime 保持 deferred，API-KEY rejected prototype 永不进入 main；无 checker。
 
 本次退役迁移的Git与内容保全阶段已经完成：有用设计与实现已进入`main`或持久evidence ref，拒绝/取代证据已分类。legacy task archive阶段仍在纠错收口：post-closure exact-ID复核发现19项`archived=0`，SITE、PRINCIPAL-ROLE、EXEC-CRYPTO与GRPC共13项已关闭，当前其余6项按能力逐项审计。全仓 trusted gRPC service cutover 是独立的后续执行主线，目前仅 Asset/Site 完成、19服务 pending，不因 legacy GRPC 线程归档而关闭。临时closure Git资源在各批次记录集成后正常移除，最终继续只保留root `main`。本文件只承担迁移关闭证据与归档manifest，不作为设计或实现真相源。
