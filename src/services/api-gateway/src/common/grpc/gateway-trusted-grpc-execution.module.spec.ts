@@ -3,6 +3,7 @@ import { GatewayMachineWorkloadSourceCredentialProvider } from './gateway-machin
 import { GatewayTrustedGrpcExecutionModule } from './gateway-trusted-grpc-execution.module'
 import { GatewayTrustedGrpcExecutionProducer } from './gateway-trusted-grpc-execution-producer'
 import { GatewaySalesGrpcClient } from './gateway-sales-grpc.client'
+import { GatewayMesGrpcClient } from './gateway-mes-grpc.client'
 import { Module } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 
@@ -41,6 +42,7 @@ describe('GatewayTrustedGrpcExecutionModule wiring', () => {
       expect.arrayContaining([
         GatewayTrustedGrpcExecutionProducer,
         GatewaySalesGrpcClient,
+        GatewayMesGrpcClient,
         GatewayMachineWorkloadSourceCredentialProvider,
         GatewayMachineTrustedGrpcExecutionProducer
       ])
@@ -49,6 +51,7 @@ describe('GatewayTrustedGrpcExecutionModule wiring', () => {
       expect.arrayContaining([
         GatewayTrustedGrpcExecutionProducer,
         GatewaySalesGrpcClient,
+        GatewayMesGrpcClient,
         GatewayMachineWorkloadSourceCredentialProvider,
         GatewayMachineTrustedGrpcExecutionProducer
       ])
@@ -64,7 +67,8 @@ describe('GatewayTrustedGrpcExecutionModule wiring', () => {
       'urn:oes:service:terminal-device-service',
       'urn:oes:service:finance-service',
       'urn:oes:service:sales-service',
-      'urn:oes:service:public-entry-service'
+      'urn:oes:service:public-entry-service',
+      'urn:oes:service:mes-service'
     ])
   })
 
@@ -73,6 +77,13 @@ describe('GatewayTrustedGrpcExecutionModule wiring', () => {
     class ConsumerModule {}
     const module = await Test.createTestingModule({ imports: [ConsumerModule] }).compile()
     expect(module.get(GatewaySalesGrpcClient)).toBeInstanceOf(GatewaySalesGrpcClient)
+  })
+
+  it('exports the dedicated MES client to a consumer module through the real Nest DI graph', async () => {
+    @Module({ imports: [GatewayTrustedGrpcExecutionModule] })
+    class ConsumerModule {}
+    const module = await Test.createTestingModule({ imports: [ConsumerModule] }).compile()
+    expect(module.get(GatewayMesGrpcClient)).toBeInstanceOf(GatewayMesGrpcClient)
   })
 
   it('fails closed when deployment trust configuration is absent instead of installing a default producer', () => {
