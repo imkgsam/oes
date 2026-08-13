@@ -38,7 +38,6 @@ describe('PartyRegistrationGrpcAdapter', () => {
 
     expect(registerTenantParty).toHaveBeenCalledWith(
       expect.objectContaining({
-        tenantId: 'tenant-1',
         type: 'ORGANIZATION',
         legalName: 'Beta Inc.',
         displayName: 'Beta Inc.',
@@ -46,6 +45,7 @@ describe('PartyRegistrationGrpcAdapter', () => {
       }),
       undefined
     )
+    expect(registerTenantParty.mock.calls[0][0]).not.toHaveProperty('tenantId')
     expect(registerTenantParty.mock.calls[0][0]).not.toHaveProperty('canonicalName')
   })
 })

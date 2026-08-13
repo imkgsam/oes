@@ -48,7 +48,7 @@ export class PartyTenantQueryGrpcAdapter implements OnModuleInit {
   ): Promise<TenantPartySummary | null> {
     const response = await safeGrpcCall(
       this.svc.getTenantPartyById(
-        { tenantId, tenantPartyId },
+        { tenantPartyId },
         this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
       ),
       this.opts('PartyQueryService.getTenantPartyById')

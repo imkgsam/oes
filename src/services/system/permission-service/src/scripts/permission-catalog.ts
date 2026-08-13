@@ -1090,6 +1090,15 @@ const notificationInternal = definePermissionGroup(Modules.NOTIFICATION_SERVICE,
   }
 })
 
+const partyInternal = definePermissionGroup(Modules.PARTY_SERVICE, {
+  REGISTER_TENANT_PARTY: { code: 'party.internal.register_tenant_party', description: '注册租户主体', kind: PermissionKind.INTERNAL, externalApiEligible: false },
+  DEACTIVATE_TENANT_PARTY: { code: 'party.internal.deactivate_tenant_party', description: '停用租户主体', kind: PermissionKind.INTERNAL, externalApiEligible: false },
+  GET_TENANT_PARTY_BY_ID: { code: 'party.internal.get_tenant_party_by_id', description: '按 ID 查询租户主体', kind: PermissionKind.INTERNAL, externalApiEligible: false },
+  RESOLVE_TENANT_PARTY_BY_IDENTIFIER: { code: 'party.internal.resolve_tenant_party_by_identifier', description: '按标识解析租户主体', kind: PermissionKind.INTERNAL, externalApiEligible: false },
+  RESOLVE_TENANT_PARTY_FOR_CONSUMER: { code: 'party.internal.resolve_tenant_party_for_consumer', description: '解析消费者租户主体证据', kind: PermissionKind.INTERNAL, externalApiEligible: false },
+  SEARCH_TENANT_PARTY_CANDIDATES: { code: 'party.internal.search_tenant_party_candidates', description: '搜索租户主体候选', kind: PermissionKind.INTERNAL, externalApiEligible: false }
+})
+
 export const PERMISSION_MANAGEMENT_PERMISSION_CODES = permissionManagement.codes
 export const PERMISSION_INTERNAL_PERMISSION_CODES = permissionInternal.codes
 export const ROLE_TEMPLATE_PERMISSION_CODES = roleTemplateManagement.codes
@@ -1128,6 +1137,7 @@ export const ASSET_INTERNAL_PERMISSION_CODES = assetInternal.codes
 export const ASSET_SITE_MEDIA_PERMISSION_CODES = assetSiteMedia.codes
 export const ASSET_SITE_MEDIA_INTERNAL_PERMISSION_CODES = assetSiteMediaInternal.codes
 export const NOTIFICATION_INTERNAL_PERMISSION_CODES = notificationInternal.codes
+export const PARTY_INTERNAL_PERMISSION_CODES = partyInternal.codes
 export const SITE_MANAGEMENT_INTERNAL_PERMISSION_CODES = siteManagementInternal.codes
 
 /** DEPRECATED_PERMISSION_CODES tracks legacy permission rows that should be cleaned from local/dev seed data. */

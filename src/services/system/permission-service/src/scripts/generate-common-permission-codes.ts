@@ -24,6 +24,7 @@ import {
   PERMISSION_ACCOUNT_SELF_PERMISSION_CODES,
   PERMISSION_INTERNAL_PERMISSION_CODES,
   PERMISSION_MANAGEMENT_PERMISSION_CODES,
+  PARTY_INTERNAL_PERMISSION_CODES,
   PROCUREMENT_MANAGEMENT_PERMISSION_CODES,
   PUBLIC_ENTRY_BUSINESS_CARD_PERMISSION_CODES,
   PUBLIC_ENTRY_SHORT_LINK_PERMISSION_CODES,
@@ -80,6 +81,7 @@ const COMMON_PERMISSION_CODE_FILES: CommonPermissionCodeFileDefinition[] = [
       './notification',
       './procurement',
       './permission',
+      './party',
       './public-entry',
       './sales',
       './site-management',
@@ -88,6 +90,17 @@ const COMMON_PERMISSION_CODE_FILES: CommonPermissionCodeFileDefinition[] = [
       './terminal-device',
       './wms'
     ]
+  },
+  {
+    kind: 'index',
+    relativePath: 'party/index.ts',
+    exports: ['./internal.permission-codes']
+  },
+  {
+    kind: 'const',
+    relativePath: 'party/internal.permission-codes.ts',
+    constName: 'PARTY_INTERNAL_PERMISSION_CODES',
+    records: PARTY_INTERNAL_PERMISSION_CODES
   },
   {
     kind: 'index',

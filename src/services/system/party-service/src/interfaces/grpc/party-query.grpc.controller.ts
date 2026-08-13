@@ -1,5 +1,7 @@
-import { Controller } from '@nestjs/common'
+import { Controller, UseGuards } from '@nestjs/common'
 import { Metadata } from '@grpc/grpc-js'
+import { AuthorizeInternalCall, getAuthenticatedGrpcRequestContext } from '@oes/common/authorization'
+import { PARTY_INTERNAL_PERMISSION_CODES, PartyTrustedExecutionGuard } from '../../modules/party-trusted-execution.module'
 import {
   GetTenantPartyByIdRequest,
   GetTenantPartyByIdResponse,
@@ -17,16 +19,18 @@ import { ResolvedTenantPartyCandidate, TenantPartySummary } from '../../domain/r
 
 /** PartyQueryGrpcController exposes read-only tenant-scoped TenantParty queries over gRPC. */
 @Controller()
+@UseGuards(PartyTrustedExecutionGuard)
 @PartyQueryServiceControllerMethods()
 export class PartyQueryGrpcController implements PartyQueryServiceController {
   constructor(private readonly partyQueryService: PartyQueryService) {}
 
+  @AuthorizeInternalCall({ all: [PARTY_INTERNAL_PERMISSION_CODES.GET_TENANT_PARTY_BY_ID] })
   async getTenantPartyById(
     request: GetTenantPartyByIdRequest,
     _metadata?: Metadata
   ): Promise<GetTenantPartyByIdResponse> {
     const tenantParty = await this.partyQueryService.getTenantPartyById(
-      request.tenantId ?? '',
+      tenantIdFromExecution(request),
       request.tenantPartyId ?? ''
     )
     return {
@@ -34,11 +38,12 @@ export class PartyQueryGrpcController implements PartyQueryServiceController {
     }
   }
 
+  @AuthorizeInternalCall({ all: [PARTY_INTERNAL_PERMISSION_CODES.RESOLVE_TENANT_PARTY_BY_IDENTIFIER] })
   async resolveTenantPartyByIdentifier(
     request: ResolveTenantPartyByIdentifierRequest,
     _metadata?: Metadata
   ): Promise<ResolveTenantPartyByIdentifierResponse> {
-    const tenantParty = await this.partyQueryService.resolveTenantPartyByIdentifier(request.tenantId ?? '', {
+    const tenantParty = await this.partyQueryService.resolveTenantPartyByIdentifier(tenantIdFromExecution(request), {
       identifierType: request.identifierType ?? '',
       normalizedValue: request.normalizedValue ?? '',
       rawValue: request.rawValue ?? request.normalizedValue ?? '',
@@ -51,12 +56,13 @@ export class PartyQueryGrpcController implements PartyQueryServiceController {
     }
   }
 
+  @AuthorizeInternalCall({ all: [PARTY_INTERNAL_PERMISSION_CODES.SEARCH_TENANT_PARTY_CANDIDATES] })
   async searchTenantPartyCandidates(
     request: SearchTenantPartyCandidatesRequest,
     _metadata?: Metadata
   ): Promise<SearchTenantPartyCandidatesResponse> {
     const candidates = await this.partyQueryService.searchTenantPartyCandidates({
-      tenantId: request.tenantId ?? '',
+      tenantId: tenantIdFromExecution(request),
       keyword: request.keyword ?? undefined,
       partyType: (request.partyType || undefined) as never,
       registeredCountry: request.registeredCountry ?? undefined,
@@ -79,12 +85,13 @@ export class PartyQueryGrpcController implements PartyQueryServiceController {
   }
 
   /** resolveTenantPartyForConsumer exposes consumer-neutral tenant party resolution over gRPC. */
+  @AuthorizeInternalCall({ all: [PARTY_INTERNAL_PERMISSION_CODES.RESOLVE_TENANT_PARTY_FOR_CONSUMER] })
   async resolveTenantPartyForConsumer(
     request: ResolveTenantPartyForConsumerRequest,
     _metadata?: Metadata
   ): Promise<ResolveTenantPartyForConsumerResponse> {
     const result = await this.partyQueryService.resolveTenantPartyForConsumer({
-      tenantId: request.tenantId ?? '',
+      tenantId: tenantIdFromExecution(request),
       typeHint: (request.typeHint || undefined) as never,
       name: request.name || undefined,
       country: request.country || undefined,
@@ -108,6 +115,12 @@ export class PartyQueryGrpcController implements PartyQueryServiceController {
       matchedFields: result.matchedFields
     }
   }
+}
+
+function tenantIdFromExecution(request: object): string {
+  const tenantId = getAuthenticatedGrpcRequestContext(request)?.verifiedExecutionToken?.tenantId?.trim()
+  if (!tenantId) throw new Error('Party tenant scope is required from trusted execution')
+  return tenantId
 }
 
 /** mapTenantParty converts an application TenantParty summary into the generated gRPC response shape. */

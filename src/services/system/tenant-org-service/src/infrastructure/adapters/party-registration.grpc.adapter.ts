@@ -44,7 +44,6 @@ export class PartyRegistrationGrpcAdapter implements PartyRegistrationPort, OnMo
     const response = await safeGrpcCall<RegisterTenantPartyResponse>(
       this.client.registerTenantParty(
         {
-          tenantId: input.tenantId,
           type: 'ORGANIZATION',
           legalName: input.legalName,
           displayName: input.legalName,

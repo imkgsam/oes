@@ -1,5 +1,6 @@
 import { PartyRegistrationService } from '../../src/application/services'
 import { PartyRegistrationGrpcController } from '../../src/interfaces/grpc/party-registration.grpc.controller'
+import { attachVerifiedExecution } from '@oes/common/authorization'
 
 function createPartyRegistrationServiceMock() {
   return {
@@ -27,8 +28,7 @@ describe('PartyRegistrationGrpcController L3', () => {
       matchResult: 'CREATED'
     })
 
-    const result = await controller.registerTenantParty({
-      tenantId: 'tenant-1',
+    const request = {
       type: 'ORGANIZATION',
       legalName: 'Acme Legal',
       displayName: 'Acme Local',
@@ -50,7 +50,9 @@ describe('PartyRegistrationGrpcController L3', () => {
           role: 'PRIMARY'
         }
       ]
-    } as any)
+    } as any
+    attachPartyExecution(request, 'tenant-1')
+    const result = await controller.registerTenantParty(request)
 
     expect(service.registerTenantParty).toHaveBeenCalledWith({
       tenantId: 'tenant-1',
@@ -107,11 +109,12 @@ describe('PartyRegistrationGrpcController L3', () => {
       legalName: 'Zhang San'
     })
 
-    const result = await controller.deactivateTenantParty({
-      tenantId: 'tenant-2',
+    const request = {
       tenantPartyId: 'tenant-party-2',
       reason: 'duplicate local subject'
-    } as any)
+    } as any
+    attachPartyExecution(request, 'tenant-2')
+    const result = await controller.deactivateTenantParty(request)
 
     expect(service.deactivateTenantParty).toHaveBeenCalledWith({
       tenantId: 'tenant-2',
@@ -121,3 +124,10 @@ describe('PartyRegistrationGrpcController L3', () => {
     expect(result.tenantParty?.status).toBe('INACTIVE')
   })
 })
+
+function attachPartyExecution(request: object, tenantId: string) {
+  attachVerifiedExecution(request, {
+    verifiedExecutionToken: { principalType: 'MACHINE', tenantId } as any,
+    verifiedWorkloadIdentity: {} as any
+  })
+}

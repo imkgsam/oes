@@ -8,10 +8,11 @@ import { PrismaModule } from '../../infrastructure/prisma/prisma.module'
 import { PrismaPartyRegistrationIdempotencyRepository } from '../../infrastructure/repositories/prisma-party-registration-idempotency.repository'
 import { PrismaTenantPartyRepository } from '../../infrastructure/repositories/prisma-tenant-party.repository'
 import { PartyRegistrationGrpcController } from '../../interfaces/grpc/party-registration.grpc.controller'
+import { PartyTrustedExecutionModule } from '../party-trusted-execution.module'
 
 /** PartyRegistrationModule wires tenant-scoped TenantParty registration behavior. */
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, PartyTrustedExecutionModule],
   providers: [
     {
       provide: TENANT_PARTY_REPOSITORY,

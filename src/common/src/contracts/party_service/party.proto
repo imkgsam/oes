@@ -58,6 +58,7 @@ message ResolvedTenantPartyCandidate {
   repeated string conflict_flags = 4;
 }
 
+// Tenant scope is derived from the verified Party INTERNAL ExecutionToken; field 1 remains reserved.
 message RegisterTenantPartyRequest {
   reserved 1;
   reserved "tenant_id";

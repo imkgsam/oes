@@ -37,7 +37,6 @@ export class PartyQueryGrpcAdapter implements TenantPartyLookupPort, OnModuleIni
     const response = await safeGrpcCall(
       this.partyQueryService.getTenantPartyById(
         {
-          tenantId,
           tenantPartyId
         },
         this.buildMetadata()

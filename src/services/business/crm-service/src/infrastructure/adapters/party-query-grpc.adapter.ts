@@ -57,7 +57,6 @@ export class PartyQueryGrpcAdapter
     const response = await safeGrpcCall(
       this.partyQueryService.getTenantPartyById(
         {
-          tenantId,
           tenantPartyId
         },
         this.buildMetadata()
@@ -88,7 +87,6 @@ export class PartyQueryGrpcAdapter
     const response = await safeGrpcCall(
       this.partyQueryService.resolveTenantPartyForConsumer(
         {
-          tenantId: input.tenantId,
           typeHint: input.typeHint,
           name: input.name,
           country: input.country ?? '',
@@ -134,7 +132,6 @@ export class PartyQueryGrpcAdapter
     const response = await safeGrpcCall(
       this.partyRegistrationService.registerTenantParty(
         {
-          tenantId: input.tenantId,
           type: input.typeHint,
           legalName: input.legalName,
           displayName: input.displayName,

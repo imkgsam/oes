@@ -41,7 +41,7 @@ export class PartyQueryGrpcAdapter implements OnModuleInit {
   ): Promise<GetTenantPartyByIdResponse> {
     return this.call(
       'getTenantPartyById',
-      this.svc.getTenantPartyById({ tenantId, tenantPartyId }, this.operatorMetadata(source))
+      this.svc.getTenantPartyById({ tenantPartyId }, this.operatorMetadata(source))
     )
   }
 

@@ -1,5 +1,7 @@
-import { Controller } from '@nestjs/common'
+import { Controller, UseGuards } from '@nestjs/common'
 import { Metadata } from '@grpc/grpc-js'
+import { AuthorizeInternalCall, getAuthenticatedGrpcRequestContext } from '@oes/common/authorization'
+import { PARTY_INTERNAL_PERMISSION_CODES, PartyTrustedExecutionGuard } from '../../modules/party-trusted-execution.module'
 import {
   DeactivateTenantPartyRequest,
   DeactivateTenantPartyResponse,
@@ -13,16 +15,18 @@ import { TenantPartySummary } from '../../domain/repositories'
 
 /** PartyRegistrationGrpcController exposes tenant-scoped TenantParty registration over gRPC. */
 @Controller()
+@UseGuards(PartyTrustedExecutionGuard)
 @PartyRegistrationServiceControllerMethods()
 export class PartyRegistrationGrpcController implements PartyRegistrationServiceController {
   constructor(private readonly partyRegistrationService: PartyRegistrationService) {}
 
+  @AuthorizeInternalCall({ all: [PARTY_INTERNAL_PERMISSION_CODES.REGISTER_TENANT_PARTY] })
   async registerTenantParty(
     request: RegisterTenantPartyRequest,
     _metadata?: Metadata
   ): Promise<RegisterTenantPartyResponse> {
     const result = await this.partyRegistrationService.registerTenantParty({
-      tenantId: request.tenantId ?? '',
+      tenantId: tenantIdFromExecution(request),
       type: (request.type ?? '') as never,
       legalName: request.legalName ?? '',
       displayName: request.displayName ?? undefined,
@@ -53,12 +57,13 @@ export class PartyRegistrationGrpcController implements PartyRegistrationService
     }
   }
 
+  @AuthorizeInternalCall({ all: [PARTY_INTERNAL_PERMISSION_CODES.DEACTIVATE_TENANT_PARTY] })
   async deactivateTenantParty(
     request: DeactivateTenantPartyRequest,
     _metadata?: Metadata
   ): Promise<DeactivateTenantPartyResponse> {
     const tenantParty = await this.partyRegistrationService.deactivateTenantParty({
-      tenantId: request.tenantId ?? '',
+      tenantId: tenantIdFromExecution(request),
       tenantPartyId: request.tenantPartyId ?? '',
       reason: request.reason ?? undefined
     })
@@ -67,6 +72,12 @@ export class PartyRegistrationGrpcController implements PartyRegistrationService
       tenantParty: mapTenantParty(tenantParty)
     }
   }
+}
+
+function tenantIdFromExecution(request: object): string {
+  const tenantId = getAuthenticatedGrpcRequestContext(request)?.verifiedExecutionToken?.tenantId?.trim()
+  if (!tenantId) throw new Error('Party tenant scope is required from trusted execution')
+  return tenantId
 }
 
 /** mapTenantParty converts an application TenantParty summary into the generated gRPC response shape. */

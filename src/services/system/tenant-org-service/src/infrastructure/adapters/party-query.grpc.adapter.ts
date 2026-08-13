@@ -42,7 +42,6 @@ export class PartyQueryGrpcAdapter implements OrganizationTenantPartyReader, OnM
     const response = await safeGrpcCall(
       this.partyQueryService.getTenantPartyById(
         {
-          tenantId: input.tenantId,
           tenantPartyId: input.tenantPartyId
         },
         this.buildMetadata()

@@ -1,5 +1,6 @@
 import { PartyQueryService } from '../../src/application/services'
 import { PartyQueryGrpcController } from '../../src/interfaces/grpc/party-query.grpc.controller'
+import { attachVerifiedExecution } from '@oes/common/authorization'
 
 function createPartyQueryServiceMock() {
   return {
@@ -29,8 +30,7 @@ describe('PartyQueryGrpcController L3', () => {
       }
     ])
 
-    const result = await controller.searchTenantPartyCandidates({
-      tenantId: 'tenant-1',
+    const request = {
       keyword: 'Acme',
       partyType: 'ORGANIZATION',
       registeredCountry: 'CN',
@@ -42,7 +42,9 @@ describe('PartyQueryGrpcController L3', () => {
           issuerCountryOrRegion: 'CN'
         }
       ]
-    } as any)
+    } as any
+    attachPartyExecution(request, 'tenant-1')
+    const result = await controller.searchTenantPartyCandidates(request)
 
     expect(service.searchTenantPartyCandidates).toHaveBeenCalledWith({
       tenantId: 'tenant-1',
@@ -90,12 +92,13 @@ describe('PartyQueryGrpcController L3', () => {
       legalName: 'Zhang San'
     })
 
-    const result = await controller.resolveTenantPartyByIdentifier({
-      tenantId: 'tenant-1',
+    const request = {
       identifierType: 'PASSPORT',
       normalizedValue: 'P123456',
       issuerCountryOrRegion: 'CN'
-    } as any)
+    } as any
+    attachPartyExecution(request, 'tenant-1')
+    const result = await controller.resolveTenantPartyByIdentifier(request)
 
     expect(service.resolveTenantPartyByIdentifier).toHaveBeenCalledWith('tenant-1', {
       identifierType: 'PASSPORT',
@@ -135,8 +138,7 @@ describe('PartyQueryGrpcController L3', () => {
       matchedFields: ['identifier:VAT_NO']
     })
 
-    const result = await (controller as any).resolveTenantPartyForConsumer({
-      tenantId: 'tenant-1',
+    const request = {
       typeHint: 'ORGANIZATION',
       name: 'Foshan Basin Trading',
       country: 'CN',
@@ -152,7 +154,9 @@ describe('PartyQueryGrpcController L3', () => {
           issuerCountryOrRegion: 'CN'
         }
       ]
-    })
+    }
+    attachPartyExecution(request, 'tenant-1')
+    const result = await (controller as any).resolveTenantPartyForConsumer(request)
 
     expect(service.resolveTenantPartyForConsumer).toHaveBeenCalledWith({
       tenantId: 'tenant-1',
@@ -189,3 +193,10 @@ describe('PartyQueryGrpcController L3', () => {
     })
   })
 })
+
+function attachPartyExecution(request: object, tenantId: string) {
+  attachVerifiedExecution(request, {
+    verifiedExecutionToken: { principalType: 'MACHINE', tenantId } as any,
+    verifiedWorkloadIdentity: {} as any
+  })
+}
