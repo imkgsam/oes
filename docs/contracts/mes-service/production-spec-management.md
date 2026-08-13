@@ -10,16 +10,7 @@ This contract freezes only the minimum shape required by Mold / Tooling foundati
 
 ## 2. Common Command Context
 
-Every command requires:
-
-| Field | Required | Meaning |
-| --- | --- | --- |
-| `tenantId` | yes | Tenant boundary. |
-| `orgId` | when applicable | Organization boundary. |
-| `operatorContext` | yes | Acting operator. |
-| `traceContext` | yes | Trace and request correlation. |
-| `auditContext` | yes | Audit reason and source. |
-| `commandId` | yes | Idempotency key. |
+Every command follows the [MES trusted execution contract](README.md#trusted-execution-contract). Tenant, org, operator, trace and trusted audit identity/source are derived from verified context and are absent from the request body. `commandId` remains the required idempotency key, and the optional bounded business `reason` uses the exact field number frozen in README.
 
 Management rules must execute inside `mes-service` domain / application code. They must not be implemented in API Gateway, DTO validation, Prisma schema, or shared contract types.
 

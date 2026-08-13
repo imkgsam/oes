@@ -12,7 +12,7 @@ The BFF owns:
 
 - HTTP route shape for tenant-web.
 - Authentication and authorization integration.
-- Tenant, org, operator, trace, audit, and command idempotency context mapping.
+- Trusted HUMAN session to MES-audience ExecutionToken exchange, plus command idempotency and bounded business-reason mapping.
 - Request / response DTO mapping between HTTP and internal MES gRPC contracts.
 - Small web-only conveniences such as pagination query parsing and checklist batch submission shape.
 
@@ -41,7 +41,7 @@ If a tenant-web feature needs a field that is not present in those contracts, up
 
 Permission codes are transport authorization labels, not MES domain objects.
 
-Recommended first-slice action code families:
+The canonical first-slice action codes are:
 
 | Permission | Purpose |
 | --- | --- |
@@ -50,15 +50,13 @@ Recommended first-slice action code families:
 | `mes.mold_design.read` | Read mold designs. |
 | `mes.mold_design.manage` | Register mold designs. |
 | `mes.production_mold.read` | Read production molds. |
-| `mes.master_mold.read` | Read master molds. |
-| `mes.master_mold.manage` | Register master molds. |
 | `mes.production_mold.manage` | Register, accept, move, install, unmount, or mark production molds for scrap. |
 | `mes.tooling_installation.read` | Read current tooling placement. |
 | `mes.tooling_installation.manage` | Install or unmount tooling. |
 | `mes.mold_usage.record` | Record mold usage facts. |
 | `mes.mold_life.manage` | Adjust mold life counters. |
 
-Final permission seed changes must wait until BFF routes and tenant-web entry points are frozen.
+The ten Codes already exist in the canonical Permission catalog; this slice adds no Code. Master-mold reads/register use `mes.production_mold.read/manage`. `ListMoldLifeCounters` uses `mes.production_mold.read`; only `AdjustMoldLifeCounter` uses `mes.mold_life.manage`.
 
 ## 5. HTTP Route Groups
 
@@ -83,14 +81,9 @@ Recommended route groups:
 
 ## 6. Context Mapping
 
-For every request:
+For every request, Gateway authenticates the current HUMAN WEB session, exchanges the transport-private source credential for `aud=urn:oes:service:mes-service` with the exact RPC Code, and sends it through the dedicated mTLS MES client. The HTTP `:tenantId` is checked against the verified session scope at the edge but is not copied into the gRPC request as authority. Org, operator, trace and audit identity/source likewise remain trusted context, never DTO fields or ordinary metadata. Optional reason stays bounded business payload; `commandId` comes from the request body when provided, otherwise from the trusted request id.
 
-- `tenantId` comes from the path.
-- `orgId` may come from query/body, otherwise from authenticated operator context when applicable.
-- `operatorContext` comes from the authenticated account/session.
-- `traceContext` comes from request trace metadata.
-- `auditContext` is generated for management commands using request reason and route metadata.
-- `commandId` comes from request body when provided, otherwise from the request id.
+Gateway must not use `GrpcTransportModule.forFeature(MES)`, `InjectGrpcClient(MES)`, `GrpcMetadataPropagationFactory`, `toOperatorScopedMetadataInput`, body context builders or fallback request/trace/audit strings for MES. The two adapters resolve one dedicated certificate-authenticated MES client and the trusted execution producer. This does not migrate MES outbound Item Master calls.
 
 ## 7. Web Daily Checklist Convenience
 

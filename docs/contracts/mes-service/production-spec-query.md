@@ -8,14 +8,7 @@ This query surface supports Mold / Tooling foundation selectors and reference va
 
 ## 2. Common Query Context
 
-Every query requires:
-
-| Field | Required | Meaning |
-| --- | --- | --- |
-| `tenantId` | yes | Tenant boundary. |
-| `orgId` | when applicable | Organization boundary. |
-| `operatorContext` | yes | Acting operator. |
-| `traceContext` | yes | Trace and request correlation. |
+Every query follows the [MES trusted execution contract](README.md#trusted-execution-contract). Tenant, org, operator, request and trace derive from verified context and are absent from the request body; query filters remain ordinary business targets.
 
 ## 3. Read Models
 

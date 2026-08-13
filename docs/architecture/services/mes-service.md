@@ -315,3 +315,13 @@ barcode
 3. 基于本文重写 `docs/contracts/mes-service/**` 与 `src/common/src/contracts/mes_service/**`。
 4. 基于新 contract 重构 `mes-service` runtime、API Gateway BFF 和 tenant-web MES 页面。
 5. 每次新增或扩展 MES 设计，优先更新本文；如果主题尚未冻结，只登记到本文 backlog，不新建长期并列设计入口。
+
+## 11. Trusted gRPC Inbound Boundary
+
+当前四个 gRPC service 的 32 个 RPC 都是租户内人员执行或读取 MES 业务事实的既有能力，统一冻结为 `BUSINESS / HUMAN / WEB`，audience 为 `urn:oes:service:mes-service`。当前生产 direct caller 只有 API Gateway MES BFF；没有纯 MACHINE root、PDA trusted caller、worker、Cron 或 Robot caller。Gateway 使用当前 HUMAN WEB session 换取 certificate-bound MES ExecutionToken，MES 按每个方法的 canonical Permission Code 执行 `all` 判定；当前方法拒绝 MACHINE、DELEGATED、SELF_SERVICE 与非 WEB terminal，且不得同时声明 INTERNAL 模式。
+
+工厂现场对象不等于 MACHINE principal。工艺员维护生产规格、模具管理员登记或移动模具、现场主管安装/维护/报废模具、文员批量录入使用次数，都仍是 HUMAN 业务操作。未来 PDA 扫码由现场人员触发时仍是 HUMAN，但必须在真实 PDA caller、session terminal 与测试齐备后另行冻结允许的方法；设备无人值守上报、Planning 自动下达与跨域事实传播必须分别设计窄 INTERNAL RPC 或事件，不能复用当前 HUMAN RPC 冒充人员。
+
+Request body 的 `tenant_id`、`org_id`、`operator_context`、`trace_context`、`audit_context` 仅是迁移前兼容输入，迁移后全部删除/reserve。tenant、org、operator、request、trace、audit identity/source 与可信 terminal 只来自 verified ET / transport context；body、普通 metadata、signed operator 与 Gateway fallback 字符串不能建立或覆盖 authority。业务 `command_id`、目标引用、数量、时间、位置、状态、安装参数和受限操作原因保持业务含义。模具使用 `capture_source` 由可信 terminal 派生，调用方不得自报。
+
+32 个方法的精确 Code、148 个 request authority/来源字段处置、兼容 tombstone 和 reason 字段号以 [MES contracts](../../contracts/mes-service/README.md) 为准。MES→Item Master outbound、Planning/WMS/Quality/Site、Event/outbox 业务语义、PDA 与设备自动化均受保护，不属于本次 inbound transport cutover。

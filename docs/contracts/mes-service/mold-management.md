@@ -20,16 +20,7 @@ The contract does not cover complete maintenance work orders, full quality analy
 
 ## 2. Common Command Context
 
-Every command requires:
-
-| Field | Required | Meaning |
-| --- | --- | --- |
-| `tenantId` | yes | Tenant boundary. |
-| `orgId` | when applicable | Organization boundary. |
-| `operatorContext` | yes | Acting operator. |
-| `traceContext` | yes | Trace and request correlation. |
-| `auditContext` | yes | Audit reason and source. |
-| `commandId` | yes | Idempotency key. |
+Every command follows the [MES trusted execution contract](README.md#trusted-execution-contract). Tenant, org, operator, trace and trusted audit identity/source derive from verified context and are absent from the request body. `commandId` remains the required idempotency key. Existing movement/maintenance reasons and the exact new bounded reason fields remain business payload as frozen in README.
 
 Business rules must execute inside `mes-service` domain / application code.
 
@@ -222,7 +213,7 @@ Accepts a received production mold into available status.
 Rules:
 
 - Only `RECEIVED` production molds can be accepted.
-- Acceptance records `acceptedAt` and audit context.
+- Acceptance records `acceptedAt` and a trusted-context audit, supplemented by optional business reason.
 - Acceptance does not create quality details or inspection records in this slice.
 
 ### MoveTooling

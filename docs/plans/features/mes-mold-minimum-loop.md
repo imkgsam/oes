@@ -2,6 +2,13 @@
 
 > 服务设计唯一真相源：[mes-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/mes-service.md)。本文只记录 MES 模具管理第一阶段最小闭环的执行范围、已确认设计修正、切片顺序与验证要求；MES 服务长期边界、资源模型、质量边界、Planning / WMS / Item Master 边界仍以服务真相源为准。
 
+```text
+status: BUSINESS_FEATURE_IMPLEMENTATION_PRESENT_TRUSTED_GRPC_FROZEN_PENDING_IMPLEMENTATION
+trustedGrpcTruth: docs/contracts/mes-service/README.md and docs/plans/features/trusted-grpc-execution-context.md
+```
+
+当前 main 已包含本 packet 所列 `ItemModelRef`、`AcceptProductionMold`、`RecordMoldUsageBatch`、MasterMold query、scrap 与 BFF checklist 下沉等 contract/proto/runtime/BFF 基线；本文的历史线程表保留原切片记录，不再表示这些能力尚未出现。此次新增的 trusted-gRPC slice 只迁移 32 个既有 inbound RPC：全部为 HUMAN WEB BUSINESS，并删除 body/legacy metadata authority。它不实现 tenant-web/PDA、设备自动化、Planning/WMS/Quality/Site 协同或新的 MES 业务能力。
+
 ## 1. 目标
 
 - 实现 MES 模具管理第一阶段最小闭环，支撑生产模具从到厂登记、验收、安装、使用计寿命到待报废/报废的现场管理。
@@ -188,6 +195,8 @@ MarkProductionMoldForScrap:
 
 ## 9. Contract / Proto 修正范围
 
+本节业务修正已存在于 current main；trusted-gRPC 只在保持这些字段和行为的前提下实施 [MES contract trusted execution](../../contracts/mes-service/README.md#trusted-execution-contract) 的 authority tombstone、reason/capture-source 与 method declaration，不重新打开对象或生命周期设计。
+
 - mes-service management contract:
   - 将 MoldDesign 主引用从 `ItemRef` 修正为 `ItemModelRef`。
   - 将 MoldDesign output 引用从执行层 `ItemRef` 修正为设计层 `ItemModelRef`。
@@ -225,10 +234,10 @@ MarkProductionMoldForScrap:
 
 | Thread / Owner | 职责 | 允许修改路径 | 输入 | 输出 | 状态 |
 | --- | --- | --- | --- | --- | --- |
-| design owner | 冻结 MES mold 第一阶段修正版边界与切片顺序 | `docs/plans/features/mes-mold-minimum-loop.md` | 用户确认、MES 服务真相源、当前 contracts / proto / runtime / BFF / UI 现状 | 当前 feature packet | in_progress |
-| contract owner | 按本 packet 修正 mes-service 与 API Gateway contract / proto | `docs/contracts/mes-service/**`, `docs/contracts/api-gateway/mes-mold-management.md`, `src/common/src/contracts/mes_service/mes.proto`, generated proto | 当前 feature packet | 合法 contract/proto 与 proto lint 结果 | pending |
-| mes-service owner | 实现 application/domain/infrastructure/interface 修正 | `src/services/business/mes-service/**` | 更新后的 contract/proto | mes-service runtime、Prisma、L1/L2/L3 tests | pending |
-| api-gateway owner | 对齐 BFF HTTP surface 与 gRPC adapters | `src/services/api-gateway/src/modules/mes-service/**` | 更新后的 proto 与 API Gateway contract | BFF routes、DTO、adapter、tests | pending |
+| design owner | 冻结 MES mold 第一阶段修正版边界与切片顺序 | `docs/plans/features/mes-mold-minimum-loop.md` | 用户确认、MES 服务真相源、当前 contracts / proto / runtime / BFF / UI 现状 | 当前 feature packet | completed |
+| contract owner | 按本 packet 修正 mes-service 与 API Gateway contract / proto | `docs/contracts/mes-service/**`, `docs/contracts/api-gateway/mes-mold-management.md`, `src/common/src/contracts/mes_service/mes.proto`, generated proto | 当前 feature packet | 合法 contract/proto 与 proto lint 结果 | implementation-present / fresh-verification-needed |
+| mes-service owner | 实现 application/domain/infrastructure/interface 修正 | `src/services/business/mes-service/**` | 更新后的 contract/proto | mes-service runtime、Prisma、L1/L2/L3 tests | implementation-present / fresh-verification-needed |
+| api-gateway owner | 对齐 BFF HTTP surface 与 gRPC adapters | `src/services/api-gateway/src/modules/mes-service/**` | 更新后的 proto 与 API Gateway contract | BFF routes、DTO、adapter、tests | implementation-present / fresh-verification-needed |
 | tenant-web owner | 对齐 Web 过渡流程与模具页面 | `app/web/apps/tenant-web/src/api/bff/mes/**`, `app/web/apps/tenant-web/src/views/admin/**` | BFF contract | tenant-web API client、页面、unit tests | pending |
 
 ## 11. 切片顺序

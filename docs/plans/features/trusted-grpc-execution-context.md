@@ -98,7 +98,7 @@ The implementation inventory script at `scripts/architecture/trusted-grpc-signat
 
 ### 3.1 Current-main global cutover status
 
-Overall execution status is `GRPC_FOUNDATION_COMPLETE_GLOBAL_SERVICE_CUTOVER_PENDING` at current-main `bda36bffbdc28132872d4bed967adb93c2a92b9e`. The 54 generated files expose all 590 required explicit metadata signatures with zero missing signatures; this proves the shared call-signature foundation only. It does not prove that a target service has classified every contract, prepared every caller, enabled Token-only server enforcement or removed its legacy trust path.
+Overall execution status is `GRPC_FOUNDATION_COMPLETE_GLOBAL_SERVICE_CUTOVER_PENDING` at current-main `584be36794435f8c4688a09197e2f49ee9cf336a`. The 54 generated files expose all 590 required explicit metadata signatures with zero missing signatures; this proves the shared call-signature foundation only. It does not prove that a target service has classified every contract, prepared every caller, enabled Token-only server enforcement or removed its legacy trust path.
 
 The persistent execution owner is **OES Trusted gRPC Service Migration** (`019ff138-ed1c-7b82-8cd4-865bdb6529bd`). The prior delivery-mode owner `019ff07e-d441-7731-acdb-1a9d262661a9` and approval-stalled predecessor `019fe9f8-5a44-76e1-b5a4-110db9da6d59` are archived with their WIP histories preserved. The former A/C/GRPC lane is historical, migration-frozen evidence and is not the active controller for the remaining cutover.
 
@@ -113,8 +113,8 @@ The persistent execution owner is **OES Trusted gRPC Service Migration** (`019ff
 | Terminal Device | 17 / 1 | Y | Y | Y | Y | Gateway; implemented and verified at `4667305797a90fe8789067183b8f5ef732ee6f02` |
 | Finance | 27 / 2 | Y | Y | Y | Y | Gateway; implemented and verified at `caa7a5c08c0d30792317b328b27a14ef625ef6cc` |
 | Public Entry | 23 / 2 | N | N | N | N | Gateway; pending |
-| Sales | 27 / 4 | Y | N | N | N | Gateway; contract frozen, implementation pending |
-| MES | 32 / 4 | N | N | N | N | Gateway; pending |
+| Sales | 27 / 4 | Y | Y | Y | Y | Gateway; implemented and verified in current main at `584be36794435f8c4688a09197e2f49ee9cf336a` |
+| MES | 32 / 4 | Y | N | N | N | Gateway; contract frozen, implementation pending |
 | Collaboration | 16 / 4 | N | N | N | N | Gateway; second batch |
 | CRM | 15 / 3 | N | N | N | N | Gateway, Collaboration; second batch |
 | Procurement | 21 / 2 | N | N | N | N | Gateway, WMS; second batch |
@@ -127,7 +127,7 @@ The persistent execution owner is **OES Trusted gRPC Service Migration** (`019ff
 | Identity | 41 / 3 | N | N | N | N | Gateway, Auth, Permission, HR; foundation partial only |
 | Permission | 66 / 8 | N | N | N | N | Gateway, Auth, HR, TenantOrg, WMS; bootstrap partial only |
 | Auth | 70 / 1 | N | N | N | N | Gateway, HR, Site, TenantOrg; MACHINE foundation complete, full service pending |
-| **Total / proven state** | **560 / 51** | **7 Y / 14 N** | **6 Y / 15 N** | **6 Y / 15 N** | **6 Y / 15 N** | **Asset, Site, Browser Activity, Notification, Terminal Device and Finance complete; Sales contract classified; 15 services pending implementation/cutover** |
+| **Total / proven state** | **560 / 51** | **8 Y / 13 N** | **7 Y / 14 N** | **7 Y / 14 N** | **7 Y / 14 N** | **Asset, Site, Browser Activity, Notification, Terminal Device, Finance and Sales complete; MES contract classified; 14 services pending implementation/cutover** |
 
 The frozen order in §6 remains authoritative. Migration continues one target service at a time; completing the Auth, Identity, Permission, Gateway or Common foundation does not implicitly advance an unverified service row.
 
@@ -1285,7 +1285,7 @@ Acceptance proves 27/27 exact BUSINESS declarations and zero unclassified/duplic
 
 ### 9.6 Public Entry 23-RPC frozen cutover lease
 
-Status: `FROZEN_PENDING_IMPLEMENTATION`. Public Entry remains the next target after the six integrated services. This slice only replaces the current legacy gRPC trust inputs for the existing 23 RPCs; it adds no Public Entry business capability, Permission Code, database object, outbound-service cutover or anonymous no-Token gRPC mode.
+Status: `FROZEN_PENDING_IMPLEMENTATION` in the authoritative matrix. This slice only replaces the current legacy gRPC trust inputs for the existing 23 RPCs; it adds no Public Entry business capability, Permission Code, database object, outbound-service cutover or anonymous no-Token gRPC mode.
 
 The exact matrix is frozen in [Public Entry contracts](../../contracts/public-entry-service/README.md) §3: 19 admin RPCs are `BUSINESS / HUMAN / WEB`, `GetOwnBusinessCardPreview` is `SELF_SERVICE / HUMAN / WEB` with an empty Code set and `allowDelegated=false`, and `ResolvePublicRedirect`, `RenderPublicBusinessCard` and `GenerateBusinessCardVCard` are narrow `BUSINESS / SYSTEM MACHINE` calls from the exact Gateway workload. The public calls use only the existing read Codes (`public-entry.short-link.read` and `public-entry.business-card.read`) with `aud=urn:oes:service:public-entry-service`; SYSTEM is not a tenant wildcard and Public Entry derives tenant/resource facts from its own records. `ChangeShortLinkStatus` keeps its existing three-Code status binding and validates the target status before mutation. The 41 request authority fields and `OperatorContext` tombstone reservations in the contract are deleted from supported wire input; observation fields remain bounded telemetry payload. All legacy body, ordinary-metadata and signed-operator fallback is rejected. HR, Identity, Permission and TenantOrg outbound edges stay on their current contracts and migrate only with those target services.
 
@@ -1388,7 +1388,7 @@ Acceptance proves all 23 RPCs have exactly one declaration and no dual-mode meth
 
 ### 9.7 Sales 27-RPC frozen cutover lease
 
-Status: `FROZEN_PENDING_IMPLEMENTATION`. This slice only migrates the existing 27 Sales RPCs from legacy body/ordinary-metadata authority to trusted gRPC. It adds no Sales business capability, Permission Code, database object, cross-service RPC, event or outbound-service cutover.
+Status: `IMPLEMENTED_VERIFIED`. The Sales trusted-gRPC slice is present in current main at `584be36794435f8c4688a09197e2f49ee9cf336a`; the implementation and its focused security corrections preserve the exact 27-RPC contract and remain a strict subset of the frozen 42-path lease. This slice adds no Sales business capability, Permission Code, database object, cross-service RPC, event or outbound-service cutover.
 
 All 27 RPCs are `BUSINESS / HUMAN / WEB`, require `aud=urn:oes:service:sales-service`, exact mTLS/`cnf` binding and `all [exactCode]`, and reject MACHINE, DELEGATED, SELF_SERVICE and non-WEB sessions:
 
@@ -1509,6 +1509,134 @@ salesTrustedGrpcImplementationLease:
 ```
 
 Acceptance proves 27/27 exact BUSINESS declarations and zero unclassified or dual-mode methods; Gateway and Sales reject wrong issuer/time/audience/`cnf`/tenant/principal/terminal/Code before controller data; all 95 request authority fields and eight nested tombstone fields are removed/reserved while 14 bounded business reasons and Sales-owned projections remain; trusted audit identity/source cannot be overridden by reason; all four Gateway adapters resolve the dedicated Sales mTLS client and legacy body/ordinary-metadata/fallback context is absent; the raw smoke script and package command are absent; all 15 Codes remain canonical and unchanged; no pure MACHINE caller or current INTERNAL surface appears; outbound/event paths are untouched; and the implementation diff is a strict subset of these 42 paths.
+
+### 9.8 MES 32-RPC frozen cutover lease
+
+Status: `FROZEN_PENDING_IMPLEMENTATION`. This slice only migrates the existing 32 MES RPCs from legacy body/ordinary-metadata authority to trusted gRPC. It adds no MES business capability, Permission Code, database object, cross-service RPC, event, PDA/device mode or outbound-service cutover.
+
+All 32 RPCs are `BUSINESS / HUMAN / WEB`, require `aud=urn:oes:service:mes-service`, exact mTLS/`cnf` binding and `all [exactCode]`, and reject MACHINE, DELEGATED, SELF_SERVICE and non-WEB sessions:
+
+| RPC | Exact existing Code |
+| --- | --- |
+| `CreateProductionSpec` | `mes.production_spec.manage` |
+| `UpdateProductionSpec` | `mes.production_spec.manage` |
+| `ActivateProductionSpec` | `mes.production_spec.manage` |
+| `RetireProductionSpec` | `mes.production_spec.manage` |
+| `GetProductionSpec` | `mes.production_spec.read` |
+| `ListProductionSpecs` | `mes.production_spec.read` |
+| `ResolveProductionSpecsForMold` | `mes.production_spec.read` |
+| `RegisterMoldDesign` | `mes.mold_design.manage` |
+| `RegisterMasterMold` | `mes.production_mold.manage` |
+| `RegisterProductionMold` | `mes.production_mold.manage` |
+| `ConfirmProductionMoldArrival` | `mes.production_mold.manage` |
+| `AcceptProductionMold` | `mes.production_mold.manage` |
+| `MoveTooling` | `mes.tooling_installation.manage` |
+| `InstallTooling` | `mes.tooling_installation.manage` |
+| `UnmountTooling` | `mes.tooling_installation.manage` |
+| `ConfirmInstalledMoldReady` | `mes.tooling_installation.manage` |
+| `MarkInstalledMoldMaintenance` | `mes.tooling_installation.manage` |
+| `RecordMoldUsage` | `mes.mold_usage.record` |
+| `RecordMoldUsageBatch` | `mes.mold_usage.record` |
+| `AdjustMoldLifeCounter` | `mes.mold_life.manage` |
+| `MarkProductionMoldForScrap` | `mes.production_mold.manage` |
+| `GetMoldDesign` | `mes.mold_design.read` |
+| `ListMoldDesigns` | `mes.mold_design.read` |
+| `GetMasterMold` | `mes.production_mold.read` |
+| `ListMasterMolds` | `mes.production_mold.read` |
+| `GetProductionMold` | `mes.production_mold.read` |
+| `ListProductionMolds` | `mes.production_mold.read` |
+| `ListProductionMoldsByDesign` | `mes.production_mold.read` |
+| `GetToolingCurrentPlacement` | `mes.tooling_installation.read` |
+| `GetMoldUsageHistory` | `mes.production_mold.read` |
+| `ListCurrentMoldsByWorkCenter` | `mes.tooling_installation.read` |
+| `ListMoldLifeCounters` | `mes.production_mold.read` |
+
+The canonical catalog already owns all ten Codes. `ListMoldLifeCounters` is corrected to `mes.production_mold.read`; `mes.mold_life.manage` remains exclusive to `AdjustMoldLifeCounter`, and master-mold methods reuse the production-mold Code family. Proto deletes and reserves 148 request fields: `tenant_id=1`, `org_id=2`, `operator_context=3` and `trace_context=4` on all 32 requests, `audit_context=5` on all 18 management requests, plus `RecordMoldUsageRequest.capture_source=18` and `RecordMoldUsageBatchRequest.capture_source=11`. The eight nested compatibility fields of `OperatorContext`, `TraceContext` and `AuditContext` are also tombstoned. Existing `command_id=6`, `MoveToolingRequest.movement_reason=11` and `MarkInstalledMoldMaintenanceRequest.reason=9` remain business payload; the other 16 management reasons use the exact next field numbers and bounded rules frozen in [MES contracts](../../contracts/mes-service/README.md#wire-compatibility-and-business-reason). MES derives capture source from verified `session_terminal`; this slice accepts only WEB.
+
+The live raw-gRPC `mes-smoke.mjs` and package `smoke` command are deleted rather than reclassified as MACHINE. `mes-smoke-lib.mjs` and `mes-smoke.spec.mjs` remain isolated business/idempotency/outbox tests. Future live smoke must enter Gateway HTTP with a test HUMAN session. Future HUMAN PDA, device/worker automation, Planning/WMS/Quality/Site integration and event surfaces require separate packets; existing methods never gain a second execution mode. MES→Item Master outbound behavior, its adapter, every other outbound/event path, schema and business state machine remain protected.
+
+```yaml
+mesTrustedGrpcImplementationLease:
+  totalTrackedWriterPaths: 39
+  stateCounts: { EXISTING: 33, NEW_TARGET: 6 }
+  trackedWriterPaths:
+    mesProtoContract:
+      - { state: EXISTING, path: src/common/src/contracts/mes_service/mes.proto }
+      - { state: NEW_TARGET, path: src/common/src/contracts/mes_service/mes.contract.spec.ts }
+
+    gatewayMesHumanProducer:
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution-producer.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution-producer.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution.module.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution.module.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/index.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-mes-grpc.client.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-mes-grpc.client.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/app.module.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/app.module.spec.ts }
+
+    gatewayMesAdaptersAndHttp:
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/mes-service/mes-service.module.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/mes-service/adapters/mes-grpc-context.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/mes-service/adapters/mes-management-grpc.adapter.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/mes-service/adapters/mes-query-grpc.adapter.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/mes-service/mes.service.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/mes-service/mes.service.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/mes-service/interface/http/controllers/mes.controller.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/mes-service/interface/http/controllers/mes.controller.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/mes-service/interface/http/dtos/mes.dto.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/mes-service/interface/http/dtos/mes.dto.spec.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/modules/mes-service/adapters/mes-dedicated-client.spec.ts }
+
+    mesTrustedRuntime:
+      - { state: EXISTING, path: src/services/business/mes-service/src/main.ts }
+      - { state: EXISTING, path: src/services/business/mes-service/src/interfaces/grpc/production-spec-management.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/business/mes-service/src/interfaces/grpc/production-spec-query.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/business/mes-service/src/interfaces/grpc/mes-management.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/business/mes-service/src/interfaces/grpc/mes-query.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/business/mes-service/src/interfaces/grpc/mes-rpc-context.validator.ts }
+      - { state: EXISTING, path: src/services/business/mes-service/src/modules/mes-management.module.ts }
+      - { state: EXISTING, path: src/services/business/mes-service/src/modules/mes-query.module.ts }
+      - { state: NEW_TARGET, path: src/services/business/mes-service/src/modules/mes-trusted-execution.module.ts }
+
+    mesSecurityAndLegacySmoke:
+      - { state: EXISTING, path: src/services/business/mes-service/package.json }
+      - { state: EXISTING, path: src/services/business/mes-service/scripts/mes-smoke.mjs }
+      - { state: EXISTING, path: src/services/business/mes-service/scripts/mes-smoke-lib.mjs }
+      - { state: EXISTING, path: src/services/business/mes-service/scripts/mes-smoke.spec.mjs }
+      - { state: EXISTING, path: src/services/business/mes-service/test/l3/mes-grpc-context.spec.ts }
+      - { state: EXISTING, path: src/services/business/mes-service/test/l3/mes-grpc-surface.spec.ts }
+      - { state: EXISTING, path: src/services/business/mes-service/test/l3/production-spec-grpc-surface.spec.ts }
+      - { state: NEW_TARGET, path: src/services/business/mes-service/test/l3/mes-trusted-grpc-security.spec.ts }
+
+  ignoredGeneratedOutputs:
+    - path: src/common/src/generated/mes_service/mes.ts
+      input: src/common/src/contracts/mes_service/mes.proto
+      command: pnpm proto:regen
+
+  protectedByDefault:
+    - canonical Permission catalog/generator and generated Permission Code files
+    - MES application/domain/persistence/schema/business-rule paths not listed above
+    - MES outbound Item Master adapter/caller semantics and Item Master contracts/runtime/cutover
+    - Planning, WMS, Quality, Site, PDA/device automation and every candidate INTERNAL RPC
+    - event catalog, producer, consumer, outbox and inbox semantics
+    - Common trusted runtime paths not listed above, package/lock/deployment, AI and ActionGrant paths
+    - every non-MES Gateway adapter and every other service cutover
+
+  focusedAcceptanceCommands:
+    - pnpm proto:lint
+    - pnpm proto:regen
+    - node scripts/architecture/trusted-grpc-signature-inventory.mjs
+    - pnpm --filter @oes/common build
+    - pnpm --filter api-gateway build
+    - pnpm --filter mes-service build
+    - pnpm exec jest --config package.json --runInBand --runTestsByPath src/common/src/contracts/mes_service/mes.contract.spec.ts
+    - pnpm --filter api-gateway exec jest --runInBand --runTestsByPath src/common/grpc/gateway-trusted-grpc-execution-producer.spec.ts src/common/grpc/gateway-trusted-grpc-execution.module.spec.ts src/common/grpc/gateway-mes-grpc.client.spec.ts src/modules/mes-service/adapters/mes-dedicated-client.spec.ts src/modules/mes-service/mes.service.spec.ts src/modules/mes-service/interface/http/controllers/mes.controller.spec.ts src/modules/mes-service/interface/http/dtos/mes.dto.spec.ts
+    - pnpm --filter mes-service exec jest --config jest.config.js --runInBand --runTestsByPath test/l3/mes-grpc-context.spec.ts test/l3/mes-grpc-surface.spec.ts test/l3/production-spec-grpc-surface.spec.ts test/l3/mes-trusted-grpc-security.spec.ts
+    - node --test src/services/business/mes-service/scripts/mes-smoke.spec.mjs
+```
+
+Acceptance proves 32/32 exact BUSINESS declarations and zero unclassified or dual-mode methods; Gateway and MES reject wrong issuer/time/audience/`cnf`/tenant/principal/terminal/Code before controller data; all 148 request fields and eight nested tombstone fields are removed/reserved while 16 new and two existing bounded business reasons remain; trusted audit identity/source and capture source cannot be overridden; both Gateway adapters resolve the dedicated MES mTLS client and legacy body/ordinary-metadata/fallback context is absent; the raw smoke script and package command are absent while isolated business tests remain; all ten Codes remain canonical and unchanged; no pure MACHINE caller, PDA declaration or current INTERNAL surface appears; MES outbound/event paths and business state machines are untouched; and the implementation diff is a strict subset of these 39 paths.
 
 ## 10. Repository-wide Security Acceptance
 

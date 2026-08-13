@@ -8,14 +8,7 @@ Query models are optimized for selectors, workbench pages, Web/PDA usage capture
 
 ## 2. Common Query Context
 
-Every query requires:
-
-| Field | Required | Meaning |
-| --- | --- | --- |
-| `tenantId` | yes | Tenant boundary. |
-| `orgId` | when applicable | Organization boundary. |
-| `operatorContext` | yes | Acting operator. |
-| `traceContext` | yes | Trace and request correlation. |
+Every query follows the [MES trusted execution contract](README.md#trusted-execution-contract). Tenant, org, operator, request and trace derive from verified context and are absent from the request body; selectors such as mold, WorkCenter and warning level remain tenant/org-scoped business targets.
 
 ## 3. Read Models
 
