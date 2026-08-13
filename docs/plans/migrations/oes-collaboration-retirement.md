@@ -80,6 +80,7 @@ unarchivedFormalTasks: 6
 - final scope: exact 52-path lease (`45 EXISTING + 7 NEW_TARGET`), 23 RPC mappings, status-specific ChangeShortLinkStatus guard/controller matrix, private carrier barrel, Gateway HTTP-only smoke, and anonymous MACHINE traceparent/tracestate propagation. AI/ActionGrant and unrelated outbound service migrations remained excluded.
 - I&V `019fcaf2-ca7b-7140-b46d-b6cacae58556` independently accepted the final candidate: proto/build/focused/fixture/inventory/lease/legacy/hygiene gates all passed; raw ClientProxyFactory/Transport.GRPC/new Metadata smoke scan is zero.
 - integration: root preflight confirmed main/local origin/main/remote at `52e6564e…`; `git merge --ff-only bda36bff…` exit 0; final root matrix passed; one `git push origin main` exit 0. Final main/local origin/main/remote = `bda36bff…`, root clean. Source branch/worktree clean and marked `MERGED_WAITING_FOR_USER_CLEANUP`; no deletion in this turn.
+- task archive: implementation thread `019ff519-c105-7630-be96-3af217f385cf` was archived after its accepted candidate and terminal evidence were consumed; its clean source branch/worktree remains preserved for final cleanup.
 
 ### 4.1 GRPC — `CARRIER_ACCEPTED_AND_INTEGRATED`
 
@@ -90,6 +91,7 @@ unarchivedFormalTasks: 6
 - candidate chain preserved: initial `a73c58e0…`; first I&V rejection found dedicated client export and legacy generic Sales transport registration defects; corrective `149b789f…` fixed real Nest DI graph and legacy zero; second/third I&V passes found incomplete sensitive business-reason validation; final `584be36794435f8c4688a09197e2f49ee9cf336a` added strict JSON/JWT/credential/PII/PEM/Stripe/AWS-secret rejection with ordinary business identifier regressions.
 - final I&V `019fcaf2-ca7b-7140-b46d-b6cacae58556` accepted: real DI consumer and Sales feature compile, dedicated Sales client/ET producer for all four adapters, no generic token/metadata/body/bearer/raw-smoke fallback, proto/build/contract/L1/L3/Gateway/shared verifier, 27/15/95/14, exact lease/outside0, UTF-8/diff/manifest checks all passed. Existing full AppModule Auth dependency failure reproduced identically on base and candidate and remains baseline, not Sales scope.
 - integration: root preflight at `3860ef14…` clean; `git merge --ff-only 584be367…` exit 0; final root matrix passed; one `git push origin main` exit 0. Final root/local origin/main/remote = `584be367…`, clean. Source branch/worktree clean and marked `MERGED_WAITING_FOR_USER_CLEANUP`; no deletion this turn.
+- task archive: implementation thread `019ff686-99f8-7943-a02b-e72f6747444a` was archived after integration and ledger consumption; Git evidence remains preserved until final cleanup.
 
 ### 4.1.2 MES — `IMPLEMENTATION_ACCEPTED_AND_INTEGRATED`
 
