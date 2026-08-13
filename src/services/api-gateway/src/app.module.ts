@@ -215,15 +215,6 @@ const siteGrpcLoaderOptions = { longs: String, arrays: true }
               ? `${process.env.ITEM_MASTER_SERVICE_HOST}:${process.env.ITEM_MASTER_SERVICE_PORT}`
               : 'localhost:50058'
         },
-        [SERVICE_NAMES.PARTY]: {
-          serviceName: SERVICE_NAMES.PARTY,
-          protoPath: resolveCommonProtoPath('party_service/party.proto'),
-          packageName: 'party_service',
-          url:
-            process.env.PARTY_SERVICE_HOST && process.env.PARTY_SERVICE_PORT
-              ? `${process.env.PARTY_SERVICE_HOST}:${process.env.PARTY_SERVICE_PORT}`
-              : 'localhost:50053'
-        },
         [SERVICE_NAMES.PROCUREMENT]: {
           serviceName: SERVICE_NAMES.PROCUREMENT,
           protoPath: resolveCommonProtoPath('procurement_service/procurement.proto'),
@@ -275,7 +266,6 @@ const siteGrpcLoaderOptions = { longs: String, arrays: true }
     }),
     GrpcTransportModule.forFeature([
       SERVICE_NAMES.PERMISSION,
-      SERVICE_NAMES.PARTY,
       SERVICE_NAMES.TENANT_ORG
     ]),
 
