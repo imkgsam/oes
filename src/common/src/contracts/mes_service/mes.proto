@@ -155,20 +155,18 @@ enum MoldUsageHistoryEntryType {
 }
 
 message OperatorContext {
-  string operator_id = 1;
-  string operator_type = 2;
-  string org_id = 3;
+  reserved 1, 2, 3;
+  reserved "operator_id", "operator_type", "org_id";
 }
 
 message TraceContext {
-  string trace_id = 1;
-  string request_id = 2;
+  reserved 1, 2;
+  reserved "trace_id", "request_id";
 }
 
 message AuditContext {
-  string audit_id = 1;
-  string reason = 2;
-  string source = 3;
+  reserved 1, 2, 3;
+  reserved "audit_id", "reason", "source";
 }
 
 message OperatorRef {
@@ -517,11 +515,10 @@ message MoldUsageHistoryEntry {
 }
 
 message CreateProductionSpecRequest {
-  string tenant_id = 1;
-  string org_id = 2;
-  OperatorContext operator_context = 3;
-  TraceContext trace_context = 4;
-  AuditContext audit_context = 5;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "org_id", "operator_context", "trace_context";
+  reserved 5;
+  reserved "audit_context";
   string command_id = 6;
   string spec_code = 7;
   string name = 8;
@@ -530,6 +527,7 @@ message CreateProductionSpecRequest {
   ItemRef item_ref = 11;
   string effective_from = 12;
   string effective_to = 13;
+  optional string reason = 14;
 }
 
 message CreateProductionSpecResponse {
@@ -537,11 +535,10 @@ message CreateProductionSpecResponse {
 }
 
 message UpdateProductionSpecRequest {
-  string tenant_id = 1;
-  string org_id = 2;
-  OperatorContext operator_context = 3;
-  TraceContext trace_context = 4;
-  AuditContext audit_context = 5;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "org_id", "operator_context", "trace_context";
+  reserved 5;
+  reserved "audit_context";
   string command_id = 6;
   string production_spec_id = 7;
   uint32 expected_version = 8;
@@ -549,6 +546,7 @@ message UpdateProductionSpecRequest {
   ItemRef item_ref = 10;
   string effective_from = 11;
   string effective_to = 12;
+  optional string reason = 13;
 }
 
 message UpdateProductionSpecResponse {
@@ -556,15 +554,15 @@ message UpdateProductionSpecResponse {
 }
 
 message ActivateProductionSpecRequest {
-  string tenant_id = 1;
-  string org_id = 2;
-  OperatorContext operator_context = 3;
-  TraceContext trace_context = 4;
-  AuditContext audit_context = 5;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "org_id", "operator_context", "trace_context";
+  reserved 5;
+  reserved "audit_context";
   string command_id = 6;
   string production_spec_id = 7;
   uint32 expected_version = 8;
   string activated_at = 9;
+  optional string reason = 10;
 }
 
 message ActivateProductionSpecResponse {
@@ -572,16 +570,16 @@ message ActivateProductionSpecResponse {
 }
 
 message RetireProductionSpecRequest {
-  string tenant_id = 1;
-  string org_id = 2;
-  OperatorContext operator_context = 3;
-  TraceContext trace_context = 4;
-  AuditContext audit_context = 5;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "org_id", "operator_context", "trace_context";
+  reserved 5;
+  reserved "audit_context";
   string command_id = 6;
   string production_spec_id = 7;
   uint32 expected_version = 8;
   string retired_at = 9;
   string replacement_production_spec_id = 10;
+  optional string reason = 11;
 }
 
 message RetireProductionSpecResponse {
@@ -589,10 +587,8 @@ message RetireProductionSpecResponse {
 }
 
 message GetProductionSpecRequest {
-  string tenant_id = 1;
-  string org_id = 2;
-  OperatorContext operator_context = 3;
-  TraceContext trace_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "org_id", "operator_context", "trace_context";
   string production_spec_id = 5;
 }
 
@@ -601,10 +597,8 @@ message GetProductionSpecResponse {
 }
 
 message ListProductionSpecsRequest {
-  string tenant_id = 1;
-  string org_id = 2;
-  OperatorContext operator_context = 3;
-  TraceContext trace_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "org_id", "operator_context", "trace_context";
   ProductionSpecStatus status = 5;
   string item_id = 6;
   string keyword = 7;
@@ -621,10 +615,8 @@ message ListProductionSpecsResponse {
 }
 
 message ResolveProductionSpecsForMoldRequest {
-  string tenant_id = 1;
-  string org_id = 2;
-  OperatorContext operator_context = 3;
-  TraceContext trace_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "org_id", "operator_context", "trace_context";
   repeated string production_spec_ids = 5;
   string mold_design_id = 6;
 }
@@ -638,11 +630,10 @@ message RegisterMoldDesignRequest {
   reserved 11;
   reserved "item_ref";
 
-  string tenant_id = 1;
-  string org_id = 2;
-  OperatorContext operator_context = 3;
-  TraceContext trace_context = 4;
-  AuditContext audit_context = 5;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "org_id", "operator_context", "trace_context";
+  reserved 5;
+  reserved "audit_context";
   string command_id = 6;
   string design_code = 7;
   string name = 8;
@@ -657,6 +648,7 @@ message RegisterMoldDesignRequest {
   string default_life_limit = 18;
   string default_life_unit = 19;
   ItemModelRef primary_item_model_ref = 20;
+  optional string reason = 21;
 }
 
 message RegisterMoldDesignResponse {
@@ -664,11 +656,10 @@ message RegisterMoldDesignResponse {
 }
 
 message RegisterMasterMoldRequest {
-  string tenant_id = 1;
-  string org_id = 2;
-  OperatorContext operator_context = 3;
-  TraceContext trace_context = 4;
-  AuditContext audit_context = 5;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "org_id", "operator_context", "trace_context";
+  reserved 5;
+  reserved "audit_context";
   string command_id = 6;
   string master_mold_code = 7;
   string mold_design_id = 8;
@@ -679,6 +670,7 @@ message RegisterMasterMoldRequest {
   CarrierResourceRef initial_carrier_resource_ref = 13;
   string quality_summary = 14;
   string notes = 15;
+  optional string reason = 16;
 }
 
 message RegisterMasterMoldResponse {
@@ -689,11 +681,10 @@ message RegisterProductionMoldRequest {
   reserved 13;
   reserved "accepted_at";
 
-  string tenant_id = 1;
-  string org_id = 2;
-  OperatorContext operator_context = 3;
-  TraceContext trace_context = 4;
-  AuditContext audit_context = 5;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "org_id", "operator_context", "trace_context";
+  reserved 5;
+  reserved "audit_context";
   string command_id = 6;
   string mold_code = 7;
   string mold_design_id = 8;
@@ -703,6 +694,7 @@ message RegisterProductionMoldRequest {
   string received_at = 12;
   StorageResourceRef initial_storage_resource_ref = 14;
   CarrierResourceRef initial_carrier_resource_ref = 15;
+  optional string reason = 16;
 }
 
 message RegisterProductionMoldResponse {
@@ -710,14 +702,14 @@ message RegisterProductionMoldResponse {
 }
 
 message ConfirmProductionMoldArrivalRequest {
-  string tenant_id = 1;
-  string org_id = 2;
-  OperatorContext operator_context = 3;
-  TraceContext trace_context = 4;
-  AuditContext audit_context = 5;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "org_id", "operator_context", "trace_context";
+  reserved 5;
+  reserved "audit_context";
   string command_id = 6;
   string production_mold_id = 7;
   string arrived_at = 8;
+  optional string reason = 9;
 }
 
 message ConfirmProductionMoldArrivalResponse {
@@ -725,14 +717,14 @@ message ConfirmProductionMoldArrivalResponse {
 }
 
 message AcceptProductionMoldRequest {
-  string tenant_id = 1;
-  string org_id = 2;
-  OperatorContext operator_context = 3;
-  TraceContext trace_context = 4;
-  AuditContext audit_context = 5;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "org_id", "operator_context", "trace_context";
+  reserved 5;
+  reserved "audit_context";
   string command_id = 6;
   string production_mold_id = 7;
   string accepted_at = 8;
+  optional string reason = 9;
 }
 
 message AcceptProductionMoldResponse {
@@ -740,11 +732,10 @@ message AcceptProductionMoldResponse {
 }
 
 message MoveToolingRequest {
-  string tenant_id = 1;
-  string org_id = 2;
-  OperatorContext operator_context = 3;
-  TraceContext trace_context = 4;
-  AuditContext audit_context = 5;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "org_id", "operator_context", "trace_context";
+  reserved 5;
+  reserved "audit_context";
   string command_id = 6;
   ToolingType tooling_type = 7;
   string tooling_id = 8;
@@ -759,11 +750,10 @@ message MoveToolingResponse {
 }
 
 message InstallToolingRequest {
-  string tenant_id = 1;
-  string org_id = 2;
-  OperatorContext operator_context = 3;
-  TraceContext trace_context = 4;
-  AuditContext audit_context = 5;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "org_id", "operator_context", "trace_context";
+  reserved 5;
+  reserved "audit_context";
   string command_id = 6;
   ToolingType tooling_type = 7;
   string tooling_id = 8;
@@ -774,6 +764,7 @@ message InstallToolingRequest {
   string cavity_position = 13;
   string cavity_mapping = 14;
   string setup_parameters = 15;
+  optional string reason = 16;
 }
 
 message InstallToolingResponse {
@@ -781,14 +772,14 @@ message InstallToolingResponse {
 }
 
 message UnmountToolingRequest {
-  string tenant_id = 1;
-  string org_id = 2;
-  OperatorContext operator_context = 3;
-  TraceContext trace_context = 4;
-  AuditContext audit_context = 5;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "org_id", "operator_context", "trace_context";
+  reserved 5;
+  reserved "audit_context";
   string command_id = 6;
   string tooling_installation_id = 7;
   string unmounted_at = 8;
+  optional string reason = 9;
 }
 
 message UnmountToolingResponse {
@@ -796,15 +787,15 @@ message UnmountToolingResponse {
 }
 
 message ConfirmInstalledMoldReadyRequest {
-  string tenant_id = 1;
-  string org_id = 2;
-  OperatorContext operator_context = 3;
-  TraceContext trace_context = 4;
-  AuditContext audit_context = 5;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "org_id", "operator_context", "trace_context";
+  reserved 5;
+  reserved "audit_context";
   string command_id = 6;
   string production_mold_id = 7;
   string tooling_installation_id = 8;
   string ready_at = 9;
+  optional string reason = 10;
 }
 
 message ConfirmInstalledMoldReadyResponse {
@@ -812,11 +803,10 @@ message ConfirmInstalledMoldReadyResponse {
 }
 
 message MarkInstalledMoldMaintenanceRequest {
-  string tenant_id = 1;
-  string org_id = 2;
-  OperatorContext operator_context = 3;
-  TraceContext trace_context = 4;
-  AuditContext audit_context = 5;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "org_id", "operator_context", "trace_context";
+  reserved 5;
+  reserved "audit_context";
   string command_id = 6;
   string production_mold_id = 7;
   string tooling_installation_id = 8;
@@ -832,11 +822,10 @@ message RecordMoldUsageRequest {
   reserved 13;
   reserved "life_delta";
 
-  string tenant_id = 1;
-  string org_id = 2;
-  OperatorContext operator_context = 3;
-  TraceContext trace_context = 4;
-  AuditContext audit_context = 5;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "org_id", "operator_context", "trace_context";
+  reserved 5;
+  reserved "audit_context";
   string command_id = 6;
   string production_mold_id = 7;
   string tooling_installation_id = 8;
@@ -848,9 +837,11 @@ message RecordMoldUsageRequest {
   ProductionSpecRef production_spec_ref = 15;
   ProductionUnitRef production_unit_ref = 16;
   TraceSubjectRef trace_subject_ref = 17;
-  string capture_source = 18;
+  reserved 18;
+  reserved "capture_source";
   string mold_design_output_id = 19;
   string mold_design_output_option_id = 20;
+  optional string reason = 21;
 }
 
 message RecordMoldUsageResponse {
@@ -871,18 +862,19 @@ message RecordMoldUsageBatchLine {
 }
 
 message RecordMoldUsageBatchRequest {
-  string tenant_id = 1;
-  string org_id = 2;
-  OperatorContext operator_context = 3;
-  TraceContext trace_context = 4;
-  AuditContext audit_context = 5;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "org_id", "operator_context", "trace_context";
+  reserved 5;
+  reserved "audit_context";
   string command_id = 6;
   WorkCenterRef work_center_ref = 7;
   WorkUnitRef work_unit_ref = 8;
   string used_at = 9;
   string life_unit = 10;
-  string capture_source = 11;
+  reserved 11;
+  reserved "capture_source";
   repeated RecordMoldUsageBatchLine lines = 12;
+  optional string reason = 13;
 }
 
 message RecordMoldUsageBatchResponse {
@@ -891,15 +883,15 @@ message RecordMoldUsageBatchResponse {
 }
 
 message AdjustMoldLifeCounterRequest {
-  string tenant_id = 1;
-  string org_id = 2;
-  OperatorContext operator_context = 3;
-  TraceContext trace_context = 4;
-  AuditContext audit_context = 5;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "org_id", "operator_context", "trace_context";
+  reserved 5;
+  reserved "audit_context";
   string command_id = 6;
   string mold_life_counter_id = 7;
   MoldLifeAdjustmentType adjustment_type = 8;
   string value = 9;
+  optional string reason = 10;
 }
 
 message AdjustMoldLifeCounterResponse {
@@ -907,14 +899,14 @@ message AdjustMoldLifeCounterResponse {
 }
 
 message MarkProductionMoldForScrapRequest {
-  string tenant_id = 1;
-  string org_id = 2;
-  OperatorContext operator_context = 3;
-  TraceContext trace_context = 4;
-  AuditContext audit_context = 5;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "org_id", "operator_context", "trace_context";
+  reserved 5;
+  reserved "audit_context";
   string command_id = 6;
   string production_mold_id = 7;
   string marked_at = 8;
+  optional string reason = 9;
 }
 
 message MarkProductionMoldForScrapResponse {
@@ -922,10 +914,8 @@ message MarkProductionMoldForScrapResponse {
 }
 
 message GetMoldDesignRequest {
-  string tenant_id = 1;
-  string org_id = 2;
-  OperatorContext operator_context = 3;
-  TraceContext trace_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "org_id", "operator_context", "trace_context";
   string mold_design_id = 5;
 }
 
@@ -937,10 +927,8 @@ message ListMoldDesignsRequest {
   reserved 8;
   reserved "item_id";
 
-  string tenant_id = 1;
-  string org_id = 2;
-  OperatorContext operator_context = 3;
-  TraceContext trace_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "org_id", "operator_context", "trace_context";
   string keyword = 5;
   MoldDesignStatus status = 6;
   string production_spec_id = 7;
@@ -957,10 +945,8 @@ message ListMoldDesignsResponse {
 }
 
 message GetMasterMoldRequest {
-  string tenant_id = 1;
-  string org_id = 2;
-  OperatorContext operator_context = 3;
-  TraceContext trace_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "org_id", "operator_context", "trace_context";
   string master_mold_id = 5;
 }
 
@@ -969,10 +955,8 @@ message GetMasterMoldResponse {
 }
 
 message ListMasterMoldsRequest {
-  string tenant_id = 1;
-  string org_id = 2;
-  OperatorContext operator_context = 3;
-  TraceContext trace_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "org_id", "operator_context", "trace_context";
   string keyword = 5;
   string mold_design_id = 6;
   MasterMoldStatus status = 7;
@@ -990,10 +974,8 @@ message ListMasterMoldsResponse {
 }
 
 message GetProductionMoldRequest {
-  string tenant_id = 1;
-  string org_id = 2;
-  OperatorContext operator_context = 3;
-  TraceContext trace_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "org_id", "operator_context", "trace_context";
   string production_mold_id = 5;
 }
 
@@ -1002,10 +984,8 @@ message GetProductionMoldResponse {
 }
 
 message ListProductionMoldsRequest {
-  string tenant_id = 1;
-  string org_id = 2;
-  OperatorContext operator_context = 3;
-  TraceContext trace_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "org_id", "operator_context", "trace_context";
   string mold_design_id = 5;
   ProductionMoldStatus status = 6;
   string storage_resource_id = 7;
@@ -1023,10 +1003,8 @@ message ListProductionMoldsResponse {
 }
 
 message ListProductionMoldsByDesignRequest {
-  string tenant_id = 1;
-  string org_id = 2;
-  OperatorContext operator_context = 3;
-  TraceContext trace_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "org_id", "operator_context", "trace_context";
   string mold_design_id = 5;
   ProductionMoldStatus status = 6;
   uint32 page = 7;
@@ -1042,10 +1020,8 @@ message ListProductionMoldsByDesignResponse {
 }
 
 message GetToolingCurrentPlacementRequest {
-  string tenant_id = 1;
-  string org_id = 2;
-  OperatorContext operator_context = 3;
-  TraceContext trace_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "org_id", "operator_context", "trace_context";
   ToolingType tooling_type = 5;
   string tooling_id = 6;
 }
@@ -1055,10 +1031,8 @@ message GetToolingCurrentPlacementResponse {
 }
 
 message GetMoldUsageHistoryRequest {
-  string tenant_id = 1;
-  string org_id = 2;
-  OperatorContext operator_context = 3;
-  TraceContext trace_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "org_id", "operator_context", "trace_context";
   string production_mold_id = 5;
   string from = 6;
   string to = 7;
@@ -1074,10 +1048,8 @@ message GetMoldUsageHistoryResponse {
 }
 
 message ListCurrentMoldsByWorkCenterRequest {
-  string tenant_id = 1;
-  string org_id = 2;
-  OperatorContext operator_context = 3;
-  TraceContext trace_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "org_id", "operator_context", "trace_context";
   string work_center_id = 5;
   string work_unit_id = 6;
 }
@@ -1094,10 +1066,8 @@ message ListCurrentMoldsByWorkCenterResponse {
 }
 
 message ListMoldLifeCountersRequest {
-  string tenant_id = 1;
-  string org_id = 2;
-  OperatorContext operator_context = 3;
-  TraceContext trace_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "org_id", "operator_context", "trace_context";
   string production_mold_id = 5;
   MoldWarningLevel warning_level = 6;
   uint32 page = 7;

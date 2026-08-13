@@ -65,6 +65,41 @@ describe('MesService', () => {
     expect(mesQueryAdapter.listProductionSpecs).not.toHaveBeenCalled()
   })
 
+  it.each([
+    ['getProductionSpec', () => service.getProductionSpec('tenant-2', 'spec-1', buildSource('cross-get-spec') as any)],
+    ['createProductionSpec', () => service.createProductionSpec('tenant-2', {}, buildSource('cross-create-spec') as any)],
+    ['activateProductionSpec', () => service.activateProductionSpec('tenant-2', 'spec-1', {}, buildSource('cross-activate-spec') as any)],
+    ['updateProductionSpec', () => service.updateProductionSpec('tenant-2', 'spec-1', {}, buildSource('cross-update-spec') as any)],
+    ['retireProductionSpec', () => service.retireProductionSpec('tenant-2', 'spec-1', {}, buildSource('cross-retire-spec') as any)],
+    ['listMoldDesigns', () => service.listMoldDesigns('tenant-2', {}, buildSource('cross-list-designs') as any)],
+    ['getMoldDesign', () => service.getMoldDesign('tenant-2', 'design-1', buildSource('cross-get-design') as any)],
+    ['registerMoldDesign', () => service.registerMoldDesign('tenant-2', {}, buildSource('cross-register-design') as any)],
+    ['registerMasterMold', () => service.registerMasterMold('tenant-2', {}, buildSource('cross-register-master') as any)],
+    ['listMasterMolds', () => service.listMasterMolds('tenant-2', {}, buildSource('cross-list-master') as any)],
+    ['getMasterMold', () => service.getMasterMold('tenant-2', 'master-1', buildSource('cross-get-master') as any)],
+    ['registerProductionMold', () => service.registerProductionMold('tenant-2', {}, buildSource('cross-register-mold') as any)],
+    ['acceptProductionMold', () => service.acceptProductionMold('tenant-2', 'mold-1', {}, buildSource('cross-accept-mold') as any)],
+    ['confirmProductionMoldArrival', () => service.confirmProductionMoldArrival('tenant-2', 'mold-1', {}, buildSource('cross-arrival') as any)],
+    ['getProductionMold', () => service.getProductionMold('tenant-2', 'mold-1', buildSource('cross-get-mold') as any)],
+    ['listProductionMolds', () => service.listProductionMolds('tenant-2', {}, buildSource('cross-list-molds') as any)],
+    ['listProductionMoldsByDesign', () => service.listProductionMoldsByDesign('tenant-2', 'design-1', {}, buildSource('cross-list-by-design') as any)],
+    ['moveTooling', () => service.moveTooling('tenant-2', 'mold-1', {}, buildSource('cross-move') as any)],
+    ['getToolingCurrentPlacement', () => service.getToolingCurrentPlacement('tenant-2', 'mold-1', {}, buildSource('cross-placement') as any)],
+    ['installTooling', () => service.installTooling('tenant-2', 'mold-1', {}, buildSource('cross-install') as any)],
+    ['unmountTooling', () => service.unmountTooling('tenant-2', 'install-1', {}, buildSource('cross-unmount') as any)],
+    ['confirmInstalledMoldReady', () => service.confirmInstalledMoldReady('tenant-2', 'mold-1', { toolingInstallationId: 'install-1' }, buildSource('cross-ready') as any)],
+    ['markInstalledMoldMaintenance', () => service.markInstalledMoldMaintenance('tenant-2', 'mold-1', { toolingInstallationId: 'install-1', reason: 'repair' }, buildSource('cross-maintenance') as any)],
+    ['markProductionMoldForScrap', () => service.markProductionMoldForScrap('tenant-2', 'mold-1', {}, buildSource('cross-scrap') as any)],
+    ['listCurrentMoldsByWorkCenter', () => service.listCurrentMoldsByWorkCenter('tenant-2', 'wc-1', {}, buildSource('cross-current') as any)],
+    ['listMoldLifeCounters', () => service.listMoldLifeCounters('tenant-2', {}, buildSource('cross-life') as any)],
+    ['getMoldUsageHistory', () => service.getMoldUsageHistory('tenant-2', 'mold-1', {}, buildSource('cross-history') as any)],
+    ['printDailyMoldChecklist', () => service.printDailyMoldChecklist('tenant-2', { checklistDate: '2026-05-05', workCenterId: 'wc-1' }, buildSource('cross-checklist') as any)],
+    ['recordDailyMoldUsageBatch', () => service.recordDailyMoldUsageBatch('tenant-2', '2026-05-05', { batchCommandId: 'batch-1' }, buildSource('cross-batch') as any)]
+  ])('%s rejects cross-tenant requests before adapter calls', async (_method, invoke) => {
+    await expect(invoke()).rejects.toBeInstanceOf(ForbiddenException)
+    expect([...Object.values(mesQueryAdapter), ...Object.values(mesManagementAdapter)].every((mock) => !(mock as jest.Mock).mock.calls.length)).toBe(true)
+  })
+
   it('maps ProductionSpec list filters into the frozen MES query contract', async () => {
     const source = buildSource('req-spec-list')
     mesQueryAdapter.listProductionSpecs.mockResolvedValue({
@@ -84,11 +119,9 @@ describe('MesService', () => {
       expect.objectContaining({
         itemId: 'item-1',
         keyword: 'spec',
-        orgId: 'org-1',
         page: 1,
         pageSize: 20,
         status: ProductionSpecStatus.PRODUCTION_SPEC_STATUS_ACTIVE,
-        tenantId: 'tenant-1'
       }),
       source
     )
@@ -116,7 +149,6 @@ describe('MesService', () => {
         commandId: 'req-spec-write',
         expectedVersion: 1,
         productionSpecId: 'spec-1',
-        tenantId: 'tenant-1'
       }),
       source
     )
@@ -148,7 +180,6 @@ describe('MesService', () => {
       expect.objectContaining({
         moldDesignId: 'design-1',
         status: ProductionMoldStatus.PRODUCTION_MOLD_STATUS_READY,
-        tenantId: 'tenant-1',
         warningLevel: MoldWarningLevel.MOLD_WARNING_LEVEL_INFO
       }),
       source
@@ -174,7 +205,6 @@ describe('MesService', () => {
       expect.objectContaining({
         moldDesignId: 'design-1',
         status: MasterMoldStatus.MASTER_MOLD_STATUS_AVAILABLE,
-        tenantId: 'tenant-1'
       }),
       source
     )
@@ -352,7 +382,6 @@ describe('MesService', () => {
 
     expect(mesQueryAdapter.listCurrentMoldsByWorkCenter).toHaveBeenCalledWith(
       expect.objectContaining({
-        tenantId: 'tenant-1',
         workCenterId: 'wc-1'
       }),
       source

@@ -18,6 +18,7 @@ import { GatewayAuthMachineWorkloadSourceCredentialClient } from './gateway-auth
 import { GatewayMachineWorkloadSourceCredentialProvider } from './gateway-machine-workload-source-credential.provider'
 import { GatewayMachineTrustedGrpcExecutionProducer } from './gateway-machine-trusted-grpc-execution-producer'
 import { GatewayPublicEntryGrpcClient } from './gateway-public-entry-grpc.client'
+import { GatewayMesGrpcClient } from './gateway-mes-grpc.client'
 
 const ASSET_AUDIENCE = 'urn:oes:service:asset-service'
 const SITE_AUDIENCE = 'urn:oes:service:site-service'
@@ -26,6 +27,7 @@ const TERMINAL_DEVICE_AUDIENCE = 'urn:oes:service:terminal-device-service'
 const FINANCE_AUDIENCE = 'urn:oes:service:finance-service'
 const SALES_AUDIENCE = 'urn:oes:service:sales-service'
 const PUBLIC_ENTRY_AUDIENCE = 'urn:oes:service:public-entry-service'
+const MES_AUDIENCE = 'urn:oes:service:mes-service'
 
 /** Composes the sole Gateway target-token producer with the same request-private source-credential accessor. */
 @Global()
@@ -39,6 +41,7 @@ const PUBLIC_ENTRY_AUDIENCE = 'urn:oes:service:public-entry-service'
     GatewayFinanceGrpcClient,
     GatewaySalesGrpcClient,
     GatewayPublicEntryGrpcClient,
+    GatewayMesGrpcClient,
     GatewayAuthMachineWorkloadSourceCredentialClient,
     {
       provide: GatewayMachineWorkloadSourceCredentialProvider,
@@ -69,7 +72,8 @@ const PUBLIC_ENTRY_AUDIENCE = 'urn:oes:service:public-entry-service'
             TERMINAL_DEVICE_AUDIENCE,
             FINANCE_AUDIENCE,
             SALES_AUDIENCE,
-            PUBLIC_ENTRY_AUDIENCE
+            PUBLIC_ENTRY_AUDIENCE,
+            MES_AUDIENCE
           ],
           workloadIdentities: [requireEnvironment('OES_WORKLOAD_SPIFFE_ID')]
         })
@@ -135,6 +139,7 @@ const PUBLIC_ENTRY_AUDIENCE = 'urn:oes:service:public-entry-service'
     GatewayFinanceGrpcClient,
     GatewaySalesGrpcClient,
     GatewayPublicEntryGrpcClient,
+    GatewayMesGrpcClient,
     GatewayTrustedGrpcExecutionProducer,
     GatewayMachineWorkloadSourceCredentialProvider,
     GatewayMachineTrustedGrpcExecutionProducer

@@ -1,5 +1,6 @@
-import { Controller, UseFilters } from '@nestjs/common'
+import { Controller, UseFilters, UseGuards } from '@nestjs/common'
 import { GrpcExceptionFilter } from '@oes/common/filters'
+import { AuthorizeBusinessRpc, TrustedExecutionGuard } from '@oes/common/authorization'
 import {
   GetMoldDesignRequest,
   GetMoldDesignResponse,
@@ -39,12 +40,14 @@ import { MesRpcContextValidator } from './mes-rpc-context.validator'
 
 /** MesQueryGrpcController maps current Mold / Tooling query RPCs into application read use cases. */
 @UseFilters(GrpcExceptionFilter)
+@UseGuards(TrustedExecutionGuard)
 @Controller()
 @MoldQueryServiceControllerMethods()
 export class MesQueryGrpcController implements MoldQueryServiceController {
   constructor(private readonly queryService: MesMoldQueryService) {}
 
   /** getMoldDesign validates the RPC envelope and delegates one mold design lookup. */
+  @AuthorizeBusinessRpc({ all: ['mes.mold_design.read'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async getMoldDesign(request: GetMoldDesignRequest): Promise<GetMoldDesignResponse> {
     const context = MesRpcContextValidator.assertQueryContext(request)
     return MesGrpcPresenter.toGetMoldDesignResponse(
@@ -56,6 +59,7 @@ export class MesQueryGrpcController implements MoldQueryServiceController {
   }
 
   /** listMoldDesigns delegates the design selector query with current first-slice filters. */
+  @AuthorizeBusinessRpc({ all: ['mes.mold_design.read'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async listMoldDesigns(request: ListMoldDesignsRequest): Promise<ListMoldDesignsResponse> {
     const context = MesRpcContextValidator.assertQueryContext(request)
     return MesGrpcPresenter.toListMoldDesignsResponse(
@@ -72,6 +76,7 @@ export class MesQueryGrpcController implements MoldQueryServiceController {
   }
 
   /** getMasterMold delegates one master mold lookup. */
+  @AuthorizeBusinessRpc({ all: ['mes.production_mold.read'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async getMasterMold(request: GetMasterMoldRequest): Promise<GetMasterMoldResponse> {
     const context = MesRpcContextValidator.assertQueryContext(request)
     return MesGrpcPresenter.toGetMasterMoldResponse(
@@ -83,6 +88,7 @@ export class MesQueryGrpcController implements MoldQueryServiceController {
   }
 
   /** listMasterMolds delegates the master mold directory query. */
+  @AuthorizeBusinessRpc({ all: ['mes.production_mold.read'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async listMasterMolds(request: ListMasterMoldsRequest): Promise<ListMasterMoldsResponse> {
     const context = MesRpcContextValidator.assertQueryContext(request)
     return MesGrpcPresenter.toListMasterMoldsResponse(
@@ -100,6 +106,7 @@ export class MesQueryGrpcController implements MoldQueryServiceController {
   }
 
   /** getProductionMold delegates one production mold lookup. */
+  @AuthorizeBusinessRpc({ all: ['mes.production_mold.read'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async getProductionMold(request: GetProductionMoldRequest): Promise<GetProductionMoldResponse> {
     const context = MesRpcContextValidator.assertQueryContext(request)
     return MesGrpcPresenter.toGetProductionMoldResponse(
@@ -111,6 +118,7 @@ export class MesQueryGrpcController implements MoldQueryServiceController {
   }
 
   /** listProductionMolds delegates the production mold directory query. */
+  @AuthorizeBusinessRpc({ all: ['mes.production_mold.read'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async listProductionMolds(request: ListProductionMoldsRequest): Promise<ListProductionMoldsResponse> {
     const context = MesRpcContextValidator.assertQueryContext(request)
     return MesGrpcPresenter.toListProductionMoldsResponse(
@@ -128,6 +136,7 @@ export class MesQueryGrpcController implements MoldQueryServiceController {
   }
 
   /** listProductionMoldsByDesign delegates one design-scoped production mold query. */
+  @AuthorizeBusinessRpc({ all: ['mes.production_mold.read'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async listProductionMoldsByDesign(
     request: ListProductionMoldsByDesignRequest
   ): Promise<ListProductionMoldsByDesignResponse> {
@@ -144,6 +153,7 @@ export class MesQueryGrpcController implements MoldQueryServiceController {
   }
 
   /** getToolingCurrentPlacement delegates the current placement projection lookup. */
+  @AuthorizeBusinessRpc({ all: ['mes.tooling_installation.read'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async getToolingCurrentPlacement(
     request: GetToolingCurrentPlacementRequest
   ): Promise<GetToolingCurrentPlacementResponse> {
@@ -158,6 +168,7 @@ export class MesQueryGrpcController implements MoldQueryServiceController {
   }
 
   /** getMoldUsageHistory delegates the flattened chronological mold history query. */
+  @AuthorizeBusinessRpc({ all: ['mes.production_mold.read'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async getMoldUsageHistory(request: GetMoldUsageHistoryRequest): Promise<GetMoldUsageHistoryResponse> {
     const context = MesRpcContextValidator.assertQueryContext(request)
     return MesGrpcPresenter.toGetMoldUsageHistoryResponse(
@@ -173,6 +184,7 @@ export class MesQueryGrpcController implements MoldQueryServiceController {
   }
 
   /** listCurrentMoldsByWorkCenter delegates active tooling installations by work center. */
+  @AuthorizeBusinessRpc({ all: ['mes.tooling_installation.read'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async listCurrentMoldsByWorkCenter(
     request: ListCurrentMoldsByWorkCenterRequest
   ): Promise<ListCurrentMoldsByWorkCenterResponse> {
@@ -187,6 +199,7 @@ export class MesQueryGrpcController implements MoldQueryServiceController {
   }
 
   /** listMoldLifeCounters delegates independent life counter pages. */
+  @AuthorizeBusinessRpc({ all: ['mes.production_mold.read'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
   async listMoldLifeCounters(request: ListMoldLifeCountersRequest): Promise<ListMoldLifeCountersResponse> {
     const context = MesRpcContextValidator.assertQueryContext(request)
     return MesGrpcPresenter.toListMoldLifeCountersResponse(

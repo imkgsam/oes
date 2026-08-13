@@ -233,12 +233,6 @@ const siteGrpcLoaderOptions = { longs: String, arrays: true }
               ? `${process.env.ITEM_MASTER_SERVICE_HOST}:${process.env.ITEM_MASTER_SERVICE_PORT}`
               : 'localhost:50058'
         },
-        [SERVICE_NAMES.MES]: {
-          serviceName: SERVICE_NAMES.MES,
-          protoPath: resolveCommonProtoPath('mes_service/mes.proto'),
-          packageName: 'mes_service',
-          url: resolveMesGrpcUrl()
-        },
         [SERVICE_NAMES.PARTY]: {
           serviceName: SERVICE_NAMES.PARTY,
           protoPath: resolveCommonProtoPath('party_service/party.proto'),

@@ -1,10 +1,17 @@
 import { ProductionSpecStatus as ProtoProductionSpecStatus } from '@oes/common/generated/mes_service'
 import { ProductionSpecManagementGrpcController } from '../../src/interfaces/grpc/production-spec-management.grpc.controller'
 import { ProductionSpecQueryGrpcController } from '../../src/interfaces/grpc/production-spec-query.grpc.controller'
+import { attachVerifiedExecution } from '@oes/common/authorization'
+
+const trustedContext: Record<string, unknown> = {}
+Object.assign(attachVerifiedExecution(trustedContext, { verifiedExecutionToken: { tenantId: 'tenant-1', orgId: 'org-1', subject: 'operator-1', principalType: 'HUMAN', permissionCodes: [] } as never, verifiedWorkloadIdentity: {} as never }), { requestId: 'request-1', traceId: 'trace-1' })
+beforeAll(() => Object.assign(Object.prototype, trustedContext))
+afterAll(() => { delete (Object.prototype as Record<string, unknown>).__oesOperatorContext })
 
 /** buildQueryContext creates the generated gRPC query context used by ProductionSpec L3 tests. */
 function buildQueryContext() {
   return {
+    ...trustedContext,
     tenantId: 'tenant-1',
     orgId: 'org-1',
     operatorContext: {
