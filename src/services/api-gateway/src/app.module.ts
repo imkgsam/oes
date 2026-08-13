@@ -81,18 +81,6 @@ export function resolveHrGrpcUrl() {
   return (process.env.NODE_ENV ?? 'development') !== 'production' ? '127.0.0.1:50055' : undefined
 }
 
-/** resolveCollaborationGrpcUrl centralizes the local collaboration-service endpoint used by api-gateway. */
-export function resolveCollaborationGrpcUrl() {
-  const host = process.env.COLLABORATION_SERVICE_HOST?.trim()
-  const port = process.env.COLLABORATION_SERVICE_PORT?.trim()
-
-  if (host && port) {
-    return `${normalizeLocalhostGrpcHost(host)}:${port}`
-  }
-
-  return (process.env.NODE_ENV ?? 'development') !== 'production' ? '127.0.0.1:50068' : undefined
-}
-
 /** resolveBrowserActivityGrpcUrl centralizes the local browser-activity-service endpoint used by api-gateway. */
 export function resolveBrowserActivityGrpcUrl() {
   const host = process.env.BROWSER_ACTIVITY_SERVICE_HOST?.trim()
@@ -190,12 +178,6 @@ const siteGrpcLoaderOptions = { longs: String, arrays: true }
           protoPath: resolveCommonProtoPath('hr_service/hr.proto'),
           packageName: 'hr_service',
           url: resolveHrGrpcUrl()
-        },
-        [SERVICE_NAMES.COLLABORATION]: {
-          serviceName: SERVICE_NAMES.COLLABORATION,
-          protoPath: resolveCommonProtoPath('collaboration_service/collaboration.proto'),
-          packageName: 'collaboration_service',
-          url: resolveCollaborationGrpcUrl()
         },
         [SERVICE_NAMES.CRM]: {
           serviceName: SERVICE_NAMES.CRM,

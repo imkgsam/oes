@@ -1,4 +1,6 @@
 import { Test } from '@nestjs/testing'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { GatewayCollaborationGrpcClient, GatewayTrustedGrpcExecutionProducer } from '../../../common/grpc'
 import { AnnotationCommandGrpcAdapter } from './annotation-command-grpc.adapter'
 import { AnnotationQueryGrpcAdapter } from './annotation-query-grpc.adapter'
@@ -42,5 +44,14 @@ describe('Collaboration dedicated client feature graph', () => {
     expect(module.get(TaskQueryGrpcAdapter)).toBeInstanceOf(TaskQueryGrpcAdapter)
     expect(module.get(AnnotationCommandGrpcAdapter)).toBeInstanceOf(AnnotationCommandGrpcAdapter)
     expect(module.get(AnnotationQueryGrpcAdapter)).toBeInstanceOf(AnnotationQueryGrpcAdapter)
+  })
+
+  it('removes the generic Collaboration transport registration while preserving dedicated wiring', () => {
+    const gatewayRoot = resolve(__dirname, '../../../app.module.ts')
+    const featureModule = resolve(__dirname, '../collaboration-service.module.ts')
+    const source = [readFileSync(gatewayRoot, 'utf8'), readFileSync(featureModule, 'utf8')].join('\n')
+    expect(source).not.toContain('SERVICE_NAMES.COLLABORATION')
+    expect(source).not.toContain('resolveCollaborationGrpcUrl')
+    expect(source).toContain('GatewayCollaborationGrpcClient')
   })
 })
