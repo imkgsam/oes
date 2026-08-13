@@ -27,6 +27,7 @@ import { TenantOrgPartyMachineSourceCredentialClient } from '../../infrastructur
 import { TenantOrgPartyMachineSourceCredentialProvider } from '../../infrastructure/adapters/tenant-org-party-machine-source-credential.provider'
 import { TenantOrgPartyExecutionTokenExchangeClient } from '../../infrastructure/adapters/tenant-org-party-execution-token-exchange.client'
 import { TenantOrgPartyTrustedGrpcExecutionProducer } from '../../infrastructure/adapters/tenant-org-party-trusted-grpc-execution.producer'
+import { TenantOrgTrustedExecutionModule } from '../tenant-org-trusted-execution.module'
 import { PermissionTenantOnboardingGrpcAdapter } from '../../infrastructure/adapters/permission-tenant-onboarding.grpc.adapter'
 import { PrismaModule } from '../../infrastructure/prisma/prisma.module'
 import { AuthSessionRevocationGrpcAdapter } from '../../infrastructure/adapters/auth-session-revocation.grpc.adapter'
@@ -40,6 +41,7 @@ import { TenantOrgManagementGrpcController } from '../../interfaces/grpc/tenant-
   imports: [
     PrismaModule,
     AuthorizationModule,
+    TenantOrgTrustedExecutionModule,
     GrpcTransportModule.forFeature([
       SERVICE_NAMES.AUTH,
       SERVICE_NAMES.HR,
@@ -91,9 +93,6 @@ import { TenantOrgManagementGrpcController } from '../../interfaces/grpc/tenant-
     AuthSessionRevocationGrpcAdapter,
     PartyQueryGrpcAdapter,
     PartyRegistrationGrpcAdapter,
-    TenantOrgPartyTrustedGrpcClient, TenantOrgPartyMachineSourceCredentialClient,
-    TenantOrgPartyMachineSourceCredentialProvider, TenantOrgPartyExecutionTokenExchangeClient,
-    { provide: TenantOrgPartyTrustedGrpcExecutionProducer, useFactory: (source: TenantOrgPartyMachineSourceCredentialProvider, exchange: TenantOrgPartyExecutionTokenExchangeClient) => new TenantOrgPartyTrustedGrpcExecutionProducer(source, exchange), inject: [TenantOrgPartyMachineSourceCredentialProvider, TenantOrgPartyExecutionTokenExchangeClient] },
     IdentityAccountOnboardingGrpcAdapter,
     AuthLoginOnboardingGrpcAdapter,
     HrEmployeeOnboardingGrpcAdapter,

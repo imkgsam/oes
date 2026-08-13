@@ -3,11 +3,7 @@ import { SERVICE_NAMES } from '@oes/common/constants'
 import { GrpcTransportModule } from '@oes/common/transport'
 import { TOKENS } from '../common/constants/tokens'
 import { PartyQueryGrpcAdapter } from '../infrastructure/adapters/party-query-grpc.adapter'
-import { PartyTrustedGrpcClient } from '../infrastructure/adapters/party-trusted-grpc.client'
-import { CrmPartyMachineSourceCredentialClient } from '../infrastructure/adapters/crm-party-machine-source-credential.client'
-import { CrmPartyMachineSourceCredentialProvider } from '../infrastructure/adapters/crm-party-machine-source-credential.provider'
-import { CrmPartyExecutionTokenExchangeClient } from '../infrastructure/adapters/crm-party-execution-token-exchange.client'
-import { CrmPartyTrustedGrpcExecutionProducer } from '../infrastructure/adapters/crm-party-trusted-grpc-execution.producer'
+import { CrmTrustedExecutionModule } from './crm-trusted-execution.module'
 import { PrismaCrmAuditRepository } from '../infrastructure/audit/prisma-crm-audit.repository'
 import { PrismaModule } from '../infrastructure/prisma/prisma.module'
 import { PrismaCrmAccountRepository } from '../infrastructure/repositories/prisma/prisma-crm-account.repository'
@@ -16,16 +12,11 @@ import { PrismaCrmTransactionRunner } from '../infrastructure/transactions/prism
 /** CrmInfrastructureModule wires the Prisma-backed persistence graph and downstream party lookup adapter. */
 @Global()
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, CrmTrustedExecutionModule],
   providers: [
     PrismaCrmAccountRepository,
     PrismaCrmAuditRepository,
     PrismaCrmTransactionRunner,
-    PartyTrustedGrpcClient,
-    CrmPartyMachineSourceCredentialClient,
-    CrmPartyMachineSourceCredentialProvider,
-    CrmPartyExecutionTokenExchangeClient,
-    { provide: CrmPartyTrustedGrpcExecutionProducer, useFactory: (source: CrmPartyMachineSourceCredentialProvider, exchange: CrmPartyExecutionTokenExchangeClient) => new CrmPartyTrustedGrpcExecutionProducer(source, exchange), inject: [CrmPartyMachineSourceCredentialProvider, CrmPartyExecutionTokenExchangeClient] },
     PartyQueryGrpcAdapter,
     {
       provide: TOKENS.CRM_ACCOUNT_REPOSITORY,

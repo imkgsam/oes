@@ -44,6 +44,7 @@ import { IdentityPartyMachineSourceCredentialClient } from '../../infrastructure
 import { IdentityPartyMachineSourceCredentialProvider } from '../../infrastructure/adaptors/identity-party-machine-source-credential.provider'
 import { IdentityPartyExecutionTokenExchangeClient } from '../../infrastructure/adaptors/identity-party-execution-token-exchange.client'
 import { IdentityPartyTrustedGrpcExecutionProducer } from '../../infrastructure/adaptors/identity-party-trusted-grpc-execution.producer'
+import { IdentityTrustedExecutionModule } from '../identity-trusted-execution.module'
 import { TenantReferenceGrpcAdaptor } from '../../infrastructure/adaptors/tenant-reference.grpc.adaptor'
 import { PrismaModule } from '../../infrastructure/prisma/prisma.module'
 import { IdentityManagementGrpcController } from '../../interfaces/grpc/identity-management.grpc.controller'
@@ -54,6 +55,7 @@ import { IdentityAuditModule } from '../identity-audit/identity-audit.module'
     CqrsModule,
     PrismaModule,
     IdentityAuditModule,
+    IdentityTrustedExecutionModule,
     GrpcTransportModule.forFeature([
       SERVICE_NAMES.PERMISSION,
       SERVICE_NAMES.TENANT_ORG
@@ -99,9 +101,6 @@ import { IdentityAuditModule } from '../identity-audit/identity-audit.module'
       provide: PARTY_REGISTRATION_PORT,
       useClass: PartyRegistrationGrpcAdaptor
     },
-    IdentityPartyTrustedGrpcClient, IdentityPartyMachineSourceCredentialClient,
-    IdentityPartyMachineSourceCredentialProvider, IdentityPartyExecutionTokenExchangeClient,
-    { provide: IdentityPartyTrustedGrpcExecutionProducer, useFactory: (source: IdentityPartyMachineSourceCredentialProvider, exchange: IdentityPartyExecutionTokenExchangeClient) => new IdentityPartyTrustedGrpcExecutionProducer(source, exchange), inject: [IdentityPartyMachineSourceCredentialProvider, IdentityPartyExecutionTokenExchangeClient] },
     {
       provide: TENANT_REFERENCE_PORT,
       useClass: TenantReferenceGrpcAdaptor

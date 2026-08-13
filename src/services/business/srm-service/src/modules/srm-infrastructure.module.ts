@@ -1,11 +1,7 @@
 import { Global, Module } from '@nestjs/common'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import { GrpcTransportModule } from '@oes/common/transport'
-import { SrmPartyMachineSourceCredentialClient } from '../infrastructure/adapters/srm-party-machine-source-credential.client'
-import { SrmPartyMachineSourceCredentialProvider } from '../infrastructure/adapters/srm-party-machine-source-credential.provider'
-import { SrmPartyExecutionTokenExchangeClient } from '../infrastructure/adapters/srm-party-execution-token-exchange.client'
-import { SrmPartyTrustedGrpcExecutionProducer } from '../infrastructure/adapters/srm-party-trusted-grpc-execution.producer'
-import { SrmPartyTrustedGrpcClient } from '../infrastructure/adapters/party-trusted-grpc.client'
+import { SrmTrustedExecutionModule } from './srm-trusted-execution.module'
 import { TOKENS } from '../common/constants/tokens'
 import { ItemMasterQueryGrpcAdapter } from '../infrastructure/adapters/item-master-query-grpc.adapter'
 import { PartyQueryGrpcAdapter } from '../infrastructure/adapters/party-query-grpc.adapter'
@@ -20,7 +16,7 @@ import { PrismaSrmTransactionRunner } from '../infrastructure/transactions/prism
 /** SrmInfrastructureModule wires the Prisma-backed persistence graph and downstream party lookup adapter. */
 @Global()
 @Module({
-  imports: [PrismaModule, GrpcTransportModule.forFeature([SERVICE_NAMES.PARTY, SERVICE_NAMES.ITEM_MASTER])],
+  imports: [PrismaModule, SrmTrustedExecutionModule, GrpcTransportModule.forFeature([SERVICE_NAMES.ITEM_MASTER])],
   providers: [
     PrismaSupplierProfileRepository,
     PrismaSupplierContactRepository,
@@ -28,11 +24,6 @@ import { PrismaSrmTransactionRunner } from '../infrastructure/transactions/prism
     PrismaSupplierOfferingRepository,
     PrismaSrmAuditRepository,
     PrismaSrmTransactionRunner,
-    SrmPartyTrustedGrpcClient,
-    SrmPartyMachineSourceCredentialClient,
-    SrmPartyMachineSourceCredentialProvider,
-    SrmPartyExecutionTokenExchangeClient,
-    { provide: SrmPartyTrustedGrpcExecutionProducer, useFactory: (source: SrmPartyMachineSourceCredentialProvider, exchange: SrmPartyExecutionTokenExchangeClient) => new SrmPartyTrustedGrpcExecutionProducer(source, exchange), inject: [SrmPartyMachineSourceCredentialProvider, SrmPartyExecutionTokenExchangeClient] },
     PartyQueryGrpcAdapter,
     ItemMasterQueryGrpcAdapter,
     {

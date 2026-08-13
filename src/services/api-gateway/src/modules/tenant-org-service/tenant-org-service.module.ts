@@ -15,7 +15,7 @@ import { TenantManagementService } from './tenant-management.service'
 @Module({
   imports: [
     AuthorizationModule,
-    GrpcTransportModule.forFeature([SERVICE_NAMES.IDENTITY, SERVICE_NAMES.PARTY, SERVICE_NAMES.TENANT_ORG])
+    GrpcTransportModule.forFeature([SERVICE_NAMES.IDENTITY, SERVICE_NAMES.TENANT_ORG])
   ],
   controllers: [TenantManagementController, OrgManagementController],
   providers: [

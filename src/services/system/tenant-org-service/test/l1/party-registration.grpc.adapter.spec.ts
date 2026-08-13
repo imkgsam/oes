@@ -11,13 +11,12 @@ describe('PartyRegistrationGrpcAdapter', () => {
     )
     const adapter = new PartyRegistrationGrpcAdapter(
       {
-        getService: jest.fn(() => ({ registerTenantParty }))
+        registration: jest.fn(() => ({ registerTenantParty }))
       } as any,
-      {} as any,
-      {} as any
+      { createMetadata: jest.fn(async () => ({ trusted: true })) } as any,
+      { getContext: jest.fn(() => ({ requestId: 'request-1', traceId: '00-0123456789abcdef0123456789abcdef-0123456789abcdef-01' })) } as any
     )
     adapter.onModuleInit()
-    ;(adapter as any).buildMetadata = jest.fn(() => undefined)
 
     await expect(
       adapter.registerOrganizationTenantParty({
@@ -43,7 +42,7 @@ describe('PartyRegistrationGrpcAdapter', () => {
         displayName: 'Beta Inc.',
         registeredCountry: 'US'
       }),
-      undefined
+      { trusted: true }
     )
     expect(registerTenantParty.mock.calls[0][0]).not.toHaveProperty('tenantId')
     expect(registerTenantParty.mock.calls[0][0]).not.toHaveProperty('canonicalName')

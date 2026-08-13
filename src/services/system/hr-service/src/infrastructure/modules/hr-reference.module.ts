@@ -10,6 +10,7 @@ import { HrPartyMachineSourceCredentialClient } from '../adapters/hr-party-machi
 import { HrPartyMachineSourceCredentialProvider } from '../adapters/hr-party-machine-source-credential.provider'
 import { HrPartyExecutionTokenExchangeClient } from '../adapters/hr-party-execution-token-exchange.client'
 import { HrPartyTrustedGrpcExecutionProducer } from '../adapters/hr-party-trusted-grpc-execution.producer'
+import { HrTrustedExecutionModule } from '../../modules/hr-trusted-execution.module'
 import {
   TENANT_ORG_GRPC_CLIENT,
   TenantOrgGrpcAdapter
@@ -56,7 +57,7 @@ export function buildHrReferenceGrpcClients(): ClientProviderOptions[] {
 /** HrReferenceModule wires HR anti-corruption ports for external tenant-org and party references. */
 @Module({
   imports: [
-    AuthorizationModule,
+    AuthorizationModule, HrTrustedExecutionModule,
     ClientsModule.register(buildHrReferenceGrpcClients())
   ],
   providers: [
@@ -68,9 +69,6 @@ export function buildHrReferenceGrpcClients(): ClientProviderOptions[] {
       provide: PARTY_REGISTRATION_PORT,
       useClass: PartyRegistrationGrpcAdapter
     },
-    HrPartyTrustedGrpcClient, HrPartyMachineSourceCredentialClient,
-    HrPartyMachineSourceCredentialProvider, HrPartyExecutionTokenExchangeClient,
-    { provide: HrPartyTrustedGrpcExecutionProducer, useFactory: (source: HrPartyMachineSourceCredentialProvider, exchange: HrPartyExecutionTokenExchangeClient) => new HrPartyTrustedGrpcExecutionProducer(source, exchange), inject: [HrPartyMachineSourceCredentialProvider, HrPartyExecutionTokenExchangeClient] }
   ],
   exports: [TENANT_ORG_REFERENCE_PORT, PARTY_REGISTRATION_PORT]
 })

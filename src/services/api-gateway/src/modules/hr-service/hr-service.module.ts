@@ -22,7 +22,6 @@ import { HrManagementController } from './interface/http/controllers/hr-manageme
       SERVICE_NAMES.ASSET,
       SERVICE_NAMES.AUTH,
       SERVICE_NAMES.IDENTITY,
-      SERVICE_NAMES.PARTY
     ]),
     TenantOrgServiceProxyModule
   ],
