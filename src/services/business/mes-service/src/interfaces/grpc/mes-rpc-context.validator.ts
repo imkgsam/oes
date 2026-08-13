@@ -41,8 +41,26 @@ function normalizeReason(value: string | null | undefined): string | undefined {
   const normalized = value?.trim()
   if (!normalized) return undefined
   if (normalized.length > 256) throw new Error('reason must contain at most 256 characters')
-  if (/\{|\}|\[|\]|(?:access|refresh)[ _-]?token|password|secret|credential|bearer|private[ _-]?key/i.test(normalized)) throw new Error('reason contains restricted material')
+  if (isJson(normalized) || isRestrictedReasonMaterial(normalized)) throw new Error('reason contains restricted material')
   return normalized
+}
+
+/** Rejects structured values, credentials, and personal identifiers before audit context creation. */
+function isRestrictedReasonMaterial(value: string): boolean {
+  return [
+    /(?:^|[^a-z0-9])(?:access[ _-]*token|refresh[ _-]*token|client[ _-]*secret|password|private[ _-]*key|api[ _-]*key|secret|credential|authorization|bearer|token)(?:$|[^a-z0-9])/i,
+    /\beyJ[A-Za-z0-9_-]*\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/,
+    /-----BEGIN\s+(?:RSA\s+)?PRIVATE\s+KEY-----/i,
+    /\bsk_(?:live|test)_[A-Za-z0-9]+\b/i,
+    /\bAKIA[0-9A-Z]{16}\b/,
+    /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i,
+    /(?<!\d)(?:\+?\d[\d\s().-]{7,}\d)(?!\d)/
+  ].some((pattern) => pattern.test(value))
+}
+
+/** Detects JSON objects, arrays, and scalar literals without retaining caller material. */
+function isJson(value: string): boolean {
+  try { JSON.parse(value); return true } catch { return false }
 }
 
 export type { MesAuditContext, MesOperatorContext, MesQueryContext, MesTraceContext }

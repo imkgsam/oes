@@ -65,10 +65,10 @@ export class MesManagementGrpcAdapter implements OnModuleInit {
 
   /** onModuleInit resolves the generated MES gRPC service clients. */
   onModuleInit(): void {
-    this.productionSpecSvc = this.client.getService<ProductionSpecManagementServiceClient>(
+    this.productionSpecSvc = this.client.getClient().getService<ProductionSpecManagementServiceClient>(
       PRODUCTION_SPEC_MANAGEMENT_SERVICE_NAME
     )
-    this.moldSvc = this.client.getService<MoldManagementServiceClient>(MOLD_MANAGEMENT_SERVICE_NAME)
+    this.moldSvc = this.client.getClient().getService<MoldManagementServiceClient>(MOLD_MANAGEMENT_SERVICE_NAME)
   }
 
   /** createProductionSpec forwards one ProductionSpec creation command. */

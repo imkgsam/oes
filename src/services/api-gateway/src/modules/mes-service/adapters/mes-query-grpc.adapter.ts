@@ -56,10 +56,10 @@ export class MesQueryGrpcAdapter implements OnModuleInit {
 
   /** onModuleInit resolves the generated MES query service clients. */
   onModuleInit(): void {
-    this.productionSpecSvc = this.client.getService<ProductionSpecQueryServiceClient>(
+    this.productionSpecSvc = this.client.getClient().getService<ProductionSpecQueryServiceClient>(
       PRODUCTION_SPEC_QUERY_SERVICE_NAME
     )
-    this.moldSvc = this.client.getService<MoldQueryServiceClient>(MOLD_QUERY_SERVICE_NAME)
+    this.moldSvc = this.client.getClient().getService<MoldQueryServiceClient>(MOLD_QUERY_SERVICE_NAME)
   }
 
   /** getProductionSpec forwards one ProductionSpec detail read. */
