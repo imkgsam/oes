@@ -1783,8 +1783,8 @@ Party rejects HUMAN, DELEGATED, tenant MACHINE, unknown workload, wrong issuer/a
 
 ```yaml
 partyTrustedGrpcImplementationLease:
-  totalTrackedWriterPaths: 86
-  stateCounts: { EXISTING: 38, NEW_TARGET: 48 }
+  totalTrackedWriterPaths: 92
+  stateCounts: { EXISTING: 44, NEW_TARGET: 48 }
   trackedWriterPaths:
     commonProtoPermissionCode:
       - { state: EXISTING, path: src/common/src/contracts/party_service/party.proto }
@@ -1801,6 +1801,11 @@ partyTrustedGrpcImplementationLease:
       - { state: EXISTING, path: src/services/system/party-service/src/modules/party-query/party-query.module.ts }
       - { state: NEW_TARGET, path: src/services/system/party-service/src/modules/party-trusted-execution.module.ts }
     partyCallersAndAdapters:
+      - { state: EXISTING, path: src/services/api-gateway/src/app.module.ts }
+      - { state: EXISTING, path: src/services/business/crm-service/src/app.module.ts }
+      - { state: EXISTING, path: src/services/business/srm-service/src/app.module.ts }
+      - { state: EXISTING, path: src/services/system/identity-service/src/app.module.ts }
+      - { state: EXISTING, path: src/services/system/tenant-org-service/src/app.module.ts }
       - { state: EXISTING, path: src/services/api-gateway/src/modules/auth-bff/auth-bff.module.ts }
       - { state: EXISTING, path: src/services/api-gateway/src/modules/hr-service/hr-service.module.ts }
       - { state: EXISTING, path: src/services/api-gateway/src/modules/tenant-org-service/tenant-org-service.module.ts }
@@ -1815,6 +1820,7 @@ partyTrustedGrpcImplementationLease:
       - { state: EXISTING, path: src/services/business/srm-service/src/infrastructure/adapters/party-query-grpc.adapter.ts }
       - { state: NEW_TARGET, path: src/services/api-gateway/src/modules/party-service/adapters/party-dedicated-client.spec.ts }
     partySecurityTests:
+      - { state: EXISTING, path: src/common/src/authorization/trusted-execution/public-barrels.spec.mjs }
       - { state: EXISTING, path: src/services/system/party-service/test/l3/party-registration.grpc.controller.spec.ts }
       - { state: EXISTING, path: src/services/system/party-service/test/l3/party-query.grpc.controller.spec.ts }
       - { state: EXISTING, path: src/services/system/party-service/test/l1/party-registration.service.spec.ts }
