@@ -1781,8 +1781,8 @@ Party rejects HUMAN, DELEGATED, tenant MACHINE, unknown workload, wrong issuer/a
 
 ```yaml
 partyTrustedGrpcImplementationLease:
-  totalTrackedWriterPaths: 30
-  stateCounts: { EXISTING: 25, NEW_TARGET: 5 }
+  totalTrackedWriterPaths: 56
+  stateCounts: { EXISTING: 34, NEW_TARGET: 22 }
   trackedWriterPaths:
     commonProtoPermissionCode:
       - { state: EXISTING, path: src/common/src/contracts/party_service/party.proto }
@@ -1818,9 +1818,36 @@ partyTrustedGrpcImplementationLease:
       - { state: NEW_TARGET, path: src/services/system/party-service/test/l3/party-trusted-grpc-security.spec.ts }
       - { state: EXISTING, path: src/services/system/party-service/package.json }
       - { state: EXISTING, path: src/services/system/party-service/jest.config.js }
+    partyCallerCompositionExpansion:
+      - { state: NEW_TARGET, path: src/common/src/authorization/trusted-execution/internal-trusted-grpc-caller.ts }
+      - { state: NEW_TARGET, path: src/common/src/authorization/trusted-execution/internal-trusted-grpc-caller.spec.ts }
+      - { state: NEW_TARGET, path: src/services/business/crm-service/src/modules/crm-trusted-execution.module.ts }
+      - { state: NEW_TARGET, path: src/services/business/srm-service/src/modules/srm-trusted-execution.module.ts }
+      - { state: NEW_TARGET, path: src/services/system/hr-service/src/modules/hr-trusted-execution.module.ts }
+      - { state: NEW_TARGET, path: src/services/system/identity-service/src/modules/identity-trusted-execution.module.ts }
+      - { state: NEW_TARGET, path: src/services/system/tenant-org-service/src/modules/tenant-org-trusted-execution.module.ts }
+      - { state: NEW_TARGET, path: src/services/business/crm-service/src/infrastructure/adapters/party-trusted-grpc.client.ts }
+      - { state: NEW_TARGET, path: src/services/business/srm-service/src/infrastructure/adapters/party-trusted-grpc.client.ts }
+      - { state: NEW_TARGET, path: src/services/system/hr-service/src/infrastructure/adapters/party-trusted-grpc.client.ts }
+      - { state: NEW_TARGET, path: src/services/system/identity-service/src/infrastructure/adaptors/party-trusted-grpc.client.ts }
+      - { state: NEW_TARGET, path: src/services/system/tenant-org-service/src/infrastructure/adapters/party-trusted-grpc.client.ts }
+      - { state: EXISTING, path: src/services/business/crm-service/src/modules/crm-infrastructure.module.ts }
+      - { state: EXISTING, path: src/services/business/srm-service/src/modules/srm-infrastructure.module.ts }
+      - { state: EXISTING, path: src/services/system/hr-service/src/infrastructure/modules/hr-reference.module.ts }
+      - { state: EXISTING, path: src/services/system/identity-service/src/modules/identity-management/identity-management.module.ts }
+      - { state: EXISTING, path: src/services/system/tenant-org-service/src/modules/tenant-org-management/tenant-org-management.module.ts }
+      - { state: EXISTING, path: src/services/business/crm-service/test/l1/party-query-grpc.adapter.spec.ts }
+      - { state: EXISTING, path: src/services/system/hr-service/test/l1/hr-grpc-config.spec.ts }
+      - { state: EXISTING, path: src/services/system/tenant-org-service/test/l1/app-module-grpc-config.spec.ts }
+      - { state: EXISTING, path: src/services/system/tenant-org-service/test/l1/party-registration.grpc.adapter.spec.ts }
+      - { state: NEW_TARGET, path: src/services/business/crm-service/test/l1/party-trusted-grpc.client.spec.ts }
+      - { state: NEW_TARGET, path: src/services/business/srm-service/test/l1/party-trusted-grpc.client.spec.ts }
+      - { state: NEW_TARGET, path: src/services/system/hr-service/test/l1/party-trusted-grpc.client.spec.ts }
+      - { state: NEW_TARGET, path: src/services/system/identity-service/test/l1/party-trusted-grpc.client.spec.ts }
+      - { state: NEW_TARGET, path: src/services/system/tenant-org-service/test/l1/party-trusted-grpc.client.spec.ts }
 ```
 
-The ignored generated Party client remains verification output from `src/common/src/contracts/party_service/party.proto`. Acceptance must prove 6/6 declarations, exact Code/workload/audience enforcement, tenant body tombstone, no HUMAN/DELEGATED admission, all caller adapters on dedicated ET clients and unchanged Party persistence/business boundaries. Implementation must be a strict subset of the 30-path lease; Party outbound and all dependent service business flows remain protected.
+The ignored generated Party client remains verification output from `src/common/src/contracts/party_service/party.proto`. Acceptance must prove 6/6 declarations, exact Code/workload/audience enforcement, tenant body tombstone, no HUMAN/DELEGATED admission, all Gateway and non-Gateway Party callers on dedicated Party-audience ET clients, module DI composition, and unchanged Party persistence/business boundaries. Implementation must be a strict subset of the 56-path lease; this expansion changes only Party caller preparation and does not start any caller service's own full trusted-gRPC cutover.
 
 ## 10. Repository-wide Security Acceptance
 
