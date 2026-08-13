@@ -84,11 +84,9 @@ describe('MesService', () => {
       expect.objectContaining({
         itemId: 'item-1',
         keyword: 'spec',
-        orgId: 'org-1',
         page: 1,
         pageSize: 20,
         status: ProductionSpecStatus.PRODUCTION_SPEC_STATUS_ACTIVE,
-        tenantId: 'tenant-1'
       }),
       source
     )
@@ -116,7 +114,6 @@ describe('MesService', () => {
         commandId: 'req-spec-write',
         expectedVersion: 1,
         productionSpecId: 'spec-1',
-        tenantId: 'tenant-1'
       }),
       source
     )
@@ -148,7 +145,6 @@ describe('MesService', () => {
       expect.objectContaining({
         moldDesignId: 'design-1',
         status: ProductionMoldStatus.PRODUCTION_MOLD_STATUS_READY,
-        tenantId: 'tenant-1',
         warningLevel: MoldWarningLevel.MOLD_WARNING_LEVEL_INFO
       }),
       source
@@ -174,7 +170,6 @@ describe('MesService', () => {
       expect.objectContaining({
         moldDesignId: 'design-1',
         status: MasterMoldStatus.MASTER_MOLD_STATUS_AVAILABLE,
-        tenantId: 'tenant-1'
       }),
       source
     )
@@ -352,7 +347,6 @@ describe('MesService', () => {
 
     expect(mesQueryAdapter.listCurrentMoldsByWorkCenter).toHaveBeenCalledWith(
       expect.objectContaining({
-        tenantId: 'tenant-1',
         workCenterId: 'wc-1'
       }),
       source

@@ -26,16 +26,15 @@ export class MesService {
 
   /** listProductionSpecs returns the ProductionSpec selector needed by mold design setup. */
   async listProductionSpecs(tenantId: string, query: any, source: DownstreamRequestSource) {
+    this.resolveTenantId(tenantId, source)
     return this.mesQueryAdapter.listProductionSpecs(
       {
         includeRetired: query.includeRetired,
         itemId: normalize(query.itemId),
         keyword: normalize(query.keyword),
-        orgId: this.resolveOrgId(query.orgId, source),
         page: clampPage(query.page),
         pageSize: clampPageSize(query.pageSize),
         status: toEnum(ProductionSpecStatus, 'PRODUCTION_SPEC_STATUS_', query.status),
-        tenantId: this.resolveTenantId(tenantId, source)
       },
       source
     )
@@ -45,9 +44,7 @@ export class MesService {
   async getProductionSpec(tenantId: string, productionSpecId: string, source: DownstreamRequestSource) {
     const result = await this.mesQueryAdapter.getProductionSpec(
       {
-        orgId: this.resolveOrgId(undefined, source),
         productionSpecId: requireNonBlank(productionSpecId, 'productionSpecId'),
-        tenantId: this.resolveTenantId(tenantId, source)
       },
       source
     )
@@ -105,12 +102,10 @@ export class MesService {
       {
         itemModelId: normalize(query.itemModelId),
         keyword: normalize(query.keyword),
-        orgId: this.resolveOrgId(query.orgId, source),
         page: clampPage(query.page),
         pageSize: clampPageSize(query.pageSize),
         productionSpecId: normalize(query.productionSpecId),
         status: toEnum(MoldDesignStatus, 'MOLD_DESIGN_STATUS_', query.status),
-        tenantId: this.resolveTenantId(tenantId, source)
       },
       source
     )
@@ -121,8 +116,6 @@ export class MesService {
     const result = await this.mesQueryAdapter.getMoldDesign(
       {
         moldDesignId: requireNonBlank(moldDesignId, 'moldDesignId'),
-        orgId: this.resolveOrgId(undefined, source),
-        tenantId: this.resolveTenantId(tenantId, source)
       },
       source
     )
@@ -163,12 +156,10 @@ export class MesService {
         carrierResourceId: normalize(query.carrierResourceId),
         keyword: normalize(query.keyword),
         moldDesignId: normalize(query.moldDesignId),
-        orgId: this.resolveOrgId(query.orgId, source),
         page: clampPage(query.page),
         pageSize: clampPageSize(query.pageSize),
         status: toEnum(MasterMoldStatus, 'MASTER_MOLD_STATUS_', query.status),
         storageResourceId: normalize(query.storageResourceId),
-        tenantId: this.resolveTenantId(tenantId, source)
       },
       source
     )
@@ -179,8 +170,6 @@ export class MesService {
     const result = await this.mesQueryAdapter.getMasterMold(
       {
         masterMoldId: requireNonBlank(masterMoldId, 'masterMoldId'),
-        orgId: this.resolveOrgId(undefined, source),
-        tenantId: this.resolveTenantId(tenantId, source)
       },
       source
     )
@@ -224,9 +213,7 @@ export class MesService {
   async getProductionMold(tenantId: string, productionMoldId: string, source: DownstreamRequestSource) {
     const result = await this.mesQueryAdapter.getProductionMold(
       {
-        orgId: this.resolveOrgId(undefined, source),
         productionMoldId: requireNonBlank(productionMoldId, 'productionMoldId'),
-        tenantId: this.resolveTenantId(tenantId, source)
       },
       source
     )
@@ -239,12 +226,10 @@ export class MesService {
       {
         carrierResourceId: normalize(query.carrierResourceId),
         moldDesignId: normalize(query.moldDesignId),
-        orgId: this.resolveOrgId(query.orgId, source),
         page: clampPage(query.page),
         pageSize: clampPageSize(query.pageSize),
         status: toEnum(ProductionMoldStatus, 'PRODUCTION_MOLD_STATUS_', query.status),
         storageResourceId: normalize(query.storageResourceId),
-        tenantId: this.resolveTenantId(tenantId, source),
         warningLevel: toEnum(MoldWarningLevel, 'MOLD_WARNING_LEVEL_', query.warningLevel)
       },
       source
@@ -256,11 +241,9 @@ export class MesService {
     return this.mesQueryAdapter.listProductionMoldsByDesign(
       {
         moldDesignId: requireNonBlank(moldDesignId, 'moldDesignId'),
-        orgId: this.resolveOrgId(query.orgId, source),
         page: clampPage(query.page),
         pageSize: clampPageSize(query.pageSize),
         status: toEnum(ProductionMoldStatus, 'PRODUCTION_MOLD_STATUS_', query.status),
-        tenantId: this.resolveTenantId(tenantId, source)
       },
       source
     )
@@ -283,8 +266,6 @@ export class MesService {
   async getToolingCurrentPlacement(tenantId: string, toolingId: string, query: any, source: DownstreamRequestSource) {
     const result = await this.mesQueryAdapter.getToolingCurrentPlacement(
       {
-        orgId: this.resolveOrgId(query.orgId, source),
-        tenantId: this.resolveTenantId(tenantId, source),
         toolingId: requireNonBlank(toolingId, 'toolingId'),
         toolingType: toEnum(ToolingType, 'TOOLING_TYPE_', query.toolingType ?? 'MOLD')
       },
@@ -361,8 +342,6 @@ export class MesService {
   async listCurrentMoldsByWorkCenter(tenantId: string, workCenterId: string, query: any, source: DownstreamRequestSource) {
     return this.mesQueryAdapter.listCurrentMoldsByWorkCenter(
       {
-        orgId: this.resolveOrgId(query.orgId, source),
-        tenantId: this.resolveTenantId(tenantId, source),
         workCenterId: requireNonBlank(workCenterId, 'workCenterId'),
         workUnitId: normalize(query.workUnitId)
       },
@@ -374,11 +353,9 @@ export class MesService {
   async listMoldLifeCounters(tenantId: string, query: any, source: DownstreamRequestSource) {
     return this.mesQueryAdapter.listMoldLifeCounters(
       {
-        orgId: this.resolveOrgId(query.orgId, source),
         page: clampPage(query.page),
         pageSize: clampPageSize(query.pageSize),
         productionMoldId: normalize(query.productionMoldId),
-        tenantId: this.resolveTenantId(tenantId, source),
         warningLevel: toEnum(MoldWarningLevel, 'MOLD_WARNING_LEVEL_', query.warningLevel)
       },
       source
@@ -390,11 +367,9 @@ export class MesService {
     return this.mesQueryAdapter.getMoldUsageHistory(
       {
         from: normalize(query.from),
-        orgId: this.resolveOrgId(query.orgId, source),
         page: clampPage(query.page),
         pageSize: clampPageSize(query.pageSize),
         productionMoldId: requireNonBlank(productionMoldId, 'productionMoldId'),
-        tenantId: this.resolveTenantId(tenantId, source),
         to: normalize(query.to)
       },
       source
@@ -407,8 +382,6 @@ export class MesService {
     const workCenterId = requireNonBlank(query.workCenterId, 'workCenterId')
     const current = await this.mesQueryAdapter.listCurrentMoldsByWorkCenter(
       {
-        orgId: this.resolveOrgId(query.orgId, source),
-        tenantId: this.resolveTenantId(tenantId, source),
         workCenterId,
         workUnitId: normalize(query.workUnitId)
       },
@@ -429,12 +402,9 @@ export class MesService {
   /** recordDailyMoldUsageBatch forwards one web checklist submission as a single MES usage batch command. */
   async recordDailyMoldUsageBatch(tenantId: string, checklistDate: string, input: any, source: DownstreamRequestSource) {
     const batchCommandId = requireNonBlank(input.batchCommandId, 'batchCommandId')
-    const resolvedTenantId = this.resolveTenantId(tenantId, source)
-    const orgId = this.resolveOrgId(input.orgId, source)
     const response = await this.mesManagementAdapter.recordMoldUsageBatch(
       {
         auditReason: normalize(input.reason) ?? 'daily mold usage checklist',
-        captureSource: normalize(input.captureSource) ?? 'WEB_CHECKLIST',
         commandId: batchCommandId,
         lifeUnit: normalize(input.lifeUnit) ?? 'CASTING_CYCLE',
         lines: (input.items ?? []).map((item: any) => ({
@@ -448,8 +418,6 @@ export class MesService {
           traceSubjectRef: item.traceSubjectRef,
           usageQuantity: normalize(item.usageQuantity) ?? ''
         })),
-        orgId,
-        tenantId: resolvedTenantId,
         usedAt: normalize(input.usedAt) ?? requireNonBlank(checklistDate, 'checklistDate'),
         workCenterRef: input.workCenterRef,
         workUnitRef: input.workUnitRef
@@ -479,8 +447,6 @@ export class MesService {
       ...input,
       auditReason: normalize(input.reason),
       commandId: normalize(input.commandId) ?? normalize(source.requestId),
-      orgId: this.resolveOrgId(input.orgId, source),
-      tenantId: this.resolveTenantId(tenantId, source)
     }
   }
 
