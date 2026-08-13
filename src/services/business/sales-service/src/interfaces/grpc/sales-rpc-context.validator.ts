@@ -66,8 +66,27 @@ function normalizeBusinessReason(value: string | null | undefined): string | und
   const normalized = value?.trim()
   if (!normalized) return undefined
   if (normalized.length > 256) throw new Error('reason must contain at most 256 characters')
-  if (/\{\s*"|\b(?:bearer|token|credential)\b/i.test(normalized)) {
-    throw new Error('reason must not contain credentials or structured payloads')
-  }
+  if (isRestrictedReasonMaterial(normalized)) throw new Error('reason contains restricted material')
   return normalized
+}
+
+/** Rejects structured data, secret material, and personal identifiers before any audit envelope is built. */
+function isRestrictedReasonMaterial(value: string): boolean {
+  if (isJson(value)) return true
+  return [
+    /\b(?:bearer|token|credential|authorization|api[\s_-]*key|secret)\b/i,
+    /\beyJ[A-Za-z0-9_-]*\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/,
+    /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i,
+    /(?<!\d)(?:\+?\d[\d\s().-]{7,}\d)(?!\d)/
+  ].some((pattern) => pattern.test(value))
+}
+
+/** Detects any standalone JSON value without retaining or echoing its source text. */
+function isJson(value: string): boolean {
+  try {
+    JSON.parse(value)
+    return true
+  } catch {
+    return false
+  }
 }

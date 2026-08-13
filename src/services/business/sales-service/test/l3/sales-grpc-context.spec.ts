@@ -1,4 +1,5 @@
 import { attachVerifiedExecution } from '@oes/common/authorization'
+import { SalesManagementGrpcController } from '../../src/interfaces/grpc/sales-management.grpc.controller'
 import { SalesRpcContextValidator } from '../../src/interfaces/grpc/sales-rpc-context.validator'
 
 /** Attaches only the facts exposed by TrustedExecutionGuard to Sales handlers. */
@@ -27,6 +28,44 @@ describe('sales-service trusted gRPC context L3', () => {
     expect(SalesRpcContextValidator.assertManagementContext(trustedRequest({ reason: ' customer requested update ' }), 'CreateQuote')).toMatchObject({
       auditContext: { auditId: 'request-1', reason: 'customer requested update', source: 'trusted-execution' }
     })
+  })
+
+  it.each([
+    '["secret"]',
+    '{"reason":"update"}',
+    'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjMifQ.signature',
+    'Bearer opaque-value',
+    'api-key: opaque-value',
+    'secret=opaque-value',
+    'person@example.com',
+    '+86 138 0013 8000'
+  ])('rejects restricted business reason material before it can become audit data', (reason) => {
+    expect(() =>
+      SalesRpcContextValidator.assertManagementContext(trustedRequest({ reason }), 'CreateQuote')
+    ).toThrow('reason contains restricted material')
+  })
+
+  it('accepts a bounded ordinary business reason with Chinese and English punctuation', () => {
+    expect(
+      SalesRpcContextValidator.assertManagementContext(
+        trustedRequest({ reason: '客户确认：调整交期，please publish the revised quote.' }),
+        'PublishQuote'
+      )
+    ).toMatchObject({ auditContext: { reason: '客户确认：调整交期，please publish the revised quote.' } })
+  })
+
+  it('rejects a restricted reason before audit writing or command execution', async () => {
+    const auditService = { recordCommand: jest.fn() }
+    const commandBus = { execute: jest.fn() }
+    const controller = new SalesManagementGrpcController(commandBus as never, auditService as never)
+
+    await expect(
+      controller.createQuote(
+        trustedRequest({ reason: 'person@example.com', customerTenantPartyId: 'party-1', draftLines: [] }) as never
+      )
+    ).rejects.toThrow('reason contains restricted material')
+    expect(auditService.recordCommand).not.toHaveBeenCalled()
+    expect(commandBus.execute).not.toHaveBeenCalled()
   })
 
   it('fails closed without guard-attached execution context', () => {
