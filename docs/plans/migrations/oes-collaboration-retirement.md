@@ -8,7 +8,7 @@ frozenDecisionSource: false
 sourceThreadId: 019f7325-177e-77a1-9189-b36a10d94c3c
 inventoryDate: 2026-08-09
 closureDate: 2026-08-09
-programControlCandidate: cf9ff6035e5f8581d96246e40aaf32549e6fe042
+programControlCandidate: 5eb9598cc3a550158136c8126cc152ef1559628e
 closureRecord: current-document-commit
 retainedEvidenceBranches: 6
 unarchivedFormalTasks: 6
@@ -28,7 +28,7 @@ unarchivedFormalTasks: 6
 
 - AI Platform 与 ActionGrant 的已冻结设计继续以 architecture、ADR、collaboration、contract 与 feature packet 真相源为准，但其 runtime/feature implementation 延后到核心业务能力完成之后。本迁移阶段不得创建或恢复 AI Platform runtime、Task Assistant runtime、ActionGrant runtime、DelegationGrant runtime、AI tool execution、confirmation UI 或 ActionGrant consumer implementation 任务。
 - 已集成的 `task-assistant-collaboration-task.v1` registration 保持 disabled，仅作为设计/契约及迁移证据；不得据此启动 AI feature runtime。
-- 本次迁移范围内已完成的非 AI 基础能力与当前后续主线：Permission Decision RPC、GRPC carrier、EXEC-CRYPTO HUMAN/MACHINE foundation、GRPC Asset、SITE recovery 与 Public Entry trusted-gRPC slice 均已验收并集成；全仓 trusted-gRPC cutover 仍是独立后续执行主线，Public Entry 之后按冻结顺序进入下一服务审计（当前候选为 Sales），不启动 AI/ActionGrant runtime。
+- 本次迁移范围内已完成的非 AI 基础能力与当前后续主线：Permission Decision RPC、GRPC carrier、EXEC-CRYPTO HUMAN/MACHINE foundation、GRPC Asset、SITE recovery、Public Entry 与 Sales trusted-gRPC slices 均已验收并集成；全仓 trusted-gRPC cutover 仍是独立后续执行主线，Sales 之后按冻结顺序进入下一服务审计（当前候选为 MES），不启动 AI/ActionGrant runtime。
 - 迁移保全是删除前硬 gate：每个旧 worktree、branch、task 必须先归入“已集成 current main”“保留并重建/集成的候选”“已持久登记的 superseded/rejected evidence”或“dirty/untracked 待捕获处置”之一。未分类资源不得 reset、clean、删除或覆盖。
 - 最终 Git 验收态只保留最新完整 root `main` worktree；迁移台账必须先进入 `main`，再移除 Program Control migration worktree。所有有用代码、设计、候选、拒绝证据、测试记录和 dirty 内容必须先集成或持久登记。
 - 旧 capability-collaboration Command/design/I/R/V/X/checker tasks 在证据消费后归档；已完成的 migration implementation tasks 及时归档。Program Control、Unified Design 与持久 I&V 仅在仍有迁移职责时保留，最终迁移关闭时归档 migration-only control tasks；全程不启用 checker。
@@ -82,6 +82,14 @@ unarchivedFormalTasks: 6
 - integration: root preflight confirmed main/local origin/main/remote at `52e6564e…`; `git merge --ff-only bda36bff…` exit 0; final root matrix passed; one `git push origin main` exit 0. Final main/local origin/main/remote = `bda36bff…`, root clean. Source branch/worktree clean and marked `MERGED_WAITING_FOR_USER_CLEANUP`; no deletion in this turn.
 
 ### 4.1 GRPC — `CARRIER_ACCEPTED_AND_INTEGRATED`
+
+### 4.1.1 Sales — `IMPLEMENTATION_ACCEPTED_AND_INTEGRATED`
+
+- design candidate `3860ef14f1e813c6b6fee0b9af6c572f92e24c10` was independently accepted as an eight-doc packet and integrated over `bda36bff…`; it freezes all 27 RPCs as `BUSINESS/HUMAN/WEB`, Sales audience, 15 existing canonical Codes, 95 authority-field tombstones/reservations, 14 constrained business reason fields, and a closed 42-path lease (`36 EXISTING + 6 NEW_TARGET`).
+- implementation owner: `019ff686-99f8-7943-a02b-e72f6747444a`, title `OES Trusted gRPC · Sales Implementation`; fixed worktree `/Users/acehood/Documents/GitHub/oes/.worktrees/migration/sales-trusted-grpc`, branch `codex/migration/sales-trusted-grpc`, base `3860ef14…`.
+- candidate chain preserved: initial `a73c58e0…`; first I&V rejection found dedicated client export and legacy generic Sales transport registration defects; corrective `149b789f…` fixed real Nest DI graph and legacy zero; second/third I&V passes found incomplete sensitive business-reason validation; final `584be36794435f8c4688a09197e2f49ee9cf336a` added strict JSON/JWT/credential/PII/PEM/Stripe/AWS-secret rejection with ordinary business identifier regressions.
+- final I&V `019fcaf2-ca7b-7140-b46d-b6cacae58556` accepted: real DI consumer and Sales feature compile, dedicated Sales client/ET producer for all four adapters, no generic token/metadata/body/bearer/raw-smoke fallback, proto/build/contract/L1/L3/Gateway/shared verifier, 27/15/95/14, exact lease/outside0, UTF-8/diff/manifest checks all passed. Existing full AppModule Auth dependency failure reproduced identically on base and candidate and remains baseline, not Sales scope.
+- integration: root preflight at `3860ef14…` clean; `git merge --ff-only 584be367…` exit 0; final root matrix passed; one `git push origin main` exit 0. Final root/local origin/main/remote = `584be367…`, clean. Source branch/worktree clean and marked `MERGED_WAITING_FOR_USER_CLEANUP`; no deletion this turn.
 
 - source threads：control `019fc87a-54b3-7463-ad9d-5750e8bab94b`；A/D GRPC `019f99f6-c707-7eb0-8c93-267c67288475`；A/D ASSET `019f983c-152a-7051-8011-9a25ca0987d7`；current A/I `019fc563-a9c4-76b0-9774-283206d2f1f0`。
 - carrier：branch `codex/grpc/i04-source-credential-carrier`，candidate `dced77ad8cb877ea9aad10f1c6a310ad32a924df`；commit 存在，branch ref 一致，工作树 clean；相对当前 `main` 核验为 13 个 Common/Gateway transport-private source-credential 路径。
