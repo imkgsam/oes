@@ -1768,6 +1768,8 @@ Acceptance proves exactly 16 declared RPCs, one mode per RPC, one base Task crea
 
 Status: `FROZEN_PENDING_IMPLEMENTATION`. This slice migrates the six existing Party RPCs only; it adds no TenantParty capability, merge/unmerge flow, schema, event, outbound collaboration or cross-tenant identity behavior. All six methods are `INTERNAL / SYSTEM MACHINE`, use `aud=urn:oes:service:party-service`, exact workload allowlists and certificate-bound ET. Gateway first performs any HUMAN HTTP authorization, then calls Party with Gateway's SYSTEM MACHINE ET.
 
+The caller work is frozen in two phases. Phase 1 prepares the five existing non-Gateway callers (CRM, SRM, HR, Identity and TenantOrg) with their own dedicated Party client, module DI, Common trusted-provider/exchange composition and fail-closed tests. Missing source credential or missing target-audience ET is an immediate failure; no caller may synthesize authority or retain the legacy Party metadata/body fallback. Phase 2 is the later integration gate: after the Auth/Identity/Permission MACHINE foundation is available in the deployment, each workload receives its registered Machine Principal/SPIFFE binding, obtains an Auth-owned source credential, exchanges it for the Party-audience ET and proves certificate-bound mTLS in end-to-end tests. No other RPC in these five services is migrated and no Party or cross-service business capability is added.
+
 | RPC | Mode | Code | Current workload allowlist |
 | --- | --- | --- | --- |
 | `RegisterTenantParty` | INTERNAL | `party.internal.register_tenant_party` | Identity, HR, TenantOrg, CRM |
@@ -1781,8 +1783,8 @@ Party rejects HUMAN, DELEGATED, tenant MACHINE, unknown workload, wrong issuer/a
 
 ```yaml
 partyTrustedGrpcImplementationLease:
-  totalTrackedWriterPaths: 56
-  stateCounts: { EXISTING: 34, NEW_TARGET: 22 }
+  totalTrackedWriterPaths: 81
+  stateCounts: { EXISTING: 34, NEW_TARGET: 47 }
   trackedWriterPaths:
     commonProtoPermissionCode:
       - { state: EXISTING, path: src/common/src/contracts/party_service/party.proto }
@@ -1845,9 +1847,35 @@ partyTrustedGrpcImplementationLease:
       - { state: NEW_TARGET, path: src/services/system/hr-service/test/l1/party-trusted-grpc.client.spec.ts }
       - { state: NEW_TARGET, path: src/services/system/identity-service/test/l1/party-trusted-grpc.client.spec.ts }
       - { state: NEW_TARGET, path: src/services/system/tenant-org-service/test/l1/party-trusted-grpc.client.spec.ts }
+    partyMachineFoundationPreparation:
+      - { state: NEW_TARGET, path: src/services/business/crm-service/src/infrastructure/adapters/crm-party-machine-source-credential.client.ts }
+      - { state: NEW_TARGET, path: src/services/business/crm-service/src/infrastructure/adapters/crm-party-machine-source-credential.provider.ts }
+      - { state: NEW_TARGET, path: src/services/business/crm-service/src/infrastructure/adapters/crm-party-execution-token-exchange.client.ts }
+      - { state: NEW_TARGET, path: src/services/business/crm-service/src/infrastructure/adapters/crm-party-trusted-grpc-execution.producer.ts }
+      - { state: NEW_TARGET, path: src/services/business/crm-service/src/infrastructure/adapters/crm-party-trusted-grpc-execution.producer.spec.ts }
+      - { state: NEW_TARGET, path: src/services/business/srm-service/src/infrastructure/adapters/srm-party-machine-source-credential.client.ts }
+      - { state: NEW_TARGET, path: src/services/business/srm-service/src/infrastructure/adapters/srm-party-machine-source-credential.provider.ts }
+      - { state: NEW_TARGET, path: src/services/business/srm-service/src/infrastructure/adapters/srm-party-execution-token-exchange.client.ts }
+      - { state: NEW_TARGET, path: src/services/business/srm-service/src/infrastructure/adapters/srm-party-trusted-grpc-execution.producer.ts }
+      - { state: NEW_TARGET, path: src/services/business/srm-service/src/infrastructure/adapters/srm-party-trusted-grpc-execution.producer.spec.ts }
+      - { state: NEW_TARGET, path: src/services/system/hr-service/src/infrastructure/adapters/hr-party-machine-source-credential.client.ts }
+      - { state: NEW_TARGET, path: src/services/system/hr-service/src/infrastructure/adapters/hr-party-machine-source-credential.provider.ts }
+      - { state: NEW_TARGET, path: src/services/system/hr-service/src/infrastructure/adapters/hr-party-execution-token-exchange.client.ts }
+      - { state: NEW_TARGET, path: src/services/system/hr-service/src/infrastructure/adapters/hr-party-trusted-grpc-execution.producer.ts }
+      - { state: NEW_TARGET, path: src/services/system/hr-service/src/infrastructure/adapters/hr-party-trusted-grpc-execution.producer.spec.ts }
+      - { state: NEW_TARGET, path: src/services/system/identity-service/src/infrastructure/adaptors/identity-party-machine-source-credential.client.ts }
+      - { state: NEW_TARGET, path: src/services/system/identity-service/src/infrastructure/adaptors/identity-party-machine-source-credential.provider.ts }
+      - { state: NEW_TARGET, path: src/services/system/identity-service/src/infrastructure/adaptors/identity-party-execution-token-exchange.client.ts }
+      - { state: NEW_TARGET, path: src/services/system/identity-service/src/infrastructure/adaptors/identity-party-trusted-grpc-execution.producer.ts }
+      - { state: NEW_TARGET, path: src/services/system/identity-service/src/infrastructure/adaptors/identity-party-trusted-grpc-execution.producer.spec.ts }
+      - { state: NEW_TARGET, path: src/services/system/tenant-org-service/src/infrastructure/adapters/tenant-org-party-machine-source-credential.client.ts }
+      - { state: NEW_TARGET, path: src/services/system/tenant-org-service/src/infrastructure/adapters/tenant-org-party-machine-source-credential.provider.ts }
+      - { state: NEW_TARGET, path: src/services/system/tenant-org-service/src/infrastructure/adapters/tenant-org-party-execution-token-exchange.client.ts }
+      - { state: NEW_TARGET, path: src/services/system/tenant-org-service/src/infrastructure/adapters/tenant-org-party-trusted-grpc-execution.producer.ts }
+      - { state: NEW_TARGET, path: src/services/system/tenant-org-service/src/infrastructure/adapters/tenant-org-party-trusted-grpc-execution.producer.spec.ts }
 ```
 
-The ignored generated Party client remains verification output from `src/common/src/contracts/party_service/party.proto`. Acceptance must prove 6/6 declarations, exact Code/workload/audience enforcement, tenant body tombstone, no HUMAN/DELEGATED admission, all Gateway and non-Gateway Party callers on dedicated Party-audience ET clients, module DI composition, and unchanged Party persistence/business boundaries. Implementation must be a strict subset of the 56-path lease; this expansion changes only Party caller preparation and does not start any caller service's own full trusted-gRPC cutover.
+The ignored generated Party client remains verification output from `src/common/src/contracts/party_service/party.proto`. Acceptance must prove 6/6 declarations, exact Code/workload/audience enforcement, tenant body tombstone, no HUMAN/DELEGATED admission, all Gateway and non-Gateway Party callers on dedicated Party-audience ET clients, module DI composition, and unchanged Party persistence/business boundaries. Phase 1 acceptance also proves each five-service provider/exchange composition fails closed without a real source credential or ET and that no legacy Party metadata fallback remains. Phase 2 acceptance proves the real Machine Principal, SPIFFE binding, Auth source credential, STS exchange, Party audience and certificate-bound mTLS chain. Implementation must be a strict subset of this 81-path lease; this expansion changes only Party caller preparation and does not start any caller service's own full trusted-gRPC cutover.
 
 ## 10. Repository-wide Security Acceptance
 
