@@ -1783,8 +1783,8 @@ Party rejects HUMAN, DELEGATED, tenant MACHINE, unknown workload, wrong issuer/a
 
 ```yaml
 partyTrustedGrpcImplementationLease:
-  totalTrackedWriterPaths: 83
-  stateCounts: { EXISTING: 35, NEW_TARGET: 48 }
+  totalTrackedWriterPaths: 86
+  stateCounts: { EXISTING: 38, NEW_TARGET: 48 }
   trackedWriterPaths:
     commonProtoPermissionCode:
       - { state: EXISTING, path: src/common/src/contracts/party_service/party.proto }
@@ -1801,6 +1801,9 @@ partyTrustedGrpcImplementationLease:
       - { state: EXISTING, path: src/services/system/party-service/src/modules/party-query/party-query.module.ts }
       - { state: NEW_TARGET, path: src/services/system/party-service/src/modules/party-trusted-execution.module.ts }
     partyCallersAndAdapters:
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/auth-bff/auth-bff.module.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/hr-service/hr-service.module.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/tenant-org-service/tenant-org-service.module.ts }
       - { state: EXISTING, path: src/services/api-gateway/src/modules/auth-bff/infrastructure/downstream/party-service/party-query-grpc.adapter.ts }
       - { state: EXISTING, path: src/services/api-gateway/src/modules/hr-service/adapters/party-tenant-query-grpc.adapter.ts }
       - { state: EXISTING, path: src/services/api-gateway/src/modules/tenant-org-service/adapters/party-query-grpc.adapter.ts }
