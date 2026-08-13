@@ -41,13 +41,32 @@ export class InternalTrustedGrpcCaller {
       )
     } catch (error) {
       const message = error instanceof Error ? error.message.toLowerCase() : ''
-      if (message.includes('source credential')) {
+      if (Object.values(PARTY_CALLER_ERRORS).some((code) => message.includes(code.toLowerCase()))) {
+        throw error
+      }
+      if (
+        message.includes('source credential') ||
+        message.includes('bearer credential') ||
+        message.includes('unexpected audience') ||
+        message.includes('permission codes') ||
+        message.includes('invalid expiry') ||
+        message.includes('executiontoken exchange') ||
+        message.includes('certificate') ||
+        message.includes('thumbprint') ||
+        message.includes('cnf')
+      ) {
         throw new Error(PARTY_CALLER_ERRORS.SOURCE_CREDENTIAL_INVALID)
       }
-      if (message.includes('required') || message.includes('configuration')) {
+      if (
+        message.includes('required') ||
+        message.includes('configuration') ||
+        message.includes('workload') ||
+        message.includes('unavailable') ||
+        message.includes('transport')
+      ) {
         throw new Error(PARTY_CALLER_ERRORS.FOUNDATION_UNAVAILABLE)
       }
-      throw error
+      throw new Error(PARTY_CALLER_ERRORS.FOUNDATION_UNAVAILABLE)
     }
   }
 }

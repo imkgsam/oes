@@ -1,7 +1,7 @@
 import { Metadata } from '@grpc/grpc-js'
 import {
   AsyncLocalTrustedExecutionContextAccessor, CertificateBoundExecutionTokenCache,
-  createTrustedExecutionContext, TrustedExecutionRegistry, TrustedGrpcMetadataProvider
+  createTrustedExecutionContext, InternalTrustedGrpcCaller, TrustedExecutionRegistry, TrustedGrpcMetadataProvider
 } from '@oes/common/authorization'
 import { readLocalVerifiedWorkloadIdentity } from '@oes/common/transport'
 import { SrmPartyExecutionTokenExchangeClient } from './srm-party-execution-token-exchange.client'
@@ -11,6 +11,7 @@ const PARTY_AUDIENCE = 'urn:oes:service:party-service'
 export class SrmPartyTrustedGrpcExecutionProducer {
   private readonly context = new AsyncLocalTrustedExecutionContextAccessor()
   private metadata?: TrustedGrpcMetadataProvider
+  private caller?: InternalTrustedGrpcCaller
   constructor(private readonly source: SrmPartyMachineSourceCredentialProvider, private readonly exchange: SrmPartyExecutionTokenExchangeClient) {}
   private getMetadata(): TrustedGrpcMetadataProvider {
     return this.metadata ??= new TrustedGrpcMetadataProvider({
@@ -21,11 +22,12 @@ export class SrmPartyTrustedGrpcExecutionProducer {
       localWorkloadIdentity: { getVerifiedWorkloadIdentity: async () => readLocalVerifiedWorkloadIdentity() }
     })
   }
+  private getCaller(): InternalTrustedGrpcCaller { return this.caller ??= new InternalTrustedGrpcCaller(this.context, this.getMetadata(), this.source) }
   async createMetadata(code: string, requestId?: string, traceparent?: string): Promise<Metadata> {
     const subject = required('SRM_PARTY_MACHINE_PRINCIPAL_ID')
     if (!requestId || requestId.trim() !== requestId || !traceparent || !/^00-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$/u.test(traceparent)) throw new Error('PARTY_CALLER_EXECUTION_CONTEXT_REQUIRED')
     const context = createTrustedExecutionContext({ subject, principalType: 'MACHINE', requestId, traceparent })
-    return this.context.run(context, () => this.source.run(() => this.getMetadata().forInternalCall(PARTY_AUDIENCE, [code])))
+    return this.context.run(context, () => this.getCaller().forInternalCall(code, async (metadata) => metadata))
   }
 }
 function required(name: string): string { const value = process.env[name]?.trim(); if (!value) throw new Error('PARTY_CALLER_FOUNDATION_UNAVAILABLE'); return value }
