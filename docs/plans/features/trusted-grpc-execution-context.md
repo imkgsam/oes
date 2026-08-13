@@ -1783,8 +1783,8 @@ Party rejects HUMAN, DELEGATED, tenant MACHINE, unknown workload, wrong issuer/a
 
 ```yaml
 partyTrustedGrpcImplementationLease:
-  totalTrackedWriterPaths: 82
-  stateCounts: { EXISTING: 34, NEW_TARGET: 48 }
+  totalTrackedWriterPaths: 83
+  stateCounts: { EXISTING: 35, NEW_TARGET: 48 }
   trackedWriterPaths:
     commonProtoPermissionCode:
       - { state: EXISTING, path: src/common/src/contracts/party_service/party.proto }
@@ -1821,6 +1821,7 @@ partyTrustedGrpcImplementationLease:
       - { state: EXISTING, path: src/services/system/party-service/package.json }
       - { state: EXISTING, path: src/services/system/party-service/jest.config.js }
     partyCallerCompositionExpansion:
+      - { state: EXISTING, path: src/common/src/authorization/trusted-execution/index.ts }
       - { state: NEW_TARGET, path: src/common/src/authorization/trusted-execution/internal-trusted-grpc-caller.ts }
       - { state: NEW_TARGET, path: src/common/src/authorization/trusted-execution/internal-trusted-grpc-caller.spec.ts }
       - { state: NEW_TARGET, path: src/services/business/crm-service/src/modules/crm-trusted-execution.module.ts }
