@@ -59,7 +59,8 @@ message ResolvedTenantPartyCandidate {
 }
 
 message RegisterTenantPartyRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string type = 2;
   string legal_name = 3;
   string display_name = 4;
@@ -76,7 +77,8 @@ message RegisterTenantPartyResponse {
 }
 
 message DeactivateTenantPartyRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string tenant_party_id = 2;
   string reason = 3;
 }
@@ -86,7 +88,8 @@ message DeactivateTenantPartyResponse {
 }
 
 message GetTenantPartyByIdRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string tenant_party_id = 2;
 }
 
@@ -95,7 +98,8 @@ message GetTenantPartyByIdResponse {
 }
 
 message ResolveTenantPartyByIdentifierRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string identifier_type = 2;
   string normalized_value = 3;
   string raw_value = 4;
@@ -108,7 +112,8 @@ message ResolveTenantPartyByIdentifierResponse {
 }
 
 message ResolveTenantPartyForConsumerRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string type_hint = 2;
   string name = 3;
   string country = 4;
@@ -127,7 +132,8 @@ message ResolveTenantPartyForConsumerResponse {
 }
 
 message SearchTenantPartyCandidatesRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string keyword = 2;
   string party_type = 3;
   string registered_country = 4;

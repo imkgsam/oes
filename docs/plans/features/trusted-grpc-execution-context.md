@@ -122,12 +122,12 @@ The persistent execution owner is **OES Trusted gRPC Service Migration** (`019ff
 | Item Master | 50 / 2 | N | N | N | N | Gateway, MES, WMS; high fan-in |
 | WMS | 15 / 2 | N | N | N | N | Gateway; dependency-heavy |
 | HR | 15 / 2 | N | N | N | N | Gateway, Auth, Identity; dependency-heavy |
-| Party | 6 / 2 | N | N | N | N | Gateway, CRM, HR, TenantOrg; high fan-in |
+| Party | 6 / 2 | Y | N | N | N | Gateway, CRM, HR, TenantOrg; trusted contract frozen, implementation pending |
 | TenantOrg | 20 / 2 | N | N | N | N | Gateway, Auth, HR, Identity; high fan-in |
 | Identity | 41 / 3 | N | N | N | N | Gateway, Auth, Permission, HR; foundation partial only |
 | Permission | 66 / 8 | N | N | N | N | Gateway, Auth, HR, TenantOrg, WMS; bootstrap partial only |
 | Auth | 70 / 1 | N | N | N | N | Gateway, HR, Site, TenantOrg; MACHINE foundation complete, full service pending |
-| **Total / proven state** | **560 / 51** | **10 Y / 11 N** | **9 Y / 12 N** | **9 Y / 12 N** | **9 Y / 12 N** | **Asset, Site, Browser Activity, Notification, Terminal Device, Finance, Public Entry, Sales and MES complete; Collaboration contract classified; 11 services pending implementation/cutover** |
+| **Total / proven state** | **560 / 51** | **11 Y / 10 N** | **9 Y / 12 N** | **9 Y / 12 N** | **9 Y / 12 N** | **Asset, Site, Browser Activity, Notification, Terminal Device, Finance, Public Entry, Sales and MES complete; Collaboration and Party contracts classified; 10 services pending implementation/cutover** |
 
 The frozen order in §6 remains authoritative. Migration continues one target service at a time; completing the Auth, Identity, Permission, Gateway or Common foundation does not implicitly advance an unverified service row.
 
@@ -1763,6 +1763,64 @@ collaborationTrustedGrpcImplementationLease:
 ```
 
 Acceptance proves exactly 16 declared RPCs, one mode per RPC, one base Task create Code, service-layer conditional assign/manage checks, 100% body authority tombstones, claims-derived tenant/operator/trace/audit, no MACHINE/DELEGATED/ActionGrant admission, dedicated Gateway mTLS client wiring, raw insecure Annotation smoke removed from live acceptance, and untouched Collaboration outbound/event/schema/AI boundaries. Implementation must be a strict subset of this 54-path lease.
+
+### 9.10 Party TenantParty 6-RPC frozen cutover lease
+
+Status: `FROZEN_PENDING_IMPLEMENTATION`. This slice migrates the six existing Party RPCs only; it adds no TenantParty capability, merge/unmerge flow, schema, event, outbound collaboration or cross-tenant identity behavior. All six methods are `INTERNAL / SYSTEM MACHINE`, use `aud=urn:oes:service:party-service`, exact workload allowlists and certificate-bound ET. Gateway first performs any HUMAN HTTP authorization, then calls Party with Gateway's SYSTEM MACHINE ET.
+
+| RPC | Mode | Code | Current workload allowlist |
+| --- | --- | --- | --- |
+| `RegisterTenantParty` | INTERNAL | `party.internal.register_tenant_party` | Identity, HR, TenantOrg, CRM |
+| `DeactivateTenantParty` | INTERNAL | `party.internal.deactivate_tenant_party` | TenantOrg |
+| `GetTenantPartyById` | INTERNAL | `party.internal.get_tenant_party_by_id` | Gateway, HR, TenantOrg, CRM, SRM |
+| `ResolveTenantPartyByIdentifier` | INTERNAL | `party.internal.resolve_tenant_party_by_identifier` | none currently; future exact workload only |
+| `ResolveTenantPartyForConsumer` | INTERNAL | `party.internal.resolve_tenant_party_for_consumer` | CRM |
+| `SearchTenantPartyCandidates` | INTERNAL | `party.internal.search_tenant_party_candidates` | none currently; future exact workload only |
+
+Party rejects HUMAN, DELEGATED, tenant MACHINE, unknown workload, wrong issuer/audience/`cnf`, missing or mismatched Code and all legacy body/metadata authority. Every request removes and reserves `tenant_id=1`; tenant scope is derived from verified ET. Response `TenantPartySummary.tenant_id` remains a business projection. Identifier/profile matching, registration idempotency, deactivation and all existing Party-owned persistence semantics remain unchanged.
+
+```yaml
+partyTrustedGrpcImplementationLease:
+  totalTrackedWriterPaths: 30
+  stateCounts: { EXISTING: 25, NEW_TARGET: 5 }
+  trackedWriterPaths:
+    commonProtoPermissionCode:
+      - { state: EXISTING, path: src/common/src/contracts/party_service/party.proto }
+      - { state: NEW_TARGET, path: src/common/src/authorization/permission-codes/party/index.ts }
+      - { state: NEW_TARGET, path: src/common/src/authorization/permission-codes/party/internal.permission-codes.ts }
+      - { state: EXISTING, path: src/services/system/permission-service/src/scripts/permission-catalog.ts }
+      - { state: EXISTING, path: src/services/system/permission-service/src/scripts/generate-common-permission-codes.ts }
+    partyTrustedRuntime:
+      - { state: EXISTING, path: src/services/system/party-service/src/main.ts }
+      - { state: EXISTING, path: src/services/system/party-service/src/app.module.ts }
+      - { state: EXISTING, path: src/services/system/party-service/src/interfaces/grpc/party-registration.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/system/party-service/src/interfaces/grpc/party-query.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/system/party-service/src/modules/party-registration/party-registration.module.ts }
+      - { state: EXISTING, path: src/services/system/party-service/src/modules/party-query/party-query.module.ts }
+      - { state: NEW_TARGET, path: src/services/system/party-service/src/modules/party-trusted-execution.module.ts }
+    partyCallersAndAdapters:
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/auth-bff/infrastructure/downstream/party-service/party-query-grpc.adapter.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/hr-service/adapters/party-tenant-query-grpc.adapter.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/tenant-org-service/adapters/party-query-grpc.adapter.ts }
+      - { state: EXISTING, path: src/services/system/hr-service/src/infrastructure/adapters/party-registration-grpc.adapter.ts }
+      - { state: EXISTING, path: src/services/system/identity-service/src/infrastructure/adaptors/party-registration.grpc.adaptor.ts }
+      - { state: EXISTING, path: src/services/system/tenant-org-service/src/infrastructure/adapters/party-registration.grpc.adapter.ts }
+      - { state: EXISTING, path: src/services/system/tenant-org-service/src/infrastructure/adapters/party-query.grpc.adapter.ts }
+      - { state: EXISTING, path: src/services/business/crm-service/src/infrastructure/adapters/party-query-grpc.adapter.ts }
+      - { state: EXISTING, path: src/services/business/srm-service/src/infrastructure/adapters/party-query-grpc.adapter.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/modules/party-service/adapters/party-dedicated-client.spec.ts }
+    partySecurityTests:
+      - { state: EXISTING, path: src/services/system/party-service/test/l3/party-registration.grpc.controller.spec.ts }
+      - { state: EXISTING, path: src/services/system/party-service/test/l3/party-query.grpc.controller.spec.ts }
+      - { state: EXISTING, path: src/services/system/party-service/test/l1/party-registration.service.spec.ts }
+      - { state: EXISTING, path: src/services/system/party-service/test/l1/party-query.service.spec.ts }
+      - { state: EXISTING, path: src/services/system/party-service/scripts/party-smoke.spec.mjs }
+      - { state: NEW_TARGET, path: src/services/system/party-service/test/l3/party-trusted-grpc-security.spec.ts }
+      - { state: EXISTING, path: src/services/system/party-service/package.json }
+      - { state: EXISTING, path: src/services/system/party-service/jest.config.js }
+```
+
+The ignored generated Party client remains verification output from `src/common/src/contracts/party_service/party.proto`. Acceptance must prove 6/6 declarations, exact Code/workload/audience enforcement, tenant body tombstone, no HUMAN/DELEGATED admission, all caller adapters on dedicated ET clients and unchanged Party persistence/business boundaries. Implementation must be a strict subset of the 30-path lease; Party outbound and all dependent service business flows remain protected.
 
 ## 10. Repository-wide Security Acceptance
 

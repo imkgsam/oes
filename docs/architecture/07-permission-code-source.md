@@ -192,7 +192,9 @@ Decorator 使用：
 ### 7.3 修正 metadata owner
 
 - Browser Activity Code 的 owner/module 改为 `browser-activity-service`，不再归 `permission-service`。
-- Asset、Party、Notification 当前缺失的 INTERNAL Code 随真实跨服务 contract 引入，不为没有调用者的想象场景预建。
+- Party 的六个真实 proto RPC 现已形成 exact INTERNAL Code set；其 definitions、workload allowlists and generated Common exports must be updated together by the Party implementation lease. Identifier resolution and candidate search remain with an empty current workload allowlist until a real caller is frozen; no speculative caller is granted.
+
+Party's frozen Code definitions are all `kind=INTERNAL`, `assignableTo=[WORKLOAD_POLICY]`, `allowedScopeLevels=[SYSTEM]` and `externalApiEligible=false`: `party.internal.register_tenant_party`, `party.internal.deactivate_tenant_party`, `party.internal.get_tenant_party_by_id`, `party.internal.resolve_tenant_party_by_identifier`, `party.internal.resolve_tenant_party_for_consumer` and `party.internal.search_tenant_party_candidates`. The exact caller/workload allowlist is owned by the Party trusted-gRPC packet; an empty allowlist means no current issuance, not a wildcard grant.
 
 ### 7.4 Notification Auth dispatch
 

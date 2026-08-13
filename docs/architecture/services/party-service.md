@@ -111,6 +111,7 @@ Last Updated: 2026-06-27
 - `PartyRegistrationService.DeactivateTenantParty`
 - `PartyQueryService.GetTenantPartyById`
 - `PartyQueryService.ResolveTenantPartyByIdentifier`
+- `PartyQueryService.ResolveTenantPartyForConsumer`
 - `PartyQueryService.SearchTenantPartyCandidates`
 
 已移除的旧运行时主路径：
@@ -143,3 +144,11 @@ Last Updated: 2026-06-27
 当前 runtime / proto / generated client 已采用统一 `RegisterTenantParty` 与 tenant-scoped query surface。
 
 迁移只允许在 migration SQL 中读取旧 `Party / PersonParty / OrganizationParty / partyId` 数据用于搬迁；最终 Prisma schema、服务代码、proto、gateway、tenant-web 不应保留旧主路径。
+
+## 10. Trusted gRPC inbound boundary
+
+All six current Party RPCs are internal foundation calls, not end-user business APIs. Each call requires `aud=urn:oes:service:party-service`, an exact registered SYSTEM MACHINE workload, mTLS certificate binding and a short-lived ExecutionToken carrying the matching `party.internal.*` Code. Gateway uses its own SYSTEM MACHINE ET after completing any user-facing authorization; Party does not re-evaluate the user's HUMAN role.
+
+Party rejects HUMAN, DELEGATED, tenant-scoped MACHINE, unknown workload, wrong issuer/audience/certificate binding, missing or mismatched Code and legacy metadata/body authority. The request `tenant_id` field is removed and reserved at field number 1 on all six requests. Tenant scope is derived from the verified ET and must match every tenant-scoped target; response `TenantPartySummary.tenant_id` remains a business projection.
+
+The six frozen INTERNAL Codes are `party.internal.register_tenant_party`, `party.internal.deactivate_tenant_party`, `party.internal.get_tenant_party_by_id`, `party.internal.resolve_tenant_party_by_identifier`, `party.internal.resolve_tenant_party_for_consumer` and `party.internal.search_tenant_party_candidates`. Current workload allowlists are exact: Identity, HR, TenantOrg and CRM may register; TenantOrg is the only current deactivation owner; Gateway, HR, TenantOrg, CRM and SRM may query by id; CRM may resolve consumer evidence; identifier resolution and candidate search have no current production caller and remain reserved for a future explicitly registered workload. No Party business capability, merge path, schema or outbound collaboration changes in this migration.

@@ -4,7 +4,7 @@
 
 `PartyRegistrationService` 提供租户内主体注册与停用写接口。
 
-接口类型：内部 gRPC 服务。
+接口类型：内部 gRPC 服务；trusted boundary 为 SYSTEM MACHINE certificate-bound ET。
 
 当前服务面：
 
@@ -25,7 +25,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 租户边界 |
 | `type` | 是 | `PERSON` 或 `ORGANIZATION` |
 | `legal_name` | 是 | 法定 / 官方名称 |
 | `display_name` | 否 | 租户内展示名 |
@@ -81,7 +80,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 租户边界 |
 | `tenant_party_id` | 是 | 目标主体 |
 | `reason` | 否 | 停用原因 |
 
@@ -96,4 +94,4 @@
 - `RegisterTenantParty` 支持 `idempotency_key`。
 - 同一 `idempotency_key` + 同一 request fingerprint 可复用既有结果。
 - 同一 `idempotency_key` + 不同 request fingerprint 应返回幂等冲突。
-- 调用链应继续传递 operator / trace metadata；更强 permission guard 与 audit event 持久化按后续治理能力补齐。
+- tenant/operator/trace/audit authority 由 verified Party ET 与 trusted transport 建立；request body 不承载 authority 字段。业务字段、reason 与 idempotency key 保持原语义。

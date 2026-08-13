@@ -8,6 +8,7 @@
 
 - `GetTenantPartyById`
 - `ResolveTenantPartyByIdentifier`
+- `ResolveTenantPartyForConsumer`
 - `SearchTenantPartyCandidates`
 
 已移除旧接口：
@@ -25,7 +26,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 租户边界 |
 | `tenant_party_id` | 是 | 租户主体 ID |
 
 响应关键字段：
@@ -49,7 +49,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 租户边界 |
 | `identifier_type` | 是 | 标识类型 |
 | `issuer_country_or_region` | 是 | 签发国家或地区 |
 | `normalized_value` | 是 | 规范化值 |
@@ -67,7 +66,6 @@
 
 请求关键字段：
 
-- `tenant_id`
 - optional `keyword`
 - optional `party_type`
 - optional `registered_country`
@@ -76,6 +74,8 @@
 - optional `email`
 - optional `phone`
 - optional `whatsapp`
+
+`ResolveTenantPartyForConsumer` uses the same tenant-local evidence rules as the application service and is also INTERNAL; its request has no body tenant authority.
 
 响应关键字段：
 
@@ -87,6 +87,8 @@
 返回候选不代表自动合并、跨租户复用或自动绑定结论。
 
 `domain / email / phone / whatsapp` 基于 `TenantPartyProfileItem` 做候选搜索。它们属于弱匹配信号，只能返回 `CANDIDATES_FOUND`；不能像 `TenantPartyIdentifier` 一样直接形成强主体精确匹配。
+
+所有 query tenant scope、caller workload 与 trace facts come from the verified Party-audience ET; callers cannot substitute body or legacy metadata authority.
 
 ## 5. 查询使用约束
 
