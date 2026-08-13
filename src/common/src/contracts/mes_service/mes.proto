@@ -527,7 +527,7 @@ message CreateProductionSpecRequest {
   ItemRef item_ref = 11;
   string effective_from = 12;
   string effective_to = 13;
-  string reason = 14;
+  optional string reason = 14;
 }
 
 message CreateProductionSpecResponse {
@@ -546,7 +546,7 @@ message UpdateProductionSpecRequest {
   ItemRef item_ref = 10;
   string effective_from = 11;
   string effective_to = 12;
-  string reason = 13;
+  optional string reason = 13;
 }
 
 message UpdateProductionSpecResponse {
@@ -562,7 +562,7 @@ message ActivateProductionSpecRequest {
   string production_spec_id = 7;
   uint32 expected_version = 8;
   string activated_at = 9;
-  string reason = 10;
+  optional string reason = 10;
 }
 
 message ActivateProductionSpecResponse {
@@ -579,7 +579,7 @@ message RetireProductionSpecRequest {
   uint32 expected_version = 8;
   string retired_at = 9;
   string replacement_production_spec_id = 10;
-  string reason = 11;
+  optional string reason = 11;
 }
 
 message RetireProductionSpecResponse {
@@ -648,7 +648,7 @@ message RegisterMoldDesignRequest {
   string default_life_limit = 18;
   string default_life_unit = 19;
   ItemModelRef primary_item_model_ref = 20;
-  string reason = 21;
+  optional string reason = 21;
 }
 
 message RegisterMoldDesignResponse {
@@ -670,7 +670,7 @@ message RegisterMasterMoldRequest {
   CarrierResourceRef initial_carrier_resource_ref = 13;
   string quality_summary = 14;
   string notes = 15;
-  string reason = 16;
+  optional string reason = 16;
 }
 
 message RegisterMasterMoldResponse {
@@ -694,7 +694,7 @@ message RegisterProductionMoldRequest {
   string received_at = 12;
   StorageResourceRef initial_storage_resource_ref = 14;
   CarrierResourceRef initial_carrier_resource_ref = 15;
-  string reason = 16;
+  optional string reason = 16;
 }
 
 message RegisterProductionMoldResponse {
@@ -709,7 +709,7 @@ message ConfirmProductionMoldArrivalRequest {
   string command_id = 6;
   string production_mold_id = 7;
   string arrived_at = 8;
-  string reason = 9;
+  optional string reason = 9;
 }
 
 message ConfirmProductionMoldArrivalResponse {
@@ -724,7 +724,7 @@ message AcceptProductionMoldRequest {
   string command_id = 6;
   string production_mold_id = 7;
   string accepted_at = 8;
-  string reason = 9;
+  optional string reason = 9;
 }
 
 message AcceptProductionMoldResponse {
@@ -764,7 +764,7 @@ message InstallToolingRequest {
   string cavity_position = 13;
   string cavity_mapping = 14;
   string setup_parameters = 15;
-  string reason = 16;
+  optional string reason = 16;
 }
 
 message InstallToolingResponse {
@@ -779,7 +779,7 @@ message UnmountToolingRequest {
   string command_id = 6;
   string tooling_installation_id = 7;
   string unmounted_at = 8;
-  string reason = 9;
+  optional string reason = 9;
 }
 
 message UnmountToolingResponse {
@@ -795,7 +795,7 @@ message ConfirmInstalledMoldReadyRequest {
   string production_mold_id = 7;
   string tooling_installation_id = 8;
   string ready_at = 9;
-  string reason = 10;
+  optional string reason = 10;
 }
 
 message ConfirmInstalledMoldReadyResponse {
@@ -841,7 +841,7 @@ message RecordMoldUsageRequest {
   reserved "capture_source";
   string mold_design_output_id = 19;
   string mold_design_output_option_id = 20;
-  string reason = 21;
+  optional string reason = 21;
 }
 
 message RecordMoldUsageResponse {
@@ -874,7 +874,7 @@ message RecordMoldUsageBatchRequest {
   reserved 11;
   reserved "capture_source";
   repeated RecordMoldUsageBatchLine lines = 12;
-  string reason = 13;
+  optional string reason = 13;
 }
 
 message RecordMoldUsageBatchResponse {
@@ -891,7 +891,7 @@ message AdjustMoldLifeCounterRequest {
   string mold_life_counter_id = 7;
   MoldLifeAdjustmentType adjustment_type = 8;
   string value = 9;
-  string reason = 10;
+  optional string reason = 10;
 }
 
 message AdjustMoldLifeCounterResponse {
@@ -906,7 +906,7 @@ message MarkProductionMoldForScrapRequest {
   string command_id = 6;
   string production_mold_id = 7;
   string marked_at = 8;
-  string reason = 9;
+  optional string reason = 9;
 }
 
 message MarkProductionMoldForScrapResponse {
