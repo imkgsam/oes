@@ -1873,6 +1873,8 @@ partyTrustedGrpcImplementationLease:
       - { state: NEW_TARGET, path: src/services/system/tenant-org-service/src/infrastructure/adapters/tenant-org-party-execution-token-exchange.client.ts }
       - { state: NEW_TARGET, path: src/services/system/tenant-org-service/src/infrastructure/adapters/tenant-org-party-trusted-grpc-execution.producer.ts }
       - { state: NEW_TARGET, path: src/services/system/tenant-org-service/src/infrastructure/adapters/tenant-org-party-trusted-grpc-execution.producer.spec.ts }
+    gatewayPartyDedicatedProductionClient:
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/modules/party-service/adapters/party-dedicated-client.ts }
 ```
 
 The ignored generated Party client remains verification output from `src/common/src/contracts/party_service/party.proto`. Acceptance must prove 6/6 declarations, exact Code/workload/audience enforcement, tenant body tombstone, no HUMAN/DELEGATED admission, all Gateway and non-Gateway Party callers on dedicated Party-audience ET clients, module DI composition, and unchanged Party persistence/business boundaries. Phase 1 acceptance also proves each five-service provider/exchange composition fails closed without a real source credential or ET and that no legacy Party metadata fallback remains. Phase 2 acceptance proves the real Machine Principal, SPIFFE binding, Auth source credential, STS exchange, Party audience and certificate-bound mTLS chain. Implementation must be a strict subset of this 81-path lease; this expansion changes only Party caller preparation and does not start any caller service's own full trusted-gRPC cutover.
