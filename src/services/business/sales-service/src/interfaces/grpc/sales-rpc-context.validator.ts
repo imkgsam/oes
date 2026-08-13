@@ -74,8 +74,11 @@ function normalizeBusinessReason(value: string | null | undefined): string | und
 function isRestrictedReasonMaterial(value: string): boolean {
   if (isJson(value)) return true
   return [
-    /\b(?:bearer|token|credential|authorization|api[\s_-]*key|secret)\b/i,
+    /(?:^|[^a-z0-9])(?:access[\s_-]*token|refresh[\s_-]*token|client[\s_-]*secret|password|private[\s_-]*key|api[\s_-]*key|secret|credential|authorization|bearer|token)(?:$|[^a-z0-9])/i,
     /\beyJ[A-Za-z0-9_-]*\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/,
+    /-----BEGIN\s+(?:RSA\s+)?PRIVATE\s+KEY-----/i,
+    /\bsk_(?:live|test)_[A-Za-z0-9]+\b/i,
+    /\bAKIA[0-9A-Z]{16}\b/,
     /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i,
     /(?<!\d)(?:\+?\d[\d\s().-]{7,}\d)(?!\d)/
   ].some((pattern) => pattern.test(value))

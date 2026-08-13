@@ -37,6 +37,13 @@ describe('sales-service trusted gRPC context L3', () => {
     'Bearer opaque-value',
     'api-key: opaque-value',
     'secret=opaque-value',
+    'access_token=opaque-value',
+    'refresh_token=opaque-value',
+    'client_secret=opaque-value',
+    'password=hunter2',
+    '-----BEGIN PRIVATE KEY-----',
+    'sk_live_51OpaqueSecretMaterial',
+    'AKIAIOSFODNN7EXAMPLE',
     'person@example.com',
     '+86 138 0013 8000'
   ])('rejects restricted business reason material before it can become audit data', (reason) => {
@@ -52,6 +59,15 @@ describe('sales-service trusted gRPC context L3', () => {
         'PublishQuote'
       )
     ).toMatchObject({ auditContext: { reason: '客户确认：调整交期，please publish the revised quote.' } })
+  })
+
+  it('accepts ordinary identifiers without treating them as secret material', () => {
+    expect(
+      SalesRpcContextValidator.assertManagementContext(
+        trustedRequest({ reason: 'order_id=SO-2026-08; accessibility review complete' }),
+        'PublishQuote'
+      )
+    ).toMatchObject({ auditContext: { reason: 'order_id=SO-2026-08; accessibility review complete' } })
   })
 
   it('rejects a restricted reason before audit writing or command execution', async () => {
