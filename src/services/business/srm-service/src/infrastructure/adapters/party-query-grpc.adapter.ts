@@ -1,16 +1,13 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
-import { ClientGrpc } from '@nestjs/microservices'
-import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory,
-  GrpcRequestContextStore
-} from '@oes/common/authorization'
+import { Injectable, OnModuleInit } from '@nestjs/common'
+import { GrpcRequestContextStore } from '@oes/common/authorization'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import {
   PARTY_QUERY_SERVICE_NAME,
   PartyQueryServiceClient
 } from '@oes/common/generated/party_service'
-import { InjectGrpcClient, safeGrpcCall } from '@oes/common/transport'
+import { safeGrpcCall } from '@oes/common/transport'
+import { SrmPartyTrustedGrpcExecutionProducer } from './srm-party-trusted-grpc-execution.producer'
+import { SrmPartyTrustedGrpcClient } from './party-trusted-grpc.client'
 import { TOKENS } from '../../common/constants/tokens'
 import { TenantPartyLookupPort, TenantPartyLookupResult } from '../../application/ports/tenant-party-lookup.port'
 
@@ -20,17 +17,13 @@ export class PartyQueryGrpcAdapter implements TenantPartyLookupPort, OnModuleIni
   private partyQueryService!: PartyQueryServiceClient
 
   constructor(
-    @InjectGrpcClient(SERVICE_NAMES.PARTY)
-    private readonly partyClient: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory,
+    private readonly partyClient: SrmPartyTrustedGrpcClient,
+    private readonly producer: SrmPartyTrustedGrpcExecutionProducer,
     private readonly requestContextStore: GrpcRequestContextStore
   ) {}
 
   onModuleInit(): void {
-    this.partyQueryService = this.partyClient.getService<PartyQueryServiceClient>(
-      PARTY_QUERY_SERVICE_NAME
-    )
+    this.partyQueryService = this.partyClient.query()
   }
 
   async getTenantPartyById(tenantId: string, tenantPartyId: string): Promise<TenantPartyLookupResult | null> {
@@ -39,7 +32,7 @@ export class PartyQueryGrpcAdapter implements TenantPartyLookupPort, OnModuleIni
         {
           tenantPartyId
         },
-        this.buildMetadata()
+        await this.buildMetadata('party.internal.get_tenant_party_by_id')
       ),
       {
         caller: SERVICE_NAMES.SRM,
@@ -61,12 +54,8 @@ export class PartyQueryGrpcAdapter implements TenantPartyLookupPort, OnModuleIni
   }
 
   /** buildMetadata forwards trace/request context while keeping party lookup on the internal-service boundary. */
-  private buildMetadata() {
+  private async buildMetadata(code: string) {
     const current = this.requestContextStore.getContext()
-    return this.metadataFactory.createInternalCallMetadata({
-      callerServiceName: SERVICE_NAMES.SRM,
-      requestId: current?.requestId,
-      traceId: current?.traceId
-    })
+    return this.producer.createMetadata(code, current?.requestId, current?.traceId)
   }
 }

@@ -1,10 +1,5 @@
-import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { ClientGrpc } from '@nestjs/microservices'
-import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory,
-  GrpcRequestContextStore
-} from '@oes/common/authorization'
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { GrpcRequestContextStore } from '@oes/common/authorization'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import {
   PARTY_REGISTRATION_SERVICE_NAME,
@@ -12,9 +7,10 @@ import {
   RegisterTenantPartyRequest,
   RegisterTenantPartyResponse
 } from '@oes/common/generated/party_service'
-import { InjectGrpcClient, safeGrpcCall } from '@oes/common/transport'
+import { safeGrpcCall } from '@oes/common/transport'
+import { TenantOrgPartyTrustedGrpcExecutionProducer } from './tenant-org-party-trusted-grpc-execution.producer'
+import { TenantOrgPartyTrustedGrpcClient } from './party-trusted-grpc.client'
 import { PartyRegistrationPort } from '../../application/ports/party-registration.port'
-import { buildTenantOnboardingMetadata } from './tenant-onboarding-metadata'
 
 /** PartyRegistrationGrpcAdapter calls party-service registration APIs without owning party truth. */
 @Injectable()
@@ -23,15 +19,13 @@ export class PartyRegistrationGrpcAdapter implements PartyRegistrationPort, OnMo
   private client!: PartyRegistrationServiceClient
 
   constructor(
-    @InjectGrpcClient(SERVICE_NAMES.PARTY)
-    private readonly partyClient: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory,
+    private readonly partyClient: TenantOrgPartyTrustedGrpcClient,
+    private readonly producer: TenantOrgPartyTrustedGrpcExecutionProducer,
     private readonly requestContextStore: GrpcRequestContextStore
   ) {}
 
   onModuleInit() {
-    this.client = this.partyClient.getService<PartyRegistrationServiceClient>(PARTY_REGISTRATION_SERVICE_NAME)
+    this.client = this.partyClient.registration()
   }
 
   async registerOrganizationTenantParty(input: {
@@ -58,7 +52,7 @@ export class PartyRegistrationGrpcAdapter implements PartyRegistrationPort, OnMo
           })),
           idempotencyKey: input.idempotencyKey
         } as RegisterTenantPartyRequest,
-        this.buildMetadata()
+        await this.buildMetadata()
       ),
       { caller: 'tenant-org-service', method: 'PartyRegistrationService.registerTenantParty' }
     )
@@ -71,7 +65,8 @@ export class PartyRegistrationGrpcAdapter implements PartyRegistrationPort, OnMo
   }
 
   /** buildMetadata propagates tenant-org request context into downstream owner-service calls. */
-  private buildMetadata() {
-    return buildTenantOnboardingMetadata(this.metadataFactory, this.requestContextStore)
+  private async buildMetadata() {
+    const current = this.requestContextStore.getContext()
+    return this.producer.createMetadata('party.internal.register_tenant_party', current?.requestId, current?.traceId)
   }
 }

@@ -1,19 +1,12 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
-import { ClientGrpc } from '@nestjs/microservices'
-import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory
-} from '@oes/common/authorization'
-import { SERVICE_NAMES } from '@oes/common/constants'
+import { Injectable, OnModuleInit } from '@nestjs/common'
 import {
   PARTY_QUERY_SERVICE_NAME,
   PartyQueryServiceClient
 } from '@oes/common/generated/party_service'
-import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
-import {
-  DownstreamRequestSource,
-  toOperatorScopedMetadataInput
-} from '../../../common/grpc/gateway-downstream-source.mapper'
+import { safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
+import { GatewayMachineTrustedGrpcExecutionProducer } from '../../../common/grpc/gateway-machine-trusted-grpc-execution-producer'
+import { DownstreamRequestSource } from '../../../common/grpc/gateway-downstream-source.mapper'
+import { PartyDedicatedClient } from '../../party-service/adapters/party-dedicated-client'
 
 const CALLER = 'api-gateway'
 
@@ -31,14 +24,12 @@ export class PartyQueryGrpcAdapter implements OnModuleInit {
   private svc!: PartyQueryServiceClient
 
   constructor(
-    @InjectGrpcClient(SERVICE_NAMES.PARTY)
-    private readonly client: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory
+    private readonly machine: GatewayMachineTrustedGrpcExecutionProducer,
+    private readonly client = new PartyDedicatedClient()
   ) {}
 
   onModuleInit(): void {
-    this.svc = this.client.getService<PartyQueryServiceClient>(PARTY_QUERY_SERVICE_NAME)
+    this.svc = this.client.query()
   }
 
   async getOrganizationTenantPartyById(
@@ -46,13 +37,7 @@ export class PartyQueryGrpcAdapter implements OnModuleInit {
     tenantPartyId: string,
     source: DownstreamRequestSource
   ): Promise<OrganizationTenantPartySummary | null> {
-    const response = await safeGrpcCall(
-      this.svc.getTenantPartyById(
-        { tenantPartyId },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
-      ),
-      this.opts('PartyQueryService.getTenantPartyById')
-    )
+    const response = await this.machine.forInternalCall('urn:oes:service:party-service', 'party.internal.get_tenant_party_by_id', { requestId: source.requestId, traceparent: source.traceId }, metadata => safeGrpcCall(this.svc.getTenantPartyById({ tenantPartyId }, metadata), this.opts('PartyQueryService.getTenantPartyById')))
     const tenantParty = response.tenantParty
     if (!tenantParty?.id) {
       return null

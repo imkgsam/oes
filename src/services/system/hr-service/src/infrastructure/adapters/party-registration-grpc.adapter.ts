@@ -1,11 +1,5 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
-import { ClientGrpc } from '@nestjs/microservices'
-import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory,
-  GrpcRequestContextStore
-} from '@oes/common/authorization'
-import { resolveCommonProtoPath } from '@oes/common/contracts'
+import { Injectable, OnModuleInit } from '@nestjs/common'
+import { GrpcRequestContextStore } from '@oes/common/authorization'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import {
   PARTY_REGISTRATION_SERVICE_NAME,
@@ -14,14 +8,14 @@ import {
   RegisterTenantPartyResponse
 } from '@oes/common/generated/party_service'
 import { safeGrpcCall } from '@oes/common/transport'
+import { HrPartyTrustedGrpcExecutionProducer } from './hr-party-trusted-grpc-execution.producer'
+import { HrPartyTrustedGrpcClient } from './party-trusted-grpc.client'
 import {
   PartyRegistrationPort,
   RegisterTenantPartyInput,
   RegisterTenantPartyResult
 } from '../../application/ports'
 
-export const PARTY_GRPC_CLIENT = Symbol('PARTY_GRPC_CLIENT')
-export const PARTY_PROTO_PATH = resolveCommonProtoPath('party_service/party.proto')
 
 /** PartyRegistrationGrpcAdapter delegates employee tenant-party registration to party-service through gRPC. */
 @Injectable()
@@ -29,17 +23,13 @@ export class PartyRegistrationGrpcAdapter implements PartyRegistrationPort, OnMo
   private svc!: PartyRegistrationServiceClient
 
   constructor(
-    @Inject(PARTY_GRPC_CLIENT)
-    private readonly client: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory,
+    private readonly client: HrPartyTrustedGrpcClient,
+    private readonly producer: HrPartyTrustedGrpcExecutionProducer,
     private readonly requestContextStore: GrpcRequestContextStore
   ) {}
 
   onModuleInit(): void {
-    this.svc = this.client.getService<PartyRegistrationServiceClient>(
-      PARTY_REGISTRATION_SERVICE_NAME
-    )
+    this.svc = this.client.registration()
   }
 
   async registerTenantParty(input: RegisterTenantPartyInput): Promise<RegisterTenantPartyResult> {
@@ -59,7 +49,7 @@ export class PartyRegistrationGrpcAdapter implements PartyRegistrationPort, OnMo
           })),
           idempotencyKey: input.idempotencyKey ?? ''
         } as RegisterTenantPartyRequest,
-        this.buildMetadata(input.tenantId)
+        await this.buildMetadata()
       ),
       {
         caller: SERVICE_NAMES.HR,
@@ -73,28 +63,8 @@ export class PartyRegistrationGrpcAdapter implements PartyRegistrationPort, OnMo
   }
 
   /** buildMetadata forwards the current operator and trace context to party-service. */
-  private buildMetadata(tenantId: string) {
+  private async buildMetadata() {
     const current = this.requestContextStore.getContext()
-    const operator = current?.operatorContext
-    if (operator?.operator_id) {
-      return this.metadataFactory.createOperatorScopedMetadata({
-        callerServiceName: SERVICE_NAMES.HR,
-        requestId: current?.requestId,
-        traceId: current?.traceId,
-        operatorContext: {
-          operatorId: operator.operator_id,
-          operatorType: operator.operator_type,
-          tenantId: operator.tenant_id ?? tenantId,
-          orgId: operator.org_id,
-          operatorRoles: operator.operator_roles
-        }
-      })
-    }
-
-    return this.metadataFactory.createInternalCallMetadata({
-      callerServiceName: SERVICE_NAMES.HR,
-      requestId: current?.requestId,
-      traceId: current?.traceId
-    })
+    return this.producer.createMetadata('party.internal.register_tenant_party', current?.requestId, current?.traceId)
   }
 }

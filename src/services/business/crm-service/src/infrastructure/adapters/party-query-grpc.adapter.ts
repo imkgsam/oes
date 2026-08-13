@@ -1,10 +1,5 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
-import { ClientGrpc } from '@nestjs/microservices'
-import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory,
-  GrpcRequestContextStore
-} from '@oes/common/authorization'
+import { Injectable, OnModuleInit } from '@nestjs/common'
+import { GrpcRequestContextStore } from '@oes/common/authorization'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import {
   PARTY_REGISTRATION_SERVICE_NAME,
@@ -12,7 +7,9 @@ import {
   PARTY_QUERY_SERVICE_NAME,
   PartyQueryServiceClient
 } from '@oes/common/generated/party_service'
-import { InjectGrpcClient, safeGrpcCall } from '@oes/common/transport'
+import { safeGrpcCall } from '@oes/common/transport'
+import { CrmPartyTrustedGrpcExecutionProducer } from './crm-party-trusted-grpc-execution.producer'
+import { PartyTrustedGrpcClient } from './party-trusted-grpc.client'
 import {
   TenantPartyLookupPort,
   TenantPartyLookupResult
@@ -35,19 +32,14 @@ export class PartyQueryGrpcAdapter
   private partyRegistrationService!: PartyRegistrationServiceClient
 
   constructor(
-    @InjectGrpcClient(SERVICE_NAMES.PARTY)
-    private readonly partyClient: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory,
+    private readonly partyClient: PartyTrustedGrpcClient,
+    private readonly producer: CrmPartyTrustedGrpcExecutionProducer,
     private readonly requestContextStore: GrpcRequestContextStore
   ) {}
 
   onModuleInit(): void {
-    this.partyQueryService =
-      this.partyClient.getService<PartyQueryServiceClient>(PARTY_QUERY_SERVICE_NAME)
-    this.partyRegistrationService = this.partyClient.getService<PartyRegistrationServiceClient>(
-      PARTY_REGISTRATION_SERVICE_NAME
-    )
+    this.partyQueryService = this.partyClient.query()
+    this.partyRegistrationService = this.partyClient.registration()
   }
 
   async getTenantPartyById(
@@ -59,7 +51,7 @@ export class PartyQueryGrpcAdapter
         {
           tenantPartyId
         },
-        this.buildMetadata()
+        await this.buildMetadata('party.internal.get_tenant_party_by_id')
       ),
       {
         caller: SERVICE_NAMES.CRM,
@@ -102,7 +94,7 @@ export class PartyQueryGrpcAdapter
             status: 'ACTIVE'
           }))
         },
-        this.buildMetadata()
+        await this.buildMetadata('party.internal.resolve_tenant_party_for_consumer')
       ),
       {
         caller: SERVICE_NAMES.CRM,
@@ -154,7 +146,7 @@ export class PartyQueryGrpcAdapter
             status: 'ASSERTED'
           }))
         },
-        this.buildMetadata()
+        await this.buildMetadata('party.internal.register_tenant_party')
       ),
       {
         caller: SERVICE_NAMES.CRM,
@@ -169,13 +161,9 @@ export class PartyQueryGrpcAdapter
   }
 
   /** buildMetadata forwards trace/request context while keeping party lookup on the internal-service boundary. */
-  private buildMetadata() {
+  private async buildMetadata(code: string) {
     const current = this.requestContextStore.getContext()
-    return this.metadataFactory.createInternalCallMetadata({
-      callerServiceName: SERVICE_NAMES.CRM,
-      requestId: current?.requestId,
-      traceId: current?.traceId
-    })
+    return this.producer.createMetadata(code, current?.requestId, current?.traceId)
   }
 }
 

@@ -1,6 +1,11 @@
 import { Global, Module } from '@nestjs/common'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import { GrpcTransportModule } from '@oes/common/transport'
+import { SrmPartyMachineSourceCredentialClient } from '../infrastructure/adapters/srm-party-machine-source-credential.client'
+import { SrmPartyMachineSourceCredentialProvider } from '../infrastructure/adapters/srm-party-machine-source-credential.provider'
+import { SrmPartyExecutionTokenExchangeClient } from '../infrastructure/adapters/srm-party-execution-token-exchange.client'
+import { SrmPartyTrustedGrpcExecutionProducer } from '../infrastructure/adapters/srm-party-trusted-grpc-execution.producer'
+import { SrmPartyTrustedGrpcClient } from '../infrastructure/adapters/party-trusted-grpc.client'
 import { TOKENS } from '../common/constants/tokens'
 import { ItemMasterQueryGrpcAdapter } from '../infrastructure/adapters/item-master-query-grpc.adapter'
 import { PartyQueryGrpcAdapter } from '../infrastructure/adapters/party-query-grpc.adapter'
@@ -23,6 +28,11 @@ import { PrismaSrmTransactionRunner } from '../infrastructure/transactions/prism
     PrismaSupplierOfferingRepository,
     PrismaSrmAuditRepository,
     PrismaSrmTransactionRunner,
+    SrmPartyTrustedGrpcClient,
+    SrmPartyMachineSourceCredentialClient,
+    SrmPartyMachineSourceCredentialProvider,
+    SrmPartyExecutionTokenExchangeClient,
+    { provide: SrmPartyTrustedGrpcExecutionProducer, useFactory: (source: SrmPartyMachineSourceCredentialProvider, exchange: SrmPartyExecutionTokenExchangeClient) => new SrmPartyTrustedGrpcExecutionProducer(source, exchange), inject: [SrmPartyMachineSourceCredentialProvider, SrmPartyExecutionTokenExchangeClient] },
     PartyQueryGrpcAdapter,
     ItemMasterQueryGrpcAdapter,
     {

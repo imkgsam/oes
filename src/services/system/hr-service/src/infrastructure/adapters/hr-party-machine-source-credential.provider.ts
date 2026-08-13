@@ -1,0 +1,3 @@
+import { AsyncLocalTransportPrivateSourceCredentialAccessor, TransportPrivateSourceCredentialIssuer } from '@oes/common/authorization'
+import { HrPartyMachineSourceCredentialClient } from './hr-party-machine-source-credential.client'
+export class HrPartyMachineSourceCredentialProvider { constructor(private readonly client:HrPartyMachineSourceCredentialClient,private readonly issuer=new TransportPrivateSourceCredentialIssuer(),readonly accessor=new AsyncLocalTransportPrivateSourceCredentialAccessor()){} async run<T>(callback:()=>Promise<T>){return this.accessor.run(this.issuer.issueVerifiedMachineOrDelegationCredential(await this.client.issue()),callback)} }

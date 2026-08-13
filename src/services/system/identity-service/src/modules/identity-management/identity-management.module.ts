@@ -39,6 +39,11 @@ import {
   HrEmployeeReferenceGrpcAdaptor
 } from '../../infrastructure/adaptors/hr-employee-reference.grpc.adaptor'
 import { PartyRegistrationGrpcAdaptor } from '../../infrastructure/adaptors/party-registration.grpc.adaptor'
+import { IdentityPartyTrustedGrpcClient } from '../../infrastructure/adaptors/party-trusted-grpc.client'
+import { IdentityPartyMachineSourceCredentialClient } from '../../infrastructure/adaptors/identity-party-machine-source-credential.client'
+import { IdentityPartyMachineSourceCredentialProvider } from '../../infrastructure/adaptors/identity-party-machine-source-credential.provider'
+import { IdentityPartyExecutionTokenExchangeClient } from '../../infrastructure/adaptors/identity-party-execution-token-exchange.client'
+import { IdentityPartyTrustedGrpcExecutionProducer } from '../../infrastructure/adaptors/identity-party-trusted-grpc-execution.producer'
 import { TenantReferenceGrpcAdaptor } from '../../infrastructure/adaptors/tenant-reference.grpc.adaptor'
 import { PrismaModule } from '../../infrastructure/prisma/prisma.module'
 import { IdentityManagementGrpcController } from '../../interfaces/grpc/identity-management.grpc.controller'
@@ -51,7 +56,6 @@ import { IdentityAuditModule } from '../identity-audit/identity-audit.module'
     IdentityAuditModule,
     GrpcTransportModule.forFeature([
       SERVICE_NAMES.PERMISSION,
-      SERVICE_NAMES.PARTY,
       SERVICE_NAMES.TENANT_ORG
     ]),
     ClientsModule.register([
@@ -95,6 +99,9 @@ import { IdentityAuditModule } from '../identity-audit/identity-audit.module'
       provide: PARTY_REGISTRATION_PORT,
       useClass: PartyRegistrationGrpcAdaptor
     },
+    IdentityPartyTrustedGrpcClient, IdentityPartyMachineSourceCredentialClient,
+    IdentityPartyMachineSourceCredentialProvider, IdentityPartyExecutionTokenExchangeClient,
+    { provide: IdentityPartyTrustedGrpcExecutionProducer, useFactory: (source: IdentityPartyMachineSourceCredentialProvider, exchange: IdentityPartyExecutionTokenExchangeClient) => new IdentityPartyTrustedGrpcExecutionProducer(source, exchange), inject: [IdentityPartyMachineSourceCredentialProvider, IdentityPartyExecutionTokenExchangeClient] },
     {
       provide: TENANT_REFERENCE_PORT,
       useClass: TenantReferenceGrpcAdaptor

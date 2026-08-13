@@ -22,6 +22,11 @@ import { HrEmployeeOnboardingGrpcAdapter } from '../../infrastructure/adapters/h
 import { IdentityAccountOnboardingGrpcAdapter } from '../../infrastructure/adapters/identity-account-onboarding.grpc.adapter'
 import { PartyQueryGrpcAdapter } from '../../infrastructure/adapters/party-query.grpc.adapter'
 import { PartyRegistrationGrpcAdapter } from '../../infrastructure/adapters/party-registration.grpc.adapter'
+import { TenantOrgPartyTrustedGrpcClient } from '../../infrastructure/adapters/party-trusted-grpc.client'
+import { TenantOrgPartyMachineSourceCredentialClient } from '../../infrastructure/adapters/tenant-org-party-machine-source-credential.client'
+import { TenantOrgPartyMachineSourceCredentialProvider } from '../../infrastructure/adapters/tenant-org-party-machine-source-credential.provider'
+import { TenantOrgPartyExecutionTokenExchangeClient } from '../../infrastructure/adapters/tenant-org-party-execution-token-exchange.client'
+import { TenantOrgPartyTrustedGrpcExecutionProducer } from '../../infrastructure/adapters/tenant-org-party-trusted-grpc-execution.producer'
 import { PermissionTenantOnboardingGrpcAdapter } from '../../infrastructure/adapters/permission-tenant-onboarding.grpc.adapter'
 import { PrismaModule } from '../../infrastructure/prisma/prisma.module'
 import { AuthSessionRevocationGrpcAdapter } from '../../infrastructure/adapters/auth-session-revocation.grpc.adapter'
@@ -39,7 +44,6 @@ import { TenantOrgManagementGrpcController } from '../../interfaces/grpc/tenant-
       SERVICE_NAMES.AUTH,
       SERVICE_NAMES.HR,
       SERVICE_NAMES.IDENTITY,
-      SERVICE_NAMES.PARTY,
       SERVICE_NAMES.PERMISSION
     ])
   ],
@@ -87,6 +91,9 @@ import { TenantOrgManagementGrpcController } from '../../interfaces/grpc/tenant-
     AuthSessionRevocationGrpcAdapter,
     PartyQueryGrpcAdapter,
     PartyRegistrationGrpcAdapter,
+    TenantOrgPartyTrustedGrpcClient, TenantOrgPartyMachineSourceCredentialClient,
+    TenantOrgPartyMachineSourceCredentialProvider, TenantOrgPartyExecutionTokenExchangeClient,
+    { provide: TenantOrgPartyTrustedGrpcExecutionProducer, useFactory: (source: TenantOrgPartyMachineSourceCredentialProvider, exchange: TenantOrgPartyExecutionTokenExchangeClient) => new TenantOrgPartyTrustedGrpcExecutionProducer(source, exchange), inject: [TenantOrgPartyMachineSourceCredentialProvider, TenantOrgPartyExecutionTokenExchangeClient] },
     IdentityAccountOnboardingGrpcAdapter,
     AuthLoginOnboardingGrpcAdapter,
     HrEmployeeOnboardingGrpcAdapter,

@@ -1,0 +1,2 @@
+import { CrmPartyTrustedGrpcExecutionProducer } from './crm-party-trusted-grpc-execution.producer'
+describe('CRM Party producer', () => { it('maps missing deployment root to foundation unavailable', async () => { delete process.env.AUTH_EXECUTION_ISSUER; process.env.CRM_PARTY_MACHINE_PRINCIPAL_ID='machine-crm'; await expect(new CrmPartyTrustedGrpcExecutionProducer({} as never, {} as never).createMetadata('party.internal.get_tenant_party_by_id','request-1','00-0123456789abcdef0123456789abcdef-0123456789abcdef-01')).rejects.toThrow('PARTY_CALLER_FOUNDATION_UNAVAILABLE') }) })

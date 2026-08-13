@@ -18,18 +18,11 @@ describe('PartyQueryGrpcAdapter', () => {
     )
     const adapter = new PartyQueryGrpcAdapter(
       {
-        getService: jest.fn((serviceName: string) => {
-          if (serviceName === PARTY_REGISTRATION_SERVICE_NAME) {
-            return { registerTenantParty }
-          }
-          if (serviceName === PARTY_QUERY_SERVICE_NAME) {
-            return {}
-          }
-          throw new Error(`Unexpected service ${serviceName}`)
-        })
+        query: jest.fn(() => ({})),
+        registration: jest.fn(() => ({ registerTenantParty }))
       } as never,
       {
-        createInternalCallMetadata: jest.fn(() => ({}))
+        createMetadata: jest.fn(async () => ({}))
       } as never,
       {
         getContext: jest.fn(() => ({ requestId: 'request-1', traceId: 'trace-1' }))

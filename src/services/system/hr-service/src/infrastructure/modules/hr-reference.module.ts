@@ -4,11 +4,12 @@ import type { ClientProviderOptions } from '@nestjs/microservices/module/interfa
 import { AuthorizationModule } from '@oes/common/authorization'
 import { resolveCommonProtoPath } from '@oes/common/contracts'
 import { PARTY_REGISTRATION_PORT, TENANT_ORG_REFERENCE_PORT } from '../../application/ports'
-import {
-  PARTY_GRPC_CLIENT,
-  PARTY_PROTO_PATH,
-  PartyRegistrationGrpcAdapter
-} from '../adapters/party-registration-grpc.adapter'
+import { PartyRegistrationGrpcAdapter } from '../adapters/party-registration-grpc.adapter'
+import { HrPartyTrustedGrpcClient } from '../adapters/party-trusted-grpc.client'
+import { HrPartyMachineSourceCredentialClient } from '../adapters/hr-party-machine-source-credential.client'
+import { HrPartyMachineSourceCredentialProvider } from '../adapters/hr-party-machine-source-credential.provider'
+import { HrPartyExecutionTokenExchangeClient } from '../adapters/hr-party-execution-token-exchange.client'
+import { HrPartyTrustedGrpcExecutionProducer } from '../adapters/hr-party-trusted-grpc-execution.producer'
 import {
   TENANT_ORG_GRPC_CLIENT,
   TenantOrgGrpcAdapter
@@ -49,15 +50,6 @@ export function buildHrReferenceGrpcClients(): ClientProviderOptions[] {
         url: resolveDownstreamGrpcUrl('GRPC_SERVICE_TENANT_ORG_URL', 'TENANT_ORG_GRPC_URL', '127.0.0.1:50054')
       }
     },
-    {
-      name: PARTY_GRPC_CLIENT,
-      transport: Transport.GRPC,
-      options: {
-        package: 'party_service',
-        protoPath: [PARTY_PROTO_PATH],
-        url: resolveDownstreamGrpcUrl('GRPC_SERVICE_PARTY_URL', 'PARTY_GRPC_URL', '127.0.0.1:50053')
-      }
-    }
   ]
 }
 
@@ -75,7 +67,10 @@ export function buildHrReferenceGrpcClients(): ClientProviderOptions[] {
     {
       provide: PARTY_REGISTRATION_PORT,
       useClass: PartyRegistrationGrpcAdapter
-    }
+    },
+    HrPartyTrustedGrpcClient, HrPartyMachineSourceCredentialClient,
+    HrPartyMachineSourceCredentialProvider, HrPartyExecutionTokenExchangeClient,
+    { provide: HrPartyTrustedGrpcExecutionProducer, useFactory: (source: HrPartyMachineSourceCredentialProvider, exchange: HrPartyExecutionTokenExchangeClient) => new HrPartyTrustedGrpcExecutionProducer(source, exchange), inject: [HrPartyMachineSourceCredentialProvider, HrPartyExecutionTokenExchangeClient] }
   ],
   exports: [TENANT_ORG_REFERENCE_PORT, PARTY_REGISTRATION_PORT]
 })
