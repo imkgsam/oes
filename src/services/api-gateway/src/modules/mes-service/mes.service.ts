@@ -42,6 +42,7 @@ export class MesService {
 
   /** getProductionSpec returns one ProductionSpec detail snapshot. */
   async getProductionSpec(tenantId: string, productionSpecId: string, source: DownstreamRequestSource) {
+    this.resolveTenantId(tenantId, source)
     const result = await this.mesQueryAdapter.getProductionSpec(
       {
         productionSpecId: requireNonBlank(productionSpecId, 'productionSpecId'),
@@ -53,6 +54,7 @@ export class MesService {
 
   /** createProductionSpec forwards one ProductionSpec creation command. */
   async createProductionSpec(tenantId: string, input: any, source: DownstreamRequestSource) {
+    this.resolveTenantId(tenantId, source)
     const result = await this.mesManagementAdapter.createProductionSpec(
       this.withCommandEnvelope(tenantId, input, source),
       source
@@ -62,6 +64,7 @@ export class MesService {
 
   /** activateProductionSpec forwards one ProductionSpec activation command. */
   async activateProductionSpec(tenantId: string, productionSpecId: string, input: any, source: DownstreamRequestSource) {
+    this.resolveTenantId(tenantId, source)
     const result = await this.mesManagementAdapter.activateProductionSpec(
       {
         ...this.withCommandEnvelope(tenantId, input, source),
@@ -74,6 +77,7 @@ export class MesService {
 
   /** updateProductionSpec forwards one ProductionSpec update command. */
   async updateProductionSpec(tenantId: string, productionSpecId: string, input: any, source: DownstreamRequestSource) {
+    this.resolveTenantId(tenantId, source)
     const result = await this.mesManagementAdapter.updateProductionSpec(
       {
         ...this.withCommandEnvelope(tenantId, input, source),
@@ -86,6 +90,7 @@ export class MesService {
 
   /** retireProductionSpec forwards one ProductionSpec retirement command. */
   async retireProductionSpec(tenantId: string, productionSpecId: string, input: any, source: DownstreamRequestSource) {
+    this.resolveTenantId(tenantId, source)
     const result = await this.mesManagementAdapter.retireProductionSpec(
       {
         ...this.withCommandEnvelope(tenantId, input, source),
@@ -98,6 +103,7 @@ export class MesService {
 
   /** listMoldDesigns returns the MoldDesign directory for mold setup. */
   async listMoldDesigns(tenantId: string, query: any, source: DownstreamRequestSource) {
+    this.resolveTenantId(tenantId, source)
     return this.mesQueryAdapter.listMoldDesigns(
       {
         itemModelId: normalize(query.itemModelId),
@@ -113,6 +119,7 @@ export class MesService {
 
   /** getMoldDesign returns one MoldDesign detail snapshot. */
   async getMoldDesign(tenantId: string, moldDesignId: string, source: DownstreamRequestSource) {
+    this.resolveTenantId(tenantId, source)
     const result = await this.mesQueryAdapter.getMoldDesign(
       {
         moldDesignId: requireNonBlank(moldDesignId, 'moldDesignId'),
@@ -124,6 +131,7 @@ export class MesService {
 
   /** registerMoldDesign forwards one MoldDesign registration command while only normalizing enum inputs. */
   async registerMoldDesign(tenantId: string, input: any, source: DownstreamRequestSource) {
+    this.resolveTenantId(tenantId, source)
     const result = await this.mesManagementAdapter.registerMoldDesign(
       {
         ...this.withCommandEnvelope(tenantId, input, source),
@@ -142,6 +150,7 @@ export class MesService {
 
   /** registerMasterMold forwards one MasterMold registration command. */
   async registerMasterMold(tenantId: string, input: any, source: DownstreamRequestSource) {
+    this.resolveTenantId(tenantId, source)
     const result = await this.mesManagementAdapter.registerMasterMold(
       this.withCommandEnvelope(tenantId, input, source),
       source
@@ -151,6 +160,7 @@ export class MesService {
 
   /** listMasterMolds returns the MasterMold result-object directory. */
   async listMasterMolds(tenantId: string, query: any, source: DownstreamRequestSource) {
+    this.resolveTenantId(tenantId, source)
     return this.mesQueryAdapter.listMasterMolds(
       {
         carrierResourceId: normalize(query.carrierResourceId),
@@ -167,6 +177,7 @@ export class MesService {
 
   /** getMasterMold returns one MasterMold result-object snapshot. */
   async getMasterMold(tenantId: string, masterMoldId: string, source: DownstreamRequestSource) {
+    this.resolveTenantId(tenantId, source)
     const result = await this.mesQueryAdapter.getMasterMold(
       {
         masterMoldId: requireNonBlank(masterMoldId, 'masterMoldId'),
@@ -178,6 +189,7 @@ export class MesService {
 
   /** registerProductionMold forwards one ProductionMold registration command. */
   async registerProductionMold(tenantId: string, input: any, source: DownstreamRequestSource) {
+    this.resolveTenantId(tenantId, source)
     const result = await this.mesManagementAdapter.registerProductionMold(
       this.withCommandEnvelope(tenantId, input, source),
       source
@@ -187,6 +199,7 @@ export class MesService {
 
   /** acceptProductionMold forwards one ProductionMold acceptance command. */
   async acceptProductionMold(tenantId: string, productionMoldId: string, input: any, source: DownstreamRequestSource) {
+    this.resolveTenantId(tenantId, source)
     const result = await this.mesManagementAdapter.acceptProductionMold(
       {
         ...this.withCommandEnvelope(tenantId, input, source),
@@ -199,6 +212,7 @@ export class MesService {
 
   /** confirmProductionMoldArrival forwards first-stage PDA/web arrival confirmation. */
   async confirmProductionMoldArrival(tenantId: string, productionMoldId: string, input: any, source: DownstreamRequestSource) {
+    this.resolveTenantId(tenantId, source)
     const result = await this.mesManagementAdapter.confirmProductionMoldArrival(
       {
         ...this.withCommandEnvelope(tenantId, input, source),
@@ -211,6 +225,7 @@ export class MesService {
 
   /** getProductionMold returns one ProductionMold detail snapshot. */
   async getProductionMold(tenantId: string, productionMoldId: string, source: DownstreamRequestSource) {
+    this.resolveTenantId(tenantId, source)
     const result = await this.mesQueryAdapter.getProductionMold(
       {
         productionMoldId: requireNonBlank(productionMoldId, 'productionMoldId'),
@@ -222,6 +237,7 @@ export class MesService {
 
   /** listProductionMolds returns the tenant-wide ProductionMold directory for the workspace. */
   async listProductionMolds(tenantId: string, query: any, source: DownstreamRequestSource) {
+    this.resolveTenantId(tenantId, source)
     return this.mesQueryAdapter.listProductionMolds(
       {
         carrierResourceId: normalize(query.carrierResourceId),
@@ -238,6 +254,7 @@ export class MesService {
 
   /** listProductionMoldsByDesign returns ProductionMolds under one MoldDesign. */
   async listProductionMoldsByDesign(tenantId: string, moldDesignId: string, query: any, source: DownstreamRequestSource) {
+    this.resolveTenantId(tenantId, source)
     return this.mesQueryAdapter.listProductionMoldsByDesign(
       {
         moldDesignId: requireNonBlank(moldDesignId, 'moldDesignId'),
@@ -251,6 +268,7 @@ export class MesService {
 
   /** moveTooling forwards one current placement change for a tooling object. */
   async moveTooling(tenantId: string, toolingId: string, input: any, source: DownstreamRequestSource) {
+    this.resolveTenantId(tenantId, source)
     const result = await this.mesManagementAdapter.moveTooling(
       {
         ...this.withCommandEnvelope(tenantId, input, source),
@@ -264,6 +282,7 @@ export class MesService {
 
   /** getToolingCurrentPlacement returns one current placement projection for a tooling object. */
   async getToolingCurrentPlacement(tenantId: string, toolingId: string, query: any, source: DownstreamRequestSource) {
+    this.resolveTenantId(tenantId, source)
     const result = await this.mesQueryAdapter.getToolingCurrentPlacement(
       {
         toolingId: requireNonBlank(toolingId, 'toolingId'),
@@ -276,6 +295,7 @@ export class MesService {
 
   /** installTooling forwards one tooling installation command. */
   async installTooling(tenantId: string, toolingId: string, input: any, source: DownstreamRequestSource) {
+    this.resolveTenantId(tenantId, source)
     const result = await this.mesManagementAdapter.installTooling(
       {
         ...this.withCommandEnvelope(tenantId, input, source),
@@ -289,6 +309,7 @@ export class MesService {
 
   /** unmountTooling forwards one tooling unmount command. */
   async unmountTooling(tenantId: string, toolingInstallationId: string, input: any, source: DownstreamRequestSource) {
+    this.resolveTenantId(tenantId, source)
     const result = await this.mesManagementAdapter.unmountTooling(
       {
         ...this.withCommandEnvelope(tenantId, input, source),
@@ -301,6 +322,7 @@ export class MesService {
 
   /** confirmInstalledMoldReady forwards the field command that makes an installed mold usable for casting. */
   async confirmInstalledMoldReady(tenantId: string, productionMoldId: string, input: any, source: DownstreamRequestSource) {
+    this.resolveTenantId(tenantId, source)
     const result = await this.mesManagementAdapter.confirmInstalledMoldReady(
       {
         ...this.withCommandEnvelope(tenantId, input, source),
@@ -314,6 +336,7 @@ export class MesService {
 
   /** markInstalledMoldMaintenance forwards the field command that returns a ready installed mold to maintenance. */
   async markInstalledMoldMaintenance(tenantId: string, productionMoldId: string, input: any, source: DownstreamRequestSource) {
+    this.resolveTenantId(tenantId, source)
     const result = await this.mesManagementAdapter.markInstalledMoldMaintenance(
       {
         ...this.withCommandEnvelope(tenantId, input, source),
@@ -328,6 +351,7 @@ export class MesService {
 
   /** markProductionMoldForScrap forwards the first step of the production mold scrap lifecycle. */
   async markProductionMoldForScrap(tenantId: string, productionMoldId: string, input: any, source: DownstreamRequestSource) {
+    this.resolveTenantId(tenantId, source)
     const result = await this.mesManagementAdapter.markProductionMoldForScrap(
       {
         ...this.withCommandEnvelope(tenantId, input, source),
@@ -340,6 +364,7 @@ export class MesService {
 
   /** listCurrentMoldsByWorkCenter returns the web visualization data for one production line. */
   async listCurrentMoldsByWorkCenter(tenantId: string, workCenterId: string, query: any, source: DownstreamRequestSource) {
+    this.resolveTenantId(tenantId, source)
     return this.mesQueryAdapter.listCurrentMoldsByWorkCenter(
       {
         workCenterId: requireNonBlank(workCenterId, 'workCenterId'),
@@ -351,6 +376,7 @@ export class MesService {
 
   /** listMoldLifeCounters returns independent MoldLifeCounter rows. */
   async listMoldLifeCounters(tenantId: string, query: any, source: DownstreamRequestSource) {
+    this.resolveTenantId(tenantId, source)
     return this.mesQueryAdapter.listMoldLifeCounters(
       {
         page: clampPage(query.page),
@@ -364,6 +390,7 @@ export class MesService {
 
   /** getMoldUsageHistory returns flattened mold facts for one ProductionMold. */
   async getMoldUsageHistory(tenantId: string, productionMoldId: string, query: any, source: DownstreamRequestSource) {
+    this.resolveTenantId(tenantId, source)
     return this.mesQueryAdapter.getMoldUsageHistory(
       {
         from: normalize(query.from),
@@ -378,6 +405,7 @@ export class MesService {
 
   /** printDailyMoldChecklist builds the web checklist view from current mold installations. */
   async printDailyMoldChecklist(tenantId: string, query: any, source: DownstreamRequestSource) {
+    this.resolveTenantId(tenantId, source)
     const checklistDate = requireNonBlank(query.checklistDate, 'checklistDate')
     const workCenterId = requireNonBlank(query.workCenterId, 'workCenterId')
     const current = await this.mesQueryAdapter.listCurrentMoldsByWorkCenter(
@@ -401,6 +429,7 @@ export class MesService {
 
   /** recordDailyMoldUsageBatch forwards one web checklist submission as a single MES usage batch command. */
   async recordDailyMoldUsageBatch(tenantId: string, checklistDate: string, input: any, source: DownstreamRequestSource) {
+    this.resolveTenantId(tenantId, source)
     const batchCommandId = requireNonBlank(input.batchCommandId, 'batchCommandId')
     const response = await this.mesManagementAdapter.recordMoldUsageBatch(
       {
