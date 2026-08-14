@@ -1,4 +1,9 @@
-import { Controller, UseFilters } from '@nestjs/common'
+import { Controller, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common'
+import {
+  AuthorizeBusinessRpc,
+  GrpcRequestContextInterceptor,
+  PROCUREMENT_MANAGEMENT_PERMISSION_CODES
+} from '@oes/common/authorization'
 import { ValidatingQueryBus } from '@oes/common/cqrs'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
@@ -34,12 +39,20 @@ import { SearchPurchaseOrdersQuery } from '../../application/queries/search-purc
 import { ListPurchaseOrderChangesQuery } from '../../application/queries/list-purchase-order-changes.query'
 import { GetReceivingExpectationQuery } from '../../application/queries/get-receiving-expectation.query'
 import { SearchReceivingExpectationsQuery } from '../../application/queries/search-receiving-expectations.query'
-import { PurchaseOrderStatus, PurchaseRequestStatus, PurchaseRequestType, ReceivingExpectationStatus } from '../../domain/models/procurement-records'
+import {
+  PurchaseOrderStatus,
+  PurchaseRequestStatus,
+  PurchaseRequestType,
+  ReceivingExpectationStatus
+} from '../../domain/models/procurement-records'
 import { ProcurementGrpcPresenter } from './procurement-grpc.presenter'
 import { ProcurementRpcContextValidator } from './procurement-rpc-context.validator'
+import { ProcurementTrustedBusinessExecutionGuard } from '../../modules/procurement-trusted-execution.module'
 
 /** ProcurementQueryGrpcController exposes the phase 1 read-only procurement query contract. */
 @UseFilters(GrpcExceptionFilter)
+@UseGuards(ProcurementTrustedBusinessExecutionGuard, ProcurementRpcContextValidator)
+@UseInterceptors(GrpcRequestContextInterceptor)
 @Controller()
 @PurchaseRequestQueryServiceControllerMethods()
 @PurchaseOrderQueryServiceControllerMethods()
@@ -52,11 +65,13 @@ export class ProcurementQueryGrpcController
 {
   constructor(private readonly queryBus: ValidatingQueryBus) {}
 
-  async getPurchaseRequest(request: GetPurchaseRequestRequest): Promise<GetPurchaseRequestResponse> {
-    ProcurementRpcContextValidator.assertQueryContext(request)
+  async getPurchaseRequest(
+    request: GetPurchaseRequestRequest
+  ): Promise<GetPurchaseRequestResponse> {
+    const context = ProcurementRpcContextValidator.assertQueryContext(request)
     return ProcurementGrpcPresenter.toGetPurchaseRequestResponse(
       await this.queryBus.execute(
-        new GetPurchaseRequestQuery(request.tenantId ?? '', request.purchaseRequestId ?? '')
+        new GetPurchaseRequestQuery(context.tenantId, request.purchaseRequestId ?? '')
       )
     )
   }
@@ -64,12 +79,12 @@ export class ProcurementQueryGrpcController
   async searchPurchaseRequests(
     request: SearchPurchaseRequestsRequest
   ): Promise<SearchPurchaseRequestsResponse> {
-    ProcurementRpcContextValidator.assertQueryContext(request)
+    const context = ProcurementRpcContextValidator.assertQueryContext(request)
     return ProcurementGrpcPresenter.toSearchPurchaseRequestsResponse(
       await this.queryBus.execute(
         new SearchPurchaseRequestsQuery({
-          tenantId: request.tenantId ?? '',
-          orgId: request.orgId ?? undefined,
+          tenantId: context.tenantId,
+          orgId: context.operatorContext.orgId ?? undefined,
           keyword: request.keyword ?? undefined,
           requestType: toDomainPurchaseRequestType(request.requestType),
           status: toDomainPurchaseRequestStatus(request.status),
@@ -86,21 +101,23 @@ export class ProcurementQueryGrpcController
   }
 
   async getPurchaseOrder(request: GetPurchaseOrderRequest): Promise<GetPurchaseOrderResponse> {
-    ProcurementRpcContextValidator.assertQueryContext(request)
+    const context = ProcurementRpcContextValidator.assertQueryContext(request)
     return ProcurementGrpcPresenter.toGetPurchaseOrderResponse(
       await this.queryBus.execute(
-        new GetPurchaseOrderQuery(request.tenantId ?? '', request.purchaseOrderId ?? '')
+        new GetPurchaseOrderQuery(context.tenantId, request.purchaseOrderId ?? '')
       )
     )
   }
 
-  async searchPurchaseOrders(request: SearchPurchaseOrdersRequest): Promise<SearchPurchaseOrdersResponse> {
-    ProcurementRpcContextValidator.assertQueryContext(request)
+  async searchPurchaseOrders(
+    request: SearchPurchaseOrdersRequest
+  ): Promise<SearchPurchaseOrdersResponse> {
+    const context = ProcurementRpcContextValidator.assertQueryContext(request)
     return ProcurementGrpcPresenter.toSearchPurchaseOrdersResponse(
       await this.queryBus.execute(
         new SearchPurchaseOrdersQuery({
-          tenantId: request.tenantId ?? '',
-          orgId: request.orgId ?? undefined,
+          tenantId: context.tenantId,
+          orgId: context.operatorContext.orgId ?? undefined,
           keyword: request.keyword ?? undefined,
           status: toDomainPurchaseOrderStatus(request.status),
           supplierId: request.supplierId ?? undefined,
@@ -118,11 +135,11 @@ export class ProcurementQueryGrpcController
   async listPurchaseOrderChanges(
     request: ListPurchaseOrderChangesRequest
   ): Promise<ListPurchaseOrderChangesResponse> {
-    ProcurementRpcContextValidator.assertQueryContext(request)
+    const context = ProcurementRpcContextValidator.assertQueryContext(request)
     return ProcurementGrpcPresenter.toListPurchaseOrderChangesResponse(
       await this.queryBus.execute(
         new ListPurchaseOrderChangesQuery({
-          tenantId: request.tenantId ?? '',
+          tenantId: context.tenantId,
           purchaseOrderId: request.purchaseOrderId ?? '',
           page: request.page ?? undefined,
           pageSize: request.pageSize ?? undefined
@@ -134,10 +151,10 @@ export class ProcurementQueryGrpcController
   async getReceivingExpectation(
     request: GetReceivingExpectationRequest
   ): Promise<GetReceivingExpectationResponse> {
-    ProcurementRpcContextValidator.assertQueryContext(request)
+    const context = ProcurementRpcContextValidator.assertQueryContext(request)
     return ProcurementGrpcPresenter.toGetReceivingExpectationResponse(
       await this.queryBus.execute(
-        new GetReceivingExpectationQuery(request.tenantId ?? '', request.receivingExpectationId ?? '')
+        new GetReceivingExpectationQuery(context.tenantId, request.receivingExpectationId ?? '')
       )
     )
   }
@@ -145,12 +162,12 @@ export class ProcurementQueryGrpcController
   async searchReceivingExpectations(
     request: SearchReceivingExpectationsRequest
   ): Promise<SearchReceivingExpectationsResponse> {
-    ProcurementRpcContextValidator.assertQueryContext(request)
+    const context = ProcurementRpcContextValidator.assertQueryContext(request)
     return ProcurementGrpcPresenter.toSearchReceivingExpectationsResponse(
       await this.queryBus.execute(
         new SearchReceivingExpectationsQuery({
-          tenantId: request.tenantId ?? '',
-          orgId: request.orgId ?? undefined,
+          tenantId: context.tenantId,
+          orgId: context.operatorContext.orgId ?? undefined,
           purchaseOrderId: request.purchaseOrderId ?? undefined,
           supplierId: request.supplierId ?? undefined,
           status: toDomainReceivingExpectationStatus(request.status),
@@ -167,7 +184,26 @@ export class ProcurementQueryGrpcController
   }
 }
 
-function toDomainPurchaseRequestType(value?: ProtoPurchaseRequestType): PurchaseRequestType | undefined {
+/** Registers the frozen Procurement HUMAN/WEB Code matrix for every BUSINESS query RPC. */
+for (const [method, code] of Object.entries({
+  getPurchaseRequest: PROCUREMENT_MANAGEMENT_PERMISSION_CODES.GET_PURCHASE_REQUEST,
+  searchPurchaseRequests: PROCUREMENT_MANAGEMENT_PERMISSION_CODES.LIST_PURCHASE_REQUEST,
+  getPurchaseOrder: PROCUREMENT_MANAGEMENT_PERMISSION_CODES.GET_PURCHASE_ORDER,
+  searchPurchaseOrders: PROCUREMENT_MANAGEMENT_PERMISSION_CODES.LIST_PURCHASE_ORDER,
+  listPurchaseOrderChanges: PROCUREMENT_MANAGEMENT_PERMISSION_CODES.LIST_PURCHASE_ORDER_CHANGES,
+  getReceivingExpectation: PROCUREMENT_MANAGEMENT_PERMISSION_CODES.GET_RECEIVING_EXPECTATION,
+  searchReceivingExpectations: PROCUREMENT_MANAGEMENT_PERMISSION_CODES.LIST_RECEIVING_EXPECTATION
+})) {
+  AuthorizeBusinessRpc({ all: [code] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })(
+    ProcurementQueryGrpcController.prototype,
+    method,
+    Object.getOwnPropertyDescriptor(ProcurementQueryGrpcController.prototype, method)
+  )
+}
+
+function toDomainPurchaseRequestType(
+  value?: ProtoPurchaseRequestType
+): PurchaseRequestType | undefined {
   if (value === undefined || value === 0) {
     return undefined
   }
@@ -185,7 +221,9 @@ function toDomainPurchaseRequestType(value?: ProtoPurchaseRequestType): Purchase
   }
 }
 
-function toDomainPurchaseRequestStatus(value?: ProtoPurchaseRequestStatus): PurchaseRequestStatus | undefined {
+function toDomainPurchaseRequestStatus(
+  value?: ProtoPurchaseRequestStatus
+): PurchaseRequestStatus | undefined {
   if (value === undefined || value === 0) {
     return undefined
   }
@@ -207,7 +245,9 @@ function toDomainPurchaseRequestStatus(value?: ProtoPurchaseRequestStatus): Purc
   }
 }
 
-function toDomainPurchaseOrderStatus(value?: ProtoPurchaseOrderStatus): PurchaseOrderStatus | undefined {
+function toDomainPurchaseOrderStatus(
+  value?: ProtoPurchaseOrderStatus
+): PurchaseOrderStatus | undefined {
   if (value === undefined || value === 0) {
     return undefined
   }

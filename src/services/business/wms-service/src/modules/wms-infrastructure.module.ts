@@ -1,6 +1,4 @@
 import { Global, Module } from '@nestjs/common'
-import { SERVICE_NAMES } from '@oes/common/constants'
-import { GrpcTransportModule } from '@oes/common/transport'
 import { TOKENS } from '../common/constants/tokens'
 import { ReceivingExpectationLookupPort } from '../application/ports/receiving-expectation-lookup.port'
 import { StockableItemLookupPort } from '../application/ports/stockable-item-lookup.port'
@@ -18,7 +16,7 @@ import { PrismaWmsTransactionRunner } from '../infrastructure/transactions/prism
 /** WmsInfrastructureModule wires the Prisma-backed persistence graph and downstream item and procurement lookup adapters. */
 @Global()
 @Module({
-  imports: [PrismaModule, GrpcTransportModule.forFeature([SERVICE_NAMES.PROCUREMENT])],
+  imports: [PrismaModule],
   providers: [
     PrismaWarehouseRepository,
     PrismaReceiptRepository,

@@ -1,5 +1,5 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
-import { ClientGrpc } from '@nestjs/microservices'
+import { Injectable, OnModuleInit } from '@nestjs/common'
+import { PROCUREMENT_MANAGEMENT_PERMISSION_CODES } from '@oes/common/authorization'
 import {
   GetPurchaseOrderRequest,
   GetPurchaseOrderResponse,
@@ -9,11 +9,8 @@ import {
   GetReceivingExpectationResponse,
   ListPurchaseOrderChangesRequest,
   ListPurchaseOrderChangesResponse,
-  PURCHASE_ORDER_QUERY_SERVICE_NAME,
-  PURCHASE_REQUEST_QUERY_SERVICE_NAME,
   PurchaseOrderQueryServiceClient,
   PurchaseRequestQueryServiceClient,
-  RECEIVING_EXPECTATION_QUERY_SERVICE_NAME,
   ReceivingExpectationQueryServiceClient,
   SearchPurchaseOrdersRequest,
   SearchPurchaseOrdersResponse,
@@ -22,24 +19,18 @@ import {
   SearchReceivingExpectationsRequest,
   SearchReceivingExpectationsResponse
 } from '@oes/common/generated/procurement_service'
+import { safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
+import { Observable } from 'rxjs'
+import { DownstreamRequestSource } from '../../../common/grpc/gateway-downstream-source.mapper'
 import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory
-} from '@oes/common/authorization'
-import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
-import { SERVICE_NAMES } from '@oes/common/constants'
-import {
-  DownstreamRequestSource,
-  toOperatorScopedMetadataInput
-} from '../../../common/grpc/gateway-downstream-source.mapper'
-import {
-  buildProcurementOperatorContext,
-  buildProcurementTraceContext
-} from './procurement-grpc-context'
+  GatewayProcurementGrpcClient,
+  PROCUREMENT_TARGET_AUDIENCE
+} from '../../../common/grpc/gateway-procurement-grpc.client'
+import { GatewayTrustedGrpcExecutionProducer } from '../../../common/grpc/gateway-trusted-grpc-execution-producer'
 
 const CALLER = 'api-gateway'
 
-/** ProcurementQueryGrpcAdapter proxies the frozen phase 1 procurement query RPCs from api-gateway into procurement-service. */
+/** Proxies Procurement queries through one dedicated mTLS channel and exact BUSINESS tokens. */
 @Injectable()
 export class ProcurementQueryGrpcAdapter implements OnModuleInit {
   private purchaseOrderSvc!: PurchaseOrderQueryServiceClient
@@ -47,156 +38,127 @@ export class ProcurementQueryGrpcAdapter implements OnModuleInit {
   private receivingSvc!: ReceivingExpectationQueryServiceClient
 
   constructor(
-    @InjectGrpcClient(SERVICE_NAMES.PROCUREMENT)
-    private readonly client: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory
+    private readonly client: GatewayProcurementGrpcClient,
+    private readonly producer: GatewayTrustedGrpcExecutionProducer
   ) {}
 
   onModuleInit(): void {
-    this.purchaseRequestSvc = this.client.getService<PurchaseRequestQueryServiceClient>(
-      PURCHASE_REQUEST_QUERY_SERVICE_NAME
-    )
-    this.purchaseOrderSvc = this.client.getService<PurchaseOrderQueryServiceClient>(
-      PURCHASE_ORDER_QUERY_SERVICE_NAME
-    )
-    this.receivingSvc = this.client.getService<ReceivingExpectationQueryServiceClient>(
-      RECEIVING_EXPECTATION_QUERY_SERVICE_NAME
-    )
+    this.purchaseRequestSvc = this.client.purchaseRequestQuery()
+    this.purchaseOrderSvc = this.client.purchaseOrderQuery()
+    this.receivingSvc = this.client.receivingExpectationQuery()
   }
 
-  /** searchPurchaseRequests forwards one tenant-scoped purchase request directory query. */
-  searchPurchaseRequests(
-    input: Omit<SearchPurchaseRequestsRequest, 'operatorContext' | 'traceContext'>,
+  async searchPurchaseRequests(
+    input: SearchPurchaseRequestsRequest,
     source: DownstreamRequestSource
   ): Promise<SearchPurchaseRequestsResponse> {
     return this.call(
       'searchPurchaseRequests',
       this.purchaseRequestSvc.searchPurchaseRequests(
-        {
-          ...input,
-          operatorContext: buildProcurementOperatorContext(source),
-          traceContext: buildProcurementTraceContext(source)
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        input,
+        await this.metadata(source, PROCUREMENT_MANAGEMENT_PERMISSION_CODES.LIST_PURCHASE_REQUEST)
       )
     )
   }
 
-  /** getPurchaseRequest forwards one purchase request detail read. */
-  getPurchaseRequest(
-    input: Omit<GetPurchaseRequestRequest, 'operatorContext' | 'traceContext'>,
+  async getPurchaseRequest(
+    input: GetPurchaseRequestRequest,
     source: DownstreamRequestSource
   ): Promise<GetPurchaseRequestResponse> {
     return this.call(
       'getPurchaseRequest',
       this.purchaseRequestSvc.getPurchaseRequest(
-        {
-          ...input,
-          operatorContext: buildProcurementOperatorContext(source),
-          traceContext: buildProcurementTraceContext(source)
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        input,
+        await this.metadata(source, PROCUREMENT_MANAGEMENT_PERMISSION_CODES.GET_PURCHASE_REQUEST)
       )
     )
   }
 
-  /** searchPurchaseOrders forwards one tenant-scoped purchase order directory query. */
-  searchPurchaseOrders(
-    input: Omit<SearchPurchaseOrdersRequest, 'operatorContext' | 'traceContext'>,
+  async searchPurchaseOrders(
+    input: SearchPurchaseOrdersRequest,
     source: DownstreamRequestSource
   ): Promise<SearchPurchaseOrdersResponse> {
     return this.call(
       'searchPurchaseOrders',
       this.purchaseOrderSvc.searchPurchaseOrders(
-        {
-          ...input,
-          operatorContext: buildProcurementOperatorContext(source),
-          traceContext: buildProcurementTraceContext(source)
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        input,
+        await this.metadata(source, PROCUREMENT_MANAGEMENT_PERMISSION_CODES.LIST_PURCHASE_ORDER)
       )
     )
   }
 
-  /** getPurchaseOrder forwards one purchase order detail read. */
-  getPurchaseOrder(
-    input: Omit<GetPurchaseOrderRequest, 'operatorContext' | 'traceContext'>,
+  async getPurchaseOrder(
+    input: GetPurchaseOrderRequest,
     source: DownstreamRequestSource
   ): Promise<GetPurchaseOrderResponse> {
     return this.call(
       'getPurchaseOrder',
       this.purchaseOrderSvc.getPurchaseOrder(
-        {
-          ...input,
-          operatorContext: buildProcurementOperatorContext(source),
-          traceContext: buildProcurementTraceContext(source)
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        input,
+        await this.metadata(source, PROCUREMENT_MANAGEMENT_PERMISSION_CODES.GET_PURCHASE_ORDER)
       )
     )
   }
 
-  /** listPurchaseOrderChanges forwards one purchase order change history read. */
-  listPurchaseOrderChanges(
-    input: Omit<ListPurchaseOrderChangesRequest, 'operatorContext' | 'traceContext'>,
+  async listPurchaseOrderChanges(
+    input: ListPurchaseOrderChangesRequest,
     source: DownstreamRequestSource
   ): Promise<ListPurchaseOrderChangesResponse> {
     return this.call(
       'listPurchaseOrderChanges',
       this.purchaseOrderSvc.listPurchaseOrderChanges(
-        {
-          ...input,
-          operatorContext: buildProcurementOperatorContext(source),
-          traceContext: buildProcurementTraceContext(source)
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        input,
+        await this.metadata(
+          source,
+          PROCUREMENT_MANAGEMENT_PERMISSION_CODES.LIST_PURCHASE_ORDER_CHANGES
+        )
       )
     )
   }
 
-  /** searchReceivingExpectations forwards one receiving expectation directory query. */
-  searchReceivingExpectations(
-    input: Omit<SearchReceivingExpectationsRequest, 'operatorContext' | 'traceContext'>,
+  async searchReceivingExpectations(
+    input: SearchReceivingExpectationsRequest,
     source: DownstreamRequestSource
   ): Promise<SearchReceivingExpectationsResponse> {
     return this.call(
       'searchReceivingExpectations',
       this.receivingSvc.searchReceivingExpectations(
-        {
-          ...input,
-          operatorContext: buildProcurementOperatorContext(source),
-          traceContext: buildProcurementTraceContext(source)
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        input,
+        await this.metadata(
+          source,
+          PROCUREMENT_MANAGEMENT_PERMISSION_CODES.LIST_RECEIVING_EXPECTATION
+        )
       )
     )
   }
 
-  /** getReceivingExpectation forwards one receiving expectation detail read. */
-  getReceivingExpectation(
-    input: Omit<GetReceivingExpectationRequest, 'operatorContext' | 'traceContext'>,
+  async getReceivingExpectation(
+    input: GetReceivingExpectationRequest,
     source: DownstreamRequestSource
   ): Promise<GetReceivingExpectationResponse> {
     return this.call(
       'getReceivingExpectation',
       this.receivingSvc.getReceivingExpectation(
-        {
-          ...input,
-          operatorContext: buildProcurementOperatorContext(source),
-          traceContext: buildProcurementTraceContext(source)
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        input,
+        await this.metadata(
+          source,
+          PROCUREMENT_MANAGEMENT_PERMISSION_CODES.GET_RECEIVING_EXPECTATION
+        )
       )
     )
   }
 
-  /** call wraps one gateway procurement query RPC with the shared safe gRPC transport helpers. */
-  private call<TResponse>(method: string, call$: any): Promise<TResponse> {
+  /** Produces exact Procurement-audience metadata solely from the verified Gateway session. */
+  private metadata(source: DownstreamRequestSource, code: string) {
+    return this.producer.forBusinessCall(source, PROCUREMENT_TARGET_AUDIENCE, [code])
+  }
+
+  /** Wraps one generated Procurement query observable with the shared error contract. */
+  private call<TResponse>(method: string, call$: Observable<TResponse>): Promise<TResponse> {
     return safeGrpcCall<TResponse>(call$, this.opts(method))
   }
 
-  /** opts builds the shared gateway caller metadata for one proxied procurement query. */
+  /** Identifies the Gateway/Procurement method pair without injecting authority. */
   private opts(method: string): SafeGrpcCallOptions {
     return { caller: CALLER, method }
   }

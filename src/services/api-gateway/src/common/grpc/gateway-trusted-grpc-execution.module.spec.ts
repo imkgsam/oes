@@ -7,6 +7,7 @@ import { GatewayMesGrpcClient } from './gateway-mes-grpc.client'
 import { GatewayCollaborationGrpcClient } from './gateway-collaboration-grpc.client'
 import { GatewayItemMasterGrpcClient } from './gateway-item-master-grpc.client'
 import { GatewaySrmGrpcClient } from './gateway-srm-grpc.client'
+import { GatewayProcurementGrpcClient } from './gateway-procurement-grpc.client'
 import { Module } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 
@@ -49,6 +50,7 @@ describe('GatewayTrustedGrpcExecutionModule wiring', () => {
         GatewayCollaborationGrpcClient,
         GatewayItemMasterGrpcClient,
         GatewaySrmGrpcClient,
+        GatewayProcurementGrpcClient,
         GatewayMachineWorkloadSourceCredentialProvider,
         GatewayMachineTrustedGrpcExecutionProducer
       ])
@@ -61,6 +63,7 @@ describe('GatewayTrustedGrpcExecutionModule wiring', () => {
         GatewayCollaborationGrpcClient,
         GatewayItemMasterGrpcClient,
         GatewaySrmGrpcClient,
+        GatewayProcurementGrpcClient,
         GatewayMachineWorkloadSourceCredentialProvider,
         GatewayMachineTrustedGrpcExecutionProducer
       ])
@@ -80,7 +83,8 @@ describe('GatewayTrustedGrpcExecutionModule wiring', () => {
       'urn:oes:service:mes-service',
       'urn:oes:service:collaboration-service',
       'urn:oes:service:item-master-service',
-      'urn:oes:service:srm-service'
+      'urn:oes:service:srm-service',
+      'urn:oes:service:procurement-service'
     ])
   })
 
@@ -110,6 +114,13 @@ describe('GatewayTrustedGrpcExecutionModule wiring', () => {
     class ConsumerModule {}
     const module = await Test.createTestingModule({ imports: [ConsumerModule] }).compile()
     expect(module.get(GatewaySrmGrpcClient)).toBeInstanceOf(GatewaySrmGrpcClient)
+  })
+
+  it('exports the dedicated Procurement client through the real Nest DI graph', async () => {
+    @Module({ imports: [GatewayTrustedGrpcExecutionModule] })
+    class ConsumerModule {}
+    const module = await Test.createTestingModule({ imports: [ConsumerModule] }).compile()
+    expect(module.get(GatewayProcurementGrpcClient)).toBeInstanceOf(GatewayProcurementGrpcClient)
   })
 
   it('fails closed when deployment trust configuration is absent instead of installing a default producer', () => {

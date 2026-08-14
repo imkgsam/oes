@@ -8,11 +8,14 @@ import { SearchPurchaseOrdersHandler } from '../application/queries/search-purch
 import { ListPurchaseOrderChangesHandler } from '../application/queries/list-purchase-order-changes.handler'
 import { GetReceivingExpectationHandler } from '../application/queries/get-receiving-expectation.handler'
 import { SearchReceivingExpectationsHandler } from '../application/queries/search-receiving-expectations.handler'
+import { ResolveReceivingExpectationForReceiptHandler } from '../application/queries/resolve-receiving-expectation-for-receipt.handler'
+import { ProcurementInternalQueryGrpcController } from '../interfaces/grpc/procurement-internal-query.grpc.controller'
 import { ProcurementQueryGrpcController } from '../interfaces/grpc/procurement-query.grpc.controller'
+import { ProcurementTrustedExecutionModule } from './procurement-trusted-execution.module'
 
 /** ProcurementQueryModule wires the phase 1 procurement query handlers and gRPC controller surface. */
 @Module({
-  imports: [CqrsModule],
+  imports: [CqrsModule, ProcurementTrustedExecutionModule],
   providers: [
     ValidatingQueryBus,
     GetPurchaseRequestHandler,
@@ -21,8 +24,9 @@ import { ProcurementQueryGrpcController } from '../interfaces/grpc/procurement-q
     SearchPurchaseOrdersHandler,
     ListPurchaseOrderChangesHandler,
     GetReceivingExpectationHandler,
-    SearchReceivingExpectationsHandler
+    SearchReceivingExpectationsHandler,
+    ResolveReceivingExpectationForReceiptHandler
   ],
-  controllers: [ProcurementQueryGrpcController]
+  controllers: [ProcurementQueryGrpcController, ProcurementInternalQueryGrpcController]
 })
 export class ProcurementQueryModule {}

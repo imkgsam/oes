@@ -1,14 +1,25 @@
-import {
-  assertAuditContext,
-  assertOperatorContext,
-  assertRequiredString,
-  assertTraceContext
-} from '../../application/support/procurement-assertions'
+import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common'
+import { getAuthenticatedGrpcRequestContext } from '@oes/common/authorization'
+import { ExceptionFactory } from '@oes/common/exceptions'
+import { PROCUREMENT_UNAUTHENTICATED } from '../../common/errors/procurement.errors'
 import {
   ProcurementAuditContext,
   ProcurementOperatorContext,
   ProcurementTraceContext
 } from '../../domain/models/procurement-records'
+
+const RETIRED_AUTHORITY_FIELDS = [
+  'tenantId',
+  'tenant_id',
+  'orgId',
+  'org_id',
+  'operatorContext',
+  'operator_context',
+  'traceContext',
+  'trace_context',
+  'auditContext',
+  'audit_context'
+] as const
 
 export interface ProcurementQueryContext {
   tenantId: string
@@ -20,74 +31,97 @@ export interface ProcurementManagementContext extends ProcurementQueryContext {
   auditContext: ProcurementAuditContext
 }
 
-/** ProcurementRpcContextValidator validates the explicit tenant, operator, trace, and audit contexts frozen in the procurement contracts. */
-export class ProcurementRpcContextValidator {
-  /** assertQueryContext validates the read-path explicit tenant, operator, and trace context payload. */
-  static assertQueryContext(request: {
-    tenantId?: string
-    operatorContext?: {
-      operatorId?: string | null
-      operatorType?: string | null
-      orgId?: string | null
-    } | null
-    traceContext?: {
-      traceId?: string | null
-      requestId?: string | null
-    } | null
-  }): ProcurementQueryContext {
-    assertRequiredString(request.tenantId ?? '', 'tenantId')
+/** Maps only guard-verified ET and transport facts into Procurement application context. */
+@Injectable()
+export class ProcurementRpcContextValidator implements CanActivate {
+  canActivate(context: ExecutionContext): boolean {
+    ProcurementRpcContextValidator.assertQueryContext(context.switchToRpc().getData())
+    return true
+  }
+
+  /** Derives tenant, operator, org, trace, and request identity without request-body authority. */
+  static assertQueryContext(request: object): ProcurementQueryContext {
+    const trusted = requireTrustedContext(request)
     return {
-      tenantId: request.tenantId ?? '',
-      operatorContext: assertOperatorContext(
-        request.operatorContext
-          ? {
-              operatorId: request.operatorContext.operatorId ?? '',
-              operatorType: request.operatorContext.operatorType ?? '',
-              orgId: request.operatorContext.orgId ?? null
-            }
-          : null
-      ),
-      traceContext: assertTraceContext(
-        request.traceContext
-          ? {
-              traceId: request.traceContext.traceId ?? '',
-              requestId: request.traceContext.requestId ?? ''
-            }
-          : null
-      )
+      tenantId: trusted.tenantId,
+      operatorContext: {
+        operatorId: trusted.subject,
+        operatorType: 'HUMAN',
+        orgId: trusted.orgId ?? null
+      },
+      traceContext: {
+        traceId: trusted.traceId,
+        requestId: trusted.requestId
+      }
     }
   }
 
-  /** assertManagementContext validates the write-path explicit tenant, operator, trace, and audit contexts. */
-  static assertManagementContext(request: {
-    tenantId?: string
-    operatorContext?: {
-      operatorId?: string | null
-      operatorType?: string | null
-      orgId?: string | null
-    } | null
-    traceContext?: {
-      traceId?: string | null
-      requestId?: string | null
-    } | null
-    auditContext?: {
-      auditId?: string | null
-      reason?: string | null
-      source?: string | null
-    } | null
-  }): ProcurementManagementContext {
-    const queryContext = this.assertQueryContext(request)
+  /** Derives the mutation audit envelope solely from the verified token and current transport. */
+  static assertManagementContext(request: object): ProcurementManagementContext {
+    const trusted = requireTrustedContext(request)
     return {
-      ...queryContext,
-      auditContext: assertAuditContext(
-        request.auditContext
-          ? {
-              auditId: request.auditContext.auditId ?? '',
-              reason: request.auditContext.reason ?? '',
-              source: request.auditContext.source ?? ''
-            }
-          : null
-      )
+      tenantId: trusted.tenantId,
+      operatorContext: {
+        operatorId: trusted.subject,
+        operatorType: 'HUMAN',
+        orgId: trusted.orgId ?? null
+      },
+      traceContext: {
+        traceId: trusted.traceId,
+        requestId: trusted.requestId
+      },
+      auditContext: {
+        auditId: trusted.tokenId,
+        reason: 'verified procurement command',
+        source: trusted.workload
+      }
     }
   }
+}
+
+/** Validates the private verified context and rejects every retired authority carrier. */
+function requireTrustedContext(request: object) {
+  if (!request || typeof request !== 'object') {
+    throw unauthenticated('Procurement gRPC request payload is missing')
+  }
+  if (
+    RETIRED_AUTHORITY_FIELDS.some((field) => Object.prototype.hasOwnProperty.call(request, field))
+  ) {
+    throw unauthenticated('retired Procurement request authority is forbidden')
+  }
+  const context = getAuthenticatedGrpcRequestContext(request)
+  const transportContext = context as
+    | (typeof context & { requestId?: string; traceId?: string })
+    | undefined
+  const execution = context?.verifiedExecutionToken
+  const tenantId = execution?.tenantId
+  const workload = context?.verifiedWorkloadIdentity?.spiffeId
+  if (
+    execution?.principalType !== 'HUMAN' ||
+    !tenantId ||
+    tenantId.trim() !== tenantId ||
+    tenantId === 'SYSTEM' ||
+    tenantId === '*' ||
+    !execution.subject?.trim() ||
+    !execution.tokenId?.trim() ||
+    !transportContext?.requestId?.trim() ||
+    !transportContext.traceId?.trim() ||
+    !workload?.trim()
+  ) {
+    throw unauthenticated('verified Procurement HUMAN execution context is missing')
+  }
+  return Object.freeze({
+    tenantId,
+    subject: execution.subject,
+    orgId: execution.orgId,
+    tokenId: execution.tokenId,
+    workload,
+    requestId: transportContext.requestId,
+    traceId: transportContext.traceId
+  })
+}
+
+/** Creates one stable Procurement authentication-context failure without echoing caller material. */
+function unauthenticated(reason: string) {
+  return ExceptionFactory.application(PROCUREMENT_UNAUTHENTICATED, { reason })
 }

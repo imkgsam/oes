@@ -6,6 +6,7 @@ import { ProcurementItemMasterTrustedGrpcClient } from '../../src/infrastructure
 import { ProcurementItemMasterExecutionTokenExchangeClient } from '../../src/infrastructure/adapters/procurement-item-master-execution-token-exchange.client'
 import { ProcurementItemMasterTrustedGrpcExecutionProducer } from '../../src/infrastructure/adapters/procurement-item-master-trusted-grpc-execution.producer'
 import { ProcurementInfrastructureModule } from '../../src/modules/procurement-infrastructure.module'
+import { ProcurementTrustedExecutionModule } from '../../src/modules/procurement-trusted-execution.module'
 
 const audience = 'urn:oes:service:item-master-service'
 const code = ITEM_MASTER_INTERNAL_PERMISSION_CODES.RESOLVE_PURCHASABLE_ITEM
@@ -27,14 +28,24 @@ describe('Procurement Item Master trusted execution L1', () => {
     process.env = saved
   })
 
-  it('keeps the prepared caller graph out of production DI until Procurement inbound migration', () => {
+  it('activates the complete caller graph only after trusted Procurement inbound migration', () => {
     const tokens = [
       ProcurementItemMasterTrustedGrpcClient,
       ProcurementItemMasterExecutionTokenExchangeClient,
       ProcurementItemMasterTrustedGrpcExecutionProducer
     ]
-    const providers = Reflect.getMetadata('providers', ProcurementInfrastructureModule) as unknown[]
-    expect(providers).not.toEqual(expect.arrayContaining(tokens))
+    const providers = Reflect.getMetadata('providers', ProcurementTrustedExecutionModule) as Array<
+      unknown | { provide?: unknown }
+    >
+    const providerTokens = providers.map((provider) =>
+      typeof provider === 'object' && provider !== null && 'provide' in provider
+        ? provider.provide
+        : provider
+    )
+    expect(providerTokens).toEqual(expect.arrayContaining(tokens))
+    expect(Reflect.getMetadata('providers', ProcurementInfrastructureModule)).toEqual(
+      expect.arrayContaining([ItemMasterQueryGrpcAdapter])
+    )
   })
 
   it('calls only ResolvePurchasableItem with the exact code and no body tenant', async () => {

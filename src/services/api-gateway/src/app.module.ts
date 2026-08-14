@@ -206,15 +206,6 @@ const siteGrpcLoaderOptions = { longs: String, arrays: true }
               ? `${process.env.IDENTITY_SERVICE_HOST}:${process.env.IDENTITY_SERVICE_PORT}`
               : 'localhost:50052'
         },
-        [SERVICE_NAMES.PROCUREMENT]: {
-          serviceName: SERVICE_NAMES.PROCUREMENT,
-          protoPath: resolveCommonProtoPath('procurement_service/procurement.proto'),
-          packageName: 'procurement_service',
-          url:
-            process.env.PROCUREMENT_SERVICE_HOST && process.env.PROCUREMENT_SERVICE_PORT
-              ? `${process.env.PROCUREMENT_SERVICE_HOST}:${process.env.PROCUREMENT_SERVICE_PORT}`
-              : 'localhost:50062'
-        },
         [SERVICE_NAMES.SITE]: {
           serviceName: SERVICE_NAMES.SITE,
           protoPath: resolveCommonProtoPath('site_service/site.proto'),

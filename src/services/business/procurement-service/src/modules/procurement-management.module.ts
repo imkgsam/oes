@@ -17,10 +17,11 @@ import { CreateReceivingExpectationHandler } from '../application/commands/creat
 import { RecordReceivingDiscrepancyResolutionHandler } from '../application/commands/record-receiving-discrepancy-resolution.handler'
 import { ProcurementAuditService } from '../application/services/procurement-audit.service'
 import { ProcurementManagementGrpcController } from '../interfaces/grpc/procurement-management.grpc.controller'
+import { ProcurementTrustedExecutionModule } from './procurement-trusted-execution.module'
 
 /** ProcurementManagementModule wires the phase 1 procurement command handlers, audit service, and gRPC controller surface. */
 @Module({
-  imports: [CqrsModule],
+  imports: [CqrsModule, ProcurementTrustedExecutionModule],
   providers: [
     ValidatingCommandBus,
     ProcurementAuditService,

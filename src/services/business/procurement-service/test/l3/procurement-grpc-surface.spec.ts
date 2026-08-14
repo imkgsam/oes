@@ -22,41 +22,54 @@ import {
   SearchPurchaseRequestsRequest,
   SearchReceivingExpectationsRequest
 } from '@oes/common/generated/procurement_service'
+import {
+  attachVerifiedExecution,
+  getAuthenticatedGrpcRequestContext
+} from '@oes/common/authorization'
 import { ProcurementManagementGrpcController } from '../../src/interfaces/grpc/procurement-management.grpc.controller'
 import { ProcurementQueryGrpcController } from '../../src/interfaces/grpc/procurement-query.grpc.controller'
 
-/** buildQueryContext creates the explicit tenant/operator/trace shape frozen by the query contracts. */
-function buildQueryContext(): Pick<
-  SearchPurchaseRequestsRequest,
-  'tenantId' | 'operatorContext' | 'traceContext'
-> {
-  return {
-    tenantId: 'tenant-1',
-    operatorContext: {
-      operatorId: 'operator-1',
-      operatorType: 'HUMAN',
-      orgId: 'org-1'
-    },
-    traceContext: {
-      traceId: 'trace-1',
-      requestId: 'request-1'
-    }
-  }
+/** buildQueryContext attaches only the guard-verified ET/mTLS facts consumed by query controllers. */
+function buildQueryContext(): Record<string, unknown> {
+  return buildTrustedRequestContext()
 }
 
-/** buildManagementContext creates the explicit tenant/operator/trace/audit shape frozen by the management contracts. */
-function buildManagementContext(): Pick<
-  CreatePurchaseRequestRequest,
-  'tenantId' | 'operatorContext' | 'traceContext' | 'auditContext'
-> {
-  return {
-    ...buildQueryContext(),
-    auditContext: {
-      auditId: 'audit-1',
-      reason: 'test',
-      source: 'jest'
+/** buildManagementContext reuses the same verified authority with no request-body audit carrier. */
+function buildManagementContext(): Record<string, unknown> {
+  return buildTrustedRequestContext()
+}
+
+/** buildTrustedRequestContext emulates the already-verified guard output for direct controller tests. */
+function buildTrustedRequestContext(): Record<string, unknown> {
+  const request: Record<string, unknown> = {}
+  attachVerifiedExecution(request, {
+    verifiedExecutionToken: {
+      issuer: 'https://auth.example',
+      audience: 'urn:oes:service:procurement-service',
+      subject: 'operator-1',
+      principalType: 'HUMAN',
+      clientId: 'spiffe://oes/api-gateway',
+      tenantId: 'tenant-1',
+      orgId: 'org-1',
+      permissionCodes: [],
+      tokenId: 'token-1',
+      issuedAt: 1,
+      notBefore: 1,
+      expiresAt: 9999999999,
+      certificateThumbprint: 'A'.repeat(43),
+      sessionId: 'session-1',
+      sessionTerminal: 'WEB'
+    },
+    verifiedWorkloadIdentity: {
+      spiffeId: 'spiffe://oes/api-gateway',
+      certificateThumbprint: 'A'.repeat(43)
     }
-  }
+  })
+  Object.assign(getAuthenticatedGrpcRequestContext(request) as object, {
+    requestId: 'request-1',
+    traceId: 'trace-1'
+  })
+  return request
 }
 
 describe('procurement-service grpc surface L3', () => {
@@ -112,7 +125,6 @@ describe('procurement-service grpc surface L3', () => {
 
     const response = await controller.createPurchaseRequest({
       ...buildManagementContext(),
-      orgId: 'org-1',
       requestType: ProtoPurchaseRequestType.PURCHASE_REQUEST_TYPE_DEPARTMENTAL,
       title: 'Office supplies',
       reason: 'phase 1',
@@ -235,7 +247,8 @@ describe('procurement-service grpc surface L3', () => {
             generalStockExcessReason: 'buffer stock',
             allocations: [
               {
-                allocationType: ProtoPurchaseOrderLineAllocationType.PURCHASE_ORDER_LINE_ALLOCATION_TYPE_GENERAL_STOCK,
+                allocationType:
+                  ProtoPurchaseOrderLineAllocationType.PURCHASE_ORDER_LINE_ALLOCATION_TYPE_GENERAL_STOCK,
                 quantity: '12',
                 reason: 'buffer stock'
               }
@@ -517,9 +530,15 @@ describe('procurement-service grpc surface L3', () => {
       attachmentRefs: ['asset://payment-proof-1'],
       lastPaymentAt: '2026-04-28T12:00:00.000Z'
     })
-    expect((response.purchaseOrder?.lines?.[0]?.allocations?.[0] as any).sourceReferenceId).toBe('pr-line-1')
-    expect((response.purchaseOrder?.lines?.[0]?.allocations?.[0] as any).targetWarehouseId).toBe('wh-a')
-    expect((response.purchaseOrder?.lines?.[0]?.allocations?.[0] as any).targetReceivingAddressId).toBe('addr-a')
+    expect((response.purchaseOrder?.lines?.[0]?.allocations?.[0] as any).sourceReferenceId).toBe(
+      'pr-line-1'
+    )
+    expect((response.purchaseOrder?.lines?.[0]?.allocations?.[0] as any).targetWarehouseId).toBe(
+      'wh-a'
+    )
+    expect(
+      (response.purchaseOrder?.lines?.[0]?.allocations?.[0] as any).targetReceivingAddressId
+    ).toBe('addr-a')
   })
 
   it('GetReceivingExpectation / should dispatch the query and present discrepancy summaries without exposing inventory truth', async () => {
@@ -590,7 +609,9 @@ describe('procurement-service grpc surface L3', () => {
   })
 
   it('controller surface / should not expose RFQ SupplierQuote AP or NonPO methods in phase 1', () => {
-    const managementMethods = Object.getOwnPropertyNames(ProcurementManagementGrpcController.prototype)
+    const managementMethods = Object.getOwnPropertyNames(
+      ProcurementManagementGrpcController.prototype
+    )
     const queryMethods = Object.getOwnPropertyNames(ProcurementQueryGrpcController.prototype)
 
     const joined = `${managementMethods.join(' ')} ${queryMethods.join(' ')}`

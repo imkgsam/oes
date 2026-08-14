@@ -100,10 +100,9 @@ export class ProcurementService {
         pageSize: Math.min(Math.max(query.pageSize ?? 20, 1), 100),
         requestType: toGrpcPurchaseRequestType(query.requestType),
         requesterOperatorId: normalize(query.requesterOperatorId),
-        status: toGrpcPurchaseRequestStatus(query.status),
-        tenantId: this.resolveTenantId(tenantId, source)
+        status: toGrpcPurchaseRequestStatus(query.status)
       },
-      source
+      this.trustedSource(tenantId, source)
     )
 
     return {
@@ -141,10 +140,9 @@ export class ProcurementService {
   ) {
     const result = await this.procurementQueryAdapter.getPurchaseRequest(
       {
-        purchaseRequestId: requireNonBlank(purchaseRequestId, 'purchaseRequestId'),
-        tenantId: this.resolveTenantId(tenantId, source)
+        purchaseRequestId: requireNonBlank(purchaseRequestId, 'purchaseRequestId')
       },
-      source
+      this.trustedSource(tenantId, source)
     )
 
     return mapPurchaseRequest(result.purchaseRequest)
@@ -173,13 +171,11 @@ export class ProcurementService {
     const result = await this.procurementManagementAdapter.createPurchaseRequest(
       {
         lines: mapPurchaseRequestLineInputs(input.lines),
-        orgId: normalize(input.orgId),
         reason: normalize(input.reason),
         requestType: requireGrpcPurchaseRequestType(input.requestType),
-        tenantId: this.resolveTenantId(tenantId, source),
         title: normalize(input.title)
       },
-      source
+      this.trustedSource(tenantId, source)
     )
 
     return mapPurchaseRequest(result.purchaseRequest)
@@ -209,10 +205,9 @@ export class ProcurementService {
         lines: mapPurchaseRequestLineInputs(input.lines),
         purchaseRequestId: requireNonBlank(purchaseRequestId, 'purchaseRequestId'),
         reason: normalize(input.reason),
-        tenantId: this.resolveTenantId(tenantId, source),
         title: normalize(input.title)
       },
-      source
+      this.trustedSource(tenantId, source)
     )
 
     return mapPurchaseRequest(result.purchaseRequest)
@@ -229,10 +224,9 @@ export class ProcurementService {
       {
         auditReason,
         purchaseRequestId: requireNonBlank(purchaseRequestId, 'purchaseRequestId'),
-        submissionComment: normalize(submissionComment),
-        tenantId: this.resolveTenantId(tenantId, source)
+        submissionComment: normalize(submissionComment)
       },
-      source
+      this.trustedSource(tenantId, source)
     )
 
     return mapPurchaseRequest(result.purchaseRequest)
@@ -255,10 +249,9 @@ export class ProcurementService {
         auditReason: input.auditReason,
         comment: normalize(input.comment),
         decision: requireGrpcPurchaseRequestDecision(input.decision),
-        purchaseRequestId: requireNonBlank(purchaseRequestId, 'purchaseRequestId'),
-        tenantId: this.resolveTenantId(tenantId, source)
+        purchaseRequestId: requireNonBlank(purchaseRequestId, 'purchaseRequestId')
       },
-      source
+      this.trustedSource(tenantId, source)
     )
 
     return mapPurchaseRequest(result.purchaseRequest)
@@ -277,10 +270,9 @@ export class ProcurementService {
       {
         auditReason: input.auditReason,
         cancelReason: requireNonBlank(input.cancelReason, 'cancelReason'),
-        purchaseRequestId: requireNonBlank(purchaseRequestId, 'purchaseRequestId'),
-        tenantId: this.resolveTenantId(tenantId, source)
+        purchaseRequestId: requireNonBlank(purchaseRequestId, 'purchaseRequestId')
       },
-      source
+      this.trustedSource(tenantId, source)
     )
 
     return mapPurchaseRequest(result.purchaseRequest)
@@ -319,10 +311,9 @@ export class ProcurementService {
             'selectedLines.purchaseRequestLineId'
           )
         })),
-        supplierId: requireNonBlank(input.supplierId, 'supplierId'),
-        tenantId: this.resolveTenantId(tenantId, source)
+        supplierId: requireNonBlank(input.supplierId, 'supplierId')
       },
-      source
+      this.trustedSource(tenantId, source)
     )
 
     return mapPurchaseOrder(result.purchaseOrder)
@@ -353,10 +344,9 @@ export class ProcurementService {
         pageSize: Math.min(Math.max(query.pageSize ?? 20, 1), 100),
         requestNo: normalize(query.requestNo),
         status: toGrpcPurchaseOrderStatus(query.status),
-        supplierId: normalize(query.supplierId),
-        tenantId: this.resolveTenantId(tenantId, source)
+        supplierId: normalize(query.supplierId)
       },
-      source
+      this.trustedSource(tenantId, source)
     )
 
     return {
@@ -384,10 +374,9 @@ export class ProcurementService {
   ) {
     const result = await this.procurementQueryAdapter.getPurchaseOrder(
       {
-        purchaseOrderId: requireNonBlank(purchaseOrderId, 'purchaseOrderId'),
-        tenantId: this.resolveTenantId(tenantId, source)
+        purchaseOrderId: requireNonBlank(purchaseOrderId, 'purchaseOrderId')
       },
-      source
+      this.trustedSource(tenantId, source)
     )
 
     return mapPurchaseOrder(result.purchaseOrder)
@@ -408,12 +397,10 @@ export class ProcurementService {
       {
         currencyCode: requireNonBlank(input.currencyCode, 'currencyCode'),
         lines: mapPurchaseOrderDraftLines(input.lines),
-        orgId: normalize(input.orgId),
         sourcePurchaseRequestIds: normalizeStringArray(input.sourcePurchaseRequestIds),
-        supplierId: requireNonBlank(input.supplierId, 'supplierId'),
-        tenantId: this.resolveTenantId(tenantId, source)
+        supplierId: requireNonBlank(input.supplierId, 'supplierId')
       },
-      source
+      this.trustedSource(tenantId, source)
     )
 
     return mapPurchaseOrder(result.purchaseOrder)
@@ -436,10 +423,9 @@ export class ProcurementService {
         lines: mapPurchaseOrderDraftLines(input.lines),
         purchaseOrderId: requireNonBlank(purchaseOrderId, 'purchaseOrderId'),
         sourcePurchaseRequestIds: normalizeStringArray(input.sourcePurchaseRequestIds),
-        supplierId: requireNonBlank(input.supplierId, 'supplierId'),
-        tenantId: this.resolveTenantId(tenantId, source)
+        supplierId: requireNonBlank(input.supplierId, 'supplierId')
       },
-      source
+      this.trustedSource(tenantId, source)
     )
 
     return mapPurchaseOrder(result.purchaseOrder)
@@ -456,10 +442,9 @@ export class ProcurementService {
       {
         auditReason,
         issueComment: normalize(issueComment),
-        purchaseOrderId: requireNonBlank(purchaseOrderId, 'purchaseOrderId'),
-        tenantId: this.resolveTenantId(tenantId, source)
+        purchaseOrderId: requireNonBlank(purchaseOrderId, 'purchaseOrderId')
       },
-      source
+      this.trustedSource(tenantId, source)
     )
 
     return mapPurchaseOrder(result.purchaseOrder)
@@ -482,10 +467,9 @@ export class ProcurementService {
         auditReason: input.auditReason,
         comment: normalize(input.comment),
         externalReference: normalize(input.externalReference),
-        purchaseOrderId: requireNonBlank(purchaseOrderId, 'purchaseOrderId'),
-        tenantId: this.resolveTenantId(tenantId, source)
+        purchaseOrderId: requireNonBlank(purchaseOrderId, 'purchaseOrderId')
       },
-      source
+      this.trustedSource(tenantId, source)
     )
 
     return mapPurchaseOrder(result.purchaseOrder)
@@ -528,10 +512,9 @@ export class ProcurementService {
                 )
               }
             : undefined
-        },
-        tenantId: this.resolveTenantId(tenantId, source)
+        }
       },
-      source
+      this.trustedSource(tenantId, source)
     )
 
     return {
@@ -553,10 +536,9 @@ export class ProcurementService {
       {
         auditReason: input.auditReason,
         cancelReason: requireNonBlank(input.cancelReason, 'cancelReason'),
-        purchaseOrderId: requireNonBlank(purchaseOrderId, 'purchaseOrderId'),
-        tenantId: this.resolveTenantId(tenantId, source)
+        purchaseOrderId: requireNonBlank(purchaseOrderId, 'purchaseOrderId')
       },
-      source
+      this.trustedSource(tenantId, source)
     )
 
     return mapPurchaseOrder(result.purchaseOrder)
@@ -575,10 +557,9 @@ export class ProcurementService {
       {
         page: Math.max(query.page ?? 1, 1),
         pageSize: Math.min(Math.max(query.pageSize ?? 20, 1), 100),
-        purchaseOrderId: requireNonBlank(purchaseOrderId, 'purchaseOrderId'),
-        tenantId: this.resolveTenantId(tenantId, source)
+        purchaseOrderId: requireNonBlank(purchaseOrderId, 'purchaseOrderId')
       },
-      source
+      this.trustedSource(tenantId, source)
     )
 
     return {
@@ -612,10 +593,9 @@ export class ProcurementService {
         pageSize: Math.min(Math.max(query.pageSize ?? 20, 1), 100),
         purchaseOrderId: normalize(query.purchaseOrderId),
         status: toGrpcReceivingExpectationStatus(query.status),
-        supplierId: normalize(query.supplierId),
-        tenantId: this.resolveTenantId(tenantId, source)
+        supplierId: normalize(query.supplierId)
       },
-      source
+      this.trustedSource(tenantId, source)
     )
 
     return {
@@ -644,10 +624,9 @@ export class ProcurementService {
   ) {
     const result = await this.procurementQueryAdapter.getReceivingExpectation(
       {
-        receivingExpectationId: requireNonBlank(receivingExpectationId, 'receivingExpectationId'),
-        tenantId: this.resolveTenantId(tenantId, source)
+        receivingExpectationId: requireNonBlank(receivingExpectationId, 'receivingExpectationId')
       },
-      source
+      this.trustedSource(tenantId, source)
     )
 
     return mapReceivingExpectation(result.receivingExpectation)
@@ -670,10 +649,9 @@ export class ProcurementService {
         expectedQuantity: requireNonBlank(input.expectedQuantity, 'expectedQuantity'),
         expectedReceiptDate: normalize(input.expectedReceiptDate),
         purchaseOrderId: requireNonBlank(input.purchaseOrderId, 'purchaseOrderId'),
-        purchaseOrderLineId: requireNonBlank(input.purchaseOrderLineId, 'purchaseOrderLineId'),
-        tenantId: this.resolveTenantId(tenantId, source)
+        purchaseOrderLineId: requireNonBlank(input.purchaseOrderLineId, 'purchaseOrderLineId')
       },
-      source
+      this.trustedSource(tenantId, source)
     )
 
     return mapReceivingExpectation(result.receivingExpectation)
@@ -690,29 +668,30 @@ export class ProcurementService {
     },
     source: DownstreamRequestSource
   ) {
-    const result =
-      await this.procurementManagementAdapter.recordReceivingDiscrepancyResolution(
-        {
-          auditReason: input.auditReason,
-          receivingDiscrepancyId: requireNonBlank(
-            receivingDiscrepancyId,
-            'receivingDiscrepancyId'
-          ),
-          receivingExpectationId: requireNonBlank(
-            receivingExpectationId,
-            'receivingExpectationId'
-          ),
-          resolutionCode: requireGrpcReceivingResolutionCode(input.resolutionCode),
-          resolutionNote: normalize(input.resolutionNote),
-          tenantId: this.resolveTenantId(tenantId, source)
-        },
-        source
-      )
+    const result = await this.procurementManagementAdapter.recordReceivingDiscrepancyResolution(
+      {
+        auditReason: input.auditReason,
+        receivingDiscrepancyId: requireNonBlank(receivingDiscrepancyId, 'receivingDiscrepancyId'),
+        receivingExpectationId: requireNonBlank(receivingExpectationId, 'receivingExpectationId'),
+        resolutionCode: requireGrpcReceivingResolutionCode(input.resolutionCode),
+        resolutionNote: normalize(input.resolutionNote)
+      },
+      this.trustedSource(tenantId, source)
+    )
 
     return {
       receivingDiscrepancy: mapReceivingDiscrepancy(result.receivingDiscrepancy),
       receivingExpectation: mapReceivingExpectation(result.receivingExpectation)
     }
+  }
+
+  /** trustedSource validates the route tenant while preserving the verified Gateway source object. */
+  private trustedSource(
+    tenantId: string,
+    source: DownstreamRequestSource
+  ): DownstreamRequestSource {
+    this.resolveTenantId(tenantId, source)
+    return source
   }
 
   /** resolveTenantId keeps tenant-scoped procurement requests pinned to the operator tenant. */
@@ -866,7 +845,9 @@ function mapPurchaseOrder(record?: any) {
     ...(orgId ? { orgId } : {}),
     paymentSummary: record?.paymentSummary
       ? {
-          attachmentRefs: (record.paymentSummary.attachmentRefs ?? []).map((ref: string) => ref ?? ''),
+          attachmentRefs: (record.paymentSummary.attachmentRefs ?? []).map(
+            (ref: string) => ref ?? ''
+          ),
           balancePaidAmount: record.paymentSummary.balancePaidAmount ?? '',
           currencyCode: record.paymentSummary.currencyCode ?? '',
           depositPaidAmount: record.paymentSummary.depositPaidAmount ?? '',
@@ -875,7 +856,9 @@ function mapPurchaseOrder(record?: any) {
         }
       : undefined,
     purchaseOrderId: record?.purchaseOrderId ?? '',
-    sourcePurchaseRequestIds: (record?.sourcePurchaseRequestIds ?? []).map((id: string) => id ?? ''),
+    sourcePurchaseRequestIds: (record?.sourcePurchaseRequestIds ?? []).map(
+      (id: string) => id ?? ''
+    ),
     status: fromGrpcPurchaseOrderStatus(record?.status),
     supplierAcknowledgement: record?.supplierAcknowledgement
       ? {
@@ -1131,7 +1114,9 @@ function requireGrpcReceivingResolutionCode(value?: string): ReceivingResolution
   }
 }
 
-function fromGrpcPurchaseRequestType(value?: PurchaseRequestType | string): PurchaseRequestTypeValue | string {
+function fromGrpcPurchaseRequestType(
+  value?: PurchaseRequestType | string
+): PurchaseRequestTypeValue | string {
   if (typeof value === 'string') {
     return value
   }
@@ -1190,7 +1175,9 @@ function fromGrpcPurchaseRequestLineType(
   if (typeof value === 'string') {
     return value
   }
-  return value === PurchaseRequestLineType.PURCHASE_REQUEST_LINE_TYPE_TEXT ? 'TEXT' : 'STANDARD_ITEM'
+  return value === PurchaseRequestLineType.PURCHASE_REQUEST_LINE_TYPE_TEXT
+    ? 'TEXT'
+    : 'STANDARD_ITEM'
 }
 
 function fromGrpcPurchaseOrderStatus(

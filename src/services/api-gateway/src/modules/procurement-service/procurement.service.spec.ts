@@ -540,9 +540,9 @@ describe('ProcurementService', () => {
           purchaseRequestLineId: 'pr-line-1'
         }
       ],
-      supplierId: 'supplier-1',
-      tenantId: 'tenant-1'
+      supplierId: 'supplier-1'
     })
+    expect(input).not.toHaveProperty('tenantId')
     expect(input).not.toHaveProperty('purchaseRequestId')
     expect(input).not.toHaveProperty('selectedLines')
   })
@@ -585,7 +585,9 @@ describe('ProcurementService', () => {
       }
     })
 
-    await expect(service.getPurchaseOrder('tenant-1', 'po-1', source as any)).resolves.toMatchObject({
+    await expect(
+      service.getPurchaseOrder('tenant-1', 'po-1', source as any)
+    ).resolves.toMatchObject({
       lines: [
         {
           allocations: [
@@ -641,8 +643,8 @@ describe('ProcurementService', () => {
       receivingDiscrepancyId: 'rd-1',
       receivingExpectationId: 're-1',
       resolutionCode: ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_ACCEPT_WITH_PO_CHANGE,
-      resolutionNote: 'accepted with tracked PO change',
-      tenantId: 'tenant-1'
+      resolutionNote: 'accepted with tracked PO change'
     })
+    expect(input).not.toHaveProperty('tenantId')
   })
 })

@@ -1,6 +1,9 @@
-import { Controller, UseFilters } from '@nestjs/common'
-import { GrpcRequestContextStore } from '@oes/common/authorization'
-import { SERVICE_NAMES } from '@oes/common/constants'
+import { Controller, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common'
+import {
+  AuthorizeBusinessRpc,
+  GrpcRequestContextInterceptor,
+  PROCUREMENT_MANAGEMENT_PERMISSION_CODES
+} from '@oes/common/authorization'
 import { ValidatingCommandBus } from '@oes/common/cqrs'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
@@ -69,9 +72,12 @@ import {
 } from '../../domain/models/procurement-records'
 import { ProcurementGrpcPresenter } from './procurement-grpc.presenter'
 import { ProcurementRpcContextValidator } from './procurement-rpc-context.validator'
+import { ProcurementTrustedBusinessExecutionGuard } from '../../modules/procurement-trusted-execution.module'
 
 /** ProcurementManagementGrpcController exposes the phase 1 procurement command contract with local audit envelope recording. */
 @UseFilters(GrpcExceptionFilter)
+@UseGuards(ProcurementTrustedBusinessExecutionGuard, ProcurementRpcContextValidator)
+@UseInterceptors(GrpcRequestContextInterceptor)
 @Controller()
 @PurchaseRequestManagementServiceControllerMethods()
 @PurchaseOrderManagementServiceControllerMethods()
@@ -84,11 +90,12 @@ export class ProcurementManagementGrpcController
 {
   constructor(
     private readonly commandBus: ValidatingCommandBus,
-    private readonly auditService: ProcurementAuditService,
-    private readonly requestContextStore: GrpcRequestContextStore
+    private readonly auditService: ProcurementAuditService
   ) {}
 
-  async createPurchaseRequest(request: CreatePurchaseRequestRequest): Promise<CreatePurchaseRequestResponse> {
+  async createPurchaseRequest(
+    request: CreatePurchaseRequestRequest
+  ): Promise<CreatePurchaseRequestResponse> {
     const context = ProcurementRpcContextValidator.assertManagementContext(request)
     return this.runWithContext(context, () =>
       this.auditService.recordCommand(
@@ -108,11 +115,11 @@ export class ProcurementManagementGrpcController
         async () => {
           const record = await this.commandBus.execute(
             new CreatePurchaseRequestCommand({
-              tenantId: request.tenantId ?? '',
-              orgId: request.orgId ?? undefined,
+              tenantId: context.tenantId,
+              orgId: context.operatorContext.orgId ?? undefined,
               requester: {
-                operatorId: request.operatorContext?.operatorId ?? '',
-                displayName: request.operatorContext?.operatorId ?? ''
+                operatorId: context.operatorContext.operatorId,
+                displayName: context.operatorContext.operatorId
               },
               requestType: toDomainPurchaseRequestType(request.requestType),
               title: request.title ?? undefined,
@@ -158,7 +165,7 @@ export class ProcurementManagementGrpcController
         async () => {
           const record = await this.commandBus.execute(
             new UpdatePurchaseRequestDraftCommand({
-              tenantId: request.tenantId ?? '',
+              tenantId: context.tenantId,
               purchaseRequestId: request.purchaseRequestId ?? '',
               title: request.title ?? undefined,
               reason: request.reason ?? undefined,
@@ -181,7 +188,9 @@ export class ProcurementManagementGrpcController
     )
   }
 
-  async submitPurchaseRequest(request: SubmitPurchaseRequestRequest): Promise<SubmitPurchaseRequestResponse> {
+  async submitPurchaseRequest(
+    request: SubmitPurchaseRequestRequest
+  ): Promise<SubmitPurchaseRequestResponse> {
     const context = ProcurementRpcContextValidator.assertManagementContext(request)
     return this.runWithContext(context, () =>
       this.auditService.recordCommand(
@@ -201,7 +210,7 @@ export class ProcurementManagementGrpcController
           ProcurementGrpcPresenter.toSubmitPurchaseRequestResponse(
             await this.commandBus.execute(
               new SubmitPurchaseRequestCommand({
-                tenantId: request.tenantId ?? '',
+                tenantId: context.tenantId,
                 purchaseRequestId: request.purchaseRequestId ?? '',
                 submissionComment: request.submissionComment ?? undefined
               })
@@ -211,7 +220,9 @@ export class ProcurementManagementGrpcController
     )
   }
 
-  async decidePurchaseRequest(request: DecidePurchaseRequestRequest): Promise<DecidePurchaseRequestResponse> {
+  async decidePurchaseRequest(
+    request: DecidePurchaseRequestRequest
+  ): Promise<DecidePurchaseRequestResponse> {
     const context = ProcurementRpcContextValidator.assertManagementContext(request)
     return this.runWithContext(context, () =>
       this.auditService.recordCommand(
@@ -232,14 +243,14 @@ export class ProcurementManagementGrpcController
           ProcurementGrpcPresenter.toUpdatePurchaseRequestDraftResponse(
             await this.commandBus.execute(
               new DecidePurchaseRequestCommand({
-                tenantId: request.tenantId ?? '',
+                tenantId: context.tenantId,
                 purchaseRequestId: request.purchaseRequestId ?? '',
                 decision: toDomainPurchaseRequestDecision(request.decision),
                 comment: request.comment ?? undefined,
                 approvalReference: request.approvalReference ?? undefined,
                 decidedBy: {
-                  operatorId: request.operatorContext?.operatorId ?? '',
-                  displayName: request.operatorContext?.operatorId ?? ''
+                  operatorId: context.operatorContext.operatorId,
+                  displayName: context.operatorContext.operatorId
                 }
               })
             )
@@ -248,7 +259,9 @@ export class ProcurementManagementGrpcController
     )
   }
 
-  async cancelPurchaseRequest(request: CancelPurchaseRequestRequest): Promise<CancelPurchaseRequestResponse> {
+  async cancelPurchaseRequest(
+    request: CancelPurchaseRequestRequest
+  ): Promise<CancelPurchaseRequestResponse> {
     const context = ProcurementRpcContextValidator.assertManagementContext(request)
     return this.runWithContext(context, () =>
       this.auditService.recordCommand(
@@ -268,7 +281,7 @@ export class ProcurementManagementGrpcController
           ProcurementGrpcPresenter.toCancelPurchaseRequestResponse(
             await this.commandBus.execute(
               new CancelPurchaseRequestCommand({
-                tenantId: request.tenantId ?? '',
+                tenantId: context.tenantId,
                 purchaseRequestId: request.purchaseRequestId ?? '',
                 cancelReason: request.cancelReason ?? ''
               })
@@ -291,7 +304,8 @@ export class ProcurementManagementGrpcController
           auditContext: context.auditContext,
           commandName: 'ConvertPurchaseRequestToPurchaseOrder',
           resourceType: 'purchase_order',
-          targetId: request.targetPurchaseOrderId ?? request.sourceLines?.[0]?.purchaseRequestId ?? null,
+          targetId:
+            request.targetPurchaseOrderId ?? request.sourceLines?.[0]?.purchaseRequestId ?? null,
           requestSummary: {
             purchaseRequestId: request.sourceLines?.[0]?.purchaseRequestId ?? '',
             supplierId: request.supplierId ?? '',
@@ -302,7 +316,7 @@ export class ProcurementManagementGrpcController
           ProcurementGrpcPresenter.toConvertPurchaseRequestToPurchaseOrderResponse(
             await this.commandBus.execute(
               new ConvertPurchaseRequestToPurchaseOrderCommand({
-                tenantId: request.tenantId ?? '',
+                tenantId: context.tenantId,
                 targetPurchaseOrderId: request.targetPurchaseOrderId ?? undefined,
                 supplierId: request.supplierId ?? undefined,
                 currencyCode: request.currencyCode ?? undefined,
@@ -314,7 +328,8 @@ export class ProcurementManagementGrpcController
                   : undefined,
                 supplierCommercialTermsSnapshot: request.supplierCommercialTermsSnapshot
                   ? {
-                      incotermCode: request.supplierCommercialTermsSnapshot.incotermCode ?? undefined,
+                      incotermCode:
+                        request.supplierCommercialTermsSnapshot.incotermCode ?? undefined,
                       commercialTermsText:
                         request.supplierCommercialTermsSnapshot.commercialTermsText ?? undefined
                     }
@@ -333,7 +348,9 @@ export class ProcurementManagementGrpcController
     )
   }
 
-  async createPurchaseOrderDraft(request: CreatePurchaseOrderDraftRequest): Promise<CreatePurchaseOrderDraftResponse> {
+  async createPurchaseOrderDraft(
+    request: CreatePurchaseOrderDraftRequest
+  ): Promise<CreatePurchaseOrderDraftResponse> {
     const context = ProcurementRpcContextValidator.assertManagementContext(request)
     return this.runWithContext(context, () =>
       this.auditService.recordCommand(
@@ -354,8 +371,8 @@ export class ProcurementManagementGrpcController
           ProcurementGrpcPresenter.toCreatePurchaseOrderDraftResponse(
             await this.commandBus.execute(
               new CreatePurchaseOrderDraftCommand({
-                tenantId: request.tenantId ?? '',
-                orgId: request.orgId ?? undefined,
+                tenantId: context.tenantId,
+                orgId: context.operatorContext.orgId ?? undefined,
                 supplierId: request.supplierId ?? '',
                 currencyCode: request.currencyCode ?? '',
                 paymentTermsSnapshot: request.paymentTermsSnapshot
@@ -366,7 +383,8 @@ export class ProcurementManagementGrpcController
                   : undefined,
                 supplierCommercialTermsSnapshot: request.supplierCommercialTermsSnapshot
                   ? {
-                      incotermCode: request.supplierCommercialTermsSnapshot.incotermCode ?? undefined,
+                      incotermCode:
+                        request.supplierCommercialTermsSnapshot.incotermCode ?? undefined,
                       commercialTermsText:
                         request.supplierCommercialTermsSnapshot.commercialTermsText ?? undefined
                     }
@@ -380,7 +398,9 @@ export class ProcurementManagementGrpcController
     )
   }
 
-  async updatePurchaseOrderDraft(request: UpdatePurchaseOrderDraftRequest): Promise<UpdatePurchaseOrderDraftResponse> {
+  async updatePurchaseOrderDraft(
+    request: UpdatePurchaseOrderDraftRequest
+  ): Promise<UpdatePurchaseOrderDraftResponse> {
     const context = ProcurementRpcContextValidator.assertManagementContext(request)
     return this.runWithContext(context, () =>
       this.auditService.recordCommand(
@@ -401,7 +421,7 @@ export class ProcurementManagementGrpcController
           ProcurementGrpcPresenter.toUpdatePurchaseOrderDraftResponse(
             await this.commandBus.execute(
               new UpdatePurchaseOrderDraftCommand({
-                tenantId: request.tenantId ?? '',
+                tenantId: context.tenantId,
                 purchaseOrderId: request.purchaseOrderId ?? '',
                 supplierId: request.supplierId ?? '',
                 currencyCode: request.currencyCode ?? '',
@@ -413,7 +433,8 @@ export class ProcurementManagementGrpcController
                   : undefined,
                 supplierCommercialTermsSnapshot: request.supplierCommercialTermsSnapshot
                   ? {
-                      incotermCode: request.supplierCommercialTermsSnapshot.incotermCode ?? undefined,
+                      incotermCode:
+                        request.supplierCommercialTermsSnapshot.incotermCode ?? undefined,
                       commercialTermsText:
                         request.supplierCommercialTermsSnapshot.commercialTermsText ?? undefined
                     }
@@ -427,7 +448,9 @@ export class ProcurementManagementGrpcController
     )
   }
 
-  async issuePurchaseOrder(request: IssuePurchaseOrderRequest): Promise<IssuePurchaseOrderResponse> {
+  async issuePurchaseOrder(
+    request: IssuePurchaseOrderRequest
+  ): Promise<IssuePurchaseOrderResponse> {
     const context = ProcurementRpcContextValidator.assertManagementContext(request)
     return this.runWithContext(context, () =>
       this.auditService.recordCommand(
@@ -447,7 +470,7 @@ export class ProcurementManagementGrpcController
           ProcurementGrpcPresenter.toCreatePurchaseOrderDraftResponse(
             await this.commandBus.execute(
               new IssuePurchaseOrderCommand({
-                tenantId: request.tenantId ?? '',
+                tenantId: context.tenantId,
                 purchaseOrderId: request.purchaseOrderId ?? '',
                 issueComment: request.issueComment ?? undefined
               })
@@ -479,7 +502,7 @@ export class ProcurementManagementGrpcController
           ProcurementGrpcPresenter.toConfirmSupplierAcknowledgementResponse(
             await this.commandBus.execute(
               new ConfirmSupplierAcknowledgementCommand({
-                tenantId: request.tenantId ?? '',
+                tenantId: context.tenantId,
                 purchaseOrderId: request.purchaseOrderId ?? '',
                 externalReference: request.externalReference ?? undefined,
                 comment: request.comment ?? undefined,
@@ -514,24 +537,29 @@ export class ProcurementManagementGrpcController
           ProcurementGrpcPresenter.toApplyPurchaseOrderChangeResponse(
             await this.commandBus.execute(
               new ApplyPurchaseOrderChangeCommand({
-                tenantId: request.tenantId ?? '',
+                tenantId: context.tenantId,
                 purchaseOrderId: request.purchaseOrderId ?? '',
                 changeType: request.changeType ?? '',
                 changeReason: request.changeReason ?? '',
                 appliedBy: {
-                  operatorId: request.operatorContext?.operatorId ?? '',
-                  displayName: request.operatorContext?.operatorId ?? ''
+                  operatorId: context.operatorContext.operatorId,
+                  displayName: context.operatorContext.operatorId
                 },
                 targetState: {
-                  lines: (request.targetState?.lines ?? []).map((line) => this.toPurchaseOrderLineInput(line)),
+                  lines: (request.targetState?.lines ?? []).map((line) =>
+                    this.toPurchaseOrderLineInput(line)
+                  ),
                   supplierAcknowledgement: request.targetState?.supplierAcknowledgement
                     ? {
                         acknowledgementStatus:
-                          normalizeOptionalString(`${request.targetState.supplierAcknowledgement.acknowledgementStatus ?? ''}`) ??
-                          undefined,
-                        acknowledgedAt: request.targetState.supplierAcknowledgement.acknowledgedAt ?? undefined,
+                          normalizeOptionalString(
+                            `${request.targetState.supplierAcknowledgement.acknowledgementStatus ?? ''}`
+                          ) ?? undefined,
+                        acknowledgedAt:
+                          request.targetState.supplierAcknowledgement.acknowledgedAt ?? undefined,
                         externalReference:
-                          request.targetState.supplierAcknowledgement.externalReference ?? undefined,
+                          request.targetState.supplierAcknowledgement.externalReference ??
+                          undefined,
                         comment: request.targetState.supplierAcknowledgement.comment ?? undefined
                       }
                     : undefined
@@ -543,7 +571,9 @@ export class ProcurementManagementGrpcController
     )
   }
 
-  async cancelPurchaseOrder(request: CancelPurchaseOrderRequest): Promise<CancelPurchaseOrderResponse> {
+  async cancelPurchaseOrder(
+    request: CancelPurchaseOrderRequest
+  ): Promise<CancelPurchaseOrderResponse> {
     const context = ProcurementRpcContextValidator.assertManagementContext(request)
     return this.runWithContext(context, () =>
       this.auditService.recordCommand(
@@ -563,7 +593,7 @@ export class ProcurementManagementGrpcController
           ProcurementGrpcPresenter.toCancelPurchaseOrderResponse(
             await this.commandBus.execute(
               new CancelPurchaseOrderCommand({
-                tenantId: request.tenantId ?? '',
+                tenantId: context.tenantId,
                 purchaseOrderId: request.purchaseOrderId ?? '',
                 cancelReason: request.cancelReason ?? ''
               })
@@ -596,7 +626,7 @@ export class ProcurementManagementGrpcController
           ProcurementGrpcPresenter.toCreateReceivingExpectationResponse(
             await this.commandBus.execute(
               new CreateReceivingExpectationCommand({
-                tenantId: request.tenantId ?? '',
+                tenantId: context.tenantId,
                 purchaseOrderId: request.purchaseOrderId ?? '',
                 purchaseOrderLineId: request.purchaseOrderLineId ?? '',
                 allocationGroupingKey: request.allocationGroupingKey ?? '',
@@ -635,7 +665,7 @@ export class ProcurementManagementGrpcController
           ProcurementGrpcPresenter.toRecordReceivingDiscrepancyResolutionResponse(
             await this.commandBus.execute(
               new RecordReceivingDiscrepancyResolutionCommand({
-                tenantId: request.tenantId ?? '',
+                tenantId: context.tenantId,
                 receivingExpectationId: request.receivingExpectationId ?? '',
                 receivingDiscrepancyId: request.receivingDiscrepancyId ?? '',
                 resolutionCode: toDomainReceivingResolutionCode(request.resolutionCode),
@@ -661,14 +691,14 @@ export class ProcurementManagementGrpcController
     orderedUnitPrice?: string | null
     sourcePurchaseRequestLineId?: string | null
     generalStockExcessReason?: string | null
-      allocations?: Array<{
-        allocationType?: number | undefined
-        sourceReferenceId?: string | null
-        quantity?: string | null
-        reason?: string | null
-        targetWarehouseId?: string | null
-        targetReceivingAddressId?: string | null
-      }> | null
+    allocations?: Array<{
+      allocationType?: number | undefined
+      sourceReferenceId?: string | null
+      quantity?: string | null
+      reason?: string | null
+      targetWarehouseId?: string | null
+      targetReceivingAddressId?: string | null
+    }> | null
   }) {
     return {
       purchaseOrderLineId: line.purchaseOrderLineId ?? undefined,
@@ -691,8 +721,9 @@ export class ProcurementManagementGrpcController
     }
   }
 
+  /** Runs within the interceptor-established verified request scope without manufacturing local authority. */
   private runWithContext<T>(
-    context: {
+    _context: {
       tenantId: string
       operatorContext: {
         operatorId: string
@@ -706,8 +737,35 @@ export class ProcurementManagementGrpcController
     },
     work: () => Promise<T>
   ): Promise<T> {
-    return this.requestContextStore.run(buildDownstreamRequestContext(context), work)
+    return work()
   }
+}
+
+/** Registers the frozen Procurement HUMAN/WEB Code matrix for every BUSINESS command RPC. */
+for (const [method, code] of Object.entries({
+  createPurchaseRequest: PROCUREMENT_MANAGEMENT_PERMISSION_CODES.CREATE_PURCHASE_REQUEST,
+  updatePurchaseRequestDraft: PROCUREMENT_MANAGEMENT_PERMISSION_CODES.UPDATE_PURCHASE_REQUEST_DRAFT,
+  submitPurchaseRequest: PROCUREMENT_MANAGEMENT_PERMISSION_CODES.SUBMIT_PURCHASE_REQUEST,
+  decidePurchaseRequest: PROCUREMENT_MANAGEMENT_PERMISSION_CODES.DECIDE_PURCHASE_REQUEST,
+  cancelPurchaseRequest: PROCUREMENT_MANAGEMENT_PERMISSION_CODES.CANCEL_PURCHASE_REQUEST,
+  convertPurchaseRequestToPurchaseOrder:
+    PROCUREMENT_MANAGEMENT_PERMISSION_CODES.CONVERT_PURCHASE_REQUEST_TO_ORDER,
+  createPurchaseOrderDraft: PROCUREMENT_MANAGEMENT_PERMISSION_CODES.CREATE_PURCHASE_ORDER_DRAFT,
+  updatePurchaseOrderDraft: PROCUREMENT_MANAGEMENT_PERMISSION_CODES.UPDATE_PURCHASE_ORDER_DRAFT,
+  issuePurchaseOrder: PROCUREMENT_MANAGEMENT_PERMISSION_CODES.ISSUE_PURCHASE_ORDER,
+  confirmSupplierAcknowledgement:
+    PROCUREMENT_MANAGEMENT_PERMISSION_CODES.CONFIRM_SUPPLIER_ACKNOWLEDGEMENT,
+  applyPurchaseOrderChange: PROCUREMENT_MANAGEMENT_PERMISSION_CODES.APPLY_PURCHASE_ORDER_CHANGE,
+  cancelPurchaseOrder: PROCUREMENT_MANAGEMENT_PERMISSION_CODES.CANCEL_PURCHASE_ORDER,
+  createReceivingExpectation: PROCUREMENT_MANAGEMENT_PERMISSION_CODES.CREATE_RECEIVING_EXPECTATION,
+  recordReceivingDiscrepancyResolution:
+    PROCUREMENT_MANAGEMENT_PERMISSION_CODES.RECORD_RECEIVING_DISCREPANCY_RESOLUTION
+})) {
+  AuthorizeBusinessRpc({ all: [code] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })(
+    ProcurementManagementGrpcController.prototype,
+    method,
+    Object.getOwnPropertyDescriptor(ProcurementManagementGrpcController.prototype, method)
+  )
 }
 
 function toDomainPurchaseRequestType(value?: ProtoPurchaseRequestType): PurchaseRequestType {
@@ -725,13 +783,17 @@ function toDomainPurchaseRequestType(value?: ProtoPurchaseRequestType): Purchase
   }
 }
 
-function toDomainPurchaseRequestLineType(value?: ProtoPurchaseRequestLineType): PurchaseRequestLineType {
+function toDomainPurchaseRequestLineType(
+  value?: ProtoPurchaseRequestLineType
+): PurchaseRequestLineType {
   return value === ProtoPurchaseRequestLineType.PURCHASE_REQUEST_LINE_TYPE_TEXT
     ? PurchaseRequestLineType.TEXT
     : PurchaseRequestLineType.STANDARD_ITEM
 }
 
-function toDomainPurchaseRequestDecision(value?: ProtoPurchaseRequestDecision): PurchaseRequestDecision {
+function toDomainPurchaseRequestDecision(
+  value?: ProtoPurchaseRequestDecision
+): PurchaseRequestDecision {
   return value === ProtoPurchaseRequestDecision.PURCHASE_REQUEST_DECISION_REJECTED
     ? PurchaseRequestDecision.REJECTED
     : PurchaseRequestDecision.APPROVED
@@ -750,7 +812,9 @@ function toDomainPurchaseOrderAllocationType(value?: number): PurchaseOrderLineA
   return PurchaseOrderLineAllocationType.GENERAL_STOCK
 }
 
-function toDomainReceivingResolutionCode(value?: ProtoReceivingResolutionCode): ReceivingResolutionCode {
+function toDomainReceivingResolutionCode(
+  value?: ProtoReceivingResolutionCode
+): ReceivingResolutionCode {
   switch (value) {
     case ProtoReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_CLOSE_UNRECEIVED:
       return ReceivingResolutionCode.CLOSE_UNRECEIVED
@@ -782,35 +846,5 @@ function toDomainReceivingResolutionCode(value?: ProtoReceivingResolutionCode): 
       return ReceivingResolutionCode.RETURN_TO_SUPPLIER
     default:
       return ReceivingResolutionCode.WAIT_REDELIVERY
-  }
-}
-
-function buildDownstreamRequestContext(context: {
-  tenantId: string
-  operatorContext: {
-    operatorId: string
-    operatorType: string
-    orgId?: string | null
-  }
-  traceContext: {
-    requestId: string
-    traceId: string
-  }
-}) {
-  const issuedAt = new Date()
-  return {
-    internalServiceName: SERVICE_NAMES.PROCUREMENT,
-    requestId: context.traceContext.requestId,
-    traceId: context.traceContext.traceId,
-    operatorContext: {
-      operator_id: context.operatorContext.operatorId,
-      operator_type: context.operatorContext.operatorType,
-      tenant_id: context.tenantId,
-      org_id: context.operatorContext.orgId ?? undefined,
-      issued_at: issuedAt.toISOString(),
-      expires_at: new Date(issuedAt.getTime() + 5 * 60 * 1000).toISOString(),
-      issuer: SERVICE_NAMES.PROCUREMENT,
-      signature: 'procurement-runtime-context'
-    }
   }
 }

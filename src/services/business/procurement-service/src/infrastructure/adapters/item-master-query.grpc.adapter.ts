@@ -3,7 +3,6 @@ import {
   GrpcRequestContextStore,
   ITEM_MASTER_INTERNAL_PERMISSION_CODES
 } from '@oes/common/authorization'
-import { SERVICE_NAMES } from '@oes/common/constants'
 import { ItemMasterInternalQueryServiceClient } from '@oes/common/generated/item_master_service'
 import { safeGrpcCall } from '@oes/common/transport'
 import {
@@ -12,6 +11,8 @@ import {
 } from '../../application/ports/item-reference-lookup.port'
 import { ProcurementItemMasterTrustedGrpcClient } from './item-master-trusted-grpc.client'
 import { ProcurementItemMasterTrustedGrpcExecutionProducer } from './procurement-item-master-trusted-grpc-execution.producer'
+
+const CALLER = 'procurement-service'
 
 /** ItemMasterQueryGrpcAdapter validates standard-item identity and purchasable capability through item-master-service query truth. */
 @Injectable()
@@ -35,7 +36,7 @@ export class ItemMasterQueryGrpcAdapter implements ItemReferenceLookupPort, OnMo
         await this.buildMetadata(tenantId)
       ),
       {
-        caller: SERVICE_NAMES.PROCUREMENT,
+        caller: CALLER,
         method: 'ItemMasterInternalQueryService.resolvePurchasableItem'
       }
     )

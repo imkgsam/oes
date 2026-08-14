@@ -1,5 +1,5 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
-import { ClientGrpc } from '@nestjs/microservices'
+import { Injectable, OnModuleInit } from '@nestjs/common'
+import { PROCUREMENT_MANAGEMENT_PERMISSION_CODES } from '@oes/common/authorization'
 import {
   ApplyPurchaseOrderChangeRequest,
   ApplyPurchaseOrderChangeResponse,
@@ -21,11 +21,8 @@ import {
   DecidePurchaseRequestResponse,
   IssuePurchaseOrderRequest,
   IssuePurchaseOrderResponse,
-  PURCHASE_ORDER_MANAGEMENT_SERVICE_NAME,
-  PURCHASE_REQUEST_MANAGEMENT_SERVICE_NAME,
   PurchaseOrderManagementServiceClient,
   PurchaseRequestManagementServiceClient,
-  RECEIVING_EXPECTATION_MANAGEMENT_SERVICE_NAME,
   ReceivingExpectationManagementServiceClient,
   RecordReceivingDiscrepancyResolutionRequest,
   RecordReceivingDiscrepancyResolutionResponse,
@@ -36,29 +33,21 @@ import {
   UpdatePurchaseRequestDraftRequest,
   UpdatePurchaseRequestDraftResponse
 } from '@oes/common/generated/procurement_service'
+import { safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
+import { Observable } from 'rxjs'
+import { DownstreamRequestSource } from '../../../common/grpc/gateway-downstream-source.mapper'
 import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory
-} from '@oes/common/authorization'
-import { SERVICE_NAMES } from '@oes/common/constants'
-import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
-import {
-  DownstreamRequestSource,
-  toOperatorScopedMetadataInput
-} from '../../../common/grpc/gateway-downstream-source.mapper'
-import {
-  buildProcurementAuditContext,
-  buildProcurementOperatorContext,
-  buildProcurementTraceContext
-} from './procurement-grpc-context'
+  GatewayProcurementGrpcClient,
+  PROCUREMENT_TARGET_AUDIENCE
+} from '../../../common/grpc/gateway-procurement-grpc.client'
+import { GatewayTrustedGrpcExecutionProducer } from '../../../common/grpc/gateway-trusted-grpc-execution-producer'
 
 const CALLER = 'api-gateway'
-
-interface ManagementInputBase {
+type GatewayProcurementCommand<T> = T & {
   auditReason?: string
 }
 
-/** ProcurementManagementGrpcAdapter proxies the frozen phase 1 procurement command RPCs from api-gateway into procurement-service. */
+/** Proxies Procurement commands through one dedicated mTLS channel and exact BUSINESS tokens. */
 @Injectable()
 export class ProcurementManagementGrpcAdapter implements OnModuleInit {
   private purchaseOrderSvc!: PurchaseOrderManagementServiceClient
@@ -66,331 +55,240 @@ export class ProcurementManagementGrpcAdapter implements OnModuleInit {
   private receivingSvc!: ReceivingExpectationManagementServiceClient
 
   constructor(
-    @InjectGrpcClient(SERVICE_NAMES.PROCUREMENT)
-    private readonly client: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory
+    private readonly client: GatewayProcurementGrpcClient,
+    private readonly producer: GatewayTrustedGrpcExecutionProducer
   ) {}
 
   onModuleInit(): void {
-    this.purchaseRequestSvc = this.client.getService<PurchaseRequestManagementServiceClient>(
-      PURCHASE_REQUEST_MANAGEMENT_SERVICE_NAME
-    )
-    this.purchaseOrderSvc = this.client.getService<PurchaseOrderManagementServiceClient>(
-      PURCHASE_ORDER_MANAGEMENT_SERVICE_NAME
-    )
-    this.receivingSvc = this.client.getService<ReceivingExpectationManagementServiceClient>(
-      RECEIVING_EXPECTATION_MANAGEMENT_SERVICE_NAME
-    )
+    this.purchaseRequestSvc = this.client.purchaseRequestManagement()
+    this.purchaseOrderSvc = this.client.purchaseOrderManagement()
+    this.receivingSvc = this.client.receivingExpectationManagement()
   }
 
-  /** createPurchaseRequest forwards one purchase request draft creation command. */
-  createPurchaseRequest(
-    input: Omit<CreatePurchaseRequestRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
-      ManagementInputBase,
+  async createPurchaseRequest(
+    input: GatewayProcurementCommand<CreatePurchaseRequestRequest>,
     source: DownstreamRequestSource
   ): Promise<CreatePurchaseRequestResponse> {
     return this.call(
       'createPurchaseRequest',
       this.purchaseRequestSvc.createPurchaseRequest(
-        this.attachManagementContext(input, source, input.auditReason ?? 'create purchase request from api-gateway'),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        stripLocalAuthority(input),
+        await this.metadata(source, PROCUREMENT_MANAGEMENT_PERMISSION_CODES.CREATE_PURCHASE_REQUEST)
       )
     )
   }
 
-  /** updatePurchaseRequestDraft forwards one purchase request draft mutation command. */
-  updatePurchaseRequestDraft(
-    input: Omit<
-      UpdatePurchaseRequestDraftRequest,
-      'auditContext' | 'operatorContext' | 'traceContext'
-    > &
-      ManagementInputBase,
+  async updatePurchaseRequestDraft(
+    input: GatewayProcurementCommand<UpdatePurchaseRequestDraftRequest>,
     source: DownstreamRequestSource
   ): Promise<UpdatePurchaseRequestDraftResponse> {
     return this.call(
       'updatePurchaseRequestDraft',
       this.purchaseRequestSvc.updatePurchaseRequestDraft(
-        this.attachManagementContext(
-          input,
+        stripLocalAuthority(input),
+        await this.metadata(
           source,
-          input.auditReason ?? 'update purchase request draft from api-gateway'
-        ),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+          PROCUREMENT_MANAGEMENT_PERMISSION_CODES.UPDATE_PURCHASE_REQUEST_DRAFT
+        )
       )
     )
   }
 
-  /** submitPurchaseRequest forwards one explicit purchase request submission command. */
-  submitPurchaseRequest(
-    input: Omit<SubmitPurchaseRequestRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
-      ManagementInputBase,
+  async submitPurchaseRequest(
+    input: GatewayProcurementCommand<SubmitPurchaseRequestRequest>,
     source: DownstreamRequestSource
   ): Promise<SubmitPurchaseRequestResponse> {
     return this.call(
       'submitPurchaseRequest',
       this.purchaseRequestSvc.submitPurchaseRequest(
-        this.attachManagementContext(
-          input,
-          source,
-          input.auditReason ?? 'submit purchase request from api-gateway'
-        ),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        stripLocalAuthority(input),
+        await this.metadata(source, PROCUREMENT_MANAGEMENT_PERMISSION_CODES.SUBMIT_PURCHASE_REQUEST)
       )
     )
   }
 
-  /** decidePurchaseRequest forwards one purchase request decision command. */
-  decidePurchaseRequest(
-    input: Omit<DecidePurchaseRequestRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
-      ManagementInputBase,
+  async decidePurchaseRequest(
+    input: GatewayProcurementCommand<DecidePurchaseRequestRequest>,
     source: DownstreamRequestSource
   ): Promise<DecidePurchaseRequestResponse> {
     return this.call(
       'decidePurchaseRequest',
       this.purchaseRequestSvc.decidePurchaseRequest(
-        this.attachManagementContext(
-          input,
-          source,
-          input.auditReason ?? 'decide purchase request from api-gateway'
-        ),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        stripLocalAuthority(input),
+        await this.metadata(source, PROCUREMENT_MANAGEMENT_PERMISSION_CODES.DECIDE_PURCHASE_REQUEST)
       )
     )
   }
 
-  /** cancelPurchaseRequest forwards one purchase request cancellation command. */
-  cancelPurchaseRequest(
-    input: Omit<CancelPurchaseRequestRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
-      ManagementInputBase,
+  async cancelPurchaseRequest(
+    input: GatewayProcurementCommand<CancelPurchaseRequestRequest>,
     source: DownstreamRequestSource
   ): Promise<CancelPurchaseRequestResponse> {
     return this.call(
       'cancelPurchaseRequest',
       this.purchaseRequestSvc.cancelPurchaseRequest(
-        this.attachManagementContext(
-          input,
-          source,
-          input.auditReason ?? 'cancel purchase request from api-gateway'
-        ),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        stripLocalAuthority(input),
+        await this.metadata(source, PROCUREMENT_MANAGEMENT_PERMISSION_CODES.CANCEL_PURCHASE_REQUEST)
       )
     )
   }
 
-  /** convertPurchaseRequestToPurchaseOrder forwards one PR-to-PO draft conversion command. */
-  convertPurchaseRequestToPurchaseOrder(
-    input: Omit<
-      ConvertPurchaseRequestToPurchaseOrderRequest,
-      'auditContext' | 'operatorContext' | 'traceContext'
-    > &
-      ManagementInputBase,
+  async convertPurchaseRequestToPurchaseOrder(
+    input: GatewayProcurementCommand<ConvertPurchaseRequestToPurchaseOrderRequest>,
     source: DownstreamRequestSource
   ): Promise<ConvertPurchaseRequestToPurchaseOrderResponse> {
     return this.call(
       'convertPurchaseRequestToPurchaseOrder',
       this.purchaseRequestSvc.convertPurchaseRequestToPurchaseOrder(
-        this.attachManagementContext(
-          input,
+        stripLocalAuthority(input),
+        await this.metadata(
           source,
-          input.auditReason ?? 'convert purchase request to purchase order from api-gateway'
-        ),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+          PROCUREMENT_MANAGEMENT_PERMISSION_CODES.CONVERT_PURCHASE_REQUEST_TO_ORDER
+        )
       )
     )
   }
 
-  /** createPurchaseOrderDraft forwards one purchase order draft creation command. */
-  createPurchaseOrderDraft(
-    input: Omit<
-      CreatePurchaseOrderDraftRequest,
-      'auditContext' | 'operatorContext' | 'traceContext'
-    > &
-      ManagementInputBase,
+  async createPurchaseOrderDraft(
+    input: GatewayProcurementCommand<CreatePurchaseOrderDraftRequest>,
     source: DownstreamRequestSource
   ): Promise<CreatePurchaseOrderDraftResponse> {
     return this.call(
       'createPurchaseOrderDraft',
       this.purchaseOrderSvc.createPurchaseOrderDraft(
-        this.attachManagementContext(
-          input,
+        stripLocalAuthority(input),
+        await this.metadata(
           source,
-          input.auditReason ?? 'create purchase order draft from api-gateway'
-        ),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+          PROCUREMENT_MANAGEMENT_PERMISSION_CODES.CREATE_PURCHASE_ORDER_DRAFT
+        )
       )
     )
   }
 
-  /** updatePurchaseOrderDraft forwards one purchase order draft mutation command. */
-  updatePurchaseOrderDraft(
-    input: Omit<
-      UpdatePurchaseOrderDraftRequest,
-      'auditContext' | 'operatorContext' | 'traceContext'
-    > &
-      ManagementInputBase,
+  async updatePurchaseOrderDraft(
+    input: GatewayProcurementCommand<UpdatePurchaseOrderDraftRequest>,
     source: DownstreamRequestSource
   ): Promise<UpdatePurchaseOrderDraftResponse> {
     return this.call(
       'updatePurchaseOrderDraft',
       this.purchaseOrderSvc.updatePurchaseOrderDraft(
-        this.attachManagementContext(
-          input,
+        stripLocalAuthority(input),
+        await this.metadata(
           source,
-          input.auditReason ?? 'update purchase order draft from api-gateway'
-        ),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+          PROCUREMENT_MANAGEMENT_PERMISSION_CODES.UPDATE_PURCHASE_ORDER_DRAFT
+        )
       )
     )
   }
 
-  /** issuePurchaseOrder forwards one explicit purchase order issue command. */
-  issuePurchaseOrder(
-    input: Omit<IssuePurchaseOrderRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
-      ManagementInputBase,
+  async issuePurchaseOrder(
+    input: GatewayProcurementCommand<IssuePurchaseOrderRequest>,
     source: DownstreamRequestSource
   ): Promise<IssuePurchaseOrderResponse> {
     return this.call(
       'issuePurchaseOrder',
       this.purchaseOrderSvc.issuePurchaseOrder(
-        this.attachManagementContext(
-          input,
-          source,
-          input.auditReason ?? 'issue purchase order from api-gateway'
-        ),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        stripLocalAuthority(input),
+        await this.metadata(source, PROCUREMENT_MANAGEMENT_PERMISSION_CODES.ISSUE_PURCHASE_ORDER)
       )
     )
   }
 
-  /** confirmSupplierAcknowledgement forwards one supplier acknowledgement summary command. */
-  confirmSupplierAcknowledgement(
-    input: Omit<
-      ConfirmSupplierAcknowledgementRequest,
-      'auditContext' | 'operatorContext' | 'traceContext'
-    > &
-      ManagementInputBase,
+  async confirmSupplierAcknowledgement(
+    input: GatewayProcurementCommand<ConfirmSupplierAcknowledgementRequest>,
     source: DownstreamRequestSource
   ): Promise<ConfirmSupplierAcknowledgementResponse> {
     return this.call(
       'confirmSupplierAcknowledgement',
       this.purchaseOrderSvc.confirmSupplierAcknowledgement(
-        this.attachManagementContext(
-          input,
+        stripLocalAuthority(input),
+        await this.metadata(
           source,
-          input.auditReason ?? 'confirm supplier acknowledgement from api-gateway'
-        ),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+          PROCUREMENT_MANAGEMENT_PERMISSION_CODES.CONFIRM_SUPPLIER_ACKNOWLEDGEMENT
+        )
       )
     )
   }
 
-  /** applyPurchaseOrderChange forwards one applied purchase order change command. */
-  applyPurchaseOrderChange(
-    input: Omit<
-      ApplyPurchaseOrderChangeRequest,
-      'auditContext' | 'operatorContext' | 'traceContext'
-    > &
-      ManagementInputBase,
+  async applyPurchaseOrderChange(
+    input: GatewayProcurementCommand<ApplyPurchaseOrderChangeRequest>,
     source: DownstreamRequestSource
   ): Promise<ApplyPurchaseOrderChangeResponse> {
     return this.call(
       'applyPurchaseOrderChange',
       this.purchaseOrderSvc.applyPurchaseOrderChange(
-        this.attachManagementContext(
-          input,
+        stripLocalAuthority(input),
+        await this.metadata(
           source,
-          input.auditReason ?? 'apply purchase order change from api-gateway'
-        ),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+          PROCUREMENT_MANAGEMENT_PERMISSION_CODES.APPLY_PURCHASE_ORDER_CHANGE
+        )
       )
     )
   }
 
-  /** cancelPurchaseOrder forwards one purchase order cancellation command. */
-  cancelPurchaseOrder(
-    input: Omit<CancelPurchaseOrderRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
-      ManagementInputBase,
+  async cancelPurchaseOrder(
+    input: GatewayProcurementCommand<CancelPurchaseOrderRequest>,
     source: DownstreamRequestSource
   ): Promise<CancelPurchaseOrderResponse> {
     return this.call(
       'cancelPurchaseOrder',
       this.purchaseOrderSvc.cancelPurchaseOrder(
-        this.attachManagementContext(
-          input,
-          source,
-          input.auditReason ?? 'cancel purchase order from api-gateway'
-        ),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        stripLocalAuthority(input),
+        await this.metadata(source, PROCUREMENT_MANAGEMENT_PERMISSION_CODES.CANCEL_PURCHASE_ORDER)
       )
     )
   }
 
-  /** createReceivingExpectation forwards one purchase-side receiving expectation creation command. */
-  createReceivingExpectation(
-    input: Omit<
-      CreateReceivingExpectationRequest,
-      'auditContext' | 'operatorContext' | 'traceContext'
-    > &
-      ManagementInputBase,
+  async createReceivingExpectation(
+    input: GatewayProcurementCommand<CreateReceivingExpectationRequest>,
     source: DownstreamRequestSource
   ): Promise<CreateReceivingExpectationResponse> {
     return this.call(
       'createReceivingExpectation',
       this.receivingSvc.createReceivingExpectation(
-        this.attachManagementContext(
-          input,
+        stripLocalAuthority(input),
+        await this.metadata(
           source,
-          input.auditReason ?? 'create receiving expectation from api-gateway'
-        ),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+          PROCUREMENT_MANAGEMENT_PERMISSION_CODES.CREATE_RECEIVING_EXPECTATION
+        )
       )
     )
   }
 
-  /** recordReceivingDiscrepancyResolution forwards one discrepancy resolution summary command. */
-  recordReceivingDiscrepancyResolution(
-    input: Omit<
-      RecordReceivingDiscrepancyResolutionRequest,
-      'auditContext' | 'operatorContext' | 'traceContext'
-    > &
-      ManagementInputBase,
+  async recordReceivingDiscrepancyResolution(
+    input: GatewayProcurementCommand<RecordReceivingDiscrepancyResolutionRequest>,
     source: DownstreamRequestSource
   ): Promise<RecordReceivingDiscrepancyResolutionResponse> {
     return this.call(
       'recordReceivingDiscrepancyResolution',
       this.receivingSvc.recordReceivingDiscrepancyResolution(
-        this.attachManagementContext(
-          input,
+        stripLocalAuthority(input),
+        await this.metadata(
           source,
-          input.auditReason ?? 'record receiving discrepancy resolution from api-gateway'
-        ),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+          PROCUREMENT_MANAGEMENT_PERMISSION_CODES.RECORD_RECEIVING_DISCREPANCY_RESOLUTION
+        )
       )
     )
   }
 
-  /** attachManagementContext injects the explicit operator, trace, and audit payloads frozen in the procurement contract. */
-  private attachManagementContext<TInput extends object>(
-    input: TInput,
-    source: DownstreamRequestSource,
-    reason: string
-  ) {
-    return {
-      ...input,
-      operatorContext: buildProcurementOperatorContext(source),
-      traceContext: buildProcurementTraceContext(source),
-      auditContext: buildProcurementAuditContext(source, reason)
-    }
+  /** Produces exact Procurement-audience metadata solely from the verified Gateway session. */
+  private metadata(source: DownstreamRequestSource, code: string) {
+    return this.producer.forBusinessCall(source, PROCUREMENT_TARGET_AUDIENCE, [code])
   }
 
-  /** call wraps one gateway procurement command RPC with the shared safe gRPC transport helpers. */
-  private call<TResponse>(method: string, call$: any): Promise<TResponse> {
+  /** Wraps one generated Procurement command observable with the shared error contract. */
+  private call<TResponse>(method: string, call$: Observable<TResponse>): Promise<TResponse> {
     return safeGrpcCall<TResponse>(call$, this.opts(method))
   }
 
-  /** opts builds the shared gateway caller metadata for one proxied procurement command. */
+  /** Identifies the Gateway/Procurement method pair without injecting authority. */
   private opts(method: string): SafeGrpcCallOptions {
     return { caller: CALLER, method }
   }
+}
+
+/** Removes the non-wire HTTP audit hint before the Procurement wire call. */
+function stripLocalAuthority<T>(input: GatewayProcurementCommand<T>): T {
+  const { auditReason: _auditReason, ...request } = input
+  return request as T
 }
