@@ -12,7 +12,7 @@ import {
 import { Metadata } from '@grpc/grpc-js'
 import { Reflector } from '@nestjs/core'
 import { generateKeyPairSync, sign } from 'node:crypto'
-import { of } from 'rxjs'
+import { from, map } from 'rxjs'
 import {
   AuthorizationPrincipalTypeProto,
   AuthorizationScopeLevelProto
@@ -37,6 +37,9 @@ import {
   CompositeSourceCredentialVerifier,
   PermissionDecisionGrpcResolver
 } from '../../../auth-service/src/modules/token/execution-token.module'
+import { ResolveWorkloadIssuanceHandler } from '../../../permission-service/src/application/queries/authorization/resolve-workload-issuance.handler'
+import { ResolveWorkloadIssuanceQuery } from '../../../permission-service/src/application/queries/authorization/resolve-workload-issuance.query'
+import { PermissionDecisionPolicy } from '../../../permission-service/src/domain/services/permission-decision-policy'
 
 const queryCodes = {
   getItemModel: ITEM_MASTER_MANAGEMENT_PERMISSION_CODES.VIEW_ITEM_MODEL_DETAIL,
@@ -345,21 +348,69 @@ describe('Item Master trusted gRPC security matrix L3', () => {
         scopeLevel: 'SYSTEM'
       })
     }
-    const permissionDecision = jest.fn().mockReturnValue(
-      of({
-        allowed: true,
-        grantedPermissionCodes: [internalCodes.resolveManufacturableItem],
-        deniedPermissionCodes: [],
+    const workloadRepository = {
+      findPolicy: jest.fn().mockResolvedValue({
         originalWorkloadSpiffeId: mesSpiffe,
         targetAudience: itemAudience,
-        scopeLevel: AuthorizationScopeLevelProto.AUTHORIZATION_SCOPE_LEVEL_PROTO_TENANT,
-        tenantId: 'tenant-1',
-        principalType: AuthorizationPrincipalTypeProto.AUTHORIZATION_PRINCIPAL_TYPE_PROTO_HUMAN,
-        principalId: 'account-1',
-        requestedPermissionCodes: [internalCodes.resolveManufacturableItem],
-        decisionReference: 'permission-decision-1',
-        authzVersion: 'permission-authz-1'
+        permissionCodes: [internalCodes.resolveManufacturableItem],
+        scopeLevel: 'SYSTEM',
+        policyVersion: 'policy-v1'
       })
+    }
+    const permissionRepository = {
+      findByCodes: jest
+        .fn()
+        .mockResolvedValue([{ code: internalCodes.resolveManufacturableItem, kind: 'INTERNAL' }])
+    }
+    const permissionAudit = { emitIssuanceDecision: jest.fn() }
+    const permissionHandler = new ResolveWorkloadIssuanceHandler(
+      workloadRepository as never,
+      permissionRepository as never,
+      new PermissionDecisionPolicy(),
+      permissionAudit as never
+    )
+    const permissionDecision = jest.fn((permissionRequest) =>
+      from(
+        permissionHandler.execute(
+          new ResolveWorkloadIssuanceQuery(
+            {
+              originalWorkloadSpiffeId: permissionRequest.originalWorkloadSpiffeId,
+              targetAudience: permissionRequest.targetAudience,
+              requestedPermissionCodes: permissionRequest.requestedInternalPermissionCodes,
+              scopeLevel:
+                permissionRequest.scopeLevel ===
+                AuthorizationScopeLevelProto.AUTHORIZATION_SCOPE_LEVEL_PROTO_SYSTEM
+                  ? 'SYSTEM'
+                  : 'TENANT',
+              ...(permissionRequest.tenantId ? { tenantId: permissionRequest.tenantId } : {}),
+              ...(permissionRequest.orgId ? { orgId: permissionRequest.orgId } : {}),
+              principalType:
+                permissionRequest.principalType ===
+                AuthorizationPrincipalTypeProto.AUTHORIZATION_PRINCIPAL_TYPE_PROTO_MACHINE
+                  ? 'MACHINE'
+                  : 'HUMAN',
+              principalId: permissionRequest.principalId,
+              issuancePolicyVersion: permissionRequest.issuancePolicyVersion
+            },
+            {
+              directWorkloadSpiffeId: 'spiffe://oes/auth-service',
+              certificateThumbprint: 'A'.repeat(43)
+            }
+          )
+        )
+      ).pipe(
+        map((result) => ({
+          ...result,
+          originalWorkloadSpiffeId: permissionRequest.originalWorkloadSpiffeId,
+          targetAudience: permissionRequest.targetAudience,
+          scopeLevel: permissionRequest.scopeLevel,
+          tenantId: permissionRequest.tenantId ?? '',
+          orgId: permissionRequest.orgId ?? '',
+          principalType: permissionRequest.principalType,
+          principalId: permissionRequest.principalId,
+          requestedPermissionCodes: permissionRequest.requestedInternalPermissionCodes
+        }))
+      )
     )
     const audit = { appendOboLink: jest.fn().mockResolvedValue(undefined) }
     const exchange = new ExecutionTokenExchangeService(
@@ -463,6 +514,67 @@ describe('Item Master trusted gRPC security matrix L3', () => {
     expect(body.tenantId).toBe('tenant-1')
     expect(identity.resolveMachinePrincipalForAuth).toHaveBeenCalledTimes(1)
     expect(permissionDecision).toHaveBeenCalledTimes(1)
+    expect(permissionDecision.mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        originalWorkloadSpiffeId: mesSpiffe,
+        targetAudience: itemAudience,
+        requestedInternalPermissionCodes: [internalCodes.resolveManufacturableItem],
+        scopeLevel: AuthorizationScopeLevelProto.AUTHORIZATION_SCOPE_LEVEL_PROTO_SYSTEM,
+        principalType: AuthorizationPrincipalTypeProto.AUTHORIZATION_PRINCIPAL_TYPE_PROTO_MACHINE,
+        principalId: 'machine-principal:mes-service',
+        tenantId: undefined,
+        orgId: undefined
+      })
+    )
+    expect(workloadRepository.findPolicy).toHaveBeenCalledWith({
+      originalWorkloadSpiffeId: mesSpiffe,
+      targetAudience: itemAudience,
+      scopeLevel: 'SYSTEM',
+      tenantId: undefined
+    })
+    expect(permissionAudit.emitIssuanceDecision).toHaveBeenCalledWith(
+      expect.objectContaining({
+        principalType: 'MACHINE',
+        principalId: 'machine-principal:mes-service',
+        tenantId: undefined
+      })
+    )
+    const tenantVariant = await permission.resolve({
+      request: {
+        targetAudience: itemAudience,
+        requestedPermissionCodes: [internalCodes.resolveManufacturableItem]
+      },
+      workloadIdentity: { spiffeId: mesSpiffe, certificateThumbprint: mesCert },
+      execution: {
+        subject: 'account-other',
+        principalType: 'HUMAN',
+        scopeLevel: 'TENANT',
+        tenantId: 'tenant-other',
+        sessionId: 'session-other',
+        actor: {
+          sub: 'machine-principal:mes-service',
+          principal_type: 'MACHINE',
+          scope_level: 'SYSTEM'
+        },
+        sourceTokenId: 'other-subject-jti',
+        sourceExpiresAt: now + 120
+      }
+    })
+    expect(tenantVariant).toMatchObject({
+      allowed: true,
+      principalType: 'HUMAN',
+      principalId: 'account-other',
+      scopeLevel: 'TENANT',
+      tenantId: 'tenant-other'
+    })
+    expect(permissionDecision).toHaveBeenCalledTimes(2)
+    expect(permissionDecision.mock.calls[1][0]).toEqual(permissionDecision.mock.calls[0][0])
+    expect(workloadRepository.findPolicy).toHaveBeenNthCalledWith(2, {
+      originalWorkloadSpiffeId: mesSpiffe,
+      targetAudience: itemAudience,
+      scopeLevel: 'SYSTEM',
+      tenantId: undefined
+    })
     expect(audit.appendOboLink).toHaveBeenCalledWith(
       expect.objectContaining({ sourceTokenId: 'mes-subject-jti' })
     )

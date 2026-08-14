@@ -356,23 +356,24 @@ export class PermissionDecisionGrpcResolver implements ExecutionTokenPermissionD
     requestedPermissionCodes: readonly string[],
     targetAudience = input.request.targetAudience
   ): Promise<ExecutionTokenAuthorizationDecision> {
+    const workloadExecution = permissionWorkloadExecution(input.execution)
     const response = await firstValueFrom(
       this.client().resolveWorkloadIssuance(
         {
           originalWorkloadSpiffeId: originalWorkload.spiffeId,
           targetAudience,
           requestedInternalPermissionCodes: [...requestedPermissionCodes],
-          scopeLevel: toScopeLevelProto(input.execution.scopeLevel),
-          tenantId: input.execution.tenantId,
-          orgId: input.execution.orgId,
-          principalType: toPrincipalTypeProto(input.execution.principalType),
-          principalId: input.execution.subject,
+          scopeLevel: toScopeLevelProto(workloadExecution.scopeLevel),
+          tenantId: workloadExecution.tenantId,
+          orgId: workloadExecution.orgId,
+          principalType: toPrincipalTypeProto(workloadExecution.principalType),
+          principalId: workloadExecution.subject,
           issuancePolicyVersion: this.issuancePolicyVersion
         },
         correlationMetadata(input)
       )
     )
-    return workloadDecision(response)
+    return bindWorkloadDecisionToExecution(response, workloadExecution, input.execution)
   }
 
   /** Lazily resolves the generated client without creating a second transport or trust path. */
@@ -382,6 +383,62 @@ export class PermissionDecisionGrpcResolver implements ExecutionTokenPermissionD
     )
     return this.permissionService
   }
+}
+
+/** Selects only the registry-verified SYSTEM actor for OBO workload authorization. */
+function permissionWorkloadExecution(execution: TrustedExecutionContext): TrustedExecutionContext {
+  if (execution.sourceTokenId === undefined) return execution
+  if (!isDirectSystemMachineActor(execution.actor)) {
+    throw new Error('HUMAN OBO Permission actor is invalid')
+  }
+  return Object.freeze({
+    subject: execution.actor.sub,
+    principalType: 'MACHINE',
+    scopeLevel: 'SYSTEM'
+  })
+}
+
+/** Validates Permission's actor-only decision before Auth independently rebinds the verified HUMAN subject. */
+function bindWorkloadDecisionToExecution(
+  response: ResolveWorkloadIssuanceResponse,
+  workloadExecution: TrustedExecutionContext,
+  targetExecution: TrustedExecutionContext
+): ExecutionTokenAuthorizationDecision {
+  const decision = workloadDecision(response)
+  if (targetExecution.sourceTokenId === undefined) return decision
+  if (
+    decision.principalType !== 'MACHINE' ||
+    decision.principalId !== workloadExecution.subject ||
+    decision.scopeLevel !== 'SYSTEM' ||
+    decision.tenantId !== undefined ||
+    decision.orgId !== undefined
+  ) {
+    throw new Error('HUMAN OBO Permission actor decision is invalid')
+  }
+  return Object.freeze({
+    ...decision,
+    principalType: targetExecution.principalType,
+    principalId: targetExecution.subject,
+    scopeLevel: targetExecution.scopeLevel ?? ('' as never),
+    ...(targetExecution.tenantId === undefined ? {} : { tenantId: targetExecution.tenantId }),
+    ...(targetExecution.orgId === undefined ? {} : { orgId: targetExecution.orgId })
+  })
+}
+
+/** Accepts only the frozen direct registry-selected SYSTEM MACHINE actor object. */
+function isDirectSystemMachineActor(
+  actor: unknown
+): actor is Readonly<{ sub: string; principal_type: 'MACHINE'; scope_level: 'SYSTEM' }> {
+  if (!actor || typeof actor !== 'object' || Array.isArray(actor)) return false
+  const value = actor as Record<string, unknown>
+  return (
+    Object.keys(value).length === 3 &&
+    typeof value.sub === 'string' &&
+    value.sub.length > 0 &&
+    value.sub.trim() === value.sub &&
+    value.principal_type === 'MACHINE' &&
+    value.scope_level === 'SYSTEM'
+  )
 }
 
 /** Builds the only local SELF_SERVICE decision after source verification and with no requested Code. */

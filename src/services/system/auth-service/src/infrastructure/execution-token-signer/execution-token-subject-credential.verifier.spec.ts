@@ -63,7 +63,7 @@ function fixture(overrides: Record<string, unknown> = {}, identityOverrides = {}
       jti: 'subject-jti',
       iat: 100,
       nbf: 100,
-      exp: 500,
+      exp: 400,
       ...overrides
     })
   ).toString('base64url')
@@ -103,7 +103,7 @@ describe('ExecutionTokenSubjectCredentialVerifier', () => {
       sessionId: 'session-1',
       sessionTerminal: 'WEB',
       sourceTokenId: 'subject-jti',
-      sourceExpiresAt: 500,
+      sourceExpiresAt: 400,
       actor: { sub: 'machine-mes', principal_type: 'MACHINE', scope_level: 'SYSTEM' }
     })
   })
@@ -111,12 +111,34 @@ describe('ExecutionTokenSubjectCredentialVerifier', () => {
   it.each([
     ['expired', { exp: 200 }],
     ['not active', { nbf: 201 }],
+    ['nbf before iat', { iat: 150, nbf: 149 }],
+    ['exp equal to iat', { iat: 300, nbf: 300, exp: 300 }],
+    ['overlong lifetime', { iat: 100, nbf: 100, exp: 401 }],
     ['MACHINE subject', { principal_type: 'MACHINE' }],
+    ['missing subject', { sub: undefined }],
     ['blank tenant', { tenant_id: '' }],
     ['wildcard tenant', { tenant_id: '*' }],
+    ['missing tenant', { tenant_id: undefined }],
     ['blank session', { session_id: '' }],
+    ['missing session', { session_id: undefined }],
     ['invalid terminal', { session_terminal: 'web' }],
-    ['invalid security version', { authz_version: { caller: 'spoofed' } }]
+    ['invalid security version', { authz_version: { caller: 'spoofed' } }],
+    [
+      'existing direct actor',
+      { act: { sub: 'machine-old', principal_type: 'MACHINE', scope_level: 'SYSTEM' } }
+    ],
+    ['malformed existing actor', { act: 'machine-old' }],
+    [
+      'recursive existing actor',
+      {
+        act: {
+          sub: 'machine-old',
+          principal_type: 'MACHINE',
+          scope_level: 'SYSTEM',
+          act: { sub: 'machine-older' }
+        }
+      }
+    ]
   ])('rejects a %s subject before Identity actor resolution', async (_label, claims) => {
     const current = fixture(claims)
     await expect(current.verifier.verify(current.token, WORKLOAD, TARGET)).rejects.toThrow(

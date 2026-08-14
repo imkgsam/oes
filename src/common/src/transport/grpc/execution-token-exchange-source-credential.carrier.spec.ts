@@ -1,8 +1,8 @@
 import {
   AsyncLocalTransportPrivateSourceCredentialAccessor,
-  createTrustedExecutionContext,
   TransportPrivateSourceCredentialIssuer
-} from '../../authorization/trusted-execution'
+} from '../../authorization/trusted-execution/transport-private-source-credential'
+import { createTrustedExecutionContext } from '../../authorization/trusted-execution/trusted-execution-context'
 import { ExecutionTokenExchangeSourceCredentialCarrier } from './execution-token-exchange-source-credential.carrier'
 
 const SOURCE_CREDENTIAL = 'session.source.credential'

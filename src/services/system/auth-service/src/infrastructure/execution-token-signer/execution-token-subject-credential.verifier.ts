@@ -61,9 +61,13 @@ export class ExecutionTokenSubjectCredentialVerifier {
       !Number.isInteger(claims.iat) ||
       !Number.isInteger(claims.nbf) ||
       !Number.isInteger(claims.exp) ||
+      (claims.nbf as number) < (claims.iat as number) ||
       (claims.iat as number) > now ||
       (claims.nbf as number) > now ||
       (claims.exp as number) <= now ||
+      (claims.exp as number) <= (claims.iat as number) ||
+      (claims.exp as number) - (claims.iat as number) > 300 ||
+      claims.act !== undefined ||
       (claims.org_id !== undefined && !exact(claims.org_id)) ||
       typeof claims.session_terminal !== 'string'
     )

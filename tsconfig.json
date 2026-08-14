@@ -1,5 +1,9 @@
 // tsconfig.json
 {
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "isolatedModules": true
+  },
   "files": [],
   "references": [
     // common
