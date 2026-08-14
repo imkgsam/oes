@@ -35,11 +35,32 @@ Common 只在 mTLS-protected exchange channel 的 transport-private scope 携带
 
 The exact carrier on `ExchangeExecutionToken` is `authorization: Bearer <source-credential>`. This method interprets that bearer as an Auth-verifiable source/subject credential for token exchange, not as a caller-declared target-service grant. Credential type/profile, issuer, signature, lifetime, session/security state and owner references must validate before any Permission decision. For a multi-hop ExecutionToken subject credential, Auth additionally requires the Token's exact `aud` to identify the verified exchanging workload service; its original `client_id` / `cnf` remain upstream-hop evidence and are never rewritten as proof of the new hop. The newly issued Token binds the current exchanger's SPIFFE ID and certificate thumbprint.
 
-For a MACHINE root credential, Auth additionally requires its SPIFFE binding to equal the current `VerifiedWorkloadIdentity.spiffeId`, its certificate binding to equal the current leaf thumbprint, and its principal/binding reference/version to receive an allowed `IdentityQueryService.ResolveMachinePrincipalForAuth` owner decision. That Identity call uses Auth's own normal mTLS + target-audience INTERNAL ExecutionToken with `identity.internal.machine_principal.resolve`; it does not create another bootstrap exception. Auth derives MACHINE `sub` and scope only from the owner decision; ordinary MACHINE tenant/org also come only from that decision. The following Item Master profile is the sole frozen exception for an execution-scoped tenant and does not change the SYSTEM Machine owner fact.
+For a MACHINE root credential, Auth additionally requires its SPIFFE binding to equal the current `VerifiedWorkloadIdentity.spiffeId`, its certificate binding to equal the current leaf thumbprint, and its principal/binding reference/version to receive an allowed `IdentityQueryService.ResolveMachinePrincipalForAuth` owner decision. That Identity call uses Auth's own normal mTLS + target-audience INTERNAL ExecutionToken with `identity.internal.machine_principal.resolve`; it does not create another bootstrap exception. Auth derives MACHINE `sub`, scope and any tenant/org only from the owner decision. This root profile is used only when no inbound HUMAN subject Token exists.
 
-For the frozen Item Master INTERNAL eligibility profile, the resolved source remains a tenantless SYSTEM MACHINE and a second proof is mandatory. Common sends the Machine credential through `authorization` and the current Auth-issued upstream HUMAN ExecutionToken through the transport-private `x-oes-upstream-execution-token` bearer field. Auth verifies the upstream Token with the same issuer/JWKS/security-state rules, requires `principal_type=HUMAN`, a non-empty `tenant_id`, unexpired time bounds and exact `aud` equal to the registered self-audience of the verified MES/WMS/Procurement/SRM exchanger. It also requires the deployment registry to mark the exact exchanger -> Item Master target policy as `UPSTREAM_HUMAN_TENANT_PROOF_REQUIRED`. Neither field is accepted from the proto request, ordinary metadata propagation, local execution-context construction or Permission response.
+For synchronous HUMAN OBO, Common sends exactly one current-hop subject credential through `authorization`: the Auth-issued ExecutionToken whose exact `aud` is the verified MES/WMS/Procurement/SRM exchanger itself. Auth verifies issuer/signature/time/security state, `principal_type=HUMAN`, non-empty `tenant_id`, session attribution, exact self-audience and current exchanger mTLS/SPIFFE/leaf. Auth resolves the stable actor by immutable verified-SPIFFE/self-audience registry selectors and validates the referenced Identity-owned SYSTEM Machine Principal/binding through existing `ResolveMachinePrincipalForAuth`; no new Identity RPC or caller-selected actor is introduced.
 
-The resulting Item Master Token keeps the Machine owner decision's `sub`, `principal_type=MACHINE` and `scope=SYSTEM`; its `tenant_id` is the verified upstream HUMAN tenant for this exchange only. Its `client_id` and `cnf` bind the direct exchanger workload/current leaf, and its `exp` is `min(now + 300 seconds, upstream exp)`. Auth persists the upstream `jti` -> target `jti` correlation, tenant, workload, target audience, Permission decision reference and trace before returning the Token. Missing proof, wrong/cross-tenant proof, wrong audience/workload/certificate, expiry, invalid signature, denied Permission or audit failure rejects the complete exchange. Background work without an upstream HUMAN Token has no fallback in this profile.
+The resulting Item Master Token preserves the subject Token's `sub`, `principal_type=HUMAN`, `tenant_id`, applicable org/session and security version. Its `act` identifies the current SYSTEM MACHINE actor, while `client_id` and `cnf` bind the direct exchanger workload/current leaf; its `exp` is no later than the subject Token expiry. Permission separately allows the exact exchanger workload -> Item Master audience -> INTERNAL Code and neither receives nor supplies tenant authority. Auth persists subject `jti` -> target `jti`, subject, actor, tenant, workload, target audience, Permission decision reference and trace before returning the Token. Missing/invalid subject, wrong audience/workload/certificate, actor mismatch, expiry, denied Permission or audit failure rejects the complete exchange. Background work without a HUMAN subject Token has no fallback in this profile.
+
+The frozen target shape for `MES -> Item Master` is:
+
+```json
+{
+  "sub": "account:user-123",
+  "principal_type": "HUMAN",
+  "tenant_id": "tenant-A",
+  "act": {
+    "sub": "machine-principal:mes-service",
+    "principal_type": "MACHINE",
+    "scope_level": "SYSTEM"
+  },
+  "aud": "urn:oes:service:item-master-service",
+  "client_id": "spiffe://oes/mes-service",
+  "scope": "item_master.internal.manufacturable_item.resolve",
+  "cnf": { "x5t#S256": "MES_CERT_HASH" }
+}
+```
+
+`act` is exactly one direct-actor object, not a caller-supplied or recursively nested chain. On every exchange Auth replaces prior-hop `act` with the current verified exchanger actor and preserves the complete chain only through durable subject-`jti` -> target-`jti` audit links.
 
 ## 3. ExchangeExecutionToken
 
@@ -81,11 +102,11 @@ Workload identity is the default backend credential. If a PKCS#11 backend requir
 
 `ResolvePrincipalAuthorization` is not a bootstrap method. Auth calls it with its exact mTLS identity plus a certificate-bound `aud=permission-service` ExecutionToken containing the exact INTERNAL Code `permission.internal.principal_authorization.resolve`; that Code is obtainable only through the workload issuance policy above. The resolver accepts typed HUMAN / MACHINE / DELEGATED identity, trusted scope / tenant / org, one target audience, canonical non-empty BUSINESS Codes and applicable session/delegation/tool references. It accepts no role/admin assertion, target RPC id, resource facts or domain state, and SELF_SERVICE does not use it. Both decisions use whole-request semantics: any unknown, wrong-kind, denied, partial or binding mismatch rejects the exchange and the signing port is not called.
 
-The Token cache and issuance unit is the exact tuple of verified principal/type, tenant/org, target audience, canonical granted Code set, session/delegation/security version, applicable `session_terminal` and current workload certificate thumbprint. For an upstream-proof-required profile, the tuple additionally includes a non-reversible upstream proof fingerprint/reference; cache hit still requires a current proof handle, different upstream `jti` values cannot share a target Token, and cache expiry is capped by upstream expiry. One valid cached Token may be used for multiple RPCs in that audience when each target method's local declaration accepts the Token mode, terminal constraint and Code set. There is no per-RPC Token or Auth-owned RPC authorization registry. A changed tuple produces a separate exchange/cache entry; ordinary target RPCs continue local validation with no Auth/Permission call.
+The Token cache and issuance unit is the exact tuple of verified principal/type, tenant/org, target audience, canonical granted Code set, session/delegation/security version, applicable `session_terminal`, current actor workload and current workload certificate thumbprint. HUMAN OBO additionally binds a non-reversible subject-token fingerprint/reference; cache hit still requires the same current request-scoped handle, different subject `jti` values cannot share a target Token, and cache expiry is capped by subject expiry. One valid cached Token may be used for multiple RPCs in that audience when each target method's local declaration accepts the Token mode, terminal constraint and Code set. There is no per-RPC Token or Auth-owned RPC authorization registry. A changed tuple produces a separate exchange/cache entry; ordinary target RPCs continue local validation with no Auth/Permission call.
 
 SELF_SERVICE is the only mode that consumes an empty Code set. Auth still requires a verified HUMAN source credential; DELEGATED remains subject to the target method's explicit `allowDelegated`, and MACHINE has no implicit self-service authority. BUSINESS and INTERNAL requests are non-empty. The target server derives self targets from trusted `sub`, validates current method mode/principal compatibility and `all/any` Codes, and applies tenant/resource/domain rules. A Token with an empty set cannot invoke BUSINESS/INTERNAL; a non-empty BUSINESS/INTERNAL Token does not bypass SELF_SERVICE subject derivation or method mode checks.
 
-Successful and denied exchange audit records source-credential kind/reference, verified principal/type/workload, tenant/org, audience, canonical requested/granted Codes, Permission decision reference, `authzVersion`, session/delegation reference, certificate thumbprint, `kid`/`jti`, result/reason and trace correlation. An upstream-proof-required success additionally records upstream `jti` -> target `jti`; Auth must await durable append before returning the target Token. It excludes bearer values, API Key material, private key material and recoverable credentials.
+Successful and denied exchange audit records source-credential kind/reference, verified principal/type/workload, tenant/org, audience, canonical requested/granted Codes, Permission decision reference, `authzVersion`, session/delegation reference, certificate thumbprint, `kid`/`jti`, result/reason and trace correlation. A HUMAN OBO success additionally records subject `jti` -> target `jti` and actor attribution; Auth must await durable append before returning the target Token. It excludes bearer values, API Key material, private key material and recoverable credentials.
 
 ### Request semantics
 
@@ -95,7 +116,7 @@ Successful and denied exchange audit records source-credential kind/reference, v
 - `requestedPermissionCodes`：去重、规范排序后的精确最小申请集；BUSINESS / INTERNAL 非空，SELF_SERVICE 固定为空。它不携带授权结果。
 - 当前可信 execution reference：由 server runtime 注入，不由业务 DTO 重建。
 
-The existing proto request keeps only `target_audience` and `requested_permission_codes`; no target RPC, tenant, upstream-token or caller-supplied mode field is added. The proto comment/contract test must permit an empty repeated field only for SELF_SERVICE semantics. The primary verified source credential is carried by `authorization`; only the frozen upstream-proof-required profile also consumes the separate private carrier described above.
+The existing proto request keeps only `target_audience` and `requested_permission_codes`; no target RPC, tenant, subject-token, actor or caller-supplied mode field is added. The proto comment/contract test must permit an empty repeated field only for SELF_SERVICE semantics. The verified source/subject credential is carried only by `authorization`; no second bearer carrier is introduced.
 
 对于多跳 exchange，STS 保持可信 `sub`、principal type、tenant、org、session / delegation attribution 与 request correlation，但把 `client_id`、`aud` 和 `cnf` 绑定到申请当前下一跳的直接 workload。
 
@@ -104,7 +125,7 @@ The existing proto request keeps only `target_audience` and `requested_permissio
 - HUMAN / BUSINESS：Permission Service 必须独立确认 requested Codes 是该 principal 在当前 scope / tenant / policy 下的有效子集。
 - MACHINE / BUSINESS：Auth 必须先完成 MACHINE source credential、当前 workload/certificate binding 与 Identity principal/binding resolution；Permission Service 再独立确认 requested Codes 是该 active Machine Principal grant 的有效子集。
 - DELEGATED / BUSINESS：Permission decision 必须独立计算 HUMAN grant、delegation grant、agent/tool upper bound 与 target policy 的交集。
-- INTERNAL：Permission decision 必须确认 requested Codes 是 `kind=INTERNAL`，且当前 verified workload → target audience issuance policy 明确允许；INTERNAL Code 不从 HUMAN / MACHINE role 继承。
+- INTERNAL：Permission decision 必须确认 requested Codes 是 `kind=INTERNAL`，且当前 verified actor workload → target audience issuance policy 明确允许；INTERNAL Code 不从 HUMAN / MACHINE role 继承。HUMAN OBO 保持 HUMAN subject，并在目标 Token 中记录 SYSTEM MACHINE actor；纯 MACHINE root 仅在目标契约显式允许时使用 Machine Principal subject。
 - SELF_SERVICE：STS 不把 body target 编入身份。目标服务从已验证 principal 派生 target，并按 RPC declaration 决定是否允许 DELEGATED。
 
 请求任何未获准 Code 时整体拒绝，不静默扩大，也不以“尽可能签发部分集合”掩盖调用方配置错误。调用方如需要更小集合，应显式重试更小请求。
@@ -305,3 +326,6 @@ transport status 映射由 Gateway / common error boundary 统一处理；不得
 30. `ResolveMachinePrincipalForAuth` uses exact Auth mTLS plus an Identity-audience ExecutionToken carrying `identity.internal.machine_principal.resolve`; it cannot reuse the Permission bootstrap exception or external Integration/API-key resolver.
 31. A HUMAN source credential signs `session_terminal` only from the same active Auth session as `session_id`; a caller-supplied terminal, a missing terminal on a session-bound Token, or a resource-method terminal mismatch fails closed.
 32. Token cache entries for different `session_terminal` values cannot alias, and Browser Activity acceptance proves `WEB` and `BROWSER_EXTENSION` Tokens cannot invoke each other's declared RPC group.
+33. HUMAN OBO accepts only the current service-audience inbound ET from the private request scope, preserves HUMAN `sub`/tenant/session, records the exact SYSTEM MACHINE actor, binds the next-hop workload certificate and caps target expiry by subject expiry.
+34. Missing, invalid, expired or wrong-audience subject Token; actor spoofing; wrong workload/certificate; direct HUMAN without the required actor; MACHINE root on an OBO-only method; body tenant injection; and an invalid or unbounded `act` chain all fail closed.
+35. A deeper synchronous hop uses the Token addressed to the current service as its subject credential; it neither retains the original Gateway Token nor adds a second bearer header.

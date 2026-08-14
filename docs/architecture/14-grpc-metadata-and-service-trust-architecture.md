@@ -125,7 +125,7 @@ authz_version?
 - `sub` 是获授权主体。
 - `client_id` 是申请本 Token 的直接调用工作负载。
 - `scope` 是空格分隔的 Permission Code 子集，不是另一套权限命名。
-- `act` 仅在 DELEGATED 时记录受控代理主体。
+- `act` 记录代表 subject 执行当前跳的直接 actor。DELEGATED 时它记录受控代理主体；同步 HUMAN OBO 时它记录当前 SYSTEM MACHINE workload。actor 不是 `sub`，也不能从 body/metadata 自报。`act` 只允许一层 direct actor；每跳由 Auth 替换为当前 verified exchanger，完整链路只通过相邻 Token `jti` 的审计关联保存，禁止递归嵌套 actor chain。
 - `session_terminal` 仅来自 Auth active session truth，并与同一 Token 的 `session_id` 绑定；HUMAN session Token 必须携带，MACHINE Token 不携带。它允许目标方法声明精确的 `WEB`、`BROWSER_EXTENSION`、`PDA` 等 session-entry constraint，不是 Permission Code 或 caller body field。
 - `cnf` 绑定当前调用工作负载的 mTLS certificate / proof-of-possession identity。
 - TENANT 数据面 Token 必须有唯一 `tenant_id`；不存在 `tenant=*`。
@@ -272,8 +272,9 @@ Rollout order is fail-closed: first deliver Permission decisions and their Auth-
 ### 6.3 INTERNAL
 
 - 只用于上游已完成业务授权后的受限技术原语。
-- 允许没有人类 operator 的纯技术调用。
+- 可由 HUMAN OBO 调用，也可在目标契约明确允许时由没有 HUMAN subject 的纯 MACHINE root 调用；mode 不等于 principal type。
 - 需要 INTERNAL kind Permission Code，并验证直接 workload 与 STS issuance policy。
+- HUMAN OBO 时目标 Token 保持原 HUMAN `sub/tenant`，并以 `act`、`client_id`、`cnf` 证明当前直接服务 actor；纯 MACHINE root 时 `sub` 才是 Machine Principal。
 - 能独立完成审批、删除、重要状态跃迁、资金承诺或业务承诺的 RPC 不得标为 INTERNAL。
 
 ### 6.4 Anonymous HTTP ingress to token-only gRPC
@@ -315,9 +316,9 @@ forInternalCall(targetAudience, requiredInternalPermissionCodes)
 
 Provider 的组装接缝也固定在 Common 内部：公开 `TrustedGrpcMetadataProviderOptions` 只接受既有的 `AsyncLocalTransportPrivateSourceCredentialAccessor`，不接受 `ExecutionTokenExchangeSourceCredentialCarrier` 具体类型。Provider 在自身内部根据同一 accessor 创建并持有私有 Carrier；Carrier 仍不从 `src/common/src/transport/grpc/index.ts` 或其他公共 barrel 导出，也不允许 Gateway 通过 deep import 构造它。`assertCurrent()` 在 cache hit 与 exchange miss 都保持，`createMetadata()` 只在 exchange miss 中输出 Auth STS 所需的私有 bearer metadata。Gateway DI 必须将同一 accessor 实例同时交给 Vault/Interceptor boundary 与 Provider；这是组装接缝澄清，不是新的 carrier 语义或公共传输途径。
 
-Item Master 的 tenantless SYSTEM caller profile 在此基础上增加一个独立、非序列化的 upstream execution-token proof handle。Common 的 STS 私有 carrier 固定使用 `authorization: Bearer <machine-source-credential>` 与 `x-oes-upstream-execution-token: Bearer <upstream-et>` 两个互不替代的字段；第二字段只在 deployment registry 明确要求 upstream HUMAN tenant proof 的 target exchange 上出现。两份 bearer 都不得进入 DTO、`TrustedExecutionContext`、目标服务 metadata、日志或审计正文。普通 HUMAN、多跳、Party 与不要求该 proof 的 MACHINE profile 保持原有单 credential 语义。
+同步 HUMAN 多跳只携带一份当前跳 subject credential。Common server runtime 在完成入站 ET 验证后，把原始 bearer 封装为不可序列化 handle，放入 request-isolated private scope；`TrustedExecutionContext` 只保留 claims，DTO、application/domain input、ordinary metadata、日志与审计正文都不得出现 bearer。调用下游时，Common 以该 handle 作为 `authorization: Bearer <current-service-audience-et>` 交给 Auth STS；更深一跳使用上一跳新签发、正好以当前服务为 audience 的 Token，不回溯 Gateway 原 Token，也不增加第二 bearer header。
 
-Common 仍只提供中性 `TrustedInternalCallSourceProvider`；`TrustedPartySourceProvider` 只是兼容 alias。要求 proof 的 Item Master caller 在自己的包内同时建立 Machine source handle 与已验证 upstream ET handle，Common 只传递 opaque values。Provider/cache key 必须绑定 upstream proof 的不可逆 fingerprint/reference，cache hit 同样要求当前 proof 存在，目标 Token expiry 受 upstream ET expiry 上限约束。Item Master 的三个错误 literal 保持互异且由 caller package 拥有：`ITEM_MASTER_CALLER_EXECUTION_CONTEXT_REQUIRED`、`ITEM_MASTER_CALLER_FOUNDATION_UNAVAILABLE`、`ITEM_MASTER_CALLER_SOURCE_CREDENTIAL_INVALID`。
+Common 仍只提供中性 `TrustedInternalCallSourceProvider`；`TrustedPartySourceProvider` 只是兼容 alias。Provider/cache key 必须绑定 subject Token 的不可逆 fingerprint/reference、HUMAN subject、actor workload、target audience、Code set 与 leaf certificate；cache hit 同样要求当前 request scope 存在。Item Master 的三个错误 literal 保持互异且由 caller package 拥有：`ITEM_MASTER_CALLER_EXECUTION_CONTEXT_REQUIRED`、`ITEM_MASTER_CALLER_FOUNDATION_UNAVAILABLE`、`ITEM_MASTER_CALLER_SOURCE_CREDENTIAL_INVALID`。
 
 INTERNAL service-to-service producer 统一复用 Common `InternalTrustedGrpcCaller`，但 Common 只拥有基础设施映射，不拥有 Party、Item Master 或其他业务域语义。中性 profile 在 caller 构造时一次性冻结，不能来自 request/body/env 的每次调用输入：
 
@@ -358,7 +359,7 @@ class InternalTrustedGrpcCaller {
 
 MACHINE root path 实现完成后，无入站请求的 Cron / Robot 先用当前 mTLS `VerifiedWorkloadIdentity` 与 Auth-owned `MachineWorkloadSourceCredential` 建立 root execution context：Auth 验证 source JWS 的 profile/signature/lifetime/revocation、SPIFFE 与当前 leaf thumbprint binding，再用 Identity `ResolveMachinePrincipalForAuth` 验证 active principal 与 `MachineWorkloadBinding` version；随后才按 BUSINESS / INTERNAL 分别取得 Permission decision 并签发既有 ExecutionToken。它继续使用同一 provider，不建立另一套 metadata 工厂。
 
-上述 root 只建立 tenantless SYSTEM Machine identity。若目标 INTERNAL RPC 还要求业务 tenant，必须使用目标明确冻结的第二 owner proof；当前唯一实例是 Item Master 三个资格查询使用当前 Auth-signed upstream HUMAN ET。Auth 的 immutable workload registry 绑定 exchanger SPIFFE、自身 audience、target audience 与 proof-required policy，验证后签发 Machine target ET 并记录 upstream/target `jti` 关联。Permission 只决定 workload/Code，目标服务只消费最终 ET；body/local tenant 与无用户上下文后台任务不得进入该路径。
+上述 root 只建立 Machine identity，不用于伪装有人触发的同步链。用户经 Gateway→MES→Item Master 时，MES 以当前 MES-audience HUMAN ET 做 OBO subject credential；Auth 验证 subject Token 与 MES workload 后签发 Item-Master-audience HUMAN Token，`act` 记录 MES SYSTEM MACHINE actor，并记录 subject/target `jti` 关联。Permission 只决定 actor workload 是否可申请 exact INTERNAL Code；target tenant 只来自 HUMAN subject。body/local tenant 与无用户上下文后台任务不得进入该 OBO 路径。
 
 MACHINE source credential issuance 对 leaf lifetime 的可信输入也由该既有 provider 提供：`GrpcWorkloadIdentityProvider` 必须从 grpc-js adapter 已释放的同一份 transport-verified leaf DER 同时派生 SHA-256 thumbprint 与 `certificateNotAfter: Date`。后者仅作为 provider 返回值的结构扩展交给 Auth Issue path；通用 `VerifiedWorkloadIdentity` 保持不变，其他 ExecutionToken verifier consumer 可以继续只消费 SPIFFE ID 与 thumbprint。metadata、request、environment 与 caller configuration 不能注入或覆盖 `notAfter`；DER parse failure、无效日期或已到期 leaf 在 provider boundary fail closed。
 

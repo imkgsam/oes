@@ -325,3 +325,5 @@ barcode
 Request body 的 `tenant_id`、`org_id`、`operator_context`、`trace_context`、`audit_context` 仅是迁移前兼容输入，迁移后全部删除/reserve。tenant、org、operator、request、trace、audit identity/source 与可信 terminal 只来自 verified ET / transport context；body、普通 metadata、signed operator 与 Gateway fallback 字符串不能建立或覆盖 authority。业务 `command_id`、目标引用、数量、时间、位置、状态、安装参数和受限操作原因保持业务含义。模具使用 `capture_source` 由可信 terminal 派生，调用方不得自报。
 
 32 个方法的精确 Code、148 个 request authority/来源字段处置、兼容 tombstone 和 reason 字段号以 [MES contracts](../../contracts/mes-service/README.md) 为准。MES→Item Master outbound、Planning/WMS/Quality/Site、Event/outbox 业务语义、PDA 与设备自动化均受保护，不属于本次 inbound transport cutover。
+
+MES→Item Master 的 `ResolveManufacturableItem` 是单独冻结的同步 OBO INTERNAL 下游调用。MES trusted guard 验证 Gateway 签发给 MES audience 的 HUMAN ET 后，Common 仅在当前 request scope 保存其不可序列化 bearer handle；MES 用该 current-hop Token 向 Auth 换取 Item Master audience ET。目标 Token 继续代表原 HUMAN/tenant，`act` 标识 MES SYSTEM MACHINE actor，并绑定 MES 当前 mTLS leaf。MES 不保存 Gateway 原 Token、不使用 Machine root credential 代替用户、不从生产规格 body/local metadata 取 tenant；无可信入站 HUMAN ET 时该下游调用 fail closed。

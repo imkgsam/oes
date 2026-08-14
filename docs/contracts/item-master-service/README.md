@@ -55,7 +55,7 @@ Contract V2 使用三个 gRPC service 作为服务面分组：
 
 现有 50 个 RPC 的冻结入口为 `BUSINESS / HUMAN / WEB`：只允许 Gateway 使用 HUMAN session ET，拒绝 MACHINE、DELEGATED、SELF_SERVICE、非 WEB terminal、错误 audience/`cnf`/Code 以及全部旧 body/ordinary-metadata/signed-operator fallback。每个 RPC 的 exact Code 以 [trusted gRPC feature packet](../../plans/features/trusted-grpc-execution-context.md) 的 Item Master 53-RPC matrix 为准。
 
-三个资格查询的冻结入口为 `INTERNAL / SYSTEM MACHINE`：
+三个资格查询的冻结 mode 为 `INTERNAL`，当前允许的 execution shape 只有 `HUMAN subject + exact SYSTEM MACHINE actor`：
 
 | RPC | Exact INTERNAL Code | Exact workload allowlist |
 | --- | --- | --- |
@@ -63,11 +63,11 @@ Contract V2 使用三个 gRPC service 作为服务面分组：
 | `ResolveStockableItem` | `item_master.internal.stockable_item.resolve` | `wms-service` |
 | `ResolvePurchasableItem` | `item_master.internal.purchasable_item.resolve` | `procurement-service`, `srm-service` |
 
-每个 caller 使用自身 Machine Principal、source credential 与 SPIFFE identity，逐跳兑换 Item Master audience ET；不得复用 Gateway identity，不得把旧 signed metadata、body tenant 或 raw smoke 伪装成 workload。SYSTEM scope 不是跨租户通配：每次调用仍必须携带由可信入站链派生的准确 tenant claim。错误 workload、HUMAN、DELEGATED、TENANT MACHINE、错误 Code/audience/`cnf` 与缺失 foundation 均 fail closed。
+每个 caller 使用当前服务已验证的 HUMAN ET 与自身 SPIFFE identity 逐跳兑换 Item Master audience ET；不得复用 Gateway identity、Machine root credential，也不得把旧 signed metadata、body tenant 或 raw smoke 伪装成 authority。错误 subject/actor/workload、DELEGATED、TENANT MACHINE、错误 Code/audience/`cnf` 与缺失 foundation 均 fail closed。
 
-该 tenant claim 的唯一冻结来源是当前 Auth 签发的上游 HUMAN ET。MES/WMS/Procurement/SRM 的 tenantless SYSTEM Machine source credential 证明直接服务身份；上游 HUMAN ET 证明本次 tenant。Common 只在 Auth STS 私有通道同时携带两份 opaque credential，Auth 验证 upstream signature/time/HUMAN principal/tenant/self-audience、Identity Machine binding、Permission workload decision 与 mTLS/certificate 后签发 Item Master ET。目标 ET 仍是 `principal_type=MACHINE`、`scope=SYSTEM`，tenant 只属于本次 execution，expiry 不晚于 upstream ET，并审计关联 upstream/target `jti`。
+Common 只在 request-isolated private scope 保存当前入站 ET 的不可序列化 handle，并把这一份 current-hop subject credential 交给 Auth STS。Auth 验证 subject signature/time/HUMAN principal/tenant/self-audience、当前 exchanger mTLS/SPIFFE/leaf、Identity-owned SYSTEM actor binding 与 Permission workload decision 后签发 Item Master ET。目标 ET 保持原 HUMAN `sub`、`principal_type=HUMAN`、tenant/session，`act` 标识当前 SYSTEM MACHINE actor，expiry 不晚于 subject ET，并审计关联 subject/target `jti`。
 
-Item Master 不接收上游 ET，只消费最终 ET。missing/wrong/cross-tenant/wrong-audience/expired upstream proof、错误 workload/certificate、Permission denied 与 body/local tenant injection 全部拒绝。没有上游 HUMAN ET 的 Cron/Robot/后台任务继续 deferred，不允许使用 SYSTEM scope、body tenant 或本地配置绕过。
+Item Master 不接收前一跳 ET，只消费最终 ET。missing/invalid/wrong-audience/expired subject、跨 tenant、错误 actor/workload/certificate、actor spoofing、直接 HUMAN 无 actor、MACHINE root、Permission denied、body/local tenant injection 或无界 `act` chain 全部拒绝。没有入站 HUMAN ET 的 Cron/Robot/后台任务继续 deferred，不允许使用 SYSTEM scope、body tenant 或本地配置绕过。
 
 management RPC 必须走 command 语义并进入本地 audit envelope；query RPC 不修改状态。可信 principal、source workload、tenant、trace 与 audit 不接受业务 payload 覆盖。
 
