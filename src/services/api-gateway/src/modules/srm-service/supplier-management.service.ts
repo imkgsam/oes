@@ -34,9 +34,9 @@ export class SupplierManagementService {
     },
     source: DownstreamRequestSource
   ) {
+    this.resolveTenantId(tenantId, source)
     const result = await this.supplierQueryAdapter.searchSuppliers(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
         keyword: normalize(query.keyword),
         status: toGrpcSupplierStatus(query.status),
         tenantPartyId: normalize(query.tenantPartyId),
@@ -50,38 +50,30 @@ export class SupplierManagementService {
   }
 
   /** getSupplierDetail aggregates one supplier shell with its contacts, addresses, and offerings for the phase 1 detail page. */
-  async getSupplierDetail(
-    tenantId: string,
-    supplierId: string,
-    source: DownstreamRequestSource
-  ) {
-    const resolvedTenantId = this.resolveTenantId(tenantId, source)
+  async getSupplierDetail(tenantId: string, supplierId: string, source: DownstreamRequestSource) {
+    this.resolveTenantId(tenantId, source)
     const resolvedSupplierId = requireNonBlank(supplierId, 'supplierId')
     const [supplierResult, contactsResult, addressesResult, offeringsResult] = await Promise.all([
       this.supplierQueryAdapter.getSupplier(
         {
-          tenantId: resolvedTenantId,
           supplierId: resolvedSupplierId
         },
         source
       ),
       this.supplierQueryAdapter.listSupplierContacts(
         {
-          tenantId: resolvedTenantId,
           supplierId: resolvedSupplierId
         },
         source
       ),
       this.supplierQueryAdapter.listSupplierAddresses(
         {
-          tenantId: resolvedTenantId,
           supplierId: resolvedSupplierId
         },
         source
       ),
       this.supplierQueryAdapter.listSupplierOfferingsBySupplier(
         {
-          tenantId: resolvedTenantId,
           supplierId: resolvedSupplierId,
           page: 1,
           pageSize: 20,
@@ -115,9 +107,9 @@ export class SupplierManagementService {
     },
     source: DownstreamRequestSource
   ) {
+    this.resolveTenantId(tenantId, source)
     const result = await this.supplierManagementAdapter.createSupplierProfile(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
         displayName: requireNonBlank(input.displayName, 'displayName'),
         supplierNo: normalize(input.supplierNo),
         supplierCategory: normalize(input.supplierCategory),
@@ -141,9 +133,9 @@ export class SupplierManagementService {
     },
     source: DownstreamRequestSource
   ) {
+    this.resolveTenantId(tenantId, source)
     const result = await this.supplierManagementAdapter.updateSupplierProfileBasics(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
         supplierId: requireNonBlank(supplierId, 'supplierId'),
         displayName: normalize(input.displayName),
         supplierNo: normalize(input.supplierNo),
@@ -165,9 +157,9 @@ export class SupplierManagementService {
     },
     source: DownstreamRequestSource
   ) {
+    this.resolveTenantId(tenantId, source)
     const result = await this.supplierManagementAdapter.bindSupplierToTenantParty(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
         supplierId: requireNonBlank(supplierId, 'supplierId'),
         tenantPartyId: requireNonBlank(input.tenantPartyId, 'tenantPartyId')
       },
@@ -192,9 +184,9 @@ export class SupplierManagementService {
     },
     source: DownstreamRequestSource
   ) {
+    this.resolveTenantId(tenantId, source)
     const result = await this.supplierManagementAdapter.upsertSupplierContact(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
         supplierId: requireNonBlank(supplierId, 'supplierId'),
         supplierContactId: normalize(input.supplierContactId),
         displayName: requireNonBlank(input.displayName, 'displayName'),
@@ -228,9 +220,9 @@ export class SupplierManagementService {
     },
     source: DownstreamRequestSource
   ) {
+    this.resolveTenantId(tenantId, source)
     const result = await this.supplierManagementAdapter.upsertSupplierAddress(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
         supplierId: requireNonBlank(supplierId, 'supplierId'),
         supplierAddressId: normalize(input.supplierAddressId),
         label: requireNonBlank(input.label, 'label'),
@@ -256,9 +248,9 @@ export class SupplierManagementService {
     input: { status: string },
     source: DownstreamRequestSource
   ) {
+    this.resolveTenantId(tenantId, source)
     const result = await this.supplierManagementAdapter.changeSupplierStatus(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
         supplierId: requireNonBlank(supplierId, 'supplierId'),
         targetStatus: requireGrpcSupplierStatus(input.status)
       },
@@ -275,9 +267,9 @@ export class SupplierManagementService {
     query: { page?: number; pageSize?: number; status?: string },
     source: DownstreamRequestSource
   ) {
+    this.resolveTenantId(tenantId, source)
     const result = await this.supplierQueryAdapter.listSupplierOfferingsBySupplier(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
         supplierId: requireNonBlank(supplierId, 'supplierId'),
         status: toGrpcSupplierOfferingStatus(query.status),
         page: Math.max(query.page ?? 1, 1),
@@ -296,9 +288,9 @@ export class SupplierManagementService {
     query: { page?: number; pageSize?: number; status?: string },
     source: DownstreamRequestSource
   ) {
+    this.resolveTenantId(tenantId, source)
     const result = await this.supplierQueryAdapter.listSupplierOfferingsByItem(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
         itemId: requireNonBlank(itemId, 'itemId'),
         status: toGrpcSupplierOfferingStatus(query.status),
         page: Math.max(query.page ?? 1, 1),
@@ -321,9 +313,9 @@ export class SupplierManagementService {
     },
     source: DownstreamRequestSource
   ) {
+    this.resolveTenantId(tenantId, source)
     const result = await this.supplierManagementAdapter.upsertSupplierOffering(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
         supplierId: requireNonBlank(supplierId, 'supplierId'),
         supplierOfferingId: normalize(input.supplierOfferingId),
         itemId: requireNonBlank(input.itemId, 'itemId'),

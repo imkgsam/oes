@@ -21,6 +21,7 @@ import { GatewayPublicEntryGrpcClient } from './gateway-public-entry-grpc.client
 import { GatewayMesGrpcClient } from './gateway-mes-grpc.client'
 import { GatewayCollaborationGrpcClient } from './gateway-collaboration-grpc.client'
 import { GatewayItemMasterGrpcClient } from './gateway-item-master-grpc.client'
+import { GatewaySrmGrpcClient, SRM_TARGET_AUDIENCE } from './gateway-srm-grpc.client'
 
 const ASSET_AUDIENCE = 'urn:oes:service:asset-service'
 const SITE_AUDIENCE = 'urn:oes:service:site-service'
@@ -48,6 +49,7 @@ const ITEM_MASTER_AUDIENCE = 'urn:oes:service:item-master-service'
     GatewayMesGrpcClient,
     GatewayCollaborationGrpcClient,
     GatewayItemMasterGrpcClient,
+    GatewaySrmGrpcClient,
     GatewayAuthMachineWorkloadSourceCredentialClient,
     {
       provide: GatewayMachineWorkloadSourceCredentialProvider,
@@ -81,7 +83,8 @@ const ITEM_MASTER_AUDIENCE = 'urn:oes:service:item-master-service'
             PUBLIC_ENTRY_AUDIENCE,
             MES_AUDIENCE,
             COLLABORATION_AUDIENCE,
-            ITEM_MASTER_AUDIENCE
+            ITEM_MASTER_AUDIENCE,
+            SRM_TARGET_AUDIENCE
           ],
           workloadIdentities: [requireEnvironment('OES_WORKLOAD_SPIFFE_ID')]
         })
@@ -150,6 +153,7 @@ const ITEM_MASTER_AUDIENCE = 'urn:oes:service:item-master-service'
     GatewayMesGrpcClient,
     GatewayCollaborationGrpcClient,
     GatewayItemMasterGrpcClient,
+    GatewaySrmGrpcClient,
     GatewayTrustedGrpcExecutionProducer,
     GatewayMachineWorkloadSourceCredentialProvider,
     GatewayMachineTrustedGrpcExecutionProducer

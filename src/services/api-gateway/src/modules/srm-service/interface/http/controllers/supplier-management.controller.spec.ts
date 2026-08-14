@@ -1,5 +1,6 @@
 import { Reflector } from '@nestjs/core'
 import { REQUIRE_PERMISSIONS_METADATA_KEY } from '@oes/common/authorization'
+import { SRM_MANAGEMENT_PERMISSION_CODES } from '@oes/common/authorization'
 import { SupplierManagementController } from './supplier-management.controller'
 
 // Verifies the supplier-management gateway controller keeps permissions and phase 1 request forwarding aligned with the SRM BFF surface.
@@ -38,7 +39,12 @@ describe('SupplierManagementController', () => {
         REQUIRE_PERMISSIONS_METADATA_KEY,
         SupplierManagementController.prototype.getSupplier
       )
-    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    ).toEqual({
+      all: [
+        SRM_MANAGEMENT_PERMISSION_CODES.VIEW_SUPPLIER_DETAIL,
+        SRM_MANAGEMENT_PERMISSION_CODES.LIST_SUPPLIER_OFFERINGS_BY_SUPPLIER
+      ]
+    })
     expect(
       reflector.get(
         REQUIRE_PERMISSIONS_METADATA_KEY,

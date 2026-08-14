@@ -5,7 +5,7 @@ module.exports = {
   testEnvironment: 'node',
   testMatch: [
     '<rootDir>/test/**/*.spec.ts',
-    '<rootDir>/src/infrastructure/adapters/*item-master-trusted-grpc-execution.producer.spec.ts'
+    '<rootDir>/src/infrastructure/adapters/*trusted-grpc-execution.producer.spec.ts'
   ],
   setupFiles: ['reflect-metadata'],
   transform: {

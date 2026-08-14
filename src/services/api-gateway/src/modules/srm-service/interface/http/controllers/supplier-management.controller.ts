@@ -45,7 +45,12 @@ export class SupplierManagementController {
   }
 
   @Get('suppliers/:supplierId')
-  @RequirePermissions({ all: [SRM_MANAGEMENT_PERMISSION_CODES.VIEW_SUPPLIER_DETAIL] })
+  @RequirePermissions({
+    all: [
+      SRM_MANAGEMENT_PERMISSION_CODES.VIEW_SUPPLIER_DETAIL,
+      SRM_MANAGEMENT_PERMISSION_CODES.LIST_SUPPLIER_OFFERINGS_BY_SUPPLIER
+    ]
+  })
   @ApiOperation({
     summary: 'Get one SRM supplier detail aggregate with contacts, addresses, and offerings'
   })

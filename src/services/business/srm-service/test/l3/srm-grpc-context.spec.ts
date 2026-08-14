@@ -1,147 +1,76 @@
-import { status } from '@grpc/grpc-js'
-import { SupplierManagementGrpcController } from '../../src/interfaces/grpc/supplier-management.grpc.controller'
-import { SupplierQueryGrpcController } from '../../src/interfaces/grpc/supplier-query.grpc.controller'
+import { attachVerifiedExecution } from '@oes/common/authorization'
+import {
+  SupplierRpcContextValidator,
+  trustedTenantId
+} from '../../src/interfaces/grpc/supplier-rpc-context.validator'
 
-function createManagementController() {
-  return new SupplierManagementGrpcController(
-    {
-      execute: jest.fn()
-    } as never,
-    {
-      recordCommand: jest.fn()
-    } as never
-  )
+/** Builds one RPC execution context around an exact request object. */
+function rpcContext(data: object) {
+  return {
+    switchToRpc: () => ({ getData: () => data })
+  } as never
 }
 
-function createQueryController() {
-  return new SupplierQueryGrpcController({
-    execute: jest.fn()
+/** Attaches the same frozen verified HUMAN facts that the token guard supplies in production. */
+function attachHuman(data: object, overrides: Record<string, unknown> = {}) {
+  attachVerifiedExecution(data, {
+    verifiedExecutionToken: {
+      issuer: 'https://auth.example',
+      audience: 'urn:oes:service:srm-service',
+      subject: 'human-1',
+      principalType: 'HUMAN',
+      clientId: 'spiffe://oes/api-gateway',
+      tenantId: 'tenant-1',
+      permissionCodes: ['srm.supplier_profile.list'],
+      tokenId: 'token-1',
+      issuedAt: 1,
+      notBefore: 1,
+      expiresAt: 9999999999,
+      certificateThumbprint: 'A'.repeat(43),
+      sessionId: 'session-1',
+      sessionTerminal: 'WEB',
+      ...overrides
+    },
+    verifiedWorkloadIdentity: {
+      spiffeId: 'spiffe://oes/api-gateway',
+      certificateThumbprint: 'A'.repeat(43)
+    }
   } as never)
 }
 
-describe('srm-service grpc context validation L3', () => {
-  it('CreateSupplierProfile / when tenant_id is missing / should reject with INVALID_ARGUMENT', async () => {
-    const controller = createManagementController()
-
-    await expect(
-      controller.createSupplierProfile({
-        tenantId: '',
-        operatorContext: {
-          operatorId: 'operator-1',
-          operatorType: 'HUMAN',
-          orgId: 'org-1'
-        },
-        traceContext: {
-          traceId: 'trace-1',
-          requestId: 'request-1'
-        },
-        auditContext: {
-          auditId: 'audit-1',
-          reason: 'create supplier profile',
-          source: 'srm-workspace'
-        },
-        displayName: 'Acme SRM',
-        tags: []
-      } as never)
-    ).rejects.toMatchObject({
-      definition: {
-        rpcStatus: status.INVALID_ARGUMENT
-      }
-    })
+/** Verifies SRM request context is claims-derived and rejects every retired body authority shape. */
+describe('SRM verified RPC context L3', () => {
+  it('derives the exact tenant from verified HUMAN execution', () => {
+    const data = { keyword: 'supplier' }
+    attachHuman(data)
+    expect(new SupplierRpcContextValidator().canActivate(rpcContext(data))).toBe(true)
+    expect(trustedTenantId(data)).toBe('tenant-1')
   })
 
-  it('CreateSupplierProfile / when operator_context is missing / should reject with UNAUTHENTICATED', async () => {
-    const controller = createManagementController()
-
-    await expect(
-      controller.createSupplierProfile({
-        tenantId: 'tenant-1',
-        traceContext: {
-          traceId: 'trace-1',
-          requestId: 'request-1'
-        },
-        auditContext: {
-          auditId: 'audit-1',
-          reason: 'create supplier profile',
-          source: 'srm-workspace'
-        },
-        displayName: 'Acme SRM',
-        tags: []
-      } as never)
-    ).rejects.toMatchObject({
-      definition: {
-        rpcStatus: status.UNAUTHENTICATED
-      }
-    })
+  it.each([
+    ['tenantId', 'attacker-tenant'],
+    ['tenant_id', 'attacker-tenant'],
+    ['operatorContext', {}],
+    ['operator_context', {}],
+    ['traceContext', {}],
+    ['trace_context', {}],
+    ['auditContext', {}],
+    ['audit_context', {}]
+  ])('rejects retired body authority %s before it can be overwritten', (field, value) => {
+    const data = { [field]: value }
+    attachHuman(data)
+    expect(() => new SupplierRpcContextValidator().canActivate(rpcContext(data))).toThrow()
   })
 
-  it('CreateSupplierProfile / when trace_context is missing / should reject with UNAUTHENTICATED', async () => {
-    const controller = createManagementController()
-
-    await expect(
-      controller.createSupplierProfile({
-        tenantId: 'tenant-1',
-        operatorContext: {
-          operatorId: 'operator-1',
-          operatorType: 'HUMAN',
-          orgId: 'org-1'
-        },
-        auditContext: {
-          auditId: 'audit-1',
-          reason: 'create supplier profile',
-          source: 'srm-workspace'
-        },
-        displayName: 'Acme SRM',
-        tags: []
-      } as never)
-    ).rejects.toMatchObject({
-      definition: {
-        rpcStatus: status.UNAUTHENTICATED
-      }
-    })
-  })
-
-  it('CreateSupplierProfile / when audit_context is missing / should reject with UNAUTHENTICATED', async () => {
-    const controller = createManagementController()
-
-    await expect(
-      controller.createSupplierProfile({
-        tenantId: 'tenant-1',
-        operatorContext: {
-          operatorId: 'operator-1',
-          operatorType: 'HUMAN',
-          orgId: 'org-1'
-        },
-        traceContext: {
-          traceId: 'trace-1',
-          requestId: 'request-1'
-        },
-        displayName: 'Acme SRM',
-        tags: []
-      } as never)
-    ).rejects.toMatchObject({
-      definition: {
-        rpcStatus: status.UNAUTHENTICATED
-      }
-    })
-  })
-
-  it('SearchSuppliers / when query operator_context is missing / should reject with UNAUTHENTICATED', async () => {
-    const controller = createQueryController()
-
-    await expect(
-      controller.searchSuppliers({
-        tenantId: 'tenant-1',
-        traceContext: {
-          traceId: 'trace-1',
-          requestId: 'request-1'
-        },
-        keyword: 'acme'
-      } as never)
-    ).rejects.toMatchObject({
-      definition: {
-        rpcStatus: status.UNAUTHENTICATED
-      }
-    })
+  it.each([
+    ['MACHINE root', { principalType: 'MACHINE', sessionId: undefined }],
+    ['DELEGATED subject', { principalType: 'DELEGATED' }],
+    ['missing tenant', { tenantId: undefined }],
+    ['SYSTEM tenant', { tenantId: 'SYSTEM' }],
+    ['wildcard tenant', { tenantId: '*' }]
+  ])('rejects %s as SRM tenant authority', (_label, overrides) => {
+    const data = {}
+    attachHuman(data, overrides)
+    expect(() => new SupplierRpcContextValidator().canActivate(rpcContext(data))).toThrow()
   })
 })

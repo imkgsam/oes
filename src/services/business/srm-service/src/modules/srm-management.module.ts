@@ -10,10 +10,11 @@ import { UpsertSupplierContactHandler } from '../application/commands/upsert-sup
 import { UpsertSupplierOfferingHandler } from '../application/commands/upsert-supplier-offering.handler'
 import { SrmAuditService } from '../application/services/srm-audit.service'
 import { SupplierManagementGrpcController } from '../interfaces/grpc/supplier-management.grpc.controller'
+import { SrmTrustedExecutionModule } from './srm-trusted-execution.module'
 
 /** SrmManagementModule wires the phase 1 SRM command handlers, audit service, and gRPC controller surface. */
 @Module({
-  imports: [CqrsModule],
+  imports: [CqrsModule, SrmTrustedExecutionModule],
   providers: [
     ValidatingCommandBus,
     SrmAuditService,

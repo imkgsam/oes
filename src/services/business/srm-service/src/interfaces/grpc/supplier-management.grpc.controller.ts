@@ -1,6 +1,10 @@
-import { Controller, UseFilters } from '@nestjs/common'
-import { GrpcRequestContextStore } from '@oes/common/authorization'
-import { SERVICE_NAMES } from '@oes/common/constants'
+import { Controller, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common'
+import {
+  AuthorizeBusinessRpc,
+  GrpcRequestContextInterceptor,
+  SRM_MANAGEMENT_PERMISSION_CODES,
+  TrustedExecutionGuard
+} from '@oes/common/authorization'
 import { ValidatingCommandBus } from '@oes/common/cqrs'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
@@ -34,27 +38,27 @@ import { SrmAuditService } from '../../application/services/srm-audit.service'
 import { normalizeOptionalString } from '../../application/support/srm-assertions'
 import { SupplierOfferingStatus, SupplierStatus } from '../../domain/models/srm-records'
 import { SupplierGrpcPresenter } from './supplier-grpc.presenter'
-import { SupplierRpcContextValidator } from './supplier-rpc-context.validator'
+import { SupplierRpcContextValidator, trustedTenantId } from './supplier-rpc-context.validator'
 
 /** SupplierManagementGrpcController exposes the SRM phase 1 command contract with local audit envelope recording. */
 @UseFilters(GrpcExceptionFilter)
+@UseGuards(TrustedExecutionGuard, SupplierRpcContextValidator)
+@UseInterceptors(GrpcRequestContextInterceptor)
 @Controller()
 @SupplierManagementServiceControllerMethods()
 export class SupplierManagementGrpcController implements SupplierManagementServiceController {
   constructor(
     private readonly commandBus: ValidatingCommandBus,
-    private readonly auditService: SrmAuditService,
-    private readonly requestContextStore: GrpcRequestContextStore
+    private readonly auditService: SrmAuditService
   ) {}
 
-  async createSupplierProfile(request: CreateSupplierProfileRequest): Promise<CreateSupplierProfileResponse> {
-    const context = SupplierRpcContextValidator.assertManagementContext(request)
+  async createSupplierProfile(
+    request: CreateSupplierProfileRequest
+  ): Promise<CreateSupplierProfileResponse> {
+    const tenantId = trustedTenantId(request)
     return this.auditService.recordCommand(
       {
-        tenantId: context.tenantId,
-        operatorContext: context.operatorContext,
-        traceContext: context.traceContext,
-        auditContext: context.auditContext,
+        tenantId,
         commandName: 'CreateSupplierProfile',
         resourceType: 'supplier_profile',
         targetId: null,
@@ -66,7 +70,7 @@ export class SupplierManagementGrpcController implements SupplierManagementServi
       async () => {
         const profile = await this.commandBus.execute(
           new CreateSupplierProfileCommand({
-            tenantId: request.tenantId ?? '',
+            tenantId,
             displayName: request.displayName ?? '',
             supplierNo: normalizeOptionalString(request.supplierNo),
             supplierCategory: normalizeOptionalString(request.supplierCategory),
@@ -82,13 +86,10 @@ export class SupplierManagementGrpcController implements SupplierManagementServi
   async updateSupplierProfileBasics(
     request: UpdateSupplierProfileBasicsRequest
   ): Promise<UpdateSupplierProfileBasicsResponse> {
-    const context = SupplierRpcContextValidator.assertManagementContext(request)
+    const tenantId = trustedTenantId(request)
     return this.auditService.recordCommand(
       {
-        tenantId: context.tenantId,
-        operatorContext: context.operatorContext,
-        traceContext: context.traceContext,
-        auditContext: context.auditContext,
+        tenantId,
         commandName: 'UpdateSupplierProfileBasics',
         resourceType: 'supplier_profile',
         targetId: request.supplierId ?? null,
@@ -99,13 +100,13 @@ export class SupplierManagementGrpcController implements SupplierManagementServi
       async () => {
         const profile = await this.commandBus.execute(
           new UpdateSupplierProfileBasicsCommand({
-            tenantId: request.tenantId ?? '',
+            tenantId,
             supplierId: request.supplierId ?? '',
             displayName: normalizeOptionalString(request.displayName),
             supplierNo: normalizeOptionalString(request.supplierNo),
             supplierCategory:
               request.supplierCategory !== undefined
-                ? normalizeOptionalString(request.supplierCategory) ?? ''
+                ? (normalizeOptionalString(request.supplierCategory) ?? '')
                 : undefined,
             tags: request.tags
           })
@@ -119,13 +120,10 @@ export class SupplierManagementGrpcController implements SupplierManagementServi
   async bindSupplierToTenantParty(
     request: BindSupplierToTenantPartyRequest
   ): Promise<BindSupplierToTenantPartyResponse> {
-    const context = SupplierRpcContextValidator.assertManagementContext(request)
+    const tenantId = trustedTenantId(request)
     return this.auditService.recordCommand(
       {
-        tenantId: context.tenantId,
-        operatorContext: context.operatorContext,
-        traceContext: context.traceContext,
-        auditContext: context.auditContext,
+        tenantId,
         commandName: 'BindSupplierToTenantParty',
         resourceType: 'supplier_party_binding',
         targetId: request.supplierId ?? null,
@@ -137,7 +135,7 @@ export class SupplierManagementGrpcController implements SupplierManagementServi
       async () => {
         const profile = await this.commandBus.execute(
           new BindSupplierToTenantPartyCommand({
-            tenantId: request.tenantId ?? '',
+            tenantId,
             supplierId: request.supplierId ?? '',
             tenantPartyId: request.tenantPartyId ?? ''
           })
@@ -148,14 +146,13 @@ export class SupplierManagementGrpcController implements SupplierManagementServi
     )
   }
 
-  async upsertSupplierContact(request: UpsertSupplierContactRequest): Promise<UpsertSupplierContactResponse> {
-    const context = SupplierRpcContextValidator.assertManagementContext(request)
+  async upsertSupplierContact(
+    request: UpsertSupplierContactRequest
+  ): Promise<UpsertSupplierContactResponse> {
+    const tenantId = trustedTenantId(request)
     return this.auditService.recordCommand(
       {
-        tenantId: context.tenantId,
-        operatorContext: context.operatorContext,
-        traceContext: context.traceContext,
-        auditContext: context.auditContext,
+        tenantId,
         commandName: 'UpsertSupplierContact',
         resourceType: 'supplier_contact',
         targetId: request.supplierContactId ?? request.supplierId ?? null,
@@ -167,7 +164,7 @@ export class SupplierManagementGrpcController implements SupplierManagementServi
       async () => {
         const contact = await this.commandBus.execute(
           new UpsertSupplierContactCommand({
-            tenantId: request.tenantId ?? '',
+            tenantId,
             supplierId: request.supplierId ?? '',
             supplierContactId: normalizeOptionalString(request.supplierContactId),
             displayName: request.displayName ?? '',
@@ -184,14 +181,13 @@ export class SupplierManagementGrpcController implements SupplierManagementServi
     )
   }
 
-  async upsertSupplierAddress(request: UpsertSupplierAddressRequest): Promise<UpsertSupplierAddressResponse> {
-    const context = SupplierRpcContextValidator.assertManagementContext(request)
+  async upsertSupplierAddress(
+    request: UpsertSupplierAddressRequest
+  ): Promise<UpsertSupplierAddressResponse> {
+    const tenantId = trustedTenantId(request)
     return this.auditService.recordCommand(
       {
-        tenantId: context.tenantId,
-        operatorContext: context.operatorContext,
-        traceContext: context.traceContext,
-        auditContext: context.auditContext,
+        tenantId,
         commandName: 'UpsertSupplierAddress',
         resourceType: 'supplier_address',
         targetId: request.supplierAddressId ?? request.supplierId ?? null,
@@ -203,7 +199,7 @@ export class SupplierManagementGrpcController implements SupplierManagementServi
       async () => {
         const address = await this.commandBus.execute(
           new UpsertSupplierAddressCommand({
-            tenantId: request.tenantId ?? '',
+            tenantId,
             supplierId: request.supplierId ?? '',
             supplierAddressId: normalizeOptionalString(request.supplierAddressId),
             label: request.label ?? '',
@@ -223,49 +219,45 @@ export class SupplierManagementGrpcController implements SupplierManagementServi
     )
   }
 
-  async upsertSupplierOffering(request: UpsertSupplierOfferingRequest): Promise<UpsertSupplierOfferingResponse> {
-    const context = SupplierRpcContextValidator.assertManagementContext(request)
-    return this.requestContextStore.run(buildDownstreamRequestContext(context), () =>
-      this.auditService.recordCommand(
-        {
-          tenantId: context.tenantId,
-          operatorContext: context.operatorContext,
-          traceContext: context.traceContext,
-          auditContext: context.auditContext,
-          commandName: 'UpsertSupplierOffering',
-          resourceType: 'supplier_offering',
-          targetId: request.supplierOfferingId ?? request.supplierId ?? null,
-          requestSummary: {
+  async upsertSupplierOffering(
+    request: UpsertSupplierOfferingRequest
+  ): Promise<UpsertSupplierOfferingResponse> {
+    const tenantId = trustedTenantId(request)
+    return this.auditService.recordCommand(
+      {
+        tenantId,
+        commandName: 'UpsertSupplierOffering',
+        resourceType: 'supplier_offering',
+        targetId: request.supplierOfferingId ?? request.supplierId ?? null,
+        requestSummary: {
+          supplierId: request.supplierId ?? '',
+          itemId: request.itemId ?? '',
+          targetStatus: request.targetStatus ?? 0
+        }
+      },
+      async () => {
+        const offering = await this.commandBus.execute(
+          new UpsertSupplierOfferingCommand({
+            tenantId,
+            supplierOfferingId: normalizeOptionalString(request.supplierOfferingId),
             supplierId: request.supplierId ?? '',
             itemId: request.itemId ?? '',
-            targetStatus: request.targetStatus ?? 0
-          }
-        },
-        async () => {
-          const offering = await this.commandBus.execute(
-            new UpsertSupplierOfferingCommand({
-              tenantId: request.tenantId ?? '',
-              supplierOfferingId: normalizeOptionalString(request.supplierOfferingId),
-              supplierId: request.supplierId ?? '',
-              itemId: request.itemId ?? '',
-              targetStatus: toDomainSupplierOfferingStatus(request.targetStatus)
-            })
-          )
+            targetStatus: toDomainSupplierOfferingStatus(request.targetStatus)
+          })
+        )
 
-          return SupplierGrpcPresenter.toUpsertSupplierOfferingResponse(offering)
-        }
-      )
+        return SupplierGrpcPresenter.toUpsertSupplierOfferingResponse(offering)
+      }
     )
   }
 
-  async changeSupplierStatus(request: ChangeSupplierStatusRequest): Promise<ChangeSupplierStatusResponse> {
-    const context = SupplierRpcContextValidator.assertManagementContext(request)
+  async changeSupplierStatus(
+    request: ChangeSupplierStatusRequest
+  ): Promise<ChangeSupplierStatusResponse> {
+    const tenantId = trustedTenantId(request)
     return this.auditService.recordCommand(
       {
-        tenantId: context.tenantId,
-        operatorContext: context.operatorContext,
-        traceContext: context.traceContext,
-        auditContext: context.auditContext,
+        tenantId,
         commandName: 'ChangeSupplierStatus',
         resourceType: 'supplier_profile',
         targetId: request.supplierId ?? null,
@@ -277,7 +269,7 @@ export class SupplierManagementGrpcController implements SupplierManagementServi
       async () => {
         const profile = await this.commandBus.execute(
           new ChangeSupplierStatusCommand({
-            tenantId: request.tenantId ?? '',
+            tenantId,
             supplierId: request.supplierId ?? '',
             targetStatus: toDomainSupplierStatus(request.targetStatus)
           })
@@ -289,6 +281,23 @@ export class SupplierManagementGrpcController implements SupplierManagementServi
   }
 }
 
+/** Registers the frozen SRM HUMAN/WEB command Code matrix outside domain behavior. */
+for (const [method, code] of Object.entries({
+  createSupplierProfile: SRM_MANAGEMENT_PERMISSION_CODES.CREATE_SUPPLIER_PROFILE,
+  updateSupplierProfileBasics: SRM_MANAGEMENT_PERMISSION_CODES.UPDATE_SUPPLIER_PROFILE_BASICS,
+  bindSupplierToTenantParty: SRM_MANAGEMENT_PERMISSION_CODES.BIND_SUPPLIER_TO_TENANT_PARTY,
+  upsertSupplierContact: SRM_MANAGEMENT_PERMISSION_CODES.UPSERT_SUPPLIER_CONTACT,
+  upsertSupplierAddress: SRM_MANAGEMENT_PERMISSION_CODES.UPSERT_SUPPLIER_ADDRESS,
+  upsertSupplierOffering: SRM_MANAGEMENT_PERMISSION_CODES.UPSERT_SUPPLIER_OFFERING,
+  changeSupplierStatus: SRM_MANAGEMENT_PERMISSION_CODES.CHANGE_SUPPLIER_STATUS
+})) {
+  AuthorizeBusinessRpc({ all: [code] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })(
+    SupplierManagementGrpcController.prototype,
+    method,
+    Object.getOwnPropertyDescriptor(SupplierManagementGrpcController.prototype, method)
+  )
+}
+
 /** toDomainSupplierStatus maps the generated SRM status enum into the frozen domain status set. */
 function toDomainSupplierStatus(value?: ProtoSupplierStatus): SupplierStatus {
   if (value === ProtoSupplierStatus.SUPPLIER_STATUS_INACTIVE) {
@@ -298,40 +307,11 @@ function toDomainSupplierStatus(value?: ProtoSupplierStatus): SupplierStatus {
 }
 
 /** toDomainSupplierOfferingStatus maps the generated offering enum into the frozen domain status set. */
-function toDomainSupplierOfferingStatus(value?: ProtoSupplierOfferingStatus): SupplierOfferingStatus {
+function toDomainSupplierOfferingStatus(
+  value?: ProtoSupplierOfferingStatus
+): SupplierOfferingStatus {
   if (value === ProtoSupplierOfferingStatus.SUPPLIER_OFFERING_STATUS_INACTIVE) {
     return SupplierOfferingStatus.INACTIVE
   }
   return SupplierOfferingStatus.ACTIVE
-}
-
-/** buildDownstreamRequestContext bridges the validated SRM RPC payload context into downstream guarded gRPC calls. */
-function buildDownstreamRequestContext(context: {
-  tenantId: string
-  operatorContext: {
-    operatorId: string
-    operatorType: string
-    orgId?: string | null
-  }
-  traceContext: {
-    requestId: string
-    traceId: string
-  }
-}) {
-  const issuedAt = new Date()
-  return {
-    internalServiceName: SERVICE_NAMES.SRM,
-    requestId: context.traceContext.requestId,
-    traceId: context.traceContext.traceId,
-    operatorContext: {
-      operator_id: context.operatorContext.operatorId,
-      operator_type: context.operatorContext.operatorType,
-      tenant_id: context.tenantId,
-      org_id: context.operatorContext.orgId ?? undefined,
-      issued_at: issuedAt.toISOString(),
-      expires_at: new Date(issuedAt.getTime() + 5 * 60 * 1000).toISOString(),
-      issuer: SERVICE_NAMES.SRM,
-      signature: 'srm-runtime-context'
-    }
-  }
 }

@@ -6,6 +6,7 @@ import { GatewaySalesGrpcClient } from './gateway-sales-grpc.client'
 import { GatewayMesGrpcClient } from './gateway-mes-grpc.client'
 import { GatewayCollaborationGrpcClient } from './gateway-collaboration-grpc.client'
 import { GatewayItemMasterGrpcClient } from './gateway-item-master-grpc.client'
+import { GatewaySrmGrpcClient } from './gateway-srm-grpc.client'
 import { Module } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 
@@ -47,6 +48,7 @@ describe('GatewayTrustedGrpcExecutionModule wiring', () => {
         GatewayMesGrpcClient,
         GatewayCollaborationGrpcClient,
         GatewayItemMasterGrpcClient,
+        GatewaySrmGrpcClient,
         GatewayMachineWorkloadSourceCredentialProvider,
         GatewayMachineTrustedGrpcExecutionProducer
       ])
@@ -58,6 +60,7 @@ describe('GatewayTrustedGrpcExecutionModule wiring', () => {
         GatewayMesGrpcClient,
         GatewayCollaborationGrpcClient,
         GatewayItemMasterGrpcClient,
+        GatewaySrmGrpcClient,
         GatewayMachineWorkloadSourceCredentialProvider,
         GatewayMachineTrustedGrpcExecutionProducer
       ])
@@ -76,7 +79,8 @@ describe('GatewayTrustedGrpcExecutionModule wiring', () => {
       'urn:oes:service:public-entry-service',
       'urn:oes:service:mes-service',
       'urn:oes:service:collaboration-service',
-      'urn:oes:service:item-master-service'
+      'urn:oes:service:item-master-service',
+      'urn:oes:service:srm-service'
     ])
   })
 
@@ -99,6 +103,13 @@ describe('GatewayTrustedGrpcExecutionModule wiring', () => {
     class ConsumerModule {}
     const module = await Test.createTestingModule({ imports: [ConsumerModule] }).compile()
     expect(module.get(GatewayItemMasterGrpcClient)).toBeInstanceOf(GatewayItemMasterGrpcClient)
+  })
+
+  it('exports the dedicated SRM client to a consumer module through the real Nest DI graph', async () => {
+    @Module({ imports: [GatewayTrustedGrpcExecutionModule] })
+    class ConsumerModule {}
+    const module = await Test.createTestingModule({ imports: [ConsumerModule] }).compile()
+    expect(module.get(GatewaySrmGrpcClient)).toBeInstanceOf(GatewaySrmGrpcClient)
   })
 
   it('fails closed when deployment trust configuration is absent instead of installing a default producer', () => {

@@ -1,5 +1,5 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
-import { ClientGrpc } from '@nestjs/microservices'
+import { Injectable, OnModuleInit } from '@nestjs/common'
+import { SRM_MANAGEMENT_PERMISSION_CODES } from '@oes/common/authorization'
 import {
   BindSupplierToTenantPartyRequest,
   BindSupplierToTenantPartyResponse,
@@ -7,7 +7,6 @@ import {
   ChangeSupplierStatusResponse,
   CreateSupplierProfileRequest,
   CreateSupplierProfileResponse,
-  SUPPLIER_MANAGEMENT_SERVICE_NAME,
   SupplierManagementServiceClient,
   UpdateSupplierProfileBasicsRequest,
   UpdateSupplierProfileBasicsResponse,
@@ -18,222 +17,133 @@ import {
   UpsertSupplierOfferingRequest,
   UpsertSupplierOfferingResponse
 } from '@oes/common/generated/srm_service'
+import { safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
+import { Observable } from 'rxjs'
+import { DownstreamRequestSource } from '../../../common/grpc/gateway-downstream-source.mapper'
 import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory
-} from '@oes/common/authorization'
-import { SERVICE_NAMES } from '@oes/common/constants'
-import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
-import {
-  DownstreamRequestSource,
-  toOperatorScopedMetadataInput
-} from '../../../common/grpc/gateway-downstream-source.mapper'
-import {
-  buildSrmAuditContext,
-  buildSrmOperatorContext,
-  buildSrmTraceContext
-} from './srm-grpc-context'
+  GatewaySrmGrpcClient,
+  SRM_TARGET_AUDIENCE
+} from '../../../common/grpc/gateway-srm-grpc.client'
+import { GatewayTrustedGrpcExecutionProducer } from '../../../common/grpc/gateway-trusted-grpc-execution-producer'
 
 const CALLER = 'api-gateway'
 
-interface ManagementInputBase {
-  auditReason?: string
-}
-
+/** Proxies SRM commands through one dedicated mTLS channel and exact BUSINESS token metadata. */
 @Injectable()
-// Proxies the frozen SRM phase 1 command RPCs from api-gateway into srm-service.
 export class SupplierManagementGrpcAdapter implements OnModuleInit {
   private svc!: SupplierManagementServiceClient
 
   constructor(
-    @InjectGrpcClient(SERVICE_NAMES.SRM)
-    private readonly client: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory
+    private readonly client: GatewaySrmGrpcClient,
+    private readonly producer: GatewayTrustedGrpcExecutionProducer
   ) {}
 
   onModuleInit(): void {
-    this.svc = this.client.getService<SupplierManagementServiceClient>(
-      SUPPLIER_MANAGEMENT_SERVICE_NAME
-    )
+    this.svc = this.client.management()
   }
 
-  /** createSupplierProfile forwards one SRM supplier shell creation command. */
-  createSupplierProfile(
-    input: Omit<CreateSupplierProfileRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
-      ManagementInputBase,
+  async createSupplierProfile(
+    input: CreateSupplierProfileRequest,
     source: DownstreamRequestSource
   ): Promise<CreateSupplierProfileResponse> {
     return this.call(
       'createSupplierProfile',
       this.svc.createSupplierProfile(
-        {
-          ...input,
-          operatorContext: buildSrmOperatorContext(source),
-          traceContext: buildSrmTraceContext(source),
-          auditContext: buildSrmAuditContext(
-            source,
-            input.auditReason ?? 'create supplier profile from api-gateway'
-          )
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        input,
+        await this.metadata(source, SRM_MANAGEMENT_PERMISSION_CODES.CREATE_SUPPLIER_PROFILE)
       )
     )
   }
 
-  /** updateSupplierProfileBasics forwards one basics-only supplier mutation command. */
-  updateSupplierProfileBasics(
-    input: Omit<
-      UpdateSupplierProfileBasicsRequest,
-      'auditContext' | 'operatorContext' | 'traceContext'
-    > &
-      ManagementInputBase,
+  async updateSupplierProfileBasics(
+    input: UpdateSupplierProfileBasicsRequest,
     source: DownstreamRequestSource
   ): Promise<UpdateSupplierProfileBasicsResponse> {
     return this.call(
       'updateSupplierProfileBasics',
       this.svc.updateSupplierProfileBasics(
-        {
-          ...input,
-          operatorContext: buildSrmOperatorContext(source),
-          traceContext: buildSrmTraceContext(source),
-          auditContext: buildSrmAuditContext(
-            source,
-            input.auditReason ?? 'update supplier profile basics from api-gateway'
-          )
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        input,
+        await this.metadata(source, SRM_MANAGEMENT_PERMISSION_CODES.UPDATE_SUPPLIER_PROFILE_BASICS)
       )
     )
   }
 
-  /** bindSupplierToTenantParty forwards one formal tenant-party binding command. */
-  bindSupplierToTenantParty(
-    input: Omit<
-      BindSupplierToTenantPartyRequest,
-      'auditContext' | 'operatorContext' | 'traceContext'
-    > &
-      ManagementInputBase,
+  async bindSupplierToTenantParty(
+    input: BindSupplierToTenantPartyRequest,
     source: DownstreamRequestSource
   ): Promise<BindSupplierToTenantPartyResponse> {
     return this.call(
       'bindSupplierToTenantParty',
       this.svc.bindSupplierToTenantParty(
-        {
-          ...input,
-          operatorContext: buildSrmOperatorContext(source),
-          traceContext: buildSrmTraceContext(source),
-          auditContext: buildSrmAuditContext(
-            source,
-            input.auditReason ?? 'bind supplier profile to tenant party from api-gateway'
-          )
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        input,
+        await this.metadata(source, SRM_MANAGEMENT_PERMISSION_CODES.BIND_SUPPLIER_TO_TENANT_PARTY)
       )
     )
   }
 
-  /** upsertSupplierContact forwards one supplier contact create-or-update command. */
-  upsertSupplierContact(
-    input: Omit<UpsertSupplierContactRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
-      ManagementInputBase,
+  async upsertSupplierContact(
+    input: UpsertSupplierContactRequest,
     source: DownstreamRequestSource
   ): Promise<UpsertSupplierContactResponse> {
     return this.call(
       'upsertSupplierContact',
       this.svc.upsertSupplierContact(
-        {
-          ...input,
-          operatorContext: buildSrmOperatorContext(source),
-          traceContext: buildSrmTraceContext(source),
-          auditContext: buildSrmAuditContext(
-            source,
-            input.auditReason ?? 'upsert supplier contact from api-gateway'
-          )
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        input,
+        await this.metadata(source, SRM_MANAGEMENT_PERMISSION_CODES.UPSERT_SUPPLIER_CONTACT)
       )
     )
   }
 
-  /** upsertSupplierAddress forwards one supplier address create-or-update command. */
-  upsertSupplierAddress(
-    input: Omit<UpsertSupplierAddressRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
-      ManagementInputBase,
+  async upsertSupplierAddress(
+    input: UpsertSupplierAddressRequest,
     source: DownstreamRequestSource
   ): Promise<UpsertSupplierAddressResponse> {
     return this.call(
       'upsertSupplierAddress',
       this.svc.upsertSupplierAddress(
-        {
-          ...input,
-          operatorContext: buildSrmOperatorContext(source),
-          traceContext: buildSrmTraceContext(source),
-          auditContext: buildSrmAuditContext(
-            source,
-            input.auditReason ?? 'upsert supplier address from api-gateway'
-          )
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        input,
+        await this.metadata(source, SRM_MANAGEMENT_PERMISSION_CODES.UPSERT_SUPPLIER_ADDRESS)
       )
     )
   }
 
-  /** upsertSupplierOffering forwards one supplier-to-item offerability command without expanding procurement terms. */
-  upsertSupplierOffering(
-    input: Omit<
-      UpsertSupplierOfferingRequest,
-      'auditContext' | 'operatorContext' | 'traceContext'
-    > &
-      ManagementInputBase,
+  async upsertSupplierOffering(
+    input: UpsertSupplierOfferingRequest,
     source: DownstreamRequestSource
   ): Promise<UpsertSupplierOfferingResponse> {
     return this.call(
       'upsertSupplierOffering',
       this.svc.upsertSupplierOffering(
-        {
-          ...input,
-          operatorContext: buildSrmOperatorContext(source),
-          traceContext: buildSrmTraceContext(source),
-          auditContext: buildSrmAuditContext(
-            source,
-            input.auditReason ?? 'upsert supplier offering from api-gateway'
-          )
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        input,
+        await this.metadata(source, SRM_MANAGEMENT_PERMISSION_CODES.UPSERT_SUPPLIER_OFFERING)
       )
     )
   }
 
-  /** changeSupplierStatus forwards one explicit supplier lifecycle status command. */
-  changeSupplierStatus(
-    input: Omit<ChangeSupplierStatusRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
-      ManagementInputBase,
+  async changeSupplierStatus(
+    input: ChangeSupplierStatusRequest,
     source: DownstreamRequestSource
   ): Promise<ChangeSupplierStatusResponse> {
     return this.call(
       'changeSupplierStatus',
       this.svc.changeSupplierStatus(
-        {
-          ...input,
-          operatorContext: buildSrmOperatorContext(source),
-          traceContext: buildSrmTraceContext(source),
-          auditContext: buildSrmAuditContext(
-            source,
-            input.auditReason ?? 'change supplier status from api-gateway'
-          )
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        input,
+        await this.metadata(source, SRM_MANAGEMENT_PERMISSION_CODES.CHANGE_SUPPLIER_STATUS)
       )
     )
   }
 
-  /** call wraps one gateway SRM command RPC with the shared safe gRPC transport helpers. */
-  private call<TResponse>(method: string, call$: any): Promise<TResponse> {
+  /** Produces exact SRM-audience metadata solely from the verified Gateway session. */
+  private metadata(source: DownstreamRequestSource, code: string) {
+    return this.producer.forBusinessCall(source, SRM_TARGET_AUDIENCE, [code])
+  }
+
+  /** Wraps one generated SRM command observable with the shared transport error contract. */
+  private call<TResponse>(method: string, call$: Observable<TResponse>): Promise<TResponse> {
     return safeGrpcCall<TResponse>(call$, this.opts(method))
   }
 
-  /** opts builds the shared gateway caller metadata for one proxied SRM command. */
+  /** Identifies the Gateway/SRM method pair without injecting authorization metadata. */
   private opts(method: string): SafeGrpcCallOptions {
     return { caller: CALLER, method }
   }

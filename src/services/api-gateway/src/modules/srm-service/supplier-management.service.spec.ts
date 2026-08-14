@@ -275,7 +275,6 @@ describe('SupplierManagementService', () => {
 
     expect(supplierQueryAdapter.searchSuppliers).toHaveBeenCalledWith(
       {
-        tenantId: 'tenant-1',
         keyword: 'alpha',
         status: SupplierStatus.SUPPLIER_STATUS_ACTIVE,
         tenantPartyId: 'party-1',
@@ -286,28 +285,24 @@ describe('SupplierManagementService', () => {
     )
     expect(supplierQueryAdapter.getSupplier).toHaveBeenCalledWith(
       {
-        tenantId: 'tenant-1',
         supplierId: 'supplier-1'
       },
       source
     )
     expect(supplierQueryAdapter.listSupplierContacts).toHaveBeenCalledWith(
       {
-        tenantId: 'tenant-1',
         supplierId: 'supplier-1'
       },
       source
     )
     expect(supplierQueryAdapter.listSupplierAddresses).toHaveBeenCalledWith(
       {
-        tenantId: 'tenant-1',
         supplierId: 'supplier-1'
       },
       source
     )
     expect(supplierQueryAdapter.listSupplierOfferingsBySupplier).toHaveBeenCalledWith(
       {
-        tenantId: 'tenant-1',
         supplierId: 'supplier-1',
         status: undefined,
         page: 1,
@@ -317,7 +312,6 @@ describe('SupplierManagementService', () => {
     )
     expect(supplierQueryAdapter.listSupplierOfferingsByItem).toHaveBeenCalledWith(
       {
-        tenantId: 'tenant-1',
         itemId: 'item-1',
         status: SupplierOfferingStatus.SUPPLIER_OFFERING_STATUS_ACTIVE,
         page: 1,
@@ -566,12 +560,7 @@ describe('SupplierManagementService', () => {
       status: 'ACTIVE'
     })
     await expect(
-      service.changeSupplierStatus(
-        'tenant-1',
-        'supplier-1',
-        { status: 'ACTIVE' },
-        source as any
-      )
+      service.changeSupplierStatus('tenant-1', 'supplier-1', { status: 'ACTIVE' }, source as any)
     ).resolves.toEqual({
       supplierId: 'supplier-1',
       supplierNo: 'SUP-001',
@@ -589,7 +578,6 @@ describe('SupplierManagementService', () => {
 
     expect(supplierManagementAdapter.createSupplierProfile).toHaveBeenCalledWith(
       {
-        tenantId: 'tenant-1',
         displayName: 'Alpha Supply',
         supplierNo: 'SUP-001',
         supplierCategory: 'RAW_MATERIAL',
@@ -599,7 +587,6 @@ describe('SupplierManagementService', () => {
     )
     expect(supplierManagementAdapter.updateSupplierProfileBasics).toHaveBeenCalledWith(
       {
-        tenantId: 'tenant-1',
         supplierId: 'supplier-1',
         displayName: 'Alpha Supply Rev',
         supplierNo: 'SUP-001',
@@ -610,7 +597,6 @@ describe('SupplierManagementService', () => {
     )
     expect(supplierManagementAdapter.bindSupplierToTenantParty).toHaveBeenCalledWith(
       {
-        tenantId: 'tenant-1',
         supplierId: 'supplier-1',
         tenantPartyId: 'party-1'
       },
@@ -618,7 +604,6 @@ describe('SupplierManagementService', () => {
     )
     expect(supplierManagementAdapter.upsertSupplierContact).toHaveBeenCalledWith(
       {
-        tenantId: 'tenant-1',
         supplierId: 'supplier-1',
         supplierContactId: 'contact-1',
         displayName: 'Alice',
@@ -632,7 +617,6 @@ describe('SupplierManagementService', () => {
     )
     expect(supplierManagementAdapter.upsertSupplierAddress).toHaveBeenCalledWith(
       {
-        tenantId: 'tenant-1',
         supplierId: 'supplier-1',
         supplierAddressId: 'address-1',
         label: 'HQ',
@@ -649,7 +633,6 @@ describe('SupplierManagementService', () => {
     )
     expect(supplierManagementAdapter.upsertSupplierOffering).toHaveBeenCalledWith(
       {
-        tenantId: 'tenant-1',
         supplierId: 'supplier-1',
         supplierOfferingId: 'offering-1',
         itemId: 'item-1',
@@ -659,7 +642,6 @@ describe('SupplierManagementService', () => {
     )
     expect(supplierManagementAdapter.changeSupplierStatus).toHaveBeenCalledWith(
       {
-        tenantId: 'tenant-1',
         supplierId: 'supplier-1',
         targetStatus: SupplierStatus.SUPPLIER_STATUS_ACTIVE
       },

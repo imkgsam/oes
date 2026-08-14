@@ -1,4 +1,10 @@
-import { Controller, UseFilters } from '@nestjs/common'
+import { Controller, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common'
+import {
+  AuthorizeBusinessRpc,
+  GrpcRequestContextInterceptor,
+  SRM_MANAGEMENT_PERMISSION_CODES,
+  TrustedExecutionGuard
+} from '@oes/common/authorization'
 import { ValidatingQueryBus } from '@oes/common/cqrs'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
@@ -27,29 +33,29 @@ import { ListSupplierOfferingsBySupplierQuery } from '../../application/queries/
 import { SearchSuppliersQuery } from '../../application/queries/search-suppliers.query'
 import { SupplierOfferingStatus, SupplierStatus } from '../../domain/models/srm-records'
 import { SupplierGrpcPresenter } from './supplier-grpc.presenter'
-import { SupplierRpcContextValidator } from './supplier-rpc-context.validator'
+import { SupplierRpcContextValidator, trustedTenantId } from './supplier-rpc-context.validator'
 
 /** SupplierQueryGrpcController exposes the phase 1 SRM read-only query contract. */
 @UseFilters(GrpcExceptionFilter)
+@UseGuards(TrustedExecutionGuard, SupplierRpcContextValidator)
+@UseInterceptors(GrpcRequestContextInterceptor)
 @Controller()
 @SupplierQueryServiceControllerMethods()
 export class SupplierQueryGrpcController implements SupplierQueryServiceController {
   constructor(private readonly queryBus: ValidatingQueryBus) {}
 
   async getSupplier(request: GetSupplierRequest): Promise<GetSupplierResponse> {
-    SupplierRpcContextValidator.assertQueryContext(request)
     const profile = await this.queryBus.execute(
-      new GetSupplierQuery(request.tenantId ?? '', request.supplierId ?? '')
+      new GetSupplierQuery(trustedTenantId(request), request.supplierId ?? '')
     )
 
     return SupplierGrpcPresenter.toGetSupplierResponse(profile)
   }
 
   async searchSuppliers(request: SearchSuppliersRequest): Promise<SearchSuppliersResponse> {
-    SupplierRpcContextValidator.assertQueryContext(request)
     const result = await this.queryBus.execute(
       new SearchSuppliersQuery({
-        tenantId: request.tenantId ?? '',
+        tenantId: trustedTenantId(request),
         keyword: request.keyword ?? undefined,
         status: toDomainSupplierStatus(request.status),
         tenantPartyId: request.tenantPartyId ?? undefined,
@@ -61,19 +67,21 @@ export class SupplierQueryGrpcController implements SupplierQueryServiceControll
     return SupplierGrpcPresenter.toSearchSuppliersResponse(result)
   }
 
-  async listSupplierContacts(request: ListSupplierContactsRequest): Promise<ListSupplierContactsResponse> {
-    SupplierRpcContextValidator.assertQueryContext(request)
+  async listSupplierContacts(
+    request: ListSupplierContactsRequest
+  ): Promise<ListSupplierContactsResponse> {
     const result = await this.queryBus.execute(
-      new ListSupplierContactsQuery(request.tenantId ?? '', request.supplierId ?? '')
+      new ListSupplierContactsQuery(trustedTenantId(request), request.supplierId ?? '')
     )
 
     return SupplierGrpcPresenter.toListSupplierContactsResponse(result)
   }
 
-  async listSupplierAddresses(request: ListSupplierAddressesRequest): Promise<ListSupplierAddressesResponse> {
-    SupplierRpcContextValidator.assertQueryContext(request)
+  async listSupplierAddresses(
+    request: ListSupplierAddressesRequest
+  ): Promise<ListSupplierAddressesResponse> {
     const result = await this.queryBus.execute(
-      new ListSupplierAddressesQuery(request.tenantId ?? '', request.supplierId ?? '')
+      new ListSupplierAddressesQuery(trustedTenantId(request), request.supplierId ?? '')
     )
 
     return SupplierGrpcPresenter.toListSupplierAddressesResponse(result)
@@ -82,10 +90,9 @@ export class SupplierQueryGrpcController implements SupplierQueryServiceControll
   async listSupplierOfferingsBySupplier(
     request: ListSupplierOfferingsBySupplierRequest
   ): Promise<ListSupplierOfferingsBySupplierResponse> {
-    SupplierRpcContextValidator.assertQueryContext(request)
     const result = await this.queryBus.execute(
       new ListSupplierOfferingsBySupplierQuery({
-        tenantId: request.tenantId ?? '',
+        tenantId: trustedTenantId(request),
         supplierId: request.supplierId ?? '',
         status: toDomainSupplierOfferingStatus(request.status),
         page: request.page ?? undefined,
@@ -99,10 +106,9 @@ export class SupplierQueryGrpcController implements SupplierQueryServiceControll
   async listSupplierOfferingsByItem(
     request: ListSupplierOfferingsByItemRequest
   ): Promise<ListSupplierOfferingsByItemResponse> {
-    SupplierRpcContextValidator.assertQueryContext(request)
     const result = await this.queryBus.execute(
       new ListSupplierOfferingsByItemQuery({
-        tenantId: request.tenantId ?? '',
+        tenantId: trustedTenantId(request),
         itemId: request.itemId ?? '',
         status: toDomainSupplierOfferingStatus(request.status),
         page: request.page ?? undefined,
@@ -112,6 +118,23 @@ export class SupplierQueryGrpcController implements SupplierQueryServiceControll
 
     return SupplierGrpcPresenter.toListSupplierOfferingsByItemResponse(result)
   }
+}
+
+/** Registers the frozen SRM HUMAN/WEB query Code matrix outside application behavior. */
+for (const [method, code] of Object.entries({
+  getSupplier: SRM_MANAGEMENT_PERMISSION_CODES.VIEW_SUPPLIER_DETAIL,
+  searchSuppliers: SRM_MANAGEMENT_PERMISSION_CODES.LIST_SUPPLIER_PROFILE,
+  listSupplierContacts: SRM_MANAGEMENT_PERMISSION_CODES.VIEW_SUPPLIER_DETAIL,
+  listSupplierAddresses: SRM_MANAGEMENT_PERMISSION_CODES.VIEW_SUPPLIER_DETAIL,
+  listSupplierOfferingsBySupplier:
+    SRM_MANAGEMENT_PERMISSION_CODES.LIST_SUPPLIER_OFFERINGS_BY_SUPPLIER,
+  listSupplierOfferingsByItem: SRM_MANAGEMENT_PERMISSION_CODES.LIST_SUPPLIER_OFFERINGS_BY_ITEM
+})) {
+  AuthorizeBusinessRpc({ all: [code] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })(
+    SupplierQueryGrpcController.prototype,
+    method,
+    Object.getOwnPropertyDescriptor(SupplierQueryGrpcController.prototype, method)
+  )
 }
 
 /** toDomainSupplierStatus maps the generated SRM enum filter into the minimal domain status filter. */

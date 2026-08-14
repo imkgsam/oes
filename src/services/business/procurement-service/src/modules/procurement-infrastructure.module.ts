@@ -1,6 +1,4 @@
 import { Global, Module } from '@nestjs/common'
-import { SERVICE_NAMES } from '@oes/common/constants'
-import { GrpcTransportModule } from '@oes/common/transport'
 import { TOKENS } from '../common/constants/tokens'
 import { SupplierQueryGrpcAdapter } from '../infrastructure/adapters/supplier-query.grpc.adapter'
 import { PrismaProcurementAuditRepository } from '../infrastructure/audit/prisma-procurement-audit.repository'
@@ -13,7 +11,7 @@ import { PrismaProcurementTransactionRunner } from '../infrastructure/transactio
 /** ProcurementInfrastructureModule wires the Prisma-backed persistence graph and downstream item SRM lookup adapters. */
 @Global()
 @Module({
-  imports: [PrismaModule, GrpcTransportModule.forFeature([SERVICE_NAMES.SRM])],
+  imports: [PrismaModule],
   providers: [
     PrismaPurchaseRequestRepository,
     PrismaPurchaseOrderRepository,

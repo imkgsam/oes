@@ -2,6 +2,7 @@ import { Global, Module } from '@nestjs/common'
 import { SrmTrustedExecutionModule } from './srm-trusted-execution.module'
 import { TOKENS } from '../common/constants/tokens'
 import { PartyQueryGrpcAdapter } from '../infrastructure/adapters/party-query-grpc.adapter'
+import { ItemMasterQueryGrpcAdapter } from '../infrastructure/adapters/item-master-query-grpc.adapter'
 import { PrismaSrmAuditRepository } from '../infrastructure/audit/prisma-srm-audit.repository'
 import { PrismaModule } from '../infrastructure/prisma/prisma.module'
 import { PrismaSupplierOfferingRepository } from '../infrastructure/repositories/prisma/prisma-supplier-offering.repository'
@@ -22,6 +23,7 @@ import { PrismaSrmTransactionRunner } from '../infrastructure/transactions/prism
     PrismaSrmAuditRepository,
     PrismaSrmTransactionRunner,
     PartyQueryGrpcAdapter,
+    ItemMasterQueryGrpcAdapter,
     {
       provide: TOKENS.SUPPLIER_PROFILE_REPOSITORY,
       useExisting: PrismaSupplierProfileRepository
@@ -49,6 +51,10 @@ import { PrismaSrmTransactionRunner } from '../infrastructure/transactions/prism
     {
       provide: TOKENS.TENANT_PARTY_LOOKUP_PORT,
       useExisting: PartyQueryGrpcAdapter
+    },
+    {
+      provide: TOKENS.ITEM_LOOKUP_PORT,
+      useExisting: ItemMasterQueryGrpcAdapter
     }
   ],
   exports: [
@@ -60,13 +66,15 @@ import { PrismaSrmTransactionRunner } from '../infrastructure/transactions/prism
     PrismaSrmAuditRepository,
     PrismaSrmTransactionRunner,
     PartyQueryGrpcAdapter,
+    ItemMasterQueryGrpcAdapter,
     TOKENS.SUPPLIER_PROFILE_REPOSITORY,
     TOKENS.SUPPLIER_CONTACT_REPOSITORY,
     TOKENS.SUPPLIER_ADDRESS_REPOSITORY,
     TOKENS.SUPPLIER_OFFERING_REPOSITORY,
     TOKENS.SRM_AUDIT_WRITER,
     TOKENS.SRM_TRANSACTION_RUNNER,
-    TOKENS.TENANT_PARTY_LOOKUP_PORT
+    TOKENS.TENANT_PARTY_LOOKUP_PORT,
+    TOKENS.ITEM_LOOKUP_PORT
   ]
 })
 export class SrmInfrastructureModule {}

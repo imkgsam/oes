@@ -222,15 +222,6 @@ const siteGrpcLoaderOptions = { longs: String, arrays: true }
           loader: siteGrpcLoaderOptions,
           url: resolveSiteGrpcUrl()
         },
-        [SERVICE_NAMES.SRM]: {
-          serviceName: SERVICE_NAMES.SRM,
-          protoPath: resolveCommonProtoPath('srm_service/srm.proto'),
-          packageName: 'srm_service',
-          url:
-            process.env.SRM_SERVICE_HOST && process.env.SRM_SERVICE_PORT
-              ? `${process.env.SRM_SERVICE_HOST}:${process.env.SRM_SERVICE_PORT}`
-              : 'localhost:50061'
-        },
         [SERVICE_NAMES.TENANT_ORG]: {
           serviceName: SERVICE_NAMES.TENANT_ORG,
           protoPath: resolveCommonProtoPath('tenant_org_service/tenant_org.proto'),

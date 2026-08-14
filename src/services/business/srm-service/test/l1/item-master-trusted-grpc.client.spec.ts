@@ -6,6 +6,8 @@ import { SrmItemMasterTrustedGrpcClient } from '../../src/infrastructure/adapter
 import { SrmItemMasterExecutionTokenExchangeClient } from '../../src/infrastructure/adapters/srm-item-master-execution-token-exchange.client'
 import { SrmItemMasterTrustedGrpcExecutionProducer } from '../../src/infrastructure/adapters/srm-item-master-trusted-grpc-execution.producer'
 import { SrmInfrastructureModule } from '../../src/modules/srm-infrastructure.module'
+import { SrmTrustedExecutionModule } from '../../src/modules/srm-trusted-execution.module'
+import { TOKENS } from '../../src/common/constants/tokens'
 
 const audience = 'urn:oes:service:item-master-service'
 const code = ITEM_MASTER_INTERNAL_PERMISSION_CODES.RESOLVE_PURCHASABLE_ITEM
@@ -27,14 +29,33 @@ describe('SRM Item Master trusted execution L1', () => {
     process.env = saved
   })
 
-  it('keeps the prepared caller graph out of production DI until SRM inbound migration', () => {
+  it('activates the complete caller graph in SRM production DI after trusted inbound migration', () => {
     const tokens = [
       SrmItemMasterTrustedGrpcClient,
       SrmItemMasterExecutionTokenExchangeClient,
       SrmItemMasterTrustedGrpcExecutionProducer
     ]
-    const providers = Reflect.getMetadata('providers', SrmInfrastructureModule) as unknown[]
-    expect(providers).not.toEqual(expect.arrayContaining(tokens))
+    const trustedProviders = Reflect.getMetadata('providers', SrmTrustedExecutionModule) as Array<
+      unknown | { provide?: unknown }
+    >
+    const registered = trustedProviders.map((provider) =>
+      typeof provider === 'object' && provider ? provider.provide : provider
+    )
+    expect(registered).toEqual(expect.arrayContaining(tokens))
+
+    const infrastructureProviders = Reflect.getMetadata(
+      'providers',
+      SrmInfrastructureModule
+    ) as Array<unknown | { provide?: unknown; useExisting?: unknown }>
+    expect(infrastructureProviders).toContain(ItemMasterQueryGrpcAdapter)
+    expect(infrastructureProviders).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          provide: TOKENS.ITEM_LOOKUP_PORT,
+          useExisting: ItemMasterQueryGrpcAdapter
+        })
+      ])
+    )
   })
 
   it('calls only ResolvePurchasableItem with the exact code and no body tenant', async () => {

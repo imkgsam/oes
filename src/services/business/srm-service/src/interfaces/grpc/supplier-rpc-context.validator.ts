@@ -1,93 +1,66 @@
-import {
-  assertAuditContext,
-  assertOperatorContext,
-  assertRequiredString,
-  assertTraceContext
-} from '../../application/support/srm-assertions'
-import {
-  SrmAuditContext,
-  SrmOperatorContext,
-  SrmTraceContext
-} from '../../domain/models/srm-records'
+import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common'
+import { getAuthenticatedGrpcRequestContext } from '@oes/common/authorization'
+import { ExceptionFactory } from '@oes/common/exceptions'
+import { SRM_UNAUTHENTICATED } from '../../common/errors/srm.errors'
 
-export interface SrmQueryContext {
-  tenantId: string
-  operatorContext: SrmOperatorContext
-  traceContext: SrmTraceContext
+const RETIRED_AUTHORITY_FIELDS = [
+  'tenantId',
+  'tenant_id',
+  'operatorContext',
+  'operator_context',
+  'traceContext',
+  'trace_context',
+  'auditContext',
+  'audit_context'
+] as const
+
+/** SupplierRpcContextValidator maps only guard-verified ET tenant authority into SRM application input. */
+@Injectable()
+export class SupplierRpcContextValidator implements CanActivate {
+  canActivate(context: ExecutionContext): boolean {
+    const data = context.switchToRpc().getData()
+    if (!data || typeof data !== 'object') {
+      throw unauthenticated('SRM gRPC request payload is missing')
+    }
+    if (
+      RETIRED_AUTHORITY_FIELDS.some((field) => Object.prototype.hasOwnProperty.call(data, field))
+    ) {
+      throw unauthenticated('retired SRM request authority is forbidden')
+    }
+
+    const execution = getAuthenticatedGrpcRequestContext(data)?.verifiedExecutionToken
+    const tenantId = execution?.tenantId
+    if (
+      execution?.principalType !== 'HUMAN' ||
+      !tenantId ||
+      tenantId.trim() !== tenantId ||
+      tenantId === 'SYSTEM' ||
+      tenantId === '*'
+    ) {
+      throw unauthenticated('verified SRM HUMAN tenant execution context is missing')
+    }
+
+    Object.assign(data, { tenantId })
+    return true
+  }
 }
 
-export interface SrmManagementContext extends SrmQueryContext {
-  auditContext: SrmAuditContext
+/** Reads the trusted tenant injected by the context guard without accepting request-body authority. */
+export function trustedTenantId(request: object): string {
+  const value = (request as { tenantId?: unknown }).tenantId
+  if (
+    typeof value !== 'string' ||
+    !value ||
+    value.trim() !== value ||
+    value === 'SYSTEM' ||
+    value === '*'
+  ) {
+    throw unauthenticated('verified SRM tenant execution context is unavailable')
+  }
+  return value
 }
 
-/** SupplierRpcContextValidator validates the explicit tenant, operator, trace, and audit contexts frozen in SRM contracts. */
-export class SupplierRpcContextValidator {
-  /** assertQueryContext validates the read-path explicit tenant, operator, and trace context payload. */
-  static assertQueryContext(request: {
-    tenantId?: string
-    operatorContext?: {
-      operatorId?: string | null
-      operatorType?: string | null
-      orgId?: string | null
-    } | null
-    traceContext?: {
-      traceId?: string | null
-      requestId?: string | null
-    } | null
-  }): SrmQueryContext {
-    assertRequiredString(request.tenantId ?? '', 'tenantId')
-    return {
-      tenantId: request.tenantId ?? '',
-      operatorContext: assertOperatorContext(
-        request.operatorContext
-          ? {
-              operatorId: request.operatorContext.operatorId ?? '',
-              operatorType: request.operatorContext.operatorType ?? '',
-              orgId: request.operatorContext.orgId ?? null
-            }
-          : null
-      ),
-      traceContext: assertTraceContext(
-        request.traceContext
-          ? {
-              traceId: request.traceContext.traceId ?? '',
-              requestId: request.traceContext.requestId ?? ''
-            }
-          : null
-      )
-    }
-  }
-
-  /** assertManagementContext validates the write-path explicit tenant, operator, trace, and audit contexts. */
-  static assertManagementContext(request: {
-    tenantId?: string
-    operatorContext?: {
-      operatorId?: string | null
-      operatorType?: string | null
-      orgId?: string | null
-    } | null
-    traceContext?: {
-      traceId?: string | null
-      requestId?: string | null
-    } | null
-    auditContext?: {
-      auditId?: string | null
-      reason?: string | null
-      source?: string | null
-    } | null
-  }): SrmManagementContext {
-    const queryContext = this.assertQueryContext(request)
-    return {
-      ...queryContext,
-      auditContext: assertAuditContext(
-        request.auditContext
-          ? {
-              auditId: request.auditContext.auditId ?? '',
-              reason: request.auditContext.reason ?? '',
-              source: request.auditContext.source ?? ''
-            }
-          : null
-      )
-    }
-  }
+/** Creates one stable SRM authentication-context failure without echoing caller material. */
+function unauthenticated(reason: string) {
+  return ExceptionFactory.application(SRM_UNAUTHENTICATED, { reason })
 }
