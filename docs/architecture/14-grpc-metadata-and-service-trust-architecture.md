@@ -325,6 +325,7 @@ INTERNAL service-to-service producer 统一复用 Common `InternalTrustedGrpcCal
 ```ts
 interface InternalTrustedGrpcCallerProfile {
   readonly targetAudience: string
+  readonly executionSource: 'MACHINE_ROOT' | 'HUMAN_OBO'
   readonly errors: {
     readonly contextRequired: string
     readonly foundationUnavailable: string
@@ -353,9 +354,9 @@ class InternalTrustedGrpcCaller {
 }
 ```
 
-`InternalTrustedGrpcCaller` 构造时必须验证并冻结显式 profile：audience 与三个 error literal 都是 trim 后非空精确字符串，三个 error literal 互不相同；无效 profile 在任何 metadata/STS 调用前失败。caller 必须把 profile 的 exact `targetAudience` 传给 `TrustedGrpcMetadataProvider.forInternalCall`，先要求 request-local `principalType=MACHINE`，再在 source provider 内创建 metadata；底层 credential、STS、audience、Code、certificate/`cnf` 错误只能映射到 target profile 的稳定错误，不得暴露 bearer/source secret 或把 transport 错误当成业务结果。target package 拥有自己的 profile/error literals，Common 不新增目标服务常量、Permission Code 或业务规则。
+`InternalTrustedGrpcCaller` 构造时必须验证并冻结显式 profile：audience 与三个 error literal 都是 trim 后非空精确字符串，三个 error literal 互不相同，`executionSource` 只能是两个冻结 literal；无效 profile 在任何 metadata/STS 调用前失败。`MACHINE_ROOT` 精确要求 request-local `principalType=MACHINE` 并使用既有 Machine root source；`HUMAN_OBO` 精确要求 `principalType=HUMAN`、当前 request scope 的 verified inbound ET handle 与对应 OBO source provider。caller 不得从 principal、target、credential 是否存在或错误结果自动猜测 strategy。两种 strategy 都把 exact `targetAudience` 传给 `TrustedGrpcMetadataProvider.forInternalCall`；底层 credential、STS、audience、Code、certificate/`cnf` 错误只能映射到 target profile 的稳定错误，不得暴露 bearer/source secret 或把 transport 错误当成业务结果。target package 拥有自己的 profile/error literals，Common 不新增目标服务常量、Permission Code 或业务规则。
 
-已集成 Party caller 的三参数构造入口在本轮作为严格兼容 overload 保留，内部固定映射到现有 `aud=urn:oes:service:party-service` 与原 `PARTY_CALLER_*` 三类错误；`TrustedPartySourceProvider` 保留为 `TrustedInternalCallSourceProvider` 的兼容 alias。该 overload 只保护当前 Party 行为，不允许新 target 使用。Item Master 及后续 target 必须显式传 profile；Common regression 同时证明 Party old-form audience/error byte-stable、Item Master profile 使用自身 audience/error、错误 audience 不回退 Party。Party 后续维护可迁移到显式 profile 后再单独删除兼容 alias，不属于 Item Master slice。
+已集成 Party caller 的三参数构造入口在本轮作为严格兼容 overload 保留，内部固定映射到 `executionSource=MACHINE_ROOT`、现有 `aud=urn:oes:service:party-service` 与原 `PARTY_CALLER_*` 三类错误；`TrustedPartySourceProvider` 保留为 `TrustedInternalCallSourceProvider` 的兼容 alias。该 overload 只保护当前 Party 行为，不允许新 target 使用。Item Master 及后续 target 必须显式传 profile；其四个 producer 固定 `executionSource=HUMAN_OBO`。Common regression 同时证明 Party old-form principal/audience/error byte-stable、Item Master profile 只接受 HUMAN OBO、两种 strategy 不互相回退。Party 后续维护可迁移到显式 profile 后再单独删除兼容 alias，不属于 Item Master slice。
 
 MACHINE root path 实现完成后，无入站请求的 Cron / Robot 先用当前 mTLS `VerifiedWorkloadIdentity` 与 Auth-owned `MachineWorkloadSourceCredential` 建立 root execution context：Auth 验证 source JWS 的 profile/signature/lifetime/revocation、SPIFFE 与当前 leaf thumbprint binding，再用 Identity `ResolveMachinePrincipalForAuth` 验证 active principal 与 `MachineWorkloadBinding` version；随后才按 BUSINESS / INTERNAL 分别取得 Permission decision 并签发既有 ExecutionToken。它继续使用同一 provider，不建立另一套 metadata 工厂。
 

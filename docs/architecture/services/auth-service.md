@@ -251,7 +251,29 @@ Auth records the security decision, trigger source, selector kind/reference, mon
 
 同步 HUMAN 多跳使用通用 OBO，不改变 Machine Principal owner 语义。MES、WMS、Procurement 与 SRM 为 Item Master INTERNAL Code 换票时，唯一 subject credential 是当前已验证、由 Auth 签发且 `aud` 精确等于 exchanger 自身 audience 的 HUMAN ExecutionToken。Auth 必须重新验证 issuer/signature/time/security state、HUMAN subject、tenant/session、当前 exchanger mTLS/SPIFFE/leaf 与 immutable workload registry；request/body、ordinary metadata、caller-local `tenantId` 或 Machine source credential 都不能提供或覆盖 subject/tenant authority。
 
-Auth 签发的目标 Token保持原 HUMAN `sub`、`principal_type=HUMAN`、tenant/org/session attribution，`act` 写入当前 exchanger 的 SYSTEM MACHINE actor，`client_id`、target `aud` 与 `cnf` 绑定当前直接 workload 和 leaf certificate。目标 Token `exp` 不得晚于 subject Token `exp`。INTERNAL issuance 同时要求 Permission 对 exact exchanger workload→target audience→INTERNAL Code 的独立 allowed decision；Permission 不接收或提供 subject tenant。Auth 在返回 Token 前持久化 subject `jti` -> target `jti`、subject、actor、tenant、audience、Permission decision reference 与 trace correlation；审计或任一依赖失败时不返回 Token，且不记录 bearer。无可信入站 HUMAN Token 的后台任务不获得 body/local fallback，留待独立设计。
+Auth 签发的目标 Token 保持原 HUMAN `sub`、`principal_type=HUMAN`、tenant/org/session attribution，`act` 写入当前 exchanger 的 SYSTEM MACHINE actor，`client_id`、target `aud` 与 `cnf` 绑定当前直接 workload 和 leaf certificate。目标 Token `exp` 不得晚于 subject Token `exp`。INTERNAL issuance 同时要求 Permission 对 exact exchanger workload→target audience→INTERNAL Code 的独立 allowed decision；Permission 不接收或提供 subject tenant。Auth 在返回 Token 前持久化 subject `jti` -> target `jti`、subject、actor、tenant、audience、Permission decision reference 与 trace correlation；审计或任一依赖失败时不返回 Token，且不记录 bearer。无可信入站 HUMAN Token 的后台任务不获得 body/local fallback，留待独立设计。
+
+OBO actor selector 不由 caller 或 Token request 提交，而是在既有 deployment-owned `AUTH_EXECUTION_WORKLOAD_POLICIES` 每个 workload record 中使用可选 `humanObo` block 冻结：
+
+```ts
+interface HumanOboPolicy {
+  readonly selfAudience: string
+  readonly actorMachinePrincipalId: string
+  readonly actorBindingId: string
+  readonly actorBindingVersion: string
+  readonly targetAudiences: readonly string[]
+}
+
+interface WorkloadIssuancePolicy {
+  readonly spiffeId: string
+  readonly audiences: readonly string[]
+  readonly humanObo?: HumanOboPolicy
+}
+```
+
+一个 exact SPIFFE ID 只能有一个 workload record；所有 OBO-enabled record 的 `selfAudience` 也必须唯一且为 canonical service audience。`targetAudiences` 必须非空、去重、无 wildcard，并且是同一 record `audiences` 的子集；principal/binding selector 必须为 trim 后非空 stable reference，`actorBindingVersion` 必须是 canonical positive decimal。重复、歧义、未知字段、错误格式或交叉 record 冲突使 Auth 启动 fail closed。
+
+HUMAN OBO exchange 必须同时满足：subject ET `aud` 精确等于 record 的 `selfAudience`；requested target 同时存在于 `audiences` 与 `humanObo.targetAudiences`；verified exchanger SPIFFE 精确命中该唯一 record；Auth 使用 registry 中的 actor principal/binding/version 与当前 SPIFFE 调用既有 `ResolveMachinePrincipalForAuth`。Identity decision 必须回显同一 active principal、binding、version、SPIFFE、`principal_type=MACHINE`、`scope=SYSTEM` 且 tenant 为空。stale version、selector mismatch、Identity unavailable 或 caller/body/metadata 尝试提供 actor 均在 Permission lookup/signing 前失败。该 block 是部署 selector，不取代 Identity owner truth，也不新增 Identity RPC 或 Permission input。
 
 精确管理与发证边界冻结为：
 
