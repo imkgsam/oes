@@ -2371,14 +2371,14 @@ Procurement trusted inbound establishes the private current-hop HUMAN proof and 
 
 WMS stops reusing Gateway-only `GetReceivingExpectation`. Its dedicated Procurement client, exchange client, producer and tests are prepared in this slice, but production activation remains `PREPARED_NOT_ACTIVATED` until WMS's own trusted inbound migration can establish a verified HUMAN proof. The prepared path fails closed and does not retain a second legacy authority path. WMS receipt, inventory, schema and business behavior otherwise remain protected.
 
-The raw direct `procurement-smoke.mjs` gRPC authority is retired with its package entry rather than reclassified as MACHINE. The smoke library/spec may remain isolated business/transaction evidence after authority payload removal; future live coverage enters Gateway HTTP with a test HUMAN session. Existing mutations and their successful audit envelope remain in one Prisma transaction so audit failure rolls back the mutation. Existing idempotency, retry, PR/PO/expectation state, schema, outbox/event and cross-domain ownership remain unchanged. No worker, Cron, Robot, AI or ActionGrant caller is admitted.
+The raw direct `procurement-smoke.mjs` gRPC authority is retired with its package entry rather than reclassified as MACHINE. The smoke library/spec may remain isolated business/transaction evidence after authority payload removal; future live coverage enters Gateway HTTP with a test HUMAN session. Existing mutations and their successful audit envelope remain in one Prisma transaction so audit failure rolls back the mutation. The leased L2 fixture `test/l2/procurement-audit-transaction.spec.ts` must establish a verified HUMAN request context before exercising both existing success and rollback paths; it must not restore body/input authority fallback. Existing idempotency, retry, PR/PO/expectation state, schema, outbox/event and cross-domain ownership remain unchanged. No worker, Cron, Robot, AI or ActionGrant caller is admitted.
 
-The audit proposal of `92 = 74 EXISTING + 18 NEW_TARGET` had the correct path total but misclassified the new Procurement internal contract document. Base `84402fc566fee82a5e73cf7a013e7b617e254578` proves the closed lease is `92 = 73 EXISTING + 19 NEW_TARGET`:
+The audit proposal of `92 = 74 EXISTING + 18 NEW_TARGET` had the correct path total but misclassified the new Procurement internal contract document. Base `13dd6aa09f633d76c6c7eddd54decbaca2a79b25` proves the amended closed lease is `93 = 74 EXISTING + 19 NEW_TARGET`:
 
 ```yaml
 procurementTrustedGrpcImplementationLease:
-  totalTrackedWriterPaths: 92
-  stateCounts: { EXISTING: 73, NEW_TARGET: 19 }
+  totalTrackedWriterPaths: 93
+  stateCounts: { EXISTING: 74, NEW_TARGET: 19 }
   trackedWriterPaths:
     procurementProtoAndPermissionContract:
       - { state: EXISTING, path: src/common/src/contracts/procurement_service/procurement.proto }
@@ -2431,6 +2431,7 @@ procurementTrustedGrpcImplementationLease:
       - { state: EXISTING, path: src/services/business/procurement-service/test/l1/procurement-service.behavior.spec.ts }
       - { state: EXISTING, path: src/services/business/procurement-service/test/l3/procurement-grpc-context.spec.ts }
       - { state: EXISTING, path: src/services/business/procurement-service/test/l3/procurement-grpc-surface.spec.ts }
+      - { state: EXISTING, path: src/services/business/procurement-service/test/l2/procurement-audit-transaction.spec.ts }
       - { state: NEW_TARGET, path: src/services/business/procurement-service/test/l3/procurement-app-module.spec.ts }
       - { state: NEW_TARGET, path: src/services/business/procurement-service/test/l3/procurement-trusted-grpc-security.spec.ts }
       - { state: EXISTING, path: src/services/business/procurement-service/jest.config.js }
@@ -2508,6 +2509,7 @@ procurementTrustedGrpcImplementationLease:
     - pnpm --filter api-gateway build
     - pnpm --filter procurement-service build
     - pnpm --filter wms-service build
+    - pnpm --filter procurement-service exec jest --config jest.config.js --runInBand --runTestsByPath test/l2/procurement-audit-transaction.spec.ts
     - pnpm exec jest --config package.json --runInBand --runTestsByPath src/common/src/contracts/procurement_service/procurement.contract.spec.ts
     - pnpm --filter permission-service exec jest --config jest.config.js --runInBand --runTestsByPath test/l1/permission-foundation.seed.spec.ts
     - pnpm --filter api-gateway exec jest --runInBand --runTestsByPath src/common/grpc/gateway-trusted-grpc-execution-producer.spec.ts src/common/grpc/gateway-trusted-grpc-execution.module.spec.ts src/common/grpc/gateway-procurement-grpc.client.spec.ts src/modules/procurement-service/adapters/procurement-dedicated-client.spec.ts src/modules/procurement-service/procurement.service.spec.ts src/modules/procurement-service/interface/http/controllers/procurement.controller.spec.ts
@@ -2516,7 +2518,7 @@ procurementTrustedGrpcImplementationLease:
     - node --test src/services/business/procurement-service/scripts/procurement-smoke.spec.mjs
 ```
 
-Acceptance proves 22/22 unique declarations and zero dual-mode methods; exact 21 BUSINESS plus one WMS HUMAN_OBO INTERNAL Code/audience/terminal/actor/tenant/`cnf` rule; 82 request authority fields plus eight nested legacy-context fields reserved as 90/90 tombstones; unchanged business field numbers and 21 Gateway routes; claims-derived business/audit context; Gateway dedicated Procurement client; Procurement→Item Master and Procurement→SRM HUMAN_OBO activation; WMS dedicated caller preparation that remains inactive until WMS trusted ingress; no raw smoke authority, generic Procurement registration, legacy body/metadata or fallback; unchanged transaction/audit/idempotency/schema/events/business rules; exact 92-path scope; and successful proto, Code generation, build, focused test, UTF-8, link, YAML and diff gates.
+Acceptance proves 22/22 unique declarations and zero dual-mode methods; exact 21 BUSINESS plus one WMS HUMAN_OBO INTERNAL Code/audience/terminal/actor/tenant/`cnf` rule; 82 request authority fields plus eight nested legacy-context fields reserved as 90/90 tombstones; unchanged business field numbers and 21 Gateway routes; claims-derived business/audit context; Gateway dedicated Procurement client; Procurement→Item Master and Procurement→SRM HUMAN_OBO activation; WMS dedicated caller preparation that remains inactive until WMS trusted ingress; verified-HUMAN L2 success/rollback evidence with no input fallback; no raw smoke authority, generic Procurement registration, legacy body/metadata or fallback; unchanged transaction/audit/idempotency/schema/events/business rules; exact 93-path scope; and successful proto, Code generation, build, focused test, UTF-8, link, YAML and diff gates.
 
 ## 10. Repository-wide Security Acceptance
 
