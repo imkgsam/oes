@@ -2184,6 +2184,8 @@ Procurement currently reuses `GetSupplier` and `ListSupplierOfferingsBySupplier`
 
 The live raw `srm-smoke.mjs` entry and package `smoke` command are deleted rather than reclassified as MACHINE. `srm-smoke-lib.mjs` and `srm-smoke.spec.mjs` remain isolated business/audit tests after authority payload removal; future live smoke enters Gateway HTTP with a test HUMAN session. Procurement raw smoke evidence must not establish SRM authority and is adjusted only as needed to remove direct legacy SRM invocation. No worker, Cron, Robot, AI or ActionGrant caller is admitted.
 
+The literal Permission Jest gate explicitly selects the package's canonical `jest.config.js` only to disambiguate the test runner; this changes no production compiler or runtime contract.
+
 ```yaml
 srmTrustedGrpcImplementationLease:
   totalTrackedWriterPaths: 83
@@ -2314,7 +2316,7 @@ srmTrustedGrpcImplementationLease:
     - pnpm --filter srm-service build
     - pnpm --filter procurement-service build
     - pnpm exec jest --config package.json --runInBand --runTestsByPath src/common/src/contracts/srm_service/srm.contract.spec.ts
-    - pnpm --filter permission-service exec jest --runInBand --runTestsByPath test/l1/permission-foundation.seed.spec.ts
+    - pnpm --filter permission-service exec jest --config jest.config.js --runInBand --runTestsByPath test/l1/permission-foundation.seed.spec.ts
     - pnpm --filter api-gateway exec jest --runInBand --runTestsByPath src/common/grpc/gateway-trusted-grpc-execution-producer.spec.ts src/common/grpc/gateway-trusted-grpc-execution.module.spec.ts src/common/grpc/gateway-srm-grpc.client.spec.ts src/modules/srm-service/adapters/srm-dedicated-client.spec.ts src/modules/srm-service/supplier-management.service.spec.ts src/modules/srm-service/interface/http/controllers/supplier-management.controller.spec.ts
     - pnpm --filter srm-service exec jest --config jest.config.js --runInBand --runTestsByPath src/infrastructure/adapters/srm-item-master-trusted-grpc-execution.producer.spec.ts src/infrastructure/adapters/srm-party-trusted-grpc-execution.producer.spec.ts test/l1/item-master-trusted-grpc.client.spec.ts test/l1/party-trusted-grpc.client.spec.ts test/l1/srm-service.behavior.spec.ts test/l3/srm-grpc-context.spec.ts test/l3/srm-grpc-surface.spec.ts test/l3/srm-app-module.spec.ts test/l3/srm-trusted-grpc-security.spec.ts
     - pnpm --filter procurement-service exec jest --config jest.config.js --runInBand --runTestsByPath src/infrastructure/adapters/procurement-srm-trusted-grpc-execution.producer.spec.ts test/l1/srm-trusted-grpc.client.spec.ts test/l3/supplier-query.grpc.adapter.spec.ts
