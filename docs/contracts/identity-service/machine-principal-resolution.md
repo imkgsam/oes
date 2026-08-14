@@ -134,7 +134,7 @@ Identity 不返回 source credential、leaf thumbprint、Permission grant、role
 
 not found、inactive、wrong type/scope、tenant/org mismatch、binding missing/disabled/stale、SPIFFE mismatch、ambiguous mapping、trust failure、timeout 或 dependency unavailable 均 fail closed。
 
-HUMAN OBO 不改变本 resolver contract：MES、WMS、Procurement 与 SRM 的 `SYSTEM` Machine Principal response 仍不得包含 tenant。Auth 通过 immutable verified-SPIFFE/self-audience registry 选择 principal/binding selector，再用本 resolver 验证 actor owner facts。Identity 不接收 subject ExecutionToken、subject tenant 或 target audience，不把 HUMAN tenant 写入 principal/binding，也不参与 subject/target Token `jti` 关联。
+HUMAN OBO 不改变本 resolver wire contract：MES、WMS、Procurement 与 SRM 的 `SYSTEM` Machine Principal response 仍不得包含 tenant。Auth 从 deployment-owned immutable verified-SPIFFE/self-audience policy 取得 exact Machine Principal id、binding stable ref/version，并使用现有 request fields 连同 transport-verified SPIFFE 调用本 resolver。Identity 必须按当前 owner truth 返回 active 且完全相同的 principal/binding/version/SPIFFE、`principal_type=MACHINE`、`scope=SYSTEM` 和空 tenant；stale、mismatch、ambiguous 或 unavailable 均拒绝。Identity 不接收 subject ExecutionToken、subject tenant、target audience 或 caller-supplied actor，不把 HUMAN tenant 写入 principal/binding，也不参与 subject/target Token `jti` 关联。
 
 Identity 返回安全 reason category；Auth 将其稳定映射为 MACHINE execution error。不得回退到 `ResolveIntegrationMachineForAuth`、legacy `AuthenticateApiKey`、Auth hardcoded root mapping、service-name header 或 caller/body principal fields。
 
