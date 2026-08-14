@@ -1933,7 +1933,9 @@ The new service `ItemMasterInternalQueryService` contains exactly three `INTERNA
 | `ResolveStockableItem` | `item_master.internal.stockable_item.resolve` | `wms-service` | `active + stockable` |
 | `ResolvePurchasableItem` | `item_master.internal.purchasable_item.resolve` | `procurement-service`, `srm-service` | `active + purchasable` |
 
-Each INTERNAL request contains only `item_id=1`; a successful response exposes only `item_id`, `item_code`, `item_name` and `active`. `NOT_FOUND` means no Item; `FAILED_PRECONDITION` means inactive or missing the exact capability. No generic caller-selected capability parameter exists. Every caller owns its Item Master dedicated client, Auth STS/source-credential composition and Item Master audience producer, reusing Common `InternalTrustedGrpcCaller`; it never imports another service's producer or reuses Gateway/Party identity.
+Each INTERNAL request contains only `item_id=1`; a successful response exposes only `item_id`, `item_code`, `item_name` and `active`. `NOT_FOUND` means no Item; `FAILED_PRECONDITION` means inactive or missing the exact capability. No generic caller-selected capability parameter exists. Every caller owns its Item Master dedicated client, Auth STS/source-credential composition and Item Master audience producer, reusing the target-neutral Common `InternalTrustedGrpcCaller`; it never imports another service's producer or reuses Gateway/Party identity.
+
+Each Item Master producer passes one immutable Common caller profile with `targetAudience=urn:oes:service:item-master-service` and exact stable error literals `ITEM_MASTER_CALLER_EXECUTION_CONTEXT_REQUIRED`, `ITEM_MASTER_CALLER_FOUNDATION_UNAVAILABLE` and `ITEM_MASTER_CALLER_SOURCE_CREDENTIAL_INVALID`. Common maps missing/non-MACHINE context, unavailable workload/transport foundation and invalid source credential/STS/audience/Code/certificate binding into those three categories without exposing underlying credentials. Profile values are DI-owned startup constants, never request input. The existing Party three-argument caller form remains a compatibility overload with the exact Party audience and `PARTY_CALLER_*` errors; Common tests must prove that Item Master parameterization does not change Party behavior or fall back to Party audience/error mapping.
 
 The 50 existing request messages delete and reserve exactly `tenant_id=1` and `"tenant_id"`. No current request contains other operator/trace/audit authority fields. Tenant, org, principal, operator, trace, audit and source workload come only from verified ET and transport context. Response tenant projections remain Item Master-owned business data where already defined. Legacy `ItemMasterRpcContextGuard`, signed operator/internal-service metadata, `x-trace-id`/`x-request-id` authority and body tenant fallback are migration targets and are absent after cutover.
 
@@ -1943,8 +1945,8 @@ Implementation order is fixed: canonical proto/Code definitions; Gateway dedicat
 
 ```yaml
 itemMasterTrustedGrpcImplementationLease:
-  totalTrackedWriterPaths: 88
-  stateCounts: { EXISTING: 52, NEW_TARGET: 36 }
+  totalTrackedWriterPaths: 91
+  stateCounts: { EXISTING: 55, NEW_TARGET: 36 }
   trackedWriterPaths:
     commonProtoPermissionCode:
       - { state: EXISTING, path: src/common/src/contracts/item_master_service/item_master.proto }
@@ -2039,6 +2041,10 @@ itemMasterTrustedGrpcImplementationLease:
       - { state: EXISTING, path: src/services/business/procurement-service/scripts/procurement-smoke.mjs }
       - { state: EXISTING, path: src/services/business/srm-service/scripts/srm-smoke.mjs }
       - { state: EXISTING, path: src/services/business/wms-service/scripts/wms-smoke.mjs }
+    commonInternalCallerParameterization:
+      - { state: EXISTING, path: src/common/src/authorization/trusted-execution/internal-trusted-grpc-caller.ts }
+      - { state: EXISTING, path: src/common/src/authorization/trusted-execution/internal-trusted-grpc-caller.spec.ts }
+      - { state: EXISTING, path: src/common/src/authorization/trusted-execution/index.ts }
   ignoredGeneratedOutputs:
     - path: src/common/src/generated/item_master_service/item_master.ts
       input: src/common/src/contracts/item_master_service/item_master.proto
@@ -2054,6 +2060,7 @@ itemMasterTrustedGrpcImplementationLease:
     - pnpm proto:regen
     - node scripts/architecture/trusted-grpc-signature-inventory.mjs
     - pnpm --filter @oes/common build
+    - pnpm exec jest --config package.json --runInBand --runTestsByPath src/common/src/authorization/trusted-execution/internal-trusted-grpc-caller.spec.ts
     - pnpm --filter permission-service run permission-codes:generate-common
     - pnpm --filter api-gateway build
     - pnpm --filter item-master-service build
@@ -2070,7 +2077,7 @@ itemMasterTrustedGrpcImplementationLease:
     - pnpm --filter srm-service exec jest --config jest.config.js --runInBand --runTestsByPath src/infrastructure/adapters/srm-item-master-trusted-grpc-execution.producer.spec.ts test/l1/item-master-trusted-grpc.client.spec.ts
 ```
 
-Acceptance proves 53/53 unique declarations and zero dual-mode methods; exact Code/workload/audience/tenant/terminal/`cnf` enforcement; 50/50 `tenant_id=1` reservations; claims-derived context; three minimum eligibility projections; Gateway and four dedicated caller clients; fail-closed missing credential/STS/ET behavior; no legacy generic Item Master registration, metadata or body fallback; no raw smoke workload; unchanged business rules/schema/events; exact 88-path scope; and successful proto, generation, build, focused test, UTF-8, link, YAML and diff gates.
+Acceptance proves 53/53 unique declarations and zero dual-mode methods; exact Code/workload/audience/tenant/terminal/`cnf` enforcement; 50/50 `tenant_id=1` reservations; claims-derived context; three minimum eligibility projections; Gateway and four dedicated caller clients; fail-closed missing credential/STS/ET behavior; Common target-profile parameterization with exact Item Master errors and byte-stable Party compatibility; no legacy generic Item Master registration, metadata or body fallback; no raw smoke workload; unchanged business rules/schema/events; exact 91-path scope; and successful proto, generation, build, focused test, UTF-8, link, YAML and diff gates.
 
 ## 10. Repository-wide Security Acceptance
 

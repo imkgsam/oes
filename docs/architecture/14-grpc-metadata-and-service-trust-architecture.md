@@ -315,6 +315,43 @@ forInternalCall(targetAudience, requiredInternalPermissionCodes)
 
 Provider 的组装接缝也固定在 Common 内部：公开 `TrustedGrpcMetadataProviderOptions` 只接受既有的 `AsyncLocalTransportPrivateSourceCredentialAccessor`，不接受 `ExecutionTokenExchangeSourceCredentialCarrier` 具体类型。Provider 在自身内部根据同一 accessor 创建并持有私有 Carrier；Carrier 仍不从 `src/common/src/transport/grpc/index.ts` 或其他公共 barrel 导出，也不允许 Gateway 通过 deep import 构造它。`assertCurrent()` 在 cache hit 与 exchange miss 都保持，`createMetadata()` 只在 exchange miss 中输出 Auth STS 所需的私有 bearer metadata。Gateway DI 必须将同一 accessor 实例同时交给 Vault/Interceptor boundary 与 Provider；这是组装接缝澄清，不是新的 carrier 语义或公共传输途径。
 
+INTERNAL service-to-service producer 统一复用 Common `InternalTrustedGrpcCaller`，但 Common 只拥有基础设施映射，不拥有 Party、Item Master 或其他业务域语义。中性 profile 在 caller 构造时一次性冻结，不能来自 request/body/env 的每次调用输入：
+
+```ts
+interface InternalTrustedGrpcCallerProfile {
+  readonly targetAudience: string
+  readonly errors: {
+    readonly contextRequired: string
+    readonly foundationUnavailable: string
+    readonly sourceCredentialInvalid: string
+  }
+}
+
+interface TrustedInternalCallSourceProvider {
+  run<T>(callback: () => Promise<T>): Promise<T>
+}
+
+class InternalTrustedGrpcCaller {
+  // Integrated Party compatibility only.
+  constructor(
+    context: AsyncLocalTrustedExecutionContextAccessor,
+    metadata: TrustedGrpcMetadataProvider,
+    source: TrustedInternalCallSourceProvider
+  )
+  // Required form for Item Master and every later target.
+  constructor(
+    context: AsyncLocalTrustedExecutionContextAccessor,
+    metadata: TrustedGrpcMetadataProvider,
+    source: TrustedInternalCallSourceProvider,
+    profile: InternalTrustedGrpcCallerProfile
+  )
+}
+```
+
+`InternalTrustedGrpcCaller` 构造时必须验证并冻结显式 profile：audience 与三个 error literal 都是 trim 后非空精确字符串，三个 error literal 互不相同；无效 profile 在任何 metadata/STS 调用前失败。caller 必须把 profile 的 exact `targetAudience` 传给 `TrustedGrpcMetadataProvider.forInternalCall`，先要求 request-local `principalType=MACHINE`，再在 source provider 内创建 metadata；底层 credential、STS、audience、Code、certificate/`cnf` 错误只能映射到 target profile 的稳定错误，不得暴露 bearer/source secret 或把 transport 错误当成业务结果。target package 拥有自己的 profile/error literals，Common 不新增目标服务常量、Permission Code 或业务规则。
+
+已集成 Party caller 的三参数构造入口在本轮作为严格兼容 overload 保留，内部固定映射到现有 `aud=urn:oes:service:party-service` 与原 `PARTY_CALLER_*` 三类错误；`TrustedPartySourceProvider` 保留为 `TrustedInternalCallSourceProvider` 的兼容 alias。该 overload 只保护当前 Party 行为，不允许新 target 使用。Item Master 及后续 target 必须显式传 profile；Common regression 同时证明 Party old-form audience/error byte-stable、Item Master profile 使用自身 audience/error、错误 audience 不回退 Party。Party 后续维护可迁移到显式 profile 后再单独删除兼容 alias，不属于 Item Master slice。
+
 MACHINE root path 实现完成后，无入站请求的 Cron / Robot 先用当前 mTLS `VerifiedWorkloadIdentity` 与 Auth-owned `MachineWorkloadSourceCredential` 建立 root execution context：Auth 验证 source JWS 的 profile/signature/lifetime/revocation、SPIFFE 与当前 leaf thumbprint binding，再用 Identity `ResolveMachinePrincipalForAuth` 验证 active principal 与 `MachineWorkloadBinding` version；随后才按 BUSINESS / INTERNAL 分别取得 Permission decision 并签发既有 ExecutionToken。它继续使用同一 provider，不建立另一套 metadata 工厂。
 
 MACHINE source credential issuance 对 leaf lifetime 的可信输入也由该既有 provider 提供：`GrpcWorkloadIdentityProvider` 必须从 grpc-js adapter 已释放的同一份 transport-verified leaf DER 同时派生 SHA-256 thumbprint 与 `certificateNotAfter: Date`。后者仅作为 provider 返回值的结构扩展交给 Auth Issue path；通用 `VerifiedWorkloadIdentity` 保持不变，其他 ExecutionToken verifier consumer 可以继续只消费 SPIFFE ID 与 thumbprint。metadata、request、environment 与 caller configuration 不能注入或覆盖 `notAfter`；DER parse failure、无效日期或已到期 leaf 在 provider boundary fail closed。
@@ -400,7 +437,7 @@ Token 中 tenant 表示可信调用上下文。Request 仍可携带合法业务�
 
 - 21 个服务。
 - 51 个 gRPC Controller 文件。
-- 560 个 proto RPC。
+- 560 个当前 baseline proto RPC，加上已冻结的 5 个 Auth MACHINE 与 3 个 Item Master INTERNAL RPC。
 - 全部 Gateway、service-to-service、Cron / Robot 与测试调用方。
 - 因 generated signature 变更暴露的 19 个 request-only client call，以及已经通过 `...rest` 传 metadata 的全部调用。
 
@@ -438,7 +475,7 @@ Asset + Site 仍是第一个业务解阻优先链，但不再是本 capability �
 15. 外部 API Key 只能在 Gateway / Auth 使用；撤销、过期、禁用 machine 与 tenant mismatch 均失败。
 16. `traceparent / tracestate` 按 W3C 规则传播，审计可用 request / trace / jti 关联完整调用链。
 17. 每个服务切换前全部直接 caller 已准备 target-audience Token；切换后 legacy caller 必须失败而不是触发 server fallback。
-18. 当前 560 RPC baseline 加上本轮冻结的 5 个 MACHINE RPC 在内，最终全部 generated RPC 恰有一个 mode 或一个明列 exact bootstrap declaration，legacy signer / guard / factory / body identity 引用归零。
+18. 当前 560 RPC baseline 加上已冻结的 5 个 Auth MACHINE 与 3 个 Item Master INTERNAL RPC 在内，最终全部 generated RPC 恰有一个 mode 或一个明列 exact bootstrap declaration，legacy signer / guard / factory / body identity 引用归零。
 19. `ResolveWorkloadIssuance` 在没有 ExecutionToken 时只接受 exact registered Auth SPIFFE identity；其他合法 workload certificate、header identity、wildcard 或对其他 Permission RPC 的同类调用全部失败。
 20. Auth 只有在该 bootstrap decision 全量批准 exact original workload / audience / INTERNAL Code 后才签名；unknown、mixed-kind、partial、mismatch 或 Permission unavailable 不产生 Token。
 21. `ResolvePrincipalAuthorization` 与其他受保护 Permission RPC 不能继承 bootstrap policy，仍同时要求 mTLS 与目标专属 ExecutionToken。
