@@ -2186,8 +2186,8 @@ The live raw `srm-smoke.mjs` entry and package `smoke` command are deleted rathe
 
 ```yaml
 srmTrustedGrpcImplementationLease:
-  totalTrackedWriterPaths: 80
-  stateCounts: { EXISTING: 64, NEW_TARGET: 16 }
+  totalTrackedWriterPaths: 83
+  stateCounts: { EXISTING: 67, NEW_TARGET: 16 }
   trackedWriterPaths:
     srmProtoAndPermissionContract:
       - { state: EXISTING, path: src/common/src/contracts/srm_service/srm.proto }
@@ -2285,6 +2285,11 @@ srmTrustedGrpcImplementationLease:
       - { state: EXISTING, path: src/services/business/procurement-service/scripts/procurement-smoke-lib.mjs }
       - { state: EXISTING, path: src/services/business/procurement-service/scripts/procurement-smoke.spec.mjs }
 
+    stableDocConsistency:
+      - { state: EXISTING, path: docs/architecture/collaborations/item-master-sales-mes-wms-srm.md }
+      - { state: EXISTING, path: docs/architecture/services/index.md }
+      - { state: EXISTING, path: docs/plans/designs/srm-service-design.md }
+
   ignoredGeneratedOutputs:
     - path: src/common/src/generated/srm_service/srm.ts
       input: src/common/src/contracts/srm_service/srm.proto
@@ -2316,7 +2321,7 @@ srmTrustedGrpcImplementationLease:
     - node --test src/services/business/srm-service/scripts/srm-smoke.spec.mjs src/services/business/procurement-service/scripts/procurement-smoke.spec.mjs
 ```
 
-Acceptance proves 15/15 unique declarations and zero dual-mode methods; exact 13 BUSINESS plus two Procurement HUMAN_OBO INTERNAL Code/audience/terminal/actor/tenant/`cnf` rules; 46/46 authority reservations in 13 groups; claims-derived business and audit context; Gateway dedicated SRM client and dual-Code supplier-detail aggregation; SRM→Item Master HUMAN_OBO activation with no fake local context; byte-stable SRM→Party MACHINE_ROOT behavior; Procurement dedicated caller preparation that remains inactive until verified Procurement ingress; no raw smoke authority, generic SRM registration, legacy body/metadata or fallback; unchanged schema/events/business rules; exact 80-path scope; and successful proto, Code generation, build, focused test, UTF-8, link, YAML and diff gates.
+Acceptance proves 15/15 unique declarations and zero dual-mode methods; exact 13 BUSINESS plus two Procurement HUMAN_OBO INTERNAL Code/audience/terminal/actor/tenant/`cnf` rules; 46/46 authority reservations in 13 groups; claims-derived business and audit context; Gateway dedicated SRM client and dual-Code supplier-detail aggregation; SRM→Item Master HUMAN_OBO activation with no fake local context; byte-stable SRM→Party MACHINE_ROOT behavior; Procurement dedicated caller preparation that remains inactive until verified Procurement ingress; no raw smoke authority, generic SRM registration, legacy body/metadata or fallback; stable SRM documents contain no conflicting future/optional offering guidance and the historical workspace is superseded; unchanged schema/events/business rules; exact 83-path scope; and successful proto, Code generation, build, focused test, UTF-8, link, YAML and diff gates.
 
 ## 10. Repository-wide Security Acceptance
 
