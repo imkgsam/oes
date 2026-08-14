@@ -12,6 +12,8 @@ This contract freezes only the minimum shape required by Mold / Tooling foundati
 
 Every command follows the [MES trusted execution contract](README.md#trusted-execution-contract). Tenant, org, operator, trace and trusted audit identity/source are derived from verified context and are absent from the request body. `commandId` remains the required idempotency key, and the optional bounded business `reason` uses the exact field number frozen in README.
 
+When a command validates `itemRef` through Item Master, MES uses the current verified MES-audience HUMAN ExecutionToken as the single OBO subject credential. Auth issues an Item-Master-audience Token that preserves the HUMAN subject and tenant, records MES as the SYSTEM MACHINE actor, and binds the MES mTLS certificate. No request field, local tenant value, Machine root credential or second bearer may substitute for that current request-scoped subject credential; absence or mismatch fails closed.
+
 Management rules must execute inside `mes-service` domain / application code. They must not be implemented in API Gateway, DTO validation, Prisma schema, or shared contract types.
 
 ## 3. ProductionSpec Minimum Shape

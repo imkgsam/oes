@@ -134,7 +134,7 @@ Identity 不返回 source credential、leaf thumbprint、Permission grant、role
 
 not found、inactive、wrong type/scope、tenant/org mismatch、binding missing/disabled/stale、SPIFFE mismatch、ambiguous mapping、trust failure、timeout 或 dependency unavailable 均 fail closed。
 
-Item Master 的上游租户证明不改变本 resolver contract：MES、WMS、Procurement 与 SRM 的 `SYSTEM` Machine Principal response 仍不得包含 tenant。Identity 不接收 upstream ExecutionToken、upstream tenant 或 target audience，不把 execution-scoped tenant 写入 principal/binding，也不参与 upstream/target Token `jti` 关联；这些均由 Auth STS 在独立受信边界完成。
+HUMAN OBO 不改变本 resolver contract：MES、WMS、Procurement 与 SRM 的 `SYSTEM` Machine Principal response 仍不得包含 tenant。Auth 通过 immutable verified-SPIFFE/self-audience registry 选择 principal/binding selector，再用本 resolver 验证 actor owner facts。Identity 不接收 subject ExecutionToken、subject tenant 或 target audience，不把 HUMAN tenant 写入 principal/binding，也不参与 subject/target Token `jti` 关联。
 
 Identity 返回安全 reason category；Auth 将其稳定映射为 MACHINE execution error。不得回退到 `ResolveIntegrationMachineForAuth`、legacy `AuthenticateApiKey`、Auth hardcoded root mapping、service-name header 或 caller/body principal fields。
 
