@@ -108,10 +108,12 @@ Auth 必须在任何 Permission lookup 或签名前按顺序完成：
 3. 要求 credential SPIFFE ID 等于当前 transport 注入的 `VerifiedWorkloadIdentity.spiffeId`。
 4. 要求 credential certificate binding 等于当前 mTLS leaf certificate DER 的 SHA-256 base64url thumbprint。
 5. 调用 Identity `ResolveMachinePrincipalForAuth`，确认 principal/binding active、reference 唯一、scope/tenant 与 SPIFFE/version 一致。
-6. 仅从 Identity owner decision 派生 `sub`、`principal_type=MACHINE`、scope、tenant 与适用 org reference。
+6. 仅从 Identity owner decision 派生 `sub`、`principal_type=MACHINE` 与 scope；普通 MACHINE tenant/org 也仅来自该 decision。Item Master upstream-proof profile 的 SYSTEM principal 仍 tenantless，本次 execution tenant 仅来自下述独立验证的上游 HUMAN ET。
 7. BUSINESS issuance 调用 Permission `ResolvePrincipalAuthorization`；INTERNAL issuance 调用 `ResolveWorkloadIssuance`；全部批准后才使用既有 ExecutionToken signer。
 
 Identity resolver 调用本身使用 Auth verified mTLS identity、`aud=identity-service` 的 certificate-bound INTERNAL ExecutionToken 与 exact Code `identity.internal.machine_principal.resolve`。该 Token 通过 Permission 唯一的 `ResolveWorkloadIssuance` bootstrap primitive 获得；本契约不增加另一个 mTLS-only bootstrap interface。
+
+该 credential 对 `SYSTEM` Machine Principal 始终 tenantless；它不因 Item Master 调用而携带、选择或推导 tenant。Item Master 三个 tenant-scoped INTERNAL 资格查询要求 Auth 在同一次 STS exchange 中额外验证独立 transport-private upstream HUMAN ExecutionToken proof，并仅从该 proof 取得本次 tenant execution context。Machine credential、request/body、ordinary metadata、caller-local tenant 与 Permission decision 都不能替代或覆盖该 proof；没有可信上游 HUMAN ET 的后台任务在此 profile 下 fail closed。
 
 ## 4. Binding And Fail-closed Rules
 
@@ -171,4 +173,5 @@ Database 和 transaction 必须同时保证：
 6. Identity resolver 使用 normal mTLS + target-audience INTERNAL ExecutionToken；没有新增 bootstrap exception。
 7. API Key、external token、ExecutionToken、DELEGATED reference 或 caller-supplied principal facts 不能被当作本 profile 的替代品。
 8. credential/principal/binding disable 阻止新 exchange；已签发 ExecutionToken 只按既有 TTL 或 DG-2 selector 收敛。
-9. audit 与 logs 不含 source bearer、secret 或可恢复 credential。
+9. Item Master upstream-proof profile 同时验证 Machine source、upstream HUMAN ET、self/target audience、workload policy、Permission decision 与当前 certificate；target expiry 不晚于 upstream expiry，审计保存 upstream/target `jti` 关联。
+10. audit 与 logs 不含 source bearer、secret 或可恢复 credential。

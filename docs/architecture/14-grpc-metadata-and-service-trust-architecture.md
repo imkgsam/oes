@@ -315,6 +315,10 @@ forInternalCall(targetAudience, requiredInternalPermissionCodes)
 
 Provider 的组装接缝也固定在 Common 内部：公开 `TrustedGrpcMetadataProviderOptions` 只接受既有的 `AsyncLocalTransportPrivateSourceCredentialAccessor`，不接受 `ExecutionTokenExchangeSourceCredentialCarrier` 具体类型。Provider 在自身内部根据同一 accessor 创建并持有私有 Carrier；Carrier 仍不从 `src/common/src/transport/grpc/index.ts` 或其他公共 barrel 导出，也不允许 Gateway 通过 deep import 构造它。`assertCurrent()` 在 cache hit 与 exchange miss 都保持，`createMetadata()` 只在 exchange miss 中输出 Auth STS 所需的私有 bearer metadata。Gateway DI 必须将同一 accessor 实例同时交给 Vault/Interceptor boundary 与 Provider；这是组装接缝澄清，不是新的 carrier 语义或公共传输途径。
 
+Item Master 的 tenantless SYSTEM caller profile 在此基础上增加一个独立、非序列化的 upstream execution-token proof handle。Common 的 STS 私有 carrier 固定使用 `authorization: Bearer <machine-source-credential>` 与 `x-oes-upstream-execution-token: Bearer <upstream-et>` 两个互不替代的字段；第二字段只在 deployment registry 明确要求 upstream HUMAN tenant proof 的 target exchange 上出现。两份 bearer 都不得进入 DTO、`TrustedExecutionContext`、目标服务 metadata、日志或审计正文。普通 HUMAN、多跳、Party 与不要求该 proof 的 MACHINE profile 保持原有单 credential 语义。
+
+Common 仍只提供中性 `TrustedInternalCallSourceProvider`；`TrustedPartySourceProvider` 只是兼容 alias。要求 proof 的 Item Master caller 在自己的包内同时建立 Machine source handle 与已验证 upstream ET handle，Common 只传递 opaque values。Provider/cache key 必须绑定 upstream proof 的不可逆 fingerprint/reference，cache hit 同样要求当前 proof 存在，目标 Token expiry 受 upstream ET expiry 上限约束。Item Master 的三个错误 literal 保持互异且由 caller package 拥有：`ITEM_MASTER_CALLER_EXECUTION_CONTEXT_REQUIRED`、`ITEM_MASTER_CALLER_FOUNDATION_UNAVAILABLE`、`ITEM_MASTER_CALLER_SOURCE_CREDENTIAL_INVALID`。
+
 INTERNAL service-to-service producer 统一复用 Common `InternalTrustedGrpcCaller`，但 Common 只拥有基础设施映射，不拥有 Party、Item Master 或其他业务域语义。中性 profile 在 caller 构造时一次性冻结，不能来自 request/body/env 的每次调用输入：
 
 ```ts
@@ -353,6 +357,8 @@ class InternalTrustedGrpcCaller {
 已集成 Party caller 的三参数构造入口在本轮作为严格兼容 overload 保留，内部固定映射到现有 `aud=urn:oes:service:party-service` 与原 `PARTY_CALLER_*` 三类错误；`TrustedPartySourceProvider` 保留为 `TrustedInternalCallSourceProvider` 的兼容 alias。该 overload 只保护当前 Party 行为，不允许新 target 使用。Item Master 及后续 target 必须显式传 profile；Common regression 同时证明 Party old-form audience/error byte-stable、Item Master profile 使用自身 audience/error、错误 audience 不回退 Party。Party 后续维护可迁移到显式 profile 后再单独删除兼容 alias，不属于 Item Master slice。
 
 MACHINE root path 实现完成后，无入站请求的 Cron / Robot 先用当前 mTLS `VerifiedWorkloadIdentity` 与 Auth-owned `MachineWorkloadSourceCredential` 建立 root execution context：Auth 验证 source JWS 的 profile/signature/lifetime/revocation、SPIFFE 与当前 leaf thumbprint binding，再用 Identity `ResolveMachinePrincipalForAuth` 验证 active principal 与 `MachineWorkloadBinding` version；随后才按 BUSINESS / INTERNAL 分别取得 Permission decision 并签发既有 ExecutionToken。它继续使用同一 provider，不建立另一套 metadata 工厂。
+
+上述 root 只建立 tenantless SYSTEM Machine identity。若目标 INTERNAL RPC 还要求业务 tenant，必须使用目标明确冻结的第二 owner proof；当前唯一实例是 Item Master 三个资格查询使用当前 Auth-signed upstream HUMAN ET。Auth 的 immutable workload registry 绑定 exchanger SPIFFE、自身 audience、target audience 与 proof-required policy，验证后签发 Machine target ET 并记录 upstream/target `jti` 关联。Permission 只决定 workload/Code，目标服务只消费最终 ET；body/local tenant 与无用户上下文后台任务不得进入该路径。
 
 MACHINE source credential issuance 对 leaf lifetime 的可信输入也由该既有 provider 提供：`GrpcWorkloadIdentityProvider` 必须从 grpc-js adapter 已释放的同一份 transport-verified leaf DER 同时派生 SHA-256 thumbprint 与 `certificateNotAfter: Date`。后者仅作为 provider 返回值的结构扩展交给 Auth Issue path；通用 `VerifiedWorkloadIdentity` 保持不变，其他 ExecutionToken verifier consumer 可以继续只消费 SPIFFE ID 与 thumbprint。metadata、request、environment 与 caller configuration 不能注入或覆盖 `notAfter`；DER parse failure、无效日期或已到期 leaf 在 provider boundary fail closed。
 

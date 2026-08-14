@@ -1937,6 +1937,12 @@ Each INTERNAL request contains only `item_id=1`; a successful response exposes o
 
 Each Item Master producer passes one immutable Common caller profile with `targetAudience=urn:oes:service:item-master-service` and exact stable error literals `ITEM_MASTER_CALLER_EXECUTION_CONTEXT_REQUIRED`, `ITEM_MASTER_CALLER_FOUNDATION_UNAVAILABLE` and `ITEM_MASTER_CALLER_SOURCE_CREDENTIAL_INVALID`. Common maps missing/non-MACHINE context, unavailable workload/transport foundation and invalid source credential/STS/audience/Code/certificate binding into those three categories without exposing underlying credentials. Profile values are DI-owned startup constants, never request input. The existing Party three-argument caller form remains a compatibility overload with the exact Party audience and `PARTY_CALLER_*` errors; Common tests must prove that Item Master parameterization does not change Party behavior or fall back to Party audience/error mapping.
 
+The three INTERNAL methods keep tenantless `SYSTEM MACHINE` principals and reject `TENANT MACHINE`. For these exact target policies only, STS exchange requires two independent transport-private proofs: `authorization: Bearer <machine-source-credential>` proves the exact MES/WMS/Procurement/SRM workload and `x-oes-upstream-execution-token: Bearer <upstream-et>` proves the current tenant through an Auth-issued HUMAN ET whose exact audience is the exchanger service itself. Auth verifies both proofs, the Identity binding, the deployment-owned exchanger/self-audience/Item-Master proof-required registry entry, Permission's tenantless SYSTEM workload decision and current mTLS/leaf binding. Permission neither supplies nor authorizes tenant authority.
+
+The target Item Master ET keeps the Machine `sub`, `principal_type=MACHINE` and `scope=SYSTEM`; only its execution-scoped `tenant_id` comes from the verified upstream HUMAN ET. Its target audience/client/cnf bind the next hop, `exp <= upstream exp`, and Auth durably records upstream `jti` -> target `jti` before returning. Request/body/local metadata tenant never enters this composition. Missing, wrong, cross-tenant, wrong-audience, expired or invalid upstream proof; wrong workload/certificate; denied Permission; audit failure; and body injection all fail closed. A background job without an upstream HUMAN ET remains deferred and cannot use this path.
+
+Common extends only its private credential handles/carrier/cache: both bearer values stay outside DTO, `TrustedExecutionContext`, target metadata and logs; proof-required cache entries bind an irreversible upstream reference and require the proof even on cache hit. `TrustedInternalCallSourceProvider` remains target-neutral, `TrustedPartySourceProvider` remains a compatibility alias, and the three Item Master error literals stay package-owned and pairwise distinct. The four source-local caller producer specs must be included by each package's official `jest.config.js` and executed by the literal package command; a green command that omits those specs is a failure. The Item Master security gate must compose real Identity owner resolution -> Auth Machine verifier -> Permission workload decision -> STS signer -> Item Master verifier/guard, rather than a mock STS shortcut.
+
 The 50 existing request messages delete and reserve exactly `tenant_id=1` and `"tenant_id"`. No current request contains other operator/trace/audit authority fields. Tenant, org, principal, operator, trace, audit and source workload come only from verified ET and transport context. Response tenant projections remain Item Master-owned business data where already defined. Legacy `ItemMasterRpcContextGuard`, signed operator/internal-service metadata, `x-trace-id`/`x-request-id` authority and body tenant fallback are migration targets and are absent after cutover.
 
 Production caller manifest is exact: Gateway is the sole allowed production caller class for the 50 HUMAN methods and retains the current 46 BFF routes; methods without a current route gain none in this slice. MES calls only `ResolveManufacturableItem`; WMS calls only `ResolveStockableItem`; Procurement and SRM call only `ResolvePurchasableItem`. The direct management bootstrap smoke and shared fixture are deleted or moved behind a Gateway HTTP HUMAN test flow; the WMS local query stub remains an isolated fixture and is never registered as a workload. No other worker, Cron, Robot, AI or ActionGrant caller is admitted.
@@ -1945,8 +1951,8 @@ Implementation order is fixed: canonical proto/Code definitions; Gateway dedicat
 
 ```yaml
 itemMasterTrustedGrpcImplementationLease:
-  totalTrackedWriterPaths: 91
-  stateCounts: { EXISTING: 55, NEW_TARGET: 36 }
+  totalTrackedWriterPaths: 116
+  stateCounts: { EXISTING: 78, NEW_TARGET: 38 }
   trackedWriterPaths:
     commonProtoPermissionCode:
       - { state: EXISTING, path: src/common/src/contracts/item_master_service/item_master.proto }
@@ -2045,6 +2051,32 @@ itemMasterTrustedGrpcImplementationLease:
       - { state: EXISTING, path: src/common/src/authorization/trusted-execution/internal-trusted-grpc-caller.ts }
       - { state: EXISTING, path: src/common/src/authorization/trusted-execution/internal-trusted-grpc-caller.spec.ts }
       - { state: EXISTING, path: src/common/src/authorization/trusted-execution/index.ts }
+    upstreamTenantProofComposition:
+      - { state: EXISTING, path: src/common/src/authorization/trusted-execution/transport-private-source-credential.ts }
+      - { state: EXISTING, path: src/common/src/authorization/trusted-execution/transport-private-source-credential.spec.ts }
+      - { state: EXISTING, path: src/common/src/authorization/trusted-execution/trusted-grpc-metadata-provider.ts }
+      - { state: EXISTING, path: src/common/src/authorization/trusted-execution/trusted-grpc-metadata-provider.spec.ts }
+      - { state: EXISTING, path: src/common/src/authorization/trusted-execution/certificate-bound-execution-token-cache.ts }
+      - { state: EXISTING, path: src/common/src/transport/grpc/execution-token-exchange-source-credential.carrier.ts }
+      - { state: EXISTING, path: src/common/src/transport/grpc/execution-token-exchange-source-credential.carrier.spec.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/application/ports/execution-token-exchange-context.port.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/application/services/execution-token-exchange.service.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/application/services/execution-token-exchange.service.spec.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/domain/services/execution-token-registry.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/infrastructure/execution-token-signer/verified-execution-token-context.provider.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/infrastructure/execution-token-signer/verified-execution-token-context.provider.spec.ts }
+      - { state: NEW_TARGET, path: src/services/system/auth-service/src/infrastructure/execution-token-signer/upstream-human-tenant-proof.verifier.ts }
+      - { state: NEW_TARGET, path: src/services/system/auth-service/src/infrastructure/execution-token-signer/upstream-human-tenant-proof.verifier.spec.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/modules/token/execution-token.module.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/modules/token/execution-token.module.spec.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/application/events/auth-audit.event.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/domain/repositories/auth-audit.repository.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/infrastructure/repositories/prisma/prisma.auth-audit.repository.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/infrastructure/repositories/prisma/prisma.auth-audit.repository.spec.ts }
+      - { state: EXISTING, path: src/services/business/mes-service/jest.config.js }
+      - { state: EXISTING, path: src/services/business/wms-service/jest.config.js }
+      - { state: EXISTING, path: src/services/business/procurement-service/jest.config.js }
+      - { state: EXISTING, path: src/services/business/srm-service/jest.config.js }
   ignoredGeneratedOutputs:
     - path: src/common/src/generated/item_master_service/item_master.ts
       input: src/common/src/contracts/item_master_service/item_master.proto
@@ -2053,14 +2085,15 @@ itemMasterTrustedGrpcImplementationLease:
     - Item Master domain/persistence/schema/business rules and every path not listed above
     - MES/WMS/Procurement/SRM inbound trusted-gRPC cutovers, other outbound dependencies and business RPCs
     - event catalog, producer, consumer, outbox, inbox, package/lock/deployment and database migrations
-    - Common/Auth/Identity/Permission MACHINE foundation and Party/Gateway identities except listed Code/client composition paths
+    - Common/Auth/Identity/Permission MACHINE foundation and Party/Gateway identities except the exact listed upstream-proof composition paths
     - AI, ActionGrant, DELEGATED and every speculative caller or capability
   focusedAcceptanceCommands:
     - pnpm proto:lint
     - pnpm proto:regen
     - node scripts/architecture/trusted-grpc-signature-inventory.mjs
     - pnpm --filter @oes/common build
-    - pnpm exec jest --config package.json --runInBand --runTestsByPath src/common/src/authorization/trusted-execution/internal-trusted-grpc-caller.spec.ts
+    - pnpm exec jest --config package.json --runInBand --runTestsByPath src/common/src/authorization/trusted-execution/internal-trusted-grpc-caller.spec.ts src/common/src/authorization/trusted-execution/transport-private-source-credential.spec.ts src/common/src/authorization/trusted-execution/trusted-grpc-metadata-provider.spec.ts src/common/src/transport/grpc/execution-token-exchange-source-credential.carrier.spec.ts
+    - pnpm exec jest --config package.json --runInBand --runTestsByPath src/services/system/auth-service/src/application/services/execution-token-exchange.service.spec.ts src/services/system/auth-service/src/infrastructure/execution-token-signer/verified-execution-token-context.provider.spec.ts src/services/system/auth-service/src/infrastructure/execution-token-signer/upstream-human-tenant-proof.verifier.spec.ts src/services/system/auth-service/src/modules/token/execution-token.module.spec.ts src/services/system/auth-service/src/infrastructure/repositories/prisma/prisma.auth-audit.repository.spec.ts
     - pnpm --filter permission-service run permission-codes:generate-common
     - pnpm --filter api-gateway build
     - pnpm --filter item-master-service build
@@ -2077,7 +2110,7 @@ itemMasterTrustedGrpcImplementationLease:
     - pnpm --filter srm-service exec jest --config jest.config.js --runInBand --runTestsByPath src/infrastructure/adapters/srm-item-master-trusted-grpc-execution.producer.spec.ts test/l1/item-master-trusted-grpc.client.spec.ts
 ```
 
-Acceptance proves 53/53 unique declarations and zero dual-mode methods; exact Code/workload/audience/tenant/terminal/`cnf` enforcement; 50/50 `tenant_id=1` reservations; claims-derived context; three minimum eligibility projections; Gateway and four dedicated caller clients; fail-closed missing credential/STS/ET behavior; Common target-profile parameterization with exact Item Master errors and byte-stable Party compatibility; no legacy generic Item Master registration, metadata or body fallback; no raw smoke workload; unchanged business rules/schema/events; exact 91-path scope; and successful proto, generation, build, focused test, UTF-8, link, YAML and diff gates.
+Acceptance proves 53/53 unique declarations and zero dual-mode methods; exact Code/workload/audience/tenant/terminal/`cnf` enforcement; 50/50 `tenant_id=1` reservations; claims-derived context; three minimum eligibility projections; Gateway and four dedicated caller clients; tenantless SYSTEM Machine owner facts plus mandatory upstream HUMAN tenant proof; upstream self-audience/expiry/signature/workload/certificate and target expiry enforcement; upstream `jti` -> target `jti` durable audit; every frozen negative case; real Identity -> Auth -> Permission -> signer -> Item Master composition; four producer specs discovered and executed by official package Jest configs; Common target-profile parameterization with exact Item Master errors and byte-stable Party compatibility; no legacy generic Item Master registration, metadata or body fallback; no raw smoke workload; unchanged business rules/schema/events; exact 116-path scope; and successful proto, generation, build, focused test, UTF-8, link, YAML and diff gates.
 
 ## 10. Repository-wide Security Acceptance
 

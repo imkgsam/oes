@@ -474,6 +474,10 @@ Item Master 当前 50 个查询/管理 RPC 全部冻结为 `BUSINESS / HUMAN / W
 
 三个 RPC 均为 `INTERNAL / SYSTEM MACHINE`，只返回 `item_id/item_code/item_name/active` 最小 projection。每个 caller 使用自身 Machine Principal、SPIFFE identity 与 source credential 逐跳兑换 Item Master audience ET；不得复用 Gateway identity、旧 signed operator metadata、request body tenant 或 raw smoke identity。SYSTEM workload 不是租户通配，准确 tenant 仍由验证后的可信链派生。该拆分只迁移现有存在性/状态/capability 校验，不新增 capability、状态、业务规则或其他 caller 服务 RPC。
 
+该可信链精确冻结为双重证明：Machine source credential 只证明 MES/WMS/Procurement/SRM 中哪个 tenantless SYSTEM workload 正在调用；当前 Auth 签发且已由调用服务验证的上游 HUMAN ET 只证明本次调用所属 tenant。调用服务把两份 opaque credential 放入 Common 的 STS 私有 carrier，Auth 同时验证 Machine credential、Identity binding、上游 ET 的 signature/time/HUMAN principal/tenant/self-audience、Permission workload decision 与当前 mTLS certificate，随后签发 `principal_type=MACHINE`、`scope=SYSTEM`、带本次可信 `tenant_id`、`aud=item-master-service` 且绑定当前 leaf 的目标 ET。目标 ET expiry 不晚于上游 ET，Auth 审计关联 upstream/target `jti`。
+
+Item Master server 只验证最终目标 ET、exact workload allowlist、INTERNAL Code、tenant、audience 与 `cnf`，不接收或解析上游 ET。缺失上游 proof、错误/跨 tenant、错误 self/target audience、过期 Token、错误 workload/certificate、Permission denied 或 body/local tenant 注入全部 fail closed。没有上游 HUMAN ET 的 Cron/Robot/后台任务不进入这三个 RPC；其 tenant authority 需后续独立设计，不能复用本迁移作为通配。
+
 全部现有 50 个 request 删除并 reserve `tenant_id=1`；新 INTERNAL request 从 `item_id=1` 开始，不承载 authority。tenant、org、principal、operator、trace、audit 与 source workload 只能来自验证后的 ExecutionToken 和 transport context。Item Master 响应中的自身 tenant projection 如合同明确需要仍是业务数据，不构成调用 authority。
 
 生产 caller manifest 固定为 Gateway（现有 50 RPC 的唯一允许 HUMAN caller，当前 46 条 BFF route）、MES（manufacturable）、WMS（stockable）、Procurement 与 SRM（purchasable）。当前没有 Gateway route 的 RPC 不因迁移自动获得 route。raw smoke、本地 fixture/stub 和测试替身不是生产 workload；直接调用 Item Master management 的 legacy smoke 删除或改走 Gateway HTTP 测试入口，WMS 本地 query stub 继续只作为隔离测试夹具。
