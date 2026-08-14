@@ -1,10 +1,10 @@
 # SRM、Procurement、Party 与 Item Master 协同蓝图
 
-Last Updated: 2026-06-10
+Last Updated: 2026-08-14
 
 ## 1. 目标
 
-定义 `srm-service`、future `procurement-service`、`party-service` 与 `item-master-service` 围绕供应商主档、供应商采购信息、标准 Item 与采购执行如何协同，并明确哪些事实归 SRM、Party、Item Master 与 Procurement。
+定义 `srm-service`、`procurement-service`、`party-service` 与 `item-master-service` 围绕供应商主档、供应商采购信息、标准 Item 与采购执行如何协同，并明确哪些事实归 SRM、Party、Item Master 与 Procurement。
 
 Item Master 概念以以下文件为唯一真相源：
 
@@ -13,19 +13,19 @@ Item Master 概念以以下文件为唯一真相源：
 ## 2. 参与服务
 
 - `srm-service`
-- future `procurement-service`
+- `procurement-service`
 - `party-service`
 - `item-master-service`
 
 ## 3. 协同分工
 
 - `srm-service`
-  - 负责 `SupplierProfile`、`SupplierAddressUsage`、`SupplierContactUsage`、`SupplierTaxProfile`、`SupplierStatus`、`SupplierCategory`、`SupplierTag`，以及 future `SupplierOffering` / supplier purchasing info。
+  - 负责 `SupplierProfile`、`SupplierAddressUsage`、`SupplierContactUsage`、`SupplierTaxProfile`、`SupplierStatus`、`SupplierCategory`、`SupplierTag` 与当前最小 `SupplierOffering` 关系。
 - `party-service`
   - 负责当前租户内 `TenantParty` 主体事实；核心对象、地址 / 联系人正文与 owner 边界以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准。
 - `item-master-service`
   - 负责 `ItemModel`、`Item`、capability、`SupplierItemMapping` 与基础分类真相。
-- future `procurement-service`
+- `procurement-service`
   - 负责采购申请、采购订单、收货预期、采购商业条款与采购执行语义。
 
 ## 4. 稳定协同规则
@@ -42,9 +42,9 @@ Item Master 概念以以下文件为唯一真相源：
 
 ### 4.2 SRM 与 Item Master 边界
 
-- 第一阶段不实现 `SupplierOffering`，也不要求采购保存时强制校验 `SupplierOffering`。
-- future `SupplierOffering` 方向调整为类似 Odoo supplierinfo 的供应商采购信息，用于表达某供应商针对内部 `Item` 或后续允许的 `ItemModel` 范围的默认采购参考。
-- future `SupplierOffering` 可以承载默认价格、币种、MOQ、lead time、供应商料号引用、备注与状态，但这些只是采购默认信息或推荐信息。
+- 当前 SRM 已维护 exact `supplierId + itemId` 的最小 active/inactive `SupplierOffering` 关系；它不扩展到 `ItemModel` 范围。
+- 标准 Item 进入 PO 前，Procurement 必须确认 active SupplierProfile 与 exact active SupplierOffering；非标准文本采购不适用 offering 规则。
+- `SupplierOffering` 不承载默认价格、币种、MOQ、lead time、供应商料号引用或交易条款。
 - `item-master-service` 继续拥有 `SupplierItemMapping`，只表达：
   - `supplierId + supplierItemCode / supplierItemName -> itemId`
 - `SupplierItemMapping` 指向执行层 `Item`，不指向 `ItemModel`。
@@ -53,13 +53,13 @@ Item Master 概念以以下文件为唯一真相源：
 
 ### 4.3 SRM 与 Procurement 边界
 
-- future `procurement-service` 只受控引用 SRM 的正式供应商主档；后续如启用 `SupplierOffering`，Procurement 可消费其默认采购信息，但不能把它当成 PO 事实。
+- `procurement-service` 只受控引用 SRM 的正式供应商主档与 exact active offering；不能把它们当成 PO 或商业条款事实。
 - Procurement 标准采购最终引用 active + purchasable `Item`。
 - Procurement 可以从 `ItemModel + AttributeOption` 解析到 purchasable `Item`，也可以直接选择 `Item`。
-- 第一阶段标准采购保存时只强制校验 `SupplierProfile.status = ACTIVE` 与 `Item.active + purchasable`，不强制校验 `SupplierOffering`。
-- RFQ、采购单、实际成交价、历史采购价格、收货与履约继续归 future `procurement-service`；`PaymentTerm` 主数据归 `finance-service`，采购交易只保存 payment term snapshot。
+- 标准 Item 采购保存时强制校验 `SupplierProfile.status = ACTIVE`、exact active `SupplierOffering` 与 `Item.active + purchasable`。
+- RFQ、采购单、实际成交价、历史采购价格、收货与履约继续归 `procurement-service`；`PaymentTerm` 主数据归 `finance-service`，采购交易只保存 payment term snapshot。
 - 本蓝图不冻结 procurement 的 PO / RFQ 对象名，只冻结 SRM 应提供的稳定主档边界。
-- 如果 future procurement 需要 approved supplier / 供应准入能力，应在独立设计中决定是否把 `SupplierOffering` 升级为准入规则或另建准入对象，不能用 `SupplierItemMapping` 代替。
+- 更复杂的 approved supplier / 供应准入能力仍需独立设计，不能把当前 active offering 或 `SupplierItemMapping` 擅自升级为通用准入模型。
 
 ### 4.4 Supplier address / contact / tax / terms snapshot 口径
 
@@ -74,26 +74,26 @@ Item Master 概念以以下文件为唯一真相源：
 - RFQ / PO 表单中供应商与 Item 可以任意先后填写。
 - 标准采购行最终必须引用公司内部 active + purchasable `Item`；`ItemModel` 只是配置或选择入口，不能作为 PO line 最终执行对象。
 - 供应商 item / supplier catalog 只作为搜索、映射、显示和交易 snapshot；最终采购执行对象仍是内部 `Item`。
-- 先选供应商时，Item selector 可以显示全部 active + purchasable Items；如果存在 `SupplierItemMapping` 或 future `SupplierOffering`，可以优先推荐相关 Items。
-- 先选 Item 时，Supplier selector 默认显示 ACTIVE suppliers；如果存在 `SupplierItemMapping` 或 future `SupplierOffering`，可以优先推荐相关 Suppliers。
-- 保存时第一阶段不强制校验 `SupplierOffering`。
+- 先选供应商时，Item selector 可以显示 active + purchasable Items；`SupplierItemMapping` 或 active `SupplierOffering` 只用于受控匹配与推荐。
+- 先选 Item 时，Supplier selector 显示 ACTIVE suppliers；active `SupplierOffering` 用于 exact 标准 Item 可供应关系过滤。
+- 标准 Item 保存时必须校验 exact active `SupplierOffering`；非标准文本采购不适用该规则。
 
 ## 5. 同步 / 异步边界
 
 - 第一阶段优先同步校验：
   - `srm-service -> party-service` 校验当前租户内 `tenantPartyId`。
   - `srm-service -> item-master-service` 校验 `itemId` 与 purchasable 能力。
-  - future `procurement-service -> item-master-service` 查询或解析采购 Item。
-  - future `procurement-service -> srm-service` 查询供应商主档与 offering 状态。
+  - `procurement-service -> item-master-service` 查询或解析采购 Item。
+  - `procurement-service -> srm-service.ResolveActiveSupplier / ResolveActiveSupplierOffering` 查询 active Supplier 与 exact active offering；这两个 `INTERNAL / HUMAN_OBO` RPC 只允许 Procurement actor，不能复用 Gateway BUSINESS 目录查询。
 - 第一阶段不冻结必须事件集：
   - 如后续需要主档变更事件、offering 变更事件或采购侧缓存同步事件，应在 `SRM-CONTRACT` / `PROCUREMENT-CONTRACT` 阶段单独冻结。
 
 ## 6. 真相归属
 
-- `SupplierProfile`、联系人 usage、地址 usage、`SupplierTaxProfile`、分类、标签、状态、future `SupplierOffering` / supplier purchasing info：`srm-service`
+- `SupplierProfile`、联系人 usage、地址 usage、`SupplierTaxProfile`、分类、标签、状态、最小 `SupplierOffering` 关系：`srm-service`
 - 供应商正式主体、租户主体引用、主体标识、主体地址 / 联系人正文与主体关系：以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准
 - `ItemModel`、`Item`、capability、`SupplierItemMapping`：`item-master-service`
-- RFQ、采购单、实际成交价、历史采购价格、收货、采购商业条款 snapshot：future `procurement-service`
+- RFQ、采购单、实际成交价、历史采购价格、收货、采购商业条款 snapshot：`procurement-service`
 - `PaymentTerm`、supplier invoice、AP、payment、allocation、payment control：`finance-service`
 
 ## 7. 明确禁止
@@ -101,16 +101,16 @@ Item Master 概念以以下文件为唯一真相源：
 - 不把 `SupplierItemMapping` 扩成采购商业档。
 - 不把 first-stage SRM 主档扩成 RFQ、PO 或采购履约系统。
 - 不复制 Party 注册信息为 SRM 真相。
-- 不让 future procurement 直接把采购商业条款塞回 SRM 主档。
+- 不让 Procurement 直接把采购商业条款塞回 SRM 主档。
 - 不在本蓝图中冻结 procurement 的 PO / RFQ 对象名。
 - 不让 SRM 或 Procurement 自行定义 Item 主数据概念。
 - 不把 CRM/SRM 第一阶段实现阻塞在 payment account / bank account 设计上。
 
 ## 8. Deferred
 
-- `SupplierOffering` / supplier purchasing info 的正式字段、事件目录与管理界面。
+- `SupplierOffering` 的价格/MOQ/lead time 等商业字段、事件目录与更复杂管理能力。
 - approved supplier / 供应准入是否由 `SupplierOffering` 承担，后续单独冻结。
-- SRM 与 Procurement 的正式 gRPC contract。
+- Procurement 后台无 HUMAN subject 的服务调用模式。
 - Supplier qualification / onboarding workflow。
 - Supplier performance / score / quality remediation。
 - RFQ、实际成交价、历史采购价格与采购商业条款 snapshot 的 owner model。

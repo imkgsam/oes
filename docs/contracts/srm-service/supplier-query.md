@@ -8,10 +8,22 @@
 
 - 接口类型：内部 gRPC
 - 服务：`SupplierQueryService`
-- 所有 RPC 显式带 `tenant_id`
-- 所有 RPC 都要求：
-  - operator context
-  - trace context
+- 分类：`BUSINESS / HUMAN / WEB`
+- audience：`urn:oes:service:srm-service`
+- tenant/operator/org/trace/audit 只来自 verified ET/transport context；request 不携带 authority context
+
+Exact Permission mapping：
+
+| RPC | Code |
+| --- | --- |
+| `GetSupplier` | `srm.supplier_profile.get_by_id` |
+| `SearchSuppliers` | `srm.supplier_profile.list` |
+| `ListSupplierContacts` | `srm.supplier_profile.get_by_id` |
+| `ListSupplierAddresses` | `srm.supplier_profile.get_by_id` |
+| `ListSupplierOfferingsBySupplier` | `srm.supplier_offering.list_by_supplier` |
+| `ListSupplierOfferingsByItem` | `srm.supplier_offering.list_by_item` |
+
+Gateway supplier detail 同时聚合 Supplier、contact、address 与 offering，因此 HTTP detail route 必须同时具备 `srm.supplier_profile.get_by_id` 与 `srm.supplier_offering.list_by_supplier`，不能用一个 Code 隐式放宽另一个 RPC。
 
 phase 1 query 只覆盖：
 
@@ -141,7 +153,6 @@ phase 1 `SupplierOffering` 最小读取 shape：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `supplier_id` | 是 | 目标 SupplierProfile 标识 |
 
 响应最小 shape：
@@ -163,7 +174,6 @@ phase 1 `SupplierOffering` 最小读取 shape：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `keyword` | 否 | 按 `supplier_no / display_name` 检索 |
 | `status` | 否 | 按供应商状态过滤 |
 | `tenant_party_id` | 否 | 按正式主体 `tenantPartyId` 过滤 |
@@ -192,7 +202,6 @@ phase 1 `SupplierOffering` 最小读取 shape：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `supplier_id` | 是 | 目标 SupplierProfile 标识 |
 
 响应最小 shape：
@@ -214,7 +223,6 @@ phase 1 `SupplierOffering` 最小读取 shape：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `supplier_id` | 是 | 目标 SupplierProfile 标识 |
 
 响应最小 shape：
@@ -236,7 +244,6 @@ phase 1 `SupplierOffering` 最小读取 shape：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `supplier_id` | 是 | 目标 SupplierProfile 标识 |
 | `status` | 否 | 按 offering 状态过滤 |
 | `page` | 否 | 1-based 页码 |
@@ -264,7 +271,6 @@ phase 1 `SupplierOffering` 最小读取 shape：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `item_id` | 是 | 目标 Item 标识 |
 | `status` | 否 | 按 offering 状态过滤 |
 | `page` | 否 | 1-based 页码 |

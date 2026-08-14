@@ -17,7 +17,7 @@
 
 ## 2. Phase 1 Contract Surface
 
-phase 1 只冻结两组内部 gRPC 服务面：
+phase 1 冻结三组内部 gRPC 服务面：
 
 - [supplier-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/srm-service/supplier-query.md)
   - `SupplierQueryService`
@@ -36,6 +36,10 @@ phase 1 只冻结两组内部 gRPC 服务面：
   - `UpsertSupplierAddress`
   - `UpsertSupplierOffering`
   - `ChangeSupplierStatus`
+- [internal-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/srm-service/internal-query.md)
+  - `SrmInternalQueryService`
+  - `ResolveActiveSupplier`
+  - `ResolveActiveSupplierOffering`
 
 phase 1 不在本目录中冻结：
 
@@ -93,24 +97,23 @@ phase 1 contract 明确围绕以下 owner 边界展开：
 
 ## 5. Security / Context Baseline
 
-所有 phase 1 RPC 统一遵循以下基线：
+13 个现有 RPC 统一遵循以下基线：
 
 - 全部为内部 gRPC 契约，不直接对外部客户端开放
-- 所有 RPC 显式携带 `tenant_id`
-- 所有 query RPC 都要求：
-  - operator context
-  - trace context
-- 所有 management command 都要求：
-  - operator context
-  - trace context
-  - audit context
+- 分类固定为 `BUSINESS / HUMAN / WEB`
+- audience 固定为 `urn:oes:service:srm-service`
+- 仅接受 Gateway 使用当前 HUMAN session 换取、且与当前 mTLS leaf 绑定的 SRM audience ExecutionToken
+- 租户、组织、operator、trace 与 audit authority 全部来自 verified Token/transport context
+- request 中原 `tenant_id / operator_context / trace_context / audit_context` 字段删除并 reserve 原编号和名称；response 中 SRM-owned tenant projection 保留
+- 每个 RPC 要求 [supplier-query.md](./supplier-query.md) 或 [supplier-management.md](./supplier-management.md) 冻结的 exact Code；不允许 MACHINE、DELEGATED、SELF_SERVICE、non-WEB 或 legacy body/ordinary-metadata fallback
 
 补充说明：
 
-- 本目录只冻结“必须可观察到的上下文与行为边界”，不展开 metadata header、guard 或 tracing 实现
 - `BindSupplierToTenantParty` 必须通过受控方式校验 `tenantPartyId`
 - `UpsertSupplierOffering` 必须通过受控方式校验 `itemId` 与 `purchasable` 能力
 - management command 必须按 command 语义使用，不得以 query 方式绕过写边界
+- Procurement 使用 [internal-query.md](./internal-query.md) 的两个窄 `INTERNAL / HUMAN_OBO` RPC，不复用 Gateway BUSINESS 查询
+- SRM→Party pure `MACHINE_ROOT` 与 SRM→Item Master `HUMAN_OBO` 是不同下游协同，不能互相推断或 fallback
 - phase 1 不冻结 integration events，只允许列出 deferred 候选能力
 
 ## 6. Deferred

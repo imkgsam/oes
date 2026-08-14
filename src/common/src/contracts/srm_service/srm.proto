@@ -24,6 +24,11 @@ service SupplierManagementService {
   rpc ChangeSupplierStatus(ChangeSupplierStatusRequest) returns (ChangeSupplierStatusResponse);
 }
 
+service SrmInternalQueryService {
+  rpc ResolveActiveSupplier(ResolveActiveSupplierRequest) returns (ResolveActiveSupplierResponse);
+  rpc ResolveActiveSupplierOffering(ResolveActiveSupplierOfferingRequest) returns (ResolveActiveSupplierOfferingResponse);
+}
+
 enum SupplierStatus {
   SUPPLIER_STATUS_UNSPECIFIED = 0;
   SUPPLIER_STATUS_ACTIVE = 1;
@@ -39,23 +44,6 @@ enum SupplierOfferingStatus {
   SUPPLIER_OFFERING_STATUS_UNSPECIFIED = 0;
   SUPPLIER_OFFERING_STATUS_ACTIVE = 1;
   SUPPLIER_OFFERING_STATUS_INACTIVE = 2;
-}
-
-message OperatorContext {
-  string operator_id = 1;
-  string operator_type = 2;
-  string org_id = 3;
-}
-
-message TraceContext {
-  string trace_id = 1;
-  string request_id = 2;
-}
-
-message AuditContext {
-  string audit_id = 1;
-  string reason = 2;
-  string source = 3;
 }
 
 message SupplierPartyBindingSummary {
@@ -110,9 +98,8 @@ message SupplierOffering {
 }
 
 message GetSupplierRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   string supplier_id = 4;
 }
 
@@ -121,9 +108,8 @@ message GetSupplierResponse {
 }
 
 message SearchSuppliersRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   string keyword = 4;
   SupplierStatus status = 5;
   string tenant_party_id = 6;
@@ -139,9 +125,8 @@ message SearchSuppliersResponse {
 }
 
 message ListSupplierContactsRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   string supplier_id = 4;
 }
 
@@ -150,9 +135,8 @@ message ListSupplierContactsResponse {
 }
 
 message ListSupplierAddressesRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   string supplier_id = 4;
 }
 
@@ -161,9 +145,8 @@ message ListSupplierAddressesResponse {
 }
 
 message ListSupplierOfferingsBySupplierRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   string supplier_id = 4;
   SupplierOfferingStatus status = 5;
   uint32 page = 6;
@@ -178,9 +161,8 @@ message ListSupplierOfferingsBySupplierResponse {
 }
 
 message ListSupplierOfferingsByItemRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   string item_id = 4;
   SupplierOfferingStatus status = 5;
   uint32 page = 6;
@@ -195,10 +177,8 @@ message ListSupplierOfferingsByItemResponse {
 }
 
 message CreateSupplierProfileRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string display_name = 5;
   string supplier_no = 6;
   string supplier_category = 7;
@@ -210,10 +190,8 @@ message CreateSupplierProfileResponse {
 }
 
 message UpdateSupplierProfileBasicsRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string supplier_id = 5;
   string display_name = 6;
   string supplier_no = 7;
@@ -226,10 +204,8 @@ message UpdateSupplierProfileBasicsResponse {
 }
 
 message BindSupplierToTenantPartyRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string supplier_id = 5;
   string tenant_party_id = 6;
 }
@@ -239,10 +215,8 @@ message BindSupplierToTenantPartyResponse {
 }
 
 message UpsertSupplierContactRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string supplier_id = 5;
   string supplier_contact_id = 6;
   string display_name = 7;
@@ -258,10 +232,8 @@ message UpsertSupplierContactResponse {
 }
 
 message UpsertSupplierAddressRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string supplier_id = 5;
   string supplier_address_id = 6;
   string label = 7;
@@ -280,10 +252,8 @@ message UpsertSupplierAddressResponse {
 }
 
 message UpsertSupplierOfferingRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string supplier_offering_id = 5;
   string supplier_id = 6;
   string item_id = 7;
@@ -295,14 +265,34 @@ message UpsertSupplierOfferingResponse {
 }
 
 message ChangeSupplierStatusRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string supplier_id = 5;
   SupplierStatus target_status = 6;
 }
 
 message ChangeSupplierStatusResponse {
   SupplierProfile supplier = 1;
+}
+
+message ResolveActiveSupplierRequest {
+  string supplier_id = 1;
+}
+
+message ResolveActiveSupplierResponse {
+  string supplier_id = 1;
+  string display_name = 2;
+  SupplierStatus status = 3;
+}
+
+message ResolveActiveSupplierOfferingRequest {
+  string supplier_id = 1;
+  string item_id = 2;
+}
+
+message ResolveActiveSupplierOfferingResponse {
+  string supplier_offering_id = 1;
+  string supplier_id = 2;
+  string item_id = 3;
+  SupplierOfferingStatus status = 4;
 }

@@ -36,6 +36,7 @@ import {
   SITE_MANAGEMENT_PERMISSION_CODES,
   SITE_MANAGEMENT_INTERNAL_PERMISSION_CODES,
   SRM_MANAGEMENT_PERMISSION_CODES,
+  SRM_INTERNAL_PERMISSION_CODES,
   TENANT_ORG_MANAGEMENT_PERMISSION_CODES,
   TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES,
   TERMINAL_DEVICE_INTERNAL_PERMISSION_CODES,
@@ -393,13 +394,19 @@ const COMMON_PERMISSION_CODE_FILES: CommonPermissionCodeFileDefinition[] = [
   {
     kind: 'index',
     relativePath: 'srm/index.ts',
-    exports: ['./management.permission-codes']
+    exports: ['./management.permission-codes', './internal.permission-codes']
   },
   {
     kind: 'const',
     relativePath: 'srm/management.permission-codes.ts',
     constName: 'SRM_MANAGEMENT_PERMISSION_CODES',
     records: SRM_MANAGEMENT_PERMISSION_CODES
+  },
+  {
+    kind: 'const',
+    relativePath: 'srm/internal.permission-codes.ts',
+    constName: 'SRM_INTERNAL_PERMISSION_CODES',
+    records: SRM_INTERNAL_PERMISSION_CODES
   },
   {
     kind: 'index',

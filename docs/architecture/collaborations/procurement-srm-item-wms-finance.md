@@ -25,7 +25,7 @@
   - 负责 `ReceivingExpectation`、`ReceivingDiscrepancy`
   - 负责采购交易事实与历史采购价格事实
 - `srm-service`
-  - 负责 `SupplierProfile`；future `SupplierOffering` / supplier purchasing info 后续可作为采购默认信息来源
+  - 负责 `SupplierProfile` 与当前最小 `SupplierOffering` active/inactive 关系；具体 owner 规则以 [srm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/srm-service.md) 为准
 - `item-master-service`
   - 负责 `ItemModel`、`Item`、执行层 capability 与 `SupplierItemMapping`
 - `wms-service`
@@ -49,11 +49,11 @@
 
 ### 4.2 Procurement 与 SRM 边界
 
-- `srm-service` 继续 owns `SupplierProfile`；future `SupplierOffering` / supplier purchasing info 由 SRM 承接，但不是 phase 1 采购准入前置。
-- 标准 `Item` 转 `PO` 时，phase 1 只强制校验 `SupplierProfile.status = ACTIVE` 与 `Item.active + purchasable`，不强制要求 `ACTIVE SupplierOffering`。
+- `srm-service` 继续 owns `SupplierProfile` 与最小 `SupplierOffering` 可供应关系。
+- 标准 `Item` 转 `PO` 时强制校验 `SupplierProfile.status = ACTIVE`、exact `SupplierOffering.status = ACTIVE` 与 `Item.active + purchasable`；该规则以 [procurement-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/procurement-service.md) 与 [srm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/srm-service.md) 为准。
 - 日常非标准采购可不要求标准 `Item` 或 `SupplierOffering`，但必须标记为非标准 / 文本型采购需求。
 - Procurement 不把 RFQ、PO、实际成交价、历史采购价格、收货或履约事实塞回 `SRM`；`PaymentTerm` 主数据归 `finance-service`。
-- future `SupplierOffering` 如启用，定位更接近 Odoo supplierinfo，可作为默认价格、MOQ、lead time 等采购参考信息来源，而不是 phase 1 采购准入前置。
+- 当前 `SupplierOffering` 只表达 active/inactive 可供应关系，不承载默认价格、MOQ、lead time 或交易条款。
 
 ### 4.3 Procurement 与 Item Master 边界
 
@@ -116,7 +116,7 @@
 ## 5. 同步 / 异步边界
 
 - 同步：
-  - `procurement-service -> srm-service` 查询 `SupplierProfile` 当前状态；future 可查询 `SupplierOffering` / supplier purchasing info 作为默认采购信息
+  - `procurement-service -> srm-service.ResolveActiveSupplier / ResolveActiveSupplierOffering` 以 `INTERNAL / HUMAN_OBO` 查询 active Supplier 与 exact active offering；不得复用 Gateway BUSINESS 目录查询
   - `procurement-service -> item-master-service.ResolvePurchasableItem` 校验标准 `Item` 的 `active + purchasable`；其他 Item 查询/解析仍须使用其各自已冻结契约，不扩大该 INTERNAL RPC
   - `api-gateway -> procurement-service` 查询 `PR / PO / discrepancy` 当前摘要
   - `procurement-service -> permission-service` 的权限、scope 与操作校验
@@ -133,7 +133,7 @@
 - `PurchaseOrder`、`PurchaseOrderLine`、`PurchaseOrderLineAllocation`：`procurement-service`
 - `PurchaseOrderChange`：`procurement-service`
 - `ReceivingExpectation`、`ReceivingDiscrepancy`：`procurement-service`
-- `SupplierProfile`、future `SupplierOffering` / supplier purchasing info：`srm-service`
+- `SupplierProfile`、最小 `SupplierOffering` active/inactive 关系：`srm-service`
 - `ItemModel`、`Item`、执行层 capability、`SupplierItemMapping`：`item-master-service`
 - 实际收货、区位、库存、破损 / 受限库存：`wms-service`
 - `AP`、supplier invoice、payment、allocation：`finance-service`
@@ -143,7 +143,7 @@
 - 不把 RFQ、PO、实际成交价、收货与履约事实塞进 `SRM`
 - 不把库存真相塞进 Procurement
 - 不把付款真相塞进 Procurement
-- 不把 first-stage procurement 强依赖 `SupplierOffering`
+- 不把最小 `SupplierOffering` 扩成价格、MOQ、lead time 或通用 approved-supplier 模型
 - 不为了 `Non-PO purchase` 设计复杂正常路径
 - 不引入完整 `workflow-service` 作为 phase 1 前置
 - 不引入 `costing-service`

@@ -18,6 +18,7 @@ import {
   PERMISSION_MANAGEMENT_PERMISSION_CODES,
   SALES_MANAGEMENT_PERMISSION_CODES,
   SRM_MANAGEMENT_PERMISSION_CODES,
+  SRM_INTERNAL_PERMISSION_CODES,
   TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES,
   TENANT_ORG_MANAGEMENT_PERMISSION_CODES
 } from '@oes/common/authorization'
@@ -146,6 +147,8 @@ const PERMISSION_DESCRIPTION_BY_CODE: Readonly<Record<string, string>> = {
   'srm.supplier_offering.list_by_supplier': '查看供应商可供应 Item 列表',
   'srm.supplier_offering.list_by_item': '查看可供应指定 Item 的供应商列表',
   'srm.supplier_offering.upsert': '新增或更新供应商可供应关系',
+  'srm.internal.supplier_profile.resolve_active': '解析可用于采购的 active 供应商',
+  'srm.internal.supplier_offering.resolve_active': '解析可用于采购的 exact active 供应商可供应关系',
   'sales.quote.list': '查看报价列表',
   'sales.quote.get_by_id': '查看报价详情',
   'sales.quote.create': '创建报价草稿',
@@ -273,6 +276,13 @@ export function buildPermissionSeedItems(): PermissionSeedItem[] {
       code,
       module: Modules.SRM_SERVICE,
       description: getPermissionDescription(code)
+    })),
+    ...valuesOf(SRM_INTERNAL_PERMISSION_CODES).map((code) => ({
+      code,
+      module: Modules.SRM_SERVICE,
+      description: getPermissionDescription(code),
+      kind: PermissionKind.INTERNAL,
+      externalApiEligible: false
     })),
     ...valuesOf(SALES_MANAGEMENT_PERMISSION_CODES).map((code) => ({
       code,

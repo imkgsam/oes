@@ -6,18 +6,25 @@
 
 ## 2. 通用上下文要求
 
-所有 phase 1 management command 统一要求：
-
-- `tenant_id`
-- operator context
-- trace context
-- audit context
+所有 phase 1 management command 固定为 `BUSINESS / HUMAN / WEB`，要求 `aud=urn:oes:service:srm-service`、exact Code 与 mTLS/`cnf` binding。tenant/operator/org/trace/audit 只从 verified ET/transport context 派生，request 不再携带这些 authority 字段。
 
 补充约束：
 
-- 本文件只冻结“必须要求这些上下文存在”，不展开它们的完整内部字段结构
 - 所有 command 都必须按 command 语义处理，不得被调用方当作 query 或幂等读取接口使用
-- phase 1 不冻结 command metadata header、审计落库结构、重试策略或幂等键设计
+- verified operator/trace/audit 驱动现有事务内 audit envelope；caller reason 只能作为受限业务说明，不能覆盖 trusted identity/source
+- phase 1 不新增 command id、重试策略或幂等键设计
+
+Exact Permission mapping：
+
+| RPC | Code |
+| --- | --- |
+| `CreateSupplierProfile` | `srm.supplier_profile.create` |
+| `UpdateSupplierProfileBasics` | `srm.supplier_profile.update_basics` |
+| `BindSupplierToTenantParty` | `srm.supplier_profile.bind_tenant_party` |
+| `UpsertSupplierContact` | `srm.supplier_contact.upsert` |
+| `UpsertSupplierAddress` | `srm.supplier_address.upsert` |
+| `UpsertSupplierOffering` | `srm.supplier_offering.upsert` |
+| `ChangeSupplierStatus` | `srm.supplier_profile.change_status` |
 
 ## 3. 写入基线语义
 
@@ -66,10 +73,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `operator_context` | 是 | 操作人上下文 |
-| `trace_context` | 是 | 链路追踪上下文 |
-| `audit_context` | 是 | 审计上下文 |
 | `display_name` | 是 | SRM 供应商关系显示名 |
 | `supplier_no` | 否 | optional 供应商编号摘要 |
 | `supplier_category` | 否 | optional 分类摘要 |
@@ -99,10 +102,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `operator_context` | 是 | 操作人上下文 |
-| `trace_context` | 是 | 链路追踪上下文 |
-| `audit_context` | 是 | 审计上下文 |
 | `supplier_id` | 是 | 目标 SupplierProfile 标识 |
 | `display_name` | 否 | 更新后的 SRM 供应商关系显示名 |
 | `supplier_no` | 否 | 更新后的供应商编号摘要 |
@@ -132,10 +131,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `operator_context` | 是 | 操作人上下文 |
-| `trace_context` | 是 | 链路追踪上下文 |
-| `audit_context` | 是 | 审计上下文 |
 | `supplier_id` | 是 | 目标 SupplierProfile 标识 |
 | `tenant_party_id` | 是 | 目标 `TenantParty` 稳定引用 |
 
@@ -169,10 +164,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `operator_context` | 是 | 操作人上下文 |
-| `trace_context` | 是 | 链路追踪上下文 |
-| `audit_context` | 是 | 审计上下文 |
 | `supplier_id` | 是 | 所属 SupplierProfile 标识 |
 | `supplier_contact_id` | 否 | 更新时填写；新增时为空 |
 | `display_name` | 是 | SRM 联系人显示名 |
@@ -202,10 +193,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `operator_context` | 是 | 操作人上下文 |
-| `trace_context` | 是 | 链路追踪上下文 |
-| `audit_context` | 是 | 审计上下文 |
 | `supplier_id` | 是 | 所属 SupplierProfile 标识 |
 | `supplier_address_id` | 否 | 更新时填写；新增时为空 |
 | `label` | 是 | 地址标签摘要 |
@@ -238,10 +225,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `operator_context` | 是 | 操作人上下文 |
-| `trace_context` | 是 | 链路追踪上下文 |
-| `audit_context` | 是 | 审计上下文 |
 | `supplier_offering_id` | 否 | 更新时可填写；新增时为空 |
 | `supplier_id` | 是 | 所属 SupplierProfile 标识 |
 | `item_id` | 是 | 目标 Item 标识 |
@@ -281,10 +264,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `operator_context` | 是 | 操作人上下文 |
-| `trace_context` | 是 | 链路追踪上下文 |
-| `audit_context` | 是 | 审计上下文 |
 | `supplier_id` | 是 | 目标 SupplierProfile 标识 |
 | `target_status` | 是 | 目标状态；phase 1 只显式冻结 `ACTIVE / INACTIVE` |
 

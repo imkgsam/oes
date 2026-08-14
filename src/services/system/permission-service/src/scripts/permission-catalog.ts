@@ -533,6 +533,21 @@ const srmManagement = definePermissionGroup(Modules.SRM_SERVICE, {
   }
 })
 
+const srmInternal = definePermissionGroup(Modules.SRM_SERVICE, {
+  RESOLVE_ACTIVE_SUPPLIER: {
+    code: 'srm.internal.supplier_profile.resolve_active',
+    description: '解析可用于采购的 active 供应商',
+    kind: PermissionKind.INTERNAL,
+    externalApiEligible: false
+  },
+  RESOLVE_ACTIVE_SUPPLIER_OFFERING: {
+    code: 'srm.internal.supplier_offering.resolve_active',
+    description: '解析可用于采购的 exact active 供应商可供应关系',
+    kind: PermissionKind.INTERNAL,
+    externalApiEligible: false
+  }
+})
+
 const salesManagement = definePermissionGroup(Modules.SALES_SERVICE, {
   LIST_QUOTE: { code: 'sales.quote.list', description: '查看报价列表' },
   GET_QUOTE: { code: 'sales.quote.get_by_id', description: '查看报价详情' },
@@ -1198,6 +1213,7 @@ export const ITEM_MASTER_MANAGEMENT_PERMISSION_CODES = itemMasterManagement.code
 export const ITEM_MASTER_INTERNAL_PERMISSION_CODES = itemMasterInternal.codes
 export const CRM_MANAGEMENT_PERMISSION_CODES = crmManagement.codes
 export const SRM_MANAGEMENT_PERMISSION_CODES = srmManagement.codes
+export const SRM_INTERNAL_PERMISSION_CODES = srmInternal.codes
 export const SALES_MANAGEMENT_PERMISSION_CODES = salesManagement.codes
 export const SALES_PRICING_PERMISSION_CODES = salesPricingManagement.codes
 export const PROCUREMENT_MANAGEMENT_PERMISSION_CODES = procurementManagement.codes
@@ -1258,6 +1274,7 @@ export const PERMISSION_CODE_SEED_ITEMS: PermissionSeedItem[] = [
   ...itemMasterManagement.items,
   ...crmManagement.items,
   ...srmManagement.items,
+  ...srmInternal.items,
   ...salesManagement.items,
   ...salesPricingManagement.items,
   ...procurementManagement.items,

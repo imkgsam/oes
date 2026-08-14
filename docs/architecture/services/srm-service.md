@@ -1,12 +1,12 @@
 # srm-service 职责卡
 
-Last Updated: 2026-05-18
+Last Updated: 2026-08-14
 
 ## 1. Purpose
 
 `srm-service` 是 OES 的供应商关系主档服务，负责回答“这个租户内有哪些正式供应商档案、它们绑定了哪个正式主体、当前处于什么供应商状态、有哪些联系人/地址/分类/标签，以及后续有哪些供应商采购信息可供采购参考”。
 
-当前职责卡只冻结 `SRM-MINIMAL` 的最小供应商主档闭环，不在第一阶段实现或强制校验 `SupplierOffering`。`SupplierOffering` 后续方向调整为类似 Odoo supplierinfo 的供应商采购信息，可承载默认价格、MOQ、lead time 等参考字段；正式 RFQ、PO、成交价、收货和履约事实仍归 future `procurement-service`，`PaymentTerm` 主数据归 `finance-service`。
+当前职责卡冻结 `SRM-MINIMAL` 的供应商主档闭环与已经存在的最小 `SupplierOffering` 可供应关系。标准 Item 进入 PO 前由 Procurement 受控查询 SRM，校验 active `SupplierProfile` 与 exact active `SupplierOffering`；该 offering 仍不承载价格、MOQ、lead time 或交易条款。正式 RFQ、PO、成交价、收货和履约事实归 `procurement-service`，`PaymentTerm` 主数据归 `finance-service`。
 
 ## 2. Owns
 
@@ -17,7 +17,7 @@ Last Updated: 2026-05-18
 - `SupplierStatus`
 - `SupplierCategory`
 - `SupplierTag`
-- future `SupplierOffering` / supplier purchasing info
+- `SupplierOffering` 最小可供应关系
 - `SupplierProfile.tenantPartyId` 供应商角色到 `TenantParty` 的正式引用
 - 供应商默认交易条件：
   - `defaultCurrency`
@@ -30,9 +30,9 @@ Last Updated: 2026-05-18
 - `SupplierProfile` 的正式主体引用是 `tenantPartyId`
 - `ACTIVE SupplierProfile` 必须绑定 `tenantPartyId`
 - 同一 `tenantId + tenantPartyId` 只允许一个正式 `SupplierProfile`
-- 第一阶段标准采购不强制要求 `SupplierOffering`
-- future `SupplierOffering` 表达供应商针对内部 `Item` 或后续允许的 `ItemModel` 范围的采购参考信息，而不是第一阶段 PO 准入门槛
-- future `SupplierOffering` 可承载默认采购价格、币种、MOQ、lead time、供应商料号引用等参考信息；实际交易价格和历史成交事实归 Procurement
+- 标准 Item 进入 PO 前必须解析 exact active `SupplierOffering`；日常非标准文本采购不适用该规则
+- `SupplierOffering` 只表达供应商针对 exact internal `Item` 的 active/inactive 可供应关系，不扩展为 `ItemModel` 范围或 caller-selected 通用资格规则
+- `SupplierOffering` 不承载默认采购价格、币种、MOQ、lead time、供应商料号或交易条款；实际交易价格和历史成交事实归 Procurement
 
 ## 3. Does Not Own
 
@@ -58,7 +58,7 @@ Last Updated: 2026-05-18
 - 维护供应商联系人 usage、地址 usage、分类、标签和供应商状态等 SRM 业务语义；联系人与地址正文继续归 `party-service`。
 - 管理 `SupplierTaxProfile` 作为供应商交易税务默认配置，不拥有供应商发票、进项税、认证或付款事实。
 - 维护供应商默认交易条件，例如默认币种、默认付款条款、默认收票地址 usage 与默认财务联系人 usage；这些只作为采购创建默认值，不能解释历史交易。
-- 第一阶段不维护 `SupplierOffering` 作为采购准入事实；后续如启用 `SupplierOffering`，其定位是供应商采购信息 / supplierinfo，而不是强制采购校验对象。
+- 维护 `SupplierOffering` 的最小 active/inactive 可供应关系；标准 Item 采购通过窄 INTERNAL 查询校验该事实，不能复用 Gateway 目录查询。
 - 对 future `procurement-service` 与其他受控消费者提供统一供应商主档查询口径。
 - 在状态变更时执行最小主档闭环所需的一致性校验，而不是把采购商业条款并入 SRM。
 
@@ -98,7 +98,7 @@ Last Updated: 2026-05-18
 - `SupplierProfile.tenantPartyId` 正式主体引用事实
 - 供应商联系人 usage、地址 usage、分类与标签摘要
 - `SupplierTaxProfile` 默认税务配置摘要
-- future `SupplierOffering` / supplier purchasing info 摘要
+- `SupplierOffering` 可供应关系摘要
 - 供下游校验或引用的供应商启停状态摘要
 
 ## 8. Non-goals
@@ -122,7 +122,18 @@ Last Updated: 2026-05-18
 - `SupplierProfile.displayName / shortName / supplierCode` 归 SRM；`TenantParty.legalName` 归 Party。创建时可从 legal name 初始化 display name，但后续 legal name 变化不能覆盖 SRM 角色显示名。
 - `SupplierTaxProfile` 第一阶段最小字段为 `invoiceTitle / taxRegistrationNo / taxpayerType / defaultInvoiceType / canIssueVatSpecialInvoice / defaultTaxTreatment / invoiceAddressUsageId / financeContactUsageId`。
 - `defaultCurrency / defaultPaymentTermId` 只作为采购默认值；PurchaseOrder / supplier invoice / Payable 必须保存自己的交易币种与付款条款 snapshot。
-- 第一阶段不实现 `SupplierOffering`，也不在采购保存时强制校验 `SupplierOffering`。
-- future `SupplierOffering` 方向调整为类似 Odoo supplierinfo 的供应商采购信息，可记录默认价格、币种、MOQ、lead time、供应商料号引用等参考字段；它不等于 RFQ、PO、成交价或采购履约事实。
+- 当前实现维护最小 `SupplierOffering` active/inactive 关系；标准 Item 进入 PO 前必须由 Procurement 通过 SRM-owned 窄查询确认 exact active offering。
+- `SupplierOffering` 不记录默认价格、币种、MOQ、lead time、供应商料号或交易条款；它不等于 RFQ、PO、成交价或采购履约事实。
 - `SupplierItemMapping` 继续归 `item-master-service`，只表达 `supplierId + supplierItemCode / supplierItemName -> itemId`。
 - 采购交易、质量、绩效、整改、RFQ、实际成交价与履约全部 deferred 到后续独立 contract / feature 线程。
+
+## 10. Trusted gRPC Inbound Contract
+
+- 当前 13 个 `SupplierQueryService` / `SupplierManagementService` RPC 各自只有一种执行分类：`BUSINESS / HUMAN / WEB`；唯一 production caller 是 `api-gateway`，audience 为 `urn:oes:service:srm-service`。
+- 13 个现有 request 的 `tenant_id / operator_context / trace_context`，以及 7 个 management request 的 `audit_context`，共 46 个 authority 字段全部删除并按原 field number/name reserve。租户、组织、operator、trace 与审计归因只来自已验证 ExecutionToken 和 mTLS transport context；response 中 SRM-owned `tenant_id` projection 保留。
+- Procurement 不再复用 `GetSupplier` 与 `ListSupplierOfferingsBySupplier`。SRM 新增且只新增 `SrmInternalQueryService.ResolveActiveSupplier` 与 `ResolveActiveSupplierOffering`，均为 `INTERNAL / HUMAN_OBO`，只允许 exact `procurement-service` SYSTEM MACHINE actor，保留原始 HUMAN subject，并拒绝 pure MACHINE root、DELEGATED、TENANT MACHINE、direct HUMAN 与其他 workload。
+- 两个 INTERNAL Code 分别为 `srm.internal.supplier_profile.resolve_active` 与 `srm.internal.supplier_offering.resolve_active`；Permission 只授权 actor workload，不拥有或重写 subject tenant authority。
+- `ResolveActiveSupplier` 只回答目标 Supplier 是否存在且 active；`ResolveActiveSupplierOffering` 只回答 exact `supplier_id + item_id` offering 是否存在且 active。`NOT_FOUND` 表示对象不存在，`FAILED_PRECONDITION` 表示对象存在但不 active。
+- SRM 入站迁移建立 verified HUMAN current-hop private scope 后，激活现有 SRM→Item Master `ResolvePurchasableItem` HUMAN_OBO 组合并删除手工伪造的 request context；SRM→Party 保持既有 pure `MACHINE_ROOT` 语义不变。
+- Procurement→SRM dedicated OBO client/producer 可在本轮准备，但在 Procurement 自身 trusted-gRPC inbound 迁移前保持 `PREPARED_NOT_ACTIVATED`。不存在 body/local metadata tenant fallback；后台无 HUMAN subject 的调用另行设计。
+- management mutation 与 success audit envelope 继续在同一 Prisma transaction 提交；audit 失败回滚 mutation。当前唯一性、upsert 收敛、重试、schema、event/outbox 与业务状态规则不变。
