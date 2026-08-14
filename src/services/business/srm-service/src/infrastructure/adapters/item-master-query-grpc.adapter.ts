@@ -1,49 +1,39 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
-import { ClientGrpc } from '@nestjs/microservices'
+import { Injectable, OnModuleInit } from '@nestjs/common'
 import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory,
-  GrpcRequestContextStore
+  GrpcRequestContextStore,
+  ITEM_MASTER_INTERNAL_PERMISSION_CODES
 } from '@oes/common/authorization'
 import { SERVICE_NAMES } from '@oes/common/constants'
-import {
-  ITEM_MASTER_QUERY_SERVICE_NAME,
-  ItemMasterQueryServiceClient
-} from '@oes/common/generated/item_master_service'
-import { InjectGrpcClient, safeGrpcCall } from '@oes/common/transport'
+import { ItemMasterInternalQueryServiceClient } from '@oes/common/generated/item_master_service'
+import { safeGrpcCall } from '@oes/common/transport'
 import { ItemLookupPort, ItemLookupResult } from '../../application/ports/item-lookup.port'
+import { SrmItemMasterTrustedGrpcClient } from './item-master-trusted-grpc.client'
+import { SrmItemMasterTrustedGrpcExecutionProducer } from './srm-item-master-trusted-grpc-execution.producer'
 
 /** ItemMasterQueryGrpcAdapter validates item identity and purchasable capability through item-master-service query truth. */
 @Injectable()
 export class ItemMasterQueryGrpcAdapter implements ItemLookupPort, OnModuleInit {
-  private itemMasterQueryService!: ItemMasterQueryServiceClient
+  private itemMasterQueryService!: ItemMasterInternalQueryServiceClient
 
   constructor(
-    @InjectGrpcClient(SERVICE_NAMES.ITEM_MASTER)
-    private readonly itemMasterClient: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory,
+    private readonly itemMasterClient: SrmItemMasterTrustedGrpcClient,
+    private readonly producer: SrmItemMasterTrustedGrpcExecutionProducer,
     private readonly requestContextStore: GrpcRequestContextStore
   ) {}
 
   onModuleInit(): void {
-    this.itemMasterQueryService = this.itemMasterClient.getService<ItemMasterQueryServiceClient>(
-      ITEM_MASTER_QUERY_SERVICE_NAME
-    )
+    this.itemMasterQueryService = this.itemMasterClient.internalQuery()
   }
 
   async getItemById(tenantId: string, itemId: string): Promise<ItemLookupResult | null> {
     const response = await safeGrpcCall(
-      this.itemMasterQueryService.getItem(
-        {
-          tenantId,
-          itemId
-        },
-        this.buildMetadata()
+      this.itemMasterQueryService.resolvePurchasableItem(
+        { itemId },
+        await this.buildMetadata(tenantId)
       ),
       {
         caller: SERVICE_NAMES.SRM,
-        method: 'ItemMasterQueryService.getItem'
+        method: 'ItemMasterInternalQueryService.resolvePurchasableItem'
       }
     )
 
@@ -57,32 +47,18 @@ export class ItemMasterQueryGrpcAdapter implements ItemLookupPort, OnModuleInit 
       itemCode: item.itemCode ?? '',
       itemName: item.itemName ?? '',
       active: item.active ?? false,
-      purchasable: item.capabilities?.purchasable ?? false
+      purchasable: true
     }
   }
 
   /** buildMetadata forwards trace/request context while keeping item lookup on the internal-service boundary. */
-  private buildMetadata() {
+  private buildMetadata(tenantId: string) {
     const current = this.requestContextStore.getContext()
-    if (current?.operatorContext) {
-      return this.metadataFactory.createOperatorScopedMetadata({
-        callerServiceName: SERVICE_NAMES.SRM,
-        operatorContext: {
-          operatorId: current.operatorContext.operator_id,
-          operatorType: current.operatorContext.operator_type,
-          tenantId: current.operatorContext.tenant_id,
-          orgId: current.operatorContext.org_id,
-          operatorRoles: current.operatorContext.operator_roles
-        },
-        requestId: current.requestId,
-        traceId: current.traceId
-      })
-    }
-
-    return this.metadataFactory.createInternalCallMetadata({
-      callerServiceName: SERVICE_NAMES.SRM,
-      requestId: current?.requestId,
-      traceId: current?.traceId
-    })
+    return this.producer.createMetadata(
+      ITEM_MASTER_INTERNAL_PERMISSION_CODES.RESOLVE_PURCHASABLE_ITEM,
+      tenantId,
+      current?.requestId,
+      current?.traceId
+    )
   }
 }

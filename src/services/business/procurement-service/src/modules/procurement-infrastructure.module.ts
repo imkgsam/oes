@@ -10,12 +10,32 @@ import { PrismaPurchaseOrderRepository } from '../infrastructure/repositories/pr
 import { PrismaPurchaseRequestRepository } from '../infrastructure/repositories/prisma/prisma-purchase-request.repository'
 import { PrismaReceivingRepository } from '../infrastructure/repositories/prisma/prisma-receiving.repository'
 import { PrismaProcurementTransactionRunner } from '../infrastructure/transactions/prisma-procurement-transaction-runner'
+import { ProcurementItemMasterTrustedGrpcClient } from '../infrastructure/adapters/item-master-trusted-grpc.client'
+import { ProcurementItemMasterMachineSourceCredentialClient } from '../infrastructure/adapters/procurement-item-master-machine-source-credential.client'
+import { ProcurementItemMasterMachineSourceCredentialProvider } from '../infrastructure/adapters/procurement-item-master-machine-source-credential.provider'
+import { ProcurementItemMasterExecutionTokenExchangeClient } from '../infrastructure/adapters/procurement-item-master-execution-token-exchange.client'
+import { ProcurementItemMasterTrustedGrpcExecutionProducer } from '../infrastructure/adapters/procurement-item-master-trusted-grpc-execution.producer'
 
 /** ProcurementInfrastructureModule wires the Prisma-backed persistence graph and downstream item SRM lookup adapters. */
 @Global()
 @Module({
-  imports: [PrismaModule, GrpcTransportModule.forFeature([SERVICE_NAMES.ITEM_MASTER, SERVICE_NAMES.SRM])],
+  imports: [PrismaModule, GrpcTransportModule.forFeature([SERVICE_NAMES.SRM])],
   providers: [
+    ProcurementItemMasterTrustedGrpcClient,
+    ProcurementItemMasterMachineSourceCredentialClient,
+    ProcurementItemMasterMachineSourceCredentialProvider,
+    ProcurementItemMasterExecutionTokenExchangeClient,
+    {
+      provide: ProcurementItemMasterTrustedGrpcExecutionProducer,
+      useFactory: (
+        source: ProcurementItemMasterMachineSourceCredentialProvider,
+        exchange: ProcurementItemMasterExecutionTokenExchangeClient
+      ) => new ProcurementItemMasterTrustedGrpcExecutionProducer(source, exchange),
+      inject: [
+        ProcurementItemMasterMachineSourceCredentialProvider,
+        ProcurementItemMasterExecutionTokenExchangeClient
+      ]
+    },
     PrismaPurchaseRequestRepository,
     PrismaPurchaseOrderRepository,
     PrismaReceivingRepository,
@@ -61,6 +81,8 @@ import { PrismaProcurementTransactionRunner } from '../infrastructure/transactio
     PrismaProcurementTransactionRunner,
     ItemMasterQueryGrpcAdapter,
     SupplierQueryGrpcAdapter,
+    ProcurementItemMasterTrustedGrpcClient,
+    ProcurementItemMasterTrustedGrpcExecutionProducer,
     TOKENS.PURCHASE_REQUEST_REPOSITORY,
     TOKENS.PURCHASE_ORDER_REPOSITORY,
     TOKENS.RECEIVING_REPOSITORY,

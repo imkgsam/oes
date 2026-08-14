@@ -1,56 +1,51 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
-import { ClientGrpc, RpcException } from '@nestjs/microservices'
+import { Injectable, OnModuleInit } from '@nestjs/common'
+import { RpcException } from '@nestjs/microservices'
 import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory,
-  GrpcRequestContextStore
+  GrpcRequestContextStore,
+  ITEM_MASTER_INTERNAL_PERMISSION_CODES
 } from '@oes/common/authorization'
 import { SERVICE_NAMES } from '@oes/common/constants'
-import {
-  ITEM_MASTER_QUERY_SERVICE_NAME,
-  ItemMasterQueryServiceClient,
-  ItemType
-} from '@oes/common/generated/item_master_service'
-import { InjectGrpcClient, safeGrpcCall } from '@oes/common/transport'
+import { ItemMasterInternalQueryServiceClient } from '@oes/common/generated/item_master_service'
+import { safeGrpcCall } from '@oes/common/transport'
 import {
   ManufacturableItemLookupPort,
   ManufacturableItemLookupResult
 } from '../../application/ports/manufacturable-item-lookup.port'
+import { MesItemMasterTrustedGrpcClient } from './item-master-trusted-grpc.client'
+import { MesItemMasterTrustedGrpcExecutionProducer } from './mes-item-master-trusted-grpc-execution.producer'
 
 const MES_SERVICE_NAME = 'mes-service'
 
 /** ItemMasterManufacturableQueryGrpcAdapter validates ProductionSpec items through item-master-service query truth. */
 @Injectable()
-export class ItemMasterManufacturableQueryGrpcAdapter implements ManufacturableItemLookupPort, OnModuleInit {
-  private itemMasterQueryService!: ItemMasterQueryServiceClient
+export class ItemMasterManufacturableQueryGrpcAdapter
+  implements ManufacturableItemLookupPort, OnModuleInit
+{
+  private itemMasterQueryService!: ItemMasterInternalQueryServiceClient
 
   constructor(
-    @InjectGrpcClient(SERVICE_NAMES.ITEM_MASTER)
-    private readonly itemMasterClient: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory,
+    private readonly itemMasterClient: MesItemMasterTrustedGrpcClient,
+    private readonly producer: MesItemMasterTrustedGrpcExecutionProducer,
     private readonly requestContextStore: GrpcRequestContextStore
   ) {}
 
   onModuleInit(): void {
-    this.itemMasterQueryService = this.itemMasterClient.getService<ItemMasterQueryServiceClient>(
-      ITEM_MASTER_QUERY_SERVICE_NAME
-    )
+    this.itemMasterQueryService = this.itemMasterClient.internalQuery()
   }
 
-  async getManufacturableItem(tenantId: string, itemId: string): Promise<ManufacturableItemLookupResult | null> {
+  async getManufacturableItem(
+    tenantId: string,
+    itemId: string
+  ): Promise<ManufacturableItemLookupResult | null> {
     try {
       const response = await safeGrpcCall(
-        this.itemMasterQueryService.getItem(
-          {
-            tenantId,
-            itemId
-          },
-          this.buildMetadata()
+        this.itemMasterQueryService.resolveManufacturableItem(
+          { itemId },
+          await this.buildMetadata(tenantId)
         ),
         {
           caller: MES_SERVICE_NAME,
-          method: 'ItemMasterQueryService.getItem'
+          method: 'ItemMasterInternalQueryService.resolveManufacturableItem'
         }
       )
 
@@ -64,8 +59,8 @@ export class ItemMasterManufacturableQueryGrpcAdapter implements ManufacturableI
         itemCode: item.itemCode ?? '',
         itemName: item.itemName ?? '',
         active: item.active ?? false,
-        manufacturable: item.capabilities?.manufacturable ?? false,
-        physical: item.itemType === ItemType.ITEM_TYPE_STANDARD || item.itemType === ItemType.ITEM_TYPE_PACKAGED_FINISHED_GOOD
+        manufacturable: true,
+        physical: true
       }
     } catch (error) {
       if (isNotFoundRpc(error)) {
@@ -76,28 +71,14 @@ export class ItemMasterManufacturableQueryGrpcAdapter implements ManufacturableI
   }
 
   /** buildMetadata forwards trace and operator context while staying on the internal-service boundary. */
-  private buildMetadata() {
+  private buildMetadata(tenantId: string) {
     const current = this.requestContextStore.getContext()
-    if (current?.operatorContext) {
-      return this.metadataFactory.createOperatorScopedMetadata({
-        callerServiceName: MES_SERVICE_NAME,
-        operatorContext: {
-          operatorId: current.operatorContext.operator_id,
-          operatorType: current.operatorContext.operator_type,
-          tenantId: current.operatorContext.tenant_id,
-          orgId: current.operatorContext.org_id,
-          operatorRoles: current.operatorContext.operator_roles
-        },
-        requestId: current.requestId,
-        traceId: current.traceId
-      })
-    }
-
-    return this.metadataFactory.createInternalCallMetadata({
-      callerServiceName: MES_SERVICE_NAME,
-      requestId: current?.requestId,
-      traceId: current?.traceId
-    })
+    return this.producer.createMetadata(
+      ITEM_MASTER_INTERNAL_PERMISSION_CODES.RESOLVE_MANUFACTURABLE_ITEM,
+      tenantId,
+      current?.requestId,
+      current?.traceId
+    )
   }
 }
 

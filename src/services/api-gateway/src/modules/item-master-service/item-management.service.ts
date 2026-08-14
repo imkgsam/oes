@@ -129,14 +129,16 @@ export class ItemManagementService {
   ) {
     const result = await this.itemQueryAdapter.searchItemModels(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         keyword: normalize(query.keyword),
         modelKind: toGrpcItemModelKind(query.modelKind),
         modelType: toGrpcItemModelType(query.modelType),
         capabilityFilters: toCapabilityFilters(query.capabilities),
         active: toActiveFilter(query.status),
         categoryId: normalize(query.categoryId),
-        includeDescendants: normalize(query.categoryId) ? Boolean(query.includeDescendants) : undefined,
+        includeDescendants: normalize(query.categoryId)
+          ? Boolean(query.includeDescendants)
+          : undefined,
         page: page(query.page),
         pageSize: pageSize(query.pageSize)
       } satisfies SearchItemModelsRequest,
@@ -154,7 +156,7 @@ export class ItemManagementService {
   async getItemModel(tenantId: string, itemModelId: string, source: DownstreamRequestSource) {
     const result = await this.itemQueryAdapter.getItemModel(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         itemModelId: requireNonBlank(itemModelId, 'itemModelId')
       },
       source
@@ -177,7 +179,7 @@ export class ItemManagementService {
   ) {
     const result = await this.itemManagementAdapter.createItemModel(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         modelCode: requireNonBlank(input.modelCode, 'modelCode'),
         modelName: requireNonBlank(input.modelName, 'modelName'),
         modelKind: requireGrpcItemModelKind(input.modelKind),
@@ -202,7 +204,7 @@ export class ItemManagementService {
   ) {
     const result = await this.itemManagementAdapter.updateItemModelBasics(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         itemModelId: requireNonBlank(itemModelId, 'itemModelId'),
         modelCode: requireNonBlank(input.modelCode, 'modelCode'),
         modelName: requireNonBlank(input.modelName, 'modelName')
@@ -221,7 +223,7 @@ export class ItemManagementService {
   ) {
     const result = await this.itemManagementAdapter.setItemModelCapabilities(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         itemModelId: requireNonBlank(itemModelId, 'itemModelId'),
         capabilities: normalizeCapabilities(input.capabilities)
       } satisfies SetItemModelCapabilitiesRequest,
@@ -239,7 +241,7 @@ export class ItemManagementService {
   ) {
     const result = await this.itemManagementAdapter.changeItemModelStatus(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         itemModelId: requireNonBlank(itemModelId, 'itemModelId'),
         active: requireActive(input.status)
       } satisfies ChangeItemModelStatusRequest,
@@ -257,7 +259,7 @@ export class ItemManagementService {
   ) {
     const result = await this.itemManagementAdapter.setItemModelPrimaryCategory(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         itemModelId: requireNonBlank(itemModelId, 'itemModelId'),
         primaryCategoryId: normalize(input.primaryCategoryId)
       } satisfies SetItemModelPrimaryCategoryRequest,
@@ -285,7 +287,7 @@ export class ItemManagementService {
   ) {
     const result = await this.itemQueryAdapter.searchItems(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         keyword: normalize(query.keyword),
         itemModelId: normalize(query.itemModelId),
         itemType: toGrpcItemType(query.itemType),
@@ -293,7 +295,9 @@ export class ItemManagementService {
         capabilityFilters: toCapabilityFilters(query.capabilities),
         active: toActiveFilter(query.status),
         categoryId: normalize(query.categoryId),
-        includeDescendants: normalize(query.categoryId) ? Boolean(query.includeDescendants) : undefined,
+        includeDescendants: normalize(query.categoryId)
+          ? Boolean(query.includeDescendants)
+          : undefined,
         page: page(query.page),
         pageSize: pageSize(query.pageSize)
       } satisfies SearchItemsRequest,
@@ -311,7 +315,7 @@ export class ItemManagementService {
   async getItem(tenantId: string, itemId: string, source: DownstreamRequestSource) {
     const result = await this.itemQueryAdapter.getItem(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         itemId: requireNonBlank(itemId, 'itemId')
       },
       source
@@ -335,7 +339,7 @@ export class ItemManagementService {
   ) {
     const result = await this.itemManagementAdapter.createItem(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         itemModelId: requireNonBlank(input.itemModelId, 'itemModelId'),
         itemCode: requireNonBlank(input.itemCode, 'itemCode'),
         itemName: requireNonBlank(input.itemName, 'itemName'),
@@ -361,7 +365,7 @@ export class ItemManagementService {
   ) {
     const result = await this.itemManagementAdapter.updateItemBasics(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         itemId: requireNonBlank(itemId, 'itemId'),
         itemCode: requireNonBlank(input.itemCode, 'itemCode'),
         itemName: requireNonBlank(input.itemName, 'itemName')
@@ -380,7 +384,7 @@ export class ItemManagementService {
   ) {
     const result = await this.itemManagementAdapter.setItemCapabilities(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         itemId: requireNonBlank(itemId, 'itemId'),
         capabilities: normalizeCapabilities(input.capabilities)
       } satisfies SetItemCapabilitiesRequest,
@@ -398,7 +402,7 @@ export class ItemManagementService {
   ) {
     const result = await this.itemManagementAdapter.changeItemStatus(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         itemId: requireNonBlank(itemId, 'itemId'),
         active: requireActive(input.status)
       } satisfies ChangeItemStatusRequest,
@@ -415,7 +419,7 @@ export class ItemManagementService {
   ) {
     const result = await this.itemQueryAdapter.listAttributeDefinitions(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         keyword: normalize(query.keyword),
         active: toActiveFilter(query.status),
         page: page(query.page),
@@ -435,7 +439,7 @@ export class ItemManagementService {
   ) {
     const result = await this.itemQueryAdapter.listAttributeOptions(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         attributeDefinitionId: requireNonBlank(attributeDefinitionId, 'attributeDefinitionId'),
         active: toActiveFilter(query.status)
       },
@@ -445,10 +449,14 @@ export class ItemManagementService {
     return mapAttributeOptions(result)
   }
 
-  async getItemModelAttributeRules(tenantId: string, itemModelId: string, source: DownstreamRequestSource) {
+  async getItemModelAttributeRules(
+    tenantId: string,
+    itemModelId: string,
+    source: DownstreamRequestSource
+  ) {
     const result = await this.itemQueryAdapter.getItemModelAttributeRules(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         itemModelId: requireNonBlank(itemModelId, 'itemModelId')
       },
       source
@@ -464,7 +472,7 @@ export class ItemManagementService {
   ) {
     const result = await this.itemManagementAdapter.createAttributeDefinition(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         attributeCode: requireNonBlank(input.attributeCode, 'attributeCode'),
         attributeName: requireNonBlank(input.attributeName, 'attributeName')
       } satisfies CreateAttributeDefinitionRequest,
@@ -482,7 +490,7 @@ export class ItemManagementService {
   ) {
     const result = await this.itemManagementAdapter.updateAttributeDefinition(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         attributeDefinitionId: requireNonBlank(attributeDefinitionId, 'attributeDefinitionId'),
         attributeCode: requireNonBlank(input.attributeCode, 'attributeCode'),
         attributeName: requireNonBlank(input.attributeName, 'attributeName'),
@@ -502,7 +510,7 @@ export class ItemManagementService {
   ) {
     const result = await this.itemManagementAdapter.createAttributeOption(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         attributeDefinitionId: requireNonBlank(attributeDefinitionId, 'attributeDefinitionId'),
         optionCode: requireNonBlank(input.optionCode, 'optionCode'),
         optionName: requireNonBlank(input.optionName, 'optionName'),
@@ -522,7 +530,7 @@ export class ItemManagementService {
   ) {
     const result = await this.itemManagementAdapter.updateAttributeOption(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         attributeOptionId: requireNonBlank(attributeOptionId, 'attributeOptionId'),
         optionCode: requireNonBlank(input.optionCode, 'optionCode'),
         optionName: requireNonBlank(input.optionName, 'optionName'),
@@ -543,11 +551,14 @@ export class ItemManagementService {
   ) {
     const result = await this.itemManagementAdapter.setItemModelAttributeRules(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         itemModelId: requireNonBlank(itemModelId, 'itemModelId'),
         rules: (input.rules ?? []).map((rule) => ({
           itemModelId,
-          attributeDefinitionId: requireNonBlank(rule.attributeDefinitionId ?? '', 'attributeDefinitionId'),
+          attributeDefinitionId: requireNonBlank(
+            rule.attributeDefinitionId ?? '',
+            'attributeDefinitionId'
+          ),
           required: Boolean(rule.required),
           allowedOptionIds: rule.allowedOptionIds ?? []
         }))
@@ -558,10 +569,14 @@ export class ItemManagementService {
     return mapItemModelAttributeRules(result)
   }
 
-  async listItemCategories(tenantId: string, query: { parentCategoryId?: string }, source: DownstreamRequestSource) {
+  async listItemCategories(
+    tenantId: string,
+    query: { parentCategoryId?: string },
+    source: DownstreamRequestSource
+  ) {
     const result = await this.itemQueryAdapter.listItemCategories(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         parentCategoryId: normalize(query.parentCategoryId)
       },
       source
@@ -579,7 +594,7 @@ export class ItemManagementService {
   ) {
     const result = await this.itemManagementAdapter.createItemCategory(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         categoryCode: requireNonBlank(input.categoryCode, 'categoryCode'),
         categoryName: requireNonBlank(input.categoryName, 'categoryName'),
         parentCategoryId: normalize(input.parentCategoryId)
@@ -598,7 +613,7 @@ export class ItemManagementService {
   ) {
     const result = await this.itemManagementAdapter.updateItemCategoryBasics(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         categoryId: requireNonBlank(categoryId, 'categoryId'),
         categoryCode: requireNonBlank(input.categoryCode, 'categoryCode'),
         categoryName: requireNonBlank(input.categoryName, 'categoryName')
@@ -617,7 +632,7 @@ export class ItemManagementService {
   ) {
     const result = await this.itemManagementAdapter.moveItemCategory(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         categoryId: requireNonBlank(categoryId, 'categoryId'),
         parentCategoryId: normalize(input.parentCategoryId)
       } satisfies MoveItemCategoryRequest,
@@ -635,7 +650,7 @@ export class ItemManagementService {
   ) {
     const result = await this.itemManagementAdapter.changeItemCategoryStatus(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         categoryId: requireNonBlank(categoryId, 'categoryId'),
         active: requireActive(input.status)
       } satisfies ChangeItemCategoryStatusRequest,
@@ -648,7 +663,7 @@ export class ItemManagementService {
   async deleteItemCategory(tenantId: string, categoryId: string, source: DownstreamRequestSource) {
     await this.itemManagementAdapter.deleteItemCategory(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         categoryId: requireNonBlank(categoryId, 'categoryId')
       } satisfies DeleteItemCategoryRequest,
       source
@@ -664,7 +679,7 @@ export class ItemManagementService {
   ) {
     const result = await this.itemQueryAdapter.listPackagingMethods(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         keyword: normalize(query.keyword),
         active: toActiveFilter(query.status)
       },
@@ -681,7 +696,7 @@ export class ItemManagementService {
   ) {
     const result = await this.itemManagementAdapter.createPackagingMethod(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         methodCode: requireNonBlank(input.methodCode, 'methodCode'),
         methodName: requireNonBlank(input.methodName, 'methodName'),
         description: normalize(input.description) ?? ''
@@ -699,7 +714,7 @@ export class ItemManagementService {
     source: DownstreamRequestSource
   ) {
     const command: UpdatePackagingMethodRequest = {
-      tenantId: this.resolveTenantId(tenantId, source),
+      ...this.assertTenantAccess(tenantId, source),
       packagingMethodId: requireNonBlank(packagingMethodId, 'packagingMethodId'),
       methodCode: requireNonBlank(input.methodCode, 'methodCode'),
       methodName: requireNonBlank(input.methodName, 'methodName')
@@ -720,7 +735,7 @@ export class ItemManagementService {
   ) {
     const result = await this.itemManagementAdapter.changePackagingMethodStatus(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         packagingMethodId: requireNonBlank(packagingMethodId, 'packagingMethodId'),
         active: requireActive(input.status)
       } satisfies ChangePackagingMethodStatusRequest,
@@ -730,10 +745,14 @@ export class ItemManagementService {
     return mapPackagingMethod(result.packagingMethod)
   }
 
-  async deletePackagingMethod(tenantId: string, packagingMethodId: string, source: DownstreamRequestSource) {
+  async deletePackagingMethod(
+    tenantId: string,
+    packagingMethodId: string,
+    source: DownstreamRequestSource
+  ) {
     await this.itemManagementAdapter.deletePackagingMethod(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         packagingMethodId: requireNonBlank(packagingMethodId, 'packagingMethodId')
       } satisfies DeletePackagingMethodRequest,
       source
@@ -742,10 +761,14 @@ export class ItemManagementService {
     return {}
   }
 
-  async getPackagingSpec(tenantId: string, packagingSpecId: string, source: DownstreamRequestSource) {
+  async getPackagingSpec(
+    tenantId: string,
+    packagingSpecId: string,
+    source: DownstreamRequestSource
+  ) {
     const result = await this.itemQueryAdapter.getPackagingSpec(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         packagingSpecId: requireNonBlank(packagingSpecId, 'packagingSpecId')
       },
       source
@@ -769,7 +792,7 @@ export class ItemManagementService {
   ) {
     const result = await this.itemQueryAdapter.searchPackagingSpecs(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         keyword: normalize(query.keyword),
         itemModelId: normalize(query.itemModelId),
         packagingMethodId: normalize(query.packagingMethodId),
@@ -784,10 +807,14 @@ export class ItemManagementService {
     return mapPackagingSpecs(result)
   }
 
-  async createPackagingSpec(tenantId: string, input: BffPackagingSpecInput, source: DownstreamRequestSource) {
+  async createPackagingSpec(
+    tenantId: string,
+    input: BffPackagingSpecInput,
+    source: DownstreamRequestSource
+  ) {
     const result = await this.itemManagementAdapter.createPackagingSpec(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         ...mapPackagingSpecInput(input)
       } satisfies CreatePackagingSpecRequest,
       source
@@ -804,7 +831,7 @@ export class ItemManagementService {
   ) {
     const result = await this.itemManagementAdapter.updatePackagingSpec(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         packagingSpecId: requireNonBlank(packagingSpecId, 'packagingSpecId'),
         ...mapPackagingSpecInput(input)
       } satisfies UpdatePackagingSpecRequest,
@@ -822,7 +849,7 @@ export class ItemManagementService {
   ) {
     const result = await this.itemManagementAdapter.changePackagingSpecStatus(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         packagingSpecId: requireNonBlank(packagingSpecId, 'packagingSpecId'),
         active: requireActive(input.status)
       } satisfies ChangePackagingSpecStatusRequest,
@@ -847,7 +874,7 @@ export class ItemManagementService {
   ) {
     const result = await this.itemQueryAdapter.searchBoms(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         keyword: normalize(query.keyword),
         bomType: toGrpcBomType(query.bomType),
         outputItemId: normalize(query.outputItemId),
@@ -870,7 +897,7 @@ export class ItemManagementService {
   async getBom(tenantId: string, bomId: string, source: DownstreamRequestSource) {
     const result = await this.itemQueryAdapter.getBom(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         bomId: requireNonBlank(bomId, 'bomId')
       },
       source
@@ -887,7 +914,7 @@ export class ItemManagementService {
   ) {
     const result = await this.itemQueryAdapter.getBomByOutputItem(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         outputItemId: requireNonBlank(outputItemId, 'outputItemId'),
         bomType: toGrpcBomType(query.bomType)
       },
@@ -902,12 +929,18 @@ export class ItemManagementService {
 
   async createBom(
     tenantId: string,
-    input: { bomCode: string; bomName: string; bomType: string; outputItemId: string; lines: BffBomLineInput[] },
+    input: {
+      bomCode: string
+      bomName: string
+      bomType: string
+      outputItemId: string
+      lines: BffBomLineInput[]
+    },
     source: DownstreamRequestSource
   ) {
     const result = await this.itemManagementAdapter.createBom(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         bomCode: requireNonBlank(input.bomCode, 'bomCode'),
         bomName: requireNonBlank(input.bomName, 'bomName'),
         bomType: requireGrpcBomType(input.bomType),
@@ -931,7 +964,7 @@ export class ItemManagementService {
   ) {
     const result = await this.itemManagementAdapter.updateBomBasics(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         bomId: requireNonBlank(bomId, 'bomId'),
         bomCode: requireNonBlank(input.bomCode, 'bomCode'),
         bomName: requireNonBlank(input.bomName, 'bomName')
@@ -950,7 +983,7 @@ export class ItemManagementService {
   ) {
     const result = await this.itemManagementAdapter.replaceBomLines(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         bomId: requireNonBlank(bomId, 'bomId'),
         lines: mapBomLineInputs(input.lines)
       } satisfies ReplaceBomLinesRequest,
@@ -968,7 +1001,7 @@ export class ItemManagementService {
   ) {
     const result = await this.itemManagementAdapter.changeBomStatus(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         bomId: requireNonBlank(bomId, 'bomId'),
         active: requireActive(input.status)
       } satisfies ChangeBomStatusRequest,
@@ -986,7 +1019,7 @@ export class ItemManagementService {
   ) {
     const result = await this.itemQueryAdapter.listSupplierItemMappingsByItem(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         itemId: requireNonBlank(itemId, 'itemId'),
         page: page(query.page),
         pageSize: pageSize(query.pageSize)
@@ -1000,12 +1033,17 @@ export class ItemManagementService {
   async upsertSupplierMapping(
     tenantId: string,
     itemId: string,
-    input: { active?: boolean; supplierId: string; supplierItemCode?: string; supplierItemName?: string },
+    input: {
+      active?: boolean
+      supplierId: string
+      supplierItemCode?: string
+      supplierItemName?: string
+    },
     source: DownstreamRequestSource
   ) {
     const result = await this.itemManagementAdapter.upsertSupplierItemMapping(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
+        ...this.assertTenantAccess(tenantId, source),
         supplierId: requireNonBlank(input.supplierId, 'supplierId'),
         supplierItemCode: normalize(input.supplierItemCode),
         supplierItemName: normalize(input.supplierItemName),
@@ -1028,20 +1066,25 @@ export class ItemManagementService {
     }
   }
 
-  /** resolveTenantId keeps tenant-scoped item-management requests pinned to the operator tenant. */
-  private resolveTenantId(tenantId: string, source: DownstreamRequestSource): string {
+  /** Validates the route tenant against session truth without forwarding tenant authority in the gRPC body. */
+  private assertTenantAccess(
+    tenantId: string,
+    source: DownstreamRequestSource
+  ): Record<never, never> {
     const requestedTenantId = requireNonBlank(tenantId, 'tenantId')
     const operatorTenantId = normalize(source.user?.tenantId) ?? normalize(source.user?.tid)
 
     if (source.user?.scopeLevel === 'SYSTEM') {
-      return requestedTenantId
+      return {}
     }
 
     if (!operatorTenantId || operatorTenantId !== requestedTenantId) {
-      throw new ForbiddenException('Tenant administrators can only manage items in their current tenant')
+      throw new ForbiddenException(
+        'Tenant administrators can only manage items in their current tenant'
+      )
     }
 
-    return operatorTenantId
+    return {}
   }
 }
 
@@ -1166,7 +1209,9 @@ function mapAttributeOption(record?: AttributeOptionRecord) {
 }
 
 /** mapItemModelAttributeRules converts generated model attribute rules into the BFF shape. */
-function mapItemModelAttributeRules(result: GetItemModelAttributeRulesResponse | { rules?: ItemModelAttributeRuleRecord[] }) {
+function mapItemModelAttributeRules(
+  result: GetItemModelAttributeRulesResponse | { rules?: ItemModelAttributeRuleRecord[] }
+) {
   return {
     rules: (result.rules ?? []).map((rule) => ({
       itemModelId: rule.itemModelId ?? '',
@@ -1319,7 +1364,9 @@ function mapSupplierMappings(result: ListSupplierItemMappingsByItemResponse) {
 
 /** toCapabilityFilters maps UI capability selections into the generated full filter message. */
 function toCapabilityFilters(capabilities?: string[]): ItemCapabilityFilters | undefined {
-  const selected = new Set((capabilities ?? []).map((capability) => capability.trim()).filter(Boolean))
+  const selected = new Set(
+    (capabilities ?? []).map((capability) => capability.trim()).filter(Boolean)
+  )
   if (selected.size === 0) {
     return undefined
   }

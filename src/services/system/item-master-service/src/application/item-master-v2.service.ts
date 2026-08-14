@@ -44,7 +44,10 @@ export class ItemMasterQueryV2Service {
 
   async getItemModel(request: { tenantId?: string; itemModelId?: string }) {
     const record = await this.prisma.itemModel.findFirst({
-      where: { tenantId: requireText(request.tenantId, 'tenant_id'), id: requireText(request.itemModelId, 'item_model_id') },
+      where: {
+        tenantId: requireText(request.tenantId, 'tenant_id'),
+        id: requireText(request.itemModelId, 'item_model_id')
+      },
       include: { primaryCategory: true }
     })
     if (!record) throw notFound('item_model')
@@ -55,7 +58,10 @@ export class ItemMasterQueryV2Service {
     const tenantId = requireText(request.tenantId, 'tenant_id')
     const ids = request.itemModelIds ?? []
     const records = ids.length
-      ? await this.prisma.itemModel.findMany({ where: { tenantId, id: { in: ids } }, include: { primaryCategory: true } })
+      ? await this.prisma.itemModel.findMany({
+          where: { tenantId, id: { in: ids } },
+          include: { primaryCategory: true }
+        })
       : []
     const byId = new Map(records.map((record) => [record.id, toItemModelRecord(record)]))
     return {
@@ -79,7 +85,12 @@ export class ItemMasterQueryV2Service {
     const tenantId = requireText(request.tenantId, 'tenant_id')
     const page = normalizePage(request.page)
     const pageSize = normalizePageSize(request.pageSize)
-    const categoryIds = await resolveCategoryFilter(this.prisma, tenantId, request.categoryId, request.includeDescendants)
+    const categoryIds = await resolveCategoryFilter(
+      this.prisma,
+      tenantId,
+      request.categoryId,
+      request.includeDescendants
+    )
     const where: any = { tenantId }
 
     applyKeyword(where, request.keyword, 'modelCode', 'modelName')
@@ -129,12 +140,27 @@ export class ItemMasterQueryV2Service {
     return { attributeDefinitions: records.map(toAttributeDefinitionRecord), total, page, pageSize }
   }
 
-  async listAttributeOptions(request: { tenantId?: string; attributeDefinitionId?: string; active?: boolean }) {
+  async listAttributeOptions(request: {
+    tenantId?: string
+    attributeDefinitionId?: string
+    active?: boolean
+  }) {
     const tenantId = requireText(request.tenantId, 'tenant_id')
-    const attributeDefinitionId = requireText(request.attributeDefinitionId, 'attribute_definition_id')
-    await ensureExists(this.prisma.attributeDefinition, { tenantId, id: attributeDefinitionId }, 'attribute_definition')
+    const attributeDefinitionId = requireText(
+      request.attributeDefinitionId,
+      'attribute_definition_id'
+    )
+    await ensureExists(
+      this.prisma.attributeDefinition,
+      { tenantId, id: attributeDefinitionId },
+      'attribute_definition'
+    )
     const records = await this.prisma.attributeOption.findMany({
-      where: { tenantId, attributeDefinitionId, ...(request.active !== undefined ? { active: request.active } : {}) },
+      where: {
+        tenantId,
+        attributeDefinitionId,
+        ...(request.active !== undefined ? { active: request.active } : {})
+      },
       orderBy: [{ optionCode: 'asc' }, { id: 'asc' }]
     })
     return { attributeOptions: records.map(toAttributeOptionRecord) }
@@ -159,9 +185,52 @@ export class ItemMasterQueryV2Service {
   }
 
   async getItem(request: { tenantId?: string; itemId?: string }) {
-    const item = await findItem(this.prisma, requireText(request.tenantId, 'tenant_id'), requireText(request.itemId, 'item_id'))
+    const item = await findItem(
+      this.prisma,
+      requireText(request.tenantId, 'tenant_id'),
+      requireText(request.itemId, 'item_id')
+    )
     if (!item) throw notFound('item')
     return { item: toItemSummary(item) }
+  }
+
+  /** resolveManufacturableItem exposes only the active manufacturable eligibility fact for MES. */
+  async resolveManufacturableItem(request: { tenantId?: string; itemId?: string }) {
+    return this.resolveEligibleItem(request, 'manufacturable')
+  }
+
+  /** resolveStockableItem exposes only the active stockable eligibility fact for WMS. */
+  async resolveStockableItem(request: { tenantId?: string; itemId?: string }) {
+    return this.resolveEligibleItem(request, 'stockable')
+  }
+
+  /** resolvePurchasableItem exposes only the active purchasable eligibility fact for Procurement and SRM. */
+  async resolvePurchasableItem(request: { tenantId?: string; itemId?: string }) {
+    return this.resolveEligibleItem(request, 'purchasable')
+  }
+
+  /** resolveEligibleItem keeps capability enforcement inside the Item Master application boundary. */
+  private async resolveEligibleItem(
+    request: { tenantId?: string; itemId?: string },
+    capability: 'manufacturable' | 'stockable' | 'purchasable'
+  ) {
+    const item = await findItem(
+      this.prisma,
+      requireText(request.tenantId, 'tenant_id'),
+      requireText(request.itemId, 'item_id')
+    )
+    if (!item) throw notFound('item')
+    const capabilities = capabilitiesFromRecord(item)
+    if (!item.active || !capabilities[capability])
+      throw failedPrecondition(`item_${capability}_required`)
+    return {
+      item: {
+        itemId: item.id,
+        itemCode: item.itemCode,
+        itemName: item.itemName,
+        active: item.active
+      }
+    }
   }
 
   async batchGetItems(request: { tenantId?: string; itemIds?: string[] }) {
@@ -192,13 +261,19 @@ export class ItemMasterQueryV2Service {
     const tenantId = requireText(request.tenantId, 'tenant_id')
     const page = normalizePage(request.page)
     const pageSize = normalizePageSize(request.pageSize)
-    const categoryIds = await resolveCategoryFilter(this.prisma, tenantId, request.categoryId, request.includeDescendants)
+    const categoryIds = await resolveCategoryFilter(
+      this.prisma,
+      tenantId,
+      request.categoryId,
+      request.includeDescendants
+    )
     const where: any = { tenantId }
     applyKeyword(where, request.keyword, 'itemCode', 'itemName')
     if (request.itemModelId) where.itemModelId = request.itemModelId
     if (request.itemType) where.itemType = toDbItemType(request.itemType)
     if (request.packagingSpecId) where.packagingSpecId = request.packagingSpecId
-    if (request.lockedAttributeOptionIds?.length) where.lockedAttributeOptionIds = { hasEvery: request.lockedAttributeOptionIds }
+    if (request.lockedAttributeOptionIds?.length)
+      where.lockedAttributeOptionIds = { hasEvery: request.lockedAttributeOptionIds }
     if (request.active !== undefined) where.active = request.active
     if (categoryIds) where.itemModel = { primaryCategoryId: { in: categoryIds } }
     applyCapabilityFilters(where, request.capabilityFilters)
@@ -225,8 +300,14 @@ export class ItemMasterQueryV2Service {
   }) {
     const tenantId = requireText(request.tenantId, 'tenant_id')
     const itemModelId = requireText(request.itemModelId, 'item_model_id')
-    const variantKey = buildVariantKey(request.lockedAttributeOptionIds ?? [], request.packagingSpecId)
-    const records = await this.prisma.item.findMany({ where: { tenantId, itemModelId, variantKey }, include: itemInclude() })
+    const variantKey = buildVariantKey(
+      request.lockedAttributeOptionIds ?? [],
+      request.packagingSpecId
+    )
+    const records = await this.prisma.item.findMany({
+      where: { tenantId, itemModelId, variantKey },
+      include: itemInclude()
+    })
     if (records.length === 0) {
       return { resolutionStatus: VariantResolutionStatus.VARIANT_RESOLUTION_STATUS_NO_MATCH }
     }
@@ -237,12 +318,25 @@ export class ItemMasterQueryV2Service {
     }
   }
 
-  async listItemCategories(request: { tenantId?: string; parentCategoryId?: string; active?: boolean }) {
+  async listItemCategories(request: {
+    tenantId?: string
+    parentCategoryId?: string
+    active?: boolean
+  }) {
     const tenantId = requireText(request.tenantId, 'tenant_id')
     const parentCategoryId = normalizeOptional(request.parentCategoryId)
-    if (parentCategoryId) await ensureExists(this.prisma.itemCategory, { tenantId, id: parentCategoryId }, 'item_category')
+    if (parentCategoryId)
+      await ensureExists(
+        this.prisma.itemCategory,
+        { tenantId, id: parentCategoryId },
+        'item_category'
+      )
     const records = await this.prisma.itemCategory.findMany({
-      where: { tenantId, parentCategoryId: parentCategoryId ?? null, ...(request.active !== undefined ? { active: request.active } : {}) },
+      where: {
+        tenantId,
+        parentCategoryId: parentCategoryId ?? null,
+        ...(request.active !== undefined ? { active: request.active } : {})
+      },
       include: { children: true },
       orderBy: [{ categoryCode: 'asc' }, { id: 'asc' }]
     })
@@ -254,13 +348,19 @@ export class ItemMasterQueryV2Service {
     const where: any = { tenantId }
     applyKeyword(where, request.keyword, 'methodCode', 'methodName', 'description')
     if (request.active !== undefined) where.active = request.active
-    const records = await this.prisma.packagingMethod.findMany({ where, orderBy: [{ methodCode: 'asc' }, { id: 'asc' }] })
+    const records = await this.prisma.packagingMethod.findMany({
+      where,
+      orderBy: [{ methodCode: 'asc' }, { id: 'asc' }]
+    })
     return { packagingMethods: records.map(toPackagingMethodRecord) }
   }
 
   async getPackagingSpec(request: { tenantId?: string; packagingSpecId?: string }) {
     const record = await this.prisma.packagingSpec.findFirst({
-      where: { tenantId: requireText(request.tenantId, 'tenant_id'), id: requireText(request.packagingSpecId, 'packaging_spec_id') }
+      where: {
+        tenantId: requireText(request.tenantId, 'tenant_id'),
+        id: requireText(request.packagingSpecId, 'packaging_spec_id')
+      }
     })
     if (!record) throw notFound('packaging_spec')
     return { packagingSpec: toPackagingSpecRecord(record) }
@@ -298,7 +398,11 @@ export class ItemMasterQueryV2Service {
   }
 
   async getBom(request: { tenantId?: string; bomId?: string }) {
-    const bom = await findBom(this.prisma, requireText(request.tenantId, 'tenant_id'), requireText(request.bomId, 'bom_id'))
+    const bom = await findBom(
+      this.prisma,
+      requireText(request.tenantId, 'tenant_id'),
+      requireText(request.bomId, 'bom_id')
+    )
     if (!bom) throw notFound('bom')
     return { bom: toBomRecord(bom) }
   }
@@ -320,7 +424,8 @@ export class ItemMasterQueryV2Service {
     applyKeyword(where, request.keyword, 'bomCode', 'bomName')
     if (request.bomType) where.bomType = toDbBomType(request.bomType)
     if (request.outputItemId) where.outputItemId = request.outputItemId
-    if (request.componentItemId) where.lines = { some: { componentItemId: request.componentItemId } }
+    if (request.componentItemId)
+      where.lines = { some: { componentItemId: request.componentItemId } }
     if (request.active !== undefined) where.active = request.active
     const [total, records] = await this.prisma.$transaction([
       this.prisma.bom.count({ where }),
@@ -335,7 +440,11 @@ export class ItemMasterQueryV2Service {
     return { boms: records.map(toBomRecord), total, page, pageSize }
   }
 
-  async getBomByOutputItem(request: { tenantId?: string; outputItemId?: string; bomType?: BomType }) {
+  async getBomByOutputItem(request: {
+    tenantId?: string
+    outputItemId?: string
+    bomType?: BomType
+  }) {
     const tenantId = requireText(request.tenantId, 'tenant_id')
     const outputItemId = requireText(request.outputItemId, 'output_item_id')
     const bomType = toDbBomType(request.bomType)
@@ -343,9 +452,13 @@ export class ItemMasterQueryV2Service {
       where: { tenantId, outputItemId, bomType, active: true },
       include: bomInclude()
     })
-    if (records.length === 0) return { resolutionStatus: BomResolutionStatus.BOM_RESOLUTION_STATUS_NO_MATCH }
+    if (records.length === 0)
+      return { resolutionStatus: BomResolutionStatus.BOM_RESOLUTION_STATUS_NO_MATCH }
     if (records.length > 1) throw failedPrecondition('bom_not_unique')
-    return { resolutionStatus: BomResolutionStatus.BOM_RESOLUTION_STATUS_MATCHED, bom: toBomRecord(records[0]) }
+    return {
+      resolutionStatus: BomResolutionStatus.BOM_RESOLUTION_STATUS_MATCHED,
+      bom: toBomRecord(records[0])
+    }
   }
 
   async listSupplierItemMappingsByItem(request: {
@@ -391,12 +504,17 @@ export class ItemMasterQueryV2Service {
         tenantId,
         supplierId,
         active: true,
-        OR: [codeKey ? { supplierItemCodeKey: codeKey } : undefined, nameKey ? { supplierItemNameKey: nameKey } : undefined].filter(Boolean)
+        OR: [
+          codeKey ? { supplierItemCodeKey: codeKey } : undefined,
+          nameKey ? { supplierItemNameKey: nameKey } : undefined
+        ].filter(Boolean)
       },
       include: { item: { include: itemInclude() } }
     })
     if (!mapping) {
-      return { resolutionStatus: SupplierItemResolutionStatus.SUPPLIER_ITEM_RESOLUTION_STATUS_NO_MATCH }
+      return {
+        resolutionStatus: SupplierItemResolutionStatus.SUPPLIER_ITEM_RESOLUTION_STATUS_NO_MATCH
+      }
     }
     return {
       resolutionStatus: SupplierItemResolutionStatus.SUPPLIER_ITEM_RESOLUTION_STATUS_MATCHED,
@@ -407,25 +525,26 @@ export class ItemMasterQueryV2Service {
 
 /** ItemMasterManagementV2Service implements Contract V2 commands and enforces item-master invariants before persistence. */
 @Injectable()
-export class ItemMasterManagementV2Service
-{
+export class ItemMasterManagementV2Service {
   constructor(private readonly prisma: PrismaService) {}
 
   async createItemModel(request: any) {
     const tenantId = requireText(request.tenantId, 'tenant_id')
-    const record = await this.prisma.itemModel.create({
-      data: {
-        id: randomUUID(),
-        tenantId,
-        modelCode: requireText(request.modelCode, 'model_code'),
-        modelName: requireText(request.modelName, 'model_name'),
-        modelKind: toDbItemModelKind(request.modelKind),
-        modelType: toDbItemModelType(request.modelType),
-        ...toCapabilityData(request.capabilities),
-        primaryCategoryId: normalizeOptional(request.primaryCategoryId)
-      },
-      include: { primaryCategory: true }
-    }).catch(handleUnique)
+    const record = await this.prisma.itemModel
+      .create({
+        data: {
+          id: randomUUID(),
+          tenantId,
+          modelCode: requireText(request.modelCode, 'model_code'),
+          modelName: requireText(request.modelName, 'model_name'),
+          modelKind: toDbItemModelKind(request.modelKind),
+          modelType: toDbItemModelType(request.modelType),
+          ...toCapabilityData(request.capabilities),
+          primaryCategoryId: normalizeOptional(request.primaryCategoryId)
+        },
+        include: { primaryCategory: true }
+      })
+      .catch(handleUnique)
     return { itemModelId: record.id, itemModel: toItemModelRecord(record) }
   }
 
@@ -433,11 +552,16 @@ export class ItemMasterManagementV2Service
     const tenantId = requireText(request.tenantId, 'tenant_id')
     const itemModelId = requireText(request.itemModelId, 'item_model_id')
     await ensureExists(this.prisma.itemModel, { tenantId, id: itemModelId }, 'item_model')
-    const record = await this.prisma.itemModel.update({
-      where: { id: itemModelId },
-      data: { modelCode: requireText(request.modelCode, 'model_code'), modelName: requireText(request.modelName, 'model_name') },
-      include: { primaryCategory: true }
-    }).catch(handleUnique)
+    const record = await this.prisma.itemModel
+      .update({
+        where: { id: itemModelId },
+        data: {
+          modelCode: requireText(request.modelCode, 'model_code'),
+          modelName: requireText(request.modelName, 'model_name')
+        },
+        include: { primaryCategory: true }
+      })
+      .catch(handleUnique)
     return { itemModel: toItemModelRecord(record) }
   }
 
@@ -454,7 +578,11 @@ export class ItemMasterManagementV2Service
   }
 
   async changeItemModelStatus(request: any) {
-    const record = await this.updateModelStatus(request.tenantId, request.itemModelId, request.active)
+    const record = await this.updateModelStatus(
+      request.tenantId,
+      request.itemModelId,
+      request.active
+    )
     return { itemModel: record }
   }
 
@@ -463,7 +591,12 @@ export class ItemMasterManagementV2Service
     const itemModelId = requireText(request.itemModelId, 'item_model_id')
     const primaryCategoryId = normalizeOptional(request.primaryCategoryId)
     await ensureExists(this.prisma.itemModel, { tenantId, id: itemModelId }, 'item_model')
-    if (primaryCategoryId) await ensureExists(this.prisma.itemCategory, { tenantId, id: primaryCategoryId }, 'item_category')
+    if (primaryCategoryId)
+      await ensureExists(
+        this.prisma.itemCategory,
+        { tenantId, id: primaryCategoryId },
+        'item_category'
+      )
     const record = await this.prisma.itemModel.update({
       where: { id: itemModelId },
       data: { primaryCategoryId },
@@ -473,14 +606,16 @@ export class ItemMasterManagementV2Service
   }
 
   async createAttributeDefinition(request: any) {
-    const record = await this.prisma.attributeDefinition.create({
-      data: {
-        id: randomUUID(),
-        tenantId: requireText(request.tenantId, 'tenant_id'),
-        attributeCode: requireText(request.attributeCode, 'attribute_code'),
-        attributeName: requireText(request.attributeName, 'attribute_name')
-      }
-    }).catch(handleUnique)
+    const record = await this.prisma.attributeDefinition
+      .create({
+        data: {
+          id: randomUUID(),
+          tenantId: requireText(request.tenantId, 'tenant_id'),
+          attributeCode: requireText(request.attributeCode, 'attribute_code'),
+          attributeName: requireText(request.attributeName, 'attribute_name')
+        }
+      })
+      .catch(handleUnique)
     return { attributeDefinition: toAttributeDefinitionRecord(record) }
   }
 
@@ -488,31 +623,42 @@ export class ItemMasterManagementV2Service
     const tenantId = requireText(request.tenantId, 'tenant_id')
     const id = requireText(request.attributeDefinitionId, 'attribute_definition_id')
     await ensureExists(this.prisma.attributeDefinition, { tenantId, id }, 'attribute_definition')
-    const record = await this.prisma.attributeDefinition.update({
-      where: { id },
-      data: {
-        attributeCode: requireText(request.attributeCode, 'attribute_code'),
-        attributeName: requireText(request.attributeName, 'attribute_name'),
-        active: Boolean(request.active)
-      }
-    }).catch(handleUnique)
+    const record = await this.prisma.attributeDefinition
+      .update({
+        where: { id },
+        data: {
+          attributeCode: requireText(request.attributeCode, 'attribute_code'),
+          attributeName: requireText(request.attributeName, 'attribute_name'),
+          active: Boolean(request.active)
+        }
+      })
+      .catch(handleUnique)
     return { attributeDefinition: toAttributeDefinitionRecord(record) }
   }
 
   async createAttributeOption(request: any) {
     const tenantId = requireText(request.tenantId, 'tenant_id')
-    const attributeDefinitionId = requireText(request.attributeDefinitionId, 'attribute_definition_id')
-    await ensureExists(this.prisma.attributeDefinition, { tenantId, id: attributeDefinitionId }, 'attribute_definition')
-    const record = await this.prisma.attributeOption.create({
-      data: {
-        id: randomUUID(),
-        tenantId,
-        attributeDefinitionId,
-        optionCode: requireText(request.optionCode, 'option_code'),
-        optionName: requireText(request.optionName, 'option_name'),
-        description: normalizeOptional(request.description) ?? null
-      }
-    }).catch(handleUnique)
+    const attributeDefinitionId = requireText(
+      request.attributeDefinitionId,
+      'attribute_definition_id'
+    )
+    await ensureExists(
+      this.prisma.attributeDefinition,
+      { tenantId, id: attributeDefinitionId },
+      'attribute_definition'
+    )
+    const record = await this.prisma.attributeOption
+      .create({
+        data: {
+          id: randomUUID(),
+          tenantId,
+          attributeDefinitionId,
+          optionCode: requireText(request.optionCode, 'option_code'),
+          optionName: requireText(request.optionName, 'option_name'),
+          description: normalizeOptional(request.description) ?? null
+        }
+      })
+      .catch(handleUnique)
     return { attributeOption: toAttributeOptionRecord(record) }
   }
 
@@ -520,15 +666,17 @@ export class ItemMasterManagementV2Service
     const tenantId = requireText(request.tenantId, 'tenant_id')
     const id = requireText(request.attributeOptionId, 'attribute_option_id')
     await ensureExists(this.prisma.attributeOption, { tenantId, id }, 'attribute_option')
-    const record = await this.prisma.attributeOption.update({
-      where: { id },
-      data: {
-        optionCode: requireText(request.optionCode, 'option_code'),
-        optionName: requireText(request.optionName, 'option_name'),
-        description: normalizeOptional(request.description) ?? null,
-        active: Boolean(request.active)
-      }
-    }).catch(handleUnique)
+    const record = await this.prisma.attributeOption
+      .update({
+        where: { id },
+        data: {
+          optionCode: requireText(request.optionCode, 'option_code'),
+          optionName: requireText(request.optionName, 'option_name'),
+          description: normalizeOptional(request.description) ?? null,
+          active: Boolean(request.active)
+        }
+      })
+      .catch(handleUnique)
     return { attributeOption: toAttributeOptionRecord(record) }
   }
 
@@ -537,10 +685,19 @@ export class ItemMasterManagementV2Service
     const itemModelId = requireText(request.itemModelId, 'item_model_id')
     await ensureExists(this.prisma.itemModel, { tenantId, id: itemModelId }, 'item_model')
     await this.prisma.runInTransaction(async () => {
-      await this.prisma.getExecutionClient().itemModelAttributeRule.deleteMany({ where: { tenantId, itemModelId } })
+      await this.prisma
+        .getExecutionClient()
+        .itemModelAttributeRule.deleteMany({ where: { tenantId, itemModelId } })
       for (const rule of request.rules ?? []) {
-        const attributeDefinitionId = requireText(rule.attributeDefinitionId, 'attribute_definition_id')
-        await ensureExists(this.prisma.getExecutionClient().attributeDefinition, { tenantId, id: attributeDefinitionId }, 'attribute_definition')
+        const attributeDefinitionId = requireText(
+          rule.attributeDefinitionId,
+          'attribute_definition_id'
+        )
+        await ensureExists(
+          this.prisma.getExecutionClient().attributeDefinition,
+          { tenantId, id: attributeDefinitionId },
+          'attribute_definition'
+        )
         await this.prisma.getExecutionClient().itemModelAttributeRule.create({
           data: {
             id: randomUUID(),
@@ -553,13 +710,19 @@ export class ItemMasterManagementV2Service
         })
       }
     })
-    return new ItemMasterQueryV2Service(this.prisma).getItemModelAttributeRules({ tenantId, itemModelId })
+    return new ItemMasterQueryV2Service(this.prisma).getItemModelAttributeRules({
+      tenantId,
+      itemModelId
+    })
   }
 
   async createItem(request: any) {
     const tenantId = requireText(request.tenantId, 'tenant_id')
     const itemModelId = requireText(request.itemModelId, 'item_model_id')
-    const itemModel = await this.prisma.itemModel.findFirst({ where: { tenantId, id: itemModelId }, include: { primaryCategory: true } })
+    const itemModel = await this.prisma.itemModel.findFirst({
+      where: { tenantId, id: itemModelId },
+      include: { primaryCategory: true }
+    })
     if (!itemModel) throw notFound('item_model')
     if (!itemModel.active) throw failedPrecondition('item_model_inactive')
     const lockedAttributeOptionIds = normalizedIds(request.lockedAttributeOptionIds ?? [])
@@ -568,28 +731,32 @@ export class ItemMasterManagementV2Service
     const packagingSpecId = normalizeOptional(request.packagingSpecId)
     if (itemType === 'PACKAGED_FINISHED_GOOD') {
       if (!packagingSpecId) throw invalidArgument('packaging_spec_id_required')
-      const spec = await this.prisma.packagingSpec.findFirst({ where: { tenantId, id: packagingSpecId, itemModelId, active: true } })
+      const spec = await this.prisma.packagingSpec.findFirst({
+        where: { tenantId, id: packagingSpecId, itemModelId, active: true }
+      })
       if (!spec) throw failedPrecondition('packaging_spec_not_active_for_model')
     } else if (packagingSpecId) {
       throw invalidArgument('standard_item_cannot_have_packaging_spec')
     }
     const capabilities = mergeCapabilities(request.capabilities, capabilitiesFromRecord(itemModel))
     enforcePackagedCapability(itemType, capabilities)
-    const record = await this.prisma.item.create({
-      data: {
-        id: randomUUID(),
-        tenantId,
-        itemModelId,
-        itemCode: requireText(request.itemCode, 'item_code'),
-        itemName: requireText(request.itemName, 'item_name'),
-        itemType,
-        lockedAttributeOptionIds,
-        variantKey: buildVariantKey(lockedAttributeOptionIds, packagingSpecId),
-        packagingSpecId,
-        ...toCapabilityData(capabilities)
-      },
-      include: itemInclude()
-    }).catch(handleUnique)
+    const record = await this.prisma.item
+      .create({
+        data: {
+          id: randomUUID(),
+          tenantId,
+          itemModelId,
+          itemCode: requireText(request.itemCode, 'item_code'),
+          itemName: requireText(request.itemName, 'item_name'),
+          itemType,
+          lockedAttributeOptionIds,
+          variantKey: buildVariantKey(lockedAttributeOptionIds, packagingSpecId),
+          packagingSpecId,
+          ...toCapabilityData(capabilities)
+        },
+        include: itemInclude()
+      })
+      .catch(handleUnique)
     return { itemId: record.id, item: toItemSummary(record) }
   }
 
@@ -597,11 +764,16 @@ export class ItemMasterManagementV2Service
     const tenantId = requireText(request.tenantId, 'tenant_id')
     const itemId = requireText(request.itemId, 'item_id')
     await ensureExists(this.prisma.item, { tenantId, id: itemId }, 'item')
-    const record = await this.prisma.item.update({
-      where: { id: itemId },
-      data: { itemCode: requireText(request.itemCode, 'item_code'), itemName: requireText(request.itemName, 'item_name') },
-      include: itemInclude()
-    }).catch(handleUnique)
+    const record = await this.prisma.item
+      .update({
+        where: { id: itemId },
+        data: {
+          itemCode: requireText(request.itemCode, 'item_code'),
+          itemName: requireText(request.itemName, 'item_name')
+        },
+        include: itemInclude()
+      })
+      .catch(handleUnique)
     return { item: toItemSummary(record) }
   }
 
@@ -624,24 +796,35 @@ export class ItemMasterManagementV2Service
     const tenantId = requireText(request.tenantId, 'tenant_id')
     const itemId = requireText(request.itemId, 'item_id')
     await ensureExists(this.prisma.item, { tenantId, id: itemId }, 'item')
-    const record = await this.prisma.item.update({ where: { id: itemId }, data: { active: Boolean(request.active) }, include: itemInclude() })
+    const record = await this.prisma.item.update({
+      where: { id: itemId },
+      data: { active: Boolean(request.active) },
+      include: itemInclude()
+    })
     return { item: toItemSummary(record) }
   }
 
   async createItemCategory(request: any) {
     const tenantId = requireText(request.tenantId, 'tenant_id')
     const parentCategoryId = normalizeOptional(request.parentCategoryId)
-    if (parentCategoryId) await ensureExists(this.prisma.itemCategory, { tenantId, id: parentCategoryId }, 'item_category')
-    const record = await this.prisma.itemCategory.create({
-      data: {
-        id: randomUUID(),
-        tenantId,
-        categoryCode: requireText(request.categoryCode, 'category_code'),
-        categoryName: requireText(request.categoryName, 'category_name'),
-        parentCategoryId
-      },
-      include: { children: true }
-    }).catch(handleUnique)
+    if (parentCategoryId)
+      await ensureExists(
+        this.prisma.itemCategory,
+        { tenantId, id: parentCategoryId },
+        'item_category'
+      )
+    const record = await this.prisma.itemCategory
+      .create({
+        data: {
+          id: randomUUID(),
+          tenantId,
+          categoryCode: requireText(request.categoryCode, 'category_code'),
+          categoryName: requireText(request.categoryName, 'category_name'),
+          parentCategoryId
+        },
+        include: { children: true }
+      })
+      .catch(handleUnique)
     return { category: toItemCategoryTreeNode(record) }
   }
 
@@ -649,11 +832,16 @@ export class ItemMasterManagementV2Service
     const tenantId = requireText(request.tenantId, 'tenant_id')
     const categoryId = requireText(request.categoryId, 'category_id')
     await ensureExists(this.prisma.itemCategory, { tenantId, id: categoryId }, 'item_category')
-    const record = await this.prisma.itemCategory.update({
-      where: { id: categoryId },
-      data: { categoryCode: requireText(request.categoryCode, 'category_code'), categoryName: requireText(request.categoryName, 'category_name') },
-      include: { children: true }
-    }).catch(handleUnique)
+    const record = await this.prisma.itemCategory
+      .update({
+        where: { id: categoryId },
+        data: {
+          categoryCode: requireText(request.categoryCode, 'category_code'),
+          categoryName: requireText(request.categoryName, 'category_name')
+        },
+        include: { children: true }
+      })
+      .catch(handleUnique)
     return { category: toItemCategoryTreeNode(record) }
   }
 
@@ -663,7 +851,11 @@ export class ItemMasterManagementV2Service
     const parentCategoryId = normalizeOptional(request.parentCategoryId)
     await ensureExists(this.prisma.itemCategory, { tenantId, id: categoryId }, 'item_category')
     if (parentCategoryId) {
-      await ensureExists(this.prisma.itemCategory, { tenantId, id: parentCategoryId }, 'item_category')
+      await ensureExists(
+        this.prisma.itemCategory,
+        { tenantId, id: parentCategoryId },
+        'item_category'
+      )
     }
 
     await ensureCategoryMoveIsAcyclic(this.prisma, tenantId, categoryId, parentCategoryId)
@@ -710,15 +902,17 @@ export class ItemMasterManagementV2Service
   }
 
   async createPackagingMethod(request: any) {
-    const record = await this.prisma.packagingMethod.create({
-      data: {
-        id: randomUUID(),
-        tenantId: requireText(request.tenantId, 'tenant_id'),
-        methodCode: requireText(request.methodCode, 'method_code'),
-        methodName: requireText(request.methodName, 'method_name'),
-        description: normalizeOptional(request.description) ?? null
-      }
-    }).catch(handleUnique)
+    const record = await this.prisma.packagingMethod
+      .create({
+        data: {
+          id: randomUUID(),
+          tenantId: requireText(request.tenantId, 'tenant_id'),
+          methodCode: requireText(request.methodCode, 'method_code'),
+          methodName: requireText(request.methodName, 'method_name'),
+          description: normalizeOptional(request.description) ?? null
+        }
+      })
+      .catch(handleUnique)
     return { packagingMethod: toPackagingMethodRecord(record) }
   }
 
@@ -733,10 +927,12 @@ export class ItemMasterManagementV2Service
     if (Object.prototype.hasOwnProperty.call(request, 'description')) {
       data.description = normalizeOptional(request.description) ?? null
     }
-    const record = await this.prisma.packagingMethod.update({
-      where: { id },
-      data
-    }).catch(handleUnique)
+    const record = await this.prisma.packagingMethod
+      .update({
+        where: { id },
+        data
+      })
+      .catch(handleUnique)
     return { packagingMethod: toPackagingMethodRecord(record) }
   }
 
@@ -744,7 +940,10 @@ export class ItemMasterManagementV2Service
     const tenantId = requireText(request.tenantId, 'tenant_id')
     const id = requireText(request.packagingMethodId, 'packaging_method_id')
     await ensureExists(this.prisma.packagingMethod, { tenantId, id }, 'packaging_method')
-    const record = await this.prisma.packagingMethod.update({ where: { id }, data: { active: Boolean(request.active) } })
+    const record = await this.prisma.packagingMethod.update({
+      where: { id },
+      data: { active: Boolean(request.active) }
+    })
     return { packagingMethod: toPackagingMethodRecord(record) }
   }
 
@@ -765,7 +964,9 @@ export class ItemMasterManagementV2Service
 
   async createPackagingSpec(request: any) {
     const data = await this.packagingSpecData(request)
-    const record = await this.prisma.packagingSpec.create({ data: { id: randomUUID(), ...data } }).catch(handleUnique)
+    const record = await this.prisma.packagingSpec
+      .create({ data: { id: randomUUID(), ...data } })
+      .catch(handleUnique)
     return { packagingSpec: toPackagingSpecRecord(record) }
   }
 
@@ -773,7 +974,9 @@ export class ItemMasterManagementV2Service
     const id = requireText(request.packagingSpecId, 'packaging_spec_id')
     const data = await this.packagingSpecData(request)
     await ensureExists(this.prisma.packagingSpec, { tenantId: data.tenantId, id }, 'packaging_spec')
-    const record = await this.prisma.packagingSpec.update({ where: { id }, data }).catch(handleUnique)
+    const record = await this.prisma.packagingSpec
+      .update({ where: { id }, data })
+      .catch(handleUnique)
     return { packagingSpec: toPackagingSpecRecord(record) }
   }
 
@@ -781,7 +984,10 @@ export class ItemMasterManagementV2Service
     const tenantId = requireText(request.tenantId, 'tenant_id')
     const id = requireText(request.packagingSpecId, 'packaging_spec_id')
     await ensureExists(this.prisma.packagingSpec, { tenantId, id }, 'packaging_spec')
-    const record = await this.prisma.packagingSpec.update({ where: { id }, data: { active: Boolean(request.active) } })
+    const record = await this.prisma.packagingSpec.update({
+      where: { id },
+      data: { active: Boolean(request.active) }
+    })
     return { packagingSpec: toPackagingSpecRecord(record) }
   }
 
@@ -791,18 +997,24 @@ export class ItemMasterManagementV2Service
     const bomType = toDbBomType(request.bomType)
     const lines = request.lines ?? []
     await validateBom(this.prisma, tenantId, bomType, outputItemId, lines)
-    const record = await this.prisma.bom.create({
-      data: {
-        id: randomUUID(),
-        tenantId,
-        bomCode: requireText(request.bomCode, 'bom_code'),
-        bomName: requireText(request.bomName, 'bom_name'),
-        bomType,
-        outputItemId,
-        lines: { create: lines.map((line: BomLineInput, index: number) => bomLineCreate(tenantId, line, index)) }
-      },
-      include: bomInclude()
-    }).catch(handleUnique)
+    const record = await this.prisma.bom
+      .create({
+        data: {
+          id: randomUUID(),
+          tenantId,
+          bomCode: requireText(request.bomCode, 'bom_code'),
+          bomName: requireText(request.bomName, 'bom_name'),
+          bomType,
+          outputItemId,
+          lines: {
+            create: lines.map((line: BomLineInput, index: number) =>
+              bomLineCreate(tenantId, line, index)
+            )
+          }
+        },
+        include: bomInclude()
+      })
+      .catch(handleUnique)
     return { bomId: record.id, bom: toBomRecord(record) }
   }
 
@@ -810,11 +1022,16 @@ export class ItemMasterManagementV2Service
     const tenantId = requireText(request.tenantId, 'tenant_id')
     const id = requireText(request.bomId, 'bom_id')
     await ensureExists(this.prisma.bom, { tenantId, id }, 'bom')
-    const record = await this.prisma.bom.update({
-      where: { id },
-      data: { bomCode: requireText(request.bomCode, 'bom_code'), bomName: requireText(request.bomName, 'bom_name') },
-      include: bomInclude()
-    }).catch(handleUnique)
+    const record = await this.prisma.bom
+      .update({
+        where: { id },
+        data: {
+          bomCode: requireText(request.bomCode, 'bom_code'),
+          bomName: requireText(request.bomName, 'bom_name')
+        },
+        include: bomInclude()
+      })
+      .catch(handleUnique)
     return { bom: toBomRecord(record) }
   }
 
@@ -829,7 +1046,13 @@ export class ItemMasterManagementV2Service
       await this.prisma.getExecutionClient().bomLine.deleteMany({ where: { tenantId, bomId: id } })
       return this.prisma.getExecutionClient().bom.update({
         where: { id },
-        data: { lines: { create: lines.map((line: BomLineInput, index: number) => bomLineCreate(tenantId, line, index)) } },
+        data: {
+          lines: {
+            create: lines.map((line: BomLineInput, index: number) =>
+              bomLineCreate(tenantId, line, index)
+            )
+          }
+        },
         include: bomInclude()
       })
     })
@@ -840,7 +1063,11 @@ export class ItemMasterManagementV2Service
     const tenantId = requireText(request.tenantId, 'tenant_id')
     const id = requireText(request.bomId, 'bom_id')
     await ensureExists(this.prisma.bom, { tenantId, id }, 'bom')
-    const record = await this.prisma.bom.update({ where: { id }, data: { active: Boolean(request.active) }, include: bomInclude() })
+    const record = await this.prisma.bom.update({
+      where: { id },
+      data: { active: Boolean(request.active) },
+      include: bomInclude()
+    })
     return { bom: toBomRecord(record) }
   }
 
@@ -852,7 +1079,8 @@ export class ItemMasterManagementV2Service
     const supplierItemName = normalizeOptional(request.supplierItemName)
     const supplierItemCodeKey = normalizeKey(supplierItemCode)
     const supplierItemNameKey = normalizeKey(supplierItemName)
-    if (!supplierItemCodeKey && !supplierItemNameKey) throw invalidArgument('supplier_item_code_or_name_required')
+    if (!supplierItemCodeKey && !supplierItemNameKey)
+      throw invalidArgument('supplier_item_code_or_name_required')
     const item = await findItem(this.prisma, tenantId, itemId)
     if (!item) throw notFound('item')
     if (!item.active) throw failedPrecondition('item_inactive')
@@ -875,7 +1103,11 @@ export class ItemMasterManagementV2Service
       active: request.active ?? true
     }
     const record = existing
-      ? await this.prisma.supplierItemMapping.update({ where: { id: existing.id }, data, include: { item: { include: itemInclude() } } })
+      ? await this.prisma.supplierItemMapping.update({
+          where: { id: existing.id },
+          data,
+          include: { item: { include: itemInclude() } }
+        })
       : await this.prisma.supplierItemMapping.create({
           data: { id: randomUUID(), tenantId, supplierId, ...data },
           include: { item: { include: itemInclude() } }
@@ -883,7 +1115,11 @@ export class ItemMasterManagementV2Service
     return { mapping: toSupplierItemMappingRecord(record) }
   }
 
-  private async updateModelStatus(tenantIdInput: string | undefined, itemModelIdInput: string | undefined, active: boolean | undefined) {
+  private async updateModelStatus(
+    tenantIdInput: string | undefined,
+    itemModelIdInput: string | undefined,
+    active: boolean | undefined
+  ) {
     const tenantId = requireText(tenantIdInput, 'tenant_id')
     const itemModelId = requireText(itemModelIdInput, 'item_model_id')
     await ensureExists(this.prisma.itemModel, { tenantId, id: itemModelId }, 'item_model')
@@ -900,7 +1136,11 @@ export class ItemMasterManagementV2Service
     const itemModelId = requireText(request.itemModelId, 'item_model_id')
     const packagingMethodId = requireText(request.packagingMethodId, 'packaging_method_id')
     await ensureExists(this.prisma.itemModel, { tenantId, id: itemModelId }, 'item_model')
-    await ensureExists(this.prisma.packagingMethod, { tenantId, id: packagingMethodId }, 'packaging_method')
+    await ensureExists(
+      this.prisma.packagingMethod,
+      { tenantId, id: packagingMethodId },
+      'packaging_method'
+    )
     return {
       tenantId,
       itemModelId,
@@ -926,7 +1166,9 @@ function itemInclude(): any {
 }
 
 function bomInclude(): any {
-  return { lines: { include: { componentItem: { include: itemInclude() } }, orderBy: { sortOrder: 'asc' } } }
+  return {
+    lines: { include: { componentItem: { include: itemInclude() } }, orderBy: { sortOrder: 'asc' } }
+  }
 }
 
 function applyKeyword(where: any, keyword: string | undefined, ...fields: string[]): void {
@@ -937,13 +1179,27 @@ function applyKeyword(where: any, keyword: string | undefined, ...fields: string
 
 function applyCapabilityFilters(where: any, filters?: ItemCapabilityFilters): void {
   if (!filters) return
-  for (const key of ['sellable', 'purchasable', 'stockable', 'manufacturable', 'assemblable', 'transformable', 'packable', 'packaged']) {
+  for (const key of [
+    'sellable',
+    'purchasable',
+    'stockable',
+    'manufacturable',
+    'assemblable',
+    'transformable',
+    'packable',
+    'packaged'
+  ]) {
     const value = (filters as any)[key]
     if (value !== undefined) where[key] = value
   }
 }
 
-async function resolveCategoryFilter(prisma: PrismaService, tenantId: string, categoryId?: string, includeDescendants?: boolean): Promise<string[] | undefined> {
+async function resolveCategoryFilter(
+  prisma: PrismaService,
+  tenantId: string,
+  categoryId?: string,
+  includeDescendants?: boolean
+): Promise<string[] | undefined> {
   const id = normalizeOptional(categoryId)
   if (!id) {
     if (includeDescendants) throw invalidArgument('include_descendants_requires_category_id')
@@ -951,11 +1207,17 @@ async function resolveCategoryFilter(prisma: PrismaService, tenantId: string, ca
   }
   await ensureExists(prisma.itemCategory, { tenantId, id }, 'item_category')
   if (!includeDescendants) return [id]
-  const all = await prisma.itemCategory.findMany({ where: { tenantId }, select: { id: true, parentCategoryId: true } })
+  const all = await prisma.itemCategory.findMany({
+    where: { tenantId },
+    select: { id: true, parentCategoryId: true }
+  })
   const children = new Map<string, string[]>()
   for (const category of all) {
     if (!category.parentCategoryId) continue
-    children.set(category.parentCategoryId, [...(children.get(category.parentCategoryId) ?? []), category.id])
+    children.set(category.parentCategoryId, [
+      ...(children.get(category.parentCategoryId) ?? []),
+      category.id
+    ])
   }
   const result = [id]
   for (let index = 0; index < result.length; index += 1) {
@@ -973,11 +1235,17 @@ async function ensureCategoryMoveIsAcyclic(
   if (!parentCategoryId) return
   if (parentCategoryId === categoryId) throw failedPrecondition('item_category_parent_cycle')
 
-  const all = await prisma.itemCategory.findMany({ where: { tenantId }, select: { id: true, parentCategoryId: true } })
+  const all = await prisma.itemCategory.findMany({
+    where: { tenantId },
+    select: { id: true, parentCategoryId: true }
+  })
   const children = new Map<string, string[]>()
   for (const category of all) {
     if (!category.parentCategoryId) continue
-    children.set(category.parentCategoryId, [...(children.get(category.parentCategoryId) ?? []), category.id])
+    children.set(category.parentCategoryId, [
+      ...(children.get(category.parentCategoryId) ?? []),
+      category.id
+    ])
   }
 
   const descendants = [...(children.get(categoryId) ?? [])]
@@ -988,24 +1256,45 @@ async function ensureCategoryMoveIsAcyclic(
   }
 }
 
-async function findItem(prisma: PrismaService, tenantId: string, itemId: string): Promise<any | null> {
+async function findItem(
+  prisma: PrismaService,
+  tenantId: string,
+  itemId: string
+): Promise<any | null> {
   return prisma.item.findFirst({ where: { tenantId, id: itemId }, include: itemInclude() })
 }
 
-async function findItems(prisma: PrismaService, tenantId: string, itemIds: string[]): Promise<any[]> {
+async function findItems(
+  prisma: PrismaService,
+  tenantId: string,
+  itemIds: string[]
+): Promise<any[]> {
   return prisma.item.findMany({ where: { tenantId, id: { in: itemIds } }, include: itemInclude() })
 }
 
-async function findBom(prisma: PrismaService, tenantId: string, bomId: string): Promise<any | null> {
+async function findBom(
+  prisma: PrismaService,
+  tenantId: string,
+  bomId: string
+): Promise<any | null> {
   return prisma.bom.findFirst({ where: { tenantId, id: bomId }, include: bomInclude() })
 }
 
-async function ensureExists(model: any, where: Record<string, unknown>, resource: string): Promise<void> {
+async function ensureExists(
+  model: any,
+  where: Record<string, unknown>,
+  resource: string
+): Promise<void> {
   const found = await model.findFirst({ where })
   if (!found) throw notFound(resource)
 }
 
-async function validateAttributeRules(prisma: PrismaService, tenantId: string, itemModelId: string, optionIds: string[]): Promise<void> {
+async function validateAttributeRules(
+  prisma: PrismaService,
+  tenantId: string,
+  itemModelId: string,
+  optionIds: string[]
+): Promise<void> {
   const rules = await prisma.itemModelAttributeRule.findMany({ where: { tenantId, itemModelId } })
   const allowed = new Set(rules.flatMap((rule) => rule.allowedOptionIds))
   for (const optionId of optionIds) {
@@ -1018,12 +1307,22 @@ async function validateAttributeRules(prisma: PrismaService, tenantId: string, i
   }
 }
 
-async function validateBom(prisma: PrismaService, tenantId: string, bomType: string, outputItemId: string, lines: BomLineInput[], existingBomId?: string): Promise<void> {
+async function validateBom(
+  prisma: PrismaService,
+  tenantId: string,
+  bomType: string,
+  outputItemId: string,
+  lines: BomLineInput[],
+  existingBomId?: string
+): Promise<void> {
   const outputItem = await findItem(prisma, tenantId, outputItemId)
   if (!outputItem || !outputItem.active) throw failedPrecondition('output_item_must_be_active')
-  if (bomType === 'COMPOSITION' && !outputItem.assemblable) throw failedPrecondition('output_item_not_assemblable')
-  if (bomType === 'TRANSFORMATION' && !outputItem.transformable) throw failedPrecondition('output_item_not_transformable')
-  if (bomType === 'PACKAGING' && !outputItem.packaged) throw failedPrecondition('output_item_not_packaged')
+  if (bomType === 'COMPOSITION' && !outputItem.assemblable)
+    throw failedPrecondition('output_item_not_assemblable')
+  if (bomType === 'TRANSFORMATION' && !outputItem.transformable)
+    throw failedPrecondition('output_item_not_transformable')
+  if (bomType === 'PACKAGING' && !outputItem.packaged)
+    throw failedPrecondition('output_item_not_packaged')
 
   const componentIds = normalizedIds(lines.map((line) => line.componentItemId ?? ''))
   const components = componentIds.length ? await findItems(prisma, tenantId, componentIds) : []
@@ -1042,20 +1341,36 @@ async function validateBom(prisma: PrismaService, tenantId: string, bomType: str
   await ensureNoBomCycle(prisma, tenantId, outputItemId, componentIds, existingBomId)
 }
 
-async function ensureNoBomCycle(prisma: PrismaService, tenantId: string, outputItemId: string, componentIds: string[], existingBomId?: string): Promise<void> {
+async function ensureNoBomCycle(
+  prisma: PrismaService,
+  tenantId: string,
+  outputItemId: string,
+  componentIds: string[],
+  existingBomId?: string
+): Promise<void> {
   const boms = await prisma.bom.findMany({
     where: { tenantId, active: true, ...(existingBomId ? { id: { not: existingBomId } } : {}) },
     include: { lines: true }
   })
   const adjacency = new Map<string, string[]>()
-  for (const bom of boms) adjacency.set(bom.outputItemId, bom.lines.map((line) => line.componentItemId))
+  for (const bom of boms)
+    adjacency.set(
+      bom.outputItemId,
+      bom.lines.map((line) => line.componentItemId)
+    )
   adjacency.set(outputItemId, componentIds)
   for (const componentId of componentIds) {
-    if (hasPath(adjacency, componentId, outputItemId, new Set())) throw failedPrecondition('bom_cycle_detected')
+    if (hasPath(adjacency, componentId, outputItemId, new Set()))
+      throw failedPrecondition('bom_cycle_detected')
   }
 }
 
-function hasPath(adjacency: Map<string, string[]>, current: string, target: string, visited: Set<string>): boolean {
+function hasPath(
+  adjacency: Map<string, string[]>,
+  current: string,
+  target: string,
+  visited: Set<string>
+): boolean {
   if (current === target) return true
   if (visited.has(current)) return false
   visited.add(current)
@@ -1084,7 +1399,9 @@ function toItemModelRecord(record: any): ItemModelRecord {
     modelType: fromDbItemModelType(record.modelType),
     active: record.active,
     capabilities: capabilitiesFromRecord(record),
-    primaryCategorySummary: record.primaryCategory ? toCategorySummary(record.primaryCategory) : undefined,
+    primaryCategorySummary: record.primaryCategory
+      ? toCategorySummary(record.primaryCategory)
+      : undefined,
     createdAt: record.createdAt?.toISOString?.() ?? '',
     updatedAt: record.updatedAt?.toISOString?.() ?? ''
   }
@@ -1102,7 +1419,9 @@ function toItemSummary(record: any): ItemSummary {
     active: record.active,
     capabilities: capabilitiesFromRecord(record),
     itemModelSummary: record.itemModel ? toItemModelSummary(record.itemModel) : undefined,
-    primaryCategorySummary: record.itemModel?.primaryCategory ? toCategorySummary(record.itemModel.primaryCategory) : undefined,
+    primaryCategorySummary: record.itemModel?.primaryCategory
+      ? toCategorySummary(record.itemModel.primaryCategory)
+      : undefined,
     createdAt: record.createdAt?.toISOString?.() ?? '',
     updatedAt: record.updatedAt?.toISOString?.() ?? ''
   }
@@ -1120,7 +1439,12 @@ function toItemModelSummary(record: any) {
 }
 
 function toCategorySummary(record: any): ItemCategoryTreeNode | ItemCategoryTreeNode {
-  return { categoryId: record.id, categoryCode: record.categoryCode, categoryName: record.categoryName, active: record.active }
+  return {
+    categoryId: record.id,
+    categoryCode: record.categoryCode,
+    categoryName: record.categoryName,
+    active: record.active
+  }
 }
 
 function toItemCategoryTreeNode(record: any): ItemCategoryTreeNode {
@@ -1250,7 +1574,10 @@ function emptyCapabilities(): ItemCapabilities {
   }
 }
 
-function mergeCapabilities(input: ItemCapabilities | undefined, fallback: ItemCapabilities): ItemCapabilities {
+function mergeCapabilities(
+  input: ItemCapabilities | undefined,
+  fallback: ItemCapabilities
+): ItemCapabilities {
   return {
     sellable: input?.sellable ?? fallback.sellable ?? false,
     purchasable: input?.purchasable ?? fallback.purchasable ?? false,
@@ -1278,8 +1605,10 @@ function toCapabilityData(capabilities?: ItemCapabilities): Record<string, boole
 }
 
 function enforcePackagedCapability(itemType: string, capabilities: ItemCapabilities): void {
-  if (itemType === 'PACKAGED_FINISHED_GOOD' && !capabilities.packaged) throw failedPrecondition('packaged_item_requires_packaged_capability')
-  if (itemType !== 'PACKAGED_FINISHED_GOOD' && capabilities.packaged) throw failedPrecondition('only_packaged_item_can_have_packaged_capability')
+  if (itemType === 'PACKAGED_FINISHED_GOOD' && !capabilities.packaged)
+    throw failedPrecondition('packaged_item_requires_packaged_capability')
+  if (itemType !== 'PACKAGED_FINISHED_GOOD' && capabilities.packaged)
+    throw failedPrecondition('only_packaged_item_can_have_packaged_capability')
 }
 
 function buildVariantKey(optionIds: string[], packagingSpecId?: string): string {

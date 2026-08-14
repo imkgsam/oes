@@ -20,6 +20,7 @@ import { GatewayMachineTrustedGrpcExecutionProducer } from './gateway-machine-tr
 import { GatewayPublicEntryGrpcClient } from './gateway-public-entry-grpc.client'
 import { GatewayMesGrpcClient } from './gateway-mes-grpc.client'
 import { GatewayCollaborationGrpcClient } from './gateway-collaboration-grpc.client'
+import { GatewayItemMasterGrpcClient } from './gateway-item-master-grpc.client'
 
 const ASSET_AUDIENCE = 'urn:oes:service:asset-service'
 const SITE_AUDIENCE = 'urn:oes:service:site-service'
@@ -30,6 +31,7 @@ const SALES_AUDIENCE = 'urn:oes:service:sales-service'
 const PUBLIC_ENTRY_AUDIENCE = 'urn:oes:service:public-entry-service'
 const MES_AUDIENCE = 'urn:oes:service:mes-service'
 const COLLABORATION_AUDIENCE = 'urn:oes:service:collaboration-service'
+const ITEM_MASTER_AUDIENCE = 'urn:oes:service:item-master-service'
 
 /** Composes the sole Gateway target-token producer with the same request-private source-credential accessor. */
 @Global()
@@ -45,6 +47,7 @@ const COLLABORATION_AUDIENCE = 'urn:oes:service:collaboration-service'
     GatewayPublicEntryGrpcClient,
     GatewayMesGrpcClient,
     GatewayCollaborationGrpcClient,
+    GatewayItemMasterGrpcClient,
     GatewayAuthMachineWorkloadSourceCredentialClient,
     {
       provide: GatewayMachineWorkloadSourceCredentialProvider,
@@ -68,7 +71,7 @@ const COLLABORATION_AUDIENCE = 'urn:oes:service:collaboration-service'
       useFactory: () =>
         new TrustedExecutionRegistry({
           issuer: requireEnvironment('AUTH_EXECUTION_ISSUER'),
-            audiences: [
+          audiences: [
             ASSET_AUDIENCE,
             SITE_AUDIENCE,
             BROWSER_ACTIVITY_AUDIENCE,
@@ -76,8 +79,9 @@ const COLLABORATION_AUDIENCE = 'urn:oes:service:collaboration-service'
             FINANCE_AUDIENCE,
             SALES_AUDIENCE,
             PUBLIC_ENTRY_AUDIENCE,
-            MES_AUDIENCE
-            , COLLABORATION_AUDIENCE
+            MES_AUDIENCE,
+            COLLABORATION_AUDIENCE,
+            ITEM_MASTER_AUDIENCE
           ],
           workloadIdentities: [requireEnvironment('OES_WORKLOAD_SPIFFE_ID')]
         })
@@ -145,6 +149,7 @@ const COLLABORATION_AUDIENCE = 'urn:oes:service:collaboration-service'
     GatewayPublicEntryGrpcClient,
     GatewayMesGrpcClient,
     GatewayCollaborationGrpcClient,
+    GatewayItemMasterGrpcClient,
     GatewayTrustedGrpcExecutionProducer,
     GatewayMachineWorkloadSourceCredentialProvider,
     GatewayMachineTrustedGrpcExecutionProducer

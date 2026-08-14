@@ -1,5 +1,10 @@
 import { Controller, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common'
-import { GrpcRequestContextInterceptor } from '@oes/common/authorization'
+import {
+  AuthorizeBusinessRpc,
+  GrpcRequestContextInterceptor,
+  TrustedExecutionGuard
+} from '@oes/common/authorization'
+import { ITEM_MASTER_MANAGEMENT_PERMISSION_CODES } from '@oes/common/authorization'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
   BatchGetItemModelsRequest,
@@ -48,7 +53,7 @@ import { ItemMasterRpcContextGuard } from './item-master-rpc-context.guard'
 
 /** ItemMasterQueryGrpcController exposes Contract V2 item-master read-only RPCs. */
 @UseFilters(GrpcExceptionFilter)
-@UseGuards(ItemMasterRpcContextGuard)
+@UseGuards(TrustedExecutionGuard, ItemMasterRpcContextGuard)
 @UseInterceptors(GrpcRequestContextInterceptor)
 @Controller()
 @ItemMasterQueryServiceControllerMethods()
@@ -67,11 +72,15 @@ export class ItemMasterQueryGrpcController implements ItemMasterQueryServiceCont
     return this.queries.searchItemModels(request)
   }
 
-  listAttributeDefinitions(request: ListAttributeDefinitionsRequest): Promise<ListAttributeDefinitionsResponse> {
+  listAttributeDefinitions(
+    request: ListAttributeDefinitionsRequest
+  ): Promise<ListAttributeDefinitionsResponse> {
     return this.queries.listAttributeDefinitions(request)
   }
 
-  listAttributeOptions(request: ListAttributeOptionsRequest): Promise<ListAttributeOptionsResponse> {
+  listAttributeOptions(
+    request: ListAttributeOptionsRequest
+  ): Promise<ListAttributeOptionsResponse> {
     return this.queries.listAttributeOptions(request)
   }
 
@@ -101,7 +110,9 @@ export class ItemMasterQueryGrpcController implements ItemMasterQueryServiceCont
     return this.queries.listItemCategories(request)
   }
 
-  listPackagingMethods(request: ListPackagingMethodsRequest): Promise<ListPackagingMethodsResponse> {
+  listPackagingMethods(
+    request: ListPackagingMethodsRequest
+  ): Promise<ListPackagingMethodsResponse> {
     return this.queries.listPackagingMethods(request)
   }
 
@@ -109,7 +120,9 @@ export class ItemMasterQueryGrpcController implements ItemMasterQueryServiceCont
     return this.queries.getPackagingSpec(request)
   }
 
-  searchPackagingSpecs(request: SearchPackagingSpecsRequest): Promise<SearchPackagingSpecsResponse> {
+  searchPackagingSpecs(
+    request: SearchPackagingSpecsRequest
+  ): Promise<SearchPackagingSpecsResponse> {
     return this.queries.searchPackagingSpecs(request)
   }
 
@@ -136,4 +149,34 @@ export class ItemMasterQueryGrpcController implements ItemMasterQueryServiceCont
   ): Promise<ResolveSupplierItemMappingResponse> {
     return this.queries.resolveSupplierItemMapping(request)
   }
+}
+
+/** Registers the frozen HUMAN/WEB declaration matrix without making authorization a business concern. */
+for (const [method, code] of Object.entries({
+  getItemModel: ITEM_MASTER_MANAGEMENT_PERMISSION_CODES.VIEW_ITEM_MODEL_DETAIL,
+  batchGetItemModels: ITEM_MASTER_MANAGEMENT_PERMISSION_CODES.LIST_ITEM_MODEL,
+  searchItemModels: ITEM_MASTER_MANAGEMENT_PERMISSION_CODES.LIST_ITEM_MODEL,
+  listAttributeDefinitions: ITEM_MASTER_MANAGEMENT_PERMISSION_CODES.LIST_ATTRIBUTE,
+  listAttributeOptions: ITEM_MASTER_MANAGEMENT_PERMISSION_CODES.LIST_ATTRIBUTE,
+  getItemModelAttributeRules: ITEM_MASTER_MANAGEMENT_PERMISSION_CODES.LIST_ATTRIBUTE,
+  getItem: ITEM_MASTER_MANAGEMENT_PERMISSION_CODES.VIEW_ITEM_DETAIL,
+  batchGetItems: ITEM_MASTER_MANAGEMENT_PERMISSION_CODES.LIST_ITEM,
+  searchItems: ITEM_MASTER_MANAGEMENT_PERMISSION_CODES.LIST_ITEM,
+  resolveItemVariant: ITEM_MASTER_MANAGEMENT_PERMISSION_CODES.VIEW_ITEM_DETAIL,
+  listItemCategories: ITEM_MASTER_MANAGEMENT_PERMISSION_CODES.LIST_ITEM_CATEGORIES,
+  listPackagingMethods: ITEM_MASTER_MANAGEMENT_PERMISSION_CODES.LIST_PACKAGING,
+  getPackagingSpec: ITEM_MASTER_MANAGEMENT_PERMISSION_CODES.LIST_PACKAGING,
+  searchPackagingSpecs: ITEM_MASTER_MANAGEMENT_PERMISSION_CODES.LIST_PACKAGING,
+  getBom: ITEM_MASTER_MANAGEMENT_PERMISSION_CODES.LIST_BOM,
+  searchBoms: ITEM_MASTER_MANAGEMENT_PERMISSION_CODES.LIST_BOM,
+  getBomByOutputItem: ITEM_MASTER_MANAGEMENT_PERMISSION_CODES.LIST_BOM,
+  listSupplierItemMappingsByItem:
+    ITEM_MASTER_MANAGEMENT_PERMISSION_CODES.LIST_SUPPLIER_ITEM_MAPPINGS,
+  resolveSupplierItemMapping: ITEM_MASTER_MANAGEMENT_PERMISSION_CODES.LIST_SUPPLIER_ITEM_MAPPINGS
+})) {
+  AuthorizeBusinessRpc({ all: [code] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })(
+    ItemMasterQueryGrpcController.prototype,
+    method,
+    Object.getOwnPropertyDescriptor(ItemMasterQueryGrpcController.prototype, method)
+  )
 }

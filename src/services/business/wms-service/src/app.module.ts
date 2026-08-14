@@ -33,12 +33,6 @@ function resolveGrpcUrl(envKey: string, fallbackUrl: string): string | undefined
     }),
     GrpcTransportModule.forRoot({
       services: {
-        [SERVICE_NAMES.ITEM_MASTER]: {
-          serviceName: SERVICE_NAMES.ITEM_MASTER,
-          protoPath: [resolveCommonProtoPath('item_master_service/item_master.proto')],
-          packageName: 'item_master_service',
-          url: resolveGrpcUrl('GRPC_SERVICE_ITEM_MASTER_URL', '127.0.0.1:50058')
-        },
         [SERVICE_NAMES.PROCUREMENT]: {
           serviceName: SERVICE_NAMES.PROCUREMENT,
           protoPath: [resolveCommonProtoPath('procurement_service/procurement.proto')],

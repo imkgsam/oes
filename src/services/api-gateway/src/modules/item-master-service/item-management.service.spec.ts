@@ -224,7 +224,6 @@ describe('ItemManagementService V2 BFF mapping', () => {
 
     expect(itemManagementAdapter.deleteItemCategory).toHaveBeenCalledWith(
       {
-        tenantId: 'tenant-1',
         categoryId: 'category-1'
       },
       source
@@ -243,7 +242,12 @@ describe('ItemManagementService V2 BFF mapping', () => {
     })
 
     await expect(
-      service.moveItemCategory('tenant-1', 'category-1', { parentCategoryId: 'category-parent' }, source as never)
+      service.moveItemCategory(
+        'tenant-1',
+        'category-1',
+        { parentCategoryId: 'category-parent' },
+        source as never
+      )
     ).resolves.toMatchObject({
       categoryId: 'category-1',
       parentCategoryId: 'category-parent'
@@ -251,7 +255,6 @@ describe('ItemManagementService V2 BFF mapping', () => {
 
     expect(itemManagementAdapter.moveItemCategory).toHaveBeenCalledWith(
       expect.objectContaining({
-        tenantId: 'tenant-1',
         categoryId: 'category-1',
         parentCategoryId: 'category-parent'
       }),
@@ -352,7 +355,11 @@ describe('ItemManagementService V2 BFF mapping', () => {
     })
 
     await expect(
-      service.listAttributeDefinitions('tenant-1', { keyword: 'color', status: 'ACTIVE' }, source as never)
+      service.listAttributeDefinitions(
+        'tenant-1',
+        { keyword: 'color', status: 'ACTIVE' },
+        source as never
+      )
     ).resolves.toMatchObject({
       attributeDefinitions: [
         {
@@ -449,7 +456,12 @@ describe('ItemManagementService V2 BFF mapping', () => {
       service.updateAttributeOption(
         'tenant-1',
         'opt-1',
-        { optionCode: 'WHITE-REV', optionName: 'White Rev', description: 'Updated option', status: 'INACTIVE' },
+        {
+          optionCode: 'WHITE-REV',
+          optionName: 'White Rev',
+          description: 'Updated option',
+          status: 'INACTIVE'
+        },
         source as never
       )
     ).resolves.toMatchObject({
@@ -526,8 +538,7 @@ describe('ItemManagementService V2 BFF mapping', () => {
     expect(itemManagementAdapter.createPackagingMethod).toHaveBeenCalledWith(
       expect.objectContaining({
         description: 'Online parcel packaging',
-        methodCode: 'ECOM',
-        tenantId: 'tenant-1'
+        methodCode: 'ECOM'
       }),
       source
     )
@@ -550,7 +561,6 @@ describe('ItemManagementService V2 BFF mapping', () => {
 
     expect(itemManagementAdapter.deletePackagingMethod).toHaveBeenCalledWith(
       {
-        tenantId: 'tenant-1',
         packagingMethodId: 'method-1'
       },
       source

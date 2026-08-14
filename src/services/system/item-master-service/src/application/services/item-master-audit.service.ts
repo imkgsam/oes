@@ -1,10 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common'
-import {
-  AuditEnvelope,
-  AuditResult,
-  buildAuditEnvelope,
-  flattenAuditEnvelope
-} from '@oes/common'
+import { AuditEnvelope, AuditResult, buildAuditEnvelope, flattenAuditEnvelope } from '@oes/common'
 import { GrpcRequestContextStore } from '@oes/common/authorization'
 import { OESExceptionBase } from '@oes/common/exceptions'
 import { TOKENS } from '../../common/constants/tokens'
@@ -56,7 +51,7 @@ export class ItemMasterAuditService {
     details: Record<string, unknown>
   ): AuditEnvelope {
     const context = this.requestContextStore.getContext()
-    const operatorContext = context?.operatorContext
+    const execution = context?.verifiedExecutionToken
 
     return buildAuditEnvelope({
       service: 'item-master-service',
@@ -64,15 +59,15 @@ export class ItemMasterAuditService {
       eventType: input.commandName,
       result,
       operator: {
-        operatorId: operatorContext?.operator_id ?? null,
-        operatorType: operatorContext ? 'HUMAN' : 'SYSTEM'
+        operatorId: execution?.subject ?? null,
+        operatorType: execution?.principalType === 'HUMAN' ? 'HUMAN' : 'SYSTEM'
       },
       scope: {
         tenantId: input.tenantId,
-        orgId: operatorContext?.org_id ?? null
+        orgId: execution?.orgId ?? null
       },
       trace: {
-        traceId: context?.traceId ?? operatorContext?.trace_id ?? null
+        traceId: context?.traceId ?? null
       },
       resource: {
         resourceType: 'item_master',
@@ -80,18 +75,18 @@ export class ItemMasterAuditService {
       },
       details: {
         requestSummary: input.requestSummary,
-        serviceContext: context?.internalServiceName ?? null,
-        operatorContext: operatorContext
+        serviceContext: context?.verifiedWorkloadIdentity?.spiffeId ?? null,
+        operatorContext: execution
           ? {
-              operatorId: operatorContext.operator_id,
-              operatorType: operatorContext.operator_type,
-              tenantId: operatorContext.tenant_id ?? null,
-              orgId: operatorContext.org_id ?? null
+              operatorId: execution.subject,
+              operatorType: execution.principalType,
+              tenantId: execution.tenantId ?? null,
+              orgId: execution.orgId ?? null
             }
           : null,
         traceContext: {
-          traceId: context?.traceId ?? operatorContext?.trace_id ?? null,
-          requestId: context?.requestId ?? operatorContext?.request_id ?? null
+          traceId: context?.traceId ?? null,
+          requestId: context?.requestId ?? null
         },
         ...details
       }

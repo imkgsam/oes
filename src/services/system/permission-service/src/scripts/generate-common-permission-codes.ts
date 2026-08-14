@@ -19,6 +19,7 @@ import {
   IDENTITY_MACHINE_PERMISSION_CODES,
   IDENTITY_TENANT_PERMISSION_CODES,
   ITEM_MASTER_MANAGEMENT_PERMISSION_CODES,
+  ITEM_MASTER_INTERNAL_PERMISSION_CODES,
   MES_MANAGEMENT_PERMISSION_CODES,
   NOTIFICATION_INTERNAL_PERMISSION_CODES,
   PERMISSION_ACCOUNT_SELF_PERMISSION_CODES,
@@ -81,7 +82,6 @@ const COMMON_PERMISSION_CODE_FILES: CommonPermissionCodeFileDefinition[] = [
       './notification',
       './procurement',
       './permission',
-      './party',
       './public-entry',
       './sales',
       './site-management',
@@ -251,13 +251,19 @@ const COMMON_PERMISSION_CODE_FILES: CommonPermissionCodeFileDefinition[] = [
   {
     kind: 'index',
     relativePath: 'item-master/index.ts',
-    exports: ['./management.permission-codes']
+    exports: ['./management.permission-codes', './internal.permission-codes']
   },
   {
     kind: 'const',
     relativePath: 'item-master/management.permission-codes.ts',
     constName: 'ITEM_MASTER_MANAGEMENT_PERMISSION_CODES',
     records: ITEM_MASTER_MANAGEMENT_PERMISSION_CODES
+  },
+  {
+    kind: 'const',
+    relativePath: 'item-master/internal.permission-codes.ts',
+    constName: 'ITEM_MASTER_INTERNAL_PERMISSION_CODES',
+    records: ITEM_MASTER_INTERNAL_PERMISSION_CODES
   },
   {
     kind: 'index',

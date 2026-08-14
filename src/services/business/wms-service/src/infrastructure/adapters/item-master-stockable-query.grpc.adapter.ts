@@ -1,49 +1,42 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
-import { ClientGrpc } from '@nestjs/microservices'
+import { Injectable, OnModuleInit } from '@nestjs/common'
 import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory,
-  GrpcRequestContextStore
+  GrpcRequestContextStore,
+  ITEM_MASTER_INTERNAL_PERMISSION_CODES
 } from '@oes/common/authorization'
 import { SERVICE_NAMES } from '@oes/common/constants'
+import { ItemMasterInternalQueryServiceClient } from '@oes/common/generated/item_master_service'
+import { safeGrpcCall } from '@oes/common/transport'
 import {
-  ITEM_MASTER_QUERY_SERVICE_NAME,
-  ItemMasterQueryServiceClient
-} from '@oes/common/generated/item_master_service'
-import { InjectGrpcClient, safeGrpcCall } from '@oes/common/transport'
-import { StockableItemLookupPort, StockableItemLookupResult } from '../../application/ports/stockable-item-lookup.port'
+  StockableItemLookupPort,
+  StockableItemLookupResult
+} from '../../application/ports/stockable-item-lookup.port'
+import { WmsItemMasterTrustedGrpcClient } from './item-master-trusted-grpc.client'
+import { WmsItemMasterTrustedGrpcExecutionProducer } from './wms-item-master-trusted-grpc-execution.producer'
 
 /** ItemMasterStockableQueryGrpcAdapter validates WMS receipt items through item-master-service query truth. */
 @Injectable()
 export class ItemMasterStockableQueryGrpcAdapter implements StockableItemLookupPort, OnModuleInit {
-  private itemMasterQueryService!: ItemMasterQueryServiceClient
+  private itemMasterQueryService!: ItemMasterInternalQueryServiceClient
 
   constructor(
-    @InjectGrpcClient(SERVICE_NAMES.ITEM_MASTER)
-    private readonly itemMasterClient: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory,
+    private readonly itemMasterClient: WmsItemMasterTrustedGrpcClient,
+    private readonly producer: WmsItemMasterTrustedGrpcExecutionProducer,
     private readonly requestContextStore: GrpcRequestContextStore
   ) {}
 
   onModuleInit(): void {
-    this.itemMasterQueryService = this.itemMasterClient.getService<ItemMasterQueryServiceClient>(
-      ITEM_MASTER_QUERY_SERVICE_NAME
-    )
+    this.itemMasterQueryService = this.itemMasterClient.internalQuery()
   }
 
   async getItemById(tenantId: string, itemId: string): Promise<StockableItemLookupResult | null> {
     const response = await safeGrpcCall(
-      this.itemMasterQueryService.getItem(
-        {
-          tenantId,
-          itemId
-        },
-        this.buildMetadata()
+      this.itemMasterQueryService.resolveStockableItem(
+        { itemId },
+        await this.buildMetadata(tenantId)
       ),
       {
         caller: SERVICE_NAMES.WMS,
-        method: 'ItemMasterQueryService.getItem'
+        method: 'ItemMasterInternalQueryService.resolveStockableItem'
       }
     )
 
@@ -57,32 +50,18 @@ export class ItemMasterStockableQueryGrpcAdapter implements StockableItemLookupP
       itemCode: item.itemCode ?? '',
       itemName: item.itemName ?? '',
       active: item.active ?? false,
-      stockable: item.capabilities?.stockable ?? false
+      stockable: true
     }
   }
 
   /** buildMetadata forwards trace/request context while keeping item lookup on the internal-service boundary. */
-  private buildMetadata() {
+  private buildMetadata(tenantId: string) {
     const current = this.requestContextStore.getContext()
-    if (current?.operatorContext) {
-      return this.metadataFactory.createOperatorScopedMetadata({
-        callerServiceName: SERVICE_NAMES.WMS,
-        operatorContext: {
-          operatorId: current.operatorContext.operator_id,
-          operatorType: current.operatorContext.operator_type,
-          tenantId: current.operatorContext.tenant_id,
-          orgId: current.operatorContext.org_id,
-          operatorRoles: current.operatorContext.operator_roles
-        },
-        requestId: current.requestId,
-        traceId: current.traceId
-      })
-    }
-
-    return this.metadataFactory.createInternalCallMetadata({
-      callerServiceName: SERVICE_NAMES.WMS,
-      requestId: current?.requestId,
-      traceId: current?.traceId
-    })
+    return this.producer.createMetadata(
+      ITEM_MASTER_INTERNAL_PERMISSION_CODES.RESOLVE_STOCKABLE_ITEM,
+      tenantId,
+      current?.requestId,
+      current?.traceId
+    )
   }
 }

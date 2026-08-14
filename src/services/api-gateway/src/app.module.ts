@@ -206,15 +206,6 @@ const siteGrpcLoaderOptions = { longs: String, arrays: true }
               ? `${process.env.IDENTITY_SERVICE_HOST}:${process.env.IDENTITY_SERVICE_PORT}`
               : 'localhost:50052'
         },
-        [SERVICE_NAMES.ITEM_MASTER]: {
-          serviceName: SERVICE_NAMES.ITEM_MASTER,
-          protoPath: resolveCommonProtoPath('item_master_service/item_master.proto'),
-          packageName: 'item_master_service',
-          url:
-            process.env.ITEM_MASTER_SERVICE_HOST && process.env.ITEM_MASTER_SERVICE_PORT
-              ? `${process.env.ITEM_MASTER_SERVICE_HOST}:${process.env.ITEM_MASTER_SERVICE_PORT}`
-              : 'localhost:50058'
-        },
         [SERVICE_NAMES.PROCUREMENT]: {
           serviceName: SERVICE_NAMES.PROCUREMENT,
           protoPath: resolveCommonProtoPath('procurement_service/procurement.proto'),
@@ -260,14 +251,11 @@ const siteGrpcLoaderOptions = { longs: String, arrays: true }
             process.env.WMS_SERVICE_HOST && process.env.WMS_SERVICE_PORT
               ? `${process.env.WMS_SERVICE_HOST}:${process.env.WMS_SERVICE_PORT}`
               : 'localhost:50064'
-        },
+        }
       },
       defaultPoolConfig: { minSize: 3, maxSize: 3 }
     }),
-    GrpcTransportModule.forFeature([
-      SERVICE_NAMES.PERMISSION,
-      SERVICE_NAMES.TENANT_ORG
-    ]),
+    GrpcTransportModule.forFeature([SERVICE_NAMES.PERMISSION, SERVICE_NAMES.TENANT_ORG]),
 
     ThrottlerModule.forRoot({
       throttlers: [

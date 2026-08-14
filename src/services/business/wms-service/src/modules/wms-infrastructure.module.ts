@@ -15,12 +15,32 @@ import { PrismaInventoryRepository } from '../infrastructure/repositories/prisma
 import { PrismaReceiptRepository } from '../infrastructure/repositories/prisma/prisma-receipt.repository'
 import { PrismaWarehouseRepository } from '../infrastructure/repositories/prisma/prisma-warehouse.repository'
 import { PrismaWmsTransactionRunner } from '../infrastructure/transactions/prisma-wms-transaction-runner'
+import { WmsItemMasterTrustedGrpcClient } from '../infrastructure/adapters/item-master-trusted-grpc.client'
+import { WmsItemMasterMachineSourceCredentialClient } from '../infrastructure/adapters/wms-item-master-machine-source-credential.client'
+import { WmsItemMasterMachineSourceCredentialProvider } from '../infrastructure/adapters/wms-item-master-machine-source-credential.provider'
+import { WmsItemMasterExecutionTokenExchangeClient } from '../infrastructure/adapters/wms-item-master-execution-token-exchange.client'
+import { WmsItemMasterTrustedGrpcExecutionProducer } from '../infrastructure/adapters/wms-item-master-trusted-grpc-execution.producer'
 
 /** WmsInfrastructureModule wires the Prisma-backed persistence graph and downstream item and procurement lookup adapters. */
 @Global()
 @Module({
-  imports: [PrismaModule, GrpcTransportModule.forFeature([SERVICE_NAMES.ITEM_MASTER, SERVICE_NAMES.PROCUREMENT])],
+  imports: [PrismaModule, GrpcTransportModule.forFeature([SERVICE_NAMES.PROCUREMENT])],
   providers: [
+    WmsItemMasterTrustedGrpcClient,
+    WmsItemMasterMachineSourceCredentialClient,
+    WmsItemMasterMachineSourceCredentialProvider,
+    WmsItemMasterExecutionTokenExchangeClient,
+    {
+      provide: WmsItemMasterTrustedGrpcExecutionProducer,
+      useFactory: (
+        source: WmsItemMasterMachineSourceCredentialProvider,
+        exchange: WmsItemMasterExecutionTokenExchangeClient
+      ) => new WmsItemMasterTrustedGrpcExecutionProducer(source, exchange),
+      inject: [
+        WmsItemMasterMachineSourceCredentialProvider,
+        WmsItemMasterExecutionTokenExchangeClient
+      ]
+    },
     PrismaWarehouseRepository,
     PrismaReceiptRepository,
     PrismaInventoryRepository,
@@ -66,6 +86,8 @@ import { PrismaWmsTransactionRunner } from '../infrastructure/transactions/prism
     PrismaWmsTransactionRunner,
     ItemMasterStockableQueryGrpcAdapter,
     ProcurementReceivingExpectationGrpcAdapter,
+    WmsItemMasterTrustedGrpcClient,
+    WmsItemMasterTrustedGrpcExecutionProducer,
     TOKENS.WAREHOUSE_REPOSITORY,
     TOKENS.RECEIPT_REPOSITORY,
     TOKENS.INVENTORY_REPOSITORY,

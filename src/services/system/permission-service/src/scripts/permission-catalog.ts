@@ -420,6 +420,21 @@ const itemMasterManagement = definePermissionGroup(Modules.ITEM_MASTER_SERVICE, 
   }
 })
 
+const itemMasterInternal = definePermissionGroup(Modules.ITEM_MASTER_SERVICE, {
+  RESOLVE_MANUFACTURABLE_ITEM: {
+    code: 'item_master.internal.manufacturable_item.resolve',
+    description: '解析可制造 Item'
+  },
+  RESOLVE_STOCKABLE_ITEM: {
+    code: 'item_master.internal.stockable_item.resolve',
+    description: '解析可库存 Item'
+  },
+  RESOLVE_PURCHASABLE_ITEM: {
+    code: 'item_master.internal.purchasable_item.resolve',
+    description: '解析可采购 Item'
+  }
+})
+
 const crmManagement = definePermissionGroup(Modules.CRM_SERVICE, {
   READ_CRM_ACCOUNT: {
     code: 'crm.account.read',
@@ -1051,16 +1066,39 @@ const siteManagement = definePermissionGroup(Modules.SITE_SERVICE, {
 })
 
 const siteManagementInternal = definePermissionGroup(Modules.SITE_SERVICE, {
-  RUNTIME_CAPABILITY_REGISTER: { code: 'site.internal.runtime.capability.register', description: '注册 Site Runtime 页面能力', kind: PermissionKind.INTERNAL, externalApiEligible: false },
-  RUNTIME_PUBLICATION_READ: { code: 'site.internal.runtime.publication.read', description: '读取 Site Runtime 已发布视图', kind: PermissionKind.INTERNAL, externalApiEligible: false },
-  RUNTIME_SYNC_REPORT: { code: 'site.internal.runtime.sync.report', description: '上报 Site Runtime 同步结果', kind: PermissionKind.INTERNAL, externalApiEligible: false },
-  RUNTIME_PREVIEW_READ: { code: 'site.internal.runtime.preview.read', description: '读取 Site Runtime 预览视图', kind: PermissionKind.INTERNAL, externalApiEligible: false }
+  RUNTIME_CAPABILITY_REGISTER: {
+    code: 'site.internal.runtime.capability.register',
+    description: '注册 Site Runtime 页面能力',
+    kind: PermissionKind.INTERNAL,
+    externalApiEligible: false
+  },
+  RUNTIME_PUBLICATION_READ: {
+    code: 'site.internal.runtime.publication.read',
+    description: '读取 Site Runtime 已发布视图',
+    kind: PermissionKind.INTERNAL,
+    externalApiEligible: false
+  },
+  RUNTIME_SYNC_REPORT: {
+    code: 'site.internal.runtime.sync.report',
+    description: '上报 Site Runtime 同步结果',
+    kind: PermissionKind.INTERNAL,
+    externalApiEligible: false
+  },
+  RUNTIME_PREVIEW_READ: {
+    code: 'site.internal.runtime.preview.read',
+    description: '读取 Site Runtime 预览视图',
+    kind: PermissionKind.INTERNAL,
+    externalApiEligible: false
+  }
 })
 
 const assetSiteMedia = definePermissionGroup(Modules.ASSET_SERVICE, {
   UPLOAD: { code: 'asset.site_media.upload', description: '上传受控 Site Media' },
   READ: { code: 'asset.site_media.read', description: '读取受控 Site Media' },
-  DELIVERY_MANAGE: { code: 'asset.site_media.delivery.manage', description: '管理 Site Media 交付绑定' },
+  DELIVERY_MANAGE: {
+    code: 'asset.site_media.delivery.manage',
+    description: '管理 Site Media 交付绑定'
+  },
   ARCHIVE: { code: 'asset.site_media.archive', description: '归档 Site Media' },
   TAKEDOWN: { code: 'asset.site_media.takedown', description: '下架 Site Media' },
   DELETE: { code: 'asset.site_media.delete', description: '删除 Site Media' }
@@ -1076,9 +1114,24 @@ const assetInternal = definePermissionGroup(Modules.ASSET_SERVICE, {
 })
 
 const assetSiteMediaInternal = definePermissionGroup(Modules.ASSET_SERVICE, {
-  RESOLVE: { code: 'asset.internal.site_media.resolve', description: '解析 Site 发布媒体', kind: PermissionKind.INTERNAL, externalApiEligible: false },
-  PUBLICATION_PROTECT: { code: 'asset.internal.site_media.publication.protect', description: '保护 Site 发布媒体引用', kind: PermissionKind.INTERNAL, externalApiEligible: false },
-  PUBLICATION_RELEASE: { code: 'asset.internal.site_media.publication.release', description: '释放 Site 发布媒体引用保护', kind: PermissionKind.INTERNAL, externalApiEligible: false }
+  RESOLVE: {
+    code: 'asset.internal.site_media.resolve',
+    description: '解析 Site 发布媒体',
+    kind: PermissionKind.INTERNAL,
+    externalApiEligible: false
+  },
+  PUBLICATION_PROTECT: {
+    code: 'asset.internal.site_media.publication.protect',
+    description: '保护 Site 发布媒体引用',
+    kind: PermissionKind.INTERNAL,
+    externalApiEligible: false
+  },
+  PUBLICATION_RELEASE: {
+    code: 'asset.internal.site_media.publication.release',
+    description: '释放 Site 发布媒体引用保护',
+    kind: PermissionKind.INTERNAL,
+    externalApiEligible: false
+  }
 })
 
 const notificationInternal = definePermissionGroup(Modules.NOTIFICATION_SERVICE, {
@@ -1091,12 +1144,42 @@ const notificationInternal = definePermissionGroup(Modules.NOTIFICATION_SERVICE,
 })
 
 const partyInternal = definePermissionGroup(Modules.PARTY_SERVICE, {
-  REGISTER_TENANT_PARTY: { code: 'party.internal.register_tenant_party', description: '注册租户主体', kind: PermissionKind.INTERNAL, externalApiEligible: false },
-  DEACTIVATE_TENANT_PARTY: { code: 'party.internal.deactivate_tenant_party', description: '停用租户主体', kind: PermissionKind.INTERNAL, externalApiEligible: false },
-  GET_TENANT_PARTY_BY_ID: { code: 'party.internal.get_tenant_party_by_id', description: '按 ID 查询租户主体', kind: PermissionKind.INTERNAL, externalApiEligible: false },
-  RESOLVE_TENANT_PARTY_BY_IDENTIFIER: { code: 'party.internal.resolve_tenant_party_by_identifier', description: '按标识解析租户主体', kind: PermissionKind.INTERNAL, externalApiEligible: false },
-  RESOLVE_TENANT_PARTY_FOR_CONSUMER: { code: 'party.internal.resolve_tenant_party_for_consumer', description: '解析消费者租户主体证据', kind: PermissionKind.INTERNAL, externalApiEligible: false },
-  SEARCH_TENANT_PARTY_CANDIDATES: { code: 'party.internal.search_tenant_party_candidates', description: '搜索租户主体候选', kind: PermissionKind.INTERNAL, externalApiEligible: false }
+  REGISTER_TENANT_PARTY: {
+    code: 'party.internal.register_tenant_party',
+    description: '注册租户主体',
+    kind: PermissionKind.INTERNAL,
+    externalApiEligible: false
+  },
+  DEACTIVATE_TENANT_PARTY: {
+    code: 'party.internal.deactivate_tenant_party',
+    description: '停用租户主体',
+    kind: PermissionKind.INTERNAL,
+    externalApiEligible: false
+  },
+  GET_TENANT_PARTY_BY_ID: {
+    code: 'party.internal.get_tenant_party_by_id',
+    description: '按 ID 查询租户主体',
+    kind: PermissionKind.INTERNAL,
+    externalApiEligible: false
+  },
+  RESOLVE_TENANT_PARTY_BY_IDENTIFIER: {
+    code: 'party.internal.resolve_tenant_party_by_identifier',
+    description: '按标识解析租户主体',
+    kind: PermissionKind.INTERNAL,
+    externalApiEligible: false
+  },
+  RESOLVE_TENANT_PARTY_FOR_CONSUMER: {
+    code: 'party.internal.resolve_tenant_party_for_consumer',
+    description: '解析消费者租户主体证据',
+    kind: PermissionKind.INTERNAL,
+    externalApiEligible: false
+  },
+  SEARCH_TENANT_PARTY_CANDIDATES: {
+    code: 'party.internal.search_tenant_party_candidates',
+    description: '搜索租户主体候选',
+    kind: PermissionKind.INTERNAL,
+    externalApiEligible: false
+  }
 })
 
 export const PERMISSION_MANAGEMENT_PERMISSION_CODES = permissionManagement.codes
@@ -1112,6 +1195,7 @@ export const IDENTITY_TENANT_PERMISSION_CODES = {} as const
 export const TENANT_ORG_MANAGEMENT_PERMISSION_CODES = tenantOrgManagement.codes
 export const HR_MANAGEMENT_PERMISSION_CODES = hrManagement.codes
 export const ITEM_MASTER_MANAGEMENT_PERMISSION_CODES = itemMasterManagement.codes
+export const ITEM_MASTER_INTERNAL_PERMISSION_CODES = itemMasterInternal.codes
 export const CRM_MANAGEMENT_PERMISSION_CODES = crmManagement.codes
 export const SRM_MANAGEMENT_PERMISSION_CODES = srmManagement.codes
 export const SALES_MANAGEMENT_PERMISSION_CODES = salesManagement.codes

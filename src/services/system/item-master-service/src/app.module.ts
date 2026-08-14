@@ -6,6 +6,7 @@ import { RegistryModule } from '@oes/common/registry'
 import { PrismaModule } from './infrastructure/prisma/prisma.module'
 import { ItemMasterManagementModule } from './modules/item-master-management/item-master-management.module'
 import { ItemMasterQueryModule } from './modules/item-master-query/item-master-query.module'
+import { ItemMasterTrustedExecutionModule } from './modules/item-master-trusted-execution.module'
 
 /** AppModule wires item-master-service modules and service-scoped logging metadata. */
 @Module({
@@ -18,6 +19,7 @@ import { ItemMasterQueryModule } from './modules/item-master-query/item-master-q
     AuthorizationModule,
     RegistryModule,
     PrismaModule,
+    ItemMasterTrustedExecutionModule,
     ItemMasterQueryModule,
     ItemMasterManagementModule
   ]

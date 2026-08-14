@@ -1,6 +1,4 @@
 import { Global, Module } from '@nestjs/common'
-import { SERVICE_NAMES } from '@oes/common/constants'
-import { GrpcTransportModule } from '@oes/common/transport'
 import { SrmTrustedExecutionModule } from './srm-trusted-execution.module'
 import { TOKENS } from '../common/constants/tokens'
 import { ItemMasterQueryGrpcAdapter } from '../infrastructure/adapters/item-master-query-grpc.adapter'
@@ -12,12 +10,32 @@ import { PrismaSupplierProfileRepository } from '../infrastructure/repositories/
 import { PrismaSupplierAddressRepository } from '../infrastructure/repositories/prisma/prisma-supplier-address.repository'
 import { PrismaSupplierContactRepository } from '../infrastructure/repositories/prisma/prisma-supplier-contact.repository'
 import { PrismaSrmTransactionRunner } from '../infrastructure/transactions/prisma-srm-transaction-runner'
+import { SrmItemMasterTrustedGrpcClient } from '../infrastructure/adapters/item-master-trusted-grpc.client'
+import { SrmItemMasterMachineSourceCredentialClient } from '../infrastructure/adapters/srm-item-master-machine-source-credential.client'
+import { SrmItemMasterMachineSourceCredentialProvider } from '../infrastructure/adapters/srm-item-master-machine-source-credential.provider'
+import { SrmItemMasterExecutionTokenExchangeClient } from '../infrastructure/adapters/srm-item-master-execution-token-exchange.client'
+import { SrmItemMasterTrustedGrpcExecutionProducer } from '../infrastructure/adapters/srm-item-master-trusted-grpc-execution.producer'
 
 /** SrmInfrastructureModule wires the Prisma-backed persistence graph and downstream party lookup adapter. */
 @Global()
 @Module({
-  imports: [PrismaModule, SrmTrustedExecutionModule, GrpcTransportModule.forFeature([SERVICE_NAMES.ITEM_MASTER])],
+  imports: [PrismaModule, SrmTrustedExecutionModule],
   providers: [
+    SrmItemMasterTrustedGrpcClient,
+    SrmItemMasterMachineSourceCredentialClient,
+    SrmItemMasterMachineSourceCredentialProvider,
+    SrmItemMasterExecutionTokenExchangeClient,
+    {
+      provide: SrmItemMasterTrustedGrpcExecutionProducer,
+      useFactory: (
+        source: SrmItemMasterMachineSourceCredentialProvider,
+        exchange: SrmItemMasterExecutionTokenExchangeClient
+      ) => new SrmItemMasterTrustedGrpcExecutionProducer(source, exchange),
+      inject: [
+        SrmItemMasterMachineSourceCredentialProvider,
+        SrmItemMasterExecutionTokenExchangeClient
+      ]
+    },
     PrismaSupplierProfileRepository,
     PrismaSupplierContactRepository,
     PrismaSupplierAddressRepository,
@@ -69,6 +87,8 @@ import { PrismaSrmTransactionRunner } from '../infrastructure/transactions/prism
     PrismaSrmTransactionRunner,
     PartyQueryGrpcAdapter,
     ItemMasterQueryGrpcAdapter,
+    SrmItemMasterTrustedGrpcClient,
+    SrmItemMasterTrustedGrpcExecutionProducer,
     TOKENS.SUPPLIER_PROFILE_REPOSITORY,
     TOKENS.SUPPLIER_CONTACT_REPOSITORY,
     TOKENS.SUPPLIER_ADDRESS_REPOSITORY,
