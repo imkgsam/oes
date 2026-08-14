@@ -8,12 +8,11 @@
 
 - 接口类型：内部 gRPC
 - 服务：`PurchaseRequestQueryService`
-- 所有 RPC 显式带 `tenant_id`
-- 场景适用时显式带 `org_id`
-- 所有 RPC 都要求：
-  - internal service context
-  - operator context
-  - trace context
+- 所有 RPC 固定为 `BUSINESS / HUMAN / WEB`
+- tenant/org/operator/trace/audit 只来自 verified ET/transport context；request 不携带 authority context
+- audience 固定为 `urn:oes:service:procurement-service`
+- `GetPurchaseRequest` 要求 `procurement.purchase_request.get_by_id`
+- `SearchPurchaseRequests` 要求 `procurement.purchase_request.list`
 
 phase 1 query 只覆盖：
 
@@ -157,7 +156,6 @@ phase 1 列表读取最小 shape：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `purchase_request_id` | 是 | 目标 PR 标识 |
 
 响应最小 shape：
@@ -179,8 +177,6 @@ phase 1 列表读取最小 shape：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `org_id` | 否 | 按组织范围过滤 |
 | `keyword` | 否 | 按 `request_no / title / requester` 轻量检索 |
 | `request_type` | 否 | 按申请类型过滤 |
 | `status` | 否 | 按状态过滤 |
@@ -218,7 +214,7 @@ phase 1 query 统一暴露以下错误面：
 | 错误码 | 语义 |
 | --- | --- |
 | `INVALID_ARGUMENT` | 请求字段缺失、格式非法、分页参数非法或搜索条件冲突 |
-| `UNAUTHENTICATED` | 缺少有效 internal service context、operator context 或 trace context |
+| `UNAUTHENTICATED` | 缺少有效 Procurement audience ET 或 mTLS/`cnf` binding |
 | `PERMISSION_DENIED` | 调用方存在上下文，但没有读取该 tenant / org / PR 的权限 |
 | `NOT_FOUND` | `GetPurchaseRequest` 的目标 PR 不存在 |
 | `FAILED_PRECONDITION` | 资源存在，但当前读取前提不满足 |

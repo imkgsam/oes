@@ -120,12 +120,14 @@
   - `procurement-service -> item-master-service.ResolvePurchasableItem` 校验标准 `Item` 的 `active + purchasable`；其他 Item 查询/解析仍须使用其各自已冻结契约，不扩大该 INTERNAL RPC
   - `api-gateway -> procurement-service` 查询 `PR / PO / discrepancy` 当前摘要
   - `procurement-service -> permission-service` 的权限、scope 与操作校验
+  - `wms-service -> procurement-service.ResolveReceivingExpectationForReceipt` 在 `PostReceipt` 前以 `INTERNAL / HUMAN_OBO` 校验 expectation 当前 tenant 可见性；WMS 不复用 Gateway-only `GetReceivingExpectation`
 - 异步：
   - `procurement-service -> downstream consumers` 的 `PR / PO / PO change / expectation / discrepancy` 已发生事实扩散
   - `wms-service -> procurement-service` 的实际收货结果回流，用于更新采购侧 expectation / discrepancy 视图
   - `procurement-service -> finance-service` 的采购交易与收货事实扩散，供 future `AP` / invoice matching 使用
 - 阶段约束：
   - phase 1 冻结协同方向与 owner 边界，不冻结完整事件目录、payload 字段或 proto 细节；这些内容进入 future `PROCUREMENT-CONTRACT`
+  - WMS dedicated Procurement caller 可先准备，但在 WMS 自身 trusted inbound 建立 verified HUMAN scope 前不得激活或保留 legacy fallback
 
 ## 6. 真相归属
 

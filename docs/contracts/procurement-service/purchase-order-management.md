@@ -6,18 +6,15 @@
 
 ## 2. 通用上下文要求
 
-所有 phase 1 management command 统一要求：
+所有 phase 1 management command 都是 `BUSINESS / HUMAN / WEB`：
 
-- `tenant_id`
-- 场景适用时的 `org_id`
-- internal service context
-- operator context
-- trace context
-- audit context
+- 只接受 audience 为 `urn:oes:service:procurement-service`、与 mTLS client certificate 绑定的有效 ExecutionToken
+- tenant、适用时的 org、operator、trace 与 audit 都由 verified claims 派生
+- request body 与 legacy metadata 中的同名字段均不再是 authority
 
 补充约束：
 
-- 本文件只冻结“必须要求这些上下文存在”，不展开完整内部字段结构
+- ExecutionToken 或 claims-derived context 缺失、无效、过期、audience/certificate 不匹配时 fail closed
 - 所有 command 都必须按 command 语义处理，不得被调用方当作 query 或同步缓存接口使用
 - phase 1 不冻结 command metadata header、幂等键设计、审计落库结构或重试策略
 
@@ -80,8 +77,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `org_id` | 否 | 适用时的组织边界 |
 | `supplier_id` | 是 | 目标供应商标识 |
 | `currency_code` | 是 | 交易货币摘要 |
 | `payment_terms_snapshot` | 否 | optional 本次采购付款条款快照 |
@@ -110,7 +105,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `purchase_order_id` | 是 | 目标 PO 标识 |
 | `supplier_id` | 是 | 目标供应商标识 |
 | `currency_code` | 是 | 交易货币摘要 |
@@ -169,7 +163,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `purchase_order_id` | 是 | 目标 PO 标识 |
 | `issue_comment` | 否 | optional 发单备注 |
 
@@ -201,7 +194,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `purchase_order_id` | 是 | 目标 PO 标识 |
 | `external_reference` | 否 | optional 供应商回执号 |
 | `comment` | 否 | optional 确认备注 |
@@ -226,7 +218,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `purchase_order_id` | 是 | 目标 PO 标识 |
 | `change_type` | 是 | 变更类型摘要 |
 | `change_reason` | 是 | 变更原因 |
@@ -261,7 +252,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `purchase_order_id` | 是 | 目标 PO 标识 |
 | `cancel_reason` | 是 | 取消原因 |
 
@@ -284,7 +274,7 @@ phase 1 management 统一暴露以下错误面：
 | 错误码 | 语义 |
 | --- | --- |
 | `INVALID_ARGUMENT` | 请求字段缺失、格式非法、allocation 不完整、数量非法、`TEXT` 行缺少描述、allocation source 非法、非 `GENERAL_STOCK` 缺少 `source_reference_id`，或超额 general stock 缺少 reason |
-| `UNAUTHENTICATED` | 缺少有效 internal service context、operator context、trace context 或 audit context |
+| `UNAUTHENTICATED` | 缺少有效且 certificate-bound 的 Procurement ExecutionToken，或 token/claims-derived context 校验失败 |
 | `PERMISSION_DENIED` | 调用方存在上下文，但没有在该 tenant / org / PO 上执行命令的权限 |
 | `NOT_FOUND` | 目标 `PurchaseOrder / PurchaseOrderLine / PurchaseRequest / PurchaseRequestLine / Item / SupplierProfile` 不存在 |
 | `ALREADY_EXISTS` | 当前命令违反唯一性约束 |

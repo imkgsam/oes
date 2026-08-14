@@ -1,5 +1,7 @@
 # wms-service 职责卡
 
+Last Updated: 2026-08-14
+
 ## 1. Purpose
 
 `wms-service` 是 OES 的仓储执行与库存真相服务，负责回答“货现在在哪里、还有多少、处于什么状态、能不能再被别人使用、下一步仓内应该如何处理与交付”。
@@ -63,6 +65,8 @@
 - `item-master-service`
   - 提供 `ItemModel`、active + stockable `Item`、`PackagingSpec` 与 `PACKAGING_BOM` 引用基础。
   - WMS 不复制 Item 主数据，也不建立 `StockItemType` 替代 Item truth。
+- `procurement-service`
+  - 提供 `ReceivingExpectation` 存在性与受控 receipt projection；WMS 不复制 expectation、PO 或 discrepancy resolution 真相。
 
 ## 7. Downstream / Published Facts
 
@@ -90,3 +94,5 @@
 - 包装作业系统上归 WMS，人员组织归属暂不冻结。
 - 打孔、修补、试水等后处理执行真相归 `mes-service`，WMS 只负责仓储侧送返与状态控制。
 - 所有正式库存都按 `Item` 汇总，`StockItemType` 不作为新稳定设计概念。
+- `PostReceipt` 显式引用 expectation 时，只通过 Procurement 的窄 `ResolveReceivingExpectationForReceipt` INTERNAL RPC 校验当前 tenant 可见性并取得 target warehouse 摘要；不能复用 Procurement 的 Gateway BUSINESS 查询。
+- WMS→Procurement 的执行形态固定为 `HUMAN_OBO`：保留发起 `PostReceipt` 的 HUMAN subject，`act` 为 exact `wms-service` SYSTEM MACHINE actor。该 caller 在 WMS trusted inbound 完成前保持 `PREPARED_NOT_ACTIVATED`，不存在 MACHINE_ROOT、body tenant 或 legacy metadata fallback。

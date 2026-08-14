@@ -686,6 +686,15 @@ const procurementManagement = definePermissionGroup(Modules.PROCUREMENT_SERVICE,
   }
 })
 
+const procurementInternal = definePermissionGroup(Modules.PROCUREMENT_SERVICE, {
+  RESOLVE_RECEIVING_EXPECTATION_FOR_RECEIPT: {
+    code: 'procurement.internal.receiving_expectation.resolve_for_receipt',
+    description: '为 WMS 收货引用解析最小 ReceivingExpectation 资格事实',
+    kind: PermissionKind.INTERNAL,
+    externalApiEligible: false
+  }
+})
+
 const financeManagement = definePermissionGroup(Modules.FINANCE_SERVICE, {
   LIST_FINANCIAL_ACCOUNT: {
     code: 'finance.financial_account.list',
@@ -1217,6 +1226,7 @@ export const SRM_INTERNAL_PERMISSION_CODES = srmInternal.codes
 export const SALES_MANAGEMENT_PERMISSION_CODES = salesManagement.codes
 export const SALES_PRICING_PERMISSION_CODES = salesPricingManagement.codes
 export const PROCUREMENT_MANAGEMENT_PERMISSION_CODES = procurementManagement.codes
+export const PROCUREMENT_INTERNAL_PERMISSION_CODES = procurementInternal.codes
 export const FINANCE_MANAGEMENT_PERMISSION_CODES = financeManagement.codes
 export const PUBLIC_ENTRY_SHORT_LINK_PERMISSION_CODES = publicEntryShortLinkManagement.codes
 export const PUBLIC_ENTRY_BUSINESS_CARD_PERMISSION_CODES = publicEntryBusinessCardManagement.codes
@@ -1278,6 +1288,7 @@ export const PERMISSION_CODE_SEED_ITEMS: PermissionSeedItem[] = [
   ...salesManagement.items,
   ...salesPricingManagement.items,
   ...procurementManagement.items,
+  ...procurementInternal.items,
   ...financeManagement.items,
   ...publicEntryShortLinkManagement.items,
   ...publicEntryBusinessCardManagement.items,

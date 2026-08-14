@@ -41,6 +41,8 @@
 ### 3.3 Procurement 边界
 
 - `Receipt` 或 `ReceiptLine` 可以 optional 引用 `ReceivingExpectation`。
+- 显式 expectation 引用的校验只走 Procurement 的窄 `ResolveReceivingExpectationForReceipt`，固定为 `INTERNAL / HUMAN_OBO`；WMS actor 必须是 `wms-service`，不得复用 Gateway-only `GetReceivingExpectation`。
+- 当前 dedicated caller 只准备不激活；WMS trusted inbound 完成后才可用 verified HUMAN 上游 proof 换取 Procurement audience ET，缺少 proof/credential/ET 时 fail closed，禁止 legacy fallback。
 - WMS 记录的是 physical discrepancy fact，不是 supplier-facing resolution。
 - `PostReceipt` 成功后必须 emits/records receipt summary for Procurement。
 - `Receipt.status` 绝不能并入 `ReceivingExpectation` 状态机。
@@ -177,7 +179,7 @@
   - `target_location_id` 当前存在、属于该 `warehouse_id`，并承担库存责任
   - `item_id` 当前存在
   - `item_id` 当前具备 `stockable` 能力
-  - 若显式引用 `receiving_expectation_id`，则该 expectation 当前存在且 tenant 可见
+  - 若显式引用 `receiving_expectation_id`，则通过 `ResolveReceivingExpectationForReceipt` 证明该 expectation 在 verified tenant 中存在；返回 projection 不新增 active/open 业务规则
 - 本命令成功后必须：
   - 为每条 receipt line 生成对应 `StockLedgerEntry`
   - 刷新受影响的 `InventoryBalance`

@@ -25,21 +25,17 @@
 
 ## 2. 通用上下文要求
 
-所有 phase 1 receiving RPC 统一要求：
+现有 phase 1 receiving query/management RPC 都是 `BUSINESS / HUMAN / WEB`：
 
-- `tenant_id`
-- 场景适用时的 `org_id`
-- internal service context
-- operator context
-- trace context
+- 只接受 audience 为 `urn:oes:service:procurement-service`、与 mTLS client certificate 绑定的有效 ExecutionToken
+- tenant、适用时的 org、operator、trace 与 audit 都由 verified claims 派生
+- request body 与 legacy metadata 中的同名字段均不再是 authority
 
-所有 management command 额外要求：
-
-- audit context
+WMS 只使用 [internal-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/procurement-service/internal-query.md) 中的窄 `ResolveReceivingExpectationForReceipt`，不得复用本文件的 Gateway-only query。
 
 补充约束：
 
-- 本文件只冻结“必须要求这些上下文存在”，不展开完整内部字段结构
+- ExecutionToken 或 claims-derived context 缺失、无效、过期、audience/certificate 不匹配时 fail closed
 - 不冻结 event payload、inventory adjustment contract 或 WMS message schema
 
 ## 3. 边界与基线语义
@@ -186,7 +182,6 @@ phase 1 列表读取最小 shape：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `receiving_expectation_id` | 是 | 目标 expectation 标识 |
 
 响应最小 shape：
@@ -208,8 +203,6 @@ phase 1 列表读取最小 shape：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `org_id` | 否 | 按组织范围过滤 |
 | `purchase_order_id` | 否 | 按 PO 过滤 |
 | `supplier_id` | 否 | 按供应商过滤 |
 | `status` | 否 | 按 expectation 状态过滤 |
@@ -245,7 +238,6 @@ phase 1 列表读取最小 shape：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `purchase_order_id` | 是 | 所属 PO 标识 |
 | `purchase_order_line_id` | 是 | 所属 PO 行标识 |
 | `allocation_grouping_key` | 是 | expectation 分组键 |
@@ -276,7 +268,6 @@ phase 1 列表读取最小 shape：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `receiving_expectation_id` | 是 | 目标 expectation 标识 |
 | `receiving_discrepancy_id` | 是 | 目标 discrepancy 标识 |
 | `resolution_code` | 是 | 必须与 discrepancy type 匹配的 phase 1 resolution code |
@@ -305,7 +296,7 @@ phase 1 receiving 统一暴露以下错误面：
 | 错误码 | 语义 |
 | --- | --- |
 | `INVALID_ARGUMENT` | 请求字段缺失、格式非法、数量非法、expectation grouping 非法，或 resolution code 与 discrepancy type 不匹配 |
-| `UNAUTHENTICATED` | 缺少有效 internal service context、operator context、trace context 或 audit context |
+| `UNAUTHENTICATED` | 缺少有效且 certificate-bound 的 Procurement ExecutionToken，或 token/claims-derived context 校验失败 |
 | `PERMISSION_DENIED` | 调用方存在上下文，但没有在该 tenant / org / expectation 上执行命令或读取的权限 |
 | `NOT_FOUND` | 目标 `ReceivingExpectation / ReceivingDiscrepancy / PurchaseOrder / PurchaseOrderLine` 不存在 |
 | `ALREADY_EXISTS` | 当前命令违反唯一性约束，例如重复创建 current expectation |

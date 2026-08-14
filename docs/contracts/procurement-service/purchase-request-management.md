@@ -6,18 +6,11 @@
 
 ## 2. 通用上下文要求
 
-所有 phase 1 management command 统一要求：
-
-- `tenant_id`
-- 场景适用时的 `org_id`
-- internal service context
-- operator context
-- trace context
-- audit context
+所有 phase 1 PR management command 固定为 `BUSINESS / HUMAN / WEB`，要求 Procurement audience ET、exact existing Code 与 mTLS/`cnf` binding。tenant/org/operator/trace/audit 只来自 verified ET/transport context；request 不携带 authority context。
 
 补充约束：
 
-- 本文件只冻结“必须要求这些上下文存在”，不展开完整内部字段结构
+- verified operator/trace/audit 驱动现有事务内 audit envelope；业务 reason/comment 不能覆盖 trusted identity/source
 - 所有 command 都必须按 command 语义处理，不得被调用方当作 query 或草稿缓存接口使用
 - phase 1 不冻结 command metadata header、幂等键设计、重试策略或审计落库结构
 
@@ -66,8 +59,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `org_id` | 否 | 适用时的组织边界 |
 | `request_type` | 是 | `DEPARTMENTAL / SALES_DEDICATED / PRODUCTION_PACKAGING / MAINTENANCE / SAMPLE` |
 | `title` | 否 | optional 采购主题 |
 | `reason` | 否 | optional 申请原因 |
@@ -106,7 +97,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `purchase_request_id` | 是 | 目标 PR 标识 |
 | `title` | 否 | 更新后的主题 |
 | `reason` | 否 | 更新后的原因 |
@@ -133,7 +123,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `purchase_request_id` | 是 | 目标 PR 标识 |
 | `submission_comment` | 否 | optional 提交备注 |
 
@@ -157,7 +146,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `purchase_request_id` | 是 | 目标 PR 标识 |
 | `decision` | 是 | `APPROVED / REJECTED` |
 | `comment` | 否 | optional 决策说明 |
@@ -183,7 +171,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `purchase_request_id` | 是 | 目标 PR 标识 |
 | `cancel_reason` | 是 | 取消原因 |
 
@@ -207,7 +194,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `target_purchase_order_id` | 否 | 如传入则并入现有 `DRAFT PO`；不传入则创建新的 `DRAFT PO` |
 | `supplier_id` | 否 | 创建新 `PO` 时必填；并入现有 `PO` 时由目标 `PO` 决定 |
 | `source_lines[]` | 是 | 进入 `PO` 的 PR 行选择，可来自一个或多个 `APPROVED / PARTIALLY_CONVERTED PR` |
@@ -259,7 +245,7 @@ phase 1 management 统一暴露以下错误面：
 | 错误码 | 语义 |
 | --- | --- |
 | `INVALID_ARGUMENT` | 请求字段缺失、格式非法、`TEXT` 行缺少描述、`STANDARD_ITEM` 行缺少 `item_id`，或数量 / 计量单位非法 |
-| `UNAUTHENTICATED` | 缺少有效 internal service context、operator context、trace context 或 audit context |
+| `UNAUTHENTICATED` | 缺少有效 Procurement audience ET 或 mTLS/`cnf` binding |
 | `PERMISSION_DENIED` | 调用方存在上下文，但没有在该 tenant / org / PR 上执行命令的权限 |
 | `NOT_FOUND` | 目标 `PurchaseRequest / PurchaseRequestLine / PurchaseOrder / Item / SupplierProfile` 不存在 |
 | `ALREADY_EXISTS` | 当前命令违反唯一性约束 |

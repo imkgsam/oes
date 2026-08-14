@@ -27,6 +27,7 @@ import {
   PERMISSION_MANAGEMENT_PERMISSION_CODES,
   PARTY_INTERNAL_PERMISSION_CODES,
   PROCUREMENT_MANAGEMENT_PERMISSION_CODES,
+  PROCUREMENT_INTERNAL_PERMISSION_CODES,
   PUBLIC_ENTRY_BUSINESS_CARD_PERMISSION_CODES,
   PUBLIC_ENTRY_SHORT_LINK_PERMISSION_CODES,
   ROLE_INSTANCE_PERMISSION_CODES,
@@ -332,13 +333,19 @@ const COMMON_PERMISSION_CODE_FILES: CommonPermissionCodeFileDefinition[] = [
   {
     kind: 'index',
     relativePath: 'procurement/index.ts',
-    exports: ['./management.permission-codes']
+    exports: ['./management.permission-codes', './internal.permission-codes']
   },
   {
     kind: 'const',
     relativePath: 'procurement/management.permission-codes.ts',
     constName: 'PROCUREMENT_MANAGEMENT_PERMISSION_CODES',
     records: PROCUREMENT_MANAGEMENT_PERMISSION_CODES
+  },
+  {
+    kind: 'const',
+    relativePath: 'procurement/internal.permission-codes.ts',
+    constName: 'PROCUREMENT_INTERNAL_PERMISSION_CODES',
+    records: PROCUREMENT_INTERNAL_PERMISSION_CODES
   },
   {
     kind: 'index',

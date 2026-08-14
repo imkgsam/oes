@@ -15,6 +15,7 @@ import {
   IDENTITY_ACCOUNT_PERMISSION_CODES,
   ITEM_MASTER_MANAGEMENT_PERMISSION_CODES,
   PROCUREMENT_MANAGEMENT_PERMISSION_CODES,
+  PROCUREMENT_INTERNAL_PERMISSION_CODES,
   PERMISSION_MANAGEMENT_PERMISSION_CODES,
   SALES_MANAGEMENT_PERMISSION_CODES,
   SRM_MANAGEMENT_PERMISSION_CODES,
@@ -180,6 +181,8 @@ const PERMISSION_DESCRIPTION_BY_CODE: Readonly<Record<string, string>> = {
   'procurement.receiving_expectation.get_by_id': '查看收货预期详情',
   'procurement.receiving_expectation.create': '创建收货预期',
   'procurement.receiving_discrepancy.record_resolution': '记录收货差异处理摘要',
+  'procurement.internal.receiving_expectation.resolve_for_receipt':
+    '为 WMS 收货引用解析最小 ReceivingExpectation 资格事实',
   'finance.financial_account.list': '查看资金账户列表',
   'finance.financial_account.get_by_id': '查看资金账户详情',
   'finance.financial_account.create': '创建资金账户',
@@ -293,6 +296,13 @@ export function buildPermissionSeedItems(): PermissionSeedItem[] {
       code,
       module: Modules.PROCUREMENT_SERVICE,
       description: getPermissionDescription(code)
+    })),
+    ...valuesOf(PROCUREMENT_INTERNAL_PERMISSION_CODES).map((code) => ({
+      code,
+      module: Modules.PROCUREMENT_SERVICE,
+      description: getPermissionDescription(code),
+      kind: PermissionKind.INTERNAL,
+      externalApiEligible: false
     })),
     ...valuesOf(FINANCE_MANAGEMENT_PERMISSION_CODES).map((code) => ({
       code,

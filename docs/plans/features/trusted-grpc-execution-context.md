@@ -4,7 +4,7 @@
 
 **Goal:** Replace every repository gRPC request-body/operator-header trust path with mTLS workload identity, Auth / STS ExecutionToken, explicit RPC authorization mode and trusted multi-hop propagation.
 
-**Architecture:** Common supplies one generated metadata signature and one client/server runtime. Migration proceeds target service by target service: prepare all callers, switch one target to Token-only enforcement, run service-level acceptance, delete that target’s legacy trust path, then continue. Only an irreducible strongly connected service group may share one server cutover; all 21 services and the current 560-RPC baseline plus five frozen MACHINE Auth RPCs, three frozen Item Master INTERNAL eligibility RPCs and two frozen SRM INTERNAL eligibility RPCs must reach zero legacy references before the capability closes.
+**Architecture:** Common supplies one generated metadata signature and one client/server runtime. Migration proceeds target service by target service: prepare all callers, switch one target to Token-only enforcement, run service-level acceptance, delete that target’s legacy trust path, then continue. Only an irreducible strongly connected service group may share one server cutover; all 21 services and the current 560-RPC baseline plus five frozen MACHINE Auth RPCs, three frozen Item Master INTERNAL eligibility RPCs, two frozen SRM INTERNAL eligibility RPCs and one frozen Procurement INTERNAL eligibility RPC must reach zero legacy references before the capability closes.
 
 **Tech Stack:** NestJS, gRPC, `ts-proto` / Buf, TypeScript, JWT / JWKS, Prisma, Jest, W3C Trace Context, deployment-managed mTLS.
 
@@ -15,7 +15,7 @@ status: DESIGN_FROZEN_IMPLEMENTATION_NOT_DISPATCHED
 freezeToken: FROZEN_TRUSTED_GRPC_METADATA
 decisionAdr: docs/adr/0015-workload-identity-and-execution-token.md
 architectureTruthSource: docs/architecture/14-grpc-metadata-and-service-trust-architecture.md
-migrationClosure: 21 services / 51 existing controllers plus the frozen MACHINE Auth, Item Master INTERNAL and SRM INTERNAL surfaces / 54 planned controllers / 570 planned RPCs / zero legacy trust references
+migrationClosure: 21 services / 51 existing controllers plus the frozen MACHINE Auth, Item Master INTERNAL, SRM INTERNAL and Procurement INTERNAL surfaces / 55 planned controllers / 571 planned RPCs / zero legacy trust references
 resolvedDesignGates:
   - DG-1: docs/architecture/services/auth-service.md
   - DG-3: docs/architecture/collaborations/external-api-key-security.md
@@ -34,7 +34,7 @@ This capability now includes the complete current gRPC repository boundary:
 - Auth / STS issuance, local validation support and process-local Token cache.
 - Auth MACHINE source credential, Identity Machine Principal/workload binding ownership and Permission principal authorization integration.
 - API Gateway and every service-to-service caller.
-- Current integrated baseline of 21 gRPC services, 51 Controller files and 560 proto RPCs, plus the frozen Auth MACHINE controller/five RPCs, Item Master INTERNAL controller/three RPCs and SRM INTERNAL controller/two RPCs defined by the owner contracts.
+- Current integrated baseline of 21 gRPC services, 51 Controller files and 560 proto RPCs, plus the frozen Auth MACHINE controller/five RPCs, Item Master INTERNAL controller/three RPCs, SRM INTERNAL controller/two RPCs and Procurement INTERNAL controller/one RPC defined by the owner contracts.
 - Cron, Robot, AI and technical callers represented in current or newly frozen contracts.
 - All tests, fixtures and generated-call compatibility repairs.
 - Final deletion of shared signed operator context, self-reported service identity and body identity fields.
@@ -98,7 +98,7 @@ The implementation inventory script at `scripts/architecture/trusted-grpc-signat
 
 ### 3.1 Current-main global cutover status
 
-Overall execution status is `GRPC_FOUNDATION_COMPLETE_GLOBAL_SERVICE_CUTOVER_PENDING` at current-main `764f28fba059965a4272752beb6ff0c7acf25d64`. The generated explicit metadata signatures prove the shared call-signature foundation only. They do not prove that a target service has classified every contract, prepared every caller, enabled Token-only server enforcement or removed its legacy trust path.
+Overall execution status is `GRPC_FOUNDATION_COMPLETE_GLOBAL_SERVICE_CUTOVER_PENDING` at current-main `84402fc566fee82a5e73cf7a013e7b617e254578`. The generated explicit metadata signatures prove the shared call-signature foundation only. They do not prove that a target service has classified every contract, prepared every caller, enabled Token-only server enforcement or removed its legacy trust path.
 
 The persistent execution owner is **OES Trusted gRPC Service Migration** (`019ff138-ed1c-7b82-8cd4-865bdb6529bd`). The prior delivery-mode owner `019ff07e-d441-7731-acdb-1a9d262661a9` and approval-stalled predecessor `019fe9f8-5a44-76e1-b5a4-110db9da6d59` are archived with their WIP histories preserved. The former A/C/GRPC lane is historical, migration-frozen evidence and is not the active controller for the remaining cutover.
 
@@ -117,8 +117,8 @@ The persistent execution owner is **OES Trusted gRPC Service Migration** (`019ff
 | MES | 32 / 4 | Y | Y | Y | Y | Gateway; implemented and verified at `ec1ef2b19f66da2ef0287b887f7d2805534c6764` |
 | Collaboration | 16 / 4 | Y | Y | Y | Y | Gateway; implemented and verified at `c8c8a810108ec19f35a527e25ace6cdead433e93` |
 | CRM | 15 / 3 | N | N | N | N | Gateway, Collaboration; second batch |
-| Procurement | 21 / 2 | N | N | N | N | Gateway, WMS; second batch |
-| SRM | 13+2 / 2+1 planned | Y | N | N | N | Gateway; Procurement INTERNAL caller preparation waits for Procurement trusted inbound activation |
+| Procurement | 21+1 / 2+1 planned | Y | N | N | N | Gateway; Item Master/SRM outbound activation and WMS INTERNAL caller preparation frozen |
+| SRM | 13+2 / 2+1 planned | Y | Y | Y | Y | Gateway, Procurement; implemented and verified at `84402fc566fee82a5e73cf7a013e7b617e254578` |
 | Item Master | 50+3 / 2+1 planned | Y | N | N | N | Gateway, MES, WMS, Procurement, SRM; contract frozen, implementation pending |
 | WMS | 15 / 2 | N | N | N | N | Gateway; dependency-heavy |
 | HR | 15 / 2 | N | N | N | N | Gateway, Auth, Identity; dependency-heavy |
@@ -127,7 +127,7 @@ The persistent execution owner is **OES Trusted gRPC Service Migration** (`019ff
 | Identity | 41 / 3 | N | N | N | N | Gateway, Auth, Permission, HR; foundation partial only |
 | Permission | 66 / 8 | N | N | N | N | Gateway, Auth, HR, TenantOrg, WMS; bootstrap partial only |
 | Auth | 70+5 / 1+1 planned | N | N | N | N | Gateway, HR, Site, TenantOrg; MACHINE foundation complete, full service pending |
-| **Total / proven state** | **570 / 54 planned** | **13 Y / 8 N** | **11 Y / 10 N** | **11 Y / 10 N** | **11 Y / 10 N** | **11 services complete; Item Master and SRM contracts classified; ten services pending implementation/cutover** |
+| **Total / proven state** | **571 / 55 planned** | **14 Y / 7 N** | **12 Y / 9 N** | **12 Y / 9 N** | **12 Y / 9 N** | **12 services complete; Item Master and Procurement contracts classified; nine services pending implementation/cutover** |
 
 The frozen order in §6 remains authoritative. Migration continues one target service at a time; completing the Auth, Identity, Permission, Gateway or Common foundation does not implicitly advance an unverified service row.
 
@@ -2145,7 +2145,7 @@ Acceptance proves 53/53 unique declarations and zero dual-mode methods; exact Co
 
 ### 9.12 SRM 13+2-RPC frozen cutover lease
 
-Status: `FROZEN_PENDING_IMPLEMENTATION`. This slice migrates the 13 existing SRM RPCs and adds only two narrow Procurement eligibility projections already required by the Procurement service truth. It adds no Supplier, offering, pricing, qualification, persistence, event, Gateway route or Procurement business capability.
+Status: `IMPLEMENTED_VERIFIED` at `84402fc566fee82a5e73cf7a013e7b617e254578`. This slice migrated the 13 existing SRM RPCs and added only two narrow Procurement eligibility projections already required by the Procurement service truth. It added no Supplier, offering, pricing, qualification, persistence, event, Gateway route or Procurement business capability.
 
 All 13 existing methods are `BUSINESS / HUMAN / WEB`, require `aud=urn:oes:service:srm-service`, exact mTLS/`cnf` binding and the exact existing Code below, and reject MACHINE, DELEGATED, SELF_SERVICE, non-WEB sessions and legacy body/ordinary-metadata authority:
 
@@ -2180,7 +2180,7 @@ The 13 existing requests delete and reserve 46 authority fields in 13 groups: ev
 
 SRM inbound trusted admission establishes the private current-hop HUMAN proof required by the already prepared SRM→Item Master caller. `UpsertSupplierOffering` then calls only Item Master `ResolvePurchasableItem` with `HUMAN_OBO`; its manual fake `GrpcRequestContextStore` bridge and body tenant authority are removed. SRM→Party remains the already accepted pure `MACHINE_ROOT` composition, with no identity, error or fallback change. Management mutation and success audit envelope remain in one Prisma transaction; audit failure rolls back the mutation. Current uniqueness, upsert convergence, retry, schema, event/outbox and business state rules remain unchanged.
 
-Procurement currently reuses `GetSupplier` and `ListSupplierOfferingsBySupplier` through generic transport and legacy body/metadata authority. That usage is retired in favor of a Procurement-owned dedicated SRM client, target-neutral Common `InternalTrustedGrpcCaller` with `executionSource=HUMAN_OBO`, and the two exact INTERNAL methods. The producer/client/fail-closed tests may be prepared in this slice, but runtime registration and business activation remain `PREPARED_NOT_ACTIVATED` until Procurement's own trusted inbound migration establishes a verified HUMAN current-hop private scope. There is no legacy fallback and no background-without-user path. Consequently SRM cannot advance `ALL_CALLERS_READY`, Token-only cutover or legacy-removal status until that dependency is activated and accepted.
+Procurement's former reuse of `GetSupplier` and `ListSupplierOfferingsBySupplier` through generic transport and legacy body/metadata authority was retired in favor of a Procurement-owned dedicated SRM client, target-neutral Common `InternalTrustedGrpcCaller` with `executionSource=HUMAN_OBO`, and the two exact INTERNAL methods. The accepted SRM slice prepared that producer/client and proved fail-closed behavior without activating it; SRM's Token-only server and legacy-path removal are complete, while Procurement business activation remains `PREPARED_NOT_ACTIVATED` until Procurement's own trusted inbound migration establishes a verified HUMAN current-hop private scope. There is no legacy fallback or background-without-user path.
 
 The live raw `srm-smoke.mjs` entry and package `smoke` command are deleted rather than reclassified as MACHINE. `srm-smoke-lib.mjs` and `srm-smoke.spec.mjs` remain isolated business/audit tests after authority payload removal; future live smoke enters Gateway HTTP with a test HUMAN session. Procurement raw smoke evidence must not establish SRM authority and is adjusted only as needed to remove direct legacy SRM invocation. No worker, Cron, Robot, AI or ActionGrant caller is admitted.
 
@@ -2325,11 +2325,204 @@ srmTrustedGrpcImplementationLease:
 
 Acceptance proves 15/15 unique declarations and zero dual-mode methods; exact 13 BUSINESS plus two Procurement HUMAN_OBO INTERNAL Code/audience/terminal/actor/tenant/`cnf` rules; 46/46 authority reservations in 13 groups; claims-derived business and audit context; Gateway dedicated SRM client and dual-Code supplier-detail aggregation; SRM→Item Master HUMAN_OBO activation with no fake local context; byte-stable SRM→Party MACHINE_ROOT behavior; Procurement dedicated caller preparation that remains inactive until verified Procurement ingress; no raw smoke authority, generic SRM registration, legacy body/metadata or fallback; stable SRM documents contain no conflicting future/optional offering guidance and the historical workspace is superseded; unchanged schema/events/business rules; exact 83-path scope; and successful proto, Code generation, build, focused test, UTF-8, link, YAML and diff gates.
 
+### 9.13 Procurement 21+1-RPC frozen cutover lease
+
+Status: `FROZEN_PENDING_IMPLEMENTATION`. This slice migrates the 21 existing Procurement RPCs and adds exactly one narrow WMS receipt-reference eligibility projection. It adds no PR/PO/receiving business state, persistence, event, idempotency key, retry policy, Gateway route or WMS capability.
+
+All 21 existing methods remain `BUSINESS / HUMAN / WEB`, require `aud=urn:oes:service:procurement-service`, exact mTLS/`cnf` binding and the exact existing Code below, and reject MACHINE, DELEGATED, SELF_SERVICE, non-WEB sessions and legacy body/ordinary-metadata authority:
+
+| RPC | Exact Code |
+| --- | --- |
+| `GetPurchaseRequest` | `procurement.purchase_request.get_by_id` |
+| `SearchPurchaseRequests` | `procurement.purchase_request.list` |
+| `CreatePurchaseRequest` | `procurement.purchase_request.create` |
+| `UpdatePurchaseRequestDraft` | `procurement.purchase_request.update_draft` |
+| `SubmitPurchaseRequest` | `procurement.purchase_request.submit` |
+| `DecidePurchaseRequest` | `procurement.purchase_request.decide` |
+| `CancelPurchaseRequest` | `procurement.purchase_request.cancel` |
+| `ConvertPurchaseRequestToPurchaseOrder` | `procurement.purchase_request.convert_to_order` |
+| `GetPurchaseOrder` | `procurement.purchase_order.get_by_id` |
+| `SearchPurchaseOrders` | `procurement.purchase_order.list` |
+| `ListPurchaseOrderChanges` | `procurement.purchase_order_change.list` |
+| `CreatePurchaseOrderDraft` | `procurement.purchase_order.create_draft` |
+| `UpdatePurchaseOrderDraft` | `procurement.purchase_order.update_draft` |
+| `IssuePurchaseOrder` | `procurement.purchase_order.issue` |
+| `ConfirmSupplierAcknowledgement` | `procurement.purchase_order.confirm_acknowledgement` |
+| `ApplyPurchaseOrderChange` | `procurement.purchase_order.apply_change` |
+| `CancelPurchaseOrder` | `procurement.purchase_order.cancel` |
+| `GetReceivingExpectation` | `procurement.receiving_expectation.get_by_id` |
+| `SearchReceivingExpectations` | `procurement.receiving_expectation.list` |
+| `CreateReceivingExpectation` | `procurement.receiving_expectation.create` |
+| `RecordReceivingDiscrepancyResolution` | `procurement.receiving_discrepancy.record_resolution` |
+
+Gateway is the sole production caller class for these methods. The existing 21 HTTP routes remain and no new route is added. Gateway derives claims from the authenticated HUMAN session, exchanges for a Procurement-audience ET and uses one dedicated Procurement mTLS client. Generic `SERVICE_NAMES.PROCUREMENT` registration, `GrpcMetadataPropagationFactory`, request body context, `requestId/traceId` fallback and ordinary metadata authority are migration targets and are absent after activation.
+
+The new `ProcurementInternalQueryService` contains exactly one `INTERNAL / HUMAN_OBO` method:
+
+| RPC | Exact new INTERNAL Code | Exact actor workload | Procurement-owned rule |
+| --- | --- | --- | --- |
+| `ResolveReceivingExpectationForReceipt` | `procurement.internal.receiving_expectation.resolve_for_receipt` | `wms-service` | ReceivingExpectation exists in the verified tenant |
+
+The request contains only `receiving_expectation_id=1`. The response contains only `receiving_expectation_id=1`, `purchase_order_id=2`, `purchase_order_line_id=3`, `target_warehouse_id=4`, `open_quantity=5` and `status=6`. `NOT_FOUND` means no tenant-visible expectation. The method does not add an active/open precondition, close an expectation, resolve a discrepancy or change WMS receipt/inventory truth. It preserves the verified HUMAN subject and tenant, requires `act` to identify exact direct `wms-service` SYSTEM MACHINE workload, uses the Procurement audience/certificate binding, and rejects direct HUMAN without actor, pure MACHINE root, DELEGATED, TENANT MACHINE, unknown workload and wildcard issuance.
+
+The 21 existing request messages delete and reserve exactly 82 authority fields: 21 `tenant_id`, 21 `operator_context`, 21 `trace_context`, 14 `audit_context` and five request `org_id` fields. The legacy `OperatorContext`, `TraceContext` and `AuditContext` messages reserve their eight nested field numbers/names, yielding 90 tombstones total. Existing business request numbers and response tenant/org projections remain byte-stable. Tenant, applicable org, subject/operator, trace and audit come only from verified ET/transport context.
+
+Procurement trusted inbound establishes the private current-hop HUMAN proof and activates the already prepared Procurement→Item Master `ResolvePurchasableItem` and Procurement→SRM `ResolveActiveSupplier`/`ResolveActiveSupplierOffering` callers as `HUMAN_OBO`. Each uses its target audience, exact Procurement SYSTEM MACHINE actor and existing target INTERNAL Code. Missing proof/credential/ET, wrong audience/workload/certificate/tenant or denied Permission fail closed. No generic transport or legacy body/metadata fallback remains.
+
+WMS stops reusing Gateway-only `GetReceivingExpectation`. Its dedicated Procurement client, exchange client, producer and tests are prepared in this slice, but production activation remains `PREPARED_NOT_ACTIVATED` until WMS's own trusted inbound migration can establish a verified HUMAN proof. The prepared path fails closed and does not retain a second legacy authority path. WMS receipt, inventory, schema and business behavior otherwise remain protected.
+
+The raw direct `procurement-smoke.mjs` gRPC authority is retired with its package entry rather than reclassified as MACHINE. The smoke library/spec may remain isolated business/transaction evidence after authority payload removal; future live coverage enters Gateway HTTP with a test HUMAN session. Existing mutations and their successful audit envelope remain in one Prisma transaction so audit failure rolls back the mutation. Existing idempotency, retry, PR/PO/expectation state, schema, outbox/event and cross-domain ownership remain unchanged. No worker, Cron, Robot, AI or ActionGrant caller is admitted.
+
+The audit proposal of `92 = 74 EXISTING + 18 NEW_TARGET` had the correct path total but misclassified the new Procurement internal contract document. Base `84402fc566fee82a5e73cf7a013e7b617e254578` proves the closed lease is `92 = 73 EXISTING + 19 NEW_TARGET`:
+
+```yaml
+procurementTrustedGrpcImplementationLease:
+  totalTrackedWriterPaths: 92
+  stateCounts: { EXISTING: 73, NEW_TARGET: 19 }
+  trackedWriterPaths:
+    procurementProtoAndPermissionContract:
+      - { state: EXISTING, path: src/common/src/contracts/procurement_service/procurement.proto }
+      - { state: NEW_TARGET, path: src/common/src/contracts/procurement_service/procurement.contract.spec.ts }
+      - { state: EXISTING, path: src/services/system/permission-service/src/scripts/permission-catalog.ts }
+      - { state: EXISTING, path: src/services/system/permission-service/src/scripts/sync-permission-codes.ts }
+      - { state: EXISTING, path: src/services/system/permission-service/src/scripts/generate-common-permission-codes.ts }
+      - { state: EXISTING, path: src/services/system/permission-service/test/l1/permission-foundation.seed.spec.ts }
+      - { state: EXISTING, path: src/common/src/authorization/permission-codes/procurement/index.ts }
+      - { state: EXISTING, path: src/common/src/authorization/permission-codes/procurement/management.permission-codes.ts }
+      - { state: NEW_TARGET, path: src/common/src/authorization/permission-codes/procurement/internal.permission-codes.ts }
+
+    gatewayProcurementHumanProducer:
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution-producer.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution-producer.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution.module.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution.module.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/index.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-procurement-grpc.client.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-procurement-grpc.client.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/app.module.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/app.module.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/procurement-service/procurement-service.module.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/procurement-service/adapters/procurement-grpc-context.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/procurement-service/adapters/procurement-management-grpc.adapter.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/procurement-service/adapters/procurement-query-grpc.adapter.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/procurement-service/procurement.service.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/procurement-service/procurement.service.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/procurement-service/interface/http/controllers/procurement.controller.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/procurement-service/interface/http/controllers/procurement.controller.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/procurement-service/interface/http/dtos/procurement.dto.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/modules/procurement-service/adapters/procurement-dedicated-client.spec.ts }
+
+    procurementTrustedInboundRuntime:
+      - { state: EXISTING, path: src/services/business/procurement-service/src/main.ts }
+      - { state: EXISTING, path: src/services/business/procurement-service/src/app.module.ts }
+      - { state: EXISTING, path: src/services/business/procurement-service/src/modules/procurement-infrastructure.module.ts }
+      - { state: EXISTING, path: src/services/business/procurement-service/src/modules/procurement-management.module.ts }
+      - { state: EXISTING, path: src/services/business/procurement-service/src/modules/procurement-query.module.ts }
+      - { state: NEW_TARGET, path: src/services/business/procurement-service/src/modules/procurement-trusted-execution.module.ts }
+      - { state: EXISTING, path: src/services/business/procurement-service/src/interfaces/grpc/procurement-management.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/business/procurement-service/src/interfaces/grpc/procurement-query.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/business/procurement-service/src/interfaces/grpc/procurement-rpc-context.validator.ts }
+      - { state: EXISTING, path: src/services/business/procurement-service/src/interfaces/grpc/procurement-grpc.presenter.ts }
+      - { state: NEW_TARGET, path: src/services/business/procurement-service/src/interfaces/grpc/procurement-internal-query.grpc.controller.ts }
+      - { state: NEW_TARGET, path: src/services/business/procurement-service/src/application/queries/resolve-receiving-expectation-for-receipt.query.ts }
+      - { state: NEW_TARGET, path: src/services/business/procurement-service/src/application/queries/resolve-receiving-expectation-for-receipt.handler.ts }
+      - { state: EXISTING, path: src/services/business/procurement-service/src/application/services/procurement-audit.service.ts }
+      - { state: EXISTING, path: src/services/business/procurement-service/src/common/errors/procurement.errors.ts }
+      - { state: EXISTING, path: src/services/business/procurement-service/test/l1/procurement-service.behavior.spec.ts }
+      - { state: EXISTING, path: src/services/business/procurement-service/test/l3/procurement-grpc-context.spec.ts }
+      - { state: EXISTING, path: src/services/business/procurement-service/test/l3/procurement-grpc-surface.spec.ts }
+      - { state: NEW_TARGET, path: src/services/business/procurement-service/test/l3/procurement-app-module.spec.ts }
+      - { state: NEW_TARGET, path: src/services/business/procurement-service/test/l3/procurement-trusted-grpc-security.spec.ts }
+      - { state: EXISTING, path: src/services/business/procurement-service/jest.config.js }
+      - { state: EXISTING, path: src/services/business/procurement-service/package.json }
+      - { state: EXISTING, path: src/services/business/procurement-service/scripts/procurement-smoke.mjs }
+      - { state: EXISTING, path: src/services/business/procurement-service/scripts/procurement-smoke-lib.mjs }
+      - { state: EXISTING, path: src/services/business/procurement-service/scripts/procurement-smoke.spec.mjs }
+
+    procurementItemMasterHumanOboActivation:
+      - { state: EXISTING, path: src/services/business/procurement-service/src/infrastructure/adapters/item-master-query.grpc.adapter.ts }
+      - { state: EXISTING, path: src/services/business/procurement-service/src/infrastructure/adapters/item-master-trusted-grpc.client.ts }
+      - { state: EXISTING, path: src/services/business/procurement-service/src/infrastructure/adapters/procurement-item-master-execution-token-exchange.client.ts }
+      - { state: EXISTING, path: src/services/business/procurement-service/src/infrastructure/adapters/procurement-item-master-trusted-grpc-execution.producer.ts }
+      - { state: EXISTING, path: src/services/business/procurement-service/src/infrastructure/adapters/procurement-item-master-trusted-grpc-execution.producer.spec.ts }
+      - { state: EXISTING, path: src/services/business/procurement-service/test/l1/item-master-trusted-grpc.client.spec.ts }
+
+    procurementSrmHumanOboActivation:
+      - { state: EXISTING, path: src/services/business/procurement-service/src/infrastructure/adapters/supplier-query.grpc.adapter.ts }
+      - { state: EXISTING, path: src/services/business/procurement-service/src/infrastructure/adapters/srm-internal-trusted-grpc.client.ts }
+      - { state: EXISTING, path: src/services/business/procurement-service/src/infrastructure/adapters/procurement-srm-execution-token-exchange.client.ts }
+      - { state: EXISTING, path: src/services/business/procurement-service/src/infrastructure/adapters/procurement-srm-trusted-grpc-execution.producer.ts }
+      - { state: EXISTING, path: src/services/business/procurement-service/src/infrastructure/adapters/procurement-srm-trusted-grpc-execution.producer.spec.ts }
+      - { state: EXISTING, path: src/services/business/procurement-service/test/l1/srm-trusted-grpc.client.spec.ts }
+
+    wmsProcurementHumanOboPreparation:
+      - { state: EXISTING, path: src/services/business/wms-service/src/app.module.ts }
+      - { state: EXISTING, path: src/services/business/wms-service/src/modules/wms-infrastructure.module.ts }
+      - { state: EXISTING, path: src/services/business/wms-service/src/application/ports/receiving-expectation-lookup.port.ts }
+      - { state: EXISTING, path: src/services/business/wms-service/src/application/commands/post-receipt.handler.ts }
+      - { state: EXISTING, path: src/services/business/wms-service/src/infrastructure/adapters/procurement-receiving-expectation.grpc.adapter.ts }
+      - { state: NEW_TARGET, path: src/services/business/wms-service/src/infrastructure/adapters/procurement-internal-trusted-grpc.client.ts }
+      - { state: NEW_TARGET, path: src/services/business/wms-service/src/infrastructure/adapters/wms-procurement-execution-token-exchange.client.ts }
+      - { state: NEW_TARGET, path: src/services/business/wms-service/src/infrastructure/adapters/wms-procurement-trusted-grpc-execution.producer.ts }
+      - { state: NEW_TARGET, path: src/services/business/wms-service/src/infrastructure/adapters/wms-procurement-trusted-grpc-execution.producer.spec.ts }
+      - { state: NEW_TARGET, path: src/services/business/wms-service/test/l1/procurement-trusted-grpc.client.spec.ts }
+      - { state: NEW_TARGET, path: src/services/business/wms-service/test/l3/procurement-receiving-expectation.grpc.adapter.spec.ts }
+      - { state: NEW_TARGET, path: src/services/business/wms-service/test/l3/wms-app-module.spec.ts }
+      - { state: EXISTING, path: src/services/business/wms-service/test/l1/wms-service.behavior.spec.ts }
+      - { state: EXISTING, path: src/services/business/wms-service/jest.config.js }
+
+    stableTruthAndContractConsistency:
+      - { state: EXISTING, path: docs/architecture/services/procurement-service.md }
+      - { state: EXISTING, path: docs/architecture/services/wms-service.md }
+      - { state: EXISTING, path: docs/architecture/collaborations/procurement-srm-item-wms-finance.md }
+      - { state: EXISTING, path: docs/architecture/services/index.md }
+      - { state: EXISTING, path: docs/contracts/procurement-service/README.md }
+      - { state: NEW_TARGET, path: docs/contracts/procurement-service/internal-query.md }
+      - { state: EXISTING, path: docs/contracts/procurement-service/purchase-request-query.md }
+      - { state: EXISTING, path: docs/contracts/procurement-service/purchase-request-management.md }
+      - { state: EXISTING, path: docs/contracts/procurement-service/purchase-order-query.md }
+      - { state: EXISTING, path: docs/contracts/procurement-service/purchase-order-management.md }
+      - { state: EXISTING, path: docs/contracts/procurement-service/receiving-expectation.md }
+      - { state: EXISTING, path: docs/contracts/wms-service/receipt-management.md }
+      - { state: EXISTING, path: docs/plans/features/trusted-grpc-execution-context.md }
+
+  ignoredGeneratedOutputs:
+    - path: src/common/src/generated/procurement_service/procurement.ts
+      input: src/common/src/contracts/procurement_service/procurement.proto
+      command: pnpm proto:regen
+
+  protectedByDefault:
+    - Procurement application/domain/repository/Prisma/schema/business rules not listed above
+    - WMS trusted inbound cutover, all other WMS callers/RPCs and activation before its own packet
+    - Item Master and SRM target contracts/runtime beyond the exact prepared caller activation above
+    - Common/Auth/Identity/Permission OBO foundation except the exact Procurement Code/generated output paths listed above
+    - event catalog, producer, consumer, outbox, inbox, package lock and deployment configuration
+    - AI, ActionGrant, DELEGATED, background-without-user and every speculative caller or capability
+
+  focusedAcceptanceCommands:
+    - pnpm proto:lint
+    - pnpm proto:regen
+    - node scripts/architecture/trusted-grpc-signature-inventory.mjs
+    - pnpm --filter permission-service run permission-codes:generate-common
+    - pnpm --filter @oes/common build
+    - pnpm --filter api-gateway build
+    - pnpm --filter procurement-service build
+    - pnpm --filter wms-service build
+    - pnpm exec jest --config package.json --runInBand --runTestsByPath src/common/src/contracts/procurement_service/procurement.contract.spec.ts
+    - pnpm --filter permission-service exec jest --config jest.config.js --runInBand --runTestsByPath test/l1/permission-foundation.seed.spec.ts
+    - pnpm --filter api-gateway exec jest --runInBand --runTestsByPath src/common/grpc/gateway-trusted-grpc-execution-producer.spec.ts src/common/grpc/gateway-trusted-grpc-execution.module.spec.ts src/common/grpc/gateway-procurement-grpc.client.spec.ts src/modules/procurement-service/adapters/procurement-dedicated-client.spec.ts src/modules/procurement-service/procurement.service.spec.ts src/modules/procurement-service/interface/http/controllers/procurement.controller.spec.ts
+    - pnpm --filter procurement-service exec jest --config jest.config.js --runInBand --runTestsByPath src/infrastructure/adapters/procurement-item-master-trusted-grpc-execution.producer.spec.ts src/infrastructure/adapters/procurement-srm-trusted-grpc-execution.producer.spec.ts test/l1/item-master-trusted-grpc.client.spec.ts test/l1/srm-trusted-grpc.client.spec.ts test/l1/procurement-service.behavior.spec.ts test/l3/procurement-grpc-context.spec.ts test/l3/procurement-grpc-surface.spec.ts test/l3/procurement-app-module.spec.ts test/l3/procurement-trusted-grpc-security.spec.ts
+    - pnpm --filter wms-service exec jest --config jest.config.js --runInBand --runTestsByPath src/infrastructure/adapters/wms-procurement-trusted-grpc-execution.producer.spec.ts test/l1/procurement-trusted-grpc.client.spec.ts test/l1/wms-service.behavior.spec.ts test/l3/procurement-receiving-expectation.grpc.adapter.spec.ts test/l3/wms-app-module.spec.ts
+    - node --test src/services/business/procurement-service/scripts/procurement-smoke.spec.mjs
+```
+
+Acceptance proves 22/22 unique declarations and zero dual-mode methods; exact 21 BUSINESS plus one WMS HUMAN_OBO INTERNAL Code/audience/terminal/actor/tenant/`cnf` rule; 82 request authority fields plus eight nested legacy-context fields reserved as 90/90 tombstones; unchanged business field numbers and 21 Gateway routes; claims-derived business/audit context; Gateway dedicated Procurement client; Procurement→Item Master and Procurement→SRM HUMAN_OBO activation; WMS dedicated caller preparation that remains inactive until WMS trusted ingress; no raw smoke authority, generic Procurement registration, legacy body/metadata or fallback; unchanged transaction/audit/idempotency/schema/events/business rules; exact 92-path scope; and successful proto, Code generation, build, focused test, UTF-8, link, YAML and diff gates.
+
 ## 10. Repository-wide Security Acceptance
 
 Final acceptance must prove:
 
-1. All 570 planned RPCs have exactly one enforcement declaration: BUSINESS / SELF_SERVICE / INTERNAL after context establishment, or one exact non-reusable bootstrap policy for `ResolveWorkloadIssuance` / `IssueMachineWorkloadSourceCredential`; missing, duplicate or widened bootstrap declarations fail architecture tests/startup.
+1. All 571 planned RPCs have exactly one enforcement declaration: BUSINESS / SELF_SERVICE / INTERNAL after context establishment, or one exact non-reusable bootstrap policy for `ResolveWorkloadIssuance` / `IssueMachineWorkloadSourceCredential`; missing, duplicate or widened bootstrap declarations fail architecture tests/startup.
 2. All 21 services validate exact issuer, time, audience, `cnf`, tenant and required Permission Codes locally.
 3. Normal RPC validation makes no Auth network call; only Token exchange/cache miss does.
 4. No RPC trusts `x-internal-service-name`, shared signed operator payload or identity body duplicates.
@@ -2392,7 +2585,7 @@ The capability closes only when:
 - DG-1 and DG-3 are frozen for their enabled capabilities; DG-2, DG-4 and DG-5 are either closed for enabled capabilities or the corresponding capability is demonstrably disabled; no local substitute exists.
 - Every pure MACHINE root caller uses the frozen Auth source credential and Identity binding resolver; external API Key, legacy Identity API-key auth and hardcoded root mapping are absent from this path.
 - All 21 service rows are `LEGACY_REFERENCES_ZERO`.
-- All existing 51 Controller files plus the frozen new Auth MACHINE, Item Master INTERNAL and SRM INTERNAL controllers and all 570 planned RPCs are covered by the enforcement-declaration architecture test.
+- All existing 51 Controller files plus the frozen new Auth MACHINE, Item Master INTERNAL, SRM INTERNAL and Procurement INTERNAL controllers and all 571 planned RPCs are covered by the enforcement-declaration architecture test.
 - The 19 request-only caller baseline reaches zero and the full generated caller inventory is explicit-metadata compliant.
 - Every service-level handoff contains fresh build/test/security evidence.
 - Full repository black-box acceptance passes at one candidate SHA.

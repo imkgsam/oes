@@ -44,6 +44,10 @@ service ReceivingExpectationManagementService {
   rpc RecordReceivingDiscrepancyResolution(RecordReceivingDiscrepancyResolutionRequest) returns (RecordReceivingDiscrepancyResolutionResponse);
 }
 
+service ProcurementInternalQueryService {
+  rpc ResolveReceivingExpectationForReceipt(ResolveReceivingExpectationForReceiptRequest) returns (ResolveReceivingExpectationForReceiptResponse);
+}
+
 enum PurchaseRequestType {
   PURCHASE_REQUEST_TYPE_UNSPECIFIED = 0;
   PURCHASE_REQUEST_TYPE_DEPARTMENTAL = 1;
@@ -153,20 +157,18 @@ enum PurchaseRequestLineConversionStatus {
 }
 
 message OperatorContext {
-  string operator_id = 1;
-  string operator_type = 2;
-  string org_id = 3;
+  reserved 1, 2, 3;
+  reserved "operator_id", "operator_type", "org_id";
 }
 
 message TraceContext {
-  string trace_id = 1;
-  string request_id = 2;
+  reserved 1, 2;
+  reserved "trace_id", "request_id";
 }
 
 message AuditContext {
-  string audit_id = 1;
-  string reason = 2;
-  string source = 3;
+  reserved 1, 2, 3;
+  reserved "audit_id", "reason", "source";
 }
 
 message OperatorSummary {
@@ -262,9 +264,8 @@ message PurchaseRequestLineInput {
 }
 
 message GetPurchaseRequestRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   string purchase_request_id = 4;
 }
 
@@ -273,10 +274,8 @@ message GetPurchaseRequestResponse {
 }
 
 message SearchPurchaseRequestsRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  string org_id = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "org_id";
   string keyword = 5;
   PurchaseRequestType request_type = 6;
   PurchaseRequestStatus status = 7;
@@ -297,11 +296,8 @@ message SearchPurchaseRequestsResponse {
 }
 
 message CreatePurchaseRequestRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
-  string org_id = 5;
+  reserved 1, 2, 3, 4, 5;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context", "org_id";
   PurchaseRequestType request_type = 6;
   string title = 7;
   string reason = 8;
@@ -313,10 +309,8 @@ message CreatePurchaseRequestResponse {
 }
 
 message UpdatePurchaseRequestDraftRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string purchase_request_id = 5;
   string title = 6;
   string reason = 7;
@@ -328,10 +322,8 @@ message UpdatePurchaseRequestDraftResponse {
 }
 
 message SubmitPurchaseRequestRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string purchase_request_id = 5;
   string submission_comment = 6;
 }
@@ -341,10 +333,8 @@ message SubmitPurchaseRequestResponse {
 }
 
 message DecidePurchaseRequestRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string purchase_request_id = 5;
   PurchaseRequestDecision decision = 6;
   string comment = 7;
@@ -356,10 +346,8 @@ message DecidePurchaseRequestResponse {
 }
 
 message CancelPurchaseRequestRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string purchase_request_id = 5;
   string cancel_reason = 6;
 }
@@ -394,10 +382,8 @@ message PurchaseRequestLineSelection {
 }
 
 message ConvertPurchaseRequestToPurchaseOrderRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string target_purchase_order_id = 5;
   string supplier_id = 6;
   repeated PurchaseRequestSourceLineSelection source_lines = 7;
@@ -527,9 +513,8 @@ message PurchaseOrderLineInput {
 }
 
 message GetPurchaseOrderRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   string purchase_order_id = 4;
 }
 
@@ -538,10 +523,8 @@ message GetPurchaseOrderResponse {
 }
 
 message SearchPurchaseOrdersRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  string org_id = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "org_id";
   string keyword = 5;
   PurchaseOrderStatus status = 6;
   string supplier_id = 7;
@@ -561,9 +544,8 @@ message SearchPurchaseOrdersResponse {
 }
 
 message ListPurchaseOrderChangesRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   string purchase_order_id = 4;
   uint32 page = 5;
   uint32 page_size = 6;
@@ -577,11 +559,8 @@ message ListPurchaseOrderChangesResponse {
 }
 
 message CreatePurchaseOrderDraftRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
-  string org_id = 5;
+  reserved 1, 2, 3, 4, 5;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context", "org_id";
   string supplier_id = 6;
   string currency_code = 7;
   PurchaseOrderPaymentTermsSnapshot payment_terms_snapshot = 8;
@@ -595,10 +574,8 @@ message CreatePurchaseOrderDraftResponse {
 }
 
 message UpdatePurchaseOrderDraftRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string purchase_order_id = 5;
   string supplier_id = 6;
   string currency_code = 7;
@@ -613,10 +590,8 @@ message UpdatePurchaseOrderDraftResponse {
 }
 
 message IssuePurchaseOrderRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string purchase_order_id = 5;
   string issue_comment = 6;
 }
@@ -626,10 +601,8 @@ message IssuePurchaseOrderResponse {
 }
 
 message ConfirmSupplierAcknowledgementRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string purchase_order_id = 5;
   string external_reference = 6;
   string comment = 7;
@@ -646,10 +619,8 @@ message PurchaseOrderChangeTargetState {
 }
 
 message ApplyPurchaseOrderChangeRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string purchase_order_id = 5;
   string change_type = 6;
   string change_reason = 7;
@@ -662,10 +633,8 @@ message ApplyPurchaseOrderChangeResponse {
 }
 
 message CancelPurchaseOrderRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string purchase_order_id = 5;
   string cancel_reason = 6;
 }
@@ -723,9 +692,8 @@ message ReceivingExpectationSummary {
 }
 
 message GetReceivingExpectationRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   string receiving_expectation_id = 4;
 }
 
@@ -734,10 +702,8 @@ message GetReceivingExpectationResponse {
 }
 
 message SearchReceivingExpectationsRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  string org_id = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "org_id";
   string purchase_order_id = 5;
   string supplier_id = 6;
   ReceivingExpectationStatus status = 7;
@@ -758,10 +724,8 @@ message SearchReceivingExpectationsResponse {
 }
 
 message CreateReceivingExpectationRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string purchase_order_id = 5;
   string purchase_order_line_id = 6;
   string allocation_grouping_key = 7;
@@ -777,10 +741,8 @@ message CreateReceivingExpectationResponse {
 }
 
 message RecordReceivingDiscrepancyResolutionRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string receiving_expectation_id = 5;
   string receiving_discrepancy_id = 6;
   ReceivingResolutionCode resolution_code = 7;
@@ -791,4 +753,17 @@ message RecordReceivingDiscrepancyResolutionRequest {
 message RecordReceivingDiscrepancyResolutionResponse {
   ReceivingExpectation receiving_expectation = 1;
   ReceivingDiscrepancy receiving_discrepancy = 2;
+}
+
+message ResolveReceivingExpectationForReceiptRequest {
+  string receiving_expectation_id = 1;
+}
+
+message ResolveReceivingExpectationForReceiptResponse {
+  string receiving_expectation_id = 1;
+  string purchase_order_id = 2;
+  string purchase_order_line_id = 3;
+  string target_warehouse_id = 4;
+  string open_quantity = 5;
+  ReceivingExpectationStatus status = 6;
 }

@@ -55,6 +55,9 @@ phase 1 只冻结以下内部 gRPC contract 面：
   - `ReceivingExpectationManagementService`
   - `CreateReceivingExpectation`
   - `RecordReceivingDiscrepancyResolution`
+- [internal-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/procurement-service/internal-query.md)
+  - `ProcurementInternalQueryService`
+  - `ResolveReceivingExpectationForReceipt`
 
 phase 1 不在本目录中冻结：
 
@@ -149,24 +152,21 @@ phase 1 contract 明确围绕以下 owner 边界展开：
 
 ## 5. Security / Context Baseline
 
-所有 phase 1 RPC 统一遵循以下基线：
+21 个现有 phase 1 RPC 统一遵循以下基线：
 
 - 全部为内部 gRPC 契约，不直接对外部客户端开放
-- 所有 RPC 显式携带 `tenant_id`
-- 场景适用时必须显式携带 `org_id`
-- 所有 query RPC 都要求：
-  - internal service context
-  - operator context
-  - trace context
-- 所有 management command 都要求：
-  - internal service context
-  - operator context
-  - trace context
-  - audit context
+- 分类固定为 `BUSINESS / HUMAN / WEB`
+- audience 固定为 `urn:oes:service:procurement-service`
+- Gateway 是唯一 production caller；每个 RPC 要求其现有 canonical Code 与 mTLS/`cnf` binding
+- tenant、org、operator、trace、audit 只从 verified ET/transport context 派生；request 不携带 authority context
+- request 原 `tenant_id / org_id / operator_context / trace_context / audit_context` 删除并 reserve 原编号和名称；response 中 Procurement-owned projections 保留
+- MACHINE、DELEGATED、SELF_SERVICE、non-WEB 与 legacy body/ordinary-metadata fallback 全部拒绝
 
 补充说明：
 
-- 本目录只冻结“必须可观察到的上下文与行为边界”，不展开 metadata header、guard、幂等键或 tracing 实现
+- WMS 使用 [internal-query.md](./internal-query.md) 的窄 `INTERNAL / HUMAN_OBO` RPC，不复用 Gateway BUSINESS query
+- Procurement→Item Master 与 Procurement→SRM 使用当前 verified HUMAN subject 换取下一跳 audience ET；Permission 只授权 actor workload，不拥有 subject tenant authority
+- management success audit 与 mutation 保持同一事务；本轮不新增幂等键或自动重试
 - phase 1 只冻结同步 `gRPC` 校验边界，不冻结完整 integration event catalog
 - 未来事件只能作为 deferred candidate 列出，不能在本目录内伪装成已承诺 payload
 
@@ -188,6 +188,9 @@ phase 1 固定采用以下协同规则：
   - 校验标准 `Item` 是否具备 `purchasable` 能力
 - `procurement-service -> permission-service`
   - 校验当前操作是否被授权
+- `wms-service -> procurement-service`
+  - 只通过 `ResolveReceivingExpectationForReceipt` 校验显式引用的 expectation 当前 tenant 可见性
+  - caller 在 WMS trusted inbound 完成前保持 `PREPARED_NOT_ACTIVATED`
 
 future event 只保留为 deferred candidate，例如：
 

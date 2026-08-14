@@ -1,5 +1,7 @@
 # procurement-service 职责卡
 
+Last Updated: 2026-08-14
+
 ## 1. Purpose
 
 `procurement-service` 是 OES 的统一采购需求入口与采购交易执行服务，负责回答“为什么要买、要买什么、由谁提出、采购承诺到了哪里、哪些预期收货尚未兑现、采购侧应如何处理收货差异”。
@@ -105,6 +107,16 @@
 - `identity-service` / `tenant-org-service`
   - 提供 `tenant / org / operator` 上下文，用于采购范围隔离、审批快照与审计追踪。
   - `Tenant / OrgUnit / org tree` 边界以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准，Procurement 不重新定义组织树或组织归属真相。
+
+## 6.1 Trusted gRPC Boundary
+
+- 当前 21 个 Procurement RPC 各自只有一种执行分类：`BUSINESS / HUMAN / WEB`；Gateway 是唯一 production caller，audience 固定为 `urn:oes:service:procurement-service`，并要求每个 RPC 的 exact existing Code。
+- 21 个 request 中 `tenant_id / operator_context / trace_context`，14 个 management `audit_context` 与 5 个 request `org_id` 共 82 个 authority 字段全部删除并按原 field number/name reserve；三个 legacy context message 的 8 个 nested 字段同样按原编号/名称 tombstone。tenant、org、operator、trace、audit 与 source workload 只来自 verified ExecutionToken 和 mTLS transport context；response 中 Procurement-owned tenant/org projections 保留。
+- WMS 不复用 Gateway-only `GetReceivingExpectation`。新增且只新增 `ProcurementInternalQueryService.ResolveReceivingExpectationForReceipt`，分类为 `INTERNAL / HUMAN_OBO`，Code 为 `procurement.internal.receiving_expectation.resolve_for_receipt`，只允许 exact `wms-service` SYSTEM MACHINE actor，并保留发起 `PostReceipt` 的 HUMAN subject。
+- 该 INTERNAL RPC 只返回 WMS 当前受控 port 已依赖的 expectation id、PO/line id、target warehouse、open quantity 与 status；它只证明当前 tenant 下 expectation 存在，不新增状态机、关闭、库存或 discrepancy 规则。
+- Procurement trusted inbound 建立 verified HUMAN current-hop private scope 后，激活现有 Procurement→Item Master `ResolvePurchasableItem` 与 Procurement→SRM `ResolveActiveSupplier / ResolveActiveSupplierOffering` HUMAN_OBO caller。request/body/local metadata tenant 不进入任何下一跳 authority。
+- WMS→Procurement dedicated caller、DI 与 fail-closed evidence 可以准备，但在 WMS 自身 trusted inbound 迁移前保持 `PREPARED_NOT_ACTIVATED`；不保留 generic transport 或 legacy metadata fallback，后台无 HUMAN subject 的调用另行设计。
+- management mutation 与 success audit envelope 继续在同一 Prisma transaction 内提交；success audit 失败回滚 mutation。当前无新增 command id 或自动重试，schema、状态机、event/outbox 与全部业务规则不变。
 
 ## 7. Downstream / Published Facts
 
