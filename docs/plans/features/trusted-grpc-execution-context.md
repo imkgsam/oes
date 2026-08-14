@@ -1951,10 +1951,21 @@ Production caller manifest is exact: Gateway is the sole allowed production call
 
 Implementation order is fixed: canonical proto/Code definitions; Common/Auth generic single-credential HUMAN OBO foundation and Gateway first-hop compatibility regression; Gateway dedicated HUMAN client; MES inbound proof scope plus MES→Item Master producer and Item Master three-classification runtime/DI; then WMS/Procurement/SRM caller preparations remain `PREPARED_NOT_ACTIVATED` until each service's own trusted-gRPC inbound migration establishes the same verified HUMAN request scope. Each later activation removes its legacy fallback and runs the exact end-to-end composition gate. Item Master is not `IMPLEMENTED_VERIFIED` and its final Token-only cutover is not complete until all four caller services are activated. Outbound services other than these exact Item Master calls, schemas, events/outbox and business rules are protected. AI/ActionGrant, DELEGATED runtime and background-without-user tenant authority remain deferred.
 
+The frozen Auth root Jest literal must resolve the same `@oes/common/*` aliases as the workspace build. Root `tsconfig.json` therefore retains its existing solution `files` / `references` and adds exactly these runner-compatibility fields:
+
+```json
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": { "isolatedModules": true }
+}
+```
+
+This tracked change exists only so the literal root Jest/TypeScript runner inherits the canonical path mapping while transpiling isolated test modules. It does not change any package production compiler configuration, generated contract, runtime code, deployment configuration or OBO security semantics.
+
 ```yaml
 itemMasterTrustedGrpcImplementationLease:
-  totalTrackedWriterPaths: 132
-  stateCounts: { EXISTING: 98, NEW_TARGET: 34 }
+  totalTrackedWriterPaths: 133
+  stateCounts: { EXISTING: 99, NEW_TARGET: 34 }
   trackedWriterPaths:
     commonProtoPermissionCode:
       - { state: EXISTING, path: src/common/src/contracts/item_master_service/item_master.proto }
@@ -2095,6 +2106,8 @@ itemMasterTrustedGrpcImplementationLease:
       - { state: EXISTING, path: src/services/business/wms-service/jest.config.js }
       - { state: EXISTING, path: src/services/business/procurement-service/jest.config.js }
       - { state: EXISTING, path: src/services/business/srm-service/jest.config.js }
+    rootLiteralRunnerCompatibility:
+      - { state: EXISTING, path: tsconfig.json }
   ignoredGeneratedOutputs:
     - path: src/common/src/generated/item_master_service/item_master.ts
       input: src/common/src/contracts/item_master_service/item_master.proto
@@ -2128,7 +2141,7 @@ itemMasterTrustedGrpcImplementationLease:
     - pnpm --filter srm-service exec jest --config jest.config.js --runInBand --runTestsByPath src/infrastructure/adapters/srm-item-master-trusted-grpc-execution.producer.spec.ts test/l1/item-master-trusted-grpc.client.spec.ts
 ```
 
-Acceptance proves 53/53 unique declarations and zero dual-mode methods; exact Code/actor-workload/audience/tenant/terminal/`cnf` enforcement; 50/50 `tenant_id=1` reservations; claims-derived context; three minimum eligibility projections; Gateway and four dedicated caller clients; explicit `MACHINE_ROOT | HUMAN_OBO` caller strategy with no inference/fallback; single-credential HUMAN OBO with exact SYSTEM MACHINE actor; unique deployment registry self-audience/actor binding/version/OBO target policy and every startup/runtime fail-closed case; subject self-audience/expiry/signature, actor/workload/certificate and target expiry enforcement; subject `jti` -> target `jti` durable audit; real inbound verifier/scope -> Identity actor resolution -> Auth subject verifier -> Permission workload decision -> signer -> Item Master composition; four producer specs discovered and executed by official package Jest configs; Gateway compatibility and unchanged pure MACHINE roots; Common target-profile parameterization with exact Item Master errors and byte-stable Party compatibility; no legacy generic Item Master registration, metadata or body fallback; no raw smoke workload; unchanged business rules/schema/events; exact 132-path scope; and successful proto, generation, build, focused test, UTF-8, link, YAML and diff gates.
+Acceptance proves 53/53 unique declarations and zero dual-mode methods; exact Code/actor-workload/audience/tenant/terminal/`cnf` enforcement; 50/50 `tenant_id=1` reservations; claims-derived context; three minimum eligibility projections; Gateway and four dedicated caller clients; explicit `MACHINE_ROOT | HUMAN_OBO` caller strategy with no inference/fallback; single-credential HUMAN OBO with exact SYSTEM MACHINE actor; unique deployment registry self-audience/actor binding/version/OBO target policy and every startup/runtime fail-closed case; subject self-audience/expiry/signature, actor/workload/certificate and target expiry enforcement; subject `jti` -> target `jti` durable audit; real inbound verifier/scope -> Identity actor resolution -> Auth subject verifier -> Permission workload decision -> signer -> Item Master composition; four producer specs discovered and executed by official package Jest configs; the frozen root Auth Jest literal resolves Common aliases through the exact runner-only root tsconfig fields; Gateway compatibility and unchanged pure MACHINE roots; Common target-profile parameterization with exact Item Master errors and byte-stable Party compatibility; no legacy generic Item Master registration, metadata or body fallback; no raw smoke workload; unchanged business rules/schema/events; exact 133-path scope; and successful proto, generation, build, focused test, UTF-8, link, YAML and diff gates.
 
 ## 10. Repository-wide Security Acceptance
 
