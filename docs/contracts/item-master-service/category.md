@@ -35,7 +35,6 @@ ItemModel.primaryCategoryId
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界。 |
 | `parent_category_id` | 否 | 为空时读取根节点；有值时读取该节点直接子节点。 |
 | `active` | 否 | 按 active 状态过滤。 |
 
@@ -60,7 +59,6 @@ ItemModel.primaryCategoryId
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界。 |
 | `category_code` | 是 | tenant 内 category 编码。 |
 | `category_name` | 是 | category 名称。 |
 | `parent_category_id` | 否 | 父分类；为空时创建根节点。 |
@@ -79,7 +77,6 @@ ItemModel.primaryCategoryId
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界。 |
 | `category_id` | 是 | 目标 category。 |
 | `category_code` | 是 | 新 category 编码。 |
 | `category_name` | 是 | 新 category 名称。 |
@@ -98,7 +95,6 @@ ItemModel.primaryCategoryId
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界。 |
 | `category_id` | 是 | 目标 category。 |
 | `active` | 是 | 目标 active 状态。 |
 

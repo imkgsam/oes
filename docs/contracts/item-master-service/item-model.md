@@ -53,7 +53,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界。 |
 | `item_model_id` | 是 | 目标 ItemModel 标识。 |
 
 响应最小 shape：
@@ -70,7 +69,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界。 |
 | `item_model_ids[]` | 是 | 目标 ItemModel 标识集合。 |
 
 响应最小 shape：
@@ -88,7 +86,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界。 |
 | `keyword` | 否 | 按 `model_code / model_name` 检索。 |
 | `model_kind` | 否 | 按本质类型过滤。 |
 | `model_type` | 否 | 按业务分类过滤。 |
@@ -118,7 +115,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界。 |
 | `model_code` | 是 | tenant 内模型编码。 |
 | `model_name` | 是 | 模型名称。 |
 | `model_kind` | 是 | `PHYSICAL / SERVICE / DIGITAL / VIRTUAL`。 |
@@ -146,7 +142,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界。 |
 | `item_model_id` | 是 | 目标 ItemModel。 |
 | `model_code` | 是 | 新模型编码。 |
 | `model_name` | 是 | 新模型名称。 |
@@ -165,7 +160,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界。 |
 | `item_model_id` | 是 | 目标 ItemModel。 |
 | `capabilities` | 是 | 完整八能力集合。 |
 
@@ -188,7 +182,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界。 |
 | `item_model_id` | 是 | 目标 ItemModel。 |
 | `active` | 是 | 目标 active 状态。 |
 
@@ -210,7 +203,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界。 |
 | `item_model_id` | 是 | 目标 ItemModel。 |
 | `primary_category_id` | 否 | 目标主分类；为空表示清空。 |
 

@@ -65,7 +65,6 @@ Item.item_type = PACKAGED_FINISHED_GOOD
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界。 |
 | `item_id` | 是 | 目标 Item。 |
 
 响应最小 shape：
@@ -82,7 +81,6 @@ Item.item_type = PACKAGED_FINISHED_GOOD
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界。 |
 | `item_ids[]` | 是 | 目标 Item 标识集合。 |
 
 响应最小 shape：
@@ -100,7 +98,6 @@ Item.item_type = PACKAGED_FINISHED_GOOD
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界。 |
 | `keyword` | 否 | 按 `item_code / item_name` 检索。 |
 | `item_model_id` | 否 | 按所属 ItemModel 过滤。 |
 | `item_type` | 否 | 按 `STANDARD / PACKAGED_FINISHED_GOOD` 过滤。 |
@@ -130,7 +127,6 @@ Item.item_type = PACKAGED_FINISHED_GOOD
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界。 |
 | `item_model_id` | 是 | 目标 ItemModel。 |
 | `locked_attribute_option_ids[]` | 否 | 已锁定 AttributeOption 组合。 |
 | `packaging_spec_id` | 否 | 包装规格。 |
@@ -147,7 +143,21 @@ Item.item_type = PACKAGED_FINISHED_GOOD
 - 未命中返回 `NO_MATCH`，不是异常。
 - 命中多个表示唯一性数据被破坏，应返回 `FAILED_PRECONDITION`。
 
-## 5. Management RPCs
+## 5. INTERNAL Eligibility RPCs
+
+这三个 RPC 只把现有 `Item.active + required capability` 准入规则暴露为窄 INTERNAL 查询，不创建新的 capability、业务状态或 Item 真相：
+
+| RPC | 业务判断 | Caller |
+| --- | --- | --- |
+| `ResolveManufacturableItem` | `active=true + manufacturable=true` | MES |
+| `ResolveStockableItem` | `active=true + stockable=true` | WMS |
+| `ResolvePurchasableItem` | `active=true + purchasable=true` | Procurement、SRM |
+
+请求只包含 `item_id=1`。成功响应只包含 `item_id/item_code/item_name/active`；缺少 capability 不通过返回值伪装为成功，而是返回 `FAILED_PRECONDITION`。caller workload、Code、tenant、audience 与 certificate binding 以 [README](./README.md#5-security-and-context-baseline) 为准。
+
+现有 HUMAN `GetItem` 不接受 MACHINE authority，三个 INTERNAL RPC 也不接受 HUMAN/DELEGATED。调用方不得通过通用 capability 参数查询未获准的资格，也不得复用完整 `ItemSummary` 扩大数据暴露。
+
+## 6. Management RPCs
 
 ### `CreateItem`
 
@@ -157,7 +167,6 @@ Item.item_type = PACKAGED_FINISHED_GOOD
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界。 |
 | `item_model_id` | 是 | 所属 ItemModel。 |
 | `item_code` | 是 | tenant 内 Item 编码。 |
 | `item_name` | 是 | Item 名称。 |
@@ -190,7 +199,6 @@ Item.item_type = PACKAGED_FINISHED_GOOD
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界。 |
 | `item_id` | 是 | 目标 Item。 |
 | `item_code` | 是 | 新 Item 编码。 |
 | `item_name` | 是 | 新 Item 名称。 |
@@ -214,7 +222,6 @@ Item.item_type = PACKAGED_FINISHED_GOOD
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界。 |
 | `item_id` | 是 | 目标 Item。 |
 | `capabilities` | 是 | 完整八能力集合。 |
 
@@ -240,7 +247,6 @@ Item.item_type = PACKAGED_FINISHED_GOOD
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界。 |
 | `item_id` | 是 | 目标 Item。 |
 | `active` | 是 | 目标 active 状态。 |
 

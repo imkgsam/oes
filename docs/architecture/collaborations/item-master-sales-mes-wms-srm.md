@@ -91,8 +91,12 @@
 ## 5. 同步 / 异步边界
 
 - 第一阶段优先同步：
-  - `sales-service / procurement-service / mes-service / wms-service / srm-service -> item-master-service` 的 Item 引用查询、解析与 capability 校验。
+  - Gateway 代表 HUMAN 后台会话调用现有 Item Master BUSINESS RPC；现有 `GetItem` 不接受 MACHINE authority。
+  - `mes-service -> item-master-service.ResolveManufacturableItem` 校验 `active + manufacturable`。
+  - `wms-service -> item-master-service.ResolveStockableItem` 校验 `active + stockable`。
+  - `procurement-service / srm-service -> item-master-service.ResolvePurchasableItem` 校验 `active + purchasable`。
   - `item-master-service -> srm-service` 的供应商引用校验。
+- 三个资格查询按业务 capability 拆分而不是按 caller 复制接口；每个 RPC 只允许表中准确 workload，以 Item Master audience ET 与 mTLS/certificate binding 调用。它们不开放通用 capability 参数，不返回完整 Item 详情，也不迁移 caller 服务的其他 RPC。
 - 第一阶段暂不冻结必须事件集：
   - 如后续需要为搜索、缓存、BI、AI 或下游读模型发布事件，应在 `CONTRACT-V2` 阶段单独冻结。
 
@@ -115,6 +119,7 @@
 - 不把客户自己的 SKU / 型号 / 标签显示名写回 item-master。
 - 不在 WMS 重新建立 `StockItemType` 作为 Item 的替代真相。
 - 不把 BOM 写成 MES Route / Operation。
+- 不让 MACHINE caller 复用 HUMAN `GetItem`，也不把 smoke/fixture 注册成生产 workload。
 
 ## 8. 关联文档
 

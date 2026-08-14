@@ -62,6 +62,7 @@
 - Procurement 可以直接选择 `Item`，也可以从 `ItemModel + AttributeOption` 解析到 purchasable `Item`。
 - `SupplierItemMapping` 只表达供应商如何标识某个 `Item`，不等于 `PO` 行、不等于供应关系、不等于采购商业档。
 - 非标准 / 文本型采购需求可以不要求先建标准 `Item`，但不能因此把文本采购反向沉淀成 Item 主数据真相。
+- Procurement 对标准 Item 的存在性、active 与 purchasable 校验只调用 `item-master-service.ResolvePurchasableItem`；该 INTERNAL RPC 同时允许准确 `procurement-service` 与 `srm-service` workload，不允许通过 HUMAN `GetItem` 或通用 capability 参数替代。
 
 ### 4.4 Procurement 内部交易边界
 
@@ -116,7 +117,7 @@
 
 - 同步：
   - `procurement-service -> srm-service` 查询 `SupplierProfile` 当前状态；future 可查询 `SupplierOffering` / supplier purchasing info 作为默认采购信息
-  - `procurement-service -> item-master-service` 查询或解析 `Item`、校验 `purchasable` capability，并读取 `SupplierItemMapping`
+  - `procurement-service -> item-master-service.ResolvePurchasableItem` 校验标准 `Item` 的 `active + purchasable`；其他 Item 查询/解析仍须使用其各自已冻结契约，不扩大该 INTERNAL RPC
   - `api-gateway -> procurement-service` 查询 `PR / PO / discrepancy` 当前摘要
   - `procurement-service -> permission-service` 的权限、scope 与操作校验
 - 异步：

@@ -4,7 +4,7 @@
 
 **Goal:** Replace every repository gRPC request-body/operator-header trust path with mTLS workload identity, Auth / STS ExecutionToken, explicit RPC authorization mode and trusted multi-hop propagation.
 
-**Architecture:** Common supplies one generated metadata signature and one client/server runtime. Migration proceeds target service by target service: prepare all callers, switch one target to Token-only enforcement, run service-level acceptance, delete that target’s legacy trust path, then continue. Only an irreducible strongly connected service group may share one server cutover; all 21 services and the current 560-RPC baseline plus five frozen MACHINE RPCs must reach zero legacy references before the capability closes.
+**Architecture:** Common supplies one generated metadata signature and one client/server runtime. Migration proceeds target service by target service: prepare all callers, switch one target to Token-only enforcement, run service-level acceptance, delete that target’s legacy trust path, then continue. Only an irreducible strongly connected service group may share one server cutover; all 21 services and the current 560-RPC baseline plus five frozen MACHINE Auth RPCs and three frozen Item Master INTERNAL eligibility RPCs must reach zero legacy references before the capability closes.
 
 **Tech Stack:** NestJS, gRPC, `ts-proto` / Buf, TypeScript, JWT / JWKS, Prisma, Jest, W3C Trace Context, deployment-managed mTLS.
 
@@ -15,7 +15,7 @@ status: DESIGN_FROZEN_IMPLEMENTATION_NOT_DISPATCHED
 freezeToken: FROZEN_TRUSTED_GRPC_METADATA
 decisionAdr: docs/adr/0015-workload-identity-and-execution-token.md
 architectureTruthSource: docs/architecture/14-grpc-metadata-and-service-trust-architecture.md
-migrationClosure: 21 services / 51 existing controllers plus the frozen MACHINE Auth surface / 565 planned RPCs / zero legacy trust references
+migrationClosure: 21 services / 51 existing controllers plus the frozen MACHINE Auth and Item Master INTERNAL surfaces / 53 planned controllers / 568 planned RPCs / zero legacy trust references
 resolvedDesignGates:
   - DG-1: docs/architecture/services/auth-service.md
   - DG-3: docs/architecture/collaborations/external-api-key-security.md
@@ -34,7 +34,7 @@ This capability now includes the complete current gRPC repository boundary:
 - Auth / STS issuance, local validation support and process-local Token cache.
 - Auth MACHINE source credential, Identity Machine Principal/workload binding ownership and Permission principal authorization integration.
 - API Gateway and every service-to-service caller.
-- Current integrated baseline of 21 gRPC services, 51 Controller files and 560 proto RPCs, plus the frozen Auth MACHINE controller and five MACHINE RPCs defined by the owner contracts.
+- Current integrated baseline of 21 gRPC services, 51 Controller files and 560 proto RPCs, plus the frozen Auth MACHINE controller/five RPCs and Item Master INTERNAL controller/three RPCs defined by the owner contracts.
 - Cron, Robot, AI and technical callers represented in current or newly frozen contracts.
 - All tests, fixtures and generated-call compatibility repairs.
 - Final deletion of shared signed operator context, self-reported service identity and body identity fields.
@@ -98,7 +98,7 @@ The implementation inventory script at `scripts/architecture/trusted-grpc-signat
 
 ### 3.1 Current-main global cutover status
 
-Overall execution status is `GRPC_FOUNDATION_COMPLETE_GLOBAL_SERVICE_CUTOVER_PENDING` at current-main `4e00df22546674ffdff8155a73e425be4df3b8ff`. The 54 generated files expose all 590 required explicit metadata signatures with zero missing signatures; this proves the shared call-signature foundation only. It does not prove that a target service has classified every contract, prepared every caller, enabled Token-only server enforcement or removed its legacy trust path.
+Overall execution status is `GRPC_FOUNDATION_COMPLETE_GLOBAL_SERVICE_CUTOVER_PENDING` at current-main `f6caa3aa294b6fb6e7099393afbe0770ee90c09a`. The generated explicit metadata signatures prove the shared call-signature foundation only. They do not prove that a target service has classified every contract, prepared every caller, enabled Token-only server enforcement or removed its legacy trust path.
 
 The persistent execution owner is **OES Trusted gRPC Service Migration** (`019ff138-ed1c-7b82-8cd4-865bdb6529bd`). The prior delivery-mode owner `019ff07e-d441-7731-acdb-1a9d262661a9` and approval-stalled predecessor `019fe9f8-5a44-76e1-b5a4-110db9da6d59` are archived with their WIP histories preserved. The former A/C/GRPC lane is historical, migration-frozen evidence and is not the active controller for the remaining cutover.
 
@@ -115,19 +115,19 @@ The persistent execution owner is **OES Trusted gRPC Service Migration** (`019ff
 | Public Entry | 23 / 2 | Y | Y | Y | Y | Gateway; implemented and verified at `bda36bffbdc28132872d4bed967adb93c2a92b9e` |
 | Sales | 27 / 4 | Y | Y | Y | Y | Gateway; implemented and verified in current main at `584be36794435f8c4688a09197e2f49ee9cf336a` |
 | MES | 32 / 4 | Y | Y | Y | Y | Gateway; implemented and verified at `ec1ef2b19f66da2ef0287b887f7d2805534c6764` |
-| Collaboration | 16 / 4 | Y | N | N | N | Gateway; trusted contract frozen, implementation pending |
+| Collaboration | 16 / 4 | Y | Y | Y | Y | Gateway; implemented and verified at `c8c8a810108ec19f35a527e25ace6cdead433e93` |
 | CRM | 15 / 3 | N | N | N | N | Gateway, Collaboration; second batch |
 | Procurement | 21 / 2 | N | N | N | N | Gateway, WMS; second batch |
 | SRM | 13 / 2 | N | N | N | N | Gateway, Procurement; second batch |
-| Item Master | 50 / 2 | N | N | N | N | Gateway, MES, WMS; high fan-in |
+| Item Master | 50+3 / 2+1 planned | Y | N | N | N | Gateway, MES, WMS, Procurement, SRM; contract frozen, implementation pending |
 | WMS | 15 / 2 | N | N | N | N | Gateway; dependency-heavy |
 | HR | 15 / 2 | N | N | N | N | Gateway, Auth, Identity; dependency-heavy |
-| Party | 6 / 2 | Y | N | N | N | Gateway, CRM, HR, TenantOrg; trusted contract frozen, implementation pending |
+| Party | 6 / 2 | Y | Y | Y | Y | Gateway, CRM, SRM, HR, Identity, TenantOrg; implemented and verified at `f6caa3aa294b6fb6e7099393afbe0770ee90c09a` |
 | TenantOrg | 20 / 2 | N | N | N | N | Gateway, Auth, HR, Identity; high fan-in |
 | Identity | 41 / 3 | N | N | N | N | Gateway, Auth, Permission, HR; foundation partial only |
 | Permission | 66 / 8 | N | N | N | N | Gateway, Auth, HR, TenantOrg, WMS; bootstrap partial only |
-| Auth | 70 / 1 | N | N | N | N | Gateway, HR, Site, TenantOrg; MACHINE foundation complete, full service pending |
-| **Total / proven state** | **560 / 51** | **11 Y / 10 N** | **9 Y / 12 N** | **9 Y / 12 N** | **9 Y / 12 N** | **Asset, Site, Browser Activity, Notification, Terminal Device, Finance, Public Entry, Sales and MES complete; Collaboration and Party contracts classified; 10 services pending implementation/cutover** |
+| Auth | 70+5 / 1+1 planned | N | N | N | N | Gateway, HR, Site, TenantOrg; MACHINE foundation complete, full service pending |
+| **Total / proven state** | **568 / 53 planned** | **12 Y / 9 N** | **11 Y / 10 N** | **11 Y / 10 N** | **11 Y / 10 N** | **11 services complete; Item Master contract classified; Item Master and nine other services pending implementation/cutover** |
 
 The frozen order in §6 remains authoritative. Migration continues one target service at a time; completing the Auth, Identity, Permission, Gateway or Common foundation does not implicitly advance an unverified service row.
 
@@ -1640,7 +1640,7 @@ Acceptance proves 32/32 exact BUSINESS declarations and zero unclassified or dua
 
 ### 9.9 Collaboration Task + Annotation 16-RPC frozen cutover lease
 
-Status: `FROZEN_PENDING_IMPLEMENTATION`. This slice migrates the existing 16 Collaboration RPCs without adding Task, Annotation, AI, ActionGrant, event or object capabilities. The business API remains unified: `CreateTask` admits self todo and assigned task through one RPC; `DeleteAnnotation` admits author deletion and governance deletion through one RPC. The base `collaboration.task.create` Code is checked at trusted admission; `collaboration.task.assign` is checked by Collaboration only when the verified assignee differs from the verified operator. `collaboration.annotation.manage` is checked by Collaboration only when the verified operator is not the Annotation author.
+Status: `IMPLEMENTED_VERIFIED`. Collaboration trusted gRPC was accepted and integrated at `c8c8a810108ec19f35a527e25ace6cdead433e93`; all 16 RPCs, Gateway caller cutover, Token-only enforcement and legacy-path removal satisfy the frozen 54-path packet. The slice adds no Task, Annotation, AI, ActionGrant, event or object capability. The business API remains unified: `CreateTask` admits self todo and assigned task through one RPC; `DeleteAnnotation` admits author deletion and governance deletion through one RPC. The base `collaboration.task.create` Code is checked at trusted admission; `collaboration.task.assign` is checked by Collaboration only when the verified assignee differs from the verified operator. `collaboration.annotation.manage` is checked by Collaboration only when the verified operator is not the Annotation author.
 
 All 16 RPCs use `aud=urn:oes:service:collaboration-service`, certificate-bound `HUMAN` ExecutionToken and `session_terminal=WEB`; all reject MACHINE, DELEGATED, wrong audience/`cnf`/terminal/issuer and body authority. Query RPCs use the empty SELF_SERVICE Code set only where the operation is participant/author-bound; BUSINESS RPCs use the exact existing or newly frozen Code below. Resource, author, creator and assignee facts remain service-owned business targets and are never authority sources.
 
@@ -1766,7 +1766,7 @@ Acceptance proves exactly 16 declared RPCs, one mode per RPC, one base Task crea
 
 ### 9.10 Party TenantParty 6-RPC frozen cutover lease
 
-Status: `FROZEN_PENDING_IMPLEMENTATION`. This slice migrates the six existing Party RPCs only; it adds no TenantParty capability, merge/unmerge flow, schema, event, outbound collaboration or cross-tenant identity behavior. All six methods are `INTERNAL / SYSTEM MACHINE`, use `aud=urn:oes:service:party-service`, exact workload allowlists and certificate-bound ET. Gateway first performs any HUMAN HTTP authorization, then calls Party with Gateway's SYSTEM MACHINE ET.
+Status: `IMPLEMENTED_VERIFIED`. Party trusted gRPC was accepted and integrated at `f6caa3aa294b6fb6e7099393afbe0770ee90c09a`; all six RPCs, Gateway and five non-Gateway caller compositions, Token-only enforcement and legacy-path removal satisfy the frozen 92-path packet. This slice adds no TenantParty capability, merge/unmerge flow, schema, event, outbound collaboration or cross-tenant identity behavior. All six methods are `INTERNAL / SYSTEM MACHINE`, use `aud=urn:oes:service:party-service`, exact workload allowlists and certificate-bound ET. Gateway first performs any HUMAN HTTP authorization, then calls Party with Gateway's SYSTEM MACHINE ET.
 
 The caller work is frozen in two phases. Phase 1 prepares the five existing non-Gateway callers (CRM, SRM, HR, Identity and TenantOrg) with their own dedicated Party client, module DI, Common trusted-provider/exchange composition and fail-closed tests. Each service owns its own Party STS client, source-credential provider and Party producer, following the accepted Notification Auth MACHINE and Site→Asset multi-hop compositions; Common only reuses the existing `TrustedGrpcMetadataProvider`, certificate-bound ET cache, mTLS workload identity and private source-credential carrier. Missing source credential or missing target-audience ET is an immediate failure; no caller may synthesize authority or retain the legacy Party metadata/body fallback. Auth STS contract, Party proto/RPC, Permission Codes and Party business capabilities remain unchanged. Phase 2 is the later integration gate: after the Auth/Identity/Permission MACHINE foundation is available in the deployment, each workload receives its registered Machine Principal/SPIFFE binding, obtains an Auth-owned source credential, exchanges it for the Party-audience ET and proves certificate-bound mTLS in end-to-end tests. No other RPC in these five services is migrated and no Party or cross-service business capability is added.
 
@@ -1887,13 +1887,196 @@ partyTrustedGrpcImplementationLease:
       - { state: NEW_TARGET, path: src/services/api-gateway/src/modules/party-service/adapters/party-dedicated-client.ts }
 ```
 
-The ignored generated Party client remains verification output from `src/common/src/contracts/party_service/party.proto`. Acceptance must prove 6/6 declarations, exact Code/workload/audience enforcement, tenant body tombstone, no HUMAN/DELEGATED admission, all Gateway and non-Gateway Party callers on dedicated Party-audience ET clients, module DI composition, and unchanged Party persistence/business boundaries. Phase 1 acceptance also proves each five-service provider/exchange composition fails closed without a real source credential or ET and that no legacy Party metadata fallback remains; each service owns its own STS client, source provider and producer while Common/Auth STS/Party contracts remain unchanged. Phase 2 acceptance proves the real Machine Principal, SPIFFE binding, Auth source credential, STS exchange, Party audience and certificate-bound mTLS chain. Implementation must be a strict subset of this 82-path lease; this expansion changes only Party caller preparation and does not start any caller service's own full trusted-gRPC cutover.
+The ignored generated Party client remains verification output from `src/common/src/contracts/party_service/party.proto`. Acceptance proves 6/6 declarations, exact Code/workload/audience enforcement, tenant body tombstone, no HUMAN/DELEGATED admission, all Gateway and non-Gateway Party callers on dedicated Party-audience ET clients, module DI composition, and unchanged Party persistence/business boundaries. It also proves each five-service provider/exchange composition fails closed without a real source credential or ET and that no legacy Party metadata fallback remains; each service owns its own STS client, source provider and producer while Common/Auth STS/Party contracts remain unchanged. The accepted implementation is a strict subset of this 92-path lease and does not start any caller service's own full trusted-gRPC cutover.
+
+### 9.11 Item Master 50+3-RPC frozen cutover lease
+
+Status: `FROZEN_PENDING_IMPLEMENTATION`. This slice migrates the existing 50 Item Master RPCs and adds only three narrow INTERNAL eligibility queries already required by MES, WMS, Procurement and SRM. It adds no Item capability, lifecycle, persistence, event, Gateway route or caller-service business RPC. Existing `GetItem` remains HUMAN-only and never admits MACHINE authority.
+
+All existing 50 RPCs are `BUSINESS / HUMAN / WEB`, require `aud=urn:oes:service:item-master-service`, exact mTLS/`cnf` binding and the exact existing Code below, and reject MACHINE, DELEGATED, SELF_SERVICE, non-WEB sessions and legacy body/ordinary-metadata authority:
+
+| Exact Code | Existing RPCs |
+| --- | --- |
+| `item_master.item_model.get_by_id` | `GetItemModel` |
+| `item_master.item_model.list` | `BatchGetItemModels`, `SearchItemModels` |
+| `item_master.attribute.list` | `ListAttributeDefinitions`, `ListAttributeOptions`, `GetItemModelAttributeRules` |
+| `item_master.item.get_by_id` | `GetItem`, `ResolveItemVariant` |
+| `item_master.item.list` | `BatchGetItems`, `SearchItems` |
+| `item_master.item_category.list` | `ListItemCategories` |
+| `item_master.packaging.list` | `ListPackagingMethods`, `GetPackagingSpec`, `SearchPackagingSpecs` |
+| `item_master.bom.list` | `GetBom`, `SearchBoms`, `GetBomByOutputItem` |
+| `item_master.supplier_item_mapping.list_by_item` | `ListSupplierItemMappingsByItem`, `ResolveSupplierItemMapping` |
+| `item_master.item_model.create` | `CreateItemModel` |
+| `item_master.item_model.manage` | `UpdateItemModelBasics`, `SetItemModelCapabilities`, `ChangeItemModelStatus` |
+| `item_master.item.set_primary_category` | `SetItemModelPrimaryCategory` |
+| `item_master.attribute.create` | `CreateAttributeDefinition`, `CreateAttributeOption` |
+| `item_master.attribute.manage` | `UpdateAttributeDefinition`, `UpdateAttributeOption`, `SetItemModelAttributeRules` |
+| `item_master.item.create` | `CreateItem` |
+| `item_master.item.update_basics` | `UpdateItemBasics` |
+| `item_master.item.set_capabilities` | `SetItemCapabilities` |
+| `item_master.item.update_status` | `ChangeItemStatus` |
+| `item_master.item_category.create` | `CreateItemCategory` |
+| `item_master.item_category.update_basics` | `UpdateItemCategoryBasics`, `MoveItemCategory` |
+| `item_master.item_category.update_status` | `ChangeItemCategoryStatus` |
+| `item_master.item_category.delete` | `DeleteItemCategory` |
+| `item_master.packaging.create` | `CreatePackagingMethod`, `CreatePackagingSpec` |
+| `item_master.packaging.manage` | `UpdatePackagingMethod`, `ChangePackagingMethodStatus`, `DeletePackagingMethod`, `UpdatePackagingSpec`, `ChangePackagingSpecStatus` |
+| `item_master.bom.create` | `CreateBom` |
+| `item_master.bom.manage` | `UpdateBomBasics`, `ReplaceBomLines`, `ChangeBomStatus` |
+| `item_master.supplier_item_mapping.upsert` | `UpsertSupplierItemMapping` |
+
+The new service `ItemMasterInternalQueryService` contains exactly three `INTERNAL / SYSTEM MACHINE` methods. They use the same Item Master audience and certificate binding, reject HUMAN, DELEGATED, TENANT MACHINE, unknown workloads and wildcard issuance, and derive the exact tenant from the trusted chain rather than request data:
+
+| RPC | Exact new INTERNAL Code | Exact workload allowlist | Item Master-owned rule |
+| --- | --- | --- | --- |
+| `ResolveManufacturableItem` | `item_master.internal.manufacturable_item.resolve` | `mes-service` | `active + manufacturable` |
+| `ResolveStockableItem` | `item_master.internal.stockable_item.resolve` | `wms-service` | `active + stockable` |
+| `ResolvePurchasableItem` | `item_master.internal.purchasable_item.resolve` | `procurement-service`, `srm-service` | `active + purchasable` |
+
+Each INTERNAL request contains only `item_id=1`; a successful response exposes only `item_id`, `item_code`, `item_name` and `active`. `NOT_FOUND` means no Item; `FAILED_PRECONDITION` means inactive or missing the exact capability. No generic caller-selected capability parameter exists. Every caller owns its Item Master dedicated client, Auth STS/source-credential composition and Item Master audience producer, reusing Common `InternalTrustedGrpcCaller`; it never imports another service's producer or reuses Gateway/Party identity.
+
+The 50 existing request messages delete and reserve exactly `tenant_id=1` and `"tenant_id"`. No current request contains other operator/trace/audit authority fields. Tenant, org, principal, operator, trace, audit and source workload come only from verified ET and transport context. Response tenant projections remain Item Master-owned business data where already defined. Legacy `ItemMasterRpcContextGuard`, signed operator/internal-service metadata, `x-trace-id`/`x-request-id` authority and body tenant fallback are migration targets and are absent after cutover.
+
+Production caller manifest is exact: Gateway is the sole allowed production caller class for the 50 HUMAN methods and retains the current 46 BFF routes; methods without a current route gain none in this slice. MES calls only `ResolveManufacturableItem`; WMS calls only `ResolveStockableItem`; Procurement and SRM call only `ResolvePurchasableItem`. The direct management bootstrap smoke and shared fixture are deleted or moved behind a Gateway HTTP HUMAN test flow; the WMS local query stub remains an isolated fixture and is never registered as a workload. No other worker, Cron, Robot, AI or ActionGrant caller is admitted.
+
+Implementation order is fixed: canonical proto/Code definitions; Gateway dedicated HUMAN client; four caller-owned MACHINE compositions with fail-closed tests; Item Master three-classification runtime and DI; caller switch; Token-only server cutover; legacy registration/smoke removal; full acceptance. MES/WMS/Procurement/SRM inbound RPCs, outbound services other than this exact Item Master call, schemas, events/outbox and business rules are protected. AI/ActionGrant and DELEGATED runtime remain deferred.
+
+```yaml
+itemMasterTrustedGrpcImplementationLease:
+  totalTrackedWriterPaths: 88
+  stateCounts: { EXISTING: 52, NEW_TARGET: 36 }
+  trackedWriterPaths:
+    commonProtoPermissionCode:
+      - { state: EXISTING, path: src/common/src/contracts/item_master_service/item_master.proto }
+      - { state: NEW_TARGET, path: src/common/src/contracts/item_master_service/item_master.contract.spec.ts }
+      - { state: EXISTING, path: src/common/src/authorization/permission-codes/item-master/index.ts }
+      - { state: NEW_TARGET, path: src/common/src/authorization/permission-codes/item-master/internal.permission-codes.ts }
+      - { state: EXISTING, path: src/services/system/permission-service/src/scripts/permission-catalog.ts }
+      - { state: EXISTING, path: src/services/system/permission-service/src/scripts/generate-common-permission-codes.ts }
+      - { state: EXISTING, path: src/services/system/permission-service/src/scripts/sync-permission-codes.ts }
+      - { state: EXISTING, path: src/services/system/permission-service/test/l1/common-permission-code-generator.spec.ts }
+    gatewayHumanProducer:
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution-producer.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution-producer.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution.module.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution.module.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/index.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-item-master-grpc.client.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-item-master-grpc.client.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/app.module.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/app.module.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/item-master-service/item-master-service.module.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/item-master-service/adapters/item-master-query-grpc.adapter.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/item-master-service/adapters/item-master-management-grpc.adapter.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/modules/item-master-service/adapters/item-master-dedicated-client.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/item-master-service/item-management.service.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/item-master-service/item-management.service.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/item-master-service/interface/http/controllers/item-management.controller.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/item-master-service/interface/http/controllers/item-management.controller.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/item-master-service/interface/http/dtos/item-management.dto.ts }
+    itemMasterTrustedRuntime:
+      - { state: EXISTING, path: src/services/system/item-master-service/src/main.ts }
+      - { state: EXISTING, path: src/services/system/item-master-service/src/app.module.ts }
+      - { state: EXISTING, path: src/services/system/item-master-service/src/application/item-master-v2.service.ts }
+      - { state: EXISTING, path: src/services/system/item-master-service/src/application/services/item-master-audit.service.ts }
+      - { state: EXISTING, path: src/services/system/item-master-service/src/common/errors/item-master.errors.ts }
+      - { state: EXISTING, path: src/services/system/item-master-service/src/common/constants/tokens.ts }
+      - { state: EXISTING, path: src/services/system/item-master-service/src/interfaces/grpc/item-master-query.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/system/item-master-service/src/interfaces/grpc/item-master-management.grpc.controller.ts }
+      - { state: NEW_TARGET, path: src/services/system/item-master-service/src/interfaces/grpc/item-master-internal-query.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/system/item-master-service/src/interfaces/grpc/item-master-rpc-context.guard.ts }
+      - { state: EXISTING, path: src/services/system/item-master-service/src/modules/item-master-query/item-master-query.module.ts }
+      - { state: EXISTING, path: src/services/system/item-master-service/src/modules/item-master-management/item-master-management.module.ts }
+      - { state: NEW_TARGET, path: src/services/system/item-master-service/src/modules/item-master-trusted-execution.module.ts }
+      - { state: EXISTING, path: src/services/system/item-master-service/test/l1/item-master-v2.service.spec.ts }
+      - { state: EXISTING, path: src/services/system/item-master-service/test/l2/item-master-contract-v2-smoke.spec.ts }
+      - { state: EXISTING, path: src/services/system/item-master-service/test/l3/item-master-grpc-metadata-guard.integration.spec.ts }
+      - { state: EXISTING, path: src/services/system/item-master-service/test/l3/item-master-v2-grpc.controller.spec.ts }
+      - { state: NEW_TARGET, path: src/services/system/item-master-service/test/l3/item-master-trusted-grpc-security.spec.ts }
+    internalMachineCallers:
+      - { state: EXISTING, path: src/services/business/mes-service/src/app.module.ts }
+      - { state: EXISTING, path: src/services/business/mes-service/src/modules/mes-infrastructure.module.ts }
+      - { state: EXISTING, path: src/services/business/mes-service/src/infrastructure/adapters/item-master-manufacturable-query.grpc.adapter.ts }
+      - { state: NEW_TARGET, path: src/services/business/mes-service/src/infrastructure/adapters/item-master-trusted-grpc.client.ts }
+      - { state: NEW_TARGET, path: src/services/business/mes-service/src/infrastructure/adapters/mes-item-master-machine-source-credential.client.ts }
+      - { state: NEW_TARGET, path: src/services/business/mes-service/src/infrastructure/adapters/mes-item-master-machine-source-credential.provider.ts }
+      - { state: NEW_TARGET, path: src/services/business/mes-service/src/infrastructure/adapters/mes-item-master-execution-token-exchange.client.ts }
+      - { state: NEW_TARGET, path: src/services/business/mes-service/src/infrastructure/adapters/mes-item-master-trusted-grpc-execution.producer.ts }
+      - { state: NEW_TARGET, path: src/services/business/mes-service/src/infrastructure/adapters/mes-item-master-trusted-grpc-execution.producer.spec.ts }
+      - { state: NEW_TARGET, path: src/services/business/mes-service/test/l1/item-master-trusted-grpc.client.spec.ts }
+      - { state: EXISTING, path: src/services/business/wms-service/src/app.module.ts }
+      - { state: EXISTING, path: src/services/business/wms-service/src/modules/wms-infrastructure.module.ts }
+      - { state: EXISTING, path: src/services/business/wms-service/src/infrastructure/adapters/item-master-stockable-query.grpc.adapter.ts }
+      - { state: NEW_TARGET, path: src/services/business/wms-service/src/infrastructure/adapters/item-master-trusted-grpc.client.ts }
+      - { state: NEW_TARGET, path: src/services/business/wms-service/src/infrastructure/adapters/wms-item-master-machine-source-credential.client.ts }
+      - { state: NEW_TARGET, path: src/services/business/wms-service/src/infrastructure/adapters/wms-item-master-machine-source-credential.provider.ts }
+      - { state: NEW_TARGET, path: src/services/business/wms-service/src/infrastructure/adapters/wms-item-master-execution-token-exchange.client.ts }
+      - { state: NEW_TARGET, path: src/services/business/wms-service/src/infrastructure/adapters/wms-item-master-trusted-grpc-execution.producer.ts }
+      - { state: NEW_TARGET, path: src/services/business/wms-service/src/infrastructure/adapters/wms-item-master-trusted-grpc-execution.producer.spec.ts }
+      - { state: NEW_TARGET, path: src/services/business/wms-service/test/l1/item-master-trusted-grpc.client.spec.ts }
+      - { state: EXISTING, path: src/services/business/procurement-service/src/app.module.ts }
+      - { state: EXISTING, path: src/services/business/procurement-service/src/modules/procurement-infrastructure.module.ts }
+      - { state: EXISTING, path: src/services/business/procurement-service/src/infrastructure/adapters/item-master-query.grpc.adapter.ts }
+      - { state: NEW_TARGET, path: src/services/business/procurement-service/src/infrastructure/adapters/item-master-trusted-grpc.client.ts }
+      - { state: NEW_TARGET, path: src/services/business/procurement-service/src/infrastructure/adapters/procurement-item-master-machine-source-credential.client.ts }
+      - { state: NEW_TARGET, path: src/services/business/procurement-service/src/infrastructure/adapters/procurement-item-master-machine-source-credential.provider.ts }
+      - { state: NEW_TARGET, path: src/services/business/procurement-service/src/infrastructure/adapters/procurement-item-master-execution-token-exchange.client.ts }
+      - { state: NEW_TARGET, path: src/services/business/procurement-service/src/infrastructure/adapters/procurement-item-master-trusted-grpc-execution.producer.ts }
+      - { state: NEW_TARGET, path: src/services/business/procurement-service/src/infrastructure/adapters/procurement-item-master-trusted-grpc-execution.producer.spec.ts }
+      - { state: NEW_TARGET, path: src/services/business/procurement-service/test/l1/item-master-trusted-grpc.client.spec.ts }
+      - { state: EXISTING, path: src/services/business/srm-service/src/app.module.ts }
+      - { state: EXISTING, path: src/services/business/srm-service/src/modules/srm-infrastructure.module.ts }
+      - { state: EXISTING, path: src/services/business/srm-service/src/infrastructure/adapters/item-master-query-grpc.adapter.ts }
+      - { state: NEW_TARGET, path: src/services/business/srm-service/src/infrastructure/adapters/item-master-trusted-grpc.client.ts }
+      - { state: NEW_TARGET, path: src/services/business/srm-service/src/infrastructure/adapters/srm-item-master-machine-source-credential.client.ts }
+      - { state: NEW_TARGET, path: src/services/business/srm-service/src/infrastructure/adapters/srm-item-master-machine-source-credential.provider.ts }
+      - { state: NEW_TARGET, path: src/services/business/srm-service/src/infrastructure/adapters/srm-item-master-execution-token-exchange.client.ts }
+      - { state: NEW_TARGET, path: src/services/business/srm-service/src/infrastructure/adapters/srm-item-master-trusted-grpc-execution.producer.ts }
+      - { state: NEW_TARGET, path: src/services/business/srm-service/src/infrastructure/adapters/srm-item-master-trusted-grpc-execution.producer.spec.ts }
+      - { state: NEW_TARGET, path: src/services/business/srm-service/test/l1/item-master-trusted-grpc.client.spec.ts }
+    smokeAndSecurityEvidence:
+      - { state: EXISTING, path: scripts/local/item-master-smoke-fixture.mjs }
+      - { state: EXISTING, path: src/services/business/procurement-service/scripts/procurement-smoke.mjs }
+      - { state: EXISTING, path: src/services/business/srm-service/scripts/srm-smoke.mjs }
+      - { state: EXISTING, path: src/services/business/wms-service/scripts/wms-smoke.mjs }
+  ignoredGeneratedOutputs:
+    - path: src/common/src/generated/item_master_service/item_master.ts
+      input: src/common/src/contracts/item_master_service/item_master.proto
+      command: pnpm proto:regen
+  protectedByDefault:
+    - Item Master domain/persistence/schema/business rules and every path not listed above
+    - MES/WMS/Procurement/SRM inbound trusted-gRPC cutovers, other outbound dependencies and business RPCs
+    - event catalog, producer, consumer, outbox, inbox, package/lock/deployment and database migrations
+    - Common/Auth/Identity/Permission MACHINE foundation and Party/Gateway identities except listed Code/client composition paths
+    - AI, ActionGrant, DELEGATED and every speculative caller or capability
+  focusedAcceptanceCommands:
+    - pnpm proto:lint
+    - pnpm proto:regen
+    - node scripts/architecture/trusted-grpc-signature-inventory.mjs
+    - pnpm --filter @oes/common build
+    - pnpm --filter permission-service run permission-codes:generate-common
+    - pnpm --filter api-gateway build
+    - pnpm --filter item-master-service build
+    - pnpm --filter mes-service build
+    - pnpm --filter wms-service build
+    - pnpm --filter procurement-service build
+    - pnpm --filter srm-service build
+    - pnpm exec jest --config package.json --runInBand --runTestsByPath src/common/src/contracts/item_master_service/item_master.contract.spec.ts
+    - pnpm --filter api-gateway exec jest --runInBand --runTestsByPath src/common/grpc/gateway-trusted-grpc-execution-producer.spec.ts src/common/grpc/gateway-trusted-grpc-execution.module.spec.ts src/common/grpc/gateway-item-master-grpc.client.spec.ts src/modules/item-master-service/adapters/item-master-dedicated-client.spec.ts src/modules/item-master-service/item-management.service.spec.ts src/modules/item-master-service/interface/http/controllers/item-management.controller.spec.ts
+    - pnpm --filter item-master-service exec jest --config jest.config.js --runInBand --runTestsByPath test/l1/item-master-v2.service.spec.ts test/l2/item-master-contract-v2-smoke.spec.ts test/l3/item-master-grpc-metadata-guard.integration.spec.ts test/l3/item-master-v2-grpc.controller.spec.ts test/l3/item-master-trusted-grpc-security.spec.ts
+    - pnpm --filter mes-service exec jest --config jest.config.js --runInBand --runTestsByPath src/infrastructure/adapters/mes-item-master-trusted-grpc-execution.producer.spec.ts test/l1/item-master-trusted-grpc.client.spec.ts
+    - pnpm --filter wms-service exec jest --config jest.config.js --runInBand --runTestsByPath src/infrastructure/adapters/wms-item-master-trusted-grpc-execution.producer.spec.ts test/l1/item-master-trusted-grpc.client.spec.ts
+    - pnpm --filter procurement-service exec jest --config jest.config.js --runInBand --runTestsByPath src/infrastructure/adapters/procurement-item-master-trusted-grpc-execution.producer.spec.ts test/l1/item-master-trusted-grpc.client.spec.ts
+    - pnpm --filter srm-service exec jest --config jest.config.js --runInBand --runTestsByPath src/infrastructure/adapters/srm-item-master-trusted-grpc-execution.producer.spec.ts test/l1/item-master-trusted-grpc.client.spec.ts
+```
+
+Acceptance proves 53/53 unique declarations and zero dual-mode methods; exact Code/workload/audience/tenant/terminal/`cnf` enforcement; 50/50 `tenant_id=1` reservations; claims-derived context; three minimum eligibility projections; Gateway and four dedicated caller clients; fail-closed missing credential/STS/ET behavior; no legacy generic Item Master registration, metadata or body fallback; no raw smoke workload; unchanged business rules/schema/events; exact 88-path scope; and successful proto, generation, build, focused test, UTF-8, link, YAML and diff gates.
 
 ## 10. Repository-wide Security Acceptance
 
 Final acceptance must prove:
 
-1. All 565 planned RPCs have exactly one enforcement declaration: BUSINESS / SELF_SERVICE / INTERNAL after context establishment, or one exact non-reusable bootstrap policy for `ResolveWorkloadIssuance` / `IssueMachineWorkloadSourceCredential`; missing, duplicate or widened bootstrap declarations fail architecture tests/startup.
+1. All 568 planned RPCs have exactly one enforcement declaration: BUSINESS / SELF_SERVICE / INTERNAL after context establishment, or one exact non-reusable bootstrap policy for `ResolveWorkloadIssuance` / `IssueMachineWorkloadSourceCredential`; missing, duplicate or widened bootstrap declarations fail architecture tests/startup.
 2. All 21 services validate exact issuer, time, audience, `cnf`, tenant and required Permission Codes locally.
 3. Normal RPC validation makes no Auth network call; only Token exchange/cache miss does.
 4. No RPC trusts `x-internal-service-name`, shared signed operator payload or identity body duplicates.
@@ -1956,7 +2139,7 @@ The capability closes only when:
 - DG-1 and DG-3 are frozen for their enabled capabilities; DG-2, DG-4 and DG-5 are either closed for enabled capabilities or the corresponding capability is demonstrably disabled; no local substitute exists.
 - Every pure MACHINE root caller uses the frozen Auth source credential and Identity binding resolver; external API Key, legacy Identity API-key auth and hardcoded root mapping are absent from this path.
 - All 21 service rows are `LEGACY_REFERENCES_ZERO`.
-- All existing 51 Controller files plus the frozen new Auth MACHINE controller and all 565 planned RPCs are covered by the enforcement-declaration architecture test.
+- All existing 51 Controller files plus the frozen new Auth MACHINE and Item Master INTERNAL controllers and all 568 planned RPCs are covered by the enforcement-declaration architecture test.
 - The 19 request-only caller baseline reaches zero and the full generated caller inventory is explicit-metadata compliant.
 - Every service-level handoff contains fresh build/test/security evidence.
 - Full repository black-box acceptance passes at one candidate SHA.

@@ -460,7 +460,25 @@ PACKAGING_BOM:
 - 如果可单独销售或采购：对应 `Item` 开启 `sellable` 或 `purchasable`。
 - 如果进入库存或 BOM：仍必须有 `ItemModel + Item`。
 
-## 17. Deferred
+## 17. Trusted gRPC Inbound Boundary
+
+Item Master 当前 50 个查询/管理 RPC 全部冻结为 `BUSINESS / HUMAN / WEB`，唯一允许的生产 caller 类是 Gateway；当前 46 条 BFF route 不因本迁移增加业务入口。Gateway 先完成 HTTP session 与 Permission decision，再使用专用 Item Master mTLS client 和 `aud=urn:oes:service:item-master-service` 的 certificate-bound HUMAN ExecutionToken 调用；服务拒绝 MACHINE、DELEGATED、SELF_SERVICE、非 WEB terminal、错误 audience/`cnf`/Code 以及旧 body/metadata authority。
+
+现有 `GetItem` 只用于 HUMAN 查看 Item 详情，不同时接受 MACHINE authority。MES、WMS、Procurement 与 SRM 已存在的内部 capability 校验改用三个按业务语义拆分的窄 INTERNAL RPC：
+
+| INTERNAL RPC | Item Master-owned rule | Exact caller workload |
+| --- | --- | --- |
+| `ResolveManufacturableItem` | `active + manufacturable` | `mes-service` |
+| `ResolveStockableItem` | `active + stockable` | `wms-service` |
+| `ResolvePurchasableItem` | `active + purchasable` | `procurement-service`, `srm-service` |
+
+三个 RPC 均为 `INTERNAL / SYSTEM MACHINE`，只返回 `item_id/item_code/item_name/active` 最小 projection。每个 caller 使用自身 Machine Principal、SPIFFE identity 与 source credential 逐跳兑换 Item Master audience ET；不得复用 Gateway identity、旧 signed operator metadata、request body tenant 或 raw smoke identity。SYSTEM workload 不是租户通配，准确 tenant 仍由验证后的可信链派生。该拆分只迁移现有存在性/状态/capability 校验，不新增 capability、状态、业务规则或其他 caller 服务 RPC。
+
+全部现有 50 个 request 删除并 reserve `tenant_id=1`；新 INTERNAL request 从 `item_id=1` 开始，不承载 authority。tenant、org、principal、operator、trace、audit 与 source workload 只能来自验证后的 ExecutionToken 和 transport context。Item Master 响应中的自身 tenant projection 如合同明确需要仍是业务数据，不构成调用 authority。
+
+生产 caller manifest 固定为 Gateway（现有 50 RPC 的唯一允许 HUMAN caller，当前 46 条 BFF route）、MES（manufacturable）、WMS（stockable）、Procurement 与 SRM（purchasable）。当前没有 Gateway route 的 RPC 不因迁移自动获得 route。raw smoke、本地 fixture/stub 和测试替身不是生产 workload；直接调用 Item Master management 的 legacy smoke 删除或改走 Gateway HTTP 测试入口，WMS 本地 query stub 继续只作为隔离测试夹具。
+
+## 18. Deferred
 
 - `traceable` capability。
 - `kittable` capability。
@@ -471,9 +489,9 @@ PACKAGING_BOM:
 - 可选 BOM 行。
 - `Item` 级 category override / secondary category。
 - `PIM / PLM`、营销展示、图纸工程与完整产品生命周期管理。
-- proto 与 runtime migration。
+- trusted gRPC runtime 实现与部署联调；其契约已由本文、Contract V2 与统一 trusted-gRPC feature packet 冻结。
 
-## 18. Contract And Migration Notes
+## 19. Contract And Migration Notes
 
 - `docs/contracts/item-master-service/**` 已回写 Contract V2，后续 proto 与 runtime migration 必须以本文和 Contract V2 为准。
 - 旧 feature packet `docs/plans/features/item-master-service-foundation.md` 已不再作为设计或实现输入。

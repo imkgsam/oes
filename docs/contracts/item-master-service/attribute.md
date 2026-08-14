@@ -64,7 +64,6 @@ Attribute 只表达物料本体或规格识别属性，即“这个物料本身�
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界。 |
 | `keyword` | 否 | 按 code / name 检索。 |
 | `active` | 否 | 按 active 状态过滤。 |
 | `page` | 否 | 1-based 页码。 |
@@ -87,7 +86,6 @@ Attribute 只表达物料本体或规格识别属性，即“这个物料本身�
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界。 |
 | `attribute_definition_id` | 是 | 属性定义标识。 |
 | `active` | 否 | 按 active 状态过滤。 |
 
@@ -105,7 +103,6 @@ Attribute 只表达物料本体或规格识别属性，即“这个物料本身�
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界。 |
 | `item_model_id` | 是 | 目标 ItemModel。 |
 
 响应最小 shape：
@@ -124,7 +121,6 @@ Attribute 只表达物料本体或规格识别属性，即“这个物料本身�
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界。 |
 | `attribute_code` | 是 | tenant 内属性编码。 |
 | `attribute_name` | 是 | 属性名称。 |
 
@@ -142,7 +138,6 @@ Attribute 只表达物料本体或规格识别属性，即“这个物料本身�
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界。 |
 | `attribute_definition_id` | 是 | 目标属性定义。 |
 | `attribute_code` | 是 | 新属性编码。 |
 | `attribute_name` | 是 | 新属性名称。 |
@@ -162,7 +157,6 @@ Attribute 只表达物料本体或规格识别属性，即“这个物料本身�
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界。 |
 | `attribute_definition_id` | 是 | 所属属性定义。 |
 | `option_code` | 是 | tenant 内选项编码。 |
 | `option_name` | 是 | 选项名称。 |
@@ -181,7 +175,6 @@ Attribute 只表达物料本体或规格识别属性，即“这个物料本身�
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界。 |
 | `attribute_option_id` | 是 | 目标属性选项。 |
 | `option_code` | 是 | 新选项编码。 |
 | `option_name` | 是 | 新选项名称。 |
@@ -201,7 +194,6 @@ Attribute 只表达物料本体或规格识别属性，即“这个物料本身�
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界。 |
 | `item_model_id` | 是 | 目标 ItemModel。 |
 | `rules[]` | 是 | 替换后的完整规则集合。 |
 

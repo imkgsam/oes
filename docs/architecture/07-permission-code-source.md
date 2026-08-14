@@ -217,6 +217,16 @@ Terminal Device 新增四个 owner=`terminal-device-service`、`kind=INTERNAL`�
 
 四者只允许环境 registry 中准确 `api-gateway` SPIFFE workload 通过 `ResolveWorkloadIssuance` 为 `aud=urn:oes:service:terminal-device-service` 申请；不得进入 HUMAN/TENANT MACHINE role、external token、DELEGATED grant、wildcard workload policy 或其他 service audience。
 
+### 7.6 Item Master INTERNAL eligibility
+
+Item Master 新增三个 owner=`item-master-service`、`kind=INTERNAL`、`assignableTo=[WORKLOAD_POLICY]`、`allowedScopeLevels=[SYSTEM]`、`externalApiEligible=false` 的技术调用 Code：
+
+- `item_master.internal.manufacturable_item.resolve`：只允许准确 `mes-service` workload；
+- `item_master.internal.stockable_item.resolve`：只允许准确 `wms-service` workload；
+- `item_master.internal.purchasable_item.resolve`：只允许准确 `procurement-service`、`srm-service` workload。
+
+三者分别映射 `ResolveManufacturableItem`、`ResolveStockableItem`、`ResolvePurchasableItem`，只允许为 `aud=urn:oes:service:item-master-service` 逐跳签发并绑定当前 caller certificate。它们不进入 HUMAN/MACHINE role、external JWT、DELEGATED grant 或 wildcard workload policy；SYSTEM scope 也不构成 tenant wildcard。现有 `item_master.item.get_by_id` 继续只保护 HUMAN `GetItem`，不得作为内部 capability 校验的双模式入口。
+
 ## 8. Asset + Site 第一优先链新增 Code
 
 Site Media 第一优先 service slice 至少需要：

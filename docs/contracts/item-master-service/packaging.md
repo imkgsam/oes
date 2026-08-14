@@ -68,7 +68,6 @@ PackagingSpec =
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界。 |
 | `keyword` | 否 | 按 code / name / description 检索。 |
 | `active` | 否 | 按 active 状态过滤。 |
 
@@ -86,7 +85,6 @@ PackagingSpec =
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界。 |
 | `packaging_spec_id` | 是 | 目标 PackagingSpec。 |
 
 响应最小 shape：
@@ -103,7 +101,6 @@ PackagingSpec =
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界。 |
 | `keyword` | 否 | 按 code / name 检索。 |
 | `item_model_id` | 否 | 按 ItemModel 过滤。 |
 | `packaging_method_id` | 否 | 按包装方式过滤。 |
@@ -131,7 +128,6 @@ PackagingSpec =
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界。 |
 | `method_code` | 是 | tenant 内包装方式编码。 |
 | `method_name` | 是 | 包装方式名称。 |
 | `description` | 否 | 包装方式说明；空白按空值处理。 |
@@ -150,7 +146,6 @@ PackagingSpec =
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界。 |
 | `packaging_method_id` | 是 | 目标包装方式。 |
 | `method_code` | 是 | 新包装方式编码。 |
 | `method_name` | 是 | 新包装方式名称。 |
@@ -170,7 +165,6 @@ PackagingSpec =
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界。 |
 | `packaging_method_id` | 是 | 目标包装方式。 |
 | `active` | 是 | 目标 active 状态。 |
 
@@ -188,7 +182,6 @@ PackagingSpec =
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界。 |
 | `packaging_method_id` | 是 | 目标包装方式。 |
 
 响应最小 shape：
@@ -211,7 +204,6 @@ PackagingSpec =
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界。 |
 | `item_model_id` | 是 | 目标 ItemModel。 |
 | `packaging_method_id` | 是 | 包装方式。 |
 | `customer_id` | 否 | 可选客户引用。 |
@@ -253,7 +245,6 @@ PackagingSpec =
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界。 |
 | `packaging_spec_id` | 是 | 目标 PackagingSpec。 |
 | `active` | 是 | 目标 active 状态。 |
 

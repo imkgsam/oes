@@ -34,7 +34,6 @@ supplierId + supplierItemCode / supplierItemName -> itemId
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界。 |
 | `item_id` | 是 | 目标 Item。 |
 | `active` | 否 | 按 active 状态过滤。 |
 | `page` | 否 | 1-based 页码。 |
@@ -57,7 +56,6 @@ supplierId + supplierItemCode / supplierItemName -> itemId
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界。 |
 | `supplier_id` | 是 | 供应商引用。 |
 | `supplier_item_code` | 否 | 供应商侧编码。 |
 | `supplier_item_name` | 否 | 供应商侧名称。 |
@@ -87,7 +85,6 @@ supplierId + supplierItemCode / supplierItemName -> itemId
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界。 |
 | `supplier_id` | 是 | 供应商引用。 |
 | `supplier_item_code` | 否 | 供应商侧编码。 |
 | `supplier_item_name` | 否 | 供应商侧名称。 |

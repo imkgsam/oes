@@ -27,6 +27,13 @@ service ItemMasterQueryService {
   rpc ResolveSupplierItemMapping(ResolveSupplierItemMappingRequest) returns (ResolveSupplierItemMappingResponse);
 }
 
+// ItemMasterInternalQueryService exposes narrow workload-only eligibility facts without widening HUMAN reads.
+service ItemMasterInternalQueryService {
+  rpc ResolveManufacturableItem(ResolveManufacturableItemRequest) returns (ResolveManufacturableItemResponse);
+  rpc ResolveStockableItem(ResolveStockableItemRequest) returns (ResolveStockableItemResponse);
+  rpc ResolvePurchasableItem(ResolvePurchasableItemRequest) returns (ResolvePurchasableItemResponse);
+}
+
 service ItemMasterManagementService {
   rpc CreateItemModel(CreateItemModelRequest) returns (CreateItemModelResponse);
   rpc UpdateItemModelBasics(UpdateItemModelBasicsRequest) returns (UpdateItemModelBasicsResponse);
@@ -288,7 +295,8 @@ message SupplierItemMappingRecord {
 }
 
 message GetItemModelRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string item_model_id = 2;
 }
 
@@ -297,7 +305,8 @@ message GetItemModelResponse {
 }
 
 message BatchGetItemModelsRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   repeated string item_model_ids = 2;
 }
 
@@ -307,7 +316,8 @@ message BatchGetItemModelsResponse {
 }
 
 message SearchItemModelsRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string keyword = 2;
   ItemModelKind model_kind = 3;
   ItemModelType model_type = 4;
@@ -327,7 +337,8 @@ message SearchItemModelsResponse {
 }
 
 message ListAttributeDefinitionsRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string keyword = 2;
   optional bool active = 3;
   uint32 page = 4;
@@ -342,7 +353,8 @@ message ListAttributeDefinitionsResponse {
 }
 
 message ListAttributeOptionsRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string attribute_definition_id = 2;
   optional bool active = 3;
 }
@@ -352,7 +364,8 @@ message ListAttributeOptionsResponse {
 }
 
 message GetItemModelAttributeRulesRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string item_model_id = 2;
 }
 
@@ -361,7 +374,8 @@ message GetItemModelAttributeRulesResponse {
 }
 
 message GetItemRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string item_id = 2;
 }
 
@@ -369,8 +383,41 @@ message GetItemResponse {
   ItemSummary item = 1;
 }
 
+message ResolveManufacturableItemRequest {
+  string item_id = 1;
+}
+
+message ResolveManufacturableItemResponse {
+  ItemEligibilityReference item = 1;
+}
+
+message ResolveStockableItemRequest {
+  string item_id = 1;
+}
+
+message ResolveStockableItemResponse {
+  ItemEligibilityReference item = 1;
+}
+
+message ResolvePurchasableItemRequest {
+  string item_id = 1;
+}
+
+message ResolvePurchasableItemResponse {
+  ItemEligibilityReference item = 1;
+}
+
+// ItemEligibilityReference is the minimum Item-owned projection returned after an exact capability check succeeds.
+message ItemEligibilityReference {
+  string item_id = 1;
+  string item_code = 2;
+  string item_name = 3;
+  bool active = 4;
+}
+
 message BatchGetItemsRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   repeated string item_ids = 2;
 }
 
@@ -380,7 +427,8 @@ message BatchGetItemsResponse {
 }
 
 message SearchItemsRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string keyword = 2;
   string item_model_id = 3;
   ItemType item_type = 4;
@@ -402,7 +450,8 @@ message SearchItemsResponse {
 }
 
 message ResolveItemVariantRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string item_model_id = 2;
   repeated string locked_attribute_option_ids = 3;
   string packaging_spec_id = 4;
@@ -414,7 +463,8 @@ message ResolveItemVariantResponse {
 }
 
 message ListItemCategoriesRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string parent_category_id = 2;
   optional bool active = 3;
 }
@@ -424,7 +474,8 @@ message ListItemCategoriesResponse {
 }
 
 message ListPackagingMethodsRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string keyword = 2;
   optional bool active = 3;
 }
@@ -434,7 +485,8 @@ message ListPackagingMethodsResponse {
 }
 
 message GetPackagingSpecRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string packaging_spec_id = 2;
 }
 
@@ -443,7 +495,8 @@ message GetPackagingSpecResponse {
 }
 
 message SearchPackagingSpecsRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string keyword = 2;
   string item_model_id = 3;
   string packaging_method_id = 4;
@@ -461,7 +514,8 @@ message SearchPackagingSpecsResponse {
 }
 
 message GetBomRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string bom_id = 2;
 }
 
@@ -470,7 +524,8 @@ message GetBomResponse {
 }
 
 message SearchBomsRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string keyword = 2;
   BomType bom_type = 3;
   string output_item_id = 4;
@@ -488,7 +543,8 @@ message SearchBomsResponse {
 }
 
 message GetBomByOutputItemRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string output_item_id = 2;
   BomType bom_type = 3;
 }
@@ -499,7 +555,8 @@ message GetBomByOutputItemResponse {
 }
 
 message ListSupplierItemMappingsByItemRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string item_id = 2;
   optional bool active = 3;
   uint32 page = 4;
@@ -514,7 +571,8 @@ message ListSupplierItemMappingsByItemResponse {
 }
 
 message ResolveSupplierItemMappingRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string supplier_id = 2;
   string supplier_item_code = 3;
   string supplier_item_name = 4;
@@ -526,7 +584,8 @@ message ResolveSupplierItemMappingResponse {
 }
 
 message CreateItemModelRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string model_code = 2;
   string model_name = 3;
   ItemModelKind model_kind = 4;
@@ -541,7 +600,8 @@ message CreateItemModelResponse {
 }
 
 message UpdateItemModelBasicsRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string item_model_id = 2;
   string model_code = 3;
   string model_name = 4;
@@ -552,7 +612,8 @@ message UpdateItemModelBasicsResponse {
 }
 
 message SetItemModelCapabilitiesRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string item_model_id = 2;
   ItemCapabilities capabilities = 3;
 }
@@ -562,7 +623,8 @@ message SetItemModelCapabilitiesResponse {
 }
 
 message ChangeItemModelStatusRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string item_model_id = 2;
   bool active = 3;
 }
@@ -572,7 +634,8 @@ message ChangeItemModelStatusResponse {
 }
 
 message SetItemModelPrimaryCategoryRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string item_model_id = 2;
   string primary_category_id = 3;
 }
@@ -582,7 +645,8 @@ message SetItemModelPrimaryCategoryResponse {
 }
 
 message CreateAttributeDefinitionRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string attribute_code = 2;
   string attribute_name = 3;
 }
@@ -592,7 +656,8 @@ message CreateAttributeDefinitionResponse {
 }
 
 message UpdateAttributeDefinitionRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string attribute_definition_id = 2;
   string attribute_code = 3;
   string attribute_name = 4;
@@ -604,7 +669,8 @@ message UpdateAttributeDefinitionResponse {
 }
 
 message CreateAttributeOptionRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string attribute_definition_id = 2;
   string option_code = 3;
   string option_name = 4;
@@ -616,7 +682,8 @@ message CreateAttributeOptionResponse {
 }
 
 message UpdateAttributeOptionRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string attribute_option_id = 2;
   string option_code = 3;
   string option_name = 4;
@@ -629,7 +696,8 @@ message UpdateAttributeOptionResponse {
 }
 
 message SetItemModelAttributeRulesRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string item_model_id = 2;
   repeated ItemModelAttributeRuleRecord rules = 3;
 }
@@ -639,7 +707,8 @@ message SetItemModelAttributeRulesResponse {
 }
 
 message CreateItemRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string item_model_id = 2;
   string item_code = 3;
   string item_name = 4;
@@ -655,7 +724,8 @@ message CreateItemResponse {
 }
 
 message UpdateItemBasicsRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string item_id = 2;
   string item_code = 3;
   string item_name = 4;
@@ -666,7 +736,8 @@ message UpdateItemBasicsResponse {
 }
 
 message SetItemCapabilitiesRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string item_id = 2;
   ItemCapabilities capabilities = 3;
 }
@@ -676,7 +747,8 @@ message SetItemCapabilitiesResponse {
 }
 
 message ChangeItemStatusRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string item_id = 2;
   bool active = 3;
 }
@@ -686,7 +758,8 @@ message ChangeItemStatusResponse {
 }
 
 message CreateItemCategoryRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string category_code = 2;
   string category_name = 3;
   string parent_category_id = 4;
@@ -697,7 +770,8 @@ message CreateItemCategoryResponse {
 }
 
 message UpdateItemCategoryBasicsRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string category_id = 2;
   string category_code = 3;
   string category_name = 4;
@@ -708,7 +782,8 @@ message UpdateItemCategoryBasicsResponse {
 }
 
 message MoveItemCategoryRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string category_id = 2;
   string parent_category_id = 3;
 }
@@ -718,7 +793,8 @@ message MoveItemCategoryResponse {
 }
 
 message ChangeItemCategoryStatusRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string category_id = 2;
   bool active = 3;
 }
@@ -728,14 +804,16 @@ message ChangeItemCategoryStatusResponse {
 }
 
 message DeleteItemCategoryRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string category_id = 2;
 }
 
 message DeleteItemCategoryResponse {}
 
 message CreatePackagingMethodRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string method_code = 2;
   string method_name = 3;
   string description = 4;
@@ -746,7 +824,8 @@ message CreatePackagingMethodResponse {
 }
 
 message UpdatePackagingMethodRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string packaging_method_id = 2;
   string method_code = 3;
   string method_name = 4;
@@ -758,7 +837,8 @@ message UpdatePackagingMethodResponse {
 }
 
 message ChangePackagingMethodStatusRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string packaging_method_id = 2;
   bool active = 3;
 }
@@ -768,14 +848,16 @@ message ChangePackagingMethodStatusResponse {
 }
 
 message DeletePackagingMethodRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string packaging_method_id = 2;
 }
 
 message DeletePackagingMethodResponse {}
 
 message CreatePackagingSpecRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string item_model_id = 2;
   string packaging_method_id = 3;
   string customer_id = 4;
@@ -797,7 +879,8 @@ message CreatePackagingSpecResponse {
 }
 
 message UpdatePackagingSpecRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string packaging_spec_id = 2;
   string item_model_id = 3;
   string packaging_method_id = 4;
@@ -820,7 +903,8 @@ message UpdatePackagingSpecResponse {
 }
 
 message ChangePackagingSpecStatusRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string packaging_spec_id = 2;
   bool active = 3;
 }
@@ -830,7 +914,8 @@ message ChangePackagingSpecStatusResponse {
 }
 
 message CreateBomRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string bom_code = 2;
   string bom_name = 3;
   BomType bom_type = 4;
@@ -844,7 +929,8 @@ message CreateBomResponse {
 }
 
 message UpdateBomBasicsRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string bom_id = 2;
   string bom_code = 3;
   string bom_name = 4;
@@ -855,7 +941,8 @@ message UpdateBomBasicsResponse {
 }
 
 message ReplaceBomLinesRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string bom_id = 2;
   repeated BomLineInput lines = 3;
 }
@@ -865,7 +952,8 @@ message ReplaceBomLinesResponse {
 }
 
 message ChangeBomStatusRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string bom_id = 2;
   bool active = 3;
 }
@@ -875,7 +963,8 @@ message ChangeBomStatusResponse {
 }
 
 message UpsertSupplierItemMappingRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string supplier_id = 2;
   string supplier_item_code = 3;
   string supplier_item_name = 4;

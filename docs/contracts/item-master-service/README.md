@@ -31,10 +31,13 @@ Contract V2 只承载当前稳定对象与字段语义，不在本目录保留�
 
 ## 3. Service Surface
 
-Contract V2 仍使用两个内部 gRPC service 作为服务面分组：
+Contract V2 使用三个 gRPC service 作为服务面分组：
 
 - `ItemMasterQueryService`
 - `ItemMasterManagementService`
+- `ItemMasterInternalQueryService`
+
+前两个 service 的现有 50 个 RPC 只允许 Gateway 后台 HUMAN/WEB 调用；当前 46 条 BFF route 不因本迁移增加业务入口。第三个 service 只承载三个按业务能力命名的 INTERNAL 资格查询，不是 Gateway 后台接口，也不新增 Item Master 业务能力。
 
 ## 4. Documents
 
@@ -48,19 +51,21 @@ Contract V2 仍使用两个内部 gRPC service 作为服务面分组：
 
 ## 5. Security And Context Baseline
 
-所有 V2 RPC 统一遵循以下基线：
+所有 V2 RPC 都是内部 gRPC 契约，不直接对外部客户端开放，并使用 `aud=urn:oes:service:item-master-service`、mTLS 与 certificate-bound ExecutionToken。请求体不再携带租户或操作者 authority；现有 50 个 request 的 `tenant_id=1` 被删除并永久 reserve，tenant、org、principal、operator、trace 与 audit 只能从验证后的 ExecutionToken 和可信 transport context 派生。
 
-- 全部为内部 gRPC 契约，不直接对外部客户端开放。
-- 所有 RPC 显式携带 `tenant_id`。
-- 所有 RPC 都要求：
-  - internal service context
-  - operator context
-  - trace context
-- management RPC 必须走 command 语义，不得按 query 方式滥用。
-- query RPC 不修改状态。
-- management RPC 必须进入本地 audit envelope。
+现有 50 个 RPC 的冻结入口为 `BUSINESS / HUMAN / WEB`：只允许 Gateway 使用 HUMAN session ET，拒绝 MACHINE、DELEGATED、SELF_SERVICE、非 WEB terminal、错误 audience/`cnf`/Code 以及全部旧 body/ordinary-metadata/signed-operator fallback。每个 RPC 的 exact Code 以 [trusted gRPC feature packet](../../plans/features/trusted-grpc-execution-context.md) 的 Item Master 53-RPC matrix 为准。
 
-本目录不展开 metadata header、guard、tracing、审计表结构或 event bridge 实现。
+三个资格查询的冻结入口为 `INTERNAL / SYSTEM MACHINE`：
+
+| RPC | Exact INTERNAL Code | Exact workload allowlist |
+| --- | --- | --- |
+| `ResolveManufacturableItem` | `item_master.internal.manufacturable_item.resolve` | `mes-service` |
+| `ResolveStockableItem` | `item_master.internal.stockable_item.resolve` | `wms-service` |
+| `ResolvePurchasableItem` | `item_master.internal.purchasable_item.resolve` | `procurement-service`, `srm-service` |
+
+每个 caller 使用自身 Machine Principal、source credential 与 SPIFFE identity，逐跳兑换 Item Master audience ET；不得复用 Gateway identity，不得把旧 signed metadata、body tenant 或 raw smoke 伪装成 workload。SYSTEM scope 不是跨租户通配：每次调用仍必须携带由可信入站链派生的准确 tenant claim。错误 workload、HUMAN、DELEGATED、TENANT MACHINE、错误 Code/audience/`cnf` 与缺失 foundation 均 fail closed。
+
+management RPC 必须走 command 语义并进入本地 audit envelope；query RPC 不修改状态。可信 principal、source workload、tenant、trace 与 audit 不接受业务 payload 覆盖。
 
 ## 6. Shared Lifecycle
 
@@ -90,6 +95,8 @@ Item.active = true
 | `FAILED_PRECONDITION` | 资源存在，但当前状态、active 标记、capability、BOM 类型或引用关系不满足业务前提。 |
 
 空搜索、空列表、批量读取的部分缺失、供应商型号未命中，必须走正常响应语义，不能用错误码替代。
+
+三个 INTERNAL 资格查询在 Item 不存在时返回 `NOT_FOUND`；Item 存在但 `active=false` 或缺少目标 capability 时返回 `FAILED_PRECONDITION`；成功时只返回 `item_id/item_code/item_name/active` 的最小 Item-owned projection。
 
 ## 8. Deferred
 
