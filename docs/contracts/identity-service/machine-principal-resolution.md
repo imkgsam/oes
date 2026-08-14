@@ -134,6 +134,8 @@ Identity 不返回 source credential、leaf thumbprint、Permission grant、role
 
 not found、inactive、wrong type/scope、tenant/org mismatch、binding missing/disabled/stale、SPIFFE mismatch、ambiguous mapping、trust failure、timeout 或 dependency unavailable 均 fail closed。
 
+Item Master 的上游租户证明不改变本 resolver contract：MES、WMS、Procurement 与 SRM 的 `SYSTEM` Machine Principal response 仍不得包含 tenant。Identity 不接收 upstream ExecutionToken、upstream tenant 或 target audience，不把 execution-scoped tenant 写入 principal/binding，也不参与 upstream/target Token `jti` 关联；这些均由 Auth STS 在独立受信边界完成。
+
 Identity 返回安全 reason category；Auth 将其稳定映射为 MACHINE execution error。不得回退到 `ResolveIntegrationMachineForAuth`、legacy `AuthenticateApiKey`、Auth hardcoded root mapping、service-name header 或 caller/body principal fields。
 
 stable reason category 只允许：

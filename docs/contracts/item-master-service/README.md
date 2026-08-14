@@ -65,6 +65,10 @@ Contract V2 使用三个 gRPC service 作为服务面分组：
 
 每个 caller 使用自身 Machine Principal、source credential 与 SPIFFE identity，逐跳兑换 Item Master audience ET；不得复用 Gateway identity，不得把旧 signed metadata、body tenant 或 raw smoke 伪装成 workload。SYSTEM scope 不是跨租户通配：每次调用仍必须携带由可信入站链派生的准确 tenant claim。错误 workload、HUMAN、DELEGATED、TENANT MACHINE、错误 Code/audience/`cnf` 与缺失 foundation 均 fail closed。
 
+该 tenant claim 的唯一冻结来源是当前 Auth 签发的上游 HUMAN ET。MES/WMS/Procurement/SRM 的 tenantless SYSTEM Machine source credential 证明直接服务身份；上游 HUMAN ET 证明本次 tenant。Common 只在 Auth STS 私有通道同时携带两份 opaque credential，Auth 验证 upstream signature/time/HUMAN principal/tenant/self-audience、Identity Machine binding、Permission workload decision 与 mTLS/certificate 后签发 Item Master ET。目标 ET 仍是 `principal_type=MACHINE`、`scope=SYSTEM`，tenant 只属于本次 execution，expiry 不晚于 upstream ET，并审计关联 upstream/target `jti`。
+
+Item Master 不接收上游 ET，只消费最终 ET。missing/wrong/cross-tenant/wrong-audience/expired upstream proof、错误 workload/certificate、Permission denied 与 body/local tenant injection 全部拒绝。没有上游 HUMAN ET 的 Cron/Robot/后台任务继续 deferred，不允许使用 SYSTEM scope、body tenant 或本地配置绕过。
+
 management RPC 必须走 command 语义并进入本地 audit envelope；query RPC 不修改状态。可信 principal、source workload、tenant、trace 与 audit 不接受业务 payload 覆盖。
 
 ## 6. Shared Lifecycle
