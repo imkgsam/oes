@@ -15,6 +15,7 @@ export const ITEM_MASTER_CALLER_ERRORS = Object.freeze({
 } as const)
 
 export type InternalTrustedGrpcCallerProfile = Readonly<{
+  executionSource: 'MACHINE_ROOT' | 'HUMAN_OBO'
   targetAudience: string
   errors: Readonly<{
     CONTEXT_REQUIRED: string
@@ -24,13 +25,17 @@ export type InternalTrustedGrpcCallerProfile = Readonly<{
 }>
 
 const PARTY_CALLER_PROFILE: InternalTrustedGrpcCallerProfile = Object.freeze({
+  executionSource: 'MACHINE_ROOT',
   targetAudience: 'urn:oes:service:party-service',
   errors: PARTY_CALLER_ERRORS
 })
 
-export interface TrustedPartySourceProvider {
+export interface TrustedInternalCallSourceProvider {
   run<T>(callback: () => Promise<T>): Promise<T>
 }
+
+/** Retains the integrated Party source-provider type as an exact compatibility alias. */
+export type TrustedPartySourceProvider = TrustedInternalCallSourceProvider
 
 /** Common execution boundary used by package-local trusted internal-call producers. */
 export class InternalTrustedGrpcCaller {
@@ -39,7 +44,7 @@ export class InternalTrustedGrpcCaller {
   constructor(
     private readonly context: AsyncLocalTrustedExecutionContextAccessor,
     private readonly metadata: TrustedGrpcMetadataProvider,
-    private readonly source: TrustedPartySourceProvider,
+    private readonly source: TrustedInternalCallSourceProvider,
     profile: InternalTrustedGrpcCallerProfile = PARTY_CALLER_PROFILE
   ) {
     this.profile = validateProfile(profile)
@@ -52,7 +57,9 @@ export class InternalTrustedGrpcCaller {
     } catch {
       throw new Error(this.profile.errors.CONTEXT_REQUIRED)
     }
-    if (root.principalType !== 'MACHINE') {
+    const requiredPrincipalType =
+      this.profile.executionSource === 'MACHINE_ROOT' ? 'MACHINE' : 'HUMAN'
+    if (root.principalType !== requiredPrincipalType) {
       throw new Error(this.profile.errors.CONTEXT_REQUIRED)
     }
     try {
@@ -95,6 +102,9 @@ export class InternalTrustedGrpcCaller {
 function validateProfile(
   profile: InternalTrustedGrpcCallerProfile
 ): InternalTrustedGrpcCallerProfile {
+  if (!['MACHINE_ROOT', 'HUMAN_OBO'].includes(profile.executionSource)) {
+    throw new Error('trusted internal caller executionSource is invalid')
+  }
   if (!/^urn:oes:service:[a-z0-9-]+$/u.test(profile.targetAudience)) {
     throw new Error('trusted internal caller targetAudience must be a service audience')
   }
@@ -103,7 +113,11 @@ function validateProfile(
       throw new Error('trusted internal caller errors must be stable literals')
     }
   }
+  if (new Set(Object.values(profile.errors)).size !== 3) {
+    throw new Error('trusted internal caller errors must be pairwise distinct')
+  }
   return Object.freeze({
+    executionSource: profile.executionSource,
     targetAudience: profile.targetAudience,
     errors: Object.freeze({ ...profile.errors })
   })

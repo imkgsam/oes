@@ -5,12 +5,12 @@ import {
   createTrustedExecutionContext,
   InternalTrustedGrpcCaller,
   ITEM_MASTER_CALLER_ERRORS,
+  inboundExecutionTokenCredentialScope,
   TrustedExecutionRegistry,
   TrustedGrpcMetadataProvider
 } from '@oes/common/authorization'
 import { readLocalVerifiedWorkloadIdentity } from '@oes/common/transport'
 import { MesItemMasterExecutionTokenExchangeClient } from './mes-item-master-execution-token-exchange.client'
-import { MesItemMasterMachineSourceCredentialProvider } from './mes-item-master-machine-source-credential.provider'
 
 const ITEM_MASTER_AUDIENCE = 'urn:oes:service:item-master-service'
 
@@ -20,10 +20,7 @@ export class MesItemMasterTrustedGrpcExecutionProducer {
   private metadata?: TrustedGrpcMetadataProvider
   private caller?: InternalTrustedGrpcCaller
 
-  constructor(
-    private readonly source: MesItemMasterMachineSourceCredentialProvider,
-    private readonly exchange: MesItemMasterExecutionTokenExchangeClient
-  ) {}
+  constructor(private readonly exchange: MesItemMasterExecutionTokenExchangeClient) {}
 
   async createMetadata(
     code: string,
@@ -31,11 +28,13 @@ export class MesItemMasterTrustedGrpcExecutionProducer {
     requestId?: string,
     traceparent?: string
   ): Promise<Metadata> {
-    const subject = required('MES_ITEM_MASTER_MACHINE_PRINCIPAL_ID')
+    const inbound = requireInbound()
     if (
       !tenantId ||
       tenantId.trim() !== tenantId ||
       tenantId === 'SYSTEM' ||
+      inbound.principalType !== 'HUMAN' ||
+      inbound.tenantId !== tenantId ||
       !requestId ||
       requestId.trim() !== requestId ||
       !traceparent ||
@@ -44,9 +43,13 @@ export class MesItemMasterTrustedGrpcExecutionProducer {
       throw new Error(ITEM_MASTER_CALLER_ERRORS.CONTEXT_REQUIRED)
     }
     const root = createTrustedExecutionContext({
-      subject,
-      principalType: 'MACHINE',
-      tenantId,
+      subject: inbound.subject,
+      principalType: 'HUMAN',
+      tenantId: inbound.tenantId,
+      orgId: inbound.orgId,
+      sessionId: inbound.sessionId,
+      sessionTerminal: inbound.sessionTerminal,
+      authzVersion: inbound.authzVersion,
       requestId,
       traceparent
     })
@@ -59,8 +62,9 @@ export class MesItemMasterTrustedGrpcExecutionProducer {
     return (this.caller ??= new InternalTrustedGrpcCaller(
       this.context,
       this.getMetadata(),
-      this.source,
+      inboundExecutionTokenCredentialScope,
       {
+        executionSource: 'HUMAN_OBO',
         targetAudience: ITEM_MASTER_AUDIENCE,
         errors: ITEM_MASTER_CALLER_ERRORS
       }
@@ -77,11 +81,20 @@ export class MesItemMasterTrustedGrpcExecutionProducer {
       }),
       tokenCache: new CertificateBoundExecutionTokenCache({ refreshMarginSeconds: 15 }),
       exchangeClient: this.exchange,
-      sourceCredentialAccessor: this.source.accessor,
+      sourceCredentialAccessor: inboundExecutionTokenCredentialScope.accessor,
       localWorkloadIdentity: {
         getVerifiedWorkloadIdentity: async () => readLocalVerifiedWorkloadIdentity()
       }
     }))
+  }
+}
+
+/** Reads only verified inbound HUMAN facts while keeping the current-hop bearer opaque. */
+function requireInbound() {
+  try {
+    return inboundExecutionTokenCredentialScope.requireVerifiedExecution()
+  } catch {
+    throw new Error(ITEM_MASTER_CALLER_ERRORS.CONTEXT_REQUIRED)
   }
 }
 

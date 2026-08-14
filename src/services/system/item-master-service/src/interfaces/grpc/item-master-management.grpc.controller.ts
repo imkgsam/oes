@@ -74,7 +74,7 @@ import {
 } from '@oes/common/generated/item_master_service'
 import { ItemMasterManagementV2Service } from '../../application/item-master-v2.service'
 import { ItemMasterAuditService } from '../../application/services/item-master-audit.service'
-import { ItemMasterRpcContextGuard } from './item-master-rpc-context.guard'
+import { ItemMasterVerifiedTenantContextGuard } from './item-master-rpc-context.guard'
 
 /** Keeps the application command seam tenant-aware while the wire contract derives tenant from ExecutionToken. */
 declare module '@oes/common/generated/item_master_service' {
@@ -175,7 +175,7 @@ declare module '@oes/common/generated/item_master_service' {
 
 /** ItemMasterManagementGrpcController exposes Contract V2 command RPCs with local audit wrapping. */
 @UseFilters(GrpcExceptionFilter)
-@UseGuards(TrustedExecutionGuard, ItemMasterRpcContextGuard)
+@UseGuards(TrustedExecutionGuard, ItemMasterVerifiedTenantContextGuard)
 @UseInterceptors(GrpcRequestContextInterceptor)
 @Controller()
 @ItemMasterManagementServiceControllerMethods()

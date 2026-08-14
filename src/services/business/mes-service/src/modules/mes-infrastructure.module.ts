@@ -5,8 +5,6 @@ import { PrismaModule } from '../infrastructure/prisma/prisma.module'
 import { PrismaProductionSpecRepository } from '../infrastructure/repositories/prisma/prisma-production-spec.repository'
 import { PrismaMesMoldRepository } from '../infrastructure/repositories/prisma/prisma-mes-mold.repository'
 import { MesItemMasterTrustedGrpcClient } from '../infrastructure/adapters/item-master-trusted-grpc.client'
-import { MesItemMasterMachineSourceCredentialClient } from '../infrastructure/adapters/mes-item-master-machine-source-credential.client'
-import { MesItemMasterMachineSourceCredentialProvider } from '../infrastructure/adapters/mes-item-master-machine-source-credential.provider'
 import { MesItemMasterExecutionTokenExchangeClient } from '../infrastructure/adapters/mes-item-master-execution-token-exchange.client'
 import { MesItemMasterTrustedGrpcExecutionProducer } from '../infrastructure/adapters/mes-item-master-trusted-grpc-execution.producer'
 
@@ -16,19 +14,12 @@ import { MesItemMasterTrustedGrpcExecutionProducer } from '../infrastructure/ada
   imports: [PrismaModule],
   providers: [
     MesItemMasterTrustedGrpcClient,
-    MesItemMasterMachineSourceCredentialClient,
-    MesItemMasterMachineSourceCredentialProvider,
     MesItemMasterExecutionTokenExchangeClient,
     {
       provide: MesItemMasterTrustedGrpcExecutionProducer,
-      useFactory: (
-        source: MesItemMasterMachineSourceCredentialProvider,
-        exchange: MesItemMasterExecutionTokenExchangeClient
-      ) => new MesItemMasterTrustedGrpcExecutionProducer(source, exchange),
-      inject: [
-        MesItemMasterMachineSourceCredentialProvider,
-        MesItemMasterExecutionTokenExchangeClient
-      ]
+      useFactory: (exchange: MesItemMasterExecutionTokenExchangeClient) =>
+        new MesItemMasterTrustedGrpcExecutionProducer(exchange),
+      inject: [MesItemMasterExecutionTokenExchangeClient]
     },
     PrismaMesMoldRepository,
     PrismaProductionSpecRepository,

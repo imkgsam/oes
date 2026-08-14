@@ -6,7 +6,7 @@ import { PrismaItemMasterAuditRepository } from '../../infrastructure/repositori
 import { PrismaModule } from '../../infrastructure/prisma/prisma.module'
 import { PrismaService } from '../../infrastructure/prisma/prisma.service'
 import { ItemMasterManagementGrpcController } from '../../interfaces/grpc/item-master-management.grpc.controller'
-import { ItemMasterRpcContextGuard } from '../../interfaces/grpc/item-master-rpc-context.guard'
+import { ItemMasterVerifiedTenantContextGuard } from '../../interfaces/grpc/item-master-rpc-context.guard'
 
 /** ItemMasterManagementModule wires Contract V2 command RPCs to the V2 application command service. */
 @Module({
@@ -20,7 +20,7 @@ import { ItemMasterRpcContextGuard } from '../../interfaces/grpc/item-master-rpc
       provide: TOKENS.ITEM_MASTER_TRANSACTION_RUNNER,
       useExisting: PrismaService
     },
-    ItemMasterRpcContextGuard,
+    ItemMasterVerifiedTenantContextGuard,
     ItemMasterAuditService,
     ItemMasterManagementV2Service
   ],

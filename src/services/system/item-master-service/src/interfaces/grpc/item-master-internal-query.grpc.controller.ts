@@ -12,12 +12,12 @@ import {
   ResolveStockableItemResponse
 } from '@oes/common/generated/item_master_service'
 import { ItemMasterQueryV2Service } from '../../application/item-master-v2.service'
-import { ItemMasterRpcContextGuard } from './item-master-rpc-context.guard'
+import { ItemMasterVerifiedTenantContextGuard } from './item-master-rpc-context.guard'
 import { ItemMasterTrustedInternalExecutionGuard } from '../../modules/item-master-trusted-execution.module'
 
 /** Exposes only the three frozen workload-only Item eligibility queries. */
 @UseFilters(GrpcExceptionFilter)
-@UseGuards(ItemMasterTrustedInternalExecutionGuard, ItemMasterRpcContextGuard)
+@UseGuards(ItemMasterTrustedInternalExecutionGuard, ItemMasterVerifiedTenantContextGuard)
 @UseInterceptors(GrpcRequestContextInterceptor)
 @Controller()
 @ItemMasterInternalQueryServiceControllerMethods()

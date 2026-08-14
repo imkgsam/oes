@@ -68,4 +68,26 @@ describe('ExecutionTokenExchangeSourceCredentialCarrier', () => {
 
     expect(metadata.get('authorization')).toEqual([`Bearer ${subjectToken}`])
   })
+
+  it('partitions OBO cache entries with a stable irreversible subject reference', () => {
+    const issuer = new TransportPrivateSourceCredentialIssuer()
+    const accessor = new AsyncLocalTransportPrivateSourceCredentialAccessor()
+    const carrier = new ExecutionTokenExchangeSourceCredentialCarrier(accessor)
+    const first = accessor.run(
+      issuer.issueVerifiedExecutionTokenSubjectCredential('first.subject.token'),
+      () => carrier.referenceCurrent()
+    )
+    const repeated = accessor.run(
+      issuer.issueVerifiedExecutionTokenSubjectCredential('first.subject.token'),
+      () => carrier.referenceCurrent()
+    )
+    const second = accessor.run(
+      issuer.issueVerifiedExecutionTokenSubjectCredential('second.subject.token'),
+      () => carrier.referenceCurrent()
+    )
+
+    expect(first).toBe(repeated)
+    expect(first).not.toBe(second)
+    expect(first).not.toContain('subject.token')
+  })
 })

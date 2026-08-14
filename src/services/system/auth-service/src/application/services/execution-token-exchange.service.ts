@@ -19,6 +19,8 @@ export interface TrustedExecutionContext {
   readonly sessionTerminal?: string
   readonly delegationId?: string
   readonly actor?: unknown
+  readonly sourceTokenId?: string
+  readonly sourceExpiresAt?: number
 }
 
 /** Carries only Permission's authoritative, request-bound issuance upper bound into the signing gate. */
@@ -65,19 +67,35 @@ export class ExecutionTokenExchangeService {
   constructor(
     private readonly registry: ExecutionTokenRegistry,
     private readonly signer: ExecutionTokenSigningPort,
-    private readonly now: () => number = () => Math.floor(Date.now() / 1_000)
+    private readonly now: () => number = () => Math.floor(Date.now() / 1_000),
+    private readonly audit?: {
+      appendOboLink(input: {
+        sourceTokenId: string
+        targetTokenId: string
+        subject: string
+        tenantId?: string
+        actor: unknown
+        workload: string
+        audience: string
+        decisionReference: string
+      }): Promise<void>
+    }
   ) {}
 
   /** Signs one exact-audience, certificate-bound credential after rejecting caller-selected trust and privilege expansion. */
   async exchange(input: ExchangeExecutionTokenInput): Promise<IssuedExecutionToken> {
     const permissions = normalizePermissionCodes(input.requestedPermissionCodes)
-    this.assertTrustedContext(input, permissions)
-    const signingKey = await this.signer.currentSigningKey()
     const now = this.now()
+    this.assertTrustedContext(input, permissions, now)
+    const signingKey = await this.signer.currentSigningKey()
     assertSigningKeyEligible(signingKey, now)
 
-    const expiresAtUnixSeconds = now + ExecutionTokenExchangeService.MAX_TTL_SECONDS
+    const expiresAtUnixSeconds = Math.min(
+      now + ExecutionTokenExchangeService.MAX_TTL_SECONDS,
+      input.execution.sourceExpiresAt ?? Number.MAX_SAFE_INTEGER
+    )
     const header = encodeSegment({ alg: 'ES256', kid: signingKey.kid, typ: 'at+jwt' })
+    const targetTokenId = randomUUID()
     const claims = encodeSegment({
       iss: this.registry.issuer,
       aud: input.targetAudience,
@@ -87,7 +105,7 @@ export class ExecutionTokenExchangeService {
       ...(input.execution.tenantId === undefined ? {} : { tenant_id: input.execution.tenantId }),
       ...(input.execution.orgId === undefined ? {} : { org_id: input.execution.orgId }),
       scope: permissions.join(' '),
-      jti: randomUUID(),
+      jti: targetTokenId,
       iat: now,
       nbf: now,
       exp: expiresAtUnixSeconds,
@@ -104,12 +122,26 @@ export class ExecutionTokenExchangeService {
     })
     const signingInput = `${header}.${claims}`
     const signature = await this.signer.sign(signingKey.kid, Buffer.from(signingInput, 'utf8'))
+    if (input.execution.sourceTokenId) {
+      if (!input.execution.actor || !this.audit)
+        throw new Error('execution token OBO audit is unavailable')
+      await this.audit.appendOboLink({
+        sourceTokenId: input.execution.sourceTokenId,
+        targetTokenId,
+        subject: input.execution.subject,
+        tenantId: input.execution.tenantId,
+        actor: input.execution.actor,
+        workload: input.workloadIdentity.spiffeId,
+        audience: input.targetAudience,
+        decisionReference: input.authorizationDecision.decisionReference
+      })
+    }
 
     return Object.freeze({
       accessToken: `${signingInput}.${Buffer.from(signature).toString('base64url')}`,
       tokenType: 'Bearer',
       expiresAtUnixSeconds,
-      expiresInSeconds: ExecutionTokenExchangeService.MAX_TTL_SECONDS,
+      expiresInSeconds: expiresAtUnixSeconds - now,
       kid: signingKey.kid,
       grantedPermissionCodes: permissions,
       grantedAudience: input.targetAudience
@@ -119,7 +151,8 @@ export class ExecutionTokenExchangeService {
   /** Validates the transport facts and Permission-owned upper bound before the signing port is reachable. */
   private assertTrustedContext(
     input: ExchangeExecutionTokenInput,
-    permissionCodes: readonly string[]
+    permissionCodes: readonly string[],
+    now: number
   ): void {
     if (
       !input.workloadIdentity.spiffeId.startsWith('spiffe://') ||
@@ -129,8 +162,35 @@ export class ExecutionTokenExchangeService {
     ) {
       throw new Error('execution token exchange lacks an authoritative Permission decision')
     }
+    if (input.execution.sourceTokenId !== undefined) {
+      if (
+        !isExact(input.execution.sourceTokenId) ||
+        input.execution.principalType !== 'HUMAN' ||
+        !isExact(input.execution.tenantId) ||
+        !isExact(input.execution.sessionId) ||
+        !isDirectSystemMachineActor(input.execution.actor) ||
+        !Number.isInteger(input.execution.sourceExpiresAt) ||
+        (input.execution.sourceExpiresAt as number) <= now
+      ) {
+        throw new Error('execution token HUMAN OBO context is invalid')
+      }
+    } else if (input.execution.sourceExpiresAt !== undefined) {
+      throw new Error('execution token HUMAN OBO context is invalid')
+    }
     this.registry.assertIssuanceAllowed(input.workloadIdentity.spiffeId, input.targetAudience)
   }
+}
+
+/** Accepts only one direct registry-selected SYSTEM MACHINE actor and no caller-built actor chain. */
+function isDirectSystemMachineActor(actor: unknown): boolean {
+  if (!actor || typeof actor !== 'object' || Array.isArray(actor)) return false
+  const value = actor as Record<string, unknown>
+  return (
+    Object.keys(value).length === 3 &&
+    isExact(value.sub) &&
+    value.principal_type === 'MACHINE' &&
+    value.scope_level === 'SYSTEM'
+  )
 }
 
 /** Requires requested Codes to be a true subset of Permission's bound authoritative grant. */

@@ -121,7 +121,8 @@ export class TrustedGrpcMetadataProvider {
       context,
       targetAudience,
       normalizedPermissionCodes,
-      workloadIdentity
+      workloadIdentity,
+      this.sourceCredentialCarrier.referenceCurrent()
     )
     let cached = this.tokenCache.get(cacheKey)
     if (cached === undefined) {
@@ -176,7 +177,8 @@ function buildCacheKey(
   context: TrustedExecutionContext,
   targetAudience: string,
   permissionCodes: readonly string[],
-  workloadIdentity: VerifiedWorkloadIdentity
+  workloadIdentity: VerifiedWorkloadIdentity,
+  sourceCredentialReference: string
 ): CertificateBoundExecutionTokenCacheKey {
   return {
     subject: context.subject,
@@ -189,6 +191,7 @@ function buildCacheKey(
     permissionCodes,
     workloadIdentity: workloadIdentity.spiffeId,
     certificateThumbprint: workloadIdentity.certificateThumbprint,
+    sourceCredentialReference,
     ...(context.sessionId === undefined ? {} : { sessionId: context.sessionId }),
     ...(context.sessionTerminal === undefined ? {} : { sessionTerminal: context.sessionTerminal }),
     ...(context.authzVersion === undefined ? {} : { authzVersion: context.authzVersion })

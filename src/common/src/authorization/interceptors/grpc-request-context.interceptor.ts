@@ -8,6 +8,7 @@ import {
 import { GrpcAuthenticatedRequestContext } from '../types'
 import { getAuthenticatedGrpcRequestContext, getGrpcMetadataValue } from '../utils'
 import { GrpcRequestContextStore } from '../services/grpc-request-context.store'
+import { inboundExecutionTokenCredentialScope } from '../trusted-execution/inbound-execution-token-credential.scope'
 
 @Injectable()
 export class GrpcRequestContextInterceptor implements NestInterceptor {
@@ -35,11 +36,23 @@ export class GrpcRequestContextInterceptor implements NestInterceptor {
     }
 
     return new Observable((subscriber) =>
-      this.requestContextStore.run(requestContext, () =>
-        next.handle().subscribe({
-          next: (value) => subscriber.next(value),
-          error: (error) => subscriber.error(error),
-          complete: () => subscriber.complete()
+      inboundExecutionTokenCredentialScope.runPrepared(rpcData, () =>
+        this.requestContextStore.run(requestContext, () => {
+          const subscription = next.handle().subscribe({
+            next: (value) => subscriber.next(value),
+            error: (error) => {
+              inboundExecutionTokenCredentialScope.clearCurrent()
+              subscriber.error(error)
+            },
+            complete: () => {
+              inboundExecutionTokenCredentialScope.clearCurrent()
+              subscriber.complete()
+            }
+          })
+          return () => {
+            subscription.unsubscribe()
+            inboundExecutionTokenCredentialScope.clearCurrent()
+          }
         })
       )
     )

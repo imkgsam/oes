@@ -162,7 +162,7 @@ describe('TrustedGrpcMetadataProvider', () => {
       fixture.provider.forInternalCall(AUDIENCE, ['asset.internal.resolve'])
     )
 
-    expect(exchange.exchange).toHaveBeenCalledTimes(3)
+    expect(exchange.exchange).toHaveBeenCalledTimes(4)
   })
 
   it('uses the controlled empty permission set only for SELF_SERVICE', async () => {

@@ -8,6 +8,7 @@ import {
   RPC_AUTHORIZATION_MODE_METADATA_KEY
 } from '../trusted-execution/declarations'
 import { ExecutionTokenVerifier } from '../trusted-execution'
+import { inboundExecutionTokenCredentialScope } from '../trusted-execution/inbound-execution-token-credential.scope'
 import { attachVerifiedExecution, getGrpcAuthorizationBearer, getGrpcMetadataValue } from '../utils'
 import { GrpcWorkloadIdentityProvider } from '../../transport'
 
@@ -48,6 +49,9 @@ export class TrustedExecutionGuard implements CanActivate {
       verifiedExecutionToken: verified,
       verifiedWorkloadIdentity: workloadIdentity
     })
+    if (rpc.getData() && typeof rpc.getData() === 'object') {
+      inboundExecutionTokenCredentialScope.prepare(rpc.getData(), token, verified)
+    }
     if (attached) {
       Object.assign(attached as object, {
         requestId: getGrpcMetadataValue(rpc.getContext<Metadata>(), 'x-request-id'),

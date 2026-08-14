@@ -16,7 +16,8 @@ type VerifiedWorkloadResolver = {
 export interface ExecutionTokenSourceCredentialVerifier {
   verify(
     sourceCredential: string,
-    workloadIdentity: VerifiedExecutionWorkload
+    workloadIdentity: VerifiedExecutionWorkload,
+    request?: Pick<ExchangeExecutionTokenInput, 'targetAudience' | 'requestedPermissionCodes'>
   ): Promise<TrustedExecutionContext>
 }
 
@@ -51,7 +52,7 @@ export class VerifiedExecutionTokenContextProvider implements ExecutionTokenExch
     if (!sourceCredential) throw new Error('verified source credential is required')
 
     const execution = Object.freeze({
-      ...(await this.sourceCredentialVerifier.verify(sourceCredential, workloadIdentity))
+      ...(await this.sourceCredentialVerifier.verify(sourceCredential, workloadIdentity, request))
     })
     const authorizationDecision = Object.freeze(
       await this.permissionDecisionResolver.resolve({

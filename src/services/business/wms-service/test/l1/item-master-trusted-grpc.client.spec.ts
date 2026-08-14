@@ -1,12 +1,9 @@
 import { Metadata } from '@grpc/grpc-js'
-import { Test } from '@nestjs/testing'
 import { ITEM_MASTER_INTERNAL_PERMISSION_CODES } from '@oes/common/authorization'
 import { of } from 'rxjs'
 import { ItemMasterStockableQueryGrpcAdapter } from '../../src/infrastructure/adapters/item-master-stockable-query.grpc.adapter'
 import { WmsItemMasterTrustedGrpcClient } from '../../src/infrastructure/adapters/item-master-trusted-grpc.client'
 import { WmsItemMasterExecutionTokenExchangeClient } from '../../src/infrastructure/adapters/wms-item-master-execution-token-exchange.client'
-import { WmsItemMasterMachineSourceCredentialClient } from '../../src/infrastructure/adapters/wms-item-master-machine-source-credential.client'
-import { WmsItemMasterMachineSourceCredentialProvider } from '../../src/infrastructure/adapters/wms-item-master-machine-source-credential.provider'
 import { WmsItemMasterTrustedGrpcExecutionProducer } from '../../src/infrastructure/adapters/wms-item-master-trusted-grpc-execution.producer'
 import { WmsInfrastructureModule } from '../../src/modules/wms-infrastructure.module'
 
@@ -22,10 +19,7 @@ describe('WMS Item Master trusted execution L1', () => {
     process.env = {
       ...saved,
       AUTH_EXECUTION_ISSUER: 'https://issuer.example',
-      OES_WORKLOAD_SPIFFE_ID: 'spiffe://oes/wms-service',
-      WMS_ITEM_MASTER_MACHINE_PRINCIPAL_ID: 'machine-wms',
-      WMS_ITEM_MASTER_MACHINE_WORKLOAD_BINDING_ID: 'binding-wms-item-master',
-      WMS_ITEM_MASTER_MACHINE_WORKLOAD_BINDING_VERSION: '1'
+      OES_WORKLOAD_SPIFFE_ID: 'spiffe://oes/wms-service'
     }
   })
 
@@ -33,19 +27,14 @@ describe('WMS Item Master trusted execution L1', () => {
     process.env = saved
   })
 
-  it('resolves the dedicated client, source provider, exchange, and producer graph', async () => {
+  it('keeps the prepared caller graph out of production DI until WMS inbound migration', () => {
     const tokens = [
       WmsItemMasterTrustedGrpcClient,
-      WmsItemMasterMachineSourceCredentialClient,
-      WmsItemMasterMachineSourceCredentialProvider,
       WmsItemMasterExecutionTokenExchangeClient,
       WmsItemMasterTrustedGrpcExecutionProducer
     ]
-    const module = await compileRegisteredGraph(WmsInfrastructureModule, tokens)
-    for (const token of tokens) {
-      expect(module.get(token)).toBeDefined()
-    }
-    await module.close()
+    const providers = Reflect.getMetadata('providers', WmsInfrastructureModule) as unknown[]
+    expect(providers).not.toEqual(expect.arrayContaining(tokens))
   })
 
   it('calls only ResolveStockableItem with the exact code and no body tenant', async () => {
@@ -67,27 +56,15 @@ describe('WMS Item Master trusted execution L1', () => {
     expect(producer.createMetadata).toHaveBeenCalledWith(code, 'tenant-1', 'request-1', traceparent)
   })
 
-  it('uses its own source selector and fails closed before downstream on source/config gaps', async () => {
-    const client = new WmsItemMasterMachineSourceCredentialClient()
-    const issue = jest.fn(() => of({ tokenType: 'Bearer', sourceCredential: 'source' }))
-    ;(client as any).getService = () => ({ issueMachineWorkloadSourceCredential: issue })
-    await expect(client.issue()).resolves.toBe('source')
-    expect(issue).toHaveBeenCalledWith(
-      {
-        machinePrincipalId: 'machine-wms',
-        machineWorkloadBindingId: 'binding-wms-item-master',
-        machineWorkloadBindingVersion: '1'
-      },
-      expect.any(Metadata)
-    )
-
-    delete process.env.WMS_ITEM_MASTER_MACHINE_WORKLOAD_BINDING_ID
-    await expect(client.issue()).rejects.toThrow('ITEM_MASTER_CALLER_FOUNDATION_UNAVAILABLE')
-    const downstream = jest.fn(async () => undefined)
+  it('fails closed without a verified inbound HUMAN scope', async () => {
     await expect(
-      new WmsItemMasterMachineSourceCredentialProvider(client).run(downstream)
-    ).rejects.toThrow()
-    expect(downstream).not.toHaveBeenCalled()
+      new WmsItemMasterTrustedGrpcExecutionProducer({} as never).createMetadata(
+        code,
+        'tenant-1',
+        'request-1',
+        traceparent
+      )
+    ).rejects.toThrow('ITEM_MASTER_CALLER_EXECUTION_CONTEXT_REQUIRED')
   })
 
   it('maps Auth STS response and rejects incomplete MACHINE execution context', async () => {
@@ -112,7 +89,7 @@ describe('WMS Item Master trusted execution L1', () => {
       expect.any(Metadata)
     )
     await expect(
-      new WmsItemMasterTrustedGrpcExecutionProducer({} as never, exchange).createMetadata(
+      new WmsItemMasterTrustedGrpcExecutionProducer(exchange).createMetadata(
         code,
         'tenant-1',
         'request-1',
@@ -121,15 +98,3 @@ describe('WMS Item Master trusted execution L1', () => {
     ).rejects.toThrow('ITEM_MASTER_CALLER_EXECUTION_CONTEXT_REQUIRED')
   })
 })
-
-/** Compiles only the trust providers registered by the real infrastructure module. */
-async function compileRegisteredGraph(owner: object, tokens: unknown[]) {
-  const providers = Reflect.getMetadata('providers', owner) as Array<object | Function>
-  const selected = providers.filter((provider) =>
-    tokens.includes(
-      typeof provider === 'object' && 'provide' in provider ? provider.provide : provider
-    )
-  )
-  expect(selected).toHaveLength(tokens.length)
-  return Test.createTestingModule({ providers: selected as never[] }).compile()
-}

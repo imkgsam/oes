@@ -49,11 +49,11 @@ import {
   SearchPackagingSpecsResponse
 } from '@oes/common/generated/item_master_service'
 import { ItemMasterQueryV2Service } from '../../application/item-master-v2.service'
-import { ItemMasterRpcContextGuard } from './item-master-rpc-context.guard'
+import { ItemMasterVerifiedTenantContextGuard } from './item-master-rpc-context.guard'
 
 /** ItemMasterQueryGrpcController exposes Contract V2 item-master read-only RPCs. */
 @UseFilters(GrpcExceptionFilter)
-@UseGuards(TrustedExecutionGuard, ItemMasterRpcContextGuard)
+@UseGuards(TrustedExecutionGuard, ItemMasterVerifiedTenantContextGuard)
 @UseInterceptors(GrpcRequestContextInterceptor)
 @Controller()
 @ItemMasterQueryServiceControllerMethods()

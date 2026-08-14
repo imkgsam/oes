@@ -8,6 +8,7 @@ import {
   ListAuditEventsOutput
 } from '../../../domain/repositories/auth-audit.repository'
 import { PrismaService } from '../../prisma/prisma.service'
+import { randomUUID } from 'node:crypto'
 
 /**
  * PrismaAuthAuditRepository persists auth audit envelopes using the auth-service local Prisma schema.
@@ -38,6 +39,39 @@ export class PrismaAuthAuditRepository implements AuthAuditRepository {
         details: event.details as Prisma.InputJsonValue
       }
     })
+  }
+
+  /** Persists subject-to-target token linkage and bounded actor attribution before STS returns. */
+  async appendOboLink(input: {
+    sourceTokenId: string
+    targetTokenId: string
+    subject: string
+    tenantId?: string
+    actor: unknown
+    workload: string
+    audience: string
+    decisionReference: string
+  }): Promise<void> {
+    await this.append(
+      new AuthAuditEvent(
+        randomUUID(),
+        'auth',
+        'EXECUTION_TOKEN_OBO_ISSUED',
+        new Date(),
+        'SUCCEEDED',
+        { operatorId: input.subject, operatorType: 'HUMAN' },
+        { tenantId: input.tenantId, orgId: undefined },
+        { traceId: input.targetTokenId, spanId: null },
+        { resourceType: 'execution_token', resourceId: input.targetTokenId },
+        {
+          sourceTokenId: input.sourceTokenId,
+          actor: input.actor,
+          workload: input.workload,
+          audience: input.audience,
+          decisionReference: input.decisionReference
+        }
+      )
+    )
   }
 
   /**
@@ -148,15 +182,15 @@ export class PrismaAuthAuditRepository implements AuthAuditRepository {
  * encodeAuditCursor converts the stable auth audit sort key into an opaque pagination cursor.
  */
 function encodeAuditCursor(occurredAt: Date, id: string): string {
-  return Buffer.from(JSON.stringify({ occurredAt: occurredAt.toISOString(), id })).toString('base64')
+  return Buffer.from(JSON.stringify({ occurredAt: occurredAt.toISOString(), id })).toString(
+    'base64'
+  )
 }
 
 /**
  * decodeAuditCursor restores the auth audit sort key from an opaque pagination cursor.
  */
-function decodeAuditCursor(
-  cursor: string
-): {
+function decodeAuditCursor(cursor: string): {
   occurredAt: Date
   id: string
 } {

@@ -57,6 +57,8 @@ import { PrismaModule } from '../../infrastructure/prisma/prisma.module'
 import { ExternalServicesModule } from '../../infrastructure/modules/external-services.module'
 import { IDENTITY_SERVICE } from '@oes/common/constants'
 import { IIdentityServicePort } from '../../application/ports/identity-service.port'
+import { PrismaAuthAuditRepository } from '../../infrastructure/repositories/prisma/prisma.auth-audit.repository'
+import { ExecutionTokenSubjectCredentialVerifier } from '../../infrastructure/execution-token-signer/execution-token-subject-credential.verifier'
 
 const KMS_HSM_EXECUTION_TOKEN_CLIENT = 'KmsHsmExecutionTokenClient'
 export const EXECUTION_TOKEN_SIGNER = 'ExecutionTokenSigner'
@@ -117,9 +119,12 @@ const PRINCIPAL_AUTHORIZATION_CODE =
     },
     {
       provide: ExecutionTokenExchangeService,
-      useFactory: (registry: ExecutionTokenRegistry, signer: ExecutionTokenSigningPort) =>
-        new ExecutionTokenExchangeService(registry, signer),
-      inject: [ExecutionTokenRegistry, EXECUTION_TOKEN_SIGNER]
+      useFactory: (
+        registry: ExecutionTokenRegistry,
+        signer: ExecutionTokenSigningPort,
+        audit: PrismaAuthAuditRepository
+      ) => new ExecutionTokenExchangeService(registry, signer, undefined, audit),
+      inject: [ExecutionTokenRegistry, EXECUTION_TOKEN_SIGNER, PrismaAuthAuditRepository]
     },
     {
       provide: ExecutionTokenJwksService,
@@ -134,7 +139,8 @@ const PRINCIPAL_AUTHORIZATION_CODE =
         repository: PrismaMachineWorkloadSourceCredentialRepository,
         signer: ExecutionTokenSigningPort,
         identity: IIdentityServicePort,
-        configuration: ExecutionTokenRuntimeConfiguration
+        configuration: ExecutionTokenRuntimeConfiguration,
+        registry: ExecutionTokenRegistry
       ) =>
         new CompositeSourceCredentialVerifier(
           new AuthSessionSourceCredentialVerifier(queryBus),
@@ -143,14 +149,16 @@ const PRINCIPAL_AUTHORIZATION_CODE =
             signer,
             identity,
             configuration.issuer
-          )
+          ),
+          new ExecutionTokenSubjectCredentialVerifier(signer, identity, registry)
         ),
       inject: [
         QueryBus,
         PrismaMachineWorkloadSourceCredentialRepository,
         EXECUTION_TOKEN_SIGNER,
         IDENTITY_SERVICE,
-        EXECUTION_TOKEN_RUNTIME_CONFIGURATION
+        EXECUTION_TOKEN_RUNTIME_CONFIGURATION,
+        ExecutionTokenRegistry
       ]
     },
     {
@@ -190,7 +198,8 @@ const PRINCIPAL_AUTHORIZATION_CODE =
         EXECUTION_TOKEN_PERMISSION_DECISION_RESOLVER
       ]
     },
-    PrismaMachineWorkloadSourceCredentialRepository
+    PrismaMachineWorkloadSourceCredentialRepository,
+    PrismaAuthAuditRepository
   ],
   controllers: [ExecutionTokenGrpcController, ExecutionTokenMetadataHttpController],
   exports: [EXECUTION_TOKEN_SIGNER]
@@ -226,19 +235,25 @@ function requireSessionTerminal(terminal: string): TrustedSessionTerminal {
   return requireTrustedSessionTerminal(terminal)
 }
 
-/** Preserves HUMAN session validation while routing only the dedicated machine JWS profile to its strict verifier. */
+/** Routes session, MACHINE-root, and current-service HUMAN OBO credentials to their sole owning verifier. */
 export class CompositeSourceCredentialVerifier implements ExecutionTokenSourceCredentialVerifier {
   constructor(
     private readonly human: AuthSessionSourceCredentialVerifier,
-    private readonly machine: MachineWorkloadSourceCredentialVerifier
+    private readonly machine: MachineWorkloadSourceCredentialVerifier,
+    private readonly subject?: ExecutionTokenSubjectCredentialVerifier
   ) {}
   async verify(
     sourceCredential: string,
-    workloadIdentity: VerifiedExecutionWorkload
+    workloadIdentity: VerifiedExecutionWorkload,
+    request?: { targetAudience: string; requestedPermissionCodes: readonly string[] }
   ): Promise<TrustedExecutionContext> {
-    return isMachineSourceProfile(sourceCredential)
-      ? this.machine.verify(sourceCredential, workloadIdentity)
-      : this.human.verify(sourceCredential, workloadIdentity)
+    if (isMachineSourceProfile(sourceCredential))
+      return this.machine.verify(sourceCredential, workloadIdentity)
+    if (isExecutionTokenProfile(sourceCredential)) {
+      if (!this.subject || !request) throw new Error('EXECUTION_HUMAN_OBO_SUBJECT_INVALID')
+      return this.subject.verify(sourceCredential, workloadIdentity, request.targetAudience)
+    }
+    return this.human.verify(sourceCredential, workloadIdentity)
   }
 }
 
@@ -250,6 +265,20 @@ function isMachineSourceProfile(sourceCredential: string): boolean {
     return (
       (JSON.parse(Buffer.from(header, 'base64url').toString('utf8')) as { typ?: unknown }).typ ===
       'oes-machine-source+jwt'
+    )
+  } catch {
+    return false
+  }
+}
+
+/** Detects only Auth's signed at+jwt profile before the strict HUMAN OBO re-verifier runs. */
+function isExecutionTokenProfile(sourceCredential: string): boolean {
+  const [header] = sourceCredential.split('.')
+  if (!header) return false
+  try {
+    return (
+      (JSON.parse(Buffer.from(header, 'base64url').toString('utf8')) as { typ?: unknown }).typ ===
+      'at+jwt'
     )
   } catch {
     return false

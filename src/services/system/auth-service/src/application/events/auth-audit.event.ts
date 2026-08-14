@@ -36,6 +36,7 @@ export type AuthAuditEventType =
   | 'LOGOUT_OTHER_DEVICES_SUCCEEDED'
   | 'LOGOUT_ALL_SUCCEEDED'
   | 'TERMINAL_DEVICE_SESSIONS_REVOKED'
+  | 'EXECUTION_TOKEN_OBO_ISSUED'
 
 export type AuthAuditModule = 'auth' | 'session' | 'mfa'
 export type AuthAuditResult = AuditResult
@@ -47,9 +48,9 @@ export type AuthAuditResource = AuditResource
 /**
  * AuthAuditEvent carries auth-domain audit details in the shared audit envelope shape.
  */
-export class AuthAuditEvent<TDetails extends Record<string, unknown> = Record<string, unknown>>
-  implements AuditEnvelope<'auth-service', AuthAuditModule, AuthAuditEventType, TDetails>
-{
+export class AuthAuditEvent<
+  TDetails extends Record<string, unknown> = Record<string, unknown>
+> implements AuditEnvelope<'auth-service', AuthAuditModule, AuthAuditEventType, TDetails> {
   readonly service = 'auth-service' as const
 
   constructor(

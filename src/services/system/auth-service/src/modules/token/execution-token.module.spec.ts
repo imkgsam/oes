@@ -7,6 +7,7 @@ import {
 import { getGrpcClientToken } from '@oes/common/transport'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import { EXECUTION_TOKEN_EXCHANGE_CONTEXT } from '../../application/ports/execution-token-exchange-context.port'
+import { ExecutionTokenRegistry } from '../../domain/services/execution-token-registry'
 import {
   EXECUTION_TOKEN_PERMISSION_DECISION_RESOLVER,
   EXECUTION_TOKEN_SOURCE_CREDENTIAL_VERIFIER,
@@ -43,6 +44,9 @@ describe('ExecutionTokenModule authority wiring', () => {
     ) as ProviderDefinition
 
     expect(sourceProvider).toBeDefined()
+    expect((sourceProvider as ProviderDefinition).inject).toEqual(
+      expect.arrayContaining([ExecutionTokenRegistry])
+    )
     expect(decisionProvider.inject).toEqual(
       expect.arrayContaining([getGrpcClientToken(SERVICE_NAMES.PERMISSION)])
     )

@@ -80,7 +80,11 @@ describe('VerifiedExecutionTokenContextProvider', () => {
 
     expect(sourceCredentialVerifier.verify).toHaveBeenCalledWith(
       'verified.session.access-token',
-      WORKLOAD_IDENTITY
+      WORKLOAD_IDENTITY,
+      {
+        targetAudience: 'urn:oes:service:permission-service',
+        requestedPermissionCodes: ['AUTH.READ', 'AUTH.WRITE']
+      }
     )
     expect(permissionDecisionResolver.resolve).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -155,6 +159,29 @@ describe('VerifiedExecutionTokenContextProvider', () => {
       )
     ).rejects.toThrow('workload identity')
     expect(sourceCredentialVerifier.verify).not.toHaveBeenCalled()
+    expect(permissionDecisionResolver.resolve).not.toHaveBeenCalled()
+  })
+
+  it('stops before Permission when the registry-selected OBO actor is stale', async () => {
+    const sourceCredentialVerifier = {
+      verify: jest.fn().mockRejectedValue(new Error('EXECUTION_HUMAN_OBO_ACTOR_INVALID'))
+    }
+    const permissionDecisionResolver = { resolve: jest.fn() }
+    const provider = new VerifiedExecutionTokenContextProvider(
+      workload,
+      sourceCredentialVerifier,
+      permissionDecisionResolver
+    )
+
+    await expect(
+      provider.resolve(
+        { metadata: carrierMetadata() },
+        {
+          targetAudience: 'urn:oes:service:item-master-service',
+          requestedPermissionCodes: ['item_master.internal.manufacturable_item.resolve']
+        }
+      )
+    ).rejects.toThrow('ACTOR_INVALID')
     expect(permissionDecisionResolver.resolve).not.toHaveBeenCalled()
   })
 })

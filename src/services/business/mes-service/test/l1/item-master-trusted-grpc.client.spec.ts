@@ -5,8 +5,6 @@ import { of } from 'rxjs'
 import { ItemMasterManufacturableQueryGrpcAdapter } from '../../src/infrastructure/adapters/item-master-manufacturable-query.grpc.adapter'
 import { MesItemMasterTrustedGrpcClient } from '../../src/infrastructure/adapters/item-master-trusted-grpc.client'
 import { MesItemMasterExecutionTokenExchangeClient } from '../../src/infrastructure/adapters/mes-item-master-execution-token-exchange.client'
-import { MesItemMasterMachineSourceCredentialClient } from '../../src/infrastructure/adapters/mes-item-master-machine-source-credential.client'
-import { MesItemMasterMachineSourceCredentialProvider } from '../../src/infrastructure/adapters/mes-item-master-machine-source-credential.provider'
 import { MesItemMasterTrustedGrpcExecutionProducer } from '../../src/infrastructure/adapters/mes-item-master-trusted-grpc-execution.producer'
 import { MesInfrastructureModule } from '../../src/modules/mes-infrastructure.module'
 
@@ -22,10 +20,7 @@ describe('MES Item Master trusted execution L1', () => {
     process.env = {
       ...saved,
       AUTH_EXECUTION_ISSUER: 'https://issuer.example',
-      OES_WORKLOAD_SPIFFE_ID: 'spiffe://oes/mes-service',
-      MES_ITEM_MASTER_MACHINE_PRINCIPAL_ID: 'machine-mes',
-      MES_ITEM_MASTER_MACHINE_WORKLOAD_BINDING_ID: 'binding-mes-item-master',
-      MES_ITEM_MASTER_MACHINE_WORKLOAD_BINDING_VERSION: '1'
+      OES_WORKLOAD_SPIFFE_ID: 'spiffe://oes/mes-service'
     }
   })
 
@@ -36,8 +31,6 @@ describe('MES Item Master trusted execution L1', () => {
   it('resolves the dedicated client, source provider, exchange, and producer graph', async () => {
     const tokens = [
       MesItemMasterTrustedGrpcClient,
-      MesItemMasterMachineSourceCredentialClient,
-      MesItemMasterMachineSourceCredentialProvider,
       MesItemMasterExecutionTokenExchangeClient,
       MesItemMasterTrustedGrpcExecutionProducer
     ]
@@ -68,27 +61,15 @@ describe('MES Item Master trusted execution L1', () => {
     expect(producer.createMetadata).toHaveBeenCalledWith(code, 'tenant-1', 'request-1', traceparent)
   })
 
-  it('uses its own source selector and fails closed before downstream on source/config gaps', async () => {
-    const client = new MesItemMasterMachineSourceCredentialClient()
-    const issue = jest.fn(() => of({ tokenType: 'Bearer', sourceCredential: 'source' }))
-    ;(client as any).getService = () => ({ issueMachineWorkloadSourceCredential: issue })
-    await expect(client.issue()).resolves.toBe('source')
-    expect(issue).toHaveBeenCalledWith(
-      {
-        machinePrincipalId: 'machine-mes',
-        machineWorkloadBindingId: 'binding-mes-item-master',
-        machineWorkloadBindingVersion: '1'
-      },
-      expect.any(Metadata)
-    )
-
-    delete process.env.MES_ITEM_MASTER_MACHINE_WORKLOAD_BINDING_ID
-    await expect(client.issue()).rejects.toThrow('ITEM_MASTER_CALLER_FOUNDATION_UNAVAILABLE')
-    const downstream = jest.fn(async () => undefined)
+  it('fails closed without a guard-verified inbound HUMAN subject scope', async () => {
     await expect(
-      new MesItemMasterMachineSourceCredentialProvider(client).run(downstream)
-    ).rejects.toThrow()
-    expect(downstream).not.toHaveBeenCalled()
+      new MesItemMasterTrustedGrpcExecutionProducer({} as never).createMetadata(
+        code,
+        'tenant-1',
+        'request-1',
+        traceparent
+      )
+    ).rejects.toThrow('ITEM_MASTER_CALLER_EXECUTION_CONTEXT_REQUIRED')
   })
 
   it('maps Auth STS response and rejects incomplete MACHINE execution context', async () => {
@@ -113,7 +94,7 @@ describe('MES Item Master trusted execution L1', () => {
       expect.any(Metadata)
     )
     await expect(
-      new MesItemMasterTrustedGrpcExecutionProducer({} as never, exchange).createMetadata(
+      new MesItemMasterTrustedGrpcExecutionProducer(exchange).createMetadata(
         code,
         'tenant-1',
         'request-1',

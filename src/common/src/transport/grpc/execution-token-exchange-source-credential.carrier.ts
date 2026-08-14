@@ -8,6 +8,7 @@ import {
 } from '../../authorization/constants'
 import { AsyncLocalTransportPrivateSourceCredentialAccessor } from '../../authorization/trusted-execution/transport-private-source-credential'
 import type { TrustedExecutionContext } from '../../authorization/trusted-execution/trusted-execution-context'
+import { createHash } from 'node:crypto'
 
 /** Emits the opaque source credential only on the dedicated Auth STS exchange metadata path. */
 export class ExecutionTokenExchangeSourceCredentialCarrier {
@@ -16,6 +17,13 @@ export class ExecutionTokenExchangeSourceCredentialCarrier {
   /** Requires a verified source credential even when an exact target Token cache entry is reusable. */
   assertCurrent(): void {
     this.accessor.useCurrent(() => undefined)
+  }
+
+  /** Returns only an irreversible current-subject reference for exact cache partitioning. */
+  referenceCurrent(): string {
+    return this.accessor.useCurrent((value) =>
+      createHash('sha256').update(value).digest('base64url')
+    )
   }
 
   /** Creates the fixed ExchangeExecutionToken bearer and correlation metadata without general propagation. */

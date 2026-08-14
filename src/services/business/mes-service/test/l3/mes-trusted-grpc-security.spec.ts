@@ -1,5 +1,5 @@
 import { Reflector } from '@nestjs/core'
-import { TrustedExecutionGuard } from '@oes/common/authorization'
+import { GrpcRequestContextInterceptor, TrustedExecutionGuard } from '@oes/common/authorization'
 import { MesManagementGrpcController } from '../../src/interfaces/grpc/mes-management.grpc.controller'
 import { MesQueryGrpcController } from '../../src/interfaces/grpc/mes-query.grpc.controller'
 import { ProductionSpecManagementGrpcController } from '../../src/interfaces/grpc/production-spec-management.grpc.controller'
@@ -8,8 +8,22 @@ import { ProductionSpecQueryGrpcController } from '../../src/interfaces/grpc/pro
 /** Locks every MES controller to trusted admission and exact method declaration metadata. */
 describe('MES trusted gRPC security surface', () => {
   it('guards all four controller classes', () => {
-    for (const controller of [MesManagementGrpcController, MesQueryGrpcController, ProductionSpecManagementGrpcController, ProductionSpecQueryGrpcController]) {
+    for (const controller of [
+      MesManagementGrpcController,
+      MesQueryGrpcController,
+      ProductionSpecManagementGrpcController,
+      ProductionSpecQueryGrpcController
+    ]) {
       expect(Reflect.getMetadata('__guards__', controller)).toContain(TrustedExecutionGuard)
     }
+  })
+
+  it('activates the private current-hop subject scope only on the migrated ProductionSpec ingress', () => {
+    expect(
+      Reflect.getMetadata('__interceptors__', ProductionSpecManagementGrpcController)
+    ).toContain(GrpcRequestContextInterceptor)
+    expect(
+      Reflect.getMetadata('__interceptors__', MesManagementGrpcController) ?? []
+    ).not.toContain(GrpcRequestContextInterceptor)
   })
 })

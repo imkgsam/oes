@@ -1,10 +1,10 @@
 import { ExecutionContext } from '@nestjs/common'
 import { attachVerifiedExecution } from '@oes/common/authorization'
-import { ItemMasterRpcContextGuard } from '../../src/interfaces/grpc/item-master-rpc-context.guard'
+import { ItemMasterVerifiedTenantContextGuard } from '../../src/interfaces/grpc/item-master-rpc-context.guard'
 
 /** Verifies Item Master derives tenant authority only from an already verified ExecutionToken. */
 describe('Item Master verified execution tenant context L3', () => {
-  const guard = new ItemMasterRpcContextGuard()
+  const guard = new ItemMasterVerifiedTenantContextGuard()
 
   it('overwrites any caller body tenant with the verified ExecutionToken tenant', () => {
     const data = { tenantId: 'forged-body-tenant', itemId: 'item-1' }

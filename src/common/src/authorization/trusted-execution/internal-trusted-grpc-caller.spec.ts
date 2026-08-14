@@ -17,6 +17,16 @@ const root = () =>
     requestId: 'request',
     traceparent: '00-0123456789abcdef0123456789abcdef-0123456789abcdef-01'
   })
+const humanRoot = () =>
+  createTrustedExecutionContext({
+    subject: 'account:user-1',
+    principalType: 'HUMAN',
+    tenantId: 'tenant-1',
+    sessionId: 'session-1',
+    sessionTerminal: 'WEB',
+    requestId: 'request',
+    traceparent: '00-0123456789abcdef0123456789abcdef-0123456789abcdef-01'
+  })
 const metadata = (failure?: Error) => ({
   forInternalCall: jest.fn(async () => {
     if (failure) throw failure
@@ -123,12 +133,13 @@ describe('InternalTrustedGrpcCaller', () => {
       providerMetadata as never,
       source() as never,
       {
+        executionSource: 'HUMAN_OBO',
         targetAudience: 'urn:oes:service:item-master-service',
         errors: ITEM_MASTER_CALLER_ERRORS
       }
     )
     await expect(
-      context.run(root(), () =>
+      context.run(humanRoot(), () =>
         itemMaster.forInternalCall(
           'item_master.internal.stockable_item.resolve',
           async (value) => value
@@ -148,5 +159,48 @@ describe('InternalTrustedGrpcCaller', () => {
     expect(partyMetadata.forInternalCall).toHaveBeenCalledWith('urn:oes:service:party-service', [
       code
     ])
+  })
+
+  it('never infers or falls back between MACHINE_ROOT and HUMAN_OBO', async () => {
+    const context = new AsyncLocalTrustedExecutionContextAccessor()
+    const partyDownstream = jest.fn()
+    const party = new InternalTrustedGrpcCaller(context, metadata() as never, source() as never)
+    await expect(
+      context.run(humanRoot(), () => party.forInternalCall(code, partyDownstream))
+    ).rejects.toThrow(PARTY_CALLER_ERRORS.CONTEXT_REQUIRED)
+
+    const itemDownstream = jest.fn()
+    const item = new InternalTrustedGrpcCaller(context, metadata() as never, source() as never, {
+      executionSource: 'HUMAN_OBO',
+      targetAudience: 'urn:oes:service:item-master-service',
+      errors: ITEM_MASTER_CALLER_ERRORS
+    })
+    await expect(
+      context.run(root(), () =>
+        item.forInternalCall('item_master.internal.stockable_item.resolve', itemDownstream)
+      )
+    ).rejects.toThrow(ITEM_MASTER_CALLER_ERRORS.CONTEXT_REQUIRED)
+    expect(partyDownstream).not.toHaveBeenCalled()
+    expect(itemDownstream).not.toHaveBeenCalled()
+  })
+
+  it('rejects caller profiles whose three stable error literals are not pairwise distinct', () => {
+    expect(
+      () =>
+        new InternalTrustedGrpcCaller(
+          new AsyncLocalTrustedExecutionContextAccessor(),
+          metadata() as never,
+          source() as never,
+          {
+            executionSource: 'HUMAN_OBO',
+            targetAudience: 'urn:oes:service:item-master-service',
+            errors: {
+              CONTEXT_REQUIRED: 'DUPLICATE',
+              FOUNDATION_UNAVAILABLE: 'DUPLICATE',
+              SOURCE_CREDENTIAL_INVALID: 'DISTINCT'
+            }
+          }
+        )
+    ).toThrow('pairwise distinct')
   })
 })

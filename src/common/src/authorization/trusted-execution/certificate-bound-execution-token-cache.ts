@@ -15,6 +15,7 @@ export type CertificateBoundExecutionTokenCacheKey = {
   readonly sessionId?: string
   readonly sessionTerminal?: TrustedSessionTerminal
   readonly authzVersion?: string | number
+  readonly sourceCredentialReference?: string
 }
 
 /** Stores the opaque token and its absolute epoch-second expiry. */
@@ -111,7 +112,8 @@ function buildCacheKey(key: CertificateBoundExecutionTokenCacheKey): string {
     sessionId: key.sessionId ?? null,
     sessionTerminal:
       key.sessionTerminal === undefined ? null : requireTrustedSessionTerminal(key.sessionTerminal),
-    authzVersion: key.authzVersion ?? null
+    authzVersion: key.authzVersion ?? null,
+    sourceCredentialReference: key.sourceCredentialReference ?? null
   })
 }
 

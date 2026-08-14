@@ -1,4 +1,22 @@
-import { getRpcAuthorizationModeDeclaration } from '@oes/common/authorization'
+import {
+  ExecutionTokenJwksCache,
+  ExecutionTokenVerifier,
+  AsyncLocalTrustedExecutionContextAccessor,
+  CertificateBoundExecutionTokenCache,
+  TrustedExecutionRegistry,
+  TrustedGrpcMetadataProvider,
+  createTrustedExecutionContext,
+  getRpcAuthorizationModeDeclaration,
+  inboundExecutionTokenCredentialScope
+} from '@oes/common/authorization'
+import { Metadata } from '@grpc/grpc-js'
+import { Reflector } from '@nestjs/core'
+import { generateKeyPairSync, sign } from 'node:crypto'
+import { of } from 'rxjs'
+import {
+  AuthorizationPrincipalTypeProto,
+  AuthorizationScopeLevelProto
+} from '@oes/common/generated/permission_service'
 import {
   ITEM_MASTER_INTERNAL_PERMISSION_CODES,
   ITEM_MASTER_MANAGEMENT_PERMISSION_CODES
@@ -6,7 +24,19 @@ import {
 import { ItemMasterInternalQueryGrpcController } from '../../src/interfaces/grpc/item-master-internal-query.grpc.controller'
 import { ItemMasterManagementGrpcController } from '../../src/interfaces/grpc/item-master-management.grpc.controller'
 import { ItemMasterQueryGrpcController } from '../../src/interfaces/grpc/item-master-query.grpc.controller'
-import { ITEM_MASTER_INTERNAL_WORKLOAD_ALLOWLIST } from '../../src/modules/item-master-trusted-execution.module'
+import {
+  ITEM_MASTER_INTERNAL_WORKLOAD_ALLOWLIST,
+  ItemMasterTrustedInternalExecutionGuard
+} from '../../src/modules/item-master-trusted-execution.module'
+import { ItemMasterVerifiedTenantContextGuard } from '../../src/interfaces/grpc/item-master-rpc-context.guard'
+import { ExecutionTokenRegistry as AuthExecutionTokenRegistry } from '../../../auth-service/src/domain/services/execution-token-registry'
+import { ExecutionTokenSubjectCredentialVerifier } from '../../../auth-service/src/infrastructure/execution-token-signer/execution-token-subject-credential.verifier'
+import { VerifiedExecutionTokenContextProvider } from '../../../auth-service/src/infrastructure/execution-token-signer/verified-execution-token-context.provider'
+import { ExecutionTokenExchangeService } from '../../../auth-service/src/application/services/execution-token-exchange.service'
+import {
+  CompositeSourceCredentialVerifier,
+  PermissionDecisionGrpcResolver
+} from '../../../auth-service/src/modules/token/execution-token.module'
 
 const queryCodes = {
   getItemModel: ITEM_MASTER_MANAGEMENT_PERMISSION_CODES.VIEW_ITEM_MODEL_DETAIL,
@@ -111,5 +141,333 @@ describe('Item Master trusted gRPC security matrix L3', () => {
         'srm-service'
       ]
     })
+  })
+
+  /** Executes the actual Item Master guard stack against one verifier-produced target ET shape. */
+  async function runInternalGuard(
+    method: keyof typeof internalCodes,
+    overrides: Record<string, unknown> = {},
+    body: Record<string, unknown> = { itemId: 'item-1' }
+  ) {
+    const metadata = new Metadata()
+    metadata.set('authorization', 'Bearer target.execution.token')
+    const verified = {
+      issuer: 'https://auth.example',
+      audience: 'urn:oes:service:item-master-service',
+      subject: 'account-1',
+      principalType: 'HUMAN',
+      clientId: 'spiffe://oes/mes-service',
+      tenantId: 'tenant-1',
+      permissionCodes: [internalCodes[method]],
+      tokenId: 'target-jti',
+      issuedAt: 100,
+      notBefore: 100,
+      expiresAt: 300,
+      certificateThumbprint: 'A'.repeat(43),
+      sessionId: 'session-1',
+      sessionTerminal: 'WEB',
+      actor: {
+        sub: 'machine-principal:mes-service',
+        principal_type: 'MACHINE',
+        scope_level: 'SYSTEM'
+      },
+      ...overrides
+    }
+    const verifier = { verify: jest.fn().mockResolvedValue(verified) }
+    const workload = {
+      getVerifiedWorkloadIdentity: jest.fn().mockResolvedValue({
+        spiffeId: verified.clientId,
+        certificateThumbprint: verified.certificateThumbprint
+      })
+    }
+    const handler = ItemMasterInternalQueryGrpcController.prototype[method]
+    const context = {
+      switchToRpc: () => ({ getData: () => body, getContext: () => metadata }),
+      getHandler: () => handler,
+      getClass: () => ItemMasterInternalQueryGrpcController,
+      getArgByIndex: () => ({})
+    } as never
+    const guard = new ItemMasterTrustedInternalExecutionGuard(
+      new Reflector(),
+      verifier as never,
+      workload as never,
+      'urn:oes:service:item-master-service'
+    )
+    await guard.canActivate(context)
+    return { context, body, verifier }
+  }
+
+  it('admits HUMAN OBO with the exact actor/workload/Code and derives tenant from claims', async () => {
+    const body = { itemId: 'item-1', tenantId: 'attacker-tenant', actor: 'attacker' }
+    const result = await runInternalGuard('resolveManufacturableItem', {}, body)
+    expect(new ItemMasterVerifiedTenantContextGuard().canActivate(result.context)).toBe(true)
+    expect(body.tenantId).toBe('tenant-1')
+    expect(result.verifier.verify).toHaveBeenCalledWith(
+      expect.objectContaining({ targetAudience: 'urn:oes:service:item-master-service' })
+    )
+  })
+
+  it.each([
+    ['direct HUMAN without actor', { actor: undefined }],
+    ['MACHINE root', { principalType: 'MACHINE', actor: undefined }],
+    [
+      'nested actor chain',
+      {
+        actor: {
+          sub: 'machine-principal:mes-service',
+          principal_type: 'MACHINE',
+          scope_level: 'SYSTEM',
+          act: {}
+        }
+      }
+    ],
+    [
+      'TENANT actor',
+      {
+        actor: {
+          sub: 'machine-principal:mes-service',
+          principal_type: 'MACHINE',
+          scope_level: 'TENANT'
+        }
+      }
+    ],
+    [
+      'blank actor subject',
+      { actor: { sub: '', principal_type: 'MACHINE', scope_level: 'SYSTEM' } }
+    ],
+    ['blank tenant', { tenantId: '' }],
+    ['wrong workload for Code', { clientId: 'spiffe://oes/wms-service' }],
+    ['malformed workload identity', { clientId: 'mes-service' }]
+  ])('rejects %s before controller execution', async (_label, overrides) => {
+    await expect(runInternalGuard('resolveManufacturableItem', overrides)).rejects.toThrow()
+  })
+
+  it('composes verified MES inbound scope through Identity, Permission, Auth signing, and Item Master admission', async () => {
+    const now = 1_700_000_300
+    const issuer = 'https://auth.local.oes.example'
+    const mesAudience = 'urn:oes:service:mes-service'
+    const itemAudience = 'urn:oes:service:item-master-service'
+    const gatewaySpiffe = 'spiffe://oes/api-gateway'
+    const mesSpiffe = 'spiffe://oes/mes-service'
+    const gatewayCert = 'G'.repeat(43)
+    const mesCert = 'M'.repeat(43)
+    const pair = generateKeyPairSync('ec', { namedCurve: 'P-256' })
+    const publicJwk = pair.publicKey.export({ format: 'jwk' })
+    const signingKey = {
+      kid: 'auth-obo-key',
+      publicJwk,
+      publishNotBeforeUnixSeconds: now - 600,
+      signingNotBeforeUnixSeconds: now - 300,
+      retireAfterUnixSeconds: now + 3_600
+    }
+    const signer = {
+      currentSigningKey: async () => signingKey,
+      publishedKeys: async () => [signingKey],
+      sign: async (_kid: string, input: Uint8Array) =>
+        sign('sha256', input, { key: pair.privateKey, dsaEncoding: 'ieee-p1363' })
+    }
+    const createVerifier = (audience: string, workload: string) =>
+      new ExecutionTokenVerifier({
+        registry: new TrustedExecutionRegistry({
+          issuer,
+          audiences: [audience],
+          workloadIdentities: [workload]
+        }),
+        jwksCache: new ExecutionTokenJwksCache({
+          load: async () => ({
+            keys: [{ ...publicJwk, kid: signingKey.kid, alg: 'ES256', use: 'sig' }]
+          }),
+          maxAgeMs: 300_000,
+          now: () => now * 1_000
+        }),
+        clockSkewSeconds: 0,
+        now: () => now
+      })
+    const subjectHeader = Buffer.from(
+      JSON.stringify({ alg: 'ES256', typ: 'at+jwt', kid: signingKey.kid })
+    ).toString('base64url')
+    const subjectClaims = Buffer.from(
+      JSON.stringify({
+        iss: issuer,
+        aud: mesAudience,
+        sub: 'account-1',
+        principal_type: 'HUMAN',
+        client_id: gatewaySpiffe,
+        tenant_id: 'tenant-1',
+        scope: 'mes.production_spec.manage',
+        jti: 'mes-subject-jti',
+        iat: now - 30,
+        nbf: now - 30,
+        exp: now + 180,
+        cnf: { 'x5t#S256': gatewayCert },
+        session_id: 'session-1',
+        session_terminal: 'WEB',
+        authz_version: 'subject-authz-1'
+      })
+    ).toString('base64url')
+    const subjectSignature = sign('sha256', Buffer.from(`${subjectHeader}.${subjectClaims}`), {
+      key: pair.privateKey,
+      dsaEncoding: 'ieee-p1363'
+    }).toString('base64url')
+    const subjectToken = `${subjectHeader}.${subjectClaims}.${subjectSignature}`
+    const inbound = await createVerifier(mesAudience, gatewaySpiffe).verify({
+      token: subjectToken,
+      targetAudience: mesAudience,
+      workloadIdentity: { spiffeId: gatewaySpiffe, certificateThumbprint: gatewayCert }
+    })
+
+    const authRegistry = new AuthExecutionTokenRegistry({
+      issuer,
+      workloadPolicies: [
+        {
+          spiffeId: mesSpiffe,
+          audiences: [itemAudience],
+          humanObo: {
+            selfAudience: mesAudience,
+            actorMachinePrincipalId: 'machine-principal:mes-service',
+            actorBindingId: 'binding:mes-service',
+            actorBindingVersion: '7',
+            targetAudiences: [itemAudience]
+          }
+        }
+      ]
+    })
+    const identity = {
+      resolveMachinePrincipalForAuth: jest.fn().mockResolvedValue({
+        allowed: true,
+        principalId: 'machine-principal:mes-service',
+        principalType: 'MACHINE',
+        principalLifecycleStatus: 'ACTIVE',
+        bindingId: 'binding:mes-service',
+        bindingVersion: BigInt(7),
+        bindingStatus: 'ACTIVE',
+        workloadSpiffeId: mesSpiffe,
+        scopeLevel: 'SYSTEM'
+      })
+    }
+    const permissionDecision = jest.fn().mockReturnValue(
+      of({
+        allowed: true,
+        grantedPermissionCodes: [internalCodes.resolveManufacturableItem],
+        deniedPermissionCodes: [],
+        originalWorkloadSpiffeId: mesSpiffe,
+        targetAudience: itemAudience,
+        scopeLevel: AuthorizationScopeLevelProto.AUTHORIZATION_SCOPE_LEVEL_PROTO_TENANT,
+        tenantId: 'tenant-1',
+        principalType: AuthorizationPrincipalTypeProto.AUTHORIZATION_PRINCIPAL_TYPE_PROTO_HUMAN,
+        principalId: 'account-1',
+        requestedPermissionCodes: [internalCodes.resolveManufacturableItem],
+        decisionReference: 'permission-decision-1',
+        authzVersion: 'permission-authz-1'
+      })
+    )
+    const audit = { appendOboLink: jest.fn().mockResolvedValue(undefined) }
+    const exchange = new ExecutionTokenExchangeService(
+      authRegistry,
+      signer as never,
+      () => now,
+      audit
+    )
+    const permission = new PermissionDecisionGrpcResolver(
+      { getService: () => ({ resolveWorkloadIssuance: permissionDecision }) } as never,
+      exchange,
+      { spiffeId: 'spiffe://oes/auth-service', certificateThumbprint: 'A'.repeat(43) },
+      'policy-v1'
+    )
+    const provider = new VerifiedExecutionTokenContextProvider(
+      {
+        getVerifiedWorkloadIdentity: async () => ({
+          spiffeId: mesSpiffe,
+          certificateThumbprint: mesCert
+        })
+      },
+      new CompositeSourceCredentialVerifier(
+        {} as never,
+        {} as never,
+        new ExecutionTokenSubjectCredentialVerifier(
+          signer as never,
+          identity as never,
+          authRegistry,
+          () => now
+        )
+      ),
+      permission
+    )
+    const request = {}
+    inboundExecutionTokenCredentialScope.prepare(request, subjectToken, inbound)
+    const outboundMetadata = await inboundExecutionTokenCredentialScope.runPrepared(request, () =>
+      inboundExecutionTokenCredentialScope.run(async () => {
+        const contextAccessor = new AsyncLocalTrustedExecutionContextAccessor()
+        const metadataProvider = new TrustedGrpcMetadataProvider({
+          contextAccessor,
+          registry: new TrustedExecutionRegistry({
+            issuer,
+            audiences: [itemAudience],
+            workloadIdentities: [mesSpiffe]
+          }),
+          tokenCache: new CertificateBoundExecutionTokenCache({
+            now: () => now,
+            refreshMarginSeconds: 15
+          }),
+          exchangeClient: {
+            exchange: async (targetRequest, metadata) => {
+              const resolved = await provider.resolve({ metadata }, targetRequest)
+              return exchange.exchange({ ...targetRequest, ...resolved })
+            }
+          },
+          sourceCredentialAccessor: inboundExecutionTokenCredentialScope.accessor,
+          localWorkloadIdentity: {
+            getVerifiedWorkloadIdentity: async () => ({
+              spiffeId: mesSpiffe,
+              certificateThumbprint: mesCert
+            })
+          },
+          now: () => now
+        })
+        const root = createTrustedExecutionContext({
+          subject: inbound.subject,
+          principalType: 'HUMAN',
+          tenantId: inbound.tenantId,
+          sessionId: inbound.sessionId,
+          sessionTerminal: inbound.sessionTerminal,
+          requestId: 'request-1',
+          traceparent: '00-0123456789abcdef0123456789abcdef-0123456789abcdef-01'
+        })
+        return contextAccessor.run(root, () =>
+          metadataProvider.forInternalCall(itemAudience, [internalCodes.resolveManufacturableItem])
+        )
+      })
+    )
+
+    const body: Record<string, unknown> = { itemId: 'item-1', tenantId: 'body-tenant' }
+    const context = {
+      switchToRpc: () => ({ getData: () => body, getContext: () => outboundMetadata }),
+      getHandler: () => ItemMasterInternalQueryGrpcController.prototype.resolveManufacturableItem,
+      getClass: () => ItemMasterInternalQueryGrpcController,
+      getArgByIndex: () => ({})
+    } as never
+    const targetVerifier = createVerifier(itemAudience, mesSpiffe)
+    const guard = new ItemMasterTrustedInternalExecutionGuard(
+      new Reflector(),
+      targetVerifier,
+      {
+        getVerifiedWorkloadIdentity: async () => ({
+          spiffeId: mesSpiffe,
+          certificateThumbprint: mesCert
+        })
+      } as never,
+      itemAudience
+    )
+    await expect(guard.canActivate(context)).resolves.toBe(true)
+    expect(new ItemMasterVerifiedTenantContextGuard().canActivate(context)).toBe(true)
+    expect(body.tenantId).toBe('tenant-1')
+    expect(identity.resolveMachinePrincipalForAuth).toHaveBeenCalledTimes(1)
+    expect(permissionDecision).toHaveBeenCalledTimes(1)
+    expect(audit.appendOboLink).toHaveBeenCalledWith(
+      expect.objectContaining({ sourceTokenId: 'mes-subject-jti' })
+    )
+    expect(() => inboundExecutionTokenCredentialScope.requireVerifiedExecution()).toThrow(
+      'required'
+    )
   })
 })
