@@ -12,9 +12,16 @@ import { PolicyInstanceManagementGrpcController } from '../../interfaces/grpc/po
 import { PolicyManagementGrpcController } from '../../interfaces/grpc/policy-management.grpc.controller'
 import { ManagementAuthorizationModule } from '../management-authorization/management-authorization.module'
 import { PermissionModule } from '../permission/permission.module'
+import { PermissionTrustedExecutionModule } from '../authorization/permission-trusted-execution.module'
 
 @Module({
-  imports: [CqrsModule, PrismaModule, ManagementAuthorizationModule, PermissionModule],
+  imports: [
+    CqrsModule,
+    PrismaModule,
+    ManagementAuthorizationModule,
+    PermissionModule,
+    PermissionTrustedExecutionModule
+  ],
   providers: [
     {
       provide: SYMBOLS.REPO.POLICY,

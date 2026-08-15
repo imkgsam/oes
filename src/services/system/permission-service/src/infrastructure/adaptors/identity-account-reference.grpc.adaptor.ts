@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import {
   GetAccountByIdResponse,
   GetServiceAccountByIdResponse,
@@ -15,23 +15,17 @@ import { PermissionFoundationTrustedGrpcExecutionProducer, PermissionIdentityTru
 /** IdentityAccountReferenceGrpcAdaptor reads minimal account context facts from identity-service over gRPC. */
 @Injectable()
 export class IdentityAccountReferenceGrpcAdaptor
-  implements IdentityAccountReferencePort, OnModuleInit
+  implements IdentityAccountReferencePort
 {
-  private identityQueryService!: IdentityQueryServiceClient
+  private identityQueryService?: IdentityQueryServiceClient
   private readonly trusted = new PermissionFoundationTrustedGrpcExecutionProducer()
 
   constructor(private readonly client: PermissionIdentityTrustedGrpcClient) {}
 
-  onModuleInit() {
-    this.identityQueryService = this.client.getClient().getService<IdentityQueryServiceClient>(
-      IDENTITY_QUERY_SERVICE_NAME
-    )
-  }
-
   async getAccountById(accountId: string) {
     try {
       const response = await safeGrpcCall<GetAccountByIdResponse>(
-        this.identityQueryService.getAccountById(
+        this.getIdentityQueryService().getAccountById(
           { accountId },
           await this.trusted.forBusinessCall('identity-service', ['identity.account.list'])
         ),
@@ -61,7 +55,7 @@ export class IdentityAccountReferenceGrpcAdaptor
   async getServiceAccountById(serviceAccountId: string) {
     try {
       const response = await safeGrpcCall<GetServiceAccountByIdResponse>(
-        this.identityQueryService.getServiceAccountById(
+        this.getIdentityQueryService().getServiceAccountById(
           { serviceAccountId },
           await this.trusted.forBusinessCall('identity-service', [
             'identity.machine.service_account.create'
@@ -89,6 +83,12 @@ export class IdentityAccountReferenceGrpcAdaptor
     }
   }
 
+  /** Opens the mandatory-mTLS Identity channel only when an account lookup is requested. */
+  private getIdentityQueryService(): IdentityQueryServiceClient {
+    return (this.identityQueryService ??= this.client
+      .getClient()
+      .getService<IdentityQueryServiceClient>(IDENTITY_QUERY_SERVICE_NAME))
+  }
 }
 
 function normalizeOptional(value?: string): string | undefined {

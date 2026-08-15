@@ -18,9 +18,17 @@ import { PermissionAuditModule } from '../audit/permission-audit.module'
 import { PrismaNavigationRepository } from '../../infrastructure/repositories/prisma/prisma.navigation.repository'
 import { NavigationResolverService } from '../../domain/services/navigation-resolver.service'
 import { PrismaTerminalAccessRepository } from '../../infrastructure/repositories/prisma/prisma.terminal-access.repository'
+import { PermissionTrustedExecutionModule } from '../authorization/permission-trusted-execution.module'
 
 @Module({
-  imports: [CqrsModule, PrismaModule, ManagementAuthorizationModule, RoleModule, PermissionAuditModule],
+  imports: [
+    CqrsModule,
+    PrismaModule,
+    ManagementAuthorizationModule,
+    RoleModule,
+    PermissionAuditModule,
+    PermissionTrustedExecutionModule
+  ],
   providers: [
     {
       provide: SYMBOLS.REPO.PERMISSION,

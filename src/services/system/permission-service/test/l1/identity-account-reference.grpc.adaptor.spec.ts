@@ -29,7 +29,6 @@ describe('IdentityAccountReferenceGrpcAdaptor', () => {
     )
     const adaptor = new IdentityAccountReferenceGrpcAdaptor({ getClient: () => client } as any)
     ;(adaptor as any).trusted = { forBusinessCall: jest.fn().mockResolvedValue(metadata) }
-    adaptor.onModuleInit()
 
     await expect(adaptor.getAccountById('account-1')).resolves.toEqual({
       accountId: 'account-1',
@@ -56,7 +55,6 @@ describe('IdentityAccountReferenceGrpcAdaptor', () => {
     )
     const adaptor = new IdentityAccountReferenceGrpcAdaptor({ getClient: () => client } as any)
     ;(adaptor as any).trusted = { forBusinessCall: jest.fn().mockResolvedValue(metadata) }
-    adaptor.onModuleInit()
 
     await expect(adaptor.getServiceAccountById('machine-1')).resolves.toEqual({
       principalId: 'machine-1',

@@ -46,6 +46,7 @@ import { ResourceAuthorizationGrpcController } from '../../interfaces/grpc/resou
 import { PermissionTerminalAccessGrpcController } from '../../interfaces/grpc/permission-terminal-access.grpc.controller'
 import { PermissionAuditModule } from '../audit/permission-audit.module'
 import { ManagementAuthorizationModule } from '../management-authorization/management-authorization.module'
+import { PermissionTrustedExecutionModule } from './permission-trusted-execution.module'
 
 @Module({
   imports: [
@@ -55,7 +56,8 @@ import { ManagementAuthorizationModule } from '../management-authorization/manag
     RoleModule,
     PolicyModule,
     PermissionAuditModule,
-    ManagementAuthorizationModule
+    ManagementAuthorizationModule,
+    PermissionTrustedExecutionModule
   ],
   providers: [
     NavigationResolverService,
