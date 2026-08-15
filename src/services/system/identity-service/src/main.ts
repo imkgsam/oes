@@ -15,9 +15,7 @@ async function bootstrap() {
       package: 'identity_service',
       protoPath: [resolveCommonProtoPath('identity_service/identity_query.proto')],
       url: `${process.env.GRPC_LISTEN_HOST || '0.0.0.0'}:${process.env.GRPC_LISTEN_PORT || '50052'}`,
-      ...(process.env.OES_GRPC_TLS_ENABLED === 'true'
-        ? { credentials: createGrpcServerCredentials() }
-        : {})
+      credentials: createGrpcServerCredentials()
     }
   })
 

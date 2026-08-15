@@ -92,13 +92,13 @@ function createAdapter(service: {
 }) {
   const adapter = new PermissionTenantOnboardingGrpcAdapter(
     {
-      getService: jest.fn(() => ({
-        ensureTenantRoleInstanceFromTemplate: service.ensureTenantRoleInstanceFromTemplate ?? jest.fn(),
-        grantInitialAccessForTenantAccount: service.grantInitialAccessForTenantAccount ?? jest.fn()
-      }))
-    } as any,
-    {} as any,
-    {} as any
+      getClient: () => ({
+        getService: jest.fn(() => ({
+          ensureTenantRoleInstanceFromTemplate: service.ensureTenantRoleInstanceFromTemplate ?? jest.fn(),
+          grantInitialAccessForTenantAccount: service.grantInitialAccessForTenantAccount ?? jest.fn()
+        }))
+      })
+    } as any
   )
   adapter.onModuleInit()
   ;(adapter as any).trusted = {

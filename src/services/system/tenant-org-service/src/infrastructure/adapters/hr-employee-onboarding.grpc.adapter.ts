@@ -1,14 +1,12 @@
-import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { ClientGrpc } from '@nestjs/microservices'
-import { SERVICE_NAMES } from '@oes/common/constants'
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import {
   CreateEmployeeOnboardingResponse,
   HR_MANAGEMENT_SERVICE_NAME,
   HrManagementServiceClient
 } from '@oes/common/generated/hr_service'
-import { InjectGrpcClient, safeGrpcCall } from '@oes/common/transport'
+import { safeGrpcCall } from '@oes/common/transport'
 import { HrEmployeeOnboardingPort } from '../../application/ports/hr-employee-onboarding.port'
-import { TenantOrgFoundationTrustedGrpcExecutionProducer } from './foundation-trusted-grpc.clients'
+import { TenantOrgFoundationTrustedGrpcExecutionProducer, TenantOrgHrTrustedGrpcClient } from './foundation-trusted-grpc.clients'
 
 /** HrEmployeeOnboardingGrpcAdapter asks hr-service to own first-admin employee creation during tenant onboarding. */
 @Injectable()
@@ -17,13 +15,10 @@ export class HrEmployeeOnboardingGrpcAdapter implements HrEmployeeOnboardingPort
   private client!: HrManagementServiceClient
   private readonly trusted = new TenantOrgFoundationTrustedGrpcExecutionProducer()
 
-  constructor(
-    @InjectGrpcClient(SERVICE_NAMES.HR)
-    private readonly hrClient: ClientGrpc
-  ) {}
+  constructor(private readonly hrClient: TenantOrgHrTrustedGrpcClient) {}
 
   onModuleInit() {
-    this.client = this.hrClient.getService<HrManagementServiceClient>(HR_MANAGEMENT_SERVICE_NAME)
+    this.client = this.hrClient.getClient().getService<HrManagementServiceClient>(HR_MANAGEMENT_SERVICE_NAME)
   }
 
   async createEmployeeOnboarding(input: {

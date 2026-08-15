@@ -4,7 +4,6 @@ import { Metadata } from '@grpc/grpc-js'
 import { CqrsModule, QueryBus } from '@nestjs/cqrs'
 import { ClientGrpc } from '@nestjs/microservices'
 import { firstValueFrom } from 'rxjs'
-import { SERVICE_NAMES } from '@oes/common/constants'
 import { requireTrustedSessionTerminal, TrustedSessionTerminal } from '@oes/common/authorization'
 import {
   AuthorizationPrincipalTypeProto,
@@ -15,11 +14,9 @@ import {
   ResolveWorkloadIssuanceResponse
 } from '@oes/common/generated/permission_service'
 import { PERMISSION_INTERNAL_PERMISSION_CODES } from '@oes/common/authorization'
-import {
-  GrpcTransportModule,
-  getGrpcClientToken,
-  readLocalVerifiedWorkloadIdentity
-} from '@oes/common/transport'
+import { readLocalVerifiedWorkloadIdentity } from '@oes/common/transport'
+import { AuthPermissionTrustedGrpcClient } from '../../infrastructure/adaptors/foundation-trusted-grpc.clients'
+import { AuthTrustedExecutionModule } from '../auth/auth-trusted-execution.module'
 import { EXECUTION_TOKEN_EXCHANGE_CONTEXT } from '../../application/ports/execution-token-exchange-context.port'
 import {
   ExecutionTokenAuthorizationDecision,
@@ -83,7 +80,7 @@ const PRINCIPAL_AUTHORIZATION_CODE =
     CqrsModule,
     PrismaModule,
     ExternalServicesModule,
-    GrpcTransportModule.forFeature([SERVICE_NAMES.PERMISSION])
+    AuthTrustedExecutionModule
   ],
   providers: [
     {
@@ -164,18 +161,18 @@ const PRINCIPAL_AUTHORIZATION_CODE =
     {
       provide: EXECUTION_TOKEN_PERMISSION_DECISION_RESOLVER,
       useFactory: (
-        permissionClient: ClientGrpc,
+        permissionClient: AuthPermissionTrustedGrpcClient,
         exchangeService: ExecutionTokenExchangeService,
         configuration: ExecutionTokenRuntimeConfiguration
       ) =>
         new PermissionDecisionGrpcResolver(
-          permissionClient,
+          permissionClient.getClient(),
           exchangeService,
           configuration.localWorkloadIdentity,
           configuration.permissionIssuancePolicyVersion
         ),
       inject: [
-        getGrpcClientToken(SERVICE_NAMES.PERMISSION),
+        AuthPermissionTrustedGrpcClient,
         ExecutionTokenExchangeService,
         EXECUTION_TOKEN_RUNTIME_CONFIGURATION
       ]

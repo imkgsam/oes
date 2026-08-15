@@ -1,6 +1,4 @@
 import { Inject, Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common'
-import { ClientGrpc } from '@nestjs/microservices'
-import { SERVICE_NAMES } from '@oes/common/constants'
 import { ExceptionFactory, InfrastructureException } from '@oes/common/exceptions'
 import {
   GetAccountByIdRequest,
@@ -18,7 +16,7 @@ import {
   ResolveEmployeeLoginAccountResponse
   ,ResolveMachinePrincipalForAuthResponse
 } from '@oes/common/generated/identity_service'
-import { InjectGrpcClient, safeGrpcCall } from '@oes/common/transport'
+import { safeGrpcCall } from '@oes/common/transport'
 import {
   AccountCandidateSummary,
   EmployeeLoginAccountSummary,
@@ -27,7 +25,7 @@ import {
   IdentityUserSummary
 } from '../../application/ports/identity-service.port'
 import { AUTH_IDENTITY_UPSTREAM_UNAVAILABLE } from '../../common/constants/exception-enums'
-import { AuthFoundationTrustedGrpcExecutionProducer } from './foundation-trusted-grpc.clients'
+import { AuthFoundationTrustedGrpcExecutionProducer, AuthIdentityTrustedGrpcClient } from './foundation-trusted-grpc.clients'
 
 const IDENTITY_QUERY_SERVICE_NAME = 'IdentityQueryService'
 const AUTH_SERVICE_AUDIENCE = 'urn:oes:service:identity-service'
@@ -41,14 +39,13 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
   private readonly trusted = new AuthFoundationTrustedGrpcExecutionProducer()
 
   constructor(
-    @InjectGrpcClient(SERVICE_NAMES.IDENTITY)
-    private readonly identityClient: ClientGrpc,
+    private readonly identityClient: AuthIdentityTrustedGrpcClient,
     @Optional() _retiredMetadataFactory?: unknown,
     @Optional() _retiredRequestContextStore?: unknown
   ) {}
 
   onModuleInit() {
-    this.identityQueryService = this.identityClient.getService<IdentityQueryServiceClient>(
+    this.identityQueryService = this.identityClient.getClient().getService<IdentityQueryServiceClient>(
       IDENTITY_QUERY_SERVICE_NAME
     )
   }

@@ -1,14 +1,12 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
-import { ClientGrpc } from '@nestjs/microservices'
-import { SERVICE_NAMES } from '@oes/common/constants'
+import { Injectable, OnModuleInit } from '@nestjs/common'
 import {
   AUTH_SERVICE_NAME,
   AuthServiceClient,
   BootstrapUserLoginMethodsResponse
 } from '@oes/common/generated/auth_service'
-import { InjectGrpcClient, safeGrpcCall } from '@oes/common/transport'
+import { safeGrpcCall } from '@oes/common/transport'
 import { AuthLoginOnboardingPort } from '../../application/ports/auth-login-onboarding.port'
-import { TenantOrgFoundationTrustedGrpcExecutionProducer } from './foundation-trusted-grpc.clients'
+import { TenantOrgAuthTrustedGrpcClient, TenantOrgFoundationTrustedGrpcExecutionProducer } from './foundation-trusted-grpc.clients'
 
 /** AuthLoginOnboardingGrpcAdapter calls auth-service login bootstrap APIs without owning auth truth. */
 @Injectable()
@@ -16,13 +14,10 @@ export class AuthLoginOnboardingGrpcAdapter implements AuthLoginOnboardingPort, 
   private client!: AuthServiceClient
   private readonly trusted = new TenantOrgFoundationTrustedGrpcExecutionProducer()
 
-  constructor(
-    @InjectGrpcClient(SERVICE_NAMES.AUTH)
-    private readonly authClient: ClientGrpc
-  ) {}
+  constructor(private readonly authClient: TenantOrgAuthTrustedGrpcClient) {}
 
   onModuleInit() {
-    this.client = this.authClient.getService<AuthServiceClient>(AUTH_SERVICE_NAME)
+    this.client = this.authClient.getClient().getService<AuthServiceClient>(AUTH_SERVICE_NAME)
   }
 
   async bootstrapUserLoginMethods(input: {

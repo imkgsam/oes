@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common'
-import { HR_SERVICE, IDENTITY_SERVICE, PERMISSION_SERVICE, SERVICE_NAMES } from '@oes/common/constants'
-import { GrpcTransportModule } from '@oes/common/transport'
+import { HR_SERVICE, IDENTITY_SERVICE, PERMISSION_SERVICE } from '@oes/common/constants'
 import { TENANT_LIFECYCLE_ACCESS_PORT } from '../../common/constants/injection-tokens'
 import {
   IdentityServiceAdaptor,
@@ -8,16 +7,10 @@ import {
   PermissionServiceAdaptor,
   TenantOrgLifecycleGrpcAdaptor
 } from '../adaptors'
+import { AuthTrustedExecutionModule } from '../../modules/auth/auth-trusted-execution.module'
 
 @Module({
-  imports: [
-    GrpcTransportModule.forFeature([
-      SERVICE_NAMES.IDENTITY,
-      SERVICE_NAMES.HR,
-      SERVICE_NAMES.PERMISSION,
-      SERVICE_NAMES.TENANT_ORG
-    ])
-  ],
+  imports: [AuthTrustedExecutionModule],
   providers: [
     {
       provide: IDENTITY_SERVICE,
@@ -37,7 +30,6 @@ import {
     }
   ],
   exports: [
-    GrpcTransportModule,
     IDENTITY_SERVICE,
     HR_SERVICE,
     PERMISSION_SERVICE,

@@ -3,6 +3,7 @@ import { ClientsModule, Transport } from '@nestjs/microservices'
 import type { ClientProviderOptions } from '@nestjs/microservices/module/interfaces'
 import { AuthorizationModule } from '@oes/common/authorization'
 import { resolveCommonProtoPath } from '@oes/common/contracts'
+import { createGrpcClientCredentials } from '@oes/common/transport'
 import {
   EMPLOYEE_REPOSITORY,
   EMPLOYMENT_REPOSITORY,
@@ -89,12 +90,28 @@ export function buildHrOnboardingGrpcClients(): ClientProviderOptions[] {
   ]
 }
 
+/** Adds mandatory workload credentials and rejects an unresolved production target URL. */
+function createMtlsClientProvider(client: ClientProviderOptions): ClientProviderOptions {
+  if (!('transport' in client) || client.transport !== Transport.GRPC || !('options' in client) || !('url' in client.options) || !client.options.url) {
+    throw new Error('HR_FOUNDATION_EXECUTION_UNAVAILABLE')
+  }
+  return {
+    ...client,
+    options: { ...client.options, credentials: createGrpcClientCredentials() }
+  } as ClientProviderOptions
+}
+
 /** HrOnboardingModule wires internal onboarding access compensation ports without exposing public RPCs. */
 @Module({
   imports: [
     AuthorizationModule,
     PrismaModule,
-    ClientsModule.register(buildHrOnboardingGrpcClients())
+    ClientsModule.registerAsync(
+      buildHrOnboardingGrpcClients().map((client) => ({
+        name: client.name,
+        useFactory: () => createMtlsClientProvider(client)
+      }))
+    )
   ],
   providers: [
     {

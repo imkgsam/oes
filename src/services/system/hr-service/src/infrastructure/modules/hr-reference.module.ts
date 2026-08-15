@@ -3,6 +3,7 @@ import { ClientsModule, Transport } from '@nestjs/microservices'
 import type { ClientProviderOptions } from '@nestjs/microservices/module/interfaces'
 import { AuthorizationModule } from '@oes/common/authorization'
 import { resolveCommonProtoPath } from '@oes/common/contracts'
+import { createGrpcClientCredentials } from '@oes/common/transport'
 import { PARTY_REGISTRATION_PORT, TENANT_ORG_REFERENCE_PORT } from '../../application/ports'
 import { PartyRegistrationGrpcAdapter } from '../adapters/party-registration-grpc.adapter'
 import { HrPartyTrustedGrpcClient } from '../adapters/party-trusted-grpc.client'
@@ -54,11 +55,27 @@ export function buildHrReferenceGrpcClients(): ClientProviderOptions[] {
   ]
 }
 
+/** Adds mandatory workload credentials and rejects an unresolved production target URL. */
+function createMtlsClientProvider(client: ClientProviderOptions): ClientProviderOptions {
+  if (!('transport' in client) || client.transport !== Transport.GRPC || !('options' in client) || !('url' in client.options) || !client.options.url) {
+    throw new Error('HR_FOUNDATION_EXECUTION_UNAVAILABLE')
+  }
+  return {
+    ...client,
+    options: { ...client.options, credentials: createGrpcClientCredentials() }
+  } as ClientProviderOptions
+}
+
 /** HrReferenceModule wires HR anti-corruption ports for external tenant-org and party references. */
 @Module({
   imports: [
     AuthorizationModule, HrTrustedExecutionModule,
-    ClientsModule.register(buildHrReferenceGrpcClients())
+    ClientsModule.registerAsync(
+      buildHrReferenceGrpcClients().map((client) => ({
+        name: client.name,
+        useFactory: () => createMtlsClientProvider(client)
+      }))
+    )
   ],
   providers: [
     {

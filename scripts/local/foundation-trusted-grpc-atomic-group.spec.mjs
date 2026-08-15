@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import test from 'node:test'
 import { resolve } from 'node:path'
 
@@ -10,17 +10,26 @@ const leaseBlock = packet.match(/foundationIdentityAuthzAtomicGroupImplementatio
 const lease = [...leaseBlock.matchAll(/- \{ state: (EXISTING|NEW_TARGET), path: ([^ }]+) \}/g)].map((match) => ({ state: match[1], path: match[2] }))
 const read = (path) => readFileSync(resolve(root, path), 'utf8')
 
-/** Returns candidate paths relative to the exact Program Control base, including uncommitted work. */
+/** Reads TypeScript sources below one directory for repository-wide legacy registration assertions. */
+function sourceTree(path) {
+  const directory = resolve(root, path)
+  return readdirSync(directory, { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.ts') && !entry.name.endsWith('.spec.ts'))
+    .map((entry) => readFileSync(resolve(entry.parentPath, entry.name), 'utf8'))
+    .join('\n')
+}
+
+/** Returns corrective-candidate paths relative to the integrated Program Control base, including uncommitted work. */
 function changedPaths() {
-  const committed = execFileSync('git', ['diff', '--name-only', 'ecf25641ef8beaf823bbdb1b1808279d1b6ffed5..HEAD'], { cwd: root, encoding: 'utf8' })
+  const committed = execFileSync('git', ['diff', '--name-only', 'af4aa61cb86c63353737e380c6a67f06b0868610..HEAD'], { cwd: root, encoding: 'utf8' })
   const working = execFileSync('git', ['diff', '--name-only'], { cwd: root, encoding: 'utf8' })
   const untracked = execFileSync('git', ['ls-files', '--others', '--exclude-standard'], { cwd: root, encoding: 'utf8' })
   return [...new Set(`${committed}\n${working}\n${untracked}`.trim().split(/\n+/).filter(Boolean))].sort()
 }
 
-test('atomic lease is exact and candidate changes stay inside all 185 paths', () => {
-  assert.equal(lease.length, 185)
-  assert.deepEqual(Object.fromEntries(['EXISTING', 'NEW_TARGET'].map((state) => [state, lease.filter((entry) => entry.state === state).length])), { EXISTING: 156, NEW_TARGET: 29 })
+test('atomic lease is exact and corrective candidate changes stay inside all 191 paths', () => {
+  assert.equal(lease.length, 191)
+  assert.deepEqual(Object.fromEntries(['EXISTING', 'NEW_TARGET'].map((state) => [state, lease.filter((entry) => entry.state === state).length])), { EXISTING: 162, NEW_TARGET: 29 })
   const allowed = new Set(lease.map((entry) => entry.path))
   const outside = changedPaths().filter((path) => !allowed.has(path))
   assert.deepEqual(outside, [])
@@ -68,4 +77,58 @@ test('five baseline controllers contain no legacy authority decorators', () => {
     const source = read(path)
     assert.doesNotMatch(source, /@(RequireAuthenticatedOperator|RequirePermissions|RequireManagementPermission|UseGuards\(InternalServiceGuard)/)
   }
+})
+
+test('all five foundation servers install mandatory mTLS credentials without a plaintext flag', () => {
+  const mains = [
+    'src/services/system/auth-service/src/main.ts',
+    'src/services/system/identity-service/src/main.ts',
+    'src/services/system/permission-service/src/main.ts',
+    'src/services/system/hr-service/src/main.ts',
+    'src/services/system/tenant-org-service/src/main.ts'
+  ]
+  for (const path of mains) {
+    const source = read(path)
+    assert.match(source, /(?:credentials:\s*createGrpcServerCredentials\(\)|createAuthGrpcMicroserviceOptions\(createAuthGrpcServerCredentials\(\))/)
+    assert.doesNotMatch(source, /OES_GRPC_TLS_ENABLED/)
+  }
+})
+
+test('foundation production channels do not use the generic connection pool and always bind client credentials', () => {
+  const noGeneric = [
+    'src/services/system/auth-service/src/infrastructure/modules/external-services.module.ts',
+    'src/services/system/identity-service/src/app.module.ts',
+    'src/services/system/identity-service/src/modules/identity-management/identity-management.module.ts',
+    'src/services/system/tenant-org-service/src/app.module.ts',
+    'src/services/system/tenant-org-service/src/modules/tenant-org-management/tenant-org-management.module.ts',
+    'src/services/system/tenant-org-service/src/modules/tenant-org-query/tenant-org-query.module.ts'
+  ]
+  for (const path of noGeneric) {
+    const source = read(path)
+    assert.doesNotMatch(source, /GrpcTransportModule\.for(?:Root|Feature)/)
+  }
+  assert.doesNotMatch(read('src/services/system/auth-service/src/app.module.ts'), /SERVICE_NAMES\.(?:IDENTITY|PERMISSION|HR|TENANT_ORG)/)
+
+  const credentialed = [
+    'src/services/system/hr-service/src/infrastructure/modules/hr-reference.module.ts',
+    'src/services/system/hr-service/src/modules/hr-onboarding/hr-onboarding.module.ts',
+    'src/services/system/auth-service/src/infrastructure/adaptors/foundation-trusted-grpc.clients.ts',
+    'src/services/system/identity-service/src/infrastructure/adaptors/foundation-trusted-grpc.clients.ts',
+    'src/services/system/permission-service/src/infrastructure/adaptors/foundation-trusted-grpc.clients.ts',
+    'src/services/system/tenant-org-service/src/infrastructure/adapters/foundation-trusted-grpc.clients.ts'
+  ]
+  for (const path of credentialed) {
+    assert.match(read(path), /createGrpcClientCredentials\(\)/)
+  }
+
+  const foundationSources = [
+    'src/services/system/auth-service/src',
+    'src/services/system/identity-service/src',
+    'src/services/system/permission-service/src',
+    'src/services/system/hr-service/src',
+    'src/services/system/tenant-org-service/src'
+  ].map(sourceTree).join('\n')
+  assert.doesNotMatch(foundationSources, /InjectGrpcClient\(SERVICE_NAMES\.(?:AUTH|IDENTITY|PERMISSION|HR|TENANT_ORG)\)/)
+  assert.doesNotMatch(foundationSources, /getGrpcClientToken\(SERVICE_NAMES\.(?:AUTH|IDENTITY|PERMISSION|HR|TENANT_ORG)\)/)
+  assert.doesNotMatch(foundationSources, /GrpcTransportModule\.forFeature\([\s\S]{0,300}SERVICE_NAMES\.(?:AUTH|IDENTITY|PERMISSION|HR|TENANT_ORG)/)
 })

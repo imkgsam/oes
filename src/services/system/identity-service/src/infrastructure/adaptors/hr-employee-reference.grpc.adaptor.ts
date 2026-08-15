@@ -1,6 +1,4 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
-import { ClientGrpc } from '@nestjs/microservices'
-import { resolveCommonProtoPath } from '@oes/common/contracts'
+import { Injectable, OnModuleInit } from '@nestjs/common'
 import {
   GetEmployeeByIdResponse,
   HR_QUERY_SERVICE_NAME,
@@ -12,9 +10,7 @@ import {
   HR_EMPLOYEE_REFERENCE_PORT,
   HrEmployeeReferencePort
 } from '../../application/ports/hr-employee-reference.port'
-import { IdentityFoundationTrustedGrpcExecutionProducer } from './foundation-trusted-grpc.clients'
-
-export const HR_GRPC_CLIENT = Symbol('HR_GRPC_CLIENT')
+import { IdentityFoundationTrustedGrpcExecutionProducer, IdentityHrTrustedGrpcClient } from './foundation-trusted-grpc.clients'
 
 /** HrEmployeeReferenceGrpcAdaptor reads minimal employee identity facts from hr-service over gRPC. */
 @Injectable()
@@ -22,10 +18,10 @@ export class HrEmployeeReferenceGrpcAdaptor implements HrEmployeeReferencePort, 
   private hrQueryService!: HrQueryServiceClient
   private readonly trusted = new IdentityFoundationTrustedGrpcExecutionProducer()
 
-  constructor(@Inject(HR_GRPC_CLIENT) private readonly client: ClientGrpc) {}
+  constructor(private readonly client: IdentityHrTrustedGrpcClient) {}
 
   onModuleInit() {
-    this.hrQueryService = this.client.getService<HrQueryServiceClient>(HR_QUERY_SERVICE_NAME)
+    this.hrQueryService = this.client.getClient().getService<HrQueryServiceClient>(HR_QUERY_SERVICE_NAME)
   }
 
   async getEmployeeById(employeeId: string) {
@@ -53,12 +49,6 @@ export class HrEmployeeReferenceGrpcAdaptor implements HrEmployeeReferencePort, 
       return null
     }
   }
-}
-
-export const HR_GRPC_CLIENT_OPTIONS = {
-  package: 'hr_service',
-  protoPath: [resolveCommonProtoPath('hr_service/hr.proto')],
-  url: process.env.GRPC_SERVICE_HR_URL || '127.0.0.1:50055'
 }
 
 function normalizeOptional(value?: string): string | undefined {

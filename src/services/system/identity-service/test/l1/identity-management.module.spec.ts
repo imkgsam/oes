@@ -1,12 +1,7 @@
 import { MODULE_METADATA } from '@nestjs/common/constants'
-import {
-  OPERATOR_PERMISSION_RESOLVER,
-  PermissionGuard
-} from '@oes/common/authorization'
-import { SERVICE_NAMES } from '@oes/common/constants'
-import { GrpcTransportModule } from '@oes/common/transport'
 import { SYMBOLS } from '../../src/common/constants'
 import { IdentityManagementModule } from '../../src/modules/identity-management/identity-management.module'
+import { IdentityTrustedExecutionModule } from '../../src/modules/identity-trusted-execution.module'
 
 describe('IdentityManagementModule', () => {
   it('registers the user repository required by account creation commands', () => {
@@ -21,30 +16,9 @@ describe('IdentityManagementModule', () => {
     )
   })
 
-  it('binds the management permission guard to the role-based operator resolver locally', () => {
-    const providers = Reflect.getMetadata(MODULE_METADATA.PROVIDERS, IdentityManagementModule) ?? []
-
-    expect(providers).toEqual(
-      expect.arrayContaining([
-        PermissionGuard,
-        expect.objectContaining({
-          provide: OPERATOR_PERMISSION_RESOLVER
-        })
-      ])
-    )
-  })
-
-  it('imports the permission gRPC client required by the role-based resolver', () => {
+  it('imports the local trusted execution module and no generic foundation transport', () => {
     const imports = Reflect.getMetadata(MODULE_METADATA.IMPORTS, IdentityManagementModule) ?? []
-
-    expect(imports).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          module: GrpcTransportModule
-        })
-      ])
-    )
-
-    expect(JSON.stringify(imports)).toContain(SERVICE_NAMES.PERMISSION)
+    expect(imports).toEqual(expect.arrayContaining([IdentityTrustedExecutionModule]))
+    expect(JSON.stringify(imports)).not.toContain('GrpcTransportModule')
   })
 })

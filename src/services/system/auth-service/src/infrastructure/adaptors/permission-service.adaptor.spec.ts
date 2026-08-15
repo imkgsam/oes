@@ -4,7 +4,7 @@ import { PermissionServiceAdaptor } from './permission-service.adaptor'
 
 describe('PermissionServiceAdaptor', () => {
   it('obtains an Auth-issued INTERNAL token for resolveExternalMachineAuthorizationSnapshot', async () => {
-    const adaptor = new PermissionServiceAdaptor({ getService: jest.fn() } as any)
+    const adaptor = new PermissionServiceAdaptor({ getClient: () => ({ getService: jest.fn() }) } as any)
 
     const metadata = new Metadata()
     metadata.set('authorization', 'Bearer sts-token')

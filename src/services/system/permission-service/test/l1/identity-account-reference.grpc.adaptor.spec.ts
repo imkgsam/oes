@@ -27,7 +27,7 @@ describe('IdentityAccountReferenceGrpcAdaptor', () => {
         }
       })
     )
-    const adaptor = new IdentityAccountReferenceGrpcAdaptor(client as any)
+    const adaptor = new IdentityAccountReferenceGrpcAdaptor({ getClient: () => client } as any)
     ;(adaptor as any).trusted = { forBusinessCall: jest.fn().mockResolvedValue(metadata) }
     adaptor.onModuleInit()
 
@@ -54,7 +54,7 @@ describe('IdentityAccountReferenceGrpcAdaptor', () => {
         }
       })
     )
-    const adaptor = new IdentityAccountReferenceGrpcAdaptor(client as any)
+    const adaptor = new IdentityAccountReferenceGrpcAdaptor({ getClient: () => client } as any)
     ;(adaptor as any).trusted = { forBusinessCall: jest.fn().mockResolvedValue(metadata) }
     adaptor.onModuleInit()
 

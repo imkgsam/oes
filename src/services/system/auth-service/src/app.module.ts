@@ -32,40 +32,11 @@ function resolveGrpcUrl(envKey: string, fallbackUrl: string): string | undefined
     }),
     GrpcTransportModule.forRoot({
       services: {
-        [SERVICE_NAMES.IDENTITY]: {
-          serviceName: SERVICE_NAMES.IDENTITY,
-          protoPath: resolveCommonProtoPath('identity_service/identity_query.proto'),
-          packageName: 'identity_service',
-          url: resolveGrpcUrl('IDENTITY_SERVICE_GRPC_URL', '127.0.0.1:50052')
-        },
-        [SERVICE_NAMES.HR]: {
-          serviceName: SERVICE_NAMES.HR,
-          protoPath: resolveCommonProtoPath('hr_service/hr.proto'),
-          packageName: 'hr_service',
-          url: resolveGrpcUrl('GRPC_SERVICE_HR_URL', '127.0.0.1:50055')
-        },
-        [SERVICE_NAMES.PERMISSION]: {
-          serviceName: SERVICE_NAMES.PERMISSION,
-          protoPath: [
-            resolveCommonProtoPath('permission_service/permission_check.proto'),
-            resolveCommonProtoPath('permission_service/permission_management.proto'),
-            resolveCommonProtoPath('permission_service/permission_access_summary.proto'),
-            resolveCommonProtoPath('permission_service/permission_terminal_access.proto')
-          ],
-          packageName: 'permission_service',
-          url: resolveGrpcUrl('PERMISSION_SERVICE_GRPC_URL', '127.0.0.1:50051')
-        },
         [SERVICE_NAMES.NOTIFICATION]: {
           serviceName: SERVICE_NAMES.NOTIFICATION,
           protoPath: resolveCommonProtoPath('notification_service/notification.proto'),
           packageName: 'notification_service',
           url: resolveGrpcUrl('NOTIFICATION_SERVICE_GRPC_URL', '127.0.0.1:50066')
-        },
-        [SERVICE_NAMES.TENANT_ORG]: {
-          serviceName: SERVICE_NAMES.TENANT_ORG,
-          protoPath: resolveCommonProtoPath('tenant_org_service/tenant_org.proto'),
-          packageName: 'tenant_org_service',
-          url: resolveGrpcUrl('TENANT_ORG_GRPC_URL', '127.0.0.1:50054')
         }
       }
     }),

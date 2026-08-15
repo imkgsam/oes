@@ -185,3 +185,37 @@ function required(name: string): string {
   if (!value) throw new Error(ERRORS.FOUNDATION_UNAVAILABLE)
   return value
 }
+
+/** Lazily creates one immutable mTLS channel for an Identity foundation target. */
+abstract class IdentityFoundationMtlsClient {
+  private client?: ClientGrpc
+  protected constructor(private readonly packageName: string, private readonly protos: readonly string[], private readonly envKeys: readonly string[], private readonly fallback: string) {}
+  getClient(): ClientGrpc {
+    return (this.client ??= ClientProxyFactory.create({ transport: Transport.GRPC, options: {
+      package: this.packageName,
+      protoPath: this.protos.map((path) => resolveCommonProtoPath(path)),
+      url: identityTargetUrl(this.envKeys, this.fallback),
+      credentials: createGrpcClientCredentials()
+    } }) as unknown as ClientGrpc)
+  }
+}
+
+/** Owns Identity's certificate-bound channel to TenantOrg without the generic connection pool. */
+export class IdentityTenantOrgTrustedGrpcClient extends IdentityFoundationMtlsClient {
+  constructor() { super('tenant_org_service', ['tenant_org_service/tenant_org.proto'], ['TENANT_ORG_GRPC_URL', 'GRPC_SERVICE_TENANT_ORG_URL'], '127.0.0.1:50054') }
+}
+
+/** Owns Identity's certificate-bound channel to HR without a plaintext ClientsModule target. */
+export class IdentityHrTrustedGrpcClient extends IdentityFoundationMtlsClient {
+  constructor() { super('hr_service', ['hr_service/hr.proto'], ['GRPC_SERVICE_HR_URL'], '127.0.0.1:50055') }
+}
+
+/** Resolves an Identity target URL and rejects missing production configuration. */
+function identityTargetUrl(envKeys: readonly string[], fallback: string): string {
+  for (const key of envKeys) {
+    const configured = process.env[key]?.trim()
+    if (configured) return configured
+  }
+  if ((process.env.NODE_ENV ?? 'development') !== 'production') return fallback
+  throw new Error(ERRORS.FOUNDATION_UNAVAILABLE)
+}

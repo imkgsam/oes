@@ -9,6 +9,7 @@ import {
   TrustedExecutionGuard
 } from '@oes/common/authorization'
 import { GrpcWorkloadIdentityProvider } from '@oes/common/transport'
+import { AuthHrTrustedGrpcClient, AuthIdentityTrustedGrpcClient, AuthPermissionTrustedGrpcClient, AuthTenantOrgTrustedGrpcClient } from '../../infrastructure/adaptors/foundation-trusted-grpc.clients'
 
 export const AUTH_AUDIENCE = 'urn:oes:service:auth-service'
 export const AUTH_PUBLIC_ADMISSION_KEY = 'oes:auth:public-admission'
@@ -77,6 +78,10 @@ export class AuthTrustedExecutionGuard extends TrustedExecutionGuard implements 
 /** Supplies Auth's exact audience verifier and dual public/protected admission guard. */
 @Module({
   providers: [
+    AuthIdentityTrustedGrpcClient,
+    AuthPermissionTrustedGrpcClient,
+    AuthHrTrustedGrpcClient,
+    AuthTenantOrgTrustedGrpcClient,
     { provide: ExecutionTokenVerifier, useFactory: () => runtime.verifier },
     { provide: GrpcWorkloadIdentityProvider, useFactory: () => runtime.workloadIdentityProvider },
     {
@@ -86,7 +91,7 @@ export class AuthTrustedExecutionGuard extends TrustedExecutionGuard implements 
       inject: [Reflector, ExecutionTokenVerifier, GrpcWorkloadIdentityProvider]
     }
   ],
-  exports: [AuthTrustedExecutionGuard]
+  exports: [AuthTrustedExecutionGuard, AuthIdentityTrustedGrpcClient, AuthPermissionTrustedGrpcClient, AuthHrTrustedGrpcClient, AuthTenantOrgTrustedGrpcClient]
 })
 export class AuthTrustedExecutionModule {}
 

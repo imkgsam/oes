@@ -1,6 +1,4 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
-import { ClientGrpc } from '@nestjs/microservices'
-import { resolveCommonProtoPath } from '@oes/common/contracts'
+import { Injectable, OnModuleInit } from '@nestjs/common'
 import {
   GetAccountByIdResponse,
   GetServiceAccountByIdResponse,
@@ -12,9 +10,7 @@ import {
   IDENTITY_ACCOUNT_REFERENCE_PORT,
   IdentityAccountReferencePort
 } from '../../application/ports/identity-account-reference.port'
-import { PermissionFoundationTrustedGrpcExecutionProducer } from './foundation-trusted-grpc.clients'
-
-export const IDENTITY_GRPC_CLIENT = Symbol('IDENTITY_GRPC_CLIENT')
+import { PermissionFoundationTrustedGrpcExecutionProducer, PermissionIdentityTrustedGrpcClient } from './foundation-trusted-grpc.clients'
 
 /** IdentityAccountReferenceGrpcAdaptor reads minimal account context facts from identity-service over gRPC. */
 @Injectable()
@@ -24,12 +20,10 @@ export class IdentityAccountReferenceGrpcAdaptor
   private identityQueryService!: IdentityQueryServiceClient
   private readonly trusted = new PermissionFoundationTrustedGrpcExecutionProducer()
 
-  constructor(
-    @Inject(IDENTITY_GRPC_CLIENT) private readonly client: ClientGrpc
-  ) {}
+  constructor(private readonly client: PermissionIdentityTrustedGrpcClient) {}
 
   onModuleInit() {
-    this.identityQueryService = this.client.getService<IdentityQueryServiceClient>(
+    this.identityQueryService = this.client.getClient().getService<IdentityQueryServiceClient>(
       IDENTITY_QUERY_SERVICE_NAME
     )
   }
@@ -95,12 +89,6 @@ export class IdentityAccountReferenceGrpcAdaptor
     }
   }
 
-}
-
-export const IDENTITY_GRPC_CLIENT_OPTIONS = {
-  package: 'identity_service',
-  protoPath: [resolveCommonProtoPath('identity_service/identity_query.proto')],
-  url: process.env.GRPC_SERVICE_IDENTITY_URL || '127.0.0.1:50052'
 }
 
 function normalizeOptional(value?: string): string | undefined {

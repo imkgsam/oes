@@ -2,6 +2,7 @@ import { CanActivate, ExecutionContext, ForbiddenException, Injectable, Module }
 import { Reflector } from '@nestjs/core'
 import { createLazyTrustedExecutionRuntime, ExecutionTokenVerifier, getAuthenticatedGrpcRequestContext, TrustedExecutionGuard, TrustedInternalExecutionGuard } from '@oes/common/authorization'
 import { GrpcWorkloadIdentityProvider } from '@oes/common/transport'
+import { PermissionIdentityTrustedGrpcClient } from '../../infrastructure/adaptors/foundation-trusted-grpc.clients'
 
 export const PERMISSION_AUDIENCE = 'urn:oes:service:permission-service'
 const runtime = createLazyTrustedExecutionRuntime(PERMISSION_AUDIENCE)
@@ -28,6 +29,7 @@ export class PermissionFoundationTrustedExecutionGuard extends TrustedExecutionG
 /** Supplies Permission's exact audience verifier for all baseline RPCs while preserving the bootstrap guard. */
 @Module({
   providers: [
+    PermissionIdentityTrustedGrpcClient,
     { provide: ExecutionTokenVerifier, useFactory: () => runtime.verifier },
     { provide: GrpcWorkloadIdentityProvider, useFactory: () => runtime.workloadIdentityProvider },
     {
@@ -41,7 +43,7 @@ export class PermissionFoundationTrustedExecutionGuard extends TrustedExecutionG
       inject: [Reflector, ExecutionTokenVerifier, GrpcWorkloadIdentityProvider]
     }
   ],
-  exports: [ExecutionTokenVerifier, GrpcWorkloadIdentityProvider, PermissionFoundationTrustedExecutionGuard, TrustedInternalExecutionGuard]
+  exports: [PermissionIdentityTrustedGrpcClient, ExecutionTokenVerifier, GrpcWorkloadIdentityProvider, PermissionFoundationTrustedExecutionGuard, TrustedInternalExecutionGuard]
 })
 export class PermissionTrustedExecutionModule {}
 

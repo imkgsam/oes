@@ -216,3 +216,47 @@ function requiredValue(value: string | undefined): string {
   if (!value) throw new Error(ERRORS.CONTEXT_REQUIRED)
   return value
 }
+
+/** Lazily creates one immutable mTLS client for a single foundation target. */
+abstract class AuthFoundationMtlsClient {
+  private client?: ClientGrpc
+  protected constructor(private readonly packageName: string, private readonly protos: readonly string[], private readonly envKeys: readonly string[], private readonly fallback: string) {}
+  getClient(): ClientGrpc {
+    return (this.client ??= ClientProxyFactory.create({ transport: Transport.GRPC, options: {
+      package: this.packageName,
+      protoPath: this.protos.map((path) => resolveCommonProtoPath(path)),
+      url: foundationTargetUrl(this.envKeys, this.fallback),
+      credentials: createGrpcClientCredentials()
+    } }) as unknown as ClientGrpc)
+  }
+}
+
+/** Owns Auth's certificate-bound channel to Identity without using the generic connection pool. */
+export class AuthIdentityTrustedGrpcClient extends AuthFoundationMtlsClient {
+  constructor() { super('identity_service', ['identity_service/identity_query.proto'], ['IDENTITY_SERVICE_GRPC_URL', 'GRPC_SERVICE_IDENTITY_URL'], '127.0.0.1:50052') }
+}
+
+/** Owns Auth's certificate-bound channel to Permission without using the generic connection pool. */
+export class AuthPermissionTrustedGrpcClient extends AuthFoundationMtlsClient {
+  constructor() { super('permission_service', ['permission_service/permission_check.proto', 'permission_service/permission_management.proto', 'permission_service/permission_access_summary.proto', 'permission_service/permission_terminal_access.proto'], ['PERMISSION_SERVICE_GRPC_URL', 'GRPC_SERVICE_PERMISSION_URL'], '127.0.0.1:50051') }
+}
+
+/** Owns Auth's certificate-bound channel to HR without using the generic connection pool. */
+export class AuthHrTrustedGrpcClient extends AuthFoundationMtlsClient {
+  constructor() { super('hr_service', ['hr_service/hr.proto'], ['GRPC_SERVICE_HR_URL'], '127.0.0.1:50055') }
+}
+
+/** Owns Auth's certificate-bound channel to TenantOrg without using the generic connection pool. */
+export class AuthTenantOrgTrustedGrpcClient extends AuthFoundationMtlsClient {
+  constructor() { super('tenant_org_service', ['tenant_org_service/tenant_org.proto'], ['TENANT_ORG_GRPC_URL', 'GRPC_SERVICE_TENANT_ORG_URL'], '127.0.0.1:50054') }
+}
+
+/** Resolves deployment-owned target URLs and permits local defaults only outside production. */
+function foundationTargetUrl(envKeys: readonly string[], fallback: string): string {
+  for (const key of envKeys) {
+    const configured = process.env[key]?.trim()
+    if (configured) return configured
+  }
+  if ((process.env.NODE_ENV ?? 'development') !== 'production') return fallback
+  throw new Error(ERRORS.FOUNDATION_UNAVAILABLE)
+}

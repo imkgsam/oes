@@ -8,9 +8,6 @@ import { CommonJwtModule } from '@oes/common/auth'
 import {
   createLazyTrustedExecutionRuntime,
   ExecutionTokenVerifier,
-  OPERATOR_PERMISSION_RESOLVER,
-  PermissionServicePermissionReadAdaptor,
-  RoleBasedOperatorPermissionResolver,
   AuthorizationModule,
   TrustedInternalExecutionGuard
 } from '@oes/common/authorization'
@@ -163,9 +160,6 @@ const AUTH_SERVICE_AUDIENCE = 'urn:oes:service:auth-service'
       provide: NOTIFICATION_DISPATCH_PORT,
       useExisting: NotificationServiceGrpcAdaptor
     },
-    PermissionServicePermissionReadAdaptor,
-    RoleBasedOperatorPermissionResolver,
-    { provide: OPERATOR_PERMISSION_RESOLVER, useExisting: RoleBasedOperatorPermissionResolver },
     ValidatingCommandBus,
     ValidatingQueryBus,
     CheckResourceService,

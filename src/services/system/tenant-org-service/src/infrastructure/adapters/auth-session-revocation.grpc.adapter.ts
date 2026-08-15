@@ -1,13 +1,12 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
-import { ClientGrpc } from '@nestjs/microservices'
+import { Injectable, OnModuleInit } from '@nestjs/common'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import { AUTH_SERVICE_NAME, AuthServiceClient } from '@oes/common/generated/auth_service'
-import { InjectGrpcClient, safeGrpcCall } from '@oes/common/transport'
+import { safeGrpcCall } from '@oes/common/transport'
 import {
   AuthSessionRevocationPort,
   RevokeTenantSessionsInput
 } from '../../application/ports/auth-session-revocation.port'
-import { TenantOrgFoundationTrustedGrpcExecutionProducer } from './foundation-trusted-grpc.clients'
+import { TenantOrgAuthTrustedGrpcClient, TenantOrgFoundationTrustedGrpcExecutionProducer } from './foundation-trusted-grpc.clients'
 
 /** AuthSessionRevocationGrpcAdapter calls auth-service to revoke tenant sessions after lifecycle deactivation. */
 @Injectable()
@@ -17,13 +16,10 @@ export class AuthSessionRevocationGrpcAdapter
   private authService!: AuthServiceClient
   private readonly trusted = new TenantOrgFoundationTrustedGrpcExecutionProducer()
 
-  constructor(
-    @InjectGrpcClient(SERVICE_NAMES.AUTH)
-    private readonly authClient: ClientGrpc
-  ) {}
+  constructor(private readonly authClient: TenantOrgAuthTrustedGrpcClient) {}
 
   onModuleInit() {
-    this.authService = this.authClient.getService<AuthServiceClient>(AUTH_SERVICE_NAME)
+    this.authService = this.authClient.getClient().getService<AuthServiceClient>(AUTH_SERVICE_NAME)
   }
 
   async revokeTenantSessions(input: RevokeTenantSessionsInput): Promise<void> {

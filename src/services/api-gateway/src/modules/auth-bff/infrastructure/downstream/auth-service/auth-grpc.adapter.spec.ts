@@ -163,6 +163,7 @@ describe('AuthGrpcAdapter', () => {
     )
     await adapter.updateTenantTerminalMfaPolicy(
       {
+        tenantId: 'tenant-1',
         entries: [
           {
             terminal: 'PDA',

@@ -1,4 +1,13 @@
-import { IDENTITY_FOUNDATION_TARGETS, requireIdentityFoundationTarget } from './foundation-trusted-grpc.clients'
+import { Test } from '@nestjs/testing'
+import { HrEmployeeReferenceGrpcAdaptor } from './hr-employee-reference.grpc.adaptor'
+import { TenantReferenceGrpcAdaptor } from './tenant-reference.grpc.adaptor'
+import { IdentityTrustedExecutionModule } from '../../modules/identity-trusted-execution.module'
+import {
+  IDENTITY_FOUNDATION_TARGETS,
+  IdentityHrTrustedGrpcClient,
+  IdentityTenantOrgTrustedGrpcClient,
+  requireIdentityFoundationTarget
+} from './foundation-trusted-grpc.clients'
 
 /** Proves Identity's target-bound profiles are exact, immutable and wildcard-free. */
 describe('Identity foundation trusted gRPC targets', () => {
@@ -10,5 +19,17 @@ describe('Identity foundation trusted gRPC targets', () => {
       expect(profile.audience).not.toContain('*')
       expect(Object.isFrozen(profile)).toBe(true)
     }
+  })
+
+  it('resolves both target-bound client providers from Identity runtime DI', async () => {
+    const moduleRef = await Test.createTestingModule({
+      imports: [IdentityTrustedExecutionModule],
+      providers: [HrEmployeeReferenceGrpcAdaptor, TenantReferenceGrpcAdaptor]
+    }).compile()
+    expect(moduleRef.get(IdentityHrTrustedGrpcClient)).toBeDefined()
+    expect(moduleRef.get(IdentityTenantOrgTrustedGrpcClient)).toBeDefined()
+    expect(moduleRef.get(HrEmployeeReferenceGrpcAdaptor)).toBeDefined()
+    expect(moduleRef.get(TenantReferenceGrpcAdaptor)).toBeDefined()
+    await moduleRef.close()
   })
 })

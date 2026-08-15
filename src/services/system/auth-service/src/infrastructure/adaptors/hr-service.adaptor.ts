@@ -1,19 +1,17 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { ClientGrpc } from '@nestjs/microservices'
-import { SERVICE_NAMES } from '@oes/common/constants'
 import { ExceptionFactory, InfrastructureException } from '@oes/common/exceptions'
 import {
   HrQueryServiceClient,
   ResolveActiveEmployeeByCodeRequest,
   ResolveActiveEmployeeByCodeResponse
 } from '@oes/common/generated/hr_service'
-import { InjectGrpcClient, safeGrpcCall } from '@oes/common/transport'
+import { safeGrpcCall } from '@oes/common/transport'
 import {
   ActiveEmployeeByCodeSummary,
   IHrServicePort
 } from '../../application/ports/hr-service.port'
 import { AUTH_HR_UPSTREAM_UNAVAILABLE } from '../../common/constants/exception-enums'
-import { AuthFoundationTrustedGrpcExecutionProducer } from './foundation-trusted-grpc.clients'
+import { AuthFoundationTrustedGrpcExecutionProducer, AuthHrTrustedGrpcClient } from './foundation-trusted-grpc.clients'
 
 const HR_QUERY_SERVICE_NAME = 'HrQueryService'
 
@@ -25,12 +23,11 @@ export class HrServiceAdaptor implements IHrServicePort, OnModuleInit {
   private readonly trusted = new AuthFoundationTrustedGrpcExecutionProducer()
 
   constructor(
-    @InjectGrpcClient(SERVICE_NAMES.HR)
-    private readonly hrClient: ClientGrpc
+    private readonly hrClient: AuthHrTrustedGrpcClient
   ) {}
 
   onModuleInit() {
-    this.hrQueryService = this.hrClient.getService<HrQueryServiceClient>(HR_QUERY_SERVICE_NAME)
+    this.hrQueryService = this.hrClient.getClient().getService<HrQueryServiceClient>(HR_QUERY_SERVICE_NAME)
   }
 
   async resolveActiveEmployeeByCode(input: {

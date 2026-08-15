@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common'
 import { CqrsModule } from '@nestjs/cqrs'
-import { ClientsModule, Transport } from '@nestjs/microservices'
 import { PrismaModule } from '../../infrastructure/prisma/prisma.module'
 import { PrismaRoleRepository } from '../../infrastructure/repositories/prisma/prisma.role.repository'
 import { PrismaOnboardingGrantRequestRepository } from '../../infrastructure/repositories/prisma/prisma.onboarding-grant-request.repository'
@@ -21,23 +20,14 @@ import {
 import {
   IDENTITY_ACCOUNT_REFERENCE_PORT
 } from '../../application/ports/identity-account-reference.port'
-import {
-  IDENTITY_GRPC_CLIENT,
-  IDENTITY_GRPC_CLIENT_OPTIONS,
-  IdentityAccountReferenceGrpcAdaptor
-} from '../../infrastructure/adaptors/identity-account-reference.grpc.adaptor'
+import { IdentityAccountReferenceGrpcAdaptor } from '../../infrastructure/adaptors/identity-account-reference.grpc.adaptor'
+import { PermissionTrustedExecutionModule } from '../authorization/permission-trusted-execution.module'
 
 @Module({
   imports: [
     CqrsModule,
     PrismaModule,
-    ClientsModule.register([
-      {
-        name: IDENTITY_GRPC_CLIENT,
-        transport: Transport.GRPC,
-        options: IDENTITY_GRPC_CLIENT_OPTIONS
-      }
-    ])
+    PermissionTrustedExecutionModule
   ],
   providers: [
     {

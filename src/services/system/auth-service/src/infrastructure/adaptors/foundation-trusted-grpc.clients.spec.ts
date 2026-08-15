@@ -1,4 +1,19 @@
-import { AUTH_FOUNDATION_TARGETS, requireAuthFoundationTarget } from './foundation-trusted-grpc.clients'
+import { Test } from '@nestjs/testing'
+import { HR_SERVICE, IDENTITY_SERVICE, PERMISSION_SERVICE } from '@oes/common/constants'
+import { TENANT_LIFECYCLE_ACCESS_PORT } from '../../common/constants/injection-tokens'
+import { ExternalServicesModule } from '../modules/external-services.module'
+import { HrServiceAdaptor } from './hr-service.adaptor'
+import { IdentityServiceAdaptor } from './identity-service.adaptor'
+import { PermissionServiceAdaptor } from './permission-service.adaptor'
+import { TenantOrgLifecycleGrpcAdaptor } from './tenant-org-lifecycle.grpc.adaptor'
+import {
+  AUTH_FOUNDATION_TARGETS,
+  AuthHrTrustedGrpcClient,
+  AuthIdentityTrustedGrpcClient,
+  AuthPermissionTrustedGrpcClient,
+  AuthTenantOrgTrustedGrpcClient,
+  requireAuthFoundationTarget
+} from './foundation-trusted-grpc.clients'
 
 /** Proves Auth's target-bound profiles are exact, immutable and wildcard-free. */
 describe('Auth foundation trusted gRPC targets', () => {
@@ -10,5 +25,17 @@ describe('Auth foundation trusted gRPC targets', () => {
       expect(profile.audience).not.toContain('*')
       expect(Object.isFrozen(profile)).toBe(true)
     }
+  })
+
+  it('resolves all four target-bound client providers from Auth runtime DI', async () => {
+    const moduleRef = await Test.createTestingModule({ imports: [ExternalServicesModule] }).compile()
+    for (const token of [AuthIdentityTrustedGrpcClient, AuthPermissionTrustedGrpcClient, AuthHrTrustedGrpcClient, AuthTenantOrgTrustedGrpcClient]) {
+      expect(moduleRef.get(token, { strict: false })).toBeDefined()
+    }
+    expect(moduleRef.get(IDENTITY_SERVICE)).toBeInstanceOf(IdentityServiceAdaptor)
+    expect(moduleRef.get(PERMISSION_SERVICE)).toBeInstanceOf(PermissionServiceAdaptor)
+    expect(moduleRef.get(HR_SERVICE)).toBeInstanceOf(HrServiceAdaptor)
+    expect(moduleRef.get(TENANT_LIFECYCLE_ACCESS_PORT)).toBeInstanceOf(TenantOrgLifecycleGrpcAdaptor)
+    await moduleRef.close()
   })
 })

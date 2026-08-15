@@ -7,6 +7,12 @@ import { TenantOrgPartyMachineSourceCredentialClient } from '../infrastructure/a
 import { TenantOrgPartyMachineSourceCredentialProvider } from '../infrastructure/adapters/tenant-org-party-machine-source-credential.provider'
 import { TenantOrgPartyExecutionTokenExchangeClient } from '../infrastructure/adapters/tenant-org-party-execution-token-exchange.client'
 import { TenantOrgPartyTrustedGrpcExecutionProducer } from '../infrastructure/adapters/tenant-org-party-trusted-grpc-execution.producer'
+import {
+  TenantOrgAuthTrustedGrpcClient,
+  TenantOrgHrTrustedGrpcClient,
+  TenantOrgIdentityTrustedGrpcClient,
+  TenantOrgPermissionTrustedGrpcClient
+} from '../infrastructure/adapters/foundation-trusted-grpc.clients'
 
 export const TENANT_ORG_AUDIENCE = 'urn:oes:service:tenant-org-service'
 const runtime = createLazyTrustedExecutionRuntime(TENANT_ORG_AUDIENCE)
@@ -34,13 +40,14 @@ export class TenantOrgFoundationTrustedExecutionGuard extends TrustedExecutionGu
 @Global()
 @Module({
   providers: [
+    TenantOrgAuthTrustedGrpcClient, TenantOrgHrTrustedGrpcClient, TenantOrgIdentityTrustedGrpcClient, TenantOrgPermissionTrustedGrpcClient,
     TenantOrgPartyTrustedGrpcClient, TenantOrgPartyMachineSourceCredentialClient, TenantOrgPartyMachineSourceCredentialProvider, TenantOrgPartyExecutionTokenExchangeClient,
     { provide: TenantOrgPartyTrustedGrpcExecutionProducer, useFactory: (source: TenantOrgPartyMachineSourceCredentialProvider, exchange: TenantOrgPartyExecutionTokenExchangeClient) => new TenantOrgPartyTrustedGrpcExecutionProducer(source, exchange), inject: [TenantOrgPartyMachineSourceCredentialProvider, TenantOrgPartyExecutionTokenExchangeClient] },
     { provide: ExecutionTokenVerifier, useFactory: () => runtime.verifier },
     { provide: GrpcWorkloadIdentityProvider, useFactory: () => runtime.workloadIdentityProvider },
     { provide: TenantOrgFoundationTrustedExecutionGuard, useFactory: (reflector: Reflector, verifier: ExecutionTokenVerifier, identity: GrpcWorkloadIdentityProvider) => new TenantOrgFoundationTrustedExecutionGuard(reflector, verifier, identity), inject: [Reflector, ExecutionTokenVerifier, GrpcWorkloadIdentityProvider] }
   ],
-  exports: [TenantOrgPartyTrustedGrpcClient, TenantOrgPartyTrustedGrpcExecutionProducer, ExecutionTokenVerifier, GrpcWorkloadIdentityProvider, TenantOrgFoundationTrustedExecutionGuard]
+  exports: [TenantOrgAuthTrustedGrpcClient, TenantOrgHrTrustedGrpcClient, TenantOrgIdentityTrustedGrpcClient, TenantOrgPermissionTrustedGrpcClient, TenantOrgPartyTrustedGrpcClient, TenantOrgPartyTrustedGrpcExecutionProducer, ExecutionTokenVerifier, GrpcWorkloadIdentityProvider, TenantOrgFoundationTrustedExecutionGuard]
 })
 export class TenantOrgTrustedExecutionModule {}
 

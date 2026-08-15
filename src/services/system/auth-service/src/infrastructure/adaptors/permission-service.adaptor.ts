@@ -1,9 +1,7 @@
 import { Inject, Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common'
-import { ClientGrpc } from '@nestjs/microservices'
-import { SERVICE_NAMES } from '@oes/common/constants'
 import { PermissionCheckInput, PermissionCheckOutput } from '@oes/common/contracts'
 import { ExceptionFactory, InfrastructureException } from '@oes/common/exceptions'
-import { InjectGrpcClient, safeGrpcCall } from '@oes/common/transport'
+import { safeGrpcCall } from '@oes/common/transport'
 import { Observable } from 'rxjs'
 import {
   AccountAuthorizationSummary,
@@ -11,7 +9,7 @@ import {
   IPermissionServicePort
 } from '../../application/ports/permission-service.port'
 import { AUTH_PERMISSION_UPSTREAM_UNAVAILABLE } from '../../common/constants/exception-enums'
-import { AuthFoundationTrustedGrpcExecutionProducer } from './foundation-trusted-grpc.clients'
+import { AuthFoundationTrustedGrpcExecutionProducer, AuthPermissionTrustedGrpcClient } from './foundation-trusted-grpc.clients'
 import {
   AccountAccessSummaryResponse,
   PERMISSION_ACCESS_SUMMARY_SERVICE_NAME,
@@ -48,22 +46,21 @@ export class PermissionServiceAdaptor implements IPermissionServicePort, OnModul
   private permissionTerminalAccessService!: PermissionTerminalAccessServiceClient
 
   constructor(
-    @InjectGrpcClient(SERVICE_NAMES.PERMISSION)
-    private readonly permissionClient: ClientGrpc,
+    private readonly permissionClient: AuthPermissionTrustedGrpcClient,
     @Optional() _retiredMetadataFactory?: unknown,
     @Optional() _retiredRequestContextStore?: unknown
   ) {}
 
   onModuleInit() {
-    this.permissionService = this.permissionClient.getService<PermissionCheckGrpcClient>(
+    this.permissionService = this.permissionClient.getClient().getService<PermissionCheckGrpcClient>(
       PERMISSION_CHECK_SERVICE_NAME
     )
     this.permissionAccessSummaryService =
-      this.permissionClient.getService<PermissionAccessSummaryServiceClient>(
+      this.permissionClient.getClient().getService<PermissionAccessSummaryServiceClient>(
         PERMISSION_ACCESS_SUMMARY_SERVICE_NAME
       )
     this.permissionTerminalAccessService =
-      this.permissionClient.getService<PermissionTerminalAccessServiceClient>(
+      this.permissionClient.getClient().getService<PermissionTerminalAccessServiceClient>(
         PERMISSION_TERMINAL_ACCESS_SERVICE_NAME
       )
   }

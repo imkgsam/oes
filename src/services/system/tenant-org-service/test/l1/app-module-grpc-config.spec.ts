@@ -1,25 +1,53 @@
-import { SERVICE_NAMES } from '@oes/common/constants'
-import { basename } from 'path'
-import { buildGrpcServiceConfigs } from '../../src/app.module'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { Test } from '@nestjs/testing'
+import {
+  TenantOrgAuthTrustedGrpcClient,
+  TenantOrgHrTrustedGrpcClient,
+  TenantOrgIdentityTrustedGrpcClient,
+  TenantOrgPermissionTrustedGrpcClient
+} from '../../src/infrastructure/adapters/foundation-trusted-grpc.clients'
+import { AuthLoginOnboardingGrpcAdapter } from '../../src/infrastructure/adapters/auth-login-onboarding.grpc.adapter'
+import { AuthSessionRevocationGrpcAdapter } from '../../src/infrastructure/adapters/auth-session-revocation.grpc.adapter'
+import { HrEmployeeOnboardingGrpcAdapter } from '../../src/infrastructure/adapters/hr-employee-onboarding.grpc.adapter'
+import { IdentityAccountOnboardingGrpcAdapter } from '../../src/infrastructure/adapters/identity-account-onboarding.grpc.adapter'
+import { PermissionTenantOnboardingGrpcAdapter } from '../../src/infrastructure/adapters/permission-tenant-onboarding.grpc.adapter'
+import { TenantOrgTrustedExecutionModule } from '../../src/modules/tenant-org-trusted-execution.module'
 
+/** Locks TenantOrg's production foundation calls to dedicated mTLS client providers. */
 describe('tenant-org AppModule gRPC config', () => {
-  it('includes hr-service because tenant onboarding injects the HR employee onboarding adapter', () => {
-    const configs = buildGrpcServiceConfigs()
+  it('resolves every target-bound adapter and mTLS client through the runtime DI graph', async () => {
+    const moduleRef = await Test.createTestingModule({
+      imports: [TenantOrgTrustedExecutionModule],
+      providers: [
+        AuthLoginOnboardingGrpcAdapter,
+        AuthSessionRevocationGrpcAdapter,
+        HrEmployeeOnboardingGrpcAdapter,
+        IdentityAccountOnboardingGrpcAdapter,
+        PermissionTenantOnboardingGrpcAdapter
+      ]
+    }).compile()
 
-    expect(configs[SERVICE_NAMES.HR]).toMatchObject({
-      packageName: 'hr_service',
-      serviceName: SERVICE_NAMES.HR,
-      url: '127.0.0.1:50055'
-    })
+    for (const token of [
+      TenantOrgAuthTrustedGrpcClient,
+      TenantOrgHrTrustedGrpcClient,
+      TenantOrgIdentityTrustedGrpcClient,
+      TenantOrgPermissionTrustedGrpcClient,
+      AuthLoginOnboardingGrpcAdapter,
+      AuthSessionRevocationGrpcAdapter,
+      HrEmployeeOnboardingGrpcAdapter,
+      IdentityAccountOnboardingGrpcAdapter,
+      PermissionTenantOnboardingGrpcAdapter
+    ]) expect(moduleRef.get(token)).toBeDefined()
+    await moduleRef.close()
   })
 
-  it('loads permission access-summary proto for operator RBAC resolution', () => {
-    const configs = buildGrpcServiceConfigs()
-    const protoPaths = configs[SERVICE_NAMES.PERMISSION].protoPath
-
-    expect(Array.isArray(protoPaths)).toBe(true)
-    expect((protoPaths as string[]).map((protoPath) => basename(protoPath))).toEqual(
-      expect.arrayContaining(['permission_management.proto', 'permission_access_summary.proto'])
-    )
+  it('contains no generic foundation registration or plaintext fallback', () => {
+    const appSource = readFileSync(join(__dirname, '../../src/app.module.ts'), 'utf8')
+    const managementSource = readFileSync(join(__dirname, '../../src/modules/tenant-org-management/tenant-org-management.module.ts'), 'utf8')
+    const querySource = readFileSync(join(__dirname, '../../src/modules/tenant-org-query/tenant-org-query.module.ts'), 'utf8')
+    const clientsSource = readFileSync(join(__dirname, '../../src/infrastructure/adapters/foundation-trusted-grpc.clients.ts'), 'utf8')
+    expect(`${appSource}\n${managementSource}\n${querySource}`).not.toMatch(/GrpcTransportModule\.for(?:Root|Feature)/)
+    expect(clientsSource).toMatch(/credentials:\s*createGrpcClientCredentials\(\)/)
   })
 })

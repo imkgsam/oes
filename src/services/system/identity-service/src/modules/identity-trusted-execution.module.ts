@@ -7,6 +7,7 @@ import { IdentityPartyMachineSourceCredentialClient } from '../infrastructure/ad
 import { IdentityPartyMachineSourceCredentialProvider } from '../infrastructure/adaptors/identity-party-machine-source-credential.provider'
 import { IdentityPartyExecutionTokenExchangeClient } from '../infrastructure/adaptors/identity-party-execution-token-exchange.client'
 import { IdentityPartyTrustedGrpcExecutionProducer } from '../infrastructure/adaptors/identity-party-trusted-grpc-execution.producer'
+import { IdentityHrTrustedGrpcClient, IdentityTenantOrgTrustedGrpcClient } from '../infrastructure/adaptors/foundation-trusted-grpc.clients'
 
 export const IDENTITY_AUDIENCE = 'urn:oes:service:identity-service'
 const runtime = createLazyTrustedExecutionRuntime(IDENTITY_AUDIENCE)
@@ -52,13 +53,15 @@ export class IdentityExternalCredentialAdmissionGuard implements CanActivate {
     IdentityPartyMachineSourceCredentialClient,
     IdentityPartyMachineSourceCredentialProvider,
     IdentityPartyExecutionTokenExchangeClient,
+    IdentityTenantOrgTrustedGrpcClient,
+    IdentityHrTrustedGrpcClient,
     { provide: IdentityPartyTrustedGrpcExecutionProducer, useFactory: (source: IdentityPartyMachineSourceCredentialProvider, exchange: IdentityPartyExecutionTokenExchangeClient) => new IdentityPartyTrustedGrpcExecutionProducer(source, exchange), inject: [IdentityPartyMachineSourceCredentialProvider, IdentityPartyExecutionTokenExchangeClient] },
     { provide: ExecutionTokenVerifier, useFactory: () => runtime.verifier },
     { provide: GrpcWorkloadIdentityProvider, useFactory: () => runtime.workloadIdentityProvider },
     IdentityExternalCredentialAdmissionGuard,
     { provide: IdentityFoundationTrustedExecutionGuard, useFactory: (reflector: Reflector, verifier: ExecutionTokenVerifier, identity: GrpcWorkloadIdentityProvider) => new IdentityFoundationTrustedExecutionGuard(reflector, verifier, identity), inject: [Reflector, ExecutionTokenVerifier, GrpcWorkloadIdentityProvider] }
   ],
-  exports: [IdentityPartyTrustedGrpcClient, IdentityPartyTrustedGrpcExecutionProducer, ExecutionTokenVerifier, GrpcWorkloadIdentityProvider, IdentityFoundationTrustedExecutionGuard, IdentityExternalCredentialAdmissionGuard]
+  exports: [IdentityPartyTrustedGrpcClient, IdentityPartyTrustedGrpcExecutionProducer, IdentityTenantOrgTrustedGrpcClient, IdentityHrTrustedGrpcClient, ExecutionTokenVerifier, GrpcWorkloadIdentityProvider, IdentityFoundationTrustedExecutionGuard, IdentityExternalCredentialAdmissionGuard]
 })
 export class IdentityTrustedExecutionModule {}
 

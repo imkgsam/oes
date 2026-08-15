@@ -184,3 +184,24 @@ function required(name: string): string {
   if (!value) throw new Error(ERRORS.FOUNDATION_UNAVAILABLE)
   return value
 }
+
+/** Owns Permission's certificate-bound channel to Identity without a generic client token. */
+export class PermissionIdentityTrustedGrpcClient {
+  private client?: ClientGrpc
+  getClient(): ClientGrpc {
+    return (this.client ??= ClientProxyFactory.create({ transport: Transport.GRPC, options: {
+      package: 'identity_service',
+      protoPath: resolveCommonProtoPath('identity_service/identity_query.proto'),
+      url: permissionIdentityUrl(),
+      credentials: createGrpcClientCredentials()
+    } }) as unknown as ClientGrpc)
+  }
+}
+
+/** Resolves Identity's deployment URL and permits the local endpoint only outside production. */
+function permissionIdentityUrl(): string {
+  const configured = process.env.GRPC_SERVICE_IDENTITY_URL?.trim()
+  if (configured) return configured
+  if ((process.env.NODE_ENV ?? 'development') !== 'production') return '127.0.0.1:50052'
+  throw new Error(ERRORS.FOUNDATION_UNAVAILABLE)
+}

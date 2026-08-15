@@ -1,15 +1,13 @@
-import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { ClientGrpc } from '@nestjs/microservices'
-import { SERVICE_NAMES } from '@oes/common/constants'
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import {
   EnsureTenantRoleInstanceFromTemplateResponse,
   GrantInitialAccessForTenantAccountResponse,
   PERMISSION_MANAGEMENT_SERVICE_NAME,
   PermissionManagementServiceClient
 } from '@oes/common/generated/permission_service'
-import { InjectGrpcClient, safeGrpcCall } from '@oes/common/transport'
+import { safeGrpcCall } from '@oes/common/transport'
 import { PermissionTenantOnboardingPort } from '../../application/ports/permission-tenant-onboarding.port'
-import { TenantOrgFoundationTrustedGrpcExecutionProducer } from './foundation-trusted-grpc.clients'
+import { TenantOrgFoundationTrustedGrpcExecutionProducer, TenantOrgPermissionTrustedGrpcClient } from './foundation-trusted-grpc.clients'
 
 /** PermissionTenantOnboardingGrpcAdapter calls permission-service tenant onboarding APIs without owning RBAC truth. */
 @Injectable()
@@ -18,13 +16,10 @@ export class PermissionTenantOnboardingGrpcAdapter implements PermissionTenantOn
   private client!: PermissionManagementServiceClient
   private readonly trusted = new TenantOrgFoundationTrustedGrpcExecutionProducer()
 
-  constructor(
-    @InjectGrpcClient(SERVICE_NAMES.PERMISSION)
-    private readonly permissionClient: ClientGrpc
-  ) {}
+  constructor(private readonly permissionClient: TenantOrgPermissionTrustedGrpcClient) {}
 
   onModuleInit() {
-    this.client = this.permissionClient.getService<PermissionManagementServiceClient>(PERMISSION_MANAGEMENT_SERVICE_NAME)
+    this.client = this.permissionClient.getClient().getService<PermissionManagementServiceClient>(PERMISSION_MANAGEMENT_SERVICE_NAME)
   }
 
   async ensureTenantAdminRole(input: { tenantId: string; idempotencyKey: string }) {

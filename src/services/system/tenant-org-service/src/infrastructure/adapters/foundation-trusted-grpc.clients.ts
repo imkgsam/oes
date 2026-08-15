@@ -187,3 +187,47 @@ function required(name: string): string {
   if (!value) throw new Error(ERRORS.FOUNDATION_UNAVAILABLE)
   return value
 }
+
+/** Lazily creates one immutable mTLS client for one TenantOrg foundation target. */
+abstract class TenantOrgFoundationMtlsClient {
+  private client?: ClientGrpc
+  protected constructor(private readonly packageName: string, private readonly protos: readonly string[], private readonly envKeys: readonly string[], private readonly fallback: string) {}
+  getClient(): ClientGrpc {
+    return (this.client ??= ClientProxyFactory.create({ transport: Transport.GRPC, options: {
+      package: this.packageName,
+      protoPath: this.protos.map((path) => resolveCommonProtoPath(path)),
+      url: tenantOrgTargetUrl(this.envKeys, this.fallback),
+      credentials: createGrpcClientCredentials()
+    } }) as unknown as ClientGrpc)
+  }
+}
+
+/** Owns TenantOrg's certificate-bound channel to Auth without the generic connection pool. */
+export class TenantOrgAuthTrustedGrpcClient extends TenantOrgFoundationMtlsClient {
+  constructor() { super('auth_service', ['auth_service/auth.proto'], ['GRPC_SERVICE_AUTH_URL'], '127.0.0.1:50050') }
+}
+
+/** Owns TenantOrg's certificate-bound channel to HR without the generic connection pool. */
+export class TenantOrgHrTrustedGrpcClient extends TenantOrgFoundationMtlsClient {
+  constructor() { super('hr_service', ['hr_service/hr.proto'], ['GRPC_SERVICE_HR_URL'], '127.0.0.1:50055') }
+}
+
+/** Owns TenantOrg's certificate-bound channel to Identity without the generic connection pool. */
+export class TenantOrgIdentityTrustedGrpcClient extends TenantOrgFoundationMtlsClient {
+  constructor() { super('identity_service', ['identity_service/identity_query.proto'], ['GRPC_SERVICE_IDENTITY_URL'], '127.0.0.1:50052') }
+}
+
+/** Owns TenantOrg's certificate-bound channel to Permission without the generic connection pool. */
+export class TenantOrgPermissionTrustedGrpcClient extends TenantOrgFoundationMtlsClient {
+  constructor() { super('permission_service', ['permission_service/permission_management.proto', 'permission_service/permission_access_summary.proto'], ['GRPC_SERVICE_PERMISSION_URL'], '127.0.0.1:50051') }
+}
+
+/** Resolves deployment-owned target URLs and permits local defaults only outside production. */
+function tenantOrgTargetUrl(envKeys: readonly string[], fallback: string): string {
+  for (const key of envKeys) {
+    const configured = process.env[key]?.trim()
+    if (configured) return configured
+  }
+  if ((process.env.NODE_ENV ?? 'development') !== 'production') return fallback
+  throw new Error(ERRORS.FOUNDATION_UNAVAILABLE)
+}

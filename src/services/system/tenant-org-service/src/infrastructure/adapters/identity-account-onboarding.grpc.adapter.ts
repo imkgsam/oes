@@ -1,14 +1,12 @@
-import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { ClientGrpc } from '@nestjs/microservices'
-import { SERVICE_NAMES } from '@oes/common/constants'
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import {
   CreateUserAccountResponse,
   IDENTITY_MANAGEMENT_SERVICE_NAME,
   IdentityManagementServiceClient
 } from '@oes/common/generated/identity_service'
-import { InjectGrpcClient, safeGrpcCall } from '@oes/common/transport'
+import { safeGrpcCall } from '@oes/common/transport'
 import { IdentityAccountOnboardingPort } from '../../application/ports/identity-account-onboarding.port'
-import { TenantOrgFoundationTrustedGrpcExecutionProducer } from './foundation-trusted-grpc.clients'
+import { TenantOrgFoundationTrustedGrpcExecutionProducer, TenantOrgIdentityTrustedGrpcClient } from './foundation-trusted-grpc.clients'
 
 /** IdentityAccountOnboardingGrpcAdapter calls identity-service account creation without owning identity truth. */
 @Injectable()
@@ -17,13 +15,10 @@ export class IdentityAccountOnboardingGrpcAdapter implements IdentityAccountOnbo
   private client!: IdentityManagementServiceClient
   private readonly trusted = new TenantOrgFoundationTrustedGrpcExecutionProducer()
 
-  constructor(
-    @InjectGrpcClient(SERVICE_NAMES.IDENTITY)
-    private readonly identityClient: ClientGrpc
-  ) {}
+  constructor(private readonly identityClient: TenantOrgIdentityTrustedGrpcClient) {}
 
   onModuleInit() {
-    this.client = this.identityClient.getService<IdentityManagementServiceClient>(IDENTITY_MANAGEMENT_SERVICE_NAME)
+    this.client = this.identityClient.getClient().getService<IdentityManagementServiceClient>(IDENTITY_MANAGEMENT_SERVICE_NAME)
   }
 
   async createTenantUserAccount(input: {

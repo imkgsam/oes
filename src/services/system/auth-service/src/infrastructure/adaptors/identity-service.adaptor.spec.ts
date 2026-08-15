@@ -1,5 +1,4 @@
 import { of } from 'rxjs'
-import { ClientGrpc } from '@nestjs/microservices'
 import { Metadata } from '@grpc/grpc-js'
 import { IdentityServiceAdaptor } from './identity-service.adaptor'
 
@@ -18,10 +17,11 @@ describe('IdentityServiceAdaptor', () => {
       getService: jest.fn(() => ({
         getUserById
       }))
-    } as unknown as ClientGrpc
+    }
+    const trustedClient = { getClient: () => client } as any
 
     const metadata = new Metadata()
-    const adaptor = new IdentityServiceAdaptor(client)
+    const adaptor = new IdentityServiceAdaptor(trustedClient)
     const forBusinessCall = jest.fn().mockResolvedValue(metadata)
     ;(adaptor as any).trusted = { forBusinessCall }
     adaptor.onModuleInit()
@@ -46,8 +46,9 @@ describe('IdentityServiceAdaptor', () => {
       getService: jest
         .fn()
         .mockReturnValueOnce({ getUserById: jest.fn() })
-    } as unknown as ClientGrpc
-    const adaptor = new IdentityServiceAdaptor(client)
+    }
+    const trustedClient = { getClient: () => client } as any
+    const adaptor = new IdentityServiceAdaptor(trustedClient)
     adaptor.onModuleInit()
     const metadata = new Metadata()
     metadata.set('authorization', 'Bearer sts-token')

@@ -1,16 +1,15 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
-import { ClientGrpc } from '@nestjs/microservices'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import {
   TENANT_ORG_QUERY_SERVICE_NAME,
   TenantOrgQueryServiceClient
 } from '@oes/common/generated/tenant_org_service'
-import { InjectGrpcClient, safeGrpcCall } from '@oes/common/transport'
+import { safeGrpcCall } from '@oes/common/transport'
 import {
   TenantLifecycleAccessPort,
   TenantLifecycleStatus
 } from '../../application/ports/tenant-lifecycle-access.port'
-import { AuthFoundationTrustedGrpcExecutionProducer } from './foundation-trusted-grpc.clients'
+import { AuthFoundationTrustedGrpcExecutionProducer, AuthTenantOrgTrustedGrpcClient } from './foundation-trusted-grpc.clients'
 
 /** TenantOrgLifecycleGrpcAdaptor reads tenant lifecycle status from tenant-org-service over gRPC. */
 @Injectable()
@@ -21,12 +20,11 @@ export class TenantOrgLifecycleGrpcAdaptor
   private readonly trusted = new AuthFoundationTrustedGrpcExecutionProducer()
 
   constructor(
-    @InjectGrpcClient(SERVICE_NAMES.TENANT_ORG)
-    private readonly tenantOrgClient: ClientGrpc
+    private readonly tenantOrgClient: AuthTenantOrgTrustedGrpcClient
   ) {}
 
   onModuleInit() {
-    this.tenantOrgQueryService = this.tenantOrgClient.getService<TenantOrgQueryServiceClient>(
+    this.tenantOrgQueryService = this.tenantOrgClient.getClient().getService<TenantOrgQueryServiceClient>(
       TENANT_ORG_QUERY_SERVICE_NAME
     )
   }

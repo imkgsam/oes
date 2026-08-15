@@ -1,4 +1,4 @@
-import { Controller, Inject, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common'
+import { Controller, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common'
 import { AuthorizeBusinessRpc, AuthorizeSelfServiceRpc } from '@oes/common/authorization'
 import { IdentityFoundationTrustedExecutionGuard } from '../../modules/identity-trusted-execution.module'
 import { ACCESS_DENIED, ExceptionFactory } from '@oes/common/exceptions'
@@ -12,8 +12,6 @@ import {
   IDENTITY_ACCOUNT_PERMISSION_CODES,
   InternalServiceGuard,
   IDENTITY_MACHINE_PERMISSION_CODES,
-  OPERATOR_PERMISSION_RESOLVER,
-  OperatorPermissionResolver,
   PermissionGuard,
   RequireAuthenticatedOperator
 } from '@oes/common/authorization'
@@ -108,9 +106,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
   constructor(
     private readonly commandBus: ValidatingCommandBus,
     private readonly queryBus: ValidatingQueryBus,
-    private readonly identityAuditService: IdentityAuditService,
-    @Inject(OPERATOR_PERMISSION_RESOLVER)
-    private readonly permissionResolver: OperatorPermissionResolver
+    private readonly identityAuditService: IdentityAuditService
   ) {}
 
   async createApiKey(request: CreateApiKeyRequest): Promise<CreateApiKeyResponse> {
@@ -1089,17 +1085,8 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
 
   // Resolves one operator permission code from the authenticated gRPC request context for interface-layer authorization checks.
   private async requireOperatorPermission(request: object, permissionCode: string): Promise<void> {
-    const operatorContext = getAuthenticatedGrpcRequestContext(request)?.operatorContext
-
-    if (!operatorContext) {
-      throw ExceptionFactory.application(ACCESS_DENIED, {
-        requiredPermission: permissionCode
-      })
-    }
-
-    const permissions = await this.permissionResolver.resolvePermissions(operatorContext)
-
-    if (!permissions.includes(permissionCode)) {
+    const token = getAuthenticatedGrpcRequestContext(request)?.verifiedExecutionToken
+    if (!token?.permissionCodes.includes(permissionCode)) {
       throw ExceptionFactory.application(ACCESS_DENIED, {
         requiredPermission: permissionCode
       })

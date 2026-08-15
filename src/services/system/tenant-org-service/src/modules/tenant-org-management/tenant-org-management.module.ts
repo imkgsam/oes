@@ -1,13 +1,5 @@
 import { Module } from '@nestjs/common'
-import {
-  AuthorizationModule,
-  OPERATOR_PERMISSION_RESOLVER,
-  PermissionGuard,
-  PermissionServicePermissionReadAdaptor,
-  RoleBasedOperatorPermissionResolver
-} from '@oes/common/authorization'
-import { SERVICE_NAMES } from '@oes/common/constants'
-import { GrpcTransportModule } from '@oes/common/transport'
+import { AuthorizationModule } from '@oes/common/authorization'
 import { AUTH_SESSION_REVOCATION_PORT } from '../../application/ports/auth-session-revocation.port'
 import { AUTH_LOGIN_ONBOARDING_PORT } from '../../application/ports/auth-login-onboarding.port'
 import { HR_EMPLOYEE_ONBOARDING_PORT } from '../../application/ports/hr-employee-onboarding.port'
@@ -41,13 +33,7 @@ import { TenantOrgManagementGrpcController } from '../../interfaces/grpc/tenant-
   imports: [
     PrismaModule,
     AuthorizationModule,
-    TenantOrgTrustedExecutionModule,
-    GrpcTransportModule.forFeature([
-      SERVICE_NAMES.AUTH,
-      SERVICE_NAMES.HR,
-      SERVICE_NAMES.IDENTITY,
-      SERVICE_NAMES.PERMISSION
-    ])
+    TenantOrgTrustedExecutionModule
   ],
   providers: [
     {
@@ -97,13 +83,6 @@ import { TenantOrgManagementGrpcController } from '../../interfaces/grpc/tenant-
     AuthLoginOnboardingGrpcAdapter,
     HrEmployeeOnboardingGrpcAdapter,
     PermissionTenantOnboardingGrpcAdapter,
-    PermissionServicePermissionReadAdaptor,
-    RoleBasedOperatorPermissionResolver,
-    {
-      provide: OPERATOR_PERMISSION_RESOLVER,
-      useExisting: RoleBasedOperatorPermissionResolver
-    },
-    PermissionGuard,
     TenantOnboardingService,
     TenantOrgManagementService
   ],
