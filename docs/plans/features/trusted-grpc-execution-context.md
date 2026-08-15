@@ -98,7 +98,7 @@ The implementation inventory script at `scripts/architecture/trusted-grpc-signat
 
 ### 3.1 Current-main global cutover status
 
-Overall execution status is `FOUNDATION_IDENTITY_AUTHZ_ATOMIC_GROUP_FROZEN_PENDING_IMPLEMENTATION` at current-main `ad131ac7e06fa01d21493b05502bd1a567318c68`. The generated explicit metadata signatures prove the shared call-signature foundation only. They do not prove that a target service has classified every contract, prepared every caller, enabled Token-only server enforcement or removed its legacy trust path.
+Overall execution status is `CRM_REMAINING_AFTER_FOUNDATION_ATOMIC_GROUP_IMPLEMENTED_VERIFIED` at current-main `09dcb1279d22fa809023a69f2d8cfff090e3826d`. Twenty target services have complete `C/A/T/L` evidence; CRM is the sole remaining service. Generated explicit metadata signatures prove only the shared call-signature foundation and remain insufficient without each target service's classified contract, prepared callers, Token-only server enforcement and legacy-path removal evidence.
 
 The persistent execution owner is **OES Trusted gRPC Service Migration** (`019ff138-ed1c-7b82-8cd4-865bdb6529bd`). The prior delivery-mode owner `019ff07e-d441-7731-acdb-1a9d262661a9` and approval-stalled predecessor `019fe9f8-5a44-76e1-b5a4-110db9da6d59` are archived with their WIP histories preserved. The former A/C/GRPC lane is historical, migration-frozen evidence and is not the active controller for the remaining cutover.
 
@@ -121,13 +121,13 @@ The persistent execution owner is **OES Trusted gRPC Service Migration** (`019ff
 | SRM | 13+2 / 2+1 planned | Y | Y | Y | Y | Gateway, Procurement; implemented and verified at `84402fc566fee82a5e73cf7a013e7b617e254578` |
 | Item Master | 50+3 / 2+1 planned | Y | Y | Y | Y | Gateway, MES, WMS, Procurement, SRM; server accepted at `764f28fba059965a4272752beb6ff0c7acf25d64`; MES/SRM/Procurement/WMS exact HUMAN_OBO actor paths all active after `108ca92602b729a9dd1271c88ccdef3f58efe800` |
 | WMS | 15 / 2 | Y | Y | Y | Y | Gateway; implemented and verified at `108ca92602b729a9dd1271c88ccdef3f58efe800` |
-| HR | 15 / 2 | Y | N | N | N | atomic foundation group; Gateway/Auth/Identity/TenantOrg/Public Entry callers frozen |
+| HR | 15 / 2 | Y | Y | Y | Y | atomic foundation group implemented and verified at `09dcb1279d22fa809023a69f2d8cfff090e3826d` |
 | Party | 6 / 2 | Y | Y | Y | Y | Gateway, CRM, SRM, HR, Identity, TenantOrg; implemented and verified at `f6caa3aa294b6fb6e7099393afbe0770ee90c09a` |
-| TenantOrg | 20 / 2 | Y | N | N | N | atomic foundation group; Gateway/Auth/HR/Identity/Public Entry callers frozen |
-| Identity | 41 / 3 | Y | N | N | N | atomic foundation group; Gateway/Auth/Permission/HR/Public Entry/Collaboration callers frozen; integrated machine surfaces preserved |
-| Permission | 66 / 8 | Y | N | N | N | atomic foundation group; Gateway/Auth/HR/TenantOrg/Public Entry/Collaboration callers frozen; bootstrap surfaces preserved |
-| Auth | 70+5 / 1+1 planned | Y | N | N | N | atomic foundation group; exact public admission plus Gateway/HR/TenantOrg callers frozen; MACHINE/OBO foundation preserved |
-| **Total / proven state** | **571 / 55 planned** | **20 Y / 1 N** | **15 Y / 6 N** | **15 Y / 6 N** | **15 Y / 6 N** | **15 services complete; the five-service atomic group is classified/pending implementation; CRM remains next** |
+| TenantOrg | 20 / 2 | Y | Y | Y | Y | atomic foundation group implemented and verified at `09dcb1279d22fa809023a69f2d8cfff090e3826d` |
+| Identity | 41 / 3 | Y | Y | Y | Y | atomic foundation group implemented and verified at `09dcb1279d22fa809023a69f2d8cfff090e3826d`; integrated machine surfaces preserved |
+| Permission | 66 / 8 | Y | Y | Y | Y | atomic foundation group implemented and verified at `09dcb1279d22fa809023a69f2d8cfff090e3826d`; bootstrap surfaces preserved |
+| Auth | 70+5 / 1+1 planned | Y | Y | Y | Y | atomic foundation group implemented and verified at `09dcb1279d22fa809023a69f2d8cfff090e3826d`; MACHINE/OBO foundation preserved |
+| **Total / proven state** | **571 / 55 planned** | **20 Y / 1 N** | **20 Y / 1 N** | **20 Y / 1 N** | **20 Y / 1 N** | **20 services complete; CRM is the sole remaining service** |
 
 The frozen order in §6 remains authoritative. Migration continues one target service at a time except for the sole proven Auth/Identity/Permission/HR/TenantOrg strongly connected group in §9.15: its code review and tests remain service-by-service under one writer, while all five Token-only boundaries activate in one candidate. No classified row advances A/T/L before accepted evidence.
 
@@ -2710,7 +2710,7 @@ Acceptance proves 15/15 unique BUSINESS declarations and zero dual-mode methods;
 
 ### 9.15 Auth / Identity / Permission / HR / TenantOrg atomic foundation group
 
-Status: `FROZEN_PENDING_ATOMIC_IMPLEMENTATION` at design base `ad131ac7e06fa01d21493b05502bd1a567318c68`. Fresh static inventory proves the five target services form one irreducible caller cycle; preparing or cutting over one server alone would consume legacy HUMAN authority from another member. One implementation writer therefore produces one atomic candidate. Review, build and focused tests stay service-by-service; Token-only activation, cross-foundation caller activation and legacy deletion happen only after all five preparations are green. CRM remains the next service and is not changed by this packet.
+Status: `IMPLEMENTED_VERIFIED` at `09dcb1279d22fa809023a69f2d8cfff090e3826d`. The five target services were implemented as the frozen irreducible caller cycle in one atomic candidate, with service-by-service review/build/focused tests and one simultaneous Token-only activation, cross-foundation caller activation and legacy deletion. Final evidence passed nine builds; 53 suites / 240 tests; Permission DI 3/3; Common mTLS/ET/certificate 34/34; Auth ET/OBO/MACHINE 63/63; Party 22/22; five Party caller compositions 27/27; proto/generation and inventory `54/596/0`; canonical formatting on 152 cumulative paths; atomic gate 6/6; and the exact 217-declaration counts `70/18/24/15/20`. CRM remains the sole remaining service and is unchanged by this packet.
 
 #### 9.15.1 exact membership and declaration totals
 
