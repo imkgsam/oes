@@ -98,7 +98,7 @@ The implementation inventory script at `scripts/architecture/trusted-grpc-signat
 
 ### 3.1 Current-main global cutover status
 
-Overall execution status is `GRPC_FOUNDATION_COMPLETE_GLOBAL_SERVICE_CUTOVER_PENDING` at current-main `62b954ea53de051be640ab5506c73cfc33d23259`. The generated explicit metadata signatures prove the shared call-signature foundation only. They do not prove that a target service has classified every contract, prepared every caller, enabled Token-only server enforcement or removed its legacy trust path.
+Overall execution status is `GRPC_FOUNDATION_COMPLETE_GLOBAL_SERVICE_CUTOVER_PENDING` at current-main `f016a7e0eb81f5a4746a77ef09b9ed70d92742bd`. The generated explicit metadata signatures prove the shared call-signature foundation only. They do not prove that a target service has classified every contract, prepared every caller, enabled Token-only server enforcement or removed its legacy trust path.
 
 The persistent execution owner is **OES Trusted gRPC Service Migration** (`019ff138-ed1c-7b82-8cd4-865bdb6529bd`). The prior delivery-mode owner `019ff07e-d441-7731-acdb-1a9d262661a9` and approval-stalled predecessor `019fe9f8-5a44-76e1-b5a4-110db9da6d59` are archived with their WIP histories preserved. The former A/C/GRPC lane is historical, migration-frozen evidence and is not the active controller for the remaining cutover.
 
@@ -120,14 +120,14 @@ The persistent execution owner is **OES Trusted gRPC Service Migration** (`019ff
 | Procurement | 21+1 / 2+1 planned | Y | Y | Y | Y | Gateway; implemented and verified at `62b954ea53de051be640ab5506c73cfc33d23259`; WMS INTERNAL caller remains prepared pending WMS inbound |
 | SRM | 13+2 / 2+1 planned | Y | Y | Y | Y | Gateway, Procurement; implemented and verified at `84402fc566fee82a5e73cf7a013e7b617e254578` |
 | Item Master | 50+3 / 2+1 planned | Y | N | N | N | Gateway, MES, WMS, Procurement, SRM; partial implementation accepted at `764f28fba059965a4272752beb6ff0c7acf25d64`; MES/SRM/Procurement active, WMS pending |
-| WMS | 15 / 2 | N | N | N | N | Gateway; dependency-heavy |
+| WMS | 15 / 2 | Y | N | N | N | Gateway; 15-RPC BUSINESS/HUMAN/WEB contract frozen, implementation pending |
 | HR | 15 / 2 | N | N | N | N | Gateway, Auth, Identity; dependency-heavy |
 | Party | 6 / 2 | Y | Y | Y | Y | Gateway, CRM, SRM, HR, Identity, TenantOrg; implemented and verified at `f6caa3aa294b6fb6e7099393afbe0770ee90c09a` |
 | TenantOrg | 20 / 2 | N | N | N | N | Gateway, Auth, HR, Identity; high fan-in |
 | Identity | 41 / 3 | N | N | N | N | Gateway, Auth, Permission, HR; foundation partial only |
 | Permission | 66 / 8 | N | N | N | N | Gateway, Auth, HR, TenantOrg, WMS; bootstrap partial only |
 | Auth | 70+5 / 1+1 planned | N | N | N | N | Gateway, HR, Site, TenantOrg; MACHINE foundation complete, full service pending |
-| **Total / proven state** | **571 / 55 planned** | **14 Y / 7 N** | **13 Y / 8 N** | **13 Y / 8 N** | **13 Y / 8 N** | **13 services complete; Item Master remains partial with WMS pending; eight services pending implementation/cutover** |
+| **Total / proven state** | **571 / 55 planned** | **15 Y / 6 N** | **13 Y / 8 N** | **13 Y / 8 N** | **13 Y / 8 N** | **13 services complete; Item Master remains partial with WMS pending; WMS contract frozen pending implementation; eight services pending implementation/cutover** |
 
 The frozen order in §6 remains authoritative. Migration continues one target service at a time; completing the Auth, Identity, Permission, Gateway or Common foundation does not implicitly advance an unverified service row.
 
@@ -2519,6 +2519,193 @@ procurementTrustedGrpcImplementationLease:
 ```
 
 Acceptance proves 22/22 unique declarations and zero dual-mode methods; exact 21 BUSINESS plus one WMS HUMAN_OBO INTERNAL Code/audience/terminal/actor/tenant/`cnf` rule; 82 request authority fields plus eight nested legacy-context fields reserved as 90/90 tombstones; unchanged business field numbers and 21 Gateway routes; claims-derived business/audit context; Gateway dedicated Procurement client; Procurement→Item Master and Procurement→SRM HUMAN_OBO activation; WMS dedicated caller preparation that remains inactive until WMS trusted ingress; verified-HUMAN L2 success/rollback evidence with no input fallback; no raw smoke authority, generic Procurement registration, legacy body/metadata or fallback; unchanged transaction/audit/idempotency/schema/events/business rules; exact 93-path scope; and successful proto, Code generation, build, focused test, UTF-8, link, YAML and diff gates.
+
+### 9.14 WMS 15-RPC frozen cutover lease
+
+Status: `FROZEN_PENDING_IMPLEMENTATION`. This packet changes only the WMS trusted transport contract and activates the two already frozen outbound eligibility callers after verified ingress exists. It adds no WMS RPC, Permission Code, Gateway route, owner object, business rule, schema, event/outbox, idempotency key or retry behavior.
+
+All 15 existing methods are `BUSINESS / HUMAN / WEB`, require `aud=urn:oes:service:wms-service`, exact mTLS/`cnf` binding, WEB terminal and the exact existing Code below, and reject MACHINE, DELEGATED, SELF_SERVICE, non-WEB sessions, non-Gateway direct workloads and legacy body/ordinary-metadata authority:
+
+| RPC | Exact existing Code |
+| --- | --- |
+| `GetWarehouse` | `wms.warehouse.read` |
+| `ListWarehouses` | `wms.warehouse.read` |
+| `GetLocation` | `wms.location.read` |
+| `ListLocations` | `wms.location.read` |
+| `GetReceipt` | `wms.receipt.read` |
+| `SearchReceipts` | `wms.receipt.read` |
+| `GetReceiptLine` | `wms.receipt.read` |
+| `SearchReceiptLines` | `wms.receipt.read` |
+| `CreateReceiptDraft` | `wms.receipt.manage` |
+| `AddOrReplaceReceiptLines` | `wms.receipt.manage` |
+| `PostReceipt` | `wms.receipt.manage` |
+| `CancelReceiptDraft` | `wms.receipt.manage` |
+| `SearchStockLedgerEntries` | `wms.inventory.read` |
+| `GetInventoryBalance` | `wms.inventory.read` |
+| `SearchInventoryBalances` | `wms.inventory.read` |
+
+Gateway remains the only production caller and preserves exactly the following 15 authenticated HTTP routes. The `:tenantId` route selection is checked against the authenticated session/Permission decision at Gateway; it is not forwarded as gRPC body authority:
+
+| HTTP route below `/wms/tenants/:tenantId` | RPC |
+| --- | --- |
+| `GET /warehouses` | `ListWarehouses` |
+| `GET /warehouses/:warehouseId` | `GetWarehouse` |
+| `GET /locations` | `ListLocations` |
+| `GET /locations/:locationId` | `GetLocation` |
+| `GET /receipts` | `SearchReceipts` |
+| `GET /receipts/:receiptId` | `GetReceipt` |
+| `GET /receipt-lines` | `SearchReceiptLines` |
+| `GET /receipt-lines/:receiptLineId` | `GetReceiptLine` |
+| `POST /receipts` | `CreateReceiptDraft` |
+| `PUT /receipts/:receiptId/lines` | `AddOrReplaceReceiptLines` |
+| `POST /receipts/:receiptId/post` | `PostReceipt` |
+| `POST /receipts/:receiptId/cancel` | `CancelReceiptDraft` |
+| `GET /stock-ledger-entries` | `SearchStockLedgerEntries` |
+| `GET /inventory-balance` | `GetInventoryBalance` |
+| `GET /inventory-balances` | `SearchInventoryBalances` |
+
+Gateway derives tenant/org/subject/session/trace/audit from the authenticated HUMAN session and Permission decision, exchanges for a WMS-audience ET, and uses one dedicated WMS mTLS client. Generic `SERVICE_NAMES.WMS` registration, `GrpcMetadataPropagationFactory`, `toOperatorScopedMetadataInput`, `wms-grpc-context.ts`, request body context and requestId/traceId fallback are migration targets and are absent after cutover. WMS normal admission verifies Token/mTLS locally and makes no synchronous Auth call.
+
+The 15 request messages delete and reserve exactly 55 authority fields: 15 `tenant_id`, 15 `operator_context`, 15 `trace_context`, four management `audit_context` and six request `org_id` fields. The six request `org_id` fields are `ListWarehouses.org_id=4`, `SearchReceipts.org_id=4`, `SearchReceiptLines.org_id=4`, `CreateReceiptDraft.org_id=2`, `SearchStockLedgerEntries.org_id=4` and `SearchInventoryBalances.org_id=4`. The legacy `OperatorContext`, `TraceContext` and `AuditContext` messages reserve their eight nested field numbers/names, yielding 63/63 tombstones. Existing business request numbers and response/WMS-owned record tenant/org projections remain unchanged. Tenant, applicable org, subject/operator, trace and audit come only from verified ET/transport context.
+
+WMS trusted ingress establishes the private current-hop HUMAN proof and activates both existing prepared outbound paths in this order:
+
+1. Token-only WMS guard/interceptor/context and Gateway dedicated WMS client are proven first.
+2. WMS→Item Master activates only `ResolveStockableItem` with Code `item_master.internal.stockable_item.resolve`, Item Master audience and exact `wms-service` SYSTEM MACHINE actor.
+3. WMS→Procurement activates only `ResolveReceivingExpectationForReceipt` with Code `procurement.internal.receiving_expectation.resolve_for_receipt`, Procurement audience and the same exact actor.
+4. The real composition gate proves Gateway HUMAN session → WMS ET → verified WMS request scope → Auth OBO exchange → target ET → Item Master/Procurement guard, including `sub`, tenant, `act`, audience, expiry, Permission, trace and `cnf` continuity.
+
+Each next-hop ET preserves the verified HUMAN subject/tenant and records exact `wms-service` SYSTEM MACHINE actor attribution; callers never submit actor or tenant authority. Missing proof/credential/ET, wrong subject/tenant/audience/workload/certificate/Code, expired Token, direct HUMAN without actor, MACHINE root, DELEGATED, TENANT MACHINE, body injection and Permission denial all fail closed. No background-without-user path is opened.
+
+The raw `wms-smoke.mjs` direct gRPC authority and package `smoke` command are retired rather than reclassified as MACHINE. `wms-smoke-lib.mjs` and `wms-smoke.spec.mjs` may remain isolated business/transaction evidence only after authority payload removal; future live coverage enters Gateway HTTP with a test HUMAN session. Existing receipt mutation, successful audit envelope and rollback semantics remain unchanged; the dedicated L2 fixture must establish a real verified HUMAN request context and prove both success and rollback without restoring input/body authority. Receipt, inventory, Prisma schema, repositories, transaction boundaries, projections, events/outbox and all business invariants remain protected.
+
+| Verification slice | Required proof |
+| --- | --- |
+| 15 BUSINESS RPCs | exact Code, WMS audience, WEB HUMAN, direct Gateway workload and certificate binding pass; wrong Code/audience/terminal/workload/certificate and every MACHINE/DELEGATED/SELF_SERVICE shape fail |
+| wire/context | 55 request plus eight nested tombstones, unchanged business field numbers, claims-derived tenant/org/operator/trace/audit and body/metadata injection rejection |
+| Gateway | all 15 HTTP routes use the dedicated WMS client and ET producer; both root and feature generic WMS registrations plus legacy context factory are absent |
+| WMS→Item Master | exact `ResolveStockableItem` HUMAN_OBO success plus missing proof, actor/workload, tenant, audience, expiry, Permission and `cnf` negatives |
+| WMS→Procurement | exact `ResolveReceivingExpectationForReceipt` HUMAN_OBO success with the same negative matrix and no `GetReceivingExpectation` reuse |
+| persistence/audit | verified-HUMAN L2 success and rollback paths preserve the existing transaction boundary; no authority fallback enters fixtures |
+| legacy/closure | raw live smoke authority and package command absent, isolated smoke evidence clean, lease exact, build/proto/inventory/link/YAML/UTF-8/diff gates pass |
+
+The closed implementation writer lease is `70 = 63 EXISTING + 7 NEW_TARGET`:
+
+```yaml
+wmsTrustedGrpcImplementationLease:
+  totalTrackedWriterPaths: 70
+  stateCounts: { EXISTING: 63, NEW_TARGET: 7 }
+  trackedWriterPaths:
+    wmsProtoContract:
+      - { state: EXISTING, path: src/common/src/contracts/wms_service/wms.proto }
+      - { state: NEW_TARGET, path: src/common/src/contracts/wms_service/wms.contract.spec.ts }
+
+    gatewayWmsHumanProducer:
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution.module.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution.module.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/index.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-wms-grpc.client.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-wms-grpc.client.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/app.module.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/app.module.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/wms-service/wms-service.module.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/wms-service/adapters/wms-grpc-context.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/wms-service/adapters/wms-management-grpc.adapter.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/wms-service/adapters/wms-query-grpc.adapter.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/wms-service/wms.service.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/wms-service/wms.service.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/wms-service/interface/http/controllers/wms.controller.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/wms-service/interface/http/controllers/wms.controller.spec.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/modules/wms-service/adapters/wms-dedicated-client.spec.ts }
+
+    wmsTrustedInboundRuntime:
+      - { state: EXISTING, path: src/services/business/wms-service/src/main.ts }
+      - { state: EXISTING, path: src/services/business/wms-service/src/app.module.ts }
+      - { state: EXISTING, path: src/services/business/wms-service/src/modules/wms-infrastructure.module.ts }
+      - { state: EXISTING, path: src/services/business/wms-service/src/modules/wms-management.module.ts }
+      - { state: EXISTING, path: src/services/business/wms-service/src/modules/wms-query.module.ts }
+      - { state: NEW_TARGET, path: src/services/business/wms-service/src/modules/wms-trusted-execution.module.ts }
+      - { state: EXISTING, path: src/services/business/wms-service/src/interfaces/grpc/wms-management.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/business/wms-service/src/interfaces/grpc/wms-query.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/business/wms-service/src/interfaces/grpc/wms-rpc-context.validator.ts }
+      - { state: EXISTING, path: src/services/business/wms-service/src/application/services/wms-audit.service.ts }
+      - { state: EXISTING, path: src/services/business/wms-service/src/common/errors/wms.errors.ts }
+      - { state: EXISTING, path: src/services/business/wms-service/test/l1/wms-service.behavior.spec.ts }
+      - { state: NEW_TARGET, path: src/services/business/wms-service/test/l2/wms-audit-transaction.spec.ts }
+      - { state: EXISTING, path: src/services/business/wms-service/test/l3/wms-grpc-context.spec.ts }
+      - { state: EXISTING, path: src/services/business/wms-service/test/l3/wms-grpc-surface.spec.ts }
+      - { state: EXISTING, path: src/services/business/wms-service/test/l3/wms-app-module.spec.ts }
+      - { state: NEW_TARGET, path: src/services/business/wms-service/test/l3/wms-trusted-grpc-security.spec.ts }
+      - { state: EXISTING, path: src/services/business/wms-service/jest.config.js }
+      - { state: EXISTING, path: src/services/business/wms-service/package.json }
+      - { state: EXISTING, path: src/services/business/wms-service/scripts/wms-smoke.mjs }
+      - { state: EXISTING, path: src/services/business/wms-service/scripts/wms-smoke-lib.mjs }
+      - { state: EXISTING, path: src/services/business/wms-service/scripts/wms-smoke.spec.mjs }
+
+    wmsItemMasterHumanOboActivation:
+      - { state: EXISTING, path: src/services/business/wms-service/src/application/ports/stockable-item-lookup.port.ts }
+      - { state: EXISTING, path: src/services/business/wms-service/src/application/commands/post-receipt.handler.ts }
+      - { state: EXISTING, path: src/services/business/wms-service/src/infrastructure/adapters/item-master-stockable-query.grpc.adapter.ts }
+      - { state: EXISTING, path: src/services/business/wms-service/src/infrastructure/adapters/item-master-trusted-grpc.client.ts }
+      - { state: EXISTING, path: src/services/business/wms-service/src/infrastructure/adapters/wms-item-master-execution-token-exchange.client.ts }
+      - { state: EXISTING, path: src/services/business/wms-service/src/infrastructure/adapters/wms-item-master-trusted-grpc-execution.producer.ts }
+      - { state: EXISTING, path: src/services/business/wms-service/src/infrastructure/adapters/wms-item-master-trusted-grpc-execution.producer.spec.ts }
+      - { state: EXISTING, path: src/services/business/wms-service/test/l1/item-master-trusted-grpc.client.spec.ts }
+
+    wmsProcurementHumanOboActivation:
+      - { state: EXISTING, path: src/services/business/wms-service/src/application/ports/receiving-expectation-lookup.port.ts }
+      - { state: EXISTING, path: src/services/business/wms-service/src/infrastructure/adapters/procurement-receiving-expectation.grpc.adapter.ts }
+      - { state: EXISTING, path: src/services/business/wms-service/src/infrastructure/adapters/procurement-internal-trusted-grpc.client.ts }
+      - { state: EXISTING, path: src/services/business/wms-service/src/infrastructure/adapters/wms-procurement-execution-token-exchange.client.ts }
+      - { state: EXISTING, path: src/services/business/wms-service/src/infrastructure/adapters/wms-procurement-trusted-grpc-execution.producer.ts }
+      - { state: EXISTING, path: src/services/business/wms-service/src/infrastructure/adapters/wms-procurement-trusted-grpc-execution.producer.spec.ts }
+      - { state: EXISTING, path: src/services/business/wms-service/test/l1/procurement-trusted-grpc.client.spec.ts }
+      - { state: EXISTING, path: src/services/business/wms-service/test/l3/procurement-receiving-expectation.grpc.adapter.spec.ts }
+
+    stableTruthAndContractConsistency:
+      - { state: EXISTING, path: docs/architecture/services/wms-service.md }
+      - { state: EXISTING, path: docs/architecture/services/procurement-service.md }
+      - { state: EXISTING, path: docs/architecture/services/index.md }
+      - { state: EXISTING, path: docs/architecture/collaborations/item-master-sales-mes-wms-srm.md }
+      - { state: EXISTING, path: docs/architecture/collaborations/procurement-srm-item-wms-finance.md }
+      - { state: EXISTING, path: docs/contracts/wms-service/README.md }
+      - { state: EXISTING, path: docs/contracts/wms-service/warehouse-query.md }
+      - { state: EXISTING, path: docs/contracts/wms-service/receipt-query.md }
+      - { state: EXISTING, path: docs/contracts/wms-service/receipt-management.md }
+      - { state: EXISTING, path: docs/contracts/wms-service/inventory-query.md }
+      - { state: EXISTING, path: docs/contracts/procurement-service/README.md }
+      - { state: EXISTING, path: docs/contracts/procurement-service/internal-query.md }
+      - { state: EXISTING, path: docs/plans/designs/wms-service-design.md }
+      - { state: EXISTING, path: docs/plans/features/trusted-grpc-execution-context.md }
+
+  ignoredGeneratedOutputs:
+    - path: src/common/src/generated/wms_service/wms.ts
+      input: src/common/src/contracts/wms_service/wms.proto
+      command: pnpm proto:regen
+
+  protectedByDefault:
+    - WMS application/domain/repository/Prisma/schema/business rules not listed above
+    - Item Master and Procurement contracts/runtime beyond activating the exact existing callers above
+    - Common/Auth/Identity/Permission OBO foundation and all existing WMS Permission Codes
+    - MES, Sales, fulfillment, shipping, transfer, cycle-count, package-unit and every other WMS collaboration/RPC
+    - event catalog, producer, consumer, outbox, inbox, package lock and deployment configuration
+    - AI, ActionGrant, DELEGATED, background-without-user and every speculative caller or capability
+
+  focusedAcceptanceCommands:
+    - pnpm proto:lint
+    - pnpm proto:regen
+    - node scripts/architecture/trusted-grpc-signature-inventory.mjs
+    - pnpm --filter @oes/common build
+    - pnpm --filter api-gateway build
+    - pnpm --filter wms-service build
+    - pnpm exec jest --config package.json --runInBand --runTestsByPath src/common/src/contracts/wms_service/wms.contract.spec.ts
+    - pnpm --filter api-gateway exec jest --runInBand --runTestsByPath src/common/grpc/gateway-trusted-grpc-execution.module.spec.ts src/common/grpc/gateway-wms-grpc.client.spec.ts src/modules/wms-service/adapters/wms-dedicated-client.spec.ts src/modules/wms-service/wms.service.spec.ts src/modules/wms-service/interface/http/controllers/wms.controller.spec.ts
+    - pnpm --filter wms-service exec jest --config jest.config.js --runInBand --runTestsByPath src/infrastructure/adapters/wms-item-master-trusted-grpc-execution.producer.spec.ts src/infrastructure/adapters/wms-procurement-trusted-grpc-execution.producer.spec.ts test/l1/item-master-trusted-grpc.client.spec.ts test/l1/procurement-trusted-grpc.client.spec.ts test/l1/wms-service.behavior.spec.ts test/l3/procurement-receiving-expectation.grpc.adapter.spec.ts test/l3/wms-grpc-context.spec.ts test/l3/wms-grpc-surface.spec.ts test/l3/wms-app-module.spec.ts test/l3/wms-trusted-grpc-security.spec.ts
+    - pnpm --filter wms-service exec jest --config jest.config.js --runInBand --runTestsByPath test/l2/wms-audit-transaction.spec.ts
+    - node --test src/services/business/wms-service/scripts/wms-smoke.spec.mjs
+```
+
+Acceptance proves 15/15 unique BUSINESS declarations and zero dual-mode methods; exact five existing Code mappings, WMS audience, WEB terminal and direct Gateway workload; unchanged 15 Gateway routes; 55 request authority fields plus eight nested legacy-context fields reserved as 63/63 tombstones; unchanged business field numbers and response projections; token-only WMS ingress and claims-derived business/audit context; Gateway dedicated WMS client; WMS→Item Master and WMS→Procurement HUMAN_OBO activation with real subject/actor/audience/Permission/expiry/trace/`cnf` composition; verified-HUMAN L2 success/rollback evidence without input fallback; no raw smoke authority, generic WMS registration, legacy body/metadata or fallback; unchanged schema/events/business rules; exact 70-path scope; and successful proto, build, focused test, UTF-8, link, YAML and diff gates.
 
 ## 10. Repository-wide Security Acceptance
 

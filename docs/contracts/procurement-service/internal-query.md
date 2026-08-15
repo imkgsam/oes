@@ -11,7 +11,7 @@
 - subject：发起当前 WMS `PostReceipt` 的 verified HUMAN
 - actor：exact `wms-service` SYSTEM MACHINE workload
 - 拒绝 direct HUMAN、pure MACHINE root、DELEGATED、TENANT MACHINE、错误 workload/audience/Code/certificate 与 legacy authority
-- WMS trusted inbound 完成前 caller 只允许 `PREPARED_NOT_ACTIVATED`
+- caller 随 WMS trusted inbound cutover 激活；激活前的 prepared path 始终 fail closed
 
 ## 2. Wire shape
 

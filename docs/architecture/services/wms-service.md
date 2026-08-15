@@ -1,6 +1,6 @@
 # wms-service 职责卡
 
-Last Updated: 2026-08-14
+Last Updated: 2026-08-15
 
 ## 1. Purpose
 
@@ -52,7 +52,7 @@ Last Updated: 2026-08-14
   - future shipping / logistics integration
   - future BI / audit read models
 - 当前设计工作台：
-  - [wms-service-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/wms-service-design.md)
+  - [wms-service-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/wms-service-design.md) 仅保留历史讨论，稳定边界以本文为准。
 
 ## 6. Upstream Dependencies
 
@@ -67,6 +67,15 @@ Last Updated: 2026-08-14
   - WMS 不复制 Item 主数据，也不建立 `StockItemType` 替代 Item truth。
 - `procurement-service`
   - 提供 `ReceivingExpectation` 存在性与受控 receipt projection；WMS 不复制 expectation、PO 或 discrepancy resolution 真相。
+
+## 6.1 Trusted gRPC Boundary
+
+- 当前 15 个 WMS RPC 各自只有一种执行分类：`BUSINESS / HUMAN / WEB`。Gateway 是唯一 production caller，audience 固定为 `urn:oes:service:wms-service`，每个方法要求冻结的 existing Permission Code、WEB terminal、mTLS 与 certificate-bound ET；MACHINE、DELEGATED、SELF_SERVICE、非 Gateway workload 与任何 dual mode 均拒绝。
+- 15 个 request 中的 15 个 `tenant_id`、15 个 `operator_context`、15 个 `trace_context`、4 个 management `audit_context` 与 6 个 request `org_id` 共 55 个 authority 字段全部删除并按原 field number/name reserve；三个 legacy context message 的 8 个 nested 字段同样 tombstone。response 与 WMS-owned records 中的 tenant/org projection 保留。
+- tenant、适用 org、subject/operator、trace、audit 与 direct workload 只来自 verified ET、mTLS identity 与 transport correlation。request/body、ordinary metadata、signed operator payload、request-id/trace-id fallback 与 raw smoke 不构成 authority。
+- Gateway 通过 dedicated WMS mTLS client 使用 HUMAN session 兑换 WMS audience ET；WMS ingress 只接受 Token，不调用 Auth 做普通 RPC admission，也不保留 generic `SERVICE_NAMES.WMS` client 或 legacy metadata fallback。
+- WMS trusted ingress 建立 request-isolated verified HUMAN proof 后，激活已准备的 WMS→Item Master `ResolveStockableItem` 与 WMS→Procurement `ResolveReceivingExpectationForReceipt` HUMAN_OBO caller。两条调用都保留原 HUMAN subject/tenant，并由 Auth 绑定 exact `wms-service` SYSTEM MACHINE actor、target audience、Permission decision、expiry 与 caller certificate；目标服务只接收当前目标 ET。
+- 两条 outbound activation 不新增 WMS、Item Master 或 Procurement 业务能力，不改变 receipt、inventory、transaction、audit、idempotency、schema、event/outbox 或 retry 语义。后台无 HUMAN subject 的 worker/Cron/Robot、AI/ActionGrant 与 DELEGATED runtime 继续 deferred。
 
 ## 7. Downstream / Published Facts
 
@@ -95,4 +104,4 @@ Last Updated: 2026-08-14
 - 打孔、修补、试水等后处理执行真相归 `mes-service`，WMS 只负责仓储侧送返与状态控制。
 - 所有正式库存都按 `Item` 汇总，`StockItemType` 不作为新稳定设计概念。
 - `PostReceipt` 显式引用 expectation 时，只通过 Procurement 的窄 `ResolveReceivingExpectationForReceipt` INTERNAL RPC 校验当前 tenant 可见性并取得 target warehouse 摘要；不能复用 Procurement 的 Gateway BUSINESS 查询。
-- WMS→Procurement 的执行形态固定为 `HUMAN_OBO`：保留发起 `PostReceipt` 的 HUMAN subject，`act` 为 exact `wms-service` SYSTEM MACHINE actor。该 caller 在 WMS trusted inbound 完成前保持 `PREPARED_NOT_ACTIVATED`，不存在 MACHINE_ROOT、body tenant 或 legacy metadata fallback。
+- WMS→Item Master 与 WMS→Procurement 的执行形态固定为 `HUMAN_OBO`：保留发起 `PostReceipt` 的 HUMAN subject，`act` 为 exact `wms-service` SYSTEM MACHINE actor。它们随本服务 trusted inbound cutover 一并激活，不存在 MACHINE_ROOT、body tenant 或 legacy metadata fallback。

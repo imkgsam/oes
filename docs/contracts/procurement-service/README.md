@@ -190,7 +190,7 @@ phase 1 固定采用以下协同规则：
   - 校验当前操作是否被授权
 - `wms-service -> procurement-service`
   - 只通过 `ResolveReceivingExpectationForReceipt` 校验显式引用的 expectation 当前 tenant 可见性
-  - caller 在 WMS trusted inbound 完成前保持 `PREPARED_NOT_ACTIVATED`
+  - caller 随 WMS trusted inbound cutover 激活，只接受 guard-verified HUMAN proof 与 exact WMS SYSTEM actor
 
 future event 只保留为 deferred candidate，例如：
 

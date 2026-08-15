@@ -6,20 +6,12 @@
 
 ## 2. 通用上下文要求
 
-所有 phase 1 management command 统一要求：
-
-- `tenant_id`
-- 场景适用时的 `org_id`
-- internal service context
-- operator context
-- trace context
-- audit context
+所有 phase 1 management command 统一冻结为 `BUSINESS / HUMAN / WEB`，只允许 `api-gateway` 使用 WMS audience、mTLS/certificate-bound ET 与 exact management Code 调用。tenant、适用 org、operator、trace 与 audit 只从 verified ET/transport context 派生；request body 不承载 authority。
 
 补充约束：
 
-- 本文件只冻结“必须要求这些上下文存在”，不展开完整内部字段结构
 - 所有 command 都必须按 command 语义处理，不得被调用方当作 query 或同步缓存接口使用
-- phase 1 不冻结 command metadata header、幂等键设计、审计落库结构或重试策略
+- 本轮不改变幂等键、审计落库、事务或重试语义
 
 ## 3. 写入基线语义
 
@@ -42,7 +34,7 @@
 
 - `Receipt` 或 `ReceiptLine` 可以 optional 引用 `ReceivingExpectation`。
 - 显式 expectation 引用的校验只走 Procurement 的窄 `ResolveReceivingExpectationForReceipt`，固定为 `INTERNAL / HUMAN_OBO`；WMS actor 必须是 `wms-service`，不得复用 Gateway-only `GetReceivingExpectation`。
-- 当前 dedicated caller 只准备不激活；WMS trusted inbound 完成后才可用 verified HUMAN 上游 proof 换取 Procurement audience ET，缺少 proof/credential/ET 时 fail closed，禁止 legacy fallback。
+- WMS trusted inbound 建立 verified HUMAN 上游 proof 后，本 caller 与 Item Master caller 一并激活；每跳换取 target audience ET，缺少 proof/credential/ET 时 fail closed，禁止 legacy fallback。
 - WMS 记录的是 physical discrepancy fact，不是 supplier-facing resolution。
 - `PostReceipt` 成功后必须 emits/records receipt summary for Procurement。
 - `Receipt.status` 绝不能并入 `ReceivingExpectation` 状态机。
@@ -64,8 +56,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `org_id` | 否 | 适用时的组织边界 |
 | `warehouse_id` | 是 | 所属仓库标识 |
 | `receipt_source_type` | 是 | `MANUAL / RECEIVING_EXPECTATION_REFERENCE` |
 | `receipt_date` | 否 | 收货日期；未传时由服务记录当前日期 |
@@ -93,7 +83,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `receipt_id` | 是 | 目标 receipt 标识 |
 | `lines[]` | 是 | 草稿最终应保存的完整行集合 |
 
@@ -160,7 +149,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `receipt_id` | 是 | 目标 receipt 标识 |
 | `post_comment` | 否 | optional 过账备注 |
 
@@ -197,7 +185,6 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `receipt_id` | 是 | 目标 receipt 标识 |
 | `cancel_reason` | 是 | 取消原因 |
 
@@ -221,7 +208,7 @@ phase 1 management 统一暴露以下错误面：
 | 错误码 | 语义 |
 | --- | --- |
 | `INVALID_ARGUMENT` | 请求字段缺失、格式非法、数量非法、`RESTRICTED` 缺少 reason、`AVAILABLE` 非法携带 reason、tracking ref 非法、physical discrepancy 字段冲突，或 line 指向了不允许的 target location |
-| `UNAUTHENTICATED` | 缺少有效 internal service context、operator context、trace context 或 audit context |
+| `UNAUTHENTICATED` | 缺少或无法验证 WMS audience、有效期或 certificate-bound HUMAN ExecutionToken |
 | `PERMISSION_DENIED` | 调用方存在上下文，但没有在该 tenant / org / receipt 上执行命令的权限 |
 | `NOT_FOUND` | 目标 `Receipt`、`Warehouse`、`Location`、`Item` 或显式引用的 `ReceivingExpectation` 不存在 |
 | `ALREADY_EXISTS` | 当前命令违反唯一性约束，例如重复有效引用或重复稳定编号冲突 |

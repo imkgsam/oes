@@ -8,12 +8,10 @@
 
 - 接口类型：内部 gRPC
 - 服务：`WarehouseQueryService`
-- 所有 RPC 显式带 `tenant_id`
-- 场景适用时显式带 `org_id`
-- 所有 RPC 都要求：
-  - internal service context
-  - operator context
-  - trace context
+- 分类：`BUSINESS / HUMAN / WEB`
+- direct caller：仅 `api-gateway`
+- audience：`urn:oes:service:wms-service`
+- tenant、适用 org、operator 与 trace 只从 verified ET/transport context 派生；request body 不承载 authority
 
 phase 1 query 只覆盖：
 
@@ -120,7 +118,6 @@ phase 1 列表读取最小 shape：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `warehouse_id` | 是 | 目标仓库标识 |
 
 响应最小 shape：
@@ -142,8 +139,6 @@ phase 1 列表读取最小 shape：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `org_id` | 否 | 按组织范围过滤 |
 | `keyword` | 否 | 按 `warehouse_code / warehouse_name` 轻量检索 |
 | `status` | 否 | 按状态过滤 |
 | `page` | 否 | 1-based 页码 |
@@ -176,7 +171,6 @@ phase 1 列表读取最小 shape：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `location_id` | 是 | 目标 location 标识 |
 
 响应最小 shape：
@@ -198,7 +192,6 @@ phase 1 列表读取最小 shape：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `warehouse_id` | 否 | 按所属仓库过滤 |
 | `parent_location_id` | 否 | 按父 location 过滤 |
 | `location_type` | 否 | 按 location 类型过滤 |
@@ -234,7 +227,7 @@ phase 1 query 统一暴露以下错误面：
 | 错误码 | 语义 |
 | --- | --- |
 | `INVALID_ARGUMENT` | 请求字段缺失、格式非法、分页参数非法或搜索条件冲突 |
-| `UNAUTHENTICATED` | 缺少有效 internal service context、operator context 或 trace context |
+| `UNAUTHENTICATED` | 缺少或无法验证 WMS audience、有效期或 certificate-bound HUMAN ExecutionToken |
 | `PERMISSION_DENIED` | 调用方存在上下文，但没有读取该 tenant / warehouse / location 的权限 |
 | `NOT_FOUND` | 单对象读取目标不存在，例如 `warehouse_id` 或 `location_id` 不存在 |
 | `ALREADY_EXISTS` | 当前 query RPC 不应返回该错误；该错误码只作为跨 management/query 共享的统一错误词汇保留 |

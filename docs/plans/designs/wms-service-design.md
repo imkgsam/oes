@@ -1,14 +1,16 @@
 # WMS Service Design
 
+Status: `SUPERSEDED_BY_TRUTH_SOURCE`
+
+truthSource: `docs/architecture/services/wms-service.md`
+
+doNotUseAsStableSource: `true`
+
 ## 1. 文档目的
 
-本文件是 `wms-service` 的设计工作台，用于沉淀当前线程已经确认的 WMS 场景价值、职责边界、关键协同与阶段性结论。
+本文件仅保留 `wms-service` 早期设计讨论的历史价值。稳定服务边界已经回写到 [wms-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/wms-service.md)，不得继续把本文作为当前设计入口或实施指导。
 
-当前文档的定位是：
-
-- 冻结本轮已确认的 WMS 设计方向与业务判断。
-- 作为后续继续讨论 WMS、库存、仓储执行与后处理协同的恢复入口。
-- 明确哪些内容已经确认，哪些内容仍保持开放。
+当前文档的定位仅为历史决策记录；后续 contract、feature 与实现必须引用唯一服务真相源及 `docs/contracts/wms-service/**`。
 
 当前文档明确不负责：
 
@@ -285,7 +287,7 @@ WMS 在这些场景中负责：
 - 假设全仓天然一物一码
 - 以标准货架仓为中心的设计
 
-## 12. 开放问题
+## 12. 历史开放问题
 
 | 日期 | 问题 | 为什么未冻结 | 下一步 |
 | --- | --- | --- | --- |
@@ -295,28 +297,14 @@ WMS 在这些场景中负责：
 | 2026-04-22 | 紧急订单重分配的审批链 | 已确认必须人工审批，但尚未冻结审批角色与条件 | 后续与 ERP / workflow 协同 |
 | 2026-04-22 | 可转化 SKU 与目标 SKU 的正式主数据映射方式 | 已确认同一 SPU 下不同 SKU，但主数据归属与映射规则未完全展开 | 后续与 product / ERP 设计联动 |
 
-## 13. 真相源回写计划
+## 13. 已完成的真相源回写
 
-- 服务职责：
-  - 新增 `docs/architecture/services/wms-service.md`
-- 协同蓝图：
-  - `MES <-> WMS` 交仓与后处理协同
-  - `ERP <-> WMS` 占用与履约协同
-- contracts：
-  - 交仓、占用、重分配审批、后处理送返、包装转换
-- feature packet：
-  - 围绕库存准确闭环拆第一阶段实现包
-- architecture / ADR：
-  - 若原料仓、模具仓边界进一步扩大，必要时升级 architecture / ADR
+- 服务职责已经收敛到 `docs/architecture/services/wms-service.md`。
+- 当前黑盒接口以 `docs/contracts/wms-service/**` 为准。
+- 跨服务 owner 与协同只以对应 `docs/architecture/collaborations/**` 为准。
+- trusted gRPC 执行边界与 closed lease 只以 `docs/plans/features/trusted-grpc-execution-context.md` 为准。
+- 本文历史开放问题不构成已承诺 contract、feature 或 implementation guidance。
 
-## 14. 恢复入口
+## 14. 历史恢复入口（禁止作为稳定入口）
 
-- 下次继续前先读：
-  - `docs/architecture/02-bounded-contexts.md`
-  - `docs/architecture/services/mes-service.md`
-  - `docs/plans/designs/scan-identity-design.md`
-  - 本文档
-- 当前推荐下一步：
-  - 将已冻结的 WMS 服务职责回写到 `docs/architecture/services/wms-service.md`
-  - 独立补 `MES <-> WMS` 与 `ERP <-> WMS` 协同蓝图
-  - 再生成第一阶段 feature packet，而不是直接跳实现
+- 当前稳定入口固定为 `docs/architecture/services/wms-service.md`、相关 collaboration、`docs/contracts/wms-service/**` 与 trusted-gRPC feature packet；本文不再维护 next-step 或 implementation guidance。

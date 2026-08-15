@@ -8,7 +8,7 @@
 
 这些文档面向：
 
-- `api-gateway` / future WMS BFF
+- `api-gateway` WMS BFF
 - `procurement-service`
 - `item-master-service`
 - `permission-service`
@@ -106,25 +106,33 @@ phase 1 contract 明确围绕以下 owner truth 展开：
 
 ## 5. Security / Context Baseline
 
-所有 phase 1 RPC 统一遵循以下基线：
+15 个 phase 1 RPC 全部是 `BUSINESS / HUMAN / WEB`，只允许 `api-gateway` 以 `aud=urn:oes:service:wms-service` 的 certificate-bound ExecutionToken 直接调用。每个方法只使用其冻结的 existing Permission Code；MACHINE、DELEGATED、SELF_SERVICE、非 WEB terminal、错误 audience/`cnf`/Code 与非 Gateway workload 全部拒绝。
 
-- 全部为内部 gRPC 契约，不直接对外部客户端开放
-- 所有 RPC 显式携带 `tenant_id`
-- 场景适用时必须显式携带 `org_id`
-- 所有 query RPC 都要求：
-  - internal service context
-  - operator context
-  - trace context
-- 所有 management command 都要求：
-  - internal service context
-  - operator context
-  - trace context
-  - audit context
+请求 body 中旧 `tenant_id / org_id / operator_context / trace_context / audit_context` 不是业务数据，均按原 field number/name 删除并 reserve。tenant、适用 org、operator、trace 与 audit 只从 verified ET、mTLS workload 与 transport correlation 派生；response 与 WMS-owned record 中的 tenant/org projection 保留。普通 metadata、signed operator payload、request-id/trace-id fallback 与 legacy body authority 均不被接受。
 
-补充说明：
+Gateway 必须使用 dedicated WMS mTLS client 与 HUMAN ET producer，不再保留 generic `SERVICE_NAMES.WMS` transport registration。WMS trusted ingress 建立 request-isolated verified HUMAN proof 后，才可激活 WMS→Item Master `ResolveStockableItem` 与 WMS→Procurement `ResolveReceivingExpectationForReceipt` 两条 exact HUMAN_OBO caller；每一跳都换成 target audience ET，保留 HUMAN subject，并以 exact `wms-service` SYSTEM MACHINE actor 归因。
 
-- 本目录只冻结“必须可观察到的上下文与行为边界”，不展开 metadata header、guard、幂等键或 tracing 实现
-- phase 1 只冻结同步 `gRPC` 校验边界，不冻结完整 async event contract
+补充说明：本轮不改变业务幂等、审计、事务、schema、event/outbox 或 tracing 语义；后台无 HUMAN subject 的 worker/Cron/Robot 与 AI/ActionGrant 继续 deferred。
+
+### 5.1 Exact RPC / Permission Code Matrix
+
+| RPC | Exact existing Code |
+| --- | --- |
+| `GetWarehouse` | `wms.warehouse.read` |
+| `ListWarehouses` | `wms.warehouse.read` |
+| `GetLocation` | `wms.location.read` |
+| `ListLocations` | `wms.location.read` |
+| `GetReceipt` | `wms.receipt.read` |
+| `SearchReceipts` | `wms.receipt.read` |
+| `GetReceiptLine` | `wms.receipt.read` |
+| `SearchReceiptLines` | `wms.receipt.read` |
+| `CreateReceiptDraft` | `wms.receipt.manage` |
+| `AddOrReplaceReceiptLines` | `wms.receipt.manage` |
+| `PostReceipt` | `wms.receipt.manage` |
+| `CancelReceiptDraft` | `wms.receipt.manage` |
+| `SearchStockLedgerEntries` | `wms.inventory.read` |
+| `GetInventoryBalance` | `wms.inventory.read` |
+| `SearchInventoryBalances` | `wms.inventory.read` |
 
 ## 6. 同步 / 异步边界
 
@@ -141,8 +149,8 @@ phase 1 固定采用以下协同规则：
   - 校验 `item_id` 当前是否具备 `stockable` 能力
 - `wms-service -> procurement-service`
   - 当 receipt 显式引用 `ReceivingExpectation` 时，校验 expectation 是否存在且当前 tenant 可见
-- `wms-service -> permission-service`
-  - 校验当前操作是否被授权
+- `api-gateway / Auth STS -> permission-service`
+  - 在 WMS audience ET 签发或 OBO exchange 时完成 exact Code / actor workload decision；WMS 普通 RPC admission 只本地验证最终 ET，不同步调用 Permission
 
 future event 或 integration candidate 只保留为 deferred candidate，例如：
 

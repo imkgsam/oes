@@ -131,20 +131,18 @@ enum InventoryBalanceStatusFilter {
 }
 
 message OperatorContext {
-  string operator_id = 1;
-  string operator_type = 2;
-  string org_id = 3;
+  reserved 1, 2, 3;
+  reserved "operator_id", "operator_type", "org_id";
 }
 
 message TraceContext {
-  string trace_id = 1;
-  string request_id = 2;
+  reserved 1, 2;
+  reserved "trace_id", "request_id";
 }
 
 message AuditContext {
-  string audit_id = 1;
-  string reason = 2;
-  string source = 3;
+  reserved 1, 2, 3;
+  reserved "audit_id", "reason", "source";
 }
 
 message RestrictedStatusReason {
@@ -374,9 +372,8 @@ message ReceiptLineInput {
 }
 
 message GetWarehouseRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   string warehouse_id = 4;
 }
 
@@ -385,10 +382,8 @@ message GetWarehouseResponse {
 }
 
 message ListWarehousesRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  string org_id = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "org_id";
   string keyword = 5;
   WarehouseStatus status = 6;
   uint32 page = 7;
@@ -403,9 +398,8 @@ message ListWarehousesResponse {
 }
 
 message GetLocationRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   string location_id = 4;
 }
 
@@ -414,9 +408,8 @@ message GetLocationResponse {
 }
 
 message ListLocationsRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   string warehouse_id = 4;
   string parent_location_id = 5;
   LocationType location_type = 6;
@@ -435,9 +428,8 @@ message ListLocationsResponse {
 }
 
 message GetReceiptRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   string receipt_id = 4;
 }
 
@@ -446,10 +438,8 @@ message GetReceiptResponse {
 }
 
 message SearchReceiptsRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  string org_id = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "org_id";
   string warehouse_id = 5;
   ReceiptStatus status = 6;
   ReceiptSourceType receipt_source_type = 7;
@@ -471,9 +461,8 @@ message SearchReceiptsResponse {
 }
 
 message GetReceiptLineRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   string receipt_line_id = 4;
 }
 
@@ -482,10 +471,8 @@ message GetReceiptLineResponse {
 }
 
 message SearchReceiptLinesRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  string org_id = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "org_id";
   string receipt_id = 5;
   string warehouse_id = 6;
   string target_location_id = 7;
@@ -508,11 +495,8 @@ message SearchReceiptLinesResponse {
 }
 
 message CreateReceiptDraftRequest {
-  string tenant_id = 1;
-  string org_id = 2;
-  OperatorContext operator_context = 3;
-  TraceContext trace_context = 4;
-  AuditContext audit_context = 5;
+  reserved 1, 2, 3, 4, 5;
+  reserved "tenant_id", "org_id", "operator_context", "trace_context", "audit_context";
   string warehouse_id = 6;
   ReceiptSourceType receipt_source_type = 7;
   string receipt_date = 8;
@@ -526,10 +510,8 @@ message CreateReceiptDraftResponse {
 }
 
 message AddOrReplaceReceiptLinesRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string receipt_id = 5;
   repeated ReceiptLineInput lines = 6;
 }
@@ -539,10 +521,8 @@ message AddOrReplaceReceiptLinesResponse {
 }
 
 message PostReceiptRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string receipt_id = 5;
   string post_comment = 6;
 }
@@ -553,10 +533,8 @@ message PostReceiptResponse {
 }
 
 message CancelReceiptDraftRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string receipt_id = 5;
   string cancel_reason = 6;
 }
@@ -566,10 +544,8 @@ message CancelReceiptDraftResponse {
 }
 
 message SearchStockLedgerEntriesRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  string org_id = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "org_id";
   string warehouse_id = 5;
   string location_id = 6;
   string item_id = 7;
@@ -592,9 +568,8 @@ message SearchStockLedgerEntriesResponse {
 }
 
 message GetInventoryBalanceRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   string warehouse_id = 4;
   string item_id = 5;
   string location_id = 6;
@@ -605,10 +580,8 @@ message GetInventoryBalanceResponse {
 }
 
 message SearchInventoryBalancesRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  string org_id = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "org_id";
   string warehouse_id = 5;
   string location_id = 6;
   string item_id = 7;

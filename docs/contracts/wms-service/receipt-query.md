@@ -8,12 +8,10 @@
 
 - 接口类型：内部 gRPC
 - 服务：`ReceiptQueryService`
-- 所有 RPC 显式带 `tenant_id`
-- 场景适用时显式带 `org_id`
-- 所有 RPC 都要求：
-  - internal service context
-  - operator context
-  - trace context
+- 分类：`BUSINESS / HUMAN / WEB`
+- direct caller：仅 `api-gateway`
+- audience：`urn:oes:service:wms-service`
+- tenant、适用 org、operator 与 trace 只从 verified ET/transport context 派生；request body 不承载 authority
 
 phase 1 query 只覆盖：
 
@@ -185,7 +183,6 @@ phase 1 列表读取最小 shape：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `receipt_id` | 是 | 目标 receipt 标识 |
 
 响应最小 shape：
@@ -207,8 +204,6 @@ phase 1 列表读取最小 shape：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `org_id` | 否 | 按组织范围过滤 |
 | `warehouse_id` | 否 | 按仓库过滤 |
 | `status` | 否 | 按 receipt 状态过滤 |
 | `receipt_source_type` | 否 | 按来源类型过滤 |
@@ -243,7 +238,6 @@ phase 1 列表读取最小 shape：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
 | `receipt_line_id` | 是 | 目标 receipt line 标识 |
 
 响应最小 shape：
@@ -265,8 +259,6 @@ phase 1 列表读取最小 shape：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `org_id` | 否 | 按组织范围过滤 |
 | `receipt_id` | 否 | 按所属 receipt 过滤 |
 | `warehouse_id` | 否 | 按仓库过滤 |
 | `target_location_id` | 否 | 按入账 location 过滤 |
@@ -301,7 +293,7 @@ phase 1 query 统一暴露以下错误面：
 | 错误码 | 语义 |
 | --- | --- |
 | `INVALID_ARGUMENT` | 请求字段缺失、格式非法、分页参数非法或搜索条件冲突 |
-| `UNAUTHENTICATED` | 缺少有效 internal service context、operator context 或 trace context |
+| `UNAUTHENTICATED` | 缺少或无法验证 WMS audience、有效期或 certificate-bound HUMAN ExecutionToken |
 | `PERMISSION_DENIED` | 调用方存在上下文，但没有读取该 tenant / receipt / receipt line 的权限 |
 | `NOT_FOUND` | 单对象读取目标不存在，例如 `receipt_id` 或 `receipt_line_id` 不存在 |
 | `ALREADY_EXISTS` | 当前 query RPC 不应返回该错误；该错误码只作为跨 management/query 共享的统一错误词汇保留 |

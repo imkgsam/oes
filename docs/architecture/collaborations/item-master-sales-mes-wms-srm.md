@@ -99,6 +99,7 @@ Last Updated: 2026-08-14
   - `procurement-service / srm-service -> item-master-service.ResolvePurchasableItem` 校验 `active + purchasable`。
   - `item-master-service -> srm-service` 的供应商引用校验。
 - 三个资格查询按业务 capability 拆分而不是按 caller 复制接口；每个 RPC 只允许表中准确 workload，以 Item Master audience ET 与 mTLS/certificate binding 调用。它们不开放通用 capability 参数，不返回完整 Item 详情，也不迁移 caller 服务的其他 RPC。
+- WMS trusted inbound cutover 后，`ResolveStockableItem` caller 从准备态激活：保留当前 HUMAN subject/tenant，以 exact `wms-service` SYSTEM MACHINE actor 做 HUMAN_OBO，并逐跳换取 Item Master audience ET；body/local tenant、MACHINE root 与 legacy metadata 均不参与 authority。
 - 第一阶段暂不冻结必须事件集：
   - 如后续需要为搜索、缓存、BI、AI 或下游读模型发布事件，应在 `CONTRACT-V2` 阶段单独冻结。
 

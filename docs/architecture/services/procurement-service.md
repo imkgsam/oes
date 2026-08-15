@@ -115,7 +115,7 @@ Last Updated: 2026-08-14
 - WMS 不复用 Gateway-only `GetReceivingExpectation`。新增且只新增 `ProcurementInternalQueryService.ResolveReceivingExpectationForReceipt`，分类为 `INTERNAL / HUMAN_OBO`，Code 为 `procurement.internal.receiving_expectation.resolve_for_receipt`，只允许 exact `wms-service` SYSTEM MACHINE actor，并保留发起 `PostReceipt` 的 HUMAN subject。
 - 该 INTERNAL RPC 只返回 WMS 当前受控 port 已依赖的 expectation id、PO/line id、target warehouse、open quantity 与 status；它只证明当前 tenant 下 expectation 存在，不新增状态机、关闭、库存或 discrepancy 规则。
 - Procurement trusted inbound 建立 verified HUMAN current-hop private scope 后，激活现有 Procurement→Item Master `ResolvePurchasableItem` 与 Procurement→SRM `ResolveActiveSupplier / ResolveActiveSupplierOffering` HUMAN_OBO caller。request/body/local metadata tenant 不进入任何下一跳 authority。
-- WMS→Procurement dedicated caller、DI 与 fail-closed evidence 可以准备，但在 WMS 自身 trusted inbound 迁移前保持 `PREPARED_NOT_ACTIVATED`；不保留 generic transport 或 legacy metadata fallback，后台无 HUMAN subject 的调用另行设计。
+- WMS→Procurement dedicated caller 随 WMS trusted inbound packet 激活：只从 guard-verified HUMAN private scope 逐跳换取 Procurement audience ET；不保留 generic transport 或 legacy metadata fallback，后台无 HUMAN subject 的调用另行设计。
 - management mutation 与 success audit envelope 继续在同一 Prisma transaction 内提交；success audit 失败回滚 mutation。当前无新增 command id 或自动重试，schema、状态机、event/outbox 与全部业务规则不变。
 
 ## 7. Downstream / Published Facts

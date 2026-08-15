@@ -121,13 +121,14 @@
   - `api-gateway -> procurement-service` 查询 `PR / PO / discrepancy` 当前摘要
   - `procurement-service -> permission-service` 的权限、scope 与操作校验
   - `wms-service -> procurement-service.ResolveReceivingExpectationForReceipt` 在 `PostReceipt` 前以 `INTERNAL / HUMAN_OBO` 校验 expectation 当前 tenant 可见性；WMS 不复用 Gateway-only `GetReceivingExpectation`
+  - WMS trusted inbound cutover 后该 caller 从准备态激活：保留 `PostReceipt` 的 verified HUMAN subject/tenant，以 exact `wms-service` SYSTEM MACHINE actor 逐跳换取 Procurement audience ET；无 proof/credential/ET、错误 workload/audience/certificate/tenant 或 Permission denial 均 fail closed，不保留 legacy fallback
 - 异步：
   - `procurement-service -> downstream consumers` 的 `PR / PO / PO change / expectation / discrepancy` 已发生事实扩散
   - `wms-service -> procurement-service` 的实际收货结果回流，用于更新采购侧 expectation / discrepancy 视图
   - `procurement-service -> finance-service` 的采购交易与收货事实扩散，供 future `AP` / invoice matching 使用
 - 阶段约束：
   - phase 1 冻结协同方向与 owner 边界，不冻结完整事件目录、payload 字段或 proto 细节；这些内容进入 future `PROCUREMENT-CONTRACT`
-  - WMS dedicated Procurement caller 可先准备，但在 WMS 自身 trusted inbound 建立 verified HUMAN scope 前不得激活或保留 legacy fallback
+  - WMS dedicated Procurement caller 只随 WMS trusted inbound 建立 verified HUMAN scope 后激活，任何阶段都不得保留 legacy fallback
 
 ## 6. 真相归属
 
