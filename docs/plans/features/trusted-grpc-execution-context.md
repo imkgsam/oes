@@ -2757,13 +2757,13 @@ No database schema, migration, event/outbox, role model, tenant model, business 
 
 #### 9.15.4 closed implementation writer lease
 
-The lease is exact: `198 = 169 EXISTING + 29 NEW_TARGET`. Each source package owns its package-local target profiles/clients; Common remains target-neutral infrastructure. One production file may register several target-specific immutable profiles, but each target has a distinct audience/client token and no package imports another package's producer. The original six appended existing paths are the minimum enforcement owners for mandatory server mTLS and removal of the remaining HR onboarding and Permission role generic target registrations. The next two appended Permission module paths close production Nest DI ownership: every controller-owning module that uses `PermissionFoundationTrustedExecutionGuard` imports `PermissionTrustedExecutionModule` so `ExecutionTokenVerifier` resolves in the owning module context. The next four appended test paths align stale assertions with `AuthorizeBusinessRpc`/ET declaration metadata, trusted-module DI, dedicated mTLS clients and absence of the removed local Permission resolver or generic target registration. The final Auth module test path replaces its stale generic Permission client-token assertion with the already frozen dedicated `AuthPermissionTrustedGrpcClient` DI truth. These paths do not change public admission, RPC, Code, wire, guard, production or business semantics.
+The lease is exact: `201 = 172 EXISTING + 29 NEW_TARGET`. Each source package owns its package-local target profiles/clients; Common remains target-neutral infrastructure. One production file may register several target-specific immutable profiles, but each target has a distinct audience/client token and no package imports another package's producer. The original six appended existing paths are the minimum enforcement owners for mandatory server mTLS and removal of the remaining HR onboarding and Permission role generic target registrations. The next two appended Permission module paths close production Nest DI ownership: every controller-owning module that uses `PermissionFoundationTrustedExecutionGuard` imports `PermissionTrustedExecutionModule` so `ExecutionTokenVerifier` resolves in the owning module context. The next four appended test paths align stale assertions with `AuthorizeBusinessRpc`/ET declaration metadata, trusted-module DI, dedicated mTLS clients and absence of the removed local Permission resolver or generic target registration. The Auth module test path replaces its stale generic Permission client-token assertion with the already frozen dedicated `AuthPermissionTrustedGrpcClient` DI truth. The final three Identity test paths replace removed `RequirePermissions`/`RequireAuthenticatedOperator` metadata assertions with the frozen `AuthorizeBusinessRpc`/`AuthorizeInternalCall` ET declaration and trusted-guard facts. These paths do not change public admission, RPC, Code, wire, guard, production or business semantics.
 
 ```yaml
 foundationIdentityAuthzAtomicGroupImplementationLease:
   base: ad131ac7e06fa01d21493b05502bd1a567318c68
-  totalTrackedWriterPaths: 198
-  stateCounts: { EXISTING: 169, NEW_TARGET: 29 }
+  totalTrackedWriterPaths: 201
+  stateCounts: { EXISTING: 172, NEW_TARGET: 29 }
   trackedWriterPaths:
     - { state: EXISTING, path: src/common/src/contracts/auth_service/auth.proto }
     - { state: EXISTING, path: src/common/src/contracts/auth_service/execution_token.proto }
@@ -2963,6 +2963,9 @@ foundationIdentityAuthzAtomicGroupImplementationLease:
     - { state: EXISTING, path: src/services/system/hr-service/test/l1/hr-query.module.spec.ts }
     - { state: EXISTING, path: src/services/system/tenant-org-service/test/l1/tenant-org-authorization.module.spec.ts }
     - { state: EXISTING, path: src/services/system/auth-service/src/modules/token/execution-token.module.spec.ts }
+    - { state: EXISTING, path: src/services/system/identity-service/test/l1/identity-audit-controller.spec.ts }
+    - { state: EXISTING, path: src/services/system/identity-service/test/l1/list-accounts.handler.spec.ts }
+    - { state: EXISTING, path: src/services/system/identity-service/test/l1/machine-workload-binding-management.grpc-controller.spec.ts }
   protected:
     - every tracked path not listed above
     - all prisma/schema/migration, event/outbox and business-domain state-machine paths
@@ -2984,6 +2987,7 @@ pnpm --filter permission-service exec jest --config jest.config.js --runInBand -
 pnpm --filter hr-service exec jest --config jest.config.js --runInBand --runTestsByPath test/l1/hr-query.module.spec.ts
 pnpm --filter tenant-org-service exec jest --config jest.config.js --runInBand --runTestsByPath test/l1/tenant-org-authorization.module.spec.ts
 pnpm --filter auth-service exec jest --runInBand --runTestsByPath src/modules/token/execution-token.module.spec.ts
+pnpm --filter identity-service exec jest --config jest.config.js --runInBand --runTestsByPath test/l1/identity-audit-controller.spec.ts test/l1/list-accounts.handler.spec.ts test/l1/machine-workload-binding-management.grpc-controller.spec.ts
 pnpm --filter @oes/common build
 pnpm --filter auth-service build
 pnpm --filter identity-service build
@@ -3002,7 +3006,7 @@ node --test scripts/local/foundation-trusted-grpc-atomic-group.spec.mjs
 git diff --check
 ```
 
-Acceptance proves: exact `70+5/41/66/15/20` membership and 217 declarations; exact five audiences, method Codes, terminals and workload/actor allowlists; all anonymous/public negatives and anti-enumeration/rate/audit invariants; all HUMAN/HUMAN_OBO/SYSTEM MACHINE success/negative cases; OBO subject/actor/tenant/session/trace/expiry/Permission/`cnf` continuity; exact 32 wire reservations and unchanged resource/response fields; Gateway/public/cross-foundation target clients; mandatory mTLS startup for all five servers with no optional/insecure production mode; exact `createGrpcClientCredentials()` use for every cross-foundation target and zero generic target registrations; executable Nest `TestingModule` closure for every Permission controller-owning module using `PermissionFoundationTrustedExecutionGuard`; aligned Permission/HR/TenantOrg suites assert ET declarations, trusted DI, dedicated clients and legacy resolver/registration absence rather than the removed local authority path; the Auth token module suite resolves the dedicated `AuthPermissionTrustedGrpcClient` rather than a generic Permission client token; atomic activation with no intermediate mixed trust; zero legacy metadata/body/fallback references; all existing foundation/Party behavior unchanged; exact 198-path scope; UTF-8/link/YAML/fence/diff cleanliness.
+Acceptance proves: exact `70+5/41/66/15/20` membership and 217 declarations; exact five audiences, method Codes, terminals and workload/actor allowlists; all anonymous/public negatives and anti-enumeration/rate/audit invariants; all HUMAN/HUMAN_OBO/SYSTEM MACHINE success/negative cases; OBO subject/actor/tenant/session/trace/expiry/Permission/`cnf` continuity; exact 32 wire reservations and unchanged resource/response fields; Gateway/public/cross-foundation target clients; mandatory mTLS startup for all five servers with no optional/insecure production mode; exact `createGrpcClientCredentials()` use for every cross-foundation target and zero generic target registrations; executable Nest `TestingModule` closure for every Permission controller-owning module using `PermissionFoundationTrustedExecutionGuard`; aligned Permission/HR/TenantOrg suites assert ET declarations, trusted DI, dedicated clients and legacy resolver/registration absence rather than the removed local authority path; the Auth token module suite resolves the dedicated `AuthPermissionTrustedGrpcClient` rather than a generic Permission client token; aligned Identity suites assert `AuthorizeBusinessRpc`/`AuthorizeInternalCall` ET declarations and trusted guards rather than removed legacy authorization metadata; atomic activation with no intermediate mixed trust; zero legacy metadata/body/fallback references; all existing foundation/Party behavior unchanged; exact 201-path scope; UTF-8/link/YAML/fence/diff cleanliness.
 
 ## 10. Repository-wide Security Acceptance
 
