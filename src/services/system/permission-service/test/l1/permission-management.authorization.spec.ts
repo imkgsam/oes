@@ -1,22 +1,32 @@
 import 'reflect-metadata'
+import { GUARDS_METADATA } from '@nestjs/common/constants'
+import { getRpcAuthorizationModeDeclaration } from '@oes/common/authorization'
 import { PermissionManagementGrpcController } from '../../src/interfaces/grpc/permission-management.grpc.controller'
-import { REQUIRE_MANAGEMENT_PERMISSION_METADATA_KEY } from '../../src/interfaces/decorators'
+import { PermissionFoundationTrustedExecutionGuard } from '../../src/modules/authorization/permission-trusted-execution.module'
 import {
   PERMISSION_MANAGEMENT_PERMISSION_CODES,
   ROLE_INSTANCE_PERMISSION_CODES,
   ROLE_TEMPLATE_PERMISSION_CODES
 } from '../../src/scripts/permission-catalog'
 
-// Verifies role template and role instance gRPC endpoints no longer share coarse legacy role permissions.
-describe('permission management gRPC authorization metadata', () => {
+// Verifies role template and role instance gRPC endpoints declare exact ET-enforced BUSINESS Codes.
+describe('permission management trusted gRPC authorization metadata', () => {
   const prototype = PermissionManagementGrpcController.prototype
 
+  /** Reads one exact Code only from the frozen BUSINESS execution declaration. */
   function requiredPermission(methodName: keyof PermissionManagementGrpcController): string | undefined {
-    return Reflect.getMetadata(
-      REQUIRE_MANAGEMENT_PERMISSION_METADATA_KEY,
-      prototype[methodName]
-    )
+    const declaration = getRpcAuthorizationModeDeclaration(prototype, methodName)
+    expect(declaration?.mode).toBe('BUSINESS')
+    return declaration?.mode === 'BUSINESS' && 'all' in declaration.permissions
+      ? declaration.permissions.all[0]
+      : undefined
   }
+
+  it('binds every Permission management declaration to the trusted ET guard', () => {
+    expect(Reflect.getMetadata(GUARDS_METADATA, PermissionManagementGrpcController)).toEqual(
+      expect.arrayContaining([PermissionFoundationTrustedExecutionGuard])
+    )
+  })
 
   it.each([
     ['createRoleTemplate', ROLE_TEMPLATE_PERMISSION_CODES.CREATE],

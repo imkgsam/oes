@@ -1,48 +1,109 @@
-import { MODULE_METADATA } from '@nestjs/common/constants'
+import { GUARDS_METADATA, MODULE_METADATA } from '@nestjs/common/constants'
+import { Test } from '@nestjs/testing'
 import {
-  OPERATOR_PERMISSION_RESOLVER,
+  getRpcAuthorizationModeDeclaration,
   PermissionGuard,
   PermissionServicePermissionReadAdaptor,
   RoleBasedOperatorPermissionResolver
 } from '@oes/common/authorization'
-import { SERVICE_NAMES } from '@oes/common/constants'
 import { GrpcTransportModule } from '@oes/common/transport'
+import { AppModule } from '../../src/app.module'
+import {
+  TenantOrgAuthTrustedGrpcClient,
+  TenantOrgHrTrustedGrpcClient,
+  TenantOrgIdentityTrustedGrpcClient,
+  TenantOrgPermissionTrustedGrpcClient
+} from '../../src/infrastructure/adapters/foundation-trusted-grpc.clients'
+import { PrismaService } from '../../src/infrastructure/prisma/prisma.service'
+import { TenantOrgManagementGrpcController } from '../../src/interfaces/grpc/tenant-org-management.grpc.controller'
+import { TenantOrgQueryGrpcController } from '../../src/interfaces/grpc/tenant-org-query.grpc.controller'
 import { TenantOrgManagementModule } from '../../src/modules/tenant-org-management/tenant-org-management.module'
 import { TenantOrgQueryModule } from '../../src/modules/tenant-org-query/tenant-org-query.module'
+import {
+  TenantOrgFoundationTrustedExecutionGuard,
+  TenantOrgTrustedExecutionModule
+} from '../../src/modules/tenant-org-trusted-execution.module'
 
-describe('TenantOrg authorization module wiring', () => {
+describe('TenantOrg trusted authorization module wiring', () => {
+  it('resolves the trusted guard and all dedicated foundation target clients', async () => {
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(PrismaService)
+      .useValue({ $connect: jest.fn(), $disconnect: jest.fn() })
+      .compile()
+
+    expect(moduleRef.get(TenantOrgFoundationTrustedExecutionGuard)).toBeInstanceOf(
+      TenantOrgFoundationTrustedExecutionGuard
+    )
+    expect(moduleRef.get(TenantOrgAuthTrustedGrpcClient)).toBeInstanceOf(
+      TenantOrgAuthTrustedGrpcClient
+    )
+    expect(moduleRef.get(TenantOrgHrTrustedGrpcClient)).toBeInstanceOf(
+      TenantOrgHrTrustedGrpcClient
+    )
+    expect(moduleRef.get(TenantOrgIdentityTrustedGrpcClient)).toBeInstanceOf(
+      TenantOrgIdentityTrustedGrpcClient
+    )
+    expect(moduleRef.get(TenantOrgPermissionTrustedGrpcClient)).toBeInstanceOf(
+      TenantOrgPermissionTrustedGrpcClient
+    )
+
+    await moduleRef.close()
+  })
+
   it.each([
-    ['management', TenantOrgManagementModule],
-    ['query', TenantOrgQueryModule]
-  ])('binds %s RPC permissions to the role-based operator resolver', (_name, moduleRef) => {
-    const providers = Reflect.getMetadata(MODULE_METADATA.PROVIDERS, moduleRef) ?? []
+    ['management', TenantOrgManagementGrpcController],
+    ['query', TenantOrgQueryGrpcController]
+  ] as const)('binds %s RPC declarations to the trusted ET guard', (_name, controller) => {
+    expect(Reflect.getMetadata(GUARDS_METADATA, controller)).toEqual(
+      expect.arrayContaining([TenantOrgFoundationTrustedExecutionGuard])
+    )
+  })
 
-    expect(providers).toEqual(
+  it.each([
+    ['management', 'createTenant', 'tenant_org.tenant.create', TenantOrgManagementGrpcController],
+    ['management', 'updateTenantProfile', 'tenant_org.tenant.update_profile', TenantOrgManagementGrpcController],
+    ['management', 'createOrgUnit', 'tenant_org.org_unit.create', TenantOrgManagementGrpcController],
+    ['management', 'archiveOrgUnit', 'tenant_org.org_unit.archive', TenantOrgManagementGrpcController],
+    ['query', 'getTenantById', 'tenant_org.tenant.get_by_id', TenantOrgQueryGrpcController],
+    ['query', 'listTenants', 'tenant_org.tenant.list', TenantOrgQueryGrpcController],
+    ['query', 'getOrgTreeByTenantId', 'tenant_org.org_unit.list_tree', TenantOrgQueryGrpcController],
+    ['query', 'getOrgUnitById', 'tenant_org.org_unit.get_by_id', TenantOrgQueryGrpcController]
+  ] as const)('declares %s.%s as exact BUSINESS Code %s', (_name, method, code, controller) => {
+    expect(businessCode(controller.prototype, method)).toBe(code)
+  })
+
+  it('contains no local Permission resolver or generic gRPC registration', () => {
+    const modules = [TenantOrgManagementModule, TenantOrgQueryModule]
+    const providers = modules.flatMap(
+      (module) => Reflect.getMetadata(MODULE_METADATA.PROVIDERS, module) ?? []
+    )
+    expect(providers).not.toEqual(
       expect.arrayContaining([
         PermissionServicePermissionReadAdaptor,
         RoleBasedOperatorPermissionResolver,
-        PermissionGuard,
-        expect.objectContaining({
-          provide: OPERATOR_PERMISSION_RESOLVER,
-          useExisting: RoleBasedOperatorPermissionResolver
-        })
+        PermissionGuard
       ])
     )
-  })
 
-  it.each([
-    ['management', TenantOrgManagementModule],
-    ['query', TenantOrgQueryModule]
-  ])('imports the permission gRPC client for %s RBAC resolution', (_name, moduleRef) => {
-    const imports = Reflect.getMetadata(MODULE_METADATA.IMPORTS, moduleRef) ?? []
-
-    expect(imports).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          module: GrpcTransportModule
-        })
-      ])
+    const imports = modules.flatMap(
+      (module) => Reflect.getMetadata(MODULE_METADATA.IMPORTS, module) ?? []
     )
-    expect(JSON.stringify(imports)).toContain(SERVICE_NAMES.PERMISSION)
+    expect(
+      imports.some(
+        (entry) => entry === GrpcTransportModule || entry?.module === GrpcTransportModule
+      )
+    ).toBe(false)
+    expect(Reflect.getMetadata(MODULE_METADATA.IMPORTS, AppModule)).toEqual(
+      expect.arrayContaining([TenantOrgTrustedExecutionModule])
+    )
   })
 })
+
+/** Reads one exact Code only from a frozen BUSINESS execution declaration. */
+function businessCode(prototype: object, method: string): string | undefined {
+  const declaration = getRpcAuthorizationModeDeclaration(prototype, method)
+  expect(declaration?.mode).toBe('BUSINESS')
+  return declaration?.mode === 'BUSINESS' && 'all' in declaration.permissions
+    ? declaration.permissions.all[0]
+    : undefined
+}

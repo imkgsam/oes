@@ -21,15 +21,15 @@ function sourceTree(path) {
 
 /** Returns corrective-candidate paths relative to the integrated Program Control base, including uncommitted work. */
 function changedPaths() {
-  const committed = execFileSync('git', ['diff', '--name-only', '413190797e29070d5a5907c0d5af62f28f71a57d..HEAD'], { cwd: root, encoding: 'utf8' })
+  const committed = execFileSync('git', ['diff', '--name-only', '1d2e9bd9324e9b604f56c6fb90e4666c242b36eb..HEAD'], { cwd: root, encoding: 'utf8' })
   const working = execFileSync('git', ['diff', '--name-only'], { cwd: root, encoding: 'utf8' })
   const untracked = execFileSync('git', ['ls-files', '--others', '--exclude-standard'], { cwd: root, encoding: 'utf8' })
   return [...new Set(`${committed}\n${working}\n${untracked}`.trim().split(/\n+/).filter(Boolean))].sort()
 }
 
-test('atomic lease is exact and corrective candidate changes stay inside all 193 paths', () => {
-  assert.equal(lease.length, 193)
-  assert.deepEqual(Object.fromEntries(['EXISTING', 'NEW_TARGET'].map((state) => [state, lease.filter((entry) => entry.state === state).length])), { EXISTING: 164, NEW_TARGET: 29 })
+test('atomic lease is exact and cumulative candidate changes stay inside all 198 paths', () => {
+  assert.equal(lease.length, 198)
+  assert.deepEqual(Object.fromEntries(['EXISTING', 'NEW_TARGET'].map((state) => [state, lease.filter((entry) => entry.state === state).length])), { EXISTING: 169, NEW_TARGET: 29 })
   const allowed = new Set(lease.map((entry) => entry.path))
   const outside = changedPaths().filter((path) => !allowed.has(path))
   assert.deepEqual(outside, [])

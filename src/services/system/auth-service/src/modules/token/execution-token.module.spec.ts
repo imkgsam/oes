@@ -4,8 +4,7 @@ import {
   AuthorizationPrincipalTypeProto,
   AuthorizationScopeLevelProto
 } from '@oes/common/generated/permission_service'
-import { getGrpcClientToken } from '@oes/common/transport'
-import { SERVICE_NAMES } from '@oes/common/constants'
+import { AuthPermissionTrustedGrpcClient } from '../../infrastructure/adaptors/foundation-trusted-grpc.clients'
 import { EXECUTION_TOKEN_EXCHANGE_CONTEXT } from '../../application/ports/execution-token-exchange-context.port'
 import { ExecutionTokenRegistry } from '../../domain/services/execution-token-registry'
 import {
@@ -21,7 +20,7 @@ type ProviderDefinition = Readonly<{
   inject?: readonly unknown[]
 }>
 
-/** Proves the STS context is wired to Auth credential truth and the current Permission RPC client. */
+/** Proves the STS context is wired to Auth credential truth and the authority-bound Permission client. */
 describe('ExecutionTokenModule authority wiring', () => {
   it('injects separate source verification and Permission decision dependencies into the exchange boundary', () => {
     const providers: Array<ProviderDefinition | Function> = Reflect.getMetadata(
@@ -48,7 +47,7 @@ describe('ExecutionTokenModule authority wiring', () => {
       expect.arrayContaining([ExecutionTokenRegistry])
     )
     expect(decisionProvider.inject).toEqual(
-      expect.arrayContaining([getGrpcClientToken(SERVICE_NAMES.PERMISSION)])
+      expect.arrayContaining([AuthPermissionTrustedGrpcClient])
     )
     expect(contextProvider.inject).toEqual(
       expect.arrayContaining([

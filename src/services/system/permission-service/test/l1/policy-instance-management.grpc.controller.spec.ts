@@ -1,8 +1,11 @@
-import { Reflector } from '@nestjs/core'
-import { attachOperatorContext } from '@oes/common/authorization'
-import { REQUIRE_MANAGEMENT_PERMISSION_METADATA_KEY } from '../../src/interfaces/decorators'
+import { GUARDS_METADATA } from '@nestjs/common/constants'
+import {
+  attachOperatorContext,
+  getRpcAuthorizationModeDeclaration
+} from '@oes/common/authorization'
 import { MANAGEMENT_PERMISSION_CODES } from '../../src/common/constants/authorization'
 import { PolicyInstanceManagementGrpcController } from '../../src/interfaces/grpc/policy-instance-management.grpc.controller'
+import { PermissionFoundationTrustedExecutionGuard } from '../../src/modules/authorization/permission-trusted-execution.module'
 
 const policyInstance = {
   id: 'instance-1',
@@ -27,6 +30,20 @@ const policyInstance = {
   updatedAt: '2026-05-16T00:00:00.000Z'
 }
 
+/** Reads one exact Code only from a frozen BUSINESS execution declaration. */
+function businessCode(
+  methodName: keyof PolicyInstanceManagementGrpcController
+): string | undefined {
+  const declaration = getRpcAuthorizationModeDeclaration(
+    PolicyInstanceManagementGrpcController.prototype,
+    methodName
+  )
+  expect(declaration?.mode).toBe('BUSINESS')
+  return declaration?.mode === 'BUSINESS' && 'all' in declaration.permissions
+    ? declaration.permissions.all[0]
+    : undefined
+}
+
 describe('PolicyInstanceManagementGrpcController', () => {
   const managementService = {
     create: jest.fn(),
@@ -41,33 +58,16 @@ describe('PolicyInstanceManagementGrpcController', () => {
     jest.clearAllMocks()
   })
 
-  it('declares policy management permissions on query and mutation endpoints', () => {
-    const reflector = new Reflector()
-
-    expect(
-      reflector.get(
-        REQUIRE_MANAGEMENT_PERMISSION_METADATA_KEY,
-        PolicyInstanceManagementGrpcController.prototype.listPolicyInstances
-      )
-    ).toBe(MANAGEMENT_PERMISSION_CODES.VIEW_POLICY)
-    expect(
-      reflector.get(
-        REQUIRE_MANAGEMENT_PERMISSION_METADATA_KEY,
-        PolicyInstanceManagementGrpcController.prototype.getPolicyInstance
-      )
-    ).toBe(MANAGEMENT_PERMISSION_CODES.VIEW_POLICY)
-    expect(
-      reflector.get(
-        REQUIRE_MANAGEMENT_PERMISSION_METADATA_KEY,
-        PolicyInstanceManagementGrpcController.prototype.createPolicyInstance
-      )
-    ).toBe(MANAGEMENT_PERMISSION_CODES.CREATE_POLICY)
-    expect(
-      reflector.get(
-        REQUIRE_MANAGEMENT_PERMISSION_METADATA_KEY,
-        PolicyInstanceManagementGrpcController.prototype.setPolicyInstanceEnabled
-      )
-    ).toBe(MANAGEMENT_PERMISSION_CODES.UPDATE_POLICY)
+  it('declares exact ET BUSINESS Codes on query and mutation endpoints', () => {
+    expect(Reflect.getMetadata(GUARDS_METADATA, PolicyInstanceManagementGrpcController)).toEqual(
+      expect.arrayContaining([PermissionFoundationTrustedExecutionGuard])
+    )
+    expect(businessCode('listPolicyInstances')).toBe(MANAGEMENT_PERMISSION_CODES.VIEW_POLICY)
+    expect(businessCode('getPolicyInstance')).toBe(MANAGEMENT_PERMISSION_CODES.VIEW_POLICY)
+    expect(businessCode('createPolicyInstance')).toBe(MANAGEMENT_PERMISSION_CODES.CREATE_POLICY)
+    expect(businessCode('setPolicyInstanceEnabled')).toBe(
+      MANAGEMENT_PERMISSION_CODES.UPDATE_POLICY
+    )
   })
 
   it('listPolicyInstances / maps filters and returns paged PolicyInstance records', async () => {
