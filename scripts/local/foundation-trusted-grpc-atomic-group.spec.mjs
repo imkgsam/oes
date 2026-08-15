@@ -5,31 +5,56 @@ import test from 'node:test'
 import { resolve } from 'node:path'
 
 const root = resolve(import.meta.dirname, '../..')
-const packet = readFileSync(resolve(root, 'docs/plans/features/trusted-grpc-execution-context.md'), 'utf8')
-const leaseBlock = packet.match(/foundationIdentityAuthzAtomicGroupImplementationLease:\n([\s\S]*?)\n```/)?.[1] ?? ''
-const lease = [...leaseBlock.matchAll(/- \{ state: (EXISTING|NEW_TARGET), path: ([^ }]+) \}/g)].map((match) => ({ state: match[1], path: match[2] }))
+const packet = readFileSync(
+  resolve(root, 'docs/plans/features/trusted-grpc-execution-context.md'),
+  'utf8'
+)
+const leaseBlock =
+  packet.match(/foundationIdentityAuthzAtomicGroupImplementationLease:\n([\s\S]*?)\n```/)?.[1] ?? ''
+const lease = [...leaseBlock.matchAll(/- \{ state: (EXISTING|NEW_TARGET), path: ([^ }]+) \}/g)].map(
+  (match) => ({ state: match[1], path: match[2] })
+)
 const read = (path) => readFileSync(resolve(root, path), 'utf8')
 
 /** Reads TypeScript sources below one directory for repository-wide legacy registration assertions. */
 function sourceTree(path) {
   const directory = resolve(root, path)
   return readdirSync(directory, { recursive: true, withFileTypes: true })
-    .filter((entry) => entry.isFile() && entry.name.endsWith('.ts') && !entry.name.endsWith('.spec.ts'))
+    .filter(
+      (entry) => entry.isFile() && entry.name.endsWith('.ts') && !entry.name.endsWith('.spec.ts')
+    )
     .map((entry) => readFileSync(resolve(entry.parentPath, entry.name), 'utf8'))
     .join('\n')
 }
 
 /** Returns corrective-candidate paths relative to the integrated Program Control base, including uncommitted work. */
 function changedPaths() {
-  const committed = execFileSync('git', ['diff', '--name-only', '1d2e9bd9324e9b604f56c6fb90e4666c242b36eb..HEAD'], { cwd: root, encoding: 'utf8' })
+  const committed = execFileSync(
+    'git',
+    ['diff', '--name-only', 'e92db9cb5a6ed428fde4dae40c698169397fbca8..HEAD'],
+    { cwd: root, encoding: 'utf8' }
+  )
   const working = execFileSync('git', ['diff', '--name-only'], { cwd: root, encoding: 'utf8' })
-  const untracked = execFileSync('git', ['ls-files', '--others', '--exclude-standard'], { cwd: root, encoding: 'utf8' })
-  return [...new Set(`${committed}\n${working}\n${untracked}`.trim().split(/\n+/).filter(Boolean))].sort()
+  const untracked = execFileSync('git', ['ls-files', '--others', '--exclude-standard'], {
+    cwd: root,
+    encoding: 'utf8'
+  })
+  return [
+    ...new Set(`${committed}\n${working}\n${untracked}`.trim().split(/\n+/).filter(Boolean))
+  ].sort()
 }
 
-test('atomic lease is exact and cumulative candidate changes stay inside all 198 paths', () => {
-  assert.equal(lease.length, 198)
-  assert.deepEqual(Object.fromEntries(['EXISTING', 'NEW_TARGET'].map((state) => [state, lease.filter((entry) => entry.state === state).length])), { EXISTING: 169, NEW_TARGET: 29 })
+test('atomic lease is exact and cumulative candidate changes stay inside all 201 paths', () => {
+  assert.equal(lease.length, 201)
+  assert.deepEqual(
+    Object.fromEntries(
+      ['EXISTING', 'NEW_TARGET'].map((state) => [
+        state,
+        lease.filter((entry) => entry.state === state).length
+      ])
+    ),
+    { EXISTING: 172, NEW_TARGET: 29 }
+  )
   const allowed = new Set(lease.map((entry) => entry.path))
   const outside = changedPaths().filter((path) => !allowed.has(path))
   assert.deepEqual(outside, [])
@@ -59,7 +84,10 @@ test('wire authority tombstones total exactly 32 and retained selectors remain',
   assert.match(identity, /reserved 5, 6, 7;\n  reserved "operator_id", "tenant_id", "org_id";/)
   assert.match(permission, /reserved 5, 6, 7;\n  reserved "operator_id", "tenant_id", "org_id";/)
   assert.equal((hr.match(/reserved "tenant_id";/g) ?? []).length >= 10, true)
-  assert.match(read('src/common/src/contracts/tenant_org_service/tenant_org.proto'), /string tenant_id = 1;/)
+  assert.match(
+    read('src/common/src/contracts/tenant_org_service/tenant_org.proto'),
+    /string tenant_id = 1;/
+  )
 })
 
 test('five baseline controllers contain no legacy authority decorators', () => {
@@ -75,7 +103,10 @@ test('five baseline controllers contain no legacy authority decorators', () => {
   ]
   for (const path of paths) {
     const source = read(path)
-    assert.doesNotMatch(source, /@(RequireAuthenticatedOperator|RequirePermissions|RequireManagementPermission|UseGuards\(InternalServiceGuard)/)
+    assert.doesNotMatch(
+      source,
+      /@(RequireAuthenticatedOperator|RequirePermissions|RequireManagementPermission|UseGuards\(InternalServiceGuard)/
+    )
   }
 })
 
@@ -89,7 +120,10 @@ test('all five foundation servers install mandatory mTLS credentials without a p
   ]
   for (const path of mains) {
     const source = read(path)
-    assert.match(source, /(?:credentials:\s*createGrpcServerCredentials\(\)|createAuthGrpcMicroserviceOptions\(createAuthGrpcServerCredentials\(\))/)
+    assert.match(
+      source,
+      /(?:credentials:\s*createGrpcServerCredentials\(\)|createAuthGrpcMicroserviceOptions\(createAuthGrpcServerCredentials\(\))/
+    )
     assert.doesNotMatch(source, /OES_GRPC_TLS_ENABLED/)
   }
 })
@@ -107,7 +141,10 @@ test('foundation production channels do not use the generic connection pool and 
     const source = read(path)
     assert.doesNotMatch(source, /GrpcTransportModule\.for(?:Root|Feature)/)
   }
-  assert.doesNotMatch(read('src/services/system/auth-service/src/app.module.ts'), /SERVICE_NAMES\.(?:IDENTITY|PERMISSION|HR|TENANT_ORG)/)
+  assert.doesNotMatch(
+    read('src/services/system/auth-service/src/app.module.ts'),
+    /SERVICE_NAMES\.(?:IDENTITY|PERMISSION|HR|TENANT_ORG)/
+  )
 
   const credentialed = [
     'src/services/system/hr-service/src/infrastructure/modules/hr-reference.module.ts',
@@ -127,8 +164,19 @@ test('foundation production channels do not use the generic connection pool and 
     'src/services/system/permission-service/src',
     'src/services/system/hr-service/src',
     'src/services/system/tenant-org-service/src'
-  ].map(sourceTree).join('\n')
-  assert.doesNotMatch(foundationSources, /InjectGrpcClient\(SERVICE_NAMES\.(?:AUTH|IDENTITY|PERMISSION|HR|TENANT_ORG)\)/)
-  assert.doesNotMatch(foundationSources, /getGrpcClientToken\(SERVICE_NAMES\.(?:AUTH|IDENTITY|PERMISSION|HR|TENANT_ORG)\)/)
-  assert.doesNotMatch(foundationSources, /GrpcTransportModule\.forFeature\([\s\S]{0,300}SERVICE_NAMES\.(?:AUTH|IDENTITY|PERMISSION|HR|TENANT_ORG)/)
+  ]
+    .map(sourceTree)
+    .join('\n')
+  assert.doesNotMatch(
+    foundationSources,
+    /InjectGrpcClient\(SERVICE_NAMES\.(?:AUTH|IDENTITY|PERMISSION|HR|TENANT_ORG)\)/
+  )
+  assert.doesNotMatch(
+    foundationSources,
+    /getGrpcClientToken\(SERVICE_NAMES\.(?:AUTH|IDENTITY|PERMISSION|HR|TENANT_ORG)\)/
+  )
+  assert.doesNotMatch(
+    foundationSources,
+    /GrpcTransportModule\.forFeature\([\s\S]{0,300}SERVICE_NAMES\.(?:AUTH|IDENTITY|PERMISSION|HR|TENANT_ORG)/
+  )
 })

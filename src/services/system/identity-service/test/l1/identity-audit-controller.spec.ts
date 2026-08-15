@@ -1,14 +1,16 @@
 import { CommandBus } from '@nestjs/cqrs'
+import { GUARDS_METADATA } from '@nestjs/common/constants'
 import { status } from '@grpc/grpc-js'
 import {
-  IDENTITY_ACCOUNT_PERMISSION_CODES,
-  REQUIRE_PERMISSIONS_METADATA_KEY
+  getRpcAuthorizationModeDeclaration,
+  IDENTITY_ACCOUNT_PERMISSION_CODES
 } from '@oes/common/authorization'
 import { ExceptionFactory } from '@oes/common/exceptions'
 import { ValidatingCommandBus, ValidatingQueryBus } from '@oes/common/cqrs'
 import { IdentityAuditService } from '../../src/application/services/identity-audit.service'
 import { IdentityMachineAuthGrpcController } from '../../src/interfaces/grpc/identity-machine-auth.grpc.controller'
 import { IdentityManagementGrpcController } from '../../src/interfaces/grpc/identity-management.grpc.controller'
+import { IdentityFoundationTrustedExecutionGuard } from '../../src/modules/identity-trusted-execution.module'
 import { IDENTITY_INVALID_WORK_EMAIL } from '../../src/common/constants/exceptions/contact-asset.exceptions'
 import { createApiKeyFixture, createServiceAccountFixture } from '../helpers/machine-fixtures'
 import { createContactAssetFixture } from '../helpers/identity-fixtures'
@@ -333,63 +335,46 @@ describe('identity audit controller integration', () => {
     )
   })
 
-  it('management controller / updateUserBasicInfo 应保留管理员资料权限元数据', () => {
+  it('management controller / updateUserBasicInfo 应声明受信 BUSINESS 执行权限', () => {
     expect(
-      Reflect.getMetadata(
-        REQUIRE_PERMISSIONS_METADATA_KEY,
-        IdentityManagementGrpcController.prototype.updateUserBasicInfo
+      getRpcAuthorizationModeDeclaration(
+        IdentityManagementGrpcController.prototype,
+        'updateUserBasicInfo'
       )
-    ).toEqual({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.UPDATE_ACCOUNT_PROFILE] })
+    ).toEqual({
+      mode: 'BUSINESS',
+      permissions: { all: [IDENTITY_ACCOUNT_PERMISSION_CODES.UPDATE_ACCOUNT_PROFILE] }
+    })
+    expect(Reflect.getMetadata(GUARDS_METADATA, IdentityManagementGrpcController)).toEqual([
+      IdentityFoundationTrustedExecutionGuard
+    ])
   })
 
-  it('management controller / contact asset mutations 应使用统一 Contact Asset 权限码', () => {
-    expect(
-      Reflect.getMetadata(
-        REQUIRE_PERMISSIONS_METADATA_KEY,
-        IdentityManagementGrpcController.prototype.assignAccountWorkEmailAsset
-      )
-    ).toEqual({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.ASSIGN_CONTACT_ASSET] })
-    expect(
-      Reflect.getMetadata(
-        REQUIRE_PERMISSIONS_METADATA_KEY,
-        IdentityManagementGrpcController.prototype.assignAccountWorkPhoneAsset
-      )
-    ).toEqual({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.ASSIGN_CONTACT_ASSET] })
-    expect(
-      Reflect.getMetadata(
-        REQUIRE_PERMISSIONS_METADATA_KEY,
-        IdentityManagementGrpcController.prototype.revokeAccountWorkEmailAsset
-      )
-    ).toEqual({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.RELEASE_CONTACT_ASSET] })
-    expect(
-      Reflect.getMetadata(
-        REQUIRE_PERMISSIONS_METADATA_KEY,
-        IdentityManagementGrpcController.prototype.revokeAccountWorkPhoneAsset
-      )
-    ).toEqual({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.RELEASE_CONTACT_ASSET] })
-    expect(
-      Reflect.getMetadata(
-        REQUIRE_PERMISSIONS_METADATA_KEY,
-        IdentityManagementGrpcController.prototype.setAccountPrimaryWorkEmailAsset
-      )
-    ).toEqual({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.SET_PRIMARY_CONTACT_ASSET] })
-    expect(
-      Reflect.getMetadata(
-        REQUIRE_PERMISSIONS_METADATA_KEY,
-        IdentityManagementGrpcController.prototype.setAccountPrimaryWorkPhoneAsset
-      )
-    ).toEqual({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.SET_PRIMARY_CONTACT_ASSET] })
-    expect(
-      Reflect.getMetadata(
-        REQUIRE_PERMISSIONS_METADATA_KEY,
-        IdentityManagementGrpcController.prototype.setAccountWorkEmailAssetStatus
-      )
-    ).toEqual({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.SET_CONTACT_ASSET_STATUS] })
-    expect(
-      Reflect.getMetadata(
-        REQUIRE_PERMISSIONS_METADATA_KEY,
-        IdentityManagementGrpcController.prototype.setAccountWorkPhoneAssetStatus
-      )
-    ).toEqual({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.SET_CONTACT_ASSET_STATUS] })
+  it('management controller / contact asset mutations 应声明统一的受信 BUSINESS 权限码', () => {
+    const declarations = [
+      ['assignAccountWorkEmailAsset', IDENTITY_ACCOUNT_PERMISSION_CODES.ASSIGN_CONTACT_ASSET],
+      ['assignAccountWorkPhoneAsset', IDENTITY_ACCOUNT_PERMISSION_CODES.ASSIGN_CONTACT_ASSET],
+      ['revokeAccountWorkEmailAsset', IDENTITY_ACCOUNT_PERMISSION_CODES.RELEASE_CONTACT_ASSET],
+      ['revokeAccountWorkPhoneAsset', IDENTITY_ACCOUNT_PERMISSION_CODES.RELEASE_CONTACT_ASSET],
+      [
+        'setAccountPrimaryWorkEmailAsset',
+        IDENTITY_ACCOUNT_PERMISSION_CODES.SET_PRIMARY_CONTACT_ASSET
+      ],
+      [
+        'setAccountPrimaryWorkPhoneAsset',
+        IDENTITY_ACCOUNT_PERMISSION_CODES.SET_PRIMARY_CONTACT_ASSET
+      ],
+      [
+        'setAccountWorkEmailAssetStatus',
+        IDENTITY_ACCOUNT_PERMISSION_CODES.SET_CONTACT_ASSET_STATUS
+      ],
+      ['setAccountWorkPhoneAssetStatus', IDENTITY_ACCOUNT_PERMISSION_CODES.SET_CONTACT_ASSET_STATUS]
+    ] as const
+
+    for (const [method, code] of declarations) {
+      expect(
+        getRpcAuthorizationModeDeclaration(IdentityManagementGrpcController.prototype, method)
+      ).toEqual({ mode: 'BUSINESS', permissions: { all: [code] } })
+    }
   })
 })

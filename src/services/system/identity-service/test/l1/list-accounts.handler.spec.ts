@@ -1,9 +1,7 @@
 import { GUARDS_METADATA, INTERCEPTORS_METADATA } from '@nestjs/common/constants'
 import {
-  AuthenticatedOperatorGuard,
-  GrpcRequestContextInterceptor,
-  InternalServiceGuard,
-  REQUIRE_AUTHENTICATED_OPERATOR_METADATA_KEY
+  getRpcAuthorizationModeDeclaration,
+  GrpcRequestContextInterceptor
 } from '@oes/common/authorization'
 import { QueryBus } from '@nestjs/cqrs'
 import { ValidatingQueryBus } from '@oes/common/cqrs'
@@ -13,6 +11,7 @@ import { ListAccountsHandler } from '../../src/application/queries/account/list-
 import { ListAccountsQuery } from '../../src/application/queries/account/list-accounts.query'
 import { AccountDirectoryEntity } from '../../src/domain/entities/account-directory.entity'
 import { IdentityQueryGrpcController } from '../../src/interfaces/grpc/identity-query.grpc.controller'
+import { IdentityFoundationTrustedExecutionGuard } from '../../src/modules/identity-trusted-execution.module'
 import { createAccountRepositoryMock } from '../helpers/identity-fixtures'
 
 describe('list accounts query', () => {
@@ -252,9 +251,8 @@ describe('list accounts query', () => {
     })
   })
 
-  it('grpc controller / listAccounts 应要求 authenticated operator context', () => {
-    const guards =
-      Reflect.getMetadata(GUARDS_METADATA, IdentityQueryGrpcController.prototype.listAccounts) ?? []
+  it('grpc controller / listAccounts 应声明受信 BUSINESS 执行并使用 Identity guard', () => {
+    const guards = Reflect.getMetadata(GUARDS_METADATA, IdentityQueryGrpcController) ?? []
     const interceptors =
       Reflect.getMetadata(
         INTERCEPTORS_METADATA,
@@ -262,18 +260,14 @@ describe('list accounts query', () => {
       ) ?? []
 
     expect(
-      Reflect.getMetadata(
-        REQUIRE_AUTHENTICATED_OPERATOR_METADATA_KEY,
-        IdentityQueryGrpcController.prototype.listAccounts
-      )
-    ).toBe(true)
-    expect(guards).toEqual([InternalServiceGuard, AuthenticatedOperatorGuard])
+      getRpcAuthorizationModeDeclaration(IdentityQueryGrpcController.prototype, 'listAccounts')
+    ).toEqual({ mode: 'BUSINESS', permissions: { all: ['identity.account.list'] } })
+    expect(guards).toEqual([IdentityFoundationTrustedExecutionGuard])
     expect(interceptors).toEqual([GrpcRequestContextInterceptor])
   })
 
-  it('grpc controller / countTenantAccounts 应要求 authenticated operator context', () => {
-    const guards =
-      Reflect.getMetadata(GUARDS_METADATA, IdentityQueryGrpcController.prototype.countTenantAccounts) ?? []
+  it('grpc controller / countTenantAccounts 应声明受信 BUSINESS 执行并使用 Identity guard', () => {
+    const guards = Reflect.getMetadata(GUARDS_METADATA, IdentityQueryGrpcController) ?? []
     const interceptors =
       Reflect.getMetadata(
         INTERCEPTORS_METADATA,
@@ -281,12 +275,12 @@ describe('list accounts query', () => {
       ) ?? []
 
     expect(
-      Reflect.getMetadata(
-        REQUIRE_AUTHENTICATED_OPERATOR_METADATA_KEY,
-        IdentityQueryGrpcController.prototype.countTenantAccounts
+      getRpcAuthorizationModeDeclaration(
+        IdentityQueryGrpcController.prototype,
+        'countTenantAccounts'
       )
-    ).toBe(true)
-    expect(guards).toEqual([InternalServiceGuard, AuthenticatedOperatorGuard])
+    ).toEqual({ mode: 'BUSINESS', permissions: { all: ['identity.account.list'] } })
+    expect(guards).toEqual([IdentityFoundationTrustedExecutionGuard])
     expect(interceptors).toEqual([GrpcRequestContextInterceptor])
   })
 
