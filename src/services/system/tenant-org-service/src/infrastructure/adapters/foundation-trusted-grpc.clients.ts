@@ -13,17 +13,39 @@ import {
   TrustedGrpcMetadataProvider
 } from '@oes/common/authorization'
 import { resolveCommonProtoPath } from '@oes/common/contracts'
-import { EXECUTION_TOKEN_SERVICE_NAME, ExecutionTokenServiceClient } from '@oes/common/generated/auth_service'
-import { createGrpcClientCredentials, readLocalVerifiedWorkloadIdentity, safeGrpcCall } from '@oes/common/transport'
+import {
+  EXECUTION_TOKEN_SERVICE_NAME,
+  ExecutionTokenServiceClient
+} from '@oes/common/generated/auth_service'
+import {
+  createGrpcClientCredentials,
+  readLocalVerifiedWorkloadIdentity,
+  safeGrpcCall
+} from '@oes/common/transport'
 
-export type TenantOrgFoundationTargetProfile = Readonly<{ audience: string; execution: 'HUMAN_OBO' }>
+export type TenantOrgFoundationTargetProfile = Readonly<{
+  audience: string
+  execution: 'HUMAN_OBO'
+}>
 
 /** Freezes TenantOrg's package-owned target audiences without importing another service's producer. */
 export const TENANTORG_FOUNDATION_TARGETS = Object.freeze({
-  'auth-service': Object.freeze({ audience: 'urn:oes:service:auth-service', execution: 'HUMAN_OBO' as const }),
-  'identity-service': Object.freeze({ audience: 'urn:oes:service:identity-service', execution: 'HUMAN_OBO' as const }),
-  'permission-service': Object.freeze({ audience: 'urn:oes:service:permission-service', execution: 'HUMAN_OBO' as const }),
-  'hr-service': Object.freeze({ audience: 'urn:oes:service:hr-service', execution: 'HUMAN_OBO' as const })
+  'auth-service': Object.freeze({
+    audience: 'urn:oes:service:auth-service',
+    execution: 'HUMAN_OBO' as const
+  }),
+  'identity-service': Object.freeze({
+    audience: 'urn:oes:service:identity-service',
+    execution: 'HUMAN_OBO' as const
+  }),
+  'permission-service': Object.freeze({
+    audience: 'urn:oes:service:permission-service',
+    execution: 'HUMAN_OBO' as const
+  }),
+  'hr-service': Object.freeze({
+    audience: 'urn:oes:service:hr-service',
+    execution: 'HUMAN_OBO' as const
+  })
 }) satisfies Readonly<Record<string, TenantOrgFoundationTargetProfile>>
 
 const ERRORS = Object.freeze({
@@ -191,35 +213,64 @@ function required(name: string): string {
 /** Lazily creates one immutable mTLS client for one TenantOrg foundation target. */
 abstract class TenantOrgFoundationMtlsClient {
   private client?: ClientGrpc
-  protected constructor(private readonly packageName: string, private readonly protos: readonly string[], private readonly envKeys: readonly string[], private readonly fallback: string) {}
+  protected constructor(
+    private readonly packageName: string,
+    private readonly protos: readonly string[],
+    private readonly envKeys: readonly string[],
+    private readonly fallback: string
+  ) {}
   getClient(): ClientGrpc {
-    return (this.client ??= ClientProxyFactory.create({ transport: Transport.GRPC, options: {
-      package: this.packageName,
-      protoPath: this.protos.map((path) => resolveCommonProtoPath(path)),
-      url: tenantOrgTargetUrl(this.envKeys, this.fallback),
-      credentials: createGrpcClientCredentials()
-    } }) as unknown as ClientGrpc)
+    return (this.client ??= ClientProxyFactory.create({
+      transport: Transport.GRPC,
+      options: {
+        package: this.packageName,
+        protoPath: this.protos.map((path) => resolveCommonProtoPath(path)),
+        url: tenantOrgTargetUrl(this.envKeys, this.fallback),
+        credentials: createGrpcClientCredentials()
+      }
+    }) as unknown as ClientGrpc)
   }
 }
 
 /** Owns TenantOrg's certificate-bound channel to Auth without the generic connection pool. */
 export class TenantOrgAuthTrustedGrpcClient extends TenantOrgFoundationMtlsClient {
-  constructor() { super('auth_service', ['auth_service/auth.proto'], ['GRPC_SERVICE_AUTH_URL'], '127.0.0.1:50050') }
+  constructor() {
+    super('auth_service', ['auth_service/auth.proto'], ['GRPC_SERVICE_AUTH_URL'], '127.0.0.1:50050')
+  }
 }
 
 /** Owns TenantOrg's certificate-bound channel to HR without the generic connection pool. */
 export class TenantOrgHrTrustedGrpcClient extends TenantOrgFoundationMtlsClient {
-  constructor() { super('hr_service', ['hr_service/hr.proto'], ['GRPC_SERVICE_HR_URL'], '127.0.0.1:50055') }
+  constructor() {
+    super('hr_service', ['hr_service/hr.proto'], ['GRPC_SERVICE_HR_URL'], '127.0.0.1:50055')
+  }
 }
 
 /** Owns TenantOrg's certificate-bound channel to Identity without the generic connection pool. */
 export class TenantOrgIdentityTrustedGrpcClient extends TenantOrgFoundationMtlsClient {
-  constructor() { super('identity_service', ['identity_service/identity_query.proto'], ['GRPC_SERVICE_IDENTITY_URL'], '127.0.0.1:50052') }
+  constructor() {
+    super(
+      'identity_service',
+      ['identity_service/identity_query.proto'],
+      ['GRPC_SERVICE_IDENTITY_URL'],
+      '127.0.0.1:50052'
+    )
+  }
 }
 
 /** Owns TenantOrg's certificate-bound channel to Permission without the generic connection pool. */
 export class TenantOrgPermissionTrustedGrpcClient extends TenantOrgFoundationMtlsClient {
-  constructor() { super('permission_service', ['permission_service/permission_management.proto', 'permission_service/permission_access_summary.proto'], ['GRPC_SERVICE_PERMISSION_URL'], '127.0.0.1:50051') }
+  constructor() {
+    super(
+      'permission_service',
+      [
+        'permission_service/permission_management.proto',
+        'permission_service/permission_access_summary.proto'
+      ],
+      ['GRPC_SERVICE_PERMISSION_URL'],
+      '127.0.0.1:50051'
+    )
+  }
 }
 
 /** Resolves deployment-owned target URLs and permits local defaults only outside production. */

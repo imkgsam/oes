@@ -75,7 +75,11 @@ export function buildHrOnboardingGrpcClients(): ClientProviderOptions[] {
       options: {
         package: 'identity_service',
         protoPath: [resolveCommonProtoPath('identity_service/identity_query.proto')],
-        url: resolveDownstreamGrpcUrl('GRPC_SERVICE_IDENTITY_URL', 'IDENTITY_GRPC_URL', '127.0.0.1:50052')
+        url: resolveDownstreamGrpcUrl(
+          'GRPC_SERVICE_IDENTITY_URL',
+          'IDENTITY_GRPC_URL',
+          '127.0.0.1:50052'
+        )
       }
     },
     {
@@ -84,7 +88,11 @@ export function buildHrOnboardingGrpcClients(): ClientProviderOptions[] {
       options: {
         package: 'permission_service',
         protoPath: [resolveCommonProtoPath('permission_service/permission_management.proto')],
-        url: resolveDownstreamGrpcUrl('GRPC_SERVICE_PERMISSION_URL', 'PERMISSION_GRPC_URL', '127.0.0.1:50051')
+        url: resolveDownstreamGrpcUrl(
+          'GRPC_SERVICE_PERMISSION_URL',
+          'PERMISSION_GRPC_URL',
+          '127.0.0.1:50051'
+        )
       }
     }
   ]
@@ -92,7 +100,13 @@ export function buildHrOnboardingGrpcClients(): ClientProviderOptions[] {
 
 /** Adds mandatory workload credentials and rejects an unresolved production target URL. */
 function createMtlsClientProvider(client: ClientProviderOptions): ClientProviderOptions {
-  if (!('transport' in client) || client.transport !== Transport.GRPC || !('options' in client) || !('url' in client.options) || !client.options.url) {
+  if (
+    !('transport' in client) ||
+    client.transport !== Transport.GRPC ||
+    !('options' in client) ||
+    !('url' in client.options) ||
+    !client.options.url
+  ) {
     throw new Error('HR_FOUNDATION_EXECUTION_UNAVAILABLE')
   }
   return {

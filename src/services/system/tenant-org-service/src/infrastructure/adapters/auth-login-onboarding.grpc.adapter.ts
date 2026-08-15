@@ -6,7 +6,10 @@ import {
 } from '@oes/common/generated/auth_service'
 import { safeGrpcCall } from '@oes/common/transport'
 import { AuthLoginOnboardingPort } from '../../application/ports/auth-login-onboarding.port'
-import { TenantOrgAuthTrustedGrpcClient, TenantOrgFoundationTrustedGrpcExecutionProducer } from './foundation-trusted-grpc.clients'
+import {
+  TenantOrgAuthTrustedGrpcClient,
+  TenantOrgFoundationTrustedGrpcExecutionProducer
+} from './foundation-trusted-grpc.clients'
 
 /** AuthLoginOnboardingGrpcAdapter calls auth-service login bootstrap APIs without owning auth truth. */
 @Injectable()
@@ -60,5 +63,4 @@ export class AuthLoginOnboardingGrpcAdapter implements AuthLoginOnboardingPort, 
       { caller: 'tenant-org-service', method: 'AuthService.requirePasswordSetup' }
     )
   }
-
 }

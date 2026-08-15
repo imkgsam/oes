@@ -181,7 +181,7 @@ export class PolicyInstanceManagementGrpcController {
         ? SUBJECT_SELECTOR_FROM_PROTO[request.subjectSelectorType]
         : undefined,
       subjectSelectorValue: request.subjectSelectorValue || undefined,
-      enabled: request.hasEnabledFilter ? request.enabled ?? false : undefined,
+      enabled: request.hasEnabledFilter ? (request.enabled ?? false) : undefined,
       page: request.page,
       pageSize: request.pageSize
     })
@@ -306,9 +306,7 @@ export class PolicyInstanceManagementGrpcController {
     return Object.fromEntries(
       Object.entries(value).filter(
         ([, entry]) =>
-          entry !== undefined &&
-          entry !== '' &&
-          (!Array.isArray(entry) || entry.length > 0)
+          entry !== undefined && entry !== '' && (!Array.isArray(entry) || entry.length > 0)
       )
     ) as T
   }
@@ -321,7 +319,5 @@ function stringParam(value: unknown): string | undefined {
 
 /** stringArrayParam narrows arbitrary JSON params to repeated string proto fields. */
 function stringArrayParam(value: unknown): string[] | undefined {
-  return Array.isArray(value) && value.every((item) => typeof item === 'string')
-    ? value
-    : undefined
+  return Array.isArray(value) && value.every((item) => typeof item === 'string') ? value : undefined
 }

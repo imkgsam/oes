@@ -19,13 +19,12 @@ export class PermissionOnboardingGrantGrpcAdapter
   private permissionManagementService!: PermissionManagementServiceClient
   private readonly trusted = new HrFoundationTrustedGrpcExecutionProducer()
 
-  constructor(
-    @Inject(PERMISSION_GRPC_CLIENT) private readonly client: ClientGrpc
-  ) {}
+  constructor(@Inject(PERMISSION_GRPC_CLIENT) private readonly client: ClientGrpc) {}
 
   onModuleInit() {
-    this.permissionManagementService =
-      this.client.getService<PermissionManagementServiceClient>(PERMISSION_MANAGEMENT_SERVICE_NAME)
+    this.permissionManagementService = this.client.getService<PermissionManagementServiceClient>(
+      PERMISSION_MANAGEMENT_SERVICE_NAME
+    )
   }
 
   async grantInitialAccessForEmployeeAccount(input: {
@@ -53,7 +52,9 @@ export class PermissionOnboardingGrantGrpcAdapter
           idempotencyKey: input.idempotencyKey,
           reason: input.reason
         },
-        await this.trusted.forBusinessCall('permission-service', ['permission.account.assign_roles'])
+        await this.trusted.forBusinessCall('permission-service', [
+          'permission.account.assign_roles'
+        ])
       ),
       {
         caller: 'hr-service',
@@ -65,5 +66,4 @@ export class PermissionOnboardingGrantGrpcAdapter
       grantId: response.grant?.idempotencyKey || response.grant?.id || undefined
     }
   }
-
 }

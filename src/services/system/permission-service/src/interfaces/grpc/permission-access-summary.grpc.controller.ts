@@ -5,9 +5,7 @@ import { PermissionFoundationTrustedExecutionGuard } from '../../modules/authori
 import { Metadata } from '@grpc/grpc-js'
 import { ValidatingQueryBus } from '@oes/common/cqrs'
 import { GrpcExceptionFilter } from '../../../../../../common/dist/core/filters'
-import {
-  InternalServiceGuard
-} from '@oes/common/authorization'
+import { InternalServiceGuard } from '@oes/common/authorization'
 import {
   AccountAccessSummaryResponse,
   AccountNavigationSummaryResponse,
@@ -16,7 +14,10 @@ import {
   PermissionAccessSummaryServiceControllerMethods,
   ResolveAccountNavigationRequest
 } from '@oes/common/generated/permission_service'
-import { GetAccountAccessSummaryQuery, ResolveAccountNavigationQuery } from '../../application/queries/access-summary'
+import {
+  GetAccountAccessSummaryQuery,
+  ResolveAccountNavigationQuery
+} from '../../application/queries/access-summary'
 import { ScopeLevel } from '../../domain/enums/scope-level.enum'
 
 @UseInterceptors(GrpcRequestContextInterceptor)
@@ -25,9 +26,7 @@ import { ScopeLevel } from '../../domain/enums/scope-level.enum'
 @UseGuards(PermissionFoundationTrustedExecutionGuard)
 @PermissionAccessSummaryServiceControllerMethods()
 // Exposes internal account access summaries for trusted service-to-service consumers.
-export class PermissionAccessSummaryGrpcController
-  implements PermissionAccessSummaryServiceController
-{
+export class PermissionAccessSummaryGrpcController implements PermissionAccessSummaryServiceController {
   private readonly logger = new Logger(PermissionAccessSummaryGrpcController.name)
 
   constructor(private readonly queryBus: ValidatingQueryBus) {}

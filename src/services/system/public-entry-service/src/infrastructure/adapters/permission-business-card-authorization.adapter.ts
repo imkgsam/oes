@@ -11,20 +11,20 @@ import {
   BusinessCardAuthorizationPort,
   BusinessCardQueryScope
 } from '../../application/ports/business-card.ports'
-import {
-  BusinessCardResourceFacts,
-  OperatorContext
-} from '../../domain/types/business-card.types'
+import { BusinessCardResourceFacts, OperatorContext } from '../../domain/types/business-card.types'
 import { PublicEntryFoundationTrustedGrpcExecutionProducer } from './foundation-trusted-grpc.clients'
 
 export const PUBLIC_ENTRY_PERMISSION_GRPC_CLIENT = Symbol('PUBLIC_ENTRY_PERMISSION_GRPC_CLIENT')
 
 type PermissionClientLike = {
-  checkPermission(request: {
-    accountId: string
-    permissionCode: string
-    tenantId?: string
-  }, ...rest: unknown[]): Observable<CheckPermissionResponse>
+  checkPermission(
+    request: {
+      accountId: string
+      permissionCode: string
+      tenantId?: string
+    },
+    ...rest: unknown[]
+  ): Observable<CheckPermissionResponse>
 }
 
 // PermissionBusinessCardAuthorizationAdapter enforces Phase 1 tenant-wide admin scope through permission-service RBAC.

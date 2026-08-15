@@ -12,14 +12,27 @@ import {
   TrustedGrpcMetadataProvider
 } from '@oes/common/authorization'
 import { resolveCommonProtoPath } from '@oes/common/contracts'
-import { EXECUTION_TOKEN_SERVICE_NAME, ExecutionTokenServiceClient } from '@oes/common/generated/auth_service'
-import { createGrpcClientCredentials, readLocalVerifiedWorkloadIdentity, safeGrpcCall } from '@oes/common/transport'
+import {
+  EXECUTION_TOKEN_SERVICE_NAME,
+  ExecutionTokenServiceClient
+} from '@oes/common/generated/auth_service'
+import {
+  createGrpcClientCredentials,
+  readLocalVerifiedWorkloadIdentity,
+  safeGrpcCall
+} from '@oes/common/transport'
 import { GatewayTrustedGrpcExecutionProducer } from '../../common/grpc/gateway-trusted-grpc-execution-producer'
 import { DownstreamRequestSource } from '../../common/grpc/gateway-downstream-source.mapper'
 import { TrustedIdentityGrpcClient, IDENTITY_TARGET_AUDIENCE } from './trusted-identity.grpc.client'
-import { TrustedPermissionGrpcClient, PERMISSION_TARGET_AUDIENCE } from './trusted-permission.grpc.client'
+import {
+  TrustedPermissionGrpcClient,
+  PERMISSION_TARGET_AUDIENCE
+} from './trusted-permission.grpc.client'
 import { TrustedHrGrpcClient, HR_TARGET_AUDIENCE } from './trusted-hr.grpc.client'
-import { TrustedTenantOrgGrpcClient, TENANTORG_TARGET_AUDIENCE } from './trusted-tenant-org.grpc.client'
+import {
+  TrustedTenantOrgGrpcClient,
+  TENANTORG_TARGET_AUDIENCE
+} from './trusted-tenant-org.grpc.client'
 
 export const AUTH_TARGET_AUDIENCE = 'urn:oes:service:auth-service'
 

@@ -6,7 +6,10 @@ import {
 } from '@oes/common/generated/hr_service'
 import { safeGrpcCall } from '@oes/common/transport'
 import { HrEmployeeOnboardingPort } from '../../application/ports/hr-employee-onboarding.port'
-import { TenantOrgFoundationTrustedGrpcExecutionProducer, TenantOrgHrTrustedGrpcClient } from './foundation-trusted-grpc.clients'
+import {
+  TenantOrgFoundationTrustedGrpcExecutionProducer,
+  TenantOrgHrTrustedGrpcClient
+} from './foundation-trusted-grpc.clients'
 
 /** HrEmployeeOnboardingGrpcAdapter asks hr-service to own first-admin employee creation during tenant onboarding. */
 @Injectable()
@@ -18,7 +21,9 @@ export class HrEmployeeOnboardingGrpcAdapter implements HrEmployeeOnboardingPort
   constructor(private readonly hrClient: TenantOrgHrTrustedGrpcClient) {}
 
   onModuleInit() {
-    this.client = this.hrClient.getClient().getService<HrManagementServiceClient>(HR_MANAGEMENT_SERVICE_NAME)
+    this.client = this.hrClient
+      .getClient()
+      .getService<HrManagementServiceClient>(HR_MANAGEMENT_SERVICE_NAME)
   }
 
   async createEmployeeOnboarding(input: {
@@ -60,7 +65,9 @@ export class HrEmployeeOnboardingGrpcAdapter implements HrEmployeeOnboardingPort
     const employeeId = response.employee?.id?.trim()
     const employmentId = response.employment?.id?.trim()
     if (!employeeId || !employmentId) {
-      this.logger.error('hr-service returned empty employee or employment id during tenant onboarding')
+      this.logger.error(
+        'hr-service returned empty employee or employment id during tenant onboarding'
+      )
       throw new Error('hr-service did not return employee/employment id')
     }
     return {
@@ -69,5 +76,4 @@ export class HrEmployeeOnboardingGrpcAdapter implements HrEmployeeOnboardingPort
       employmentId
     }
   }
-
 }

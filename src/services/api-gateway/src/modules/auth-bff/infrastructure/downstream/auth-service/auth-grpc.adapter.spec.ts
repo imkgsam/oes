@@ -13,7 +13,9 @@ describe('AuthGrpcAdapter', () => {
       forBusinessCall: jest.fn().mockResolvedValue(protectedMetadata)
     }
     const machineExecution = {
-      forInternalCall: jest.fn(async (_audience, _code, _trace, callback) => callback(protectedMetadata))
+      forInternalCall: jest.fn(async (_audience, _code, _trace, callback) =>
+        callback(protectedMetadata)
+      )
     }
     const client = { getClient: jest.fn(() => ({ getService: jest.fn(() => svc) })) }
     return {
@@ -151,7 +153,9 @@ describe('AuthGrpcAdapter', () => {
     const svc = {
       getPlatformTerminalLoginPolicy: jest.fn().mockReturnValue(of({ entries: [] })),
       updatePlatformTerminalLoginPolicy: jest.fn().mockReturnValue(of({ entries: [] })),
-      updateTenantTerminalMfaPolicy: jest.fn().mockReturnValue(of({ tenantId: 'tenant-1', entries: [] }))
+      updateTenantTerminalMfaPolicy: jest
+        .fn()
+        .mockReturnValue(of({ tenantId: 'tenant-1', entries: [] }))
     }
     const { adapter, protectedMetadata } = createAdapter(svc)
     adapter.onModuleInit()

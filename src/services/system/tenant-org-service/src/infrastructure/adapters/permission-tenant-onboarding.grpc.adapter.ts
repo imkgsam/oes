@@ -7,11 +7,16 @@ import {
 } from '@oes/common/generated/permission_service'
 import { safeGrpcCall } from '@oes/common/transport'
 import { PermissionTenantOnboardingPort } from '../../application/ports/permission-tenant-onboarding.port'
-import { TenantOrgFoundationTrustedGrpcExecutionProducer, TenantOrgPermissionTrustedGrpcClient } from './foundation-trusted-grpc.clients'
+import {
+  TenantOrgFoundationTrustedGrpcExecutionProducer,
+  TenantOrgPermissionTrustedGrpcClient
+} from './foundation-trusted-grpc.clients'
 
 /** PermissionTenantOnboardingGrpcAdapter calls permission-service tenant onboarding APIs without owning RBAC truth. */
 @Injectable()
-export class PermissionTenantOnboardingGrpcAdapter implements PermissionTenantOnboardingPort, OnModuleInit {
+export class PermissionTenantOnboardingGrpcAdapter
+  implements PermissionTenantOnboardingPort, OnModuleInit
+{
   private readonly logger = new Logger(PermissionTenantOnboardingGrpcAdapter.name)
   private client!: PermissionManagementServiceClient
   private readonly trusted = new TenantOrgFoundationTrustedGrpcExecutionProducer()
@@ -19,7 +24,9 @@ export class PermissionTenantOnboardingGrpcAdapter implements PermissionTenantOn
   constructor(private readonly permissionClient: TenantOrgPermissionTrustedGrpcClient) {}
 
   onModuleInit() {
-    this.client = this.permissionClient.getClient().getService<PermissionManagementServiceClient>(PERMISSION_MANAGEMENT_SERVICE_NAME)
+    this.client = this.permissionClient
+      .getClient()
+      .getService<PermissionManagementServiceClient>(PERMISSION_MANAGEMENT_SERVICE_NAME)
   }
 
   async ensureTenantAdminRole(input: { tenantId: string; idempotencyKey: string }) {
@@ -49,14 +56,24 @@ export class PermissionTenantOnboardingGrpcAdapter implements PermissionTenantOn
     })
   }
 
-  async grantTenantAdmin(input: { tenantId: string; accountId: string; roleId: string; idempotencyKey: string }) {
+  async grantTenantAdmin(input: {
+    tenantId: string
+    accountId: string
+    roleId: string
+    idempotencyKey: string
+  }) {
     return this.grantInitialTenantRole({
       ...input,
       reason: 'tenant onboarding first admin'
     })
   }
 
-  async grantHrAdmin(input: { tenantId: string; accountId: string; roleId: string; idempotencyKey: string }) {
+  async grantHrAdmin(input: {
+    tenantId: string
+    accountId: string
+    roleId: string
+    idempotencyKey: string
+  }) {
     return this.grantInitialTenantRole({
       ...input,
       reason: 'tenant onboarding first admin hr access'
@@ -84,14 +101,23 @@ export class PermissionTenantOnboardingGrpcAdapter implements PermissionTenantOn
           'permission.role_instance.create_from_template'
         ])
       ),
-      { caller: 'tenant-org-service', method: 'PermissionManagementService.ensureTenantRoleInstanceFromTemplate' }
+      {
+        caller: 'tenant-org-service',
+        method: 'PermissionManagementService.ensureTenantRoleInstanceFromTemplate'
+      }
     )
     const roleId = response.role?.id?.trim()
     if (!roleId) {
-      this.logger.error(`permission-service returned empty ${input.templateRoleCode} role id during tenant onboarding`)
+      this.logger.error(
+        `permission-service returned empty ${input.templateRoleCode} role id during tenant onboarding`
+      )
       throw new Error(`permission-service did not return ${input.templateRoleCode} role id`)
     }
-    return { roleId, roleCode: response.role?.code || input.templateRoleCode, created: response.created }
+    return {
+      roleId,
+      roleCode: response.role?.code || input.templateRoleCode,
+      created: response.created
+    }
   }
 
   /** grantInitialTenantRole delegates account-role binding to permission-service onboarding grant contract. */
@@ -111,11 +137,15 @@ export class PermissionTenantOnboardingGrpcAdapter implements PermissionTenantOn
           idempotencyKey: input.idempotencyKey,
           reason: input.reason
         },
-        await this.trusted.forBusinessCall('permission-service', ['permission.account.assign_roles'])
+        await this.trusted.forBusinessCall('permission-service', [
+          'permission.account.assign_roles'
+        ])
       ),
-      { caller: 'tenant-org-service', method: 'PermissionManagementService.grantInitialAccessForTenantAccount' }
+      {
+        caller: 'tenant-org-service',
+        method: 'PermissionManagementService.grantInitialAccessForTenantAccount'
+      }
     )
     return { grantId: response.grant?.id ?? '' }
   }
-
 }

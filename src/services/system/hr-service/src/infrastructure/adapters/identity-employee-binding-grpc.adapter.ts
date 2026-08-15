@@ -19,13 +19,12 @@ export class IdentityEmployeeBindingGrpcAdapter
   private identityManagementService!: IdentityManagementServiceClient
   private readonly trusted = new HrFoundationTrustedGrpcExecutionProducer()
 
-  constructor(
-    @Inject(IDENTITY_GRPC_CLIENT) private readonly client: ClientGrpc
-  ) {}
+  constructor(@Inject(IDENTITY_GRPC_CLIENT) private readonly client: ClientGrpc) {}
 
   onModuleInit() {
-    this.identityManagementService =
-      this.client.getService<IdentityManagementServiceClient>(IDENTITY_MANAGEMENT_SERVICE_NAME)
+    this.identityManagementService = this.client.getService<IdentityManagementServiceClient>(
+      IDENTITY_MANAGEMENT_SERVICE_NAME
+    )
   }
 
   async bindAccountToEmployee(input: {
@@ -60,5 +59,4 @@ export class IdentityEmployeeBindingGrpcAdapter
       accountId: response.binding?.accountId ?? input.accountId
     }
   }
-
 }

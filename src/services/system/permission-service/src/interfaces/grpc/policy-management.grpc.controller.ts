@@ -45,9 +45,7 @@ function hasOwnField<T extends object>(obj: T, key: keyof T): boolean {
 @UseGuards(PermissionFoundationTrustedExecutionGuard)
 @PolicyManagementServiceControllerMethods()
 export class PolicyManagementGrpcController implements PolicyManagementServiceController {
-  constructor(
-    private readonly queryBus: ValidatingQueryBus
-  ) {}
+  constructor(private readonly queryBus: ValidatingQueryBus) {}
 
   @AuthorizeBusinessRpc({ all: [MANAGEMENT_PERMISSION_CODES.VIEW_POLICY] })
   async getPolicyById(

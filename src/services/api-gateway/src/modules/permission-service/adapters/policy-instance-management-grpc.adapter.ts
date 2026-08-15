@@ -3,7 +3,10 @@ import { ClientGrpc } from '@nestjs/microservices'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
 import { DownstreamRequestSource } from '../../../common/grpc/gateway-downstream-source.mapper'
-import { PERMISSION_TARGET_AUDIENCE, TrustedPermissionGrpcClient } from '../../../infrastructure/grpc/trusted-permission.grpc.client'
+import {
+  PERMISSION_TARGET_AUDIENCE,
+  TrustedPermissionGrpcClient
+} from '../../../infrastructure/grpc/trusted-permission.grpc.client'
 import { GatewayFoundationTrustedGrpcExecutionProducer } from '../../../infrastructure/grpc/trusted-auth.grpc.client'
 
 const CALLER = 'api-gateway'
@@ -87,9 +90,9 @@ export class PolicyInstanceManagementGrpcAdapter implements OnModuleInit {
   ) {}
 
   onModuleInit(): void {
-    this.svc = this.client.getClient().getService<PolicyInstanceManagementGrpcClient>(
-      POLICY_INSTANCE_MANAGEMENT_SERVICE_NAME
-    )
+    this.svc = this.client
+      .getClient()
+      .getService<PolicyInstanceManagementGrpcClient>(POLICY_INSTANCE_MANAGEMENT_SERVICE_NAME)
   }
 
   /** listPolicyInstances reads paged PolicyInstance governance records. */
@@ -115,7 +118,9 @@ export class PolicyInstanceManagementGrpcAdapter implements OnModuleInit {
     const result = await this.call<any>('listPolicyInstances', async () =>
       this.svc.listPolicyInstances(
         payload,
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.policy.list'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.policy.list'
+        ])
       )
     )
 
@@ -144,7 +149,9 @@ export class PolicyInstanceManagementGrpcAdapter implements OnModuleInit {
           enabled: req.enabled ?? true,
           priority: req.priority ?? 0
         },
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.policy.create'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.policy.create'
+        ])
       )
     )
 
@@ -156,7 +163,9 @@ export class PolicyInstanceManagementGrpcAdapter implements OnModuleInit {
     const result = await this.call<any>('getPolicyInstance', async () =>
       this.svc.getPolicyInstance(
         { id: req.id },
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.policy.list'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.policy.list'
+        ])
       )
     )
 
@@ -174,7 +183,9 @@ export class PolicyInstanceManagementGrpcAdapter implements OnModuleInit {
           id: req.id,
           enabled: req.enabled
         },
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.policy.update'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.policy.update'
+        ])
       )
     )
 

@@ -9,24 +9,23 @@ import {
   TenantLifecycleAccessPort,
   TenantLifecycleStatus
 } from '../../application/ports/tenant-lifecycle-access.port'
-import { AuthFoundationTrustedGrpcExecutionProducer, AuthTenantOrgTrustedGrpcClient } from './foundation-trusted-grpc.clients'
+import {
+  AuthFoundationTrustedGrpcExecutionProducer,
+  AuthTenantOrgTrustedGrpcClient
+} from './foundation-trusted-grpc.clients'
 
 /** TenantOrgLifecycleGrpcAdaptor reads tenant lifecycle status from tenant-org-service over gRPC. */
 @Injectable()
-export class TenantOrgLifecycleGrpcAdaptor
-  implements TenantLifecycleAccessPort, OnModuleInit
-{
+export class TenantOrgLifecycleGrpcAdaptor implements TenantLifecycleAccessPort, OnModuleInit {
   private tenantOrgQueryService!: TenantOrgQueryServiceClient
   private readonly trusted = new AuthFoundationTrustedGrpcExecutionProducer()
 
-  constructor(
-    private readonly tenantOrgClient: AuthTenantOrgTrustedGrpcClient
-  ) {}
+  constructor(private readonly tenantOrgClient: AuthTenantOrgTrustedGrpcClient) {}
 
   onModuleInit() {
-    this.tenantOrgQueryService = this.tenantOrgClient.getClient().getService<TenantOrgQueryServiceClient>(
-      TENANT_ORG_QUERY_SERVICE_NAME
-    )
+    this.tenantOrgQueryService = this.tenantOrgClient
+      .getClient()
+      .getService<TenantOrgQueryServiceClient>(TENANT_ORG_QUERY_SERVICE_NAME)
   }
 
   async getTenantStatus(tenantId: string): Promise<TenantLifecycleStatus | null> {
@@ -43,5 +42,4 @@ export class TenantOrgLifecycleGrpcAdaptor
 
     return response.tenant?.status?.trim() || null
   }
-
 }

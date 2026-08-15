@@ -31,7 +31,10 @@ import {
   UpdateAccountProfileRequest
 } from '@oes/common/generated/identity_service'
 import { DownstreamRequestSource } from '../../../../../common/grpc/gateway-downstream-source.mapper'
-import { IDENTITY_TARGET_AUDIENCE, TrustedIdentityGrpcClient } from '../../../../../infrastructure/grpc/trusted-identity.grpc.client'
+import {
+  IDENTITY_TARGET_AUDIENCE,
+  TrustedIdentityGrpcClient
+} from '../../../../../infrastructure/grpc/trusted-identity.grpc.client'
 import { GatewayFoundationTrustedGrpcExecutionProducer } from '../../../../../infrastructure/grpc/trusted-auth.grpc.client'
 
 const CALLER = 'api-gateway'
@@ -44,20 +47,29 @@ export class IdentityQueryGrpcAdapter implements OnModuleInit {
 
   constructor(
     private readonly client: TrustedIdentityGrpcClient,
-    @Optional() private readonly trusted: GatewayFoundationTrustedGrpcExecutionProducer = undefined as never
+    @Optional()
+    private readonly trusted: GatewayFoundationTrustedGrpcExecutionProducer = undefined as never
   ) {}
 
   onModuleInit(): void {
-    this.svc = this.client.getClient().getService<IdentityQueryServiceClient>(IDENTITY_QUERY_SERVICE_NAME)
-    this.managementSvc = this.client.getClient().getService<IdentityManagementServiceClient>(
-      IDENTITY_MANAGEMENT_SERVICE_NAME
-    )
+    this.svc = this.client
+      .getClient()
+      .getService<IdentityQueryServiceClient>(IDENTITY_QUERY_SERVICE_NAME)
+    this.managementSvc = this.client
+      .getClient()
+      .getService<IdentityManagementServiceClient>(IDENTITY_MANAGEMENT_SERVICE_NAME)
   }
 
-  async getAccountById(accountId: string, source: DownstreamRequestSource): Promise<GetAccountByIdResponse> {
+  async getAccountById(
+    accountId: string,
+    source: DownstreamRequestSource
+  ): Promise<GetAccountByIdResponse> {
     return this.call(
       'getAccountById',
-      this.svc.getAccountById({ accountId }, await this.businessMetadata(source, 'identity.account.list'))
+      this.svc.getAccountById(
+        { accountId },
+        await this.businessMetadata(source, 'identity.account.list')
+      )
     )
   }
 
@@ -67,7 +79,10 @@ export class IdentityQueryGrpcAdapter implements OnModuleInit {
   ): Promise<GetEmployeeBindingByAccountIdResponse> {
     return this.call(
       'getEmployeeBindingByAccountId',
-      this.svc.getEmployeeBindingByAccountId({ accountId }, await this.businessMetadata(source, 'identity.account.list'))
+      this.svc.getEmployeeBindingByAccountId(
+        { accountId },
+        await this.businessMetadata(source, 'identity.account.list')
+      )
     )
   }
 
@@ -77,7 +92,10 @@ export class IdentityQueryGrpcAdapter implements OnModuleInit {
   ): Promise<GetAccountsByUserIdResponse> {
     return this.call(
       'getAccountsByUserId',
-      this.svc.getAccountsByUserId({ userId }, await this.businessMetadata(source, 'identity.account.list'))
+      this.svc.getAccountsByUserId(
+        { userId },
+        await this.businessMetadata(source, 'identity.account.list')
+      )
     )
   }
 
@@ -115,17 +133,29 @@ export class IdentityQueryGrpcAdapter implements OnModuleInit {
     )
   }
 
-  async getUserByEmail(email: string, source: DownstreamRequestSource): Promise<GetUserByEmailResponse> {
+  async getUserByEmail(
+    email: string,
+    source: DownstreamRequestSource
+  ): Promise<GetUserByEmailResponse> {
     return this.call(
       'getUserByEmail',
-      this.svc.getUserByEmail({ email }, await this.businessMetadata(source, 'identity.account.list'))
+      this.svc.getUserByEmail(
+        { email },
+        await this.businessMetadata(source, 'identity.account.list')
+      )
     )
   }
 
-  async getUserByPhone(phone: string, source: DownstreamRequestSource): Promise<GetUserByPhoneResponse> {
+  async getUserByPhone(
+    phone: string,
+    source: DownstreamRequestSource
+  ): Promise<GetUserByPhoneResponse> {
     return this.call(
       'getUserByPhone',
-      this.svc.getUserByPhone({ phone }, await this.businessMetadata(source, 'identity.account.list'))
+      this.svc.getUserByPhone(
+        { phone },
+        await this.businessMetadata(source, 'identity.account.list')
+      )
     )
   }
 
@@ -135,7 +165,10 @@ export class IdentityQueryGrpcAdapter implements OnModuleInit {
   ): Promise<ListAccountWorkEmailAssetsResponse> {
     return this.call(
       'listAccountWorkEmailAssets',
-      this.svc.listAccountWorkEmailAssets({ accountId }, await this.businessMetadata(source, 'identity.account.self.read'))
+      this.svc.listAccountWorkEmailAssets(
+        { accountId },
+        await this.businessMetadata(source, 'identity.account.self.read')
+      )
     )
   }
 
@@ -145,7 +178,10 @@ export class IdentityQueryGrpcAdapter implements OnModuleInit {
   ): Promise<ListAccountWorkPhoneAssetsResponse> {
     return this.call(
       'listAccountWorkPhoneAssets',
-      this.svc.listAccountWorkPhoneAssets({ accountId }, await this.businessMetadata(source, 'identity.account.self.read'))
+      this.svc.listAccountWorkPhoneAssets(
+        { accountId },
+        await this.businessMetadata(source, 'identity.account.self.read')
+      )
     )
   }
 
@@ -155,7 +191,10 @@ export class IdentityQueryGrpcAdapter implements OnModuleInit {
   ): Promise<UpdateAccountProfileResponse> {
     return this.call(
       'updateAccountProfile',
-      this.managementSvc.updateAccountProfile(request, await this.businessMetadata(source, 'identity.account.profile.update'))
+      this.managementSvc.updateAccountProfile(
+        request,
+        await this.businessMetadata(source, 'identity.account.profile.update')
+      )
     )
   }
 
@@ -165,7 +204,10 @@ export class IdentityQueryGrpcAdapter implements OnModuleInit {
   ): Promise<UpdateOwnAccountProfileResponse> {
     return this.call(
       'updateOwnAccountProfile',
-      this.managementSvc.updateOwnAccountProfile(request, await this.trusted.forSelfServiceCall(source, IDENTITY_TARGET_AUDIENCE))
+      this.managementSvc.updateOwnAccountProfile(
+        request,
+        await this.trusted.forSelfServiceCall(source, IDENTITY_TARGET_AUDIENCE)
+      )
     )
   }
 
@@ -187,7 +229,10 @@ export class IdentityQueryGrpcAdapter implements OnModuleInit {
 
     return this.call(
       'updateOwnUserBasicInfo',
-      this.managementSvc.updateOwnUserBasicInfo(grpcRequest, await this.trusted.forSelfServiceCall(source, IDENTITY_TARGET_AUDIENCE))
+      this.managementSvc.updateOwnUserBasicInfo(
+        grpcRequest,
+        await this.trusted.forSelfServiceCall(source, IDENTITY_TARGET_AUDIENCE)
+      )
     )
   }
 
@@ -209,7 +254,10 @@ export class IdentityQueryGrpcAdapter implements OnModuleInit {
 
     return this.call(
       'updateUserBasicInfo',
-      this.managementSvc.updateUserBasicInfo(grpcRequest, await this.businessMetadata(source, 'identity.account.profile.update'))
+      this.managementSvc.updateUserBasicInfo(
+        grpcRequest,
+        await this.businessMetadata(source, 'identity.account.profile.update')
+      )
     )
   }
 
@@ -235,7 +283,10 @@ export class IdentityQueryGrpcAdapter implements OnModuleInit {
 
     return this.call(
       'createUserAccount',
-      this.managementSvc.createUserAccount(grpcRequest, await this.businessMetadata(source, 'identity.account.create'))
+      this.managementSvc.createUserAccount(
+        grpcRequest,
+        await this.businessMetadata(source, 'identity.account.create')
+      )
     )
   }
 
@@ -245,7 +296,10 @@ export class IdentityQueryGrpcAdapter implements OnModuleInit {
   ): Promise<GetAccountDeletionImpactResponse> {
     return this.call(
       'getAccountDeletionImpact',
-      this.managementSvc.getAccountDeletionImpact({ accountId }, await this.businessMetadata(source, 'identity.account.delete'))
+      this.managementSvc.getAccountDeletionImpact(
+        { accountId },
+        await this.businessMetadata(source, 'identity.account.delete')
+      )
     )
   }
 
@@ -267,7 +321,10 @@ export class IdentityQueryGrpcAdapter implements OnModuleInit {
 
     return this.call(
       'deleteAccount',
-      this.managementSvc.deleteAccount(grpcRequest, await this.businessMetadata(source, 'identity.account.delete'))
+      this.managementSvc.deleteAccount(
+        grpcRequest,
+        await this.businessMetadata(source, 'identity.account.delete')
+      )
     )
   }
 

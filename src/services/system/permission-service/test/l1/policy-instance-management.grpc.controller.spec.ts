@@ -65,9 +65,7 @@ describe('PolicyInstanceManagementGrpcController', () => {
     expect(businessCode('listPolicyInstances')).toBe(MANAGEMENT_PERMISSION_CODES.VIEW_POLICY)
     expect(businessCode('getPolicyInstance')).toBe(MANAGEMENT_PERMISSION_CODES.VIEW_POLICY)
     expect(businessCode('createPolicyInstance')).toBe(MANAGEMENT_PERMISSION_CODES.CREATE_POLICY)
-    expect(businessCode('setPolicyInstanceEnabled')).toBe(
-      MANAGEMENT_PERMISSION_CODES.UPDATE_POLICY
-    )
+    expect(businessCode('setPolicyInstanceEnabled')).toBe(MANAGEMENT_PERMISSION_CODES.UPDATE_POLICY)
   })
 
   it('listPolicyInstances / maps filters and returns paged PolicyInstance records', async () => {

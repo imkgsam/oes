@@ -9,7 +9,10 @@ import {
   TenantOrgQueryServiceClient
 } from '@oes/common/generated/tenant_org_service'
 import { DownstreamRequestSource } from '../../common/grpc/gateway-downstream-source.mapper'
-import { TENANTORG_TARGET_AUDIENCE, TrustedTenantOrgGrpcClient } from '../../infrastructure/grpc/trusted-tenant-org.grpc.client'
+import {
+  TENANTORG_TARGET_AUDIENCE,
+  TrustedTenantOrgGrpcClient
+} from '../../infrastructure/grpc/trusted-tenant-org.grpc.client'
 import { GatewayFoundationTrustedGrpcExecutionProducer } from '../../infrastructure/grpc/trusted-auth.grpc.client'
 
 const CALLER = 'api-gateway'
@@ -42,7 +45,9 @@ export class TenantOrgQueryGrpcAdapter implements OnModuleInit {
   ) {}
 
   onModuleInit(): void {
-    this.svc = this.client.getClient().getService<TenantOrgQueryServiceClient>(TENANT_ORG_QUERY_SERVICE_NAME)
+    this.svc = this.client
+      .getClient()
+      .getService<TenantOrgQueryServiceClient>(TENANT_ORG_QUERY_SERVICE_NAME)
   }
 
   async getTenantById(
@@ -53,7 +58,9 @@ export class TenantOrgQueryGrpcAdapter implements OnModuleInit {
       'getTenantById',
       this.svc.getTenantById(
         { tenantId },
-        await this.trusted.forBusinessCall(source, TENANTORG_TARGET_AUDIENCE, ['tenant_org.tenant.get_by_id'])
+        await this.trusted.forBusinessCall(source, TENANTORG_TARGET_AUDIENCE, [
+          'tenant_org.tenant.get_by_id'
+        ])
       ),
       (response: GetTenantByIdResponse) => ({
         tenant: response.tenant
@@ -81,7 +88,9 @@ export class TenantOrgQueryGrpcAdapter implements OnModuleInit {
           pageSize: input.pageSize,
           status: input.activeOnly ? 'ACTIVE' : undefined
         },
-        await this.trusted.forBusinessCall(source, TENANTORG_TARGET_AUDIENCE, ['tenant_org.tenant.list'])
+        await this.trusted.forBusinessCall(source, TENANTORG_TARGET_AUDIENCE, [
+          'tenant_org.tenant.list'
+        ])
       ),
       (response: ListTenantsResponse) => ({
         tenants: (response.tenants ?? []).map((tenant) => ({

@@ -10,13 +10,14 @@ import {
   IDENTITY_ACCOUNT_REFERENCE_PORT,
   IdentityAccountReferencePort
 } from '../../application/ports/identity-account-reference.port'
-import { PermissionFoundationTrustedGrpcExecutionProducer, PermissionIdentityTrustedGrpcClient } from './foundation-trusted-grpc.clients'
+import {
+  PermissionFoundationTrustedGrpcExecutionProducer,
+  PermissionIdentityTrustedGrpcClient
+} from './foundation-trusted-grpc.clients'
 
 /** IdentityAccountReferenceGrpcAdaptor reads minimal account context facts from identity-service over gRPC. */
 @Injectable()
-export class IdentityAccountReferenceGrpcAdaptor
-  implements IdentityAccountReferencePort
-{
+export class IdentityAccountReferenceGrpcAdaptor implements IdentityAccountReferencePort {
   private identityQueryService?: IdentityQueryServiceClient
   private readonly trusted = new PermissionFoundationTrustedGrpcExecutionProducer()
 

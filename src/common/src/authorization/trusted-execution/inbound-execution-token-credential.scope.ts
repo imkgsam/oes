@@ -42,9 +42,7 @@ export class InboundExecutionTokenCredentialScope {
       Object.freeze({
         ...(credential === undefined ? {} : { credential }),
         token,
-        ...(correlation === undefined
-          ? {}
-          : { correlation: Object.freeze({ ...correlation }) })
+        ...(correlation === undefined ? {} : { correlation: Object.freeze({ ...correlation }) })
       })
     )
   }

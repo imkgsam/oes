@@ -11,7 +11,10 @@ import {
   IHrServicePort
 } from '../../application/ports/hr-service.port'
 import { AUTH_HR_UPSTREAM_UNAVAILABLE } from '../../common/constants/exception-enums'
-import { AuthFoundationTrustedGrpcExecutionProducer, AuthHrTrustedGrpcClient } from './foundation-trusted-grpc.clients'
+import {
+  AuthFoundationTrustedGrpcExecutionProducer,
+  AuthHrTrustedGrpcClient
+} from './foundation-trusted-grpc.clients'
 
 const HR_QUERY_SERVICE_NAME = 'HrQueryService'
 
@@ -22,12 +25,12 @@ export class HrServiceAdaptor implements IHrServicePort, OnModuleInit {
   private hrQueryService!: HrQueryServiceClient
   private readonly trusted = new AuthFoundationTrustedGrpcExecutionProducer()
 
-  constructor(
-    private readonly hrClient: AuthHrTrustedGrpcClient
-  ) {}
+  constructor(private readonly hrClient: AuthHrTrustedGrpcClient) {}
 
   onModuleInit() {
-    this.hrQueryService = this.hrClient.getClient().getService<HrQueryServiceClient>(HR_QUERY_SERVICE_NAME)
+    this.hrQueryService = this.hrClient
+      .getClient()
+      .getService<HrQueryServiceClient>(HR_QUERY_SERVICE_NAME)
   }
 
   async resolveActiveEmployeeByCode(input: {
@@ -36,13 +39,13 @@ export class HrServiceAdaptor implements IHrServicePort, OnModuleInit {
   }): Promise<ActiveEmployeeByCodeSummary | null> {
     try {
       const response = await safeGrpcCall<ResolveActiveEmployeeByCodeResponse>(
-        this.hrQueryService.resolveActiveEmployeeByCode({
-          tenantId: input.tenantId,
-          employeeCode: input.employeeCode
-        } as ResolveActiveEmployeeByCodeRequest, await this.trusted.forBusinessCall(
-          'hr-service',
-          ['hr.employee.get_by_id']
-        )),
+        this.hrQueryService.resolveActiveEmployeeByCode(
+          {
+            tenantId: input.tenantId,
+            employeeCode: input.employeeCode
+          } as ResolveActiveEmployeeByCodeRequest,
+          await this.trusted.forBusinessCall('hr-service', ['hr.employee.get_by_id'])
+        ),
         {
           caller: 'auth-service',
           method: 'HrQueryService.resolveActiveEmployeeByCode'
@@ -71,5 +74,4 @@ export class HrServiceAdaptor implements IHrServicePort, OnModuleInit {
       throw error
     }
   }
-
 }

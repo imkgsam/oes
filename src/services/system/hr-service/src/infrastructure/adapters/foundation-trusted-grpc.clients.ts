@@ -13,17 +13,36 @@ import {
   TrustedGrpcMetadataProvider
 } from '@oes/common/authorization'
 import { resolveCommonProtoPath } from '@oes/common/contracts'
-import { EXECUTION_TOKEN_SERVICE_NAME, ExecutionTokenServiceClient } from '@oes/common/generated/auth_service'
-import { createGrpcClientCredentials, readLocalVerifiedWorkloadIdentity, safeGrpcCall } from '@oes/common/transport'
+import {
+  EXECUTION_TOKEN_SERVICE_NAME,
+  ExecutionTokenServiceClient
+} from '@oes/common/generated/auth_service'
+import {
+  createGrpcClientCredentials,
+  readLocalVerifiedWorkloadIdentity,
+  safeGrpcCall
+} from '@oes/common/transport'
 
 export type HrFoundationTargetProfile = Readonly<{ audience: string; execution: 'HUMAN_OBO' }>
 
 /** Freezes Hr's package-owned target audiences without importing another service's producer. */
 export const HR_FOUNDATION_TARGETS = Object.freeze({
-  'auth-service': Object.freeze({ audience: 'urn:oes:service:auth-service', execution: 'HUMAN_OBO' as const }),
-  'identity-service': Object.freeze({ audience: 'urn:oes:service:identity-service', execution: 'HUMAN_OBO' as const }),
-  'permission-service': Object.freeze({ audience: 'urn:oes:service:permission-service', execution: 'HUMAN_OBO' as const }),
-  'tenant-org-service': Object.freeze({ audience: 'urn:oes:service:tenant-org-service', execution: 'HUMAN_OBO' as const })
+  'auth-service': Object.freeze({
+    audience: 'urn:oes:service:auth-service',
+    execution: 'HUMAN_OBO' as const
+  }),
+  'identity-service': Object.freeze({
+    audience: 'urn:oes:service:identity-service',
+    execution: 'HUMAN_OBO' as const
+  }),
+  'permission-service': Object.freeze({
+    audience: 'urn:oes:service:permission-service',
+    execution: 'HUMAN_OBO' as const
+  }),
+  'tenant-org-service': Object.freeze({
+    audience: 'urn:oes:service:tenant-org-service',
+    execution: 'HUMAN_OBO' as const
+  })
 }) satisfies Readonly<Record<string, HrFoundationTargetProfile>>
 
 const ERRORS = Object.freeze({

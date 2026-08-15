@@ -195,12 +195,11 @@ function mapOrgNode(node: {
   }
 }
 
-
 /** Applies TenantOrg's frozen BUSINESS Code declaration to each baseline handler. */
 function applyTenantOrgDeclaration(method: string, code: string): void {
- const descriptor = Object.getOwnPropertyDescriptor(TenantOrgQueryGrpcController.prototype, method)
- if (!descriptor) throw new Error(`TenantOrg handler is missing: ${method}`)
- AuthorizeBusinessRpc({ all: [code] })(TenantOrgQueryGrpcController.prototype, method, descriptor)
+  const descriptor = Object.getOwnPropertyDescriptor(TenantOrgQueryGrpcController.prototype, method)
+  if (!descriptor) throw new Error(`TenantOrg handler is missing: ${method}`)
+  AuthorizeBusinessRpc({ all: [code] })(TenantOrgQueryGrpcController.prototype, method, descriptor)
 }
 applyTenantOrgDeclaration('getTenantById', 'tenant_org.tenant.get_by_id')
 applyTenantOrgDeclaration('listTenants', 'tenant_org.tenant.list')

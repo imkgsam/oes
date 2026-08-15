@@ -38,12 +38,7 @@ import { IdentityManagementGrpcController } from '../../interfaces/grpc/identity
 import { IdentityAuditModule } from '../identity-audit/identity-audit.module'
 
 @Module({
-  imports: [
-    CqrsModule,
-    PrismaModule,
-    IdentityAuditModule,
-    IdentityTrustedExecutionModule
-  ],
+  imports: [CqrsModule, PrismaModule, IdentityAuditModule, IdentityTrustedExecutionModule],
   providers: [
     {
       provide: SYMBOLS.REPO.ACCOUNT,

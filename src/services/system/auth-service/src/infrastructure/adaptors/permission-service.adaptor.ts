@@ -9,7 +9,10 @@ import {
   IPermissionServicePort
 } from '../../application/ports/permission-service.port'
 import { AUTH_PERMISSION_UPSTREAM_UNAVAILABLE } from '../../common/constants/exception-enums'
-import { AuthFoundationTrustedGrpcExecutionProducer, AuthPermissionTrustedGrpcClient } from './foundation-trusted-grpc.clients'
+import {
+  AuthFoundationTrustedGrpcExecutionProducer,
+  AuthPermissionTrustedGrpcClient
+} from './foundation-trusted-grpc.clients'
 import {
   AccountAccessSummaryResponse,
   PERMISSION_ACCESS_SUMMARY_SERVICE_NAME,
@@ -52,17 +55,15 @@ export class PermissionServiceAdaptor implements IPermissionServicePort, OnModul
   ) {}
 
   onModuleInit() {
-    this.permissionService = this.permissionClient.getClient().getService<PermissionCheckGrpcClient>(
-      PERMISSION_CHECK_SERVICE_NAME
-    )
-    this.permissionAccessSummaryService =
-      this.permissionClient.getClient().getService<PermissionAccessSummaryServiceClient>(
-        PERMISSION_ACCESS_SUMMARY_SERVICE_NAME
-      )
-    this.permissionTerminalAccessService =
-      this.permissionClient.getClient().getService<PermissionTerminalAccessServiceClient>(
-        PERMISSION_TERMINAL_ACCESS_SERVICE_NAME
-      )
+    this.permissionService = this.permissionClient
+      .getClient()
+      .getService<PermissionCheckGrpcClient>(PERMISSION_CHECK_SERVICE_NAME)
+    this.permissionAccessSummaryService = this.permissionClient
+      .getClient()
+      .getService<PermissionAccessSummaryServiceClient>(PERMISSION_ACCESS_SUMMARY_SERVICE_NAME)
+    this.permissionTerminalAccessService = this.permissionClient
+      .getClient()
+      .getService<PermissionTerminalAccessServiceClient>(PERMISSION_TERMINAL_ACCESS_SERVICE_NAME)
   }
 
   // Reads the effective role ids and permission codes for the selected account context from permission-service.
@@ -81,7 +82,10 @@ export class PermissionServiceAdaptor implements IPermissionServicePort, OnModul
             tenantId: params.tenantId ?? undefined,
             scopeLevel: params.scopeLevel
           },
-          await this.trusted.forInternalCall('permission-service', 'permission.internal.account_access_summary.resolve')
+          await this.trusted.forInternalCall(
+            'permission-service',
+            'permission.internal.account_access_summary.resolve'
+          )
         ),
         {
           caller: 'auth-service',
@@ -143,7 +147,10 @@ export class PermissionServiceAdaptor implements IPermissionServicePort, OnModul
             scopeLevel: params.scopeLevel,
             terminal: params.terminal
           },
-          await this.trusted.forInternalCall('permission-service', 'permission.internal.account_terminal_access.resolve')
+          await this.trusted.forInternalCall(
+            'permission-service',
+            'permission.internal.account_terminal_access.resolve'
+          )
         ),
         {
           caller: 'auth-service',
@@ -180,10 +187,16 @@ export class PermissionServiceAdaptor implements IPermissionServicePort, OnModul
     try {
       this.logger.debug(`Checking account permission: ${accountId} - ${permissionCode}`)
       const response = await safeGrpcCall<PermissionCheckOutput & { allowed?: boolean }>(
-        this.permissionService.checkPermission({
-          accountId,
-          permissionCode
-        }, await this.trusted.forInternalCall('permission-service', 'permission.internal.permission.check')),
+        this.permissionService.checkPermission(
+          {
+            accountId,
+            permissionCode
+          },
+          await this.trusted.forInternalCall(
+            'permission-service',
+            'permission.internal.permission.check'
+          )
+        ),
         {
           caller: 'auth-service',
           method: 'PermissionCheckService.checkPermission'
@@ -210,16 +223,27 @@ export class PermissionServiceAdaptor implements IPermissionServicePort, OnModul
   }
 
   /** Reads the Auth-only external-safe MACHINE permission snapshot through Permission's trusted boundary. */
-  async resolveExternalMachineAuthorizationSnapshot(machineId: string, tenantId: string): Promise<{ codes: string[]; authzVersion: string }> {
-    const metadata = await this.trusted.forInternalCall('permission-service', PERMISSION_INTERNAL_PERMISSION)
+  async resolveExternalMachineAuthorizationSnapshot(
+    machineId: string,
+    tenantId: string
+  ): Promise<{ codes: string[]; authzVersion: string }> {
+    const metadata = await this.trusted.forInternalCall(
+      'permission-service',
+      PERMISSION_INTERNAL_PERMISSION
+    )
     const response: any = await safeGrpcCall(
       this.permissionService.resolveExternalMachineAuthorizationSnapshot!(
         { integrationMachineId: machineId, tenantId },
         metadata
       ),
-      { caller: 'auth-service', method: 'PermissionCheckService.resolveExternalMachineAuthorizationSnapshot' }
+      {
+        caller: 'auth-service',
+        method: 'PermissionCheckService.resolveExternalMachineAuthorizationSnapshot'
+      }
     )
-    return { codes: response.externalBusinessPermissionCodes ?? [], authzVersion: response.authzVersion ?? '' }
+    return {
+      codes: response.externalBusinessPermissionCodes ?? [],
+      authzVersion: response.authzVersion ?? ''
+    }
   }
-
 }

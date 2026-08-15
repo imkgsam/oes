@@ -11,9 +11,7 @@ import { OrgManagementService } from './org-management.service'
 import { TenantManagementService } from './tenant-management.service'
 
 @Module({
-  imports: [
-    AuthorizationModule
-  ],
+  imports: [AuthorizationModule],
   controllers: [TenantManagementController, OrgManagementController],
   providers: [
     IdentityTenantAccountStatsGrpcAdapter,

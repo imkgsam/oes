@@ -1,5 +1,8 @@
 import { Module } from '@nestjs/common'
-import { GatewayCollaborationGrpcClient, GatewayTrustedGrpcExecutionProducer } from '../../common/grpc'
+import {
+  GatewayCollaborationGrpcClient,
+  GatewayTrustedGrpcExecutionProducer
+} from '../../common/grpc'
 import { IdentityQueryGrpcAdapter } from '../auth-bff/infrastructure/downstream/identity-service/identity-query-grpc.adapter'
 import { AnnotationCommandGrpcAdapter } from './adapters/annotation-command-grpc.adapter'
 import { AnnotationQueryGrpcAdapter } from './adapters/annotation-query-grpc.adapter'

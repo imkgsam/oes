@@ -334,12 +334,18 @@ function mapOnboarding(result: TenantOnboardingResult) {
   }
 }
 
-
 /** Applies TenantOrg's frozen BUSINESS Code declaration to each baseline handler. */
 function applyTenantOrgDeclaration(method: string, code: string): void {
- const descriptor = Object.getOwnPropertyDescriptor(TenantOrgManagementGrpcController.prototype, method)
- if (!descriptor) throw new Error(`TenantOrg handler is missing: ${method}`)
- AuthorizeBusinessRpc({ all: [code] })(TenantOrgManagementGrpcController.prototype, method, descriptor)
+  const descriptor = Object.getOwnPropertyDescriptor(
+    TenantOrgManagementGrpcController.prototype,
+    method
+  )
+  if (!descriptor) throw new Error(`TenantOrg handler is missing: ${method}`)
+  AuthorizeBusinessRpc({ all: [code] })(
+    TenantOrgManagementGrpcController.prototype,
+    method,
+    descriptor
+  )
 }
 applyTenantOrgDeclaration('createTenant', 'tenant_org.tenant.create')
 applyTenantOrgDeclaration('startTenantOnboarding', 'tenant_org.tenant.create')

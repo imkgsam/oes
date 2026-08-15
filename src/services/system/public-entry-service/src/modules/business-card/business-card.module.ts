@@ -92,7 +92,12 @@ export class BusinessCardResolverRegistration implements OnModuleInit {
 
 // BusinessCardModule assembles Phase 1 BusinessCard application services and resolver integration.
 @Module({
-  imports: [AuthorizationModule, PrismaModule, ShortLinkModule, ClientsModule.register(buildBusinessCardGrpcClients())],
+  imports: [
+    AuthorizationModule,
+    PrismaModule,
+    ShortLinkModule,
+    ClientsModule.register(buildBusinessCardGrpcClients())
+  ],
   controllers: [PublicEntryBusinessCardGrpcController],
   providers: [
     { provide: APP_INTERCEPTOR, useClass: GrpcRequestContextInterceptor },
@@ -135,7 +140,11 @@ export class BusinessCardResolverRegistration implements OnModuleInit {
 export class BusinessCardModule {}
 
 // resolveDownstreamGrpcUrl keeps standard env overrides while providing local development defaults.
-function resolveDownstreamGrpcUrl(primaryEnv: string, legacyEnv: string, defaultUrl: string): string | undefined {
+function resolveDownstreamGrpcUrl(
+  primaryEnv: string,
+  legacyEnv: string,
+  defaultUrl: string
+): string | undefined {
   return (
     process.env[primaryEnv]?.trim() ||
     process.env[legacyEnv]?.trim() ||

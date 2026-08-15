@@ -1,6 +1,9 @@
 import { Controller, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common'
 import { AuthorizeBusinessRpc, AuthorizeSelfServiceRpc } from '@oes/common/authorization'
-import { AuthTrustedExecutionGuard, AuthorizeAuthPublicAdmission } from '../../modules/auth/auth-trusted-execution.module'
+import {
+  AuthTrustedExecutionGuard,
+  AuthorizeAuthPublicAdmission
+} from '../../modules/auth/auth-trusted-execution.module'
 import { GrpcMethod } from '@nestjs/microservices'
 import {
   RequirePermissions,
@@ -513,9 +516,7 @@ export class AuthGrpcController implements AuthServiceController {
   /**
    * setOwnTerminalPin sets the authenticated user's terminal PIN without returning credential material.
    */
-  async setOwnTerminalPin(
-    request: SetOwnTerminalPinRequest
-  ): Promise<SetOwnTerminalPinResponse> {
+  async setOwnTerminalPin(request: SetOwnTerminalPinRequest): Promise<SetOwnTerminalPinResponse> {
     return this.commandBus.execute(
       new SetOwnTerminalPinCommand({
         userId: request.userId ?? '',
@@ -1398,7 +1399,9 @@ export class AuthGrpcController implements AuthServiceController {
     const policies = await this.requireTerminalMfaPolicyService().getPlatformDefaults()
 
     return {
-      entries: policies.map((policy) => this.toProtoTerminalMfaPolicyEntry(policy, 'PLATFORM_DEFAULT'))
+      entries: policies.map((policy) =>
+        this.toProtoTerminalMfaPolicyEntry(policy, 'PLATFORM_DEFAULT')
+      )
     }
   }
 
@@ -1421,7 +1424,9 @@ export class AuthGrpcController implements AuthServiceController {
 
     const policies = await service.getPlatformDefaults()
     return {
-      entries: policies.map((policy) => this.toProtoTerminalMfaPolicyEntry(policy, 'PLATFORM_DEFAULT'))
+      entries: policies.map((policy) =>
+        this.toProtoTerminalMfaPolicyEntry(policy, 'PLATFORM_DEFAULT')
+      )
     }
   }
 
@@ -1618,16 +1623,12 @@ export class AuthGrpcController implements AuthServiceController {
 
   async loginWithEmailOtp(request: LoginWithEmailOtpRequest): Promise<LoginWithEmailOtpResponse> {
     const result = await this.commandBus.execute(
-      new LoginWithEmailOtpCommand(
-        request.email ?? '',
-        request.otp ?? '',
-        {
-          terminal: request.terminal || undefined,
-          terminalDeviceId: request.terminalDeviceId || undefined,
-          deviceBoundTenantId: request.deviceBoundTenantId || undefined,
-          loginFlow: request.loginFlow || undefined
-        }
-      )
+      new LoginWithEmailOtpCommand(request.email ?? '', request.otp ?? '', {
+        terminal: request.terminal || undefined,
+        terminalDeviceId: request.terminalDeviceId || undefined,
+        deviceBoundTenantId: request.deviceBoundTenantId || undefined,
+        loginFlow: request.loginFlow || undefined
+      })
     )
 
     if ('status' in result && result.status === 'SUCCESS') {
@@ -1899,16 +1900,12 @@ export class AuthGrpcController implements AuthServiceController {
 
   async loginWithPhoneOtp(request: LoginWithPhoneOtpRequest): Promise<LoginWithPhoneOtpResponse> {
     const result = await this.commandBus.execute(
-      new LoginWithPhoneOtpCommand(
-        request.phone ?? '',
-        request.otp ?? '',
-        {
-          terminal: request.terminal || undefined,
-          terminalDeviceId: request.terminalDeviceId || undefined,
-          deviceBoundTenantId: request.deviceBoundTenantId || undefined,
-          loginFlow: request.loginFlow || undefined
-        }
-      )
+      new LoginWithPhoneOtpCommand(request.phone ?? '', request.otp ?? '', {
+        terminal: request.terminal || undefined,
+        terminalDeviceId: request.terminalDeviceId || undefined,
+        deviceBoundTenantId: request.deviceBoundTenantId || undefined,
+        loginFlow: request.loginFlow || undefined
+      })
     )
 
     if ('status' in result && result.status === 'SUCCESS') {
@@ -2265,7 +2262,6 @@ export class AuthGrpcController implements AuthServiceController {
   }
 }
 
-
 /** Applies one immutable frozen admission declaration to each of Auth's 70 baseline RPC handlers. */
 function applyAuthAdmission(method: string, decorator: MethodDecorator): void {
   const descriptor = Object.getOwnPropertyDescriptor(AuthGrpcController.prototype, method)
@@ -2273,72 +2269,249 @@ function applyAuthAdmission(method: string, decorator: MethodDecorator): void {
   decorator(AuthGrpcController.prototype, method, descriptor)
 }
 applyAuthAdmission('loginWithEmailPassword', AuthorizeAuthPublicAdmission('PUBLIC_CREDENTIAL'))
-applyAuthAdmission('requestEmailOtpLoginChallenge', AuthorizeAuthPublicAdmission('PUBLIC_CREDENTIAL'))
+applyAuthAdmission(
+  'requestEmailOtpLoginChallenge',
+  AuthorizeAuthPublicAdmission('PUBLIC_CREDENTIAL')
+)
 applyAuthAdmission('loginWithEmailOtp', AuthorizeAuthPublicAdmission('PUBLIC_CREDENTIAL'))
 applyAuthAdmission('loginWithEmployeeCodePin', AuthorizeAuthPublicAdmission('PUBLIC_CREDENTIAL'))
-applyAuthAdmission('preflightEmployeeCodePinLogin', AuthorizeAuthPublicAdmission('PUBLIC_CREDENTIAL'))
+applyAuthAdmission(
+  'preflightEmployeeCodePinLogin',
+  AuthorizeAuthPublicAdmission('PUBLIC_CREDENTIAL')
+)
 applyAuthAdmission('loginWithPhonePassword', AuthorizeAuthPublicAdmission('PUBLIC_CREDENTIAL'))
-applyAuthAdmission('requestPhoneOtpLoginChallenge', AuthorizeAuthPublicAdmission('PUBLIC_CREDENTIAL'))
+applyAuthAdmission(
+  'requestPhoneOtpLoginChallenge',
+  AuthorizeAuthPublicAdmission('PUBLIC_CREDENTIAL')
+)
 applyAuthAdmission('loginWithPhoneOtp', AuthorizeAuthPublicAdmission('PUBLIC_CREDENTIAL'))
-applyAuthAdmission('inspectPasswordRecoveryChannels', AuthorizeAuthPublicAdmission('PUBLIC_CREDENTIAL'))
-applyAuthAdmission('requestPasswordRecoveryChallenge', AuthorizeAuthPublicAdmission('PUBLIC_CREDENTIAL'))
-applyAuthAdmission('verifyPasswordRecoveryChallenge', AuthorizeAuthPublicAdmission('PUBLIC_CREDENTIAL'))
+applyAuthAdmission(
+  'inspectPasswordRecoveryChannels',
+  AuthorizeAuthPublicAdmission('PUBLIC_CREDENTIAL')
+)
+applyAuthAdmission(
+  'requestPasswordRecoveryChallenge',
+  AuthorizeAuthPublicAdmission('PUBLIC_CREDENTIAL')
+)
+applyAuthAdmission(
+  'verifyPasswordRecoveryChallenge',
+  AuthorizeAuthPublicAdmission('PUBLIC_CREDENTIAL')
+)
 applyAuthAdmission('completePasswordRecovery', AuthorizeAuthPublicAdmission('PUBLIC_CREDENTIAL'))
-applyAuthAdmission('completeFirstLoginPasswordSetup', AuthorizeAuthPublicAdmission('PUBLIC_CONTINUATION'))
-applyAuthAdmission('requestLoginMfaFactorChallenge', AuthorizeAuthPublicAdmission('PUBLIC_CONTINUATION'))
+applyAuthAdmission(
+  'completeFirstLoginPasswordSetup',
+  AuthorizeAuthPublicAdmission('PUBLIC_CONTINUATION')
+)
+applyAuthAdmission(
+  'requestLoginMfaFactorChallenge',
+  AuthorizeAuthPublicAdmission('PUBLIC_CONTINUATION')
+)
 applyAuthAdmission('submitMfaChallenge', AuthorizeAuthPublicAdmission('PUBLIC_CONTINUATION'))
 applyAuthAdmission('refreshSession', AuthorizeAuthPublicAdmission('PUBLIC_CONTINUATION'))
 applyAuthAdmission('selectAccount', AuthorizeAuthPublicAdmission('PUBLIC_CONTINUATION'))
-applyAuthAdmission('validateAccessToken', AuthorizeAuthPublicAdmission('PUBLIC_SESSION_SOURCE_VALIDATION'))
-applyAuthAdmission('listLoginHistory', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
-applyAuthAdmission('bootstrapOwnLoginMethods', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
-applyAuthAdmission('requestEmailBindingChallenge', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
-applyAuthAdmission('requestPhoneBindingChallenge', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
-applyAuthAdmission('listLoginMethods', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
-applyAuthAdmission('changeOwnPassword', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
-applyAuthAdmission('setOwnTerminalPin', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
-applyAuthAdmission('resetOwnTerminalPin', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
-applyAuthAdmission('setOwnTerminalPinEnabled', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
-applyAuthAdmission('setOwnLoginMethodEnabled', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
-applyAuthAdmission('verifyEmailBinding', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
-applyAuthAdmission('verifyPhoneBinding', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
-applyAuthAdmission('listMfaBindings', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
-applyAuthAdmission('enableMfaBinding', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
-applyAuthAdmission('disableMfaBinding', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
-applyAuthAdmission('initializeTotpBinding', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
-applyAuthAdmission('activateTotpBinding', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
-applyAuthAdmission('initializeRecoveryCodes', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
-applyAuthAdmission('regenerateRecoveryCodes', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
-applyAuthAdmission('startStepUpMfaChallenge', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
-applyAuthAdmission('completeStepUpMfaChallenge', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
-applyAuthAdmission('listSessions', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
-applyAuthAdmission('listTrustedDevices', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
-applyAuthAdmission('revokeTrustedDevice', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
-applyAuthAdmission('revokeOtherTrustedDevices', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
-applyAuthAdmission('logout', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
-applyAuthAdmission('logoutSession', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
-applyAuthAdmission('logoutOtherDevices', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
-applyAuthAdmission('logoutAll', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
+applyAuthAdmission(
+  'validateAccessToken',
+  AuthorizeAuthPublicAdmission('PUBLIC_SESSION_SOURCE_VALIDATION')
+)
+applyAuthAdmission(
+  'listLoginHistory',
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+)
+applyAuthAdmission(
+  'bootstrapOwnLoginMethods',
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+)
+applyAuthAdmission(
+  'requestEmailBindingChallenge',
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+)
+applyAuthAdmission(
+  'requestPhoneBindingChallenge',
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+)
+applyAuthAdmission(
+  'listLoginMethods',
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+)
+applyAuthAdmission(
+  'changeOwnPassword',
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+)
+applyAuthAdmission(
+  'setOwnTerminalPin',
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+)
+applyAuthAdmission(
+  'resetOwnTerminalPin',
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+)
+applyAuthAdmission(
+  'setOwnTerminalPinEnabled',
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+)
+applyAuthAdmission(
+  'setOwnLoginMethodEnabled',
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+)
+applyAuthAdmission(
+  'verifyEmailBinding',
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+)
+applyAuthAdmission(
+  'verifyPhoneBinding',
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+)
+applyAuthAdmission(
+  'listMfaBindings',
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+)
+applyAuthAdmission(
+  'enableMfaBinding',
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+)
+applyAuthAdmission(
+  'disableMfaBinding',
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+)
+applyAuthAdmission(
+  'initializeTotpBinding',
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+)
+applyAuthAdmission(
+  'activateTotpBinding',
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+)
+applyAuthAdmission(
+  'initializeRecoveryCodes',
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+)
+applyAuthAdmission(
+  'regenerateRecoveryCodes',
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+)
+applyAuthAdmission(
+  'startStepUpMfaChallenge',
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+)
+applyAuthAdmission(
+  'completeStepUpMfaChallenge',
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+)
+applyAuthAdmission(
+  'listSessions',
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+)
+applyAuthAdmission(
+  'listTrustedDevices',
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+)
+applyAuthAdmission(
+  'revokeTrustedDevice',
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+)
+applyAuthAdmission(
+  'revokeOtherTrustedDevices',
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+)
+applyAuthAdmission(
+  'logout',
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+)
+applyAuthAdmission(
+  'logoutSession',
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+)
+applyAuthAdmission(
+  'logoutOtherDevices',
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+)
+applyAuthAdmission(
+  'logoutAll',
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+)
 applyAuthAdmission('listAuditEvents', AuthorizeBusinessRpc({ all: ['auth.audit.list'] }))
-applyAuthAdmission('bootstrapUserLoginMethods', AuthorizeBusinessRpc({ all: ['auth.account_credentials.bootstrap'] }))
-applyAuthAdmission('requirePasswordSetup', AuthorizeBusinessRpc({ all: ['auth.account_credentials.bootstrap'] }))
-applyAuthAdmission('requireTerminalPinReset', AuthorizeBusinessRpc({ all: ['auth.account_credentials.bootstrap'] }))
-applyAuthAdmission('disableUserTerminalPin', AuthorizeBusinessRpc({ all: ['auth.account_credentials.bootstrap'] }))
-applyAuthAdmission('setLoginMethodEnabled', AuthorizeBusinessRpc({ all: ['auth.account_login_methods.manage'] }))
+applyAuthAdmission(
+  'bootstrapUserLoginMethods',
+  AuthorizeBusinessRpc({ all: ['auth.account_credentials.bootstrap'] })
+)
+applyAuthAdmission(
+  'requirePasswordSetup',
+  AuthorizeBusinessRpc({ all: ['auth.account_credentials.bootstrap'] })
+)
+applyAuthAdmission(
+  'requireTerminalPinReset',
+  AuthorizeBusinessRpc({ all: ['auth.account_credentials.bootstrap'] })
+)
+applyAuthAdmission(
+  'disableUserTerminalPin',
+  AuthorizeBusinessRpc({ all: ['auth.account_credentials.bootstrap'] })
+)
+applyAuthAdmission(
+  'setLoginMethodEnabled',
+  AuthorizeBusinessRpc({ all: ['auth.account_login_methods.manage'] })
+)
 applyAuthAdmission('getTenantMfaPolicy', AuthorizeBusinessRpc({ all: ['auth.mfa_policy.manage'] }))
-applyAuthAdmission('updateTenantMfaPolicy', AuthorizeBusinessRpc({ all: ['auth.mfa_policy.manage'] }))
-applyAuthAdmission('getTenantTerminalMfaPolicy', AuthorizeBusinessRpc({ all: ['auth.mfa_policy.manage'] }))
-applyAuthAdmission('updateTenantTerminalMfaPolicy', AuthorizeBusinessRpc({ all: ['auth.mfa_policy.manage'] }))
-applyAuthAdmission('getPlatformMfaPolicy', AuthorizeBusinessRpc({ all: ['auth.platform_mfa_policy.manage'] }))
-applyAuthAdmission('updatePlatformMfaPolicy', AuthorizeBusinessRpc({ all: ['auth.platform_mfa_policy.manage'] }))
-applyAuthAdmission('getPlatformTerminalLoginPolicy', AuthorizeBusinessRpc({ all: ['auth.platform_mfa_policy.manage'] }))
-applyAuthAdmission('updatePlatformTerminalLoginPolicy', AuthorizeBusinessRpc({ all: ['auth.platform_mfa_policy.manage'] }))
-applyAuthAdmission('getPlatformDefaultTerminalMfaPolicy', AuthorizeBusinessRpc({ all: ['auth.platform_mfa_policy.manage'] }))
-applyAuthAdmission('updatePlatformDefaultTerminalMfaPolicy', AuthorizeBusinessRpc({ all: ['auth.platform_mfa_policy.manage'] }))
-applyAuthAdmission('handleTerminalDeviceUnavailable', AuthorizeBusinessRpc({ all: ['auth.session.admin.view'] }))
-applyAuthAdmission('adminListOnlineUsers', AuthorizeBusinessRpc({ all: ['auth.session.admin.view'] }))
-applyAuthAdmission('adminListUserSessions', AuthorizeBusinessRpc({ all: ['auth.session.admin.view'] }))
-applyAuthAdmission('adminListTerminalDeviceSessions', AuthorizeBusinessRpc({ all: ['auth.session.admin.view'] }))
-applyAuthAdmission('adminRevokeSession', AuthorizeBusinessRpc({ all: ['auth.session.admin.revoke'] }))
-applyAuthAdmission('adminDeleteAccountSessions', AuthorizeBusinessRpc({ all: ['auth.session.admin.revoke'] }))
-applyAuthAdmission('revokeTenantSessions', AuthorizeBusinessRpc({ all: ['auth.session.admin.revoke'] }))
+applyAuthAdmission(
+  'updateTenantMfaPolicy',
+  AuthorizeBusinessRpc({ all: ['auth.mfa_policy.manage'] })
+)
+applyAuthAdmission(
+  'getTenantTerminalMfaPolicy',
+  AuthorizeBusinessRpc({ all: ['auth.mfa_policy.manage'] })
+)
+applyAuthAdmission(
+  'updateTenantTerminalMfaPolicy',
+  AuthorizeBusinessRpc({ all: ['auth.mfa_policy.manage'] })
+)
+applyAuthAdmission(
+  'getPlatformMfaPolicy',
+  AuthorizeBusinessRpc({ all: ['auth.platform_mfa_policy.manage'] })
+)
+applyAuthAdmission(
+  'updatePlatformMfaPolicy',
+  AuthorizeBusinessRpc({ all: ['auth.platform_mfa_policy.manage'] })
+)
+applyAuthAdmission(
+  'getPlatformTerminalLoginPolicy',
+  AuthorizeBusinessRpc({ all: ['auth.platform_mfa_policy.manage'] })
+)
+applyAuthAdmission(
+  'updatePlatformTerminalLoginPolicy',
+  AuthorizeBusinessRpc({ all: ['auth.platform_mfa_policy.manage'] })
+)
+applyAuthAdmission(
+  'getPlatformDefaultTerminalMfaPolicy',
+  AuthorizeBusinessRpc({ all: ['auth.platform_mfa_policy.manage'] })
+)
+applyAuthAdmission(
+  'updatePlatformDefaultTerminalMfaPolicy',
+  AuthorizeBusinessRpc({ all: ['auth.platform_mfa_policy.manage'] })
+)
+applyAuthAdmission(
+  'handleTerminalDeviceUnavailable',
+  AuthorizeBusinessRpc({ all: ['auth.session.admin.view'] })
+)
+applyAuthAdmission(
+  'adminListOnlineUsers',
+  AuthorizeBusinessRpc({ all: ['auth.session.admin.view'] })
+)
+applyAuthAdmission(
+  'adminListUserSessions',
+  AuthorizeBusinessRpc({ all: ['auth.session.admin.view'] })
+)
+applyAuthAdmission(
+  'adminListTerminalDeviceSessions',
+  AuthorizeBusinessRpc({ all: ['auth.session.admin.view'] })
+)
+applyAuthAdmission(
+  'adminRevokeSession',
+  AuthorizeBusinessRpc({ all: ['auth.session.admin.revoke'] })
+)
+applyAuthAdmission(
+  'adminDeleteAccountSessions',
+  AuthorizeBusinessRpc({ all: ['auth.session.admin.revoke'] })
+)
+applyAuthAdmission(
+  'revokeTenantSessions',
+  AuthorizeBusinessRpc({ all: ['auth.session.admin.revoke'] })
+)

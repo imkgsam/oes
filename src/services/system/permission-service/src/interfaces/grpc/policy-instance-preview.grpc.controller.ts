@@ -183,10 +183,7 @@ export class PolicyInstancePreviewGrpcController {
       this.toPolicyInstance(policy)
     )
 
-    if (
-      request.mode ===
-      POLICY_INSTANCE_PREVIEW_MODE_QUERY_SCOPE
-    ) {
+    if (request.mode === POLICY_INSTANCE_PREVIEW_MODE_QUERY_SCOPE) {
       const result = await this.previewService.evaluateQueryScope({
         policyInstances,
         request: {

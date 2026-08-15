@@ -11,9 +11,7 @@ import { TenantOrgQueryGrpcAdapter } from './tenant-org-query-grpc.adapter'
 import { httpControllers } from './interface/http/controllers'
 
 @Module({
-  imports: [
-    AuthorizationModule
-  ],
+  imports: [AuthorizationModule],
   controllers: [...httpControllers],
   providers: [
     TenantOrgQueryGrpcAdapter,

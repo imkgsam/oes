@@ -107,7 +107,9 @@ function assertRequiredPermissionCodes(
   declaration: InternalRpcAuthorizationDeclaration,
   grantedPermissionCodes: readonly string[]
 ): void {
-  const missing = declaration.permissions.all.filter((code) => !grantedPermissionCodes.includes(code))
+  const missing = declaration.permissions.all.filter(
+    (code) => !grantedPermissionCodes.includes(code)
+  )
   if (missing.length > 0) {
     throw ExceptionFactory.application(ACCESS_DENIED, {
       reason: 'trusted internal execution token is missing required permission codes',

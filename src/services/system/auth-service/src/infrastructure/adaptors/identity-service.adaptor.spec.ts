@@ -43,9 +43,7 @@ describe('IdentityServiceAdaptor', () => {
       .fn()
       .mockReturnValue(of({ eligible: true, tenantId: 'tenant-1' }))
     const client = {
-      getService: jest
-        .fn()
-        .mockReturnValueOnce({ getUserById: jest.fn() })
+      getService: jest.fn().mockReturnValueOnce({ getUserById: jest.fn() })
     }
     const trustedClient = { getClient: () => client } as any
     const adaptor = new IdentityServiceAdaptor(trustedClient)

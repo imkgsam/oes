@@ -13,14 +13,27 @@ import {
   TrustedGrpcMetadataProvider
 } from '@oes/common/authorization'
 import { resolveCommonProtoPath } from '@oes/common/contracts'
-import { EXECUTION_TOKEN_SERVICE_NAME, ExecutionTokenServiceClient } from '@oes/common/generated/auth_service'
-import { createGrpcClientCredentials, readLocalVerifiedWorkloadIdentity, safeGrpcCall } from '@oes/common/transport'
+import {
+  EXECUTION_TOKEN_SERVICE_NAME,
+  ExecutionTokenServiceClient
+} from '@oes/common/generated/auth_service'
+import {
+  createGrpcClientCredentials,
+  readLocalVerifiedWorkloadIdentity,
+  safeGrpcCall
+} from '@oes/common/transport'
 
-export type PermissionFoundationTargetProfile = Readonly<{ audience: string; execution: 'HUMAN_OBO' }>
+export type PermissionFoundationTargetProfile = Readonly<{
+  audience: string
+  execution: 'HUMAN_OBO'
+}>
 
 /** Freezes Permission's package-owned target audiences without importing another service's producer. */
 export const PERMISSION_FOUNDATION_TARGETS = Object.freeze({
-  'identity-service': Object.freeze({ audience: 'urn:oes:service:identity-service', execution: 'HUMAN_OBO' as const })
+  'identity-service': Object.freeze({
+    audience: 'urn:oes:service:identity-service',
+    execution: 'HUMAN_OBO' as const
+  })
 }) satisfies Readonly<Record<string, PermissionFoundationTargetProfile>>
 
 const ERRORS = Object.freeze({
@@ -189,12 +202,15 @@ function required(name: string): string {
 export class PermissionIdentityTrustedGrpcClient {
   private client?: ClientGrpc
   getClient(): ClientGrpc {
-    return (this.client ??= ClientProxyFactory.create({ transport: Transport.GRPC, options: {
-      package: 'identity_service',
-      protoPath: resolveCommonProtoPath('identity_service/identity_query.proto'),
-      url: permissionIdentityUrl(),
-      credentials: createGrpcClientCredentials()
-    } }) as unknown as ClientGrpc)
+    return (this.client ??= ClientProxyFactory.create({
+      transport: Transport.GRPC,
+      options: {
+        package: 'identity_service',
+        protoPath: resolveCommonProtoPath('identity_service/identity_query.proto'),
+        url: permissionIdentityUrl(),
+        credentials: createGrpcClientCredentials()
+      }
+    }) as unknown as ClientGrpc)
   }
 }
 

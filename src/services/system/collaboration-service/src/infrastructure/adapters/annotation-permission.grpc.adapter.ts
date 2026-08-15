@@ -1,8 +1,6 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
-import {
-  COLLABORATION_ANNOTATION_PERMISSION_CODES
-} from '@oes/common/authorization'
+import { COLLABORATION_ANNOTATION_PERMISSION_CODES } from '@oes/common/authorization'
 import {
   AccountAccessSummaryResponse,
   PERMISSION_ACCESS_SUMMARY_SERVICE_NAME,
@@ -20,9 +18,7 @@ export class AnnotationPermissionGrpcAdapter implements AnnotationPermissionPort
   private permissionAccessSummaryService!: PermissionAccessSummaryServiceClient
   private readonly trusted = new CollaborationFoundationTrustedGrpcExecutionProducer()
 
-  constructor(
-    @Inject(ANNOTATION_PERMISSION_GRPC_CLIENT) private readonly client: ClientGrpc
-  ) {}
+  constructor(@Inject(ANNOTATION_PERMISSION_GRPC_CLIENT) private readonly client: ClientGrpc) {}
 
   onModuleInit(): void {
     this.permissionAccessSummaryService =
@@ -31,11 +27,17 @@ export class AnnotationPermissionGrpcAdapter implements AnnotationPermissionPort
       )
   }
 
-  async canCreateAnnotation(input: { tenantId: string; operatorAccountId: string }): Promise<boolean> {
+  async canCreateAnnotation(input: {
+    tenantId: string
+    operatorAccountId: string
+  }): Promise<boolean> {
     return this.hasPermission(input, COLLABORATION_ANNOTATION_PERMISSION_CODES.CREATE)
   }
 
-  async canManageAnnotation(input: { tenantId: string; operatorAccountId: string }): Promise<boolean> {
+  async canManageAnnotation(input: {
+    tenantId: string
+    operatorAccountId: string
+  }): Promise<boolean> {
     return this.hasPermission(input, COLLABORATION_ANNOTATION_PERMISSION_CODES.MANAGE)
   }
 

@@ -13,15 +13,31 @@ import {
   TrustedGrpcMetadataProvider
 } from '@oes/common/authorization'
 import { resolveCommonProtoPath } from '@oes/common/contracts'
-import { EXECUTION_TOKEN_SERVICE_NAME, ExecutionTokenServiceClient } from '@oes/common/generated/auth_service'
-import { createGrpcClientCredentials, readLocalVerifiedWorkloadIdentity, safeGrpcCall } from '@oes/common/transport'
+import {
+  EXECUTION_TOKEN_SERVICE_NAME,
+  ExecutionTokenServiceClient
+} from '@oes/common/generated/auth_service'
+import {
+  createGrpcClientCredentials,
+  readLocalVerifiedWorkloadIdentity,
+  safeGrpcCall
+} from '@oes/common/transport'
 
-export type CollaborationFoundationTargetProfile = Readonly<{ audience: string; execution: 'HUMAN_OBO' }>
+export type CollaborationFoundationTargetProfile = Readonly<{
+  audience: string
+  execution: 'HUMAN_OBO'
+}>
 
 /** Freezes Collaboration's package-owned target audiences without importing another service's producer. */
 export const COLLABORATION_FOUNDATION_TARGETS = Object.freeze({
-  'identity-service': Object.freeze({ audience: 'urn:oes:service:identity-service', execution: 'HUMAN_OBO' as const }),
-  'permission-service': Object.freeze({ audience: 'urn:oes:service:permission-service', execution: 'HUMAN_OBO' as const })
+  'identity-service': Object.freeze({
+    audience: 'urn:oes:service:identity-service',
+    execution: 'HUMAN_OBO' as const
+  }),
+  'permission-service': Object.freeze({
+    audience: 'urn:oes:service:permission-service',
+    execution: 'HUMAN_OBO' as const
+  })
 }) satisfies Readonly<Record<string, CollaborationFoundationTargetProfile>>
 
 const ERRORS = Object.freeze({

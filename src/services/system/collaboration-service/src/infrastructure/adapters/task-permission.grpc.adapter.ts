@@ -18,9 +18,7 @@ export class TaskPermissionGrpcAdapter implements TaskPermissionPort, OnModuleIn
   private permissionAccessSummaryService!: PermissionAccessSummaryServiceClient
   private readonly trusted = new CollaborationFoundationTrustedGrpcExecutionProducer()
 
-  constructor(
-    @Inject(PERMISSION_GRPC_CLIENT) private readonly client: ClientGrpc
-  ) {}
+  constructor(@Inject(PERMISSION_GRPC_CLIENT) private readonly client: ClientGrpc) {}
 
   onModuleInit(): void {
     this.permissionAccessSummaryService =

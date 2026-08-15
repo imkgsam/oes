@@ -14,11 +14,12 @@ import { CustomerManagementService } from './customer-management.service'
 import { ExtensionCrmWorkspaceService } from './extension-crm-workspace.service'
 
 @Module({
-  imports: [
-    AuthorizationModule,
-    GrpcTransportModule.forFeature([SERVICE_NAMES.CRM])
+  imports: [AuthorizationModule, GrpcTransportModule.forFeature([SERVICE_NAMES.CRM])],
+  controllers: [
+    CustomerManagementController,
+    ExtensionCrmWorkspaceController,
+    AdminCrmPerformanceController
   ],
-  controllers: [CustomerManagementController, ExtensionCrmWorkspaceController, AdminCrmPerformanceController],
   providers: [
     AdminCrmPerformanceService,
     CustomerQueryGrpcAdapter,

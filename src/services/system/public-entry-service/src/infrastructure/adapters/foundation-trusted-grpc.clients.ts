@@ -20,7 +20,11 @@ import {
   ExecutionTokenServiceClient,
   MachineWorkloadSourceCredentialServiceClient
 } from '@oes/common/generated/auth_service'
-import { createGrpcClientCredentials, readLocalVerifiedWorkloadIdentity, safeGrpcCall } from '@oes/common/transport'
+import {
+  createGrpcClientCredentials,
+  readLocalVerifiedWorkloadIdentity,
+  safeGrpcCall
+} from '@oes/common/transport'
 
 export type PublicEntryFoundationTargetProfile = Readonly<{ audience: string }>
 
@@ -63,8 +67,14 @@ export class PublicEntryFoundationTrustedGrpcExecutionProducer {
   private async produce(target: Target, mode: Mode, codes: readonly string[]): Promise<Metadata> {
     const profile = requirePublicEntryFoundationTarget(target)
     const correlation = inboundExecutionTokenCredentialScope.requireCorrelation()
-    let inbound: ReturnType<typeof inboundExecutionTokenCredentialScope.requireVerifiedExecution> | undefined
-    try { inbound = inboundExecutionTokenCredentialScope.requireVerifiedExecution() } catch { inbound = undefined }
+    let inbound:
+      | ReturnType<typeof inboundExecutionTokenCredentialScope.requireVerifiedExecution>
+      | undefined
+    try {
+      inbound = inboundExecutionTokenCredentialScope.requireVerifiedExecution()
+    } catch {
+      inbound = undefined
+    }
     const isHuman = inbound?.principalType === 'HUMAN'
     const root = isHuman
       ? createTrustedExecutionContext({
@@ -75,7 +85,7 @@ export class PublicEntryFoundationTrustedGrpcExecutionProducer {
           sessionId: requiredValue(inbound.sessionId),
           sessionTerminal: inbound.sessionTerminal,
           ...(inbound.authzVersion === undefined ? {} : { authzVersion: inbound.authzVersion }),
-              requestId: correlation.requestId,
+          requestId: correlation.requestId,
           traceparent: correlation.traceparent,
           ...(correlation.tracestate === undefined ? {} : { tracestate: correlation.tracestate })
         })
@@ -103,9 +113,10 @@ export class PublicEntryFoundationTrustedGrpcExecutionProducer {
     const key = `${executionSource}:${audience}`
     const existing = this.callers.get(key)
     if (existing) return existing
-    const sourceAccessor = executionSource === 'HUMAN_OBO'
-      ? inboundExecutionTokenCredentialScope.accessor
-      : this.machine.accessor
+    const sourceAccessor =
+      executionSource === 'HUMAN_OBO'
+        ? inboundExecutionTokenCredentialScope.accessor
+        : this.machine.accessor
     const metadata = new TrustedGrpcMetadataProvider({
       contextAccessor: this.context,
       registry: new TrustedExecutionRegistry({
@@ -134,28 +145,48 @@ export class PublicEntryFoundationTrustedGrpcExecutionProducer {
 class PublicEntryFoundationExecutionTokenExchangeClient implements ExecutionTokenExchangeClient {
   private client?: ClientGrpc
   private service?: ExecutionTokenServiceClient
-  async exchange(request: ExecutionTokenExchangeRequest, metadata: Metadata): Promise<ExecutionTokenExchangeResult> {
-    const response = await safeGrpcCall(this.execution().exchangeExecutionToken({
-      targetAudience: request.targetAudience,
-      requestedPermissionCodes: [...request.requestedPermissionCodes]
-    }, metadata), { caller: 'public-entry-service', method: 'ExchangeExecutionToken' })
+  async exchange(
+    request: ExecutionTokenExchangeRequest,
+    metadata: Metadata
+  ): Promise<ExecutionTokenExchangeResult> {
+    const response = await safeGrpcCall(
+      this.execution().exchangeExecutionToken(
+        {
+          targetAudience: request.targetAudience,
+          requestedPermissionCodes: [...request.requestedPermissionCodes]
+        },
+        metadata
+      ),
+      { caller: 'public-entry-service', method: 'ExchangeExecutionToken' }
+    )
     return Object.freeze({
-      accessToken: response.accessToken ?? '', tokenType: response.tokenType ?? '',
+      accessToken: response.accessToken ?? '',
+      tokenType: response.tokenType ?? '',
       expiresAtUnixSeconds: Number(response.expiresAtUnixSeconds),
-      expiresInSeconds: Number(response.expiresInSeconds), kid: response.kid ?? '',
+      expiresInSeconds: Number(response.expiresInSeconds),
+      kid: response.kid ?? '',
       grantedPermissionCodes: Object.freeze([...(response.grantedPermissionCodes ?? [])]),
       grantedAudience: response.grantedAudience ?? ''
     })
   }
   private execution(): ExecutionTokenServiceClient {
-    return (this.service ??= this.grpc().getService<ExecutionTokenServiceClient>(EXECUTION_TOKEN_SERVICE_NAME))
+    return (this.service ??= this.grpc().getService<ExecutionTokenServiceClient>(
+      EXECUTION_TOKEN_SERVICE_NAME
+    ))
   }
   private grpc(): ClientGrpc {
-    return (this.client ??= ClientProxyFactory.create({ transport: Transport.GRPC, options: {
-      package: 'auth_service',
-      protoPath: [resolveCommonProtoPath('auth_service/execution_token.proto'), resolveCommonProtoPath('auth_service/machine_workload_source_credential.proto')],
-      url: authUrl(), credentials: createGrpcClientCredentials()
-    } }) as unknown as ClientGrpc)
+    return (this.client ??= ClientProxyFactory.create({
+      transport: Transport.GRPC,
+      options: {
+        package: 'auth_service',
+        protoPath: [
+          resolveCommonProtoPath('auth_service/execution_token.proto'),
+          resolveCommonProtoPath('auth_service/machine_workload_source_credential.proto')
+        ],
+        url: authUrl(),
+        credentials: createGrpcClientCredentials()
+      }
+    }) as unknown as ClientGrpc)
   }
 }
 
@@ -164,22 +195,37 @@ class PublicEntryFoundationMachineSourceCredentialClient {
   private client?: ClientGrpc
   private service?: MachineWorkloadSourceCredentialServiceClient
   async issue(): Promise<string> {
-    const response = await safeGrpcCall(this.machine().issueMachineWorkloadSourceCredential({
-      machinePrincipalId: required('PUBLIC_ENTRY_FOUNDATION_MACHINE_PRINCIPAL_ID'),
-      machineWorkloadBindingId: required('PUBLIC_ENTRY_FOUNDATION_MACHINE_WORKLOAD_BINDING_ID'),
-      machineWorkloadBindingVersion: required('PUBLIC_ENTRY_FOUNDATION_MACHINE_WORKLOAD_BINDING_VERSION')
-    }, new Metadata()), { caller: 'public-entry-service', method: 'IssueMachineWorkloadSourceCredential' })
+    const response = await safeGrpcCall(
+      this.machine().issueMachineWorkloadSourceCredential(
+        {
+          machinePrincipalId: required('PUBLIC_ENTRY_FOUNDATION_MACHINE_PRINCIPAL_ID'),
+          machineWorkloadBindingId: required('PUBLIC_ENTRY_FOUNDATION_MACHINE_WORKLOAD_BINDING_ID'),
+          machineWorkloadBindingVersion: required(
+            'PUBLIC_ENTRY_FOUNDATION_MACHINE_WORKLOAD_BINDING_VERSION'
+          )
+        },
+        new Metadata()
+      ),
+      { caller: 'public-entry-service', method: 'IssueMachineWorkloadSourceCredential' }
+    )
     if (response.tokenType !== 'Bearer' || !response.sourceCredential?.trim()) {
       throw new Error(ERRORS.SOURCE_CREDENTIAL_INVALID)
     }
     return response.sourceCredential
   }
   private machine(): MachineWorkloadSourceCredentialServiceClient {
-    this.client ??= ClientProxyFactory.create({ transport: Transport.GRPC, options: {
-      package: 'auth_service', protoPath: resolveCommonProtoPath('auth_service/machine_workload_source_credential.proto'),
-      url: authUrl(), credentials: createGrpcClientCredentials()
-    } }) as unknown as ClientGrpc
-    return (this.service ??= this.client.getService<MachineWorkloadSourceCredentialServiceClient>('MachineWorkloadSourceCredentialService'))
+    this.client ??= ClientProxyFactory.create({
+      transport: Transport.GRPC,
+      options: {
+        package: 'auth_service',
+        protoPath: resolveCommonProtoPath('auth_service/machine_workload_source_credential.proto'),
+        url: authUrl(),
+        credentials: createGrpcClientCredentials()
+      }
+    }) as unknown as ClientGrpc
+    return (this.service ??= this.client.getService<MachineWorkloadSourceCredentialServiceClient>(
+      'MachineWorkloadSourceCredentialService'
+    ))
   }
 }
 
@@ -190,14 +236,20 @@ class PublicEntryFoundationMachineSourceCredentialProvider {
   constructor(private readonly client: PublicEntryFoundationMachineSourceCredentialClient) {}
   async run<T>(callback: () => Promise<T>): Promise<T> {
     const credential = await this.client.issue()
-    return this.accessor.run(this.issuer.issueVerifiedMachineOrDelegationCredential(credential), callback)
+    return this.accessor.run(
+      this.issuer.issueVerifiedMachineOrDelegationCredential(credential),
+      callback
+    )
   }
 }
 
 /** Returns only a statically registered package-local target. */
-export function requirePublicEntryFoundationTarget(target: Target): PublicEntryFoundationTargetProfile {
+export function requirePublicEntryFoundationTarget(
+  target: Target
+): PublicEntryFoundationTargetProfile {
   const profile = PUBLIC_ENTRY_FOUNDATION_TARGETS[target]
-  if (!profile || profile.audience.includes('*')) throw new Error('PublicEntry foundation target is not registered')
+  if (!profile || profile.audience.includes('*'))
+    throw new Error('PublicEntry foundation target is not registered')
   return profile
 }
 

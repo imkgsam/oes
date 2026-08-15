@@ -4,7 +4,9 @@ import { PermissionServiceAdaptor } from './permission-service.adaptor'
 
 describe('PermissionServiceAdaptor', () => {
   it('obtains an Auth-issued INTERNAL token for resolveExternalMachineAuthorizationSnapshot', async () => {
-    const adaptor = new PermissionServiceAdaptor({ getClient: () => ({ getService: jest.fn() }) } as any)
+    const adaptor = new PermissionServiceAdaptor({
+      getClient: () => ({ getService: jest.fn() })
+    } as any)
 
     const metadata = new Metadata()
     metadata.set('authorization', 'Bearer sts-token')
@@ -13,7 +15,9 @@ describe('PermissionServiceAdaptor', () => {
     ;(adaptor as any).permissionService = {
       resolveExternalMachineAuthorizationSnapshot: jest
         .fn()
-        .mockReturnValue(of({ externalBusinessPermissionCodes: ['sales.order.read'], authzVersion: 'v1' }))
+        .mockReturnValue(
+          of({ externalBusinessPermissionCodes: ['sales.order.read'], authzVersion: 'v1' })
+        )
     }
 
     await expect(

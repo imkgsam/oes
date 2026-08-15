@@ -8,7 +8,10 @@ import {
 } from '@oes/common/generated/permission_service'
 import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
 import { DownstreamRequestSource } from '../../../../../common/grpc/gateway-downstream-source.mapper'
-import { PERMISSION_TARGET_AUDIENCE, TrustedPermissionGrpcClient } from '../../../../../infrastructure/grpc/trusted-permission.grpc.client'
+import {
+  PERMISSION_TARGET_AUDIENCE,
+  TrustedPermissionGrpcClient
+} from '../../../../../infrastructure/grpc/trusted-permission.grpc.client'
 import { GatewayFoundationTrustedGrpcExecutionProducer } from '../../../../../infrastructure/grpc/trusted-auth.grpc.client'
 
 const CALLER = 'api-gateway'
@@ -31,9 +34,9 @@ export class PermissionTerminalAccessGrpcAdapter implements OnModuleInit {
   ) {}
 
   onModuleInit(): void {
-    this.svc = this.client.getClient().getService<PermissionTerminalAccessServiceClient>(
-      PERMISSION_TERMINAL_ACCESS_SERVICE_NAME
-    )
+    this.svc = this.client
+      .getClient()
+      .getService<PermissionTerminalAccessServiceClient>(PERMISSION_TERMINAL_ACCESS_SERVICE_NAME)
   }
 
   async resolveAccountTerminalAccess(

@@ -13,7 +13,10 @@ import {
 } from '@oes/common/generated/permission_service'
 import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
 import { DownstreamRequestSource } from '../../../common/grpc/gateway-downstream-source.mapper'
-import { PERMISSION_TARGET_AUDIENCE, TrustedPermissionGrpcClient } from '../../../infrastructure/grpc/trusted-permission.grpc.client'
+import {
+  PERMISSION_TARGET_AUDIENCE,
+  TrustedPermissionGrpcClient
+} from '../../../infrastructure/grpc/trusted-permission.grpc.client'
 import { GatewayFoundationTrustedGrpcExecutionProducer } from '../../../infrastructure/grpc/trusted-auth.grpc.client'
 
 const CALLER = 'api-gateway'
@@ -33,9 +36,9 @@ export class PolicyManagementGrpcAdapter implements OnModuleInit {
   ) {}
 
   onModuleInit(): void {
-    this.svc = this.client.getClient().getService<PolicyManagementServiceClient>(
-      POLICY_MANAGEMENT_SERVICE_NAME
-    )
+    this.svc = this.client
+      .getClient()
+      .getService<PolicyManagementServiceClient>(POLICY_MANAGEMENT_SERVICE_NAME)
   }
 
   // Reads paged policy governance rows while preserving downstream pagination metadata.
@@ -66,7 +69,9 @@ export class PolicyManagementGrpcAdapter implements OnModuleInit {
     return this.call('listPoliciesPaged', async () =>
       this.svc.listPoliciesPaged(
         payload,
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.policy.list'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.policy.list'
+        ])
       )
     )
   }
@@ -79,7 +84,9 @@ export class PolicyManagementGrpcAdapter implements OnModuleInit {
     return this.call('getPolicyById', async () =>
       this.svc.getPolicyById(
         req,
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.policy.list'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.policy.list'
+        ])
       )
     )
   }
@@ -95,7 +102,9 @@ export class PolicyManagementGrpcAdapter implements OnModuleInit {
           permissionCode: req.permissionCode,
           tenantId: req.tenantId || undefined
         },
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.policy.list'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.policy.list'
+        ])
       )
     )
   }

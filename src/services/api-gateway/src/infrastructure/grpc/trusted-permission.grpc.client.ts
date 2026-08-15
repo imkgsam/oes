@@ -12,7 +12,21 @@ export class TrustedPermissionGrpcClient {
   getClient(): ClientGrpc {
     return (this.client ??= ClientProxyFactory.create({
       transport: Transport.GRPC,
-      options: { package: 'permission_service', protoPath: [resolveCommonProtoPath('permission_service/permission_check.proto'),resolveCommonProtoPath('permission_service/permission_management.proto'),resolveCommonProtoPath('permission_service/permission_access_summary.proto'),resolveCommonProtoPath('permission_service/permission_terminal_access.proto'),resolveCommonProtoPath('permission_service/resource_authorization.proto'),resolveCommonProtoPath('permission_service/policy_management.proto'),resolveCommonProtoPath('permission_service/policy_instance_management.proto'),resolveCommonProtoPath('permission_service/policy_instance_preview.proto')], url: resolveUrl(), credentials: createGrpcClientCredentials() }
+      options: {
+        package: 'permission_service',
+        protoPath: [
+          resolveCommonProtoPath('permission_service/permission_check.proto'),
+          resolveCommonProtoPath('permission_service/permission_management.proto'),
+          resolveCommonProtoPath('permission_service/permission_access_summary.proto'),
+          resolveCommonProtoPath('permission_service/permission_terminal_access.proto'),
+          resolveCommonProtoPath('permission_service/resource_authorization.proto'),
+          resolveCommonProtoPath('permission_service/policy_management.proto'),
+          resolveCommonProtoPath('permission_service/policy_instance_management.proto'),
+          resolveCommonProtoPath('permission_service/policy_instance_preview.proto')
+        ],
+        url: resolveUrl(),
+        credentials: createGrpcClientCredentials()
+      }
     }) as unknown as ClientGrpc)
   }
 }

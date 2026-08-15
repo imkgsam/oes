@@ -90,16 +90,15 @@ function createAdapter(service: {
   ensureTenantRoleInstanceFromTemplate?: jest.Mock
   grantInitialAccessForTenantAccount?: jest.Mock
 }) {
-  const adapter = new PermissionTenantOnboardingGrpcAdapter(
-    {
-      getClient: () => ({
-        getService: jest.fn(() => ({
-          ensureTenantRoleInstanceFromTemplate: service.ensureTenantRoleInstanceFromTemplate ?? jest.fn(),
-          grantInitialAccessForTenantAccount: service.grantInitialAccessForTenantAccount ?? jest.fn()
-        }))
-      })
-    } as any
-  )
+  const adapter = new PermissionTenantOnboardingGrpcAdapter({
+    getClient: () => ({
+      getService: jest.fn(() => ({
+        ensureTenantRoleInstanceFromTemplate:
+          service.ensureTenantRoleInstanceFromTemplate ?? jest.fn(),
+        grantInitialAccessForTenantAccount: service.grantInitialAccessForTenantAccount ?? jest.fn()
+      }))
+    })
+  } as any)
   adapter.onModuleInit()
   ;(adapter as any).trusted = {
     forBusinessCall: jest.fn().mockResolvedValue(undefined)

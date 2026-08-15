@@ -4,10 +4,36 @@ import { attachOperatorContext, attachVerifiedExecution } from '@oes/common/auth
 
 /** Attaches the verified tenant scope normally installed by the trusted execution guard. */
 function withTenantContext<T extends object>(request: T): T {
-  attachOperatorContext(request, { operator_id: 'operator-1', operator_type: 'HUMAN', tenant_id: 'tenant-1', issued_at: '2026-05-04T00:00:00.000Z', expires_at: '2026-05-04T00:05:00.000Z', issuer: 'api-gateway', signature: 'verified' })
+  attachOperatorContext(request, {
+    operator_id: 'operator-1',
+    operator_type: 'HUMAN',
+    tenant_id: 'tenant-1',
+    issued_at: '2026-05-04T00:00:00.000Z',
+    expires_at: '2026-05-04T00:05:00.000Z',
+    issuer: 'api-gateway',
+    signature: 'verified'
+  })
   attachVerifiedExecution(request, {
-    verifiedExecutionToken: { issuer: 'auth-service', audience: 'urn:oes:service:hr-service', subject: 'operator-1', principalType: 'HUMAN', clientId: 'spiffe://local/ns/oes/sa/api-gateway', tenantId: 'tenant-1', permissionCodes: [], tokenId: 'token-1', issuedAt: 1, notBefore: 1, expiresAt: 2, certificateThumbprint: 'A'.repeat(43), sessionId: 'session-1', sessionTerminal: 'WEB' },
-    verifiedWorkloadIdentity: { spiffeId: 'spiffe://local/ns/oes/sa/api-gateway', certificateThumbprint: 'A'.repeat(43) }
+    verifiedExecutionToken: {
+      issuer: 'auth-service',
+      audience: 'urn:oes:service:hr-service',
+      subject: 'operator-1',
+      principalType: 'HUMAN',
+      clientId: 'spiffe://local/ns/oes/sa/api-gateway',
+      tenantId: 'tenant-1',
+      permissionCodes: [],
+      tokenId: 'token-1',
+      issuedAt: 1,
+      notBefore: 1,
+      expiresAt: 2,
+      certificateThumbprint: 'A'.repeat(43),
+      sessionId: 'session-1',
+      sessionTerminal: 'WEB'
+    },
+    verifiedWorkloadIdentity: {
+      spiffeId: 'spiffe://local/ns/oes/sa/api-gateway',
+      certificateThumbprint: 'A'.repeat(43)
+    }
   })
   return request
 }
@@ -110,13 +136,15 @@ describe('HrQueryGrpcController L3', () => {
     })
     const controller = new HrQueryGrpcController(service as unknown as HrQueryService)
 
-    const result = await controller.listEmployees(withTenantContext({
-      keyword: 'EMP',
-      lifecycleStatus: 2,
-      page: 2,
-      pageSize: 10,
-      tenantId: 'tenant-1'
-    }))
+    const result = await controller.listEmployees(
+      withTenantContext({
+        keyword: 'EMP',
+        lifecycleStatus: 2,
+        page: 2,
+        pageSize: 10,
+        tenantId: 'tenant-1'
+      })
+    )
 
     expect(service.listEmployees).toHaveBeenCalledWith({
       keyword: 'EMP',
@@ -166,10 +194,12 @@ describe('HrQueryGrpcController L3', () => {
     })
     const controller = new HrQueryGrpcController(service as unknown as HrQueryService)
 
-    const result = await controller.getLatestOnboardingAccess(withTenantContext({
-      tenantId: 'tenant-1',
-      employeeId: 'employee-1'
-    }))
+    const result = await controller.getLatestOnboardingAccess(
+      withTenantContext({
+        tenantId: 'tenant-1',
+        employeeId: 'employee-1'
+      })
+    )
 
     expect(service.getLatestOnboardingAccess).toHaveBeenCalledWith({
       tenantId: 'tenant-1',

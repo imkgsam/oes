@@ -1,6 +1,9 @@
 import { BadRequestException } from '@nestjs/common'
 import { GUARDS_METADATA } from '@nestjs/common/constants'
-import { getRpcAuthorizationModeDeclaration, TENANT_ORG_MANAGEMENT_PERMISSION_CODES } from '@oes/common/authorization'
+import {
+  getRpcAuthorizationModeDeclaration,
+  TENANT_ORG_MANAGEMENT_PERMISSION_CODES
+} from '@oes/common/authorization'
 import { TenantOrgFoundationTrustedExecutionGuard } from '../../src/modules/tenant-org-trusted-execution.module'
 import { TenantOrgManagementService } from '../../src/application/services'
 import { TenantOrgManagementGrpcController } from '../../src/interfaces/grpc/tenant-org-management.grpc.controller'
@@ -33,9 +36,7 @@ describe('TenantOrgManagementGrpcController L3', () => {
   it('declares RBAC guards and method permissions for tenant/org management APIs', () => {
     const guards = Reflect.getMetadata(GUARDS_METADATA, TenantOrgManagementGrpcController) ?? []
 
-    expect(guards).toEqual(
-      expect.arrayContaining([TenantOrgFoundationTrustedExecutionGuard])
-    )
+    expect(guards).toEqual(expect.arrayContaining([TenantOrgFoundationTrustedExecutionGuard]))
     expectPermission('createTenant', TENANT_ORG_MANAGEMENT_PERMISSION_CODES.CREATE_TENANT)
     expectPermission('startTenantOnboarding', TENANT_ORG_MANAGEMENT_PERMISSION_CODES.CREATE_TENANT)
     expectPermission(
@@ -89,7 +90,11 @@ describe('TenantOrgManagementGrpcController L3', () => {
       }
     })
 
-    const result = await controller.createTenant({ code: 'acme', employeeCodePrefix: '0AF', name: 'Acme' } as any)
+    const result = await controller.createTenant({
+      code: 'acme',
+      employeeCodePrefix: '0AF',
+      name: 'Acme'
+    } as any)
 
     expect(service.createTenant).toHaveBeenCalledWith({
       code: 'acme',
@@ -214,6 +219,7 @@ function expectPermission(
   methodName: keyof TenantOrgManagementGrpcController,
   permissionCode: string
 ) {
-  expect(getRpcAuthorizationModeDeclaration(TenantOrgManagementGrpcController.prototype, methodName))
-    .toEqual({ mode: 'BUSINESS', permissions: { all: [permissionCode] } })
+  expect(
+    getRpcAuthorizationModeDeclaration(TenantOrgManagementGrpcController.prototype, methodName)
+  ).toEqual({ mode: 'BUSINESS', permissions: { all: [permissionCode] } })
 }

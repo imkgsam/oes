@@ -14,7 +14,9 @@ describe('permission management trusted gRPC authorization metadata', () => {
   const prototype = PermissionManagementGrpcController.prototype
 
   /** Reads one exact Code only from the frozen BUSINESS execution declaration. */
-  function requiredPermission(methodName: keyof PermissionManagementGrpcController): string | undefined {
+  function requiredPermission(
+    methodName: keyof PermissionManagementGrpcController
+  ): string | undefined {
     const declaration = getRpcAuthorizationModeDeclaration(prototype, methodName)
     expect(declaration?.mode).toBe('BUSINESS')
     return declaration?.mode === 'BUSINESS' && 'all' in declaration.permissions

@@ -37,9 +37,7 @@ describe('TenantOrg trusted authorization module wiring', () => {
     expect(moduleRef.get(TenantOrgAuthTrustedGrpcClient)).toBeInstanceOf(
       TenantOrgAuthTrustedGrpcClient
     )
-    expect(moduleRef.get(TenantOrgHrTrustedGrpcClient)).toBeInstanceOf(
-      TenantOrgHrTrustedGrpcClient
-    )
+    expect(moduleRef.get(TenantOrgHrTrustedGrpcClient)).toBeInstanceOf(TenantOrgHrTrustedGrpcClient)
     expect(moduleRef.get(TenantOrgIdentityTrustedGrpcClient)).toBeInstanceOf(
       TenantOrgIdentityTrustedGrpcClient
     )
@@ -61,12 +59,32 @@ describe('TenantOrg trusted authorization module wiring', () => {
 
   it.each([
     ['management', 'createTenant', 'tenant_org.tenant.create', TenantOrgManagementGrpcController],
-    ['management', 'updateTenantProfile', 'tenant_org.tenant.update_profile', TenantOrgManagementGrpcController],
-    ['management', 'createOrgUnit', 'tenant_org.org_unit.create', TenantOrgManagementGrpcController],
-    ['management', 'archiveOrgUnit', 'tenant_org.org_unit.archive', TenantOrgManagementGrpcController],
+    [
+      'management',
+      'updateTenantProfile',
+      'tenant_org.tenant.update_profile',
+      TenantOrgManagementGrpcController
+    ],
+    [
+      'management',
+      'createOrgUnit',
+      'tenant_org.org_unit.create',
+      TenantOrgManagementGrpcController
+    ],
+    [
+      'management',
+      'archiveOrgUnit',
+      'tenant_org.org_unit.archive',
+      TenantOrgManagementGrpcController
+    ],
     ['query', 'getTenantById', 'tenant_org.tenant.get_by_id', TenantOrgQueryGrpcController],
     ['query', 'listTenants', 'tenant_org.tenant.list', TenantOrgQueryGrpcController],
-    ['query', 'getOrgTreeByTenantId', 'tenant_org.org_unit.list_tree', TenantOrgQueryGrpcController],
+    [
+      'query',
+      'getOrgTreeByTenantId',
+      'tenant_org.org_unit.list_tree',
+      TenantOrgQueryGrpcController
+    ],
     ['query', 'getOrgUnitById', 'tenant_org.org_unit.get_by_id', TenantOrgQueryGrpcController]
   ] as const)('declares %s.%s as exact BUSINESS Code %s', (_name, method, code, controller) => {
     expect(businessCode(controller.prototype, method)).toBe(code)

@@ -17,18 +17,12 @@ import {
   RoleInstanceQueryScopeBuilder,
   RoleTemplateQueryScopeBuilder
 } from '../../application/authorization'
-import {
-  IDENTITY_ACCOUNT_REFERENCE_PORT
-} from '../../application/ports/identity-account-reference.port'
+import { IDENTITY_ACCOUNT_REFERENCE_PORT } from '../../application/ports/identity-account-reference.port'
 import { IdentityAccountReferenceGrpcAdaptor } from '../../infrastructure/adaptors/identity-account-reference.grpc.adaptor'
 import { PermissionTrustedExecutionModule } from '../authorization/permission-trusted-execution.module'
 
 @Module({
-  imports: [
-    CqrsModule,
-    PrismaModule,
-    PermissionTrustedExecutionModule
-  ],
+  imports: [CqrsModule, PrismaModule, PermissionTrustedExecutionModule],
   providers: [
     {
       provide: SYMBOLS.REPO.ROLE,

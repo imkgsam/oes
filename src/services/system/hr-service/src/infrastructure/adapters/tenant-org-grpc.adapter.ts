@@ -17,9 +17,7 @@ export class TenantOrgGrpcAdapter implements TenantOrgReferencePort, OnModuleIni
   private tenantOrgQueryService!: TenantOrgQueryServiceClient
   private readonly trusted = new HrFoundationTrustedGrpcExecutionProducer()
 
-  constructor(
-    @Inject(TENANT_ORG_GRPC_CLIENT) private readonly client: ClientGrpc
-  ) {}
+  constructor(@Inject(TENANT_ORG_GRPC_CLIENT) private readonly client: ClientGrpc) {}
 
   onModuleInit() {
     this.tenantOrgQueryService = this.client.getService<TenantOrgQueryServiceClient>(
@@ -69,5 +67,4 @@ export class TenantOrgGrpcAdapter implements TenantOrgReferencePort, OnModuleIni
     }
     return prefix
   }
-
 }

@@ -1,4 +1,10 @@
-import { BadRequestException, Controller, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common'
+import {
+  BadRequestException,
+  Controller,
+  UseFilters,
+  UseGuards,
+  UseInterceptors
+} from '@nestjs/common'
 import { AuthorizeBusinessRpc, getAuthenticatedGrpcRequestContext } from '@oes/common/authorization'
 import { HrFoundationTrustedExecutionGuard } from '../../modules/hr-trusted-execution.module'
 import { Metadata } from '@grpc/grpc-js'
@@ -47,7 +53,10 @@ import {
   EmploymentStatus,
   OnboardingAccessStatus
 } from '../../domain/value-objects'
-import { EmployeeAccessPendingException, HrOnboardingAccessService } from '../../application/services'
+import {
+  EmployeeAccessPendingException,
+  HrOnboardingAccessService
+} from '../../application/services'
 
 /** HrManagementGrpcController exposes HR management contracts over gRPC. */
 @UseFilters(GrpcExceptionFilter)
@@ -98,7 +107,10 @@ export class HrManagementGrpcController implements HrManagementServiceController
       primaryEmployment: request.primaryEmployment
         ? {
             orgUnitId: request.primaryEmployment.orgUnitId || undefined,
-            effectiveFrom: parseProtoDate(request.primaryEmployment.effectiveFrom, 'primaryEmployment.effectiveFrom'),
+            effectiveFrom: parseProtoDate(
+              request.primaryEmployment.effectiveFrom,
+              'primaryEmployment.effectiveFrom'
+            ),
             positionName: request.primaryEmployment.positionName || undefined
           }
         : undefined,
@@ -370,19 +382,20 @@ function mapOnboardingAccessStatus(status: string) {
   }
 }
 
-
 /** Derives HR tenant authority only from the locally verified ExecutionToken. */
 function getTrustedHrTenantId(request: object): string {
- const tenantId = getAuthenticatedGrpcRequestContext(request)?.verifiedExecutionToken?.tenantId?.trim()
- if (!tenantId || tenantId === 'SYSTEM' || tenantId === '*') throw new Error('HR trusted tenant context is required')
- return tenantId
+  const tenantId =
+    getAuthenticatedGrpcRequestContext(request)?.verifiedExecutionToken?.tenantId?.trim()
+  if (!tenantId || tenantId === 'SYSTEM' || tenantId === '*')
+    throw new Error('HR trusted tenant context is required')
+  return tenantId
 }
 
 /** Applies HR's frozen BUSINESS Code declaration to each baseline handler. */
 function applyHrDeclaration(method: string, code: string): void {
- const descriptor = Object.getOwnPropertyDescriptor(HrManagementGrpcController.prototype, method)
- if (!descriptor) throw new Error(`HR handler is missing: ${method}`)
- AuthorizeBusinessRpc({ all: [code] })(HrManagementGrpcController.prototype, method, descriptor)
+  const descriptor = Object.getOwnPropertyDescriptor(HrManagementGrpcController.prototype, method)
+  if (!descriptor) throw new Error(`HR handler is missing: ${method}`)
+  AuthorizeBusinessRpc({ all: [code] })(HrManagementGrpcController.prototype, method, descriptor)
 }
 applyHrDeclaration('createEmployee', 'hr.employee.create')
 applyHrDeclaration('createEmployeeOnboarding', 'hr.employee.create')

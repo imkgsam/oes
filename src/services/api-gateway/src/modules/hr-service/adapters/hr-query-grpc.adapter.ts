@@ -16,7 +16,10 @@ import {
 import { SERVICE_NAMES } from '@oes/common/constants'
 import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
 import { DownstreamRequestSource } from '../../../common/grpc/gateway-downstream-source.mapper'
-import { HR_TARGET_AUDIENCE, TrustedHrGrpcClient } from '../../../infrastructure/grpc/trusted-hr.grpc.client'
+import {
+  HR_TARGET_AUDIENCE,
+  TrustedHrGrpcClient
+} from '../../../infrastructure/grpc/trusted-hr.grpc.client'
 import { GatewayFoundationTrustedGrpcExecutionProducer } from '../../../infrastructure/grpc/trusted-auth.grpc.client'
 
 const CALLER = 'api-gateway'
@@ -98,7 +101,10 @@ export class HrQueryGrpcAdapter implements OnModuleInit {
     )
   }
 
-  async getEmployeeById(employeeId: string, source: DownstreamRequestSource): Promise<HrEmployeeSummary> {
+  async getEmployeeById(
+    employeeId: string,
+    source: DownstreamRequestSource
+  ): Promise<HrEmployeeSummary> {
     return this.call(
       'getEmployeeById',
       this.svc.getEmployeeById(
@@ -208,10 +214,10 @@ function mapEmployee(employee: {
 function mapEmployment(employment: {
   id?: string
   tenantId?: string
-    employeeId?: string
-    orgUnitId?: string
-    positionName?: string
-    status?: EmploymentStatus
+  employeeId?: string
+  orgUnitId?: string
+  positionName?: string
+  status?: EmploymentStatus
   effectiveFrom?: string
   effectiveTo?: string
   endedReason?: string

@@ -26,10 +26,7 @@ async function bootstrap() {
         resolveCommonProtoPath('permission_service/policy_management.proto')
       ],
       loader: {
-        includeDirs: [
-          resolveCommonContractPath(),
-          resolveCommonContractPath('permission_service')
-        ]
+        includeDirs: [resolveCommonContractPath(), resolveCommonContractPath('permission_service')]
       },
       url: `${process.env.GRPC_LISTEN_HOST || '0.0.0.0'}:${process.env.GRPC_LISTEN_PORT || '50051'}`,
       credentials: createGrpcServerCredentials()

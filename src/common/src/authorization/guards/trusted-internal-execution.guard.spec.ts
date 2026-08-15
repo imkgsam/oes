@@ -27,9 +27,10 @@ describe('TrustedInternalExecutionGuard', () => {
 
   it('verifies the bearer token and attaches only verified execution facts', async () => {
     const reflector = {
-      getAllAndOverride: jest
-        .fn()
-        .mockReturnValueOnce({ mode: 'INTERNAL', permissions: { all: ['auth.internal.external_api_key.exchange'] } })
+      getAllAndOverride: jest.fn().mockReturnValueOnce({
+        mode: 'INTERNAL',
+        permissions: { all: ['auth.internal.external_api_key.exchange'] }
+      })
     }
     const metadata = new Metadata()
     metadata.set('authorization', 'Bearer a.b.c')
@@ -79,9 +80,10 @@ describe('TrustedInternalExecutionGuard', () => {
 
   it('fails closed when the token is missing', async () => {
     const reflector = {
-      getAllAndOverride: jest
-        .fn()
-        .mockReturnValueOnce({ mode: 'INTERNAL', permissions: { all: ['auth.internal.external_api_key.exchange'] } })
+      getAllAndOverride: jest.fn().mockReturnValueOnce({
+        mode: 'INTERNAL',
+        permissions: { all: ['auth.internal.external_api_key.exchange'] }
+      })
     }
     const context = {
       getHandler: jest.fn(),

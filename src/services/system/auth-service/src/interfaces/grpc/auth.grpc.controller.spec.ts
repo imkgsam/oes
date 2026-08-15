@@ -91,10 +91,7 @@ describe('AuthGrpcController', () => {
 
   it('keeps bootstrapUserLoginMethods on the frozen BUSINESS declaration', () => {
     expect(
-      getRpcAuthorizationModeDeclaration(
-        AuthGrpcController.prototype,
-        'bootstrapUserLoginMethods'
-      )
+      getRpcAuthorizationModeDeclaration(AuthGrpcController.prototype, 'bootstrapUserLoginMethods')
     ).toEqual({
       mode: 'BUSINESS',
       permissions: { all: [AUTH_MANAGEMENT_PERMISSION_CODES.BOOTSTRAP_ACCOUNT_CREDENTIALS] }
@@ -251,11 +248,13 @@ describe('AuthGrpcController', () => {
 
     const controller = new AuthGrpcController(commandBus, queryBus)
 
-    const response = await controller.listTrustedDevices(withTenantContext({
-      userId: 'user-1',
-      tenantId: 'tenant-1',
-      currentDeviceId: 'browser-1'
-    } as any))
+    const response = await controller.listTrustedDevices(
+      withTenantContext({
+        userId: 'user-1',
+        tenantId: 'tenant-1',
+        currentDeviceId: 'browser-1'
+      } as any)
+    )
 
     expect((queryBus.execute as jest.Mock).mock.calls[0][0]).toEqual(
       expect.objectContaining({
@@ -826,13 +825,15 @@ describe('AuthGrpcController', () => {
     const commandBus = {} as ValidatingCommandBus
     const queryBus = {} as ValidatingQueryBus
     const terminalLoginPolicyService = {
-      getPlatformPolicy: jest.fn().mockResolvedValue([
-        new TerminalLoginPolicyEntity('WEB', [TerminalLoginFlow.EmailPassword]),
-        new TerminalLoginPolicyEntity('BROWSER_EXTENSION', [TerminalLoginFlow.Password])
-      ]),
-      updatePlatformPolicy: jest.fn().mockResolvedValue(
-        new TerminalLoginPolicyEntity('WEB', [TerminalLoginFlow.EmailPassword])
-      )
+      getPlatformPolicy: jest
+        .fn()
+        .mockResolvedValue([
+          new TerminalLoginPolicyEntity('WEB', [TerminalLoginFlow.EmailPassword]),
+          new TerminalLoginPolicyEntity('BROWSER_EXTENSION', [TerminalLoginFlow.Password])
+        ]),
+      updatePlatformPolicy: jest
+        .fn()
+        .mockResolvedValue(new TerminalLoginPolicyEntity('WEB', [TerminalLoginFlow.EmailPassword]))
     }
     const controller = new AuthGrpcController(
       commandBus,
@@ -1043,12 +1044,14 @@ describe('AuthGrpcController', () => {
 
     const controller = new AuthGrpcController(commandBus, queryBus)
 
-    const response: StartStepUpMfaChallengeResponse = await controller.startStepUpMfaChallenge(withTenantContext({
-      userId: 'user-1',
-      accountId: 'account-1',
-      tenantId: 'tenant-1',
-      scenario: 3
-    } as any))
+    const response: StartStepUpMfaChallengeResponse = await controller.startStepUpMfaChallenge(
+      withTenantContext({
+        userId: 'user-1',
+        accountId: 'account-1',
+        tenantId: 'tenant-1',
+        scenario: 3
+      } as any)
+    )
 
     expect((commandBus.execute as jest.Mock).mock.calls[0][0]).toEqual(
       expect.objectContaining({
@@ -1396,14 +1399,16 @@ describe('AuthGrpcController', () => {
       .spyOn(controller as any, 'getRequiredOperatorId')
       .mockReturnValue('admin-1')
 
-    const selfResponse = await controller.changeOwnPassword(withTenantContext({
-      userId: 'user-1',
-      accountId: 'account-1',
-      tenantId: 'tenant-1',
-      currentPassword: 'old-password',
-      newPassword: 'new-password',
-      mfaGrantToken: 'step-up-grant-1'
-    } as any))
+    const selfResponse = await controller.changeOwnPassword(
+      withTenantContext({
+        userId: 'user-1',
+        accountId: 'account-1',
+        tenantId: 'tenant-1',
+        currentPassword: 'old-password',
+        newPassword: 'new-password',
+        mfaGrantToken: 'step-up-grant-1'
+      } as any)
+    )
     const adminResponse = await controller.requirePasswordSetup({
       userId: 'user-2',
       reason: '管理员要求重设密码',
@@ -1468,26 +1473,30 @@ describe('AuthGrpcController', () => {
       userId: 'user-1',
       email: 'alice@example.com'
     } as any)
-    await controller.verifyEmailBinding(withTenantContext({
-      userId: 'user-1',
-      accountId: 'account-1',
-      tenantId: 'tenant-1',
-      email: 'alice@example.com',
-      otp: '123456',
-      mfaGrantToken: 'step-up-grant-1'
-    } as any))
+    await controller.verifyEmailBinding(
+      withTenantContext({
+        userId: 'user-1',
+        accountId: 'account-1',
+        tenantId: 'tenant-1',
+        email: 'alice@example.com',
+        otp: '123456',
+        mfaGrantToken: 'step-up-grant-1'
+      } as any)
+    )
     await controller.requestPhoneBindingChallenge({
       userId: 'user-1',
       phone: '+8613800138000'
     } as any)
-    await controller.verifyPhoneBinding(withTenantContext({
-      userId: 'user-1',
-      accountId: 'account-1',
-      tenantId: 'tenant-1',
-      phone: '+8613800138000',
-      otp: '654321',
-      mfaGrantToken: 'step-up-grant-2'
-    } as any))
+    await controller.verifyPhoneBinding(
+      withTenantContext({
+        userId: 'user-1',
+        accountId: 'account-1',
+        tenantId: 'tenant-1',
+        phone: '+8613800138000',
+        otp: '654321',
+        mfaGrantToken: 'step-up-grant-2'
+      } as any)
+    )
 
     const response = await controller.completeFirstLoginPasswordSetup({
       userId: 'user-1',

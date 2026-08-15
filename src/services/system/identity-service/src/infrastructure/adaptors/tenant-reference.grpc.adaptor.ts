@@ -7,7 +7,10 @@ import {
 } from '@oes/common/generated/tenant_org_service'
 import { safeGrpcCall } from '@oes/common/transport'
 import { TenantReferencePort } from '../../application/ports/tenant-reference.port'
-import { IdentityFoundationTrustedGrpcExecutionProducer, IdentityTenantOrgTrustedGrpcClient } from './foundation-trusted-grpc.clients'
+import {
+  IdentityFoundationTrustedGrpcExecutionProducer,
+  IdentityTenantOrgTrustedGrpcClient
+} from './foundation-trusted-grpc.clients'
 
 @Injectable()
 // TenantReferenceGrpcAdaptor reads minimal tenant references from tenant-org-service over gRPC.
@@ -15,14 +18,12 @@ export class TenantReferenceGrpcAdaptor implements TenantReferencePort, OnModule
   private tenantOrgQueryService!: TenantOrgQueryServiceClient
   private readonly trusted = new IdentityFoundationTrustedGrpcExecutionProducer()
 
-  constructor(
-    private readonly tenantOrgClient: IdentityTenantOrgTrustedGrpcClient
-  ) {}
+  constructor(private readonly tenantOrgClient: IdentityTenantOrgTrustedGrpcClient) {}
 
   onModuleInit() {
-    this.tenantOrgQueryService = this.tenantOrgClient.getClient().getService<TenantOrgQueryServiceClient>(
-      TENANT_ORG_QUERY_SERVICE_NAME
-    )
+    this.tenantOrgQueryService = this.tenantOrgClient
+      .getClient()
+      .getService<TenantOrgQueryServiceClient>(TENANT_ORG_QUERY_SERVICE_NAME)
   }
 
   async findById(tenantId: string) {
@@ -40,5 +41,4 @@ export class TenantReferenceGrpcAdaptor implements TenantReferencePort, OnModule
     const id = response.tenant?.id?.trim()
     return id ? { id } : null
   }
-
 }

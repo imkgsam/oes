@@ -228,7 +228,10 @@ const AUTH_SERVICE_AUDIENCE = 'urn:oes:service:auth-service'
         source: AuthNotificationMachineSourceCredentialProvider,
         exchange: AuthNotificationExecutionTokenExchangeClient
       ) => new AuthNotificationTrustedGrpcExecutionProducer(source, exchange),
-      inject: [AuthNotificationMachineSourceCredentialProvider, AuthNotificationExecutionTokenExchangeClient]
+      inject: [
+        AuthNotificationMachineSourceCredentialProvider,
+        AuthNotificationExecutionTokenExchangeClient
+      ]
     },
     NotificationServiceGrpcAdaptor,
     PrismaAuthAuditRepository,
@@ -300,8 +303,18 @@ const AUTH_SERVICE_AUDIENCE = 'urn:oes:service:auth-service'
         identity: IIdentityServicePort,
         repository: PrismaMachineWorkloadSourceCredentialRepository,
         signer: ExecutionTokenSigningPort
-      ) => new MachineWorkloadSourceCredentialService(identity, repository, signer, requireMachineIssuer()),
-      inject: [IDENTITY_SERVICE, PrismaMachineWorkloadSourceCredentialRepository, EXECUTION_TOKEN_SIGNER]
+      ) =>
+        new MachineWorkloadSourceCredentialService(
+          identity,
+          repository,
+          signer,
+          requireMachineIssuer()
+        ),
+      inject: [
+        IDENTITY_SERVICE,
+        PrismaMachineWorkloadSourceCredentialRepository,
+        EXECUTION_TOKEN_SIGNER
+      ]
     },
     {
       provide: ExternalApiKeyCredentialService,
@@ -361,7 +374,11 @@ const AUTH_SERVICE_AUDIENCE = 'urn:oes:service:auth-service'
     ...AuthCommandHandlers,
     ...AuthQueryHandlers
   ],
-  controllers: [AuthGrpcController, ExternalApiKeyGrpcController, MachineWorkloadSourceCredentialGrpcController],
+  controllers: [
+    AuthGrpcController,
+    ExternalApiKeyGrpcController,
+    MachineWorkloadSourceCredentialGrpcController
+  ],
   exports: [ExternalApiKeyCredentialService]
 })
 export class AuthModule {}

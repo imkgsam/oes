@@ -175,19 +175,20 @@ function mapOnboardingAccessStatus(status?: string): ProtoOnboardingAccessStatus
   }
 }
 
-
 /** Derives HR tenant authority only from the locally verified ExecutionToken. */
 function getTrustedHrTenantId(request: object): string {
- const tenantId = getAuthenticatedGrpcRequestContext(request)?.verifiedExecutionToken?.tenantId?.trim()
- if (!tenantId || tenantId === 'SYSTEM' || tenantId === '*') throw new Error('HR trusted tenant context is required')
- return tenantId
+  const tenantId =
+    getAuthenticatedGrpcRequestContext(request)?.verifiedExecutionToken?.tenantId?.trim()
+  if (!tenantId || tenantId === 'SYSTEM' || tenantId === '*')
+    throw new Error('HR trusted tenant context is required')
+  return tenantId
 }
 
 /** Applies HR's frozen BUSINESS Code declaration to each baseline handler. */
 function applyHrDeclaration(method: string, code: string): void {
- const descriptor = Object.getOwnPropertyDescriptor(HrQueryGrpcController.prototype, method)
- if (!descriptor) throw new Error(`HR handler is missing: ${method}`)
- AuthorizeBusinessRpc({ all: [code] })(HrQueryGrpcController.prototype, method, descriptor)
+  const descriptor = Object.getOwnPropertyDescriptor(HrQueryGrpcController.prototype, method)
+  if (!descriptor) throw new Error(`HR handler is missing: ${method}`)
+  AuthorizeBusinessRpc({ all: [code] })(HrQueryGrpcController.prototype, method, descriptor)
 }
 applyHrDeclaration('getEmployeeById', 'hr.employee.get_by_id')
 applyHrDeclaration('getEmployeeByTenantPartyId', 'hr.employee.get_by_id')

@@ -12,7 +12,12 @@ export class TrustedHrGrpcClient {
   getClient(): ClientGrpc {
     return (this.client ??= ClientProxyFactory.create({
       transport: Transport.GRPC,
-      options: { package: 'hr_service', protoPath: resolveCommonProtoPath('hr_service/hr.proto'), url: resolveUrl(), credentials: createGrpcClientCredentials() }
+      options: {
+        package: 'hr_service',
+        protoPath: resolveCommonProtoPath('hr_service/hr.proto'),
+        url: resolveUrl(),
+        credentials: createGrpcClientCredentials()
+      }
     }) as unknown as ClientGrpc)
   }
 }

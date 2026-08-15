@@ -71,7 +71,10 @@ import {
   PERMISSION_MANAGEMENT_SERVICE_NAME
 } from '@oes/common/generated/permission_service'
 import { DownstreamRequestSource } from '../../../common/grpc/gateway-downstream-source.mapper'
-import { PERMISSION_TARGET_AUDIENCE, TrustedPermissionGrpcClient } from '../../../infrastructure/grpc/trusted-permission.grpc.client'
+import {
+  PERMISSION_TARGET_AUDIENCE,
+  TrustedPermissionGrpcClient
+} from '../../../infrastructure/grpc/trusted-permission.grpc.client'
 import { GatewayFoundationTrustedGrpcExecutionProducer } from '../../../infrastructure/grpc/trusted-auth.grpc.client'
 
 const CALLER = 'api-gateway'
@@ -87,9 +90,9 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
   ) {}
 
   onModuleInit() {
-    this.svc = this.client.getClient().getService<PermissionManagementServiceClient>(
-      PERMISSION_MANAGEMENT_SERVICE_NAME
-    )
+    this.svc = this.client
+      .getClient()
+      .getService<PermissionManagementServiceClient>(PERMISSION_MANAGEMENT_SERVICE_NAME)
   }
 
   // Permission methods
@@ -99,7 +102,12 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     source: DownstreamRequestSource
   ): Promise<PermissionResponse> {
     return this.call('createPermission', async () =>
-      this.svc.createPermission(req, await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.create']))
+      this.svc.createPermission(
+        req,
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.create'
+        ])
+      )
     )
   }
 
@@ -108,7 +116,12 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     source: DownstreamRequestSource
   ): Promise<void> {
     await this.call('deletePermission', async () =>
-      this.svc.deletePermission(req, await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.delete']))
+      this.svc.deletePermission(
+        req,
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.delete'
+        ])
+      )
     )
   }
 
@@ -120,7 +133,9 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     return this.call('updatePermission', async () =>
       this.svc.updatePermission(
         req,
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.update'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.update'
+        ])
       )
     )
   }
@@ -133,7 +148,9 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     return this.call('getPermissionById', async () =>
       this.svc.getPermissionById(
         req,
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.get_by_id'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.get_by_id'
+        ])
       )
     )
   }
@@ -144,7 +161,12 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     source: DownstreamRequestSource
   ): Promise<PermissionResponse> {
     return this.call('getPermissionByCode', async () =>
-      this.svc.getPermissionByCode(req, await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.get_by_code']))
+      this.svc.getPermissionByCode(
+        req,
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.get_by_code'
+        ])
+      )
     )
   }
 
@@ -174,7 +196,9 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     return this.call('listPermissionRoles', async () =>
       this.svc.listPermissionRoles(
         req,
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_instance.list'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.role_instance.list'
+        ])
       )
     )
   }
@@ -189,7 +213,9 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     return this.call('createRoleTemplate', async () =>
       this.svc.createRoleTemplate(
         req,
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_template.create'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.role_template.create'
+        ])
       )
     )
   }
@@ -202,14 +228,21 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     return this.call('createRoleInstance', async () =>
       this.svc.createRoleInstance(
         req,
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_instance.create'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.role_instance.create'
+        ])
       )
     )
   }
 
   async deleteRole(req: DeleteRoleRequest, source: DownstreamRequestSource): Promise<void> {
     await this.call('deleteRole', async () =>
-      this.svc.deleteRole(req, await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_instance.delete']))
+      this.svc.deleteRole(
+        req,
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.role_instance.delete'
+        ])
+      )
     )
   }
 
@@ -221,20 +254,21 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     await this.call('deleteRoleTemplate', async () =>
       this.svc.deleteRoleTemplate(
         req,
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_template.delete'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.role_template.delete'
+        ])
       )
     )
   }
 
   // Updates mutable fields on one role instance.
-  async updateRole(
-    req: UpdateRoleRequest,
-    source: DownstreamRequestSource
-  ): Promise<RoleResponse> {
+  async updateRole(req: UpdateRoleRequest, source: DownstreamRequestSource): Promise<RoleResponse> {
     return this.call('updateRole', async () =>
       this.svc.updateRole(
         req,
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_instance.update'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.role_instance.update'
+        ])
       )
     )
   }
@@ -247,7 +281,9 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     return this.call('setRoleEnabled', async () =>
       this.svc.setRoleEnabled(
         req,
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_instance.update'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.role_instance.update'
+        ])
       )
     )
   }
@@ -257,7 +293,12 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     source: DownstreamRequestSource
   ): Promise<RoleResponse> {
     return this.call('getRoleById', async () =>
-      this.svc.getRoleById(req, await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_instance.get_by_id']))
+      this.svc.getRoleById(
+        req,
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.role_instance.get_by_id'
+        ])
+      )
     )
   }
 
@@ -269,7 +310,9 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     return this.call('getRoleTemplateById', async () =>
       this.svc.getRoleTemplateById(
         req,
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_template.get_by_id'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.role_template.get_by_id'
+        ])
       )
     )
   }
@@ -288,7 +331,9 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
           scopeLevel: req.scopeLevel || undefined,
           keyword: req.keyword || undefined
         } as ListRoleInstancesRequest,
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_instance.list'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.role_instance.list'
+        ])
       )
     )
   }
@@ -305,7 +350,9 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
           pageSize: req.pageSize || 20,
           keyword: req.keyword || undefined
         } as ListRoleTemplatesRequest,
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_template.list'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.role_template.list'
+        ])
       )
     )
   }
@@ -318,7 +365,9 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     return this.call('listRolePermissions', async () =>
       this.svc.listRolePermissions(
         req,
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_instance.get_by_id'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.role_instance.get_by_id'
+        ])
       )
     )
   }
@@ -331,7 +380,9 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     return this.call('listRoleTemplatePermissions', async () =>
       this.svc.listRoleTemplatePermissions(
         req,
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_template.get_by_id'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.role_template.get_by_id'
+        ])
       )
     )
   }
@@ -344,7 +395,9 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     await this.call('assignRolePermission', async () =>
       this.svc.assignRolePermission(
         req,
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_instance.assign_permissions'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.role_instance.assign_permissions'
+        ])
       )
     )
   }
@@ -357,7 +410,9 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     await this.call('assignRoleTemplatePermission', async () =>
       this.svc.assignRoleTemplatePermission(
         req,
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_template.assign_permissions'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.role_template.assign_permissions'
+        ])
       )
     )
   }
@@ -370,7 +425,9 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     await this.call('revokeRolePermission', async () =>
       this.svc.revokeRolePermission(
         req,
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_instance.assign_permissions'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.role_instance.assign_permissions'
+        ])
       )
     )
   }
@@ -383,7 +440,9 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     await this.call('revokeRoleTemplatePermission', async () =>
       this.svc.revokeRoleTemplatePermission(
         req,
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_template.assign_permissions'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.role_template.assign_permissions'
+        ])
       )
     )
   }
@@ -396,7 +455,9 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     return this.call('updateRoleTemplate', async () =>
       this.svc.updateRoleTemplate(
         req,
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_template.update'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.role_template.update'
+        ])
       )
     )
   }
@@ -409,7 +470,9 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     return this.call('setRoleTemplateEnabled', async () =>
       this.svc.setRoleTemplateEnabled(
         req,
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_template.update'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.role_template.update'
+        ])
       )
     )
   }
@@ -422,7 +485,9 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     return this.call('createRoleInstanceFromTemplate', async () =>
       this.svc.createRoleInstanceFromTemplate(
         req,
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_instance.create_from_template'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.role_instance.create_from_template'
+        ])
       )
     )
   }
@@ -439,7 +504,9 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
           tenantId: req.tenantId || undefined,
           scopeLevel: req.scopeLevel || undefined
         } as ListAccountRolesRequest,
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.account.get_roles'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.account.get_roles'
+        ])
       )
     )
   }
@@ -456,7 +523,9 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
           tenantId: req.tenantId || undefined,
           scopeLevel: req.scopeLevel || undefined
         } as GetAccountRoleSelectionRequest,
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.account.get_roles'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.account.get_roles'
+        ])
       )
     )
   }
@@ -469,7 +538,9 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     await this.call('assignAccountRole', async () =>
       this.svc.assignAccountRole(
         req,
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.account.assign_roles'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.account.assign_roles'
+        ])
       )
     )
   }
@@ -482,7 +553,9 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     await this.call('revokeAccountRole', async () =>
       this.svc.revokeAccountRole(
         req,
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.account.assign_roles'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.account.assign_roles'
+        ])
       )
     )
   }
@@ -495,7 +568,9 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     return this.call('setAccountRoles', async () =>
       this.svc.setAccountRoles(
         req,
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.account.assign_roles'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.account.assign_roles'
+        ])
       )
     )
   }
@@ -508,7 +583,9 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     return this.call('listRoleAccounts', async () =>
       this.svc.listRoleAccounts(
         req,
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.account.get_roles'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.account.get_roles'
+        ])
       )
     )
   }
@@ -529,7 +606,9 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
           hasEnabledFilter: req.hasEnabledFilter,
           enabled: req.enabled
         },
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.navigation.entry.list'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.navigation.entry.list'
+        ])
       )
     )
   }
@@ -542,7 +621,9 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     return this.call('getNavigationEntry', async () =>
       this.svc.getNavigationEntry(
         req,
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.navigation.entry.get_by_key'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.navigation.entry.get_by_key'
+        ])
       )
     )
   }
@@ -555,7 +636,9 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     return this.call('createNavigationEntry', async () =>
       this.svc.createNavigationEntry(
         req,
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.navigation.entry.create'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.navigation.entry.create'
+        ])
       )
     )
   }
@@ -568,7 +651,9 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     return this.call('updateNavigationEntry', async () =>
       this.svc.updateNavigationEntry(
         req,
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.navigation.entry.update'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.navigation.entry.update'
+        ])
       )
     )
   }
@@ -581,7 +666,9 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     return this.call('getRoleNavigation', async () =>
       this.svc.getRoleNavigation(
         req,
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_instance.get_by_id'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.role_instance.get_by_id'
+        ])
       )
     )
   }
@@ -594,7 +681,9 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     return this.call('getRoleTerminalAccess', async () =>
       this.svc.getRoleTerminalAccess(
         req,
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.terminal_access.view'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.terminal_access.view'
+        ])
       )
     )
   }
@@ -607,7 +696,9 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     return this.call('setRoleTerminalAccess', async () =>
       this.svc.setRoleTerminalAccess(
         req,
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.terminal_access.role.manage'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.terminal_access.role.manage'
+        ])
       )
     )
   }
@@ -620,7 +711,9 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     return this.call('getAccountTerminalAccess', async () =>
       this.svc.getAccountTerminalAccess(
         req,
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.terminal_access.view'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.terminal_access.view'
+        ])
       )
     )
   }
@@ -633,7 +726,9 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     return this.call('replaceAccountTerminalAccessOverride', async () =>
       this.svc.replaceAccountTerminalAccessOverride(
         req,
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.terminal_access.account.manage'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.terminal_access.account.manage'
+        ])
       )
     )
   }
@@ -646,7 +741,9 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     return this.call('deleteAccountTerminalAccessOverride', async () =>
       this.svc.deleteAccountTerminalAccessOverride(
         req,
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.terminal_access.account.manage'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.terminal_access.account.manage'
+        ])
       )
     )
   }
@@ -659,7 +756,9 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     return this.call('setRoleNavigationVisibility', async () =>
       this.svc.setRoleNavigationVisibility(
         req,
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_instance.update'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.role_instance.update'
+        ])
       )
     )
   }
@@ -672,7 +771,9 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     return this.call('setRoleLandingPolicies', async () =>
       this.svc.setRoleLandingPolicies(
         req,
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_instance.update'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.role_instance.update'
+        ])
       )
     )
   }
@@ -685,7 +786,9 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     return this.call('syncRoleNavigationFromTemplate', async () =>
       this.svc.syncRoleNavigationFromTemplate(
         req,
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_instance.sync_from_template'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.role_instance.sync_from_template'
+        ])
       )
     )
   }
@@ -698,7 +801,9 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     return this.call('resolveNavigationPreview', async () =>
       this.svc.resolveNavigationPreview(
         req,
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.navigation.resolve_preview'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.navigation.resolve_preview'
+        ])
       )
     )
   }
@@ -774,7 +879,10 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
       )
     }
 
-    if (normalized.includes('validation failed') || normalized.includes('must not be greater than')) {
+    if (
+      normalized.includes('validation failed') ||
+      normalized.includes('must not be greater than')
+    ) {
       return new HttpException(
         {
           code: 'APP_VALIDATION_001',

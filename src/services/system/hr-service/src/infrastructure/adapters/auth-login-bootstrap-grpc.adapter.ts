@@ -13,9 +13,7 @@ export class AuthLoginBootstrapGrpcAdapter implements AuthLoginBootstrapPort, On
   private authService!: AuthServiceClient
   private readonly trusted = new HrFoundationTrustedGrpcExecutionProducer()
 
-  constructor(
-    @Inject(AUTH_GRPC_CLIENT) private readonly client: ClientGrpc
-  ) {}
+  constructor(@Inject(AUTH_GRPC_CLIENT) private readonly client: ClientGrpc) {}
 
   onModuleInit() {
     this.authService = this.client.getService<AuthServiceClient>(AUTH_SERVICE_NAME)
@@ -54,5 +52,4 @@ export class AuthLoginBootstrapGrpcAdapter implements AuthLoginBootstrapPort, On
       }
     )
   }
-
 }

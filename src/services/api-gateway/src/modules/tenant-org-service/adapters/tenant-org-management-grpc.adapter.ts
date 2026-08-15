@@ -19,7 +19,10 @@ import {
 } from '@oes/common/generated/tenant_org_service'
 import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
 import { DownstreamRequestSource } from '../../../common/grpc/gateway-downstream-source.mapper'
-import { TENANTORG_TARGET_AUDIENCE, TrustedTenantOrgGrpcClient } from '../../../infrastructure/grpc/trusted-tenant-org.grpc.client'
+import {
+  TENANTORG_TARGET_AUDIENCE,
+  TrustedTenantOrgGrpcClient
+} from '../../../infrastructure/grpc/trusted-tenant-org.grpc.client'
 import { GatewayFoundationTrustedGrpcExecutionProducer } from '../../../infrastructure/grpc/trusted-auth.grpc.client'
 
 const CALLER = 'api-gateway'
@@ -80,20 +83,25 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
   ) {}
 
   onModuleInit(): void {
-    this.svc = this.client.getClient().getService<TenantOrgManagementServiceClient>(
-      TENANT_ORG_MANAGEMENT_SERVICE_NAME
-    )
+    this.svc = this.client
+      .getClient()
+      .getService<TenantOrgManagementServiceClient>(TENANT_ORG_MANAGEMENT_SERVICE_NAME)
   }
 
   async createTenant(
     input: { code: string; employeeCodePrefix: string; name: string; rootOrgName?: string },
     source: DownstreamRequestSource
-  ): Promise<{ rootOrgUnit?: { id?: string; name?: string }; tenant?: TenantManagementMutationTenant }> {
+  ): Promise<{
+    rootOrgUnit?: { id?: string; name?: string }
+    tenant?: TenantManagementMutationTenant
+  }> {
     return this.call(
       'createTenant',
       this.svc.createTenant(
         input,
-        await this.trusted.forBusinessCall(source, TENANTORG_TARGET_AUDIENCE, ['tenant_org.tenant.create'])
+        await this.trusted.forBusinessCall(source, TENANTORG_TARGET_AUDIENCE, [
+          'tenant_org.tenant.create'
+        ])
       ),
       (response: CreateTenantResponse) => ({
         tenant: response.tenant ? mapTenant(response.tenant) : undefined,
@@ -107,7 +115,10 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
     )
   }
 
-  async startTenantOnboarding(input: any, source: DownstreamRequestSource): Promise<{ onboarding?: TenantOnboardingGatewayResult }> {
+  async startTenantOnboarding(
+    input: any,
+    source: DownstreamRequestSource
+  ): Promise<{ onboarding?: TenantOnboardingGatewayResult }> {
     return this.call(
       'startTenantOnboarding',
       this.svc.startTenantOnboarding(
@@ -117,30 +128,43 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
           organizationTenantParty: {
             legalName: input.organizationTenantParty.legalName,
             registeredCountry: input.organizationTenantParty.registeredCountry ?? '',
-            identifiers: (input.organizationTenantParty.identifiers ?? []).map((identifier: any) => ({
-              identifierType: identifier.identifierType,
-              rawValue: identifier.rawValue ?? '',
-              normalizedValue: identifier.normalizedValue,
-              issuerCountryOrRegion: identifier.issuerCountryOrRegion ?? ''
-            }))
+            identifiers: (input.organizationTenantParty.identifiers ?? []).map(
+              (identifier: any) => ({
+                identifierType: identifier.identifierType,
+                rawValue: identifier.rawValue ?? '',
+                normalizedValue: identifier.normalizedValue,
+                issuerCountryOrRegion: identifier.issuerCountryOrRegion ?? ''
+              })
+            )
           },
           rootOrg: input.rootOrg,
           firstAdmin: input.firstAdmin
         },
-        await this.trusted.forBusinessCall(source, TENANTORG_TARGET_AUDIENCE, ['tenant_org.tenant.create'])
+        await this.trusted.forBusinessCall(source, TENANTORG_TARGET_AUDIENCE, [
+          'tenant_org.tenant.create'
+        ])
       ),
-      (response: StartTenantOnboardingResponse) => ({ onboarding: mapTenantOnboardingGatewayResult(response.onboarding) })
+      (response: StartTenantOnboardingResponse) => ({
+        onboarding: mapTenantOnboardingGatewayResult(response.onboarding)
+      })
     )
   }
 
-  async getTenantOnboarding(onboardingId: string, source: DownstreamRequestSource): Promise<{ onboarding?: TenantOnboardingGatewayResult }> {
+  async getTenantOnboarding(
+    onboardingId: string,
+    source: DownstreamRequestSource
+  ): Promise<{ onboarding?: TenantOnboardingGatewayResult }> {
     return this.call(
       'getTenantOnboarding',
       this.svc.getTenantOnboarding(
         { onboardingId },
-        await this.trusted.forBusinessCall(source, TENANTORG_TARGET_AUDIENCE, ['tenant_org.tenant.get_by_id'])
+        await this.trusted.forBusinessCall(source, TENANTORG_TARGET_AUDIENCE, [
+          'tenant_org.tenant.get_by_id'
+        ])
       ),
-      (response: GetTenantOnboardingResponse) => ({ onboarding: mapTenantOnboardingGatewayResult(response.onboarding) })
+      (response: GetTenantOnboardingResponse) => ({
+        onboarding: mapTenantOnboardingGatewayResult(response.onboarding)
+      })
     )
   }
 
@@ -152,21 +176,33 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
       'retryTenantOnboarding',
       this.svc.retryTenantOnboarding(
         input,
-        await this.trusted.forBusinessCall(source, TENANTORG_TARGET_AUDIENCE, ['tenant_org.tenant.create'])
+        await this.trusted.forBusinessCall(source, TENANTORG_TARGET_AUDIENCE, [
+          'tenant_org.tenant.create'
+        ])
       ),
-      (response: RetryTenantOnboardingResponse) => ({ onboarding: mapTenantOnboardingGatewayResult(response.onboarding) })
+      (response: RetryTenantOnboardingResponse) => ({
+        onboarding: mapTenantOnboardingGatewayResult(response.onboarding)
+      })
     )
   }
 
   async updateTenantProfile(
-    input: { code?: string; employeeCodePrefix?: string; name?: string; tenantId: string; websiteUrl?: string },
+    input: {
+      code?: string
+      employeeCodePrefix?: string
+      name?: string
+      tenantId: string
+      websiteUrl?: string
+    },
     source: DownstreamRequestSource
   ): Promise<{ tenant?: TenantManagementMutationTenant }> {
     return this.call(
       'updateTenantProfile',
       this.svc.updateTenantProfile(
         input,
-        await this.trusted.forBusinessCall(source, TENANTORG_TARGET_AUDIENCE, ['tenant_org.tenant.update_profile'])
+        await this.trusted.forBusinessCall(source, TENANTORG_TARGET_AUDIENCE, [
+          'tenant_org.tenant.update_profile'
+        ])
       ),
       (response: UpdateTenantProfileResponse) => ({
         tenant: response.tenant ? mapTenant(response.tenant) : undefined
@@ -182,7 +218,9 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
       'suspendTenant',
       this.svc.suspendTenant(
         input,
-        await this.trusted.forBusinessCall(source, TENANTORG_TARGET_AUDIENCE, ['tenant_org.tenant.update_status'])
+        await this.trusted.forBusinessCall(source, TENANTORG_TARGET_AUDIENCE, [
+          'tenant_org.tenant.update_status'
+        ])
       ),
       (response: SuspendTenantResponse) => ({
         tenant: response.tenant ? mapTenant(response.tenant) : undefined
@@ -198,7 +236,9 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
       'reactivateTenant',
       this.svc.reactivateTenant(
         input,
-        await this.trusted.forBusinessCall(source, TENANTORG_TARGET_AUDIENCE, ['tenant_org.tenant.update_status'])
+        await this.trusted.forBusinessCall(source, TENANTORG_TARGET_AUDIENCE, [
+          'tenant_org.tenant.update_status'
+        ])
       ),
       (response: ReactivateTenantResponse) => ({
         tenant: response.tenant ? mapTenant(response.tenant) : undefined
@@ -214,7 +254,9 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
       'archiveTenant',
       this.svc.archiveTenant(
         input,
-        await this.trusted.forBusinessCall(source, TENANTORG_TARGET_AUDIENCE, ['tenant_org.tenant.update_status'])
+        await this.trusted.forBusinessCall(source, TENANTORG_TARGET_AUDIENCE, [
+          'tenant_org.tenant.update_status'
+        ])
       ),
       (response: ArchiveTenantResponse) => ({
         tenant: response.tenant ? mapTenant(response.tenant) : undefined
@@ -240,7 +282,9 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
           ...input,
           organizationTenantPartyId: input.organizationTenantPartyId
         },
-        await this.trusted.forBusinessCall(source, TENANTORG_TARGET_AUDIENCE, ['tenant_org.org_unit.create'])
+        await this.trusted.forBusinessCall(source, TENANTORG_TARGET_AUDIENCE, [
+          'tenant_org.org_unit.create'
+        ])
       ),
       (response: CreateOrgUnitResponse) => ({
         orgUnit: response.orgUnit ? mapOrgUnit(response.orgUnit) : undefined
@@ -266,7 +310,9 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
           ...input,
           organizationTenantPartyId: input.organizationTenantPartyId
         },
-        await this.trusted.forBusinessCall(source, TENANTORG_TARGET_AUDIENCE, ['tenant_org.org_unit.update'])
+        await this.trusted.forBusinessCall(source, TENANTORG_TARGET_AUDIENCE, [
+          'tenant_org.org_unit.update'
+        ])
       ),
       (response: UpdateOrgUnitResponse) => ({
         orgUnit: response.orgUnit ? mapOrgUnit(response.orgUnit) : undefined
@@ -286,7 +332,9 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
       'moveOrgUnit',
       this.svc.moveOrgUnit(
         input,
-        await this.trusted.forBusinessCall(source, TENANTORG_TARGET_AUDIENCE, ['tenant_org.org_unit.update'])
+        await this.trusted.forBusinessCall(source, TENANTORG_TARGET_AUDIENCE, [
+          'tenant_org.org_unit.update'
+        ])
       ),
       (response: MoveOrgUnitResponse) => ({
         orgUnit: response.orgUnit ? mapOrgUnit(response.orgUnit) : undefined
@@ -302,7 +350,9 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
       'archiveOrgUnit',
       this.svc.archiveOrgUnit(
         input,
-        await this.trusted.forBusinessCall(source, TENANTORG_TARGET_AUDIENCE, ['tenant_org.org_unit.archive'])
+        await this.trusted.forBusinessCall(source, TENANTORG_TARGET_AUDIENCE, [
+          'tenant_org.org_unit.archive'
+        ])
       ),
       (response: ArchiveOrgUnitResponse) => ({
         orgUnit: response.orgUnit ? mapOrgUnit(response.orgUnit) : undefined
@@ -379,7 +429,9 @@ function mapOrgUnit(orgUnit: {
   }
 }
 
-export function mapTenantOnboardingGatewayResult(onboarding?: any): TenantOnboardingGatewayResult | undefined {
+export function mapTenantOnboardingGatewayResult(
+  onboarding?: any
+): TenantOnboardingGatewayResult | undefined {
   if (!onboarding) return undefined
   return {
     onboardingId: onboarding.onboardingId,

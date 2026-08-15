@@ -21,7 +21,10 @@ import { PolicyModule } from '../../src/modules/policy/policy.module'
 describe('permission-service trusted gRPC security', () => {
   it('uses one canonical target audience and no legacy class guard', () => {
     expect(PERMISSION_AUDIENCE).toBe('urn:oes:service:permission-service')
-    const source = readFileSync(join(__dirname, '../../src/interfaces/grpc/permission-management.grpc.controller.ts'), 'utf8')
+    const source = readFileSync(
+      join(__dirname, '../../src/interfaces/grpc/permission-management.grpc.controller.ts'),
+      'utf8'
+    )
     expect(source).not.toMatch(/@UseGuards\(InternalServiceGuard/)
     expect(source).not.toMatch(/@RequireAuthenticatedOperator/)
   })
@@ -37,32 +40,33 @@ describe('permission-service trusted gRPC security', () => {
     ['AuthorizationModule', AuthorizationModule],
     ['PermissionModule', PermissionModule],
     ['PolicyModule', PolicyModule]
-  ] as const)('%s resolves its controller guard and trusted verifier dependencies', async (_, ownerModule) => {
-    const originalAuthSpiffeId = process.env.PERMISSION_AUTH_SERVICE_SPIFFE_ID
-    const originalWorkloadPolicies = process.env.PERMISSION_WORKLOAD_ISSUANCE_POLICIES
-    process.env.PERMISSION_AUTH_SERVICE_SPIFFE_ID = 'spiffe://oes.test/ns/system/sa/auth-service'
-    process.env.PERMISSION_WORKLOAD_ISSUANCE_POLICIES = validWorkloadPolicies()
+  ] as const)(
+    '%s resolves its controller guard and trusted verifier dependencies',
+    async (_, ownerModule) => {
+      const originalAuthSpiffeId = process.env.PERMISSION_AUTH_SERVICE_SPIFFE_ID
+      const originalWorkloadPolicies = process.env.PERMISSION_WORKLOAD_ISSUANCE_POLICIES
+      process.env.PERMISSION_AUTH_SERVICE_SPIFFE_ID = 'spiffe://oes.test/ns/system/sa/auth-service'
+      process.env.PERMISSION_WORKLOAD_ISSUANCE_POLICIES = validWorkloadPolicies()
 
-    let moduleRef: TestingModule | undefined
-    try {
-      moduleRef = await compileControllerOwner(ownerModule)
-      const ownerContext = moduleRef.select(ownerModule)
-      const guard = ownerContext.get(PermissionFoundationTrustedExecutionGuard, { strict: true })
-      const verifier = (guard as unknown as { verifier: ExecutionTokenVerifier }).verifier
-      const workloadIdentity = (
-        guard as unknown as { workloadIdentityProvider: GrpcWorkloadIdentityProvider }
-      ).workloadIdentityProvider
-      expect(guard).toBeInstanceOf(
-        PermissionFoundationTrustedExecutionGuard
-      )
-      expect(typeof verifier.verify).toBe('function')
-      expect(typeof workloadIdentity.getVerifiedWorkloadIdentity).toBe('function')
-    } finally {
-      await moduleRef?.close()
-      restoreEnvironment('PERMISSION_AUTH_SERVICE_SPIFFE_ID', originalAuthSpiffeId)
-      restoreEnvironment('PERMISSION_WORKLOAD_ISSUANCE_POLICIES', originalWorkloadPolicies)
+      let moduleRef: TestingModule | undefined
+      try {
+        moduleRef = await compileControllerOwner(ownerModule)
+        const ownerContext = moduleRef.select(ownerModule)
+        const guard = ownerContext.get(PermissionFoundationTrustedExecutionGuard, { strict: true })
+        const verifier = (guard as unknown as { verifier: ExecutionTokenVerifier }).verifier
+        const workloadIdentity = (
+          guard as unknown as { workloadIdentityProvider: GrpcWorkloadIdentityProvider }
+        ).workloadIdentityProvider
+        expect(guard).toBeInstanceOf(PermissionFoundationTrustedExecutionGuard)
+        expect(typeof verifier.verify).toBe('function')
+        expect(typeof workloadIdentity.getVerifiedWorkloadIdentity).toBe('function')
+      } finally {
+        await moduleRef?.close()
+        restoreEnvironment('PERMISSION_AUTH_SERVICE_SPIFFE_ID', originalAuthSpiffeId)
+        restoreEnvironment('PERMISSION_WORKLOAD_ISSUANCE_POLICIES', originalWorkloadPolicies)
+      }
     }
-  })
+  )
 })
 
 /** Compiles one real controller-owner module so Nest must construct every controller guard. */

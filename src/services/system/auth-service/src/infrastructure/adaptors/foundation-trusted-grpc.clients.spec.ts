@@ -18,8 +18,15 @@ import {
 /** Proves Auth's target-bound profiles are exact, immutable and wildcard-free. */
 describe('Auth foundation trusted gRPC targets', () => {
   it('contains only the frozen target set', () => {
-    expect(Object.keys(AUTH_FOUNDATION_TARGETS)).toEqual(['identity-service','permission-service','hr-service','tenant-org-service'])
-    for (const target of Object.keys(AUTH_FOUNDATION_TARGETS) as Array<keyof typeof AUTH_FOUNDATION_TARGETS>) {
+    expect(Object.keys(AUTH_FOUNDATION_TARGETS)).toEqual([
+      'identity-service',
+      'permission-service',
+      'hr-service',
+      'tenant-org-service'
+    ])
+    for (const target of Object.keys(AUTH_FOUNDATION_TARGETS) as Array<
+      keyof typeof AUTH_FOUNDATION_TARGETS
+    >) {
       const profile = requireAuthFoundationTarget(target)
       expect(profile.audience).toBe(`urn:oes:service:${target}`)
       expect(profile.audience).not.toContain('*')
@@ -28,14 +35,23 @@ describe('Auth foundation trusted gRPC targets', () => {
   })
 
   it('resolves all four target-bound client providers from Auth runtime DI', async () => {
-    const moduleRef = await Test.createTestingModule({ imports: [ExternalServicesModule] }).compile()
-    for (const token of [AuthIdentityTrustedGrpcClient, AuthPermissionTrustedGrpcClient, AuthHrTrustedGrpcClient, AuthTenantOrgTrustedGrpcClient]) {
+    const moduleRef = await Test.createTestingModule({
+      imports: [ExternalServicesModule]
+    }).compile()
+    for (const token of [
+      AuthIdentityTrustedGrpcClient,
+      AuthPermissionTrustedGrpcClient,
+      AuthHrTrustedGrpcClient,
+      AuthTenantOrgTrustedGrpcClient
+    ]) {
       expect(moduleRef.get(token, { strict: false })).toBeDefined()
     }
     expect(moduleRef.get(IDENTITY_SERVICE)).toBeInstanceOf(IdentityServiceAdaptor)
     expect(moduleRef.get(PERMISSION_SERVICE)).toBeInstanceOf(PermissionServiceAdaptor)
     expect(moduleRef.get(HR_SERVICE)).toBeInstanceOf(HrServiceAdaptor)
-    expect(moduleRef.get(TENANT_LIFECYCLE_ACCESS_PORT)).toBeInstanceOf(TenantOrgLifecycleGrpcAdaptor)
+    expect(moduleRef.get(TENANT_LIFECYCLE_ACCESS_PORT)).toBeInstanceOf(
+      TenantOrgLifecycleGrpcAdaptor
+    )
     await moduleRef.close()
   })
 })

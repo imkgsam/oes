@@ -9,7 +9,10 @@ import {
 } from '@oes/common/generated/identity_service'
 import { InjectGrpcClient, safeGrpcCall } from '@oes/common/transport'
 import { DownstreamRequestSource } from '../../../common/grpc/gateway-downstream-source.mapper'
-import { IDENTITY_TARGET_AUDIENCE, TrustedIdentityGrpcClient } from '../../../infrastructure/grpc/trusted-identity.grpc.client'
+import {
+  IDENTITY_TARGET_AUDIENCE,
+  TrustedIdentityGrpcClient
+} from '../../../infrastructure/grpc/trusted-identity.grpc.client'
 import { GatewayFoundationTrustedGrpcExecutionProducer } from '../../../infrastructure/grpc/trusted-auth.grpc.client'
 
 @Injectable()
@@ -23,10 +26,15 @@ export class IdentityUserLookupGrpcAdapter implements OnModuleInit {
   ) {}
 
   onModuleInit(): void {
-    this.svc = this.client.getClient().getService<IdentityQueryServiceClient>(IDENTITY_QUERY_SERVICE_NAME)
+    this.svc = this.client
+      .getClient()
+      .getService<IdentityQueryServiceClient>(IDENTITY_QUERY_SERVICE_NAME)
   }
 
-  async getUserByEmail(email: string, source: DownstreamRequestSource): Promise<GetUserByEmailResponse> {
+  async getUserByEmail(
+    email: string,
+    source: DownstreamRequestSource
+  ): Promise<GetUserByEmailResponse> {
     return safeGrpcCall(
       this.svc.getUserByEmail(
         { email },
@@ -38,7 +46,10 @@ export class IdentityUserLookupGrpcAdapter implements OnModuleInit {
     )
   }
 
-  async getUserByPhone(phone: string, source: DownstreamRequestSource): Promise<GetUserByPhoneResponse> {
+  async getUserByPhone(
+    phone: string,
+    source: DownstreamRequestSource
+  ): Promise<GetUserByPhoneResponse> {
     return safeGrpcCall(
       this.svc.getUserByPhone(
         { phone },

@@ -48,10 +48,12 @@ export class BusinessCardEmployeeGrpcAdapter implements BusinessCardEmployeePort
 
   onModuleInit(): void {
     this.hrQueryService = this.hrClient.getService<HrQueryServiceClient>(HR_QUERY_SERVICE_NAME)
-    this.identityQueryService =
-      this.identityClient.getService<IdentityQueryServiceClient>(IDENTITY_QUERY_SERVICE_NAME)
-    this.tenantOrgQueryService =
-      this.tenantOrgClient.getService<TenantOrgQueryServiceClient>(TENANT_ORG_QUERY_SERVICE_NAME)
+    this.identityQueryService = this.identityClient.getService<IdentityQueryServiceClient>(
+      IDENTITY_QUERY_SERVICE_NAME
+    )
+    this.tenantOrgQueryService = this.tenantOrgClient.getService<TenantOrgQueryServiceClient>(
+      TENANT_ORG_QUERY_SERVICE_NAME
+    )
   }
 
   async getEmployeeSummary(input: {
@@ -93,7 +95,10 @@ export class BusinessCardEmployeeGrpcAdapter implements BusinessCardEmployeePort
         tenantId: input.tenantId,
         employeeId: employee.id,
         accountId: normalizeOptional(account?.accountId) ?? null,
-        displayName: normalizeOptional(accountProfile?.displayName) ?? normalizeOptional(account?.displayName) ?? null,
+        displayName:
+          normalizeOptional(accountProfile?.displayName) ??
+          normalizeOptional(account?.displayName) ??
+          null,
         englishName: null,
         title: normalizeOptional(employment?.positionName) ?? null,
         department,
@@ -147,7 +152,11 @@ export class BusinessCardEmployeeGrpcAdapter implements BusinessCardEmployeePort
     }
   }
 
-  private async resolveEmployeeAccount(input: { tenantId: string; employeeId: string; traceId?: string }) {
+  private async resolveEmployeeAccount(input: {
+    tenantId: string
+    employeeId: string
+    traceId?: string
+  }) {
     try {
       const response = await safeGrpcCall(
         this.identityQueryService.resolveEmployeeLoginAccount(
@@ -199,7 +208,10 @@ export class BusinessCardEmployeeGrpcAdapter implements BusinessCardEmployeePort
         }
       )
       const employment = response.employment
-      if (!employment?.employeeId || employment.status !== EmploymentStatus.EMPLOYMENT_STATUS_ACTIVE) {
+      if (
+        !employment?.employeeId ||
+        employment.status !== EmploymentStatus.EMPLOYMENT_STATUS_ACTIVE
+      ) {
         return null
       }
       return employment
@@ -208,12 +220,18 @@ export class BusinessCardEmployeeGrpcAdapter implements BusinessCardEmployeePort
     }
   }
 
-  private async resolveOrgName(tenantId: string, orgUnitId: string, traceId?: string): Promise<string | null> {
+  private async resolveOrgName(
+    tenantId: string,
+    orgUnitId: string,
+    traceId?: string
+  ): Promise<string | null> {
     try {
       const response = await safeGrpcCall(
         this.tenantOrgQueryService.getOrgReferenceSummary(
           { tenantId, orgUnitId },
-          await this.trusted.forBusinessCall('tenant-org-service', ['tenant_org.org_unit.list_tree'])
+          await this.trusted.forBusinessCall('tenant-org-service', [
+            'tenant_org.org_unit.list_tree'
+          ])
         ),
         {
           caller: SERVICE_NAMES.PUBLIC_ENTRY,
@@ -225,12 +243,13 @@ export class BusinessCardEmployeeGrpcAdapter implements BusinessCardEmployeePort
       return null
     }
   }
-
 }
 
 // BusinessCardContactAssetGrpcAdapter resolves existing identity Contact Asset refs into public-safe action values.
 @Injectable()
-export class BusinessCardContactAssetGrpcAdapter implements BusinessCardContactAssetPort, OnModuleInit {
+export class BusinessCardContactAssetGrpcAdapter
+  implements BusinessCardContactAssetPort, OnModuleInit
+{
   private identityQueryService!: IdentityQueryServiceClient
   private readonly trusted = new PublicEntryFoundationTrustedGrpcExecutionProducer()
 
@@ -239,8 +258,9 @@ export class BusinessCardContactAssetGrpcAdapter implements BusinessCardContactA
   ) {}
 
   onModuleInit(): void {
-    this.identityQueryService =
-      this.identityClient.getService<IdentityQueryServiceClient>(IDENTITY_QUERY_SERVICE_NAME)
+    this.identityQueryService = this.identityClient.getService<IdentityQueryServiceClient>(
+      IDENTITY_QUERY_SERVICE_NAME
+    )
   }
 
   async resolvePublicSafeValues(input: {
@@ -264,7 +284,11 @@ export class BusinessCardContactAssetGrpcAdapter implements BusinessCardContactA
         }
       )
       const accountId = normalizeOptional(account.account?.accountId)
-      if (!accountId || account.account?.tenantId !== input.tenantId || account.account?.accountEnabled === false) {
+      if (
+        !accountId ||
+        account.account?.tenantId !== input.tenantId ||
+        account.account?.accountEnabled === false
+      ) {
         return []
       }
 
@@ -296,7 +320,6 @@ export class BusinessCardContactAssetGrpcAdapter implements BusinessCardContactA
       return []
     }
   }
-
 }
 
 // toPublicSafeContactValue maps identity public-safe resolver output into BusinessCard action values.
@@ -343,7 +366,9 @@ function normalizeContactAssetKind(
 }
 // BusinessCardTenantProfileGrpcAdapter reads tenant display references without making BusinessCard own them.
 @Injectable()
-export class BusinessCardTenantProfileGrpcAdapter implements BusinessCardTenantProfilePort, OnModuleInit {
+export class BusinessCardTenantProfileGrpcAdapter
+  implements BusinessCardTenantProfilePort, OnModuleInit
+{
   private tenantOrgQueryService!: TenantOrgQueryServiceClient
   private readonly trusted = new PublicEntryFoundationTrustedGrpcExecutionProducer()
 
@@ -352,8 +377,9 @@ export class BusinessCardTenantProfileGrpcAdapter implements BusinessCardTenantP
   ) {}
 
   onModuleInit(): void {
-    this.tenantOrgQueryService =
-      this.tenantOrgClient.getService<TenantOrgQueryServiceClient>(TENANT_ORG_QUERY_SERVICE_NAME)
+    this.tenantOrgQueryService = this.tenantOrgClient.getService<TenantOrgQueryServiceClient>(
+      TENANT_ORG_QUERY_SERVICE_NAME
+    )
   }
 
   async getCompanyDisplaySummary(input: {
@@ -383,11 +409,12 @@ export class BusinessCardTenantProfileGrpcAdapter implements BusinessCardTenantP
       return null
     }
   }
-
 }
 
 // mapEmployeeStatus converts HR lifecycle status into the BusinessCard public readiness status.
-function mapEmployeeStatus(status?: EmployeeLifecycleStatus): BusinessCardEmployeeSummary['status'] {
+function mapEmployeeStatus(
+  status?: EmployeeLifecycleStatus
+): BusinessCardEmployeeSummary['status'] {
   if (status === EmployeeLifecycleStatus.EMPLOYEE_LIFECYCLE_STATUS_ACTIVE) return 'ACTIVE'
   if (status === EmployeeLifecycleStatus.EMPLOYEE_LIFECYCLE_STATUS_OFFBOARDED) return 'OFFBOARDED'
   return 'INACTIVE'

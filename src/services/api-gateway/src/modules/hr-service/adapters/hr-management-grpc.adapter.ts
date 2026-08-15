@@ -15,7 +15,10 @@ import {
 import { SERVICE_NAMES } from '@oes/common/constants'
 import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
 import { DownstreamRequestSource } from '../../../common/grpc/gateway-downstream-source.mapper'
-import { HR_TARGET_AUDIENCE, TrustedHrGrpcClient } from '../../../infrastructure/grpc/trusted-hr.grpc.client'
+import {
+  HR_TARGET_AUDIENCE,
+  TrustedHrGrpcClient
+} from '../../../infrastructure/grpc/trusted-hr.grpc.client'
 import { GatewayFoundationTrustedGrpcExecutionProducer } from '../../../infrastructure/grpc/trusted-auth.grpc.client'
 import {
   HrEmployeeSummary,
@@ -36,7 +39,9 @@ export class HrManagementGrpcAdapter implements OnModuleInit {
   ) {}
 
   onModuleInit(): void {
-    this.svc = this.client.getClient().getService<HrManagementServiceClient>(HR_MANAGEMENT_SERVICE_NAME)
+    this.svc = this.client
+      .getClient()
+      .getService<HrManagementServiceClient>(HR_MANAGEMENT_SERVICE_NAME)
   }
 
   async createEmployee(
@@ -179,7 +184,9 @@ export class HrManagementGrpcAdapter implements OnModuleInit {
       'changePrimaryEmployment',
       this.svc.changePrimaryEmployment(
         input,
-        await this.trusted.forBusinessCall(source, HR_TARGET_AUDIENCE, ['hr.employment.change_primary'])
+        await this.trusted.forBusinessCall(source, HR_TARGET_AUDIENCE, [
+          'hr.employment.change_primary'
+        ])
       ),
       (response: ChangePrimaryEmploymentResponse) => ({
         employee: response.employee ? mapEmployee(response.employee) : undefined,
@@ -304,10 +311,10 @@ function mapEmployee(employee: {
 function mapEmployment(employment: {
   id?: string
   tenantId?: string
-    employeeId?: string
-    orgUnitId?: string
-    positionName?: string
-    status?: number
+  employeeId?: string
+  orgUnitId?: string
+  positionName?: string
+  status?: number
   effectiveFrom?: string
   effectiveTo?: string
   endedReason?: string

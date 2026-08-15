@@ -6,7 +6,10 @@ import {
   IdentityManagementServiceClient
 } from '@oes/common/generated/identity_service'
 import { safeGrpcCall } from '@oes/common/transport'
-import { IDENTITY_ACCOUNT_PROVISIONING_PORT, IdentityAccountProvisioningPort } from '../../application/ports'
+import {
+  IDENTITY_ACCOUNT_PROVISIONING_PORT,
+  IdentityAccountProvisioningPort
+} from '../../application/ports'
 import { IDENTITY_GRPC_CLIENT } from './identity-employee-binding-grpc.adapter'
 import { HrFoundationTrustedGrpcExecutionProducer } from './foundation-trusted-grpc.clients'
 
@@ -18,13 +21,12 @@ export class IdentityAccountProvisioningGrpcAdapter
   private identityManagementService!: IdentityManagementServiceClient
   private readonly trusted = new HrFoundationTrustedGrpcExecutionProducer()
 
-  constructor(
-    @Inject(IDENTITY_GRPC_CLIENT) private readonly client: ClientGrpc
-  ) {}
+  constructor(@Inject(IDENTITY_GRPC_CLIENT) private readonly client: ClientGrpc) {}
 
   onModuleInit() {
-    this.identityManagementService =
-      this.client.getService<IdentityManagementServiceClient>(IDENTITY_MANAGEMENT_SERVICE_NAME)
+    this.identityManagementService = this.client.getService<IdentityManagementServiceClient>(
+      IDENTITY_MANAGEMENT_SERVICE_NAME
+    )
   }
 
   async createUserAccount(input: {
@@ -76,5 +78,4 @@ export class IdentityAccountProvisioningGrpcAdapter
       displayName: response.account?.displayName?.trim() || input.displayName
     }
   }
-
 }

@@ -29,11 +29,6 @@ import { AuthTrustedExecutionModule } from '../../modules/auth/auth-trusted-exec
       useClass: TenantOrgLifecycleGrpcAdaptor
     }
   ],
-  exports: [
-    IDENTITY_SERVICE,
-    HR_SERVICE,
-    PERMISSION_SERVICE,
-    TENANT_LIFECYCLE_ACCESS_PORT
-  ]
+  exports: [IDENTITY_SERVICE, HR_SERVICE, PERMISSION_SERVICE, TENANT_LIFECYCLE_ACCESS_PORT]
 })
 export class ExternalServicesModule {}

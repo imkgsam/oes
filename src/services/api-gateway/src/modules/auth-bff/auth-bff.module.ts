@@ -45,10 +45,7 @@ import { PersonalCenterSummaryAdapter } from './infrastructure/downstream/person
   imports: [
     AuthorizationModule,
     PermissionServiceProxyModule,
-    GrpcTransportModule.forFeature([
-      SERVICE_NAMES.ASSET,
-      SERVICE_NAMES.TERMINAL_DEVICE
-    ])
+    GrpcTransportModule.forFeature([SERVICE_NAMES.ASSET, SERVICE_NAMES.TERMINAL_DEVICE])
   ],
   controllers: [AuthController, PdaAuthController, KioskAuthController, ExtensionAuthController],
   providers: [

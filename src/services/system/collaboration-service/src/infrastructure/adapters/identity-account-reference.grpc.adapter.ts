@@ -17,13 +17,12 @@ export class IdentityAccountReferenceGrpcAdapter implements AccountReferencePort
   private identityQueryService!: IdentityQueryServiceClient
   private readonly trusted = new CollaborationFoundationTrustedGrpcExecutionProducer()
 
-  constructor(
-    @Inject(IDENTITY_GRPC_CLIENT) private readonly client: ClientGrpc
-  ) {}
+  constructor(@Inject(IDENTITY_GRPC_CLIENT) private readonly client: ClientGrpc) {}
 
   onModuleInit(): void {
-    this.identityQueryService =
-      this.client.getService<IdentityQueryServiceClient>(IDENTITY_QUERY_SERVICE_NAME)
+    this.identityQueryService = this.client.getService<IdentityQueryServiceClient>(
+      IDENTITY_QUERY_SERVICE_NAME
+    )
   }
 
   async isActiveTenantAccount(input: { tenantId: string; accountId: string }): Promise<boolean> {
@@ -40,8 +39,8 @@ export class IdentityAccountReferenceGrpcAdapter implements AccountReferencePort
 
     return Boolean(
       response.account?.id &&
-        response.account.tenantId === input.tenantId &&
-        response.account.isEnabled
+      response.account.tenantId === input.tenantId &&
+      response.account.isEnabled
     )
   }
 }

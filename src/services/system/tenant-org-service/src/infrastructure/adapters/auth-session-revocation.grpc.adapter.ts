@@ -6,13 +6,14 @@ import {
   AuthSessionRevocationPort,
   RevokeTenantSessionsInput
 } from '../../application/ports/auth-session-revocation.port'
-import { TenantOrgAuthTrustedGrpcClient, TenantOrgFoundationTrustedGrpcExecutionProducer } from './foundation-trusted-grpc.clients'
+import {
+  TenantOrgAuthTrustedGrpcClient,
+  TenantOrgFoundationTrustedGrpcExecutionProducer
+} from './foundation-trusted-grpc.clients'
 
 /** AuthSessionRevocationGrpcAdapter calls auth-service to revoke tenant sessions after lifecycle deactivation. */
 @Injectable()
-export class AuthSessionRevocationGrpcAdapter
-  implements AuthSessionRevocationPort, OnModuleInit
-{
+export class AuthSessionRevocationGrpcAdapter implements AuthSessionRevocationPort, OnModuleInit {
   private authService!: AuthServiceClient
   private readonly trusted = new TenantOrgFoundationTrustedGrpcExecutionProducer()
 
@@ -37,5 +38,4 @@ export class AuthSessionRevocationGrpcAdapter
       }
     )
   }
-
 }

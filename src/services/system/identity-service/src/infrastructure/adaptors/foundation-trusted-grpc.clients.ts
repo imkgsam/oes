@@ -13,15 +13,28 @@ import {
   TrustedGrpcMetadataProvider
 } from '@oes/common/authorization'
 import { resolveCommonProtoPath } from '@oes/common/contracts'
-import { EXECUTION_TOKEN_SERVICE_NAME, ExecutionTokenServiceClient } from '@oes/common/generated/auth_service'
-import { createGrpcClientCredentials, readLocalVerifiedWorkloadIdentity, safeGrpcCall } from '@oes/common/transport'
+import {
+  EXECUTION_TOKEN_SERVICE_NAME,
+  ExecutionTokenServiceClient
+} from '@oes/common/generated/auth_service'
+import {
+  createGrpcClientCredentials,
+  readLocalVerifiedWorkloadIdentity,
+  safeGrpcCall
+} from '@oes/common/transport'
 
 export type IdentityFoundationTargetProfile = Readonly<{ audience: string; execution: 'HUMAN_OBO' }>
 
 /** Freezes Identity's package-owned target audiences without importing another service's producer. */
 export const IDENTITY_FOUNDATION_TARGETS = Object.freeze({
-  'hr-service': Object.freeze({ audience: 'urn:oes:service:hr-service', execution: 'HUMAN_OBO' as const }),
-  'tenant-org-service': Object.freeze({ audience: 'urn:oes:service:tenant-org-service', execution: 'HUMAN_OBO' as const })
+  'hr-service': Object.freeze({
+    audience: 'urn:oes:service:hr-service',
+    execution: 'HUMAN_OBO' as const
+  }),
+  'tenant-org-service': Object.freeze({
+    audience: 'urn:oes:service:tenant-org-service',
+    execution: 'HUMAN_OBO' as const
+  })
 }) satisfies Readonly<Record<string, IdentityFoundationTargetProfile>>
 
 const ERRORS = Object.freeze({
@@ -189,25 +202,42 @@ function required(name: string): string {
 /** Lazily creates one immutable mTLS channel for an Identity foundation target. */
 abstract class IdentityFoundationMtlsClient {
   private client?: ClientGrpc
-  protected constructor(private readonly packageName: string, private readonly protos: readonly string[], private readonly envKeys: readonly string[], private readonly fallback: string) {}
+  protected constructor(
+    private readonly packageName: string,
+    private readonly protos: readonly string[],
+    private readonly envKeys: readonly string[],
+    private readonly fallback: string
+  ) {}
   getClient(): ClientGrpc {
-    return (this.client ??= ClientProxyFactory.create({ transport: Transport.GRPC, options: {
-      package: this.packageName,
-      protoPath: this.protos.map((path) => resolveCommonProtoPath(path)),
-      url: identityTargetUrl(this.envKeys, this.fallback),
-      credentials: createGrpcClientCredentials()
-    } }) as unknown as ClientGrpc)
+    return (this.client ??= ClientProxyFactory.create({
+      transport: Transport.GRPC,
+      options: {
+        package: this.packageName,
+        protoPath: this.protos.map((path) => resolveCommonProtoPath(path)),
+        url: identityTargetUrl(this.envKeys, this.fallback),
+        credentials: createGrpcClientCredentials()
+      }
+    }) as unknown as ClientGrpc)
   }
 }
 
 /** Owns Identity's certificate-bound channel to TenantOrg without the generic connection pool. */
 export class IdentityTenantOrgTrustedGrpcClient extends IdentityFoundationMtlsClient {
-  constructor() { super('tenant_org_service', ['tenant_org_service/tenant_org.proto'], ['TENANT_ORG_GRPC_URL', 'GRPC_SERVICE_TENANT_ORG_URL'], '127.0.0.1:50054') }
+  constructor() {
+    super(
+      'tenant_org_service',
+      ['tenant_org_service/tenant_org.proto'],
+      ['TENANT_ORG_GRPC_URL', 'GRPC_SERVICE_TENANT_ORG_URL'],
+      '127.0.0.1:50054'
+    )
+  }
 }
 
 /** Owns Identity's certificate-bound channel to HR without a plaintext ClientsModule target. */
 export class IdentityHrTrustedGrpcClient extends IdentityFoundationMtlsClient {
-  constructor() { super('hr_service', ['hr_service/hr.proto'], ['GRPC_SERVICE_HR_URL'], '127.0.0.1:50055') }
+  constructor() {
+    super('hr_service', ['hr_service/hr.proto'], ['GRPC_SERVICE_HR_URL'], '127.0.0.1:50055')
+  }
 }
 
 /** Resolves an Identity target URL and rejects missing production configuration. */

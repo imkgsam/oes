@@ -6,11 +6,16 @@ import {
 } from '@oes/common/generated/identity_service'
 import { safeGrpcCall } from '@oes/common/transport'
 import { IdentityAccountOnboardingPort } from '../../application/ports/identity-account-onboarding.port'
-import { TenantOrgFoundationTrustedGrpcExecutionProducer, TenantOrgIdentityTrustedGrpcClient } from './foundation-trusted-grpc.clients'
+import {
+  TenantOrgFoundationTrustedGrpcExecutionProducer,
+  TenantOrgIdentityTrustedGrpcClient
+} from './foundation-trusted-grpc.clients'
 
 /** IdentityAccountOnboardingGrpcAdapter calls identity-service account creation without owning identity truth. */
 @Injectable()
-export class IdentityAccountOnboardingGrpcAdapter implements IdentityAccountOnboardingPort, OnModuleInit {
+export class IdentityAccountOnboardingGrpcAdapter
+  implements IdentityAccountOnboardingPort, OnModuleInit
+{
   private readonly logger = new Logger(IdentityAccountOnboardingGrpcAdapter.name)
   private client!: IdentityManagementServiceClient
   private readonly trusted = new TenantOrgFoundationTrustedGrpcExecutionProducer()
@@ -18,7 +23,9 @@ export class IdentityAccountOnboardingGrpcAdapter implements IdentityAccountOnbo
   constructor(private readonly identityClient: TenantOrgIdentityTrustedGrpcClient) {}
 
   onModuleInit() {
-    this.client = this.identityClient.getClient().getService<IdentityManagementServiceClient>(IDENTITY_MANAGEMENT_SERVICE_NAME)
+    this.client = this.identityClient
+      .getClient()
+      .getService<IdentityManagementServiceClient>(IDENTITY_MANAGEMENT_SERVICE_NAME)
   }
 
   async createTenantUserAccount(input: {
@@ -48,14 +55,16 @@ export class IdentityAccountOnboardingGrpcAdapter implements IdentityAccountOnbo
     const accountId = response.account?.id?.trim()
     const userId = response.account?.userId?.trim()
     if (!accountId || !userId) {
-      this.logger.error('identity-service returned empty account or user id during tenant onboarding')
+      this.logger.error(
+        'identity-service returned empty account or user id during tenant onboarding'
+      )
       throw new Error('identity-service did not return account/user id')
     }
     return {
       accountId,
       userId,
-      tenantPartyId: response.tenantPartyId?.trim() || response.account?.tenantPartyId?.trim() || undefined
+      tenantPartyId:
+        response.tenantPartyId?.trim() || response.account?.tenantPartyId?.trim() || undefined
     }
   }
-
 }

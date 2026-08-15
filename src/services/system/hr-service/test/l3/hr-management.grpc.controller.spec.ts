@@ -54,8 +54,26 @@ function attachTestOperatorContext(request: object) {
     signature: 'test-signature'
   })
   attachVerifiedExecution(request, {
-    verifiedExecutionToken: { issuer: 'auth-service', audience: 'urn:oes:service:hr-service', subject: 'operator-1', principalType: 'HUMAN', clientId: 'spiffe://local/ns/oes/sa/api-gateway', tenantId: 'tenant-1', permissionCodes: [], tokenId: 'token-1', issuedAt: 1, notBefore: 1, expiresAt: 2, certificateThumbprint: 'A'.repeat(43), sessionId: 'session-1', sessionTerminal: 'WEB' },
-    verifiedWorkloadIdentity: { spiffeId: 'spiffe://local/ns/oes/sa/api-gateway', certificateThumbprint: 'A'.repeat(43) }
+    verifiedExecutionToken: {
+      issuer: 'auth-service',
+      audience: 'urn:oes:service:hr-service',
+      subject: 'operator-1',
+      principalType: 'HUMAN',
+      clientId: 'spiffe://local/ns/oes/sa/api-gateway',
+      tenantId: 'tenant-1',
+      permissionCodes: [],
+      tokenId: 'token-1',
+      issuedAt: 1,
+      notBefore: 1,
+      expiresAt: 2,
+      certificateThumbprint: 'A'.repeat(43),
+      sessionId: 'session-1',
+      sessionTerminal: 'WEB'
+    },
+    verifiedWorkloadIdentity: {
+      spiffeId: 'spiffe://local/ns/oes/sa/api-gateway',
+      certificateThumbprint: 'A'.repeat(43)
+    }
   })
   return request
 }

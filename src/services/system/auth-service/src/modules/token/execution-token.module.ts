@@ -76,12 +76,7 @@ const PRINCIPAL_AUTHORIZATION_CODE =
 
 /** Assembles the fail-closed STS runtime; deployment must bind trusted context and a protected KMS/HSM client. */
 @Module({
-  imports: [
-    CqrsModule,
-    PrismaModule,
-    ExternalServicesModule,
-    AuthTrustedExecutionModule
-  ],
+  imports: [CqrsModule, PrismaModule, ExternalServicesModule, AuthTrustedExecutionModule],
   providers: [
     {
       provide: EXECUTION_TOKEN_RUNTIME_CONFIGURATION,

@@ -7,7 +7,11 @@ import { IDENTITY_ACCOUNT_ONBOARDING_PORT } from '../../application/ports/identi
 import { ORGANIZATION_PARTY_READER } from '../../application/ports/organization-party-reader.port'
 import { PARTY_REGISTRATION_PORT } from '../../application/ports/party-registration.port'
 import { PERMISSION_TENANT_ONBOARDING_PORT } from '../../application/ports/permission-tenant-onboarding.port'
-import { ORG_UNIT_REPOSITORY, TENANT_ONBOARDING_RUN_REPOSITORY, TENANT_REPOSITORY } from '../../domain/repositories'
+import {
+  ORG_UNIT_REPOSITORY,
+  TENANT_ONBOARDING_RUN_REPOSITORY,
+  TENANT_REPOSITORY
+} from '../../domain/repositories'
 import { TenantOnboardingService, TenantOrgManagementService } from '../../application/services'
 import { AuthLoginOnboardingGrpcAdapter } from '../../infrastructure/adapters/auth-login-onboarding.grpc.adapter'
 import { HrEmployeeOnboardingGrpcAdapter } from '../../infrastructure/adapters/hr-employee-onboarding.grpc.adapter'
@@ -30,11 +34,7 @@ import { TenantOrgManagementGrpcController } from '../../interfaces/grpc/tenant-
 
 /** TenantOrgManagementModule wires tenant/org write-side gRPC controllers to repositories. */
 @Module({
-  imports: [
-    PrismaModule,
-    AuthorizationModule,
-    TenantOrgTrustedExecutionModule
-  ],
+  imports: [PrismaModule, AuthorizationModule, TenantOrgTrustedExecutionModule],
   providers: [
     {
       provide: TENANT_REPOSITORY,

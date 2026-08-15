@@ -58,7 +58,11 @@ export function buildCollaborationTaskGrpcClients(): ClientProviderOptions[] {
       options: {
         package: 'identity_service',
         protoPath: [resolveCommonProtoPath('identity_service/identity_query.proto')],
-        url: resolveDownstreamGrpcUrl('GRPC_SERVICE_IDENTITY_URL', 'IDENTITY_GRPC_URL', '127.0.0.1:50052')
+        url: resolveDownstreamGrpcUrl(
+          'GRPC_SERVICE_IDENTITY_URL',
+          'IDENTITY_GRPC_URL',
+          '127.0.0.1:50052'
+        )
       }
     },
     {
@@ -67,7 +71,11 @@ export function buildCollaborationTaskGrpcClients(): ClientProviderOptions[] {
       options: {
         package: 'permission_service',
         protoPath: [resolveCommonProtoPath('permission_service/permission_access_summary.proto')],
-        url: resolveDownstreamGrpcUrl('GRPC_SERVICE_PERMISSION_URL', 'PERMISSION_GRPC_URL', '127.0.0.1:50051')
+        url: resolveDownstreamGrpcUrl(
+          'GRPC_SERVICE_PERMISSION_URL',
+          'PERMISSION_GRPC_URL',
+          '127.0.0.1:50051'
+        )
       }
     }
   ]

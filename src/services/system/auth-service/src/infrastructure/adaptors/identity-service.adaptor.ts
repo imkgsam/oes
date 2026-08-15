@@ -13,8 +13,8 @@ import {
   GetUserByPhoneResponse,
   IdentityQueryServiceClient,
   ResolveEmployeeLoginAccountRequest,
-  ResolveEmployeeLoginAccountResponse
-  ,ResolveMachinePrincipalForAuthResponse
+  ResolveEmployeeLoginAccountResponse,
+  ResolveMachinePrincipalForAuthResponse
 } from '@oes/common/generated/identity_service'
 import { safeGrpcCall } from '@oes/common/transport'
 import {
@@ -25,7 +25,10 @@ import {
   IdentityUserSummary
 } from '../../application/ports/identity-service.port'
 import { AUTH_IDENTITY_UPSTREAM_UNAVAILABLE } from '../../common/constants/exception-enums'
-import { AuthFoundationTrustedGrpcExecutionProducer, AuthIdentityTrustedGrpcClient } from './foundation-trusted-grpc.clients'
+import {
+  AuthFoundationTrustedGrpcExecutionProducer,
+  AuthIdentityTrustedGrpcClient
+} from './foundation-trusted-grpc.clients'
 
 const IDENTITY_QUERY_SERVICE_NAME = 'IdentityQueryService'
 const AUTH_SERVICE_AUDIENCE = 'urn:oes:service:identity-service'
@@ -45,17 +48,20 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
   ) {}
 
   onModuleInit() {
-    this.identityQueryService = this.identityClient.getClient().getService<IdentityQueryServiceClient>(
-      IDENTITY_QUERY_SERVICE_NAME
-    )
+    this.identityQueryService = this.identityClient
+      .getClient()
+      .getService<IdentityQueryServiceClient>(IDENTITY_QUERY_SERVICE_NAME)
   }
 
   async getUserById(userId: string): Promise<IdentityUserSummary | null> {
     try {
       const response = await safeGrpcCall<GetUserByIdResponse>(
-        this.identityQueryService.getUserById({
-          userId
-        } as GetUserByIdRequest, await this.trusted.forBusinessCall('identity-service', ['identity.account.list'])),
+        this.identityQueryService.getUserById(
+          {
+            userId
+          } as GetUserByIdRequest,
+          await this.trusted.forBusinessCall('identity-service', ['identity.account.list'])
+        ),
         {
           caller: 'auth-service',
           method: 'IdentityQueryService.getUserById'
@@ -72,9 +78,12 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
   async getUserByEmail(email: string): Promise<IdentityUserSummary | null> {
     try {
       const response = await safeGrpcCall<GetUserByEmailResponse>(
-        this.identityQueryService.getUserByEmail({
-          email
-        } as GetUserByEmailRequest, await this.trusted.forBusinessCall('identity-service', ['identity.account.list'])),
+        this.identityQueryService.getUserByEmail(
+          {
+            email
+          } as GetUserByEmailRequest,
+          await this.trusted.forBusinessCall('identity-service', ['identity.account.list'])
+        ),
         {
           caller: 'auth-service',
           method: 'IdentityQueryService.getUserByEmail'
@@ -91,9 +100,12 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
   async getUserByPhone(phone: string): Promise<IdentityUserSummary | null> {
     try {
       const response = await safeGrpcCall<GetUserByPhoneResponse>(
-        this.identityQueryService.getUserByPhone({
-          phone
-        } as GetUserByPhoneRequest, await this.trusted.forBusinessCall('identity-service', ['identity.account.list'])),
+        this.identityQueryService.getUserByPhone(
+          {
+            phone
+          } as GetUserByPhoneRequest,
+          await this.trusted.forBusinessCall('identity-service', ['identity.account.list'])
+        ),
         {
           caller: 'auth-service',
           method: 'IdentityQueryService.getUserByPhone'
@@ -110,9 +122,12 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
   async getAvailableAccountsByUserId(userId: string): Promise<AccountCandidateSummary[]> {
     try {
       const response = await safeGrpcCall<GetAccountsByUserIdResponse>(
-        this.identityQueryService.getAccountsByUserId({
-          userId
-        } as GetAccountsByUserIdRequest, await this.trusted.forBusinessCall('identity-service', ['identity.account.list'])),
+        this.identityQueryService.getAccountsByUserId(
+          {
+            userId
+          } as GetAccountsByUserIdRequest,
+          await this.trusted.forBusinessCall('identity-service', ['identity.account.list'])
+        ),
         {
           caller: 'auth-service',
           method: 'IdentityQueryService.getAccountsByUserId'
@@ -134,9 +149,12 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
   async getAccountById(accountId: string): Promise<IdentityAccountSummary | null> {
     try {
       const response = await safeGrpcCall<GetAccountByIdResponse>(
-        this.identityQueryService.getAccountById({
-          accountId
-        } as GetAccountByIdRequest, await this.trusted.forBusinessCall('identity-service', ['identity.account.list'])),
+        this.identityQueryService.getAccountById(
+          {
+            accountId
+          } as GetAccountByIdRequest,
+          await this.trusted.forBusinessCall('identity-service', ['identity.account.list'])
+        ),
         {
           caller: 'auth-service',
           method: 'IdentityQueryService.getAccountById'
@@ -168,10 +186,13 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
   }): Promise<EmployeeLoginAccountSummary | null> {
     try {
       const response = await safeGrpcCall<ResolveEmployeeLoginAccountResponse>(
-        this.identityQueryService.resolveEmployeeLoginAccount({
-          tenantId: input.tenantId,
-          employeeId: input.employeeId
-        } as ResolveEmployeeLoginAccountRequest, await this.trusted.forBusinessCall('identity-service', ['identity.account.list'])),
+        this.identityQueryService.resolveEmployeeLoginAccount(
+          {
+            tenantId: input.tenantId,
+            employeeId: input.employeeId
+          } as ResolveEmployeeLoginAccountRequest,
+          await this.trusted.forBusinessCall('identity-service', ['identity.account.list'])
+        ),
         {
           caller: 'auth-service',
           method: 'IdentityQueryService.resolveEmployeeLoginAccount'
@@ -199,20 +220,86 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
   }
 
   /** Reads Identity-owned machine lifecycle facts for Auth credential exchange. */
-  async resolveIntegrationMachineForAuth(integrationMachineId: string): Promise<{ eligible: boolean; tenantId: string }> {
-    const metadata = await this.trusted.forInternalCall('identity-service', AUTH_INTERNAL_PERMISSION)
+  async resolveIntegrationMachineForAuth(
+    integrationMachineId: string
+  ): Promise<{ eligible: boolean; tenantId: string }> {
+    const metadata = await this.trusted.forInternalCall(
+      'identity-service',
+      AUTH_INTERNAL_PERMISSION
+    )
     const response: any = await safeGrpcCall(
-      this.identityQueryService.resolveIntegrationMachineForAuth({ integrationMachineId }, metadata),
+      this.identityQueryService.resolveIntegrationMachineForAuth(
+        { integrationMachineId },
+        metadata
+      ),
       { caller: 'auth-service', method: 'IdentityQueryService.resolveIntegrationMachineForAuth' }
     )
     return { eligible: response.eligible === true, tenantId: response.tenantId?.trim() ?? '' }
   }
 
   /** Resolves only the Auth-verified first-party MACHINE selector tuple over the protected Identity surface. */
-  async resolveMachinePrincipalForAuth(input: { machinePrincipalId: string; bindingId: string; bindingVersion: bigint; workloadSpiffeId: string }): Promise<{ allowed: boolean; reasonCode?: string; principalId?: string; principalType?: string; machineType?: string; principalLifecycleStatus?: string; principalLifecycleVersion?: string; bindingId?: string; bindingVersion?: bigint; bindingStatus?: 'ACTIVE'; workloadSpiffeId?: string; decisionReference?: string; scopeLevel?: 'SYSTEM' | 'TENANT'; tenantId?: string; orgId?: string }> {
-    const metadata = await this.trusted.forInternalCall('identity-service', MACHINE_PRINCIPAL_RESOLVE_PERMISSION)
-    const response = await safeGrpcCall<ResolveMachinePrincipalForAuthResponse>(this.identityQueryService.resolveMachinePrincipalForAuth({ machinePrincipalId: input.machinePrincipalId, machineWorkloadBindingId: input.bindingId, machineWorkloadBindingVersion: input.bindingVersion.toString(), workloadSpiffeId: input.workloadSpiffeId }, metadata), { caller: 'auth-service', method: 'IdentityQueryService.resolveMachinePrincipalForAuth' })
-    return { allowed: response.allowed === true, reasonCode: response.reasonCode || undefined, principalId: response.machinePrincipalId || undefined, principalType: response.principalType || undefined, machineType: response.machineType || undefined, principalLifecycleStatus: response.principalLifecycleStatus || undefined, principalLifecycleVersion: response.principalLifecycleVersion || undefined, bindingId: response.machineWorkloadBindingId || undefined, bindingVersion: response.machineWorkloadBindingVersion ? BigInt(response.machineWorkloadBindingVersion) : undefined, bindingStatus: response.allowed ? 'ACTIVE' : undefined, workloadSpiffeId: response.workloadSpiffeId || undefined, decisionReference: response.decisionReference || undefined, scopeLevel: response.scopeLevel === 'SYSTEM' ? 'SYSTEM' : response.scopeLevel === 'TENANT' ? 'TENANT' : undefined, tenantId: response.tenantId || undefined, orgId: response.orgId || undefined }
+  async resolveMachinePrincipalForAuth(input: {
+    machinePrincipalId: string
+    bindingId: string
+    bindingVersion: bigint
+    workloadSpiffeId: string
+  }): Promise<{
+    allowed: boolean
+    reasonCode?: string
+    principalId?: string
+    principalType?: string
+    machineType?: string
+    principalLifecycleStatus?: string
+    principalLifecycleVersion?: string
+    bindingId?: string
+    bindingVersion?: bigint
+    bindingStatus?: 'ACTIVE'
+    workloadSpiffeId?: string
+    decisionReference?: string
+    scopeLevel?: 'SYSTEM' | 'TENANT'
+    tenantId?: string
+    orgId?: string
+  }> {
+    const metadata = await this.trusted.forInternalCall(
+      'identity-service',
+      MACHINE_PRINCIPAL_RESOLVE_PERMISSION
+    )
+    const response = await safeGrpcCall<ResolveMachinePrincipalForAuthResponse>(
+      this.identityQueryService.resolveMachinePrincipalForAuth(
+        {
+          machinePrincipalId: input.machinePrincipalId,
+          machineWorkloadBindingId: input.bindingId,
+          machineWorkloadBindingVersion: input.bindingVersion.toString(),
+          workloadSpiffeId: input.workloadSpiffeId
+        },
+        metadata
+      ),
+      { caller: 'auth-service', method: 'IdentityQueryService.resolveMachinePrincipalForAuth' }
+    )
+    return {
+      allowed: response.allowed === true,
+      reasonCode: response.reasonCode || undefined,
+      principalId: response.machinePrincipalId || undefined,
+      principalType: response.principalType || undefined,
+      machineType: response.machineType || undefined,
+      principalLifecycleStatus: response.principalLifecycleStatus || undefined,
+      principalLifecycleVersion: response.principalLifecycleVersion || undefined,
+      bindingId: response.machineWorkloadBindingId || undefined,
+      bindingVersion: response.machineWorkloadBindingVersion
+        ? BigInt(response.machineWorkloadBindingVersion)
+        : undefined,
+      bindingStatus: response.allowed ? 'ACTIVE' : undefined,
+      workloadSpiffeId: response.workloadSpiffeId || undefined,
+      decisionReference: response.decisionReference || undefined,
+      scopeLevel:
+        response.scopeLevel === 'SYSTEM'
+          ? 'SYSTEM'
+          : response.scopeLevel === 'TENANT'
+            ? 'TENANT'
+            : undefined,
+      tenantId: response.tenantId || undefined,
+      orgId: response.orgId || undefined
+    }
   }
 
   private rethrowIfInfrastructureError(
@@ -260,5 +347,4 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
     const normalized = value?.trim()
     return normalized ? normalized : undefined
   }
-
 }

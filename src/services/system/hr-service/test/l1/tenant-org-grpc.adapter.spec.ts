@@ -44,6 +44,8 @@ describe('TenantOrgGrpcAdapter', () => {
       },
       metadata
     )
-    expect(forBusinessCall).toHaveBeenCalledWith('tenant-org-service', ['tenant_org.org_unit.list_tree'])
+    expect(forBusinessCall).toHaveBeenCalledWith('tenant-org-service', [
+      'tenant_org.org_unit.list_tree'
+    ])
   })
 })

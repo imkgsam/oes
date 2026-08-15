@@ -12,7 +12,12 @@ export class TrustedTenantOrgGrpcClient {
   getClient(): ClientGrpc {
     return (this.client ??= ClientProxyFactory.create({
       transport: Transport.GRPC,
-      options: { package: 'tenant_org_service', protoPath: resolveCommonProtoPath('tenant_org_service/tenant_org.proto'), url: resolveUrl(), credentials: createGrpcClientCredentials() }
+      options: {
+        package: 'tenant_org_service',
+        protoPath: resolveCommonProtoPath('tenant_org_service/tenant_org.proto'),
+        url: resolveUrl(),
+        credentials: createGrpcClientCredentials()
+      }
     }) as unknown as ClientGrpc)
   }
 }

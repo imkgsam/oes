@@ -9,7 +9,10 @@ describe('HrEmployeeReferenceGrpcAdaptor wiring', () => {
     expect(Reflect.getMetadata('design:paramtypes', HrEmployeeReferenceGrpcAdaptor)).toEqual([
       IdentityHrTrustedGrpcClient
     ])
-    const source = readFileSync(join(__dirname, '../../src/infrastructure/adaptors/foundation-trusted-grpc.clients.ts'), 'utf8')
+    const source = readFileSync(
+      join(__dirname, '../../src/infrastructure/adaptors/foundation-trusted-grpc.clients.ts'),
+      'utf8'
+    )
     expect(source).toMatch(/class IdentityHrTrustedGrpcClient/)
     expect(source).toMatch(/credentials:\s*createGrpcClientCredentials\(\)/)
   })

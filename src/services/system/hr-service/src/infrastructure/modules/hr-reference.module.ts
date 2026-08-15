@@ -12,10 +12,7 @@ import { HrPartyMachineSourceCredentialProvider } from '../adapters/hr-party-mac
 import { HrPartyExecutionTokenExchangeClient } from '../adapters/hr-party-execution-token-exchange.client'
 import { HrPartyTrustedGrpcExecutionProducer } from '../adapters/hr-party-trusted-grpc-execution.producer'
 import { HrTrustedExecutionModule } from '../../modules/hr-trusted-execution.module'
-import {
-  TENANT_ORG_GRPC_CLIENT,
-  TenantOrgGrpcAdapter
-} from '../adapters/tenant-org-grpc.adapter'
+import { TENANT_ORG_GRPC_CLIENT, TenantOrgGrpcAdapter } from '../adapters/tenant-org-grpc.adapter'
 
 /** resolveDownstreamGrpcUrl resolves standard service URLs first while preserving legacy local env names. */
 function resolveDownstreamGrpcUrl(
@@ -49,15 +46,25 @@ export function buildHrReferenceGrpcClients(): ClientProviderOptions[] {
       options: {
         package: 'tenant_org_service',
         protoPath: [resolveCommonProtoPath('tenant_org_service/tenant_org.proto')],
-        url: resolveDownstreamGrpcUrl('GRPC_SERVICE_TENANT_ORG_URL', 'TENANT_ORG_GRPC_URL', '127.0.0.1:50054')
+        url: resolveDownstreamGrpcUrl(
+          'GRPC_SERVICE_TENANT_ORG_URL',
+          'TENANT_ORG_GRPC_URL',
+          '127.0.0.1:50054'
+        )
       }
-    },
+    }
   ]
 }
 
 /** Adds mandatory workload credentials and rejects an unresolved production target URL. */
 function createMtlsClientProvider(client: ClientProviderOptions): ClientProviderOptions {
-  if (!('transport' in client) || client.transport !== Transport.GRPC || !('options' in client) || !('url' in client.options) || !client.options.url) {
+  if (
+    !('transport' in client) ||
+    client.transport !== Transport.GRPC ||
+    !('options' in client) ||
+    !('url' in client.options) ||
+    !client.options.url
+  ) {
     throw new Error('HR_FOUNDATION_EXECUTION_UNAVAILABLE')
   }
   return {
@@ -69,7 +76,8 @@ function createMtlsClientProvider(client: ClientProviderOptions): ClientProvider
 /** HrReferenceModule wires HR anti-corruption ports for external tenant-org and party references. */
 @Module({
   imports: [
-    AuthorizationModule, HrTrustedExecutionModule,
+    AuthorizationModule,
+    HrTrustedExecutionModule,
     ClientsModule.registerAsync(
       buildHrReferenceGrpcClients().map((client) => ({
         name: client.name,
@@ -85,7 +93,7 @@ function createMtlsClientProvider(client: ClientProviderOptions): ClientProvider
     {
       provide: PARTY_REGISTRATION_PORT,
       useClass: PartyRegistrationGrpcAdapter
-    },
+    }
   ],
   exports: [TENANT_ORG_REFERENCE_PORT, PARTY_REGISTRATION_PORT]
 })

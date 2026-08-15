@@ -38,16 +38,28 @@ describe('tenant-org AppModule gRPC config', () => {
       HrEmployeeOnboardingGrpcAdapter,
       IdentityAccountOnboardingGrpcAdapter,
       PermissionTenantOnboardingGrpcAdapter
-    ]) expect(moduleRef.get(token)).toBeDefined()
+    ])
+      expect(moduleRef.get(token)).toBeDefined()
     await moduleRef.close()
   })
 
   it('contains no generic foundation registration or plaintext fallback', () => {
     const appSource = readFileSync(join(__dirname, '../../src/app.module.ts'), 'utf8')
-    const managementSource = readFileSync(join(__dirname, '../../src/modules/tenant-org-management/tenant-org-management.module.ts'), 'utf8')
-    const querySource = readFileSync(join(__dirname, '../../src/modules/tenant-org-query/tenant-org-query.module.ts'), 'utf8')
-    const clientsSource = readFileSync(join(__dirname, '../../src/infrastructure/adapters/foundation-trusted-grpc.clients.ts'), 'utf8')
-    expect(`${appSource}\n${managementSource}\n${querySource}`).not.toMatch(/GrpcTransportModule\.for(?:Root|Feature)/)
+    const managementSource = readFileSync(
+      join(__dirname, '../../src/modules/tenant-org-management/tenant-org-management.module.ts'),
+      'utf8'
+    )
+    const querySource = readFileSync(
+      join(__dirname, '../../src/modules/tenant-org-query/tenant-org-query.module.ts'),
+      'utf8'
+    )
+    const clientsSource = readFileSync(
+      join(__dirname, '../../src/infrastructure/adapters/foundation-trusted-grpc.clients.ts'),
+      'utf8'
+    )
+    expect(`${appSource}\n${managementSource}\n${querySource}`).not.toMatch(
+      /GrpcTransportModule\.for(?:Root|Feature)/
+    )
     expect(clientsSource).toMatch(/credentials:\s*createGrpcClientCredentials\(\)/)
   })
 })

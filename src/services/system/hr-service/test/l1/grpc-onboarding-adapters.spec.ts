@@ -13,7 +13,9 @@ describe('gRPC onboarding adapters', () => {
   }
 
   it('identity adapter should call BindAccountToEmployee over identity-service proto', async () => {
-    const bindAccountToEmployee = jest.fn().mockReturnValue(of({ binding: { accountId: 'account-1' } }))
+    const bindAccountToEmployee = jest
+      .fn()
+      .mockReturnValue(of({ binding: { accountId: 'account-1' } }))
     const client = {
       getService: jest.fn().mockReturnValue({
         bindAccountToEmployee
@@ -84,7 +86,9 @@ describe('gRPC onboarding adapters', () => {
       },
       expect.any(Metadata)
     )
-    expect((client.getService as jest.Mock).mock.calls[0][0]).toBe(PERMISSION_MANAGEMENT_SERVICE_NAME)
+    expect((client.getService as jest.Mock).mock.calls[0][0]).toBe(
+      PERMISSION_MANAGEMENT_SERVICE_NAME
+    )
   })
 
   it('permission adapter should preserve standardized business payloads coming back through native gRPC transport errors', async () => {

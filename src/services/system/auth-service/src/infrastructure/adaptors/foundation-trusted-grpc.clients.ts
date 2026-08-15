@@ -20,7 +20,11 @@ import {
   ExecutionTokenServiceClient,
   MachineWorkloadSourceCredentialServiceClient
 } from '@oes/common/generated/auth_service'
-import { createGrpcClientCredentials, readLocalVerifiedWorkloadIdentity, safeGrpcCall } from '@oes/common/transport'
+import {
+  createGrpcClientCredentials,
+  readLocalVerifiedWorkloadIdentity,
+  safeGrpcCall
+} from '@oes/common/transport'
 
 export type AuthFoundationTargetProfile = Readonly<{ audience: string }>
 
@@ -62,8 +66,14 @@ export class AuthFoundationTrustedGrpcExecutionProducer {
   private async produce(target: Target, mode: Mode, codes: readonly string[]): Promise<Metadata> {
     const profile = requireAuthFoundationTarget(target)
     const correlation = inboundExecutionTokenCredentialScope.requireCorrelation()
-    let inbound: ReturnType<typeof inboundExecutionTokenCredentialScope.requireVerifiedExecution> | undefined
-    try { inbound = inboundExecutionTokenCredentialScope.requireVerifiedExecution() } catch { inbound = undefined }
+    let inbound:
+      | ReturnType<typeof inboundExecutionTokenCredentialScope.requireVerifiedExecution>
+      | undefined
+    try {
+      inbound = inboundExecutionTokenCredentialScope.requireVerifiedExecution()
+    } catch {
+      inbound = undefined
+    }
     const isHuman = inbound?.principalType === 'HUMAN'
     const root = isHuman
       ? createTrustedExecutionContext({
@@ -74,7 +84,7 @@ export class AuthFoundationTrustedGrpcExecutionProducer {
           sessionId: requiredValue(inbound.sessionId),
           sessionTerminal: inbound.sessionTerminal,
           ...(inbound.authzVersion === undefined ? {} : { authzVersion: inbound.authzVersion }),
-              requestId: correlation.requestId,
+          requestId: correlation.requestId,
           traceparent: correlation.traceparent,
           ...(correlation.tracestate === undefined ? {} : { tracestate: correlation.tracestate })
         })
@@ -102,9 +112,10 @@ export class AuthFoundationTrustedGrpcExecutionProducer {
     const key = `${executionSource}:${audience}`
     const existing = this.callers.get(key)
     if (existing) return existing
-    const sourceAccessor = executionSource === 'HUMAN_OBO'
-      ? inboundExecutionTokenCredentialScope.accessor
-      : this.machine.accessor
+    const sourceAccessor =
+      executionSource === 'HUMAN_OBO'
+        ? inboundExecutionTokenCredentialScope.accessor
+        : this.machine.accessor
     const metadata = new TrustedGrpcMetadataProvider({
       contextAccessor: this.context,
       registry: new TrustedExecutionRegistry({
@@ -133,28 +144,48 @@ export class AuthFoundationTrustedGrpcExecutionProducer {
 class AuthFoundationExecutionTokenExchangeClient implements ExecutionTokenExchangeClient {
   private client?: ClientGrpc
   private service?: ExecutionTokenServiceClient
-  async exchange(request: ExecutionTokenExchangeRequest, metadata: Metadata): Promise<ExecutionTokenExchangeResult> {
-    const response = await safeGrpcCall(this.execution().exchangeExecutionToken({
-      targetAudience: request.targetAudience,
-      requestedPermissionCodes: [...request.requestedPermissionCodes]
-    }, metadata), { caller: 'auth-service', method: 'ExchangeExecutionToken' })
+  async exchange(
+    request: ExecutionTokenExchangeRequest,
+    metadata: Metadata
+  ): Promise<ExecutionTokenExchangeResult> {
+    const response = await safeGrpcCall(
+      this.execution().exchangeExecutionToken(
+        {
+          targetAudience: request.targetAudience,
+          requestedPermissionCodes: [...request.requestedPermissionCodes]
+        },
+        metadata
+      ),
+      { caller: 'auth-service', method: 'ExchangeExecutionToken' }
+    )
     return Object.freeze({
-      accessToken: response.accessToken ?? '', tokenType: response.tokenType ?? '',
+      accessToken: response.accessToken ?? '',
+      tokenType: response.tokenType ?? '',
       expiresAtUnixSeconds: Number(response.expiresAtUnixSeconds),
-      expiresInSeconds: Number(response.expiresInSeconds), kid: response.kid ?? '',
+      expiresInSeconds: Number(response.expiresInSeconds),
+      kid: response.kid ?? '',
       grantedPermissionCodes: Object.freeze([...(response.grantedPermissionCodes ?? [])]),
       grantedAudience: response.grantedAudience ?? ''
     })
   }
   private execution(): ExecutionTokenServiceClient {
-    return (this.service ??= this.grpc().getService<ExecutionTokenServiceClient>(EXECUTION_TOKEN_SERVICE_NAME))
+    return (this.service ??= this.grpc().getService<ExecutionTokenServiceClient>(
+      EXECUTION_TOKEN_SERVICE_NAME
+    ))
   }
   private grpc(): ClientGrpc {
-    return (this.client ??= ClientProxyFactory.create({ transport: Transport.GRPC, options: {
-      package: 'auth_service',
-      protoPath: [resolveCommonProtoPath('auth_service/execution_token.proto'), resolveCommonProtoPath('auth_service/machine_workload_source_credential.proto')],
-      url: authUrl(), credentials: createGrpcClientCredentials()
-    } }) as unknown as ClientGrpc)
+    return (this.client ??= ClientProxyFactory.create({
+      transport: Transport.GRPC,
+      options: {
+        package: 'auth_service',
+        protoPath: [
+          resolveCommonProtoPath('auth_service/execution_token.proto'),
+          resolveCommonProtoPath('auth_service/machine_workload_source_credential.proto')
+        ],
+        url: authUrl(),
+        credentials: createGrpcClientCredentials()
+      }
+    }) as unknown as ClientGrpc)
   }
 }
 
@@ -163,22 +194,37 @@ class AuthFoundationMachineSourceCredentialClient {
   private client?: ClientGrpc
   private service?: MachineWorkloadSourceCredentialServiceClient
   async issue(): Promise<string> {
-    const response = await safeGrpcCall(this.machine().issueMachineWorkloadSourceCredential({
-      machinePrincipalId: required('AUTH_FOUNDATION_MACHINE_PRINCIPAL_ID'),
-      machineWorkloadBindingId: required('AUTH_FOUNDATION_MACHINE_WORKLOAD_BINDING_ID'),
-      machineWorkloadBindingVersion: required('AUTH_FOUNDATION_MACHINE_WORKLOAD_BINDING_VERSION')
-    }, new Metadata()), { caller: 'auth-service', method: 'IssueMachineWorkloadSourceCredential' })
+    const response = await safeGrpcCall(
+      this.machine().issueMachineWorkloadSourceCredential(
+        {
+          machinePrincipalId: required('AUTH_FOUNDATION_MACHINE_PRINCIPAL_ID'),
+          machineWorkloadBindingId: required('AUTH_FOUNDATION_MACHINE_WORKLOAD_BINDING_ID'),
+          machineWorkloadBindingVersion: required(
+            'AUTH_FOUNDATION_MACHINE_WORKLOAD_BINDING_VERSION'
+          )
+        },
+        new Metadata()
+      ),
+      { caller: 'auth-service', method: 'IssueMachineWorkloadSourceCredential' }
+    )
     if (response.tokenType !== 'Bearer' || !response.sourceCredential?.trim()) {
       throw new Error(ERRORS.SOURCE_CREDENTIAL_INVALID)
     }
     return response.sourceCredential
   }
   private machine(): MachineWorkloadSourceCredentialServiceClient {
-    this.client ??= ClientProxyFactory.create({ transport: Transport.GRPC, options: {
-      package: 'auth_service', protoPath: resolveCommonProtoPath('auth_service/machine_workload_source_credential.proto'),
-      url: authUrl(), credentials: createGrpcClientCredentials()
-    } }) as unknown as ClientGrpc
-    return (this.service ??= this.client.getService<MachineWorkloadSourceCredentialServiceClient>('MachineWorkloadSourceCredentialService'))
+    this.client ??= ClientProxyFactory.create({
+      transport: Transport.GRPC,
+      options: {
+        package: 'auth_service',
+        protoPath: resolveCommonProtoPath('auth_service/machine_workload_source_credential.proto'),
+        url: authUrl(),
+        credentials: createGrpcClientCredentials()
+      }
+    }) as unknown as ClientGrpc
+    return (this.service ??= this.client.getService<MachineWorkloadSourceCredentialServiceClient>(
+      'MachineWorkloadSourceCredentialService'
+    ))
   }
 }
 
@@ -189,14 +235,18 @@ class AuthFoundationMachineSourceCredentialProvider {
   constructor(private readonly client: AuthFoundationMachineSourceCredentialClient) {}
   async run<T>(callback: () => Promise<T>): Promise<T> {
     const credential = await this.client.issue()
-    return this.accessor.run(this.issuer.issueVerifiedMachineOrDelegationCredential(credential), callback)
+    return this.accessor.run(
+      this.issuer.issueVerifiedMachineOrDelegationCredential(credential),
+      callback
+    )
   }
 }
 
 /** Returns only a statically registered package-local target. */
 export function requireAuthFoundationTarget(target: Target): AuthFoundationTargetProfile {
   const profile = AUTH_FOUNDATION_TARGETS[target]
-  if (!profile || profile.audience.includes('*')) throw new Error('Auth foundation target is not registered')
+  if (!profile || profile.audience.includes('*'))
+    throw new Error('Auth foundation target is not registered')
   return profile
 }
 
@@ -220,35 +270,71 @@ function requiredValue(value: string | undefined): string {
 /** Lazily creates one immutable mTLS client for a single foundation target. */
 abstract class AuthFoundationMtlsClient {
   private client?: ClientGrpc
-  protected constructor(private readonly packageName: string, private readonly protos: readonly string[], private readonly envKeys: readonly string[], private readonly fallback: string) {}
+  protected constructor(
+    private readonly packageName: string,
+    private readonly protos: readonly string[],
+    private readonly envKeys: readonly string[],
+    private readonly fallback: string
+  ) {}
   getClient(): ClientGrpc {
-    return (this.client ??= ClientProxyFactory.create({ transport: Transport.GRPC, options: {
-      package: this.packageName,
-      protoPath: this.protos.map((path) => resolveCommonProtoPath(path)),
-      url: foundationTargetUrl(this.envKeys, this.fallback),
-      credentials: createGrpcClientCredentials()
-    } }) as unknown as ClientGrpc)
+    return (this.client ??= ClientProxyFactory.create({
+      transport: Transport.GRPC,
+      options: {
+        package: this.packageName,
+        protoPath: this.protos.map((path) => resolveCommonProtoPath(path)),
+        url: foundationTargetUrl(this.envKeys, this.fallback),
+        credentials: createGrpcClientCredentials()
+      }
+    }) as unknown as ClientGrpc)
   }
 }
 
 /** Owns Auth's certificate-bound channel to Identity without using the generic connection pool. */
 export class AuthIdentityTrustedGrpcClient extends AuthFoundationMtlsClient {
-  constructor() { super('identity_service', ['identity_service/identity_query.proto'], ['IDENTITY_SERVICE_GRPC_URL', 'GRPC_SERVICE_IDENTITY_URL'], '127.0.0.1:50052') }
+  constructor() {
+    super(
+      'identity_service',
+      ['identity_service/identity_query.proto'],
+      ['IDENTITY_SERVICE_GRPC_URL', 'GRPC_SERVICE_IDENTITY_URL'],
+      '127.0.0.1:50052'
+    )
+  }
 }
 
 /** Owns Auth's certificate-bound channel to Permission without using the generic connection pool. */
 export class AuthPermissionTrustedGrpcClient extends AuthFoundationMtlsClient {
-  constructor() { super('permission_service', ['permission_service/permission_check.proto', 'permission_service/permission_management.proto', 'permission_service/permission_access_summary.proto', 'permission_service/permission_terminal_access.proto'], ['PERMISSION_SERVICE_GRPC_URL', 'GRPC_SERVICE_PERMISSION_URL'], '127.0.0.1:50051') }
+  constructor() {
+    super(
+      'permission_service',
+      [
+        'permission_service/permission_check.proto',
+        'permission_service/permission_management.proto',
+        'permission_service/permission_access_summary.proto',
+        'permission_service/permission_terminal_access.proto'
+      ],
+      ['PERMISSION_SERVICE_GRPC_URL', 'GRPC_SERVICE_PERMISSION_URL'],
+      '127.0.0.1:50051'
+    )
+  }
 }
 
 /** Owns Auth's certificate-bound channel to HR without using the generic connection pool. */
 export class AuthHrTrustedGrpcClient extends AuthFoundationMtlsClient {
-  constructor() { super('hr_service', ['hr_service/hr.proto'], ['GRPC_SERVICE_HR_URL'], '127.0.0.1:50055') }
+  constructor() {
+    super('hr_service', ['hr_service/hr.proto'], ['GRPC_SERVICE_HR_URL'], '127.0.0.1:50055')
+  }
 }
 
 /** Owns Auth's certificate-bound channel to TenantOrg without using the generic connection pool. */
 export class AuthTenantOrgTrustedGrpcClient extends AuthFoundationMtlsClient {
-  constructor() { super('tenant_org_service', ['tenant_org_service/tenant_org.proto'], ['TENANT_ORG_GRPC_URL', 'GRPC_SERVICE_TENANT_ORG_URL'], '127.0.0.1:50054') }
+  constructor() {
+    super(
+      'tenant_org_service',
+      ['tenant_org_service/tenant_org.proto'],
+      ['TENANT_ORG_GRPC_URL', 'GRPC_SERVICE_TENANT_ORG_URL'],
+      '127.0.0.1:50054'
+    )
+  }
 }
 
 /** Resolves deployment-owned target URLs and permits local defaults only outside production. */

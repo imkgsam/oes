@@ -3,7 +3,10 @@ import { ClientGrpc } from '@nestjs/microservices'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
 import { DownstreamRequestSource } from '../../../common/grpc/gateway-downstream-source.mapper'
-import { PERMISSION_TARGET_AUDIENCE, TrustedPermissionGrpcClient } from '../../../infrastructure/grpc/trusted-permission.grpc.client'
+import {
+  PERMISSION_TARGET_AUDIENCE,
+  TrustedPermissionGrpcClient
+} from '../../../infrastructure/grpc/trusted-permission.grpc.client'
 import { GatewayFoundationTrustedGrpcExecutionProducer } from '../../../infrastructure/grpc/trusted-auth.grpc.client'
 import { EvaluatePolicyInstancePreviewDto } from '../interface/http/dtos/policy-instance-preview.dto'
 
@@ -42,9 +45,9 @@ export class PolicyInstancePreviewGrpcAdapter implements OnModuleInit {
   ) {}
 
   onModuleInit(): void {
-    this.svc = this.client.getClient().getService<PolicyInstancePreviewGrpcClient>(
-      'PolicyInstancePreviewService'
-    )
+    this.svc = this.client
+      .getClient()
+      .getService<PolicyInstancePreviewGrpcClient>('PolicyInstancePreviewService')
   }
 
   // Evaluates one preview-only PolicyInstance request through the downstream service.
@@ -55,7 +58,9 @@ export class PolicyInstancePreviewGrpcAdapter implements OnModuleInit {
     const result = await this.call('evaluatePolicyInstancePreview', async () =>
       this.svc.evaluatePolicyInstancePreview(
         this.toGrpcRequest(req),
-        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.policy.list'])
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.policy.list'
+        ])
       )
     )
 

@@ -221,9 +221,10 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
     request: GetServiceAccountByIdRequest
   ): Promise<GetServiceAccountByIdResponse> {
     const operatorScope = getOptionalOperatorScope(request)
-    const account = await this.queryBus.execute<GetServiceAccountByIdQuery, ServiceAccountView | null>(
-      new GetServiceAccountByIdQuery(request.serviceAccountId!, operatorScope)
-    )
+    const account = await this.queryBus.execute<
+      GetServiceAccountByIdQuery,
+      ServiceAccountView | null
+    >(new GetServiceAccountByIdQuery(request.serviceAccountId!, operatorScope))
 
     if (!account) {
       return {}
@@ -316,14 +317,19 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
     )
 
     return {
-      targets: result.targets.map((target) => IdentityGrpcPresenter.toResolvedContactActionTarget(target))
+      targets: result.targets.map((target) =>
+        IdentityGrpcPresenter.toResolvedContactActionTarget(target)
+      )
     }
   }
 
   async listAccountContactAssets(
     request: ListAccountContactAssetsRequest
   ): Promise<ListAccountContactAssetsResponse> {
-    const assets = await this.queryBus.execute<ListAccountContactAssetsQuery, AccountContactAssetView[]>(
+    const assets = await this.queryBus.execute<
+      ListAccountContactAssetsQuery,
+      AccountContactAssetView[]
+    >(
       new ListAccountContactAssetsQuery({
         tenantId: request.tenantId!,
         accountId: request.accountId!,
@@ -420,7 +426,10 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
     request: CountTenantAccountsRequest
   ): Promise<CountTenantAccountsResponse> {
     const operatorScope = getOptionalOperatorScope(request)
-    const result = await this.queryBus.execute<CountTenantAccountsQuery, TenantAccountCountListView>(
+    const result = await this.queryBus.execute<
+      CountTenantAccountsQuery,
+      TenantAccountCountListView
+    >(
       new CountTenantAccountsQuery({
         tenantIds: request.tenantIds ?? [],
         scopeLevel: request.scopeLevel || undefined,
@@ -496,9 +505,7 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
       }
     }
   }
-
 }
-
 
 /** Applies the frozen BUSINESS declaration to each of Identity's 18 baseline query handlers. */
 function applyIdentityQueryDeclaration(method: string, code: string): void {

@@ -20,9 +20,7 @@ import { ScopeLevel } from '../../domain/enums/scope-level.enum'
 @UseGuards(PermissionFoundationTrustedExecutionGuard)
 @PermissionTerminalAccessServiceControllerMethods()
 // Exposes internal terminal access decisions for trusted auth-service runtime enforcement.
-export class PermissionTerminalAccessGrpcController
-  implements PermissionTerminalAccessServiceController
-{
+export class PermissionTerminalAccessGrpcController implements PermissionTerminalAccessServiceController {
   constructor(private readonly queryBus: ValidatingQueryBus) {}
 
   @AuthorizeInternalCall({ all: ['permission.internal.account_terminal_access.resolve'] })

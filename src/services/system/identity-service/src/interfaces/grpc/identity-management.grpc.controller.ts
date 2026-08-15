@@ -319,7 +319,10 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
         operatorId: getRequiredOperatorId(request)
       })
     )
-    return { binding: toMachineWorkloadBinding(binding), auditCorrelationId: binding.enrollmentAuditRef }
+    return {
+      binding: toMachineWorkloadBinding(binding),
+      auditCorrelationId: binding.enrollmentAuditRef
+    }
   }
 
   /** Maps protected optimistic disable into Identity's irreversible workload-binding command. */
@@ -1112,39 +1115,115 @@ function toMachineWorkloadBinding(binding: {
     status: binding.status,
     bindingVersion: binding.version.toString(),
     createdAtUnixSeconds: Math.floor(binding.createdAt.getTime() / 1000).toString(),
-    disabledAtUnixSeconds: binding.disabledAt ? Math.floor(binding.disabledAt.getTime() / 1000).toString() : '0',
+    disabledAtUnixSeconds: binding.disabledAt
+      ? Math.floor(binding.disabledAt.getTime() / 1000).toString()
+      : '0',
     disableReasonCode: binding.disableReasonCode ?? ''
   }
 }
 
-
 /** Applies the frozen one-mode declaration to every Identity management handler. */
 function applyIdentityManagementDeclaration(method: string, decorator: MethodDecorator): void {
- const descriptor = Object.getOwnPropertyDescriptor(IdentityManagementGrpcController.prototype, method)
- if (!descriptor) throw new Error(`Identity management handler is missing: ${method}`)
- decorator(IdentityManagementGrpcController.prototype, method, descriptor)
+  const descriptor = Object.getOwnPropertyDescriptor(
+    IdentityManagementGrpcController.prototype,
+    method
+  )
+  if (!descriptor) throw new Error(`Identity management handler is missing: ${method}`)
+  decorator(IdentityManagementGrpcController.prototype, method, descriptor)
 }
-applyIdentityManagementDeclaration('updateOwnAccountProfile', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
-applyIdentityManagementDeclaration('updateOwnUserBasicInfo', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
-applyIdentityManagementDeclaration('rotateApiKey', AuthorizeBusinessRpc({ all: ['identity.machine.api_key.rotate'] }))
-applyIdentityManagementDeclaration('createApiKey', AuthorizeBusinessRpc({ all: ['identity.machine.api_key.create'] }))
-applyIdentityManagementDeclaration('createServiceAccount', AuthorizeBusinessRpc({ all: ['identity.machine.service_account.create'] }))
-applyIdentityManagementDeclaration('setServiceAccountEnabled', AuthorizeBusinessRpc({ all: ['identity.machine.service_account.update_status'] }))
-applyIdentityManagementDeclaration('createUserAccount', AuthorizeBusinessRpc({ all: ['identity.account.create'] }))
-applyIdentityManagementDeclaration('getAccountDeletionImpact', AuthorizeBusinessRpc({ all: ['identity.account.delete'] }))
-applyIdentityManagementDeclaration('deleteAccount', AuthorizeBusinessRpc({ all: ['identity.account.delete'] }))
-applyIdentityManagementDeclaration('revokeApiKey', AuthorizeBusinessRpc({ all: ['identity.machine.api_key.revoke'] }))
-applyIdentityManagementDeclaration('updateAccountProfile', AuthorizeBusinessRpc({ all: ['identity.account.profile.update'] }))
-applyIdentityManagementDeclaration('updateUserBasicInfo', AuthorizeBusinessRpc({ all: ['identity.account.profile.update'] }))
-applyIdentityManagementDeclaration('bindAccountToEmployee', AuthorizeBusinessRpc({ all: ['identity.account.profile.update'] }))
-applyIdentityManagementDeclaration('unbindAccountFromEmployee', AuthorizeBusinessRpc({ all: ['identity.account.profile.update'] }))
-applyIdentityManagementDeclaration('assignAccountWorkEmailAsset', AuthorizeBusinessRpc({ all: ['identity.contact.asset.assign'] }))
-applyIdentityManagementDeclaration('assignAccountWorkPhoneAsset', AuthorizeBusinessRpc({ all: ['identity.contact.asset.assign'] }))
-applyIdentityManagementDeclaration('revokeAccountWorkEmailAsset', AuthorizeBusinessRpc({ all: ['identity.contact.asset.release'] }))
-applyIdentityManagementDeclaration('revokeAccountWorkPhoneAsset', AuthorizeBusinessRpc({ all: ['identity.contact.asset.release'] }))
-applyIdentityManagementDeclaration('setAccountWorkEmailAssetStatus', AuthorizeBusinessRpc({ all: ['identity.contact.asset.set_status'] }))
-applyIdentityManagementDeclaration('setAccountWorkPhoneAssetStatus', AuthorizeBusinessRpc({ all: ['identity.contact.asset.set_status'] }))
-applyIdentityManagementDeclaration('setAccountPrimaryWorkEmailAsset', AuthorizeBusinessRpc({ all: ['identity.contact.asset.set_primary'] }))
-applyIdentityManagementDeclaration('setAccountPrimaryWorkPhoneAsset', AuthorizeBusinessRpc({ all: ['identity.contact.asset.set_primary'] }))
-applyIdentityManagementDeclaration('enrollMachineWorkloadBinding', AuthorizeBusinessRpc({ all: ['identity.machine.workload_binding.manage'] }))
-applyIdentityManagementDeclaration('disableMachineWorkloadBinding', AuthorizeBusinessRpc({ all: ['identity.machine.workload_binding.manage'] }))
+applyIdentityManagementDeclaration(
+  'updateOwnAccountProfile',
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+)
+applyIdentityManagementDeclaration(
+  'updateOwnUserBasicInfo',
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+)
+applyIdentityManagementDeclaration(
+  'rotateApiKey',
+  AuthorizeBusinessRpc({ all: ['identity.machine.api_key.rotate'] })
+)
+applyIdentityManagementDeclaration(
+  'createApiKey',
+  AuthorizeBusinessRpc({ all: ['identity.machine.api_key.create'] })
+)
+applyIdentityManagementDeclaration(
+  'createServiceAccount',
+  AuthorizeBusinessRpc({ all: ['identity.machine.service_account.create'] })
+)
+applyIdentityManagementDeclaration(
+  'setServiceAccountEnabled',
+  AuthorizeBusinessRpc({ all: ['identity.machine.service_account.update_status'] })
+)
+applyIdentityManagementDeclaration(
+  'createUserAccount',
+  AuthorizeBusinessRpc({ all: ['identity.account.create'] })
+)
+applyIdentityManagementDeclaration(
+  'getAccountDeletionImpact',
+  AuthorizeBusinessRpc({ all: ['identity.account.delete'] })
+)
+applyIdentityManagementDeclaration(
+  'deleteAccount',
+  AuthorizeBusinessRpc({ all: ['identity.account.delete'] })
+)
+applyIdentityManagementDeclaration(
+  'revokeApiKey',
+  AuthorizeBusinessRpc({ all: ['identity.machine.api_key.revoke'] })
+)
+applyIdentityManagementDeclaration(
+  'updateAccountProfile',
+  AuthorizeBusinessRpc({ all: ['identity.account.profile.update'] })
+)
+applyIdentityManagementDeclaration(
+  'updateUserBasicInfo',
+  AuthorizeBusinessRpc({ all: ['identity.account.profile.update'] })
+)
+applyIdentityManagementDeclaration(
+  'bindAccountToEmployee',
+  AuthorizeBusinessRpc({ all: ['identity.account.profile.update'] })
+)
+applyIdentityManagementDeclaration(
+  'unbindAccountFromEmployee',
+  AuthorizeBusinessRpc({ all: ['identity.account.profile.update'] })
+)
+applyIdentityManagementDeclaration(
+  'assignAccountWorkEmailAsset',
+  AuthorizeBusinessRpc({ all: ['identity.contact.asset.assign'] })
+)
+applyIdentityManagementDeclaration(
+  'assignAccountWorkPhoneAsset',
+  AuthorizeBusinessRpc({ all: ['identity.contact.asset.assign'] })
+)
+applyIdentityManagementDeclaration(
+  'revokeAccountWorkEmailAsset',
+  AuthorizeBusinessRpc({ all: ['identity.contact.asset.release'] })
+)
+applyIdentityManagementDeclaration(
+  'revokeAccountWorkPhoneAsset',
+  AuthorizeBusinessRpc({ all: ['identity.contact.asset.release'] })
+)
+applyIdentityManagementDeclaration(
+  'setAccountWorkEmailAssetStatus',
+  AuthorizeBusinessRpc({ all: ['identity.contact.asset.set_status'] })
+)
+applyIdentityManagementDeclaration(
+  'setAccountWorkPhoneAssetStatus',
+  AuthorizeBusinessRpc({ all: ['identity.contact.asset.set_status'] })
+)
+applyIdentityManagementDeclaration(
+  'setAccountPrimaryWorkEmailAsset',
+  AuthorizeBusinessRpc({ all: ['identity.contact.asset.set_primary'] })
+)
+applyIdentityManagementDeclaration(
+  'setAccountPrimaryWorkPhoneAsset',
+  AuthorizeBusinessRpc({ all: ['identity.contact.asset.set_primary'] })
+)
+applyIdentityManagementDeclaration(
+  'enrollMachineWorkloadBinding',
+  AuthorizeBusinessRpc({ all: ['identity.machine.workload_binding.manage'] })
+)
+applyIdentityManagementDeclaration(
+  'disableMachineWorkloadBinding',
+  AuthorizeBusinessRpc({ all: ['identity.machine.workload_binding.manage'] })
+)
