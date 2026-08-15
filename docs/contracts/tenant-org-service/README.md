@@ -64,3 +64,6 @@
 - primary org 管理
 - employee / employment
 - 基于正式人员归属的 org scope 解析
+## Trusted gRPC foundation-group admission
+
+All 20 methods remain BUSINESS with the exact ten current TenantOrg Codes, `urn:oes:service:tenant-org-service` audience and caller rules frozen by [tenant-org-service.md](../../architecture/services/tenant-org-service.md#13-trusted-grpc-20-rpc-contractfrozen). Fifteen `tenant_id=1` values remain owner resource identifiers under signed scope/resource enforcement; none is execution authority.

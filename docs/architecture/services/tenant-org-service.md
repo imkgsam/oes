@@ -148,3 +148,22 @@ Management 能力：
 - 不拥有 `Employee / Employment`、岗位、汇报关系或薪酬考勤等 HR 语义；这些以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准
 - 不在本服务内直接实现业务域自己的订单、客户、供应商或审批规则
 - 不把“哪些场景必须关联 organizationTenantPartyId”上升为通用 org tree 规则；如 future 场景需要必填，应由对应协同 contract 单独冻结
+
+## 13. Trusted gRPC 20-RPC contract（FROZEN）
+
+All 20 RPCs remain `BUSINESS`; audience is `urn:oes:service:tenant-org-service`. Gateway uses direct `HUMAN / WEB`; Auth/Identity/HR use `HUMAN_OBO` when a verified user chain exists. Exact Auth pre-session lifecycle reads and Public Entry public rendering reads may use only the named `SYSTEM MACHINE` workloads. No Cron/worker or generic service-name caller is admitted.
+
+| Code | RPCs |
+| --- | --- |
+| `tenant_org.tenant.list` | `ListTenants` |
+| `tenant_org.tenant.get_by_id` | `GetTenantById`, `GetTenantOnboarding` |
+| `tenant_org.tenant.create` | `CreateTenant`, `StartTenantOnboarding`, `RetryTenantOnboarding` |
+| `tenant_org.tenant.update_profile` | `UpdateTenantProfile` |
+| `tenant_org.tenant.update_status` | `SuspendTenant`, `ReactivateTenant`, `ArchiveTenant` |
+| `tenant_org.org_unit.list_tree` | `GetOrgTreeByTenantId`, `ListAncestorOrgUnits`, `ListDescendantOrgUnits`, `ValidateOrgReference`, `GetOrgReferenceSummary` |
+| `tenant_org.org_unit.get_by_id` | `GetOrgUnitById` |
+| `tenant_org.org_unit.create` | `CreateOrgUnit` |
+| `tenant_org.org_unit.update` | `UpdateOrgUnit`, `MoveOrgUnit` |
+| `tenant_org.org_unit.archive` | `ArchiveOrgUnit` |
+
+The 15 request `tenant_id=1` fields are retained as owner resource identifiers because SYSTEM-scope administration and exact pre-session/public reference checks require an explicit target. They never establish execution tenant: TENANT HUMAN/HUMAN_OBO must match the signed tenant; SYSTEM-scope HUMAN requires the exact Code/scope; allowlisted SYSTEM MACHINE is restricted to the named read/collaboration method. Operator, trace and audit always come from the verified context. Response tenant/org facts and every business field number remain unchanged.

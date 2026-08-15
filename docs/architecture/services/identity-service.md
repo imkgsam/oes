@@ -291,3 +291,39 @@ Contract 文档只描述黑盒调用语义、字段、错误与当前接口形�
 - 服务内旧 design、task、history、overview、roadmap 只作为本次提炼来源与历史记录，不再作为稳定设计入口。
 - 服务内旧 docs 在提炼完成后应删除；服务根目录可保留一个极短 README 指向本文与 contract 入口。
 - self-service / admin-management 拆分由 [self-service-admin-boundary-migration.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/self-service-admin-boundary-migration.md) 持续推进。
+
+## 16. Trusted gRPC 41-RPC contract（FROZEN）
+
+Identity audience 固定为 `urn:oes:service:identity-service`。本组只覆盖 2026-07-27 baseline 的 41 RPC；已集成的 `ResolveIntegrationMachineForAuth`, `ResolveMachinePrincipalForAuth`, `EnrollMachineWorkloadBinding`, `DisableMachineWorkloadBinding` 保持各自现有 contract，不计入 41，也不被本轮重写。
+
+| 类别 | RPC（数量） | execution / terminal | Code 与 caller rule |
+| --- | --- | --- | --- |
+| `SELF_SERVICE` | `UpdateOwnAccountProfile`, `UpdateOwnUserBasicInfo`（2） | `HUMAN`, `WEB`, exact `sub/account_id` self binding | `identity.account.self.update_profile`; Gateway only |
+| `FOUNDATION_EXTERNAL_CREDENTIAL` | `AuthenticateApiKey`（1） | existing exact Auth/Gateway external-credential admission; no HUMAN/MACHINE ET fabrication | preserve integrated contract; external API-key expansion remains deferred |
+| `BUSINESS` | `GetAccountById`, `GetEmployeeBindingByAccountId`, `ResolveEmployeeLoginAccount`, `ListAuditEvents`, `GetApiKeyById`, `GetServiceAccountById`, `ListApiKeysByServiceAccountId`, `ListServiceAccounts`, `ResolveContactActionTargets`, `ListAccountContactAssets`, `ListAccountWorkEmailAssets`, `ListAccountWorkPhoneAssets`, `ListAccounts`, `GetUserById`, `GetUserByEmail`, `GetUserByPhone`, `GetAccountsByUserId`, `CountTenantAccounts`（18） | direct `HUMAN`, `HUMAN_OBO`, or only the statically named pre-auth/public `SYSTEM MACHINE`; `WEB` for HUMAN | existing exact read/list/self Codes; direct Gateway plus Auth, Permission, HR, Public Entry, Collaboration allowlists from the frozen manifest; no wildcard workload |
+| `BUSINESS` | `RotateApiKey`, `CreateApiKey`, `CreateServiceAccount`, `CreateUserAccount`, `GetAccountDeletionImpact`, `DeleteAccount`, `RevokeApiKey`, `SetServiceAccountEnabled`, `UpdateAccountProfile`, `UpdateUserBasicInfo`, `AssignAccountWorkEmailAsset`, `AssignAccountWorkPhoneAsset`, `RevokeAccountWorkEmailAsset`, `RevokeAccountWorkPhoneAsset`, `SetAccountWorkEmailAssetStatus`, `SetAccountWorkPhoneAssetStatus`, `SetAccountPrimaryWorkEmailAsset`, `SetAccountPrimaryWorkPhoneAsset`, `BindAccountToEmployee`, `UnbindAccountFromEmployee`（20） | direct `HUMAN` or exact HR/TenantOrg `HUMAN_OBO`, `WEB` | exact existing `identity.account.*`, `identity.contact.*`, `identity.machine.*` Code selected per method; no Code inference from request |
+
+Exact Code mapping for the 41 methods is:
+
+| Code | RPCs |
+| --- | --- |
+| `identity.account.self.update_profile` | `UpdateOwnAccountProfile`, `UpdateOwnUserBasicInfo` |
+| `identity.account.list` | `GetAccountById`, `GetEmployeeBindingByAccountId`, `ResolveEmployeeLoginAccount`, `ListAuditEvents`, `ListAccounts`, `GetUserById`, `GetUserByEmail`, `GetUserByPhone`, `GetAccountsByUserId`, `CountTenantAccounts` |
+| `identity.account.self.read` | `ListAccountContactAssets`, `ListAccountWorkEmailAssets`, `ListAccountWorkPhoneAssets`, `ResolveContactActionTargets` |
+| `identity.machine.service_account.create` | `GetServiceAccountById`, `ListServiceAccounts`, `CreateServiceAccount` |
+| `identity.machine.service_account.update_status` | `SetServiceAccountEnabled` |
+| `identity.machine.api_key.create` | `GetApiKeyById`, `ListApiKeysByServiceAccountId`, `CreateApiKey` |
+| `identity.machine.api_key.rotate` | `RotateApiKey` |
+| `identity.machine.api_key.revoke` | `RevokeApiKey` |
+| `identity.account.create` | `CreateUserAccount` |
+| `identity.account.delete` | `GetAccountDeletionImpact`, `DeleteAccount` |
+| `identity.account.profile.update` | `UpdateAccountProfile`, `UpdateUserBasicInfo`, `BindAccountToEmployee`, `UnbindAccountFromEmployee` |
+| `identity.contact.asset.assign` | `AssignAccountWorkEmailAsset`, `AssignAccountWorkPhoneAsset` |
+| `identity.contact.asset.release` | `RevokeAccountWorkEmailAsset`, `RevokeAccountWorkPhoneAsset` |
+| `identity.contact.asset.set_status` | `SetAccountWorkEmailAssetStatus`, `SetAccountWorkPhoneAssetStatus` |
+| `identity.contact.asset.set_primary` | `SetAccountPrimaryWorkEmailAsset`, `SetAccountPrimaryWorkPhoneAsset` |
+| preserved external credential admission | `AuthenticateApiKey` |
+
+The more specific generated work-email/work-phone Codes remain catalog aliases for future route-level grants; this migration neither deletes them nor invents another business permission. Architecture tests require 41/41 literal coverage and reject any request-selected Code.
+
+Four request authority tombstones are frozen: `ListAuditEvents.operator_id=5/tenant_id=6/org_id=7` and `BindAccountToEmployee.tenant_id=1`. The remaining seven request `tenant_id` fields are owner resource selectors for account/service-account/contact/login lookup; they cannot establish execution tenant. A TENANT HUMAN/HUMAN_OBO selector must equal signed tenant; an exact allowlisted SYSTEM pre-auth/public call is evaluated as a target lookup under the method Code and cannot obtain cross-tenant authority from the body. Response tenant/org projections remain owner data.

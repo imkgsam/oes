@@ -78,3 +78,6 @@ Create/Reuse PERSON TenantParty
 - [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)
 - [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
 - [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md)
+## Trusted transport activation
+
+HR and TenantOrg onboarding orchestration keeps the original HUMAN subject and uses HUMAN_OBO for Auth, Identity and Permission calls. The five foundation servers and all cross-foundation callers activate atomically; onboarding business ownership, compensation, idempotency, persistence and error semantics do not change. Body/operator metadata never becomes a fallback when trusted proof is absent.

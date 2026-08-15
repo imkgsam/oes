@@ -83,3 +83,6 @@ Contact Asset contract 仅描述 `identity-service` 对账号工作上下文联�
 - `auth-service` 仍拥有 login method、credential、OTP、MFA、session 与认证审计；Contact Asset 字段不得被调用方当作登录可用性或认证凭据。
 - Phase 1 的 BusinessCard public render 使用 [query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/identity-service/query.md) 中的 `ResolveContactActionTargets` 获取 `publicValueSummary`。
 - 管理端统一使用 [management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/identity-service/management.md) 中的 Contact Asset management 语义；旧 work email / work phone 接口只作为兼容口径理解。
+## Trusted gRPC foundation-group admission
+
+The exact 41-RPC matrix, `urn:oes:service:identity-service` audience, caller shapes, 27 existing Codes and four request tombstones are owned by [identity-service.md](../../architecture/services/identity-service.md#16-trusted-grpc-41-rpc-contractfrozen). The four later integrated machine/external resolver-management methods retain their existing contracts and are not redefined by this slice.

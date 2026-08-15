@@ -45,3 +45,6 @@ Legacy `Policy + conditionAstJson` mutation RPCs and `CheckPermissionWithContext
 - [policy_instance_preview.proto](/Users/acehood/Documents/GitHub/oes/src/common/src/contracts/permission_service/policy_instance_preview.proto)
 - [policy_instance_management.proto](/Users/acehood/Documents/GitHub/oes/src/common/src/contracts/permission_service/policy_instance_management.proto)
 - [resource_authorization.proto](/Users/acehood/Documents/GitHub/oes/src/common/src/contracts/permission_service/resource_authorization.proto)
+## Trusted gRPC foundation-group admission
+
+The exact baseline 66-RPC matrix, `urn:oes:service:permission-service` audience, seven internal decision/read methods, six narrow transport Codes and three request tombstones are owned by [permission-service.md](../../architecture/services/permission-service.md#16-trusted-grpc-66-rpc-contractfrozen). The five later integrated foundation/role-binding methods remain byte- and semantics-stable; `ResolveWorkloadIssuance` stays the only exact-Auth mTLS bootstrap.

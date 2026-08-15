@@ -50,3 +50,6 @@
 - recruiting
 - 完整岗位体系
 - 角色 / 权限 owner 能力
+## Trusted gRPC foundation-group admission
+
+All 15 methods remain BUSINESS with the exact six current HR Codes, `urn:oes:service:hr-service` audience and execution/caller rules frozen by [hr-service.md](../../architecture/services/hr-service.md#11-trusted-grpc-15-rpc-contractfrozen). Ten body tenant fields are reserved; only `ResolveActiveEmployeeByCode.tenant_id=1` remains an Auth-derived target selector and never admission authority.

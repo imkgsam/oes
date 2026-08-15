@@ -67,3 +67,6 @@ Proto 契约来源仍然是：
   - 对应 permission code
 - `tenantId / orgId / execution principal / trace context` 是否必需，以具体接口文档为准
 - request body 中重复的 tenant、operator、scope 或 service name 不能建立身份或授权
+## Trusted gRPC foundation-group admission
+
+The exact 70-RPC public/self/business classification, the preserved five foundation RPCs, audience, callers and 15 request tombstones are owned by [auth-service.md](../../architecture/services/auth-service.md#19-trusted-grpc-foundation-group-admissionfrozen). Anonymous credential, recovery, MFA continuation, refresh and account-selection calls use their existing Auth-owned credential/challenge proofs over exact Gateway mTLS admission; they do not fabricate an ExecutionToken. Runtime cutover is atomic with Identity, Permission, HR and TenantOrg as frozen in the trusted-gRPC feature packet.

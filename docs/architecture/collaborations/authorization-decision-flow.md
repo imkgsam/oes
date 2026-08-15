@@ -72,3 +72,6 @@
 - [14-grpc-metadata-and-service-trust-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/14-grpc-metadata-and-service-trust-architecture.md)
 - [principal-authorization.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/principal-authorization.md)
 - [execution-token.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/execution-token.md)
+## Foundation atomic activation
+
+The five-service foundation candidate prepares Auth, Identity, Permission, HR and TenantOrg callers first and activates all five Token-only server boundaries together. Permission's seven baseline internal decision/read RPCs accept only their exact Gateway/Auth/Public Entry/Collaboration workload and the frozen Code; all management/policy RPCs remain HUMAN BUSINESS. Existing `ResolveWorkloadIssuance`, `ResolvePrincipalAuthorization`, MACHINE and OBO semantics are reused without a second bootstrap or caller-supplied authorization.

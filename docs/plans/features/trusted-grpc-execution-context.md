@@ -98,7 +98,7 @@ The implementation inventory script at `scripts/architecture/trusted-grpc-signat
 
 ### 3.1 Current-main global cutover status
 
-Overall execution status is `GRPC_FOUNDATION_COMPLETE_GLOBAL_SERVICE_CUTOVER_PENDING` at current-main `108ca92602b729a9dd1271c88ccdef3f58efe800`. The generated explicit metadata signatures prove the shared call-signature foundation only. They do not prove that a target service has classified every contract, prepared every caller, enabled Token-only server enforcement or removed its legacy trust path.
+Overall execution status is `FOUNDATION_IDENTITY_AUTHZ_ATOMIC_GROUP_FROZEN_PENDING_IMPLEMENTATION` at current-main `ad131ac7e06fa01d21493b05502bd1a567318c68`. The generated explicit metadata signatures prove the shared call-signature foundation only. They do not prove that a target service has classified every contract, prepared every caller, enabled Token-only server enforcement or removed its legacy trust path.
 
 The persistent execution owner is **OES Trusted gRPC Service Migration** (`019ff138-ed1c-7b82-8cd4-865bdb6529bd`). The prior delivery-mode owner `019ff07e-d441-7731-acdb-1a9d262661a9` and approval-stalled predecessor `019fe9f8-5a44-76e1-b5a4-110db9da6d59` are archived with their WIP histories preserved. The former A/C/GRPC lane is historical, migration-frozen evidence and is not the active controller for the remaining cutover.
 
@@ -121,15 +121,15 @@ The persistent execution owner is **OES Trusted gRPC Service Migration** (`019ff
 | SRM | 13+2 / 2+1 planned | Y | Y | Y | Y | Gateway, Procurement; implemented and verified at `84402fc566fee82a5e73cf7a013e7b617e254578` |
 | Item Master | 50+3 / 2+1 planned | Y | Y | Y | Y | Gateway, MES, WMS, Procurement, SRM; server accepted at `764f28fba059965a4272752beb6ff0c7acf25d64`; MES/SRM/Procurement/WMS exact HUMAN_OBO actor paths all active after `108ca92602b729a9dd1271c88ccdef3f58efe800` |
 | WMS | 15 / 2 | Y | Y | Y | Y | Gateway; implemented and verified at `108ca92602b729a9dd1271c88ccdef3f58efe800` |
-| HR | 15 / 2 | N | N | N | N | Gateway, Auth, Identity; dependency-heavy |
+| HR | 15 / 2 | Y | N | N | N | atomic foundation group; Gateway/Auth/Identity/TenantOrg/Public Entry callers frozen |
 | Party | 6 / 2 | Y | Y | Y | Y | Gateway, CRM, SRM, HR, Identity, TenantOrg; implemented and verified at `f6caa3aa294b6fb6e7099393afbe0770ee90c09a` |
-| TenantOrg | 20 / 2 | N | N | N | N | Gateway, Auth, HR, Identity; high fan-in |
-| Identity | 41 / 3 | N | N | N | N | Gateway, Auth, Permission, HR; foundation partial only |
-| Permission | 66 / 8 | N | N | N | N | Gateway, Auth, HR, TenantOrg, WMS; bootstrap partial only |
-| Auth | 70+5 / 1+1 planned | N | N | N | N | Gateway, HR, Site, TenantOrg; MACHINE foundation complete, full service pending |
-| **Total / proven state** | **571 / 55 planned** | **15 Y / 6 N** | **15 Y / 6 N** | **15 Y / 6 N** | **15 Y / 6 N** | **15 services complete; six services pending implementation/cutover** |
+| TenantOrg | 20 / 2 | Y | N | N | N | atomic foundation group; Gateway/Auth/HR/Identity/Public Entry callers frozen |
+| Identity | 41 / 3 | Y | N | N | N | atomic foundation group; Gateway/Auth/Permission/HR/Public Entry/Collaboration callers frozen; integrated machine surfaces preserved |
+| Permission | 66 / 8 | Y | N | N | N | atomic foundation group; Gateway/Auth/HR/TenantOrg/Public Entry/Collaboration callers frozen; bootstrap surfaces preserved |
+| Auth | 70+5 / 1+1 planned | Y | N | N | N | atomic foundation group; exact public admission plus Gateway/HR/TenantOrg callers frozen; MACHINE/OBO foundation preserved |
+| **Total / proven state** | **571 / 55 planned** | **20 Y / 1 N** | **15 Y / 6 N** | **15 Y / 6 N** | **15 Y / 6 N** | **15 services complete; the five-service atomic group is classified/pending implementation; CRM remains next** |
 
-The frozen order in §6 remains authoritative. Migration continues one target service at a time; completing the Auth, Identity, Permission, Gateway or Common foundation does not implicitly advance an unverified service row.
+The frozen order in §6 remains authoritative. Migration continues one target service at a time except for the sole proven Auth/Identity/Permission/HR/TenantOrg strongly connected group in §9.15: its code review and tests remain service-by-service under one writer, while all five Token-only boundaries activate in one candidate. No classified row advances A/T/L before accepted evidence.
 
 ## 4. Per-service Migration State Machine
 
@@ -2706,6 +2706,285 @@ wmsTrustedGrpcImplementationLease:
 ```
 
 Acceptance proves 15/15 unique BUSINESS declarations and zero dual-mode methods; exact five existing Code mappings, WMS audience, WEB terminal and direct Gateway workload; unchanged 15 Gateway routes; 55 request authority fields plus eight nested legacy-context fields reserved as 63/63 tombstones; unchanged business field numbers and response projections; token-only WMS ingress and claims-derived business/audit context; Gateway dedicated WMS client; WMS→Item Master and WMS→Procurement HUMAN_OBO activation with real subject/actor/audience/Permission/expiry/trace/`cnf` composition; verified-HUMAN L2 success/rollback evidence without input fallback; no raw smoke authority, generic WMS registration, legacy body/metadata or fallback; unchanged schema/events/business rules; exact 70-path scope; and successful proto, build, focused test, UTF-8, link, YAML and diff gates.
+
+
+### 9.15 Auth / Identity / Permission / HR / TenantOrg atomic foundation group
+
+Status: `FROZEN_PENDING_ATOMIC_IMPLEMENTATION` at design base `ad131ac7e06fa01d21493b05502bd1a567318c68`. Fresh static inventory proves the five target services form one irreducible caller cycle; preparing or cutting over one server alone would consume legacy HUMAN authority from another member. One implementation writer therefore produces one atomic candidate. Review, build and focused tests stay service-by-service; Token-only activation, cross-foundation caller activation and legacy deletion happen only after all five preparations are green. CRM remains the next service and is not changed by this packet.
+
+#### 9.15.1 exact membership and declaration totals
+
+The stable per-method tables are owned only by the five service truth sources and are incorporated here by reference to avoid a second service truth:
+
+| Target | Frozen membership | Declaration result | Audience | Canonical Code inventory | Request tombstones |
+| --- | ---: | --- | --- | ---: | ---: |
+| Auth | 70 existing + five already integrated foundation RPCs | 12 `PUBLIC_CREDENTIAL`; 5 `PUBLIC_CONTINUATION`; 1 `PUBLIC_SESSION_SOURCE_VALIDATION`; 29 `SELF_SERVICE`; 23 `BUSINESS`; five preserved foundation admissions | `urn:oes:service:auth-service` | 12 existing Auth Codes | 15 |
+| Identity | 41 baseline RPCs | 2 `SELF_SERVICE`; 1 preserved external-credential foundation admission; 38 `BUSINESS` | `urn:oes:service:identity-service` | 27 existing Identity Codes | 4 |
+| Permission | 66 baseline RPCs | 7 `INTERNAL`; 59 `BUSINESS`; five later integrated RPCs protected outside the 66 | `urn:oes:service:permission-service` | 38 existing unique Permission Code literals (40 generated entries) + 6 exact INTERNAL transport Codes | 3 |
+| HR | 15 RPCs | 15 `BUSINESS` | `urn:oes:service:hr-service` | 6 existing HR Codes | 10 |
+| TenantOrg | 20 RPCs | 20 `BUSINESS` | `urn:oes:service:tenant-org-service` | 10 existing TenantOrg Codes | 0 |
+| **Atomic group** | **217 declarations including the exact five foundation members** | **one declaration/admission per RPC; no dual mode** | **five exact target audiences** | **93 existing unique Code literals (95 generated entries) + 6 new internal transport Codes** | **32 direct request fields** |
+
+The five additional foundation members are exactly Auth `ExchangeExecutionToken`, `GetExecutionTokenJwks`, `IssueMachineWorkloadSourceCredential`, `RevokeMachineWorkloadSourceCredential` plus Identity `ResolveMachinePrincipalForAuth`. Identity's other later machine/external methods and Permission's five later integrated methods remain protected by their accepted contracts and are not silently counted or redesigned. External API-key feature expansion, AI Platform, ActionGrant, DELEGATED runtime and background-without-user execution remain deferred.
+
+The exact 32 tombstones and the 57 retained target/decision selectors are listed in the five service truth sources. Retained `tenant_id` / `org_id` values identify an owner resource, policy target or authorization-decision subject; they never establish caller identity or execution scope. Every response projection and business field number remains unchanged. There are zero nested request-context proto tombstones in these five current baseline protos; legacy operator/trace/audit context exists in ordinary metadata/runtime helpers and is removed by the leased adapter/controller changes.
+
+#### 9.15.2 admission and caller graph
+
+Auth's anonymous login/recovery/bootstrap and opaque continuation methods accept only exact Gateway mTLS plus the existing Auth-owned credential/challenge/grant/session proof. They do not require or manufacture a HUMAN/MACHINE ExecutionToken. They preserve current anti-enumeration, challenge expiry/attempts, rate limits, credential secrecy and safe audit. Auth normal protected RPCs validate ET locally; only STS exchange/cache miss contacts Auth/Permission.
+
+| Target | direct HUMAN | HUMAN_OBO callers | exact SYSTEM MACHINE callers |
+| --- | --- | --- | --- |
+| Auth | Gateway authenticated BFF | HR, TenantOrg | only already integrated foundation workloads; public methods use exact Gateway mTLS admission, not fake ET |
+| Identity | Gateway | Auth after session, Permission, HR, TenantOrg, Collaboration | Auth pre-auth lookup and Public Entry anonymous rendering, exact methods only |
+| Permission | Gateway management | Auth/HR/TenantOrg/Collaboration where upstream HUMAN exists | Auth pre-auth/session construction and Public Entry anonymous resource checks, exact internal methods only |
+| HR | Gateway | Identity, TenantOrg | Auth employee-code pre-auth and Public Entry anonymous card projection, exact read methods only |
+| TenantOrg | Gateway | Auth/Identity/HR after session | Auth pre-session lifecycle and Public Entry anonymous projection, exact read methods only |
+
+All HUMAN_OBO hops carry the verified HUMAN subject, tenant/session/terminal/trace and exact current service SYSTEM actor in `act`; each hop exchanges for the next target audience and certificate binding. SYSTEM MACHINE is admitted only by exact SPIFFE/principal/binding/workload/target/Code allowlist; SYSTEM is not a tenant wildcard. Public Entry and Collaboration reuse their already verified inbound proof shapes. No direct Cron/worker MACHINE root exists for the five baseline business surfaces. Generic `GrpcMetadataPropagationFactory`, operator-scoped metadata, body/local tenant authority, request-id/trace-id fallback and target registration are migration objects, never fallback.
+
+#### 9.15.3 staged single-writer implementation
+
+1. Update the leased protos/reservations, six Permission INTERNAL Codes, generated outputs and 217-declaration architecture evidence without changing business schemas/events.
+2. Prepare every Gateway and cross-foundation target-specific client/profile/provider while legacy targets remain active; preparation may attach ET but cannot synthesize fallback authority.
+3. Complete Auth public-admission composition and all five local verifier/guard/context/module compositions.
+4. Run service-by-service controller/module/security tests for Auth, Identity, Permission, HR and TenantOrg; keep all five production activations disabled.
+5. In one candidate, activate the 15 cross-foundation edges, Gateway five-target clients and Public Entry/Collaboration edges, then enable all five Token-only server boundaries.
+6. Delete generic target registrations, signed/operator metadata factories, body authority consumption and all legacy fallbacks; retain unrelated Party and already integrated foundation compositions.
+7. Run the group composition/E2E, 217-declaration, Code, audience/actor/terminal, tombstone, legacy-zero, exact-scope and repository gates at one SHA.
+
+No database schema, migration, event/outbox, role model, tenant model, business rule, package lock, CRM runtime or unrelated RPC is leased.
+
+#### 9.15.4 closed implementation writer lease
+
+The lease is exact: `185 = 156 EXISTING + 29 NEW_TARGET`. Each source package owns its package-local target profiles/clients; Common remains target-neutral infrastructure. One production file may register several target-specific immutable profiles, but each target has a distinct audience/client token and no package imports another package's producer.
+
+```yaml
+foundationIdentityAuthzAtomicGroupImplementationLease:
+  base: ad131ac7e06fa01d21493b05502bd1a567318c68
+  totalTrackedWriterPaths: 185
+  stateCounts: { EXISTING: 156, NEW_TARGET: 29 }
+  trackedWriterPaths:
+    - { state: EXISTING, path: src/common/src/contracts/auth_service/auth.proto }
+    - { state: EXISTING, path: src/common/src/contracts/auth_service/execution_token.proto }
+    - { state: EXISTING, path: src/common/src/contracts/auth_service/machine_workload_source_credential.proto }
+    - { state: EXISTING, path: src/common/src/contracts/identity_service/identity_query.proto }
+    - { state: EXISTING, path: src/common/src/contracts/permission_service/permission_check.proto }
+    - { state: EXISTING, path: src/common/src/contracts/permission_service/permission_management.proto }
+    - { state: EXISTING, path: src/common/src/contracts/hr_service/hr.proto }
+    - { state: EXISTING, path: src/common/src/contracts/tenant_org_service/tenant_org.proto }
+    - { state: EXISTING, path: src/common/src/authorization/guards/trusted-execution.guard.ts }
+    - { state: EXISTING, path: src/common/src/authorization/guards/trusted-execution.guard.spec.ts }
+    - { state: EXISTING, path: src/common/src/authorization/guards/trusted-internal-execution.guard.ts }
+    - { state: EXISTING, path: src/common/src/authorization/guards/trusted-internal-execution.guard.spec.ts }
+    - { state: EXISTING, path: src/common/src/authorization/trusted-execution/declarations.spec.ts }
+    - { state: EXISTING, path: src/common/src/authorization/trusted-execution/trusted-execution-registry.ts }
+    - { state: EXISTING, path: src/common/src/authorization/trusted-execution/internal-trusted-grpc-caller.ts }
+    - { state: EXISTING, path: src/common/src/authorization/trusted-execution/internal-trusted-grpc-caller.spec.ts }
+    - { state: EXISTING, path: src/common/src/authorization/trusted-execution/inbound-execution-token-credential.scope.ts }
+    - { state: EXISTING, path: src/common/src/authorization/trusted-execution/inbound-execution-token-credential.scope.spec.ts }
+    - { state: EXISTING, path: src/common/src/authorization/trusted-execution/index.ts }
+    - { state: EXISTING, path: src/common/src/authorization/permission-codes/auth/auth-management.permission-codes.ts }
+    - { state: EXISTING, path: src/common/src/authorization/permission-codes/auth/self.permission-codes.ts }
+    - { state: EXISTING, path: src/common/src/authorization/permission-codes/auth/session.permission-codes.ts }
+    - { state: EXISTING, path: src/common/src/authorization/permission-codes/identity/account.permission-codes.ts }
+    - { state: EXISTING, path: src/common/src/authorization/permission-codes/identity/account-self.permission-codes.ts }
+    - { state: EXISTING, path: src/common/src/authorization/permission-codes/identity/machine.permission-codes.ts }
+    - { state: EXISTING, path: src/common/src/authorization/permission-codes/identity/internal.permission-codes.ts }
+    - { state: EXISTING, path: src/common/src/authorization/permission-codes/permission/management.permission-codes.ts }
+    - { state: EXISTING, path: src/common/src/authorization/permission-codes/permission/account-self.permission-codes.ts }
+    - { state: EXISTING, path: src/common/src/authorization/permission-codes/permission/internal.permission-codes.ts }
+    - { state: EXISTING, path: src/common/src/authorization/permission-codes/permission/role-instance.permission-codes.ts }
+    - { state: EXISTING, path: src/common/src/authorization/permission-codes/permission/role-template.permission-codes.ts }
+    - { state: EXISTING, path: src/common/src/authorization/permission-codes/hr/management.permission-codes.ts }
+    - { state: EXISTING, path: src/common/src/authorization/permission-codes/tenant-org/management.permission-codes.ts }
+    - { state: EXISTING, path: src/services/system/permission-service/src/scripts/permission-catalog.ts }
+    - { state: EXISTING, path: src/services/system/permission-service/src/scripts/generate-common-permission-codes.ts }
+    - { state: EXISTING, path: src/services/system/permission-service/src/scripts/sync-permission-codes.ts }
+    - { state: EXISTING, path: src/services/system/permission-service/test/l1/common-permission-code-generator.spec.ts }
+    - { state: EXISTING, path: src/services/system/permission-service/test/l1/permission-foundation.seed.spec.ts }
+    - { state: EXISTING, path: src/services/system/permission-service/test/l1/permission-service-seed.spec.ts }
+    - { state: EXISTING, path: scripts/architecture/trusted-grpc-signature-inventory.mjs }
+    - { state: EXISTING, path: src/services/system/auth-service/src/app.module.ts }
+    - { state: EXISTING, path: src/services/system/auth-service/src/interfaces/grpc/auth.grpc.controller.ts }
+    - { state: EXISTING, path: src/services/system/auth-service/src/interfaces/grpc/auth.grpc.controller.spec.ts }
+    - { state: EXISTING, path: src/services/system/auth-service/src/interfaces/grpc/grpc-request-context.ts }
+    - { state: EXISTING, path: src/services/system/auth-service/src/infrastructure/modules/external-services.module.ts }
+    - { state: EXISTING, path: src/services/system/auth-service/src/infrastructure/adaptors/hr-service.adaptor.ts }
+    - { state: EXISTING, path: src/services/system/auth-service/src/infrastructure/adaptors/identity-service.adaptor.ts }
+    - { state: EXISTING, path: src/services/system/auth-service/src/infrastructure/adaptors/identity-service.adaptor.spec.ts }
+    - { state: EXISTING, path: src/services/system/auth-service/src/infrastructure/adaptors/permission-service.adaptor.ts }
+    - { state: EXISTING, path: src/services/system/auth-service/src/infrastructure/adaptors/permission-service.adaptor.spec.ts }
+    - { state: EXISTING, path: src/services/system/auth-service/src/infrastructure/adaptors/tenant-org-lifecycle.grpc.adaptor.ts }
+    - { state: EXISTING, path: src/services/system/auth-service/src/modules/auth/auth.module.ts }
+    - { state: EXISTING, path: src/services/system/auth-service/src/modules/token/execution-token.module.ts }
+    - { state: EXISTING, path: src/services/system/identity-service/src/app.module.ts }
+    - { state: EXISTING, path: src/services/system/identity-service/src/interfaces/grpc/identity-query.grpc.controller.ts }
+    - { state: EXISTING, path: src/services/system/identity-service/src/interfaces/grpc/identity-management.grpc.controller.ts }
+    - { state: EXISTING, path: src/services/system/identity-service/src/interfaces/grpc/identity-machine-auth.grpc.controller.ts }
+    - { state: EXISTING, path: src/services/system/identity-service/src/interfaces/grpc/grpc-request-context.ts }
+    - { state: EXISTING, path: src/services/system/identity-service/src/modules/identity-query/identity-query.module.ts }
+    - { state: EXISTING, path: src/services/system/identity-service/src/modules/identity-management/identity-management.module.ts }
+    - { state: EXISTING, path: src/services/system/identity-service/src/modules/identity-machine-auth/identity-machine-auth.module.ts }
+    - { state: EXISTING, path: src/services/system/identity-service/src/modules/identity-trusted-execution.module.ts }
+    - { state: EXISTING, path: src/services/system/identity-service/src/infrastructure/adaptors/hr-employee-reference.grpc.adaptor.ts }
+    - { state: EXISTING, path: src/services/system/identity-service/src/infrastructure/adaptors/tenant-reference.grpc.adaptor.ts }
+    - { state: EXISTING, path: src/services/system/identity-service/test/l1/grpc-controller-input-validation.spec.ts }
+    - { state: EXISTING, path: src/services/system/identity-service/test/l1/identity-management.module.spec.ts }
+    - { state: EXISTING, path: src/services/system/identity-service/test/l1/hr-employee-reference.grpc.adaptor.spec.ts }
+    - { state: EXISTING, path: src/services/system/permission-service/src/app.module.ts }
+    - { state: EXISTING, path: src/services/system/permission-service/src/interfaces/grpc/permission-access-summary.grpc.controller.ts }
+    - { state: EXISTING, path: src/services/system/permission-service/src/interfaces/grpc/permission-check.grpc.controller.ts }
+    - { state: EXISTING, path: src/services/system/permission-service/src/interfaces/grpc/permission-management.grpc.controller.ts }
+    - { state: EXISTING, path: src/services/system/permission-service/src/interfaces/grpc/permission-terminal-access.grpc.controller.ts }
+    - { state: EXISTING, path: src/services/system/permission-service/src/interfaces/grpc/policy-instance-management.grpc.controller.ts }
+    - { state: EXISTING, path: src/services/system/permission-service/src/interfaces/grpc/policy-instance-preview.grpc.controller.ts }
+    - { state: EXISTING, path: src/services/system/permission-service/src/interfaces/grpc/policy-management.grpc.controller.ts }
+    - { state: EXISTING, path: src/services/system/permission-service/src/interfaces/grpc/resource-authorization.grpc.controller.ts }
+    - { state: EXISTING, path: src/services/system/permission-service/src/interfaces/guards/management-authorization.guard.ts }
+    - { state: EXISTING, path: src/services/system/permission-service/src/interfaces/guards/permission-decision-transport.guard.ts }
+    - { state: EXISTING, path: src/services/system/permission-service/src/interfaces/guards/permission-trusted-internal-execution.guard.ts }
+    - { state: EXISTING, path: src/services/system/permission-service/src/infrastructure/adaptors/identity-account-reference.grpc.adaptor.ts }
+    - { state: EXISTING, path: src/services/system/permission-service/src/modules/authorization/authorization.module.ts }
+    - { state: EXISTING, path: src/services/system/permission-service/src/modules/management-authorization/management-authorization.module.ts }
+    - { state: EXISTING, path: src/services/system/permission-service/test/l1/identity-account-reference.grpc.adaptor.spec.ts }
+    - { state: EXISTING, path: src/services/system/permission-service/test/l1/permission-decision.module-wiring.spec.ts }
+    - { state: EXISTING, path: src/services/system/permission-service/test/l3/permission-check.grpc.controller.spec.ts }
+    - { state: EXISTING, path: src/services/system/permission-service/test/l3/permission-management.grpc.controller.spec.ts }
+    - { state: EXISTING, path: src/services/system/permission-service/test/l3/permission-terminal-access.grpc.controller.spec.ts }
+    - { state: EXISTING, path: src/services/system/permission-service/test/l1/resource-authorization.grpc.controller.spec.ts }
+    - { state: EXISTING, path: src/services/system/hr-service/src/app.module.ts }
+    - { state: EXISTING, path: src/services/system/hr-service/src/interfaces/grpc/hr-management.grpc.controller.ts }
+    - { state: EXISTING, path: src/services/system/hr-service/src/interfaces/grpc/hr-query.grpc.controller.ts }
+    - { state: EXISTING, path: src/services/system/hr-service/src/modules/hr-trusted-execution.module.ts }
+    - { state: EXISTING, path: src/services/system/hr-service/src/infrastructure/modules/hr-reference.module.ts }
+    - { state: EXISTING, path: src/services/system/hr-service/src/infrastructure/adapters/auth-login-bootstrap-grpc.adapter.ts }
+    - { state: EXISTING, path: src/services/system/hr-service/src/infrastructure/adapters/identity-account-provisioning-grpc.adapter.ts }
+    - { state: EXISTING, path: src/services/system/hr-service/src/infrastructure/adapters/identity-employee-binding-grpc.adapter.ts }
+    - { state: EXISTING, path: src/services/system/hr-service/src/infrastructure/adapters/permission-onboarding-grant-grpc.adapter.ts }
+    - { state: EXISTING, path: src/services/system/hr-service/src/infrastructure/adapters/tenant-org-grpc.adapter.ts }
+    - { state: EXISTING, path: src/services/system/hr-service/test/l1/grpc-onboarding-adapters.spec.ts }
+    - { state: EXISTING, path: src/services/system/hr-service/test/l1/tenant-org-grpc.adapter.spec.ts }
+    - { state: EXISTING, path: src/services/system/hr-service/test/l3/hr-management.grpc.controller.spec.ts }
+    - { state: EXISTING, path: src/services/system/hr-service/test/l3/hr-query.grpc.controller.spec.ts }
+    - { state: EXISTING, path: src/services/system/tenant-org-service/src/app.module.ts }
+    - { state: EXISTING, path: src/services/system/tenant-org-service/src/interfaces/grpc/tenant-org-management.grpc.controller.ts }
+    - { state: EXISTING, path: src/services/system/tenant-org-service/src/interfaces/grpc/tenant-org-query.grpc.controller.ts }
+    - { state: EXISTING, path: src/services/system/tenant-org-service/src/modules/tenant-org-trusted-execution.module.ts }
+    - { state: EXISTING, path: src/services/system/tenant-org-service/src/modules/tenant-org-management/tenant-org-management.module.ts }
+    - { state: EXISTING, path: src/services/system/tenant-org-service/src/modules/tenant-org-query/tenant-org-query.module.ts }
+    - { state: EXISTING, path: src/services/system/tenant-org-service/src/infrastructure/adapters/auth-login-onboarding.grpc.adapter.ts }
+    - { state: EXISTING, path: src/services/system/tenant-org-service/src/infrastructure/adapters/auth-session-revocation.grpc.adapter.ts }
+    - { state: EXISTING, path: src/services/system/tenant-org-service/src/infrastructure/adapters/hr-employee-onboarding.grpc.adapter.ts }
+    - { state: EXISTING, path: src/services/system/tenant-org-service/src/infrastructure/adapters/identity-account-onboarding.grpc.adapter.ts }
+    - { state: EXISTING, path: src/services/system/tenant-org-service/src/infrastructure/adapters/permission-tenant-onboarding.grpc.adapter.ts }
+    - { state: EXISTING, path: src/services/system/tenant-org-service/src/infrastructure/adapters/tenant-onboarding-metadata.ts }
+    - { state: EXISTING, path: src/services/system/tenant-org-service/test/l1/app-module-grpc-config.spec.ts }
+    - { state: EXISTING, path: src/services/system/tenant-org-service/test/l1/permission-tenant-onboarding.grpc.adapter.spec.ts }
+    - { state: EXISTING, path: src/services/system/tenant-org-service/test/l3/tenant-org-management.grpc.controller.spec.ts }
+    - { state: EXISTING, path: src/services/system/tenant-org-service/test/l3/tenant-org-query.grpc.controller.spec.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/app.module.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/config/gateway.config.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/auth-bff/auth-bff.module.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/auth-bff/auth-bff.module.spec.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/auth-bff/infrastructure/downstream/auth-service/auth-grpc.adapter.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/auth-bff/infrastructure/downstream/auth-service/auth-grpc.adapter.spec.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/auth-bff/infrastructure/downstream/identity-service/identity-query-grpc.adapter.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/auth-bff/infrastructure/downstream/permission-service/permission-access-summary-grpc.adapter.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/auth-bff/infrastructure/downstream/permission-service/permission-terminal-access-grpc.adapter.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/auth-bff/infrastructure/downstream/tenant-org-service/tenant-org-query-grpc.adapter.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/hr-service/adapters/hr-management-grpc.adapter.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/hr-service/adapters/hr-query-grpc.adapter.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/hr-service/hr-service.module.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/permission-service/adapters/permission-management-grpc.adapter.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/permission-service/adapters/policy-instance-management-grpc.adapter.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/permission-service/adapters/policy-instance-preview-grpc.adapter.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/permission-service/adapters/policy-management-grpc.adapter.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/permission-service/permission-service.module.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/permission-service/tenant-org-query-grpc.adapter.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/tenant-org-service/adapters/identity-tenant-account-stats-grpc.adapter.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/tenant-org-service/adapters/identity-user-lookup-grpc.adapter.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/tenant-org-service/adapters/tenant-org-management-grpc.adapter.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/tenant-org-service/adapters/tenant-org-management-grpc.adapter.spec.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/tenant-org-service/adapters/tenant-org-query-grpc.adapter.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/tenant-org-service/tenant-org-service.module.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/public-entry-service/adapters/identity-contact-asset-grpc.adapter.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/public-entry-service/public-entry-service.module.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/collaboration-service/collaboration-service.module.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/crm-service/crm-service.module.ts }
+    - { state: EXISTING, path: src/services/api-gateway/src/modules/terminal-device-admin-bff/terminal-device-admin-bff.module.ts }
+    - { state: EXISTING, path: src/services/system/public-entry-service/src/infrastructure/adapters/business-card-upstream.grpc.adapters.ts }
+    - { state: EXISTING, path: src/services/system/public-entry-service/src/infrastructure/adapters/permission-business-card-authorization.adapter.ts }
+    - { state: EXISTING, path: src/services/system/public-entry-service/src/modules/business-card/business-card.module.ts }
+    - { state: EXISTING, path: src/services/system/collaboration-service/src/infrastructure/adapters/annotation-permission.grpc.adapter.ts }
+    - { state: EXISTING, path: src/services/system/collaboration-service/src/infrastructure/adapters/identity-account-reference.grpc.adapter.ts }
+    - { state: EXISTING, path: src/services/system/collaboration-service/src/infrastructure/adapters/task-permission.grpc.adapter.ts }
+    - { state: EXISTING, path: src/services/system/collaboration-service/src/modules/collaboration-annotation.module.ts }
+    - { state: EXISTING, path: src/services/system/collaboration-service/src/modules/collaboration-task.module.ts }
+    - { state: NEW_TARGET, path: src/services/system/auth-service/src/modules/auth/auth-trusted-execution.module.ts }
+    - { state: NEW_TARGET, path: src/services/system/auth-service/src/infrastructure/adaptors/foundation-trusted-grpc.clients.ts }
+    - { state: NEW_TARGET, path: src/services/system/auth-service/src/infrastructure/adaptors/foundation-trusted-grpc.clients.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/auth-service/src/interfaces/grpc/auth-trusted-grpc-security.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/identity-service/src/infrastructure/adaptors/foundation-trusted-grpc.clients.ts }
+    - { state: NEW_TARGET, path: src/services/system/identity-service/src/infrastructure/adaptors/foundation-trusted-grpc.clients.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/identity-service/test/l1/identity-trusted-grpc-security.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/permission-service/src/modules/authorization/permission-trusted-execution.module.ts }
+    - { state: NEW_TARGET, path: src/services/system/permission-service/src/infrastructure/adaptors/foundation-trusted-grpc.clients.ts }
+    - { state: NEW_TARGET, path: src/services/system/permission-service/src/infrastructure/adaptors/foundation-trusted-grpc.clients.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/permission-service/test/l1/permission-trusted-grpc-security.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/hr-service/src/infrastructure/adapters/foundation-trusted-grpc.clients.ts }
+    - { state: NEW_TARGET, path: src/services/system/hr-service/src/infrastructure/adapters/foundation-trusted-grpc.clients.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/hr-service/test/l1/hr-trusted-grpc-security.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/tenant-org-service/src/infrastructure/adapters/foundation-trusted-grpc.clients.ts }
+    - { state: NEW_TARGET, path: src/services/system/tenant-org-service/src/infrastructure/adapters/foundation-trusted-grpc.clients.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/tenant-org-service/test/l1/tenant-org-trusted-grpc-security.spec.ts }
+    - { state: NEW_TARGET, path: src/services/api-gateway/src/infrastructure/grpc/trusted-auth.grpc.client.ts }
+    - { state: NEW_TARGET, path: src/services/api-gateway/src/infrastructure/grpc/trusted-identity.grpc.client.ts }
+    - { state: NEW_TARGET, path: src/services/api-gateway/src/infrastructure/grpc/trusted-permission.grpc.client.ts }
+    - { state: NEW_TARGET, path: src/services/api-gateway/src/infrastructure/grpc/trusted-hr.grpc.client.ts }
+    - { state: NEW_TARGET, path: src/services/api-gateway/src/infrastructure/grpc/trusted-tenant-org.grpc.client.ts }
+    - { state: NEW_TARGET, path: src/services/api-gateway/src/infrastructure/grpc/foundation-trusted-grpc.clients.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/public-entry-service/src/infrastructure/adapters/foundation-trusted-grpc.clients.ts }
+    - { state: NEW_TARGET, path: src/services/system/public-entry-service/src/infrastructure/adapters/foundation-trusted-grpc.clients.spec.ts }
+    - { state: NEW_TARGET, path: src/services/system/collaboration-service/src/infrastructure/adapters/foundation-trusted-grpc.clients.ts }
+    - { state: NEW_TARGET, path: src/services/system/collaboration-service/src/infrastructure/adapters/foundation-trusted-grpc.clients.spec.ts }
+    - { state: NEW_TARGET, path: src/common/src/authorization/trusted-execution/foundation-atomic-group.declarations.spec.ts }
+    - { state: NEW_TARGET, path: scripts/local/foundation-trusted-grpc-atomic-group.spec.mjs }
+  protected:
+    - every tracked path not listed above
+    - all prisma/schema/migration, event/outbox and business-domain state-machine paths
+    - CRM service/runtime and all non-foundation target RPCs
+    - package manifests and lockfiles
+    - external API-key expansion, AI Platform, ActionGrant and DELEGATED/background runtime
+```
+
+#### 9.15.5 focused and final verification
+
+```bash
+pnpm proto:lint
+pnpm proto:regen
+node scripts/architecture/trusted-grpc-signature-inventory.mjs
+pnpm --filter permission-service permission-codes:generate-common
+pnpm --filter permission-service exec jest --config jest.config.js --runInBand --runTestsByPath test/l1/common-permission-code-generator.spec.ts test/l1/permission-foundation.seed.spec.ts test/l1/permission-service-seed.spec.ts
+pnpm --filter @oes/common build
+pnpm --filter auth-service build
+pnpm --filter identity-service build
+pnpm --filter permission-service build
+pnpm --filter hr-service build
+pnpm --filter tenant-org-service build
+pnpm --filter public-entry-service build
+pnpm --filter collaboration-service build
+pnpm --filter api-gateway build
+pnpm --filter auth-service exec jest --runInBand
+pnpm --filter identity-service exec jest --config jest.config.js --runInBand
+pnpm --filter permission-service exec jest --config jest.config.js --runInBand
+pnpm --filter hr-service exec jest --config jest.config.js --runInBand
+pnpm --filter tenant-org-service exec jest --config jest.config.js --runInBand
+node --test scripts/local/foundation-trusted-grpc-atomic-group.spec.mjs
+git diff --check
+```
+
+Acceptance proves: exact `70+5/41/66/15/20` membership and 217 declarations; exact five audiences, method Codes, terminals and workload/actor allowlists; all anonymous/public negatives and anti-enumeration/rate/audit invariants; all HUMAN/HUMAN_OBO/SYSTEM MACHINE success/negative cases; OBO subject/actor/tenant/session/trace/expiry/Permission/`cnf` continuity; exact 32 wire reservations and unchanged resource/response fields; Gateway/public/cross-foundation target clients; atomic activation with no intermediate mixed trust; zero legacy metadata/body/fallback references; all existing foundation/Party behavior unchanged; exact 185-path scope; UTF-8/link/YAML/fence/diff cleanliness.
 
 ## 10. Repository-wide Security Acceptance
 

@@ -641,3 +641,33 @@ Contract 文档只描述黑盒调用语义、字段、错误与当前接口形�
 - `src/services/system/auth-service/doc/**` 中的旧 design、task、history、overview、roadmap 只作为本次提炼来源与历史记录，不再作为稳定设计入口。
 - 服务内旧 docs 在提炼完成后应删除，或最多保留一个极短 README 指向本文与 contract 入口。
 - self-service / admin-management 拆分由 [self-service-admin-boundary-migration.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/self-service-admin-boundary-migration.md) 持续推进，避免在各服务中分别维护孤立迁移清单。
+
+## 19. Trusted gRPC foundation-group admission（FROZEN）
+
+`auth-service` 的 70 个既有 `AuthService` RPC 与五个已集成 foundation RPC 参加同一个五服务原子迁移候选；audience 固定为 `urn:oes:service:auth-service`。本节只迁移 transport/admission，不改变登录、MFA、session、审计、限流、凭据、STS 或业务结果。
+
+### 19.1 70-RPC 完整分类
+
+下表每个方法只出现一次。`PUBLIC_*` 是在 execution context 建立前的专用 admission，不是伪造的 HUMAN/MACHINE ExecutionToken；只接受 Gateway 的准确 mTLS workload，并继续执行现有 anti-enumeration、rate-limit、challenge/grant、credential、session 与安全审计规则。
+
+| 类别 | RPC（数量） | execution / terminal | Code 与 direct caller |
+| --- | --- | --- | --- |
+| `PUBLIC_CREDENTIAL` | `LoginWithEmailPassword`, `RequestEmailOtpLoginChallenge`, `LoginWithEmailOtp`, `LoginWithEmployeeCodePin`, `PreflightEmployeeCodePinLogin`, `LoginWithPhonePassword`, `RequestPhoneOtpLoginChallenge`, `LoginWithPhoneOtp`, `InspectPasswordRecoveryChannels`, `RequestPasswordRecoveryChallenge`, `VerifyPasswordRecoveryChallenge`, `CompletePasswordRecovery`（12） | pre-context / no terminal claim | empty Code；exact `api-gateway` mTLS workload；credential/challenge/rate/audit truth remains Auth-owned |
+| `PUBLIC_CONTINUATION` | `CompleteFirstLoginPasswordSetup`, `RequestLoginMfaFactorChallenge`, `SubmitMfaChallenge`, `RefreshSession`, `SelectAccount`（5） | Auth-owned one-purpose continuation/refresh credential / no invented ET | empty Code；exact `api-gateway`; opaque grant/session proof must validate |
+| `PUBLIC_SESSION_SOURCE_VALIDATION` | `ValidateAccessToken`（1） | Auth-owned access/session source verification | empty Code；exact `api-gateway`; bearer remains transport-private and is never copied into DTO/log/audit |
+| `SELF_SERVICE` | `ListLoginHistory`, `BootstrapOwnLoginMethods`, `RequestEmailBindingChallenge`, `RequestPhoneBindingChallenge`, `ListLoginMethods`, `ChangeOwnPassword`, `SetOwnTerminalPin`, `ResetOwnTerminalPin`, `SetOwnTerminalPinEnabled`, `SetOwnLoginMethodEnabled`, `VerifyEmailBinding`, `VerifyPhoneBinding`, `ListMfaBindings`, `EnableMfaBinding`, `DisableMfaBinding`, `InitializeTotpBinding`, `ActivateTotpBinding`, `InitializeRecoveryCodes`, `RegenerateRecoveryCodes`, `StartStepUpMfaChallenge`, `CompleteStepUpMfaChallenge`, `ListSessions`, `ListTrustedDevices`, `RevokeTrustedDevice`, `RevokeOtherTrustedDevices`, `Logout`, `LogoutSession`, `LogoutOtherDevices`, `LogoutAll`（29） | `HUMAN`, `WEB`/the authenticated session terminal; exact self/session/resource binding | existing `auth.login_method.self.*` / `auth.session.self.*` where already declared, otherwise empty Code plus exact self rule; Gateway only |
+| `BUSINESS` | `ListAuditEvents`（1） | `HUMAN`, `WEB` | `auth.audit.list`; Gateway |
+| `BUSINESS` | `BootstrapUserLoginMethods`, `RequirePasswordSetup`, `RequireTerminalPinReset`, `DisableUserTerminalPin`（4） | direct `HUMAN` or foundation `HUMAN_OBO`, `WEB` | `auth.account_credentials.bootstrap`; Gateway, exact `hr-service`/`tenant-org-service` OBO where statically present |
+| `BUSINESS` | `SetLoginMethodEnabled`（1） | `HUMAN`, `WEB` | `auth.account_login_methods.manage`; Gateway |
+| `BUSINESS` | `GetTenantMfaPolicy`, `UpdateTenantMfaPolicy`, `GetTenantTerminalMfaPolicy`, `UpdateTenantTerminalMfaPolicy`（4） | `HUMAN`, `WEB` | `auth.mfa_policy.manage`; Gateway |
+| `BUSINESS` | `GetPlatformMfaPolicy`, `UpdatePlatformMfaPolicy`, `GetPlatformTerminalLoginPolicy`, `UpdatePlatformTerminalLoginPolicy`, `GetPlatformDefaultTerminalMfaPolicy`, `UpdatePlatformDefaultTerminalMfaPolicy`（6） | `HUMAN`, `WEB` | `auth.platform_mfa_policy.manage`; Gateway SYSTEM-scope human only |
+| `BUSINESS` | `HandleTerminalDeviceUnavailable`, `AdminListOnlineUsers`, `AdminListUserSessions`, `AdminListTerminalDeviceSessions`（4） | `HUMAN`, `WEB` | `auth.session.admin.view`; Gateway |
+| `BUSINESS` | `AdminRevokeSession`, `AdminDeleteAccountSessions`, `RevokeTenantSessions`（3） | direct `HUMAN` or exact `tenant-org-service` `HUMAN_OBO`, `WEB` | `auth.session.admin.revoke`; Gateway / TenantOrg |
+
+### 19.2 已集成五个 foundation RPC
+
+Program inventory 中的 `70+5` 精确表示四个 Auth-owned RPC：`ExchangeExecutionToken`, `GetExecutionTokenJwks`, `IssueMachineWorkloadSourceCredential`, `RevokeMachineWorkloadSourceCredential`，加 Identity-owned `ResolveMachinePrincipalForAuth`。前四个继续分别使用已冻结的 source-exchange、JWKS discovery、exact bootstrap 和 BUSINESS revoke admission；第五个继续使用 `INTERNAL / SYSTEM MACHINE / identity.internal.machine_principal.resolve / exact auth-service`。本原子组不得重写其 claims、signer、OBO、MACHINE、certificate binding、registry 或审计语义。
+
+### 19.3 request authority disposition
+
+删除并 reserve 15 个旧 authority 字段及原号：`ListAuditEvents.operator_id=5/tenant_id=6/org_id=7`, `ChangeOwnPassword.tenant_id=5`, `ListTrustedDevices.tenant_id=2`, `RevokeTrustedDevice.tenant_id=2`, `RevokeOtherTrustedDevices.tenant_id=2`, `SetLoginMethodEnabled.operator_id=4`, `SetOwnLoginMethodEnabled.operator_id=4`, `StartStepUpMfaChallenge.tenant_id=3`, `UpdatePlatformTerminalLoginPolicy.operator_id=2`, `UpdatePlatformDefaultTerminalMfaPolicy.operator_id=2`, `UpdateTenantTerminalMfaPolicy.operator_id=3`, `VerifyEmailBinding.tenant_id=5`, `VerifyPhoneBinding.tenant_id=5`。`AdminListOnlineUsers.tenant_id=1`, tenant policy requests 的 `tenant_id=1` 和 `RevokeTenantSessions.tenant_id=1` 保留为显式 target/filter，不是 caller authority；TENANT subject 必须与 claim 相等，SYSTEM-scope HUMAN 必须通过 Code/scope，其他情况 fail closed。普通 metadata/operator/requestId fallback 全部移除。

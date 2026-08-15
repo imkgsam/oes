@@ -155,3 +155,8 @@ Site Runtime 现有 HMAC、nonce、method/path/body hash 是独立的外部 cred
 - [External API Key Exchange Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/external-api-key-exchange.md)
 - [Principal Authorization Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/principal-authorization.md)
 - [Trusted gRPC Feature Packet](/Users/acehood/Documents/GitHub/oes/docs/plans/features/trusted-grpc-execution-context.md)
+### 8. Foundation identity/authorization atomic cutover
+
+Fresh static inventory at `ad131ac7e06fa01d21493b05502bd1a567318c68` proves one irreducible cycle among Auth, Identity, Permission, HR and TenantOrg: each target still receives legacy authority from another member whose own inbound edge is not yet trusted. The only allowed migration exception is therefore one single-writer, one-candidate atomic activation for these five targets. Review and focused tests remain service-by-service, but no member may enter Token-only mode, activate a prepared cross-foundation caller or delete legacy authority before all five caller preparations and server compositions are ready.
+
+Auth pre-context credential/challenge/session-source methods are not ExecutionToken-protected resource RPCs. They accept only the exact Gateway mTLS workload and their existing Auth-owned credential, challenge, grant, refresh/session proof, rate-limit and audit policy. Cross-foundation calls after a HUMAN entry use HUMAN_OBO; Auth/Public Entry pre-auth or anonymous lookups use only exact allowlisted SYSTEM MACHINE workloads and method Codes. A request tenant/resource selector is never execution authority. There is no generic service-name, body, ordinary metadata, request-id/trace-id or token-to-legacy fallback.

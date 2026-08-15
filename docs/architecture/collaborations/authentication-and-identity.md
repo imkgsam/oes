@@ -79,3 +79,6 @@
 - [08-notification-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/08-notification-architecture.md)
 - [11-gateway-and-bff-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/11-gateway-and-bff-architecture.md)
 - [0004-self-service-and-admin-authorization-boundary.md](/Users/acehood/Documents/GitHub/oes/docs/adr/0004-self-service-and-admin-authorization-boundary.md)
+## Trusted transport atomic activation
+
+Auth and Identity join Permission, HR and TenantOrg in the single frozen foundation atomic candidate. Pre-auth Auth→Identity/HR/TenantOrg calls use only the exact Auth SYSTEM MACHINE workload and target method Code; post-session work preserves the HUMAN subject through HUMAN_OBO. Login identifiers and explicitly documented tenant/resource selectors remain lookup input, never operator/tenant authority. No member activates early or retains legacy metadata fallback.
