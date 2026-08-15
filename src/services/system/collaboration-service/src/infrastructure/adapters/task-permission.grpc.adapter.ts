@@ -1,6 +1,5 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
-import { GRPC_METADATA_PROPAGATION_FACTORY, GrpcMetadataPropagationFactory } from '@oes/common/authorization'
 import { COLLABORATION_TASK_PERMISSION_CODES } from '@oes/common/authorization'
 import {
   AccountAccessSummaryResponse,
@@ -9,6 +8,7 @@ import {
 } from '@oes/common/generated/permission_service'
 import { safeGrpcCall } from '@oes/common/transport'
 import { TaskPermissionPort } from '../../application/ports/task-permission.port'
+import { CollaborationFoundationTrustedGrpcExecutionProducer } from './foundation-trusted-grpc.clients'
 
 export const PERMISSION_GRPC_CLIENT = Symbol('COLLABORATION_PERMISSION_GRPC_CLIENT')
 
@@ -16,11 +16,10 @@ export const PERMISSION_GRPC_CLIENT = Symbol('COLLABORATION_PERMISSION_GRPC_CLIE
 @Injectable()
 export class TaskPermissionGrpcAdapter implements TaskPermissionPort, OnModuleInit {
   private permissionAccessSummaryService!: PermissionAccessSummaryServiceClient
+  private readonly trusted = new CollaborationFoundationTrustedGrpcExecutionProducer()
 
   constructor(
-    @Inject(PERMISSION_GRPC_CLIENT) private readonly client: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory
+    @Inject(PERMISSION_GRPC_CLIENT) private readonly client: ClientGrpc
   ) {}
 
   onModuleInit(): void {
@@ -38,9 +37,10 @@ export class TaskPermissionGrpcAdapter implements TaskPermissionPort, OnModuleIn
           tenantId: input.tenantId,
           scopeLevel: 'TENANT'
         },
-        this.metadataFactory.createInternalCallMetadata({
-          callerServiceName: 'collaboration-service'
-        })
+        await this.trusted.forInternalCall(
+          'permission-service',
+          'permission.internal.account_access_summary.resolve'
+        )
       ),
       {
         caller: 'collaboration-service',

@@ -1,4 +1,7 @@
-import { Controller, UseFilters, UseGuards } from '@nestjs/common'
+import { Controller, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common'
+import { GrpcRequestContextInterceptor } from '@oes/common/authorization'
+import { AuthorizeInternalCall } from '@oes/common/authorization'
+import { PermissionFoundationTrustedExecutionGuard } from '../../modules/authorization/permission-trusted-execution.module'
 import { ValidatingQueryBus } from '@oes/common/cqrs'
 import { GrpcExceptionFilter } from '../../../../../../common/dist/core/filters'
 import { InternalServiceGuard } from '@oes/common/authorization'
@@ -11,9 +14,10 @@ import {
 import { ResolveAccountTerminalAccessQuery } from '../../application/queries/terminal-access'
 import { ScopeLevel } from '../../domain/enums/scope-level.enum'
 
+@UseInterceptors(GrpcRequestContextInterceptor)
 @Controller()
 @UseFilters(GrpcExceptionFilter)
-@UseGuards(InternalServiceGuard)
+@UseGuards(PermissionFoundationTrustedExecutionGuard)
 @PermissionTerminalAccessServiceControllerMethods()
 // Exposes internal terminal access decisions for trusted auth-service runtime enforcement.
 export class PermissionTerminalAccessGrpcController
@@ -21,6 +25,7 @@ export class PermissionTerminalAccessGrpcController
 {
   constructor(private readonly queryBus: ValidatingQueryBus) {}
 
+  @AuthorizeInternalCall({ all: ['permission.internal.account_terminal_access.resolve'] })
   async resolveAccountTerminalAccess(
     request: ResolveAccountTerminalAccessRequest,
     ...rest: any

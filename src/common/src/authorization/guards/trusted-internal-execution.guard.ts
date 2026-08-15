@@ -9,8 +9,14 @@ import {
   type RpcAuthorizationModeDeclaration
 } from '../trusted-execution/declarations'
 import { ExecutionTokenVerifier } from '../trusted-execution'
-import { attachVerifiedExecution, getGrpcAuthorizationBearer } from '../utils'
+import {
+  attachOperatorContext,
+  attachVerifiedExecution,
+  getGrpcAuthorizationBearer,
+  getGrpcMetadataValue
+} from '../utils'
 import { GrpcWorkloadIdentityProvider } from '../../transport'
+import { inboundExecutionTokenCredentialScope } from '../trusted-execution/inbound-execution-token-credential.scope'
 
 export const TRUSTED_EXECUTION_TARGET_AUDIENCE = 'TrustedExecutionTargetAudience'
 
@@ -56,6 +62,43 @@ export class TrustedInternalExecutionGuard implements CanActivate {
       verifiedExecutionToken,
       verifiedWorkloadIdentity: workloadIdentity
     })
+    attachOperatorContext(rpcContext.getData(), {
+      operator_id: verifiedExecutionToken.subject,
+      operator_type: verifiedExecutionToken.principalType,
+      ...(verifiedExecutionToken.tenantId === undefined
+        ? {}
+        : { tenant_id: verifiedExecutionToken.tenantId }),
+      ...(verifiedExecutionToken.orgId === undefined
+        ? {}
+        : { org_id: verifiedExecutionToken.orgId }),
+      issued_at: new Date(verifiedExecutionToken.issuedAt * 1000).toISOString(),
+      expires_at: new Date(verifiedExecutionToken.expiresAt * 1000).toISOString(),
+      issuer: verifiedExecutionToken.issuer,
+      signature: 'verified-execution-token',
+      request_id: getGrpcMetadataValue(metadata, 'x-request-id'),
+      trace_id: getGrpcMetadataValue(metadata, 'x-trace-id')
+    })
+    if (rpcContext.getData() && typeof rpcContext.getData() === 'object') {
+      const requestId = getGrpcMetadataValue(metadata, 'x-request-id')
+      const traceparent = getGrpcMetadataValue(metadata, 'traceparent')
+      if (!requestId || !traceparent) {
+        throw ExceptionFactory.application(ACCESS_DENIED, {
+          reason: 'trusted internal execution correlation is missing'
+        })
+      }
+      inboundExecutionTokenCredentialScope.prepare(
+        rpcContext.getData(),
+        token,
+        verifiedExecutionToken,
+        {
+          requestId,
+          traceparent,
+          ...(getGrpcMetadataValue(metadata, 'tracestate')
+            ? { tracestate: getGrpcMetadataValue(metadata, 'tracestate') }
+            : {})
+        }
+      )
+    }
     return true
   }
 }

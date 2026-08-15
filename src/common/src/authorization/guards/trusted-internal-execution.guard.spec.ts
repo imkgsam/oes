@@ -33,6 +33,8 @@ describe('TrustedInternalExecutionGuard', () => {
     }
     const metadata = new Metadata()
     metadata.set('authorization', 'Bearer a.b.c')
+    metadata.set('x-request-id', 'request-1')
+    metadata.set('traceparent', '00-0123456789abcdef0123456789abcdef-0123456789abcdef-01')
     const rpcData = {}
     const call = { getAuthContext: jest.fn() }
     const context = {

@@ -1,7 +1,7 @@
 import { Controller, UseFilters, UseGuards } from '@nestjs/common'
 import { ValidatingCommandBus } from '@oes/common/cqrs'
 import { GrpcExceptionFilter } from '@oes/common/filters'
-import { InternalServiceGuard } from '@oes/common/authorization'
+import { IdentityExternalCredentialAdmissionGuard } from '../../modules/identity-trusted-execution.module'
 import {
   AuthenticateApiKeyRequest,
   AuthenticateApiKeyResponse,
@@ -14,7 +14,7 @@ import { classifyAuditResult, extractAuditErrorDetails } from './grpc-audit-supp
 import { IdentityGrpcPresenter } from './identity-grpc.presenter'
 
 @UseFilters(GrpcExceptionFilter)
-@UseGuards(InternalServiceGuard)
+@UseGuards(IdentityExternalCredentialAdmissionGuard)
 @Controller()
 @IdentityMachineAuthServiceControllerMethods()
 export class IdentityMachineAuthGrpcController implements IdentityMachineAuthServiceController {

@@ -17,6 +17,7 @@ import { IdentityAuditModule } from './modules/identity-audit/identity-audit.mod
 import { IdentityMachineAuthModule } from './modules/identity-machine-auth/identity-machine-auth.module'
 import { IdentityManagementModule } from './modules/identity-management/identity-management.module'
 import { IdentityQueryModule } from './modules/identity-query/identity-query.module'
+import { IdentityTrustedExecutionModule } from './modules/identity-trusted-execution.module'
 
 function resolveGrpcUrl(envKey: string, fallbackUrl: string): string | undefined {
   const explicitUrl = process.env[envKey]
@@ -67,6 +68,7 @@ function resolveGrpcUrl(envKey: string, fallbackUrl: string): string | undefined
     AuthorizationModule,
     IdentityAuditModule,
     IdentityMachineAuthModule,
+    IdentityTrustedExecutionModule,
     IdentityManagementModule,
     IdentityQueryModule
   ],

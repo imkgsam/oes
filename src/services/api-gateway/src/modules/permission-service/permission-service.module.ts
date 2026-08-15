@@ -1,6 +1,4 @@
 import { Module } from '@nestjs/common'
-import { SERVICE_NAMES } from '@oes/common/constants'
-import { GrpcTransportModule } from '@oes/common/transport'
 import { PERMISSION_MANAGEMENT_PORT } from '@oes/common/constants'
 import { AuthorizationModule } from '@oes/common/authorization'
 import { PolicyManagementGrpcAdapter } from './adapters/policy-management-grpc.adapter'
@@ -14,8 +12,7 @@ import { httpControllers } from './interface/http/controllers'
 
 @Module({
   imports: [
-    AuthorizationModule,
-    GrpcTransportModule.forFeature([SERVICE_NAMES.PERMISSION, SERVICE_NAMES.TENANT_ORG])
+    AuthorizationModule
   ],
   controllers: [...httpControllers],
   providers: [

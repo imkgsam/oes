@@ -1,7 +1,8 @@
 import { ValidatingCommandBus, ValidatingQueryBus } from '@oes/common/cqrs'
 import {
+  attachOperatorContext,
   AUTH_MANAGEMENT_PERMISSION_CODES,
-  REQUIRE_PERMISSIONS_METADATA_KEY
+  getRpcAuthorizationModeDeclaration
 } from '@oes/common/authorization'
 import {
   GetPlatformTerminalLoginPolicyResponse,
@@ -88,13 +89,16 @@ describe('AuthGrpcController', () => {
     expect(commandBus.execute as jest.Mock).not.toHaveBeenCalled()
   })
 
-  it('keeps bootstrapUserLoginMethods marked with the admin bootstrap permission metadata', () => {
+  it('keeps bootstrapUserLoginMethods on the frozen BUSINESS declaration', () => {
     expect(
-      Reflect.getMetadata(
-        REQUIRE_PERMISSIONS_METADATA_KEY,
-        AuthGrpcController.prototype.bootstrapUserLoginMethods
+      getRpcAuthorizationModeDeclaration(
+        AuthGrpcController.prototype,
+        'bootstrapUserLoginMethods'
       )
-    ).toEqual({ all: [AUTH_MANAGEMENT_PERMISSION_CODES.BOOTSTRAP_ACCOUNT_CREDENTIALS] })
+    ).toEqual({
+      mode: 'BUSINESS',
+      permissions: { all: [AUTH_MANAGEMENT_PERMISSION_CODES.BOOTSTRAP_ACCOUNT_CREDENTIALS] }
+    })
   })
 
   it('should map requestLoginMfaFactorChallenge requests into factor-specific otp responses', async () => {
@@ -247,11 +251,11 @@ describe('AuthGrpcController', () => {
 
     const controller = new AuthGrpcController(commandBus, queryBus)
 
-    const response = await controller.listTrustedDevices({
+    const response = await controller.listTrustedDevices(withTenantContext({
       userId: 'user-1',
       tenantId: 'tenant-1',
       currentDeviceId: 'browser-1'
-    } as any)
+    } as any))
 
     expect((queryBus.execute as jest.Mock).mock.calls[0][0]).toEqual(
       expect.objectContaining({
@@ -1039,12 +1043,12 @@ describe('AuthGrpcController', () => {
 
     const controller = new AuthGrpcController(commandBus, queryBus)
 
-    const response: StartStepUpMfaChallengeResponse = await controller.startStepUpMfaChallenge({
+    const response: StartStepUpMfaChallengeResponse = await controller.startStepUpMfaChallenge(withTenantContext({
       userId: 'user-1',
       accountId: 'account-1',
       tenantId: 'tenant-1',
       scenario: 3
-    } as any)
+    } as any))
 
     expect((commandBus.execute as jest.Mock).mock.calls[0][0]).toEqual(
       expect.objectContaining({
@@ -1218,9 +1222,6 @@ describe('AuthGrpcController', () => {
       module: 'session',
       eventType: 'SESSION_REVOKED',
       result: 'SUCCEEDED',
-      operatorId: 'a5da9d3b-f755-44b0-b080-2ff6b42cf2c8',
-      tenantId: '8fbdfbfd-a221-4494-a760-8d9d033ce61f',
-      orgId: '',
       resourceType: 'session',
       resourceId: '0f71e092-4d96-4c36-ac8a-2a3f73a330c5',
       occurredAtFrom: '2026-04-08T00:00:00.000Z',
@@ -1236,8 +1237,8 @@ describe('AuthGrpcController', () => {
         module: 'session',
         eventType: 'SESSION_REVOKED',
         result: 'SUCCEEDED',
-        operatorId: 'a5da9d3b-f755-44b0-b080-2ff6b42cf2c8',
-        tenantId: '8fbdfbfd-a221-4494-a760-8d9d033ce61f',
+        operatorId: undefined,
+        tenantId: undefined,
         resourceType: 'session',
         resourceId: '0f71e092-4d96-4c36-ac8a-2a3f73a330c5',
         occurredAtFrom: '2026-04-08T00:00:00.000Z',
@@ -1395,14 +1396,14 @@ describe('AuthGrpcController', () => {
       .spyOn(controller as any, 'getRequiredOperatorId')
       .mockReturnValue('admin-1')
 
-    const selfResponse = await controller.changeOwnPassword({
+    const selfResponse = await controller.changeOwnPassword(withTenantContext({
       userId: 'user-1',
       accountId: 'account-1',
       tenantId: 'tenant-1',
       currentPassword: 'old-password',
       newPassword: 'new-password',
       mfaGrantToken: 'step-up-grant-1'
-    } as any)
+    } as any))
     const adminResponse = await controller.requirePasswordSetup({
       userId: 'user-2',
       reason: '管理员要求重设密码',
@@ -1467,26 +1468,26 @@ describe('AuthGrpcController', () => {
       userId: 'user-1',
       email: 'alice@example.com'
     } as any)
-    await controller.verifyEmailBinding({
+    await controller.verifyEmailBinding(withTenantContext({
       userId: 'user-1',
       accountId: 'account-1',
       tenantId: 'tenant-1',
       email: 'alice@example.com',
       otp: '123456',
       mfaGrantToken: 'step-up-grant-1'
-    } as any)
+    } as any))
     await controller.requestPhoneBindingChallenge({
       userId: 'user-1',
       phone: '+8613800138000'
     } as any)
-    await controller.verifyPhoneBinding({
+    await controller.verifyPhoneBinding(withTenantContext({
       userId: 'user-1',
       accountId: 'account-1',
       tenantId: 'tenant-1',
       phone: '+8613800138000',
       otp: '654321',
       mfaGrantToken: 'step-up-grant-2'
-    } as any)
+    } as any))
 
     const response = await controller.completeFirstLoginPasswordSetup({
       userId: 'user-1',
@@ -1801,3 +1802,17 @@ describe('AuthGrpcController', () => {
     })
   })
 })
+
+/** Attaches the transport-verified tenant scope used by self-service controller tests. */
+function withTenantContext<T extends object>(request: T): T {
+  attachOperatorContext(request, {
+    operator_id: 'user-1',
+    operator_type: 'HUMAN',
+    tenant_id: 'tenant-1',
+    issued_at: '2026-04-22T08:00:00.000Z',
+    expires_at: '2026-04-22T08:05:00.000Z',
+    issuer: 'auth-service',
+    signature: 'verified-by-guard'
+  })
+  return request
+}

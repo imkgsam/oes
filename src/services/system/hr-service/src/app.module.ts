@@ -5,6 +5,7 @@ import { PrismaModule } from './infrastructure/prisma/prisma.module'
 import { HrManagementModule } from './modules/hr-management/hr-management.module'
 import { HrOnboardingModule } from './modules/hr-onboarding/hr-onboarding.module'
 import { HrQueryModule } from './modules/hr-query/hr-query.module'
+import { HrTrustedExecutionModule } from './modules/hr-trusted-execution.module'
 
 /** AppModule wires hr-service modules and enables service-scoped logging metadata. */
 @Module({
@@ -15,6 +16,7 @@ import { HrQueryModule } from './modules/hr-query/hr-query.module'
       envFilePath: ['.env']
     }),
     PrismaModule,
+    HrTrustedExecutionModule,
     HrQueryModule,
     HrManagementModule,
     HrOnboardingModule

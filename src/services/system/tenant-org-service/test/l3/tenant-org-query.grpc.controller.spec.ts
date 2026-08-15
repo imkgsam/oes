@@ -1,11 +1,6 @@
 import { GUARDS_METADATA } from '@nestjs/common/constants'
-import {
-  AuthenticatedOperatorGuard,
-  InternalServiceGuard,
-  PermissionGuard,
-  REQUIRE_PERMISSIONS_METADATA_KEY,
-  TENANT_ORG_MANAGEMENT_PERMISSION_CODES
-} from '@oes/common/authorization'
+import { attachVerifiedExecution, getRpcAuthorizationModeDeclaration, TENANT_ORG_MANAGEMENT_PERMISSION_CODES } from '@oes/common/authorization'
+import { TenantOrgFoundationTrustedExecutionGuard } from '../../src/modules/tenant-org-trusted-execution.module'
 import { TenantOrgQueryService } from '../../src/application/services'
 import { TenantOrgQueryGrpcController } from '../../src/interfaces/grpc/tenant-org-query.grpc.controller'
 
@@ -28,21 +23,16 @@ describe('TenantOrgQueryGrpcController L3', () => {
     const guards = Reflect.getMetadata(GUARDS_METADATA, TenantOrgQueryGrpcController) ?? []
 
     expect(guards).toEqual(
-      expect.arrayContaining([InternalServiceGuard, AuthenticatedOperatorGuard, PermissionGuard])
+      expect.arrayContaining([TenantOrgFoundationTrustedExecutionGuard])
     )
     expectPermission('listTenants', TENANT_ORG_MANAGEMENT_PERMISSION_CODES.LIST_TENANT)
     expectPermission('getOrgTreeByTenantId', TENANT_ORG_MANAGEMENT_PERMISSION_CODES.LIST_ORG_TREE)
     expectPermission('getOrgUnitById', TENANT_ORG_MANAGEMENT_PERMISSION_CODES.VIEW_ORG_UNIT_DETAIL)
     expectPermission('listAncestorOrgUnits', TENANT_ORG_MANAGEMENT_PERMISSION_CODES.LIST_ORG_TREE)
     expectPermission('listDescendantOrgUnits', TENANT_ORG_MANAGEMENT_PERMISSION_CODES.LIST_ORG_TREE)
-    expect(
-      Reflect.getMetadata(
-        REQUIRE_PERMISSIONS_METADATA_KEY,
-        TenantOrgQueryGrpcController.prototype.getTenantById
-      )
-    ).toBeUndefined()
-    expectNoPermission('validateOrgReference')
-    expectNoPermission('getOrgReferenceSummary')
+    expectPermission('getTenantById', TENANT_ORG_MANAGEMENT_PERMISSION_CODES.VIEW_TENANT_DETAIL)
+    expectPermission('validateOrgReference', TENANT_ORG_MANAGEMENT_PERMISSION_CODES.LIST_ORG_TREE)
+    expectPermission('getOrgReferenceSummary', TENANT_ORG_MANAGEMENT_PERMISSION_CODES.LIST_ORG_TREE)
   })
 
   it('getTenantById / should map application tenant summary to proto response', async () => {
@@ -56,7 +46,7 @@ describe('TenantOrgQueryGrpcController L3', () => {
       rootOrgId: 'root-1'
     })
 
-    const result = await controller.getTenantById({ tenantId: 'tenant-1' } as any)
+    const result = await controller.getTenantById(withTenantContext({ tenantId: 'tenant-1' } as any))
 
     expect(service.getTenantById).toHaveBeenCalledWith('tenant-1')
     expect(result).toEqual({
@@ -65,7 +55,9 @@ describe('TenantOrgQueryGrpcController L3', () => {
         code: 'acme',
         name: 'Acme',
         status: 'ACTIVE',
-        rootOrgId: 'root-1'
+        rootOrgId: 'root-1',
+        employeeCodePrefix: undefined,
+        websiteUrl: ''
       }
     })
   })
@@ -107,7 +99,7 @@ describe('TenantOrgQueryGrpcController L3', () => {
       }
     ])
 
-    const result = await controller.getOrgTreeByTenantId({ tenantId: 'tenant-1' } as any)
+    const result = await controller.getOrgTreeByTenantId(withTenantContext({ tenantId: 'tenant-1' } as any))
 
     expect(result.roots?.[0]?.children?.[0]?.orgUnit?.id).toBe('dept-1')
   })
@@ -115,20 +107,15 @@ describe('TenantOrgQueryGrpcController L3', () => {
 
 /** expectPermission verifies the controller method requires one tenant-org RBAC code. */
 function expectPermission(methodName: keyof TenantOrgQueryGrpcController, permissionCode: string) {
-  expect(
-    Reflect.getMetadata(
-      REQUIRE_PERMISSIONS_METADATA_KEY,
-      TenantOrgQueryGrpcController.prototype[methodName]
-    )
-  ).toEqual({ all: [permissionCode] })
+  expect(getRpcAuthorizationModeDeclaration(TenantOrgQueryGrpcController.prototype, methodName))
+    .toEqual({ mode: 'BUSINESS', permissions: { all: [permissionCode] } })
 }
 
-/** expectNoPermission verifies internal reference helpers do not require human-facing RBAC. */
-function expectNoPermission(methodName: keyof TenantOrgQueryGrpcController) {
-  expect(
-    Reflect.getMetadata(
-      REQUIRE_PERMISSIONS_METADATA_KEY,
-      TenantOrgQueryGrpcController.prototype[methodName]
-    )
-  ).toBeUndefined()
+/** Attaches the verified tenant authority normally installed by the execution-token guard. */
+function withTenantContext<T extends object>(request: T): T {
+  attachVerifiedExecution(request, {
+    verifiedExecutionToken: { issuer: 'auth-service', audience: 'urn:oes:service:tenant-org-service', subject: 'operator-1', principalType: 'HUMAN', clientId: 'spiffe://local/ns/oes/sa/api-gateway', tenantId: 'tenant-1', permissionCodes: [], tokenId: 'token-1', issuedAt: 1, notBefore: 1, expiresAt: 2, certificateThumbprint: 'A'.repeat(43), sessionId: 'session-1', sessionTerminal: 'WEB' },
+    verifiedWorkloadIdentity: { spiffeId: 'spiffe://local/ns/oes/sa/api-gateway', certificateThumbprint: 'A'.repeat(43) }
+  })
+  return request
 }

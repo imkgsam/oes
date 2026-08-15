@@ -1,7 +1,5 @@
 import { Module } from '@nestjs/common'
-import { SERVICE_NAMES } from '@oes/common/constants'
 import { AuthorizationModule } from '@oes/common/authorization'
-import { GrpcTransportModule } from '@oes/common/transport'
 import { IdentityTenantAccountStatsGrpcAdapter } from './adapters/identity-tenant-account-stats-grpc.adapter'
 import { IdentityUserLookupGrpcAdapter } from './adapters/identity-user-lookup-grpc.adapter'
 import { PartyQueryGrpcAdapter } from './adapters/party-query-grpc.adapter'
@@ -14,8 +12,7 @@ import { TenantManagementService } from './tenant-management.service'
 
 @Module({
   imports: [
-    AuthorizationModule,
-    GrpcTransportModule.forFeature([SERVICE_NAMES.IDENTITY, SERVICE_NAMES.TENANT_ORG])
+    AuthorizationModule
   ],
   controllers: [TenantManagementController, OrgManagementController],
   providers: [

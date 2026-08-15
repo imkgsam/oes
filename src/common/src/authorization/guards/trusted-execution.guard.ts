@@ -9,7 +9,12 @@ import {
 } from '../trusted-execution/declarations'
 import { ExecutionTokenVerifier } from '../trusted-execution'
 import { inboundExecutionTokenCredentialScope } from '../trusted-execution/inbound-execution-token-credential.scope'
-import { attachVerifiedExecution, getGrpcAuthorizationBearer, getGrpcMetadataValue } from '../utils'
+import {
+  attachOperatorContext,
+  attachVerifiedExecution,
+  getGrpcAuthorizationBearer,
+  getGrpcMetadataValue
+} from '../utils'
 import { GrpcWorkloadIdentityProvider } from '../../transport'
 
 /** Enforces the frozen three-mode ExecutionToken contract before an Asset RPC can consume request data. */
@@ -49,8 +54,20 @@ export class TrustedExecutionGuard implements CanActivate {
       verifiedExecutionToken: verified,
       verifiedWorkloadIdentity: workloadIdentity
     })
+    attachVerifiedOperatorContext(rpc.getData(), verified)
     if (rpc.getData() && typeof rpc.getData() === 'object') {
-      inboundExecutionTokenCredentialScope.prepare(rpc.getData(), token, verified)
+      const requestId = getGrpcMetadataValue(rpc.getContext<Metadata>(), 'x-request-id')
+      const traceparent = getGrpcMetadataValue(rpc.getContext<Metadata>(), 'traceparent')
+      if (!requestId || !traceparent) {
+        throw denied('trusted execution correlation is missing')
+      }
+      inboundExecutionTokenCredentialScope.prepare(rpc.getData(), token, verified, {
+        requestId,
+        traceparent,
+        ...(getGrpcMetadataValue(rpc.getContext<Metadata>(), 'tracestate')
+          ? { tracestate: getGrpcMetadataValue(rpc.getContext<Metadata>(), 'tracestate') }
+          : {})
+      })
     }
     if (attached) {
       Object.assign(attached as object, {
@@ -60,6 +77,23 @@ export class TrustedExecutionGuard implements CanActivate {
     }
     return true
   }
+}
+
+/** Projects locally verified ET claims into the existing application-facing operator context without accepting signed metadata. */
+function attachVerifiedOperatorContext(
+  rpcData: unknown,
+  verified: Awaited<ReturnType<ExecutionTokenVerifier['verify']>>
+): void {
+  attachOperatorContext(rpcData, {
+    operator_id: verified.subject,
+    operator_type: verified.principalType,
+    ...(verified.tenantId === undefined ? {} : { tenant_id: verified.tenantId }),
+    ...(verified.orgId === undefined ? {} : { org_id: verified.orgId }),
+    issued_at: new Date(verified.issuedAt * 1000).toISOString(),
+    expires_at: new Date(verified.expiresAt * 1000).toISOString(),
+    issuer: verified.issuer,
+    signature: 'verified-execution-token'
+  })
 }
 
 /** Applies exact mode declarations without interpreting legacy body identity or signed operator metadata. */

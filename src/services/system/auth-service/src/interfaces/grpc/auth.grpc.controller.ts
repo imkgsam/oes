@@ -1,4 +1,6 @@
 import { Controller, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common'
+import { AuthorizeBusinessRpc, AuthorizeSelfServiceRpc } from '@oes/common/authorization'
+import { AuthTrustedExecutionGuard, AuthorizeAuthPublicAdmission } from '../../modules/auth/auth-trusted-execution.module'
 import { GrpcMethod } from '@nestjs/microservices'
 import {
   RequirePermissions,
@@ -259,6 +261,7 @@ import { getOptionalOperatorScope } from './grpc-request-context'
 
 @Controller()
 @UseFilters(GrpcExceptionFilter)
+@UseGuards(AuthTrustedExecutionGuard)
 @UseInterceptors(GrpcRequestContextInterceptor)
 @AuthServiceControllerMethods()
 export class AuthGrpcController implements AuthServiceController {
@@ -270,8 +273,6 @@ export class AuthGrpcController implements AuthServiceController {
     private readonly accountInvitationService?: AccountInvitationService
   ) {}
 
-  @RequirePermissions({ all: [AUTH_MANAGEMENT_PERMISSION_CODES.BOOTSTRAP_ACCOUNT_CREDENTIALS] })
-  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard, PermissionGuard)
   async bootstrapUserLoginMethods(
     request: BootstrapUserLoginMethodsRequest
   ): Promise<BootstrapUserLoginMethodsResponse> {
@@ -299,8 +300,6 @@ export class AuthGrpcController implements AuthServiceController {
     }
   }
 
-  @RequireAuthenticatedOperator()
-  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
   async bootstrapOwnLoginMethods(
     request: BootstrapOwnLoginMethodsRequest
   ): Promise<BootstrapOwnLoginMethodsResponse> {
@@ -329,8 +328,6 @@ export class AuthGrpcController implements AuthServiceController {
     }
   }
 
-  @RequireAuthenticatedOperator()
-  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
   async completeFirstLoginPasswordSetup(
     request: CompleteFirstLoginPasswordSetupRequest
   ): Promise<CompleteFirstLoginPasswordSetupResponse> {
@@ -421,8 +418,6 @@ export class AuthGrpcController implements AuthServiceController {
     }
   }
 
-  @RequirePermissions({ all: [AUTH_MANAGEMENT_PERMISSION_CODES.VIEW_AUDIT_EVENT] })
-  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard, PermissionGuard)
   async listAuditEvents(request: ListAuditEventsRequest): Promise<ListAuditEventsResponse> {
     this.getRequiredOperatorId(request)
 
@@ -432,9 +427,9 @@ export class AuthGrpcController implements AuthServiceController {
         module: request.module || undefined,
         eventType: request.eventType || undefined,
         result: request.result || undefined,
-        operatorId: request.operatorId || undefined,
-        tenantId: request.tenantId || undefined,
-        orgId: request.orgId || undefined,
+        operatorId: undefined,
+        tenantId: undefined,
+        orgId: undefined,
         resourceType: request.resourceType || undefined,
         resourceId: request.resourceId || undefined,
         occurredAtFrom: request.occurredAtFrom || undefined,
@@ -506,7 +501,7 @@ export class AuthGrpcController implements AuthServiceController {
       new ChangeOwnPasswordCommand({
         userId: request.userId ?? '',
         accountId: request.accountId || undefined,
-        tenantId: request.tenantId || undefined,
+        tenantId: getOptionalOperatorScope(request)?.tenantId,
         scopeLevel: this.normalizeScopeLevel(request.scopeLevel),
         currentPassword: request.currentPassword ?? '',
         newPassword: request.newPassword ?? '',
@@ -561,8 +556,6 @@ export class AuthGrpcController implements AuthServiceController {
   /**
    * setOwnLoginMethodEnabled toggles one authenticated user's own login method through the self-service path.
    */
-  @RequireAuthenticatedOperator()
-  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
   async setOwnLoginMethodEnabled(
     request: SetOwnLoginMethodEnabledRequest
   ): Promise<SetOwnLoginMethodEnabledResponse> {
@@ -582,8 +575,6 @@ export class AuthGrpcController implements AuthServiceController {
   /**
    * requirePasswordSetup marks one target user as needing to set a new password without accepting plaintext.
    */
-  @RequirePermissions({ all: [AUTH_MANAGEMENT_PERMISSION_CODES.MANAGE_ACCOUNT_LOGIN_METHODS] })
-  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard, PermissionGuard)
   async requirePasswordSetup(
     request: RequirePasswordSetupRequest
   ): Promise<RequirePasswordSetupResponse> {
@@ -602,8 +593,6 @@ export class AuthGrpcController implements AuthServiceController {
   /**
    * requireTerminalPinReset marks a target user as needing to reset their own terminal PIN.
    */
-  @RequirePermissions({ all: [AUTH_MANAGEMENT_PERMISSION_CODES.MANAGE_ACCOUNT_LOGIN_METHODS] })
-  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard, PermissionGuard)
   async requireTerminalPinReset(
     request: RequireTerminalPinResetRequest
   ): Promise<RequireTerminalPinResetResponse> {
@@ -617,8 +606,6 @@ export class AuthGrpcController implements AuthServiceController {
   /**
    * disableUserTerminalPin disables a target user's terminal PIN login method without plaintext access.
    */
-  @RequirePermissions({ all: [AUTH_MANAGEMENT_PERMISSION_CODES.MANAGE_ACCOUNT_LOGIN_METHODS] })
-  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard, PermissionGuard)
   async disableUserTerminalPin(
     request: DisableUserTerminalPinRequest
   ): Promise<DisableUserTerminalPinResponse> {
@@ -632,8 +619,6 @@ export class AuthGrpcController implements AuthServiceController {
   /**
    * setLoginMethodEnabled toggles a target login method under admin security management.
    */
-  @RequirePermissions({ all: [AUTH_MANAGEMENT_PERMISSION_CODES.MANAGE_ACCOUNT_LOGIN_METHODS] })
-  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard, PermissionGuard)
   async setLoginMethodEnabled(
     request: SetLoginMethodEnabledRequest
   ): Promise<SetLoginMethodEnabledResponse> {
@@ -650,8 +635,6 @@ export class AuthGrpcController implements AuthServiceController {
     )
   }
 
-  @RequirePermissions({ all: [AUTH_SESSION_PERMISSION_CODES.ADMIN_VIEW_USER_SESSIONS] })
-  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard, PermissionGuard)
   async adminListOnlineUsers(
     request: AdminListOnlineUsersRequest
   ): Promise<AdminListOnlineUsersResponse> {
@@ -676,8 +659,6 @@ export class AuthGrpcController implements AuthServiceController {
     }
   }
 
-  @RequirePermissions({ all: [AUTH_SESSION_PERMISSION_CODES.ADMIN_VIEW_USER_SESSIONS] })
-  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard, PermissionGuard)
   async adminListUserSessions(
     request: AdminListUserSessionsRequest
   ): Promise<AdminListUserSessionsResponse> {
@@ -691,8 +672,6 @@ export class AuthGrpcController implements AuthServiceController {
     }
   }
 
-  @RequirePermissions({ all: [AUTH_SESSION_PERMISSION_CODES.ADMIN_VIEW_USER_SESSIONS] })
-  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard, PermissionGuard)
   async adminListTerminalDeviceSessions(
     request: AdminListTerminalDeviceSessionsRequest
   ): Promise<AdminListTerminalDeviceSessionsResponse> {
@@ -756,7 +735,7 @@ export class AuthGrpcController implements AuthServiceController {
     const devices = await this.queryBus.execute(
       new ListTrustedDevicesQuery(
         request.userId ?? '',
-        request.tenantId || undefined,
+        getOptionalOperatorScope(request)?.tenantId,
         this.normalizeScopeLevel(request.scopeLevel)
       )
     )
@@ -785,7 +764,7 @@ export class AuthGrpcController implements AuthServiceController {
     const result = await this.commandBus.execute(
       new RevokeTrustedDeviceCommand(
         request.userId ?? '',
-        request.tenantId || undefined,
+        getOptionalOperatorScope(request)?.tenantId,
         this.normalizeScopeLevel(request.scopeLevel),
         request.trustedDeviceId ?? ''
       )
@@ -803,7 +782,7 @@ export class AuthGrpcController implements AuthServiceController {
     const result = await this.commandBus.execute(
       new RevokeOtherTrustedDevicesCommand(
         request.userId ?? '',
-        request.tenantId || undefined,
+        getOptionalOperatorScope(request)?.tenantId,
         this.normalizeScopeLevel(request.scopeLevel),
         request.currentDeviceId ?? undefined
       )
@@ -815,8 +794,6 @@ export class AuthGrpcController implements AuthServiceController {
     }
   }
 
-  @RequirePermissions({ all: [AUTH_SESSION_PERMISSION_CODES.ADMIN_REVOKE_SESSION] })
-  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard, PermissionGuard)
   async adminRevokeSession(
     request: AdminRevokeSessionRequest
   ): Promise<AdminRevokeSessionResponse> {
@@ -836,8 +813,6 @@ export class AuthGrpcController implements AuthServiceController {
     }
   }
 
-  @RequireAuthenticatedOperator()
-  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
   async adminDeleteAccountSessions(
     request: AdminDeleteAccountSessionsRequest
   ): Promise<AdminDeleteAccountSessionsResponse> {
@@ -858,7 +833,6 @@ export class AuthGrpcController implements AuthServiceController {
     }
   }
 
-  @UseGuards(InternalServiceGuard)
   async revokeTenantSessions(
     request: RevokeTenantSessionsRequest
   ): Promise<RevokeTenantSessionsResponse> {
@@ -1111,7 +1085,7 @@ export class AuthGrpcController implements AuthServiceController {
       new StartStepUpMfaChallengeCommand(
         request.userId ?? '',
         request.accountId ?? '',
-        request.tenantId || undefined,
+        getOptionalOperatorScope(request)?.tenantId,
         this.normalizeScopeLevel(request.scopeLevel),
         this.toDomainProtectedMfaScenario(request.scenario)
       )
@@ -1278,8 +1252,6 @@ export class AuthGrpcController implements AuthServiceController {
     }
   }
 
-  @RequireAuthenticatedOperator()
-  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
   async getTenantMfaPolicy(
     request: GetTenantMfaPolicyRequest
   ): Promise<GetTenantMfaPolicyResponse> {
@@ -1300,8 +1272,6 @@ export class AuthGrpcController implements AuthServiceController {
     }
   }
 
-  @RequireAuthenticatedOperator()
-  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
   async getPlatformMfaPolicy(
     request: GetPlatformMfaPolicyRequest
   ): Promise<GetPlatformMfaPolicyResponse> {
@@ -1321,8 +1291,6 @@ export class AuthGrpcController implements AuthServiceController {
     }
   }
 
-  @RequireAuthenticatedOperator()
-  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
   async updateTenantMfaPolicy(
     request: UpdateTenantMfaPolicyRequest
   ): Promise<UpdateTenantMfaPolicyResponse> {
@@ -1358,8 +1326,6 @@ export class AuthGrpcController implements AuthServiceController {
     }
   }
 
-  @RequireAuthenticatedOperator()
-  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
   async updatePlatformMfaPolicy(
     request: UpdatePlatformMfaPolicyRequest
   ): Promise<UpdatePlatformMfaPolicyResponse> {
@@ -1393,8 +1359,6 @@ export class AuthGrpcController implements AuthServiceController {
     }
   }
 
-  @RequireAuthenticatedOperator()
-  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
   async getPlatformTerminalLoginPolicy(
     request: GetPlatformTerminalLoginPolicyRequest
   ): Promise<GetPlatformTerminalLoginPolicyResponse> {
@@ -1406,8 +1370,6 @@ export class AuthGrpcController implements AuthServiceController {
     }
   }
 
-  @RequireAuthenticatedOperator()
-  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
   async updatePlatformTerminalLoginPolicy(
     request: UpdatePlatformTerminalLoginPolicyRequest
   ): Promise<UpdatePlatformTerminalLoginPolicyResponse> {
@@ -1419,7 +1381,7 @@ export class AuthGrpcController implements AuthServiceController {
         terminal: entry.terminal ?? '',
         enabledLoginFlows: entry.enabledLoginFlows ?? [],
         supportedLoginFlows: this.supportedTerminalLoginFlows(entry.terminal ?? ''),
-        updatedBy: request.operatorId || operatorId
+        updatedBy: operatorId
       })
     }
 
@@ -1429,8 +1391,6 @@ export class AuthGrpcController implements AuthServiceController {
     }
   }
 
-  @RequireAuthenticatedOperator()
-  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
   async getPlatformDefaultTerminalMfaPolicy(
     request: GetPlatformDefaultTerminalMfaPolicyRequest
   ): Promise<GetPlatformDefaultTerminalMfaPolicyResponse> {
@@ -1442,8 +1402,6 @@ export class AuthGrpcController implements AuthServiceController {
     }
   }
 
-  @RequireAuthenticatedOperator()
-  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
   async updatePlatformDefaultTerminalMfaPolicy(
     request: UpdatePlatformDefaultTerminalMfaPolicyRequest
   ): Promise<UpdatePlatformDefaultTerminalMfaPolicyResponse> {
@@ -1457,7 +1415,7 @@ export class AuthGrpcController implements AuthServiceController {
         newDeviceMfaRequired: Boolean(entry.newDeviceMfaRequired),
         allowedFactors: this.toDomainTerminalMfaFactors(entry.allowedFactors),
         factorPriority: this.toDomainTerminalMfaFactors(entry.factorPriority),
-        updatedBy: request.operatorId || operatorId
+        updatedBy: operatorId
       })
     }
 
@@ -1467,8 +1425,6 @@ export class AuthGrpcController implements AuthServiceController {
     }
   }
 
-  @RequireAuthenticatedOperator()
-  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
   async getTenantTerminalMfaPolicy(
     request: GetTenantTerminalMfaPolicyRequest
   ): Promise<GetTenantTerminalMfaPolicyResponse> {
@@ -1482,8 +1438,6 @@ export class AuthGrpcController implements AuthServiceController {
     }
   }
 
-  @RequireAuthenticatedOperator()
-  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
   async updateTenantTerminalMfaPolicy(
     request: UpdateTenantTerminalMfaPolicyRequest
   ): Promise<UpdateTenantTerminalMfaPolicyResponse> {
@@ -1499,7 +1453,7 @@ export class AuthGrpcController implements AuthServiceController {
         newDeviceMfaRequired: Boolean(entry.newDeviceMfaRequired),
         allowedFactors: this.toDomainTerminalMfaFactors(entry.allowedFactors),
         factorPriority: this.toDomainTerminalMfaFactors(entry.factorPriority),
-        updatedBy: request.operatorId || operatorId
+        updatedBy: operatorId
       })
     }
 
@@ -1510,7 +1464,6 @@ export class AuthGrpcController implements AuthServiceController {
     }
   }
 
-  @UseGuards(InternalServiceGuard)
   async handleTerminalDeviceUnavailable(
     request: HandleTerminalDeviceUnavailableRequest
   ): Promise<HandleTerminalDeviceUnavailableResponse> {
@@ -1620,8 +1573,6 @@ export class AuthGrpcController implements AuthServiceController {
     }
   }
 
-  @RequireAuthenticatedOperator()
-  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
   async requestEmailBindingChallenge(
     request: RequestEmailBindingChallengeRequest
   ): Promise<RequestEmailBindingChallengeResponse> {
@@ -1641,8 +1592,6 @@ export class AuthGrpcController implements AuthServiceController {
     }
   }
 
-  @RequireAuthenticatedOperator()
-  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
   async verifyEmailBinding(
     request: VerifyEmailBindingRequest
   ): Promise<VerifyEmailBindingResponse> {
@@ -1652,7 +1601,7 @@ export class AuthGrpcController implements AuthServiceController {
       new VerifyEmailBindingCommand({
         userId,
         accountId: request.accountId || undefined,
-        tenantId: request.tenantId || undefined,
+        tenantId: getOptionalOperatorScope(request)?.tenantId,
         scopeLevel: this.normalizeScopeLevel(request.scopeLevel),
         email: request.email ?? '',
         otp: request.otp ?? '',
@@ -1905,8 +1854,6 @@ export class AuthGrpcController implements AuthServiceController {
     }
   }
 
-  @RequireAuthenticatedOperator()
-  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
   async requestPhoneBindingChallenge(
     request: RequestPhoneBindingChallengeRequest
   ): Promise<RequestPhoneBindingChallengeResponse> {
@@ -1926,8 +1873,6 @@ export class AuthGrpcController implements AuthServiceController {
     }
   }
 
-  @RequireAuthenticatedOperator()
-  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
   async verifyPhoneBinding(
     request: VerifyPhoneBindingRequest
   ): Promise<VerifyPhoneBindingResponse> {
@@ -1937,7 +1882,7 @@ export class AuthGrpcController implements AuthServiceController {
       new VerifyPhoneBindingCommand({
         userId,
         accountId: request.accountId || undefined,
-        tenantId: request.tenantId || undefined,
+        tenantId: getOptionalOperatorScope(request)?.tenantId,
         scopeLevel: this.normalizeScopeLevel(request.scopeLevel),
         phone: request.phone ?? '',
         otp: request.otp ?? '',
@@ -2319,3 +2264,81 @@ export class AuthGrpcController implements AuthServiceController {
     return mapped
   }
 }
+
+
+/** Applies one immutable frozen admission declaration to each of Auth's 70 baseline RPC handlers. */
+function applyAuthAdmission(method: string, decorator: MethodDecorator): void {
+  const descriptor = Object.getOwnPropertyDescriptor(AuthGrpcController.prototype, method)
+  if (!descriptor) throw new Error(`Auth frozen RPC handler is missing: ${method}`)
+  decorator(AuthGrpcController.prototype, method, descriptor)
+}
+applyAuthAdmission('loginWithEmailPassword', AuthorizeAuthPublicAdmission('PUBLIC_CREDENTIAL'))
+applyAuthAdmission('requestEmailOtpLoginChallenge', AuthorizeAuthPublicAdmission('PUBLIC_CREDENTIAL'))
+applyAuthAdmission('loginWithEmailOtp', AuthorizeAuthPublicAdmission('PUBLIC_CREDENTIAL'))
+applyAuthAdmission('loginWithEmployeeCodePin', AuthorizeAuthPublicAdmission('PUBLIC_CREDENTIAL'))
+applyAuthAdmission('preflightEmployeeCodePinLogin', AuthorizeAuthPublicAdmission('PUBLIC_CREDENTIAL'))
+applyAuthAdmission('loginWithPhonePassword', AuthorizeAuthPublicAdmission('PUBLIC_CREDENTIAL'))
+applyAuthAdmission('requestPhoneOtpLoginChallenge', AuthorizeAuthPublicAdmission('PUBLIC_CREDENTIAL'))
+applyAuthAdmission('loginWithPhoneOtp', AuthorizeAuthPublicAdmission('PUBLIC_CREDENTIAL'))
+applyAuthAdmission('inspectPasswordRecoveryChannels', AuthorizeAuthPublicAdmission('PUBLIC_CREDENTIAL'))
+applyAuthAdmission('requestPasswordRecoveryChallenge', AuthorizeAuthPublicAdmission('PUBLIC_CREDENTIAL'))
+applyAuthAdmission('verifyPasswordRecoveryChallenge', AuthorizeAuthPublicAdmission('PUBLIC_CREDENTIAL'))
+applyAuthAdmission('completePasswordRecovery', AuthorizeAuthPublicAdmission('PUBLIC_CREDENTIAL'))
+applyAuthAdmission('completeFirstLoginPasswordSetup', AuthorizeAuthPublicAdmission('PUBLIC_CONTINUATION'))
+applyAuthAdmission('requestLoginMfaFactorChallenge', AuthorizeAuthPublicAdmission('PUBLIC_CONTINUATION'))
+applyAuthAdmission('submitMfaChallenge', AuthorizeAuthPublicAdmission('PUBLIC_CONTINUATION'))
+applyAuthAdmission('refreshSession', AuthorizeAuthPublicAdmission('PUBLIC_CONTINUATION'))
+applyAuthAdmission('selectAccount', AuthorizeAuthPublicAdmission('PUBLIC_CONTINUATION'))
+applyAuthAdmission('validateAccessToken', AuthorizeAuthPublicAdmission('PUBLIC_SESSION_SOURCE_VALIDATION'))
+applyAuthAdmission('listLoginHistory', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
+applyAuthAdmission('bootstrapOwnLoginMethods', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
+applyAuthAdmission('requestEmailBindingChallenge', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
+applyAuthAdmission('requestPhoneBindingChallenge', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
+applyAuthAdmission('listLoginMethods', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
+applyAuthAdmission('changeOwnPassword', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
+applyAuthAdmission('setOwnTerminalPin', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
+applyAuthAdmission('resetOwnTerminalPin', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
+applyAuthAdmission('setOwnTerminalPinEnabled', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
+applyAuthAdmission('setOwnLoginMethodEnabled', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
+applyAuthAdmission('verifyEmailBinding', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
+applyAuthAdmission('verifyPhoneBinding', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
+applyAuthAdmission('listMfaBindings', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
+applyAuthAdmission('enableMfaBinding', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
+applyAuthAdmission('disableMfaBinding', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
+applyAuthAdmission('initializeTotpBinding', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
+applyAuthAdmission('activateTotpBinding', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
+applyAuthAdmission('initializeRecoveryCodes', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
+applyAuthAdmission('regenerateRecoveryCodes', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
+applyAuthAdmission('startStepUpMfaChallenge', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
+applyAuthAdmission('completeStepUpMfaChallenge', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
+applyAuthAdmission('listSessions', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
+applyAuthAdmission('listTrustedDevices', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
+applyAuthAdmission('revokeTrustedDevice', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
+applyAuthAdmission('revokeOtherTrustedDevices', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
+applyAuthAdmission('logout', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
+applyAuthAdmission('logoutSession', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
+applyAuthAdmission('logoutOtherDevices', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
+applyAuthAdmission('logoutAll', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
+applyAuthAdmission('listAuditEvents', AuthorizeBusinessRpc({ all: ['auth.audit.list'] }))
+applyAuthAdmission('bootstrapUserLoginMethods', AuthorizeBusinessRpc({ all: ['auth.account_credentials.bootstrap'] }))
+applyAuthAdmission('requirePasswordSetup', AuthorizeBusinessRpc({ all: ['auth.account_credentials.bootstrap'] }))
+applyAuthAdmission('requireTerminalPinReset', AuthorizeBusinessRpc({ all: ['auth.account_credentials.bootstrap'] }))
+applyAuthAdmission('disableUserTerminalPin', AuthorizeBusinessRpc({ all: ['auth.account_credentials.bootstrap'] }))
+applyAuthAdmission('setLoginMethodEnabled', AuthorizeBusinessRpc({ all: ['auth.account_login_methods.manage'] }))
+applyAuthAdmission('getTenantMfaPolicy', AuthorizeBusinessRpc({ all: ['auth.mfa_policy.manage'] }))
+applyAuthAdmission('updateTenantMfaPolicy', AuthorizeBusinessRpc({ all: ['auth.mfa_policy.manage'] }))
+applyAuthAdmission('getTenantTerminalMfaPolicy', AuthorizeBusinessRpc({ all: ['auth.mfa_policy.manage'] }))
+applyAuthAdmission('updateTenantTerminalMfaPolicy', AuthorizeBusinessRpc({ all: ['auth.mfa_policy.manage'] }))
+applyAuthAdmission('getPlatformMfaPolicy', AuthorizeBusinessRpc({ all: ['auth.platform_mfa_policy.manage'] }))
+applyAuthAdmission('updatePlatformMfaPolicy', AuthorizeBusinessRpc({ all: ['auth.platform_mfa_policy.manage'] }))
+applyAuthAdmission('getPlatformTerminalLoginPolicy', AuthorizeBusinessRpc({ all: ['auth.platform_mfa_policy.manage'] }))
+applyAuthAdmission('updatePlatformTerminalLoginPolicy', AuthorizeBusinessRpc({ all: ['auth.platform_mfa_policy.manage'] }))
+applyAuthAdmission('getPlatformDefaultTerminalMfaPolicy', AuthorizeBusinessRpc({ all: ['auth.platform_mfa_policy.manage'] }))
+applyAuthAdmission('updatePlatformDefaultTerminalMfaPolicy', AuthorizeBusinessRpc({ all: ['auth.platform_mfa_policy.manage'] }))
+applyAuthAdmission('handleTerminalDeviceUnavailable', AuthorizeBusinessRpc({ all: ['auth.session.admin.view'] }))
+applyAuthAdmission('adminListOnlineUsers', AuthorizeBusinessRpc({ all: ['auth.session.admin.view'] }))
+applyAuthAdmission('adminListUserSessions', AuthorizeBusinessRpc({ all: ['auth.session.admin.view'] }))
+applyAuthAdmission('adminListTerminalDeviceSessions', AuthorizeBusinessRpc({ all: ['auth.session.admin.view'] }))
+applyAuthAdmission('adminRevokeSession', AuthorizeBusinessRpc({ all: ['auth.session.admin.revoke'] }))
+applyAuthAdmission('adminDeleteAccountSessions', AuthorizeBusinessRpc({ all: ['auth.session.admin.revoke'] }))
+applyAuthAdmission('revokeTenantSessions', AuthorizeBusinessRpc({ all: ['auth.session.admin.revoke'] }))

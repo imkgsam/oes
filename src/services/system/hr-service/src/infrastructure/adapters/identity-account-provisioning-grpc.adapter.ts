@@ -1,6 +1,5 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
-import { GRPC_METADATA_PROPAGATION_FACTORY, GrpcMetadataPropagationFactory } from '@oes/common/authorization'
 import {
   CreateUserAccountResponse,
   IDENTITY_MANAGEMENT_SERVICE_NAME,
@@ -9,6 +8,7 @@ import {
 import { safeGrpcCall } from '@oes/common/transport'
 import { IDENTITY_ACCOUNT_PROVISIONING_PORT, IdentityAccountProvisioningPort } from '../../application/ports'
 import { IDENTITY_GRPC_CLIENT } from './identity-employee-binding-grpc.adapter'
+import { HrFoundationTrustedGrpcExecutionProducer } from './foundation-trusted-grpc.clients'
 
 /** IdentityAccountProvisioningGrpcAdapter provisions tenant-scoped member accounts for HR onboarding access. */
 @Injectable()
@@ -16,11 +16,10 @@ export class IdentityAccountProvisioningGrpcAdapter
   implements IdentityAccountProvisioningPort, OnModuleInit
 {
   private identityManagementService!: IdentityManagementServiceClient
+  private readonly trusted = new HrFoundationTrustedGrpcExecutionProducer()
 
   constructor(
-    @Inject(IDENTITY_GRPC_CLIENT) private readonly client: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory
+    @Inject(IDENTITY_GRPC_CLIENT) private readonly client: ClientGrpc
   ) {}
 
   onModuleInit() {
@@ -63,7 +62,7 @@ export class IdentityAccountProvisioningGrpcAdapter
           phone: input.phone,
           tenantPartyId: input.tenantPartyId
         },
-        this.metadata(input)
+        await this.trusted.forBusinessCall('identity-service', ['identity.account.create'])
       ),
       {
         caller: 'hr-service',
@@ -78,30 +77,4 @@ export class IdentityAccountProvisioningGrpcAdapter
     }
   }
 
-  private metadata(input: {
-    operatorContext?: {
-      operatorId: string
-      operatorType: string
-      tenantId?: string
-      orgId?: string
-      operatorRoles?: string[]
-    }
-    requestId?: string
-    traceId?: string
-  }) {
-    if (input.operatorContext) {
-      return this.metadataFactory.createOperatorScopedMetadata({
-        callerServiceName: 'hr-service',
-        operatorContext: input.operatorContext,
-        requestId: input.requestId,
-        traceId: input.traceId
-      })
-    }
-
-    return this.metadataFactory.createInternalCallMetadata({
-      callerServiceName: 'hr-service',
-      requestId: input.requestId,
-      traceId: input.traceId
-    })
-  }
 }

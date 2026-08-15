@@ -1,9 +1,5 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
-import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory
-} from '@oes/common/authorization'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import {
   CountTenantAccountsResponse,
@@ -11,10 +7,9 @@ import {
   IdentityQueryServiceClient
 } from '@oes/common/generated/identity_service'
 import { InjectGrpcClient, safeGrpcCall } from '@oes/common/transport'
-import {
-  DownstreamRequestSource,
-  toOperatorScopedMetadataInput
-} from '../../../common/grpc/gateway-downstream-source.mapper'
+import { DownstreamRequestSource } from '../../../common/grpc/gateway-downstream-source.mapper'
+import { IDENTITY_TARGET_AUDIENCE, TrustedIdentityGrpcClient } from '../../../infrastructure/grpc/trusted-identity.grpc.client'
+import { GatewayFoundationTrustedGrpcExecutionProducer } from '../../../infrastructure/grpc/trusted-auth.grpc.client'
 
 @Injectable()
 // Reads identity-owned tenant account counts for tenant management list summaries.
@@ -22,17 +17,15 @@ export class IdentityTenantAccountStatsGrpcAdapter implements OnModuleInit {
   private svc!: IdentityQueryServiceClient
 
   constructor(
-    @InjectGrpcClient(SERVICE_NAMES.IDENTITY)
-    private readonly client: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory
+    private readonly client: TrustedIdentityGrpcClient,
+    private readonly trusted: GatewayFoundationTrustedGrpcExecutionProducer
   ) {}
 
   onModuleInit(): void {
-    this.svc = this.client.getService<IdentityQueryServiceClient>(IDENTITY_QUERY_SERVICE_NAME)
+    this.svc = this.client.getClient().getService<IdentityQueryServiceClient>(IDENTITY_QUERY_SERVICE_NAME)
   }
 
-  countTenantAccounts(
+  async countTenantAccounts(
     request: { tenantIds: string[]; scopeLevel?: string; status?: string },
     source: DownstreamRequestSource
   ): Promise<CountTenantAccountsResponse> {
@@ -43,7 +36,9 @@ export class IdentityTenantAccountStatsGrpcAdapter implements OnModuleInit {
           scopeLevel: request.scopeLevel,
           status: request.status
         },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, IDENTITY_TARGET_AUDIENCE, [
+          'identity.account.list'
+        ])
       ),
       { caller: 'api-gateway', method: 'IdentityQueryService.countTenantAccounts' }
     )

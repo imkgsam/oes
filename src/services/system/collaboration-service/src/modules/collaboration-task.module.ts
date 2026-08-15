@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common'
+import { APP_INTERCEPTOR } from '@nestjs/core'
 import { ClientsModule, Transport } from '@nestjs/microservices'
 import type { ClientProviderOptions } from '@nestjs/microservices/module/interfaces'
-import { AuthorizationModule } from '@oes/common/authorization'
+import { AuthorizationModule, GrpcRequestContextInterceptor } from '@oes/common/authorization'
 import { resolveCommonProtoPath } from '@oes/common/contracts'
 import {
   NatsJetStreamModule,
@@ -83,6 +84,7 @@ export function buildCollaborationTaskGrpcClients(): ClientProviderOptions[] {
   ],
   controllers: [TaskCommandGrpcController, TaskQueryGrpcController],
   providers: [
+    { provide: APP_INTERCEPTOR, useClass: GrpcRequestContextInterceptor },
     TaskCommandService,
     TaskQueryService,
     {

@@ -1,9 +1,5 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
-import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory
-} from '@oes/common/authorization'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import {
   ArchiveOrgUnitResponse,
@@ -22,10 +18,9 @@ import {
   UpdateTenantProfileResponse
 } from '@oes/common/generated/tenant_org_service'
 import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
-import {
-  DownstreamRequestSource,
-  toOperatorScopedMetadataInput
-} from '../../../common/grpc/gateway-downstream-source.mapper'
+import { DownstreamRequestSource } from '../../../common/grpc/gateway-downstream-source.mapper'
+import { TENANTORG_TARGET_AUDIENCE, TrustedTenantOrgGrpcClient } from '../../../infrastructure/grpc/trusted-tenant-org.grpc.client'
+import { GatewayFoundationTrustedGrpcExecutionProducer } from '../../../infrastructure/grpc/trusted-auth.grpc.client'
 
 const CALLER = 'api-gateway'
 
@@ -80,19 +75,17 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
   private svc!: TenantOrgManagementServiceClient
 
   constructor(
-    @InjectGrpcClient(SERVICE_NAMES.TENANT_ORG)
-    private readonly client: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory
+    private readonly client: TrustedTenantOrgGrpcClient,
+    private readonly trusted: GatewayFoundationTrustedGrpcExecutionProducer
   ) {}
 
   onModuleInit(): void {
-    this.svc = this.client.getService<TenantOrgManagementServiceClient>(
+    this.svc = this.client.getClient().getService<TenantOrgManagementServiceClient>(
       TENANT_ORG_MANAGEMENT_SERVICE_NAME
     )
   }
 
-  createTenant(
+  async createTenant(
     input: { code: string; employeeCodePrefix: string; name: string; rootOrgName?: string },
     source: DownstreamRequestSource
   ): Promise<{ rootOrgUnit?: { id?: string; name?: string }; tenant?: TenantManagementMutationTenant }> {
@@ -100,7 +93,7 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
       'createTenant',
       this.svc.createTenant(
         input,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, TENANTORG_TARGET_AUDIENCE, ['tenant_org.tenant.create'])
       ),
       (response: CreateTenantResponse) => ({
         tenant: response.tenant ? mapTenant(response.tenant) : undefined,
@@ -114,7 +107,7 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
     )
   }
 
-  startTenantOnboarding(input: any, source: DownstreamRequestSource): Promise<{ onboarding?: TenantOnboardingGatewayResult }> {
+  async startTenantOnboarding(input: any, source: DownstreamRequestSource): Promise<{ onboarding?: TenantOnboardingGatewayResult }> {
     return this.call(
       'startTenantOnboarding',
       this.svc.startTenantOnboarding(
@@ -134,24 +127,24 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
           rootOrg: input.rootOrg,
           firstAdmin: input.firstAdmin
         },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, TENANTORG_TARGET_AUDIENCE, ['tenant_org.tenant.create'])
       ),
       (response: StartTenantOnboardingResponse) => ({ onboarding: mapTenantOnboardingGatewayResult(response.onboarding) })
     )
   }
 
-  getTenantOnboarding(onboardingId: string, source: DownstreamRequestSource): Promise<{ onboarding?: TenantOnboardingGatewayResult }> {
+  async getTenantOnboarding(onboardingId: string, source: DownstreamRequestSource): Promise<{ onboarding?: TenantOnboardingGatewayResult }> {
     return this.call(
       'getTenantOnboarding',
       this.svc.getTenantOnboarding(
         { onboardingId },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, TENANTORG_TARGET_AUDIENCE, ['tenant_org.tenant.get_by_id'])
       ),
       (response: GetTenantOnboardingResponse) => ({ onboarding: mapTenantOnboardingGatewayResult(response.onboarding) })
     )
   }
 
-  retryTenantOnboarding(
+  async retryTenantOnboarding(
     input: { onboardingId: string; reason?: string },
     source: DownstreamRequestSource
   ): Promise<{ onboarding?: TenantOnboardingGatewayResult }> {
@@ -159,13 +152,13 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
       'retryTenantOnboarding',
       this.svc.retryTenantOnboarding(
         input,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, TENANTORG_TARGET_AUDIENCE, ['tenant_org.tenant.create'])
       ),
       (response: RetryTenantOnboardingResponse) => ({ onboarding: mapTenantOnboardingGatewayResult(response.onboarding) })
     )
   }
 
-  updateTenantProfile(
+  async updateTenantProfile(
     input: { code?: string; employeeCodePrefix?: string; name?: string; tenantId: string; websiteUrl?: string },
     source: DownstreamRequestSource
   ): Promise<{ tenant?: TenantManagementMutationTenant }> {
@@ -173,7 +166,7 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
       'updateTenantProfile',
       this.svc.updateTenantProfile(
         input,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, TENANTORG_TARGET_AUDIENCE, ['tenant_org.tenant.update_profile'])
       ),
       (response: UpdateTenantProfileResponse) => ({
         tenant: response.tenant ? mapTenant(response.tenant) : undefined
@@ -181,7 +174,7 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
     )
   }
 
-  suspendTenant(
+  async suspendTenant(
     input: { reason?: string; tenantId: string },
     source: DownstreamRequestSource
   ): Promise<{ tenant?: TenantManagementMutationTenant }> {
@@ -189,7 +182,7 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
       'suspendTenant',
       this.svc.suspendTenant(
         input,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, TENANTORG_TARGET_AUDIENCE, ['tenant_org.tenant.update_status'])
       ),
       (response: SuspendTenantResponse) => ({
         tenant: response.tenant ? mapTenant(response.tenant) : undefined
@@ -197,7 +190,7 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
     )
   }
 
-  reactivateTenant(
+  async reactivateTenant(
     input: { tenantId: string },
     source: DownstreamRequestSource
   ): Promise<{ tenant?: TenantManagementMutationTenant }> {
@@ -205,7 +198,7 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
       'reactivateTenant',
       this.svc.reactivateTenant(
         input,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, TENANTORG_TARGET_AUDIENCE, ['tenant_org.tenant.update_status'])
       ),
       (response: ReactivateTenantResponse) => ({
         tenant: response.tenant ? mapTenant(response.tenant) : undefined
@@ -213,7 +206,7 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
     )
   }
 
-  archiveTenant(
+  async archiveTenant(
     input: { reason?: string; tenantId: string },
     source: DownstreamRequestSource
   ): Promise<{ tenant?: TenantManagementMutationTenant }> {
@@ -221,7 +214,7 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
       'archiveTenant',
       this.svc.archiveTenant(
         input,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, TENANTORG_TARGET_AUDIENCE, ['tenant_org.tenant.update_status'])
       ),
       (response: ArchiveTenantResponse) => ({
         tenant: response.tenant ? mapTenant(response.tenant) : undefined
@@ -229,7 +222,7 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
     )
   }
 
-  createOrgUnit(
+  async createOrgUnit(
     input: {
       name: string
       organizationTenantPartyId?: string
@@ -247,7 +240,7 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
           ...input,
           organizationTenantPartyId: input.organizationTenantPartyId
         },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, TENANTORG_TARGET_AUDIENCE, ['tenant_org.org_unit.create'])
       ),
       (response: CreateOrgUnitResponse) => ({
         orgUnit: response.orgUnit ? mapOrgUnit(response.orgUnit) : undefined
@@ -255,7 +248,7 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
     )
   }
 
-  updateOrgUnit(
+  async updateOrgUnit(
     input: {
       name?: string
       orgUnitId: string
@@ -273,7 +266,7 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
           ...input,
           organizationTenantPartyId: input.organizationTenantPartyId
         },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, TENANTORG_TARGET_AUDIENCE, ['tenant_org.org_unit.update'])
       ),
       (response: UpdateOrgUnitResponse) => ({
         orgUnit: response.orgUnit ? mapOrgUnit(response.orgUnit) : undefined
@@ -281,7 +274,7 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
     )
   }
 
-  moveOrgUnit(
+  async moveOrgUnit(
     input: {
       newParentOrgId: string
       orgUnitId: string
@@ -293,7 +286,7 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
       'moveOrgUnit',
       this.svc.moveOrgUnit(
         input,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, TENANTORG_TARGET_AUDIENCE, ['tenant_org.org_unit.update'])
       ),
       (response: MoveOrgUnitResponse) => ({
         orgUnit: response.orgUnit ? mapOrgUnit(response.orgUnit) : undefined
@@ -301,7 +294,7 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
     )
   }
 
-  archiveOrgUnit(
+  async archiveOrgUnit(
     input: { orgUnitId: string; tenantId: string },
     source: DownstreamRequestSource
   ): Promise<{ orgUnit?: TenantManagementMutationOrgUnit }> {
@@ -309,7 +302,7 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
       'archiveOrgUnit',
       this.svc.archiveOrgUnit(
         input,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, TENANTORG_TARGET_AUDIENCE, ['tenant_org.org_unit.archive'])
       ),
       (response: ArchiveOrgUnitResponse) => ({
         orgUnit: response.orgUnit ? mapOrgUnit(response.orgUnit) : undefined

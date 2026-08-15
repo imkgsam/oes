@@ -4,21 +4,13 @@ import { PermissionServiceAdaptor } from './permission-service.adaptor'
 
 describe('PermissionServiceAdaptor', () => {
   it('obtains an Auth-issued INTERNAL token for resolveExternalMachineAuthorizationSnapshot', async () => {
-    const adaptor = new PermissionServiceAdaptor(
-      { getService: jest.fn() } as any,
-      {
-        createInternalCallMetadata: jest.fn(() => new Metadata()),
-        createOperatorScopedMetadata: jest.fn()
-      } as any,
-      {
-        getContext: jest.fn(() => ({ requestId: 'req-1', traceId: 'trace-1' }))
-      } as any
-    )
+    const adaptor = new PermissionServiceAdaptor({ getService: jest.fn() } as any)
 
-    ;(adaptor as any).executionTokenService = {
-      exchangeExecutionToken: jest.fn().mockReturnValue(of({ accessToken: 'sts-token' }))
-    }
-    ;(adaptor as any).trustedPermissionService = {
+    const metadata = new Metadata()
+    metadata.set('authorization', 'Bearer sts-token')
+    const forInternalCall = jest.fn().mockResolvedValue(metadata)
+    ;(adaptor as any).trusted = { forInternalCall }
+    ;(adaptor as any).permissionService = {
       resolveExternalMachineAuthorizationSnapshot: jest
         .fn()
         .mockReturnValue(of({ externalBusinessPermissionCodes: ['sales.order.read'], authzVersion: 'v1' }))
@@ -31,8 +23,12 @@ describe('PermissionServiceAdaptor', () => {
       authzVersion: 'v1'
     })
 
-    const forwardedMetadata = (adaptor as any).trustedPermissionService
+    const forwardedMetadata = (adaptor as any).permissionService
       .resolveExternalMachineAuthorizationSnapshot.mock.calls[0][1] as Metadata
     expect(forwardedMetadata.get('authorization')).toEqual(['Bearer sts-token'])
+    expect(forInternalCall).toHaveBeenCalledWith(
+      'permission-service',
+      'permission.internal.external_machine.snapshot.resolve'
+    )
   })
 })

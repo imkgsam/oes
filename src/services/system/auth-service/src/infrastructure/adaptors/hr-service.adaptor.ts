@@ -1,11 +1,6 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
 import { SERVICE_NAMES } from '@oes/common/constants'
-import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory,
-  GrpcRequestContextStore
-} from '@oes/common/authorization'
 import { ExceptionFactory, InfrastructureException } from '@oes/common/exceptions'
 import {
   HrQueryServiceClient,
@@ -18,6 +13,7 @@ import {
   IHrServicePort
 } from '../../application/ports/hr-service.port'
 import { AUTH_HR_UPSTREAM_UNAVAILABLE } from '../../common/constants/exception-enums'
+import { AuthFoundationTrustedGrpcExecutionProducer } from './foundation-trusted-grpc.clients'
 
 const HR_QUERY_SERVICE_NAME = 'HrQueryService'
 
@@ -26,13 +22,11 @@ const HR_QUERY_SERVICE_NAME = 'HrQueryService'
 export class HrServiceAdaptor implements IHrServicePort, OnModuleInit {
   private readonly logger = new Logger(HrServiceAdaptor.name)
   private hrQueryService!: HrQueryServiceClient
+  private readonly trusted = new AuthFoundationTrustedGrpcExecutionProducer()
 
   constructor(
     @InjectGrpcClient(SERVICE_NAMES.HR)
-    private readonly hrClient: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory,
-    private readonly requestContextStore: GrpcRequestContextStore
+    private readonly hrClient: ClientGrpc
   ) {}
 
   onModuleInit() {
@@ -48,7 +42,10 @@ export class HrServiceAdaptor implements IHrServicePort, OnModuleInit {
         this.hrQueryService.resolveActiveEmployeeByCode({
           tenantId: input.tenantId,
           employeeCode: input.employeeCode
-        } as ResolveActiveEmployeeByCodeRequest, this.metadata()),
+        } as ResolveActiveEmployeeByCodeRequest, await this.trusted.forBusinessCall(
+          'hr-service',
+          ['hr.employee.get_by_id']
+        )),
         {
           caller: 'auth-service',
           method: 'HrQueryService.resolveActiveEmployeeByCode'
@@ -78,12 +75,4 @@ export class HrServiceAdaptor implements IHrServicePort, OnModuleInit {
     }
   }
 
-  private metadata() {
-    const current = this.requestContextStore.getContext()
-    return this.metadataFactory.createInternalCallMetadata({
-      callerServiceName: 'auth-service',
-      requestId: current?.requestId,
-      traceId: current?.traceId
-    })
-  }
 }

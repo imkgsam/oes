@@ -1,6 +1,5 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
-import { Metadata } from '@grpc/grpc-js'
 import { resolveCommonProtoPath } from '@oes/common/contracts'
 import {
   GetEmployeeByIdResponse,
@@ -13,6 +12,7 @@ import {
   HR_EMPLOYEE_REFERENCE_PORT,
   HrEmployeeReferencePort
 } from '../../application/ports/hr-employee-reference.port'
+import { IdentityFoundationTrustedGrpcExecutionProducer } from './foundation-trusted-grpc.clients'
 
 export const HR_GRPC_CLIENT = Symbol('HR_GRPC_CLIENT')
 
@@ -20,6 +20,7 @@ export const HR_GRPC_CLIENT = Symbol('HR_GRPC_CLIENT')
 @Injectable()
 export class HrEmployeeReferenceGrpcAdaptor implements HrEmployeeReferencePort, OnModuleInit {
   private hrQueryService!: HrQueryServiceClient
+  private readonly trusted = new IdentityFoundationTrustedGrpcExecutionProducer()
 
   constructor(@Inject(HR_GRPC_CLIENT) private readonly client: ClientGrpc) {}
 
@@ -32,7 +33,7 @@ export class HrEmployeeReferenceGrpcAdaptor implements HrEmployeeReferencePort, 
       const response = await safeGrpcCall<GetEmployeeByIdResponse>(
         this.hrQueryService.getEmployeeById({
           employeeId
-        }, new Metadata()),
+        }, await this.trusted.forBusinessCall('hr-service', ['hr.employee.get_by_id'])),
         {
           caller: 'identity-service',
           method: 'HrQueryService.getEmployeeById'

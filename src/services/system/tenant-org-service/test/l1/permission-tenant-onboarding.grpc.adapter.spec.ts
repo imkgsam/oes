@@ -101,6 +101,8 @@ function createAdapter(service: {
     {} as any
   )
   adapter.onModuleInit()
-  ;(adapter as any).buildMetadata = jest.fn(() => undefined)
+  ;(adapter as any).trusted = {
+    forBusinessCall: jest.fn().mockResolvedValue(undefined)
+  }
   return adapter
 }

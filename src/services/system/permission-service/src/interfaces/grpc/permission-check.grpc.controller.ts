@@ -1,8 +1,9 @@
-import { Controller, UseFilters, UseGuards } from '@nestjs/common'
+import { Controller, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common'
+import { GrpcRequestContextInterceptor } from '@oes/common/authorization'
+import { PermissionFoundationTrustedExecutionGuard } from '../../modules/authorization/permission-trusted-execution.module'
 import { Metadata } from '@grpc/grpc-js'
 import { ValidatingQueryBus } from '@oes/common/cqrs'
 import { GrpcExceptionFilter } from '../../../../../../common/dist/core/filters'
-import { InternalServiceGuard } from '@oes/common/authorization'
 import {
   AuthorizeInternalCall,
   PERMISSION_INTERNAL_PERMISSION_CODES
@@ -51,6 +52,7 @@ import {
   DelegatedRiskClass
 } from '../../domain/authorization/permission-decision.types'
 
+@UseInterceptors(GrpcRequestContextInterceptor)
 @Controller()
 @UseFilters(GrpcExceptionFilter)
 @PermissionCheckServiceControllerMethods()
@@ -61,7 +63,8 @@ export class PermissionCheckGrpcController implements PermissionCheckServiceCont
   ) {}
 
   /** Serves the legacy coarse RBAC check behind its existing internal-service gate. */
-  @UseGuards(InternalServiceGuard)
+  @AuthorizeInternalCall({ all: ['permission.internal.permission.check'] })
+  @UseGuards(PermissionFoundationTrustedExecutionGuard)
   async checkPermission(
     request: CheckPermissionRequest,
     metadata?: Metadata,
@@ -93,7 +96,8 @@ export class PermissionCheckGrpcController implements PermissionCheckServiceCont
   }
 
   /** Serves the legacy batch RBAC check behind its existing internal-service gate. */
-  @UseGuards(InternalServiceGuard)
+  @AuthorizeInternalCall({ all: ['permission.internal.permission.check'] })
+  @UseGuards(PermissionFoundationTrustedExecutionGuard)
   async batchCheckPermission(
     request: BatchCheckPermissionRequest,
     metadata?: Metadata,
@@ -143,7 +147,7 @@ export class PermissionCheckGrpcController implements PermissionCheckServiceCont
 
   /** Serves Auth's trusted, fail-closed snapshot of externally eligible Machine BUSINESS grants. */
   @AuthorizeInternalCall({ all: ['permission.internal.external_machine.snapshot.resolve'] })
-  @UseGuards(InternalServiceGuard, PermissionTrustedInternalExecutionGuard)
+  @UseGuards(PermissionTrustedInternalExecutionGuard)
   async resolveExternalMachineAuthorizationSnapshot(
     request: ResolveExternalMachineAuthorizationSnapshotRequest
   ): Promise<ResolveExternalMachineAuthorizationSnapshotResponse> {

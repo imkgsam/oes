@@ -7,8 +7,14 @@ import {
 import type { VerifiedExecutionToken } from './execution-token-verifier'
 
 type Prepared = Readonly<{
-  credential: TransportPrivateSourceCredential
-  token: VerifiedExecutionToken
+  credential?: TransportPrivateSourceCredential
+  token?: VerifiedExecutionToken
+  correlation?: InboundExecutionCorrelation
+}>
+export type InboundExecutionCorrelation = Readonly<{
+  requestId: string
+  traceparent: string
+  tracestate?: string
 }>
 type RequestState = { entry?: Prepared; active: boolean }
 const prepared = new WeakMap<object, Prepared>()
@@ -20,17 +26,33 @@ export class InboundExecutionTokenCredentialScope {
   private readonly issuer = new TransportPrivateSourceCredentialIssuer()
 
   /** Stages one successfully verified current-service HUMAN ET against the exact RPC data object. */
-  prepare(data: object, bearer: string, token: VerifiedExecutionToken): void {
-    if (token.principalType !== 'HUMAN' || !token.tenantId || !token.sessionId) {
-      return
-    }
+  prepare(
+    data: object,
+    bearer: string,
+    token: VerifiedExecutionToken,
+    correlation?: InboundExecutionCorrelation
+  ): void {
+    if (correlation !== undefined) assertCorrelation(correlation)
+    const credential =
+      token.principalType === 'HUMAN' && token.tenantId && token.sessionId
+        ? this.issuer.issueVerifiedExecutionTokenSubjectCredential(bearer)
+        : undefined
     prepared.set(
       data,
       Object.freeze({
-        credential: this.issuer.issueVerifiedExecutionTokenSubjectCredential(bearer),
-        token
+        ...(credential === undefined ? {} : { credential }),
+        token,
+        ...(correlation === undefined
+          ? {}
+          : { correlation: Object.freeze({ ...correlation }) })
       })
     )
+  }
+
+  /** Stages exact public-admission correlation without creating any subject credential or ET. */
+  preparePublicCorrelation(data: object, correlation: InboundExecutionCorrelation): void {
+    assertCorrelation(correlation)
+    prepared.set(data, Object.freeze({ correlation: Object.freeze({ ...correlation }) }))
   }
 
   /** Consumes the staged credential exactly once and bounds its lifetime to the handler subscription. */
@@ -59,12 +81,24 @@ export class InboundExecutionTokenCredentialScope {
   /** Exposes the opaque handle only while one downstream STS transport operation executes. */
   async run<T>(callback: () => Promise<T>): Promise<T> {
     const entry = requireEntry()
+    if (!entry.credential) {
+      throw new Error('Transport-private HUMAN OBO subject credential is required')
+    }
     return this.accessor.run(entry.credential, callback)
   }
 
   /** Returns only verified HUMAN execution facts; the retained bearer stays transport-private. */
   requireVerifiedExecution(): VerifiedExecutionToken {
-    return requireEntry().token
+    const token = requireEntry().token
+    if (!token) throw new Error('Verified inbound ExecutionToken is required')
+    return token
+  }
+
+  /** Returns guard-verified request and W3C trace facts without accepting application fallbacks. */
+  requireCorrelation(): InboundExecutionCorrelation {
+    const correlation = requireEntry().correlation
+    if (!correlation) throw new Error('Verified inbound ExecutionToken correlation is required')
+    return correlation
   }
 
   /** Invalidates retained facts for completion, error, cancellation, and leaked async descendants. */
@@ -75,6 +109,19 @@ export class InboundExecutionTokenCredentialScope {
 }
 
 export const inboundExecutionTokenCredentialScope = new InboundExecutionTokenCredentialScope()
+
+/** Rejects missing or malformed transport correlation before it can enter a downstream token. */
+function assertCorrelation(value: InboundExecutionCorrelation): void {
+  if (
+    !value.requestId ||
+    value.requestId.trim() !== value.requestId ||
+    !/^00-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$/u.test(value.traceparent) ||
+    (value.tracestate !== undefined &&
+      (!value.tracestate || value.tracestate.trim() !== value.tracestate))
+  ) {
+    throw new Error('Verified inbound ExecutionToken correlation is invalid')
+  }
+}
 
 /** Reads only an active request state so leaked async descendants fail after request cleanup. */
 function requireEntry(): Prepared {

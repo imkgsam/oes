@@ -1,17 +1,16 @@
 import { Metadata, status as GrpcStatus } from '@grpc/grpc-js'
 import { ClientGrpc, RpcException } from '@nestjs/microservices'
 import { of, throwError } from 'rxjs'
-import { GrpcMetadataPropagationFactory } from '@oes/common/authorization'
 import { IDENTITY_MANAGEMENT_SERVICE_NAME } from '@oes/common/generated/identity_service'
 import { PERMISSION_MANAGEMENT_SERVICE_NAME } from '@oes/common/generated/permission_service'
 import { IdentityEmployeeBindingGrpcAdapter } from '../../src/infrastructure/adapters/identity-employee-binding-grpc.adapter'
 import { PermissionOnboardingGrantGrpcAdapter } from '../../src/infrastructure/adapters/permission-onboarding-grant-grpc.adapter'
 
 describe('gRPC onboarding adapters', () => {
-  const createMetadataFactory = () =>
-    ({
-      createOperatorScopedMetadata: jest.fn().mockReturnValue(new Metadata())
-    }) as unknown as GrpcMetadataPropagationFactory
+  const attachTrustedProducer = (adapter: object, metadata = new Metadata()) => {
+    ;(adapter as any).trusted = { forBusinessCall: jest.fn().mockResolvedValue(metadata) }
+    return metadata
+  }
 
   it('identity adapter should call BindAccountToEmployee over identity-service proto', async () => {
     const bindAccountToEmployee = jest.fn().mockReturnValue(of({ binding: { accountId: 'account-1' } }))
@@ -20,10 +19,8 @@ describe('gRPC onboarding adapters', () => {
         bindAccountToEmployee
       })
     } as unknown as ClientGrpc
-    const adapter = new IdentityEmployeeBindingGrpcAdapter(
-      client,
-      createMetadataFactory() as any
-    )
+    const adapter = new IdentityEmployeeBindingGrpcAdapter(client)
+    attachTrustedProducer(adapter)
 
     adapter.onModuleInit()
 
@@ -42,7 +39,6 @@ describe('gRPC onboarding adapters', () => {
 
     expect(bindAccountToEmployee).toHaveBeenCalledWith(
       {
-        tenantId: 'tenant-1',
         employeeId: 'employee-1',
         accountId: 'account-1'
       },
@@ -60,10 +56,8 @@ describe('gRPC onboarding adapters', () => {
         grantInitialAccessForEmployeeAccount
       })
     } as unknown as ClientGrpc
-    const adapter = new PermissionOnboardingGrantGrpcAdapter(
-      client,
-      createMetadataFactory() as any
-    )
+    const adapter = new PermissionOnboardingGrantGrpcAdapter(client)
+    attachTrustedProducer(adapter)
 
     adapter.onModuleInit()
 
@@ -118,10 +112,8 @@ describe('gRPC onboarding adapters', () => {
         grantInitialAccessForEmployeeAccount
       })
     } as unknown as ClientGrpc
-    const adapter = new PermissionOnboardingGrantGrpcAdapter(
-      client,
-      createMetadataFactory() as any
-    )
+    const adapter = new PermissionOnboardingGrantGrpcAdapter(client)
+    attachTrustedProducer(adapter)
 
     adapter.onModuleInit()
 

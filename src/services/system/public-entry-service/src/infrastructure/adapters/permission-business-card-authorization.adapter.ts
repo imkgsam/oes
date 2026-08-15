@@ -1,9 +1,5 @@
-import { Inject, Injectable, OnModuleInit, Optional } from '@nestjs/common'
+import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
-import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory
-} from '@oes/common/authorization'
 import {
   CheckPermissionResponse,
   PERMISSION_CHECK_SERVICE_NAME,
@@ -19,6 +15,7 @@ import {
   BusinessCardResourceFacts,
   OperatorContext
 } from '../../domain/types/business-card.types'
+import { PublicEntryFoundationTrustedGrpcExecutionProducer } from './foundation-trusted-grpc.clients'
 
 export const PUBLIC_ENTRY_PERMISSION_GRPC_CLIENT = Symbol('PUBLIC_ENTRY_PERMISSION_GRPC_CLIENT')
 
@@ -36,13 +33,11 @@ export class PermissionBusinessCardAuthorizationAdapter
   implements BusinessCardAuthorizationPort, OnModuleInit
 {
   private permissionClient!: PermissionClientLike
+  private readonly trusted = new PublicEntryFoundationTrustedGrpcExecutionProducer()
 
   constructor(
     @Inject(PUBLIC_ENTRY_PERMISSION_GRPC_CLIENT)
-    private readonly client: ClientGrpc | PermissionClientLike,
-    @Optional()
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory?: GrpcMetadataPropagationFactory
+    private readonly client: ClientGrpc | PermissionClientLike
   ) {
     if (isPermissionClientLike(client)) {
       this.permissionClient = client
@@ -97,14 +92,12 @@ export class PermissionBusinessCardAuthorizationAdapter
         accountId: input.operatorContext.operatorAccountId,
         permissionCode: input.permissionCode
       }
-      const metadata = this.metadataFactory?.createInternalCallMetadata({
-        callerServiceName: 'public-entry-service',
-        traceId: input.operatorContext.traceId
-      })
+      const metadata = await this.trusted.forInternalCall(
+        'permission-service',
+        'permission.internal.permission.check'
+      )
       const response = await safePermissionCall(
-        metadata
-          ? this.permissionClient.checkPermission(request, metadata)
-          : this.permissionClient.checkPermission(request)
+        this.permissionClient.checkPermission(request, metadata)
       )
       return Boolean(response.allowed)
     } catch {

@@ -1,9 +1,5 @@
 import { HttpException, HttpStatus, Inject, Injectable, OnModuleInit } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
-import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory
-} from '@oes/common/authorization'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import {
   GetPolicyByIdRequest,
@@ -16,10 +12,9 @@ import {
   PolicyResponse
 } from '@oes/common/generated/permission_service'
 import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
-import {
-  DownstreamRequestSource,
-  toOperatorScopedMetadataInput
-} from '../../../common/grpc/gateway-downstream-source.mapper'
+import { DownstreamRequestSource } from '../../../common/grpc/gateway-downstream-source.mapper'
+import { PERMISSION_TARGET_AUDIENCE, TrustedPermissionGrpcClient } from '../../../infrastructure/grpc/trusted-permission.grpc.client'
+import { GatewayFoundationTrustedGrpcExecutionProducer } from '../../../infrastructure/grpc/trusted-auth.grpc.client'
 
 const CALLER = 'api-gateway'
 
@@ -33,14 +28,12 @@ export class PolicyManagementGrpcAdapter implements OnModuleInit {
   private svc!: PolicyManagementServiceClient
 
   constructor(
-    @InjectGrpcClient(SERVICE_NAMES.PERMISSION)
-    private readonly client: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory
+    private readonly client: TrustedPermissionGrpcClient,
+    private readonly trusted: GatewayFoundationTrustedGrpcExecutionProducer
   ) {}
 
   onModuleInit(): void {
-    this.svc = this.client.getService<PolicyManagementServiceClient>(
+    this.svc = this.client.getClient().getService<PolicyManagementServiceClient>(
       POLICY_MANAGEMENT_SERVICE_NAME
     )
   }
@@ -70,10 +63,10 @@ export class PolicyManagementGrpcAdapter implements OnModuleInit {
       payload.subjectId = req.subjectId
     }
 
-    return this.call('listPoliciesPaged', () =>
+    return this.call('listPoliciesPaged', async () =>
       this.svc.listPoliciesPaged(
         payload,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.policy.list'])
       )
     )
   }
@@ -83,10 +76,10 @@ export class PolicyManagementGrpcAdapter implements OnModuleInit {
     req: GetPolicyByIdRequest,
     source: DownstreamRequestSource
   ): Promise<PolicyResponse> {
-    return this.call('getPolicyById', () =>
+    return this.call('getPolicyById', async () =>
       this.svc.getPolicyById(
         req,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.policy.list'])
       )
     )
   }
@@ -96,20 +89,20 @@ export class PolicyManagementGrpcAdapter implements OnModuleInit {
     req: ListPoliciesByPermissionRequest,
     source: DownstreamRequestSource
   ): Promise<ListPoliciesResponse> {
-    return this.call('listPoliciesByPermission', () =>
+    return this.call('listPoliciesByPermission', async () =>
       this.svc.listPoliciesByPermission(
         {
           permissionCode: req.permissionCode,
           tenantId: req.tenantId || undefined
         },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.policy.list'])
       )
     )
   }
 
   private async call<T>(method: string, factory: () => any): Promise<T> {
     try {
-      const result = await safeGrpcCall(factory(), this.opts(method))
+      const result = await safeGrpcCall(await factory(), this.opts(method))
       return result as T
     } catch (error) {
       throw this.mapDownstreamError(error)

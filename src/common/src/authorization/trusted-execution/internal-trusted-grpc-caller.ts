@@ -51,6 +51,28 @@ export class InternalTrustedGrpcCaller {
   }
 
   async forInternalCall<T>(code: string, callback: (metadata: Metadata) => Promise<T>): Promise<T> {
+    return this.forCall('INTERNAL', [code], callback)
+  }
+
+  /** Exchanges one exact BUSINESS Code set through the same opaque source-credential boundary. */
+  async forBusinessCall<T>(
+    codes: readonly string[],
+    callback: (metadata: Metadata) => Promise<T>
+  ): Promise<T> {
+    return this.forCall('BUSINESS', codes, callback)
+  }
+
+  /** Exchanges the contract-controlled empty Code set for an exact SELF_SERVICE call. */
+  async forSelfServiceCall<T>(callback: (metadata: Metadata) => Promise<T>): Promise<T> {
+    return this.forCall('SELF_SERVICE', [], callback)
+  }
+
+  /** Applies the profile principal gate and maps source/foundation failures consistently. */
+  private async forCall<T>(
+    mode: 'BUSINESS' | 'SELF_SERVICE' | 'INTERNAL',
+    codes: readonly string[],
+    callback: (metadata: Metadata) => Promise<T>
+  ): Promise<T> {
     let root
     try {
       root = this.context.requireCurrent()
@@ -64,7 +86,12 @@ export class InternalTrustedGrpcCaller {
     }
     try {
       return await this.source.run(() =>
-        this.metadata.forInternalCall(this.profile.targetAudience, [code]).then(callback)
+        (mode === 'BUSINESS'
+          ? this.metadata.forBusinessCall(this.profile.targetAudience, codes)
+          : mode === 'SELF_SERVICE'
+            ? this.metadata.forSelfServiceCall(this.profile.targetAudience)
+            : this.metadata.forInternalCall(this.profile.targetAudience, codes)
+        ).then(callback)
       )
     } catch (error) {
       const message = error instanceof Error ? error.message.toLowerCase() : ''

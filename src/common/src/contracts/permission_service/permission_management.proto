@@ -603,9 +603,8 @@ message ListAuditEventsRequest {
   string module = 2;
   string event_type = 3;
   string result = 4;
-  string operator_id = 5;
-  string tenant_id = 6;
-  string org_id = 7;
+  reserved 5, 6, 7;
+  reserved "operator_id", "tenant_id", "org_id";
   string resource_type = 8;
   string resource_id = 9;
   string occurred_at_from = 10;

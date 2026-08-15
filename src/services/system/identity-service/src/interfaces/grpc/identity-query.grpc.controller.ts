@@ -1,4 +1,6 @@
 import { Controller, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common'
+import { AuthorizeBusinessRpc } from '@oes/common/authorization'
+import { IdentityFoundationTrustedExecutionGuard } from '../../modules/identity-trusted-execution.module'
 import { GrpcMethod } from '@nestjs/microservices'
 import {
   AuthorizeInternalCall,
@@ -101,6 +103,7 @@ type ResolveEmployeeLoginAccountResponse = {
 }
 
 @UseFilters(GrpcExceptionFilter)
+@UseGuards(IdentityFoundationTrustedExecutionGuard)
 @Controller()
 @IdentityQueryServiceControllerMethods()
 export class IdentityQueryGrpcController implements IdentityQueryServiceController {
@@ -114,9 +117,9 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
         module: request.module || undefined,
         eventType: request.eventType || undefined,
         result: request.result || undefined,
-        operatorId: request.operatorId || undefined,
-        tenantId: request.tenantId || undefined,
-        orgId: request.orgId || undefined,
+        operatorId: undefined,
+        tenantId: undefined,
+        orgId: undefined,
         resourceType: request.resourceType || undefined,
         resourceId: request.resourceId || undefined,
         occurredAtFrom: request.occurredAtFrom || undefined,
@@ -336,8 +339,6 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
     }
   }
 
-  @RequireAuthenticatedOperator()
-  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
   @UseInterceptors(GrpcRequestContextInterceptor)
   async listAccountWorkEmailAssets(
     request: ListAccountWorkEmailAssetsRequest
@@ -384,8 +385,6 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
     }
   }
 
-  @RequireAuthenticatedOperator()
-  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
   @UseInterceptors(GrpcRequestContextInterceptor)
   async listAccounts(request: ListAccountsRequest): Promise<ListAccountsResponse> {
     const operatorScope = getOptionalOperatorScope(request)
@@ -416,8 +415,6 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
     }
   }
 
-  @RequireAuthenticatedOperator()
-  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
   @UseInterceptors(GrpcRequestContextInterceptor)
   async countTenantAccounts(
     request: CountTenantAccountsRequest
@@ -501,3 +498,29 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
   }
 
 }
+
+
+/** Applies the frozen BUSINESS declaration to each of Identity's 18 baseline query handlers. */
+function applyIdentityQueryDeclaration(method: string, code: string): void {
+  const descriptor = Object.getOwnPropertyDescriptor(IdentityQueryGrpcController.prototype, method)
+  if (!descriptor) throw new Error(`Identity query handler is missing: ${method}`)
+  AuthorizeBusinessRpc({ all: [code] })(IdentityQueryGrpcController.prototype, method, descriptor)
+}
+applyIdentityQueryDeclaration('getAccountById', 'identity.account.list')
+applyIdentityQueryDeclaration('getEmployeeBindingByAccountId', 'identity.account.list')
+applyIdentityQueryDeclaration('resolveEmployeeLoginAccount', 'identity.account.list')
+applyIdentityQueryDeclaration('listAuditEvents', 'identity.account.list')
+applyIdentityQueryDeclaration('listAccounts', 'identity.account.list')
+applyIdentityQueryDeclaration('getUserById', 'identity.account.list')
+applyIdentityQueryDeclaration('getUserByEmail', 'identity.account.list')
+applyIdentityQueryDeclaration('getUserByPhone', 'identity.account.list')
+applyIdentityQueryDeclaration('getAccountsByUserId', 'identity.account.list')
+applyIdentityQueryDeclaration('countTenantAccounts', 'identity.account.list')
+applyIdentityQueryDeclaration('listAccountContactAssets', 'identity.account.self.read')
+applyIdentityQueryDeclaration('listAccountWorkEmailAssets', 'identity.account.self.read')
+applyIdentityQueryDeclaration('listAccountWorkPhoneAssets', 'identity.account.self.read')
+applyIdentityQueryDeclaration('resolveContactActionTargets', 'identity.account.self.read')
+applyIdentityQueryDeclaration('getServiceAccountById', 'identity.machine.service_account.create')
+applyIdentityQueryDeclaration('listServiceAccounts', 'identity.machine.service_account.create')
+applyIdentityQueryDeclaration('getApiKeyById', 'identity.machine.api_key.create')
+applyIdentityQueryDeclaration('listApiKeysByServiceAccountId', 'identity.machine.api_key.create')

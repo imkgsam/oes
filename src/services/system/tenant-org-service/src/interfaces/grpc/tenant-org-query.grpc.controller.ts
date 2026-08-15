@@ -1,4 +1,6 @@
 import { Controller, UseGuards, UseInterceptors } from '@nestjs/common'
+import { AuthorizeBusinessRpc } from '@oes/common/authorization'
+import { TenantOrgFoundationTrustedExecutionGuard } from '../../modules/tenant-org-trusted-execution.module'
 import { Metadata } from '@grpc/grpc-js'
 import {
   RequirePermissions,
@@ -31,8 +33,8 @@ import {
 import { TenantOrgQueryService } from '../../application/services'
 
 /** TenantOrgQueryGrpcController exposes tenant/org read contracts over gRPC. */
+@UseGuards(TenantOrgFoundationTrustedExecutionGuard)
 @Controller()
-@UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard, PermissionGuard)
 @UseInterceptors(GrpcRequestContextInterceptor)
 @TenantOrgQueryServiceControllerMethods()
 export class TenantOrgQueryGrpcController implements TenantOrgQueryServiceController {
@@ -46,7 +48,6 @@ export class TenantOrgQueryGrpcController implements TenantOrgQueryServiceContro
     return { tenant: tenant ? mapTenant(tenant) : undefined }
   }
 
-  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.LIST_TENANT] })
   async listTenants(
     _request: ListTenantsRequest,
     _metadata?: Metadata
@@ -63,7 +64,6 @@ export class TenantOrgQueryGrpcController implements TenantOrgQueryServiceContro
     }
   }
 
-  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.LIST_ORG_TREE] })
   async getOrgTreeByTenantId(
     _request: GetOrgTreeByTenantIdRequest,
     _metadata?: Metadata
@@ -72,7 +72,6 @@ export class TenantOrgQueryGrpcController implements TenantOrgQueryServiceContro
     return { roots: roots.map(mapOrgNode) }
   }
 
-  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.VIEW_ORG_UNIT_DETAIL] })
   async getOrgUnitById(
     _request: GetOrgUnitByIdRequest,
     _metadata?: Metadata
@@ -113,7 +112,6 @@ export class TenantOrgQueryGrpcController implements TenantOrgQueryServiceContro
     return { orgUnit: orgUnit ? mapOrgUnit(orgUnit) : undefined }
   }
 
-  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.LIST_ORG_TREE] })
   async listAncestorOrgUnits(
     _request: ListAncestorOrgUnitsRequest,
     _metadata?: Metadata
@@ -125,7 +123,6 @@ export class TenantOrgQueryGrpcController implements TenantOrgQueryServiceContro
     return { ancestors: ancestors.map(mapOrgUnit) }
   }
 
-  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.LIST_ORG_TREE] })
   async listDescendantOrgUnits(
     _request: ListDescendantOrgUnitsRequest,
     _metadata?: Metadata
@@ -197,3 +194,19 @@ function mapOrgNode(node: {
     children: node.children.map(mapOrgNode)
   }
 }
+
+
+/** Applies TenantOrg's frozen BUSINESS Code declaration to each baseline handler. */
+function applyTenantOrgDeclaration(method: string, code: string): void {
+ const descriptor = Object.getOwnPropertyDescriptor(TenantOrgQueryGrpcController.prototype, method)
+ if (!descriptor) throw new Error(`TenantOrg handler is missing: ${method}`)
+ AuthorizeBusinessRpc({ all: [code] })(TenantOrgQueryGrpcController.prototype, method, descriptor)
+}
+applyTenantOrgDeclaration('getTenantById', 'tenant_org.tenant.get_by_id')
+applyTenantOrgDeclaration('listTenants', 'tenant_org.tenant.list')
+applyTenantOrgDeclaration('getOrgTreeByTenantId', 'tenant_org.org_unit.list_tree')
+applyTenantOrgDeclaration('listAncestorOrgUnits', 'tenant_org.org_unit.list_tree')
+applyTenantOrgDeclaration('listDescendantOrgUnits', 'tenant_org.org_unit.list_tree')
+applyTenantOrgDeclaration('validateOrgReference', 'tenant_org.org_unit.list_tree')
+applyTenantOrgDeclaration('getOrgReferenceSummary', 'tenant_org.org_unit.list_tree')
+applyTenantOrgDeclaration('getOrgUnitById', 'tenant_org.org_unit.get_by_id')

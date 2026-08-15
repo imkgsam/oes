@@ -1,9 +1,5 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
-import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory
-} from '@oes/common/authorization'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import {
   PERMISSION_TERMINAL_ACCESS_SERVICE_NAME,
@@ -11,10 +7,9 @@ import {
   ResolveAccountTerminalAccessResponse
 } from '@oes/common/generated/permission_service'
 import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
-import {
-  DownstreamRequestSource,
-  toInternalCallMetadataInput
-} from '../../../../../common/grpc/gateway-downstream-source.mapper'
+import { DownstreamRequestSource } from '../../../../../common/grpc/gateway-downstream-source.mapper'
+import { PERMISSION_TARGET_AUDIENCE, TrustedPermissionGrpcClient } from '../../../../../infrastructure/grpc/trusted-permission.grpc.client'
+import { GatewayFoundationTrustedGrpcExecutionProducer } from '../../../../../infrastructure/grpc/trusted-auth.grpc.client'
 
 const CALLER = 'api-gateway'
 
@@ -31,19 +26,17 @@ export class PermissionTerminalAccessGrpcAdapter implements OnModuleInit {
   private svc!: PermissionTerminalAccessServiceClient
 
   constructor(
-    @InjectGrpcClient(SERVICE_NAMES.PERMISSION)
-    private readonly client: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory
+    private readonly client: TrustedPermissionGrpcClient,
+    private readonly trusted: GatewayFoundationTrustedGrpcExecutionProducer
   ) {}
 
   onModuleInit(): void {
-    this.svc = this.client.getService<PermissionTerminalAccessServiceClient>(
+    this.svc = this.client.getClient().getService<PermissionTerminalAccessServiceClient>(
       PERMISSION_TERMINAL_ACCESS_SERVICE_NAME
     )
   }
 
-  resolveAccountTerminalAccess(
+  async resolveAccountTerminalAccess(
     request: ResolveTerminalAccessInput,
     source: DownstreamRequestSource
   ): Promise<ResolveAccountTerminalAccessResponse> {
@@ -55,14 +48,12 @@ export class PermissionTerminalAccessGrpcAdapter implements OnModuleInit {
           scopeLevel: request.scopeLevel,
           terminal: request.terminal
         },
-        this.metadata(source)
+        await this.trusted.forInternalCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.internal.account_terminal_access.resolve'
+        ])
       ),
       this.opts('resolveAccountTerminalAccess')
     )
-  }
-
-  private metadata(source: DownstreamRequestSource) {
-    return this.metadataFactory.createInternalCallMetadata(toInternalCallMetadataInput(source))
   }
 
   private opts(method: string): SafeGrpcCallOptions {

@@ -1,4 +1,7 @@
-import { Controller, UseFilters, UseGuards } from '@nestjs/common'
+import { Controller, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common'
+import { GrpcRequestContextInterceptor } from '@oes/common/authorization'
+import { AuthorizeBusinessRpc } from '@oes/common/authorization'
+import { PermissionFoundationTrustedExecutionGuard } from '../../modules/authorization/permission-trusted-execution.module'
 import { Metadata } from '@grpc/grpc-js'
 import { ValidatingQueryBus } from '@oes/common/cqrs'
 import { GrpcExceptionFilter } from '../../../../../../common/dist/core/filters'
@@ -36,17 +39,17 @@ function hasOwnField<T extends object>(obj: T, key: keyof T): boolean {
   return Object.prototype.hasOwnProperty.call(obj, key)
 }
 
+@UseInterceptors(GrpcRequestContextInterceptor)
 @Controller()
 @UseFilters(GrpcExceptionFilter)
-@RequireAuthenticatedOperator()
-@UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard, ManagementAuthorizationGuard)
+@UseGuards(PermissionFoundationTrustedExecutionGuard)
 @PolicyManagementServiceControllerMethods()
 export class PolicyManagementGrpcController implements PolicyManagementServiceController {
   constructor(
     private readonly queryBus: ValidatingQueryBus
   ) {}
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.VIEW_POLICY)
+  @AuthorizeBusinessRpc({ all: [MANAGEMENT_PERMISSION_CODES.VIEW_POLICY] })
   async getPolicyById(
     request: GetPolicyByIdRequest,
     metadata?: Metadata,
@@ -56,7 +59,7 @@ export class PolicyManagementGrpcController implements PolicyManagementServiceCo
     return this.toResponse(result)
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.VIEW_POLICY)
+  @AuthorizeBusinessRpc({ all: [MANAGEMENT_PERMISSION_CODES.VIEW_POLICY] })
   async listPoliciesPaged(
     request: ListPoliciesPagedRequest,
     metadata?: Metadata,
@@ -92,7 +95,7 @@ export class PolicyManagementGrpcController implements PolicyManagementServiceCo
     }
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.VIEW_POLICY)
+  @AuthorizeBusinessRpc({ all: [MANAGEMENT_PERMISSION_CODES.VIEW_POLICY] })
   async listPoliciesByPermission(
     request: ListPoliciesByPermissionRequest,
     metadata?: Metadata,

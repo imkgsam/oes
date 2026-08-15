@@ -4,10 +4,6 @@ import { SERVICE_NAMES } from '@oes/common/constants'
 import { InjectGrpcClient } from '@oes/common/transport'
 import { safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
 import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory
-} from '@oes/common/authorization'
-import {
   AccountRoleSelectionResponse,
   AssignAccountRoleRequest,
   PermissionManagementServiceClient,
@@ -74,10 +70,9 @@ import {
   UpdateNavigationEntryRequest,
   PERMISSION_MANAGEMENT_SERVICE_NAME
 } from '@oes/common/generated/permission_service'
-import {
-  DownstreamRequestSource,
-  toOperatorScopedMetadataInput
-} from '../../../common/grpc/gateway-downstream-source.mapper'
+import { DownstreamRequestSource } from '../../../common/grpc/gateway-downstream-source.mapper'
+import { PERMISSION_TARGET_AUDIENCE, TrustedPermissionGrpcClient } from '../../../infrastructure/grpc/trusted-permission.grpc.client'
+import { GatewayFoundationTrustedGrpcExecutionProducer } from '../../../infrastructure/grpc/trusted-auth.grpc.client'
 
 const CALLER = 'api-gateway'
 
@@ -87,14 +82,12 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
   private svc!: PermissionManagementServiceClient
 
   constructor(
-    @InjectGrpcClient(SERVICE_NAMES.PERMISSION)
-    private readonly client: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory
+    private readonly client: TrustedPermissionGrpcClient,
+    private readonly trusted: GatewayFoundationTrustedGrpcExecutionProducer
   ) {}
 
   onModuleInit() {
-    this.svc = this.client.getService<PermissionManagementServiceClient>(
+    this.svc = this.client.getClient().getService<PermissionManagementServiceClient>(
       PERMISSION_MANAGEMENT_SERVICE_NAME
     )
   }
@@ -105,8 +98,8 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: CreatePermissionRequest,
     source: DownstreamRequestSource
   ): Promise<PermissionResponse> {
-    return this.call('createPermission', () =>
-      this.svc.createPermission(req, this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source)))
+    return this.call('createPermission', async () =>
+      this.svc.createPermission(req, await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.create']))
     )
   }
 
@@ -114,8 +107,8 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: DeletePermissionRequest,
     source: DownstreamRequestSource
   ): Promise<void> {
-    await this.call('deletePermission', () =>
-      this.svc.deletePermission(req, this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source)))
+    await this.call('deletePermission', async () =>
+      this.svc.deletePermission(req, await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.delete']))
     )
   }
 
@@ -124,10 +117,10 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: UpdatePermissionRequest,
     source: DownstreamRequestSource
   ): Promise<PermissionResponse> {
-    return this.call('updatePermission', () =>
+    return this.call('updatePermission', async () =>
       this.svc.updatePermission(
         req,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.update'])
       )
     )
   }
@@ -137,10 +130,10 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: GetPermissionByIdRequest,
     source: DownstreamRequestSource
   ): Promise<PermissionResponse> {
-    return this.call('getPermissionById', () =>
+    return this.call('getPermissionById', async () =>
       this.svc.getPermissionById(
         req,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.get_by_id'])
       )
     )
   }
@@ -150,8 +143,8 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: GetPermissionByCodeRequest,
     source: DownstreamRequestSource
   ): Promise<PermissionResponse> {
-    return this.call('getPermissionByCode', () =>
-      this.svc.getPermissionByCode(req, this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source)))
+    return this.call('getPermissionByCode', async () =>
+      this.svc.getPermissionByCode(req, await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.get_by_code']))
     )
   }
 
@@ -160,7 +153,7 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: ListPermissionsPagedRequest,
     source: DownstreamRequestSource
   ): Promise<PagedPermissionsResponse> {
-    return this.call<PagedPermissionsResponse>('listPermissionsPaged', () =>
+    return this.call<PagedPermissionsResponse>('listPermissionsPaged', async () =>
       this.svc.listPermissionsPaged(
         {
           page: req.page || 1,
@@ -168,7 +161,7 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
           module: req.module || undefined,
           keyword: req.keyword || undefined
         } as ListPermissionsPagedRequest,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.list'])
       )
     )
   }
@@ -178,10 +171,10 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: ListPermissionRolesRequest,
     source: DownstreamRequestSource
   ): Promise<ListRolesResponse> {
-    return this.call('listPermissionRoles', () =>
+    return this.call('listPermissionRoles', async () =>
       this.svc.listPermissionRoles(
         req,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_instance.list'])
       )
     )
   }
@@ -193,10 +186,10 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: CreateRoleTemplateRequest,
     source: DownstreamRequestSource
   ): Promise<RoleResponse> {
-    return this.call('createRoleTemplate', () =>
+    return this.call('createRoleTemplate', async () =>
       this.svc.createRoleTemplate(
         req,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_template.create'])
       )
     )
   }
@@ -206,17 +199,17 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: CreateRoleInstanceRequest,
     source: DownstreamRequestSource
   ): Promise<RoleResponse> {
-    return this.call('createRoleInstance', () =>
+    return this.call('createRoleInstance', async () =>
       this.svc.createRoleInstance(
         req,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_instance.create'])
       )
     )
   }
 
   async deleteRole(req: DeleteRoleRequest, source: DownstreamRequestSource): Promise<void> {
-    await this.call('deleteRole', () =>
-      this.svc.deleteRole(req, this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source)))
+    await this.call('deleteRole', async () =>
+      this.svc.deleteRole(req, await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_instance.delete']))
     )
   }
 
@@ -225,10 +218,10 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: DeleteRoleTemplateRequest,
     source: DownstreamRequestSource
   ): Promise<void> {
-    await this.call('deleteRoleTemplate', () =>
+    await this.call('deleteRoleTemplate', async () =>
       this.svc.deleteRoleTemplate(
         req,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_template.delete'])
       )
     )
   }
@@ -238,10 +231,10 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: UpdateRoleRequest,
     source: DownstreamRequestSource
   ): Promise<RoleResponse> {
-    return this.call('updateRole', () =>
+    return this.call('updateRole', async () =>
       this.svc.updateRole(
         req,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_instance.update'])
       )
     )
   }
@@ -251,10 +244,10 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: SetRoleEnabledRequest,
     source: DownstreamRequestSource
   ): Promise<RoleResponse> {
-    return this.call('setRoleEnabled', () =>
+    return this.call('setRoleEnabled', async () =>
       this.svc.setRoleEnabled(
         req,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_instance.update'])
       )
     )
   }
@@ -263,8 +256,8 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: GetRoleByIdRequest,
     source: DownstreamRequestSource
   ): Promise<RoleResponse> {
-    return this.call('getRoleById', () =>
-      this.svc.getRoleById(req, this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source)))
+    return this.call('getRoleById', async () =>
+      this.svc.getRoleById(req, await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_instance.get_by_id']))
     )
   }
 
@@ -273,10 +266,10 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: GetRoleTemplateByIdRequest,
     source: DownstreamRequestSource
   ): Promise<RoleResponse> {
-    return this.call('getRoleTemplateById', () =>
+    return this.call('getRoleTemplateById', async () =>
       this.svc.getRoleTemplateById(
         req,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_template.get_by_id'])
       )
     )
   }
@@ -286,7 +279,7 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: ListRoleInstancesRequest,
     source: DownstreamRequestSource
   ): Promise<PagedRolesResponse> {
-    return this.call<PagedRolesResponse>('listRoleInstances', () =>
+    return this.call<PagedRolesResponse>('listRoleInstances', async () =>
       this.svc.listRoleInstances(
         {
           page: req.page || 1,
@@ -295,7 +288,7 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
           scopeLevel: req.scopeLevel || undefined,
           keyword: req.keyword || undefined
         } as ListRoleInstancesRequest,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_instance.list'])
       )
     )
   }
@@ -305,14 +298,14 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: ListRoleTemplatesRequest,
     source: DownstreamRequestSource
   ): Promise<PagedRolesResponse> {
-    return this.call<PagedRolesResponse>('listRoleTemplates', () =>
+    return this.call<PagedRolesResponse>('listRoleTemplates', async () =>
       this.svc.listRoleTemplates(
         {
           page: req.page || 1,
           pageSize: req.pageSize || 20,
           keyword: req.keyword || undefined
         } as ListRoleTemplatesRequest,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_template.list'])
       )
     )
   }
@@ -322,10 +315,10 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: ListRolePermissionsRequest,
     source: DownstreamRequestSource
   ): Promise<ListPermissionsResponse> {
-    return this.call('listRolePermissions', () =>
+    return this.call('listRolePermissions', async () =>
       this.svc.listRolePermissions(
         req,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_instance.get_by_id'])
       )
     )
   }
@@ -335,10 +328,10 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: ListRoleTemplatePermissionsRequest,
     source: DownstreamRequestSource
   ): Promise<ListPermissionsResponse> {
-    return this.call('listRoleTemplatePermissions', () =>
+    return this.call('listRoleTemplatePermissions', async () =>
       this.svc.listRoleTemplatePermissions(
         req,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_template.get_by_id'])
       )
     )
   }
@@ -348,10 +341,10 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: AssignRolePermissionRequest,
     source: DownstreamRequestSource
   ): Promise<void> {
-    await this.call('assignRolePermission', () =>
+    await this.call('assignRolePermission', async () =>
       this.svc.assignRolePermission(
         req,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_instance.assign_permissions'])
       )
     )
   }
@@ -361,10 +354,10 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: AssignRoleTemplatePermissionRequest,
     source: DownstreamRequestSource
   ): Promise<void> {
-    await this.call('assignRoleTemplatePermission', () =>
+    await this.call('assignRoleTemplatePermission', async () =>
       this.svc.assignRoleTemplatePermission(
         req,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_template.assign_permissions'])
       )
     )
   }
@@ -374,10 +367,10 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: RevokeRolePermissionRequest,
     source: DownstreamRequestSource
   ): Promise<void> {
-    await this.call('revokeRolePermission', () =>
+    await this.call('revokeRolePermission', async () =>
       this.svc.revokeRolePermission(
         req,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_instance.assign_permissions'])
       )
     )
   }
@@ -387,10 +380,10 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: RevokeRoleTemplatePermissionRequest,
     source: DownstreamRequestSource
   ): Promise<void> {
-    await this.call('revokeRoleTemplatePermission', () =>
+    await this.call('revokeRoleTemplatePermission', async () =>
       this.svc.revokeRoleTemplatePermission(
         req,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_template.assign_permissions'])
       )
     )
   }
@@ -400,10 +393,10 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: UpdateRoleTemplateRequest,
     source: DownstreamRequestSource
   ): Promise<RoleResponse> {
-    return this.call('updateRoleTemplate', () =>
+    return this.call('updateRoleTemplate', async () =>
       this.svc.updateRoleTemplate(
         req,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_template.update'])
       )
     )
   }
@@ -413,10 +406,10 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: SetRoleTemplateEnabledRequest,
     source: DownstreamRequestSource
   ): Promise<RoleResponse> {
-    return this.call('setRoleTemplateEnabled', () =>
+    return this.call('setRoleTemplateEnabled', async () =>
       this.svc.setRoleTemplateEnabled(
         req,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_template.update'])
       )
     )
   }
@@ -426,10 +419,10 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: CreateRoleInstanceFromTemplateRequest,
     source: DownstreamRequestSource
   ): Promise<RoleResponse> {
-    return this.call('createRoleInstanceFromTemplate', () =>
+    return this.call('createRoleInstanceFromTemplate', async () =>
       this.svc.createRoleInstanceFromTemplate(
         req,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_instance.create_from_template'])
       )
     )
   }
@@ -439,14 +432,14 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: ListAccountRolesRequest,
     source: DownstreamRequestSource
   ): Promise<ListRolesResponse> {
-    return this.call('listAccountRoles', () =>
+    return this.call('listAccountRoles', async () =>
       this.svc.listAccountRoles(
         {
           accountId: req.accountId,
           tenantId: req.tenantId || undefined,
           scopeLevel: req.scopeLevel || undefined
         } as ListAccountRolesRequest,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.account.get_roles'])
       )
     )
   }
@@ -456,14 +449,14 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: GetAccountRoleSelectionRequest,
     source: DownstreamRequestSource
   ): Promise<AccountRoleSelectionResponse> {
-    return this.call('getAccountRoleSelection', () =>
+    return this.call('getAccountRoleSelection', async () =>
       this.svc.getAccountRoleSelection(
         {
           accountId: req.accountId,
           tenantId: req.tenantId || undefined,
           scopeLevel: req.scopeLevel || undefined
         } as GetAccountRoleSelectionRequest,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.account.get_roles'])
       )
     )
   }
@@ -473,10 +466,10 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: AssignAccountRoleRequest,
     source: DownstreamRequestSource
   ): Promise<void> {
-    await this.call('assignAccountRole', () =>
+    await this.call('assignAccountRole', async () =>
       this.svc.assignAccountRole(
         req,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.account.assign_roles'])
       )
     )
   }
@@ -486,10 +479,10 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: RevokeAccountRoleRequest,
     source: DownstreamRequestSource
   ): Promise<void> {
-    await this.call('revokeAccountRole', () =>
+    await this.call('revokeAccountRole', async () =>
       this.svc.revokeAccountRole(
         req,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.account.assign_roles'])
       )
     )
   }
@@ -499,10 +492,10 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: SetAccountRolesRequest,
     source: DownstreamRequestSource
   ): Promise<ListRolesResponse> {
-    return this.call('setAccountRoles', () =>
+    return this.call('setAccountRoles', async () =>
       this.svc.setAccountRoles(
         req,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.account.assign_roles'])
       )
     )
   }
@@ -512,10 +505,10 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: ListRoleAccountsRequest,
     source: DownstreamRequestSource
   ): Promise<ListRoleAccountsResponse> {
-    return this.call('listRoleAccounts', () =>
+    return this.call('listRoleAccounts', async () =>
       this.svc.listRoleAccounts(
         req,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.account.get_roles'])
       )
     )
   }
@@ -525,7 +518,7 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: ListNavigationEntriesRequest,
     source: DownstreamRequestSource
   ): Promise<ListNavigationEntriesResponse> {
-    return this.call('listNavigationEntries', () =>
+    return this.call('listNavigationEntries', async () =>
       this.svc.listNavigationEntries(
         {
           page: req.page || 1,
@@ -536,7 +529,7 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
           hasEnabledFilter: req.hasEnabledFilter,
           enabled: req.enabled
         },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.navigation.entry.list'])
       )
     )
   }
@@ -546,10 +539,10 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: GetNavigationEntryRequest,
     source: DownstreamRequestSource
   ): Promise<NavigationEntryResponse> {
-    return this.call('getNavigationEntry', () =>
+    return this.call('getNavigationEntry', async () =>
       this.svc.getNavigationEntry(
         req,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.navigation.entry.get_by_key'])
       )
     )
   }
@@ -559,10 +552,10 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: CreateNavigationEntryRequest,
     source: DownstreamRequestSource
   ): Promise<NavigationEntryResponse> {
-    return this.call('createNavigationEntry', () =>
+    return this.call('createNavigationEntry', async () =>
       this.svc.createNavigationEntry(
         req,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.navigation.entry.create'])
       )
     )
   }
@@ -572,10 +565,10 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: UpdateNavigationEntryRequest,
     source: DownstreamRequestSource
   ): Promise<NavigationEntryResponse> {
-    return this.call('updateNavigationEntry', () =>
+    return this.call('updateNavigationEntry', async () =>
       this.svc.updateNavigationEntry(
         req,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.navigation.entry.update'])
       )
     )
   }
@@ -585,10 +578,10 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: GetRoleNavigationRequest,
     source: DownstreamRequestSource
   ): Promise<RoleNavigationResponse> {
-    return this.call('getRoleNavigation', () =>
+    return this.call('getRoleNavigation', async () =>
       this.svc.getRoleNavigation(
         req,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_instance.get_by_id'])
       )
     )
   }
@@ -598,10 +591,10 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: GetRoleTerminalAccessRequest,
     source: DownstreamRequestSource
   ): Promise<GetRoleTerminalAccessResponse> {
-    return this.call('getRoleTerminalAccess', () =>
+    return this.call('getRoleTerminalAccess', async () =>
       this.svc.getRoleTerminalAccess(
         req,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.terminal_access.view'])
       )
     )
   }
@@ -611,10 +604,10 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: SetRoleTerminalAccessRequest,
     source: DownstreamRequestSource
   ): Promise<SetRoleTerminalAccessResponse> {
-    return this.call('setRoleTerminalAccess', () =>
+    return this.call('setRoleTerminalAccess', async () =>
       this.svc.setRoleTerminalAccess(
         req,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.terminal_access.role.manage'])
       )
     )
   }
@@ -624,10 +617,10 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: GetAccountTerminalAccessRequest,
     source: DownstreamRequestSource
   ): Promise<GetAccountTerminalAccessResponse> {
-    return this.call('getAccountTerminalAccess', () =>
+    return this.call('getAccountTerminalAccess', async () =>
       this.svc.getAccountTerminalAccess(
         req,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.terminal_access.view'])
       )
     )
   }
@@ -637,10 +630,10 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: ReplaceAccountTerminalAccessOverrideRequest,
     source: DownstreamRequestSource
   ): Promise<ReplaceAccountTerminalAccessOverrideResponse> {
-    return this.call('replaceAccountTerminalAccessOverride', () =>
+    return this.call('replaceAccountTerminalAccessOverride', async () =>
       this.svc.replaceAccountTerminalAccessOverride(
         req,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.terminal_access.account.manage'])
       )
     )
   }
@@ -650,10 +643,10 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: DeleteAccountTerminalAccessOverrideRequest,
     source: DownstreamRequestSource
   ): Promise<DeleteAccountTerminalAccessOverrideResponse> {
-    return this.call('deleteAccountTerminalAccessOverride', () =>
+    return this.call('deleteAccountTerminalAccessOverride', async () =>
       this.svc.deleteAccountTerminalAccessOverride(
         req,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.terminal_access.account.manage'])
       )
     )
   }
@@ -663,10 +656,10 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: SetRoleNavigationVisibilityRequest,
     source: DownstreamRequestSource
   ): Promise<RoleNavigationResponse> {
-    return this.call('setRoleNavigationVisibility', () =>
+    return this.call('setRoleNavigationVisibility', async () =>
       this.svc.setRoleNavigationVisibility(
         req,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_instance.update'])
       )
     )
   }
@@ -676,10 +669,10 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: SetRoleLandingPoliciesRequest,
     source: DownstreamRequestSource
   ): Promise<RoleNavigationResponse> {
-    return this.call('setRoleLandingPolicies', () =>
+    return this.call('setRoleLandingPolicies', async () =>
       this.svc.setRoleLandingPolicies(
         req,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_instance.update'])
       )
     )
   }
@@ -689,10 +682,10 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: SyncRoleNavigationFromTemplateRequest,
     source: DownstreamRequestSource
   ): Promise<RoleNavigationResponse> {
-    return this.call('syncRoleNavigationFromTemplate', () =>
+    return this.call('syncRoleNavigationFromTemplate', async () =>
       this.svc.syncRoleNavigationFromTemplate(
         req,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.role_instance.sync_from_template'])
       )
     )
   }
@@ -702,17 +695,17 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     req: ResolveNavigationPreviewRequest,
     source: DownstreamRequestSource
   ): Promise<ResolveNavigationPreviewResponse> {
-    return this.call('resolveNavigationPreview', () =>
+    return this.call('resolveNavigationPreview', async () =>
       this.svc.resolveNavigationPreview(
         req,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.navigation.resolve_preview'])
       )
     )
   }
 
   private async call<T>(method: string, factory: () => any): Promise<T> {
     try {
-      const result = await safeGrpcCall(factory(), this.opts(method))
+      const result = await safeGrpcCall(await factory(), this.opts(method))
       return result as T
     } catch (error) {
       throw this.mapDownstreamError(error)

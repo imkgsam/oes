@@ -1,4 +1,6 @@
-import { Controller, UseFilters } from '@nestjs/common'
+import { Controller, UseFilters, UseGuards } from '@nestjs/common'
+import { AuthorizeBusinessRpc, getAuthenticatedGrpcRequestContext } from '@oes/common/authorization'
+import { HrFoundationTrustedExecutionGuard } from '../../modules/hr-trusted-execution.module'
 import { GrpcMethod } from '@nestjs/microservices'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
@@ -36,6 +38,7 @@ interface ResolveActiveEmployeeByCodeResponse {
 
 /** HrQueryGrpcController exposes read-only HR Employee and Employment contracts over gRPC. */
 @UseFilters(GrpcExceptionFilter)
+@UseGuards(HrFoundationTrustedExecutionGuard)
 @Controller()
 @HrQueryServiceControllerMethods()
 export class HrQueryGrpcController implements HrQueryServiceController {
@@ -50,7 +53,7 @@ export class HrQueryGrpcController implements HrQueryServiceController {
     request: GetEmployeeByTenantPartyIdRequest
   ): Promise<GetEmployeeByTenantPartyIdResponse> {
     const employee = await this.hrQueryService.getEmployeeByTenantPartyId({
-      tenantId: request.tenantId ?? '',
+      tenantId: getTrustedHrTenantId(request),
       tenantPartyId: request.tenantPartyId ?? ''
     })
     return { employee: mapEmployee(employee) }
@@ -73,7 +76,7 @@ export class HrQueryGrpcController implements HrQueryServiceController {
 
   async listEmployees(request: ListEmployeesRequest): Promise<ListEmployeesResponse> {
     const result = await this.hrQueryService.listEmployees({
-      tenantId: request.tenantId ?? '',
+      tenantId: getTrustedHrTenantId(request),
       keyword: request.keyword ?? undefined,
       lifecycleStatus: mapProtoEmployeeLifecycleStatus(request.lifecycleStatus),
       page: request.page ?? 1,
@@ -107,7 +110,7 @@ export class HrQueryGrpcController implements HrQueryServiceController {
     request: GetLatestOnboardingAccessRequest
   ): Promise<GetLatestOnboardingAccessResponse> {
     const process = await this.hrQueryService.getLatestOnboardingAccess({
-      tenantId: request.tenantId ?? '',
+      tenantId: getTrustedHrTenantId(request),
       employeeId: request.employeeId ?? ''
     })
 
@@ -171,3 +174,25 @@ function mapOnboardingAccessStatus(status?: string): ProtoOnboardingAccessStatus
       return ProtoOnboardingAccessStatus.ONBOARDING_ACCESS_STATUS_UNSPECIFIED
   }
 }
+
+
+/** Derives HR tenant authority only from the locally verified ExecutionToken. */
+function getTrustedHrTenantId(request: object): string {
+ const tenantId = getAuthenticatedGrpcRequestContext(request)?.verifiedExecutionToken?.tenantId?.trim()
+ if (!tenantId || tenantId === 'SYSTEM' || tenantId === '*') throw new Error('HR trusted tenant context is required')
+ return tenantId
+}
+
+/** Applies HR's frozen BUSINESS Code declaration to each baseline handler. */
+function applyHrDeclaration(method: string, code: string): void {
+ const descriptor = Object.getOwnPropertyDescriptor(HrQueryGrpcController.prototype, method)
+ if (!descriptor) throw new Error(`HR handler is missing: ${method}`)
+ AuthorizeBusinessRpc({ all: [code] })(HrQueryGrpcController.prototype, method, descriptor)
+}
+applyHrDeclaration('getEmployeeById', 'hr.employee.get_by_id')
+applyHrDeclaration('getEmployeeByTenantPartyId', 'hr.employee.get_by_id')
+applyHrDeclaration('resolveActiveEmployeeByCode', 'hr.employee.get_by_id')
+applyHrDeclaration('getActiveEmployment', 'hr.employee.get_by_id')
+applyHrDeclaration('listEmployments', 'hr.employee.get_by_id')
+applyHrDeclaration('getLatestOnboardingAccess', 'hr.employee.get_by_id')
+applyHrDeclaration('listEmployees', 'hr.employee.list')

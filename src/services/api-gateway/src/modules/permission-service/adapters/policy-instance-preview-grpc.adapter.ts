@@ -1,15 +1,10 @@
 import { HttpException, HttpStatus, Inject, Injectable, OnModuleInit } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
-import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory
-} from '@oes/common/authorization'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
-import {
-  DownstreamRequestSource,
-  toOperatorScopedMetadataInput
-} from '../../../common/grpc/gateway-downstream-source.mapper'
+import { DownstreamRequestSource } from '../../../common/grpc/gateway-downstream-source.mapper'
+import { PERMISSION_TARGET_AUDIENCE, TrustedPermissionGrpcClient } from '../../../infrastructure/grpc/trusted-permission.grpc.client'
+import { GatewayFoundationTrustedGrpcExecutionProducer } from '../../../infrastructure/grpc/trusted-auth.grpc.client'
 import { EvaluatePolicyInstancePreviewDto } from '../interface/http/dtos/policy-instance-preview.dto'
 
 const CALLER = 'api-gateway'
@@ -42,14 +37,12 @@ export class PolicyInstancePreviewGrpcAdapter implements OnModuleInit {
   private svc!: PolicyInstancePreviewGrpcClient
 
   constructor(
-    @InjectGrpcClient(SERVICE_NAMES.PERMISSION)
-    private readonly client: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory
+    private readonly client: TrustedPermissionGrpcClient,
+    private readonly trusted: GatewayFoundationTrustedGrpcExecutionProducer
   ) {}
 
   onModuleInit(): void {
-    this.svc = this.client.getService<PolicyInstancePreviewGrpcClient>(
+    this.svc = this.client.getClient().getService<PolicyInstancePreviewGrpcClient>(
       'PolicyInstancePreviewService'
     )
   }
@@ -59,10 +52,10 @@ export class PolicyInstancePreviewGrpcAdapter implements OnModuleInit {
     req: EvaluatePolicyInstancePreviewDto,
     source: DownstreamRequestSource
   ) {
-    const result = await this.call('evaluatePolicyInstancePreview', () =>
+    const result = await this.call('evaluatePolicyInstancePreview', async () =>
       this.svc.evaluatePolicyInstancePreview(
         this.toGrpcRequest(req),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.policy.list'])
       )
     )
 
@@ -114,7 +107,7 @@ export class PolicyInstancePreviewGrpcAdapter implements OnModuleInit {
 
   private async call<T>(method: string, factory: () => any): Promise<T> {
     try {
-      const result = await safeGrpcCall(factory(), this.opts(method))
+      const result = await safeGrpcCall(await factory(), this.opts(method))
       return result as T
     } catch (error) {
       throw this.mapDownstreamError(error)

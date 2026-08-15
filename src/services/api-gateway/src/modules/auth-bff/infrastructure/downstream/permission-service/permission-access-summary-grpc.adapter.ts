@@ -1,9 +1,5 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
-import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory
-} from '@oes/common/authorization'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import {
   AccountAccessSummaryResponse,
@@ -13,10 +9,9 @@ import {
   ResolveAccountNavigationRequest
 } from '@oes/common/generated/permission_service'
 import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
-import {
-  DownstreamRequestSource,
-  toOperatorScopedMetadataInput
-} from '../../../../../common/grpc/gateway-downstream-source.mapper'
+import { DownstreamRequestSource } from '../../../../../common/grpc/gateway-downstream-source.mapper'
+import { PERMISSION_TARGET_AUDIENCE, TrustedPermissionGrpcClient } from '../../../../../infrastructure/grpc/trusted-permission.grpc.client'
+import { GatewayFoundationTrustedGrpcExecutionProducer } from '../../../../../infrastructure/grpc/trusted-auth.grpc.client'
 
 const CALLER = 'api-gateway'
 
@@ -26,42 +21,44 @@ export class PermissionAccessSummaryGrpcAdapter implements OnModuleInit {
   private svc!: PermissionAccessSummaryServiceClient
 
   constructor(
-    @InjectGrpcClient(SERVICE_NAMES.PERMISSION)
-    private readonly client: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory
+    private readonly client: TrustedPermissionGrpcClient,
+    private readonly trusted: GatewayFoundationTrustedGrpcExecutionProducer
   ) {}
 
   onModuleInit(): void {
-    this.svc = this.client.getService<PermissionAccessSummaryServiceClient>(
+    this.svc = this.client.getClient().getService<PermissionAccessSummaryServiceClient>(
       PERMISSION_ACCESS_SUMMARY_SERVICE_NAME
     )
   }
 
-  getAccountAccessSummary(
+  async getAccountAccessSummary(
     request: { accountId: string; tenantId?: string; scopeLevel: 'SYSTEM' | 'TENANT' },
     source: DownstreamRequestSource
   ): Promise<AccountAccessSummaryResponse> {
     return safeGrpcCall(
-      this.svc.getAccountAccessSummary(request, this.metadata(source)),
+      this.svc.getAccountAccessSummary(
+        request,
+        await this.trusted.forInternalCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.internal.account_access_summary.resolve'
+        ])
+      ),
       this.opts('getAccountAccessSummary')
     )
   }
 
   // Resolves runtime navigation entries for the selected account context.
-  resolveAccountNavigation(
+  async resolveAccountNavigation(
     request: ResolveAccountNavigationRequest,
     source: DownstreamRequestSource
   ): Promise<AccountNavigationSummaryResponse> {
     return safeGrpcCall(
-      this.svc.resolveAccountNavigation(request, this.metadata(source)),
+      this.svc.resolveAccountNavigation(
+        request,
+        await this.trusted.forInternalCall(source, PERMISSION_TARGET_AUDIENCE, [
+          'permission.internal.account_navigation.resolve'
+        ])
+      ),
       this.opts('resolveAccountNavigation')
-    )
-  }
-
-  private metadata(source: DownstreamRequestSource) {
-    return this.metadataFactory.createOperatorScopedMetadata(
-      toOperatorScopedMetadataInput(source)
     )
   }
 

@@ -9,6 +9,7 @@ import { RegistryModule } from '@oes/common/registry'
 import { ConfigModule } from '@nestjs/config'
 import { NacosConfigModule } from '@oes/common/config'
 import { AuthorizationModule } from '@oes/common/authorization'
+import { PermissionTrustedExecutionModule } from './modules/authorization/permission-trusted-execution.module'
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { AuthorizationModule } from '@oes/common/authorization'
     RegistryModule, // Nacos service registration and discovery
     NacosConfigModule, // Nacos config center
     AuthorizationModule,
+    PermissionTrustedExecutionModule,
 
     PermissionModule,
     RoleModule,

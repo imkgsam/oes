@@ -1,8 +1,9 @@
 import { BadRequestException, Controller, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common'
+import { AuthorizeBusinessRpc, getAuthenticatedGrpcRequestContext } from '@oes/common/authorization'
+import { HrFoundationTrustedExecutionGuard } from '../../modules/hr-trusted-execution.module'
 import { Metadata } from '@grpc/grpc-js'
 import {
   AuthenticatedOperatorGuard,
-  getAuthenticatedGrpcRequestContext,
   getGrpcMetadataValue,
   GrpcRequestContextInterceptor,
   InternalServiceGuard,
@@ -50,8 +51,7 @@ import { EmployeeAccessPendingException, HrOnboardingAccessService } from '../..
 
 /** HrManagementGrpcController exposes HR management contracts over gRPC. */
 @UseFilters(GrpcExceptionFilter)
-@RequireAuthenticatedOperator()
-@UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
+@UseGuards(HrFoundationTrustedExecutionGuard)
 @UseInterceptors(GrpcRequestContextInterceptor)
 @Controller()
 @HrManagementServiceControllerMethods()
@@ -68,7 +68,7 @@ export class HrManagementGrpcController implements HrManagementServiceController
   ): Promise<CreateEmployeeResponse> {
     requireOperatorMetadata(metadata)
     const employee = await this.hrManagementService.createEmployee({
-      tenantId: request.tenantId ?? '',
+      tenantId: getTrustedHrTenantId(request),
       tenantPartyId: request.tenantPartyId ?? '',
       employeeCode: request.employeeCode || undefined
     })
@@ -82,7 +82,7 @@ export class HrManagementGrpcController implements HrManagementServiceController
     requireOperatorMetadata(metadata)
     const downstreamContext = buildDownstreamRequestContext(request, metadata)
     const result = await this.hrEmployeeOnboardingService.startEmployeeOnboarding({
-      tenantId: request.tenantId ?? '',
+      tenantId: getTrustedHrTenantId(request),
       idempotencyKey: request.idempotencyKey ?? '',
       employeeCode: request.employeeCode || undefined,
       person: {
@@ -130,7 +130,7 @@ export class HrManagementGrpcController implements HrManagementServiceController
   ): Promise<UpdateEmployeeOfficialPhotoResponse> {
     requireOperatorMetadata(metadata)
     const employee = await this.hrManagementService.updateEmployeeOfficialPhoto({
-      tenantId: request.tenantId ?? '',
+      tenantId: getTrustedHrTenantId(request),
       employeeId: request.employeeId ?? '',
       officialPhotoAssetId: request.officialPhotoAssetId ?? '',
       officialPhotoUrl: request.officialPhotoUrl ?? ''
@@ -144,7 +144,7 @@ export class HrManagementGrpcController implements HrManagementServiceController
   ): Promise<RemoveEmployeeOfficialPhotoResponse> {
     requireOperatorMetadata(metadata)
     const employee = await this.hrManagementService.removeEmployeeOfficialPhoto({
-      tenantId: request.tenantId ?? '',
+      tenantId: getTrustedHrTenantId(request),
       employeeId: request.employeeId ?? ''
     })
     return { employee: mapEmployee(employee) }
@@ -156,7 +156,7 @@ export class HrManagementGrpcController implements HrManagementServiceController
   ): Promise<CreateEmploymentResponse> {
     requireOperatorMetadata(metadata)
     const result = await this.hrManagementService.createEmployment({
-      tenantId: request.tenantId ?? '',
+      tenantId: getTrustedHrTenantId(request),
       employeeId: request.employeeId ?? '',
       orgUnitId: request.orgUnitId ?? '',
       positionName: request.positionName || undefined,
@@ -190,7 +190,7 @@ export class HrManagementGrpcController implements HrManagementServiceController
   ): Promise<ChangePrimaryEmploymentResponse> {
     requireOperatorMetadata(metadata)
     const result = await this.hrManagementService.changePrimaryEmployment({
-      tenantId: request.tenantId ?? '',
+      tenantId: getTrustedHrTenantId(request),
       employeeId: request.employeeId ?? '',
       fromEmploymentId: request.fromEmploymentId ?? '',
       toOrgUnitId: request.toOrgUnitId ?? '',
@@ -214,7 +214,7 @@ export class HrManagementGrpcController implements HrManagementServiceController
 
     try {
       const process = await this.hrOnboardingAccessService.completeAccess({
-        tenantId: request.tenantId ?? '',
+        tenantId: getTrustedHrTenantId(request),
         employeeId: request.employeeId ?? '',
         employmentId: request.employmentId ?? '',
         existingAccountId: request.existingAccountId || undefined,
@@ -369,3 +369,26 @@ function mapOnboardingAccessStatus(status: string) {
       return 0
   }
 }
+
+
+/** Derives HR tenant authority only from the locally verified ExecutionToken. */
+function getTrustedHrTenantId(request: object): string {
+ const tenantId = getAuthenticatedGrpcRequestContext(request)?.verifiedExecutionToken?.tenantId?.trim()
+ if (!tenantId || tenantId === 'SYSTEM' || tenantId === '*') throw new Error('HR trusted tenant context is required')
+ return tenantId
+}
+
+/** Applies HR's frozen BUSINESS Code declaration to each baseline handler. */
+function applyHrDeclaration(method: string, code: string): void {
+ const descriptor = Object.getOwnPropertyDescriptor(HrManagementGrpcController.prototype, method)
+ if (!descriptor) throw new Error(`HR handler is missing: ${method}`)
+ AuthorizeBusinessRpc({ all: [code] })(HrManagementGrpcController.prototype, method, descriptor)
+}
+applyHrDeclaration('createEmployee', 'hr.employee.create')
+applyHrDeclaration('createEmployeeOnboarding', 'hr.employee.create')
+applyHrDeclaration('updateEmployeeOfficialPhoto', 'hr.employee.create')
+applyHrDeclaration('removeEmployeeOfficialPhoto', 'hr.employee.create')
+applyHrDeclaration('createEmployment', 'hr.employment.create')
+applyHrDeclaration('completeEmployeeAccess', 'hr.employment.create')
+applyHrDeclaration('endEmployment', 'hr.employment.end')
+applyHrDeclaration('changePrimaryEmployment', 'hr.employment.change_primary')

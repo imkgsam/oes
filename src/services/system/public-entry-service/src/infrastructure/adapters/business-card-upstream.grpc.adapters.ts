@@ -1,6 +1,5 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
-import { GRPC_METADATA_PROPAGATION_FACTORY, GrpcMetadataPropagationFactory } from '@oes/common/authorization'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import {
   EmployeeLifecycleStatus,
@@ -27,14 +26,11 @@ import {
   ContactActionPublicSafeValue,
   ContactActionResolveRef
 } from '../../application/ports/business-card.ports'
+import { PublicEntryFoundationTrustedGrpcExecutionProducer } from './foundation-trusted-grpc.clients'
 
 export const PUBLIC_ENTRY_HR_GRPC_CLIENT = Symbol('PUBLIC_ENTRY_HR_GRPC_CLIENT')
 export const PUBLIC_ENTRY_IDENTITY_GRPC_CLIENT = Symbol('PUBLIC_ENTRY_IDENTITY_GRPC_CLIENT')
 export const PUBLIC_ENTRY_TENANT_ORG_GRPC_CLIENT = Symbol('PUBLIC_ENTRY_TENANT_ORG_GRPC_CLIENT')
-
-type MetadataInput = {
-  traceId?: string
-}
 
 // BusinessCardEmployeeGrpcAdapter composes employee display facts from HR, Identity, and Tenant Org contracts.
 @Injectable()
@@ -42,13 +38,12 @@ export class BusinessCardEmployeeGrpcAdapter implements BusinessCardEmployeePort
   private hrQueryService!: HrQueryServiceClient
   private identityQueryService!: IdentityQueryServiceClient
   private tenantOrgQueryService!: TenantOrgQueryServiceClient
+  private readonly trusted = new PublicEntryFoundationTrustedGrpcExecutionProducer()
 
   constructor(
     @Inject(PUBLIC_ENTRY_HR_GRPC_CLIENT) private readonly hrClient: ClientGrpc,
     @Inject(PUBLIC_ENTRY_IDENTITY_GRPC_CLIENT) private readonly identityClient: ClientGrpc,
-    @Inject(PUBLIC_ENTRY_TENANT_ORG_GRPC_CLIENT) private readonly tenantOrgClient: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory
+    @Inject(PUBLIC_ENTRY_TENANT_ORG_GRPC_CLIENT) private readonly tenantOrgClient: ClientGrpc
   ) {}
 
   onModuleInit(): void {
@@ -68,7 +63,7 @@ export class BusinessCardEmployeeGrpcAdapter implements BusinessCardEmployeePort
       const employeeResponse = await safeGrpcCall(
         this.hrQueryService.getEmployeeById(
           { employeeId: input.employeeId },
-          this.metadata(input)
+          await this.trusted.forBusinessCall('hr-service', ['hr.employee.get_by_id'])
         ),
         {
           caller: SERVICE_NAMES.PUBLIC_ENTRY,
@@ -120,7 +115,7 @@ export class BusinessCardEmployeeGrpcAdapter implements BusinessCardEmployeePort
         safeGrpcCall(
           this.identityQueryService.getEmployeeBindingByAccountId(
             { accountId: input.accountId },
-            this.metadata(input)
+            await this.trusted.forBusinessCall('identity-service', ['identity.account.list'])
           ),
           {
             caller: SERVICE_NAMES.PUBLIC_ENTRY,
@@ -128,7 +123,10 @@ export class BusinessCardEmployeeGrpcAdapter implements BusinessCardEmployeePort
           }
         ),
         safeGrpcCall(
-          this.identityQueryService.getAccountById({ accountId: input.accountId }, this.metadata(input)),
+          this.identityQueryService.getAccountById(
+            { accountId: input.accountId },
+            await this.trusted.forBusinessCall('identity-service', ['identity.account.list'])
+          ),
           {
             caller: SERVICE_NAMES.PUBLIC_ENTRY,
             method: 'IdentityQueryService.getAccountById'
@@ -157,7 +155,7 @@ export class BusinessCardEmployeeGrpcAdapter implements BusinessCardEmployeePort
             tenantId: input.tenantId,
             employeeId: input.employeeId
           },
-          this.metadata(input)
+          await this.trusted.forBusinessCall('identity-service', ['identity.account.list'])
         ),
         {
           caller: SERVICE_NAMES.PUBLIC_ENTRY,
@@ -173,7 +171,10 @@ export class BusinessCardEmployeeGrpcAdapter implements BusinessCardEmployeePort
   private async resolveAccountProfile(accountId: string, traceId?: string) {
     try {
       const response = await safeGrpcCall(
-        this.identityQueryService.getAccountById({ accountId }, this.metadata({ traceId })),
+        this.identityQueryService.getAccountById(
+          { accountId },
+          await this.trusted.forBusinessCall('identity-service', ['identity.account.list'])
+        ),
         {
           caller: SERVICE_NAMES.PUBLIC_ENTRY,
           method: 'IdentityQueryService.getAccountById'
@@ -188,7 +189,10 @@ export class BusinessCardEmployeeGrpcAdapter implements BusinessCardEmployeePort
   private async resolveActiveEmployment(employeeId: string, traceId?: string) {
     try {
       const response = await safeGrpcCall(
-        this.hrQueryService.getActiveEmployment({ employeeId }, this.metadata({ traceId })),
+        this.hrQueryService.getActiveEmployment(
+          { employeeId },
+          await this.trusted.forBusinessCall('hr-service', ['hr.employee.get_by_id'])
+        ),
         {
           caller: SERVICE_NAMES.PUBLIC_ENTRY,
           method: 'HrQueryService.getActiveEmployment'
@@ -209,7 +213,7 @@ export class BusinessCardEmployeeGrpcAdapter implements BusinessCardEmployeePort
       const response = await safeGrpcCall(
         this.tenantOrgQueryService.getOrgReferenceSummary(
           { tenantId, orgUnitId },
-          this.metadata({ traceId })
+          await this.trusted.forBusinessCall('tenant-org-service', ['tenant_org.org_unit.list_tree'])
         ),
         {
           caller: SERVICE_NAMES.PUBLIC_ENTRY,
@@ -222,23 +226,16 @@ export class BusinessCardEmployeeGrpcAdapter implements BusinessCardEmployeePort
     }
   }
 
-  private metadata(input: MetadataInput) {
-    return this.metadataFactory.createInternalCallMetadata({
-      callerServiceName: SERVICE_NAMES.PUBLIC_ENTRY,
-      traceId: input.traceId
-    })
-  }
 }
 
 // BusinessCardContactAssetGrpcAdapter resolves existing identity Contact Asset refs into public-safe action values.
 @Injectable()
 export class BusinessCardContactAssetGrpcAdapter implements BusinessCardContactAssetPort, OnModuleInit {
   private identityQueryService!: IdentityQueryServiceClient
+  private readonly trusted = new PublicEntryFoundationTrustedGrpcExecutionProducer()
 
   constructor(
-    @Inject(PUBLIC_ENTRY_IDENTITY_GRPC_CLIENT) private readonly identityClient: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory
+    @Inject(PUBLIC_ENTRY_IDENTITY_GRPC_CLIENT) private readonly identityClient: ClientGrpc
   ) {}
 
   onModuleInit(): void {
@@ -259,7 +256,7 @@ export class BusinessCardContactAssetGrpcAdapter implements BusinessCardContactA
             tenantId: input.tenantId,
             employeeId: input.employeeId
           },
-          this.metadata(input)
+          await this.trusted.forBusinessCall('identity-service', ['identity.account.list'])
         ),
         {
           caller: SERVICE_NAMES.PUBLIC_ENTRY,
@@ -283,7 +280,7 @@ export class BusinessCardContactAssetGrpcAdapter implements BusinessCardContactA
               targetRefId: ref.targetRefId ?? ''
             }))
           },
-          this.metadata(input)
+          await this.trusted.forBusinessCall('identity-service', ['identity.account.self.read'])
         ),
         {
           caller: SERVICE_NAMES.PUBLIC_ENTRY,
@@ -300,12 +297,6 @@ export class BusinessCardContactAssetGrpcAdapter implements BusinessCardContactA
     }
   }
 
-  private metadata(input: MetadataInput) {
-    return this.metadataFactory.createInternalCallMetadata({
-      callerServiceName: SERVICE_NAMES.PUBLIC_ENTRY,
-      traceId: input.traceId
-    })
-  }
 }
 
 // toPublicSafeContactValue maps identity public-safe resolver output into BusinessCard action values.
@@ -354,11 +345,10 @@ function normalizeContactAssetKind(
 @Injectable()
 export class BusinessCardTenantProfileGrpcAdapter implements BusinessCardTenantProfilePort, OnModuleInit {
   private tenantOrgQueryService!: TenantOrgQueryServiceClient
+  private readonly trusted = new PublicEntryFoundationTrustedGrpcExecutionProducer()
 
   constructor(
-    @Inject(PUBLIC_ENTRY_TENANT_ORG_GRPC_CLIENT) private readonly tenantOrgClient: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory
+    @Inject(PUBLIC_ENTRY_TENANT_ORG_GRPC_CLIENT) private readonly tenantOrgClient: ClientGrpc
   ) {}
 
   onModuleInit(): void {
@@ -374,7 +364,7 @@ export class BusinessCardTenantProfileGrpcAdapter implements BusinessCardTenantP
       const response = await safeGrpcCall(
         this.tenantOrgQueryService.getTenantById(
           { tenantId: input.tenantId },
-          this.metadata(input)
+          await this.trusted.forBusinessCall('tenant-org-service', ['tenant_org.tenant.get_by_id'])
         ),
         {
           caller: SERVICE_NAMES.PUBLIC_ENTRY,
@@ -394,12 +384,6 @@ export class BusinessCardTenantProfileGrpcAdapter implements BusinessCardTenantP
     }
   }
 
-  private metadata(input: MetadataInput) {
-    return this.metadataFactory.createInternalCallMetadata({
-      callerServiceName: SERVICE_NAMES.PUBLIC_ENTRY,
-      traceId: input.traceId
-    })
-  }
 }
 
 // mapEmployeeStatus converts HR lifecycle status into the BusinessCard public readiness status.

@@ -1,11 +1,6 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
 import { SERVICE_NAMES } from '@oes/common/constants'
-import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory
-} from '@oes/common/authorization'
-import { toOperatorScopedMetadataInput } from '../../../../../common/grpc/gateway-downstream-source.mapper'
 import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
 import {
   AUTH_SERVICE_NAME,
@@ -99,11 +94,9 @@ import {
   VerifyPhoneBindingRequest
 } from '@oes/common/generated/auth_service'
 import { EXTERNAL_API_KEY_CREDENTIAL_SERVICE_NAME, ExchangeExternalApiKeyResponse, ExternalApiKeyCredentialServiceClient } from '@oes/common/generated/auth_service'
-import {
-  DownstreamRequestSource,
-  toInternalCallMetadataInput
-} from '../../../../../common/grpc/gateway-downstream-source.mapper'
-import { TrustedAuthApiKeyGrpcClient } from './trusted-auth-api-key.grpc.client'
+import { DownstreamRequestSource } from '../../../../../common/grpc/gateway-downstream-source.mapper'
+import { AUTH_TARGET_AUDIENCE, GatewayFoundationTrustedGrpcExecutionProducer, TrustedAuthGrpcClient } from '../../../../../infrastructure/grpc/trusted-auth.grpc.client'
+import { GatewayMachineTrustedGrpcExecutionProducer } from '../../../../../common/grpc/gateway-machine-trusted-grpc-execution-producer'
 
 const CALLER = 'api-gateway'
 
@@ -114,27 +107,25 @@ export class AuthGrpcAdapter implements OnModuleInit {
   private externalApiKeySvc!: ExternalApiKeyCredentialServiceClient
 
   constructor(
-    @InjectGrpcClient(SERVICE_NAMES.AUTH)
-    private readonly client: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory,
-    private readonly trustedApiKeyClient: TrustedAuthApiKeyGrpcClient = new TrustedAuthApiKeyGrpcClient()
+    private readonly client: TrustedAuthGrpcClient,
+    private readonly trusted: GatewayFoundationTrustedGrpcExecutionProducer,
+    private readonly machineExecution: GatewayMachineTrustedGrpcExecutionProducer
   ) {}
 
   onModuleInit(): void {
-    this.svc = this.client.getService<AuthServiceClient>(AUTH_SERVICE_NAME)
-    this.externalApiKeySvc = this.client.getService<ExternalApiKeyCredentialServiceClient>(EXTERNAL_API_KEY_CREDENTIAL_SERVICE_NAME)
+    this.svc = this.client.getClient().getService<AuthServiceClient>(AUTH_SERVICE_NAME)
+    this.externalApiKeySvc = this.client.getClient().getService<ExternalApiKeyCredentialServiceClient>(EXTERNAL_API_KEY_CREDENTIAL_SERVICE_NAME)
   }
 
   /** Exchanges the only caller-sensitive API-key field over Auth's dedicated trusted gRPC surface. */
-  exchangeExternalApiKey(
+  async exchangeExternalApiKey(
     request: { presentedApiKey: string },
     source: DownstreamRequestSource
   ): Promise<ExchangeExternalApiKeyResponse> {
     return this.exchangeExternalApiKeyTrusted(request, source)
   }
 
-  loginWithEmailPassword(
+  async loginWithEmailPassword(
     request: {
       email: string
       password: string
@@ -152,11 +143,11 @@ export class AuthGrpcAdapter implements OnModuleInit {
 
     return this.call(
       'loginWithEmailPassword',
-      this.svc.loginWithEmailPassword(grpcRequest, this.metadata(source))
+      this.svc.loginWithEmailPassword(grpcRequest, this.trusted.forAuthPublicAdmission(source))
     )
   }
 
-  loginWithEmailOtp(
+  async loginWithEmailOtp(
     email: string,
     otp: string,
     terminal: string | undefined,
@@ -169,10 +160,10 @@ export class AuthGrpcAdapter implements OnModuleInit {
   ): Promise<LoginResponse> {
     const request: LoginWithEmailOtpRequest = { email, otp, terminal, ...deviceContext }
 
-    return this.call('loginWithEmailOtp', this.svc.loginWithEmailOtp(request, this.metadata(source)))
+    return this.call('loginWithEmailOtp', this.svc.loginWithEmailOtp(request, this.trusted.forAuthPublicAdmission(source)))
   }
 
-  requestEmailOtpLoginChallenge(
+  async requestEmailOtpLoginChallenge(
     email: string,
     source: DownstreamRequestSource
   ): Promise<OtpChallengeResponse> {
@@ -180,11 +171,11 @@ export class AuthGrpcAdapter implements OnModuleInit {
 
     return this.call(
       'requestEmailOtpLoginChallenge',
-      this.svc.requestEmailOtpLoginChallenge(grpcRequest, this.metadata(source))
+      this.svc.requestEmailOtpLoginChallenge(grpcRequest, this.trusted.forAuthPublicAdmission(source))
     )
   }
 
-  requestEmailBindingChallenge(
+  async requestEmailBindingChallenge(
     request: { email: string; userId: string },
     source: DownstreamRequestSource
   ): Promise<OtpChallengeResponse> {
@@ -195,11 +186,11 @@ export class AuthGrpcAdapter implements OnModuleInit {
 
     return this.call(
       'requestEmailBindingChallenge',
-      this.svc.requestEmailBindingChallenge(grpcRequest, this.operatorMetadata(source))
+      this.svc.requestEmailBindingChallenge(grpcRequest, await this.trusted.forSelfServiceCall(source, AUTH_TARGET_AUDIENCE))
     )
   }
 
-  loginWithPhonePassword(
+  async loginWithPhonePassword(
     request: {
       phone: string
       password: string
@@ -217,11 +208,11 @@ export class AuthGrpcAdapter implements OnModuleInit {
 
     return this.call(
       'loginWithPhonePassword',
-      this.svc.loginWithPhonePassword(grpcRequest, this.metadata(source))
+      this.svc.loginWithPhonePassword(grpcRequest, this.trusted.forAuthPublicAdmission(source))
     )
   }
 
-  loginWithEmployeeCodePin(
+  async loginWithEmployeeCodePin(
     request: {
       employeeCode: string
       pin: string
@@ -239,11 +230,11 @@ export class AuthGrpcAdapter implements OnModuleInit {
 
     return this.call(
       'loginWithEmployeeCodePin',
-      this.svc.loginWithEmployeeCodePin(grpcRequest, this.metadata(source))
+      this.svc.loginWithEmployeeCodePin(grpcRequest, this.trusted.forAuthPublicAdmission(source))
     )
   }
 
-  preflightEmployeeCodePin(
+  async preflightEmployeeCodePin(
     request: {
       employeeCode: string
       terminal?: string
@@ -257,11 +248,11 @@ export class AuthGrpcAdapter implements OnModuleInit {
 
     return this.call(
       'preflightEmployeeCodePinLogin',
-      this.svc.preflightEmployeeCodePinLogin(grpcRequest, this.metadata(source))
+      this.svc.preflightEmployeeCodePinLogin(grpcRequest, this.trusted.forAuthPublicAdmission(source))
     )
   }
 
-  loginWithPhoneOtp(
+  async loginWithPhoneOtp(
     phone: string,
     otp: string,
     terminal: string | undefined,
@@ -274,10 +265,10 @@ export class AuthGrpcAdapter implements OnModuleInit {
   ): Promise<LoginResponse> {
     const request: LoginWithPhoneOtpRequest = { phone, otp, terminal, ...deviceContext }
 
-    return this.call('loginWithPhoneOtp', this.svc.loginWithPhoneOtp(request, this.metadata(source)))
+    return this.call('loginWithPhoneOtp', this.svc.loginWithPhoneOtp(request, this.trusted.forAuthPublicAdmission(source)))
   }
 
-  requestPhoneOtpLoginChallenge(
+  async requestPhoneOtpLoginChallenge(
     phone: string,
     source: DownstreamRequestSource
   ): Promise<OtpChallengeResponse> {
@@ -285,11 +276,11 @@ export class AuthGrpcAdapter implements OnModuleInit {
 
     return this.call(
       'requestPhoneOtpLoginChallenge',
-      this.svc.requestPhoneOtpLoginChallenge(grpcRequest, this.metadata(source))
+      this.svc.requestPhoneOtpLoginChallenge(grpcRequest, this.trusted.forAuthPublicAdmission(source))
     )
   }
 
-  requestPhoneBindingChallenge(
+  async requestPhoneBindingChallenge(
     request: { phone: string; userId: string },
     source: DownstreamRequestSource
   ): Promise<OtpChallengeResponse> {
@@ -300,11 +291,11 @@ export class AuthGrpcAdapter implements OnModuleInit {
 
     return this.call(
       'requestPhoneBindingChallenge',
-      this.svc.requestPhoneBindingChallenge(grpcRequest, this.operatorMetadata(source))
+      this.svc.requestPhoneBindingChallenge(grpcRequest, await this.trusted.forSelfServiceCall(source, AUTH_TARGET_AUDIENCE))
     )
   }
 
-  requestLoginMfaFactorChallenge(
+  async requestLoginMfaFactorChallenge(
     challengeId: string,
     factor: 'BACKUP_CODE' | 'EMAIL_OTP' | 'SMS_OTP' | 'TOTP',
     source: DownstreamRequestSource
@@ -316,12 +307,12 @@ export class AuthGrpcAdapter implements OnModuleInit {
           challengeId,
           factor: this.toGrpcMfaBindingType(factor)
         },
-        this.metadata(source)
+        this.trusted.forAuthPublicAdmission(source)
       )
     )
   }
 
-  startStepUpMfaChallenge(
+  async startStepUpMfaChallenge(
     request: {
       accountId: string
       scenario: 'CHANGE_CONTACT' | 'CHANGE_PASSWORD' | 'NEW_DEVICE_LOGIN'
@@ -337,16 +328,15 @@ export class AuthGrpcAdapter implements OnModuleInit {
         {
           userId: request.userId,
           accountId: request.accountId,
-          tenantId: request.tenantId,
           scenario: this.toGrpcMfaScenario(request.scenario),
           scopeLevel: request.scopeLevel
         },
-        this.operatorMetadata(source)
+        await this.trusted.forSelfServiceCall(source, AUTH_TARGET_AUDIENCE)
       )
     )
   }
 
-  completeStepUpMfaChallenge(
+  async completeStepUpMfaChallenge(
     request: {
       challengeId: string
       factor: 'BACKUP_CODE' | 'EMAIL_OTP' | 'SMS_OTP' | 'TOTP'
@@ -364,11 +354,11 @@ export class AuthGrpcAdapter implements OnModuleInit {
 
     return this.call(
       'completeStepUpMfaChallenge',
-      this.svc.completeStepUpMfaChallenge(grpcRequest, this.operatorMetadata(source))
+      this.svc.completeStepUpMfaChallenge(grpcRequest, await this.trusted.forSelfServiceCall(source, AUTH_TARGET_AUDIENCE))
     )
   }
 
-  submitMfaChallenge(
+  async submitMfaChallenge(
     challengeId: string,
     factor: 'BACKUP_CODE' | 'EMAIL_OTP' | 'SMS_OTP' | 'TOTP',
     code: string,
@@ -388,12 +378,12 @@ export class AuthGrpcAdapter implements OnModuleInit {
           factorChallengeId,
           trustCurrentDevice
         },
-        this.metadata(source)
+        this.trusted.forAuthPublicAdmission(source)
       )
     )
   }
 
-  selectAccount(
+  async selectAccount(
     request: {
       userId: string
       accountId: string
@@ -407,10 +397,10 @@ export class AuthGrpcAdapter implements OnModuleInit {
     },
     source: DownstreamRequestSource
   ): Promise<SelectAccountResponse> {
-    return this.call('selectAccount', this.svc.selectAccount(request, this.metadata(source)))
+    return this.call('selectAccount', this.svc.selectAccount(request, this.trusted.forAuthPublicAdmission(source)))
   }
 
-  bootstrapUserLoginMethods(
+  async bootstrapUserLoginMethods(
     request: {
       userId: string
       accountId: string
@@ -430,11 +420,11 @@ export class AuthGrpcAdapter implements OnModuleInit {
 
     return this.call(
       'bootstrapUserLoginMethods',
-      this.svc.bootstrapUserLoginMethods(grpcRequest, this.operatorMetadata(source))
+      this.svc.bootstrapUserLoginMethods(grpcRequest, await this.trusted.forBusinessCall(source, AUTH_TARGET_AUDIENCE, ['auth.account_credentials.bootstrap']))
     )
   }
 
-  bootstrapOwnLoginMethods(
+  async bootstrapOwnLoginMethods(
     request: {
       userId: string
       accountId: string
@@ -452,11 +442,11 @@ export class AuthGrpcAdapter implements OnModuleInit {
 
     return this.call(
       'bootstrapOwnLoginMethods',
-      this.svc.bootstrapOwnLoginMethods(grpcRequest, this.operatorMetadata(source))
+      this.svc.bootstrapOwnLoginMethods(grpcRequest, await this.trusted.forSelfServiceCall(source, AUTH_TARGET_AUDIENCE))
     )
   }
 
-  completeFirstLoginPasswordSetup(
+  async completeFirstLoginPasswordSetup(
     request: { newPassword: string; userId: string },
     source: DownstreamRequestSource
   ): Promise<CompleteFirstLoginPasswordSetupResponse> {
@@ -467,11 +457,11 @@ export class AuthGrpcAdapter implements OnModuleInit {
 
     return this.call(
       'completeFirstLoginPasswordSetup',
-      this.svc.completeFirstLoginPasswordSetup(grpcRequest, this.operatorMetadata(source))
+      this.svc.completeFirstLoginPasswordSetup(grpcRequest, this.trusted.forAuthPublicAdmission(source))
     )
   }
 
-  inspectPasswordRecoveryChannels(
+  async inspectPasswordRecoveryChannels(
     request: { identifier: string },
     source: DownstreamRequestSource
   ): Promise<InspectPasswordRecoveryChannelsResponse> {
@@ -481,11 +471,11 @@ export class AuthGrpcAdapter implements OnModuleInit {
 
     return this.call(
       'inspectPasswordRecoveryChannels',
-      this.svc.inspectPasswordRecoveryChannels(grpcRequest, this.metadata(source))
+      this.svc.inspectPasswordRecoveryChannels(grpcRequest, this.trusted.forAuthPublicAdmission(source))
     )
   }
 
-  requestPasswordRecoveryChallenge(
+  async requestPasswordRecoveryChallenge(
     request: { channel: 'EMAIL' | 'PHONE'; identifier: string },
     source: DownstreamRequestSource
   ): Promise<PasswordRecoveryChallengeResponse> {
@@ -499,11 +489,11 @@ export class AuthGrpcAdapter implements OnModuleInit {
 
     return this.call(
       'requestPasswordRecoveryChallenge',
-      this.svc.requestPasswordRecoveryChallenge(grpcRequest, this.metadata(source))
+      this.svc.requestPasswordRecoveryChallenge(grpcRequest, this.trusted.forAuthPublicAdmission(source))
     )
   }
 
-  verifyPasswordRecoveryChallenge(
+  async verifyPasswordRecoveryChallenge(
     request: { challengeId: string; otp: string },
     source: DownstreamRequestSource
   ): Promise<PasswordRecoveryVerificationResponse> {
@@ -514,11 +504,11 @@ export class AuthGrpcAdapter implements OnModuleInit {
 
     return this.call(
       'verifyPasswordRecoveryChallenge',
-      this.svc.verifyPasswordRecoveryChallenge(grpcRequest, this.metadata(source))
+      this.svc.verifyPasswordRecoveryChallenge(grpcRequest, this.trusted.forAuthPublicAdmission(source))
     )
   }
 
-  completePasswordRecovery(
+  async completePasswordRecovery(
     request: { resetToken: string; newPassword: string },
     source: DownstreamRequestSource
   ): Promise<PasswordRecoveryCompletionResponse> {
@@ -529,40 +519,40 @@ export class AuthGrpcAdapter implements OnModuleInit {
 
     return this.call(
       'completePasswordRecovery',
-      this.svc.completePasswordRecovery(grpcRequest, this.metadata(source))
+      this.svc.completePasswordRecovery(grpcRequest, this.trusted.forAuthPublicAdmission(source))
     )
   }
 
-  refreshSession(
+  async refreshSession(
     refreshToken: string,
     source: DownstreamRequestSource
   ): Promise<RefreshSessionResponse> {
-    return this.call('refreshSession', this.svc.refreshSession({ refreshToken }, this.metadata(source)))
+    return this.call('refreshSession', this.svc.refreshSession({ refreshToken }, this.trusted.forAuthPublicAdmission(source)))
   }
 
-  validateAccessToken(
+  async validateAccessToken(
     accessToken: string,
     source: DownstreamRequestSource
   ): Promise<ValidateAccessTokenResponse> {
     const request: ValidateAccessTokenRequest = { accessToken }
     return this.call(
       'validateAccessToken',
-      this.svc.validateAccessToken(request, this.metadata(source))
+      this.svc.validateAccessToken(request, this.trusted.forAuthPublicAdmission(source))
     )
   }
 
-  listSessions(
+  async listSessions(
     userId: string,
     currentSessionId: string | undefined,
     source: DownstreamRequestSource
   ): Promise<ListSessionsResponse> {
     return this.call(
       'listSessions',
-      this.svc.listSessions({ userId, currentSessionId }, this.metadata(source))
+      this.svc.listSessions({ userId, currentSessionId }, await this.trusted.forSelfServiceCall(source, AUTH_TARGET_AUDIENCE))
     )
   }
 
-  listLoginHistory(
+  async listLoginHistory(
     request: {
       userId: string
       result?: string
@@ -575,21 +565,21 @@ export class AuthGrpcAdapter implements OnModuleInit {
   ): Promise<ListLoginHistoryResponse> {
     return this.call(
       'listLoginHistory',
-      this.svc.listLoginHistory(request, this.metadata(source))
+      this.svc.listLoginHistory(request, await this.trusted.forSelfServiceCall(source, AUTH_TARGET_AUDIENCE))
     )
   }
 
-  listLoginMethods(
+  async listLoginMethods(
     userId: string,
     source: DownstreamRequestSource
   ): Promise<ListLoginMethodsResponse> {
     return this.call(
       'listLoginMethods',
-      this.svc.listLoginMethods({ userId }, this.metadata(source))
+      this.svc.listLoginMethods({ userId }, await this.trusted.forSelfServiceCall(source, AUTH_TARGET_AUDIENCE))
     )
   }
 
-  changeOwnPassword(
+  async changeOwnPassword(
     request: {
       accountId?: string
       currentPassword: string
@@ -604,7 +594,6 @@ export class AuthGrpcAdapter implements OnModuleInit {
     const grpcRequest: ChangeOwnPasswordRequest = {
       userId: request.userId,
       accountId: request.accountId,
-      tenantId: request.tenantId,
       scopeLevel: request.scopeLevel,
       currentPassword: request.currentPassword,
       newPassword: request.newPassword,
@@ -613,11 +602,11 @@ export class AuthGrpcAdapter implements OnModuleInit {
 
     return this.call(
       'changeOwnPassword',
-      this.svc.changeOwnPassword(grpcRequest, this.metadata(source))
+      this.svc.changeOwnPassword(grpcRequest, await this.trusted.forSelfServiceCall(source, AUTH_TARGET_AUDIENCE))
     )
   }
 
-  setOwnTerminalPin(
+  async setOwnTerminalPin(
     request: {
       currentPassword?: string
       mfaGrantToken?: string
@@ -630,11 +619,11 @@ export class AuthGrpcAdapter implements OnModuleInit {
 
     return this.call(
       'setOwnTerminalPin',
-      this.svc.setOwnTerminalPin(grpcRequest, this.metadata(source))
+      this.svc.setOwnTerminalPin(grpcRequest, await this.trusted.forSelfServiceCall(source, AUTH_TARGET_AUDIENCE))
     )
   }
 
-  resetOwnTerminalPin(
+  async resetOwnTerminalPin(
     request: {
       currentPassword?: string
       mfaGrantToken?: string
@@ -647,11 +636,11 @@ export class AuthGrpcAdapter implements OnModuleInit {
 
     return this.call(
       'resetOwnTerminalPin',
-      this.svc.resetOwnTerminalPin(grpcRequest, this.metadata(source))
+      this.svc.resetOwnTerminalPin(grpcRequest, await this.trusted.forSelfServiceCall(source, AUTH_TARGET_AUDIENCE))
     )
   }
 
-  setOwnTerminalPinEnabled(
+  async setOwnTerminalPinEnabled(
     request: {
       enabled: boolean
       userId: string
@@ -662,11 +651,11 @@ export class AuthGrpcAdapter implements OnModuleInit {
 
     return this.call(
       'setOwnTerminalPinEnabled',
-      this.svc.setOwnTerminalPinEnabled(grpcRequest, this.metadata(source))
+      this.svc.setOwnTerminalPinEnabled(grpcRequest, await this.trusted.forSelfServiceCall(source, AUTH_TARGET_AUDIENCE))
     )
   }
 
-  verifyEmailBinding(
+  async verifyEmailBinding(
     request: {
       accountId?: string
       email: string
@@ -681,7 +670,6 @@ export class AuthGrpcAdapter implements OnModuleInit {
     const grpcRequest: VerifyEmailBindingRequest = {
       userId: request.userId,
       accountId: request.accountId,
-      tenantId: request.tenantId,
       scopeLevel: request.scopeLevel,
       email: request.email,
       otp: request.otp,
@@ -690,11 +678,11 @@ export class AuthGrpcAdapter implements OnModuleInit {
 
     return this.call(
       'verifyEmailBinding',
-      this.svc.verifyEmailBinding(grpcRequest, this.operatorMetadata(source))
+      this.svc.verifyEmailBinding(grpcRequest, await this.trusted.forSelfServiceCall(source, AUTH_TARGET_AUDIENCE))
     )
   }
 
-  verifyPhoneBinding(
+  async verifyPhoneBinding(
     request: {
       accountId?: string
       mfaGrantToken?: string
@@ -709,7 +697,6 @@ export class AuthGrpcAdapter implements OnModuleInit {
     const grpcRequest: VerifyPhoneBindingRequest = {
       userId: request.userId,
       accountId: request.accountId,
-      tenantId: request.tenantId,
       scopeLevel: request.scopeLevel,
       phone: request.phone,
       otp: request.otp,
@@ -718,15 +705,15 @@ export class AuthGrpcAdapter implements OnModuleInit {
 
     return this.call(
       'verifyPhoneBinding',
-      this.svc.verifyPhoneBinding(grpcRequest, this.operatorMetadata(source))
+      this.svc.verifyPhoneBinding(grpcRequest, await this.trusted.forSelfServiceCall(source, AUTH_TARGET_AUDIENCE))
     )
   }
 
-  logout(sessionId: string, source: DownstreamRequestSource): Promise<LogoutResponse> {
-    return this.call('logout', this.svc.logout({ sessionId }, this.metadata(source)))
+  async logout(sessionId: string, source: DownstreamRequestSource): Promise<LogoutResponse> {
+    return this.call('logout', this.svc.logout({ sessionId }, await this.trusted.forSelfServiceCall(source, AUTH_TARGET_AUDIENCE)))
   }
 
-  listTrustedDevices(
+  async listTrustedDevices(
     userId: string,
     scopeLevel: 'SYSTEM' | 'TENANT',
     tenantId: string | undefined,
@@ -735,18 +722,17 @@ export class AuthGrpcAdapter implements OnModuleInit {
   ): Promise<ListTrustedDevicesResponse> {
     const request: ListTrustedDevicesRequest = {
       userId,
-      tenantId,
       currentDeviceId,
       scopeLevel
     }
 
     return this.call(
       'listTrustedDevices',
-      this.svc.listTrustedDevices(request, this.metadata(source))
+      this.svc.listTrustedDevices(request, await this.trusted.forSelfServiceCall(source, AUTH_TARGET_AUDIENCE))
     )
   }
 
-  revokeTrustedDevice(
+  async revokeTrustedDevice(
     userId: string,
     scopeLevel: 'SYSTEM' | 'TENANT',
     tenantId: string | undefined,
@@ -755,18 +741,17 @@ export class AuthGrpcAdapter implements OnModuleInit {
   ): Promise<{ deviceCount?: string; success?: boolean }> {
     const request: RevokeTrustedDeviceRequest = {
       userId,
-      tenantId,
       trustedDeviceId,
       scopeLevel
     }
 
     return this.call(
       'revokeTrustedDevice',
-      this.svc.revokeTrustedDevice(request, this.metadata(source))
+      this.svc.revokeTrustedDevice(request, await this.trusted.forSelfServiceCall(source, AUTH_TARGET_AUDIENCE))
     )
   }
 
-  revokeOtherTrustedDevices(
+  async revokeOtherTrustedDevices(
     userId: string,
     scopeLevel: 'SYSTEM' | 'TENANT',
     tenantId: string | undefined,
@@ -775,40 +760,39 @@ export class AuthGrpcAdapter implements OnModuleInit {
   ): Promise<{ deviceCount?: string; success?: boolean }> {
     const request: RevokeOtherTrustedDevicesRequest = {
       userId,
-      tenantId,
       currentDeviceId,
       scopeLevel
     }
 
     return this.call(
       'revokeOtherTrustedDevices',
-      this.svc.revokeOtherTrustedDevices(request, this.metadata(source))
+      this.svc.revokeOtherTrustedDevices(request, await this.trusted.forSelfServiceCall(source, AUTH_TARGET_AUDIENCE))
     )
   }
 
-  logoutOtherDevices(
+  async logoutOtherDevices(
     userId: string,
     currentSessionId: string,
     source: DownstreamRequestSource
   ): Promise<LogoutOtherDevicesResponse> {
     return this.call(
       'logoutOtherDevices',
-      this.svc.logoutOtherDevices({ userId, currentSessionId }, this.metadata(source))
+      this.svc.logoutOtherDevices({ userId, currentSessionId }, await this.trusted.forSelfServiceCall(source, AUTH_TARGET_AUDIENCE))
     )
   }
 
-  logoutAll(
+  async logoutAll(
     userId: string,
     currentSessionId: string,
     source: DownstreamRequestSource
   ): Promise<LogoutAllResponse> {
     return this.call(
       'logoutAll',
-      this.svc.logoutAll({ userId, currentSessionId }, this.metadata(source))
+      this.svc.logoutAll({ userId, currentSessionId }, await this.trusted.forSelfServiceCall(source, AUTH_TARGET_AUDIENCE))
     )
   }
 
-  logoutSession(
+  async logoutSession(
     userId: string,
     currentSessionId: string,
     targetSessionId: string,
@@ -817,86 +801,86 @@ export class AuthGrpcAdapter implements OnModuleInit {
     const request: LogoutSessionRequest = { userId, currentSessionId, targetSessionId }
     return this.call(
       'logoutSession',
-      this.svc.logoutSession(request, this.metadata(source))
+      this.svc.logoutSession(request, await this.trusted.forSelfServiceCall(source, AUTH_TARGET_AUDIENCE))
     )
   }
 
-  listMfaBindings(userId: string, source: DownstreamRequestSource): Promise<ListMfaBindingsResponse> {
-    return this.call('listMfaBindings', this.svc.listMfaBindings({ userId }, this.metadata(source)))
+  async listMfaBindings(userId: string, source: DownstreamRequestSource): Promise<ListMfaBindingsResponse> {
+    return this.call('listMfaBindings', this.svc.listMfaBindings({ userId }, await this.trusted.forSelfServiceCall(source, AUTH_TARGET_AUDIENCE)))
   }
 
-  enableMfaBinding(
+  async enableMfaBinding(
     userId: string,
     type: MfaBindingType,
     source: DownstreamRequestSource
   ): Promise<MfaBindingMutationResponse> {
     const request: EnableMfaBindingRequest = { userId, type }
-    return this.call('enableMfaBinding', this.svc.enableMfaBinding(request, this.metadata(source)))
+    return this.call('enableMfaBinding', this.svc.enableMfaBinding(request, await this.trusted.forSelfServiceCall(source, AUTH_TARGET_AUDIENCE)))
   }
 
-  disableMfaBinding(
+  async disableMfaBinding(
     userId: string,
     type: MfaBindingType,
     source: DownstreamRequestSource
   ): Promise<MfaBindingMutationResponse> {
     const request: DisableMfaBindingRequest = { userId, type }
-    return this.call('disableMfaBinding', this.svc.disableMfaBinding(request, this.metadata(source)))
+    return this.call('disableMfaBinding', this.svc.disableMfaBinding(request, await this.trusted.forSelfServiceCall(source, AUTH_TARGET_AUDIENCE)))
   }
 
-  initializeTotpBinding(
+  async initializeTotpBinding(
     userId: string,
     source: DownstreamRequestSource
   ): Promise<InitializeTotpBindingResponse> {
     const request: InitializeTotpBindingRequest = { userId }
     return this.call(
       'initializeTotpBinding',
-      this.svc.initializeTotpBinding(request, this.metadata(source))
+      this.svc.initializeTotpBinding(request, await this.trusted.forSelfServiceCall(source, AUTH_TARGET_AUDIENCE))
     )
   }
 
-  activateTotpBinding(
+  async activateTotpBinding(
     userId: string,
     bindingId: string,
     code: string,
     source: DownstreamRequestSource
   ): Promise<MfaBindingMutationResponse> {
     const request: ActivateTotpBindingRequest = { userId, bindingId, code }
-    return this.call('activateTotpBinding', this.svc.activateTotpBinding(request, this.metadata(source)))
+    return this.call('activateTotpBinding', this.svc.activateTotpBinding(request, await this.trusted.forSelfServiceCall(source, AUTH_TARGET_AUDIENCE)))
   }
 
-  initializeRecoveryCodes(
+  async initializeRecoveryCodes(
     userId: string,
     source: DownstreamRequestSource
   ): Promise<RecoveryCodesResponse> {
     const request: InitializeRecoveryCodesRequest = { userId }
     return this.call(
       'initializeRecoveryCodes',
-      this.svc.initializeRecoveryCodes(request, this.metadata(source))
+      this.svc.initializeRecoveryCodes(request, await this.trusted.forSelfServiceCall(source, AUTH_TARGET_AUDIENCE))
     )
   }
 
-  regenerateRecoveryCodes(
+  async regenerateRecoveryCodes(
     userId: string,
     source: DownstreamRequestSource
   ): Promise<RecoveryCodesResponse> {
     const request: RegenerateRecoveryCodesRequest = { userId }
     return this.call(
       'regenerateRecoveryCodes',
-      this.svc.regenerateRecoveryCodes(request, this.metadata(source))
+      this.svc.regenerateRecoveryCodes(request, await this.trusted.forSelfServiceCall(source, AUTH_TARGET_AUDIENCE))
     )
   }
 
-  adminListUserSessions(
+  async adminListUserSessions(
     userId: string,
     source: DownstreamRequestSource
   ): Promise<AdminListUserSessionsResponse> {
     return this.call(
       'adminListUserSessions',
-      this.svc.adminListUserSessions({ userId }, this.operatorMetadata(source))
+      this.svc.adminListUserSessions({ userId }, await this.trusted.forBusinessCall(source, AUTH_TARGET_AUDIENCE, ['auth.session.admin.view']))
     )
   }
 
-  adminListTerminalDeviceSessions(
+  async adminListTerminalDeviceSessions(
     terminalDeviceId: string,
     source: DownstreamRequestSource,
     terminal?: string
@@ -905,12 +889,12 @@ export class AuthGrpcAdapter implements OnModuleInit {
       'adminListTerminalDeviceSessions',
       this.svc.adminListTerminalDeviceSessions(
         { terminalDeviceId, terminal: terminal ?? '' },
-        this.operatorMetadata(source)
+        await this.trusted.forBusinessCall(source, AUTH_TARGET_AUDIENCE, ['auth.session.admin.view'])
       )
     )
   }
 
-  adminListOnlineUsers(
+  async adminListOnlineUsers(
     request: { tenantId?: string },
     source: DownstreamRequestSource
   ): Promise<AdminListOnlineUsersResponse> {
@@ -918,23 +902,23 @@ export class AuthGrpcAdapter implements OnModuleInit {
       'adminListOnlineUsers',
       this.svc.adminListOnlineUsers(
         { tenantId: request.tenantId },
-        this.operatorMetadata(source)
+        await this.trusted.forBusinessCall(source, AUTH_TARGET_AUDIENCE, ['auth.session.admin.view'])
       )
     )
   }
 
-  adminRevokeSession(
+  async adminRevokeSession(
     sessionId: string,
     reason: string,
     source: DownstreamRequestSource
   ): Promise<AdminRevokeSessionResponse> {
     return this.call(
       'adminRevokeSession',
-      this.svc.adminRevokeSession({ sessionId, reason }, this.operatorMetadata(source))
+      this.svc.adminRevokeSession({ sessionId, reason }, await this.trusted.forBusinessCall(source, AUTH_TARGET_AUDIENCE, ['auth.session.admin.revoke']))
     )
   }
 
-  handleTerminalDeviceUnavailable(
+  async handleTerminalDeviceUnavailable(
     request: {
       terminal: string
       terminalDeviceId: string
@@ -952,12 +936,12 @@ export class AuthGrpcAdapter implements OnModuleInit {
           deviceBoundTenantId: request.deviceBoundTenantId,
           reasonCode: request.reasonCode
         },
-        this.metadata(source)
+        await this.trusted.forBusinessCall(source, AUTH_TARGET_AUDIENCE, ['auth.session.admin.view'])
       )
     )
   }
 
-  adminDeleteAccountSessions(
+  async adminDeleteAccountSessions(
     request: {
       userId: string
       accountId: string
@@ -973,11 +957,11 @@ export class AuthGrpcAdapter implements OnModuleInit {
 
     return this.call(
       'adminDeleteAccountSessions',
-      this.svc.adminDeleteAccountSessions(grpcRequest, this.operatorMetadata(source))
+      this.svc.adminDeleteAccountSessions(grpcRequest, await this.trusted.forBusinessCall(source, AUTH_TARGET_AUDIENCE, ['auth.session.admin.revoke']))
     )
   }
 
-  requirePasswordSetup(
+  async requirePasswordSetup(
     request: {
       userId: string
       reason?: string
@@ -993,11 +977,11 @@ export class AuthGrpcAdapter implements OnModuleInit {
 
     return this.call(
       'requirePasswordSetup',
-      this.svc.requirePasswordSetup(grpcRequest, this.operatorMetadata(source))
+      this.svc.requirePasswordSetup(grpcRequest, await this.trusted.forBusinessCall(source, AUTH_TARGET_AUDIENCE, ['auth.account_credentials.bootstrap']))
     )
   }
 
-  setLoginMethodEnabled(
+  async setLoginMethodEnabled(
     request: {
       userId: string
       methodId: string
@@ -1008,11 +992,11 @@ export class AuthGrpcAdapter implements OnModuleInit {
   ): Promise<LoginMethodMutationResponse> {
     return this.call(
       'setLoginMethodEnabled',
-      this.svc.setLoginMethodEnabled(request, this.operatorMetadata(source))
+      this.svc.setLoginMethodEnabled(request, await this.trusted.forBusinessCall(source, AUTH_TARGET_AUDIENCE, ['auth.account_login_methods.manage']))
     )
   }
 
-  setOwnLoginMethodEnabled(
+  async setOwnLoginMethodEnabled(
     request: {
       userId: string
       methodId: string
@@ -1025,28 +1009,28 @@ export class AuthGrpcAdapter implements OnModuleInit {
 
     return this.call(
       'setOwnLoginMethodEnabled',
-      this.svc.setOwnLoginMethodEnabled(grpcRequest, this.operatorMetadata(source))
+      this.svc.setOwnLoginMethodEnabled(grpcRequest, await this.trusted.forSelfServiceCall(source, AUTH_TARGET_AUDIENCE))
     )
   }
 
-  getTenantMfaPolicy(
+  async getTenantMfaPolicy(
     tenantId: string,
     source: DownstreamRequestSource
   ): Promise<TenantMfaPolicyResponse> {
     return this.call(
       'getTenantMfaPolicy',
-      this.svc.getTenantMfaPolicy({ tenantId }, this.operatorMetadata(source))
+      this.svc.getTenantMfaPolicy({ tenantId }, await this.trusted.forBusinessCall(source, AUTH_TARGET_AUDIENCE, ['auth.mfa_policy.manage']))
     )
   }
 
-  getPlatformMfaPolicy(source: DownstreamRequestSource): Promise<PlatformMfaPolicyResponse> {
+  async getPlatformMfaPolicy(source: DownstreamRequestSource): Promise<PlatformMfaPolicyResponse> {
     return this.call(
       'getPlatformMfaPolicy',
-      this.svc.getPlatformMfaPolicy({}, this.operatorMetadata(source))
+      this.svc.getPlatformMfaPolicy({}, await this.trusted.forBusinessCall(source, AUTH_TARGET_AUDIENCE, ['auth.platform_mfa_policy.manage']))
     )
   }
 
-  updateTenantMfaPolicy(
+  async updateTenantMfaPolicy(
     request: {
       factors: Array<{
         enabled: boolean
@@ -1066,7 +1050,6 @@ export class AuthGrpcAdapter implements OnModuleInit {
       'updateTenantMfaPolicy',
       this.svc.updateTenantMfaPolicy(
         {
-          tenantId: request.tenantId,
           loginRequired: request.loginRequired,
           scenarioRequirements: (request.scenarioRequirements ?? []).map((item) => ({
             scenario: this.toGrpcMfaScenario(item.scenario),
@@ -1078,12 +1061,12 @@ export class AuthGrpcAdapter implements OnModuleInit {
             priority: factor.priority
           }))
         },
-        this.operatorMetadata(source)
+        await this.trusted.forBusinessCall(source, AUTH_TARGET_AUDIENCE, ['auth.mfa_policy.manage'])
       )
     )
   }
 
-  updatePlatformMfaPolicy(
+  async updatePlatformMfaPolicy(
     request: {
       factors: Array<{
         enabled: boolean
@@ -1113,21 +1096,21 @@ export class AuthGrpcAdapter implements OnModuleInit {
             priority: factor.priority
           }))
         },
-        this.operatorMetadata(source)
+        await this.trusted.forBusinessCall(source, AUTH_TARGET_AUDIENCE, ['auth.platform_mfa_policy.manage'])
       )
     )
   }
 
-  getPlatformTerminalLoginPolicy(
+  async getPlatformTerminalLoginPolicy(
     source: DownstreamRequestSource
   ): Promise<GetPlatformTerminalLoginPolicyResponse> {
     return this.call(
       'getPlatformTerminalLoginPolicy',
-      this.svc.getPlatformTerminalLoginPolicy({}, this.operatorMetadata(source))
+      this.svc.getPlatformTerminalLoginPolicy({}, await this.trusted.forBusinessCall(source, AUTH_TARGET_AUDIENCE, ['auth.platform_mfa_policy.manage']))
     )
   }
 
-  updatePlatformTerminalLoginPolicy(
+  async updatePlatformTerminalLoginPolicy(
     request: {
       entries: Array<{
         enabledLoginFlows: string[]
@@ -1147,21 +1130,21 @@ export class AuthGrpcAdapter implements OnModuleInit {
             })
           )
         },
-        this.operatorMetadata(source)
+        await this.trusted.forBusinessCall(source, AUTH_TARGET_AUDIENCE, ['auth.platform_mfa_policy.manage'])
       )
     )
   }
 
-  getPlatformDefaultTerminalMfaPolicy(
+  async getPlatformDefaultTerminalMfaPolicy(
     source: DownstreamRequestSource
   ): Promise<GetPlatformDefaultTerminalMfaPolicyResponse> {
     return this.call(
       'getPlatformDefaultTerminalMfaPolicy',
-      this.svc.getPlatformDefaultTerminalMfaPolicy({}, this.operatorMetadata(source))
+      this.svc.getPlatformDefaultTerminalMfaPolicy({}, await this.trusted.forBusinessCall(source, AUTH_TARGET_AUDIENCE, ['auth.platform_mfa_policy.manage']))
     )
   }
 
-  updatePlatformDefaultTerminalMfaPolicy(
+  async updatePlatformDefaultTerminalMfaPolicy(
     request: {
       entries: Array<{
         allowedFactors: Array<'BACKUP_CODE' | 'EMAIL_OTP' | 'SMS_OTP' | 'TOTP'>
@@ -1179,22 +1162,22 @@ export class AuthGrpcAdapter implements OnModuleInit {
         {
           entries: request.entries.map((entry) => this.toGrpcTerminalMfaPolicyEntry(entry))
         },
-        this.operatorMetadata(source)
+        await this.trusted.forBusinessCall(source, AUTH_TARGET_AUDIENCE, ['auth.platform_mfa_policy.manage'])
       )
     )
   }
 
-  getTenantTerminalMfaPolicy(
+  async getTenantTerminalMfaPolicy(
     tenantId: string,
     source: DownstreamRequestSource
   ): Promise<GetTenantTerminalMfaPolicyResponse> {
     return this.call(
       'getTenantTerminalMfaPolicy',
-      this.svc.getTenantTerminalMfaPolicy({ tenantId }, this.operatorMetadata(source))
+      this.svc.getTenantTerminalMfaPolicy({ tenantId }, await this.trusted.forBusinessCall(source, AUTH_TARGET_AUDIENCE, ['auth.mfa_policy.manage']))
     )
   }
 
-  updateTenantTerminalMfaPolicy(
+  async updateTenantTerminalMfaPolicy(
     request: {
       entries: Array<{
         allowedFactors: Array<'BACKUP_CODE' | 'EMAIL_OTP' | 'SMS_OTP' | 'TOTP'>
@@ -1211,15 +1194,14 @@ export class AuthGrpcAdapter implements OnModuleInit {
       'updateTenantTerminalMfaPolicy',
       this.svc.updateTenantTerminalMfaPolicy(
         {
-          tenantId: request.tenantId,
           entries: request.entries.map((entry) => this.toGrpcTerminalMfaPolicyEntry(entry))
         },
-        this.operatorMetadata(source)
+        await this.trusted.forBusinessCall(source, AUTH_TARGET_AUDIENCE, ['auth.mfa_policy.manage'])
       )
     )
   }
 
-  listAuditEvents(
+  async listAuditEvents(
     request: {
       service?: string
       module?: string
@@ -1239,28 +1221,29 @@ export class AuthGrpcAdapter implements OnModuleInit {
   ): Promise<{ items?: AuditEventRecord[]; nextCursor?: string }> {
     return this.call(
       'listAuditEvents',
-      this.svc.listAuditEvents(request, this.operatorMetadata(source))
+      this.svc.listAuditEvents(request, await this.trusted.forBusinessCall(source, AUTH_TARGET_AUDIENCE, ['auth.audit.list']))
     )
   }
 
-  private metadata(source: DownstreamRequestSource) {
-    return this.metadataFactory.createInternalCallMetadata(toInternalCallMetadataInput(source))
-  }
 
-  private operatorMetadata(source: DownstreamRequestSource) {
-    return this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
-  }
 
   /** Exchanges the API key through Auth's exact STS-backed INTERNAL caller path, never signed operator context. */
   private async exchangeExternalApiKeyTrusted(
     request: { presentedApiKey: string },
     source: DownstreamRequestSource
   ): Promise<ExchangeExternalApiKeyResponse> {
-    const exchangeToken = await this.trustedApiKeyClient.issueExchangeToken(this.metadata(source))
-    return this.trustedApiKeyClient.exchangeExternalApiKey(
-      request,
-      this.metadata(source),
-      exchangeToken
+    return this.machineExecution.forInternalCall(
+      AUTH_TARGET_AUDIENCE,
+      'auth.internal.external_api_key.exchange',
+      {
+        requestId: source.requestId ?? '',
+        traceparent: source.traceparent ?? '',
+        ...(source.tracestate === undefined ? {} : { tracestate: source.tracestate })
+      },
+      async (metadata) => this.call(
+        'exchangeExternalApiKey',
+        this.externalApiKeySvc.exchangeExternalApiKey(request, metadata)
+      )
     )
   }
 

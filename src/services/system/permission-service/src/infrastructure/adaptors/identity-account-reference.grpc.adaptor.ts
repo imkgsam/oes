@@ -2,10 +2,6 @@ import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
 import { resolveCommonProtoPath } from '@oes/common/contracts'
 import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory
-} from '@oes/common/authorization'
-import {
   GetAccountByIdResponse,
   GetServiceAccountByIdResponse,
   IDENTITY_QUERY_SERVICE_NAME,
@@ -16,6 +12,7 @@ import {
   IDENTITY_ACCOUNT_REFERENCE_PORT,
   IdentityAccountReferencePort
 } from '../../application/ports/identity-account-reference.port'
+import { PermissionFoundationTrustedGrpcExecutionProducer } from './foundation-trusted-grpc.clients'
 
 export const IDENTITY_GRPC_CLIENT = Symbol('IDENTITY_GRPC_CLIENT')
 
@@ -25,11 +22,10 @@ export class IdentityAccountReferenceGrpcAdaptor
   implements IdentityAccountReferencePort, OnModuleInit
 {
   private identityQueryService!: IdentityQueryServiceClient
+  private readonly trusted = new PermissionFoundationTrustedGrpcExecutionProducer()
 
   constructor(
-    @Inject(IDENTITY_GRPC_CLIENT) private readonly client: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory
+    @Inject(IDENTITY_GRPC_CLIENT) private readonly client: ClientGrpc
   ) {}
 
   onModuleInit() {
@@ -41,7 +37,10 @@ export class IdentityAccountReferenceGrpcAdaptor
   async getAccountById(accountId: string) {
     try {
       const response = await safeGrpcCall<GetAccountByIdResponse>(
-        this.identityQueryService.getAccountById({ accountId }, this.createIdentityCallMetadata()),
+        this.identityQueryService.getAccountById(
+          { accountId },
+          await this.trusted.forBusinessCall('identity-service', ['identity.account.list'])
+        ),
         {
           caller: 'permission-service',
           method: 'IdentityQueryService.getAccountById'
@@ -70,7 +69,9 @@ export class IdentityAccountReferenceGrpcAdaptor
       const response = await safeGrpcCall<GetServiceAccountByIdResponse>(
         this.identityQueryService.getServiceAccountById(
           { serviceAccountId },
-          this.createIdentityCallMetadata()
+          await this.trusted.forBusinessCall('identity-service', [
+            'identity.machine.service_account.create'
+          ])
         ),
         {
           caller: 'permission-service',
@@ -94,12 +95,6 @@ export class IdentityAccountReferenceGrpcAdaptor
     }
   }
 
-  /** createIdentityCallMetadata propagates the trusted internal caller context on every Identity RPC. */
-  private createIdentityCallMetadata() {
-    return this.metadataFactory.createInternalCallMetadata({
-      callerServiceName: 'permission-service'
-    })
-  }
 }
 
 export const IDENTITY_GRPC_CLIENT_OPTIONS = {

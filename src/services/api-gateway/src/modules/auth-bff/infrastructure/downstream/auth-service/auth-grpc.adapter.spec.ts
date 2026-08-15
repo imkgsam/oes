@@ -3,14 +3,33 @@ import { MfaBindingType } from '@oes/common/generated/auth_service'
 import { AuthGrpcAdapter } from './auth-grpc.adapter'
 
 describe('AuthGrpcAdapter', () => {
+  /** Builds the dedicated Auth channel and target-bound metadata doubles used by adapter tests. */
+  function createAdapter(svc: object) {
+    const publicMetadata = { public: true }
+    const protectedMetadata = { trusted: true }
+    const trusted = {
+      forAuthPublicAdmission: jest.fn().mockReturnValue(publicMetadata),
+      forSelfServiceCall: jest.fn().mockResolvedValue(protectedMetadata),
+      forBusinessCall: jest.fn().mockResolvedValue(protectedMetadata)
+    }
+    const machineExecution = {
+      forInternalCall: jest.fn(async (_audience, _code, _trace, callback) => callback(protectedMetadata))
+    }
+    const client = { getClient: jest.fn(() => ({ getService: jest.fn(() => svc) })) }
+    return {
+      adapter: new AuthGrpcAdapter(client as any, trusted as any, machineExecution as any),
+      publicMetadata,
+      protectedMetadata,
+      trusted,
+      machineExecution
+    }
+  }
+
   it('forwards PDA device-bound context on email-password login', async () => {
     const svc = {
       loginWithEmailPassword: jest.fn().mockReturnValue(of({ userId: 'user-1' }))
     }
-    const adapter = new AuthGrpcAdapter(
-      { getService: jest.fn().mockReturnValue(svc) } as any,
-      { createInternalCallMetadata: jest.fn().mockReturnValue({}) } as any
-    )
+    const { adapter } = createAdapter(svc)
     adapter.onModuleInit()
 
     await adapter.loginWithEmailPassword(
@@ -38,10 +57,7 @@ describe('AuthGrpcAdapter', () => {
     const svc = {
       loginWithEmployeeCodePin: jest.fn().mockReturnValue(of({ userId: 'user-1' }))
     }
-    const adapter = new AuthGrpcAdapter(
-      { getService: jest.fn().mockReturnValue(svc) } as any,
-      { createInternalCallMetadata: jest.fn().mockReturnValue({}) } as any
-    )
+    const { adapter } = createAdapter(svc)
     adapter.onModuleInit()
 
     await adapter.loginWithEmployeeCodePin(
@@ -75,10 +91,7 @@ describe('AuthGrpcAdapter', () => {
       resetOwnTerminalPin: jest.fn().mockReturnValue(of({ success: true })),
       setOwnTerminalPinEnabled: jest.fn().mockReturnValue(of({ success: true }))
     }
-    const metadataFactory = {
-      createInternalCallMetadata: jest.fn().mockReturnValue({ internal: true })
-    }
-    const adapter = new AuthGrpcAdapter({ getService: jest.fn().mockReturnValue(svc) } as any, metadataFactory as any)
+    const { adapter, protectedMetadata } = createAdapter(svc)
     adapter.onModuleInit()
 
     await adapter.setOwnTerminalPin(
@@ -114,7 +127,7 @@ describe('AuthGrpcAdapter', () => {
         newPin: '482915',
         mfaGrantToken: 'step-up-grant-1'
       },
-      { internal: true }
+      protectedMetadata
     )
     expect(svc.resetOwnTerminalPin).toHaveBeenCalledWith(
       {
@@ -123,14 +136,14 @@ describe('AuthGrpcAdapter', () => {
         newPin: '739204',
         mfaGrantToken: 'step-up-grant-2'
       },
-      { internal: true }
+      protectedMetadata
     )
     expect(svc.setOwnTerminalPinEnabled).toHaveBeenCalledWith(
       {
         userId: 'user-1',
         enabled: false
       },
-      { internal: true }
+      protectedMetadata
     )
   })
 
@@ -140,13 +153,7 @@ describe('AuthGrpcAdapter', () => {
       updatePlatformTerminalLoginPolicy: jest.fn().mockReturnValue(of({ entries: [] })),
       updateTenantTerminalMfaPolicy: jest.fn().mockReturnValue(of({ tenantId: 'tenant-1', entries: [] }))
     }
-    const adapter = new AuthGrpcAdapter(
-      { getService: jest.fn().mockReturnValue(svc) } as any,
-      {
-        createInternalCallMetadata: jest.fn().mockReturnValue({ internal: true }),
-        createOperatorScopedMetadata: jest.fn().mockReturnValue({ operator: true })
-      } as any
-    )
+    const { adapter, protectedMetadata } = createAdapter(svc)
     adapter.onModuleInit()
 
     await adapter.getPlatformTerminalLoginPolicy({ user: { sub: 'operator-1' } } as any)
@@ -156,7 +163,6 @@ describe('AuthGrpcAdapter', () => {
     )
     await adapter.updateTenantTerminalMfaPolicy(
       {
-        tenantId: 'tenant-1',
         entries: [
           {
             terminal: 'PDA',
@@ -170,7 +176,7 @@ describe('AuthGrpcAdapter', () => {
       { user: { sub: 'operator-1' } } as any
     )
 
-    expect(svc.getPlatformTerminalLoginPolicy).toHaveBeenCalledWith({}, { operator: true })
+    expect(svc.getPlatformTerminalLoginPolicy).toHaveBeenCalledWith({}, protectedMetadata)
     expect(svc.updatePlatformTerminalLoginPolicy).toHaveBeenCalledWith(
       {
         entries: [
@@ -180,11 +186,10 @@ describe('AuthGrpcAdapter', () => {
           }
         ]
       },
-      { operator: true }
+      protectedMetadata
     )
     expect(svc.updateTenantTerminalMfaPolicy).toHaveBeenCalledWith(
       {
-        tenantId: 'tenant-1',
         entries: [
           {
             terminal: 'PDA',
@@ -195,23 +200,15 @@ describe('AuthGrpcAdapter', () => {
           }
         ]
       },
-      { operator: true }
+      protectedMetadata
     )
   })
 
   it('forwards external API-key exchange with the signed MACHINE root context', async () => {
-    const metadataFactory = {
-      createInternalCallMetadata: jest.fn().mockReturnValue({ internal: true }),
+    const svc = {
+      exchangeExternalApiKey: jest.fn().mockReturnValue(of({ accessToken: 'signed' }))
     }
-    const trustedClient = {
-      issueExchangeToken: jest.fn().mockResolvedValue('sts-token'),
-      exchangeExternalApiKey: jest.fn().mockResolvedValue({ accessToken: 'signed' })
-    }
-    const adapter = new AuthGrpcAdapter(
-      { getService: jest.fn().mockReturnValue({}) } as any,
-      metadataFactory as any,
-      trustedClient as any
-    )
+    const { adapter, protectedMetadata, machineExecution } = createAdapter(svc)
     adapter.onModuleInit()
 
     await adapter.exchangeExternalApiKey(
@@ -219,11 +216,15 @@ describe('AuthGrpcAdapter', () => {
       { requestId: 'req-1', traceId: 'trace-1' }
     )
 
-    expect(trustedClient.issueExchangeToken).toHaveBeenCalledWith({ internal: true })
-    expect(trustedClient.exchangeExternalApiKey).toHaveBeenCalledWith(
+    expect(machineExecution.forInternalCall).toHaveBeenCalledWith(
+      'urn:oes:service:auth-service',
+      'auth.internal.external_api_key.exchange',
+      expect.objectContaining({ requestId: 'req-1' }),
+      expect.any(Function)
+    )
+    expect(svc.exchangeExternalApiKey).toHaveBeenCalledWith(
       { presentedApiKey: 'oek_live_identifier.secret' },
-      { internal: true },
-      'sts-token'
+      protectedMetadata
     )
   })
 })

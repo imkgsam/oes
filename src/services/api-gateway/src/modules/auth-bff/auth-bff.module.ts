@@ -46,11 +46,7 @@ import { PersonalCenterSummaryAdapter } from './infrastructure/downstream/person
     AuthorizationModule,
     PermissionServiceProxyModule,
     GrpcTransportModule.forFeature([
-      SERVICE_NAMES.AUTH,
       SERVICE_NAMES.ASSET,
-      SERVICE_NAMES.IDENTITY,
-      SERVICE_NAMES.PERMISSION,
-      SERVICE_NAMES.TENANT_ORG,
       SERVICE_NAMES.TERMINAL_DEVICE
     ])
   ],

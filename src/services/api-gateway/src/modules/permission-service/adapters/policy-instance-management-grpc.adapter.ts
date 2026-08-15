@@ -1,15 +1,10 @@
 import { HttpException, HttpStatus, Inject, Injectable, OnModuleInit } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
-import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory
-} from '@oes/common/authorization'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
-import {
-  DownstreamRequestSource,
-  toOperatorScopedMetadataInput
-} from '../../../common/grpc/gateway-downstream-source.mapper'
+import { DownstreamRequestSource } from '../../../common/grpc/gateway-downstream-source.mapper'
+import { PERMISSION_TARGET_AUDIENCE, TrustedPermissionGrpcClient } from '../../../infrastructure/grpc/trusted-permission.grpc.client'
+import { GatewayFoundationTrustedGrpcExecutionProducer } from '../../../infrastructure/grpc/trusted-auth.grpc.client'
 
 const CALLER = 'api-gateway'
 const POLICY_INSTANCE_MANAGEMENT_SERVICE_NAME = 'PolicyInstanceManagementService'
@@ -87,14 +82,12 @@ export class PolicyInstanceManagementGrpcAdapter implements OnModuleInit {
   private svc!: PolicyInstanceManagementGrpcClient
 
   constructor(
-    @InjectGrpcClient(SERVICE_NAMES.PERMISSION)
-    private readonly client: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory
+    private readonly client: TrustedPermissionGrpcClient,
+    private readonly trusted: GatewayFoundationTrustedGrpcExecutionProducer
   ) {}
 
   onModuleInit(): void {
-    this.svc = this.client.getService<PolicyInstanceManagementGrpcClient>(
+    this.svc = this.client.getClient().getService<PolicyInstanceManagementGrpcClient>(
       POLICY_INSTANCE_MANAGEMENT_SERVICE_NAME
     )
   }
@@ -119,10 +112,10 @@ export class PolicyInstanceManagementGrpcAdapter implements OnModuleInit {
       payload.enabled = req.enabled
     }
 
-    const result = await this.call<any>('listPolicyInstances', () =>
+    const result = await this.call<any>('listPolicyInstances', async () =>
       this.svc.listPolicyInstances(
         payload,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.policy.list'])
       )
     )
 
@@ -138,7 +131,7 @@ export class PolicyInstanceManagementGrpcAdapter implements OnModuleInit {
 
   /** createPolicyInstance writes one template-based PolicyInstance through permission-service. */
   async createPolicyInstance(req: CreatePolicyInstanceRequest, source: DownstreamRequestSource) {
-    const result = await this.call<any>('createPolicyInstance', () =>
+    const result = await this.call<any>('createPolicyInstance', async () =>
       this.svc.createPolicyInstance(
         {
           tenantId: req.tenantId,
@@ -151,7 +144,7 @@ export class PolicyInstanceManagementGrpcAdapter implements OnModuleInit {
           enabled: req.enabled ?? true,
           priority: req.priority ?? 0
         },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.policy.create'])
       )
     )
 
@@ -160,10 +153,10 @@ export class PolicyInstanceManagementGrpcAdapter implements OnModuleInit {
 
   /** getPolicyInstanceById reads one PolicyInstance governance record by stable id. */
   async getPolicyInstanceById(req: GetPolicyInstanceRequest, source: DownstreamRequestSource) {
-    const result = await this.call<any>('getPolicyInstance', () =>
+    const result = await this.call<any>('getPolicyInstance', async () =>
       this.svc.getPolicyInstance(
         { id: req.id },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.policy.list'])
       )
     )
 
@@ -175,13 +168,13 @@ export class PolicyInstanceManagementGrpcAdapter implements OnModuleInit {
     req: SetPolicyInstanceEnabledRequest,
     source: DownstreamRequestSource
   ) {
-    const result = await this.call<any>('setPolicyInstanceEnabled', () =>
+    const result = await this.call<any>('setPolicyInstanceEnabled', async () =>
       this.svc.setPolicyInstanceEnabled(
         {
           id: req.id,
           enabled: req.enabled
         },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, PERMISSION_TARGET_AUDIENCE, ['permission.policy.update'])
       )
     )
 
@@ -217,7 +210,7 @@ export class PolicyInstanceManagementGrpcAdapter implements OnModuleInit {
 
   private async call<T>(method: string, factory: () => any): Promise<T> {
     try {
-      const result = await safeGrpcCall(factory(), this.opts(method))
+      const result = await safeGrpcCall(await factory(), this.opts(method))
       return result as T
     } catch (error) {
       throw this.mapDownstreamError(error)

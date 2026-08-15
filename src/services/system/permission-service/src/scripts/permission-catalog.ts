@@ -117,6 +117,42 @@ const permissionManagement = definePermissionGroup(Modules.PERMISSION_SERVICE, {
 })
 
 const permissionInternal = definePermissionGroup(Modules.PERMISSION_SERVICE, {
+  PERMISSION_CHECK: {
+    code: 'permission.internal.permission.check',
+    description: '执行受信任调用链中的精确权限检查',
+    kind: PermissionKind.INTERNAL,
+    externalApiEligible: false
+  },
+  ACCOUNT_TERMINAL_ACCESS_RESOLVE: {
+    code: 'permission.internal.account_terminal_access.resolve',
+    description: '解析受信任调用链中的账号终端准入',
+    kind: PermissionKind.INTERNAL,
+    externalApiEligible: false
+  },
+  RESOURCE_CHECK: {
+    code: 'permission.internal.resource.check',
+    description: '执行受信任调用链中的资源授权检查',
+    kind: PermissionKind.INTERNAL,
+    externalApiEligible: false
+  },
+  QUERY_SCOPE_BUILD: {
+    code: 'permission.internal.query_scope.build',
+    description: '构造受信任调用链中的资源查询范围',
+    kind: PermissionKind.INTERNAL,
+    externalApiEligible: false
+  },
+  ACCOUNT_ACCESS_SUMMARY_RESOLVE: {
+    code: 'permission.internal.account_access_summary.resolve',
+    description: '解析受信任调用链中的账号访问摘要',
+    kind: PermissionKind.INTERNAL,
+    externalApiEligible: false
+  },
+  ACCOUNT_NAVIGATION_RESOLVE: {
+    code: 'permission.internal.account_navigation.resolve',
+    description: '解析受信任调用链中的账号导航',
+    kind: PermissionKind.INTERNAL,
+    externalApiEligible: false
+  },
   PRINCIPAL_AUTHORIZATION_RESOLVE: {
     code: COMMON_PERMISSION_INTERNAL_PERMISSION_CODES.PRINCIPAL_AUTHORIZATION_RESOLVE,
     description: '解析 Auth 发证所需的 principal BUSINESS authorization upper bound',

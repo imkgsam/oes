@@ -1,10 +1,6 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
+import { Inject, Injectable, OnModuleInit, Optional } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
 import { SERVICE_NAMES } from '@oes/common/constants'
-import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory
-} from '@oes/common/authorization'
 import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
 import {
   CreateUserAccountResponse,
@@ -34,11 +30,9 @@ import {
   UpdateUserBasicInfoResponse,
   UpdateAccountProfileRequest
 } from '@oes/common/generated/identity_service'
-import {
-  DownstreamRequestSource,
-  toInternalCallMetadataInput,
-  toOperatorScopedMetadataInput
-} from '../../../../../common/grpc/gateway-downstream-source.mapper'
+import { DownstreamRequestSource } from '../../../../../common/grpc/gateway-downstream-source.mapper'
+import { IDENTITY_TARGET_AUDIENCE, TrustedIdentityGrpcClient } from '../../../../../infrastructure/grpc/trusted-identity.grpc.client'
+import { GatewayFoundationTrustedGrpcExecutionProducer } from '../../../../../infrastructure/grpc/trusted-auth.grpc.client'
 
 const CALLER = 'api-gateway'
 
@@ -49,47 +43,45 @@ export class IdentityQueryGrpcAdapter implements OnModuleInit {
   private managementSvc!: IdentityManagementServiceClient
 
   constructor(
-    @InjectGrpcClient(SERVICE_NAMES.IDENTITY)
-    private readonly client: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory
+    private readonly client: TrustedIdentityGrpcClient,
+    @Optional() private readonly trusted: GatewayFoundationTrustedGrpcExecutionProducer = undefined as never
   ) {}
 
   onModuleInit(): void {
-    this.svc = this.client.getService<IdentityQueryServiceClient>(IDENTITY_QUERY_SERVICE_NAME)
-    this.managementSvc = this.client.getService<IdentityManagementServiceClient>(
+    this.svc = this.client.getClient().getService<IdentityQueryServiceClient>(IDENTITY_QUERY_SERVICE_NAME)
+    this.managementSvc = this.client.getClient().getService<IdentityManagementServiceClient>(
       IDENTITY_MANAGEMENT_SERVICE_NAME
     )
   }
 
-  getAccountById(accountId: string, source: DownstreamRequestSource): Promise<GetAccountByIdResponse> {
+  async getAccountById(accountId: string, source: DownstreamRequestSource): Promise<GetAccountByIdResponse> {
     return this.call(
       'getAccountById',
-      this.svc.getAccountById({ accountId }, this.operatorMetadata(source))
+      this.svc.getAccountById({ accountId }, await this.businessMetadata(source, 'identity.account.list'))
     )
   }
 
-  getEmployeeBindingByAccountId(
+  async getEmployeeBindingByAccountId(
     accountId: string,
     source: DownstreamRequestSource
   ): Promise<GetEmployeeBindingByAccountIdResponse> {
     return this.call(
       'getEmployeeBindingByAccountId',
-      this.svc.getEmployeeBindingByAccountId({ accountId }, this.operatorMetadata(source))
+      this.svc.getEmployeeBindingByAccountId({ accountId }, await this.businessMetadata(source, 'identity.account.list'))
     )
   }
 
-  getAccountsByUserId(
+  async getAccountsByUserId(
     userId: string,
     source: DownstreamRequestSource
   ): Promise<GetAccountsByUserIdResponse> {
     return this.call(
       'getAccountsByUserId',
-      this.svc.getAccountsByUserId({ userId }, this.metadata(source))
+      this.svc.getAccountsByUserId({ userId }, await this.businessMetadata(source, 'identity.account.list'))
     )
   }
 
-  listAccounts(
+  async listAccounts(
     request: {
       keyword?: string
       page?: number
@@ -111,73 +103,73 @@ export class IdentityQueryGrpcAdapter implements OnModuleInit {
           status: request.status,
           tenantId: request.tenantId
         },
-        this.operatorMetadata(source)
+        await this.businessMetadata(source, 'identity.account.list')
       )
     )
   }
 
-  getUserById(userId: string, source: DownstreamRequestSource): Promise<GetUserByIdResponse> {
+  async getUserById(userId: string, source: DownstreamRequestSource): Promise<GetUserByIdResponse> {
     return this.call(
       'getUserById',
-      this.svc.getUserById({ userId }, this.operatorMetadata(source))
+      this.svc.getUserById({ userId }, await this.businessMetadata(source, 'identity.account.list'))
     )
   }
 
-  getUserByEmail(email: string, source: DownstreamRequestSource): Promise<GetUserByEmailResponse> {
+  async getUserByEmail(email: string, source: DownstreamRequestSource): Promise<GetUserByEmailResponse> {
     return this.call(
       'getUserByEmail',
-      this.svc.getUserByEmail({ email }, this.operatorMetadata(source))
+      this.svc.getUserByEmail({ email }, await this.businessMetadata(source, 'identity.account.list'))
     )
   }
 
-  getUserByPhone(phone: string, source: DownstreamRequestSource): Promise<GetUserByPhoneResponse> {
+  async getUserByPhone(phone: string, source: DownstreamRequestSource): Promise<GetUserByPhoneResponse> {
     return this.call(
       'getUserByPhone',
-      this.svc.getUserByPhone({ phone }, this.operatorMetadata(source))
+      this.svc.getUserByPhone({ phone }, await this.businessMetadata(source, 'identity.account.list'))
     )
   }
 
-  listAccountWorkEmailAssets(
+  async listAccountWorkEmailAssets(
     accountId: string,
     source: DownstreamRequestSource
   ): Promise<ListAccountWorkEmailAssetsResponse> {
     return this.call(
       'listAccountWorkEmailAssets',
-      this.svc.listAccountWorkEmailAssets({ accountId }, this.operatorMetadata(source))
+      this.svc.listAccountWorkEmailAssets({ accountId }, await this.businessMetadata(source, 'identity.account.self.read'))
     )
   }
 
-  listAccountWorkPhoneAssets(
+  async listAccountWorkPhoneAssets(
     accountId: string,
     source: DownstreamRequestSource
   ): Promise<ListAccountWorkPhoneAssetsResponse> {
     return this.call(
       'listAccountWorkPhoneAssets',
-      this.svc.listAccountWorkPhoneAssets({ accountId }, this.operatorMetadata(source))
+      this.svc.listAccountWorkPhoneAssets({ accountId }, await this.businessMetadata(source, 'identity.account.self.read'))
     )
   }
 
-  updateAccountProfile(
+  async updateAccountProfile(
     request: UpdateAccountProfileRequest,
     source: DownstreamRequestSource
   ): Promise<UpdateAccountProfileResponse> {
     return this.call(
       'updateAccountProfile',
-      this.managementSvc.updateAccountProfile(request, this.operatorMetadata(source))
+      this.managementSvc.updateAccountProfile(request, await this.businessMetadata(source, 'identity.account.profile.update'))
     )
   }
 
-  updateOwnAccountProfile(
+  async updateOwnAccountProfile(
     request: UpdateOwnAccountProfileRequest,
     source: DownstreamRequestSource
   ): Promise<UpdateOwnAccountProfileResponse> {
     return this.call(
       'updateOwnAccountProfile',
-      this.managementSvc.updateOwnAccountProfile(request, this.operatorMetadata(source))
+      this.managementSvc.updateOwnAccountProfile(request, await this.trusted.forSelfServiceCall(source, IDENTITY_TARGET_AUDIENCE))
     )
   }
 
-  updateOwnUserBasicInfo(
+  async updateOwnUserBasicInfo(
     request: {
       accountId: string
       userId: string
@@ -195,11 +187,11 @@ export class IdentityQueryGrpcAdapter implements OnModuleInit {
 
     return this.call(
       'updateOwnUserBasicInfo',
-      this.managementSvc.updateOwnUserBasicInfo(grpcRequest, this.operatorMetadata(source))
+      this.managementSvc.updateOwnUserBasicInfo(grpcRequest, await this.trusted.forSelfServiceCall(source, IDENTITY_TARGET_AUDIENCE))
     )
   }
 
-  updateUserBasicInfo(
+  async updateUserBasicInfo(
     request: {
       accountId: string
       userId: string
@@ -217,11 +209,11 @@ export class IdentityQueryGrpcAdapter implements OnModuleInit {
 
     return this.call(
       'updateUserBasicInfo',
-      this.managementSvc.updateUserBasicInfo(grpcRequest, this.operatorMetadata(source))
+      this.managementSvc.updateUserBasicInfo(grpcRequest, await this.businessMetadata(source, 'identity.account.profile.update'))
     )
   }
 
-  createUserAccount(
+  async createUserAccount(
     request: {
       scopeLevel: 'SYSTEM' | 'TENANT'
       tenantId?: string
@@ -243,21 +235,21 @@ export class IdentityQueryGrpcAdapter implements OnModuleInit {
 
     return this.call(
       'createUserAccount',
-      this.managementSvc.createUserAccount(grpcRequest, this.operatorMetadata(source))
+      this.managementSvc.createUserAccount(grpcRequest, await this.businessMetadata(source, 'identity.account.create'))
     )
   }
 
-  getAccountDeletionImpact(
+  async getAccountDeletionImpact(
     accountId: string,
     source: DownstreamRequestSource
   ): Promise<GetAccountDeletionImpactResponse> {
     return this.call(
       'getAccountDeletionImpact',
-      this.managementSvc.getAccountDeletionImpact({ accountId }, this.operatorMetadata(source))
+      this.managementSvc.getAccountDeletionImpact({ accountId }, await this.businessMetadata(source, 'identity.account.delete'))
     )
   }
 
-  deleteAccount(
+  async deleteAccount(
     request: {
       accountId: string
       deletedSessionCount: number
@@ -275,16 +267,13 @@ export class IdentityQueryGrpcAdapter implements OnModuleInit {
 
     return this.call(
       'deleteAccount',
-      this.managementSvc.deleteAccount(grpcRequest, this.operatorMetadata(source))
+      this.managementSvc.deleteAccount(grpcRequest, await this.businessMetadata(source, 'identity.account.delete'))
     )
   }
 
-  private metadata(source: DownstreamRequestSource) {
-    return this.metadataFactory.createInternalCallMetadata(toInternalCallMetadataInput(source))
-  }
-
-  private operatorMetadata(source: DownstreamRequestSource) {
-    return this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+  /** Exchanges the current verified Gateway session for Identity's exact method Code. */
+  private businessMetadata(source: DownstreamRequestSource, code: string) {
+    return this.trusted.forBusinessCall(source, IDENTITY_TARGET_AUDIENCE, [code])
   }
 
   private call<T>(method: string, call$: any): Promise<T> {

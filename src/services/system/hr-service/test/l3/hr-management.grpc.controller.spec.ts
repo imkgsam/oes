@@ -1,6 +1,6 @@
 import { BadRequestException } from '@nestjs/common'
 import { Metadata } from '@grpc/grpc-js'
-import { attachOperatorContext } from '@oes/common/authorization'
+import { attachOperatorContext, attachVerifiedExecution } from '@oes/common/authorization'
 import { HrManagementService } from '../../src/application/services'
 import { HrManagementGrpcController } from '../../src/interfaces/grpc/hr-management.grpc.controller'
 
@@ -53,6 +53,10 @@ function attachTestOperatorContext(request: object) {
     issuer: 'api-gateway',
     signature: 'test-signature'
   })
+  attachVerifiedExecution(request, {
+    verifiedExecutionToken: { issuer: 'auth-service', audience: 'urn:oes:service:hr-service', subject: 'operator-1', principalType: 'HUMAN', clientId: 'spiffe://local/ns/oes/sa/api-gateway', tenantId: 'tenant-1', permissionCodes: [], tokenId: 'token-1', issuedAt: 1, notBefore: 1, expiresAt: 2, certificateThumbprint: 'A'.repeat(43), sessionId: 'session-1', sessionTerminal: 'WEB' },
+    verifiedWorkloadIdentity: { spiffeId: 'spiffe://local/ns/oes/sa/api-gateway', certificateThumbprint: 'A'.repeat(43) }
+  })
   return request
 }
 
@@ -75,11 +79,11 @@ describe('HrManagementGrpcController L3', () => {
     )
 
     const result = await controller.createEmployee(
-      {
+      attachTestOperatorContext({
         tenantId: 'tenant-1',
         tenantPartyId: 'tenant-party-1',
         employeeCode: 'EMP-0AF-0001'
-      },
+      }),
       createOperatorMetadata()
     )
 
@@ -105,12 +109,12 @@ describe('HrManagementGrpcController L3', () => {
 
     await expect(
       controller.createEmployment(
-        {
+        attachTestOperatorContext({
           tenantId: 'tenant-1',
           employeeId: 'employee-1',
           orgUnitId: 'missing-org',
           effectiveFrom: new Date().toISOString()
-        },
+        }),
         createOperatorMetadata()
       )
     ).rejects.toBeInstanceOf(BadRequestException)
@@ -170,17 +174,17 @@ describe('HrManagementGrpcController L3', () => {
     )
 
     await controller.createEmployment(
-      {
+      attachTestOperatorContext({
         tenantId: 'tenant-1',
         employeeId: 'employee-1',
         orgUnitId: 'org-1',
         effectiveFrom: '2026-04-25T00:00:00.000Z',
         positionName: '生产主管'
-      },
+      }),
       createOperatorMetadata()
     )
     await controller.changePrimaryEmployment(
-      {
+      attachTestOperatorContext({
         tenantId: 'tenant-1',
         employeeId: 'employee-1',
         fromEmploymentId: 'employment-1',
@@ -188,7 +192,7 @@ describe('HrManagementGrpcController L3', () => {
         effectiveFrom: '2026-04-26T00:00:00.000Z',
         endedReason: 'transfer',
         positionName: '生产经理'
-      },
+      }),
       createOperatorMetadata()
     )
 
@@ -355,12 +359,12 @@ describe('HrManagementGrpcController L3', () => {
     )
 
     const result = await (controller as any).updateEmployeeOfficialPhoto(
-      {
+      attachTestOperatorContext({
         tenantId: 'tenant-1',
         employeeId: 'employee-1',
         officialPhotoAssetId: 'asset-1',
         officialPhotoUrl: 'https://assets.example.com/photo.webp'
-      },
+      }),
       createOperatorMetadata()
     )
 
@@ -394,10 +398,10 @@ describe('HrManagementGrpcController L3', () => {
     )
 
     const result = await (controller as any).removeEmployeeOfficialPhoto(
-      {
+      attachTestOperatorContext({
         tenantId: 'tenant-1',
         employeeId: 'employee-1'
-      },
+      }),
       createOperatorMetadata()
     )
 

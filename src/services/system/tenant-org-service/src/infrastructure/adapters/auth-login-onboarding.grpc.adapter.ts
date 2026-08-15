@@ -1,10 +1,5 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
-import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory,
-  GrpcRequestContextStore
-} from '@oes/common/authorization'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import {
   AUTH_SERVICE_NAME,
@@ -13,19 +8,17 @@ import {
 } from '@oes/common/generated/auth_service'
 import { InjectGrpcClient, safeGrpcCall } from '@oes/common/transport'
 import { AuthLoginOnboardingPort } from '../../application/ports/auth-login-onboarding.port'
-import { buildTenantOnboardingMetadata } from './tenant-onboarding-metadata'
+import { TenantOrgFoundationTrustedGrpcExecutionProducer } from './foundation-trusted-grpc.clients'
 
 /** AuthLoginOnboardingGrpcAdapter calls auth-service login bootstrap APIs without owning auth truth. */
 @Injectable()
 export class AuthLoginOnboardingGrpcAdapter implements AuthLoginOnboardingPort, OnModuleInit {
   private client!: AuthServiceClient
+  private readonly trusted = new TenantOrgFoundationTrustedGrpcExecutionProducer()
 
   constructor(
     @InjectGrpcClient(SERVICE_NAMES.AUTH)
-    private readonly authClient: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory,
-    private readonly requestContextStore: GrpcRequestContextStore
+    private readonly authClient: ClientGrpc
   ) {}
 
   onModuleInit() {
@@ -48,7 +41,7 @@ export class AuthLoginOnboardingGrpcAdapter implements AuthLoginOnboardingPort, 
           email: input.email ?? '',
           phone: input.phone ?? ''
         },
-        this.buildMetadata()
+        await this.trusted.forBusinessCall('auth-service', ['auth.account_credentials.bootstrap'])
       ),
       { caller: 'tenant-org-service', method: 'AuthService.bootstrapUserLoginMethods' }
     )
@@ -67,14 +60,10 @@ export class AuthLoginOnboardingGrpcAdapter implements AuthLoginOnboardingPort, 
           reason: input.reason,
           revokeSessions: false
         },
-        this.buildMetadata()
+        await this.trusted.forBusinessCall('auth-service', ['auth.account_credentials.bootstrap'])
       ),
       { caller: 'tenant-org-service', method: 'AuthService.requirePasswordSetup' }
     )
   }
 
-  /** buildMetadata propagates tenant-org request context into auth-service calls. */
-  private buildMetadata() {
-    return buildTenantOnboardingMetadata(this.metadataFactory, this.requestContextStore)
-  }
 }

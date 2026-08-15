@@ -1,4 +1,7 @@
-import { Controller, UseFilters, UseGuards } from '@nestjs/common'
+import { Controller, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common'
+import { GrpcRequestContextInterceptor } from '@oes/common/authorization'
+import { AuthorizeBusinessRpc } from '@oes/common/authorization'
+import { PermissionFoundationTrustedExecutionGuard } from '../../modules/authorization/permission-trusted-execution.module'
 import { Metadata } from '@grpc/grpc-js'
 import { GrpcMethod } from '@nestjs/microservices'
 import {
@@ -119,15 +122,15 @@ const EFFECT_FROM_PROTO: Record<number, PolicyInstance['effect']> = {
 }
 
 /** PolicyInstanceManagementGrpcController exposes controlled management operations for PolicyInstance facts. */
+@UseInterceptors(GrpcRequestContextInterceptor)
 @Controller()
 @UseFilters(GrpcExceptionFilter)
-@RequireAuthenticatedOperator()
-@UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard, ManagementAuthorizationGuard)
+@UseGuards(PermissionFoundationTrustedExecutionGuard)
 export class PolicyInstanceManagementGrpcController {
   constructor(private readonly managementService: PolicyInstanceManagementService) {}
 
   /** createPolicyInstance persists one template-based PolicyInstance fact. */
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.CREATE_POLICY)
+  @AuthorizeBusinessRpc({ all: [MANAGEMENT_PERMISSION_CODES.CREATE_POLICY] })
   @GrpcMethod('PolicyInstanceManagementService', 'createPolicyInstance')
   async createPolicyInstance(
     request: CreatePolicyInstanceRequest,
@@ -151,7 +154,7 @@ export class PolicyInstanceManagementGrpcController {
   }
 
   /** getPolicyInstance returns one template-based PolicyInstance by id. */
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.VIEW_POLICY)
+  @AuthorizeBusinessRpc({ all: [MANAGEMENT_PERMISSION_CODES.VIEW_POLICY] })
   @GrpcMethod('PolicyInstanceManagementService', 'getPolicyInstance')
   async getPolicyInstance(
     request: GetPolicyInstanceRequest,
@@ -162,7 +165,7 @@ export class PolicyInstanceManagementGrpcController {
   }
 
   /** listPolicyInstances returns paged template-based PolicyInstance records for governance views. */
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.VIEW_POLICY)
+  @AuthorizeBusinessRpc({ all: [MANAGEMENT_PERMISSION_CODES.VIEW_POLICY] })
   @GrpcMethod('PolicyInstanceManagementService', 'listPolicyInstances')
   async listPolicyInstances(
     request: ListPolicyInstancesRequest,
@@ -192,7 +195,7 @@ export class PolicyInstanceManagementGrpcController {
   }
 
   /** setPolicyInstanceEnabled enables or disables one persisted PolicyInstance fact. */
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.UPDATE_POLICY)
+  @AuthorizeBusinessRpc({ all: [MANAGEMENT_PERMISSION_CODES.UPDATE_POLICY] })
   @GrpcMethod('PolicyInstanceManagementService', 'setPolicyInstanceEnabled')
   async setPolicyInstanceEnabled(
     request: SetPolicyInstanceEnabledRequest,

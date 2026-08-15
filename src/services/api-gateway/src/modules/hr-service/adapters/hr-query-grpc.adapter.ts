@@ -13,16 +13,11 @@ import {
   ListEmployeesResponse,
   ListEmploymentsResponse
 } from '@oes/common/generated/hr_service'
-import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory
-} from '@oes/common/authorization'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
-import {
-  DownstreamRequestSource,
-  toOperatorScopedMetadataInput
-} from '../../../common/grpc/gateway-downstream-source.mapper'
+import { DownstreamRequestSource } from '../../../common/grpc/gateway-downstream-source.mapper'
+import { HR_TARGET_AUDIENCE, TrustedHrGrpcClient } from '../../../infrastructure/grpc/trusted-hr.grpc.client'
+import { GatewayFoundationTrustedGrpcExecutionProducer } from '../../../infrastructure/grpc/trusted-auth.grpc.client'
 
 const CALLER = 'api-gateway'
 
@@ -65,17 +60,15 @@ export class HrQueryGrpcAdapter implements OnModuleInit {
   private svc!: HrQueryServiceClient
 
   constructor(
-    @InjectGrpcClient(SERVICE_NAMES.HR)
-    private readonly client: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory
+    private readonly client: TrustedHrGrpcClient,
+    private readonly trusted: GatewayFoundationTrustedGrpcExecutionProducer
   ) {}
 
   onModuleInit(): void {
-    this.svc = this.client.getService<HrQueryServiceClient>(HR_QUERY_SERVICE_NAME)
+    this.svc = this.client.getClient().getService<HrQueryServiceClient>(HR_QUERY_SERVICE_NAME)
   }
 
-  listEmployees(
+  async listEmployees(
     input: {
       tenantId: string
       keyword?: string
@@ -89,13 +82,12 @@ export class HrQueryGrpcAdapter implements OnModuleInit {
       'listEmployees',
       this.svc.listEmployees(
         {
-          tenantId: input.tenantId,
           keyword: input.keyword,
           lifecycleStatus: mapEmployeeLifecycleStatus(input.lifecycleStatus),
           page: input.page,
           pageSize: input.pageSize
         },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, HR_TARGET_AUDIENCE, ['hr.employee.list'])
       ),
       (response: ListEmployeesResponse) => ({
         items: (response.items ?? []).map(mapEmployee),
@@ -106,12 +98,12 @@ export class HrQueryGrpcAdapter implements OnModuleInit {
     )
   }
 
-  getEmployeeById(employeeId: string, source: DownstreamRequestSource): Promise<HrEmployeeSummary> {
+  async getEmployeeById(employeeId: string, source: DownstreamRequestSource): Promise<HrEmployeeSummary> {
     return this.call(
       'getEmployeeById',
       this.svc.getEmployeeById(
         { employeeId },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, HR_TARGET_AUDIENCE, ['hr.employee.get_by_id'])
       ),
       (response: GetEmployeeByIdResponse) => {
         if (!response.employee?.id) {
@@ -122,7 +114,7 @@ export class HrQueryGrpcAdapter implements OnModuleInit {
     )
   }
 
-  getActiveEmployment(
+  async getActiveEmployment(
     employeeId: string,
     source: DownstreamRequestSource
   ): Promise<HrEmploymentSummary> {
@@ -130,7 +122,7 @@ export class HrQueryGrpcAdapter implements OnModuleInit {
       'getActiveEmployment',
       this.svc.getActiveEmployment(
         { employeeId },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, HR_TARGET_AUDIENCE, ['hr.employee.get_by_id'])
       ),
       (response: GetActiveEmploymentResponse) => {
         if (!response.employment?.id) {
@@ -146,7 +138,7 @@ export class HrQueryGrpcAdapter implements OnModuleInit {
     })
   }
 
-  listEmployments(
+  async listEmployments(
     input: { employeeId: string; status?: string },
     source: DownstreamRequestSource
   ): Promise<HrEmploymentSummary[]> {
@@ -157,13 +149,13 @@ export class HrQueryGrpcAdapter implements OnModuleInit {
           employeeId: input.employeeId,
           status: mapEmploymentStatus(input.status)
         },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, HR_TARGET_AUDIENCE, ['hr.employee.get_by_id'])
       ),
       (response: ListEmploymentsResponse) => (response.employments ?? []).map(mapEmployment)
     )
   }
 
-  getLatestOnboardingAccess(
+  async getLatestOnboardingAccess(
     input: { tenantId: string; employeeId: string },
     source: DownstreamRequestSource
   ): Promise<HrOnboardingAccessProcessSummary | null> {
@@ -171,10 +163,9 @@ export class HrQueryGrpcAdapter implements OnModuleInit {
       'getLatestOnboardingAccess',
       this.svc.getLatestOnboardingAccess(
         {
-          tenantId: input.tenantId,
           employeeId: input.employeeId
         },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, HR_TARGET_AUDIENCE, ['hr.employee.get_by_id'])
       ),
       (response: GetLatestOnboardingAccessResponse) =>
         response.process?.employeeId ? mapOnboardingAccessProcess(response.process) : null

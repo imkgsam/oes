@@ -1,4 +1,6 @@
 import { Controller, Inject, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common'
+import { AuthorizeBusinessRpc, AuthorizeSelfServiceRpc } from '@oes/common/authorization'
+import { IdentityFoundationTrustedExecutionGuard } from '../../modules/identity-trusted-execution.module'
 import { ACCESS_DENIED, ExceptionFactory } from '@oes/common/exceptions'
 import { ValidatingCommandBus, ValidatingQueryBus } from '@oes/common/cqrs'
 import { GrpcExceptionFilter } from '@oes/common/filters'
@@ -97,8 +99,7 @@ import { IdentityGrpcPresenter } from './identity-grpc.presenter'
 import { getOptionalOperatorScope, getRequiredOperatorId } from './grpc-request-context'
 
 @UseFilters(GrpcExceptionFilter)
-@RequireAuthenticatedOperator()
-@UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard, PermissionGuard)
+@UseGuards(IdentityFoundationTrustedExecutionGuard)
 @UseInterceptors(GrpcRequestContextInterceptor)
 @Controller()
 @IdentityManagementServiceControllerMethods()
@@ -112,7 +113,6 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     private readonly permissionResolver: OperatorPermissionResolver
   ) {}
 
-  @RequirePermissions({ all: [IDENTITY_MACHINE_PERMISSION_CODES.CREATE_API_KEY] })
   async createApiKey(request: CreateApiKeyRequest): Promise<CreateApiKeyResponse> {
     const operatorId = getRequiredOperatorId(request)
     const operatorScope = getOptionalOperatorScope(request)
@@ -150,7 +150,6 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     )
   }
 
-  @RequirePermissions({ all: [IDENTITY_MACHINE_PERMISSION_CODES.CREATE_SERVICE_ACCOUNT] })
   async createServiceAccount(
     request: CreateServiceAccountRequest
   ): Promise<CreateServiceAccountResponse> {
@@ -195,7 +194,6 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     )
   }
 
-  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.DELETE_ACCOUNT] })
   async getAccountDeletionImpact(
     request: GetAccountDeletionImpactRequest
   ): Promise<GetAccountDeletionImpactResponse> {
@@ -208,7 +206,6 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     return IdentityGrpcPresenter.toAccountDeletionImpact(result)
   }
 
-  @RequirePermissions({ all: [IDENTITY_MACHINE_PERMISSION_CODES.REVOKE_API_KEY] })
   async revokeApiKey(request: RevokeApiKeyRequest): Promise<RevokeApiKeyResponse> {
     const operatorId = getRequiredOperatorId(request)
     const operatorScope = getOptionalOperatorScope(request)
@@ -237,7 +234,6 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     )
   }
 
-  @RequirePermissions({ all: [IDENTITY_MACHINE_PERMISSION_CODES.ROTATE_API_KEY] })
   async rotateApiKey(request: RotateApiKeyRequest): Promise<RotateApiKeyResponse> {
     const operatorId = getRequiredOperatorId(request)
     const operatorScope = getOptionalOperatorScope(request)
@@ -275,7 +271,6 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     )
   }
 
-  @RequirePermissions({ all: [IDENTITY_MACHINE_PERMISSION_CODES.UPDATE_SERVICE_ACCOUNT_STATUS] })
   async setServiceAccountEnabled(
     request: SetServiceAccountEnabledRequest
   ): Promise<SetServiceAccountEnabledResponse> {
@@ -317,7 +312,6 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
   }
 
   /** Maps protected management enrollment into Identity's idempotent workload-binding command. */
-  @RequirePermissions({ all: ['identity.machine.workload_binding.manage'] })
   async enrollMachineWorkloadBinding(
     request: EnrollMachineWorkloadBindingRequest
   ): Promise<EnrollMachineWorkloadBindingResponse> {
@@ -333,7 +327,6 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
   }
 
   /** Maps protected optimistic disable into Identity's irreversible workload-binding command. */
-  @RequirePermissions({ all: ['identity.machine.workload_binding.manage'] })
   async disableMachineWorkloadBinding(
     request: DisableMachineWorkloadBindingRequest
   ): Promise<DisableMachineWorkloadBindingResponse> {
@@ -352,7 +345,6 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     }
   }
 
-  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.CREATE_ACCOUNT] })
   async createUserAccount(request: CreateUserAccountRequest): Promise<CreateUserAccountResponse> {
     const operatorId = getRequiredOperatorId(request)
     const operatorScope = getOptionalOperatorScope(request)
@@ -444,18 +436,20 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     request: BindAccountToEmployeeRequest
   ): Promise<BindAccountToEmployeeResponse> {
     const operatorId = getRequiredOperatorId(request)
+    const tenantId = getOptionalOperatorScope(request)?.tenantId
+    if (!tenantId) throw new Error('Identity trusted tenant context is required')
     return this.executeWithAudit(
       {
         eventType: 'ACCOUNT_EMPLOYEE_BOUND',
         module: 'account',
         operatorId,
-        scope: { tenantId: request.tenantId || null, orgId: null },
+        scope: { tenantId, orgId: null },
         resource: {
           resourceType: 'account_employee_binding',
           resourceId: request.accountId || null
         },
         details: {
-          tenantId: request.tenantId!,
+          tenantId,
           accountId: request.accountId!,
           employeeId: request.employeeId!
         }
@@ -463,7 +457,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
       async () => {
         const binding = await this.commandBus.execute(
           new BindAccountToEmployeeCommand({
-            tenantId: request.tenantId!,
+            tenantId,
             accountId: request.accountId!,
             employeeId: request.employeeId!
           })
@@ -596,7 +590,6 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     )
   }
 
-  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.UPDATE_ACCOUNT_PROFILE] })
   async updateUserBasicInfo(
     request: UpdateUserBasicInfoRequest
   ): Promise<UpdateUserBasicInfoResponse> {
@@ -642,7 +635,6 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     )
   }
 
-  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.DELETE_ACCOUNT] })
   async deleteAccount(request: DeleteAccountRequest): Promise<DeleteAccountResponse> {
     const operatorId = getRequiredOperatorId(request)
     const operatorScope = getOptionalOperatorScope(request)
@@ -679,7 +671,6 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     )
   }
 
-  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.ASSIGN_CONTACT_ASSET] })
   async assignAccountWorkEmailAsset(
     request: AssignAccountWorkEmailAssetRequest
   ): Promise<AssignAccountWorkEmailAssetResponse> {
@@ -723,7 +714,6 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     )
   }
 
-  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.ASSIGN_CONTACT_ASSET] })
   async assignAccountWorkPhoneAsset(
     request: AssignAccountWorkPhoneAssetRequest
   ): Promise<AssignAccountWorkPhoneAssetResponse> {
@@ -767,7 +757,6 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     )
   }
 
-  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.RELEASE_CONTACT_ASSET] })
   async revokeAccountWorkEmailAsset(
     request: RevokeAccountWorkEmailAssetRequest
   ): Promise<RevokeAccountWorkEmailAssetResponse> {
@@ -803,7 +792,6 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     )
   }
 
-  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.RELEASE_CONTACT_ASSET] })
   async revokeAccountWorkPhoneAsset(
     request: RevokeAccountWorkPhoneAssetRequest
   ): Promise<RevokeAccountWorkPhoneAssetResponse> {
@@ -839,7 +827,6 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     )
   }
 
-  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.SET_PRIMARY_CONTACT_ASSET] })
   async setAccountPrimaryWorkEmailAsset(
     request: SetAccountPrimaryWorkEmailAssetRequest
   ): Promise<SetAccountPrimaryWorkEmailAssetResponse> {
@@ -875,7 +862,6 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     )
   }
 
-  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.SET_PRIMARY_CONTACT_ASSET] })
   async setAccountPrimaryWorkPhoneAsset(
     request: SetAccountPrimaryWorkPhoneAssetRequest
   ): Promise<SetAccountPrimaryWorkPhoneAssetResponse> {
@@ -911,7 +897,6 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     )
   }
 
-  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.SET_CONTACT_ASSET_STATUS] })
   async setAccountWorkEmailAssetStatus(
     request: SetAccountWorkEmailAssetStatusRequest
   ): Promise<SetAccountWorkEmailAssetStatusResponse> {
@@ -953,7 +938,6 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     )
   }
 
-  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.SET_CONTACT_ASSET_STATUS] })
   async setAccountWorkPhoneAssetStatus(
     request: SetAccountWorkPhoneAssetStatusRequest
   ): Promise<SetAccountWorkPhoneAssetStatusResponse> {
@@ -1145,3 +1129,35 @@ function toMachineWorkloadBinding(binding: {
     disableReasonCode: binding.disableReasonCode ?? ''
   }
 }
+
+
+/** Applies the frozen one-mode declaration to every Identity management handler. */
+function applyIdentityManagementDeclaration(method: string, decorator: MethodDecorator): void {
+ const descriptor = Object.getOwnPropertyDescriptor(IdentityManagementGrpcController.prototype, method)
+ if (!descriptor) throw new Error(`Identity management handler is missing: ${method}`)
+ decorator(IdentityManagementGrpcController.prototype, method, descriptor)
+}
+applyIdentityManagementDeclaration('updateOwnAccountProfile', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
+applyIdentityManagementDeclaration('updateOwnUserBasicInfo', AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' }))
+applyIdentityManagementDeclaration('rotateApiKey', AuthorizeBusinessRpc({ all: ['identity.machine.api_key.rotate'] }))
+applyIdentityManagementDeclaration('createApiKey', AuthorizeBusinessRpc({ all: ['identity.machine.api_key.create'] }))
+applyIdentityManagementDeclaration('createServiceAccount', AuthorizeBusinessRpc({ all: ['identity.machine.service_account.create'] }))
+applyIdentityManagementDeclaration('setServiceAccountEnabled', AuthorizeBusinessRpc({ all: ['identity.machine.service_account.update_status'] }))
+applyIdentityManagementDeclaration('createUserAccount', AuthorizeBusinessRpc({ all: ['identity.account.create'] }))
+applyIdentityManagementDeclaration('getAccountDeletionImpact', AuthorizeBusinessRpc({ all: ['identity.account.delete'] }))
+applyIdentityManagementDeclaration('deleteAccount', AuthorizeBusinessRpc({ all: ['identity.account.delete'] }))
+applyIdentityManagementDeclaration('revokeApiKey', AuthorizeBusinessRpc({ all: ['identity.machine.api_key.revoke'] }))
+applyIdentityManagementDeclaration('updateAccountProfile', AuthorizeBusinessRpc({ all: ['identity.account.profile.update'] }))
+applyIdentityManagementDeclaration('updateUserBasicInfo', AuthorizeBusinessRpc({ all: ['identity.account.profile.update'] }))
+applyIdentityManagementDeclaration('bindAccountToEmployee', AuthorizeBusinessRpc({ all: ['identity.account.profile.update'] }))
+applyIdentityManagementDeclaration('unbindAccountFromEmployee', AuthorizeBusinessRpc({ all: ['identity.account.profile.update'] }))
+applyIdentityManagementDeclaration('assignAccountWorkEmailAsset', AuthorizeBusinessRpc({ all: ['identity.contact.asset.assign'] }))
+applyIdentityManagementDeclaration('assignAccountWorkPhoneAsset', AuthorizeBusinessRpc({ all: ['identity.contact.asset.assign'] }))
+applyIdentityManagementDeclaration('revokeAccountWorkEmailAsset', AuthorizeBusinessRpc({ all: ['identity.contact.asset.release'] }))
+applyIdentityManagementDeclaration('revokeAccountWorkPhoneAsset', AuthorizeBusinessRpc({ all: ['identity.contact.asset.release'] }))
+applyIdentityManagementDeclaration('setAccountWorkEmailAssetStatus', AuthorizeBusinessRpc({ all: ['identity.contact.asset.set_status'] }))
+applyIdentityManagementDeclaration('setAccountWorkPhoneAssetStatus', AuthorizeBusinessRpc({ all: ['identity.contact.asset.set_status'] }))
+applyIdentityManagementDeclaration('setAccountPrimaryWorkEmailAsset', AuthorizeBusinessRpc({ all: ['identity.contact.asset.set_primary'] }))
+applyIdentityManagementDeclaration('setAccountPrimaryWorkPhoneAsset', AuthorizeBusinessRpc({ all: ['identity.contact.asset.set_primary'] }))
+applyIdentityManagementDeclaration('enrollMachineWorkloadBinding', AuthorizeBusinessRpc({ all: ['identity.machine.workload_binding.manage'] }))
+applyIdentityManagementDeclaration('disableMachineWorkloadBinding', AuthorizeBusinessRpc({ all: ['identity.machine.workload_binding.manage'] }))

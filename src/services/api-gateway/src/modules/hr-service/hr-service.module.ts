@@ -18,10 +18,7 @@ import { HrManagementController } from './interface/http/controllers/hr-manageme
     AuthorizationModule,
     PermissionServiceProxyModule,
     GrpcTransportModule.forFeature([
-      SERVICE_NAMES.HR,
-      SERVICE_NAMES.ASSET,
-      SERVICE_NAMES.AUTH,
-      SERVICE_NAMES.IDENTITY,
+      SERVICE_NAMES.ASSET
     ]),
     TenantOrgServiceProxyModule
   ],

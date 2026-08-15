@@ -1,4 +1,7 @@
-import { Controller, UseFilters, UseGuards } from '@nestjs/common'
+import { Controller, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common'
+import { GrpcRequestContextInterceptor } from '@oes/common/authorization'
+import { AuthorizeBusinessRpc } from '@oes/common/authorization'
+import { PermissionFoundationTrustedExecutionGuard } from '../../modules/authorization/permission-trusted-execution.module'
 import { Metadata } from '@grpc/grpc-js'
 import { ValidatingCommandBus, ValidatingQueryBus } from '@oes/common/cqrs'
 import { GrpcExceptionFilter } from '../../../../../../common/dist/core/filters'
@@ -188,10 +191,10 @@ import {
 } from './permission-management.grpc.presenter'
 import { PermissionAuditService } from '../../application/services/permission-audit.service'
 
+@UseInterceptors(GrpcRequestContextInterceptor)
 @Controller()
 @UseFilters(GrpcExceptionFilter)
-@RequireAuthenticatedOperator()
-@UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard, ManagementAuthorizationGuard)
+@UseGuards(PermissionFoundationTrustedExecutionGuard)
 @PermissionManagementServiceControllerMethods()
 export class PermissionManagementGrpcController implements PermissionManagementServiceController {
   constructor(
@@ -200,7 +203,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     private readonly permissionAuditService: PermissionAuditService
   ) {}
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.CREATE_PERMISSION)
+  @AuthorizeBusinessRpc({ all: [MANAGEMENT_PERMISSION_CODES.CREATE_PERMISSION] })
   async createPermission(
     request: CreatePermissionRequest,
     metadata?: Metadata,
@@ -225,7 +228,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return response
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.CREATE_PERMISSION)
+  @AuthorizeBusinessRpc({ all: [MANAGEMENT_PERMISSION_CODES.CREATE_PERMISSION] })
   async batchCreatePermissions(
     request: BatchCreatePermissionsRequest,
     metadata?: Metadata,
@@ -256,7 +259,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return { permissions: created.map(toPermissionResponse) }
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.UPDATE_PERMISSION)
+  @AuthorizeBusinessRpc({ all: [MANAGEMENT_PERMISSION_CODES.UPDATE_PERMISSION] })
   async updatePermission(
     request: UpdatePermissionRequest,
     metadata?: Metadata,
@@ -283,7 +286,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return response
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.DELETE_PERMISSION)
+  @AuthorizeBusinessRpc({ all: [MANAGEMENT_PERMISSION_CODES.DELETE_PERMISSION] })
   async deletePermission(
     request: DeletePermissionRequest,
     metadata?: Metadata,
@@ -293,7 +296,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     this.recordMutation(request, 'PERMISSION_DELETED', 'PERMISSION', request.id!)
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.VIEW_PERMISSION_DETAIL)
+  @AuthorizeBusinessRpc({ all: [MANAGEMENT_PERMISSION_CODES.VIEW_PERMISSION_DETAIL] })
   async getPermissionById(
     request: GetPermissionByIdRequest,
     metadata?: Metadata,
@@ -305,7 +308,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return toPermissionResponse(permission)
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.VIEW_PERMISSION_DETAIL_BY_CODE)
+  @AuthorizeBusinessRpc({ all: [MANAGEMENT_PERMISSION_CODES.VIEW_PERMISSION_DETAIL_BY_CODE] })
   async getPermissionByCode(
     request: GetPermissionByCodeRequest,
     metadata?: Metadata,
@@ -317,7 +320,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return toPermissionResponse(permission)
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.VIEW_PERMISSION)
+  @AuthorizeBusinessRpc({ all: [MANAGEMENT_PERMISSION_CODES.VIEW_PERMISSION] })
   async listPermissionsPaged(
     request: ListPermissionsPagedRequest,
     metadata?: Metadata,
@@ -341,7 +344,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     }
   }
 
-  @RequireManagementPermission(ROLE_INSTANCE_PERMISSION_CODES.LIST)
+  @AuthorizeBusinessRpc({ all: [ROLE_INSTANCE_PERMISSION_CODES.LIST] })
   async listPermissionRoles(
     request: ListPermissionRolesRequest,
     metadata?: Metadata,
@@ -353,7 +356,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return { roles: roles.map(toRoleResponse) }
   }
 
-  @RequireManagementPermission(ROLE_TEMPLATE_PERMISSION_CODES.CREATE)
+  @AuthorizeBusinessRpc({ all: [ROLE_TEMPLATE_PERMISSION_CODES.CREATE] })
   async createRoleTemplate(
     request: CreateRoleTemplateRequest,
     metadata?: Metadata,
@@ -379,7 +382,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return response
   }
 
-  @RequireManagementPermission(ROLE_INSTANCE_PERMISSION_CODES.CREATE)
+  @AuthorizeBusinessRpc({ all: [ROLE_INSTANCE_PERMISSION_CODES.CREATE] })
   async createRoleInstance(
     request: CreateRoleInstanceRequest,
     metadata?: Metadata,
@@ -408,7 +411,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return response
   }
 
-  @RequireManagementPermission(ROLE_TEMPLATE_PERMISSION_CODES.GET_BY_ID)
+  @AuthorizeBusinessRpc({ all: [ROLE_TEMPLATE_PERMISSION_CODES.GET_BY_ID] })
   async getRoleTemplateById(
     request: GetRoleTemplateByIdRequest,
     metadata?: Metadata,
@@ -420,7 +423,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return toRoleResponse(role)
   }
 
-  @RequireManagementPermission(ROLE_TEMPLATE_PERMISSION_CODES.UPDATE)
+  @AuthorizeBusinessRpc({ all: [ROLE_TEMPLATE_PERMISSION_CODES.UPDATE] })
   async updateRoleTemplate(
     request: UpdateRoleTemplateRequest,
     metadata?: Metadata,
@@ -448,7 +451,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return response
   }
 
-  @RequireManagementPermission(ROLE_TEMPLATE_PERMISSION_CODES.DELETE)
+  @AuthorizeBusinessRpc({ all: [ROLE_TEMPLATE_PERMISSION_CODES.DELETE] })
   async deleteRoleTemplate(
     request: DeleteRoleTemplateRequest,
     metadata?: Metadata,
@@ -460,7 +463,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     this.recordMutation(request, 'ROLE_TEMPLATE_DELETED', 'ROLE', request.id!)
   }
 
-  @RequireManagementPermission(ROLE_TEMPLATE_PERMISSION_CODES.UPDATE)
+  @AuthorizeBusinessRpc({ all: [ROLE_TEMPLATE_PERMISSION_CODES.UPDATE] })
   async setRoleTemplateEnabled(
     request: SetRoleTemplateEnabledRequest,
     metadata?: Metadata,
@@ -485,7 +488,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return response
   }
 
-  @RequireManagementPermission(ROLE_INSTANCE_PERMISSION_CODES.UPDATE)
+  @AuthorizeBusinessRpc({ all: [ROLE_INSTANCE_PERMISSION_CODES.UPDATE] })
   async updateRole(
     request: UpdateRoleRequest,
     metadata?: Metadata,
@@ -513,7 +516,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return response
   }
 
-  @RequireManagementPermission(ROLE_INSTANCE_PERMISSION_CODES.UPDATE)
+  @AuthorizeBusinessRpc({ all: [ROLE_INSTANCE_PERMISSION_CODES.UPDATE] })
   async setRoleEnabled(
     request: SetRoleEnabledRequest,
     metadata?: Metadata,
@@ -534,7 +537,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return response
   }
 
-  @RequireManagementPermission(ROLE_INSTANCE_PERMISSION_CODES.DELETE)
+  @AuthorizeBusinessRpc({ all: [ROLE_INSTANCE_PERMISSION_CODES.DELETE] })
   async deleteRole(request: DeleteRoleRequest, metadata?: Metadata, ...rest: any): Promise<void> {
     await this.commandBus.execute(
       new DeleteRoleCommand(request.id!, this.getOperatorScope(request))
@@ -542,7 +545,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     this.recordMutation(request, 'ROLE_DELETED', 'ROLE', request.id!)
   }
 
-  @RequireManagementPermission(ROLE_INSTANCE_PERMISSION_CODES.GET_BY_ID)
+  @AuthorizeBusinessRpc({ all: [ROLE_INSTANCE_PERMISSION_CODES.GET_BY_ID] })
   async getRoleById(
     request: GetRoleByIdRequest,
     metadata?: Metadata,
@@ -554,7 +557,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return toRoleResponse(role)
   }
 
-  @RequireManagementPermission(ROLE_INSTANCE_PERMISSION_CODES.LIST)
+  @AuthorizeBusinessRpc({ all: [ROLE_INSTANCE_PERMISSION_CODES.LIST] })
   async listRoleInstances(
     request: ListRoleInstancesRequest,
     metadata?: Metadata,
@@ -580,7 +583,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     }
   }
 
-  @RequireManagementPermission(ROLE_TEMPLATE_PERMISSION_CODES.LIST)
+  @AuthorizeBusinessRpc({ all: [ROLE_TEMPLATE_PERMISSION_CODES.LIST] })
   async listRoleTemplates(
     request: ListRoleTemplatesRequest,
     metadata?: Metadata,
@@ -604,7 +607,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     }
   }
 
-  @RequireManagementPermission(ROLE_INSTANCE_PERMISSION_CODES.GET_BY_ID)
+  @AuthorizeBusinessRpc({ all: [ROLE_INSTANCE_PERMISSION_CODES.GET_BY_ID] })
   async listRolePermissions(
     request: ListRolePermissionsRequest,
     metadata?: Metadata,
@@ -616,7 +619,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return { permissions: permissions.map(toPermissionResponse) }
   }
 
-  @RequireManagementPermission(ROLE_TEMPLATE_PERMISSION_CODES.GET_BY_ID)
+  @AuthorizeBusinessRpc({ all: [ROLE_TEMPLATE_PERMISSION_CODES.GET_BY_ID] })
   async listRoleTemplatePermissions(
     request: ListRoleTemplatePermissionsRequest,
     metadata?: Metadata,
@@ -628,7 +631,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return { permissions: permissions.map(toPermissionResponse) }
   }
 
-  @RequireManagementPermission(ROLE_INSTANCE_PERMISSION_CODES.ASSIGN_PERMISSIONS)
+  @AuthorizeBusinessRpc({ all: [ROLE_INSTANCE_PERMISSION_CODES.ASSIGN_PERMISSIONS] })
   async assignRolePermission(
     request: AssignRolePermissionRequest,
     metadata?: Metadata,
@@ -649,7 +652,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     )
   }
 
-  @RequireManagementPermission(ROLE_TEMPLATE_PERMISSION_CODES.ASSIGN_PERMISSIONS)
+  @AuthorizeBusinessRpc({ all: [ROLE_TEMPLATE_PERMISSION_CODES.ASSIGN_PERMISSIONS] })
   async assignRoleTemplatePermission(
     request: AssignRoleTemplatePermissionRequest,
     metadata?: Metadata,
@@ -670,7 +673,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     )
   }
 
-  @RequireManagementPermission(ROLE_TEMPLATE_PERMISSION_CODES.ASSIGN_PERMISSIONS)
+  @AuthorizeBusinessRpc({ all: [ROLE_TEMPLATE_PERMISSION_CODES.ASSIGN_PERMISSIONS] })
   async revokeRoleTemplatePermission(
     request: RevokeRoleTemplatePermissionRequest,
     metadata?: Metadata,
@@ -691,7 +694,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     )
   }
 
-  @RequireManagementPermission(ROLE_INSTANCE_PERMISSION_CODES.CREATE_FROM_TEMPLATE)
+  @AuthorizeBusinessRpc({ all: [ROLE_INSTANCE_PERMISSION_CODES.CREATE_FROM_TEMPLATE] })
   async createRoleInstanceFromTemplate(
     request: CreateRoleInstanceFromTemplateRequest,
     metadata?: Metadata,
@@ -718,7 +721,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return response
   }
 
-  @RequireManagementPermission(ROLE_INSTANCE_PERMISSION_CODES.CREATE_FROM_TEMPLATE)
+  @AuthorizeBusinessRpc({ all: [ROLE_INSTANCE_PERMISSION_CODES.CREATE_FROM_TEMPLATE] })
   async ensureTenantRoleInstanceFromTemplate(
     request: EnsureTenantRoleInstanceFromTemplateRequest,
     metadata?: Metadata,
@@ -752,7 +755,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return { role, created: result.created }
   }
 
-  @RequireManagementPermission(ROLE_INSTANCE_PERMISSION_CODES.ASSIGN_PERMISSIONS)
+  @AuthorizeBusinessRpc({ all: [ROLE_INSTANCE_PERMISSION_CODES.ASSIGN_PERMISSIONS] })
   async revokeRolePermission(
     request: RevokeRolePermissionRequest,
     metadata?: Metadata,
@@ -773,7 +776,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     )
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.ASSIGN_ACCOUNT_ROLE)
+  @AuthorizeBusinessRpc({ all: [MANAGEMENT_PERMISSION_CODES.ASSIGN_ACCOUNT_ROLE] })
   async assignAccountRole(
     request: AssignAccountRoleRequest,
     metadata?: Metadata,
@@ -812,7 +815,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return { bindingId: binding.bindingId }
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.ASSIGN_ACCOUNT_ROLE)
+  @AuthorizeBusinessRpc({ all: [MANAGEMENT_PERMISSION_CODES.ASSIGN_ACCOUNT_ROLE] })
   async grantInitialAccessForEmployeeAccount(
     request: GrantInitialAccessForEmployeeAccountRequest,
     metadata?: Metadata,
@@ -855,7 +858,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     }
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.ASSIGN_ACCOUNT_ROLE)
+  @AuthorizeBusinessRpc({ all: [MANAGEMENT_PERMISSION_CODES.ASSIGN_ACCOUNT_ROLE] })
   async grantInitialAccessForTenantAccount(
     request: GrantInitialAccessForTenantAccountRequest,
     metadata?: Metadata,
@@ -898,7 +901,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     }
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.REVOKE_ACCOUNT_ROLE)
+  @AuthorizeBusinessRpc({ all: [MANAGEMENT_PERMISSION_CODES.REVOKE_ACCOUNT_ROLE] })
   async revokeAccountRole(
     request: RevokeAccountRoleRequest,
     metadata?: Metadata,
@@ -919,7 +922,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     )
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.REVOKE_ACCOUNT_ROLE)
+  @AuthorizeBusinessRpc({ all: [MANAGEMENT_PERMISSION_CODES.REVOKE_ACCOUNT_ROLE] })
   /** revokePrincipalRoleBinding closes one exact binding and replays the original first-revoke facts. */
   async revokePrincipalRoleBinding(
     request: RevokePrincipalRoleBindingRequest,
@@ -966,7 +969,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     }
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.VIEW_ACCOUNT_ROLE)
+  @AuthorizeBusinessRpc({ all: [MANAGEMENT_PERMISSION_CODES.VIEW_ACCOUNT_ROLE] })
   async listAccountRoles(
     request: ListAccountRolesRequest,
     metadata?: Metadata,
@@ -986,7 +989,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     }
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.VIEW_ACCOUNT_ROLE)
+  @AuthorizeBusinessRpc({ all: [MANAGEMENT_PERMISSION_CODES.VIEW_ACCOUNT_ROLE] })
   async listRoleAccounts(
     request: ListRoleAccountsRequest,
     metadata?: Metadata,
@@ -998,7 +1001,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return { accounts: accounts.map(toAccountRoleBindingResponse) }
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.VIEW_ACCOUNT_ROLE)
+  @AuthorizeBusinessRpc({ all: [MANAGEMENT_PERMISSION_CODES.VIEW_ACCOUNT_ROLE] })
   async getAccountRoleSelection(
     request: GetAccountRoleSelectionRequest,
     metadata?: Metadata,
@@ -1018,7 +1021,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     }
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.SET_ACCOUNT_ROLES)
+  @AuthorizeBusinessRpc({ all: [MANAGEMENT_PERMISSION_CODES.SET_ACCOUNT_ROLES] })
   async setAccountRoles(
     request: SetAccountRolesRequest,
     metadata?: Metadata,
@@ -1055,7 +1058,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     }
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.VIEW_AUDIT_EVENT)
+  @AuthorizeBusinessRpc({ all: [MANAGEMENT_PERMISSION_CODES.VIEW_AUDIT_EVENT] })
   // This method exposes permission management audit records through the management gRPC surface.
   async listAuditEvents(
     request: ListAuditEventsRequest,
@@ -1068,9 +1071,9 @@ export class PermissionManagementGrpcController implements PermissionManagementS
         module: request.module || undefined,
         eventType: request.eventType || undefined,
         result: request.result || undefined,
-        operatorId: request.operatorId || undefined,
-        tenantId: request.tenantId || undefined,
-        orgId: request.orgId || undefined,
+        operatorId: undefined,
+        tenantId: undefined,
+        orgId: undefined,
         resourceType: request.resourceType || undefined,
         resourceId: request.resourceId || undefined,
         occurredAtFrom: request.occurredAtFrom || undefined,
@@ -1086,7 +1089,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     }
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.VIEW_NAVIGATION_ENTRY)
+  @AuthorizeBusinessRpc({ all: [MANAGEMENT_PERMISSION_CODES.VIEW_NAVIGATION_ENTRY] })
   // This method exposes the managed navigation entry registry.
   async listNavigationEntries(
     request: ListNavigationEntriesRequest,
@@ -1112,7 +1115,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     }
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.VIEW_NAVIGATION_ENTRY_DETAIL)
+  @AuthorizeBusinessRpc({ all: [MANAGEMENT_PERMISSION_CODES.VIEW_NAVIGATION_ENTRY_DETAIL] })
   // This method returns one managed navigation entry by stable entry key.
   async getNavigationEntry(
     request: GetNavigationEntryRequest,
@@ -1123,7 +1126,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return toNavigationEntryResponse(entry)
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.CREATE_NAVIGATION_ENTRY)
+  @AuthorizeBusinessRpc({ all: [MANAGEMENT_PERMISSION_CODES.CREATE_NAVIGATION_ENTRY] })
   // This method creates one managed navigation entry registry item.
   async createNavigationEntry(
     request: CreateNavigationEntryRequest,
@@ -1154,7 +1157,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return response
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.UPDATE_NAVIGATION_ENTRY)
+  @AuthorizeBusinessRpc({ all: [MANAGEMENT_PERMISSION_CODES.UPDATE_NAVIGATION_ENTRY] })
   // This method updates mutable metadata for a managed navigation entry.
   async updateNavigationEntry(
     request: UpdateNavigationEntryRequest,
@@ -1189,7 +1192,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return response
   }
 
-  @RequireManagementPermission(ROLE_INSTANCE_PERMISSION_CODES.GET_BY_ID)
+  @AuthorizeBusinessRpc({ all: [ROLE_INSTANCE_PERMISSION_CODES.GET_BY_ID] })
   // This method returns the role-scoped navigation visibility and landing config.
   async getRoleNavigation(
     request: GetRoleNavigationRequest,
@@ -1202,7 +1205,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return toRoleNavigationResponse(config)
   }
 
-  @RequireManagementPermission(ROLE_INSTANCE_PERMISSION_CODES.UPDATE)
+  @AuthorizeBusinessRpc({ all: [ROLE_INSTANCE_PERMISSION_CODES.UPDATE] })
   // This method replaces a role's navigation visibility config as a full set.
   async setRoleNavigationVisibility(
     request: SetRoleNavigationVisibilityRequest,
@@ -1233,7 +1236,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return response
   }
 
-  @RequireManagementPermission(ROLE_INSTANCE_PERMISSION_CODES.UPDATE)
+  @AuthorizeBusinessRpc({ all: [ROLE_INSTANCE_PERMISSION_CODES.UPDATE] })
   // This method replaces a role's landing policy config as a full set.
   async setRoleLandingPolicies(
     request: SetRoleLandingPoliciesRequest,
@@ -1265,7 +1268,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return response
   }
 
-  @RequireManagementPermission(ROLE_INSTANCE_PERMISSION_CODES.SYNC_FROM_TEMPLATE)
+  @AuthorizeBusinessRpc({ all: [ROLE_INSTANCE_PERMISSION_CODES.SYNC_FROM_TEMPLATE] })
   // This method resets one role instance navigation to the linked template snapshot.
   async syncRoleNavigationFromTemplate(
     request: SyncRoleNavigationFromTemplateRequest,
@@ -1290,7 +1293,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return response
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.RESOLVE_NAVIGATION_PREVIEW)
+  @AuthorizeBusinessRpc({ all: [MANAGEMENT_PERMISSION_CODES.RESOLVE_NAVIGATION_PREVIEW] })
   // This method previews visible entries and default landing entry for one or more roles.
   async resolveNavigationPreview(
     request: ResolveNavigationPreviewRequest,
@@ -1307,7 +1310,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return toResolveNavigationPreviewResponse(result)
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.VIEW_TERMINAL_ACCESS)
+  @AuthorizeBusinessRpc({ all: [MANAGEMENT_PERMISSION_CODES.VIEW_TERMINAL_ACCESS] })
   // This method reads the configured default terminal access for one role.
   async getRoleTerminalAccess(
     request: GetRoleTerminalAccessRequest,
@@ -1323,7 +1326,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     }
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.MANAGE_ROLE_TERMINAL_ACCESS)
+  @AuthorizeBusinessRpc({ all: [MANAGEMENT_PERMISSION_CODES.MANAGE_ROLE_TERMINAL_ACCESS] })
   // This method replaces the configured default terminal access for one role.
   async setRoleTerminalAccess(
     request: SetRoleTerminalAccessRequest,
@@ -1355,7 +1358,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return response
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.VIEW_TERMINAL_ACCESS)
+  @AuthorizeBusinessRpc({ all: [MANAGEMENT_PERMISSION_CODES.VIEW_TERMINAL_ACCESS] })
   // This method reads only the final effective terminal access for one account scope.
   async getAccountTerminalAccess(
     request: GetAccountTerminalAccessRequest,
@@ -1372,7 +1375,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return toAccountTerminalAccessResponse(result)
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.MANAGE_ACCOUNT_TERMINAL_ACCESS)
+  @AuthorizeBusinessRpc({ all: [MANAGEMENT_PERMISSION_CODES.MANAGE_ACCOUNT_TERMINAL_ACCESS] })
   // This method replaces one account's terminal override for the selected scope.
   async replaceAccountTerminalAccessOverride(
     request: ReplaceAccountTerminalAccessOverrideRequest,
@@ -1407,7 +1410,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return response
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.MANAGE_ACCOUNT_TERMINAL_ACCESS)
+  @AuthorizeBusinessRpc({ all: [MANAGEMENT_PERMISSION_CODES.MANAGE_ACCOUNT_TERMINAL_ACCESS] })
   // This method removes one account's override so role terminal defaults apply again.
   async deleteAccountTerminalAccessOverride(
     request: DeleteAccountTerminalAccessOverrideRequest,

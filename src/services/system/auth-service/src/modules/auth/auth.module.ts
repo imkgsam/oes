@@ -111,6 +111,7 @@ import {
 } from '../../common/constants/injection-tokens'
 import { IDENTITY_SERVICE, PERMISSION_SERVICE } from '@oes/common/constants'
 import { GrpcWorkloadIdentityProvider } from '@oes/common/transport'
+import { AuthTrustedExecutionModule } from './auth-trusted-execution.module'
 
 const AUTH_SERVICE_AUDIENCE = 'urn:oes:service:auth-service'
 
@@ -122,7 +123,8 @@ const AUTH_SERVICE_AUDIENCE = 'urn:oes:service:auth-service'
     CommonJwtModule,
     AuthorizationModule,
     ExternalServicesModule,
-    ExecutionTokenModule
+    ExecutionTokenModule,
+    AuthTrustedExecutionModule
   ],
   providers: [
     { provide: REPO.AUDIT_EVENT, useExisting: PrismaAuthAuditRepository },

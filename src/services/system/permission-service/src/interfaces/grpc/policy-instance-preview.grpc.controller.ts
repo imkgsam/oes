@@ -1,4 +1,7 @@
-import { Controller, UseFilters, UseGuards } from '@nestjs/common'
+import { Controller, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common'
+import { GrpcRequestContextInterceptor } from '@oes/common/authorization'
+import { AuthorizeBusinessRpc } from '@oes/common/authorization'
+import { PermissionFoundationTrustedExecutionGuard } from '../../modules/authorization/permission-trusted-execution.module'
 import { Metadata } from '@grpc/grpc-js'
 import { GrpcMethod } from '@nestjs/microservices'
 import {
@@ -162,14 +165,14 @@ const QUERY_SCOPE_OPERATOR_TO_PROTO: Record<QueryScopeOperator, number> = {
 }
 
 /** PolicyInstancePreviewGrpcController exposes a management-only preview path for template-based policy instances. */
+@UseInterceptors(GrpcRequestContextInterceptor)
 @Controller()
 @UseFilters(GrpcExceptionFilter)
-@RequireAuthenticatedOperator()
-@UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard, ManagementAuthorizationGuard)
+@UseGuards(PermissionFoundationTrustedExecutionGuard)
 export class PolicyInstancePreviewGrpcController {
   constructor(private readonly previewService: PolicyInstancePreviewService) {}
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.VIEW_POLICY)
+  @AuthorizeBusinessRpc({ all: [MANAGEMENT_PERMISSION_CODES.VIEW_POLICY] })
   @GrpcMethod('PolicyInstancePreviewService', 'evaluatePolicyInstancePreview')
   async evaluatePolicyInstancePreview(
     request: EvaluatePolicyInstancePreviewRequest,

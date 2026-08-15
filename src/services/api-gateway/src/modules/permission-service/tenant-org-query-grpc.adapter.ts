@@ -1,10 +1,6 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
 import { SERVICE_NAMES } from '@oes/common/constants'
-import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory
-} from '@oes/common/authorization'
 import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
 import {
   GetTenantByIdResponse,
@@ -12,11 +8,9 @@ import {
   TENANT_ORG_QUERY_SERVICE_NAME,
   TenantOrgQueryServiceClient
 } from '@oes/common/generated/tenant_org_service'
-import {
-  DownstreamRequestSource,
-  toInternalCallMetadataInput,
-  toOperatorScopedMetadataInput
-} from '../../common/grpc/gateway-downstream-source.mapper'
+import { DownstreamRequestSource } from '../../common/grpc/gateway-downstream-source.mapper'
+import { TENANTORG_TARGET_AUDIENCE, TrustedTenantOrgGrpcClient } from '../../infrastructure/grpc/trusted-tenant-org.grpc.client'
+import { GatewayFoundationTrustedGrpcExecutionProducer } from '../../infrastructure/grpc/trusted-auth.grpc.client'
 
 const CALLER = 'api-gateway'
 
@@ -43,17 +37,15 @@ export class TenantOrgQueryGrpcAdapter implements OnModuleInit {
   private svc!: TenantOrgQueryServiceClient
 
   constructor(
-    @InjectGrpcClient(SERVICE_NAMES.TENANT_ORG)
-    private readonly client: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory
+    private readonly client: TrustedTenantOrgGrpcClient,
+    private readonly trusted: GatewayFoundationTrustedGrpcExecutionProducer
   ) {}
 
   onModuleInit(): void {
-    this.svc = this.client.getService<TenantOrgQueryServiceClient>(TENANT_ORG_QUERY_SERVICE_NAME)
+    this.svc = this.client.getClient().getService<TenantOrgQueryServiceClient>(TENANT_ORG_QUERY_SERVICE_NAME)
   }
 
-  getTenantById(
+  async getTenantById(
     tenantId: string,
     source: DownstreamRequestSource
   ): Promise<GatewayGetTenantByIdResponse> {
@@ -61,7 +53,7 @@ export class TenantOrgQueryGrpcAdapter implements OnModuleInit {
       'getTenantById',
       this.svc.getTenantById(
         { tenantId },
-        this.metadataFactory.createInternalCallMetadata(toInternalCallMetadataInput(source))
+        await this.trusted.forBusinessCall(source, TENANTORG_TARGET_AUDIENCE, ['tenant_org.tenant.get_by_id'])
       ),
       (response: GetTenantByIdResponse) => ({
         tenant: response.tenant
@@ -77,7 +69,7 @@ export class TenantOrgQueryGrpcAdapter implements OnModuleInit {
     )
   }
 
-  listTenants(
+  async listTenants(
     input: { activeOnly?: boolean; keyword?: string; pageSize?: number },
     source: DownstreamRequestSource
   ): Promise<GatewayListTenantsResponse> {
@@ -89,7 +81,7 @@ export class TenantOrgQueryGrpcAdapter implements OnModuleInit {
           pageSize: input.pageSize,
           status: input.activeOnly ? 'ACTIVE' : undefined
         },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, TENANTORG_TARGET_AUDIENCE, ['tenant_org.tenant.list'])
       ),
       (response: ListTenantsResponse) => ({
         tenants: (response.tenants ?? []).map((tenant) => ({

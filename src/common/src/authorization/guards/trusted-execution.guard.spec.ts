@@ -11,9 +11,24 @@ const WORKLOAD = {
 function guardFixture(declaration: unknown, verified: Record<string, unknown>) {
   const metadata = new Metadata()
   metadata.set('authorization', 'Bearer e30.e30.e30')
+  metadata.set('x-request-id', 'request-1')
+  metadata.set('traceparent', '00-0123456789abcdef0123456789abcdef-0123456789abcdef-01')
   const data = {}
   const reflector = { getAllAndOverride: jest.fn(() => declaration) }
-  const verifier = { verify: jest.fn(async () => verified) }
+  const verifier = {
+    verify: jest.fn(async () => ({
+      issuer: 'https://auth.local.oes.example',
+      audience: AUDIENCE,
+      subject: 'account-1',
+      clientId: WORKLOAD.spiffeId,
+      tokenId: 'token-1',
+      issuedAt: 1,
+      notBefore: 1,
+      expiresAt: 2,
+      certificateThumbprint: WORKLOAD.certificateThumbprint,
+      ...verified
+    }))
+  }
   const workloadIdentityProvider = {
     getVerifiedWorkloadIdentity: jest.fn(async () => WORKLOAD)
   }

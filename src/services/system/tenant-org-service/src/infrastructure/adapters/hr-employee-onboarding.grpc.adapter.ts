@@ -1,10 +1,5 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
-import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory,
-  GrpcRequestContextStore
-} from '@oes/common/authorization'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import {
   CreateEmployeeOnboardingResponse,
@@ -13,20 +8,18 @@ import {
 } from '@oes/common/generated/hr_service'
 import { InjectGrpcClient, safeGrpcCall } from '@oes/common/transport'
 import { HrEmployeeOnboardingPort } from '../../application/ports/hr-employee-onboarding.port'
-import { buildTenantOnboardingMetadata } from './tenant-onboarding-metadata'
+import { TenantOrgFoundationTrustedGrpcExecutionProducer } from './foundation-trusted-grpc.clients'
 
 /** HrEmployeeOnboardingGrpcAdapter asks hr-service to own first-admin employee creation during tenant onboarding. */
 @Injectable()
 export class HrEmployeeOnboardingGrpcAdapter implements HrEmployeeOnboardingPort, OnModuleInit {
   private readonly logger = new Logger(HrEmployeeOnboardingGrpcAdapter.name)
   private client!: HrManagementServiceClient
+  private readonly trusted = new TenantOrgFoundationTrustedGrpcExecutionProducer()
 
   constructor(
     @InjectGrpcClient(SERVICE_NAMES.HR)
-    private readonly hrClient: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory,
-    private readonly requestContextStore: GrpcRequestContextStore
+    private readonly hrClient: ClientGrpc
   ) {}
 
   onModuleInit() {
@@ -51,7 +44,6 @@ export class HrEmployeeOnboardingGrpcAdapter implements HrEmployeeOnboardingPort
     const response = await safeGrpcCall<CreateEmployeeOnboardingResponse>(
       this.client.createEmployeeOnboarding(
         {
-          tenantId: input.tenantId,
           idempotencyKey: input.idempotencyKey,
           person: {
             legalName: input.person.legalName,
@@ -65,7 +57,7 @@ export class HrEmployeeOnboardingGrpcAdapter implements HrEmployeeOnboardingPort
           existingAccountId: input.account.existingAccountId,
           employeeCode: input.employeeCode
         },
-        this.buildMetadata()
+        await this.trusted.forBusinessCall('hr-service', ['hr.employee.create'])
       ),
       { caller: 'tenant-org-service', method: 'HrManagementService.createEmployeeOnboarding' }
     )
@@ -83,8 +75,4 @@ export class HrEmployeeOnboardingGrpcAdapter implements HrEmployeeOnboardingPort
     }
   }
 
-  /** buildMetadata propagates tenant-org request context into hr-service calls. */
-  private buildMetadata() {
-    return buildTenantOnboardingMetadata(this.metadataFactory, this.requestContextStore)
-  }
 }

@@ -11,7 +11,7 @@ import { TerminalDeviceAdminController } from './interfaces/http/controllers/ter
   imports: [
     AuthBffModule,
     PdaDiagnosticsModule,
-    GrpcTransportModule.forFeature([SERVICE_NAMES.AUTH, SERVICE_NAMES.TERMINAL_DEVICE])
+    GrpcTransportModule.forFeature([SERVICE_NAMES.TERMINAL_DEVICE])
   ],
   controllers: [TerminalDeviceAdminController],
   providers: [TerminalDeviceAdminUseCase, TerminalDeviceAdminAdapter]

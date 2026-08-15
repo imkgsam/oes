@@ -79,7 +79,8 @@ message GetEmployeeByIdResponse {
 }
 
 message GetEmployeeByTenantPartyIdRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string tenant_party_id = 2;
 }
 
@@ -98,7 +99,8 @@ message ResolveActiveEmployeeByCodeResponse {
 }
 
 message ListEmployeesRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string keyword = 2;
   EmployeeLifecycleStatus lifecycle_status = 3;
   int32 page = 4;
@@ -141,7 +143,8 @@ message OnboardingAccessProcessSummary {
 }
 
 message GetLatestOnboardingAccessRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string employee_id = 2;
 }
 
@@ -150,7 +153,8 @@ message GetLatestOnboardingAccessResponse {
 }
 
 message CreateEmployeeRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string tenant_party_id = 2;
   reserved 3;
   reserved "party_id";
@@ -162,7 +166,8 @@ message CreateEmployeeResponse {
 }
 
 message UpdateEmployeeOfficialPhotoRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string employee_id = 2;
   string official_photo_asset_id = 3;
   string official_photo_url = 4;
@@ -173,7 +178,8 @@ message UpdateEmployeeOfficialPhotoResponse {
 }
 
 message RemoveEmployeeOfficialPhotoRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string employee_id = 2;
 }
 
@@ -203,7 +209,8 @@ message EmployeeOnboardingPrimaryEmploymentInput {
 }
 
 message CreateEmployeeOnboardingRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string idempotency_key = 2;
   EmployeeOnboardingPersonInput person = 3;
   EmployeeOnboardingPrimaryEmploymentInput primary_employment = 4;
@@ -219,7 +226,8 @@ message CreateEmployeeOnboardingResponse {
 }
 
 message CreateEmploymentRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string employee_id = 2;
   string org_unit_id = 3;
   string effective_from = 4;
@@ -243,7 +251,8 @@ message EndEmploymentResponse {
 }
 
 message ChangePrimaryEmploymentRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string employee_id = 2;
   string from_employment_id = 3;
   string to_org_unit_id = 4;
@@ -267,7 +276,8 @@ message ProvisionEmployeeAccessAccountInput {
 }
 
 message CompleteEmployeeAccessRequest {
-  string tenant_id = 1;
+  reserved 1;
+  reserved "tenant_id";
   string employee_id = 2;
   string employment_id = 3;
   repeated string role_ids = 4;

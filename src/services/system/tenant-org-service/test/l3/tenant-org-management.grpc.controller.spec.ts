@@ -1,12 +1,7 @@
 import { BadRequestException } from '@nestjs/common'
 import { GUARDS_METADATA } from '@nestjs/common/constants'
-import {
-  AuthenticatedOperatorGuard,
-  InternalServiceGuard,
-  PermissionGuard,
-  REQUIRE_PERMISSIONS_METADATA_KEY,
-  TENANT_ORG_MANAGEMENT_PERMISSION_CODES
-} from '@oes/common/authorization'
+import { getRpcAuthorizationModeDeclaration, TENANT_ORG_MANAGEMENT_PERMISSION_CODES } from '@oes/common/authorization'
+import { TenantOrgFoundationTrustedExecutionGuard } from '../../src/modules/tenant-org-trusted-execution.module'
 import { TenantOrgManagementService } from '../../src/application/services'
 import { TenantOrgManagementGrpcController } from '../../src/interfaces/grpc/tenant-org-management.grpc.controller'
 
@@ -39,7 +34,7 @@ describe('TenantOrgManagementGrpcController L3', () => {
     const guards = Reflect.getMetadata(GUARDS_METADATA, TenantOrgManagementGrpcController) ?? []
 
     expect(guards).toEqual(
-      expect.arrayContaining([InternalServiceGuard, AuthenticatedOperatorGuard, PermissionGuard])
+      expect.arrayContaining([TenantOrgFoundationTrustedExecutionGuard])
     )
     expectPermission('createTenant', TENANT_ORG_MANAGEMENT_PERMISSION_CODES.CREATE_TENANT)
     expectPermission('startTenantOnboarding', TENANT_ORG_MANAGEMENT_PERMISSION_CODES.CREATE_TENANT)
@@ -219,10 +214,6 @@ function expectPermission(
   methodName: keyof TenantOrgManagementGrpcController,
   permissionCode: string
 ) {
-  expect(
-    Reflect.getMetadata(
-      REQUIRE_PERMISSIONS_METADATA_KEY,
-      TenantOrgManagementGrpcController.prototype[methodName]
-    )
-  ).toEqual({ all: [permissionCode] })
+  expect(getRpcAuthorizationModeDeclaration(TenantOrgManagementGrpcController.prototype, methodName))
+    .toEqual({ mode: 'BUSINESS', permissions: { all: [permissionCode] } })
 }

@@ -4,9 +4,6 @@ import { IdentityAccountReferenceGrpcAdaptor } from '../../src/infrastructure/ad
 
 describe('IdentityAccountReferenceGrpcAdaptor', () => {
   const metadata = new Metadata()
-  const metadataFactory = {
-    createInternalCallMetadata: jest.fn(() => metadata)
-  }
   const identityQueryService = {
     getAccountById: jest.fn(),
     getServiceAccountById: jest.fn()
@@ -30,7 +27,8 @@ describe('IdentityAccountReferenceGrpcAdaptor', () => {
         }
       })
     )
-    const adaptor = new IdentityAccountReferenceGrpcAdaptor(client as any, metadataFactory as any)
+    const adaptor = new IdentityAccountReferenceGrpcAdaptor(client as any)
+    ;(adaptor as any).trusted = { forBusinessCall: jest.fn().mockResolvedValue(metadata) }
     adaptor.onModuleInit()
 
     await expect(adaptor.getAccountById('account-1')).resolves.toEqual({
@@ -38,9 +36,6 @@ describe('IdentityAccountReferenceGrpcAdaptor', () => {
       tenantId: 'tenant-1',
       scopeLevel: 'TENANT',
       isActive: true
-    })
-    expect(metadataFactory.createInternalCallMetadata).toHaveBeenCalledWith({
-      callerServiceName: 'permission-service'
     })
     expect(identityQueryService.getAccountById).toHaveBeenCalledWith(
       { accountId: 'account-1' },
@@ -59,7 +54,8 @@ describe('IdentityAccountReferenceGrpcAdaptor', () => {
         }
       })
     )
-    const adaptor = new IdentityAccountReferenceGrpcAdaptor(client as any, metadataFactory as any)
+    const adaptor = new IdentityAccountReferenceGrpcAdaptor(client as any)
+    ;(adaptor as any).trusted = { forBusinessCall: jest.fn().mockResolvedValue(metadata) }
     adaptor.onModuleInit()
 
     await expect(adaptor.getServiceAccountById('machine-1')).resolves.toEqual({

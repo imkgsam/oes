@@ -1,7 +1,6 @@
 import { of } from 'rxjs'
 import { ClientGrpc } from '@nestjs/microservices'
 import { Metadata } from '@grpc/grpc-js'
-import { GrpcMetadataPropagationFactory, GrpcRequestContextStore } from '@oes/common/authorization'
 import { IdentityServiceAdaptor } from './identity-service.adaptor'
 
 describe('IdentityServiceAdaptor', () => {
@@ -22,41 +21,24 @@ describe('IdentityServiceAdaptor', () => {
     } as unknown as ClientGrpc
 
     const metadata = new Metadata()
-    const metadataFactory: GrpcMetadataPropagationFactory = {
-      createInternalCallMetadata: jest.fn(() => metadata),
-      createOperatorScopedMetadata: jest.fn()
-    }
-    const store = new GrpcRequestContextStore()
-    const adaptor = new IdentityServiceAdaptor(client, metadataFactory, store)
+    const adaptor = new IdentityServiceAdaptor(client)
+    const forBusinessCall = jest.fn().mockResolvedValue(metadata)
+    ;(adaptor as any).trusted = { forBusinessCall }
     adaptor.onModuleInit()
 
-    await store.run(
-      {
-        internalServiceName: 'api-gateway',
-        requestId: 'req-identity',
-        traceId: 'trace-identity'
-      },
-      async () => {
-        const result = await adaptor.getUserById('user-1')
-        expect(result).toEqual({
-          userId: 'user-1',
-          email: 'user@example.com',
-          phone: undefined,
-          fullName: 'User One'
-        })
-      }
-    )
-
-    expect(metadataFactory.createInternalCallMetadata).toHaveBeenCalledWith({
-      callerServiceName: 'auth-service',
-      requestId: 'req-identity',
-      traceId: 'trace-identity'
+    const result = await adaptor.getUserById('user-1')
+    expect(result).toEqual({
+      userId: 'user-1',
+      email: 'user@example.com',
+      phone: undefined,
+      fullName: 'User One'
     })
+
+    expect(forBusinessCall).toHaveBeenCalledWith('identity-service', ['identity.account.list'])
     expect(getUserById).toHaveBeenCalledWith({ userId: 'user-1' }, metadata)
   })
 
   it('obtains an Auth-issued INTERNAL token for resolveIntegrationMachineForAuth', async () => {
-    const exchangeExecutionToken = jest.fn().mockReturnValue(of({ accessToken: 'sts-token' }))
     const resolveIntegrationMachineForAuth = jest
       .fn()
       .mockReturnValue(of({ eligible: true, tenantId: 'tenant-1' }))
@@ -65,41 +47,22 @@ describe('IdentityServiceAdaptor', () => {
         .fn()
         .mockReturnValueOnce({ getUserById: jest.fn() })
     } as unknown as ClientGrpc
-    const metadataFactory: GrpcMetadataPropagationFactory = {
-      createInternalCallMetadata: jest.fn(() => {
-        const metadata = new Metadata()
-        metadata.set('x-request-id', 'req-identity')
-        metadata.set('x-trace-id', 'trace-identity')
-        return metadata
-      }),
-      createOperatorScopedMetadata: jest.fn()
-    }
-    const store = new GrpcRequestContextStore()
-    const adaptor = new IdentityServiceAdaptor(client, metadataFactory, store)
+    const adaptor = new IdentityServiceAdaptor(client)
     adaptor.onModuleInit()
-    ;(adaptor as any).executionTokenService = { exchangeExecutionToken }
-    ;(adaptor as any).trustedIdentityQueryService = { resolveIntegrationMachineForAuth }
+    const metadata = new Metadata()
+    metadata.set('authorization', 'Bearer sts-token')
+    const forInternalCall = jest.fn().mockResolvedValue(metadata)
+    ;(adaptor as any).trusted = { forInternalCall }
+    ;(adaptor as any).identityQueryService = { resolveIntegrationMachineForAuth }
 
-    await store.run(
-      {
-        internalServiceName: 'auth-service',
-        requestId: 'req-identity',
-        traceId: 'trace-identity'
-      },
-      async () => {
-        await expect(adaptor.resolveIntegrationMachineForAuth('machine-1')).resolves.toEqual({
-          eligible: true,
-          tenantId: 'tenant-1'
-        })
-      }
-    )
+    await expect(adaptor.resolveIntegrationMachineForAuth('machine-1')).resolves.toEqual({
+      eligible: true,
+      tenantId: 'tenant-1'
+    })
 
-    expect(exchangeExecutionToken).toHaveBeenCalledWith(
-      {
-        targetAudience: 'urn:oes:service:identity-service',
-        requestedPermissionCodes: ['identity.internal.integration_machine.resolve']
-      },
-      expect.any(Metadata)
+    expect(forInternalCall).toHaveBeenCalledWith(
+      'identity-service',
+      'identity.internal.integration_machine.resolve'
     )
     expect(resolveIntegrationMachineForAuth).toHaveBeenCalledWith(
       { integrationMachineId: 'machine-1' },

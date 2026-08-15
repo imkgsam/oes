@@ -1,4 +1,7 @@
-import { Controller, UseFilters, UseGuards } from '@nestjs/common'
+import { Controller, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common'
+import { GrpcRequestContextInterceptor } from '@oes/common/authorization'
+import { AuthorizeInternalCall } from '@oes/common/authorization'
+import { PermissionFoundationTrustedExecutionGuard } from '../../modules/authorization/permission-trusted-execution.module'
 import { Metadata } from '@grpc/grpc-js'
 import { GrpcMethod } from '@nestjs/microservices'
 import {
@@ -105,15 +108,16 @@ const QUERY_SCOPE_OPERATOR_TO_PROTO: Record<QueryScopeOperator, number> = {
 }
 
 /** ResourceAuthorizationGrpcController exposes runtime resource authorization for internal service callers. */
+@UseInterceptors(GrpcRequestContextInterceptor)
 @Controller()
 @UseFilters(GrpcExceptionFilter)
-@RequireAuthenticatedOperator()
-@UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
+@UseGuards(PermissionFoundationTrustedExecutionGuard)
 export class ResourceAuthorizationGrpcController {
   constructor(private readonly resourceAuthorization: ResourceAuthorizationService) {}
 
   /** checkResource maps wire facts to the application facade for single-resource authorization. */
   @GrpcMethod('ResourceAuthorizationService', 'checkResource')
+  @AuthorizeInternalCall({ all: ['permission.internal.resource.check'] })
   async checkResource(
     request: CheckResourceGrpcRequest,
     metadata?: Metadata,
@@ -137,6 +141,7 @@ export class ResourceAuthorizationGrpcController {
 
   /** buildQueryScope maps wire facts to a structured scope response for repository adapters. */
   @GrpcMethod('ResourceAuthorizationService', 'buildQueryScope')
+  @AuthorizeInternalCall({ all: ['permission.internal.query_scope.build'] })
   async buildQueryScope(
     request: BuildQueryScopeGrpcRequest,
     metadata?: Metadata,

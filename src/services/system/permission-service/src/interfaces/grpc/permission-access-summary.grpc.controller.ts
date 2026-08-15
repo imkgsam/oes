@@ -1,4 +1,7 @@
-import { Controller, Logger, UseFilters, UseGuards } from '@nestjs/common'
+import { Controller, Logger, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common'
+import { GrpcRequestContextInterceptor } from '@oes/common/authorization'
+import { AuthorizeInternalCall } from '@oes/common/authorization'
+import { PermissionFoundationTrustedExecutionGuard } from '../../modules/authorization/permission-trusted-execution.module'
 import { Metadata } from '@grpc/grpc-js'
 import { ValidatingQueryBus } from '@oes/common/cqrs'
 import { GrpcExceptionFilter } from '../../../../../../common/dist/core/filters'
@@ -16,9 +19,10 @@ import {
 import { GetAccountAccessSummaryQuery, ResolveAccountNavigationQuery } from '../../application/queries/access-summary'
 import { ScopeLevel } from '../../domain/enums/scope-level.enum'
 
+@UseInterceptors(GrpcRequestContextInterceptor)
 @Controller()
 @UseFilters(GrpcExceptionFilter)
-@UseGuards(InternalServiceGuard)
+@UseGuards(PermissionFoundationTrustedExecutionGuard)
 @PermissionAccessSummaryServiceControllerMethods()
 // Exposes internal account access summaries for trusted service-to-service consumers.
 export class PermissionAccessSummaryGrpcController
@@ -28,6 +32,7 @@ export class PermissionAccessSummaryGrpcController
 
   constructor(private readonly queryBus: ValidatingQueryBus) {}
 
+  @AuthorizeInternalCall({ all: ['permission.internal.account_access_summary.resolve'] })
   async getAccountAccessSummary(
     request: GetAccountAccessSummaryRequest,
     metadata?: Metadata,
@@ -48,6 +53,7 @@ export class PermissionAccessSummaryGrpcController
   }
 
   // Resolves runtime navigation for BFF session-context consumers without management permissions.
+  @AuthorizeInternalCall({ all: ['permission.internal.account_navigation.resolve'] })
   async resolveAccountNavigation(
     request: ResolveAccountNavigationRequest,
     metadata?: Metadata,

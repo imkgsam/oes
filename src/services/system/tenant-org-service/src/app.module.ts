@@ -8,6 +8,7 @@ import { GrpcTransportModule } from '@oes/common/transport'
 import { PrismaModule } from './infrastructure/prisma/prisma.module'
 import { TenantOrgManagementModule } from './modules/tenant-org-management/tenant-org-management.module'
 import { TenantOrgQueryModule } from './modules/tenant-org-query/tenant-org-query.module'
+import { TenantOrgTrustedExecutionModule } from './modules/tenant-org-trusted-execution.module'
 
 function resolveGrpcUrl(envKey: string, fallbackUrl: string): string | undefined {
   const explicitUrl = process.env[envKey]?.trim()
@@ -68,6 +69,7 @@ export function buildGrpcServiceConfigs() {
     }),
     AuthorizationModule,
     PrismaModule,
+    TenantOrgTrustedExecutionModule,
     TenantOrgQueryModule,
     TenantOrgManagementModule
   ]

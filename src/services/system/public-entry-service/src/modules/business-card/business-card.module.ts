@@ -1,7 +1,8 @@
 import { Injectable, Module, OnModuleInit } from '@nestjs/common'
+import { APP_INTERCEPTOR } from '@nestjs/core'
 import { ClientsModule, Transport } from '@nestjs/microservices'
 import type { ClientProviderOptions } from '@nestjs/microservices/module/interfaces'
-import { AuthorizationModule } from '@oes/common/authorization'
+import { AuthorizationModule, GrpcRequestContextInterceptor } from '@oes/common/authorization'
 import { resolveCommonProtoPath } from '@oes/common/contracts'
 import { BusinessCardApplicationService } from '../../application/services/business-card-application.service'
 import { PublicEntryBusinessCardGrpcController } from '../../interfaces/grpc/public-entry-business-card.grpc.controller'
@@ -94,6 +95,7 @@ export class BusinessCardResolverRegistration implements OnModuleInit {
   imports: [AuthorizationModule, PrismaModule, ShortLinkModule, ClientsModule.register(buildBusinessCardGrpcClients())],
   controllers: [PublicEntryBusinessCardGrpcController],
   providers: [
+    { provide: APP_INTERCEPTOR, useClass: GrpcRequestContextInterceptor },
     PrismaBusinessCardRepository,
     BusinessCardEmployeeGrpcAdapter,
     BusinessCardContactAssetGrpcAdapter,

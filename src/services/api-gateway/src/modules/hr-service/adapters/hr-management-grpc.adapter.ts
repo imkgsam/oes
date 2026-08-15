@@ -12,16 +12,11 @@ import {
   RemoveEmployeeOfficialPhotoResponse,
   UpdateEmployeeOfficialPhotoResponse
 } from '@oes/common/generated/hr_service'
-import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory
-} from '@oes/common/authorization'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
-import {
-  DownstreamRequestSource,
-  toOperatorScopedMetadataInput
-} from '../../../common/grpc/gateway-downstream-source.mapper'
+import { DownstreamRequestSource } from '../../../common/grpc/gateway-downstream-source.mapper'
+import { HR_TARGET_AUDIENCE, TrustedHrGrpcClient } from '../../../infrastructure/grpc/trusted-hr.grpc.client'
+import { GatewayFoundationTrustedGrpcExecutionProducer } from '../../../infrastructure/grpc/trusted-auth.grpc.client'
 import {
   HrEmployeeSummary,
   HrEmploymentSummary,
@@ -36,17 +31,15 @@ export class HrManagementGrpcAdapter implements OnModuleInit {
   private svc!: HrManagementServiceClient
 
   constructor(
-    @InjectGrpcClient(SERVICE_NAMES.HR)
-    private readonly client: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory
+    private readonly client: TrustedHrGrpcClient,
+    private readonly trusted: GatewayFoundationTrustedGrpcExecutionProducer
   ) {}
 
   onModuleInit(): void {
-    this.svc = this.client.getService<HrManagementServiceClient>(HR_MANAGEMENT_SERVICE_NAME)
+    this.svc = this.client.getClient().getService<HrManagementServiceClient>(HR_MANAGEMENT_SERVICE_NAME)
   }
 
-  createEmployee(
+  async createEmployee(
     input: { tenantId: string; tenantPartyId: string; employeeCode?: string },
     source: DownstreamRequestSource
   ): Promise<{ employee?: HrEmployeeSummary }> {
@@ -54,7 +47,7 @@ export class HrManagementGrpcAdapter implements OnModuleInit {
       'createEmployee',
       this.svc.createEmployee(
         input,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, HR_TARGET_AUDIENCE, ['hr.employee.create'])
       ),
       (response: CreateEmployeeResponse) => ({
         employee: response.employee ? mapEmployee(response.employee) : undefined
@@ -62,7 +55,7 @@ export class HrManagementGrpcAdapter implements OnModuleInit {
     )
   }
 
-  createEmployeeOnboarding(
+  async createEmployeeOnboarding(
     input: {
       tenantId: string
       idempotencyKey: string
@@ -100,7 +93,6 @@ export class HrManagementGrpcAdapter implements OnModuleInit {
       'createEmployeeOnboarding',
       this.svc.createEmployeeOnboarding(
         {
-          tenantId: input.tenantId,
           idempotencyKey: input.idempotencyKey,
           person: {
             legalName: input.person.legalName,
@@ -117,7 +109,7 @@ export class HrManagementGrpcAdapter implements OnModuleInit {
           employeeCode: input.employeeCode,
           existingAccountId: input.existingAccountId
         },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, HR_TARGET_AUDIENCE, ['hr.employee.create'])
       ),
       (response: CreateEmployeeOnboardingResponse) => ({
         employee: response.employee ? mapEmployee(response.employee) : undefined,
@@ -127,7 +119,7 @@ export class HrManagementGrpcAdapter implements OnModuleInit {
     )
   }
 
-  createEmployment(
+  async createEmployment(
     input: {
       tenantId: string
       employeeId: string
@@ -141,7 +133,7 @@ export class HrManagementGrpcAdapter implements OnModuleInit {
       'createEmployment',
       this.svc.createEmployment(
         input,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, HR_TARGET_AUDIENCE, ['hr.employment.create'])
       ),
       (response: CreateEmploymentResponse) => ({
         employee: response.employee ? mapEmployee(response.employee) : undefined,
@@ -150,7 +142,7 @@ export class HrManagementGrpcAdapter implements OnModuleInit {
     )
   }
 
-  endEmployment(
+  async endEmployment(
     input: { employmentId: string; effectiveTo: string; endedReason?: string },
     source: DownstreamRequestSource
   ): Promise<{ employee?: HrEmployeeSummary; employment?: HrEmploymentSummary }> {
@@ -158,7 +150,7 @@ export class HrManagementGrpcAdapter implements OnModuleInit {
       'endEmployment',
       this.svc.endEmployment(
         input,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, HR_TARGET_AUDIENCE, ['hr.employment.end'])
       ),
       (response: EndEmploymentResponse) => ({
         employee: response.employee ? mapEmployee(response.employee) : undefined,
@@ -167,7 +159,7 @@ export class HrManagementGrpcAdapter implements OnModuleInit {
     )
   }
 
-  changePrimaryEmployment(
+  async changePrimaryEmployment(
     input: {
       tenantId: string
       employeeId: string
@@ -187,7 +179,7 @@ export class HrManagementGrpcAdapter implements OnModuleInit {
       'changePrimaryEmployment',
       this.svc.changePrimaryEmployment(
         input,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, HR_TARGET_AUDIENCE, ['hr.employment.change_primary'])
       ),
       (response: ChangePrimaryEmploymentResponse) => ({
         employee: response.employee ? mapEmployee(response.employee) : undefined,
@@ -199,7 +191,7 @@ export class HrManagementGrpcAdapter implements OnModuleInit {
     )
   }
 
-  completeEmployeeAccess(
+  async completeEmployeeAccess(
     input: {
       tenantId: string
       employeeId: string
@@ -221,7 +213,6 @@ export class HrManagementGrpcAdapter implements OnModuleInit {
       'completeEmployeeAccess',
       this.svc.completeEmployeeAccess(
         {
-          tenantId: input.tenantId,
           employeeId: input.employeeId,
           employmentId: input.employmentId,
           roleIds: input.roleIds,
@@ -229,7 +220,7 @@ export class HrManagementGrpcAdapter implements OnModuleInit {
           existingAccountId: input.existingAccountId,
           createAccount: input.createAccount
         },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, HR_TARGET_AUDIENCE, ['hr.employment.create'])
       ),
       (response: CompleteEmployeeAccessResponse) => ({
         process: response.process ? mapOnboardingAccessProcess(response.process) : undefined
@@ -238,7 +229,7 @@ export class HrManagementGrpcAdapter implements OnModuleInit {
   }
 
   /** updateEmployeeOfficialPhoto writes the HR-owned official photo reference after asset upload succeeds. */
-  updateEmployeeOfficialPhoto(
+  async updateEmployeeOfficialPhoto(
     input: {
       tenantId: string
       employeeId: string
@@ -251,7 +242,7 @@ export class HrManagementGrpcAdapter implements OnModuleInit {
       'updateEmployeeOfficialPhoto',
       this.svc.updateEmployeeOfficialPhoto(
         input,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, HR_TARGET_AUDIENCE, ['hr.employee.create'])
       ),
       (response: UpdateEmployeeOfficialPhotoResponse) => ({
         employee: response.employee ? mapEmployee(response.employee) : undefined
@@ -260,7 +251,7 @@ export class HrManagementGrpcAdapter implements OnModuleInit {
   }
 
   /** removeEmployeeOfficialPhoto clears only the HR-owned official photo reference. */
-  removeEmployeeOfficialPhoto(
+  async removeEmployeeOfficialPhoto(
     input: { tenantId: string; employeeId: string },
     source: DownstreamRequestSource
   ): Promise<{ employee?: HrEmployeeSummary }> {
@@ -268,7 +259,7 @@ export class HrManagementGrpcAdapter implements OnModuleInit {
       'removeEmployeeOfficialPhoto',
       this.svc.removeEmployeeOfficialPhoto(
         input,
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        await this.trusted.forBusinessCall(source, HR_TARGET_AUDIENCE, ['hr.employee.create'])
       ),
       (response: RemoveEmployeeOfficialPhotoResponse) => ({
         employee: response.employee ? mapEmployee(response.employee) : undefined

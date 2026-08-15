@@ -1,10 +1,5 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
-import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory,
-  GrpcRequestContextStore
-} from '@oes/common/authorization'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import {
   GetTenantByIdResponse,
@@ -13,18 +8,17 @@ import {
 } from '@oes/common/generated/tenant_org_service'
 import { InjectGrpcClient, safeGrpcCall } from '@oes/common/transport'
 import { TenantReferencePort } from '../../application/ports/tenant-reference.port'
+import { IdentityFoundationTrustedGrpcExecutionProducer } from './foundation-trusted-grpc.clients'
 
 @Injectable()
 // TenantReferenceGrpcAdaptor reads minimal tenant references from tenant-org-service over gRPC.
 export class TenantReferenceGrpcAdaptor implements TenantReferencePort, OnModuleInit {
   private tenantOrgQueryService!: TenantOrgQueryServiceClient
+  private readonly trusted = new IdentityFoundationTrustedGrpcExecutionProducer()
 
   constructor(
     @InjectGrpcClient(SERVICE_NAMES.TENANT_ORG)
-    private readonly tenantOrgClient: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory,
-    private readonly requestContextStore: GrpcRequestContextStore
+    private readonly tenantOrgClient: ClientGrpc
   ) {}
 
   onModuleInit() {
@@ -35,7 +29,10 @@ export class TenantReferenceGrpcAdaptor implements TenantReferencePort, OnModule
 
   async findById(tenantId: string) {
     const response = await safeGrpcCall<GetTenantByIdResponse>(
-      this.tenantOrgQueryService.getTenantById({ tenantId }, this.buildMetadata()),
+      this.tenantOrgQueryService.getTenantById(
+        { tenantId },
+        await this.trusted.forBusinessCall('tenant-org-service', ['tenant_org.tenant.get_by_id'])
+      ),
       {
         caller: SERVICE_NAMES.IDENTITY,
         method: 'TenantOrgQueryService.getTenantById'
@@ -46,12 +43,4 @@ export class TenantReferenceGrpcAdaptor implements TenantReferencePort, OnModule
     return id ? { id } : null
   }
 
-  private buildMetadata() {
-    const current = this.requestContextStore.getContext()
-    return this.metadataFactory.createInternalCallMetadata({
-      callerServiceName: SERVICE_NAMES.IDENTITY,
-      requestId: current?.requestId,
-      traceId: current?.traceId
-    })
-  }
 }

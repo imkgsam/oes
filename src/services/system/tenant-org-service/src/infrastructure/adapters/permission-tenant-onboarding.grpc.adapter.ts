@@ -1,10 +1,5 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
-import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory,
-  GrpcRequestContextStore
-} from '@oes/common/authorization'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import {
   EnsureTenantRoleInstanceFromTemplateResponse,
@@ -14,20 +9,18 @@ import {
 } from '@oes/common/generated/permission_service'
 import { InjectGrpcClient, safeGrpcCall } from '@oes/common/transport'
 import { PermissionTenantOnboardingPort } from '../../application/ports/permission-tenant-onboarding.port'
-import { buildTenantOnboardingMetadata } from './tenant-onboarding-metadata'
+import { TenantOrgFoundationTrustedGrpcExecutionProducer } from './foundation-trusted-grpc.clients'
 
 /** PermissionTenantOnboardingGrpcAdapter calls permission-service tenant onboarding APIs without owning RBAC truth. */
 @Injectable()
 export class PermissionTenantOnboardingGrpcAdapter implements PermissionTenantOnboardingPort, OnModuleInit {
   private readonly logger = new Logger(PermissionTenantOnboardingGrpcAdapter.name)
   private client!: PermissionManagementServiceClient
+  private readonly trusted = new TenantOrgFoundationTrustedGrpcExecutionProducer()
 
   constructor(
     @InjectGrpcClient(SERVICE_NAMES.PERMISSION)
-    private readonly permissionClient: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory,
-    private readonly requestContextStore: GrpcRequestContextStore
+    private readonly permissionClient: ClientGrpc
   ) {}
 
   onModuleInit() {
@@ -92,7 +85,9 @@ export class PermissionTenantOnboardingGrpcAdapter implements PermissionTenantOn
           name: input.name,
           reason: input.reason
         },
-        this.buildMetadata()
+        await this.trusted.forBusinessCall('permission-service', [
+          'permission.role_instance.create_from_template'
+        ])
       ),
       { caller: 'tenant-org-service', method: 'PermissionManagementService.ensureTenantRoleInstanceFromTemplate' }
     )
@@ -121,15 +116,11 @@ export class PermissionTenantOnboardingGrpcAdapter implements PermissionTenantOn
           idempotencyKey: input.idempotencyKey,
           reason: input.reason
         },
-        this.buildMetadata()
+        await this.trusted.forBusinessCall('permission-service', ['permission.account.assign_roles'])
       ),
       { caller: 'tenant-org-service', method: 'PermissionManagementService.grantInitialAccessForTenantAccount' }
     )
     return { grantId: response.grant?.id ?? '' }
   }
 
-  /** buildMetadata propagates tenant-org request context into permission-service calls. */
-  private buildMetadata() {
-    return buildTenantOnboardingMetadata(this.metadataFactory, this.requestContextStore)
-  }
 }

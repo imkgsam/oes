@@ -16,7 +16,7 @@ import { ExtensionCrmWorkspaceService } from './extension-crm-workspace.service'
 @Module({
   imports: [
     AuthorizationModule,
-    GrpcTransportModule.forFeature([SERVICE_NAMES.CRM, SERVICE_NAMES.IDENTITY, SERVICE_NAMES.PERMISSION])
+    GrpcTransportModule.forFeature([SERVICE_NAMES.CRM])
   ],
   controllers: [CustomerManagementController, ExtensionCrmWorkspaceController, AdminCrmPerformanceController],
   providers: [

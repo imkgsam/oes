@@ -1,9 +1,7 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
 import {
-  COLLABORATION_ANNOTATION_PERMISSION_CODES,
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory
+  COLLABORATION_ANNOTATION_PERMISSION_CODES
 } from '@oes/common/authorization'
 import {
   AccountAccessSummaryResponse,
@@ -12,6 +10,7 @@ import {
 } from '@oes/common/generated/permission_service'
 import { safeGrpcCall } from '@oes/common/transport'
 import { AnnotationPermissionPort } from '../../application/ports/annotation-permission.port'
+import { CollaborationFoundationTrustedGrpcExecutionProducer } from './foundation-trusted-grpc.clients'
 
 export const ANNOTATION_PERMISSION_GRPC_CLIENT = Symbol('ANNOTATION_PERMISSION_GRPC_CLIENT')
 
@@ -19,11 +18,10 @@ export const ANNOTATION_PERMISSION_GRPC_CLIENT = Symbol('ANNOTATION_PERMISSION_G
 @Injectable()
 export class AnnotationPermissionGrpcAdapter implements AnnotationPermissionPort, OnModuleInit {
   private permissionAccessSummaryService!: PermissionAccessSummaryServiceClient
+  private readonly trusted = new CollaborationFoundationTrustedGrpcExecutionProducer()
 
   constructor(
-    @Inject(ANNOTATION_PERMISSION_GRPC_CLIENT) private readonly client: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory
+    @Inject(ANNOTATION_PERMISSION_GRPC_CLIENT) private readonly client: ClientGrpc
   ) {}
 
   onModuleInit(): void {
@@ -53,9 +51,10 @@ export class AnnotationPermissionGrpcAdapter implements AnnotationPermissionPort
           tenantId: input.tenantId,
           scopeLevel: 'TENANT'
         },
-        this.metadataFactory.createInternalCallMetadata({
-          callerServiceName: 'collaboration-service'
-        })
+        await this.trusted.forInternalCall(
+          'permission-service',
+          'permission.internal.account_access_summary.resolve'
+        )
       ),
       {
         caller: 'collaboration-service',

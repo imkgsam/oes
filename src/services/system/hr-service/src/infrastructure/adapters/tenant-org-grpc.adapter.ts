@@ -1,10 +1,5 @@
 import { Inject, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
-import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory,
-  GrpcRequestContextStore
-} from '@oes/common/authorization'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import {
   TENANT_ORG_QUERY_SERVICE_NAME,
@@ -12,6 +7,7 @@ import {
 } from '@oes/common/generated/tenant_org_service'
 import { safeGrpcCall } from '@oes/common/transport'
 import { TenantOrgReferencePort, TenantOrgReferenceValidationResult } from '../../application/ports'
+import { HrFoundationTrustedGrpcExecutionProducer } from './foundation-trusted-grpc.clients'
 
 export const TENANT_ORG_GRPC_CLIENT = Symbol('TENANT_ORG_GRPC_CLIENT')
 
@@ -19,12 +15,10 @@ export const TENANT_ORG_GRPC_CLIENT = Symbol('TENANT_ORG_GRPC_CLIENT')
 @Injectable()
 export class TenantOrgGrpcAdapter implements TenantOrgReferencePort, OnModuleInit {
   private tenantOrgQueryService!: TenantOrgQueryServiceClient
+  private readonly trusted = new HrFoundationTrustedGrpcExecutionProducer()
 
   constructor(
-    @Inject(TENANT_ORG_GRPC_CLIENT) private readonly client: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory,
-    private readonly requestContextStore: GrpcRequestContextStore
+    @Inject(TENANT_ORG_GRPC_CLIENT) private readonly client: ClientGrpc
   ) {}
 
   onModuleInit() {
@@ -43,7 +37,7 @@ export class TenantOrgGrpcAdapter implements TenantOrgReferencePort, OnModuleIni
           tenantId: input.tenantId,
           orgUnitId: input.orgUnitId
         },
-        this.buildMetadata()
+        await this.trusted.forBusinessCall('tenant-org-service', ['tenant_org.org_unit.list_tree'])
       ),
       {
         caller: SERVICE_NAMES.HR,
@@ -62,7 +56,7 @@ export class TenantOrgGrpcAdapter implements TenantOrgReferencePort, OnModuleIni
         {
           tenantId
         },
-        this.buildMetadata()
+        await this.trusted.forBusinessCall('tenant-org-service', ['tenant_org.tenant.get_by_id'])
       ),
       {
         caller: SERVICE_NAMES.HR,
@@ -76,29 +70,4 @@ export class TenantOrgGrpcAdapter implements TenantOrgReferencePort, OnModuleIni
     return prefix
   }
 
-  /** buildMetadata forwards the current HR operator context to tenant-org reference validation. */
-  private buildMetadata() {
-    const current = this.requestContextStore.getContext()
-    const operator = current?.operatorContext
-    if (operator?.operator_id) {
-      return this.metadataFactory.createOperatorScopedMetadata({
-        callerServiceName: SERVICE_NAMES.HR,
-        requestId: current?.requestId,
-        traceId: current?.traceId,
-        operatorContext: {
-          operatorId: operator.operator_id,
-          operatorType: operator.operator_type,
-          tenantId: operator.tenant_id,
-          orgId: operator.org_id,
-          operatorRoles: operator.operator_roles
-        }
-      })
-    }
-
-    return this.metadataFactory.createInternalCallMetadata({
-      callerServiceName: SERVICE_NAMES.HR,
-      requestId: current?.requestId,
-      traceId: current?.traceId
-    })
-  }
 }

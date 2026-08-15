@@ -1,10 +1,5 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
-import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory,
-  GrpcRequestContextStore
-} from '@oes/common/authorization'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import {
   CreateUserAccountResponse,
@@ -13,20 +8,18 @@ import {
 } from '@oes/common/generated/identity_service'
 import { InjectGrpcClient, safeGrpcCall } from '@oes/common/transport'
 import { IdentityAccountOnboardingPort } from '../../application/ports/identity-account-onboarding.port'
-import { buildTenantOnboardingMetadata } from './tenant-onboarding-metadata'
+import { TenantOrgFoundationTrustedGrpcExecutionProducer } from './foundation-trusted-grpc.clients'
 
 /** IdentityAccountOnboardingGrpcAdapter calls identity-service account creation without owning identity truth. */
 @Injectable()
 export class IdentityAccountOnboardingGrpcAdapter implements IdentityAccountOnboardingPort, OnModuleInit {
   private readonly logger = new Logger(IdentityAccountOnboardingGrpcAdapter.name)
   private client!: IdentityManagementServiceClient
+  private readonly trusted = new TenantOrgFoundationTrustedGrpcExecutionProducer()
 
   constructor(
     @InjectGrpcClient(SERVICE_NAMES.IDENTITY)
-    private readonly identityClient: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory,
-    private readonly requestContextStore: GrpcRequestContextStore
+    private readonly identityClient: ClientGrpc
   ) {}
 
   onModuleInit() {
@@ -53,7 +46,7 @@ export class IdentityAccountOnboardingGrpcAdapter implements IdentityAccountOnbo
           phone: input.phone ?? '',
           idempotencyKey: input.idempotencyKey
         },
-        this.buildMetadata()
+        await this.trusted.forBusinessCall('identity-service', ['identity.account.create'])
       ),
       { caller: 'tenant-org-service', method: 'IdentityManagementService.createUserAccount' }
     )
@@ -70,8 +63,4 @@ export class IdentityAccountOnboardingGrpcAdapter implements IdentityAccountOnbo
     }
   }
 
-  /** buildMetadata propagates tenant-org request context into identity-service calls. */
-  private buildMetadata() {
-    return buildTenantOnboardingMetadata(this.metadataFactory, this.requestContextStore)
-  }
 }

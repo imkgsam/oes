@@ -1,4 +1,6 @@
 import { Controller, UseGuards, UseInterceptors } from '@nestjs/common'
+import { AuthorizeBusinessRpc } from '@oes/common/authorization'
+import { TenantOrgFoundationTrustedExecutionGuard } from '../../modules/tenant-org-trusted-execution.module'
 import { Metadata } from '@grpc/grpc-js'
 import {
   RequirePermissions,
@@ -44,9 +46,8 @@ import {
 } from '../../application/services'
 
 /** TenantOrgManagementGrpcController exposes tenant/org management contracts over gRPC. */
+@UseGuards(TenantOrgFoundationTrustedExecutionGuard)
 @Controller()
-@RequireAuthenticatedOperator()
-@UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard, PermissionGuard)
 @UseInterceptors(GrpcRequestContextInterceptor)
 @TenantOrgManagementServiceControllerMethods()
 export class TenantOrgManagementGrpcController implements TenantOrgManagementServiceController {
@@ -55,7 +56,6 @@ export class TenantOrgManagementGrpcController implements TenantOrgManagementSer
     private readonly tenantOnboardingService: TenantOnboardingService
   ) {}
 
-  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.CREATE_TENANT] })
   async createTenant(
     _request: CreateTenantRequest,
     _metadata?: Metadata
@@ -72,7 +72,6 @@ export class TenantOrgManagementGrpcController implements TenantOrgManagementSer
     }
   }
 
-  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.CREATE_TENANT] })
   async startTenantOnboarding(
     request: StartTenantOnboardingRequest,
     _metadata?: Metadata
@@ -113,7 +112,6 @@ export class TenantOrgManagementGrpcController implements TenantOrgManagementSer
     return { onboarding: mapOnboarding(onboarding) }
   }
 
-  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.VIEW_TENANT_DETAIL] })
   async getTenantOnboarding(
     request: GetTenantOnboardingRequest,
     _metadata?: Metadata
@@ -123,7 +121,6 @@ export class TenantOrgManagementGrpcController implements TenantOrgManagementSer
     }
   }
 
-  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.CREATE_TENANT] })
   async retryTenantOnboarding(
     request: RetryTenantOnboardingRequest,
     _metadata?: Metadata
@@ -135,7 +132,6 @@ export class TenantOrgManagementGrpcController implements TenantOrgManagementSer
     }
   }
 
-  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.UPDATE_TENANT_PROFILE] })
   async updateTenantProfile(
     _request: UpdateTenantProfileRequest,
     _metadata?: Metadata
@@ -150,7 +146,6 @@ export class TenantOrgManagementGrpcController implements TenantOrgManagementSer
     return { tenant: mapTenant(tenant) }
   }
 
-  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.UPDATE_TENANT_STATUS] })
   async suspendTenant(
     _request: SuspendTenantRequest,
     _metadata?: Metadata
@@ -162,7 +157,6 @@ export class TenantOrgManagementGrpcController implements TenantOrgManagementSer
     return { tenant: mapTenant(tenant) }
   }
 
-  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.UPDATE_TENANT_STATUS] })
   async reactivateTenant(
     _request: ReactivateTenantRequest,
     _metadata?: Metadata
@@ -173,7 +167,6 @@ export class TenantOrgManagementGrpcController implements TenantOrgManagementSer
     return { tenant: mapTenant(tenant) }
   }
 
-  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.UPDATE_TENANT_STATUS] })
   async archiveTenant(
     _request: ArchiveTenantRequest,
     _metadata?: Metadata
@@ -185,7 +178,6 @@ export class TenantOrgManagementGrpcController implements TenantOrgManagementSer
     return { tenant: mapTenant(tenant) }
   }
 
-  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.CREATE_ORG_UNIT] })
   async createOrgUnit(
     _request: CreateOrgUnitRequest,
     _metadata?: Metadata
@@ -201,7 +193,6 @@ export class TenantOrgManagementGrpcController implements TenantOrgManagementSer
     return { orgUnit: mapOrgUnit(orgUnit) }
   }
 
-  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.UPDATE_ORG_UNIT] })
   async updateOrgUnit(
     _request: UpdateOrgUnitRequest,
     _metadata?: Metadata
@@ -223,7 +214,6 @@ export class TenantOrgManagementGrpcController implements TenantOrgManagementSer
     return { orgUnit: mapOrgUnit(orgUnit) }
   }
 
-  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.UPDATE_ORG_UNIT] })
   async moveOrgUnit(
     _request: MoveOrgUnitRequest,
     _metadata?: Metadata
@@ -236,7 +226,6 @@ export class TenantOrgManagementGrpcController implements TenantOrgManagementSer
     return { orgUnit: mapOrgUnit(orgUnit) }
   }
 
-  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.ARCHIVE_ORG_UNIT] })
   async archiveOrgUnit(
     _request: ArchiveOrgUnitRequest,
     _metadata?: Metadata
@@ -344,3 +333,23 @@ function mapOnboarding(result: TenantOnboardingResult) {
       : undefined
   }
 }
+
+
+/** Applies TenantOrg's frozen BUSINESS Code declaration to each baseline handler. */
+function applyTenantOrgDeclaration(method: string, code: string): void {
+ const descriptor = Object.getOwnPropertyDescriptor(TenantOrgManagementGrpcController.prototype, method)
+ if (!descriptor) throw new Error(`TenantOrg handler is missing: ${method}`)
+ AuthorizeBusinessRpc({ all: [code] })(TenantOrgManagementGrpcController.prototype, method, descriptor)
+}
+applyTenantOrgDeclaration('createTenant', 'tenant_org.tenant.create')
+applyTenantOrgDeclaration('startTenantOnboarding', 'tenant_org.tenant.create')
+applyTenantOrgDeclaration('retryTenantOnboarding', 'tenant_org.tenant.create')
+applyTenantOrgDeclaration('getTenantOnboarding', 'tenant_org.tenant.get_by_id')
+applyTenantOrgDeclaration('updateTenantProfile', 'tenant_org.tenant.update_profile')
+applyTenantOrgDeclaration('suspendTenant', 'tenant_org.tenant.update_status')
+applyTenantOrgDeclaration('reactivateTenant', 'tenant_org.tenant.update_status')
+applyTenantOrgDeclaration('archiveTenant', 'tenant_org.tenant.update_status')
+applyTenantOrgDeclaration('createOrgUnit', 'tenant_org.org_unit.create')
+applyTenantOrgDeclaration('updateOrgUnit', 'tenant_org.org_unit.update')
+applyTenantOrgDeclaration('moveOrgUnit', 'tenant_org.org_unit.update')
+applyTenantOrgDeclaration('archiveOrgUnit', 'tenant_org.org_unit.archive')

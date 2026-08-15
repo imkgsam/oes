@@ -37,6 +37,7 @@ import { ResponseTransformInterceptor } from './common/interceptors/response.int
 import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor'
 import { ExternalApiModule } from './common/external-api/external-api.module'
 import { GatewayTrustedGrpcExecutionModule } from './common/grpc/gateway-trusted-grpc-execution.module'
+import { GatewayFoundationTrustedGrpcModule } from './infrastructure/grpc/trusted-auth.grpc.client'
 
 /** resolveTenantOrgGrpcUrl avoids localhost IPv6 ambiguity for the local tenant-org fallback endpoint. */
 export function resolveTenantOrgGrpcUrl() {
@@ -140,15 +141,6 @@ const siteGrpcLoaderOptions = { longs: String, arrays: true }
 
     GrpcTransportModule.forRoot({
       services: {
-        [SERVICE_NAMES.AUTH]: {
-          serviceName: SERVICE_NAMES.AUTH,
-          protoPath: [
-            resolveCommonProtoPath('auth_service/auth.proto'),
-            resolveCommonProtoPath('auth_service/external_api_key.proto')
-          ],
-          packageName: 'auth_service',
-          url: resolveAuthGrpcUrl()
-        },
         [SERVICE_NAMES.ASSET]: {
           serviceName: SERVICE_NAMES.ASSET,
           protoPath: resolveCommonProtoPath('asset_service/asset.proto'),
@@ -157,27 +149,6 @@ const siteGrpcLoaderOptions = { longs: String, arrays: true }
             process.env.ASSET_SERVICE_HOST && process.env.ASSET_SERVICE_PORT
               ? `${process.env.ASSET_SERVICE_HOST}:${process.env.ASSET_SERVICE_PORT}`
               : 'localhost:50056'
-        },
-        [SERVICE_NAMES.PERMISSION]: {
-          serviceName: SERVICE_NAMES.PERMISSION,
-          protoPath: permissionGrpcProtoPaths,
-          packageName: 'permission_service',
-          loader: {
-            includeDirs: [
-              resolveCommonContractPath(),
-              resolveCommonContractPath('permission_service')
-            ]
-          },
-          url:
-            process.env.PERMISSION_SERVICE_HOST && process.env.PERMISSION_SERVICE_PORT
-              ? `${process.env.PERMISSION_SERVICE_HOST}:${process.env.PERMISSION_SERVICE_PORT}`
-              : undefined
-        },
-        [SERVICE_NAMES.HR]: {
-          serviceName: SERVICE_NAMES.HR,
-          protoPath: resolveCommonProtoPath('hr_service/hr.proto'),
-          packageName: 'hr_service',
-          url: resolveHrGrpcUrl()
         },
         [SERVICE_NAMES.CRM]: {
           serviceName: SERVICE_NAMES.CRM,
@@ -197,27 +168,12 @@ const siteGrpcLoaderOptions = { longs: String, arrays: true }
               ? `${process.env.FINANCE_SERVICE_HOST}:${process.env.FINANCE_SERVICE_PORT}`
               : 'localhost:50063'
         },
-        [SERVICE_NAMES.IDENTITY]: {
-          serviceName: SERVICE_NAMES.IDENTITY,
-          protoPath: resolveCommonProtoPath('identity_service/identity_query.proto'),
-          packageName: 'identity_service',
-          url:
-            process.env.IDENTITY_SERVICE_HOST && process.env.IDENTITY_SERVICE_PORT
-              ? `${process.env.IDENTITY_SERVICE_HOST}:${process.env.IDENTITY_SERVICE_PORT}`
-              : 'localhost:50052'
-        },
         [SERVICE_NAMES.SITE]: {
           serviceName: SERVICE_NAMES.SITE,
           protoPath: resolveCommonProtoPath('site_service/site.proto'),
           packageName: 'site_service',
           loader: siteGrpcLoaderOptions,
           url: resolveSiteGrpcUrl()
-        },
-        [SERVICE_NAMES.TENANT_ORG]: {
-          serviceName: SERVICE_NAMES.TENANT_ORG,
-          protoPath: resolveCommonProtoPath('tenant_org_service/tenant_org.proto'),
-          packageName: 'tenant_org_service',
-          url: resolveTenantOrgGrpcUrl()
         },
         [SERVICE_NAMES.TERMINAL_DEVICE]: {
           serviceName: SERVICE_NAMES.TERMINAL_DEVICE,
@@ -228,7 +184,6 @@ const siteGrpcLoaderOptions = { longs: String, arrays: true }
       },
       defaultPoolConfig: { minSize: 3, maxSize: 3 }
     }),
-    GrpcTransportModule.forFeature([SERVICE_NAMES.PERMISSION, SERVICE_NAMES.TENANT_ORG]),
 
     ThrottlerModule.forRoot({
       throttlers: [
@@ -242,6 +197,7 @@ const siteGrpcLoaderOptions = { longs: String, arrays: true }
 
     HealthModule,
     GatewayTrustedGrpcExecutionModule,
+    GatewayFoundationTrustedGrpcModule,
     ExternalApiModule,
     AuthBffModule,
     BrowserActivityBffModule,
