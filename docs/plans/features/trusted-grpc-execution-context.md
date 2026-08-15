@@ -2749,21 +2749,21 @@ All HUMAN_OBO hops carry the verified HUMAN subject, tenant/session/terminal/tra
 2. Prepare every Gateway and cross-foundation target-specific client/profile/provider while legacy targets remain active; preparation may attach ET but cannot synthesize fallback authority.
 3. Complete Auth public-admission composition and all five local verifier/guard/context/module compositions.
 4. Run service-by-service controller/module/security tests for Auth, Identity, Permission, HR and TenantOrg; keep all five production activations disabled.
-5. In one candidate, activate the 15 cross-foundation edges, Gateway five-target clients and Public Entry/Collaboration edges, then enable all five Token-only server boundaries.
-6. Delete generic target registrations, signed/operator metadata factories, body authority consumption and all legacy fallbacks; retain unrelated Party and already integrated foundation compositions.
+5. In one candidate, activate the 15 cross-foundation edges, Gateway five-target clients and Public Entry/Collaboration edges, then enable all five Token-only, mandatory-mTLS server boundaries; startup fails closed when server credentials are unavailable, with no optional or insecure production mode.
+6. Delete generic target registrations, signed/operator metadata factories, body authority consumption and all legacy fallbacks; every cross-foundation production target uses its dedicated `createGrpcClientCredentials()`-backed channel, while unrelated Party and already integrated foundation compositions remain intact.
 7. Run the group composition/E2E, 217-declaration, Code, audience/actor/terminal, tombstone, legacy-zero, exact-scope and repository gates at one SHA.
 
 No database schema, migration, event/outbox, role model, tenant model, business rule, package lock, CRM runtime or unrelated RPC is leased.
 
 #### 9.15.4 closed implementation writer lease
 
-The lease is exact: `185 = 156 EXISTING + 29 NEW_TARGET`. Each source package owns its package-local target profiles/clients; Common remains target-neutral infrastructure. One production file may register several target-specific immutable profiles, but each target has a distinct audience/client token and no package imports another package's producer.
+The lease is exact: `191 = 162 EXISTING + 29 NEW_TARGET`. Each source package owns its package-local target profiles/clients; Common remains target-neutral infrastructure. One production file may register several target-specific immutable profiles, but each target has a distinct audience/client token and no package imports another package's producer. The six appended existing paths are the minimum enforcement owners for mandatory server mTLS and removal of the remaining HR onboarding and Permission role generic target registrations; they do not change public admission, RPC, Code, wire or business semantics.
 
 ```yaml
 foundationIdentityAuthzAtomicGroupImplementationLease:
   base: ad131ac7e06fa01d21493b05502bd1a567318c68
-  totalTrackedWriterPaths: 185
-  stateCounts: { EXISTING: 156, NEW_TARGET: 29 }
+  totalTrackedWriterPaths: 191
+  stateCounts: { EXISTING: 162, NEW_TARGET: 29 }
   trackedWriterPaths:
     - { state: EXISTING, path: src/common/src/contracts/auth_service/auth.proto }
     - { state: EXISTING, path: src/common/src/contracts/auth_service/execution_token.proto }
@@ -2950,6 +2950,12 @@ foundationIdentityAuthzAtomicGroupImplementationLease:
     - { state: NEW_TARGET, path: src/services/system/collaboration-service/src/infrastructure/adapters/foundation-trusted-grpc.clients.spec.ts }
     - { state: NEW_TARGET, path: src/common/src/authorization/trusted-execution/foundation-atomic-group.declarations.spec.ts }
     - { state: NEW_TARGET, path: scripts/local/foundation-trusted-grpc-atomic-group.spec.mjs }
+    - { state: EXISTING, path: src/services/system/identity-service/src/main.ts }
+    - { state: EXISTING, path: src/services/system/permission-service/src/main.ts }
+    - { state: EXISTING, path: src/services/system/hr-service/src/main.ts }
+    - { state: EXISTING, path: src/services/system/tenant-org-service/src/main.ts }
+    - { state: EXISTING, path: src/services/system/hr-service/src/modules/hr-onboarding/hr-onboarding.module.ts }
+    - { state: EXISTING, path: src/services/system/permission-service/src/modules/role/role.module.ts }
   protected:
     - every tracked path not listed above
     - all prisma/schema/migration, event/outbox and business-domain state-machine paths
@@ -2984,7 +2990,7 @@ node --test scripts/local/foundation-trusted-grpc-atomic-group.spec.mjs
 git diff --check
 ```
 
-Acceptance proves: exact `70+5/41/66/15/20` membership and 217 declarations; exact five audiences, method Codes, terminals and workload/actor allowlists; all anonymous/public negatives and anti-enumeration/rate/audit invariants; all HUMAN/HUMAN_OBO/SYSTEM MACHINE success/negative cases; OBO subject/actor/tenant/session/trace/expiry/Permission/`cnf` continuity; exact 32 wire reservations and unchanged resource/response fields; Gateway/public/cross-foundation target clients; atomic activation with no intermediate mixed trust; zero legacy metadata/body/fallback references; all existing foundation/Party behavior unchanged; exact 185-path scope; UTF-8/link/YAML/fence/diff cleanliness.
+Acceptance proves: exact `70+5/41/66/15/20` membership and 217 declarations; exact five audiences, method Codes, terminals and workload/actor allowlists; all anonymous/public negatives and anti-enumeration/rate/audit invariants; all HUMAN/HUMAN_OBO/SYSTEM MACHINE success/negative cases; OBO subject/actor/tenant/session/trace/expiry/Permission/`cnf` continuity; exact 32 wire reservations and unchanged resource/response fields; Gateway/public/cross-foundation target clients; mandatory mTLS startup for all five servers with no optional/insecure production mode; exact `createGrpcClientCredentials()` use for every cross-foundation target and zero generic target registrations; atomic activation with no intermediate mixed trust; zero legacy metadata/body/fallback references; all existing foundation/Party behavior unchanged; exact 191-path scope; UTF-8/link/YAML/fence/diff cleanliness.
 
 ## 10. Repository-wide Security Acceptance
 
