@@ -1,4 +1,5 @@
 import { AuditEnvelope } from '@oes/common'
+import { GrpcRequestContextStore } from '@oes/common/authorization'
 import { CreatePurchaseRequestCommand } from '../../src/application/commands/create-purchase-request.command'
 import { CreatePurchaseRequestHandler } from '../../src/application/commands/create-purchase-request.handler'
 import { ItemReferenceLookupPort } from '../../src/application/ports/item-reference-lookup.port'
@@ -34,6 +35,36 @@ class FailOnceAuditWriter implements ProcurementAuditWriter {
   }
 }
 
+/** Creates the guard-established HUMAN context required by Procurement audit authority checks. */
+function createTrustedHumanContext(prefix: string, tenantId: string) {
+  const certificateThumbprint = 'A'.repeat(43)
+  return {
+    verifiedExecutionToken: {
+      issuer: 'https://auth.example',
+      audience: 'urn:oes:service:procurement-service',
+      subject: `${prefix}_operator`,
+      principalType: 'HUMAN',
+      clientId: 'spiffe://oes/procurement-l2-client',
+      tenantId,
+      orgId: `${prefix}_org`,
+      permissionCodes: [],
+      tokenId: `${prefix}_token`,
+      issuedAt: 1,
+      notBefore: 1,
+      expiresAt: 9_999_999_999,
+      certificateThumbprint,
+      sessionId: `${prefix}_session`,
+      sessionTerminal: 'WEB'
+    },
+    verifiedWorkloadIdentity: {
+      spiffeId: 'spiffe://oes/procurement-l2-client',
+      certificateThumbprint
+    },
+    requestId: `${prefix}_request`,
+    traceId: `${prefix}_trace`
+  } as never
+}
+
 describe('procurement audit transaction L2', () => {
   let prisma: PrismaService
   let purchaseRequestRepository: PrismaPurchaseRequestRepository
@@ -61,16 +92,91 @@ describe('procurement audit transaction L2', () => {
 
   it('when success audit persistence fails / should roll back the purchase request write in the same Prisma transaction', async () => {
     const tenantId = `${prefix}_tenant`
+    const requestContextStore = new GrpcRequestContextStore()
     const handler = new CreatePurchaseRequestHandler(
       purchaseRequestRepository,
       new NullItemReferenceLookupPort()
     )
     const auditService = new ProcurementAuditService(
       new PrismaProcurementTransactionRunner(prisma),
-      new FailOnceAuditWriter()
+      new FailOnceAuditWriter(),
+      requestContextStore
     )
 
     await expect(
+      requestContextStore.run(createTrustedHumanContext(prefix, tenantId), () =>
+        auditService.recordCommand(
+          {
+            tenantId,
+            operatorContext: {
+              operatorId: `${prefix}_operator`,
+              operatorType: 'HUMAN',
+              orgId: `${prefix}_org`
+            },
+            traceContext: {
+              traceId: `${prefix}_trace`,
+              requestId: `${prefix}_request`
+            },
+            auditContext: {
+              auditId: `${prefix}_audit`,
+              reason: 'purchase request create',
+              source: 'procurement-l2'
+            },
+            commandName: 'CreatePurchaseRequest',
+            resourceType: 'purchase_request',
+            targetId: null,
+            requestSummary: {
+              tenantId
+            }
+          },
+          () =>
+            handler.execute(
+              new CreatePurchaseRequestCommand({
+                tenantId,
+                requester: {
+                  operatorId: `${prefix}_operator`,
+                  displayName: 'Buyer L2'
+                },
+                requestType: PurchaseRequestType.DEPARTMENTAL,
+                title: `${prefix} stationery`,
+                lines: [
+                  {
+                    lineType: 'TEXT',
+                    description: 'stationery set',
+                    requestedQuantity: '2',
+                    uom: 'SET'
+                  }
+                ]
+              })
+            )
+        )
+      )
+    ).rejects.toThrow('audit sink unavailable')
+
+    const persisted = await purchaseRequestRepository.search({
+      tenantId,
+      page: 1,
+      pageSize: 20
+    })
+
+    expect(persisted.total).toBe(0)
+    expect(persisted.items).toEqual([])
+  })
+
+  it('when the command succeeds / should persist the purchase request and success audit envelope in the same database path', async () => {
+    const tenantId = `${prefix}_tenant`
+    const requestContextStore = new GrpcRequestContextStore()
+    const handler = new CreatePurchaseRequestHandler(
+      purchaseRequestRepository,
+      new NullItemReferenceLookupPort()
+    )
+    const auditService = new ProcurementAuditService(
+      new PrismaProcurementTransactionRunner(prisma),
+      new PrismaProcurementAuditRepository(prisma),
+      requestContextStore
+    )
+
+    const created = await requestContextStore.run(createTrustedHumanContext(prefix, tenantId), () =>
       auditService.recordCommand(
         {
           tenantId,
@@ -84,7 +190,7 @@ describe('procurement audit transaction L2', () => {
             requestId: `${prefix}_request`
           },
           auditContext: {
-            auditId: `${prefix}_audit`,
+            auditId: `${prefix}_audit_success`,
             reason: 'purchase request create',
             source: 'procurement-l2'
           },
@@ -116,73 +222,6 @@ describe('procurement audit transaction L2', () => {
             })
           )
       )
-    ).rejects.toThrow('audit sink unavailable')
-
-    const persisted = await purchaseRequestRepository.search({
-      tenantId,
-      page: 1,
-      pageSize: 20
-    })
-
-    expect(persisted.total).toBe(0)
-    expect(persisted.items).toEqual([])
-  })
-
-  it('when the command succeeds / should persist the purchase request and success audit envelope in the same database path', async () => {
-    const tenantId = `${prefix}_tenant`
-    const handler = new CreatePurchaseRequestHandler(
-      purchaseRequestRepository,
-      new NullItemReferenceLookupPort()
-    )
-    const auditService = new ProcurementAuditService(
-      new PrismaProcurementTransactionRunner(prisma),
-      new PrismaProcurementAuditRepository(prisma)
-    )
-
-    const created = await auditService.recordCommand(
-      {
-        tenantId,
-        operatorContext: {
-          operatorId: `${prefix}_operator`,
-          operatorType: 'HUMAN',
-          orgId: `${prefix}_org`
-        },
-        traceContext: {
-          traceId: `${prefix}_trace`,
-          requestId: `${prefix}_request`
-        },
-        auditContext: {
-          auditId: `${prefix}_audit_success`,
-          reason: 'purchase request create',
-          source: 'procurement-l2'
-        },
-        commandName: 'CreatePurchaseRequest',
-        resourceType: 'purchase_request',
-        targetId: null,
-        requestSummary: {
-          tenantId
-        }
-      },
-      () =>
-        handler.execute(
-          new CreatePurchaseRequestCommand({
-            tenantId,
-            requester: {
-              operatorId: `${prefix}_operator`,
-              displayName: 'Buyer L2'
-            },
-            requestType: PurchaseRequestType.DEPARTMENTAL,
-            title: `${prefix} stationery`,
-            lines: [
-              {
-                lineType: 'TEXT',
-                description: 'stationery set',
-                requestedQuantity: '2',
-                uom: 'SET'
-              }
-            ]
-          })
-        )
     )
 
     const persisted = await purchaseRequestRepository.search({

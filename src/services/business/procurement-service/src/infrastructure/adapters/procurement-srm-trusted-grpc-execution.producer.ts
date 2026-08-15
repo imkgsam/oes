@@ -18,7 +18,7 @@ export const SRM_CALLER_ERRORS = Object.freeze({
 } as const)
 const SRM_AUDIENCE = 'urn:oes:service:srm-service'
 
-/** Prepares exact SRM HUMAN_OBO metadata while remaining absent from Procurement production DI. */
+/** Prepares exact SRM HUMAN_OBO metadata for the Procurement production DI registration. */
 export class ProcurementSrmTrustedGrpcExecutionProducer {
   private readonly context = new AsyncLocalTrustedExecutionContextAccessor()
   private metadata?: TrustedGrpcMetadataProvider
