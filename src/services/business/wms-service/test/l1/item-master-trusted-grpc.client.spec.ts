@@ -6,6 +6,7 @@ import { WmsItemMasterTrustedGrpcClient } from '../../src/infrastructure/adapter
 import { WmsItemMasterExecutionTokenExchangeClient } from '../../src/infrastructure/adapters/wms-item-master-execution-token-exchange.client'
 import { WmsItemMasterTrustedGrpcExecutionProducer } from '../../src/infrastructure/adapters/wms-item-master-trusted-grpc-execution.producer'
 import { WmsInfrastructureModule } from '../../src/modules/wms-infrastructure.module'
+import { WmsTrustedExecutionModule } from '../../src/modules/wms-trusted-execution.module'
 
 const audience = 'urn:oes:service:item-master-service'
 const code = ITEM_MASTER_INTERNAL_PERMISSION_CODES.RESOLVE_STOCKABLE_ITEM
@@ -27,14 +28,24 @@ describe('WMS Item Master trusted execution L1', () => {
     process.env = saved
   })
 
-  it('keeps the prepared caller graph out of production DI until WMS inbound migration', () => {
+  it('activates the complete caller graph only through trusted WMS DI', () => {
     const tokens = [
       WmsItemMasterTrustedGrpcClient,
       WmsItemMasterExecutionTokenExchangeClient,
       WmsItemMasterTrustedGrpcExecutionProducer
     ]
-    const providers = Reflect.getMetadata('providers', WmsInfrastructureModule) as unknown[]
-    expect(providers).not.toEqual(expect.arrayContaining(tokens))
+    const trustedProviders = Reflect.getMetadata(
+      'providers',
+      WmsTrustedExecutionModule
+    ) as unknown[]
+    const infrastructureProviders = Reflect.getMetadata(
+      'providers',
+      WmsInfrastructureModule
+    ) as unknown[]
+    expect(trustedProviders.map(providerToken)).toEqual(expect.arrayContaining(tokens))
+    expect(infrastructureProviders).toEqual(
+      expect.arrayContaining([ItemMasterStockableQueryGrpcAdapter])
+    )
   })
 
   it('calls only ResolveStockableItem with the exact code and no body tenant', async () => {
@@ -98,3 +109,10 @@ describe('WMS Item Master trusted execution L1', () => {
     ).rejects.toThrow('ITEM_MASTER_CALLER_EXECUTION_CONTEXT_REQUIRED')
   })
 })
+
+/** Reads the injection token from either a class or a factory provider. */
+function providerToken(provider: unknown): unknown {
+  return typeof provider === 'object' && provider !== null && 'provide' in provider
+    ? (provider as { provide: unknown }).provide
+    : provider
+}

@@ -6,17 +6,19 @@ import { InventoryRepository } from '../domain/repositories/inventory.repository
 import { ReceiptRepository } from '../domain/repositories/receipt.repository'
 import { WarehouseRepository } from '../domain/repositories/warehouse.repository'
 import { ProcurementReceivingExpectationGrpcAdapter } from '../infrastructure/adapters/procurement-receiving-expectation.grpc.adapter'
+import { ItemMasterStockableQueryGrpcAdapter } from '../infrastructure/adapters/item-master-stockable-query.grpc.adapter'
 import { PrismaWmsAuditRepository } from '../infrastructure/audit/prisma-wms-audit.repository'
 import { PrismaModule } from '../infrastructure/prisma/prisma.module'
 import { PrismaInventoryRepository } from '../infrastructure/repositories/prisma/prisma-inventory.repository'
 import { PrismaReceiptRepository } from '../infrastructure/repositories/prisma/prisma-receipt.repository'
 import { PrismaWarehouseRepository } from '../infrastructure/repositories/prisma/prisma-warehouse.repository'
 import { PrismaWmsTransactionRunner } from '../infrastructure/transactions/prisma-wms-transaction-runner'
+import { WmsTrustedExecutionModule } from './wms-trusted-execution.module'
 
 /** WmsInfrastructureModule wires the Prisma-backed persistence graph and downstream item and procurement lookup adapters. */
 @Global()
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, WmsTrustedExecutionModule],
   providers: [
     PrismaWarehouseRepository,
     PrismaReceiptRepository,
@@ -24,6 +26,7 @@ import { PrismaWmsTransactionRunner } from '../infrastructure/transactions/prism
     PrismaWmsAuditRepository,
     PrismaWmsTransactionRunner,
     ProcurementReceivingExpectationGrpcAdapter,
+    ItemMasterStockableQueryGrpcAdapter,
     {
       provide: TOKENS.WAREHOUSE_REPOSITORY,
       useExisting: PrismaWarehouseRepository
@@ -47,6 +50,10 @@ import { PrismaWmsTransactionRunner } from '../infrastructure/transactions/prism
     {
       provide: TOKENS.RECEIVING_EXPECTATION_LOOKUP_PORT,
       useExisting: ProcurementReceivingExpectationGrpcAdapter
+    },
+    {
+      provide: TOKENS.STOCKABLE_ITEM_LOOKUP_PORT,
+      useExisting: ItemMasterStockableQueryGrpcAdapter
     }
   ],
   exports: [
@@ -57,12 +64,14 @@ import { PrismaWmsTransactionRunner } from '../infrastructure/transactions/prism
     PrismaWmsAuditRepository,
     PrismaWmsTransactionRunner,
     ProcurementReceivingExpectationGrpcAdapter,
+    ItemMasterStockableQueryGrpcAdapter,
     TOKENS.WAREHOUSE_REPOSITORY,
     TOKENS.RECEIPT_REPOSITORY,
     TOKENS.INVENTORY_REPOSITORY,
     TOKENS.WMS_AUDIT_WRITER,
     TOKENS.WMS_TRANSACTION_RUNNER,
-    TOKENS.RECEIVING_EXPECTATION_LOOKUP_PORT
+    TOKENS.RECEIVING_EXPECTATION_LOOKUP_PORT,
+    TOKENS.STOCKABLE_ITEM_LOOKUP_PORT
   ]
 })
 export class WmsInfrastructureModule {}

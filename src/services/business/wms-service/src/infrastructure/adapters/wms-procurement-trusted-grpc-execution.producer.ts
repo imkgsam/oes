@@ -18,7 +18,7 @@ export const PROCUREMENT_CALLER_ERRORS = Object.freeze({
 } as const)
 const PROCUREMENT_AUDIENCE = 'urn:oes:service:procurement-service'
 
-/** Prepares exact Procurement HUMAN_OBO metadata while remaining inactive in WMS production DI. */
+/** Produces exact Procurement HUMAN_OBO metadata only inside verified WMS request scope. */
 export class WmsProcurementTrustedGrpcExecutionProducer {
   private readonly context = new AsyncLocalTrustedExecutionContextAccessor()
   private metadata?: TrustedGrpcMetadataProvider

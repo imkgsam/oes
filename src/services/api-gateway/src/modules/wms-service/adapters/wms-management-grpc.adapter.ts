@@ -1,5 +1,5 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
-import { ClientGrpc } from '@nestjs/microservices'
+import { Injectable, OnModuleInit } from '@nestjs/common'
+import { WMS_MANAGEMENT_PERMISSION_CODES } from '@oes/common/authorization'
 import {
   AddOrReplaceReceiptLinesRequest,
   AddOrReplaceReceiptLinesResponse,
@@ -7,145 +7,110 @@ import {
   CancelReceiptDraftResponse,
   CreateReceiptDraftRequest,
   CreateReceiptDraftResponse,
-  RECEIPT_MANAGEMENT_SERVICE_NAME,
-  ReceiptManagementServiceClient,
   PostReceiptRequest,
-  PostReceiptResponse
+  PostReceiptResponse,
+  ReceiptManagementServiceClient
 } from '@oes/common/generated/wms_service'
+import { safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
+import { Observable } from 'rxjs'
+import { DownstreamRequestSource } from '../../../common/grpc/gateway-downstream-source.mapper'
 import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory
-} from '@oes/common/authorization'
-import { SERVICE_NAMES } from '@oes/common/constants'
-import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
-import {
-  DownstreamRequestSource,
-  toOperatorScopedMetadataInput
-} from '../../../common/grpc/gateway-downstream-source.mapper'
-import {
-  buildWmsAuditContext,
-  buildWmsOperatorContext,
-  buildWmsTraceContext
-} from './wms-grpc-context'
+  GatewayWmsGrpcClient,
+  WMS_TARGET_AUDIENCE
+} from '../../../common/grpc/gateway-wms-grpc.client'
+import { GatewayTrustedGrpcExecutionProducer } from '../../../common/grpc/gateway-trusted-grpc-execution-producer'
 
 const CALLER = 'api-gateway'
+type GatewayWmsCommand<T> = T & Record<string, unknown> & { auditReason?: string }
 
-interface ManagementInputBase {
-  auditReason?: string
-}
-
-/** WmsManagementGrpcAdapter proxies the frozen phase 1 WMS management RPCs from api-gateway into wms-service. */
+/** Proxies WMS commands through one dedicated mTLS channel and exact BUSINESS tokens. */
 @Injectable()
 export class WmsManagementGrpcAdapter implements OnModuleInit {
   private receiptSvc!: ReceiptManagementServiceClient
 
   constructor(
-    @InjectGrpcClient(SERVICE_NAMES.WMS)
-    private readonly client: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory
+    private readonly client: GatewayWmsGrpcClient,
+    private readonly producer: GatewayTrustedGrpcExecutionProducer
   ) {}
 
   onModuleInit(): void {
-    this.receiptSvc = this.client.getService<ReceiptManagementServiceClient>(
-      RECEIPT_MANAGEMENT_SERVICE_NAME
-    )
+    this.receiptSvc = this.client.receiptManagement()
   }
 
-  /** createReceiptDraft forwards one receipt draft creation command. */
-  createReceiptDraft(
-    input: Omit<CreateReceiptDraftRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
-      ManagementInputBase,
+  async createReceiptDraft(
+    input: GatewayWmsCommand<CreateReceiptDraftRequest>,
     source: DownstreamRequestSource
-  ): Promise<CreateReceiptDraftResponse> {
-    return this.call(
+  ) {
+    return this.call<CreateReceiptDraftResponse>(
       'createReceiptDraft',
-      this.receiptSvc.createReceiptDraft(
-        this.attachManagementContext(input, source, input.auditReason ?? 'create receipt draft from api-gateway'),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
-      )
+      this.receiptSvc.createReceiptDraft(stripLocalAuthority(input), await this.metadata(source))
     )
   }
 
-  /** addOrReplaceReceiptLines forwards one full-replace receipt-line draft mutation command. */
-  addOrReplaceReceiptLines(
-    input: Omit<
-      AddOrReplaceReceiptLinesRequest,
-      'auditContext' | 'operatorContext' | 'traceContext'
-    > &
-      ManagementInputBase,
+  async addOrReplaceReceiptLines(
+    input: GatewayWmsCommand<AddOrReplaceReceiptLinesRequest>,
     source: DownstreamRequestSource
-  ): Promise<AddOrReplaceReceiptLinesResponse> {
-    return this.call(
+  ) {
+    return this.call<AddOrReplaceReceiptLinesResponse>(
       'addOrReplaceReceiptLines',
       this.receiptSvc.addOrReplaceReceiptLines(
-        this.attachManagementContext(
-          input,
-          source,
-          input.auditReason ?? 'replace receipt draft lines from api-gateway'
-        ),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        stripLocalAuthority(input),
+        await this.metadata(source)
       )
     )
   }
 
-  /** postReceipt forwards one explicit receipt posting command. */
-  postReceipt(
-    input: Omit<PostReceiptRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
-      ManagementInputBase,
-    source: DownstreamRequestSource
-  ): Promise<PostReceiptResponse> {
-    return this.call(
+  async postReceipt(input: GatewayWmsCommand<PostReceiptRequest>, source: DownstreamRequestSource) {
+    return this.call<PostReceiptResponse>(
       'postReceipt',
-      this.receiptSvc.postReceipt(
-        this.attachManagementContext(input, source, input.auditReason ?? 'post receipt from api-gateway'),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
-      )
+      this.receiptSvc.postReceipt(stripLocalAuthority(input), await this.metadata(source))
     )
   }
 
-  /** cancelReceiptDraft forwards one explicit receipt draft cancellation command. */
-  cancelReceiptDraft(
-    input: Omit<CancelReceiptDraftRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
-      ManagementInputBase,
+  async cancelReceiptDraft(
+    input: GatewayWmsCommand<CancelReceiptDraftRequest>,
     source: DownstreamRequestSource
-  ): Promise<CancelReceiptDraftResponse> {
-    return this.call(
+  ) {
+    return this.call<CancelReceiptDraftResponse>(
       'cancelReceiptDraft',
-      this.receiptSvc.cancelReceiptDraft(
-        this.attachManagementContext(
-          input,
-          source,
-          input.auditReason ?? 'cancel receipt draft from api-gateway'
-        ),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
-      )
+      this.receiptSvc.cancelReceiptDraft(stripLocalAuthority(input), await this.metadata(source))
     )
   }
 
-  /** attachManagementContext injects the explicit WMS operator, trace, and audit contexts required by the frozen management contract. */
-  private attachManagementContext<
-    TInput extends {
-      auditReason?: string
-    }
-  >(input: TInput, source: DownstreamRequestSource, defaultReason: string) {
-    const { auditReason: _auditReason, ...rest } = input
-
-    return {
-      ...rest,
-      auditContext: buildWmsAuditContext(source, input.auditReason ?? defaultReason),
-      operatorContext: buildWmsOperatorContext(source),
-      traceContext: buildWmsTraceContext(source)
-    }
+  /** Produces the exact WMS receipt-management token for one verified Gateway session. */
+  private metadata(source: DownstreamRequestSource) {
+    return this.producer.forBusinessCall(source, WMS_TARGET_AUDIENCE, [
+      WMS_MANAGEMENT_PERMISSION_CODES.MANAGE_RECEIPT
+    ])
   }
 
-  /** call wraps one gateway WMS command RPC with the shared safe gRPC transport helpers. */
-  private call<TResponse>(method: string, call$: any): Promise<TResponse> {
+  /** Wraps one generated WMS command observable with the shared error contract. */
+  private call<TResponse>(method: string, call$: Observable<TResponse>): Promise<TResponse> {
     return safeGrpcCall<TResponse>(call$, this.opts(method))
   }
 
-  /** opts builds the shared gateway caller metadata for one proxied WMS command. */
+  /** Identifies the Gateway/WMS method pair without injecting authority. */
   private opts(method: string): SafeGrpcCallOptions {
     return { caller: CALLER, method }
   }
+}
+
+/** Removes route-local and retired authority fields before protobuf serialization. */
+function stripLocalAuthority<T extends object>(input: T): T {
+  const output = { ...input } as Record<string, unknown>
+  for (const field of [
+    'tenantId',
+    'tenant_id',
+    'orgId',
+    'org_id',
+    'operatorContext',
+    'operator_context',
+    'traceContext',
+    'trace_context',
+    'auditContext',
+    'audit_context',
+    'auditReason'
+  ])
+    delete output[field]
+  return output as T
 }

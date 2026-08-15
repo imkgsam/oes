@@ -1,19 +1,19 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
+import test from 'node:test'
+import assert from 'node:assert/strict'
 
-import { createSmokeSeed, runWmsSmokeFlow } from './wms-smoke-lib.mjs';
+import { createSmokeSeed, runWmsSmokeFlow } from './wms-smoke-lib.mjs'
 
 // Verifies the minimal WMS smoke can traverse the seeded warehouse page, receipt draft flow, posting, and inventory queries.
 test('wms smoke flow / should list one seeded warehouse and post one manual receipt into ledger and balance queries', async () => {
-  const calls = [];
-  const seed = createSmokeSeed(1700000000300);
+  const calls = []
+  const seed = createSmokeSeed(1700000000300)
 
   const result = await runWmsSmokeFlow(
     {
       warehouse: {
         query: {
           listWarehouses: async (request) => {
-            calls.push(['listWarehouses', request]);
+            calls.push(['listWarehouses', request])
             return {
               warehouses: [
                 {
@@ -25,14 +25,14 @@ test('wms smoke flow / should list one seeded warehouse and post one manual rece
               total: 1,
               page: request.page,
               pageSize: request.pageSize
-            };
+            }
           }
         }
       },
       receipt: {
         management: {
           createReceiptDraft: async (request) => {
-            calls.push(['createReceiptDraft', request]);
+            calls.push(['createReceiptDraft', request])
             return {
               receipt: {
                 receiptId: 'receipt-1',
@@ -41,10 +41,10 @@ test('wms smoke flow / should list one seeded warehouse and post one manual rece
                 status: 1,
                 lineCount: 0
               }
-            };
+            }
           },
           addOrReplaceReceiptLines: async (request) => {
-            calls.push(['addOrReplaceReceiptLines', request]);
+            calls.push(['addOrReplaceReceiptLines', request])
             return {
               receipt: {
                 receiptId: request.receiptId,
@@ -62,10 +62,10 @@ test('wms smoke flow / should list one seeded warehouse and post one manual rece
                   }
                 ]
               }
-            };
+            }
           },
           postReceipt: async (request) => {
-            calls.push(['postReceipt', request]);
+            calls.push(['postReceipt', request])
             return {
               receipt: {
                 receiptId: request.receiptId,
@@ -75,14 +75,14 @@ test('wms smoke flow / should list one seeded warehouse and post one manual rece
                 lineCount: 1
               },
               postedStockLedgerEntryIds: ['ledger-1']
-            };
+            }
           }
         }
       },
       inventory: {
         query: {
           searchStockLedgerEntries: async (request) => {
-            calls.push(['searchStockLedgerEntries', request]);
+            calls.push(['searchStockLedgerEntries', request])
             return {
               entries: [
                 {
@@ -95,10 +95,10 @@ test('wms smoke flow / should list one seeded warehouse and post one manual rece
               total: 1,
               page: request.page,
               pageSize: request.pageSize
-            };
+            }
           },
           searchInventoryBalances: async (request) => {
-            calls.push(['searchInventoryBalances', request]);
+            calls.push(['searchInventoryBalances', request])
             return {
               inventoryBalances: [
                 {
@@ -113,19 +113,19 @@ test('wms smoke flow / should list one seeded warehouse and post one manual rece
               total: 1,
               page: request.page,
               pageSize: request.pageSize
-            };
+            }
           }
         }
       }
     },
     seed
-  );
+  )
 
-  assert.equal(result.warehouse.total, 1);
-  assert.equal(result.receipt.receiptId, 'receipt-1');
-  assert.deepEqual(result.postedStockLedgerEntryIds, ['ledger-1']);
-  assert.equal(result.ledger.total, 1);
-  assert.equal(result.balance.total, 1);
+  assert.equal(result.warehouse.total, 1)
+  assert.equal(result.receipt.receiptId, 'receipt-1')
+  assert.deepEqual(result.postedStockLedgerEntryIds, ['ledger-1'])
+  assert.equal(result.ledger.total, 1)
+  assert.equal(result.balance.total, 1)
   assert.deepEqual(
     calls.map(([name]) => name),
     [
@@ -136,5 +136,20 @@ test('wms smoke flow / should list one seeded warehouse and post one manual rece
       'searchStockLedgerEntries',
       'searchInventoryBalances'
     ]
-  );
-});
+  )
+  for (const [, request] of calls) {
+    for (const field of [
+      'tenantId',
+      'tenant_id',
+      'orgId',
+      'org_id',
+      'operatorContext',
+      'operator_context',
+      'traceContext',
+      'trace_context',
+      'auditContext',
+      'audit_context'
+    ])
+      assert.equal(Object.hasOwn(request, field), false, `${field} must remain transport-private`)
+  }
+})

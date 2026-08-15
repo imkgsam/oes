@@ -1,5 +1,5 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
-import { ClientGrpc } from '@nestjs/microservices'
+import { Injectable, OnModuleInit } from '@nestjs/common'
+import { WMS_MANAGEMENT_PERMISSION_CODES } from '@oes/common/authorization'
 import {
   GetInventoryBalanceRequest,
   GetInventoryBalanceResponse,
@@ -11,14 +11,11 @@ import {
   GetReceiptResponse,
   GetWarehouseRequest,
   GetWarehouseResponse,
-  INVENTORY_QUERY_SERVICE_NAME,
   InventoryQueryServiceClient,
-  InventoryQueryServiceControllerMethods,
   ListLocationsRequest,
   ListLocationsResponse,
   ListWarehousesRequest,
   ListWarehousesResponse,
-  RECEIPT_QUERY_SERVICE_NAME,
   ReceiptQueryServiceClient,
   SearchInventoryBalancesRequest,
   SearchInventoryBalancesResponse,
@@ -28,24 +25,21 @@ import {
   SearchReceiptsResponse,
   SearchStockLedgerEntriesRequest,
   SearchStockLedgerEntriesResponse,
-  WAREHOUSE_QUERY_SERVICE_NAME,
   WarehouseQueryServiceClient
 } from '@oes/common/generated/wms_service'
+import { safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
+import { Observable } from 'rxjs'
+import { DownstreamRequestSource } from '../../../common/grpc/gateway-downstream-source.mapper'
 import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory
-} from '@oes/common/authorization'
-import { SERVICE_NAMES } from '@oes/common/constants'
-import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
-import {
-  DownstreamRequestSource,
-  toOperatorScopedMetadataInput
-} from '../../../common/grpc/gateway-downstream-source.mapper'
-import { buildWmsOperatorContext, buildWmsTraceContext } from './wms-grpc-context'
+  GatewayWmsGrpcClient,
+  WMS_TARGET_AUDIENCE
+} from '../../../common/grpc/gateway-wms-grpc.client'
+import { GatewayTrustedGrpcExecutionProducer } from '../../../common/grpc/gateway-trusted-grpc-execution-producer'
 
 const CALLER = 'api-gateway'
+type GatewayWmsRequest<T> = T & Record<string, unknown>
 
-/** WmsQueryGrpcAdapter proxies the frozen phase 1 WMS query RPCs from api-gateway into wms-service. */
+/** Proxies WMS queries through one dedicated mTLS channel and exact BUSINESS tokens. */
 @Injectable()
 export class WmsQueryGrpcAdapter implements OnModuleInit {
   private inventorySvc!: InventoryQueryServiceClient
@@ -53,192 +47,185 @@ export class WmsQueryGrpcAdapter implements OnModuleInit {
   private warehouseSvc!: WarehouseQueryServiceClient
 
   constructor(
-    @InjectGrpcClient(SERVICE_NAMES.WMS)
-    private readonly client: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory
+    private readonly client: GatewayWmsGrpcClient,
+    private readonly producer: GatewayTrustedGrpcExecutionProducer
   ) {}
 
   onModuleInit(): void {
-    this.inventorySvc = this.client.getService<InventoryQueryServiceClient>(
-      INVENTORY_QUERY_SERVICE_NAME
-    )
-    this.receiptSvc = this.client.getService<ReceiptQueryServiceClient>(RECEIPT_QUERY_SERVICE_NAME)
-    this.warehouseSvc = this.client.getService<WarehouseQueryServiceClient>(
-      WAREHOUSE_QUERY_SERVICE_NAME
-    )
+    this.inventorySvc = this.client.inventoryQuery()
+    this.receiptSvc = this.client.receiptQuery()
+    this.warehouseSvc = this.client.warehouseQuery()
   }
 
-  /** getWarehouse forwards one warehouse detail read. */
-  getWarehouse(
-    input: Omit<GetWarehouseRequest, 'operatorContext' | 'traceContext'>,
+  async getWarehouse(
+    input: GatewayWmsRequest<GetWarehouseRequest>,
     source: DownstreamRequestSource
-  ): Promise<GetWarehouseResponse> {
-    return this.call(
+  ) {
+    return this.call<GetWarehouseResponse>(
       'getWarehouse',
       this.warehouseSvc.getWarehouse(
-        this.attachQueryContext(input, source),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        stripLocalAuthority(input),
+        await this.metadata(source, WMS_MANAGEMENT_PERMISSION_CODES.READ_WAREHOUSE)
       )
     )
   }
 
-  /** listWarehouses forwards one warehouse directory query. */
-  listWarehouses(
-    input: Omit<ListWarehousesRequest, 'operatorContext' | 'traceContext'>,
+  async listWarehouses(
+    input: GatewayWmsRequest<ListWarehousesRequest>,
     source: DownstreamRequestSource
-  ): Promise<ListWarehousesResponse> {
-    return this.call(
+  ) {
+    return this.call<ListWarehousesResponse>(
       'listWarehouses',
       this.warehouseSvc.listWarehouses(
-        this.attachQueryContext(input, source),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        stripLocalAuthority(input),
+        await this.metadata(source, WMS_MANAGEMENT_PERMISSION_CODES.READ_WAREHOUSE)
       )
     )
   }
 
-  /** getLocation forwards one location detail read. */
-  getLocation(
-    input: Omit<GetLocationRequest, 'operatorContext' | 'traceContext'>,
-    source: DownstreamRequestSource
-  ): Promise<GetLocationResponse> {
-    return this.call(
+  async getLocation(input: GatewayWmsRequest<GetLocationRequest>, source: DownstreamRequestSource) {
+    return this.call<GetLocationResponse>(
       'getLocation',
       this.warehouseSvc.getLocation(
-        this.attachQueryContext(input, source),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        stripLocalAuthority(input),
+        await this.metadata(source, WMS_MANAGEMENT_PERMISSION_CODES.READ_LOCATION)
       )
     )
   }
 
-  /** listLocations forwards one location directory query. */
-  listLocations(
-    input: Omit<ListLocationsRequest, 'operatorContext' | 'traceContext'>,
+  async listLocations(
+    input: GatewayWmsRequest<ListLocationsRequest>,
     source: DownstreamRequestSource
-  ): Promise<ListLocationsResponse> {
-    return this.call(
+  ) {
+    return this.call<ListLocationsResponse>(
       'listLocations',
       this.warehouseSvc.listLocations(
-        this.attachQueryContext(input, source),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        stripLocalAuthority(input),
+        await this.metadata(source, WMS_MANAGEMENT_PERMISSION_CODES.READ_LOCATION)
       )
     )
   }
 
-  /** getReceipt forwards one receipt detail read. */
-  getReceipt(
-    input: Omit<GetReceiptRequest, 'operatorContext' | 'traceContext'>,
-    source: DownstreamRequestSource
-  ): Promise<GetReceiptResponse> {
-    return this.call(
+  async getReceipt(input: GatewayWmsRequest<GetReceiptRequest>, source: DownstreamRequestSource) {
+    return this.call<GetReceiptResponse>(
       'getReceipt',
       this.receiptSvc.getReceipt(
-        this.attachQueryContext(input, source),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        stripLocalAuthority(input),
+        await this.metadata(source, WMS_MANAGEMENT_PERMISSION_CODES.READ_RECEIPT)
       )
     )
   }
 
-  /** searchReceipts forwards one receipt directory query. */
-  searchReceipts(
-    input: Omit<SearchReceiptsRequest, 'operatorContext' | 'traceContext'>,
+  async searchReceipts(
+    input: GatewayWmsRequest<SearchReceiptsRequest>,
     source: DownstreamRequestSource
-  ): Promise<SearchReceiptsResponse> {
-    return this.call(
+  ) {
+    return this.call<SearchReceiptsResponse>(
       'searchReceipts',
       this.receiptSvc.searchReceipts(
-        this.attachQueryContext(input, source),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        stripLocalAuthority(input),
+        await this.metadata(source, WMS_MANAGEMENT_PERMISSION_CODES.READ_RECEIPT)
       )
     )
   }
 
-  /** getReceiptLine forwards one receipt-line detail read. */
-  getReceiptLine(
-    input: Omit<GetReceiptLineRequest, 'operatorContext' | 'traceContext'>,
+  async getReceiptLine(
+    input: GatewayWmsRequest<GetReceiptLineRequest>,
     source: DownstreamRequestSource
-  ): Promise<GetReceiptLineResponse> {
-    return this.call(
+  ) {
+    return this.call<GetReceiptLineResponse>(
       'getReceiptLine',
       this.receiptSvc.getReceiptLine(
-        this.attachQueryContext(input, source),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        stripLocalAuthority(input),
+        await this.metadata(source, WMS_MANAGEMENT_PERMISSION_CODES.READ_RECEIPT)
       )
     )
   }
 
-  /** searchReceiptLines forwards one receipt-line directory query. */
-  searchReceiptLines(
-    input: Omit<SearchReceiptLinesRequest, 'operatorContext' | 'traceContext'>,
+  async searchReceiptLines(
+    input: GatewayWmsRequest<SearchReceiptLinesRequest>,
     source: DownstreamRequestSource
-  ): Promise<SearchReceiptLinesResponse> {
-    return this.call(
+  ) {
+    return this.call<SearchReceiptLinesResponse>(
       'searchReceiptLines',
       this.receiptSvc.searchReceiptLines(
-        this.attachQueryContext(input, source),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        stripLocalAuthority(input),
+        await this.metadata(source, WMS_MANAGEMENT_PERMISSION_CODES.READ_RECEIPT)
       )
     )
   }
 
-  /** searchStockLedgerEntries forwards one stock-ledger directory query. */
-  searchStockLedgerEntries(
-    input: Omit<SearchStockLedgerEntriesRequest, 'operatorContext' | 'traceContext'>,
+  async searchStockLedgerEntries(
+    input: GatewayWmsRequest<SearchStockLedgerEntriesRequest>,
     source: DownstreamRequestSource
-  ): Promise<SearchStockLedgerEntriesResponse> {
-    return this.call(
+  ) {
+    return this.call<SearchStockLedgerEntriesResponse>(
       'searchStockLedgerEntries',
       this.inventorySvc.searchStockLedgerEntries(
-        this.attachQueryContext(input, source),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        stripLocalAuthority(input),
+        await this.metadata(source, WMS_MANAGEMENT_PERMISSION_CODES.READ_INVENTORY)
       )
     )
   }
 
-  /** getInventoryBalance forwards one inventory-balance detail read. */
-  getInventoryBalance(
-    input: Omit<GetInventoryBalanceRequest, 'operatorContext' | 'traceContext'>,
+  async getInventoryBalance(
+    input: GatewayWmsRequest<GetInventoryBalanceRequest>,
     source: DownstreamRequestSource
-  ): Promise<GetInventoryBalanceResponse> {
-    return this.call(
+  ) {
+    return this.call<GetInventoryBalanceResponse>(
       'getInventoryBalance',
       this.inventorySvc.getInventoryBalance(
-        this.attachQueryContext(input, source),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        stripLocalAuthority(input),
+        await this.metadata(source, WMS_MANAGEMENT_PERMISSION_CODES.READ_INVENTORY)
       )
     )
   }
 
-  /** searchInventoryBalances forwards one inventory-balance directory query. */
-  searchInventoryBalances(
-    input: Omit<SearchInventoryBalancesRequest, 'operatorContext' | 'traceContext'>,
+  async searchInventoryBalances(
+    input: GatewayWmsRequest<SearchInventoryBalancesRequest>,
     source: DownstreamRequestSource
-  ): Promise<SearchInventoryBalancesResponse> {
-    return this.call(
+  ) {
+    return this.call<SearchInventoryBalancesResponse>(
       'searchInventoryBalances',
       this.inventorySvc.searchInventoryBalances(
-        this.attachQueryContext(input, source),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        stripLocalAuthority(input),
+        await this.metadata(source, WMS_MANAGEMENT_PERMISSION_CODES.READ_INVENTORY)
       )
     )
   }
 
-  /** attachQueryContext injects the explicit WMS operator and trace contexts required by the frozen query contract. */
-  private attachQueryContext<TInput extends object>(input: TInput, source: DownstreamRequestSource) {
-    return {
-      ...input,
-      operatorContext: buildWmsOperatorContext(source),
-      traceContext: buildWmsTraceContext(source)
-    }
+  /** Produces exact WMS-audience metadata solely from the verified Gateway session. */
+  private metadata(source: DownstreamRequestSource, code: string) {
+    return this.producer.forBusinessCall(source, WMS_TARGET_AUDIENCE, [code])
   }
 
-  /** call wraps one gateway WMS query RPC with the shared safe gRPC transport helpers. */
-  private call<TResponse>(method: string, call$: any): Promise<TResponse> {
+  /** Wraps one generated WMS query observable with the shared error contract. */
+  private call<TResponse>(method: string, call$: Observable<TResponse>): Promise<TResponse> {
     return safeGrpcCall<TResponse>(call$, this.opts(method))
   }
 
-  /** opts builds the shared gateway caller metadata for one proxied WMS query. */
+  /** Identifies the Gateway/WMS method pair without injecting authority. */
   private opts(method: string): SafeGrpcCallOptions {
     return { caller: CALLER, method }
   }
+}
+
+/** Removes route-local and retired authority fields before protobuf serialization. */
+function stripLocalAuthority<T extends object>(input: T): T {
+  const output = { ...input } as Record<string, unknown>
+  for (const field of [
+    'tenantId',
+    'tenant_id',
+    'orgId',
+    'org_id',
+    'operatorContext',
+    'operator_context',
+    'traceContext',
+    'trace_context',
+    'auditContext',
+    'audit_context',
+    'auditReason'
+  ])
+    delete output[field]
+  return output as T
 }

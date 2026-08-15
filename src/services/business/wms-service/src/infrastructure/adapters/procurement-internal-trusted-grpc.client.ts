@@ -6,7 +6,7 @@ import {
 } from '@oes/common/generated/procurement_service'
 import { createGrpcClientCredentials } from '@oes/common/transport'
 
-/** Owns WMS's prepared mTLS channel for Procurement's narrow receipt projection. */
+/** Owns WMS's active mTLS channel for Procurement's narrow receipt projection. */
 export class WmsProcurementInternalTrustedGrpcClient {
   private client?: ClientGrpc
 

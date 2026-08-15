@@ -1,53 +1,55 @@
 import {
-  CreateReceiptDraftRequest,
   InventoryBalanceStatusFilter as ProtoInventoryBalanceStatusFilter,
   InventoryStatus as ProtoInventoryStatus,
   ReceiptSourceType as ProtoReceiptSourceType,
-  ReceiptStatus as ProtoReceiptStatus,
-  SearchInventoryBalancesRequest
+  ReceiptStatus as ProtoReceiptStatus
 } from '@oes/common/generated/wms_service'
+import {
+  attachVerifiedExecution,
+  getAuthenticatedGrpcRequestContext
+} from '@oes/common/authorization'
 import { WmsManagementGrpcController } from '../../src/interfaces/grpc/wms-management.grpc.controller'
 import { WmsQueryGrpcController } from '../../src/interfaces/grpc/wms-query.grpc.controller'
 
-/** buildQueryContext creates the explicit tenant/operator/trace shape frozen by the WMS query contracts. */
-function buildQueryContext(): Pick<
-  SearchInventoryBalancesRequest,
-  'tenantId' | 'operatorContext' | 'traceContext'
-> {
-  return {
-    tenantId: 'tenant-1',
-    operatorContext: {
-      operatorId: 'operator-1',
-      operatorType: 'HUMAN',
-      orgId: 'org-1'
+/** Builds the private verified context attached by the trusted execution guard. */
+function buildQueryContext(): Record<string, unknown> {
+  const request: Record<string, unknown> = {}
+  attachVerifiedExecution(request, {
+    verifiedExecutionToken: {
+      issuer: 'https://auth.example',
+      audience: 'urn:oes:service:wms-service',
+      subject: 'operator-1',
+      principalType: 'HUMAN',
+      clientId: 'spiffe://oes/api-gateway',
+      tenantId: 'tenant-1',
+      orgId: 'org-1',
+      permissionCodes: [],
+      tokenId: 'token-1',
+      issuedAt: 1,
+      notBefore: 1,
+      expiresAt: 9999999999,
+      certificateThumbprint: 'A'.repeat(43),
+      sessionId: 'session-1',
+      sessionTerminal: 'WEB'
     },
-    traceContext: {
-      traceId: 'trace-1',
-      requestId: 'request-1'
+    verifiedWorkloadIdentity: {
+      spiffeId: 'spiffe://oes/api-gateway',
+      certificateThumbprint: 'A'.repeat(43)
     }
-  }
+  })
+  Object.assign(getAuthenticatedGrpcRequestContext(request) as object, {
+    requestId: 'request-1',
+    traceId: 'trace-1'
+  })
+  return request
 }
 
-/** buildManagementContext creates the explicit tenant/operator/trace/audit shape frozen by the WMS management contracts. */
-function buildManagementContext(): Pick<
-  CreateReceiptDraftRequest,
-  'tenantId' | 'operatorContext' | 'traceContext' | 'auditContext'
-> {
-  return {
-    ...buildQueryContext(),
-    auditContext: {
-      auditId: 'audit-1',
-      reason: 'test',
-      source: 'jest'
-    }
-  }
+/** Reuses the same verified authority because audit is claims-derived. */
+function buildManagementContext(): Record<string, unknown> {
+  return buildQueryContext()
 }
 
 describe('wms-service grpc surface L3', () => {
-  const requestContextStore = {
-    run: jest.fn((_context, work: () => unknown) => work())
-  }
-
   it('CreateReceiptDraft / should dispatch the management command through the audit wrapper and present the receipt response', async () => {
     const execute = jest.fn().mockResolvedValue({
       receiptId: 'receipt-1',
@@ -74,13 +76,11 @@ describe('wms-service grpc surface L3', () => {
     const recordCommand = jest.fn(async (_meta, work) => work())
     const controller = new WmsManagementGrpcController(
       { execute } as never,
-      { recordCommand } as never,
-      requestContextStore as never
+      { recordCommand } as never
     )
 
     const response = await controller.createReceiptDraft({
       ...buildManagementContext(),
-      orgId: 'org-1',
       warehouseId: 'wh-1',
       receiptSourceType: ProtoReceiptSourceType.RECEIPT_SOURCE_TYPE_MANUAL,
       note: 'manual receipt',
@@ -199,8 +199,7 @@ describe('wms-service grpc surface L3', () => {
     const recordCommand = jest.fn(async (_meta, work) => work())
     const controller = new WmsManagementGrpcController(
       { execute } as never,
-      { recordCommand } as never,
-      requestContextStore as never
+      { recordCommand } as never
     )
 
     const response = await controller.postReceipt({

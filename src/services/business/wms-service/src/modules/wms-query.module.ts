@@ -13,10 +13,11 @@ import { SearchReceiptLinesHandler } from '../application/queries/search-receipt
 import { SearchReceiptsHandler } from '../application/queries/search-receipts.handler'
 import { SearchStockLedgerEntriesHandler } from '../application/queries/search-stock-ledger-entries.handler'
 import { WmsQueryGrpcController } from '../interfaces/grpc/wms-query.grpc.controller'
+import { WmsTrustedExecutionModule } from './wms-trusted-execution.module'
 
 /** WmsQueryModule wires the phase 1 WMS query handlers and gRPC controller surface. */
 @Module({
-  imports: [CqrsModule],
+  imports: [CqrsModule, WmsTrustedExecutionModule],
   providers: [
     ValidatingQueryBus,
     GetWarehouseHandler,

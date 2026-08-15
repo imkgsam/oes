@@ -8,6 +8,7 @@ import { GatewayCollaborationGrpcClient } from './gateway-collaboration-grpc.cli
 import { GatewayItemMasterGrpcClient } from './gateway-item-master-grpc.client'
 import { GatewaySrmGrpcClient } from './gateway-srm-grpc.client'
 import { GatewayProcurementGrpcClient } from './gateway-procurement-grpc.client'
+import { GatewayWmsGrpcClient } from './gateway-wms-grpc.client'
 import { Module } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 
@@ -51,6 +52,7 @@ describe('GatewayTrustedGrpcExecutionModule wiring', () => {
         GatewayItemMasterGrpcClient,
         GatewaySrmGrpcClient,
         GatewayProcurementGrpcClient,
+        GatewayWmsGrpcClient,
         GatewayMachineWorkloadSourceCredentialProvider,
         GatewayMachineTrustedGrpcExecutionProducer
       ])
@@ -64,6 +66,7 @@ describe('GatewayTrustedGrpcExecutionModule wiring', () => {
         GatewayItemMasterGrpcClient,
         GatewaySrmGrpcClient,
         GatewayProcurementGrpcClient,
+        GatewayWmsGrpcClient,
         GatewayMachineWorkloadSourceCredentialProvider,
         GatewayMachineTrustedGrpcExecutionProducer
       ])
@@ -84,7 +87,8 @@ describe('GatewayTrustedGrpcExecutionModule wiring', () => {
       'urn:oes:service:collaboration-service',
       'urn:oes:service:item-master-service',
       'urn:oes:service:srm-service',
-      'urn:oes:service:procurement-service'
+      'urn:oes:service:procurement-service',
+      'urn:oes:service:wms-service'
     ])
   })
 
@@ -121,6 +125,13 @@ describe('GatewayTrustedGrpcExecutionModule wiring', () => {
     class ConsumerModule {}
     const module = await Test.createTestingModule({ imports: [ConsumerModule] }).compile()
     expect(module.get(GatewayProcurementGrpcClient)).toBeInstanceOf(GatewayProcurementGrpcClient)
+  })
+
+  it('exports the dedicated WMS client through the real Nest DI graph', async () => {
+    @Module({ imports: [GatewayTrustedGrpcExecutionModule] })
+    class ConsumerModule {}
+    const module = await Test.createTestingModule({ imports: [ConsumerModule] }).compile()
+    expect(module.get(GatewayWmsGrpcClient)).toBeInstanceOf(GatewayWmsGrpcClient)
   })
 
   it('fails closed when deployment trust configuration is absent instead of installing a default producer', () => {

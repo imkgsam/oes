@@ -224,15 +224,6 @@ const siteGrpcLoaderOptions = { longs: String, arrays: true }
           protoPath: resolveCommonProtoPath('terminal_device_service/terminal_device.proto'),
           packageName: 'terminal_device_service',
           url: resolveTerminalDeviceGrpcUrl()
-        },
-        [SERVICE_NAMES.WMS]: {
-          serviceName: SERVICE_NAMES.WMS,
-          protoPath: resolveCommonProtoPath('wms_service/wms.proto'),
-          packageName: 'wms_service',
-          url:
-            process.env.WMS_SERVICE_HOST && process.env.WMS_SERVICE_PORT
-              ? `${process.env.WMS_SERVICE_HOST}:${process.env.WMS_SERVICE_PORT}`
-              : 'localhost:50064'
         }
       },
       defaultPoolConfig: { minSize: 3, maxSize: 3 }

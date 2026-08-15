@@ -1,150 +1,98 @@
 import { status } from '@grpc/grpc-js'
-import { WmsManagementGrpcController } from '../../src/interfaces/grpc/wms-management.grpc.controller'
-import { WmsQueryGrpcController } from '../../src/interfaces/grpc/wms-query.grpc.controller'
+import {
+  attachVerifiedExecution,
+  getAuthenticatedGrpcRequestContext
+} from '@oes/common/authorization'
+import { WmsRpcContextValidator } from '../../src/interfaces/grpc/wms-rpc-context.validator'
 
-function createManagementController() {
-  return new WmsManagementGrpcController(
-    {
-      execute: jest.fn()
-    } as never,
-    {
-      recordCommand: jest.fn()
-    } as never,
-    {
-      run: jest.fn((_context, work: () => unknown) => work())
-    } as never
-  )
-}
-
-function createQueryController() {
-  return new WmsQueryGrpcController({
-    execute: jest.fn()
-  } as never)
-}
-
+/** Verifies WMS context derives only from guard-established ET/mTLS facts. */
 describe('wms-service grpc context validation L3', () => {
-  it('CreateReceiptDraft / when tenant_id is missing / should reject with INVALID_ARGUMENT', async () => {
-    const controller = createManagementController()
-
-    await expect(
-      controller.createReceiptDraft({
-        tenantId: '',
-        operatorContext: {
-          operatorId: 'operator-1',
-          operatorType: 'HUMAN',
-          orgId: 'org-1'
-        },
-        traceContext: {
-          traceId: 'trace-1',
-          requestId: 'request-1'
-        },
-        auditContext: {
-          auditId: 'audit-1',
-          reason: 'create receipt',
-          source: 'wms-workspace'
-        },
-        warehouseId: 'wh-1',
-        receiptSourceType: 1
-      } as never)
-    ).rejects.toMatchObject({
-      definition: {
-        rpcStatus: status.INVALID_ARGUMENT
+  it('derives tenant, org, operator, trace, and audit without mutating business payload', () => {
+    const request = trustedRequest({ receiptId: 'receipt-1' })
+    expect(WmsRpcContextValidator.assertManagementContext(request)).toEqual({
+      tenantId: 'tenant-1',
+      operatorContext: { operatorId: 'operator-1', operatorType: 'HUMAN', orgId: 'org-1' },
+      traceContext: { traceId: 'trace-1', requestId: 'request-1' },
+      auditContext: {
+        auditId: 'token-1',
+        reason: 'verified WMS command',
+        source: 'spiffe://oes/api-gateway'
       }
     })
+    expect(request).not.toHaveProperty('tenantId')
   })
 
-  it('CreateReceiptDraft / when operator_context is missing / should reject with UNAUTHENTICATED', async () => {
-    const controller = createManagementController()
-
-    await expect(
-      controller.createReceiptDraft({
-        tenantId: 'tenant-1',
-        traceContext: {
-          traceId: 'trace-1',
-          requestId: 'request-1'
-        },
-        auditContext: {
-          auditId: 'audit-1',
-          reason: 'create receipt',
-          source: 'wms-workspace'
-        },
-        warehouseId: 'wh-1',
-        receiptSourceType: 1
-      } as never)
-    ).rejects.toMatchObject({
-      definition: {
-        rpcStatus: status.UNAUTHENTICATED
-      }
-    })
+  it.each([
+    ['tenantId', 'attacker'],
+    ['tenant_id', 'attacker'],
+    ['orgId', 'attacker'],
+    ['org_id', 'attacker'],
+    ['operatorContext', {}],
+    ['operator_context', {}],
+    ['traceContext', {}],
+    ['trace_context', {}],
+    ['auditContext', {}],
+    ['audit_context', {}]
+  ])('rejects retired body authority %s', (field, value) => {
+    expect(() =>
+      WmsRpcContextValidator.assertQueryContext(trustedRequest({ [field]: value }))
+    ).toThrow()
   })
 
-  it('CreateReceiptDraft / when trace_context is missing / should reject with UNAUTHENTICATED', async () => {
-    const controller = createManagementController()
-
-    await expect(
-      controller.createReceiptDraft({
-        tenantId: 'tenant-1',
-        operatorContext: {
-          operatorId: 'operator-1',
-          operatorType: 'HUMAN',
-          orgId: 'org-1'
-        },
-        auditContext: {
-          auditId: 'audit-1',
-          reason: 'create receipt',
-          source: 'wms-workspace'
-        },
-        warehouseId: 'wh-1',
-        receiptSourceType: 1
-      } as never)
-    ).rejects.toMatchObject({
-      definition: {
-        rpcStatus: status.UNAUTHENTICATED
-      }
-    })
-  })
-
-  it('CreateReceiptDraft / when audit_context is missing / should reject with UNAUTHENTICATED', async () => {
-    const controller = createManagementController()
-
-    await expect(
-      controller.createReceiptDraft({
-        tenantId: 'tenant-1',
-        operatorContext: {
-          operatorId: 'operator-1',
-          operatorType: 'HUMAN',
-          orgId: 'org-1'
-        },
-        traceContext: {
-          traceId: 'trace-1',
-          requestId: 'request-1'
-        },
-        warehouseId: 'wh-1',
-        receiptSourceType: 1
-      } as never)
-    ).rejects.toMatchObject({
-      definition: {
-        rpcStatus: status.UNAUTHENTICATED
-      }
-    })
-  })
-
-  it('SearchReceipts / when query operator_context is missing / should reject with UNAUTHENTICATED', async () => {
-    const controller = createQueryController()
-
-    await expect(
-      controller.searchReceipts({
-        tenantId: 'tenant-1',
-        traceContext: {
-          traceId: 'trace-1',
-          requestId: 'request-1'
-        },
-        keyword: 'receipt'
-      } as never)
-    ).rejects.toMatchObject({
-      definition: {
-        rpcStatus: status.UNAUTHENTICATED
-      }
-    })
+  it.each([
+    ['missing verified execution', {}],
+    ['MACHINE principal', trustedRequest({}, { principalType: 'MACHINE' })],
+    ['DELEGATED principal', trustedRequest({}, { principalType: 'DELEGATED' })],
+    ['wildcard tenant', trustedRequest({}, { tenantId: '*' })],
+    ['SYSTEM tenant', trustedRequest({}, { tenantId: 'SYSTEM' })],
+    ['missing subject', trustedRequest({}, { subject: '' })],
+    ['missing request id', trustedRequest({}, {}, { requestId: '' })],
+    ['missing trace id', trustedRequest({}, {}, { traceId: '' })]
+  ])('rejects %s as UNAUTHENTICATED', (_label, request) => {
+    try {
+      WmsRpcContextValidator.assertQueryContext(request)
+      throw new Error('expected trusted context rejection')
+    } catch (error) {
+      expect(error).toMatchObject({ definition: { rpcStatus: status.UNAUTHENTICATED } })
+    }
   })
 })
+
+/** Attaches the same private verified context shape produced by Common's token guard. */
+function trustedRequest(
+  body: Record<string, unknown>,
+  tokenOverrides: Record<string, unknown> = {},
+  transportOverrides: Record<string, unknown> = {}
+): Record<string, unknown> {
+  const request = { ...body }
+  attachVerifiedExecution(request, {
+    verifiedExecutionToken: {
+      issuer: 'https://auth.example',
+      audience: 'urn:oes:service:wms-service',
+      subject: 'operator-1',
+      principalType: 'HUMAN',
+      clientId: 'spiffe://oes/api-gateway',
+      tenantId: 'tenant-1',
+      orgId: 'org-1',
+      permissionCodes: [],
+      tokenId: 'token-1',
+      issuedAt: 1,
+      notBefore: 1,
+      expiresAt: 9999999999,
+      certificateThumbprint: 'A'.repeat(43),
+      sessionId: 'session-1',
+      sessionTerminal: 'WEB',
+      ...tokenOverrides
+    } as never,
+    verifiedWorkloadIdentity: {
+      spiffeId: 'spiffe://oes/api-gateway',
+      certificateThumbprint: 'A'.repeat(43)
+    }
+  })
+  Object.assign(getAuthenticatedGrpcRequestContext(request) as object, {
+    requestId: 'request-1',
+    traceId: 'trace-1',
+    ...transportOverrides
+  })
+  return request
+}

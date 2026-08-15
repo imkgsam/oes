@@ -5,20 +5,24 @@ import { WmsProcurementInternalTrustedGrpcClient } from '../../src/infrastructur
 import { WmsProcurementExecutionTokenExchangeClient } from '../../src/infrastructure/adapters/wms-procurement-execution-token-exchange.client'
 import { WmsProcurementTrustedGrpcExecutionProducer } from '../../src/infrastructure/adapters/wms-procurement-trusted-grpc-execution.producer'
 import { WmsInfrastructureModule } from '../../src/modules/wms-infrastructure.module'
+import { WmsTrustedExecutionModule } from '../../src/modules/wms-trusted-execution.module'
 
 const audience = 'urn:oes:service:procurement-service'
 const code = PROCUREMENT_INTERNAL_PERMISSION_CODES.RESOLVE_RECEIVING_EXPECTATION_FOR_RECEIPT
 
-/** Verifies WMS's dedicated Procurement caller is complete but production-inactive. */
-describe('WMS Procurement prepared trusted caller L1', () => {
-  it('keeps dedicated client/exchange/producer absent from production DI', () => {
-    const providers = Reflect.getMetadata('providers', WmsInfrastructureModule) as unknown[]
-    expect(providers).not.toEqual(
+/** Verifies WMS's dedicated Procurement caller is active only after trusted ingress. */
+describe('WMS Procurement trusted caller L1', () => {
+  it('activates dedicated client/exchange/producer through trusted WMS DI', () => {
+    const providers = Reflect.getMetadata('providers', WmsTrustedExecutionModule) as unknown[]
+    expect(providers.map(providerToken)).toEqual(
       expect.arrayContaining([
         WmsProcurementInternalTrustedGrpcClient,
         WmsProcurementExecutionTokenExchangeClient,
         WmsProcurementTrustedGrpcExecutionProducer
       ])
+    )
+    expect(Reflect.getMetadata('providers', WmsInfrastructureModule)).toEqual(
+      expect.arrayContaining([expect.any(Function)])
     )
   })
 
@@ -49,3 +53,10 @@ describe('WMS Procurement prepared trusted caller L1', () => {
     )
   })
 })
+
+/** Reads the injection token from either a class or a factory provider. */
+function providerToken(provider: unknown): unknown {
+  return typeof provider === 'object' && provider !== null && 'provide' in provider
+    ? (provider as { provide: unknown }).provide
+    : provider
+}

@@ -1,4 +1,9 @@
-import { Controller, UseFilters } from '@nestjs/common'
+import { Controller, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common'
+import {
+  AuthorizeBusinessRpc,
+  GrpcRequestContextInterceptor,
+  WMS_MANAGEMENT_PERMISSION_CODES
+} from '@oes/common/authorization'
 import { ValidatingQueryBus } from '@oes/common/cqrs'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
@@ -64,34 +69,40 @@ import { SearchReceiptsQuery } from '../../application/queries/search-receipts.q
 import { SearchStockLedgerEntriesQuery } from '../../application/queries/search-stock-ledger-entries.query'
 import { WmsGrpcPresenter } from './wms-grpc.presenter'
 import { WmsRpcContextValidator } from './wms-rpc-context.validator'
+import { WmsTrustedBusinessExecutionGuard } from '../../modules/wms-trusted-execution.module'
 
 /** WmsQueryGrpcController exposes the phase 1 read-only WMS warehouse, receipt, and inventory query contract. */
 @UseFilters(GrpcExceptionFilter)
+@UseGuards(WmsTrustedBusinessExecutionGuard, WmsRpcContextValidator)
+@UseInterceptors(GrpcRequestContextInterceptor)
 @Controller()
 @WarehouseQueryServiceControllerMethods()
 @ReceiptQueryServiceControllerMethods()
 @InventoryQueryServiceControllerMethods()
 export class WmsQueryGrpcController
-  implements WarehouseQueryServiceController, ReceiptQueryServiceController, InventoryQueryServiceController
+  implements
+    WarehouseQueryServiceController,
+    ReceiptQueryServiceController,
+    InventoryQueryServiceController
 {
   constructor(private readonly queryBus: ValidatingQueryBus) {}
 
   async getWarehouse(request: GetWarehouseRequest): Promise<GetWarehouseResponse> {
-    WmsRpcContextValidator.assertQueryContext(request)
+    const context = WmsRpcContextValidator.assertQueryContext(request)
     return WmsGrpcPresenter.toGetWarehouseResponse(
       await this.queryBus.execute(
-        new GetWarehouseQueryMessage(request.tenantId ?? '', request.warehouseId ?? '')
+        new GetWarehouseQueryMessage(context.tenantId, request.warehouseId ?? '')
       )
     )
   }
 
   async listWarehouses(request: ListWarehousesRequest): Promise<ListWarehousesResponse> {
-    WmsRpcContextValidator.assertQueryContext(request)
+    const context = WmsRpcContextValidator.assertQueryContext(request)
     return WmsGrpcPresenter.toListWarehousesResponse(
       await this.queryBus.execute(
         new ListWarehousesQuery({
-          tenantId: request.tenantId ?? '',
-          orgId: request.orgId ?? undefined,
+          tenantId: context.tenantId,
+          orgId: context.operatorContext.orgId ?? undefined,
           keyword: request.keyword ?? undefined,
           status: toDomainWarehouseStatus(request.status),
           page: request.page ?? undefined,
@@ -102,20 +113,20 @@ export class WmsQueryGrpcController
   }
 
   async getLocation(request: GetLocationRequest): Promise<GetLocationResponse> {
-    WmsRpcContextValidator.assertQueryContext(request)
+    const context = WmsRpcContextValidator.assertQueryContext(request)
     return WmsGrpcPresenter.toGetLocationResponse(
       await this.queryBus.execute(
-        new GetLocationQueryMessage(request.tenantId ?? '', request.locationId ?? '')
+        new GetLocationQueryMessage(context.tenantId, request.locationId ?? '')
       )
     )
   }
 
   async listLocations(request: ListLocationsRequest): Promise<ListLocationsResponse> {
-    WmsRpcContextValidator.assertQueryContext(request)
+    const context = WmsRpcContextValidator.assertQueryContext(request)
     return WmsGrpcPresenter.toListLocationsResponse(
       await this.queryBus.execute(
         new ListLocationsQuery({
-          tenantId: request.tenantId ?? '',
+          tenantId: context.tenantId,
           warehouseId: request.warehouseId ?? undefined,
           parentLocationId: request.parentLocationId ?? undefined,
           locationType: toDomainLocationType(request.locationType),
@@ -130,21 +141,21 @@ export class WmsQueryGrpcController
   }
 
   async getReceipt(request: GetReceiptRequest): Promise<GetReceiptResponse> {
-    WmsRpcContextValidator.assertQueryContext(request)
+    const context = WmsRpcContextValidator.assertQueryContext(request)
     return WmsGrpcPresenter.toGetReceiptResponse(
       await this.queryBus.execute(
-        new GetReceiptQueryMessage(request.tenantId ?? '', request.receiptId ?? '')
+        new GetReceiptQueryMessage(context.tenantId, request.receiptId ?? '')
       )
     )
   }
 
   async searchReceipts(request: SearchReceiptsRequest): Promise<SearchReceiptsResponse> {
-    WmsRpcContextValidator.assertQueryContext(request)
+    const context = WmsRpcContextValidator.assertQueryContext(request)
     return WmsGrpcPresenter.toSearchReceiptsResponse(
       await this.queryBus.execute(
         new SearchReceiptsQuery({
-          tenantId: request.tenantId ?? '',
-          orgId: request.orgId ?? undefined,
+          tenantId: context.tenantId,
+          orgId: context.operatorContext.orgId ?? undefined,
           warehouseId: request.warehouseId ?? undefined,
           status: toDomainReceiptStatus(request.status),
           receiptSourceType: toDomainReceiptSourceType(request.receiptSourceType),
@@ -162,21 +173,23 @@ export class WmsQueryGrpcController
   }
 
   async getReceiptLine(request: GetReceiptLineRequest): Promise<GetReceiptLineResponse> {
-    WmsRpcContextValidator.assertQueryContext(request)
+    const context = WmsRpcContextValidator.assertQueryContext(request)
     return WmsGrpcPresenter.toGetReceiptLineResponse(
       await this.queryBus.execute(
-        new GetReceiptLineQueryMessage(request.tenantId ?? '', request.receiptLineId ?? '')
+        new GetReceiptLineQueryMessage(context.tenantId, request.receiptLineId ?? '')
       )
     )
   }
 
-  async searchReceiptLines(request: SearchReceiptLinesRequest): Promise<SearchReceiptLinesResponse> {
-    WmsRpcContextValidator.assertQueryContext(request)
+  async searchReceiptLines(
+    request: SearchReceiptLinesRequest
+  ): Promise<SearchReceiptLinesResponse> {
+    const context = WmsRpcContextValidator.assertQueryContext(request)
     return WmsGrpcPresenter.toSearchReceiptLinesResponse(
       await this.queryBus.execute(
         new SearchReceiptLinesQuery({
-          tenantId: request.tenantId ?? '',
-          orgId: request.orgId ?? undefined,
+          tenantId: context.tenantId,
+          orgId: context.operatorContext.orgId ?? undefined,
           receiptId: request.receiptId ?? undefined,
           warehouseId: request.warehouseId ?? undefined,
           targetLocationId: request.targetLocationId ?? undefined,
@@ -197,12 +210,12 @@ export class WmsQueryGrpcController
   async searchStockLedgerEntries(
     request: SearchStockLedgerEntriesRequest
   ): Promise<SearchStockLedgerEntriesResponse> {
-    WmsRpcContextValidator.assertQueryContext(request)
+    const context = WmsRpcContextValidator.assertQueryContext(request)
     return WmsGrpcPresenter.toSearchStockLedgerEntriesResponse(
       await this.queryBus.execute(
         new SearchStockLedgerEntriesQuery({
-          tenantId: request.tenantId ?? '',
-          orgId: request.orgId ?? undefined,
+          tenantId: context.tenantId,
+          orgId: context.operatorContext.orgId ?? undefined,
           warehouseId: request.warehouseId ?? undefined,
           locationId: request.locationId ?? undefined,
           itemId: request.itemId ?? undefined,
@@ -220,12 +233,14 @@ export class WmsQueryGrpcController
     )
   }
 
-  async getInventoryBalance(request: GetInventoryBalanceRequest): Promise<GetInventoryBalanceResponse> {
-    WmsRpcContextValidator.assertQueryContext(request)
+  async getInventoryBalance(
+    request: GetInventoryBalanceRequest
+  ): Promise<GetInventoryBalanceResponse> {
+    const context = WmsRpcContextValidator.assertQueryContext(request)
     return WmsGrpcPresenter.toGetInventoryBalanceResponse(
       await this.queryBus.execute(
         new GetInventoryBalanceQueryMessage({
-          tenantId: request.tenantId ?? '',
+          tenantId: context.tenantId,
           warehouseId: request.warehouseId ?? '',
           itemId: request.itemId ?? '',
           locationId: request.locationId ?? undefined
@@ -237,12 +252,12 @@ export class WmsQueryGrpcController
   async searchInventoryBalances(
     request: SearchInventoryBalancesRequest
   ): Promise<SearchInventoryBalancesResponse> {
-    WmsRpcContextValidator.assertQueryContext(request)
+    const context = WmsRpcContextValidator.assertQueryContext(request)
     return WmsGrpcPresenter.toSearchInventoryBalancesResponse(
       await this.queryBus.execute(
         new SearchInventoryBalancesQuery({
-          tenantId: request.tenantId ?? '',
-          orgId: request.orgId ?? undefined,
+          tenantId: context.tenantId,
+          orgId: context.operatorContext.orgId ?? undefined,
           warehouseId: request.warehouseId ?? undefined,
           locationId: request.locationId ?? undefined,
           itemId: request.itemId ?? undefined,
@@ -255,6 +270,27 @@ export class WmsQueryGrpcController
       )
     )
   }
+}
+
+/** Registers the frozen WMS HUMAN/WEB Code matrix for every BUSINESS query RPC. */
+for (const [method, code] of Object.entries({
+  getWarehouse: WMS_MANAGEMENT_PERMISSION_CODES.READ_WAREHOUSE,
+  listWarehouses: WMS_MANAGEMENT_PERMISSION_CODES.READ_WAREHOUSE,
+  getLocation: WMS_MANAGEMENT_PERMISSION_CODES.READ_LOCATION,
+  listLocations: WMS_MANAGEMENT_PERMISSION_CODES.READ_LOCATION,
+  getReceipt: WMS_MANAGEMENT_PERMISSION_CODES.READ_RECEIPT,
+  searchReceipts: WMS_MANAGEMENT_PERMISSION_CODES.READ_RECEIPT,
+  getReceiptLine: WMS_MANAGEMENT_PERMISSION_CODES.READ_RECEIPT,
+  searchReceiptLines: WMS_MANAGEMENT_PERMISSION_CODES.READ_RECEIPT,
+  searchStockLedgerEntries: WMS_MANAGEMENT_PERMISSION_CODES.READ_INVENTORY,
+  getInventoryBalance: WMS_MANAGEMENT_PERMISSION_CODES.READ_INVENTORY,
+  searchInventoryBalances: WMS_MANAGEMENT_PERMISSION_CODES.READ_INVENTORY
+})) {
+  AuthorizeBusinessRpc({ all: [code] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })(
+    WmsQueryGrpcController.prototype,
+    method,
+    Object.getOwnPropertyDescriptor(WmsQueryGrpcController.prototype, method)
+  )
 }
 
 function toDomainWarehouseStatus(value?: ProtoWarehouseStatus): WarehouseStatus | undefined {

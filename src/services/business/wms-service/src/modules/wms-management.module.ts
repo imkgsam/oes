@@ -7,10 +7,11 @@ import { CreateReceiptDraftHandler } from '../application/commands/create-receip
 import { PostReceiptHandler } from '../application/commands/post-receipt.handler'
 import { WmsAuditService } from '../application/services/wms-audit.service'
 import { WmsManagementGrpcController } from '../interfaces/grpc/wms-management.grpc.controller'
+import { WmsTrustedExecutionModule } from './wms-trusted-execution.module'
 
 /** WmsManagementModule wires the phase 1 WMS command handlers, audit service, and gRPC controller surface. */
 @Module({
-  imports: [CqrsModule],
+  imports: [CqrsModule, WmsTrustedExecutionModule],
   providers: [
     ValidatingCommandBus,
     WmsAuditService,
