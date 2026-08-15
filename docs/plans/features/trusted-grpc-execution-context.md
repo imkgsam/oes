@@ -98,7 +98,7 @@ The implementation inventory script at `scripts/architecture/trusted-grpc-signat
 
 ### 3.1 Current-main global cutover status
 
-Overall execution status is `GRPC_FOUNDATION_COMPLETE_GLOBAL_SERVICE_CUTOVER_PENDING` at current-main `84402fc566fee82a5e73cf7a013e7b617e254578`. The generated explicit metadata signatures prove the shared call-signature foundation only. They do not prove that a target service has classified every contract, prepared every caller, enabled Token-only server enforcement or removed its legacy trust path.
+Overall execution status is `GRPC_FOUNDATION_COMPLETE_GLOBAL_SERVICE_CUTOVER_PENDING` at current-main `62b954ea53de051be640ab5506c73cfc33d23259`. The generated explicit metadata signatures prove the shared call-signature foundation only. They do not prove that a target service has classified every contract, prepared every caller, enabled Token-only server enforcement or removed its legacy trust path.
 
 The persistent execution owner is **OES Trusted gRPC Service Migration** (`019ff138-ed1c-7b82-8cd4-865bdb6529bd`). The prior delivery-mode owner `019ff07e-d441-7731-acdb-1a9d262661a9` and approval-stalled predecessor `019fe9f8-5a44-76e1-b5a4-110db9da6d59` are archived with their WIP histories preserved. The former A/C/GRPC lane is historical, migration-frozen evidence and is not the active controller for the remaining cutover.
 
@@ -117,9 +117,9 @@ The persistent execution owner is **OES Trusted gRPC Service Migration** (`019ff
 | MES | 32 / 4 | Y | Y | Y | Y | Gateway; implemented and verified at `ec1ef2b19f66da2ef0287b887f7d2805534c6764` |
 | Collaboration | 16 / 4 | Y | Y | Y | Y | Gateway; implemented and verified at `c8c8a810108ec19f35a527e25ace6cdead433e93` |
 | CRM | 15 / 3 | N | N | N | N | Gateway, Collaboration; second batch |
-| Procurement | 21+1 / 2+1 planned | Y | N | N | N | Gateway; Item Master/SRM outbound activation and WMS INTERNAL caller preparation frozen |
+| Procurement | 21+1 / 2+1 planned | Y | Y | Y | Y | Gateway; implemented and verified at `62b954ea53de051be640ab5506c73cfc33d23259`; WMS INTERNAL caller remains prepared pending WMS inbound |
 | SRM | 13+2 / 2+1 planned | Y | Y | Y | Y | Gateway, Procurement; implemented and verified at `84402fc566fee82a5e73cf7a013e7b617e254578` |
-| Item Master | 50+3 / 2+1 planned | Y | N | N | N | Gateway, MES, WMS, Procurement, SRM; contract frozen, implementation pending |
+| Item Master | 50+3 / 2+1 planned | Y | N | N | N | Gateway, MES, WMS, Procurement, SRM; partial implementation accepted at `764f28fba059965a4272752beb6ff0c7acf25d64`; MES/SRM/Procurement active, WMS pending |
 | WMS | 15 / 2 | N | N | N | N | Gateway; dependency-heavy |
 | HR | 15 / 2 | N | N | N | N | Gateway, Auth, Identity; dependency-heavy |
 | Party | 6 / 2 | Y | Y | Y | Y | Gateway, CRM, SRM, HR, Identity, TenantOrg; implemented and verified at `f6caa3aa294b6fb6e7099393afbe0770ee90c09a` |
@@ -127,7 +127,7 @@ The persistent execution owner is **OES Trusted gRPC Service Migration** (`019ff
 | Identity | 41 / 3 | N | N | N | N | Gateway, Auth, Permission, HR; foundation partial only |
 | Permission | 66 / 8 | N | N | N | N | Gateway, Auth, HR, TenantOrg, WMS; bootstrap partial only |
 | Auth | 70+5 / 1+1 planned | N | N | N | N | Gateway, HR, Site, TenantOrg; MACHINE foundation complete, full service pending |
-| **Total / proven state** | **571 / 55 planned** | **14 Y / 7 N** | **12 Y / 9 N** | **12 Y / 9 N** | **12 Y / 9 N** | **12 services complete; Item Master and Procurement contracts classified; nine services pending implementation/cutover** |
+| **Total / proven state** | **571 / 55 planned** | **14 Y / 7 N** | **13 Y / 8 N** | **13 Y / 8 N** | **13 Y / 8 N** | **13 services complete; Item Master remains partial with WMS pending; eight services pending implementation/cutover** |
 
 The frozen order in §6 remains authoritative. Migration continues one target service at a time; completing the Auth, Identity, Permission, Gateway or Common foundation does not implicitly advance an unverified service row.
 
@@ -1891,7 +1891,7 @@ The ignored generated Party client remains verification output from `src/common/
 
 ### 9.11 Item Master 50+3-RPC frozen cutover lease
 
-Status: `FROZEN_PENDING_IMPLEMENTATION`. This slice migrates the existing 50 Item Master RPCs and adds only three narrow INTERNAL eligibility queries already required by MES, WMS, Procurement and SRM. It adds no Item capability, lifecycle, persistence, event, Gateway route or caller-service business RPC. Existing `GetItem` remains HUMAN-only and never admits MACHINE authority.
+Status: `PARTIAL_IMPLEMENTATION_WMS_PENDING`. The accepted implementation at `764f28fba059965a4272752beb6ff0c7acf25d64` migrated the existing 50 Item Master RPCs, added only the three frozen INTERNAL eligibility queries, and activated the Gateway and MES paths. Subsequent accepted SRM and Procurement migrations activated their exact actor paths; WMS alone remains `PREPARED_NOT_ACTIVATED`. This slice adds no Item capability, lifecycle, persistence, event, Gateway route or caller-service business RPC. Existing `GetItem` remains HUMAN-only and never admits MACHINE authority.
 
 All existing 50 RPCs are `BUSINESS / HUMAN / WEB`, require `aud=urn:oes:service:item-master-service`, exact mTLS/`cnf` binding and the exact existing Code below, and reject MACHINE, DELEGATED, SELF_SERVICE, non-WEB sessions and legacy body/ordinary-metadata authority:
 
@@ -1949,7 +1949,7 @@ The 50 existing request messages delete and reserve exactly `tenant_id=1` and `"
 
 Production caller manifest is exact: Gateway is the sole allowed production caller class for the 50 HUMAN methods and retains the current 46 BFF routes; methods without a current route gain none in this slice. MES calls only `ResolveManufacturableItem`; WMS calls only `ResolveStockableItem`; Procurement and SRM call only `ResolvePurchasableItem`. The direct management bootstrap smoke and shared fixture are deleted or moved behind a Gateway HTTP HUMAN test flow; the WMS local query stub remains an isolated fixture and is never registered as a workload. No other worker, Cron, Robot, AI or ActionGrant caller is admitted.
 
-Implementation order is fixed: canonical proto/Code definitions; Common/Auth generic single-credential HUMAN OBO foundation and Gateway first-hop compatibility regression; Gateway dedicated HUMAN client; MES inbound proof scope plus MES→Item Master producer and Item Master three-classification runtime/DI; then WMS/Procurement/SRM caller preparations remain `PREPARED_NOT_ACTIVATED` until each service's own trusted-gRPC inbound migration establishes the same verified HUMAN request scope. Each later activation removes its legacy fallback and runs the exact end-to-end composition gate. Item Master is not `IMPLEMENTED_VERIFIED` and its final Token-only cutover is not complete until all four caller services are activated. Outbound services other than these exact Item Master calls, schemas, events/outbox and business rules are protected. AI/ActionGrant, DELEGATED runtime and background-without-user tenant authority remain deferred.
+Implementation progress preserves the frozen order: canonical proto/Code and Common/Auth OBO foundation, Gateway dedicated HUMAN client, Item Master server/runtime and MES actor path were accepted at `764f28fba059965a4272752beb6ff0c7acf25d64`; SRM and Procurement later activated their exact Item Master actor paths through their own trusted inbound migrations. Only WMS remains `PREPARED_NOT_ACTIVATED` until WMS trusted inbound establishes the same verified HUMAN request scope, removes its legacy fallback and passes the end-to-end composition gate. Item Master remains explicitly not `IMPLEMENTED_VERIFIED`, and its C/A/T/L row remains partial until WMS activates. Outbound services other than these exact Item Master calls, schemas, events/outbox and business rules are protected. AI/ActionGrant, DELEGATED runtime and background-without-user tenant authority remain deferred.
 
 The frozen Auth root Jest literal must resolve the same `@oes/common/*` aliases as the workspace build. Root `tsconfig.json` therefore retains its existing solution `files` / `references` and adds exactly these runner-compatibility fields:
 
@@ -2180,7 +2180,7 @@ The 13 existing requests delete and reserve 46 authority fields in 13 groups: ev
 
 SRM inbound trusted admission establishes the private current-hop HUMAN proof required by the already prepared SRM→Item Master caller. `UpsertSupplierOffering` then calls only Item Master `ResolvePurchasableItem` with `HUMAN_OBO`; its manual fake `GrpcRequestContextStore` bridge and body tenant authority are removed. SRM→Party remains the already accepted pure `MACHINE_ROOT` composition, with no identity, error or fallback change. Management mutation and success audit envelope remain in one Prisma transaction; audit failure rolls back the mutation. Current uniqueness, upsert convergence, retry, schema, event/outbox and business state rules remain unchanged.
 
-Procurement's former reuse of `GetSupplier` and `ListSupplierOfferingsBySupplier` through generic transport and legacy body/metadata authority was retired in favor of a Procurement-owned dedicated SRM client, target-neutral Common `InternalTrustedGrpcCaller` with `executionSource=HUMAN_OBO`, and the two exact INTERNAL methods. The accepted SRM slice prepared that producer/client and proved fail-closed behavior without activating it; SRM's Token-only server and legacy-path removal are complete, while Procurement business activation remains `PREPARED_NOT_ACTIVATED` until Procurement's own trusted inbound migration establishes a verified HUMAN current-hop private scope. There is no legacy fallback or background-without-user path.
+Procurement's former reuse of `GetSupplier` and `ListSupplierOfferingsBySupplier` through generic transport and legacy body/metadata authority was retired in favor of a Procurement-owned dedicated SRM client, target-neutral Common `InternalTrustedGrpcCaller` with `executionSource=HUMAN_OBO`, and the two exact INTERNAL methods. The accepted SRM slice prepared that producer/client and proved fail-closed behavior; the accepted Procurement integration at `62b954ea53de051be640ab5506c73cfc33d23259` established the verified HUMAN current-hop private scope and activated the exact Procurement→SRM path. SRM server semantics remain unchanged, with no legacy fallback or background-without-user path.
 
 The live raw `srm-smoke.mjs` entry and package `smoke` command are deleted rather than reclassified as MACHINE. `srm-smoke-lib.mjs` and `srm-smoke.spec.mjs` remain isolated business/audit tests after authority payload removal; future live smoke enters Gateway HTTP with a test HUMAN session. Procurement raw smoke evidence must not establish SRM authority and is adjusted only as needed to remove direct legacy SRM invocation. No worker, Cron, Robot, AI or ActionGrant caller is admitted.
 
@@ -2327,7 +2327,7 @@ Acceptance proves 15/15 unique declarations and zero dual-mode methods; exact 13
 
 ### 9.13 Procurement 21+1-RPC frozen cutover lease
 
-Status: `FROZEN_PENDING_IMPLEMENTATION`. This slice migrates the 21 existing Procurement RPCs and adds exactly one narrow WMS receipt-reference eligibility projection. It adds no PR/PO/receiving business state, persistence, event, idempotency key, retry policy, Gateway route or WMS capability.
+Status: `IMPLEMENTED_VERIFIED` at `62b954ea53de051be640ab5506c73cfc33d23259`. The accepted implementation used 50 of the final 93 leased paths, passed the exact L2 audit transaction closure with 2/2 tests, migrated all 21 existing Procurement RPCs, activated the exact Procurement→Item Master/SRM HUMAN_OBO paths, and left only the WMS→Procurement caller `PREPARED_NOT_ACTIVATED` pending WMS trusted inbound. It added exactly one narrow WMS receipt-reference eligibility projection and no PR/PO/receiving business state, persistence, event, idempotency key, retry policy, Gateway route or WMS capability.
 
 All 21 existing methods remain `BUSINESS / HUMAN / WEB`, require `aud=urn:oes:service:procurement-service`, exact mTLS/`cnf` binding and the exact existing Code below, and reject MACHINE, DELEGATED, SELF_SERVICE, non-WEB sessions and legacy body/ordinary-metadata authority:
 
