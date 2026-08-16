@@ -38,16 +38,16 @@ trustedGrpcServiceProgress: 21/21
 
 ## 2. 全局快照
 
-| 项目 | Handoff 状态 | 2026-08-16 最终清理前核验 |
-| --- | --- | --- |
-| Repository root | `/Users/acehood/Documents/GitHub/oes` | 路径存在；`main` 工作树 clean |
-| `main` | `ce0182e0ed6b356e231de641119476c20c1e7cfd` | 21/21 trusted-gRPC service migration、CRM final slice 与 status synchronization 已进入主线；root clean |
-| `origin/main` | `ce0182e0ed6b356e231de641119476c20c1e7cfd` | 本地 remote-tracking ref 与远端 `refs/heads/main` 已在最终清理审计前复核一致 |
-| Legacy formal A/* threads | 101 | handoff 历史聚合计数；迁移范围内已消费的 legacy/implementation tasks 已归档，余下 6 项属于 AI/ActionGrant/API-key deferred protected ownership，不作为 trusted-gRPC 未完成项 |
-| Worktrees | 22 | root 1、待清理 19、Program Control 与唯一 Unified Design 控制工作树 2；最终目标只保留 root `main` |
-| `codex/*` branches | 27 | 包含本次临时 final-ledger rebuild branch；17 个 merged implementation refs、6 个 rejected/superseded evidence refs、ActionGrant deferred ref 与控制 refs 仍待用户批准处置 |
-| Checker | disabled | handoff evidence；未唤醒旧 checker |
-| Root dirty state | clean | clean，暂存区与工作区均无变更 |
+| 项目                       | Handoff 状态                               | 2026-08-16 最终清理前核验                                                                                                                                                    |
+| -------------------------- | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Repository root            | `/Users/acehood/Documents/GitHub/oes`      | 路径存在；`main` 工作树 clean                                                                                                                                                |
+| `main`                     | `ce0182e0ed6b356e231de641119476c20c1e7cfd` | 21/21 trusted-gRPC service migration、CRM final slice 与 status synchronization 已进入主线；root clean                                                                       |
+| `origin/main`              | `ce0182e0ed6b356e231de641119476c20c1e7cfd` | 本地 remote-tracking ref 与远端 `refs/heads/main` 已在最终清理审计前复核一致                                                                                                 |
+| Legacy formal A/\* threads | 101                                        | handoff 历史聚合计数；迁移范围内已消费的 legacy/implementation tasks 已归档，余下 6 项属于 AI/ActionGrant/API-key deferred protected ownership，不作为 trusted-gRPC 未完成项 |
+| Worktrees                  | 22                                         | root 1、待清理 19、Program Control 与唯一 Unified Design 控制工作树 2；最终目标只保留 root `main`                                                                            |
+| `codex/*` branches         | 27                                         | 包含本次临时 final-ledger rebuild branch；17 个 merged implementation refs、6 个 rejected/superseded evidence refs、ActionGrant deferred ref 与控制 refs 仍待用户批准处置    |
+| Checker                    | disabled                                   | handoff evidence；未唤醒旧 checker                                                                                                                                           |
+| Root dirty state           | clean                                      | clean，暂存区与工作区均无变更                                                                                                                                                |
 
 当前关闭证据：
 
@@ -60,17 +60,17 @@ trustedGrpcServiceProgress: 21/21
 
 本节只提供迁移路由，不复制稳定设计正文。
 
-| 主题 | 稳定真相源/执行来源 |
-| --- | --- |
-| Trusted gRPC / source credential | [ADR-0015](../../adr/0015-workload-identity-and-execution-token.md)、[gRPC metadata and service trust](../../architecture/14-grpc-metadata-and-service-trust-architecture.md)、[Gateway architecture](../../architecture/11-gateway-and-bff-architecture.md)、[trusted gRPC feature packet](../features/trusted-grpc-execution-context.md) |
-| Principal authorization / Permission | [permission-service](../../architecture/services/permission-service.md)、[role-based permission resolution](../../architecture/09-role-based-permission-resolution.md)、[authorization decision flow](../../architecture/collaborations/authorization-decision-flow.md)、[principal authorization contract](../../contracts/permission-service/principal-authorization.md) |
-| Execution token / Auth STS | [ADR-0015](../../adr/0015-workload-identity-and-execution-token.md)、[auth-service](../../architecture/services/auth-service.md)、[execution-token contract](../../contracts/auth-service/execution-token.md) |
-| AI tool registration | [AI architecture](../../architecture/04-ai-architecture.md)、[task-assistant collaboration](../../architecture/collaborations/task-assistant.md)、[task-assistant tool contract](../../contracts/ai-platform/task-assistant-tool-contract.md) |
-| ActionGrant | [ADR-0016](../../adr/0016-delegated-execution-and-action-grant.md)、[delegated execution collaboration](../../architecture/collaborations/delegated-execution-and-action-grant.md)、[ActionGrant feature packet](../features/delegated-task-action-grant.md)、[auth-service](../../architecture/services/auth-service.md)、[permission-service](../../architecture/services/permission-service.md)、[collaboration-service](../../architecture/services/collaboration-service.md) |
-| Site | [site-service](../../architecture/services/site-service.md)、[site runtime architecture](../../architecture/site-runtime-architecture.md)、[site inspiration feature packet](../features/site-inspiration-management-p1.md) |
-| External API key | [ADR-0017](../../adr/0017-protected-external-api-key-verifier-provider.md)、[external API key collaboration](../../architecture/collaborations/external-api-key-security.md)、[Auth external API key contract](../../contracts/auth-service/external-api-key-security.md) |
-| Event bus | [ADR-0013](../../adr/0013-nats-jetstream-event-bus-and-delivery-semantics.md)、[ADR-0014](../../adr/0014-cloudevents-and-service-owned-event-code-contracts.md)、[event bus architecture](../../architecture/17-event-bus-and-outbox-architecture.md)、[event contracts](../../contracts/events/README.md) |
-| Execution revocation | [ADR-0015](../../adr/0015-workload-identity-and-execution-token.md)、[auth-service](../../architecture/services/auth-service.md)、[execution-token contract](../../contracts/auth-service/execution-token.md) |
+| 主题                                 | 稳定真相源/执行来源                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Trusted gRPC / source credential     | [ADR-0015](../../adr/0015-workload-identity-and-execution-token.md)、[gRPC metadata and service trust](../../architecture/14-grpc-metadata-and-service-trust-architecture.md)、[Gateway architecture](../../architecture/11-gateway-and-bff-architecture.md)、[trusted gRPC feature packet](../features/trusted-grpc-execution-context.md)                                                                                                                                        |
+| Principal authorization / Permission | [permission-service](../../architecture/services/permission-service.md)、[role-based permission resolution](../../architecture/09-role-based-permission-resolution.md)、[authorization decision flow](../../architecture/collaborations/authorization-decision-flow.md)、[principal authorization contract](../../contracts/permission-service/principal-authorization.md)                                                                                                        |
+| Execution token / Auth STS           | [ADR-0015](../../adr/0015-workload-identity-and-execution-token.md)、[auth-service](../../architecture/services/auth-service.md)、[execution-token contract](../../contracts/auth-service/execution-token.md)                                                                                                                                                                                                                                                                     |
+| AI tool registration                 | [AI architecture](../../architecture/04-ai-architecture.md)、[task-assistant collaboration](../../architecture/collaborations/task-assistant.md)、[task-assistant tool contract](../../contracts/ai-platform/task-assistant-tool-contract.md)                                                                                                                                                                                                                                     |
+| ActionGrant                          | [ADR-0016](../../adr/0016-delegated-execution-and-action-grant.md)、[delegated execution collaboration](../../architecture/collaborations/delegated-execution-and-action-grant.md)、[ActionGrant feature packet](../features/delegated-task-action-grant.md)、[auth-service](../../architecture/services/auth-service.md)、[permission-service](../../architecture/services/permission-service.md)、[collaboration-service](../../architecture/services/collaboration-service.md) |
+| Site                                 | [site-service](../../architecture/services/site-service.md)、[site runtime architecture](../../architecture/site-runtime-architecture.md)、[site inspiration feature packet](../features/site-inspiration-management-p1.md)                                                                                                                                                                                                                                                       |
+| External API key                     | [ADR-0017](../../adr/0017-protected-external-api-key-verifier-provider.md)、[external API key collaboration](../../architecture/collaborations/external-api-key-security.md)、[Auth external API key contract](../../contracts/auth-service/external-api-key-security.md)                                                                                                                                                                                                         |
+| Event bus                            | [ADR-0013](../../adr/0013-nats-jetstream-event-bus-and-delivery-semantics.md)、[ADR-0014](../../adr/0014-cloudevents-and-service-owned-event-code-contracts.md)、[event bus architecture](../../architecture/17-event-bus-and-outbox-architecture.md)、[event contracts](../../contracts/events/README.md)                                                                                                                                                                        |
+| Execution revocation                 | [ADR-0015](../../adr/0015-workload-identity-and-execution-token.md)、[auth-service](../../architecture/services/auth-service.md)、[execution-token contract](../../contracts/auth-service/execution-token.md)                                                                                                                                                                                                                                                                     |
 
 ## 4. Capability 迁移记录
 
@@ -370,13 +370,13 @@ trustedGrpcServiceProgress: 21/21
 
 ## 5. 写路径重叠与串行约束
 
-| 冲突组 | 重叠面 | Program Control 排序约束 |
-| --- | --- | --- |
-| GRPC carrier ↔ ACTION-GRANT | trusted-execution index / public-barrel surfaces | GRPC carrier 先完成验收与集成；ActionGrant 后续同步并显式解冲突 |
-| EXEC-CRYPTO ↔ ACTION-GRANT | Auth ownership | Platform Security 独占执行窗口；ActionGrant 不并发 |
-| PRINCIPAL/PERMISSION ↔ ACTION-GRANT | Permission ownership | Permission RPC 先冻结并交付；ActionGrant 后续同步 |
-| ACTION-GRANT ↔ 多 write owners | Common、Auth、Permission、Collaboration、proto/Prisma/tests | 作为迁移保留例外串行完成，不把它视作未来多 owner 常态 |
-| AI candidate ↔ 其他候选 | 仅 AI registrations 两文件 | 路径隔离，可最先重建/复验；仍由 Integration & Verification 串行验收 |
+| 冲突组                              | 重叠面                                                      | Program Control 排序约束                                            |
+| ----------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------- |
+| GRPC carrier ↔ ACTION-GRANT         | trusted-execution index / public-barrel surfaces            | GRPC carrier 先完成验收与集成；ActionGrant 后续同步并显式解冲突     |
+| EXEC-CRYPTO ↔ ACTION-GRANT          | Auth ownership                                              | Platform Security 独占执行窗口；ActionGrant 不并发                  |
+| PRINCIPAL/PERMISSION ↔ ACTION-GRANT | Permission ownership                                        | Permission RPC 先冻结并交付；ActionGrant 后续同步                   |
+| ACTION-GRANT ↔ 多 write owners      | Common、Auth、Permission、Collaboration、proto/Prisma/tests | 作为迁移保留例外串行完成，不把它视作未来多 owner 常态               |
+| AI candidate ↔ 其他候选             | 仅 AI registrations 两文件                                  | 路径隔离，可最先重建/复验；仍由 Integration & Verification 串行验收 |
 
 ## 6. 建议交付顺序（仅迁移排序，不是治理冻结）
 
@@ -402,129 +402,129 @@ AI legacy A/V 与 migration implementation 任务已有完整重建、独立 I&V
 
 ### 7.2 Retained candidate/decision resources
 
-| 资源角色 | Ref / SHA | 保留原因 |
-| --- | --- | --- |
-| GRPC carrier | `codex/grpc/i04-source-credential-carrier@dced77ad8cb877ea9aad10f1c6a310ad32a924df` | 保留原候选；须基于 current main 重建后验收/集成 |
-| GRPC Asset legacy candidate | `codex/grpc/i03-gateway-trusted-execution-producer@6973bcda1484ac2fccc522f5d8ee70dc989c7541` | 已由current-main replacement supersede；保留历史实现意图与拒绝/重建对照证据 |
-| GRPC Asset accepted replacement | `codex/migration/grpc-asset-rebuild@a82e5ea69a7773d4e0e8f5a91dcdf7a599897c1d` | 已独立验收、ff-only集成并push；source clean，`MERGED_WAITING_FOR_USER_CLEANUP` |
-| Permission decision legacy workspace | `codex/acprincipalrole-principalrolebinding-command@65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` | 保留旧上下文；不恢复旧任务 |
-| Principal Authorization rejected design candidate | `4f78cec80b133fd186079fefc6b78ba42be86c28` | 保留 DESIGN_GAP 证据；已由同 branch 的 replacement supersede |
-| Principal Authorization replacement candidate | `codex/unified-design/security-open-packets@fe395fb5254a620108882494eb601cfe00fd5701` | 已独立验收并集成；保留设计与修正证据 |
-| ActionGrant design candidate | `codex/unified-design/security-open-packets@634414557f14576c666d98276be80a230130b055` | 已独立验收并集成；保留设计与 Permission scope-gap closure 证据 |
-| Permission Decision RPC rejected candidate | `codex/migration/permission-decision-rpc@96eb67aa126cccbb98e91bb0fedf4f90cfd8399e` | 保留 I&V 安全拒绝证据；同 branch remediation 已完成并集成 |
-| Permission Decision RPC remediation candidate | `codex/migration/permission-decision-rpc@45a7e3065d66f3692493181120ebd08e47ec283f` | 已独立验收并集成；保留实现与安全修正证据 |
-| EXEC-CRYPTO legacy checkpoint | `codex/exec-crypto/i06-auth-tg2-remediation@64ea8660687bbeb24349d11bcaed6f63d2373c4b` | 保留 merge checkpoint 上下文；HUMAN replacement 已集成，不直接复用 |
-| EXEC-CRYPTO rejected candidate | `c7ab0d9cf6767e63c499e7fc15a3d9d725b45cfc` | 保留拒绝证据 |
-| EXEC-CRYPTO HUMAN foundation | `codex/migration/exec-crypto-remediation@1ca24f417a2d06bce8be79d4c8ed67bc6c518a65` | 已独立验收并集成；仅 HUMAN，不代表 full TG-2/MACHINE |
-| MACHINE exact-lease design candidate | `codex/unified-design/security-open-packets@22ed9ee468d0744b10dec4536856f29c10d3552f` | 第三次 replacement；封闭登记64-path lease，已独立验收、ff-only集成并push |
-| MACHINE leaf-notAfter design candidate | `codex/unified-design/security-open-packets@8e4ecff16479d8d15db469a469bf2c15acc6e0b5` | 冻结transport-derived leaf expiry与68-path lease；已独立验收、ff-only集成并push |
-| MACHINE implementation rejected evidence | `45fbb312002a2060d28aed39b6bdf54c76654f2c` / `b6cd70dd70d0edf1161f3fcb1584ff3fa7a8d3df` | 保留两轮I&V安全拒绝与同branch corrective history证据 |
-| MACHINE implementation accepted candidate | `codex/migration/machine-workload-source-verifier@024579598c1293807d3f1cd5e7003aefd8e8fa0a` | 已独立验收、ff-only集成并push；source Git资源保留至final cleanup |
-| API-KEY rejected prototype evidence | `codex/api-key/x01-integration@755d857ab990520a916f73e859e39f1207085e32` | 精确保全原两个 untracked 文件；obsolete raw-pepper seam，永不进入 main |
-| AI accepted legacy candidate | `codex/ai-platform/i01-tool-contract-registration@6101933d3f054989e6dbfca27889a7141db16075` | 保留历史验收与 blob 对照证据 |
-| AI rebuilt candidate | `codex/migration/ai-platform-completion@94094fe57a8d2f18750ef712f2730015be2d9514` | 已独立验收并集成；保留交付证据，等待用户批准清理 |
-| ACTION-GRANT candidate | `codex/action-grant/i01-delegated-task-runtime@ec2b2cf881fec81f1882b3260f397f33d618aaf0` | 未验收 runtime candidate；按用户优先级 deferred，只保全证据，不恢复实现 |
-| Closed-cycle main evidence | `0a321c0d35442a0cf94956734f33cf5fab696f88` | EVENT / EXEC-REVOKE closure evidence |
+| 资源角色                                          | Ref / SHA                                                                                     | 保留原因                                                                        |
+| ------------------------------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| GRPC carrier                                      | `codex/grpc/i04-source-credential-carrier@dced77ad8cb877ea9aad10f1c6a310ad32a924df`           | 保留原候选；须基于 current main 重建后验收/集成                                 |
+| GRPC Asset legacy candidate                       | `codex/grpc/i03-gateway-trusted-execution-producer@6973bcda1484ac2fccc522f5d8ee70dc989c7541`  | 已由current-main replacement supersede；保留历史实现意图与拒绝/重建对照证据     |
+| GRPC Asset accepted replacement                   | `codex/migration/grpc-asset-rebuild@a82e5ea69a7773d4e0e8f5a91dcdf7a599897c1d`                 | 已独立验收、ff-only集成并push；source clean，`MERGED_WAITING_FOR_USER_CLEANUP`  |
+| Permission decision legacy workspace              | `codex/acprincipalrole-principalrolebinding-command@65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` | 保留旧上下文；不恢复旧任务                                                      |
+| Principal Authorization rejected design candidate | `4f78cec80b133fd186079fefc6b78ba42be86c28`                                                    | 保留 DESIGN_GAP 证据；已由同 branch 的 replacement supersede                    |
+| Principal Authorization replacement candidate     | `codex/unified-design/security-open-packets@fe395fb5254a620108882494eb601cfe00fd5701`         | 已独立验收并集成；保留设计与修正证据                                            |
+| ActionGrant design candidate                      | `codex/unified-design/security-open-packets@634414557f14576c666d98276be80a230130b055`         | 已独立验收并集成；保留设计与 Permission scope-gap closure 证据                  |
+| Permission Decision RPC rejected candidate        | `codex/migration/permission-decision-rpc@96eb67aa126cccbb98e91bb0fedf4f90cfd8399e`            | 保留 I&V 安全拒绝证据；同 branch remediation 已完成并集成                       |
+| Permission Decision RPC remediation candidate     | `codex/migration/permission-decision-rpc@45a7e3065d66f3692493181120ebd08e47ec283f`            | 已独立验收并集成；保留实现与安全修正证据                                        |
+| EXEC-CRYPTO legacy checkpoint                     | `codex/exec-crypto/i06-auth-tg2-remediation@64ea8660687bbeb24349d11bcaed6f63d2373c4b`         | 保留 merge checkpoint 上下文；HUMAN replacement 已集成，不直接复用              |
+| EXEC-CRYPTO rejected candidate                    | `c7ab0d9cf6767e63c499e7fc15a3d9d725b45cfc`                                                    | 保留拒绝证据                                                                    |
+| EXEC-CRYPTO HUMAN foundation                      | `codex/migration/exec-crypto-remediation@1ca24f417a2d06bce8be79d4c8ed67bc6c518a65`            | 已独立验收并集成；仅 HUMAN，不代表 full TG-2/MACHINE                            |
+| MACHINE exact-lease design candidate              | `codex/unified-design/security-open-packets@22ed9ee468d0744b10dec4536856f29c10d3552f`         | 第三次 replacement；封闭登记64-path lease，已独立验收、ff-only集成并push        |
+| MACHINE leaf-notAfter design candidate            | `codex/unified-design/security-open-packets@8e4ecff16479d8d15db469a469bf2c15acc6e0b5`         | 冻结transport-derived leaf expiry与68-path lease；已独立验收、ff-only集成并push |
+| MACHINE implementation rejected evidence          | `45fbb312002a2060d28aed39b6bdf54c76654f2c` / `b6cd70dd70d0edf1161f3fcb1584ff3fa7a8d3df`       | 保留两轮I&V安全拒绝与同branch corrective history证据                            |
+| MACHINE implementation accepted candidate         | `codex/migration/machine-workload-source-verifier@024579598c1293807d3f1cd5e7003aefd8e8fa0a`   | 已独立验收、ff-only集成并push；source Git资源保留至final cleanup                |
+| API-KEY rejected prototype evidence               | `codex/api-key/x01-integration@755d857ab990520a916f73e859e39f1207085e32`                      | 精确保全原两个 untracked 文件；obsolete raw-pepper seam，永不进入 main          |
+| AI accepted legacy candidate                      | `codex/ai-platform/i01-tool-contract-registration@6101933d3f054989e6dbfca27889a7141db16075`   | 保留历史验收与 blob 对照证据                                                    |
+| AI rebuilt candidate                              | `codex/migration/ai-platform-completion@94094fe57a8d2f18750ef712f2730015be2d9514`             | 已独立验收并集成；保留交付证据，等待用户批准清理                                |
+| ACTION-GRANT candidate                            | `codex/action-grant/i01-delegated-task-runtime@ec2b2cf881fec81f1882b3260f397f33d618aaf0`      | 未验收 runtime candidate；按用户优先级 deferred，只保全证据，不恢复实现         |
+| Closed-cycle main evidence                        | `0a321c0d35442a0cf94956734f33cf5fab696f88`                                                    | EVENT / EXEC-REVOKE closure evidence                                            |
 
 ### 7.3 当前全部 worktree 清单
 
 当前观察到 39 个 worktree；候选提交前除本 Program Control 台账文件外，其余 38 个 worktree 全部 clean。所有 legacy 资源保持原状。
 
-| Worktree | Branch | HEAD | State |
-| --- | --- | --- | --- |
-| `/Users/acehood/Documents/GitHub/oes` | `main` | `547a0c5d55f9a955543779ec584a16e9b05cf453` | clean |
-| `/Users/acehood/.codex/worktrees/10ab/oes` | detached | `7500bd66d3e11b7a39bb0de052141efe4bfa0d09` | clean |
-| `/Users/acehood/.codex/worktrees/1d99/oes` | detached | `0a321c0d35442a0cf94956734f33cf5fab696f88` | clean |
-| `/Users/acehood/.codex/worktrees/229b/oes` | detached | `c7ab0d9cf6767e63c499e7fc15a3d9d725b45cfc` | clean |
-| `/Users/acehood/Documents/GitHub/oes/.worktrees/program-control/migration` | `codex/oes-program-control-migration` | live candidate ref | 本台账唯一 writer；candidate commit 后应 clean |
-| `/Users/acehood/Documents/GitHub/oes/.worktrees/migration/ai-platform-completion` | `codex/migration/ai-platform-completion` | `94094fe57a8d2f18750ef712f2730015be2d9514` | clean；AI rebuilt candidate |
-| `/Users/acehood/Documents/GitHub/oes/.worktrees/migration/permission-decision-rpc` | `codex/migration/permission-decision-rpc` | `45a7e3065d66f3692493181120ebd08e47ec283f` | clean；Permission remediation candidate |
-| `/Users/acehood/Documents/GitHub/oes/.worktrees/integration/main-queue` | `codex/integration/main-queue` | `1ca24f417a2d06bce8be79d4c8ed67bc6c518a65` | clean；EXEC-CRYPTO HUMAN foundation accepted/integrated，I&V 当前 idle |
-| `/Users/acehood/Documents/GitHub/oes/.worktrees/unified-design/security-open-packets` | `codex/unified-design/security-open-packets` | `f57c4b1de5bc6d29a8a5e9824d1c26b1e029cf6b` | clean；最新冻结设计均已进入 main，等待最终清理 |
-| `/Users/acehood/.codex/worktrees/44ef/oes` | `codex/exec-crypto/i06-auth-tg2-remediation` | `64ea8660687bbeb24349d11bcaed6f63d2373c4b` | clean |
-| `/Users/acehood/.codex/worktrees/475d/oes` | detached | `ddab5e77fdc7240750039c430f48a0e6fd76ab62` | clean |
-| `/Users/acehood/.codex/worktrees/4853/oes` | detached | `a0310fbbee37b7d17456e3a7f1bf6ea846c4dfb3` | clean |
-| `/Users/acehood/.codex/worktrees/4a92/oes` | `codex/acexeccrypto-token-cryptography-command` | `7500bd66d3e11b7a39bb0de052141efe4bfa0d09` | clean |
-| `/Users/acehood/.codex/worktrees/72ae/oes` | `codex/ai-platform/i01-tool-contract-registration` | `6101933d3f054989e6dbfca27889a7141db16075` | clean |
-| `/Users/acehood/.codex/worktrees/bf83/oes` | `codex/acprincipalrole-principalrolebinding-command` | `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` | clean |
-| `/Users/acehood/.codex/worktrees/d69e/oes` | detached | `6101933d3f054989e6dbfca27889a7141db16075` | clean |
-| `/Users/acehood/.codex/worktrees/d899/oes` | detached | `b641e0e104080dd852688ac1b1887efc9f2684a5` | clean |
-| `/Users/acehood/.codex/worktrees/f9a5/oes` | `codex/acgrpc-trusted-grpc-execution` | `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` | clean |
-| `/Users/acehood/Documents/GitHub/oes/.worktrees/action-grant/d-governance` | `codex/action-grant/d-governance` | `e006564cee327428e5c7b280c52001d690f6ab37` | clean |
-| `/Users/acehood/Documents/GitHub/oes/.worktrees/action-grant/i01-delegated-task-runtime` | `codex/action-grant/i01-delegated-task-runtime` | `ec2b2cf881fec81f1882b3260f397f33d618aaf0` | clean |
-| `/Users/acehood/Documents/GitHub/oes/.worktrees/action-grant/x01-integration` | `codex/action-grant/x01-integration` | `ddab5e77fdc7240750039c430f48a0e6fd76ab62` | clean |
-| `/Users/acehood/Documents/GitHub/oes/.worktrees/ai-platform/d-governance` | `codex/ai-platform/d-governance` | `1e15b14b180b8345b9a4f77a48ab920a798aeb41` | clean |
-| `/Users/acehood/Documents/GitHub/oes/.worktrees/ai-platform/d-tool-contract-registration` | `codex/ai-platform/d-tool-contract-registration` | `f2fb093129fa6084f40b9ca9bef6df04a7e163fe` | clean |
-| `/Users/acehood/Documents/GitHub/oes/.worktrees/api-key/d-external-api-key-security` | `codex/api-key/d-external-api-key-security` | `a0206b8aa1c088cd0487c06a37442885b244d3a6` | clean |
-| `/Users/acehood/Documents/GitHub/oes/.worktrees/api-key/i02-verifier-provider` | `codex/api-key/i02-runtime-completion` | `3ce94b7a2ef8fdd1a75e05aa517cc35d60534bf8` | clean |
-| `/Users/acehood/Documents/GitHub/oes/.worktrees/api-key/x01-integration` | `codex/api-key/x01-integration` | `755d857ab990520a916f73e859e39f1207085e32` | clean；durable rejected-prototype evidence，永不进入 main |
-| `/Users/acehood/Documents/GitHub/oes/.worktrees/exec-crypto/d-sts-authority-upper-bound` | `codex/exec-crypto/d-sts-authority-upper-bound` | `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` | clean |
-| `/Users/acehood/Documents/GitHub/oes/.worktrees/governance/d-single-consumer-pull` | `codex/governance/d-single-consumer-pull` | `a1597e8ea03baffafd8b3cca59770f8fdcadcc69` | clean |
-| `/Users/acehood/Documents/GitHub/oes/.worktrees/governance/repository-hygiene-v2` | `codex/governance/repository-hygiene-v2` | `aa7babec82d709f559938208d262aceac9f78f17` | clean |
-| `/Users/acehood/Documents/GitHub/oes/.worktrees/grpc/i01-generated-metadata-substrate` | `codex/grpc/i01-generated-metadata-substrate` | `4240e4b7deecac6be92f9f183ca6fbea70f83215` | clean |
-| `/Users/acehood/Documents/GitHub/oes/.worktrees/grpc/i03-gateway-trusted-execution-producer` | `codex/grpc/i04-source-credential-carrier` | `dced77ad8cb877ea9aad10f1c6a310ad32a924df` | clean；path/branch 名称不一致 |
-| `/Users/acehood/Documents/GitHub/oes/.worktrees/grpc/v01-generated-metadata-foundation` | detached | `9d091829e5aad6aad2e93ae1a90ea2187ba785ab` | clean |
-| `/Users/acehood/Documents/GitHub/oes/.worktrees/grpc/x01-integration` | `codex/grpc/x01-integration` | `78329db36f13be30f293f2666720180da8991faa` | clean |
-| `/Users/acehood/Documents/GitHub/oes/.worktrees/migration/exec-crypto-remediation` | `codex/migration/exec-crypto-remediation` | `1ca24f417a2d06bce8be79d4c8ed67bc6c518a65` | clean；HUMAN-only candidate accepted/integrated，implementation task archived |
-| `/Users/acehood/Documents/GitHub/oes/.worktrees/migration/grpc-asset-rebuild` | `codex/migration/grpc-asset-rebuild` | `a82e5ea69a7773d4e0e8f5a91dcdf7a599897c1d` | clean；candidate accepted/integrated，`MERGED_WAITING_FOR_USER_CLEANUP` |
-| `/Users/acehood/Documents/GitHub/oes/.worktrees/migration/grpc-carrier-rebuild` | `codex/migration/grpc-carrier-rebuild` | `3e263e501341ea1b90049d5343c42db055f3c5ea` | clean；candidate accepted/integrated，implementation task archived |
-| `/Users/acehood/Documents/GitHub/oes/.worktrees/migration/machine-workload-source-verifier` | `codex/migration/machine-workload-source-verifier` | `024579598c1293807d3f1cd5e7003aefd8e8fa0a` | clean；`MERGED_PRESERVE_UNTIL_FINAL_CLEANUP`；两implementation task均archived |
-| `/Users/acehood/Documents/GitHub/oes/.worktrees/migration/site-trusted-grpc-recovery` | `codex/migration/site-trusted-grpc-recovery` | `547a0c5d55f9a955543779ec584a16e9b05cf453` | clean；candidate accepted/integrated，`MERGED_WAITING_FOR_USER_CLEANUP` |
-| `/Users/acehood/Documents/GitHub/oes/.worktrees/trusted-grpc-execution-context/d-freeze` | `codex/trusted-grpc-execution-context/d-freeze` | `7500bd66d3e11b7a39bb0de052141efe4bfa0d09` | clean |
+| Worktree                                                                                     | Branch                                               | HEAD                                       | State                                                                         |
+| -------------------------------------------------------------------------------------------- | ---------------------------------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------- |
+| `/Users/acehood/Documents/GitHub/oes`                                                        | `main`                                               | `547a0c5d55f9a955543779ec584a16e9b05cf453` | clean                                                                         |
+| `/Users/acehood/.codex/worktrees/10ab/oes`                                                   | detached                                             | `7500bd66d3e11b7a39bb0de052141efe4bfa0d09` | clean                                                                         |
+| `/Users/acehood/.codex/worktrees/1d99/oes`                                                   | detached                                             | `0a321c0d35442a0cf94956734f33cf5fab696f88` | clean                                                                         |
+| `/Users/acehood/.codex/worktrees/229b/oes`                                                   | detached                                             | `c7ab0d9cf6767e63c499e7fc15a3d9d725b45cfc` | clean                                                                         |
+| `/Users/acehood/Documents/GitHub/oes/.worktrees/program-control/migration`                   | `codex/oes-program-control-migration`                | live candidate ref                         | 本台账唯一 writer；candidate commit 后应 clean                                |
+| `/Users/acehood/Documents/GitHub/oes/.worktrees/migration/ai-platform-completion`            | `codex/migration/ai-platform-completion`             | `94094fe57a8d2f18750ef712f2730015be2d9514` | clean；AI rebuilt candidate                                                   |
+| `/Users/acehood/Documents/GitHub/oes/.worktrees/migration/permission-decision-rpc`           | `codex/migration/permission-decision-rpc`            | `45a7e3065d66f3692493181120ebd08e47ec283f` | clean；Permission remediation candidate                                       |
+| `/Users/acehood/Documents/GitHub/oes/.worktrees/integration/main-queue`                      | `codex/integration/main-queue`                       | `1ca24f417a2d06bce8be79d4c8ed67bc6c518a65` | clean；EXEC-CRYPTO HUMAN foundation accepted/integrated，I&V 当前 idle        |
+| `/Users/acehood/Documents/GitHub/oes/.worktrees/unified-design/security-open-packets`        | `codex/unified-design/security-open-packets`         | `f57c4b1de5bc6d29a8a5e9824d1c26b1e029cf6b` | clean；最新冻结设计均已进入 main，等待最终清理                                |
+| `/Users/acehood/.codex/worktrees/44ef/oes`                                                   | `codex/exec-crypto/i06-auth-tg2-remediation`         | `64ea8660687bbeb24349d11bcaed6f63d2373c4b` | clean                                                                         |
+| `/Users/acehood/.codex/worktrees/475d/oes`                                                   | detached                                             | `ddab5e77fdc7240750039c430f48a0e6fd76ab62` | clean                                                                         |
+| `/Users/acehood/.codex/worktrees/4853/oes`                                                   | detached                                             | `a0310fbbee37b7d17456e3a7f1bf6ea846c4dfb3` | clean                                                                         |
+| `/Users/acehood/.codex/worktrees/4a92/oes`                                                   | `codex/acexeccrypto-token-cryptography-command`      | `7500bd66d3e11b7a39bb0de052141efe4bfa0d09` | clean                                                                         |
+| `/Users/acehood/.codex/worktrees/72ae/oes`                                                   | `codex/ai-platform/i01-tool-contract-registration`   | `6101933d3f054989e6dbfca27889a7141db16075` | clean                                                                         |
+| `/Users/acehood/.codex/worktrees/bf83/oes`                                                   | `codex/acprincipalrole-principalrolebinding-command` | `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` | clean                                                                         |
+| `/Users/acehood/.codex/worktrees/d69e/oes`                                                   | detached                                             | `6101933d3f054989e6dbfca27889a7141db16075` | clean                                                                         |
+| `/Users/acehood/.codex/worktrees/d899/oes`                                                   | detached                                             | `b641e0e104080dd852688ac1b1887efc9f2684a5` | clean                                                                         |
+| `/Users/acehood/.codex/worktrees/f9a5/oes`                                                   | `codex/acgrpc-trusted-grpc-execution`                | `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` | clean                                                                         |
+| `/Users/acehood/Documents/GitHub/oes/.worktrees/action-grant/d-governance`                   | `codex/action-grant/d-governance`                    | `e006564cee327428e5c7b280c52001d690f6ab37` | clean                                                                         |
+| `/Users/acehood/Documents/GitHub/oes/.worktrees/action-grant/i01-delegated-task-runtime`     | `codex/action-grant/i01-delegated-task-runtime`      | `ec2b2cf881fec81f1882b3260f397f33d618aaf0` | clean                                                                         |
+| `/Users/acehood/Documents/GitHub/oes/.worktrees/action-grant/x01-integration`                | `codex/action-grant/x01-integration`                 | `ddab5e77fdc7240750039c430f48a0e6fd76ab62` | clean                                                                         |
+| `/Users/acehood/Documents/GitHub/oes/.worktrees/ai-platform/d-governance`                    | `codex/ai-platform/d-governance`                     | `1e15b14b180b8345b9a4f77a48ab920a798aeb41` | clean                                                                         |
+| `/Users/acehood/Documents/GitHub/oes/.worktrees/ai-platform/d-tool-contract-registration`    | `codex/ai-platform/d-tool-contract-registration`     | `f2fb093129fa6084f40b9ca9bef6df04a7e163fe` | clean                                                                         |
+| `/Users/acehood/Documents/GitHub/oes/.worktrees/api-key/d-external-api-key-security`         | `codex/api-key/d-external-api-key-security`          | `a0206b8aa1c088cd0487c06a37442885b244d3a6` | clean                                                                         |
+| `/Users/acehood/Documents/GitHub/oes/.worktrees/api-key/i02-verifier-provider`               | `codex/api-key/i02-runtime-completion`               | `3ce94b7a2ef8fdd1a75e05aa517cc35d60534bf8` | clean                                                                         |
+| `/Users/acehood/Documents/GitHub/oes/.worktrees/api-key/x01-integration`                     | `codex/api-key/x01-integration`                      | `755d857ab990520a916f73e859e39f1207085e32` | clean；durable rejected-prototype evidence，永不进入 main                     |
+| `/Users/acehood/Documents/GitHub/oes/.worktrees/exec-crypto/d-sts-authority-upper-bound`     | `codex/exec-crypto/d-sts-authority-upper-bound`      | `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` | clean                                                                         |
+| `/Users/acehood/Documents/GitHub/oes/.worktrees/governance/d-single-consumer-pull`           | `codex/governance/d-single-consumer-pull`            | `a1597e8ea03baffafd8b3cca59770f8fdcadcc69` | clean                                                                         |
+| `/Users/acehood/Documents/GitHub/oes/.worktrees/governance/repository-hygiene-v2`            | `codex/governance/repository-hygiene-v2`             | `aa7babec82d709f559938208d262aceac9f78f17` | clean                                                                         |
+| `/Users/acehood/Documents/GitHub/oes/.worktrees/grpc/i01-generated-metadata-substrate`       | `codex/grpc/i01-generated-metadata-substrate`        | `4240e4b7deecac6be92f9f183ca6fbea70f83215` | clean                                                                         |
+| `/Users/acehood/Documents/GitHub/oes/.worktrees/grpc/i03-gateway-trusted-execution-producer` | `codex/grpc/i04-source-credential-carrier`           | `dced77ad8cb877ea9aad10f1c6a310ad32a924df` | clean；path/branch 名称不一致                                                 |
+| `/Users/acehood/Documents/GitHub/oes/.worktrees/grpc/v01-generated-metadata-foundation`      | detached                                             | `9d091829e5aad6aad2e93ae1a90ea2187ba785ab` | clean                                                                         |
+| `/Users/acehood/Documents/GitHub/oes/.worktrees/grpc/x01-integration`                        | `codex/grpc/x01-integration`                         | `78329db36f13be30f293f2666720180da8991faa` | clean                                                                         |
+| `/Users/acehood/Documents/GitHub/oes/.worktrees/migration/exec-crypto-remediation`           | `codex/migration/exec-crypto-remediation`            | `1ca24f417a2d06bce8be79d4c8ed67bc6c518a65` | clean；HUMAN-only candidate accepted/integrated，implementation task archived |
+| `/Users/acehood/Documents/GitHub/oes/.worktrees/migration/grpc-asset-rebuild`                | `codex/migration/grpc-asset-rebuild`                 | `a82e5ea69a7773d4e0e8f5a91dcdf7a599897c1d` | clean；candidate accepted/integrated，`MERGED_WAITING_FOR_USER_CLEANUP`       |
+| `/Users/acehood/Documents/GitHub/oes/.worktrees/migration/grpc-carrier-rebuild`              | `codex/migration/grpc-carrier-rebuild`               | `3e263e501341ea1b90049d5343c42db055f3c5ea` | clean；candidate accepted/integrated，implementation task archived            |
+| `/Users/acehood/Documents/GitHub/oes/.worktrees/migration/machine-workload-source-verifier`  | `codex/migration/machine-workload-source-verifier`   | `024579598c1293807d3f1cd5e7003aefd8e8fa0a` | clean；`MERGED_PRESERVE_UNTIL_FINAL_CLEANUP`；两implementation task均archived |
+| `/Users/acehood/Documents/GitHub/oes/.worktrees/migration/site-trusted-grpc-recovery`        | `codex/migration/site-trusted-grpc-recovery`         | `547a0c5d55f9a955543779ec584a16e9b05cf453` | clean；candidate accepted/integrated，`MERGED_WAITING_FOR_USER_CLEANUP`       |
+| `/Users/acehood/Documents/GitHub/oes/.worktrees/trusted-grpc-execution-context/d-freeze`     | `codex/trusted-grpc-execution-context/d-freeze`      | `7500bd66d3e11b7a39bb0de052141efe4bfa0d09` | clean                                                                         |
 
 ### 7.4 当前全部 `codex/*` branch refs
 
-| Branch | HEAD |
-| --- | --- |
-| `codex/acapikey-external-api-key` | `a776ad75894f515d0d559f783616f655dec8d592` |
-| `codex/acexeccrypto-token-cryptography-command` | `7500bd66d3e11b7a39bb0de052141efe4bfa0d09` |
-| `codex/acgrpc-trusted-grpc-execution` | `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` |
-| `codex/acprincipalrole-principalrolebinding-command` | `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` |
-| `codex/action-grant/d-governance` | `e006564cee327428e5c7b280c52001d690f6ab37` |
-| `codex/action-grant/i01-delegated-task-runtime` | `ec2b2cf881fec81f1882b3260f397f33d618aaf0` |
-| `codex/action-grant/x01-integration` | `ddab5e77fdc7240750039c430f48a0e6fd76ab62` |
-| `codex/ai-platform/d-governance` | `1e15b14b180b8345b9a4f77a48ab920a798aeb41` |
-| `codex/ai-platform/d-tool-contract-registration` | `f2fb093129fa6084f40b9ca9bef6df04a7e163fe` |
-| `codex/ai-platform/i01-tool-contract-registration` | `6101933d3f054989e6dbfca27889a7141db16075` |
-| `codex/api-key/d-external-api-key-security` | `a0206b8aa1c088cd0487c06a37442885b244d3a6` |
-| `codex/api-key/i02-runtime-completion` | `3ce94b7a2ef8fdd1a75e05aa517cc35d60534bf8` |
-| `codex/api-key/x01-integration` | `755d857ab990520a916f73e859e39f1207085e32` |
-| `codex/exec-crypto/d-sts-authority-upper-bound` | `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` |
-| `codex/exec-crypto/i06-auth-tg2-remediation` | `64ea8660687bbeb24349d11bcaed6f63d2373c4b` |
-| `codex/governance/d-single-consumer-pull` | `a1597e8ea03baffafd8b3cca59770f8fdcadcc69` |
-| `codex/governance/repository-hygiene-v2` | `aa7babec82d709f559938208d262aceac9f78f17` |
-| `codex/grpc/i01-generated-metadata-substrate` | `4240e4b7deecac6be92f9f183ca6fbea70f83215` |
-| `codex/grpc/i02-trusted-execution-runtime-baseline` | `9bcf5768b33b625e5f7821b87b4977a7eece01d0` |
-| `codex/grpc/i03-gateway-trusted-execution-producer` | `6973bcda1484ac2fccc522f5d8ee70dc989c7541` |
-| `codex/grpc/i04-source-credential-carrier` | `dced77ad8cb877ea9aad10f1c6a310ad32a924df` |
-| `codex/grpc/x01-integration` | `78329db36f13be30f293f2666720180da8991faa` |
-| `codex/integration/main-queue` | `1ca24f417a2d06bce8be79d4c8ed67bc6c518a65` |
-| `codex/migration/exec-crypto-remediation` | `1ca24f417a2d06bce8be79d4c8ed67bc6c518a65` |
-| `codex/migration/ai-platform-completion` | `94094fe57a8d2f18750ef712f2730015be2d9514` |
-| `codex/migration/grpc-asset-rebuild` | `a82e5ea69a7773d4e0e8f5a91dcdf7a599897c1d` |
-| `codex/migration/grpc-carrier-rebuild` | `3e263e501341ea1b90049d5343c42db055f3c5ea` |
-| `codex/migration/machine-workload-source-verifier` | `024579598c1293807d3f1cd5e7003aefd8e8fa0a` |
-| `codex/migration/permission-decision-rpc` | `45a7e3065d66f3692493181120ebd08e47ec283f` |
-| `codex/migration/site-trusted-grpc-recovery` | `547a0c5d55f9a955543779ec584a16e9b05cf453` |
-| `codex/oes-program-control-migration` | live branch ref；inventory checkpoint `1f5fdd690af817f8e9bb092fbafb769a31b2e1a6` |
-| `codex/trusted-grpc-execution-context/d-freeze` | `7500bd66d3e11b7a39bb0de052141efe4bfa0d09` |
-| `codex/unified-design/security-open-packets` | `f57c4b1de5bc6d29a8a5e9824d1c26b1e029cf6b` |
+| Branch                                               | HEAD                                                                             |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `codex/acapikey-external-api-key`                    | `a776ad75894f515d0d559f783616f655dec8d592`                                       |
+| `codex/acexeccrypto-token-cryptography-command`      | `7500bd66d3e11b7a39bb0de052141efe4bfa0d09`                                       |
+| `codex/acgrpc-trusted-grpc-execution`                | `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116`                                       |
+| `codex/acprincipalrole-principalrolebinding-command` | `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116`                                       |
+| `codex/action-grant/d-governance`                    | `e006564cee327428e5c7b280c52001d690f6ab37`                                       |
+| `codex/action-grant/i01-delegated-task-runtime`      | `ec2b2cf881fec81f1882b3260f397f33d618aaf0`                                       |
+| `codex/action-grant/x01-integration`                 | `ddab5e77fdc7240750039c430f48a0e6fd76ab62`                                       |
+| `codex/ai-platform/d-governance`                     | `1e15b14b180b8345b9a4f77a48ab920a798aeb41`                                       |
+| `codex/ai-platform/d-tool-contract-registration`     | `f2fb093129fa6084f40b9ca9bef6df04a7e163fe`                                       |
+| `codex/ai-platform/i01-tool-contract-registration`   | `6101933d3f054989e6dbfca27889a7141db16075`                                       |
+| `codex/api-key/d-external-api-key-security`          | `a0206b8aa1c088cd0487c06a37442885b244d3a6`                                       |
+| `codex/api-key/i02-runtime-completion`               | `3ce94b7a2ef8fdd1a75e05aa517cc35d60534bf8`                                       |
+| `codex/api-key/x01-integration`                      | `755d857ab990520a916f73e859e39f1207085e32`                                       |
+| `codex/exec-crypto/d-sts-authority-upper-bound`      | `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116`                                       |
+| `codex/exec-crypto/i06-auth-tg2-remediation`         | `64ea8660687bbeb24349d11bcaed6f63d2373c4b`                                       |
+| `codex/governance/d-single-consumer-pull`            | `a1597e8ea03baffafd8b3cca59770f8fdcadcc69`                                       |
+| `codex/governance/repository-hygiene-v2`             | `aa7babec82d709f559938208d262aceac9f78f17`                                       |
+| `codex/grpc/i01-generated-metadata-substrate`        | `4240e4b7deecac6be92f9f183ca6fbea70f83215`                                       |
+| `codex/grpc/i02-trusted-execution-runtime-baseline`  | `9bcf5768b33b625e5f7821b87b4977a7eece01d0`                                       |
+| `codex/grpc/i03-gateway-trusted-execution-producer`  | `6973bcda1484ac2fccc522f5d8ee70dc989c7541`                                       |
+| `codex/grpc/i04-source-credential-carrier`           | `dced77ad8cb877ea9aad10f1c6a310ad32a924df`                                       |
+| `codex/grpc/x01-integration`                         | `78329db36f13be30f293f2666720180da8991faa`                                       |
+| `codex/integration/main-queue`                       | `1ca24f417a2d06bce8be79d4c8ed67bc6c518a65`                                       |
+| `codex/migration/exec-crypto-remediation`            | `1ca24f417a2d06bce8be79d4c8ed67bc6c518a65`                                       |
+| `codex/migration/ai-platform-completion`             | `94094fe57a8d2f18750ef712f2730015be2d9514`                                       |
+| `codex/migration/grpc-asset-rebuild`                 | `a82e5ea69a7773d4e0e8f5a91dcdf7a599897c1d`                                       |
+| `codex/migration/grpc-carrier-rebuild`               | `3e263e501341ea1b90049d5343c42db055f3c5ea`                                       |
+| `codex/migration/machine-workload-source-verifier`   | `024579598c1293807d3f1cd5e7003aefd8e8fa0a`                                       |
+| `codex/migration/permission-decision-rpc`            | `45a7e3065d66f3692493181120ebd08e47ec283f`                                       |
+| `codex/migration/site-trusted-grpc-recovery`         | `547a0c5d55f9a955543779ec584a16e9b05cf453`                                       |
+| `codex/oes-program-control-migration`                | live branch ref；inventory checkpoint `1f5fdd690af817f8e9bb092fbafb769a31b2e1a6` |
+| `codex/trusted-grpc-execution-context/d-freeze`      | `7500bd66d3e11b7a39bb0de052141efe4bfa0d09`                                       |
+| `codex/unified-design/security-open-packets`         | `f57c4b1de5bc6d29a8a5e9824d1c26b1e029cf6b`                                       |
 
 ### 7.5 Final disposition readiness refresh（只读，未清理）
 
 2026-08-09 以 `main@547a0c5d55f9a955543779ec584a16e9b05cf453` 对全部 Git 资源重新分类：
 
-| 资源分类 | 数量 | 当前处置 |
-| --- | ---: | --- |
-| root main worktree | 1 | 最终唯一保留目标；当前 clean |
-| 非 root、HEAD 已是 main ancestor、clean | 25 | Git 内容已进入 main，但在 ledger 集成、任务证据消费与全局清理 gate 完成前不移除 |
-| newly integrated clean worktrees | 5 | GRPC carrier `3e263e50…`、EXEC-CRYPTO HUMAN foundation `1ca24f41…`、MACHINE source-verifier `02457959…`、GRPC Asset `a82e5ea6…`与SITE recovery `547a0c5d…`；已独立验收并进入main，等待final cleanup manifest |
-| design-gap clean implementation worktrees | 0 | MACHINE design/implementation gaps已关闭 |
-| retained non-main candidate worktrees | 3 | EXEC-CRYPTO `64ea8660…` 与 GRPC carrier `dced77ad…` 已归类为被 current-main replacement 消费的 superseded evidence；deferred ActionGrant runtime `ec2b2cf…` 已由 annotated evidence tag 持久保全。三者的 worktree/branch 均可在 ledger 进入 main 后正常清理 |
-| superseded/rejected evidence worktrees | 4 | EXEC-CRYPTO rejected `c7ab0d9c…`、API-KEY prototype `755d857a…` 及 AI legacy candidate/acceptance 两个 `6101933d…` worktrees；证据已登记，仍待 ledger 入 main 后的清理 gate |
-| Program Control migration ledger worktree | 1 | 已无冲突同步到 current main；仍须完成 ledger candidate 验证、提交与集成 |
-| active current-main implementation worktree | 0 | SITE source已clean at integrated `547a0c5d…`并标记`MERGED_WAITING_FOR_USER_CLEANUP`；当前无active implementation writer |
-| **worktree total** | **39** | MACHINE、Asset与SITE source worktrees均clean并等待final cleanup；root clean。删除/clean/reset数为0 |
+| 资源分类                                    |   数量 | 当前处置                                                                                                                                                                                                                                                    |
+| ------------------------------------------- | -----: | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| root main worktree                          |      1 | 最终唯一保留目标；当前 clean                                                                                                                                                                                                                                |
+| 非 root、HEAD 已是 main ancestor、clean     |     25 | Git 内容已进入 main，但在 ledger 集成、任务证据消费与全局清理 gate 完成前不移除                                                                                                                                                                             |
+| newly integrated clean worktrees            |      5 | GRPC carrier `3e263e50…`、EXEC-CRYPTO HUMAN foundation `1ca24f41…`、MACHINE source-verifier `02457959…`、GRPC Asset `a82e5ea6…`与SITE recovery `547a0c5d…`；已独立验收并进入main，等待final cleanup manifest                                                |
+| design-gap clean implementation worktrees   |      0 | MACHINE design/implementation gaps已关闭                                                                                                                                                                                                                    |
+| retained non-main candidate worktrees       |      3 | EXEC-CRYPTO `64ea8660…` 与 GRPC carrier `dced77ad…` 已归类为被 current-main replacement 消费的 superseded evidence；deferred ActionGrant runtime `ec2b2cf…` 已由 annotated evidence tag 持久保全。三者的 worktree/branch 均可在 ledger 进入 main 后正常清理 |
+| superseded/rejected evidence worktrees      |      4 | EXEC-CRYPTO rejected `c7ab0d9c…`、API-KEY prototype `755d857a…` 及 AI legacy candidate/acceptance 两个 `6101933d…` worktrees；证据已登记，仍待 ledger 入 main 后的清理 gate                                                                                 |
+| Program Control migration ledger worktree   |      1 | 已无冲突同步到 current main；仍须完成 ledger candidate 验证、提交与集成                                                                                                                                                                                     |
+| active current-main implementation worktree |      0 | SITE source已clean at integrated `547a0c5d…`并标记`MERGED_WAITING_FOR_USER_CLEANUP`；当前无active implementation writer                                                                                                                                     |
+| **worktree total**                          | **39** | MACHINE、Asset与SITE source worktrees均clean并等待final cleanup；root clean。删除/clean/reset数为0                                                                                                                                                          |
 
 branch refs 共 33：26 个 branch HEAD 已是 current main ancestor（SITE implementation branch当前等于main；Asset rebuild与Unified Design均为main ancestor）；7 个非 ancestor refs 已全部分类为 deferred ActionGrant runtime、AI legacy accepted evidence、API-KEY rejected prototype evidence、EXEC-CRYPTO legacy checkpoint、GRPC Asset legacy candidate、原 GRPC carrier candidate与Program Control migration ledger。MACHINE branch已是current main ancestor。不存在未分类branch ref。
 
@@ -536,13 +536,13 @@ branch refs 共 33：26 个 branch HEAD 已是 current main ancestor（SITE impl
 
 以下 5 个 canonical formal task 在本机 Codex state database 中仍为 `archived=0`，其设计、候选、拒绝或验收结果已经由本台账、稳定真相源、current `main` 或 ActionGrant durable evidence tag 保全。ledger 进入 `main` 后按下表逐项调用应用归档接口；不得通过直接写数据库代替应用归档。
 
-| Thread ID | Task | Final disposition |
-| --- | --- | --- |
-| `019fc52b-39bf-7250-84de-6d5bcff1d099` | `A/I/ACTION-GRANT/01` | runtime deferred；candidate 由 evidence tag 保全 |
-| `019fc52d-3e6d-7d03-b5f2-27befd10c7d7` | `A/I/AI-PLATFORM/01` | registration 已重建、验收并集成；runtime deferred |
-| `019fc87b-1859-7ef2-88a6-a89c9a087024` | `A/I/PRINCIPAL-ROLE/05` | Permission replacement 已验收并集成 |
-| `019fcaac-840c-7072-b792-793396ea30b3` | `A/V/AI-PLATFORM/01` | 验收证据已消费并由 current main 覆盖 |
-| `019fb37b-3c46-78d1-9d48-72a9caf96d1a` | `A/V/API-KEY/01` | 历史拒绝证据已持久登记；交付周期已关闭 |
+| Thread ID                              | Task                    | Final disposition                                 |
+| -------------------------------------- | ----------------------- | ------------------------------------------------- |
+| `019fc52b-39bf-7250-84de-6d5bcff1d099` | `A/I/ACTION-GRANT/01`   | runtime deferred；candidate 由 evidence tag 保全  |
+| `019fc52d-3e6d-7d03-b5f2-27befd10c7d7` | `A/I/AI-PLATFORM/01`    | registration 已重建、验收并集成；runtime deferred |
+| `019fc87b-1859-7ef2-88a6-a89c9a087024` | `A/I/PRINCIPAL-ROLE/05` | Permission replacement 已验收并集成               |
+| `019fcaac-840c-7072-b792-793396ea30b3` | `A/V/AI-PLATFORM/01`    | 验收证据已消费并由 current main 覆盖              |
+| `019fb37b-3c46-78d1-9d48-72a9caf96d1a` | `A/V/API-KEY/01`        | 历史拒绝证据已持久登记；交付周期已关闭            |
 
 迁移控制任务 `OES Program Control`、`OES Unified Design`、`OES Integration & Verification` 与本 legacy migration handoff 任务在 Git 清理完成前保留；最终只读复核完成后再归档，不进入新的开发循环。
 
@@ -602,30 +602,30 @@ branch refs 共 33：26 个 branch HEAD 已是 current main ancestor（SITE impl
 
 `C/A/T/L` 分别表示 `CONTRACT_CLASSIFIED` / `ALL_CALLERS_READY` / `TOKEN_ONLY_SERVER_CUTOVER` / `LEGACY_PATH_REMOVED`：
 
-| Service | RPCs / controllers | C/A/T/L | 主要 caller / disposition |
-| --- | ---: | --- | --- |
-| Asset | 5 / 1 | Y/Y/Y/Y | Gateway、Site Media；`a82e5ea6…` current-main replacement 已完成 |
-| Site | 66 / 2 | Y/Y/Y/Y | Gateway；`547a0c5d…` Site/Media/Event/R2-purge slice 已完成 |
-| Browser Activity | 13 / 1 | N/N/N/N | Gateway；下一目标，`DESIGN_PENDING` |
-| Notification | 2 / 1 | N/N/N/N | Auth |
-| Terminal Device | 17 / 1 | N/N/N/N | Gateway |
-| Finance | 27 / 2 | N/N/N/N | Gateway |
-| Public Entry | 23 / 2 | N/N/N/N | Gateway |
-| Sales | 27 / 4 | N/N/N/N | Gateway |
-| MES | 32 / 4 | N/N/N/N | Gateway |
-| Collaboration | 16 / 4 | N/N/N/N | Gateway；第二批 |
-| CRM | 15 / 3 | N/N/N/N | Gateway、Collaboration；第二批 |
-| Procurement | 21 / 2 | N/N/N/N | Gateway、WMS；第二批 |
-| SRM | 13 / 2 | N/N/N/N | Gateway、Procurement；第二批 |
-| Item Master | 50 / 2 | N/N/N/N | Gateway、MES、WMS；高扇入 |
-| WMS | 15 / 2 | N/N/N/N | Gateway；依赖后置 |
-| HR | 15 / 2 | N/N/N/N | Gateway、Auth、Identity；依赖后置 |
-| Party | 6 / 2 | N/N/N/N | Gateway、CRM、HR、TenantOrg；高扇入 |
-| TenantOrg | 20 / 2 | N/N/N/N | Gateway、Auth、HR、Identity；高扇入 |
-| Identity | 41 / 3 | N/N/N/N | Gateway、Auth、Permission、HR；foundation partial only |
-| Permission | 66 / 8 | N/N/N/N | Gateway、Auth、HR、TenantOrg、WMS；bootstrap partial only |
-| Auth | 70 / 1 | N/N/N/N | Gateway、HR、Site、TenantOrg；MACHINE foundation complete，full service pending |
-| **Total / proven state** | **560 / 51** | **2 Y / 19 N** | **Asset/Site complete；19 services pending** |
+| Service                  | RPCs / controllers | C/A/T/L        | 主要 caller / disposition                                                       |
+| ------------------------ | -----------------: | -------------- | ------------------------------------------------------------------------------- |
+| Asset                    |              5 / 1 | Y/Y/Y/Y        | Gateway、Site Media；`a82e5ea6…` current-main replacement 已完成                |
+| Site                     |             66 / 2 | Y/Y/Y/Y        | Gateway；`547a0c5d…` Site/Media/Event/R2-purge slice 已完成                     |
+| Browser Activity         |             13 / 1 | N/N/N/N        | Gateway；下一目标，`DESIGN_PENDING`                                             |
+| Notification             |              2 / 1 | N/N/N/N        | Auth                                                                            |
+| Terminal Device          |             17 / 1 | N/N/N/N        | Gateway                                                                         |
+| Finance                  |             27 / 2 | N/N/N/N        | Gateway                                                                         |
+| Public Entry             |             23 / 2 | N/N/N/N        | Gateway                                                                         |
+| Sales                    |             27 / 4 | N/N/N/N        | Gateway                                                                         |
+| MES                      |             32 / 4 | N/N/N/N        | Gateway                                                                         |
+| Collaboration            |             16 / 4 | N/N/N/N        | Gateway；第二批                                                                 |
+| CRM                      |             15 / 3 | N/N/N/N        | Gateway、Collaboration；第二批                                                  |
+| Procurement              |             21 / 2 | N/N/N/N        | Gateway、WMS；第二批                                                            |
+| SRM                      |             13 / 2 | N/N/N/N        | Gateway、Procurement；第二批                                                    |
+| Item Master              |             50 / 2 | N/N/N/N        | Gateway、MES、WMS；高扇入                                                       |
+| WMS                      |             15 / 2 | N/N/N/N        | Gateway；依赖后置                                                               |
+| HR                       |             15 / 2 | N/N/N/N        | Gateway、Auth、Identity；依赖后置                                               |
+| Party                    |              6 / 2 | N/N/N/N        | Gateway、CRM、HR、TenantOrg；高扇入                                             |
+| TenantOrg                |             20 / 2 | N/N/N/N        | Gateway、Auth、HR、Identity；高扇入                                             |
+| Identity                 |             41 / 3 | N/N/N/N        | Gateway、Auth、Permission、HR；foundation partial only                          |
+| Permission               |             66 / 8 | N/N/N/N        | Gateway、Auth、HR、TenantOrg、WMS；bootstrap partial only                       |
+| Auth                     |             70 / 1 | N/N/N/N        | Gateway、HR、Site、TenantOrg；MACHINE foundation complete，full service pending |
+| **Total / proven state** |       **560 / 51** | **2 Y / 19 N** | **Asset/Site complete；19 services pending**                                    |
 
 - Browser gate：current main 的 13 RPC / 1 controller 仍有 49 个 proto legacy-context references，zero trusted guard/mode declaration；production direct caller 仅 Gateway，静态审计未发现 pure MACHINE root。现有 truth sources 未完整冻结 13 RPC 的 mode、Permission Code、subject/audience、delegation 与 field disposition，因此状态为 `DESIGN_PENDING`；必须由现有 Unified Design 在用户明确冻结后回写 Browser service truth/contract/proto feature sources，冻结前不创建 Browser implementation candidate。
 - retained evidence refs：`codex/grpc/i04-source-credential-carrier@dced77ad8cb877ea9aad10f1c6a310ad32a924df` 已由 current-main carrier rebuild `3e263e501341ea1b90049d5343c42db055f3c5ea` 消费并取代；`codex/grpc/i03-gateway-trusted-execution-producer@6973bcda1484ac2fccc522f5d8ee70dc989c7541` 已由 current-main Asset replacement `a82e5ea69a7773d4e0e8f5a91dcdf7a599897c1d` 消费并取代。两条旧 ref 均无绑定 worktree、无 dirty WIP、无 active writer，不路由 main，保留为 `SUPERSEDED_IMPLEMENTATION_EVIDENCE` 至 final cleanup。
@@ -766,37 +766,37 @@ EXEC-CRYPTO HUMAN foundation I&V terminal evidence：
 
 ## 9. Discrepancy register
 
-| ID | 发现 | 影响 | 当前处置 |
-| --- | --- | --- | --- |
-| MIG-D01 | GRPC Asset handoff worktree path 当前绑定 carrier branch/HEAD，而不是 Asset branch/candidate | 不得把该 path 误作 Asset writer；后续恢复 Asset 前需显式选择/建立正确工作面 | 保留全部 refs/worktree，不修改 |
-| MIG-D02 | API-KEY x01 integration worktree 曾有 2 个未跟踪 domain 文件 | 测试文件与 rejected `b641e0e1…` 完全一致；实现文件 blob `e54f5f1f…` 唯一但使用 ADR-0017 已淘汰的 raw-pepper seam | `CLOSED_FOR_CONTENT_PRESERVATION`：两文件已精确提交为 clean rejected-prototype evidence `755d857a…`；永不进 main，待 final manifest 后清理 ref/worktree |
-| MIG-D03 | 当前资源计数为 37 worktrees / 31 `codex/*` branches，高于 handoff 的 29/23 | 差额来自本 Program Control、AI Platform completion、Integration & Verification、Unified Design、Permission decision RPC、GRPC carrier rebuild、EXEC-CRYPTO remediation 与 MACHINE workload source-verifier 的隔离工作树/分支，并非旧资源漂移 | 在全局快照显式对账 |
-| MIG-D04 | API-KEY、EVENT、EXEC-REVOKE 的具体 source thread IDs 未包含在 compact bundle | 台账只能保留 capability 状态与 Git evidence，不能形成完整 thread-level archive manifest | 不唤醒旧线程；等待后续显式补充或按现有证据形成 closure summary |
-| MIG-D05 | GRPC carrier `dced77ad…` 的 parent 为 `65e49258…`，不能直接通过 current-main ff-only gate | 旧 SHA 必须仅作 evidence 并在 current main 重建 | `CLOSED`：rebuilt `3e263e50…` 已独立复验、ff-only 集成并 push；原 candidate 继续保留历史证据 |
-| MIG-D06 | Principal Authorization candidate `4f78cec8…` 的 Permission 服务真相源同时要求验证 ExecutionToken 又声明不消费 ExecutionToken | 首个 candidate 被 I&V 拒绝 | `CLOSED`：replacement `fe395fb5…` 已最小修正、复验、集成并 push |
-| MIG-D07 | Permission implementation inventory 发现 Common 缺少 principal-authorization INTERNAL Code 注册，且 DELEGATED issuance 缺少 owner upper-bound contract/runtime resolver | 原 Permission lease 不足，直接实现会复制跨域真相或读取 AI registration JSON | `CLOSED`：ActionGrant design `63441455…` 已冻结并集成最小 Common lease 与 owner/consumer boundary；恢复同一 Permission task |
-| MIG-D08 | Permission candidate 的 L2 受本地 PostgreSQL `permissiondb` 不可达限制；精确 ESLint 受共享 parser `project`/`projectService` 冲突限制 | 两个 gate 未提供代码级通过证据，但其失败均发生在环境/配置前置 | 保留字面失败证据；交由独立 I&V 复核，不在实现候选中修改数据库环境或共享 ESLint 配置 |
-| MIG-D09 | Permission candidate `96eb67aa…` 的最终 DELEGATED/WORKLOAD authzVersion 非 opaque SHA-256，且 workload policy 未在 bootstrap 解析 | 泄露内部版本结构、未绑定最终有效 Code 集；非法/缺失策略直到首个请求才失败 | `CLOSED`：remediation `45a7e306…` 已修正、独立复验、集成并 push |
-| MIG-D10 | EXEC-CRYPTO `1ca24f41…` 只完成 active HUMAN session/access credential source verifier，不是 full TG-2/MACHINE | 若直接推进 GRPC Asset `ALL_CALLERS_READY` 或 token-only cutover，会遗漏合格 MACHINE caller source principal | 保留 HUMAN foundation 集成证据；下一步先完成并验收 MACHINE/workload source-verifier，再允许 GRPC Asset rebuild |
-| MIG-D11 | MACHINE source credential owner/profile/expiry/revocation、active Machine Principal mapping、SPIFFE/leaf-cert binding 与 Auth-local/Identity-owned contract lease 未冻结 | 实现会被迫发明 public ownership/contract，或误用 API-key 专用 mapping | MACHINE worktree clean、无 candidate；复用 Unified Design 做只读选项/推荐，等待用户冻结后再恢复实现 |
-| MIG-D12 | MACHINE frozen design candidate `d7b935fb…` 把未来 Identity resolver/Code一处写成“当前已开放/既有”，同时又声明proto/Common/runtime尚未实现 | 文档会把 frozen pending contract误报为现有能力，导致implementation lease与运行现状不一致 | I&V返回DESIGN_GAP且未集成；同一 Unified Design task形成仅修正状态措辞的replacement |
-| MIG-D13 | MACHINE replacement `bbb7338f…` 修复状态误报，但Auth/Identity/proto/Prisma/tests/generated-input lease仍是描述性范围 | Program Control无法为恢复implementation登记完整exact path ownership，I&V也不能推断实现结构 | `CLOSED`：第三candidate `22ed9ee4…` 的封闭64-path manifest已独立验收并集成；旧candidate继续保留为DESIGN_GAP证据 |
-| MIG-D14 | MACHINE exact lease 跨 Common/Auth/Identity/Permission 且含新proto、Prisma输入、tracked codegen输出与ignored派生产物 | 路径或产物分类不精确会导致共享 ownership 漂移、误跟踪generated output或实现自行扩scope | `CLOSED_FOR_DISPATCH`：`22ed9ee4…` 的64 writer paths、7 ignored outputs、16 protected examples与5共享限制已独立验收；恢复实现仍须先本地复核再登记lease |
-| MIG-D15 | 64-path lease 只冻结 ownership，未冻结 MACHINE wire fields/field numbers、Prisma PK/FK/unique/lifecycle/revocation、caller trust 与审计持久化路径 | 实现会被迫发明公共契约和持久化语义，或在无 tracked audit lease 情况下绕过审计边界 | `CLOSED`：9-doc wire/schema/audit packet与66-path lease已通过replacement `7cb5c4d3…`独立验收、集成并push |
-| MIG-D16 | 66-path lease登记13个新增spec，但frozen focused commands仅执行10个 | candidate可以在3个公共wire/Identity management断言从未执行的情况下被误判为完成 | `CLOSED`：replacement `7cb5c4d3…`补齐并独立验证13/13覆盖，已ff-only集成并push |
-| MIG-D17 | 原MACHINE execution task反复在普通批次边界结束并产生直接回显/固定拒绝placeholder，且WIP含2个根级out-of-lease文件 | 继续使用原delivery owner会交付不完整candidate；直接清理会丢失未提交WIP与失败证据 | `CLOSED`：WIP无损移交replacement owner并完成正式TDD重写，最终`02457959…`验收集成；两task均archived，source资源保留至final cleanup |
-| MIG-D18 | Common gRPC workload provider丢弃transport-verified leaf `notAfter`，而Auth issuance必须证明`exp <= leaf notAfter`且proto禁止caller输入该事实 | Auth若本地补值会绕过certificate upper bound；当前66-path lease又保护Common provider，无法正确完成controller/composition | `CLOSED`：docs candidate `8e4ecff1…` 的provider+spec最小amendment与68-path lease已验收、ff-only集成并push；implementation已恢复 |
-| MIG-D19 | MACHINE candidate `45fbb312…` build/focused green但verifier未装配/刷新Identity、revoke无authz、audit FK顺序错误，且DB并发约束/JWS/audit/4 specs不完整 | 仅靠定向green会交付可绕过revocation与scope事实、无法真实插入或并发破坏唯一性的安全实现 | `CLOSED`：多轮corrective commits与最终candidate `02457959…`关闭并通过I&V/root验证 |
-| MIG-D20 | corrected `b6cd70dd…` 仍未挂载Auth host、revoke guard未执行、Identity refreshed facts被adapter丢弃，并存在future-iat、稳定supersession/idempotency与denial/type-safety缺口 | focused green仍无法证明RPC可调用、管理鉴权实际执行或owner facts/时间边界完整绑定 | `CLOSED`：最终candidate `02457959…`完成host/guard/fact/time/idempotency/denial/type-safety修复并验收集成 |
-| MIG-D21 | Gateway session guard验证raw access token后只保留principal facts；transport-private source-credential boundary无production provider/DI，且guard不能唯一确定覆盖handler/downstream await的scope lifetime | 直接在Asset adapter重读Authorization或把bearer放入request/application/context会恢复被禁止的普通credential传播；未经设计选择又无法确定guard/interceptor/private-vault ownership、cleanup、并发隔离与exact lease | `CLOSED_FOR_IMPLEMENTATION`：docs-only `32607c7a…`冻结WeakMap vault + explicit outer interceptor lifecycle与closed 15-path lease，已验收集成；同一Asset owner已ff-only同步并恢复，candidate形成前保持单一writer |
-| MIG-D22 | Asset candidate `bbcbbc59…` 将 `TrustedGrpcMetadataProvider` 的 public options 与 transport-private carrier 组合暴露，但 integrated Common public barrel 必须保持 carrier 不可见；原 Asset lease 未登记 Common provider/spec 变更 | 直接公开 carrier 会破坏 transport-private 边界；由 Program Control 追加 Common scope 会发明未冻结的公共 ownership/接口 | `CLOSED_FOR_IMPLEMENTATION`：docs-only `190e86d7…` 已冻结 public accessor + provider 内部 private carrier composition seam，并由 I&V 验收、ff-only 集成及 push。同一 Asset owner已非破坏性同步 main，按冻结 seam 与其余实现内问题形成 replacement candidate |
-| MIG-D23 | Asset replacement `7e5f393f…` 的 `TrustedExecutionGuard` 无条件拒绝 `SELF_SERVICE` 的 DELEGATED principal，忽略冻结声明 `allowDelegated:true` | Upload/Bind Account Avatar 的合法委托调用在controller前被拒绝，声明与runtime enforcement冲突 | `CLOSED`：两文件TDD correction `a82e5ea6…`允许HUMAN或`DELEGATED && allowDelegated`并保持空Code gate；完整矩阵复验后已ff-only集成及push |
-| MIG-D24 | SITE initial design candidate `d3e6109b…` 的Site Media contract前文排除field-number ownership，后文第8节却冻结11 RPC完整字段号 | 实现方不能唯一判断wire field numbers是否属于受支持稳定契约 | `CLOSED`：单文件1+/1- replacement `c7bda1c4…`明确第8节拥有字段与field numbers；累计7-doc packet经I&V复验、ff-only集成及push，109-path implementation gate已开放 |
-| MIG-D25 | Site Inspiration packet仍把trusted gRPC、Event/outbox与CDN purge标为“尚未实现”，但SITE recovery已集成这些平台前置 | 后续实现与legacy archive会误判Site仍在等待平台设计/实现 | `CLOSED`：one-doc candidate `9e6b590a…`只校正状态与依赖完成度，经I&V验收、ff-only集成及push；Inspiration业务实现与Product Hotspot deferral语义不变 |
-| MIG-D26 | legacy GC按canonical `title`统计并宣称formal tasks 41/41 archived，但UI重命名线程的底层`title`仍是delegation正文 | SITE A/C/A/D实际仍为`archived=0`，迁移关闭记录高估归档完成度 | `SITE_BATCH_CLOSED`：exact-ID复核得到全局19项未归档；SITE两项已通过应用接口归档并复核2/2，当前剩余17项逐能力处理 |
-| MIG-D27 | PRINCIPAL-ROLE A/C terminal仍把Permission authority decision RPC记录为未冻结`DESIGN_GAP`，A/D停在是否拆独立`PERMISSION-AUTHORITY`的讨论 | 恢复旧线程会重复已由Unified Design、ActionGrant设计与Permission remediation关闭的边界，并误判current main缺少resolver实现 | `PRINCIPAL_ROLE_BATCH_CLOSED`：冻结真相源与`45a7e306…`实现已覆盖全部旧gap；两项已通过应用接口归档并复核2/2，当前剩余15项 |
-| MIG-D28 | EXEC-CRYPTO A/V/02正确拒绝`c7ab0d9c…`的请求自授权恒真门；本批次开始时旧A/C、A/D、I06与A/V02均为`archived=0`，且已实现MACHINE/Gateway/Common/SITE slices仍带pending状态文字 | 若只按旧A/V terminal判断，会把已由Permission-backed HUMAN/MACHINE replacements关闭的问题误作未完成；若归档前未记录状态偏移与拒绝证据，会丢失迁移闭环 | `EXEC_CRYPTO_BATCH_CLOSED`：`1ca24f41…`/`02457959…`与fresh 3 suites/10 tests证明缺陷已修复；status-sync `22f07ccc…`已验收集成；四项已通过应用接口归档并exact-ID复核4/4，当前剩余11项 |
-| MIG-D29 | legacy A/C/GRPC terminal停在`MIGRATION_FROZEN`且只覆盖旧foundation/Asset范围；current main虽已完成carrier、MACHINE、Asset与Site，剩余19服务仍未证明完整C/A/T/L | 直接关闭旧GRPC控制面而不建立新owner会丢失全仓cutover职责；继续恢复旧A/C又会重启已退役capability framework | `GRPC_GLOBAL_HANDOFF_ARCHIVE_CLOSED`：`4dd7659e…`已把21服务矩阵与新持久owner写入feature packet；前置manifest `a510625c…`集成后，五项已通过应用接口归档并exact-ID/state复核5/5，当前剩余6项；两条superseded evidence refs继续保留 |
+| ID      | 发现                                                                                                                                                                                                                              | 影响                                                                                                                                                                                                                                         | 当前处置                                                                                                                                                                                                                                                    |
+| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| MIG-D01 | GRPC Asset handoff worktree path 当前绑定 carrier branch/HEAD，而不是 Asset branch/candidate                                                                                                                                      | 不得把该 path 误作 Asset writer；后续恢复 Asset 前需显式选择/建立正确工作面                                                                                                                                                                  | 保留全部 refs/worktree，不修改                                                                                                                                                                                                                              |
+| MIG-D02 | API-KEY x01 integration worktree 曾有 2 个未跟踪 domain 文件                                                                                                                                                                      | 测试文件与 rejected `b641e0e1…` 完全一致；实现文件 blob `e54f5f1f…` 唯一但使用 ADR-0017 已淘汰的 raw-pepper seam                                                                                                                             | `CLOSED_FOR_CONTENT_PRESERVATION`：两文件已精确提交为 clean rejected-prototype evidence `755d857a…`；永不进 main，待 final manifest 后清理 ref/worktree                                                                                                     |
+| MIG-D03 | 当前资源计数为 37 worktrees / 31 `codex/*` branches，高于 handoff 的 29/23                                                                                                                                                        | 差额来自本 Program Control、AI Platform completion、Integration & Verification、Unified Design、Permission decision RPC、GRPC carrier rebuild、EXEC-CRYPTO remediation 与 MACHINE workload source-verifier 的隔离工作树/分支，并非旧资源漂移 | 在全局快照显式对账                                                                                                                                                                                                                                          |
+| MIG-D04 | API-KEY、EVENT、EXEC-REVOKE 的具体 source thread IDs 未包含在 compact bundle                                                                                                                                                      | 台账只能保留 capability 状态与 Git evidence，不能形成完整 thread-level archive manifest                                                                                                                                                      | 不唤醒旧线程；等待后续显式补充或按现有证据形成 closure summary                                                                                                                                                                                              |
+| MIG-D05 | GRPC carrier `dced77ad…` 的 parent 为 `65e49258…`，不能直接通过 current-main ff-only gate                                                                                                                                         | 旧 SHA 必须仅作 evidence 并在 current main 重建                                                                                                                                                                                              | `CLOSED`：rebuilt `3e263e50…` 已独立复验、ff-only 集成并 push；原 candidate 继续保留历史证据                                                                                                                                                                |
+| MIG-D06 | Principal Authorization candidate `4f78cec8…` 的 Permission 服务真相源同时要求验证 ExecutionToken 又声明不消费 ExecutionToken                                                                                                     | 首个 candidate 被 I&V 拒绝                                                                                                                                                                                                                   | `CLOSED`：replacement `fe395fb5…` 已最小修正、复验、集成并 push                                                                                                                                                                                             |
+| MIG-D07 | Permission implementation inventory 发现 Common 缺少 principal-authorization INTERNAL Code 注册，且 DELEGATED issuance 缺少 owner upper-bound contract/runtime resolver                                                           | 原 Permission lease 不足，直接实现会复制跨域真相或读取 AI registration JSON                                                                                                                                                                  | `CLOSED`：ActionGrant design `63441455…` 已冻结并集成最小 Common lease 与 owner/consumer boundary；恢复同一 Permission task                                                                                                                                 |
+| MIG-D08 | Permission candidate 的 L2 受本地 PostgreSQL `permissiondb` 不可达限制；精确 ESLint 受共享 parser `project`/`projectService` 冲突限制                                                                                             | 两个 gate 未提供代码级通过证据，但其失败均发生在环境/配置前置                                                                                                                                                                                | 保留字面失败证据；交由独立 I&V 复核，不在实现候选中修改数据库环境或共享 ESLint 配置                                                                                                                                                                         |
+| MIG-D09 | Permission candidate `96eb67aa…` 的最终 DELEGATED/WORKLOAD authzVersion 非 opaque SHA-256，且 workload policy 未在 bootstrap 解析                                                                                                 | 泄露内部版本结构、未绑定最终有效 Code 集；非法/缺失策略直到首个请求才失败                                                                                                                                                                    | `CLOSED`：remediation `45a7e306…` 已修正、独立复验、集成并 push                                                                                                                                                                                             |
+| MIG-D10 | EXEC-CRYPTO `1ca24f41…` 只完成 active HUMAN session/access credential source verifier，不是 full TG-2/MACHINE                                                                                                                     | 若直接推进 GRPC Asset `ALL_CALLERS_READY` 或 token-only cutover，会遗漏合格 MACHINE caller source principal                                                                                                                                  | 保留 HUMAN foundation 集成证据；下一步先完成并验收 MACHINE/workload source-verifier，再允许 GRPC Asset rebuild                                                                                                                                              |
+| MIG-D11 | MACHINE source credential owner/profile/expiry/revocation、active Machine Principal mapping、SPIFFE/leaf-cert binding 与 Auth-local/Identity-owned contract lease 未冻结                                                          | 实现会被迫发明 public ownership/contract，或误用 API-key 专用 mapping                                                                                                                                                                        | MACHINE worktree clean、无 candidate；复用 Unified Design 做只读选项/推荐，等待用户冻结后再恢复实现                                                                                                                                                         |
+| MIG-D12 | MACHINE frozen design candidate `d7b935fb…` 把未来 Identity resolver/Code一处写成“当前已开放/既有”，同时又声明proto/Common/runtime尚未实现                                                                                        | 文档会把 frozen pending contract误报为现有能力，导致implementation lease与运行现状不一致                                                                                                                                                     | I&V返回DESIGN_GAP且未集成；同一 Unified Design task形成仅修正状态措辞的replacement                                                                                                                                                                          |
+| MIG-D13 | MACHINE replacement `bbb7338f…` 修复状态误报，但Auth/Identity/proto/Prisma/tests/generated-input lease仍是描述性范围                                                                                                              | Program Control无法为恢复implementation登记完整exact path ownership，I&V也不能推断实现结构                                                                                                                                                   | `CLOSED`：第三candidate `22ed9ee4…` 的封闭64-path manifest已独立验收并集成；旧candidate继续保留为DESIGN_GAP证据                                                                                                                                             |
+| MIG-D14 | MACHINE exact lease 跨 Common/Auth/Identity/Permission 且含新proto、Prisma输入、tracked codegen输出与ignored派生产物                                                                                                              | 路径或产物分类不精确会导致共享 ownership 漂移、误跟踪generated output或实现自行扩scope                                                                                                                                                       | `CLOSED_FOR_DISPATCH`：`22ed9ee4…` 的64 writer paths、7 ignored outputs、16 protected examples与5共享限制已独立验收；恢复实现仍须先本地复核再登记lease                                                                                                      |
+| MIG-D15 | 64-path lease 只冻结 ownership，未冻结 MACHINE wire fields/field numbers、Prisma PK/FK/unique/lifecycle/revocation、caller trust 与审计持久化路径                                                                                 | 实现会被迫发明公共契约和持久化语义，或在无 tracked audit lease 情况下绕过审计边界                                                                                                                                                            | `CLOSED`：9-doc wire/schema/audit packet与66-path lease已通过replacement `7cb5c4d3…`独立验收、集成并push                                                                                                                                                    |
+| MIG-D16 | 66-path lease登记13个新增spec，但frozen focused commands仅执行10个                                                                                                                                                                | candidate可以在3个公共wire/Identity management断言从未执行的情况下被误判为完成                                                                                                                                                               | `CLOSED`：replacement `7cb5c4d3…`补齐并独立验证13/13覆盖，已ff-only集成并push                                                                                                                                                                               |
+| MIG-D17 | 原MACHINE execution task反复在普通批次边界结束并产生直接回显/固定拒绝placeholder，且WIP含2个根级out-of-lease文件                                                                                                                  | 继续使用原delivery owner会交付不完整candidate；直接清理会丢失未提交WIP与失败证据                                                                                                                                                             | `CLOSED`：WIP无损移交replacement owner并完成正式TDD重写，最终`02457959…`验收集成；两task均archived，source资源保留至final cleanup                                                                                                                           |
+| MIG-D18 | Common gRPC workload provider丢弃transport-verified leaf `notAfter`，而Auth issuance必须证明`exp <= leaf notAfter`且proto禁止caller输入该事实                                                                                     | Auth若本地补值会绕过certificate upper bound；当前66-path lease又保护Common provider，无法正确完成controller/composition                                                                                                                      | `CLOSED`：docs candidate `8e4ecff1…` 的provider+spec最小amendment与68-path lease已验收、ff-only集成并push；implementation已恢复                                                                                                                             |
+| MIG-D19 | MACHINE candidate `45fbb312…` build/focused green但verifier未装配/刷新Identity、revoke无authz、audit FK顺序错误，且DB并发约束/JWS/audit/4 specs不完整                                                                             | 仅靠定向green会交付可绕过revocation与scope事实、无法真实插入或并发破坏唯一性的安全实现                                                                                                                                                       | `CLOSED`：多轮corrective commits与最终candidate `02457959…`关闭并通过I&V/root验证                                                                                                                                                                           |
+| MIG-D20 | corrected `b6cd70dd…` 仍未挂载Auth host、revoke guard未执行、Identity refreshed facts被adapter丢弃，并存在future-iat、稳定supersession/idempotency与denial/type-safety缺口                                                        | focused green仍无法证明RPC可调用、管理鉴权实际执行或owner facts/时间边界完整绑定                                                                                                                                                             | `CLOSED`：最终candidate `02457959…`完成host/guard/fact/time/idempotency/denial/type-safety修复并验收集成                                                                                                                                                    |
+| MIG-D21 | Gateway session guard验证raw access token后只保留principal facts；transport-private source-credential boundary无production provider/DI，且guard不能唯一确定覆盖handler/downstream await的scope lifetime                           | 直接在Asset adapter重读Authorization或把bearer放入request/application/context会恢复被禁止的普通credential传播；未经设计选择又无法确定guard/interceptor/private-vault ownership、cleanup、并发隔离与exact lease                               | `CLOSED_FOR_IMPLEMENTATION`：docs-only `32607c7a…`冻结WeakMap vault + explicit outer interceptor lifecycle与closed 15-path lease，已验收集成；同一Asset owner已ff-only同步并恢复，candidate形成前保持单一writer                                             |
+| MIG-D22 | Asset candidate `bbcbbc59…` 将 `TrustedGrpcMetadataProvider` 的 public options 与 transport-private carrier 组合暴露，但 integrated Common public barrel 必须保持 carrier 不可见；原 Asset lease 未登记 Common provider/spec 变更 | 直接公开 carrier 会破坏 transport-private 边界；由 Program Control 追加 Common scope 会发明未冻结的公共 ownership/接口                                                                                                                       | `CLOSED_FOR_IMPLEMENTATION`：docs-only `190e86d7…` 已冻结 public accessor + provider 内部 private carrier composition seam，并由 I&V 验收、ff-only 集成及 push。同一 Asset owner已非破坏性同步 main，按冻结 seam 与其余实现内问题形成 replacement candidate |
+| MIG-D23 | Asset replacement `7e5f393f…` 的 `TrustedExecutionGuard` 无条件拒绝 `SELF_SERVICE` 的 DELEGATED principal，忽略冻结声明 `allowDelegated:true`                                                                                     | Upload/Bind Account Avatar 的合法委托调用在controller前被拒绝，声明与runtime enforcement冲突                                                                                                                                                 | `CLOSED`：两文件TDD correction `a82e5ea6…`允许HUMAN或`DELEGATED && allowDelegated`并保持空Code gate；完整矩阵复验后已ff-only集成及push                                                                                                                      |
+| MIG-D24 | SITE initial design candidate `d3e6109b…` 的Site Media contract前文排除field-number ownership，后文第8节却冻结11 RPC完整字段号                                                                                                    | 实现方不能唯一判断wire field numbers是否属于受支持稳定契约                                                                                                                                                                                   | `CLOSED`：单文件1+/1- replacement `c7bda1c4…`明确第8节拥有字段与field numbers；累计7-doc packet经I&V复验、ff-only集成及push，109-path implementation gate已开放                                                                                             |
+| MIG-D25 | Site Inspiration packet仍把trusted gRPC、Event/outbox与CDN purge标为“尚未实现”，但SITE recovery已集成这些平台前置                                                                                                                 | 后续实现与legacy archive会误判Site仍在等待平台设计/实现                                                                                                                                                                                      | `CLOSED`：one-doc candidate `9e6b590a…`只校正状态与依赖完成度，经I&V验收、ff-only集成及push；Inspiration业务实现与Product Hotspot deferral语义不变                                                                                                          |
+| MIG-D26 | legacy GC按canonical `title`统计并宣称formal tasks 41/41 archived，但UI重命名线程的底层`title`仍是delegation正文                                                                                                                  | SITE A/C/A/D实际仍为`archived=0`，迁移关闭记录高估归档完成度                                                                                                                                                                                 | `SITE_BATCH_CLOSED`：exact-ID复核得到全局19项未归档；SITE两项已通过应用接口归档并复核2/2，当前剩余17项逐能力处理                                                                                                                                            |
+| MIG-D27 | PRINCIPAL-ROLE A/C terminal仍把Permission authority decision RPC记录为未冻结`DESIGN_GAP`，A/D停在是否拆独立`PERMISSION-AUTHORITY`的讨论                                                                                           | 恢复旧线程会重复已由Unified Design、ActionGrant设计与Permission remediation关闭的边界，并误判current main缺少resolver实现                                                                                                                    | `PRINCIPAL_ROLE_BATCH_CLOSED`：冻结真相源与`45a7e306…`实现已覆盖全部旧gap；两项已通过应用接口归档并复核2/2，当前剩余15项                                                                                                                                    |
+| MIG-D28 | EXEC-CRYPTO A/V/02正确拒绝`c7ab0d9c…`的请求自授权恒真门；本批次开始时旧A/C、A/D、I06与A/V02均为`archived=0`，且已实现MACHINE/Gateway/Common/SITE slices仍带pending状态文字                                                        | 若只按旧A/V terminal判断，会把已由Permission-backed HUMAN/MACHINE replacements关闭的问题误作未完成；若归档前未记录状态偏移与拒绝证据，会丢失迁移闭环                                                                                         | `EXEC_CRYPTO_BATCH_CLOSED`：`1ca24f41…`/`02457959…`与fresh 3 suites/10 tests证明缺陷已修复；status-sync `22f07ccc…`已验收集成；四项已通过应用接口归档并exact-ID复核4/4，当前剩余11项                                                                        |
+| MIG-D29 | legacy A/C/GRPC terminal停在`MIGRATION_FROZEN`且只覆盖旧foundation/Asset范围；current main虽已完成carrier、MACHINE、Asset与Site，剩余19服务仍未证明完整C/A/T/L                                                                    | 直接关闭旧GRPC控制面而不建立新owner会丢失全仓cutover职责；继续恢复旧A/C又会重启已退役capability framework                                                                                                                                    | `GRPC_GLOBAL_HANDOFF_ARCHIVE_CLOSED`：`4dd7659e…`已把21服务矩阵与新持久owner写入feature packet；前置manifest `a510625c…`集成后，五项已通过应用接口归档并exact-ID/state复核5/5，当前剩余6项；两条superseded evidence refs继续保留                            |
 
 ## 10. 最终关闭结果
 
