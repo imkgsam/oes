@@ -22,15 +22,15 @@ This collaboration protects a tenant-owned external integration without creating
 
 ## 2. Stable Participants
 
-| Participant | Stable collaboration responsibility | Does not own |
-| --- | --- | --- |
-| `identity-service` | Tenant Integration Machine identity, tenant reference, type, name, and active/disabled lifecycle. | API Key material or validation. |
-| `auth-service` | Credential lifecycle, secret verification, exchange decision, external access-token issuance, and credential audit. | Machine identity, tenant truth, HTTP routing, or permission truth. |
-| `permission-service` | Machine principal grants and the Permission Code decision used by Auth. | Credential, token signing, or external route exposure. |
-| `tenant-org-service` | Tenant lifecycle fact consumed by Auth and Gateway. | Machine, credential, or permission truth. |
-| `api-gateway` | Only external HTTP entry, header sanitisation, rate protection, external-token validation, external endpoint enforcement, and internal trusted-call composition. | Credential secret, machine lifecycle, role/grant truth, or direct external gRPC exposure. |
-| Deployment / EXEC-CRYPTO | Protected verifier-version disablement, terminal compromise evidence and the exact deployment security-operation runner identity/policy. | Auth credential mutation, Auth audit truth, tenant administration or external routing. |
-| Business service | Owns a business endpoint and resource/domain checks after Gateway calls it with a target-audience ExecutionToken. | External API Key validation or the external caller's raw credential. |
+| Participant              | Stable collaboration responsibility                                                                                                                              | Does not own                                                                              |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `identity-service`       | Tenant Integration Machine identity, tenant reference, type, name, and active/disabled lifecycle.                                                                | API Key material or validation.                                                           |
+| `auth-service`           | Credential lifecycle, secret verification, exchange decision, external access-token issuance, and credential audit.                                              | Machine identity, tenant truth, HTTP routing, or permission truth.                        |
+| `permission-service`     | Machine principal grants and the Permission Code decision used by Auth.                                                                                          | Credential, token signing, or external route exposure.                                    |
+| `tenant-org-service`     | Tenant lifecycle fact consumed by Auth and Gateway.                                                                                                              | Machine, credential, or permission truth.                                                 |
+| `api-gateway`            | Only external HTTP entry, header sanitisation, rate protection, external-token validation, external endpoint enforcement, and internal trusted-call composition. | Credential secret, machine lifecycle, role/grant truth, or direct external gRPC exposure. |
+| Deployment / EXEC-CRYPTO | Protected verifier-version disablement, terminal compromise evidence and the exact deployment security-operation runner identity/policy.                         | Auth credential mutation, Auth audit truth, tenant administration or external routing.    |
+| Business service         | Owns a business endpoint and resource/domain checks after Gateway calls it with a target-audience ExecutionToken.                                                | External API Key validation or the external caller's raw credential.                      |
 
 ## 3. Tenant Integration Machine Boundary
 

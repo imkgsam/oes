@@ -39,16 +39,16 @@ trustedGrpcServiceProgress: 21/21
 
 ## 2. 全局快照
 
-| 项目                       | Handoff 状态                          | 2026-08-16 最终清理前核验                                                                                                                                                    |
-| -------------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Repository root            | `/Users/acehood/Documents/GitHub/oes` | 路径存在；`main` 工作树 clean                                                                                                                                                |
-| `main`                     | current-document-commit               | 21/21 trusted-gRPC service migration、CRM final slice、status synchronization 与 scoped cleanup record 已进入主线；root clean                                                |
-| `origin/main`              | current-document-commit               | 本地 remote-tracking ref 与远端 `refs/heads/main` 在 scoped cleanup 记录集成后复核一致                                                                                       |
-| Legacy formal A/* threads | 101                                   | handoff 历史聚合计数；迁移范围内已消费 tasks 已归档，余下 5 项属于 AI/ActionGrant deferred protected ownership，不作为 trusted-gRPC/API-KEY 未完成项                                      |
-| Worktrees                  | 3                                     | Trusted gRPC 专属 19 个已正常移除；仅保留 root、Program Control 与唯一 Unified Design，其他 CC 不受影响                                                                      |
-| `codex/*` branches         | 5                                     | Trusted gRPC/API-KEY 专属 refs 已按各自 closure 规则移除；仅保留 AI、ActionGrant、Program Control 与共享 UD refs                                                                         |
-| Checker                    | disabled                              | handoff evidence；未唤醒旧 checker                                                                                                                                           |
-| Root dirty state           | clean                                 | clean，暂存区与工作区均无变更                                                                                                                                                |
+| 项目                       | Handoff 状态                          | 2026-08-16 最终清理前核验                                                                                                                            |
+| -------------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Repository root            | `/Users/acehood/Documents/GitHub/oes` | 路径存在；`main` 工作树 clean                                                                                                                        |
+| `main`                     | current-document-commit               | 21/21 trusted-gRPC service migration、CRM final slice、status synchronization 与 scoped cleanup record 已进入主线；root clean                        |
+| `origin/main`              | current-document-commit               | 本地 remote-tracking ref 与远端 `refs/heads/main` 在 scoped cleanup 记录集成后复核一致                                                               |
+| Legacy formal A/\* threads | 101                                   | handoff 历史聚合计数；迁移范围内已消费 tasks 已归档，余下 5 项属于 AI/ActionGrant deferred protected ownership，不作为 trusted-gRPC/API-KEY 未完成项 |
+| Worktrees                  | 3                                     | Trusted gRPC 专属 19 个已正常移除；仅保留 root、Program Control 与唯一 Unified Design，其他 CC 不受影响                                              |
+| `codex/*` branches         | 5                                     | Trusted gRPC/API-KEY 专属 refs 已按各自 closure 规则移除；仅保留 AI、ActionGrant、Program Control 与共享 UD refs                                     |
+| Checker                    | disabled                              | handoff evidence；未唤醒旧 checker                                                                                                                   |
+| Root dirty state           | clean                                 | clean，暂存区与工作区均无变更                                                                                                                        |
 
 当前关闭证据：
 
