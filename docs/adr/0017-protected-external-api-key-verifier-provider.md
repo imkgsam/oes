@@ -3,7 +3,6 @@
 ```text
 status: ACCEPTED
 decisionDate: 2026-08-02
-capabilityKey: API-KEY
 designGate: DG-3
 architectureTruthSource: docs/architecture/services/auth-service.md
 collaborationTruthSource: docs/architecture/collaborations/external-api-key-security.md

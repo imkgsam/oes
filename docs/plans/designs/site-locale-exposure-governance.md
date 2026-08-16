@@ -7,7 +7,7 @@ designKey: site-locale-exposure-governance
 designStatus: SUPERSEDED_BY_TRUTH_SOURCE
 implementationStatus: TRACKED_BY_FEATURE_PACKET
 lastUpdatedAt: 2026-07-19 Asia/Shanghai
-lastUpdatedBy: Codex / Global Command Thread
+lastUpdatedBy: Codex
 supersedes: none
 truthSource: docs/architecture/services/site-service.md; docs/architecture/site-runtime-architecture.md; docs/architecture/site-runtime-kit.md; docs/contracts/site-service/page-capabilities-and-exposure.md; docs/plans/features/site-page-locale-governance-p1.md
 doNotUseAsStableSource: true

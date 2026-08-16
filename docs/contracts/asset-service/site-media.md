@@ -4,8 +4,8 @@
 contractStatus: FROZEN_ASSET_MEDIA_CONTRACT
 sharedWireContractStatus: FROZEN
 implementationPrerequisites:
-  - Global Command must align generated gRPC metadata consumption with the frozen trusted-context contract.
-  - Global Command must assign a cross-service outbox/Event Bus delivery capability for availability facts.
+  - Generated gRPC metadata consumption must align with the frozen trusted-context contract.
+  - Availability facts require a cross-service outbox/Event Bus delivery path.
   - P1 production-complete takedown requires the frozen oes-managed-cloudflare delivery/purge adapter and a REMOTE_ACTIVE SiteMediaDeliveryBinding.
 serviceTruthSource: docs/architecture/services/asset-service.md
 collaborationTruthSource: docs/architecture/collaborations/site-asset-media.md
@@ -373,4 +373,4 @@ Asset 必须可审计上传、选择、解析拒绝、publication protection / r
 
 本契约不授权任何 lane 在未冻结的 shared proto / event / permission contract 下自行添加字段、事件或旁路存储调用。
 
-Asset 当前只有 S3-compatible object storage adaptor，尚无 CDN purge provider。实现线程可以在 Asset domain 中依赖 delivery/purge port，但不得用本地 no-op、仅删 origin object 或本地 EventEmitter 宣称完成 production takedown；CDN provider 的选择与配置是上述 Global Command 前置条件的一部分。
+Asset 当前只有 S3-compatible object storage adaptor，尚无 CDN purge provider。实现线程可以在 Asset domain 中依赖 delivery/purge port，但不得用本地 no-op、仅删 origin object 或本地 EventEmitter 宣称完成 production takedown；CDN provider 的选择与配置是 production takedown 的前置条件。

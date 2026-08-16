@@ -13,9 +13,6 @@
 ```
 featureKey: event-bus-outbox-p1
 featureStatus: IMPLEMENTATION_PLANNING_READY
-packetOwner: A/D/EVENT
-returnTerminal: EVENT_BUS_IMPLEMENTATION_PACKET_READY
-implementationAuthorized: by Global Command handoff; not dispatched by this thread
 businessSlice: collaboration.task.assigned/completed/cancelled -> notification-service
 ```
 
@@ -34,7 +31,7 @@ businessSlice: collaboration.task.assigned/completed/cancelled -> notification-s
 
 - 证明 at-least-once、consumer 幂等、有限重试、consumer-specific DLQ、受控 replay、tenant/trace/ACL 边界和恢复语义。
 - 让 producer 与 consumer 都引用同一个 @oes/common Collaboration event code contract；业务 payload 仍由 Event Catalog 和 collaboration-service event contract 拥有。
-- 先完成可在单节点本地环境运行的垂直切片，再由 Global Command 决定生产三节点、Asset 链路和后续事件的独立实现任务。
+- 先完成可在单节点本地环境运行的垂直切片；生产三节点、Asset 链路和后续事件分别进入独立实现任务。
 
 ## 2. 明确不做什么
 
@@ -47,7 +44,6 @@ businessSlice: collaboration.task.assigned/completed/cancelled -> notification-s
 - 不引入 Schema Registry、平行 JSON Schema 目录、AsyncAPI codegen 或新的 event-contract package。
 - 不在事件中增加 Event Catalog 未冻结的业务字段，不把 Task 内部实体、description、凭证、storage key 或完整 operator context 放进事件。
 - 不把 Notification 外部 Email/SMS provider 调用放在事件 handler 的长数据库事务内；本 slice 只验证 Notification-owned local result。
-- 不修改 Global Command 专属的 docs/plans/oes-global-roadmap.md、docs/plans/oes-thread-control-board.md 或 docs/plans/oes-capability-dependency-map.md。
 
 ## 3. 上游真相源与依赖
 
@@ -138,7 +134,7 @@ EV-4 + EV-5 + EV-OPS -> EV-6 Integration & black-box acceptance
 
 | Lane   | Owner group / role                                                                      | Allowed write paths                                                                                                                                                                                                                                                                                                                                                                                                                                                             | Depends on                                              | Required output                                                                                                                                          | State                     |
 | ------ | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
-| EV-0   | Notification service design/contract owner; not A/D/EVENT                               | docs/architecture/services/notification-service.md, docs/contracts/notification-service/\*\*, and a Notification-owned feature packet if required by Global Command                                                                                                                                                                                                                                                                                                             | Existing Notification architecture and design workspace | Unique service truth source plus a minimal frozen contract for the event-to-local-notification input and local result; no free-form rule/payload mapping | BLOCKER_NOW               |
+| EV-0   | Notification service design/contract owner                                               | docs/architecture/services/notification-service.md, docs/contracts/notification-service/\*\*, and a Notification-owned feature packet when required                                                                                                                                                                                                                                                                                                                             | Existing Notification architecture and design workspace | Unique service truth source plus a minimal frozen contract for the event-to-local-notification input and local result; no free-form rule/payload mapping | BLOCKER_NOW               |
 | EV-1   | Foundation Platform / common implementation owner                                       | src/common/src/events/\*\*, src/common/src/index.ts, src/common/package.json, common event tests; pnpm-lock.yaml only through the designated dependency owner                                                                                                                                                                                                                                                                                                                   | Frozen architecture, ADR 0013/0014, transport contract  | CloudEvents codec, validation, Outbox/Inbox/consumer ports, NATS adapter, retry/DLQ/advisory/replay runner, normalized outcomes, trace hooks             | PENDING                   |
 | EV-2   | Collaboration Contract / producer owner                                                 | src/common/src/contracts/collaboration_service/events.ts, src/common/src/contracts/collaboration_service/index.ts, contract-focused tests                                                                                                                                                                                                                                                                                                                                       | Event Catalog and EV-1 public types                     | Compiled contract imported by both producer and consumer; no business semantic drift                                                                     | PENDING_AFTER_EV1         |
 | EV-3   | Deployment / SRE                                                                        | docker-compose.infra.yml, new docker/nats/\*\*, new docs/runbooks/event-bus-nats.md; no service business code                                                                                                                                                                                                                                                                                                                                                                   | ADR 0013, platform transport contract                   | Local JetStream, persistent volume, business/DLQ topology, exact consumers, advisory persistence/monitoring, ACL and credential runbook                  | PENDING                   |
@@ -325,8 +321,8 @@ The exact database migration command remains service-owned because Collaboration
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
 | Notification service has no unique docs/architecture/services/notification-service.md, and its event-to-local-notification P1 contract is still represented by an in-progress design workspace. | Blocker-Now                         | Blocks Notification schema, typed handler, and full end-to-end acceptance.                                                                                                             | Notification design/contract owner; EV-0.                                    |
 | EV-OPS has no existing implementation yet, but its ownership/path is now frozen without a new runtime.                                                                                          | Blocker-Now for EV-6 implementation | EV-6 cannot claim complete DLQ/replay acceptance until common operations helpers, SRE advisory monitoring and Notification-owned operations module/job are implemented and integrated. | EV-OPS composite lane under the existing EV-1, EV-3 and EV-5 single writers. |
-| package.json, pnpm-lock.yaml, src/common/src/contracts/\*, and several feature packet paths contain unrelated concurrent changes.                                                               | Blocker-Later                       | Shared-path writes can collide if lanes do not honor the single-writer table.                                                                                                          | Global Command coordinates ownership; preserve all unrelated changes.        |
-| Asset event business contract alignment is complete, but src/common/src/contracts/asset_service/events.ts and Asset/Site runtime paths are not in this P1.                                      | Blocker-Later                       | No impact on Collaboration -> Notification; blocks only Asset implementation.                                                                                                          | Asset owner + Global Command follow-on lane.                                 |
+| package.json, pnpm-lock.yaml, src/common/src/contracts/\*, and several feature packet paths contain unrelated concurrent changes.                                                               | Blocker-Later                       | Shared-path writes can collide if lanes do not honor the single-writer table.                                                                                                          | The relevant shared-path owners coordinate writes and preserve unrelated changes. |
+| Asset event business contract alignment is complete, but src/common/src/contracts/asset_service/events.ts and Asset/Site runtime paths are not in this P1.                                      | Blocker-Later                       | No impact on Collaboration -> Notification; blocks only Asset implementation.                                                                                                          | Asset owner handles the follow-on implementation.                            |
 | Production three-node JetStream/IaC/secret rotation is not present in the repository.                                                                                                           | Blocker-Later for local P1          | Local single-node verification can proceed; production readiness cannot be inferred from Compose.                                                                                      | Deployment/SRE follow-on lane.                                               |
 
 ## 12. Protected shared files and sequencing rules
@@ -337,23 +333,23 @@ The exact database migration command remains service-owned because Collaboration
 - docker-compose.infra.yml and docker/nats/\*\* are single-writer Deployment/SRE paths. Service lanes do not add NATS services, credentials, streams, or consumers in their own Compose files.
 - src/services/system/notification-service/src/infrastructure/events/operations/\*\*, its service-local replay/recovery scripts and its Prisma operations records remain Notification-owner paths. Common or SRE lanes must not write them, and Notification must not create a cross-consumer control store.
 - docs/contracts/events/\*\* is read-only for implementation lanes. Event Catalog/owner threads alone change business event semantics or status.
-- docs/architecture/17-event-bus-and-outbox-architecture.md is platform truth owned by A/D/EVENT; this packet records its current Asset status but implementation lanes must not rewrite it.
+- docs/architecture/17-event-bus-and-outbox-architecture.md is the platform truth source; this packet records its current Asset status but implementation tasks must not rewrite it.
 - docs/plans/features/event-bus-outbox-p1.md is the single feature status surface for this slice. Worker lanes report structured evidence; they do not create parallel packets or design workspaces.
 
 ## 13. 关闭条件
 
-- EV-0 Notification service truth/contract gate is accepted, or Global Command explicitly narrows the slice to platform/producer-only planning without claiming end-to-end readiness.
+- EV-0 Notification service truth/contract gate is accepted, or the slice is explicitly narrowed to platform/producer-only planning without claiming end-to-end readiness.
 - Common CloudEvents/ports/NATS adapter and the Collaboration events.ts contract build and pass focused tests.
 - Collaboration command + audit + outbox atomicity is proven for assigned/completed/cancelled, including rollback and broker outage.
 - Notification durable consumer + Inbox + typed local result is proven for applied, duplicate, conflict, retry, restart, and replay-safe outcomes.
 - Local NATS topology has exact subjects, durable names, ACLs, bounded retention, persistent storage, and a reproducible runbook.
 - EV-OPS common helpers, SRE advisory monitoring and Notification-owned DLQ/replay module/job have black-box evidence for real-delivery publish-before-TERM, advisory-only fail-closed unresolved recovery, alert/expiry escalation and run-scoped replay; no central service/control-store, fabricated source authority or “broker will handle it” assumption remains.
 - EV-6 submits a structured handoff with changed paths, data/contract/security impact, conflicts, test evidence, and recommended next tasks.
-- Global Command, not this thread, creates any Capability Command or implementation task and decides whether to unlock Asset or production deployment lanes.
+- This packet does not create implementation tasks; Asset and production deployment enter implementation only after their respective gates are satisfied.
 
 ## 14. 下一步
 
-Global Command should first assign EV-0, then create implementation tasks in this order:
+Close EV-0 first, then create implementation tasks in this order:
 
 ```text
 EV-1 Common platform API
@@ -365,4 +361,4 @@ EV-1 Common platform API
   -> EV-6 black-box acceptance and integration closure
 ```
 
-No implementation task has been dispatched by A/D/EVENT, and no Capability Command has been created by this packet owner.
+No implementation task has been dispatched from this packet.

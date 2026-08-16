@@ -913,9 +913,6 @@ Contracts must remain aligned with `site-service.md`.
 - src/site-runtime/site-runtime-kit/** unless contract type import changes are explicitly required and coordinated
 - Product / Item implementation paths
 - inquiry/order/account/payment/comment/search implementation
-- docs/plans/oes-global-roadmap.md
-- docs/plans/oes-thread-control-board.md
-- docs/plans/oes-capability-dependency-map.md
 
 必须遵守：
 - 修改任何文件前确认任务 scope、当前 owner 与受保护路径。
@@ -991,9 +988,6 @@ Contracts must remain aligned with `site-service.md`.
 - docs/contracts/site-service/**
 - Product / Item implementation expansion
 - inquiry/order/account/payment/comment/search implementation
-- docs/plans/oes-global-roadmap.md
-- docs/plans/oes-thread-control-board.md
-- docs/plans/oes-capability-dependency-map.md
 
 必须遵守：
 - 修改任何文件前确认任务 scope、当前 owner 与受保护路径。

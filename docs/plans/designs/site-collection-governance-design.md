@@ -7,7 +7,7 @@ designKey: site-collection-governance-design
 designStatus: ACTIVE_DESIGN_WORKSPACE
 implementationStatus: PARTIALLY_IMPLEMENTED
 lastUpdatedAt: 2026-07-19 10:58:28 Asia/Shanghai
-lastUpdatedBy: Codex / Global Command Thread
+lastUpdatedBy: Codex
 supersedes: none
 truthSource: pending write-back after collection governance closure
 doNotUseAsStableSource: false

@@ -82,7 +82,7 @@ Site 实现不得以 request-body tenant/operator、进程内 EventEmitter、ori
 6. Storefront 在 Runtime reader 可用后替换 production fixture data；不得提前建立临时 HTTP / URL fallback。
 7. 组织一个覆盖四端与 Asset collaboration 的 Inspiration Core acceptance；Product Hotspot binding 留给独立 Phase 2。
 
-具体实现任务数量与 ownership 由 Program Control 在已冻结 lease 内决定，不由本 packet 机械固定。
+具体实现任务数量与 ownership 由后续执行计划在已冻结 lease 内决定，不由本 packet 机械固定。
 
 ## 7. Acceptance Targets
 

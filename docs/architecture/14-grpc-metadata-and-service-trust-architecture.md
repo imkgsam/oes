@@ -502,7 +502,7 @@ Asset + Site 仍是第一个业务解阻优先链，但不再是本 capability �
 
 ## 14. 必做但后置的独立设计
 
-以下五项已确认为必做，但不在本轮继续展开；Global Command 必须建立独立 design task，并在对应实现 lane 前完成冻结：
+以下五项已确认为必做，但不在本轮继续展开；各自边界 owner 必须在对应实现前完成冻结：
 
 MACHINE/workload source credential owner、Machine Principal resolution 与 workload/certificate binding 已冻结在 Auth/Identity 服务真相源及其黑盒 contracts 中，不再属于下列开放设计；实现仍必须按 capability 路由，并不得重开 external API-key、DELEGATED、AI 或 ActionGrant 语义。
 

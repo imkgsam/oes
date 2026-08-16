@@ -2,10 +2,6 @@
 
 ```text
 status: SUPERSEDED_BY_TRUTH_SOURCE
-capabilityKey: AI-PLATFORM
-designThread: A/D/AI-PLATFORM
-designThreadId: 019fa317-8eed-7551-95d5-d134210e2de8
-pairedCommandThreadId: 019fa317-f7eb-7d51-a1a5-63c1f90ef907
 frozenDate: 2026-07-28
 doNotUseAsStableSource: true
 truthSource:

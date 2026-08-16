@@ -1,6 +1,6 @@
 # Trusted gRPC Execution Context Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. Global Command must assign each lane before execution; this packet does not dispatch implementation.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. This packet does not dispatch implementation.
 
 **Goal:** Replace every repository gRPC request-body/operator-header trust path with mTLS workload identity, Auth / STS ExecutionToken, explicit RPC authorization mode and trusted multi-hop propagation.
 
@@ -52,10 +52,10 @@ The following five items are required but intentionally moved to separate design
 | DG-1 | Token cryptography and workload identity interoperability: allowed algorithm, issuer / audience registry, JWKS endpoint, `cnf` representation, trust domain and rotation | Production TG-0/TG-1/TG-2 security configuration |
 | DG-2 | Emergency ExecutionToken revocation event: owner, CloudEvents type/version, payload, ordering, delivery, deny-cache update and recovery | Emergency revoke implementation and production security acceptance |
 | DG-3 | **FROZEN**: [External API Key Security Collaboration](../../architecture/collaborations/external-api-key-security.md), [ADR 0017](../../adr/0017-protected-external-api-key-verifier-provider.md), Auth/Gateway contracts, and `auth_service/external_api_key.proto` define identifier/secret, HTTP/internal exchange, protected HMAC verifier provider, confirmed-version compromise CQRS/RPC, rate protection, rotation, audit, leak response and Integration Machine boundary. | Credential implementation may resume only against the operation-oriented protected verifier port/provider and the provider-disabled-before-transaction compromise workflow; the preliminary material-returning Pepper seam and partial bulk revocation are prohibited. Gateway locally validates five-minute external access tokens; DG-2 remains scoped to internal ExecutionToken revocation. |
-| DG-4 | **FROZEN**: [DELEGATED execution and ActionGrant](../../architecture/collaborations/delegated-execution-and-action-grant.md) defines delegation lifecycle, tool upper bound, step-up, exact binding, one-time consumption and forbidden operations. The first concrete slice is [Task ActionGrant](./delegated-task-action-grant.md). | AI delegation and RPCs requiring one-time high-risk authorization; implementation still consumes DG-1 binding and must use the paired capability command. |
+| DG-4 | **FROZEN**: [DELEGATED execution and ActionGrant](../../architecture/collaborations/delegated-execution-and-action-grant.md) defines delegation lifecycle, tool upper bound, step-up, exact binding, one-time consumption and forbidden operations. The first concrete slice is [Task ActionGrant](./delegated-task-action-grant.md). | AI delegation and RPCs requiring one-time high-risk authorization; implementation still consumes DG-1 binding. |
 | DG-5 | PrincipalRoleBinding persistence: uniqueness, effective-window overlap, revoke idempotency, migration invariants and rollback | Permission schema migration from AccountRole |
 
-Global Command must create independent design owners for DG-1 through DG-5. A blocked capability remains disabled; ordinary implementers cannot substitute local choices.
+DG-1 through DG-5 require independent design ownership. A blocked capability remains disabled; ordinary implementers cannot substitute local choices.
 
 Marketplace is cancelled. The system does not reserve a shared third-party App principal, installation model, developer platform or cross-tenant App authorization path.
 
@@ -98,9 +98,7 @@ The implementation inventory script at `scripts/architecture/trusted-grpc-signat
 
 ### 3.1 Current-main global cutover status
 
-Overall execution status is `SERVICE_MIGRATION_IMPLEMENTED_VERIFIED_21_OF_21` at current-main `2726d8b1a70d3bbe1ebc07d3c057c6bd8a32d777`. All 21 target services now have complete `C/A/T/L` evidence. CRM was the final service cutover; its accepted implementation used 87 of the frozen 114 paths with zero paths outside the lease and preserved the exact frozen contract. This completes the service-by-service trusted-gRPC migration, but does not enable the separately deferred AI Platform, ActionGrant or DELEGATED runtime and does not mark retained merged branches/worktrees or archived task resources as user-approved Git/thread cleanup.
-
-The persistent execution owner is **OES Trusted gRPC Service Migration** (`019ff138-ed1c-7b82-8cd4-865bdb6529bd`). The prior delivery-mode owner `019ff07e-d441-7731-acdb-1a9d262661a9` and approval-stalled predecessor `019fe9f8-5a44-76e1-b5a4-110db9da6d59` are archived with their WIP histories preserved. The former A/C/GRPC lane is historical, migration-frozen evidence and is not the active controller for the remaining cutover.
+Overall execution status is `SERVICE_MIGRATION_IMPLEMENTED_VERIFIED_21_OF_21` at current-main `2726d8b1a70d3bbe1ebc07d3c057c6bd8a32d777`. All 21 target services now have complete `C/A/T/L` evidence. CRM was the final service cutover; its accepted implementation used 87 of the frozen 114 paths with zero paths outside the lease and preserved the exact frozen contract. This completes the service-by-service trusted-gRPC migration, but does not enable the separately deferred AI Platform, ActionGrant or DELEGATED runtime.
 
 `C/A/T/L` means `CONTRACT_CLASSIFIED` / `ALL_CALLERS_READY` / `TOKEN_ONLY_SERVER_CUTOVER` / `LEGACY_PATH_REMOVED`:
 
@@ -519,7 +517,7 @@ Recommended implementation/verification order:
 18. `sales-service`.
 19. Final Gateway/Common legacy deletion and repository-wide acceptance.
 
-Independent services may change order when Global Command has fresh call-graph evidence, but only one target service slice has server cutover in progress at a time. The five-service foundation group is the only currently identified atomic candidate; implementation must try caller preparation before accepting the group exception.
+Independent services may change order when fresh call-graph evidence supports it, but only one target service slice has server cutover in progress at a time. The five-service foundation group is the only currently identified atomic candidate; implementation must try caller preparation before accepting the group exception.
 
 ## 7. Service Owner Registry
 
@@ -3344,4 +3342,4 @@ The capability closes only when:
 - Common operator-context signer/codec/guard/factory exports and all references are deleted.
 - Marketplace has no model, contract, permission, endpoint or backlog lane in this capability.
 
-Implementation must not be dispatched from this design thread. Global Command assigns one service migration owner at a time, plus independent foundation/design owners, under the project’s branch/worktree and acceptance discipline.
+Implementation must not be dispatched from this design thread. Execution planning assigns service migration and foundation/design ownership under the project’s branch/worktree and acceptance discipline.
