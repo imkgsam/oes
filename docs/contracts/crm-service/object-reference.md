@@ -8,20 +8,17 @@
 
 P1 只服务 `collaboration-service.annotation` 对 `CrmAccount` 的备注接入，不提供通用 CRM object registry，不替代 CRM query service，也不暴露 CRM 内部表结构。
 
-## 2. 通用上下文要求
+## 2. Trusted Execution
 
-所有 Object Reference query 统一要求：
+`ValidateCrmObjectReference` 是 `INTERNAL / HUMAN_OBO`，要求：
 
-- `tenant_id`
-- internal service context
-- authenticated operator context
-- trace context
+- `aud=urn:oes:service:crm-service`
+- exact Code `crm.internal.object_reference.validate`
+- exact `collaboration-service` SYSTEM MACHINE actor/workload
+- preserved HUMAN subject、tenant、org、session 与 `session_terminal=WEB`
+- dedicated CRM mTLS client、leaf certificate-bound `cnf` 与 trusted correlation
 
-补充约束：
-
-- 本文件只冻结“必须要求这些上下文存在”，不展开完整内部字段结构。
-- 该能力是 query / validation，不修改 CRM 状态。
-- 该能力不要求 audit context；调用方自己的 command 仍必须写本服务 audit。
+Collaboration 必须使用本服务已验证的入站 HUMAN ET 作为 OBO subject credential，经 Auth STS 换取 CRM-audience ET。request body、普通 metadata 与本地 tenant/operator fallback 不建立 authority。该 query 不修改 CRM 状态；调用方自己的 command 仍由 Collaboration 写本地 audit。
 
 ## 3. 支持范围
 
@@ -48,9 +45,6 @@ P1 不支持：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `tenant_id` | 是 | 显式租户边界 |
-| `operator_context` | 是 | 操作人上下文 |
-| `trace_context` | 是 | 链路追踪上下文 |
 | `object_type` | 是 | P1 只允许 `CrmAccount` |
 | `object_id` | 是 | 目标 CRM 对象 ID |
 | `requested_capability` | 是 | `READ / CREATE_ANNOTATION / MUTATE_ANNOTATION` |
@@ -86,7 +80,7 @@ P1 不支持：
 主要错误语义：
 
 - `INVALID_ARGUMENT`：`object_type`、`object_id` 或 `requested_capability` 非法。
-- `UNAUTHENTICATED`：operator context 或 trace context 缺失。
+- `UNAUTHENTICATED`：ET、mTLS identity、`cnf`、HUMAN OBO subject 或 trusted correlation 缺失/无效。
 - `NOT_FOUND`：目标 `CrmAccount` 不存在或不属于当前 tenant。
 - `PERMISSION_DENIED`：operator 不能读取目标 `CrmAccount`。
 - `FAILED_PRECONDITION`：目标 `CrmAccount` 存在但生命周期状态不允许 requested capability。
@@ -97,6 +91,7 @@ P1 不支持：
 
 - 不得直接查询 CRM 数据库。
 - 不得缓存 CRM 对象权限作为长期授权真相。
+- 不得以 MACHINE root、body tenant/operator 或 generic CRM client 调用。
 - 可以保存 `display_snapshot` 作为 Annotation 展示快照，但不得把它当作 CRM 当前真相。
 - 必须把 annotation command/query 自己的 audit 留在 `collaboration-service`。
 

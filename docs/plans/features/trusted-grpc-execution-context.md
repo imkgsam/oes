@@ -98,7 +98,7 @@ The implementation inventory script at `scripts/architecture/trusted-grpc-signat
 
 ### 3.1 Current-main global cutover status
 
-Overall execution status is `CRM_REMAINING_AFTER_FOUNDATION_ATOMIC_GROUP_IMPLEMENTED_VERIFIED` at current-main `09dcb1279d22fa809023a69f2d8cfff090e3826d`. Twenty target services have complete `C/A/T/L` evidence; CRM is the sole remaining service. Generated explicit metadata signatures prove only the shared call-signature foundation and remain insufficient without each target service's classified contract, prepared callers, Token-only server enforcement and legacy-path removal evidence.
+Overall execution status is `CRM_FROZEN_PENDING_FINAL_IMPLEMENTATION` at design base `5930f94f0576b70fc128625e7b2132165e2335cd`. All 21 target services now have frozen contracts; twenty have complete `A/T/L` evidence and CRM is the sole remaining implementation. Generated explicit metadata signatures prove only the shared call-signature foundation and remain insufficient without each target service's classified contract, prepared callers, Token-only server enforcement and legacy-path removal evidence.
 
 The persistent execution owner is **OES Trusted gRPC Service Migration** (`019ff138-ed1c-7b82-8cd4-865bdb6529bd`). The prior delivery-mode owner `019ff07e-d441-7731-acdb-1a9d262661a9` and approval-stalled predecessor `019fe9f8-5a44-76e1-b5a4-110db9da6d59` are archived with their WIP histories preserved. The former A/C/GRPC lane is historical, migration-frozen evidence and is not the active controller for the remaining cutover.
 
@@ -116,7 +116,7 @@ The persistent execution owner is **OES Trusted gRPC Service Migration** (`019ff
 | Sales | 27 / 4 | Y | Y | Y | Y | Gateway; implemented and verified in current main at `584be36794435f8c4688a09197e2f49ee9cf336a` |
 | MES | 32 / 4 | Y | Y | Y | Y | Gateway; implemented and verified at `ec1ef2b19f66da2ef0287b887f7d2805534c6764` |
 | Collaboration | 16 / 4 | Y | Y | Y | Y | Gateway; implemented and verified at `c8c8a810108ec19f35a527e25ace6cdead433e93` |
-| CRM | 15 / 3 | N | N | N | N | Gateway, Collaboration; second batch |
+| CRM | 15 / 3 | Y | N | N | N | Gateway BUSINESS HUMAN; Collaboration INTERNAL HUMAN_OBO; final frozen slice in §9.16 |
 | Procurement | 21+1 / 2+1 planned | Y | Y | Y | Y | Gateway; server implemented and verified at `62b954ea53de051be640ab5506c73cfc33d23259`; WMS INTERNAL caller active through WMS integration `108ca92602b729a9dd1271c88ccdef3f58efe800` |
 | SRM | 13+2 / 2+1 planned | Y | Y | Y | Y | Gateway, Procurement; implemented and verified at `84402fc566fee82a5e73cf7a013e7b617e254578` |
 | Item Master | 50+3 / 2+1 planned | Y | Y | Y | Y | Gateway, MES, WMS, Procurement, SRM; server accepted at `764f28fba059965a4272752beb6ff0c7acf25d64`; MES/SRM/Procurement/WMS exact HUMAN_OBO actor paths all active after `108ca92602b729a9dd1271c88ccdef3f58efe800` |
@@ -127,7 +127,7 @@ The persistent execution owner is **OES Trusted gRPC Service Migration** (`019ff
 | Identity | 41 / 3 | Y | Y | Y | Y | atomic foundation group implemented and verified at `09dcb1279d22fa809023a69f2d8cfff090e3826d`; integrated machine surfaces preserved |
 | Permission | 66 / 8 | Y | Y | Y | Y | atomic foundation group implemented and verified at `09dcb1279d22fa809023a69f2d8cfff090e3826d`; bootstrap surfaces preserved |
 | Auth | 70+5 / 1+1 planned | Y | Y | Y | Y | atomic foundation group implemented and verified at `09dcb1279d22fa809023a69f2d8cfff090e3826d`; MACHINE/OBO foundation preserved |
-| **Total / proven state** | **571 / 55 planned** | **20 Y / 1 N** | **20 Y / 1 N** | **20 Y / 1 N** | **20 Y / 1 N** | **20 services complete; CRM is the sole remaining service** |
+| **Total / proven state** | **571 / 55 planned** | **21 Y / 0 N** | **20 Y / 1 N** | **20 Y / 1 N** | **20 Y / 1 N** | **all contracts frozen; 20 services complete; CRM implementation remains** |
 
 The frozen order in §6 remains authoritative. Migration continues one target service at a time except for the sole proven Auth/Identity/Permission/HR/TenantOrg strongly connected group in §9.15: its code review and tests remain service-by-service under one writer, while all five Token-only boundaries activate in one candidate. No classified row advances A/T/L before accepted evidence.
 
@@ -3007,6 +3007,268 @@ git diff --check
 ```
 
 Acceptance proves: exact `70+5/41/66/15/20` membership and 217 declarations; exact five audiences, method Codes, terminals and workload/actor allowlists; all anonymous/public negatives and anti-enumeration/rate/audit invariants; all HUMAN/HUMAN_OBO/SYSTEM MACHINE success/negative cases; OBO subject/actor/tenant/session/trace/expiry/Permission/`cnf` continuity; exact 32 wire reservations and unchanged resource/response fields; Gateway/public/cross-foundation target clients; mandatory mTLS startup for all five servers with no optional/insecure production mode; exact `createGrpcClientCredentials()` use for every cross-foundation target and zero generic target registrations; executable Nest `TestingModule` closure for every Permission controller-owning module using `PermissionFoundationTrustedExecutionGuard`; aligned Permission/HR/TenantOrg suites assert ET declarations, trusted DI, dedicated clients and legacy resolver/registration absence rather than the removed local authority path; the Auth token module suite resolves the dedicated `AuthPermissionTrustedGrpcClient` rather than a generic Permission client token; aligned Identity suites assert `AuthorizeBusinessRpc`/`AuthorizeInternalCall` ET declarations and trusted guards rather than removed legacy authorization metadata; atomic activation with no intermediate mixed trust; zero legacy metadata/body/fallback references; all existing foundation/Party behavior unchanged; exact 201-path scope; UTF-8/link/YAML/fence/diff cleanliness.
+
+### 9.16 CRM 15-RPC final frozen cutover lease
+
+Status: `FROZEN_PENDING_IMPLEMENTATION` at design base `5930f94f0576b70fc128625e7b2132165e2335cd`. CRM is the final remaining target service. This packet classifies the existing 15 RPCs, prepares the only two production caller classes, freezes Token-only server admission and legacy removal, and adds no CRM capability, RPC, route, schema, event/outbox, business state, idempotency key or automatic retry.
+
+The declaration contract is simultaneously normalized repository-wide: method authorization metadata exposes only `sessionTerminals: readonly TrustedSessionTerminal[]`. The array must be non-empty, duplicate-free, normalized and immutable. The former declaration field `sessionTerminal` is removed in the same candidate from Common, all existing controller declarations and exact declaration assertions; there is no dual-field compatibility period or fallback. An ExecutionToken still carries exactly one Auth-signed `session_terminal` fact, and the target guard authorizes only when that single fact belongs to the declared array. Runtime execution-context properties that represent the current Token's single terminal remain singular and are not a second declaration API.
+
+All 15 RPCs require `aud=urn:oes:service:crm-service`, mTLS, leaf certificate-bound `cnf`, accurate Code, terminal and direct workload. Fourteen Gateway methods are BUSINESS/HUMAN; the existing Collaboration object-reference method is INTERNAL/HUMAN_OBO:
+
+| RPC | Mode / principal | Exact Code | `sessionTerminals` / caller |
+| --- | --- | --- | --- |
+| `ListCrmAccounts` | BUSINESS / HUMAN | `crm.account.read` | `['WEB']` / Gateway |
+| `GetCrmAccount` | BUSINESS / HUMAN | `crm.account.read` | `['WEB', 'BROWSER_EXTENSION']` / Gateway |
+| `ListSourceRecords` | BUSINESS / HUMAN | `crm.account.read` | `['WEB']` / Gateway |
+| `CheckLeadDuplicate` | BUSINESS / HUMAN | `crm.account.read` | `['WEB', 'BROWSER_EXTENSION']` / Gateway |
+| `CreateDraftLead` | BUSINESS / HUMAN | `crm.account.create` | `['WEB', 'BROWSER_EXTENSION']` / Gateway |
+| `UpdateDraftLead` | BUSINESS / HUMAN | `crm.account.update` | `['WEB']` / Gateway |
+| `SubmitDraftLead` | BUSINESS / HUMAN | `crm.account.update` | `['WEB']` / Gateway |
+| `DeleteDraftLead` | BUSINESS / HUMAN | `crm.account.update` | `['WEB']` / Gateway |
+| `CreateLead` | BUSINESS / HUMAN | `crm.account.create` | `['WEB', 'BROWSER_EXTENSION']` / Gateway |
+| `ClaimCrmAccount` | BUSINESS / HUMAN | `crm.account.claim` | `['WEB', 'BROWSER_EXTENSION']` / Gateway |
+| `ReleaseCrmAccount` | BUSINESS / HUMAN | `crm.account.release` | `['WEB']` / Gateway |
+| `ArchiveCrmAccount` | BUSINESS / HUMAN | `crm.account.manage` | `['WEB']` / Gateway |
+| `UpdateCrmAccountIdentifiers` | BUSINESS / HUMAN | `crm.account.update` | `['WEB']` / Gateway |
+| `ConvertLeadToProspectCustomer` | BUSINESS / HUMAN | `crm.account.convert`; ownerless override also requires `crm.account.manage` | `['WEB']` / Gateway |
+| `ValidateCrmObjectReference` | INTERNAL / HUMAN_OBO | `crm.internal.object_reference.validate` | preserved `['WEB']` subject / Collaboration actor only |
+
+The 12 existing CRM Codes remain unchanged; this packet adds exactly one INTERNAL transport Code, `crm.internal.object_reference.validate`, so the canonical CRM catalog contains 13 Codes. It is issued only for the exact `collaboration-service` workload→CRM audience decision and never enters a HUMAN role.
+
+The five dual-terminal RPCs are one unchanged business capability used by both normal Web and Browser Extension sessions. They are not split by caller, do not accept PDA or future terminals, and remain independently Code/resource checked. The nine remaining Gateway RPCs are WEB-only. MACHINE root, TENANT MACHINE, DELEGATED, SELF_SERVICE, wrong workload, wrong terminal and direct external gRPC all fail closed.
+
+Gateway remains the only production caller of the 14 customer RPCs and preserves exactly 22 authenticated HTTP routes:
+
+| HTTP route | Downstream use |
+| --- | --- |
+| `GET /customer-management/tenants/:tenantId/crm-accounts` | `ListCrmAccounts` |
+| `GET /customer-management/tenants/:tenantId/crm-accounts/:crmAccountId` | `GetCrmAccount` |
+| `GET /customer-management/tenants/:tenantId/crm-accounts/:crmAccountId/source-records` | `ListSourceRecords` |
+| `POST /customer-management/tenants/:tenantId/leads` | `CreateLead` |
+| `POST /customer-management/tenants/:tenantId/draft-leads` | `CreateDraftLead` |
+| `PATCH /customer-management/tenants/:tenantId/draft-leads/:crmAccountId` | `UpdateDraftLead` |
+| `POST /customer-management/tenants/:tenantId/draft-leads/:crmAccountId/submit` | `SubmitDraftLead` |
+| `DELETE /customer-management/tenants/:tenantId/draft-leads/:crmAccountId` | `DeleteDraftLead` |
+| `POST /customer-management/tenants/:tenantId/crm-accounts/:crmAccountId/claim` | `ClaimCrmAccount` |
+| `POST /customer-management/tenants/:tenantId/crm-accounts/:crmAccountId/release` | `ReleaseCrmAccount` |
+| `POST /customer-management/tenants/:tenantId/crm-accounts/:crmAccountId/archive` | `ArchiveCrmAccount` |
+| `PATCH /customer-management/tenants/:tenantId/crm-accounts/:crmAccountId/identifiers` | `UpdateCrmAccountIdentifiers` |
+| `POST /customer-management/tenants/:tenantId/leads/check-duplicate` | `CheckLeadDuplicate` |
+| `POST /customer-management/tenants/:tenantId/leads/:crmAccountId/convert-to-prospect-customer` | `ConvertLeadToProspectCustomer` |
+| `GET /admin/crm/performance/overview` | existing CRM query composition only |
+| `POST /extension/crm/page-context/resolve` | `CheckLeadDuplicate` / `GetCrmAccount` composition |
+| `POST /extension/crm/search-results/resolve` | `CheckLeadDuplicate` / `GetCrmAccount` composition |
+| `POST /extension/crm/leads/check-duplicate` | `CheckLeadDuplicate` |
+| `POST /extension/crm/draft-leads` | `CreateDraftLead` |
+| `POST /extension/crm/leads` | `CreateLead` |
+| `POST /extension/crm/accounts/:crmAccountId/claim` | `ClaimCrmAccount` |
+| `GET /extension/crm/accounts/:crmAccountId` | `GetCrmAccount` |
+
+The `:tenantId` HTTP selector is checked against the authenticated session at Gateway and is not forwarded as gRPC authority. Gateway derives tenant/org/subject/session/trace/audit from the verified source credential and Permission decision, exchanges for a CRM-audience ET, and uses one dedicated CRM mTLS client. Root/feature generic CRM registrations, `InjectGrpcClient(SERVICE_NAMES.CRM)`, `GrpcMetadataPropagationFactory`, `crm-grpc-context.ts`, legacy body contexts and requestId/traceId authority fallback are migration targets and are absent after cutover.
+
+Collaboration is the only production caller of `ValidateCrmObjectReference`. Its existing trusted inbound guard retains the request-private HUMAN proof; its package-owned CRM target profile exchanges that proof through Auth STS, preserves HUMAN subject/tenant/org/session/WEB terminal, records exact `collaboration-service` SYSTEM MACHINE actor in `act`, and calls the dedicated CRM client with `crm.internal.object_reference.validate`. The former generic CRM registration is removed without changing Collaboration's Identity/Permission clients, Annotation author/visibility rules or audit. CRM owns object existence/readability/lifecycle/requested-capability facts; Collaboration owns Annotation behavior.
+
+CRM→Party remains the already integrated pure MACHINE_ROOT path. The inbound CRM trusted module must compose with, not replace or impersonate, the package-owned Party source credential/STS/producer/dedicated client. No HUMAN OBO subject is reused as Party MACHINE authority, and no Party RPC or Code changes.
+
+Wire migration reserves 67 fields. The 15 requests reserve `tenant_id=1`, `operator_context=2`, `trace_context=3`; the ten management requests also reserve `audit_context=4`, yielding 55 standard request fields. Legacy `OperatorContext` fields 1..3, `TraceContext` fields 1..2 and `AuditContext` fields 1..3 yield eight nested reservations. Four additional authority/decision inputs are reserved: `CreateLead.owner_account_id=15`, `CreateLead.claim_for_current_user=26`, `SubmitDraftLead.claim_for_current_user=7` and `ConvertLeadToProspectCustomer.allow_ownerless_conversion=6`. `assignment_intent`, duplicate acknowledgment, archive reason, source evidence including `source_captured_by_account_id`, query filters and all other business fields keep their numbers. Response tenant/owner/created-by projections remain CRM-owned facts.
+
+`OWNED_BY_OPERATOR` derives owner from the verified HUMAN subject and `POOL` keeps owner empty. Ownerless conversion derives its extra override only from verified ET Code `crm.account.manage`. Body/local metadata cannot establish either decision. Existing mutation/audit/transaction/rollback, duplicate, claim/release, conversion, Party resolution, Prisma/schema, repository, event/outbox and response semantics remain unchanged.
+
+The raw `crm-smoke.mjs` direct insecure gRPC authority and package `smoke` command are retired rather than reclassified as MACHINE. `crm-smoke-lib.mjs` and `crm-smoke.spec.mjs` may remain isolated business evidence only after authority payload removal. Future live coverage enters an authenticated Gateway HTTP route. No fixture can restore request/body authority.
+
+| Verification slice | Required proof |
+| --- | --- |
+| Common declaration API | only `sessionTerminals` exists; arrays are non-empty, unique, immutable; all existing declarations/tests migrated; old declaration field absent |
+| 15 CRM RPCs | exact 14 BUSINESS plus one INTERNAL declaration, Codes, CRM audience, terminal sets, direct workloads and no dual-mode method |
+| wire/context | 59 request plus eight nested reservations, unchanged business numbers/projections, claims-derived tenant/org/operator/trace/audit/owner/override and injection rejection |
+| Gateway | exact 22 routes, dedicated CRM client and ET producer; generic CRM registration and legacy context/metadata absent |
+| Collaboration→CRM | real HUMAN_OBO subject/actor/audience/Permission/expiry/trace/`cnf` success and missing/wrong proof negatives |
+| CRM→Party | existing MACHINE_ROOT client/composition regression remains green and authority classes do not mix |
+| persistence/business | existing mutation/audit/transaction/rollback and CRM business suites remain green; no schema/event/business expansion |
+| legacy/closure | raw smoke authority removed, lease exact, proto/generation/inventory/build/link/YAML/UTF-8/diff gates pass |
+
+The closed implementation writer lease is `114 = 105 EXISTING + 9 NEW_TARGET`:
+
+```yaml
+crmTrustedGrpcImplementationLease:
+  totalTrackedWriterPaths: 114
+  stateCounts: { EXISTING: 105, NEW_TARGET: 9 }
+  trackedWriterPaths:
+    commonSessionTerminalDeclarationMigration:
+      - { state: EXISTING, path: src/common/src/authorization/trusted-execution/declarations/index.ts }
+      - { state: EXISTING, path: src/common/src/authorization/trusted-execution/declarations.spec.ts }
+      - { state: EXISTING, path: src/common/src/authorization/guards/trusted-execution.guard.ts }
+      - { state: EXISTING, path: src/common/src/authorization/guards/trusted-execution.guard.spec.ts }
+      - { state: EXISTING, path: src/services/system/public-entry-service/src/interfaces/grpc/public-entry-business-card.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/system/public-entry-service/src/interfaces/grpc/public-entry-short-link.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/system/terminal-device-service/src/interfaces/grpc/terminal-device.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/system/auth-service/src/interfaces/grpc/auth.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/system/identity-service/src/interfaces/grpc/identity-management.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/system/collaboration-service/src/interfaces/grpc/task-query.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/system/collaboration-service/src/interfaces/grpc/task-command.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/system/collaboration-service/src/interfaces/grpc/annotation-query.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/system/collaboration-service/src/interfaces/grpc/annotation-command.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/system/item-master-service/src/interfaces/grpc/item-master-management.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/system/item-master-service/src/interfaces/grpc/item-master-query.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/system/browser-activity-service/src/interfaces/grpc/browser-activity.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/business/wms-service/src/interfaces/grpc/wms-management.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/business/wms-service/src/interfaces/grpc/wms-query.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/business/procurement-service/src/interfaces/grpc/procurement-query.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/business/procurement-service/src/interfaces/grpc/procurement-management.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/business/mes-service/src/interfaces/grpc/mes-management.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/business/mes-service/src/interfaces/grpc/mes-query.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/business/mes-service/src/interfaces/grpc/production-spec-management.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/business/mes-service/src/interfaces/grpc/production-spec-query.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/business/finance-service/src/interfaces/grpc/finance-query.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/business/finance-service/src/interfaces/grpc/finance-management.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/business/sales-service/src/interfaces/grpc/pricing-management.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/business/sales-service/src/interfaces/grpc/pricing-query.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/business/sales-service/src/interfaces/grpc/sales-management.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/business/sales-service/src/interfaces/grpc/sales-query.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/business/srm-service/src/interfaces/grpc/supplier-query.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/business/srm-service/src/interfaces/grpc/supplier-management.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/system/public-entry-service/test/l3/public-entry-trusted-grpc-security.spec.ts }
+      - { state: EXISTING, path: src/services/system/collaboration-service/test/l3/collaboration-trusted-grpc-security.spec.ts }
+      - { state: EXISTING, path: src/services/system/item-master-service/test/l3/item-master-trusted-grpc-security.spec.ts }
+      - { state: EXISTING, path: src/services/system/browser-activity-service/test/l3/browser-activity.trusted-grpc.spec.ts }
+      - { state: EXISTING, path: src/services/business/wms-service/test/l3/wms-trusted-grpc-security.spec.ts }
+      - { state: EXISTING, path: src/services/business/procurement-service/test/l3/procurement-trusted-grpc-security.spec.ts }
+      - { state: EXISTING, path: src/services/business/finance-service/test/l3/finance-trusted-grpc-security.spec.ts }
+      - { state: EXISTING, path: src/services/business/srm-service/test/l3/srm-trusted-grpc-security.spec.ts }
+
+    crmProtoAndPermissionContract:
+      - { state: EXISTING, path: src/common/src/contracts/crm_service/crm.proto }
+      - { state: NEW_TARGET, path: src/common/src/contracts/crm_service/crm.contract.spec.ts }
+      - { state: EXISTING, path: src/services/system/permission-service/src/scripts/permission-catalog.ts }
+      - { state: EXISTING, path: src/services/system/permission-service/src/scripts/sync-permission-codes.ts }
+      - { state: EXISTING, path: src/services/system/permission-service/src/scripts/generate-common-permission-codes.ts }
+      - { state: EXISTING, path: src/services/system/permission-service/test/l1/permission-foundation.seed.spec.ts }
+      - { state: EXISTING, path: src/common/src/authorization/permission-codes/crm/index.ts }
+      - { state: EXISTING, path: src/common/src/authorization/permission-codes/crm/management.permission-codes.ts }
+      - { state: NEW_TARGET, path: src/common/src/authorization/permission-codes/crm/internal.permission-codes.ts }
+
+    gatewayCrmHumanProducerAndRoutes:
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution-producer.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution-producer.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution.module.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/gateway-trusted-grpc-execution.module.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/common/grpc/index.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-crm-grpc.client.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/common/grpc/gateway-crm-grpc.client.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/app.module.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/app.module.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/crm-service/crm-service.module.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/crm-service/adapters/crm-grpc-context.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/crm-service/adapters/customer-management-grpc.adapter.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/crm-service/adapters/customer-query-grpc.adapter.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/crm-service/customer-management.service.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/crm-service/customer-management.service.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/crm-service/extension-crm-workspace.service.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/crm-service/extension-crm-workspace.service.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/crm-service/admin-crm-performance.service.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/crm-service/admin-crm-performance.service.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/crm-service/interface/http/controllers/customer-management.controller.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/crm-service/interface/http/controllers/customer-management.controller.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/crm-service/interface/http/controllers/extension-crm-workspace.controller.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/crm-service/interface/http/controllers/extension-crm-workspace.controller.spec.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/crm-service/interface/http/controllers/admin-crm-performance.controller.ts }
+      - { state: EXISTING, path: src/services/api-gateway/src/modules/crm-service/interface/http/controllers/admin-crm-performance.controller.spec.ts }
+      - { state: NEW_TARGET, path: src/services/api-gateway/src/modules/crm-service/adapters/crm-dedicated-client.spec.ts }
+
+    crmTrustedInboundAndPartyPreservation:
+      - { state: EXISTING, path: src/services/business/crm-service/src/main.ts }
+      - { state: EXISTING, path: src/services/business/crm-service/src/app.module.ts }
+      - { state: EXISTING, path: src/services/business/crm-service/src/modules/crm-infrastructure.module.ts }
+      - { state: EXISTING, path: src/services/business/crm-service/src/modules/crm-management.module.ts }
+      - { state: EXISTING, path: src/services/business/crm-service/src/modules/crm-query.module.ts }
+      - { state: EXISTING, path: src/services/business/crm-service/src/modules/crm-trusted-execution.module.ts }
+      - { state: EXISTING, path: src/services/business/crm-service/src/interfaces/grpc/customer-management.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/business/crm-service/src/interfaces/grpc/customer-query.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/business/crm-service/src/interfaces/grpc/crm-object-reference.grpc.controller.ts }
+      - { state: EXISTING, path: src/services/business/crm-service/src/interfaces/grpc/customer-rpc-context.validator.ts }
+      - { state: EXISTING, path: src/services/business/crm-service/src/application/services/crm-audit.service.ts }
+      - { state: EXISTING, path: src/services/business/crm-service/src/common/errors/crm.errors.ts }
+      - { state: EXISTING, path: src/services/business/crm-service/test/l1/crm-p1-contract-cleanup.spec.ts }
+      - { state: EXISTING, path: src/services/business/crm-service/test/l3/crm-app-module.spec.ts }
+      - { state: EXISTING, path: src/services/business/crm-service/test/l3/crm-grpc-context.spec.ts }
+      - { state: EXISTING, path: src/services/business/crm-service/test/l3/crm-object-reference.grpc.controller.spec.ts }
+      - { state: EXISTING, path: src/services/business/crm-service/test/l3/crm-p1-management.grpc.controller.spec.ts }
+      - { state: EXISTING, path: src/services/business/crm-service/test/l3/crm-p1-query.grpc.controller.spec.ts }
+      - { state: NEW_TARGET, path: src/services/business/crm-service/test/l3/crm-trusted-grpc-security.spec.ts }
+      - { state: EXISTING, path: src/services/business/crm-service/jest.config.js }
+      - { state: EXISTING, path: src/services/business/crm-service/package.json }
+      - { state: EXISTING, path: src/services/business/crm-service/scripts/crm-smoke.mjs }
+      - { state: EXISTING, path: src/services/business/crm-service/scripts/crm-smoke-lib.mjs }
+      - { state: EXISTING, path: src/services/business/crm-service/scripts/crm-smoke.spec.mjs }
+
+    collaborationCrmHumanOboActivation:
+      - { state: EXISTING, path: src/services/system/collaboration-service/src/infrastructure/adapters/foundation-trusted-grpc.clients.ts }
+      - { state: EXISTING, path: src/services/system/collaboration-service/src/infrastructure/adapters/foundation-trusted-grpc.clients.spec.ts }
+      - { state: EXISTING, path: src/services/system/collaboration-service/src/infrastructure/adapters/crm-object-reference.grpc.adapter.ts }
+      - { state: NEW_TARGET, path: src/services/system/collaboration-service/src/infrastructure/adapters/crm-object-reference.grpc.adapter.spec.ts }
+      - { state: NEW_TARGET, path: src/services/system/collaboration-service/src/infrastructure/adapters/collaboration-crm-trusted-grpc.client.ts }
+      - { state: NEW_TARGET, path: src/services/system/collaboration-service/src/infrastructure/adapters/collaboration-crm-trusted-grpc.client.spec.ts }
+      - { state: EXISTING, path: src/services/system/collaboration-service/src/modules/collaboration-annotation.module.ts }
+
+    stableTruthAndContractConsistency:
+      - { state: EXISTING, path: docs/adr/0015-workload-identity-and-execution-token.md }
+      - { state: EXISTING, path: docs/architecture/services/crm-service.md }
+      - { state: EXISTING, path: docs/architecture/services/collaboration-service.md }
+      - { state: EXISTING, path: docs/contracts/crm-service/README.md }
+      - { state: EXISTING, path: docs/contracts/crm-service/customer-query.md }
+      - { state: EXISTING, path: docs/contracts/crm-service/customer-management.md }
+      - { state: EXISTING, path: docs/contracts/crm-service/object-reference.md }
+      - { state: EXISTING, path: docs/plans/features/trusted-grpc-execution-context.md }
+
+  ignoredGeneratedOutputs:
+    - path: src/common/src/generated/crm_service/crm.ts
+      input: src/common/src/contracts/crm_service/crm.proto
+      command: pnpm proto:regen
+
+  protectedByDefault:
+    - CRM domain/repository/Prisma/schema/business rules not listed above
+    - Party contracts/runtime and CRM→Party MACHINE_ROOT semantics
+    - Collaboration Task/Annotation business rules, Identity/Permission callers, schema/events/outbox
+    - every other service RPC/business capability and deployment/package lock
+    - AI, ActionGrant, DELEGATED, background-without-user and external direct gRPC
+
+  focusedAcceptanceCommands:
+    - pnpm proto:lint
+    - pnpm proto:regen
+    - node scripts/architecture/trusted-grpc-signature-inventory.mjs
+    - pnpm --filter @oes/common build
+    - pnpm --filter api-gateway build
+    - pnpm --filter crm-service build
+    - pnpm --filter collaboration-service build
+    - pnpm --filter public-entry-service build
+    - pnpm --filter terminal-device-service build
+    - pnpm --filter auth-service build
+    - pnpm --filter identity-service build
+    - pnpm --filter browser-activity-service build
+    - pnpm --filter item-master-service build
+    - pnpm --filter wms-service build
+    - pnpm --filter procurement-service build
+    - pnpm --filter mes-service build
+    - pnpm --filter finance-service build
+    - pnpm --filter sales-service build
+    - pnpm --filter srm-service build
+    - pnpm exec jest --config package.json --runInBand --runTestsByPath src/common/src/authorization/trusted-execution/declarations.spec.ts src/common/src/authorization/guards/trusted-execution.guard.spec.ts src/common/src/contracts/crm_service/crm.contract.spec.ts
+    - pnpm --filter permission-service exec jest --config jest.config.js --runInBand --runTestsByPath test/l1/permission-foundation.seed.spec.ts test/l1/common-permission-code-generator.spec.ts
+    - pnpm --filter api-gateway exec jest --config jest.config.js --runInBand --runTestsByPath src/common/grpc/gateway-trusted-grpc-execution-producer.spec.ts src/common/grpc/gateway-trusted-grpc-execution.module.spec.ts src/common/grpc/gateway-crm-grpc.client.spec.ts src/modules/crm-service/adapters/crm-dedicated-client.spec.ts src/modules/crm-service/customer-management.service.spec.ts src/modules/crm-service/extension-crm-workspace.service.spec.ts src/modules/crm-service/admin-crm-performance.service.spec.ts src/modules/crm-service/interface/http/controllers/customer-management.controller.spec.ts src/modules/crm-service/interface/http/controllers/extension-crm-workspace.controller.spec.ts src/modules/crm-service/interface/http/controllers/admin-crm-performance.controller.spec.ts
+    - pnpm --filter crm-service exec jest --config jest.config.js --runInBand --runTestsByPath src/infrastructure/adapters/crm-party-trusted-grpc-execution.producer.spec.ts test/l1/party-query-grpc.adapter.spec.ts test/l1/party-trusted-grpc.client.spec.ts test/l1/crm-p1-contract-cleanup.spec.ts test/l3/crm-app-module.spec.ts test/l3/crm-grpc-context.spec.ts test/l3/crm-object-reference.grpc.controller.spec.ts test/l3/crm-p1-management.grpc.controller.spec.ts test/l3/crm-p1-query.grpc.controller.spec.ts test/l3/crm-trusted-grpc-security.spec.ts
+    - pnpm --filter collaboration-service exec jest --config jest.config.js --runInBand --runTestsByPath src/infrastructure/adapters/foundation-trusted-grpc.clients.spec.ts src/infrastructure/adapters/crm-object-reference.grpc.adapter.spec.ts src/infrastructure/adapters/collaboration-crm-trusted-grpc.client.spec.ts test/l3/collaboration-trusted-grpc-security.spec.ts
+    - pnpm --filter public-entry-service exec jest --config jest.config.js --runInBand --runTestsByPath test/l3/public-entry-trusted-grpc-security.spec.ts
+    - pnpm --filter browser-activity-service exec jest --config jest.config.js --runInBand --runTestsByPath test/l3/browser-activity.trusted-grpc.spec.ts
+    - pnpm --filter item-master-service exec jest --config jest.config.js --runInBand --runTestsByPath test/l3/item-master-trusted-grpc-security.spec.ts
+    - pnpm --filter finance-service exec jest --config jest.config.js --runInBand --runTestsByPath test/l3/finance-trusted-grpc-security.spec.ts
+    - pnpm --filter procurement-service exec jest --config jest.config.js --runInBand --runTestsByPath test/l3/procurement-trusted-grpc-security.spec.ts
+    - pnpm --filter srm-service exec jest --config jest.config.js --runInBand --runTestsByPath test/l3/srm-trusted-grpc-security.spec.ts
+    - pnpm --filter wms-service exec jest --config jest.config.js --runInBand --runTestsByPath test/l3/wms-trusted-grpc-security.spec.ts
+    - node --test src/services/business/crm-service/scripts/crm-smoke.spec.mjs
+```
+
+Acceptance proves the repository has one declaration field (`sessionTerminals`) and no compatibility alias; the Token retains one signed `session_terminal`; all 15 CRM methods and 22 Gateway routes have the exact matrix above; five methods accept exactly WEB plus BROWSER_EXTENSION while nine Gateway methods and the Collaboration subject accept WEB only; exact CRM audience, Codes, workload/actor and `cnf`; 59 request plus eight nested reservations; claims-derived authority and owner/override decisions; dedicated Gateway and Collaboration clients; Collaboration HUMAN_OBO activation; preserved CRM→Party MACHINE_ROOT; no raw smoke/generic CRM/legacy body or metadata authority; unchanged schema/events/business behavior; exact 114-path lease; and successful proto, generation, inventory, build, focused test, UTF-8, link, YAML and diff gates.
 
 ## 10. Repository-wide Security Acceptance
 

@@ -748,15 +748,7 @@ CRM 必须遵循全系统 audit architecture。owner change、生命周期变更
 - `activityType = OWNER_CHANGED`
 - `activityType = STATUS_CHANGED`
 
-所有 CRM query / command 必须显式携带：
-
-- `tenantId`
-- operator context
-- trace context
-
-所有 CRM command 还必须携带：
-
-- audit context
+所有 CRM query / command 的 tenant、operator、trace authority 必须来自本服务验证通过的 certificate-bound ExecutionToken 与 trusted transport context；所有 command 的 audit identity/source 同样由该上下文建立。request body 不再携带或补充这些 authority。
 
 CRM 不拥有授权判定真相，但必须提供 permission-service 做资源级授权所需的业务事实，例如：
 
@@ -865,3 +857,43 @@ Phase 1 不做一级入口：
 - [sales-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/sales-service.md)
 - [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
 - [crm-v2-core-object-model.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/crm-v2-core-object-model.md)
+
+## 18. Trusted gRPC Inbound Boundary
+
+CRM 当前 proto surface 恰好是 15 个 RPC / 3 个 controller。`CustomerQueryService` 的 4 个 RPC 与 `CustomerManagementService` 的 10 个 RPC 保持现有业务能力，统一归类为 `BUSINESS / HUMAN`；`CrmObjectReferenceService.ValidateCrmObjectReference` 保持既有对象引用校验能力，归类为 `INTERNAL / HUMAN_OBO`。本次迁移不增加 CRM RPC、业务状态、schema、event/outbox、幂等键或重试语义。
+
+所有 15 个 RPC 的 audience 固定为 `urn:oes:service:crm-service`，并要求 mTLS、leaf certificate-bound `cnf`、准确 Permission Code、准确 direct workload 与 fail-closed admission。14 个 BUSINESS RPC 只接受 Gateway；对象引用 RPC 只接受 `collaboration-service` SYSTEM MACHINE actor 携带的已验证 HUMAN OBO subject。MACHINE root、TENANT MACHINE、DELEGATED、其他 workload、body/local metadata authority 与普通 gRPC metadata fallback 均被拒绝。CRM→Party 已集成的 MACHINE_ROOT 调用保持独立，不得与 CRM inbound HUMAN/HUMAN_OBO authority 混用。
+
+RPC 声明层统一使用 `sessionTerminals` 数组，不存在单值 `sessionTerminal` 声明字段。以下 5 个现有 RPC 同时服务普通 Web 与 Browser Extension 的同一业务能力，因此精确允许 `['WEB', 'BROWSER_EXTENSION']`：
+
+- `GetCrmAccount`
+- `CheckLeadDuplicate`
+- `CreateDraftLead`
+- `CreateLead`
+- `ClaimCrmAccount`
+
+其余 9 个 Gateway BUSINESS RPC 精确允许 `['WEB']`。`ValidateCrmObjectReference` 的 HUMAN_OBO subject 必须保留当前 Collaboration 入站 `WEB` terminal，并同时校验 exact `collaboration-service` actor/workload。数组必须非空、去重、不可变；目标 Guard 对当前 Token 的单值 `session_terminal` 做 membership 检查。所有已迁移服务的既有声明在同一实现 candidate 中改为数组，禁止保留双字段或兼容 fallback。
+
+Gateway 保留现有 22 个 HTTP 路由与边缘 `RequirePermissions`，再为 CRM audience 换取 ET 并通过 dedicated CRM mTLS client 调用。CRM 服务端仍独立执行下表声明和资源事实规则：
+
+| RPC                             | Mode / principal     | Exact Code                                                                                          | Terminals / direct caller                          |
+| ------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| `ListCrmAccounts`               | BUSINESS / HUMAN     | `crm.account.read`                                                                                  | `WEB` / Gateway                                    |
+| `GetCrmAccount`                 | BUSINESS / HUMAN     | `crm.account.read`                                                                                  | `WEB`, `BROWSER_EXTENSION` / Gateway               |
+| `ListSourceRecords`             | BUSINESS / HUMAN     | `crm.account.read`                                                                                  | `WEB` / Gateway                                    |
+| `CheckLeadDuplicate`            | BUSINESS / HUMAN     | `crm.account.read`                                                                                  | `WEB`, `BROWSER_EXTENSION` / Gateway               |
+| `CreateDraftLead`               | BUSINESS / HUMAN     | `crm.account.create`                                                                                | `WEB`, `BROWSER_EXTENSION` / Gateway               |
+| `UpdateDraftLead`               | BUSINESS / HUMAN     | `crm.account.update`                                                                                | `WEB` / Gateway                                    |
+| `SubmitDraftLead`               | BUSINESS / HUMAN     | `crm.account.update`                                                                                | `WEB` / Gateway                                    |
+| `DeleteDraftLead`               | BUSINESS / HUMAN     | `crm.account.update`                                                                                | `WEB` / Gateway                                    |
+| `CreateLead`                    | BUSINESS / HUMAN     | `crm.account.create`                                                                                | `WEB`, `BROWSER_EXTENSION` / Gateway               |
+| `ClaimCrmAccount`               | BUSINESS / HUMAN     | `crm.account.claim`                                                                                 | `WEB`, `BROWSER_EXTENSION` / Gateway               |
+| `ReleaseCrmAccount`             | BUSINESS / HUMAN     | `crm.account.release`                                                                               | `WEB` / Gateway                                    |
+| `ArchiveCrmAccount`             | BUSINESS / HUMAN     | `crm.account.manage`                                                                                | `WEB` / Gateway                                    |
+| `UpdateCrmAccountIdentifiers`   | BUSINESS / HUMAN     | `crm.account.update`                                                                                | `WEB` / Gateway                                    |
+| `ConvertLeadToProspectCustomer` | BUSINESS / HUMAN     | `crm.account.convert`; ownerless override additionally requires `crm.account.manage` in verified ET | `WEB` / Gateway                                    |
+| `ValidateCrmObjectReference`    | INTERNAL / HUMAN_OBO | `crm.internal.object_reference.validate`                                                            | preserved `WEB` subject / Collaboration actor only |
+
+Tenant、适用 org、subject/operator、session、trace 与 audit 仅从 verified ET/transport context 派生。`CreateLead.owner_account_id=15` 不再允许 caller 选择 owner；`assignment_intent` 保持业务输入，`OWNED_BY_OPERATOR` 从 verified HUMAN subject 派生 owner，`POOL` 保持 owner 为空。`CreateLead.claim_for_current_user=26`、`SubmitDraftLead.claim_for_current_user=7` 被既有 `assignment_intent` 取代。`ConvertLeadToProspectCustomer.allow_ownerless_conversion=6` 不再由 body 决定，而由 verified ET 是否同时含 `crm.account.manage` 决定。上述四个字段与 55 个标准 request authority 字段、8 个 nested legacy-context 字段共同形成 67 个 reservation；所有业务字段编号、response tenant/owner/created-by 投影和 `source_captured_by_account_id` 业务来源证据保持不变。
+
+Collaboration 调用对象引用前，必须使用本服务已验证的入站 HUMAN ET 作为 OBO subject credential，经 Auth STS 换取 CRM-audience ET，并以 `act` 记录 `collaboration-service` actor。缺失入站 proof、wrong subject/tenant/audience/terminal/workload/Code/certificate、过期 Token、Permission denial 或 body 注入全部 fail closed。CRM 对象存在性、可读性、生命周期与 requested capability 仍由 CRM 判断；Annotation author/visibility/audit 仍由 Collaboration 判断。
