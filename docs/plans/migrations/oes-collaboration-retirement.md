@@ -39,16 +39,16 @@ trustedGrpcServiceProgress: 21/21
 
 ## 2. 全局快照
 
-| 项目                       | Handoff 状态                          | 2026-08-16 最终清理前核验                                                                                                                                         |
-| -------------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Repository root            | `/Users/acehood/Documents/GitHub/oes` | 路径存在；`main` 工作树 clean                                                                                                                                     |
-| `main`                     | current-document-commit               | 21/21 trusted-gRPC service migration、CRM final slice、status synchronization 与 scoped cleanup record 已进入主线；root clean                                     |
-| `origin/main`              | current-document-commit               | 本地 remote-tracking ref 与远端 `refs/heads/main` 在 scoped cleanup 记录集成后复核一致                                                                            |
-| Legacy formal A/* threads | 101                                   | handoff 历史聚合计数；迁移范围内全部 legacy CC tasks 已消费/归档，未来 runtime 工作不复用旧 capability threads                                                                   |
-| Worktrees                  | 1                                     | 最终只保留 root main；Trusted gRPC、Program Control 与 Unified Design 非 root worktrees 均在证据/台账集成后正常移除                                                        |
-| `codex/*` branches         | 0                                     | 所有 migration/CC/control refs 均已进入 main、由 evidence tag 保全或按普通 merged cleanup 删除                                                                             |
-| Checker                    | disabled                              | handoff evidence；未唤醒旧 checker                                                                                                                                |
-| Root dirty state           | clean                                 | clean，暂存区与工作区均无变更                                                                                                                                     |
+| 项目                       | Handoff 状态                          | 2026-08-16 最终清理前核验                                                                                                     |
+| -------------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Repository root            | `/Users/acehood/Documents/GitHub/oes` | 路径存在；`main` 工作树 clean                                                                                                 |
+| `main`                     | current-document-commit               | 21/21 trusted-gRPC service migration、CRM final slice、status synchronization 与 scoped cleanup record 已进入主线；root clean |
+| `origin/main`              | current-document-commit               | 本地 remote-tracking ref 与远端 `refs/heads/main` 在 scoped cleanup 记录集成后复核一致                                        |
+| Legacy formal A/\* threads | 101                                   | handoff 历史聚合计数；迁移范围内全部 legacy CC tasks 已消费/归档，未来 runtime 工作不复用旧 capability threads                |
+| Worktrees                  | 1                                     | 最终只保留 root main；Trusted gRPC、Program Control 与 Unified Design 非 root worktrees 均在证据/台账集成后正常移除           |
+| `codex/*` branches         | 0                                     | 所有 migration/CC/control refs 均已进入 main、由 evidence tag 保全或按普通 merged cleanup 删除                                |
+| Checker                    | disabled                              | handoff evidence；未唤醒旧 checker                                                                                            |
+| Root dirty state           | clean                                 | clean，暂存区与工作区均无变更                                                                                                 |
 
 当前关闭证据：
 
@@ -932,7 +932,6 @@ WMS detached acceptance worktree 没有 tracked diff，但有且仅有四个 boo
 - Program Control、唯一 Unified Design 与 persistent I&V tasks 保留为未来控制入口，但其 migration Git worktrees/branches 已释放；全部 legacy CC tasks 已归档。
 
 本文件只承担迁移关闭证据与归档 manifest，不作为设计或实现真相源。Trusted gRPC、API-KEY、AI registration 与 ActionGrant legacy migration cycles 的设计/代码保全、main 集成、task 归档和 Git cleanup 均已完成；未来 AI/ActionGrant runtime 是新的后置工作。
-
 
 ### 11.6 全部 legacy CC 最终关闭
 
