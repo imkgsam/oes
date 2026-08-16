@@ -1,18 +1,19 @@
 # OES 协同框架退役迁移关闭记录
 
 ```yaml
-status: SERVICE_MIGRATION_IMPLEMENTED_VERIFIED_21_OF_21_CLEANUP_PENDING_USER_APPROVAL
+status: TRUSTED_GRPC_SERVICE_MIGRATION_CLOSED_OTHER_CC_RETAINED
 documentRole: historical-migration-closure-record
 governanceFramework: false
 frozenDecisionSource: false
 sourceThreadId: 019f7325-177e-77a1-9189-b36a10d94c3c
 inventoryDate: 2026-08-16
-closureDate: pending-user-approved-git-and-thread-cleanup
+closureDate: 2026-08-16
 programControlBase: ce0182e0ed6b356e231de641119476c20c1e7cfd
+cleanupExecutionBase: a05afb04e81e98dd0d9990ee9d5fed07d791b731
 closureRecord: current-document-commit
 retainedEvidenceBranches: 6
 unarchivedFormalTasks: 6
-migrationControlTasksRetained: 4
+migrationControlTasksRetained: 3
 trustedGrpcServiceProgress: 21/21
 ```
 
@@ -41,11 +42,11 @@ trustedGrpcServiceProgress: 21/21
 | 项目                       | Handoff 状态                               | 2026-08-16 最终清理前核验                                                                                                                                                    |
 | -------------------------- | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Repository root            | `/Users/acehood/Documents/GitHub/oes`      | 路径存在；`main` 工作树 clean                                                                                                                                                |
-| `main`                     | `ce0182e0ed6b356e231de641119476c20c1e7cfd` | 21/21 trusted-gRPC service migration、CRM final slice 与 status synchronization 已进入主线；root clean                                                                       |
-| `origin/main`              | `ce0182e0ed6b356e231de641119476c20c1e7cfd` | 本地 remote-tracking ref 与远端 `refs/heads/main` 已在最终清理审计前复核一致                                                                                                 |
+| `main`                     | current-document-commit                    | 21/21 trusted-gRPC service migration、CRM final slice、status synchronization 与 scoped cleanup record 已进入主线；root clean                                                |
+| `origin/main`              | current-document-commit                    | 本地 remote-tracking ref 与远端 `refs/heads/main` 在 scoped cleanup 记录集成后复核一致                                                                                       |
 | Legacy formal A/\* threads | 101                                        | handoff 历史聚合计数；迁移范围内已消费的 legacy/implementation tasks 已归档，余下 6 项属于 AI/ActionGrant/API-key deferred protected ownership，不作为 trusted-gRPC 未完成项 |
-| Worktrees                  | 22                                         | Trusted gRPC 专属待清理 19；root、Program Control 与唯一 Unified Design 共 3 个保留，其他 CC 不受影响                                                                        |
-| `codex/*` branches         | 27                                         | Trusted gRPC 专属候选清理 21；AI、API-key、ActionGrant、Program Control 与共享 UD 共 6 个 refs 保留，不纳入本轮删除                                                          |
+| Worktrees                  | 3                                          | Trusted gRPC 专属 19 个已正常移除；仅保留 root、Program Control 与唯一 Unified Design，其他 CC 不受影响                                                                      |
+| `codex/*` branches         | 6                                          | Trusted gRPC 专属 21 个已移除；仅保留 AI、API-key、ActionGrant、Program Control 与共享 UD refs                                                                               |
 | Checker                    | disabled                                   | handoff evidence；未唤醒旧 checker                                                                                                                                           |
 | Root dirty state           | clean                                      | clean，暂存区与工作区均无变更                                                                                                                                                |
 
@@ -929,4 +930,20 @@ WMS detached acceptance worktree 没有 tracked diff，但有且仅有四个 boo
 6. 归档 trusted-gRPC migration owner；Program Control、唯一 UD、persistent I&V 与其他 CC/deferred tasks 全部保留。
 7. 最终复核 root/main/local origin/remote 一致且 clean，Trusted gRPC 专属 worktrees/branches 已清零；共享控制与其他 CC 资源仍保持原状。
 
-本文件只承担迁移关闭证据与归档 manifest，不作为设计或实现真相源。Trusted gRPC 实现迁移已经完成；尚未完成的是必须由用户明确批准的 Trusted gRPC 专属 Git/thread 清理，其他 CC 不在本轮范围。
+### 11.5 Scoped cleanup 执行结果
+
+- 用户已明确批准只清理 Trusted gRPC service migration 专属资源；AI、API-key、ActionGrant 以及其他尚未审核 CC 全程未触碰。
+- WMS detached acceptance worktree 的四个精确 bootstrap 目录已按白名单移除；删除前后均确认没有 tracked diff，未使用 `git clean`。
+- 19 个 Trusted gRPC 专属 worktrees 已通过普通 `git worktree remove` 移除；当前只剩 root、Program Control 与唯一 Unified Design 三个 worktrees，三者均 clean。
+- 17 个 current-main ancestor implementation refs 已通过普通 `git branch -d` 删除。
+- 四个未合并历史 refs 在删除前已创建 annotated tags、验证 tag peeled SHA、推送到远端并再次复核：
+  - `migration-evidence/exec-crypto-retained-checkpoint-64ea8660` -> `64ea8660687bbeb24349d11bcaed6f63d2373c4b`
+  - `migration-evidence/grpc-gateway-producer-rejected-6973bcda` -> `6973bcda1484ac2fccc522f5d8ee70dc989c7541`
+  - `migration-evidence/grpc-source-carrier-retained-dced77ad` -> `dced77ad8cb877ea9aad10f1c6a310ad32a924df`
+  - `migration-evidence/party-ud-superseded-c8c8a810` -> `c8c8a810108ec19f35a527e25ace6cdead433e93`
+- 上述四个 branch refs 采用 exact old-SHA compare-and-delete；未使用 `git branch -D`、reset、rebase、force 或 bulk clean。
+- Trusted gRPC persistent migration owner `019ff138-ed1c-7b82-8cd4-865bdb6529bd` 已归档。
+- 当前仅保留六个 `codex/*` refs：ActionGrant、AI、API-key、旧/当前 Program Control 与唯一 Unified Design；这些均不属于本轮删除范围。
+- Program Control、唯一 Unified Design、persistent I&V 与 deferred CC tasks 保持可用，等待逐 CC 审核；本次结果只关闭 Trusted gRPC service migration cycle。
+
+本文件只承担迁移关闭证据与归档 manifest，不作为设计或实现真相源。Trusted gRPC service migration 的设计、实现、集成与 scoped cleanup 已完成；其他 CC 不在本轮范围并保持原状。
