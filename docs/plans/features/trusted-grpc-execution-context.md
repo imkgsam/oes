@@ -98,7 +98,7 @@ The implementation inventory script at `scripts/architecture/trusted-grpc-signat
 
 ### 3.1 Current-main global cutover status
 
-Overall execution status is `CRM_FROZEN_PENDING_FINAL_IMPLEMENTATION` at design base `5930f94f0576b70fc128625e7b2132165e2335cd`. All 21 target services now have frozen contracts; twenty have complete `A/T/L` evidence and CRM is the sole remaining implementation. Generated explicit metadata signatures prove only the shared call-signature foundation and remain insufficient without each target service's classified contract, prepared callers, Token-only server enforcement and legacy-path removal evidence.
+Overall execution status is `SERVICE_MIGRATION_IMPLEMENTED_VERIFIED_21_OF_21` at current-main `2726d8b1a70d3bbe1ebc07d3c057c6bd8a32d777`. All 21 target services now have complete `C/A/T/L` evidence. CRM was the final service cutover; its accepted implementation used 87 of the frozen 114 paths with zero paths outside the lease and preserved the exact frozen contract. This completes the service-by-service trusted-gRPC migration, but does not enable the separately deferred AI Platform, ActionGrant or DELEGATED runtime and does not mark retained merged branches/worktrees or archived task resources as user-approved Git/thread cleanup.
 
 The persistent execution owner is **OES Trusted gRPC Service Migration** (`019ff138-ed1c-7b82-8cd4-865bdb6529bd`). The prior delivery-mode owner `019ff07e-d441-7731-acdb-1a9d262661a9` and approval-stalled predecessor `019fe9f8-5a44-76e1-b5a4-110db9da6d59` are archived with their WIP histories preserved. The former A/C/GRPC lane is historical, migration-frozen evidence and is not the active controller for the remaining cutover.
 
@@ -116,7 +116,7 @@ The persistent execution owner is **OES Trusted gRPC Service Migration** (`019ff
 | Sales | 27 / 4 | Y | Y | Y | Y | Gateway; implemented and verified in current main at `584be36794435f8c4688a09197e2f49ee9cf336a` |
 | MES | 32 / 4 | Y | Y | Y | Y | Gateway; implemented and verified at `ec1ef2b19f66da2ef0287b887f7d2805534c6764` |
 | Collaboration | 16 / 4 | Y | Y | Y | Y | Gateway; implemented and verified at `c8c8a810108ec19f35a527e25ace6cdead433e93` |
-| CRM | 15 / 3 | Y | N | N | N | Gateway BUSINESS HUMAN; Collaboration INTERNAL HUMAN_OBO; final frozen slice in §9.16 |
+| CRM | 15 / 3 | Y | Y | Y | Y | Gateway BUSINESS HUMAN; Collaboration INTERNAL HUMAN_OBO; implemented and verified at `2726d8b1a70d3bbe1ebc07d3c057c6bd8a32d777` |
 | Procurement | 21+1 / 2+1 planned | Y | Y | Y | Y | Gateway; server implemented and verified at `62b954ea53de051be640ab5506c73cfc33d23259`; WMS INTERNAL caller active through WMS integration `108ca92602b729a9dd1271c88ccdef3f58efe800` |
 | SRM | 13+2 / 2+1 planned | Y | Y | Y | Y | Gateway, Procurement; implemented and verified at `84402fc566fee82a5e73cf7a013e7b617e254578` |
 | Item Master | 50+3 / 2+1 planned | Y | Y | Y | Y | Gateway, MES, WMS, Procurement, SRM; server accepted at `764f28fba059965a4272752beb6ff0c7acf25d64`; MES/SRM/Procurement/WMS exact HUMAN_OBO actor paths all active after `108ca92602b729a9dd1271c88ccdef3f58efe800` |
@@ -127,9 +127,9 @@ The persistent execution owner is **OES Trusted gRPC Service Migration** (`019ff
 | Identity | 41 / 3 | Y | Y | Y | Y | atomic foundation group implemented and verified at `09dcb1279d22fa809023a69f2d8cfff090e3826d`; integrated machine surfaces preserved |
 | Permission | 66 / 8 | Y | Y | Y | Y | atomic foundation group implemented and verified at `09dcb1279d22fa809023a69f2d8cfff090e3826d`; bootstrap surfaces preserved |
 | Auth | 70+5 / 1+1 planned | Y | Y | Y | Y | atomic foundation group implemented and verified at `09dcb1279d22fa809023a69f2d8cfff090e3826d`; MACHINE/OBO foundation preserved |
-| **Total / proven state** | **571 / 55 planned** | **21 Y / 0 N** | **20 Y / 1 N** | **20 Y / 1 N** | **20 Y / 1 N** | **all contracts frozen; 20 services complete; CRM implementation remains** |
+| **Total / proven state** | **571 / 55 planned** | **21 Y / 0 N** | **21 Y / 0 N** | **21 Y / 0 N** | **21 Y / 0 N** | **21 services implemented and verified; service migration complete** |
 
-The frozen order in §6 remains authoritative. Migration continues one target service at a time except for the sole proven Auth/Identity/Permission/HR/TenantOrg strongly connected group in §9.15: its code review and tests remain service-by-service under one writer, while all five Token-only boundaries activate in one candidate. No classified row advances A/T/L before accepted evidence.
+The frozen order in §6 remains the historical implementation order. All rows now have accepted `A/T/L` evidence; the Auth/Identity/Permission/HR/TenantOrg strongly connected group remains the sole atomic-cutover exception. Service migration completion does not widen any deferred execution class or authorize repository-resource cleanup.
 
 ## 4. Per-service Migration State Machine
 
@@ -3010,7 +3010,7 @@ Acceptance proves: exact `70+5/41/66/15/20` membership and 217 declarations; exa
 
 ### 9.16 CRM 15-RPC final frozen cutover lease
 
-Status: `FROZEN_PENDING_IMPLEMENTATION` at design base `5930f94f0576b70fc128625e7b2132165e2335cd`. CRM is the final remaining target service. This packet classifies the existing 15 RPCs, prepares the only two production caller classes, freezes Token-only server admission and legacy removal, and adds no CRM capability, RPC, route, schema, event/outbox, business state, idempotency key or automatic retry.
+Status: `IMPLEMENTED_VERIFIED` at `2726d8b1a70d3bbe1ebc07d3c057c6bd8a32d777`. The accepted implementation changed 87 of the frozen 114 paths with zero outside paths; passed 18 builds and 235 tests; completed proto/inventory at `54/596/0`; proved Permission catalog count 63 with drift 0; and preserved the exact `15 RPC / 14 BUSINESS / 1 INTERNAL / 5 dual-terminal / 22 routes / 13 Codes / 67 tombstones` matrix. Array-only declarations, Collaboration HUMAN_OBO, CRM→Party MACHINE_ROOT and legacy-reference zero all passed. This implementation evidence changes no frozen lease or semantics; AI Platform, ActionGrant and DELEGATED runtime remain deferred, while final merged worktree/branch/thread cleanup remains a separate user-controlled lifecycle action.
 
 The declaration contract is simultaneously normalized repository-wide: method authorization metadata exposes only `sessionTerminals: readonly TrustedSessionTerminal[]`. The array must be non-empty, duplicate-free, normalized and immutable. The former declaration field `sessionTerminal` is removed in the same candidate from Common, all existing controller declarations and exact declaration assertions; there is no dual-field compatibility period or fallback. An ExecutionToken still carries exactly one Auth-signed `session_terminal` fact, and the target guard authorizes only when that single fact belongs to the declared array. Runtime execution-context properties that represent the current Token's single terminal remain singular and are not a second declaration API.
 
