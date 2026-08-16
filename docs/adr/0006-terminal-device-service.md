@@ -179,9 +179,9 @@ Phase 2 明确不做：
 
 ## Related Documents
 
-- [terminal-device-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/terminal-device-service.md)
-- [pda.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/terminals/pda.md)
-- [terminal-access-policy.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/terminal-access-policy.md)
-- [0005-terminal-access-policy.md](/Users/acehood/Documents/GitHub/oes/docs/adr/0005-terminal-access-policy.md)
-- [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)
-- [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
+- [terminal-device-service.md](../architecture/services/terminal-device-service.md)
+- [pda.md](../architecture/terminals/pda.md)
+- [terminal-access-policy.md](../architecture/collaborations/terminal-access-policy.md)
+- [0005-terminal-access-policy.md](./0005-terminal-access-policy.md)
+- [auth-service.md](../architecture/services/auth-service.md)
+- [permission-service.md](../architecture/services/permission-service.md)

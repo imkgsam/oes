@@ -6,7 +6,7 @@ decisionAdr: docs/adr/0015-workload-identity-and-execution-token.md
 architectureTruthSource: docs/architecture/services/auth-service.md
 ```
 
-> 本文只冻结 Auth / STS 的黑盒凭据交换、Token、JWKS 与撤销语义。Auth 的长期 owner 边界以 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md) 为准；Permission grant 与 policy 以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。
+> 本文只冻结 Auth / STS 的黑盒凭据交换、Token、JWKS 与撤销语义。Auth 的长期 owner 边界以 [auth-service.md](../../architecture/services/auth-service.md) 为准；Permission grant 与 policy 以 [permission-service.md](../../architecture/services/permission-service.md) 为准。
 
 ## 1. Scope
 
@@ -18,7 +18,7 @@ architectureTruthSource: docs/architecture/services/auth-service.md
 - tenant Integration Machine 使用 API Key 在 Gateway / Auth 入口认证并换 Token。
 - 资源服务取得 JWKS 并消费紧急撤销事实。
 
-本契约不开放外部直连 gRPC，也不定义用户登录 access / refresh token。内部 MACHINE root 的 source credential 细则以 [machine-workload-source-credential.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/machine-workload-source-credential.md) 为准；高危 ActionGrant 的生命周期、绑定与消费规则以 [delegated-execution-and-action-grant.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/delegated-execution-and-action-grant.md) 为准。
+本契约不开放外部直连 gRPC，也不定义用户登录 access / refresh token。内部 MACHINE root 的 source credential 细则以 [machine-workload-source-credential.md](./machine-workload-source-credential.md) 为准；高危 ActionGrant 的生命周期、绑定与消费规则以 [delegated-execution-and-action-grant.md](./delegated-execution-and-action-grant.md) 为准。
 
 ## 2. Trust Inputs
 
@@ -217,13 +217,13 @@ Token TTL maximum is 5 minutes. Implementations may shorten it by risk but calle
 - Machine/binding/credential disable、revoke、stale 或 mismatch 立即阻止新 exchange；已签发 Token 按 5 分钟 TTL 或既有 DG-2 selector 收敛。
 - API Key、Gateway external token、DELEGATED reference、legacy operator context 与 Auth hardcoded root mapping 不能替代该 profile。
 
-Source credential 的 exact `typ=oes-machine-source+jwt`、Auth audience、field numbers、binding version、Prisma constraints、safe errors 与 transactional audit 以 [machine-workload-source-credential.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/machine-workload-source-credential.md) 为准。`ExchangeExecutionTokenRequest` 仍只包含 target audience 与 requested Permission Code；不增加 principal、tenant、SPIFFE、binding 或 certificate body field。
+Source credential 的 exact `typ=oes-machine-source+jwt`、Auth audience、field numbers、binding version、Prisma constraints、safe errors 与 transactional audit 以 [machine-workload-source-credential.md](./machine-workload-source-credential.md) 为准。`ExchangeExecutionTokenRequest` 仍只包含 target audience 与 requested Permission Code；不增加 principal、tenant、SPIFFE、binding 或 certificate body field。
 
-完整黑盒规则以 [machine-workload-source-credential.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/machine-workload-source-credential.md) 与 Identity [machine-principal-resolution.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/identity-service/machine-principal-resolution.md) 为准。
+完整黑盒规则以 [machine-workload-source-credential.md](./machine-workload-source-credential.md) 与 Identity [machine-principal-resolution.md](../identity-service/machine-principal-resolution.md) 为准。
 
 ## 8. API Key Exchange
 
-API Key is an external-entry credential, not an internal gRPC credential or an ExecutionToken. The full credential lifecycle is frozen in [external-api-key-security.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/external-api-key-security.md), and its public HTTP exchange is frozen in [external-api-key-exchange.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/external-api-key-exchange.md).
+API Key is an external-entry credential, not an internal gRPC credential or an ExecutionToken. The full credential lifecycle is frozen in [external-api-key-security.md](./external-api-key-security.md), and its public HTTP exchange is frozen in [external-api-key-exchange.md](../api-gateway/external-api-key-exchange.md).
 
 - API Key belongs to one active TENANT Integration Machine; the key is not a principal and never enters gRPC metadata.
 - Gateway submits the credential to Auth over its trusted internal path using the verified Gateway workload and exact INTERNAL issuance policy. Auth verifies its credential record, resolves the machine through Identity using Auth mTLS plus `identity.internal.integration_machine.resolve`, cross-checks the Identity tenant and lifecycle, then resolves the current `externalApiEligible` BUSINESS Code snapshot through Permission using Auth mTLS plus `permission.internal.external_machine.snapshot.resolve`. Any trust, owner-fact, tenant, snapshot or dependency failure denies before signing; no caller-selected machine, capability, role, tenant, audience or expiry is accepted.

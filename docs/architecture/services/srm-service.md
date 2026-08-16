@@ -36,7 +36,7 @@ Last Updated: 2026-08-14
 
 ## 3. Does Not Own
 
-- `party-service` 的主体主数据、租户主体引用、标识、地址 / 联系人正文与稳定主体关系；具体核心对象与 owner 边界以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准
+- `party-service` 的主体主数据、租户主体引用、标识、地址 / 联系人正文与稳定主体关系；具体核心对象与 owner 边界以 [party-service.md](./party-service.md) 为准
 - `item-master-service` 的 Item 主数据真相：
   - `ItemModel`
   - `Item`
@@ -72,7 +72,6 @@ Last Updated: 2026-08-14
   - `item-master-service`
   - future workflow / collaboration entrypoints
 - 当前设计工作台：
-  - [srm-service-design.md](../../plans/designs/srm-service-design.md)
 - 当前跨服务协同真相：
   - [srm-procurement-party-item-master.md](../collaborations/srm-procurement-party-item-master.md)
 
@@ -85,9 +84,9 @@ Last Updated: 2026-08-14
   - 提供 `ItemModel`、`Item` 与 purchasable 能力真相。
   - 继续拥有 `SupplierItemMapping`，SRM 只引用其结果，不接管其真相。
 - `permission-service`
-  - 提供供应商主档管理与查询的授权判定能力；permission 侧核心对象与 owner 边界以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。
+  - 提供供应商主档管理与查询的授权判定能力；permission 侧核心对象与 owner 边界以 [permission-service.md](./permission-service.md) 为准。
 - `identity-service` / `tenant-org-service`
-  - 提供 operator context、owner / org reference 所需基础上下文；`Tenant / OrgUnit / org tree` 边界以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准，SRM 不重新定义 org scope 真相。
+  - 提供 operator context、owner / org reference 所需基础上下文；`Tenant / OrgUnit / org tree` 边界以 [tenant-org-service.md](./tenant-org-service.md) 为准，SRM 不重新定义 org scope 真相。
 - `finance-service`
   - 提供 `PaymentTerm` 与 future supplier payment control / AP 摘要。
   - SRM 只保存默认引用与展示摘要，不拥有财务控制真相。
@@ -116,7 +115,7 @@ Last Updated: 2026-08-14
 
 - SRM 的第一优先级是供应商主档闭环，不是采购分析平台。
 - 正式主体引用统一使用 `tenantPartyId`。
-- 建供应商时必须先通过 `party-service` resolve / create 主体事实与租户主体引用，再创建 `SupplierProfile`；强标识命中与复用规则以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准。
+- 建供应商时必须先通过 `party-service` resolve / create 主体事实与租户主体引用，再创建 `SupplierProfile`；强标识命中与复用规则以 [party-service.md](./party-service.md) 为准。
 - `TenantParty Selector` 只用于当前租户内主体选择；`Supplier Selector` 只返回可被采购采用的 `SupplierProfile`。
 - `SupplierProfile.status` 建议最小集合为 `DRAFT / PENDING_REVIEW / ACTIVE / SUSPENDED / BLACKLISTED / ARCHIVED`。
 - `SupplierProfile.displayName / shortName / supplierCode` 归 SRM；`TenantParty.legalName` 归 Party。创建时可从 legal name 初始化 display name，但后续 legal name 变化不能覆盖 SRM 角色显示名。

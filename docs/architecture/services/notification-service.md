@@ -11,7 +11,7 @@ runtimeStatus: IMPLEMENTED_VERIFIED
 
 `notification-service` 是 OES 的通知治理服务。它把已成立的业务事实或受控的内部投递请求，转换为自己拥有的系统内通知或外部渠道投递记录，并负责这些本地结果的模板、幂等、状态、可观测性与受控审计。
 
-本文件是 `notification-service` 唯一稳定服务真相源。通知平台级背景、渠道演进与 provider 原则参见 [08-notification-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/08-notification-architecture.md)，但不得以该文替代本文件重新定义本服务的对象、边界或命名。
+本文件是 `notification-service` 唯一稳定服务真相源。通知平台级背景、渠道演进与 provider 原则参见 [notification.md](../platforms/notification.md)，但不得以该文替代本文件重新定义本服务的对象、边界或命名。
 
 ## 2. 拥有的对象与事实
 
@@ -45,7 +45,7 @@ runtimeStatus: IMPLEMENTED_VERIFIED
 
 当前 `NotificationService.SendEmail` / `SendSms` 只冻结 Auth/security 调用：两者都是 `INTERNAL`，只接受环境注册的准确 Auth SPIFFE workload 与 `aud=urn:oes:service:notification-service`、`principal_type=MACHINE`、`scope=SYSTEM`、Code `notification.internal.auth.dispatch` 的 certificate-bound ExecutionToken。用户发起登录、MFA、contact binding、password recovery 或邀请不把下游调用变成 HUMAN RPC；Auth 先拥有并判断认证流程，再以自己的受控内部身份提交投递命令。
 
-请求 body 不携带 source workload、tenant、org、operator 或 trace authority。当前 sessionless/pre-login dispatch 明确记录 SYSTEM scope，tenant/org 缺省，不允许用字面量 `system` 伪造 tenant。Recipient、template 与 variables 是受限投递 payload，不是身份或授权事实；Notification 不查询 Identity 重新解析 recipient。精确 wire、模板白名单、幂等、事务、审计、provider outbox 与错误语义以 [Auth dispatch contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/notification-service/auth-dispatch.md) 为准。
+请求 body 不携带 source workload、tenant、org、operator 或 trace authority。当前 sessionless/pre-login dispatch 明确记录 SYSTEM scope，tenant/org 缺省，不允许用字面量 `system` 伪造 tenant。Recipient、template 与 variables 是受限投递 payload，不是身份或授权事实；Notification 不查询 Identity 重新解析 recipient。精确 wire、模板白名单、幂等、事务、审计、provider outbox 与错误语义以 [Auth dispatch contract](../../contracts/notification-service/auth-dispatch.md) 为准。
 
 ## 5. Collaboration Task P1：冻结的系统内通知行为
 
@@ -55,7 +55,7 @@ runtimeStatus: IMPLEMENTED_VERIFIED
 - `collaboration.task.completed`
 - `collaboration.task.cancelled`
 
-行为以 [Collaboration Task event consumer contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/notification-service/collaboration-task-event-consumer.md) 为准。用户确认的产品语义是：
+行为以 [Collaboration Task event consumer contract](../../contracts/notification-service/collaboration-task-event-consumer.md) 为准。用户确认的产品语义是：
 
 - 别人给我安排任务时通知我；
 - 我指派的任务完成时通知我；
@@ -95,10 +95,10 @@ Auth dispatch 是独立的同步受理路径：`accepted=true` 只表示 dispatc
 | 内容 | 真相源 / owner |
 | --- | --- |
 | Notification 服务边界与对象 | 本文件 |
-| Task 事件 owner、payload 与触发语义 | [collaboration-service event contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/events/collaboration-service.md) |
-| Event Bus、Inbox、DLQ 与 replay 平台语义 | [17-event-bus-and-outbox-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/17-event-bus-and-outbox-architecture.md) 与 [platform transport contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/events/platform-transport.md) |
-| Task 到本地通知的黑盒语义 | [notification-service contracts](/Users/acehood/Documents/GitHub/oes/docs/contracts/notification-service/README.md) |
-| Auth Email/SMS 内部投递 | [Auth dispatch contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/notification-service/auth-dispatch.md) |
+| Task 事件 owner、payload 与触发语义 | [collaboration-service event contract](../../contracts/events/collaboration-service.md) |
+| Event Bus、Inbox、DLQ 与 replay 平台语义 | [event-bus-and-outbox.md](../platforms/event-bus-and-outbox.md) 与 [platform transport contract](../../contracts/events/platform-transport.md) |
+| Task 到本地通知的黑盒语义 | [notification-service contracts](../../contracts/notification-service/README.md) |
+| Auth Email/SMS 内部投递 | [Auth dispatch contract](../../contracts/notification-service/auth-dispatch.md) |
 | 未来 Notification consumer implementation owner paths | `src/services/system/notification-service/prisma/**`, `src/services/system/notification-service/src/application/**`, `src/services/system/notification-service/src/infrastructure/events/**`, `src/services/system/notification-service/src/infrastructure/inbox/**`, `src/services/system/notification-service/src/infrastructure/prisma/**`, `src/services/system/notification-service/src/modules/notification/notification.module.ts`, `src/services/system/notification-service/test/**` |
 
 当前 runtime 中的 Email/SMS dispatch schema、gRPC controller 和本地 provider adapter 仅是现有实现证据，不能覆盖本文件或事件 consumer 契约。

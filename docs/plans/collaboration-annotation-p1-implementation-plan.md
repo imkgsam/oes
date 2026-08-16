@@ -14,14 +14,14 @@
 
 Read these before implementation:
 
-- [collaboration-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/collaboration-service.md)
-- [collaboration-annotation-p1.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/collaboration-annotation-p1.md)
-- [annotation-command.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/collaboration-service/annotation-command.md)
-- [annotation-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/collaboration-service/annotation-query.md)
-- [crm-service/object-reference.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/crm-service/object-reference.md)
-- [service-collaboration-rules.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/service-collaboration-rules.md)
-- [15-authorization-layering-and-resource-policy-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/15-authorization-layering-and-resource-policy-architecture.md)
-- [12-observability-and-audit-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/12-observability-and-audit-architecture.md)
+- [collaboration-service.md](../architecture/services/collaboration-service.md)
+- [collaboration-annotation-p1.md](./features/collaboration-annotation-p1.md)
+- [annotation-command.md](../contracts/collaboration-service/annotation-command.md)
+- [annotation-query.md](../contracts/collaboration-service/annotation-query.md)
+- [crm-service/object-reference.md](../contracts/crm-service/object-reference.md)
+- [service-collaboration-rules.md](../architecture/system/service-collaboration-rules.md)
+- [authorization-layering-and-resource-policy.md](../architecture/platforms/authorization-layering-and-resource-policy.md)
+- [observability-and-audit.md](../architecture/platforms/observability-and-audit.md)
 
 Hard P1 non-goals:
 

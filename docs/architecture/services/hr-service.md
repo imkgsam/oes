@@ -18,13 +18,13 @@
 
 ## 3. Does Not Own
 
-- 自然人主体主数据真相；这些以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准
-- 账号、认证、会话、登录链路、`UserAccount <-> Employee` 绑定结果真相；这些以 [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md) 为准
+- 自然人主体主数据真相；这些以 [party-service.md](./party-service.md) 为准
+- 账号、认证、会话、登录链路、`UserAccount <-> Employee` 绑定结果真相；这些以 [identity-service.md](./identity-service.md) 为准
 - 账号头像、个人中心头像或用户自维护个人资料头像；这些不等同员工公开展示头像
 - 头像文件二进制、对象存储生命周期、文件扫描与资产元数据；这些以 Asset 服务边界为准
-- 租户内部组织树真相；`Tenant / OrgUnit / org tree` 边界以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准
+- 租户内部组织树真相；`Tenant / OrgUnit / org tree` 边界以 [tenant-org-service.md](./tenant-org-service.md) 为准
 - `account -> org` 或 account-org membership 的正式归属真相
-- 角色、权限、policy、account-role grant 与授权判定真相；这些以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准
+- 角色、权限、policy、account-role grant 与授权判定真相；这些以 [permission-service.md](./permission-service.md) 为准
 - 客户、供应商等外部联系人语义
 - 薪酬、考勤、绩效、招聘、复杂岗位体系、完整汇报线治理等更重 HR 子域的完整实现范围
 
@@ -102,8 +102,8 @@ HR minimum 第一阶段允许在员工 onboarding 中可选触发账号接入与
 - `Party / Employee / Employment` 成立后，不得因后续账号绑定或权限 grant 失败而回滚。
 - account 创建、account binding 或 permission grant 失败时，HR 可持有可重试的 onboarding access compensation 状态。
 - 该补偿状态只表示 HR onboarding 接入段待继续，不得成为 `UserAccount <-> Employee` binding 真相或 account-role grant 真相。
-- account binding 真相以 [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md) 为准。
-- role / grant 真相以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。
+- account binding 真相以 [identity-service.md](./identity-service.md) 为准。
+- role / grant 真相以 [permission-service.md](./permission-service.md) 为准。
 
 ## 6. Commands And Queries
 
@@ -173,14 +173,14 @@ HR minimum 第一阶段允许在员工 onboarding 中可选触发账号接入与
 
 黑盒契约：
 
-- [hr-service/README.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/hr-service/README.md)
-- [hr-service/query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/hr-service/query.md)
-- [hr-service/management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/hr-service/management.md)
+- [hr-service/README.md](../../contracts/hr-service/README.md)
+- [hr-service/query.md](../../contracts/hr-service/query.md)
+- [hr-service/management.md](../../contracts/hr-service/management.md)
 
 协同蓝图：
 
-- [tenant-org-and-hr.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/tenant-org-and-hr.md)
-- [employee-onboarding.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/employee-onboarding.md)
+- [tenant-org-and-hr.md](../collaborations/tenant-org-and-hr.md)
+- [employee-onboarding.md](../collaborations/employee-onboarding.md)
 
 ## 9. Published Facts
 

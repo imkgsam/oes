@@ -1,6 +1,6 @@
 # Permission Management
 
-> 服务设计唯一真相源：[permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。本文只记录 Permission Management feature 的范围、状态与前端接入约束；`Permission`、权限码、Role / Policy / AccountRole 边界不在本文重新定义。
+> 服务设计唯一真相源：[permission-service.md](../../architecture/services/permission-service.md)。本文只记录 Permission Management feature 的范围、状态与前端接入约束；`Permission`、权限码、Role / Policy / AccountRole 边界不在本文重新定义。
 
 ## 1. 目标
 
@@ -23,16 +23,16 @@
 ## 3. 上游依赖
 
 - architecture:
-  - [07-permission-code-source.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/07-permission-code-source.md)
-  - [15-authorization-layering-and-resource-policy-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/15-authorization-layering-and-resource-policy-architecture.md)
+  - [permission-code-source.md](../../architecture/platforms/permission-code-source.md)
+  - [authorization-layering-and-resource-policy.md](../../architecture/platforms/authorization-layering-and-resource-policy.md)
 - services:
-  - [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
+  - [permission-service.md](../../architecture/services/permission-service.md)
 - collaborations:
-  - [authorization-decision-flow.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/authorization-decision-flow.md)
+  - [authorization-decision-flow.md](../../architecture/collaborations/authorization-decision-flow.md)
 - contracts:
-  - [permission-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/permission-management.md)
+  - [permission-management.md](../../contracts/api-gateway/permission-management.md)
 - plans:
-  - [role-management.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/role-management.md)
+  - [role-management.md](./role-management.md)
 
 ## 4. 当前结论
 
@@ -48,7 +48,7 @@
 ## 5. 契约真相位置
 
 - 当前 HTTP 黑盒契约真相：
-  - [permission-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/permission-management.md)
+  - [permission-management.md](../../contracts/api-gateway/permission-management.md)
 - 当前已存在并可供前端消费的 permission 接口：
   - `GET /permission`
   - `POST /permission`
@@ -59,7 +59,7 @@
   - `DELETE /permission/:id`
 - 当前 feature 只消费上述契约；如实现中发现字段或语义缺口，先回到 contract / feature packet，不在前端临时绕过。
 - 当前 navigation entry 真相：
-  - [navigation-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/navigation-summary.md)
+  - [navigation-summary.md](../../contracts/api-gateway/navigation-summary.md)
   - `admin.permission-management`
 
 ## 6. 线程分工
@@ -125,7 +125,7 @@
 | 时间 | 问题 | 分类 | 当前影响 | 处理策略 | 目标落点 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- |
 | 2026-04-18 | Permission 管理前端尚未实现 | Blocker-Now | 若直接进入 Role Management，会缺少稳定 permission selector / lookup 基础 | 主线前移，先实现 tenant-web Permission Management 最小闭环 | 当前 feature packet | closed |
-| 2026-04-18 | Permission 管理导航 entry | Blocker-Now | 若 auth-bff 不发 entry，页面会被 tenant-web visibleEntries 过滤掉 | 在现有 navigation summary 中增加 `admin.permission-management`，并限制为系统范围 `system.admin` 可见 | [navigation-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/navigation-summary.md) | closed |
+| 2026-04-18 | Permission 管理导航 entry | Blocker-Now | 若 auth-bff 不发 entry，页面会被 tenant-web visibleEntries 过滤掉 | 在现有 navigation summary 中增加 `admin.permission-management`，并限制为系统范围 `system.admin` 可见 | [navigation-summary.md](../../contracts/api-gateway/navigation-summary.md) | closed |
 | 2026-04-18 | Permission 是否做完整生命周期治理 | Blocker-Later | 生命周期审批会显著扩大范围，但不阻塞管理端最小闭环 | 第一阶段只做轻量 CRUD 与引用查看，生命周期治理后置 | 后续 governance feature / backlog | open |
 | 2026-04-18 | 批量导入权限码是否进入第一阶段 | Blocker-Later | 批量导入 UI 会引入冲突预览、事务反馈和回滚体验 | 第一阶段不做；如后续需要，单独设计批量导入体验 | 后续 feature packet | open |
 

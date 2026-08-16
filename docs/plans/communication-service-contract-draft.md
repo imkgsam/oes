@@ -17,8 +17,8 @@ Its purpose is:
 
 Related documents:
 
-- `docs/architecture/10-communication-and-mailbox-architecture.md`
-- `docs/architecture/08-notification-architecture.md`
+- `docs/architecture/platforms/communication-and-mailbox.md`
+- `docs/architecture/platforms/notification.md`
 - `docs/plans/communication-mailbox-foundation-plan.md`
 - `docs/plans/notification-service-contract-draft.md`
 

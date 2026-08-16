@@ -132,4 +132,4 @@
 - [x] Step 2: Run focused service tests: HR, identity, auth, API Gateway.
 - [x] Step 3: Run PDA web build.
 - [x] Step 4: Existing PDA smoke against local services was not run because this session did not start the full local service stack or seed data; covered with service tests, BFF tests, PDA web tests, typecheck, and build.
-- [x] Step 5: Review docs and implementation against `docs/plans/features/pda-employee-code-pin-login.md`.
+- [x] Step 5: Review implementation against the PDA login contracts and current runtime behavior.

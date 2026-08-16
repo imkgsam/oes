@@ -6,9 +6,9 @@ Current status: `implemented core account flow / design delta pending implementa
 
 本 feature packet 是 CRM v2 P1 的全栈执行入口，承接以下稳定设计：
 
-- [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md)
-- [crm-v2-core-object-model.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/crm-v2-core-object-model.md)
-- [ADR 0008: Tenant-scoped TenantParty As Primary Party Model](/Users/acehood/Documents/GitHub/oes/docs/adr/0008-tenant-scoped-tenant-party-primary-party-model.md)
+- [crm-service.md](../../architecture/services/crm-service.md)
+- [crm-v2-core-object-model.md](./crm-v2-core-object-model.md)
+- [ADR 0008: Tenant-scoped TenantParty As Primary Party Model](../../adr/0008-tenant-scoped-tenant-party-primary-party-model.md)
 
 本文只冻结实现策略、阶段顺序、测试矩阵与验收方式，不重新定义 CRM 服务边界。若本文与 `crm-service.md` 冲突，以 `crm-service.md` 为准。
 
@@ -29,7 +29,7 @@ Design delta checkpoint on 2026-06-18:
 - Pool is the minimal ownerless resource list for `ACTIVE + LEAD / PROSPECT_CUSTOMER` with `ownerAccountId = null`; full pool governance, protection periods, recycle rules, release to pool and disputes remain deferred.
 - P1 tenant-web entry must move out of `主数据` into independent `CRM > 客户资源`, recommended route `/crm/accounts`; `/master-data/customers` can redirect for compatibility.
 - P1 page-level closure focuses on the `CrmAccount` main chain. `CrmContact`, `CrmActivity`, and `Opportunity` remain model foundations and are not required as complete page-level subsystems in this implementation slice.
-- The implementation thread must treat [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md) and [crm-v2-core-object-model.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/crm-v2-core-object-model.md) as the source of truth for these corrected rules.
+- The implementation thread must treat [crm-service.md](../../architecture/services/crm-service.md) and [crm-v2-core-object-model.md](./crm-v2-core-object-model.md) as the source of truth for these corrected rules.
 
 Completion checkpoint:
 

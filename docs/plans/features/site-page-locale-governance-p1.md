@@ -152,14 +152,13 @@ Must not modify backend contracts, Runtime Kit or Storefront.
 **Files:**
 
 - Modify: `docs/architecture/services/site-service.md`
-- Modify: `docs/architecture/site-runtime-architecture.md`
-- Modify: `docs/architecture/site-runtime-kit.md`
+- Modify: `docs/architecture/platforms/site-runtime-architecture.md`
+- Modify: `docs/architecture/platforms/site-runtime-kit.md`
 - Modify: `docs/contracts/site-service/README.md`
 - Modify: `docs/contracts/site-service/sync-api.md`
 - Modify: `docs/contracts/site-service/public-views.md`
 - Modify: `docs/contracts/site-service/admin-bff.md`
 - Create: `docs/contracts/site-service/page-capabilities-and-exposure.md`
-- Modify/archive: `docs/plans/designs/site-locale-exposure-governance.md`
 
 - [x] Verify the stable rules in this packet exactly match the frozen design workspace.
 - [x] Ensure no document describes page-by-locale enable switches or global all-resource locale completeness.

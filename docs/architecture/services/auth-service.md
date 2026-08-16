@@ -76,11 +76,11 @@
 
 ## 3. Does Not Own
 
-- 自然人、账号、租户、组织、联系资产主数据真相；这些归属 `identity-service`、[tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 或 `party-service`。
+- 自然人、账号、租户、组织、联系资产主数据真相；这些归属 `identity-service`、[tenant-org-service.md](./tenant-org-service.md) 或 `party-service`。
 - email / phone / social contact asset 的主数据、验证状态、展示资料、公司受控联系方式交接与外部通信账号展示引用真相；这些归属 `identity-service`。
 - 当前用户可用 account context 列表与 account 展示摘要真相；这些归属 `identity-service`。
-- tenant lifecycle 与 org tree 真相；这些以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准。
-- 角色、权限、policy、授权判定、权限摘要与导航授权真相；这些以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。
+- tenant lifecycle 与 org tree 真相；这些以 [tenant-org-service.md](./tenant-org-service.md) 为准。
+- 角色、权限、policy、授权判定、权限摘要与导航授权真相；这些以 [permission-service.md](./permission-service.md) 为准。
 - Machine Principal identity、类型、scope、tenant、lifecycle 与 `MachineWorkloadBinding`；这些归属 `identity-service`。API Key 与内部 `MachineWorkloadSourceCredential` 是 `auth-service` 拥有的两类不同 credential，都不是机器主体。
 - 通知模板、渠道、provider、投递任务、投递状态、回执与成本治理真相；这些归属 `notification-service`。
 - API Gateway / BFF 的 HTTP contract、前端响应聚合形状、captcha 校验与前端 shell 状态。
@@ -147,7 +147,7 @@ Terminal-aware Account Security Phase 2 增加以下稳定规则：
 - `SYSTEM` account 不绑定 tenant，也不读取 tenant lifecycle。
 - `TENANT` account 必须绑定 tenant，并在 session 建立、refresh、validate 等关键路径校验 tenant 仍为可用状态。
 - account 候选列表和 account 展示摘要由 `identity-service` 提供。
-- tenant lifecycle 与 tenant 展示信息由 `tenant-org-service` 提供，服务边界以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准。
+- tenant lifecycle 与 tenant 展示信息由 `tenant-org-service` 提供，服务边界以 [tenant-org-service.md](./tenant-org-service.md) 为准。
 - 权限摘要与导航授权由 `permission-service` / `api-gateway` 聚合提供，`auth-service` 不拥有该真相。
 
 登录后的 account context switch 采用“替换当前 session context”语义：
@@ -188,7 +188,7 @@ ExecutionToken 是 service-to-service 的短期执行凭据，不是用户登录
 - Token 只面向一个 target service audience，以 `cnf` 绑定申请工作负载的已验证 mTLS identity，并直接在 `scope` 携带获准 Permission Code 子集。
 - 对由 active HUMAN session 建立的 ExecutionToken，Auth 必须从自身 session truth 派生并签入 `session_terminal`；调用方、Gateway request、ordinary metadata 或业务 DTO 不能提交或覆盖该值。`session_terminal` 与 `session_id` 同时存在并绑定同一 active session，MACHINE Token 不携带该 claim。
 - STS 对 HUMAN、MACHINE、DELEGATED 分别验证可信 session / principal、Permission grant、delegation upper bound 与 workload issuance policy；调用方不能提交可提升授权的 subject facts。
-- 默认 TTL 约 5 分钟，不签发 refresh token。精确上下限、claim 与错误语义以 [execution-token.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/execution-token.md) 为准。
+- 默认 TTL 约 5 分钟，不签发 refresh token。精确上下限、claim 与错误语义以 [execution-token.md](../../contracts/auth-service/execution-token.md) 为准。
 - 普通资源服务只通过 cached JWKS 本地验签；Auth 实例保持无状态横向扩展，STS 容量按 cache miss、context change 与 audience exchange 规划，而不是按每个业务 RPC 规划。
 - 普通撤销接受短 TTL 收敛；紧急撤销发布 principal / credential / session / security-version deny fact。Auth 不要求所有服务共享 Bearer Token cache。
 - API Key 只在 Gateway / Auth 入口使用；认证成功后得到 Gateway-only external access token，Gateway 内部才换取 target-audience ExecutionToken。API Key 与 external token 都不能作为内部 gRPC credential 原样传播。
@@ -215,7 +215,7 @@ Auth records the security decision, trigger source, selector kind/reference, mon
 
 #### 7.1.2 External API Key Security
 
-`auth-service` owns the credential lifecycle for a tenant Integration Machine; it does not own the machine principal, external HTTP routing, or the external capability catalogue. The frozen cross-service flow is [external-api-key-security.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/external-api-key-security.md); credential-management behaviour is [external-api-key-security.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/external-api-key-security.md).
+`auth-service` owns the credential lifecycle for a tenant Integration Machine; it does not own the machine principal, external HTTP routing, or the external capability catalogue. The frozen cross-service flow is [external-api-key-security.md](../collaborations/external-api-key-security.md); credential-management behaviour is [external-api-key-security.md](../../contracts/auth-service/external-api-key-security.md).
 
 - A credential has a non-secret opaque identifier and a high-entropy secret. The secret is displayed only in the successful create or rotate response and is never recoverable, logged, audited in plaintext, or returned by query APIs.
 - Auth persists only a constant-time-verifiable, irreversible secret verifier plus the opaque `verifierKeyVersion` that produced it. The production Pepper is a non-exportable HMAC key in the deployment-owned KMS/HSM provider: Auth never stores the presented secret or receives raw Pepper/key material, and Gateway, Identity, Permission or a business service never reads the verifier or its key reference.
@@ -284,9 +284,9 @@ HUMAN OBO exchange 必须同时满足：subject ET `aud` 精确等于 record 的
 - Auth 只持久化 non-secret credential record，不持久化 bearer JWS。每个 binding 同时最多一个 active credential；reissue 在同一 transaction 中 supersede 旧记录，因而证书轮换后旧 credential 立即失去新 exchange 资格。
 - issue/reissue/revoke state 与既有 Auth-local `AuditEvent` 在同一 database transaction 中持久化；verification success/denial 也记录 safe category。audit 或 owner dependency 不可用时不返回 credential 或签发 ExecutionToken。
 
-精确 wire field number、Prisma constraint、reason mapping 与 acceptance 以 [machine-workload-source-credential.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/machine-workload-source-credential.md) 为准；其他文档不得创建第二份 profile 或 schema 定义。
+精确 wire field number、Prisma constraint、reason mapping 与 acceptance 以 [machine-workload-source-credential.md](../../contracts/auth-service/machine-workload-source-credential.md) 为准；其他文档不得创建第二份 profile 或 schema 定义。
 
-黑盒 credential 规则以 [machine-workload-source-credential.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/machine-workload-source-credential.md) 为准；Identity owner resolution 以 [machine-principal-resolution.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/identity-service/machine-principal-resolution.md) 为准。
+黑盒 credential 规则以 [machine-workload-source-credential.md](../../contracts/auth-service/machine-workload-source-credential.md) 为准；Identity owner resolution 以 [machine-principal-resolution.md](../../contracts/identity-service/machine-principal-resolution.md) 为准。
 
 #### 7.1.4 Delegation And ActionGrant
 
@@ -301,7 +301,7 @@ HUMAN OBO exchange 必须同时满足：subject ET `aud` 精确等于 record 的
 - 一次确认和一个 `ActionGrant` 只覆盖一个 owner-defined business action，而不是一个技术 RPC 或任意 batch。它是短时、单一目标服务、单一 operation、单一 target、单一 canonical input digest 与 owner policy version 的一次性凭据。
 - `ActionGrant` 不替代目标服务的状态机、审批分离、金额阈值、资源授权或 command idempotency。目标服务在自己的事务中分别记录 business idempotency receipt 与每个 JTI consumption，并写入业务结果；相同 descriptor 的 replacement JTI 可绑定既有结果，但不能产生第二次写入。Auth 不跨服务共享数据库或接管业务提交。
 - 用于 `ActionGrant` 的签名、issuer、audience 与 workload binding 必须使用 DG-1 冻结的 JWS / mTLS 互操作规则；不得引入第二套签名体系、共享 Bearer pool 或 body identity fallback。
-- 密码、MFA、recovery code、session、API Key、role / permission / policy、delegation 自身、审计记录和 AI 自己结果的批准属于 AI 永久禁止操作。精确规则以 [delegated-execution-and-action-grant.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/delegated-execution-and-action-grant.md) 为准。
+- 密码、MFA、recovery code、session、API Key、role / permission / policy、delegation 自身、审计记录和 AI 自己结果的批准属于 AI 永久禁止操作。精确规则以 [delegated-execution-and-action-grant.md](../../contracts/auth-service/delegated-execution-and-action-grant.md) 为准。
 
 #### 7.1.5 Cryptography, Registry And Rotation
 
@@ -440,7 +440,7 @@ OTP 与通知投递必须分离 owner。
 
 `auth-service` 可以同步调用 `notification-service` 获取“通知请求已被受理 / 拒绝”的结果，但不得同步等待外部供应商真正送达。`notification-service` 不拥有 OTP 真相，也不判断 OTP 是否正确。
 
-该下游调用不是 HUMAN 直接操作 Notification。`SendEmail` / `SendSms` 固定由 Auth 使用既有 MACHINE root 建立 SYSTEM execution，以 `aud=urn:oes:service:notification-service`、INTERNAL Code `notification.internal.auth.dispatch` 的 certificate-bound ExecutionToken 调用；上游 session/challenge/user/admin 归因保留在 Auth 审计，不传播为 Notification 授权。精确语义以 [Notification Auth dispatch contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/notification-service/auth-dispatch.md) 为准。
+该下游调用不是 HUMAN 直接操作 Notification。`SendEmail` / `SendSms` 固定由 Auth 使用既有 MACHINE root 建立 SYSTEM execution，以 `aud=urn:oes:service:notification-service`、INTERNAL Code `notification.internal.auth.dispatch` 的 certificate-bound ExecutionToken 调用；上游 session/challenge/user/admin 归因保留在 Auth 审计，不传播为 Notification 授权。精确语义以 [Notification Auth dispatch contract](../../contracts/notification-service/auth-dispatch.md) 为准。
 
 Auth production 与普通 local development 都必须通过 trusted gRPC Notification boundary。历史 `LocalNotificationDispatchAdaptor`、Auth-local Email/SMS service 与 `effectiveCode` 不属于 runtime 或兼容 fallback；isolated unit test 可以注入不修改 OTP 的 fake port。缺少 source credential、target ET producer 或 Notification client 时 readiness fail closed。
 
@@ -523,7 +523,7 @@ Phase 2 管理员 session 写操作不提供按筛选结果、terminal、termina
 
 application / domain 层可以复用底层业务逻辑，但 BFF / gRPC / interface 层不得长期复用同一个权限门承载 self-service 与 admin-management。
 
-历史混合接口只作为迁移债，不得继续扩展。该迁移由 [self-service-admin-boundary-migration.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/self-service-admin-boundary-migration.md) 持续跟踪，而不是在各服务中分别维护孤立清单。
+历史混合接口只作为迁移债，不得继续扩展。该迁移由 [self-service-admin-boundary-migration.md](../../plans/features/self-service-admin-boundary-migration.md) 持续跟踪，而不是在各服务中分别维护孤立清单。
 
 ## 13. Audit Facts
 
@@ -550,26 +550,26 @@ application / domain 层可以复用底层业务逻辑，但 BFF / gRPC / interf
 
 典型契约位置：
 
-- [auth-service/login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/login.md)
-- [auth-service/session.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/session.md)
-- [auth-service/mfa.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/mfa.md)
-- [auth-service/audit.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/audit.md)
-- [auth-service/terminal-login-policy.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/terminal-login-policy.md)
-- [auth-service/terminal-mfa-policy.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/terminal-mfa-policy.md)
-- [auth-service/session-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/session-management.md)
-- [auth-service/login-history.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/login-history.md)
-- [auth-service/trusted-login-device.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/trusted-login-device.md)
-- [auth-service/execution-token.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/execution-token.md)
-- [auth-service/external-api-key-security.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/external-api-key-security.md)
+- [auth-service/login.md](../../contracts/auth-service/login.md)
+- [auth-service/session.md](../../contracts/auth-service/session.md)
+- [auth-service/mfa.md](../../contracts/auth-service/mfa.md)
+- [auth-service/audit.md](../../contracts/auth-service/audit.md)
+- [auth-service/terminal-login-policy.md](../../contracts/auth-service/terminal-login-policy.md)
+- [auth-service/terminal-mfa-policy.md](../../contracts/auth-service/terminal-mfa-policy.md)
+- [auth-service/session-management.md](../../contracts/auth-service/session-management.md)
+- [auth-service/login-history.md](../../contracts/auth-service/login-history.md)
+- [auth-service/trusted-login-device.md](../../contracts/auth-service/trusted-login-device.md)
+- [auth-service/execution-token.md](../../contracts/auth-service/execution-token.md)
+- [auth-service/external-api-key-security.md](../../contracts/auth-service/external-api-key-security.md)
 
 相关 BFF contract：
 
-- [auth-bff-login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-login.md)
-- [auth-bff-self-service.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-self-service.md)
-- [auth-bff-admin-security.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-admin-security.md)
-- [account-security-bff.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/account-security-bff.md)
-- [platform-auth-security-bff.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/platform-auth-security-bff.md)
-- [access-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/access-summary.md)
+- [auth-bff-login.md](../../contracts/api-gateway/auth-bff-login.md)
+- [auth-bff-self-service.md](../../contracts/api-gateway/auth-bff-self-service.md)
+- [auth-bff-admin-security.md](../../contracts/api-gateway/auth-bff-admin-security.md)
+- [account-security-bff.md](../../contracts/api-gateway/account-security-bff.md)
+- [platform-auth-security-bff.md](../../contracts/api-gateway/platform-auth-security-bff.md)
+- [access-summary.md](../../contracts/api-gateway/access-summary.md)
 
 Contract 文档只描述黑盒调用语义、字段、错误与当前接口形状；不得重新定义本文中的服务 owner、核心对象或长期边界。
 
@@ -585,7 +585,7 @@ Contract 文档只描述黑盒调用语义、字段、错误与当前接口形�
   - 为 TENANT scope session 建立、refresh、validate 与 context switch 提供 tenant status 校验依据。
 - `permission-service`
   - 为 admin-management、terminal login policy、MFA policy 管理、audit 查询等受保护管理能力提供授权判定。
-  - 提供 access summary 与导航授权支撑，但不拥有 session context；permission 侧核心对象与 owner 边界以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。
+  - 提供 access summary 与导航授权支撑，但不拥有 session context；permission 侧核心对象与 owner 边界以 [permission-service.md](./permission-service.md) 为准。
   - 提供 HUMAN / MACHINE principal grant、Permission Code 与 policy 判定，供 STS 计算 ExecutionToken 的获准 Permission 子集。
 - `terminal-device-service`
   - 提供受管终端设备状态、设备绑定 tenant 与设备不可登录事件。
@@ -640,7 +640,7 @@ Contract 文档只描述黑盒调用语义、字段、错误与当前接口形�
 - `docs/architecture/collaborations/**` 继续作为跨服务协同蓝图，但不得重新定义 `auth-service` owner 语义。
 - `src/services/system/auth-service/doc/**` 中的旧 design、task、history、overview、roadmap 只作为本次提炼来源与历史记录，不再作为稳定设计入口。
 - 服务内旧 docs 在提炼完成后应删除，或最多保留一个极短 README 指向本文与 contract 入口。
-- self-service / admin-management 拆分由 [self-service-admin-boundary-migration.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/self-service-admin-boundary-migration.md) 持续推进，避免在各服务中分别维护孤立迁移清单。
+- self-service / admin-management 拆分由 [self-service-admin-boundary-migration.md](../../plans/features/self-service-admin-boundary-migration.md) 持续推进，避免在各服务中分别维护孤立迁移清单。
 
 ## 19. Trusted gRPC foundation-group admission（FROZEN）
 

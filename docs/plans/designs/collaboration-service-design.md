@@ -30,8 +30,8 @@ conflictResolution: 本文已退出 active 设计状态，只作为 collaboratio
 
 本 workspace 不负责：
 
-- 替代 [collaboration-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/collaboration-service.md)。
-- 替代 [collaboration-task-p1.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/collaboration-task-p1.md)。
+- 替代 [collaboration-service.md](../../architecture/services/collaboration-service.md)。
+- 替代 [collaboration-task-p1.md](../features/collaboration-task-p1.md)。
 - 冻结 annotation、comment、notification、workflow 或 project 的长期设计。
 - 记录 contracts 正文、proto 字段或数据库结构。
 - 指导当前实现线程直接编码。
@@ -66,8 +66,8 @@ conflictResolution: 本文已退出 active 设计状态，只作为 collaboratio
 
 | 日期 | 决定 | 影响范围 | 回写目标 |
 | --- | --- | --- | --- |
-| 2026-06-14 | 建立独立 `collaboration-service`，`task` 为第一模块。 | service boundary | [collaboration-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/collaboration-service.md) |
-| 2026-06-14 | Task P1 只做 manual task，不绑定业务对象、不监听业务事件、不自动完成。 | task P1 scope | [collaboration-task-p1.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/collaboration-task-p1.md) |
+| 2026-06-14 | 建立独立 `collaboration-service`，`task` 为第一模块。 | service boundary | [collaboration-service.md](../../architecture/services/collaboration-service.md) |
+| 2026-06-14 | Task P1 只做 manual task，不绑定业务对象、不监听业务事件、不自动完成。 | task P1 scope | [collaboration-task-p1.md](../features/collaboration-task-p1.md) |
 | 2026-06-14 | P1 支持 private self todo 与 assigned task；指派他人需要 `collaboration.task.assign`。 | authorization | service card + feature packet |
 | 2026-06-14 | P1 状态为 `OPEN / IN_PROGRESS / COMPLETED / CANCELLED`，`OVERDUE` 只作为 dueAt 派生。 | task lifecycle | service card + feature packet |
 | 2026-06-14 | P1 不内建 progress note，任务过程备注由 future annotation-on-task 承接。 | task / annotation boundary | service card + future annotation design |
@@ -89,16 +89,16 @@ conflictResolution: 本文已退出 active 设计状态，只作为 collaboratio
 ## 6. 真相源回写计划
 
 - 服务职责：
-  - [collaboration-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/collaboration-service.md)
+  - [collaboration-service.md](../../architecture/services/collaboration-service.md)
 - 协同蓝图：
   - future task / notification collaboration
   - future task / workflow collaboration
   - future task / annotation collaboration
 - contracts：
-  - [task-command.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/collaboration-service/task-command.md)
-  - [task-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/collaboration-service/task-query.md)
+  - [task-command.md](../../contracts/collaboration-service/task-command.md)
+  - [task-query.md](../../contracts/collaboration-service/task-query.md)
 - feature packet：
-  - [collaboration-task-p1.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/collaboration-task-p1.md)
+  - [collaboration-task-p1.md](../features/collaboration-task-p1.md)
   - future task P2 business-linked feature packet
   - future annotation feature packet
 - architecture / ADR：
@@ -108,14 +108,14 @@ conflictResolution: 本文已退出 active 设计状态，只作为 collaboratio
 
 下次继续前先读：
 
-- [collaboration-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/collaboration-service.md)
-- [collaboration-task-p1.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/collaboration-task-p1.md)
-- [task-command.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/collaboration-service/task-command.md)
-- [task-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/collaboration-service/task-query.md)
-- [service-collaboration-rules.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/service-collaboration-rules.md)
-- [15-authorization-layering-and-resource-policy-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/15-authorization-layering-and-resource-policy-architecture.md)
-- [12-observability-and-audit-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/12-observability-and-audit-architecture.md)
-- [object-activity-and-timeline.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/object-activity-and-timeline.md)
+- [collaboration-service.md](../../architecture/services/collaboration-service.md)
+- [collaboration-task-p1.md](../features/collaboration-task-p1.md)
+- [task-command.md](../../contracts/collaboration-service/task-command.md)
+- [task-query.md](../../contracts/collaboration-service/task-query.md)
+- [service-collaboration-rules.md](../../architecture/system/service-collaboration-rules.md)
+- [authorization-layering-and-resource-policy.md](../../architecture/platforms/authorization-layering-and-resource-policy.md)
+- [observability-and-audit.md](../../architecture/platforms/observability-and-audit.md)
+- [object-activity-and-timeline.md](../../architecture/collaborations/object-activity-and-timeline.md)
 
 当前推荐下一步：
 

@@ -1,6 +1,6 @@
 # Personal Center
 
-> 涉及 access summary、terminal access、Role、Policy 或授权判定的服务设计边界，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。本文只记录 Personal Center feature 的范围、状态与前端接入约束。
+> 涉及 access summary、terminal access、Role、Policy 或授权判定的服务设计边界，以 [permission-service.md](../../architecture/services/permission-service.md) 为准。本文只记录 Personal Center feature 的范围、状态与前端接入约束。
 
 ## 1. 目标
 
@@ -24,19 +24,19 @@
 ## 3. 上游依赖
 
 - architecture:
-  - [16-unified-web-account-context-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/16-unified-web-account-context-architecture.md)
-  - [11-gateway-and-bff-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/11-gateway-and-bff-architecture.md)
+  - [unified-web-account-context.md](../../architecture/platforms/unified-web-account-context.md)
+  - [gateway-and-bff.md](../../architecture/platforms/gateway-and-bff.md)
 - services:
-  - [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)
-  - [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md)
+  - [auth-service.md](../../architecture/services/auth-service.md)
+  - [party-service.md](../../architecture/services/party-service.md)
 - collaborations:
-  - [account-context-switch.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/account-context-switch.md)
+  - [account-context-switch.md](../../architecture/collaborations/account-context-switch.md)
 - contracts:
-  - [auth-bff-login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-login.md)
-  - [access-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/access-summary.md)
-  - [auth-bff-self-service.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-self-service.md)
+  - [auth-bff-login.md](../../contracts/api-gateway/auth-bff-login.md)
+  - [access-summary.md](../../contracts/api-gateway/access-summary.md)
+  - [auth-bff-self-service.md](../../contracts/api-gateway/auth-bff-self-service.md)
 - adr:
-  - [0001-unified-web-scope-aware-user-account.md](/Users/acehood/Documents/GitHub/oes/docs/adr/0001-unified-web-scope-aware-user-account.md)
+  - [0001-unified-web-scope-aware-user-account.md](../../adr/0001-unified-web-scope-aware-user-account.md)
 
 ## 4. 当前结论
 
@@ -99,12 +99,12 @@
 ## 5. 契约真相位置
 
 - `GET /auth/session/context` 仍然是 shell 级 `account / tenant / scopeLevel` 初始化真相源，只负责登录后壳层上下文建立，不承担 personal-center 富资料读模型真相。
-- 当前 `account` 的角色展示继续以 [access-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/access-summary.md) 中的 `GET /auth/session/access-summary` 为真相源。
-- 安全与自助入口继续复用 [auth-bff-self-service.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-self-service.md) 已冻结能力。
-- personal-center 的富资料读模型直接以 [auth-bff-login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-login.md) 中的 `GET /auth/personal-center` 为实现真相源，不应回退到 `GET /auth/session/context` 拼接资料字段。
-- 当前账号头像上传直接以 [auth-bff-login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-login.md) 中的 `POST /auth/personal-center/avatar` 为实现真相源。
-- `POST /auth/personal-center/avatar` 的下游头像资产归属语义直接以 [avatar.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/asset-service/avatar.md) 为真相源，必须支持 scope-aware avatar ownership，而不是假定所有头像都属于某个 tenant。
-- personal-center 的 `account profile` 写模型直接以 [auth-bff-login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-login.md) 中的 `PATCH /auth/personal-center/account-profile` 为实现真相源。
+- 当前 `account` 的角色展示继续以 [access-summary.md](../../contracts/api-gateway/access-summary.md) 中的 `GET /auth/session/access-summary` 为真相源。
+- 安全与自助入口继续复用 [auth-bff-self-service.md](../../contracts/api-gateway/auth-bff-self-service.md) 已冻结能力。
+- personal-center 的富资料读模型直接以 [auth-bff-login.md](../../contracts/api-gateway/auth-bff-login.md) 中的 `GET /auth/personal-center` 为实现真相源，不应回退到 `GET /auth/session/context` 拼接资料字段。
+- 当前账号头像上传直接以 [auth-bff-login.md](../../contracts/api-gateway/auth-bff-login.md) 中的 `POST /auth/personal-center/avatar` 为实现真相源。
+- `POST /auth/personal-center/avatar` 的下游头像资产归属语义直接以 [avatar.md](../../contracts/asset-service/avatar.md) 为真相源，必须支持 scope-aware avatar ownership，而不是假定所有头像都属于某个 tenant。
+- personal-center 的 `account profile` 写模型直接以 [auth-bff-login.md](../../contracts/api-gateway/auth-bff-login.md) 中的 `PATCH /auth/personal-center/account-profile` 为实现真相源。
 - 第一阶段 `account profile` 黑盒 contract 的可编辑字段为：
   - `avatarAssetId`
   - `displayName`
@@ -168,7 +168,7 @@
 | 2026-04-15 | 顶部偏好设置是否应在个人中心重复出现 | Blocker-Now | 若直接重复，会让页面退化成系统设置壳 | 已确认第一阶段移除单独偏好设置分区，不与顶部默认设置重复 | 当前 feature packet | closed |
 | 2026-04-15 | 登录方式绑定 / 解绑 / 验证流程如何承接 | Blocker-Later | 影响个人中心后续扩展，但不阻塞第一页成立 | 第一阶段只展示 `user` 级登录方式；后续作为独立 flow / feature 设计 | 当前 feature packet，后续可迁入独立 feature packet 或 `candidates.md` | open |
 | 2026-04-15 | `account` 级资料字段（头像 / 显示名 / 简介）的正式真相源与写接口是否已存在 | Blocker-Later | 影响头像 / 显示名 / 简介从“页面设计”走向“真实可编辑实现” | 已冻结为 BFF 黑盒 contract：读走 `GET /auth/personal-center`，写走 `PATCH /auth/personal-center/account-profile`；实现不得回退到 `GET /auth/session/context` 拼接资料字段 | `docs/contracts/api-gateway/**` | closed |
-| 2026-04-15 | 当前页面是否需要展示“其他 account 概览” | Sidecar | 会增加信息密度并弱化当前账号语义 | 当前已确认不纳入第一阶段，继续聚焦当前 `account` 上下文 | [backlog.md](/Users/acehood/Documents/GitHub/oes/docs/plans/backlog.md) 或下一阶段 feature slice | open |
+| 2026-04-15 | 当前页面是否需要展示“其他 account 概览” | Sidecar | 会增加信息密度并弱化当前账号语义 | 当前已确认不纳入第一阶段，继续聚焦当前 `account` 上下文 | [backlog.md](../backlog.md) 或下一阶段 feature slice | open |
 | 2026-04-16 | `bio` 应落在哪个模型 | Blocker-Now | 若继续悬空，会导致资料编辑接口边界不清 | 已确认 `bio` 与 `avatarUrl` / `displayName` 一样归属于 `UserAccount`，统一作为 `account profile` 字段推进 | 当前 feature packet / 后续 contract | closed |
 | 2026-04-22 | 头像是否继续允许任意 URL 写入 | Blocker-Now | 若继续允许任意 URL，个人中心头像无法进入生产级受控资产边界 | 已确认头像上传必须通过独立受控资产服务完成；个人中心读模型继续返回 `avatar` 展示 URL，写模型改为 `avatarAssetId`，并新增 `POST /auth/personal-center/avatar` 上传入口 | `docs/architecture/services/asset-service.md` / `docs/contracts/**` | closed |
 
@@ -231,11 +231,11 @@
 
 ## 13.1 授权边界补充
 
-- 本 feature packet 自 2026-04-21 起显式服从 [0004-self-service-and-admin-authorization-boundary.md](/Users/acehood/Documents/GitHub/oes/docs/adr/0004-self-service-and-admin-authorization-boundary.md)。
+- 本 feature packet 自 2026-04-21 起显式服从 [0004-self-service-and-admin-authorization-boundary.md](../../adr/0004-self-service-and-admin-authorization-boundary.md)。
 - 若当前代码仍要求普通用户持有管理员资料修改权限码才能修改自己的头像、显示名或简介，应视为实现缺陷，而不是本 feature 的既定行为。
 - 后续线程在修改 `PATCH /auth/personal-center/account-profile` 链路前，必须先核对：
-  - [15-authorization-layering-and-resource-policy-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/15-authorization-layering-and-resource-policy-architecture.md)
-  - [authentication-and-identity.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/authentication-and-identity.md)
+  - [authorization-layering-and-resource-policy.md](../../architecture/platforms/authorization-layering-and-resource-policy.md)
+  - [authentication-and-identity.md](../../architecture/collaborations/authentication-and-identity.md)
 
 ## 14. 当前实现归属整理
 

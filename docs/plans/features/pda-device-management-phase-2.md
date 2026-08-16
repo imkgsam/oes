@@ -1,6 +1,6 @@
 # PDA Device Management Phase 2
 
-> `terminal-device-service` 的长期职责以 [terminal-device-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/terminal-device-service.md) 为准；Managed Terminal Device Management 的跨服务协同以 [managed-terminal-device-management.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/managed-terminal-device-management.md) 为准。本文只记录 PDA Device Management Phase 2 的 feature 范围、执行切片与验收要求。
+> `terminal-device-service` 的长期职责以 [terminal-device-service.md](../../architecture/services/terminal-device-service.md) 为准；Managed Terminal Device Management 的跨服务协同以 [managed-terminal-device-management.md](../../architecture/collaborations/managed-terminal-device-management.md) 为准。本文只记录 PDA Device Management Phase 2 的 feature 范围、执行切片与验收要求。
 
 ## 1. 目标
 
@@ -29,28 +29,28 @@
 ## 3. 上游依赖
 
 - architecture:
-  - [pda.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/terminals/pda.md)
-  - [11-gateway-and-bff-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/11-gateway-and-bff-architecture.md)
-  - [12-observability-and-audit-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/12-observability-and-audit-architecture.md)
-  - [13-response-and-exception-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/13-response-and-exception-architecture.md)
+  - [pda.md](../../architecture/terminals/pda.md)
+  - [gateway-and-bff.md](../../architecture/platforms/gateway-and-bff.md)
+  - [observability-and-audit.md](../../architecture/platforms/observability-and-audit.md)
+  - [response-and-exception.md](../../architecture/platforms/response-and-exception.md)
 - services:
-  - [terminal-device-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/terminal-device-service.md)
-  - [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)
-  - [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
-  - [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)
-  - [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md)
+  - [terminal-device-service.md](../../architecture/services/terminal-device-service.md)
+  - [auth-service.md](../../architecture/services/auth-service.md)
+  - [permission-service.md](../../architecture/services/permission-service.md)
+  - [identity-service.md](../../architecture/services/identity-service.md)
+  - [tenant-org-service.md](../../architecture/services/tenant-org-service.md)
 - collaborations:
-  - [managed-terminal-device-management.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/managed-terminal-device-management.md)
-  - [terminal-access-policy.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/terminal-access-policy.md)
-  - [authentication-and-identity.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/authentication-and-identity.md)
+  - [managed-terminal-device-management.md](../../architecture/collaborations/managed-terminal-device-management.md)
+  - [terminal-access-policy.md](../../architecture/collaborations/terminal-access-policy.md)
+  - [authentication-and-identity.md](../../architecture/collaborations/authentication-and-identity.md)
 - contracts:
-  - [pda-device-bff.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/pda-device-bff.md)
-  - [pda-auth-bff-login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/pda-auth-bff-login.md)
-  - [js-bridge.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/pda/js-bridge.md)
+  - [pda-device-bff.md](../../contracts/api-gateway/pda-device-bff.md)
+  - [pda-auth-bff-login.md](../../contracts/api-gateway/pda-auth-bff-login.md)
+  - [js-bridge.md](../../contracts/pda/js-bridge.md)
   - 后续待新增 `terminal-device-service` 与 PDA / Admin BFF Phase 2 contracts
 - adr:
-  - [0006-terminal-device-service.md](/Users/acehood/Documents/GitHub/oes/docs/adr/0006-terminal-device-service.md)
-  - [0005-terminal-access-policy.md](/Users/acehood/Documents/GitHub/oes/docs/adr/0005-terminal-access-policy.md)
+  - [0006-terminal-device-service.md](../../adr/0006-terminal-device-service.md)
+  - [0005-terminal-access-policy.md](../../adr/0005-terminal-access-policy.md)
 
 ## 4. 当前结论
 
@@ -74,9 +74,9 @@
 
 ## 5. 契约真相位置
 
-- `terminal-device-service` 长期 owner 与核心对象以 [terminal-device-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/terminal-device-service.md) 为准。
-- 跨服务协同以 [managed-terminal-device-management.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/managed-terminal-device-management.md) 为准。
-- 架构决策以 [0006-terminal-device-service.md](/Users/acehood/Documents/GitHub/oes/docs/adr/0006-terminal-device-service.md) 为准。
+- `terminal-device-service` 长期 owner 与核心对象以 [terminal-device-service.md](../../architecture/services/terminal-device-service.md) 为准。
+- 跨服务协同以 [managed-terminal-device-management.md](../../architecture/collaborations/managed-terminal-device-management.md) 为准。
+- 架构决策以 [0006-terminal-device-service.md](../../adr/0006-terminal-device-service.md) 为准。
 - PDA Phase 2 HTTP 契约后续落到：
   - `docs/contracts/api-gateway/pda-device-management-bff.md`
   - `docs/contracts/api-gateway/admin-terminal-device-bff.md`

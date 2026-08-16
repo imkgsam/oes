@@ -1,6 +1,6 @@
 # crm-service Customer Query API
 
-> CRM 对象与查询语义以 [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md) 为唯一稳定真相源。本文只冻结当前 `CustomerQueryService` 黑盒契约。
+> CRM 对象与查询语义以 [crm-service.md](../../architecture/services/crm-service.md) 为唯一稳定真相源。本文只冻结当前 `CustomerQueryService` 黑盒契约。
 
 ## 1. Admission
 

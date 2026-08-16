@@ -48,22 +48,22 @@ businessSlice: collaboration.task.assigned/completed/cancelled -> notification-s
 ## 3. 上游真相源与依赖
 
 - architecture:
-  - Event Bus 与 Outbox / Inbox 架构: /Users/acehood/Documents/GitHub/oes/docs/architecture/17-event-bus-and-outbox-architecture.md
-  - Notification architecture: /Users/acehood/Documents/GitHub/oes/docs/architecture/08-notification-architecture.md
-  - Collaboration service truth source: /Users/acehood/Documents/GitHub/oes/docs/architecture/services/collaboration-service.md
-  - Service truth-source index: /Users/acehood/Documents/GitHub/oes/docs/architecture/services/index.md
+  - [Event Bus 与 Outbox / Inbox 架构](../../architecture/platforms/event-bus-and-outbox.md)
+  - [Notification architecture](../../architecture/platforms/notification.md)
+  - [Collaboration service truth source](../../architecture/services/collaboration-service.md)
+  - [Service truth-source index](../../architecture/services/index.md)
 - contracts:
-  - Event Catalog rules: /Users/acehood/Documents/GitHub/oes/docs/contracts/events/README.md
-  - Event Catalog index: /Users/acehood/Documents/GitHub/oes/docs/contracts/events/catalog.md
-  - Collaboration event contract: /Users/acehood/Documents/GitHub/oes/docs/contracts/events/collaboration-service.md
-  - Platform transport contract: /Users/acehood/Documents/GitHub/oes/docs/contracts/events/platform-transport.md
-  - Asset event contract, aligned but out of this slice: /Users/acehood/Documents/GitHub/oes/docs/contracts/events/asset-service.md
+  - [Event Catalog rules](../../contracts/events/README.md)
+  - [Event Catalog index](../../contracts/events/catalog.md)
+  - [Collaboration event contract](../../contracts/events/collaboration-service.md)
+  - [Platform transport contract](../../contracts/events/platform-transport.md)
+  - [Asset event contract](../../contracts/events/asset-service.md), aligned but out of this slice
 - adr:
-  - ADR 0013: NATS JetStream and delivery semantics: /Users/acehood/Documents/GitHub/oes/docs/adr/0013-nats-jetstream-event-bus-and-delivery-semantics.md
-  - ADR 0014: CloudEvents and service-owned common contracts: /Users/acehood/Documents/GitHub/oes/docs/adr/0014-cloudevents-and-service-owned-event-code-contracts.md
+  - [ADR 0013: NATS JetStream and delivery semantics](../../adr/0013-nats-jetstream-event-bus-and-delivery-semantics.md)
+  - [ADR 0014: CloudEvents and service-owned common contracts](../../adr/0014-cloudevents-and-service-owned-event-code-contracts.md)
 - prior design context, not a substitute for a service truth source:
-  - Notification design workspace: /Users/acehood/Documents/GitHub/oes/docs/plans/designs/notification-service-design.md
-  - Notification foundation plan: /Users/acehood/Documents/GitHub/oes/docs/plans/notification-service-foundation-plan.md
+  - Notification truth source: [notification-service.md](../../architecture/services/notification-service.md)
+  - [Notification foundation plan](../notification-service-foundation-plan.md)
 
 ## 4. 当前冻结结论
 
@@ -333,7 +333,7 @@ The exact database migration command remains service-owned because Collaboration
 - docker-compose.infra.yml and docker/nats/\*\* are single-writer Deployment/SRE paths. Service lanes do not add NATS services, credentials, streams, or consumers in their own Compose files.
 - src/services/system/notification-service/src/infrastructure/events/operations/\*\*, its service-local replay/recovery scripts and its Prisma operations records remain Notification-owner paths. Common or SRE lanes must not write them, and Notification must not create a cross-consumer control store.
 - docs/contracts/events/\*\* is read-only for implementation lanes. Event Catalog/owner threads alone change business event semantics or status.
-- docs/architecture/17-event-bus-and-outbox-architecture.md is the platform truth source; this packet records its current Asset status but implementation tasks must not rewrite it.
+- docs/architecture/platforms/event-bus-and-outbox.md is the platform truth source; this packet records its current Asset status but implementation tasks must not rewrite it.
 - docs/plans/features/event-bus-outbox-p1.md is the single feature status surface for this slice. Worker lanes report structured evidence; they do not create parallel packets or design workspaces.
 
 ## 13. 关闭条件

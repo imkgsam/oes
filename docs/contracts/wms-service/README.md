@@ -1,6 +1,6 @@
 # wms-service Contracts
 
-> WMS contract 只描述 WMS 黑盒接口；涉及权限、scope、policy、checkPermission、checkResource 或 buildQueryScope 的服务设计边界，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 和项目级授权架构为准。
+> WMS contract 只描述 WMS 黑盒接口；涉及权限、scope、policy、checkPermission、checkResource 或 buildQueryScope 的服务设计边界，以 [permission-service.md](../../architecture/services/permission-service.md) 和项目级授权架构为准。
 
 ## 1. 目的
 
@@ -22,25 +22,25 @@
 
 phase 1 只冻结以下内部 gRPC contract 面：
 
-- [warehouse-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/wms-service/warehouse-query.md)
+- [warehouse-query.md](./warehouse-query.md)
   - `WarehouseQueryService`
   - `GetWarehouse`
   - `ListWarehouses`
   - `GetLocation`
   - `ListLocations`
-- [receipt-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/wms-service/receipt-query.md)
+- [receipt-query.md](./receipt-query.md)
   - `ReceiptQueryService`
   - `GetReceipt`
   - `SearchReceipts`
   - `GetReceiptLine`
   - `SearchReceiptLines`
-- [receipt-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/wms-service/receipt-management.md)
+- [receipt-management.md](./receipt-management.md)
   - `ReceiptManagementService`
   - `CreateReceiptDraft`
   - `AddOrReplaceReceiptLines`
   - `PostReceipt`
   - `CancelReceiptDraft`
-- [inventory-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/wms-service/inventory-query.md)
+- [inventory-query.md](./inventory-query.md)
   - `InventoryQueryService`
   - `SearchStockLedgerEntries`
   - `GetInventoryBalance`
@@ -210,9 +210,9 @@ phase 1 明确不承诺：
 
 本目录以上游稳定文档为准：
 
-- [wms-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/wms-service.md)
-- [procurement-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/procurement-service.md)
-- [item-master-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/item-master-service.md)
-- [procurement-srm-item-wms-finance.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/procurement-srm-item-wms-finance.md)
-- [receiving-expectation.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/procurement-service/receiving-expectation.md)
-- [service-collaboration-rules.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/service-collaboration-rules.md)
+- [wms-service.md](../../architecture/services/wms-service.md)
+- [procurement-service.md](../../architecture/services/procurement-service.md)
+- [item-master-service.md](../../architecture/services/item-master-service.md)
+- [procurement-srm-item-wms-finance.md](../../architecture/collaborations/procurement-srm-item-wms-finance.md)
+- [receiving-expectation.md](../procurement-service/receiving-expectation.md)
+- [service-collaboration-rules.md](../../architecture/system/service-collaboration-rules.md)

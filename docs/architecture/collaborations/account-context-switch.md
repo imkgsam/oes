@@ -4,8 +4,8 @@
 
 定义 OES 中“已登录用户如何在可用 account context 之间切换，并让会话、权限摘要与前端 shell 同步刷新”的长期协同方式。
 
-`auth-service` 的 session context、token 与 context switch 服务边界只以 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md) 为准；本文只记录跨服务协同链路。
-`permission-service` 的权限摘要、角色、policy 与导航授权边界只以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准；本文只描述 context switch 后如何刷新这些消费视图。
+`auth-service` 的 session context、token 与 context switch 服务边界只以 [auth-service.md](../services/auth-service.md) 为准；本文只记录跨服务协同链路。
+`permission-service` 的权限摘要、角色、policy 与导航授权边界只以 [permission-service.md](../services/permission-service.md) 为准；本文只描述 context switch 后如何刷新这些消费视图。
 
 ## 2. 参与服务
 
@@ -50,7 +50,7 @@
 ## 6. 真相归属
 
 - 当前可切换 account context 列表：`identity-service`
-- 切换后会话上下文与 token：以 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md) 为准
+- 切换后会话上下文与 token：以 [auth-service.md](../services/auth-service.md) 为准
 - 权限摘要：`permission-service`
 - HTTP contract 与前端消费形状：`api-gateway`
 - 前端刷新链路：`tenant-web`
@@ -63,8 +63,8 @@
 
 ## 8. 关联文档
 
-- [16-unified-web-account-context-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/16-unified-web-account-context-architecture.md)
-- [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)
-- [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)
-- [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
-- [account-context-switch.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/account-context-switch.md)
+- [unified-web-account-context.md](../platforms/unified-web-account-context.md)
+- [auth-service.md](../services/auth-service.md)
+- [identity-service.md](../services/identity-service.md)
+- [permission-service.md](../services/permission-service.md)
+- [account-context-switch.md](../../plans/features/account-context-switch.md)

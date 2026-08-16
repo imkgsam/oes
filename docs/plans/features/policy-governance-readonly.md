@@ -1,6 +1,6 @@
 # Policy Governance Readonly
 
-> 服务设计唯一真相源：[permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。本文只记录 Policy Governance Readonly feature 的范围、状态与只读接入约束；`Policy`、policy AST、授权判定与 policy owner 边界不在本文重新定义。
+> 服务设计唯一真相源：[permission-service.md](../../architecture/services/permission-service.md)。本文只记录 Policy Governance Readonly feature 的范围、状态与只读接入约束；`Policy`、policy AST、授权判定与 policy owner 边界不在本文重新定义。
 
 ## 1. 目标
 
@@ -23,17 +23,17 @@
 ## 3. 上游依赖
 
 - architecture:
-  - [15-authorization-layering-and-resource-policy-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/15-authorization-layering-and-resource-policy-architecture.md)
+  - [authorization-layering-and-resource-policy.md](../../architecture/platforms/authorization-layering-and-resource-policy.md)
 - services:
-  - [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
+  - [permission-service.md](../../architecture/services/permission-service.md)
 - contracts:
-  - [permission-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/permission-management.md)
+  - [permission-management.md](../../contracts/api-gateway/permission-management.md)
 - plans:
-  - [permission-management.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/permission-management.md)
-  - [role-management.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/role-management.md)
-  - [navigation-entry-management.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/navigation-entry-management.md)
+  - [permission-management.md](./permission-management.md)
+  - [role-management.md](./role-management.md)
+  - [navigation-entry-management.md](./navigation-entry-management.md)
 - service truth source:
-  - [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
+  - [permission-service.md](../../architecture/services/permission-service.md)
 
 ## 4. 当前结论
 
@@ -54,7 +54,7 @@
 ## 5. 契约真相位置
 
 - 当前 gRPC 下游能力：
-  - [policy_management.proto](/Users/acehood/Documents/GitHub/oes/src/common/src/contracts/permission_service/policy_management.proto)
+  - [policy_management.proto](../../../src/common/src/contracts/permission_service/policy_management.proto)
 - 当前已冻结的 Gateway HTTP contract：
   - `GET /policy`
   - `GET /policy/:id`
@@ -121,7 +121,7 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | 2026-04-20 | Policy 是否直接开放编辑 | Blocker-Now | 编辑会引入高风险授权策略变更、AST 表单、审计与回滚，不适合作为第一阶段 | 第一阶段只读；mutation 后续独立 feature | future feature packet | closed |
 | 2026-04-20 | Explain / Impact Preview 是否混入只读治理台 | Blocker-Now | Explain 需要构造 subject/resource/environment 上下文，范围明显大于只读治理 | 作为下一条独立 P1 feature 推进 | future feature packet | closed |
-| 2026-04-20 | feature/plugin enablement 是否影响 policy governance | Sidecar | 用户已确认系统暂不继续向模块化设计演进 | 永久后置，不进入当前 feature 或权限摘要 / 导航主链 | [backlog.md](/Users/acehood/Documents/GitHub/oes/docs/plans/backlog.md) | closed |
+| 2026-04-20 | feature/plugin enablement 是否影响 policy governance | Sidecar | 用户已确认系统暂不继续向模块化设计演进 | 永久后置，不进入当前 feature 或权限摘要 / 导航主链 | [backlog.md](../backlog.md) | closed |
 
 ## 11. 验收标准
 

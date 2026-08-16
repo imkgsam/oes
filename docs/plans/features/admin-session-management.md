@@ -22,15 +22,15 @@
 ## 3. 上游依赖
 
 - architecture:
-  - [16-unified-web-account-context-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/16-unified-web-account-context-architecture.md)
-  - [07-permission-code-source.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/07-permission-code-source.md)
+  - [unified-web-account-context.md](../../architecture/platforms/unified-web-account-context.md)
+  - [permission-code-source.md](../../architecture/platforms/permission-code-source.md)
 - services:
-  - [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)
+  - [auth-service.md](../../architecture/services/auth-service.md)
 - collaborations:
-  - [authentication-and-identity.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/authentication-and-identity.md)
+  - [authentication-and-identity.md](../../architecture/collaborations/authentication-and-identity.md)
 - contracts:
-  - [session.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/session.md)
-  - [auth-bff-admin-security.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-admin-security.md)
+  - [session.md](../../contracts/auth-service/session.md)
+  - [auth-bff-admin-security.md](../../contracts/api-gateway/auth-bff-admin-security.md)
 
 ## 4. 当前结论
 
@@ -46,8 +46,8 @@
 ## 5. 契约真相位置
 
 - 当前稳定设计真相：
-  - [session.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/session.md)
-  - [auth-bff-admin-security.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-admin-security.md)
+  - [session.md](../../contracts/auth-service/session.md)
+  - [auth-bff-admin-security.md](../../contracts/api-gateway/auth-bff-admin-security.md)
 - 当前已存在能力：
   - `GET /auth/admin/users/:userId/sessions`
   - `POST /auth/admin/sessions/:sessionId/revoke`
@@ -56,7 +56,7 @@
   - 用户会话列表的轻量筛选与排序语义
   - “不可撤销自己当前会话”的稳定错误语义
 - 当前状态：
-  - [auth-bff-admin-security.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-admin-security.md) 已冻结第一阶段目标契约方向，后续实现应围绕该契约推进，而不是回到“仅靠手输 userId 调查”的旧页面语义
+  - [auth-bff-admin-security.md](../../contracts/api-gateway/auth-bff-admin-security.md) 已冻结第一阶段目标契约方向，后续实现应围绕该契约推进，而不是回到“仅靠手输 userId 调查”的旧页面语义
 
 ## 6. 线程分工
 
@@ -98,7 +98,7 @@
 ## 9. 阻塞 / 依赖
 
 - 现有 `auth-bff` 管理员会话能力仍以“指定 `userId` 查看目标用户会话”作为主语义，尚不支持在线用户总览入口。
-- 当前前端已有 [auth-session-management.vue](/Users/acehood/Documents/GitHub/oes/app/web/apps/tenant-web/src/views/admin/auth-session-management.vue) 页面，但语义仍偏“目标用户调查页”，不是当前冻结的“在线用户总览 -> 用户会话列表”结构。
+- 当前前端已有 [auth-session-management.vue](../../../app/web/apps/tenant-web/src/views/admin/auth-session-management.vue) 页面，但语义仍偏“目标用户调查页”，不是当前冻结的“在线用户总览 -> 用户会话列表”结构。
 - 在线用户总览需要新增按管理员 `scope` 聚合“当前在线用户 + 在线 session 数量”的查询能力。
 - 用户会话列表阶段仍可复用现有目标用户会话查询能力，但需补齐轻量筛选、排序与“不可撤销自己当前会话”的明确交互语义。
 
@@ -109,7 +109,7 @@
 | 2026-04-15 | 页面是否统一为系统管理员 / 租户管理员共用 | Blocker-Now | 若拆成两套页面，后续契约与前端结构都会分叉 | 已确认统一页面，按当前管理员 `scope` 自适应 | 当前 feature packet | closed |
 | 2026-04-15 | 管理页入口是否先看全量 session | Blocker-Now | 影响页面结构、BFF 契约与筛选方式 | 已确认改为“在线用户总览 -> 用户会话列表”两层结构 | 当前 feature packet | closed |
 | 2026-04-15 | 会话详情抽屉 | Blocker-Later | 会增加交互与字段冻结复杂度，但不阻塞第一阶段管理闭环 | 后续如确认需要，单独冻结详情字段与交互方式，不提前混入当前主线 | `docs/plans/backlog.md` 或下一阶段 feature slice | open |
-| 2026-04-15 | 登录历史页面 | Sidecar | 与当前管理页目标不同，若混入会把会话管理与审计历史边界打乱 | 已确认后置，不进入当前 feature 主线 | [backlog.md](/Users/acehood/Documents/GitHub/oes/docs/plans/backlog.md) | open |
+| 2026-04-15 | 登录历史页面 | Sidecar | 与当前管理页目标不同，若混入会把会话管理与审计历史边界打乱 | 已确认后置，不进入当前 feature 主线 | [backlog.md](../backlog.md) | open |
 
 ## 11. 验收标准
 

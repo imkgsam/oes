@@ -197,7 +197,7 @@ active Design Workspace 和 FP 由目录中的当前文件表示，不维护第�
 - 未冻结设计仍有价值：提取当前草稿到 active Workspace 后删除；
 - 当前 feature 仍在执行：提取 scope/acceptance/current candidate 到 FP 后删除。
 
-`docs/superpowers/` 属于工具生成的临时 specs/plans，不迁移其历史形态。只按上述规则提取仍有效的唯一内容，修正引用后删除整个目录。
+工具生成的临时 specs/plans 不进入稳定文档树。只按上述规则提取仍有效的唯一内容，任务完成后删除临时产物。
 
 旧治理文件收敛到 `codex-execution-model.md` 与本文；旧 plans 根目录的 draft、foundation plan、implementation plan 与 checklist 分别归入 canonical truth、Workspace、FP、runbook 或 backlog。
 

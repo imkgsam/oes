@@ -4,7 +4,7 @@
 
 This design records the frozen frontend responsibility split for the first-stage mold management closed loop.
 
-The service truth source remains [mes-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/mes-service.md). This document only classifies which frontend initiates each user workflow and which MES command or query it consumes.
+The service truth source remains [mes-service.md](../../architecture/services/mes-service.md). This document only classifies which frontend initiates each user workflow and which MES command or query it consumes.
 
 ## 2. Frontend Split
 
@@ -202,4 +202,3 @@ PDA:
 - mark scrap
 - confirm removal
 - concise mold status query
-

@@ -19,20 +19,20 @@
 ## 3. 上游依赖
 
 - architecture:
-  - [11-gateway-and-bff-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/11-gateway-and-bff-architecture.md)
-  - [15-authorization-layering-and-resource-policy-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/15-authorization-layering-and-resource-policy-architecture.md)
-  - [16-unified-web-account-context-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/16-unified-web-account-context-architecture.md)
+  - [gateway-and-bff.md](../../architecture/platforms/gateway-and-bff.md)
+  - [authorization-layering-and-resource-policy.md](../../architecture/platforms/authorization-layering-and-resource-policy.md)
+  - [unified-web-account-context.md](../../architecture/platforms/unified-web-account-context.md)
 - services:
-  - [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)
+  - [auth-service.md](../../architecture/services/auth-service.md)
 - contracts:
-  - [auth-bff-login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-login.md)
-  - [auth-bff-self-service.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-self-service.md)
-  - [auth-bff-admin-security.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-admin-security.md)
-  - [login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/login.md)
-  - [mfa.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/mfa.md)
+  - [auth-bff-login.md](../../contracts/api-gateway/auth-bff-login.md)
+  - [auth-bff-self-service.md](../../contracts/api-gateway/auth-bff-self-service.md)
+  - [auth-bff-admin-security.md](../../contracts/api-gateway/auth-bff-admin-security.md)
+  - [login.md](../../contracts/auth-service/login.md)
+  - [mfa.md](../../contracts/auth-service/mfa.md)
 - existing feature packets:
-  - [login-method-management.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/login-method-management.md)
-  - [personal-center.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/personal-center.md)
+  - [login-method-management.md](./login-method-management.md)
+  - [personal-center.md](./personal-center.md)
 
 ## 4. 问题现象与根因
 
@@ -80,10 +80,10 @@
 
 ## 6. 契约真相位置
 
-- 登录场景 MFA 续流的 HTTP 黑盒契约应回写到 [auth-bff-login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-login.md)。
-- 用户自助 MFA 因子管理契约应继续回写到 [auth-bff-self-service.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-self-service.md)。
-- 租户管理员 MFA 策略治理契约应新增或回写到 [auth-bff-admin-security.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-admin-security.md)。
-- `auth-service` 内部登录 / MFA 编排契约应回写到 [login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/login.md) 与 [mfa.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/mfa.md)。
+- 登录场景 MFA 续流的 HTTP 黑盒契约应回写到 [auth-bff-login.md](../../contracts/api-gateway/auth-bff-login.md)。
+- 用户自助 MFA 因子管理契约应继续回写到 [auth-bff-self-service.md](../../contracts/api-gateway/auth-bff-self-service.md)。
+- 租户管理员 MFA 策略治理契约应新增或回写到 [auth-bff-admin-security.md](../../contracts/api-gateway/auth-bff-admin-security.md)。
+- `auth-service` 内部登录 / MFA 编排契约应回写到 [login.md](../../contracts/auth-service/login.md) 与 [mfa.md](../../contracts/auth-service/mfa.md)。
 
 ## 7. 线程分工
 
@@ -132,7 +132,6 @@
   - 新设备登录需要先冻结设备识别 / trusted-device 语义，不得用 IP 或 user-agent 硬编码当正式设备模型
   - 修改密码、更换邮箱 / 手机属于已登录自助敏感操作，应通过 step-up MFA challenge 保护最终提交动作
 - execution plan:
-  - [MFA Step-Up Sensitive Actions Implementation Plan](/Users/acehood/Documents/GitHub/oes/docs/superpowers/plans/2026-04-22-mfa-step-up-sensitive-actions.md)
 
 ## 8.2 当前新增 slice
 
@@ -144,7 +143,6 @@
   - `SYSTEM/TENANT` 运行时策略分流
   - 系统账号 `NEW_DEVICE_LOGIN` 的受信设备真相
 - execution plan:
-  - [Platform MFA Policy Implementation Plan](/Users/acehood/Documents/GitHub/oes/docs/superpowers/plans/2026-04-23-platform-mfa-policy.md)
 
 ## 9. 主线范围
 
@@ -269,7 +267,7 @@ PUT  /api/v1/auth/admin/tenants/:tenantId/mfa-policy/factors
 
 ### 11.2 登录 BFF API
 
-在 [auth-bff-login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-login.md) 现有 `POST /auth/login` 与 `POST /auth/mfa/complete` 基础上扩展：
+在 [auth-bff-login.md](../../contracts/api-gateway/auth-bff-login.md) 现有 `POST /auth/login` 与 `POST /auth/mfa/complete` 基础上扩展：
 
 - `POST /auth/login`
   - `MFA_REQUIRED` 响应补充：

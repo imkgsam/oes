@@ -1,7 +1,7 @@
 # tenant-org-service Management API
 
-> 服务设计唯一真相源：[tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md)。本文只描述黑盒 management contract，不重新定义 `Tenant / OrgUnit / org tree` 的长期职责或 owner 边界。
-> 管理入口涉及的 PermissionGuard、permission code 或授权判定语义，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 与项目级授权架构为准。
+> 服务设计唯一真相源：[tenant-org-service.md](../../architecture/services/tenant-org-service.md)。本文只描述黑盒 management contract，不重新定义 `Tenant / OrgUnit / org tree` 的长期职责或 owner 边界。
+> 管理入口涉及的 PermissionGuard、permission code 或授权判定语义，以 [permission-service.md](../../architecture/services/permission-service.md) 与项目级授权架构为准。
 
 ## 1. 模块职责
 
@@ -109,7 +109,7 @@
   - optional `sort_order`
   - optional `organization_tenant_party_id`
 - `organization_tenant_party_id` 语义：
-  - 表示该 `OrgUnit` 对 `party-service` 组织主体的可选正式引用；组织主体边界以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准
+  - 表示该 `OrgUnit` 对 `party-service` 组织主体的可选正式引用；组织主体边界以 [party-service.md](../../architecture/services/party-service.md) 为准
   - 当前第一阶段仅允许 `type = ROOT | BRANCH` 时传入
   - `DEPARTMENT`、`TEAM`、`OTHER` 传入该字段时应返回 validation failure
 - 写入前校验：
@@ -179,4 +179,4 @@
 - 不提供 `AddAccountOrgMembership`
 - 不提供 `RemoveAccountOrgMembership`
 - 不提供 `SetAccountPrimaryOrg`
-- 不提供 employee / employment 写接口；HR 写语义以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准
+- 不提供 employee / employment 写接口；HR 写语义以 [hr-service.md](../../architecture/services/hr-service.md) 为准

@@ -6,7 +6,7 @@ transportVersion: 1
 provider: NATS JetStream
 cloudEventsSpecVersion: 1.0
 cloudEventsMode: structured-json
-architectureTruthSource: docs/architecture/17-event-bus-and-outbox-architecture.md
+architectureTruthSource: docs/architecture/platforms/event-bus-and-outbox.md
 eventCatalogTruthSource: docs/contracts/events/README.md
 envelopeDecision: docs/adr/0014-cloudevents-and-service-owned-event-code-contracts.md
 securityCriticalProfile: FROZEN

@@ -8,7 +8,7 @@ architectureTruthSource: docs/architecture/services/identity-service.md
 consumer: auth-service
 ```
 
-> 本文冻结 Identity 为第一方 MACHINE root execution 提供的黑盒 principal/binding resolution。Identity 的长期 owner 语义以 [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md) 为准；Auth source credential 以 [machine-workload-source-credential.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/machine-workload-source-credential.md) 为准。
+> 本文冻结 Identity 为第一方 MACHINE root execution 提供的黑盒 principal/binding resolution。Identity 的长期 owner 语义以 [identity-service.md](../../architecture/services/identity-service.md) 为准；Auth source credential 以 [machine-workload-source-credential.md](../auth-service/machine-workload-source-credential.md) 为准。
 
 ## 1. Surface And Purpose
 

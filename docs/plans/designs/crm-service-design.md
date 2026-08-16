@@ -1,6 +1,6 @@
 # CRM Service Design Workspace
 
-> 稳定服务设计唯一真相源：[crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md)。本文只保留历史设计过程、开放问题与回写记录，不再重新定义 `crm-service` 的核心对象、owner 边界或长期命名。
+> 稳定服务设计唯一真相源：[crm-service.md](../../architecture/services/crm-service.md)。本文只保留历史设计过程、开放问题与回写记录，不再重新定义 `crm-service` 的核心对象、owner 边界或长期命名。
 
 ## 1. Workspace Purpose
 
@@ -15,13 +15,13 @@
 
 不允许记录：
 
-- 替代 [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md) 的服务职责。
+- 替代 [crm-service.md](../../architecture/services/crm-service.md) 的服务职责。
 - 重新定义 `CustomerAccount / Lead / Opportunity / Activity / Prospecting` 等核心对象。
 - 重新定义 CRM 与 Party / Sales / Finance / Permission 的 owner 边界。
 - 替代 `docs/contracts/crm-service/**` 描述黑盒契约。
 - 替代 feature packet 描述执行状态。
 
-若本文与 [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md) 冲突，以服务真相源为准。
+若本文与 [crm-service.md](../../architecture/services/crm-service.md) 冲突，以服务真相源为准。
 
 ## 2. Current Stable Write-back
 
@@ -35,7 +35,7 @@
 
 稳定内容见：
 
-- [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md)
+- [crm-service.md](../../architecture/services/crm-service.md)
 
 ## 3. Historical Decisions
 
@@ -58,7 +58,7 @@
 
 ## 4. Open Questions
 
-以下问题仍开放。任何结论一旦冻结，必须先回写 [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md)，再更新 contract / feature packet / implementation plan。
+以下问题仍开放。任何结论一旦冻结，必须先回写 [crm-service.md](../../architecture/services/crm-service.md)，再更新 contract / feature packet / implementation plan。
 
 - `Intake` 是否需要细分子类型，或先以 source + triage status 承接。
 - `LeadDraft -> Lead` 的正式交接契约。
@@ -92,7 +92,7 @@
 
 恢复 CRM 设计上下文时，优先阅读：
 
-1. [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md)
-2. [sales-crm-party-item-master.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/sales-crm-party-item-master.md)
-3. [crm-service contracts](/Users/acehood/Documents/GitHub/oes/docs/contracts/crm-service/README.md)
+1. [crm-service.md](../../architecture/services/crm-service.md)
+2. [sales-crm-party-item-master.md](../../architecture/collaborations/sales-crm-party-item-master.md)
+3. [crm-service contracts](../../contracts/crm-service/README.md)
 4. 本工作台的开放问题列表

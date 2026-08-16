@@ -17,7 +17,7 @@ Its purpose is:
 
 Related documents:
 
-- `docs/architecture/08-notification-architecture.md`
+- `docs/architecture/platforms/notification.md`
 - `docs/plans/notification-service-foundation-plan.md`
 
 ## 2. First-round contract strategy

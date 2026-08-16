@@ -1,6 +1,6 @@
 # PDA Auth BFF Login Contract
 
-> `auth-service` 的服务设计唯一真相源是 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)。涉及 Terminal Access Policy、access summary、角色、权限或导航授权的服务设计边界，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准；本文只描述 PDA Auth BFF HTTP contract。
+> `auth-service` 的服务设计唯一真相源是 [auth-service.md](../../architecture/services/auth-service.md)。涉及 Terminal Access Policy、access summary、角色、权限或导航授权的服务设计边界，以 [permission-service.md](../../architecture/services/permission-service.md) 为准；本文只描述 PDA Auth BFF HTTP contract。
 
 ## 1. Purpose
 
@@ -8,7 +8,7 @@ This document defines the PDA-specific HTTP authentication contract exposed by `
 
 PDA is an independent terminal entry, not a tenant-web skin. The BFF fixes `terminal = PDA` for all PDA auth endpoints and forwards the trusted terminal to `auth-service`.
 
-`auth-service` account selection, MFA, session and token boundaries are defined only in [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md). This document only describes the PDA BFF terminal contract and response shape.
+`auth-service` account selection, MFA, session and token boundaries are defined only in [auth-service.md](../../architecture/services/auth-service.md). This document only describes the PDA BFF terminal contract and response shape.
 
 ## 2. Endpoint Scope
 

@@ -25,21 +25,21 @@
 ## 3. 上游依赖
 
 - architecture:
-  - [collaboration-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/collaboration-service.md)
-  - [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md)
-  - [service-collaboration-rules.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/service-collaboration-rules.md)
-  - [15-authorization-layering-and-resource-policy-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/15-authorization-layering-and-resource-policy-architecture.md)
-  - [12-observability-and-audit-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/12-observability-and-audit-architecture.md)
+  - [collaboration-service.md](../../architecture/services/collaboration-service.md)
+  - [crm-service.md](../../architecture/services/crm-service.md)
+  - [service-collaboration-rules.md](../../architecture/system/service-collaboration-rules.md)
+  - [authorization-layering-and-resource-policy.md](../../architecture/platforms/authorization-layering-and-resource-policy.md)
+  - [observability-and-audit.md](../../architecture/platforms/observability-and-audit.md)
 - services:
-  - [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
-  - [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)
+  - [permission-service.md](../../architecture/services/permission-service.md)
+  - [identity-service.md](../../architecture/services/identity-service.md)
 - related features:
-  - [collaboration-task-p1.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/collaboration-task-p1.md)
-  - [object-activity-foundation.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/object-activity-foundation.md)
+  - [collaboration-task-p1.md](./collaboration-task-p1.md)
+  - [object-activity-foundation.md](./object-activity-foundation.md)
 - contracts:
-  - [annotation-command.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/collaboration-service/annotation-command.md)
-  - [annotation-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/collaboration-service/annotation-query.md)
-  - [crm-service/object-reference.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/crm-service/object-reference.md)
+  - [annotation-command.md](../../contracts/collaboration-service/annotation-command.md)
+  - [annotation-query.md](../../contracts/collaboration-service/annotation-query.md)
+  - [crm-service/object-reference.md](../../contracts/crm-service/object-reference.md)
 - adr:
   - none for P1
 
@@ -59,20 +59,20 @@
 - trusted gRPC 迁移保留一个 `DeleteAnnotation` RPC；服务按 verified operator 是否为作者决定作者删除，非作者路径再向 Permission Service 检查 `collaboration.annotation.manage`。
 - P1 不冻结公共事件，不依赖 ObjectActivity / ObjectTimeline。
 
-长期职责、对象边界与 deferred 清单以 [collaboration-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/collaboration-service.md) 为准。
+长期职责、对象边界与 deferred 清单以 [collaboration-service.md](../../architecture/services/collaboration-service.md) 为准。
 
 ## 5. 契约真相位置
 
 - 服务职责真相：
-  - [collaboration-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/collaboration-service.md)
+  - [collaboration-service.md](../../architecture/services/collaboration-service.md)
 - P1 feature packet：
   - 本文
 - 后续契约入口：
-  - [annotation-command.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/collaboration-service/annotation-command.md)
-  - [annotation-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/collaboration-service/annotation-query.md)
-  - [crm-service/object-reference.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/crm-service/object-reference.md)
+  - [annotation-command.md](../../contracts/collaboration-service/annotation-command.md)
+  - [annotation-query.md](../../contracts/collaboration-service/annotation-query.md)
+  - [crm-service/object-reference.md](../../contracts/crm-service/object-reference.md)
 - 后续设计工作台：
-  - [collaboration-service-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/collaboration-service-design.md)
+  - [collaboration-service-design.md](../designs/collaboration-service-design.md)
 
 ## 6. 线程分工
 
@@ -155,5 +155,5 @@
 
 ## 13. 备注
 
-- 本 feature packet 不替代 [collaboration-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/collaboration-service.md)。
+- 本 feature packet 不替代 [collaboration-service.md](../../architecture/services/collaboration-service.md)。
 - 后续若 Annotation P2 设计冻结，应优先更新服务职责卡，并为对应 slice 新建 feature packet。

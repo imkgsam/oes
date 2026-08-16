@@ -171,7 +171,7 @@ Slug 生命周期冻结如下：
 
 Product、Collection 未来可以复用该机制，但其 URL namespace、资源归属与生命周期必须等待 Product Master–Site Product / Collection 设计冻结后再纳入；P1 不提前实现或推导这些规则。
 
-关键取舍与失败语义以 [ADR 0011](/Users/acehood/Documents/GitHub/oes/docs/adr/0011-site-dynamic-slug-reservation-and-history.md) 为准。
+关键取舍与失败语义以 [ADR 0011](../../adr/0011-site-dynamic-slug-reservation-and-history.md) 为准。
 
 ## 3. Operator Model
 
@@ -227,7 +227,7 @@ P1 建议字段：
 
 P1 不单独拆复杂 `SiteDomain`、`SiteRuntimeEndpoint`、`SiteBrandBinding`。后续出现多域名、多区域 runtime、多品牌复杂绑定时再拆。
 
-Site 只拥有 Site Media 的域名意图与激活授权。`asset-service` 拥有对应 `SiteMediaDeliveryBinding` 的 provider、验证、迁移、公开 URL、purge 和实际状态；详见 [asset-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/asset-service.md#101-site-media-delivery-binding) 与 [Site–Asset Media 协同蓝图](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/site-asset-media.md)。Site 不保存 R2、CDN 或 DNS provider credential。
+Site 只拥有 Site Media 的域名意图与激活授权。`asset-service` 拥有对应 `SiteMediaDeliveryBinding` 的 provider、验证、迁移、公开 URL、purge 和实际状态；详见 [asset-service.md](./asset-service.md#101-site-media-delivery-binding) 与 [Site–Asset Media 协同蓝图](../collaborations/site-asset-media.md)。Site 不保存 R2、CDN 或 DNS provider credential。
 
 ### 4.2 SiteLocale
 
@@ -490,7 +490,7 @@ Asset ownership 边界：
 发布与读取规则：
 
 - Site Service 在发布前必须确认 Asset 属于允许的 tenant / scope、状态可用且可以公开解析；验证失败时该 Item 不能进入正式发布。Item alt 缺失只产生非阻塞的可访问性警告，不阻止发布。
-- 已被 published Inspiration 引用的 Asset 在解除引用或替换前不得被盲目物理删除；通用 Site media 的解析、publication protection、释放与生命周期以 [site-media.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/asset-service/site-media.md) 和 [site-asset-media.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/site-asset-media.md) 为准。Site 实现不得以普通 URL 字段绕过该依赖。
+- 已被 published Inspiration 引用的 Asset 在解除引用或替换前不得被盲目物理删除；通用 Site media 的解析、publication protection、释放与生命周期以 [site-media.md](../../contracts/asset-service/site-media.md) 和 [site-asset-media.md](../collaborations/site-asset-media.md) 为准。Site 实现不得以普通 URL 字段绕过该依赖。
 - Site Sync 输出 public-safe resolved asset data，至少保持稳定 Asset 身份、公开读取地址、原始宽高与当前 locale alt 的语义；Storefront 正常请求只读取 Runtime 本地已发布数据，不在 request-time 调用 Asset Service。
 - Storefront 继续拥有现有 masonry、lightbox、加载、裁切与响应式表现；从静态数据切换为 Runtime 数据不得改变已冻结布局和交互。
 - 根 `/inspirations` 页面的标题、简介、页面级 SEO 文案、OG / Twitter 文案与根页 JSON-LD 继续由 Storefront 自己维护，不由 Site Service 或 `InspirationItemPublicView` 覆盖；OES 只通过 SitePage / locale governance 控制该页是否公开、是否 indexable 以及支持哪些 locale。
@@ -540,7 +540,7 @@ P1 类型：
 - `InspirationItemPublicView`
 - `InspirationCategoryPublicView`
 
-带公开 URL 的业务 public view 统一使用以下外壳；页面级 FAQ directory view 使用 [FaqDirectoryPublicView](/Users/acehood/Documents/GitHub/oes/docs/contracts/site-service/public-views.md#8-faqdirectorypublicview-payload) 例外 shape：
+带公开 URL 的业务 public view 统一使用以下外壳；页面级 FAQ directory view 使用 [FaqDirectoryPublicView](../../contracts/site-service/public-views.md#8-faqdirectorypublicview-payload) 例外 shape：
 
 - `siteId`
 - `resourceType`
@@ -911,7 +911,7 @@ Sales / Order / Pricing / WMS / CRM services
 
 `api-gateway` 负责 HTTP 入口、DTO 校验、HTTP 错误模型、operator / site caller context、trace、rate limit 与签名校验前置；`site-service` 负责 credential、site status、scope、sync state、public view 与 audit 的最终真相判定。
 
-内部调用的可信边界以 [14-grpc-metadata-and-service-trust-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/14-grpc-metadata-and-service-trust-architecture.md) 为准。Gateway 不把 HTTP access token、Runtime HMAC 或 body operator 原样当作 Site gRPC 凭据，而是取得 `aud=site-service` 的 ExecutionToken。
+内部调用的可信边界以 [grpc-metadata-and-service-trust.md](../platforms/grpc-metadata-and-service-trust.md) 为准。Gateway 不把 HTTP access token、Runtime HMAC 或 body operator 原样当作 Site gRPC 凭据，而是取得 `aud=site-service` 的 ExecutionToken。
 
 Site Sync 调 Asset 的稳定多跳形态：
 
@@ -966,7 +966,7 @@ Site Runtime 同步时：
 
 Webhook 失败可重发。Site Runtime 必须具备 pull fallback。
 
-关键取舍与失败语义以 [ADR 0010](/Users/acehood/Documents/GitHub/oes/docs/adr/0010-site-publish-sync-concurrency.md) 为准。
+关键取舍与失败语义以 [ADR 0010](../../adr/0010-site-publish-sync-concurrency.md) 为准。
 
 ## 10. Preview Semantics
 

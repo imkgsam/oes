@@ -1,38 +1,12 @@
-# OES 文档入口
+# OES 文档
 
-更新时间：2026-04-14
+项目文档只保存当前稳定真相、当前运维方法和活跃工作面。
 
-本文档是 OES 项目级文档的统一入口，只负责导航，不承载大段设计正文。
+- [Architecture](./architecture/index.md)
+- [Contracts](./contracts/index.md)
+- [ADR](./adr/index.md)
+- [Governance](./governance/index.md)
+- [Runbooks](./runbooks/index.md)
+- [Plans](./plans/index.md)
 
-## 当前有效目录
-
-| 目录 | 职责 |
-|---|---|
-| [architecture](./architecture/index.md) | 项目级稳定架构、边界、治理原则与长期设计 |
-| [governance](./governance/index.md) | 多线程协作规则、变更边界、文档归位与执行流程 |
-| [plans](./plans/index.md) | 阶段计划、专题推进路径与实施顺序 |
-| [contracts](./contracts/index.md) | 黑盒接口契约与前后端 / 服务间对接文档 |
-| [adr](./adr/index.md) | 关键架构决策记录 |
-
-## 推荐阅读顺序
-
-1. [architecture/00-vision-and-scope.md](./architecture/00-vision-and-scope.md)
-2. [architecture/01-system-context.md](./architecture/01-system-context.md)
-3. [architecture/02-bounded-contexts.md](./architecture/02-bounded-contexts.md)
-4. [architecture/03-technical-architecture.md](./architecture/03-technical-architecture.md)
-5. [architecture/05-governance.md](./architecture/05-governance.md)
-6. [governance/index.md](./governance/index.md)
-7. [plans/index.md](./plans/index.md)
-
-## 服务文档入口
-
-| 服务 | 文档入口 |
-|---|---|
-| `auth-service` | [docs/architecture/services/auth-service.md](architecture/services/auth-service.md) |
-| `identity-service` | [docs/architecture/services/identity-service.md](architecture/services/identity-service.md) |
-| `permission-service` | [docs/architecture/services/permission-service.md](architecture/services/permission-service.md) |
-| `crm-service` | [docs/architecture/services/crm-service.md](architecture/services/crm-service.md) |
-
-## 清理结论
-
-旧根目录 `doc/` 已不再作为项目级设计入口。其有效规则已经收敛到 `AGENTS.md`、`docs/architecture/05-governance.md`、`docs/governance/*` 与 `docs/architecture/services/*.md`；历史经验和过时方案不再作为当前稳定设计依据。
+项目执行入口见 [AGENTS.md](../AGENTS.md)。

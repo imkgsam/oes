@@ -14,10 +14,10 @@
 
 This plan is executable only while these upstream documents remain accepted:
 
-- [policy-governance-readonly.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/policy-governance-readonly.md)
-- [permission-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/permission-management.md)
-- [15-authorization-layering-and-resource-policy-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/15-authorization-layering-and-resource-policy-architecture.md)
-- [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
+- [policy-governance-readonly.md](./features/policy-governance-readonly.md)
+- [permission-management.md](../contracts/api-gateway/permission-management.md)
+- [authorization-layering-and-resource-policy.md](../architecture/platforms/authorization-layering-and-resource-policy.md)
+- [permission-service.md](../architecture/services/permission-service.md)
 
 Do not implement:
 

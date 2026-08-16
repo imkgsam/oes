@@ -1,6 +1,6 @@
 # finance-service Contracts
 
-> Finance contract 只描述财务黑盒接口；涉及权限、scope、policy、checkPermission、checkResource 或 buildQueryScope 的服务设计边界，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 和项目级授权架构为准。
+> Finance contract 只描述财务黑盒接口；涉及权限、scope、policy、checkPermission、checkResource 或 buildQueryScope 的服务设计边界，以 [permission-service.md](../../architecture/services/permission-service.md) 和项目级授权架构为准。
 
 ## 1. 目的
 
@@ -22,13 +22,13 @@
 
 phase 1 / phase 1B 只冻结以下内部 `gRPC` contract 面：
 
-- [account-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/finance-service/account-query.md)
+- [account-query.md](./account-query.md)
   - `FinancialAccountQueryService`
   - `GetFinancialAccount`
   - `SearchFinancialAccounts`
   - `SearchAccountTransactions`
   - `GetExchangeRate`
-- [account-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/finance-service/account-management.md)
+- [account-management.md](./account-management.md)
   - `FinancialAccountManagementService`
   - `CreateFinancialAccount`
   - `UpdateFinancialAccountBasics`
@@ -37,34 +37,34 @@ phase 1 / phase 1B 只冻结以下内部 `gRPC` contract 面：
   - `RegisterCustomerFinancialAccount`
   - `RegisterSupplierFinancialAccount`
   - `SetExchangeRate`
-- [receivable-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/finance-service/receivable-query.md)
+- [receivable-query.md](./receivable-query.md)
   - `ReceivableQueryService`
   - `GetReceivableSchedule`
   - `SearchReceivableSchedules`
   - `GetFinanceReleaseSignal`
-- [receivable-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/finance-service/receivable-management.md)
+- [receivable-management.md](./receivable-management.md)
   - `ReceivableManagementService`
   - `CreateReceivableScheduleFromSalesOrder`
   - `SetFinanceReleaseSignal`
-- [payable-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/finance-service/payable-query.md)
+- [payable-query.md](./payable-query.md)
   - `PaymentQueryService`
   - `GetPayableSchedule`
   - `SearchPayableSchedules`
   - `SearchPaymentRequests`
   - `SearchPaymentExecutions`
   - `SearchPaymentAllocations`
-- [payable-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/finance-service/payable-management.md)
+- [payable-management.md](./payable-management.md)
   - `PaymentManagementService`
   - `CreatePayableScheduleFromPurchaseOrder`
   - `ApplyPayableScheduleAdjustmentFromPurchaseOrderChange`
-- [payment-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/finance-service/payment-management.md)
+- [payment-management.md](./payment-management.md)
   - `PaymentManagementService`
   - `CreatePaymentRequest`
   - `DecidePaymentRequest`
   - `ExecutePaymentRequest`
   - `AllocatePaymentToPayable`
   - `AllocatePaymentToReceivable`
-- [finance-integration.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/finance-service/finance-integration.md)
+- [finance-integration.md](./finance-integration.md)
   - Sales / Procurement 与 Finance 的 integration input/output 语义
 
 phase 1 / phase 1B 不在本目录中冻结：
@@ -302,10 +302,9 @@ phase 1 对象必须被视为 future accounting core 的 posting source candidat
 
 本目录以上游稳定文档为准：
 
-- [finance-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/finance-service.md)
-- [sales-finance-order-to-cash.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/sales-finance-order-to-cash.md)
-- [finance-ar-credit-core.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/finance-ar-credit-core.md)
-- [sales-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/sales-service.md)
-- [procurement-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/procurement-service.md)
-- [service-collaboration-rules.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/service-collaboration-rules.md)
-- [service-collaboration-review-checklist.md](/Users/acehood/Documents/GitHub/oes/docs/governance/service-collaboration-review-checklist.md)
+- [finance-service.md](../../architecture/services/finance-service.md)
+- [sales-finance-order-to-cash.md](../../architecture/collaborations/sales-finance-order-to-cash.md)
+- [finance-ar-credit-core.md](../../plans/features/finance-ar-credit-core.md)
+- [sales-service.md](../../architecture/services/sales-service.md)
+- [procurement-service.md](../../architecture/services/procurement-service.md)
+- [service-collaboration-rules.md](../../architecture/system/service-collaboration-rules.md)

@@ -1,6 +1,6 @@
 # tenant-org-service Contracts
 
-> `tenant-org-service` 的服务设计唯一真相源是 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md)。涉及 HR `Employee / Employment`、员工生命周期或正式 `人 -> org` 归属时，以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准；涉及角色、权限、grant、AccountRole、PermissionGuard 或授权判定的服务设计边界，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。
+> `tenant-org-service` 的服务设计唯一真相源是 [tenant-org-service.md](../../architecture/services/tenant-org-service.md)。涉及 HR `Employee / Employment`、员工生命周期或正式 `人 -> org` 归属时，以 [hr-service.md](../../architecture/services/hr-service.md) 为准；涉及角色、权限、grant、AccountRole、PermissionGuard 或授权判定的服务设计边界，以 [permission-service.md](../../architecture/services/permission-service.md) 为准。
 
 ## 1. 目的
 
@@ -17,15 +17,15 @@
 
 当前稳定真相源仍然是：
 
-- [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md)
+- [tenant-org-service.md](../../architecture/services/tenant-org-service.md)
 
 ## 2. 模块划分
 
-- [query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/tenant-org-service/query.md)
+- [query.md](./query.md)
   - tenant 摘要、组织树、组织节点与组织引用校验查询
-- [management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/tenant-org-service/management.md)
+- [management.md](./management.md)
   - tenant 与 org tree 管理型写接口
-- [onboarding.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/tenant-org-service/onboarding.md)
+- [onboarding.md](./onboarding.md)
   - tenant onboarding 轻量 Saga / Process Manager contract
 
 ## 3. 全局调用约束
@@ -45,7 +45,7 @@
   - 审计元数据
 - `GetTenantById` 与组织引用校验类查询接口是内部协同能力，必须通过 internal service 受控调用；其返回值不授予调用方对相关 tenant / org / party 的业务使用权。
 - 第一版不开放 account-org membership 管理接口。
-- 第一版不开放 employee / employment 相关接口；HR 对象与任职语义以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准。
+- 第一版不开放 employee / employment 相关接口；HR 对象与任职语义以 [hr-service.md](../../architecture/services/hr-service.md) 为准。
 
 ## 4. 第一阶段能力范围
 

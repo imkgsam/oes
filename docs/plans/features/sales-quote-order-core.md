@@ -23,18 +23,18 @@
 ## 3. 上游依赖
 
 - services:
-  - [sales-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/sales-service.md)
-  - [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md)
-  - [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md)
-  - [item-master-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/item-master-service.md)
-  - [mes-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/mes-service.md)
-  - [wms-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/wms-service.md)
+  - [sales-service.md](../../architecture/services/sales-service.md)
+  - [crm-service.md](../../architecture/services/crm-service.md)
+  - [party-service.md](../../architecture/services/party-service.md)
+  - [item-master-service.md](../../architecture/services/item-master-service.md)
+  - [mes-service.md](../../architecture/services/mes-service.md)
+  - [wms-service.md](../../architecture/services/wms-service.md)
 - collaborations:
-  - [sales-crm-party-item-master.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/sales-crm-party-item-master.md)
-  - [item-master-sales-mes-wms-srm.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/item-master-sales-mes-wms-srm.md)
-  - [sales-fulfillment-mes-wms-finance.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/sales-fulfillment-mes-wms-finance.md)
+  - [sales-crm-party-item-master.md](../../architecture/collaborations/sales-crm-party-item-master.md)
+  - [item-master-sales-mes-wms-srm.md](../../architecture/collaborations/item-master-sales-mes-wms-srm.md)
+  - [sales-fulfillment-mes-wms-finance.md](../../architecture/collaborations/sales-fulfillment-mes-wms-finance.md)
 - plans:
-  - [erp-service-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/erp-service-design.md)
+  - [erp-service-design.md](../designs/erp-service-design.md)
 
 ## 4. 当前结论
 
@@ -72,13 +72,13 @@
 ## 5. 契约真相位置
 
 - 稳定服务职责：
-  - [sales-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/sales-service.md)
+  - [sales-service.md](../../architecture/services/sales-service.md)
 - 稳定协同蓝图：
-  - [sales-crm-party-item-master.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/sales-crm-party-item-master.md)
-  - [sales-fulfillment-mes-wms-finance.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/sales-fulfillment-mes-wms-finance.md)
-  - [item-master-sales-mes-wms-srm.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/item-master-sales-mes-wms-srm.md)
+  - [sales-crm-party-item-master.md](../../architecture/collaborations/sales-crm-party-item-master.md)
+  - [sales-fulfillment-mes-wms-finance.md](../../architecture/collaborations/sales-fulfillment-mes-wms-finance.md)
+  - [item-master-sales-mes-wms-srm.md](../../architecture/collaborations/item-master-sales-mes-wms-srm.md)
 - 下一步 contract 入口：
-  - [sales-service contracts](/Users/acehood/Documents/GitHub/oes/docs/contracts/sales-service/README.md)
+  - [sales-service contracts](../../contracts/sales-service/README.md)
 
 ## 6. 当前 slice
 

@@ -131,7 +131,7 @@ P1 使用白名单 object reference adapter：
 - `crm-service` 负责判断 `CrmAccount` 是否存在、当前 operator 是否可读、是否允许创建备注，并返回轻量展示快照。
 - 未接入白名单的对象类型必须拒绝创建备注。
 
-展示快照只用于协作 UI 展示，不是业务对象真相。`CrmAccount` 名称、状态、归档、删除等长期事实仍以 [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md) 为准。
+展示快照只用于协作 UI 展示，不是业务对象真相。`CrmAccount` 名称、状态、归档、删除等长期事实仍以 [crm-service.md](./crm-service.md) 为准。
 
 已归档但仍可读取的 `CrmAccount` 可以查看 Notes；归档对象不允许新增普通备注，也不允许编辑或置顶既有备注，治理删除除外。物理删除对象后的备注处理不在 P1 冻结范围。
 

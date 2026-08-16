@@ -7,7 +7,6 @@ designKey: employee-digital-business-card
 designStatus: ACTIVE_DESIGN_WORKSPACE
 lastUpdatedAt: 2026-06-08 02:10:00 Asia/Shanghai
 lastUpdatedBy: Codex thread
-supersedes: docs/plans/ideas.md 中 2026-06-04 OES 员工数字名片 / 二维码名片入口 raw idea
 conflictResolution: 当本文与更早讨论冲突时，以本文 lastUpdatedAt 之后的冻结结论为准；稳定 architecture / ADR / contracts 明确覆盖本文时，以稳定真相源为准。本文只记录 BusinessCard module 设计过程，不替代 ShortLink / Contact Asset / CRM / HR / Identity / Tenant Org 的唯一真相源。
 ```
 
@@ -57,12 +56,12 @@ conflictResolution: 当本文与更早讨论冲突时，以本文 lastUpdatedAt 
   - `party-service`
 - features / dependencies:
   - Contact Asset / Work Contact Asset design:
-    - [contact-asset-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/contact-asset-design.md)
-    - [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)
+    - [contact-asset-design.md](./contact-asset-design.md)
+    - [identity-service.md](../../architecture/services/identity-service.md)
   - ShortLink / Public Entry design:
-    - [shortlink-public-entry-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/shortlink-public-entry-design.md)
-    - [shortlink-public-entry-phase-1.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/shortlink-public-entry-phase-1.md)
-    - [public-entry-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/public-entry-service.md)
+    - [shortlink-public-entry-design.md](./shortlink-public-entry-design.md)
+    - [shortlink-public-entry-phase-1.md](../features/shortlink-public-entry-phase-1.md)
+    - [public-entry-service.md](../../architecture/services/public-entry-service.md)
   - future CRM LeadDraft feedback loop
   - future Brand / public profile capability
 
@@ -70,7 +69,7 @@ conflictResolution: 当本文与更早讨论冲突时，以本文 lastUpdatedAt 
 
 | 日期 | 决定 | 影响范围 | 回写目标 |
 | --- | --- | --- | --- |
-| 2026-06-08 | Employee Digital Business Card 从 ideas 升级为 Feature / Capability Candidate，并建立本 design workspace。 | 文档分类 | `docs/plans/candidates.md` |
+| 2026-06-08 | Employee Digital Business Card 已进入当前 Design Workspace。 | 文档分类 | `docs/plans/intake.md` |
 | 2026-06-08 | BusinessCard module 未来归属于 `public-entry-service`，与 ShortLink / Public Entry module 同服务但模型隔离。 | 服务 / 模块边界 | future architecture / feature packet |
 | 2026-06-08 | BusinessCard owns what is shown；ShortLink owns how the public entry is reached, governed, tracked, expired, and redirected。 | BusinessCard / ShortLink 边界 | future collaboration / contracts |
 | 2026-06-08 | 本线程只冻结 BusinessCard module，不冻结 ShortLink / Public Entry 通用模型。BusinessCard 只消费 ShortLink 提供的主 Public Entry、public URL、QR content 与 lightweight visit summary。 | 线程边界 | ShortLink design thread |
@@ -384,7 +383,7 @@ Permission 线程已确认 Phase 1 权限口径：
 
 - 服务职责：
   - `public-entry-service` 服务职责已建立：
-    - [public-entry-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/public-entry-service.md)
+    - [public-entry-service.md](../../architecture/services/public-entry-service.md)
   - Contact Asset 已进入 Identity 边界，并已更新 `docs/architecture/services/identity-service.md`。
 - 协同蓝图：
   - BusinessCard 与 ShortLink / Public Entry 的协同可后续写入 collaboration 文档。
@@ -392,16 +391,16 @@ Permission 线程已确认 Phase 1 权限口径：
   - CRM 回流另行设计后再决定是否写入 CRM collaboration。
 - contracts：
   - BusinessCard Phase 1 contracts 已建立：
-    - [business-card-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/public-entry-service/business-card-management.md)
-    - [business-card-self-view.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/public-entry-service/business-card-self-view.md)
-    - [business-card-public-render.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/public-entry-service/business-card-public-render.md)
+    - [business-card-management.md](../../contracts/public-entry-service/business-card-management.md)
+    - [business-card-self-view.md](../../contracts/public-entry-service/business-card-self-view.md)
+    - [business-card-public-render.md](../../contracts/public-entry-service/business-card-public-render.md)
   - ShortLink contracts 已建立，BusinessCard contracts 应引用消费：
-    - [shortlink-public-redirect.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/public-entry-service/shortlink-public-redirect.md)
-    - [shortlink-admin-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/public-entry-service/shortlink-admin-management.md)
-    - [shortlink-target-resolver.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/public-entry-service/shortlink-target-resolver.md)
+    - [shortlink-public-redirect.md](../../contracts/public-entry-service/shortlink-public-redirect.md)
+    - [shortlink-admin-management.md](../../contracts/public-entry-service/shortlink-admin-management.md)
+    - [shortlink-target-resolver.md](../../contracts/public-entry-service/shortlink-target-resolver.md)
   - Contact Asset contract 不在本文冻结。
 - feature packet：
-  - 已建立 [employee-digital-business-card.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/employee-digital-business-card.md) 作为 Phase 1 feature packet。
+  - 已建立 [employee-digital-business-card.md](../features/employee-digital-business-card.md) 作为 Phase 1 feature packet。
 - architecture / ADR：
   - 只有在 `public-entry-service` 服务边界、公共入口治理或 Contact Asset owner 成为稳定架构决策时再升级。
 
@@ -410,19 +409,18 @@ Permission 线程已确认 Phase 1 权限口径：
 下次继续前先读：
 
 - 本 workspace。
-- `docs/plans/candidates.md` 中 Employee Digital Business Card 条目。
 - `docs/plans/designs/README.md`。
 - `docs/architecture/services/hr-service.md`。
 - `docs/architecture/services/identity-service.md`。
 - `docs/architecture/services/tenant-org-service.md`。
 - `docs/architecture/services/crm-service.md`。
 - ShortLink / Public Entry 稳定服务职责、feature packet 与 contracts：
-  - [public-entry-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/public-entry-service.md)
-  - [shortlink-public-entry-phase-1.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/shortlink-public-entry-phase-1.md)
-  - [public-entry-service contracts](/Users/acehood/Documents/GitHub/oes/docs/contracts/public-entry-service/README.md)
+  - [public-entry-service.md](../../architecture/services/public-entry-service.md)
+  - [shortlink-public-entry-phase-1.md](../features/shortlink-public-entry-phase-1.md)
+  - [public-entry-service contracts](../../contracts/public-entry-service/README.md)
 - Contact Asset 稳定设计与真相源：
-  - [contact-asset-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/contact-asset-design.md)
-  - [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)
+  - [contact-asset-design.md](./contact-asset-design.md)
+  - [identity-service.md](../../architecture/services/identity-service.md)
 
 当前推荐下一步：
 

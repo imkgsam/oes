@@ -197,7 +197,7 @@ conflictResolution: 本文只记录 workflow-service 讨论思路与恢复入口
 
 - 服务职责：
   - future `docs/architecture/services/workflow-service.md`
-  - [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md)
+  - [hr-service.md](../../architecture/services/hr-service.md)
 - 协同蓝图：
   - future `docs/architecture/collaborations/workflow-and-business-services.md`
   - future HR leave workflow collaboration
@@ -215,15 +215,15 @@ conflictResolution: 本文只记录 workflow-service 讨论思路与恢复入口
 
 下次继续前建议先读：
 
-- [02-bounded-contexts.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/02-bounded-contexts.md)
-- [service-collaboration-rules.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/service-collaboration-rules.md)
-- [08-notification-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/08-notification-architecture.md)
-- [04-ai-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/04-ai-architecture.md)
-- [object-activity-and-timeline.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/object-activity-and-timeline.md)
-- [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md)
-- [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md)
-- [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
-- [workflow-service-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/workflow-service-design.md)
+- [bounded-contexts.md](../../architecture/system/bounded-contexts.md)
+- [service-collaboration-rules.md](../../architecture/system/service-collaboration-rules.md)
+- [notification.md](../../architecture/platforms/notification.md)
+- [ai-platform.md](../../architecture/platforms/ai-platform.md)
+- [object-activity-and-timeline.md](../../architecture/collaborations/object-activity-and-timeline.md)
+- [hr-service.md](../../architecture/services/hr-service.md)
+- [tenant-org-service.md](../../architecture/services/tenant-org-service.md)
+- [permission-service.md](../../architecture/services/permission-service.md)
+- [workflow-service-design.md](./workflow-service-design.md)
 
 当前推荐下一步：
 

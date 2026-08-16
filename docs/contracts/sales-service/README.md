@@ -21,7 +21,7 @@
 
 phase 1 只冻结四组内部 gRPC 服务面：
 
-- [query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/sales-service/query.md)
+- [query.md](./query.md)
   - `SalesQueryService`
   - `GetQuote`
   - `SearchQuotes`
@@ -29,7 +29,7 @@ phase 1 只冻结四组内部 gRPC 服务面：
   - `ListQuoteVersions`
   - `GetSalesOrder`
   - `SearchSalesOrders`
-- [management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/sales-service/management.md)
+- [management.md](./management.md)
   - `SalesManagementService`
   - `CreateQuote`
   - `UpdateQuoteDraft`
@@ -37,7 +37,7 @@ phase 1 只冻结四组内部 gRPC 服务面：
   - `ConvertQuoteVersionToOrder`
   - `SetOrderCommercialGate`
   - `SubmitFulfillmentHandoff`
-- [pricing-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/sales-service/pricing-query.md)
+- [pricing-query.md](./pricing-query.md)
   - `PricingQueryService`
   - `SearchPriceLists`
   - `GetPriceList`
@@ -46,7 +46,7 @@ phase 1 只冻结四组内部 gRPC 服务面：
   - `GetCustomerPriceAgreement`
   - `ListCustomerPriceAgreementVersions`
   - `PreviewQuoteLinePricing`
-- [pricing-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/sales-service/pricing-management.md)
+- [pricing-management.md](./pricing-management.md)
   - `PricingManagementService`
   - `CreatePriceList`
   - `UpdatePriceList`
@@ -114,7 +114,7 @@ phase 1 contract 明确围绕以下 owner 边界展开：
 `sales-service` phase 1 contract 明确不承载以下真相：
 
 - `crm-service` 的 `opportunity`
-- `party-service` 的主体主数据与租户主体引用；具体核心对象与 owner 边界以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准
+- `party-service` 的主体主数据与租户主体引用；具体核心对象与 owner 边界以 [party-service.md](../../architecture/services/party-service.md) 为准
 - `item-master-service` 的 `Item`
 - `wms-service` 的库存、占用、包装转换与仓储执行
 - `mes-service` 的制造执行、WIP、工序与放行执行
@@ -230,7 +230,7 @@ phase 1 只允许把下列事件列为候选，不得视为已冻结 event catal
 
 本目录以上游稳定文档为准：
 
-- [sales-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/sales-service.md)
-- [sales-crm-party-item-master.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/sales-crm-party-item-master.md)
-- [sales-fulfillment-mes-wms-finance.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/sales-fulfillment-mes-wms-finance.md)
-- [sales-quote-order-core.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/sales-quote-order-core.md)
+- [sales-service.md](../../architecture/services/sales-service.md)
+- [sales-crm-party-item-master.md](../../architecture/collaborations/sales-crm-party-item-master.md)
+- [sales-fulfillment-mes-wms-finance.md](../../architecture/collaborations/sales-fulfillment-mes-wms-finance.md)
+- [sales-quote-order-core.md](../../plans/features/sales-quote-order-core.md)

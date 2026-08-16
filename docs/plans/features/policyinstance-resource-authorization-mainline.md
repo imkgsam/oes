@@ -1,6 +1,6 @@
 # PolicyInstance Resource Authorization Mainline
 
-> 服务设计唯一真相源：[permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。本文只记录 `PolicyInstance` 资源授权主线的冻结结论、迁移路径与首个前端可测试 slice，不重新定义 permission-service 长期 owner 边界。
+> 服务设计唯一真相源：[permission-service.md](../../architecture/services/permission-service.md)。本文只记录 `PolicyInstance` 资源授权主线的冻结结论、迁移路径与首个前端可测试 slice，不重新定义 permission-service 长期 owner 边界。
 
 ## 1. Goal
 
@@ -70,7 +70,7 @@ Status: completed.
 Deliverables:
 
 - Update `docs/architecture/services/permission-service.md`.
-- Update `docs/architecture/15-authorization-layering-and-resource-policy-architecture.md`.
+- Update `docs/architecture/platforms/authorization-layering-and-resource-policy.md`.
 - Add `docs/contracts/permission-service/resource-authorization.md`.
 - Keep `PolicyInstance` as the only resource grant / resource scope fact model.
 - Mark legacy `Policy + conditionAstJson` and `CheckPermissionWithContext` as no-new-callers for resource authorization.
@@ -83,9 +83,9 @@ Acceptance:
 
 Current truth sources:
 
-- Service boundary: [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
-- Project authorization layering: [15-authorization-layering-and-resource-policy-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/15-authorization-layering-and-resource-policy-architecture.md)
-- Resource authorization contract: [resource-authorization.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/resource-authorization.md)
+- Service boundary: [permission-service.md](../../architecture/services/permission-service.md)
+- Project authorization layering: [authorization-layering-and-resource-policy.md](../../architecture/platforms/authorization-layering-and-resource-policy.md)
+- Resource authorization contract: [resource-authorization.md](../../contracts/permission-service/resource-authorization.md)
 
 ### Phase 2: Legacy Governance and Contract Cleanup
 

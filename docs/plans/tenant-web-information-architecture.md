@@ -2,7 +2,7 @@
 
 更新时间：2026-04-09 21:10:00 +08:00
 
-> 涉及 HR `Employee / Employment`、员工生命周期、正式 `人 -> org` 归属或 onboarding owner 边界时，以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准；本文只记录 tenant-web 产品级信息架构，不重新定义服务设计。
+> 涉及 HR `Employee / Employment`、员工生命周期、正式 `人 -> org` 归属或 onboarding owner 边界时，以 [hr-service.md](../architecture/services/hr-service.md) 为准；本文只记录 tenant-web 产品级信息架构，不重新定义服务设计。
 
 ## 1. 文档目的
 
@@ -395,8 +395,8 @@
 ## 11. 与其他文档的关系
 
 - 前端总体边界来源：
-  - [frontend-planning-summary.md](/Users/acehood/Documents/GitHub/oes/docs/plans/frontend-planning-summary.md)
+  - [frontend-planning-summary.md](./frontend-planning-summary.md)
 - tenant-web 实施计划来源：
-  - [tenant-web-vben-implementation-plan.md](/Users/acehood/Documents/GitHub/oes/docs/plans/tenant-web-vben-implementation-plan.md)
+  - [tenant-web-vben-implementation-plan.md](./tenant-web-vben-implementation-plan.md)
 - Gateway / BFF 黑盒契约导航：
-  - [API Gateway Contracts README](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/README.md)
+  - [API Gateway Contracts README](../contracts/api-gateway/README.md)

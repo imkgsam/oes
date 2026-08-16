@@ -5,7 +5,7 @@ status: FROZEN
 decisionAdr: docs/adr/0016-delegated-execution-and-action-grant.md
 authTruthSource: docs/architecture/services/auth-service.md
 permissionTruthSource: docs/architecture/services/permission-service.md
-aiArchitectureTruthSource: docs/architecture/04-ai-architecture.md
+aiArchitectureTruthSource: docs/architecture/platforms/ai-platform.md
 ```
 
 > Auth owns delegation and ActionGrant credentials; Permission owns authorization decisions; the AI tool layer owns ToolContract identity, user-facing confirmation and execution logs; each business service owns its operation risk class and business command. This collaboration document defines only their stable interaction.

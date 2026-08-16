@@ -1,6 +1,6 @@
 # Terminal Device Service Device Management Contract
 
-> 服务设计唯一真相源：[terminal-device-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/terminal-device-service.md)。本文只描述设备管理 command/query contract。
+> 服务设计唯一真相源：[terminal-device-service.md](../../architecture/services/terminal-device-service.md)。本文只描述设备管理 command/query contract。
 
 ## 1. Purpose
 

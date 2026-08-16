@@ -1,6 +1,6 @@
 # ShortLink Admin Management Contract
 
-> 服务设计唯一真相源：[public-entry-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/public-entry-service.md)。本文只描述 ShortLink admin management command/query contract，不重新定义 BusinessCard、Campaign、CRM 或 Barcode 边界。
+> 服务设计唯一真相源：[public-entry-service.md](../../architecture/services/public-entry-service.md)。本文只描述 ShortLink admin management command/query contract，不重新定义 BusinessCard、Campaign、CRM 或 Barcode 边界。
 
 ## 1. Purpose
 

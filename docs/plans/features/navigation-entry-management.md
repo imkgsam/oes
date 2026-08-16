@@ -1,6 +1,6 @@
 # Navigation Entry Management
 
-> 服务设计唯一真相源：[permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。本文只记录 Navigation Entry Management feature 的范围、执行状态与验收要求；NavigationEntry、RoleNavigationVisibility、RoleLandingPolicy 的 owner、命名和长期边界不在本文重复定义。
+> 服务设计唯一真相源：[permission-service.md](../../architecture/services/permission-service.md)。本文只记录 Navigation Entry Management feature 的范围、执行状态与验收要求；NavigationEntry、RoleNavigationVisibility、RoleLandingPolicy 的 owner、命名和长期边界不在本文重复定义。
 
 ## 1. 目标
 
@@ -23,33 +23,33 @@
 ## 3. 上游依赖
 
 - architecture:
-  - [15-authorization-layering-and-resource-policy-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/15-authorization-layering-and-resource-policy-architecture.md)
-  - [16-unified-web-account-context-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/16-unified-web-account-context-architecture.md)
+  - [authorization-layering-and-resource-policy.md](../../architecture/platforms/authorization-layering-and-resource-policy.md)
+  - [unified-web-account-context.md](../../architecture/platforms/unified-web-account-context.md)
 - services:
-  - [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
+  - [permission-service.md](../../architecture/services/permission-service.md)
 - collaborations:
-  - [authorization-decision-flow.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/authorization-decision-flow.md)
+  - [authorization-decision-flow.md](../../architecture/collaborations/authorization-decision-flow.md)
 - contracts:
-  - [navigation-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/navigation-summary.md)
-  - [permission-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/permission-management.md)
+  - [navigation-summary.md](../../contracts/api-gateway/navigation-summary.md)
+  - [permission-management.md](../../contracts/api-gateway/permission-management.md)
 - plans:
-  - navigation entry governance 的设计过程已回写到 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)、[navigation-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/navigation-summary.md) 与 [permission-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/permission-management.md)，不再保留独立 design workspace。
-  - [role-management.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/role-management.md)
+  - navigation entry governance 的设计过程已回写到 [permission-service.md](../../architecture/services/permission-service.md)、[navigation-summary.md](../../contracts/api-gateway/navigation-summary.md) 与 [permission-management.md](../../contracts/api-gateway/permission-management.md)，不再保留独立 design workspace。
+  - [role-management.md](./role-management.md)
 
 ## 4. 当前结论
 
 - 当前 feature 的目标是“navigation governance 管理闭环”，不是“菜单后台配置中心”。
-- Navigation governance 的 owner、核心对象、解析规则与非目标以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。
-- BFF 响应形状与默认入口解析 contract 以 [navigation-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/navigation-summary.md) 为准。
-- 管理接口分组以 [permission-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/permission-management.md) 为准。
-- tenant 侧 `组织与人员` dedicated entry 是本 feature 的消费结果之一，不改变 tenant-org / HR / identity 的服务边界；HR `Employee / Employment` 设计以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准。
+- Navigation governance 的 owner、核心对象、解析规则与非目标以 [permission-service.md](../../architecture/services/permission-service.md) 为准。
+- BFF 响应形状与默认入口解析 contract 以 [navigation-summary.md](../../contracts/api-gateway/navigation-summary.md) 为准。
+- 管理接口分组以 [permission-management.md](../../contracts/api-gateway/permission-management.md) 为准。
+- tenant 侧 `组织与人员` dedicated entry 是本 feature 的消费结果之一，不改变 tenant-org / HR / identity 的服务边界；HR `Employee / Employment` 设计以 [hr-service.md](../../architecture/services/hr-service.md) 为准。
 
 ## 5. 契约真相位置
 
 - 当前导航摘要真相：
-  - [navigation-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/navigation-summary.md)
+  - [navigation-summary.md](../../contracts/api-gateway/navigation-summary.md)
 - 当前权限管理真相：
-  - [permission-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/permission-management.md)
+  - [permission-management.md](../../contracts/api-gateway/permission-management.md)
 - 当前 feature 预期新增或扩展的管理 contract 分组：
   - `navigation-entry`
   - `role-navigation`
@@ -96,9 +96,9 @@
 ## 8. 主线范围
 
 - 当前主线任务：
-  - 以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 作为服务设计真相源，推进 permission-service、api-gateway、tenant-web 的第一阶段实现。
-  - 以 [permission-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/permission-management.md) 作为管理 contract。
-  - 以 [navigation-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/navigation-summary.md) 作为 BFF 输出 contract。
+  - 以 [permission-service.md](../../architecture/services/permission-service.md) 作为服务设计真相源，推进 permission-service、api-gateway、tenant-web 的第一阶段实现。
+  - 以 [permission-management.md](../../contracts/api-gateway/permission-management.md) 作为管理 contract。
+  - 以 [navigation-summary.md](../../contracts/api-gateway/navigation-summary.md) 作为 BFF 输出 contract。
 - 本线程不做：
   - 独立 navigation BFF
   - 用户个人 landing 配置
@@ -131,7 +131,7 @@
 | 2026-04-18 | preview 是否只做页面内编排 | Blocker-Now | 若没有正式 preview API，管理页和排障工具会复制 resolver 逻辑 | 已确认首期正式暴露 `resolver preview` 管理 API | 当前 feature packet + contract | closed |
 | 2026-04-18 | entry registry 是否允许租户级启停 | Blocker-Later | 若允许，会把导航治理变成租户自定义菜单树，并重新引入当前已永久后置的模块启用语义 | 维持系统级 entry enabled，不推进租户级 entry 启停 | 当前 feature packet | closed |
 | 2026-04-18 | entry 是否提供真删除 | Blocker-Later | 真删除会引入引用完整性、审计与历史 contract 演化问题 | 第一阶段只做 create/update/enable-disable，删除后置 | 后续 feature / backlog | open |
-| 2026-04-18 | feature/plugin enablement 何时进入 visibility 主链 | Sidecar | 当前系统暂不继续向租户级模块化设计演进 | 永久后置；除非未来 ADR 反转，否则不进入 navigation visibility 主链 | [backlog.md](/Users/acehood/Documents/GitHub/oes/docs/plans/backlog.md) | closed |
+| 2026-04-18 | feature/plugin enablement 何时进入 visibility 主链 | Sidecar | 当前系统暂不继续向租户级模块化设计演进 | 永久后置；除非未来 ADR 反转，否则不进入 navigation visibility 主链 | [backlog.md](../backlog.md) | closed |
 
 ## 11. 验收标准
 

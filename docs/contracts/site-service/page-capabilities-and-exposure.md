@@ -5,8 +5,7 @@
 ```text
 contractStatus: FROZEN_FOR_SITE_PAGE_LOCALE_GOVERNANCE_P1
 serviceTruthSource: docs/architecture/services/site-service.md
-runtimeTruthSource: docs/architecture/site-runtime-kit.md
-designWorkspace: docs/plans/designs/site-locale-exposure-governance.md
+runtimeTruthSource: docs/architecture/platforms/site-runtime-kit.md
 ```
 
 ## 1. Boundary

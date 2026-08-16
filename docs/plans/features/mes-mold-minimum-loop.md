@@ -1,6 +1,6 @@
 # MES Mold Minimum Loop
 
-> 服务设计唯一真相源：[mes-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/mes-service.md)。本文只记录 MES 模具管理第一阶段最小闭环的执行范围、已确认设计修正、切片顺序与验证要求；MES 服务长期边界、资源模型、质量边界、Planning / WMS / Item Master 边界仍以服务真相源为准。
+> 服务设计唯一真相源：[mes-service.md](../../architecture/services/mes-service.md)。本文只记录 MES 模具管理第一阶段最小闭环的执行范围、已确认设计修正、切片顺序与验证要求；MES 服务长期边界、资源模型、质量边界、Planning / WMS / Item Master 边界仍以服务真相源为准。
 
 ```text
 status: BUSINESS_FEATURE_IMPLEMENTATION_PRESENT_TRUSTED_GRPC_FROZEN_PENDING_IMPLEMENTATION
@@ -34,15 +34,15 @@ trustedGrpcTruth: docs/contracts/mes-service/README.md and docs/plans/features/t
 ## 3. 上游依赖
 
 - architecture:
-  - [mes-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/mes-service.md)
+  - [mes-service.md](../../architecture/services/mes-service.md)
 - mes-service contracts:
-  - [README.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/mes-service/README.md)
-  - [mold-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/mes-service/mold-management.md)
-  - [mold-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/mes-service/mold-query.md)
+  - [README.md](../../contracts/mes-service/README.md)
+  - [mold-management.md](../../contracts/mes-service/mold-management.md)
+  - [mold-query.md](../../contracts/mes-service/mold-query.md)
 - API Gateway contract:
-  - [mes-mold-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/mes-mold-management.md)
+  - [mes-mold-management.md](../../contracts/api-gateway/mes-mold-management.md)
 - proto:
-  - [mes.proto](/Users/acehood/Documents/GitHub/oes/src/common/src/contracts/mes_service/mes.proto)
+  - [mes.proto](../../../src/common/src/contracts/mes_service/mes.proto)
 
 ## 4. 当前结论
 

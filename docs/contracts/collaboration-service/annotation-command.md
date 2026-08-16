@@ -1,6 +1,6 @@
 # collaboration-service Annotation Command API
 
-> `collaboration-service` 的服务职责、核心对象、owner 边界与长期命名以 [collaboration-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/collaboration-service.md) 为唯一稳定真相源。本文只描述 Annotation P1 command 黑盒契约。
+> `collaboration-service` 的服务职责、核心对象、owner 边界与长期命名以 [collaboration-service.md](../../architecture/services/collaboration-service.md) 为唯一稳定真相源。本文只描述 Annotation P1 command 黑盒契约。
 
 ## 1. 模块职责
 

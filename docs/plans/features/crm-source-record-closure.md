@@ -4,9 +4,9 @@
 
 Current status: `phase 1 implementation in progress / phase 2 deferred`
 
-This feature closes the CRM P1 source-record read loop for customer detail pages. The stable object semantics remain owned by [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md). This packet defines the Phase 1 execution boundary, API surface, UI behavior, and verification plan only.
+This feature closes the CRM P1 source-record read loop for customer detail pages. The stable object semantics remain owned by [crm-service.md](../../architecture/services/crm-service.md). This packet defines the Phase 1 execution boundary, API surface, UI behavior, and verification plan only.
 
-Phase 2 manual management is intentionally not frozen in this packet. It has been moved to [backlog.md](/Users/acehood/Documents/GitHub/oes/docs/plans/backlog.md) because source-record creation, primary-source mutation, evidence validation, permission, and audit semantics still need a separate design discussion.
+Phase 2 manual management is intentionally not frozen in this packet. It has been moved to [backlog.md](../backlog.md) because source-record creation, primary-source mutation, evidence validation, permission, and audit semantics still need a separate design discussion.
 
 ## 2. Problem
 

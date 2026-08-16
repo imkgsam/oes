@@ -4,7 +4,7 @@
 
 Accepted
 
-Supersedes [ADR 0003: Party Master Service And Tenant Party Binding](/Users/acehood/Documents/GitHub/oes/docs/adr/0003-party-master-service-and-tenant-party-binding.md).
+This decision supersedes the earlier system-wide Party master model retained in Git history.
 
 ## Context
 

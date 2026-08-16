@@ -21,19 +21,19 @@
 ## 3. 上游依赖
 
 - architecture:
-  - [16-unified-web-account-context-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/16-unified-web-account-context-architecture.md)
-  - [15-authorization-layering-and-resource-policy-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/15-authorization-layering-and-resource-policy-architecture.md)
+  - [unified-web-account-context.md](../../architecture/platforms/unified-web-account-context.md)
+  - [authorization-layering-and-resource-policy.md](../../architecture/platforms/authorization-layering-and-resource-policy.md)
 - services:
-  - [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)
-  - [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)
+  - [identity-service.md](../../architecture/services/identity-service.md)
+  - [auth-service.md](../../architecture/services/auth-service.md)
 - collaborations:
-  - [authentication-and-identity.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/authentication-and-identity.md)
+  - [authentication-and-identity.md](../../architecture/collaborations/authentication-and-identity.md)
   - authorization decision flow, if search visibility requires additional policy semantics
 - contracts:
-  - [auth-bff-admin-security.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-admin-security.md)
-  - [session.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/session.md)
+  - [auth-bff-admin-security.md](../../contracts/api-gateway/auth-bff-admin-security.md)
+  - [session.md](../../contracts/auth-service/session.md)
 - design workspace:
-  - [admin-user-and-tenant-discovery.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/admin-user-and-tenant-discovery.md)
+  - [admin-user-and-tenant-discovery.md](../designs/admin-user-and-tenant-discovery.md)
 
 ## 4. 当前结论
 
@@ -50,7 +50,7 @@
 ## 5. 契约真相位置
 
 - 当前新增契约真相：
-  - [auth-bff-admin-security.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-admin-security.md)
+  - [auth-bff-admin-security.md](../../contracts/api-gateway/auth-bff-admin-security.md)
 - 预期新增接口：
   - `GET /auth/admin/users/search`
 - 既有复用接口：

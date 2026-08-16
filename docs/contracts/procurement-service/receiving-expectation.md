@@ -31,7 +31,7 @@
 - tenant、适用时的 org、operator、trace 与 audit 都由 verified claims 派生
 - request body 与 legacy metadata 中的同名字段均不再是 authority
 
-WMS 只使用 [internal-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/procurement-service/internal-query.md) 中的窄 `ResolveReceivingExpectationForReceipt`，不得复用本文件的 Gateway-only query。
+WMS 只使用 [internal-query.md](./internal-query.md) 中的窄 `ResolveReceivingExpectationForReceipt`，不得复用本文件的 Gateway-only query。
 
 补充约束：
 

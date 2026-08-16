@@ -1,6 +1,6 @@
 # auth-service Terminal-aware Session Management API
 
-> 服务设计唯一真相源：[auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)。本文只描述 terminal-aware session 管理黑盒接口语义，不重新定义 session owner 边界。
+> 服务设计唯一真相源：[auth-service.md](../../architecture/services/auth-service.md)。本文只描述 terminal-aware session 管理黑盒接口语义，不重新定义 session owner 边界。
 
 ## 1. 能力定位
 
@@ -163,6 +163,6 @@ Web / Mobile session 可包含：
 
 ## 7. 关联文档
 
-- [session.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/session.md)
-- [terminal-aware-account-security.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/terminal-aware-account-security.md)
-- [managed-terminal-device-management.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/managed-terminal-device-management.md)
+- [session.md](./session.md)
+- [terminal-aware-account-security.md](../../architecture/collaborations/terminal-aware-account-security.md)
+- [managed-terminal-device-management.md](../../architecture/collaborations/managed-terminal-device-management.md)

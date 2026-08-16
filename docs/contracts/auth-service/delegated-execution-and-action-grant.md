@@ -7,7 +7,7 @@ architectureTruthSource: docs/architecture/services/auth-service.md
 collaborationTruthSource: docs/architecture/collaborations/delegated-execution-and-action-grant.md
 ```
 
-> This contract describes Auth’s black-box delegation and ActionGrant behavior. Permission decisions remain in [delegated-authorization.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/delegated-authorization.md); business commands and their risk classes remain owned by each target service.
+> This contract describes Auth’s black-box delegation and ActionGrant behavior. Permission decisions remain in [delegated-authorization.md](../permission-service/delegated-authorization.md); business commands and their risk classes remain owned by each target service.
 
 ## 1. DelegationGrant
 

@@ -1,6 +1,6 @@
 # auth-service Trusted Login Device API
 
-> 服务设计唯一真相源：[auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)。本文只描述 personal trusted login device 的黑盒语义，不重新定义 managed terminal device 边界。
+> 服务设计唯一真相源：[auth-service.md](../../architecture/services/auth-service.md)。本文只描述 personal trusted login device 的黑盒语义，不重新定义 managed terminal device 边界。
 
 ## 1. 能力定位
 
@@ -64,5 +64,5 @@ Phase 2 可按已有 admin security 能力查看或撤销目标 user 的 trusted
 
 ## 7. 关联文档
 
-- [terminal-aware-account-security.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/terminal-aware-account-security.md)
-- [managed-terminal-device-management.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/managed-terminal-device-management.md)
+- [terminal-aware-account-security.md](../../architecture/collaborations/terminal-aware-account-security.md)
+- [managed-terminal-device-management.md](../../architecture/collaborations/managed-terminal-device-management.md)

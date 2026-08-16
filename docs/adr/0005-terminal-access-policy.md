@@ -1,6 +1,6 @@
 # ADR 0005: Terminal Access Policy Ownership And Login Enforcement
 
-> 当前 `permission-service` 服务职责、Terminal Access Policy 核心对象与 owner 边界以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准；本 ADR 只保留 terminal access ownership 与登录链路 enforcement 的架构决策记录。
+> 当前 `permission-service` 服务职责、Terminal Access Policy 核心对象与 owner 边界以 [permission-service.md](../architecture/services/permission-service.md) 为准；本 ADR 只保留 terminal access ownership 与登录链路 enforcement 的架构决策记录。
 
 日期：2026-05-11
 
@@ -176,7 +176,7 @@ Phase 1 管理 UI 只显示 `WEB / PDA / KIOSK`；后端枚举预留 `MOBILE / M
 
 ## Related Documents
 
-- [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
-- [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)
-- [terminal-access-policy.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/terminal-access-policy.md)
-- [terminal-access.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/terminal-access.md)
+- [permission-service.md](../architecture/services/permission-service.md)
+- [auth-service.md](../architecture/services/auth-service.md)
+- [terminal-access-policy.md](../architecture/collaborations/terminal-access-policy.md)
+- [terminal-access.md](../contracts/permission-service/terminal-access.md)

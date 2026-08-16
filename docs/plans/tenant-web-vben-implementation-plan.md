@@ -2,7 +2,7 @@
 
 更新时间：2026-04-13
 
-> tenant-web 底座不拥有 Role、Policy、permission code、access summary 或授权判定真相；这些服务设计边界以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。本文只描述前端底座适配。
+> tenant-web 底座不拥有 Role、Policy、permission code、access summary 或授权判定真相；这些服务设计边界以 [permission-service.md](../architecture/services/permission-service.md) 为准。本文只描述前端底座适配。
 
 ## 1. 文档目的
 
@@ -25,11 +25,11 @@
 相关正式文档：
 
 - 前端工程架构：
-  - [tenant-web-frontend-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/plans/tenant-web-frontend-architecture.md)
+  - [tenant-web-frontend-architecture.md](./tenant-web-frontend-architecture.md)
 - 产品信息架构：
-  - [tenant-web-information-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/plans/tenant-web-information-architecture.md)
+  - [tenant-web-information-architecture.md](./tenant-web-information-architecture.md)
 - 当前执行状态：
-  - [tenant-web-code-refactor-checklist.md](/Users/acehood/Documents/GitHub/oes/docs/plans/tenant-web-code-refactor-checklist.md)
+  - [tenant-web-code-refactor-checklist.md](./tenant-web-code-refactor-checklist.md)
 
 ## 2. 当前底座判断
 

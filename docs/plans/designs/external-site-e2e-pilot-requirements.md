@@ -17,10 +17,10 @@ doNotUseAsStableServiceTruthSource: true
 
 本文是需求冻结工作台，不替代以下稳定真相源：
 
-- [site-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/site-service.md)
-- [site-runtime-kit.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/site-runtime-kit.md)
-- [site-runtime-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/site-runtime-architecture.md)
-- [docs/contracts/site-service/**](/Users/acehood/Documents/GitHub/oes/docs/contracts/site-service/README.md)
+- [site-service.md](../../architecture/services/site-service.md)
+- [site-runtime-kit.md](../../architecture/platforms/site-runtime-kit.md)
+- [site-runtime-architecture.md](../../architecture/platforms/site-runtime-architecture.md)
+- [docs/contracts/site-service/**](../../contracts/site-service/README.md)
 
 若本文与稳定架构或 contract 真相源冲突，默认以稳定真相源为准。若需求冻结中产生需要长期生效的变更，应后续回写到对应 architecture / contract 文档，而不是长期滞留在本文。
 
@@ -32,8 +32,8 @@ doNotUseAsStableServiceTruthSource: true
 - External Site Template 只冻结必要工程边界，不建设过度抽象的 site builder。
 - 美隆站点是第一个 Pilot 实例，不得污染通用模板核心。
 - 已产出第一个后续线程完整 prompt：`External Site Template P1 - Nuxt + NestJS Runtime`。
-- `External Site Template P1 - Nuxt + NestJS Runtime` 已完成，产物位于 [external-site-template](/Users/acehood/Documents/GitHub/oes/src/site-runtime/external-site-template)。
-- `Meilong Ceramics Site Pilot - Local E2E` 已完成，产物位于 [meilong-ceramics-site](/Users/acehood/Documents/GitHub/oes/src/site-runtime/meilong-ceramics-site)。
+- `External Site Template P1 - Nuxt + NestJS Runtime` 已完成，产物位于 [external-site-template](../../../src/site-runtime/external-site-template)。
+- `Meilong Ceramics Site Pilot - Local E2E` 已完成，产物位于 [meilong-ceramics-site](../../../src/site-runtime/meilong-ceramics-site)。
 
 仍待后续按需求产出：
 
@@ -506,8 +506,8 @@ External Site Template P1 - Nuxt + NestJS Runtime
 
 - AGENTS.md
 - docs/plans/features/external-site-integration-p1.md
-- docs/architecture/site-runtime-architecture.md
-- docs/architecture/site-runtime-kit.md
+- docs/architecture/platforms/site-runtime-architecture.md
+- docs/architecture/platforms/site-runtime-kit.md
 - docs/architecture/services/site-service.md
 - docs/contracts/site-service/README.md
 - docs/contracts/site-service/security-and-signing.md
@@ -751,8 +751,8 @@ Meilong Ceramics Site Pilot - Local E2E
 - AGENTS.md
 - docs/plans/designs/external-site-e2e-pilot-requirements.md
 - docs/plans/features/external-site-integration-p1.md
-- docs/architecture/site-runtime-architecture.md
-- docs/architecture/site-runtime-kit.md
+- docs/architecture/platforms/site-runtime-architecture.md
+- docs/architecture/platforms/site-runtime-kit.md
 - docs/architecture/services/site-service.md
 - docs/contracts/site-service/README.md
 - docs/contracts/site-service/security-and-signing.md
@@ -957,8 +957,8 @@ External Site Integration P1 - E2E Verification
 - AGENTS.md
 - docs/plans/designs/external-site-e2e-pilot-requirements.md
 - docs/plans/features/external-site-integration-p1.md
-- docs/architecture/site-runtime-architecture.md
-- docs/architecture/site-runtime-kit.md
+- docs/architecture/platforms/site-runtime-architecture.md
+- docs/architecture/platforms/site-runtime-kit.md
 - docs/architecture/services/site-service.md
 - docs/contracts/site-service/README.md
 - docs/contracts/site-service/security-and-signing.md
@@ -1280,7 +1280,7 @@ None.
 
 1. site-defined category source
 
-   回写 [site-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/site-service.md) 与 [public-views.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/site-service/public-views.md)：`CategoryPublicView` P1 source 应明确为 site-defined category data。
+   回写 [site-service.md](../../architecture/services/site-service.md) 与 [public-views.md](../../contracts/site-service/public-views.md)：`CategoryPublicView` P1 source 应明确为 site-defined category data。
 
 2. Runtime local SEO route index / public site config
 
@@ -1315,7 +1315,7 @@ reviewedAt: 2026-06-16
 | Follow-up | 处理状态 | 落点 |
 | --- | --- | --- |
 | site-defined category source | documented | `docs/architecture/services/site-service.md`, `docs/contracts/site-service/public-views.md` |
-| Runtime local SEO route index / public site config | documented as runtime-kit local helper boundary; contract deferred | `docs/architecture/site-runtime-kit.md`, `src/site-runtime/external-site-template/README.md` |
+| Runtime local SEO route index / public site config | documented as runtime-kit local helper boundary; contract deferred | `docs/architecture/platforms/site-runtime-kit.md`, `src/site-runtime/external-site-template/README.md` |
 | preview fallback semantics | documented | `docs/contracts/site-service/preview-and-runtime-status.md`, `docs/architecture/services/site-service.md` |
 | local domain / Nuxt allowedHosts | documented | `src/site-runtime/external-site-template/README.md`, `src/site-runtime/meilong-ceramics-site/README.md`, local nginx examples |
 | category fallback image external URL | deferred implementation follow-up | no production code change in this thread |

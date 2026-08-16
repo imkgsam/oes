@@ -1,6 +1,6 @@
 # Permission Service Access Summary Contract
 
-> 服务设计唯一真相源：[permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。本文只描述 access summary gRPC contract，不重新定义 Role、AccountRole、permission code 或授权摘要 owner 边界。
+> 服务设计唯一真相源：[permission-service.md](../../architecture/services/permission-service.md)。本文只描述 access summary gRPC contract，不重新定义 Role、AccountRole、permission code 或授权摘要 owner 边界。
 
 ## 1. Purpose
 
@@ -24,7 +24,7 @@ Therefore, OES exposes a dedicated access-summary RPC.
 
 Proto source:
 
-- [/Users/acehood/Documents/GitHub/oes/src/common/src/contracts/permission_service/permission_access_summary.proto](/Users/acehood/Documents/GitHub/oes/src/common/src/contracts/permission_service/permission_access_summary.proto)
+- [permission_access_summary.proto](../../../src/common/src/contracts/permission_service/permission_access_summary.proto)
 
 Current proto shape:
 

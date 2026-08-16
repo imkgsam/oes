@@ -1,6 +1,6 @@
 # auth-service Terminal MFA Policy API
 
-> 服务设计唯一真相源：[auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)。本文只描述 terminal-aware MFA policy 的黑盒接口语义，不重新定义 `auth-service` 长期职责。
+> 服务设计唯一真相源：[auth-service.md](../../architecture/services/auth-service.md)。本文只描述 terminal-aware MFA policy 的黑盒接口语义，不重新定义 `auth-service` 长期职责。
 
 ## 1. 能力定位
 
@@ -128,6 +128,6 @@ Phase 2 规则：
 
 ## 8. 关联文档
 
-- [ADR 0007](/Users/acehood/Documents/GitHub/oes/docs/adr/0007-terminal-aware-account-security-phase-2.md)
-- [mfa.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/mfa.md)
-- [terminal-aware-account-security.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/terminal-aware-account-security.md)
+- [ADR 0007](../../adr/0007-terminal-aware-account-security-phase-2.md)
+- [mfa.md](./mfa.md)
+- [terminal-aware-account-security.md](../../architecture/collaborations/terminal-aware-account-security.md)

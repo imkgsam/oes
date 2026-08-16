@@ -1,6 +1,6 @@
 # 权限码统一治理实施计划
 
-> `permission-service` 的服务设计唯一真相源为 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。本文只记录权限码统一实施切片，不重新定义 Permission、Role、Policy 或授权判定 owner 边界。
+> `permission-service` 的服务设计唯一真相源为 [permission-service.md](../architecture/services/permission-service.md)。本文只记录权限码统一实施切片，不重新定义 Permission、Role、Policy 或授权判定 owner 边界。
 
 ## 1. 目标
 
@@ -83,7 +83,7 @@ Updated: 2026-03-26 00:45 +08:00
 需要补充说明：
 
 - 上述解析方式是该阶段的过渡实现，不是目标状态
-- 自 2026-03-29 起，项目级目标状态已由 `docs/architecture/09-role-based-permission-resolution.md` 明确为：
+- 自 2026-03-29 起，项目级目标状态已由 `docs/architecture/platforms/role-based-permission-resolution.md` 明确为：
   - `operator_context` 传播 `operator_roles`
   - 子服务通过共享 resolver 调用 `permission-service` 解析 permissions
 

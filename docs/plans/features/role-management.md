@@ -1,6 +1,6 @@
 # Role Management
 
-> 服务设计唯一真相源：[permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。本文只记录 Role Management feature 的范围、状态与页面接入约束；`Role`、`RoleTemplate`、`AccountRole` 与 role-permission 绑定边界不在本文重新定义。
+> 服务设计唯一真相源：[permission-service.md](../../architecture/services/permission-service.md)。本文只记录 Role Management feature 的范围、状态与页面接入约束；`Role`、`RoleTemplate`、`AccountRole` 与 role-permission 绑定边界不在本文重新定义。
 
 ## 1. 目标
 
@@ -21,18 +21,18 @@
 ## 3. 上游依赖
 
 - architecture:
-  - [07-permission-code-source.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/07-permission-code-source.md)
-  - [09-role-based-permission-resolution.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/09-role-based-permission-resolution.md)
-  - [15-authorization-layering-and-resource-policy-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/15-authorization-layering-and-resource-policy-architecture.md)
+  - [permission-code-source.md](../../architecture/platforms/permission-code-source.md)
+  - [role-based-permission-resolution.md](../../architecture/platforms/role-based-permission-resolution.md)
+  - [authorization-layering-and-resource-policy.md](../../architecture/platforms/authorization-layering-and-resource-policy.md)
 - services:
-  - [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
+  - [permission-service.md](../../architecture/services/permission-service.md)
 - collaborations:
-  - [authorization-decision-flow.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/authorization-decision-flow.md)
+  - [authorization-decision-flow.md](../../architecture/collaborations/authorization-decision-flow.md)
 - contracts:
-  - [permission-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/permission-management.md)
-  - [access-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/access-summary.md)
+  - [permission-management.md](../../contracts/api-gateway/permission-management.md)
+  - [access-summary.md](../../contracts/api-gateway/access-summary.md)
 - adr:
-  - [0002-system-role-instance-and-account-role-scope.md](/Users/acehood/Documents/GitHub/oes/docs/adr/0002-system-role-instance-and-account-role-scope.md)
+  - [0002-system-role-instance-and-account-role-scope.md](../../adr/0002-system-role-instance-and-account-role-scope.md)
 
 ## 4. 当前结论
 
@@ -48,7 +48,7 @@
 - 当前 feature 是推进顺序中的 `Role Management`，不是整个权限平台一次性落地。
 - 当前主线任务已校正为：先完成 tenant-web `Permission Management` 第一阶段，再进入本 `Role Management`。
 - `Permission Catalog / Selector` 不再视为本 feature 内的轻量依赖，而是前置 feature：
-  - [permission-management.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/permission-management.md)
+  - [permission-management.md](./permission-management.md)
 - 页面建议采用单入口双 Tab：
   - `角色实例`
   - `角色模板`
@@ -64,7 +64,7 @@
 ## 5. 契约真相位置
 
 - 当前 HTTP 黑盒契约真相：
-  - [permission-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/permission-management.md)
+  - [permission-management.md](../../contracts/api-gateway/permission-management.md)
 - 当前已存在并可供前端消费的 role instance 接口：
   - `GET /role`
   - `POST /role`
@@ -152,7 +152,7 @@
 | 时间 | 问题 | 分类 | 当前影响 | 处理策略 | 目标落点 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- |
 | 2026-04-18 | Permission / Role / Policy 大板块优先级 | Blocker-Now | 若不先排序，Role 页面容易混入 AccountRole 与 Policy | 已确认按 Permission selector -> Role -> AccountRole -> Policy 的顺序推进 | 当前 feature packet | closed |
-| 2026-04-18 | Permission 管理前端尚未实现 | Blocker-Now | 若直接进入 Role Management，会缺少稳定 permission selector / lookup 基础 | 已前移为当前主线，先实现 `permission-management` feature | [permission-management.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/permission-management.md) | closed |
+| 2026-04-18 | Permission 管理前端尚未实现 | Blocker-Now | 若直接进入 Role Management，会缺少稳定 permission selector / lookup 基础 | 已前移为当前主线，先实现 `permission-management` feature | [permission-management.md](./permission-management.md) | closed |
 | 2026-04-18 | AccountRole 是否进入 Role Management | Blocker-Now | 若混入会引入 account 搜索、identity 展示和 scope 绑定，扩大当前 feature | 当前 feature 明确不做，后续进入 `account-management` | 后续 feature packet | closed |
 | 2026-04-18 | Policy 管理是否与 Role 管理一起做 | Blocker-Now | Policy 是高风险授权策略能力，过早开放编辑器会增加治理风险 | 当前 feature 不做 Policy；后续先做 readonly governance，再做受限 builder | 后续 feature packet / backlog | closed |
 | 2026-04-19 | Tenant selector 是否必须先做 | Blocker-Later | system admin 在模板实例化时手填 `tenantId` 的可用性较差 | 已补 identity-service 最小租户目录只读查询，并在 role-management 中改为租户选择器 | 当前 feature packet | closed |

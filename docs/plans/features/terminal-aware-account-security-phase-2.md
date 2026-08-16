@@ -1,6 +1,6 @@
 # Terminal-aware Account Security Phase 2 Feature Packet
 
-> 服务设计唯一真相源：[auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)。本文只记录 Terminal-aware Account Security Phase 2 的范围、执行阶段与验收要求；服务 owner、核心对象与长期边界不在本文重复定义。
+> 服务设计唯一真相源：[auth-service.md](../../architecture/services/auth-service.md)。本文只记录 Terminal-aware Account Security Phase 2 的范围、执行阶段与验收要求；服务 owner、核心对象与长期边界不在本文重复定义。
 
 ## 1. 目标
 
@@ -39,17 +39,17 @@
 
 ## 3. 设计与契约引用
 
-- 架构决策：[ADR 0007](/Users/acehood/Documents/GitHub/oes/docs/adr/0007-terminal-aware-account-security-phase-2.md)
-- 协同蓝图：[terminal-aware-account-security.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/terminal-aware-account-security.md)
-- auth-service 真相源：[auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)
-- Terminal Entry Login Policy contract：[terminal-login-policy.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/terminal-login-policy.md)
-- Terminal MFA Policy contract：[terminal-mfa-policy.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/terminal-mfa-policy.md)
-- Session management contract：[session-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/session-management.md)
-- Login history contract：[login-history.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/login-history.md)
-- Trusted login device contract：[trusted-login-device.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/trusted-login-device.md)
-- Account Security BFF contract：[account-security-bff.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/account-security-bff.md)
-- Platform Auth Security BFF contract：[platform-auth-security-bff.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/platform-auth-security-bff.md)
-- PDA Auth BFF contract：[pda-auth-bff-login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/pda-auth-bff-login.md)
+- 架构决策：[ADR 0007](../../adr/0007-terminal-aware-account-security-phase-2.md)
+- 协同蓝图：[terminal-aware-account-security.md](../../architecture/collaborations/terminal-aware-account-security.md)
+- auth-service 真相源：[auth-service.md](../../architecture/services/auth-service.md)
+- Terminal Entry Login Policy contract：[terminal-login-policy.md](../../contracts/auth-service/terminal-login-policy.md)
+- Terminal MFA Policy contract：[terminal-mfa-policy.md](../../contracts/auth-service/terminal-mfa-policy.md)
+- Session management contract：[session-management.md](../../contracts/auth-service/session-management.md)
+- Login history contract：[login-history.md](../../contracts/auth-service/login-history.md)
+- Trusted login device contract：[trusted-login-device.md](../../contracts/auth-service/trusted-login-device.md)
+- Account Security BFF contract：[account-security-bff.md](../../contracts/api-gateway/account-security-bff.md)
+- Platform Auth Security BFF contract：[platform-auth-security-bff.md](../../contracts/api-gateway/platform-auth-security-bff.md)
+- PDA Auth BFF contract：[pda-auth-bff-login.md](../../contracts/api-gateway/pda-auth-bff-login.md)
 
 ## 4. 核心规则
 

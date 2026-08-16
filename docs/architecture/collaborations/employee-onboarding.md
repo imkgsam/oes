@@ -6,7 +6,7 @@ Last Updated: 2026-06-10
 
 定义员工 onboarding 的最小跨服务协同方式。
 
-`hr-service` 的 `Employee / Employment`、员工生命周期、正式 `人 -> org` 归属与 onboarding owner 边界只以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准；本文只描述协同链。
+`hr-service` 的 `Employee / Employment`、员工生命周期、正式 `人 -> org` 归属与 onboarding owner 边界只以 [hr-service.md](../services/hr-service.md) 为准；本文只描述协同链。
 
 ## 2. 参与服务
 
@@ -73,11 +73,11 @@ Create/Reuse PERSON TenantParty
 
 ## 8. 关联文档
 
-- [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md)
-- [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md)
-- [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)
-- [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
-- [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md)
+- [party-service.md](../services/party-service.md)
+- [hr-service.md](../services/hr-service.md)
+- [identity-service.md](../services/identity-service.md)
+- [permission-service.md](../services/permission-service.md)
+- [tenant-org-service.md](../services/tenant-org-service.md)
 ## Trusted transport activation
 
 HR and TenantOrg onboarding orchestration keeps the original HUMAN subject and uses HUMAN_OBO for Auth, Identity and Permission calls. The five foundation servers and all cross-foundation callers activate atomically; onboarding business ownership, compensation, idempotency, persistence and error semantics do not change. Body/operator metadata never becomes a fallback when trusted proof is absent.

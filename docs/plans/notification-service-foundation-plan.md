@@ -8,7 +8,7 @@ Build a project-level `notification-service` foundation for OES that can first s
 
 This plan is based on:
 
-- `docs/architecture/08-notification-architecture.md`
+- `docs/architecture/platforms/notification.md`
 - OES platform boundary rules
 - the current need to externalize Email and SMS delivery from `auth-service`
 

@@ -23,24 +23,24 @@
 ## 3. 上游依赖
 
 - architecture:
-  - [pda.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/terminals/pda.md)
-  - [11-gateway-and-bff-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/11-gateway-and-bff-architecture.md)
-  - [12-observability-and-audit-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/12-observability-and-audit-architecture.md)
-  - [13-response-and-exception-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/13-response-and-exception-architecture.md)
+  - [pda.md](../../architecture/terminals/pda.md)
+  - [gateway-and-bff.md](../../architecture/platforms/gateway-and-bff.md)
+  - [observability-and-audit.md](../../architecture/platforms/observability-and-audit.md)
+  - [response-and-exception.md](../../architecture/platforms/response-and-exception.md)
 - services:
-  - [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)
-  - [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)
-  - [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
+  - [auth-service.md](../../architecture/services/auth-service.md)
+  - [identity-service.md](../../architecture/services/identity-service.md)
+  - [permission-service.md](../../architecture/services/permission-service.md)
 - collaborations:
-  - [authentication-and-identity.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/authentication-and-identity.md)
-  - [terminal-access-policy.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/terminal-access-policy.md)
+  - [authentication-and-identity.md](../../architecture/collaborations/authentication-and-identity.md)
+  - [terminal-access-policy.md](../../architecture/collaborations/terminal-access-policy.md)
 - contracts:
-  - [auth-bff-login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-login.md)
-  - [pda-auth-bff-login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/pda-auth-bff-login.md)
-  - [access-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/access-summary.md)
-  - [terminal-access.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/terminal-access.md)
+  - [auth-bff-login.md](../../contracts/api-gateway/auth-bff-login.md)
+  - [pda-auth-bff-login.md](../../contracts/api-gateway/pda-auth-bff-login.md)
+  - [access-summary.md](../../contracts/permission-service/access-summary.md)
+  - [terminal-access.md](../../contracts/permission-service/terminal-access.md)
 - adr:
-  - [0005-terminal-access-policy.md](/Users/acehood/Documents/GitHub/oes/docs/adr/0005-terminal-access-policy.md)
+  - [0005-terminal-access-policy.md](../../adr/0005-terminal-access-policy.md)
 
 ## 4. 当前结论
 
@@ -52,7 +52,7 @@
 - Vue3 静态资源随 APK 打包，Phase 1 不做热更新。
 - PDA 使用独立 `/pda/*` BFF 外部契约，内部复用 `auth-service / identity-service / permission-service`。
 - PDA Phase 1 首页采用开发 / 验收工作台。
-- PDA 登录以账号密码为主，预留员工工号 / 工牌扫码登录扩展；若后续启用员工身份入口，HR `Employee / Employment` 设计以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准。
+- PDA 登录以账号密码为主，预留员工工号 / 工牌扫码登录扩展；若后续启用员工身份入口，HR `Employee / Employment` 设计以 [hr-service.md](../../architecture/services/hr-service.md) 为准。
 - `/pda/auth/login` Phase 1 只实现账号密码登录，工号登录和工牌扫码登录只做设计预留。
 - `/pda/session/bootstrap` Phase 1 作为启动聚合接口，返回 account、session、access、device policy、version policy、workbench 与 server time。
 - `/pda/device/heartbeat` Phase 1 允许未登录和已登录都上报，只保存最近设备 / App 状态。
@@ -65,13 +65,13 @@
 
 ## 5. 契约真相位置
 
-- PDA 终端长期边界以 [pda.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/terminals/pda.md) 为准。
-- PDA 登录契约以 [pda-auth-bff-login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/pda-auth-bff-login.md) 为准。
-- Terminal Access Policy 以 [0005-terminal-access-policy.md](/Users/acehood/Documents/GitHub/oes/docs/adr/0005-terminal-access-policy.md) 与 [terminal-access-policy.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/terminal-access-policy.md) 为准。
+- PDA 终端长期边界以 [pda.md](../../architecture/terminals/pda.md) 为准。
+- PDA 登录契约以 [pda-auth-bff-login.md](../../contracts/api-gateway/pda-auth-bff-login.md) 为准。
+- Terminal Access Policy 以 [0005-terminal-access-policy.md](../../adr/0005-terminal-access-policy.md) 与 [terminal-access-policy.md](../../architecture/collaborations/terminal-access-policy.md) 为准。
 - `auth-service` session / token 语义以 auth-service contracts 为准。
 - `permission-service` access summary 与 terminal access 语义以 permission-service contracts 为准。
-- PDA Phase 1 device BFF contract 见 [pda-device-bff.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/pda-device-bff.md)。
-- PDA Phase 1 JS Bridge contract 见 [js-bridge.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/pda/js-bridge.md)。
+- PDA Phase 1 device BFF contract 见 [pda-device-bff.md](../../contracts/api-gateway/pda-device-bff.md)。
+- PDA Phase 1 JS Bridge contract 见 [js-bridge.md](../../contracts/pda/js-bridge.md)。
 
 ## 6. 线程分工
 
@@ -262,7 +262,7 @@ Phase 1 最小接口：
 ## 11. 阻塞 / 依赖
 
 - Terminal Access Policy 设计与实现已完成独立主线，PDA 通过 `/pda/auth/*` 消费其最终拒绝语义。
-- PDA BFF device heartbeat / logs contract 已冻结，见 [pda-device-bff.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/pda-device-bff.md)。
+- PDA BFF device heartbeat / logs contract 已冻结，见 [pda-device-bff.md](../../contracts/api-gateway/pda-device-bff.md)。
 - 东集 Cruise Ge 扫码接入已通过真机广播路径验证。
 - 东集 Cruise Ge 设备标识读取已通过真机验证，并保留 App-generated fallback。
 - Android 9 WebView 与本地资源加载策略已通过真机验证；PDA Web build target 固定为 `chrome66`。

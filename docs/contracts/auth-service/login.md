@@ -1,8 +1,8 @@
 # auth-service Login API
 
-> 服务设计唯一真相源：[auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)。本文只描述黑盒 gRPC 登录接口语义，不重新定义 `auth-service` 的长期职责、核心对象或 owner 边界。
-> `Tenant` lifecycle 与 tenant status 语义以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准；本文只描述登录与账号选择流程如何消费该事实。
-> Terminal Access Policy 与 permission 侧授权边界以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准；本文只描述登录 / refresh 链路如何消费该事实。
+> 服务设计唯一真相源：[auth-service.md](../../architecture/services/auth-service.md)。本文只描述黑盒 gRPC 登录接口语义，不重新定义 `auth-service` 的长期职责、核心对象或 owner 边界。
+> `Tenant` lifecycle 与 tenant status 语义以 [tenant-org-service.md](../../architecture/services/tenant-org-service.md) 为准；本文只描述登录与账号选择流程如何消费该事实。
+> Terminal Access Policy 与 permission 侧授权边界以 [permission-service.md](../../architecture/services/permission-service.md) 为准；本文只描述登录 / refresh 链路如何消费该事实。
 
 ## 1. 接口范围
 
@@ -24,7 +24,7 @@
 - 服务：`AuthService`
 - 调用方：内部服务
 - Proto 契约来源：
-  - [auth.proto](/Users/acehood/Documents/GitHub/oes/src/common/src/contracts/auth_service/auth.proto)
+  - [auth.proto](../../../src/common/src/contracts/auth_service/auth.proto)
 
 ## 2. 登录入口
 
@@ -388,7 +388,7 @@
   - 不采用 `checkResource`
   - 依赖 challenge 有效性、验证码校验与登录流程状态机
 - 关联说明：
-  - 该能力同时也是 `mfa` 模块中的认证流程接口，MFA 绑定与自助安全管理边界见 [mfa.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/mfa.md)
+  - 该能力同时也是 `mfa` 模块中的认证流程接口，MFA 绑定与自助安全管理边界见 [mfa.md](./mfa.md)
   - `challenge_id` 是登录 MFA flow token，当前实现允许 JWT 长度，调用方不得按短 ID 校验。
   - `factor` 必须属于当前登录 MFA flow 所属 tenant policy 与当前 user 可用绑定的交集。
   - `BACKUP_CODE` 验证成功后必须停用当前恢复码绑定并使旧恢复码集合整体失效。

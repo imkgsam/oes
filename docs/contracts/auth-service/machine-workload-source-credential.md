@@ -8,7 +8,7 @@ architectureTruthSource: docs/architecture/services/auth-service.md
 identityContract: docs/contracts/identity-service/machine-principal-resolution.md
 ```
 
-> 本文只冻结第一方内部 MACHINE root source credential 的黑盒安全语义。Auth 长期 owner 边界以 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md) 为准；Machine Principal 与 workload binding owner 以 [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md) 为准。
+> 本文只冻结第一方内部 MACHINE root source credential 的黑盒安全语义。Auth 长期 owner 边界以 [auth-service.md](../../architecture/services/auth-service.md) 为准；Machine Principal 与 workload binding owner 以 [identity-service.md](../../architecture/services/identity-service.md) 为准。
 
 ## 1. Purpose And Boundary
 

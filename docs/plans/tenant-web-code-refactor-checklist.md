@@ -2,7 +2,7 @@
 
 更新时间：2026-04-24 18:09:56 +0800
 
-> 涉及 HR `Employee / Employment`、员工生命周期、正式 `人 -> org` 归属或 onboarding owner 边界时，以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准；涉及 access summary、terminal access、Role、Policy、permission code 或授权判定的服务设计边界，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。本文只记录 tenant-web 代码级改造清单。
+> 涉及 HR `Employee / Employment`、员工生命周期、正式 `人 -> org` 归属或 onboarding owner 边界时，以 [hr-service.md](../architecture/services/hr-service.md) 为准；涉及 access summary、terminal access、Role、Policy、permission code 或授权判定的服务设计边界，以 [permission-service.md](../architecture/services/permission-service.md) 为准。本文只记录 tenant-web 代码级改造清单。
 
 ## 1. 文档目的
 
@@ -217,7 +217,7 @@
 
 边界约束：
 
-- `Tenant / OrgUnit / org tree` 的服务设计以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准；本文只描述前端入口与消费面，不重新定义 tenant-org 边界
+- `Tenant / OrgUnit / org tree` 的服务设计以 [tenant-org-service.md](../architecture/services/tenant-org-service.md) 为准；本文只描述前端入口与消费面，不重新定义 tenant-org 边界
 - `Tenant` 管理入口不对租户管理员开放，避免把平台 tenant boundary 治理与租户内自治配置混成一个入口
 - `组织与人员` 统一入口不改变 `tenant-org-service` 与 `hr-service` owner，只是租户侧消费面收口
 - 组织管理入口只消费 `Tenant + OrgUnit` 真相，不在前端把 org tree 扩成 account membership 或 employee owner 视图

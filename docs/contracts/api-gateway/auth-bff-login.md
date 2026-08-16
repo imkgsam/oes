@@ -1,6 +1,6 @@
 # Auth BFF Login Flow
 
-> `auth-service` 的服务设计唯一真相源是 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)。涉及 Terminal Access Policy、access summary、角色、权限或导航授权的服务设计边界，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准；本文只描述 Auth BFF HTTP contract。
+> `auth-service` 的服务设计唯一真相源是 [auth-service.md](../../architecture/services/auth-service.md)。涉及 Terminal Access Policy、access summary、角色、权限或导航授权的服务设计边界，以 [permission-service.md](../../architecture/services/permission-service.md) 为准；本文只描述 Auth BFF HTTP contract。
 
 ## Scope
 
@@ -8,7 +8,7 @@ This document defines the public HTTP login flow exposed by `auth-bff`. These en
 
 For the existing `/auth/*` endpoints, `auth-bff` is the Web terminal entry and normalizes the downstream terminal as `WEB`.
 
-`auth-service` service design, account selection, session, token, OTP and MFA boundaries are defined only in [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md). This BFF contract describes HTTP orchestration and response shape only.
+`auth-service` service design, account selection, session, token, OTP and MFA boundaries are defined only in [auth-service.md](../../architecture/services/auth-service.md). This BFF contract describes HTTP orchestration and response shape only.
 
 ## Product Flow Constraints
 
@@ -358,7 +358,7 @@ For the existing `/auth/*` endpoints, `auth-bff` is the Web terminal entry and n
   - `identity-service.GetAccountById`
   - `tenant-org-service.GetTenantById`
   - effective terminal access summary from `permission-service`
-- Tenant lifecycle 与 tenant status 语义以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准；BFF 只做聚合与展示适配。
+- Tenant lifecycle 与 tenant status 语义以 [tenant-org-service.md](../../architecture/services/tenant-org-service.md) 为准；BFF 只做聚合与展示适配。
 - Stage-one delivery:
   - `operator / account / tenant` return real authenticated context
   - `org` is optional and may be `null`
@@ -370,8 +370,8 @@ For the existing `/auth/*` endpoints, `auth-bff` is the Web terminal entry and n
   - `terminal` is the terminal bound to the current session, currently `WEB` for this contract
   - `allowedTerminals` is the current account's effective terminal access summary for read-only display
 - Related design references:
-  - Navigation semantics follow [navigation-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/navigation-summary.md).
-  - Access-summary semantics follow [access-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/access-summary.md).
+  - Navigation semantics follow [navigation-summary.md](./navigation-summary.md).
+  - Access-summary semantics follow [access-summary.md](./access-summary.md).
 - Current response example:
 
 ```json
@@ -459,7 +459,7 @@ For the existing `/auth/*` endpoints, `auth-bff` is the Web terminal entry and n
 ```
 
 - Design reference:
-  - [access-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/access-summary.md)
+  - [access-summary.md](./access-summary.md)
 
 ### `GET /auth/session/contexts`
 

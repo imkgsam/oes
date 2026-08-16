@@ -24,14 +24,14 @@
 ## 3. 上游依赖
 
 - architecture:
-  - [site-runtime-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/site-runtime-architecture.md)
-  - [site-runtime-kit.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/site-runtime-kit.md)
-  - [site-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/site-service.md)
-  - [11-gateway-and-bff-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/11-gateway-and-bff-architecture.md)
-  - [12-observability-and-audit-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/12-observability-and-audit-architecture.md)
-  - [14-grpc-metadata-and-service-trust-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/14-grpc-metadata-and-service-trust-architecture.md)
+  - [site-runtime-architecture.md](../../architecture/platforms/site-runtime-architecture.md)
+  - [site-runtime-kit.md](../../architecture/platforms/site-runtime-kit.md)
+  - [site-service.md](../../architecture/services/site-service.md)
+  - [gateway-and-bff.md](../../architecture/platforms/gateway-and-bff.md)
+  - [observability-and-audit.md](../../architecture/platforms/observability-and-audit.md)
+  - [grpc-metadata-and-service-trust.md](../../architecture/platforms/grpc-metadata-and-service-trust.md)
 - design workspace:
-  - [external-site-runtime-kit-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/external-site-runtime-kit-design.md)
+  - [external-site-runtime-kit-design.md](../designs/external-site-runtime-kit-design.md)
 - future contracts:
   - `docs/contracts/site-service/**`
   - `docs/contracts/site-runtime-kit/**` if package-facing contracts need a separate home
@@ -64,11 +64,11 @@ External Site Integration P1
 稳定架构真相：
 
 - `@oes/site-runtime-kit` P1 架构：
-  - [site-runtime-kit.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/site-runtime-kit.md)
+  - [site-runtime-kit.md](../../architecture/platforms/site-runtime-kit.md)
 - `site-service` 服务职责与 P1 对象边界：
-  - [site-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/site-service.md)
+  - [site-service.md](../../architecture/services/site-service.md)
 - 顶层外部站点运行时协作方式：
-  - [site-runtime-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/site-runtime-architecture.md)
+  - [site-runtime-architecture.md](../../architecture/platforms/site-runtime-architecture.md)
 
 本 feature packet 不替代上述稳定真相源。
 
@@ -118,7 +118,7 @@ P1 public view read covers:
 - blogs
 - news
 - FAQ directory
-- topics for Blog / News Topic SEO Archive, as frozen in [blog-news-closed-loop-p1.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/blog-news-closed-loop-p1.md)
+- topics for Blog / News Topic SEO Archive, as frozen in [blog-news-closed-loop-p1.md](./blog-news-closed-loop-p1.md)
 
 P1 excludes:
 
@@ -255,7 +255,7 @@ If remote version is newer, runtime performs syncToLatest()
 
 | Thread / Owner | 职责 | 允许修改路径 | 输入 | 输出 | 状态 |
 | --- | --- | --- | --- | --- | --- |
-| EXTERNAL-SITE-ARCH thread | 维护架构真相源、P1 feature packet 与设计 workspace | `docs/architecture/site-runtime-architecture.md`, `docs/architecture/site-runtime-kit.md`, `docs/architecture/services/site-service.md`, `docs/plans/designs/external-site-runtime-kit-design.md`, `docs/plans/features/external-site-integration-p1.md` | 已冻结设计 | stable docs + feature packet | in_progress |
+| EXTERNAL-SITE-ARCH thread | 维护架构真相源、P1 feature packet 与设计 workspace | `docs/architecture/platforms/site-runtime-architecture.md`, `docs/architecture/platforms/site-runtime-kit.md`, `docs/architecture/services/site-service.md`, `docs/plans/designs/external-site-runtime-kit-design.md`, `docs/plans/features/external-site-integration-p1.md` | 已冻结设计 | stable docs + feature packet | in_progress |
 | EXTERNAL-SITE-CONTRACT thread | 冻结共享 contracts | `docs/contracts/site-service/**`, `docs/contracts/api-gateway/**`, necessary index docs | 本文、architecture truth sources | credential / webhook / sync / preview / runtime-status contracts | completed |
 | SITE-RUNTIME-KIT-P1 thread | 实现 `@oes/site-runtime-kit` P1 foundation | future package path for `@oes/site-runtime-kit`, tests, examples | contracts + site-runtime-kit architecture | runtime kit package with tests | ready_for_plan |
 | SITE-SERVICE-P1 thread | 实现 OES 端 `site-service` P1 foundation | future `src/services/**/site-service/**`, api-gateway site/admin BFF paths, contracts generated code | contracts + site-service truth source | OES service and BFF implementation with tests | ready_for_plan |
@@ -307,13 +307,13 @@ Feature packet 验收：
 
 Contracts 验收：
 
-- credential bundle contract 已冻结到 [security-and-signing.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/site-service/security-and-signing.md)。
-- signed request / webhook signing contract 已冻结到 [security-and-signing.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/site-service/security-and-signing.md)。
-- sync latest / changed resources / batch public views / snapshot contracts 已冻结到 [sync-api.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/site-service/sync-api.md)。
-- preview token / preview view contract 已冻结到 [preview-and-runtime-status.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/site-service/preview-and-runtime-status.md)。
-- runtime-status contract 已冻结到 [preview-and-runtime-status.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/site-service/preview-and-runtime-status.md)。
-- Admin BFF 最小站点管理 contract 已冻结到 [admin-bff.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/site-service/admin-bff.md)。
-- Blog / News + Topic SEO Archive 派生契约已冻结到 [blog-news-closed-loop-p1.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/blog-news-closed-loop-p1.md) 引用的 `docs/contracts/site-service/**`。
+- credential bundle contract 已冻结到 [security-and-signing.md](../../contracts/site-service/security-and-signing.md)。
+- signed request / webhook signing contract 已冻结到 [security-and-signing.md](../../contracts/site-service/security-and-signing.md)。
+- sync latest / changed resources / batch public views / snapshot contracts 已冻结到 [sync-api.md](../../contracts/site-service/sync-api.md)。
+- preview token / preview view contract 已冻结到 [preview-and-runtime-status.md](../../contracts/site-service/preview-and-runtime-status.md)。
+- runtime-status contract 已冻结到 [preview-and-runtime-status.md](../../contracts/site-service/preview-and-runtime-status.md)。
+- Admin BFF 最小站点管理 contract 已冻结到 [admin-bff.md](../../contracts/site-service/admin-bff.md)。
+- Blog / News + Topic SEO Archive 派生契约已冻结到 [blog-news-closed-loop-p1.md](./blog-news-closed-loop-p1.md) 引用的 `docs/contracts/site-service/**`。
 
 Implementation readiness:
 
@@ -332,5 +332,5 @@ Implementation readiness:
 ## 15. 备注
 
 - 本 feature packet 是 External Site Integration P1 的执行协作入口。
-- `site-service` 的长期职责和核心对象只以 [site-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/site-service.md) 为准。
-- `@oes/site-runtime-kit` 的 P1 架构只以 [site-runtime-kit.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/site-runtime-kit.md) 为准。
+- `site-service` 的长期职责和核心对象只以 [site-service.md](../../architecture/services/site-service.md) 为准。
+- `@oes/site-runtime-kit` 的 P1 架构只以 [site-runtime-kit.md](../../architecture/platforms/site-runtime-kit.md) 为准。

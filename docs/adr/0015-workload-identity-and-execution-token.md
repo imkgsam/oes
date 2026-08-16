@@ -3,7 +3,7 @@
 ```text
 status: ACCEPTED
 decisionDate: 2026-07-27
-architectureTruthSource: docs/architecture/14-grpc-metadata-and-service-trust-architecture.md
+architectureTruthSource: docs/architecture/platforms/grpc-metadata-and-service-trust.md
 executionTokenContract: docs/contracts/auth-service/execution-token.md
 authorizationContract: docs/contracts/permission-service/principal-authorization.md
 ```
@@ -146,15 +146,15 @@ Site Runtime 现有 HMAC、nonce、method/path/body hash 是独立的外部 cred
 
 ## Related Documents
 
-- [可信 gRPC Metadata 架构](/Users/acehood/Documents/GitHub/oes/docs/architecture/14-grpc-metadata-and-service-trust-architecture.md)
-- [Permission Code 语义源](/Users/acehood/Documents/GitHub/oes/docs/architecture/07-permission-code-source.md)
-- [ExecutionToken Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/execution-token.md)
-- [Machine Workload Source Credential Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/machine-workload-source-credential.md)
-- [Machine Principal Resolution Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/identity-service/machine-principal-resolution.md)
-- [External API Key Credential Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/external-api-key-security.md)
-- [External API Key Exchange Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/external-api-key-exchange.md)
-- [Principal Authorization Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/principal-authorization.md)
-- [Trusted gRPC Feature Packet](/Users/acehood/Documents/GitHub/oes/docs/plans/features/trusted-grpc-execution-context.md)
+- [可信 gRPC Metadata 架构](../architecture/platforms/grpc-metadata-and-service-trust.md)
+- [Permission Code 语义源](../architecture/platforms/permission-code-source.md)
+- [ExecutionToken Contract](../contracts/auth-service/execution-token.md)
+- [Machine Workload Source Credential Contract](../contracts/auth-service/machine-workload-source-credential.md)
+- [Machine Principal Resolution Contract](../contracts/identity-service/machine-principal-resolution.md)
+- [External API Key Credential Contract](../contracts/auth-service/external-api-key-security.md)
+- [External API Key Exchange Contract](../contracts/api-gateway/external-api-key-exchange.md)
+- [Principal Authorization Contract](../contracts/permission-service/principal-authorization.md)
+- [Trusted gRPC Feature Packet](../plans/features/trusted-grpc-execution-context.md)
 ### 8. Foundation identity/authorization atomic cutover
 
 Fresh static inventory at `ad131ac7e06fa01d21493b05502bd1a567318c68` proves one irreducible cycle among Auth, Identity, Permission, HR and TenantOrg: each target still receives legacy authority from another member whose own inbound edge is not yet trusted. The only allowed migration exception is therefore one single-writer, one-candidate atomic activation for these five targets. Review and focused tests remain service-by-service, but no member may enter Token-only mode, activate a prepared cross-foundation caller or delete legacy authority before all five caller preparations and server compositions are ready.

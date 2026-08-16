@@ -1,6 +1,6 @@
 # Terminal Access Policy 协同蓝图
 
-> `permission-service` 的服务设计唯一真相源为 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。本文只记录 `permission-service`、`auth-service` 与 terminal-specific BFF 的协同链路，不重新定义 Terminal Access Policy 的核心对象或长期 owner 边界。
+> `permission-service` 的服务设计唯一真相源为 [permission-service.md](../services/permission-service.md)。本文只记录 `permission-service`、`auth-service` 与 terminal-specific BFF 的协同链路，不重新定义 Terminal Access Policy 的核心对象或长期 owner 边界。
 
 ## 1. 目标
 
@@ -24,7 +24,7 @@ Terminal Access Policy 是登录 / session 建立前的服务端准入能力，�
   - 拥有 Terminal Access Policy 策略模型与判定真相。
   - 拥有 role terminal access、account terminal access override、解析规则与管理审计。
 - `auth-service`
-  - 认证、MFA、session、refresh、token 与认证链路审计边界以 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md) 为准。
+  - 认证、MFA、session、refresh、token 与认证链路审计边界以 [auth-service.md](../services/auth-service.md) 为准。
   - 消费 `permission-service` terminal access 判定结果。
   - 不持久化或复制 terminal access 策略真相。
 - `api-gateway / BFF`
@@ -32,7 +32,7 @@ Terminal Access Policy 是登录 / session 建立前的服务端准入能力，�
   - 将 Web / PDA / KIOSK 入口归一化为可信 terminal。
   - 不承担核心准入裁决。
 - `identity-service`
-  - 按 [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md) 提供账号存在性、账号归属、scope 与 tenant 引用事实。
+  - 按 [identity-service.md](../services/identity-service.md) 提供账号存在性、账号归属、scope 与 tenant 引用事实。
   - 不拥有 terminal access 策略。
 - 前端应用
   - 只消费对应 BFF contract。
@@ -169,7 +169,7 @@ Phase 1 不持久化每一次 allow 判定。判定 RPC 仍返回可解释结果
 
 ## 12. 关联文档
 
-- [0005-terminal-access-policy.md](/Users/acehood/Documents/GitHub/oes/docs/adr/0005-terminal-access-policy.md)
-- [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
-- [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)
-- [terminal-access.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/terminal-access.md)
+- [0005-terminal-access-policy.md](../../adr/0005-terminal-access-policy.md)
+- [permission-service.md](../services/permission-service.md)
+- [auth-service.md](../services/auth-service.md)
+- [terminal-access.md](../../contracts/permission-service/terminal-access.md)

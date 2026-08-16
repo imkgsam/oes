@@ -1,6 +1,6 @@
 # procurement-service Contracts
 
-> Procurement contract 只描述采购黑盒接口；涉及权限、scope、policy、checkPermission、checkResource 或 buildQueryScope 的服务设计边界，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 和项目级授权架构为准。
+> Procurement contract 只描述采购黑盒接口；涉及权限、scope、policy、checkPermission、checkResource 或 buildQueryScope 的服务设计边界，以 [permission-service.md](../../architecture/services/permission-service.md) 和项目级授权架构为准。
 
 ## 1. 目的
 
@@ -23,11 +23,11 @@
 
 phase 1 只冻结以下内部 gRPC contract 面：
 
-- [purchase-request-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/procurement-service/purchase-request-query.md)
+- [purchase-request-query.md](./purchase-request-query.md)
   - `PurchaseRequestQueryService`
   - `GetPurchaseRequest`
   - `SearchPurchaseRequests`
-- [purchase-request-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/procurement-service/purchase-request-management.md)
+- [purchase-request-management.md](./purchase-request-management.md)
   - `PurchaseRequestManagementService`
   - `CreatePurchaseRequest`
   - `UpdatePurchaseRequestDraft`
@@ -35,12 +35,12 @@ phase 1 只冻结以下内部 gRPC contract 面：
   - `DecidePurchaseRequest`
   - `CancelPurchaseRequest`
   - `ConvertPurchaseRequestToPurchaseOrder`
-- [purchase-order-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/procurement-service/purchase-order-query.md)
+- [purchase-order-query.md](./purchase-order-query.md)
   - `PurchaseOrderQueryService`
   - `GetPurchaseOrder`
   - `SearchPurchaseOrders`
   - `ListPurchaseOrderChanges`
-- [purchase-order-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/procurement-service/purchase-order-management.md)
+- [purchase-order-management.md](./purchase-order-management.md)
   - `PurchaseOrderManagementService`
   - `CreatePurchaseOrderDraft`
   - `UpdatePurchaseOrderDraft`
@@ -48,14 +48,14 @@ phase 1 只冻结以下内部 gRPC contract 面：
   - `ConfirmSupplierAcknowledgement`
   - `ApplyPurchaseOrderChange`
   - `CancelPurchaseOrder`
-- [receiving-expectation.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/procurement-service/receiving-expectation.md)
+- [receiving-expectation.md](./receiving-expectation.md)
   - `ReceivingExpectationQueryService`
   - `GetReceivingExpectation`
   - `SearchReceivingExpectations`
   - `ReceivingExpectationManagementService`
   - `CreateReceivingExpectation`
   - `RecordReceivingDiscrepancyResolution`
-- [internal-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/procurement-service/internal-query.md)
+- [internal-query.md](./internal-query.md)
   - `ProcurementInternalQueryService`
   - `ResolveReceivingExpectationForReceipt`
 
@@ -244,12 +244,11 @@ phase 1 只冻结以下事实 owner 归 Procurement：
 
 本目录以上游稳定文档为准：
 
-- [procurement-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/procurement-service.md)
-- [procurement-srm-item-wms-finance.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/procurement-srm-item-wms-finance.md)
-- [procurement-pr-po-foundation.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/procurement-pr-po-foundation.md)
-- [srm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/srm-service.md)
-- [item-master-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/item-master-service.md)
-- [wms-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/wms-service.md)
-- [finance-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/finance-service.md)
-- [service-collaboration-rules.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/service-collaboration-rules.md)
-- [service-collaboration-review-checklist.md](/Users/acehood/Documents/GitHub/oes/docs/governance/service-collaboration-review-checklist.md)
+- [procurement-service.md](../../architecture/services/procurement-service.md)
+- [procurement-srm-item-wms-finance.md](../../architecture/collaborations/procurement-srm-item-wms-finance.md)
+- [procurement-pr-po-foundation.md](../../plans/features/procurement-pr-po-foundation.md)
+- [srm-service.md](../../architecture/services/srm-service.md)
+- [item-master-service.md](../../architecture/services/item-master-service.md)
+- [wms-service.md](../../architecture/services/wms-service.md)
+- [finance-service.md](../../architecture/services/finance-service.md)
+- [service-collaboration-rules.md](../../architecture/system/service-collaboration-rules.md)

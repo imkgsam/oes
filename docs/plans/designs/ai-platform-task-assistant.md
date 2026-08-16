@@ -5,7 +5,7 @@ status: SUPERSEDED_BY_TRUTH_SOURCE
 frozenDate: 2026-07-28
 doNotUseAsStableSource: true
 truthSource:
-  - docs/architecture/04-ai-architecture.md
+  - docs/architecture/platforms/ai-platform.md
   - docs/architecture/collaborations/task-assistant.md
 implementationPath: docs/plans/ai-platform-foundation-plan.md
 ```
@@ -49,7 +49,7 @@ implementationPath: docs/plans/ai-platform-foundation-plan.md
 
 Frozen paths：
 
-- `docs/architecture/04-ai-architecture.md`
+- `docs/architecture/platforms/ai-platform.md`
 - `docs/architecture/collaborations/task-assistant.md`
 - `docs/plans/ai-platform-foundation-plan.md`
 

@@ -1,6 +1,6 @@
 # BusinessCard Public Render Contract
 
-> 服务设计唯一真相源：[public-entry-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/public-entry-service.md)。本文只描述 BusinessCard 匿名公开渲染、`BUSINESS_CARD` resolver 与 vCard 输出规则；不重新定义 ShortLink、Contact Asset、HR、Identity、Tenant Org、Party 或 CRM owner 边界。
+> 服务设计唯一真相源：[public-entry-service.md](../../architecture/services/public-entry-service.md)。本文只描述 BusinessCard 匿名公开渲染、`BUSINESS_CARD` resolver 与 vCard 输出规则；不重新定义 ShortLink、Contact Asset、HR、Identity、Tenant Org、Party 或 CRM owner 边界。
 
 ## 1. Purpose
 
@@ -169,7 +169,7 @@ Rules:
 
 ## 5. Contact Action Render Rules
 
-BusinessCard public render resolves `CONTACT_ASSET` targets through [identity-service query contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/identity-service/query.md) `ResolveContactActionTargets`.
+BusinessCard public render resolves `CONTACT_ASSET` targets through [identity-service query contract](../identity-service/query.md) `ResolveContactActionTargets`.
 
 Rules:
 

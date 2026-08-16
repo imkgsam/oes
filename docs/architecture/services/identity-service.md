@@ -4,7 +4,7 @@
 
 `identity-service` 是 OES 的账号、身份映射、登录身份查询、联系资产、机器主体与账号绑定关系真相服务，负责回答“这个自然人有哪些账号、账号属于哪个 scope / tenant 引用、账号如何映射到自然人主体或员工、哪些身份摘要可被认证、授权、BFF 与业务服务安全消费”。
 
-涉及 HR `Employee / Employment`、员工生命周期或正式 `人 -> org` 归属时，以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准；本文只定义 identity 自身的账号、身份与 binding 边界。
+涉及 HR `Employee / Employment`、员工生命周期或正式 `人 -> org` 归属时，以 [hr-service.md](./hr-service.md) 为准；本文只定义 identity 自身的账号、身份与 binding 边界。
 
 本文是 `identity-service` 的唯一稳定设计真相源。其他 architecture、collaboration、contract、plan、feature packet 或服务内实现文档只能引用本文，不得重新定义 `identity-service` 的长期职责、核心对象、边界或 owner 语义。
 
@@ -23,7 +23,7 @@
   - account display name
   - account enabled / disabled lifecycle
 - 当前 user 可用 account context 列表与 account 展示摘要。
-- `UserAccount <-> Employee` 绑定结果真相；`Employee / Employment` 本体仍归 `hr-service`，以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准。
+- `UserAccount <-> Employee` 绑定结果真相；`Employee / Employment` 本体仍归 `hr-service`，以 [hr-service.md](./hr-service.md) 为准。
 - 联系资产与账号归属关系：
   - 工作邮箱资产
   - 工作手机号资产
@@ -42,8 +42,8 @@
 
 - 密码、OTP、MFA、login method、session、token、refresh token、认证 challenge 或认证审计真相；这些归属 `auth-service`。
 - API Key secret / hash、内部 `MachineWorkloadSourceCredential`、credential 认证/签发/轮换/撤销、STS 与 ExecutionToken 签发；这些归属 `auth-service`。
-- 权限码、角色、scope、policy、terminal access policy、授权判定、权限摘要或导航授权真相；这些以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。
-- `Tenant`、tenant lifecycle、`OrgUnit`、org tree、org hierarchy、org reference validation 或 `organizationTenantPartyId` 真相；这些以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准。
+- 权限码、角色、scope、policy、terminal access policy、授权判定、权限摘要或导航授权真相；这些以 [permission-service.md](./permission-service.md) 为准。
+- `Tenant`、tenant lifecycle、`OrgUnit`、org tree、org hierarchy、org reference validation 或 `organizationTenantPartyId` 真相；这些以 [tenant-org-service.md](./tenant-org-service.md) 为准。
 - `Employee`、`Employment`、正式 `人 -> org` 任职关系或 onboarding 业务结果；这些归属 `hr-service`。
 - 现实世界自然人的真实姓名、法定姓名、昵称、多语言姓名或组织主体 canonical truth；这些归属 `party-service`。
 - 客户、供应商、员工、联系人等业务角色语义真相；这些归属对应业务服务。
@@ -93,7 +93,7 @@
 - `CreateUserAccount` 收到上游显式传入的 `tenantPartyId` 时，应直接复用该租户主体引用；未传时可按既有账号创建流程向 `party-service` 注册当前租户 `PERSON TenantParty`。
 - `SYSTEM` account 不关联 `tenantPartyId`。
 - `tenantId` 在 `identity-service` 内只表示 account context 对 tenant 的引用，不是 tenant 主数据或 lifecycle 真相。
-- `identity-service` 只按账号自身启用状态与 tenant 引用返回 account candidates；tenant lifecycle 由 `tenant-org-service` 提供并以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准，认证准入由 `auth-service` 消费后决策。
+- `identity-service` 只按账号自身启用状态与 tenant 引用返回 account candidates；tenant lifecycle 由 `tenant-org-service` 提供并以 [tenant-org-service.md](./tenant-org-service.md) 为准，认证准入由 `auth-service` 消费后决策。
 - account display name 是 account context 展示摘要，不等同于自然人真实姓名。
 - 当前可切换 account context 列表归 `identity-service` 提供；切换后的 session context、token 与 refresh 语义归 `auth-service`。
 
@@ -103,8 +103,8 @@
 
 稳定规则：
 
-- `Tenant`、tenant status、tenant lifecycle 与 tenant 展示摘要以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准。
-- `OrgUnit`、org tree、org hierarchy 与 org reference validation 以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准。
+- `Tenant`、tenant status、tenant lifecycle 与 tenant 展示摘要以 [tenant-org-service.md](./tenant-org-service.md) 为准。
+- `OrgUnit`、org tree、org hierarchy 与 org reference validation 以 [tenant-org-service.md](./tenant-org-service.md) 为准。
 - `Employment -> OrgUnit` 是正式 `人 -> org` 任职真相，归 `hr-service`。
 - `UserAccount <-> Employee` binding 必须校验同 tenant，且 `UserAccount.tenantPartyId == Employee.tenantPartyId`。
 - `ResolveEmployeeLoginAccount` 可基于既有 `UserAccount <-> Employee` binding 返回某 active employee 对应的唯一 account 及其 enabled state，用于认证编排与准确审计；该能力不得把 identity-service 扩展为 HR lifecycle、terminal access 或 PIN owner。
@@ -165,7 +165,7 @@
 - 必须是 `TENANT` scope，并且一台 machine 只绑定一个 tenant；它不能转换为 SYSTEM、跨 tenant 复用或代表人类 account。
 - Identity owns its display name、tenant reference、type and active/disabled lifecycle. It returns only the stable machine reference and lifecycle facts needed by Auth and Permission.
 - Auth may create and manage credentials only for an active Integration Machine. Identity never stores, verifies, lists, reveals, rotates, or revokes API Key secrets.
-- A disabled machine is not eligible for new credential exchange or external access. Credential and session invalidation semantics remain Auth-owned; the cross-service path is [external-api-key-security.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/external-api-key-security.md).
+- A disabled machine is not eligible for new credential exchange or external access. Credential and session invalidation semantics remain Auth-owned; the cross-service path is [external-api-key-security.md](../collaborations/external-api-key-security.md).
 - Identity exposes one Auth-only `ResolveIntegrationMachineForAuth` query on its existing `IdentityQueryService` gRPC surface. The request contains only the Auth-derived machine reference. Identity returns its owned machine id, tenant reference, scope, type, lifecycle status, opaque lifecycle version and safe decision reference; it never accepts a caller-supplied tenant as authority and never returns API Key material or permission facts.
 - The query is an INTERNAL technical primitive requiring verified `auth-service` workload identity, target audience `identity-service`, certificate binding and exact issuance Code `identity.internal.integration_machine.resolve`. Gateway, external callers and ordinary HUMAN/MACHINE roles cannot obtain this Code. Only `scopeLevel=TENANT`, `type=EXTERNAL_INTEGRATION`, `status=ACTIVE` and a non-empty tenant reference is eligible. Missing, wrong-type, wrong-scope or inactive machines return an ineligible decision; transport/trust failure is fail-closed for API Key exchange.
 
@@ -190,13 +190,13 @@
 - 同一 `(Machine Principal, SPIFFE ID)` 同时最多一个 active binding；同一 SPIFFE ID 可承载多个经管理者显式登记的不同 principal binding。Disable 是终态；恢复时创建新 binding，不复活历史。
 - enroll/disable state 与 Identity-local `AuditEvent` 在同一 database transaction 中持久化；resolver allowed/denied decision 在响应前记录 safe principal/binding/version/SPIFFE correlation，不记录 source bearer 或 leaf material。
 
-`ResolveMachinePrincipalForAuth` 的精确 request/response field number、management message、safe reason 与 database constraint 以 [machine-principal-resolution.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/identity-service/machine-principal-resolution.md) 为准。
+`ResolveMachinePrincipalForAuth` 的精确 request/response field number、management message、safe reason 与 database constraint 以 [machine-principal-resolution.md](../../contracts/identity-service/machine-principal-resolution.md) 为准。
 
-黑盒语义以 [machine-principal-resolution.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/identity-service/machine-principal-resolution.md) 为准。
+黑盒语义以 [machine-principal-resolution.md](../../contracts/identity-service/machine-principal-resolution.md) 为准。
 
 当前注意事项：
 
-- 现有 machine auth contract 中由 Identity 执行 `AuthenticateApiKey` 的部分是 legacy 兼容形态，目标状态由 [ADR 0015](/Users/acehood/Documents/GitHub/oes/docs/adr/0015-workload-identity-and-execution-token.md) 与 Auth [execution-token.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/execution-token.md) 取代。
+- 现有 machine auth contract 中由 Identity 执行 `AuthenticateApiKey` 的部分是 legacy 兼容形态，目标状态由 [ADR 0015](../../adr/0015-workload-identity-and-execution-token.md) 与 Auth [execution-token.md](../../contracts/auth-service/execution-token.md) 取代。
 - `APIKey` 是 credential，不是主体。
 - API Key credential、认证、轮换与撤销归 `auth-service`；Identity 只保存 Auth credential 所引用的 machine principal identity，不保存 secret 或 hash。
 - 内部 `MachineWorkloadSourceCredential` 同样归 `auth-service`；Identity 只保存 credential 所引用的 Machine Principal 与 `MachineWorkloadBinding`，不保存 JWS、verifier 或证书 thumbprint。
@@ -219,7 +219,7 @@ Admin-management 默认语义：
 - 管理员查看或治理目标账号、目标用户、工作联系方式资产或机器主体。
 - 必须经过 `RBAC + scope / resource` 授权判定，并记录审计。
 
-历史混合接口只作为迁移债，不得继续扩展。该迁移由 [self-service-admin-boundary-migration.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/self-service-admin-boundary-migration.md) 持续跟踪，而不是在各服务中分别维护孤立清单。
+历史混合接口只作为迁移债，不得继续扩展。该迁移由 [self-service-admin-boundary-migration.md](../../plans/features/self-service-admin-boundary-migration.md) 持续跟踪，而不是在各服务中分别维护孤立清单。
 
 ## 11. External Interfaces
 
@@ -229,15 +229,15 @@ Admin-management 默认语义：
 - `api-gateway` / BFF
 - `hr-service`
 - `permission-service`
-  - 提供账号管理、contact asset 管理、machine principal 管理与 employee binding 管理接口的权限判定；permission 侧核心对象与 owner 边界以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。
+  - 提供账号管理、contact asset 管理、machine principal 管理与 employee binding 管理接口的权限判定；permission 侧核心对象与 owner 边界以 [permission-service.md](./permission-service.md) 为准。
 - 业务服务
 
 典型契约位置：
 
-- [identity-service/query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/identity-service/query.md)
-- [identity-service/management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/identity-service/management.md)
-- [identity-service/machine-auth.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/identity-service/machine-auth.md)
-- [identity-service/employee-binding.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/identity-service/employee-binding.md)
+- [identity-service/query.md](../../contracts/identity-service/query.md)
+- [identity-service/management.md](../../contracts/identity-service/management.md)
+- [identity-service/machine-auth.md](../../contracts/identity-service/machine-auth.md)
+- [identity-service/employee-binding.md](../../contracts/identity-service/employee-binding.md)
 
 Contract 文档只描述黑盒调用语义、字段、错误与当前接口形状；不得重新定义本文中的服务 owner、核心对象或长期边界。
 
@@ -290,7 +290,7 @@ Contract 文档只描述黑盒调用语义、字段、错误与当前接口形�
 - `docs/architecture/collaborations/**` 继续作为跨服务协同蓝图，但不得重新定义 `identity-service` owner 语义。
 - 服务内旧 design、task、history、overview、roadmap 只作为本次提炼来源与历史记录，不再作为稳定设计入口。
 - 服务内旧 docs 在提炼完成后应删除；服务根目录可保留一个极短 README 指向本文与 contract 入口。
-- self-service / admin-management 拆分由 [self-service-admin-boundary-migration.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/self-service-admin-boundary-migration.md) 持续推进。
+- self-service / admin-management 拆分由 [self-service-admin-boundary-migration.md](../../plans/features/self-service-admin-boundary-migration.md) 持续推进。
 
 ## 16. Trusted gRPC 41-RPC contract（FROZEN）
 

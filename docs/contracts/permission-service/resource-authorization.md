@@ -1,6 +1,6 @@
 # Permission Service Resource Authorization Contract
 
-> 服务设计唯一真相源：[permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。本文只描述 `checkResource / buildQueryScope` 的黑盒调用语义、边界与当前开放状态，不重新定义 Permission、Role、PolicyTemplate、PolicyInstance 或业务资源 owner。
+> 服务设计唯一真相源：[permission-service.md](../../architecture/services/permission-service.md)。本文只描述 `checkResource / buildQueryScope` 的黑盒调用语义、边界与当前开放状态，不重新定义 Permission、Role、PolicyTemplate、PolicyInstance 或业务资源 owner。
 
 ## 1. Purpose
 
@@ -29,7 +29,7 @@ Current implementation status:
 Current external status:
 
 - Internal runtime gRPC `ResourceAuthorizationService` is exposed through
-  [resource_authorization.proto](/Users/acehood/Documents/GitHub/oes/src/common/src/contracts/permission_service/resource_authorization.proto).
+  [resource_authorization.proto](../../../src/common/src/contracts/permission_service/resource_authorization.proto).
 - `ResourceAuthorizationService.CheckResource` delegates to the same application `checkResource` facade.
 - `ResourceAuthorizationService.BuildQueryScope` delegates to the same application `buildQueryScope` facade.
 - Preview-only `PolicyInstancePreviewService.EvaluatePolicyInstancePreview` gRPC exists for management verification.

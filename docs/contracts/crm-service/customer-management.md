@@ -1,6 +1,6 @@
 # crm-service Customer Management API
 
-> CRM 写入对象、状态与 Party promotion 边界以 [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md) 为唯一稳定真相源。本文只冻结当前 `CustomerManagementService` 黑盒契约。
+> CRM 写入对象、状态与 Party promotion 边界以 [crm-service.md](../../architecture/services/crm-service.md) 为唯一稳定真相源。本文只冻结当前 `CustomerManagementService` 黑盒契约。
 
 ## 1. Admission
 

@@ -1,6 +1,6 @@
 # Account Management
 
-> 涉及 AccountRole、Role、Policy、permission code 或授权判定的服务设计边界，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。本文只记录 Account Management feature 的范围、状态与页面接入约束。
+> 涉及 AccountRole、Role、Policy、permission code 或授权判定的服务设计边界，以 [permission-service.md](../../architecture/services/permission-service.md) 为准。本文只记录 Account Management feature 的范围、状态与页面接入约束。
 
 ## 1. 目标
 
@@ -22,15 +22,15 @@
 ## 3. 上游依赖
 
 - architecture:
-  - [09-role-based-permission-resolution.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/09-role-based-permission-resolution.md)
+  - [role-based-permission-resolution.md](../../architecture/platforms/role-based-permission-resolution.md)
 - adr:
-  - [0002-system-role-instance-and-account-role-scope.md](/Users/acehood/Documents/GitHub/oes/docs/adr/0002-system-role-instance-and-account-role-scope.md)
+  - [0002-system-role-instance-and-account-role-scope.md](../../adr/0002-system-role-instance-and-account-role-scope.md)
 - contracts:
-  - [permission-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/permission-management.md)
-  - [auth-bff-admin-security.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-admin-security.md)
+  - [permission-management.md](../../contracts/api-gateway/permission-management.md)
+  - [auth-bff-admin-security.md](../../contracts/api-gateway/auth-bff-admin-security.md)
 - feature prerequisites:
-  - [permission-management.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/permission-management.md)
-  - [role-management.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/role-management.md)
+  - [permission-management.md](./permission-management.md)
+  - [role-management.md](./role-management.md)
 
 ## 4. 当前结论
 
@@ -77,7 +77,7 @@
 
 | Thread / Owner | 职责 | 允许修改路径 | 输入 | 输出 | 状态 |
 | --- | --- | --- | --- | --- | --- |
-| design owner | 校正账号管理第一阶段边界 | `docs/plans/features/account-management.md`, `docs/superpowers/plans/**` | 既有 role / account-role contract | feature packet + plan | completed |
+| design owner | 校正账号管理第一阶段边界 | `docs/plans/features/account-management.md`, `docs/contracts/api-gateway/auth-bff-admin-security.md` | 既有 role / account-role contract | feature packet + contract | completed |
 | producer owner | 补齐导航 seed 与内置权限基线 | `src/services/system/permission-service/**`, `src/common/src/authorization/**` | account-management entry | 可见入口与内置角色权限 | completed |
 | consumer owner | 接入 tenant-web account-management 页面 | `app/web/apps/tenant-web/src/api/**`, `app/web/apps/tenant-web/src/views/admin/**`, `app/web/apps/tenant-web/src/modules/**` | feature packet + contract | 可手动测试页面 | completed |
 | review / integration owner | 验证 scope、安全边界和 UI 可用性 | 只读全局，必要时最小修正 | producer / consumer 输出 | 关闭判断 | in-progress |

@@ -118,8 +118,8 @@
 - `docs/plans/features/admin-session-management.md`
 - `docs/plans/tenant-web-code-refactor-checklist.md#73-管理员用户检索能力后置任务`
 - `docs/contracts/api-gateway/auth-bff-admin-security.md`
-- `docs/architecture/16-unified-web-account-context-architecture.md`
-- `docs/architecture/15-authorization-layering-and-resource-policy-architecture.md`
+- `docs/architecture/platforms/unified-web-account-context.md`
+- `docs/architecture/platforms/authorization-layering-and-resource-policy.md`
 
 当前推荐下一步：
 

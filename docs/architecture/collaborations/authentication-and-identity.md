@@ -4,7 +4,7 @@
 
 定义 OES 中“操作者如何被认证，并在认证完成后拿到正确身份与账号上下文”的长期协同方式。
 
-`auth-service` 的长期职责、核心对象与 owner 语义只以 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md) 为准；本文只记录认证、身份、通知与 BFF 之间的协同方式。
+`auth-service` 的长期职责、核心对象与 owner 语义只以 [auth-service.md](../services/auth-service.md) 为准；本文只记录认证、身份、通知与 BFF 之间的协同方式。
 
 ## 2. 参与服务
 
@@ -44,7 +44,7 @@
 
 ## 6. 协同真相归属
 
-- `auth-service` 的认证、challenge、session、token 与认证域审计边界：以 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md) 为准
+- `auth-service` 的认证、challenge、session、token 与认证域审计边界：以 [auth-service.md](../services/auth-service.md) 为准
 - 用户、账号、租户、组织、联系资产映射：`identity-service`
 - 通知投递状态：`notification-service`
 - 前端消费形状：`api-gateway` contract
@@ -74,11 +74,11 @@
 
 ## 9. 关联文档
 
-- [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)
-- [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)
-- [08-notification-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/08-notification-architecture.md)
-- [11-gateway-and-bff-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/11-gateway-and-bff-architecture.md)
-- [0004-self-service-and-admin-authorization-boundary.md](/Users/acehood/Documents/GitHub/oes/docs/adr/0004-self-service-and-admin-authorization-boundary.md)
+- [auth-service.md](../services/auth-service.md)
+- [identity-service.md](../services/identity-service.md)
+- [notification.md](../platforms/notification.md)
+- [gateway-and-bff.md](../platforms/gateway-and-bff.md)
+- [0004-self-service-and-admin-authorization-boundary.md](../../adr/0004-self-service-and-admin-authorization-boundary.md)
 ## Trusted transport atomic activation
 
 Auth and Identity join Permission, HR and TenantOrg in the single frozen foundation atomic candidate. Pre-auth Auth→Identity/HR/TenantOrg calls use only the exact Auth SYSTEM MACHINE workload and target method Code; post-session work preserves the HUMAN subject through HUMAN_OBO. Login identifiers and explicitly documented tenant/resource selectors remain lookup input, never operator/tenant authority. No member activates early or retains legacy metadata fallback.

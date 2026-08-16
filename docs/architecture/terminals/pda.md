@@ -1,6 +1,6 @@
 # PDA 终端架构真相源
 
-> PDA 终端不拥有 terminal access、access summary、Role、Policy 或授权判定真相；这些服务设计边界以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。
+> PDA 终端不拥有 terminal access、access summary、Role、Policy 或授权判定真相；这些服务设计边界以 [permission-service.md](../services/permission-service.md) 为准。
 
 ## 1. Purpose
 
@@ -39,7 +39,7 @@ PDA 终端拥有：
 PDA 终端不拥有：
 
 - 认证、密码、MFA、session 与 token 真相；这些属于 `auth-service`
-- `User / UserAccount`、员工绑定、身份映射真相；这些属于 `identity-service`，HR `Employee / Employment` 设计以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准
+- `User / UserAccount`、员工绑定、身份映射真相；这些属于 `identity-service`，HR `Employee / Employment` 设计以 [hr-service.md](../services/hr-service.md) 为准
 - 权限码、角色、policy、terminal access 与授权判定真相；这些属于 `permission-service`
 - 仓库、库存、库位、收货、出库等 WMS 业务真相；这些属于 `wms-service`
 - 工厂、车间、产线、工位、工序、生产对象等 MES 业务真相；这些属于 `mes-service` 或后续冻结的生产资源真相源
@@ -101,7 +101,7 @@ Phase 1 最小 BFF 能力：
 - PDA BFF 不拥有认证、身份、权限、设备治理或业务域真相。
 - 登录请求必须固定 `terminal = PDA`，Terminal Access Policy 以独立设计和实现为准。
 - Phase 1 `/pda/auth/login` 只正式支持账号密码登录。
-- PDA Employee Code + Terminal PIN 登录启用后，PDA 默认入口使用 `employeeCode + TERMINAL_PIN`；员工码语义以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准，员工账号绑定以 [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md) 为准，PIN credential 与 session 以 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md) 为准。
+- PDA Employee Code + Terminal PIN 登录启用后，PDA 默认入口使用 `employeeCode + TERMINAL_PIN`；员工码语义以 [hr-service.md](../services/hr-service.md) 为准，员工账号绑定以 [identity-service.md](../services/identity-service.md) 为准，PIN credential 与 session 以 [auth-service.md](../services/auth-service.md) 为准。
 - 工牌、IC 卡、NFC、badge credential service 不属于 PDA Employee Code + Terminal PIN 登录阶段。
 - `/pda/session/bootstrap` 是 PDA 启动聚合接口，一次返回 account、session、access、device policy、version policy、workbench 与 server time。
 - `/pda/device/heartbeat` 用于保存最近设备 / App 状态，允许未登录和已登录状态上报。
@@ -115,7 +115,7 @@ PDA JS Bridge 使用“命令调用 + 事件推送”模型。
 
 正式端内契约位置：
 
-- [js-bridge.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/pda/js-bridge.md)
+- [js-bridge.md](../../contracts/pda/js-bridge.md)
 
 命令调用表示 Vue3 主动请求 Android Shell 执行设备能力，例如：
 

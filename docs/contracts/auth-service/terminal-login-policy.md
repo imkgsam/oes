@@ -1,6 +1,6 @@
 # auth-service Terminal Entry Login Policy API
 
-> 服务设计唯一真相源：[auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)。本文只描述 `auth-service` 的黑盒策略接口语义，不重新定义服务职责、核心对象或 owner 边界。
+> 服务设计唯一真相源：[auth-service.md](../../architecture/services/auth-service.md)。本文只描述 `auth-service` 的黑盒策略接口语义，不重新定义服务职责、核心对象或 owner 边界。
 
 ## 1. 能力定位
 
@@ -140,6 +140,6 @@ PDA after Employee Code + Terminal PIN Login:
 
 ## 7. 关联文档
 
-- [ADR 0007](/Users/acehood/Documents/GitHub/oes/docs/adr/0007-terminal-aware-account-security-phase-2.md)
-- [terminal-aware-account-security.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/terminal-aware-account-security.md)
-- [login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/login.md)
+- [ADR 0007](../../adr/0007-terminal-aware-account-security-phase-2.md)
+- [terminal-aware-account-security.md](../../architecture/collaborations/terminal-aware-account-security.md)
+- [login.md](./login.md)

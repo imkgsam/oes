@@ -93,8 +93,8 @@ Site Runtime 的公开请求不能实时访问 OES，也不能在每次请求时
 
 ## Related Documents
 
-- [site-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/site-service.md)
-- [site-runtime-kit.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/site-runtime-kit.md)
-- [admin-bff.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/site-service/admin-bff.md)
-- [public-views.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/site-service/public-views.md)
-- [sync-api.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/site-service/sync-api.md)
+- [site-service.md](../architecture/services/site-service.md)
+- [site-runtime-kit.md](../architecture/platforms/site-runtime-kit.md)
+- [admin-bff.md](../contracts/site-service/admin-bff.md)
+- [public-views.md](../contracts/site-service/public-views.md)
+- [sync-api.md](../contracts/site-service/sync-api.md)

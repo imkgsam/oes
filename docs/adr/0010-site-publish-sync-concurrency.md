@@ -46,7 +46,7 @@ Site Service 允许运营人员在正式 Sync 进行期间继续保存内容，�
 - 发布 N+1 不得污染 N。Target 缺失时不得默认为 latest；target 未提交、不可读取或超出保留范围时必须显式失败，Runtime 不得接受 latest fallback。
 - P1 采用显式 target 字段，不引入 server-issued sync session / snapshot token。保留策略与物理存储形式由实现设计，但必须满足黑盒契约中的可读窗口与失败语义。
 
-本决策新增 `BatchGetPublicViews.target_publish_version` 与 `GetSnapshot.target_publish_version` shared contract 字段；`ListChangedResources.to_publish_version` 继续承担 delta target。字段与错误语义以 Site Service [sync-api.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/site-service/sync-api.md) 为准。
+本决策新增 `BatchGetPublicViews.target_publish_version` 与 `GetSnapshot.target_publish_version` shared contract 字段；`ListChangedResources.to_publish_version` 继续承担 delta target。字段与错误语义以 Site Service [sync-api.md](../contracts/site-service/sync-api.md) 为准。
 
 ## Consequences
 
@@ -83,7 +83,7 @@ P1 拒绝。它能封装 target 与保留租约，但会新增 session 创建、
 
 ## Related Documents
 
-- [site-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/site-service.md)
-- [sync-api.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/site-service/sync-api.md)
-- [public-views.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/site-service/public-views.md)
-- [site-runtime-kit.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/site-runtime-kit.md)
+- [site-service.md](../architecture/services/site-service.md)
+- [sync-api.md](../contracts/site-service/sync-api.md)
+- [public-views.md](../contracts/site-service/public-views.md)
+- [site-runtime-kit.md](../architecture/platforms/site-runtime-kit.md)

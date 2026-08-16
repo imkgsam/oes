@@ -1,6 +1,6 @@
 # Account Security BFF API
 
-> `auth-service` 的服务设计、session、login history、trusted login device、MFA 与认证审计边界只以 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md) 为准。本文只描述面向 Web 账号安全页面的 HTTP contract、编排与返回形状。
+> `auth-service` 的服务设计、session、login history、trusted login device、MFA 与认证审计边界只以 [auth-service.md](../../architecture/services/auth-service.md) 为准。本文只描述面向 Web 账号安全页面的 HTTP contract、编排与返回形状。
 
 ## 1. 能力定位
 
@@ -94,7 +94,7 @@ Account Security BFF 面向当前登录用户的账号安全中心，覆盖：
 
 ## 8. 关联文档
 
-- [auth-bff-self-service.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-self-service.md)
-- [session-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/session-management.md)
-- [login-history.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/login-history.md)
-- [trusted-login-device.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/trusted-login-device.md)
+- [auth-bff-self-service.md](./auth-bff-self-service.md)
+- [session-management.md](../auth-service/session-management.md)
+- [login-history.md](../auth-service/login-history.md)
+- [trusted-login-device.md](../auth-service/trusted-login-device.md)

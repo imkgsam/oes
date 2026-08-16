@@ -1,7 +1,7 @@
 # Terminal Access Policy Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-> 服务设计唯一真相源：[permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。本文只记录历史实现拆分，不作为 Terminal Access Policy 的服务设计真相源。
+> 服务设计唯一真相源：[permission-service.md](../architecture/services/permission-service.md)。本文只记录历史实现拆分，不作为 Terminal Access Policy 的服务设计真相源。
 
 **Goal:** Implement account-scoped Terminal Access Policy across permission-service, auth-service, api-gateway, and tenant-web.
 

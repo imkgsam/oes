@@ -8,7 +8,7 @@ Last Updated: 2026-08-14
 
 Item Master 概念以以下文件为唯一真相源：
 
-- [item-master-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/item-master-service.md)
+- [item-master-service.md](../services/item-master-service.md)
 
 ## 2. 参与服务
 
@@ -22,7 +22,7 @@ Item Master 概念以以下文件为唯一真相源：
 - `srm-service`
   - 负责 `SupplierProfile`、`SupplierAddressUsage`、`SupplierContactUsage`、`SupplierTaxProfile`、`SupplierStatus`、`SupplierCategory`、`SupplierTag` 与当前最小 `SupplierOffering` 关系。
 - `party-service`
-  - 负责当前租户内 `TenantParty` 主体事实；核心对象、地址 / 联系人正文与 owner 边界以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准。
+  - 负责当前租户内 `TenantParty` 主体事实；核心对象、地址 / 联系人正文与 owner 边界以 [party-service.md](../services/party-service.md) 为准。
 - `item-master-service`
   - 负责 `ItemModel`、`Item`、capability、`SupplierItemMapping` 与基础分类真相。
 - `procurement-service`
@@ -35,7 +35,7 @@ Item Master 概念以以下文件为唯一真相源：
 - `SupplierProfile` 的正式主体引用统一使用 `tenantPartyId`。
 - `ACTIVE SupplierProfile` 必须绑定 `tenantPartyId`。
 - 同一 `tenantId + tenantPartyId` 只允许一个正式 `SupplierProfile`。
-- 创建供应商时必须先通过 `party-service` 在当前租户内 register / select `TenantParty`；identifier 复用规则以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准。
+- 创建供应商时必须先通过 `party-service` 在当前租户内 register / select `TenantParty`；identifier 复用规则以 [party-service.md](../services/party-service.md) 为准。
 - `TenantParty Selector` 只用于当前租户内主体选择；`Supplier Selector` 只返回可被采购采用的 `SupplierProfile`。
 - `party-service` 继续拥有当前租户内主体名称、证照标识与主体基础事实。
 - SRM 不复制 Party 注册信息为自己的长期真相，只保存受控引用与供应商业务语义。
@@ -63,7 +63,7 @@ Item Master 概念以以下文件为唯一真相源：
 
 ### 4.4 Supplier address / contact / tax / terms snapshot 口径
 
-- `party-service` 的主体地址 / 联系人正文边界以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准。
+- `party-service` 的主体地址 / 联系人正文边界以 [party-service.md](../services/party-service.md) 为准。
 - `srm-service` owns `SupplierAddressUsage / SupplierContactUsage`，表达该地址或联系人在供应商上下文中的用途、默认值、状态与备注。
 - `srm-service` owns `SupplierTaxProfile`，只表达供应商交易税务默认配置；supplier invoice、进项税、认证、抵扣、付款与 AP 归 `finance-service`。
 - `SupplierProfile.defaultCurrency / defaultPaymentTermId` 只是采购默认值。
@@ -91,7 +91,7 @@ Item Master 概念以以下文件为唯一真相源：
 ## 6. 真相归属
 
 - `SupplierProfile`、联系人 usage、地址 usage、`SupplierTaxProfile`、分类、标签、状态、最小 `SupplierOffering` 关系：`srm-service`
-- 供应商正式主体、租户主体引用、主体标识、主体地址 / 联系人正文与主体关系：以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准
+- 供应商正式主体、租户主体引用、主体标识、主体地址 / 联系人正文与主体关系：以 [party-service.md](../services/party-service.md) 为准
 - `ItemModel`、`Item`、capability、`SupplierItemMapping`：`item-master-service`
 - RFQ、采购单、实际成交价、历史采购价格、收货、采购商业条款 snapshot：`procurement-service`
 - `PaymentTerm`、supplier invoice、AP、payment、allocation、payment control：`finance-service`
@@ -117,8 +117,8 @@ Item Master 概念以以下文件为唯一真相源：
 
 ## 9. 关联文档
 
-- [srm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/srm-service.md)
-- [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md)
-- [item-master-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/item-master-service.md)
-- [item-master-sales-mes-wms-srm.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/item-master-sales-mes-wms-srm.md)
-- [docs/contracts/item-master-service/README.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/item-master-service/README.md)
+- [srm-service.md](../services/srm-service.md)
+- [party-service.md](../services/party-service.md)
+- [item-master-service.md](../services/item-master-service.md)
+- [item-master-sales-mes-wms-srm.md](./item-master-sales-mes-wms-srm.md)
+- [docs/contracts/item-master-service/README.md](../../contracts/item-master-service/README.md)

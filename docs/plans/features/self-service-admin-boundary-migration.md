@@ -19,19 +19,19 @@
 ## 3. 上游依赖
 
 - services:
-  - [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)
-  - [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)
-  - [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
+  - [auth-service.md](../../architecture/services/auth-service.md)
+  - [identity-service.md](../../architecture/services/identity-service.md)
+  - [permission-service.md](../../architecture/services/permission-service.md)
 - collaborations:
-  - [authentication-and-identity.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/authentication-and-identity.md)
+  - [authentication-and-identity.md](../../architecture/collaborations/authentication-and-identity.md)
 - contracts:
-  - [auth-bff-self-service.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-self-service.md)
-  - [auth-bff-admin-security.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-admin-security.md)
-  - [auth-service/login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/login.md)
-  - [auth-service/session.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/session.md)
-  - [auth-service/mfa.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/mfa.md)
+  - [auth-bff-self-service.md](../../contracts/api-gateway/auth-bff-self-service.md)
+  - [auth-bff-admin-security.md](../../contracts/api-gateway/auth-bff-admin-security.md)
+  - [auth-service/login.md](../../contracts/auth-service/login.md)
+  - [auth-service/session.md](../../contracts/auth-service/session.md)
+  - [auth-service/mfa.md](../../contracts/auth-service/mfa.md)
 - adr:
-  - [0004-self-service-and-admin-authorization-boundary.md](/Users/acehood/Documents/GitHub/oes/docs/adr/0004-self-service-and-admin-authorization-boundary.md)
+  - [0004-self-service-and-admin-authorization-boundary.md](../../adr/0004-self-service-and-admin-authorization-boundary.md)
 
 ## 4. 当前结论
 
@@ -47,13 +47,13 @@
 ## 5. 契约真相位置
 
 - 服务设计唯一真相：
-  - [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)
-  - [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)
-  - [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
+  - [auth-service.md](../../architecture/services/auth-service.md)
+  - [identity-service.md](../../architecture/services/identity-service.md)
+  - [permission-service.md](../../architecture/services/permission-service.md)
 - 当前 self-service contract：
-  - [auth-bff-self-service.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-self-service.md)
+  - [auth-bff-self-service.md](../../contracts/api-gateway/auth-bff-self-service.md)
 - 当前 admin-management contract：
-  - [auth-bff-admin-security.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-admin-security.md)
+  - [auth-bff-admin-security.md](../../contracts/api-gateway/auth-bff-admin-security.md)
 
 ## 6. 线程分工
 

@@ -29,17 +29,16 @@
 ## 3. 上游依赖
 
 - services:
-  - [procurement-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/procurement-service.md)
-  - [srm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/srm-service.md)
-  - [item-master-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/item-master-service.md)
-  - [wms-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/wms-service.md)
-  - [finance-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/finance-service.md)
+  - [procurement-service.md](../../architecture/services/procurement-service.md)
+  - [srm-service.md](../../architecture/services/srm-service.md)
+  - [item-master-service.md](../../architecture/services/item-master-service.md)
+  - [wms-service.md](../../architecture/services/wms-service.md)
+  - [finance-service.md](../../architecture/services/finance-service.md)
 - collaborations:
-  - [srm-procurement-party-item-master.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/srm-procurement-party-item-master.md)
-  - [procurement-srm-item-wms-finance.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/procurement-srm-item-wms-finance.md)
+  - [srm-procurement-party-item-master.md](../../architecture/collaborations/srm-procurement-party-item-master.md)
+  - [procurement-srm-item-wms-finance.md](../../architecture/collaborations/procurement-srm-item-wms-finance.md)
 - governance:
-  - [service-collaboration-rules.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/service-collaboration-rules.md)
-  - [service-collaboration-review-checklist.md](/Users/acehood/Documents/GitHub/oes/docs/governance/service-collaboration-review-checklist.md)
+  - [service-collaboration-rules.md](../../architecture/system/service-collaboration-rules.md)
 
 ## 4. 当前结论
 
@@ -102,12 +101,12 @@
 ## 5. 契约真相位置
 
 - 稳定服务职责：
-  - [procurement-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/procurement-service.md)
+  - [procurement-service.md](../../architecture/services/procurement-service.md)
 - 稳定协同蓝图：
-  - [srm-procurement-party-item-master.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/srm-procurement-party-item-master.md)
-  - [procurement-srm-item-wms-finance.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/procurement-srm-item-wms-finance.md)
+  - [srm-procurement-party-item-master.md](../../architecture/collaborations/srm-procurement-party-item-master.md)
+  - [procurement-srm-item-wms-finance.md](../../architecture/collaborations/procurement-srm-item-wms-finance.md)
 - 下一步 contract 入口：
-  - [procurement-service contracts](/Users/acehood/Documents/GitHub/oes/docs/contracts/procurement-service/README.md)
+  - [procurement-service contracts](../../contracts/procurement-service/README.md)
 
 ## 6. 当前 slice
 

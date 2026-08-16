@@ -19,9 +19,9 @@
 
 ## 3. Does Not Own
 
-- 用户认证、session、access token、refresh token、account selection 或 terminal access truth；这些归属 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md) 与 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。
-- 员工、任职、组织、人力主数据；这些归属 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 与 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md)。
-- CRM、客户、商机、线索或销售绩效事实；这些归属 [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md) 或其他业务服务。
+- 用户认证、session、access token、refresh token、account selection 或 terminal access truth；这些归属 [auth-service.md](./auth-service.md) 与 [permission-service.md](./permission-service.md)。
+- 员工、任职、组织、人力主数据；这些归属 [hr-service.md](./hr-service.md) 与 [tenant-org-service.md](./tenant-org-service.md)。
+- CRM、客户、商机、线索或销售绩效事实；这些归属 [crm-service.md](./crm-service.md) 或其他业务服务。
 - 通用审计平台的跨域索引、归档、检索与全局审计视图；本服务只拥有浏览器访问审计能力内的本地管理审计事实。
 - 浏览器插件登录 UI、launcher、side panel、workspace preference 或前端 route。
 - 页面正文、DOM 快照、网络请求明细、截图、录屏、键盘内容、表单输入内容、鼠标轨迹或滚动轨迹。

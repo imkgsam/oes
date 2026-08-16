@@ -103,7 +103,7 @@ conflictResolution: 当本文与更早的 quality、inspection、defect、grade�
 ## 7. 恢复入口
 
 - 下次继续前先读：
-  - [mes-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/mes-service.md)
+  - [mes-service.md](../../architecture/services/mes-service.md)
 - 当前推荐下一步：
   - 收敛 `quality-service` 核心对象与聚合草图
   - 收敛 `WMS / MES / CRM` 到 `quality-service` 的最小协作契约
@@ -114,7 +114,7 @@ conflictResolution: 当本文与更早的 quality、inspection、defect、grade�
 ### 8.1 长期定位
 
 - `quality-service` 负责质量标准、检验判定、质量事件、围堵与质量分析。
-- 涉及 MES 生产规格、生产实物、现场资源或追溯主体时，本文只引用 [mes-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/mes-service.md)，不重新定义 MES 对象。
+- 涉及 MES 生产规格、生产实物、现场资源或追溯主体时，本文只引用 [mes-service.md](../../architecture/services/mes-service.md)，不重新定义 MES 对象。
 - 它不直接替代：
   - `WMS` 的收货、库存、发运
   - `procurement` 的采购单与供应商商务协同

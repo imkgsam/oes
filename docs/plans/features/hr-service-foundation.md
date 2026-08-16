@@ -1,11 +1,11 @@
 # HR Service Foundation
 
-> 服务设计唯一真相源：[hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md)。本文只记录 HR minimum foundation 的 feature 范围、状态、验收与后置问题；`Employee`、`Employment`、员工生命周期、正式 `人 -> org` 归属与 onboarding owner 边界不在本文重新定义。
+> 服务设计唯一真相源：[hr-service.md](../../architecture/services/hr-service.md)。本文只记录 HR minimum foundation 的 feature 范围、状态、验收与后置问题；`Employee`、`Employment`、员工生命周期、正式 `人 -> org` 归属与 onboarding owner 边界不在本文重新定义。
 
 ## 1. 目标
 
 - 将 `hr-service` minimum 第一阶段结论转成可执行 feature packet，作为后续 contracts、协同文档与实现线程的主线入口。
-- 建立 `hr-service` 第一阶段最小闭环，具体服务对象与 owner 边界以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准。
+- 建立 `hr-service` 第一阶段最小闭环，具体服务对象与 owner 边界以 [hr-service.md](../../architecture/services/hr-service.md) 为准。
 - 明确本 feature 不再作为 HR 服务设计入口。
 
 ## 2. 不做什么
@@ -19,18 +19,18 @@
 ## 3. 上游依赖
 
 - services:
-  - [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md)
-  - [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md)
-  - [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md)
-  - [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)
-  - [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
+  - [hr-service.md](../../architecture/services/hr-service.md)
+  - [party-service.md](../../architecture/services/party-service.md)
+  - [tenant-org-service.md](../../architecture/services/tenant-org-service.md)
+  - [identity-service.md](../../architecture/services/identity-service.md)
+  - [permission-service.md](../../architecture/services/permission-service.md)
 - collaborations:
-  - [tenant-org-and-hr.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/tenant-org-and-hr.md)
-  - [employee-onboarding.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/employee-onboarding.md)
+  - [tenant-org-and-hr.md](../../architecture/collaborations/tenant-org-and-hr.md)
+  - [employee-onboarding.md](../../architecture/collaborations/employee-onboarding.md)
 
 ## 4. 当前结论
 
-- `hr-service` minimum foundation 已关闭，服务设计已回写到 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md)。
+- `hr-service` minimum foundation 已关闭，服务设计已回写到 [hr-service.md](../../architecture/services/hr-service.md)。
 - `Employee / Employment`、正式 `人 -> org`、onboarding owner、account binding handoff 与 permission grant handoff 均以服务真相源和协同 / contract 文档为准。
 - `tenant-web` 已形成租户侧 `组织与人员 > 成员` 主入口：
   - 主路径为 `/settings/organization-people/members`
@@ -44,10 +44,10 @@
 ## 5. 契约真相位置
 
 - 稳定服务职责：
-  - [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md)
+  - [hr-service.md](../../architecture/services/hr-service.md)
 - 稳定协同蓝图：
-  - [tenant-org-and-hr.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/tenant-org-and-hr.md)
-  - [employee-onboarding.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/employee-onboarding.md)
+  - [tenant-org-and-hr.md](../../architecture/collaborations/tenant-org-and-hr.md)
+  - [employee-onboarding.md](../../architecture/collaborations/employee-onboarding.md)
 - 当前 contract：
   - `docs/contracts/hr-service/**`
   - `docs/contracts/identity-service/employee-binding.md`

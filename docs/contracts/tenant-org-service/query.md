@@ -1,7 +1,7 @@
 # tenant-org-service Query API
 
-> 服务设计唯一真相源：[tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md)。本文只描述黑盒 query contract，不重新定义 `Tenant / OrgUnit / org tree` 的长期职责或 owner 边界。
-> 查询入口涉及的 PermissionGuard、permission code 或授权判定语义，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 与项目级授权架构为准。
+> 服务设计唯一真相源：[tenant-org-service.md](../../architecture/services/tenant-org-service.md)。本文只描述黑盒 query contract，不重新定义 `Tenant / OrgUnit / org tree` 的长期职责或 owner 边界。
+> 查询入口涉及的 PermissionGuard、permission code 或授权判定语义，以 [permission-service.md](../../architecture/services/permission-service.md) 与项目级授权架构为准。
 
 ## 1. 模块职责
 
@@ -41,7 +41,7 @@
   - 未匹配时返回空响应对象
 - 认证准入语义：
   - `auth-service` 是该接口的正式消费者之一，用于判断 `TENANT` scope account/session 是否允许建立或继续使用
-  - `auth-service` 如何消费 tenant lifecycle 结果，以 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md) 为准
+  - `auth-service` 如何消费 tenant lifecycle 结果，以 [auth-service.md](../../architecture/services/auth-service.md) 为准
   - `tenant.status = ACTIVE` 是认证与会话准入的唯一允许状态
   - `SUSPENDED` 与 `ARCHIVED` 都必须被认证链路拒绝
   - `identity-service` 本地 account 或历史 tenant 字段不得替代该状态真相
@@ -158,5 +158,5 @@
 ## 6. 第一阶段明确不做
 
 - 不提供 account-org membership 查询
-- 不提供 employee / employment 查询；HR 查询语义以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准
+- 不提供 employee / employment 查询；HR 查询语义以 [hr-service.md](../../architecture/services/hr-service.md) 为准
 - 不提供基于正式人员归属的 org scope 结果

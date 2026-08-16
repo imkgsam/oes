@@ -1,6 +1,6 @@
 # OES 授权分层实施计划
 
-> `permission-service` 的服务设计唯一真相源为 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。本文只记录授权分层实施进度与推广路径，不重新定义 permission-service 的核心对象、owner 边界或长期授权模型。
+> `permission-service` 的服务设计唯一真相源为 [permission-service.md](../architecture/services/permission-service.md)。本文只记录授权分层实施进度与推广路径，不重新定义 permission-service 的核心对象、owner 边界或长期授权模型。
 
 ## 1. 目标
 
@@ -14,7 +14,7 @@
 
 ## 2. 范围
 
-- `docs/architecture/15-authorization-layering-and-resource-policy-architecture.md`
+- `docs/architecture/platforms/authorization-layering-and-resource-policy.md`
 - Gateway 粗粒度权限门禁收口
 - 各业务子服务 application 层资源授权与查询范围构造模式
 - `permission-service` 细粒度能力消费方式
@@ -27,7 +27,7 @@
 - 本计划不在本阶段把领域规则外置为通用规则引擎
 - 本计划不在本阶段要求所有列表查询都立即接入统一共享 scope builder
 
-说明：本文历史进度中出现的 `identity-service` account-org membership 相关接口名，仅表示当时授权接入试点范围，不再作为现行组织归属或组织树设计依据；`Tenant / OrgUnit / org tree` 边界以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准。
+说明：本文历史进度中出现的 `identity-service` account-org membership 相关接口名，仅表示当时授权接入试点范围，不再作为现行组织归属或组织树设计依据；`Tenant / OrgUnit / org tree` 边界以 [tenant-org-service.md](../architecture/services/tenant-org-service.md) 为准。
 
 ## 4. 当前进度快照
 

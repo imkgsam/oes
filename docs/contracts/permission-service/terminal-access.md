@@ -1,6 +1,6 @@
 # Permission Service Terminal Access Contract
 
-> 服务设计唯一真相源：[permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。本文只描述 permission 侧 terminal access 判定 contract，不重新定义 Terminal Access Policy 的长期 owner、核心对象或服务边界。
+> 服务设计唯一真相源：[permission-service.md](../../architecture/services/permission-service.md)。本文只描述 permission 侧 terminal access 判定 contract，不重新定义 Terminal Access Policy 的长期 owner、核心对象或服务边界。
 
 ## 1. Purpose
 
@@ -8,7 +8,7 @@ This document defines the internal gRPC runtime contract used by `auth-service` 
 
 This contract is not a management API and must not be called directly by front ends.
 
-`auth-service` session, token, account selection, refresh and audit outcomes are defined only in [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md). This document only defines the permission-side terminal access decision contract.
+`auth-service` session, token, account selection, refresh and audit outcomes are defined only in [auth-service.md](../../architecture/services/auth-service.md). This document only defines the permission-side terminal access decision contract.
 
 ## 2. Ownership
 
@@ -19,7 +19,7 @@ This contract is not a management API and must not be called directly by front e
 - effective terminal access resolution
 - management audit for terminal access configuration changes
 
-`auth-service` consumes the runtime decision; session / token outcomes follow [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md).
+`auth-service` consumes the runtime decision; session / token outcomes follow [auth-service.md](../../architecture/services/auth-service.md).
 
 ## 3. gRPC Service
 

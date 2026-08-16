@@ -8,7 +8,7 @@
 - “组织结构真相”与“人员归属真相”如何拆分
 - 为什么 `tenant-org-service` 第一版不直接承接人员归属
 
-`tenant-org-service` 的 `Tenant / OrgUnit / org tree` 边界以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准；`hr-service` 的 `Employee / Employment` 与正式 `人 -> org` 归属边界以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准。本文只记录两者如何协同，不重新定义服务核心对象。
+`tenant-org-service` 的 `Tenant / OrgUnit / org tree` 边界以 [tenant-org-service.md](../services/tenant-org-service.md) 为准；`hr-service` 的 `Employee / Employment` 与正式 `人 -> org` 归属边界以 [hr-service.md](../services/hr-service.md) 为准。本文只记录两者如何协同，不重新定义服务核心对象。
 
 ## 2. 参与服务
 
@@ -20,9 +20,9 @@
 ## 3. 真相归属
 
 - `tenant-org-service`
-  - `Tenant`、`OrgUnit`、org tree、org hierarchy 与 org reference validation 边界以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准
+  - `Tenant`、`OrgUnit`、org tree、org hierarchy 与 org reference validation 边界以 [tenant-org-service.md](../services/tenant-org-service.md) 为准
 - `hr-service`
-  - `Employee / Employment`、员工是否成立、员工任职到哪个 `OrgUnit`、主任职组织与后续岗位 / 汇报关系边界以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准
+  - `Employee / Employment`、员工是否成立、员工任职到哪个 `OrgUnit`、主任职组织与后续岗位 / 汇报关系边界以 [hr-service.md](../services/hr-service.md) 为准
 
 ## 4. 核心边界
 
@@ -30,7 +30,7 @@
 - `hr-service` 按服务真相源回答“正式 employee 如何任职到这些组织节点”。
 - `tenant-org-service` 不拥有 `employee -> org` 或 `account -> org` 的长期归属真相。
 - `hr-service` 不拥有 org tree 本体，只引用 `OrgUnit`。
-- 正式 `人 -> org` 真相的 HR 口径以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准，不来自 account membership 或兼容查询字段。
+- 正式 `人 -> org` 真相的 HR 口径以 [hr-service.md](../services/hr-service.md) 为准，不来自 account membership 或兼容查询字段。
 
 ## 5. 协作链路
 
@@ -67,5 +67,5 @@ Party(Person)
 
 ## 8. 关联文档
 
-- [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md)
-- [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md)
+- [tenant-org-service.md](../services/tenant-org-service.md)
+- [hr-service.md](../services/hr-service.md)

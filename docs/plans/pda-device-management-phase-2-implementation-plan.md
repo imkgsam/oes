@@ -14,13 +14,13 @@
 
 Implementation must follow these documents:
 
-- [ADR 0006](/Users/acehood/Documents/GitHub/oes/docs/adr/0006-terminal-device-service.md)
-- [terminal-device-service truth source](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/terminal-device-service.md)
-- [managed terminal device collaboration](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/managed-terminal-device-management.md)
-- [feature packet](/Users/acehood/Documents/GitHub/oes/docs/plans/features/pda-device-management-phase-2.md)
-- [PDA BFF contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/pda-device-management-bff.md)
-- [Admin BFF contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/admin-terminal-device-bff.md)
-- [terminal-device-service contracts](/Users/acehood/Documents/GitHub/oes/docs/contracts/terminal-device-service/README.md)
+- [ADR 0006](../adr/0006-terminal-device-service.md)
+- [terminal-device-service truth source](../architecture/services/terminal-device-service.md)
+- [managed terminal device collaboration](../architecture/collaborations/managed-terminal-device-management.md)
+- [feature packet](./features/pda-device-management-phase-2.md)
+- [PDA BFF contract](../contracts/api-gateway/pda-device-management-bff.md)
+- [Admin BFF contract](../contracts/api-gateway/admin-terminal-device-bff.md)
+- [terminal-device-service contracts](../contracts/terminal-device-service/README.md)
 
 Do not redefine service ownership in implementation notes or code comments. Reference these documents if a boundary question appears.
 
@@ -814,7 +814,7 @@ Scenario:
 
 - [x] **Step 8: Record verification evidence**
 
-Update [feature packet](/Users/acehood/Documents/GitHub/oes/docs/plans/features/pda-device-management-phase-2.md) only with final implementation status and verification evidence after code is implemented.
+Update [feature packet](./features/pda-device-management-phase-2.md) only with final implementation status and verification evidence after code is implemented.
 
 Execution note, 2026-05-17:
 
@@ -876,6 +876,6 @@ After Task 1:
 
 - A new service workspace may require updates to pnpm workspace filters, Docker compose, local env, health checks, and CI scripts. Follow existing system service patterns rather than inventing a separate runtime shape.
 - Auth session persistence may be Redis-backed, database-backed, or hybrid in current implementation. Add `terminalDeviceId` at the active session truth boundary, not only in token claims.
-- Admin BFF may need a consistent route namespace with existing tenant-web admin patterns. Keep HTTP path aligned with [admin-terminal-device-bff.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/admin-terminal-device-bff.md).
+- Admin BFF may need a consistent route namespace with existing tenant-web admin patterns. Keep HTTP path aligned with [admin-terminal-device-bff.md](../contracts/api-gateway/admin-terminal-device-bff.md).
 - Existing Phase 1 in-memory PDA heartbeat/log stores in API Gateway must be retired or narrowed once `terminal-device-service` owns runtime snapshot and diagnostic governance.
 - If implementation exposes current active PDA sessions in device detail, source them from `auth-service`; do not derive them from heartbeat.

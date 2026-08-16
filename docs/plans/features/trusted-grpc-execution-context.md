@@ -14,7 +14,7 @@
 status: DESIGN_FROZEN_IMPLEMENTATION_NOT_DISPATCHED
 freezeToken: FROZEN_TRUSTED_GRPC_METADATA
 decisionAdr: docs/adr/0015-workload-identity-and-execution-token.md
-architectureTruthSource: docs/architecture/14-grpc-metadata-and-service-trust-architecture.md
+architectureTruthSource: docs/architecture/platforms/grpc-metadata-and-service-trust.md
 migrationClosure: 21 services / 51 existing controllers plus the frozen MACHINE Auth, Item Master INTERNAL, SRM INTERNAL and Procurement INTERNAL surfaces / 55 planned controllers / 571 planned RPCs / zero legacy trust references
 resolvedDesignGates:
   - DG-1: docs/architecture/services/auth-service.md
@@ -354,7 +354,7 @@ Audit reuse does not add another tracked writer path. Auth reuses `src/services/
 
 ### 5.2 Gateway verified source credential exact implementation lease
 
-Status is `IMPLEMENTED_VERIFIED`: the Gateway verified source-credential lifecycle was accepted and is present in current main through `a82e5ea69a7773d4e0e8f5a91dcdf7a599897c1d`. This historical lease covers only the Gateway request lifecycle frozen in [Gateway / BFF architecture](../../architecture/11-gateway-and-bff-architecture.md) §9.5; it does not grant Asset RPC changes, target-adapter migration, Common carrier changes, Auth/session semantics, external API-key changes, proto/schema/runtime outside Gateway, or any other Gateway path. The original classification is preserved: `EXISTING` means the file existed at base `024579598c1293807d3f1cd5e7003aefd8e8fa0a`; `NEW_TARGET` identifies the exact file introduced by that implementation slice.
+Status is `IMPLEMENTED_VERIFIED`: the Gateway verified source-credential lifecycle was accepted and is present in current main through `a82e5ea69a7773d4e0e8f5a91dcdf7a599897c1d`. This historical lease covers only the Gateway request lifecycle frozen in [Gateway / BFF architecture](../../architecture/platforms/gateway-and-bff.md) §9.5; it does not grant Asset RPC changes, target-adapter migration, Common carrier changes, Auth/session semantics, external API-key changes, proto/schema/runtime outside Gateway, or any other Gateway path. The original classification is preserved: `EXISTING` means the file existed at base `024579598c1293807d3f1cd5e7003aefd8e8fa0a`; `NEW_TARGET` identifies the exact file introduced by that implementation slice.
 
 ```yaml
 gatewayVerifiedSourceCredentialLifecycleLease:
@@ -2288,7 +2288,6 @@ srmTrustedGrpcImplementationLease:
     stableDocConsistency:
       - { state: EXISTING, path: docs/architecture/collaborations/item-master-sales-mes-wms-srm.md }
       - { state: EXISTING, path: docs/architecture/services/index.md }
-      - { state: EXISTING, path: docs/plans/designs/srm-service-design.md }
 
   ignoredGeneratedOutputs:
     - path: src/common/src/generated/srm_service/srm.ts
@@ -2673,7 +2672,6 @@ wmsTrustedGrpcImplementationLease:
       - { state: EXISTING, path: docs/contracts/wms-service/inventory-query.md }
       - { state: EXISTING, path: docs/contracts/procurement-service/README.md }
       - { state: EXISTING, path: docs/contracts/procurement-service/internal-query.md }
-      - { state: EXISTING, path: docs/plans/designs/wms-service-design.md }
       - { state: EXISTING, path: docs/plans/features/trusted-grpc-execution-context.md }
 
   ignoredGeneratedOutputs:

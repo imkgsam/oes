@@ -14,12 +14,12 @@
 
 Read these before implementation:
 
-- [collaboration-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/collaboration-service.md)
-- [collaboration-task-p1.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/collaboration-task-p1.md)
-- [task-command.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/collaboration-service/task-command.md)
-- [task-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/collaboration-service/task-query.md)
-- [service-collaboration-rules.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/service-collaboration-rules.md)
-- [15-authorization-layering-and-resource-policy-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/15-authorization-layering-and-resource-policy-architecture.md)
+- [collaboration-service.md](../architecture/services/collaboration-service.md)
+- [collaboration-task-p1.md](./features/collaboration-task-p1.md)
+- [task-command.md](../contracts/collaboration-service/task-command.md)
+- [task-query.md](../contracts/collaboration-service/task-query.md)
+- [service-collaboration-rules.md](../architecture/system/service-collaboration-rules.md)
+- [authorization-layering-and-resource-policy.md](../architecture/platforms/authorization-layering-and-resource-policy.md)
 
 Hard P1 non-goals:
 

@@ -1,6 +1,6 @@
 # Site–Asset Media 协同蓝图
 
-> `asset-service` 的服务边界以 [asset-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/asset-service.md) 为准；`site-service` 的服务边界以 [site-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/site-service.md) 为准。本文只冻结两者与 API Gateway / BFF、Runtime / Storefront 的协同方式，不重新定义任一服务的领域对象或 schema。
+> `asset-service` 的服务边界以 [asset-service.md](../services/asset-service.md) 为准；`site-service` 的服务边界以 [site-service.md](../services/site-service.md) 为准。本文只冻结两者与 API Gateway / BFF、Runtime / Storefront 的协同方式，不重新定义任一服务的领域对象或 schema。
 
 ## 1. Goal
 
@@ -64,7 +64,7 @@ Site formal Sync
 - Site 在公开包含 Asset 的新 public view 前，为该 Asset 建立针对对应 publication 的保护。
 - 保护覆盖当前 publication、Runtime last-complete 与 Site 支持保留窗口中仍可 target-addressable 的历史 publication。
 - Site 只在某个 publication 不再被承诺读取后释放其保护。Site 草稿更改、latest 引用替换或 CDN request log 都不是提前释放依据。
-- Asset 拒绝仍受保护 Asset 的 ordinary physical delete；具体 gRPC primitive 以 [Site Media contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/asset-service/site-media.md) 为准，event / outbox / inbox 以第 7 节与 [Asset event contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/events/asset-service.md) 为准。
+- Asset 拒绝仍受保护 Asset 的 ordinary physical delete；具体 gRPC primitive 以 [Site Media contract](../../contracts/asset-service/site-media.md) 为准，event / outbox / inbox 以第 7 节与 [Asset event contract](../../contracts/events/asset-service.md) 为准。
 
 ## 6. Archive, Takedown And Failure Reaction
 
@@ -119,9 +119,9 @@ For takedown, Asset first removes or isolates every Site delivery object, then p
 
 ## 8. Implementation Sequencing
 
-1. 按 [trusted-grpc-execution-context.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/trusted-grpc-execution-context.md) 完成 shared generator/runtime、Auth / STS、Permission principal grant、Gateway producer 与 Asset/Site consumer 的原子 cutover；body tenant/operator、shared signed operator payload 和自报 service header 不能作为 fallback。
+1. 按 [trusted-grpc-execution-context.md](../../plans/features/trusted-grpc-execution-context.md) 完成 shared generator/runtime、Auth / STS、Permission principal grant、Gateway producer 与 Asset/Site consumer 的原子 cutover；body tenant/operator、shared signed operator payload 和自报 service header 不能作为 fallback。
 2. 同期关闭另外两个平台前置条件：跨服务 Event Bus + outbox delivery、`oes-managed-cloudflare` delivery / purge provider。当前进程内 EventEmitter 与 S3 delete 不能替代这些能力。
-3. Asset owner 以 Asset truth source 与 [site-media.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/asset-service/site-media.md) 的 frozen RPC / Permission mapping 实现 consumer。Gateway 直调 Asset 时取得 `aud=asset-service` BUSINESS Token；不得复制 avatar body identity 字段。
+3. Asset owner 以 Asset truth source 与 [site-media.md](../../contracts/asset-service/site-media.md) 的 frozen RPC / Permission mapping 实现 consumer。Gateway 直调 Asset 时取得 `aud=asset-service` BUSINESS Token；不得复制 avatar body identity 字段。
 4. Site owner 把 Admin RPC 切到 `aud=site-service` BUSINESS Token，并在 Sync application 授权完成后，通过统一 metadata provider 申请 `aud=asset-service` + 精确 `asset.internal.site_media.*` Token；Site audience Token 不向下透传。
 5. Asset lane 实现 validation、local MinIO 与 Cloudflare R2 storage / delivery adaptor、单向 delivery binding migration、provider confirmation、reference protection 与 audit。
 6. Site / Admin BFF lane 实现媒体域名意图、远端验证 / 激活入口、Asset selection、带 `siteId` 的 pre-publication resolution、publication protection / release 与 availability handling。Site Runtime 现有 HMAC / nonce / body-hash proof 继续验证，再换内部 ExecutionToken。

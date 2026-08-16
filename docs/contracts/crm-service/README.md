@@ -1,14 +1,14 @@
 # crm-service Contracts
 
-> `crm-service` 的服务职责、核心对象、owner 边界与长期命名以 [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md) 为唯一稳定真相源。本目录只描述当前 CRM v2 P1 黑盒契约，不重新定义服务内部设计。
+> `crm-service` 的服务职责、核心对象、owner 边界与长期命名以 [crm-service.md](../../architecture/services/crm-service.md) 为唯一稳定真相源。本目录只描述当前 CRM v2 P1 黑盒契约，不重新定义服务内部设计。
 
 ## 1. Current Surface
 
 当前 proto 恰好包含 15 个 RPC / 3 个 service：
 
-- [customer-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/crm-service/customer-query.md)：`CustomerQueryService`，4 个 RPC。
-- [customer-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/crm-service/customer-management.md)：`CustomerManagementService`，10 个 RPC。
-- [object-reference.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/crm-service/object-reference.md)：`CrmObjectReferenceService`，1 个 RPC。
+- [customer-query.md](./customer-query.md)：`CustomerQueryService`，4 个 RPC。
+- [customer-management.md](./customer-management.md)：`CustomerManagementService`，10 个 RPC。
+- [object-reference.md](./object-reference.md)：`CrmObjectReferenceService`，1 个 RPC。
 
 旧 customer-master `SearchSelectableCustomers / CustomerPartyBinding / CustomerContact / CustomerAddress` 契约已被 CRM v2 P1 原地替代，不再是当前 proto 或实现依据。
 
@@ -39,8 +39,8 @@ Gateway 的 HTTP `RequirePermissions` 是入口检查；CRM 仍独立验证 ET �
 
 ## 4. Stable Links
 
-- [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md)
-- [ADR 0015](/Users/acehood/Documents/GitHub/oes/docs/adr/0015-workload-identity-and-execution-token.md)
-- [collaboration-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/collaboration-service.md)
-- [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md)
-- [trusted-grpc-execution-context.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/trusted-grpc-execution-context.md)
+- [crm-service.md](../../architecture/services/crm-service.md)
+- [ADR 0015](../../adr/0015-workload-identity-and-execution-token.md)
+- [collaboration-service.md](../../architecture/services/collaboration-service.md)
+- [party-service.md](../../architecture/services/party-service.md)
+- [trusted-grpc-execution-context.md](../../plans/features/trusted-grpc-execution-context.md)

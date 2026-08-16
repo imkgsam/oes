@@ -1,6 +1,6 @@
 # Unified Permission Decorator
 
-> 服务设计唯一真相源：[permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。本文只记录 permission decorator 统一 feature 的范围、状态与迁移纪律；`Permission`、`Policy`、`checkPermission`、`checkResource` 与 `buildQueryScope` 的授权语义不在本文重新定义。
+> 服务设计唯一真相源：[permission-service.md](../../architecture/services/permission-service.md)。本文只记录 permission decorator 统一 feature 的范围、状态与迁移纪律；`Permission`、`Policy`、`checkPermission`、`checkResource` 与 `buildQueryScope` 的授权语义不在本文重新定义。
 
 ## 1. 目标
 
@@ -23,16 +23,16 @@
 ## 3. 上游依赖
 
 - architecture:
-  - [15-authorization-layering-and-resource-policy-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/15-authorization-layering-and-resource-policy-architecture.md)
+  - [authorization-layering-and-resource-policy.md](../../architecture/platforms/authorization-layering-and-resource-policy.md)
 - services:
-  - [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
+  - [permission-service.md](../../architecture/services/permission-service.md)
 - collaborations:
-  - [authorization-decision-flow.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/authorization-decision-flow.md)
+  - [authorization-decision-flow.md](../../architecture/collaborations/authorization-decision-flow.md)
 - contracts:
-  - [permission-service/README.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/README.md)
-  - [permission-service/access-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/access-summary.md)
+  - [permission-service/README.md](../../contracts/permission-service/README.md)
+  - [permission-service/access-summary.md](../../contracts/permission-service/access-summary.md)
 - related plans:
-  - [policy-governance-readonly.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/policy-governance-readonly.md)
+  - [policy-governance-readonly.md](./policy-governance-readonly.md)
 
 ## 4. 当前结论
 

@@ -3,7 +3,7 @@
 ## 1. 目标
 
 - 将已冻结的 `party-service` 架构结论转成可执行 feature packet，作为后续契约设计、能力补齐与实现线程的主线入口。
-- 建立 `party-service` 第一阶段最小闭环；服务核心对象与 owner 边界只以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准。
+- 建立 `party-service` 第一阶段最小闭环；服务核心对象与 owner 边界只以 [party-service.md](../../architecture/services/party-service.md) 为准。
 - 明确业务域第一阶段以 `tenantPartyId` 作为主体引用入口，不再依赖旧 system-wide `partyId` 或复制主体主数据。
 - 为 CRM、SRM、订单、合同、会计、`identity-service`、`tenant-org-service`、`hr-service` 后续依赖 party 主数据提供稳定边界。
 
@@ -12,38 +12,37 @@
 - 不在本 packet 中发起一次性全域切换。
 - 不做完整 MDM 平台、外部工商数据同步或复杂主数据治理平台。
 - 不做客户、供应商、员工、联系人、组织树或业务单据状态模型。
-- 不做 CRM / SRM usage 模型；联系人与地址正文的 owner 边界以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准，CRM / SRM 仅承接各自 usage。
+- 不做 CRM / SRM usage 模型；联系人与地址正文的 owner 边界以 [party-service.md](../../architecture/services/party-service.md) 为准，CRM / SRM 仅承接各自 usage。
 - 不让业务域绕过 `TenantParty` 直接复制或持有 party 主数据。
 - 不在本 feature 中冻结 HR、tenant-org、CRM、SRM 的详细实现模型。
 
 ## 3. 上游依赖
 
 - architecture:
-  - [00-vision-and-scope.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/00-vision-and-scope.md)
-  - [02-bounded-contexts.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/02-bounded-contexts.md)
-  - [03-technical-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/03-technical-architecture.md)
+  - [vision-and-scope.md](../../architecture/system/vision-and-scope.md)
+  - [bounded-contexts.md](../../architecture/system/bounded-contexts.md)
+  - [technical-architecture.md](../../architecture/system/technical-architecture.md)
 - services:
-  - [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md)
-  - [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)
-  - [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md)
-  - [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md)
-  - [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md)
+  - [party-service.md](../../architecture/services/party-service.md)
+  - [identity-service.md](../../architecture/services/identity-service.md)
+  - [tenant-org-service.md](../../architecture/services/tenant-org-service.md)
+  - [hr-service.md](../../architecture/services/hr-service.md)
+  - [crm-service.md](../../architecture/services/crm-service.md)
 - collaborations:
-  - [party-identity-and-tenant-org.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/party-identity-and-tenant-org.md)
+  - [party-identity-and-tenant-org.md](../../architecture/collaborations/party-identity-and-tenant-org.md)
   - future party usage from CRM / SRM / transaction documents
   - future party merge governance collaboration
 - contracts:
-  - [party-service/README.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/party-service/README.md)
-  - [registration.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/party-service/registration.md)
-  - [query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/party-service/query.md)
-  - [merge.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/party-service/merge.md)（ADR 0003 历史契约，仅作 superseded 记录）
+  - [party-service/README.md](../../contracts/party-service/README.md)
+  - [registration.md](../../contracts/party-service/registration.md)
+  - [query.md](../../contracts/party-service/query.md)
+  - [merge.md](../../contracts/party-service/merge.md)（ADR 0003 历史契约，仅作 superseded 记录）
 - adr:
-  - [0008-tenant-scoped-tenant-party-primary-party-model.md](/Users/acehood/Documents/GitHub/oes/docs/adr/0008-tenant-scoped-tenant-party-primary-party-model.md)
-  - [0003-party-master-service-and-tenant-party-binding.md](/Users/acehood/Documents/GitHub/oes/docs/adr/0003-party-master-service-and-tenant-party-binding.md)（superseded）
+  - [0008-tenant-scoped-tenant-party-primary-party-model.md](../../adr/0008-tenant-scoped-tenant-party-primary-party-model.md)
 
 ## 4. 当前结论
 
-服务长期职责、核心对象、地址 / 联系人正文归属、业务 usage 边界、交易 snapshot 边界与 non-goals 均以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为唯一真相源。
+服务长期职责、核心对象、地址 / 联系人正文归属、业务 usage 边界、交易 snapshot 边界与 non-goals 均以 [party-service.md](../../architecture/services/party-service.md) 为唯一真相源。
 
 本 feature packet 只记录执行状态与能力补齐护栏：
 
@@ -57,10 +56,10 @@
 ## 5. 契约真相位置
 
 - 当前稳定架构真相：
-  - [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md)
-  - [ADR 0008](/Users/acehood/Documents/GitHub/oes/docs/adr/0008-tenant-scoped-tenant-party-primary-party-model.md)
+  - [party-service.md](../../architecture/services/party-service.md)
+  - [ADR 0008](../../adr/0008-tenant-scoped-tenant-party-primary-party-model.md)
 - 历史 ADR：
-  - [ADR 0003](/Users/acehood/Documents/GitHub/oes/docs/adr/0003-party-master-service-and-tenant-party-binding.md) 已被 ADR 0008 supersede，不再作为运行时实现依据
+  - 早期 system-wide Party master 模型已由 ADR 0008 取代，历史仅从 Git 读取
 - 当前已存在正式 contract 目录：
   - `docs/contracts/party-service/README.md`
   - `docs/contracts/party-service/registration.md`
@@ -134,7 +133,7 @@
 | 时间 | 问题 | 分类 | 当前影响 | 处理策略 | 目标落点 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- |
 | 2026-04-22 | party-service 基础能力已落地，但 feature packet 状态滞后 | Blocker-Now | 如果继续按旧文档理解，会误判为“仍未开始实现”，影响后续接入决策 | 当前已回写“phase-1-runtime-live”状态，并要求后续线程按平台层受控接入推进 | 当前 feature packet | closed |
-| 2026-04-22 | `tenant-org-service` 与 `organizationTenantPartyId` 的正式关联链 | Resolved | 组织节点如何受控引用当前租户内 `ORGANIZATION` TenantParty 已收敛到 tenant-org 真相源与协同文档 | 以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 和 [party-identity-and-tenant-org.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/party-identity-and-tenant-org.md) 为准 | tenant-org truth source + collaboration | closed |
+| 2026-04-22 | `tenant-org-service` 与 `organizationTenantPartyId` 的正式关联链 | Resolved | 组织节点如何受控引用当前租户内 `ORGANIZATION` TenantParty 已收敛到 tenant-org 真相源与协同文档 | 以 [tenant-org-service.md](../../architecture/services/tenant-org-service.md) 和 [party-identity-and-tenant-org.md](../../architecture/collaborations/party-identity-and-tenant-org.md) 为准 | tenant-org truth source + collaboration | closed |
 | 2026-04-23 | party-service 文档簇 phase 状态存在漂移 | Resolved | 可能误导后续线程把 phase-1 runtime live 误读为仍未实现 | 已补充 phase-1 contract/runtime available 说明 | current feature packet + ADR 0003 | closed |
 | 2026-04-19 | `TenantParty` 与业务单据快照边界 | Blocker-Later | 影响报价、订单、合同、发票如何引用主体与保存历史事实 | 当前先冻结原则：引用 `tenantPartyId` 并保存交易快照；具体单据字段在各业务域 contract 中落地 | future CRM / order / accounting feature | open |
 | 2026-04-19 | party merge governance | Blocker-Later | 旧 system-wide Party merge 已随 ADR 0003 supersede；未来如需跨租户主体治理，需重新冻结对象模型、审计、引用重定向、回放与可能的 unmerge | 当前 runtime 不提供 `MergeParties`；后续独立设计 | future party governance design | open |
@@ -144,7 +143,7 @@
 ## 11. 验收标准
 
 - 当前 feature packet 明确引用 `party-service` 职责卡与 ADR 0008，不重复定义服务边界。
-- 当前 feature packet 明确服务职责与核心对象只以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准。
+- 当前 feature packet 明确服务职责与核心对象只以 [party-service.md](../../architecture/services/party-service.md) 为准。
 - 当前 feature packet 明确后续 contract 文档位置与第一阶段必要 API 能力。
 - 当前 feature packet 明确：现有第一阶段 contract 已可支撑平台层受控接入，但扩大能力面前仍须先补文档。
 - 当前 feature packet 为 contract、capability、implementation、review 线程提供清晰职责和允许修改路径。

@@ -8,8 +8,8 @@ Build a dedicated `communication-service` foundation for OES that supports share
 
 This plan is based on:
 
-- `docs/architecture/10-communication-and-mailbox-architecture.md`
-- `docs/architecture/08-notification-architecture.md`
+- `docs/architecture/platforms/communication-and-mailbox.md`
+- `docs/architecture/platforms/notification.md`
 
 ## 2. Planning conclusion
 

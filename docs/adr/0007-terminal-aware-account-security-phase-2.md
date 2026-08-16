@@ -170,8 +170,8 @@ Phase 2 不提供按筛选结果、terminal、terminalDeviceId、tenant 等维�
 
 ## Related Documents
 
-- [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)
-- [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
-- [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)
-- [terminal-access-policy.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/terminal-access-policy.md)
-- [managed-terminal-device-management.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/managed-terminal-device-management.md)
+- [auth-service.md](../architecture/services/auth-service.md)
+- [permission-service.md](../architecture/services/permission-service.md)
+- [identity-service.md](../architecture/services/identity-service.md)
+- [terminal-access-policy.md](../architecture/collaborations/terminal-access-policy.md)
+- [managed-terminal-device-management.md](../architecture/collaborations/managed-terminal-device-management.md)

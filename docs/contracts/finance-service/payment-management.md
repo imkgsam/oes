@@ -6,7 +6,7 @@
 
 说明：
 
-- payable schedule 的建立与调整真相见 [payable-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/finance-service/payable-management.md)
+- payable schedule 的建立与调整真相见 [payable-management.md](./payable-management.md)
 - 本文件不把 `PaymentRequest` 当成 payable truth
 
 ## 2. 通用上下文要求

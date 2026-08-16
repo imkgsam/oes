@@ -20,20 +20,20 @@
 ## 3. 上游依赖
 
 - architecture:
-  - [16-unified-web-account-context-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/16-unified-web-account-context-architecture.md)
+  - [unified-web-account-context.md](../../architecture/platforms/unified-web-account-context.md)
 - services:
-  - [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)
-  - [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)
-  - [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
+  - [auth-service.md](../../architecture/services/auth-service.md)
+  - [identity-service.md](../../architecture/services/identity-service.md)
+  - [permission-service.md](../../architecture/services/permission-service.md)
 - collaborations:
-  - [account-context-switch.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/account-context-switch.md)
+  - [account-context-switch.md](../../architecture/collaborations/account-context-switch.md)
 - contracts:
-  - [auth-bff-login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-login.md)
-  - [access-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/access-summary.md)
-  - [navigation-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/navigation-summary.md)
+  - [auth-bff-login.md](../../contracts/api-gateway/auth-bff-login.md)
+  - [access-summary.md](../../contracts/api-gateway/access-summary.md)
+  - [navigation-summary.md](../../contracts/api-gateway/navigation-summary.md)
 - adr:
-  - [0001-unified-web-scope-aware-user-account.md](/Users/acehood/Documents/GitHub/oes/docs/adr/0001-unified-web-scope-aware-user-account.md)
-  - [0002-system-role-instance-and-account-role-scope.md](/Users/acehood/Documents/GitHub/oes/docs/adr/0002-system-role-instance-and-account-role-scope.md)
+  - [0001-unified-web-scope-aware-user-account.md](../../adr/0001-unified-web-scope-aware-user-account.md)
+  - [0002-system-role-instance-and-account-role-scope.md](../../adr/0002-system-role-instance-and-account-role-scope.md)
 
 ## 4. 当前结论
 
@@ -47,11 +47,11 @@
 ## 5. 契约真相位置
 
 - 稳定设计真相：
-  - [16-unified-web-account-context-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/16-unified-web-account-context-architecture.md)
+  - [unified-web-account-context.md](../../architecture/platforms/unified-web-account-context.md)
 - 当前黑盒契约真相：
-  - [auth-bff-login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-login.md)
-  - [access-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/access-summary.md)
-  - [navigation-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/navigation-summary.md)
+  - [auth-bff-login.md](../../contracts/api-gateway/auth-bff-login.md)
+  - [access-summary.md](../../contracts/api-gateway/access-summary.md)
+  - [navigation-summary.md](../../contracts/api-gateway/navigation-summary.md)
 - 当前阶段已落地：
   - `GET /auth/session/contexts`
   - `POST /auth/session/switch-context`
@@ -93,7 +93,7 @@
 ## 9. 阻塞 / 依赖
 
 - 主线阻塞已清空，当前为已完成状态。
-- 已确认 `auth-bff` context list / switch context 契约收口到 [auth-bff-login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-login.md)。
+- 已确认 `auth-bff` context list / switch context 契约收口到 [auth-bff-login.md](../../contracts/api-gateway/auth-bff-login.md)。
 - 已确认切换响应采用“新 token 对 + 最小 switched context summary”，由前端随后刷新 `session/context` 与 `session/access-summary`。
 - 已确认 `identity-service` 的 `GetAccountsByUserId` 可作为 account context 列表事实源；如需 `tenantName`，由 BFF 聚合 `GetTenantById`。
 - 已确认 `SYSTEM` scope 的 `tenantId` 语义收敛为“system scope 不携带有效 tenant 绑定”。
@@ -106,8 +106,8 @@
 | 2026-04-14 | context 失效时前端如何提示 | Blocker-Later | 影响错误交互一致性，但不阻塞当前设计方向 | 后续在 BFF 契约中冻结统一错误码与提示语义 | `docs/contracts/api-gateway/**` | open |
 | 2026-04-14 | `identity-service` 可切换 context 事实源是否已存在 | Blocker-Now | 若无现成查询能力，则 context list 无法落地 | 已确认 `GetAccountsByUserId` 可复用；如需 `tenantName`，由 BFF 额外聚合 `GetTenantById` | 当前 feature packet | closed |
 | 2026-04-14 | `SYSTEM` scope 的 `tenantId` 在 JWT 与 request context 中语义不一致 | Blocker-Now | 若不先统一，switch-context 实现容易继续依赖空字符串补丁 | 已统一 token payload / request context 的 system-scope tenant 语义 | implementation thread | closed |
-| 2026-04-14 | context 切换是否需要通知联动 | Sidecar | 不影响第一阶段上下文切换主线 | 后续如确认纳入安全治理，再进入独立 feature 或 backlog | [candidates.md](/Users/acehood/Documents/GitHub/oes/docs/plans/candidates.md) / [backlog.md](/Users/acehood/Documents/GitHub/oes/docs/plans/backlog.md) | open |
-| 2026-04-15 | 后端重启后服务端 session 失效、但前端 token 未过期时的 401 兜底体验 | Blocker-Later | 用户可能停留在“本地看似已登录，但任意受保护请求持续 401”的半失效状态，影响切换上下文与自助安全等后续交互一致性 | 当前尚未稳定复现，先保留为待验证问题；后续需确认是 refresh 未触发、refresh 失败后未统一强退、还是部分请求未走统一拦截器，再冻结“401 -> refresh -> force logout / login expired”语义 | 当前 feature packet，后续视结论回写 `docs/contracts/api-gateway/**` 或迁入 [backlog.md](/Users/acehood/Documents/GitHub/oes/docs/plans/backlog.md) | open |
+| 2026-04-14 | context 切换是否需要通知联动 | Sidecar | 不影响第一阶段上下文切换主线 | 后续如确认纳入安全治理，再进入独立 feature 或 backlog | [intake.md](../intake.md) / [backlog.md](../backlog.md) | open |
+| 2026-04-15 | 后端重启后服务端 session 失效、但前端 token 未过期时的 401 兜底体验 | Blocker-Later | 用户可能停留在“本地看似已登录，但任意受保护请求持续 401”的半失效状态，影响切换上下文与自助安全等后续交互一致性 | 当前尚未稳定复现，先保留为待验证问题；后续需确认是 refresh 未触发、refresh 失败后未统一强退、还是部分请求未走统一拦截器，再冻结“401 -> refresh -> force logout / login expired”语义 | 当前 feature packet，后续视结论回写 `docs/contracts/api-gateway/**` 或迁入 [backlog.md](../backlog.md) | open |
 
 ## 11. 验收标准
 
@@ -149,4 +149,3 @@
 ## 15. 备注
 
 - 当前判断该 feature 更适合“一个设计线程 + 一个实现线程做前后端闭环”，而不是机械拆成前后端双线程并行。
-- 原候选项位于 [candidates.md](/Users/acehood/Documents/GitHub/oes/docs/plans/candidates.md)，在正式进入实现后应迁出或改写为引用本 feature packet。

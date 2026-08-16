@@ -1,6 +1,6 @@
 # Permission Management API
 
-> `permission-service` 的服务设计唯一真相源：[permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。本文只描述 API Gateway permission-management HTTP contract 与页面接入边界，不重新定义 Permission、Role、AccountRole、Policy、navigation governance 或 terminal access 的长期 owner 边界。
+> `permission-service` 的服务设计唯一真相源：[permission-service.md](../../architecture/services/permission-service.md)。本文只描述 API Gateway permission-management HTTP contract 与页面接入边界，不重新定义 Permission、Role、AccountRole、Policy、navigation governance 或 terminal access 的长期 owner 边界。
 
 ## 1. 组定位
 
@@ -613,7 +613,7 @@
 
 本组接口用于权限治理后台只读查看 policy 主数据与 permission-policy 绑定关系。
 
-本组展示的是 legacy `Policy + conditionAstJson` readonly governance，不是 `PolicyInstance` 资源授权管理入口。新的资源授权配置主线以 `permission-service` 的 `PolicyTemplate / PolicyInstance + ResourceAuthorizationService` 为准，黑盒语义见 [permission-service/resource-authorization.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/resource-authorization.md)。`PolicyInstance` 管理与 preview 必须使用下方独立 contract 分组，不得复用本组旧 AST 语义。
+本组展示的是 legacy `Policy + conditionAstJson` readonly governance，不是 `PolicyInstance` 资源授权管理入口。新的资源授权配置主线以 `permission-service` 的 `PolicyTemplate / PolicyInstance + ResourceAuthorizationService` 为准，黑盒语义见 [permission-service/resource-authorization.md](../permission-service/resource-authorization.md)。`PolicyInstance` 管理与 preview 必须使用下方独立 contract 分组，不得复用本组旧 AST 语义。
 
 当前边界：
 
@@ -704,7 +704,7 @@ Gateway 内部仍保留 `deleteLegacyPolicy` 兼容清理路径，仅用于账�
 - `list / detail` 使用 `permission.policy.list`。
 - `create` 使用 `permission.policy.create`。
 - `enable / disable` 使用 `permission.policy.update`。
-- 下游黑盒契约见 [permission-service/policy-instance-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/policy-instance-management.md)。
+- 下游黑盒契约见 [permission-service/policy-instance-management.md](../permission-service/policy-instance-management.md)。
 
 ### `GET /policy-instance`
 
@@ -1097,19 +1097,19 @@ Gateway 内部仍保留 `deleteLegacyPolicy` 兼容清理路径，仅用于账�
 前端或调用方除本文件外，还应同时参考以下真相源：
 
 - Gateway controller：
-  - [permission.controller.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/controllers/permission.controller.ts)
-  - [role.controller.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/controllers/role.controller.ts)
-  - [role-template.controller.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/controllers/role-template.controller.ts)
-  - [account-role.controller.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/controllers/account-role.controller.ts)
-  - [policy.controller.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/controllers/policy.controller.ts)
-  - [policy-instance.controller.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/controllers/policy-instance.controller.ts)
-  - [policy-instance-preview.controller.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/controllers/policy-instance-preview.controller.ts)
+  - [permission.controller.ts](../../../src/services/api-gateway/src/modules/permission-service/interface/http/controllers/permission.controller.ts)
+  - [role.controller.ts](../../../src/services/api-gateway/src/modules/permission-service/interface/http/controllers/role.controller.ts)
+  - [role-template.controller.ts](../../../src/services/api-gateway/src/modules/permission-service/interface/http/controllers/role-template.controller.ts)
+  - [account-role.controller.ts](../../../src/services/api-gateway/src/modules/permission-service/interface/http/controllers/account-role.controller.ts)
+  - [policy.controller.ts](../../../src/services/api-gateway/src/modules/permission-service/interface/http/controllers/policy.controller.ts)
+  - [policy-instance.controller.ts](../../../src/services/api-gateway/src/modules/permission-service/interface/http/controllers/policy-instance.controller.ts)
+  - [policy-instance-preview.controller.ts](../../../src/services/api-gateway/src/modules/permission-service/interface/http/controllers/policy-instance-preview.controller.ts)
 - Gateway DTO
 - 下游 proto：
-  - [permission_management.proto](/Users/acehood/Documents/GitHub/oes/src/common/src/contracts/permission_service/permission_management.proto)
-  - [policy_management.proto](/Users/acehood/Documents/GitHub/oes/src/common/src/contracts/permission_service/policy_management.proto)
+  - [permission_management.proto](../../../src/common/src/contracts/permission_service/permission_management.proto)
+  - [policy_management.proto](../../../src/common/src/contracts/permission_service/policy_management.proto)
 - 服务设计真相源：
-  - [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
+  - [permission-service.md](../../architecture/services/permission-service.md)
 
 ## 13. 文档边界
 

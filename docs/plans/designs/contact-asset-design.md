@@ -50,10 +50,10 @@ conflictResolution: 当本文与更早联系方式、员工名片或账号登录
   - `tenant-org-service`
   - BusinessCard module / future `public-entry-service`
 - related designs:
-  - [employee-digital-business-card-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/employee-digital-business-card-design.md)
-  - [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)
-  - [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)
-  - [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md)
+  - [employee-digital-business-card-design.md](./employee-digital-business-card-design.md)
+  - [identity-service.md](../../architecture/services/identity-service.md)
+  - [auth-service.md](../../architecture/services/auth-service.md)
+  - [hr-service.md](../../architecture/services/hr-service.md)
 
 ## 4. 核心边界
 
@@ -314,7 +314,7 @@ publicValueSummary {
 | 2026-06-08 | 公司受控社交账号在员工离职、调岗失去使用权或 account disabled 时，默认立即从原员工名片隐藏，并进入交接或停用状态。 | 生命周期 | `identity-service.md` / BusinessCard design |
 | 2026-06-08 | 企业微信、飞书、钉钉等第一阶段建模为 `EXTERNAL_COMMUNICATION_ACCOUNT`，只保存名片展示摘要或引用，不承接外部平台生命周期。 | 外部账号展示 | `identity-service.md` |
 | 2026-06-08 | 第一阶段不做 org / team / role 级公共联系资产，只做 `UserAccount` 级员工联系资产。 | 范围控制 | future design candidate |
-| 2026-06-08 | 未来通过 OES 绑定外部通信账号并读取 / 发送消息，不属于 Contact Asset 本体能力，应另行设计 External Communication Integration / Channel Binding。 | 后置能力 | `docs/plans/candidates.md` 或独立 design workspace |
+| 2026-06-08 | 未来通过 OES 绑定外部通信账号并读取 / 发送消息，不属于 Contact Asset 本体能力，应另行设计 External Communication Integration / Channel Binding。 | 后置能力 | `docs/plans/intake.md` 或独立 Design Workspace |
 | 2026-06-08 | 已将 Contact Asset 稳定 owner、类型、登录分离、BusinessCard 引用与公司受控社交账号边界回写到 `identity-service.md`，并将登录分离边界轻量回写到 `auth-service.md`。 | 真相源回写 | completed |
 | 2026-06-08 | 冻结 BusinessCard Phase 1 可消费最小边界：ContactAction 只保存 targetRef 与展示配置，public render 通过 `ResolveContactActionTargets` 获取 public-safe value summary；`SAVE_VCARD` 与 `OPEN_COMPANY_WEBSITE` 不属于个人 Contact Asset。 | BusinessCard contract handoff | BusinessCard contracts / feature packet |
 
@@ -330,9 +330,9 @@ publicValueSummary {
 ## 14. 真相源回写计划
 
 - 服务职责：
-  - 已更新 [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)，补充 Contact Asset 类型扩展、登录分离、BusinessCard 引用边界、公司受控社交账号与外部通信账号展示引用。
-  - 已轻量更新 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)，强调公司 Contact Asset 不默认成为 login method。
-  - 当前不需要更新 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md)，除非后续冻结 HR lifecycle 事件触发 Contact Asset 交接的协同流程。
+  - 已更新 [identity-service.md](../../architecture/services/identity-service.md)，补充 Contact Asset 类型扩展、登录分离、BusinessCard 引用边界、公司受控社交账号与外部通信账号展示引用。
+  - 已轻量更新 [auth-service.md](../../architecture/services/auth-service.md)，强调公司 Contact Asset 不默认成为 login method。
+  - 当前不需要更新 [hr-service.md](../../architecture/services/hr-service.md)，除非后续冻结 HR lifecycle 事件触发 Contact Asset 交接的协同流程。
 - 协同蓝图：
   - 若后续设计离职 / 调岗触发 Contact Asset 回收与 BusinessCard 隐藏，可新增或更新 collaboration 文档。
 - contracts：
@@ -346,11 +346,11 @@ publicValueSummary {
 
 下次继续前先读：
 
-- [contact-asset-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/contact-asset-design.md)
-- [employee-digital-business-card-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/employee-digital-business-card-design.md)
-- [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)
-- [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)
-- [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md)
+- [contact-asset-design.md](./contact-asset-design.md)
+- [employee-digital-business-card-design.md](./employee-digital-business-card-design.md)
+- [identity-service.md](../../architecture/services/identity-service.md)
+- [auth-service.md](../../architecture/services/auth-service.md)
+- [hr-service.md](../../architecture/services/hr-service.md)
 
 当前推荐下一步：
 

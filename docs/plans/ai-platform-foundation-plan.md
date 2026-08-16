@@ -3,7 +3,7 @@
 ```text
 status: FROZEN_FOUNDATION_PATH
 updated: 2026-08-03
-architectureTruthSource: docs/architecture/04-ai-architecture.md
+architectureTruthSource: docs/architecture/platforms/ai-platform.md
 firstValidationCollaboration: docs/architecture/collaborations/task-assistant.md
 toolContractTruthSource: docs/contracts/ai-platform/task-assistant-tool-contract.md
 predecessorDesignGate: FROZEN_AI_PLATFORM_TASK_ASSISTANT
@@ -38,7 +38,7 @@ registrationGate: FROZEN_TOOL_CONTRACT_REGISTRATION_READY
 
 Deliverables：
 
-- `docs/architecture/04-ai-architecture.md`
+- `docs/architecture/platforms/ai-platform.md`
 - `docs/architecture/collaborations/task-assistant.md`
 - `docs/contracts/ai-platform/task-assistant-tool-contract.md`
 - 本计划

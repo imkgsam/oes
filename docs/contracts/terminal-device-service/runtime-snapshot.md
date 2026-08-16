@@ -1,6 +1,6 @@
 # Terminal Device Service Runtime Snapshot Contract
 
-> 服务设计唯一真相源：[terminal-device-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/terminal-device-service.md)。本文只描述 heartbeat/runtime snapshot contract。
+> 服务设计唯一真相源：[terminal-device-service.md](../../architecture/services/terminal-device-service.md)。本文只描述 heartbeat/runtime snapshot contract。
 
 ## 1. Purpose
 

@@ -1,7 +1,7 @@
 # PDA Phase 1 Foundation Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-> PDA 侧不拥有 terminal access、access summary、Role、Policy 或授权判定真相；这些服务设计边界以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。本文只记录 PDA phase 1 实施拆分。
+> PDA 侧不拥有 terminal access、access summary、Role、Policy 或授权判定真相；这些服务设计边界以 [permission-service.md](../architecture/services/permission-service.md) 为准。本文只记录 PDA phase 1 实施拆分。
 
 **Goal:** Build the first OES PDA Android device foundation: independent PDA Web, Android Shell, JS Bridge, PDA BFF, login/session bootstrap, device heartbeat, diagnostic logs, scanner diagnostics, camera diagnostics, and installable APK validation.
 

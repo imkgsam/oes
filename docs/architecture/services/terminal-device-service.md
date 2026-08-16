@@ -1,6 +1,6 @@
 # terminal-device-service 职责卡
 
-> `terminal-device-service` 只拥有企业受管现场交互终端设备治理真相；账号安全里的 trusted login device、MFA、登录历史与 session 真相以 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md) 为准。
+> `terminal-device-service` 只拥有企业受管现场交互终端设备治理真相；账号安全里的 trusted login device、MFA、登录历史与 session 真相以 [auth-service.md](./auth-service.md) 为准。
 
 ## 1. Purpose
 
@@ -47,10 +47,10 @@ Phase 2 只正式支持 `PDA`，但服务命名和领域模型预留未来 `KIOS
 
 ## 3. Does Not Own
 
-- 用户认证、密码、OTP、MFA、认证 challenge、trusted login device、登录历史、active session、refresh token、access token 或 token 签发语义；这些以 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md) 为准。
-- Role、Permission、Policy、Terminal Access Policy、access summary、授权判定或权限码真相；这些以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。
-- `User / UserAccount`、账号展示资料、身份映射、employee binding 或 contact asset 真相；这些以 [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md) 为准。
-- 租户生命周期、组织树、组织单元、工厂、车间或仓库主数据；租户与组织边界以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准。
+- 用户认证、密码、OTP、MFA、认证 challenge、trusted login device、登录历史、active session、refresh token、access token 或 token 签发语义；这些以 [auth-service.md](./auth-service.md) 为准。
+- Role、Permission、Policy、Terminal Access Policy、access summary、授权判定或权限码真相；这些以 [permission-service.md](./permission-service.md) 为准。
+- `User / UserAccount`、账号展示资料、身份映射、employee binding 或 contact asset 真相；这些以 [identity-service.md](./identity-service.md) 为准。
+- 租户生命周期、组织树、组织单元、工厂、车间或仓库主数据；租户与组织边界以 [tenant-org-service.md](./tenant-org-service.md) 为准。
 - WMS / MES 作业、库存、库位、工位、产线、工序、生产对象或现场任务真相。
 - IoT、机台、PLC、传感器、普通固定资产、资产折旧或资产盘点。
 - MDM、远程擦除、远程锁屏、后台静默安装、实时远程控制或企业应用市场集成。
@@ -394,10 +394,10 @@ Phase 2 不做：
 
 ## 13. Related Documents
 
-- [0006-terminal-device-service.md](/Users/acehood/Documents/GitHub/oes/docs/adr/0006-terminal-device-service.md)
-- [pda.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/terminals/pda.md)
-- [terminal-access-policy.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/terminal-access-policy.md)
-- [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)
-- [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
-- [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)
-- [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md)
+- [0006-terminal-device-service.md](../../adr/0006-terminal-device-service.md)
+- [pda.md](../terminals/pda.md)
+- [terminal-access-policy.md](../collaborations/terminal-access-policy.md)
+- [auth-service.md](./auth-service.md)
+- [permission-service.md](./permission-service.md)
+- [identity-service.md](./identity-service.md)
+- [tenant-org-service.md](./tenant-org-service.md)

@@ -13,7 +13,6 @@ Stable truth sources:
 
 Historical design input:
 
-- `docs/plans/designs/browser-activity-audit-workbench-design.md`
 
 P1 builds a tenant administrator workbench for browser visit history, active browsing duration, idle duration, domain aggregation, URL search, and employee timelines. It keeps the current CRM employee performance console as a separate CRM analytics page.
 

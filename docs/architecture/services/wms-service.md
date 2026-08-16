@@ -52,7 +52,6 @@ Last Updated: 2026-08-15
   - future shipping / logistics integration
   - future BI / audit read models
 - 当前设计工作台：
-  - [wms-service-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/wms-service-design.md) 仅保留历史讨论，稳定边界以本文为准。
 
 ## 6. Upstream Dependencies
 

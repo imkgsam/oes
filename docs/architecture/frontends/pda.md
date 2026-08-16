@@ -1,6 +1,6 @@
 # PDA Frontend Truth Source
 
-> PDA terminal architecture remains governed by [docs/architecture/terminals/pda.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/terminals/pda.md). This document narrows the frontend responsibility boundary for PDA Web UI.
+> PDA terminal architecture remains governed by [docs/architecture/terminals/pda.md](../terminals/pda.md). This document narrows the frontend responsibility boundary for PDA Web UI.
 
 ## 1. Positioning
 
@@ -44,4 +44,3 @@ PDA does not own:
 ## 5. Design Rule
 
 PDA workflows should reduce field work to scan, verify, choose the smallest necessary reason or quantity, and submit. If a flow requires complex selection, batch setup, printing, or broad comparison, it likely belongs in tenant-web.
-

@@ -34,7 +34,7 @@ Last Updated: 2026-08-11
 
 - `sales-service` 的 `Quote`、`SalesOrder`、commercial snapshot 与 customer commitment 真相
 - `crm-service` 的客户关系外壳、联系人、地址与客户开发真相
-- `party-service` 的主体主数据与租户主体引用；具体核心对象与 owner 边界以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准
+- `party-service` 的主体主数据与租户主体引用；具体核心对象与 owner 边界以 [party-service.md](./party-service.md) 为准
 - 完整 `GL / voucher / statutory accounting / closing`
 - `AP`
 - `AR / AP netting` phase 1 实现
@@ -66,8 +66,8 @@ Last Updated: 2026-08-11
   - future finance workspace / AR workspace pages
   - future collection import / finance operations tools through BFF only
 - 当前设计输入：
-  - [erp-service-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/erp-service-design.md)
-  - [finance-ar-credit-core.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/finance-ar-credit-core.md)
+  - [erp-service-design.md](../../plans/designs/erp-service-design.md)
+  - [finance-ar-credit-core.md](../../plans/features/finance-ar-credit-core.md)
 
 ## 6. Upstream Dependencies
 
@@ -84,10 +84,10 @@ Last Updated: 2026-08-11
   - 提供 `tenantPartyId` 与主体摘要引用真相。
   - `finance-service` 不自建客户主体主档。
 - `permission-service`
-  - 提供发票开立、回款登记、信用调整、finance release 等动作的授权判定能力；permission 侧核心对象与 owner 边界以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。
+  - 提供发票开立、回款登记、信用调整、finance release 等动作的授权判定能力；permission 侧核心对象与 owner 边界以 [permission-service.md](./permission-service.md) 为准。
 - `tenant-org-service`
   - 提供租户 / 组织上下文，用于财务操作范围隔离与 org 维度可见性裁剪。
-  - `Tenant / OrgUnit / org tree` 边界以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准，Finance 只消费引用与范围裁剪结果。
+  - `Tenant / OrgUnit / org tree` 边界以 [tenant-org-service.md](./tenant-org-service.md) 为准，Finance 只消费引用与范围裁剪结果。
 - external bank / PSP / statutory accounting systems, future
   - phase 1 可以作为受控输入或下游集成对象存在，但不转移 `finance-service` 的经营财务真相 owner。
 

@@ -6,7 +6,7 @@ truthSource: docs/architecture/services/site-service.md
 publicContract: docs/contracts/site-service/public-views.md
 adminContract: docs/contracts/site-service/admin-bff.md
 syncContract: docs/contracts/site-service/sync-api.md
-runtimeTruthSource: docs/architecture/site-runtime-kit.md
+runtimeTruthSource: docs/architecture/platforms/site-runtime-kit.md
 assetTruthSource: docs/architecture/services/asset-service.md
 assetContract: docs/contracts/asset-service/site-media.md
 assetCollaboration: docs/architecture/collaborations/site-asset-media.md
@@ -47,9 +47,9 @@ lastUpdatedAt: 2026-08-09
 
 Asset owner 已冻结 tenant-scoped Site Media：
 
-- 服务职责：[asset-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/asset-service.md)
-- 黑盒与 shared wire 语义：[site-media.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/asset-service/site-media.md)
-- Site / Asset 协同：[site-asset-media.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/site-asset-media.md)
+- 服务职责：[asset-service.md](../../architecture/services/asset-service.md)
+- 黑盒与 shared wire 语义：[site-media.md](../../contracts/asset-service/site-media.md)
+- Site / Asset 协同：[site-asset-media.md](../../architecture/collaborations/site-asset-media.md)
 
 Asset contract 已覆盖 tenant-safe upload / selection / resolve、不可静默替换的 Asset identity、long-lived CDN delivery、authoritative dimensions、publication protection / release、availability facts、archive / takedown / deletion 与 optional SEO image 使用边界。
 

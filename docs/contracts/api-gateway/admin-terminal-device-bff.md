@@ -1,6 +1,6 @@
 # Admin Terminal Device BFF Contract
 
-> `terminal-device-service` 的长期职责以 [terminal-device-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/terminal-device-service.md) 为准；设备管理权限真相以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。本文只描述 tenant-web 后台设备管理 HTTP contract。
+> `terminal-device-service` 的长期职责以 [terminal-device-service.md](../../architecture/services/terminal-device-service.md) 为准；设备管理权限真相以 [permission-service.md](../../architecture/services/permission-service.md) 为准。本文只描述 tenant-web 后台设备管理 HTTP contract。
 
 ## 1. Purpose
 

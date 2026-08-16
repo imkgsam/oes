@@ -2,7 +2,7 @@
 
 更新时间：2026-07-26
 
-本文冻结 `collaboration-service` Task P1 中供跨服务订阅的公共事件契约。`collaboration-service` 的长期职责、Task 对象、权限与状态语义以 [collaboration-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/collaboration-service.md) 为准；Task command 黑盒语义以 [task-command.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/collaboration-service/task-command.md) 为准。
+本文冻结 `collaboration-service` Task P1 中供跨服务订阅的公共事件契约。`collaboration-service` 的长期职责、Task 对象、权限与状态语义以 [collaboration-service.md](../../architecture/services/collaboration-service.md) 为准；Task command 黑盒语义以 [task-command.md](../collaboration-service/task-command.md) 为准。
 
 ## 0. 范围
 

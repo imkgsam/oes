@@ -1,6 +1,6 @@
 # ShortLink Public Redirect Contract
 
-> 服务设计唯一真相源：[public-entry-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/public-entry-service.md)。本文只描述 ShortLink anonymous public redirect contract，不重新定义 ShortLink owner、BusinessCard owner 或 VisitEvent 内部实现。
+> 服务设计唯一真相源：[public-entry-service.md](../../architecture/services/public-entry-service.md)。本文只描述 ShortLink anonymous public redirect contract，不重新定义 ShortLink owner、BusinessCard owner 或 VisitEvent 内部实现。
 
 ## 1. Purpose
 

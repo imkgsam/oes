@@ -4,9 +4,9 @@
 
 本文档描述 `auth-bff` 面向管理员安全管理场景开放的 HTTP 接口。
 
-`auth-service` 的服务设计、session、login method、MFA policy 与认证审计边界只以 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md) 为准；本文只描述 `auth-bff` 的 HTTP contract、编排与返回形状。
+`auth-service` 的服务设计、session、login method、MFA policy 与认证审计边界只以 [auth-service.md](../../architecture/services/auth-service.md) 为准；本文只描述 `auth-bff` 的 HTTP contract、编排与返回形状。
 
-涉及 permission code、checkPermission、checkResource 或 buildQueryScope 的服务设计边界，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 与项目级授权架构为准。
+涉及 permission code、checkPermission、checkResource 或 buildQueryScope 的服务设计边界，以 [permission-service.md](../../architecture/services/permission-service.md) 与项目级授权架构为准。
 
 这组接口覆盖：
 
@@ -173,6 +173,38 @@
   - tenant-bound operator 不需要传 `tenantId`；BFF / 下游按 operator scope 自动收敛
   - 如后续需要完整账号详情或账号 CRUD，应新增独立能力，不在当前目录接口堆字段
 
+### `GET /auth/admin/accounts/:accountId/deletion-impact`
+
+- 作用：在永久删除账号前返回影响预检。
+- 权限模型：Gateway 必须校验 `identity.account.delete`，可见范围继续由可信 operator context 收敛。
+- 响应字段：
+  - `accountId`
+  - `canDelete`
+  - `userRetained`
+  - `cleanupPlan.willDeleteSessions`
+  - `cleanupPlan.willClearRoles`
+  - `cleanupPlan.willDeleteContactAssets`
+  - `blockingReasons[]`
+  - `contactAssetCount`
+- 稳定语义：
+  - 删除对象是 `UserAccount`，其背后的 `User` 保留；
+  - 系统拥有的 sessions、roles、policy instances 与 contact assets 进入清理计划；
+  - 业务服务拥有的关联形成 blocker，不提供强制绕过。
+
+### `DELETE /auth/admin/accounts/:accountId`
+
+- 作用：永久删除一个管理员可见的 `USER` account。
+- 权限模型：Gateway 必须校验 `identity.account.delete`，tenant operator 只能操作当前 tenant 可见账号。
+- 前置条件：
+  - 当前登录账号不能删除自身；
+  - deletion impact 必须返回 `canDelete = true`；
+  - 业务关联 blocker 必须全部解除。
+- 成功语义：
+  - 清理 Auth sessions、Permission role/policy relations 与系统拥有的 contact assets；
+  - Identity 永久删除目标 `UserAccount`；
+  - 返回实际清理数量和 `userRetained = true`；
+  - 不删除、停用或隐式合并背后的 `User`。
+
 ### `GET /auth/admin/accounts/:accountId/login-methods`
 
 - 作用：查看当前管理员可见账号对应 user 的登录方式状态。
@@ -238,7 +270,7 @@
   - `factors[].enabled`
   - `factors[].priority`
 - 语义约束：
-  - Terminal-aware Account Security Phase 2 后，租户 MFA 策略目标形态以 [terminal-mfa-policy.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/terminal-mfa-policy.md) 为准：MFA 不再表达为全局登录开关，而是按 terminal 独立配置。
+  - Terminal-aware Account Security Phase 2 后，租户 MFA 策略目标形态以 [terminal-mfa-policy.md](../auth-service/terminal-mfa-policy.md) 为准：MFA 不再表达为全局登录开关，而是按 terminal 独立配置。
   - 当前 `loginRequired` / `LOGIN` 字段只能作为历史兼容口径；新设计应返回 `terminalPolicies[]` 与每个 terminal 的 effective source。
   - 当前租户设置页已支持 `LOGIN / CHANGE_PASSWORD / CHANGE_CONTACT / NEW_DEVICE_LOGIN`
   - 因子启停与 priority 是当前租户统一设置，场景只决定“是否需要 MFA”，不单独维护每个场景自己的因子表
@@ -384,19 +416,19 @@
 前端与其他线程在阅读本黑盒文档之外，还应同时参考以下入口：
 
 - 服务设计唯一真相源：
-  - [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)
+  - [auth-service.md](../../architecture/services/auth-service.md)
 - 黑盒接口说明：
-  - [auth-service session.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/session.md)
-  - [auth-service audit.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/audit.md)
+  - [auth-service session.md](../auth-service/session.md)
+  - [auth-service audit.md](../auth-service/audit.md)
 
 以下代码文件是当前实现参考，不作为服务设计真相源：
 
 - BFF controller：
-  - [auth.controller.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/auth-bff/interfaces/http/controllers/auth.controller.ts)
+  - [auth.controller.ts](../../../src/services/api-gateway/src/modules/auth-bff/interfaces/http/controllers/auth.controller.ts)
 - 请求 DTO：
-  - [admin-security.dto.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/auth-bff/interfaces/http/dtos/admin-security.dto.ts)
+  - [admin-security.dto.ts](../../../src/services/api-gateway/src/modules/auth-bff/interfaces/http/dtos/admin-security.dto.ts)
 - 响应 ViewModel：
-  - [admin-security.view-model.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/auth-bff/interfaces/http/view-models/admin-security.view-model.ts)
+  - [admin-security.view-model.ts](../../../src/services/api-gateway/src/modules/auth-bff/interfaces/http/view-models/admin-security.view-model.ts)
 
 ## 4. 当前边界
 

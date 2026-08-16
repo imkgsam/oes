@@ -1,0 +1,16 @@
+# Platform Architecture
+
+- [AI platform](./ai-platform.md)
+- [Permission code source](./permission-code-source.md)
+- [Notification](./notification.md)
+- [Role-based permission resolution](./role-based-permission-resolution.md)
+- [Communication and mailbox](./communication-and-mailbox.md)
+- [Gateway and BFF](./gateway-and-bff.md)
+- [Observability and audit](./observability-and-audit.md)
+- [Response and exception](./response-and-exception.md)
+- [gRPC metadata and service trust](./grpc-metadata-and-service-trust.md)
+- [Authorization layering and resource policy](./authorization-layering-and-resource-policy.md)
+- [Unified web account context](./unified-web-account-context.md)
+- [Event bus and outbox](./event-bus-and-outbox.md)
+- [Site runtime](./site-runtime-architecture.md)
+- [Site runtime kit](./site-runtime-kit.md)

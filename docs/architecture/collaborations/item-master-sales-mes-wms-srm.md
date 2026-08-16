@@ -8,7 +8,7 @@ Last Updated: 2026-08-14
 
 `item-master-service` 的唯一概念真相源是：
 
-- [item-master-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/item-master-service.md)
+- [item-master-service.md](../services/item-master-service.md)
 
 本文只记录跨服务采用规则，不重复定义 item-master 内部模型。
 
@@ -126,9 +126,9 @@ Last Updated: 2026-08-14
 
 ## 8. 关联文档
 
-- [item-master-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/item-master-service.md)
-- [sales-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/sales-service.md)
-- [mes-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/mes-service.md)
-- [wms-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/wms-service.md)
-- [srm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/srm-service.md)
-- [procurement-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/procurement-service.md)
+- [item-master-service.md](../services/item-master-service.md)
+- [sales-service.md](../services/sales-service.md)
+- [mes-service.md](../services/mes-service.md)
+- [wms-service.md](../services/wms-service.md)
+- [srm-service.md](../services/srm-service.md)
+- [procurement-service.md](../services/procurement-service.md)

@@ -4,9 +4,9 @@
 
 本目录用于提供 `auth-service` 的黑盒接口文档。
 
-`auth-service` 的唯一稳定服务设计真相源是 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)。本目录只描述黑盒接口、字段、错误与调用语义，不重新定义服务职责、核心对象或长期边界。
+`auth-service` 的唯一稳定服务设计真相源是 [auth-service.md](../../architecture/services/auth-service.md)。本目录只描述黑盒接口、字段、错误与调用语义，不重新定义服务职责、核心对象或长期边界。
 
-涉及角色、权限、policy、access summary、navigation governance 或 terminal access policy 的服务设计边界，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。
+涉及角色、权限、policy、access summary、navigation governance 或 terminal access policy 的服务设计边界，以 [permission-service.md](../../architecture/services/permission-service.md) 为准。
 
 这些文档面向：
 
@@ -25,35 +25,35 @@
 
 Proto 契约来源仍然是：
 
-- [auth.proto](/Users/acehood/Documents/GitHub/oes/src/common/src/contracts/auth_service/auth.proto)
+- [auth.proto](../../../src/common/src/contracts/auth_service/auth.proto)
 
 ## 2. 模块划分
 
-- [session.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/session.md)
+- [session.md](./session.md)
   - 会话查询、管理员会话管理与自助登出能力
-- [audit.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/audit.md)
+- [audit.md](./audit.md)
   - 认证与会话审计查询能力
-- [mfa.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/mfa.md)
+- [mfa.md](./mfa.md)
   - MFA 自助安全管理与挑战提交流程
-- [login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/login.md)
+- [login.md](./login.md)
   - 登录、认证挑战、账户选择与会话续期流程
-- [terminal-login-policy.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/terminal-login-policy.md)
+- [terminal-login-policy.md](./terminal-login-policy.md)
   - 平台级 terminal entry login flow 策略
-- [terminal-mfa-policy.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/terminal-mfa-policy.md)
+- [terminal-mfa-policy.md](./terminal-mfa-policy.md)
   - 平台默认与租户 terminal MFA 策略
-- [session-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/session-management.md)
+- [session-management.md](./session-management.md)
   - terminal-aware session 列表、筛选与清退语义
-- [login-history.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/login-history.md)
+- [login-history.md](./login-history.md)
   - login history 作为 auth audit 脱敏视图的查询语义
-- [trusted-login-device.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/trusted-login-device.md)
+- [trusted-login-device.md](./trusted-login-device.md)
   - Web trusted browser 与 future Mobile remembered device 语义
-- [execution-token.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/execution-token.md)
+- [execution-token.md](./execution-token.md)
   - Workload / API Key 认证、STS exchange、单 audience ExecutionToken、JWKS、cache 与紧急撤销语义；external callers receive only the separate Gateway-only access token
-- [machine-workload-source-credential.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/machine-workload-source-credential.md)
+- [machine-workload-source-credential.md](./machine-workload-source-credential.md)
   - `FROZEN_PENDING_IMPLEMENTATION`：第一方内部 Cron / Robot / worker 的短期 MACHINE root source credential、workload/certificate binding、Identity resolution 与 fail-closed 语义
-- [external-api-key-security.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/external-api-key-security.md)
+- [external-api-key-security.md](./external-api-key-security.md)
   - tenant Integration Machine 的 API Key 创建、轮换、撤销、审计、泄漏处置与 `external_api_key.proto` Gateway/Auth gRPC 语义
-- [delegated-execution-and-action-grant.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/delegated-execution-and-action-grant.md)
+- [delegated-execution-and-action-grant.md](./delegated-execution-and-action-grant.md)
   - HUMAN delegation、step-up、精确 ActionGrant、撤销与高风险操作一次性消费语义
 
 ## 3. 全局调用约束

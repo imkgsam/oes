@@ -2,7 +2,7 @@
 
 更新时间：2026-04-09 21:10:00 +08:00
 
-> 前端不拥有 access summary、terminal access、Role、Policy、permission code 或授权判定真相；这些服务设计边界以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。本文只描述 tenant-web 前端架构。
+> 前端不拥有 access summary、terminal access、Role、Policy、permission code 或授权判定真相；这些服务设计边界以 [permission-service.md](../architecture/services/permission-service.md) 为准。本文只描述 tenant-web 前端架构。
 
 ## 1. 文档目的
 
@@ -58,15 +58,15 @@
 当前 `tenant-web` 已具备如下工程基础：
 
 - 启动入口：
-  - [main.ts](/Users/acehood/Documents/GitHub/oes/app/web/apps/tenant-web/src/main.ts)
-  - [bootstrap.ts](/Users/acehood/Documents/GitHub/oes/app/web/apps/tenant-web/src/bootstrap.ts)
+  - [main.ts](../../app/web/apps/tenant-web/src/main.ts)
+  - [bootstrap.ts](../../app/web/apps/tenant-web/src/bootstrap.ts)
 - 路由装配：
-  - [router/index.ts](/Users/acehood/Documents/GitHub/oes/app/web/apps/tenant-web/src/router/index.ts)
-  - [router/guard.ts](/Users/acehood/Documents/GitHub/oes/app/web/apps/tenant-web/src/router/guard.ts)
+  - [router/index.ts](../../app/web/apps/tenant-web/src/router/index.ts)
+  - [router/guard.ts](../../app/web/apps/tenant-web/src/router/guard.ts)
 - 请求封装：
-  - [api/request.ts](/Users/acehood/Documents/GitHub/oes/app/web/apps/tenant-web/src/api/request.ts)
+  - [api/request.ts](../../app/web/apps/tenant-web/src/api/request.ts)
 - 认证 store：
-  - [store/auth.ts](/Users/acehood/Documents/GitHub/oes/app/web/apps/tenant-web/src/store/auth.ts)
+  - [store/auth.ts](../../app/web/apps/tenant-web/src/store/auth.ts)
 
 当前问题不是“没有架构”，而是“架构仍偏模板默认语义，需要 OES 化”。
 
@@ -278,7 +278,7 @@ OES 不适合这样做，因为前端要同时处理：
 
 来源文档：
 
-- [auth-bff-login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-login.md)
+- [auth-bff-login.md](../contracts/api-gateway/auth-bff-login.md)
 
 说明：
 
@@ -452,8 +452,8 @@ OES 后续大量是企业表单、列表、详情页场景。
 ## 13. 与其他文档的关系
 
 - 产品级信息架构：
-  - [tenant-web-information-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/plans/tenant-web-information-architecture.md)
+  - [tenant-web-information-architecture.md](./tenant-web-information-architecture.md)
 - tenant-web 实施计划：
-  - [tenant-web-vben-implementation-plan.md](/Users/acehood/Documents/GitHub/oes/docs/plans/tenant-web-vben-implementation-plan.md)
+  - [tenant-web-vben-implementation-plan.md](./tenant-web-vben-implementation-plan.md)
 - Gateway / BFF 黑盒契约导航：
-  - [API Gateway Contracts README](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/README.md)
+  - [API Gateway Contracts README](../contracts/api-gateway/README.md)

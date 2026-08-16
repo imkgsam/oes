@@ -1,6 +1,6 @@
 # Login Method Management
 
-> 涉及 permission code、checkPermission、self-service capability 或授权判定的服务设计边界，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 与项目级授权架构为准。本文只记录 Login Method Management feature 的范围与状态。
+> 涉及 permission code、checkPermission、self-service capability 或授权判定的服务设计边界，以 [permission-service.md](../../architecture/services/permission-service.md) 与项目级授权架构为准。本文只记录 Login Method Management feature 的范围与状态。
 
 ## 1. 目标
 
@@ -22,22 +22,22 @@
 ## 3. 上游依赖
 
 - architecture:
-  - [16-unified-web-account-context-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/16-unified-web-account-context-architecture.md)
-  - [11-gateway-and-bff-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/11-gateway-and-bff-architecture.md)
-  - [15-authorization-layering-and-resource-policy-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/15-authorization-layering-and-resource-policy-architecture.md)
+  - [unified-web-account-context.md](../../architecture/platforms/unified-web-account-context.md)
+  - [gateway-and-bff.md](../../architecture/platforms/gateway-and-bff.md)
+  - [authorization-layering-and-resource-policy.md](../../architecture/platforms/authorization-layering-and-resource-policy.md)
 - services:
-  - [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)
-  - [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)
+  - [auth-service.md](../../architecture/services/auth-service.md)
+  - [identity-service.md](../../architecture/services/identity-service.md)
 - collaborations:
-  - [authentication-and-identity.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/authentication-and-identity.md)
+  - [authentication-and-identity.md](../../architecture/collaborations/authentication-and-identity.md)
 - contracts:
-  - [auth-bff-self-service.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-self-service.md)
-  - [auth-bff-admin-security.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-admin-security.md)
-  - [login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/login.md)
-  - [mfa.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/mfa.md)
-  - [session.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/session.md)
+  - [auth-bff-self-service.md](../../contracts/api-gateway/auth-bff-self-service.md)
+  - [auth-bff-admin-security.md](../../contracts/api-gateway/auth-bff-admin-security.md)
+  - [login.md](../../contracts/auth-service/login.md)
+  - [mfa.md](../../contracts/auth-service/mfa.md)
+  - [session.md](../../contracts/auth-service/session.md)
 - adr:
-  - [0001-unified-web-scope-aware-user-account.md](/Users/acehood/Documents/GitHub/oes/docs/adr/0001-unified-web-scope-aware-user-account.md)
+  - [0001-unified-web-scope-aware-user-account.md](../../adr/0001-unified-web-scope-aware-user-account.md)
 
 ## 4. 当前结论
 
@@ -56,9 +56,9 @@
 
 ## 5. 契约真相位置
 
-- 自助登录方式管理的 BFF 契约已回写到 [auth-bff-self-service.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-self-service.md)。
-- 管理员登录方式治理的 BFF 契约已回写到 [auth-bff-admin-security.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-admin-security.md)。
-- `auth-service` 内部 gRPC 契约已回写到 [login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/login.md)。
+- 自助登录方式管理的 BFF 契约已回写到 [auth-bff-self-service.md](../../contracts/api-gateway/auth-bff-self-service.md)。
+- 管理员登录方式治理的 BFF 契约已回写到 [auth-bff-admin-security.md](../../contracts/api-gateway/auth-bff-admin-security.md)。
+- `auth-service` 内部 gRPC 契约已回写到 [login.md](../../contracts/auth-service/login.md)。
 - `PasswordSetupRequirement` 持久模型已进入 auth-service runtime；长期职责仍以 auth-service 服务真相源为准。
 
 ### 5.1 状态校准记录
@@ -244,7 +244,7 @@ POST /api/v1/auth/admin/accounts/:accountId/login-methods/phone
 | 2026-04-20 | 登录邮箱 / 手机号是否与个人资料字段共用真相 | Blocker-Later | 影响 V1B 绑定 / 更换流程 | V1A 不处理更换；V1B 通过 BFF 编排 auth-service 登录方式与 identity-service 展示资料同步 | 当前 feature packet / 后续 contract | open |
 | 2026-04-20 | 密码是否属于 user 级还是 login-method 级 | Blocker-Now | 影响用户心智和后端实现 | 产品语义冻结为 user 级统一密码；实现兼容当前 credential schema | 当前 feature packet | closed |
 | 2026-04-20 | 启停登录方式后是否踢 session | Blocker-Later | 影响安全体验和实施复杂度 | V1A 要求明确策略；推荐管理员重设密码时撤销目标用户 sessions，普通启停至少刷新 session 安全状态 | auth-service / api-gateway contract | open |
-| 2026-04-20 | OAuth 是否进入当前 feature | Sidecar | 会扩大到第三方身份 provider、回调与绑定模型 | 不进入 V1；后续独立 feature | `docs/plans/candidates.md` 或新 feature packet | open |
+| 2026-04-20 | OAuth 是否进入当前 feature | Sidecar | 会扩大到第三方身份 provider、回调与绑定模型 | 不进入 V1；后续独立 feature | `docs/plans/intake.md` 或新 feature packet | open |
 
 ## 15. 验收标准
 

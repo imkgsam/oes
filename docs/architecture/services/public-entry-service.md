@@ -1,6 +1,6 @@
 # public-entry-service 职责卡
 
-> ShortLink / Public Entry Phase 1 的设计过程以 [shortlink-public-entry-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/shortlink-public-entry-design.md) 为准；Phase 1 feature 范围以 [shortlink-public-entry-phase-1.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/shortlink-public-entry-phase-1.md) 为准。本文冻结 `public-entry-service` 的长期职责边界，不替代后续 contracts 或实现计划。
+> ShortLink / Public Entry Phase 1 的设计过程以 [shortlink-public-entry-design.md](../../plans/designs/shortlink-public-entry-design.md) 为准；Phase 1 feature 范围以 [shortlink-public-entry-phase-1.md](../../plans/features/shortlink-public-entry-phase-1.md) 为准。本文冻结 `public-entry-service` 的长期职责边界，不替代后续 contracts 或实现计划。
 
 ## 1. Purpose
 
@@ -45,13 +45,13 @@ Phase 1 正式承载两个模块：
 
 `public-entry-service` does not own：
 
-- HR 员工、任职、员工生命周期、员工编号或正式 `人 -> org` 归属；以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准。
-- 自然人 / 组织主体主数据、租户主体引用、地址正文或联系人正文；以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准。
-- 账号、身份映射、登录标识、账号状态或 UserAccount 事实；以 [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md) 为准。
-- 租户、组织树、公司主体、组织结构或 tenant profile 真相；以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准。
-- 角色、权限、policy、scope 或授权判定真相；以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。
+- HR 员工、任职、员工生命周期、员工编号或正式 `人 -> org` 归属；以 [hr-service.md](./hr-service.md) 为准。
+- 自然人 / 组织主体主数据、租户主体引用、地址正文或联系人正文；以 [party-service.md](./party-service.md) 为准。
+- 账号、身份映射、登录标识、账号状态或 UserAccount 事实；以 [identity-service.md](./identity-service.md) 为准。
+- 租户、组织树、公司主体、组织结构或 tenant profile 真相；以 [tenant-org-service.md](./tenant-org-service.md) 为准。
+- 角色、权限、policy、scope 或授权判定真相；以 [permission-service.md](./permission-service.md) 为准。
 - Barcode / Scan Identity 内部业务对象码注册、绑定、追溯主体、PDA 业务扫码解析或通用 Scan Router。
-- CRM LeadDraft、Lead、CustomerAccount、客户回流、线索分配或客户身份识别语义；以 [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md) 为准。
+- CRM LeadDraft、Lead、CustomerAccount、客户回流、线索分配或客户身份识别语义；以 [crm-service.md](./crm-service.md) 为准。
 - Campaign 生命周期、预算、活动计划、名单、投放素材、Marketing 自动化或 UTM 模型。
 - BusinessCard 展示字段的上游主数据真相，例如姓名、职位、头像、公司名、联系方式正文。
 - 二维码模板、QRCodeAsset、二维码素材管理、印刷版本、视觉设计或物料排版。
@@ -213,8 +213,8 @@ Phase 1 rules:
 
 Its detailed fields and Phase 1 constraints are governed by:
 
-- [employee-digital-business-card-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/employee-digital-business-card-design.md)
-- [employee-digital-business-card.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/employee-digital-business-card.md)
+- [employee-digital-business-card-design.md](../../plans/designs/employee-digital-business-card-design.md)
+- [employee-digital-business-card.md](../../plans/features/employee-digital-business-card.md)
 
 This service card only freezes that BusinessCard and ShortLink are same-service modules with separated owner boundaries.
 
@@ -377,12 +377,12 @@ Phase 1 does not do:
 
 ## 12. Related Documents
 
-- [shortlink-public-entry-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/shortlink-public-entry-design.md)
-- [shortlink-public-entry-phase-1.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/shortlink-public-entry-phase-1.md)
-- [employee-digital-business-card-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/employee-digital-business-card-design.md)
-- [employee-digital-business-card.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/employee-digital-business-card.md)
-- [scan-identity-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/scan-identity-design.md)
-- [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
+- [shortlink-public-entry-design.md](../../plans/designs/shortlink-public-entry-design.md)
+- [shortlink-public-entry-phase-1.md](../../plans/features/shortlink-public-entry-phase-1.md)
+- [employee-digital-business-card-design.md](../../plans/designs/employee-digital-business-card-design.md)
+- [employee-digital-business-card.md](../../plans/features/employee-digital-business-card.md)
+- [scan-identity-design.md](../../plans/designs/scan-identity-design.md)
+- [permission-service.md](./permission-service.md)
 
 ## 13. Trusted gRPC Migration Boundary
 

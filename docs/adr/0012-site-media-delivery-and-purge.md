@@ -74,10 +74,10 @@ Rejected，因为 Runtime / Storefront 的离线 public view、静态产物与�
 
 ## Related Documents
 
-- [asset-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/asset-service.md)
-- [site-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/site-service.md)
-- [site-media.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/asset-service/site-media.md)
-- [site-asset-media.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/site-asset-media.md)
+- [asset-service.md](../architecture/services/asset-service.md)
+- [site-service.md](../architecture/services/site-service.md)
+- [site-media.md](../contracts/asset-service/site-media.md)
+- [site-asset-media.md](../architecture/collaborations/site-asset-media.md)
 - [Cloudflare R2 custom-domain cache documentation](https://developers.cloudflare.com/cache/interaction-cloudflare-products/r2/)
 - [Cloudflare cache purge documentation](https://developers.cloudflare.com/cache/how-to/purge-cache/)
 - [Cloudflare R2 pricing documentation](https://developers.cloudflare.com/r2/pricing/)

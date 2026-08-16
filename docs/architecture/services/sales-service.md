@@ -20,7 +20,7 @@ phase 1 只冻结报价与订单核心交易边界，不展开 proto、运行时
 ## 3. Does Not Own
 
 - `crm-service` 的 lead、account、contact、opportunity 与销售前置跟进真相
-- `party-service` 的主体主数据与租户主体引用；具体核心对象与 owner 边界以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准
+- `party-service` 的主体主数据与租户主体引用；具体核心对象与 owner 边界以 [party-service.md](./party-service.md) 为准
 - `item-master-service` 的 `ItemModel`、`Item`、attribute、BOM、Packaging、`ItemCategory`、`SupplierItemMapping` 与 Item 主数据真相
 - `wms-service` 的库存、占用、包装转换与发运执行真相
 - `mes-service` 的制造执行、`ProductionUnit` / WIP、工序与放行执行真相
@@ -52,8 +52,8 @@ phase 1 只冻结报价与订单核心交易边界，不展开 proto、运行时
   - future sales workspace / quote-order pages
   - CRM-assisted sales flows through BFF only
 - 当前设计输入：
-  - [erp-service-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/erp-service-design.md)
-  - [sales-quote-order-core.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/sales-quote-order-core.md)
+  - [erp-service-design.md](../../plans/designs/erp-service-design.md)
+  - [sales-quote-order-core.md](../../plans/features/sales-quote-order-core.md)
 
 ## 6. Upstream Dependencies
 
@@ -67,7 +67,7 @@ phase 1 只冻结报价与订单核心交易边界，不展开 proto、运行时
   - 提供 `ItemModel`、attribute、`PackagingSpec` 到 active + sellable `Item` 的解析与稳定引用口径。
   - `sales-service` 在自身域内冻结销售配置、包装要求与客户承诺快照。
 - `permission-service`
-  - 提供报价发布、订单成立与放行动作所需的授权判定能力；permission 侧核心对象与 owner 边界以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。
+  - 提供报价发布、订单成立与放行动作所需的授权判定能力；permission 侧核心对象与 owner 边界以 [permission-service.md](./permission-service.md) 为准。
 
 ## 7. Downstream / Published Facts
 

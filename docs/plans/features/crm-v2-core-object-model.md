@@ -8,11 +8,11 @@ Current status: `design frozen / implementation delta pending`
 
 稳定服务设计唯一真相源为：
 
-- [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md)
+- [crm-service.md](../../architecture/services/crm-service.md)
 
 主体模型前提为：
 
-- [ADR 0008: Tenant-scoped TenantParty As Primary Party Model](/Users/acehood/Documents/GitHub/oes/docs/adr/0008-tenant-scoped-tenant-party-primary-party-model.md)
+- [ADR 0008: Tenant-scoped TenantParty As Primary Party Model](../../adr/0008-tenant-scoped-tenant-party-primary-party-model.md)
 
 本文不重新定义 CRM 服务边界。若本文与服务真相源冲突，以服务真相源为准。
 

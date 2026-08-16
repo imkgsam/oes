@@ -6,7 +6,7 @@
 
 Contract V2 以上游稳定真相源为准：
 
-- [item-master-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/item-master-service.md)
+- [item-master-service.md](../../architecture/services/item-master-service.md)
 
 本目录只定义 `item-master-service` 自身 contract，不定义 Sales、MES、WMS、SRM、Procurement 的领域对象、contract 或 runtime 行为。
 
@@ -41,13 +41,13 @@ Contract V2 使用三个 gRPC service 作为服务面分组：
 
 ## 4. Documents
 
-- [item-model.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/item-master-service/item-model.md)
-- [attribute.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/item-master-service/attribute.md)
-- [item.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/item-master-service/item.md)
-- [category.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/item-master-service/category.md)
-- [packaging.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/item-master-service/packaging.md)
-- [bom.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/item-master-service/bom.md)
-- [supplier-item-mapping.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/item-master-service/supplier-item-mapping.md)
+- [item-model.md](./item-model.md)
+- [attribute.md](./attribute.md)
+- [item.md](./item.md)
+- [category.md](./category.md)
+- [packaging.md](./packaging.md)
+- [bom.md](./bom.md)
+- [supplier-item-mapping.md](./supplier-item-mapping.md)
 
 ## 5. Security And Context Baseline
 

@@ -24,19 +24,19 @@
 ## 3. 上游依赖
 
 - architecture:
-  - [collaboration-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/collaboration-service.md)
-  - [service-collaboration-rules.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/service-collaboration-rules.md)
-  - [15-authorization-layering-and-resource-policy-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/15-authorization-layering-and-resource-policy-architecture.md)
-  - [12-observability-and-audit-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/12-observability-and-audit-architecture.md)
+  - [collaboration-service.md](../../architecture/services/collaboration-service.md)
+  - [service-collaboration-rules.md](../../architecture/system/service-collaboration-rules.md)
+  - [authorization-layering-and-resource-policy.md](../../architecture/platforms/authorization-layering-and-resource-policy.md)
+  - [observability-and-audit.md](../../architecture/platforms/observability-and-audit.md)
 - services:
-  - [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
-  - [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)
+  - [permission-service.md](../../architecture/services/permission-service.md)
+  - [identity-service.md](../../architecture/services/identity-service.md)
 - collaborations:
   - future collaboration / notification design
   - future collaboration / object-activity design
 - contracts:
-  - [task-command.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/collaboration-service/task-command.md)
-  - [task-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/collaboration-service/task-query.md)
+  - [task-command.md](../../contracts/collaboration-service/task-command.md)
+  - [task-query.md](../../contracts/collaboration-service/task-query.md)
 - adr:
   - none for P1
 
@@ -53,19 +53,19 @@
 - P1 本地事务成功后发布 task fact events。
 - trusted gRPC 迁移保留一个 `CreateTask` RPC，不拆 self todo / assigned task；verified ET 建立基础入口后，Collaboration 按 assignee 调 Permission Service 做条件授权。
 
-长期职责、对象模型与 deferred 清单以 [collaboration-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/collaboration-service.md) 为准。
+长期职责、对象模型与 deferred 清单以 [collaboration-service.md](../../architecture/services/collaboration-service.md) 为准。
 
 ## 5. 契约真相位置
 
 - 服务职责真相：
-  - [collaboration-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/collaboration-service.md)
+  - [collaboration-service.md](../../architecture/services/collaboration-service.md)
 - P1 feature packet：
   - 本文
 - 后续契约入口：
-  - [task-command.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/collaboration-service/task-command.md)
-  - [task-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/collaboration-service/task-query.md)
+  - [task-command.md](../../contracts/collaboration-service/task-command.md)
+  - [task-query.md](../../contracts/collaboration-service/task-query.md)
 - 后续设计工作台：
-  - [collaboration-service-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/collaboration-service-design.md)
+  - [collaboration-service-design.md](../designs/collaboration-service-design.md)
 
 ## 6. 线程分工
 
@@ -141,5 +141,5 @@
 
 ## 13. 备注
 
-- 本 feature packet 不替代 [collaboration-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/collaboration-service.md)。
+- 本 feature packet 不替代 [collaboration-service.md](../../architecture/services/collaboration-service.md)。
 - 后续若 Task P2 设计冻结，应优先更新服务职责卡，并为对应 slice 新建 feature packet。
