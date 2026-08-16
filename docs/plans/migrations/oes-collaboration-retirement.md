@@ -1,17 +1,19 @@
 # OES 协同框架退役迁移关闭记录
 
 ```yaml
-status: MIGRATION_CONTENT_PRESERVED_ARCHIVE_IN_PROGRESS
+status: SERVICE_MIGRATION_IMPLEMENTED_VERIFIED_21_OF_21_CLEANUP_PENDING_USER_APPROVAL
 documentRole: historical-migration-closure-record
 governanceFramework: false
 frozenDecisionSource: false
 sourceThreadId: 019f7325-177e-77a1-9189-b36a10d94c3c
-inventoryDate: 2026-08-09
-closureDate: 2026-08-09
-programControlCandidate: f4db239e2e80f6d975bcf7d547a3cb8adda7668b
+inventoryDate: 2026-08-16
+closureDate: pending-user-approved-git-and-thread-cleanup
+programControlBase: ce0182e0ed6b356e231de641119476c20c1e7cfd
 closureRecord: current-document-commit
 retainedEvidenceBranches: 6
 unarchivedFormalTasks: 6
+migrationControlTasksRetained: 4
+trustedGrpcServiceProgress: 21/21
 ```
 
 > 本文只记录旧协同框架退役时的资源、证据、依赖、迁移排序与最终关闭结果，不定义新的治理框架，也不重新定义任何服务、契约或领域真相。稳定设计必须以本文链接的 architecture、ADR、collaboration 与 contract 真相源为准。
@@ -28,7 +30,7 @@ unarchivedFormalTasks: 6
 
 - AI Platform 与 ActionGrant 的已冻结设计继续以 architecture、ADR、collaboration、contract 与 feature packet 真相源为准，但其 runtime/feature implementation 延后到核心业务能力完成之后。本迁移阶段不得创建或恢复 AI Platform runtime、Task Assistant runtime、ActionGrant runtime、DelegationGrant runtime、AI tool execution、confirmation UI 或 ActionGrant consumer implementation 任务。
 - 已集成的 `task-assistant-collaboration-task.v1` registration 保持 disabled，仅作为设计/契约及迁移证据；不得据此启动 AI feature runtime。
-- 本次迁移范围内的非 AI 基础能力已经按依赖顺序完成：Permission Decision RPC、GRPC carrier、EXEC-CRYPTO HUMAN/MACHINE foundation、GRPC Asset current-main rebuild 与 SITE recovery 均已验收并集成；当前不再启动新的 runtime implementation。
+- 本次迁移范围内的 Permission Decision RPC、GRPC carrier、EXEC-CRYPTO HUMAN/MACHINE foundation、GRPC Asset、SITE recovery 与全仓 trusted-gRPC service cutover 均已验收并集成；service migration 当前为 `21/21`，后续只剩本台账集成和用户批准后的 Git/thread 清理，不启动 AI/ActionGrant/DELEGATED runtime。
 - 迁移保全是删除前硬 gate：每个旧 worktree、branch、task 必须先归入“已集成 current main”“保留并重建/集成的候选”“已持久登记的 superseded/rejected evidence”或“dirty/untracked 待捕获处置”之一。未分类资源不得 reset、clean、删除或覆盖。
 - 最终 Git 验收态只保留最新完整 root `main` worktree；迁移台账必须先进入 `main`，再移除 Program Control migration worktree。所有有用代码、设计、候选、拒绝证据、测试记录和 dirty 内容必须先集成或持久登记。
 - 旧 capability-collaboration Command/design/I/R/V/X/checker tasks 在证据消费后归档；已完成的 migration implementation tasks 及时归档。Program Control、Unified Design 与持久 I&V 仅在仍有迁移职责时保留，最终迁移关闭时归档 migration-only control tasks；全程不启用 checker。
@@ -36,23 +38,23 @@ unarchivedFormalTasks: 6
 
 ## 2. 全局快照
 
-| 项目 | Handoff 状态 | 2026-08-09 本地核验 |
+| 项目 | Handoff 状态 | 2026-08-16 最终清理前核验 |
 | --- | --- | --- |
 | Repository root | `/Users/acehood/Documents/GitHub/oes` | 路径存在；`main` 工作树 clean |
-| `main` | `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` | AI、Principal Authorization、ActionGrant design、Permission、GRPC carrier、EXEC-CRYPTO HUMAN、完整 MACHINE source-verifier、GRPC Asset token-only cutover、SITE recovery 与本关闭记录均已进入当前文档所在的主线提交 |
-| `origin/main` | `65e49258a0dc57b7daf3d40d5e8a63ea94dfc116` | 关闭提交推送后，本地 remote-tracking ref 与 remote `refs/heads/main` 与当前文档提交一致；精确 SHA 由运行时 Git 复核，不在文档内自引用 |
-| Legacy formal A/* threads | 101 | handoff历史聚合计数；post-closure exact-ID复核发现19项`archived=0`，SITE、PRINCIPAL-ROLE、EXEC-CRYPTO与GRPC共13项已通过应用接口归档并复核13/13，当前其余6项逐能力审计 |
-| Worktrees | 29 | 峰值 39；最终只保留 `/Users/acehood/Documents/GitHub/oes` 根目录 `main` worktree |
-| `codex/*` branches | 23 | 峰值 33；27 个已进入 main 的分支已用 `git branch -d` 正常删除，6 个非合并历史证据分支保留 |
+| `main` | `ce0182e0ed6b356e231de641119476c20c1e7cfd` | 21/21 trusted-gRPC service migration、CRM final slice 与 status synchronization 已进入主线；root clean |
+| `origin/main` | `ce0182e0ed6b356e231de641119476c20c1e7cfd` | 本地 remote-tracking ref 与远端 `refs/heads/main` 已在最终清理审计前复核一致 |
+| Legacy formal A/* threads | 101 | handoff 历史聚合计数；迁移范围内已消费的 legacy/implementation tasks 已归档，余下 6 项属于 AI/ActionGrant/API-key deferred protected ownership，不作为 trusted-gRPC 未完成项 |
+| Worktrees | 22 | root 1、待清理 19、Program Control 与唯一 Unified Design 控制工作树 2；最终目标只保留 root `main` |
+| `codex/*` branches | 27 | 包含本次临时 final-ledger rebuild branch；17 个 merged implementation refs、6 个 rejected/superseded evidence refs、ActionGrant deferred ref 与控制 refs 仍待用户批准处置 |
 | Checker | disabled | handoff evidence；未唤醒旧 checker |
 | Root dirty state | clean | clean，暂存区与工作区均无变更 |
 
-关闭集成证据：
+当前关闭证据：
 
-- original inventory base：`65e49258a0dc57b7daf3d40d5e8a63ea94dfc116`。
-- Program Control candidate：`f4db239e2e80f6d975bcf7d547a3cb8adda7668b`；已无冲突同步 `main@547a0c5d…`，经 root `--ff-only` 集成并推送。
-- 原固定 Program Control worktree 与 branch 均已正常移除；未使用 rebase、reset、force 或 bulk clean。
-- runtime note：原 Codex 临时 worktree `/Users/acehood/.codex/worktrees/2bb6/oes` 曾被应用回收，分支、提交和迁移台账已恢复并最终进入 `main`，未发生资产丢失。
+- current service-migration status base：`ce0182e0ed6b356e231de641119476c20c1e7cfd`，root/main/local origin/main/remote 一致且 clean。
+- Program Control 旧分支 `codex/oes-program-control-migration@1a38205e…` 保留全部历史台账，但已与 current main 双向分叉；本轮从 current main 新建 `codex/migration/final-ledger-rebuild`，只取回并校正台账文件，避免把旧基线整体合入 main。
+- 固定 Program Control worktree 与唯一 Unified Design worktree 当前仍保留；它们必须在台账进入 main并完成最终资源复核后最后移除。
+- 全程未使用 rebase、reset、force 或 bulk clean；WMS detached acceptance worktree 的四个 untracked bootstrap 路径另有精确删除清单。
 
 ## 3. 稳定真相源索引
 
@@ -72,7 +74,34 @@ unarchivedFormalTasks: 6
 
 ## 4. Capability 迁移记录
 
+### 4.0 Public Entry — `IMPLEMENTATION_ACCEPTED_AND_INTEGRATED`
+
+- frozen design chain: `e883eeac…` initial packet, `52e6564ea7d23fdb6e5b39bd5fe965710d4fd31e` lease amendment; current main before implementation was `52e6564e…`.
+- implementation owner: `019ff519-c105-7630-be96-3af217f385cf`, title `OES Trusted gRPC · Public Entry Implementation Recovery`; fixed worktree `/Users/acehood/Documents/GitHub/oes/.worktrees/migration/public-entry-trusted-grpc`, branch `codex/migration/public-entry-trusted-grpc`.
+- rejection/rework chain preserved: `f394c400…` fixed status-specific admission but failed anonymous trace propagation; `03512928…` fixed valid W3C traceparent propagation but retained raw unauthenticated live-smoke; `14e07e8e…` moved smoke to Gateway HTTP but lost raw redirect `Location` and tracestate; final `bda36bffbdc28132872d4bed967adb93c2a92b9e` closed both findings.
+- final scope: exact 52-path lease (`45 EXISTING + 7 NEW_TARGET`), 23 RPC mappings, status-specific ChangeShortLinkStatus guard/controller matrix, private carrier barrel, Gateway HTTP-only smoke, and anonymous MACHINE traceparent/tracestate propagation. AI/ActionGrant and unrelated outbound service migrations remained excluded.
+- I&V `019fcaf2-ca7b-7140-b46d-b6cacae58556` independently accepted the final candidate: proto/build/focused/fixture/inventory/lease/legacy/hygiene gates all passed; raw ClientProxyFactory/Transport.GRPC/new Metadata smoke scan is zero.
+- integration: root preflight confirmed main/local origin/main/remote at `52e6564e…`; `git merge --ff-only bda36bff…` exit 0; final root matrix passed; one `git push origin main` exit 0. Final main/local origin/main/remote = `bda36bff…`, root clean. Source branch/worktree clean and marked `MERGED_WAITING_FOR_USER_CLEANUP`; no deletion in this turn.
+- task archive: implementation thread `019ff519-c105-7630-be96-3af217f385cf` was archived after its accepted candidate and terminal evidence were consumed; its clean source branch/worktree remains preserved for final cleanup.
+
 ### 4.1 GRPC — `CARRIER_ACCEPTED_AND_INTEGRATED`
+
+### 4.1.1 Sales — `IMPLEMENTATION_ACCEPTED_AND_INTEGRATED`
+
+- design candidate `3860ef14f1e813c6b6fee0b9af6c572f92e24c10` was independently accepted as an eight-doc packet and integrated over `bda36bff…`; it freezes all 27 RPCs as `BUSINESS/HUMAN/WEB`, Sales audience, 15 existing canonical Codes, 95 authority-field tombstones/reservations, 14 constrained business reason fields, and a closed 42-path lease (`36 EXISTING + 6 NEW_TARGET`).
+- implementation owner: `019ff686-99f8-7943-a02b-e72f6747444a`, title `OES Trusted gRPC · Sales Implementation`; fixed worktree `/Users/acehood/Documents/GitHub/oes/.worktrees/migration/sales-trusted-grpc`, branch `codex/migration/sales-trusted-grpc`, base `3860ef14…`.
+- candidate chain preserved: initial `a73c58e0…`; first I&V rejection found dedicated client export and legacy generic Sales transport registration defects; corrective `149b789f…` fixed real Nest DI graph and legacy zero; second/third I&V passes found incomplete sensitive business-reason validation; final `584be36794435f8c4688a09197e2f49ee9cf336a` added strict JSON/JWT/credential/PII/PEM/Stripe/AWS-secret rejection with ordinary business identifier regressions.
+- final I&V `019fcaf2-ca7b-7140-b46d-b6cacae58556` accepted: real DI consumer and Sales feature compile, dedicated Sales client/ET producer for all four adapters, no generic token/metadata/body/bearer/raw-smoke fallback, proto/build/contract/L1/L3/Gateway/shared verifier, 27/15/95/14, exact lease/outside0, UTF-8/diff/manifest checks all passed. Existing full AppModule Auth dependency failure reproduced identically on base and candidate and remains baseline, not Sales scope.
+- integration: root preflight at `3860ef14…` clean; `git merge --ff-only 584be367…` exit 0; final root matrix passed; one `git push origin main` exit 0. Final root/local origin/main/remote = `584be367…`, clean. Source branch/worktree clean and marked `MERGED_WAITING_FOR_USER_CLEANUP`; no deletion this turn.
+- task archive: implementation thread `019ff686-99f8-7943-a02b-e72f6747444a` was archived after integration and ledger consumption; Git evidence remains preserved until final cleanup.
+
+### 4.1.2 MES — `IMPLEMENTATION_ACCEPTED_AND_INTEGRATED`
+
+- design candidate `0a1b8e62823ee05ff50827ff87aa01d014857f2e` froze 32 existing RPCs as `BUSINESS/HUMAN/WEB`, 10 existing canonical Codes, 148 authority/source dispositions, 8 nested tombstones, 16 optional new reasons plus 2 existing business reasons, and a closed 39-path lease (`33 EXISTING + 6 NEW_TARGET`); docs-only candidate was independently accepted and integrated.
+- implementation owner `019ff98e-374c-7b82-b420-2e183538c3e8`, title `OES Trusted gRPC · MES Implementation`; fixed worktree `/Users/acehood/Documents/GitHub/oes/.worktrees/migration/mes-trusted-grpc`, branch `codex/migration/mes-trusted-grpc`.
+- candidate chain preserved multiple I&V corrections: out-of-lease module change and missing NEW_TARGET specs, optional proto presence, strict reason validation, legacy L3 fixture migration, Gateway audience registry, tombstoned BFF payload fields, workspace-link bootstrap, and 29-entry tenant isolation. Final candidate `ec1ef2b19f66da2ef0287b887f7d2805534c6764` closed all source findings.
+- final acceptance/root verification passed proto regen/lint, Prisma generate, Common/Gateway/MES builds, MES contract 3/3, L1 5/5, L3/security 21/21, smoke 1/1, Gateway 7 suites/67 tests, inventory 54/590/0, 29/29 cross-tenant rejection, exact lease/outside0 and legacy/protected/hygiene scans. MES database L2 was unavailable because `DATABASE_URL` was absent and was not reported as passed.
+- integration used one `git merge --ff-only ec1ef2b1…` and one `git push origin main`; final root/local origin/main/remote = `ec1ef2b1…`, clean. Source branch/worktree remains clean as `MERGED_WAITING_FOR_USER_CLEANUP`; completed implementation task archived, no Git deletion this turn.
 
 - source threads：control `019fc87a-54b3-7463-ad9d-5750e8bab94b`；A/D GRPC `019f99f6-c707-7eb0-8c93-267c67288475`；A/D ASSET `019f983c-152a-7051-8011-9a25ca0987d7`；current A/I `019fc563-a9c4-76b0-9774-283206d2f1f0`。
 - carrier：branch `codex/grpc/i04-source-credential-carrier`，candidate `dced77ad8cb877ea9aad10f1c6a310ad32a924df`；commit 存在，branch ref 一致，工作树 clean；相对当前 `main` 核验为 13 个 Common/Gateway transport-private source-credential 路径。
@@ -771,6 +800,133 @@ EXEC-CRYPTO HUMAN foundation I&V terminal evidence：
 
 ## 10. 最终关闭结果
 
+### 10.1 Collaboration trusted-gRPC continuation
+
+Collaboration docs-only design candidate `ff8ae91c614950a4c9e0c8321bbb081f2f7c527e` was reviewed and integrated into `main` with one ff-only merge and one push. The candidate has parent `4e00df22546674ffdff8155a73e425be4df3b8ff`, exactly 11 design/contract paths, and a closed 54-path implementation lease (`48 EXISTING + 6 NEW_TARGET`) for the 16-RPC HUMAN/WEB trusted-gRPC slice. Task Assistant, ActionGrant, DELEGATED and MACHINE runtime remain deferred. The Unified Design worktree remains preserved until final cleanup.
+
+The next and only active implementation lane is one current-main Collaboration writer, followed by its own self-verification and the existing persistent I&V task. No parallel writer, checker, or additional design/I&V task is created.
+
+Collaboration implementation completed and integrated: corrective candidate `c8c8a810108ec19f35a527e25ace6cdead433e93` over `759ea14054427c6c8f109df51c486db64e429e1e` was accepted by the persistent I&V and fast-forward integrated/pushed once. Final main/local origin/main/remote are `c8c8a810`, root is clean, and the implementation task `019ffa89-db00-7763-b5a7-df21daaa3fc7` is archived. The source branch/worktree `codex/migration/collaboration-trusted-grpc` / `.worktrees/migration/collaboration-trusted-grpc` is `MERGED_WAITING_FOR_USER_CLEANUP`; rejected `759ea140` remains preserved as superseded evidence.
+
+Party routing correction: a temporary second UD `019ffaf0-2086-7da3-96a2-5fdf65a9bc31` was created in error, performed read-only analysis only, and was immediately archived without document writes or implementation dispatch. Party design is returned to the sole persistent UD `019fcaeb-cb2e-7e92-8c4e-aab7771d7254`; its unused design worktree/branch remains preserved and clean until final cleanup.
+
+Party trusted-gRPC is now `ACCEPTED_AND_INTEGRATED` at `f6caa3aa294b6fb6e7099393afbe0770ee90c09a`. The initial SYSTEM MACHINE six-RPC design at `150443aa…` was preserved and extended through accepted docs-only caller-composition amendments `9c6a2e33…`, `481031b8…`, `4d7c6c2d…`, `4c3ef8ab…`, `23b738ac…`, `ff8c2326…` and `94269335…`; the final closed writer lease is 92 paths (`44 EXISTING + 48 NEW_TARGET`). These amendments only froze caller ownership, package-local STS/source-credential composition, typed fail-closed errors, executable evidence carriers and exact module/barrel paths; the Party six-RPC semantics, proto authority, Codes, schema and business behavior remained unchanged.
+
+The single implementation owner was `OES Implementation · Party Trusted gRPC`, thread `019ffb14-8035-78f1-80f9-7bed8563361c`, using `/Users/acehood/Documents/GitHub/oes/.worktrees/migration/party-trusted-grpc` on `codex/migration/party-trusted-grpc`. Rejected candidates and intermediate merge commits remain in that branch as superseded implementation evidence. Persistent I&V returned implementation-local rework for missing package DI, generic Party registrations, undiscovered/insufficient tests and incomplete typed-error mapping; the same owner closed each finding without replacing the task or Git resources. Final candidate `f6caa3aa…` has 85 cumulative changed paths within the 92-path lease, outside paths zero, all 48 NEW_TARGET paths present, and a clean source worktree.
+
+Final independent and root evidence passed: proto generation/lint; inventory `54 generated / 590 signatures / 0 missing`; Common, Party, Permission, Gateway, CRM, SRM, HR, Identity and TenantOrg builds; Common typed mapping `12/12` plus focused `57` tests; five package-local caller client/provider/exchange/producer and Nest DI matrices; Gateway MACHINE/dedicated evidence; Party focused `22` tests and smoke `2/2`; generic Party registration and legacy metadata/body fallback scans at zero; UTF-8, diff, manifest/lock/generated/protected-path checks. Party full-suite database failures were baseline-neutral: candidate and accepted base both failed the same three L2 suites/seven tests because PostgreSQL was unavailable, while the same six suites/23 tests passed and L2/helper/Prisma paths were unchanged. I&V accepted the exact SHA; root used one ff-only merge and one main push. Root/local origin/remote and source branch now equal `f6caa3aa…` and are clean. The source branch/worktree is `MERGED_WAITING_FOR_USER_CLEANUP`; it is retained until final migration cleanup and must not be deleted in the current phase.
+
+Item Master trusted-gRPC / synchronous HUMAN OBO partial activation is `ACCEPTED_AND_INTEGRATED` at `764f28fba059965a4272752beb6ff0c7acf25d64`. The frozen design evolved without loss through the initial 53-RPC packet and rejected implementation evidence, then closed the tenant-authority contradiction with synchronous HUMAN OBO, explicit `MACHINE_ROOT | HUMAN_OBO` Common profiles, deployment-owned Auth actor selection and the root literal-runner compatibility amendment. The final accepted design amendments are `1432e2b2…`, `ad564981…` and `35d8bc0b…`; the closed writer lease is 133 paths (`99 EXISTING + 34 NEW_TARGET`). Earlier rejected candidates `026e1064…` and `dfd63c1d…`, plus their intermediate design merges, remain preserved on the source branch as superseded evidence.
+
+The implementation owner was `OES Implementation · Item Master Trusted gRPC Recovery`, thread `019ffe53-4bc3-7a01-91bc-774912abec6e`, using `/Users/acehood/Documents/GitHub/oes/.worktrees/migration/item-master-trusted-grpc` on `codex/migration/item-master-trusted-grpc`. Persistent I&V rejected the first OBO candidate because Permission still received HUMAN/TENANT authority, the subject verifier omitted frozen time/actor-chain checks and the literal Common/Auth runners were not reproducible. The same owner corrected these findings: Permission now decides only SYSTEM actor workload to target INTERNAL Code, the real handler/policy composition is executed, subject credentials enforce the 300-second and actor-chain rules, and the frozen root Jest commands pass without overrides. Final independent and root evidence passed: proto generation/lint; inventory `54 generated / 593 signatures / 0 missing`; nine required builds; Common `78`, Auth `59`, Permission handler/policy and generator, Gateway `46`, Item Master `33`, and four caller focused matrices; real OBO composition; pure-MACHINE and Party regressions; exact 133-path, legacy, generated, UTF-8 and diff gates.
+
+Activation is complete. Item Master server enforcement and Gateway HUMAN callers were integrated at `764f28fb…`; MES, SRM and Procurement subsequently activated their exact HUMAN_OBO callers, and WMS completed the final `ResolveStockableItem` actor path at `108ca926…`. Item Master is therefore `IMPLEMENTED_VERIFIED` with all four frozen actors active and full `C/A/T/L`; no additional Item Master RPC, schema, event or business capability was introduced. The implementation task is archived; source branch/worktree is clean and `MERGED_WAITING_FOR_USER_CLEANUP`, with no Git resource deletion in this phase.
+
+SRM trusted-gRPC is integrated at `84402fc566fee82a5e73cf7a013e7b617e254578`. The accepted design sequence `25f07326…` and literal-command correction `0b59e036…` freezes 13 Gateway-only `BUSINESS / HUMAN / WEB` RPCs, two Procurement-only `INTERNAL / HUMAN_OBO` eligibility queries, 46 retired authority-field reservations, 11 existing plus two INTERNAL Codes and the 83-path writer lease (`67 EXISTING + 16 NEW_TARGET`). Stable-document drift around `SupplierOffering` was removed, the service index now points to the SRM service truth source, and the historical SRM design workspace is marked `SUPERSEDED_BY_TRUTH_SOURCE`.
+
+The single implementation owner was `OES Implementation · SRM Trusted gRPC`, thread `01a0007a-74b7-7ea1-afe1-30d5330f9adb`, using `/Users/acehood/.codex/worktrees/1a07/oes` on `codex/migration/srm-trusted-grpc`. Final candidate `84402fc5…` contains 51 cumulative changed paths within the 83-path lease, outside paths zero and all 16 NEW_TARGET paths present. It switches SRM server and Gateway to Token-only trusted execution, activates SRM to Item Master HUMAN OBO, preserves SRM to Party MACHINE_ROOT, and retains Procurement's two narrow callers as `PREPARED_NOT_ACTIVATED` with no production DI registration or legacy fallback. Raw SRM smoke authority and Procurement direct SRM provisioning were removed; Prisma schema, events and package lock remain unchanged.
+
+Final acceptance evidence passed: proto lint/regeneration; inventory `54 generated / 595 signatures / 0 missing`; Common, Permission, Auth, Gateway, SRM, Item Master, Procurement and Party builds; SRM contract `3/3`; Permission `5/5`; Gateway `24`; SRM `60`; Procurement `6`; isolated smoke `7/7`; exact lease, generated, legacy, UTF-8 and diff gates. The persistent I&V independently established the exact replacement/code-tree equivalence, proto/inventory and Common build, then entered an invisible ordinary-operation approval stall while running the remaining read-only matrix. Program Control reproduced the complete remaining matrix, confirmed source/root/remote preconditions, executed one root fast-forward and one main push, and instructed the persistent I&V not to repeat integration when its stalled turn recovers. Root and source are clean; the implementation task is archived and its branch/worktree remains `MERGED_WAITING_FOR_USER_CLEANUP`.
+
+Procurement trusted-gRPC is `ACCEPTED_AND_INTEGRATED` at `62b954ea53de051be640ab5506c73cfc33d23259`. The accepted design candidate `13dd6aa09f633d76c6c7eddd54decbaca2a79b25` freezes the existing 21 Gateway-only `BUSINESS / HUMAN / WEB` RPCs, one WMS-only `INTERNAL / HUMAN_OBO` `ResolveReceivingExpectationForReceipt` projection, 90 authority tombstones, 21 existing plus one INTERNAL Code, Gateway dedicated ET/mTLS transport, Procurement to Item Master/SRM OBO activation and WMS caller preparation. I&V found that the initial 92-path lease omitted the existing audit-transaction L2 fixture; the same Unified Design thread added exactly that path and exact verified-HUMAN L2 command in docs-only amendment `d6ae4d9bffc231bbeeb6de5a01ac2e77f52fe455`, producing the final 93-path lease (`74 EXISTING + 19 NEW_TARGET`) without changing runtime semantics.
+
+The single implementation owner was `OES Implementation · Procurement Trusted gRPC`, thread `01a000e9-0b5c-75c0-9db3-514b4f58fab2`, using `/Users/acehood/.codex/worktrees/5ffe/oes` on `codex/migration/procurement-trusted-grpc`. Initial candidate `067a92de0494f4b81656b1a7abe11a699470ff50` passed its frozen matrix but was rejected because `ProcurementAuditService` correctly required guard-established trusted authority while the unleased L2 fixture still constructed it without `GrpcRequestContextStore`; the exact probe failed before `runInTransaction`. The same worktree non-destructively merged the docs amendment at `2cf4e8c1…`, updated the newly leased L2 with a real HUMAN ET/mTLS/request context, corrected one stale DI comment, and formed replacement `62b954ea…`. The accepted cumulative diff contains 50 paths within the 93-path lease, outside/protected paths zero, and activates Procurement to Item Master/SRM while WMS to Procurement remains prepared but production-fail-closed.
+
+Final independent and root evidence passed: proto generation/lint; inventory `54 generated / 596 signatures / 0 missing`; Permission generator and seed `5/5`; Common, Gateway, Procurement, Item Master, SRM and WMS builds; exact audit transaction L2 rollback/success `2/2`; Common contract `3/3`; Gateway `27/27`; Procurement `77/77`; WMS `8/8`; business-only smoke `3/3`; 22 RPC/21 routes/22 Codes/22 declarations/90 tombstones; exact 93-path, UTF-8, legacy, diff, manifest/lock and protected-path gates. Both implementation and I&V encountered invisible localhost approval stalls; Program Control preserved the same WIP/candidate, ran the authorized local PostgreSQL L2 and remaining root matrix, completed the already-accepted integration lease and pushed `main` once. A follow-up status-only feature sync `f016a7e0…` then corrected the service table and partial Item Master/WMS activation wording without changing contracts or lease. WMS integration `108ca926…` subsequently activated the exact frozen WMS caller, so Procurement's WMS path is no longer `PREPARED_NOT_ACTIVATED`; Procurement ownership and business semantics remain unchanged. The implementation task is archived; its branch/worktree remains `MERGED_WAITING_FOR_USER_CLEANUP` and must be retained until final cleanup.
+
+WMS trusted-gRPC is `ACCEPTED_AND_INTEGRATED` at `108ca92602b729a9dd1271c88ccdef3f58efe800`. The integrated design candidate `8982cb02f86c1261ad32825ef766129258db6202` freezes all 15 existing Gateway-only `BUSINESS / HUMAN / WEB` RPCs, five existing Permission Codes, WMS audience, 55 request plus eight nested authority tombstones, the dedicated Gateway ET/mTLS client, Token-only WMS ingress and sequential activation of the already-frozen WMS to Item Master/Procurement HUMAN_OBO callers. Its closed writer lease is 70 paths (`63 EXISTING + 7 NEW_TARGET`) and adds no WMS RPC, Code, schema, event/outbox, state-machine or business capability.
+
+The single implementation owner was `OES Implementation · WMS Trusted gRPC`, thread `01a004cc-35f1-76f0-9dc0-c59be6b7a959`, using `/Users/acehood/.codex/worktrees/6569/oes` on `codex/migration/wms-trusted-grpc`. The clean candidate `108ca926…` has direct parent `8982cb02…`, changes 38 paths (`1784` insertions / `1255` deletions), stays inside the 70-path lease with outside/protected paths zero, removes the generic Gateway WMS propagation path and raw live smoke caller, derives audit authority only from verified request scope, and activates only `ResolveStockableItem` and `ResolveReceivingExpectationForReceipt` through verified-HUMAN HUMAN_OBO.
+
+Independent detached and final root evidence passed: proto generation/lint; inventory `54 generated / 596 signatures / 0 missing`; Common, Gateway, WMS, Item Master and Procurement builds; Common contract `3/3`; Gateway dedicated WMS `15/15`; WMS ingress/OBO/business `57/57`; local PostgreSQL transaction L2 commit/rollback `2/2`; business-only smoke `1/1`; 15 RPC/15 routes/five Codes/63 tombstones; exact lease, UTF-8, legacy, diff, manifest/lock and protected-path gates. Persistent I&V completed its read-only code inspection but entered an invisible approval stall only when it unnecessarily escalated localhost PostgreSQL access; Program Control reproduced the exact detached L2 and full matrix without approval, instructed I&V not to duplicate integration, then performed one root ff-only merge and one main push. Status-only feature candidate `ad131ac7e06fa01d21493b05502bd1a567318c68` subsequently recorded WMS and Item Master as complete, Procurement's WMS caller as active and the global total as 15/21 complete; it changed one document only, preserved every lease/contract block, and was ff-only integrated/pushed after lightweight validation. Root/main/local origin/remote now equal `ad131ac7…` and are clean; the WMS source remains clean at `108ca926…`. The implementation task is archived; source branch/worktree is `MERGED_WAITING_FOR_USER_CLEANUP` and retained until final cleanup.
+
+Auth / Identity / Permission / HR / TenantOrg trusted-gRPC atomic foundation group is `ACCEPTED_AND_INTEGRATED` at `09dcb1279d22fa809023a69f2d8cfff090e3826d`. The frozen design and its minimal lease amendments culminated at main base `e92db9cb5a6ed428fde4dae40c698169397fbca8`, with one closed writer lease of 201 paths (`172 EXISTING + 29 NEW_TARGET`) covering exactly 217 declarations, five mandatory-mTLS servers, six new INTERNAL transport Codes, 32 authority tombstones and package-local dedicated target clients. CRM, AI/ActionGrant/DELEGATED runtime, schemas, events and unrelated business RPCs stayed outside the group.
+
+The sole implementation owner was `OES Implementation · Foundation Identity Authz Trusted gRPC`, thread `01a00526-cd3a-7133-a894-2999e21fdd2c`, using `/Users/acehood/.codex/worktrees/4a09/oes` on `codex/migration/foundation-identity-authz-trusted-grpc`. Rejected candidates `e2e92248…`, `064d0598…` and `ef5c5c15…` remain preserved as superseded evidence for optional/plaintext mTLS, Permission controller-owner DI and cumulative formatting findings. The final correction `09dcb127…` formatted exactly the 117 drifting leased files, made the declaration evidence parser whitespace-stable and retained the exact 217-member lock; the cumulative candidate changes 156 paths, all inside the 201-path lease.
+
+Independent semantic evidence and the final root integration matrix passed: frozen 53 suites / 240 tests; Permission DI `3/3`; Common mTLS/ET/certificate `34/34`; Auth ET/OBO/MACHINE `63/63`; Party `22/22`; five Party caller compositions `27/27`; proto generation/lint with generated drift zero; inventory `54/596/0`; Permission generation 62 with drift zero; nine builds; canonical Prettier on all 152 format-capable cumulative paths; atomic gate `6/6`; exact declaration counts `70/18/24/15/20` and total 217; UTF-8, manifest/lock, diff and clean-state gates. Persistent I&V had already closed all security/DI/runtime findings and stalled only on an invisible ordinary read-only approval during the final formatting reacceptance. Program Control independently closed that sole remaining gate, verified unchanged remote main, performed one ff-only root merge and one `main` push. Root/main/local origin/remote now equal `09dcb127…` and are clean. The implementation task is archived; its source branch/worktree is `MERGED_WAITING_FOR_USER_CLEANUP` and retained until final cleanup. CRM is the final service slice and the next serial migration owner; AI Platform/ActionGrant runtime remains deferred.
+
+CRM final-service design is integrated at `d10fc7a247278a10d9ef49f201f760d23fe975bf` after the status-only foundation sync `5930f94f0576b70fc128625e7b2132165e2335cd`. The user froze an array-only Common declaration contract: `sessionTerminals` replaces the scalar declaration field without a dual-field compatibility period or fallback, while each ET still carries one terminal value checked by exact membership. The packet freezes 15 CRM RPCs / three controllers, 14 BUSINESS HUMAN methods, one Collaboration HUMAN_OBO INTERNAL object-reference method, five exact WEB+BROWSER_EXTENSION methods, 22 existing Gateway routes, 67 authority tombstones, 12 existing plus one INTERNAL Code and a closed 114-path lease (`105 EXISTING + 9 NEW_TARGET`). Documentation was lightweight-validated rather than routed through a separate heavy I&V turn; root used one ff-only integration and one main push and is clean. The sole implementation task is `OES Implementation · CRM Trusted gRPC`, thread `01a00832-0e40-7bd1-8719-e1ea3e2fa8ec`, created from exact main in `/Users/acehood/.codex/worktrees/a12d/oes`; it must bind `codex/migration/crm-trusted-grpc`, produce one clean candidate and return to the persistent I&V. AI/ActionGrant/DELEGATED runtime remains deferred; no checker is enabled.
+
+CRM implementation is `ACCEPTED_AND_INTEGRATED` at `2726d8b1a70d3bbe1ebc07d3c057c6bd8a32d777`. The candidate changed 87 paths (`3065` insertions / `1398` deletions), stayed within the 114-path lease with outside zero, created all nine NEW_TARGET paths and removed the frozen legacy CRM context/raw-smoke inputs. Independent and final root evidence passed: 18/18 builds; 36 Jest suites / 234 tests plus Node smoke 1/1; proto regeneration/lint; generated CRM SHA `125893e3…`; inventory `54/596/0`; Permission generator 63-file drift zero; exact `15/14/1/5`, 22 routes, 13 Codes and 67 tombstones; real Collaboration HUMAN proof -> Auth OBO -> CRM local enforcement; CRM -> Party MACHINE_ROOT regression; array-only declarations, legacy/protected/UTF-8/format/diff/manifest/lock gates. Persistent I&V accepted the SHA, performed one ff-only root integration and one main push; Program Control independently reopened root/main/local origin/remote and source at the exact SHA, all clean. The implementation task is archived; source branch/worktree is `MERGED_WAITING_FOR_USER_CLEANUP`. Trusted-gRPC service cutover implementation is now 21/21 complete; final status synchronization and user-approved Git/thread cleanup remain, while AI/ActionGrant/DELEGATED runtime remains deferred.
+
 SITE recovery implementation `547a0c5d55f9a955543779ec584a16e9b05cf453` 已 `ACCEPTED_AND_INTEGRATED`；Site 59+7、Site Media 11、Gateway/Asset/Event/R2-purge 链与验证矩阵完成。AI/ActionGrant runtime 保持 deferred，API-KEY rejected prototype 永不进入 main；无 checker。
 
-本次退役迁移的Git与内容保全阶段已经完成：有用设计与实现已进入`main`或持久evidence ref，拒绝/取代证据已分类。legacy task archive阶段仍在纠错收口：post-closure exact-ID复核发现19项`archived=0`，SITE、PRINCIPAL-ROLE、EXEC-CRYPTO与GRPC共13项已关闭，当前其余6项按能力逐项审计。全仓 trusted gRPC service cutover 是独立的后续执行主线，目前仅 Asset/Site 完成、19服务 pending，不因 legacy GRPC 线程归档而关闭。临时closure Git资源在各批次记录集成后正常移除，最终继续只保留root `main`。本文件只承担迁移关闭证据与归档manifest，不作为设计或实现真相源。
+## 11. 2026-08-16 最终清理前审计
+
+### 11.1 当前完成态
+
+- root/main/local `origin/main`/remote `refs/heads/main` 均为 `ce0182e0ed6b356e231de641119476c20c1e7cfd`，root clean。
+- trusted-gRPC service migration 已 `SERVICE_MIGRATION_IMPLEMENTED_VERIFIED_21_OF_21`：571 RPC、55 controllers，21 个服务的 `C/A/T/L` 均为 `Y/Y/Y/Y`。
+- CRM final service 已在 `2726d8b1a70d3bbe1ebc07d3c057c6bd8a32d777` 验收集成；最终状态同步 `ce0182e0…` 已进入 main。
+- Item Master 的 MES、SRM、Procurement、WMS 四个冻结 HUMAN_OBO actor 全部激活；此前的 `15/21`、`FOUNDATION_ATOMIC_GROUP_REQUIRED` 和各服务 `PREPARED_NOT_ACTIVATED` 只保留为历史阶段证据，不再是当前阻塞。
+- AI Platform、ActionGrant、DELEGATED runtime 与 API-key provider implementation 继续 deferred；其设计/拒绝证据已冻结在稳定文档或 evidence ref 中，不属于本次 21/21 service migration 的遗漏。
+
+### 11.2 精确 Git 资源分类
+
+最终清理前共有 22 个 worktrees：root 1、已合并实现证据 14、superseded/rejected detached evidence 5、控制工作树 2。
+
+`MERGED_WAITING_FOR_USER_CLEANUP` worktrees（14）：
+
+- `migration/browser-activity-trusted-grpc`
+- `migration/collaboration-trusted-grpc`
+- `migration/exec-crypto-legacy-closure`
+- `migration/finance-trusted-grpc`
+- `migration/grpc-global-cutover-handoff`
+- `migration/item-master-trusted-grpc`
+- `migration/mes-trusted-grpc`
+- `migration/notification-auth-dispatch-trusted-grpc`
+- `migration/party-trusted-grpc`
+- `migration/public-entry-trusted-grpc`
+- `migration/sales-trusted-grpc`
+- `migration/terminal-device-trusted-grpc`
+- `acceptance/procurement-62b9`
+- `acceptance/wms-108c`
+
+`SUPERSEDED_OR_REJECTED_EVIDENCE_PRESERVED` worktrees（5）：
+
+- `acceptance/foundation-064d`
+- `acceptance/foundation-e2e9`
+- `acceptance/foundation-ef5`
+- `acceptance/procurement-067a`
+- `unified-design/party-trusted-grpc`
+
+`PERSISTENT_CONTROL_RETAIN_UNTIL_LAST_STEP` worktrees（2）：
+
+- `program-control/migration`
+- `unified-design/security-open-packets`
+
+WMS detached acceptance worktree 没有 tracked diff，但有且仅有四个 bootstrap 输出；清理时只允许精确删除下列目录，不使用 `git clean`：
+
+- `node_modules`
+- `src/services/business/procurement-service/prisma/generated`
+- `src/services/business/wms-service/prisma/generated`
+- `src/services/system/item-master-service/prisma/generated`
+
+当前 27 个 `codex/*` refs 的最终分类：
+
+- 17 个 `MERGED_WAITING_FOR_USER_CLEANUP` implementation refs：Browser Activity、Collaboration、CRM、EXEC-CRYPTO closure、Finance、Foundation、global cutover handoff、Item Master、MES、Notification、Party、Procurement、Public Entry、Sales、SRM、Terminal Device、WMS；worktree 解除后可用普通 `git branch -d` 删除。
+- 6 个 `SUPERSEDED_OR_REJECTED_EVIDENCE_PRESERVED` refs：AI tool-contract prototype、API-key rejected prototype `755d857a…`、EXEC-CRYPTO retained checkpoint `64ea8660…`、两个 legacy gRPC candidates、superseded Party UD。
+- 1 个 `UNRELATED_PROTECTED_DEFERRED` ref：`codex/action-grant/i01-delegated-task-runtime`；现有 tag `migration-evidence/action-grant-runtime-deferred-20260809` 保留其 deferred 证据。
+- 3 个临时/持久控制 refs：旧 `codex/oes-program-control-migration`、本轮 `codex/migration/final-ledger-rebuild`、唯一 `codex/unified-design/security-open-packets`；最后处理。
+
+若用户要求最终只保留 `main` branch，六个未合并 evidence refs 必须先各自建立可读的 `migration-evidence/*` annotated tag 并验证 tag 指向 exact SHA，ActionGrant 先复核既有 deferred tag，再删除 branch refs；这样删除 branch 不会丢失已冻结/拒绝证据。
+
+### 11.3 Task 归档与控制 ownership
+
+- 当前周期的 Public Entry、Sales、MES、Collaboration、Party、Item Master、SRM、Procurement、WMS、Foundation 与 CRM implementation tasks 均已归档；SITE、Principal Role、EXEC-CRYPTO 与 legacy GRPC 的已消费 tasks 也已归档。
+- Browser Activity、Notification、Terminal Device 与 Finance 并非遗漏的四个独立 task：它们由同一持久 migration owner chain 串行执行。前任 `019fe9f8-5a44-76e1-b5a4-110db9da6d59` 与 `019ff07e-d441-7731-acdb-1a9d262661a9` 已归档；当前 `019ff138-ed1c-7b82-8cd4-865bdb6529bd` 保留到最终清理完成后再归档。
+- 最后保留的控制 tasks：Program Control `019fcae6-2991-77c1-8016-5c9bcd00d714`、唯一 Unified Design `019fcaeb-cb2e-7e92-8c4e-aab7771d7254`、persistent I&V `019fcaf2-ca7b-7140-b46d-b6cacae58556` 与 migration owner `019ff138-ed1c-7b82-8cd4-865bdb6529bd`。UD 当前没有未冻结设计；在 Git 清理与最终状态记录完成前不打断、不归档。
+- 六个 deferred protected task IDs 继续由未来 AI/ActionGrant/API-key owner 决定，不因 trusted-gRPC 完成而误归档：`019fa287-02ff-7023-a2d1-ed935605671b`、`019fa287-0461-7963-94dd-7cf8449ad5c6`、`019fa287-d27a-79b1-8021-36537c90945e`、`019fa2ee-416b-7c70-9fe7-b372fdb6748d`、`019fa317-8eed-7551-95d5-d134210e2de8`、`019fa317-f7eb-7d51-a1a5-63c1f90ef907`。
+
+### 11.4 用户批准后的原子清理顺序
+
+1. 先把本 current-main 台账候选 ff-only 集成到 root，运行文档/UTF-8/link/diff/status 验证并只 push `main` 一次。
+2. 重新盘点 root、remote refs、所有 worktrees/branches/tasks；任何新 dirty 或 ref 漂移都会停止删除阶段。
+3. 精确移除 WMS 的四个 untracked bootstrap 目录并确认 worktree clean。
+4. 正常移除 14 个 merged worktrees 与 5 个 detached evidence worktrees；随后对 17 个 merged implementation refs 使用 `git branch -d`。
+5. 按用户确认的 evidence 策略处理六个 rejected/superseded refs 与 ActionGrant deferred ref：默认先 tag-preserve，再删除 branch，禁止 force-delete 未持久化证据。
+6. 归档 migration owner 与已经没有后续职责的 migration-only control tasks；persistent I&V 是否继续保留复用由最终用户决定。
+7. 最后移除 Unified Design 与 Program Control worktrees/branches，复核只剩 root `main`、remote/local main 一致且 clean，然后把迁移状态标记为 `CLOSED`。
+
+本文件只承担迁移关闭证据与归档 manifest，不作为设计或实现真相源。当前实现迁移已经完成；尚未完成的是台账进入 main 以及必须由用户明确批准的最终 Git/thread 清理。
