@@ -1,13 +1,13 @@
 # External API Key Security Collaboration
 
 ```text
-status: FROZEN_DG3
+status: IMPLEMENTED_VERIFIED_EXTERNAL_OPENING_DEFERRED
 capabilityKey: API-KEY
 designGate: DG-3
 predecessorGate: FROZEN_TRUSTED_GRPC_METADATA
 revocationInvariant: BOUNDED_RESIDUAL_MAX_5_MINUTES
 dg2ExternalOpeningGate: false
-externalOpening: DISABLED_PENDING_DG3_IMPLEMENTATION_ACCEPTANCE
+externalOpening: DISABLED_PENDING_PRODUCTION_ENABLEMENT
 protectedVerifierDecision: docs/adr/0017-protected-external-api-key-verifier-provider.md
 requiredForExternalOpening:
   - FROZEN_TOKEN_CRYPTOGRAPHY_AND_WORKLOAD_IDENTITY

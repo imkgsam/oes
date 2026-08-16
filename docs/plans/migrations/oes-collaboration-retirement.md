@@ -44,9 +44,9 @@ trustedGrpcServiceProgress: 21/21
 | Repository root            | `/Users/acehood/Documents/GitHub/oes` | 路径存在；`main` 工作树 clean                                                                                                                                                |
 | `main`                     | current-document-commit               | 21/21 trusted-gRPC service migration、CRM final slice、status synchronization 与 scoped cleanup record 已进入主线；root clean                                                |
 | `origin/main`              | current-document-commit               | 本地 remote-tracking ref 与远端 `refs/heads/main` 在 scoped cleanup 记录集成后复核一致                                                                                       |
-| Legacy formal A/\* threads | 101                                   | handoff 历史聚合计数；迁移范围内已消费的 legacy/implementation tasks 已归档，余下 6 项属于 AI/ActionGrant/API-key deferred protected ownership，不作为 trusted-gRPC 未完成项 |
+| Legacy formal A/* threads | 101                                   | handoff 历史聚合计数；迁移范围内已消费 tasks 已归档，余下 5 项属于 AI/ActionGrant deferred protected ownership，不作为 trusted-gRPC/API-KEY 未完成项                                      |
 | Worktrees                  | 3                                     | Trusted gRPC 专属 19 个已正常移除；仅保留 root、Program Control 与唯一 Unified Design，其他 CC 不受影响                                                                      |
-| `codex/*` branches         | 6                                     | Trusted gRPC 专属 21 个已移除；仅保留 AI、API-key、ActionGrant、Program Control 与共享 UD refs                                                                               |
+| `codex/*` branches         | 5                                     | Trusted gRPC/API-KEY 专属 refs 已按各自 closure 规则移除；仅保留 AI、ActionGrant、Program Control 与共享 UD refs                                                                         |
 | Checker                    | disabled                              | handoff evidence；未唤醒旧 checker                                                                                                                                           |
 | Root dirty state           | clean                                 | clean，暂存区与工作区均无变更                                                                                                                                                |
 
@@ -341,21 +341,16 @@ trustedGrpcServiceProgress: 21/21
 - FAQ 与 Article Category 的历史集成证据继续保留；Site Inspiration 仍是独立后续 feature，不影响本次 SITE recovery 的迁移关闭。
 - active I/R/V/X：无；本阶段不再派发 SITE 实现线程。
 
-### 4.7 API-KEY — delivered historical cycle
+### 4.7 API-KEY — `IMPLEMENTED_VERIFIED_EXTERNAL_OPENING_DEFERRED`
 
-- source thread IDs：handoff 未提供；不得推断或唤醒旧线程补采。
-- main-history state：protected verifier/runtime 已交付，来自 handoff；public external opening 仍受 selected-cloud KMS/HSM/operator runbook gate 约束，具体以 ADR-0017 与外部 API key 真相源为准。
-- active command：不恢复。
-- original retained risk：`/Users/acehood/Documents/GitHub/oes/.worktrees/api-key/x01-integration` 曾存在两个未跟踪文件：
-  - `src/services/system/auth-service/src/domain/api-key/api-key.credential.ts`
-  - `src/services/system/auth-service/src/domain/api-key/api-key.credential.spec.ts`
-- read-only capture：
-  - `api-key.credential.spec.ts`：1485 bytes；SHA-256 `a42530b851021b6b9d0e9eb93fb422e6f279af0b954e8bc73e20a9a35890b6a0`；Git blob `34ad722672a11433d1296fac2d3f11e9acfd2d8d`。与 rejected API-KEY candidate `b641e0e104080dd852688ac1b1887efc9f2684a5` 同路径 blob 完全一致；与 current main / `codex/api-key/i02-runtime-completion` 的后续 blob `2651e842…` 不同；其余已知 API-KEY refs 同路径不存在。分类：`SUPERSEDED_REJECTED_EVIDENCE_IDENTICAL`。
-  - `api-key.credential.ts`：3002 bytes；SHA-256 `e911043ae743a4a2c6cae4edd4f1caff7b50a327a6f43cc4048886cec24c8040`；Git blob `e54f5f1f5e0f467b98da681a035b3682d3a164f7`。与 current main / `codex/api-key/i02-runtime-completion` blob `0e40efef…`、rejected `b641e0e1…` blob `6b65fdea…` 均不同；`codex/acapikey-external-api-key`、design、x01 integration 与 `a776ad75…` 同路径不存在，`git log --all --find-object` 未找到该 blob。捕获时分类：`UNIQUE_UNCOMMITTED_CONTENT`。
-- comparison set：current main、`codex/acapikey-external-api-key`、`codex/api-key/d-external-api-key-security`、`codex/api-key/i02-runtime-completion`、`codex/api-key/x01-integration`、rejected `b641e0e1…` 与 integrated `a776ad75…`。本轮未 clean、move、stage、commit 或删除两文件。
-- durable preservation：同一 evidence branch/worktree 已形成 `codex/api-key/x01-integration@755d857ab990520a916f73e859e39f1207085e32`，parent `a776ad75894f515d0d559f783616f655dec8d592`；commit message `chore(migration): preserve rejected api key prototype`；精确新增上述 2 files / 113 insertions，`git diff-tree --check` exit 0，worktree clean。
-- final classification：实现使用已被 ADR-0017/provider design 明确淘汰的 raw pepper/`createHmac` seam；连同上下文 spec 统一分类为 `PRESERVED_REJECTED_PROTOTYPE_EVIDENCE`，永不路由 I&V、永不集成 main。
-- target：保留 clean durable evidence ref 直到 final cleanup manifest 已进入 main；届时可与其他 superseded/rejected refs 一并正常移除。
+- migration disposition：DG-3 设计、protected verifier runtime、Identity/Permission/Auth/Gateway fail-closed chain 与 compromise workflow 已在 current main 实现并通过本轮 current-main 复核；API-KEY migration cycle 关闭，不创建新实现 task。
+- current-main evidence：`3ce94b7a2ef8fdd1a75e05aa517cc35d60534bf8` 交付 protected verifier；`a776ad75894f515d0d559f783616f655dec8d592` 修正 verified ExecutionToken context，二者均为 main ancestor。旧 candidate `b641e0e104080dd852688ac1b1887efc9f2684a5` 的缺陷已由后续实现替代，不再代表当前行为。
+- verified runtime：Auth 的 verifier、compromise service、Prisma models/migrations 与 mTLS+INTERNAL ET RPC 已接线；Identity `identity.internal.integration_machine.resolve`、Permission `permission.internal.external_machine.snapshot.resolve`、Auth `auth.internal.external_api_key.verifier_version.compromise` 均存在；Gateway exchange 保持显式开关且 current main 没有 production `@ExternalApiRoute()` opt-in。
+- current-main matrix：proto generation/lint；Common、Auth、Identity、Permission、Gateway 五个 builds；Auth 14 suites / 44 tests、Identity 2 / 17、Permission 3 / 18、Gateway 2 / 8，共 21 suites / 87 tests；protected signer/verifier agent `go test ./...` 六个 packages；Auth Prisma validate；UTF-8/diff/clean-state 与 production raw-pepper/public-opening scans，全部 exit 0。
+- environment boundary：本机 Docker daemon 不可用，因此本轮未重复启动 SoftHSM 容器；compose configuration gate 通过，仓库保留完整 UDS/SoftHSM harness。该环境限制不改变 migration closure，因为 production external opening 仍独立等待 selected KMS/HSM、workload identity、version manifest、operator runbook 与 security acceptance。
+- rejected evidence：`codex/api-key/x01-integration@755d857ab990520a916f73e859e39f1207085e32` 的两个 prototype blobs 与 current main 不同，分类保持 `PRESERVED_REJECTED_PROTOTYPE_EVIDENCE`。已建立并推送 annotated tag `migration-evidence/api-key-preserved-rejected-prototype-755d857a`，peeled SHA 精确为 `755d857a…`；随后 exact-ref 删除 source branch，未使用 force/reset/rebase/clean。
+- resources：API-KEY source worktree 已不存在；唯一可识别 design task `019fa287-0461-7963-94dd-7cf8449ad5c6` 已在迁移闭环后归档。无 active API-KEY writer/checker。
+- production gate：状态统一为 `IMPLEMENTED_VERIFIED_EXTERNAL_OPENING_DEFERRED`；`externalOpening` 保持 `DISABLED_PENDING_PRODUCTION_ENABLEMENT`。未来开放是独立生产启用/安全验收，不再是迁移实现缺口。
 
 ### 4.8 EVENT — `CLOSED`
 
@@ -857,11 +852,11 @@ SITE recovery implementation `547a0c5d55f9a955543779ec584a16e9b05cf453` 已 `ACC
 
 ### 11.1 当前完成态
 
-- root/main/local `origin/main`/remote `refs/heads/main` 均为 `ce0182e0ed6b356e231de641119476c20c1e7cfd`，root clean。
+- root/main/local `origin/main`/remote `refs/heads/main` 均为本文件所在 main commit，root clean。
 - trusted-gRPC service migration 已 `SERVICE_MIGRATION_IMPLEMENTED_VERIFIED_21_OF_21`：571 RPC、55 controllers，21 个服务的 `C/A/T/L` 均为 `Y/Y/Y/Y`。
 - CRM final service 已在 `2726d8b1a70d3bbe1ebc07d3c057c6bd8a32d777` 验收集成；最终状态同步 `ce0182e0…` 已进入 main。
 - Item Master 的 MES、SRM、Procurement、WMS 四个冻结 HUMAN_OBO actor 全部激活；此前的 `15/21`、`FOUNDATION_ATOMIC_GROUP_REQUIRED` 和各服务 `PREPARED_NOT_ACTIVATED` 只保留为历史阶段证据，不再是当前阻塞。
-- AI Platform、ActionGrant、DELEGATED runtime 与 API-key provider implementation 继续 deferred；其设计/拒绝证据已冻结在稳定文档或 evidence ref 中，不属于本次 21/21 service migration 的遗漏。
+- AI Platform、ActionGrant 与 DELEGATED runtime 继续 deferred；API-KEY 已完成 migration closure，但 production external opening 仍独立 deferred。它们均不属于本次 21/21 service migration 的遗漏。
 
 ### 11.2 精确 Git 资源分类
 
@@ -908,17 +903,17 @@ WMS detached acceptance worktree 没有 tracked diff，但有且仅有四个 boo
 
 - 17 个 `MERGED_WAITING_FOR_USER_CLEANUP` implementation refs：Browser Activity、Collaboration、CRM、EXEC-CRYPTO closure、Finance、Foundation、global cutover handoff、Item Master、MES、Notification、Party、Procurement、Public Entry、Sales、SRM、Terminal Device、WMS；worktree 解除后可用普通 `git branch -d` 删除。
 - 4 个 Trusted gRPC/基础能力 `SUPERSEDED_OR_REJECTED_EVIDENCE_PRESERVED` refs：EXEC-CRYPTO retained checkpoint `64ea8660…`、两个 legacy gRPC candidates、superseded Party UD；仅这四个属于本轮 tag-preserve 后候选删除范围。
-- 3 个其他 CC `UNRELATED_PROTECTED_DEFERRED` refs：AI tool-contract prototype、API-key rejected prototype `755d857a…` 与 `codex/action-grant/i01-delegated-task-runtime`；全部保持原 branch/ref/task 状态，本轮不打 tag、不删除、不归档。
+- 2 个其他 CC `UNRELATED_PROTECTED_DEFERRED` refs：AI tool-contract prototype 与 `codex/action-grant/i01-delegated-task-runtime`；两者保持原 branch/ref/task 状态，本轮不触碰。
 - 3 个共享/临时控制 refs：旧 `codex/oes-program-control-migration`、本轮 `codex/migration/final-ledger-rebuild`、唯一 `codex/unified-design/security-open-packets`；其他 CC 审核结束前保留。
 
-本轮 Trusted gRPC 清理最多处理 21 个专属 branch refs：17 个已合并实现 refs 加上述 4 个经 tag-preserve 的历史 evidence refs。AI、API-key、ActionGrant、Program Control 与共享 UD refs 明确排除；仓库在本轮结束后仍会保留这些其他 CC/控制 branches。
+本轮 Trusted gRPC 清理最多处理 21 个专属 branch refs：17 个已合并实现 refs 加上述 4 个经 tag-preserve 的历史 evidence refs。AI、ActionGrant、Program Control 与共享 UD refs 明确排除；仓库在本轮结束后仍会保留这些其他 CC/控制 branches。API-KEY rejected prototype 已在后续独立 CC 审核中 tag-preserve 后删除 source ref。
 
 ### 11.3 Task 归档与控制 ownership
 
 - 当前周期的 Public Entry、Sales、MES、Collaboration、Party、Item Master、SRM、Procurement、WMS、Foundation 与 CRM implementation tasks 均已归档；SITE、Principal Role、EXEC-CRYPTO 与 legacy GRPC 的已消费 tasks 也已归档。
 - Browser Activity、Notification、Terminal Device 与 Finance 并非遗漏的四个独立 task：它们由同一持久 migration owner chain 串行执行。前任 `019fe9f8-5a44-76e1-b5a4-110db9da6d59` 与 `019ff07e-d441-7731-acdb-1a9d262661a9` 已归档；当前 `019ff138-ed1c-7b82-8cd4-865bdb6529bd` 保留到最终清理完成后再归档。
 - 最后保留的控制 tasks：Program Control `019fcae6-2991-77c1-8016-5c9bcd00d714`、唯一 Unified Design `019fcaeb-cb2e-7e92-8c4e-aab7771d7254`、persistent I&V `019fcaf2-ca7b-7140-b46d-b6cacae58556` 与 migration owner `019ff138-ed1c-7b82-8cd4-865bdb6529bd`。UD 当前没有未冻结设计；在 Git 清理与最终状态记录完成前不打断、不归档。
-- 六个 deferred protected task IDs 继续由未来 AI/ActionGrant/API-key owner 决定，不因 trusted-gRPC 完成而误归档：`019fa287-02ff-7023-a2d1-ed935605671b`、`019fa287-0461-7963-94dd-7cf8449ad5c6`、`019fa287-d27a-79b1-8021-36537c90945e`、`019fa2ee-416b-7c70-9fe7-b372fdb6748d`、`019fa317-8eed-7551-95d5-d134210e2de8`、`019fa317-f7eb-7d51-a1a5-63c1f90ef907`。
+- 五个仍 deferred 的 protected task IDs 继续由未来 AI/ActionGrant owner 决定，不因 trusted-gRPC 或 API-KEY 完成而误归档：`019fa287-02ff-7023-a2d1-ed935605671b`、`019fa287-d27a-79b1-8021-36537c90945e`、`019fa2ee-416b-7c70-9fe7-b372fdb6748d`、`019fa317-8eed-7551-95d5-d134210e2de8`、`019fa317-f7eb-7d51-a1a5-63c1f90ef907`。API-KEY design task `019fa287-0461-7963-94dd-7cf8449ad5c6` 已在独立迁移闭环后归档。
 
 ### 11.4 用户批准后的原子清理顺序
 
@@ -943,7 +938,7 @@ WMS detached acceptance worktree 没有 tracked diff，但有且仅有四个 boo
   - `migration-evidence/party-ud-superseded-c8c8a810` -> `c8c8a810108ec19f35a527e25ace6cdead433e93`
 - 上述四个 branch refs 采用 exact old-SHA compare-and-delete；未使用 `git branch -D`、reset、rebase、force 或 bulk clean。
 - Trusted gRPC persistent migration owner `019ff138-ed1c-7b82-8cd4-865bdb6529bd` 已归档。
-- 当前仅保留六个 `codex/*` refs：ActionGrant、AI、API-key、旧/当前 Program Control 与唯一 Unified Design；这些均不属于本轮删除范围。
-- Program Control、唯一 Unified Design、persistent I&V 与 deferred CC tasks 保持可用，等待逐 CC 审核；本次结果只关闭 Trusted gRPC service migration cycle。
+- Trusted gRPC scoped cleanup 当时保留六个 `codex/*` refs；后续 API-KEY 独立审核已将 rejected prototype tag-preserve 后删除 source ref。当前只保留五个：ActionGrant、AI、旧/当前 Program Control 与唯一 Unified Design。
+- Program Control、唯一 Unified Design、persistent I&V 与仍 deferred 的 AI/ActionGrant tasks 保持可用，等待逐 CC 审核；Trusted gRPC 与 API-KEY migration cycles 均已分别关闭。
 
-本文件只承担迁移关闭证据与归档 manifest，不作为设计或实现真相源。Trusted gRPC service migration 的设计、实现、集成与 scoped cleanup 已完成；其他 CC 不在本轮范围并保持原状。
+本文件只承担迁移关闭证据与归档 manifest，不作为设计或实现真相源。Trusted gRPC service migration 与 API-KEY migration 的设计、实现、集成及各自 scoped cleanup 已完成；AI/ActionGrant 等其他 CC 保持原状。
