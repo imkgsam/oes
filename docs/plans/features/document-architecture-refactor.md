@@ -13,6 +13,28 @@ owner: current Feature Lead
 
 ## Slices
 
+### DOC-PLAN-TAIL
+
+```text
+state: ACCEPTED
+candidate: current commit
+review: semantic audit
+```
+
+- Scope：审计剩余散落计划、Workspace 与 Feature Packet，只保留仍有执行作用的当前工作面。
+- Acceptance：`docs/plans/` 根目录只保留 index/intake/backlog；23 个 Workspace 与除本重构外的 32 个 FP 均有当前设计或执行作用，存在不确定语义的文件按保留处理。
+
+### DOC-AI-WORKSPACE
+
+```text
+state: ACCEPTED
+candidate: current commit
+review: semantic audit + contract test
+```
+
+- Scope：将 AI Platform 当前 implementation gates 收敛到活跃 FP，删除已被 truth sources 覆盖的设计 Workspace 与散落计划。
+- Acceptance：AI FP 只保存当前 gates/slices；immutable registration test 通过；架构引用只指向新 FP。
+
 ### DOC-GOVERNANCE
 
 ```text

@@ -10,7 +10,7 @@ runtimeTruthSource: docs/architecture/platforms/site-runtime-kit.md
 assetTruthSource: docs/architecture/services/asset-service.md
 assetContract: docs/contracts/asset-service/site-media.md
 assetCollaboration: docs/architecture/collaborations/site-asset-media.md
-storefrontBaseline: docs/plans/features/inspirations-masonry-gallery.md
+storefrontBaseline: src/site-runtime/meilong-ceramics-site/storefront
 lastUpdatedAt: 2026-08-09
 ```
 

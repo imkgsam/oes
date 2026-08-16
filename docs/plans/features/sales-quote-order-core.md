@@ -107,7 +107,7 @@ Status, 2026-06-07:
 - `docs/contracts/sales-service/**` 已存在并承接 Sales phase 1 management、query、pricing management 与 pricing query contract。
 - `src/services/business/sales-service/**` 已存在 service runtime、Prisma schema、gRPC controller、tests 与 smoke script。
 - 本次校准只修正文档状态；未重跑 `sales-service` test / build / smoke，因此当前状态不得写成 fresh verified 或 fully closed。
-- Trusted-gRPC 迁移已在 [trusted-grpc-execution-context.md](trusted-grpc-execution-context.md#97-sales-27-rpc-frozen-cutover-lease) 冻结为独立 transport slice。该 slice 会删除历史 raw gRPC `sales-smoke.mjs` 及 package command，后续 fresh verification 使用 packet 中的 proto、build、focused test 与 security gates，不再以该 smoke 为关闭条件；这不改变本 packet 的 Sales 业务能力。
+- Trusted-gRPC 当前规则与 27-RPC matrix 以 [Sales contract](../../contracts/sales-service/README.md) 和 [trusted gRPC architecture](../../architecture/platforms/grpc-metadata-and-service-trust.md) 为准；这不改变本 packet 的 Sales 业务能力。
 
 ## 7. 最小模型
 

@@ -13,3 +13,4 @@
 | Self-service registration | 邀请、自助注册、租户初始化以及 Auth/Identity ownership。 |
 | Third-party login | Identity provider 范围、tenant/platform 配置、callback continuation 与外部身份绑定。 |
 | Server-side interaction challenge | 将当前前端滑块升级为服务端 challenge 时的时效、滥用防护与审计契约。 |
+| Workflow service | 是否建立跨域人工审批服务，以及业务 owner、责任组织、有限线性节点、退回修改和最终业务状态的边界。 |

@@ -1,6 +1,12 @@
 # After-Sales Service Design Workspace
 
-> Status: draft workspace. This document records current design discussion only; it is not yet a stable architecture, contract, or implementation plan.
+```text
+designKey: AFTER-SALES-SERVICE
+designStatus: ACTIVE_LONG_TERM_DESIGN
+implementationStatus: DEFERRED
+```
+
+> 本文只记录当前设计讨论，不是稳定架构、contract 或 implementation plan。
 
 ## 1. Goal
 

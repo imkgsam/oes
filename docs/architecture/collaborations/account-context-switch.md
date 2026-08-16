@@ -67,4 +67,4 @@
 - [auth-service.md](../services/auth-service.md)
 - [identity-service.md](../services/identity-service.md)
 - [permission-service.md](../services/permission-service.md)
-- [account-context-switch.md](../../plans/features/account-context-switch.md)
+- [auth BFF login contract](../../contracts/api-gateway/auth-bff-login.md)

@@ -395,4 +395,4 @@ Phase 1 does not do:
 - 23 个 RPC 均拒绝错误 audience、`cnf`、principal、terminal、Code 与 legacy body/header/signed-operator authority。后台 HUMAN、SELF_SERVICE HUMAN 与公开 Gateway MACHINE Token 不得交叉调用。
 - `ChangeShortLinkStatus` 使用 target-status-to-Code 绑定：`ACTIVE -> public-entry.short-link.update`、`DISABLED -> public-entry.short-link.disable`、`ARCHIVED -> public-entry.short-link.archive`；未知状态或 Code mismatch 在 mutation 前拒绝。
 - 当前 Public Entry 向 HR、Identity、Permission、TenantOrg 的 legacy outbound 调用不在本轮迁移中扩张或重设计；其目标服务按全仓顺序独立 cutover。BusinessCard 入口不再重复调用 Permission 做同一 BUSINESS Code 判定，但保留服务内 tenant/resource/domain/audit owner 检查。
-- 具体 23-RPC matrix、request field reservation 与 closed implementation lease 以 [Public Entry contracts](../../contracts/public-entry-service/README.md) §3 和 [trusted gRPC feature packet](../../plans/features/trusted-grpc-execution-context.md) §9.6 为准。
+- 具体 23-RPC matrix 与 request field reservation 以 [Public Entry contracts](../../contracts/public-entry-service/README.md) §3 为准。

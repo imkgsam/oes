@@ -3,8 +3,8 @@
 > 服务设计唯一真相源：[mes-service.md](../../architecture/services/mes-service.md)。本文只记录 MES 模具管理第一阶段最小闭环的执行范围、已确认设计修正、切片顺序与验证要求；MES 服务长期边界、资源模型、质量边界、Planning / WMS / Item Master 边界仍以服务真相源为准。
 
 ```text
-status: BUSINESS_FEATURE_IMPLEMENTATION_PRESENT_TRUSTED_GRPC_FROZEN_PENDING_IMPLEMENTATION
-trustedGrpcTruth: docs/contracts/mes-service/README.md and docs/plans/features/trusted-grpc-execution-context.md
+status: BUSINESS_FEATURE_IMPLEMENTATION_PRESENT_TRUSTED_GRPC_IMPLEMENTED_VERIFIED
+trustedGrpcTruth: docs/contracts/mes-service/README.md and docs/architecture/platforms/grpc-metadata-and-service-trust.md
 ```
 
 当前 main 已包含本 packet 所列 `ItemModelRef`、`AcceptProductionMold`、`RecordMoldUsageBatch`、MasterMold query、scrap 与 BFF checklist 下沉等 contract/proto/runtime/BFF 基线；本文的历史线程表保留原切片记录，不再表示这些能力尚未出现。此次新增的 trusted-gRPC slice 只迁移 32 个既有 inbound RPC：全部为 HUMAN WEB BUSINESS，并删除 body/legacy metadata authority。它不实现 tenant-web/PDA、设备自动化、Planning/WMS/Quality/Site 协同或新的 MES 业务能力。

@@ -72,7 +72,7 @@
   - [annotation-query.md](../../contracts/collaboration-service/annotation-query.md)
   - [crm-service/object-reference.md](../../contracts/crm-service/object-reference.md)
 - 后续设计工作台：
-  - [collaboration-service-design.md](../designs/collaboration-service-design.md)
+- [collaboration-service.md](../../architecture/services/collaboration-service.md)
 
 ## 6. 线程分工
 
@@ -110,7 +110,7 @@
 - 本线程不做：
   - Deferred 清单中的所有能力。
 - 偏移返回条件：
-  - 如果讨论转向 attachment、mention、comment thread、notification、ObjectTimeline、AI summary、通用 object registry 或非 CRM 对象接入，应迁入对应新线程或 `collaboration-service-design.md` 的开放问题，不继续扩写 P1。
+- 如果讨论转向 attachment、mention、comment thread、notification、ObjectTimeline、AI summary、通用 object registry 或非 CRM 对象接入，应从 [backlog](../backlog.md) 创建独立 Design Task，不继续扩写 P1。
 
 ## 9. 阻塞 / 依赖
 

@@ -48,7 +48,7 @@
 - 当前 feature 是推进顺序中的 `Role Management`，不是整个权限平台一次性落地。
 - 当前主线任务已校正为：先完成 tenant-web `Permission Management` 第一阶段，再进入本 `Role Management`。
 - `Permission Catalog / Selector` 不再视为本 feature 内的轻量依赖，而是前置 feature：
-  - [permission-management.md](./permission-management.md)
+  - [permission-management contract](../../contracts/api-gateway/permission-management.md)
 - 页面建议采用单入口双 Tab：
   - `角色实例`
   - `角色模板`
@@ -152,7 +152,7 @@
 | 时间 | 问题 | 分类 | 当前影响 | 处理策略 | 目标落点 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- |
 | 2026-04-18 | Permission / Role / Policy 大板块优先级 | Blocker-Now | 若不先排序，Role 页面容易混入 AccountRole 与 Policy | 已确认按 Permission selector -> Role -> AccountRole -> Policy 的顺序推进 | 当前 feature packet | closed |
-| 2026-04-18 | Permission 管理前端尚未实现 | Blocker-Now | 若直接进入 Role Management，会缺少稳定 permission selector / lookup 基础 | 已前移为当前主线，先实现 `permission-management` feature | [permission-management.md](./permission-management.md) | closed |
+| 2026-04-18 | Permission 管理前端尚未实现 | Blocker-Now | 若直接进入 Role Management，会缺少稳定 permission selector / lookup 基础 | 已完成 permission selector / lookup 基础 | [permission-management contract](../../contracts/api-gateway/permission-management.md) | closed |
 | 2026-04-18 | AccountRole 是否进入 Role Management | Blocker-Now | 若混入会引入 account 搜索、identity 展示和 scope 绑定，扩大当前 feature | 当前 feature 明确不做，后续进入 `account-management` | 后续 feature packet | closed |
 | 2026-04-18 | Policy 管理是否与 Role 管理一起做 | Blocker-Now | Policy 是高风险授权策略能力，过早开放编辑器会增加治理风险 | 当前 feature 不做 Policy；后续先做 readonly governance，再做受限 builder | 后续 feature packet / backlog | closed |
 | 2026-04-19 | Tenant selector 是否必须先做 | Blocker-Later | system admin 在模板实例化时手填 `tenantId` 的可用性较差 | 已补 identity-service 最小租户目录只读查询，并在 role-management 中改为租户选择器 | 当前 feature packet | closed |

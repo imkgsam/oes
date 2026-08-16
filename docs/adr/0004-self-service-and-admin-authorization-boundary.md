@@ -143,8 +143,8 @@ OES 采用以下长期规则：
 
 - [authorization-layering-and-resource-policy.md](../architecture/platforms/authorization-layering-and-resource-policy.md)
 - [authentication-and-identity.md](../architecture/collaborations/authentication-and-identity.md)
-- [personal-center.md](../plans/features/personal-center.md)
-- [login-method-management.md](../plans/features/login-method-management.md)
+- [auth BFF self-service contract](../contracts/api-gateway/auth-bff-self-service.md)
+- [auth BFF login contract](../contracts/api-gateway/auth-bff-login.md)
 - [document-governance.md](../governance/document-governance.md)
 - [codex-execution-model.md](../governance/codex-execution-model.md)
 

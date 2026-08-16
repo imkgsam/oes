@@ -63,7 +63,7 @@ businessSlice: collaboration.task.assigned/completed/cancelled -> notification-s
   - [ADR 0014: CloudEvents and service-owned common contracts](../../adr/0014-cloudevents-and-service-owned-event-code-contracts.md)
 - prior design context, not a substitute for a service truth source:
   - Notification truth source: [notification-service.md](../../architecture/services/notification-service.md)
-  - [Notification foundation plan](../notification-service-foundation-plan.md)
+- [Notification service truth](../../architecture/services/notification-service.md)
 
 ## 4. 当前冻结结论
 

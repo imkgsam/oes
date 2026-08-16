@@ -1,5 +1,10 @@
 # ERP Service Design Workspace
 
+```text
+designKey: ERP-SERVICE
+designStatus: ACTIVE_DESIGN_WORKSPACE
+```
+
 ## 1. 目标
 
 - 冻结 `erp-service` 第一阶段的职责边界与销售交易主链路设计方向。

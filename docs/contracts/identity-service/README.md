@@ -37,7 +37,7 @@ Proto 契约来源仍然是：
 - [machine-auth.md](./machine-auth.md)
   - API Key 机器认证接口
 - [machine-principal-resolution.md](./machine-principal-resolution.md)
-  - `FROZEN_PENDING_IMPLEMENTATION`：Auth-only 第一方 Machine Principal / `MachineWorkloadBinding` resolution；不复用 external API-key resolver
+  - `IMPLEMENTED_VERIFIED`：Auth-only 第一方 Machine Principal / `MachineWorkloadBinding` resolution；不复用 external API-key resolver
 - [employee-binding.md](./employee-binding.md)
   - `UserAccount <-> Employee` 绑定补充契约
 
@@ -62,7 +62,7 @@ Proto 契约来源仍然是：
 - `UserAccount <-> Employee` 绑定管理
 - tenant account 创建时可通过 `CreateUserAccountRequest.tenant_party_id` 显式复用上游已解析的当前租户 `TenantParty`
 
-冻结待实现能力（`FROZEN_PENDING_IMPLEMENTATION`，不属于当前已开放 runtime）：
+已实现的受控内部能力（不属于公共 runtime）：
 
 - 第一方内部 MACHINE root execution 的 Machine Principal / workload binding resolution
 

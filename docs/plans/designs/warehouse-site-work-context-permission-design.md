@@ -124,7 +124,7 @@ conflictResolution: 本文只记录讨论态进度与恢复入口；若稳定 ar
 - `docs/architecture/services/permission-service.md`
 - `docs/contracts/permission-service/policy-instance-management.md`
 - `docs/contracts/permission-service/resource-authorization.md`
-- `docs/plans/features/policyinstance-resource-authorization-mainline.md`
+- `docs/plans/features/authorization-layering-rollout.md`
 - `docs/architecture/services/wms-service.md`
 - `docs/architecture/services/mes-service.md`
 - `docs/architecture/services/tenant-org-service.md`

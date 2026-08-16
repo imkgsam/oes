@@ -2,7 +2,7 @@
 
 ```text
 status: FROZEN
-implementationStatus: FROZEN_PENDING_IMPLEMENTATION
+implementationStatus: IMPLEMENTED_VERIFIED
 decisionAdr: docs/adr/0015-workload-identity-and-execution-token.md
 architectureTruthSource: docs/architecture/services/identity-service.md
 consumer: auth-service
@@ -12,7 +12,7 @@ consumer: auth-service
 
 ## 1. Surface And Purpose
 
-Identity 将在既有 `IdentityQueryService` gRPC surface 新增 Auth-only `ResolveMachinePrincipalForAuth`。该 resolver 只回答：Auth 已验证 credential 所引用的 Machine Principal 与 `MachineWorkloadBinding` 当前是否有效且一致，以及哪些 owner facts 可用于建立 `principal_type=MACHINE` 的执行身份。
+Identity 在既有 `IdentityQueryService` gRPC surface 提供 Auth-only `ResolveMachinePrincipalForAuth`。该 resolver 只回答：Auth 已验证 credential 所引用的 Machine Principal 与 `MachineWorkloadBinding` 当前是否有效且一致，以及哪些 owner facts 可用于建立 `principal_type=MACHINE` 的执行身份。
 
 它不修改或泛化既有 `ResolveIntegrationMachineForAuth`。后者继续只服务 external API-key exchange；两个 resolver 不互为 fallback。
 

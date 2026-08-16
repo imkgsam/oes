@@ -475,7 +475,7 @@ Gateway 是外部请求进入内部服务体系的第一层应用入口，因此
 7. public、invalid 与 sessionless route 没有 entry 且不建立 scope；protected route 不得在缺少已验证 entry 时进入 downstream。每次 ExecutionToken exchange 或 cache hit 都必须看到当前 request scope，防止在 session 已失效的新请求中仅凭旧 cache 继续调用。
 8. `HUMAN_SESSION` 与 `EXTERNAL_API` 使用独立 kind 和各自 owner verifier；本 lifecycle 不允许二者相互降级、转换或共用 raw bearer。Adapter 只声明 target audience 与 Permission Codes，不重读 HTTP `Authorization`。
 
-日志、异常、审计、JSON 序列化、Node inspection 与 request dump 都不得恢复 bearer。精确 writer paths 与 focused acceptance 以 [trusted gRPC execution context feature packet](../../plans/features/trusted-grpc-execution-context.md) §5.2 为准；该 slice 不改 Asset RPC、ExecutionToken claims、Common carrier、external API-key 边界或其他 Gateway target adapter。
+日志、异常、审计、JSON 序列化、Node inspection 与 request dump 都不得恢复 bearer。Gateway 必须遵循 [trusted gRPC architecture](./grpc-metadata-and-service-trust.md) 的 private carrier、target audience 与 fail-closed 约束。
 
 ## 10. 错误模型与返回语义
 

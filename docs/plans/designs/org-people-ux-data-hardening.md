@@ -1,5 +1,10 @@
 # org-people UX data hardening Design
 
+```text
+designKey: ORG-PEOPLE-UX-DATA-HARDENING
+designStatus: ACTIVE_DESIGN_WORKSPACE
+```
+
 > 涉及 HR `Employee / Employment`、员工生命周期、正式 `人 -> org` 归属或 onboarding owner 边界时，以 [hr-service.md](../../architecture/services/hr-service.md) 为准；涉及 permission-service 的服务职责、核心对象或 owner 边界时，以 [permission-service.md](../../architecture/services/permission-service.md) 为准；本文只记录组织与人员 UX / data hardening 设计过程。
 
 ## 1. 目标
@@ -405,8 +410,8 @@ Drawer：
   - [tenant-org-service.md](../../architecture/services/tenant-org-service.md)
   - [hr-service.md](../../architecture/services/hr-service.md)
   - [tenant-org-and-hr.md](../../architecture/collaborations/tenant-org-and-hr.md)
-  - [hr-service-foundation.md](../features/hr-service-foundation.md)
-  - [tenant-web-information-architecture.md](../tenant-web-information-architecture.md)
+  - [hr-service.md](../../architecture/services/hr-service.md)
+  - [tenant-web.md](../../architecture/frontends/tenant-web.md)
   - 本 workspace
 
 ## 14. 当前推荐下一步

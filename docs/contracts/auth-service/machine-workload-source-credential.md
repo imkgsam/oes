@@ -2,7 +2,7 @@
 
 ```text
 status: FROZEN
-implementationStatus: FROZEN_PENDING_IMPLEMENTATION
+implementationStatus: IMPLEMENTED_VERIFIED
 decisionAdr: docs/adr/0015-workload-identity-and-execution-token.md
 architectureTruthSource: docs/architecture/services/auth-service.md
 identityContract: docs/contracts/identity-service/machine-principal-resolution.md
@@ -50,7 +50,7 @@ Auth 独占 credential profile、受控登记/签发、验证、expiry、revocat
 
 ### 2.2 Frozen Auth proto surface
 
-Future proto `src/common/src/contracts/auth_service/machine_workload_source_credential.proto` 使用 package `auth_service` 与新 service `MachineWorkloadSourceCredentialService`。
+Proto `src/common/src/contracts/auth_service/machine_workload_source_credential.proto` 使用 package `auth_service` 与 service `MachineWorkloadSourceCredentialService`。
 
 ```proto
 service MachineWorkloadSourceCredentialService {

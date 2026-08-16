@@ -119,7 +119,7 @@ For takedown, Asset first removes or isolates every Site delivery object, then p
 
 ## 8. Implementation Sequencing
 
-1. 按 [trusted-grpc-execution-context.md](../../plans/features/trusted-grpc-execution-context.md) 完成 shared generator/runtime、Auth / STS、Permission principal grant、Gateway producer 与 Asset/Site consumer 的原子 cutover；body tenant/operator、shared signed operator payload 和自报 service header 不能作为 fallback。
+1. Asset/Site 调用必须遵循已落地的 [trusted gRPC architecture](../platforms/grpc-metadata-and-service-trust.md)；body tenant/operator、shared signed operator payload 和自报 service header 不能作为 fallback。
 2. 同期关闭另外两个平台前置条件：跨服务 Event Bus + outbox delivery、`oes-managed-cloudflare` delivery / purge provider。当前进程内 EventEmitter 与 S3 delete 不能替代这些能力。
 3. Asset owner 以 Asset truth source 与 [site-media.md](../../contracts/asset-service/site-media.md) 的 frozen RPC / Permission mapping 实现 consumer。Gateway 直调 Asset 时取得 `aud=asset-service` BUSINESS Token；不得复制 avatar body identity 字段。
 4. Site owner 把 Admin RPC 切到 `aud=site-service` BUSINESS Token，并在 Sync application 授权完成后，通过统一 metadata provider 申请 `aud=asset-service` + 精确 `asset.internal.site_media.*` Token；Site audience Token 不向下透传。

@@ -100,6 +100,6 @@ phase 1 只冻结报价与订单核心交易边界，不展开 proto、运行时
 
 Request body 中的 `tenant_id`、`operator_context`、`trace_context`、`audit_context` 是迁移前兼容输入，不再构成 authority。迁移后 tenant、org、operator、request、trace 与审计身份/来源全部来自 verified ExecutionToken 和 trusted transport context；普通 metadata、body identity 或 Gateway fallback 字符串不能补足或覆盖。管理命令可以保留一个有长度限制、由用户填写的 `reason` 业务字段，但它不能提供 audit id、source 或 principal authority。
 
-现有 27 个 RPC 的精确分类、Code、field tombstone 与新 `reason` 字段号以 [Sales contracts](../../contracts/sales-service/README.md) 为准；实现闭合范围以 [trusted gRPC feature packet](../../plans/features/trusted-grpc-execution-context.md) 为准。
+现有 27 个 RPC 的精确分类、Code、field tombstone 与新 `reason` 字段号以 [Sales contracts](../../contracts/sales-service/README.md) 为准。
 
 未来确有自动化协同时，必须根据真实流程另行冻结窄范围 INTERNAL RPC 或事件：例如 Finance 读取订单结算摘要、MES 查询生产准备事实，或 WMS/fulfillment 消费 handoff 事实。该后续登记不是当前可调用契约，不新增业务能力；不得直接把当前 HUMAN RPC 改成双模式或让服务凭 body 冒充系统调用方。Sales 到 CRM、Party、Item、WMS、MES、Finance 的既有 outbound 与候选事件边界在本次迁移中保持不变。

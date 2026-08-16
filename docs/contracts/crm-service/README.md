@@ -43,4 +43,4 @@ Gateway 的 HTTP `RequirePermissions` 是入口检查；CRM 仍独立验证 ET �
 - [ADR 0015](../../adr/0015-workload-identity-and-execution-token.md)
 - [collaboration-service.md](../../architecture/services/collaboration-service.md)
 - [party-service.md](../../architecture/services/party-service.md)
-- [trusted-grpc-execution-context.md](../../plans/features/trusted-grpc-execution-context.md)
+- [trusted gRPC architecture](../../architecture/platforms/grpc-metadata-and-service-trust.md)

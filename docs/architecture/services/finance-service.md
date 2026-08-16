@@ -186,4 +186,4 @@ future accounting core 是 `finance-service` 的 phase 2 目标态，不是 phas
 - 租户、组织作用域、操作者、追踪与审计身份只来自验证后的 trusted execution context。proto request 中的同名 authority 字段按 contract 删除并 `reserved`，不得从 body、legacy metadata 或 signed-operator fallback 恢复。
 - 目标账户、客户、供应商、订单、应收、应付、付款及其他 Finance 字段仍是租户范围内的业务目标；迁移不得改变现有命令、查询、审计、幂等、事务或数据语义。
 - 当前没有已证明的 Finance pure MACHINE root 或非 Gateway 生产 caller。本轮不新增 Sales/Procurement INTERNAL RPC、INTERNAL Code、事件消费者、outbox/inbox 或业务对象；这些协同能力继续按各自真相源留待后续独立设计与实施。
-- 现有 27-RPC 行为、Permission Code、字段兼容规则及关闭的实现 lease 以 [Finance contract](../../contracts/finance-service/README.md) §6 与 [trusted gRPC feature packet](../../plans/features/trusted-grpc-execution-context.md) §9.5 为准。
+- 现有 27-RPC 行为、Permission Code 与字段兼容规则以 [Finance contract](../../contracts/finance-service/README.md) §6 为准。
