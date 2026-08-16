@@ -32,7 +32,7 @@ trustedGrpcServiceProgress: 21/21
 - 已集成的 `task-assistant-collaboration-task.v1` registration 保持 disabled，仅作为设计/契约及迁移证据；不得据此启动 AI feature runtime。
 - 本次迁移范围内的 Permission Decision RPC、GRPC carrier、EXEC-CRYPTO HUMAN/MACHINE foundation、GRPC Asset、SITE recovery 与全仓 trusted-gRPC service cutover 均已验收并集成；service migration 当前为 `21/21`，后续只剩本台账集成和用户批准后的 Git/thread 清理，不启动 AI/ActionGrant/DELEGATED runtime。
 - 迁移保全是删除前硬 gate：每个旧 worktree、branch、task 必须先归入“已集成 current main”“保留并重建/集成的候选”“已持久登记的 superseded/rejected evidence”或“dirty/untracked 待捕获处置”之一。未分类资源不得 reset、clean、删除或覆盖。
-- 最终 Git 验收态只保留最新完整 root `main` worktree；迁移台账必须先进入 `main`，再移除 Program Control migration worktree。所有有用代码、设计、候选、拒绝证据、测试记录和 dirty 内容必须先集成或持久登记。
+- 本轮 Trusted gRPC service migration 清理只处理其专属 worktree、branch 与 task；Program Control、唯一 Unified Design、persistent I&V 以及尚未逐项审核的其他 CC/deferred 资源全部保留。所有有用代码、设计、候选、拒绝证据、测试记录和 dirty 内容必须先集成或持久登记。
 - 旧 capability-collaboration Command/design/I/R/V/X/checker tasks 在证据消费后归档；已完成的 migration implementation tasks 及时归档。Program Control、Unified Design 与持久 I&V 仅在仍有迁移职责时保留，最终迁移关闭时归档 migration-only control tasks；全程不启用 checker。
 - 本节只记录本次迁移的优先级与关闭验收条件，不建立新的治理框架。
 
@@ -44,8 +44,8 @@ trustedGrpcServiceProgress: 21/21
 | `main`                     | `ce0182e0ed6b356e231de641119476c20c1e7cfd` | 21/21 trusted-gRPC service migration、CRM final slice 与 status synchronization 已进入主线；root clean                                                                       |
 | `origin/main`              | `ce0182e0ed6b356e231de641119476c20c1e7cfd` | 本地 remote-tracking ref 与远端 `refs/heads/main` 已在最终清理审计前复核一致                                                                                                 |
 | Legacy formal A/\* threads | 101                                        | handoff 历史聚合计数；迁移范围内已消费的 legacy/implementation tasks 已归档，余下 6 项属于 AI/ActionGrant/API-key deferred protected ownership，不作为 trusted-gRPC 未完成项 |
-| Worktrees                  | 22                                         | root 1、待清理 19、Program Control 与唯一 Unified Design 控制工作树 2；最终目标只保留 root `main`                                                                            |
-| `codex/*` branches         | 27                                         | 包含本次临时 final-ledger rebuild branch；17 个 merged implementation refs、6 个 rejected/superseded evidence refs、ActionGrant deferred ref 与控制 refs 仍待用户批准处置    |
+| Worktrees                  | 22                                         | Trusted gRPC 专属待清理 19；root、Program Control 与唯一 Unified Design 共 3 个保留，其他 CC 不受影响                                                                        |
+| `codex/*` branches         | 27                                         | Trusted gRPC 专属候选清理 21；AI、API-key、ActionGrant、Program Control 与共享 UD 共 6 个 refs 保留，不纳入本轮删除                                                          |
 | Checker                    | disabled                                   | handoff evidence；未唤醒旧 checker                                                                                                                                           |
 | Root dirty state           | clean                                      | clean，暂存区与工作区均无变更                                                                                                                                                |
 
@@ -903,14 +903,14 @@ WMS detached acceptance worktree 没有 tracked diff，但有且仅有四个 boo
 - `src/services/business/wms-service/prisma/generated`
 - `src/services/system/item-master-service/prisma/generated`
 
-当前 27 个 `codex/*` refs 的最终分类：
+当前 27 个 `codex/*` refs 的本轮作用域分类：
 
 - 17 个 `MERGED_WAITING_FOR_USER_CLEANUP` implementation refs：Browser Activity、Collaboration、CRM、EXEC-CRYPTO closure、Finance、Foundation、global cutover handoff、Item Master、MES、Notification、Party、Procurement、Public Entry、Sales、SRM、Terminal Device、WMS；worktree 解除后可用普通 `git branch -d` 删除。
-- 6 个 `SUPERSEDED_OR_REJECTED_EVIDENCE_PRESERVED` refs：AI tool-contract prototype、API-key rejected prototype `755d857a…`、EXEC-CRYPTO retained checkpoint `64ea8660…`、两个 legacy gRPC candidates、superseded Party UD。
-- 1 个 `UNRELATED_PROTECTED_DEFERRED` ref：`codex/action-grant/i01-delegated-task-runtime`；现有 tag `migration-evidence/action-grant-runtime-deferred-20260809` 保留其 deferred 证据。
-- 3 个临时/持久控制 refs：旧 `codex/oes-program-control-migration`、本轮 `codex/migration/final-ledger-rebuild`、唯一 `codex/unified-design/security-open-packets`；最后处理。
+- 4 个 Trusted gRPC/基础能力 `SUPERSEDED_OR_REJECTED_EVIDENCE_PRESERVED` refs：EXEC-CRYPTO retained checkpoint `64ea8660…`、两个 legacy gRPC candidates、superseded Party UD；仅这四个属于本轮 tag-preserve 后候选删除范围。
+- 3 个其他 CC `UNRELATED_PROTECTED_DEFERRED` refs：AI tool-contract prototype、API-key rejected prototype `755d857a…` 与 `codex/action-grant/i01-delegated-task-runtime`；全部保持原 branch/ref/task 状态，本轮不打 tag、不删除、不归档。
+- 3 个共享/临时控制 refs：旧 `codex/oes-program-control-migration`、本轮 `codex/migration/final-ledger-rebuild`、唯一 `codex/unified-design/security-open-packets`；其他 CC 审核结束前保留。
 
-若用户要求最终只保留 `main` branch，六个未合并 evidence refs 必须先各自建立可读的 `migration-evidence/*` annotated tag 并验证 tag 指向 exact SHA，ActionGrant 先复核既有 deferred tag，再删除 branch refs；这样删除 branch 不会丢失已冻结/拒绝证据。
+本轮 Trusted gRPC 清理最多处理 21 个专属 branch refs：17 个已合并实现 refs 加上述 4 个经 tag-preserve 的历史 evidence refs。AI、API-key、ActionGrant、Program Control 与共享 UD refs 明确排除；仓库在本轮结束后仍会保留这些其他 CC/控制 branches。
 
 ### 11.3 Task 归档与控制 ownership
 
@@ -921,12 +921,12 @@ WMS detached acceptance worktree 没有 tracked diff，但有且仅有四个 boo
 
 ### 11.4 用户批准后的原子清理顺序
 
-1. 先把本 current-main 台账候选 ff-only 集成到 root，运行文档/UTF-8/link/diff/status 验证并只 push `main` 一次。
-2. 重新盘点 root、remote refs、所有 worktrees/branches/tasks；任何新 dirty 或 ref 漂移都会停止删除阶段。
+1. 台账已在 `e0e3d94834569ab31c5fd57941588503ba3efb40` 进入 root/main、local origin/main 与 remote main；文档/UTF-8/link/diff/Prettier/status 验证通过。
+2. 重新盘点 root、remote refs、Trusted gRPC 专属 worktrees/branches/tasks；任何新 dirty 或 ref 漂移都会停止删除阶段。
 3. 精确移除 WMS 的四个 untracked bootstrap 目录并确认 worktree clean。
 4. 正常移除 14 个 merged worktrees 与 5 个 detached evidence worktrees；随后对 17 个 merged implementation refs 使用 `git branch -d`。
-5. 按用户确认的 evidence 策略处理六个 rejected/superseded refs 与 ActionGrant deferred ref：默认先 tag-preserve，再删除 branch，禁止 force-delete 未持久化证据。
-6. 归档 migration owner 与已经没有后续职责的 migration-only control tasks；persistent I&V 是否继续保留复用由最终用户决定。
-7. 最后移除 Unified Design 与 Program Control worktrees/branches，复核只剩 root `main`、remote/local main 一致且 clean，然后把迁移状态标记为 `CLOSED`。
+5. 为仅属于本轮的四个历史 refs 建立并复核 annotated evidence tags，再删除对应 branch refs；禁止 force-delete 未持久化证据。
+6. 归档 trusted-gRPC migration owner；Program Control、唯一 UD、persistent I&V 与其他 CC/deferred tasks 全部保留。
+7. 最终复核 root/main/local origin/remote 一致且 clean，Trusted gRPC 专属 worktrees/branches 已清零；共享控制与其他 CC 资源仍保持原状。
 
-本文件只承担迁移关闭证据与归档 manifest，不作为设计或实现真相源。当前实现迁移已经完成；尚未完成的是台账进入 main 以及必须由用户明确批准的最终 Git/thread 清理。
+本文件只承担迁移关闭证据与归档 manifest，不作为设计或实现真相源。Trusted gRPC 实现迁移已经完成；尚未完成的是必须由用户明确批准的 Trusted gRPC 专属 Git/thread 清理，其他 CC 不在本轮范围。
