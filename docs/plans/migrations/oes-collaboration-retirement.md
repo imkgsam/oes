@@ -44,9 +44,9 @@ trustedGrpcServiceProgress: 21/21
 | Repository root            | `/Users/acehood/Documents/GitHub/oes` | 路径存在；`main` 工作树 clean                                                                                                                                     |
 | `main`                     | current-document-commit               | 21/21 trusted-gRPC service migration、CRM final slice、status synchronization 与 scoped cleanup record 已进入主线；root clean                                     |
 | `origin/main`              | current-document-commit               | 本地 remote-tracking ref 与远端 `refs/heads/main` 在 scoped cleanup 记录集成后复核一致                                                                            |
-| Legacy formal A/\* threads | 101                                   | handoff 历史聚合计数；迁移范围内已消费 tasks 已归档，余下 3 项属于 ActionGrant deferred protected ownership，不作为 trusted-gRPC/API-KEY/AI registration 未完成项 |
-| Worktrees                  | 3                                     | Trusted gRPC 专属 19 个已正常移除；仅保留 root、Program Control 与唯一 Unified Design，其他 CC 不受影响                                                           |
-| `codex/*` branches         | 4                                     | Trusted gRPC、API-KEY、AI registration 专属 refs 已按各自 closure 移除；仅保留 ActionGrant、Program Control 与共享 UD refs                                        |
+| Legacy formal A/* threads | 101                                   | handoff 历史聚合计数；迁移范围内全部 legacy CC tasks 已消费/归档，未来 runtime 工作不复用旧 capability threads                                                                   |
+| Worktrees                  | 1                                     | 最终只保留 root main；Trusted gRPC、Program Control 与 Unified Design 非 root worktrees 均在证据/台账集成后正常移除                                                        |
+| `codex/*` branches         | 0                                     | 所有 migration/CC/control refs 均已进入 main、由 evidence tag 保全或按普通 merged cleanup 删除                                                                             |
 | Checker                    | disabled                              | handoff evidence；未唤醒旧 checker                                                                                                                                |
 | Root dirty state           | clean                                 | clean，暂存区与工作区均无变更                                                                                                                                     |
 
@@ -312,23 +312,17 @@ trustedGrpcServiceProgress: 21/21
 - future boundary：已冻结的是平台逻辑边界与 disabled ToolContract registration，不是 model provider、runtime/service topology、UX、orchestration、mutation execution 或 public opening。未来若恢复 AI runtime，应由唯一 Unified Design 针对届时真实范围补齐设计并创建新的 focused implementation cycle；不恢复本 legacy CC。
 - dependency：该 registration surface 已 `MAIN_READY`，不再阻塞 ActionGrant 的 migration audit；ActionGrant runtime 是否保留、重建或继续 deferred 由其独立 CC 审核决定。
 
-### 4.5 ACTION-GRANT — `DESIGN_ACCEPTED_AND_INTEGRATED`（legacy implementation `MIGRATION_FROZEN`）
+### 4.5 ACTION-GRANT — `DESIGN_FROZEN_RUNTIME_DEFERRED_LEGACY_CLOSED`
 
-- source threads：control `019fa287-d27a-79b1-8021-36537c90945e`；design `019fa287-02ff-7023-a2d1-ed935605671b`；A/I `019fc52b-39bf-7250-84de-6d5bcff1d099`。
-- candidate：`ec2b2cf881fec81f1882b3260f397f33d618aaf0`；branch/worktree `codex/action-grant/i01-delegated-task-runtime` / `/Users/acehood/Documents/GitHub/oes/.worktrees/action-grant/i01-delegated-task-runtime`；clean；尚未 accepted/rejected，且无 A/V。
-- preserved commit chain：`5bd955a4` → `17b6a14b` → `ec2b2cf881fec81f1882b3260f397f33d618aaf0`；本轮用 ancestry check 核验顺序成立。
-- change surface：Common、Auth、Permission、Collaboration、proto、Prisma 与测试；精确语义仍以上节真相源为准。
-- unresolved packet：Auth/Permission transport mounting 的 canonical ownership/path lease，以及 fail-closed 初始化、rollback 与 acceptance；须由 Unified Design 冻结后再执行。
-- current design route：同一 OES Unified Design task `019fcaeb-cb2e-7e92-8c4e-aab7771d7254` 在保留 504 前两文件 diff 的基础上完成恢复；现有冻结结论已唯一确定 owner/contract 边界，无需新增用户选择。
-- design candidate：`codex/unified-design/security-open-packets@634414557f14576c666d98276be80a230130b055`；parent/current root main `fe395fb5254a620108882494eb601cfe00fd5701`；fixed worktree clean。
-- exact scope：精确 12 个 `docs/**` 文件，115 insertions / 45 deletions；`git diff-tree --check HEAD^ HEAD` exit 0；无 proto、schema 或 runtime implementation。
-- frozen content：ActionGrant Run/Conversation authority boundary、business-owner fact resolution、Auth orchestration、Permission delegated upper-bound resolution、Common INTERNAL Code leases（包含缺失的 principal-authorization Code）、fail-closed/retry semantics 与 acceptance gates。
-- Permission gap consistency：设计冻结了 INTERNAL Code owner/注册 lease，以及 HUMAN grant ∩ DelegationGrant ∩ AgentPrincipal ∩ ToolContract upper-bound owner/consumer 边界；不允许 Permission 读取 AI registration JSON 或复制 Auth/ActionGrant truth。
-- I&V terminal：唯一持久 Integration & Verification task 返回 `ACCEPTED_AND_INTEGRATED`。candidate/parent、12 docs、115+/45-、diff check、UTF-8、84 links、六组冻结语义、服务真相源与 contracts，以及 Permission SCOPE_GAP 的唯一 Common lease/owner boundary 均通过。
-- final integration evidence：I&V/source/root、本地 `main` 与 `origin/main` 均为 `634414557f14576c666d98276be80a230130b055` 且 clean；fetch、root ff-only merge 与唯一一次 push 均 exit 0；I&V terminal 记录 `ls-remote main` 为同一 SHA。
-- runtime priority：ActionGrant/DelegationGrant、AI tool execution、confirmation UI 与 ActionGrant consumer runtime 全部延后到核心业务能力完成之后；旧 runtime candidate `ec2b2cf…` 仅保留为未验收迁移资产，不恢复、不集成、不丢失。
-- durable deferred evidence：2026-08-09 已建立 annotated tag `migration-evidence/action-grant-runtime-deferred-20260809`，peeled commit 精确为 `ec2b2cf881fec81f1882b3260f397f33d618aaf0`。该 tag 只保全 44-path / 3567+/174- 的历史候选，不代表验收、集成或恢复实现；最终清理旧 branch/worktree 后仍可追溯原提交。
-- target ownership：ActionGrant design 与短时 main integration leases 已释放；Permission implementation 已按扩展 Common lease完成并集成。ActionGrant runtime 不进入当前基础能力执行队列。
+- frozen truth：generic DG-4 collaboration、ADR-0016、Auth/Permission contracts 与 `docs/plans/features/delegated-task-action-grant.md` 已进入 main；AI disabled ToolContract registration 也已 `MAIN_READY`。通用 delegation、risk ownership、ActionGrant binding/consumption 与 fail-closed/rollback 语义均有稳定真相源。
+- current-main foundation：trusted-gRPC、EXEC-CRYPTO、Identity/Auth/Permission foundation 已集成；`ResolveDelegatedAuthorization` 与 INTERNAL transport Code 在 current main 可用。Auth DelegationGrant/ActionGrant lifecycle、Common `ag+jwt` verifier、Collaboration Task atomic consumption 和 AI runtime 尚未作为完整纵向 runtime 交付。
+- historical candidate：`ec2b2cf881fec81f1882b3260f397f33d618aaf0` 基于旧 main，commit chain `5bd955a4 → 17b6a14b → ec2b2cf8`，40 paths / 3560 insertions / 99 deletions。相对 current main：24 paths 缺失、10 paths 已演进分叉、6 paths 仍是旧 baseline、0 candidate blob 可直接视为 current-main交付；candidate 未经 A/V，不进入 main。
+- preserved evidence：annotated tag `migration-evidence/action-grant-runtime-deferred-20260809` 已在本地与远端存在，peeled SHA 精确为 `ec2b2cf…`。本轮复核 tag 后 exact-ref 删除 `codex/action-grant/i01-delegated-task-runtime`，未使用 force/reset/rebase/clean；分类为 `PRESERVED_DEFERRED_PROTOTYPE_EVIDENCE`。
+- historical verification：旧 A/I 曾报告 proto regen/lint/breaking、Auth/Collaboration Prisma validate/generate、四 owner builds 及 Common 18/18、Auth 10/10、Permission 5/5、Collaboration 25/25 focused tests通过；这些只证明旧 candidate checkpoint，不构成 current-main acceptance。
+- remaining design boundary：generic DG-4 已冻结；production activation 仍需由唯一 Unified Design 基于届时 current main 明确 Auth/Permission bootstrap composition path lease，以及“先完成内部纵向验证再公开 assigned-task action”的 rollout/health gate。`docs/plans/features/delegated-task-action-grant.md` 继续保持 `DESIGN_FROZEN_IMPLEMENTATION_NOT_DISPATCHED`；不得从旧 candidate 推断完整 implementation readiness。
+- future implementation route：ActionGrant/DELEGATED/AI runtime 继续 deferred。未来恢复时创建新的 single-writer current-main rebuild，先审计并复用现有 Permission/transport foundation，再按新冻结 lease 分批实现 Common/Auth/Permission/Collaboration/AI integration；不恢复或 cherry-pick 旧 capability candidate。
+- task closure：A/D `019fa287-02ff-7023-a2d1-ed935605671b`、A/C `019fa287-d27a-79b1-8021-36537c90945e`、A/I `019fc52b-39bf-7250-84de-6d5bcff1d099` 与 legacy A/X `019fa2ee-416b-7c70-9fe7-b372fdb6748d` 已归档。无 active ActionGrant writer/checker/worktree/branch。
+- migration disposition：legacy CC 的冻结设计、历史代码、测试与开放问题均已无损迁入 main truth/ledger 或 evidence tag；本 legacy CC migration cycle 关闭。runtime deferred 不等于本迁移仍未完成。
 
 ### 4.6 SITE 历史入口 — `SUPERSEDED_BY_4.1.1`
 
@@ -852,7 +846,7 @@ SITE recovery implementation `547a0c5d55f9a955543779ec584a16e9b05cf453` 已 `ACC
 - trusted-gRPC service migration 已 `SERVICE_MIGRATION_IMPLEMENTED_VERIFIED_21_OF_21`：571 RPC、55 controllers，21 个服务的 `C/A/T/L` 均为 `Y/Y/Y/Y`。
 - CRM final service 已在 `2726d8b1a70d3bbe1ebc07d3c057c6bd8a32d777` 验收集成；最终状态同步 `ce0182e0…` 已进入 main。
 - Item Master 的 MES、SRM、Procurement、WMS 四个冻结 HUMAN_OBO actor 全部激活；此前的 `15/21`、`FOUNDATION_ATOMIC_GROUP_REQUIRED` 和各服务 `PREPARED_NOT_ACTIVATED` 只保留为历史阶段证据，不再是当前阻塞。
-- ActionGrant 与 DELEGATED runtime 继续 deferred；AI ToolContract registration 已完成 migration closure，但 AI runtime/provider/topology/public opening 仍独立 deferred。它们均不属于 21/21 service migration 的遗漏。
+- ActionGrant、DELEGATED 与 AI runtime 继续 deferred；其 legacy migration cycles 已关闭，未来工作使用唯一 Unified Design 与新的 focused current-main implementation cycle。它们不是 21/21 service migration 或本次 legacy migration 的遗漏。
 
 ### 11.2 精确 Git 资源分类
 
@@ -899,7 +893,7 @@ WMS detached acceptance worktree 没有 tracked diff，但有且仅有四个 boo
 
 - 17 个 `MERGED_WAITING_FOR_USER_CLEANUP` implementation refs：Browser Activity、Collaboration、CRM、EXEC-CRYPTO closure、Finance、Foundation、global cutover handoff、Item Master、MES、Notification、Party、Procurement、Public Entry、Sales、SRM、Terminal Device、WMS；worktree 解除后可用普通 `git branch -d` 删除。
 - 4 个 Trusted gRPC/基础能力 `SUPERSEDED_OR_REJECTED_EVIDENCE_PRESERVED` refs：EXEC-CRYPTO retained checkpoint `64ea8660…`、两个 legacy gRPC candidates、superseded Party UD；仅这四个属于本轮 tag-preserve 后候选删除范围。
-- 1 个其他 CC `UNRELATED_PROTECTED_DEFERRED` ref：`codex/action-grant/i01-delegated-task-runtime`；保持原 branch/ref 状态，等待独立 ActionGrant 审核。
+- 其他 CC `UNRELATED_PROTECTED_DEFERRED` refs：0。ActionGrant historical candidate 已由 evidence tag 保全并删除 source ref。
 - 3 个共享/临时控制 refs：旧 `codex/oes-program-control-migration`、本轮 `codex/migration/final-ledger-rebuild`、唯一 `codex/unified-design/security-open-packets`；其他 CC 审核结束前保留。
 
 本轮 Trusted gRPC 清理最多处理 21 个专属 branch refs：17 个已合并实现 refs 加上述 4 个经 tag-preserve 的历史 evidence refs。AI、ActionGrant、Program Control 与共享 UD refs 明确排除；仓库在本轮结束后仍会保留这些其他 CC/控制 branches。API-KEY rejected prototype 已在后续独立 CC 审核中 tag-preserve 后删除 source ref。
@@ -909,7 +903,7 @@ WMS detached acceptance worktree 没有 tracked diff，但有且仅有四个 boo
 - 当前周期的 Public Entry、Sales、MES、Collaboration、Party、Item Master、SRM、Procurement、WMS、Foundation 与 CRM implementation tasks 均已归档；SITE、Principal Role、EXEC-CRYPTO 与 legacy GRPC 的已消费 tasks 也已归档。
 - Browser Activity、Notification、Terminal Device 与 Finance 并非遗漏的四个独立 task：它们由同一持久 migration owner chain 串行执行。前任 `019fe9f8-5a44-76e1-b5a4-110db9da6d59` 与 `019ff07e-d441-7731-acdb-1a9d262661a9` 已归档；当前 `019ff138-ed1c-7b82-8cd4-865bdb6529bd` 保留到最终清理完成后再归档。
 - 最后保留的控制 tasks：Program Control `019fcae6-2991-77c1-8016-5c9bcd00d714`、唯一 Unified Design `019fcaeb-cb2e-7e92-8c4e-aab7771d7254`、persistent I&V `019fcaf2-ca7b-7140-b46d-b6cacae58556` 与 migration owner `019ff138-ed1c-7b82-8cd4-865bdb6529bd`。UD 当前没有未冻结设计；在 Git 清理与最终状态记录完成前不打断、不归档。
-- 三个仍 deferred 的 ActionGrant task IDs 继续等待独立 CC 审核：`019fa287-02ff-7023-a2d1-ed935605671b`、`019fa287-d27a-79b1-8021-36537c90945e`、`019fa2ee-416b-7c70-9fe7-b372fdb6748d`。AI A/D、A/C、A/I、A/V 已在独立 migration closure 后归档。
+- ActionGrant A/D、A/C、A/I、A/X 与 AI/API-KEY legacy tasks 均已归档；未来 runtime 不恢复这些 legacy tasks。
 
 ### 11.4 用户批准后的原子清理顺序
 
@@ -934,7 +928,16 @@ WMS detached acceptance worktree 没有 tracked diff，但有且仅有四个 boo
   - `migration-evidence/party-ud-superseded-c8c8a810` -> `c8c8a810108ec19f35a527e25ace6cdead433e93`
 - 上述四个 branch refs 采用 exact old-SHA compare-and-delete；未使用 `git branch -D`、reset、rebase、force 或 bulk clean。
 - Trusted gRPC persistent migration owner `019ff138-ed1c-7b82-8cd4-865bdb6529bd` 已归档。
-- Trusted gRPC scoped cleanup 当时保留六个 `codex/*` refs；后续 API-KEY 与 AI registration 独立审核均已 tag-preserve 后删除各自 source ref。当前只保留四个：ActionGrant、旧/当前 Program Control 与唯一 Unified Design。
-- Program Control、唯一 Unified Design、persistent I&V 与仍 deferred 的 ActionGrant tasks 保持可用；Trusted gRPC、API-KEY 与 AI registration migration cycles 均已分别关闭。
+- Trusted gRPC scoped cleanup 当时保留六个 `codex/*` refs；API-KEY、AI registration、ActionGrant 与最后控制 refs 随后均按精确证据分类关闭。最终 `codex/*` refs 为 0。
+- Program Control、唯一 Unified Design 与 persistent I&V tasks 保留为未来控制入口，但其 migration Git worktrees/branches 已释放；全部 legacy CC tasks 已归档。
 
-本文件只承担迁移关闭证据与归档 manifest，不作为设计或实现真相源。Trusted gRPC、API-KEY 与 AI registration migration 的设计、实现、集成及各自 scoped cleanup 已完成；ActionGrant 保持待独立审核状态。
+本文件只承担迁移关闭证据与归档 manifest，不作为设计或实现真相源。Trusted gRPC、API-KEY、AI registration 与 ActionGrant legacy migration cycles 的设计/代码保全、main 集成、task 归档和 Git cleanup 均已完成；未来 AI/ActionGrant runtime 是新的后置工作。
+
+
+### 11.6 全部 legacy CC 最终关闭
+
+- API-KEY、AI registration 与 ActionGrant 的非 main 候选分别由 annotated evidence tags 保全；source refs 已 exact-ref 删除。
+- 唯一 Unified Design worktree/branch 在确认 clean 且为 main ancestor 后通过普通 `git worktree remove` / `git branch -d` 释放；UD task 本身保留供未来新设计使用。
+- 旧 Program Control branch `1a38205e…` 非 main ancestor，已先建立并推送 `migration-evidence/program-control-superseded-ledger-1a38205e`，再 exact-ref 删除。
+- 本最终 ledger commit 进入 main 并推送后，`codex/migration/final-ledger-rebuild` worktree/branch 通过普通 merged cleanup 释放；最终 Git 工作面仅 root `main`，`codex/*` refs 为 0。
+- Program Control、唯一 Unified Design 与 persistent I&V tasks 保留；所有已消费 legacy CC/design/implementation/acceptance/integration tasks 已归档。checker 保持 disabled。
