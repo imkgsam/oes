@@ -8,10 +8,11 @@ import { ListSourceRecordsHandler } from '../application/queries/list-source-rec
 import { ValidateCrmObjectReferenceHandler } from '../application/queries/validate-object-reference.handler'
 import { CrmObjectReferenceGrpcController } from '../interfaces/grpc/crm-object-reference.grpc.controller'
 import { CustomerQueryGrpcController } from '../interfaces/grpc/customer-query.grpc.controller'
+import { CrmTrustedExecutionModule } from './crm-trusted-execution.module'
 
 /** CrmQueryModule wires the phase 1 CRM query handlers and gRPC controller surface. */
 @Module({
-  imports: [CqrsModule],
+  imports: [CqrsModule, CrmTrustedExecutionModule],
   providers: [
     ValidatingQueryBus,
     CheckLeadDuplicateHandler,

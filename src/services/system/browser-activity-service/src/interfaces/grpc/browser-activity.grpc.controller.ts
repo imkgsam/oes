@@ -116,7 +116,7 @@ export class BrowserActivityGrpcController implements BrowserActivityServiceCont
   // getPolicy maps one policy request into the application read use case.
   @AuthorizeBusinessRpc(
     { all: ['browser_activity.policy.read'] },
-    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
   )
   async getPolicy(request: GetPolicyRequest): Promise<GetPolicyResponse> {
     return {
@@ -127,7 +127,7 @@ export class BrowserActivityGrpcController implements BrowserActivityServiceCont
   // updatePolicy maps one administrator policy update into the application command.
   @AuthorizeBusinessRpc(
     { all: ['browser_activity.policy.manage'] },
-    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
   )
   async updatePolicy(request: UpdatePolicyRequest): Promise<UpdatePolicyResponse> {
     return {
@@ -143,7 +143,7 @@ export class BrowserActivityGrpcController implements BrowserActivityServiceCont
   // getEmployeeAuditGrants maps account-level collection grant reads into application state.
   @AuthorizeBusinessRpc(
     { all: ['browser_activity.overview.read'] },
-    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
   )
   async getEmployeeAuditGrants(
     request: GetEmployeeAuditGrantsRequest
@@ -157,7 +157,7 @@ export class BrowserActivityGrpcController implements BrowserActivityServiceCont
   // updateEmployeeAuditGrant maps one administrator account grant change into the application command.
   @AuthorizeBusinessRpc(
     { all: ['browser_activity.policy.manage'] },
-    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
   )
   async updateEmployeeAuditGrant(
     request: UpdateEmployeeAuditGrantRequest
@@ -174,7 +174,7 @@ export class BrowserActivityGrpcController implements BrowserActivityServiceCont
   }
 
   // getAuditControl maps extension control-plane checks without writing heartbeat or visit facts.
-  @AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'BROWSER_EXTENSION' })
+  @AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['BROWSER_EXTENSION'] })
   async getAuditControl(request: GetAuditControlRequest): Promise<GetAuditControlResponse> {
     return this.application.getAuditControl({
       operator: operatorFrom(request),
@@ -183,7 +183,7 @@ export class BrowserActivityGrpcController implements BrowserActivityServiceCont
   }
 
   // appendVisitSessions maps privacy-bounded extension summaries into the ingest use case.
-  @AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'BROWSER_EXTENSION' })
+  @AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['BROWSER_EXTENSION'] })
   async appendVisitSessions(
     request: AppendVisitSessionsRequest
   ): Promise<AppendVisitSessionsResponse> {
@@ -197,7 +197,7 @@ export class BrowserActivityGrpcController implements BrowserActivityServiceCont
   }
 
   // heartbeat maps authenticated extension liveness reports into the application use case.
-  @AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'BROWSER_EXTENSION' })
+  @AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['BROWSER_EXTENSION'] })
   async heartbeat(request: HeartbeatRequest): Promise<HeartbeatResponse> {
     return this.application.heartbeat({
       extensionSessionId: sessionIdFrom(request),
@@ -208,7 +208,7 @@ export class BrowserActivityGrpcController implements BrowserActivityServiceCont
   }
 
   // disconnect maps authenticated extension logout signals into immediate presence removal.
-  @AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'BROWSER_EXTENSION' })
+  @AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['BROWSER_EXTENSION'] })
   async disconnect(request: DisconnectRequest): Promise<DisconnectResponse> {
     return this.application.disconnect({
       extensionSessionId: sessionIdFrom(request),
@@ -221,7 +221,7 @@ export class BrowserActivityGrpcController implements BrowserActivityServiceCont
   // getOverview maps one tenant dashboard read into application read models.
   @AuthorizeBusinessRpc(
     { all: ['browser_activity.overview.read'] },
-    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
   )
   async getOverview(request: GetOverviewRequest): Promise<any> {
     return this.application.getOverview({
@@ -233,7 +233,7 @@ export class BrowserActivityGrpcController implements BrowserActivityServiceCont
   // getOnlinePresence maps tenant online-presence reads into heartbeat-derived application state.
   @AuthorizeBusinessRpc(
     { all: ['browser_activity.overview.read'] },
-    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
   )
   async getOnlinePresence(request: GetOnlinePresenceRequest): Promise<GetOnlinePresenceResponse> {
     return this.application.getOnlinePresence({
@@ -246,7 +246,7 @@ export class BrowserActivityGrpcController implements BrowserActivityServiceCont
   // getEmployeeTimeline maps one employee timeline request into application read models.
   @AuthorizeBusinessRpc(
     { all: ['browser_activity.employee_detail.read'] },
-    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
   )
   async getEmployeeTimeline(
     request: GetEmployeeTimelineRequest
@@ -266,7 +266,7 @@ export class BrowserActivityGrpcController implements BrowserActivityServiceCont
   // getDomainAggregation maps tenant or employee-scoped domain aggregate reads.
   @AuthorizeBusinessRpc(
     { all: ['browser_activity.url_detail.read'] },
-    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
   )
   async getDomainAggregation(
     request: GetDomainAggregationRequest
@@ -286,7 +286,7 @@ export class BrowserActivityGrpcController implements BrowserActivityServiceCont
   // searchUrls maps sensitive URL detail reads and passes audit reason to the application.
   @AuthorizeBusinessRpc(
     { all: ['browser_activity.url_detail.read'] },
-    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
   )
   async searchUrls(request: SearchUrlsRequest): Promise<SearchUrlsResponse> {
     return this.application.searchUrls({

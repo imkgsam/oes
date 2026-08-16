@@ -1,5 +1,9 @@
 import { Controller, UseFilters, UseGuards } from '@nestjs/common'
-import { AuthorizeBusinessRpc, AuthorizeSelfServiceRpc, TrustedExecutionGuard } from '@oes/common/authorization'
+import {
+  AuthorizeBusinessRpc,
+  AuthorizeSelfServiceRpc,
+  TrustedExecutionGuard
+} from '@oes/common/authorization'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
   AnnotationCommandServiceController,
@@ -87,18 +91,24 @@ export class AnnotationCommandGrpcController implements AnnotationCommandService
   }
 }
 
-AuthorizeBusinessRpc({ all: ['collaboration.annotation.create'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })(
+AuthorizeBusinessRpc(
+  { all: ['collaboration.annotation.create'] },
+  { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+)(
   AnnotationCommandGrpcController.prototype,
   'createAnnotation',
   Object.getOwnPropertyDescriptor(AnnotationCommandGrpcController.prototype, 'createAnnotation')!
 )
-AuthorizeBusinessRpc({ all: ['collaboration.annotation.manage'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })(
+AuthorizeBusinessRpc(
+  { all: ['collaboration.annotation.manage'] },
+  { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+)(
   AnnotationCommandGrpcController.prototype,
   'setAnnotationPinned',
   Object.getOwnPropertyDescriptor(AnnotationCommandGrpcController.prototype, 'setAnnotationPinned')!
 )
 for (const method of ['updateAnnotation', 'deleteAnnotation'] as const) {
-  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })(
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['WEB'] })(
     AnnotationCommandGrpcController.prototype,
     method,
     Object.getOwnPropertyDescriptor(AnnotationCommandGrpcController.prototype, method)!

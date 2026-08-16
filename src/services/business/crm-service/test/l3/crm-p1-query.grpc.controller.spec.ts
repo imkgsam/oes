@@ -9,6 +9,7 @@ import {
   CrmSourceType
 } from '../../src/domain/models/crm-records'
 import { CustomerQueryGrpcController } from '../../src/interfaces/grpc/customer-query.grpc.controller'
+import { attachVerifiedExecution } from '@oes/common/authorization'
 
 const crmAccount = {
   id: 'crm-account-1',
@@ -33,18 +34,7 @@ const crmAccount = {
   createdBy: 'sales-1'
 }
 
-const queryContext = {
-  tenantId: 'tenant-1',
-  operatorContext: {
-    operatorId: 'operator-1',
-    operatorType: 'HUMAN',
-    orgId: 'org-1'
-  },
-  traceContext: {
-    traceId: 'trace-1',
-    requestId: 'request-1'
-  }
-}
+const queryContext = trustedContext()
 
 const sourceRecord = {
   id: 'source-1',
@@ -70,6 +60,27 @@ function createController(result: unknown) {
     controller: new CustomerQueryGrpcController(queryBus as never),
     queryBus
   }
+}
+
+/** Builds controller-visible data from the same private facts attached by the CRM guard. */
+function trustedContext(): Record<string, unknown> {
+  const body = {}
+  const authenticated = attachVerifiedExecution(body, {
+    verifiedExecutionToken: {
+      subject: 'operator-1',
+      principalType: 'HUMAN',
+      tenantId: 'tenant-1',
+      orgId: 'org-1',
+      permissionCodes: ['crm.account.read'],
+      tokenId: 'token-1'
+    } as never,
+    verifiedWorkloadIdentity: {
+      spiffeId: 'spiffe://oes/api-gateway',
+      certificateThumbprint: 'A'.repeat(43)
+    }
+  })
+  Object.assign(authenticated as object, { requestId: 'request-1', traceId: 'trace-1' })
+  return body
 }
 
 describe('crm-service P1 query gRPC controller L3', () => {

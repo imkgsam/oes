@@ -1,5 +1,5 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
-import { ClientGrpc } from '@nestjs/microservices'
+import { Injectable, OnModuleInit } from '@nestjs/common'
+import { CRM_MANAGEMENT_PERMISSION_CODES } from '@oes/common/authorization'
 import {
   ArchiveCrmAccountRequest,
   ArchiveCrmAccountResponse,
@@ -11,7 +11,6 @@ import {
   CreateDraftLeadResponse,
   CreateLeadRequest,
   CreateLeadResponse,
-  CUSTOMER_MANAGEMENT_SERVICE_NAME,
   CustomerManagementServiceClient,
   DeleteDraftLeadRequest,
   DeleteDraftLeadResponse,
@@ -24,289 +23,220 @@ import {
   UpdateDraftLeadRequest,
   UpdateDraftLeadResponse
 } from '@oes/common/generated/crm_service'
+import { safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
+import { Observable } from 'rxjs'
+import { DownstreamRequestSource } from '../../../common/grpc/gateway-downstream-source.mapper'
 import {
-  GRPC_METADATA_PROPAGATION_FACTORY,
-  GrpcMetadataPropagationFactory
-} from '@oes/common/authorization'
-import { SERVICE_NAMES } from '@oes/common/constants'
-import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
-import {
-  DownstreamRequestSource,
-  toOperatorScopedMetadataInput
-} from '../../../common/grpc/gateway-downstream-source.mapper'
-import {
-  buildCrmAuditContext,
-  buildCrmOperatorContext,
-  buildCrmTraceContext
-} from './crm-grpc-context'
+  CRM_TARGET_AUDIENCE,
+  GatewayCrmGrpcClient
+} from '../../../common/grpc/gateway-crm-grpc.client'
+import { GatewayTrustedGrpcExecutionProducer } from '../../../common/grpc/gateway-trusted-grpc-execution-producer'
 
 const CALLER = 'api-gateway'
+type GatewayCrmRequest<T> = T & Record<string, unknown> & { auditReason?: string }
 
-interface ManagementInputBase {
-  auditReason?: string
-}
-
+/** Proxies CRM commands through one dedicated mTLS channel and exact BUSINESS tokens. */
 @Injectable()
-// Proxies the frozen CRM phase 1 command RPCs from api-gateway into crm-service.
 export class CustomerManagementGrpcAdapter implements OnModuleInit {
   private svc!: CustomerManagementServiceClient
 
   constructor(
-    @InjectGrpcClient(SERVICE_NAMES.CRM)
-    private readonly client: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory
+    private readonly client: GatewayCrmGrpcClient,
+    private readonly producer: GatewayTrustedGrpcExecutionProducer
   ) {}
 
   onModuleInit(): void {
-    this.svc = this.client.getService<CustomerManagementServiceClient>(
-      CUSTOMER_MANAGEMENT_SERVICE_NAME
-    )
+    this.svc = this.client.customerManagement()
   }
 
-  /** createLead forwards one CRM P1 active lead creation command. */
-  createLead(
-    input: Omit<CreateLeadRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
-      ManagementInputBase,
+  /** Forwards active lead creation with claims-derived ownership authority. */
+  async createLead(
+    input: GatewayCrmRequest<CreateLeadRequest>,
     source: DownstreamRequestSource
   ): Promise<CreateLeadResponse> {
     return this.call(
       'createLead',
       this.svc.createLead(
-        {
-          ...input,
-          operatorContext: buildCrmOperatorContext(source),
-          traceContext: buildCrmTraceContext(source),
-          auditContext: buildCrmAuditContext(
-            source,
-            input.auditReason ?? 'create crm lead from api-gateway'
-          )
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        stripLocalAuthority(input),
+        await this.metadata(source, CRM_MANAGEMENT_PERMISSION_CODES.CREATE_CRM_ACCOUNT)
       )
     )
   }
 
-  /** createDraftLead forwards one CRM P1 draft capture command. */
-  createDraftLead(
-    input: Omit<CreateDraftLeadRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
-      ManagementInputBase,
+  /** Forwards draft lead creation without legacy audit or operator payloads. */
+  async createDraftLead(
+    input: GatewayCrmRequest<CreateDraftLeadRequest>,
     source: DownstreamRequestSource
   ): Promise<CreateDraftLeadResponse> {
     return this.call(
       'createDraftLead',
       this.svc.createDraftLead(
-        {
-          ...input,
-          operatorContext: buildCrmOperatorContext(source),
-          traceContext: buildCrmTraceContext(source),
-          auditContext: buildCrmAuditContext(
-            source,
-            input.auditReason ?? 'create draft crm lead from api-gateway'
-          )
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        stripLocalAuthority(input),
+        await this.metadata(source, CRM_MANAGEMENT_PERMISSION_CODES.CREATE_CRM_ACCOUNT)
       )
     )
   }
 
-  /** updateDraftLead forwards one CRM P1 draft update command. */
-  updateDraftLead(
-    input: Omit<UpdateDraftLeadRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
-      ManagementInputBase,
+  /** Forwards one draft update through the CRM update Code. */
+  async updateDraftLead(
+    input: GatewayCrmRequest<UpdateDraftLeadRequest>,
     source: DownstreamRequestSource
   ): Promise<UpdateDraftLeadResponse> {
     return this.call(
       'updateDraftLead',
       this.svc.updateDraftLead(
-        {
-          ...input,
-          operatorContext: buildCrmOperatorContext(source),
-          traceContext: buildCrmTraceContext(source),
-          auditContext: buildCrmAuditContext(
-            source,
-            input.auditReason ?? 'update draft crm lead from api-gateway'
-          )
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        stripLocalAuthority(input),
+        await this.metadata(source, CRM_MANAGEMENT_PERMISSION_CODES.UPDATE_CRM_ACCOUNT)
       )
     )
   }
 
-  /** submitDraftLead forwards one CRM P1 draft submit command. */
-  submitDraftLead(
-    input: Omit<SubmitDraftLeadRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
-      ManagementInputBase,
+  /** Forwards one draft submit while preserving assignment_intent as business input. */
+  async submitDraftLead(
+    input: GatewayCrmRequest<SubmitDraftLeadRequest>,
     source: DownstreamRequestSource
   ): Promise<SubmitDraftLeadResponse> {
     return this.call(
       'submitDraftLead',
       this.svc.submitDraftLead(
-        {
-          ...input,
-          operatorContext: buildCrmOperatorContext(source),
-          traceContext: buildCrmTraceContext(source),
-          auditContext: buildCrmAuditContext(
-            source,
-            input.auditReason ?? 'submit draft crm lead from api-gateway'
-          )
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        stripLocalAuthority(input),
+        await this.metadata(source, CRM_MANAGEMENT_PERMISSION_CODES.UPDATE_CRM_ACCOUNT)
       )
     )
   }
 
-  /** deleteDraftLead forwards one CRM P1 draft hard-delete command. */
-  deleteDraftLead(
-    input: Omit<DeleteDraftLeadRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
-      ManagementInputBase,
+  /** Forwards one draft delete through the CRM update Code. */
+  async deleteDraftLead(
+    input: GatewayCrmRequest<DeleteDraftLeadRequest>,
     source: DownstreamRequestSource
   ): Promise<DeleteDraftLeadResponse> {
     return this.call(
       'deleteDraftLead',
       this.svc.deleteDraftLead(
-        {
-          ...input,
-          operatorContext: buildCrmOperatorContext(source),
-          traceContext: buildCrmTraceContext(source),
-          auditContext: buildCrmAuditContext(
-            source,
-            input.auditReason ?? 'delete draft crm lead from api-gateway'
-          )
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        stripLocalAuthority(input),
+        await this.metadata(source, CRM_MANAGEMENT_PERMISSION_CODES.UPDATE_CRM_ACCOUNT)
       )
     )
   }
 
-  /** claimCrmAccount forwards one CRM P1 Pool claim command. */
-  claimCrmAccount(
-    input: Omit<ClaimCrmAccountRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
-      ManagementInputBase,
+  /** Forwards one current-subject Pool claim through the exact claim Code. */
+  async claimCrmAccount(
+    input: GatewayCrmRequest<ClaimCrmAccountRequest>,
     source: DownstreamRequestSource
   ): Promise<ClaimCrmAccountResponse> {
     return this.call(
       'claimCrmAccount',
       this.svc.claimCrmAccount(
-        {
-          ...input,
-          operatorContext: buildCrmOperatorContext(source),
-          traceContext: buildCrmTraceContext(source),
-          auditContext: buildCrmAuditContext(
-            source,
-            input.auditReason ?? 'claim crm pool account from api-gateway'
-          )
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        stripLocalAuthority(input),
+        await this.metadata(source, CRM_MANAGEMENT_PERMISSION_CODES.CLAIM_CRM_ACCOUNT)
       )
     )
   }
 
-  /** releaseCrmAccount forwards one CRM P1 owner release command. */
-  releaseCrmAccount(
-    input: Omit<ReleaseCrmAccountRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
-      ManagementInputBase,
+  /** Forwards one current-subject release through the exact release Code. */
+  async releaseCrmAccount(
+    input: GatewayCrmRequest<ReleaseCrmAccountRequest>,
     source: DownstreamRequestSource
   ): Promise<ReleaseCrmAccountResponse> {
     return this.call(
       'releaseCrmAccount',
       this.svc.releaseCrmAccount(
-        {
-          ...input,
-          operatorContext: buildCrmOperatorContext(source),
-          traceContext: buildCrmTraceContext(source),
-          auditContext: buildCrmAuditContext(
-            source,
-            input.auditReason ?? 'release crm account to pool from api-gateway'
-          )
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        stripLocalAuthority(input),
+        await this.metadata(source, CRM_MANAGEMENT_PERMISSION_CODES.RELEASE_CRM_ACCOUNT)
       )
     )
   }
 
-  /** archiveCrmAccount forwards one CRM-owned archive reason command. */
-  archiveCrmAccount(
-    input: Omit<ArchiveCrmAccountRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
-      ManagementInputBase,
+  /** Forwards one archive command through the exact manage Code. */
+  async archiveCrmAccount(
+    input: GatewayCrmRequest<ArchiveCrmAccountRequest>,
     source: DownstreamRequestSource
   ): Promise<ArchiveCrmAccountResponse> {
     return this.call(
       'archiveCrmAccount',
       this.svc.archiveCrmAccount(
-        {
-          ...input,
-          operatorContext: buildCrmOperatorContext(source),
-          traceContext: buildCrmTraceContext(source),
-          auditContext: buildCrmAuditContext(
-            source,
-            input.auditReason ?? 'archive crm account from api-gateway'
-          )
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        stripLocalAuthority(input),
+        await this.metadata(source, CRM_MANAGEMENT_PERMISSION_CODES.MANAGE_CRM_ACCOUNT)
       )
     )
   }
 
-  /** updateCrmAccountIdentifiers forwards CRM-owned strong identifier evidence updates. */
-  updateCrmAccountIdentifiers(
-    input: Omit<
-      UpdateCrmAccountIdentifiersRequest,
-      'auditContext' | 'operatorContext' | 'traceContext'
-    > &
-      ManagementInputBase,
+  /** Forwards CRM identifier evidence through the exact update Code. */
+  async updateCrmAccountIdentifiers(
+    input: GatewayCrmRequest<UpdateCrmAccountIdentifiersRequest>,
     source: DownstreamRequestSource
   ): Promise<UpdateCrmAccountIdentifiersResponse> {
     return this.call(
       'updateCrmAccountIdentifiers',
       this.svc.updateCrmAccountIdentifiers(
-        {
-          ...input,
-          operatorContext: buildCrmOperatorContext(source),
-          traceContext: buildCrmTraceContext(source),
-          auditContext: buildCrmAuditContext(
-            source,
-            input.auditReason ?? 'update crm account identifiers from api-gateway'
-          )
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        stripLocalAuthority(input),
+        await this.metadata(source, CRM_MANAGEMENT_PERMISSION_CODES.UPDATE_CRM_ACCOUNT)
       )
     )
   }
 
-  /** convertLeadToProspectCustomer forwards one CRM P1 lead formalization command. */
-  convertLeadToProspectCustomer(
-    input: Omit<
-      ConvertLeadToProspectCustomerRequest,
-      'auditContext' | 'operatorContext' | 'traceContext'
-    > &
-      ManagementInputBase,
+  /** Requests manage authority only when the verified source can exercise ownerless override. */
+  async convertLeadToProspectCustomer(
+    input: GatewayCrmRequest<ConvertLeadToProspectCustomerRequest>,
     source: DownstreamRequestSource
   ): Promise<ConvertLeadToProspectCustomerResponse> {
+    const codes: string[] = [CRM_MANAGEMENT_PERMISSION_CODES.CONVERT_CRM_ACCOUNT]
+    if (sourceHasPermission(source, CRM_MANAGEMENT_PERMISSION_CODES.MANAGE_CRM_ACCOUNT)) {
+      codes.push(CRM_MANAGEMENT_PERMISSION_CODES.MANAGE_CRM_ACCOUNT)
+    }
     return this.call(
       'convertLeadToProspectCustomer',
       this.svc.convertLeadToProspectCustomer(
-        {
-          ...input,
-          operatorContext: buildCrmOperatorContext(source),
-          traceContext: buildCrmTraceContext(source),
-          auditContext: buildCrmAuditContext(
-            source,
-            input.auditReason ?? 'convert crm lead to prospect customer from api-gateway'
-          )
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+        stripLocalAuthority(input),
+        await this.producer.forBusinessCall(source, CRM_TARGET_AUDIENCE, codes)
       )
     )
   }
 
-  /** call wraps one gateway CRM command RPC with the shared safe gRPC transport helpers. */
-  private call<TResponse>(method: string, call$: any): Promise<TResponse> {
+  /** Produces exact CRM-audience metadata from the verified Gateway session. */
+  private metadata(source: DownstreamRequestSource, code: string) {
+    return this.producer.forBusinessCall(source, CRM_TARGET_AUDIENCE, [code])
+  }
+
+  /** Wraps one CRM command observable with the shared error contract. */
+  private call<TResponse>(method: string, call$: Observable<TResponse>): Promise<TResponse> {
     return safeGrpcCall<TResponse>(call$, this.opts(method))
   }
 
-  /** opts builds the shared gateway caller metadata for one proxied CRM command. */
+  /** Identifies the Gateway/CRM method pair without injecting authority. */
   private opts(method: string): SafeGrpcCallOptions {
     return { caller: CALLER, method }
   }
+}
+
+/** Removes every route-local or retired CRM authority carrier before serialization. */
+function stripLocalAuthority<T extends object>(input: T): T {
+  const output = { ...input } as Record<string, unknown>
+  for (const field of [
+    'tenantId',
+    'tenant_id',
+    'orgId',
+    'org_id',
+    'operatorContext',
+    'operator_context',
+    'traceContext',
+    'trace_context',
+    'auditContext',
+    'audit_context',
+    'auditReason',
+    'ownerAccountId',
+    'owner_account_id',
+    'claimForCurrentUser',
+    'claim_for_current_user',
+    'allowOwnerlessConversion',
+    'allow_ownerless_conversion'
+  ]) {
+    delete output[field]
+  }
+  return output as T
+}
+
+/** Reads one Code only from the session facts already verified by Gateway admission. */
+function sourceHasPermission(source: DownstreamRequestSource, code: string): boolean {
+  return Array.isArray(source.user?.permissions) && source.user.permissions.includes(code)
 }

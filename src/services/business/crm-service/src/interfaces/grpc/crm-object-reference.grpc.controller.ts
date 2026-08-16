@@ -1,4 +1,9 @@
-import { Controller, UseFilters } from '@nestjs/common'
+import { Controller, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common'
+import {
+  AuthorizeInternalCall,
+  CRM_INTERNAL_PERMISSION_CODES,
+  GrpcRequestContextInterceptor
+} from '@oes/common/authorization'
 import { ValidatingQueryBus } from '@oes/common/cqrs'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
@@ -12,14 +17,18 @@ import {
 import { ValidateCrmObjectReferenceQuery } from '../../application/queries/validate-object-reference.query'
 import { ValidateCrmObjectReferenceResult } from '../../application/queries/validate-object-reference.handler'
 import { CustomerRpcContextValidator } from './customer-rpc-context.validator'
+import { CrmTrustedInternalExecutionGuard } from '../../modules/crm-trusted-execution.module'
 
 /** CrmObjectReferenceGrpcController exposes CrmAccount reference validation for collaboration-service. */
 @UseFilters(GrpcExceptionFilter)
+@UseGuards(CrmTrustedInternalExecutionGuard, CustomerRpcContextValidator)
+@UseInterceptors(GrpcRequestContextInterceptor)
 @Controller()
 @CrmObjectReferenceServiceControllerMethods()
 export class CrmObjectReferenceGrpcController implements CrmObjectReferenceServiceController {
   constructor(private readonly queryBus: ValidatingQueryBus) {}
 
+  @AuthorizeInternalCall({ all: [CRM_INTERNAL_PERMISSION_CODES.VALIDATE_OBJECT_REFERENCE] })
   async validateCrmObjectReference(
     request: ValidateCrmObjectReferenceRequest
   ): Promise<ValidateCrmObjectReferenceResponse> {
@@ -59,7 +68,9 @@ function fromProtoCapability(value?: CrmObjectReferenceCapability) {
 }
 
 /** toProtoLifecycle maps application lifecycle labels to CRM object reference proto enum values. */
-function toProtoLifecycle(value: ValidateCrmObjectReferenceResult['lifecycle']): CrmObjectLifecycle {
+function toProtoLifecycle(
+  value: ValidateCrmObjectReferenceResult['lifecycle']
+): CrmObjectLifecycle {
   if (value === 'ARCHIVED') return CrmObjectLifecycle.CRM_OBJECT_LIFECYCLE_ARCHIVED
   if (value === 'DELETED_OR_UNAVAILABLE') {
     return CrmObjectLifecycle.CRM_OBJECT_LIFECYCLE_DELETED_OR_UNAVAILABLE

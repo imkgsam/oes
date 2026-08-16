@@ -121,7 +121,7 @@ describe('Item Master trusted gRPC security matrix L3', () => {
         mode: 'BUSINESS',
         permissions: { all: [code] },
         principalType: 'HUMAN',
-        sessionTerminal: 'WEB'
+        sessionTerminals: ['WEB']
       })
     }
   })
@@ -154,6 +154,8 @@ describe('Item Master trusted gRPC security matrix L3', () => {
   ) {
     const metadata = new Metadata()
     metadata.set('authorization', 'Bearer target.execution.token')
+    metadata.set('x-request-id', 'request-1')
+    metadata.set('traceparent', '00-0123456789abcdef0123456789abcdef-0123456789abcdef-01')
     const verified = {
       issuer: 'https://auth.example',
       audience: 'urn:oes:service:item-master-service',

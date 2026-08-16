@@ -1133,11 +1133,11 @@ function applyIdentityManagementDeclaration(method: string, decorator: MethodDec
 }
 applyIdentityManagementDeclaration(
   'updateOwnAccountProfile',
-  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['WEB'] })
 )
 applyIdentityManagementDeclaration(
   'updateOwnUserBasicInfo',
-  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['WEB'] })
 )
 applyIdentityManagementDeclaration(
   'rotateApiKey',

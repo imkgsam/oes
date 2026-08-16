@@ -27,7 +27,7 @@ describe('trusted gRPC authorization declarations', () => {
     class BrowserController {
       @AuthorizeBusinessRpc(
         { all: ['browser_activity.policy.read'] },
-        { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+        { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
       )
       getPolicy(): void {}
     }
@@ -36,7 +36,7 @@ describe('trusted gRPC authorization declarations', () => {
       mode: 'BUSINESS',
       permissions: { all: ['browser_activity.policy.read'] },
       principalType: 'HUMAN',
-      sessionTerminal: 'WEB'
+      sessionTerminals: ['WEB']
     })
   })
 
@@ -72,5 +72,30 @@ describe('trusted gRPC authorization declarations', () => {
     expect(() => AuthorizeInternalCall({ all: [] })).toThrow(
       'INTERNAL authorization all permission codes must be a non-empty array'
     )
+    expect(() =>
+      AuthorizeBusinessRpc({ all: ['crm.lead.read'] }, { sessionTerminals: [] })
+    ).toThrow('trusted execution session terminals must be a non-empty array')
+    expect(() =>
+      AuthorizeBusinessRpc({ all: ['crm.lead.read'] }, { sessionTerminals: ['WEB', 'WEB'] })
+    ).toThrow('trusted execution session terminals must not contain duplicates')
+  })
+
+  it('copies and freezes a normalized declaration array', () => {
+    const terminals: Array<'WEB' | 'BROWSER_EXTENSION'> = ['WEB', 'BROWSER_EXTENSION']
+    class StructuralController {
+      @AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: terminals })
+      own(): void {}
+    }
+    terminals.pop()
+
+    const declaration = getRpcAuthorizationModeDeclaration(StructuralController.prototype, 'own')
+    expect(declaration).toEqual({
+      mode: 'SELF_SERVICE',
+      allowDelegated: false,
+      sessionTerminals: ['WEB', 'BROWSER_EXTENSION']
+    })
+    expect(
+      Object.isFrozen((declaration as { sessionTerminals: readonly string[] }).sessionTerminals)
+    ).toBe(true)
   })
 })

@@ -1,5 +1,10 @@
 import { Controller, UseGuards } from '@nestjs/common'
-import { AuthorizeBusinessRpc, AuthorizeSelfServiceRpc, getAuthenticatedGrpcRequestContext, TrustedExecutionGuard } from '@oes/common/authorization'
+import {
+  AuthorizeBusinessRpc,
+  AuthorizeSelfServiceRpc,
+  getAuthenticatedGrpcRequestContext,
+  TrustedExecutionGuard
+} from '@oes/common/authorization'
 import {
   BusinessCardPublicEntryRefRecord,
   BusinessCardRecord as GrpcBusinessCardRecord,
@@ -47,9 +52,7 @@ import {
 @Controller()
 @UseGuards(TrustedExecutionGuard)
 @PublicEntryBusinessCardServiceControllerMethods()
-export class PublicEntryBusinessCardGrpcController
-  implements PublicEntryBusinessCardServiceController
-{
+export class PublicEntryBusinessCardGrpcController implements PublicEntryBusinessCardServiceController {
   constructor(private readonly service: BusinessCardApplicationService) {}
 
   async ensurePrimaryBusinessCard(request: EnsurePrimaryBusinessCardRequest) {
@@ -211,7 +214,10 @@ export class PublicEntryBusinessCardGrpcController
   async generateBusinessCardVCard(
     request: GenerateBusinessCardVCardRequest
   ): Promise<GenerateBusinessCardVCardResponse> {
-    return this.service.generateVCard({ businessCardId: request.businessCardId ?? '', traceId: traceFrom(request) })
+    return this.service.generateVCard({
+      businessCardId: request.businessCardId ?? '',
+      traceId: traceFrom(request)
+    })
   }
 }
 
@@ -220,12 +226,27 @@ function trusted(request: object) {
   if (!context?.verifiedExecutionToken) throw new Error('Trusted execution context is required')
   return context
 }
-function tenantFrom(request: object): string { return trusted(request).verifiedExecutionToken.tenantId ?? (() => { throw new Error('Trusted tenant context is required') })() }
-function subjectFrom(request: object): string { return trusted(request).verifiedExecutionToken.subject }
-function traceFrom(request: object): string | undefined { return (trusted(request) as { traceId?: string }).traceId }
+function tenantFrom(request: object): string {
+  return (
+    trusted(request).verifiedExecutionToken.tenantId ??
+    (() => {
+      throw new Error('Trusted tenant context is required')
+    })()
+  )
+}
+function subjectFrom(request: object): string {
+  return trusted(request).verifiedExecutionToken.subject
+}
+function traceFrom(request: object): string | undefined {
+  return (trusted(request) as { traceId?: string }).traceId
+}
 function operatorFrom(request: object): OperatorContext {
   const token = trusted(request).verifiedExecutionToken
-  return { operatorAccountId: token.subject, operatorOrgId: token.orgId, traceId: traceFrom(request) }
+  return {
+    operatorAccountId: token.subject,
+    operatorOrgId: token.orgId,
+    traceId: traceFrom(request)
+  }
 }
 
 /** Installs the frozen one-mode BusinessCard declarations for HUMAN and Gateway MACHINE callers. */
@@ -242,16 +263,19 @@ const businessCardBusinessDeclarations: Readonly<Record<string, string>> = Objec
   getBusinessCardVisitSummary: 'public-entry.business-card.stats.read'
 })
 for (const [method, code] of Object.entries(businessCardBusinessDeclarations)) {
-  AuthorizeBusinessRpc({ all: [code] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })(
+  AuthorizeBusinessRpc({ all: [code] }, { principalType: 'HUMAN', sessionTerminals: ['WEB'] })(
     PublicEntryBusinessCardGrpcController.prototype,
     method,
     Object.getOwnPropertyDescriptor(PublicEntryBusinessCardGrpcController.prototype, method)!
   )
 }
-AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })(
+AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['WEB'] })(
   PublicEntryBusinessCardGrpcController.prototype,
   'getOwnBusinessCardPreview',
-  Object.getOwnPropertyDescriptor(PublicEntryBusinessCardGrpcController.prototype, 'getOwnBusinessCardPreview')!
+  Object.getOwnPropertyDescriptor(
+    PublicEntryBusinessCardGrpcController.prototype,
+    'getOwnBusinessCardPreview'
+  )!
 )
 for (const method of ['renderPublicBusinessCard', 'generateBusinessCardVCard']) {
   AuthorizeBusinessRpc({ all: ['public-entry.business-card.read'] }, { principalType: 'MACHINE' })(
@@ -271,7 +295,6 @@ export function toGrpcBusinessCardStatus(status: BusinessCardStatus): GrpcBusine
   }[status]
 }
 
-
 // toGrpcBusinessCard maps application BusinessCard summaries into generated records.
 function toGrpcBusinessCard(record: BusinessCardSummary): GrpcBusinessCardRecord {
   return {
@@ -280,9 +303,7 @@ function toGrpcBusinessCard(record: BusinessCardSummary): GrpcBusinessCardRecord
     employeeId: record.employeeId,
     status: toGrpcBusinessCardStatus(record.status),
     templateKey: record.templateKey,
-    publicEntryRef: record.publicEntryRef
-      ? toGrpcPublicEntryRef(record.publicEntryRef)
-      : undefined,
+    publicEntryRef: record.publicEntryRef ? toGrpcPublicEntryRef(record.publicEntryRef) : undefined,
     contactActionConfigs: record.contactActionConfigs.map(toGrpcContactActionConfig),
     visibilityConfig: record.visibilityConfig,
     updatedAt: record.updatedAt
@@ -326,7 +347,9 @@ function toGrpcTargetRefType(type: DomainContactActionTargetRefType): ContactAct
 }
 
 // fromGrpcTargetRefType converts generated target ref enum values into domain strings.
-function fromGrpcTargetRefType(type?: ContactActionTargetRefType): DomainContactActionTargetRefType {
+function fromGrpcTargetRefType(
+  type?: ContactActionTargetRefType
+): DomainContactActionTargetRefType {
   if (type === ContactActionTargetRefType.CONTACT_ACTION_TARGET_REF_TYPE_TENANT_PUBLIC_PROFILE) {
     return 'TENANT_PUBLIC_PROFILE'
   }
@@ -335,7 +358,9 @@ function fromGrpcTargetRefType(type?: ContactActionTargetRefType): DomainContact
 }
 
 // fromGrpcVisibilityConfig maps generated visibility switches into domain records.
-function fromGrpcVisibilityConfig(config: GrpcBusinessCardVisibilityConfigRecord): VisibilityConfig {
+function fromGrpcVisibilityConfig(
+  config: GrpcBusinessCardVisibilityConfigRecord
+): VisibilityConfig {
   return {
     showTitle: Boolean(config.showTitle),
     showDepartment: Boolean(config.showDepartment),
@@ -349,7 +374,7 @@ function toGrpcPublicEntryRef(
   ref: PublicEntryRef | SerializedPublicEntryRef
 ): BusinessCardPublicEntryRefRecord {
   const expiresAt =
-    typeof ref.expiresAt === 'string' ? ref.expiresAt : ref.expiresAt?.toISOString() ?? ''
+    typeof ref.expiresAt === 'string' ? ref.expiresAt : (ref.expiresAt?.toISOString() ?? '')
   return {
     publicEntryId: ref.publicEntryId,
     shortCode: ref.shortCode,

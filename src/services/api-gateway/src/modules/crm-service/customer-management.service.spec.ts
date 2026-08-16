@@ -421,8 +421,6 @@ describe('CustomerManagementService', () => {
       expect.objectContaining({
         tenantId: 'tenant-1',
         leadLegalName: 'Acme Importers Incorporated',
-        ownerAccountId: undefined,
-        claimForCurrentUser: true,
         profileItems: [
           {
             itemType: 'DOMAIN',
@@ -446,8 +444,7 @@ describe('CustomerManagementService', () => {
       {
         tenantId: 'tenant-1',
         crmAccountId: 'crm-account-1',
-        legalName: 'Acme Importers Incorporated',
-        allowOwnerlessConversion: true
+        legalName: 'Acme Importers Incorporated'
       },
       source
     )
@@ -595,8 +592,7 @@ describe('CustomerManagementService', () => {
 
     expect(customerManagementAdapter.createLead).toHaveBeenCalledWith(
       expect.objectContaining({
-        assignmentIntent: 'OWNED_BY_OPERATOR',
-        claimForCurrentUser: true
+        assignmentIntent: 'OWNED_BY_OPERATOR'
       }),
       source
     )

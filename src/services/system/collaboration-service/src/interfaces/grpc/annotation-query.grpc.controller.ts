@@ -61,7 +61,7 @@ export class AnnotationQueryGrpcController implements AnnotationQueryServiceCont
 }
 
 for (const method of ['listAnnotationsForObject', 'getAnnotation'] as const) {
-  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })(
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['WEB'] })(
     AnnotationQueryGrpcController.prototype,
     method,
     Object.getOwnPropertyDescriptor(AnnotationQueryGrpcController.prototype, method)!

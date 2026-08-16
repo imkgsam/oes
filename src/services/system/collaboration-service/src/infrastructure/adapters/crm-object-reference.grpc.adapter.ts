@@ -1,8 +1,6 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
-import { ClientGrpc } from '@nestjs/microservices'
-import { GRPC_METADATA_PROPAGATION_FACTORY, GrpcMetadataPropagationFactory } from '@oes/common/authorization'
+import { Injectable, OnModuleInit } from '@nestjs/common'
+import { CRM_INTERNAL_PERMISSION_CODES } from '@oes/common/authorization'
 import {
-  CRM_OBJECT_REFERENCE_SERVICE_NAME,
   CrmObjectLifecycle,
   CrmObjectReferenceCapability,
   CrmObjectReferenceServiceClient,
@@ -14,45 +12,35 @@ import {
   ObjectReferencePort,
   ObjectReferenceValidation
 } from '../../application/ports/object-reference.port'
+import { CollaborationCrmTrustedGrpcClient } from './collaboration-crm-trusted-grpc.client'
+import { CollaborationFoundationTrustedGrpcExecutionProducer } from './foundation-trusted-grpc.clients'
 
-export const CRM_OBJECT_REFERENCE_GRPC_CLIENT = Symbol('CRM_OBJECT_REFERENCE_GRPC_CLIENT')
-
-/** CrmObjectReferenceGrpcAdapter validates Annotation owner object refs through crm-service gRPC. */
+/** Validates Annotation owner references through CRM's dedicated HUMAN_OBO path. */
 @Injectable()
 export class CrmObjectReferenceGrpcAdapter implements ObjectReferencePort, OnModuleInit {
   private crmObjectReferenceService!: CrmObjectReferenceServiceClient
+  private readonly trusted = new CollaborationFoundationTrustedGrpcExecutionProducer()
 
-  constructor(
-    @Inject(CRM_OBJECT_REFERENCE_GRPC_CLIENT) private readonly client: ClientGrpc,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory
-  ) {}
+  constructor(private readonly client: CollaborationCrmTrustedGrpcClient) {}
 
   onModuleInit(): void {
-    this.crmObjectReferenceService =
-      this.client.getService<CrmObjectReferenceServiceClient>(CRM_OBJECT_REFERENCE_SERVICE_NAME)
+    this.crmObjectReferenceService = this.client.objectReference()
   }
 
-  async validate(input: Parameters<ObjectReferencePort['validate']>[0]): Promise<ObjectReferenceValidation> {
+  async validate(
+    input: Parameters<ObjectReferencePort['validate']>[0]
+  ): Promise<ObjectReferenceValidation> {
     const response = await safeGrpcCall<ValidateCrmObjectReferenceResponse>(
       this.crmObjectReferenceService.validateCrmObjectReference(
         {
-          tenantId: input.tenantId,
-          operatorContext: {
-            operatorId: input.operatorAccountId,
-            operatorType: 'TENANT_ACCOUNT'
-          },
-          traceContext: {
-            traceId: input.traceId,
-            requestId: input.traceId
-          },
           objectType: input.objectRef.objectType,
           objectId: input.objectRef.objectId,
           requestedCapability: toProtoCapability(input.capability)
         },
-        this.metadataFactory.createInternalCallMetadata({
-          callerServiceName: 'collaboration-service'
-        })
+        await this.trusted.forInternalCall(
+          'crm-service',
+          CRM_INTERNAL_PERMISSION_CODES.VALIDATE_OBJECT_REFERENCE
+        )
       ),
       {
         caller: 'collaboration-service',
@@ -79,10 +67,11 @@ export class CrmObjectReferenceGrpcAdapter implements ObjectReferencePort, OnMod
   }
 }
 
-/** toProtoCapability maps Annotation object reference capabilities to CRM proto values. */
+/** Maps Annotation object-reference capabilities to CRM proto values. */
 function toProtoCapability(value: ObjectReferenceCapability): CrmObjectReferenceCapability {
   const map = {
-    [ObjectReferenceCapability.READ]: CrmObjectReferenceCapability.CRM_OBJECT_REFERENCE_CAPABILITY_READ,
+    [ObjectReferenceCapability.READ]:
+      CrmObjectReferenceCapability.CRM_OBJECT_REFERENCE_CAPABILITY_READ,
     [ObjectReferenceCapability.CREATE_ANNOTATION]:
       CrmObjectReferenceCapability.CRM_OBJECT_REFERENCE_CAPABILITY_CREATE_ANNOTATION,
     [ObjectReferenceCapability.MUTATE_ANNOTATION]:
@@ -91,7 +80,7 @@ function toProtoCapability(value: ObjectReferenceCapability): CrmObjectReference
   return map[value]
 }
 
-/** fromProtoLifecycle maps CRM proto lifecycle to Annotation application lifecycle labels. */
+/** Maps CRM proto lifecycle to Annotation application lifecycle labels. */
 function fromProtoLifecycle(value?: CrmObjectLifecycle): ObjectReferenceValidation['lifecycle'] {
   if (value === CrmObjectLifecycle.CRM_OBJECT_LIFECYCLE_ARCHIVED) return 'ARCHIVED'
   if (value === CrmObjectLifecycle.CRM_OBJECT_LIFECYCLE_DELETED_OR_UNAVAILABLE) {

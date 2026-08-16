@@ -37,6 +37,10 @@ export const COLLABORATION_FOUNDATION_TARGETS = Object.freeze({
   'permission-service': Object.freeze({
     audience: 'urn:oes:service:permission-service',
     execution: 'HUMAN_OBO' as const
+  }),
+  'crm-service': Object.freeze({
+    audience: 'urn:oes:service:crm-service',
+    execution: 'HUMAN_OBO' as const
   })
 }) satisfies Readonly<Record<string, CollaborationFoundationTargetProfile>>
 
@@ -49,8 +53,20 @@ const ERRORS = Object.freeze({
 /** Produces target-bound HUMAN_OBO metadata solely from the guard-retained inbound HUMAN credential. */
 export class CollaborationFoundationTrustedGrpcExecutionProducer {
   private readonly context = new AsyncLocalTrustedExecutionContextAccessor()
-  private readonly exchange = new CollaborationFoundationExecutionTokenExchangeClient()
   private readonly callers = new Map<string, InternalTrustedGrpcCaller>()
+
+  constructor(
+    private readonly exchange: ExecutionTokenExchangeClient = new CollaborationFoundationExecutionTokenExchangeClient(),
+    private readonly localWorkloadIdentity: {
+      getVerifiedWorkloadIdentity(): Promise<{
+        spiffeId: string
+        certificateThumbprint: string
+      }>
+    } = {
+      getVerifiedWorkloadIdentity: async () => readLocalVerifiedWorkloadIdentity()
+    },
+    private readonly now: () => number = () => Math.floor(Date.now() / 1000)
+  ) {}
 
   async forBusinessCall(
     target: keyof typeof COLLABORATION_FOUNDATION_TARGETS,
@@ -111,12 +127,14 @@ export class CollaborationFoundationTrustedGrpcExecutionProducer {
         audiences: [audience],
         workloadIdentities: [required('OES_WORKLOAD_SPIFFE_ID')]
       }),
-      tokenCache: new CertificateBoundExecutionTokenCache({ refreshMarginSeconds: 15 }),
+      tokenCache: new CertificateBoundExecutionTokenCache({
+        refreshMarginSeconds: 15,
+        now: this.now
+      }),
       exchangeClient: this.exchange,
       sourceCredentialAccessor: inboundExecutionTokenCredentialScope.accessor,
-      localWorkloadIdentity: {
-        getVerifiedWorkloadIdentity: async () => readLocalVerifiedWorkloadIdentity()
-      }
+      localWorkloadIdentity: this.localWorkloadIdentity,
+      now: this.now
     })
     const caller = new InternalTrustedGrpcCaller(
       this.context,

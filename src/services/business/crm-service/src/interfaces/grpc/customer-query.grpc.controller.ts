@@ -1,4 +1,9 @@
-import { Controller, UseFilters } from '@nestjs/common'
+import { Controller, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common'
+import {
+  AuthorizeBusinessRpc,
+  CRM_MANAGEMENT_PERMISSION_CODES,
+  GrpcRequestContextInterceptor
+} from '@oes/common/authorization'
 import { ValidatingQueryBus } from '@oes/common/cqrs'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
@@ -20,19 +25,26 @@ import { ListSourceRecordsQuery } from '../../application/queries/list-source-re
 import { CrmAccountLifecycleStage, CrmAccountRecordStatus } from '../../domain/models/crm-records'
 import { CustomerGrpcPresenter } from './customer-grpc.presenter'
 import { CustomerRpcContextValidator } from './customer-rpc-context.validator'
+import { CrmTrustedBusinessExecutionGuard } from '../../modules/crm-trusted-execution.module'
 
 /** CustomerQueryGrpcController exposes the phase 1 CRM read-only query contract. */
 @UseFilters(GrpcExceptionFilter)
+@UseGuards(CrmTrustedBusinessExecutionGuard, CustomerRpcContextValidator)
+@UseInterceptors(GrpcRequestContextInterceptor)
 @Controller()
 @CustomerQueryServiceControllerMethods()
 export class CustomerQueryGrpcController implements CustomerQueryServiceController {
   constructor(private readonly queryBus: ValidatingQueryBus) {}
 
+  @AuthorizeBusinessRpc(
+    { all: [CRM_MANAGEMENT_PERMISSION_CODES.READ_CRM_ACCOUNT] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
   async listCrmAccounts(request: ListCrmAccountsRequest): Promise<ListCrmAccountsResponse> {
-    CustomerRpcContextValidator.assertQueryContext(request)
+    const context = CustomerRpcContextValidator.assertQueryContext(request)
     const result = await this.queryBus.execute(
       new ListCrmAccountsQuery({
-        tenantId: request.tenantId ?? '',
+        tenantId: context.tenantId,
         createdBy: request.createdBy || undefined,
         keyword: request.keyword || undefined,
         lifecycleStage: toCrmAccountLifecycleStage(request.lifecycleStage),
@@ -50,31 +62,43 @@ export class CustomerQueryGrpcController implements CustomerQueryServiceControll
     return CustomerGrpcPresenter.toListCrmAccountsResponse(result)
   }
 
+  @AuthorizeBusinessRpc(
+    { all: [CRM_MANAGEMENT_PERMISSION_CODES.READ_CRM_ACCOUNT] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB', 'BROWSER_EXTENSION'] }
+  )
   async getCrmAccount(request: GetCrmAccountRequest): Promise<GetCrmAccountResponse> {
-    CustomerRpcContextValidator.assertQueryContext(request)
+    const context = CustomerRpcContextValidator.assertQueryContext(request)
     const result = await this.queryBus.execute(
-      new GetCrmAccountQuery(request.tenantId ?? '', request.crmAccountId ?? '')
+      new GetCrmAccountQuery(context.tenantId, request.crmAccountId ?? '')
     )
 
     return CustomerGrpcPresenter.toGetCrmAccountResponse(result)
   }
 
+  @AuthorizeBusinessRpc(
+    { all: [CRM_MANAGEMENT_PERMISSION_CODES.READ_CRM_ACCOUNT] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
   async listSourceRecords(request: ListSourceRecordsRequest): Promise<ListSourceRecordsResponse> {
-    CustomerRpcContextValidator.assertQueryContext(request)
+    const context = CustomerRpcContextValidator.assertQueryContext(request)
     const result = await this.queryBus.execute(
-      new ListSourceRecordsQuery(request.tenantId ?? '', request.crmAccountId ?? '')
+      new ListSourceRecordsQuery(context.tenantId, request.crmAccountId ?? '')
     )
 
     return CustomerGrpcPresenter.toListSourceRecordsResponse(result)
   }
 
+  @AuthorizeBusinessRpc(
+    { all: [CRM_MANAGEMENT_PERMISSION_CODES.READ_CRM_ACCOUNT] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB', 'BROWSER_EXTENSION'] }
+  )
   async checkLeadDuplicate(
     request: CheckLeadDuplicateRequest
   ): Promise<CheckLeadDuplicateResponse> {
     const context = CustomerRpcContextValidator.assertQueryContext(request)
     const result = await this.queryBus.execute(
       new CheckLeadDuplicateQuery({
-        tenantId: request.tenantId ?? '',
+        tenantId: context.tenantId,
         operatorAccountId: context.operatorContext.operatorId,
         displayName: request.displayName,
         leadLegalName: request.leadLegalName,

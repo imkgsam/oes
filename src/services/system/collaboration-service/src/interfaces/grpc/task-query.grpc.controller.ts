@@ -10,7 +10,14 @@ import {
   TaskQueryServiceControllerMethods
 } from '@oes/common/generated/collaboration_service'
 import { TaskQueryService } from '../../application/services/task-query.service'
-import { fromProtoListScope, fromProtoPriority, fromProtoStatus, mapTaskError, parseOptionalDate, requireQueryContext } from './task-grpc.mapping'
+import {
+  fromProtoListScope,
+  fromProtoPriority,
+  fromProtoStatus,
+  mapTaskError,
+  parseOptionalDate,
+  requireQueryContext
+} from './task-grpc.mapping'
 import { presentTask } from './task-grpc.presenter'
 
 /** TaskQueryGrpcController exposes Task P1 personal list and detail queries over internal gRPC. */
@@ -66,7 +73,7 @@ export class TaskQueryGrpcController implements TaskQueryServiceController {
 }
 
 for (const method of ['listTasks', 'getTask'] as const) {
-  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })(
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['WEB'] })(
     TaskQueryGrpcController.prototype,
     method,
     Object.getOwnPropertyDescriptor(TaskQueryGrpcController.prototype, method)!

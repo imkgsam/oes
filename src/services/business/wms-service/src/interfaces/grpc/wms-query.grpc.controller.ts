@@ -286,7 +286,7 @@ for (const [method, code] of Object.entries({
   getInventoryBalance: WMS_MANAGEMENT_PERMISSION_CODES.READ_INVENTORY,
   searchInventoryBalances: WMS_MANAGEMENT_PERMISSION_CODES.READ_INVENTORY
 })) {
-  AuthorizeBusinessRpc({ all: [code] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })(
+  AuthorizeBusinessRpc({ all: [code] }, { principalType: 'HUMAN', sessionTerminals: ['WEB'] })(
     WmsQueryGrpcController.prototype,
     method,
     Object.getOwnPropertyDescriptor(WmsQueryGrpcController.prototype, method)

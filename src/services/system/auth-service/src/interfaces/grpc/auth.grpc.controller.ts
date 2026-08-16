@@ -2315,119 +2315,119 @@ applyAuthAdmission(
 )
 applyAuthAdmission(
   'listLoginHistory',
-  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['WEB'] })
 )
 applyAuthAdmission(
   'bootstrapOwnLoginMethods',
-  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['WEB'] })
 )
 applyAuthAdmission(
   'requestEmailBindingChallenge',
-  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['WEB'] })
 )
 applyAuthAdmission(
   'requestPhoneBindingChallenge',
-  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['WEB'] })
 )
 applyAuthAdmission(
   'listLoginMethods',
-  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['WEB'] })
 )
 applyAuthAdmission(
   'changeOwnPassword',
-  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['WEB'] })
 )
 applyAuthAdmission(
   'setOwnTerminalPin',
-  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['WEB'] })
 )
 applyAuthAdmission(
   'resetOwnTerminalPin',
-  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['WEB'] })
 )
 applyAuthAdmission(
   'setOwnTerminalPinEnabled',
-  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['WEB'] })
 )
 applyAuthAdmission(
   'setOwnLoginMethodEnabled',
-  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['WEB'] })
 )
 applyAuthAdmission(
   'verifyEmailBinding',
-  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['WEB'] })
 )
 applyAuthAdmission(
   'verifyPhoneBinding',
-  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['WEB'] })
 )
 applyAuthAdmission(
   'listMfaBindings',
-  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['WEB'] })
 )
 applyAuthAdmission(
   'enableMfaBinding',
-  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['WEB'] })
 )
 applyAuthAdmission(
   'disableMfaBinding',
-  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['WEB'] })
 )
 applyAuthAdmission(
   'initializeTotpBinding',
-  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['WEB'] })
 )
 applyAuthAdmission(
   'activateTotpBinding',
-  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['WEB'] })
 )
 applyAuthAdmission(
   'initializeRecoveryCodes',
-  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['WEB'] })
 )
 applyAuthAdmission(
   'regenerateRecoveryCodes',
-  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['WEB'] })
 )
 applyAuthAdmission(
   'startStepUpMfaChallenge',
-  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['WEB'] })
 )
 applyAuthAdmission(
   'completeStepUpMfaChallenge',
-  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['WEB'] })
 )
 applyAuthAdmission(
   'listSessions',
-  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['WEB'] })
 )
 applyAuthAdmission(
   'listTrustedDevices',
-  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['WEB'] })
 )
 applyAuthAdmission(
   'revokeTrustedDevice',
-  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['WEB'] })
 )
 applyAuthAdmission(
   'revokeOtherTrustedDevices',
-  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['WEB'] })
 )
 applyAuthAdmission(
   'logout',
-  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['WEB'] })
 )
 applyAuthAdmission(
   'logoutSession',
-  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['WEB'] })
 )
 applyAuthAdmission(
   'logoutOtherDevices',
-  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['WEB'] })
 )
 applyAuthAdmission(
   'logoutAll',
-  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['WEB'] })
 )
 applyAuthAdmission('listAuditEvents', AuthorizeBusinessRpc({ all: ['auth.audit.list'] }))
 applyAuthAdmission(

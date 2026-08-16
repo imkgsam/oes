@@ -67,7 +67,7 @@ describe('Procurement trusted gRPC security matrix L3', () => {
         mode: 'BUSINESS',
         permissions: { all: [code] },
         principalType: 'HUMAN',
-        sessionTerminal: 'WEB'
+        sessionTerminals: ['WEB']
       })
     }
   })
@@ -291,6 +291,7 @@ function baseMetadata(includeBearer: boolean): Metadata {
   if (includeBearer) metadata.set('authorization', 'Bearer target.execution.token')
   metadata.set('x-request-id', 'request-1')
   metadata.set('x-trace-id', 'trace-1')
+  metadata.set('traceparent', '00-0123456789abcdef0123456789abcdef-0123456789abcdef-01')
   return metadata
 }
 

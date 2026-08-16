@@ -10,6 +10,7 @@ import {
   AUTH_SESSION_PERMISSION_CODES,
   COLLABORATION_TASK_PERMISSION_CODES,
   CRM_MANAGEMENT_PERMISSION_CODES,
+  CRM_INTERNAL_PERMISSION_CODES,
   FINANCE_MANAGEMENT_PERMISSION_CODES,
   HR_MANAGEMENT_PERMISSION_CODES,
   IDENTITY_ACCOUNT_PERMISSION_CODES,
@@ -137,6 +138,7 @@ const PERMISSION_DESCRIPTION_BY_CODE: Readonly<Record<string, string>> = {
   'crm.source.manage': '维护 CRM 来源记录',
   'crm.activity.create': '创建 CRM 动态记录',
   'crm.opportunity.manage': '维护 CRM 商机基础记录',
+  'crm.internal.object_reference.validate': '验证 Collaboration 引用的 CRM 对象最小事实',
   'srm.supplier_profile.list': '查看 SRM 供应商列表',
   'srm.supplier_profile.get_by_id': '查看 SRM 供应商详情',
   'srm.supplier_profile.create': '创建 SRM 供应商档案外壳',
@@ -274,6 +276,13 @@ export function buildPermissionSeedItems(): PermissionSeedItem[] {
       code,
       module: Modules.CRM_SERVICE,
       description: getPermissionDescription(code)
+    })),
+    ...valuesOf(CRM_INTERNAL_PERMISSION_CODES).map((code) => ({
+      code,
+      module: Modules.CRM_SERVICE,
+      description: getPermissionDescription(code),
+      kind: PermissionKind.INTERNAL,
+      externalApiEligible: false
     })),
     ...valuesOf(SRM_MANAGEMENT_PERMISSION_CODES).map((code) => ({
       code,

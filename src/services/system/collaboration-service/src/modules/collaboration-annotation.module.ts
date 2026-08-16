@@ -13,10 +13,8 @@ import {
   ANNOTATION_PERMISSION_GRPC_CLIENT,
   AnnotationPermissionGrpcAdapter
 } from '../infrastructure/adapters/annotation-permission.grpc.adapter'
-import {
-  CRM_OBJECT_REFERENCE_GRPC_CLIENT,
-  CrmObjectReferenceGrpcAdapter
-} from '../infrastructure/adapters/crm-object-reference.grpc.adapter'
+import { CrmObjectReferenceGrpcAdapter } from '../infrastructure/adapters/crm-object-reference.grpc.adapter'
+import { CollaborationCrmTrustedGrpcClient } from '../infrastructure/adapters/collaboration-crm-trusted-grpc.client'
 import { LocalAnnotationAuditRepository } from '../infrastructure/audit/local-annotation-audit.repository'
 import { PrismaModule } from '../infrastructure/prisma/prisma.module'
 import { PrismaAnnotationRepository } from '../infrastructure/repositories/prisma-annotation.repository'
@@ -41,21 +39,16 @@ function resolveDownstreamGrpcUrl(
 export function buildCollaborationAnnotationGrpcClients(): ClientProviderOptions[] {
   return [
     {
-      name: CRM_OBJECT_REFERENCE_GRPC_CLIENT,
-      transport: Transport.GRPC,
-      options: {
-        package: 'crm_service',
-        protoPath: [resolveCommonProtoPath('crm_service/crm.proto')],
-        url: resolveDownstreamGrpcUrl('GRPC_SERVICE_CRM_URL', 'CRM_GRPC_URL', '127.0.0.1:50060')
-      }
-    },
-    {
       name: ANNOTATION_PERMISSION_GRPC_CLIENT,
       transport: Transport.GRPC,
       options: {
         package: 'permission_service',
         protoPath: [resolveCommonProtoPath('permission_service/permission_access_summary.proto')],
-        url: resolveDownstreamGrpcUrl('GRPC_SERVICE_PERMISSION_URL', 'PERMISSION_GRPC_URL', '127.0.0.1:50051')
+        url: resolveDownstreamGrpcUrl(
+          'GRPC_SERVICE_PERMISSION_URL',
+          'PERMISSION_GRPC_URL',
+          '127.0.0.1:50051'
+        )
       }
     }
   ]
@@ -73,6 +66,7 @@ export function buildCollaborationAnnotationGrpcClients(): ClientProviderOptions
   providers: [
     AnnotationCommandService,
     AnnotationQueryService,
+    CollaborationCrmTrustedGrpcClient,
     {
       provide: ANNOTATION_REPOSITORY,
       useClass: PrismaAnnotationRepository

@@ -27,6 +27,7 @@ import {
   PROCUREMENT_TARGET_AUDIENCE
 } from './gateway-procurement-grpc.client'
 import { GatewayWmsGrpcClient, WMS_TARGET_AUDIENCE } from './gateway-wms-grpc.client'
+import { GatewayCrmGrpcClient, CRM_TARGET_AUDIENCE } from './gateway-crm-grpc.client'
 
 const ASSET_AUDIENCE = 'urn:oes:service:asset-service'
 const SITE_AUDIENCE = 'urn:oes:service:site-service'
@@ -57,6 +58,7 @@ const ITEM_MASTER_AUDIENCE = 'urn:oes:service:item-master-service'
     GatewaySrmGrpcClient,
     GatewayProcurementGrpcClient,
     GatewayWmsGrpcClient,
+    GatewayCrmGrpcClient,
     GatewayAuthMachineWorkloadSourceCredentialClient,
     {
       provide: GatewayMachineWorkloadSourceCredentialProvider,
@@ -93,7 +95,8 @@ const ITEM_MASTER_AUDIENCE = 'urn:oes:service:item-master-service'
             ITEM_MASTER_AUDIENCE,
             SRM_TARGET_AUDIENCE,
             PROCUREMENT_TARGET_AUDIENCE,
-            WMS_TARGET_AUDIENCE
+            WMS_TARGET_AUDIENCE,
+            CRM_TARGET_AUDIENCE
           ],
           workloadIdentities: [requireEnvironment('OES_WORKLOAD_SPIFFE_ID')]
         })
@@ -165,6 +168,7 @@ const ITEM_MASTER_AUDIENCE = 'urn:oes:service:item-master-service'
     GatewaySrmGrpcClient,
     GatewayProcurementGrpcClient,
     GatewayWmsGrpcClient,
+    GatewayCrmGrpcClient,
     GatewayTrustedGrpcExecutionProducer,
     GatewayMachineWorkloadSourceCredentialProvider,
     GatewayMachineTrustedGrpcExecutionProducer

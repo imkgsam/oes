@@ -8,7 +8,7 @@ import { FinanceManagementGrpcController } from '../../src/interfaces/grpc/finan
 import { FinanceQueryGrpcController } from '../../src/interfaces/grpc/finance-query.grpc.controller'
 import { AppModule } from '../../src/app.module'
 
-const HUMAN_WEB = { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+const HUMAN_WEB = { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
 
 /** Locks Finance's 27-RPC token-only declaration map and controller guard boundary. */
 describe('finance trusted gRPC security L3', () => {

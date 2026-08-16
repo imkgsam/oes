@@ -12,6 +12,7 @@ function guardFixture(declaration: unknown, verified: Record<string, unknown>) {
   const metadata = new Metadata()
   metadata.set('authorization', 'Bearer e30.e30.e30')
   metadata.set('x-request-id', 'request-1')
+  metadata.set('x-trace-id', '0123456789abcdef0123456789abcdef')
   metadata.set('traceparent', '00-0123456789abcdef0123456789abcdef-0123456789abcdef-01')
   const data = {}
   const reflector = { getAllAndOverride: jest.fn(() => declaration) }
@@ -128,12 +129,12 @@ describe('TrustedExecutionGuard', () => {
           mode: 'BUSINESS',
           permissions: { all: ['browser_activity.policy.read'] },
           principalType: 'HUMAN',
-          sessionTerminal: 'WEB'
+          sessionTerminals: ['WEB', 'BROWSER_EXTENSION']
         },
         {
           principalType,
           permissionCodes: ['browser_activity.policy.read'],
-          sessionTerminal: 'WEB'
+          sessionTerminal: 'PDA'
         }
       )
 
@@ -143,4 +144,25 @@ describe('TrustedExecutionGuard', () => {
       expect(fixture.data).toEqual({})
     }
   )
+
+  it('accepts exact membership in an immutable multi-terminal declaration', async () => {
+    const declaration = Object.freeze({
+      mode: 'BUSINESS' as const,
+      permissions: Object.freeze({ all: Object.freeze(['crm.account.read']) }),
+      principalType: 'HUMAN' as const,
+      sessionTerminals: Object.freeze(['WEB', 'BROWSER_EXTENSION'] as const)
+    })
+    const fixture = guardFixture(declaration, {
+      principalType: 'HUMAN',
+      permissionCodes: ['crm.account.read'],
+      sessionTerminal: 'BROWSER_EXTENSION'
+    })
+
+    await expect(fixture.guard.canActivate(fixture.context as never)).resolves.toBe(true)
+    expect(fixture.data).toHaveProperty('__oesOperatorContext.requestId', 'request-1')
+    expect(fixture.data).toHaveProperty(
+      '__oesOperatorContext.traceId',
+      '0123456789abcdef0123456789abcdef'
+    )
+  })
 })

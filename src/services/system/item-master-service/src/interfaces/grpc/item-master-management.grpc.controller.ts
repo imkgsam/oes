@@ -507,7 +507,7 @@ for (const [method, code] of Object.entries({
   changeBomStatus: ITEM_MASTER_MANAGEMENT_PERMISSION_CODES.MANAGE_BOM,
   upsertSupplierItemMapping: ITEM_MASTER_MANAGEMENT_PERMISSION_CODES.UPSERT_SUPPLIER_ITEM_MAPPING
 })) {
-  AuthorizeBusinessRpc({ all: [code] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })(
+  AuthorizeBusinessRpc({ all: [code] }, { principalType: 'HUMAN', sessionTerminals: ['WEB'] })(
     ItemMasterManagementGrpcController.prototype,
     method,
     Object.getOwnPropertyDescriptor(ItemMasterManagementGrpcController.prototype, method)

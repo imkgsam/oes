@@ -194,7 +194,7 @@ for (const [method, code] of Object.entries({
   getReceivingExpectation: PROCUREMENT_MANAGEMENT_PERMISSION_CODES.GET_RECEIVING_EXPECTATION,
   searchReceivingExpectations: PROCUREMENT_MANAGEMENT_PERMISSION_CODES.LIST_RECEIVING_EXPECTATION
 })) {
-  AuthorizeBusinessRpc({ all: [code] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })(
+  AuthorizeBusinessRpc({ all: [code] }, { principalType: 'HUMAN', sessionTerminals: ['WEB'] })(
     ProcurementQueryGrpcController.prototype,
     method,
     Object.getOwnPropertyDescriptor(ProcurementQueryGrpcController.prototype, method)

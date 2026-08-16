@@ -28,7 +28,11 @@ import {
   UpdateShortLinkTargetResponse
 } from '@oes/common/generated/public_entry_service'
 import { Controller, UseGuards } from '@nestjs/common'
-import { AuthorizeBusinessRpc, getAuthenticatedGrpcRequestContext, TrustedExecutionGuard } from '@oes/common/authorization'
+import {
+  AuthorizeBusinessRpc,
+  getAuthenticatedGrpcRequestContext,
+  TrustedExecutionGuard
+} from '@oes/common/authorization'
 import { ShortLinkApplicationService } from '../../application/services/short-link-application.service'
 import { PublicRedirectService } from '../../application/services/public-redirect.service'
 import {
@@ -228,14 +232,20 @@ function tenantFrom(request: object): string {
 }
 
 function operatorFrom(request: object): OperatorContext {
-  const context = getAuthenticatedGrpcRequestContext(request) as (ReturnType<typeof getAuthenticatedGrpcRequestContext> & { traceId?: string }) | undefined
+  const context = getAuthenticatedGrpcRequestContext(request) as
+    | (ReturnType<typeof getAuthenticatedGrpcRequestContext> & { traceId?: string })
+    | undefined
   const token = context?.verifiedExecutionToken
   if (!token?.subject) throw new Error('Trusted operator context is required')
   return { operatorAccountId: token.subject, operatorOrgId: token.orgId, traceId: context?.traceId }
 }
 
 function traceFrom(request: object): string | undefined {
-  return (getAuthenticatedGrpcRequestContext(request) as (ReturnType<typeof getAuthenticatedGrpcRequestContext> & { traceId?: string }) | undefined)?.traceId
+  return (
+    getAuthenticatedGrpcRequestContext(request) as
+      | (ReturnType<typeof getAuthenticatedGrpcRequestContext> & { traceId?: string })
+      | undefined
+  )?.traceId
 }
 
 /** Installs the frozen one-mode Public Entry declarations without exposing legacy request authority. */
@@ -250,19 +260,28 @@ const shortLinkBusinessDeclarations: Readonly<Record<string, string>> = Object.f
   generateShortLinkQr: 'public-entry.short-link.read'
 })
 for (const [method, code] of Object.entries(shortLinkBusinessDeclarations)) {
-  AuthorizeBusinessRpc({ all: [code] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })(
+  AuthorizeBusinessRpc({ all: [code] }, { principalType: 'HUMAN', sessionTerminals: ['WEB'] })(
     PublicEntryShortLinkGrpcController.prototype,
     method,
     Object.getOwnPropertyDescriptor(PublicEntryShortLinkGrpcController.prototype, method)!
   )
 }
 AuthorizeBusinessRpc(
-  { any: ['public-entry.short-link.update', 'public-entry.short-link.disable', 'public-entry.short-link.archive'] },
-  { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+  {
+    any: [
+      'public-entry.short-link.update',
+      'public-entry.short-link.disable',
+      'public-entry.short-link.archive'
+    ]
+  },
+  { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
 )(
   PublicEntryShortLinkGrpcController.prototype,
   'changeShortLinkStatus',
-  Object.getOwnPropertyDescriptor(PublicEntryShortLinkGrpcController.prototype, 'changeShortLinkStatus')!
+  Object.getOwnPropertyDescriptor(
+    PublicEntryShortLinkGrpcController.prototype,
+    'changeShortLinkStatus'
+  )!
 )
 
 /** Enforces the second-stage target-status-to-Code binding after Guard admission. */
@@ -272,7 +291,8 @@ export function assertStatusPermission(request: object, status: GrpcShortLinkSta
     [GrpcShortLinkStatus.SHORT_LINK_STATUS_DISABLED]: 'public-entry.short-link.disable',
     [GrpcShortLinkStatus.SHORT_LINK_STATUS_ARCHIVED]: 'public-entry.short-link.archive'
   }[status]
-  const codes = getAuthenticatedGrpcRequestContext(request)?.verifiedExecutionToken?.permissionCodes ?? []
+  const codes =
+    getAuthenticatedGrpcRequestContext(request)?.verifiedExecutionToken?.permissionCodes ?? []
   if (!expected || codes.length !== 1 || codes[0] !== expected) {
     throw new Error('ShortLink status permission mismatch')
   }
@@ -280,7 +300,10 @@ export function assertStatusPermission(request: object, status: GrpcShortLinkSta
 AuthorizeBusinessRpc({ all: ['public-entry.short-link.read'] }, { principalType: 'MACHINE' })(
   PublicEntryShortLinkGrpcController.prototype,
   'resolvePublicRedirect',
-  Object.getOwnPropertyDescriptor(PublicEntryShortLinkGrpcController.prototype, 'resolvePublicRedirect')!
+  Object.getOwnPropertyDescriptor(
+    PublicEntryShortLinkGrpcController.prototype,
+    'resolvePublicRedirect'
+  )!
 )
 
 // toGrpcShortLinkStatus converts domain status strings to generated enum values.

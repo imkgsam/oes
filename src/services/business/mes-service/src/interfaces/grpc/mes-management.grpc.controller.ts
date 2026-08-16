@@ -67,8 +67,13 @@ export class MesManagementGrpcController implements MoldManagementServiceControl
   ) {}
 
   /** registerMoldDesign validates the RPC envelope and forwards mold design data to the application layer. */
-  @AuthorizeBusinessRpc({ all: ['mes.mold_design.manage'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
-  async registerMoldDesign(request: RegisterMoldDesignRequest): Promise<RegisterMoldDesignResponse> {
+  @AuthorizeBusinessRpc(
+    { all: ['mes.mold_design.manage'] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
+  async registerMoldDesign(
+    request: RegisterMoldDesignRequest
+  ): Promise<RegisterMoldDesignResponse> {
     const context = MesRpcContextValidator.assertManagementContext(request, 'RegisterMoldDesign')
     return this.runWithContext(context, async () =>
       MesGrpcPresenter.toRegisterMoldDesignResponse(
@@ -114,8 +119,13 @@ export class MesManagementGrpcController implements MoldManagementServiceControl
   }
 
   /** registerMasterMold forwards master mold registration without inventing MES domain rules in gRPC. */
-  @AuthorizeBusinessRpc({ all: ['mes.production_mold.manage'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
-  async registerMasterMold(request: RegisterMasterMoldRequest): Promise<RegisterMasterMoldResponse> {
+  @AuthorizeBusinessRpc(
+    { all: ['mes.production_mold.manage'] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
+  async registerMasterMold(
+    request: RegisterMasterMoldRequest
+  ): Promise<RegisterMasterMoldResponse> {
     const context = MesRpcContextValidator.assertManagementContext(request, 'RegisterMasterMold')
     return this.runWithContext(context, async () =>
       MesGrpcPresenter.toRegisterMasterMoldResponse(
@@ -137,9 +147,17 @@ export class MesManagementGrpcController implements MoldManagementServiceControl
   }
 
   /** registerProductionMold forwards production mold registration into the mold application service. */
-  @AuthorizeBusinessRpc({ all: ['mes.production_mold.manage'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
-  async registerProductionMold(request: RegisterProductionMoldRequest): Promise<RegisterProductionMoldResponse> {
-    const context = MesRpcContextValidator.assertManagementContext(request, 'RegisterProductionMold')
+  @AuthorizeBusinessRpc(
+    { all: ['mes.production_mold.manage'] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
+  async registerProductionMold(
+    request: RegisterProductionMoldRequest
+  ): Promise<RegisterProductionMoldResponse> {
+    const context = MesRpcContextValidator.assertManagementContext(
+      request,
+      'RegisterProductionMold'
+    )
     return this.runWithContext(context, async () =>
       MesGrpcPresenter.toRegisterProductionMoldResponse(
         await this.managementService.registerProductionMold({
@@ -159,9 +177,17 @@ export class MesManagementGrpcController implements MoldManagementServiceControl
   }
 
   /** confirmProductionMoldArrival forwards PDA arrival confirmation into the application layer. */
-  @AuthorizeBusinessRpc({ all: ['mes.production_mold.manage'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
-  async confirmProductionMoldArrival(request: ConfirmProductionMoldArrivalRequest): Promise<ConfirmProductionMoldArrivalResponse> {
-    const context = MesRpcContextValidator.assertManagementContext(request, 'ConfirmProductionMoldArrival')
+  @AuthorizeBusinessRpc(
+    { all: ['mes.production_mold.manage'] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
+  async confirmProductionMoldArrival(
+    request: ConfirmProductionMoldArrivalRequest
+  ): Promise<ConfirmProductionMoldArrivalResponse> {
+    const context = MesRpcContextValidator.assertManagementContext(
+      request,
+      'ConfirmProductionMoldArrival'
+    )
     return this.runWithContext(context, async () =>
       MesGrpcPresenter.toConfirmProductionMoldArrivalResponse(
         await this.managementService.confirmProductionMoldArrival({
@@ -175,8 +201,13 @@ export class MesManagementGrpcController implements MoldManagementServiceControl
   }
 
   /** acceptProductionMold forwards production mold acceptance into the application layer. */
-  @AuthorizeBusinessRpc({ all: ['mes.production_mold.manage'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
-  async acceptProductionMold(request: AcceptProductionMoldRequest): Promise<AcceptProductionMoldResponse> {
+  @AuthorizeBusinessRpc(
+    { all: ['mes.production_mold.manage'] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
+  async acceptProductionMold(
+    request: AcceptProductionMoldRequest
+  ): Promise<AcceptProductionMoldResponse> {
     const context = MesRpcContextValidator.assertManagementContext(request, 'AcceptProductionMold')
     return this.runWithContext(context, async () =>
       MesGrpcPresenter.toAcceptProductionMoldResponse(
@@ -191,7 +222,10 @@ export class MesManagementGrpcController implements MoldManagementServiceControl
   }
 
   /** moveTooling forwards storage or carrier placement changes into the application layer. */
-  @AuthorizeBusinessRpc({ all: ['mes.tooling_installation.manage'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
+  @AuthorizeBusinessRpc(
+    { all: ['mes.tooling_installation.manage'] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
   async moveTooling(request: MoveToolingRequest): Promise<MoveToolingResponse> {
     const context = MesRpcContextValidator.assertManagementContext(request, 'MoveTooling')
     return this.runWithContext(context, async () =>
@@ -211,7 +245,10 @@ export class MesManagementGrpcController implements MoldManagementServiceControl
   }
 
   /** installTooling forwards one tooling installation interval start into the application layer. */
-  @AuthorizeBusinessRpc({ all: ['mes.tooling_installation.manage'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
+  @AuthorizeBusinessRpc(
+    { all: ['mes.tooling_installation.manage'] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
   async installTooling(request: InstallToolingRequest): Promise<InstallToolingResponse> {
     const context = MesRpcContextValidator.assertManagementContext(request, 'InstallTooling')
     return this.runWithContext(context, async () =>
@@ -234,7 +271,10 @@ export class MesManagementGrpcController implements MoldManagementServiceControl
   }
 
   /** unmountTooling forwards one tooling installation interval close into the application layer. */
-  @AuthorizeBusinessRpc({ all: ['mes.tooling_installation.manage'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
+  @AuthorizeBusinessRpc(
+    { all: ['mes.tooling_installation.manage'] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
   async unmountTooling(request: UnmountToolingRequest): Promise<UnmountToolingResponse> {
     const context = MesRpcContextValidator.assertManagementContext(request, 'UnmountTooling')
     return this.runWithContext(context, async () =>
@@ -250,9 +290,17 @@ export class MesManagementGrpcController implements MoldManagementServiceControl
   }
 
   /** confirmInstalledMoldReady forwards field readiness confirmation into the application layer. */
-  @AuthorizeBusinessRpc({ all: ['mes.tooling_installation.manage'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
-  async confirmInstalledMoldReady(request: ConfirmInstalledMoldReadyRequest): Promise<ConfirmInstalledMoldReadyResponse> {
-    const context = MesRpcContextValidator.assertManagementContext(request, 'ConfirmInstalledMoldReady')
+  @AuthorizeBusinessRpc(
+    { all: ['mes.tooling_installation.manage'] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
+  async confirmInstalledMoldReady(
+    request: ConfirmInstalledMoldReadyRequest
+  ): Promise<ConfirmInstalledMoldReadyResponse> {
+    const context = MesRpcContextValidator.assertManagementContext(
+      request,
+      'ConfirmInstalledMoldReady'
+    )
     return this.runWithContext(context, async () =>
       MesGrpcPresenter.toConfirmInstalledMoldReadyResponse(
         await this.managementService.confirmInstalledMoldReady({
@@ -267,9 +315,17 @@ export class MesManagementGrpcController implements MoldManagementServiceControl
   }
 
   /** markInstalledMoldMaintenance forwards field maintenance marking into the application layer. */
-  @AuthorizeBusinessRpc({ all: ['mes.tooling_installation.manage'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
-  async markInstalledMoldMaintenance(request: MarkInstalledMoldMaintenanceRequest): Promise<MarkInstalledMoldMaintenanceResponse> {
-    const context = MesRpcContextValidator.assertManagementContext(request, 'MarkInstalledMoldMaintenance')
+  @AuthorizeBusinessRpc(
+    { all: ['mes.tooling_installation.manage'] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
+  async markInstalledMoldMaintenance(
+    request: MarkInstalledMoldMaintenanceRequest
+  ): Promise<MarkInstalledMoldMaintenanceResponse> {
+    const context = MesRpcContextValidator.assertManagementContext(
+      request,
+      'MarkInstalledMoldMaintenance'
+    )
     return this.runWithContext(context, async () =>
       MesGrpcPresenter.toMarkInstalledMoldMaintenanceResponse(
         await this.managementService.markInstalledMoldMaintenance({
@@ -285,7 +341,10 @@ export class MesManagementGrpcController implements MoldManagementServiceControl
   }
 
   /** recordMoldUsage forwards append-only usage and life counter facts into the application layer. */
-  @AuthorizeBusinessRpc({ all: ['mes.mold_usage.record'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
+  @AuthorizeBusinessRpc(
+    { all: ['mes.mold_usage.record'] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
   async recordMoldUsage(request: RecordMoldUsageRequest): Promise<RecordMoldUsageResponse> {
     const context = MesRpcContextValidator.assertManagementContext(request, 'RecordMoldUsage')
     return this.runWithContext(context, async () =>
@@ -317,8 +376,13 @@ export class MesManagementGrpcController implements MoldManagementServiceControl
   }
 
   /** recordMoldUsageBatch forwards one transactional WorkCenter usage batch. */
-  @AuthorizeBusinessRpc({ all: ['mes.mold_usage.record'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
-  async recordMoldUsageBatch(request: RecordMoldUsageBatchRequest): Promise<RecordMoldUsageBatchResponse> {
+  @AuthorizeBusinessRpc(
+    { all: ['mes.mold_usage.record'] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
+  async recordMoldUsageBatch(
+    request: RecordMoldUsageBatchRequest
+  ): Promise<RecordMoldUsageBatchResponse> {
     const context = MesRpcContextValidator.assertManagementContext(request, 'RecordMoldUsageBatch')
     return this.runWithContext(context, async () =>
       MesGrpcPresenter.toRecordMoldUsageBatchResponse(
@@ -352,7 +416,10 @@ export class MesManagementGrpcController implements MoldManagementServiceControl
   }
 
   /** adjustMoldLifeCounter forwards authorized life counter corrections into the application layer. */
-  @AuthorizeBusinessRpc({ all: ['mes.mold_life.manage'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
+  @AuthorizeBusinessRpc(
+    { all: ['mes.mold_life.manage'] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
   async adjustMoldLifeCounter(
     request: AdjustMoldLifeCounterRequest
   ): Promise<AdjustMoldLifeCounterResponse> {
@@ -371,9 +438,17 @@ export class MesManagementGrpcController implements MoldManagementServiceControl
   }
 
   /** markProductionMoldForScrap forwards the two-step scrap lifecycle command. */
-  @AuthorizeBusinessRpc({ all: ['mes.production_mold.manage'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
-  async markProductionMoldForScrap(request: MarkProductionMoldForScrapRequest): Promise<MarkProductionMoldForScrapResponse> {
-    const context = MesRpcContextValidator.assertManagementContext(request, 'MarkProductionMoldForScrap')
+  @AuthorizeBusinessRpc(
+    { all: ['mes.production_mold.manage'] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
+  async markProductionMoldForScrap(
+    request: MarkProductionMoldForScrapRequest
+  ): Promise<MarkProductionMoldForScrapResponse> {
+    const context = MesRpcContextValidator.assertManagementContext(
+      request,
+      'MarkProductionMoldForScrap'
+    )
     return this.runWithContext(context, async () =>
       MesGrpcPresenter.toMarkProductionMoldForScrapResponse(
         await this.managementService.markProductionMoldForScrap({

@@ -150,15 +150,6 @@ const siteGrpcLoaderOptions = { longs: String, arrays: true }
               ? `${process.env.ASSET_SERVICE_HOST}:${process.env.ASSET_SERVICE_PORT}`
               : 'localhost:50056'
         },
-        [SERVICE_NAMES.CRM]: {
-          serviceName: SERVICE_NAMES.CRM,
-          protoPath: resolveCommonProtoPath('crm_service/crm.proto'),
-          packageName: 'crm_service',
-          url:
-            process.env.CRM_SERVICE_HOST && process.env.CRM_SERVICE_PORT
-              ? `${process.env.CRM_SERVICE_HOST}:${process.env.CRM_SERVICE_PORT}`
-              : 'localhost:50060'
-        },
         [SERVICE_NAMES.FINANCE]: {
           serviceName: SERVICE_NAMES.FINANCE,
           protoPath: resolveCommonProtoPath('finance_service/finance.proto'),

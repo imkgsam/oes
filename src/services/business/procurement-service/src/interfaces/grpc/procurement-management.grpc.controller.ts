@@ -761,7 +761,7 @@ for (const [method, code] of Object.entries({
   recordReceivingDiscrepancyResolution:
     PROCUREMENT_MANAGEMENT_PERMISSION_CODES.RECORD_RECEIVING_DISCREPANCY_RESOLUTION
 })) {
-  AuthorizeBusinessRpc({ all: [code] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })(
+  AuthorizeBusinessRpc({ all: [code] }, { principalType: 'HUMAN', sessionTerminals: ['WEB'] })(
     ProcurementManagementGrpcController.prototype,
     method,
     Object.getOwnPropertyDescriptor(ProcurementManagementGrpcController.prototype, method)

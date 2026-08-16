@@ -291,7 +291,7 @@ for (const [method, code] of Object.entries({
   upsertSupplierOffering: SRM_MANAGEMENT_PERMISSION_CODES.UPSERT_SUPPLIER_OFFERING,
   changeSupplierStatus: SRM_MANAGEMENT_PERMISSION_CODES.CHANGE_SUPPLIER_STATUS
 })) {
-  AuthorizeBusinessRpc({ all: [code] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })(
+  AuthorizeBusinessRpc({ all: [code] }, { principalType: 'HUMAN', sessionTerminals: ['WEB'] })(
     SupplierManagementGrpcController.prototype,
     method,
     Object.getOwnPropertyDescriptor(SupplierManagementGrpcController.prototype, method)

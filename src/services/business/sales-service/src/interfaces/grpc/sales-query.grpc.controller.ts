@@ -36,14 +36,22 @@ import { SalesRpcContextValidator } from './sales-rpc-context.validator'
 export class SalesQueryGrpcController implements SalesQueryServiceController {
   constructor(private readonly queryBus: ValidatingQueryBus) {}
 
-  @AuthorizeBusinessRpc({ all: ['sales.quote.get_by_id'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
+  @AuthorizeBusinessRpc(
+    { all: ['sales.quote.get_by_id'] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
   async getQuote(request: GetQuoteRequest): Promise<GetQuoteResponse> {
     const context = SalesRpcContextValidator.assertQueryContext(request)
-    const quote = await this.queryBus.execute(new GetQuoteQuery(context.tenantId, request.quoteId ?? ''))
+    const quote = await this.queryBus.execute(
+      new GetQuoteQuery(context.tenantId, request.quoteId ?? '')
+    )
     return SalesGrpcPresenter.toGetQuoteResponse(quote)
   }
 
-  @AuthorizeBusinessRpc({ all: ['sales.quote.list'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
+  @AuthorizeBusinessRpc(
+    { all: ['sales.quote.list'] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
   async searchQuotes(request: SearchQuotesRequest): Promise<SearchQuotesResponse> {
     const context = SalesRpcContextValidator.assertQueryContext(request)
     const result = await this.queryBus.execute(
@@ -60,7 +68,10 @@ export class SalesQueryGrpcController implements SalesQueryServiceController {
     return SalesGrpcPresenter.toSearchQuotesResponse(result)
   }
 
-  @AuthorizeBusinessRpc({ all: ['sales.quote.get_by_id'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
+  @AuthorizeBusinessRpc(
+    { all: ['sales.quote.get_by_id'] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
   async getQuoteVersion(request: GetQuoteVersionRequest): Promise<GetQuoteVersionResponse> {
     const context = SalesRpcContextValidator.assertQueryContext(request)
     const quoteVersion = await this.queryBus.execute(
@@ -70,7 +81,10 @@ export class SalesQueryGrpcController implements SalesQueryServiceController {
     return SalesGrpcPresenter.toGetQuoteVersionResponse(quoteVersion)
   }
 
-  @AuthorizeBusinessRpc({ all: ['sales.quote.get_by_id'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
+  @AuthorizeBusinessRpc(
+    { all: ['sales.quote.get_by_id'] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
   async listQuoteVersions(request: ListQuoteVersionsRequest): Promise<ListQuoteVersionsResponse> {
     const context = SalesRpcContextValidator.assertQueryContext(request)
     const result = await this.queryBus.execute(
@@ -85,7 +99,10 @@ export class SalesQueryGrpcController implements SalesQueryServiceController {
     return SalesGrpcPresenter.toListQuoteVersionsResponse(result)
   }
 
-  @AuthorizeBusinessRpc({ all: ['sales.order.get_by_id'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
+  @AuthorizeBusinessRpc(
+    { all: ['sales.order.get_by_id'] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
   async getSalesOrder(request: GetSalesOrderRequest): Promise<GetSalesOrderResponse> {
     const context = SalesRpcContextValidator.assertQueryContext(request)
     const order = await this.queryBus.execute(
@@ -95,7 +112,10 @@ export class SalesQueryGrpcController implements SalesQueryServiceController {
     return SalesGrpcPresenter.toGetSalesOrderResponse(order)
   }
 
-  @AuthorizeBusinessRpc({ all: ['sales.order.list'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
+  @AuthorizeBusinessRpc(
+    { all: ['sales.order.list'] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
   async searchSalesOrders(request: SearchSalesOrdersRequest): Promise<SearchSalesOrdersResponse> {
     const context = SalesRpcContextValidator.assertQueryContext(request)
     const input: SalesOrderSearchInput = {

@@ -38,7 +38,10 @@ import { SalesRpcContextValidator } from './sales-rpc-context.validator'
 export class PricingQueryGrpcController implements PricingQueryServiceController {
   constructor(private readonly queryBus: ValidatingQueryBus) {}
 
-  @AuthorizeBusinessRpc({ all: ['sales.pricing.price_list.read'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
+  @AuthorizeBusinessRpc(
+    { all: ['sales.pricing.price_list.read'] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
   async searchPriceLists(request: SearchPriceListsRequest): Promise<SearchPriceListsResponse> {
     const context = SalesRpcContextValidator.assertQueryContext(request)
     const result = await this.queryBus.execute(
@@ -57,7 +60,10 @@ export class PricingQueryGrpcController implements PricingQueryServiceController
     return PricingGrpcPresenter.toSearchPriceListsResponse(result)
   }
 
-  @AuthorizeBusinessRpc({ all: ['sales.pricing.price_list.read'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
+  @AuthorizeBusinessRpc(
+    { all: ['sales.pricing.price_list.read'] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
   async getPriceList(request: GetPriceListRequest): Promise<GetPriceListResponse> {
     const context = SalesRpcContextValidator.assertQueryContext(request)
     const result = await this.queryBus.execute(
@@ -66,7 +72,10 @@ export class PricingQueryGrpcController implements PricingQueryServiceController
     return PricingGrpcPresenter.toGetPriceListResponse(result)
   }
 
-  @AuthorizeBusinessRpc({ all: ['sales.pricing.price_list.read'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
+  @AuthorizeBusinessRpc(
+    { all: ['sales.pricing.price_list.read'] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
   async getPriceListLines(request: GetPriceListLinesRequest): Promise<GetPriceListLinesResponse> {
     const context = SalesRpcContextValidator.assertQueryContext(request)
     const result = await this.queryBus.execute(
@@ -82,7 +91,10 @@ export class PricingQueryGrpcController implements PricingQueryServiceController
     return PricingGrpcPresenter.toGetPriceListLinesResponse(result)
   }
 
-  @AuthorizeBusinessRpc({ all: ['sales.pricing.customer_agreement.read'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
+  @AuthorizeBusinessRpc(
+    { all: ['sales.pricing.customer_agreement.read'] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
   async getActiveCustomerPriceAgreement(
     request: GetActiveCustomerPriceAgreementRequest
   ): Promise<GetActiveCustomerPriceAgreementResponse> {
@@ -98,7 +110,10 @@ export class PricingQueryGrpcController implements PricingQueryServiceController
     return PricingGrpcPresenter.toGetActiveCustomerPriceAgreementResponse(result)
   }
 
-  @AuthorizeBusinessRpc({ all: ['sales.pricing.customer_agreement.read'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
+  @AuthorizeBusinessRpc(
+    { all: ['sales.pricing.customer_agreement.read'] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
   async getCustomerPriceAgreement(
     request: GetCustomerPriceAgreementRequest
   ): Promise<GetCustomerPriceAgreementResponse> {
@@ -114,7 +129,10 @@ export class PricingQueryGrpcController implements PricingQueryServiceController
     return PricingGrpcPresenter.toGetCustomerPriceAgreementResponse(result)
   }
 
-  @AuthorizeBusinessRpc({ all: ['sales.pricing.customer_agreement.read'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
+  @AuthorizeBusinessRpc(
+    { all: ['sales.pricing.customer_agreement.read'] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
   async listCustomerPriceAgreementVersions(
     request: ListCustomerPriceAgreementVersionsRequest
   ): Promise<ListCustomerPriceAgreementVersionsResponse> {
@@ -131,7 +149,10 @@ export class PricingQueryGrpcController implements PricingQueryServiceController
     return PricingGrpcPresenter.toListCustomerPriceAgreementVersionsResponse(result)
   }
 
-  @AuthorizeBusinessRpc({ all: ['sales.pricing.preview_quote_line'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
+  @AuthorizeBusinessRpc(
+    { all: ['sales.pricing.preview_quote_line'] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
   async previewQuoteLinePricing(
     request: PreviewQuoteLinePricingRequest
   ): Promise<PreviewQuoteLinePricingResponse> {

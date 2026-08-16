@@ -27,7 +27,10 @@ export class ProductionSpecQueryGrpcController implements ProductionSpecQuerySer
   constructor(private readonly queryService: ProductionSpecQueryService) {}
 
   /** getProductionSpec validates the RPC envelope and delegates a single-record lookup. */
-  @AuthorizeBusinessRpc({ all: ['mes.production_spec.read'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
+  @AuthorizeBusinessRpc(
+    { all: ['mes.production_spec.read'] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
   async getProductionSpec(request: GetProductionSpecRequest): Promise<GetProductionSpecResponse> {
     const context = MesRpcContextValidator.assertQueryContext(request)
     return ProductionSpecGrpcPresenter.toGetProductionSpecResponse(
@@ -39,8 +42,13 @@ export class ProductionSpecQueryGrpcController implements ProductionSpecQuerySer
   }
 
   /** listProductionSpecs validates filters and delegates the paged selector query. */
-  @AuthorizeBusinessRpc({ all: ['mes.production_spec.read'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
-  async listProductionSpecs(request: ListProductionSpecsRequest): Promise<ListProductionSpecsResponse> {
+  @AuthorizeBusinessRpc(
+    { all: ['mes.production_spec.read'] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
+  async listProductionSpecs(
+    request: ListProductionSpecsRequest
+  ): Promise<ListProductionSpecsResponse> {
     const context = MesRpcContextValidator.assertQueryContext(request)
     return ProductionSpecGrpcPresenter.toListProductionSpecsResponse(
       await this.queryService.listProductionSpecs({
@@ -56,7 +64,10 @@ export class ProductionSpecQueryGrpcController implements ProductionSpecQuerySer
   }
 
   /** resolveProductionSpecsForMold delegates active/visible spec resolution for mold design usage. */
-  @AuthorizeBusinessRpc({ all: ['mes.production_spec.read'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
+  @AuthorizeBusinessRpc(
+    { all: ['mes.production_spec.read'] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
   async resolveProductionSpecsForMold(
     request: ResolveProductionSpecsForMoldRequest
   ): Promise<ResolveProductionSpecsForMoldResponse> {

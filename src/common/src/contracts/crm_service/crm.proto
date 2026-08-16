@@ -44,20 +44,18 @@ enum CrmObjectLifecycle {
 }
 
 message OperatorContext {
-  string operator_id = 1;
-  string operator_type = 2;
-  string org_id = 3;
+  reserved 1, 2, 3;
+  reserved "operator_id", "operator_type", "org_id";
 }
 
 message TraceContext {
-  string trace_id = 1;
-  string request_id = 2;
+  reserved 1, 2;
+  reserved "trace_id", "request_id";
 }
 
 message AuditContext {
-  string audit_id = 1;
-  string reason = 2;
-  string source = 3;
+  reserved 1, 2, 3;
+  reserved "audit_id", "reason", "source";
 }
 
 message CrmLeadIdentifier {
@@ -145,10 +143,8 @@ message CrmPartyCandidate {
 }
 
 message CreateLeadRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4, 15, 26;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context", "owner_account_id", "claim_for_current_user";
   string display_name = 5;
   string party_type_hint = 6;
   string lead_legal_name = 29;
@@ -160,7 +156,6 @@ message CreateLeadRequest {
   string lead_whatsapp = 12;
   string lead_country = 13;
   repeated CrmLeadIdentifier lead_identifiers = 14;
-  string owner_account_id = 15;
   string priority = 16;
   string next_follow_up_at = 17;
   bool duplicate_warning_acknowledged = 18;
@@ -171,7 +166,6 @@ message CreateLeadRequest {
   string source_external_reference = 23;
   string source_raw_payload_json = 24;
   string source_note = 25;
-  bool claim_for_current_user = 26;
   string assignment_intent = 27;
   repeated CrmAccountProfileItemInput profile_items = 28;
 }
@@ -183,12 +177,9 @@ message CreateLeadResponse {
 }
 
 message ConvertLeadToProspectCustomerRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4, 6;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context", "allow_ownerless_conversion";
   string crm_account_id = 5;
-  bool allow_ownerless_conversion = 6;
   string legal_name = 7;
 }
 
@@ -200,9 +191,8 @@ message ConvertLeadToProspectCustomerResponse {
 }
 
 message CheckLeadDuplicateRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   string display_name = 4;
   string lead_legal_name = 14;
   string lead_company_name = 5;
@@ -221,10 +211,8 @@ message CheckLeadDuplicateResponse {
 }
 
 message CreateDraftLeadRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string display_name = 5;
   string party_type_hint = 6;
   string lead_legal_name = 25;
@@ -253,10 +241,8 @@ message CreateDraftLeadResponse {
 }
 
 message UpdateDraftLeadRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string crm_account_id = 5;
   string display_name = 6;
   string party_type_hint = 7;
@@ -279,13 +265,10 @@ message UpdateDraftLeadResponse {
 }
 
 message SubmitDraftLeadRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4, 7;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context", "claim_for_current_user";
   string crm_account_id = 5;
   bool duplicate_warning_acknowledged = 6;
-  bool claim_for_current_user = 7;
   string source_type = 8;
   string source_name = 9;
   string source_captured_at = 10;
@@ -303,10 +286,8 @@ message SubmitDraftLeadResponse {
 }
 
 message DeleteDraftLeadRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string crm_account_id = 5;
 }
 
@@ -316,10 +297,8 @@ message DeleteDraftLeadResponse {
 }
 
 message ClaimCrmAccountRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string crm_account_id = 5;
 }
 
@@ -328,10 +307,8 @@ message ClaimCrmAccountResponse {
 }
 
 message ReleaseCrmAccountRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string crm_account_id = 5;
 }
 
@@ -340,10 +317,8 @@ message ReleaseCrmAccountResponse {
 }
 
 message ArchiveCrmAccountRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string crm_account_id = 5;
   string archive_reason = 6;
 }
@@ -353,10 +328,8 @@ message ArchiveCrmAccountResponse {
 }
 
 message UpdateCrmAccountIdentifiersRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
-  AuditContext audit_context = 4;
+  reserved 1, 2, 3, 4;
+  reserved "tenant_id", "operator_context", "trace_context", "audit_context";
   string crm_account_id = 5;
   repeated CrmLeadIdentifier lead_identifiers = 6;
 }
@@ -366,9 +339,8 @@ message UpdateCrmAccountIdentifiersResponse {
 }
 
 message ListCrmAccountsRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   string keyword = 4;
   string lifecycle_stage = 5;
   string record_status = 6;
@@ -388,9 +360,8 @@ message ListCrmAccountsResponse {
 }
 
 message GetCrmAccountRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   string crm_account_id = 4;
 }
 
@@ -414,9 +385,8 @@ message CrmSourceRecord {
 }
 
 message ListSourceRecordsRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   string crm_account_id = 4;
 }
 
@@ -437,9 +407,8 @@ message CrmObjectDisplaySnapshot {
 }
 
 message ValidateCrmObjectReferenceRequest {
-  string tenant_id = 1;
-  OperatorContext operator_context = 2;
-  TraceContext trace_context = 3;
+  reserved 1, 2, 3;
+  reserved "tenant_id", "operator_context", "trace_context";
   string object_type = 4;
   string object_id = 5;
   CrmObjectReferenceCapability requested_capability = 6;

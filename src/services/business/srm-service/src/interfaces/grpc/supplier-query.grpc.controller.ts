@@ -130,7 +130,7 @@ for (const [method, code] of Object.entries({
     SRM_MANAGEMENT_PERMISSION_CODES.LIST_SUPPLIER_OFFERINGS_BY_SUPPLIER,
   listSupplierOfferingsByItem: SRM_MANAGEMENT_PERMISSION_CODES.LIST_SUPPLIER_OFFERINGS_BY_ITEM
 })) {
-  AuthorizeBusinessRpc({ all: [code] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })(
+  AuthorizeBusinessRpc({ all: [code] }, { principalType: 'HUMAN', sessionTerminals: ['WEB'] })(
     SupplierQueryGrpcController.prototype,
     method,
     Object.getOwnPropertyDescriptor(SupplierQueryGrpcController.prototype, method)

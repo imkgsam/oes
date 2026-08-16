@@ -390,7 +390,6 @@ describe('ExtensionCrmWorkspaceService', () => {
       'tenant-1',
       expect.objectContaining({
         assignmentIntent: 'OWNED_BY_OPERATOR',
-        claimForCurrentUser: false,
         sourceType: 'BROWSER_EXTENSION'
       }),
       source

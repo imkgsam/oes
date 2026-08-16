@@ -34,7 +34,7 @@ export class ProductionSpecManagementGrpcController implements ProductionSpecMan
   /** createProductionSpec validates the RPC envelope and forwards the command payload without domain rules. */
   @AuthorizeBusinessRpc(
     { all: ['mes.production_spec.manage'] },
-    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
   )
   async createProductionSpec(
     request: CreateProductionSpecRequest
@@ -60,7 +60,7 @@ export class ProductionSpecManagementGrpcController implements ProductionSpecMan
   /** updateProductionSpec validates the RPC envelope and forwards mutable fields to the application layer. */
   @AuthorizeBusinessRpc(
     { all: ['mes.production_spec.manage'] },
-    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
   )
   async updateProductionSpec(
     request: UpdateProductionSpecRequest
@@ -85,7 +85,7 @@ export class ProductionSpecManagementGrpcController implements ProductionSpecMan
   /** activateProductionSpec validates the RPC envelope and forwards the lifecycle transition command. */
   @AuthorizeBusinessRpc(
     { all: ['mes.production_spec.manage'] },
-    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
   )
   async activateProductionSpec(
     request: ActivateProductionSpecRequest
@@ -110,7 +110,7 @@ export class ProductionSpecManagementGrpcController implements ProductionSpecMan
   /** retireProductionSpec validates the RPC envelope and forwards the lifecycle transition command. */
   @AuthorizeBusinessRpc(
     { all: ['mes.production_spec.manage'] },
-    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
   )
   async retireProductionSpec(
     request: RetireProductionSpecRequest

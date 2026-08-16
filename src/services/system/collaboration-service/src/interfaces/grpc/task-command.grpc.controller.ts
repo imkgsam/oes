@@ -1,5 +1,9 @@
 import { Controller, UseFilters, UseGuards } from '@nestjs/common'
-import { AuthorizeBusinessRpc, AuthorizeSelfServiceRpc, TrustedExecutionGuard } from '@oes/common/authorization'
+import {
+  AuthorizeBusinessRpc,
+  AuthorizeSelfServiceRpc,
+  TrustedExecutionGuard
+} from '@oes/common/authorization'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
   ArchiveTaskRequest,
@@ -22,7 +26,12 @@ import {
   UpdateTaskResponse
 } from '@oes/common/generated/collaboration_service'
 import { TaskCommandService } from '../../application/services/task-command.service'
-import { fromProtoPriority, mapTaskError, parseOptionalDate, requireCommandContext } from './task-grpc.mapping'
+import {
+  fromProtoPriority,
+  mapTaskError,
+  parseOptionalDate,
+  requireCommandContext
+} from './task-grpc.mapping'
 import { presentTask } from './task-grpc.presenter'
 
 /** TaskCommandGrpcController exposes Task P1 write commands over internal gRPC. */
@@ -143,15 +152,26 @@ export class TaskCommandGrpcController implements TaskCommandServiceController {
   }
 }
 
-const selfServiceTaskCommands = ['updateTask', 'startTask', 'completeTask', 'cancelTask', 'reopenTask', 'archiveTask', 'unarchiveTask'] as const
+const selfServiceTaskCommands = [
+  'updateTask',
+  'startTask',
+  'completeTask',
+  'cancelTask',
+  'reopenTask',
+  'archiveTask',
+  'unarchiveTask'
+] as const
 for (const method of selfServiceTaskCommands) {
-  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminal: 'WEB' })(
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['WEB'] })(
     TaskCommandGrpcController.prototype,
     method,
     Object.getOwnPropertyDescriptor(TaskCommandGrpcController.prototype, method)!
   )
 }
-AuthorizeBusinessRpc({ all: ['collaboration.task.create'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })(
+AuthorizeBusinessRpc(
+  { all: ['collaboration.task.create'] },
+  { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+)(
   TaskCommandGrpcController.prototype,
   'createTask',
   Object.getOwnPropertyDescriptor(TaskCommandGrpcController.prototype, 'createTask')!

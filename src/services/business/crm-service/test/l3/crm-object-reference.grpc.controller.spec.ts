@@ -1,21 +1,29 @@
 import { ValidateCrmObjectReferenceQuery } from '../../src/application/queries/validate-object-reference.query'
 import { CrmObjectReferenceGrpcController } from '../../src/interfaces/grpc/crm-object-reference.grpc.controller'
-import {
-  CrmObjectLifecycle,
-  CrmObjectReferenceCapability
-} from '@oes/common/generated/crm_service'
+import { CrmObjectLifecycle, CrmObjectReferenceCapability } from '@oes/common/generated/crm_service'
+import { attachVerifiedExecution } from '@oes/common/authorization'
 
-const queryContext = {
-  tenantId: 'tenant-1',
-  operatorContext: {
-    operatorId: 'operator-1',
-    operatorType: 'HUMAN',
-    orgId: 'org-1'
-  },
-  traceContext: {
-    traceId: 'trace-1',
-    requestId: 'request-1'
-  }
+const queryContext = trustedContext()
+
+/** Builds the request-private HUMAN_OBO context normally attached by CRM's internal guard. */
+function trustedContext(): Record<string, unknown> {
+  const body = {}
+  const authenticated = attachVerifiedExecution(body, {
+    verifiedExecutionToken: {
+      subject: 'operator-1',
+      principalType: 'HUMAN',
+      tenantId: 'tenant-1',
+      orgId: 'org-1',
+      permissionCodes: ['crm.internal.object_reference.validate'],
+      tokenId: 'token-1'
+    } as never,
+    verifiedWorkloadIdentity: {
+      spiffeId: 'spiffe://oes/collaboration-service',
+      certificateThumbprint: 'A'.repeat(43)
+    }
+  })
+  Object.assign(authenticated as object, { requestId: 'request-1', traceId: 'trace-1' })
+  return body
 }
 
 function createController(result: unknown) {
@@ -55,7 +63,9 @@ describe('CrmObjectReferenceGrpcController', () => {
         CrmObjectReferenceCapability.CRM_OBJECT_REFERENCE_CAPABILITY_CREATE_ANNOTATION
     })
 
-    expect(harness.queryBus.execute).toHaveBeenCalledWith(expect.any(ValidateCrmObjectReferenceQuery))
+    expect(harness.queryBus.execute).toHaveBeenCalledWith(
+      expect.any(ValidateCrmObjectReferenceQuery)
+    )
     expect(harness.queryBus.execute.mock.calls[0][0]).toMatchObject({
       tenantId: 'tenant-1',
       objectType: 'CrmAccount',

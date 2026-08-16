@@ -1,4 +1,9 @@
-import { Controller, UseFilters } from '@nestjs/common'
+import { Controller, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common'
+import {
+  AuthorizeBusinessRpc,
+  CRM_MANAGEMENT_PERMISSION_CODES,
+  GrpcRequestContextInterceptor
+} from '@oes/common/authorization'
 import { ValidatingCommandBus } from '@oes/common/cqrs'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
@@ -46,9 +51,12 @@ import {
 } from '../../domain/models/crm-records'
 import { CustomerGrpcPresenter } from './customer-grpc.presenter'
 import { CustomerRpcContextValidator } from './customer-rpc-context.validator'
+import { CrmTrustedBusinessExecutionGuard } from '../../modules/crm-trusted-execution.module'
 
 /** CustomerManagementGrpcController exposes the CRM phase 1 command contract with local audit envelope recording. */
 @UseFilters(GrpcExceptionFilter)
+@UseGuards(CrmTrustedBusinessExecutionGuard, CustomerRpcContextValidator)
+@UseInterceptors(GrpcRequestContextInterceptor)
 @Controller()
 @CustomerManagementServiceControllerMethods()
 export class CustomerManagementGrpcController implements CustomerManagementServiceController {
@@ -57,6 +65,10 @@ export class CustomerManagementGrpcController implements CustomerManagementServi
     private readonly auditService: CrmAuditService
   ) {}
 
+  @AuthorizeBusinessRpc(
+    { all: [CRM_MANAGEMENT_PERMISSION_CODES.CREATE_CRM_ACCOUNT] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB', 'BROWSER_EXTENSION'] }
+  )
   async createDraftLead(request: CreateDraftLeadRequest): Promise<CreateDraftLeadResponse> {
     const context = CustomerRpcContextValidator.assertManagementContext(request)
     return this.auditService.recordCommand(
@@ -76,7 +88,7 @@ export class CustomerManagementGrpcController implements CustomerManagementServi
       async () => {
         const result = await this.commandBus.execute(
           new CreateDraftLeadCommand({
-            tenantId: request.tenantId ?? '',
+            tenantId: context.tenantId,
             operatorAccountId: context.operatorContext.operatorId,
             displayName: request.displayName ?? '',
             partyTypeHint: toCrmAccountTypeHint(request.partyTypeHint),
@@ -109,6 +121,10 @@ export class CustomerManagementGrpcController implements CustomerManagementServi
     )
   }
 
+  @AuthorizeBusinessRpc(
+    { all: [CRM_MANAGEMENT_PERMISSION_CODES.UPDATE_CRM_ACCOUNT] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
   async updateDraftLead(request: UpdateDraftLeadRequest): Promise<UpdateDraftLeadResponse> {
     const context = CustomerRpcContextValidator.assertManagementContext(request)
     return this.auditService.recordCommand(
@@ -127,7 +143,7 @@ export class CustomerManagementGrpcController implements CustomerManagementServi
       async () => {
         const result = await this.commandBus.execute(
           new UpdateDraftLeadCommand({
-            tenantId: request.tenantId ?? '',
+            tenantId: context.tenantId,
             crmAccountId: request.crmAccountId ?? '',
             operatorAccountId: context.operatorContext.operatorId,
             displayName: request.displayName ?? '',
@@ -152,6 +168,10 @@ export class CustomerManagementGrpcController implements CustomerManagementServi
     )
   }
 
+  @AuthorizeBusinessRpc(
+    { all: [CRM_MANAGEMENT_PERMISSION_CODES.UPDATE_CRM_ACCOUNT] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
   async updateCrmAccountIdentifiers(
     request: UpdateCrmAccountIdentifiersRequest
   ): Promise<UpdateCrmAccountIdentifiersResponse> {
@@ -173,7 +193,7 @@ export class CustomerManagementGrpcController implements CustomerManagementServi
       async () => {
         const result = await this.commandBus.execute(
           new UpdateCrmAccountIdentifiersCommand({
-            tenantId: request.tenantId ?? '',
+            tenantId: context.tenantId,
             crmAccountId: request.crmAccountId ?? '',
             operatorAccountId: context.operatorContext.operatorId,
             leadIdentifiers: toCrmLeadIdentifiers(request.leadIdentifiers)
@@ -185,6 +205,10 @@ export class CustomerManagementGrpcController implements CustomerManagementServi
     )
   }
 
+  @AuthorizeBusinessRpc(
+    { all: [CRM_MANAGEMENT_PERMISSION_CODES.UPDATE_CRM_ACCOUNT] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
   async submitDraftLead(request: SubmitDraftLeadRequest): Promise<SubmitDraftLeadResponse> {
     const context = CustomerRpcContextValidator.assertManagementContext(request)
     return this.auditService.recordCommand(
@@ -203,12 +227,11 @@ export class CustomerManagementGrpcController implements CustomerManagementServi
       async () => {
         const result = await this.commandBus.execute(
           new SubmitDraftLeadCommand({
-            tenantId: request.tenantId ?? '',
+            tenantId: context.tenantId,
             crmAccountId: request.crmAccountId ?? '',
             operatorAccountId: context.operatorContext.operatorId,
             assignmentIntent: toCrmLeadAssignmentIntent(request.assignmentIntent),
             duplicateWarningAcknowledged: request.duplicateWarningAcknowledged ?? false,
-            claimForCurrentUser: request.claimForCurrentUser ?? false,
             source: toOptionalCrmSourceInput({
               sourceType: request.sourceType,
               sourceName: request.sourceName,
@@ -226,6 +249,10 @@ export class CustomerManagementGrpcController implements CustomerManagementServi
     )
   }
 
+  @AuthorizeBusinessRpc(
+    { all: [CRM_MANAGEMENT_PERMISSION_CODES.UPDATE_CRM_ACCOUNT] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
   async deleteDraftLead(request: DeleteDraftLeadRequest): Promise<DeleteDraftLeadResponse> {
     const context = CustomerRpcContextValidator.assertManagementContext(request)
     return this.auditService.recordCommand(
@@ -244,7 +271,7 @@ export class CustomerManagementGrpcController implements CustomerManagementServi
       async () => {
         const result = await this.commandBus.execute(
           new DeleteDraftLeadCommand({
-            tenantId: request.tenantId ?? '',
+            tenantId: context.tenantId,
             crmAccountId: request.crmAccountId ?? '',
             operatorAccountId: context.operatorContext.operatorId
           })
@@ -255,6 +282,10 @@ export class CustomerManagementGrpcController implements CustomerManagementServi
     )
   }
 
+  @AuthorizeBusinessRpc(
+    { all: [CRM_MANAGEMENT_PERMISSION_CODES.CREATE_CRM_ACCOUNT] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB', 'BROWSER_EXTENSION'] }
+  )
   async createLead(request: CreateLeadRequest): Promise<CreateLeadResponse> {
     const context = CustomerRpcContextValidator.assertManagementContext(request)
     return this.auditService.recordCommand(
@@ -274,7 +305,7 @@ export class CustomerManagementGrpcController implements CustomerManagementServi
       async () => {
         const result = await this.commandBus.execute(
           new CreateLeadCommand({
-            tenantId: request.tenantId ?? '',
+            tenantId: context.tenantId,
             operatorAccountId: context.operatorContext.operatorId,
             displayName: request.displayName ?? '',
             partyTypeHint: toCrmAccountTypeHint(request.partyTypeHint),
@@ -289,8 +320,6 @@ export class CustomerManagementGrpcController implements CustomerManagementServi
             leadIdentifiers: toCrmLeadIdentifiers(request.leadIdentifiers),
             profileItems: toCrmAccountProfileItemDrafts(request.profileItems),
             assignmentIntent: toCrmLeadAssignmentIntent(request.assignmentIntent),
-            ownerAccountId: normalizeOptionalString(request.ownerAccountId),
-            claimForCurrentUser: request.claimForCurrentUser ?? false,
             priority: toCrmPriority(request.priority),
             nextFollowUpAt: parseOptionalDate(request.nextFollowUpAt),
             duplicateWarningAcknowledged: request.duplicateWarningAcknowledged ?? false,
@@ -311,6 +340,10 @@ export class CustomerManagementGrpcController implements CustomerManagementServi
     )
   }
 
+  @AuthorizeBusinessRpc(
+    { all: [CRM_MANAGEMENT_PERMISSION_CODES.CONVERT_CRM_ACCOUNT] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
   async convertLeadToProspectCustomer(
     request: ConvertLeadToProspectCustomerRequest
   ): Promise<ConvertLeadToProspectCustomerResponse> {
@@ -331,11 +364,13 @@ export class CustomerManagementGrpcController implements CustomerManagementServi
       async () => {
         const result = await this.commandBus.execute(
           new ConvertLeadToProspectCustomerCommand({
-            tenantId: request.tenantId ?? '',
+            tenantId: context.tenantId,
             crmAccountId: request.crmAccountId ?? '',
             operatorAccountId: context.operatorContext.operatorId,
             legalName: normalizeOptionalString(request.legalName),
-            allowOwnerlessConversion: request.allowOwnerlessConversion ?? false
+            allowOwnerlessConversion: context.permissionCodes.includes(
+              CRM_MANAGEMENT_PERMISSION_CODES.MANAGE_CRM_ACCOUNT
+            )
           })
         )
 
@@ -344,6 +379,10 @@ export class CustomerManagementGrpcController implements CustomerManagementServi
     )
   }
 
+  @AuthorizeBusinessRpc(
+    { all: [CRM_MANAGEMENT_PERMISSION_CODES.CLAIM_CRM_ACCOUNT] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB', 'BROWSER_EXTENSION'] }
+  )
   async claimCrmAccount(request: ClaimCrmAccountRequest): Promise<ClaimCrmAccountResponse> {
     const context = CustomerRpcContextValidator.assertManagementContext(request)
     return this.auditService.recordCommand(
@@ -362,7 +401,7 @@ export class CustomerManagementGrpcController implements CustomerManagementServi
       async () => {
         const result = await this.commandBus.execute(
           new ClaimCrmAccountCommand({
-            tenantId: request.tenantId ?? '',
+            tenantId: context.tenantId,
             crmAccountId: request.crmAccountId ?? '',
             operatorAccountId: context.operatorContext.operatorId
           })
@@ -373,6 +412,10 @@ export class CustomerManagementGrpcController implements CustomerManagementServi
     )
   }
 
+  @AuthorizeBusinessRpc(
+    { all: [CRM_MANAGEMENT_PERMISSION_CODES.RELEASE_CRM_ACCOUNT] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
   async releaseCrmAccount(request: ReleaseCrmAccountRequest): Promise<ReleaseCrmAccountResponse> {
     const context = CustomerRpcContextValidator.assertManagementContext(request)
     return this.auditService.recordCommand(
@@ -391,7 +434,7 @@ export class CustomerManagementGrpcController implements CustomerManagementServi
       async () => {
         const result = await this.commandBus.execute(
           new ReleaseCrmAccountCommand({
-            tenantId: request.tenantId ?? '',
+            tenantId: context.tenantId,
             crmAccountId: request.crmAccountId ?? '',
             operatorAccountId: context.operatorContext.operatorId
           })
@@ -402,6 +445,10 @@ export class CustomerManagementGrpcController implements CustomerManagementServi
     )
   }
 
+  @AuthorizeBusinessRpc(
+    { all: [CRM_MANAGEMENT_PERMISSION_CODES.MANAGE_CRM_ACCOUNT] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
   async archiveCrmAccount(request: ArchiveCrmAccountRequest): Promise<ArchiveCrmAccountResponse> {
     const context = CustomerRpcContextValidator.assertManagementContext(request)
     return this.auditService.recordCommand(
@@ -421,7 +468,7 @@ export class CustomerManagementGrpcController implements CustomerManagementServi
       async () => {
         const result = await this.commandBus.execute(
           new ArchiveCrmAccountCommand({
-            tenantId: request.tenantId ?? '',
+            tenantId: context.tenantId,
             crmAccountId: request.crmAccountId ?? '',
             operatorAccountId: context.operatorContext.operatorId,
             archiveReason: toCrmArchiveReason(request.archiveReason)

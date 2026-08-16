@@ -17,7 +17,10 @@ describe('AdminCrmPerformanceService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
+    jest.useFakeTimers().setSystemTime(new Date('2026-06-25T00:00:00.000Z'))
   })
+
+  afterAll(() => jest.useRealTimers())
 
   it('builds an employee performance overview from CRM accounts and source records without fabricating unavailable metrics', async () => {
     customerManagementService.listCrmAccounts.mockResolvedValue({
@@ -52,37 +55,40 @@ describe('AdminCrmPerformanceService', () => {
       pageSize: 100,
       total: 3
     })
-    customerManagementService.listSourceRecords.mockImplementation(async (_tenantId: string, crmAccountId: string) => ({
-      sourceRecords: crmAccountId === 'crm-1'
-        ? [
-            buildSource({
-              crmAccountId,
-              sourceRecordId: 'source-1',
-              sourceType: 'BROWSER_EXTENSION',
-              capturedAt: '2026-06-24T08:10:00.000Z',
-              capturedByAccountId: 'sales-1',
-              capturedByDisplayName: 'Mira Tan'
-            }),
-            buildSource({
-              crmAccountId,
-              sourceRecordId: 'source-2',
-              sourceType: 'WEB_RESEARCH',
-              capturedAt: '2026-06-24T08:20:00.000Z',
-              capturedByAccountId: 'sales-1',
-              capturedByDisplayName: 'Mira Tan'
-            })
-          ]
-        : [
-            buildSource({
-              crmAccountId,
-              sourceRecordId: `source-${crmAccountId}`,
-              sourceType: 'IMPORTED_LIST',
-              capturedAt: '2026-06-24T09:20:00.000Z',
-              capturedByAccountId: crmAccountId === 'crm-2' ? 'sales-2' : 'sales-1',
-              capturedByDisplayName: crmAccountId === 'crm-2' ? 'Daniel Ibarra' : 'Mira Tan'
-            })
-          ]
-    }))
+    customerManagementService.listSourceRecords.mockImplementation(
+      async (_tenantId: string, crmAccountId: string) => ({
+        sourceRecords:
+          crmAccountId === 'crm-1'
+            ? [
+                buildSource({
+                  crmAccountId,
+                  sourceRecordId: 'source-1',
+                  sourceType: 'BROWSER_EXTENSION',
+                  capturedAt: '2026-06-24T08:10:00.000Z',
+                  capturedByAccountId: 'sales-1',
+                  capturedByDisplayName: 'Mira Tan'
+                }),
+                buildSource({
+                  crmAccountId,
+                  sourceRecordId: 'source-2',
+                  sourceType: 'WEB_RESEARCH',
+                  capturedAt: '2026-06-24T08:20:00.000Z',
+                  capturedByAccountId: 'sales-1',
+                  capturedByDisplayName: 'Mira Tan'
+                })
+              ]
+            : [
+                buildSource({
+                  crmAccountId,
+                  sourceRecordId: `source-${crmAccountId}`,
+                  sourceType: 'IMPORTED_LIST',
+                  capturedAt: '2026-06-24T09:20:00.000Z',
+                  capturedByAccountId: crmAccountId === 'crm-2' ? 'sales-2' : 'sales-1',
+                  capturedByDisplayName: crmAccountId === 'crm-2' ? 'Daniel Ibarra' : 'Mira Tan'
+                })
+              ]
+      })
+    )
 
     await expect(
       service.getOverview({ employeeAccountId: 'sales-1', period: 'LAST_7_DAYS' }, source as any)
@@ -93,12 +99,24 @@ describe('AdminCrmPerformanceService', () => {
           displayName: 'Mira Tan'
         }),
         employees: expect.arrayContaining([
-          expect.objectContaining({ accountId: 'sales-1', displayName: 'Mira Tan', newLeadCount: 1 }),
-          expect.objectContaining({ accountId: 'sales-2', displayName: 'Daniel Ibarra', newLeadCount: 1 })
+          expect.objectContaining({
+            accountId: 'sales-1',
+            displayName: 'Mira Tan',
+            newLeadCount: 1
+          }),
+          expect.objectContaining({
+            accountId: 'sales-2',
+            displayName: 'Daniel Ibarra',
+            newLeadCount: 1
+          })
         ]),
         overview: expect.arrayContaining([
           expect.objectContaining({ key: 'newLeads', value: 1, unavailable: false }),
-          expect.objectContaining({ key: 'browserExtensionRecognitions', value: 1, unavailable: false }),
+          expect.objectContaining({
+            key: 'browserExtensionRecognitions',
+            value: 1,
+            unavailable: false
+          }),
           expect.objectContaining({ key: 'duplicateBlocks', unavailable: true }),
           expect.objectContaining({ key: 'followUpCompletionRate', unavailable: true })
         ]),
@@ -144,9 +162,9 @@ describe('AdminCrmPerformanceService', () => {
   })
 
   it('rejects requests without tenant context', async () => {
-    await expect(service.getOverview({}, { user: { aid: 'admin-1' } } as any)).rejects.toBeInstanceOf(
-      ForbiddenException
-    )
+    await expect(
+      service.getOverview({}, { user: { aid: 'admin-1' } } as any)
+    ).rejects.toBeInstanceOf(ForbiddenException)
   })
 })
 

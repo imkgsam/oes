@@ -44,7 +44,10 @@ export class SalesManagementGrpcController implements SalesManagementServiceCont
     private readonly auditService: SalesAuditService
   ) {}
 
-  @AuthorizeBusinessRpc({ all: ['sales.quote.create'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
+  @AuthorizeBusinessRpc(
+    { all: ['sales.quote.create'] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
   async createQuote(request: CreateQuoteRequest): Promise<CreateQuoteResponse> {
     const context = SalesRpcContextValidator.assertManagementContext(request, 'CreateQuote')
     return this.auditService.recordCommand(
@@ -82,7 +85,10 @@ export class SalesManagementGrpcController implements SalesManagementServiceCont
     )
   }
 
-  @AuthorizeBusinessRpc({ all: ['sales.quote.update_draft'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
+  @AuthorizeBusinessRpc(
+    { all: ['sales.quote.update_draft'] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
   async updateQuoteDraft(request: UpdateQuoteDraftRequest): Promise<UpdateQuoteDraftResponse> {
     const context = SalesRpcContextValidator.assertManagementContext(request, 'UpdateQuoteDraft')
     return this.auditService.recordCommand(
@@ -113,7 +119,9 @@ export class SalesManagementGrpcController implements SalesManagementServiceCont
                     opportunityName: request.draftMutation.opportunityRef.opportunityName ?? ''
                   }
                 : undefined,
-              lines: (request.draftMutation?.lines ?? []).map((line) => toDomainQuoteLineInput(line))
+              lines: (request.draftMutation?.lines ?? []).map((line) =>
+                toDomainQuoteLineInput(line)
+              )
             }
           })
         )
@@ -125,7 +133,10 @@ export class SalesManagementGrpcController implements SalesManagementServiceCont
     )
   }
 
-  @AuthorizeBusinessRpc({ all: ['sales.quote.publish'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
+  @AuthorizeBusinessRpc(
+    { all: ['sales.quote.publish'] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
   async publishQuote(request: PublishQuoteRequest): Promise<PublishQuoteResponse> {
     const context = SalesRpcContextValidator.assertManagementContext(request, 'PublishQuote')
     return this.auditService.recordCommand(
@@ -154,11 +165,17 @@ export class SalesManagementGrpcController implements SalesManagementServiceCont
     )
   }
 
-  @AuthorizeBusinessRpc({ all: ['sales.quote.convert_to_order'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
+  @AuthorizeBusinessRpc(
+    { all: ['sales.quote.convert_to_order'] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
   async convertQuoteVersionToOrder(
     request: ConvertQuoteVersionToOrderRequest
   ): Promise<ConvertQuoteVersionToOrderResponse> {
-    const context = SalesRpcContextValidator.assertManagementContext(request, 'ConvertQuoteVersionToOrder')
+    const context = SalesRpcContextValidator.assertManagementContext(
+      request,
+      'ConvertQuoteVersionToOrder'
+    )
     return this.auditService.recordCommand(
       {
         tenantId: context.tenantId,
@@ -185,11 +202,17 @@ export class SalesManagementGrpcController implements SalesManagementServiceCont
     )
   }
 
-  @AuthorizeBusinessRpc({ all: ['sales.order.set_commercial_gate'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
+  @AuthorizeBusinessRpc(
+    { all: ['sales.order.set_commercial_gate'] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
   async setOrderCommercialGate(
     request: SetOrderCommercialGateRequest
   ): Promise<SetOrderCommercialGateResponse> {
-    const context = SalesRpcContextValidator.assertManagementContext(request, 'SetOrderCommercialGate')
+    const context = SalesRpcContextValidator.assertManagementContext(
+      request,
+      'SetOrderCommercialGate'
+    )
     return this.auditService.recordCommand(
       {
         tenantId: context.tenantId,
@@ -220,11 +243,17 @@ export class SalesManagementGrpcController implements SalesManagementServiceCont
     )
   }
 
-  @AuthorizeBusinessRpc({ all: ['sales.order.submit_fulfillment_handoff'] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })
+  @AuthorizeBusinessRpc(
+    { all: ['sales.order.submit_fulfillment_handoff'] },
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
+  )
   async submitFulfillmentHandoff(
     request: SubmitFulfillmentHandoffRequest
   ): Promise<SubmitFulfillmentHandoffResponse> {
-    const context = SalesRpcContextValidator.assertManagementContext(request, 'SubmitFulfillmentHandoff')
+    const context = SalesRpcContextValidator.assertManagementContext(
+      request,
+      'SubmitFulfillmentHandoff'
+    )
     return this.auditService.recordCommand(
       {
         tenantId: context.tenantId,
@@ -253,7 +282,9 @@ export class SalesManagementGrpcController implements SalesManagementServiceCont
 }
 
 /** toDomainQuoteLineInput translates one gRPC quote line payload into the shared domain input shape used by draft writes. */
-function toDomainQuoteLineInput(line: NonNullable<CreateQuoteRequest['draftLines']>[number]): QuoteLineInput {
+function toDomainQuoteLineInput(
+  line: NonNullable<CreateQuoteRequest['draftLines']>[number]
+): QuoteLineInput {
   return {
     lineNo: line.lineNo ?? 0,
     itemId: line.itemId ?? '',
@@ -271,7 +302,9 @@ function toDomainQuoteLineInput(line: NonNullable<CreateQuoteRequest['draftLines
       packageLabel: line.packagingRequirementSnapshot?.packageLabel ?? '',
       specialInstructions: line.packagingRequirementSnapshot?.specialInstructions ?? ''
     },
-    priceQuantityDeliverySnapshot: toDomainPriceQuantityDeliverySnapshot(line.priceQuantityDeliverySnapshot),
+    priceQuantityDeliverySnapshot: toDomainPriceQuantityDeliverySnapshot(
+      line.priceQuantityDeliverySnapshot
+    ),
     customerItemSnapshot: {
       customerSku: line.customerItemSnapshot?.customerSku ?? '',
       customerModel: line.customerItemSnapshot?.customerModel ?? '',
@@ -335,7 +368,9 @@ function toDomainPriceQuantityDeliverySnapshot(
   }
 }
 
-function toDomainPricingSourceType(value?: number): 'CUSTOMER_PRICE_AGREEMENT' | 'PRICE_LIST' | 'MANUAL' {
+function toDomainPricingSourceType(
+  value?: number
+): 'CUSTOMER_PRICE_AGREEMENT' | 'PRICE_LIST' | 'MANUAL' {
   if (value === 2) {
     return 'PRICE_LIST'
   }

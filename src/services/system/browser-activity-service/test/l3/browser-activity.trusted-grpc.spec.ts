@@ -25,7 +25,7 @@ describe('Browser Activity trusted gRPC declarations', () => {
         mode: 'BUSINESS',
         permissions: { all: [code] },
         principalType: 'HUMAN',
-        sessionTerminal: 'WEB'
+        sessionTerminals: ['WEB']
       })
     }
     for (const method of ['getAuditControl', 'appendVisitSessions', 'heartbeat', 'disconnect']) {
@@ -34,7 +34,7 @@ describe('Browser Activity trusted gRPC declarations', () => {
       ).toEqual({
         mode: 'SELF_SERVICE',
         allowDelegated: false,
-        sessionTerminal: 'BROWSER_EXTENSION'
+        sessionTerminals: ['BROWSER_EXTENSION']
       })
     }
   })

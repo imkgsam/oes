@@ -100,7 +100,7 @@ export class FinanceManagementGrpcController
 
   @AuthorizeBusinessRpc(
     { all: ['finance.financial_account.create'] },
-    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
   )
   async createFinancialAccount(
     request: CreateFinancialAccountRequest
@@ -145,7 +145,7 @@ export class FinanceManagementGrpcController
 
   @AuthorizeBusinessRpc(
     { all: ['finance.financial_account.update_basics'] },
-    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
   )
   async updateFinancialAccountBasics(
     request: UpdateFinancialAccountBasicsRequest
@@ -189,7 +189,7 @@ export class FinanceManagementGrpcController
 
   @AuthorizeBusinessRpc(
     { all: ['finance.account_transaction.import'] },
-    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
   )
   async importAccountTransactions(
     request: ImportAccountTransactionsRequest
@@ -243,7 +243,7 @@ export class FinanceManagementGrpcController
 
   @AuthorizeBusinessRpc(
     { all: ['finance.account_transaction.record'] },
-    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
   )
   async recordAccountTransaction(
     request: RecordAccountTransactionRequest
@@ -301,7 +301,7 @@ export class FinanceManagementGrpcController
 
   @AuthorizeBusinessRpc(
     { all: ['finance.customer_financial_account.register'] },
-    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
   )
   async registerCustomerFinancialAccount(
     request: RegisterCustomerFinancialAccountRequest
@@ -345,7 +345,7 @@ export class FinanceManagementGrpcController
 
   @AuthorizeBusinessRpc(
     { all: ['finance.exchange_rate.set'] },
-    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
   )
   async setExchangeRate(request: SetExchangeRateRequest): Promise<SetExchangeRateResponse> {
     const context = FinanceRpcContextValidator.assertManagementContext(request, 'SetExchangeRate')
@@ -384,7 +384,7 @@ export class FinanceManagementGrpcController
 
   @AuthorizeBusinessRpc(
     { all: ['finance.receivable_schedule.create_from_sales_order'] },
-    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
   )
   async createReceivableScheduleFromSalesOrder(
     request: CreateReceivableScheduleFromSalesOrderRequest
@@ -433,7 +433,7 @@ export class FinanceManagementGrpcController
 
   @AuthorizeBusinessRpc(
     { all: ['finance.finance_release_signal.set'] },
-    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
   )
   async setFinanceReleaseSignal(
     request: SetFinanceReleaseSignalRequest
@@ -480,7 +480,7 @@ export class FinanceManagementGrpcController
 
   @AuthorizeBusinessRpc(
     { all: ['finance.payable.create_from_purchase_order'] },
-    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
   )
   async createPayableScheduleFromPurchaseOrder(
     request: CreatePayableScheduleFromPurchaseOrderRequest
@@ -532,7 +532,7 @@ export class FinanceManagementGrpcController
 
   @AuthorizeBusinessRpc(
     { all: ['finance.payable.adjust_from_purchase_order_change'] },
-    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
   )
   async applyPayableScheduleAdjustmentFromPurchaseOrderChange(
     request: ApplyPayableScheduleAdjustmentFromPurchaseOrderChangeRequest
@@ -592,7 +592,7 @@ export class FinanceManagementGrpcController
 
   @AuthorizeBusinessRpc(
     { all: ['finance.payment_request.create'] },
-    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
   )
   async createPaymentRequest(
     request: CreatePaymentRequestRequest
@@ -658,7 +658,7 @@ export class FinanceManagementGrpcController
 
   @AuthorizeBusinessRpc(
     { all: ['finance.payment_request.decide'] },
-    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
   )
   async decidePaymentRequest(
     request: DecidePaymentRequestRequest
@@ -698,7 +698,7 @@ export class FinanceManagementGrpcController
 
   @AuthorizeBusinessRpc(
     { all: ['finance.payment_execution.create'] },
-    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
   )
   async executePaymentRequest(
     request: ExecutePaymentRequestRequest
@@ -743,7 +743,7 @@ export class FinanceManagementGrpcController
 
   @AuthorizeBusinessRpc(
     { all: ['finance.payment_allocation.create'] },
-    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
   )
   async allocatePaymentToPayable(
     request: AllocatePaymentToPayableRequest
@@ -789,7 +789,7 @@ export class FinanceManagementGrpcController
 
   @AuthorizeBusinessRpc(
     { all: ['finance.payment_allocation.allocate_to_receivable'] },
-    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
   )
   async allocatePaymentToReceivable(
     request: AllocatePaymentToReceivableRequest

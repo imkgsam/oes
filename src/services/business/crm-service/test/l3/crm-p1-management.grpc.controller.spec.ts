@@ -18,6 +18,7 @@ import {
   CrmSourceType
 } from '../../src/domain/models/crm-records'
 import { CustomerManagementGrpcController } from '../../src/interfaces/grpc/customer-management.grpc.controller'
+import { attachVerifiedExecution } from '@oes/common/authorization'
 
 function createCrmAccount(overrides: Partial<CrmAccountRecord> = {}): CrmAccountRecord {
   return {
@@ -54,7 +55,10 @@ function createController(result: unknown) {
   }
 
   return {
-    controller: new CustomerManagementGrpcController(commandBus as never, auditService as never) as never as {
+    controller: new CustomerManagementGrpcController(
+      commandBus as never,
+      auditService as never
+    ) as never as {
       claimCrmAccount(request: Record<string, unknown>): Promise<unknown>
       archiveCrmAccount(request: Record<string, unknown>): Promise<unknown>
       createDraftLead(request: Record<string, unknown>): Promise<unknown>
@@ -69,22 +73,34 @@ function createController(result: unknown) {
   }
 }
 
-const managementContext = {
-  tenantId: 'tenant-1',
-  operatorContext: {
-    operatorId: 'operator-1',
-    operatorType: 'HUMAN',
-    orgId: 'org-1'
-  },
-  traceContext: {
-    traceId: 'trace-1',
-    requestId: 'request-1'
-  },
-  auditContext: {
-    auditId: 'audit-1',
-    reason: 'crm p1 operation',
-    source: 'crm-workspace'
-  }
+const managementContext = trustedContext()
+
+/** Builds controller-visible data from private verified CRM execution facts. */
+function trustedContext(): Record<string, unknown> {
+  const body = {}
+  const authenticated = attachVerifiedExecution(body, {
+    verifiedExecutionToken: {
+      subject: 'operator-1',
+      principalType: 'HUMAN',
+      tenantId: 'tenant-1',
+      orgId: 'org-1',
+      permissionCodes: [
+        'crm.account.create',
+        'crm.account.update',
+        'crm.account.convert',
+        'crm.account.claim',
+        'crm.account.release',
+        'crm.account.manage'
+      ],
+      tokenId: 'token-1'
+    } as never,
+    verifiedWorkloadIdentity: {
+      spiffeId: 'spiffe://oes/api-gateway',
+      certificateThumbprint: 'A'.repeat(43)
+    }
+  })
+  Object.assign(authenticated as object, { requestId: 'request-1', traceId: 'trace-1' })
+  return body
 }
 
 describe('crm-service P1 management gRPC controller L3', () => {
@@ -153,8 +169,6 @@ describe('crm-service P1 management gRPC controller L3', () => {
       leadDomain: 'acme.example',
       leadEmail: 'buyer@acme.example',
       leadCountry: 'US',
-      ownerAccountId: 'operator-1',
-      claimForCurrentUser: true,
       priority: 'A',
       sourceType: 'WEB_RESEARCH',
       sourceName: 'Browser research',
@@ -178,9 +192,7 @@ describe('crm-service P1 management gRPC controller L3', () => {
           sourceType: CrmSourceType.WEB_RESEARCH,
           externalReference: 'research-001',
           rawPayload: { url: 'https://acme.example' }
-        }),
-        ownerAccountId: 'operator-1',
-        claimForCurrentUser: true
+        })
       })
     })
     expect(response).toEqual({
@@ -218,11 +230,12 @@ describe('crm-service P1 management gRPC controller L3', () => {
 
     const response = await harness.controller.convertLeadToProspectCustomer({
       ...managementContext,
-      crmAccountId: 'crm-account-1',
-      allowOwnerlessConversion: true
+      crmAccountId: 'crm-account-1'
     })
 
-    expect(harness.commandBus.execute).toHaveBeenCalledWith(expect.any(ConvertLeadToProspectCustomerCommand))
+    expect(harness.commandBus.execute).toHaveBeenCalledWith(
+      expect.any(ConvertLeadToProspectCustomerCommand)
+    )
     expect(harness.commandBus.execute.mock.calls[0][0]).toMatchObject({
       props: {
         tenantId: 'tenant-1',
@@ -303,8 +316,7 @@ describe('crm-service P1 management gRPC controller L3', () => {
 
     const submitResponse = await harness.controller.submitDraftLead({
       ...managementContext,
-      crmAccountId: 'crm-account-1',
-      claimForCurrentUser: true
+      crmAccountId: 'crm-account-1'
     })
 
     expect(harness.commandBus.execute).toHaveBeenCalledWith(expect.any(SubmitDraftLeadCommand))
@@ -312,8 +324,7 @@ describe('crm-service P1 management gRPC controller L3', () => {
       props: expect.objectContaining({
         tenantId: 'tenant-1',
         crmAccountId: 'crm-account-1',
-        operatorAccountId: 'operator-1',
-        claimForCurrentUser: true
+        operatorAccountId: 'operator-1'
       })
     })
     expect(submitResponse).toEqual({
@@ -335,7 +346,9 @@ describe('crm-service P1 management gRPC controller L3', () => {
       ...managementContext,
       crmAccountId: 'crm-account-1'
     })
-    expect(harness.commandBus.execute).toHaveBeenLastCalledWith(expect.any(ReleaseCrmAccountCommand))
+    expect(harness.commandBus.execute).toHaveBeenLastCalledWith(
+      expect.any(ReleaseCrmAccountCommand)
+    )
   })
 
   it('DeleteDraftLead / should map request to hard-delete command and render acknowledgement', async () => {

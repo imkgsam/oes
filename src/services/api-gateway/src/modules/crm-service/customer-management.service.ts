@@ -142,8 +142,6 @@ export class CustomerManagementService {
         leadCountry: normalize(input.leadCountry),
         leadIdentifiers: normalizeLeadIdentifiers(input.leadIdentifiers),
         profileItems: normalizeProfileItems(input.profileItems),
-        ownerAccountId: undefined,
-        claimForCurrentUser: Boolean(input.claimForCurrentUser),
         assignmentIntent: resolveCreateLeadAssignmentIntent(
           input.assignmentIntent,
           input.sourceType
@@ -258,7 +256,6 @@ export class CustomerManagementService {
         tenantId: this.resolveTenantId(tenantId, source),
         crmAccountId: requireNonBlank(crmAccountId, 'crmAccountId'),
         duplicateWarningAcknowledged: Boolean(input.duplicateWarningAcknowledged),
-        claimForCurrentUser: Boolean(input.claimForCurrentUser),
         assignmentIntent: resolveSubmitDraftLeadAssignmentIntent(input.assignmentIntent),
         sourceType: normalize(input.sourceType),
         sourceName: normalize(input.sourceName),
@@ -415,8 +412,7 @@ export class CustomerManagementService {
       {
         tenantId: this.resolveTenantId(tenantId, source),
         crmAccountId: requireNonBlank(crmAccountId, 'crmAccountId'),
-        legalName: requireNonBlank(input.legalName, 'legalName'),
-        allowOwnerlessConversion: hasPermission(source, 'crm.account.manage')
+        legalName: requireNonBlank(input.legalName, 'legalName')
       },
       source
     )
@@ -915,9 +911,4 @@ function resolveCreateLeadAssignmentIntent(
 /** resolveSubmitDraftLeadAssignmentIntent keeps draft submit ownerful unless Pool is explicit. */
 function resolveSubmitDraftLeadAssignmentIntent(requestedIntent: string | undefined): string {
   return normalize(requestedIntent) === 'POOL' ? 'POOL' : 'OWNED_BY_OPERATOR'
-}
-
-/** hasPermission checks the action codes embedded in the downstream source session. */
-function hasPermission(source: DownstreamRequestSource, code: string): boolean {
-  return source.user?.permissions?.includes(code) ?? false
 }

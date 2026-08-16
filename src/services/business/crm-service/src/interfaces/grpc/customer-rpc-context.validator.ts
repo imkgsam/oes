@@ -1,93 +1,129 @@
-import {
-  assertAuditContext,
-  assertOperatorContext,
-  assertRequiredString,
-  assertTraceContext
-} from '../../application/support/crm-assertions'
+import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common'
+import { getAuthenticatedGrpcRequestContext } from '@oes/common/authorization'
+import { ExceptionFactory } from '@oes/common/exceptions'
+import { CRM_UNAUTHENTICATED } from '../../common/errors/crm.errors'
 import {
   CrmAuditContext,
   CrmOperatorContext,
   CrmTraceContext
 } from '../../domain/models/crm-records'
 
+const RETIRED_AUTHORITY_FIELDS = [
+  'tenantId',
+  'tenant_id',
+  'orgId',
+  'org_id',
+  'operatorContext',
+  'operator_context',
+  'traceContext',
+  'trace_context',
+  'auditContext',
+  'audit_context',
+  'claimForCurrentUser',
+  'claim_for_current_user',
+  'allowOwnerlessConversion',
+  'allow_ownerless_conversion'
+] as const
+
 export interface CrmQueryContext {
   tenantId: string
   operatorContext: CrmOperatorContext
   traceContext: CrmTraceContext
+  permissionCodes: readonly string[]
 }
 
 export interface CrmManagementContext extends CrmQueryContext {
   auditContext: CrmAuditContext
 }
 
-/** CustomerRpcContextValidator validates the explicit tenant, operator, trace, and audit contexts frozen in CRM contracts. */
-export class CustomerRpcContextValidator {
-  /** assertQueryContext validates the read-path explicit tenant, operator, and trace context payload. */
-  static assertQueryContext(request: {
-    tenantId?: string
-    operatorContext?: {
-      operatorId?: string | null
-      operatorType?: string | null
-      orgId?: string | null
-    } | null
-    traceContext?: {
-      traceId?: string | null
-      requestId?: string | null
-    } | null
-  }): CrmQueryContext {
-    assertRequiredString(request.tenantId ?? '', 'tenantId')
+/** Maps only locally verified ET and mTLS facts into CRM application context. */
+@Injectable()
+export class CustomerRpcContextValidator implements CanActivate {
+  canActivate(context: ExecutionContext): boolean {
+    CustomerRpcContextValidator.assertQueryContext(context.switchToRpc().getData())
+    return true
+  }
+
+  /** Derives tenant, operator, org, trace, and Code facts without request-body authority. */
+  static assertQueryContext(request: object): CrmQueryContext {
+    const trusted = requireTrustedContext(request)
     return {
-      tenantId: request.tenantId ?? '',
-      operatorContext: assertOperatorContext(
-        request.operatorContext
-          ? {
-              operatorId: request.operatorContext.operatorId ?? '',
-              operatorType: request.operatorContext.operatorType ?? '',
-              orgId: request.operatorContext.orgId ?? null
-            }
-          : null
-      ),
-      traceContext: assertTraceContext(
-        request.traceContext
-          ? {
-              traceId: request.traceContext.traceId ?? '',
-              requestId: request.traceContext.requestId ?? ''
-            }
-          : null
-      )
+      tenantId: trusted.tenantId,
+      operatorContext: {
+        operatorId: trusted.subject,
+        operatorType: 'HUMAN',
+        orgId: trusted.orgId ?? null
+      },
+      traceContext: { traceId: trusted.traceId, requestId: trusted.requestId },
+      permissionCodes: trusted.permissionCodes
     }
   }
 
-  /** assertManagementContext validates the write-path explicit tenant, operator, trace, and audit contexts. */
-  static assertManagementContext(request: {
-    tenantId?: string
-    operatorContext?: {
-      operatorId?: string | null
-      operatorType?: string | null
-      orgId?: string | null
-    } | null
-    traceContext?: {
-      traceId?: string | null
-      requestId?: string | null
-    } | null
-    auditContext?: {
-      auditId?: string | null
-      reason?: string | null
-      source?: string | null
-    } | null
-  }): CrmManagementContext {
-    const queryContext = this.assertQueryContext(request)
+  /** Derives the mutation audit envelope solely from verified token and transport facts. */
+  static assertManagementContext(request: object): CrmManagementContext {
+    const trusted = requireTrustedContext(request)
     return {
-      ...queryContext,
-      auditContext: assertAuditContext(
-        request.auditContext
-          ? {
-              auditId: request.auditContext.auditId ?? '',
-              reason: request.auditContext.reason ?? '',
-              source: request.auditContext.source ?? ''
-            }
-          : null
-      )
+      tenantId: trusted.tenantId,
+      operatorContext: {
+        operatorId: trusted.subject,
+        operatorType: 'HUMAN',
+        orgId: trusted.orgId ?? null
+      },
+      traceContext: { traceId: trusted.traceId, requestId: trusted.requestId },
+      auditContext: {
+        auditId: trusted.tokenId,
+        reason: 'verified CRM command',
+        source: trusted.workload
+      },
+      permissionCodes: trusted.permissionCodes
     }
   }
+}
+
+/** Validates private verified context and rejects every retired authority carrier. */
+function requireTrustedContext(request: object) {
+  if (!request || typeof request !== 'object') {
+    throw unauthenticated('CRM gRPC request payload is missing')
+  }
+  if (
+    RETIRED_AUTHORITY_FIELDS.some((field) => Object.prototype.hasOwnProperty.call(request, field))
+  ) {
+    throw unauthenticated('retired CRM request authority is forbidden')
+  }
+  const context = getAuthenticatedGrpcRequestContext(request)
+  const transport = context as
+    | (typeof context & { requestId?: string; traceId?: string })
+    | undefined
+  const execution = context?.verifiedExecutionToken
+  const tenantId = execution?.tenantId
+  const workload = context?.verifiedWorkloadIdentity?.spiffeId
+  if (
+    execution?.principalType !== 'HUMAN' ||
+    !tenantId ||
+    tenantId.trim() !== tenantId ||
+    tenantId === 'SYSTEM' ||
+    tenantId === '*' ||
+    !execution.subject?.trim() ||
+    !execution.tokenId?.trim() ||
+    !transport?.requestId?.trim() ||
+    !transport.traceId?.trim() ||
+    !workload?.trim()
+  ) {
+    throw unauthenticated('verified CRM HUMAN execution context is missing')
+  }
+  return Object.freeze({
+    tenantId,
+    subject: execution.subject,
+    orgId: execution.orgId,
+    tokenId: execution.tokenId,
+    permissionCodes: Object.freeze([...(execution.permissionCodes ?? [])]),
+    workload,
+    requestId: transport.requestId,
+    traceId: transport.traceId
+  })
+}
+
+/** Creates one stable CRM authentication-context failure without echoing caller material. */
+function unauthenticated(reason: string) {
+  return ExceptionFactory.application(CRM_UNAUTHENTICATED, { reason })
 }

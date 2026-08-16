@@ -11,6 +11,7 @@ import {
   COLLABORATION_ANNOTATION_PERMISSION_CODES,
   COLLABORATION_TASK_PERMISSION_CODES,
   CRM_MANAGEMENT_PERMISSION_CODES,
+  CRM_INTERNAL_PERMISSION_CODES,
   FINANCE_MANAGEMENT_PERMISSION_CODES,
   HR_MANAGEMENT_PERMISSION_CODES,
   IDENTITY_ACCOUNT_PERMISSION_CODES,
@@ -179,7 +180,13 @@ const COMMON_PERMISSION_CODE_FILES: CommonPermissionCodeFileDefinition[] = [
   {
     kind: 'index',
     relativePath: 'crm/index.ts',
-    exports: ['./management.permission-codes']
+    exports: ['./internal.permission-codes', './management.permission-codes']
+  },
+  {
+    kind: 'const',
+    relativePath: 'crm/internal.permission-codes.ts',
+    constName: 'CRM_INTERNAL_PERMISSION_CODES',
+    records: CRM_INTERNAL_PERMISSION_CODES
   },
   {
     kind: 'const',

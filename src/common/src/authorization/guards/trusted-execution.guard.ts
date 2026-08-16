@@ -50,11 +50,11 @@ export class TrustedExecutionGuard implements CanActivate {
       verified.permissionCodes,
       verified.sessionTerminal
     )
+    attachVerifiedOperatorContext(rpc.getData(), verified)
     const attached = attachVerifiedExecution(rpc.getData(), {
       verifiedExecutionToken: verified,
       verifiedWorkloadIdentity: workloadIdentity
     })
-    attachVerifiedOperatorContext(rpc.getData(), verified)
     if (rpc.getData() && typeof rpc.getData() === 'object') {
       const requestId = getGrpcMetadataValue(rpc.getContext<Metadata>(), 'x-request-id')
       const traceparent = getGrpcMetadataValue(rpc.getContext<Metadata>(), 'traceparent')
@@ -104,9 +104,10 @@ function authorize(
   sessionTerminal?: string
 ): void {
   if (
-    'sessionTerminal' in declaration &&
-    declaration.sessionTerminal !== undefined &&
-    declaration.sessionTerminal !== sessionTerminal
+    'sessionTerminals' in declaration &&
+    declaration.sessionTerminals !== undefined &&
+    (sessionTerminal === undefined ||
+      !declaration.sessionTerminals.includes(sessionTerminal as never))
   ) {
     throw denied('trusted execution token has an invalid session terminal')
   }

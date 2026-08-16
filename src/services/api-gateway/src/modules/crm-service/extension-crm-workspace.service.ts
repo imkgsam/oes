@@ -239,7 +239,6 @@ export class ExtensionCrmWorkspaceService {
       {
         ...toLeadCreateInput(input),
         assignmentIntent: 'OWNED_BY_OPERATOR',
-        claimForCurrentUser: false,
         duplicateWarningAcknowledged: Boolean(input.duplicateWarningAcknowledged),
         sourceType: 'BROWSER_EXTENSION'
       },

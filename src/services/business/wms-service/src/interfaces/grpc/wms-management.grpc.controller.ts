@@ -243,7 +243,7 @@ for (const method of [
 ]) {
   AuthorizeBusinessRpc(
     { all: [WMS_MANAGEMENT_PERMISSION_CODES.MANAGE_RECEIPT] },
-    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
   )(
     WmsManagementGrpcController.prototype,
     method,

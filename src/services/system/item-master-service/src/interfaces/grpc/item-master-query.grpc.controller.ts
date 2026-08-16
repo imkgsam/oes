@@ -174,7 +174,7 @@ for (const [method, code] of Object.entries({
     ITEM_MASTER_MANAGEMENT_PERMISSION_CODES.LIST_SUPPLIER_ITEM_MAPPINGS,
   resolveSupplierItemMapping: ITEM_MASTER_MANAGEMENT_PERMISSION_CODES.LIST_SUPPLIER_ITEM_MAPPINGS
 })) {
-  AuthorizeBusinessRpc({ all: [code] }, { principalType: 'HUMAN', sessionTerminal: 'WEB' })(
+  AuthorizeBusinessRpc({ all: [code] }, { principalType: 'HUMAN', sessionTerminals: ['WEB'] })(
     ItemMasterQueryGrpcController.prototype,
     method,
     Object.getOwnPropertyDescriptor(ItemMasterQueryGrpcController.prototype, method)

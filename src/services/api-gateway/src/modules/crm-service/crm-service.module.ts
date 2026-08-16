@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common'
 import { AuthorizationModule } from '@oes/common/authorization'
-import { SERVICE_NAMES } from '@oes/common/constants'
-import { GrpcTransportModule } from '@oes/common/transport'
+import { GatewayTrustedGrpcExecutionModule } from '../../common/grpc/gateway-trusted-grpc-execution.module'
 import { IdentityQueryGrpcAdapter } from '../auth-bff/infrastructure/downstream/identity-service/identity-query-grpc.adapter'
 import { PermissionAccessSummaryGrpcAdapter } from '../auth-bff/infrastructure/downstream/permission-service/permission-access-summary-grpc.adapter'
 import { AdminCrmPerformanceService } from './admin-crm-performance.service'
@@ -14,7 +13,7 @@ import { CustomerManagementService } from './customer-management.service'
 import { ExtensionCrmWorkspaceService } from './extension-crm-workspace.service'
 
 @Module({
-  imports: [AuthorizationModule, GrpcTransportModule.forFeature([SERVICE_NAMES.CRM])],
+  imports: [AuthorizationModule, GatewayTrustedGrpcExecutionModule],
   controllers: [
     CustomerManagementController,
     ExtensionCrmWorkspaceController,

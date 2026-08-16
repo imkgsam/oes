@@ -17,14 +17,14 @@ export type BusinessRpcAuthorizationDeclaration = {
   readonly mode: 'BUSINESS'
   readonly permissions: RpcPermissionRequirement
   readonly principalType?: 'HUMAN' | 'MACHINE' | 'DELEGATED'
-  readonly sessionTerminal?: TrustedSessionTerminal
+  readonly sessionTerminals?: readonly TrustedSessionTerminal[]
 }
 
 /** Represents a structural SELF_SERVICE declaration without binding a principal. */
 export type SelfServiceRpcAuthorizationDeclaration = {
   readonly mode: 'SELF_SERVICE'
   readonly allowDelegated: boolean
-  readonly sessionTerminal?: TrustedSessionTerminal
+  readonly sessionTerminals?: readonly TrustedSessionTerminal[]
 }
 
 /** Represents a structural INTERNAL declaration without validating a workload or policy. */
@@ -44,7 +44,7 @@ export const AuthorizeBusinessRpc = (
   permissions: RpcPermissionRequirement,
   options: {
     readonly principalType?: 'HUMAN' | 'MACHINE' | 'DELEGATED'
-    readonly sessionTerminal?: TrustedSessionTerminal
+    readonly sessionTerminals?: readonly TrustedSessionTerminal[]
   } = {}
 ) =>
   SetMetadata(
@@ -55,14 +55,14 @@ export const AuthorizeBusinessRpc = (
 /** Declares SELF_SERVICE metadata on a method without binding it to any principal. */
 export const AuthorizeSelfServiceRpc = ({
   allowDelegated,
-  sessionTerminal
+  sessionTerminals
 }: {
   readonly allowDelegated: boolean
-  readonly sessionTerminal?: TrustedSessionTerminal
+  readonly sessionTerminals?: readonly TrustedSessionTerminal[]
 }) =>
   SetMetadata(
     RPC_AUTHORIZATION_MODE_METADATA_KEY,
-    createSelfServiceRpcAuthorizationDeclaration(allowDelegated, sessionTerminal)
+    createSelfServiceRpcAuthorizationDeclaration(allowDelegated, sessionTerminals)
   )
 
 /** Declares INTERNAL metadata on a method without validating any workload identity or policy. */
@@ -86,23 +86,23 @@ function createBusinessRpcAuthorizationDeclaration(
   permissions: RpcPermissionRequirement,
   options: {
     readonly principalType?: 'HUMAN' | 'MACHINE' | 'DELEGATED'
-    readonly sessionTerminal?: TrustedSessionTerminal
+    readonly sessionTerminals?: readonly TrustedSessionTerminal[]
   }
 ): BusinessRpcAuthorizationDeclaration {
   return Object.freeze({
     mode: 'BUSINESS',
     permissions: normalizePermissionRequirement('BUSINESS', permissions),
     ...(options.principalType === undefined ? {} : { principalType: options.principalType }),
-    ...(options.sessionTerminal === undefined
+    ...(options.sessionTerminals === undefined
       ? {}
-      : { sessionTerminal: normalizeSessionTerminal(options.sessionTerminal) })
+      : { sessionTerminals: normalizeSessionTerminals(options.sessionTerminals) })
   })
 }
 
 /** Creates an immutable SELF_SERVICE declaration after validating its local metadata shape. */
 function createSelfServiceRpcAuthorizationDeclaration(
   allowDelegated: boolean,
-  sessionTerminal?: string
+  sessionTerminals?: readonly TrustedSessionTerminal[]
 ): SelfServiceRpcAuthorizationDeclaration {
   if (typeof allowDelegated !== 'boolean') {
     throw new Error('SELF_SERVICE authorization allowDelegated must be a boolean')
@@ -111,15 +111,24 @@ function createSelfServiceRpcAuthorizationDeclaration(
   return Object.freeze({
     mode: 'SELF_SERVICE',
     allowDelegated,
-    ...(sessionTerminal === undefined
+    ...(sessionTerminals === undefined
       ? {}
-      : { sessionTerminal: normalizeSessionTerminal(sessionTerminal) })
+      : { sessionTerminals: normalizeSessionTerminals(sessionTerminals) })
   })
 }
 
-/** Restricts terminal declarations to one exact Auth-signed session fact. */
-function normalizeSessionTerminal(value: string): TrustedSessionTerminal {
-  return requireTrustedSessionTerminal(value)
+/** Normalizes a non-empty, duplicate-free and immutable terminal declaration set. */
+function normalizeSessionTerminals(
+  values: readonly TrustedSessionTerminal[]
+): readonly TrustedSessionTerminal[] {
+  if (!Array.isArray(values) || values.length === 0) {
+    throw new Error('trusted execution session terminals must be a non-empty array')
+  }
+  const normalized = values.map((value) => requireTrustedSessionTerminal(value))
+  if (new Set(normalized).size !== normalized.length) {
+    throw new Error('trusted execution session terminals must not contain duplicates')
+  }
+  return Object.freeze(normalized)
 }
 
 /** Creates an immutable INTERNAL declaration after validating its local metadata shape. */

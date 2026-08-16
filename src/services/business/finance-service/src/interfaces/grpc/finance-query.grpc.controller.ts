@@ -92,7 +92,7 @@ export class FinanceQueryGrpcController
 
   @AuthorizeBusinessRpc(
     { all: ['finance.financial_account.get_by_id'] },
-    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
   )
   async getFinancialAccount(
     request: GetFinancialAccountRequest
@@ -106,7 +106,7 @@ export class FinanceQueryGrpcController
 
   @AuthorizeBusinessRpc(
     { all: ['finance.financial_account.list'] },
-    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
   )
   async searchFinancialAccounts(
     request: SearchFinancialAccountsRequest
@@ -130,7 +130,7 @@ export class FinanceQueryGrpcController
 
   @AuthorizeBusinessRpc(
     { all: ['finance.account_transaction.list'] },
-    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
   )
   async searchAccountTransactions(
     request: SearchAccountTransactionsRequest
@@ -157,7 +157,7 @@ export class FinanceQueryGrpcController
 
   @AuthorizeBusinessRpc(
     { all: ['finance.exchange_rate.get'] },
-    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
   )
   async getExchangeRate(request: GetExchangeRateRequest): Promise<GetExchangeRateResponse> {
     const context = FinanceRpcContextValidator.assertQueryContext(request)
@@ -174,7 +174,7 @@ export class FinanceQueryGrpcController
 
   @AuthorizeBusinessRpc(
     { all: ['finance.receivable_schedule.get_by_id'] },
-    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
   )
   async getReceivableSchedule(
     request: GetReceivableScheduleRequest
@@ -188,7 +188,7 @@ export class FinanceQueryGrpcController
 
   @AuthorizeBusinessRpc(
     { all: ['finance.receivable_schedule.list'] },
-    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
   )
   async searchReceivableSchedules(
     request: SearchReceivableSchedulesRequest
@@ -215,7 +215,7 @@ export class FinanceQueryGrpcController
 
   @AuthorizeBusinessRpc(
     { all: ['finance.finance_release_signal.get'] },
-    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
   )
   async getFinanceReleaseSignal(
     request: GetFinanceReleaseSignalRequest
@@ -229,7 +229,7 @@ export class FinanceQueryGrpcController
 
   @AuthorizeBusinessRpc(
     { all: ['finance.payable.read'] },
-    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
   )
   async getPayableSchedule(
     request: GetPayableScheduleRequest
@@ -243,7 +243,7 @@ export class FinanceQueryGrpcController
 
   @AuthorizeBusinessRpc(
     { all: ['finance.payable.read'] },
-    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
   )
   async searchPayableSchedules(
     request: SearchPayableSchedulesRequest
@@ -272,7 +272,7 @@ export class FinanceQueryGrpcController
 
   @AuthorizeBusinessRpc(
     { all: ['finance.payable.read'] },
-    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
   )
   async searchPaymentRequests(
     request: SearchPaymentRequestsRequest
@@ -299,7 +299,7 @@ export class FinanceQueryGrpcController
 
   @AuthorizeBusinessRpc(
     { all: ['finance.payable.read'] },
-    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
   )
   async searchPaymentExecutions(
     request: SearchPaymentExecutionsRequest
@@ -325,7 +325,7 @@ export class FinanceQueryGrpcController
 
   @AuthorizeBusinessRpc(
     { all: ['finance.payment_allocation.list'] },
-    { principalType: 'HUMAN', sessionTerminal: 'WEB' }
+    { principalType: 'HUMAN', sessionTerminals: ['WEB'] }
   )
   async searchPaymentAllocations(
     request: SearchPaymentAllocationsRequest

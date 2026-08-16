@@ -14,10 +14,11 @@ import { UpdateDraftLeadHandler } from '../application/commands/update-draft-lea
 import { CheckLeadDuplicateHandler } from '../application/queries/check-lead-duplicate.handler'
 import { CrmAuditService } from '../application/services/crm-audit.service'
 import { CustomerManagementGrpcController } from '../interfaces/grpc/customer-management.grpc.controller'
+import { CrmTrustedExecutionModule } from './crm-trusted-execution.module'
 
 /** CrmManagementModule wires the phase 1 CRM command handlers, audit service, and gRPC controller surface. */
 @Module({
-  imports: [CqrsModule],
+  imports: [CqrsModule, CrmTrustedExecutionModule],
   providers: [
     ValidatingCommandBus,
     CrmAuditService,

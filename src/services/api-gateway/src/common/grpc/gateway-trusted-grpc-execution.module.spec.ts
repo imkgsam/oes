@@ -9,6 +9,7 @@ import { GatewayItemMasterGrpcClient } from './gateway-item-master-grpc.client'
 import { GatewaySrmGrpcClient } from './gateway-srm-grpc.client'
 import { GatewayProcurementGrpcClient } from './gateway-procurement-grpc.client'
 import { GatewayWmsGrpcClient } from './gateway-wms-grpc.client'
+import { GatewayCrmGrpcClient } from './gateway-crm-grpc.client'
 import { Module } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 
@@ -53,6 +54,7 @@ describe('GatewayTrustedGrpcExecutionModule wiring', () => {
         GatewaySrmGrpcClient,
         GatewayProcurementGrpcClient,
         GatewayWmsGrpcClient,
+        GatewayCrmGrpcClient,
         GatewayMachineWorkloadSourceCredentialProvider,
         GatewayMachineTrustedGrpcExecutionProducer
       ])
@@ -67,6 +69,7 @@ describe('GatewayTrustedGrpcExecutionModule wiring', () => {
         GatewaySrmGrpcClient,
         GatewayProcurementGrpcClient,
         GatewayWmsGrpcClient,
+        GatewayCrmGrpcClient,
         GatewayMachineWorkloadSourceCredentialProvider,
         GatewayMachineTrustedGrpcExecutionProducer
       ])
@@ -88,7 +91,8 @@ describe('GatewayTrustedGrpcExecutionModule wiring', () => {
       'urn:oes:service:item-master-service',
       'urn:oes:service:srm-service',
       'urn:oes:service:procurement-service',
-      'urn:oes:service:wms-service'
+      'urn:oes:service:wms-service',
+      'urn:oes:service:crm-service'
     ])
   })
 

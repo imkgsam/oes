@@ -8,7 +8,8 @@ describe('Collaboration foundation trusted gRPC targets', () => {
   it('contains only the frozen target set', () => {
     expect(Object.keys(COLLABORATION_FOUNDATION_TARGETS)).toEqual([
       'identity-service',
-      'permission-service'
+      'permission-service',
+      'crm-service'
     ])
     for (const target of Object.keys(COLLABORATION_FOUNDATION_TARGETS) as Array<
       keyof typeof COLLABORATION_FOUNDATION_TARGETS

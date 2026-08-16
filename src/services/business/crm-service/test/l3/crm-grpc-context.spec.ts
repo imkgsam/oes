@@ -1,147 +1,63 @@
 import { status } from '@grpc/grpc-js'
-import { CustomerManagementGrpcController } from '../../src/interfaces/grpc/customer-management.grpc.controller'
-import { CustomerQueryGrpcController } from '../../src/interfaces/grpc/customer-query.grpc.controller'
+import { attachVerifiedExecution } from '@oes/common/authorization'
+import { CustomerRpcContextValidator } from '../../src/interfaces/grpc/customer-rpc-context.validator'
 
-function createManagementController() {
-  return new CustomerManagementGrpcController(
-    {
-      execute: jest.fn()
-    } as never,
-    {
-      recordCommand: jest.fn()
-    } as never
-  )
-}
+/** Proves CRM derives application context only from private verified execution facts. */
+describe('crm-service trusted grpc context validation L3', () => {
+  it('derives tenant/operator/trace/audit from guard-attached facts', () => {
+    const request = trustedRequest({ displayName: 'Acme CRM' })
 
-function createQueryController() {
-  return new CustomerQueryGrpcController({
-    execute: jest.fn()
-  } as never)
-}
-
-describe('crm-service grpc context validation L3', () => {
-  it('CreateLead / when tenant_id is missing / should reject with INVALID_ARGUMENT', async () => {
-    const controller = createManagementController()
-
-    await expect(
-      controller.createLead({
-        tenantId: '',
-        operatorContext: {
-          operatorId: 'operator-1',
-          operatorType: 'HUMAN',
-          orgId: 'org-1'
-        },
-        traceContext: {
-          traceId: 'trace-1',
-          requestId: 'request-1'
-        },
-        auditContext: {
-          auditId: 'audit-1',
-          reason: 'create lead',
-          source: 'crm-workspace'
-        },
-        displayName: 'Acme CRM',
-        sourceType: 'WEB_RESEARCH'
-      } as never)
-    ).rejects.toMatchObject({
-      definition: {
-        rpcStatus: status.INVALID_ARGUMENT
-      }
+    expect(CustomerRpcContextValidator.assertManagementContext(request)).toMatchObject({
+      tenantId: 'tenant-1',
+      operatorContext: { operatorId: 'operator-1', orgId: 'org-1' },
+      traceContext: { traceId: 'trace-1', requestId: 'request-1' },
+      auditContext: { auditId: 'token-1', reason: 'verified CRM command' }
     })
   })
 
-  it('CreateLead / when operator_context is missing / should reject with UNAUTHENTICATED', async () => {
-    const controller = createManagementController()
-
-    await expect(
-      controller.createLead({
-        tenantId: 'tenant-1',
-        traceContext: {
-          traceId: 'trace-1',
-          requestId: 'request-1'
-        },
-        auditContext: {
-          auditId: 'audit-1',
-          reason: 'create lead',
-          source: 'crm-workspace'
-        },
-        displayName: 'Acme CRM',
-        sourceType: 'WEB_RESEARCH'
-      } as never)
-    ).rejects.toMatchObject({
-      definition: {
-        rpcStatus: status.UNAUTHENTICATED
-      }
-    })
+  it('fails closed when private verified proof is missing', () => {
+    expect(() => CustomerRpcContextValidator.assertQueryContext({})).toThrow(
+      expect.objectContaining({
+        definition: expect.objectContaining({ rpcStatus: status.UNAUTHENTICATED })
+      })
+    )
   })
 
-  it('CreateLead / when trace_context is missing / should reject with UNAUTHENTICATED', async () => {
-    const controller = createManagementController()
+  it.each([
+    ['tenantId', 'attacker'],
+    ['tenant_id', 'attacker'],
+    ['operatorContext', {}],
+    ['traceContext', {}],
+    ['auditContext', {}],
+    ['claimForCurrentUser', true],
+    ['allowOwnerlessConversion', true]
+  ])('rejects retired %s authority even when verified proof exists', (field, value) => {
+    const request = trustedRequest({ [field]: value })
 
-    await expect(
-      controller.createLead({
-        tenantId: 'tenant-1',
-        operatorContext: {
-          operatorId: 'operator-1',
-          operatorType: 'HUMAN',
-          orgId: 'org-1'
-        },
-        auditContext: {
-          auditId: 'audit-1',
-          reason: 'create lead',
-          source: 'crm-workspace'
-        },
-        displayName: 'Acme CRM',
-        sourceType: 'WEB_RESEARCH'
-      } as never)
-    ).rejects.toMatchObject({
-      definition: {
-        rpcStatus: status.UNAUTHENTICATED
-      }
-    })
-  })
-
-  it('CreateLead / when audit_context is missing / should reject with UNAUTHENTICATED', async () => {
-    const controller = createManagementController()
-
-    await expect(
-      controller.createLead({
-        tenantId: 'tenant-1',
-        operatorContext: {
-          operatorId: 'operator-1',
-          operatorType: 'HUMAN',
-          orgId: 'org-1'
-        },
-        traceContext: {
-          traceId: 'trace-1',
-          requestId: 'request-1'
-        },
-        displayName: 'Acme CRM',
-        sourceType: 'WEB_RESEARCH'
-      } as never)
-    ).rejects.toMatchObject({
-      definition: {
-        rpcStatus: status.UNAUTHENTICATED
-      }
-    })
-  })
-
-  it('ListCrmAccounts / when query operator_context is missing / should reject with UNAUTHENTICATED', async () => {
-    const controller = createQueryController()
-
-    await expect(
-      controller.listCrmAccounts({
-        tenantId: 'tenant-1',
-        traceContext: {
-          traceId: 'trace-1',
-          requestId: 'request-1'
-        },
-        keyword: 'acme'
-      } as never)
-    ).rejects.toMatchObject({
-      definition: {
-        rpcStatus: status.UNAUTHENTICATED
-      }
-    })
+    expect(() => CustomerRpcContextValidator.assertManagementContext(request)).toThrow(
+      expect.objectContaining({
+        definition: expect.objectContaining({ rpcStatus: status.UNAUTHENTICATED })
+      })
+    )
   })
 })
+
+/** Attaches the request-private context normally produced by CRM's trusted guard. */
+function trustedRequest<T extends object>(request: T): T {
+  const authenticated = attachVerifiedExecution(request, {
+    verifiedExecutionToken: {
+      subject: 'operator-1',
+      principalType: 'HUMAN',
+      tenantId: 'tenant-1',
+      orgId: 'org-1',
+      permissionCodes: ['crm.account.create'],
+      tokenId: 'token-1'
+    } as never,
+    verifiedWorkloadIdentity: {
+      spiffeId: 'spiffe://oes/api-gateway',
+      certificateThumbprint: 'A'.repeat(43)
+    }
+  })
+  Object.assign(authenticated as object, { requestId: 'request-1', traceId: 'trace-1' })
+  return request
+}

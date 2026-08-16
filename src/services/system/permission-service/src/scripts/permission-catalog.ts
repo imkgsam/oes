@@ -522,6 +522,13 @@ const crmManagement = definePermissionGroup(Modules.CRM_SERVICE, {
   }
 })
 
+const crmInternal = definePermissionGroup(Modules.CRM_SERVICE, {
+  VALIDATE_OBJECT_REFERENCE: {
+    code: 'crm.internal.object_reference.validate',
+    description: '验证 Collaboration 引用的 CRM 对象最小事实'
+  }
+})
+
 const srmManagement = definePermissionGroup(Modules.SRM_SERVICE, {
   LIST_SUPPLIER_PROFILE: {
     code: 'srm.supplier_profile.list',
@@ -1257,6 +1264,7 @@ export const HR_MANAGEMENT_PERMISSION_CODES = hrManagement.codes
 export const ITEM_MASTER_MANAGEMENT_PERMISSION_CODES = itemMasterManagement.codes
 export const ITEM_MASTER_INTERNAL_PERMISSION_CODES = itemMasterInternal.codes
 export const CRM_MANAGEMENT_PERMISSION_CODES = crmManagement.codes
+export const CRM_INTERNAL_PERMISSION_CODES = crmInternal.codes
 export const SRM_MANAGEMENT_PERMISSION_CODES = srmManagement.codes
 export const SRM_INTERNAL_PERMISSION_CODES = srmInternal.codes
 export const SALES_MANAGEMENT_PERMISSION_CODES = salesManagement.codes
@@ -1319,6 +1327,7 @@ export const PERMISSION_CODE_SEED_ITEMS: PermissionSeedItem[] = [
   ...hrManagement.items,
   ...itemMasterManagement.items,
   ...crmManagement.items,
+  ...crmInternal.items,
   ...srmManagement.items,
   ...srmInternal.items,
   ...salesManagement.items,
