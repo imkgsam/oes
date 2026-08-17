@@ -35,6 +35,7 @@ docs/
     ├── intake.md
     ├── backlog.md
     ├── designs/
+    ├── stages/
     └── features/
 ```
 
@@ -77,6 +78,7 @@ ADR 解释“为什么选择当前高影响方案”，而 architecture 解释�
 ### 3.4 Governance 与 Runbook
 
 - Governance 只定义当前协作、执行和文档纪律。
+- `AGENTS.md` 与 `docs/governance/**` 的稳定治理和协同契约只由 UD 根据 Human-confirmed Proposal 写入；CDT 只形成 Proposal Patch，不直接成为 canonical writer。
 - Runbook 只保存当前可执行的运维、故障处理与恢复步骤。
 - 已完成治理项目、优化收尾、线程经验和一次性复盘不作为长期治理文件。
 
@@ -130,11 +132,26 @@ Proposal Patch 是 Design Task 基于 Workspace 与当前真相形成的真实 G
 - base commit；
 - proposal commit；
 - intended canonical files；
-- execution intent。
+- canonical truth domain（architecture、ADR、contract 或 governance）；
+- `executionIntent = DESIGN_ONLY | START_AFTER_TRUTH_MERGE`；
+- `executionShape = NONE | SINGLE_FEATURE | DELIVERY_STAGE`。
+- `DELIVERY_STAGE` 的 exact source decision task。
 
-UD 审核并写入 canonical truth 后，Proposal 的长期历史由 Git 提供。
+UD 只处理 Human-confirmed Proposal。一次 Proposal 提交确认授权 UD 审核，并在接受时按 intended canonical files 将 exact Proposal 集成到其唯一写者范围，完成验证、push 和 design PR 创建，停止于 `DESIGN_PR_READY`；design PR merge 与 cleanup 分别另行确认。唯一写者范围包括 architecture、ADR、稳定 contracts、`AGENTS.md`、`docs/governance/**` 与必要导航。Proposal 的长期历史由 Git 提供。
 
-## 6. Feature Packet
+## 6. Stage Packet
+
+一个 SL 对应一个 compact active Stage Packet，逻辑路径为：
+
+```text
+docs/plans/stages/<stage-key>.md
+```
+
+Stage Packet 只存在于 SL 的本地 stage coordination branch/worktree，不 push、不创建 PR、不合入 `main`。它只记录当前 objective、scope/protected scope、source IDT、FL 引用与依赖、exit criteria、blocker 和 current state；状态原位覆盖，不保存聊天、时间线、task/thread registry、watcher 信息或 IT candidate 细节，也不复制 FP 内容。
+
+Stage Packet 是 active work，不是稳定真相或第二状态表。阶段在最新 `main` 完成验收、各 FL 分别完成 Human 确认的 cleanup 后，Human 在 SL task 确认 Stage Cleanup；SL 随即删除 Stage Packet 和精确本地 stage coordination/verification 资源并 archive SL。Git 不保留可达的 stage coordination 历史。
+
+## 7. Feature Packet
 
 一个 FL 对应一个 compact active FP：
 
@@ -153,14 +170,14 @@ FP 完成并满足以下条件后进入 `COMPLETE_AWAITING_CLEANUP`：
 
 Human 确认 cleanup 后删除 FP。
 
-## 7. Intake 与 Backlog
+## 8. Intake 与 Backlog
 
 - `plans/intake.md`：尚未进入设计的当前候选；Design Task 创建后从 intake 删除。
 - `plans/backlog.md`：仍有效但明确延期的事项；完成、取消或失效后删除。
 
 不记录 `PROMOTED`、`CANCELLED` 或完成历史。
 
-## 8. Index
+## 9. Index
 
 Index 的唯一职责是告诉读者去哪里读取规范文件。
 
@@ -185,9 +202,9 @@ Index 的唯一职责是告诉读者去哪里读取规范文件。
 docs/index.md -> category/index.md -> canonical document
 ```
 
-active Design Workspace 和 FP 由目录中的当前文件表示，不维护第二份状态表。
+active Design Workspace、Stage Packet 和 FP 由各自目录中的当前文件表示，不维护第二份状态表。Stage Packet 仅在 SL 本地分支出现，因此 `main` 上的空目录不代表状态。
 
-## 9. 旧文档清理规则
+## 10. 旧文档清理规则
 
 清理采用逐文件语义归位，不做整批文本搬运：
 
@@ -201,14 +218,15 @@ active Design Workspace 和 FP 由目录中的当前文件表示，不维护第�
 
 旧治理文件收敛到 `codex-execution-model.md` 与本文；旧 plans 根目录的 draft、foundation plan、implementation plan 与 checklist 分别归入 canonical truth、Workspace、FP、runbook 或 backlog。
 
-## 10. 轻量验证
+## 11. 轻量验证
 
 文档重构至少检查：
 
 - 所有 Markdown 相对链接存在；
 - 每个稳定服务真相被索引且只出现一次；
 - canonical indexes 不含 `DESIGNING`、`DONE`、`HISTORICAL` 等状态；
-- 仓库文档不含 `/Users/...` 等本机绝对路径；
+- 仓库文档不含本机 home 目录等绝对路径；
 - plans index 不枚举实现状态；
+- Stage Packet 未进入 remote refs 或 `main`，且不含 registry、历史或 IT candidate 细节；
 - superseded/closed 文件删除前完成语义覆盖检查；
 - `git diff --check` 通过。
