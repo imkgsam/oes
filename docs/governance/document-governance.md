@@ -78,7 +78,7 @@ ADR 解释“为什么选择当前高影响方案”，而 architecture 解释�
 ### 3.4 Governance 与 Runbook
 
 - Governance 只定义当前协作、执行和文档纪律。
-- `AGENTS.md` 与 `docs/governance/**` 的稳定治理和协同契约只由 UD 根据 Human-confirmed Proposal 写入；CDT 只形成 Proposal Patch，不直接成为 canonical writer。
+- `AGENTS.md`、`docs/governance/**` 及其他规范真相只由 UD 写入。UD 只有两个 Human-confirmed 入口：CDT 提交的语义 Proposal，以及精确分类为语义影响 `NONE` 的 `CANONICAL_EDITORIAL_PATCH`；UD 不自行发起 canonical 改写。CDT 与 source Direct owner 都不直接成为 canonical writer。
 - Runbook 只保存当前可执行的运维、故障处理与恢复步骤。
 - 已完成治理项目、优化收尾、线程经验和一次性复盘不作为长期治理文件。
 
@@ -92,7 +92,7 @@ ADR 解释“为什么选择当前高影响方案”，而 architecture 解释�
 - README、index 或导航的非语义修正；
 - 不改变运行行为、操作结果、owner、scope、contract 或约束等级的说明修正。
 
-Architecture、ADR、Contract、`AGENTS.md` 或 Governance 的语义变化始终进入 CDT → UD。上述规范文件的纯编辑修正可使用 `CANONICAL_EDITORIAL_PATCH`：不创建 CDT/Workspace/FP，由 UD 作为唯一 writer 在短期 design branch 上修改、验证并经 design PR 合入。任何 `must/should/may`、owner、scope、权限、租户、事件、API、生命周期、默认值或行为含义变化都使 editorial classification 失效。
+Architecture、ADR、Contract、`AGENTS.md` 或 Governance 的语义变化始终进入 CDT → UD。上述规范文件的纯编辑修正可使用 `CANONICAL_EDITORIAL_PATCH`：不创建 CDT/Workspace/FP；source Direct owner 只拥有 classification、精确 scope/protected scope、evidence 和 callback，UD 独占短期 design branch/worktree、修改、验证、design PR、merge、main validation 与自己的 Git cleanup。任何 `must/should/may`、owner、scope、权限、租户、事件、API、生命周期、默认值或行为含义变化都使 editorial classification 失效，UD 返回 source Direct owner，由其重新展示 Collaborative 或继续讨论选项。
 
 Direct 文档验证至少包括 changed-path allowlist、`git diff --check`、相关 Markdown link/UTF-8/绝对路径检查和语义影响声明。发现分类不成立时停止写入，并根据 status 展示 Collaborative 或继续讨论选项。
 
@@ -151,7 +151,7 @@ Proposal Patch 是 Design Task 基于 Workspace 与当前真相形成的真实 G
 - `executionShape = NONE | SINGLE_FEATURE | DELIVERY_STAGE`。
 - `DELIVERY_STAGE` 的 exact source decision task。
 
-UD 只处理 Human-confirmed Proposal。一次 Proposal 提交确认授权 UD 审核，并在接受时按 intended canonical files 将 exact Proposal 集成到其唯一写者范围，完成验证、push 和 design PR 创建，停止于 `DESIGN_PR_READY`；design PR merge 与 cleanup 分别另行确认。唯一写者范围包括 architecture、ADR、稳定 contracts、`AGENTS.md`、`docs/governance/**` 与必要导航。Proposal 的长期历史由 Git 提供。
+UD 对 Human-confirmed 语义 Proposal 执行设计审核；一次 Proposal 提交确认授权 UD 在接受时按 intended canonical files 集成 exact Proposal、验证、push 和创建 design PR，停止于 `DESIGN_PR_READY`。语义影响为 `NONE` 的 Human-confirmed `CANONICAL_EDITORIAL_PATCH` 是另一条非 Proposal 入口，只授权 UD 在 exact files/hunks 内编辑并走相同 design PR、merge、main validation 与 UD cleanup gate。两类入口的 merge 与 cleanup 均分别确认；Proposal 的长期历史由 Git 提供。
 
 ## 6. Stage Packet
 

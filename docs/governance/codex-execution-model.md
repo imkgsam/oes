@@ -57,9 +57,10 @@ CDT 标题为 <code>[CDT] &lt;human-readable-design-topic&gt;</code>。
 
 UD 是长期全局设计审查 task，也是 architecture、ADR、稳定 contracts 与稳定治理/协同契约的唯一 agent writer。稳定治理/协同契约包括 <code>AGENTS.md</code>、<code>docs/governance/**</code> 与必要导航。它：
 
-- 只串行审核 CDT 的 Human-confirmed Proposal，不自行发起未确认的 canonical 改写；
+- 只接受两类 Human-confirmed canonical 入口：串行审核 CDT 的语义 Proposal；或执行语义影响为 <code>NONE</code>、精确 files/hunks 已绑定的 <code>CANONICAL_EDITORIAL_PATCH</code>；
+- 不自行发起未确认的 canonical 改写，editorial classification 失效时返回 source Direct owner，不在 UD 内升级或改写为 Proposal；
 - 检查全局边界、长期演进、当前真相和提案冲突；
-- 有 blocker 时返回 <code>REVISION_REQUIRED</code>；接受时在自己的 canonical design integration branch 集成 exact Proposal、验证、push 并创建 design PR，停止于 <code>DESIGN_PR_READY</code>；
+- 对语义 Proposal：有 blocker 时向 source CDT 返回 <code>REVISION_REQUIRED</code>；接受时集成 exact Proposal。对 <code>CANONICAL_EDITORIAL_PATCH</code>：classification 失效时向 exact source Direct parent/callback 返回 <code>EDITORIAL_CLASSIFICATION_INVALID</code>；接受时只编辑已绑定的 exact files/hunks。两类入口均由 UD 在自己的 canonical design integration branch 完成验证、push 并创建 design PR，停止于 <code>DESIGN_PR_READY</code>；
 - Human 独立确认 design PR merge 后执行 Merge Commit，并通过 main CI 完成 truth merge；
 - 仅在 truth 已进入 <code>main</code> 且 main CI 通过后，按已确认执行意图创建 FL 或 SL。
 
@@ -136,11 +137,22 @@ REQUESTED -> ACTIVE -> VERIFIED -> PR_READY -> MERGED -> MAIN_VALIDATED
 
 Direct 使用短期 owner branch/worktree 和一个聚焦 PR；不建立 IDT/CDT/SL/FL/IT/RI、Stage Packet 或 FP。状态、owner、scope 或 protected scope 变化时原选择失效，重新展示当前可用方式。
 
+`CANONICAL_EDITORIAL_PATCH` 是 Direct 的受控例外：source Direct owner 只拥有 Change Set classification、scope/protected scope、evidence 和 exact callback，不拥有 canonical branch、修改、PR、merge 或 Git cleanup；这些 artifact 与 transition 全部归 UD。source Direct owner 在收到 `CANONICAL_MERGED` 后验证 exact files/hunks 已承接并关闭自己的无 Git 资源 Change Set。
+
 ### 3.2 Direct 数据流
 
 ~~~text
 Human -> status options -> Direct owner -> focused change/verification -> PR_READY
       -> Human merge confirmation -> Merge Commit -> main validation -> exact cleanup
+~~~
+
+Canonical editorial 分支：
+
+~~~text
+Human -> source Direct owner classification/card -> UD
+      -> UD design branch/edit/verification/PR -> Human merge confirmation
+      -> UD main validation -> CANONICAL_MERGED to exact source callback
+      -> UD cleans UD resources; source Direct owner closes source Change Set
 ~~~
 
 ### 3.3 Collaborative 数据流
@@ -279,7 +291,7 @@ parent assignment 必须携带 <code>rootConfirmationFingerprint</code> 和直�
 | --- | --- | --- | --- | --- |
 | CDT → UD | Human authorization envelope | Proposal confirmation fingerprint、source CDT、base/proposal SHA、canonical domains/files、execution intent/shape、protected scope | exact UD locator、canonical design integration branch/worktree、owner push ref、design PR base | blocker 时 <code>REVISION_REQUIRED</code>；接受时集成 exact Proposal、验证、push、创建/更新 design PR 并停止于 <code>DESIGN_PR_READY</code> |
 | IDT → SL | Human authorization envelope | source IDT、Stage Start fingerprint、objective、scope/protected scope、truth refs、feature graph/order、exit criteria | exact SL、stage resources | <code>STAGE_AWAITING_CLEANUP</code>；Stage Cleanup 另行确认 |
-| Direct owner → UD | Human authorization envelope | `CANONICAL_EDITORIAL_PATCH` classification、exact files/hunks、semantic impact `NONE`、scope/protected scope、direct parent/callback | exact UD、design branch/worktree、focused checks、design PR base | classification 失效时返回 source Direct owner；通过时创建 design PR 并停止于 <code>DESIGN_PR_READY</code> |
+| Direct owner → UD | Human authorization envelope | `CANONICAL_EDITORIAL_PATCH` classification、exact files/hunks、semantic impact `NONE`、scope/protected scope、direct parent/callback | exact UD；UD-owned design branch/worktree、focused checks、design PR base | classification 失效时返回 source Direct owner；通过时创建 UD-owned design PR 并停止于 <code>DESIGN_PR_READY</code> |
 | Direct owner → Recovery FL | Human authorization envelope | exact orphan FP/resources、inactive former owner evidence、objective、scope/protected scope、truth refs、direct parent/callback | exact Recovery FL、feature/FP key、允许写路径、resources | <code>BLOCKED | PR_READY</code>；merge 另行确认 |
 | UD → FL | Human authorization envelope | confirmed Proposal fingerprint、<code>START_AFTER_TRUTH_MERGE / SINGLE_FEATURE</code>、scope/protected scope | exact merged truth/main CI、FL key/resources | <code>PR_READY</code>；merge 另行确认 |
 | UD → SL | Human authorization envelope | confirmed Proposal fingerprint、<code>START_AFTER_TRUTH_MERGE / DELIVERY_STAGE</code>、source decision task、objective、scope/protected scope、feature graph/order、exit criteria | exact merged truth/main CI、SL resources | <code>STAGE_AWAITING_CLEANUP</code>；Stage Cleanup 另行确认 |
@@ -352,7 +364,7 @@ Stage Packet 只存在于 SL 的本地 stage coordination branch/worktree，只�
 
 ### 6.3 Direct Change Set 与续作
 
-一个 Direct owner 同时只拥有一个 Change Set，内部绑定 `changeSetKey`、objective、scope/protected scope、owner task、branch/worktree、candidate、PR、state 与 scope fingerprint；不创建 repository packet或第二状态表。
+一个 Direct owner 同时只拥有一个 Change Set，内部绑定 `changeSetKey`、objective、scope/protected scope、owner task、artifact owner、branch/worktree、candidate、PR、state 与 scope fingerprint；不创建 repository packet或第二状态表。普通Direct的artifact owner等于Direct owner；`CANONICAL_EDITORIAL_PATCH`的artifact owner固定为UD，source Direct owner的branch/worktree/candidate/PR字段为`NONE`。
 
 同一目标、owner、protected scope 和独立交付物未变化时，任何后续 turn 恢复 exact owner task与现场：PR前继续原 branch；candidate/PR公开后只追加 commit并使旧 review/check失效；post-merge validation失败仍由原 owner创建 corrective PR。成功 merge、main validation和cleanup后的新要求，或 objective/owner/protected scope/独立交付物变化，形成新 Change Set。范围扩大但仍是单一职责时在原 task replacement scope；扩展为多个独立 feature时升级 Collaborative。
 
@@ -450,7 +462,7 @@ SL 可为 Stage Review 创建 clean-context Stage RI；SL 或 Stage RI 只读精
 
 自动进行：
 
-- 已选择的 Direct owner在确认scope内完成修改、focused verification、owner branch push与PR创建，停止于`PR_READY`；
+- 已选择的Direct owner在确认scope内完成修改、focused verification、owner branch push与PR创建，停止于`PR_READY`；`CANONICAL_EDITORIAL_PATCH`除外，其source Direct owner只提交classification/evidence，UD拥有全部canonical artifacts与PR；
 
 - IT → FL candidate 回传；
 - RI → parent findings 回传；
@@ -460,7 +472,7 @@ SL 可为 Stage Review 创建 clean-context Stage RI；SL 或 Stage RI 只读精
 - confirmed Proposal 到达 UD 后自动完成串行 review；有 blocker 时返回 <code>REVISION_REQUIRED</code>，接受时集成 exact Proposal、验证、push owner branch、创建或更新 design PR，并停止于 <code>DESIGN_PR_READY</code>；
 - confirmed topology 内，SL → FL/Stage RI 与 FL → IT/RI 使用收窄的 parent assignment，不重复取得 Human 确认；
 - UD 只有在 design PR Human-confirmed merge、truth exact进入`main`且main CI成功后，才按预封存shape创建 FL或SL之一；`SINGLE_FEATURE`创建FL，`DELIVERY_STAGE`创建SL并由SL创建FL；
-- child验证 direct parent/callback和binding后，UD向source CDT返回`CANONICAL_MERGED`及merge/main CI/activation证据；
+- `DESIGN_ONLY`在main CI成功后，或可执行shape的child验证direct parent/callback和binding后，UD向入口对应的source CDT或source Direct owner返回`CANONICAL_MERGED`及merge/main CI/activation证据；
 - SL 按已确认范围和可用容量启动依赖 ready 的 FL；
 - feature candidates 与 review 通过后，由 FL push feature branch 并创建 PR；
 - FL 仅向 parent SL 返回规定里程碑。
@@ -495,7 +507,7 @@ Human 介入：
 | 角色 | 可创建的 Git 资源 | 可写范围 | Remote push / PR | 合并 main | 清理 |
 | --- | --- | --- | --- | --- | --- |
 | HDO | 无强制资源 | 只作语义与 gate 确认 | 只作确认 | 只作确认 | 只作确认 |
-| Direct owner | 一个短期 Change Set branch/worktree | 精确Direct scope；不写稳定语义 | 只push自己的branch并创建/更新一个PR | Human确认后执行Merge Commit | main验证后清理自己的精确资源 |
+| Direct owner | 普通Direct拥有一个短期Change Set branch/worktree；editorial source Direct owner无Git资源 | 精确Direct scope；不写稳定语义；editorial source只绑定classification、files/hunks、evidence与callback | 普通Direct只push自己的branch并创建/更新一个PR；editorial source不push、不创建PR | 普通Direct经Human确认后执行Merge Commit；editorial source不合并 | 普通Direct在main验证后清理自己的精确资源；editorial source收到`CANONICAL_MERGED`后关闭无Git资源Change Set |
 | IDT | 默认无 | 不写 repository 文档或代码 | 禁止 | 禁止 | 无 |
 | CDT | 自己的 proposal branch/worktree | Workspace 与 Proposal Patch 的确认范围 | 默认不 push；把本地 SHA 交 UD | 禁止 | Proposal 进入 canonical truth 或放弃后经确认清理自身资源 |
 | UD | canonical design integration branch/worktree | 只按 Human-confirmed Proposal 写稳定语义；或按 `CANONICAL_EDITORIAL_PATCH` 做语义影响为 `NONE` 的规范编辑 | 只 push 自己的 design branch 并创建 PR | Human 确认后执行 Merge Commit | Human 确认后清理自身资源 |
@@ -508,7 +520,7 @@ Human 介入：
 
 ### 9.2 Branch 与 worktree 创建
 
-Direct owner、CDT、UD、SL 或 FL 只能为自己拥有的资源创建 branch/worktree；IT/RI 资源由 parent 创建。创建前必须：
+普通Direct owner、CDT、UD、SL 或 FL 只能为自己拥有的资源创建 branch/worktree；editorial source Direct owner不创建Git资源，IT/RI资源由parent创建。创建前必须：
 
 1. 读取 <code>git status --short</code>、<code>git worktree list --porcelain</code>、相关 local/remote refs；
 2. fetch <code>origin main</code>，记录 exact <code>origin/main</code> 与 truth SHA；
@@ -589,11 +601,13 @@ PR CI 与 main push CI 是两个独立 gate。
 
 ### 9.6 完成、分层清理与 Recovery FL
 
-Direct owner在PR merge、exact main CI和main validation成功后进入`CLEANUP_READY`；Human在该task确认后，只清理卡中精确列出的clean worktree、已合并local branch和head仍匹配的remote branch，再复读refs并关闭Change Set。
+普通Direct owner在PR merge、exact main CI和main validation成功后进入`CLEANUP_READY`；Human在该task确认后，只清理卡中精确列出的clean worktree、已合并local branch和head仍匹配的remote branch，再复读refs并关闭Change Set。editorial source Direct owner走下述独立路径，不进入普通Direct的`MAIN_VALIDATED -> CLEANUP_READY -> CLOSED`。
 
-UD在design PR merge、exact main CI成功，且`START_AFTER_TRUTH_MERGE`的FL/SL已创建并接受binding（或`DESIGN_ONLY`无child）后进入`UD_CLEANUP_READY`。UD向source CDT发送`CANONICAL_MERGED`及truth/CI/activation证据；Human在UD task确认后，UD只清理本次integration branch/worktree/remote branch，长期UD task和locator保留。
+UD在design PR merge与exact main CI成功后按shape迁移：`DESIGN_ONLY`从`MAIN_CI_PASSED`直接进入`UD_CLEANUP_READY`；可执行shape先在FL/SL创建后进入`EXECUTION_ACTIVATED`，仅在child接受并验证binding、direct parent与callback后经`HANDOFF_VERIFIED`进入`UD_CLEANUP_READY`。随后UD执行一次幂等的`CANONICAL_MERGED`通知：按入口向source CDT或`CANONICAL_EDITORIAL_PATCH`的exact source Direct parent/callback发送truth/CI/activation证据；相同entry、truth SHA与callback的重复发送只复用原结果，不重复推进状态。Human在UD task确认后，UD只清理本次integration branch/worktree/remote branch，长期UD task和locator保留。
 
 CDT收到`CANONICAL_MERGED`后验证Proposal已被canonical truth完整承接。Human在source CDT确认后，CDT清理自己的Proposal branch/worktree；设计主题仍有开放问题则保留task/Workspace，全部完成才清理已被truth承接的Workspace并archive。UD只触发cleanup-eligible通知，不删除CDT资源；CDT也不删除UD资源。
+
+`CANONICAL_EDITORIAL_PATCH`的source Direct owner收到`CANONICAL_MERGED`后验证exact files/hunks与语义影响`NONE`仍成立，随后关闭自己的无Git资源Change Set；它不清理UD branch/worktree/PR。UD与source Direct owner各自状态独立，任何一方都不删除对方资源。
 
 单独 feature 在 main 复测成功后进入 <code>COMPLETE_AWAITING_CLEANUP</code>。Human 在该 FL task 确认 cleanup 后，由 FL：
 
@@ -660,12 +674,12 @@ Proposal执行只能按下列顺序迁移：
 ~~~text
 PROPOSAL_READY -> PROPOSAL_CONFIRMED -> UD_REVIEW -> DESIGN_PR_READY
 -> MERGE_CONFIRMED -> TRUTH_MERGED -> MAIN_CI_PASSED
-   | DESIGN_ONLY -> CLEANUP_READY
+   | DESIGN_ONLY -> UD_CLEANUP_READY
    | SINGLE_FEATURE / DELIVERY_STAGE -> EXECUTION_ACTIVATED
-     -> HANDOFF_VERIFIED -> CLEANUP_READY
+     -> HANDOFF_VERIFIED -> UD_CLEANUP_READY
 ~~~
 
-`DESIGN_ONLY`在`MAIN_CI_PASSED`后不创建child；`SINGLE_FEATURE`由UD创建FL；`DELIVERY_STAGE`由UD创建SL，再由SL创建FL。任何前置状态、exact SHA、check、owner、callback或scope不符都禁止下一步。
+`DESIGN_ONLY`在`MAIN_CI_PASSED`后不创建child并直接进入`UD_CLEANUP_READY`；`SINGLE_FEATURE`由UD创建FL；`DELIVERY_STAGE`由UD创建SL，再由SL创建FL；可执行shape只有在`HANDOFF_VERIFIED`后进入`UD_CLEANUP_READY`。任何前置状态、exact SHA、check、owner、callback或scope不符都禁止下一步。
 
 #### 9.7.4 编号操作与失效
 
@@ -686,7 +700,7 @@ PROPOSAL_READY -> PROPOSAL_CONFIRMED -> UD_REVIEW -> DESIGN_PR_READY
 
 `callbackTaskId == directParentTaskId`；delegation直接source必须一致。`requestOriginTaskId`只作provenance，不能作为默认callback。child只向直接parent返回，parent负责向上升级。
 
-所有进入`main`的变更继续使用owner branch、PR、required CI、Human merge确认和Merge Commit。UD在truth merge/main CI及child handoff验证后触发自身cleanup选项，并向source CDT发送`CANONICAL_MERGED`；CDT验证truth coverage后在自己的task展示cleanup选项。任何owner只清理自己精确绑定且clean、merged、SHA匹配的资源。
+所有进入`main`的变更继续使用artifact owner branch、PR、required CI、Human merge确认和Merge Commit。UD在truth merge/main CI后按shape验证：`DESIGN_ONLY`无需child，可执行shape必须`HANDOFF_VERIFIED`；随后进入`UD_CLEANUP_READY`并向入口对应的source CDT或source Direct owner发送`CANONICAL_MERGED`。CDT验证truth coverage后展示自己的cleanup选项；editorial source Direct owner关闭无Git资源Change Set。任何owner只清理自己精确绑定且clean、merged、SHA匹配的资源。
 
 #### 9.7.6 Shortcut
 
@@ -707,7 +721,7 @@ PROPOSAL_READY -> PROPOSAL_CONFIRMED -> UD_REVIEW -> DESIGN_PR_READY
 
 ## 10. 完成状态
 
-Direct完成状态：
+普通Direct完成状态：
 
 ~~~text
 MAIN_VALIDATED -> CLEANUP_READY -> CLOSED
@@ -716,9 +730,13 @@ MAIN_VALIDATED -> CLEANUP_READY -> CLOSED
 Design完成与清理状态：
 
 ~~~text
-MAIN_CI_PASSED -> EXECUTION_ACTIVATED -> HANDOFF_VERIFIED
--> UD_CLEANUP_READY -> UD_RESOURCES_CLEANED
+MAIN_CI_PASSED
+  | DESIGN_ONLY -> UD_CLEANUP_READY
+  | SINGLE_FEATURE / DELIVERY_STAGE -> EXECUTION_ACTIVATED
+    -> HANDOFF_VERIFIED -> UD_CLEANUP_READY
+UD_CLEANUP_READY -> CANONICAL_MERGED -> UD_RESOURCES_CLEANED
 source CDT: CANONICAL_MERGED -> CDT_CLEANUP_READY -> RETAINED | ARCHIVED
+editorial source Direct owner: CANONICAL_MERGED -> DIRECT_SOURCE_CLOSED
 ~~~
 
 单 feature 完成状态：

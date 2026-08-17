@@ -60,7 +60,7 @@ OES 使用以下执行入口与最小角色：
 - Human Decision Owner（HDO）：人，负责语义决定、波次边界和清理确认。
 - Initiative Discussion Task（IDT）：讨论跨 feature 的优先级、阶段目标和业务取舍，不写设计或执行 feature。
 - Capability Design Task（CDT）：围绕一个设计主题形成 Proposal Patch，只对接 UD。
-- Global Unified Design（UD）：全局架构与稳定治理审查者；只依据 Human-confirmed Proposal 写入 architecture、ADR、稳定 contracts、`AGENTS.md`、`docs/governance/**` 与必要导航，是这些规范真相的唯一 agent writer。
+- Global Unified Design（UD）：全局架构与稳定治理审查者，也是规范真相唯一 agent writer；只接受两类 Human-confirmed 入口：CDT 的语义 Proposal，以及语义影响为 `NONE` 的 `CANONICAL_EDITORIAL_PATCH`。UD 不自行发起 canonical 改写。
 - Stage Lead（SL）：一个有界交付阶段的临时 owner，协调多个可独立交付的 FL，并在阶段清理后关闭。
 - Feature Lead（FL）：单 feature 临时 owner，写一个 active Feature Packet，拆分并推进 slices。
 - Implementation Task（IT）：实现一个 slice；通常是 FL 的 subagent。
@@ -82,6 +82,7 @@ OES 使用以下执行入口与最小角色：
 - 用户明确确认结论并要求记录、冻结、形成 Workspace/FP 或开始实现后，才写入对应文件。
 - CDT 提交 Proposal 前，必须重新读取相关规范真相，并由 Human 明确确认提交；Design Proposal 只承载稳定设计真相并始终提交 UD。
 - Proposal 提交确认授权 UD 审核，并在接受时把 exact Proposal 集成到 canonical design branch、验证、push 和创建 design PR，停止于 `DESIGN_PR_READY`；design PR merge 与 cleanup 分别另行确认。
+- `CANONICAL_EDITORIAL_PATCH` 由 source Direct owner 确认精确文件、hunks、语义影响 `NONE` 和 callback 后交 UD；UD 独占 design branch、PR、merge、main validation 与自己的 Git cleanup，分类失效即返回 source，不转成隐式 Proposal。
 - IDT 在现有 canonical truth 充分且 Human 确认 Stage Start 后可直接启动 SL；发现设计缺口时转入 CDT → UD。
 - 涉及公共契约、事件、权限、租户、共享 API、AI 工具协议或 operator context 的实现，必须以已冻结真相为输入。
 
