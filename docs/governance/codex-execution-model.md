@@ -354,42 +354,79 @@ COMPLETE_AWAITING_CLEANUP
 
 ### 9.7 Human 命令契约
 
-本小节是 Human 与 task 之间命令格式、参数和绑定规则的唯一真相，版本为 `OES-COLLAB-COMMANDS/v1`。命令是自然语言控制协议，不要求 Human 执行 Git 或 GitHub 命令。task 必须先取得并校验参数，再向 Human 输出一条可直接复制的完整命令；不得要求 Human 自行查找 PR number、SHA、task id 或 branch。
+本小节是 Human 与 task 之间意图识别、确认和技术绑定规则的唯一真相，版本为 `OES-COLLAB-COMMANDS/v2`。Human 使用自然语言表达目标，不填写 `designKey`、SHA、PR number、branch、worktree、task id 或 finding id；这些标识由 task 读取真实状态后生成、交叉校验并维护。
 
-<!-- BEGIN OES_COLLAB_COMMANDS_V1 -->
+<!-- BEGIN OES_COLLAB_COMMANDS_V2 -->
 
-| 目的 | Human 使用的固定格式 | 生效条件与执行者行为 |
-| --- | --- | --- |
-| 只讨论设计 | `开始设计讨论 design=<designKey> topic="<topic>" mode=DISCUSS_ONLY` | Capability Design Task 只分析，不写文件、不创建 Git 资源。 |
-| 允许写入当前设计工作台 | `确认写入 Design Workspace design=<designKey>` | Capability Design Task 只写对应 active Workspace；不等于确认 Proposal。 |
-| 提交已确认的设计 Proposal | `确认提交 Proposal design=<designKey> @<proposalSha> executionIntent=<DESIGN_ONLY\|START_AFTER_APPROVAL>` | `proposalSha` 必须是 task 已报告且 worktree clean 的精确 commit；UD 只接收该 commit。 |
-| 手动启动 feature | `开始 Feature feature=<featureKey> truth=@<truthSha>` | 仅用于 `DESIGN_ONLY` 后的独立启动；FL 必须从已冻结 canonical truth 的精确 SHA 建立资源。`START_AFTER_APPROVAL` 路径由 UD 自动创建 FL，不需要此命令。 |
-| 查询但不推进 | `查看状态 target=<targetRef>` | 只读取并报告当前精确状态、阻塞项和下一 gate，不写入、不 push、不 merge、不 cleanup。 |
-| 暂停并保留现场 | `停止执行 target=<targetRef> preserve=true` | owner 停止新动作，保留 branches、worktrees、commits、未跟踪文件和证据。 |
-| 要求精确 candidate 返工 | `要求返工 feature=<featureKey> slice=<sliceId> candidate=@<candidateSha> finding=<findingId>` | FL 把 finding 路由给原 IT；旧 candidate 不改写，返工必须追加新 commit 和新 candidate。 |
-| 合并受保护 `main` | `确认合并 PR #<pullNumber> @<headSha>` | `headSha` 必须是当前 PR head 的完整 SHA；UD/FL 重新校验全部 gate 后，通过 GitHub API/CLI 以 `merge` 方法提交并绑定该 SHA。 |
-| 清理已完成资源 | `确认清理 target=<targetRef> @<mergeSha>` | `mergeSha` 必须是已通过 main 复测的 merge commit；owner 只清理报告中逐项列明且再次校验为 safe 的精确资源。 |
-| 放弃未合并工作 | `确认放弃 target=<targetRef> candidate=@<candidateSha> preserveEvidence=true` | 此处 `<targetRef>` 只允许 `design:` 或 `feature:`；owner 先保存 diff、验证记录和恢复定位，再逐项报告可清理资源。该命令不授权批量删除或处理 dirty、owner 不明的资源。 |
+#### 9.7.1 自然语言入口
 
-参数类型固定如下：
+自然语言输入只表达意图，不直接授权创建 task、branch/worktree、写文件、提交、push、开 PR、合并、清理或放弃工作。task 必须先识别目的并返回一张任务确认卡；Human 确认后才执行卡片列明的动作。
 
-- `<designKey>`、`<featureKey>` 与 `<sliceId>`：匹配 `[a-z0-9]+(?:-[a-z0-9]+)*` 的小写 kebab-case 稳定标识，不使用本机路径；
-- `<topic>`：用双引号包围的单行简短主题；主题内的双引号写作 `\"`；
-- `<targetRef>`：精确写作 `design:<designKey>`、`feature:<featureKey>` 或 `pr:<pullNumber>`，不得只写裸名称或“当前”；
-- `<pullNumber>`：GitHub PR 返回的正整数 `number`；命令中写作 `#<pullNumber>`；
-- `<proposalSha>`、`<truthSha>`、`<candidateSha>`、`<headSha>` 与 `<mergeSha>`：40 位小写十六进制 commit SHA，命令中以 `@` 前缀绑定；禁止缩写、branch 名或“latest”替代；
-- `<headSha>` 专指 PR API 的 `head.sha`，不是 base SHA、check run SHA 或 merge SHA；task 必须同时验证 local candidate、remote head 与 PR head 三者一致；
-- `<mergeSha>` 专指合并后 PR 的 `merge_commit_sha`，且必须等于复测时的 `origin/main`；
-- `<findingId>`：RI/CI 报告中的稳定 finding 标识；没有既有标识时由 FL 先创建再报告；
-- `executionIntent` 只能取 `DESIGN_ONLY` 或 `START_AFTER_APPROVAL`，`mode` 只能取 `DISCUSS_ONLY`，`preserve` 与 `preserveEvidence` 必须显式为 `true`。
+以下是表达示例而非固定命令，Human 可使用语义清楚的同等自然语言：
 
-所有确认只绑定报告中的精确对象与状态。参数缺失、格式不符、SHA 不一致、PR head/main/gate 在确认后变化，原确认立即失效；owner 必须停止动作、重新校验并报告新的可复制命令，不猜测或沿用旧参数。即使当前只有一个候选，也不以裸 `确认` 代替完整命令。
+| Human 意图示例 | task 的响应 |
+| --- | --- |
+| “我想讨论库存分配规则” | 在当前 task 内只讨论和比较；若需要创建独立 Capability Design Task，先返回任务确认卡。 |
+| “把刚才的结论写入设计工作台” | 返回写入确认卡，列出目标 Workspace、写入范围、保护范围和停止点。 |
+| “提交这个设计，只做设计”或“提交后开始实现” | 返回 Proposal 确认卡，由 task 内部绑定 proposal SHA 与 `DESIGN_ONLY` 或 `START_AFTER_APPROVAL`。 |
+| “开始实现这个功能” | 返回 feature 确认卡，内部生成 feature key、truth SHA、owner 和允许范围。 |
+| “看看现在做到哪了” | 直接执行只读检查并报告；不创建资源、不推进 gate。 |
+| “先暂停，保留现场” | 立即停止新动作并保留现场，然后报告已停止的位置与资源；暂停不等待二次确认。 |
+| “按复核意见修复” | 返回返工确认卡，内部绑定 feature、slice、candidate 与 findings。 |
+| “合并吧” | 返回独立合并确认卡；该句本身不触发 merge。 |
+| “可以清理了” | 返回独立清理确认卡；该句本身不触发 cleanup。 |
+| “放弃这项工作” | 返回放弃确认卡并列出证据保留与逐项资源处理方案。 |
 
-日常 GitHub 操作固定使用本地 Git 与经过认证的 GitHub REST API/CLI：owner 创建或读取 PR、检查 CI、执行 exact-SHA Merge Commit、复测并删除已确认的 remote temporary branch。浏览器只作为 API/CLI 缺少能力或认证恢复时的例外，不作为常规 merge 路径。
+纯查看、解释、讨论和状态读取可直接响应，因为不产生持久状态变化。任何创建、修改、提交、remote 写入、合并、删除或归档动作都必须经过确认卡。读取 Git、GitHub 和当前 task 状态以填充确认卡属于只读发现，不视为执行授权。
 
-查看本契约可在 Codex 中调用 personal skill：`$oes-collaboration-commands`。shortcut 只读取并展示本小节，不复制或另行定义规范真相。
+#### 9.7.2 任务确认卡
 
-<!-- END OES_COLLAB_COMMANDS_V1 -->
+状态变更前，task 必须返回一张且仅一张当前待确认卡，至少包含：
+
+```text
+待确认任务
+目的：task 对 Human 意图的单句复述
+目标对象：Human 可识别的设计、feature、PR 或资源
+计划动作：确认后将执行的动作及顺序
+修改范围：允许写入的文件、服务或 Git/GitHub 资源
+保护范围：保持原状的代码、数据、branches、worktrees 与其他 task
+执行角色：Capability Design Task、UD、FL、IT 或 RI
+验证：完成条件、命令类别与失败停止条件
+停止点：本次确认授权终止于 Workspace、Proposal、PR、merge 或 cleanup 的哪一个 gate
+内部绑定：task 记录的 exact refs、SHAs、PR、worktree key 与状态指纹；Human 无须填写
+请确认：建议回复“确认执行”或与本卡动作对应的明确确认语句
+```
+
+确认卡必须把讨论、写入 Workspace、提交 Proposal、开始 feature、返工、merge、cleanup 和放弃区分为不同授权边界。初始任务确认不包含后续 merge 或 cleanup；Design Workspace 写入确认不包含 Proposal 提交；merge 确认不包含 cleanup。
+
+#### 9.7.3 确认绑定与失效
+
+- 同一 task 同一时刻只允许一张未决确认卡；新意图到达时，旧卡作废或先明确关闭，不并行猜测确认对象。
+- Human 对最新确认卡回复“确认执行”“确认合并”“确认清理”“确认放弃”或语义同等且无附加条件的明确确认，即绑定该卡；Human 不复述技术参数。
+- “确认，但顺便修改……”或任何改变目标、范围、顺序、保护范围、合并方式的回复视为新意图；task 必须生成新卡，不执行旧卡。
+- task 在真正执行前重新读取内部绑定。canonical truth、candidate、PR head、base/main、checks、findings、branch/worktree、clean status 或资源 owner 任一变化，确认立即失效并重新发卡。
+- 意图存在两种以上合理解释、目标对象不唯一或范围无法从当前上下文确定时，只澄清并发卡，不创建资源或写入。
+- 确认只在生成卡片的同一 task 中有效，不跨 task、转述、历史摘要或恢复后的歧义状态复用。
+
+#### 9.7.4 技术参数由 task 负责
+
+task 内部继续使用完整技术绑定以保证可验证性：
+
+- design/feature/slice key 使用稳定的小写 kebab-case，由 owner 生成并在确认卡中以可读方式展示；
+- commit 使用完整 40 位 SHA；PR merge 同时校验 local candidate、remote branch 与 PR `head.sha`；
+- cleanup 绑定通过 main 复测的 `merge_commit_sha` 以及逐项列出的 local/remote branches 和 worktrees；
+- finding、task、worktree 与 owner 标识从真实 task/Git 状态取得，不从 Human 自然语言猜测；
+- 参数只作为卡片内部绑定和审计证据，不要求 Human 复制到确认回复。
+
+合并卡必须显示 PR、变更摘要、head 指纹、base/main、required checks、findings/conversations、Merge Commit 方式和 rollback。确认后 owner 再次校验完整 SHA，通过 GitHub REST API/CLI 执行 exact-SHA `merge`；浏览器只用于 API/CLI 缺少能力或认证恢复的例外。
+
+清理卡必须显示 merge 指纹、main 复测结果、将移除的每个精确资源和明确保留的 protected scope。确认后仍按 9.6 逐项执行无 force 清理；dirty、未合并、SHA 不匹配、owner 不明或卡片未列出的资源保持原状。
+
+#### 9.7.5 Shortcut
+
+在 Codex 中调用 `$oes-collaboration-commands` 可查看本契约及自然语言示例。shortcut 只读取并展示本小节，不复制规范真相；也不因“查看命令”而创建或推进任务。
+
+<!-- END OES_COLLAB_COMMANDS_V2 -->
 
 ### 9.8 失败恢复
 
