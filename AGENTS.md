@@ -63,6 +63,8 @@ OES 使用以下最小角色：
 
 完整消息流、并发约束、review 返工、UD locator、自动与人工边界以 `docs/governance/codex-execution-model.md` 为准。
 
+任何 remote push、PR、`main` merge、post-merge 验证和 Git 资源清理，必须先读取并遵守该文件第 9 节；其他文档不得另行定义 Git 角色权限或删除规则。
+
 任何 task 都应保持单一职责。不得恢复旧的全局调度中心、能力命令层、watchdog、heartbeat、Pull inbox、线程 registry 或历史状态账本。
 
 ## 6. 讨论、冻结与写入
