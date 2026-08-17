@@ -352,7 +352,46 @@ COMPLETE_AWAITING_CLEANUP
 
 任何 dirty、未合并、SHA 不匹配、owner 不明或验证失败的资源保持原状并报告。禁止批量匹配删除、自动删除 head branches、全局 prune、force removal、force branch deletion，以及用清理动作顺便处理其他 feature。
 
-### 9.7 失败恢复
+### 9.7 Human 命令契约
+
+本小节是 Human 与 task 之间命令格式、参数和绑定规则的唯一真相，版本为 `OES-COLLAB-COMMANDS/v1`。命令是自然语言控制协议，不要求 Human 执行 Git 或 GitHub 命令。task 必须先取得并校验参数，再向 Human 输出一条可直接复制的完整命令；不得要求 Human 自行查找 PR number、SHA、task id 或 branch。
+
+<!-- BEGIN OES_COLLAB_COMMANDS_V1 -->
+
+| 目的 | Human 使用的固定格式 | 生效条件与执行者行为 |
+| --- | --- | --- |
+| 只讨论设计 | `开始设计讨论 design=<designKey> topic="<topic>" mode=DISCUSS_ONLY` | Capability Design Task 只分析，不写文件、不创建 Git 资源。 |
+| 允许写入当前设计工作台 | `确认写入 Design Workspace design=<designKey>` | Capability Design Task 只写对应 active Workspace；不等于确认 Proposal。 |
+| 提交已确认的设计 Proposal | `确认提交 Proposal design=<designKey> @<proposalSha> executionIntent=<DESIGN_ONLY\|START_AFTER_APPROVAL>` | `proposalSha` 必须是 task 已报告且 worktree clean 的精确 commit；UD 只接收该 commit。 |
+| 手动启动 feature | `开始 Feature feature=<featureKey> truth=@<truthSha>` | 仅用于 `DESIGN_ONLY` 后的独立启动；FL 必须从已冻结 canonical truth 的精确 SHA 建立资源。`START_AFTER_APPROVAL` 路径由 UD 自动创建 FL，不需要此命令。 |
+| 查询但不推进 | `查看状态 target=<targetRef>` | 只读取并报告当前精确状态、阻塞项和下一 gate，不写入、不 push、不 merge、不 cleanup。 |
+| 暂停并保留现场 | `停止执行 target=<targetRef> preserve=true` | owner 停止新动作，保留 branches、worktrees、commits、未跟踪文件和证据。 |
+| 要求精确 candidate 返工 | `要求返工 feature=<featureKey> slice=<sliceId> candidate=@<candidateSha> finding=<findingId>` | FL 把 finding 路由给原 IT；旧 candidate 不改写，返工必须追加新 commit 和新 candidate。 |
+| 合并受保护 `main` | `确认合并 PR #<pullNumber> @<headSha>` | `headSha` 必须是当前 PR head 的完整 SHA；UD/FL 重新校验全部 gate 后，通过 GitHub API/CLI 以 `merge` 方法提交并绑定该 SHA。 |
+| 清理已完成资源 | `确认清理 target=<targetRef> @<mergeSha>` | `mergeSha` 必须是已通过 main 复测的 merge commit；owner 只清理报告中逐项列明且再次校验为 safe 的精确资源。 |
+| 放弃未合并工作 | `确认放弃 target=<targetRef> candidate=@<candidateSha> preserveEvidence=true` | 此处 `<targetRef>` 只允许 `design:` 或 `feature:`；owner 先保存 diff、验证记录和恢复定位，再逐项报告可清理资源。该命令不授权批量删除或处理 dirty、owner 不明的资源。 |
+
+参数类型固定如下：
+
+- `<designKey>`、`<featureKey>` 与 `<sliceId>`：匹配 `[a-z0-9]+(?:-[a-z0-9]+)*` 的小写 kebab-case 稳定标识，不使用本机路径；
+- `<topic>`：用双引号包围的单行简短主题；主题内的双引号写作 `\"`；
+- `<targetRef>`：精确写作 `design:<designKey>`、`feature:<featureKey>` 或 `pr:<pullNumber>`，不得只写裸名称或“当前”；
+- `<pullNumber>`：GitHub PR 返回的正整数 `number`；命令中写作 `#<pullNumber>`；
+- `<proposalSha>`、`<truthSha>`、`<candidateSha>`、`<headSha>` 与 `<mergeSha>`：40 位小写十六进制 commit SHA，命令中以 `@` 前缀绑定；禁止缩写、branch 名或“latest”替代；
+- `<headSha>` 专指 PR API 的 `head.sha`，不是 base SHA、check run SHA 或 merge SHA；task 必须同时验证 local candidate、remote head 与 PR head 三者一致；
+- `<mergeSha>` 专指合并后 PR 的 `merge_commit_sha`，且必须等于复测时的 `origin/main`；
+- `<findingId>`：RI/CI 报告中的稳定 finding 标识；没有既有标识时由 FL 先创建再报告；
+- `executionIntent` 只能取 `DESIGN_ONLY` 或 `START_AFTER_APPROVAL`，`mode` 只能取 `DISCUSS_ONLY`，`preserve` 与 `preserveEvidence` 必须显式为 `true`。
+
+所有确认只绑定报告中的精确对象与状态。参数缺失、格式不符、SHA 不一致、PR head/main/gate 在确认后变化，原确认立即失效；owner 必须停止动作、重新校验并报告新的可复制命令，不猜测或沿用旧参数。即使当前只有一个候选，也不以裸 `确认` 代替完整命令。
+
+日常 GitHub 操作固定使用本地 Git 与经过认证的 GitHub REST API/CLI：owner 创建或读取 PR、检查 CI、执行 exact-SHA Merge Commit、复测并删除已确认的 remote temporary branch。浏览器只作为 API/CLI 缺少能力或认证恢复时的例外，不作为常规 merge 路径。
+
+查看本契约可在 Codex 中调用 personal skill：`$oes-collaboration-commands`。shortcut 只读取并展示本小节，不复制或另行定义规范真相。
+
+<!-- END OES_COLLAB_COMMANDS_V1 -->
+
+### 9.8 失败恢复
 
 - push 前发现 remote head 变化：停止该 push，重新 fetch、审计来源并形成新 candidate；
 - main 前进：在 feature branch merge 最新 `origin/main`，重新执行 review 与 CI；
