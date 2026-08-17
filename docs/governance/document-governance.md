@@ -78,6 +78,7 @@ ADR 解释“为什么选择当前高影响方案”，而 architecture 解释�
 ### 3.4 Governance 与 Runbook
 
 - Governance 只定义当前协作、执行和文档纪律。
+- `AGENTS.md` 与 `docs/governance/**` 的稳定治理和协同契约只由 UD 根据 Human-confirmed Proposal 写入；CDT 只形成 Proposal Patch，不直接成为 canonical writer。
 - Runbook 只保存当前可执行的运维、故障处理与恢复步骤。
 - 已完成治理项目、优化收尾、线程经验和一次性复盘不作为长期治理文件。
 
@@ -131,10 +132,12 @@ Proposal Patch 是 Design Task 基于 Workspace 与当前真相形成的真实 G
 - base commit；
 - proposal commit；
 - intended canonical files；
+- canonical truth domain（architecture、ADR、contract 或 governance）；
 - `executionIntent = DESIGN_ONLY | START_AFTER_TRUTH_MERGE`；
 - `executionShape = NONE | SINGLE_FEATURE | DELIVERY_STAGE`。
+- `DELIVERY_STAGE` 的 exact source decision task。
 
-UD 审核并写入 canonical truth 后，Proposal 的长期历史由 Git 提供。
+UD 只处理 Human-confirmed Proposal，并按 intended canonical files 写入其唯一写者范围：architecture、ADR、稳定 contracts、`AGENTS.md`、`docs/governance/**` 与必要导航。UD 审核并写入 canonical truth 后，Proposal 的长期历史由 Git 提供。
 
 ## 6. Stage Packet
 

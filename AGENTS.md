@@ -59,7 +59,7 @@ OES 使用以下最小角色：
 - Human Decision Owner（HDO）：人，负责语义决定、波次边界和清理确认。
 - Initiative Discussion Task（IDT）：讨论跨 feature 的优先级、阶段目标和业务取舍，不写设计或执行 feature。
 - Capability Design Task（CDT）：围绕一个设计主题形成 Proposal Patch，只对接 UD。
-- Global Unified Design（UD）：全局架构审查者与规范真相唯一写者。
+- Global Unified Design（UD）：全局架构与稳定治理审查者；只依据 Human-confirmed Proposal 写入 architecture、ADR、稳定 contracts、`AGENTS.md`、`docs/governance/**` 与必要导航，是这些规范真相的唯一 agent writer。
 - Stage Lead（SL）：一个有界交付阶段的临时 owner，协调多个可独立交付的 FL，并在阶段清理后关闭。
 - Feature Lead（FL）：单 feature 临时 owner，写一个 active Feature Packet，拆分并推进 slices。
 - Implementation Task（IT）：实现一个 slice；通常是 FL 的 subagent。

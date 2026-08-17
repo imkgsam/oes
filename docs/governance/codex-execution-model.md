@@ -53,9 +53,9 @@ CDT 标题为 <code>OES Design — &lt;design-key&gt;</code>。
 
 ### 2.4 Global Unified Design（UD）
 
-UD 是长期全局架构审查 task，也是 architecture、ADR 与稳定 contract 设计的唯一写者。它：
+UD 是长期全局设计审查 task，也是 architecture、ADR、稳定 contracts 与稳定治理/协同契约的唯一 agent writer。稳定治理/协同契约包括 <code>AGENTS.md</code>、<code>docs/governance/**</code> 与必要导航。它：
 
-- 串行审核 CDT 的 confirmed Proposal；
+- 只串行审核 CDT 的 Human-confirmed Proposal，不自行发起未确认的 canonical 改写；
 - 检查全局边界、长期演进、当前真相和提案冲突；
 - 返回 <code>REVISION_REQUIRED</code>，或接受并写入 canonical truth；
 - 通过 design PR、Human merge 确认和 main CI 完成 truth merge；
@@ -181,8 +181,10 @@ sourceDesignTaskId
 baseCommit
 proposalCommit
 intendedCanonicalFiles
+canonicalTruthDomains = ARCHITECTURE | ADR | CONTRACT | GOVERNANCE
 executionIntent = DESIGN_ONLY | START_AFTER_TRUTH_MERGE
 executionShape = NONE | SINGLE_FEATURE | DELIVERY_STAGE
+sourceDecisionTaskId (required for DELIVERY_STAGE)
 ~~~
 
 CDT 推荐 execution intent/shape，并在 Proposal 确认卡中展示，由 Human 确认。组合约束：
@@ -191,41 +193,61 @@ CDT 推荐 execution intent/shape，并在 Proposal 确认卡中展示，由 Hum
 - <code>START_AFTER_TRUTH_MERGE</code> 必须对应 <code>SINGLE_FEATURE</code> 或 <code>DELIVERY_STAGE</code>；
 - <code>START_AFTER_APPROVAL</code> 不再使用；
 - Design Proposal 只承载稳定设计真相，始终提交 UD；
+- <code>intendedCanonicalFiles</code> 必须属于 UD 的唯一写者范围，并与 <code>canonicalTruthDomains</code> 一致；治理域包括 <code>AGENTS.md</code>、<code>docs/governance/**</code> 与必要导航；
 - Stage Start 是执行授权，不叫 Proposal，也不经过 UD。
 
 CDT 先取得 Human Proposal 提交确认，再按 UD locator 发送。UD 以 <code>proposalId</code> 去重，以 <code>baseCommit</code> 检查过期，并串行处理。<code>REVISION_REQUIRED</code> 只返回 source CDT。UD 接受后由 UD 写真相；只有 design PR 已合入 <code>main</code> 且 exact main CI 通过，才执行 <code>START_AFTER_TRUTH_MERGE</code>。
 
-### 4.2 受控委派
+### 4.2 Human 授权转移与 parent assignment
 
-确认只在发出确认卡的 task 中绑定。发卡 task 可在 Human 确认后向一个新 task 传递一次性的 delegation envelope，使新 task 执行卡片内已列明的动作，而不要求第二次重复确认。
+确认只在发出确认卡的 task 中绑定。跨 task 协同分为两种不同机制：
 
-envelope 至少绑定：
+1. **Human authorization envelope**：发卡 task 把一次已确认授权传给卡中列明的直接执行 task；只允许 CDT → UD、IDT → SL、UD → FL 或 UD → SL。
+2. **Parent assignment**：已获授权的 SL/FL 在确认卡预先列明的执行拓扑内，把更窄的工作分配给 child；只允许 SL → FL、SL → Stage RI、FL → IT/RI。这不是新的 Human 授权，也不是 authorization envelope 的转发。
+
+authorization envelope 至少绑定：
 
 ~~~text
 sourceTaskId
 confirmationKind
-confirmationFingerprint
+rootConfirmationFingerprint
 confirmedAtState
+parentRole
 childRole
 targetKey
 objective
 scope
 protectedScope
+allowedChildGraph
 allowedResources
 stopPoint
 exactTruthOrCandidateRefs
 sourceDecisionTaskId
 ~~~
 
+parent assignment 必须携带 <code>rootConfirmationFingerprint</code> 和直接 parent exact task id，继承 root scope/protected scope/truth refs，只能缩小为 child scope、资源、acceptance/review 输入和 stop point。child 不获得修改 root scope/order/protected scope、创建未列明角色、merge、cleanup 或再分配到允许边之外的权限。
+
+允许边及字段继承：
+
+| 边 | 类型 | 必须继承 | 新增或收窄绑定 | 停止点 |
+| --- | --- | --- | --- | --- |
+| CDT → UD | Human authorization envelope | Proposal confirmation fingerprint、source CDT、base/proposal SHA、canonical domains/files、execution intent/shape、protected scope | exact UD locator | <code>REVISION_REQUIRED</code> 或 Proposal 接受决定 |
+| IDT → SL | Human authorization envelope | source IDT、Stage Start fingerprint、objective、scope/protected scope、truth refs、feature graph/order、exit criteria | exact SL、stage resources | <code>STAGE_AWAITING_CLEANUP</code>；Stage Cleanup 另行确认 |
+| UD → FL | Human authorization envelope | confirmed Proposal fingerprint、<code>START_AFTER_TRUTH_MERGE / SINGLE_FEATURE</code>、scope/protected scope | exact merged truth/main CI、FL key/resources | <code>PR_READY</code>；merge 另行确认 |
+| UD → SL | Human authorization envelope | confirmed Proposal fingerprint、<code>START_AFTER_TRUTH_MERGE / DELIVERY_STAGE</code>、source decision task、objective、scope/protected scope、feature graph/order、exit criteria | exact merged truth/main CI、SL resources | <code>STAGE_AWAITING_CLEANUP</code>；Stage Cleanup 另行确认 |
+| SL → FL | parent assignment | root fingerprint、source decision task、stage key、truth refs、stage scope/protected scope、feature graph/order | exact FL、feature/FP key、允许写路径、依赖、acceptance、resources | <code>PR_READY</code> 与 <code>READY_FOR_STAGE_REVIEW</code>；merge 另行确认 |
+| SL → Stage RI | parent assignment | root fingerprint、stage key、truth refs、protected scope、exact FL candidates | review bundle、只读 verification resources | findings 或通过结论 |
+| FL → IT/RI | parent assignment | root fingerprint、parent FL、feature key、truth refs、feature scope/protected scope | slice/review scope、candidate、acceptance、assigned resources | candidate handoff 或 review findings/结论 |
+
 规则：
 
-1. 确认卡必须在确认前明确列出子角色、范围、保护范围、允许资源和停止点。
-2. envelope 只能由发卡 task 发送给卡中列明的新 task；不得转委派或扩大范围。
-3. 接收 task 在写入前校验 source task、fingerprint、truth/candidate、资源 owner 和停止点。
-4. canonical truth、scope、order、protected scope、owner、candidate 或目标资源变化时 envelope 失效，返回 source task 重新发卡。
-5. merge 与 cleanup 始终需要 owner task 内的独立 Human 确认，不得委派。
-6. Stage Start 可由 IDT 发给 SL；Proposal 提交可由 CDT 发给 UD；truth merge 后的 FL/SL 创建授权由 UD 按 confirmed Proposal 执行。
-7. task title 不参与授权绑定。
+1. 确认卡在确认前列出 root 子角色图、每条允许边的最大范围、保护范围、资源和停止点。
+2. authorization envelope 只能沿表中 Human authorization edge 发送一次；接收者不得复制、改写或再次发送同一个 envelope。唯一后续激活是 UD 在 truth merge/main CI gate 后，按 Proposal 确认中预封存的 shape、child graph 和 scope 生成一个新的 UD → FL/SL execution activation envelope；UD 不得添加或改写字段。
+3. parent assignment 只沿表中 child edge 发生；child graph、scope、order、protected scope 或资源上限变化时，返回发卡 task 重新取得 Human 确认。
+4. 接收 task 在写入前校验 root fingerprint、direct parent、truth/candidate、资源 owner 和 stop point；不匹配即停止。
+5. merge 与 cleanup 始终由对应 UD、FL 或 SL 在自身 task 内取得独立 Human 确认，不属于任一 envelope/assignment。
+6. IT、feature RI 与 Stage RI 没有继续创建 child 的边；FL 不能创建其他 FL/SL，SL 不能创建 IT 或替 FL 创建 RI。
+7. task title 不参与授权绑定，所有边使用 exact task id。
 
 ## 5. UD Locator
 
@@ -375,7 +397,8 @@ SL 可为 Stage Review 创建 clean-context Stage RI；SL 或 Stage RI 只读精
 - RI → parent findings 回传；
 - FL → 原 IT 返工；
 - FL required candidates ready 后创建 Global RI；
-- confirmed delegation envelope 内列明的新 task 创建与初始化；
+- confirmed Human authorization envelope 内列明的直接执行 task 创建与初始化；
+- confirmed topology 内，SL → FL/Stage RI 与 FL → IT/RI 使用收窄的 parent assignment，不重复取得 Human 确认；
 - UD 在 truth merge 和 exact main CI 通过后，按 <code>START_AFTER_TRUTH_MERGE</code> 创建已确认 shape 的 FL 或 SL；
 - SL 按已确认范围和可用容量启动依赖 ready 的 FL；
 - feature candidates 与 review 通过后，由 FL push feature branch 并创建 PR；
@@ -412,7 +435,7 @@ Human 介入：
 | HDO | 无强制资源 | 只作语义与 gate 确认 | 只作确认 | 只作确认 | 只作确认 |
 | IDT | 默认无 | 不写 repository 文档或代码 | 禁止 | 禁止 | 无 |
 | CDT | 自己的 proposal branch/worktree | Workspace 与 Proposal Patch 的确认范围 | 默认不 push；把本地 SHA 交 UD | 禁止 | Proposal 接受或放弃后经确认清理自身资源 |
-| UD | canonical design integration branch/worktree | architecture、ADR、稳定 contracts 与必要导航 | 只 push 自己的 design branch 并创建 PR | Human 确认后执行 Merge Commit | Human 确认后清理自身资源 |
+| UD | canonical design integration branch/worktree | 只按 Human-confirmed Proposal 写 architecture、ADR、稳定 contracts、<code>AGENTS.md</code>、<code>docs/governance/**</code> 与必要导航 | 只 push 自己的 design branch 并创建 PR | Human 确认后执行 Merge Commit | Human 确认后清理自身资源 |
 | SL | 一个本地 stage coordination branch/worktree；一个临时本地 verification worktree | 只写 Stage Packet；verification 默认只读 candidates | 禁止 | 禁止 | Stage Cleanup 确认后只清理自身本地资源 |
 | FL | 一个 feature integration branch/worktree 及分配的 slice worktrees | FP、integration lane 与 feature 允许范围 | 唯一可 push feature branch、创建/更新 PR | Human 确认后执行 Merge Commit | Human 确认后清理整个 feature 资源 |
 | IT | 无；使用 FL 分配资源 | 一个 Frozen Slice | 禁止 | 禁止 | 禁止 |
@@ -567,13 +590,14 @@ Proposal、Stage Start、Stage Change、feature start、merge、feature cleanup�
 保护范围
 执行角色
 子角色与受控委派
+允许的授权/assignment 边及每条边的最大范围
 验证
 停止点
 内部绑定
 请确认
 ~~~
 
-“执行角色”可为 IDT、CDT、UD、SL、FL、IT 或 RI；创建新 task 时必须列出其 exact role、允许范围、保护范围、资源和停止点。Proposal 卡必须显示 recommended executionIntent/executionShape。Stage Start/Change 卡必须显示 objective、scope、protected scope、source IDT、FL 形状、依赖/顺序、exit criteria 和 SL 停止点。merge 卡不含 cleanup；Stage Cleanup 卡不含任何 FL 资源。
+“执行角色”可为 IDT、CDT、UD、SL、FL、IT 或 RI；创建新 task 时必须列出 root child graph，以及每条 Human authorization/parent assignment 边的角色、继承字段、最大允许范围、保护范围、资源和停止点。Proposal 卡必须显示 canonical truth domains/files、recommended executionIntent/executionShape；非 <code>DESIGN_ONLY</code> 时还显示 UD → FL/SL 及后续允许 child graph。Stage Start/Change 卡必须显示 objective、scope、protected scope、source IDT、SL → FL/Stage RI、FL → IT/RI 的最大范围、依赖/顺序、exit criteria 和各层停止点。merge 卡不含 cleanup；Stage Cleanup 卡不含任何 FL 资源。
 
 #### 9.7.3 确认绑定、委派与失效
 
@@ -581,8 +605,8 @@ Proposal、Stage Start、Stage Change、feature start、merge、feature cleanup�
 - Human 对最新卡作无附加条件的明确确认，即绑定该卡；Human 无须复述技术参数。
 - 改变目标、范围、顺序、保护范围、角色、合并方式或停止点的回复视为新意图，重新发卡。
 - 执行前复读内部绑定；truth、candidate、PR head、main、checks、findings、owner、branch/worktree 或 protected scope 变化时重新发卡。
-- 确认只在发卡 task 中有效；跨 task 执行只允许使用 4.2 定义的一次性 delegation envelope。
-- merge 与 cleanup 不得委派；范围变化后旧 envelope 失效。
+- 确认只在发卡 task 中有效；跨 task 的 Human 授权只使用 4.2 的 authorization envelope，拓扑内 child 工作只使用收窄的 parent assignment。
+- authorization envelope 不转发；parent assignment 不扩权。merge 与 cleanup 不属于两者；范围或 child graph 变化后 root 确认失效。
 - title 只供识别，路由与授权使用 exact task id。
 
 #### 9.7.4 技术参数由 task 负责
@@ -594,7 +618,7 @@ task 内部维护：
 - exact task id、source IDT、owner、worktree key、branch/ref 和 state fingerprint；
 - PR number、head SHA、base/main、checks、findings 和 conversations；
 - cleanup 绑定的 merge SHA 及逐项 local/remote resources；
-- delegation envelope fingerprint 与一次性 stop point。
+- root confirmation/envelope fingerprint、allowed child graph、每个 assignment 的 direct parent 与 stop point。
 
 合并卡显示 exact PR、摘要、head、base/main、required checks、findings、Merge Commit 和 rollback。确认后 owner 再次校验 SHA，并用 GitHub API/CLI 执行 exact-SHA merge。
 
