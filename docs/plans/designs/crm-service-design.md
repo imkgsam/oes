@@ -29,6 +29,7 @@ writeBackTargets:
 9. CRM Activity 中的 Task 如何与 Collaboration Task 分工。
 10. 批量导入默认进入 Intake，还是允许受控来源直接形成 Lead。
 11. CRM resource owner/team facts 与 Permission query scope 的最小 contract。
+12. `CrmAccount` 在 Draft Lead、Active Lead、Prospect Customer 与 Customer 阶段的字段编辑矩阵，以及绑定 `TenantParty` 后 official name、strong identifier、profile evidence 的 owner、修改、重新解析、纠错与审计边界；同时确认是否需要显式记录 party binding basis 与 evidence references。
 
 ## Candidate Feature Order
 
