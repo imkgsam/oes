@@ -82,6 +82,20 @@ ADR 解释“为什么选择当前高影响方案”，而 architecture 解释�
 - Runbook 只保存当前可执行的运维、故障处理与恢复步骤。
 - 已完成治理项目、优化收尾、线程经验和一次性复盘不作为长期治理文件。
 
+### 3.5 Direct 文档维护
+
+非规范语义的单一文档 Change Set 默认使用 Direct，不创建 CDT、SL、FL、IT、RI、Workspace 或 FP。Direct owner 只在精确允许路径内修改，使用短期 owner branch、focused verification、PR、required CI、Human merge gate 和合并后精确清理。
+
+适用范围：
+
+- 拼写、标点、排版和明确断链；
+- README、index 或导航的非语义修正；
+- 不改变运行行为、操作结果、owner、scope、contract 或约束等级的说明修正。
+
+Architecture、ADR、Contract、`AGENTS.md` 或 Governance 的语义变化始终进入 CDT → UD。上述规范文件的纯编辑修正可使用 `CANONICAL_EDITORIAL_PATCH`：不创建 CDT/Workspace/FP，由 UD 作为唯一 writer 在短期 design branch 上修改、验证并经 design PR 合入。任何 `must/should/may`、owner、scope、权限、租户、事件、API、生命周期、默认值或行为含义变化都使 editorial classification 失效。
+
+Direct 文档验证至少包括 changed-path allowlist、`git diff --check`、相关 Markdown link/UTF-8/绝对路径检查和语义影响声明。发现分类不成立时停止写入，并根据 status 展示 Collaborative 或继续讨论选项。
+
 ## 4. Design Workspace
 
 Design Workspace 用于跨多轮讨论的当前工作记忆，不是聊天记录、决策历史或第二真相源。
@@ -220,7 +234,7 @@ active Design Workspace、Stage Packet 和 FP 由各自目录中的当前文件�
 
 ## 11. 轻量验证
 
-文档重构至少检查：
+Direct 文档维护只运行与 changed paths 和分类风险匹配的 focused checks；规范语义变化继续运行 Proposal/UD 验证。文档重构至少检查：
 
 - 所有 Markdown 相对链接存在；
 - 每个稳定服务真相被索引且只出现一次；

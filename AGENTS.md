@@ -54,8 +54,9 @@
 
 ## 5. Task 执行入口
 
-OES 使用以下最小角色：
+OES 使用以下执行入口与最小角色：
 
+- Direct execution：默认执行方式。当前单一职责 task 直接拥有一个有界 Change Set，不创建角色拓扑、Stage Packet 或 Feature Packet；仍使用 owner branch、PR、required CI、Human merge gate 与精确清理。
 - Human Decision Owner（HDO）：人，负责语义决定、波次边界和清理确认。
 - Initiative Discussion Task（IDT）：讨论跨 feature 的优先级、阶段目标和业务取舍，不写设计或执行 feature。
 - Capability Design Task（CDT）：围绕一个设计主题形成 Proposal Patch，只对接 UD。
@@ -65,15 +66,19 @@ OES 使用以下最小角色：
 - Implementation Task（IT）：实现一个 slice；通常是 FL 的 subagent。
 - Review & Integration（RI）：按风险执行局部或全局复核；通常是 FL 的 clean-context subagent。
 
+默认先读取真实 task、branch/worktree、candidate、PR、main 与 cleanup status，再只展示当前可用的执行方式并标记一个建议项。一个 owner 可闭合、无稳定设计语义变化、无跨 feature 协调的工作使用 Direct；Human 主动选择协同，或涉及新服务、跨服务契约、事件、权限、租户、共享 API/抽象、AI 工具协议、稳定治理语义、多 owner/feature 或资源冲突时，使用 Collaborative。判断原因仅在 Human 请求时展示。
+
 完整消息流、并发约束、review 返工、UD locator、自动与人工边界以 `docs/governance/codex-execution-model.md` 为准。
 
-任何 remote push、PR、`main` merge、post-merge 验证和 Git 资源清理，必须先读取并遵守该文件第 9 节；其他文档不得另行定义 Git 角色权限或删除规则。
+任何 remote push、PR、`main` merge、post-merge 验证和 Git 资源清理，必须先读取并遵守该文件第 9 节；Direct 只简化角色与过程文档，不允许 direct push `main`、绕过 PR/CI/Human merge gate 或降低验证。其他文档不得另行定义 Git 角色权限或删除规则。
 
 任何 task 都应保持单一职责。SL 只在已确认的有界阶段内协调列明的 FL，不构成长期全局调度中心；不得恢复旧的全局调度中心、能力命令层、watchdog、heartbeat、Pull inbox、线程 registry 或历史状态账本。
 
 ## 6. 讨论、冻结与写入
 
 - 用户表达“还在讨论”“先聊想法”或同等语义时，只分析和比较，不修改项目文件。
+- 状态检查后，task 以极简选项展示当前可用的 `Direct`、`常规协同框架` 或 `继续讨论`，只标记建议项；Human 选择后才进入对应写入路径。
+- Direct 适用于同一 Change Set 的明确小修改；同一目标继续修改时恢复 exact owner task 与现有现场，不因 turn 结束创建新 task。目标、owner、保护范围或独立交付物变化时形成 replacement scope 或新 Change Set。
 - 用户明确确认结论并要求记录、冻结、形成 Workspace/FP 或开始实现后，才写入对应文件。
 - CDT 提交 Proposal 前，必须重新读取相关规范真相，并由 Human 明确确认提交；Design Proposal 只承载稳定设计真相并始终提交 UD。
 - Proposal 提交确认授权 UD 审核，并在接受时把 exact Proposal 集成到 canonical design branch、验证、push 和创建 design PR，停止于 `DESIGN_PR_READY`；design PR merge 与 cleanup 分别另行确认。
