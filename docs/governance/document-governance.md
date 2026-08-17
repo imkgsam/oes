@@ -137,7 +137,7 @@ Proposal Patch 是 Design Task 基于 Workspace 与当前真相形成的真实 G
 - `executionShape = NONE | SINGLE_FEATURE | DELIVERY_STAGE`。
 - `DELIVERY_STAGE` 的 exact source decision task。
 
-UD 只处理 Human-confirmed Proposal，并按 intended canonical files 写入其唯一写者范围：architecture、ADR、稳定 contracts、`AGENTS.md`、`docs/governance/**` 与必要导航。UD 审核并写入 canonical truth 后，Proposal 的长期历史由 Git 提供。
+UD 只处理 Human-confirmed Proposal。一次 Proposal 提交确认授权 UD 审核，并在接受时按 intended canonical files 将 exact Proposal 集成到其唯一写者范围，完成验证、push 和 design PR 创建，停止于 `DESIGN_PR_READY`；design PR merge 与 cleanup 分别另行确认。唯一写者范围包括 architecture、ADR、稳定 contracts、`AGENTS.md`、`docs/governance/**` 与必要导航。Proposal 的长期历史由 Git 提供。
 
 ## 6. Stage Packet
 

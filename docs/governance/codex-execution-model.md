@@ -57,8 +57,8 @@ UD 是长期全局设计审查 task，也是 architecture、ADR、稳定 contrac
 
 - 只串行审核 CDT 的 Human-confirmed Proposal，不自行发起未确认的 canonical 改写；
 - 检查全局边界、长期演进、当前真相和提案冲突；
-- 返回 <code>REVISION_REQUIRED</code>，或接受并写入 canonical truth；
-- 通过 design PR、Human merge 确认和 main CI 完成 truth merge；
+- 有 blocker 时返回 <code>REVISION_REQUIRED</code>；接受时在自己的 canonical design integration branch 集成 exact Proposal、验证、push 并创建 design PR，停止于 <code>DESIGN_PR_READY</code>；
+- Human 独立确认 design PR merge 后执行 Merge Commit，并通过 main CI 完成 truth merge；
 - 仅在 truth 已进入 <code>main</code> 且 main CI 通过后，按已确认执行意图创建 FL 或 SL。
 
 UD 不拆 slices、不写 Feature Packet 或 Stage Packet、不管理执行状态。标题固定为 <code>OES Unified Design</code>。
@@ -134,9 +134,15 @@ Human <-> IDT
 存在设计缺口时：
 
 ~~~text
-Human/IDT -> CDT -> confirmed Design Proposal -> UD
+Human/IDT -> CDT -> confirmed Design Proposal -> UD review
                                              |
-                         truth merged to main + main CI passed
+                         accepted -> integrate exact Proposal
+                                      -> validate/push/design PR
+                                      -> DESIGN_PR_READY
+                                             |
+                                      Human merge confirmation
+                                             |
+                                 truth merged + main CI passed
                                              |
                     executionIntent / executionShape
                          |                         |
@@ -145,7 +151,7 @@ Human/IDT -> CDT -> confirmed Design Proposal -> UD
                          FL                        SL
 ~~~
 
-<code>DESIGN_ONLY / NONE</code> 在 truth merge 后停止，不创建执行角色。
+<code>DESIGN_ONLY / NONE</code> 不跳过 Proposal 的 canonical integration、design PR 或 truth merge；它只控制 truth merge/main CI 之后不创建 FL、SL、IT 或 RI。
 
 feature 内部路径：
 
@@ -194,9 +200,10 @@ CDT 推荐 execution intent/shape，并在 Proposal 确认卡中展示，由 Hum
 - <code>START_AFTER_APPROVAL</code> 不再使用；
 - Design Proposal 只承载稳定设计真相，始终提交 UD；
 - <code>intendedCanonicalFiles</code> 必须属于 UD 的唯一写者范围，并与 <code>canonicalTruthDomains</code> 一致；治理域包括 <code>AGENTS.md</code>、<code>docs/governance/**</code> 与必要导航；
+- <code>DESIGN_ONLY / NONE</code> 只禁止 truth merge 后创建执行角色，不禁止 canonical integration、design PR 创建、独立确认的 merge 或 main CI；
 - Stage Start 是执行授权，不叫 Proposal，也不经过 UD。
 
-CDT 先取得 Human Proposal 提交确认，再按 UD locator 发送。UD 以 <code>proposalId</code> 去重，以 <code>baseCommit</code> 检查过期，并串行处理。<code>REVISION_REQUIRED</code> 只返回 source CDT。UD 接受后由 UD 写真相；只有 design PR 已合入 <code>main</code> 且 exact main CI 通过，才执行 <code>START_AFTER_TRUTH_MERGE</code>。
+CDT 先取得 Human Proposal 提交确认，再按 UD locator 发送。该确认授权 UD：审核 exact Proposal；有 blocker 时向 source CDT 返回 <code>REVISION_REQUIRED</code> 并停止；接受时创建或更新自己绑定的 canonical design integration branch/worktree，集成 exact Proposal，执行验证，push owner branch 并创建或更新 design PR，停止于 <code>DESIGN_PR_READY</code>。UD 以 <code>proposalId</code> 去重，以 <code>baseCommit</code> 检查过期。design PR merge 和 cleanup 不在 Proposal 确认内，分别由 UD 发独立确认卡。只有 design PR 合入 <code>main</code> 且 exact main CI 通过，才执行 <code>START_AFTER_TRUTH_MERGE</code>；<code>DESIGN_ONLY</code> 到此结束且不创建执行角色。
 
 ### 4.2 Human 授权转移与 parent assignment
 
@@ -231,7 +238,7 @@ parent assignment 必须携带 <code>rootConfirmationFingerprint</code> 和直�
 
 | 边 | 类型 | 必须继承 | 新增或收窄绑定 | 停止点 |
 | --- | --- | --- | --- | --- |
-| CDT → UD | Human authorization envelope | Proposal confirmation fingerprint、source CDT、base/proposal SHA、canonical domains/files、execution intent/shape、protected scope | exact UD locator | <code>REVISION_REQUIRED</code> 或 Proposal 接受决定 |
+| CDT → UD | Human authorization envelope | Proposal confirmation fingerprint、source CDT、base/proposal SHA、canonical domains/files、execution intent/shape、protected scope | exact UD locator、canonical design integration branch/worktree、owner push ref、design PR base | blocker 时 <code>REVISION_REQUIRED</code>；接受时集成 exact Proposal、验证、push、创建/更新 design PR 并停止于 <code>DESIGN_PR_READY</code> |
 | IDT → SL | Human authorization envelope | source IDT、Stage Start fingerprint、objective、scope/protected scope、truth refs、feature graph/order、exit criteria | exact SL、stage resources | <code>STAGE_AWAITING_CLEANUP</code>；Stage Cleanup 另行确认 |
 | UD → FL | Human authorization envelope | confirmed Proposal fingerprint、<code>START_AFTER_TRUTH_MERGE / SINGLE_FEATURE</code>、scope/protected scope | exact merged truth/main CI、FL key/resources | <code>PR_READY</code>；merge 另行确认 |
 | UD → SL | Human authorization envelope | confirmed Proposal fingerprint、<code>START_AFTER_TRUTH_MERGE / DELIVERY_STAGE</code>、source decision task、objective、scope/protected scope、feature graph/order、exit criteria | exact merged truth/main CI、SL resources | <code>STAGE_AWAITING_CLEANUP</code>；Stage Cleanup 另行确认 |
@@ -398,6 +405,7 @@ SL 可为 Stage Review 创建 clean-context Stage RI；SL 或 Stage RI 只读精
 - FL → 原 IT 返工；
 - FL required candidates ready 后创建 Global RI；
 - confirmed Human authorization envelope 内列明的直接执行 task 创建与初始化；
+- confirmed Proposal 到达 UD 后自动完成串行 review；有 blocker 时返回 <code>REVISION_REQUIRED</code>，接受时集成 exact Proposal、验证、push owner branch、创建或更新 design PR，并停止于 <code>DESIGN_PR_READY</code>；
 - confirmed topology 内，SL → FL/Stage RI 与 FL → IT/RI 使用收窄的 parent assignment，不重复取得 Human 确认；
 - UD 在 truth merge 和 exact main CI 通过后，按 <code>START_AFTER_TRUTH_MERGE</code> 创建已确认 shape 的 FL 或 SL；
 - SL 按已确认范围和可用容量启动依赖 ready 的 FL；
@@ -407,6 +415,7 @@ SL 可为 Stage Review 创建 clean-context Stage RI；SL 或 Stage RI 只读精
 Human 介入：
 
 - 确认 Design Workspace 写入、Proposal 提交、Stage Start/Change；
+- 在 <code>DESIGN_PR_READY</code> 后独立确认 design PR merge；truth merge/main CI 成功后独立确认 UD cleanup；
 - 作出 HDO 语义决定与非设计阶段决定；
 - 处理 design finding；
 - 确认每个 PR 的 merge；
@@ -562,7 +571,7 @@ stage coordination commits 不 push、不合入 <code>main</code>，删除 ref �
 | --- | --- |
 | “讨论这个交付阶段的目标和优先级” | IDT 内只讨论；若需独立 IDT，先发创建确认卡。 |
 | “把这个设计结论记录下来” | CDT 发 Workspace 或 Proposal 形成确认卡。 |
-| “提交这个设计，只做设计” | CDT 发 Proposal 卡，绑定 <code>DESIGN_ONLY / NONE</code>。 |
+| “提交这个设计，只做设计” | CDT 发 Proposal 卡，绑定 <code>DESIGN_ONLY / NONE</code>；确认后 UD review，接受时完成 canonical integration、验证、push 和 design PR 创建并停在 <code>DESIGN_PR_READY</code>，不创建执行角色。 |
 | “设计合入后开始这个 feature” | CDT 发 Proposal 卡，绑定 <code>START_AFTER_TRUTH_MERGE / SINGLE_FEATURE</code>。 |
 | “设计合入后启动这个阶段” | CDT 发 Proposal 卡，绑定 <code>START_AFTER_TRUTH_MERGE / DELIVERY_STAGE</code>。 |
 | “按现有设计启动这个交付阶段” | IDT 发 Stage Start 卡；Human 确认后受控委派给 SL。 |
@@ -575,7 +584,7 @@ stage coordination commits 不 push、不合入 <code>main</code>，删除 ref �
 | “接管遗留 FP” | 发 Recovery FL 卡，逐项绑定已失活 owner 与精确资源。 |
 | “放弃这项工作” | owner 发放弃卡，逐项列出证据保留和资源处理。 |
 
-Proposal、Stage Start、Stage Change、feature start、merge、feature cleanup、Stage Cleanup、Recovery FL 和放弃是相互独立的确认边界。
+Proposal、Stage Start、Stage Change、feature start、merge、feature cleanup、Stage Cleanup、Recovery FL 和放弃是相互独立的确认边界。Proposal 确认包含 UD review、接受后的 canonical integration、验证、owner branch push 与 design PR 创建/更新，但不包含 design PR merge 或 cleanup。
 
 #### 9.7.2 任务确认卡
 
@@ -597,7 +606,18 @@ Proposal、Stage Start、Stage Change、feature start、merge、feature cleanup�
 请确认
 ~~~
 
-“执行角色”可为 IDT、CDT、UD、SL、FL、IT 或 RI；创建新 task 时必须列出 root child graph，以及每条 Human authorization/parent assignment 边的角色、继承字段、最大允许范围、保护范围、资源和停止点。Proposal 卡必须显示 canonical truth domains/files、recommended executionIntent/executionShape；非 <code>DESIGN_ONLY</code> 时还显示 UD → FL/SL 及后续允许 child graph。Stage Start/Change 卡必须显示 objective、scope、protected scope、source IDT、SL → FL/Stage RI、FL → IT/RI 的最大范围、依赖/顺序、exit criteria 和各层停止点。merge 卡不含 cleanup；Stage Cleanup 卡不含任何 FL 资源。
+“执行角色”可为 IDT、CDT、UD、SL、FL、IT 或 RI；创建新 task 时必须列出 root child graph，以及每条 Human authorization/parent assignment 边的角色、继承字段、最大允许范围、保护范围、资源和停止点。Proposal 卡必须显示 canonical truth domains/files、recommended executionIntent/executionShape、UD integration branch/worktree 与 push/PR 资源、接受后的集成/验证/PR 动作，以及 <code>REVISION_REQUIRED | DESIGN_PR_READY</code> 停止点；非 <code>DESIGN_ONLY</code> 时还显示 truth merge 后的 UD → FL/SL 及后续允许 child graph。<code>DESIGN_ONLY / NONE</code> 的 child graph 为 NONE 只表示 truth merge 后不创建执行角色，不限制 UD canonical integration。Stage Start/Change 卡必须显示 objective、scope、protected scope、source IDT、SL → FL/Stage RI、FL → IT/RI 的最大范围、依赖/顺序、exit criteria 和各层停止点。merge 卡不含 cleanup；Stage Cleanup 卡不含任何 FL 资源。
+
+Proposal 提交确认卡的动作与停止点示例：
+
+~~~text
+计划动作：UD review；REVISION_REQUIRED 时返回 source CDT 并停止；接受时在 UD owner
+canonical design integration branch/worktree 集成 exact Proposal、验证、push owner branch、
+创建或更新以 main 为 base 的 design PR，并停止于 DESIGN_PR_READY。
+保护范围：不 merge design PR、不 cleanup；DESIGN_ONLY / NONE 不创建 FL/SL/IT/RI。
+允许边：CDT → UD；DESIGN_ONLY / NONE 的 post-truth child graph = NONE。
+停止点：REVISION_REQUIRED | DESIGN_PR_READY。
+~~~
 
 #### 9.7.3 确认绑定、委派与失效
 
