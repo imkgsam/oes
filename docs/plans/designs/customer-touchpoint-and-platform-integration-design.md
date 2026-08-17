@@ -58,7 +58,9 @@ designStatus: ACTIVE_DESIGN_WORKSPACE
   - WeChat official account / video account
   - Xiaohongshu
 
-## 4. 已冻结决定
+## 4. Human-confirmed directions pending UD review
+
+本节记录 Design Workspace 内已经获得 Human 认同、但尚未由 UD 回写规范真相的方向。它们不是稳定架构或可直接实施的契约。
 
 | 日期 | 决定 | 影响范围 | 回写目标 |
 | --- | --- | --- | --- |
@@ -197,7 +199,7 @@ designStatus: ACTIVE_DESIGN_WORKSPACE
 
 ### 6.1 自有客户触点
 
-当前冻结口径：
+当前 Workspace 已确认方向：
 
 - 默认采用 `API first`
 - 适合实时交互场景：
@@ -219,7 +221,7 @@ designStatus: ACTIVE_DESIGN_WORKSPACE
 
 ### 6.2 第三方平台账号
 
-当前冻结口径：
+当前 Workspace 已确认方向：
 
 - 默认采用 `connector first`
 - OES 需要为平台建立专用 connector
@@ -238,7 +240,7 @@ designStatus: ACTIVE_DESIGN_WORKSPACE
 
 ### 6.3 webhook 与 connector 当前口径
 
-当前冻结口径：
+当前 Workspace 已确认方向：
 
 - webhook 是事件发生时，对方系统主动调用预先配置 URL 的通知方式。
 - connector 是 OES 内部针对某个平台的专用适配层。
@@ -345,7 +347,299 @@ designStatus: ACTIVE_DESIGN_WORKSPACE
 | 2026-04-23 | 自有触点与第三方平台账号在产品界面上如何命名才最接地气？ | 当前讨论偏架构口径，面向业务用户的产品命名还未冻结。 | 后续做信息架构梳理。 |
 | 2026-04-23 | 第一阶段最先落地的是展示型 + 互动型，还是要直接覆盖部分交易能力？ | 依赖产品、订单、库存、CRM 等多个域的 readiness。 | 由总控结合基础模块成熟度再排序。 |
 
-## 9. 真相源回写计划
+## 9. Marketplace connector and external commerce integration
+
+本节集中保存第三方 Marketplace 集成仍然有效、且尚未进入规范真相的候选方向，不冻结服务名称、部署单元或内部 RPC。
+
+### 9.1 Coverage against current truth
+
+| 候选主题 | 当前覆盖 | 处理 |
+| --- | --- | --- |
+| 外部流量经 Gateway / BFF 进入 | 已有全局稳定约束 | 只作为基线 |
+| 内部同步调用使用 gRPC | 已有全局稳定约束 | 只作为基线 |
+| 外部平台语义与核心业务语义之间使用防腐层 | 已有全局稳定约束 | 只作为基线 |
+| 自有 Site Runtime webhook 与 pull fallback | Site 稳定设计已覆盖 | 不推广为 Marketplace 契约 |
+| 第三方平台采用 connector / webhook / polling | 仅在本 Workspace 有方向 | 继续设计 |
+| Marketplace account / installation | 未冻结 | 继续设计 |
+| callback 验签后解析 tenant 与执行主体 | 未冻结且与当前安全模型有张力 | 继续设计 |
+| 外部对象与 OES 对象映射 | 未冻结 | 继续设计 |
+| 订单导入、库存与价格同步 | 未冻结 | 继续设计 |
+| retry、cursor、reconciliation 与人工修复 | 未冻结 | 继续设计 |
+| Product / ProductVariant / Listing / Offer | 未冻结 | handoff 到后续 Item–Product / Channel 设计 |
+
+### 9.2 Three truth boundaries
+
+第三方平台接入至少需要区分三类真相。
+
+#### External platform truth
+
+由 Amazon、淘宝、京东或其他平台拥有：
+
+- seller / shop / marketplace 标识；
+- external product、listing、SKU、order、shipment、refund、review 与 message；
+- 平台审核与发布状态；
+- 平台 API cursor、notification type 和 provider request id；
+- 平台自身的价格、库存承诺和履约状态。
+
+OES 可以保存必要快照与映射，但不得把平台状态改写成 OES 核心业务对象的唯一真相。
+
+#### Integration truth
+
+由未来 Marketplace integration owner 拥有，候选包括：
+
+- tenant-scoped platform installation / account binding；
+- credential reference 与 authorization lifecycle；
+- external object mapping；
+- inbound receipt 与 idempotency record；
+- sync checkpoint / cursor；
+- sync run、retry 和 rate-limit state；
+- reconciliation finding；
+- provider payload snapshot 或可审计引用；
+- connector capability 与版本。
+
+这些候选名称不是已冻结对象。后续应先确认每项是否拥有独立业务真相，再决定聚合与存储。
+
+#### OES business truth
+
+继续由对应业务服务拥有：
+
+- Item Master：内部 ItemModel、Item 与执行物料身份；
+- Sales / Order owner：客户订单、报价、取消与销售业务判断；
+- WMS：库存、占用、发货与仓储事实；
+- Pricing / Sales：内部价格规则与对渠道的商业条件；
+- Finance：应收、结算与财务事实；
+- After-sales：退货、退款、投诉与售后业务判断；
+- CRM / UGC / Communication owner：询盘、客户关系、评价、问答、消息与会话。
+
+Connector 负责协议适配、映射和同步，不接管这些核心业务真相。
+
+### 9.3 Candidate ingress topology
+
+候选入站链路：
+
+    External Marketplace
+      -> public Gateway route
+      -> generic transport protection and trace
+      -> marketplace connector boundary
+      -> provider signature / state / replay verification
+      -> tenant installation and machine authority resolution
+      -> durable receipt / idempotency
+      -> business-owner command, narrow INTERNAL call, or event
+
+Gateway 候选职责：
+
+- TLS、公网路由、通用限流和请求大小限制；
+- trace、接收时间和可信网络元数据；
+- 保留平台验签所需的 canonical request material；
+- 只把允许的 callback route 转给明确的 connector boundary。
+
+Connector 候选职责：
+
+- 平台协议与签名的最终解释；
+- OAuth state、token refresh 与 credential reference；
+- replay protection 与 provider-specific idempotency；
+- 识别 platform installation；
+- 必要时调用平台 API 补拉完整数据；
+- 映射、同步、重试、对账与异常治理。
+
+尚未冻结 Gateway 与 connector 之间需要传递的精确 canonical request。raw body、path、query 与 header allowlist 必须以最小、可审计且不被中间转换破坏的形式设计；普通 header、body tenant 或调用方自报身份不构成 authority。
+
+### 9.4 Tenant and machine authority gap
+
+待核验的候选映射为：
+
+    platform + sellerId / shopId / appId
+      -> MarketplaceAccount
+      -> tenantId / orgId
+      -> SYSTEM_INTEGRATION operator context
+
+该方向尚未满足当前 ExecutionToken 与 external integration 稳定设计。
+
+当前约束：
+
+- tenant、org 与 principal 必须来自可信 owner resolution 和签名执行凭证；
+- callback body、query、普通 metadata 或本地配置中的 tenant 不是 authority；
+- 无 HUMAN subject 的自动流程应使用明确的 tenant-owned Machine Principal；
+- External API Key 模型只覆盖 tenant-owned Integration Machine，不覆盖 shared Marketplace App、多 tenant installation 或 Marketplace developer-platform principal；
+- 当前稳定设计明确没有为 shared App principal 与跨 tenant installation 预留通用模型。
+
+因此需要独立冻结：
+
+1. 一个 tenant 的一个店铺安装如何绑定 tenant-owned Machine Principal；
+2. 平台共享 App credential 与 tenant installation credential 如何分离；
+3. provider callback 通过什么不可伪造的安装标识找到 binding；
+4. connector workload 如何取得目标 audience 的 MACHINE ExecutionToken；
+5. installation disable、token revoke、shop transfer 与 tenant disable 如何收敛；
+6. 多 org 场景由 installation 固定 org，还是由业务 owner 再解析；
+7. callback 验证失败、binding 缺失或 tenant 冲突时的 fail-closed 行为；
+8. 平台 App 多租户安装是否需要显式重开当前已排除的安全模型。
+
+在这些问题冻结前，不把 MarketplaceAccount 当作可信 operator，也不复用 External API Key 作为平台 callback 身份。
+
+### 9.5 Synchronization and reliability matrix
+
+需要继续冻结的可靠性维度：
+
+| Concern | Design questions |
+| --- | --- |
+| Inbound idempotency | provider event id、request id、shop id 和事件类型如何形成稳定 key；重复 payload 是否返回相同结果。 |
+| Replay protection | timestamp、nonce、signature window 与已消费记录如何协同。 |
+| Webhook completion | callback 是完整事实还是提示；何时必须补拉平台 API。 |
+| Polling checkpoint | cursor、watermark、page token 与时间窗口由谁拥有；何时推进。 |
+| Outbound idempotency | publish/update request 如何关联本地 desired version 与 provider result。 |
+| Retry | provider 429、5xx、timeout、部分成功和长期拒绝如何分类。 |
+| Rate limit | platform、app、shop、operation 与 tenant 维度如何调度。 |
+| Ordering | 乱序事件、迟到事件和状态回退如何判定。 |
+| Dead letter | 哪些失败进入人工处理；如何重放且不跳过业务校验。 |
+| Reconciliation | 如何定期比较 external snapshot、mapping 与 OES desired state。 |
+| Partial success | 一个 listing 多 variants 或批量价格更新部分成功时如何记录。 |
+| Audit | 谁触发、哪个 installation、provider request id、mapping、输入摘要与结果如何关联。 |
+| Secret handling | access token、refresh token 与签名 secret 只保存 credential reference，不进入日志、事件或普通 DTO。 |
+
+Webhook、polling 和 reconciliation 应相互补充，不应假设任一单一机制提供完整一致性。
+
+### 9.6 Candidate collaboration paths
+
+#### External order import
+
+候选流程：
+
+    verified provider notification or polling result
+      -> durable integration receipt
+      -> external order snapshot and mapping
+      -> Sales / Order owner evaluates import
+      -> accepted / rejected / pending-domain-resolution
+      -> integration records owner result and external acknowledgement
+
+Connector 不自行决定：
+
+- OES 客户身份；
+- Item 替代或临时 Item；
+- 内部价格是否合法；
+- 库存是否可分配；
+- 订单是否进入业务生命周期；
+- 财务和售后状态。
+
+#### Product and listing publication
+
+候选流程：
+
+    business-approved commercial publication
+      -> connector desired-state translation
+      -> provider create/update
+      -> external listing / SKU identifiers
+      -> mapping and provider status
+      -> reconciliation
+
+Product、ProductVariant、Listing、ListingVariant 与 Offer 的 owner 仍未冻结，本节只保存 connector 所需的边界。
+
+#### Inventory and price synchronization
+
+库存与价格更新不等于修改商品内容。后续至少要区分：
+
+- product/listing content；
+- price / promotion；
+- available-to-promise or channel allocation；
+- fulfillment mode；
+- provider warehouse or marketplace fulfillment。
+
+Connector 只发布业务 owner 已计算的渠道结果，不拥有库存余额或价格规则。
+
+#### Review, Q&A, message and after-sales return
+
+外部平台回传的数据应按业务语义路由：
+
+- review / Q&A -> future UGC owner；
+- message / chat -> future Communication / Conversation owner；
+- inquiry / lead -> CRM；
+- refund / return / complaint -> After-sales 或订单 owner；
+- connector 只保留 external mapping、delivery state 与必要 snapshot。
+
+### 9.7 Current runtime incompatibilities
+
+若 connector 同步调用 Sales、WMS、Finance 和 Item Master，当前已有服务契约并未普遍支持该路径：
+
+- Sales 现有生产 RPC 主要冻结为 HUMAN / WEB；
+- WMS 当前多数业务入口没有 Marketplace MACHINE caller；
+- Finance 当前没有已证明的 Marketplace pure MACHINE caller；
+- Item Master 的现有窄 INTERNAL resolver 绑定已冻结 caller 与 HUMAN OBO，不是通用 connector query API。
+
+后续需要按每个业务事实选择：
+
+- 受业务 owner 控制的 integration event；
+- durable import command / inbox；
+- 新增精确、窄用途 INTERNAL RPC；
+- 或由 Human 处理异常后再进入现有 BUSINESS workflow。
+
+不得通过复用 HUMAN RPC、伪造 operator context、body tenant 或开放通用内部接口绕过当前授权边界。
+
+### 9.8 Product and channel handoff
+
+当前获得 Human 认同的产品方向：
+
+    ItemModel / Item remain internal execution master truth.
+    An independent external commercial display layer references them.
+
+保留的业务理由：
+
+- 一个内部 Item 可被多个品牌、OEM 客户或市场使用；
+- 不同渠道只公开部分 Item；
+- 内外生命周期不同；
+- 内部技术属性与外部展示属性不同；
+- 多语言、单位、认证、媒体和营销内容不同；
+- 外部组合展示不等于内部 BOM；
+- 外部内容编辑不应改变库存、成本、BOM 或生产真相。
+
+尚未冻结：
+
+- Product 是否是正式聚合；
+- ProductVariant、ProductItemBinding 或 projection；
+- Product 与 ItemModel / Item 的映射基数；
+- Brand、Channel、Catalog、Publication 的对象边界；
+- MarketplaceListing、ListingVariant 与 ChannelOffer；
+- 对外 Variant 映射固定 Item、configurable result 或 fulfillment result。
+
+这些问题交由 [Commercial Product and Channel Publication Design Workspace](commercial-product-and-channel-publication-design.md) 集中收敛。本 Workspace 不重复定义，只保留 connector 对它们的依赖。
+
+### 9.9 Known conflicts
+
+- 独立外部展示层是当前 Human-confirmed direction；不新增通用 Product 不再是当前方向。
+- `marketplace-integration-service` 只是候选名称，服务边界尚未冻结。
+- `MarketplaceAccount -> tenant/operator` 候选方案尚未满足当前可信执行模型。
+- 当前 External API Key 设计明确排除 shared Marketplace App 与 cross-tenant installation；真实平台安装可能要求重开该边界。
+- connector 直接调用核心服务的候选路径，与现有 RPC mode 和 caller allowlist 冲突。
+- Site Runtime webhook 是 OES 到自有站点的发布通知，不能直接推导为外部 Marketplace callback 契约。
+- SiteProductPublication 的存在不代表 Product Master–Site Product identity、mapping 和 lifecycle 已冻结。
+
+### 9.10 Open questions
+
+1. Connector 是一个服务、多个 adapter module，还是按能力拆分的集成上下文？
+2. Platform App、tenant installation、shop account 与 tenant Machine Principal 的精确关系是什么？
+3. Marketplace callback 的 canonical request 与 Gateway-to-connector contract 是什么？
+4. provider signature verification 最终发生在哪一层，Gateway 做哪些通用校验？
+5. 平台凭证由 Auth、connector credential store 还是独立 secret owner 管理？
+6. 外部对象 mapping 是统一 registry 还是按对象类型由 connector 分区拥有？
+7. 外部订单通过 event、durable command 还是窄 INTERNAL RPC 交给业务 owner？
+8. 现有 HUMAN-only 业务能力需要新增哪些 MACHINE integration surface？
+9. Listing content、price、inventory allocation 和 fulfillment promise 的 owner 分别是谁？
+10. 如何表达 desired state、provider observed state 与 reconciliation finding？
+11. 第一阶段支持一个平台的一条链路，还是先冻结跨平台共同 contract？
+12. Product / Channel 设计完成前，connector 如何保持对上游商业对象的弱耦合？
+
+### 9.11 Next discussion point
+
+先使用一个具体场景冻结可信入站骨架：
+
+    Amazon order notification
+      -> Gateway
+      -> signature and installation verification
+      -> tenant-owned machine authority
+      -> durable receipt
+      -> Sales / Order owner import decision
+
+本轮只回答 installation、tenant authority、idempotency 与 owner handoff，不先冻结完整 Listing 或 Product 模型。
+
+## 10. 真相源回写计划
 
 - services:
   - future service responsibilities once owner is clear
@@ -359,13 +653,14 @@ designStatus: ACTIVE_DESIGN_WORKSPACE
 - architecture / ADR:
   - only after naming, owner, and minimum phase are frozen
 
-## 10. 恢复入口
+## 11. Next discussion point
 
-- 下次继续前先读：
+- 继续讨论的当前输入：
   - 本 workspace
   - `docs/plans/designs/README.md`
   - 与 CRM / product / order / service 相关的后续设计文档（待补）
 - 当前推荐下一步：
+  - 先冻结 Marketplace callback 的 installation、tenant machine authority、durable receipt 与业务 owner handoff。
   - 继续压实“自有触点 vs 第三方平台账号”的第一阶段对象和字段。
   - 讨论互动入口（询盘 / 在线客服 / 报价 / 售后）如何映射到 future CRM / service / notification。
   - 判断该主题是先形成 feature packet，还是继续作为长周期 design workspace 保留。

@@ -9,7 +9,8 @@
 | DecisionEvent query model | 出现跨服务授权判定排障需求，并已明确 retention、查询权限和入口。 |
 | Central audit ingestion/query | 至少两个业务服务产生稳定审计事实，并出现跨服务统一检索需求。 |
 | Event-bus trace propagation | 业务事件链路投入使用并冻结事件 trace metadata。 |
-| Event Bus P1 implementation closure audit | 旧会话清理完成且新协同架构启用后，由新的 Feature Lead 核验现有实现与冻结架构、修正过时状态，并决定完成或继续 `event-bus-outbox-p1`。 |
+| Event Bus P1 implementation closure audit | 由新的 Feature Lead 核验现有实现与冻结架构、修正过时状态，并决定完成或继续 `event-bus-outbox-p1`。 |
+| CRM v2 truth and execution-document reconciliation | 由 CRM Feature Lead 与 RI 对齐 `crm-service` 稳定真相、当前 runtime 和遗留 Feature Packets，消除 Release、Archive 与 Pool 范围冲突。 |
 | Remove legacy CheckPermissionWithContext | 完成真实调用面审查与调用方契约迁移。 |
 | Cross-session permission refresh | 产品确认软刷新或强制失效语义，并冻结受影响账号解析和通知通道。 |
 
