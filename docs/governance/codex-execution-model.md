@@ -37,7 +37,7 @@ IDT 讨论跨 feature 的优先级、阶段目标和业务取舍。它：
 - 发现设计缺口时转交一个 CDT，经 UD 冻结后再继续；
 - 作为其创建的 SL 的唯一非设计决策返回点。
 
-IDT 标题为 <code>OES Discussion — &lt;topic&gt;</code>。
+IDT 标题为 <code>[IDT] &lt;human-readable-topic&gt;</code>。
 
 ### 2.3 Capability Design Task（CDT）
 
@@ -49,7 +49,7 @@ CDT 只维护一个设计主题。它：
 - 只向 UD 提交 Human 已确认的 Proposal；
 - 不创建或协调 SL、FL、IT、RI。
 
-CDT 标题为 <code>OES Design — &lt;design-key&gt;</code>。
+CDT 标题为 <code>[CDT] &lt;human-readable-design-topic&gt;</code>。
 
 ### 2.4 Global Unified Design（UD）
 
@@ -61,7 +61,7 @@ UD 是长期全局设计审查 task，也是 architecture、ADR、稳定 contrac
 - Human 独立确认 design PR merge 后执行 Merge Commit，并通过 main CI 完成 truth merge；
 - 仅在 truth 已进入 <code>main</code> 且 main CI 通过后，按已确认执行意图创建 FL 或 SL。
 
-UD 不拆 slices、不写 Feature Packet 或 Stage Packet、不管理执行状态。标题固定为 <code>OES Unified Design</code>。
+UD 不拆 slices、不写 Feature Packet 或 Stage Packet、不管理执行状态。标题固定为 <code>[UD] Unified Design</code>。
 
 ### 2.5 Stage Lead（SL）
 
@@ -75,7 +75,7 @@ SL 是一个已获 Stage Start 授权的有界交付阶段的临时 owner。它�
 - 在全部 feature 合并后于最新 <code>main</code> 执行阶段退出验收；
 - 各 FL 分别完成 cleanup 后，经 Human 确认清理自身本地资源并关闭。
 
-SL 无产品交付 branch，不写产品代码或 FL 的 FP，不 push、不创建 PR、不合并 <code>main</code>，也不清理 FL 资源。标题为 <code>OES Stage — &lt;stage-key&gt;</code>。
+SL 无产品交付 branch，不写产品代码或 FL 的 FP，不 push、不创建 PR、不合并 <code>main</code>，也不清理 FL 资源。标题为 <code>[SL] &lt;human-readable-stage&gt;</code>。
 
 ### 2.6 Feature Lead（FL）
 
@@ -89,13 +89,13 @@ FL 是一个 feature 的临时交付 owner。它：
 - 独占 feature 的 remote push、PR、Merge Commit、合并后验证和自身 cleanup；
 - 有 parent SL 时，只向该唯一 SL 返回规定的关键里程碑。
 
-FL 标题为 <code>OES Feature — &lt;feature-key&gt;</code>。
+FL 标题为 <code>[FL] &lt;human-readable-feature&gt;</code>。
 
 ### 2.7 Implementation Task（IT）
 
 IT 实现一个 Frozen Slice，只使用 FL 分配的 branch/worktree。它向唯一 parent FL 返回 candidate SHA、验证和阻塞；不写 FP，不 push、不创建 PR、不合并或清理资源。
 
-小型单 slice feature 可由 FL 直接承担 IT。独立 IT 标题为 <code>OES Implementation — &lt;feature-key&gt;/&lt;slice-id&gt;</code>。
+小型单 slice feature 可由 FL 直接承担 IT。独立 IT 标题为 <code>[IT] &lt;human-readable-feature&gt; / &lt;slice&gt;</code>。
 
 ### 2.8 Review & Integration（RI）
 
@@ -106,9 +106,9 @@ RI 使用 clean context 审查精确 candidate，不承担持续监控：
 - 多 slice 或跨服务：Global RI；
 - 阶段组合：由 SL 创建 Stage RI。
 
-RI 默认只读精确 SHA，只向 parent 返回 findings 和结论；不直接调度下游、不就地修复、不 push、合并或清理。feature RI 标题为 <code>OES Review — &lt;feature-key&gt;/&lt;scope&gt;</code>；Stage RI 标题为 <code>OES Review — &lt;stage-key&gt;/stage</code>。
+RI 默认只读精确 SHA，只向 parent 返回 findings 和结论；不直接调度下游、不就地修复、不 push、合并或清理。feature RI 与 Stage RI 均使用 <code>[RI] &lt;human-readable-feature-or-stage&gt; / &lt;review-scope&gt;</code>。
 
-标题只供 Human 识别；所有路由、授权与回传均使用 exact task id。
+标题只供 Human 识别，不承载运行状态；所有路由、授权与回传均使用 exact task id。新标题规则进入 canonical truth 后只约束新建 task。现存运行中 task 的 legacy title 与 UD locator 在迁移前继续有效，design PR merge 不使其立即失效；任何现存 title 或 locator 迁移都是单独、精确绑定且经 Human 确认的运行时动作。
 
 ## 3. 主数据流
 
@@ -559,9 +559,9 @@ stage coordination commits 不 push、不合入 <code>main</code>，删除 ref �
 
 ### 9.7 Human 命令契约
 
-本小节是 Human 与 task 之间意图识别、确认、委派、merge 与 cleanup 绑定的唯一真相，版本为 <code>OES-COLLAB-COMMANDS/v3</code>。Human 使用自然语言表达目标；technical ids 由 task 读取真实状态并交叉校验。
+本小节是 Human 与 task 之间意图识别、确认、委派、merge 与 cleanup 绑定的唯一真相，版本为 <code>OES-COLLAB-COMMANDS/v4</code>。Human 使用自然语言表达目标；technical ids 由 task 读取真实状态并交叉校验。
 
-<!-- BEGIN OES_COLLAB_COMMANDS_V3 -->
+<!-- BEGIN OES_COLLAB_COMMANDS_V4 -->
 
 #### 9.7.1 自然语言入口
 
@@ -591,7 +591,7 @@ Proposal、Stage Start、Stage Change、feature start、merge、feature cleanup�
 状态变更前，task 返回一张且仅一张当前待确认卡，至少包含：
 
 ~~~text
-待确认任务
+待确认任务 #<card-index>
 目的
 目标对象
 计划动作
@@ -604,9 +604,14 @@ Proposal、Stage Start、Stage Change、feature start、merge、feature cleanup�
 停止点
 内部绑定
 请确认
+编号操作
+1. 执行推荐的状态变更动作
+2. 取消本卡
+3. 查看完整绑定
+4. 查看变更、diff 或证据
 ~~~
 
-“执行角色”可为 IDT、CDT、UD、SL、FL、IT 或 RI；创建新 task 时必须列出 root child graph，以及每条 Human authorization/parent assignment 边的角色、继承字段、最大允许范围、保护范围、资源和停止点。Proposal 卡必须显示 canonical truth domains/files、recommended executionIntent/executionShape、UD integration branch/worktree 与 push/PR 资源、接受后的集成/验证/PR 动作，以及 <code>REVISION_REQUIRED | DESIGN_PR_READY</code> 停止点；非 <code>DESIGN_ONLY</code> 时还显示 truth merge 后的 UD → FL/SL 及后续允许 child graph。<code>DESIGN_ONLY / NONE</code> 的 child graph 为 NONE 只表示 truth merge 后不创建执行角色，不限制 UD canonical integration。Stage Start/Change 卡必须显示 objective、scope、protected scope、source IDT、SL → FL/Stage RI、FL → IT/RI 的最大范围、依赖/顺序、exit criteria 和各层停止点。merge 卡不含 cleanup；Stage Cleanup 卡不含任何 FL 资源。
+<code>card-index</code> 在当前 task 内单调递增且永不复用；每张卡的 index 在内部绑定其 exact card fingerprint，不替代 fingerprint，也不跨 task 形成全局编号。“执行角色”可为 IDT、CDT、UD、SL、FL、IT 或 RI；创建新 task 时必须列出 root child graph，以及每条 Human authorization/parent assignment 边的角色、继承字段、最大允许范围、保护范围、资源和停止点。Proposal 卡必须显示 canonical truth domains/files、recommended executionIntent/executionShape、UD integration branch/worktree 与 push/PR 资源、接受后的集成/验证/PR 动作，以及 <code>REVISION_REQUIRED | DESIGN_PR_READY</code> 停止点；非 <code>DESIGN_ONLY</code> 时还显示 truth merge 后的 UD → FL/SL 及后续允许 child graph。<code>DESIGN_ONLY / NONE</code> 的 child graph 为 NONE 只表示 truth merge 后不创建执行角色，不限制 UD canonical integration。Stage Start/Change 卡必须显示 objective、scope、protected scope、source IDT、SL → FL/Stage RI、FL → IT/RI 的最大范围、依赖/顺序、exit criteria 和各层停止点。merge 卡不含 cleanup；Stage Cleanup 卡不含任何 FL 资源。
 
 Proposal 提交确认卡的动作与停止点示例：
 
@@ -623,6 +628,9 @@ canonical design integration branch/worktree 集成 exact Proposal、验证、pu
 
 - 同一 task 同一时刻只允许一张未决确认卡；新意图使旧卡作废。
 - Human 对最新卡作无附加条件的明确确认，即绑定该卡；Human 无须复述技术参数。
+- 当且仅当当前 task 恰有一张最新、有效、待确认卡，且 Human 消息去除首尾空白后整体是编号选择时，<code>1</code> 或 <code>2</code> 分别执行卡上对应操作。没有待确认卡时数字不触发命令；普通编号文本不视为编号选择；明确自然语言确认或取消始终受支持。
+- 编号选择只接受单个 <code>1</code>、<code>2</code>、<code>3</code>、<code>4</code>，或用半角逗号连接且不重复的只读组合 <code>3,4</code>/<code>4,3</code>。<code>3</code> 与 <code>4</code> 可组合执行；状态变更操作 <code>1</code> 或 <code>2</code> 必须单独输入，<code>1,3</code>、<code>1,2</code> 等包含状态变更的组合无效。
+- 数字命令只绑定发卡的 exact task id 与 exact card fingerprint，不能跨 task 使用。新卡生成、卡执行、取消、内部绑定变化或新意图替换时，旧 card index 及其全部数字操作立即失效；失效 index 永不复用。
 - 改变目标、范围、顺序、保护范围、角色、合并方式或停止点的回复视为新意图，重新发卡。
 - 执行前复读内部绑定；truth、candidate、PR head、main、checks、findings、owner、branch/worktree 或 protected scope 变化时重新发卡。
 - 确认只在发卡 task 中有效；跨 task 的 Human 授权只使用 4.2 的 authorization envelope，拓扑内 child 工作只使用收窄的 parent assignment。
@@ -635,7 +643,7 @@ task 内部维护：
 
 - stable lower-kebab-case design/feature/stage/slice key；
 - full 40-character commit SHA；
-- exact task id、source IDT、owner、worktree key、branch/ref 和 state fingerprint；
+- exact task id、source IDT、owner、worktree key、branch/ref、state fingerprint、task-local next card index 与 exact card fingerprint；
 - PR number、head SHA、base/main、checks、findings 和 conversations；
 - cleanup 绑定的 merge SHA 及逐项 local/remote resources；
 - root confirmation/envelope fingerprint、allowed child graph、每个 assignment 的 direct parent 与 stop point。
@@ -648,7 +656,7 @@ feature cleanup 卡显示 main 复测和每个 FL 资源。Stage Cleanup 卡显�
 
 在 Codex 中调用 <code>$oes-collaboration-commands</code> 只读取并展示本小节，不创建资源或推进 gate。
 
-<!-- END OES_COLLAB_COMMANDS_V3 -->
+<!-- END OES_COLLAB_COMMANDS_V4 -->
 
 ### 9.8 失败恢复
 
