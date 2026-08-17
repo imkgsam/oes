@@ -1,6 +1,6 @@
 # Procurement、SRM、Item Master、WMS 与 Finance 协同蓝图
 
-> 涉及 permission-service 的权限、scope、policy 或授权判定边界，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准；本文只描述采购、供应商、物料、仓储与财务之间的业务协同。
+> 涉及 permission-service 的权限、scope、policy 或授权判定边界，以 [permission-service.md](../services/permission-service.md) 为准；本文只描述采购、供应商、物料、仓储与财务之间的业务协同。
 
 ## 1. 目标
 
@@ -25,7 +25,7 @@
   - 负责 `ReceivingExpectation`、`ReceivingDiscrepancy`
   - 负责采购交易事实与历史采购价格事实
 - `srm-service`
-  - 负责 `SupplierProfile` 与当前最小 `SupplierOffering` active/inactive 关系；具体 owner 规则以 [srm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/srm-service.md) 为准
+  - 负责 `SupplierProfile` 与当前最小 `SupplierOffering` active/inactive 关系；具体 owner 规则以 [srm-service.md](../services/srm-service.md) 为准
 - `item-master-service`
   - 负责 `ItemModel`、`Item`、执行层 capability 与 `SupplierItemMapping`
 - `wms-service`
@@ -50,7 +50,7 @@
 ### 4.2 Procurement 与 SRM 边界
 
 - `srm-service` 继续 owns `SupplierProfile` 与最小 `SupplierOffering` 可供应关系。
-- 标准 `Item` 转 `PO` 时强制校验 `SupplierProfile.status = ACTIVE`、exact `SupplierOffering.status = ACTIVE` 与 `Item.active + purchasable`；该规则以 [procurement-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/procurement-service.md) 与 [srm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/srm-service.md) 为准。
+- 标准 `Item` 转 `PO` 时强制校验 `SupplierProfile.status = ACTIVE`、exact `SupplierOffering.status = ACTIVE` 与 `Item.active + purchasable`；该规则以 [procurement-service.md](../services/procurement-service.md) 与 [srm-service.md](../services/srm-service.md) 为准。
 - 日常非标准采购可不要求标准 `Item` 或 `SupplierOffering`，但必须标记为非标准 / 文本型采购需求。
 - Procurement 不把 RFQ、PO、实际成交价、历史采购价格、收货或履约事实塞回 `SRM`；`PaymentTerm` 主数据归 `finance-service`。
 - 当前 `SupplierOffering` 只表达 active/inactive 可供应关系，不承载默认价格、MOQ、lead time 或交易条款。
@@ -166,9 +166,9 @@
 
 ## 9. 关联文档
 
-- [procurement-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/procurement-service.md)
-- [srm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/srm-service.md)
-- [item-master-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/item-master-service.md)
-- [wms-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/wms-service.md)
-- [finance-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/finance-service.md)
-- [srm-procurement-party-item-master.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/srm-procurement-party-item-master.md)
+- [procurement-service.md](../services/procurement-service.md)
+- [srm-service.md](../services/srm-service.md)
+- [item-master-service.md](../services/item-master-service.md)
+- [wms-service.md](../services/wms-service.md)
+- [finance-service.md](../services/finance-service.md)
+- [srm-procurement-party-item-master.md](./srm-procurement-party-item-master.md)

@@ -13,7 +13,7 @@ serviceTruthSource: docs/architecture/services/notification-service.md
 
 本契约冻结 `notification-service` 对 Collaboration Task P1 三个公共事实的最小系统内通知反应。它只定义“已验证事件如何产生 Notification 自己拥有的本地结果”，不定义 Task、通用规则管理、外部投递或通知中心读取 API。
 
-输入事件的 owner、payload、状态与兼容性以 [collaboration-service event contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/events/collaboration-service.md) 为准；consumer 必须使用 owner 的 `src/common/src/contracts/collaboration_service/events.ts` 编译期契约，而不是复制 payload interface。
+输入事件的 owner、payload、状态与兼容性以 [collaboration-service event contract](../events/collaboration-service.md) 为准；consumer 必须使用 owner 的 `src/common/src/contracts/collaboration_service/events.ts` 编译期契约，而不是复制 payload interface。
 
 ## 2. Accepted input
 
@@ -25,7 +25,7 @@ serviceTruthSource: docs/architecture/services/notification-service.md
 | Aggregate | `TASK`; `subject` / `oesaggregateid` / `data.taskId` 必须一致 |
 | Tenant | `oestenantid` required; it becomes the Notification local-result tenant boundary |
 | Subscription | Exact subjects only: `oes.events.collaboration.task.assigned`, `oes.events.collaboration.task.completed`, `oes.events.collaboration.task.cancelled` |
-| Delivery model | Durable pull + explicit ACK; platform semantics are defined by [platform-transport.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/events/platform-transport.md) |
+| Delivery model | Durable pull + explicit ACK; platform semantics are defined by [platform-transport.md](../events/platform-transport.md) |
 
 `actorAccountId` is attribution only. It is never a delegated authorization token and is used here only to exclude self-notification.
 

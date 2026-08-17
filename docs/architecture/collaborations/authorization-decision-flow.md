@@ -4,8 +4,8 @@
 
 定义 OES 中“操作者在当前上下文下是否可以执行某操作、访问某资源、查询某范围”的长期协同方式。
 
-`identity-service` 的身份上下文事实边界只以 [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md) 为准；本文只记录授权判定协同方式。
-`permission-service` 的服务设计、核心对象与 owner 边界只以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准；本文不重新定义权限、角色、policy 或授权判定真相。
+`identity-service` 的身份上下文事实边界只以 [identity-service.md](../services/identity-service.md) 为准；本文只记录授权判定协同方式。
+`permission-service` 的服务设计、核心对象与 owner 边界只以 [permission-service.md](../services/permission-service.md) 为准；本文不重新定义权限、角色、policy 或授权判定真相。
 
 ## 2. 参与服务
 
@@ -51,7 +51,7 @@
 ## 6. 真相归属
 
 - 权限码、角色、scope、policy、授权判定：`permission-service`
-- 操作者身份上下文：以 [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md) 为准
+- 操作者身份上下文：以 [identity-service.md](../services/identity-service.md) 为准
 - 资源本体与业务规则：对应业务服务
 - HTTP 消费摘要：`api-gateway`
 
@@ -66,12 +66,12 @@
 
 ## 8. 关联文档
 
-- [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
-- [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)
-- [15-authorization-layering-and-resource-policy-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/15-authorization-layering-and-resource-policy-architecture.md)
-- [14-grpc-metadata-and-service-trust-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/14-grpc-metadata-and-service-trust-architecture.md)
-- [principal-authorization.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/principal-authorization.md)
-- [execution-token.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/execution-token.md)
+- [permission-service.md](../services/permission-service.md)
+- [identity-service.md](../services/identity-service.md)
+- [authorization-layering-and-resource-policy.md](../platforms/authorization-layering-and-resource-policy.md)
+- [grpc-metadata-and-service-trust.md](../platforms/grpc-metadata-and-service-trust.md)
+- [principal-authorization.md](../../contracts/permission-service/principal-authorization.md)
+- [execution-token.md](../../contracts/auth-service/execution-token.md)
 ## Foundation atomic activation
 
 The five-service foundation candidate prepares Auth, Identity, Permission, HR and TenantOrg callers first and activates all five Token-only server boundaries together. Permission's seven baseline internal decision/read RPCs accept only their exact Gateway/Auth/Public Entry/Collaboration workload and the frozen Code; all management/policy RPCs remain HUMAN BUSINESS. Existing `ResolveWorkloadIssuance`, `ResolvePrincipalAuthorization`, MACHINE and OBO semantics are reused without a second bootstrap or caller-supplied authorization.

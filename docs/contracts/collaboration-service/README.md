@@ -4,9 +4,9 @@
 
 本目录用于提供 `collaboration-service` 的黑盒接口文档。
 
-`collaboration-service` 的唯一稳定服务设计真相源是 [collaboration-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/collaboration-service.md)。本目录只描述黑盒接口、字段、错误与调用语义，不重新定义服务职责、核心对象或长期边界。
+`collaboration-service` 的唯一稳定服务设计真相源是 [collaboration-service.md](../../architecture/services/collaboration-service.md)。本目录只描述黑盒接口、字段、错误与调用语义，不重新定义服务职责、核心对象或长期边界。
 
-Task P1 的 feature packet 是 [collaboration-task-p1.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/collaboration-task-p1.md)。Annotation P1 的 feature packet 是 [collaboration-annotation-p1.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/collaboration-annotation-p1.md)。本目录消费这些 packet 中已冻结的 P1 范围。
+Task P1 的 feature packet 是 [collaboration-task-p1.md](../../plans/features/collaboration-task-p1.md)。Annotation P1 的 feature packet 是 [collaboration-annotation-p1.md](../../plans/features/collaboration-annotation-p1.md)。本目录消费这些 packet 中已冻结的 P1 范围。
 
 这些文档面向：
 
@@ -27,13 +27,13 @@ Task P1 的 feature packet 是 [collaboration-task-p1.md](/Users/acehood/Documen
 
 ## 2. 模块划分
 
-- [task-command.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/collaboration-service/task-command.md)
+- [task-command.md](./task-command.md)
   - Task P1 手动任务写接口；Task Assistant、ActionGrant 与 DELEGATED exposure 保持后置。
-- [task-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/collaboration-service/task-query.md)
+- [task-query.md](./task-query.md)
   - Task P1 个人任务列表与详情查询接口。
-- [annotation-command.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/collaboration-service/annotation-command.md)
+- [annotation-command.md](./annotation-command.md)
   - Annotation P1 CrmAccount 对象备注写接口。
-- [annotation-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/collaboration-service/annotation-query.md)
+- [annotation-query.md](./annotation-query.md)
   - Annotation P1 CrmAccount 对象备注查询接口。
 
 ## 3. 全局调用约束
@@ -105,7 +105,7 @@ Task P1 冻结两个显式权限码：
 
 `collaboration.task.create` 是 `CreateTask` 的入口能力；`collaboration.task.assign` 只控制是否可以创建 `assignee_account_id != operator.account_id` 的任务。后者由 Collaboration 在读取业务目标后按需向 Permission Service 查询，不要求所有 self todo 用户持有 assign。
 
-其他操作由 task participant rule 控制，具体见 [task-command.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/collaboration-service/task-command.md) 与 [task-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/collaboration-service/task-query.md)。
+其他操作由 task participant rule 控制，具体见 [task-command.md](./task-command.md) 与 [task-query.md](./task-query.md)。
 
 Annotation P1 冻结两个权限语义：
 

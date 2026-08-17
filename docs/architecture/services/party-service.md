@@ -8,7 +8,7 @@ Last Updated: 2026-06-27
 
 本服务以 ADR 0008 为准，采用 tenant-scoped `TenantParty` 作为核心主体模型；ADR 0003 的 system-wide `Party + TenantParty binding` 模型已被替代。
 
-涉及 HR `Employee / Employment`、员工生命周期或正式 `人 -> org` 归属时，以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准；本文只定义租户主体主档与主体基础事实边界。
+涉及 HR `Employee / Employment`、员工生命周期或正式 `人 -> org` 归属时，以 [hr-service.md](./hr-service.md) 为准；本文只定义租户主体主档与主体基础事实边界。
 
 ## 2. Owns
 
@@ -25,7 +25,7 @@ Last Updated: 2026-06-27
 - system-wide `Party`、`PersonParty`、`OrganizationParty`、全局主体合并或跨租户主体统一。
 - `CanonicalSubject`、`GlobalSubject`、外部 registry steward 或跨租户 MDM 治理。
 - 登录认证、会话、账号、角色、权限、授权判定。
-- 租户内部组织树、部门、小组、组织成员归属；这些以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准。
+- 租户内部组织树、部门、小组、组织成员归属；这些以 [tenant-org-service.md](./tenant-org-service.md) 为准。
 - 客户、供应商、员工等业务角色语义；CRM、SRM、HR 分别拥有自己的业务角色状态、usage 与审计。
 - 销售、采购、收发货、开票、收付款等交易单据地址 / 联系人 snapshot。
 

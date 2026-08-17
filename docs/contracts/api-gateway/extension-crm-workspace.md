@@ -1,6 +1,6 @@
 # Extension CRM Workspace BFF Contract
 
-> `crm-service` 的服务职责、核心对象、owner 边界与长期命名以 [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md) 为唯一稳定真相源。`auth-service`、`permission-service`、navigation、access summary 与 terminal access 边界分别以对应服务真相源和 [extension-auth-bff-login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/extension-auth-bff-login.md) 为准。本文只描述 browser-extension terminal 下 CRM Sales Workspace 的 API Gateway / BFF 黑盒 HTTP 契约。
+> `crm-service` 的服务职责、核心对象、owner 边界与长期命名以 [crm-service.md](../../architecture/services/crm-service.md) 为唯一稳定真相源。`auth-service`、`permission-service`、navigation、access summary 与 terminal access 边界分别以对应服务真相源和 [extension-auth-bff-login.md](./extension-auth-bff-login.md) 为准。本文只描述 browser-extension terminal 下 CRM Sales Workspace 的 API Gateway / BFF 黑盒 HTTP 契约。
 
 ## 1. Purpose
 
@@ -726,9 +726,9 @@ P1 does not define:
 
 ## 18. Related Documents
 
-- [browser-workspace-extension-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/browser-workspace-extension-design.md)
-- [browser-extension-crm-workspace-p1.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/browser-extension-crm-workspace-p1.md)
-- [extension-auth-bff-login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/extension-auth-bff-login.md)
-- [navigation-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/navigation-summary.md)
-- [access-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/access-summary.md)
-- [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md)
+- [browser-workspace-extension-design.md](../../plans/designs/browser-workspace-extension-design.md)
+- [browser-extension-crm-workspace-p1.md](../../plans/features/browser-extension-crm-workspace-p1.md)
+- [extension-auth-bff-login.md](./extension-auth-bff-login.md)
+- [navigation-summary.md](./navigation-summary.md)
+- [access-summary.md](./access-summary.md)
+- [crm-service.md](../../architecture/services/crm-service.md)

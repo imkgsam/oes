@@ -1,6 +1,6 @@
 # hr-service Query API
 
-> `hr-service` 的服务设计唯一真相源是 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md)。本文只描述 query contract，不重新定义 `Employee`、`Employment`、员工生命周期或正式 `人 -> org` 归属。
+> `hr-service` 的服务设计唯一真相源是 [hr-service.md](../../architecture/services/hr-service.md)。本文只描述 query contract，不重新定义 `Employee`、`Employment`、员工生命周期或正式 `人 -> org` 归属。
 
 ## 1. 模块职责
 
@@ -17,8 +17,8 @@
 
 ## 2. 查询 contract 规则
 
-- `Employee / Employment` 的对象语义、主引用与生命周期以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准；本 contract 只记录当前查询字段与调用约束。
-- `Tenant / OrgUnit / org tree` 边界以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准；本文不重新定义组织树 owner。
+- `Employee / Employment` 的对象语义、主引用与生命周期以 [hr-service.md](../../architecture/services/hr-service.md) 为准；本 contract 只记录当前查询字段与调用约束。
+- `Tenant / OrgUnit / org tree` 边界以 [tenant-org-service.md](../../architecture/services/tenant-org-service.md) 为准；本文不重新定义组织树 owner。
 - 读取 account 视角 org 数据时，调用方应优先消费 HR 摘要或其派生投影，而不是 legacy membership owner。
 
 ## 3. 最小查询面

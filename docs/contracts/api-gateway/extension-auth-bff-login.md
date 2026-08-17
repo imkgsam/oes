@@ -1,6 +1,6 @@
 # Extension Auth BFF Login Contract
 
-> `auth-service` 的服务设计唯一真相源是 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)。涉及 Terminal Access Policy、access summary、Role、Policy、permission code、navigation visibility 或授权判定的服务设计边界，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。本文只描述 browser-extension terminal 的 Auth BFF HTTP contract。
+> `auth-service` 的服务设计唯一真相源是 [auth-service.md](../../architecture/services/auth-service.md)。涉及 Terminal Access Policy、access summary、Role、Policy、permission code、navigation visibility 或授权判定的服务设计边界，以 [permission-service.md](../../architecture/services/permission-service.md) 为准。本文只描述 browser-extension terminal 的 Auth BFF HTTP contract。
 
 ## 1. Purpose
 
@@ -279,7 +279,7 @@ Purpose:
 
 Rules:
 
-- Response shape follows [access-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/access-summary.md).
+- Response shape follows [access-summary.md](./access-summary.md).
 - `actionCodes` are the control source for workspace actions, context menu actions, commands and submit buttons.
 - Front end must not derive action availability from role names.
 
@@ -336,9 +336,9 @@ The extension must not log credentials or refresh tokens.
 
 ## 13. Related Documents
 
-- [browser-workspace-extension-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/browser-workspace-extension-design.md)
-- [auth-bff-login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-login.md)
-- [pda-auth-bff-login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/pda-auth-bff-login.md)
-- [navigation-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/navigation-summary.md)
-- [access-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/access-summary.md)
-- [terminal-access-policy.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/terminal-access-policy.md)
+- [browser-workspace-extension-design.md](../../plans/designs/browser-workspace-extension-design.md)
+- [auth-bff-login.md](./auth-bff-login.md)
+- [pda-auth-bff-login.md](./pda-auth-bff-login.md)
+- [navigation-summary.md](./navigation-summary.md)
+- [access-summary.md](./access-summary.md)
+- [terminal-access-policy.md](../../architecture/collaborations/terminal-access-policy.md)

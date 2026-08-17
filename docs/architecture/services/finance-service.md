@@ -34,7 +34,7 @@ Last Updated: 2026-08-11
 
 - `sales-service` 的 `Quote`、`SalesOrder`、commercial snapshot 与 customer commitment 真相
 - `crm-service` 的客户关系外壳、联系人、地址与客户开发真相
-- `party-service` 的主体主数据与租户主体引用；具体核心对象与 owner 边界以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准
+- `party-service` 的主体主数据与租户主体引用；具体核心对象与 owner 边界以 [party-service.md](./party-service.md) 为准
 - 完整 `GL / voucher / statutory accounting / closing`
 - `AP`
 - `AR / AP netting` phase 1 实现
@@ -66,8 +66,8 @@ Last Updated: 2026-08-11
   - future finance workspace / AR workspace pages
   - future collection import / finance operations tools through BFF only
 - 当前设计输入：
-  - [erp-service-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/erp-service-design.md)
-  - [finance-ar-credit-core.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/finance-ar-credit-core.md)
+  - [erp-service-design.md](../../plans/designs/erp-service-design.md)
+  - [finance-ar-credit-core.md](../../plans/features/finance-ar-credit-core.md)
 
 ## 6. Upstream Dependencies
 
@@ -84,10 +84,10 @@ Last Updated: 2026-08-11
   - 提供 `tenantPartyId` 与主体摘要引用真相。
   - `finance-service` 不自建客户主体主档。
 - `permission-service`
-  - 提供发票开立、回款登记、信用调整、finance release 等动作的授权判定能力；permission 侧核心对象与 owner 边界以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。
+  - 提供发票开立、回款登记、信用调整、finance release 等动作的授权判定能力；permission 侧核心对象与 owner 边界以 [permission-service.md](./permission-service.md) 为准。
 - `tenant-org-service`
   - 提供租户 / 组织上下文，用于财务操作范围隔离与 org 维度可见性裁剪。
-  - `Tenant / OrgUnit / org tree` 边界以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准，Finance 只消费引用与范围裁剪结果。
+  - `Tenant / OrgUnit / org tree` 边界以 [tenant-org-service.md](./tenant-org-service.md) 为准，Finance 只消费引用与范围裁剪结果。
 - external bank / PSP / statutory accounting systems, future
   - phase 1 可以作为受控输入或下游集成对象存在，但不转移 `finance-service` 的经营财务真相 owner。
 
@@ -186,4 +186,4 @@ future accounting core 是 `finance-service` 的 phase 2 目标态，不是 phas
 - 租户、组织作用域、操作者、追踪与审计身份只来自验证后的 trusted execution context。proto request 中的同名 authority 字段按 contract 删除并 `reserved`，不得从 body、legacy metadata 或 signed-operator fallback 恢复。
 - 目标账户、客户、供应商、订单、应收、应付、付款及其他 Finance 字段仍是租户范围内的业务目标；迁移不得改变现有命令、查询、审计、幂等、事务或数据语义。
 - 当前没有已证明的 Finance pure MACHINE root 或非 Gateway 生产 caller。本轮不新增 Sales/Procurement INTERNAL RPC、INTERNAL Code、事件消费者、outbox/inbox 或业务对象；这些协同能力继续按各自真相源留待后续独立设计与实施。
-- 现有 27-RPC 行为、Permission Code、字段兼容规则及关闭的实现 lease 以 [Finance contract](../../contracts/finance-service/README.md) §6 与 [trusted gRPC feature packet](../../plans/features/trusted-grpc-execution-context.md) §9.5 为准。
+- 现有 27-RPC 行为、Permission Code 与字段兼容规则以 [Finance contract](../../contracts/finance-service/README.md) §6 为准。

@@ -38,7 +38,7 @@ Canonical / historical slug 约束：
 - 只有正式发布过的 slug 才能出现在 `historical_slugs[]`；从未发布的 draft slug 不进入 public view。
 - Runtime 只有在目标资源当前 `status = published` 时才使用 historical slug 执行单跳 301；`unpublished`、`deleted`、`disabled` 或 locale 不公开的资源不得继续重定向。
 - Storefront 负责将稳定资源身份与当前 canonical 组合成最终 URL；historical slug 不携带 route family，也不进入 canonical、sitemap 或 hreflang。
-- OES slug reservation / history ledger 的生命周期、并发与删除语义以 [site-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/site-service.md) 和 [ADR 0011](/Users/acehood/Documents/GitHub/oes/docs/adr/0011-site-dynamic-slug-reservation-and-history.md) 为准。
+- OES slug reservation / history ledger 的生命周期、并发与删除语义以 [site-service.md](../../architecture/services/site-service.md) 和 [ADR 0011](../../adr/0011-site-dynamic-slug-reservation-and-history.md) 为准。
 
 ## 2. ProductPublicView Payload
 

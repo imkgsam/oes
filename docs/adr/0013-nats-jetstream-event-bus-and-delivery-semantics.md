@@ -3,7 +3,7 @@
 ```text
 status: ACCEPTED
 decisionDate: 2026-07-26
-architectureTruthSource: docs/architecture/17-event-bus-and-outbox-architecture.md
+architectureTruthSource: docs/architecture/platforms/event-bus-and-outbox.md
 ```
 
 ## Context
@@ -118,8 +118,8 @@ NATS JetStream 对当前需求提供一套直接模型：Stream 持久保存公�
 
 ## Related Documents
 
-- [17-event-bus-and-outbox-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/17-event-bus-and-outbox-architecture.md)
-- [platform-transport.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/events/platform-transport.md)
-- [Event Catalog Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/events/README.md)
-- [ADR 0014](/Users/acehood/Documents/GitHub/oes/docs/adr/0014-cloudevents-and-service-owned-event-code-contracts.md)
-- [service-collaboration-rules.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/service-collaboration-rules.md)
+- [event-bus-and-outbox.md](../architecture/platforms/event-bus-and-outbox.md)
+- [platform-transport.md](../contracts/events/platform-transport.md)
+- [Event Catalog Contract](../contracts/events/README.md)
+- [ADR 0014](./0014-cloudevents-and-service-owned-event-code-contracts.md)
+- [service-collaboration-rules.md](../architecture/system/service-collaboration-rules.md)

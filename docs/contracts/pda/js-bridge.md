@@ -1,6 +1,6 @@
 # PDA JS Bridge Contract
 
-> PDA JS Bridge 不拥有 Terminal Access Policy、access summary、Role、Policy 或授权判定真相；这些服务设计边界以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。
+> PDA JS Bridge 不拥有 Terminal Access Policy、access summary、Role、Policy 或授权判定真相；这些服务设计边界以 [permission-service.md](../../architecture/services/permission-service.md) 为准。
 
 ## 1. Purpose
 

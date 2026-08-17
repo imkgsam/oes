@@ -4,8 +4,8 @@
 contractStatus: FROZEN_ASSET_MEDIA_CONTRACT
 sharedWireContractStatus: FROZEN
 implementationPrerequisites:
-  - Global Command must align generated gRPC metadata consumption with the frozen trusted-context contract.
-  - Global Command must assign a cross-service outbox/Event Bus delivery capability for availability facts.
+  - Generated gRPC metadata consumption must align with the frozen trusted-context contract.
+  - Availability facts require a cross-service outbox/Event Bus delivery path.
   - P1 production-complete takedown requires the frozen oes-managed-cloudflare delivery/purge adapter and a REMOTE_ACTIVE SiteMediaDeliveryBinding.
 serviceTruthSource: docs/architecture/services/asset-service.md
 collaborationTruthSource: docs/architecture/collaborations/site-asset-media.md
@@ -20,7 +20,7 @@ consumerReferences:
 
 本文定义 `asset-service` 向 Site consumer 提供的受控图片 / 视频能力。它用于当前 Inspiration 图片与 Category 可选 SEO / OG 图片，并为未来另行冻结的 Site 静态页面媒体 consumer 提供同一受控边界。
 
-`asset-service` 的长期职责、Asset 对象与生命周期真相以 [asset-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/asset-service.md) 为准。本文定义调用方可依赖的黑盒行为，并由第 8 节拥有和冻结 `SiteMediaAssetService` 11 个 RPC 的 wire 字段与 proto field numbers；proto 实现必须逐项遵循并按兼容性规则 reserve，不得自行重编号。本文不定义数据库 schema 或 provider credential。P1 provider 选择、域名配置与 portability decision 以 [ADR 0012](/Users/acehood/Documents/GitHub/oes/docs/adr/0012-site-media-delivery-and-purge.md) 为准。
+`asset-service` 的长期职责、Asset 对象与生命周期真相以 [asset-service.md](../../architecture/services/asset-service.md) 为准。本文定义调用方可依赖的黑盒行为，并由第 8 节拥有和冻结 `SiteMediaAssetService` 11 个 RPC 的 wire 字段与 proto field numbers；proto 实现必须逐项遵循并按兼容性规则 reserve，不得自行重编号。本文不定义数据库 schema 或 provider credential。P1 provider 选择、域名配置与 portability decision 以 [ADR 0012](../../adr/0012-site-media-delivery-and-purge.md) 为准。
 
 当前 Inspiration P1 只消费图片。视频是 Site Media 能力的一部分，但不因此扩展 Inspiration Item 为视频、多媒体相册或页面构建器。
 
@@ -195,7 +195,7 @@ Asset Service 对已知 consumer 发布可消费的生命周期事实，包括�
 - 已发布 Asset 因受控下架 / 隔离变为不可用时，Site 必须将受影响资源标记为待处理或 degraded，阻止其以该 Asset 进入后续新版本；是否替换图片或取消发布由 Site operator 明确决定。
 - Asset 的正常 archive / cleanup 不得破坏受保护的 Site publication；合规或安全强制下架是有意撤销 delivery 的例外。
 
-事件 topic / payload 以 [asset-service Event Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/events/asset-service.md) 为准，gRPC service / method / field number 以本契约第 8 节为准。实现不得私自从现有 avatar proto 复用、重编号或猜测字段。
+事件 topic / payload 以 [asset-service Event Contract](../events/asset-service.md) 为准，gRPC service / method / field number 以本契约第 8 节为准。实现不得私自从现有 avatar proto 复用、重编号或猜测字段。
 
 ## 8. Shared gRPC And Event Wire Contract
 
@@ -204,7 +204,7 @@ Asset Service 对已知 consumer 发布可消费的生命周期事实，包括�
 ### 8.1 Transport Context
 
 - 每次调用必须同时通过当前 channel 的 mTLS `VerifiedWorkloadIdentity` 与 `authorization: Bearer <ExecutionToken>` 建立可信上下文。Token 必须由 Auth / STS 签发、`aud=asset-service`、以 `cnf` 绑定当前 workload，并携带 verified tenant / execution principal 与本 RPC 所需 Permission Code。
-- `request-id`、`traceparent`、`tracestate` 与安全审计关联字段通过统一 [gRPC metadata architecture](/Users/acehood/Documents/GitHub/oes/docs/architecture/14-grpc-metadata-and-service-trust-architecture.md) 传播。Site Media request body 不声明 tenant、operator、scopeLevel、permission、service name 或签名 operator payload。
+- `request-id`、`traceparent`、`tracestate` 与安全审计关联字段通过统一 [gRPC metadata architecture](../../architecture/platforms/grpc-metadata-and-service-trust.md) 传播。Site Media request body 不声明 tenant、operator、scopeLevel、permission、service name 或签名 operator payload。
 - Admin-facing upload、list、archive、takedown、delete、delivery management RPC 使用 `BUSINESS` mode 与对应 `asset.site_media.*` Code。Site Service 发起的 resolve / publication protect / release 使用 `INTERNAL` mode 与精确 `asset.internal.site_media.*` Code。
 - Site 调 Asset 前必须向 STS exchange `aud=asset-service` 的下一跳 Token；不能原样转发 `aud=site-service` Token，也不能由 Site 自行签名。
 - 合法 `site_id`、`asset_id` 与 operation id 是业务目标，不是身份来源。Asset 加载自身归属事实，并把目标 tenant 与 Token tenant 比较；SYSTEM principal 不具有隐式 tenant wildcard。
@@ -213,7 +213,7 @@ Asset Service 对已知 consumer 发布可消费的生命周期事实，包括�
 
 #### Repository Implementation Prerequisite
 
-截至本次 Site Recovery 冻结，shared proto explicit-metadata generation、Gateway verified source-credential lifecycle、MACHINE/workload verifier、trusted carrier 与既有 Asset 五 RPC cutover 已集成。仍待实现的是 Site 59+7 RPC cutover、`SiteMediaAssetService`、对应 Permission registration、Site multi-hop caller、Asset outbox、Site inbox 与 Cloudflare precise purge。实现必须按 [trusted-grpc-execution-context.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/trusted-grpc-execution-context.md) 的关闭式 lease 推进；Asset / Site 不保留 body identity、legacy signed-operator 或 ordinary metadata fallback。
+shared proto explicit-metadata generation、Gateway verified source-credential lifecycle、MACHINE/workload verifier、trusted carrier，以及 Asset/Site trusted-gRPC cutover 已集成。`SiteMediaAssetService`、Permission registration、multi-hop caller、outbox/inbox 与 precise purge 的业务语义仍以本 contract 和 [site-asset-media collaboration](../../architecture/collaborations/site-asset-media.md) 为准；Asset / Site 不保留 body identity、legacy signed-operator 或 ordinary metadata fallback。
 
 ### 8.2 `SiteMediaAssetService` Operations
 
@@ -315,7 +315,7 @@ Upload 失败、取消或 client disconnect 不得留下 active Asset 或可选 
 
 Asset 对已知 consumer 发布 `asset.site-media.availability.changed`，business `eventVersion = 1`。这是 Asset 事实，不是 Site command，也不携带 Site Item / Category 业务字段。
 
-CloudEvents 1.0 Structured JSON envelope、Asset-owned `data` payload、`availabilityVersion` 顺序、兼容性、Event Catalog 状态与未来 compiled contract target，以 [asset-service Event Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/events/asset-service.md) 为唯一真相源。`eventId`、`occurredAt`、tenant、trace 与 event version 属于 CloudEvents envelope，不得重复伪装为 Asset `data` 字段。
+CloudEvents 1.0 Structured JSON envelope、Asset-owned `data` payload、`availabilityVersion` 顺序、兼容性、Event Catalog 状态与未来 compiled contract target，以 [asset-service Event Contract](../events/asset-service.md) 为唯一真相源。`eventId`、`occurredAt`、tenant、trace 与 event version 属于 CloudEvents envelope，不得重复伪装为 Asset `data` 字段。
 
 当前进程内 `EventEmitter` 不是本事件的生产实现。公共事件必须通过已冻结的 NATS JetStream outbox / inbox 平台投递。
 
@@ -373,4 +373,4 @@ Asset 必须可审计上传、选择、解析拒绝、publication protection / r
 
 本契约不授权任何 lane 在未冻结的 shared proto / event / permission contract 下自行添加字段、事件或旁路存储调用。
 
-Asset 当前只有 S3-compatible object storage adaptor，尚无 CDN purge provider。实现线程可以在 Asset domain 中依赖 delivery/purge port，但不得用本地 no-op、仅删 origin object 或本地 EventEmitter 宣称完成 production takedown；CDN provider 的选择与配置是上述 Global Command 前置条件的一部分。
+Asset 当前只有 S3-compatible object storage adaptor，尚无 CDN purge provider。实现线程可以在 Asset domain 中依赖 delivery/purge port，但不得用本地 no-op、仅删 origin object 或本地 EventEmitter 宣称完成 production takedown；CDN provider 的选择与配置是 production takedown 的前置条件。

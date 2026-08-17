@@ -1,6 +1,6 @@
 # Terminal Device Service Enrollment Contract
 
-> 服务设计唯一真相源：[terminal-device-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/terminal-device-service.md)。本文只描述 enrollment 黑盒契约。
+> 服务设计唯一真相源：[terminal-device-service.md](../../architecture/services/terminal-device-service.md)。本文只描述 enrollment 黑盒契约。
 
 ## 1. Purpose
 

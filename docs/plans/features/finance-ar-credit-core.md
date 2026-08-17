@@ -25,15 +25,15 @@
 ## 3. 上游依赖
 
 - services:
-  - [finance-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/finance-service.md)
-  - [sales-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/sales-service.md)
-  - [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md)
-  - [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md)
+  - [finance-service.md](../../architecture/services/finance-service.md)
+  - [sales-service.md](../../architecture/services/sales-service.md)
+  - [crm-service.md](../../architecture/services/crm-service.md)
+  - [party-service.md](../../architecture/services/party-service.md)
 - collaborations:
-  - [sales-finance-order-to-cash.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/sales-finance-order-to-cash.md)
-  - [sales-fulfillment-mes-wms-finance.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/sales-fulfillment-mes-wms-finance.md)
+  - [sales-finance-order-to-cash.md](../../architecture/collaborations/sales-finance-order-to-cash.md)
+  - [sales-fulfillment-mes-wms-finance.md](../../architecture/collaborations/sales-fulfillment-mes-wms-finance.md)
 - plans:
-  - [erp-service-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/erp-service-design.md)
+  - [erp-service-design.md](../designs/erp-service-design.md)
 
 ## 4. 当前结论
 
@@ -75,12 +75,12 @@
 ## 5. 契约真相位置
 
 - 稳定服务职责：
-  - [finance-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/finance-service.md)
+  - [finance-service.md](../../architecture/services/finance-service.md)
 - 稳定协同蓝图：
-  - [sales-finance-order-to-cash.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/sales-finance-order-to-cash.md)
-  - [sales-fulfillment-mes-wms-finance.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/sales-fulfillment-mes-wms-finance.md)
+  - [sales-finance-order-to-cash.md](../../architecture/collaborations/sales-finance-order-to-cash.md)
+  - [sales-fulfillment-mes-wms-finance.md](../../architecture/collaborations/sales-fulfillment-mes-wms-finance.md)
 - 下一步 contract 入口：
-  - [finance-service contracts](/Users/acehood/Documents/GitHub/oes/docs/contracts/finance-service/README.md)
+  - [finance-service contracts](../../contracts/finance-service/README.md)
 
 ## 6. 当前 slice
 

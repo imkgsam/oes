@@ -1,6 +1,6 @@
 # Access Summary Design
 
-> `permission-service` 的服务设计唯一真相源：[permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。本文只描述 API Gateway / BFF access-summary contract，不重新定义 permission 侧 Role、AccountRole、permission code 或 access summary owner 边界。
+> `permission-service` 的服务设计唯一真相源：[permission-service.md](../../architecture/services/permission-service.md)。本文只描述 API Gateway / BFF access-summary contract，不重新定义 permission 侧 Role、AccountRole、permission code 或 access summary owner 边界。
 
 ## 1. Purpose
 
@@ -8,7 +8,7 @@ This document defines the OES access-summary design used by API Gateway / BFF co
 
 The goal is to provide the front end with a stable current-session authorization summary without requiring front-end code to derive permissions from roles.
 
-`auth-service` session and token boundaries are defined only in [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md). This document only describes the BFF access-summary contract and its relationship with permission summaries.
+`auth-service` session and token boundaries are defined only in [auth-service.md](../../architecture/services/auth-service.md). This document only describes the BFF access-summary contract and its relationship with permission summaries.
 
 ## 2. Core Decision
 
@@ -146,4 +146,4 @@ Current state:
 
 Downstream design reference:
 
-- [permission-service access summary](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/access-summary.md)
+- [permission-service access summary](../permission-service/access-summary.md)

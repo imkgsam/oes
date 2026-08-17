@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted — 2026-07-17; content-type scope simplified 2026-07-25; legacy redirect subsection superseded by [ADR 0011](/Users/acehood/Documents/GitHub/oes/docs/adr/0011-site-dynamic-slug-reservation-and-history.md)
+Accepted — 2026-07-17; content-type scope simplified 2026-07-25; legacy redirect subsection superseded by [ADR 0011](./0011-site-dynamic-slug-reservation-and-history.md)
 
 ## Context
 
@@ -55,7 +55,7 @@ Rejected because it would silently remove existing archive membership. Ordered `
 
 ## Related Documents
 
-- [site-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/site-service.md)
-- [site-runtime-kit.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/site-runtime-kit.md)
-- [public-views.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/site-service/public-views.md)
-- [site-content-category-migration.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/site-content-category-migration.md)
+- [site-service.md](../architecture/services/site-service.md)
+- [site-runtime-kit.md](../architecture/platforms/site-runtime-kit.md)
+- [public-views.md](../contracts/site-service/public-views.md)
+- [site-content-category-migration.md](../plans/features/site-content-category-migration.md)

@@ -584,15 +584,15 @@ Phase 1 可有基础风控，但 BusinessCard 或其他目标模块不应依赖�
 
 - 服务职责：
   - Phase 1 稳定服务职责卡：
-    - [docs/architecture/services/public-entry-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/public-entry-service.md)
+    - [docs/architecture/services/public-entry-service.md](../../architecture/services/public-entry-service.md)
   - 若未来建立 `short-link-service`，需新增 `docs/architecture/services/short-link-service.md` 作为唯一稳定真相源。
 - 协同蓝图：
   - 若 BusinessCard、Product public page、AfterSales、Feedback Form 等多个 target 接入，需新增 collaboration 文档描述 resolver 协同。
 - contracts：
   - Phase 1 contracts:
-    - [docs/contracts/public-entry-service/shortlink-public-redirect.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/public-entry-service/shortlink-public-redirect.md)
-    - [docs/contracts/public-entry-service/shortlink-admin-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/public-entry-service/shortlink-admin-management.md)
-    - [docs/contracts/public-entry-service/shortlink-target-resolver.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/public-entry-service/shortlink-target-resolver.md)
+    - [docs/contracts/public-entry-service/shortlink-public-redirect.md](../../contracts/public-entry-service/shortlink-public-redirect.md)
+    - [docs/contracts/public-entry-service/shortlink-admin-management.md](../../contracts/public-entry-service/shortlink-admin-management.md)
+    - [docs/contracts/public-entry-service/shortlink-target-resolver.md](../../contracts/public-entry-service/shortlink-target-resolver.md)
 - feature packet：
   - 设计冻结后转入 `docs/plans/features/shortlink-public-entry-phase-1.md` 或等价 feature packet。
 - architecture / ADR：
@@ -602,16 +602,16 @@ Phase 1 可有基础风控，但 BusinessCard 或其他目标模块不应依赖�
 
 下次继续前先读：
 
-- [docs/plans/designs/shortlink-public-entry-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/shortlink-public-entry-design.md)
-- [docs/architecture/services/public-entry-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/public-entry-service.md)
-- [docs/contracts/public-entry-service/README.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/public-entry-service/README.md)
-- [docs/plans/designs/employee-digital-business-card-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/employee-digital-business-card-design.md)
-- [docs/plans/designs/scan-identity-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/scan-identity-design.md)
-- [docs/plans/designs/README.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/README.md)
+- [docs/plans/designs/shortlink-public-entry-design.md](./shortlink-public-entry-design.md)
+- [docs/architecture/services/public-entry-service.md](../../architecture/services/public-entry-service.md)
+- [docs/contracts/public-entry-service/README.md](../../contracts/public-entry-service/README.md)
+- [docs/plans/designs/employee-digital-business-card-design.md](./employee-digital-business-card-design.md)
+- [docs/plans/designs/scan-identity-design.md](./scan-identity-design.md)
+- [docs/plans/designs/README.md](./README.md)
 
 当前推荐下一步：
 
 - 用户 review 本 workspace 与 Phase 1 feature packet。
 - Phase 1 feature packet：
-  - [docs/plans/features/shortlink-public-entry-phase-1.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/shortlink-public-entry-phase-1.md)
+  - [docs/plans/features/shortlink-public-entry-phase-1.md](../features/shortlink-public-entry-phase-1.md)
 - 进入实现前，再单独冻结 API contract、resolver 接入方式与实际承载服务。

@@ -1,6 +1,15 @@
-# Planning Workbench Design Draft
+# Planning Workbench Design Workspace
 
-> 来源：`mes-service` 设计线程派生草稿。本文不是稳定真相源，用于给后续计划/APS 线程提供恢复入口。
+```text
+designKey: PLANNING-WORKBENCH
+designStatus: ACTIVE_DESIGN_WORKSPACE
+writeBackTargets:
+  - docs/architecture/services/planning-service.md
+  - docs/architecture/collaborations/planning-and-mes.md
+  - docs/plans/features/planning-workbench-p1.md
+```
+
+> 本文记录尚未冻结的计划工作台讨论，不是稳定真相源或实现授权。
 
 ## 1. 目标
 

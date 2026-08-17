@@ -8,9 +8,9 @@ This feature packet records the agreed boundary for adding a global `InternetDom
 
 Stable truth sources remain:
 
-- [03-technical-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/03-technical-architecture.md)
-- [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md)
-- [browser-extension-crm-workspace-p1.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/browser-extension-crm-workspace-p1.md)
+- [technical-architecture.md](../../architecture/system/technical-architecture.md)
+- [crm-service.md](../../architecture/services/crm-service.md)
+- [browser-extension-crm-workspace-p1.md](./browser-extension-crm-workspace-p1.md)
 
 This packet does not redefine CRM service ownership, Party ownership, browser extension ownership, or Gateway BFF contracts.
 

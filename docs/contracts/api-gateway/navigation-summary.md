@@ -1,6 +1,6 @@
 # Navigation Summary Design
 
-> `permission-service` 的服务设计唯一真相源：[permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。本文只描述 API Gateway / BFF navigation-summary contract，不重新定义 NavigationEntry、RoleNavigationVisibility、RoleLandingPolicy 或 navigation governance owner 边界。
+> `permission-service` 的服务设计唯一真相源：[permission-service.md](../../architecture/services/permission-service.md)。本文只描述 API Gateway / BFF navigation-summary contract，不重新定义 NavigationEntry、RoleNavigationVisibility、RoleLandingPolicy 或 navigation governance owner 边界。
 
 ## 1. Purpose
 

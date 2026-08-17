@@ -147,19 +147,18 @@ May modify only:
 
 Must not modify backend contracts, Runtime Kit or Storefront.
 
-## Task 0: Contract and truth-source freeze (Global Command owner)
+## Task 0: Contract and truth-source freeze
 
 **Files:**
 
 - Modify: `docs/architecture/services/site-service.md`
-- Modify: `docs/architecture/site-runtime-architecture.md`
-- Modify: `docs/architecture/site-runtime-kit.md`
+- Modify: `docs/architecture/platforms/site-runtime-architecture.md`
+- Modify: `docs/architecture/platforms/site-runtime-kit.md`
 - Modify: `docs/contracts/site-service/README.md`
 - Modify: `docs/contracts/site-service/sync-api.md`
 - Modify: `docs/contracts/site-service/public-views.md`
 - Modify: `docs/contracts/site-service/admin-bff.md`
 - Create: `docs/contracts/site-service/page-capabilities-and-exposure.md`
-- Modify/archive: `docs/plans/designs/site-locale-exposure-governance.md`
 
 - [x] Verify the stable rules in this packet exactly match the frozen design workspace.
 - [x] Ensure no document describes page-by-locale enable switches or global all-resource locale completeness.
@@ -278,7 +277,7 @@ pnpm --dir src/site-runtime/meilong-ceramics-site verify
 
 ## Unified acceptance gate
 
-The implementation threads own unit and local integration tests. A separate acceptance thread (or the Global Command acceptance owner) must close the cross-boundary flow after all four lanes are ready. Current execution is deliberately phased, and every phase remains unchecked until its live boundary assertions pass:
+The implementation threads own unit and local integration tests. A separate acceptance task must close the cross-boundary flow after all four lanes are ready. Current execution is deliberately phased, and every phase remains unchecked until its live boundary assertions pass:
 
 - [ ] **Phase A — credential and idempotent capability registration:** issue the exact five-scope Runtime credential through Admin HTTP; start Runtime twice over the same SQLite store; prove the complete manifest is registered once and existing page governance is not reset. The strict runner and harness tests exist, but live execution is blocked only because the required disposable PostgreSQL URL and explicit disposal confirmation are not set in this environment. A successful runner output still reports `unifiedAcceptanceClosed: false`.
 - [ ] **Phase B — governance publication:** enable a page and index policy through Admin, perform Sync, commit one matching Runtime exposure version, and prove no-change Sync does not advance publication state.

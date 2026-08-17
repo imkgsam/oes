@@ -1,6 +1,6 @@
 # site-service Admin BFF Contract
 
-> 本文描述 OES Admin Site Management P1 所需的最小 BFF 契约。实际 HTTP 入口由 `api-gateway` Admin BFF 承载；服务职责以 [site-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/site-service.md) 为准。
+> 本文描述 OES Admin Site Management P1 所需的最小 BFF 契约。实际 HTTP 入口由 `api-gateway` Admin BFF 承载；服务职责以 [site-service.md](../../architecture/services/site-service.md) 为准。
 
 ## 1. 通用约束
 
@@ -30,7 +30,7 @@ Site Management P1 的 tenant-bound HTTP 路由以 `/site-management/tenants/:te
 - 只有 tenant-bound guard 生成并归一化后的 verified tenant target 可以进入下游 Admin context；BFF 不直接信任或转发原始 path target。
 - `site-service` 对 Site 及其下属资源再次校验 tenant ownership；归属不一致时返回 `403`，并在读取受保护详情或产生状态变更、发布、webhook、凭证、成功审计等副作用前拒绝。
 
-该行为不新增请求/响应字段，不新增 scope 或 page 字段，也不变更 permission proto；服务职责与 ownership 以 [site-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/site-service.md) 为准，Gateway 入口机制以 [11-gateway-and-bff-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/11-gateway-and-bff-architecture.md) 为准。
+该行为不新增请求/响应字段，不新增 scope 或 page 字段，也不变更 permission proto；服务职责与 ownership 以 [site-service.md](../../architecture/services/site-service.md) 为准，Gateway 入口机制以 [gateway-and-bff.md](../../architecture/platforms/gateway-and-bff.md) 为准。
 
 ### 1.2 Contract Acceptance Matrix
 
@@ -266,7 +266,7 @@ Blog / News 与 Content Category 的 slug 写入遵循同一 Site Service slug r
 - Unpublish / delete 不释放已正式发布过的 slug；Runtime 不把不可公开的目标作为 301 目标，公开请求收敛为 404。
 - 并发申请由数据库唯一约束在事务中裁决，预检查不能替代唯一性保证。
 
-该规则不引入 Admin BFF 的手工 redirect 管理界面，也不覆盖静态页面、营销页、域名或 locale 路由 redirect。稳定边界以 [site-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/site-service.md) 与 [ADR 0011](/Users/acehood/Documents/GitHub/oes/docs/adr/0011-site-dynamic-slug-reservation-and-history.md) 为准。
+该规则不引入 Admin BFF 的手工 redirect 管理界面，也不覆盖静态页面、营销页、域名或 locale 路由 redirect。稳定边界以 [site-service.md](../../architecture/services/site-service.md) 与 [ADR 0011](../../adr/0011-site-dynamic-slug-reservation-and-history.md) 为准。
 
 ## 8. Blog / News Content Categories
 

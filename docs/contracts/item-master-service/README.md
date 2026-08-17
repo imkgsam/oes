@@ -6,7 +6,7 @@
 
 Contract V2 以上游稳定真相源为准：
 
-- [item-master-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/item-master-service.md)
+- [item-master-service.md](../../architecture/services/item-master-service.md)
 
 本目录只定义 `item-master-service` 自身 contract，不定义 Sales、MES、WMS、SRM、Procurement 的领域对象、contract 或 runtime 行为。
 
@@ -41,19 +41,49 @@ Contract V2 使用三个 gRPC service 作为服务面分组：
 
 ## 4. Documents
 
-- [item-model.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/item-master-service/item-model.md)
-- [attribute.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/item-master-service/attribute.md)
-- [item.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/item-master-service/item.md)
-- [category.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/item-master-service/category.md)
-- [packaging.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/item-master-service/packaging.md)
-- [bom.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/item-master-service/bom.md)
-- [supplier-item-mapping.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/item-master-service/supplier-item-mapping.md)
+- [item-model.md](./item-model.md)
+- [attribute.md](./attribute.md)
+- [item.md](./item.md)
+- [category.md](./category.md)
+- [packaging.md](./packaging.md)
+- [bom.md](./bom.md)
+- [supplier-item-mapping.md](./supplier-item-mapping.md)
 
 ## 5. Security And Context Baseline
 
 所有 V2 RPC 都是内部 gRPC 契约，不直接对外部客户端开放，并使用 `aud=urn:oes:service:item-master-service`、mTLS 与 certificate-bound ExecutionToken。请求体不再携带租户或操作者 authority；现有 50 个 request 的 `tenant_id=1` 被删除并永久 reserve，tenant、org、principal、operator、trace 与 audit 只能从验证后的 ExecutionToken 和可信 transport context 派生。
 
-现有 50 个 RPC 的冻结入口为 `BUSINESS / HUMAN / WEB`：只允许 Gateway 使用 HUMAN session ET，拒绝 MACHINE、DELEGATED、SELF_SERVICE、非 WEB terminal、错误 audience/`cnf`/Code 以及全部旧 body/ordinary-metadata/signed-operator fallback。每个 RPC 的 exact Code 以 [trusted gRPC feature packet](../../plans/features/trusted-grpc-execution-context.md) 的 Item Master 53-RPC matrix 为准。
+现有 50 个 RPC 的冻结入口为 `BUSINESS / HUMAN / WEB`：只允许 Gateway 使用 HUMAN session ET，拒绝 MACHINE、DELEGATED、SELF_SERVICE、非 WEB terminal、错误 audience/`cnf`/Code 以及全部旧 body/ordinary-metadata/signed-operator fallback。
+
+| Exact Code | RPCs |
+| --- | --- |
+| `item_master.item_model.get_by_id` | `GetItemModel` |
+| `item_master.item_model.list` | `BatchGetItemModels`, `SearchItemModels` |
+| `item_master.attribute.list` | `ListAttributeDefinitions`, `ListAttributeOptions`, `GetItemModelAttributeRules` |
+| `item_master.item.get_by_id` | `GetItem`, `ResolveItemVariant` |
+| `item_master.item.list` | `BatchGetItems`, `SearchItems` |
+| `item_master.item_category.list` | `ListItemCategories` |
+| `item_master.packaging.list` | `ListPackagingMethods`, `GetPackagingSpec`, `SearchPackagingSpecs` |
+| `item_master.bom.list` | `GetBom`, `SearchBoms`, `GetBomByOutputItem` |
+| `item_master.supplier_item_mapping.list_by_item` | `ListSupplierItemMappingsByItem`, `ResolveSupplierItemMapping` |
+| `item_master.item_model.create` | `CreateItemModel` |
+| `item_master.item_model.manage` | `UpdateItemModelBasics`, `SetItemModelCapabilities`, `ChangeItemModelStatus` |
+| `item_master.item.set_primary_category` | `SetItemModelPrimaryCategory` |
+| `item_master.attribute.create` | `CreateAttributeDefinition`, `CreateAttributeOption` |
+| `item_master.attribute.manage` | `UpdateAttributeDefinition`, `UpdateAttributeOption`, `SetItemModelAttributeRules` |
+| `item_master.item.create` | `CreateItem` |
+| `item_master.item.update_basics` | `UpdateItemBasics` |
+| `item_master.item.set_capabilities` | `SetItemCapabilities` |
+| `item_master.item.update_status` | `ChangeItemStatus` |
+| `item_master.item_category.create` | `CreateItemCategory` |
+| `item_master.item_category.update_basics` | `UpdateItemCategoryBasics`, `MoveItemCategory` |
+| `item_master.item_category.update_status` | `ChangeItemCategoryStatus` |
+| `item_master.item_category.delete` | `DeleteItemCategory` |
+| `item_master.packaging.create` | `CreatePackagingMethod`, `CreatePackagingSpec` |
+| `item_master.packaging.manage` | `UpdatePackagingMethod`, `ChangePackagingMethodStatus`, `DeletePackagingMethod`, `UpdatePackagingSpec`, `ChangePackagingSpecStatus` |
+| `item_master.bom.create` | `CreateBom` |
+| `item_master.bom.manage` | `UpdateBomBasics`, `ReplaceBomLines`, `ChangeBomStatus` |
+| `item_master.supplier_item_mapping.upsert` | `UpsertSupplierItemMapping` |
 
 三个资格查询的冻结 mode 为 `INTERNAL`，当前允许的 execution shape 只有 `HUMAN subject + exact SYSTEM MACHINE actor`：
 

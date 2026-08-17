@@ -2,7 +2,7 @@
 
 ## Scope and boundary
 
-This runbook operates the local P1 proof defined by [ADR 0013](../adr/0013-nats-jetstream-event-bus-and-delivery-semantics.md), [the event-bus architecture](../architecture/17-event-bus-and-outbox-architecture.md), and [the transport contract](../contracts/events/platform-transport.md). It is not a production deployment guide.
+This runbook operates the local P1 proof defined by [ADR 0013](../adr/0013-nats-jetstream-event-bus-and-delivery-semantics.md), [the event-bus architecture](../architecture/platforms/event-bus-and-outbox.md), and [the transport contract](../contracts/events/platform-transport.md). It is not a production deployment guide.
 
 The local topology is one file-backed NATS JetStream node. Its `nats_jetstream_data` Docker volume survives container recreation. It provisions the following fixed resources:
 

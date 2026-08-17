@@ -1,8 +1,8 @@
 # tenant-org-service Tenant Onboarding Contract
 
-> 服务设计唯一真相源：[tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md)。本文只描述 tenant onboarding contract，不替代服务真相源中的 owner 边界。
-> onboarding 涉及的 HR `Employee / Employment`、员工生命周期与正式 `人 -> org` 归属语义，以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准；本文只描述 tenant-org 编排侧如何消费该能力。
-> onboarding 涉及的角色、grant、AccountRole 或授权判定语义，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准；本文只描述 tenant-org 编排侧如何消费该能力。
+> 服务设计唯一真相源：[tenant-org-service.md](../../architecture/services/tenant-org-service.md)。本文只描述 tenant onboarding contract，不替代服务真相源中的 owner 边界。
+> onboarding 涉及的 HR `Employee / Employment`、员工生命周期与正式 `人 -> org` 归属语义，以 [hr-service.md](../../architecture/services/hr-service.md) 为准；本文只描述 tenant-org 编排侧如何消费该能力。
+> onboarding 涉及的角色、grant、AccountRole 或授权判定语义，以 [permission-service.md](../../architecture/services/permission-service.md) 为准；本文只描述 tenant-org 编排侧如何消费该能力。
 
 ## 1. 目的
 
@@ -17,13 +17,13 @@
   - 拥有 `Tenant` 与 root `OrgUnit` 真相。
   - 作为轻量 Saga / Process Manager 调用下游 owner service。
 - `party-service`
-  - 提供 onboarding 所需 organization / person party 与 tenant party 主体事实；核心对象与 owner 边界以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准。
+  - 提供 onboarding 所需 organization / person party 与 tenant party 主体事实；核心对象与 owner 边界以 [party-service.md](../../architecture/services/party-service.md) 为准。
 - `identity-service`
   - 拥有 `User` 与 `UserAccount` 真相。
 - `auth-service`
   - 拥有 login method、credential、password setup gate 与 session 真相。
 - `hr-service`
-  - 拥有首租户管理员对应的 employee 与 employment 真相；服务边界以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准。
+  - 拥有首租户管理员对应的 employee 与 employment 真相；服务边界以 [hr-service.md](../../architecture/services/hr-service.md) 为准。
 - `permission-service`
   - 拥有 `tenant.admin` / `hr.admin` / `account.basic` role instance 与 account role grant 真相。
 - `api-gateway`

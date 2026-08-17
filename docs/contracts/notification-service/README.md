@@ -6,7 +6,7 @@ lastUpdated: 2026-08-11
 serviceTruthSource: docs/architecture/services/notification-service.md
 ```
 
-本目录保存 `notification-service` 的黑盒契约；服务边界、对象命名与拥有关系以 [notification-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/notification-service.md) 为准。
+本目录保存 `notification-service` 的黑盒契约；服务边界、对象命名与拥有关系以 [notification-service.md](../../architecture/services/notification-service.md) 为准。
 
 ## 当前冻结契约
 

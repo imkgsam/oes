@@ -1,6 +1,6 @@
 # auth-service Login History API
 
-> 服务设计唯一真相源：[auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)。本文只描述 login history 查询视图语义，不重新定义 `auth-service` 审计 owner 边界。
+> 服务设计唯一真相源：[auth-service.md](../../architecture/services/auth-service.md)。本文只描述 login history 查询视图语义，不重新定义 `auth-service` 审计 owner 边界。
 
 ## 1. 能力定位
 
@@ -119,5 +119,5 @@ login history 查询视图从这些事实映射而来。
 
 ## 6. 关联文档
 
-- [audit.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/audit.md)
-- [terminal-aware-account-security.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/terminal-aware-account-security.md)
+- [audit.md](./audit.md)
+- [terminal-aware-account-security.md](../../architecture/collaborations/terminal-aware-account-security.md)

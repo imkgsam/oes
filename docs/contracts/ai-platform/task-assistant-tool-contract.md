@@ -5,7 +5,7 @@ status: FROZEN
 frozenDate: 2026-08-03
 toolContractId: oes.ai.task-assistant.collaboration-task
 version: 1.0.0
-architectureTruthSource: docs/architecture/04-ai-architecture.md
+architectureTruthSource: docs/architecture/platforms/ai-platform.md
 collaborationTruthSource: docs/architecture/collaborations/task-assistant.md
 operationOwnerPacket: docs/plans/features/delegated-task-action-grant.md
 predecessorDesignGate: FROZEN_AI_PLATFORM_TASK_ASSISTANT

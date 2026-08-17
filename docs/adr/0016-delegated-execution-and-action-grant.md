@@ -59,6 +59,6 @@ Rejected because lifecycle, user confirmation and cryptographic trust would drif
 
 ## Related Documents
 
-- [Delegated Execution Collaboration](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/delegated-execution-and-action-grant.md)
-- [Auth ActionGrant Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/delegated-execution-and-action-grant.md)
-- [Delegated Authorization Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/delegated-authorization.md)
+- [Delegated Execution Collaboration](../architecture/collaborations/delegated-execution-and-action-grant.md)
+- [Auth ActionGrant Contract](../contracts/auth-service/delegated-execution-and-action-grant.md)
+- [Delegated Authorization Contract](../contracts/permission-service/delegated-authorization.md)

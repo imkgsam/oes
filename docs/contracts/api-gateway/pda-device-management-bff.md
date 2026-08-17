@@ -1,6 +1,6 @@
 # PDA Device Management BFF Contract
 
-> PDA 设备治理长期 owner 以 [terminal-device-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/terminal-device-service.md) 为准；跨服务协同以 [managed-terminal-device-management.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/managed-terminal-device-management.md) 为准。本文只描述 PDA 端 `/pda/*` HTTP contract。
+> PDA 设备治理长期 owner 以 [terminal-device-service.md](../../architecture/services/terminal-device-service.md) 为准；跨服务协同以 [managed-terminal-device-management.md](../../architecture/collaborations/managed-terminal-device-management.md) 为准。本文只描述 PDA 端 `/pda/*` HTTP contract。
 
 ## 1. Purpose
 

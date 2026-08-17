@@ -1,6 +1,6 @@
 # Terminal-aware Account Security 协同蓝图
 
-> `auth-service` 的服务设计唯一真相源为 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)。本文只记录 terminal-aware account security 在 `auth-service`、`permission-service`、`identity-service`、`terminal-device-service` 与 BFF 之间的协同方式，不重新定义单服务 owner 边界。
+> `auth-service` 的服务设计唯一真相源为 [auth-service.md](../services/auth-service.md)。本文只记录 terminal-aware account security 在 `auth-service`、`permission-service`、`identity-service`、`terminal-device-service` 与 BFF 之间的协同方式，不重新定义单服务 owner 边界。
 
 ## 1. 目标
 
@@ -270,9 +270,9 @@ PDA login / refresh / bootstrap 仍应重查设备状态，作为事件延迟、
 
 ## 14. 关联文档
 
-- [ADR 0007](/Users/acehood/Documents/GitHub/oes/docs/adr/0007-terminal-aware-account-security-phase-2.md)
-- [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)
-- [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
-- [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)
-- [terminal-access-policy.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/terminal-access-policy.md)
-- [managed-terminal-device-management.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/managed-terminal-device-management.md)
+- [ADR 0007](../../adr/0007-terminal-aware-account-security-phase-2.md)
+- [auth-service.md](../services/auth-service.md)
+- [permission-service.md](../services/permission-service.md)
+- [identity-service.md](../services/identity-service.md)
+- [terminal-access-policy.md](./terminal-access-policy.md)
+- [managed-terminal-device-management.md](./managed-terminal-device-management.md)

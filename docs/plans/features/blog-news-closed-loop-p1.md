@@ -4,7 +4,6 @@
 featureStatus: FROZEN_FOR_IMPLEMENTATION_PLANNING
 articleTaxonomyStatus: LEGACY_P1_COMPATIBILITY_ONLY
 articleTaxonomyTruthSource: docs/architecture/services/site-service.md#21-frozen-article-taxonomy
-sourceDesign: docs/plans/designs/blog-news-closed-loop-design.md
 serviceTruthSource: docs/architecture/services/site-service.md
 contractSource: docs/contracts/site-service/README.md
 parentFeature: docs/plans/features/external-site-integration-p1.md
@@ -29,10 +28,9 @@ lastUpdatedAt: 2026-06-29
 ## 2. Stable Inputs
 
 - `docs/architecture/services/site-service.md`
-- `docs/architecture/site-runtime-architecture.md`
-- `docs/architecture/site-runtime-kit.md`
+- `docs/architecture/platforms/site-runtime-architecture.md`
+- `docs/architecture/platforms/site-runtime-kit.md`
 - `docs/plans/features/external-site-integration-p1.md`
-- `docs/plans/designs/blog-news-closed-loop-design.md`
 - `docs/contracts/site-service/README.md`
 - `docs/contracts/site-service/admin-bff.md`
 - `docs/contracts/site-service/public-views.md`

@@ -6,13 +6,12 @@ Current status: `contract frozen / implementation ready`
 
 本文是浏览器插件 CRM Sales Workspace P1 的 feature packet。它承接以下稳定设计与契约：
 
-- [browser-workspace-extension-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/browser-workspace-extension-design.md)
-- [extension-crm-workspace.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/extension-crm-workspace.md)
-- [extension-auth-bff-login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/extension-auth-bff-login.md)
-- [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md)
-- [navigation-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/navigation-summary.md)
-- [access-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/access-summary.md)
-- [2026-06-23-browser-extension-crm-workspace-p1.md](/Users/acehood/Documents/GitHub/oes/docs/superpowers/plans/2026-06-23-browser-extension-crm-workspace-p1.md)
+- [browser-workspace-extension-design.md](../designs/browser-workspace-extension-design.md)
+- [extension-crm-workspace.md](../../contracts/api-gateway/extension-crm-workspace.md)
+- [extension-auth-bff-login.md](../../contracts/api-gateway/extension-auth-bff-login.md)
+- [crm-service.md](../../architecture/services/crm-service.md)
+- [navigation-summary.md](../../contracts/api-gateway/navigation-summary.md)
+- [access-summary.md](../../contracts/api-gateway/access-summary.md)
 
 本文只冻结 P1 交付范围、实现边界、切片顺序、验收方式与测试矩阵，不重新定义 CRM 服务真相、permission-service 真相或 auth-service 真相。
 

@@ -2,7 +2,6 @@
 
 ```text
 status: IMPLEMENTED_VERIFIED_EXTERNAL_OPENING_DEFERRED
-capabilityKey: API-KEY
 designGate: DG-3
 predecessorGate: FROZEN_TRUSTED_GRPC_METADATA
 revocationInvariant: BOUNDED_RESIDUAL_MAX_5_MINUTES

@@ -6,11 +6,11 @@ truthSource: docs/architecture/services/site-service.md
 publicContract: docs/contracts/site-service/public-views.md
 adminContract: docs/contracts/site-service/admin-bff.md
 syncContract: docs/contracts/site-service/sync-api.md
-runtimeTruthSource: docs/architecture/site-runtime-kit.md
+runtimeTruthSource: docs/architecture/platforms/site-runtime-kit.md
 assetTruthSource: docs/architecture/services/asset-service.md
 assetContract: docs/contracts/asset-service/site-media.md
 assetCollaboration: docs/architecture/collaborations/site-asset-media.md
-storefrontBaseline: docs/plans/features/inspirations-masonry-gallery.md
+storefrontBaseline: src/site-runtime/meilong-ceramics-site/storefront
 lastUpdatedAt: 2026-08-09
 ```
 
@@ -47,9 +47,9 @@ lastUpdatedAt: 2026-08-09
 
 Asset owner 已冻结 tenant-scoped Site Media：
 
-- 服务职责：[asset-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/asset-service.md)
-- 黑盒与 shared wire 语义：[site-media.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/asset-service/site-media.md)
-- Site / Asset 协同：[site-asset-media.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/site-asset-media.md)
+- 服务职责：[asset-service.md](../../architecture/services/asset-service.md)
+- 黑盒与 shared wire 语义：[site-media.md](../../contracts/asset-service/site-media.md)
+- Site / Asset 协同：[site-asset-media.md](../../architecture/collaborations/site-asset-media.md)
 
 Asset contract 已覆盖 tenant-safe upload / selection / resolve、不可静默替换的 Asset identity、long-lived CDN delivery、authoritative dimensions、publication protection / release、availability facts、archive / takedown / deletion 与 optional SEO image 使用边界。
 
@@ -82,7 +82,7 @@ Site 实现不得以 request-body tenant/operator、进程内 EventEmitter、ori
 6. Storefront 在 Runtime reader 可用后替换 production fixture data；不得提前建立临时 HTTP / URL fallback。
 7. 组织一个覆盖四端与 Asset collaboration 的 Inspiration Core acceptance；Product Hotspot binding 留给独立 Phase 2。
 
-具体实现任务数量与 ownership 由 Program Control 在已冻结 lease 内决定，不由本 packet 机械固定。
+具体实现任务数量与 ownership 由后续执行计划在已冻结 lease 内决定，不由本 packet 机械固定。
 
 ## 7. Acceptance Targets
 

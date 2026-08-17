@@ -50,9 +50,9 @@
   - `api-gateway` / Site Management BFF
   - 未来其他需要受控文件资产的系统服务
 - 典型契约位置：
-  - [avatar.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/asset-service/avatar.md)
-  - [employee-official-photo.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/asset-service/employee-official-photo.md)
-  - [site-media.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/asset-service/site-media.md)
+  - [avatar.md](../../contracts/asset-service/avatar.md)
+  - [employee-official-photo.md](../../contracts/asset-service/employee-official-photo.md)
+  - [site-media.md](../../contracts/asset-service/site-media.md)
 
 ## 6. Upstream Dependencies
 
@@ -163,7 +163,7 @@ Asset + Site Media 是可信 gRPC 全仓 capability 的第一个业务优先 ser
 - Asset 不接受上游 Site audience Token。Site 调 Asset 前必须通过 Auth / STS 换取 `aud=asset-service`、绑定 Site workload 的 Token。
 - cutover 同时删除所有已纳入 Asset/Site 路径的 body identity、legacy signed operator header、controller fallback 与 fixture fallback；不得长期双读。
 
-完整传输信任规则以 [14-grpc-metadata-and-service-trust-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/14-grpc-metadata-and-service-trust-architecture.md) 为准，黑盒媒体能力以 [site-media.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/asset-service/site-media.md) 为准。
+完整传输信任规则以 [grpc-metadata-and-service-trust.md](../platforms/grpc-metadata-and-service-trust.md) 为准，黑盒媒体能力以 [site-media.md](../../contracts/asset-service/site-media.md) 为准。
 
 ### 10.5 Avatar And Employee Official Photo Trusted RPC Cutover
 
@@ -195,4 +195,4 @@ Asset response 中的 `scopeLevel`、`tenantId`、`ownerAccountId`、`ownerEmplo
 
 本节是五个 legacy avatar / official-photo RPC 的唯一 Asset mode mapping。切换同时移除 legacy signed operator metadata、request-body identity 信任、controller fallback 与依赖它们的 fixture；不得双读。
 
-Site Media 的完整黑盒交互以 [site-media.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/asset-service/site-media.md) 为准；跨服务发布保护与消费行为以 [site-asset-media.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/site-asset-media.md) 为准。
+Site Media 的完整黑盒交互以 [site-media.md](../../contracts/asset-service/site-media.md) 为准；跨服务发布保护与消费行为以 [site-asset-media.md](../collaborations/site-asset-media.md) 为准。

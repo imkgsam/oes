@@ -4,7 +4,7 @@
 
 本文冻结 OES 第一版文档化 Event Catalog / Event Contract 协作机制。它不是 broker 选型、schema registry、outbox 实现或消息中间件运行手册。
 
-公共事件的可靠投递平台以 [Event Bus 与 Outbox / Inbox 架构](/Users/acehood/Documents/GitHub/oes/docs/architecture/17-event-bus-and-outbox-architecture.md) 为稳定设计真相，CloudEvents 与 common code contract 决策以 [ADR 0014](/Users/acehood/Documents/GitHub/oes/docs/adr/0014-cloudevents-and-service-owned-event-code-contracts.md) 为准，broker-independent envelope 与 NATS transport mapping 以 [platform-transport.md](./platform-transport.md) 为黑盒契约。上述平台文档只负责运输，不得重新定义本目录中的业务 event type、payload、owner 或版本语义。
+公共事件的可靠投递平台以 [Event Bus 与 Outbox / Inbox 架构](../../architecture/platforms/event-bus-and-outbox.md) 为稳定设计真相，CloudEvents 与 common code contract 决策以 [ADR 0014](../../adr/0014-cloudevents-and-service-owned-event-code-contracts.md) 为准，broker-independent envelope 与 NATS transport mapping 以 [platform-transport.md](./platform-transport.md) 为黑盒契约。上述平台文档只负责运输，不得重新定义本目录中的业务 event type、payload、owner 或版本语义。
 
 ## 1. 目的
 

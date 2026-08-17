@@ -56,7 +56,7 @@ Last Updated: 2026-08-14
   - `SupplierItemMapping`
 - `wms-service` 的实际收货、区位、库存、破损库存、受限库存真相
 - `finance-service` 的 `AP`、supplier invoice、payment、payment allocation 真相
-- `party-service` 的主体主数据与租户主体引用；具体核心对象与 owner 边界以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准
+- `party-service` 的主体主数据与租户主体引用；具体核心对象与 owner 边界以 [party-service.md](./party-service.md) 为准
 - `RFQ`
 - `SupplierQuote`
 - 安全库存
@@ -103,10 +103,10 @@ Last Updated: 2026-08-14
   - future 接手 `AP / supplier invoice / payment` 闭环。
   - Procurement 不自建付款真相，只向 Finance 暴露采购交易与收货事实。
 - `permission-service`
-  - 提供采购请求、下单、变更、差异处理的授权判定能力；permission 侧核心对象与 owner 边界以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。
+  - 提供采购请求、下单、变更、差异处理的授权判定能力；permission 侧核心对象与 owner 边界以 [permission-service.md](./permission-service.md) 为准。
 - `identity-service` / `tenant-org-service`
   - 提供 `tenant / org / operator` 上下文，用于采购范围隔离、审批快照与审计追踪。
-  - `Tenant / OrgUnit / org tree` 边界以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准，Procurement 不重新定义组织树或组织归属真相。
+  - `Tenant / OrgUnit / org tree` 边界以 [tenant-org-service.md](./tenant-org-service.md) 为准，Procurement 不重新定义组织树或组织归属真相。
 
 ## 6.1 Trusted gRPC Boundary
 

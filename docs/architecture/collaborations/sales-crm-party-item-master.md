@@ -2,13 +2,13 @@
 
 Last Updated: 2026-06-10
 
-> `crm-service` 的服务职责、核心对象、owner 边界与长期命名以 [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md) 为唯一稳定真相源。本文只描述 `sales-service`、`crm-service`、`party-service` 与 `item-master-service` 的跨服务协同，不重新定义 CRM 服务内部设计。
+> `crm-service` 的服务职责、核心对象、owner 边界与长期命名以 [crm-service.md](../services/crm-service.md) 为唯一稳定真相源。本文只描述 `sales-service`、`crm-service`、`party-service` 与 `item-master-service` 的跨服务协同，不重新定义 CRM 服务内部设计。
 
 ## Status Note 2026-06-10
 
 CRM v2 已原地替代旧 customer master phase 1 设计。CRM v2 Phase 1 只冻结核心对象模型，不冻结报价、订单、发票或 Sales selector 边界。
 
-因此，本文中围绕旧 `CustomerAccount / CustomerAddressUsage / CustomerContactUsage / CustomerTaxProfile / Customer Selector` 的销售协同规则只作为旧实现和后续重写参考；新的 Sales / CRM 协同必须在独立 feature 中基于 [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md) 与 [crm-v2-core-object-model.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/crm-v2-core-object-model.md) 重新冻结。
+因此，本文中围绕旧 `CustomerAccount / CustomerAddressUsage / CustomerContactUsage / CustomerTaxProfile / Customer Selector` 的销售协同规则只作为旧实现和后续重写参考；新的 Sales / CRM 协同必须在独立 feature 中基于 [crm-service.md](../services/crm-service.md) 与 [crm-v2-core-object-model.md](../../plans/features/crm-v2-core-object-model.md) 重新冻结。
 
 ## 1. 目标
 
@@ -16,7 +16,7 @@ CRM v2 已原地替代旧 customer master phase 1 设计。CRM v2 Phase 1 只冻
 
 Item Master 概念以以下文件为唯一真相源：
 
-- [item-master-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/item-master-service.md)
+- [item-master-service.md](../services/item-master-service.md)
 
 ## 2. 参与服务
 
@@ -32,7 +32,7 @@ Item Master 概念以以下文件为唯一真相源：
 - `crm-service`
   - 负责 `CustomerAccount`、`CustomerAddressUsage`、`CustomerContactUsage`、`CustomerTaxProfile` 与销售前置交互过程。
 - `party-service`
-  - 负责当前租户内 `TenantParty` 主体事实；核心对象、地址 / 联系人正文与 owner 边界以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准。
+  - 负责当前租户内 `TenantParty` 主体事实；核心对象、地址 / 联系人正文与 owner 边界以 [party-service.md](../services/party-service.md) 为准。
 - `item-master-service`
   - 负责 `ItemModel`、`Item`、attribute、BOM、Packaging、`ItemCategory` 与 `SupplierItemMapping` 真相。
 
@@ -45,7 +45,7 @@ Item Master 概念以以下文件为唯一真相源：
 - `CustomerAccount` 直接引用 `tenantPartyId`；该绑定目标真相仍归 `party-service`。
 - phase 1 一条 `CustomerAccount` 只有一个 `tenantPartyId`。
 - 同一 `tenantId + tenantPartyId` 最多对应一个 active `CustomerAccount`。
-- 创建客户时必须先通过 `party-service` 在当前租户内 register / select `TenantParty`；identifier 复用规则以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准。
+- 创建客户时必须先通过 `party-service` 在当前租户内 register / select `TenantParty`；identifier 复用规则以 [party-service.md](../services/party-service.md) 为准。
 - `TenantParty Selector` 只用于当前租户内主体选择；`Customer Selector` 只返回可被销售采用的 `CustomerAccount`。
 - 明确禁止把 Party 主体字段复制成 CRM 真相；CRM 只保存关系语义、绑定关系和必要摘要。
 
@@ -75,7 +75,7 @@ Item Master 概念以以下文件为唯一真相源：
 
 ### 4.5 Customer address / contact / tax / terms snapshot 口径
 
-- `party-service` 的主体地址 / 联系人正文边界以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准。
+- `party-service` 的主体地址 / 联系人正文边界以 [party-service.md](../services/party-service.md) 为准。
 - `crm-service` owns `CustomerAddressUsage / CustomerContactUsage`，表达该地址或联系人在销售上下文中的用途、默认值、状态与备注。
 - `crm-service` owns `CustomerTaxProfile`，只表达客户交易税务默认配置；发票、税额、税率、税务期间、红冲、认证与抵扣归 `finance-service`。
 - `CustomerAccount.defaultCurrency / defaultPaymentTermId` 只是销售默认值。
@@ -123,7 +123,7 @@ Item Master 概念以以下文件为唯一真相源：
 
 - `Quote`、`QuoteVersion`、`SalesOrder`、`SalesOrderLine`、customer commitment：`sales-service`
 - `CustomerAccount`、`CustomerAddressUsage`、`CustomerContactUsage`、`CustomerTaxProfile`、`CustomerStatus`、`CustomerCategory`、tags：`crm-service`
-- 交易 / 法律主体、租户主体引用、主体标识、地址 / 联系人正文：以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准
+- 交易 / 法律主体、租户主体引用、主体标识、地址 / 联系人正文：以 [party-service.md](../services/party-service.md) 为准
 - `ItemModel`、`Item`、attribute、BOM、Packaging、`ItemCategory`、`SupplierItemMapping`：`item-master-service`
 - 长期 `CustomerItemMapping`：future `sales-service / crm-service` 协同候选
 - `PaymentTerm`、customer credit、invoice、receivable、collection、tax financial facts：`finance-service`
@@ -143,10 +143,10 @@ Item Master 概念以以下文件为唯一真相源：
 
 ## 8. 关联文档
 
-- [sales-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/sales-service.md)
-- [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md)
-- [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md)
-- [item-master-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/item-master-service.md)
-- [item-master-sales-mes-wms-srm.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/item-master-sales-mes-wms-srm.md)
-- [sales-quote-order-core.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/sales-quote-order-core.md)
-- [crm-customer-master-foundation.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/crm-customer-master-foundation.md)
+- [sales-service.md](../services/sales-service.md)
+- [crm-service.md](../services/crm-service.md)
+- [party-service.md](../services/party-service.md)
+- [item-master-service.md](../services/item-master-service.md)
+- [item-master-sales-mes-wms-srm.md](./item-master-sales-mes-wms-srm.md)
+- [sales-quote-order-core.md](../../plans/features/sales-quote-order-core.md)
+- [crm-service.md](../services/crm-service.md)

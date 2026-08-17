@@ -1,6 +1,6 @@
 # BusinessCard Management Contract
 
-> 服务设计唯一真相源：[public-entry-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/public-entry-service.md)。BusinessCard 设计入口：[employee-digital-business-card-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/employee-digital-business-card-design.md)。本文只描述 Phase 1 BusinessCard 管理端黑盒契约，不重新定义 HR、Identity Contact Asset、ShortLink、Tenant Org、Permission 或 CRM owner 边界。
+> 服务设计唯一真相源：[public-entry-service.md](../../architecture/services/public-entry-service.md)。BusinessCard 设计入口：[employee-digital-business-card-design.md](../../plans/designs/employee-digital-business-card-design.md)。本文只描述 Phase 1 BusinessCard 管理端黑盒契约，不重新定义 HR、Identity Contact Asset、ShortLink、Tenant Org、Permission 或 CRM owner 边界。
 
 ## 1. Purpose
 
@@ -122,7 +122,7 @@ Rules:
 - `SAVE_VCARD` uses `NONE`.
 - `OPEN_COMPANY_WEBSITE` uses `TENANT_PUBLIC_PROFILE` or the tenant/company public profile reference accepted by the public render boundary.
 - `CONTACT_ASSET` references identity-service Contact Asset truth; BusinessCard must not store phone, email, WeChat, WhatsApp, handle, externalRef or display value.
-- Contact Asset owner, type, ownership and status are governed by [contact-asset-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/contact-asset-design.md) and [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md).
+- Contact Asset owner, type, ownership and status are governed by [contact-asset-design.md](../../plans/designs/contact-asset-design.md) and [identity-service.md](../../architecture/services/identity-service.md).
 
 ### 3.4 ContactActionConfig
 

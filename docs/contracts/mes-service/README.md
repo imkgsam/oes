@@ -2,14 +2,14 @@
 
 This directory contains black-box contracts for `mes-service`.
 
-The architecture truth source is [mes-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/mes-service.md). Contract documents must reference that architecture baseline and must not redefine MES service ownership, resource hierarchy, mold object design, quality boundary, planning boundary, WMS handoff, or Item Master boundary.
+The architecture truth source is [mes-service.md](../../architecture/services/mes-service.md). Contract documents must reference that architecture baseline and must not redefine MES service ownership, resource hierarchy, mold object design, quality boundary, planning boundary, WMS handoff, or Item Master boundary.
 
 ## Current Contract Set
 
-- [production-spec-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/mes-service/production-spec-management.md)
-- [production-spec-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/mes-service/production-spec-query.md)
-- [mold-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/mes-service/mold-management.md)
-- [mold-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/mes-service/mold-query.md)
+- [production-spec-management.md](./production-spec-management.md)
+- [production-spec-query.md](./production-spec-query.md)
+- [mold-management.md](./mold-management.md)
+- [mold-query.md](./mold-query.md)
 
 ## Rewrite Scope
 
@@ -32,7 +32,7 @@ Historical phase 1 object names are replaced by the current MES architecture bas
 - All 32 RPCs follow the trusted execution contract in this section; request bodies do not carry tenant, org, operator, trace or audit authority.
 - Management commands retain command idempotency and bounded business reason fields as specified below.
 - API Gateway and tenant-web must not define MES domain objects independently; they must map to these contracts.
-- Contract changes that alter service ownership or object names must first update [mes-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/mes-service.md) or an ADR.
+- Contract changes that alter service ownership or object names must first update [mes-service.md](../../architecture/services/mes-service.md) or an ADR.
 
 ## Trusted Execution Contract
 

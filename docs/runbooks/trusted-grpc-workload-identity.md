@@ -2,7 +2,7 @@
 
 ## Purpose and boundary
 
-This runbook operates the DG-1 deployment transport foundation defined by [ADR 0015](../adr/0015-workload-identity-and-execution-token.md) and the [trusted gRPC architecture](../architecture/14-grpc-metadata-and-service-trust-architecture.md). It supplies the per-workload certificate and trust material required for a verified direct-workload mTLS identity. It does not issue ExecutionTokens, define authorization policy, revoke a token, accept API keys, or interpret request headers/body as identity.
+This runbook operates the DG-1 deployment transport foundation defined by [ADR 0015](../adr/0015-workload-identity-and-execution-token.md) and the [trusted gRPC architecture](../architecture/platforms/grpc-metadata-and-service-trust.md). It supplies the per-workload certificate and trust material required for a verified direct-workload mTLS identity. It does not issue ExecutionTokens, define authorization policy, revoke a token, accept API keys, or interpret request headers/body as identity.
 
 The current Compose workloads prepared with a distinct TLS mount are `api-gateway`, `auth-service`, `identity-service`, `permission-service`, `entity-service`, and `resource-service`. Each has a distinct URI SAN:
 

@@ -1,6 +1,6 @@
 # PolicyInstance Management Contract
 
-> 服务设计唯一真相源：[permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。本文只描述 `PolicyInstance` 管理契约，不重新定义资源授权模型、组合规则或业务资源 owner。
+> 服务设计唯一真相源：[permission-service.md](../../architecture/services/permission-service.md)。本文只描述 `PolicyInstance` 管理契约，不重新定义资源授权模型、组合规则或业务资源 owner。
 
 ## 1. Purpose
 
@@ -12,7 +12,7 @@ It exists to separate the new resource authorization mainline from legacy `Polic
 
 Current gRPC source:
 
-- [policy_instance_management.proto](/Users/acehood/Documents/GitHub/oes/src/common/src/contracts/permission_service/policy_instance_management.proto)
+- [policy_instance_management.proto](../../../src/common/src/contracts/permission_service/policy_instance_management.proto)
 
 Exposed methods:
 

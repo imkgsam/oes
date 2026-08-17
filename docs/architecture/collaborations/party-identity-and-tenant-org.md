@@ -6,7 +6,7 @@ Last Updated: 2026-06-10
 
 定义 OES 中现实世界主体、登录身份、租户边界与组织结构之间的协同方式。
 
-本协同以 [ADR 0008](/Users/acehood/Documents/GitHub/oes/docs/adr/0008-tenant-scoped-tenant-party-primary-party-model.md) 为准：核心主体模型是 tenant-scoped `TenantParty`。
+本协同以 [ADR 0008](../../adr/0008-tenant-scoped-tenant-party-primary-party-model.md) 为准：核心主体模型是 tenant-scoped `TenantParty`。
 
 ## 2. 真相归属
 
@@ -48,8 +48,8 @@ Last Updated: 2026-06-10
 
 ## 6. 关联文档
 
-- [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md)
-- [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)
-- [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md)
-- [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md)
-- [employee-onboarding.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/employee-onboarding.md)
+- [party-service.md](../services/party-service.md)
+- [identity-service.md](../services/identity-service.md)
+- [tenant-org-service.md](../services/tenant-org-service.md)
+- [hr-service.md](../services/hr-service.md)
+- [employee-onboarding.md](./employee-onboarding.md)

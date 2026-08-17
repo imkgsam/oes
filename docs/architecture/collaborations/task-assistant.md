@@ -4,7 +4,7 @@
 status: FROZEN
 frozenDate: 2026-07-28
 lastAmendedDate: 2026-08-05
-aiArchitectureTruthSource: docs/architecture/04-ai-architecture.md
+aiArchitectureTruthSource: docs/architecture/platforms/ai-platform.md
 collaborationTruthSource: docs/architecture/services/collaboration-service.md
 delegatedExecutionTruthSource: docs/architecture/collaborations/delegated-execution-and-action-grant.md
 toolContractTruthSource: docs/contracts/ai-platform/task-assistant-tool-contract.md

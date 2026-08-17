@@ -120,11 +120,11 @@ conflictResolution: 本文只记录讨论态进度与恢复入口；若稳定 ar
 下次继续前先读：
 
 - `docs/architecture/services/permission-service.md`
-- `docs/architecture/15-authorization-layering-and-resource-policy-architecture.md`
-- `docs/plans/features/policy-template-instance-model.md`
-- `docs/plans/features/policy-template-instance-contract.md`
-- `docs/plans/features/policy-template-instance-storage.md`
-- `docs/plans/features/resource-authorization-contract.md`
+- `docs/architecture/platforms/authorization-layering-and-resource-policy.md`
+- `docs/architecture/services/permission-service.md`
+- `docs/contracts/permission-service/policy-instance-management.md`
+- `docs/contracts/permission-service/resource-authorization.md`
+- `docs/plans/features/authorization-layering-rollout.md`
 - `docs/architecture/services/wms-service.md`
 - `docs/architecture/services/mes-service.md`
 - `docs/architecture/services/tenant-org-service.md`

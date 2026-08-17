@@ -113,8 +113,8 @@
 
 ## 8. 关联文档
 
-- [sales-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/sales-service.md)
-- [finance-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/finance-service.md)
-- [sales-fulfillment-mes-wms-finance.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/sales-fulfillment-mes-wms-finance.md)
-- [sales-quote-order-core.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/sales-quote-order-core.md)
-- [finance-ar-credit-core.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/finance-ar-credit-core.md)
+- [sales-service.md](../services/sales-service.md)
+- [finance-service.md](../services/finance-service.md)
+- [sales-fulfillment-mes-wms-finance.md](./sales-fulfillment-mes-wms-finance.md)
+- [sales-quote-order-core.md](../../plans/features/sales-quote-order-core.md)
+- [finance-ar-credit-core.md](../../plans/features/finance-ar-credit-core.md)

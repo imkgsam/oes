@@ -11,7 +11,7 @@ Last Updated: 2026-08-05
 - `docs/contracts/collaboration-service/**`：描述黑盒接口契约，不重新定义服务职责、核心对象或长期命名。
 - `docs/architecture/collaborations/**`：描述跨服务协同，不重新定义 `collaboration-service` 自身职责。
 - `docs/plans/features/**`：描述阶段执行状态、实现路径与验收，不重新定义服务边界。
-- `docs/plans/designs/collaboration-service-design.md`：只记录尚未冻结的后续设计过程、开放问题与回写目标，不作为稳定设计依据。
+- 后续 Task 高级能力从 [backlog](../../plans/backlog.md) 分别进入独立 Design Task，不在服务真相源中保存过程记录。
 
 若其他文档与本文冲突，以本文为准。若 `collaboration-service` 服务职责、模块边界或核心对象需要变更，必须先更新本文；涉及跨服务协同或关键架构取舍时，再同步更新 collaboration、contract 或 ADR。
 
@@ -131,7 +131,7 @@ P1 使用白名单 object reference adapter：
 - `crm-service` 负责判断 `CrmAccount` 是否存在、当前 operator 是否可读、是否允许创建备注，并返回轻量展示快照。
 - 未接入白名单的对象类型必须拒绝创建备注。
 
-展示快照只用于协作 UI 展示，不是业务对象真相。`CrmAccount` 名称、状态、归档、删除等长期事实仍以 [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md) 为准。
+展示快照只用于协作 UI 展示，不是业务对象真相。`CrmAccount` 名称、状态、归档、删除等长期事实仍以 [crm-service.md](./crm-service.md) 为准。
 
 已归档但仍可读取的 `CrmAccount` 可以查看 Notes；归档对象不允许新增普通备注，也不允许编辑或置顶既有备注，治理删除除外。物理删除对象后的备注处理不在 P1 冻结范围。
 

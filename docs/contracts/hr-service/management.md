@@ -1,12 +1,12 @@
 # hr-service Management API
 
-> `hr-service` 的服务设计唯一真相源是 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md)。涉及角色、权限、grant、AccountRole 或授权判定的服务设计边界，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准；本文只描述 HR management contract。
+> `hr-service` 的服务设计唯一真相源是 [hr-service.md](../../architecture/services/hr-service.md)。涉及角色、权限、grant、AccountRole 或授权判定的服务设计边界，以 [permission-service.md](../../architecture/services/permission-service.md) 为准；本文只描述 HR management contract。
 
 ## 1. 模块职责
 
 `HrManagementService` 负责 minimum 第一阶段的 HR management 写接口。
 
-以下 command 语义均消费 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 中冻结的 HR 服务设计；本文只记录黑盒写契约，不作为第二份服务设计来源。
+以下 command 语义均消费 [hr-service.md](../../architecture/services/hr-service.md) 中冻结的 HR 服务设计；本文只记录黑盒写契约，不作为第二份服务设计来源。
 
 截至 2026-05-05，runtime 已支持通过 `CreateEmployeeOnboarding` 为首租户管理员建立 HR 员工、首条任职与默认账号访问接入；本次文档收口不重跑 Jest / Vitest。
 
@@ -50,8 +50,8 @@
   - optional `access`
 - 关键语义：
   - Employee / Employment 真相只属于 `hr-service`。
-  - party 主体事实与租户主体引用边界以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准，HR 只通过显式端口建立或复用引用。
-  - Account 与 account binding 边界以 [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md) 为准，角色 / grant 真相仍属于 `permission-service`。
+  - party 主体事实与租户主体引用边界以 [party-service.md](../../architecture/services/party-service.md) 为准，HR 只通过显式端口建立或复用引用。
+  - Account 与 account binding 边界以 [identity-service.md](../../architecture/services/identity-service.md) 为准，角色 / grant 真相仍属于 `permission-service`。
   - 当请求同时提供账号接入与首条任职时，HR onboarding access 段负责通过 permission 边界完成 `account.basic` 默认 grant。
   - 下游账号绑定或权限 grant 失败时，不回滚已成立的 Party / Employee / Employment 真相；失败接入段应可查询、可重试。
 
@@ -125,7 +125,7 @@
   - `official_photo_asset_id`
   - `official_photo_url`
 - contract 语义：
-  - 员工公开展示头像的 owner 是 `hr-service`，以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准
+  - 员工公开展示头像的 owner 是 `hr-service`，以 [hr-service.md](../../architecture/services/hr-service.md) 为准
   - `official_photo_asset_id` 必须引用已由上游 Asset 能力完成上传、校验和可访问 URL 生成的图片资产
   - `official_photo_url` 是 HR 对外查询摘要可返回的展示 URL；URL 生成与对象存储生命周期不属于 HR
   - command 必须校验目标 Employee 属于 `tenant_id`
@@ -146,10 +146,10 @@
 
 ## 4. onboarding contract 语义
 
-- minimum 第一阶段 onboarding owner 以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准；本文只描述 management contract 对该语义的消费方式。
-- `party-service` 的主体事实与租户主体引用边界以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准。
-- `identity-service` 的 account binding 边界以 [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md) 为准。
-- `Tenant / OrgUnit / org tree` 边界以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准；本文只描述 HR 写入时如何引用已校验 `OrgUnit`。
+- minimum 第一阶段 onboarding owner 以 [hr-service.md](../../architecture/services/hr-service.md) 为准；本文只描述 management contract 对该语义的消费方式。
+- `party-service` 的主体事实与租户主体引用边界以 [party-service.md](../../architecture/services/party-service.md) 为准。
+- `identity-service` 的 account binding 边界以 [identity-service.md](../../architecture/services/identity-service.md) 为准。
+- `Tenant / OrgUnit / org tree` 边界以 [tenant-org-service.md](../../architecture/services/tenant-org-service.md) 为准；本文只描述 HR 写入时如何引用已校验 `OrgUnit`。
 - `permission-service` 负责角色 / grant。
 - 后段失败不得回滚前段已成立的 `Party / Employee / Employment` 真相。
 - 若 account binding 或 permission grant 失败，`hr-service` 应返回并持有可重试的 onboarding 接入段状态。

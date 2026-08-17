@@ -23,18 +23,18 @@
 ## 3. 上游依赖
 
 - services:
-  - [sales-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/sales-service.md)
-  - [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md)
-  - [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md)
-  - [item-master-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/item-master-service.md)
-  - [mes-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/mes-service.md)
-  - [wms-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/wms-service.md)
+  - [sales-service.md](../../architecture/services/sales-service.md)
+  - [crm-service.md](../../architecture/services/crm-service.md)
+  - [party-service.md](../../architecture/services/party-service.md)
+  - [item-master-service.md](../../architecture/services/item-master-service.md)
+  - [mes-service.md](../../architecture/services/mes-service.md)
+  - [wms-service.md](../../architecture/services/wms-service.md)
 - collaborations:
-  - [sales-crm-party-item-master.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/sales-crm-party-item-master.md)
-  - [item-master-sales-mes-wms-srm.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/item-master-sales-mes-wms-srm.md)
-  - [sales-fulfillment-mes-wms-finance.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/sales-fulfillment-mes-wms-finance.md)
+  - [sales-crm-party-item-master.md](../../architecture/collaborations/sales-crm-party-item-master.md)
+  - [item-master-sales-mes-wms-srm.md](../../architecture/collaborations/item-master-sales-mes-wms-srm.md)
+  - [sales-fulfillment-mes-wms-finance.md](../../architecture/collaborations/sales-fulfillment-mes-wms-finance.md)
 - plans:
-  - [erp-service-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/erp-service-design.md)
+  - [erp-service-design.md](../designs/erp-service-design.md)
 
 ## 4. 当前结论
 
@@ -72,13 +72,13 @@
 ## 5. 契约真相位置
 
 - 稳定服务职责：
-  - [sales-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/sales-service.md)
+  - [sales-service.md](../../architecture/services/sales-service.md)
 - 稳定协同蓝图：
-  - [sales-crm-party-item-master.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/sales-crm-party-item-master.md)
-  - [sales-fulfillment-mes-wms-finance.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/sales-fulfillment-mes-wms-finance.md)
-  - [item-master-sales-mes-wms-srm.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/item-master-sales-mes-wms-srm.md)
+  - [sales-crm-party-item-master.md](../../architecture/collaborations/sales-crm-party-item-master.md)
+  - [sales-fulfillment-mes-wms-finance.md](../../architecture/collaborations/sales-fulfillment-mes-wms-finance.md)
+  - [item-master-sales-mes-wms-srm.md](../../architecture/collaborations/item-master-sales-mes-wms-srm.md)
 - 下一步 contract 入口：
-  - [sales-service contracts](/Users/acehood/Documents/GitHub/oes/docs/contracts/sales-service/README.md)
+  - [sales-service contracts](../../contracts/sales-service/README.md)
 
 ## 6. 当前 slice
 
@@ -107,7 +107,7 @@ Status, 2026-06-07:
 - `docs/contracts/sales-service/**` 已存在并承接 Sales phase 1 management、query、pricing management 与 pricing query contract。
 - `src/services/business/sales-service/**` 已存在 service runtime、Prisma schema、gRPC controller、tests 与 smoke script。
 - 本次校准只修正文档状态；未重跑 `sales-service` test / build / smoke，因此当前状态不得写成 fresh verified 或 fully closed。
-- Trusted-gRPC 迁移已在 [trusted-grpc-execution-context.md](trusted-grpc-execution-context.md#97-sales-27-rpc-frozen-cutover-lease) 冻结为独立 transport slice。该 slice 会删除历史 raw gRPC `sales-smoke.mjs` 及 package command，后续 fresh verification 使用 packet 中的 proto、build、focused test 与 security gates，不再以该 smoke 为关闭条件；这不改变本 packet 的 Sales 业务能力。
+- Trusted-gRPC 当前规则与 27-RPC matrix 以 [Sales contract](../../contracts/sales-service/README.md) 和 [trusted gRPC architecture](../../architecture/platforms/grpc-metadata-and-service-trust.md) 为准；这不改变本 packet 的 Sales 业务能力。
 
 ## 7. 最小模型
 

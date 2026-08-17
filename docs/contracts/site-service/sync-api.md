@@ -4,7 +4,7 @@
 
 ## 1. 通用约束
 
-所有 API 必须使用 [security-and-signing.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/site-service/security-and-signing.md) 中定义的 signed request。
+所有 API 必须使用 [security-and-signing.md](./security-and-signing.md) 中定义的 signed request。
 
 通用规则：
 
@@ -135,7 +135,7 @@
 
 语义：
 
-- `public_views[]` 使用 [public-views.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/site-service/public-views.md) 定义的 resource envelope；`faq` 使用其中定义的页面级 `FaqDirectoryPublicView` 例外 shape。
+- `public_views[]` 使用 [public-views.md](./public-views.md) 定义的 resource envelope；`faq` 使用其中定义的页面级 `FaqDirectoryPublicView` 例外 shape。
 - 同一轮所有 public views、`server_publish_version` 与 Site Exposure Publication 必须属于 Runtime 已固定的同一 target；不能因为 OES 又提交了更新版本而返回混合版本。
 - 请求内每个资源都按该 target 的站点公开状态求值；不得读取资源当前 latest 后仅把响应版本号标记为 target。
 - 下架 / 删除 / 禁用语言必须通过 `status` 返回，不应只返回 missing。

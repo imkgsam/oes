@@ -1,6 +1,6 @@
 # site-service Security and Signing Contract
 
-> 服务职责以 [site-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/site-service.md) 为准。本文只冻结 External Site Integration P1 的凭证、签名、webhook 与安全错误黑盒契约。
+> 服务职责以 [site-service.md](../../architecture/services/site-service.md) 为准。本文只冻结 External Site Integration P1 的凭证、签名、webhook 与安全错误黑盒契约。
 
 ## 1. Credential Bundle
 

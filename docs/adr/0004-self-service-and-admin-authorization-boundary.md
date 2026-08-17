@@ -1,6 +1,6 @@
 # ADR 0004: Self-service And Admin Authorization Boundary
 
-> 当前 `permission-service` 服务职责、核心对象与 owner 边界以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准；本 ADR 只保留 self-service 与 admin-management 授权边界的架构决策记录。
+> 当前 `permission-service` 服务职责、核心对象与 owner 边界以 [permission-service.md](../architecture/services/permission-service.md) 为准；本 ADR 只保留 self-service 与 admin-management 授权边界的架构决策记录。
 
 日期：2026-04-21
 
@@ -141,12 +141,12 @@ OES 采用以下长期规则：
 
 实现前必须先对齐以下真相源：
 
-- [15-authorization-layering-and-resource-policy-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/15-authorization-layering-and-resource-policy-architecture.md)
-- [authentication-and-identity.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/authentication-and-identity.md)
-- [personal-center.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/personal-center.md)
-- [login-method-management.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/login-method-management.md)
-- [change-boundary-rules.md](/Users/acehood/Documents/GitHub/oes/docs/governance/change-boundary-rules.md)
-- [codex-threading-rules.md](/Users/acehood/Documents/GitHub/oes/docs/governance/codex-threading-rules.md)
+- [authorization-layering-and-resource-policy.md](../architecture/platforms/authorization-layering-and-resource-policy.md)
+- [authentication-and-identity.md](../architecture/collaborations/authentication-and-identity.md)
+- [auth BFF self-service contract](../contracts/api-gateway/auth-bff-self-service.md)
+- [auth BFF login contract](../contracts/api-gateway/auth-bff-login.md)
+- [document-governance.md](../governance/document-governance.md)
+- [codex-execution-model.md](../governance/codex-execution-model.md)
 
 若后续线程要修改以下路径中的授权语义，必须先确认与本 ADR 一致；若不一致，先更新 architecture / ADR，再进入实现：
 

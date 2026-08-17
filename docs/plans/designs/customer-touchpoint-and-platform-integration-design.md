@@ -1,6 +1,11 @@
 # Customer Touchpoint And Platform Integration Design
 
-> 涉及 permission-service 的服务职责、核心对象或 owner 边界时，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准；本文只记录客户触点与平台集成设计过程。
+```text
+designKey: CUSTOMER-TOUCHPOINT-PLATFORM-INTEGRATION
+designStatus: ACTIVE_DESIGN_WORKSPACE
+```
+
+> 涉及 permission-service 的服务职责、核心对象或 owner 边界时，以 [permission-service.md](../../architecture/services/permission-service.md) 为准；本文只记录客户触点与平台集成设计过程。
 
 ## 1. 目标
 

@@ -6,7 +6,7 @@ decisionAdr: docs/adr/0015-workload-identity-and-execution-token.md
 architectureTruthSource: docs/architecture/services/permission-service.md
 ```
 
-> 本文冻结 Permission Service 对 HUMAN、MACHINE、DELEGATED 与 workload INTERNAL issuance 的黑盒授权语义。核心对象和 owner 以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。
+> 本文冻结 Permission Service 对 HUMAN、MACHINE、DELEGATED 与 workload INTERNAL issuance 的黑盒授权语义。核心对象和 owner 以 [permission-service.md](../../architecture/services/permission-service.md) 为准。
 
 ## 1. Principal And Grant Model
 

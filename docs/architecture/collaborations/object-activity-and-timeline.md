@@ -257,12 +257,12 @@ phase 1 统一冻结以下活动类型：
 
 ## 15. 关联文档
 
-- [12-observability-and-audit-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/12-observability-and-audit-architecture.md)
-- [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)
-- [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)
-- [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
-- [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md)
-- [item-master-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/item-master-service.md)
-- [sales-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/sales-service.md)
-- [sales-quote-order-core.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/sales-quote-order-core.md)
-- [change-boundary-rules.md](/Users/acehood/Documents/GitHub/oes/docs/governance/change-boundary-rules.md)
+- [observability-and-audit.md](../platforms/observability-and-audit.md)
+- [auth-service.md](../services/auth-service.md)
+- [identity-service.md](../services/identity-service.md)
+- [permission-service.md](../services/permission-service.md)
+- [party-service.md](../services/party-service.md)
+- [item-master-service.md](../services/item-master-service.md)
+- [sales-service.md](../services/sales-service.md)
+- [sales-quote-order-core.md](../../plans/features/sales-quote-order-core.md)
+- [document-governance.md](../../governance/document-governance.md)

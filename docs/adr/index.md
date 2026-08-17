@@ -1,46 +1,20 @@
-# OES ADR 索引
+# Architecture Decision Records
 
-更新时间：2026-08-02
+本目录只列仍用于解释当前架构的决策。
 
-> 涉及 permission-service 的当前服务职责、核心对象或 owner 边界时，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准；ADR 索引只导航历史架构决策。
-
-本目录用于记录关键架构决策与取舍。
-
-当前 ADR：
-
-- `0001-unified-web-scope-aware-user-account.md`
-  - 决定 OES 采用统一 Web Shell，并将 `UserAccount` 升级为支持 `SYSTEM / TENANT` scope 的统一工作上下文账号模型。
-- `0002-system-role-instance-and-account-role-scope.md`
-  - 决定 OES 将系统角色模板、系统级真实角色、租户级真实角色分离，并让 `AccountRole` 支持系统/租户 scope。
-- `0003-party-master-service-and-tenant-party-binding.md`
-  - 已被 ADR 0008 替代；历史上决定 OES 采用 system-wide `party-service` 主体主数据，并采用 `TenantParty` 作为第一阶段业务域主体引用入口。
-- `0004-self-service-and-admin-authorization-boundary.md`
-  - 决定 OES 将“当前主体管理自己”的 self-service 能力与“管理员管理别人”的 admin-management 能力分层建模，禁止继续复用同一条管理员权限门。
-- `0005-terminal-access-policy.md`
-  - 决定 OES 的终端准入策略真相归 `permission-service`，由 `auth-service` 在登录 / refresh 链路消费判定，并由 Web / PDA / KIOSK BFF 固定可信 terminal。
-- `0006-terminal-device-service.md`
-  - 决定 OES 新增 `terminal-device-service` 作为企业受管现场交互终端设备治理真相源，承接 PDA 设备入网、生命周期、禁用、运行快照、版本策略与设备治理审计。
-- `0007-terminal-aware-account-security-phase-2.md`
-  - 决定 Terminal-aware Account Security Phase 2 的登录方式、terminal MFA、PDA 设备绑定租户、session、trusted device、登录历史与受管设备清退协同边界。
-- `0008-tenant-scoped-tenant-party-primary-party-model.md`
-  - 决定 OES 采用 tenant-scoped `TenantParty` 作为核心主体模型，替代 ADR 0003 的 system-wide Party + TenantParty binding 模型。
-- `0009-site-content-category-taxonomy.md`
-  - 决定以可本地化、可 SEO 的 Site Content Category 取代 legacy Topic，并保留文章的有序多分类关系。
-- `0010-site-publish-sync-concurrency.md`
-  - 决定同一 Site 正式发布串行化、pending revision 使用 CAS 清账，并让 Runtime 固定目标版本后自动追赶后续版本。
-- `0011-site-dynamic-slug-reservation-and-history.md`
-  - 决定 Site Service 以数据库约束保护 draft、canonical 与 historical slug 所有权，并让 Runtime 通过本地 alias index 单跳 301。
-- `0012-site-media-delivery-and-purge.md`
-  - 决定 Site Media 以本地到远端的单向 binding 迁移，P1 使用 OES 管理的 Cloudflare R2 + CDN，并以 origin block 加精确 purge 确认可完成下架。
-- `0013-nats-jetstream-event-bus-and-delivery-semantics.md`
-  - 决定 OES 第一版公共业务事实总线采用 NATS JetStream，并冻结每服务 transactional outbox、consumer inbox、至少一次投递、有限重试、DLQ 与受控重放边界。
-- `0014-cloudevents-and-service-owned-event-code-contracts.md`
-  - 决定公共事件采用 CloudEvents 1.0 Structured JSON，并按 owner service 在 `src/common/src/contracts/<service_snake_case>/events.ts` 维护 producer / consumer 共用的代码契约；异步 command lane 本期不实施。
-- `0015-workload-identity-and-execution-token.md`
-  - 决定 OES 以 mTLS / SPIFFE-compatible identity 证明直接工作负载，由 Auth / STS 独占签发单 audience、`cnf` 绑定的短期 ExecutionToken，并逐服务迁移全部 21 个 gRPC 服务、560 个 RPC，直至 legacy 信任引用归零。
-- `0016-delegated-execution-and-action-grant.md`
-  - 决定 HUMAN delegation 采用限时可撤销的最小权限交集，高风险业务动作采用精确绑定、一次性消费的 ActionGrant，并划定 AI 永久禁止操作。
-- `0017-protected-external-api-key-verifier-provider.md`
-  - 决定 Auth 只拥有 API Key verifier 语义与恒定时间比较，Deployment/EXEC-CRYPTO 复用既有 Auth-local protected agent，以独立、不可导出的版本化 HMAC-SHA-256 key 提供固定 verifier 运算；正常轮换保留旧版本验证，开发主机与生产安全绑定显式分离。
-
-若后续涉及 bounded context、共享契约、事件模型、权限语义、租户模型、`src/common` 对外 API 或 AI 工具协议变更，应先在本目录新增 ADR，再进入实现。
+- [0001 Unified web scope-aware user account](./0001-unified-web-scope-aware-user-account.md)
+- [0002 System role instance and account role scope](./0002-system-role-instance-and-account-role-scope.md)
+- [0004 Self-service and admin authorization boundary](./0004-self-service-and-admin-authorization-boundary.md)
+- [0005 Terminal access policy](./0005-terminal-access-policy.md)
+- [0006 Terminal device service](./0006-terminal-device-service.md)
+- [0007 Terminal-aware account security phase 2](./0007-terminal-aware-account-security-phase-2.md)
+- [0008 Tenant-scoped TenantParty model](./0008-tenant-scoped-tenant-party-primary-party-model.md)
+- [0009 Site content category taxonomy](./0009-site-content-category-taxonomy.md)
+- [0010 Site publish sync concurrency](./0010-site-publish-sync-concurrency.md)
+- [0011 Site dynamic slug reservation and history](./0011-site-dynamic-slug-reservation-and-history.md)
+- [0012 Site media delivery and purge](./0012-site-media-delivery-and-purge.md)
+- [0013 NATS JetStream event bus and delivery semantics](./0013-nats-jetstream-event-bus-and-delivery-semantics.md)
+- [0014 CloudEvents and service-owned event codes](./0014-cloudevents-and-service-owned-event-code-contracts.md)
+- [0015 Workload identity and execution token](./0015-workload-identity-and-execution-token.md)
+- [0016 Delegated execution and ActionGrant](./0016-delegated-execution-and-action-grant.md)
+- [0017 Protected external API key verifier provider](./0017-protected-external-api-key-verifier-provider.md)

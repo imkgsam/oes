@@ -8,7 +8,7 @@ platformTransportContract: docs/contracts/events/platform-transport.md
 catalogStatus: FROZEN_SUBSCRIBABLE
 ```
 
-本文冻结 `asset-service` 对外发布的 Site Media availability 公共事实。Asset 生命周期、交付、下架与删除语义以 [asset-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/asset-service.md) 和 [site-media.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/asset-service/site-media.md) 为准；本文只定义可订阅事件，不重新定义 Asset 对象或 Site consumer 的业务反应。
+本文冻结 `asset-service` 对外发布的 Site Media availability 公共事实。Asset 生命周期、交付、下架与删除语义以 [asset-service.md](../../architecture/services/asset-service.md) 和 [site-media.md](../asset-service/site-media.md) 为准；本文只定义可订阅事件，不重新定义 Asset 对象或 Site consumer 的业务反应。
 
 ## 1. `asset.site-media.availability.changed`
 

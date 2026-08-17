@@ -1,6 +1,6 @@
 # Terminal Access Policy Feature Packet
 
-> 服务设计唯一真相源：[permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。本文只记录 Terminal Access Policy feature 的范围、执行状态与验收要求；Terminal Access Policy 的 owner、核心对象、解析规则与长期边界不在本文重复定义。
+> 服务设计唯一真相源：[permission-service.md](../../architecture/services/permission-service.md)。本文只记录 Terminal Access Policy feature 的范围、执行状态与验收要求；Terminal Access Policy 的 owner、核心对象、解析规则与长期边界不在本文重复定义。
 
 ## 1. 目标
 
@@ -31,11 +31,11 @@
 
 ## 3. 设计与契约引用
 
-- Terminal Access Policy 的 owner、核心对象、解析规则与服务边界以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。
-- 架构决策以 [ADR 0005](/Users/acehood/Documents/GitHub/oes/docs/adr/0005-terminal-access-policy.md) 为准。
-- permission 侧黑盒 contract 以 [terminal-access.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/terminal-access.md) 为准。
-- Gateway / BFF 管理入口以 [permission-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/permission-management.md) 为准。
-- auth-service 登录、refresh 与 session 边界以 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md) 及其 contract 为准。
+- Terminal Access Policy 的 owner、核心对象、解析规则与服务边界以 [permission-service.md](../../architecture/services/permission-service.md) 为准。
+- 架构决策以 [ADR 0005](../../adr/0005-terminal-access-policy.md) 为准。
+- permission 侧黑盒 contract 以 [terminal-access.md](../../contracts/permission-service/terminal-access.md) 为准。
+- Gateway / BFF 管理入口以 [permission-management.md](../../contracts/api-gateway/permission-management.md) 为准。
+- auth-service 登录、refresh 与 session 边界以 [auth-service.md](../../architecture/services/auth-service.md) 及其 contract 为准。
 
 ## 4. Seed / Migration
 

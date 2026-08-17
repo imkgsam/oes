@@ -1,6 +1,6 @@
 # BusinessCard Employee Self-View Contract
 
-> 服务设计唯一真相源：[public-entry-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/public-entry-service.md)。本文只描述员工本人查看自己数字名片的 Phase 1 黑盒契约，不重新定义 BusinessCard、Identity Contact Asset、HR 或 Permission owner 边界。
+> 服务设计唯一真相源：[public-entry-service.md](../../architecture/services/public-entry-service.md)。本文只描述员工本人查看自己数字名片的 Phase 1 黑盒契约，不重新定义 BusinessCard、Identity Contact Asset、HR 或 Permission owner 边界。
 
 ## 1. Purpose
 

@@ -1,5 +1,10 @@
 # ERP Service Design Workspace
 
+```text
+designKey: ERP-SERVICE
+designStatus: ACTIVE_DESIGN_WORKSPACE
+```
+
 ## 1. 目标
 
 - 冻结 `erp-service` 第一阶段的职责边界与销售交易主链路设计方向。
@@ -178,10 +183,10 @@
 ## 8. 恢复入口
 
 - 下次继续前先读：
-  - [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md)
-  - [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md)
-  - [mes-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/mes-service.md)
-  - [srm-service-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/srm-service-design.md)
+  - [party-service.md](../../architecture/services/party-service.md)
+  - [crm-service.md](../../architecture/services/crm-service.md)
+  - [mes-service.md](../../architecture/services/mes-service.md)
+  - [srm-service.md](../../architecture/services/srm-service.md)
 - 当前推荐下一步：
   - 继续收齐客户交易条件的完整维度
   - 继续收齐报价确认到正式订单成立的不同业务路径

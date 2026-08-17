@@ -2,7 +2,7 @@
 
 ## Scope
 
-本文档定义 `asset-service` 为员工公开展示头像提供的受控文件资产契约。员工公开展示头像的业务 owner 是 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md)；`asset-service` 只拥有文件资产元数据、对象存储、URL 生成与资产生命周期。
+本文档定义 `asset-service` 为员工公开展示头像提供的受控文件资产契约。员工公开展示头像的业务 owner 是 [hr-service.md](../../architecture/services/hr-service.md)；`asset-service` 只拥有文件资产元数据、对象存储、URL 生成与资产生命周期。
 
 ## Product Flow Constraints
 
@@ -78,7 +78,7 @@
 ### `ResolveAssetPublicUrl`
 
 - Purpose: resolve one employee photo asset display URL from a controlled asset reference.
-- Current caller inventory: 当前没有 HR / public-entry service 直接调用；唯一 production-code caller 是 `api-gateway` 的 account-oriented read model，完整 policy 以 [avatar.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/asset-service/avatar.md) 为准。
+- Current caller inventory: 当前没有 HR / public-entry service 直接调用；唯一 production-code caller 是 `api-gateway` 的 account-oriented read model，完整 policy 以 [avatar.md](./avatar.md) 为准。
 - Control model: the shared RPC is `INTERNAL all: [asset.internal.avatar.resolve_public_url]`; only its exact workload issuance policy can request a public-delivery projection，未来 HR / public display direct caller 不能因本段描述自动获得 workload issuance。
 - Input semantics:
   - `assetId`

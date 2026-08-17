@@ -1,6 +1,6 @@
 # Employee Digital Business Card
 
-> BusinessCard module 设计过程入口：[employee-digital-business-card-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/employee-digital-business-card-design.md)。本文只记录 Phase 1 feature packet、跨线程分工、依赖与验收；不重新定义 ShortLink / Public Entry、Contact Asset、CRM、HR、Identity 或 Tenant Org 的 owner 真相。
+> BusinessCard module 设计过程入口：[employee-digital-business-card-design.md](../designs/employee-digital-business-card-design.md)。本文只记录 Phase 1 feature packet、跨线程分工、依赖与验收；不重新定义 ShortLink / Public Entry、Contact Asset、CRM、HR、Identity 或 Tenant Org 的 owner 真相。
 
 ## 1. 目标
 
@@ -38,28 +38,28 @@ BusinessCard 只保存配置和引用，不保存展示字段真相。
 ## 3. 上游依赖
 
 - design:
-  - [employee-digital-business-card-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/employee-digital-business-card-design.md)
+  - [employee-digital-business-card-design.md](../designs/employee-digital-business-card-design.md)
 - services:
-  - [public-entry-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/public-entry-service.md)
-  - [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md)
-  - [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)
-  - [asset-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/asset-service.md)
-  - [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md)
-  - [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md)
-  - [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md)
+  - [public-entry-service.md](../../architecture/services/public-entry-service.md)
+  - [hr-service.md](../../architecture/services/hr-service.md)
+  - [identity-service.md](../../architecture/services/identity-service.md)
+  - [asset-service.md](../../architecture/services/asset-service.md)
+  - [tenant-org-service.md](../../architecture/services/tenant-org-service.md)
+  - [party-service.md](../../architecture/services/party-service.md)
+  - [crm-service.md](../../architecture/services/crm-service.md)
 - resolved external dependencies:
   - Contact Asset / Work Contact Asset design and identity-service truth source:
-    - [contact-asset-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/contact-asset-design.md)
-    - [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)
+    - [contact-asset-design.md](../designs/contact-asset-design.md)
+    - [identity-service.md](../../architecture/services/identity-service.md)
   - ShortLink / Public Entry Phase 1 design, service responsibility, feature packet and contracts
 - consumed contracts:
-  - [shortlink-public-redirect.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/public-entry-service/shortlink-public-redirect.md)
-  - [shortlink-admin-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/public-entry-service/shortlink-admin-management.md)
-  - [shortlink-target-resolver.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/public-entry-service/shortlink-target-resolver.md)
-  - [business-card-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/public-entry-service/business-card-management.md)
-  - [business-card-self-view.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/public-entry-service/business-card-self-view.md)
-  - [business-card-public-render.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/public-entry-service/business-card-public-render.md)
-  - [employee-official-photo.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/asset-service/employee-official-photo.md)
+  - [shortlink-public-redirect.md](../../contracts/public-entry-service/shortlink-public-redirect.md)
+  - [shortlink-admin-management.md](../../contracts/public-entry-service/shortlink-admin-management.md)
+  - [shortlink-target-resolver.md](../../contracts/public-entry-service/shortlink-target-resolver.md)
+  - [business-card-management.md](../../contracts/public-entry-service/business-card-management.md)
+  - [business-card-self-view.md](../../contracts/public-entry-service/business-card-self-view.md)
+  - [business-card-public-render.md](../../contracts/public-entry-service/business-card-public-render.md)
+  - [employee-official-photo.md](../../contracts/asset-service/employee-official-photo.md)
 
 ## 4. 当前结论
 
@@ -102,9 +102,9 @@ BusinessCard 只保存配置和引用，不保存展示字段真相。
 
 BusinessCard Phase 1 contracts 已建立：
 
-- [business-card-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/public-entry-service/business-card-management.md)
-- [business-card-self-view.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/public-entry-service/business-card-self-view.md)
-- [business-card-public-render.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/public-entry-service/business-card-public-render.md)
+- [business-card-management.md](../../contracts/public-entry-service/business-card-management.md)
+- [business-card-self-view.md](../../contracts/public-entry-service/business-card-self-view.md)
+- [business-card-public-render.md](../../contracts/public-entry-service/business-card-public-render.md)
 
 这些 contracts 覆盖：
 
@@ -126,7 +126,7 @@ BusinessCard Phase 1 contracts 已建立：
   - return generic unavailable state
 - BusinessCard internal dependencies:
   - consume ShortLink main Public Entry reference, public URL, QR content, lightweight visit summary
-  - consume Contact Asset references, ownership, status and public-safe value summaries according to [contact-asset-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/contact-asset-design.md) and [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)
+  - consume Contact Asset references, ownership, status and public-safe value summaries according to [contact-asset-design.md](../designs/contact-asset-design.md) and [identity-service.md](../../architecture/services/identity-service.md)
   - consume HR active employee summary
   - consume tenant / company display summary
 
@@ -270,7 +270,7 @@ vCard or individual Contact Action unavailability does not by itself block publi
 
 Owner 边界：
 
-- `hr-service` owns 员工公开展示头像引用与展示 URL，字段口径以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准。
+- `hr-service` owns 员工公开展示头像引用与展示 URL，字段口径以 [hr-service.md](../../architecture/services/hr-service.md) 为准。
 - Asset 服务 owns 图片文件、对象存储、文件校验、URL 生成与资产生命周期；HR 只保存 `officialPhotoAssetId` 与 `officialPhotoUrl`。
 - `identity-service` owns account avatar / 个人中心头像；该头像不参与 BusinessCard public render。
 - `public-entry-service` BusinessCard module 只消费 HR Employee 摘要中的 `officialPhotoUrl`。
@@ -427,7 +427,7 @@ Public anonymous render and vCard download do not call permission-service.
 
 | 时间 | 问题 | 分类 | 当前影响 | 处理策略 | 目标落点 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 2026-06-08 | Contact Asset 引用、状态、ownership、离职回收与 BusinessCard action target 关系已冻结 | Resolved Dependency | `CALL_PHONE / SEND_EMAIL / ADD_WECHAT / OPEN_WHATSAPP` 可在 BusinessCard contracts 中引用 Contact Asset target / ownership / status / public-safe summary 边界 | BusinessCard 只消费引用与状态，不重新定义联系方式资产；`SAVE_VCARD` 由 public view 组装，`OPEN_COMPANY_WEBSITE` 来自 tenant / company public profile | [contact-asset-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/contact-asset-design.md) / [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md) | ready-for-consumption |
+| 2026-06-08 | Contact Asset 引用、状态、ownership、离职回收与 BusinessCard action target 关系已冻结 | Resolved Dependency | `CALL_PHONE / SEND_EMAIL / ADD_WECHAT / OPEN_WHATSAPP` 可在 BusinessCard contracts 中引用 Contact Asset target / ownership / status / public-safe summary 边界 | BusinessCard 只消费引用与状态，不重新定义联系方式资产；`SAVE_VCARD` 由 public view 组装，`OPEN_COMPANY_WEBSITE` 来自 tenant / company public profile | [contact-asset-design.md](../designs/contact-asset-design.md) / [identity-service.md](../../architecture/services/identity-service.md) | ready-for-consumption |
 | 2026-06-08 | ShortLink / Public Entry 主入口消费边界已冻结，BusinessCard contracts 已对齐消费 | Resolved Dependency | 不再阻塞 BusinessCard contract planning；实现前按 ShortLink contract 消费主入口能力 | BusinessCard contract owner 引用 ShortLink contracts，不定义通用模型 | `docs/contracts/public-entry-service/**` | ready-for-consumption |
 | 2026-06-08 | BusinessCard `BUSINESS_CARD` target resolver 语义已冻结 | Resolved Dependency | 不再阻塞 ShortLink INTERNAL_REF 闭环设计；BusinessCard public render contract 已承接 public URL 与 readiness 细节 | BusinessCard contract owner 将 resolver semantics 写入 public render / target resolver handoff | BusinessCard public render contract | ready-for-consumption |
 | 2026-06-08 | BusinessCard management / self-view / public render contract 已建立 | Resolved Dependency | Contract handoff 已具备；实现前仍需按实际 transport / proto / BFF 形状落地 | 引用 `docs/contracts/public-entry-service/business-card-*.md` | `docs/contracts/public-entry-service/**` | ready-for-consumption |
@@ -449,7 +449,7 @@ Public anonymous render and vCard download do not call permission-service.
 | 2026-06-08 | tenant-web 管理页缺少组件级管理闭环验收证据 | Resolved Implementation Issue | 管理页初版已有 API client 与 route 覆盖，但没有组件测试直接证明 Contact Action 配置只提交引用、不提交电话/邮箱/WeChat/WhatsApp 正文，也没有证明 public entry / stats / enable / disable 调用保持 tenant-scoped | 补充 `business-card-management.spec.ts`，覆盖初始 list/detail/stats 加载、Contact Action ref-only save payload、public entry bind、enable/disable，以及缺少 tenant context 时跳过管理 API | tenant-web admin BusinessCard management page | resolved |
 | 2026-06-08 | Public Entry 启动时 `BusinessCardResolverRegistration` 依赖注入为空 | Resolved Implementation Issue | live stack 启动 public-entry-service 时触发 `Cannot read properties of undefined (reading 'register')`，根因是该 resolver registration provider 缺少 Nest injectable metadata，导致构造函数依赖未注入 | 将 `BusinessCardResolverRegistration` 标记为 `@Injectable()` 并导出以便测试；补充 `business-card.module.spec.ts` 直接断言 resolver registration 构造函数注入 metadata；重新 build 后 public-entry-service 可启动 | public-entry-service BusinessCard module | resolved |
 | 2026-06-08 | 全 live stack BusinessCard smoke 已通过 | Resolved Integration Issue | 已启动 Permission / Identity / Tenant Org / HR / Public Entry / API Gateway，并用 tenant-web auth / HR / Identity seed 推导 BusinessCard live fixture env；live smoke 通过 public-entry-service gRPC 走真实下游服务链路 | 新增 `business-card-live-smoke.ts`、l1 harness tests 与 `test/live/business-card-live-smoke.live.spec.ts`；`public-entry-service smoke:live-preflight` 现在同时执行端点/fixture preflight 与全链路 BusinessCard live smoke | full live-stack smoke / integration fixture | resolved |
-| 2026-06-16 | 员工数字名片头像来源与账号头像混用风险 | Boundary Fix | 当前实现曾从 account profile avatar 映射 `officialPhotoUrl`，会把用户自维护账号头像误用为员工正式公开照片 | 冻结 HR Employee 公开展示头像字段；Public Entry 只消费 HR `officialPhotoUrl`；前端只展示 `officialPhotoUrl` 或正式占位；员工详情名片 tab 提供管理员维护入口 | [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) / [management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/hr-service/management.md) / [query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/hr-service/query.md) / implementation plan | planned |
+| 2026-06-16 | 员工数字名片头像来源与账号头像混用风险 | Boundary Fix | 当前实现曾从 account profile avatar 映射 `officialPhotoUrl`，会把用户自维护账号头像误用为员工正式公开照片 | 冻结 HR Employee 公开展示头像字段；Public Entry 只消费 HR `officialPhotoUrl`；前端只展示 `officialPhotoUrl` 或正式占位；员工详情名片 tab 提供管理员维护入口 | [hr-service.md](../../architecture/services/hr-service.md) / [management.md](../../contracts/hr-service/management.md) / [query.md](../../contracts/hr-service/query.md) / implementation plan | planned |
 | 2026-06-08 | CRM 回流 / LeadDraft | Sidecar | 不进入 Phase 1，不阻塞名片展示 | 后续单独设计，不在当前 feature 中定义字段或流程 | future CRM collaboration | deferred |
 | 2026-06-08 | 多入口 source / event / campaign tracking | Sidecar | 不进入 Phase 1；当前只显示主入口基础统计 | 由 ShortLink / Campaign 设计，不由 BusinessCard 管理 | future ShortLink / Campaign design | deferred |
 
@@ -488,12 +488,12 @@ Phase 1 设计与实现完成时应满足：
 
 ## 13. 建议后续顺序
 
-1. 基于 [public-entry-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/public-entry-service.md) 明确实际代码承载路径。
+1. 基于 [public-entry-service.md](../../architecture/services/public-entry-service.md) 明确实际代码承载路径。
 2. 若未来版本需要 org subtree 精细授权，再让 permission 线程冻结 query scope / resource policy 表达方式。
 3. Phase 1 继续按 tenant-wide admin scope 维护 BusinessCard runtime、BFF 与 tenant-web。
 
 ## 14. 备注
 
-- 本 packet 不替代 [employee-digital-business-card-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/employee-digital-business-card-design.md) 的设计过程记录。
+- 本 packet 不替代 [employee-digital-business-card-design.md](../designs/employee-digital-business-card-design.md) 的设计过程记录。
 - 本 packet 不替代任何服务职责卡或 contract 真相。
 - ShortLink 与 Contact Asset 外部线程结论已经到位；后续实现线程应引用已冻结 contracts 与边界，而不是临时解释。

@@ -1,6 +1,6 @@
 # Browser Activity Service P1 Contract
 
-> `browser-activity-service` 的服务职责、核心对象与 owner 边界以 [browser-activity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/browser-activity-service.md) 为唯一稳定真相源。本文只描述 P1 service-level 黑盒契约。
+> `browser-activity-service` 的服务职责、核心对象与 owner 边界以 [browser-activity-service.md](../../architecture/services/browser-activity-service.md) 为唯一稳定真相源。本文只描述 P1 service-level 黑盒契约。
 
 ## 1. Purpose
 

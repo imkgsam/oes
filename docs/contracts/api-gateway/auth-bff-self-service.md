@@ -4,9 +4,9 @@
 
 This document defines the authenticated self-service security endpoints exposed by `auth-bff`.
 
-`auth-service` service design, self-service / admin-management boundary, session, login method and MFA ownership are defined only in [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md). This BFF contract describes HTTP orchestration and response shape only.
+`auth-service` service design, self-service / admin-management boundary, session, login method and MFA ownership are defined only in [auth-service.md](../../architecture/services/auth-service.md). This BFF contract describes HTTP orchestration and response shape only.
 
-Permission code, checkPermission, checkResource and buildQueryScope boundaries are defined by [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) and the project authorization architecture; this document only explains why these self-service endpoints do not use admin-management authorization.
+Permission code, checkPermission, checkResource and buildQueryScope boundaries are defined by [permission-service.md](../../architecture/services/permission-service.md) and the project authorization architecture; this document only explains why these self-service endpoints do not use admin-management authorization.
 
 These endpoints are intended for signed-in end users managing their own sessions and MFA settings. They do not use `checkPermission`, `buildQueryScope`, or `checkResource`; instead they rely on the authenticated JWT context and self-bound semantics.
 

@@ -1,7 +1,7 @@
 # auth-service MFA API
 
-> 服务设计唯一真相源：[auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)。本文只描述黑盒 gRPC MFA 接口语义，不重新定义 `auth-service` 的长期职责、核心对象或 owner 边界。
-> 管理入口涉及的 permission code、checkPermission、checkResource 或 buildQueryScope 语义，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 与项目级授权架构为准；本文只描述 auth-service MFA contract。
+> 服务设计唯一真相源：[auth-service.md](../../architecture/services/auth-service.md)。本文只描述黑盒 gRPC MFA 接口语义，不重新定义 `auth-service` 的长期职责、核心对象或 owner 边界。
+> 管理入口涉及的 permission code、checkPermission、checkResource 或 buildQueryScope 语义，以 [permission-service.md](../../architecture/services/permission-service.md) 与项目级授权架构为准；本文只描述 auth-service MFA contract。
 
 ## 1. 接口范围
 
@@ -18,7 +18,7 @@
 - 服务：`AuthService`
 - 调用方：内部服务
 - Proto 契约来源：
-  - [auth.proto](/Users/acehood/Documents/GitHub/oes/src/common/src/contracts/auth_service/auth.proto)
+  - [auth.proto](../../../src/common/src/contracts/auth_service/auth.proto)
 
 ## 2. 自助安全管理接口
 
@@ -185,7 +185,7 @@
   - 不采用 `checkResource`
   - 依赖 challenge 有效性、验证码校验与登录流程状态机
 - 关联说明：
-  - 该能力同时属于登录流程桥接接口；完整登录续流语义见 [login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/login.md)
+  - 该能力同时属于登录流程桥接接口；完整登录续流语义见 [login.md](./login.md)
   - `BACKUP_CODE` 成功验证后，当前恢复码集合整体作废并停用 `BACKUP_CODE` 绑定。
   - `TOTP` 与 `BACKUP_CODE` 不依赖 factor-specific OTP challenge。
   - `EMAIL_OTP / SMS_OTP` 必须携带由 `RequestLoginMfaFactorChallenge` 生成的 `factor_challenge_id`。
@@ -290,7 +290,7 @@
   - 不能以裸 `ipAddress` 相等当作 trusted device
   - 不能以裸 `userAgent` 相等当作 trusted device
 - 成功后果：
-  - 用户完成本次 `NEW_DEVICE_LOGIN` MFA 后，当前 `userId + tenantId + deviceId` 会写入认证域 trusted-device 记录；长期边界以 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md) 为准。
+  - 用户完成本次 `NEW_DEVICE_LOGIN` MFA 后，当前 `userId + tenantId + deviceId` 会写入认证域 trusted-device 记录；长期边界以 [auth-service.md](../../architecture/services/auth-service.md) 为准。
   - 后续同一用户在同一租户、同一 `deviceId` 下再次登录时，不再单独命中 `NEW_DEVICE_LOGIN`。
 
 ## 7. 当前授权模型说明

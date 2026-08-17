@@ -1,6 +1,6 @@
 # Managed Terminal Device Management 协同蓝图
 
-> `terminal-device-service` 的服务设计唯一真相源为 [terminal-device-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/terminal-device-service.md)。本文只记录 PDA / Admin BFF、`terminal-device-service`、`auth-service`、`permission-service`、`identity-service` 与 `tenant-org-service` 围绕企业受管终端设备治理的协同链路，不重新定义单个服务的长期职责。
+> `terminal-device-service` 的服务设计唯一真相源为 [terminal-device-service.md](../services/terminal-device-service.md)。本文只记录 PDA / Admin BFF、`terminal-device-service`、`auth-service`、`permission-service`、`identity-service` 与 `tenant-org-service` 围绕企业受管终端设备治理的协同链路，不重新定义单个服务的长期职责。
 
 ## 1. 目标
 
@@ -464,11 +464,11 @@ Phase 2 不做：
 
 ## 18. 关联文档
 
-- [0006-terminal-device-service.md](/Users/acehood/Documents/GitHub/oes/docs/adr/0006-terminal-device-service.md)
-- [terminal-device-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/terminal-device-service.md)
-- [pda.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/terminals/pda.md)
-- [terminal-access-policy.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/terminal-access-policy.md)
-- [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)
-- [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
-- [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)
-- [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md)
+- [0006-terminal-device-service.md](../../adr/0006-terminal-device-service.md)
+- [terminal-device-service.md](../services/terminal-device-service.md)
+- [pda.md](../terminals/pda.md)
+- [terminal-access-policy.md](./terminal-access-policy.md)
+- [auth-service.md](../services/auth-service.md)
+- [permission-service.md](../services/permission-service.md)
+- [identity-service.md](../services/identity-service.md)
+- [tenant-org-service.md](../services/tenant-org-service.md)

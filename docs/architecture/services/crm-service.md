@@ -19,7 +19,7 @@ CRM v2 原地替代此前 customer master phase 1 设计。旧实现中的 `Cust
 
 ## 2. Architecture Premise
 
-CRM v2 以 [ADR 0008: Tenant-scoped TenantParty As Primary Party Model](/Users/acehood/Documents/GitHub/oes/docs/adr/0008-tenant-scoped-tenant-party-primary-party-model.md) 为主体模型前提。
+CRM v2 以 [ADR 0008: Tenant-scoped TenantParty As Primary Party Model](../../adr/0008-tenant-scoped-tenant-party-primary-party-model.md) 为主体模型前提。
 
 当前阶段：
 
@@ -93,7 +93,7 @@ Phase 1 不冻结：
 - 认证、会话、令牌；归属 `auth-service`。
 - 账号、身份映射、租户账号事实；归属 `identity-service`。
 - 组织树、部门、小组、正式任职真相；分别以 `tenant-org-service` 与 `hr-service` 真相源为准。
-- 角色、权限、scope、policy 与授权判定真相；以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。
+- 角色、权限、scope、policy 与授权判定真相；以 [permission-service.md](./permission-service.md) 为准。
 - 邮件线程、IM 聊天线程、原始通信正文、附件与投递过程；归属 future communication / mailbox 或对应集成边界。
 - AI 模型调用、agent 编排或 AI 工具协议真相。
 
@@ -846,17 +846,17 @@ Phase 1 不做一级入口：
 
 ## 16. Current Implementation Note
 
-当前实现状态与执行差异以 [crm-v2-p1-full-stack-implementation.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/crm-v2-p1-full-stack-implementation.md) 为准。
+当前实现状态与执行差异以 [crm-v2-p1-full-stack-implementation.md](../../plans/features/crm-v2-p1-full-stack-implementation.md) 为准。
 
-实现线程必须以本文和 [crm-v2-core-object-model.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/crm-v2-core-object-model.md) 为设计真相源。若现有 runtime 暴露 Archive / Unarchive 或仍停留在旧 `CustomerAccount / CustomerPartyBinding` 主路径，应按当前 CRM v2 P1 设计校准。
+实现线程必须以本文和 [crm-v2-core-object-model.md](../../plans/features/crm-v2-core-object-model.md) 为设计真相源。若现有 runtime 暴露 Archive / Unarchive 或仍停留在旧 `CustomerAccount / CustomerPartyBinding` 主路径，应按当前 CRM v2 P1 设计校准。
 
 ## 17. Related Documents
 
-- [ADR 0008: Tenant-scoped TenantParty As Primary Party Model](/Users/acehood/Documents/GitHub/oes/docs/adr/0008-tenant-scoped-tenant-party-primary-party-model.md)
-- [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md)
-- [sales-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/sales-service.md)
-- [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
-- [crm-v2-core-object-model.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/crm-v2-core-object-model.md)
+- [ADR 0008: Tenant-scoped TenantParty As Primary Party Model](../../adr/0008-tenant-scoped-tenant-party-primary-party-model.md)
+- [party-service.md](./party-service.md)
+- [sales-service.md](./sales-service.md)
+- [permission-service.md](./permission-service.md)
+- [crm-v2-core-object-model.md](../../plans/features/crm-v2-core-object-model.md)
 
 ## 18. Trusted gRPC Inbound Boundary
 

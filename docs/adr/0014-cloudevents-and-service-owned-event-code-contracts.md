@@ -3,7 +3,7 @@
 ```text
 status: ACCEPTED
 decisionDate: 2026-07-26
-architectureTruthSource: docs/architecture/17-event-bus-and-outbox-architecture.md
+architectureTruthSource: docs/architecture/platforms/event-bus-and-outbox.md
 transportContract: docs/contracts/events/platform-transport.md
 ```
 
@@ -106,10 +106,10 @@ src/common/src/contracts/asset_service/events.ts
 
 ## Related Documents
 
-- [Event Bus 与 Outbox / Inbox 架构](/Users/acehood/Documents/GitHub/oes/docs/architecture/17-event-bus-and-outbox-architecture.md)
-- [Platform Transport Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/events/platform-transport.md)
-- [Event Catalog Contract](/Users/acehood/Documents/GitHub/oes/docs/contracts/events/README.md)
-- [ADR 0013](/Users/acehood/Documents/GitHub/oes/docs/adr/0013-nats-jetstream-event-bus-and-delivery-semantics.md)
+- [Event Bus 与 Outbox / Inbox 架构](../architecture/platforms/event-bus-and-outbox.md)
+- [Platform Transport Contract](../contracts/events/platform-transport.md)
+- [Event Catalog Contract](../contracts/events/README.md)
+- [ADR 0013](./0013-nats-jetstream-event-bus-and-delivery-semantics.md)
 
 ## External References
 

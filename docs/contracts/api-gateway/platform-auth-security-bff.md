@@ -1,6 +1,6 @@
 # Platform Auth Security BFF API
 
-> `auth-service` 的服务设计、terminal login policy、terminal MFA policy 与认证安全审计边界只以 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md) 为准。本文只描述平台管理员 HTTP contract、编排与返回形状。
+> `auth-service` 的服务设计、terminal login policy、terminal MFA policy 与认证安全审计边界只以 [auth-service.md](../../architecture/services/auth-service.md) 为准。本文只描述平台管理员 HTTP contract、编排与返回形状。
 
 ## 1. 能力定位
 
@@ -100,6 +100,6 @@ BFF 只做 HTTP contract、DTO 校验、权限入口编排与展示聚合，不�
 
 ## 6. 关联文档
 
-- [terminal-login-policy.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/terminal-login-policy.md)
-- [terminal-mfa-policy.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/terminal-mfa-policy.md)
-- [terminal-aware-account-security.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/terminal-aware-account-security.md)
+- [terminal-login-policy.md](../auth-service/terminal-login-policy.md)
+- [terminal-mfa-policy.md](../auth-service/terminal-mfa-policy.md)
+- [terminal-aware-account-security.md](../../architecture/collaborations/terminal-aware-account-security.md)

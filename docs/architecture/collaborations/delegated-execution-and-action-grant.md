@@ -5,7 +5,7 @@ status: FROZEN
 decisionAdr: docs/adr/0016-delegated-execution-and-action-grant.md
 authTruthSource: docs/architecture/services/auth-service.md
 permissionTruthSource: docs/architecture/services/permission-service.md
-aiArchitectureTruthSource: docs/architecture/04-ai-architecture.md
+aiArchitectureTruthSource: docs/architecture/platforms/ai-platform.md
 ```
 
 > Auth owns delegation and ActionGrant credentials; Permission owns authorization decisions; the AI tool layer owns ToolContract identity, user-facing confirmation and execution logs; each business service owns its operation risk class and business command. This collaboration document defines only their stable interaction.
@@ -88,4 +88,4 @@ The normal user experience is uninterrupted for low-risk work, an understandable
 - Principal Authorization scheme A remains unchanged. `ResolveDelegatedAuthorization` is mounted on the existing `PermissionCheckService` and requires exact Auth mTLS plus a certificate-bound `aud=permission-service` ExecutionToken containing `permission.internal.delegated_authorization.resolve`. It is not a bootstrap method.
 - Each business owner supplies canonical action facts through its own protected resolver. The Task P1 resolver requires exact Auth mTLS plus a Collaboration-audience ExecutionToken containing `collaboration.internal.ai_action.resolve`; caller-provided risk/facts cannot substitute for it.
 - Common is the unique static owner registry for these INTERNAL Codes. Runtime opening requires the already-frozen `permission.internal.principal_authorization.resolve` plus exactly the two ActionGrant Codes above to be registered and catalog-synchronized; no new BUSINESS Code is introduced.
-- This design does not define a proto, database schema, event payload, approval workflow, model policy, or individual business operation classification. Those follow their owner’s service truth and the paired Capability Command.
+- This design does not define a proto, database schema, event payload, approval workflow, model policy, or individual business operation classification. Those follow their owner’s service truth and the applicable implementation plan.

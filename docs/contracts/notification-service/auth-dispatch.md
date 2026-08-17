@@ -3,10 +3,10 @@
 ```text
 status: IMPLEMENTED_VERIFIED
 architectureTruthSource: docs/architecture/services/notification-service.md
-trustedGrpcArchitecture: docs/architecture/14-grpc-metadata-and-service-trust-architecture.md
+trustedGrpcArchitecture: docs/architecture/platforms/grpc-metadata-and-service-trust.md
 ```
 
-> 本契约只冻结 `auth-service -> notification-service` 的 Email/SMS 认证通知受理边界。Notification 的长期 owner、对象与公共事件 consumer 以 [notification-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/notification-service.md) 为准；OTP、MFA、password recovery、邀请流程与认证审计以 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md) 为准。
+> 本契约只冻结 `auth-service -> notification-service` 的 Email/SMS 认证通知受理边界。Notification 的长期 owner、对象与公共事件 consumer 以 [notification-service.md](../../architecture/services/notification-service.md) 为准；OTP、MFA、password recovery、邀请流程与认证审计以 [auth-service.md](../../architecture/services/auth-service.md) 为准。
 
 ## 1. Purpose And Ownership
 

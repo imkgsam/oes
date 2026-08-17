@@ -1,6 +1,6 @@
 # Browser Activity BFF Contract
 
-> `browser-activity-service` 的服务职责、核心对象与 owner 边界以 [browser-activity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/browser-activity-service.md) 为唯一稳定真相源。`auth-service`、`permission-service`、Terminal Access Policy、access summary 与 navigation visibility 以对应服务真相源为准。本文只描述 API Gateway / BFF 的 HTTP 黑盒契约。
+> `browser-activity-service` 的服务职责、核心对象与 owner 边界以 [browser-activity-service.md](../../architecture/services/browser-activity-service.md) 为唯一稳定真相源。`auth-service`、`permission-service`、Terminal Access Policy、access summary 与 navigation visibility 以对应服务真相源为准。本文只描述 API Gateway / BFF 的 HTTP 黑盒契约。
 
 ## 1. Purpose
 

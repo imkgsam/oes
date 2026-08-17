@@ -30,7 +30,7 @@
 - 用户或机器认证、API Key credential、内部 `MachineWorkloadSourceCredential`、MFA、OTP、challenge、session、refresh token、access token、STS 或 ExecutionToken 签发语义；这些认证与 credential 真相归 `auth-service`。
 - Machine Principal、`MachineWorkloadBinding`、SPIFFE-to-principal resolution 或其 lifecycle；这些身份真相归 `identity-service`。
 - `User`、`UserAccount`、账号登录身份、contact asset、machine principal 或 employee binding 真相。
-- 租户、组织、员工、Party 或业务资源主数据；员工与任职真相以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准。
+- 租户、组织、员工、Party 或业务资源主数据；员工与任职真相以 [hr-service.md](./hr-service.md) 为准。
 - 前端 route、菜单层级、icon、layout、页面文案、terminal-specific UI 呈现配置。
 - 用户个人 landing page 偏好。
 - 业务聚合生命周期、不变量、流程状态合法性或业务规则。
@@ -77,7 +77,7 @@
 - tenant role instance 的后续 permission 绑定与 template permission 绑定彼此独立，不做运行时继承。
 - disabled role 不参与 access summary、terminal access 或授权判定。
 
-详细 role kind 与 account-role scope 决策见 [0002-system-role-instance-and-account-role-scope.md](/Users/acehood/Documents/GitHub/oes/docs/adr/0002-system-role-instance-and-account-role-scope.md)。
+详细 role kind 与 account-role scope 决策见 [0002-system-role-instance-and-account-role-scope.md](../../adr/0002-system-role-instance-and-account-role-scope.md)。
 
 ### 4.3 PrincipalRoleBinding / Grant
 
@@ -150,7 +150,7 @@ DELEGATED 判定必须同时受 HUMAN grant、未撤销的 delegation reference�
 
 `permission-service` 拥有可被复用的授权事实、policy 能力与授权查询能力，但不拥有业务资源本体。资源事实与业务状态必须由对应业务服务提供。
 
-项目级规则以 [15-authorization-layering-and-resource-policy-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/15-authorization-layering-and-resource-policy-architecture.md) 为准。
+项目级规则以 [authorization-layering-and-resource-policy.md](../platforms/authorization-layering-and-resource-policy.md) 为准。
 
 ### 5.3 CheckPermissionWithContext
 
@@ -175,7 +175,7 @@ Permission Service 在既有 `PermissionCheckService` 上提供两个只服务 A
 
 `ResolvePrincipalAuthorization` 不是 bootstrap primitive。它必须同时验证直接 `auth-service` mTLS identity、`aud=permission-service` 的 certificate-bound ExecutionToken 与精确 INTERNAL Code `permission.internal.principal_authorization.resolve`。该 Code 只能由 `ResolveWorkloadIssuance` 所有的准确 Auth workload -> Permission audience issuance policy 批准，不能进入 HUMAN / MACHINE role。输入只包含已验证 principal typed reference、scope / tenant / org、target audience、非空 requested BUSINESS Code 集以及适用的 session / delegation / AgentPrincipal / ToolContract reference；不接收 role id、admin flag、caller-computed grant、target RPC id、业务 resource facts 或 domain state。SELF_SERVICE 不调用该判定；目标服务从可信 HUMAN principal 派生 self target。
 
-MACHINE source credential/resolver 链当前为 `FROZEN_PENDING_IMPLEMENTATION`。实现完成后，MACHINE 调用进入 `ResolvePrincipalAuthorization` 前，Auth 必须已经验证 Auth-owned `MachineWorkloadSourceCredential` 与当前 mTLS leaf binding，并通过 Identity-owned `ResolveMachinePrincipalForAuth` decision 得到 active principal、scope、tenant/org 与 `MachineWorkloadBinding` reference/version。Permission 只消费这些经过 owner resolution 的 typed facts，并独立计算当前 MACHINE BUSINESS grant；它不接收 raw source credential 或 leaf certificate，不解析 SPIFFE-to-principal mapping，不读取 Identity/Auth storage，也不允许 credential 或 caller 自报的 tenant/grant 扩大授权。Identity resolution 缺失、stale、mismatch 或不可用时 Auth 不得调用本判定或签名。
+MACHINE source credential/resolver 链已实现。MACHINE 调用进入 `ResolvePrincipalAuthorization` 前，Auth 必须已经验证 Auth-owned `MachineWorkloadSourceCredential` 与当前 mTLS leaf binding，并通过 Identity-owned `ResolveMachinePrincipalForAuth` decision 得到 active principal、scope、tenant/org 与 `MachineWorkloadBinding` reference/version。Permission 只消费这些经过 owner resolution 的 typed facts，并独立计算当前 MACHINE BUSINESS grant；它不接收 raw source credential 或 leaf certificate，不解析 SPIFFE-to-principal mapping，不读取 Identity/Auth storage，也不允许 credential 或 caller 自报的 tenant/grant 扩大授权。Identity resolution 缺失、stale、mismatch 或不可用时 Auth 不得调用本判定或签名。
 
 两个判定都采用全量申请语义：requested Code 必须去重、规范排序且 kind 一致，只有全部获准时 `allowed=true`。未知、不可分配、部分批准、scope / tenant / audience / principal / delegation mismatch、stale decision 或依赖不可用都 fail closed；Permission 返回精确 granted / denied Code、安全 reason category、decision reference 与 `authzVersion`，Auth 不做部分签发。Permission 记录判定审计但不记录 source credential 或 Token 正文，也不签发或存储 ExecutionToken；`ResolvePrincipalAuthorization` 只按受保护 resolver 契约验证随请求提交的 ExecutionToken，不取得其签发或授权真相所有权。
 
@@ -268,7 +268,7 @@ Access summary 包含：
 - tenant-scope 账号解析当前 tenant 的 `TENANT_INSTANCE` roles。
 - active account-role windows、disabled roles 与 scope 必须参与解析。
 
-黑盒契约见 [permission-service/access-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/access-summary.md) 与 [api-gateway/access-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/access-summary.md)。
+黑盒契约见 [permission-service/access-summary.md](../../contracts/permission-service/access-summary.md) 与 [api-gateway/access-summary.md](../../contracts/api-gateway/access-summary.md)。
 
 ## 8. Navigation Governance
 
@@ -292,7 +292,7 @@ Access summary 包含：
 
 本服务不把 navigation governance 扩展成后端统一菜单树或 Web route 配置中心。
 
-黑盒契约见 [api-gateway/navigation-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/navigation-summary.md)。
+黑盒契约见 [api-gateway/navigation-summary.md](../../contracts/api-gateway/navigation-summary.md)。
 
 ## 9. Terminal Access Policy
 
@@ -314,7 +314,7 @@ Terminal Access Policy 控制账号是否允许从指定人类交互终端建立
 - 空 override 表示账号级全终端封禁。
 - `DEFAULT` 不是合法登录 terminal；`API / MACHINE` 不属于人类账号 terminal access，应走 machine auth / service account。
 
-协同蓝图见 [terminal-access-policy.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/terminal-access-policy.md)，黑盒契约见 [terminal-access.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/terminal-access.md)。
+协同蓝图见 [terminal-access-policy.md](../collaborations/terminal-access-policy.md)，黑盒契约见 [terminal-access.md](../../contracts/permission-service/terminal-access.md)。
 
 ## 10. Onboarding Grant
 
@@ -324,13 +324,13 @@ Terminal Access Policy 控制账号是否允许从指定人类交互终端建立
 
 - employee onboarding 中，HR 可请求 `GrantInitialAccessForEmployeeAccount`，但不拥有 grant 真相。
 - tenant onboarding 中，TenantOrg 可请求 `EnsureTenantRoleInstanceFromTemplate` 与 `GrantInitialAccessForTenantAccount`，但不拥有 role instance 或 grant 真相。
-- TenantOrg 的 tenant lifecycle、onboarding 编排与 tenant 引用语义以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准；本文只冻结 permission 侧授权 owner。
+- TenantOrg 的 tenant lifecycle、onboarding 编排与 tenant 引用语义以 [tenant-org-service.md](./tenant-org-service.md) 为准；本文只冻结 permission 侧授权 owner。
 - Identity 不直接写角色绑定。
 - BFF 不展开角色推导，也不持久化 account-role。
 - grant 请求必须幂等，并记录 operator / trace / audit metadata。
 - access package 只冻结 owner，不在当前阶段冻结通用 shape。
 
-契约见 [onboarding-grant.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/onboarding-grant.md) 与 [tenant-onboarding-grant.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/tenant-onboarding-grant.md)。
+契约见 [onboarding-grant.md](../../contracts/permission-service/onboarding-grant.md) 与 [tenant-onboarding-grant.md](../../contracts/permission-service/tenant-onboarding-grant.md)。
 
 ## 11. External Interfaces
 
@@ -345,14 +345,14 @@ Terminal Access Policy 控制账号是否允许从指定人类交互终端建立
 
 典型契约位置：
 
-- [permission-service/principal-authorization.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/principal-authorization.md)
-- [permission-service/access-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/access-summary.md)
-- [permission-service/terminal-access.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/terminal-access.md)
-- [permission-service/onboarding-grant.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/onboarding-grant.md)
-- [permission-service/tenant-onboarding-grant.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/tenant-onboarding-grant.md)
-- [api-gateway/permission-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/permission-management.md)
-- [api-gateway/access-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/access-summary.md)
-- [api-gateway/navigation-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/navigation-summary.md)
+- [permission-service/principal-authorization.md](../../contracts/permission-service/principal-authorization.md)
+- [permission-service/access-summary.md](../../contracts/permission-service/access-summary.md)
+- [permission-service/terminal-access.md](../../contracts/permission-service/terminal-access.md)
+- [permission-service/onboarding-grant.md](../../contracts/permission-service/onboarding-grant.md)
+- [permission-service/tenant-onboarding-grant.md](../../contracts/permission-service/tenant-onboarding-grant.md)
+- [api-gateway/permission-management.md](../../contracts/api-gateway/permission-management.md)
+- [api-gateway/access-summary.md](../../contracts/api-gateway/access-summary.md)
+- [api-gateway/navigation-summary.md](../../contracts/api-gateway/navigation-summary.md)
 
 ## 12. Upstream Dependencies
 
@@ -362,7 +362,7 @@ Terminal Access Policy 控制账号是否允许从指定人类交互终端建立
   - 提供认证链路与 session/token 调用时机，并消费 terminal access 判定。
 - `tenant-org-service`
   - 发起 tenant onboarding grant 请求，但不拥有 grant 真相。
-  - `Tenant` 与 onboarding 编排边界以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准。
+  - `Tenant` 与 onboarding 编排边界以 [tenant-org-service.md](./tenant-org-service.md) 为准。
 - `hr-service`
   - 发起 employee onboarding grant 请求，但不拥有 grant 真相。
 - 业务服务
@@ -391,13 +391,13 @@ Terminal Access Policy 控制账号是否允许从指定人类交互终端建立
 
 ## 15. Related References
 
-- [07-permission-code-source.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/07-permission-code-source.md)
-- [09-role-based-permission-resolution.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/09-role-based-permission-resolution.md)
-- [15-authorization-layering-and-resource-policy-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/15-authorization-layering-and-resource-policy-architecture.md)
-- [authorization-decision-flow.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/authorization-decision-flow.md)
-- [terminal-access-policy.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/terminal-access-policy.md)
-- [0002-system-role-instance-and-account-role-scope.md](/Users/acehood/Documents/GitHub/oes/docs/adr/0002-system-role-instance-and-account-role-scope.md)
-- [0005-terminal-access-policy.md](/Users/acehood/Documents/GitHub/oes/docs/adr/0005-terminal-access-policy.md)
+- [permission-code-source.md](../platforms/permission-code-source.md)
+- [role-based-permission-resolution.md](../platforms/role-based-permission-resolution.md)
+- [authorization-layering-and-resource-policy.md](../platforms/authorization-layering-and-resource-policy.md)
+- [authorization-decision-flow.md](../collaborations/authorization-decision-flow.md)
+- [terminal-access-policy.md](../collaborations/terminal-access-policy.md)
+- [0002-system-role-instance-and-account-role-scope.md](../../adr/0002-system-role-instance-and-account-role-scope.md)
+- [0005-terminal-access-policy.md](../../adr/0005-terminal-access-policy.md)
 
 ## 16. Trusted gRPC 66-RPC contract（FROZEN）
 

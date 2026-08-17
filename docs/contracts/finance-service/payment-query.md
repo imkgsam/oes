@@ -4,6 +4,6 @@
 
 当前 canonical contract 见：
 
-- [payable-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/finance-service/payable-query.md)
+- [payable-query.md](./payable-query.md)
 
 保留本文件只是为了避免旧链接悬空；新的 payable / payment query 语义不得继续写回本文件。

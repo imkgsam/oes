@@ -1,6 +1,6 @@
 # PDA Device BFF Contract
 
-> PDA BFF 只聚合设备端启动所需信息，不拥有 terminal access、access summary、角色、权限或导航授权真相；这些服务设计边界以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。
+> PDA BFF 只聚合设备端启动所需信息，不拥有 terminal access、access summary、角色、权限或导航授权真相；这些服务设计边界以 [permission-service.md](../../architecture/services/permission-service.md) 为准。
 
 ## 1. Purpose
 

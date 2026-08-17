@@ -19,7 +19,7 @@
 
 phase 1 冻结三组内部 gRPC 服务面：
 
-- [supplier-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/srm-service/supplier-query.md)
+- [supplier-query.md](./supplier-query.md)
   - `SupplierQueryService`
   - `GetSupplier`
   - `SearchSuppliers`
@@ -27,7 +27,7 @@ phase 1 冻结三组内部 gRPC 服务面：
   - `ListSupplierAddresses`
   - `ListSupplierOfferingsBySupplier`
   - `ListSupplierOfferingsByItem`
-- [supplier-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/srm-service/supplier-management.md)
+- [supplier-management.md](./supplier-management.md)
   - `SupplierManagementService`
   - `CreateSupplierProfile`
   - `UpdateSupplierProfileBasics`
@@ -36,7 +36,7 @@ phase 1 冻结三组内部 gRPC 服务面：
   - `UpsertSupplierAddress`
   - `UpsertSupplierOffering`
   - `ChangeSupplierStatus`
-- [internal-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/srm-service/internal-query.md)
+- [internal-query.md](./internal-query.md)
   - `SrmInternalQueryService`
   - `ResolveActiveSupplier`
   - `ResolveActiveSupplierOffering`
@@ -83,7 +83,7 @@ phase 1 contract 明确围绕以下 owner 边界展开：
 
 `srm-service` phase 1 contract 明确不承载以下真相：
 
-- `party-service` 的主体主数据、租户主体引用、标识与稳定主体关系；具体核心对象与 owner 边界以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准
+- `party-service` 的主体主数据、租户主体引用、标识与稳定主体关系；具体核心对象与 owner 边界以 [party-service.md](../../architecture/services/party-service.md) 为准
 - `item-master-service` 的 `Item / ItemCapability / SupplierItemMapping`
 - future `procurement-service` 的 RFQ、采购价格、采购价格历史、MOQ、账期、lead time、采购单、收货与履约
 - 供应商绩效、评分、质量整改、资质闭环
@@ -137,8 +137,7 @@ phase 1 contract 明确围绕以下 owner 边界展开：
 
 本目录以上游稳定文档为准：
 
-- [srm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/srm-service.md)
-- [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md)
-- [item-master-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/item-master-service.md)
-- [srm-procurement-party-item-master.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/srm-procurement-party-item-master.md)
-- [srm-service-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/srm-service-design.md)
+- [srm-service.md](../../architecture/services/srm-service.md)
+- [party-service.md](../../architecture/services/party-service.md)
+- [item-master-service.md](../../architecture/services/item-master-service.md)
+- [srm-procurement-party-item-master.md](../../architecture/collaborations/srm-procurement-party-item-master.md)

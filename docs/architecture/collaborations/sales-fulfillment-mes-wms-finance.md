@@ -123,9 +123,8 @@
 
 ## 8. 关联文档
 
-- [sales-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/sales-service.md)
-- [mes-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/mes-service.md)
-- [wms-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/wms-service.md)
-- [wms-service-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/wms-service-design.md)
-- [sales-quote-order-core.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/sales-quote-order-core.md)
-- [sales-finance-order-to-cash.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/sales-finance-order-to-cash.md)
+- [sales-service.md](../services/sales-service.md)
+- [mes-service.md](../services/mes-service.md)
+- [wms-service.md](../services/wms-service.md)
+- [sales-quote-order-core.md](../../plans/features/sales-quote-order-core.md)
+- [sales-finance-order-to-cash.md](./sales-finance-order-to-cash.md)

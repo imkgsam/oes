@@ -4,7 +4,7 @@
 
 The API Gateway MES Mold Management BFF exposes tenant-web HTTP endpoints for the Mold / Tooling foundation slice.
 
-This document is not a MES domain truth source. It maps HTTP requests to [mes-service contracts](/Users/acehood/Documents/GitHub/oes/docs/contracts/mes-service/README.md), injects request context, and adapts transport-level concerns for tenant-web.
+This document is not a MES domain truth source. It maps HTTP requests to [mes-service contracts](../mes-service/README.md), injects request context, and adapts transport-level concerns for tenant-web.
 
 ## 2. BFF Responsibilities
 
@@ -30,10 +30,10 @@ The BFF does not own:
 
 The BFF must map to:
 
-- [production-spec-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/mes-service/production-spec-management.md)
-- [production-spec-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/mes-service/production-spec-query.md)
-- [mold-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/mes-service/mold-management.md)
-- [mold-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/mes-service/mold-query.md)
+- [production-spec-management.md](../mes-service/production-spec-management.md)
+- [production-spec-query.md](../mes-service/production-spec-query.md)
+- [mold-management.md](../mes-service/mold-management.md)
+- [mold-query.md](../mes-service/mold-query.md)
 
 If a tenant-web feature needs a field that is not present in those contracts, update the MES contract first. Do not add a BFF-only MES domain field.
 

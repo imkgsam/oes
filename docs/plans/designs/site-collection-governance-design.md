@@ -7,7 +7,7 @@ designKey: site-collection-governance-design
 designStatus: ACTIVE_DESIGN_WORKSPACE
 implementationStatus: PARTIALLY_IMPLEMENTED
 lastUpdatedAt: 2026-07-19 10:58:28 Asia/Shanghai
-lastUpdatedBy: Codex / Global Command Thread
+lastUpdatedBy: Codex
 supersedes: none
 truthSource: pending write-back after collection governance closure
 doNotUseAsStableSource: false
@@ -99,8 +99,8 @@ conflictResolution: 本文只记录当前 Collection 页面治理讨论；稳定
 ## 6. 真相源回写计划
 
 - 服务职责：`docs/architecture/services/site-service.md`
-- Runtime 协同：`docs/architecture/site-runtime-architecture.md`
-- Runtime SDK：`docs/architecture/site-runtime-kit.md`
+- Runtime 协同：`docs/architecture/platforms/site-runtime-architecture.md`
+- Runtime SDK：`docs/architecture/platforms/site-runtime-kit.md`
 - 黑盒契约：`docs/contracts/site-service/**`
 - 执行计划：`docs/plans/features/**`
 

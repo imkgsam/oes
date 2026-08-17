@@ -8,7 +8,7 @@
 - `tenantId` 在身份侧和租户组织侧分别代表什么
 - 登录后 account context、tenant 摘要与组织树应如何被组装
 
-`identity-service` 的长期职责、核心对象与 owner 语义只以 [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md) 为准；本文只记录 `identity-service` 与 `tenant-org-service` 的协同方式。
+`identity-service` 的长期职责、核心对象与 owner 语义只以 [identity-service.md](../services/identity-service.md) 为准；本文只记录 `identity-service` 与 `tenant-org-service` 的协同方式。
 
 ## 2. 参与服务
 
@@ -20,9 +20,9 @@
 ## 3. 真相归属
 
 - `identity-service`
-  - `User`、`UserAccount`、contact assets 与 available account contexts 边界以 [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md) 为准
+  - `User`、`UserAccount`、contact assets 与 available account contexts 边界以 [identity-service.md](../services/identity-service.md) 为准
 - `tenant-org-service`
-  - `Tenant`、`OrgUnit`、org tree、org hierarchy 与 org reference validation 边界以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准
+  - `Tenant`、`OrgUnit`、org tree、org hierarchy 与 org reference validation 边界以 [tenant-org-service.md](../services/tenant-org-service.md) 为准
 
 ## 4. 核心边界
 
@@ -60,5 +60,5 @@
 
 ## 8. 关联文档
 
-- [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md)
-- [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)
+- [tenant-org-service.md](../services/tenant-org-service.md)
+- [identity-service.md](../services/identity-service.md)

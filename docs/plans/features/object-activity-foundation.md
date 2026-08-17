@@ -22,20 +22,20 @@
 ## 3. 上游依赖
 
 - architecture:
-  - [12-observability-and-audit-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/12-observability-and-audit-architecture.md)
+  - [observability-and-audit.md](../../architecture/platforms/observability-and-audit.md)
 - services:
-  - [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)
-  - [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)
-  - [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
-  - [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md)
-  - [item-master-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/item-master-service.md)
-  - [sales-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/sales-service.md)
+  - [auth-service.md](../../architecture/services/auth-service.md)
+  - [identity-service.md](../../architecture/services/identity-service.md)
+  - [permission-service.md](../../architecture/services/permission-service.md)
+  - [party-service.md](../../architecture/services/party-service.md)
+  - [item-master-service.md](../../architecture/services/item-master-service.md)
+  - [sales-service.md](../../architecture/services/sales-service.md)
 - collaborations:
-  - [object-activity-and-timeline.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/object-activity-and-timeline.md)
+  - [object-activity-and-timeline.md](../../architecture/collaborations/object-activity-and-timeline.md)
 - plans:
-  - [sales-quote-order-core.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/sales-quote-order-core.md)
+  - [sales-quote-order-core.md](./sales-quote-order-core.md)
 - governance:
-  - [change-boundary-rules.md](/Users/acehood/Documents/GitHub/oes/docs/governance/change-boundary-rules.md)
+  - [document-governance.md](../../governance/document-governance.md)
 
 ## 4. 当前结论
 
@@ -55,9 +55,9 @@
 ## 5. 契约真相位置
 
 - 稳定协同蓝图：
-  - [object-activity-and-timeline.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/object-activity-and-timeline.md)
+  - [object-activity-and-timeline.md](../../architecture/collaborations/object-activity-and-timeline.md)
 - 相关平台边界：
-  - [12-observability-and-audit-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/12-observability-and-audit-architecture.md)
+  - [observability-and-audit.md](../../architecture/platforms/observability-and-audit.md)
 - 下一步 contract 入口：
   - future `docs/contracts/object-activity/**`
   - 如 query 入口最终挂在 `api-gateway` / BFF，应在相关 gateway contracts 中引用统一 timeline query 规则

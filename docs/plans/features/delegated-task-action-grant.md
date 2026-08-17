@@ -2,7 +2,6 @@
 
 ```text
 status: DESIGN_FROZEN_IMPLEMENTATION_NOT_DISPATCHED
-capabilityKey: ACTION-GRANT
 designGate: DG-4
 architectureTruthSource: docs/architecture/services/collaboration-service.md
 taskContract: docs/contracts/collaboration-service/task-command.md
@@ -61,4 +60,4 @@ Collaboration owns one local business command receipt identity for tenant, HUMAN
 
 ## 7. Gates And Non-goals
 
-Capability Command allocates formal implementation ownership only after AI-PLATFORM has exposed its runtime ToolContract resolver, Common Permission Code readiness is proven and all predecessor gates hold. Initialization is fail closed: missing owner resolver, code registration/catalog sync, policy version, signer, receipt/JTI storage or audit dependency keeps delegated mutation disabled. Rollback disables the ToolContract mutation flag and ActionGrant issuance/consumption path while preserving immutable audit, receipts and already committed Task results; it never deletes evidence or pretends to undo business state. This packet does not authorize Task Assistant UI, model routing, knowledge retrieval, new service topology, external channels, other Task commands, step-up policy changes or unattended automation.
+Formal implementation starts only after AI-PLATFORM has exposed its runtime ToolContract resolver, Common Permission Code readiness is proven and all predecessor gates hold. Initialization is fail closed: missing owner resolver, code registration/catalog sync, policy version, signer, receipt/JTI storage or audit dependency keeps delegated mutation disabled. Rollback disables the ToolContract mutation flag and ActionGrant issuance/consumption path while preserving immutable audit, receipts and already committed Task results; it never deletes evidence or pretends to undo business state. This packet does not authorize Task Assistant UI, model routing, knowledge retrieval, new service topology, external channels, other Task commands, step-up policy changes or unattended automation.

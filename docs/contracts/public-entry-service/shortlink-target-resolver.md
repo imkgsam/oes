@@ -1,6 +1,6 @@
 # ShortLink Target Resolver Contract
 
-> 服务设计唯一真相源：[public-entry-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/public-entry-service.md)。本文只描述 ShortLink INTERNAL_REF target resolver contract，不重新定义 target owner 的业务对象真相。
+> 服务设计唯一真相源：[public-entry-service.md](../../architecture/services/public-entry-service.md)。本文只描述 ShortLink INTERNAL_REF target resolver contract，不重新定义 target owner 的业务对象真相。
 
 ## 1. Purpose
 
