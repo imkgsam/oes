@@ -34,6 +34,7 @@
 - 黑盒业务契约：`docs/contracts/`
 - 当前运维步骤：`docs/runbooks/`
 - 当前设计工作台：`docs/plans/designs/`
+- 当前阶段协调包：`docs/plans/stages/`
 - 当前执行包：`docs/plans/features/`
 - 执行模型：`docs/governance/codex-execution-model.md`
 - 文档治理：`docs/governance/document-governance.md`
@@ -46,6 +47,7 @@
 - 单服务职责、核心对象、拥有与不拥有的真相，只写入对应 `services/<service-name>.md`。
 - `docs/contracts/` 定义规范性的黑盒业务语义；Proto、OpenAPI 与 schema 是可执行表达。两者不一致即为缺陷。
 - Design Workspace 只保存当前未冻结设计和开放问题；结论冻结后回写规范真相并从 Workspace 移除。
+- Stage Packet 只存在于 SL 的本地协调分支和 worktree，保存一个有界阶段的当前协调状态；阶段清理后删除，禁止 push 或合入 `main`。
 - Feature Packet 只保存当前 feature 的 slices、验收条件与候选状态；完成并经 Human 确认清理后删除。
 - ADR 只解释仍有价值的高影响决策、取舍与后果；完全被取代且已无当前解释价值的 ADR 删除，历史由 Git 保留。
 - 文档链接使用仓库相对路径，禁止写入本机绝对路径。
@@ -55,8 +57,10 @@
 OES 使用以下最小角色：
 
 - Human Decision Owner（HDO）：人，负责语义决定、波次边界和清理确认。
-- Capability Design Task：围绕一个设计主题持续讨论并形成 Proposal Patch。
-- Global Unified Design（UD）：全局架构审查者与规范真相唯一写者。
+- Initiative Discussion Task（IDT）：讨论跨 feature 的优先级、阶段目标和业务取舍，不写设计或执行 feature。
+- Capability Design Task（CDT）：围绕一个设计主题形成 Proposal Patch，只对接 UD。
+- Global Unified Design（UD）：全局架构与稳定治理审查者；只依据 Human-confirmed Proposal 写入 architecture、ADR、稳定 contracts、`AGENTS.md`、`docs/governance/**` 与必要导航，是这些规范真相的唯一 agent writer。
+- Stage Lead（SL）：一个有界交付阶段的临时 owner，协调多个可独立交付的 FL，并在阶段清理后关闭。
 - Feature Lead（FL）：单 feature 临时 owner，写一个 active Feature Packet，拆分并推进 slices。
 - Implementation Task（IT）：实现一个 slice；通常是 FL 的 subagent。
 - Review & Integration（RI）：按风险执行局部或全局复核；通常是 FL 的 clean-context subagent。
@@ -65,13 +69,15 @@ OES 使用以下最小角色：
 
 任何 remote push、PR、`main` merge、post-merge 验证和 Git 资源清理，必须先读取并遵守该文件第 9 节；其他文档不得另行定义 Git 角色权限或删除规则。
 
-任何 task 都应保持单一职责。不得恢复旧的全局调度中心、能力命令层、watchdog、heartbeat、Pull inbox、线程 registry 或历史状态账本。
+任何 task 都应保持单一职责。SL 只在已确认的有界阶段内协调列明的 FL，不构成长期全局调度中心；不得恢复旧的全局调度中心、能力命令层、watchdog、heartbeat、Pull inbox、线程 registry 或历史状态账本。
 
 ## 6. 讨论、冻结与写入
 
 - 用户表达“还在讨论”“先聊想法”或同等语义时，只分析和比较，不修改项目文件。
 - 用户明确确认结论并要求记录、冻结、形成 Workspace/FP 或开始实现后，才写入对应文件。
-- 设计 task 提交 Proposal 前，必须重新读取相关规范真相，并由 Human 明确确认提交。
+- CDT 提交 Proposal 前，必须重新读取相关规范真相，并由 Human 明确确认提交；Design Proposal 只承载稳定设计真相并始终提交 UD。
+- Proposal 提交确认授权 UD 审核，并在接受时把 exact Proposal 集成到 canonical design branch、验证、push 和创建 design PR，停止于 `DESIGN_PR_READY`；design PR merge 与 cleanup 分别另行确认。
+- IDT 在现有 canonical truth 充分且 Human 确认 Stage Start 后可直接启动 SL；发现设计缺口时转入 CDT → UD。
 - 涉及公共契约、事件、权限、租户、共享 API、AI 工具协议或 operator context 的实现，必须以已冻结真相为输入。
 
 ## 7. 实现质量
