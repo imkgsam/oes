@@ -291,6 +291,8 @@ Gateway 负责：
 - `checkPermission` 粗粒度门禁
 - 面向前端的流程编排入口，例如登录主流程 BFF
 
+Gateway 的 target binding 与 Permission eligibility 都不能单独创建 SYSTEM 跨租户 authority。SYSTEM request 只有在 target-owned business RPC / method declaration 明确冻结为 dedicated SYSTEM tenant-target interface 时才可执行；该 declaration、exact caller workload、SYSTEM principal、Permission Code 与平台 tenant target range 由目标服务共同验证。Gateway 无需用 route opt-in decorator 复制该 target-owned truth。
+
 Gateway 不负责：
 
 - `checkResource`
@@ -488,7 +490,10 @@ infrastructure 层不应承载：
 - `tenant isolation`
   - 租户隔离是平台硬边界。
   - 任何 policy、role 或 permission 不能授予跨租户读取或写入业务资源的能力。
-  - 需要跨租户运维或系统级治理时，必须走显式 system scope、专用接口、审计和最小数据暴露，不得复用普通租户业务授权语义。
+  - 需要跨租户运维或系统级治理时，必须走显式 SYSTEM scope、target-owned dedicated method/interface、审计和最小数据暴露，不得仅凭普通租户业务授权语义执行。
+  - 当前 SYSTEM tenant target range 的平台默认 `ALL` 只在 dedicated method/interface 内定义可选择的 target range；它不是 Permission grant。Permission Code 的 `allowedScopeLevels=SYSTEM` 只提供 scope eligibility，不能替代 dedicated method declaration 或扩大 tenant isolation。
+  - canonical HTTP path `:tenantId` 的全局 Gateway binding 不需要 system-targetable route opt-in，但也不把普通业务 RPC 变成跨租户接口。目标服务必须用 exact method declaration、caller workload、SYSTEM principal、Code 与 range 重新授权 serialized tenant selector；缺少任一条件均 fail closed。
+  - HTTP request-private verified target 在 gRPC request 中只能成为 target-owned business selector；其 Gateway provenance 不跨 transport 自动成为 authority。TENANT subject 必须与 selector 精确一致；SYSTEM subject 保持 tenantless，并只在 dedicated method/interface 中按平台 range 选择 target。
   - 声明 tenant target 的入口必须先完成 session tenant 与 target binding，再执行 `checkPermission`；`TENANT` session 缓存或传播的 tenant 缺失时必须 fail closed。
   - `checkPermission` 的 tenant 输入只可服务其自身授权或审计语义，不拥有 HTTP target binding；RBAC allow 不能覆盖 target mismatch。
   - 入口 target binding 与业务服务按资源真相执行的 tenant ownership 校验必须同时存在，前者不能替代后者。
@@ -759,7 +764,8 @@ OES 需要区分：
 当前目标状态为：
 
 - mTLS workload identity 证明直接 caller。
-- ExecutionToken 传播 execution principal、tenant / org、最小 Permission Code subset、delegation 与 audience / `cnf` binding。
+- ExecutionToken 传播 execution principal、subject tenant / org、最小 Permission Code subset、delegation 与 audience / `cnf` binding；它不传播独立的 SYSTEM request target。
+- target-owned business request 可序列化 tenant selector，但该值不是 transport authority。TENANT 调用由 Token subject tenant 与 selector equality 约束；SYSTEM 调用由 dedicated method declaration、exact workload、SYSTEM principal、Code 与平台 target range 重新授权。
 - Role 与完整授权图不跨跳传播。
 
 多跳调用向 STS exchange 下一跳 audience Token。上游已经完成的 BUSINESS 授权不要求下游 INTERNAL 技术原语重复同一层最终用户授权，但下游仍验证 workload policy、INTERNAL Code、tenant、resource ownership 与 domain rule。如果下游动作是独立 BUSINESS capability，则继续验证对应 BUSINESS Permission Code。

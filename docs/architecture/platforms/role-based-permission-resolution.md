@@ -33,7 +33,7 @@ PrincipalRoleBinding + RolePermission + Policy
 - Permission Code 是接口能力的稳定公共词汇，也是 ExecutionToken `scope` 的值。
 - Role id、role-permission mapping 或完整 permission catalog 不作为多跳 transport context。
 - 目标服务从可信 ExecutionToken 取得本次获准的最小 Code 子集，不在普通 RPC 上重新解析全部 Role。
-- Gateway HTTP `RequirePermissions` 与目标 gRPC method authorization 都保留；二者使用相同 Code 和可信 tenant，但各自保护不同信任边界。
+- Gateway HTTP `RequirePermissions` 与目标 gRPC method authorization 都保留，并使用相同 Code，但各自保护不同信任边界。TENANT 的可信 subject tenant 来自 Token并与 target-owned selector 精确匹配；SYSTEM subject 保持 tenantless，selector 由 dedicated target method、exact workload、Code 与平台 target range 重新授权。
 - resource ownership、query scope、审批分离、状态机与业务不变量不由 Token 替代。
 
 ## 3. Role 与 Principal
@@ -72,13 +72,15 @@ INTERNAL Code 不进入 HUMAN / MACHINE role。Permission Service 的 `ResolveWo
 
 Gateway 验证 HTTP session / API credential，绑定可信 tenant target，并通过 `RequirePermissions` 对外部 BUSINESS 入口执行第一层授权。Gateway 不能使用 body tenant 或 tenant-blind legacy query。
 
+`allowedScopeLevels=SYSTEM` 只说明该 Code 可用于 SYSTEM principal 的入口与发证判定，不把普通 tenant business method 扩展为跨租户接口。Gateway 全局 `:tenantId` guard 不需要额外 system-targetable route decorator；最终 SYSTEM target authority 由 target-owned dedicated method declaration 验证。
+
 ### 5.2 Auth / STS
 
 STS 在 Token cache miss、audience 变化、Code 集变化或安全版本变化时解析授权。INTERNAL 使用上述 mTLS-only bootstrap decision；BUSINESS 使用 Permission 的 `ResolvePrincipalAuthorization`，后者要求准确 Auth mTLS identity、`aud=permission-service` certificate-bound ExecutionToken 与精确 Code `permission.internal.principal_authorization.resolve`。两个 issuance decision 都是 Auth-only 发证控制面，不供 Gateway 或普通 application 直接调用；请求任意未获准 Code 时整体拒绝，Auth 不做 partial issuance。
 
 ### 5.3 Target Service
 
-目标服务本地验证 Token signature、issuer、time、audience、`cnf`、tenant、principal mode 与 decorator `all / any`。普通调用不访问 Auth 或 Permission Service；只有需要动态 resource policy 的 application use case 才通过明确 contract 请求 `checkResource / buildQueryScope`。
+目标服务本地验证 Token signature、issuer、time、audience、`cnf`、subject tenant、principal mode 与 decorator `all / any`。target-owned tenant selector 不是 Permission 或 Token authority：TENANT 必须与 Token tenant 相等；SYSTEM 必须命中 dedicated method declaration、exact workload、SYSTEM-eligible Code 与平台 tenant target range。普通调用不访问 Auth 或 Permission Service；只有需要动态 resource policy 的 application use case 才通过明确 contract 请求 `checkResource / buildQueryScope`。
 
 ## 6. all / any
 
@@ -96,6 +98,7 @@ STS 在 Token cache miss、audience 变化、Code 集变化或安全版本变化
 ## 8. 安全约束
 
 - 调用方提交的 role id、admin flag、subject facts、tenant 或 permission list 不能建立授权。
+- SYSTEM request 中的 tenant selector、Gateway permission allow 或 `allowedScopeLevels=SYSTEM` 都不能单独建立跨租户 authority；目标 method/interface 未明确冻结 SYSTEM tenant targeting 时必须拒绝。
 - 业务服务不得本地硬编码 Role -> Permission 映射。
 - Permission Service 不签发 ExecutionToken；Auth / STS 不拥有 Role / Policy 真相。
 - Token `scope` 直接使用 Permission Code，不建立第二套 Scope catalog。

@@ -30,13 +30,13 @@
 
 ## 4. 协同顺序
 
-1. 外部入口由 `api-gateway` 验证 session / external credential。canonical route template 含 `:tenantId` 时，全局 Tenant Target Guard 从规范化 path 建立唯一 verified request target：`TENANT` principal 必须与其 session tenant 精确匹配；`SYSTEM` principal 跳过该 equality，但不取得任何隐式操作能力。
-2. Gateway 执行 route `RequirePermissions`，要求 current Permission grant，并以 Permission Code `allowedScopeLevels` 判断当前 `SYSTEM` / `TENANT` eligibility。SYSTEM 当前 tenant target range 的默认 `ALL` 只表示可寻址范围，不替代 Code、grant 或 scope-level 判定。
-3. Gateway 或调用方服务需要访问一个内部 target audience 时，通过 mTLS 连接 Auth / STS 并携带 Auth 可复核的 source credential；requested Code 只是最小申请，不建立授权。verified request target 留在业务 request，不进入 ExecutionToken exchange request。
+1. 外部入口由 `api-gateway` 验证 session / external credential。canonical route template 含 `:tenantId` 时，全局 Tenant Target Guard 从规范化 path 建立唯一 verified request target：`TENANT` principal 必须与其 session tenant 精确匹配；`SYSTEM` principal 跳过该 equality，但不取得跨租户 authority。
+2. Gateway 执行 route `RequirePermissions`，要求 current Permission grant，并以 Permission Code `allowedScopeLevels` 判断当前 `SYSTEM` / `TENANT` eligibility。SYSTEM 当前 tenant target range 的默认 `ALL` 是平台硬边界内的 range 参数，不是 Permission grant；它只可被 target-owned dedicated SYSTEM tenant-target method/interface 使用。
+3. Gateway 或调用方服务需要访问一个内部 target audience 时，通过 mTLS 连接 Auth / STS 并携带 Auth 可复核的 source credential；requested Code 只是最小申请，不建立授权。Gateway downstream adapter 把 request-private verified target 序列化到 target-owned exact business selector field；该 provenance 不跨 gRPC 成为 authority，target 不进入 ExecutionToken exchange request。
 4. INTERNAL issuance 时，Auth 以自身 transport-verified mTLS identity 调用 Permission `ResolveWorkloadIssuance`。这是唯一不预先要求 ExecutionToken 的 bootstrap authorization primitive；Permission 仍按 original workload -> audience -> Code policy 独立判定。
 5. BUSINESS issuance 时，Auth 调用 `ResolvePrincipalAuthorization`；该调用要求 Auth mTLS identity 与含 `permission.internal.principal_authorization.resolve` 的 Permission-audience ExecutionToken。Permission 只做 principal BUSINESS Code upper bound，不接收业务 resource facts。
 6. 所有 requested Code 全部获准后，Auth 才签发绑定直接 workload certificate、单一 audience、principal / subject tenant 与精确 Code 集的短期 ExecutionToken；任一 denied / mismatch / unavailable 都不签发。TENANT subject 可携带 `tenant_id`，SYSTEM subject 不因 request target 获得 `tenant_id`。
-7. 目标服务同时验证 mTLS workload identity 与 ExecutionToken 的 signature、audience、`client_id / cnf`、principal、subject tenant 和 method Code declaration；随后以 explicit request target 与 resource id 加载并复核 tenant ownership。request target、Token identity 与 Permission 各自独立且缺一不可。SELF_SERVICE 仍从可信 HUMAN principal 派生 target。
+7. 目标服务同时验证 mTLS workload identity 与 ExecutionToken 的 signature、audience、`client_id / cnf`、principal、subject tenant 和 method Code declaration；method 使用与 Gateway route 相同的 canonical Code。TENANT selector 必须与 Token tenant 精确一致；SYSTEM Token 保持 tenantless，只有 dedicated method declaration、exact caller workload、SYSTEM-eligible Code 与平台 range 全部允许时才重新授权 selector。随后目标服务以 selector 与 resource id 加载并复核 tenant ownership。request selector、Token identity、method declaration 与 Permission 各自独立且缺一不可。SELF_SERVICE 仍从可信 HUMAN principal 派生 target。
 8. 需要单资源、列表范围或动态 resource policy 时，由业务服务 application 层调用 `checkResource / buildQueryScope`；最终状态机、不变量与领域规则仍由目标业务服务裁决。
 
 ## 5. 同步 / 异步边界
@@ -64,7 +64,7 @@
 - 不让 Gateway、普通业务服务或外部调用者直接消费 Auth-only issuance decision RPC
 - 不把 mTLS workload identity 当作 BUSINESS / INTERNAL Permission；除 `ResolveWorkloadIssuance` 的精确 bootstrap policy 外，受保护内部 RPC 仍要求目标专属 ExecutionToken
 - 不让 Auth 把 requested Code、legacy role/operator context 或本地 Permission 副本直接当作 granted set
-- 不把 path tenant target 加入 ExecutionToken、`ExchangeExecutionToken` request 或普通 metadata；不从 query/body duplicate 建立执行范围
+- 不把 path tenant target 加入 ExecutionToken、`ExchangeExecutionToken` request 或普通 metadata；不从 query/body duplicate 建立执行范围，也不把 serialized target-owned selector 本身当作 authority
 
 ## 8. 关联文档
 
