@@ -16,12 +16,12 @@ migrationState: SERVICE_MIGRATION_IMPLEMENTED_VERIFIED_21_OF_21
 一次可信内部调用同时需要：
 
 1. **mTLS workload identity**：证明当前直连调用方及目标服务；
-2. **Auth 签发的短期 ExecutionToken**：证明本次执行主体、tenant、audience、actor 与获准 Code；
-3. **target-owned method declaration**：目标服务声明 RPC 的 mode、principal、terminal、Code 与 workload allowlist，并在本地 fail closed。
+2. **Auth 签发的短期 ExecutionToken**：证明本次执行主体、适用的 subject tenant、audience、actor 与获准 Code；
+3. **target-owned method declaration**：目标服务声明 RPC 的 mode、principal、terminal、Code、workload allowlist，以及是否为 dedicated SYSTEM tenant-target interface，并在本地 fail closed。
 
 下列内容没有 authority：
 
-- request body 中的 tenant、operator、scope、actor、trace 或 audit identity；
+- request body 中用作 subject tenant、operator、scope、actor、trace 或 audit identity 的副本；target-owned RPC 可以有 tenant business selector，但 selector 本身不建立 authority；
 - 普通 metadata、`x-internal-service-name`、私有网络位置或调用方自报 header；
 - Gateway 已完成的入口权限检查；
 - observability、日志或审计投影中的身份副本。
@@ -62,7 +62,8 @@ act?, delegation_id?, authz_version?
 ### BUSINESS
 
 - 由业务 owner 定义 exact Permission Code 与资源规则。
-- HUMAN 调用必须匹配 tenant、session terminal、audience、certificate 与 Code。
+- TENANT HUMAN 调用必须匹配 Token subject tenant、target-owned tenant selector、session terminal、audience、certificate 与 Code。
+- SYSTEM HUMAN 调用保持 tenantless。只有 method declaration 明确冻结为 dedicated SYSTEM tenant-target interface，且 exact caller workload、SYSTEM principal、与 Gateway 相同的 canonical Code 及平台 target range 全部匹配时，tenant selector 才可用于该调用；`allowedScopeLevels=SYSTEM` 只提供 Permission eligibility。
 - MACHINE 或 DELEGATED 只有在该 RPC 明确声明时才可进入。
 
 ### SELF_SERVICE
@@ -84,6 +85,8 @@ act?, delegation_id?, authz_version?
 
 Gateway 先完成 HTTP/session 边界校验，再使用当前 request-private source credential 向 Auth 兑换目标 audience Token。Gateway 的 HTTP permission decorator 不替代目标服务本地声明。
 
+canonical HTTP path target 在 Gateway request 内保持 private verified value；downstream adapter 只能把规范化 id 写入 target service 自己定义的 exact business selector field。HTTP guard provenance 不作为普通 metadata 或 signed context 跨越 gRPC，目标服务必须用 Token、method declaration、workload、Code 与 range 重新授权 selector。TENANT 以 Token tenant equality 约束；SYSTEM Token 不新增 tenant claim。
+
 ### HUMAN OBO
 
 服务收到有效 HUMAN Token 后，只把当前跳 Token 的不可序列化 private handle 交给 Auth STS。Auth 验证 subject、当前 exchanger workload、Identity binding 与 Permission decision，再签发下游 audience Token：
@@ -103,9 +106,10 @@ DELEGATED runtime 仅在 DelegationGrant/ActionGrant、ToolContract、risk class
 
 ## 7. Tenant, Trace And Audit
 
-- tenant/org 来自 verified ExecutionToken 与目标服务规则。
+- subject tenant/org 来自 verified ExecutionToken 与目标服务规则。SYSTEM subject 不因 request target 获得 tenant。
+- tenant business selector 来自 target-owned request contract，不属于 transport identity。TENANT selector 必须等于 Token subject tenant；SYSTEM selector 只在 dedicated SYSTEM tenant-target method/interface 内按平台 range 获准。
 - trace/request correlation 来自可信 transport context；payload 同名字段不覆盖它。
-- management command 使用 verified principal/workload/tenant/trace 生成 owner-local audit。
+- management command 使用 verified principal/workload、subject scope/tenant、重新授权后的 target tenant 与 trace 生成 owner-local audit。
 - 调用理由可以作为非权威业务输入，但不能覆盖 operator 或审计来源。
 - 每个服务只保存自己拥有的审计事实；跨服务链通过 trace、Token `jti`、delegation/action reference 关联。
 
@@ -117,6 +121,7 @@ DELEGATED runtime 仅在 DelegationGrant/ActionGrant、ToolContract、risk class
 - workload、principal、actor、terminal 或 tenant 不符合声明；
 - Auth、Identity、Permission、certificate 或 owner resolver 不可用；
 - body/metadata 试图注入或覆盖可信上下文；
+- SYSTEM tenant selector 缺少 dedicated method declaration、exact workload/Code 或不在平台 target range；
 - declaration、DI、registry 或 policy 配置缺失/冲突；
 - DELEGATED mutation 缺少适用的 confirmation、step-up、ActionGrant 或 idempotency/consumption gate。
 
