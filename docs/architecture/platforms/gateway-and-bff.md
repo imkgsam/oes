@@ -413,6 +413,8 @@ Gateway 是外部请求进入内部服务体系的第一层应用入口，因此
 6. target-service mTLS / Token / method declaration / selector authorization
 7. resource ownership / domain rule / side effect
 
+Site Management P1 `/site-management/tenants/:tenantId/**` 保留其已冻结的精确 Gateway 例外：`SYSTEM` session 在第 3 步 tenant-target binding 返回 `403` 并终止。对该请求，第 4 至第 7 步均不得执行，即不得调用 Permission、handler、ExecutionToken exchange、selector serialization 或 downstream。该例外是 feature-specific binding deny，不是通用 route targetability opt-in，也不恢复 “未显式 opt-in 即 DENY” 的平台默认规则。
+
 稳定规则：
 
 - `TENANT` scope session 必须携带有效 tenant；缺失时属于无效认证上下文，必须 fail closed，且不得进入 permission、handler 或 downstream。
@@ -429,7 +431,7 @@ Gateway 是外部请求进入内部服务体系的第一层应用入口，因此
 - 业务服务必须验证 target-audience ExecutionToken、Permission Code、exact workload、执行主体与 target-owned method declaration。TENANT selector 必须等于 Token `tenant_id`；SYSTEM Token 保持 tenantless，selector 只在 dedicated SYSTEM tenant-target method/interface 与平台 range 允许时成立。随后服务按 selector 加 resource id 加载并复核 tenant ownership。Gateway 绑定成功不等于 selector 已获下游授权或资源归属已验证。
 - 审计必须同时记录可信 actor/principal、`SYSTEM` / `TENANT` scope、verified target tenant、Permission Code 与 decision reference、request/trace correlation 以及结果；不得把 raw client duplicate 当作可信 target。
 
-Site Management P1 已冻结的 `SYSTEM` deny 是 target-owned method/interface 的显式业务契约例外，在其专属 contract 另行变更前继续优先于平台 `ALL` range。该例外不恢复 Gateway route “未显式 opt-in 即 DENY”的旧规则；其他 `:tenantId` 路由统一执行 global guard，但只有 target-owned dedicated SYSTEM tenant-target method/interface 才能完成 SYSTEM 执行。迁移时删除 Gateway route targetability opt-in/default-deny 机制，但不得顺带放宽 Site Management P1 或普通 tenant method。
+Site Management P1 已冻结的 `SYSTEM` deny 是精确的 Gateway tenant-binding-stage feature exception，在其专属 contract 另行变更前继续优先于平台 `ALL` range。Gateway 必须在 Permission、handler、ExecutionToken exchange、selector serialization 与 downstream 之前返回 `403`；target-owned ordinary method 对 SYSTEM 的拒绝仍作为纵深校验，不能替代该 edge rejection。该例外不恢复 Gateway route “未显式 opt-in 即 DENY”的旧规则；其他 `:tenantId` 路由统一执行 global guard，但只有 target-owned dedicated SYSTEM tenant-target method/interface 才能完成 SYSTEM 执行。迁移时删除 generic Gateway route targetability opt-in/default-deny 机制，但必须保留 Site Management P1 的精确 binding deny，且不得顺带放宽普通 tenant method。
 
 上述规则复用既有 session、Permission Code、target-owned method declaration 与 request contract，不新增 SYSTEM tenant range model、ExecutionToken claim、`ExchangeExecutionToken` request field、permission RPC field 或额外 Gateway route opt-in decorator。精细 SYSTEM tenant range（指定 tenant、有效期、工单等）后置。黑盒行为与 acceptance matrix 以 [tenant-target-binding.md](../../contracts/api-gateway/tenant-target-binding.md) 为准。
 

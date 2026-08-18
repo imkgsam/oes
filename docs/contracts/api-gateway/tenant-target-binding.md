@@ -62,6 +62,8 @@ The order is verb-independent:
 
 Any rejection stops all later stages. No business side effect occurs before target-service selector authorization and ownership/domain enforcement complete.
 
+Exact protected exception: for a `SYSTEM` session on Site Management P1 `/site-management/tenants/:tenantId/**`, stage 3 returns `403` and stops. Permission resolution, handler execution, ExecutionToken exchange, selector serialization and downstream invocation do not occur. This feature-specific binding deny is not a generic route targetability opt-in or a platform default-deny mechanism.
+
 ## 5. Gateway Scope And Permission Matrix
 
 | Session scope | Session tenant | Path target relation | Route Code / grant / `allowedScopeLevels` | Gateway result |
@@ -69,10 +71,11 @@ Any rejection stops all later stages. No business side effect occurs before targ
 | `TENANT` | valid | exact match | Code declared, granted, allows `TENANT` | create request-private verified target and proceed |
 | `TENANT` | valid | mismatch | any | `403`; Permission/downstream not called |
 | `TENANT` | missing / invalid | any | any | `401`; invalid authenticated context |
+| `SYSTEM` | absent, as required | Site Management P1 `/site-management/tenants/:tenantId/**` | any | `403` at tenant binding; Permission, handler, Token exchange, selector serialization and downstream not called |
 | `SYSTEM` | absent, as required | any valid target | Code declared, granted, allows `SYSTEM` | eligible to call downstream; no target authority is created |
 | `SYSTEM` | absent, as required | any valid target | missing Code, denied grant or Code excludes `SYSTEM` | `403`; downstream not called |
 
-Gateway success for SYSTEM means only that the request may reach target-service admission. It does not mean an ordinary tenant method became a cross-tenant interface.
+Except for the exact Site Management P1 binding-stage deny above, Gateway success for SYSTEM means only that the request may reach target-service admission. It does not mean an ordinary tenant method became a cross-tenant interface.
 
 ## 6. Target-Service Authority Matrix
 
@@ -142,8 +145,9 @@ Audit does not treat raw path text, query/body duplicates, bearer values or ordi
 | existing body/query duplicate differs from verified target | `400` | no | no | none |
 | route Code missing, grant denied, or scope excluded | `403` | yes only when a resolvable Code reaches decision | no | none |
 | Permission dependency unavailable or decision malformed/stale | `503` | attempted | no | none |
+| SYSTEM session on Site Management P1 tenant-bound route | `403` | no | no | none |
 | TENANT Token tenant differs from serialized selector | `403` | yes | yes; target rejects before resource access | none |
-| SYSTEM reaches ordinary TENANT method or explicit deny | `403` | yes | yes; target rejects before resource access | none |
+| SYSTEM reaches an ordinary TENANT method outside an earlier feature-specific Gateway deny | `403` | yes | yes; target rejects before resource access | none |
 | dedicated SYSTEM method has workload/Code/range mismatch | `403` | yes | yes; target rejects before resource access | none |
 | resource belongs to another tenant | `403` | yes | yes; target rejects | none |
 
@@ -151,14 +155,14 @@ Unknown scope, ambiguous provenance, guard ordering failure, missing private han
 
 ## 13. Existing Exception And Migration Boundary
 
-Site Management P1 `/site-management/tenants/:tenantId/**` explicitly denies SYSTEM. Its target-owned methods remain ordinary TENANT methods / explicit SYSTEM deny and therefore reject SYSTEM before resource access, regardless of Gateway eligibility.
+Site Management P1 `/site-management/tenants/:tenantId/**` explicitly denies SYSTEM at Gateway tenant-target binding. Gateway returns `403` before Permission, handler, ExecutionToken exchange, selector serialization or downstream invocation. Its target-owned ordinary methods also reject SYSTEM as defense in depth, but that target-owned rejection does not replace or delay the edge rejection.
 
 Migration rules:
 
 - remove the old Gateway default of “SYSTEM denied unless route is explicitly system-targetable”;
 - remove generic Gateway targetability opt-in decorators/metadata;
-- preserve target-owned dedicated method declarations and explicit SYSTEM deny as the hard-boundary interface mechanism;
-- preserve Site Management P1 acceptance behavior;
+- preserve target-owned dedicated method declarations and target-owned rejection as the hard-boundary interface mechanism;
+- preserve the exact feature-specific Site Management P1 Gateway binding deny and its no-Permission/no-handler/no-Token-exchange/no-serialization/no-downstream acceptance behavior;
 - do not reinterpret routes without canonical `:tenantId` as tenant-target-bound;
 - do not add a fine-grained SYSTEM range, Permission model, ExecutionToken claim or generic target metadata;
 - a route is not SYSTEM implementation-complete until its target-owned business request carries the selector and the target method explicitly declares and enforces SYSTEM tenant targeting.
@@ -187,5 +191,5 @@ Existing service contracts that derive tenant only from ExecutionToken remain un
 | SYSTEM request during ET exchange | Exchange request, Token claims and Token cache key contain no target tenant |
 | protected `DELETE` with mismatching TENANT target | same `403` ordering as GET/POST; destructive handler and downstream do not run |
 | protected `DELETE` with SYSTEM against non-dedicated method | target returns `403`; deletion does not occur |
-| Site Management P1 SYSTEM request | existing explicit `403` remains; no resource access or side effect |
+| Site Management P1 SYSTEM request, including `DELETE` | Gateway tenant binding returns `403`; Permission, handler, ExecutionToken exchange, selector serialization and downstream are not called; no side effect |
 | Permission unavailable, malformed or stale | fail closed `503`; no downstream or side effect |
