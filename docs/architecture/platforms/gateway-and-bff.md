@@ -401,29 +401,35 @@ Gateway 是外部请求进入内部服务体系的第一层应用入口，因此
 
 ### 9.2 Tenant Target Binding
 
-凡 HTTP 路由通过 path、query 或其他显式位置声明 tenant target，Gateway 必须把“当前 session 可以访问哪个 tenant”与“本次请求正在寻址哪个 tenant”作为独立于 `RBAC` 的平台硬边界进行绑定。
+凡受保护 HTTP 路由的 canonical route template 含 `:tenantId`，该 path 参数就是本次请求唯一的 tenant target。Gateway 全局 Tenant Target Guard 必须自动识别此类路由，不依赖 `AllowSystemTenantTarget`、`TENANT_ONLY`、`SYSTEM_TARGETABLE` 或其他 route opt-in metadata。query、body、session tenant 与普通 metadata 都不能另建或覆盖 request target。
 
 稳定执行顺序固定为：
 
 1. session auth
-2. tenant-target binding
-3. permission
-4. handler / downstream
+2. canonical path target 识别、解析与归一化
+3. tenant-target binding
+4. route `RequirePermissions`、current Permission grant 与 Permission Code `allowedScopeLevels`
+5. handler / target-audience ExecutionToken exchange / downstream
 
 稳定规则：
 
 - `TENANT` scope session 必须携带有效 tenant；缺失时属于无效认证上下文，必须 fail closed，且不得进入 permission、handler 或 downstream。
-- tenant target 必须先完成基础解析与归一化；segment 存在但为空或非法时返回 `400`，URL 缺少必需 segment 时由路由层返回 `404`。
+- tenant target 必须由共享 canonical tenant identifier parser 完成解析与归一化；不得 case-fold、截断或进行有损转换。segment 存在但为空、纯空白或非法时返回 `400`，URL 缺少必需 segment 时由路由层返回 `404`。
 - `TENANT` session 的 tenant 与归一化 target 不一致时返回 `403`；该拒绝必须发生在 permission 调用、downstream 调用以及任何业务副作用之前。
-- `SYSTEM` session 不是 tenant-bound 路由的通用 bypass。只有未来被架构显式冻结为 system-targetable、具备对应 permission 与审计要求的路由才可以寻址 tenant；未冻结前一律拒绝。Site Management P1 的 tenant-bound 路由不支持 SYSTEM 跨租户访问。
-- Gateway 必须通过显式、可复用的 route guard / decorator 或等价 route metadata 机制声明该边界，不得把 tenant 比对散落到 controller 或 BFF use case 中。
-- 绑定成功后的 verified tenant target 是 BFF 下游 tenant context 的唯一来源；原始 path target 不能直接进入 downstream request、operator-scoped metadata 的业务映射或审计上下文。
+- `SYSTEM` session 自身 tenant 为空，因此不执行 session-tenant equality。当前 SYSTEM tenant target range 默认为 `ALL`，但这只回答“可寻址哪些 tenant”，不授予任何操作能力；请求仍必须命中 route `RequirePermissions`，当前 principal 必须拥有对应 Permission grant，且每个生效 Code 的 `allowedScopeLevels` 必须允许 `SYSTEM`。任一条件不满足均返回 `403`，不得进入 downstream。
+- Gateway 必须把归一化 target 封装为 request-scoped verified tenant target；只有全局 guard 可以产生该值。controller、DTO mapper 与 BFF use case 不得从 raw path、query、body、session 或普通 metadata 重建它。
+- 绑定成功后的 verified tenant target 是 BFF 下游 request target、tenant context 与审计 target 的唯一来源；原始 path target 不能直接进入 downstream request、operator-scoped metadata 的业务映射或审计上下文。
+- `GET`、`POST`、`PUT` 与 `PATCH` 使用同一规则。body/query tenant 副本应移除；迁移期仍存在时，只能按同一 parser 归一化并与 verified path target 精确比较，不一致返回 `400`，一致也不得成为执行范围来源。
 - `checkPermission` 只回答粗粒度能力准入，不能替代 tenant-target binding；即使权限请求携带 tenant 信息，也不改变二者 owner 与执行顺序。
-- 业务服务仍必须按自身资源真相校验 tenant ownership，作为独立的 defense-in-depth；Gateway 绑定成功不等于资源归属已经验证。
+- Gateway 不把 target tenant 写入 ExecutionToken，不给 `ExchangeExecutionToken` 增加 tenant target 字段。TENANT subject 的 `tenant_id` 仍只表达已验证执行主体 tenant；SYSTEM subject 仍不携带 `tenant_id`。
+- 业务服务必须验证 target-audience ExecutionToken、Permission Code 与执行主体，再按 explicit request target 加 resource id 加载并复核 tenant ownership。Gateway 绑定成功不等于资源归属已经验证。
+- 审计必须同时记录可信 actor/principal、`SYSTEM` / `TENANT` scope、verified target tenant、Permission Code 与 decision reference、request/trace correlation 以及结果；不得把 raw client duplicate 当作可信 target。
 
-上述规则复用既有 session context 与 tenant context，不要求新增 scope 字段、分页字段、permission RPC 字段或其他公共 contract 字段。
+Site Management P1 已冻结的 `SYSTEM` deny 是 route group 的显式业务契约例外，在其专属 contract 另行变更前继续优先于本平台默认值。该例外不恢复“未显式 opt-in 即 DENY”的旧平台规则；其他 `:tenantId` 路由按上述全局 guard 与 Permission Code eligibility 执行。迁移时删除旧的 system-targetable opt-in/default-deny 机制，但不得顺带放宽 Site Management P1。
 
-当前 Site Management tenant-bound 路径尚未满足该稳定顺序：未经绑定的 route target 可以进入下游 Admin context，而现有 permission 门禁不能承担隔离职责。该缺口属于 High severity 的跨租户水平越权风险；在实现完成并通过 contract acceptance 前，不得把“RBAC 已通过”视为租户隔离闭环。
+上述规则复用既有 session、Permission Code 与 request contract，不新增 SYSTEM tenant range model、ExecutionToken claim、`ExchangeExecutionToken` request field、permission RPC field 或额外 route opt-in decorator。精细 SYSTEM tenant range（指定 tenant、有效期、工单等）后置。黑盒行为与 acceptance matrix 以 [tenant-target-binding.md](../../contracts/api-gateway/tenant-target-binding.md) 为准。
+
+当前 Site Management tenant-bound 路径尚未满足该稳定顺序：未经绑定的 route target 可以进入下游 Admin context，而现有 permission 门禁不能承担隔离职责。该缺口属于 High severity 的跨租户水平越权风险；在实现完成并通过 contract acceptance 前，不得把“RBAC 已通过”视为租户隔离闭环。其 P1 `SYSTEM` deny 仍按专属 contract 保持不变。
 
 ### 9.3 设计约束
 

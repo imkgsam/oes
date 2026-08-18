@@ -33,6 +33,8 @@ STS 只接受平台已经验证的输入：
 
 Common 只在 mTLS-protected exchange channel 的 transport-private scope 携带 opaque source credential，不把 bearer 放入 `TrustedExecutionContext`、application/domain input、日志或审计。metadata 是 credential carrier，不是 authority；Auth 必须验证 session/access/subject Token、Gateway-only external credential 或 MACHINE/delegation owner reference 后才能建立 principal。调用方不能通过 request body、ordinary metadata、legacy signed operator context 自报或覆盖 subject、principal type、tenant、operator、workload identity、delegation upper bound、permission grant 或 `cnf`。
 
+面向 tenant 的合法业务目标与 subject tenant 是两个边界。Gateway 从 canonical HTTP path `:tenantId` 建立的 verified request target 留在下游业务 request；它不进入 ExecutionToken claim、ordinary metadata 或 `ExchangeExecutionToken` request。TENANT subject 的 `tenant_id` 仍只表达已验证 principal tenant；SYSTEM subject 不因本次 request target 获得 `tenant_id`。Auth 不判断 SYSTEM 的 tenant target range，也不把 target tenant 编入 Token cache key。
+
 The exact carrier on `ExchangeExecutionToken` is `authorization: Bearer <source-credential>`. This method interprets that bearer as an Auth-verifiable source/subject credential for token exchange, not as a caller-declared target-service grant. Credential type/profile, issuer, signature, lifetime, session/security state and owner references must validate before any Permission decision. For a multi-hop ExecutionToken subject credential, Auth additionally requires the Token's exact `aud` to identify the verified exchanging workload service; its original `client_id` / `cnf` remain upstream-hop evidence and are never rewritten as proof of the new hop. The newly issued Token binds the current exchanger's SPIFFE ID and certificate thumbprint.
 
 For a MACHINE root credential, Auth additionally requires its SPIFFE binding to equal the current `VerifiedWorkloadIdentity.spiffeId`, its certificate binding to equal the current leaf thumbprint, and its principal/binding reference/version to receive an allowed `IdentityQueryService.ResolveMachinePrincipalForAuth` owner decision. That Identity call uses Auth's own normal mTLS + target-audience INTERNAL ExecutionToken with `identity.internal.machine_principal.resolve`; it does not create another bootstrap exception. Auth derives MACHINE `sub`, scope and any tenant/org only from the owner decision. This root profile is used only when no inbound HUMAN subject Token exists.
@@ -121,6 +123,8 @@ Successful and denied exchange audit records source-credential kind/reference, v
 - 当前可信 execution reference：由 server runtime 注入，不由业务 DTO 重建。
 
 The existing proto request keeps only `target_audience` and `requested_permission_codes`; no target RPC, tenant, subject-token, actor or caller-supplied mode field is added. The proto comment/contract test must permit an empty repeated field only for SELF_SERVICE semantics. The verified source/subject credential is carried only by `authorization`; no second bearer carrier is introduced.
+
+这里的 `tenant` 禁止项同时包括 tenant business target：不得为 Gateway tenant-target binding 新增 target tenant field。Gateway 把 verified target 作为目标 RPC 的 explicit business request field 传播；目标服务分别验证 target-audience Token identity / Permission Code，并用 request target 加 resource id 复核 tenant ownership。request target 不能覆盖 Token subject，Token subject 也不能替代 request target。
 
 对于多跳 exchange，STS 保持可信 `sub`、principal type、tenant、org、session / delegation attribution 与 request correlation，但把 `client_id`、`aud` 和 `cnf` 绑定到申请当前下一跳的直接 workload。
 

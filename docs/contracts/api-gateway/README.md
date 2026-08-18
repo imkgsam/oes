@@ -47,6 +47,8 @@
   - 管理员安全管理接口
 - [platform-auth-security-bff.md](./platform-auth-security-bff.md)
   - 平台管理员 terminal login policy 与平台默认 terminal MFA policy 接口
+- [tenant-target-binding.md](./tenant-target-binding.md)
+  - canonical `:tenantId` path 的全局绑定、SYSTEM/TENANT eligibility、下游 handoff、错误与 acceptance contract
 - [permission-management.md](./permission-management.md)
   - 权限管理后台接口
 - [tenant-onboarding.md](./tenant-onboarding.md)
