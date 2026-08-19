@@ -6,6 +6,8 @@ import type {
   VerifiedWorkloadIdentity
 } from '../trusted-execution'
 
+const VERIFIED_EXECUTION_REQUESTS = new WeakSet<object>()
+
 export function getGrpcMetadataValue(metadata: Metadata | undefined, key: string): string | undefined {
   if (!metadata) {
     return undefined
@@ -94,7 +96,28 @@ export function attachVerifiedExecution(
   }
 
   target[RPC_OPERATOR_CONTEXT_KEY] = next
+  VERIFIED_EXECUTION_REQUESTS.add(target)
   return next
+}
+
+/** Returns verified execution evidence only for request objects stamped by the trusted guard path. */
+export function getVerifiedExecutionEvidence(rpcData: unknown):
+  | Readonly<{
+      verifiedExecutionToken: VerifiedExecutionToken
+      verifiedWorkloadIdentity: VerifiedWorkloadIdentity
+    }>
+  | undefined {
+  if (!rpcData || typeof rpcData !== 'object' || !VERIFIED_EXECUTION_REQUESTS.has(rpcData)) {
+    return undefined
+  }
+  const context = getAuthenticatedGrpcRequestContext(rpcData)
+  if (!context?.verifiedExecutionToken || !context.verifiedWorkloadIdentity) {
+    return undefined
+  }
+  return Object.freeze({
+    verifiedExecutionToken: context.verifiedExecutionToken,
+    verifiedWorkloadIdentity: context.verifiedWorkloadIdentity
+  })
 }
 
 export function getAuthenticatedGrpcRequestContext(
