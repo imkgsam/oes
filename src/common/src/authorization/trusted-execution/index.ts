@@ -9,3 +9,5 @@ export * from './trusted-grpc-metadata-provider'
 export * from './transport-private-source-credential'
 export * from './internal-trusted-grpc-caller'
 export * from './inbound-execution-token-credential.scope'
+
+export * from './tenant-target-admission'
