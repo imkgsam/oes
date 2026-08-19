@@ -54,45 +54,59 @@
 
 ## 5. Task 执行入口
 
-OES 使用以下执行入口与最小角色：
+OES 默认从普通讨论开始，不要求 Human 选择讨论角色。只有开始有状态写入后才建立 owner：
 
-- Direct execution：默认执行方式。当前单一职责 task 直接拥有一个有界 Change Set，不创建角色拓扑、Stage Packet 或 Feature Packet；仍使用 owner branch、PR、required CI、Human merge gate 与精确清理。
-- Human Decision Owner（HDO）：人，负责语义决定、波次边界和清理确认。
-- Initiative Discussion Task（IDT）：讨论跨 feature 的优先级、阶段目标和业务取舍，不写设计或执行 feature。
-- Capability Design Task（CDT）：围绕一个设计主题形成 Proposal Patch，只对接 UD。
-- Global Unified Design（UD）：全局架构与稳定治理审查者，也是规范真相唯一 agent writer；只接受两类 Human-confirmed 入口：CDT 的语义 Proposal，以及语义影响为 `NONE` 的 `CANONICAL_EDITORIAL_PATCH`。UD 不自行发起 canonical 改写。
-- Stage Lead（SL）：一个有界交付阶段的临时 owner，协调多个可独立交付的 FL，并在阶段清理后关闭。
-- Feature Lead（FL）：单 feature 临时 owner，写一个 active Feature Packet，拆分并推进 slices。
-- Implementation Task（IT）：实现一个 slice；通常是 FL 的 subagent。
-- Review & Integration（RI）：按风险执行局部或全局复核；通常是 FL 的 clean-context subagent。
+- Direct execution：一个明确 owner 闭合一个有界 Change Set；使用短期 owner branch、PR、required CI、Human merge gate 与精确清理。
+- Human Decision Owner（HDO）：人，负责语义决定、Proposal、执行激活、main merge 和清理确认。
+- Design Owner：围绕一个设计主题持续讨论；先在当前会话给出完整只读 Proposal Preview，Human确认后才按需创建active Design Workspace并形成Proposal Patch。它可以由当前聚焦task承担，只有独立、并行或需长期恢复的主题才新建Design Task。
+- Global Unified Design（UD）：唯一 canonical writer和串行设计审查者；负责 design PR、Human-confirmed merge、main CI、merge后的主动执行建议和两阶段 delivery handoff。
+- Stage Lead（SL）：一个多 feature 交付阶段的临时 owner，按依赖和WIP容量创建FL。
+- Feature Lead（FL）：一个可独立验收 feature 的临时 owner，写一个 active Feature Packet并推进slices。
+- Implementation Task（IT）：实现一个slice；通常是FL的subagent。
+- Review & Integration（RI）：按风险执行局部、全局或阶段复核；默认只读精确candidate。
 
-默认先读取真实 task、branch/worktree、candidate、PR、main 与 cleanup status，再只展示当前可用的执行方式并标记一个建议项。一个 owner 可闭合、无稳定设计语义变化、无跨 feature 协调的工作使用 Direct；Human 主动选择协同，或涉及新服务、跨服务契约、事件、权限、租户、共享 API/抽象、AI 工具协议、稳定治理语义、多 owner/feature 或资源冲突时，使用 Collaborative。判断原因仅在 Human 请求时展示。
+Human 无需主动触发上述内部角色。task先读取真实status，只显示当前合法动作并标记一项建议：继续讨论、恢复已有Design Owner、形成设计、Direct或常规协同。判断原因只在Human请求时展示。
 
-完整消息流、并发约束、review 返工、UD locator、自动与人工边界以 `docs/governance/codex-execution-model.md` 为准。
+各角色必须执行`docs/governance/codex-execution-model.md`第2节的专业标准：Design Owner以Principal Architect级能力完成边界、契约、失败模式与演进设计；UD以Chief/Enterprise Architect级能力审查全局一致性；SL/FL分别以Technical Delivery Lead与Staff Engineer级能力优化阶段和feature；Direct/IT以Senior/Principal Engineer级能力实现正确、简洁、主流且适配当前约束的方案；RI以Principal Reviewer/SDET级能力规划不重复、风险驱动且可复现的验证。角色名称本身不构成质量证据。
 
-任何 remote push、PR、`main` merge、post-merge 验证和 Git 资源清理，必须先读取并遵守该文件第 9 节；Direct 只简化角色与过程文档，不允许 direct push `main`、绕过 PR/CI/Human merge gate 或降低验证。其他文档不得另行定义 Git 角色权限或删除规则。
+普通讨论不创建role、branch、Workspace或packet。同一聚焦主题优先在当前task继续；已有Workspace恢复其exact Design Owner；独立、并行、需要长期恢复或当前task已有不兼容责任时才建议新建Design Task。稳定语义变化由Design Owner提交UD；语义影响为`NONE`的canonical纯编辑仍使用`CANONICAL_EDITORIAL_PATCH`。
 
-任何 task 都应保持单一职责。SL 只在已确认的有界阶段内协调列明的 FL，不构成长期全局调度中心；不得恢复旧的全局调度中心、能力命令层、watchdog、heartbeat、Pull inbox、线程 registry 或历史状态账本。
+v6 truth merge前已经取得Human确认，或已经创建exact owner、task、branch/worktree、candidate、PR、activation、merge或cleanup binding的v5 work item，继续按其frozen v5 binding完成到该owner graph的terminal/cleanup边界。v6不得重命名、改派、重新解释或使这些active card、owner和资源失效；边界完成后的新意图才进入v6，异常接管只使用Human-confirmed Recovery。
+
+完整消息类型、owner转移、并行约束、review返工、locator、Git权限与自动/人工边界以`docs/governance/codex-execution-model.md`为准。
+
+任何remote push、PR、`main` merge、post-merge验证和Git资源清理，必须先读取并遵守该文件第9节。Direct只简化角色和过程文档，不允许direct push `main`、绕过PR/CI/Human merge gate或降低验证。
+
+任何有状态work item只有一个当前owner和一个artifact owner。通知不转移owner；只有新owner校验并返回`HANDOFF_ACCEPTED`后才允许写入。SL/FL只协调预确认的有界执行拓扑，不构成长期开销；不得建立全局调度中心、watchdog、heartbeat、Pull inbox、历史thread registry或过程账本。
 
 ## 6. 讨论、冻结与写入
 
 - 用户表达“还在讨论”“先聊想法”或同等语义时，只分析和比较，不修改项目文件。
-- 状态检查后，task 以极简选项展示当前可用的 `Direct`、`常规协同框架` 或 `继续讨论`，只标记建议项；Human 选择后才进入对应写入路径。
-- Direct 适用于同一 Change Set 的明确小修改；同一目标继续修改时恢复 exact owner task 与现有现场，不因 turn 结束创建新 task。目标、owner、保护范围或独立交付物变化时形成 replacement scope 或新 Change Set。
-- 用户明确确认结论并要求记录、冻结、形成 Workspace/FP 或开始实现后，才写入对应文件。
-- CDT 提交 Proposal 前，必须重新读取相关规范真相，并由 Human 明确确认提交；Design Proposal 只承载稳定设计真相并始终提交 UD。
-- Proposal 提交确认授权 UD 审核，并在接受时把 exact Proposal 集成到 canonical design branch、验证、push 和创建 design PR，停止于 `DESIGN_PR_READY`；design PR merge 与 cleanup 分别另行确认。
-- `CANONICAL_EDITORIAL_PATCH` 由 source Direct owner 确认精确文件、hunks、语义影响 `NONE` 和 callback 后交 UD；UD 独占 design branch、PR、merge、main validation 与自己的 Git cleanup，分类失效即返回 source，不转成隐式 Proposal。
-- IDT 在现有 canonical truth 充分且 Human 确认 Stage Start 后可直接启动 SL；发现设计缺口时转入 CDT → UD。
-- 涉及公共契约、事件、权限、租户、共享 API、AI 工具协议或 operator context 的实现，必须以已冻结真相为输入。
+- 普通讨论是默认入口，不创建IDT/CDT；同一主题不因从探索进入设计而自动换线程。
+- 用户明确要求形成设计后，task先基于当前truth在会话中展示完整只读Proposal Preview，至少包含问题、结论、状态/路由、影响文件、保持不变项、验证和停止点；此时不创建task、branch/worktree、Workspace或commit。
+- Human确认的是exact Proposal Preview；确认后当前聚焦task无冲突时成为Design Owner，否则创建一个独立Design Task，并在已确认范围内创建资源、写入、验证、形成Proposal commit并提交UD。Proposal及Design Owner→UD envelope必须携带exact `previewFingerprint`、`rootConfirmationFingerprint`、`scopeFingerprint`、`transitionId`和state binding；其中任一指纹、base、scope、owner或规范结论变化时必须重新展示Preview。
+- 一个设计主题最多一个active Workspace和一个active Proposal；继续已有Workspace时恢复exact Design Owner，不按标题猜测或重复创建。
+- Design Owner展示Proposal Preview前必须刷新canonical truth；Proposal只承载稳定设计真相并始终提交UD。
+- Human对exact Proposal Preview的一次确认同时授权Design Owner按preview形成Proposal commit并提交UD，以及UD审核、集成、验证、push和创建design PR；停止于`DESIGN_PR_READY`。写入后的diff或验证结果偏离preview即停止并重新展示，merge、post-merge执行激活和cleanup分别确认。
+- 语义Proposal的design PR合入`main`且exact main CI通过后，UD必须在同一task主动展示动态执行建议；`NO_EXECUTION`为建议结论，Human选择暂不执行后进入`EXECUTION_DEFERRED`。UD不得把implement发给请求来源、Design Owner或祖先task。
+- Proposal入口只有在Human确认暂不执行，或Direct/FL/SL完成两阶段handoff后，UD才进入自身cleanup-ready；editorial入口在main CI和exact source notice后直接进入UD cleanup-ready。
+- `CANONICAL_MERGED`只通知exact Design Owner验证Proposal coverage和处理自身cleanup；`CANONICAL_EDITORIAL_MERGED`只通知exact source Direct owner验证editorial coverage并关闭无Git Change Set；两者都不转移delivery owner或Git ownership。
+- `CANONICAL_EDITORIAL_PATCH`由source Direct owner确认精确files/hunks、语义影响`NONE`和source通知目标后交UD；classification失效时UD发送`EDITORIAL_CLASSIFICATION_INVALID`给exact source，保留entry-specific资源边界且不转为隐式Proposal。
+- Direct适用于同一Change Set的明确小修改；同一目标继续修改时恢复exact owner和现场。稳定设计、新服务、跨服务契约/事件、权限/租户、共享API/抽象、AI工具协议或多feature交付必须先使用Design Owner/UD或常规协同。
+- 涉及上述稳定语义的实现，必须以exact merged truth SHA为输入；并行work item还必须满足独立验收、依赖ready和写范围不冲突。
 
 ## 7. 实现质量
 
 - 先复现或定位现象，再区分症状、触发条件、根因、设计缺口与环境因素，最后实施最小正式修复。
 - 修正错误边界、契约、映射或抽象，不用硬编码、特殊判断或多层兜底掩盖根因。
+- 实现前读取exact merged truth、调用链和邻近代码，优先使用与仓库一致、社区主流、长期维护且适合当前约束的语言/框架模式；“最新”“最复杂”或“理论最快”不自动等于最佳。
+- 新增或修改逻辑必须覆盖正确性不变量、边界输入、失败路径、并发/事务/幂等、安全/租户、资源释放、可观测性与兼容性中的适用项；复杂分支、状态机或算法先列truth table/state transition/invariants并用正向、边界、反向和性质测试覆盖，关键算法记录时间/空间复杂度及真实规模依据。
+- 不引入复制粘贴、魔法值、巨型函数/类、深层条件、静默吞错、隐式共享状态、泄漏抽象、过度通用化、无证据优化或与本次目标无关的重构。
 - 新增或重写的 class、function、service、handler、repository、guard、interceptor 等代码单元应有一句职责总结注释；已有同等清晰注释时不重复。
 - 文档、代码与配置统一使用 UTF-8；代码标识符、目录、文件名、proto 字段、事件名和权限码使用英文。
 - 怀疑历史文件编码异常时先标记并安排转码，不在乱码状态下续写或整篇覆盖。
+
+验证先由owner/RI根据acceptance与风险形成一次路线，按静态/focused unit、component、contract/integration、关键journey/E2E和按风险触发的性能、安全、并发、可靠性、迁移/rollback分层执行。已有证据只在candidate、依赖、输入与环境未变化且仍覆盖本次风险时复用；禁止机械重复全量测试、用覆盖率数字替代有效断言、用局部测试代替跨边界验收或用flaky结果证明完成。每项验收条件必须映射到至少一项可复现证据。
 
 ## 8. 交付要求
 
