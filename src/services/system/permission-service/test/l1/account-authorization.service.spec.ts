@@ -1,3 +1,4 @@
+import * as authorization from '@oes/common/authorization'
 import {
   getPermissionCodeDefinition,
   permissionDefinitionFingerprint
@@ -16,8 +17,23 @@ import {
 } from '../../src/domain/services/account-authorization.service'
 import { RolePermission } from '../../src/domain/vo/role-permission.value-object'
 
+jest.mock('@oes/common/authorization', () => {
+  const actual = jest.requireActual('@oes/common/authorization')
+  return { ...actual, getPermissionCodeDefinition: jest.fn(actual.getPermissionCodeDefinition) }
+})
+
 /** Verifies CheckPermission binds grants to scope and fails stale runtime metadata closed. */
 describe('AccountAuthorizationService', () => {
+  const actualAuthorization = jest.requireActual<typeof authorization>('@oes/common/authorization')
+  const mockedGetDefinition = authorization.getPermissionCodeDefinition as jest.MockedFunction<
+    typeof authorization.getPermissionCodeDefinition
+  >
+
+  afterEach(() => {
+    mockedGetDefinition.mockReset()
+    mockedGetDefinition.mockImplementation(actualAuthorization.getPermissionCodeDefinition)
+  })
+
   const repos = () => {
     const permissionRepo = { findByCode: jest.fn() } as unknown as jest.Mocked<PermissionRepository>
     const roleRepo = { findAccountRoles: jest.fn() } as unknown as jest.Mocked<RoleRepository>
@@ -83,6 +99,49 @@ describe('AccountAuthorizationService', () => {
     const { service, permissionRepo, roleRepo } = repos()
     permissionRepo.findByCode.mockResolvedValue(currentPermission('site.management.read'))
     await expect(service.checkPermission('account-id', 'site.management.read')).resolves.toBe(false)
+    expect(roleRepo.findAccountRoles).not.toHaveBeenCalled()
+  })
+
+  it('denies a current INTERNAL Code even when bad data leaves a role relation', async () => {
+    const { service, permissionRepo, roleRepo } = repos()
+    permissionRepo.findByCode.mockResolvedValue(
+      currentPermission('permission.internal.permission.check')
+    )
+    await expect(
+      service.checkPermission('account-id', 'permission.internal.permission.check')
+    ).resolves.toBe(false)
+    expect(roleRepo.findAccountRoles).not.toHaveBeenCalled()
+  })
+
+  it('denies a current BUSINESS Code whose metadata excludes HUMAN assignment', async () => {
+    const { service, permissionRepo, roleRepo } = repos()
+    const code = 'machine.only.manage'
+    const definition = {
+      code,
+      ownerService: 'permission-service',
+      description: 'Machine-only fixture',
+      kind: 'BUSINESS' as const,
+      assignableTo: ['MACHINE'] as const,
+      allowedScopeLevels: ['TENANT'] as const,
+      externalApiEligible: false
+    }
+    mockedGetDefinition.mockImplementation((candidate) =>
+      candidate === code ? definition : actualAuthorization.getPermissionCodeDefinition(candidate)
+    )
+    permissionRepo.findByCode.mockResolvedValue(
+      new Permission(
+        'permission-machine-only',
+        code,
+        PermissionModule.PERMISSION_SERVICE,
+        definition.description,
+        PermissionKind.BUSINESS,
+        false,
+        [ScopeLevel.TENANT],
+        permissionDefinitionFingerprint(definition)
+      )
+    )
+
+    await expect(service.checkPermission('account-id', code, 'tenant-1')).resolves.toBe(false)
     expect(roleRepo.findAccountRoles).not.toHaveBeenCalled()
   })
 
