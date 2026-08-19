@@ -59,6 +59,34 @@ export const IDENTITY_ACCOUNT_PERMISSION_DEFINITIONS = {
       allowedScopeLevels: ['SYSTEM'],
       externalApiEligible: false
     },
+    [IDENTITY_ACCOUNT_PERMISSION_CODES.ASSIGN_CONTACT_ASSET]: {
+      description: '分配通信资产',
+      kind: 'BUSINESS',
+      assignableTo: ['HUMAN', 'MACHINE'],
+      allowedScopeLevels: ['TENANT'],
+      externalApiEligible: false
+    },
+    [IDENTITY_ACCOUNT_PERMISSION_CODES.SET_CONTACT_ASSET_STATUS]: {
+      description: '更新通信资产状态',
+      kind: 'BUSINESS',
+      assignableTo: ['HUMAN', 'MACHINE'],
+      allowedScopeLevels: ['TENANT'],
+      externalApiEligible: false
+    },
+    [IDENTITY_ACCOUNT_PERMISSION_CODES.SET_PRIMARY_CONTACT_ASSET]: {
+      description: '设置主通信资产',
+      kind: 'BUSINESS',
+      assignableTo: ['HUMAN', 'MACHINE'],
+      allowedScopeLevels: ['TENANT'],
+      externalApiEligible: false
+    },
+    [IDENTITY_ACCOUNT_PERMISSION_CODES.RELEASE_CONTACT_ASSET]: {
+      description: '释放通信资产',
+      kind: 'BUSINESS',
+      assignableTo: ['HUMAN', 'MACHINE'],
+      allowedScopeLevels: ['TENANT'],
+      externalApiEligible: false
+    },
     [IDENTITY_ACCOUNT_PERMISSION_CODES.ASSIGN_WORK_EMAIL]: {
       description: '分配工作邮箱',
       kind: 'BUSINESS',

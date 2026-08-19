@@ -39,6 +39,28 @@ describe('permission foundation seed', () => {
       assignableTo: ['WORKLOAD_POLICY'],
       allowedScopeLevels: ['SYSTEM']
     })
+    expect(getPermissionCodeDefinition('identity.account.self.read')).toMatchObject({
+      kind: 'BUSINESS',
+      assignableTo: ['HUMAN', 'MACHINE'],
+      allowedScopeLevels: ['SYSTEM', 'TENANT']
+    })
+    for (const code of [
+      'identity.contact.asset.assign',
+      'identity.contact.asset.release',
+      'identity.contact.asset.set_primary',
+      'identity.contact.asset.set_status'
+    ]) {
+      expect(getPermissionCodeDefinition(code)).toMatchObject({
+        kind: 'BUSINESS',
+        allowedScopeLevels: ['TENANT']
+      })
+    }
+  })
+
+  it('preserves active self-read access in the minimum tenant account role', () => {
+    expect(
+      buildBuiltInRoleSeeds().find((role) => role.code === 'account.basic')?.permissionCodes
+    ).toContain('identity.account.self.read')
   })
 
   it('keeps every built-in role reference active and scope-compatible', () => {

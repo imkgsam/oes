@@ -32,7 +32,7 @@ describe('permission service seed source', () => {
     const seed = buildPermissionServiceSeed()
 
     expect(validatePermissionServiceSeed(seed)).toEqual([])
-    expect(seed.permissionCodes).toHaveLength(284)
+    expect(seed.permissionCodes).toHaveLength(289)
     expect(Object.values(TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES)).toEqual([
       ...EXPECTED_TERMINAL_DEVICE_PERMISSION_CODES
     ])
@@ -86,7 +86,7 @@ describe('permission service seed source', () => {
         'identity.org.membership.set_primary'
       ])
     )
-    expect(seed.deprecatedPermissionCodes).toHaveLength(36)
+    expect(seed.deprecatedPermissionCodes).toHaveLength(31)
     expect(seed.roles.map((role) => role.code)).toEqual([
       'system.admin',
       'tenant.admin',
@@ -98,7 +98,7 @@ describe('permission service seed source', () => {
       'crm.sales',
       'crm.sales_manager'
     ])
-    expect(seed.rolePermissions).toHaveLength(222)
+    expect(seed.rolePermissions).toHaveLength(223)
     expect(seed.navigationEntries).toHaveLength(40)
     expect(seed.roleNavigationVisibility).toHaveLength(52)
     expect(seed.roleLandingPolicies).toHaveLength(9)
@@ -108,10 +108,10 @@ describe('permission service seed source', () => {
 
   it('renders a stable dry-run summary for audit output', () => {
     expect(renderPermissionServiceSeedDryRunSummary(buildPermissionServiceSeed())).toEqual({
-      permissionCodeCount: 284,
-      deprecatedPermissionCodeCount: 36,
+      permissionCodeCount: 289,
+      deprecatedPermissionCodeCount: 31,
       roleCount: 9,
-      rolePermissionCount: 222,
+      rolePermissionCount: 223,
       navigationEntryCount: 40,
       deprecatedNavigationEntryCount: 2,
       roleNavigationVisibilityCount: 52,

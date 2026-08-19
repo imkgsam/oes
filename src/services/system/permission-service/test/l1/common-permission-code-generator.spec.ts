@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import * as authorization from '@oes/common/authorization'
 import { PERMISSION_CODE_DEFINITIONS, getPermissionCodeDefinition } from '@oes/common/authorization'
@@ -44,5 +44,38 @@ describe('Common-owned permission catalog', () => {
         externalApiEligible: false
       })
     }
+  })
+
+  it('does not retire a Permission Code while production services still consume it', () => {
+    const servicesRoot = resolve(__dirname, '../../../..')
+    const ignoredPathParts = [
+      '/test/',
+      '.spec.ts',
+      '.test.ts',
+      '/dist/',
+      '/generated/',
+      '/permission-service/src/scripts/sync-permission-codes.ts'
+    ]
+    const ignoredDirectoryNames = new Set(['test', 'dist', 'generated', 'node_modules'])
+    const sourceFiles: string[] = []
+    /** Collects production TypeScript files without traversing generated or test trees. */
+    const collectSourceFiles = (directory: string): void => {
+      for (const entry of readdirSync(directory, { withFileTypes: true })) {
+        const path = resolve(directory, entry.name)
+        if (entry.isDirectory() && !ignoredDirectoryNames.has(entry.name)) collectSourceFiles(path)
+        else if (entry.isFile() && path.endsWith('.ts')) sourceFiles.push(path)
+      }
+    }
+    collectSourceFiles(servicesRoot)
+
+    const productionSource = sourceFiles
+      .filter((path) => !ignoredPathParts.some((part) => path.includes(part)))
+      .map((path) => readFileSync(path, 'utf8'))
+      .join('\n')
+    const consumedDeprecatedCodes = authorization.DEPRECATED_PERMISSION_CODES.filter(
+      (code) => productionSource.includes(`'${code}'`) || productionSource.includes(`"${code}"`)
+    )
+
+    expect(consumedDeprecatedCodes).toEqual([])
   })
 })
