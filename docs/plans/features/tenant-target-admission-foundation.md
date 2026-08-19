@@ -18,8 +18,8 @@ Provide Common target-service tenant-selector admission primitives that enforce 
 
 ### tenant-target-declaration-and-admission-core
 
-state: `RUNNING`
-candidate: `pending`
+state: `ACCEPTED`
+candidate: `22ca5cb0601826e57b967e4373db67b9f8aeaf9c`
 review: `global-ri`
 
 - Scope: Common canonical tenant-selector parsing; immutable target-owned TENANT/SYSTEM method declarations; selector admission and audit-binding result primitives; focused unit tests and Common barrel exports.
@@ -29,7 +29,7 @@ review: `global-ri`
 
 ### trusted-execution-guard-integration
 
-state: `READY`
+state: `RUNNING`
 candidate: `pending`
 review: `global-ri`
 
