@@ -78,13 +78,13 @@ ADR 解释“为什么选择当前高影响方案”，而 architecture 解释�
 ### 3.4 Governance 与 Runbook
 
 - Governance 只定义当前协作、执行和文档纪律。
-- `AGENTS.md`、`docs/governance/**` 及其他规范真相只由 UD 写入。UD 只有两个 Human-confirmed 入口：CDT 提交的语义 Proposal，以及精确分类为语义影响 `NONE` 的 `CANONICAL_EDITORIAL_PATCH`；UD 不自行发起 canonical 改写。CDT 与 source Direct owner 都不直接成为 canonical writer。
+- `AGENTS.md`、`docs/governance/**` 及其他规范真相只由 UD 写入。UD 只有两个 Human-confirmed 入口：Design Owner 提交的语义 Proposal，以及精确分类为语义影响 `NONE` 的 `CANONICAL_EDITORIAL_PATCH`；UD 不自行发起 canonical 改写。Design Owner 与 source Direct owner 都不直接成为 canonical writer。
 - Runbook 只保存当前可执行的运维、故障处理与恢复步骤。
 - 已完成治理项目、优化收尾、线程经验和一次性复盘不作为长期治理文件。
 
 ### 3.5 Direct 文档维护
 
-非规范语义的单一文档 Change Set 默认使用 Direct，不创建 CDT、SL、FL、IT、RI、Workspace 或 FP。Direct owner 只在精确允许路径内修改，使用短期 owner branch、focused verification、PR、required CI、Human merge gate 和合并后精确清理。
+非规范语义的单一文档 Change Set 默认使用 Direct，不创建 Design Owner、SL、FL、IT、RI、Workspace 或 FP。Direct owner 只在精确允许路径内修改，使用短期 owner branch、focused verification、PR、required CI、Human merge gate 和合并后精确清理。
 
 适用范围：
 
@@ -92,13 +92,13 @@ ADR 解释“为什么选择当前高影响方案”，而 architecture 解释�
 - README、index 或导航的非语义修正；
 - 不改变运行行为、操作结果、owner、scope、contract 或约束等级的说明修正。
 
-Architecture、ADR、Contract、`AGENTS.md` 或 Governance 的语义变化始终进入 CDT → UD。上述规范文件的纯编辑修正可使用 `CANONICAL_EDITORIAL_PATCH`：不创建 CDT/Workspace/FP；source Direct owner 只拥有 classification、精确 scope/protected scope、evidence 和 callback，UD 独占短期 design branch/worktree、修改、验证、design PR、merge、main validation 与自己的 Git cleanup。任何 `must/should/may`、owner、scope、权限、租户、事件、API、生命周期、默认值或行为含义变化都使 editorial classification 失效，UD 返回 source Direct owner，由其重新展示 Collaborative 或继续讨论选项。
+Architecture、ADR、Contract、`AGENTS.md` 或 Governance 的语义变化始终进入 Design Owner → UD。上述规范文件的纯编辑修正可使用 `CANONICAL_EDITORIAL_PATCH`：不创建 Design Owner/Workspace/FP；source Direct owner 只拥有 classification、精确 scope/protected scope、evidence 和 source notice target，UD 独占短期 design branch/worktree、修改、验证、design PR、merge、main validation 与自己的 Git cleanup。任何 `must/should/may`、owner、scope、权限、租户、事件、API、生命周期、默认值或行为含义变化都使 editorial classification 失效，UD 返回 source Direct owner，由其重新展示 Collaborative 或继续讨论选项。
 
 Direct 文档验证至少包括 changed-path allowlist、`git diff --check`、相关 Markdown link/UTF-8/绝对路径检查和语义影响声明。发现分类不成立时停止写入，并根据 status 展示 Collaborative 或继续讨论选项。
 
 ## 4. Design Workspace
 
-Design Workspace 用于跨多轮讨论的当前工作记忆，不是聊天记录、决策历史或第二真相源。
+Design Workspace 用于Human确认Proposal Preview后仍需跨多轮维护的当前工作记忆，不是聊天记录、决策历史或第二真相源。Proposal Preview先在会话中只读展示，不因生成Preview而创建或写入Workspace。
 
 一个设计主题最多一个 active Workspace：
 
@@ -120,6 +120,8 @@ docs/plans/designs/<design-key>.md
 
 每轮直接更新当前内容，不追加轮次、时间线或 task 消息。
 
+需要跨task精确恢复时，可在Git common directory的`codex-runtime/design-targets/<design-key>.json`保存一个active locator，只含repository root、design key、exact owner task、Workspace、branch/worktree和state version。locator不跟踪、不保留历史、不轮询；atomic写入，使用前精确验证，cleanup时compare-and-delete。
+
 生命周期：
 
 - 简单且一次成型的设计直接形成 Proposal/FP，可以省略 Workspace。
@@ -138,20 +140,21 @@ docs/plans/designs/<design-key>.md
 
 ## 5. Proposal Patch
 
-Proposal Patch 是 Design Task 基于 Workspace 与当前真相形成的真实 Git diff/commit，不是另一份长期 proposal 文档。
+Proposal Preview是Design Owner基于当前真相在会话中给Human审阅的完整只读方案，不是repository artifact。它至少展示问题、规范结论、状态/typed routes、逐文件变化、保护范围、验证、停止点和preview fingerprint；生成Preview不创建task、branch/worktree、Workspace或commit。
+
+Human确认exact Preview后，Design Owner才基于Preview与当前真相形成真实Git diff/commit形式的Proposal Patch；它不是另一份长期proposal文档。Preview确认同时授权形成Proposal commit、提交UD并由UD推进到`DESIGN_PR_READY`，实际diff或binding偏离Preview时授权失效，不在commit完成后重复请求Proposal提交确认。
 
 它至少能确定：
 
-- source Design Task；
+- source Design Owner；
 - base commit；
 - proposal commit；
 - intended canonical files；
 - canonical truth domain（architecture、ADR、contract 或 governance）；
-- `executionIntent = DESIGN_ONLY | START_AFTER_TRUTH_MERGE`；
-- `executionShape = NONE | SINGLE_FEATURE | DELIVERY_STAGE`。
-- `DELIVERY_STAGE` 的 exact source decision task。
+- `deliveryHint = UNKNOWN | LIKELY_NONE | LIKELY_DIRECT | LIKELY_FEATURE | LIKELY_STAGE`；
+- 可选的 exact decision owner，只用于阻塞性非设计决定。
 
-UD 对 Human-confirmed 语义 Proposal 执行设计审核；一次 Proposal 提交确认授权 UD 在接受时按 intended canonical files 集成 exact Proposal、验证、push 和创建 design PR，停止于 `DESIGN_PR_READY`。语义影响为 `NONE` 的 Human-confirmed `CANONICAL_EDITORIAL_PATCH` 是另一条非 Proposal 入口，只授权 UD 在 exact files/hunks 内编辑并走相同 design PR、merge、main validation 与 UD cleanup gate。两类入口的 merge 与 cleanup 均分别确认；Proposal 的长期历史由 Git 提供。
+UD 对Human-confirmed Preview形成的语义Proposal执行设计审核；一次Preview确认授权Design Owner形成并提交exact Proposal，也授权UD在接受时按intended canonical files集成、验证、push和创建设计PR，停止于`DESIGN_PR_READY`。`deliveryHint`只供参考，不预授权或禁止实现。design PR经Human确认merge且exact main CI通过后，UD必须进入`ACTIVATION_DECISION_READY`，重新评估并主动建议`Direct | SINGLE_FEATURE | DELIVERY_STAGE | NO_EXECUTION`；Human确认后才创建delivery owner并完成两阶段handoff。语义影响为`NONE`的Human-confirmed`CANONICAL_EDITORIAL_PATCH`是另一条非Proposal入口，只授权UD在exact files/hunks内编辑并走相同design PR、merge、main validation与UD cleanup gate。两类入口的merge与cleanup均分别确认；Proposal的长期历史由Git提供。
 
 ## 6. Stage Packet
 
@@ -161,7 +164,7 @@ UD 对 Human-confirmed 语义 Proposal 执行设计审核；一次 Proposal 提�
 docs/plans/stages/<stage-key>.md
 ```
 
-Stage Packet 只存在于 SL 的本地 stage coordination branch/worktree，不 push、不创建 PR、不合入 `main`。它只记录当前 objective、scope/protected scope、source IDT、FL 引用与依赖、exit criteria、blocker 和 current state；状态原位覆盖，不保存聊天、时间线、task/thread registry、watcher 信息或 IT candidate 细节，也不复制 FP 内容。
+Stage Packet 只存在于 SL 的本地 stage coordination branch/worktree，不 push、不创建 PR、不合入 `main`。它只记录当前 objective、scope/protected scope、exact decision owner、FL 引用与依赖、exit criteria、blocker 和 current state；状态原位覆盖，不保存聊天、时间线、task/thread registry、watcher 信息或 IT candidate 细节，也不复制 FP 内容。
 
 Stage Packet 是 active work，不是稳定真相或第二状态表。阶段在最新 `main` 完成验收、各 FL 分别完成 Human 确认的 cleanup 后，Human 在 SL task 确认 Stage Cleanup；SL 随即删除 Stage Packet 和精确本地 stage coordination/verification 资源并 archive SL。Git 不保留可达的 stage coordination 历史。
 
@@ -186,7 +189,7 @@ Human 确认 cleanup 后删除 FP。
 
 ## 8. Intake 与 Backlog
 
-- `plans/intake.md`：尚未进入设计的当前候选；Design Task 创建后从 intake 删除。
+- `plans/intake.md`：尚未进入设计的当前候选；Design Owner开始有状态设计后从intake删除。
 - `plans/backlog.md`：仍有效但明确延期的事项；完成、取消或失效后删除。
 
 不记录 `PROMOTED`、`CANCELLED` 或完成历史。
