@@ -13,6 +13,7 @@ import {
   AuthorizeBusinessRpc,
   createSystemTenantTargetMethodDeclaration,
   createTenantTargetMethodDeclaration,
+  RPC_AUTHORIZATION_MODE_METADATA_KEY,
   TenantTargetAdmissionDecision,
   type RpcAuthorizationModeDeclaration,
   type TenantTargetAdmissionDeclaration
@@ -72,9 +73,14 @@ export class TenantTargetAdmissionGuard implements CanActivate {
     if (context.getType() !== 'rpc') {
       throw denied('tenant target admission requires an RPC context')
     }
+    const targets = [context.getHandler(), context.getClass()]
     const declaration = this.reflector.getAllAndOverride<unknown>(
       TENANT_TARGET_ADMISSION_METADATA_KEY,
-      [context.getHandler(), context.getClass()]
+      targets
+    )
+    const currentRpcAuthorizationDeclaration = this.reflector.getAllAndOverride<unknown>(
+      RPC_AUTHORIZATION_MODE_METADATA_KEY,
+      targets
     )
     const selectorField = readDeclaredSelectorField(declaration)
     const rpc = context.switchToRpc()
@@ -88,6 +94,8 @@ export class TenantTargetAdmissionGuard implements CanActivate {
       const publicContext = getAuthenticatedGrpcRequestContext(data)
       execution = getTrustedExecutionAdmissionEvidence(data, {
         handler: context.getHandler(),
+        currentCarrier: publicContext,
+        currentAuthorizationDeclaration: currentRpcAuthorizationDeclaration,
         currentToken: publicContext?.verifiedExecutionToken,
         currentWorkload: publicContext?.verifiedWorkloadIdentity
       })

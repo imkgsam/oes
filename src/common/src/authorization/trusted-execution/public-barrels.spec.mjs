@@ -28,6 +28,7 @@ async function verifyPublicBarrels() {
   assert.equal(typeof authorization.requireAdmittedTenantTarget, 'function')
   assert.equal(authorization.bindTrustedExecutionAdmissionEvidence, undefined)
   assert.equal(authorization.getTrustedExecutionAdmissionEvidence, undefined)
+  assert.equal(authorization.isTrustedExecutionAdmissionDeclaration, undefined)
   assert.equal(authorization.getVerifiedExecutionEvidence, undefined)
   assert.equal(typeof authorization.PARTY_CALLER_ERRORS, 'object')
   assert.equal(authorization.PARTY_CALLER_ERRORS.FOUNDATION_UNAVAILABLE, 'PARTY_CALLER_FOUNDATION_UNAVAILABLE')

@@ -16,7 +16,10 @@ import {
   getGrpcMetadataValue
 } from '../utils'
 import { GrpcWorkloadIdentityProvider } from '../../transport'
-import { bindTrustedExecutionAdmissionEvidence } from './trusted-execution-admission-evidence'
+import {
+  bindTrustedExecutionAdmissionEvidence,
+  isTrustedExecutionAdmissionDeclaration
+} from './trusted-execution-admission-evidence'
 
 /** Enforces the frozen three-mode ExecutionToken contract before an Asset RPC can consume request data. */
 @Injectable()
@@ -34,6 +37,9 @@ export class TrustedExecutionGuard implements CanActivate {
       [context.getHandler(), context.getClass()]
     )
     if (declaration === undefined) throw denied('trusted execution authorization mode is missing')
+    if (!isTrustedExecutionAdmissionDeclaration(declaration)) {
+      throw denied('trusted execution authorization mode is invalid or mutable')
+    }
     const rpc = context.switchToRpc()
     const token = getGrpcAuthorizationBearer(rpc.getContext<Metadata>(), AUTHORIZATION_METADATA_KEY)
     if (!token) throw denied('trusted execution token is missing')
@@ -79,6 +85,7 @@ export class TrustedExecutionGuard implements CanActivate {
       if (
         !bindTrustedExecutionAdmissionEvidence(rpcData, {
           handler: context.getHandler(),
+          publicCarrier: attached,
           authorizationDeclaration: declaration,
           verifiedExecutionToken: verified,
           verifiedWorkloadIdentity: workloadIdentity,

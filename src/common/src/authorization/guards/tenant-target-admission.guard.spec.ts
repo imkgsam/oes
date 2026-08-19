@@ -92,6 +92,7 @@ function guardFixture(
     readonly binder?: TenantTargetAuditBinder
     readonly bindTrustedEvidence?: boolean
     readonly rpcAuthorizationDeclaration?: RpcAuthorizationModeDeclaration
+    readonly currentRpcAuthorizationDeclaration?: RpcAuthorizationModeDeclaration
     readonly evidenceRequestId?: unknown
     readonly evidenceTraceId?: unknown
   } = {}
@@ -102,7 +103,19 @@ function guardFixture(
   )
     ? options.binder
     : ({ bind: jest.fn(async () => true) } satisfies TenantTargetAuditBinder)
-  const reflector = { getAllAndOverride: jest.fn(() => declaration) }
+  const rpcAuthorizationDeclaration =
+    options.rpcAuthorizationDeclaration ?? businessDeclaration(CODE)
+  const currentRpcAuthorizationDeclaration =
+    options.currentRpcAuthorizationDeclaration ?? rpcAuthorizationDeclaration
+  const reflector = {
+    getAllAndOverride: jest.fn((key: string) =>
+      key === TENANT_TARGET_ADMISSION_METADATA_KEY
+        ? declaration
+        : key === RPC_AUTHORIZATION_MODE_METADATA_KEY
+          ? currentRpcAuthorizationDeclaration
+          : undefined
+    )
+  }
   const handler = jest.fn(() => 'handled')
   const context = {
     getType: jest.fn(() => options.type ?? 'rpc'),
@@ -124,7 +137,8 @@ function guardFixture(
       : 'trace-1'
     bindTrustedExecutionAdmissionEvidence(data, {
       handler,
-      authorizationDeclaration: options.rpcAuthorizationDeclaration ?? businessDeclaration(CODE),
+      publicCarrier: publicContext,
+      authorizationDeclaration: rpcAuthorizationDeclaration,
       verifiedExecutionToken: publicContext.verifiedExecutionToken,
       verifiedWorkloadIdentity: publicContext.verifiedWorkloadIdentity,
       requestId: requestId as string,
@@ -134,6 +148,57 @@ function guardFixture(
   const guard = new TenantTargetAdmissionGuard(reflector as never, binder as never)
 
   return { binder, context, data, guard, handler }
+}
+
+/** Builds one real TrustedExecutionGuard-to-target-guard dedicated SYSTEM composition. */
+function realSystemGuardComposition(selector = 'Target-Integrated') {
+  class TargetController {
+    @DeclareSystemTenantTargetRpc({
+      selectorField: 'tenantId',
+      gatewayWorkloadIdentity: GATEWAY,
+      permissionCode: CODE
+    })
+    dedicated(): void {}
+  }
+
+  const handler = TargetController.prototype.dedicated
+  const targetAuthorization = Reflect.getMetadata(TENANT_TARGET_ADMISSION_METADATA_KEY, handler)
+  const rpcAuthorization = Reflect.getMetadata(RPC_AUTHORIZATION_MODE_METADATA_KEY, handler)
+  const metadata = new Metadata()
+  metadata.set('authorization', 'Bearer e30.e30.e30')
+  metadata.set('x-request-id', 'request-integrated')
+  metadata.set('x-trace-id', 'trace-integrated')
+  metadata.set('traceparent', '00-0123456789abcdef0123456789abcdef-0123456789abcdef-01')
+  const systemToken = token({ tenantId: undefined })
+  delete (systemToken as { tenantId?: string }).tenantId
+  const data: Record<string, unknown> = { tenantId: selector }
+  const context = {
+    getType: jest.fn(() => 'rpc'),
+    getHandler: jest.fn(() => handler),
+    getClass: jest.fn(() => TargetController),
+    getArgByIndex: jest.fn(() => ({ getAuthContext: jest.fn() })),
+    switchToRpc: jest.fn(() => ({ getContext: () => metadata, getData: () => data }))
+  }
+  const trustedGuard = new TrustedExecutionGuard(
+    { getAllAndOverride: jest.fn(() => rpcAuthorization) } as never,
+    { verify: jest.fn(async () => systemToken) } as never,
+    { getVerifiedWorkloadIdentity: jest.fn(async () => workload()) } as never,
+    token().audience
+  )
+  const binder = { bind: jest.fn(async () => true) }
+  const targetGuard = new TenantTargetAdmissionGuard(
+    {
+      getAllAndOverride: jest.fn((key: string) =>
+        key === TENANT_TARGET_ADMISSION_METADATA_KEY
+          ? targetAuthorization
+          : key === RPC_AUTHORIZATION_MODE_METADATA_KEY
+            ? rpcAuthorization
+            : undefined
+      )
+    } as never,
+    binder
+  )
+  return { binder, context, data, systemToken, targetGuard, trustedGuard }
 }
 
 /** Runs the simulated handler only after the guard resolves true. */
@@ -249,58 +314,39 @@ describe('TenantTargetAdmissionGuard', () => {
   })
 
   it('composes the real trusted guard and target guard on one dedicated SYSTEM handler', async () => {
-    class TargetController {
-      @DeclareSystemTenantTargetRpc({
-        selectorField: 'tenantId',
-        gatewayWorkloadIdentity: GATEWAY,
-        permissionCode: CODE
-      })
-      dedicated(): void {}
-    }
+    const fixture = realSystemGuardComposition()
 
-    const handler = TargetController.prototype.dedicated
-    const targetAuthorization = Reflect.getMetadata(TENANT_TARGET_ADMISSION_METADATA_KEY, handler)
-    const rpcAuthorization = Reflect.getMetadata(RPC_AUTHORIZATION_MODE_METADATA_KEY, handler)
-    const metadata = new Metadata()
-    metadata.set('authorization', 'Bearer e30.e30.e30')
-    metadata.set('x-request-id', 'request-integrated')
-    metadata.set('x-trace-id', 'trace-integrated')
-    metadata.set('traceparent', '00-0123456789abcdef0123456789abcdef-0123456789abcdef-01')
-    const systemToken = token({ tenantId: undefined })
-    delete (systemToken as { tenantId?: string }).tenantId
-    const data: Record<string, unknown> = { tenantId: 'Target-Integrated' }
-    const context = {
-      getType: jest.fn(() => 'rpc'),
-      getHandler: jest.fn(() => handler),
-      getClass: jest.fn(() => TargetController),
-      getArgByIndex: jest.fn(() => ({ getAuthContext: jest.fn() })),
-      switchToRpc: jest.fn(() => ({ getContext: () => metadata, getData: () => data }))
-    }
-    const trustedGuard = new TrustedExecutionGuard(
-      { getAllAndOverride: jest.fn(() => rpcAuthorization) } as never,
-      { verify: jest.fn(async () => systemToken) } as never,
-      { getVerifiedWorkloadIdentity: jest.fn(async () => workload()) } as never,
-      token().audience
-    )
-    const binder = { bind: jest.fn(async () => true) }
-    const targetGuard = new TenantTargetAdmissionGuard(
-      { getAllAndOverride: jest.fn(() => targetAuthorization) } as never,
-      binder
-    )
-
-    await expect(trustedGuard.canActivate(context as never)).resolves.toBe(true)
-    await expect(targetGuard.canActivate(context as never)).resolves.toBe(true)
-    expect(requireAdmittedTenantTarget(data)).toMatchObject({
+    await expect(fixture.trustedGuard.canActivate(fixture.context as never)).resolves.toBe(true)
+    await expect(fixture.targetGuard.canActivate(fixture.context as never)).resolves.toBe(true)
+    expect(requireAdmittedTenantTarget(fixture.data)).toMatchObject({
       selector: 'Target-Integrated',
       subjectScope: 'SYSTEM',
       permissionCode: CODE,
       range: 'ALL'
     })
-    expect(binder.bind).toHaveBeenCalledWith(
+    expect(fixture.binder.bind).toHaveBeenCalledWith(
       expect.objectContaining({
         requestId: 'request-integrated',
         traceId: 'trace-integrated'
       })
+    )
+  })
+
+  it('rejects same-reference public carrier replacement between the real guards', async () => {
+    const fixture = realSystemGuardComposition('Target-Replaced')
+    await expect(fixture.trustedGuard.canActivate(fixture.context as never)).resolves.toBe(true)
+    const original = getAuthenticatedGrpcRequestContext(fixture.data)
+    attachVerifiedExecution(fixture.data, {
+      verifiedExecutionToken: original?.verifiedExecutionToken as VerifiedExecutionToken,
+      verifiedWorkloadIdentity: original?.verifiedWorkloadIdentity as VerifiedWorkloadIdentity
+    })
+
+    await expect(fixture.targetGuard.canActivate(fixture.context as never)).rejects.toMatchObject({
+      definition: { code: 'APP_AUTH_002', rpcStatus: 7 }
+    })
+    expect(fixture.binder.bind).not.toHaveBeenCalled()
+    expect(() => requireAdmittedTenantTarget(fixture.data)).toThrow(
+      'Access denied due to insufficient permissions'
     )
   })
 
@@ -423,6 +469,27 @@ describe('TenantTargetAdmissionGuard', () => {
     const fixture = guardFixture(tenantDeclaration(), data)
     const publicContext = getAuthenticatedGrpcRequestContext(data) as Record<string, unknown>
     publicContext.verifiedExecutionToken = token({ tokenId: 'replacement-token' })
+
+    await expectDenied(fixture)
+  })
+
+  it('rejects public carrier replacement even when nested verified references are unchanged', async () => {
+    const data = verifiedData()
+    const fixture = guardFixture(tenantDeclaration(), data)
+    const original = getAuthenticatedGrpcRequestContext(data)
+    attachVerifiedExecution(data, {
+      verifiedExecutionToken: original?.verifiedExecutionToken as VerifiedExecutionToken,
+      verifiedWorkloadIdentity: original?.verifiedWorkloadIdentity as VerifiedWorkloadIdentity
+    })
+
+    await expectDenied(fixture)
+  })
+
+  it('rejects authoritative RPC declaration replacement between guards', async () => {
+    const fixture = guardFixture(tenantDeclaration(), verifiedData(), {
+      rpcAuthorizationDeclaration: businessDeclaration(CODE),
+      currentRpcAuthorizationDeclaration: businessDeclaration(CODE)
+    })
 
     await expectDenied(fixture)
   })
