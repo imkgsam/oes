@@ -8,7 +8,7 @@ worktreeKey: `11c0`
 pullRequest: `pending`
 mergeSha: `pending`
 cleanup: `HOLD`
-state: `RUNNING`
+state: `CANDIDATE_READY`
 
 ## Objective
 
@@ -29,8 +29,8 @@ review: `global-ri`
 
 ### trusted-execution-guard-integration
 
-state: `RUNNING`
-candidate: `pending`
+state: `CANDIDATE_READY`
+candidate: `750791a389bac7ced07ba2c42918952244ce58c3`
 review: `global-ri`
 
 - Scope: integrate target-service selector admission into Common trusted-execution guard ordering and verified request context; focused guard tests for zero attachment/resource-access on failure; narrowly required Common exports and fixtures.

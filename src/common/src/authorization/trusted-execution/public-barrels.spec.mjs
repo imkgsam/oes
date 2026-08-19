@@ -20,6 +20,12 @@ async function verifyPublicBarrels() {
   assert.equal(typeof authorization.TrustedExecutionRegistry, 'function')
   assert.equal(typeof authorization.TrustedGrpcMetadataProvider, 'function')
   assert.equal(typeof authorization.InternalTrustedGrpcCaller, 'function')
+  assert.equal(typeof authorization.parseTenantTargetSelector, 'function')
+  assert.equal(typeof authorization.admitTenantTargetSelector, 'function')
+  assert.equal(typeof authorization.DeclareTenantTargetRpc, 'function')
+  assert.equal(typeof authorization.DeclareSystemTenantTargetRpc, 'function')
+  assert.equal(typeof authorization.TenantTargetAdmissionGuard, 'function')
+  assert.equal(typeof authorization.requireAdmittedTenantTarget, 'function')
   assert.equal(typeof authorization.PARTY_CALLER_ERRORS, 'object')
   assert.equal(authorization.PARTY_CALLER_ERRORS.FOUNDATION_UNAVAILABLE, 'PARTY_CALLER_FOUNDATION_UNAVAILABLE')
   await assert.rejects(
