@@ -102,7 +102,9 @@ export class PrismaPermissionRepository implements PermissionRepository {
         module: data.module,
         description: data.description,
         kind: data.kind,
-        externalApiEligible: data.externalApiEligible
+        externalApiEligible: data.externalApiEligible,
+        allowedScopeLevels: data.allowedScopeLevels,
+        definitionFingerprint: data.definitionFingerprint
       },
       create: data
     })

@@ -1,167 +1,51 @@
 import {
-  AUTH_INTERNAL_PERMISSION_CODES,
-  AUTH_SELF_PERMISSION_CODES,
-  COLLABORATION_ANNOTATION_PERMISSION_CODES,
-  COLLABORATION_TASK_PERMISSION_CODES,
-  CRM_MANAGEMENT_PERMISSION_CODES,
-  FINANCE_MANAGEMENT_PERMISSION_CODES,
-  HR_MANAGEMENT_PERMISSION_CODES,
-  IDENTITY_ACCOUNT_PERMISSION_CODES,
-  IDENTITY_ACCOUNT_SELF_PERMISSION_CODES,
-  IDENTITY_MACHINE_PERMISSION_CODES,
-  ITEM_MASTER_MANAGEMENT_PERMISSION_CODES,
-  PERMISSION_ACCOUNT_SELF_PERMISSION_CODES,
-  PROCUREMENT_MANAGEMENT_PERMISSION_CODES,
-  PROCUREMENT_INTERNAL_PERMISSION_CODES,
-  PUBLIC_ENTRY_BUSINESS_CARD_PERMISSION_CODES,
-  PUBLIC_ENTRY_SHORT_LINK_PERMISSION_CODES,
-  ROLE_INSTANCE_PERMISSION_CODES,
-  ROLE_TEMPLATE_PERMISSION_CODES,
-  SALES_MANAGEMENT_PERMISSION_CODES,
-  SALES_PRICING_PERMISSION_CODES,
-  SRM_MANAGEMENT_PERMISSION_CODES,
-  SRM_INTERNAL_PERMISSION_CODES,
-  TENANT_ORG_MANAGEMENT_PERMISSION_CODES,
   DEPRECATED_PERMISSION_CODES,
-  PERMISSION_CODE_SEED_ITEMS
-} from '../../src/scripts/permission-catalog'
-import { Modules } from '../../prisma/generated/prisma'
+  PERMISSION_CODE_DEFINITIONS,
+  getPermissionCodeDefinition,
+  permissionDefinitionFingerprint
+} from '@oes/common/authorization'
+import { PERMISSION_CODE_SEED_ITEMS } from '../../src/scripts/permission-catalog'
 import { buildBuiltInRoleSeeds } from '../../src/scripts/role-foundation'
-import {
-  buildPermissionSeedItems,
-  filterRoleAssignablePermissionItems
-} from '../../src/scripts/sync-permission-codes'
 
-// Verifies the migrated permission catalog assigns every current code to its owner-service module.
+/** Verifies Common definitions are the exact, complete runtime Permission catalog source. */
 describe('permission foundation seed', () => {
-  it('publishes unique seed codes and excludes legacy coarse role permissions', () => {
-    const seedItems = PERMISSION_CODE_SEED_ITEMS
-    const seedCodes = seedItems.map((item) => item.code)
-
-    expect(new Set(seedCodes).size).toBe(seedCodes.length)
-    expect(seedCodes).not.toEqual(expect.arrayContaining([...DEPRECATED_PERMISSION_CODES]))
-    expect(seedCodes).toContain('collaboration.task.assign')
-  })
-
-  it('publishes owner-service modules for every migrated permission group', () => {
-    const itemByCode = new Map(PERMISSION_CODE_SEED_ITEMS.map((item) => [item.code, item]))
-    const groups: Array<[Modules, string[]]> = [
-      [
-        Modules.IDENTITY_SERVICE,
-        [
-          ...Object.values(IDENTITY_ACCOUNT_PERMISSION_CODES),
-          ...Object.values(IDENTITY_ACCOUNT_SELF_PERMISSION_CODES),
-          ...Object.values(IDENTITY_MACHINE_PERMISSION_CODES)
-        ]
-      ],
-      [Modules.TENANT_ORG_SERVICE, Object.values(TENANT_ORG_MANAGEMENT_PERMISSION_CODES)],
-      [Modules.HR_SERVICE, Object.values(HR_MANAGEMENT_PERMISSION_CODES)],
-      [Modules.ITEM_MASTER_SERVICE, Object.values(ITEM_MASTER_MANAGEMENT_PERMISSION_CODES)],
-      [Modules.CRM_SERVICE, Object.values(CRM_MANAGEMENT_PERMISSION_CODES)],
-      [
-        Modules.SRM_SERVICE,
-        [
-          ...Object.values(SRM_MANAGEMENT_PERMISSION_CODES),
-          ...Object.values(SRM_INTERNAL_PERMISSION_CODES)
-        ]
-      ],
-      [
-        Modules.SALES_SERVICE,
-        [
-          ...Object.values(SALES_MANAGEMENT_PERMISSION_CODES),
-          ...Object.values(SALES_PRICING_PERMISSION_CODES)
-        ]
-      ],
-      [
-        Modules.PROCUREMENT_SERVICE,
-        [
-          ...Object.values(PROCUREMENT_MANAGEMENT_PERMISSION_CODES),
-          ...Object.values(PROCUREMENT_INTERNAL_PERMISSION_CODES)
-        ]
-      ],
-      [Modules.FINANCE_SERVICE, Object.values(FINANCE_MANAGEMENT_PERMISSION_CODES)],
-      [
-        Modules.PUBLIC_ENTRY_SERVICE,
-        [
-          ...Object.values(PUBLIC_ENTRY_SHORT_LINK_PERMISSION_CODES),
-          ...Object.values(PUBLIC_ENTRY_BUSINESS_CARD_PERMISSION_CODES)
-        ]
-      ],
-      [
-        Modules.PERMISSION_SERVICE,
-        [
-          ...Object.values(ROLE_TEMPLATE_PERMISSION_CODES),
-          ...Object.values(ROLE_INSTANCE_PERMISSION_CODES),
-          ...Object.values(PERMISSION_ACCOUNT_SELF_PERMISSION_CODES)
-        ]
-      ],
-      [Modules.AUTH_SERVICE, Object.values(AUTH_SELF_PERMISSION_CODES)],
-      [
-        Modules.COLLABORATION_SERVICE,
-        [
-          ...Object.values(COLLABORATION_TASK_PERMISSION_CODES),
-          ...Object.values(COLLABORATION_ANNOTATION_PERMISSION_CODES)
-        ]
-      ]
-    ]
-
-    for (const [module, codes] of groups) {
-      for (const code of codes) {
-        expect(itemByCode.get(code)).toMatchObject({ module })
-      }
+  it('round-trips every active Common definition with explicit scope and fingerprint metadata', () => {
+    expect(PERMISSION_CODE_SEED_ITEMS).toHaveLength(Object.keys(PERMISSION_CODE_DEFINITIONS).length)
+    expect(new Set(PERMISSION_CODE_SEED_ITEMS.map((item) => item.code)).size).toBe(
+      PERMISSION_CODE_SEED_ITEMS.length
+    )
+    for (const item of PERMISSION_CODE_SEED_ITEMS) {
+      const definition = getPermissionCodeDefinition(item.code)!
+      expect(item.allowedScopeLevels.length).toBeGreaterThan(0)
+      expect(item.definitionFingerprint).toBe(permissionDefinitionFingerprint(definition))
+      expect(DEPRECATED_PERMISSION_CODES).not.toContain(item.code)
     }
   })
 
-  it('publishes item model permissions used by the item-management BFF', () => {
-    const seedCodes = PERMISSION_CODE_SEED_ITEMS.map((item) => item.code)
-
-    expect(seedCodes).toEqual(
-      expect.arrayContaining([
-        'item_master.item_model.list',
-        'item_master.item_model.get_by_id',
-        'item_master.item_model.create',
-        'item_master.item_model.manage'
-      ])
-    )
-  })
-
-  it('marks the verifier compromise code INTERNAL and excludes it from every built-in role foundation', () => {
-    const compromiseCode =
-      AUTH_INTERNAL_PERMISSION_CODES.EXTERNAL_API_KEY_VERIFIER_VERSION_COMPROMISE
-    const item = PERMISSION_CODE_SEED_ITEMS.find((candidate) => candidate.code === compromiseCode)
-    const rolePermissionCodes = buildBuiltInRoleSeeds().flatMap((role) => role.permissionCodes)
-
-    expect(item).toMatchObject({
+  it('publishes deterministic TENANT, SYSTEM, dual and INTERNAL scope classifications', () => {
+    expect(getPermissionCodeDefinition('site.management.read')?.allowedScopeLevels).toEqual([
+      'TENANT'
+    ])
+    expect(getPermissionCodeDefinition('tenant_org.tenant.list')?.allowedScopeLevels).toEqual([
+      'SYSTEM'
+    ])
+    expect(getPermissionCodeDefinition('permission.list')?.allowedScopeLevels).toEqual([
+      'SYSTEM',
+      'TENANT'
+    ])
+    expect(getPermissionCodeDefinition('permission.internal.permission.check')).toMatchObject({
       kind: 'INTERNAL',
-      externalApiEligible: false,
-      module: Modules.AUTH_SERVICE
+      assignableTo: ['WORKLOAD_POLICY'],
+      allowedScopeLevels: ['SYSTEM']
     })
-    expect(rolePermissionCodes).not.toContain(compromiseCode)
-    expect(
-      filterRoleAssignablePermissionItems(buildPermissionSeedItems()).map(
-        (candidate) => candidate.code
-      )
-    ).not.toContain(compromiseCode)
   })
 
-  it('publishes Public Entry permissions required by ShortLink and BusinessCard Phase 1', () => {
-    const seedCodes = PERMISSION_CODE_SEED_ITEMS.map((item) => item.code)
-
-    expect(seedCodes).toEqual(
-      expect.arrayContaining([
-        'public-entry.short-link.read',
-        'public-entry.short-link.create',
-        'public-entry.short-link.update',
-        'public-entry.short-link.disable',
-        'public-entry.short-link.archive',
-        'public-entry.short-link.stats.read',
-        'public-entry.business-card.read',
-        'public-entry.business-card.manage',
-        'public-entry.business-card.enable',
-        'public-entry.business-card.disable',
-        'public-entry.business-card.public-entry.manage',
-        'public-entry.business-card.stats.read'
-      ])
-    )
+  it('keeps every built-in role reference active and scope-compatible', () => {
+    for (const role of buildBuiltInRoleSeeds()) {
+      const expectedScope = role.kind === 'SYSTEM_INSTANCE' ? 'SYSTEM' : 'TENANT'
+      for (const code of role.permissionCodes) {
+        expect(getPermissionCodeDefinition(code)?.allowedScopeLevels).toContain(expectedScope)
+      }
+    }
   })
 })

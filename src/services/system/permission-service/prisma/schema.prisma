@@ -69,6 +69,8 @@ model Permission {
   module      Modules
   kind        PermissionKind @default(BUSINESS)
   externalApiEligible Boolean @default(false)
+  allowedScopeLevels PermissionScopeLevel[] @default([])
+  definitionFingerprint String @default("")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -80,6 +82,11 @@ model Permission {
 enum PermissionKind {
   BUSINESS
   INTERNAL
+}
+
+enum PermissionScopeLevel {
+  SYSTEM
+  TENANT
 }
 
 model RolePermission {
@@ -318,6 +325,7 @@ enum Modules {
   SITE_SERVICE
   ASSET_SERVICE
   NOTIFICATION_SERVICE
+  BROWSER_ACTIVITY_SERVICE
 }
 
 enum PrincipalType {
