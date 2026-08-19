@@ -1,14 +1,24 @@
-import { CanActivate, ExecutionContext, Inject, Injectable, SetMetadata } from '@nestjs/common'
+import {
+  applyDecorators,
+  CanActivate,
+  ExecutionContext,
+  Inject,
+  Injectable,
+  SetMetadata
+} from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
 import { ACCESS_DENIED, ExceptionFactory } from '../../core/exceptions'
 import {
   admitTenantTargetSelector,
+  AuthorizeBusinessRpc,
   createSystemTenantTargetMethodDeclaration,
   createTenantTargetMethodDeclaration,
   TenantTargetAdmissionDecision,
+  type RpcAuthorizationModeDeclaration,
   type TenantTargetAdmissionDeclaration
 } from '../trusted-execution'
-import { getAuthenticatedGrpcRequestContext, getVerifiedExecutionEvidence } from '../utils'
+import { getAuthenticatedGrpcRequestContext } from '../utils'
+import { getTrustedExecutionAdmissionEvidence } from './trusted-execution-admission-evidence'
 
 /** Stores target-owned tenant admission declarations separately from Gateway and general RPC metadata. */
 export const TENANT_TARGET_ADMISSION_METADATA_KEY = 'oes:trusted-execution:tenant-target-admission'
@@ -40,9 +50,12 @@ export const DeclareSystemTenantTargetRpc = (input: {
   readonly gatewayWorkloadIdentity: string
   readonly permissionCode: string
 }) =>
-  SetMetadata(
-    TENANT_TARGET_ADMISSION_METADATA_KEY,
-    createSystemTenantTargetMethodDeclaration(input)
+  applyDecorators(
+    AuthorizeBusinessRpc({ all: [input.permissionCode] }),
+    SetMetadata(
+      TENANT_TARGET_ADMISSION_METADATA_KEY,
+      createSystemTenantTargetMethodDeclaration(input)
+    )
   )
 
 /** Enforces target-owned selector admission after TrustedExecutionGuard and before handler access. */
@@ -70,19 +83,28 @@ export class TenantTargetAdmissionGuard implements CanActivate {
       throw denied('tenant target admission carrier provenance is ambiguous')
     }
     const selector = readOwnSelector(data, selectorField)
-    let execution: ReturnType<typeof getVerifiedExecutionEvidence>
-    let correlation: ReturnType<typeof getAuthenticatedGrpcRequestContext>
+    let execution: ReturnType<typeof getTrustedExecutionAdmissionEvidence>
     try {
-      execution = getVerifiedExecutionEvidence(data)
-      correlation = getAuthenticatedGrpcRequestContext(data)
+      const publicContext = getAuthenticatedGrpcRequestContext(data)
+      execution = getTrustedExecutionAdmissionEvidence(data, {
+        handler: context.getHandler(),
+        currentToken: publicContext?.verifiedExecutionToken,
+        currentWorkload: publicContext?.verifiedWorkloadIdentity
+      })
     } catch {
       throw denied('verified tenant target execution context is invalid')
     }
     if (execution === undefined) {
       throw denied('verified tenant target execution context is missing')
     }
-    const requestId = requireCorrelation(correlation?.requestId, 'request id')
-    const traceId = requireCorrelation(correlation?.traceId, 'trace id')
+    if (
+      execution.authorizationDeclaration.mode !== 'BUSINESS' ||
+      !matchesSystemTargetAuthorization(declaration, execution.authorizationDeclaration)
+    ) {
+      throw denied('tenant target RPC authorization declaration does not match')
+    }
+    const requestId = requireCorrelation(execution.requestId, 'request id')
+    const traceId = requireCorrelation(execution.traceId, 'trace id')
     if (!this.auditBinder || typeof this.auditBinder.bind !== 'function') {
       throw denied('tenant target audit binding is missing')
     }
@@ -98,6 +120,40 @@ export class TenantTargetAdmissionGuard implements CanActivate {
     attachAdmittedTenantTarget(data, decision)
     return true
   }
+}
+
+/** Binds dedicated SYSTEM targeting to the same singleton BUSINESS Code admitted by TrustedExecutionGuard. */
+function matchesSystemTargetAuthorization(
+  targetDeclaration: unknown,
+  rpcDeclaration: RpcAuthorizationModeDeclaration
+): boolean {
+  if (
+    targetDeclaration === null ||
+    typeof targetDeclaration !== 'object' ||
+    Array.isArray(targetDeclaration)
+  ) {
+    return false
+  }
+  const kind = readOwnDescriptor(targetDeclaration as Record<PropertyKey, unknown>, 'kind')
+  if (kind === undefined || !('value' in kind)) {
+    return false
+  }
+  if (kind.value !== 'SYSTEM_TARGET') {
+    return true
+  }
+  const code = readOwnDescriptor(
+    targetDeclaration as Record<PropertyKey, unknown>,
+    'permissionCode'
+  )
+  if (code === undefined || !('value' in code) || typeof code.value !== 'string') {
+    return false
+  }
+  if (rpcDeclaration.mode !== 'BUSINESS') {
+    return false
+  }
+  const permissions = rpcDeclaration.permissions
+  const codes = 'all' in permissions ? permissions.all : permissions.any
+  return 'all' in permissions && codes.length === 1 && codes[0] === code.value
 }
 
 /** Returns the private admitted target for target-service application code without reparsing the request. */

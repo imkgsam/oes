@@ -33,8 +33,9 @@ function guardFixture(declaration: unknown, verified: Record<string, unknown>) {
   const workloadIdentityProvider = {
     getVerifiedWorkloadIdentity: jest.fn(async () => WORKLOAD)
   }
+  const handler = jest.fn()
   const context = {
-    getHandler: jest.fn(),
+    getHandler: jest.fn(() => handler),
     getClass: jest.fn(),
     getArgByIndex: jest.fn(() => ({ getAuthContext: jest.fn() })),
     switchToRpc: jest.fn(() => ({ getContext: () => metadata, getData: () => data }))

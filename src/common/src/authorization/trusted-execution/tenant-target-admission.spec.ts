@@ -233,6 +233,13 @@ describe('tenant target selector admission', () => {
       declaration: systemDeclaration()
     },
     {
+      label: 'ambiguous additional Code',
+      tokenOverrides: {
+        permissionCodes: ['tenant_org.tenant.read', 'tenant_org.tenant.target']
+      },
+      declaration: systemDeclaration()
+    },
+    {
       label: 'range mismatch',
       tokenOverrides: {},
       declaration: { ...systemDeclaration(), range: 'TENANT_SET' }

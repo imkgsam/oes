@@ -115,7 +115,8 @@ export async function admitTenantTargetSelector(
     declaration.systemAuthority !== 'DEDICATED' ||
     declaration.range !== 'ALL' ||
     declaration.gatewayWorkloadIdentity !== workload.spiffeId ||
-    !token.permissionCodes.includes(declaration.permissionCode)
+    token.permissionCodes.length !== 1 ||
+    token.permissionCodes[0] !== declaration.permissionCode
   ) {
     throw denied('dedicated SYSTEM tenant target authority does not match')
   }

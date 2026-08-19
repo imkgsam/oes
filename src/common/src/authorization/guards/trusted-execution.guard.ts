@@ -16,6 +16,7 @@ import {
   getGrpcMetadataValue
 } from '../utils'
 import { GrpcWorkloadIdentityProvider } from '../../transport'
+import { bindTrustedExecutionAdmissionEvidence } from './trusted-execution-admission-evidence'
 
 /** Enforces the frozen three-mode ExecutionToken contract before an Asset RPC can consume request data. */
 @Injectable()
@@ -50,30 +51,43 @@ export class TrustedExecutionGuard implements CanActivate {
       verified.permissionCodes,
       verified.sessionTerminal
     )
-    attachVerifiedOperatorContext(rpc.getData(), verified)
-    const attached = attachVerifiedExecution(rpc.getData(), {
+    const rpcData = rpc.getData()
+    const metadata = rpc.getContext<Metadata>()
+    const requestId = getGrpcMetadataValue(metadata, 'x-request-id')
+    const traceId = getGrpcMetadataValue(metadata, 'x-trace-id')
+    const traceparent = getGrpcMetadataValue(metadata, 'traceparent')
+    if (rpcData && typeof rpcData === 'object' && (!requestId || !traceparent)) {
+      throw denied('trusted execution correlation is missing')
+    }
+
+    attachVerifiedOperatorContext(rpcData, verified)
+    const attached = attachVerifiedExecution(rpcData, {
       verifiedExecutionToken: verified,
       verifiedWorkloadIdentity: workloadIdentity
     })
-    if (rpc.getData() && typeof rpc.getData() === 'object') {
-      const requestId = getGrpcMetadataValue(rpc.getContext<Metadata>(), 'x-request-id')
-      const traceparent = getGrpcMetadataValue(rpc.getContext<Metadata>(), 'traceparent')
-      if (!requestId || !traceparent) {
-        throw denied('trusted execution correlation is missing')
-      }
-      inboundExecutionTokenCredentialScope.prepare(rpc.getData(), token, verified, {
-        requestId,
-        traceparent,
-        ...(getGrpcMetadataValue(rpc.getContext<Metadata>(), 'tracestate')
-          ? { tracestate: getGrpcMetadataValue(rpc.getContext<Metadata>(), 'tracestate') }
+    if (rpcData && typeof rpcData === 'object') {
+      inboundExecutionTokenCredentialScope.prepare(rpcData, token, verified, {
+        requestId: requestId as string,
+        traceparent: traceparent as string,
+        ...(getGrpcMetadataValue(metadata, 'tracestate')
+          ? { tracestate: getGrpcMetadataValue(metadata, 'tracestate') }
           : {})
       })
     }
     if (attached) {
-      Object.assign(attached as object, {
-        requestId: getGrpcMetadataValue(rpc.getContext<Metadata>(), 'x-request-id'),
-        traceId: getGrpcMetadataValue(rpc.getContext<Metadata>(), 'x-trace-id')
-      })
+      Object.assign(attached as object, { requestId, traceId })
+      if (
+        !bindTrustedExecutionAdmissionEvidence(rpcData, {
+          handler: context.getHandler(),
+          authorizationDeclaration: declaration,
+          verifiedExecutionToken: verified,
+          verifiedWorkloadIdentity: workloadIdentity,
+          requestId: requestId as string,
+          ...(traceId === undefined ? {} : { traceId })
+        })
+      ) {
+        throw denied('trusted execution admission evidence binding failed')
+      }
     }
     return true
   }
