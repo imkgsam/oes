@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import * as authorization from '@oes/common/authorization'
 import { PERMISSION_CODE_DEFINITIONS, getPermissionCodeDefinition } from '@oes/common/authorization'
 import { PERMISSION_CODE_SEED_ITEMS } from '../../src/scripts/permission-catalog'
 
@@ -19,5 +20,18 @@ describe('Common-owned permission catalog', () => {
     )
     const packageJson = readFileSync(resolve(__dirname, '../../package.json'), 'utf8')
     expect(packageJson).not.toContain('permission-codes:generate-common')
+  })
+
+  it('publishes one active definition for every non-deprecated exported Code', () => {
+    const deprecatedCodes = new Set(authorization.DEPRECATED_PERMISSION_CODES)
+    const exportedCodes = Object.entries(authorization)
+      .filter(
+        ([name, value]) =>
+          name.endsWith('_PERMISSION_CODES') && typeof value === 'object' && value !== null
+      )
+      .flatMap(([, value]) => Object.values(value as Readonly<Record<string, string>>))
+      .filter((code) => !deprecatedCodes.has(code))
+
+    expect(new Set(exportedCodes)).toEqual(new Set(Object.keys(PERMISSION_CODE_DEFINITIONS)))
   })
 })
