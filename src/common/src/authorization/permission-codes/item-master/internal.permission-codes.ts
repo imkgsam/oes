@@ -11,23 +11,23 @@ export const ITEM_MASTER_INTERNAL_PERMISSION_DEFINITIONS = {
   permissions: {
     [ITEM_MASTER_INTERNAL_PERMISSION_CODES.RESOLVE_MANUFACTURABLE_ITEM]: {
       description: '解析可制造 Item',
-      kind: 'BUSINESS',
-      assignableTo: ['HUMAN', 'MACHINE'],
-      allowedScopeLevels: ['TENANT'],
+      kind: 'INTERNAL',
+      assignableTo: ['WORKLOAD_POLICY'],
+      allowedScopeLevels: ['SYSTEM'],
       externalApiEligible: false
     },
     [ITEM_MASTER_INTERNAL_PERMISSION_CODES.RESOLVE_STOCKABLE_ITEM]: {
       description: '解析可库存 Item',
-      kind: 'BUSINESS',
-      assignableTo: ['HUMAN', 'MACHINE'],
-      allowedScopeLevels: ['TENANT'],
+      kind: 'INTERNAL',
+      assignableTo: ['WORKLOAD_POLICY'],
+      allowedScopeLevels: ['SYSTEM'],
       externalApiEligible: false
     },
     [ITEM_MASTER_INTERNAL_PERMISSION_CODES.RESOLVE_PURCHASABLE_ITEM]: {
       description: '解析可采购 Item',
-      kind: 'BUSINESS',
-      assignableTo: ['HUMAN', 'MACHINE'],
-      allowedScopeLevels: ['TENANT'],
+      kind: 'INTERNAL',
+      assignableTo: ['WORKLOAD_POLICY'],
+      allowedScopeLevels: ['SYSTEM'],
       externalApiEligible: false
     }
   }

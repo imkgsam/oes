@@ -34,4 +34,15 @@ describe('Common-owned permission catalog', () => {
 
     expect(new Set(exportedCodes)).toEqual(new Set(Object.keys(PERMISSION_CODE_DEFINITIONS)))
   })
+
+  it('keeps every INTERNAL namespace Code out of HUMAN and MACHINE role assignment', () => {
+    for (const definition of Object.values(PERMISSION_CODE_DEFINITIONS)) {
+      if (!definition.code.includes('.internal.')) continue
+      expect(definition).toMatchObject({
+        kind: 'INTERNAL',
+        assignableTo: ['WORKLOAD_POLICY'],
+        externalApiEligible: false
+      })
+    }
+  })
 })

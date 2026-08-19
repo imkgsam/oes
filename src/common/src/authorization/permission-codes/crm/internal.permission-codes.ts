@@ -9,8 +9,8 @@ export const CRM_INTERNAL_PERMISSION_DEFINITIONS = {
   permissions: {
     [CRM_INTERNAL_PERMISSION_CODES.VALIDATE_OBJECT_REFERENCE]: {
       description: '验证 Collaboration 引用的 CRM 对象最小事实',
-      kind: 'BUSINESS',
-      assignableTo: ['HUMAN', 'MACHINE'],
+      kind: 'INTERNAL',
+      assignableTo: ['WORKLOAD_POLICY'],
       allowedScopeLevels: ['TENANT'],
       externalApiEligible: false
     }
