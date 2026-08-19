@@ -79,6 +79,8 @@ v6 truth merge前已经取得Human确认，或已经创建exact owner、task、b
 
 任何有状态work item只有一个当前owner和一个artifact owner。通知不转移owner；只有新owner校验并返回`HANDOFF_ACCEPTED`后才允许写入。SL/FL只协调预确认的有界执行拓扑，不构成长期开销；不得建立全局调度中心、watchdog、heartbeat、Pull inbox、历史thread registry或过程账本。
 
+Human确认delivery scope时同时授权该scope所需的最小充分运行能力。UD、SL或FL必须在handoff接受前为目标task绑定并验证effective execution capabilities；已绑定scope内的owner worktree写入、owner Git/PR操作、仓库标准package/build/test命令、task-owned本地进程/容器/测试数据库和approved network自动执行，不形成逐命令Human gate。执行环境未兑现已声明能力时在相同binding下修复并幂等重试；只有scope/protected scope扩大、生产或共享资源、新secret或付费外部系统、host/system privilege、cross-owner/destructive operation以及既有main merge和cleanup gate才合并请求一次Human确认。child只从Human-confirmed topology为该role绑定的delegation ceiling取得完成assignment所需的更窄能力，不继承或扩大parent自身的effective capabilities。
+
 ## 6. 讨论、冻结与写入
 
 - 用户表达“还在讨论”“先聊想法”或同等语义时，只分析和比较，不修改项目文件。
