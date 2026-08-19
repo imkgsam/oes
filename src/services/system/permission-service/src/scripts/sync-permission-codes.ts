@@ -23,7 +23,8 @@ import {
   SRM_MANAGEMENT_PERMISSION_CODES,
   SRM_INTERNAL_PERMISSION_CODES,
   TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES,
-  TENANT_ORG_MANAGEMENT_PERMISSION_CODES
+  TENANT_ORG_MANAGEMENT_PERMISSION_CODES,
+  PermissionAssignee
 } from '@oes/common/authorization'
 import {
   buildNavigationFoundationLandingSeeds,
@@ -40,6 +41,7 @@ type PermissionSeedItem = {
   module: Modules
   description?: string
   kind: PermissionKind
+  assignableTo: PermissionAssignee[]
   externalApiEligible: boolean
   allowedScopeLevels: PermissionScopeLevel[]
   definitionFingerprint: string
@@ -263,11 +265,20 @@ export function buildPermissionSeedItems(): PermissionSeedItem[] {
   }))
 }
 
-/** filterRoleAssignablePermissionItems removes workload-policy-only codes before any role foundation is synchronized. */
+/** filterRoleAssignablePermissionItems applies exact principal and optional scope eligibility to role sync. */
 export function filterRoleAssignablePermissionItems(
-  items: readonly PermissionSeedItem[]
+  items: readonly PermissionSeedItem[],
+  eligibility: {
+    assignee: Extract<PermissionAssignee, 'HUMAN' | 'MACHINE'>
+    scopeLevel?: PermissionScopeLevel
+  }
 ): PermissionSeedItem[] {
-  return items.filter((item) => item.kind === PermissionKind.BUSINESS)
+  return items.filter(
+    (item) =>
+      item.kind === PermissionKind.BUSINESS &&
+      item.assignableTo.includes(eligibility.assignee) &&
+      (!eligibility.scopeLevel || item.allowedScopeLevels.includes(eligibility.scopeLevel))
+  )
 }
 
 // Parses optional system admin account ids from environment variables used by local and deployment seeds.
@@ -573,8 +584,14 @@ async function main() {
 
   try {
     const items = buildPermissionSeedItems()
-    const roleAssignableCodes = new Set(
-      filterRoleAssignablePermissionItems(items).map((item) => item.code)
+    const humanRoleAssignableCodes = new Set(
+      filterRoleAssignablePermissionItems(items, { assignee: 'HUMAN' }).map((item) => item.code)
+    )
+    const systemAdminAssignableCodes = new Set(
+      filterRoleAssignablePermissionItems(items, {
+        assignee: 'HUMAN',
+        scopeLevel: PermissionScopeLevel.SYSTEM
+      }).map((item) => item.code)
     )
 
     let upserted = 0
@@ -601,10 +618,10 @@ async function main() {
           definitionFingerprint: item.definitionFingerprint
         }
       })
-      if (roleAssignableCodes.has(item.code)) {
-        roleAssignablePermissionIds.push(permission.id)
+      if (humanRoleAssignableCodes.has(item.code)) {
         roleAssignablePermissionIdByCode.set(permission.code, permission.id)
       }
+      if (systemAdminAssignableCodes.has(item.code)) roleAssignablePermissionIds.push(permission.id)
       upserted += 1
     }
 

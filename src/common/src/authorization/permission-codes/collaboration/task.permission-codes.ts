@@ -11,15 +11,15 @@ export const COLLABORATION_TASK_PERMISSION_DEFINITIONS = {
     [COLLABORATION_TASK_PERMISSION_CODES.CREATE]: {
       description: '创建协作任务或个人待办',
       kind: 'BUSINESS',
-      assignableTo: ['HUMAN', 'MACHINE'],
+      assignableTo: ['HUMAN'],
       allowedScopeLevels: ['TENANT'],
       externalApiEligible: false
     },
     [COLLABORATION_TASK_PERMISSION_CODES.ASSIGN]: {
       description: '指派协作任务给租户内其他账号',
       kind: 'BUSINESS',
-      assignableTo: ['HUMAN', 'MACHINE'],
-      allowedScopeLevels: ['SYSTEM', 'TENANT'],
+      assignableTo: ['HUMAN'],
+      allowedScopeLevels: ['TENANT'],
       externalApiEligible: false
     }
   }

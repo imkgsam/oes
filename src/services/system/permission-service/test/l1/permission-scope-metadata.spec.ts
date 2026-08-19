@@ -58,4 +58,51 @@ describe('Permission scope metadata pipeline', () => {
     expect(sql).toContain('"definitionFingerprint" TEXT NOT NULL DEFAULT \'\'')
     expect(sql).not.toMatch(/DEFAULT ARRAY\['SYSTEM'|DEFAULT ARRAY\['TENANT'/)
   })
+
+  it.each([
+    ['collaboration.task.create', 'BUSINESS', ['HUMAN'], ['TENANT']],
+    ['collaboration.task.assign', 'BUSINESS', ['HUMAN'], ['TENANT']],
+    ['collaboration.annotation.create', 'BUSINESS', ['HUMAN'], ['TENANT']],
+    ['collaboration.annotation.manage', 'BUSINESS', ['HUMAN'], ['TENANT']],
+    ['crm.internal.object_reference.validate', 'INTERNAL', ['WORKLOAD_POLICY'], ['TENANT']],
+    [
+      'item_master.internal.manufacturable_item.resolve',
+      'INTERNAL',
+      ['WORKLOAD_POLICY'],
+      ['SYSTEM']
+    ],
+    ['item_master.internal.stockable_item.resolve', 'INTERNAL', ['WORKLOAD_POLICY'], ['SYSTEM']],
+    ['item_master.internal.purchasable_item.resolve', 'INTERNAL', ['WORKLOAD_POLICY'], ['SYSTEM']],
+    ['auth.internal.external_api_key.exchange', 'INTERNAL', ['WORKLOAD_POLICY'], ['SYSTEM']],
+    ['identity.internal.integration_machine.resolve', 'INTERNAL', ['WORKLOAD_POLICY'], ['SYSTEM']],
+    [
+      'permission.internal.external_machine.snapshot.resolve',
+      'INTERNAL',
+      ['WORKLOAD_POLICY'],
+      ['SYSTEM']
+    ],
+    ['collaboration.internal.ai_action.resolve', 'INTERNAL', ['WORKLOAD_POLICY'], ['SYSTEM']],
+    [
+      'auth.machine_workload_source_credential.revoke',
+      'BUSINESS',
+      ['HUMAN', 'MACHINE'],
+      ['SYSTEM', 'TENANT']
+    ],
+    [
+      'identity.machine.workload_binding.manage',
+      'BUSINESS',
+      ['HUMAN', 'MACHINE'],
+      ['SYSTEM', 'TENANT']
+    ]
+  ] as const)(
+    'preserves frozen eligibility metadata for %s',
+    (code, kind, assignableTo, allowedScopeLevels) => {
+      expect(getPermissionCodeDefinition(code)).toMatchObject({
+        kind,
+        assignableTo,
+        allowedScopeLevels,
+        externalApiEligible: false
+      })
+    }
+  )
 })

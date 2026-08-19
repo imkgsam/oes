@@ -51,7 +51,7 @@ export const AUTH_MANAGEMENT_PERMISSION_DEFINITIONS = {
       description: '撤销第一方机器工作负载源凭据',
       kind: 'BUSINESS',
       assignableTo: ['HUMAN', 'MACHINE'],
-      allowedScopeLevels: ['TENANT'],
+      allowedScopeLevels: ['SYSTEM', 'TENANT'],
       externalApiEligible: false
     }
   }

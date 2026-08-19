@@ -14,6 +14,7 @@ import {
 } from '../../ports/permission-decision-audit.port'
 import { delegatedCallerBindingMatches } from '../../authorization/permission-decision-caller-binding'
 import { ResolveDelegatedAuthorizationQuery } from './resolve-delegated-authorization.query'
+import { toPermissionDecisionCatalogEntry } from '../../../domain/services/permission-code-eligibility'
 
 /** Resolves delegated action upper bounds from owner snapshots and current HUMAN grant facts. */
 @QueryHandler(ResolveDelegatedAuthorizationQuery)
@@ -59,7 +60,7 @@ export class ResolveDelegatedAuthorizationHandler implements IQueryHandler<Resol
       policyDecision = this.decisionPolicy.resolveDelegatedAuthorization(
         query.input,
         facts,
-        permissions.map((permission) => ({ code: permission.code, kind: permission.kind }))
+        permissions.map(toPermissionDecisionCatalogEntry)
       )
     }
 

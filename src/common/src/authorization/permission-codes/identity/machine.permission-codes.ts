@@ -51,7 +51,7 @@ export const IDENTITY_MACHINE_PERMISSION_DEFINITIONS = {
       description: '管理第一方机器工作负载绑定',
       kind: 'BUSINESS',
       assignableTo: ['HUMAN', 'MACHINE'],
-      allowedScopeLevels: ['TENANT'],
+      allowedScopeLevels: ['SYSTEM', 'TENANT'],
       externalApiEligible: false
     }
   }

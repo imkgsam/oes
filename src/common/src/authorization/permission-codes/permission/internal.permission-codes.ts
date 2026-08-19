@@ -7,6 +7,7 @@ export const PERMISSION_INTERNAL_PERMISSION_CODES = {
   QUERY_SCOPE_BUILD: 'permission.internal.query_scope.build',
   ACCOUNT_ACCESS_SUMMARY_RESOLVE: 'permission.internal.account_access_summary.resolve',
   ACCOUNT_NAVIGATION_RESOLVE: 'permission.internal.account_navigation.resolve',
+  EXTERNAL_MACHINE_SNAPSHOT_RESOLVE: 'permission.internal.external_machine.snapshot.resolve',
   PRINCIPAL_AUTHORIZATION_RESOLVE: 'permission.internal.principal_authorization.resolve',
   DELEGATED_AUTHORIZATION_RESOLVE: 'permission.internal.delegated_authorization.resolve'
 } as const
@@ -51,6 +52,13 @@ export const PERMISSION_INTERNAL_PERMISSION_DEFINITIONS = {
     },
     [PERMISSION_INTERNAL_PERMISSION_CODES.ACCOUNT_NAVIGATION_RESOLVE]: {
       description: '解析受信任调用链中的账号导航',
+      kind: 'INTERNAL',
+      assignableTo: ['WORKLOAD_POLICY'],
+      allowedScopeLevels: ['SYSTEM'],
+      externalApiEligible: false
+    },
+    [PERMISSION_INTERNAL_PERMISSION_CODES.EXTERNAL_MACHINE_SNAPSHOT_RESOLVE]: {
+      description: '解析 Auth External API Key 交换所需的外部机器权限快照',
       kind: 'INTERNAL',
       assignableTo: ['WORKLOAD_POLICY'],
       allowedScopeLevels: ['SYSTEM'],

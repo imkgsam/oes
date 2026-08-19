@@ -5,6 +5,10 @@ import { ResolvePrincipalAuthorizationQuery } from '../../src/application/querie
 import { ResolveWorkloadIssuanceHandler } from '../../src/application/queries/authorization/resolve-workload-issuance.handler'
 import { ResolveWorkloadIssuanceQuery } from '../../src/application/queries/authorization/resolve-workload-issuance.query'
 import { PermissionDecisionPolicy } from '../../src/domain/services/permission-decision-policy'
+import {
+  getPermissionCodeDefinition,
+  permissionDefinitionFingerprint
+} from '@oes/common/authorization'
 
 describe('Permission decision query handlers', () => {
   it('resolves and audits a HUMAN principal decision from independent repository facts', async () => {
@@ -22,14 +26,14 @@ describe('Permission decision query handlers', () => {
 
     expect(result).toMatchObject({
       allowed: true,
-      grantedPermissionCodes: ['inventory.read'],
+      grantedPermissionCodes: ['site.management.read'],
       reasonCode: 'AUTHORIZATION_GRANTED'
     })
     expect(result.decisionReference).toMatch(/^principal-authorization:/)
     expect(dependencies.auditService.emitIssuanceDecision).toHaveBeenCalledWith(
       expect.objectContaining({
         decisionType: 'PRINCIPAL_AUTHORIZATION',
-        requestedPermissionCodes: ['inventory.read'],
+        requestedPermissionCodes: ['site.management.read'],
         directWorkloadSpiffeId: 'spiffe://local.test/auth-service'
       })
     )
@@ -96,7 +100,7 @@ describe('Permission decision query handlers', () => {
 
     expect(result).toMatchObject({
       allowed: true,
-      grantedPermissionCodes: ['asset.internal.resolve'],
+      grantedPermissionCodes: ['crm.internal.object_reference.validate'],
       reasonCode: 'AUTHORIZATION_GRANTED'
     })
     expect(result.decisionReference).toMatch(/^workload-issuance:/)
@@ -166,7 +170,7 @@ function handlerDependencies() {
         principalId: 'human-1',
         scopeLevel: 'TENANT',
         tenantId: 'tenant-1',
-        permissionCodes: ['collaboration.task.assign', 'inventory.read'],
+        permissionCodes: ['collaboration.task.assign', 'site.management.read'],
         roleCodes: ['tenant-member'],
         policies: [],
         authzVersion: 'grant-v1',
@@ -175,17 +179,23 @@ function handlerDependencies() {
     },
     permissionRepository: {
       findByCodes: jest.fn().mockImplementation(async (codes: string[]) =>
-        codes.map((code) => ({
-          code,
-          kind: code.includes('.internal.') ? 'INTERNAL' : 'BUSINESS'
-        }))
+        codes.map((code) => {
+          const definition = getPermissionCodeDefinition(code)!
+          return {
+            code,
+            kind: definition.kind,
+            externalApiEligible: definition.externalApiEligible === true,
+            allowedScopeLevels: [...definition.allowedScopeLevels],
+            definitionFingerprint: permissionDefinitionFingerprint(definition)
+          }
+        })
       )
     },
     workloadRepository: {
       findPolicy: jest.fn().mockResolvedValue({
         originalWorkloadSpiffeId: 'spiffe://local.test/site-service',
         targetAudience: 'urn:oes:service:asset-service',
-        permissionCodes: ['asset.internal.resolve'],
+        permissionCodes: ['crm.internal.object_reference.validate'],
         scopeLevel: 'TENANT',
         tenantIds: ['tenant-1'],
         policyVersion: 'policy-v1'
@@ -234,7 +244,7 @@ function principalInput() {
     scopeLevel: 'TENANT' as const,
     tenantId: 'tenant-1',
     targetAudience: 'urn:oes:service:inventory-service',
-    requestedPermissionCodes: ['inventory.read'],
+    requestedPermissionCodes: ['site.management.read'],
     sessionReference: 'session-1',
     securityReference: 'source-authz-v1'
   }
@@ -245,7 +255,7 @@ function workloadInput() {
   return {
     originalWorkloadSpiffeId: 'spiffe://local.test/site-service',
     targetAudience: 'urn:oes:service:asset-service',
-    requestedPermissionCodes: ['asset.internal.resolve'],
+    requestedPermissionCodes: ['crm.internal.object_reference.validate'],
     scopeLevel: 'TENANT' as const,
     tenantId: 'tenant-1',
     principalType: 'HUMAN' as const,

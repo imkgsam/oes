@@ -1,10 +1,8 @@
-import {
-  getPermissionCodeDefinition,
-  permissionDefinitionFingerprint
-} from '@oes/common/authorization'
+import { getPermissionCodeDefinition } from '@oes/common/authorization'
 import { PermissionRepository } from '../repositories/permission.repository'
 import { RoleRepository } from '../repositories/role.repository'
 import { ScopeLevel } from '../enums/scope-level.enum'
+import { toPermissionDecisionCatalogEntry } from './permission-code-eligibility'
 
 export const ACCOUNT_AUTHORIZATION_SERVICE = Symbol('AccountAuthorizationService')
 
@@ -32,30 +30,16 @@ export class AccountAuthorizationService {
     if (!definition) return false
 
     const permission = await this.permissionRepo.findByCode(permissionCode)
-    if (!permission || !metadataIsCurrent(permission, definition)) {
+    if (!permission) {
       throw new PermissionCatalogMetadataError(permissionCode)
     }
+    const eligibility = toPermissionDecisionCatalogEntry(permission)
+    if (!eligibility.metadataCurrent) throw new PermissionCatalogMetadataError(permissionCode)
 
     const scopeLevel = tenantId ? ScopeLevel.TENANT : ScopeLevel.SYSTEM
-    if (!definition.allowedScopeLevels.includes(scopeLevel)) return false
+    if (!eligibility.allowedScopeLevels.includes(scopeLevel)) return false
 
     const roles = await this.roleRepo.findAccountRoles(accountId, tenantId ?? null, scopeLevel)
     return roles.some((role) => role.hasPermissionByCode(permissionCode))
   }
-}
-
-/** metadataIsCurrent binds the persisted scope list and fingerprint to the exact Common definition. */
-function metadataIsCurrent(
-  permission: Awaited<ReturnType<PermissionRepository['findByCode']>> & {},
-  definition: NonNullable<ReturnType<typeof getPermissionCodeDefinition>>
-): boolean {
-  return (
-    permission.definitionFingerprint === permissionDefinitionFingerprint(definition) &&
-    permission.kind === definition.kind &&
-    permission.externalApiEligible === (definition.externalApiEligible === true) &&
-    permission.allowedScopeLevels.length === definition.allowedScopeLevels.length &&
-    permission.allowedScopeLevels.every(
-      (scope, index) => scope === definition.allowedScopeLevels[index]
-    )
-  )
 }

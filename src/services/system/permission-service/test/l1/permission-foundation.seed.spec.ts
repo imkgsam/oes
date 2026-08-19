@@ -6,6 +6,7 @@ import {
 } from '@oes/common/authorization'
 import { PERMISSION_CODE_SEED_ITEMS } from '../../src/scripts/permission-catalog'
 import { buildBuiltInRoleSeeds } from '../../src/scripts/role-foundation'
+import { filterRoleAssignablePermissionItems } from '../../src/scripts/sync-permission-codes'
 
 /** Verifies Common definitions are the exact, complete runtime Permission catalog source. */
 describe('permission foundation seed', () => {
@@ -47,5 +48,16 @@ describe('permission foundation seed', () => {
         expect(getPermissionCodeDefinition(code)?.allowedScopeLevels).toContain(expectedScope)
       }
     }
+  })
+
+  it('keeps SYSTEM admin sync limited to HUMAN-assignable SYSTEM Codes', () => {
+    const codes = filterRoleAssignablePermissionItems(PERMISSION_CODE_SEED_ITEMS, {
+      assignee: 'HUMAN',
+      scopeLevel: 'SYSTEM'
+    }).map((item) => item.code)
+
+    expect(codes).not.toContain('collaboration.task.assign')
+    expect(codes).not.toContain('crm.internal.object_reference.validate')
+    expect(codes).toContain('permission.list')
   })
 })
