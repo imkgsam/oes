@@ -78,7 +78,7 @@ ADR 解释“为什么选择当前高影响方案”，而 architecture 解释�
 ### 3.4 Governance 与 Runbook
 
 - Governance 只定义当前协作、执行和文档纪律。
-- `AGENTS.md`、`docs/governance/**` 及其他规范真相只由 UD 写入。UD 只有两个 Human-confirmed 入口：Design Owner 提交的语义 Proposal，以及精确分类为语义影响 `NONE` 的 `CANONICAL_EDITORIAL_PATCH`；UD 不自行发起 canonical 改写。Design Owner 与 source Direct owner 都不直接成为 canonical writer。
+- `AGENTS.md`、`docs/governance/**` 及其他规范真相只由 UD 写入。UD 只有两个 Human-confirmed 入口：Design Owner 提交且携带exact Preview/root-confirmation/scope/transition binding的语义 Proposal，以及精确分类为语义影响 `NONE` 的 `CANONICAL_EDITORIAL_PATCH`；UD 不自行发起 canonical 改写。Design Owner 与 source Direct owner 都不直接成为 canonical writer。
 - Runbook 只保存当前可执行的运维、故障处理与恢复步骤。
 - 已完成治理项目、优化收尾、线程经验和一次性复盘不作为长期治理文件。
 
@@ -92,7 +92,9 @@ ADR 解释“为什么选择当前高影响方案”，而 architecture 解释�
 - README、index 或导航的非语义修正；
 - 不改变运行行为、操作结果、owner、scope、contract 或约束等级的说明修正。
 
-Architecture、ADR、Contract、`AGENTS.md` 或 Governance 的语义变化始终进入 Design Owner → UD。上述规范文件的纯编辑修正可使用 `CANONICAL_EDITORIAL_PATCH`：不创建 Design Owner/Workspace/FP；source Direct owner 只拥有 classification、精确 scope/protected scope、evidence 和 source notice target，UD 独占短期 design branch/worktree、修改、验证、design PR、merge、main validation 与自己的 Git cleanup。任何 `must/should/may`、owner、scope、权限、租户、事件、API、生命周期、默认值或行为含义变化都使 editorial classification 失效，UD 返回 source Direct owner，由其重新展示 Collaborative 或继续讨论选项。
+Architecture、ADR、Contract、`AGENTS.md` 或 Governance 的语义变化始终进入 Design Owner → UD。上述规范文件的纯编辑修正可使用 `CANONICAL_EDITORIAL_PATCH`：不创建 Design Owner/Workspace/FP；source Direct owner 只拥有 classification、精确 scope/protected scope、evidence 和 source notice target，UD 独占短期 design branch/worktree、修改、验证、design PR、merge、main validation 与自己的 Git cleanup。任何 `must/should/may`、owner、scope、权限、租户、事件、API、生命周期、默认值或行为含义变化都使 editorial classification 失效，UD以`EDITORIAL_CLASSIFICATION_INVALID`返回exact source Direct owner，由其重新展示 Collaborative 或继续讨论选项；该入口不隐式转换为Proposal。Editorial main CI通过后，UD只发送`CANONICAL_EDITORIAL_MERGED`给exact source用于coverage和无Git Change Set closure，并单独进入自己的cleanup gate；不存在Design Owner或delivery activation。
+
+v6 truth merge前已经确认或已经创建exact owner/task/Git resource的v5 Direct、UD、IDT/CDT、SL、FL、IT、RI、Proposal、editorial、activation、merge和cleanup继续按frozen v5 binding完成到各自terminal/cleanup边界；设计merge不得重新解释或使active card、owner、parent/callback和资源失效。边界完成后的新意图才进入v6，异常接管遵循执行模型的Human-confirmed Recovery。
 
 Direct 文档验证至少包括 changed-path allowlist、`git diff --check`、相关 Markdown link/UTF-8/绝对路径检查和语义影响声明。发现分类不成立时停止写入，并根据 status 展示 Collaborative 或继续讨论选项。
 
@@ -142,19 +144,27 @@ docs/plans/designs/<design-key>.md
 
 Proposal Preview是Design Owner基于当前真相在会话中给Human审阅的完整只读方案，不是repository artifact。它至少展示问题、规范结论、状态/typed routes、逐文件变化、保护范围、验证、停止点和preview fingerprint；生成Preview不创建task、branch/worktree、Workspace或commit。
 
-Human确认exact Preview后，Design Owner才基于Preview与当前真相形成真实Git diff/commit形式的Proposal Patch；它不是另一份长期proposal文档。Preview确认同时授权形成Proposal commit、提交UD并由UD推进到`DESIGN_PR_READY`，实际diff或binding偏离Preview时授权失效，不在commit完成后重复请求Proposal提交确认。
+Human确认exact Preview后，Design Owner才基于Preview与当前真相形成真实Git diff/commit形式的Proposal Patch；它不是另一份长期proposal文档。Preview确认同时授权形成Proposal commit、提交UD并由UD推进到`DESIGN_PR_READY`，实际diff或binding偏离Preview时授权失效，不在commit完成后重复请求Proposal提交确认。Revision使用new card、new transition和append-only commit，不amend已审核Proposal。
 
 它至少能确定：
 
 - source Design Owner；
 - base commit；
 - proposal commit；
+- exact `previewFingerprint`；
+- exact `rootConfirmationFingerprint`；
+- exact `scopeFingerprint`；
+- `transitionId`、`expectedState`与`stateVersion`；
 - intended canonical files；
 - canonical truth domain（architecture、ADR、contract 或 governance）；
 - `deliveryHint = UNKNOWN | LIKELY_NONE | LIKELY_DIRECT | LIKELY_FEATURE | LIKELY_STAGE`；
 - 可选的 exact decision owner，只用于阻塞性非设计决定。
 
-UD 对Human-confirmed Preview形成的语义Proposal执行设计审核；一次Preview确认授权Design Owner形成并提交exact Proposal，也授权UD在接受时按intended canonical files集成、验证、push和创建设计PR，停止于`DESIGN_PR_READY`。`deliveryHint`只供参考，不预授权或禁止实现。design PR经Human确认merge且exact main CI通过后，UD必须进入`ACTIVATION_DECISION_READY`，重新评估并主动建议`Direct | SINGLE_FEATURE | DELIVERY_STAGE | NO_EXECUTION`；Human确认后才创建delivery owner并完成两阶段handoff。语义影响为`NONE`的Human-confirmed`CANONICAL_EDITORIAL_PATCH`是另一条非Proposal入口，只授权UD在exact files/hunks内编辑并走相同design PR、merge、main validation与UD cleanup gate。两类入口的merge与cleanup均分别确认；Proposal的长期历史由Git提供。
+UD 对Human-confirmed Preview形成的语义Proposal执行设计审核；Proposal及Design Owner→UD envelope必须携带相同的Preview/root-confirmation/scope/transition binding，UD在创建integration资源前验证commit parent/base、diff scope、owner与全部fingerprint。任一缺失或不一致即返回`REVISION_REQUIRED`；相同transition与相同binding只复用原结果，同id不同binding拒绝replay。
+
+一次Preview确认授权Design Owner形成并提交exact Proposal，也授权UD在接受时按intended canonical files集成、验证、push和创建设计PR，停止于`DESIGN_PR_READY`。`deliveryHint`只供参考，不预授权或禁止实现。design PR经Human确认merge且exact main CI通过后，UD必须进入`ACTIVATION_DECISION_READY`并显示恰好一个建议：有实现工作时建议`Direct | SINGLE_FEATURE | DELIVERY_STAGE`，当前无实现工作时建议`NO_EXECUTION`对应的暂不执行；Human选择暂不执行后进入`EXECUTION_DEFERRED`，后续实现意图由UD基于exact truth和new stateVersion重新发卡。Human确认启动后才创建delivery owner并完成两阶段handoff。
+
+语义影响为`NONE`的Human-confirmed`CANONICAL_EDITORIAL_PATCH`是另一条非Proposal入口，只授权UD在exact files/hunks内编辑并走相同design PR、merge和main validation。它在main CI后发送`CANONICAL_EDITORIAL_MERGED`给exact source Direct owner并进入UD cleanup gate，不进入Proposal activation。两类入口的merge与cleanup均分别确认；Proposal的长期历史由Git提供。
 
 ## 6. Stage Packet
 
