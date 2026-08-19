@@ -27,7 +27,8 @@ export function toPermissionResponse(permission: Permission): PermissionResponse
     id: permission.id,
     code: permission.code,
     module: permission.module,
-    description: permission.description ?? ''
+    description: permission.description ?? '',
+    allowedScopeLevels: [...permission.allowedScopeLevels]
   }
 }
 

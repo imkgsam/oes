@@ -15,7 +15,7 @@ type RoleNavigationVisibilitySeed = PermissionServiceSeed['roleNavigationVisibil
 
 export type PermissionServiceSeedValidationSnapshot = {
   navigationEntries: NavigationEntrySeed[]
-  permissions: PermissionSeedItem[]
+  permissions: Array<Omit<PermissionSeedItem, 'assignableTo'>>
   roleLandingPolicies: RoleLandingPolicySeed[]
   roleNavigationVisibility: RoleNavigationVisibilitySeed[]
   rolePermissions: Array<{
@@ -55,6 +55,8 @@ export async function collectPermissionServiceSeedValidationSnapshot(
         code: true,
         description: true,
         externalApiEligible: true,
+        allowedScopeLevels: true,
+        definitionFingerprint: true,
         kind: true,
         module: true
       }
@@ -135,6 +137,8 @@ export async function collectPermissionServiceSeedValidationSnapshot(
       code: permission.code,
       description: permission.description ?? undefined,
       externalApiEligible: permission.externalApiEligible,
+      allowedScopeLevels: permission.allowedScopeLevels,
+      definitionFingerprint: permission.definitionFingerprint,
       kind: permission.kind,
       module: permission.module
     })),
@@ -243,6 +247,20 @@ function validatePermissions(
       'externalApiEligible',
       expected.externalApiEligible,
       actual.externalApiEligible
+    )
+    pushFieldDrift(
+      errors,
+      `Permission ${expected.code}`,
+      'allowedScopeLevels',
+      expected.allowedScopeLevels,
+      actual.allowedScopeLevels
+    )
+    pushFieldDrift(
+      errors,
+      `Permission ${expected.code}`,
+      'definitionFingerprint',
+      expected.definitionFingerprint,
+      actual.definitionFingerprint
     )
   }
 

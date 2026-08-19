@@ -1,6 +1,7 @@
 import {
   Modules,
   PermissionKind,
+  PermissionScopeLevel,
   PrismaClient,
   RoleKind,
   ScopeLevel
@@ -32,7 +33,7 @@ import {
 } from './navigation-foundation'
 import { BUILT_IN_ROLE_TEMPLATES } from './role-foundation'
 import { syncBuiltInRoleInstanceBaselines } from './role-instance-foundation'
-import { AUTH_INTERNAL_PERMISSION_CODES } from './permission-catalog'
+import { PERMISSION_CODE_SEED_ITEMS } from './permission-catalog'
 
 type PermissionSeedItem = {
   code: string
@@ -40,10 +41,20 @@ type PermissionSeedItem = {
   description?: string
   kind: PermissionKind
   externalApiEligible: boolean
+  allowedScopeLevels: PermissionScopeLevel[]
+  definitionFingerprint: string
 }
 
-type RawPermissionSeedItem = Omit<PermissionSeedItem, 'kind' | 'externalApiEligible'> &
-  Partial<Pick<PermissionSeedItem, 'kind' | 'externalApiEligible'>>
+type RawPermissionSeedItem = Omit<
+  PermissionSeedItem,
+  'kind' | 'externalApiEligible' | 'allowedScopeLevels' | 'definitionFingerprint'
+> &
+  Partial<
+    Pick<
+      PermissionSeedItem,
+      'kind' | 'externalApiEligible' | 'allowedScopeLevels' | 'definitionFingerprint'
+    >
+  >
 
 const PERMISSION_DESCRIPTION_BY_CODE: Readonly<Record<string, string>> = {
   'permission.create': '创建权限定义',
@@ -246,117 +257,10 @@ function getPermissionDescription(code: string): string | undefined {
 
 // Builds the authoritative permission seed set from shared permission-code constants.
 export function buildPermissionSeedItems(): PermissionSeedItem[] {
-  const items: RawPermissionSeedItem[] = [
-    ...valuesOf(PERMISSION_MANAGEMENT_PERMISSION_CODES).map((code) => ({
-      code,
-      module: Modules.PERMISSION_SERVICE,
-      description: getPermissionDescription(code)
-    })),
-    ...valuesOf(IDENTITY_ACCOUNT_PERMISSION_CODES).map((code) => ({
-      code,
-      module: Modules.IDENTITY_SERVICE,
-      description: getPermissionDescription(code)
-    })),
-    ...valuesOf(TENANT_ORG_MANAGEMENT_PERMISSION_CODES).map((code) => ({
-      code,
-      module: Modules.TENANT_ORG_SERVICE,
-      description: getPermissionDescription(code)
-    })),
-    ...valuesOf(HR_MANAGEMENT_PERMISSION_CODES).map((code) => ({
-      code,
-      module: Modules.HR_SERVICE,
-      description: getPermissionDescription(code)
-    })),
-    ...valuesOf(ITEM_MASTER_MANAGEMENT_PERMISSION_CODES).map((code) => ({
-      code,
-      module: Modules.ITEM_MASTER_SERVICE,
-      description: getPermissionDescription(code)
-    })),
-    ...valuesOf(CRM_MANAGEMENT_PERMISSION_CODES).map((code) => ({
-      code,
-      module: Modules.CRM_SERVICE,
-      description: getPermissionDescription(code)
-    })),
-    ...valuesOf(CRM_INTERNAL_PERMISSION_CODES).map((code) => ({
-      code,
-      module: Modules.CRM_SERVICE,
-      description: getPermissionDescription(code),
-      kind: PermissionKind.INTERNAL,
-      externalApiEligible: false
-    })),
-    ...valuesOf(SRM_MANAGEMENT_PERMISSION_CODES).map((code) => ({
-      code,
-      module: Modules.SRM_SERVICE,
-      description: getPermissionDescription(code)
-    })),
-    ...valuesOf(SRM_INTERNAL_PERMISSION_CODES).map((code) => ({
-      code,
-      module: Modules.SRM_SERVICE,
-      description: getPermissionDescription(code),
-      kind: PermissionKind.INTERNAL,
-      externalApiEligible: false
-    })),
-    ...valuesOf(SALES_MANAGEMENT_PERMISSION_CODES).map((code) => ({
-      code,
-      module: Modules.SALES_SERVICE,
-      description: getPermissionDescription(code)
-    })),
-    ...valuesOf(PROCUREMENT_MANAGEMENT_PERMISSION_CODES).map((code) => ({
-      code,
-      module: Modules.PROCUREMENT_SERVICE,
-      description: getPermissionDescription(code)
-    })),
-    ...valuesOf(PROCUREMENT_INTERNAL_PERMISSION_CODES).map((code) => ({
-      code,
-      module: Modules.PROCUREMENT_SERVICE,
-      description: getPermissionDescription(code),
-      kind: PermissionKind.INTERNAL,
-      externalApiEligible: false
-    })),
-    ...valuesOf(FINANCE_MANAGEMENT_PERMISSION_CODES).map((code) => ({
-      code,
-      module: Modules.FINANCE_SERVICE,
-      description: getPermissionDescription(code)
-    })),
-    ...valuesOf(AUTH_MANAGEMENT_PERMISSION_CODES).map((code) => ({
-      code,
-      module: Modules.AUTH_SERVICE,
-      description: getPermissionDescription(code)
-    })),
-    ...valuesOf(AUTH_SESSION_PERMISSION_CODES).map((code) => ({
-      code,
-      module: Modules.AUTH_SERVICE,
-      description: getPermissionDescription(code)
-    })),
-    ...valuesOf(AUTH_INTERNAL_PERMISSION_CODES).map((code) => ({
-      code,
-      module: Modules.AUTH_SERVICE,
-      description: '触发 External API Key verifier version compromise 的内部安全处置调用',
-      kind: PermissionKind.INTERNAL,
-      externalApiEligible: false
-    })),
-    ...valuesOf(COLLABORATION_TASK_PERMISSION_CODES).map((code) => ({
-      code,
-      module: Modules.COLLABORATION_SERVICE,
-      description: getPermissionDescription(code)
-    })),
-    ...valuesOf(TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES).map((code) => ({
-      code,
-      module: Modules.TERMINAL_DEVICE_SERVICE,
-      description: getPermissionDescription(code)
-    }))
-  ]
-
-  const unique = new Map<string, RawPermissionSeedItem>()
-  for (const item of items) {
-    unique.set(item.code, item)
-  }
-
-  return Array.from(unique.values()).map((item) => ({
+  return PERMISSION_CODE_SEED_ITEMS.map((item) => ({
     ...item,
-    kind: item.kind ?? PermissionKind.BUSINESS,
-    externalApiEligible: item.externalApiEligible ?? false
-  })) as PermissionSeedItem[]
+    allowedScopeLevels: [...item.allowedScopeLevels]
+  }))
 }
 
 /** filterRoleAssignablePermissionItems removes workload-policy-only codes before any role foundation is synchronized. */
@@ -684,13 +588,17 @@ async function main() {
           module: item.module,
           description: item.description,
           kind: item.kind,
-          externalApiEligible: item.externalApiEligible
+          externalApiEligible: item.externalApiEligible,
+          allowedScopeLevels: item.allowedScopeLevels,
+          definitionFingerprint: item.definitionFingerprint
         },
         update: {
           module: item.module,
           description: item.description,
           kind: item.kind,
-          externalApiEligible: item.externalApiEligible
+          externalApiEligible: item.externalApiEligible,
+          allowedScopeLevels: item.allowedScopeLevels,
+          definitionFingerprint: item.definitionFingerprint
         }
       })
       if (roleAssignableCodes.has(item.code)) {
