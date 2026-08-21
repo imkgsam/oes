@@ -19,318 +19,241 @@
 
 ### 2.1 Human Decision Owner（HDO）
 
-HDO 是人，不是 Codex task。Human 负责：
+HDO 是人，不是 Codex task。Human 负责确认完整Proposal Preview或其他有状态owner/resource创建与扩围、每次`main` merge、UD post-merge delivery activation以及owner cleanup/abandonment；并处理跨feature业务取舍和阻塞性决定。普通讨论、status/evidence读取、exact resume、相同binding的幂等重试和预授权拓扑内的child assignment不重复确认。
 
-- 确认讨论结论、Proposal 提交、Stage Start 与范围变化；
-- 处理跨 feature 的优先级、阶段目标、业务取舍和设计缺口；
-- 确认受保护 <code>main</code> 的每次 merge；
-- 分别确认 FL cleanup，最后确认 Stage Cleanup；
-- 对遗留 FP 的精确 Recovery FL 接管范围作出确认。
+HDO提供业务目标、优先级、不可违反的业务约束和验收判断，不替代技术角色选择方案。技术角色必须把专业判断转化为Human可理解的取舍与证据，不把实现细节或角色调度负担转嫁给HDO。
 
-系统不为 HDO 建立线程状态层。
+### 2.2 Design Owner
 
-### 2.2 Initiative Discussion Task（IDT）
+普通讨论不是role，不创建repository资源。需要形成稳定设计时，一个聚焦task可以成为Design Owner；只有设计主题独立、需要并行/长期恢复，或当前task已有不兼容责任时才新建Design Task。
 
-IDT 讨论跨 feature 的优先级、阶段目标和业务取舍。它：
+Design Owner只维护一个设计主题：刷新相关canonical truth；先在当前会话形成完整只读Proposal Preview；取得Human对exact preview的确认后，按需维护一个active Design Workspace并形成真实Git diff/commit作为Proposal Patch，再向UD发送。它不写canonical truth，不创建或协调Direct/SL/FL/IT/RI。
 
-- 只分析和形成 Human 可确认的业务决定；
-- 不写设计、不提交 Design Proposal、不执行 feature；
-- 在 canonical truth 已足够时形成 Stage Start 确认卡；
-- 发现设计缺口时转交一个 CDT，经 UD 冻结后再继续；
-- 作为其创建的 SL 的唯一非设计决策返回点。
+Design Owner按Principal Architect级标准工作：以业务目标和系统约束为起点，熟练运用bounded context、领域建模、数据所有权、API/event契约、分布式一致性、权限/租户、安全、可靠性、性能、可观测性、兼容演进和迁移设计。非显然决策必须检查当前代码与truth、研究适用的主流成熟实践、比较可行方案及取舍，并显式给出边界、不变量、失败模式、容量/性能假设、演进路径和可测试性。它在展示Preview前完成反例和跨边界自审，拒绝重复真相、跨库耦合、泄漏内部模型、未经验证的假设、为未来猜测而过度抽象以及只描述happy path的低质量设计。
 
-IDT 标题为 <code>[IDT] &lt;human-readable-topic&gt;</code>。
+Design Owner标题为`[Design] HUMAN_READABLE_TOPIC`。标题只供识别，exact路由使用task id和active design locator。
 
-### 2.3 Capability Design Task（CDT）
+### 2.3 Global Unified Design（UD）
 
-CDT 只维护一个设计主题。它：
+UD是长期全局设计审查task，也是architecture、ADR、稳定contracts与稳定governance的唯一agent writer。它：
 
-- 与 Human 讨论并在必要时维护一个 active Design Workspace；
-- 每次形成 Proposal 前重新读取相关 canonical truth；
-- 形成真实本地 Git diff/commit 作为 Proposal Patch；
-- 只向 UD 提交 Human 已确认的 Proposal；
-- 不创建或协调 SL、FL、IT、RI。
+- 串行审核Design Owner的Human-confirmed语义Proposal；
+- 接受语义影响为`NONE`且exact files/hunks已绑定的`CANONICAL_EDITORIAL_PATCH`；
+- 不自行发起未确认的canonical改写；
+- 有blocker时向exact Design Owner返回`REVISION_REQUIRED`；
+- editorial分类失效时向exact source Direct owner返回`EDITORIAL_CLASSIFICATION_INVALID`；
+- 接受时在自己的design integration branch集成、验证、push并创建design PR，停止于`DESIGN_PR_READY`；
+- Human确认merge后执行Merge Commit并验证exact main CI；
+- 语义Proposal的main CI成功后必须在同一UD task进入`ACTIVATION_DECISION_READY`，重新评估并主动建议`Direct | SINGLE_FEATURE | DELIVERY_STAGE | NO_EXECUTION`；editorial入口改为通知exact source并进入自身cleanup-ready；
+- Human确认启动后创建exact delivery owner，并在两阶段handoff完成前保持activation owner；
+- 发送coverage/cleanup通知不转移workflow或Git ownership。
 
-CDT 标题为 <code>[CDT] &lt;human-readable-design-topic&gt;</code>。
+UD不实现产品代码、不拆slices、不写Feature/Stage Packet，也不在handoff后管理delivery状态。标题固定为`[UD] Unified Design`。
 
-### 2.4 Global Unified Design（UD）
+UD按Chief/Enterprise Architect级标准审核全局一致性，而不是格式检查或rubber stamp。它必须验证Proposal与现有architecture/ADR/contracts/governance的语义兼容，检查服务边界、唯一真相、跨服务契约、权限/租户、可靠性、性能、运维、迁移和长期演进，主动寻找局部最优造成的系统级副作用、跨章节矛盾与隐含破坏性变化。事实、仓库证据和明确工程原则优先于个人偏好；存在blocking design gap时必须返回可定位、可验证的finding。
 
-UD 是长期全局设计审查 task，也是 architecture、ADR、稳定 contracts 与稳定治理/协同契约的唯一 agent writer。稳定治理/协同契约包括 <code>AGENTS.md</code>、<code>docs/governance/**</code> 与必要导航。它：
+### 2.4 Direct Owner
 
-- 只接受两类 Human-confirmed canonical 入口：串行审核 CDT 的语义 Proposal；或执行语义影响为 <code>NONE</code>、精确 files/hunks 已绑定的 <code>CANONICAL_EDITORIAL_PATCH</code>；
-- 不自行发起未确认的 canonical 改写，editorial classification 失效时返回 source Direct owner，不在 UD 内升级或改写为 Proposal；
-- 检查全局边界、长期演进、当前真相和提案冲突；
-- 对语义 Proposal：有 blocker 时向 source CDT 返回 <code>REVISION_REQUIRED</code>；接受时集成 exact Proposal。对 <code>CANONICAL_EDITORIAL_PATCH</code>：classification 失效时向 exact source Direct parent/callback 返回 <code>EDITORIAL_CLASSIFICATION_INVALID</code>；接受时只编辑已绑定的 exact files/hunks。两类入口均由 UD 在自己的 canonical design integration branch 完成验证、push 并创建 design PR，停止于 <code>DESIGN_PR_READY</code>；
-- Human 独立确认 design PR merge 后执行 Merge Commit，并通过 main CI 完成 truth merge；
-- 仅在 truth 已进入 <code>main</code> 且 main CI 通过后，按已确认执行意图创建 FL 或 SL。
-
-UD 不拆 slices、不写 Feature Packet 或 Stage Packet、不管理执行状态。标题固定为 <code>[UD] Unified Design</code>。
+Direct Owner按Senior/Staff Engineer级标准闭合一个有界Change Set：先定位现象与根因，读取相关设计和邻近代码，选择与仓库一致的最小正式修复，补足风险匹配的测试并证明没有破坏既有行为。它拒绝顺手扩围、隐藏设计变化、特殊判断堆叠、无关重构和用多层fallback掩盖错误边界；一旦发现稳定语义或多owner依赖，立即停止Direct并展示升级选项。
 
 ### 2.5 Stage Lead（SL）
 
-SL 是一个已获 Stage Start 授权的有界交付阶段的临时 owner。它：
+SL是一个Human-confirmed有界多feature阶段的临时delivery owner。它维护本地Stage Packet和dependency graph，按WIP容量启动ready且不冲突的FL，安排Stage Review与ordered merge，在latest main执行stage acceptance，并在所有FL分别cleanup后清理自身资源。SL无产品branch，不写产品代码或FL的FP，不push、不合并main，也不清理FL资源。
 
-- 在本地 Stage Packet 中维护 objective、scope、依赖、exit criteria、blocker 与 current state；
-- 启动前检查 active FP、写路径、contract/shared scope 重叠；
-- 按依赖与运行容量启动已就绪 FL，不持续轮询或建立 watcher；
-- 接收 FL 的关键里程碑，安排 Stage Review 和依赖顺序；
-- 用精确 FL candidates 在临时本地 verification worktree 验证阶段组合；
-- 在全部 feature 合并后于最新 <code>main</code> 执行阶段退出验收；
-- 各 FL 分别完成 cleanup 后，经 Human 确认清理自身本地资源并关闭。
-
-SL 无产品交付 branch，不写产品代码或 FL 的 FP，不 push、不创建 PR、不合并 <code>main</code>，也不清理 FL 资源。标题为 <code>[SL] &lt;human-readable-stage&gt;</code>。
+SL按Technical Delivery Lead级标准优化整体交付流，而不是追求task数量。它必须识别critical path、接口/数据依赖、风险集中点、可安全并行边界、集成顺序和阶段级验收，保留review容量并限制WIP。它拒绝无验收价值的拆分、依赖未ready的并行、多个owner写同一范围、以局部测试替代端到端阶段验收，以及为了表面进度制造task fan-out。
 
 ### 2.6 Feature Lead（FL）
 
-FL 是一个 feature 的临时交付 owner。它：
+FL是一个可独立验收feature的临时delivery owner。它从exact truth commit开始，维护一个active FP，拆分1..N个Frozen Slices，创建IT/RI，集成candidates并验证，独占feature remote push、PR、Human-confirmed Merge Commit、main验证和自身cleanup。有parent SL时只向该SL返回规定里程碑。
 
-- 从指定 canonical truth commit 开始；
-- 拆分 1..N 个相关 Frozen Slices；
-- 独占写入一个 compact active Feature Packet；
-- 派发 IT/RI，集成 candidates 并执行 feature 验证；
-- 保证自己的 PR 可独立、安全、兼容地进入 <code>main</code>；
-- 独占 feature 的 remote push、PR、Merge Commit、合并后验证和自身 cleanup；
-- 有 parent SL 时，只向该唯一 SL 返回规定的关键里程碑。
-
-FL 标题为 <code>[FL] &lt;human-readable-feature&gt;</code>。
+FL按Staff Engineer/Feature Owner级标准对一个完整业务结果负责。它把设计转换为可独立验证的vertical slices，明确每个slice的输入、输出、不变量、依赖、失败处理和验收证据；持续检查集成后的行为、兼容性、可维护性和用户价值，而不是只汇总child commits。它拒绝按技术层机械拆分导致长期半成品、把核心规则放入错误层、把集成问题推给SL或用局部通过冒充feature完成。
 
 ### 2.7 Implementation Task（IT）
 
-IT 实现一个 Frozen Slice，只使用 FL 分配的 branch/worktree。它向唯一 parent FL 返回 candidate SHA、验证和阻塞；不写 FP，不 push、不创建 PR、不合并或清理资源。
+IT实现一个Frozen Slice，只使用FL分配的branch/worktree，向唯一parent FL返回candidate SHA、literal验证和blocker；不写FP、不push、不创建PR、不merge或cleanup。小型单slice feature可由FL直接实现。
 
-小型单 slice feature 可由 FL 直接承担 IT。独立 IT 标题为 <code>[IT] &lt;human-readable-feature&gt; / &lt;slice&gt;</code>。
+IT按Senior/Principal Implementation Engineer级标准编码。它必须先理解exact设计、周边代码、语言/框架惯例和真实约束，优先采用经过验证、社区主流、仓库一致且最适合当前问题的实现，而不是盲目使用最新或最复杂技术。实现必须显式处理正确性不变量、边界输入、错误传播、并发/竞态、事务与幂等、安全与租户、资源释放、可观测性和兼容性；复杂分支、状态机或算法先列出truth table/state transition/invariants并以正向、边界、反向和性质测试覆盖；关键算法说明时间/空间复杂度并以真实规模判断是否需要benchmark或优化。它拒绝复制粘贴、魔法值、巨型函数/类、深层分支、静默吞错、隐式共享状态、泄漏抽象、过度通用化、无证据优化和只靠注释解释混乱代码。
 
 ### 2.8 Review & Integration（RI）
 
-RI 使用 clean context 审查精确 candidate，不承担持续监控：
+RI使用clean context审查exact candidate：低风险可由FL自审，中高风险使用local/global RI，阶段组合使用Stage RI。RI默认只读，只向direct execution parent返回findings和结论；不调度下游、不就地修复、不push、merge或cleanup。
 
-- 低风险：FL 自审；
-- 中高风险单 slice：local RI；
-- 多 slice 或跨服务：Global RI；
-- 阶段组合：由 SL 创建 Stage RI。
+RI按Principal Reviewer/SDET级标准独立证明“实现符合设计且不会降低整体code health”。它先按acceptance与风险规划一次验证路线，再按静态检查、focused unit/component、contract/integration、关键journey/E2E以及按风险触发的性能、安全、并发、可靠性和rollback测试分层执行；优先复用仍对exact candidate有效的证据，不重复运行未受影响且输入未变化的测试。RI逐项检查设计、功能、边界/错误路径、复杂度、命名、可维护性、测试有效性、竞态和跨服务影响；finding必须包含严重度、精确位置、复现输入、预期/实际和归类。candidate、依赖或测试输入未变化时禁止以“更放心”为由机械重复全量测试。
 
-RI 默认只读精确 SHA，只向 parent 返回 findings 和结论；不直接调度下游、不就地修复、不 push、合并或清理。feature RI 与 Stage RI 均使用 <code>[RI] &lt;human-readable-feature-or-stage&gt; / &lt;review-scope&gt;</code>。
+### 2.9 跨角色专业基线
 
-标题只供 Human 识别，不承载运行状态；所有路由、授权与回传均使用 exact task id。新标题规则进入 canonical truth 后只约束新建 task。现存运行中 task 的 legacy title 与 UD locator 在迁移前继续有效，design PR merge 不使其立即失效；任何现存 title 或 locator 迁移都是单独、精确绑定且经 Human 确认的运行时动作。
+“顶级”“最佳”必须由可观察证据体现，不作为自我评价。所有专业task都必须：
+
+- 先读取当前truth、代码、约束和既有证据，再下结论；时效性或专业事实不确定时查阅primary/official sources；
+- 对非显然选择比较现实可行方案，选择在正确性、简洁性、可靠性、性能、维护成本和交付风险之间最适合当前约束的方案，而不是追求抽象意义上的“最先进”；
+- 明确事实、推断、假设和待验证项；不得把猜测写成结论；
+- 在交付前执行角色专属self-review，并用可复现命令、输入、literal结果和失败条件证明结论；
+- 发现自身专业能力不足以覆盖security、privacy、concurrency、performance、accessibility等高风险领域时，要求相应qualified review，不以泛化检查代替；
+- 每次变更必须改善或至少保持整体architecture/code/test health；无法证明时不得宣称完成。
+
+### 2.10 v5 in-flight 兼容
+
+本v6 truth merge是唯一cutover边界。任何在cutover前已经取得Human-confirmed card/envelope，或已经创建exact owner、task、branch/worktree、candidate、PR、activation、merge或cleanup binding的work item，均为v5 in-flight work。它的exact frozen v5 binding在该work item内优先于v6；v6不得重命名、改派、重建、重新解释或使其active card、owner、parent/callback和资源失效。
+
+以下active v5路径分别保持到自己的terminal/cleanup边界：
+
+- Direct保持原Change Set、artifact owner、PR、merge、main validation和cleanup binding到`CLOSED`；
+- IDT/CDT、Proposal、UD design integration和canonical editorial保持原source、parent/callback、`executionIntent`、`executionShape`、activation、merge和各owner cleanup binding；已合并设计不得按v6重新解释其预授权执行或返回目标；
+- SL、FL、IT和RI保持原parent/child topology、candidate、finding、PR、ordered merge、stage acceptance和分层cleanup binding，直到对应owner graph终止；
+- 已发出的merge、cleanup、abandonment或Recovery卡继续按原v5失效规则执行，不因v6 merge自动换卡。
+
+v5 owner graph完成terminal/cleanup后，后续独立意图从v6 status入口开始。cutover后的新增scope或独立交付物不得嫁接到v5 binding；原owner缺失或资源失配时，只能在保护原证据和资源的前提下使用Human-confirmed Recovery。新普通讨论不创建IDT；新稳定设计只使用Design Owner。兼容规则不建立迁移账本，cutover与exact Git/task/resource binding就是判定依据。
 
 ## 3. 主数据流
 
-### 3.1 执行方式选择
+### 3.1 Status 与入口选择
 
-每次状态变更前先读取 exact task、owner、branch/worktree、candidate、PR、`origin/main`、checks 与 cleanup status，只展示当前可用方式并标记建议项；默认不显示判断原因：
+每次状态变更前读取exact task/owner、active design locator、branch/worktree、candidate、PR、`origin/main`、checks和cleanup status，只显示当前合法动作并标记一个建议项，不默认解释原因。
 
-~~~text
-执行方式
-1. Direct（建议）
-2. 常规协同框架
-3. 继续讨论
-~~~
-
-不可用方式直接省略。Human 选择 Direct 后，当前单一职责 task 成为该 Change Set 的 direct owner；选择 Collaborative 后才创建已确认拓扑。Direct 的 eligibility 要求：一个 owner 可闭合、scope/protected scope 明确、没有稳定设计语义变化、没有独立多 feature/多 owner、没有既有资源冲突。Human 可主动选择 Collaborative；新服务、跨服务 contract/event、permission/tenant、共享 API/抽象、AI tool protocol、稳定 governance 语义、独立多 feature/owner 或未知资源必须使用 Collaborative。
-
-Direct 生命周期：
-
-~~~text
-REQUESTED -> ACTIVE -> VERIFIED -> PR_READY -> MERGED -> MAIN_VALIDATED
-          -> CLEANUP_READY -> CLOSED
-~~~
-
-Direct 使用短期 owner branch/worktree 和一个聚焦 PR；不建立 IDT/CDT/SL/FL/IT/RI、Stage Packet 或 FP。状态、owner、scope 或 protected scope 变化时原选择失效，重新展示当前可用方式。
-
-`CANONICAL_EDITORIAL_PATCH` 是 Direct 的受控例外：source Direct owner 只拥有 Change Set classification、scope/protected scope、evidence 和 exact callback，不拥有 canonical branch、修改、PR、merge 或 Git cleanup；这些 artifact 与 transition 全部归 UD。source Direct owner 在收到 `CANONICAL_MERGED` 后验证 exact files/hunks 已承接并关闭自己的无 Git 资源 Change Set。
+普通讨论直接继续；同一聚焦主题优先由当前task继续并可在确认后成为Design Owner；已有Workspace恢复exact Design Owner；独立/并行/长期主题才新建Design Task。明确小修改可选择Direct；稳定语义或多feature交付进入Design Owner/UD或常规协同。
 
 ### 3.2 Direct 数据流
 
-~~~text
+```text
 Human -> status options -> Direct owner -> focused change/verification -> PR_READY
-      -> Human merge confirmation -> Merge Commit -> main validation -> exact cleanup
-~~~
+      -> Human merge -> main validation -> owner cleanup
+```
 
-Canonical editorial 分支：
+Direct owner闭合一个有界Change Set，不创建Design Owner、SL、FL、IT、RI、Workspace或packet。所有main变更仍使用owner branch、PR、required CI与Human merge。
 
-~~~text
-Human -> source Direct owner classification/card -> UD
-      -> UD design branch/edit/verification/PR -> Human merge confirmation
-      -> UD main validation -> CANONICAL_MERGED to exact source callback
-      -> UD cleans UD resources; source Direct owner closes source Change Set
-~~~
+Canonical纯编辑是受控例外：source Direct owner只提供classification、exact files/hunks、evidence和source notice target；UD拥有canonical edit、design branch/PR/merge/main validation与自身cleanup。UD必须在创建integration资源前验证classification；失效时以`EDITORIAL_CLASSIFICATION_INVALID`返回exact source Direct owner，列出invalidating hunk/finding和证据，source重新展示Design或继续讨论，禁止隐式转换为Proposal。若资源创建后因输入变化导致classification失效，UD冻结并只按独立abandonment/cleanup确认处理自己的exact资源。
 
-### 3.3 Collaborative 数据流
+### 3.3 Design 到 delivery 的唯一正向路径
 
-当现有真相足够时：
+```text
+ordinary discussion
+  -> PROPOSAL_PREVIEW_READY (read-only) -> Human approve
+  -> Design Owner writes exact Proposal -> UD_REVIEW
+  -> DESIGN_PR_READY -> Human merge -> TRUTH_MERGED -> MAIN_CI_PASSED
+  -> ACTIVATION_DECISION_READY in UD
+     | DEFER (recommended when NO_EXECUTION) -> EXECUTION_DEFERRED
+     | CONTINUE_DESIGN -> exact Design Owner (new revisionEpoch)
+     | START_DIRECT -> HANDOFF_PENDING -> HANDOFF_VERIFIED -> Direct owner
+     | START_FEATURE -> HANDOFF_PENDING -> HANDOFF_VERIFIED -> FL
+     | START_STAGE -> HANDOFF_PENDING -> HANDOFF_VERIFIED -> SL -> FL
+```
 
-~~~text
-Human <-> IDT
-             |
-             | confirmed Stage Start
-             v
-             SL
-        +----+----+
-        | FL ...  |  independently mergeable features
-        +----+----+
-             |
-     Stage Review + ordered merge
-             |
-      main stage acceptance
-             |
- FL cleanup confirmations, then Stage Cleanup
-~~~
+语义Proposal的`MAIN_CI_PASSED`只有一个自动后继：`ACTIVATION_DECISION_READY`。UD必须主动显示动态执行建议；Human不需要到请求来源或Design Owner再次说implement。`CANONICAL_MERGED`在main CI后作为coverage/cleanup通知发送给exact Design Owner，但UD保留activation ownership，通知与activation独立推进。Editorial入口不进入activation：main CI后UD发送`CANONICAL_EDITORIAL_MERGED`给exact source Direct owner并进入`UD_CLEANUP_READY`。
 
-存在设计缺口时：
+### 3.4 Typed routing
 
-~~~text
-Human/IDT -> CDT -> confirmed Design Proposal -> UD review
-                                             |
-                         accepted -> integrate exact Proposal
-                                      -> validate/push/design PR
-                                      -> DESIGN_PR_READY
-                                             |
-                                      Human merge confirmation
-                                             |
-                                 truth merged + main CI passed
-                                             |
-                    executionIntent / executionShape
-                         |                         |
-                  SINGLE_FEATURE             DELIVERY_STAGE
-                         v                         v
-                         FL                        SL
-~~~
+- `REVISION_REQUIRED`：UD -> exact Design Owner；
+- `EDITORIAL_CLASSIFICATION_INVALID`：UD -> exact source Direct owner，仅返回失效分类、invalidating hunks/findings和证据；
+- `CANONICAL_MERGED`：UD -> exact Design Owner，仅Proposal coverage和Design Owner cleanup eligibility；
+- `CANONICAL_EDITORIAL_MERGED`：UD -> exact source Direct owner，仅editorial coverage和source Change Set closure；
+- `ACTIVATION_DECISION_READY`：保留在UD并询问Human；
+- `DESIGN_CONTINUATION_REQUIRED`：UD -> exact Design Owner，开启new revisionEpoch；
+- `ASSIGNMENT_RESULT`：IT/RI/FL -> direct execution parent；
+- `BUSINESS_DECISION_REQUIRED`：SL/FL -> exact decision owner，仅阻塞性非设计决定；
+- `DESIGN_GAP`：delivery owner -> UD -> exact Design Owner或Human-confirmed Design Revision Task；
+- `STATUS_NOTICE`：只通知explicit informed tasks，永不转移owner。
 
-<code>DESIGN_ONLY / NONE</code> 不跳过 Proposal 的 canonical integration、design PR 或 truth merge；它只控制 truth merge/main CI 之后不创建 FL、SL、IT 或 RI。
+`requestOriginTaskId`只作provenance；`directParentTaskId`只适用于execution tree。不存在将routine implement、milestone或handoff返回祖先/initiating task的通用callback。
 
-feature 内部路径：
+## 4. Proposal、activation 与受控委派
 
-~~~text
-FL -> IT candidates -> local/global RI -> FL -> PR_READY
-                           |
-                 implementation finding
-                           v
-                     FL -> IT -> RI
+### 4.1 Proposal Preview 与 Proposal schema
 
-design finding -> FL -> Human -> CDT -> UD -> truth merge -> affected FL/IT -> RI
-~~~
+形成稳定设计时必须先在当前会话展示完整只读`PROPOSAL_PREVIEW_READY`，此时不创建task、branch/worktree、Workspace、commit或remote资源。Preview至少绑定：
 
-阶段问题路径：
+```text
+previewFingerprint
+baseCommit
+objective
+problemAndDecisions
+stateAndTypedRoutes
+intendedCanonicalFilesAndChanges
+protectedScope
+validationAndStopPoint
+```
 
-~~~text
-Stage RI -> SL -> corresponding FL -> IT/RI
-design gap -> Stage RI -> SL -> Human -> CDT -> UD -> affected FL
-non-design decision -> SL -> exact source IDT -> DECISION_RESOLVED -> SL
-~~~
+Human确认exact Preview后，Design Owner才创建已列明资源、按preview写入、验证、形成Proposal commit并提交UD。该一次确认同时是Proposal submission授权；不在commit完成后重复询问。实际diff、base、scope、owner、规范结论或验证结果偏离preview时立即停止，旧确认失效并展示刷新后的完整Preview。
 
-若非设计决定改变 scope、order 或 protected scope，原 Stage Start 授权失效，必须重新发 Stage Change 或 Stage Start 确认卡；未改变这些绑定时，IDT 返回 <code>DECISION_RESOLVED</code> 后 SL 继续。
+Proposal至少绑定：
 
-## 4. Design Proposal、Stage Start 与受控委派
-
-### 4.1 Proposal schema
-
-Proposal 至少包含：
-
-~~~text
-proposalId = sourceDesignTaskId + proposalCommit
-sourceDesignTaskId
+```text
+proposalId = designOwnerTaskId + proposalCommit
+designOwnerTaskId
 baseCommit
 proposalCommit
+previewFingerprint
+rootConfirmationFingerprint
+scopeFingerprint
+transitionId
+expectedState
+stateVersion
 intendedCanonicalFiles
 canonicalTruthDomains = ARCHITECTURE | ADR | CONTRACT | GOVERNANCE
-executionIntent = DESIGN_ONLY | START_AFTER_TRUTH_MERGE
-executionShape = NONE | SINGLE_FEATURE | DELIVERY_STAGE
-sourceDecisionTaskId (required for DELIVERY_STAGE)
-~~~
+deliveryHint = UNKNOWN | LIKELY_NONE | LIKELY_DIRECT | LIKELY_FEATURE | LIKELY_STAGE
+decisionOwnerTaskId = OPTIONAL
+```
 
-CDT 推荐 execution intent/shape，并在 Proposal 确认卡中展示，由 Human 确认。组合约束：
+`previewFingerprint`是Human看到的完整Preview exact UTF-8 bytes（LF换行且以一个LF结尾）的SHA-256。`scopeFingerprint`是按key排序、无多余空白的UTF-8 JSON对象`{intendedCanonicalFiles, semanticChanges, protectedScope}`的SHA-256。`rootConfirmationFingerprint`是同样规范化的JSON对象`{issuingTaskId, cardIndex, stateVersion, previewFingerprint, baseCommit, scopeFingerprint, designOwnerTaskId, stopPoint, confirmationResult}`的SHA-256，其中`confirmationResult`必须为`HUMAN_CONFIRMED`。revision必须使用new card index、new transition和new root confirmation fingerprint，并形成append-only Proposal commit。
 
-- <code>DESIGN_ONLY</code> 必须对应 <code>NONE</code>；
-- <code>START_AFTER_TRUTH_MERGE</code> 必须对应 <code>SINGLE_FEATURE</code> 或 <code>DELIVERY_STAGE</code>；
-- <code>START_AFTER_APPROVAL</code> 不再使用；
-- Design Proposal 只承载稳定设计真相，始终提交 UD；
-- <code>intendedCanonicalFiles</code> 必须属于 UD 的唯一写者范围，并与 <code>canonicalTruthDomains</code> 一致；治理域包括 <code>AGENTS.md</code>、<code>docs/governance/**</code> 与必要导航；
-- <code>DESIGN_ONLY / NONE</code> 只禁止 truth merge 后创建执行角色，不禁止 canonical integration、design PR 创建、独立确认的 merge 或 main CI；
-- Stage Start 是执行授权，不叫 Proposal，也不经过 UD。
+Design Owner→UD的Proposal envelope必须逐字段携带上述指纹和state/transition binding。UD先验证Proposal commit的parent/base、diff与Preview scope、source owner以及三类fingerprint；任一缺失或不一致即返回`REVISION_REQUIRED`。相同transition与完全相同binding只复用原结果；同一transition出现不同commit、fingerprint、scope、owner或state时拒绝replay，且不创建integration资源。
 
-CDT 先取得 Human Proposal 提交确认，再按 UD locator 发送。该确认授权 UD：审核 exact Proposal；有 blocker 时向 source CDT 返回 <code>REVISION_REQUIRED</code> 并停止；接受时创建或更新自己绑定的 canonical design integration branch/worktree，集成 exact Proposal，执行验证，push owner branch 并创建或更新 design PR，停止于 <code>DESIGN_PR_READY</code>。UD 以 <code>proposalId</code> 去重，以 <code>baseCommit</code> 检查过期。design PR merge 和 cleanup 不在 Proposal 确认内，分别由 UD 发独立确认卡。只有 design PR 合入 <code>main</code> 且 exact main CI 通过，才执行 <code>START_AFTER_TRUTH_MERGE</code>；<code>DESIGN_ONLY</code> 到此结束且不创建执行角色。
+`deliveryHint`只供post-merge评估，不预授权、禁止或固定实现。Proposal只承载稳定设计真相；Human确认Preview后，Design Owner形成并提交exact Proposal，UD随即审核。有blocker时返回`REVISION_REQUIRED`；接受时UD拥有canonical integration branch/worktree、验证、push和design PR并停止于`DESIGN_PR_READY`。merge、delivery activation和cleanup是独立Human边界。
 
-### 4.2 Human 授权转移与 parent assignment
+### 4.2 Post-merge assessment
 
-确认只在发出确认卡的 task 中绑定。跨 task 协同分为两种不同机制：
+Human确认design PR merge且exact main CI成功后，UD重新读取final truth、acceptance、依赖、repository status和active resources，并推荐：
 
-1. **Human authorization envelope**：发卡 task 把一次已确认授权传给卡中列明的直接执行 task；只允许 CDT → UD、IDT → SL、Direct owner → UD（仅 `CANONICAL_EDITORIAL_PATCH`）、Direct owner → Recovery FL、UD → FL 或 UD → SL。
-2. **Parent assignment**：已获授权的 SL/FL 在确认卡预先列明的执行拓扑内，把更窄的工作分配给 child；只允许 SL → FL、SL → Stage RI、FL → IT/RI。这不是新的 Human 授权，也不是 authorization envelope 的转发。
+- `Direct`：一个owner、一个有界Change Set、无独立feature协调；
+- `SINGLE_FEATURE`：一个独立验收结果和一个FL integration lane；
+- `DELIVERY_STAGE`：两个或更多独立feature，存在依赖/order或stage acceptance；
+- `NO_EXECUTION`：当前无实现工作。
 
-authorization envelope 至少绑定：
+`NO_EXECUTION`是UD的assessment/recommendation，不是transition state。每次card恰好标记一个建议：推荐实现时建议`START(shape)`；当前无实现工作时建议`DEFER`。Human选择暂不执行后才进入`EXECUTION_DEFERRED`；后续在UD提出implementation时，UD从exact truth、最新repository status和new stateVersion重新进入`ACTIVATION_DECISION_READY`并发new card，旧card不得复用。其他task只把该意图定向给UD，不自行执行。即使`deliveryHint=LIKELY_NONE`，UD也必须显示dynamic post-merge card。
 
-~~~text
-sourceTaskId
-confirmationKind
-rootConfirmationFingerprint
-confirmedAtState
-parentRole
-childRole
-targetKey
-objective
-scope
-protectedScope
-allowedChildGraph
-allowedResources
-stopPoint
-exactTruthOrCandidateRefs
-sourceDecisionTaskId
-requestOriginTaskId
-directParentTaskId
-callbackTaskId
-transitionId
-expectedCurrentState
-scopeFingerprint
-~~~
+### 4.3 Authorization envelope 与 parent assignment
 
-parent assignment 必须携带 <code>rootConfirmationFingerprint</code> 和直接 parent exact task id，继承 root scope/protected scope/truth refs，只能缩小为 child scope、资源、acceptance/review 输入和 stop point。child 不获得修改 root scope/order/protected scope、创建未列明角色、merge、cleanup 或再分配到允许边之外的权限。
+Human确认只绑定发卡task的exact state和card fingerprint。跨task分为：
 
-允许边及字段继承：
+1. Human authorization envelope：Design Owner -> UD、Direct editorial source -> UD、UD -> Direct/FL/SL、decision owner -> Recovery Design/FL；
+2. parent assignment：SL -> FL/Stage RI、FL -> IT/RI，仅在已确认拓扑内收窄scope。
 
-| 边 | 类型 | 必须继承 | 新增或收窄绑定 | 停止点 |
-| --- | --- | --- | --- | --- |
-| CDT → UD | Human authorization envelope | Proposal confirmation fingerprint、source CDT、base/proposal SHA、canonical domains/files、execution intent/shape、protected scope | exact UD locator、canonical design integration branch/worktree、owner push ref、design PR base | blocker 时 <code>REVISION_REQUIRED</code>；接受时集成 exact Proposal、验证、push、创建/更新 design PR 并停止于 <code>DESIGN_PR_READY</code> |
-| IDT → SL | Human authorization envelope | source IDT、Stage Start fingerprint、objective、scope/protected scope、truth refs、feature graph/order、exit criteria | exact SL、stage resources | <code>STAGE_AWAITING_CLEANUP</code>；Stage Cleanup 另行确认 |
-| Direct owner → UD | Human authorization envelope | `CANONICAL_EDITORIAL_PATCH` classification、exact files/hunks、semantic impact `NONE`、scope/protected scope、direct parent/callback | exact UD；UD-owned design branch/worktree、focused checks、design PR base | classification 失效时返回 source Direct owner；通过时创建 UD-owned design PR 并停止于 <code>DESIGN_PR_READY</code> |
-| Direct owner → Recovery FL | Human authorization envelope | exact orphan FP/resources、inactive former owner evidence、objective、scope/protected scope、truth refs、direct parent/callback | exact Recovery FL、feature/FP key、允许写路径、resources | <code>BLOCKED | PR_READY</code>；merge 另行确认 |
-| UD → FL | Human authorization envelope | confirmed Proposal fingerprint、<code>START_AFTER_TRUTH_MERGE / SINGLE_FEATURE</code>、scope/protected scope | exact merged truth/main CI、FL key/resources | <code>PR_READY</code>；merge 另行确认 |
-| UD → SL | Human authorization envelope | confirmed Proposal fingerprint、<code>START_AFTER_TRUTH_MERGE / DELIVERY_STAGE</code>、source decision task、objective、scope/protected scope、feature graph/order、exit criteria | exact merged truth/main CI、SL resources | <code>STAGE_AWAITING_CLEANUP</code>；Stage Cleanup 另行确认 |
-| SL → FL | parent assignment | root fingerprint、source decision task、stage key、truth refs、stage scope/protected scope、feature graph/order | exact FL、feature/FP key、允许写路径、依赖、acceptance、resources | <code>PR_READY</code> 与 <code>READY_FOR_STAGE_REVIEW</code>；merge 另行确认 |
-| SL → Stage RI | parent assignment | root fingerprint、stage key、truth refs、protected scope、exact FL candidates | review bundle、只读 verification resources | findings 或通过结论 |
-| FL → IT/RI | parent assignment | root fingerprint、parent FL、feature key、truth refs、feature scope/protected scope | slice/review scope、candidate、acceptance、assigned resources | candidate handoff 或 review findings/结论 |
+每个Human authorization envelope至少绑定：source task、target task/role、objective、scope/protected scope、truth/candidate、allowed resources、expected state、state version、root confirmation fingerprint、transition id、stop point和typed result。Design Owner→UD Proposal envelope还必须绑定exact `previewFingerprint`、`scopeFingerprint`、base/proposal commit和intended canonical files；Direct editorial source→UD必须绑定classification fingerprint、exact files/hunks和source notice target。parent assignment至少绑定其root envelope fingerprint及收窄后的同类字段。envelope不转发，assignment不扩权。
 
-规则：
+### 4.4 Two-phase handoff
 
-1. 确认卡在确认前列出 root 子角色图、每条允许边的最大范围、保护范围、资源和停止点。
-2. authorization envelope 只能沿表中 Human authorization edge 发送一次；接收者不得复制、改写或再次发送同一个 envelope。唯一后续激活是 UD 在 truth merge/main CI gate 后，按 Proposal 确认中预封存的 shape、child graph 和 scope 生成一个新的 UD → FL/SL execution activation envelope；UD 不得添加或改写字段。
-3. parent assignment 只沿表中 child edge 发生；child graph、scope、order、protected scope 或资源上限变化时，返回发卡 task 重新取得 Human 确认。
-4. 接收 task 在写入前校验 root fingerprint、request origin、source decision task、direct parent、callback、truth/candidate、资源 owner、scope fingerprint、expected state、transition id 和 stop point；`callbackTaskId` 必须等于 `directParentTaskId`，delegation 的直接 source 必须与其一致。祖先 task 只作 provenance，不得成为默认 callback。
-5. 每个 `transitionId` 只能成功一次；恢复时先验证既有结果，相同则复用，不同则停止。任何 state、binding、candidate 或 resource 不匹配都禁止后续迁移。
-6. merge 与 cleanup 始终由对应 Direct owner、UD、FL 或 SL 在自身 task 内取得独立 Human 确认，不属于任一 envelope/assignment。
-7. IT、feature RI 与 Stage RI 没有继续创建 child 的边；FL 不能创建其他 FL/SL，SL 不能创建 IT 或替 FL 创建 RI。
-8. task title 不参与授权绑定，所有边使用 exact task id。
+1. UD冻结exact truth SHA、objective、scope/protected scope、recommended shape、acceptance、resources和transition id；
+2. Human确认后UD创建exact Direct/FL/SL task；
+3. 新task验证binding、main、owner、resource availability和allowed topology，返回`HANDOFF_ACCEPTED`；
+4. UD compare-and-set `HANDOFF_PENDING -> HANDOFF_VERIFIED`并转移delivery ownership；
+5. 只有此后新owner才可写文件或创建delivery Git资源。
 
-## 5. UD Locator
+创建、网络或校验失败时UD仍是activation owner；相同transition可幂等重试，不接受orphan或duplicate owner。merge和cleanup不属于handoff授权。
 
-UD 只通过 OES 仓库局部 runtime pointer 定位，不通过标题猜测：
+### 4.5 Transition protocol
 
-~~~text
+每次mutation绑定`transitionId`、`expectedState`、`stateVersion`、`ownerTaskId`、`rootConfirmationFingerprint`、truth/base/candidate SHA、scope fingerprint、resource set和postcondition；Proposal mutation还绑定preview fingerprint。执行前compare-and-set，执行后read-after-write。相同transition与相同binding只复用原结果；同id不同binding或state/SHA/owner/scope/fingerprint不符时fail closed。
+
+## 5. Active locators
+
+### 5.1 UD Locator
+
+UD只通过仓库局部runtime pointer定位：
+
+```text
 $(git rev-parse --path-format=absolute --git-common-dir)/codex-runtime/ud-target.json
-~~~
+```
 
-最小结构：
+它只含schema version、repository root、exact thread/host id和expected title。atomic写入；使用前验证repository、task、cwd和title；无效时报告错误，不按标题搜索或创建第二个UD。
 
-~~~json
-{
-  "schemaVersion": 1,
-  "repositoryRoot": "REPOSITORY_ROOT",
-  "threadId": "EXACT_THREAD_ID",
-  "hostId": "HOST_ID",
-  "expectedTitle": "OES Unified Design"
-}
-~~~
+### 5.2 Active Design Locator
 
-写入采用同目录临时文件、flush/fsync 和 atomic rename。使用前验证 repository root、task 精确存在、task project/cwd 属于当前 OES 仓库且标题符合预期。pointer 无效时报告 locator 错误，不按标题搜索，也不创建第二个 UD。该文件位于 Git common directory，不跟踪、不保留历史，UD 替换时直接覆盖。
+需要跨task恢复的active Workspace可使用：
+
+```text
+$(git rev-parse --path-format=absolute --git-common-dir)/codex-runtime/design-targets/DESIGN_KEY.json
+```
+
+它只含repository root、design key、exact owner task、Workspace、branch/worktree和state version；不跟踪、不保留历史、不轮询。atomic create/update，使用前exact验证，cleanup时compare-and-delete。同一design key多个有效owner或locator不匹配时停止；owner缺失时只展示Human-confirmed Recovery Design，不按标题猜测。
 
 ## 6. Delivery Stage、Feature 与 active packet
 
@@ -354,7 +277,7 @@ Stage Packet 只存在于 SL 的本地 stage coordination branch/worktree，只�
 
 - objective；
 - scope 与 protected scope；
-- source IDT exact id；
+- exact decision owner id（可选，仅用于阻塞性非设计决定）；
 - canonical truth baseline；
 - FL exact references、允许范围和依赖；
 - exit criteria；
@@ -451,43 +374,35 @@ stageAcceptanceCommands
 SL 可为 Stage Review 创建 clean-context Stage RI；SL 或 Stage RI 只读精确 candidates。失败路由：
 
 - implementation finding：Stage RI → SL → corresponding FL → IT/RI；
-- design gap：Stage RI → SL → Human → CDT → UD → affected FL；
-- non-design decision：SL → exact source IDT → `DECISION_RESOLVED` → SL；
+- design gap：Stage RI → SL → UD → exact Design Owner/Design Revision Task → UD truth merge → affected FL；
+- non-design decision：SL → exact decision owner → `DECISION_RESOLVED` → SL；
 - candidate 变化：旧 Stage Review 失效，重新验证新 exact candidate；
 - 上游 merge 后：下游 FL merge 最新 <code>main</code>，追加 candidate commit，重跑自身 review/CI，并在 Stage Review 依赖受影响时重跑相应阶段验证。
 
 ## 8. 自动与人工边界
 
-所有动作使用同一 transition guard：读取 current state与exact bindings，验证允许的 `from -> to`，执行一次动作，复读并验证 postcondition，再更新current state。非法顺序、重复transition、main/candidate漂移、owner或scope不符时停止并根据status重新展示可用方式。
+所有mutation使用同一transition guard：读取exact state/binding，compare-and-set，执行一次，read-after-write并验证postcondition。非法顺序、重复但binding不一致、main/candidate漂移、owner/scope/resource冲突时fail closed并按真实status显示下一步。
 
 自动进行：
 
-- 已选择的Direct owner在确认scope内完成修改、focused verification、owner branch push与PR创建，停止于`PR_READY`；`CANONICAL_EDITORIAL_PATCH`除外，其source Direct owner只提交classification/evidence，UD拥有全部canonical artifacts与PR；
+- 普通讨论、status/evidence读取和exact resume；
+- 已确认Direct scope内的修改、focused verification、push与PR创建，停止于`PR_READY`；
+- confirmed Proposal的UD串行review、integration、verification、push和design PR创建，停止于`DESIGN_PR_READY`；
+- Proposal design merge/main CI后UD发送`CANONICAL_MERGED`并进入`ACTIVATION_DECISION_READY`；editorial merge/main CI后发送`CANONICAL_EDITORIAL_MERGED`并进入`UD_CLEANUP_READY`；
+- Human确认activation后，UD创建recommended Direct/FL/SL并执行两阶段handoff；
+- confirmed topology内SL -> FL/Stage RI、FL -> IT/RI的收窄assignment；
+- IT/RI typed result返回direct execution parent；
+- SL/FL只启动dependency-ready、scope不冲突且WIP容量允许的work item；
+- feature candidate/review通过后FL push并创建PR。
 
-- IT → FL candidate 回传；
-- RI → parent findings 回传；
-- FL → 原 IT 返工；
-- FL required candidates ready 后创建 Global RI；
-- confirmed Human authorization envelope 内列明的直接执行 task 创建与初始化；
-- confirmed Proposal 到达 UD 后自动完成串行 review；有 blocker 时返回 <code>REVISION_REQUIRED</code>，接受时集成 exact Proposal、验证、push owner branch、创建或更新 design PR，并停止于 <code>DESIGN_PR_READY</code>；
-- confirmed topology 内，SL → FL/Stage RI 与 FL → IT/RI 使用收窄的 parent assignment，不重复取得 Human 确认；
-- UD 只有在 design PR Human-confirmed merge、truth exact进入`main`且main CI成功后，才按预封存shape创建 FL或SL之一；`SINGLE_FEATURE`创建FL，`DELIVERY_STAGE`创建SL并由SL创建FL；
-- `DESIGN_ONLY`在main CI成功后，或可执行shape的child验证direct parent/callback和binding后，UD向入口对应的source CDT或source Direct owner返回`CANONICAL_MERGED`及merge/main CI/activation证据；
-- SL 按已确认范围和可用容量启动依赖 ready 的 FL；
-- feature candidates 与 review 通过后，由 FL push feature branch 并创建 PR；
-- FL 仅向 parent SL 返回规定里程碑。
+Human routine gate仅有四类：
 
-Human 介入：
+1. 确认完整Proposal Preview，或创建/扩围其他有状态Direct/Feature/Stage owner和资源；
+2. 每个main merge；
+3. UD post-merge delivery activation；
+4. owner cleanup/abandonment；
 
-- 确认 Design Workspace 写入、Proposal 提交、Stage Start/Change；
-- 在 <code>DESIGN_PR_READY</code> 后独立确认 design PR merge；truth merge/main CI 成功后独立确认 UD cleanup；
-- 作出 HDO 语义决定与非设计阶段决定；
-- 处理 design finding；
-- 确认每个 PR 的 merge；
-- 分别确认每个 FL cleanup；
-- 在全部 FL cleanup 后确认 Stage Cleanup；
-- 确认遗留 FP 的精确 Recovery FL 接管范围；
-- 恢复已经结束 turn 的长期或临时 owner task。
+阻塞性业务/语义决定只在确有选择时请求Human；精确Recovery接管只在原owner缺失或资源失配时请求Human。二者是异常处置，不新增每步process gate。一次Proposal Preview确认覆盖Design Owner写入、Proposal提交和UD创建design PR并停止于`DESIGN_PR_READY`；其他owner启动确认覆盖预列明拓扑到stop point。ordinary discussion、相同binding重试和预授权child assignment不重复确认。
 
 ## 9. Git 资源、PR 与合并协议
 
@@ -504,23 +419,22 @@ Human 介入：
 
 ### 9.1 角色权限矩阵
 
-| 角色 | 可创建的 Git 资源 | 可写范围 | Remote push / PR | 合并 main | 清理 |
-| --- | --- | --- | --- | --- | --- |
-| HDO | 无强制资源 | 只作语义与 gate 确认 | 只作确认 | 只作确认 | 只作确认 |
-| Direct owner | 普通Direct拥有一个短期Change Set branch/worktree；editorial source Direct owner无Git资源 | 精确Direct scope；不写稳定语义；editorial source只绑定classification、files/hunks、evidence与callback | 普通Direct只push自己的branch并创建/更新一个PR；editorial source不push、不创建PR | 普通Direct经Human确认后执行Merge Commit；editorial source不合并 | 普通Direct在main验证后清理自己的精确资源；editorial source收到`CANONICAL_MERGED`后关闭无Git资源Change Set |
-| IDT | 默认无 | 不写 repository 文档或代码 | 禁止 | 禁止 | 无 |
-| CDT | 自己的 proposal branch/worktree | Workspace 与 Proposal Patch 的确认范围 | 默认不 push；把本地 SHA 交 UD | 禁止 | Proposal 进入 canonical truth 或放弃后经确认清理自身资源 |
-| UD | canonical design integration branch/worktree | 只按 Human-confirmed Proposal 写稳定语义；或按 `CANONICAL_EDITORIAL_PATCH` 做语义影响为 `NONE` 的规范编辑 | 只 push 自己的 design branch 并创建 PR | Human 确认后执行 Merge Commit | Human 确认后清理自身资源 |
-| SL | 一个本地 stage coordination branch/worktree；一个临时本地 verification worktree | 只写 Stage Packet；verification 默认只读 candidates | 禁止 | 禁止 | Stage Cleanup 确认后只清理自身本地资源 |
-| FL | 一个 feature integration branch/worktree 及分配的 slice worktrees | FP、integration lane 与 feature 允许范围 | 唯一可 push feature branch、创建/更新 PR | Human 确认后执行 Merge Commit | Human 确认后清理整个 feature 资源 |
-| IT | 无；使用 FL 分配资源 | 一个 Frozen Slice | 禁止 | 禁止 | 禁止 |
-| RI | 无；使用 parent 分配的 clean context | 默认只读精确 SHA | 禁止 | 禁止 | 禁止 |
+| 角色 | Git资源 | 可写范围 | Remote/PR/main | cleanup |
+| --- | --- | --- | --- | --- |
+| HDO | 无强制资源 | 只作决定和gate确认 | 只作确认 | 只作确认 |
+| Direct owner | 一个短期Change Set branch/worktree；editorial source无Git资源 | exact Direct scope；不写稳定语义 | 只push自己的branch/PR；Human确认后Merge Commit | main验证后清理自身资源 |
+| Design Owner | 一个proposal branch/worktree和可选Workspace | confirmed Workspace/Proposal范围 | 默认不push；把exact local Proposal SHA交UD；不merge main | canonical coverage或abandon后经确认清理自身资源/locator |
+| UD | canonical design integration branch/worktree | Human-confirmed Proposal或`CANONICAL_EDITORIAL_PATCH` | 只push自己的design branch/PR；Human确认后Merge Commit | Proposal在`EXECUTION_DEFERRED`或`HANDOFF_VERIFIED`后、editorial在main CI与source notice后清理自身integration资源 |
+| SL | 本地stage coordination/verification worktrees | Stage Packet；verification只读candidates | 不push、不创建PR、不merge main | 全部FL cleanup和stage acceptance后清理自身资源 |
+| FL | feature integration和分配的slice worktrees | FP、integration lane和feature scope | 唯一push feature branch/PR；Human确认后Merge Commit | Human确认后清理feature资源 |
+| IT | 使用FL分配资源 | 一个Frozen Slice | 不push/PR/merge | 不独立清理 |
+| RI | 使用parent分配的clean context | 默认只读exact SHA | 不push/PR/merge | 不独立清理 |
 
-同一 task 不兼任相互制衡角色。SL 不拥有产品 delivery branch，不写 FL 的 FP；所有产品 branch/worktree/PR/merge 归对应 FL。
+同一task不兼任相互制衡角色。通知、decision owner或request origin不获得artifact ownership。
 
 ### 9.2 Branch 与 worktree 创建
 
-普通Direct owner、CDT、UD、SL 或 FL 只能为自己拥有的资源创建 branch/worktree；editorial source Direct owner不创建Git资源，IT/RI资源由parent创建。创建前必须：
+普通Direct owner、Design Owner、UD、SL或FL 只能为自己拥有的资源创建 branch/worktree；editorial source Direct owner不创建Git资源，IT/RI资源由parent创建。创建前必须：
 
 1. 读取 <code>git status --short</code>、<code>git worktree list --porcelain</code>、相关 local/remote refs；
 2. fetch <code>origin main</code>，记录 exact <code>origin/main</code> 与 truth SHA；
@@ -599,15 +513,13 @@ Direct PR、design PR、单 feature或阶段中的每个FL PR都必须由对应o
 
 PR CI 与 main push CI 是两个独立 gate。
 
-### 9.6 完成、分层清理与 Recovery FL
+### 9.6 完成、分层清理与 Recovery
 
-普通Direct owner在PR merge、exact main CI和main validation成功后进入`CLEANUP_READY`；Human在该task确认后，只清理卡中精确列出的clean worktree、已合并local branch和head仍匹配的remote branch，再复读refs并关闭Change Set。editorial source Direct owner走下述独立路径，不进入普通Direct的`MAIN_VALIDATED -> CLEANUP_READY -> CLOSED`。
+普通Direct在PR merge、exact main CI和main validation后进入`CLEANUP_READY`；Human确认后只清理卡中exact clean/merged/SHA-matched资源。Editorial source收到`CANONICAL_EDITORIAL_MERGED`后验证exact files/hunks coverage并关闭自己的无Git Change Set；该closure不清理UD资源，也不触发delivery activation。
 
-UD在design PR merge与exact main CI成功后按shape迁移：`DESIGN_ONLY`从`MAIN_CI_PASSED`直接进入`UD_CLEANUP_READY`；可执行shape先在FL/SL创建后进入`EXECUTION_ACTIVATED`，仅在child接受并验证binding、direct parent与callback后经`HANDOFF_VERIFIED`进入`UD_CLEANUP_READY`。随后UD执行一次幂等的`CANONICAL_MERGED`通知：按入口向source CDT或`CANONICAL_EDITORIAL_PATCH`的exact source Direct parent/callback发送truth/CI/activation证据；相同entry、truth SHA与callback的重复发送只复用原结果，不重复推进状态。Human在UD task确认后，UD只清理本次integration branch/worktree/remote branch，长期UD task和locator保留。
+Proposal入口：UD在design merge与main CI后立即幂等发送`CANONICAL_MERGED`给exact Design Owner并进入`ACTIVATION_DECISION_READY`。Human选择`DEFER`进入`EXECUTION_DEFERRED`，或新delivery owner达到`HANDOFF_VERIFIED`后，UD才进入`UD_CLEANUP_READY`。Editorial入口：main CI后UD幂等发送`CANONICAL_EDITORIAL_MERGED`给exact source Direct owner并直接进入`UD_CLEANUP_READY`；不存在Design Owner或activation card。UD cleanup只移除本次integration branch/worktree/remote branch，长期UD task和locator保留；deferred implementation以后仍可由UD从exact truth重新激活。
 
-CDT收到`CANONICAL_MERGED`后验证Proposal已被canonical truth完整承接。Human在source CDT确认后，CDT清理自己的Proposal branch/worktree；设计主题仍有开放问题则保留task/Workspace，全部完成才清理已被truth承接的Workspace并archive。UD只触发cleanup-eligible通知，不删除CDT资源；CDT也不删除UD资源。
-
-`CANONICAL_EDITORIAL_PATCH`的source Direct owner收到`CANONICAL_MERGED`后验证exact files/hunks与语义影响`NONE`仍成立，随后关闭自己的无Git资源Change Set；它不清理UD branch/worktree/PR。UD与source Direct owner各自状态独立，任何一方都不删除对方资源。
+Design Owner收到`CANONICAL_MERGED`后验证Proposal coverage。Human在Design Owner task确认后清理proposal branch/worktree和active locator；仍有开放问题则保留task/Workspace，全部冻结才删除已承接内容并archive。Design Owner和UD互不清理对方资源。
 
 单独 feature 在 main 复测成功后进入 <code>COMPLETE_AWAITING_CLEANUP</code>。Human 在该 FL task 确认 cleanup 后，由 FL：
 
@@ -629,132 +541,147 @@ CDT收到`CANONICAL_MERGED`后验证Proposal已被canonical truth完整承接。
 
 stage coordination commits 不 push、不合入 <code>main</code>，删除 ref 后不保留可达历史。任何 dirty、SHA 不匹配、owner 不明或未列入确认卡的资源保持原状。
 
-遗留 FP 只能按 Recovery FL 接管：Direct owner先确认原owner不再活动，再由Human对列明FP、refs/worktrees、允许范围、protected scope、`directParentTaskId`和相同的`callbackTaskId`发独立确认，创建一个Recovery FL。Recovery FL只向该direct parent返回`BLOCKED | PR_READY`；父task再决定是否升级Human/CDT/UD。禁止继承祖先task作为callback、批量匹配或接管未知资源。
+遗留Design Workspace/Proposal或FP只能在原owner不存在且资源exact可识别时Recovery。Human确认exact objective、truth、scope/protected scope、resources、expected state和new owner后创建Recovery Design或Recovery FL；新owner先验证并返回`HANDOFF_ACCEPTED`。未知、dirty、SHA不符或owner仍活动的资源保持原状。Recovery result只使用typed route，不继承祖先作为generic callback。
 
 ### 9.7 Human 命令契约
 
-本小节是 Human 与 task 之间意图识别、确认、委派、merge 与 cleanup 绑定的唯一真相，版本为 <code>OES-COLLAB-COMMANDS/v5</code>。Human 使用自然语言表达目标；technical ids 由 task 读取真实状态并交叉校验。
+本小节是Human意图、确认、owner handoff、merge与cleanup的唯一自然语言契约，版本为`OES-COLLAB-COMMANDS/v6`。
 
-<!-- BEGIN OES_COLLAB_COMMANDS_V5 -->
+<!-- BEGIN OES_COLLAB_COMMANDS_V6 -->
 
-#### 9.7.1 Status 与执行方式
+#### 9.7.1 Status 与入口
 
-纯查看、解释、讨论、status读取和“暂停并保留现场”直接响应。状态变更前先读取exact owner/task、branch/worktree、candidate、PR、main/checks与cleanup状态，只展示当前可用方式并标记一个建议项，不默认解释原因：
+纯查看、解释、讨论、status读取和暂停保留直接响应。系统先读取exact owner/resources/truth，再只显示合法动作并标记一项建议：
 
-~~~text
-执行方式
-1. Direct（建议）
+```text
+1. 继续当前讨论/任务（建议）
+2. 恢复已有设计
+3. 形成独立设计
+4. 查看证据
+```
+
+不适用项省略。同一聚焦主题优先当前task；exact Workspace优先恢复owner；独立、并行、长期主题才新建Design Task。用户不选择IDT/CDT。
+
+明确实现意图显示：
+
+```text
+1. Direct（建议项按真实status决定）
 2. 常规协同框架
 3. 继续讨论
-~~~
+```
 
-不适用方式省略；Human要求时才展示判断依据。没有active owner时，小而明确的单一Change Set建议Direct；同一Change Set优先恢复原owner；稳定设计语义、独立多feature/owner或资源冲突只展示Collaborative。Human选择方式后才生成与该方式匹配的执行卡；选择“继续讨论”不写入。
+#### 9.7.2 有状态执行卡
 
-| Human意图示例 | task响应 |
-| --- | --- |
-| “修改这个明确的小问题” | 读取status并展示当前可用执行方式；通常建议Direct。 |
-| “继续修改刚才的任务” | 优先恢复exact owner与Change Set；scope变化时重新展示方式。 |
-| “使用协同框架” | 展示Collaborative执行卡及允许拓扑。 |
-| “提交这个设计” | CDT展示Proposal提交卡；确认后交UD。 |
-| “合并吧” | 对应Direct owner、UD或FL展示独立merge卡。 |
-| “可以清理了” | 对应owner根据真实status展示自己的cleanup卡。 |
+稳定设计首次写入前，task先展示完整只读Proposal Preview；确认卡绑定该Preview的目的、规范结论、state/typed routes、逐文件变化、scope/protected scope、owner、验证和stop point。task内部绑定`previewFingerprint`、`rootConfirmationFingerprint`、`scopeFingerprint`、exact ids、SHAs、resources、state version和transition id；Proposal及Design Owner→UD envelope必须携带同一binding。Human确认后才创建资源、写Proposal commit并提交UD；diff与preview一致时不重复询问Proposal提交。
 
-#### 9.7.2 Direct 执行卡
+非设计owner的一个确认覆盖列明拓扑到stop point；scope/owner/protected scope或独立交付物变化才换卡。Proposal Preview、每次merge、UD post-merge activation、cleanup/abandonment分别确认。technical ids由task维护，Human无需复述。
 
-Direct卡只包含：目的、精确scope/protected scope、owner branch/worktree、focused validation、PR_READY停止点和merge/rollback边界。Human确认后，同一owner完成修改、验证、push owner branch和创建/更新PR；不创建角色拓扑、Workspace、Stage Packet或FP。merge仍由独立Human确认，禁止direct push`main`。
+#### 9.7.3 UD post-merge card
 
-同一目标的后续修改恢复原owner和Change Set：PR前继续现有现场；candidate/PR后追加commit并重跑受影响checks；post-merge validation失败由原owner修复。objective、owner、protected scope或独立交付物变化时替换scope或创建新Change Set。
+Proposal的main CI成功后，UD必须在同一task按assessment自动展示以下两种card之一；每张card恰好一个建议项。
 
-#### 9.7.3 Collaborative 确认卡
+推荐实现时，`RECOMMENDED_SHAPE`必须解析为`Direct | 单Feature | Delivery Stage`中的exact一项：
 
-Collaborative卡至少包含目的、目标、计划动作、scope/protected scope、执行角色、允许child graph与每条edge、验证、停止点和exact内部绑定。Proposal、Stage Start/Change、Recovery FL、merge、各owner cleanup和放弃是独立边界。Proposal确认授权UD review；接受时UD集成、验证、push并创建design PR，停止于`DESIGN_PR_READY`，不包含merge或cleanup。
+```text
+设计已合并，main CI已通过。
+1. 按 RECOMMENDED_SHAPE 开始实现（建议）
+2. 暂不实现
+3. 继续设计
+4. 查看证据
+```
 
-Proposal执行只能按下列顺序迁移：
+推荐`NO_EXECUTION`时：
 
-~~~text
-PROPOSAL_READY -> PROPOSAL_CONFIRMED -> UD_REVIEW -> DESIGN_PR_READY
--> MERGE_CONFIRMED -> TRUTH_MERGED -> MAIN_CI_PASSED
-   | DESIGN_ONLY -> UD_CLEANUP_READY
-   | SINGLE_FEATURE / DELIVERY_STAGE -> EXECUTION_ACTIVATED
-     -> HANDOFF_VERIFIED -> UD_CLEANUP_READY
-~~~
+```text
+设计已合并，main CI已通过。
+1. 暂不执行（建议）
+2. 仍要实现，由UD重新评估执行形态
+3. 继续设计
+4. 查看证据
+```
 
-`DESIGN_ONLY`在`MAIN_CI_PASSED`后不创建child并直接进入`UD_CLEANUP_READY`；`SINGLE_FEATURE`由UD创建FL；`DELIVERY_STAGE`由UD创建SL，再由SL创建FL；可执行shape只有在`HANDOFF_VERIFIED`后进入`UD_CLEANUP_READY`。任何前置状态、exact SHA、check、owner、callback或scope不符都禁止下一步。
+实现建议card的选项1同时授权创建recommended delivery owner与两阶段handoff；其选项2、`NO_EXECUTION` card的选项1进入`EXECUTION_DEFERRED`并使UD cleanup-eligible。`NO_EXECUTION` card的选项2只使UD以new stateVersion重新评估并显示new activation card，不创建delivery owner。选项3向exact Design Owner发送`DESIGN_CONTINUATION_REQUIRED`并增加revision epoch。上述选项均不授权delivery merge或cleanup；UD不得将implementation请求转给initiating/request-origin task。
 
-#### 9.7.4 编号操作与失效
+#### 9.7.4 编号、绑定与失效
 
-执行卡使用task-local单调递增且不复用的card index，并固定提供：
+卡index在task内单调递增且不复用。只有一张latest有效待确认卡时，单独`1`或`2`执行状态变更；`3/4`按卡语义只读或显式继续设计。新意图、新卡、执行、取消、binding/state变化使旧卡失效。每次执行前后校验expected state/version、owner、truth/candidate、scope fingerprint、resources和postcondition；相同transition重复只复用原结果。
 
-~~~text
-1. 执行建议动作
-2. 取消
-3. 查看完整绑定
-4. 查看当前证据
-~~~
+#### 9.7.5 Typed routing
 
-只有当前task恰有一张最新有效待确认卡时，单独`1`或`2`才改变状态；`3,4`可组合只读。新意图、新卡、执行、取消、binding/status变化使旧卡立即失效。Human无需复述technical ids。
+`ASSIGNMENT_RESULT`只返回direct execution parent；`BUSINESS_DECISION_REQUIRED`只到exact decision owner；`REVISION_REQUIRED`和`DESIGN_CONTINUATION_REQUIRED`只到exact Design Owner；`EDITORIAL_CLASSIFICATION_INVALID`与`CANONICAL_EDITORIAL_MERGED`只到exact source Direct owner；`ACTIVATION_DECISION_READY`保留在UD；`STATUS_NOTICE/CANONICAL_MERGED/CANONICAL_EDITORIAL_MERGED`只通知，不转移owner。不存在generic callback或祖先默认路由。
 
-每次执行前后都验证`expectedCurrentState`、`transitionId`、exact main/candidate、owner、direct parent/callback、scope fingerprint、resources和postcondition。一个transition只能成功一次；已存在且完全匹配则复用，不匹配则停止并根据新status展示选项。
-
-#### 9.7.5 路由、merge 与 cleanup
-
-`callbackTaskId == directParentTaskId`；delegation直接source必须一致。`requestOriginTaskId`只作provenance，不能作为默认callback。child只向直接parent返回，parent负责向上升级。
-
-所有进入`main`的变更继续使用artifact owner branch、PR、required CI、Human merge确认和Merge Commit。UD在truth merge/main CI后按shape验证：`DESIGN_ONLY`无需child，可执行shape必须`HANDOFF_VERIFIED`；随后进入`UD_CLEANUP_READY`并向入口对应的source CDT或source Direct owner发送`CANONICAL_MERGED`。CDT验证truth coverage后展示自己的cleanup选项；editorial source Direct owner关闭无Git资源Change Set。任何owner只清理自己精确绑定且clean、merged、SHA匹配的资源。
+所有main变更继续使用artifact-owner branch、PR、required CI、Human Merge Commit和main验证。任何owner只清理自己的exact资源。
 
 #### 9.7.6 Shortcut
 
-在Codex中调用`$oes-collaboration-commands`只读取并展示本小节，不创建资源或推进gate。
+调用`$oes-collaboration-commands`只读取并展示本小节，不创建资源或推进gate。
 
-<!-- END OES_COLLAB_COMMANDS_V5 -->
+<!-- END OES_COLLAB_COMMANDS_V6 -->
 
 ### 9.8 失败恢复
 
-- push 前 remote head 变化：停止 push，fetch、审计并形成新 candidate；
-- main 前进：owner branch merge latest <code>origin/main</code>，重新 review 与 CI；
-- conflict：只由对应 owner 在 clean integration worktree 解决并验证；
-- CI 或 post-merge 验证失败：保留资源与证据，追加正式修复，不改写历史；
-- Stage Review 失败：按 finding 类型返回对应 FL 或 CDT，不由 SL 修产品代码；
-- cleanup precondition 失败：保持 awaiting cleanup 状态，不使用破坏性命令；
-- source IDT、Direct owner、direct parent/callback或FL owner不明确：暂停受影响动作，保持资源，不建立registry猜测owner；
-- 非法状态迁移或重复transition：不执行后续动作，复读exact结果；完全匹配则复用，否则按真实status给出Direct、Collaborative或继续讨论选项。
+- network失败且remote write未验证：保留exact candidate/state；同transition幂等重试；
+- push前remote head变化或main前进：停止，fetch并刷新binding/review/CI；
+- conflict：只由artifact owner在clean integration worktree解决并追加commit；
+- duplicate message：相同transition/binding复用结果，不重复task/ref/PR/merge；
+- 新owner在accept前失败：旧owner保持current，delivery禁止写入；
+- CI/post-merge验证失败：保留资源与证据，追加正式修复，不改写发布历史；
+- Design Owner缺失：UD显示Human-confirmed Recovery Design，不按标题猜测；
+- parallel scope/dependency冲突：不启动或串行到唯一integration owner；
+- cleanup precondition失败：保持awaiting cleanup，不使用破坏性命令；
+- unknown/dirty/SHA-mismatched资源：保护并报告；
+- illegal transition或同id不同binding：fail closed，复读exact status并显示合法下一步。
 
 ## 10. 完成状态
 
-普通Direct完成状态：
+Direct：
 
-~~~text
-MAIN_VALIDATED -> CLEANUP_READY -> CLOSED
-~~~
+```text
+REQUESTED -> ACTIVE -> VERIFIED -> PR_READY -> MERGED -> MAIN_VALIDATED
+          -> CLEANUP_READY -> CLOSED
+```
 
-Design完成与清理状态：
+Design Owner：
 
-~~~text
-MAIN_CI_PASSED
-  | DESIGN_ONLY -> UD_CLEANUP_READY
-  | SINGLE_FEATURE / DELIVERY_STAGE -> EXECUTION_ACTIVATED
-    -> HANDOFF_VERIFIED -> UD_CLEANUP_READY
-UD_CLEANUP_READY -> CANONICAL_MERGED -> UD_RESOURCES_CLEANED
-source CDT: CANONICAL_MERGED -> CDT_CLEANUP_READY -> RETAINED | ARCHIVED
-editorial source Direct owner: CANONICAL_MERGED -> DIRECT_SOURCE_CLOSED
-~~~
+```text
+DISCUSSING -> PROPOSAL_PREVIEW_READY -> PREVIEW_CONFIRMED
+-> DESIGNING[r] -> PROPOSAL_READY -> PROPOSAL_SUBMITTED -> AWAITING_UD
+   | REVISION_REQUIRED -> DESIGNING[r+1]
+   | CANONICAL_MERGED -> COVERAGE_VERIFIED
+       -> DESIGN_OWNER_CLEANUP_READY -> RETAINED | ARCHIVED
+```
 
-单 feature 完成状态：
+UD integration与activation：
 
-~~~text
-COMPLETE_AWAITING_CLEANUP -> CLEANED
-~~~
+```text
+UD_REVIEW -> DESIGN_PR_READY -> MERGE_CONFIRMED -> TRUTH_MERGED
+-> MAIN_CI_PASSED -> ACTIVATION_DECISION_READY
+   | DEFER (recommended by NO_EXECUTION) -> EXECUTION_DEFERRED -> UD_CLEANUP_READY
+   | CONTINUE_DESIGN -> DESIGN_REVISION_REQUESTED -> AWAITING_PROPOSAL[r+1]
+   | START -> HANDOFF_PENDING -> HANDOFF_VERIFIED
+       | delivery owner: DELIVERY_ACTIVE
+       | UD: UD_CLEANUP_READY
+```
 
-交付阶段完成状态：
+Editorial integration：
 
-~~~text
-MAIN_STAGE_ACCEPTANCE
-  -> FL_CLEANUP
-  -> STAGE_AWAITING_CLEANUP
-  -> CLOSED
-~~~
+```text
+UD_EDITORIAL_REVIEW
+   | EDITORIAL_CLASSIFICATION_INVALID -> exact source -> DISCUSSING | PROPOSAL_PREVIEW_READY
+   | ACCEPTED -> DESIGN_PR_READY -> MERGE_CONFIRMED -> TRUTH_MERGED
+       -> MAIN_CI_PASSED
+          | UD -> CANONICAL_EDITORIAL_MERGED -> exact source -> COVERAGE_VERIFIED -> SOURCE_CLOSED
+          | UD -> UD_CLEANUP_READY
+```
 
-任何完成声明必须绑定 exact commits、commands、literal outputs 和 exit codes。<code>CLOSED</code> 前不得遗留可达 Stage Packet、stage coordination/verification worktree 或 stage local ref。
+`CANONICAL_MERGED`只在Proposal的`MAIN_CI_PASSED`后幂等发送给exact Design Owner；它与UD的activation分支并行且不转移owner。`CANONICAL_EDITORIAL_MERGED`只用于editorial source closure。Routine path无环；只有显式`REVISION_REQUIRED`、`CONTINUE_DESIGN`或delivery `DESIGN_GAP`创建new revision epoch。
+
+Feature与Stage继续使用：
+
+```text
+FL: COMPLETE_AWAITING_CLEANUP -> CLEANED
+SL: MAIN_STAGE_ACCEPTED -> FL_CLEANUP -> STAGE_AWAITING_CLEANUP -> CLOSED
+```
 
 ## 11. 明确排除
 
@@ -762,7 +689,7 @@ MAIN_STAGE_ACCEPTANCE
 
 - 长期全局执行控制 task；SL 只是已确认 scope 内的有界临时 owner；
 - capability command 层或长期 PC/IV；
-- watcher、heartbeat、持续 wait loop、Pull inbox 或全局 thread registry；
+- watcher、heartbeat、持续 wait loop、Pull inbox 或历史/全局 thread registry；
 - 广播同步；
 - task 历史、状态流水、迁移账本或 cleanup archive；
 - 由 SL 代替 FL 拥有产品 branch、PR、merge 或 cleanup；
