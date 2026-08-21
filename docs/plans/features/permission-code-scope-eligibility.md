@@ -11,7 +11,7 @@
 - transitionId: `sl-assign:gateway-tenant-target-binding-delivery:permission-code-scope-eligibility:75b66c30753ba533`
 - canonical truth baseline: `bb3a1b9c26accb2c95089addddf90ca6d0dd1d4d`
 - integration branch: `codex/feature/permission-code-scope-eligibility`
-- current state: `IMPLEMENTING`
+- current state: `PR_READY + READY_FOR_STAGE_REVIEW`
 - stop point: `PR_READY + READY_FOR_STAGE_REVIEW`
 
 ## 2. Objective
@@ -40,9 +40,9 @@
 
 | Slice | Scope | Acceptance | Status |
 | --- | --- | --- | --- |
-| `permission-code-metadata` | source definitions, generated contract, persistence, catalog sync/read, deterministic migration/backfill | metadata round-trips without widening authority; missing/invalid/stale data fails closed | in progress |
-| `gateway-permission-eligibility` | exact Gateway Permission decision/guard consumer and focused tests | missing route Code/grant/current scope excluded -> `403`; Permission unavailable/malformed/stale -> `503`; zero downstream/side effect | pending |
-| `feature-validation-review` | builds, proto checks, focused L1/L2, migration/catalog tests, Global RI | exact candidate and review bundle ready for Stage Review | pending |
+| `permission-code-metadata` | source definitions, generated contract, persistence, catalog sync/read, deterministic migration/backfill | metadata round-trips without widening authority; missing/invalid/stale data fails closed | completed |
+| `gateway-permission-eligibility` | exact Gateway Permission decision/guard consumer and focused tests | missing route Code/grant/current scope excluded -> `403`; Permission unavailable/malformed/stale -> `503`; zero downstream/side effect | completed |
+| `feature-validation-review` | builds, proto checks, focused L1/L2, migration/catalog tests, Global RI | exact candidate and review bundle ready for Stage Review | completed |
 
 ## 6. Validation Matrix
 
@@ -56,14 +56,27 @@
 ## 7. Delivery State
 
 - Baseline/ref/worktree/owner/path audit: passed at `bb3a1b9c26accb2c95089addddf90ca6d0dd1d4d`
+- Latest `origin/main`: `acc47a73956a944fbab2adf62f5caf8fa0cf56ca`, merged with `--no-ff`
 - Dependency: `DEPENDENCY_READY`
-- Candidate: pending
-- Global RI: pending
-- Remote push / PR: pending
+- Accepted metadata slice: `f534f258b501dd0026963d82b87999af4db0c6ca`
+- Accepted Gateway slice: `64e42161bf2f92bdaf6d19fd5de16b6687426729`
+- Reviewed code candidate: `eb904f306e10940cd80991418c63156517a9250f`
+- Global RI: `RI_PASS` on the reviewed code candidate after latest-main integration
+- Pull request: [#13](https://github.com/imkgsam/oes/pull/13), base `main`
+- Validation:
+  - `pnpm proto:lint`, `pnpm proto:breaking`, `pnpm proto:gen`: exit `0`
+  - Prisma generate and isolated PostgreSQL schema push: exit `0`
+  - `pnpm --filter @oes/common build`: exit `0`
+  - Permission Service build: exit `0`
+  - Permission L1: `76` suites / `326` tests passed, exit `0`
+  - focused Permission L2: `1` suite / `7` tests passed, exit `0`
+  - focused Gateway Permission: `1` suite / `22` tests passed, exit `0`
+  - API Gateway build and protected-scope/diff audits: exit `0`
 - Merge and cleanup: not authorized by this assignment
 
 ## 8. Risks And Rollback
 
 - Risk: stale database metadata could silently widen or narrow eligibility. Mitigation: deterministic sync/version comparison and fail-closed reads.
 - Risk: Gateway could confuse scope eligibility with target authority. Mitigation: eligibility only filters current granted Codes and does not alter target, Token, STS, cache, or downstream method declaration.
+- Remaining operational risk: migrated rows intentionally remain fail closed until the deterministic catalog sync writes current metadata and fingerprints.
 - Rollback before merge: revert only this feature branch commits; preserve all protected refs/worktrees and pre-existing Feature Packets.
