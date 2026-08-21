@@ -2,13 +2,13 @@
 
 featureKey: `tenant-target-admission-foundation`
 truthCommit: `bb3a1b9c26accb2c95089addddf90ca6d0dd1d4d`
-baseSha: `bb3a1b9c26accb2c95089addddf90ca6d0dd1d4d`
+baseSha: `acc47a73956a944fbab2adf62f5caf8fa0cf56ca`
 integrationBranch: `codex/feature/tenant-target-admission-foundation`
 worktreeKey: `11c0`
-pullRequest: `pending`
+pullRequest: `https://github.com/imkgsam/oes/pull/12`
 mergeSha: `pending`
 cleanup: `HOLD`
-state: `CANDIDATE_READY`
+state: `ACCEPTED`
 
 ## Objective
 
@@ -29,8 +29,8 @@ review: `global-ri`
 
 ### trusted-execution-guard-integration
 
-state: `CANDIDATE_READY`
-candidate: `750791a389bac7ced07ba2c42918952244ce58c3`
+state: `ACCEPTED`
+candidate: `f5bf80d8332166fca5b90d6a6ad3529354a96a29`
 review: `global-ri`
 
 - Scope: integrate target-service selector admission into Common trusted-execution guard ordering and verified request context; focused guard tests for zero attachment/resource-access on failure; narrowly required Common exports and fixtures.
