@@ -8,7 +8,7 @@ worktreeKey: `11c0`
 pullRequest: `https://github.com/imkgsam/oes/pull/12`
 mergeSha: `pending`
 cleanup: `HOLD`
-state: `CANDIDATE_READY`
+state: `ACCEPTED`
 
 ## Objective
 
