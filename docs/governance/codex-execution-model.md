@@ -9,6 +9,7 @@
 - task 先读取真实 status，只展示当前可用的执行方式并标记一个建议项；不默认创建角色拓扑。
 - Direct 简化角色、packet 和确认层级，不简化 branch、PR、required CI、Human merge gate、验证或 rollback。
 - Human 控制语义决定、阶段授权、合并与清理边界。
+- confirmed delivery scope采用scope-bound autonomy：启动前一次性绑定并验证最小充分运行能力，scope内例行执行自动推进，真实扩围才形成一次合并确认。
 - 稳定设计只有 UD 一个写者；Design Proposal 只承载稳定设计真相。
 - 一个 feature 只有一个临时 FL；一个有界交付阶段最多一个临时 SL。
 - 单一不可独立合并的跨服务能力归一个 FL；多个可独立安全合并的 feature 才由 SL 协调多个 FL。
@@ -149,6 +150,8 @@ ordinary discussion
 - `ACTIVATION_DECISION_READY`：保留在UD并询问Human；
 - `DESIGN_CONTINUATION_REQUIRED`：UD -> exact Design Owner，开启new revisionEpoch；
 - `ASSIGNMENT_RESULT`：IT/RI/FL -> direct execution parent；
+- `EXECUTION_ENVIRONMENT_NOT_READY`：proposed delivery owner -> exact creating parent，仅报告已声明能力未被执行环境兑现的证据并保留原owner/binding；
+- `PERMISSION_EXPANSION_REQUIRED`：root handoff前返回exact activation owner，child accept前返回exact creating delivery parent，handoff后保留在exact current delivery owner；只承载超出confirmed capability/scope的合并请求，不回退祖先task；
 - `BUSINESS_DECISION_REQUIRED`：SL/FL -> exact decision owner，仅阻塞性非设计决定；
 - `DESIGN_GAP`：delivery owner -> UD -> exact Design Owner或Human-confirmed Design Revision Task；
 - `STATUS_NOTICE`：只通知explicit informed tasks，永不转移owner。
@@ -217,19 +220,44 @@ Human确认只绑定发卡task的exact state和card fingerprint。跨task分为�
 1. Human authorization envelope：Design Owner -> UD、Direct editorial source -> UD、UD -> Direct/FL/SL、decision owner -> Recovery Design/FL；
 2. parent assignment：SL -> FL/Stage RI、FL -> IT/RI，仅在已确认拓扑内收窄scope。
 
-每个Human authorization envelope至少绑定：source task、target task/role、objective、scope/protected scope、truth/candidate、allowed resources、expected state、state version、root confirmation fingerprint、transition id、stop point和typed result。Design Owner→UD Proposal envelope还必须绑定exact `previewFingerprint`、`scopeFingerprint`、base/proposal commit和intended canonical files；Direct editorial source→UD必须绑定classification fingerprint、exact files/hunks和source notice target。parent assignment至少绑定其root envelope fingerprint及收窄后的同类字段。envelope不转发，assignment不扩权。
+每个Human authorization envelope至少绑定：source task、target task/role、objective、scope/protected scope、truth/candidate、allowed resources、`executionCapabilities = NONE | BOUNDED_SET`、expected state、state version、root confirmation fingerprint、transition id、stop point和typed result。Design Owner→UD Proposal envelope还必须绑定exact `previewFingerprint`、`scopeFingerprint`、base/proposal commit和intended canonical files；Direct editorial source→UD必须绑定classification fingerprint、exact files/hunks和source notice target。非delivery Proposal/editorial envelope使用`NONE`；UD→Direct/FL/SL和Recovery delivery envelope使用完成stop point所需的`BOUNDED_SET`。parent assignment至少绑定其root envelope fingerprint及收窄后的同类字段。envelope不转发，assignment不扩权；child的effective set必须落在Human-confirmed topology为该child role绑定的delegation ceiling内，而不是继承creating parent自身的effective set。
 
-### 4.4 Two-phase handoff
+### 4.4 Scope-bound execution capabilities
 
-1. UD冻结exact truth SHA、objective、scope/protected scope、recommended shape、acceptance、resources和transition id；
+`executionCapabilities`是authorization envelope内的有界运行能力集合，分为owner实际可用的`ownerEffective`与只供confirmed child assignment取子集的`delegationCeiling`；后者不把child权限授予parent。它不是新role、命令层、长期permission service或逐条shell allowlist。创建owner的UD/SL/FL根据objective、acceptance、validation和repository标准自动选择最小充分集合；Human只在启动卡看到一行摘要，不逐项配置。两部分至少按适用项绑定：
+
+```text
+filesystem = read roots, owner write roots, executable-bit paths, task temp roots
+git = repository, owner refs/worktrees, allowed local actions, exact remote branch/PR actions
+runtime = package/build/test commands, task-local processes, repository-declared services/containers
+data = task-owned local/test databases, schemas, migrations and fixtures
+network = approved destinations and purposes
+credentials = bound secret references, never secret values
+delegationCeiling = allowed child roles, topology, WIP and per-role capability ceilings
+```
+
+默认能力按owner边界解析：
+
+- FL可写自己的FP、feature integration和assigned slice worktrees；可执行普通local Git操作、把latest `main` merge进owner branch、push exact feature branch并创建/更新自己的PR；可执行仓库标准package/generate/lint/build/test/E2E，启停repository-declared或task-isolated process/container，以及创建、迁移、seed和清理task-owned local/test database或schema；
+- SL可写自己的Stage Packet和coordination resources，创建confirmed topology内的FL/Stage RI，读取exact FL candidates，并为stage acceptance运行相同类型的本地build/test、task-owned service/container和isolated test data；其capability set不授予产品代码写入、产品remote branch、PR或`main` merge；
+- IT只继承一个Frozen Slice所需的worktree、commands、services、test data和network；RI默认继承read-only candidate，加上验证输出、task-owned test dependencies和evidence所需的更窄能力；
+- repository标准服务优先使用project-local compose/script或隔离实例。共享开发、staging、production数据库和host-global service不归入默认集合。
+
+scope内已绑定的能力自动执行，不产生逐文件、逐命令、逐次service start、逐次package/build/test或逐次owner Git/PR授权。Unix executable bit只可在bound repository paths内调整。force-push、published history rewrite、其他owner资源、host/system privilege、protected directory、new secret、paid/irreversible external action、共享或真实业务数据，以及任何scope/protected scope扩大保持Human边界。
+
+执行中发现多个真实缺口时先去重并形成一张`PERMISSION_EXPANSION_REQUIRED`卡；确认后使用new stateVersion替换capability binding。若操作已经在声明集合内，缺口归类为execution environment provisioning defect，在相同transition/binding下修复profile/host并幂等重试，不转换为Human gate。平台无法提供最小充分集合时，owner保持原状并选择满足集合的execution profile/host；不以全局unrestricted权限替代精确能力。
+
+### 4.5 Two-phase handoff
+
+1. UD冻结exact truth SHA、objective、scope/protected scope、recommended shape、acceptance、resources、execution capabilities和transition id；
 2. Human确认后UD创建exact Direct/FL/SL task；
-3. 新task验证binding、main、owner、resource availability和allowed topology，返回`HANDOFF_ACCEPTED`；
+3. 新task在任何delivery写入前验证binding、main、owner、resource availability、allowed topology，并实际预检filesystem、Git/remote、runtime/service、test data、network和credential references；effective set覆盖声明集合后才返回`HANDOFF_ACCEPTED`；
 4. UD compare-and-set `HANDOFF_PENDING -> HANDOFF_VERIFIED`并转移delivery ownership；
 5. 只有此后新owner才可写文件或创建delivery Git资源。
 
-创建、网络或校验失败时UD仍是activation owner；相同transition可幂等重试，不接受orphan或duplicate owner。merge和cleanup不属于handoff授权。
+创建或预检发现声明能力未兑现时，新task返回`EXECUTION_ENVIRONMENT_NOT_READY`及一次性缺口证据，UD仍是activation owner，并在相同transition下修复execution profile/host后幂等重试。真实capability/scope扩大改用一张`PERMISSION_EXPANSION_REQUIRED`卡与new stateVersion。SL→FL/Stage RI和FL→IT/RI的parent assignment执行同一preflight guard；child接受前exact creating parent保持owner。不得接受orphan或duplicate owner；merge和cleanup不属于handoff授权。
 
-### 4.5 Transition protocol
+### 4.6 Transition protocol
 
 每次mutation绑定`transitionId`、`expectedState`、`stateVersion`、`ownerTaskId`、`rootConfirmationFingerprint`、truth/base/candidate SHA、scope fingerprint、resource set和postcondition；Proposal mutation还绑定preview fingerprint。执行前compare-and-set，执行后read-after-write。相同transition与相同binding只复用原结果；同id不同binding或state/SHA/owner/scope/fingerprint不符时fail closed。
 
@@ -390,6 +418,7 @@ SL 可为 Stage Review 创建 clean-context Stage RI；SL 或 Stage RI 只读精
 - confirmed Proposal的UD串行review、integration、verification、push和design PR创建，停止于`DESIGN_PR_READY`；
 - Proposal design merge/main CI后UD发送`CANONICAL_MERGED`并进入`ACTIVATION_DECISION_READY`；editorial merge/main CI后发送`CANONICAL_EDITORIAL_MERGED`并进入`UD_CLEANUP_READY`；
 - Human确认activation后，UD创建recommended Direct/FL/SL并执行两阶段handoff；
+- confirmed capability set内的owner worktree/file写入、owner local Git与允许的remote branch/PR操作、repository标准package/build/test、task-owned process/container/local test database和approved network操作；
 - confirmed topology内SL -> FL/Stage RI、FL -> IT/RI的收窄assignment；
 - IT/RI typed result返回direct execution parent；
 - SL/FL只启动dependency-ready、scope不冲突且WIP容量允许的work item；
@@ -397,12 +426,12 @@ SL 可为 Stage Review 创建 clean-context Stage RI；SL 或 Stage RI 只读精
 
 Human routine gate仅有四类：
 
-1. 确认完整Proposal Preview，或创建/扩围其他有状态Direct/Feature/Stage owner和资源；
+1. 确认完整Proposal Preview，或创建/扩围其他有状态Direct/Feature/Stage owner、资源和execution capabilities；
 2. 每个main merge；
 3. UD post-merge delivery activation；
 4. owner cleanup/abandonment；
 
-阻塞性业务/语义决定只在确有选择时请求Human；精确Recovery接管只在原owner缺失或资源失配时请求Human。二者是异常处置，不新增每步process gate。一次Proposal Preview确认覆盖Design Owner写入、Proposal提交和UD创建design PR并停止于`DESIGN_PR_READY`；其他owner启动确认覆盖预列明拓扑到stop point。ordinary discussion、相同binding重试和预授权child assignment不重复确认。
+阻塞性业务/语义决定只在确有选择时请求Human；精确Recovery接管只在原owner缺失或资源失配时请求Human。二者是异常处置，不新增每步process gate。一次Proposal Preview确认覆盖Design Owner写入、Proposal提交和UD创建design PR并停止于`DESIGN_PR_READY`；其他owner启动确认覆盖预列明拓扑、execution capability summary和stop point。ordinary discussion、相同binding重试、已声明能力的environment repair以及预授权child assignment不重复确认。执行中超出binding的需求先合并为一张`PERMISSION_EXPANSION_REQUIRED`卡，避免按命令、文件、service或Git action连续打断。
 
 ## 9. Git 资源、PR 与合并协议
 
@@ -431,6 +460,8 @@ Human routine gate仅有四类：
 | RI | 使用parent分配的clean context | 默认只读exact SHA | 不push/PR/merge | 不独立清理 |
 
 同一task不兼任相互制衡角色。通知、decision owner或request origin不获得artifact ownership。
+
+Git ownership与runtime capability彼此独立：capability set只让owner在本表既有Git边界内自主执行。FL的ordinary branch/worktree/commit/fetch、merge latest `main`、exact owner-branch push和own PR create/update可预授权；SL仍保持local-only coordination；IT/RI仍保持无remote write。任何capability都不授予direct push `main`、force-push、跨owner ref、Merge Commit或cleanup。
 
 ### 9.2 Branch 与 worktree 创建
 
@@ -574,7 +605,18 @@ stage coordination commits 不 push、不合入 <code>main</code>，删除 ref �
 
 稳定设计首次写入前，task先展示完整只读Proposal Preview；确认卡绑定该Preview的目的、规范结论、state/typed routes、逐文件变化、scope/protected scope、owner、验证和stop point。task内部绑定`previewFingerprint`、`rootConfirmationFingerprint`、`scopeFingerprint`、exact ids、SHAs、resources、state version和transition id；Proposal及Design Owner→UD envelope必须携带同一binding。Human确认后才创建资源、写Proposal commit并提交UD；diff与preview一致时不重复询问Proposal提交。
 
-非设计owner的一个确认覆盖列明拓扑到stop point；scope/owner/protected scope或独立交付物变化才换卡。Proposal Preview、每次merge、UD post-merge activation、cleanup/abandonment分别确认。technical ids由task维护，Human无需复述。
+非设计owner的一个确认覆盖列明拓扑、紧凑运行权限摘要到stop point；scope/owner/protected scope或独立交付物变化才换卡。摘要格式为“运行权限：owner工作区、owner Git/PR、本地服务、隔离测试数据、构建测试、approved network；越界另行确认”，并按真实role省略不适用项。Proposal Preview、每次merge、UD post-merge activation、cleanup/abandonment分别确认。technical ids由task维护，Human无需复述。
+
+scope外运行能力一次合并展示：
+
+```text
+发现超出当前授权范围的运行需求：CAPABILITY_SUMMARY。
+1. 批量确认本卡列明的新增能力（建议）
+2. 保持当前权限并调整执行方案
+3. 查看详细边界
+```
+
+该卡使用`PERMISSION_EXPANSION_REQUIRED`和new stateVersion，只绑定列明增量；同一缺口不拆成逐命令确认，未列明能力保持原binding。
 
 #### 9.7.3 UD post-merge card
 
@@ -608,7 +650,7 @@ Proposal的main CI成功后，UD必须在同一task按assessment自动展示以�
 
 #### 9.7.5 Typed routing
 
-`ASSIGNMENT_RESULT`只返回direct execution parent；`BUSINESS_DECISION_REQUIRED`只到exact decision owner；`REVISION_REQUIRED`和`DESIGN_CONTINUATION_REQUIRED`只到exact Design Owner；`EDITORIAL_CLASSIFICATION_INVALID`与`CANONICAL_EDITORIAL_MERGED`只到exact source Direct owner；`ACTIVATION_DECISION_READY`保留在UD；`STATUS_NOTICE/CANONICAL_MERGED/CANONICAL_EDITORIAL_MERGED`只通知，不转移owner。不存在generic callback或祖先默认路由。
+`ASSIGNMENT_RESULT`只返回direct execution parent；`EXECUTION_ENVIRONMENT_NOT_READY`只返回exact creating parent且不转移owner；`PERMISSION_EXPANSION_REQUIRED`在root handoff前返回exact activation owner、child accept前返回exact creating delivery parent、handoff后保留在exact current delivery owner；`BUSINESS_DECISION_REQUIRED`只到exact decision owner；`REVISION_REQUIRED`和`DESIGN_CONTINUATION_REQUIRED`只到exact Design Owner；`EDITORIAL_CLASSIFICATION_INVALID`与`CANONICAL_EDITORIAL_MERGED`只到exact source Direct owner；`ACTIVATION_DECISION_READY`保留在UD；`STATUS_NOTICE/CANONICAL_MERGED/CANONICAL_EDITORIAL_MERGED`只通知，不转移owner。不存在generic callback或祖先默认路由。
 
 所有main变更继续使用artifact-owner branch、PR、required CI、Human Merge Commit和main验证。任何owner只清理自己的exact资源。
 
@@ -620,6 +662,8 @@ Proposal的main CI成功后，UD必须在同一task按assessment自动展示以�
 
 ### 9.8 失败恢复
 
+- declared execution capability预检失败：保留exact owner/binding/resources，返回一次性`EXECUTION_ENVIRONMENT_NOT_READY`证据，由creating parent修复execution profile/host并对同transition幂等重试；
+- delivery中已声明能力被runtime拒绝：归类为environment provisioning defect，保留candidate/state/logs并修复后重试；真实scope/capability新增才发一张`PERMISSION_EXPANSION_REQUIRED`卡；
 - network失败且remote write未验证：保留exact candidate/state；同transition幂等重试；
 - push前remote head变化或main前进：停止，fetch并刷新binding/review/CI；
 - conflict：只由artifact owner在clean integration worktree解决并追加commit；
@@ -676,6 +720,8 @@ UD_EDITORIAL_REVIEW
 
 `CANONICAL_MERGED`只在Proposal的`MAIN_CI_PASSED`后幂等发送给exact Design Owner；它与UD的activation分支并行且不转移owner。`CANONICAL_EDITORIAL_MERGED`只用于editorial source closure。Routine path无环；只有显式`REVISION_REQUIRED`、`CONTINUE_DESIGN`或delivery `DESIGN_GAP`创建new revision epoch。
 
+Capability preflight是`HANDOFF_ACCEPTED`的guard而非长期状态。`EXECUTION_ENVIRONMENT_NOT_READY`保持`HANDOFF_PENDING`和原activation owner；handoff后的`PERMISSION_EXPANSION_REQUIRED`只暂停相关越界操作，current delivery owner与已授权工作保持有效。
+
 Feature与Stage继续使用：
 
 ```text
@@ -688,7 +734,7 @@ SL: MAIN_STAGE_ACCEPTED -> FL_CLEANUP -> STAGE_AWAITING_CLEANUP -> CLOSED
 本模型不引入：
 
 - 长期全局执行控制 task；SL 只是已确认 scope 内的有界临时 owner；
-- capability command 层或长期 PC/IV；
+- capability command 层或长期 PC/IV；`executionCapabilities`只作为existing authorization envelope的有界字段和handoff guard；
 - watcher、heartbeat、持续 wait loop、Pull inbox 或历史/全局 thread registry；
 - 广播同步；
 - task 历史、状态流水、迁移账本或 cleanup archive；
