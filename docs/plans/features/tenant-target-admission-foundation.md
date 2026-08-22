@@ -2,13 +2,13 @@
 
 featureKey: `tenant-target-admission-foundation`
 truthCommit: `bb3a1b9c26accb2c95089addddf90ca6d0dd1d4d`
-baseSha: `acc47a73956a944fbab2adf62f5caf8fa0cf56ca`
+baseSha: `c7821895fd18dadedefcf06fac0a12ef74039f38`
 integrationBranch: `codex/feature/tenant-target-admission-foundation`
 worktreeKey: `11c0`
 pullRequest: `https://github.com/imkgsam/oes/pull/12`
 mergeSha: `pending`
 cleanup: `HOLD`
-state: `ACCEPTED`
+state: `CANDIDATE_READY`
 
 ## Objective
 
