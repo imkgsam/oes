@@ -56,20 +56,22 @@
 ## 7. Delivery State
 
 - Baseline/ref/worktree/owner/path audit: passed at `bb3a1b9c26accb2c95089addddf90ca6d0dd1d4d`
-- Latest `origin/main`: `acc47a73956a944fbab2adf62f5caf8fa0cf56ca`, merged with `--no-ff`
+- Latest `origin/main`: `c7821895fd18dadedefcf06fac0a12ef74039f38`, merged with `--no-ff` as `851c8ccb2e6d6df80d38bf6faf45d06353ae68bf`
 - Dependency: `DEPENDENCY_READY`
 - Accepted metadata slice: `f534f258b501dd0026963d82b87999af4db0c6ca`
 - Accepted Gateway slice: `64e42161bf2f92bdaf6d19fd5de16b6687426729`
-- Reviewed code candidate: `eb904f306e10940cd80991418c63156517a9250f`
-- Global RI: `RI_PASS` on the reviewed code candidate after latest-main integration
+- Refreshed reviewed code candidate: `836e958163487fc46e0c8f2b3f96fb7a84b92f17`
+- The previous Stage Review on `06ebd96ea75cd14d391159e48c4087d6da7d081b` was invalidated when `main` advanced; this refreshed candidate requires a new exact Stage Review.
+- Global RI: `RI_PASS` on the refreshed reviewed code candidate after closing the seed validator array-identity finding with ordered structural comparison and deep-copy regression coverage
 - Pull request: [#13](https://github.com/imkgsam/oes/pull/13), base `main`
-- Validation:
+- Refreshed validation:
   - `pnpm proto:lint`, `pnpm proto:breaking`, `pnpm proto:gen`: exit `0`
   - Prisma generate and isolated PostgreSQL schema push: exit `0`
   - `pnpm --filter @oes/common build`: exit `0`
   - Permission Service build: exit `0`
-  - Permission L1: `76` suites / `326` tests passed, exit `0`
+  - Permission L1: `76` suites / `328` tests passed, exit `0`
   - focused Permission L2: `1` suite / `7` tests passed, exit `0`
+  - isolated database catalog `--apply` followed by seed validation: `validationErrors: []`, exit `0`
   - focused Gateway Permission: `1` suite / `22` tests passed, exit `0`
   - API Gateway build and protected-scope/diff audits: exit `0`
 - Merge and cleanup: not authorized by this assignment
