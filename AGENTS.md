@@ -58,10 +58,10 @@ OES 默认从普通讨论开始，不要求 Human 选择讨论角色。只有开
 
 - Direct execution：一个明确 owner 闭合一个有界 Change Set；使用短期 owner branch、PR、required CI、Human merge gate 与精确清理。
 - Human Decision Owner（HDO）：人，负责语义决定、Proposal、执行激活、main merge 和清理确认。
-- Design Owner：围绕一个设计主题持续讨论；先在当前会话给出完整只读 Proposal Preview，Human确认后才按需创建active Design Workspace并形成Proposal Patch。它可以由当前聚焦task承担，只有独立、并行或需长期恢复的主题才新建Design Task。
-- Global Unified Design（UD）：唯一 canonical writer和串行设计审查者；负责 design PR、Human-confirmed merge、main CI、merge后的主动执行建议和两阶段 delivery handoff。
-- Stage Lead（SL）：一个多 feature 交付阶段的临时 owner，按依赖和WIP容量创建FL。
-- Feature Lead（FL）：一个可独立验收 feature 的临时 owner，写一个 active Feature Packet并推进slices。
+- Design Owner：围绕一个设计主题持续讨论；先在当前会话给出完整只读 Proposal Preview，Human确认后才按需创建active Design Workspace并形成local-only Proposal Patch。它可以由当前聚焦task承担，只有独立、并行或需长期恢复的主题才新建Design Task；不push、不创建或更新design PR、不merge，也不直接委派credentialed host代做remote mutation。
+- Global Unified Design（UD）：唯一 canonical writer、串行设计审查者和design remote owner；负责design PR、Human-confirmed merge、main CI、merge后的主动执行建议和两阶段delivery handoff。需要host transport时只能由exact UD在mutation前签发一次性精确binding，结果仍由UD复核并发布。
+- Stage Lead（SL）：一个多feature交付阶段的临时owner，按依赖和WIP容量创建FL，只在本地verification worktree组合exact FL candidates并执行Stage Review；不建立remote stage product branch、总PR或stage merge。
+- Feature Lead（FL）：一个可独立验收feature的临时owner，写一个active Feature Packet并推进slices；完整feature candidate和feature review通过后才push自己的branch并创建Draft PR，有parent SL时还须exact Stage Review通过后才能进入merge-ready。
 - Implementation Task（IT）：实现一个slice；通常是FL的subagent。
 - Review & Integration（RI）：按风险执行局部、全局或阶段复核；默认只读精确candidate。
 
@@ -75,7 +75,7 @@ v6 truth merge前已经取得Human确认，或已经创建exact owner、task、b
 
 完整消息类型、owner转移、并行约束、review返工、locator、Git权限与自动/人工边界以`docs/governance/codex-execution-model.md`为准。
 
-任何remote push、PR、`main` merge、post-merge验证和Git资源清理，必须先读取并遵守该文件第9节。Direct只简化角色和过程文档，不允许direct push `main`、绕过PR/CI/Human merge gate或降低验证。
+任何remote push、PR、`main` merge、post-merge验证和Git资源清理，必须先读取并遵守该文件第9节。Direct只简化角色和过程文档，不允许direct push `main`、绕过PR/CI/Human merge gate或降低验证。Design remote mutation只能由exact UD发起，或由exact UD在mutation前绑定的一次性host transport执行；Design Owner、请求来源、parent或其他持凭据task先写remote再请UD复核，均不构成合法顺序。
 
 任何有状态work item只有一个当前owner和一个artifact owner。通知不转移owner；只有新owner校验并返回`HANDOFF_ACCEPTED`后才允许写入。SL/FL只协调预确认的有界执行拓扑，不构成长期开销；不得建立全局调度中心、watchdog、heartbeat、Pull inbox、历史thread registry或过程账本。
 
