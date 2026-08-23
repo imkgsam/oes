@@ -7,6 +7,7 @@ import {
 import { TenantOrgFoundationTrustedExecutionGuard } from '../../src/modules/tenant-org-trusted-execution.module'
 import { TenantOrgManagementService } from '../../src/application/services'
 import { TenantOrgManagementGrpcController } from '../../src/interfaces/grpc/tenant-org-management.grpc.controller'
+import { admitTenantTargetRequest } from '../helpers/tenant-target-admission'
 
 /** createTenantOrgManagementServiceMock builds the application service double for management controller mapping tests. */
 function createTenantOrgManagementServiceMock() {
@@ -116,13 +117,13 @@ describe('TenantOrgManagementGrpcController L3', () => {
       new BadRequestException('Cannot move org unit below its descendant')
     )
 
-    await expect(
-      controller.moveOrgUnit({
-        tenantId: 'tenant-1',
-        orgUnitId: 'root-1',
-        newParentOrgId: 'child-1'
-      } as any)
-    ).rejects.toBeInstanceOf(BadRequestException)
+    const request = {
+      tenantId: 'tenant-1',
+      orgUnitId: 'root-1',
+      newParentOrgId: 'child-1'
+    } as any
+    await admitTenantTargetRequest(TenantOrgManagementGrpcController, 'moveOrgUnit', request)
+    await expect(controller.moveOrgUnit(request)).rejects.toBeInstanceOf(BadRequestException)
   })
 
   it('updateOrgUnit / when organizationTenantPartyId is sent as empty string / should forward explicit clear semantics', async () => {
@@ -145,11 +146,13 @@ describe('TenantOrgManagementGrpcController L3', () => {
       organizationTenantPartyId: null
     })
 
-    await controller.updateOrgUnit({
+    const request = {
       tenantId: 'tenant-1',
       orgUnitId: 'org-1',
       organizationTenantPartyId: ''
-    } as any)
+    } as any
+    await admitTenantTargetRequest(TenantOrgManagementGrpcController, 'updateOrgUnit', request)
+    await controller.updateOrgUnit(request)
 
     expect(service.updateOrgUnit).toHaveBeenCalledWith({
       tenantId: 'tenant-1',

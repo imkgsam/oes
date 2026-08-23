@@ -1,12 +1,12 @@
 import { GUARDS_METADATA } from '@nestjs/common/constants'
 import {
-  attachVerifiedExecution,
   getRpcAuthorizationModeDeclaration,
   TENANT_ORG_MANAGEMENT_PERMISSION_CODES
 } from '@oes/common/authorization'
 import { TenantOrgFoundationTrustedExecutionGuard } from '../../src/modules/tenant-org-trusted-execution.module'
 import { TenantOrgQueryService } from '../../src/application/services'
 import { TenantOrgQueryGrpcController } from '../../src/interfaces/grpc/tenant-org-query.grpc.controller'
+import { admitTenantTargetRequest } from '../helpers/tenant-target-admission'
 
 /** createTenantOrgQueryServiceMock builds the application service double for query controller mapping tests. */
 function createTenantOrgQueryServiceMock() {
@@ -48,9 +48,9 @@ describe('TenantOrgQueryGrpcController L3', () => {
       rootOrgId: 'root-1'
     })
 
-    const result = await controller.getTenantById(
-      withTenantContext({ tenantId: 'tenant-1' } as any)
-    )
+    const request = { tenantId: 'tenant-1' } as any
+    await admitTenantTargetRequest(TenantOrgQueryGrpcController, 'getTenantById', request)
+    const result = await controller.getTenantById(request)
 
     expect(service.getTenantById).toHaveBeenCalledWith('tenant-1')
     expect(result).toEqual({
@@ -103,9 +103,9 @@ describe('TenantOrgQueryGrpcController L3', () => {
       }
     ])
 
-    const result = await controller.getOrgTreeByTenantId(
-      withTenantContext({ tenantId: 'tenant-1' } as any)
-    )
+    const request = { tenantId: 'tenant-1' } as any
+    await admitTenantTargetRequest(TenantOrgQueryGrpcController, 'getOrgTreeByTenantId', request)
+    const result = await controller.getOrgTreeByTenantId(request)
 
     expect(result.roots?.[0]?.children?.[0]?.orgUnit?.id).toBe('dept-1')
   })
@@ -116,31 +116,4 @@ function expectPermission(methodName: keyof TenantOrgQueryGrpcController, permis
   expect(
     getRpcAuthorizationModeDeclaration(TenantOrgQueryGrpcController.prototype, methodName)
   ).toEqual({ mode: 'BUSINESS', permissions: { all: [permissionCode] } })
-}
-
-/** Attaches the verified tenant authority normally installed by the execution-token guard. */
-function withTenantContext<T extends object>(request: T): T {
-  attachVerifiedExecution(request, {
-    verifiedExecutionToken: {
-      issuer: 'auth-service',
-      audience: 'urn:oes:service:tenant-org-service',
-      subject: 'operator-1',
-      principalType: 'HUMAN',
-      clientId: 'spiffe://local/ns/oes/sa/api-gateway',
-      tenantId: 'tenant-1',
-      permissionCodes: [],
-      tokenId: 'token-1',
-      issuedAt: 1,
-      notBefore: 1,
-      expiresAt: 2,
-      certificateThumbprint: 'A'.repeat(43),
-      sessionId: 'session-1',
-      sessionTerminal: 'WEB'
-    },
-    verifiedWorkloadIdentity: {
-      spiffeId: 'spiffe://local/ns/oes/sa/api-gateway',
-      certificateThumbprint: 'A'.repeat(43)
-    }
-  })
-  return request
 }

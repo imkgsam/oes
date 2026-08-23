@@ -6,6 +6,7 @@ import {
   Injectable,
   Module
 } from '@nestjs/common'
+import { ConfigModule } from '@nestjs/config'
 import { Reflector } from '@nestjs/core'
 import {
   createLazyTrustedExecutionRuntime,
@@ -14,6 +15,10 @@ import {
   TrustedExecutionGuard
 } from '@oes/common/authorization'
 import { GrpcWorkloadIdentityProvider } from '@oes/common/transport'
+import {
+  readTenantOrgTargetAuditCorrelation,
+  TenantOrgTenantTargetAuditBinder
+} from '../infrastructure/audit/tenant-target-admission-audit.binder'
 import { TenantOrgPartyTrustedGrpcClient } from '../infrastructure/adapters/party-trusted-grpc.client'
 import { TenantOrgPartyMachineSourceCredentialClient } from '../infrastructure/adapters/tenant-org-party-machine-source-credential.client'
 import { TenantOrgPartyMachineSourceCredentialProvider } from '../infrastructure/adapters/tenant-org-party-machine-source-credential.provider'
@@ -25,6 +30,11 @@ import {
   TenantOrgIdentityTrustedGrpcClient,
   TenantOrgPermissionTrustedGrpcClient
 } from '../infrastructure/adapters/foundation-trusted-grpc.clients'
+import {
+  getTenantOrgTargetMethodReference,
+  TenantOrgTargetWorkloadRegistry,
+  TenantOrgTenantTargetAdmissionGuard
+} from './tenant-org-tenant-target-admission.guard'
 
 export const TENANT_ORG_AUDIENCE = 'urn:oes:service:tenant-org-service'
 const runtime = createLazyTrustedExecutionRuntime(TENANT_ORG_AUDIENCE)
@@ -36,33 +46,57 @@ export class TenantOrgFoundationTrustedExecutionGuard
   implements CanActivate
 {
   constructor(
-    reflector: Reflector,
+    private readonly targetReflector: Reflector,
     verifier: ExecutionTokenVerifier,
-    identity: GrpcWorkloadIdentityProvider
+    identity: GrpcWorkloadIdentityProvider,
+    private readonly targetAuditBinder: TenantOrgTenantTargetAuditBinder
   ) {
-    super(reflector, verifier, identity, TENANT_ORG_AUDIENCE)
+    super(targetReflector, verifier, identity, TENANT_ORG_AUDIENCE)
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    await super.canActivate(context)
-    const token = getAuthenticatedGrpcRequestContext(
-      context.switchToRpc().getData()
-    )?.verifiedExecutionToken
-    const workload = readWorkloadName(token?.clientId ?? '')
-    const allowed =
-      token?.principalType === 'MACHINE'
-        ? ['auth-service', 'public-entry-service'].includes(workload)
-        : token?.principalType === 'HUMAN' &&
-          token.sessionTerminal === 'WEB' &&
-          ['api-gateway', 'auth-service', 'identity-service', 'hr-service'].includes(workload)
-    if (!allowed) throw new ForbiddenException('TenantOrg trusted caller is not permitted')
-    return true
+    const methodReference = getTenantOrgTargetMethodReference(this.targetReflector, context)
+    try {
+      await super.canActivate(context)
+      const token = getAuthenticatedGrpcRequestContext(
+        context.switchToRpc().getData()
+      )?.verifiedExecutionToken
+      const workload = readWorkloadName(token?.clientId ?? '')
+      const allowed =
+        token?.principalType === 'MACHINE'
+          ? ['auth-service', 'public-entry-service'].includes(workload)
+          : token?.principalType === 'HUMAN' &&
+            token.sessionTerminal === 'WEB' &&
+            ['api-gateway', 'auth-service', 'identity-service', 'hr-service'].includes(workload)
+      if (!allowed) throw new ForbiddenException('TenantOrg trusted caller is not permitted')
+      return true
+    } catch (error) {
+      if (methodReference !== undefined) {
+        const request = context.switchToRpc().getData()
+        const correlation = readTenantOrgTargetAuditCorrelation(
+          context,
+          getAuthenticatedGrpcRequestContext(request)
+        )
+        if (
+          this.targetAuditBinder.bindDenied({
+            methodReference,
+            ...correlation,
+            stage: 'TRUSTED_EXECUTION',
+            stableReason: 'TRUSTED_EXECUTION_DENIED'
+          }) !== true
+        ) {
+          throw new ForbiddenException('TenantOrg target denial audit binding failed')
+        }
+      }
+      throw error
+    }
   }
 }
 
 /** Composes TenantOrg token-only ingress together with its preserved Party producer. */
 @Global()
 @Module({
+  imports: [ConfigModule],
   providers: [
     TenantOrgAuthTrustedGrpcClient,
     TenantOrgHrTrustedGrpcClient,
@@ -85,14 +119,29 @@ export class TenantOrgFoundationTrustedExecutionGuard
     },
     { provide: ExecutionTokenVerifier, useFactory: () => runtime.verifier },
     { provide: GrpcWorkloadIdentityProvider, useFactory: () => runtime.workloadIdentityProvider },
+    TenantOrgTenantTargetAuditBinder,
+    TenantOrgTargetWorkloadRegistry,
+    TenantOrgTenantTargetAdmissionGuard,
     {
       provide: TenantOrgFoundationTrustedExecutionGuard,
       useFactory: (
         reflector: Reflector,
         verifier: ExecutionTokenVerifier,
-        identity: GrpcWorkloadIdentityProvider
-      ) => new TenantOrgFoundationTrustedExecutionGuard(reflector, verifier, identity),
-      inject: [Reflector, ExecutionTokenVerifier, GrpcWorkloadIdentityProvider]
+        identity: GrpcWorkloadIdentityProvider,
+        targetAuditBinder: TenantOrgTenantTargetAuditBinder
+      ) =>
+        new TenantOrgFoundationTrustedExecutionGuard(
+          reflector,
+          verifier,
+          identity,
+          targetAuditBinder
+        ),
+      inject: [
+        Reflector,
+        ExecutionTokenVerifier,
+        GrpcWorkloadIdentityProvider,
+        TenantOrgTenantTargetAuditBinder
+      ]
     }
   ],
   exports: [
@@ -104,7 +153,10 @@ export class TenantOrgFoundationTrustedExecutionGuard
     TenantOrgPartyTrustedGrpcExecutionProducer,
     ExecutionTokenVerifier,
     GrpcWorkloadIdentityProvider,
-    TenantOrgFoundationTrustedExecutionGuard
+    TenantOrgFoundationTrustedExecutionGuard,
+    TenantOrgTenantTargetAuditBinder,
+    TenantOrgTargetWorkloadRegistry,
+    TenantOrgTenantTargetAdmissionGuard
   ]
 })
 export class TenantOrgTrustedExecutionModule {}
