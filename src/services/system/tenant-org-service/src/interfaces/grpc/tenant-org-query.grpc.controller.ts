@@ -2,17 +2,14 @@ import { Controller, UseGuards, UseInterceptors } from '@nestjs/common'
 import { Metadata } from '@grpc/grpc-js'
 import {
   AuthorizeBusinessRpc,
-  DeclareSystemTenantTargetRpc,
   GrpcRequestContextInterceptor,
   requireAdmittedTenantTarget,
   TENANT_ORG_MANAGEMENT_PERMISSION_CODES
 } from '@oes/common/authorization'
+import { TenantOrgFoundationTrustedExecutionGuard } from '../../modules/tenant-org-trusted-execution.module'
 import {
-  TENANT_ORG_GATEWAY_SPIFFE_ID,
-  TenantOrgFoundationTrustedExecutionGuard
-} from '../../modules/tenant-org-trusted-execution.module'
-import {
-  DeclareTenantOrgMachineTargetRpc,
+  DeclareTenantOrgTargetRpc,
+  type TenantOrgTargetWorkloadConfigKey,
   TenantOrgTenantTargetAdmissionGuard
 } from '../../modules/tenant-org-tenant-target-admission.guard'
 import {
@@ -218,22 +215,19 @@ function applyTenantOrgBusinessDeclaration(method: string, code: string): void {
 function applyTenantOrgSystemTargetDeclaration(
   method: string,
   code: string,
-  machineWorkloads: readonly ('auth-service' | 'public-entry-service')[] = []
+  machineWorkloadConfigKeys: readonly Exclude<
+    TenantOrgTargetWorkloadConfigKey,
+    'TENANT_ORG_GATEWAY_SPIFFE_ID'
+  >[] = []
 ): void {
   const descriptor = Object.getOwnPropertyDescriptor(TenantOrgQueryGrpcController.prototype, method)
   if (!descriptor) throw new Error(`TenantOrg handler is missing: ${method}`)
-  DeclareSystemTenantTargetRpc({
-    selectorField: 'tenantId',
-    gatewayWorkloadIdentity: TENANT_ORG_GATEWAY_SPIFFE_ID,
-    permissionCode: code
+  DeclareTenantOrgTargetRpc({
+    methodReference: `tenant-org-service/TenantOrgQueryService/${toRpcMethodName(method)}`,
+    permissionCode: code,
+    systemAuthority: 'DEDICATED',
+    machineWorkloadConfigKeys
   })(TenantOrgQueryGrpcController.prototype, method, descriptor)
-  if (machineWorkloads.length > 0) {
-    DeclareTenantOrgMachineTargetRpc({ permissionCode: code, workloads: machineWorkloads })(
-      TenantOrgQueryGrpcController.prototype,
-      method,
-      descriptor
-    )
-  }
   UseGuards(TenantOrgTenantTargetAdmissionGuard)(
     TenantOrgQueryGrpcController.prototype,
     method,
@@ -242,8 +236,8 @@ function applyTenantOrgSystemTargetDeclaration(
 }
 
 applyTenantOrgSystemTargetDeclaration('getTenantById', 'tenant_org.tenant.get_by_id', [
-  'auth-service',
-  'public-entry-service'
+  'TENANT_ORG_AUTH_SPIFFE_ID',
+  'TENANT_ORG_PUBLIC_ENTRY_SPIFFE_ID'
 ])
 applyTenantOrgBusinessDeclaration('listTenants', 'tenant_org.tenant.list')
 applyTenantOrgSystemTargetDeclaration('getOrgTreeByTenantId', 'tenant_org.org_unit.list_tree')
@@ -251,6 +245,11 @@ applyTenantOrgSystemTargetDeclaration('listAncestorOrgUnits', 'tenant_org.org_un
 applyTenantOrgSystemTargetDeclaration('listDescendantOrgUnits', 'tenant_org.org_unit.list_tree')
 applyTenantOrgSystemTargetDeclaration('validateOrgReference', 'tenant_org.org_unit.list_tree')
 applyTenantOrgSystemTargetDeclaration('getOrgReferenceSummary', 'tenant_org.org_unit.list_tree', [
-  'public-entry-service'
+  'TENANT_ORG_PUBLIC_ENTRY_SPIFFE_ID'
 ])
 applyTenantOrgSystemTargetDeclaration('getOrgUnitById', 'tenant_org.org_unit.get_by_id')
+
+/** Converts one controller method name to its frozen protobuf RPC method name. */
+function toRpcMethodName(method: string): string {
+  return `${method.charAt(0).toUpperCase()}${method.slice(1)}`
+}

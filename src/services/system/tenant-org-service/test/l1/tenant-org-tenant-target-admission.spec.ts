@@ -1,23 +1,26 @@
 import { GUARDS_METADATA } from '@nestjs/common/constants'
+import { ConfigService } from '@nestjs/config'
 import { Test } from '@nestjs/testing'
 import {
   getRpcAuthorizationModeDeclaration,
-  TENANT_TARGET_ADMISSION_METADATA_KEY,
-  TENANT_TARGET_AUDIT_BINDER,
   type TenantTargetAuditBinding
 } from '@oes/common/authorization'
 import { TenantOrgTenantTargetAuditBinder } from '../../src/infrastructure/audit/tenant-target-admission-audit.binder'
 import { TenantOrgManagementGrpcController } from '../../src/interfaces/grpc/tenant-org-management.grpc.controller'
 import { TenantOrgQueryGrpcController } from '../../src/interfaces/grpc/tenant-org-query.grpc.controller'
+import { TenantOrgTrustedExecutionModule } from '../../src/modules/tenant-org-trusted-execution.module'
 import {
-  TENANT_ORG_GATEWAY_SPIFFE_ID,
-  TenantOrgTrustedExecutionModule
-} from '../../src/modules/tenant-org-trusted-execution.module'
-import {
-  TENANT_ORG_MACHINE_TARGET_METADATA_KEY,
+  TENANT_ORG_TARGET_METHOD_METADATA_KEY,
+  TenantOrgTargetWorkloadRegistry,
   TenantOrgTenantTargetAdmissionGuard
 } from '../../src/modules/tenant-org-tenant-target-admission.guard'
-import { admitTenantTargetRequest } from '../helpers/tenant-target-admission'
+import {
+  admitTenantTargetRequest,
+  TEST_TENANT_ORG_AUTH_SPIFFE_ID,
+  TEST_TENANT_ORG_GATEWAY_SPIFFE_ID,
+  TEST_TENANT_ORG_PUBLIC_ENTRY_SPIFFE_ID,
+  type TenantOrgTargetAuditFixture
+} from '../helpers/tenant-target-admission'
 
 const SYSTEM_TARGETS = [
   [TenantOrgQueryGrpcController, 'getTenantById', 'tenant_org.tenant.get_by_id'],
@@ -69,6 +72,14 @@ function managementService() {
   }
 }
 
+/** Creates a capturing target audit sink with configurable success binding. */
+function auditBinder(admitted = true): TenantOrgTargetAuditFixture {
+  return {
+    bindAdmitted: jest.fn(() => admitted),
+    bindDenied: jest.fn(() => true)
+  }
+}
+
 describe('Tenant Org tenant-target adoption', () => {
   it('resolves the exact target guard and audit binder through the Tenant Org module', async () => {
     const moduleRef = await Test.createTestingModule({
@@ -76,21 +87,42 @@ describe('Tenant Org tenant-target adoption', () => {
     }).compile()
 
     expect(moduleRef.get(TenantOrgTenantTargetAdmissionGuard)).toBeDefined()
-    expect(moduleRef.get(TENANT_TARGET_AUDIT_BINDER)).toBeInstanceOf(
-      TenantOrgTenantTargetAuditBinder
-    )
+    expect(moduleRef.get(TenantOrgTenantTargetAuditBinder)).toBeDefined()
+    expect(moduleRef.get(TenantOrgTargetWorkloadRegistry)).toBeDefined()
     await moduleRef.close()
+  })
+
+  it('resolves deployment workload identities at DI construction time and fails closed in production', () => {
+    const exact = new TenantOrgTargetWorkloadRegistry(
+      new ConfigService({
+        NODE_ENV: 'production',
+        TENANT_ORG_GATEWAY_SPIFFE_ID: 'spiffe://prod.oes/ns/oes/sa/api-gateway',
+        TENANT_ORG_AUTH_SPIFFE_ID: 'spiffe://prod.oes/ns/oes/sa/auth-service',
+        TENANT_ORG_PUBLIC_ENTRY_SPIFFE_ID: 'spiffe://prod.oes/ns/oes/sa/public-entry-service'
+      })
+    )
+    expect(exact.get('TENANT_ORG_GATEWAY_SPIFFE_ID')).toBe(
+      'spiffe://prod.oes/ns/oes/sa/api-gateway'
+    )
+    expect(
+      () =>
+        new TenantOrgTargetWorkloadRegistry({
+          get: (key: string) => (key === 'NODE_ENV' ? 'production' : undefined)
+        } as ConfigService)
+    ).toThrow('TenantOrg api-gateway SPIFFE identity is required')
   })
 
   it.each(SYSTEM_TARGETS)(
     'declares %p.%s as exact dedicated SYSTEM target for %s',
     (controller, method, code) => {
       expect(targetDeclaration(controller, method)).toEqual({
-        kind: 'SYSTEM_TARGET',
+        kind: 'TENANT_ORG_SYSTEM_TARGET',
+        methodReference: targetMethodReference(controller, method),
         selectorField: 'tenantId',
         tenantAuthority: 'TOKEN_TENANT_EQUALITY',
         systemAuthority: 'DEDICATED',
-        gatewayWorkloadIdentity: TENANT_ORG_GATEWAY_SPIFFE_ID,
+        gatewayWorkloadConfigKey: 'TENANT_ORG_GATEWAY_SPIFFE_ID',
+        machineWorkloadConfigKeys: machineWorkloadConfigKeys(controller, method),
         permissionCode: code,
         range: 'ALL'
       })
@@ -105,10 +137,12 @@ describe('Tenant Org tenant-target adoption', () => {
     'declares %p.%s as exact ordinary tenant target for %s',
     (controller, method, code) => {
       expect(targetDeclaration(controller, method)).toEqual({
-        kind: 'TENANT_SYSTEM_DENY',
+        kind: 'TENANT_ORG_TENANT_SYSTEM_DENY',
+        methodReference: targetMethodReference(controller, method),
         selectorField: 'tenantId',
         tenantAuthority: 'TOKEN_TENANT_EQUALITY',
-        systemAuthority: 'DENY'
+        systemAuthority: 'DENY',
+        permissionCode: code
       })
       expect(businessCode(controller, method)).toBe(code)
       expect(methodGuards(controller, method)).toEqual(
@@ -147,19 +181,19 @@ describe('Tenant Org tenant-target adoption', () => {
       'auth-service lifecycle read',
       'getTenantById',
       'tenant_org.tenant.get_by_id',
-      'spiffe://local.oes.internal/ns/oes/sa/auth-service'
+      TEST_TENANT_ORG_AUTH_SPIFFE_ID
     ],
     [
       'public-entry-service tenant read',
       'getTenantById',
       'tenant_org.tenant.get_by_id',
-      'spiffe://local.oes.internal/ns/oes/sa/public-entry-service'
+      TEST_TENANT_ORG_PUBLIC_ENTRY_SPIFFE_ID
     ],
     [
       'public-entry-service org reference read',
       'getOrgReferenceSummary',
       'tenant_org.org_unit.list_tree',
-      'spiffe://local.oes.internal/ns/oes/sa/public-entry-service'
+      TEST_TENANT_ORG_PUBLIC_ENTRY_SPIFFE_ID
     ]
   ] as const)(
     'preserves the exact %s MACHINE tenant-target exception',
@@ -184,7 +218,7 @@ describe('Tenant Org tenant-target adoption', () => {
   )
 
   it('rejects a MACHINE workload on an undeclared Tenant Org target method', async () => {
-    const binder = { bind: jest.fn(async () => true) }
+    const binder = auditBinder()
 
     await expect(
       admitTenantTargetRequest(
@@ -194,12 +228,19 @@ describe('Tenant Org tenant-target adoption', () => {
         {
           principalType: 'MACHINE',
           subjectScope: 'SYSTEM',
-          workloadIdentity: 'spiffe://local.oes.internal/ns/oes/sa/public-entry-service',
+          workloadIdentity: TEST_TENANT_ORG_PUBLIC_ENTRY_SPIFFE_ID,
           binder
         }
       )
     ).rejects.toMatchObject({ definition: { code: 'APP_AUTH_002', rpcStatus: 7 } })
-    expect(binder.bind).not.toHaveBeenCalled()
+    expect(binder.bindAdmitted).not.toHaveBeenCalled()
+    expect(binder.bindDenied).toHaveBeenCalledWith(
+      expect.objectContaining({
+        methodReference: 'tenant-org-service/TenantOrgQueryService/GetOrgTreeByTenantId',
+        stage: 'TARGET_METHOD_AUTHORITY',
+        stableReason: 'WORKLOAD_OR_CODE_MISMATCH'
+      })
+    )
   })
 
   it.each([
@@ -208,24 +249,30 @@ describe('Tenant Org tenant-target adoption', () => {
       principalType: 'HUMAN' as const,
       permissionCodes: ['tenant_org.tenant.get_by_id'],
       workloadIdentity: 'spiffe://local.oes.internal/ns/oes/sa/auth-service',
-      expected: { definition: { code: 'APP_AUTH_002', rpcStatus: 7 } }
+      expected: { definition: { code: 'APP_AUTH_002', rpcStatus: 7 } },
+      audit: {
+        stage: 'TARGET_METHOD_AUTHORITY',
+        stableReason: 'WORKLOAD_OR_CODE_MISMATCH'
+      }
     },
     {
       label: 'allowlisted MACHINE with a mismatched Code',
       principalType: 'MACHINE' as const,
       permissionCodes: ['tenant_org.org_unit.list_tree'],
-      workloadIdentity: 'spiffe://local.oes.internal/ns/oes/sa/auth-service',
-      expected: { definition: { code: 'APP_AUTH_002', rpcStatus: 7 } }
+      workloadIdentity: TEST_TENANT_ORG_AUTH_SPIFFE_ID,
+      expected: { definition: { code: 'APP_AUTH_002', rpcStatus: 7 } },
+      audit: { stage: 'TRUSTED_EXECUTION', stableReason: 'TRUSTED_EXECUTION_DENIED' }
     },
     {
       label: 'unlisted MACHINE workload',
       principalType: 'MACHINE' as const,
       permissionCodes: ['tenant_org.tenant.get_by_id'],
       workloadIdentity: 'spiffe://local.oes.internal/ns/oes/sa/identity-service',
-      expected: { status: 403 }
+      expected: { status: 403 },
+      audit: { stage: 'TRUSTED_EXECUTION', stableReason: 'TRUSTED_EXECUTION_DENIED' }
     }
-  ])('rejects $label before target audit binding', async (fixture) => {
-    const binder = { bind: jest.fn(async () => true) }
+  ])('rejects $label before admitted audit/handler and records denial', async (fixture) => {
+    const binder = auditBinder()
 
     await expect(
       admitTenantTargetRequest(
@@ -241,7 +288,45 @@ describe('Tenant Org tenant-target adoption', () => {
         }
       )
     ).rejects.toMatchObject(fixture.expected)
-    expect(binder.bind).not.toHaveBeenCalled()
+    expect(binder.bindAdmitted).not.toHaveBeenCalled()
+    expect(binder.bindDenied).toHaveBeenCalledWith(
+      expect.objectContaining({
+        methodReference: 'tenant-org-service/TenantOrgQueryService/GetTenantById',
+        ...fixture.audit
+      })
+    )
+  })
+
+  it.each([
+    'spiffe://other.oes.internal/ns/oes/sa/auth-service',
+    'spiffe://local.oes.internal/ns/rogue/sa/auth-service'
+  ])('rejects and audits non-exact MACHINE identity %s before handler access', async (identity) => {
+    const binder = auditBinder()
+
+    await expect(
+      admitTenantTargetRequest(
+        TenantOrgQueryGrpcController,
+        'getTenantById',
+        { tenantId: 'Tenant-System-Target' },
+        {
+          principalType: 'MACHINE',
+          subjectScope: 'SYSTEM',
+          permissionCodes: ['tenant_org.tenant.get_by_id'],
+          workloadIdentity: identity,
+          binder
+        }
+      )
+    ).rejects.toMatchObject({ definition: { code: 'APP_AUTH_002', rpcStatus: 7 } })
+    expect(binder.bindAdmitted).not.toHaveBeenCalled()
+    expect(binder.bindDenied).toHaveBeenCalledWith(
+      expect.objectContaining({
+        methodReference: 'tenant-org-service/TenantOrgQueryService/GetTenantById',
+        requestId: 'request-tenant-target-1',
+        traceId: 'trace-tenant-target-1',
+        stage: 'TARGET_METHOD_AUTHORITY',
+        stableReason: 'WORKLOAD_OR_CODE_MISMATCH'
+      })
+    )
   })
 
   it.each([
@@ -250,21 +335,30 @@ describe('Tenant Org tenant-target adoption', () => {
       controller: TenantOrgQueryGrpcController,
       method: 'getTenantById',
       request: { tenantId: 'Tenant-Target' },
-      options: { subjectTenantId: 'Tenant-Subject' }
+      options: { subjectTenantId: 'Tenant-Subject' },
+      audit: {
+        stage: 'TARGET_SELECTOR_ADMISSION',
+        stableReason: 'SELECTOR_SCOPE_MISMATCH'
+      }
     },
     {
       label: 'malformed selector',
       controller: TenantOrgQueryGrpcController,
       method: 'getTenantById',
       request: { tenantId: ' Tenant-Target ' },
-      options: { subjectTenantId: ' Tenant-Target ' }
+      options: { subjectTenantId: 'Tenant-Target' },
+      audit: { stage: 'TARGET_SELECTOR_ADMISSION', stableReason: 'SELECTOR_INVALID' }
     },
     {
       label: 'SYSTEM on ordinary org mutation',
       controller: TenantOrgManagementGrpcController,
       method: 'createOrgUnit',
       request: { tenantId: 'Tenant-Target' },
-      options: { subjectScope: 'SYSTEM' as const }
+      options: { subjectScope: 'SYSTEM' as const },
+      audit: {
+        stage: 'TARGET_METHOD_AUTHORITY',
+        stableReason: 'WORKLOAD_OR_CODE_MISMATCH'
+      }
     },
     {
       label: 'dedicated SYSTEM Code mismatch',
@@ -274,10 +368,11 @@ describe('Tenant Org tenant-target adoption', () => {
       options: {
         subjectScope: 'SYSTEM' as const,
         permissionCodes: ['tenant_org.org_unit.list_tree']
-      }
+      },
+      audit: { stage: 'TRUSTED_EXECUTION', stableReason: 'TRUSTED_EXECUTION_DENIED' }
     }
-  ])('rejects $label before audit or application side effects', async (fixture) => {
-    const binder = { bind: jest.fn(async () => true) }
+  ])('rejects $label before application side effects and records denial', async (fixture) => {
+    const binder = auditBinder()
 
     await expect(
       admitTenantTargetRequest(fixture.controller, fixture.method, fixture.request, {
@@ -285,21 +380,34 @@ describe('Tenant Org tenant-target adoption', () => {
         binder
       })
     ).rejects.toMatchObject({ definition: { code: 'APP_AUTH_002', rpcStatus: 7 } })
-    expect(binder.bind).not.toHaveBeenCalled()
+    expect(binder.bindAdmitted).not.toHaveBeenCalled()
+    expect(binder.bindDenied).toHaveBeenCalledWith(
+      expect.objectContaining({
+        methodReference: targetMethodReference(fixture.controller, fixture.method),
+        ...fixture.audit
+      })
+    )
   })
 
   it('rejects audit binding failure and never reaches the mutation application service', async () => {
     const service = managementService()
     const controller = new TenantOrgManagementGrpcController(service as never, {} as never)
     const request = { tenantId: 'Tenant-Exact', orgUnitId: 'org-1' }
-    const binder = { bind: jest.fn(async () => false) }
+    const binder = auditBinder(false)
 
     await expect(
       admitTenantTargetRequest(TenantOrgManagementGrpcController, 'archiveOrgUnit', request, {
         binder
       }).then(() => controller.archiveOrgUnit(request))
     ).rejects.toMatchObject({ definition: { code: 'APP_AUTH_002', rpcStatus: 7 } })
-    expect(binder.bind).toHaveBeenCalledTimes(1)
+    expect(binder.bindAdmitted).toHaveBeenCalledTimes(1)
+    expect(binder.bindDenied).toHaveBeenCalledWith(
+      expect.objectContaining({
+        methodReference: 'tenant-org-service/TenantOrgManagementService/ArchiveOrgUnit',
+        stage: 'TARGET_AUDIT_BINDING',
+        stableReason: 'AUDIT_BINDING_FAILED'
+      })
+    )
     expect(service.archiveOrgUnit).not.toHaveBeenCalled()
   })
 
@@ -319,7 +427,10 @@ describe('Tenant Org tenant-target adoption', () => {
   it('writes credential-free correlated target admission evidence', () => {
     const binder = new TenantOrgTenantTargetAuditBinder()
     const log = jest.fn()
-    ;(binder as unknown as { logger: { log: typeof log } }).logger = { log }
+    ;(binder as unknown as { logger: { log: typeof log; warn: jest.Mock } }).logger = {
+      log,
+      warn: jest.fn()
+    }
     const input: TenantTargetAuditBinding = Object.freeze({
       requestId: 'request-1',
       traceId: 'trace-1',
@@ -329,17 +440,23 @@ describe('Tenant Org tenant-target adoption', () => {
         subjectScope: 'SYSTEM',
         subject: 'account:operator-1',
         tokenId: 'token-decision-ref',
-        workloadIdentity: TENANT_ORG_GATEWAY_SPIFFE_ID,
+        workloadIdentity: TEST_TENANT_ORG_GATEWAY_SPIFFE_ID,
         declarationKind: 'SYSTEM_TARGET',
         permissionCode: 'tenant_org.tenant.get_by_id',
         range: 'ALL'
       })
     })
 
-    expect(binder.bind(input)).toBe(true)
+    expect(
+      binder.bindAdmitted('tenant-org-service/TenantOrgQueryService/GetTenantById', input)
+    ).toBe(true)
     expect(log).toHaveBeenCalledWith(
       expect.objectContaining({
-        eventType: 'TENANT_TARGET_ADMITTED',
+        eventType: 'TENANT_TARGET_ADMISSION',
+        result: 'SUCCEEDED',
+        stage: 'TARGET_SELECTOR_ADMISSION',
+        stableReason: 'ADMITTED',
+        targetMethodReference: 'tenant-org-service/TenantOrgQueryService/GetTenantById',
         requestId: 'request-1',
         traceId: 'trace-1',
         reauthorizedTenantSelector: 'Tenant-Audit',
@@ -352,35 +469,64 @@ describe('Tenant Org tenant-target adoption', () => {
     expect(serialized).not.toMatch(/Bearer|certificateThumbprint|targetTenantId|target_tenant_id/)
   })
 
-  it('keeps MACHINE exception declarations exact and method-owned', () => {
-    expect(machineDeclaration(TenantOrgQueryGrpcController, 'getTenantById')).toEqual({
-      selectorField: 'tenantId',
-      permissionCode: 'tenant_org.tenant.get_by_id',
-      workloads: ['auth-service', 'public-entry-service']
+  it('writes credential-free denied evidence with exact method, stage and stable reason', () => {
+    const binder = new TenantOrgTenantTargetAuditBinder()
+    const warn = jest.fn()
+    ;(binder as unknown as { logger: { log: jest.Mock; warn: typeof warn } }).logger = {
+      log: jest.fn(),
+      warn
+    }
+
+    expect(
+      binder.bindDenied({
+        methodReference: 'tenant-org-service/TenantOrgManagementService/CreateOrgUnit',
+        requestId: 'request-denied-1',
+        traceId: 'trace-denied-1',
+        stage: 'TARGET_METHOD_AUTHORITY',
+        stableReason: 'WORKLOAD_OR_CODE_MISMATCH'
+      })
+    ).toBe(true)
+    expect(warn).toHaveBeenCalledWith({
+      eventType: 'TENANT_TARGET_ADMISSION',
+      result: 'DENIED',
+      service: 'tenant-org-service',
+      module: 'tenant-target-admission',
+      targetMethodReference: 'tenant-org-service/TenantOrgManagementService/CreateOrgUnit',
+      requestId: 'request-denied-1',
+      traceId: 'trace-denied-1',
+      stage: 'TARGET_METHOD_AUTHORITY',
+      stableReason: 'WORKLOAD_OR_CODE_MISMATCH'
     })
-    expect(machineDeclaration(TenantOrgQueryGrpcController, 'getOrgReferenceSummary')).toEqual({
-      selectorField: 'tenantId',
-      permissionCode: 'tenant_org.org_unit.list_tree',
-      workloads: ['public-entry-service']
-    })
-    expect(machineDeclaration(TenantOrgQueryGrpcController, 'getOrgTreeByTenantId')).toBeUndefined()
+    expect(JSON.stringify(warn.mock.calls[0][0])).not.toMatch(
+      /Bearer|certificateThumbprint|tenantId|selector/
+    )
   })
 })
 
 /** Reads immutable target declaration metadata from one controller handler. */
 function targetDeclaration(controller: Function, method: string): unknown {
   return Reflect.getMetadata(
-    TENANT_TARGET_ADMISSION_METADATA_KEY,
+    TENANT_ORG_TARGET_METHOD_METADATA_KEY,
     (controller.prototype as Record<string, unknown>)[method]
   )
 }
 
-/** Reads the exact target-owned MACHINE exception declaration for one existing RPC. */
-function machineDeclaration(controller: Function, method: string): unknown {
-  return Reflect.getMetadata(
-    TENANT_ORG_MACHINE_TARGET_METADATA_KEY,
-    (controller.prototype as Record<string, unknown>)[method]
-  )
+/** Returns the frozen protobuf method reference owned by one controller target handler. */
+function targetMethodReference(controller: Function, method: string): string {
+  const service =
+    controller === TenantOrgQueryGrpcController
+      ? 'TenantOrgQueryService'
+      : 'TenantOrgManagementService'
+  return `tenant-org-service/${service}/${method.charAt(0).toUpperCase()}${method.slice(1)}`
+}
+
+/** Returns the exact runtime workload config slots allowed for frozen MACHINE reads. */
+function machineWorkloadConfigKeys(controller: Function, method: string): readonly string[] {
+  if (controller !== TenantOrgQueryGrpcController) return []
+  if (method === 'getTenantById') {
+    return ['TENANT_ORG_AUTH_SPIFFE_ID', 'TENANT_ORG_PUBLIC_ENTRY_SPIFFE_ID']
+  }
+  return method === 'getOrgReferenceSummary' ? ['TENANT_ORG_PUBLIC_ENTRY_SPIFFE_ID'] : []
 }
 
 /** Reads the exact singleton BUSINESS Code bound to one target handler. */

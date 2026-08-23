@@ -8,7 +8,7 @@ worktreeKey: `c5aa`
 pullRequest: `https://github.com/imkgsam/oes/pull/15`
 mergeSha: `pending`
 cleanup: `HOLD`
-state: `CANDIDATE_READY`
+state: `RUNNING`
 
 ## Objective
 
@@ -18,8 +18,8 @@ Adopt the frozen tenant-target admission boundary in Tenant Org: every retained 
 
 ### tenant-org-target-admission
 
-state: `CANDIDATE_READY`
-candidate: `bf70e00a88a6fae7aaff01ac89f3b10eac9d00ad`
+state: `RUNNING`
+candidate: `pending`
 review: `global-ri`
 
 - Scope: Tenant Org RPC declarations, exact Gateway workload binding, target admission/audit provider wiring, admitted-selector consumption, focused tests, and only strictly required executable shared contract expression.
@@ -31,6 +31,6 @@ review: `global-ri`
 
 1. The eleven SYSTEM-eligible Tenant Org RPCs with `tenant_id` use dedicated declarations for the exact Gateway workload, existing Code and `ALL`; the four tenant-only org mutation RPCs use ordinary explicit SYSTEM-deny declarations.
 2. All fifteen retained selector RPCs run `TenantTargetAdmissionGuard` after trusted execution and use `requireAdmittedTenantTarget(...).selector` for owner/query boundaries.
-3. Target admission binds actor, scope, selector, declaration, Code, request and trace evidence through Tenant Org's structured audit sink before handler access.
+3. Target admission binds actor, scope, selector, exact method declaration, Code, request and trace evidence through Tenant Org's structured audit sink before handler access; applicable denials record exact method, result, stage and stable reason without credentials or untrusted selector material.
 4. Denied admission produces no repository/application call or domain side effect; existing resource-ownership checks remain authoritative after admission.
 5. No target tenant is added to Execution Token claims, exchange request fields, STS inputs or Token cache keys, and no unrelated/protected resource changes.

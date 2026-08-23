@@ -1,20 +1,31 @@
 import { Metadata } from '@grpc/grpc-js'
+import { ConfigService } from '@nestjs/config'
 import { Reflector } from '@nestjs/core'
 import {
   RPC_AUTHORIZATION_MODE_METADATA_KEY,
-  TenantTargetAdmissionGuard,
-  type TenantTargetAuditBinder,
   type VerifiedExecutionToken,
   type VerifiedWorkloadIdentity
 } from '@oes/common/authorization'
 import {
   TENANT_ORG_AUDIENCE,
-  TENANT_ORG_GATEWAY_SPIFFE_ID,
   TenantOrgFoundationTrustedExecutionGuard
 } from '../../src/modules/tenant-org-trusted-execution.module'
-import { TenantOrgTenantTargetAdmissionGuard } from '../../src/modules/tenant-org-tenant-target-admission.guard'
+import {
+  TenantOrgTargetWorkloadRegistry,
+  TenantOrgTenantTargetAdmissionGuard
+} from '../../src/modules/tenant-org-tenant-target-admission.guard'
+import type { TenantOrgTenantTargetAuditBinder } from '../../src/infrastructure/audit/tenant-target-admission-audit.binder'
 
 const THUMBPRINT = 'A'.repeat(43)
+export const TEST_TENANT_ORG_GATEWAY_SPIFFE_ID = 'spiffe://local.oes.internal/ns/oes/sa/api-gateway'
+export const TEST_TENANT_ORG_AUTH_SPIFFE_ID = 'spiffe://local.oes.internal/ns/oes/sa/auth-service'
+export const TEST_TENANT_ORG_PUBLIC_ENTRY_SPIFFE_ID =
+  'spiffe://local.oes.internal/ns/oes/sa/public-entry-service'
+
+export type TenantOrgTargetAuditFixture = Pick<
+  TenantOrgTenantTargetAuditBinder,
+  'bindAdmitted' | 'bindDenied'
+>
 
 export interface TenantTargetAdmissionFixtureOptions {
   readonly subjectScope?: 'TENANT' | 'SYSTEM'
@@ -22,7 +33,7 @@ export interface TenantTargetAdmissionFixtureOptions {
   readonly subjectTenantId?: string
   readonly permissionCodes?: readonly string[]
   readonly workloadIdentity?: string
-  readonly binder?: TenantTargetAuditBinder
+  readonly binder?: TenantOrgTargetAuditFixture
 }
 
 /** admitTenantTargetRequest executes Tenant Org's real trusted and target guards for one handler fixture. */
@@ -31,7 +42,7 @@ export async function admitTenantTargetRequest<T extends object>(
   method: string,
   request: T,
   options: TenantTargetAdmissionFixtureOptions = {}
-): Promise<{ readonly binder: TenantTargetAuditBinder; readonly request: T }> {
+): Promise<{ readonly binder: TenantOrgTargetAuditFixture; readonly request: T }> {
   const handler = (controller.prototype as Record<string, unknown>)[method] as Function
   const reflector = new Reflector()
   const metadata = new Metadata()
@@ -39,7 +50,7 @@ export async function admitTenantTargetRequest<T extends object>(
   metadata.set('x-request-id', 'request-tenant-target-1')
   metadata.set('x-trace-id', 'trace-tenant-target-1')
   metadata.set('traceparent', '00-0123456789abcdef0123456789abcdef-0123456789abcdef-01')
-  const workloadIdentity = options.workloadIdentity ?? TENANT_ORG_GATEWAY_SPIFFE_ID
+  const workloadIdentity = options.workloadIdentity ?? TEST_TENANT_ORG_GATEWAY_SPIFFE_ID
   const token = verifiedToken({
     principalType: options.principalType ?? 'HUMAN',
     clientId: workloadIdentity,
@@ -64,14 +75,25 @@ export async function admitTenantTargetRequest<T extends object>(
     getArgByIndex: () => ({}),
     switchToRpc: () => ({ getContext: () => metadata, getData: () => request })
   }
+  const binder = options.binder ?? defaultAuditBinder()
   const trustedGuard = new TenantOrgFoundationTrustedExecutionGuard(
     reflector,
     { verify: async () => token } as never,
-    { getVerifiedWorkloadIdentity: async () => workload } as never
+    { getVerifiedWorkloadIdentity: async () => workload } as never,
+    binder as never
   )
-  const binder = options.binder ?? { bind: jest.fn(async () => true) }
-  const commonGuard = new TenantTargetAdmissionGuard(reflector, binder)
-  const targetGuard = new TenantOrgTenantTargetAdmissionGuard(reflector, commonGuard, binder)
+  const workloads = new TenantOrgTargetWorkloadRegistry(
+    new ConfigService({
+      TENANT_ORG_GATEWAY_SPIFFE_ID: TEST_TENANT_ORG_GATEWAY_SPIFFE_ID,
+      TENANT_ORG_AUTH_SPIFFE_ID: TEST_TENANT_ORG_AUTH_SPIFFE_ID,
+      TENANT_ORG_PUBLIC_ENTRY_SPIFFE_ID: TEST_TENANT_ORG_PUBLIC_ENTRY_SPIFFE_ID
+    })
+  )
+  const targetGuard = new TenantOrgTenantTargetAdmissionGuard(
+    reflector,
+    workloads,
+    binder as TenantOrgTenantTargetAuditBinder
+  )
 
   await trustedGuard.canActivate(context as never)
   await targetGuard.canActivate(context as never)
@@ -85,7 +107,7 @@ function verifiedToken(overrides: Partial<VerifiedExecutionToken>): VerifiedExec
     audience: TENANT_ORG_AUDIENCE,
     subject: 'account:operator-1',
     principalType: 'HUMAN',
-    clientId: TENANT_ORG_GATEWAY_SPIFFE_ID,
+    clientId: TEST_TENANT_ORG_GATEWAY_SPIFFE_ID,
     tenantId: 'tenant-1',
     permissionCodes: [],
     tokenId: 'token-tenant-target-1',
@@ -96,6 +118,14 @@ function verifiedToken(overrides: Partial<VerifiedExecutionToken>): VerifiedExec
     sessionId: 'session-1',
     sessionTerminal: 'WEB',
     ...overrides
+  }
+}
+
+/** Creates an audit sink double that accepts admitted and denied decision records. */
+function defaultAuditBinder(): TenantOrgTargetAuditFixture {
+  return {
+    bindAdmitted: jest.fn(() => true),
+    bindDenied: jest.fn(() => true)
   }
 }
 

@@ -2,17 +2,15 @@ import { Controller, UseGuards, UseInterceptors } from '@nestjs/common'
 import { Metadata } from '@grpc/grpc-js'
 import {
   AuthorizeBusinessRpc,
-  DeclareSystemTenantTargetRpc,
-  DeclareTenantTargetRpc,
   GrpcRequestContextInterceptor,
   requireAdmittedTenantTarget,
   TENANT_ORG_MANAGEMENT_PERMISSION_CODES
 } from '@oes/common/authorization'
+import { TenantOrgFoundationTrustedExecutionGuard } from '../../modules/tenant-org-trusted-execution.module'
 import {
-  TENANT_ORG_GATEWAY_SPIFFE_ID,
-  TenantOrgFoundationTrustedExecutionGuard
-} from '../../modules/tenant-org-trusted-execution.module'
-import { TenantOrgTenantTargetAdmissionGuard } from '../../modules/tenant-org-tenant-target-admission.guard'
+  DeclareTenantOrgTargetRpc,
+  TenantOrgTenantTargetAdmissionGuard
+} from '../../modules/tenant-org-tenant-target-admission.guard'
 import {
   ArchiveOrgUnitRequest,
   ArchiveOrgUnitResponse,
@@ -369,24 +367,11 @@ function applyTenantOrgTargetDeclaration(
     method
   )
   if (!descriptor) throw new Error(`TenantOrg handler is missing: ${method}`)
-  if (kind === 'SYSTEM_TARGET') {
-    DeclareSystemTenantTargetRpc({
-      selectorField: 'tenantId',
-      gatewayWorkloadIdentity: TENANT_ORG_GATEWAY_SPIFFE_ID,
-      permissionCode: code
-    })(TenantOrgManagementGrpcController.prototype, method, descriptor)
-  } else {
-    AuthorizeBusinessRpc({ all: [code] })(
-      TenantOrgManagementGrpcController.prototype,
-      method,
-      descriptor
-    )
-    DeclareTenantTargetRpc({ selectorField: 'tenantId' })(
-      TenantOrgManagementGrpcController.prototype,
-      method,
-      descriptor
-    )
-  }
+  DeclareTenantOrgTargetRpc({
+    methodReference: `tenant-org-service/TenantOrgManagementService/${toRpcMethodName(method)}`,
+    permissionCode: code,
+    systemAuthority: kind === 'SYSTEM_TARGET' ? 'DEDICATED' : 'DENY'
+  })(TenantOrgManagementGrpcController.prototype, method, descriptor)
   UseGuards(TenantOrgTenantTargetAdmissionGuard)(
     TenantOrgManagementGrpcController.prototype,
     method,
@@ -418,3 +403,8 @@ applyTenantOrgTargetDeclaration(
   'tenant_org.org_unit.archive',
   'TENANT_SYSTEM_DENY'
 )
+
+/** Converts one controller method name to its frozen protobuf RPC method name. */
+function toRpcMethodName(method: string): string {
+  return `${method.charAt(0).toUpperCase()}${method.slice(1)}`
+}
