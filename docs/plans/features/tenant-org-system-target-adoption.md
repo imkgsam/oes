@@ -5,10 +5,10 @@ truthCommit: `bb3a1b9c26accb2c95089addddf90ca6d0dd1d4d`
 baseSha: `5566a5fa77fbce76a321e2dcaca670af8730ca21`
 integrationBranch: `codex/feature/tenant-org-system-target-adoption`
 worktreeKey: `c5aa`
-pullRequest: `pending`
+pullRequest: `https://github.com/imkgsam/oes/pull/15`
 mergeSha: `pending`
 cleanup: `HOLD`
-state: `RUNNING`
+state: `CANDIDATE_READY`
 
 ## Objective
 
@@ -18,8 +18,8 @@ Adopt the frozen tenant-target admission boundary in Tenant Org: every retained 
 
 ### tenant-org-target-admission
 
-state: `RUNNING`
-candidate: `pending`
+state: `CANDIDATE_READY`
+candidate: `bf70e00a88a6fae7aaff01ac89f3b10eac9d00ad`
 review: `global-ri`
 
 - Scope: Tenant Org RPC declarations, exact Gateway workload binding, target admission/audit provider wiring, admitted-selector consumption, focused tests, and only strictly required executable shared contract expression.
