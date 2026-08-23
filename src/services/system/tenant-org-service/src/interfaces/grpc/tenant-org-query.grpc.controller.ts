@@ -1,15 +1,17 @@
 import { Controller, UseGuards, UseInterceptors } from '@nestjs/common'
-import { AuthorizeBusinessRpc } from '@oes/common/authorization'
-import { TenantOrgFoundationTrustedExecutionGuard } from '../../modules/tenant-org-trusted-execution.module'
 import { Metadata } from '@grpc/grpc-js'
 import {
-  RequirePermissions,
-  AuthenticatedOperatorGuard,
+  AuthorizeBusinessRpc,
   GrpcRequestContextInterceptor,
-  InternalServiceGuard,
-  PermissionGuard,
+  requireAdmittedTenantTarget,
   TENANT_ORG_MANAGEMENT_PERMISSION_CODES
 } from '@oes/common/authorization'
+import { TenantOrgFoundationTrustedExecutionGuard } from '../../modules/tenant-org-trusted-execution.module'
+import {
+  DeclareTenantOrgTargetRpc,
+  type TenantOrgTargetWorkloadConfigKey,
+  TenantOrgTenantTargetAdmissionGuard
+} from '../../modules/tenant-org-tenant-target-admission.guard'
 import {
   GetOrgReferenceSummaryRequest,
   GetOrgReferenceSummaryResponse,
@@ -44,7 +46,8 @@ export class TenantOrgQueryGrpcController implements TenantOrgQueryServiceContro
     _request: GetTenantByIdRequest,
     _metadata?: Metadata
   ): Promise<GetTenantByIdResponse> {
-    const tenant = await this.tenantOrgQueryService.getTenantById(_request.tenantId ?? '')
+    const tenantId = requireAdmittedTenantTarget(_request).selector
+    const tenant = await this.tenantOrgQueryService.getTenantById(tenantId)
     return { tenant: tenant ? mapTenant(tenant) : undefined }
   }
 
@@ -68,7 +71,8 @@ export class TenantOrgQueryGrpcController implements TenantOrgQueryServiceContro
     _request: GetOrgTreeByTenantIdRequest,
     _metadata?: Metadata
   ): Promise<GetOrgTreeByTenantIdResponse> {
-    const roots = await this.tenantOrgQueryService.getOrgTreeByTenantId(_request.tenantId ?? '')
+    const tenantId = requireAdmittedTenantTarget(_request).selector
+    const roots = await this.tenantOrgQueryService.getOrgTreeByTenantId(tenantId)
     return { roots: roots.map(mapOrgNode) }
   }
 
@@ -76,8 +80,9 @@ export class TenantOrgQueryGrpcController implements TenantOrgQueryServiceContro
     _request: GetOrgUnitByIdRequest,
     _metadata?: Metadata
   ): Promise<GetOrgUnitByIdResponse> {
+    const tenantId = requireAdmittedTenantTarget(_request).selector
     const orgUnit = await this.tenantOrgQueryService.getOrgUnitById(
-      _request.tenantId ?? '',
+      tenantId,
       _request.orgUnitId ?? ''
     )
     return { orgUnit: orgUnit ? mapOrgUnit(orgUnit) : undefined }
@@ -87,8 +92,9 @@ export class TenantOrgQueryGrpcController implements TenantOrgQueryServiceContro
     _request: ValidateOrgReferenceRequest,
     _metadata?: Metadata
   ): Promise<ValidateOrgReferenceResponse> {
+    const tenantId = requireAdmittedTenantTarget(_request).selector
     const result = await this.tenantOrgQueryService.validateOrgReference({
-      tenantId: _request.tenantId ?? '',
+      tenantId,
       orgUnitId: _request.orgUnitId ?? '',
       expectedOrgType: _request.expectedOrgType || undefined
     })
@@ -105,8 +111,9 @@ export class TenantOrgQueryGrpcController implements TenantOrgQueryServiceContro
     _request: GetOrgReferenceSummaryRequest,
     _metadata?: Metadata
   ): Promise<GetOrgReferenceSummaryResponse> {
+    const tenantId = requireAdmittedTenantTarget(_request).selector
     const orgUnit = await this.tenantOrgQueryService.getOrgReferenceSummary(
-      _request.tenantId ?? '',
+      tenantId,
       _request.orgUnitId ?? ''
     )
     return { orgUnit: orgUnit ? mapOrgUnit(orgUnit) : undefined }
@@ -116,8 +123,9 @@ export class TenantOrgQueryGrpcController implements TenantOrgQueryServiceContro
     _request: ListAncestorOrgUnitsRequest,
     _metadata?: Metadata
   ): Promise<ListAncestorOrgUnitsResponse> {
+    const tenantId = requireAdmittedTenantTarget(_request).selector
     const ancestors = await this.tenantOrgQueryService.listAncestorOrgUnits(
-      _request.tenantId ?? '',
+      tenantId,
       _request.orgUnitId ?? ''
     )
     return { ancestors: ancestors.map(mapOrgUnit) }
@@ -127,8 +135,9 @@ export class TenantOrgQueryGrpcController implements TenantOrgQueryServiceContro
     _request: ListDescendantOrgUnitsRequest,
     _metadata?: Metadata
   ): Promise<ListDescendantOrgUnitsResponse> {
+    const tenantId = requireAdmittedTenantTarget(_request).selector
     const descendants = await this.tenantOrgQueryService.listDescendantOrgUnits(
-      _request.tenantId ?? '',
+      tenantId,
       _request.orgUnitId ?? '',
       _request.maxDepth
     )
@@ -195,17 +204,52 @@ function mapOrgNode(node: {
   }
 }
 
-/** Applies TenantOrg's frozen BUSINESS Code declaration to each baseline handler. */
-function applyTenantOrgDeclaration(method: string, code: string): void {
+/** Applies one exact non-target TenantOrg BUSINESS Code declaration. */
+function applyTenantOrgBusinessDeclaration(method: string, code: string): void {
   const descriptor = Object.getOwnPropertyDescriptor(TenantOrgQueryGrpcController.prototype, method)
   if (!descriptor) throw new Error(`TenantOrg handler is missing: ${method}`)
   AuthorizeBusinessRpc({ all: [code] })(TenantOrgQueryGrpcController.prototype, method, descriptor)
 }
-applyTenantOrgDeclaration('getTenantById', 'tenant_org.tenant.get_by_id')
-applyTenantOrgDeclaration('listTenants', 'tenant_org.tenant.list')
-applyTenantOrgDeclaration('getOrgTreeByTenantId', 'tenant_org.org_unit.list_tree')
-applyTenantOrgDeclaration('listAncestorOrgUnits', 'tenant_org.org_unit.list_tree')
-applyTenantOrgDeclaration('listDescendantOrgUnits', 'tenant_org.org_unit.list_tree')
-applyTenantOrgDeclaration('validateOrgReference', 'tenant_org.org_unit.list_tree')
-applyTenantOrgDeclaration('getOrgReferenceSummary', 'tenant_org.org_unit.list_tree')
-applyTenantOrgDeclaration('getOrgUnitById', 'tenant_org.org_unit.get_by_id')
+
+/** Applies exact dedicated SYSTEM admission, BUSINESS Code and guard metadata to one selector RPC. */
+function applyTenantOrgSystemTargetDeclaration(
+  method: string,
+  code: string,
+  machineWorkloadConfigKeys: readonly Exclude<
+    TenantOrgTargetWorkloadConfigKey,
+    'TENANT_ORG_GATEWAY_SPIFFE_ID'
+  >[] = []
+): void {
+  const descriptor = Object.getOwnPropertyDescriptor(TenantOrgQueryGrpcController.prototype, method)
+  if (!descriptor) throw new Error(`TenantOrg handler is missing: ${method}`)
+  DeclareTenantOrgTargetRpc({
+    methodReference: `tenant-org-service/TenantOrgQueryService/${toRpcMethodName(method)}`,
+    permissionCode: code,
+    systemAuthority: 'DEDICATED',
+    machineWorkloadConfigKeys
+  })(TenantOrgQueryGrpcController.prototype, method, descriptor)
+  UseGuards(TenantOrgTenantTargetAdmissionGuard)(
+    TenantOrgQueryGrpcController.prototype,
+    method,
+    descriptor
+  )
+}
+
+applyTenantOrgSystemTargetDeclaration('getTenantById', 'tenant_org.tenant.get_by_id', [
+  'TENANT_ORG_AUTH_SPIFFE_ID',
+  'TENANT_ORG_PUBLIC_ENTRY_SPIFFE_ID'
+])
+applyTenantOrgBusinessDeclaration('listTenants', 'tenant_org.tenant.list')
+applyTenantOrgSystemTargetDeclaration('getOrgTreeByTenantId', 'tenant_org.org_unit.list_tree')
+applyTenantOrgSystemTargetDeclaration('listAncestorOrgUnits', 'tenant_org.org_unit.list_tree')
+applyTenantOrgSystemTargetDeclaration('listDescendantOrgUnits', 'tenant_org.org_unit.list_tree')
+applyTenantOrgSystemTargetDeclaration('validateOrgReference', 'tenant_org.org_unit.list_tree')
+applyTenantOrgSystemTargetDeclaration('getOrgReferenceSummary', 'tenant_org.org_unit.list_tree', [
+  'TENANT_ORG_PUBLIC_ENTRY_SPIFFE_ID'
+])
+applyTenantOrgSystemTargetDeclaration('getOrgUnitById', 'tenant_org.org_unit.get_by_id')
+
+/** Converts one controller method name to its frozen protobuf RPC method name. */
+function toRpcMethodName(method: string): string {
+  return `${method.charAt(0).toUpperCase()}${method.slice(1)}`
+}
