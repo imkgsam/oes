@@ -56,19 +56,21 @@
 ## 7. Delivery State
 
 - Baseline/ref/worktree/owner/path audit: passed at `bb3a1b9c26accb2c95089addddf90ca6d0dd1d4d`
-- Latest `origin/main`: `5566a5fa77fbce76a321e2dcaca670af8730ca21`, merged with `--no-ff` as `ac70f8a02de81c15811f217ab1d7f84c8b2127c4`
+- Latest `origin/main`: `1aa8c97b22a40ff2b6279ce1a9c625497bd99638`, merged with `--no-ff` as `42f7c957867cadda7049657e64d55881376ecf8d`
 - Dependency: `DEPENDENCY_READY`
 - Accepted metadata slice: `f534f258b501dd0026963d82b87999af4db0c6ca`
 - Accepted Gateway slice: `64e42161bf2f92bdaf6d19fd5de16b6687426729`
-- Refreshed reviewed code candidate: `ac70f8a02de81c15811f217ab1d7f84c8b2127c4`
-- The previous Stage Review on `1e40f0d02b3f4d5aae316cb6dd0cf3aea37b8846` was invalidated when Admission PR #12 advanced `main`; this refreshed candidate requires a new exact Stage Review.
-- Global RI: `RI_PASS` on the refreshed reviewed code candidate with no code findings; Admission and Permission parent path intersection is empty, guard ordering remains compatible, and the prior seed validator finding remains closed
+- Refreshed reviewed code candidate: `42f7c957867cadda7049657e64d55881376ecf8d`
+- The previous Stage Review and merge card on `e751ebffa51c950c7c880ab6881f2fa360d6cfe2` were invalidated when the independently merged Tenant Org candidate advanced `main`; this refreshed candidate requires a new exact Stage Review.
+- Global RI: `RI_PASS` on `42f7c957867cadda7049657e64d55881376ecf8d` against `1aa8c97b22a40ff2b6279ce1a9c625497bd99638`, with no P0-P3 findings; the Permission product delta is preserved byte-for-byte, Tenant Org/Permission path intersection and merge conflict-resolution entries are empty, protected scope remains unchanged, and the prior seed validator finding remains closed
 - Pull request: [#13](https://github.com/imkgsam/oes/pull/13), base `main`
 - Refreshed validation:
   - `pnpm proto:lint`, `pnpm proto:breaking`, `pnpm proto:gen`: exit `0`
   - Prisma generate and isolated PostgreSQL schema push: exit `0`
   - `pnpm --filter @oes/common build`: exit `0`
   - affected Admission/Common focused validation: `3` suites / `93` tests passed, exit `0`
+  - affected Tenant Org target-admission/controller validation: `3` suites / `44` tests passed, exit `0`
+  - Tenant Org Prisma generation and build: exit `0` (the first build reported the expected missing generated client in this worktree; generation followed by the identical build command passed)
   - Permission Service build: exit `0`
   - Permission L1: `76` suites / `328` tests passed, exit `0`
   - focused Permission L2: `1` suite / `7` tests passed, exit `0`
