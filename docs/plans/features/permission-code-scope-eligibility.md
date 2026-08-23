@@ -56,18 +56,19 @@
 ## 7. Delivery State
 
 - Baseline/ref/worktree/owner/path audit: passed at `bb3a1b9c26accb2c95089addddf90ca6d0dd1d4d`
-- Latest `origin/main`: `c7821895fd18dadedefcf06fac0a12ef74039f38`, merged with `--no-ff` as `851c8ccb2e6d6df80d38bf6faf45d06353ae68bf`
+- Latest `origin/main`: `5566a5fa77fbce76a321e2dcaca670af8730ca21`, merged with `--no-ff` as `ac70f8a02de81c15811f217ab1d7f84c8b2127c4`
 - Dependency: `DEPENDENCY_READY`
 - Accepted metadata slice: `f534f258b501dd0026963d82b87999af4db0c6ca`
 - Accepted Gateway slice: `64e42161bf2f92bdaf6d19fd5de16b6687426729`
-- Refreshed reviewed code candidate: `836e958163487fc46e0c8f2b3f96fb7a84b92f17`
-- The previous Stage Review on `06ebd96ea75cd14d391159e48c4087d6da7d081b` was invalidated when `main` advanced; this refreshed candidate requires a new exact Stage Review.
-- Global RI: `RI_PASS` on the refreshed reviewed code candidate after closing the seed validator array-identity finding with ordered structural comparison and deep-copy regression coverage
+- Refreshed reviewed code candidate: `ac70f8a02de81c15811f217ab1d7f84c8b2127c4`
+- The previous Stage Review on `1e40f0d02b3f4d5aae316cb6dd0cf3aea37b8846` was invalidated when Admission PR #12 advanced `main`; this refreshed candidate requires a new exact Stage Review.
+- Global RI: `RI_PASS` on the refreshed reviewed code candidate with no code findings; Admission and Permission parent path intersection is empty, guard ordering remains compatible, and the prior seed validator finding remains closed
 - Pull request: [#13](https://github.com/imkgsam/oes/pull/13), base `main`
 - Refreshed validation:
   - `pnpm proto:lint`, `pnpm proto:breaking`, `pnpm proto:gen`: exit `0`
   - Prisma generate and isolated PostgreSQL schema push: exit `0`
   - `pnpm --filter @oes/common build`: exit `0`
+  - affected Admission/Common focused validation: `3` suites / `93` tests passed, exit `0`
   - Permission Service build: exit `0`
   - Permission L1: `76` suites / `328` tests passed, exit `0`
   - focused Permission L2: `1` suite / `7` tests passed, exit `0`
