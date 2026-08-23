@@ -45,4 +45,6 @@ export interface AuthenticatedGrpcRequestContext {
   operatorContext?: OperatorContextPayload
   verifiedExecutionToken?: VerifiedExecutionToken
   verifiedWorkloadIdentity?: VerifiedWorkloadIdentity
+  requestId?: string
+  traceId?: string
 }
