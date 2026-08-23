@@ -8,7 +8,7 @@ worktreeKey: `c5aa`
 pullRequest: `https://github.com/imkgsam/oes/pull/15`
 mergeSha: `pending`
 cleanup: `HOLD`
-state: `RUNNING`
+state: `CANDIDATE_READY`
 
 ## Objective
 
@@ -18,8 +18,8 @@ Adopt the frozen tenant-target admission boundary in Tenant Org: every retained 
 
 ### tenant-org-target-admission
 
-state: `RUNNING`
-candidate: `pending`
+state: `CANDIDATE_READY`
+candidate: `4d87efee23b86c9649272d643fd77b59c56f2123`
 review: `global-ri`
 
 - Scope: Tenant Org RPC declarations, exact Gateway workload binding, target admission/audit provider wiring, admitted-selector consumption, focused tests, and only strictly required executable shared contract expression.
