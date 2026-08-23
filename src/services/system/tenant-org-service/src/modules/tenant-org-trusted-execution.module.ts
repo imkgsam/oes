@@ -11,9 +11,12 @@ import {
   createLazyTrustedExecutionRuntime,
   ExecutionTokenVerifier,
   getAuthenticatedGrpcRequestContext,
+  TENANT_TARGET_AUDIT_BINDER,
+  TenantTargetAdmissionGuard,
   TrustedExecutionGuard
 } from '@oes/common/authorization'
 import { GrpcWorkloadIdentityProvider } from '@oes/common/transport'
+import { TenantOrgTenantTargetAuditBinder } from '../infrastructure/audit/tenant-target-admission-audit.binder'
 import { TenantOrgPartyTrustedGrpcClient } from '../infrastructure/adapters/party-trusted-grpc.client'
 import { TenantOrgPartyMachineSourceCredentialClient } from '../infrastructure/adapters/tenant-org-party-machine-source-credential.client'
 import { TenantOrgPartyMachineSourceCredentialProvider } from '../infrastructure/adapters/tenant-org-party-machine-source-credential.provider'
@@ -25,8 +28,10 @@ import {
   TenantOrgIdentityTrustedGrpcClient,
   TenantOrgPermissionTrustedGrpcClient
 } from '../infrastructure/adapters/foundation-trusted-grpc.clients'
+import { TenantOrgTenantTargetAdmissionGuard } from './tenant-org-tenant-target-admission.guard'
 
 export const TENANT_ORG_AUDIENCE = 'urn:oes:service:tenant-org-service'
+export const TENANT_ORG_GATEWAY_SPIFFE_ID = resolveTenantOrgGatewaySpiffeId()
 const runtime = createLazyTrustedExecutionRuntime(TENANT_ORG_AUDIENCE)
 
 /** Restricts TenantOrg calls to Gateway HUMAN, foundation OBO and exact public/pre-session MACHINE workloads. */
@@ -85,6 +90,13 @@ export class TenantOrgFoundationTrustedExecutionGuard
     },
     { provide: ExecutionTokenVerifier, useFactory: () => runtime.verifier },
     { provide: GrpcWorkloadIdentityProvider, useFactory: () => runtime.workloadIdentityProvider },
+    TenantOrgTenantTargetAuditBinder,
+    {
+      provide: TENANT_TARGET_AUDIT_BINDER,
+      useExisting: TenantOrgTenantTargetAuditBinder
+    },
+    TenantTargetAdmissionGuard,
+    TenantOrgTenantTargetAdmissionGuard,
     {
       provide: TenantOrgFoundationTrustedExecutionGuard,
       useFactory: (
@@ -104,10 +116,27 @@ export class TenantOrgFoundationTrustedExecutionGuard
     TenantOrgPartyTrustedGrpcExecutionProducer,
     ExecutionTokenVerifier,
     GrpcWorkloadIdentityProvider,
-    TenantOrgFoundationTrustedExecutionGuard
+    TenantOrgFoundationTrustedExecutionGuard,
+    TenantOrgTenantTargetAuditBinder,
+    TENANT_TARGET_AUDIT_BINDER,
+    TenantTargetAdmissionGuard,
+    TenantOrgTenantTargetAdmissionGuard
   ]
 })
 export class TenantOrgTrustedExecutionModule {}
+
+/** Resolves the deployment-owned Gateway identity and permits only the canonical local test default. */
+function resolveTenantOrgGatewaySpiffeId(): string {
+  const configured = process.env.TENANT_ORG_GATEWAY_SPIFFE_ID
+  if (configured !== undefined) {
+    if (configured.length > 0 && configured.trim() === configured) return configured
+    throw new Error('TenantOrg Gateway SPIFFE identity is invalid')
+  }
+  if ((process.env.NODE_ENV ?? 'development') !== 'production') {
+    return 'spiffe://local.oes.internal/ns/oes/sa/api-gateway'
+  }
+  throw new Error('TenantOrg Gateway SPIFFE identity is required')
+}
 
 /** Extracts one canonical workload name from a verified SPIFFE URI. */
 function readWorkloadName(spiffeId: string): string {
