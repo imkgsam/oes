@@ -8,14 +8,19 @@ const WORKLOAD = {
 }
 
 /** Builds an RPC execution context that records whether controller-visible request data was attached. */
-function guardFixture(declaration: unknown, verified: Record<string, unknown>) {
+function guardFixture(
+  declaration: unknown,
+  verified: Record<string, unknown>,
+  options: { readonly preserveDeclaration?: boolean } = {}
+) {
   const metadata = new Metadata()
   metadata.set('authorization', 'Bearer e30.e30.e30')
   metadata.set('x-request-id', 'request-1')
   metadata.set('x-trace-id', '0123456789abcdef0123456789abcdef')
   metadata.set('traceparent', '00-0123456789abcdef0123456789abcdef-0123456789abcdef-01')
   const data = {}
-  const reflector = { getAllAndOverride: jest.fn(() => declaration) }
+  const reflectedDeclaration = options.preserveDeclaration ? declaration : deepFreeze(declaration)
+  const reflector = { getAllAndOverride: jest.fn(() => reflectedDeclaration) }
   const verifier = {
     verify: jest.fn(async () => ({
       issuer: 'https://auth.local.oes.example',
@@ -33,8 +38,9 @@ function guardFixture(declaration: unknown, verified: Record<string, unknown>) {
   const workloadIdentityProvider = {
     getVerifiedWorkloadIdentity: jest.fn(async () => WORKLOAD)
   }
+  const handler = jest.fn()
   const context = {
-    getHandler: jest.fn(),
+    getHandler: jest.fn(() => handler),
     getClass: jest.fn(),
     getArgByIndex: jest.fn(() => ({ getAuthContext: jest.fn() })),
     switchToRpc: jest.fn(() => ({ getContext: () => metadata, getData: () => data }))
@@ -54,10 +60,43 @@ function guardFixture(declaration: unknown, verified: Record<string, unknown>) {
   }
 }
 
+/** Freezes the declaration fixture recursively to match the public metadata builders. */
+function deepFreeze<T>(value: T): T {
+  if (value !== null && typeof value === 'object' && !Object.isFrozen(value)) {
+    Object.values(value as Record<string, unknown>).forEach((child) => deepFreeze(child))
+    Object.freeze(value)
+  }
+  return value
+}
+
 /** Verifies every Asset RPC is rejected before controller data is exposed unless its exact token mode validates. */
 describe('TrustedExecutionGuard', () => {
   it('fails closed when a protected gRPC handler has no authorization declaration', async () => {
     const fixture = guardFixture(undefined, { principalType: 'HUMAN', permissionCodes: [] })
+
+    await expect(fixture.guard.canActivate(fixture.context as never)).rejects.toThrow(
+      'Access denied'
+    )
+    expect(fixture.verifier.verify).not.toHaveBeenCalled()
+    expect(fixture.data).toEqual({})
+  })
+
+  it.each([
+    ['mutable declaration', { mode: 'BUSINESS', permissions: { all: ['asset.write'] } }],
+    [
+      'simultaneous all/any and extra authority',
+      deepFreeze({
+        mode: 'BUSINESS',
+        permissions: { all: ['asset.write'], any: ['asset.read'] },
+        authority: 'caller-shaped'
+      })
+    ]
+  ])('rejects %s before token verification or request attachment', async (_label, declaration) => {
+    const fixture = guardFixture(
+      declaration,
+      { principalType: 'HUMAN', permissionCodes: ['asset.write'] },
+      { preserveDeclaration: true }
+    )
 
     await expect(fixture.guard.canActivate(fixture.context as never)).rejects.toThrow(
       'Access denied'
