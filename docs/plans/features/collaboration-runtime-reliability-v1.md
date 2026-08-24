@@ -19,8 +19,8 @@ Deliver one repository-owned collaboration runtime that enforces effective owner
 ### execution-profile-preflight-and-telemetry
 
 state: CANDIDATE_READY
-candidate: 0107c6269495b679b17bf7cdf2affac44cbab170
-review: global-ri round 7 exact integration candidate pending; round 6 findings closed by the current slice candidate
+candidate: 722e0e162c4a15ce945c318c64343eede9199d4c
+review: global-ri round 8 exact integration candidate pending; round 7 findings closed by the current slice candidate
 
 - Scope: project profile template; actual-capability observation validation; approval telemetry; typed same-transition defect/repair classification.
 - Protected scope: secret values, production/shared data, unrestricted host permissions, business services and contracts.
@@ -30,8 +30,8 @@ review: global-ri round 7 exact integration candidate pending; round 6 findings 
 ### versioned-remote-driver-and-recovery
 
 state: CANDIDATE_READY
-candidate: 0107c6269495b679b17bf7cdf2affac44cbab170
-review: global-ri round 7 exact integration candidate pending; round 6 findings closed by the current slice candidate
+candidate: 722e0e162c4a15ce945c318c64343eede9199d4c
+review: global-ri round 8 exact integration candidate pending; round 7 findings closed by the current slice candidate
 
 - Scope: typed Node.js/TypeScript binding, checkpoint, receipt and result contracts; thin entrypoint; GitHub adapter; preflight/publish-pr/verify-pr/merge-pr/verify-main/cleanup; idempotent read-after-write recovery.
 - Protected scope: direct main push, force/history rewrite, cross-owner refs, merge/cleanup without exact authorization.
@@ -41,8 +41,8 @@ review: global-ri round 7 exact integration candidate pending; round 6 findings 
 ### merge-admission-evidence-and-cleanup
 
 state: CANDIDATE_READY
-candidate: 0107c6269495b679b17bf7cdf2affac44cbab170
-review: global-ri round 7 exact integration candidate pending; round 6 findings closed by the current slice candidate
+candidate: 722e0e162c4a15ce945c318c64343eede9199d4c
+review: global-ri round 8 exact integration candidate pending; round 7 findings closed by the current slice candidate
 
 - Scope: `merge_group` Baseline Checks, serialized latest-main fallback, evidence keys and affected-test matrix, Stage batch cleanup planning and partial-failure verification.
 - Protected scope: product code, Stage product branches, non-terminal packets, unknown or mismatched resources.
@@ -57,7 +57,8 @@ review: global-ri round 7 exact integration candidate pending; round 6 findings 
 - Round 4 candidate `5bbf6ac34fa741e1239b07187c52f514d77d9c40`: rejected; RI-001 through RI-014 are closed. RI-015 (undeclared cleanup decision), RI-016 (runtime/schema cleanup-resource identity mismatch), and RI-017 (stale protected Stage authorization replay) are fixed with targeted regressions in `2a64dc6e2bd9fe8137176c419234f6cff3d12a5c`.
 - Round 5 candidate `de6a79b9a5a1af3315ddc7a15f7a73a72d448c2b`: rejected; RI-001 through RI-017 remain closed. RI-018 (protected `main` and Stage-owned Feature Packets accepted as child cleanup resources) is fixed by excluding Feature Packets, requiring safe non-main `codex/` refs, canonical absolute worktree/task-temp paths, and kind-specific SHA semantics in `470605d5432eded33c46e0e6dd28b46dccc79d7a`.
 - Round 6 candidate `a7c5c3056c19edb8d4593db555b0408aff27deab`: rejected; RI-001 through RI-018 remain closed. RI-019 (Stage-owned, unbounded, or aliased cross-owner resources) and RI-020 (Git-invalid owner refs) are fixed by feature-key-derived resource identities, exact Stage ref derivation, safe Git ref grammar, canonical owner paths, direct child-owner binding, and schema/runtime regressions in `0107c6269495b679b17bf7cdf2affac44cbab170`.
-- Round 7 reviews the next exact integration candidate; no remote mutation is permitted before acceptance.
+- Round 7 candidate `aa39764518382e751ed07d4ebe76c4096792cc53`: rejected; RI-001 through RI-020 remain closed. RI-021 (cleanup resource SHA not tied to the accepted candidate), RI-022 (empty/dot direct-child task suffixes), and RI-023 (Git-invalid `HEAD`) are fixed with exact candidate-SHA binding, canonical task identity grammar, published-schema parity, and focused regressions in `722e0e162c4a15ce945c318c64343eede9199d4c`.
+- Round 8 reviews only prior closure plus RI-021 through RI-023 on the next exact integration candidate; no remote mutation is permitted before acceptance.
 
 ## Feature acceptance
 
@@ -71,7 +72,7 @@ review: global-ri round 7 exact integration candidate pending; round 6 findings 
 
 ## Evidence keys
 
-- candidate: exact integration HEAD assigned to Global RI; current slice ancestor `0107c6269495b679b17bf7cdf2affac44cbab170`
+- candidate: exact integration HEAD assigned to Global RI; current slice ancestor `722e0e162c4a15ce945c318c64343eede9199d4c`
 - dependency fingerprint: `pnpm-lock.yaml` plus Node/pnpm/TypeScript toolchain
 - literal inputs: truth/base/scope binding plus exact changed paths
 - execution profile fingerprint: `7eef45be1901a115668c5a2b50b878292ea2a926b9cea20598300fa621458c42`
