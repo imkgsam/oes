@@ -24,6 +24,8 @@ import { GrpcExceptionFilter } from '../../../common/dist/core/filters'
 import { LoggingModule } from '../../../common/dist/logging'
 import { GrpcTransportModule } from '../../../common/dist/transport'
 import { GatewayExceptionFilter } from '../../../services/api-gateway/dist/common/filters/gateway-exception.filter'
+import { ExternalApiAccessGuard } from '../../../services/api-gateway/dist/common/external-api/external-api-access.guard'
+import { GatewayVerifiedSourceCredentialVault } from '../../../services/api-gateway/dist/common/grpc/gateway-verified-source-credential.vault'
 import { ResponseTransformInterceptor } from '../../../services/api-gateway/dist/common/interceptors/response.interceptor'
 import { AuthGrpcAdapter } from '../../../services/api-gateway/dist/modules/auth-bff/infrastructure/downstream/auth-service/auth-grpc.adapter'
 import { SiteManagementBffModule } from '../../../services/api-gateway/dist/modules/site-management-bff/site-management-bff.module'
@@ -42,6 +44,17 @@ const PERMISSION_PROTO_PATH = join(
   'src/common/src/contracts/permission_service/permission_check.proto'
 )
 const LOOPBACK_HOST = '127.0.0.1'
+const gatewayConfigServiceToken = readGatewayConfigServiceToken()
+
+/** readGatewayConfigServiceToken reuses the production guard dependency without adding a Site package dependency. */
+function readGatewayConfigServiceToken(): unknown {
+  const dependencies = Reflect.getMetadata('design:paramtypes', ExternalApiAccessGuard) as
+    | unknown[]
+    | undefined
+  const token = dependencies?.[1]
+  if (!token) throw new Error('ExternalApiAccessGuard ConfigService token is unavailable')
+  return token
+}
 
 export interface AcceptanceGatewayIdentity {
   readonly accessToken: string
@@ -220,6 +233,11 @@ export function createGatewayHarnessModule(input: GatewayHarnessModuleInput) {
     providers: [
       AuthGrpcAdapter,
       GatewayPermissionGuard,
+      GatewayVerifiedSourceCredentialVault,
+      {
+        provide: gatewayConfigServiceToken as never,
+        useValue: { get: (_key: string, fallback: unknown) => fallback }
+      },
       ...acceptanceGatewayGuardProviderFactory(),
       GatewayExceptionFilter,
       ResponseTransformInterceptor

@@ -1,6 +1,10 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { DownstreamRequestSource } from '../../common/grpc/gateway-downstream-source.mapper'
-import { OrganizationTenantPartySummary, PartyQueryGrpcAdapter } from './adapters/party-query-grpc.adapter'
+import { VerifiedTenantTarget } from '../../common/tenant-target'
+import {
+  OrganizationTenantPartySummary,
+  PartyQueryGrpcAdapter
+} from './adapters/party-query-grpc.adapter'
 import { TenantOrgManagementGrpcAdapter } from './adapters/tenant-org-management-grpc.adapter'
 import {
   TenantManagementQueryOrgNode,
@@ -17,14 +21,14 @@ export class OrgManagementService {
     private readonly tenantOrgManagementAdapter: TenantOrgManagementGrpcAdapter
   ) {}
 
-  async getOrgTree(tenantId: string, source: DownstreamRequestSource) {
+  async getOrgTree(tenantId: VerifiedTenantTarget, source: DownstreamRequestSource) {
     const resolvedTenantId = this.resolveTenantId(tenantId, source)
     const scope = source.user?.scopeLevel === 'SYSTEM' ? 'SYSTEM' : 'TENANT'
     const tenant =
       scope === 'SYSTEM' ? await this.loadTenantSummary(resolvedTenantId, source) : undefined
     const result = await this.tenantOrgQueryAdapter.getOrgTreeByTenantId(resolvedTenantId, source)
     const organizationTenantPartyMap = await this.loadOrganizationTenantPartyMap(
-      resolvedTenantId,
+      { kind: 'VERIFIED', tenantId: resolvedTenantId },
       collectOrganizationTenantPartyIdsFromNodes(result.roots ?? []),
       source
     )
@@ -36,25 +40,54 @@ export class OrgManagementService {
     }
   }
 
-  async getOrgUnitDetail(
-    tenantId: string,
+  /** getOrgUnitDetailByVerifiedTarget preserves the bounded HTTP selector provenance. */
+  async getOrgUnitDetailByVerifiedTarget(
+    tenantId: VerifiedTenantTarget,
     orgUnitId: string,
     source: DownstreamRequestSource
   ) {
     const resolvedTenantId = this.resolveTenantId(tenantId, source)
-    const result = await this.tenantOrgQueryAdapter.getOrgUnitById(
-      {
-        tenantId: resolvedTenantId,
-        orgUnitId: requireNonBlank(orgUnitId, 'orgUnitId')
-      },
+    return this.loadOrgUnitDetail(
+      { kind: 'VERIFIED', tenantId: resolvedTenantId },
+      orgUnitId,
       source
     )
+  }
+
+  /** getOrgUnitDetail retains the pre-existing internal string API without fabricating a verified target. */
+  async getOrgUnitDetail(tenantId: string, orgUnitId: string, source: DownstreamRequestSource) {
+    const resolvedTenantId = this.resolveInternalTenantId(tenantId, source)
+    return this.loadOrgUnitDetail(
+      { kind: 'INTERNAL', tenantId: resolvedTenantId },
+      orgUnitId,
+      source
+    )
+  }
+
+  /** loadOrgUnitDetail shares response hydration while selecting the provenance-specific adapter entry. */
+  private async loadOrgUnitDetail(
+    selector:
+      | { kind: 'VERIFIED'; tenantId: VerifiedTenantTarget }
+      | { kind: 'INTERNAL'; tenantId: string },
+    orgUnitId: string,
+    source: DownstreamRequestSource
+  ) {
+    const resolvedOrgUnitId = requireNonBlank(orgUnitId, 'orgUnitId')
+    const result = await (selector.kind === 'VERIFIED'
+      ? this.tenantOrgQueryAdapter.getOrgUnitByVerifiedTarget(
+          { tenantId: selector.tenantId, orgUnitId: resolvedOrgUnitId },
+          source
+        )
+      : this.tenantOrgQueryAdapter.getOrgUnitById(
+          { tenantId: selector.tenantId, orgUnitId: resolvedOrgUnitId },
+          source
+        ))
 
     if (!result.orgUnit?.id) {
       throw new NotFoundException('Org unit not found')
     }
     const organizationTenantPartyMap = await this.loadOrganizationTenantPartyMap(
-      resolvedTenantId,
+      selector,
       collectOrganizationTenantPartyIdsFromOrgUnit(result.orgUnit),
       source
     )
@@ -66,7 +99,7 @@ export class OrgManagementService {
 
   async getTenantEmployeeCodePrefix(tenantId: string, source: DownstreamRequestSource) {
     const result = await this.tenantOrgQueryAdapter.getTenantById(
-      this.resolveTenantId(tenantId, source),
+      this.resolveInternalTenantId(tenantId, source),
       source
     )
     const prefix = normalize(result.tenant?.employeeCodePrefix)?.toUpperCase()
@@ -77,7 +110,7 @@ export class OrgManagementService {
   }
 
   async createOrgUnit(
-    tenantId: string,
+    tenantId: VerifiedTenantTarget,
     input: {
       name: string
       organizationTenantPartyId?: string
@@ -105,9 +138,14 @@ export class OrgManagementService {
   }
 
   async updateOrgUnit(
-    tenantId: string,
+    tenantId: VerifiedTenantTarget,
     orgUnitId: string,
-    input: { name?: string; organizationTenantPartyId?: string | null; sortOrder?: number; type?: string },
+    input: {
+      name?: string
+      organizationTenantPartyId?: string | null
+      sortOrder?: number
+      type?: string
+    },
     source: DownstreamRequestSource
   ) {
     const hasOrganizationTenantPartyId = Object.prototype.hasOwnProperty.call(
@@ -122,7 +160,7 @@ export class OrgManagementService {
         type: normalize(input.type),
         sortOrder: input.sortOrder,
         organizationTenantPartyId: hasOrganizationTenantPartyId
-          ? normalize(input.organizationTenantPartyId ?? undefined) ?? null
+          ? (normalize(input.organizationTenantPartyId ?? undefined) ?? null)
           : undefined
       },
       source
@@ -134,7 +172,7 @@ export class OrgManagementService {
   }
 
   async moveOrgUnit(
-    tenantId: string,
+    tenantId: VerifiedTenantTarget,
     orgUnitId: string,
     input: { newParentOrgId?: string },
     source: DownstreamRequestSource
@@ -153,7 +191,11 @@ export class OrgManagementService {
     }
   }
 
-  async archiveOrgUnit(tenantId: string, orgUnitId: string, source: DownstreamRequestSource) {
+  async archiveOrgUnit(
+    tenantId: VerifiedTenantTarget,
+    orgUnitId: string,
+    source: DownstreamRequestSource
+  ) {
     const result = await this.tenantOrgManagementAdapter.archiveOrgUnit(
       {
         tenantId: this.resolveTenantId(tenantId, source),
@@ -167,8 +209,8 @@ export class OrgManagementService {
     }
   }
 
-  private async loadTenantSummary(tenantId: string, source: DownstreamRequestSource) {
-    const result = await this.tenantOrgQueryAdapter.getTenantById(tenantId, source)
+  private async loadTenantSummary(tenantId: VerifiedTenantTarget, source: DownstreamRequestSource) {
+    const result = await this.tenantOrgQueryAdapter.getTenantByVerifiedTarget(tenantId, source)
     if (!result.tenant?.id) {
       throw new NotFoundException('Tenant not found')
     }
@@ -182,34 +224,66 @@ export class OrgManagementService {
     }
   }
 
-  private resolveTenantId(tenantId: string, source: DownstreamRequestSource): string {
-    const requestedTenantId = requireNonBlank(tenantId, 'tenantId')
-    const operatorTenantId = normalize(source.user?.tenantId) ?? normalize(source.user?.tid)
+  /** resolveTenantId preserves the supplied target after checking TENANT subject equality. */
+  private resolveTenantId(
+    tenantId: VerifiedTenantTarget,
+    source: DownstreamRequestSource
+  ): VerifiedTenantTarget {
+    const operatorTenantId = source.user?.tenantId ?? source.user?.tid
 
     if (source.user?.scopeLevel === 'SYSTEM') {
-      return requestedTenantId
+      return tenantId
     }
 
+    if (!operatorTenantId || operatorTenantId !== tenantId) {
+      throw new ForbiddenException(
+        'Tenant administrators can only manage their current tenant org tree'
+      )
+    }
+
+    return tenantId
+  }
+
+  /** resolveInternalTenantId validates legacy internal selectors without fabricating a verified target. */
+  private resolveInternalTenantId(tenantId: string, source: DownstreamRequestSource): string {
+    const requestedTenantId = requireNonBlank(tenantId, 'tenantId')
+    const operatorTenantId = normalize(source.user?.tenantId) ?? normalize(source.user?.tid)
+    if (source.user?.scopeLevel === 'SYSTEM') return requestedTenantId
     if (!operatorTenantId || operatorTenantId !== requestedTenantId) {
-      throw new ForbiddenException('Tenant administrators can only manage their current tenant org tree')
+      throw new ForbiddenException(
+        'Tenant administrators can only manage their current tenant org tree'
+      )
     }
-
-    return operatorTenantId
+    return requestedTenantId
   }
 
   private async loadOrganizationTenantPartyMap(
-    tenantId: string,
+    selector:
+      | { kind: 'VERIFIED'; tenantId: VerifiedTenantTarget }
+      | { kind: 'INTERNAL'; tenantId: string },
     tenantPartyIds: string[],
     source: DownstreamRequestSource
   ): Promise<Map<string, OrganizationTenantPartySummary>> {
     const entries = await Promise.all(
       tenantPartyIds.map(async (tenantPartyId) => {
-        const party = await this.partyQueryAdapter.getOrganizationTenantPartyById(tenantId, tenantPartyId, source)
+        const party = await (selector.kind === 'VERIFIED'
+          ? this.partyQueryAdapter.getOrganizationTenantPartyByVerifiedTarget(
+              selector.tenantId,
+              tenantPartyId,
+              source
+            )
+          : this.partyQueryAdapter.getOrganizationTenantPartyById(
+              selector.tenantId,
+              tenantPartyId,
+              source
+            ))
         return party ? ([tenantPartyId, party] as const) : undefined
       })
     )
 
-    return new Map(entries.filter(Boolean) as Array<readonly [string, OrganizationTenantPartySummary]>)
+    return new Map(
+      entries.filter(Boolean) as Array<readonly [string, OrganizationTenantPartySummary]>
+    )
   }
 
   private mapOrgNode(
@@ -218,7 +292,9 @@ export class OrgManagementService {
   ) {
     return {
       orgUnit: this.mapOrgUnit(node.orgUnit, organizationTenantPartyMap),
-      children: (node.children ?? []).map((child) => this.mapOrgNode(child, organizationTenantPartyMap))
+      children: (node.children ?? []).map((child) =>
+        this.mapOrgNode(child, organizationTenantPartyMap)
+      )
     }
   }
 
@@ -245,13 +321,15 @@ export class OrgManagementService {
       organizationTenantPartyId,
       organizationTenantParty:
         organizationTenantPartyId && organizationTenantPartyMap
-          ? organizationTenantPartyMap.get(organizationTenantPartyId) ?? null
+          ? (organizationTenantPartyMap.get(organizationTenantPartyId) ?? null)
           : null
     }
   }
 }
 
-function collectOrganizationTenantPartyIdsFromNodes(nodes: TenantManagementQueryOrgNode[]): string[] {
+function collectOrganizationTenantPartyIdsFromNodes(
+  nodes: TenantManagementQueryOrgNode[]
+): string[] {
   const tenantPartyIds = new Set<string>()
   const collect = (currentNodes: TenantManagementQueryOrgNode[]) => {
     for (const node of currentNodes) {
@@ -267,7 +345,9 @@ function collectOrganizationTenantPartyIdsFromNodes(nodes: TenantManagementQuery
   return [...tenantPartyIds]
 }
 
-function collectOrganizationTenantPartyIdsFromOrgUnit(orgUnit?: TenantManagementQueryOrgUnit): string[] {
+function collectOrganizationTenantPartyIdsFromOrgUnit(
+  orgUnit?: TenantManagementQueryOrgUnit
+): string[] {
   const organizationTenantPartyId = normalize(orgUnit?.organizationTenantPartyId)
   return organizationTenantPartyId ? [organizationTenantPartyId] : []
 }

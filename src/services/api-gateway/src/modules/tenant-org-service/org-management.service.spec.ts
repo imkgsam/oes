@@ -1,14 +1,19 @@
+import { VerifiedTenantTarget } from '../../common/tenant-target'
 import { OrgManagementService } from './org-management.service'
+
+const verifiedTarget = (value: string) => value as VerifiedTenantTarget
 
 // Verifies the gateway org management service preserves organizationTenantPartyId through downstream tenant-org contracts.
 describe('OrgManagementService', () => {
   const tenantOrgQueryAdapter = {
     getOrgTreeByTenantId: jest.fn(),
-    getOrgUnitById: jest.fn(),
-    getTenantById: jest.fn()
+    getOrgUnitByVerifiedTarget: jest.fn(),
+    getTenantById: jest.fn(),
+    getTenantByVerifiedTarget: jest.fn()
   }
   const partyQueryAdapter = {
-    getOrganizationTenantPartyById: jest.fn()
+    getOrganizationTenantPartyById: jest.fn(),
+    getOrganizationTenantPartyByVerifiedTarget: jest.fn()
   }
   const tenantOrgManagementAdapter = {
     archiveOrgUnit: jest.fn(),
@@ -25,9 +30,11 @@ describe('OrgManagementService', () => {
 
   beforeEach(() => {
     tenantOrgQueryAdapter.getOrgTreeByTenantId.mockReset()
-    tenantOrgQueryAdapter.getOrgUnitById.mockReset()
+    tenantOrgQueryAdapter.getOrgUnitByVerifiedTarget.mockReset()
     tenantOrgQueryAdapter.getTenantById.mockReset()
+    tenantOrgQueryAdapter.getTenantByVerifiedTarget.mockReset()
     partyQueryAdapter.getOrganizationTenantPartyById.mockReset()
+    partyQueryAdapter.getOrganizationTenantPartyByVerifiedTarget.mockReset()
     tenantOrgManagementAdapter.archiveOrgUnit.mockReset()
     tenantOrgManagementAdapter.createOrgUnit.mockReset()
     tenantOrgManagementAdapter.moveOrgUnit.mockReset()
@@ -36,7 +43,7 @@ describe('OrgManagementService', () => {
 
   it('getOrgUnitDetail / should hydrate organizationTenantParty summary from party-service when organizationTenantPartyId exists', async () => {
     const source = { requestId: 'req-1', traceId: 'trace-1', user: { scopeLevel: 'SYSTEM' } }
-    tenantOrgQueryAdapter.getOrgUnitById.mockResolvedValue({
+    tenantOrgQueryAdapter.getOrgUnitByVerifiedTarget.mockResolvedValue({
       orgUnit: {
         id: 'org-1',
         tenantId: 'tenant-1',
@@ -50,7 +57,7 @@ describe('OrgManagementService', () => {
         organizationTenantPartyId: 'party-1'
       }
     })
-    partyQueryAdapter.getOrganizationTenantPartyById.mockResolvedValue({
+    partyQueryAdapter.getOrganizationTenantPartyByVerifiedTarget.mockResolvedValue({
       id: 'party-1',
       tenantId: 'tenant-1',
       type: 'ORGANIZATION',
@@ -58,7 +65,9 @@ describe('OrgManagementService', () => {
       legalName: 'Acme Manufacturing Ltd.'
     })
 
-    await expect(service.getOrgUnitDetail('tenant-1', 'org-1', source as any)).resolves.toEqual({
+    await expect(
+      service.getOrgUnitDetailByVerifiedTarget(verifiedTarget('tenant-1'), 'org-1', source as any)
+    ).resolves.toEqual({
       orgUnit: expect.objectContaining({
         id: 'org-1',
         organizationTenantPartyId: 'party-1',
@@ -71,12 +80,16 @@ describe('OrgManagementService', () => {
       })
     })
 
-    expect(partyQueryAdapter.getOrganizationTenantPartyById).toHaveBeenCalledWith('tenant-1', 'party-1', source)
+    expect(partyQueryAdapter.getOrganizationTenantPartyByVerifiedTarget).toHaveBeenCalledWith(
+      'tenant-1',
+      'party-1',
+      source
+    )
   })
 
   it('getOrgTree / should hydrate organizationTenantParty summaries for tree nodes with organizationTenantPartyId', async () => {
     const source = { requestId: 'req-1', traceId: 'trace-1', user: { scopeLevel: 'SYSTEM' } }
-    tenantOrgQueryAdapter.getTenantById.mockResolvedValue({
+    tenantOrgQueryAdapter.getTenantByVerifiedTarget.mockResolvedValue({
       tenant: {
         id: 'tenant-1',
         code: 'tenant.alpha',
@@ -135,23 +148,24 @@ describe('OrgManagementService', () => {
         }
       ]
     })
-    partyQueryAdapter.getOrganizationTenantPartyById.mockImplementation(async (_tenantId: string, tenantPartyId: string) =>
-      tenantPartyId === 'party-root-1'
-        ? {
-            id: 'party-root-1',
-            type: 'ORGANIZATION',
-            status: 'ACTIVE',
-            legalName: 'Alpha Holdings Co.'
-          }
-        : {
-            id: 'party-branch-1',
-            type: 'ORGANIZATION',
-            status: 'ACTIVE',
-            legalName: 'Alpha Shenzhen Branch'
-          }
+    partyQueryAdapter.getOrganizationTenantPartyByVerifiedTarget.mockImplementation(
+      async (_tenantId: string, tenantPartyId: string) =>
+        tenantPartyId === 'party-root-1'
+          ? {
+              id: 'party-root-1',
+              type: 'ORGANIZATION',
+              status: 'ACTIVE',
+              legalName: 'Alpha Holdings Co.'
+            }
+          : {
+              id: 'party-branch-1',
+              type: 'ORGANIZATION',
+              status: 'ACTIVE',
+              legalName: 'Alpha Shenzhen Branch'
+            }
     )
 
-    await expect(service.getOrgTree('tenant-1', source as any)).resolves.toEqual({
+    await expect(service.getOrgTree(verifiedTarget('tenant-1'), source as any)).resolves.toEqual({
       scope: 'SYSTEM',
       tenant: expect.objectContaining({
         id: 'tenant-1',
@@ -162,9 +176,9 @@ describe('OrgManagementService', () => {
           orgUnit: expect.objectContaining({
             id: 'org-root-1',
             organizationTenantPartyId: 'party-root-1',
-              organizationTenantParty: expect.objectContaining({
-                id: 'party-root-1',
-                legalName: 'Alpha Holdings Co.'
+            organizationTenantParty: expect.objectContaining({
+              id: 'party-root-1',
+              legalName: 'Alpha Holdings Co.'
             })
           }),
           children: [
@@ -212,7 +226,7 @@ describe('OrgManagementService', () => {
 
     await expect(
       service.updateOrgUnit(
-        'tenant-1',
+        verifiedTarget('tenant-1'),
         'org-1',
         {
           organizationTenantPartyId: null
@@ -258,7 +272,7 @@ describe('OrgManagementService', () => {
 
     await expect(
       service.moveOrgUnit(
-        'tenant-1',
+        verifiedTarget('tenant-1'),
         'org-1',
         {
           newParentOrgId: 'org-parent-2'

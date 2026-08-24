@@ -21,12 +21,11 @@ import { SERVICE_NAMES } from '../../../common/dist/constants'
 import { AppLogger } from '../../../common/dist/logging'
 import { getGrpcClientToken } from '../../../common/dist/transport'
 import { GatewayExceptionFilter } from '../../../services/api-gateway/dist/common/filters/gateway-exception.filter'
+import { ExternalApiAccessGuard } from '../../../services/api-gateway/dist/common/external-api/external-api-access.guard'
+import { GatewayVerifiedSourceCredentialVault } from '../../../services/api-gateway/dist/common/grpc/gateway-verified-source-credential.vault'
 import { GatewaySessionAuthGuard } from '../../../services/api-gateway/dist/common/guards/gateway-session-auth.guard'
 import { ResponseTransformInterceptor } from '../../../services/api-gateway/dist/common/interceptors/response.interceptor'
-import {
-  TENANT_TARGET_BINDING_METADATA_KEY,
-  TenantTargetBindingGuard
-} from '../../../services/api-gateway/dist/common/tenant-target'
+import { TenantTargetBindingGuard } from '../../../services/api-gateway/dist/common/tenant-target'
 import { AuthGrpcAdapter } from '../../../services/api-gateway/dist/modules/auth-bff/infrastructure/downstream/auth-service/auth-grpc.adapter'
 import { SiteManagementController } from '../../../services/api-gateway/dist/modules/site-management-bff/interface/http/controllers/site-management.controller'
 import { SiteManagementService } from '../../../services/api-gateway/dist/modules/site-management-bff/site-management.service'
@@ -62,6 +61,17 @@ const acceptanceHarnessPath = resolve(siteRoot, 'scripts/locale-governance-accep
 const oldRunnerPath = resolve(siteRoot, 'scripts/verify-live-sync-display.ts')
 const acceptanceRunnerPath = resolve(siteRoot, 'scripts/verify-locale-governance-acceptance.ts')
 const acceptanceTsconfigPath = resolve(siteRoot, 'tsconfig.acceptance.json')
+const gatewayConfigServiceToken = readGatewayConfigServiceToken()
+
+/** readGatewayConfigServiceToken reuses the production guard dependency without adding a Site package dependency. */
+function readGatewayConfigServiceToken(): unknown {
+  const dependencies = Reflect.getMetadata('design:paramtypes', ExternalApiAccessGuard) as
+    | unknown[]
+    | undefined
+  const token = dependencies?.[1]
+  if (!token) throw new Error('ExternalApiAccessGuard ConfigService token is unavailable')
+  return token
+}
 
 /** readPackageScripts loads the local package command map for acceptance truth-source checks. */
 function readPackageScripts(): Record<string, string> {
@@ -307,6 +317,10 @@ async function createGatewaySecurityTestApplication(
         }
       },
       {
+        provide: gatewayConfigServiceToken as never,
+        useValue: { get: (_key: string, fallback: unknown) => fallback }
+      },
+      {
         provide: SiteManagementService,
         useValue: {
           /** listSiteCards records the verified target delivered by the real controller parameter decorator. */
@@ -318,6 +332,7 @@ async function createGatewaySecurityTestApplication(
         }
       },
       GatewayPermissionGuard,
+      GatewayVerifiedSourceCredentialVault,
       ...acceptanceGatewayGuardProviderFactory(),
       GatewayExceptionFilter,
       ResponseTransformInterceptor
@@ -363,12 +378,13 @@ test('exposes one strict locale-governance acceptance command', () => {
   assert.equal(existsSync(oldRunnerPath), false)
 })
 
-// This integration contract executes the production guard factory, controller marker, and verified-target decorator over in-memory HTTP.
+// This integration contract executes the production guard factory and verified-target decorator over in-memory HTTP.
 test('composes production Gateway security through Nest in-memory HTTP', async (t) => {
   assert.equal(acceptanceGatewayGuardProviderFactory, createGatewayGuardProviders)
   assert.deepEqual(createGatewayGuardProviders(), [
     { provide: APP_GUARD, useClass: GatewaySessionAuthGuard },
     { provide: APP_GUARD, useClass: TenantTargetBindingGuard },
+    { provide: APP_GUARD, useClass: ExternalApiAccessGuard },
     { provide: APP_GUARD, useExisting: GatewayPermissionGuard }
   ])
 
@@ -386,11 +402,6 @@ test('composes production Gateway security through Nest in-memory HTTP', async (
     providers.filter((provider) => provider.provide === APP_GUARD),
     createGatewayGuardProviders()
   )
-  assert.deepEqual(
-    Reflect.getMetadata(TENANT_TARGET_BINDING_METADATA_KEY, SiteManagementController),
-    { pathParam: 'tenantId', systemPolicy: 'DENY' }
-  )
-
   const state: GatewaySecurityTestState = {
     identity: gatewaySecurityIdentity(),
     permissionAllowed: true,
@@ -431,7 +442,8 @@ test('composes production Gateway security through Nest in-memory HTTP', async (
       assert.deepEqual(state.permissionRequests, [
         {
           accountId: 'acceptance-operator',
-          permissionCode: SITE_MANAGEMENT_PERMISSION_CODES.READ
+          permissionCode: SITE_MANAGEMENT_PERMISSION_CODES.READ,
+          tenantId: 'tenant_a'
         }
       ])
       assert.deepEqual(state.serviceTenantTargets, [])
@@ -471,18 +483,17 @@ test('composes production Gateway security through Nest in-memory HTTP', async (
       })
     }
 
-    await t.test('passes the normalized verified target after permission', async () => {
-      resetGatewaySecurityTestState(state, {
-        identity: gatewaySecurityIdentity({ tenantId: ' tenant_a ' })
-      })
+    await t.test('passes the exact verified target after permission', async () => {
+      resetGatewaySecurityTestState(state)
 
-      assert.equal((await get('%20tenant_a%20')).status, 200)
+      assert.equal((await get('tenant_a')).status, 200)
 
       assert.deepEqual(state.events, ['auth', 'permission', 'service'])
       assert.deepEqual(state.permissionRequests, [
         {
           accountId: 'acceptance-operator',
-          permissionCode: SITE_MANAGEMENT_PERMISSION_CODES.READ
+          permissionCode: SITE_MANAGEMENT_PERMISSION_CODES.READ,
+          tenantId: 'tenant_a'
         }
       ])
       assert.deepEqual(state.serviceTenantTargets, ['tenant_a'])

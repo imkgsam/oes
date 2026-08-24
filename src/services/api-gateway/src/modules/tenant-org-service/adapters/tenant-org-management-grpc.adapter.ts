@@ -19,6 +19,7 @@ import {
 } from '@oes/common/generated/tenant_org_service'
 import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
 import { DownstreamRequestSource } from '../../../common/grpc/gateway-downstream-source.mapper'
+import { VerifiedTenantTarget } from '../../../common/tenant-target'
 import {
   TENANTORG_TARGET_AUDIENCE,
   TrustedTenantOrgGrpcClient
@@ -191,7 +192,7 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
       code?: string
       employeeCodePrefix?: string
       name?: string
-      tenantId: string
+      tenantId: VerifiedTenantTarget
       websiteUrl?: string
     },
     source: DownstreamRequestSource
@@ -211,7 +212,7 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
   }
 
   async suspendTenant(
-    input: { reason?: string; tenantId: string },
+    input: { reason?: string; tenantId: VerifiedTenantTarget },
     source: DownstreamRequestSource
   ): Promise<{ tenant?: TenantManagementMutationTenant }> {
     return this.call(
@@ -229,7 +230,7 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
   }
 
   async reactivateTenant(
-    input: { tenantId: string },
+    input: { tenantId: VerifiedTenantTarget },
     source: DownstreamRequestSource
   ): Promise<{ tenant?: TenantManagementMutationTenant }> {
     return this.call(
@@ -247,7 +248,7 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
   }
 
   async archiveTenant(
-    input: { reason?: string; tenantId: string },
+    input: { reason?: string; tenantId: VerifiedTenantTarget },
     source: DownstreamRequestSource
   ): Promise<{ tenant?: TenantManagementMutationTenant }> {
     return this.call(
@@ -270,7 +271,7 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
       organizationTenantPartyId?: string
       parentOrgId: string
       sortOrder?: number
-      tenantId: string
+      tenantId: VerifiedTenantTarget
       type: string
     },
     source: DownstreamRequestSource
@@ -298,7 +299,7 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
       orgUnitId: string
       organizationTenantPartyId?: string | null
       sortOrder?: number
-      tenantId: string
+      tenantId: VerifiedTenantTarget
       type?: string
     },
     source: DownstreamRequestSource
@@ -324,7 +325,7 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
     input: {
       newParentOrgId: string
       orgUnitId: string
-      tenantId: string
+      tenantId: VerifiedTenantTarget
     },
     source: DownstreamRequestSource
   ): Promise<{ orgUnit?: TenantManagementMutationOrgUnit }> {
@@ -343,7 +344,7 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
   }
 
   async archiveOrgUnit(
-    input: { orgUnitId: string; tenantId: string },
+    input: { orgUnitId: string; tenantId: VerifiedTenantTarget },
     source: DownstreamRequestSource
   ): Promise<{ orgUnit?: TenantManagementMutationOrgUnit }> {
     return this.call(

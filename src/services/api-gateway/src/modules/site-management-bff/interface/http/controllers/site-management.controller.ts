@@ -6,10 +6,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { RequirePermissions, SITE_MANAGEMENT_PERMISSION_CODES } from '@oes/common/authorization'
 import { DownstreamSource } from '../../../../../common/decorators/downstream-source.decorator'
 import { DownstreamRequestSource } from '../../../../../common/grpc/gateway-downstream-source.mapper'
-import {
-  RequireTenantTargetBinding,
-  VerifiedTenantTarget
-} from '../../../../../common/tenant-target'
+import { VerifiedTenantTarget } from '../../../../../common/tenant-target'
 import { SiteManagementService } from '../../../site-management.service'
 import {
   CreateSiteContentDto,
@@ -33,7 +30,6 @@ import {
 /** SiteManagementController exposes Admin Site Management BFF endpoints for tenant-web. */
 @ApiTags('site-management')
 @ApiBearerAuth('JWT')
-@RequireTenantTargetBinding()
 @Controller('site-management/tenants/:tenantId')
 export class SiteManagementController {
   constructor(private readonly service: SiteManagementService) {}

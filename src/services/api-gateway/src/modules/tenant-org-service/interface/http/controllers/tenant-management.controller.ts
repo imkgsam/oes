@@ -6,6 +6,7 @@ import {
 } from '@oes/common/authorization'
 import { DownstreamSource } from '../../../../../common/decorators/downstream-source.decorator'
 import { DownstreamRequestSource } from '../../../../../common/grpc/gateway-downstream-source.mapper'
+import { VerifiedTenantTarget } from '../../../../../common/tenant-target'
 import { TenantManagementService } from '../../../tenant-management.service'
 import { CreateTenantDto } from '../dtos/create-tenant.dto'
 import { CreateTenantOnboardingDto } from '../dtos/create-tenant-onboarding.dto'
@@ -57,7 +58,7 @@ export class TenantManagementController {
   @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.VIEW_TENANT_DETAIL] })
   @ApiOperation({ summary: 'Get one tenant detail for the system-admin tenant management entry' })
   async getTenantById(
-    @Param('tenantId') tenantId: string,
+    @VerifiedTenantTarget() tenantId: VerifiedTenantTarget,
     @DownstreamSource() source: DownstreamRequestSource
   ) {
     return this.tenantManagementService.getTenantById(tenantId, source)
@@ -114,7 +115,7 @@ export class TenantManagementController {
   @ApiOperation({ summary: 'Update tenant profile metadata' })
   @ApiBody({ type: UpdateTenantProfileDto })
   async updateTenantProfile(
-    @Param('tenantId') tenantId: string,
+    @VerifiedTenantTarget() tenantId: VerifiedTenantTarget,
     @Body() body: UpdateTenantProfileDto,
     @DownstreamSource() source: DownstreamRequestSource
   ) {
@@ -126,7 +127,7 @@ export class TenantManagementController {
   @ApiOperation({ summary: 'Change tenant lifecycle status' })
   @ApiBody({ type: UpdateTenantStatusDto })
   async updateTenantStatus(
-    @Param('tenantId') tenantId: string,
+    @VerifiedTenantTarget() tenantId: VerifiedTenantTarget,
     @Body() body: UpdateTenantStatusDto,
     @DownstreamSource() source: DownstreamRequestSource
   ) {

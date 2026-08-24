@@ -1,344 +1,346 @@
 import { ExecutionContext } from '@nestjs/common'
+import { PATH_METADATA } from '@nestjs/common/constants'
 import { Reflector } from '@nestjs/core'
-import {
-  RequireTenantTargetBinding,
-  TENANT_TARGET_BINDING_METADATA_KEY
-} from './tenant-target-binding.decorator'
-import { TenantTargetBindingGuard } from './tenant-target-binding.guard'
-import { VerifiedTenantTarget } from './tenant-target-binding.types'
-import {
-  getVerifiedTenantTarget,
-  VERIFIED_TENANT_TARGET_REQUEST_KEY
-} from './verified-tenant-target.request'
+import { IS_PUBLIC_KEY } from '@oes/common/auth'
+import * as tenantTargetPublicApi from './index'
+import { getVerifiedTenantTarget, TenantTargetBindingGuard } from './tenant-target-binding.guard'
 
 type TestRequest = {
+  body?: unknown
+  controllerPath?: unknown
+  method?: string
   params?: Record<string, unknown>
+  query?: unknown
+  route?: { path?: unknown }
   user?: Record<string, unknown>
-  [VERIFIED_TENANT_TARGET_REQUEST_KEY]?: VerifiedTenantTarget
 }
 
-type ContextTargets = {
-  controller: Function
-  handler: Function
-}
-
-/** createContext builds the minimal HTTP execution context consumed by the tenant-target guard. */
-function createContext(
-  request: TestRequest,
-  type: string = 'http',
-  targets?: ContextTargets
-): ExecutionContext {
+/** createContext builds the minimal matched HTTP context consumed by the global tenant-target guard. */
+function createContext(request: TestRequest, type: string = 'http'): ExecutionContext {
+  class TestController {}
+  if (request.controllerPath !== undefined) {
+    Reflect.defineMetadata(PATH_METADATA, request.controllerPath, TestController)
+  }
   return {
-    getClass: () => targets?.controller ?? class TestController {},
-    getHandler: () => targets?.handler ?? function testHandler() {},
+    getClass: () => TestController,
+    getHandler: () => function testHandler() {},
     getType: () => type,
     switchToHttp: () => ({ getRequest: () => request })
   } as unknown as ExecutionContext
 }
 
-/** expectHttpStatus asserts OES exceptions preserve the frozen HTTP status contract. */
-async function expectHttpStatus(promise: Promise<unknown>, status: number): Promise<void> {
-  try {
-    await promise
-    throw new Error(`expected HTTP ${status}`)
-  } catch (error) {
-    expect((error as { getHttpStatus?: () => number }).getHttpStatus?.()).toBe(status)
+/** targetRequest creates one protected canonical route fixture with an exact authenticated subject. */
+function targetRequest(overrides: Partial<TestRequest> = {}): TestRequest {
+  return {
+    method: 'GET',
+    params: { tenantId: 'tenant_a' },
+    route: { path: '/api/v1/resources/tenants/:tenantId/items' },
+    user: { scopeLevel: 'TENANT', tenantId: 'tenant_a' },
+    ...overrides
   }
 }
 
-/** createGuard returns a guard whose reflector exposes the requested route metadata. */
-function createGuard(metadata?: unknown): TenantTargetBindingGuard {
+/** createGuard returns the production guard with optional public-route reflection. */
+function createGuard(isPublic = false): TenantTargetBindingGuard {
   return new TenantTargetBindingGuard({
-    getAllAndOverride: jest.fn(() => metadata)
+    getAllAndOverride: jest.fn((key: string) => (key === IS_PUBLIC_KEY ? isPublic : undefined))
   } as unknown as Reflector)
 }
 
-/** expectMalformedOverrideDenied verifies real handler metadata cannot bypass the marked class boundary. */
-async function expectMalformedOverrideDenied(override: unknown): Promise<void> {
-  @RequireTenantTargetBinding()
-  class MarkedController {
-    /** handler represents the protected application entry reached only after all guards pass. */
-    handler(): void {}
-  }
-
-  const handler = MarkedController.prototype.handler
-  Reflect.defineMetadata(TENANT_TARGET_BINDING_METADATA_KEY, override, handler)
-  const permission = jest.fn()
-  const applicationHandler = jest.fn()
-  const downstream = jest.fn()
-  const guard = new TenantTargetBindingGuard(new Reflector())
-  const context = createContext(
-    {
-      params: { tenantId: 'tenant_a' },
-      user: { scopeLevel: 'TENANT', tenantId: 'tenant_a' }
-    },
-    'http',
-    { controller: MarkedController, handler }
-  )
-
-  try {
-    if (await guard.canActivate(context)) {
-      permission()
-      applicationHandler()
-      downstream()
-    }
-    throw new Error('expected malformed tenant-target metadata to be denied')
-  } catch (error) {
-    expect((error as { getHttpStatus?: () => number }).getHttpStatus?.()).toBe(403)
-  }
-
-  expect(permission).not.toHaveBeenCalled()
-  expect(applicationHandler).not.toHaveBeenCalled()
-  expect(downstream).not.toHaveBeenCalled()
+/** expectHttpStatus asserts OES exceptions preserve the frozen HTTP status contract. */
+async function expectHttpStatus(promise: Promise<unknown>, status: number): Promise<void> {
+  const error = await promise.catch((caught) => caught)
+  expect((error as { getHttpStatus?: () => number }).getHttpStatus?.()).toBe(status)
 }
 
-/** TenantTargetBindingGuard unit tests lock fail-closed binding independently of controllers and permissions. */
+/** runBeforeContinuations proves an early denial prevents every later security and business stage. */
+async function runBeforeContinuations(
+  guard: TenantTargetBindingGuard,
+  request: TestRequest,
+  continuations: jest.Mock[]
+): Promise<void> {
+  if (await guard.canActivate(createContext(request))) {
+    continuations.forEach((continuation) => continuation())
+  }
+}
+
+/** TenantTargetBindingGuard tests lock automatic recognition and request-private handoff. */
 describe('TenantTargetBindingGuard', () => {
-  const metadata = { pathParam: 'tenantId', systemPolicy: 'DENY' as const }
-
-  it('writes explicit fail-closed route metadata with tenantId defaults', () => {
-    @RequireTenantTargetBinding()
-    class TestController {}
-
-    expect(new Reflector().get(TENANT_TARGET_BINDING_METADATA_KEY, TestController)).toEqual(
-      metadata
-    )
+  it('keeps the carrier producer and reader outside the public tenant-target surface', () => {
+    expect(Object.keys(tenantTargetPublicApi).sort()).toEqual([
+      'TenantTargetBindingGuard',
+      'VerifiedTenantTarget'
+    ])
+    expect(tenantTargetPublicApi).not.toHaveProperty('setVerifiedTenantTarget')
+    expect(tenantTargetPublicApi).not.toHaveProperty('getVerifiedTenantTarget')
   })
 
-  it('fails fast when route metadata tries to enable SYSTEM or names a blank path param', () => {
-    expect(() => RequireTenantTargetBinding({ pathParam: '   ' })).toThrow(/path param/i)
-    expect(() => RequireTenantTargetBinding({ systemPolicy: 'ALLOW' } as never)).toThrow(/system/i)
+  it('ignores routes without the exact canonical :tenantId parameter even when client fields exist', async () => {
+    const request = targetRequest({
+      body: { tenantId: 'body_tenant' },
+      params: { tenantIdentifier: 'path_tenant' },
+      query: { tenantId: 'query_tenant' },
+      route: { path: '/api/v1/resources/tenants/:tenantIdentifier/items' }
+    })
+
+    await expect(createGuard().canActivate(createContext(request))).resolves.toBe(true)
+    expect(() => getVerifiedTenantTarget(request)).toThrow()
   })
 
-  it('does not affect a genuinely unmarked class and handler', async () => {
-    class UnmarkedController {
-      /** handler represents an unmarked route with no tenant-target metadata. */
-      handler(): void {}
+  it('leaves a public canonical route outside protected binding', async () => {
+    const request = targetRequest({ user: undefined })
+
+    await expect(createGuard(true).canActivate(createContext(request))).resolves.toBe(true)
+    expect(() => getVerifiedTenantTarget(request)).toThrow()
+  })
+
+  it.each(['GET', 'POST', 'PUT', 'PATCH', 'DELETE'])(
+    'automatically binds an exact TENANT target for %s without route metadata',
+    async (method) => {
+      const request = targetRequest({ method })
+
+      await expect(createGuard().canActivate(createContext(request))).resolves.toBe(true)
+      expect(getVerifiedTenantTarget(request)).toBe('tenant_a')
     }
+  )
 
-    const request: TestRequest = {
-      params: { tenantId: 'tenant_b' },
-      user: { scopeLevel: 'TENANT', tenantId: 'tenant_a' }
-    }
-    const guard = new TenantTargetBindingGuard(new Reflector())
+  it('preserves Site P1 SYSTEM deny under a non-default deployment prefix', async () => {
+    const continuations = [jest.fn(), jest.fn(), jest.fn(), jest.fn(), jest.fn()]
+    const request = targetRequest({
+      controllerPath: 'site-management/tenants/:tenantId',
+      route: { path: '/platform/v2/site-management/tenants/:tenantId/sites/:siteId' },
+      user: { scopeLevel: 'SYSTEM' }
+    })
 
-    await expect(
-      guard.canActivate(
-        createContext(request, 'http', {
-          controller: UnmarkedController,
-          handler: UnmarkedController.prototype.handler
-        })
-      )
-    ).resolves.toBe(true)
-    expect(request[VERIFIED_TENANT_TARGET_REQUEST_KEY]).toBeUndefined()
+    await expectHttpStatus(runBeforeContinuations(createGuard(), request, continuations), 403)
+    continuations.forEach((continuation) => expect(continuation).not.toHaveBeenCalled())
+    expect(() => getVerifiedTenantTarget(request)).toThrow()
   })
 
-  it.each([
-    ['null', null],
-    ['false', false],
-    ['primitive', 'malformed'],
-    ['array', []],
-    ['Symbol pathParam', { pathParam: Symbol('tenantId'), systemPolicy: 'DENY' }],
-    ['unknown policy', { pathParam: 'tenantId', systemPolicy: 'ALLOW' }]
-  ])('returns 403 when handler %s metadata overrides a marked class', async (_label, override) => {
-    await expectMalformedOverrideDenied(override)
-  })
-
-  it('returns 403 without downstream execution when handler metadata is a revoked Proxy', async () => {
-    const { proxy, revoke } = Proxy.revocable(metadata, {})
-    revoke()
-
-    await expectMalformedOverrideDenied(proxy)
-  })
-
-  it('returns 403 without executing metadata accessors', async () => {
-    const pathParamGetter = jest.fn(() => 'tenantId')
-    const systemPolicyGetter = jest.fn(() => 'DENY')
-    const override = Object.defineProperties(
-      {},
-      {
-        pathParam: { get: pathParamGetter },
-        systemPolicy: { get: systemPolicyGetter }
-      }
-    )
-
-    await expectMalformedOverrideDenied(override)
-    expect(pathParamGetter).not.toHaveBeenCalled()
-    expect(systemPolicyGetter).not.toHaveBeenCalled()
-  })
-
-  it('returns 403 when required metadata fields are inherited instead of owned', async () => {
-    const override = Object.create(metadata) as object
-
-    await expectMalformedOverrideDenied(override)
-  })
-
-  it.each([{ tenantId: undefined }, { tenantId: '   ' }, { tenantId: 'tenant@a' }])(
-    'returns 401 for an invalid TENANT session context %#',
-    async (user) => {
+  it.each([undefined, '', '   ', 'tenant@a', ' tenant_a '])(
+    'returns 400 for a malformed or non-canonical matched target %p',
+    async (tenantId) => {
       await expectHttpStatus(
-        createGuard(metadata).canActivate(
-          createContext({
-            params: { tenantId: 'tenant_a' },
-            user: { scopeLevel: 'TENANT', ...user }
+        createGuard().canActivate(createContext(targetRequest({ params: { tenantId } }))),
+        400
+      )
+    }
+  )
+
+  it('parses the canonical path target before evaluating an invalid authenticated context', async () => {
+    await expectHttpStatus(
+      createGuard().canActivate(
+        createContext(
+          targetRequest({
+            params: { tenantId: ' tenant_a ' },
+            user: { scopeLevel: 'TENANT', tenantId: undefined }
           })
+        )
+      ),
+      400
+    )
+  })
+
+  it('returns 401 for conflicting authenticated TENANT projections', async () => {
+    await expectHttpStatus(
+      createGuard().canActivate(
+        createContext(
+          targetRequest({
+            user: { scopeLevel: 'TENANT', tenantId: 'tenant_a', tid: 'tenant_b' }
+          })
+        )
+      ),
+      401
+    )
+  })
+
+  it.each([undefined, '', '   ', 'tenant@a', ' tenant_a '])(
+    'returns 401 for a malformed or non-canonical TENANT subject %p',
+    async (tenantId) => {
+      await expectHttpStatus(
+        createGuard().canActivate(
+          createContext(targetRequest({ user: { scopeLevel: 'TENANT', tenantId } }))
         ),
         401
       )
     }
   )
 
-  it.each([undefined, '', '   ', 'tenant@a'])(
-    'returns 400 for invalid matched target %p',
-    async (target) => {
+  it('returns 403 on TENANT mismatch before Permission, handler, downstream or side effect', async () => {
+    const continuations = [jest.fn(), jest.fn(), jest.fn(), jest.fn()]
+
+    await expectHttpStatus(
+      runBeforeContinuations(
+        createGuard(),
+        targetRequest({ params: { tenantId: 'tenant_b' } }),
+        continuations
+      ),
+      403
+    )
+    continuations.forEach((continuation) => expect(continuation).not.toHaveBeenCalled())
+  })
+
+  it('creates a verified target for a tenantless SYSTEM subject on a non-Site target route', async () => {
+    const request = targetRequest({ user: { scopeLevel: 'SYSTEM' } })
+
+    await expect(createGuard().canActivate(createContext(request))).resolves.toBe(true)
+    expect(getVerifiedTenantTarget(request)).toBe('tenant_a')
+  })
+
+  it.each(['tenant_a', '', '   ', null])(
+    'returns 401 for a SYSTEM subject carrying tenant identity %p',
+    async (tenantId) => {
       await expectHttpStatus(
-        createGuard(metadata).canActivate(
-          createContext({
-            params: { tenantId: target },
-            user: { scopeLevel: 'TENANT', tenantId: 'tenant_a' }
-          })
+        createGuard().canActivate(
+          createContext(targetRequest({ user: { scopeLevel: 'SYSTEM', tenantId } }))
         ),
-        400
+        401
       )
     }
   )
 
-  it('returns 403 on tenant mismatch even when org matches the target', async () => {
-    await expectHttpStatus(
-      createGuard(metadata).canActivate(
-        createContext({
-          params: { tenantId: 'tenant_b' },
-          user: { scopeLevel: 'TENANT', tenantId: 'tenant_a', orgId: 'tenant_b' }
-        })
-      ),
-      403
-    )
-  })
+  it.each(['GET', 'POST', 'PUT', 'PATCH', 'DELETE'])(
+    'preserves the exact Site Management P1 SYSTEM deny for %s before every later stage',
+    async (method) => {
+      const continuations = [jest.fn(), jest.fn(), jest.fn(), jest.fn(), jest.fn()]
+      const request = targetRequest({
+        controllerPath: 'site-management/tenants/:tenantId',
+        method,
+        route: { path: '/api/v1/site-management/tenants/:tenantId/sites/:siteId' },
+        user: { scopeLevel: 'SYSTEM' }
+      })
 
-  it('returns 403 for SYSTEM under the Site Management P1 policy', async () => {
-    await expectHttpStatus(
-      createGuard(metadata).canActivate(
-        createContext({
-          params: { tenantId: 'tenant_a' },
-          user: { scopeLevel: 'SYSTEM' }
-        })
-      ),
-      403
-    )
-  })
-
-  it('returns 401 for missing or unknown session scope', async () => {
-    await expectHttpStatus(
-      createGuard(metadata).canActivate(
-        createContext({ params: { tenantId: 'tenant_a' }, user: { tenantId: 'tenant_a' } })
-      ),
-      401
-    )
-    await expectHttpStatus(
-      createGuard(metadata).canActivate(
-        createContext({
-          params: { tenantId: 'tenant_a' },
-          user: { scopeLevel: 'UNKNOWN', tenantId: 'tenant_a' }
-        })
-      ),
-      401
-    )
-  })
-
-  it('normalizes matching session and path tenants into the request-scoped verified target', async () => {
-    const request: TestRequest = {
-      params: { tenantId: ' tenant_a ' },
-      user: { scopeLevel: ' tenant ', tenantId: ' tenant_a ' }
+      await expectHttpStatus(runBeforeContinuations(createGuard(), request, continuations), 403)
+      continuations.forEach((continuation) => expect(continuation).not.toHaveBeenCalled())
+      expect(() => getVerifiedTenantTarget(request)).toThrow()
     }
+  )
 
-    await expect(createGuard(metadata).canActivate(createContext(request))).resolves.toBe(true)
+  it('does not widen the Site P1 exception to a similarly named route', async () => {
+    const request = targetRequest({
+      controllerPath: 'site-management-preview/tenants/:tenantId',
+      route: { path: '/api/v1/site-management-preview/tenants/:tenantId/sites' },
+      user: { scopeLevel: 'SYSTEM' }
+    })
+
+    await expect(createGuard().canActivate(createContext(request))).resolves.toBe(true)
     expect(getVerifiedTenantTarget(request)).toBe('tenant_a')
-    expect(request.params).toEqual({ tenantId: ' tenant_a ' })
   })
 
-  it('keeps verified targets isolated across concurrent request objects', async () => {
-    const requestA: TestRequest = {
-      params: { tenantId: 'tenant_a' },
-      user: { scopeLevel: 'TENANT', tenantId: 'tenant_a' }
+  it('does not widen the Site P1 exception to a nested non-Site route', async () => {
+    const request = targetRequest({
+      controllerPath: 'admin/site-management/tenants/:tenantId',
+      route: { path: '/api/v1/admin/site-management/tenants/:tenantId/sites' },
+      user: { scopeLevel: 'SYSTEM' }
+    })
+
+    await expect(createGuard().canActivate(createContext(request))).resolves.toBe(true)
+    expect(getVerifiedTenantTarget(request)).toBe('tenant_a')
+  })
+
+  it.each([
+    ['query', { query: { tenantId: 'tenant_a' } }],
+    ['body', { body: { tenantId: 'tenant_a' } }],
+    ['query and body', { query: { tenantId: 'tenant_a' }, body: { tenantId: 'tenant_a' } }]
+  ])(
+    'accepts a matching legacy %s duplicate without making it authoritative',
+    async (_label, extra) => {
+      const request = targetRequest(extra)
+
+      await expect(createGuard().canActivate(createContext(request))).resolves.toBe(true)
+      expect(getVerifiedTenantTarget(request)).toBe('tenant_a')
     }
-    const requestB: TestRequest = {
+  )
+
+  it.each([
+    ['query mismatch', { query: { tenantId: 'tenant_b' } }],
+    ['body mismatch', { body: { tenantId: 'tenant_b' } }],
+    ['query array', { query: { tenantId: ['tenant_a'] } }],
+    ['body whitespace', { body: { tenantId: ' tenant_a ' } }]
+  ])('returns 400 for a %s before later stages', async (_label, extra) => {
+    await expectHttpStatus(createGuard().canActivate(createContext(targetRequest(extra))), 400)
+  })
+
+  it('returns 400 without executing a duplicate tenantId accessor', async () => {
+    const accessor = jest.fn(() => 'tenant_a')
+    const query = Object.defineProperty({}, 'tenantId', { get: accessor })
+
+    await expectHttpStatus(createGuard().canActivate(createContext(targetRequest({ query }))), 400)
+    expect(accessor).not.toHaveBeenCalled()
+  })
+
+  it('returns 401 for a missing, unknown or non-canonical session scope', async () => {
+    for (const scopeLevel of [undefined, 'UNKNOWN', ' tenant ']) {
+      await expectHttpStatus(
+        createGuard().canActivate(
+          createContext(targetRequest({ user: { scopeLevel, tenantId: 'tenant_a' } }))
+        ),
+        401
+      )
+    }
+  })
+
+  it('preserves identifier case and never folds the target', async () => {
+    await expectHttpStatus(
+      createGuard().canActivate(
+        createContext(
+          targetRequest({
+            params: { tenantId: 'Tenant_A' },
+            user: { scopeLevel: 'TENANT', tenantId: 'tenant_a' }
+          })
+        )
+      ),
+      403
+    )
+
+    const request = targetRequest({
+      params: { tenantId: 'Tenant_A' },
+      user: { scopeLevel: 'TENANT', tenantId: 'Tenant_A' }
+    })
+    await createGuard().canActivate(createContext(request))
+    expect(getVerifiedTenantTarget(request)).toBe('Tenant_A')
+  })
+
+  it('keeps the carrier outside enumerable and symbol request properties and rejects overwrite', async () => {
+    const request = targetRequest()
+    const keysBefore = Reflect.ownKeys(request)
+    const guard = createGuard()
+
+    await guard.canActivate(createContext(request))
+    expect(Reflect.ownKeys(request)).toEqual(keysBefore)
+    expect(getVerifiedTenantTarget(request)).toBe('tenant_a')
+    await expectHttpStatus(guard.canActivate(createContext(request)), 403)
+    expect(getVerifiedTenantTarget(request)).toBe('tenant_a')
+  })
+
+  it('keeps verified targets isolated across concurrent requests', async () => {
+    const requestA = targetRequest()
+    const requestB = targetRequest({
       params: { tenantId: 'tenant_b' },
       user: { scopeLevel: 'TENANT', tenantId: 'tenant_b' }
-    }
-    const guard = createGuard(metadata)
+    })
+    const guard = createGuard()
 
     await Promise.all([
       guard.canActivate(createContext(requestA)),
       guard.canActivate(createContext(requestB))
     ])
-
     expect(getVerifiedTenantTarget(requestA)).toBe('tenant_a')
     expect(getVerifiedTenantTarget(requestB)).toBe('tenant_b')
   })
 
-  it('does not fold tenant identifier case during comparison or verification', async () => {
+  it('fails closed when a matched tenant param loses canonical route provenance', async () => {
     await expectHttpStatus(
-      createGuard(metadata).canActivate(
-        createContext({
-          params: { tenantId: 'tenant_a' },
-          user: { scopeLevel: 'TENANT', tenantId: 'Tenant_A' }
-        })
-      ),
+      createGuard().canActivate(createContext(targetRequest({ route: undefined }))),
       403
     )
-
-    const matchingRequest: TestRequest = {
-      params: { tenantId: 'Tenant_A' },
-      user: { scopeLevel: 'TENANT', tenantId: 'Tenant_A' }
-    }
-    await createGuard(metadata).canActivate(createContext(matchingRequest))
-    expect(getVerifiedTenantTarget(matchingRequest)).toBe('Tenant_A')
   })
 
-  it.each(['ténant_a', 'te\u0301nant_a'])(
-    'returns 400 for Unicode or decomposed tenant path input %p',
-    async (target) => {
-      await expectHttpStatus(
-        createGuard(metadata).canActivate(
-          createContext({
-            params: { tenantId: target },
-            user: { scopeLevel: 'TENANT', tenantId: 'tenant_a' }
-          })
-        ),
-        400
-      )
-    }
-  )
-
-  it.each(['ténant_a', 'te\u0301nant_a'])(
-    'returns 401 for Unicode or decomposed tenant session input %p',
-    async (tenantId) => {
-      await expectHttpStatus(
-        createGuard(metadata).canActivate(
-          createContext({
-            params: { tenantId: 'tenant_a' },
-            user: { scopeLevel: 'TENANT', tenantId }
-          })
-        ),
-        401
-      )
-    }
-  )
-
-  it('fails closed for malformed metadata and marked non-HTTP contexts', async () => {
-    await expectHttpStatus(
-      createGuard({ pathParam: 'tenantId', systemPolicy: 'ALLOW' }).canActivate(
-        createContext({
-          params: { tenantId: 'tenant_a' },
-          user: { scopeLevel: 'TENANT', tenantId: 'tenant_a' }
-        })
-      ),
-      403
-    )
-    await expect(createGuard(metadata).canActivate(createContext({}, 'rpc'))).resolves.toBe(false)
-  })
-
-  it('fails closed when verified target is read without a successful guard', () => {
+  it('fails closed when the carrier is read without a successful guard', () => {
     expect(() => getVerifiedTenantTarget({})).toThrow()
+  })
+
+  it('does not apply the HTTP-only binding algorithm to a non-HTTP context', async () => {
+    await expect(createGuard().canActivate(createContext({}, 'rpc'))).resolves.toBe(true)
   })
 })

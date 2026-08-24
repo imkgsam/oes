@@ -5,10 +5,7 @@ import {
   REQUIRE_PERMISSIONS_METADATA_KEY,
   SITE_MANAGEMENT_PERMISSION_CODES
 } from '@oes/common/authorization'
-import {
-  TENANT_TARGET_BINDING_METADATA_KEY,
-  VerifiedTenantTarget
-} from '../../../../../common/tenant-target'
+import { VerifiedTenantTarget } from '../../../../../common/tenant-target'
 import { SiteManagementController } from './site-management.controller'
 
 // Verifies Site Management BFF keeps Admin-only permissions and delegates HTTP shape to the service layer.
@@ -63,10 +60,9 @@ describe('SiteManagementController', () => {
         SiteManagementController.prototype.issuePreviewToken
       )
     ).toEqual({ all: [SITE_MANAGEMENT_PERMISSION_CODES.PREVIEW] })
-    expect(reflector.get(TENANT_TARGET_BINDING_METADATA_KEY, SiteManagementController)).toEqual({
-      pathParam: 'tenantId',
-      systemPolicy: 'DENY'
-    })
+    expect(Reflect.getMetadataKeys(SiteManagementController)).not.toContain(
+      'gateway:tenant-target-binding'
+    )
     expect(
       reflector.get(IS_PUBLIC_KEY, SiteManagementController.prototype.listSiteCards)
     ).toBeUndefined()

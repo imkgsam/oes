@@ -25,7 +25,7 @@ function loadGatewaySecurityExport(): GatewaySecurityExports {
 
 /** Gateway guard composition tests keep production and acceptance provider order on one seam. */
 describe('createGatewayGuardProviders', () => {
-  it('exports the three production APP_GUARD providers in security-boundary order', () => {
+  it('exports the four production APP_GUARD providers in security-boundary order', () => {
     expect(loadGatewaySecurityExport().createGatewayGuardProviders()).toEqual(
       expectedGuardProviders
     )

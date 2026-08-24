@@ -3,21 +3,36 @@ import { Metadata } from '@grpc/grpc-js'
 import { Controller, INestApplication, INestMicroservice, Module, UseFilters } from '@nestjs/common'
 import { APP_GUARD } from '@nestjs/core'
 import { Test } from '@nestjs/testing'
-import { GrpcMethod, MicroserviceOptions, RpcException, Transport } from '@nestjs/microservices'
+import {
+  ClientGrpc,
+  GrpcMethod,
+  MicroserviceOptions,
+  RpcException,
+  Transport
+} from '@nestjs/microservices'
 import { NestFactory } from '@nestjs/core'
 import request from 'supertest'
-import { AuthorizationModule, GatewayPermissionGuard, GRPC_METADATA_PROPAGATION_FACTORY } from '@oes/common/authorization'
+import {
+  AuthorizationModule,
+  GatewayPermissionGuard,
+  GRPC_METADATA_PROPAGATION_FACTORY
+} from '@oes/common/authorization'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import { resolveCommonContractPath, resolveCommonProtoPath } from '@oes/common/contracts'
 import { LoggingModule } from '@oes/common/logging'
-import { GrpcTransportModule } from '@oes/common/transport'
+import { getGrpcClientToken, GrpcTransportModule } from '@oes/common/transport'
 import { GrpcExceptionFilter } from '../../../../../../../../common/dist/core/filters'
 import { GatewayExceptionFilter } from '../../../../../common/filters/gateway-exception.filter'
 import { GatewaySessionAuthGuard } from '../../../../../common/guards/gateway-session-auth.guard'
 import { GatewayVerifiedSourceCredentialVault } from '../../../../../common/grpc/gateway-verified-source-credential.vault'
+import { GatewayMachineTrustedGrpcExecutionProducer } from '../../../../../common/grpc/gateway-machine-trusted-grpc-execution-producer'
 import { TenantTargetBindingGuard } from '../../../../../common/tenant-target'
 import { AuthGrpcAdapter } from '../../../../auth-bff/infrastructure/downstream/auth-service/auth-grpc.adapter'
 import { TrustedAuthApiKeyGrpcClient } from '../../../../auth-bff/infrastructure/downstream/auth-service/trusted-auth-api-key.grpc.client'
+import {
+  GatewayFoundationTrustedGrpcExecutionProducer,
+  TrustedAuthGrpcClient
+} from '../../../../../infrastructure/grpc/trusted-auth.grpc.client'
 import {
   SITE_MANAGEMENT_DOWNSTREAM,
   SiteManagementDownstream,
@@ -27,6 +42,7 @@ import { SiteManagementController } from './site-management.controller'
 import { createGatewayGuardProviders } from '../../../../../security'
 
 const LOOPBACK_HOST = '127.0.0.1'
+const TEST_GLOBAL_PREFIX = 'platform/v2'
 const HISTORICAL_FIXED_PORTS = [56170, 56171] as const
 const COMMON_CONTRACTS_ROOT = resolveCommonContractPath()
 
@@ -49,7 +65,7 @@ const sessions = new Map<string, SessionFixture>([
       accountId: 'operator_a',
       scopeLevel: 'TENANT',
       sessionId: 'session_match',
-      tenantId: ' tenant_a ',
+      tenantId: 'tenant_a',
       userId: 'user_a'
     }
   ],
@@ -93,7 +109,9 @@ const observed = {
 
 let permissionAllowed = true
 
-function providerName(value: unknown): string | undefined { return typeof value === 'function' ? value.name : undefined }
+function providerName(value: unknown): string | undefined {
+  return typeof value === 'function' ? value.name : undefined
+}
 
 /** reserveIsolatedLoopbackPorts allocates distinct ephemeral loopback ports using the repository acceptance-test pattern. */
 async function reserveIsolatedLoopbackPorts(count: number): Promise<number[]> {
@@ -185,7 +203,16 @@ class TestAuthGrpcModule {}
 class TestPermissionGrpcModule {}
 
 const downstream: Partial<jest.Mocked<SiteManagementDownstream>> = {
-  uploadSiteMedia: jest.fn((stream, _source) => new Promise((resolve, reject) => stream.subscribe({ next: (frame) => observed.uploadFrames.push(frame), error: reject, complete: () => resolve({ operationId: 'upload-1' }) }))),
+  uploadSiteMedia: jest.fn(
+    (stream, _source) =>
+      new Promise((resolve, reject) =>
+        stream.subscribe({
+          next: (frame) => observed.uploadFrames.push(frame),
+          error: reject,
+          complete: () => resolve({ operationId: 'upload-1' })
+        })
+      )
+  ),
   listSiteCards: jest.fn(async (context, _source) => {
     observed.events.push('downstream')
     return { cards: [], tenantId: context.tenantId }
@@ -203,7 +230,10 @@ function createTestGatewayAppModule(authPort: number, permissionPort: number) {
         services: {
           [SERVICE_NAMES.AUTH]: {
             serviceName: SERVICE_NAMES.AUTH,
-            protoPath: [resolveCommonProtoPath('auth_service/auth.proto'), resolveCommonProtoPath('auth_service/external_api_key.proto')],
+            protoPath: [
+              resolveCommonProtoPath('auth_service/auth.proto'),
+              resolveCommonProtoPath('auth_service/external_api_key.proto')
+            ],
             packageName: 'auth_service',
             url: `${LOOPBACK_HOST}:${authPort}`
           },
@@ -221,9 +251,28 @@ function createTestGatewayAppModule(authPort: number, permissionPort: number) {
     controllers: [SiteManagementController],
     providers: [
       AuthGrpcAdapter,
+      {
+        provide: TrustedAuthGrpcClient,
+        useFactory: (client: ClientGrpc) => ({ getClient: () => client }),
+        inject: [getGrpcClientToken(SERVICE_NAMES.AUTH)]
+      },
+      {
+        provide: GatewayFoundationTrustedGrpcExecutionProducer,
+        useValue: { forAuthPublicAdmission: jest.fn(() => new Metadata()) }
+      },
+      { provide: GatewayMachineTrustedGrpcExecutionProducer, useValue: {} },
       GatewayVerifiedSourceCredentialVault,
-      { provide: GRPC_METADATA_PROPAGATION_FACTORY, useValue: { createInternalCallMetadata: jest.fn(() => new Metadata()), createOperatorScopedMetadata: jest.fn(() => new Metadata()) } },
-      { provide: TrustedAuthApiKeyGrpcClient, useValue: { issueExchangeToken: jest.fn(), exchangeExternalApiKey: jest.fn() } },
+      {
+        provide: GRPC_METADATA_PROPAGATION_FACTORY,
+        useValue: {
+          createInternalCallMetadata: jest.fn(() => new Metadata()),
+          createOperatorScopedMetadata: jest.fn(() => new Metadata())
+        }
+      },
+      {
+        provide: TrustedAuthApiKeyGrpcClient,
+        useValue: { issueExchangeToken: jest.fn(), exchangeExternalApiKey: jest.fn() }
+      },
       SiteManagementService,
       { provide: SITE_MANAGEMENT_DOWNSTREAM, useValue: downstream },
       GatewayExceptionFilter,
@@ -310,7 +359,7 @@ describe('Site Management tenant-target binding integration', () => {
         throw error
       }
       resources.push(app)
-      app.setGlobalPrefix('api/v1')
+      app.setGlobalPrefix(TEST_GLOBAL_PREFIX)
       app.useGlobalFilters(app.get(GatewayExceptionFilter))
       await app.init()
       siteManagementService = app.get(SiteManagementService)
@@ -345,13 +394,22 @@ describe('Site Management tenant-target binding integration', () => {
   it('registers the production APP_GUARD order as session, tenant binding, then permission', () => {
     const providers = createGatewayGuardProviders() as unknown as Array<Record<string, unknown>>
     const sessionIndex = providers.findIndex(
-      (provider) => provider?.provide === APP_GUARD && (provider?.useClass === GatewaySessionAuthGuard || providerName(provider?.useClass) === GatewaySessionAuthGuard.name)
+      (provider) =>
+        provider?.provide === APP_GUARD &&
+        (provider?.useClass === GatewaySessionAuthGuard ||
+          providerName(provider?.useClass) === GatewaySessionAuthGuard.name)
     )
     const bindingIndex = providers.findIndex(
-      (provider) => provider?.provide === APP_GUARD && (provider?.useClass === TenantTargetBindingGuard || providerName(provider?.useClass) === TenantTargetBindingGuard.name)
+      (provider) =>
+        provider?.provide === APP_GUARD &&
+        (provider?.useClass === TenantTargetBindingGuard ||
+          providerName(provider?.useClass) === TenantTargetBindingGuard.name)
     )
     const permissionIndex = providers.findIndex(
-      (provider) => provider?.provide === APP_GUARD && (provider?.useExisting === GatewayPermissionGuard || providerName(provider?.useExisting) === GatewayPermissionGuard.name)
+      (provider) =>
+        provider?.provide === APP_GUARD &&
+        (provider?.useExisting === GatewayPermissionGuard ||
+          providerName(provider?.useExisting) === GatewayPermissionGuard.name)
     )
 
     expect(sessionIndex).toBeGreaterThanOrEqual(0)
@@ -368,7 +426,7 @@ describe('Site Management tenant-target binding integration', () => {
 
   it('returns 401 before permission and downstream when the bearer token is missing', async () => {
     await request(app.getHttpServer())
-      .get('/api/v1/site-management/tenants/tenant_a/sites')
+      .get('/platform/v2/site-management/tenants/tenant_a/sites')
       .expect(401)
 
     expect(observed.authCalls).toBe(0)
@@ -379,7 +437,7 @@ describe('Site Management tenant-target binding integration', () => {
 
   it('returns 401 before permission and downstream when auth-service rejects the session', async () => {
     await request(app.getHttpServer())
-      .get('/api/v1/site-management/tenants/tenant_a/sites')
+      .get('/platform/v2/site-management/tenants/tenant_a/sites')
       .set('Authorization', 'Bearer invalid-session')
       .expect(401)
 
@@ -391,7 +449,7 @@ describe('Site Management tenant-target binding integration', () => {
 
   it('returns 401 for a TENANT session without a valid tenant before permission and downstream', async () => {
     await request(app.getHttpServer())
-      .get('/api/v1/site-management/tenants/tenant_a/sites')
+      .get('/platform/v2/site-management/tenants/tenant_a/sites')
       .set('Authorization', 'Bearer tenant-missing')
       .expect(401)
 
@@ -400,9 +458,9 @@ describe('Site Management tenant-target binding integration', () => {
     expect(downstream.listSiteCards).not.toHaveBeenCalled()
   })
 
-  it('passes the normalized verified tenant target into downstream after permission', async () => {
+  it('passes the exact verified tenant target into downstream after permission without route opt-in', async () => {
     const response = await request(app.getHttpServer())
-      .get('/api/v1/site-management/tenants/%20tenant_a%20/sites')
+      .get('/platform/v2/site-management/tenants/tenant_a/sites')
       .set('Authorization', 'Bearer tenant-match')
       .expect(200)
 
@@ -418,20 +476,31 @@ describe('Site Management tenant-target binding integration', () => {
 
   it('constructs the upload start frame from the URL site and bounded HTTP stream', async () => {
     await request(app.getHttpServer())
-      .post('/api/v1/site-management/tenants/tenant_a/sites/site_a/media')
+      .post('/platform/v2/site-management/tenants/tenant_a/sites/site_a/media')
       .set('Authorization', 'Bearer tenant-match')
       .set('x-idempotency-key', 'upload-http-1')
       .set('x-oes-media-kind', 'IMAGE')
       .set('Content-Type', 'image/png')
       .send(Buffer.from('bounded-media'))
       .expect(201)
-    expect(observed.uploadFrames[0]).toEqual(expect.objectContaining({ start: expect.objectContaining({ siteId: 'site_a', idempotencyKey: 'upload-http-1', requestedMediaKind: 'IMAGE', declaredContentType: 'image/png' }) }))
-    expect(observed.uploadFrames.slice(1).every((frame) => !('start' in (frame as object)))).toBe(true)
+    expect(observed.uploadFrames[0]).toEqual(
+      expect.objectContaining({
+        start: expect.objectContaining({
+          siteId: 'site_a',
+          idempotencyKey: 'upload-http-1',
+          requestedMediaKind: 'IMAGE',
+          declaredContentType: 'image/png'
+        })
+      })
+    )
+    expect(observed.uploadFrames.slice(1).every((frame) => !('start' in (frame as object)))).toBe(
+      true
+    )
   })
 
   it('returns 403 on tenant mismatch before permission, handler, or downstream', async () => {
     const response = await request(app.getHttpServer())
-      .get('/api/v1/site-management/tenants/tenant_b/sites')
+      .get('/platform/v2/site-management/tenants/tenant_b/sites')
       .set('Authorization', 'Bearer tenant-mismatch')
       .expect(403)
 
@@ -445,7 +514,7 @@ describe('Site Management tenant-target binding integration', () => {
 
   it('returns 403 for SYSTEM before permission and downstream even when permission would allow', async () => {
     await request(app.getHttpServer())
-      .get('/api/v1/site-management/tenants/tenant_a/sites')
+      .get('/platform/v2/site-management/tenants/tenant_a/sites')
       .set('Authorization', 'Bearer system-session')
       .expect(403)
 
@@ -457,7 +526,19 @@ describe('Site Management tenant-target binding integration', () => {
 
   it('returns 400 for an illegal matched target before permission and downstream', async () => {
     await request(app.getHttpServer())
-      .get('/api/v1/site-management/tenants/tenant%40a/sites')
+      .get('/platform/v2/site-management/tenants/tenant%40a/sites')
+      .set('Authorization', 'Bearer tenant-match')
+      .expect(400)
+
+    expect(observed.events).toEqual(['auth'])
+    expect(observed.permissionCalls).toEqual([])
+    expect(listSiteCardsHandler).not.toHaveBeenCalled()
+    expect(downstream.listSiteCards).not.toHaveBeenCalled()
+  })
+
+  it('returns 400 for a padded non-canonical target instead of trimming it', async () => {
+    await request(app.getHttpServer())
+      .get('/platform/v2/site-management/tenants/%20tenant_a%20/sites')
       .set('Authorization', 'Bearer tenant-match')
       .expect(400)
 
@@ -469,7 +550,7 @@ describe('Site Management tenant-target binding integration', () => {
 
   it('returns 404 without running guards when the tenant path segment is missing', async () => {
     await request(app.getHttpServer())
-      .get('/api/v1/site-management/tenants')
+      .get('/platform/v2/site-management/tenants')
       .set('Authorization', 'Bearer tenant-match')
       .expect(404)
 
@@ -483,7 +564,7 @@ describe('Site Management tenant-target binding integration', () => {
     const handler = jest.spyOn(siteManagementService, 'listLocaleOptions')
 
     await request(app.getHttpServer())
-      .get('/api/v1/site-management/tenants/tenant_b/locale-options')
+      .get('/platform/v2/site-management/tenants/tenant_b/locale-options')
       .set('Authorization', 'Bearer tenant-mismatch')
       .expect(403)
 
@@ -496,7 +577,7 @@ describe('Site Management tenant-target binding integration', () => {
     permissionAllowed = false
 
     await request(app.getHttpServer())
-      .get('/api/v1/site-management/tenants/tenant_a/sites')
+      .get('/platform/v2/site-management/tenants/tenant_a/sites')
       .set('Authorization', 'Bearer tenant-match')
       .expect(403)
 

@@ -1,12 +1,16 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common'
+import { VerifiedTenantTarget } from '../../common/tenant-target'
 import { OrgManagementService } from './org-management.service'
 import { TenantManagementService } from './tenant-management.service'
+
+const verifiedTarget = (value: string) => value as VerifiedTenantTarget
 
 // Verifies the tenant management gateway service stays system-scoped while composing tenant and root-org read models.
 describe('TenantManagementService', () => {
   const tenantOrgQueryAdapter = {
-    getOrgUnitById: jest.fn(),
+    getOrgUnitByVerifiedTarget: jest.fn(),
     getTenantById: jest.fn(),
+    getTenantByVerifiedTarget: jest.fn(),
     listTenants: jest.fn()
   }
   const tenantOrgManagementAdapter = {
@@ -34,8 +38,9 @@ describe('TenantManagementService', () => {
   )
 
   beforeEach(() => {
-    tenantOrgQueryAdapter.getOrgUnitById.mockReset()
+    tenantOrgQueryAdapter.getOrgUnitByVerifiedTarget.mockReset()
     tenantOrgQueryAdapter.getTenantById.mockReset()
+    tenantOrgQueryAdapter.getTenantByVerifiedTarget.mockReset()
     tenantOrgQueryAdapter.listTenants.mockReset()
     tenantOrgManagementAdapter.archiveTenant.mockReset()
     tenantOrgManagementAdapter.createTenant.mockReset()
@@ -60,19 +65,33 @@ describe('TenantManagementService', () => {
       ForbiddenException
     )
     await expect(
-      service.createTenant({ code: 'alpha', employeeCodePrefix: '0AF', name: 'Alpha' }, tenantScopedSource as any)
-    ).rejects.toBeInstanceOf(
-      ForbiddenException
-    )
+      service.createTenant(
+        { code: 'alpha', employeeCodePrefix: '0AF', name: 'Alpha' },
+        tenantScopedSource as any
+      )
+    ).rejects.toBeInstanceOf(ForbiddenException)
 
     expect(tenantOrgQueryAdapter.listTenants).not.toHaveBeenCalled()
     expect(tenantOrgManagementAdapter.createTenant).not.toHaveBeenCalled()
   })
 
   it('lists tenant summaries for system operators', async () => {
-    const source = { requestId: 'req-1', traceId: 'trace-1', user: { aid: 'account-1', scopeLevel: 'SYSTEM' } }
+    const source = {
+      requestId: 'req-1',
+      traceId: 'trace-1',
+      user: { aid: 'account-1', scopeLevel: 'SYSTEM' }
+    }
     tenantOrgQueryAdapter.listTenants.mockResolvedValue({
-      tenants: [{ id: 'tenant-1', code: 'alpha', employeeCodePrefix: '0AF', name: 'Alpha Tenant', isActive: true, rootOrgId: 'org-root-1' }],
+      tenants: [
+        {
+          id: 'tenant-1',
+          code: 'alpha',
+          employeeCodePrefix: '0AF',
+          name: 'Alpha Tenant',
+          isActive: true,
+          rootOrgId: 'org-root-1'
+        }
+      ],
       total: 1
     })
     identityTenantAccountStatsAdapter.countTenantAccounts.mockResolvedValue({
@@ -125,8 +144,12 @@ describe('TenantManagementService', () => {
   })
 
   it('hydrates one tenant detail with root org metadata when the tenant exists', async () => {
-    const source = { requestId: 'req-1', traceId: 'trace-1', user: { aid: 'account-1', scopeLevel: 'SYSTEM' } }
-    tenantOrgQueryAdapter.getTenantById.mockResolvedValue({
+    const source = {
+      requestId: 'req-1',
+      traceId: 'trace-1',
+      user: { aid: 'account-1', scopeLevel: 'SYSTEM' }
+    }
+    tenantOrgQueryAdapter.getTenantByVerifiedTarget.mockResolvedValue({
       tenant: {
         id: 'tenant-1',
         code: 'alpha',
@@ -136,7 +159,7 @@ describe('TenantManagementService', () => {
         rootOrgId: 'org-root-1'
       }
     })
-    tenantOrgQueryAdapter.getOrgUnitById.mockResolvedValue({
+    tenantOrgQueryAdapter.getOrgUnitByVerifiedTarget.mockResolvedValue({
       orgUnit: {
         id: 'org-root-1',
         name: 'Alpha Root'
@@ -146,21 +169,23 @@ describe('TenantManagementService', () => {
       counts: [{ tenantId: 'tenant-1', total: 3 }]
     })
 
-    await expect(service.getTenantById('tenant-1', source as any)).resolves.toEqual({
-      tenant: {
-        id: 'tenant-1',
-        code: 'alpha',
-        employeeCodePrefix: '0AF',
-        name: 'Alpha Tenant',
-        rootOrgId: 'org-root-1',
-        rootOrgName: 'Alpha Root',
-        status: 'SUSPENDED',
-        userCount: 3
+    await expect(service.getTenantById(verifiedTarget('tenant-1'), source as any)).resolves.toEqual(
+      {
+        tenant: {
+          id: 'tenant-1',
+          code: 'alpha',
+          employeeCodePrefix: '0AF',
+          name: 'Alpha Tenant',
+          rootOrgId: 'org-root-1',
+          rootOrgName: 'Alpha Root',
+          status: 'SUSPENDED',
+          userCount: 3
+        }
       }
-    })
+    )
 
-    expect(tenantOrgQueryAdapter.getTenantById).toHaveBeenCalledWith('tenant-1', source)
-    expect(tenantOrgQueryAdapter.getOrgUnitById).toHaveBeenCalledWith(
+    expect(tenantOrgQueryAdapter.getTenantByVerifiedTarget).toHaveBeenCalledWith('tenant-1', source)
+    expect(tenantOrgQueryAdapter.getOrgUnitByVerifiedTarget).toHaveBeenCalledWith(
       {
         orgUnitId: 'org-root-1',
         tenantId: 'tenant-1'
@@ -178,22 +203,42 @@ describe('TenantManagementService', () => {
   })
 
   it('throws when the requested tenant does not exist', async () => {
-    const source = { requestId: 'req-1', traceId: 'trace-1', user: { aid: 'account-1', scopeLevel: 'SYSTEM' } }
-    tenantOrgQueryAdapter.getTenantById.mockResolvedValue({ tenant: undefined })
+    const source = {
+      requestId: 'req-1',
+      traceId: 'trace-1',
+      user: { aid: 'account-1', scopeLevel: 'SYSTEM' }
+    }
+    tenantOrgQueryAdapter.getTenantByVerifiedTarget.mockResolvedValue({ tenant: undefined })
 
-    await expect(service.getTenantById('missing-tenant', source as any)).rejects.toBeInstanceOf(
-      NotFoundException
-    )
+    await expect(
+      service.getTenantById(verifiedTarget('missing-tenant'), source as any)
+    ).rejects.toBeInstanceOf(NotFoundException)
   })
 
   it('forwards tenant lifecycle writes to the dedicated management adapter', async () => {
-    const source = { requestId: 'req-1', traceId: 'trace-1', user: { aid: 'account-1', scopeLevel: 'SYSTEM' } }
+    const source = {
+      requestId: 'req-1',
+      traceId: 'trace-1',
+      user: { aid: 'account-1', scopeLevel: 'SYSTEM' }
+    }
     tenantOrgManagementAdapter.createTenant.mockResolvedValue({
-      tenant: { id: 'tenant-1', code: 'alpha', employeeCodePrefix: '0AF', name: 'Alpha Tenant', status: 'ACTIVE' },
+      tenant: {
+        id: 'tenant-1',
+        code: 'alpha',
+        employeeCodePrefix: '0AF',
+        name: 'Alpha Tenant',
+        status: 'ACTIVE'
+      },
       rootOrgUnit: { id: 'org-root-1', name: 'Alpha Root' }
     })
     tenantOrgManagementAdapter.updateTenantProfile.mockResolvedValue({
-      tenant: { id: 'tenant-1', code: 'alpha-new', employeeCodePrefix: '0B0', name: 'Alpha Tenant New', status: 'ACTIVE' }
+      tenant: {
+        id: 'tenant-1',
+        code: 'alpha-new',
+        employeeCodePrefix: '0B0',
+        name: 'Alpha Tenant New',
+        status: 'ACTIVE'
+      }
     })
     tenantOrgManagementAdapter.suspendTenant.mockResolvedValue({
       tenant: { id: 'tenant-1', code: 'alpha', name: 'Alpha Tenant', status: 'SUSPENDED' }
@@ -216,13 +261,19 @@ describe('TenantManagementService', () => {
         source as any
       )
     ).resolves.toEqual({
-      tenant: { id: 'tenant-1', code: 'alpha', employeeCodePrefix: '0AF', name: 'Alpha Tenant', status: 'ACTIVE' },
+      tenant: {
+        id: 'tenant-1',
+        code: 'alpha',
+        employeeCodePrefix: '0AF',
+        name: 'Alpha Tenant',
+        status: 'ACTIVE'
+      },
       rootOrgUnit: { id: 'org-root-1', name: 'Alpha Root' }
     })
 
     await expect(
       service.updateTenantProfile(
-        'tenant-1',
+        verifiedTarget('tenant-1'),
         {
           code: 'alpha-new',
           employeeCodePrefix: '0b0',
@@ -231,12 +282,18 @@ describe('TenantManagementService', () => {
         source as any
       )
     ).resolves.toEqual({
-      tenant: { id: 'tenant-1', code: 'alpha-new', employeeCodePrefix: '0B0', name: 'Alpha Tenant New', status: 'ACTIVE' }
+      tenant: {
+        id: 'tenant-1',
+        code: 'alpha-new',
+        employeeCodePrefix: '0B0',
+        name: 'Alpha Tenant New',
+        status: 'ACTIVE'
+      }
     })
 
     await expect(
       service.updateTenantStatus(
-        'tenant-1',
+        verifiedTarget('tenant-1'),
         {
           reason: 'Manual review',
           status: 'SUSPENDED'
@@ -249,7 +306,7 @@ describe('TenantManagementService', () => {
 
     await expect(
       service.updateTenantStatus(
-        'tenant-1',
+        verifiedTarget('tenant-1'),
         {
           status: 'ACTIVE'
         },
@@ -261,7 +318,7 @@ describe('TenantManagementService', () => {
 
     await expect(
       service.updateTenantStatus(
-        'tenant-1',
+        verifiedTarget('tenant-1'),
         {
           reason: 'Duplicate tenant',
           status: 'ARCHIVED'
@@ -313,7 +370,11 @@ describe('TenantManagementService', () => {
   })
 
   it('normalizes organization identifiers before starting tenant onboarding', async () => {
-    const source = { requestId: 'req-1', traceId: 'trace-1', user: { aid: 'account-1', scopeLevel: 'SYSTEM' } }
+    const source = {
+      requestId: 'req-1',
+      traceId: 'trace-1',
+      user: { aid: 'account-1', scopeLevel: 'SYSTEM' }
+    }
     tenantOrgManagementAdapter.startTenantOnboarding.mockResolvedValue({
       onboarding: { onboardingId: 'onboarding-1', status: 'SUCCEEDED' }
     })
@@ -362,7 +423,11 @@ describe('TenantManagementService', () => {
   })
 
   it('surfaces failed retryable tenant onboardings as HTTP 503 with retry details', async () => {
-    const source = { requestId: 'req-1', traceId: 'trace-1', user: { aid: 'account-1', scopeLevel: 'SYSTEM' } }
+    const source = {
+      requestId: 'req-1',
+      traceId: 'trace-1',
+      user: { aid: 'account-1', scopeLevel: 'SYSTEM' }
+    }
     tenantOrgManagementAdapter.startTenantOnboarding.mockResolvedValue({
       onboarding: {
         onboardingId: 'onboarding-1',
@@ -384,7 +449,14 @@ describe('TenantManagementService', () => {
           organizationTenantParty: {
             legalName: 'Beta Inc.',
             registeredCountry: 'US',
-            identifiers: [{ identifierType: 'EIN', rawValue: '12-3456789', normalizedValue: '', issuerCountryOrRegion: '' }]
+            identifiers: [
+              {
+                identifierType: 'EIN',
+                rawValue: '12-3456789',
+                normalizedValue: '',
+                issuerCountryOrRegion: ''
+              }
+            ]
           },
           rootOrg: { name: 'Beta Inc.' },
           firstAdmin: { displayName: 'Alice Admin', email: 'alice@example.com' }
@@ -406,7 +478,11 @@ describe('TenantManagementService', () => {
   })
 
   it('surfaces failed retry attempts as HTTP errors instead of success envelopes', async () => {
-    const source = { requestId: 'req-1', traceId: 'trace-1', user: { aid: 'account-1', scopeLevel: 'SYSTEM' } }
+    const source = {
+      requestId: 'req-1',
+      traceId: 'trace-1',
+      user: { aid: 'account-1', scopeLevel: 'SYSTEM' }
+    }
     tenantOrgManagementAdapter.retryTenantOnboarding.mockResolvedValue({
       onboarding: {
         onboardingId: 'onboarding-1',
@@ -421,7 +497,11 @@ describe('TenantManagementService', () => {
     })
 
     await expect(
-      service.retryTenantOnboarding('onboarding-1', { reason: 'retry after party-service restart' }, source as any)
+      service.retryTenantOnboarding(
+        'onboarding-1',
+        { reason: 'retry after party-service restart' },
+        source as any
+      )
     ).rejects.toMatchObject({
       response: expect.objectContaining({
         code: 'TENANT_ONBOARDING_STEP_FAILED'
@@ -431,14 +511,18 @@ describe('TenantManagementService', () => {
   })
 
   it('finds an existing first-admin candidate by exact email without listing all users', async () => {
-    const source = { requestId: 'req-1', traceId: 'trace-1', user: { aid: 'account-1', scopeLevel: 'SYSTEM' } }
+    const source = {
+      requestId: 'req-1',
+      traceId: 'trace-1',
+      user: { aid: 'account-1', scopeLevel: 'SYSTEM' }
+    }
     identityUserLookupAdapter.getUserByEmail.mockResolvedValue({
       user: {
         id: 'user-existing-1',
         username: 'Existing Admin',
         personalEmail: 'existing@example.com',
         personalPhone: '+14155550100',
-        isActive: true,
+        isActive: true
       }
     })
 
@@ -456,12 +540,19 @@ describe('TenantManagementService', () => {
       ]
     })
 
-    expect(identityUserLookupAdapter.getUserByEmail).toHaveBeenCalledWith('existing@example.com', source)
+    expect(identityUserLookupAdapter.getUserByEmail).toHaveBeenCalledWith(
+      'existing@example.com',
+      source
+    )
     expect(identityUserLookupAdapter.getUserByPhone).not.toHaveBeenCalled()
   })
 
   it('ignores partial first-admin email and phone search input without calling identity', async () => {
-    const source = { requestId: 'req-1', traceId: 'trace-1', user: { aid: 'account-1', scopeLevel: 'SYSTEM' } }
+    const source = {
+      requestId: 'req-1',
+      traceId: 'trace-1',
+      user: { aid: 'account-1', scopeLevel: 'SYSTEM' }
+    }
 
     await expect(
       service.searchFirstAdminExistingUsers({ keyword: 'existing@' }, source as any)
@@ -473,7 +564,10 @@ describe('TenantManagementService', () => {
       service.searchFirstAdminExistingUsers({ keyword: 'existing@example.c' }, source as any)
     ).resolves.toEqual({ items: [] })
     await expect(
-      service.searchFirstAdminExistingUsers({ keyword: '415', countryOrRegion: 'US' }, source as any)
+      service.searchFirstAdminExistingUsers(
+        { keyword: '415', countryOrRegion: 'US' },
+        source as any
+      )
     ).resolves.toEqual({ items: [] })
 
     expect(identityUserLookupAdapter.getUserByEmail).not.toHaveBeenCalled()
@@ -481,14 +575,18 @@ describe('TenantManagementService', () => {
   })
 
   it('finds an existing first-admin candidate by a country-local phone input', async () => {
-    const source = { requestId: 'req-1', traceId: 'trace-1', user: { aid: 'account-1', scopeLevel: 'SYSTEM' } }
+    const source = {
+      requestId: 'req-1',
+      traceId: 'trace-1',
+      user: { aid: 'account-1', scopeLevel: 'SYSTEM' }
+    }
     identityUserLookupAdapter.getUserByPhone.mockResolvedValue({
       user: {
         id: 'user-existing-1',
         username: 'Existing Admin',
         personalEmail: 'existing@example.com',
         personalPhone: '+14155550100',
-        isActive: true,
+        isActive: true
       }
     })
 
@@ -531,7 +629,14 @@ describe('TenantManagementService', () => {
           organizationTenantParty: {
             legalName: 'Beta Inc.',
             registeredCountry: 'US',
-            identifiers: [{ identifierType: 'EIN', rawValue: '12-3456789', normalizedValue: '', issuerCountryOrRegion: '' }]
+            identifiers: [
+              {
+                identifierType: 'EIN',
+                rawValue: '12-3456789',
+                normalizedValue: '',
+                issuerCountryOrRegion: ''
+              }
+            ]
           },
           rootOrg: { name: 'Beta Inc.' },
           firstAdmin: {
@@ -558,18 +663,19 @@ describe('TenantManagementService', () => {
       source
     )
   })
-
 })
 
 // Verifies the org management gateway service keeps org tree operations scope-aware while reusing tenant-org-service contracts.
 describe('OrgManagementService', () => {
   const tenantOrgQueryAdapter = {
     getOrgTreeByTenantId: jest.fn(),
-    getOrgUnitById: jest.fn(),
-    getTenantById: jest.fn()
+    getOrgUnitByVerifiedTarget: jest.fn(),
+    getTenantById: jest.fn(),
+    getTenantByVerifiedTarget: jest.fn()
   }
   const partyQueryAdapter = {
-    getOrganizationTenantPartyById: jest.fn()
+    getOrganizationTenantPartyById: jest.fn(),
+    getOrganizationTenantPartyByVerifiedTarget: jest.fn()
   }
   const tenantOrgManagementAdapter = {
     archiveOrgUnit: jest.fn(),
@@ -585,9 +691,11 @@ describe('OrgManagementService', () => {
 
   beforeEach(() => {
     tenantOrgQueryAdapter.getOrgTreeByTenantId.mockReset()
-    tenantOrgQueryAdapter.getOrgUnitById.mockReset()
+    tenantOrgQueryAdapter.getOrgUnitByVerifiedTarget.mockReset()
     tenantOrgQueryAdapter.getTenantById.mockReset()
+    tenantOrgQueryAdapter.getTenantByVerifiedTarget.mockReset()
     partyQueryAdapter.getOrganizationTenantPartyById.mockReset()
+    partyQueryAdapter.getOrganizationTenantPartyByVerifiedTarget.mockReset()
     tenantOrgManagementAdapter.archiveOrgUnit.mockReset()
     tenantOrgManagementAdapter.createOrgUnit.mockReset()
     tenantOrgManagementAdapter.updateOrgUnit.mockReset()
@@ -616,7 +724,7 @@ describe('OrgManagementService', () => {
         }
       ]
     })
-    tenantOrgQueryAdapter.getOrgUnitById.mockResolvedValue({
+    tenantOrgQueryAdapter.getOrgUnitByVerifiedTarget.mockResolvedValue({
       orgUnit: {
         id: 'org-root-1',
         tenantId: 'tenant-1',
@@ -641,7 +749,9 @@ describe('OrgManagementService', () => {
       }
     })
 
-    await expect(service.getOrgTree('tenant-1', tenantSource as any)).resolves.toEqual({
+    await expect(
+      service.getOrgTree(verifiedTarget('tenant-1'), tenantSource as any)
+    ).resolves.toEqual({
       scope: 'TENANT',
       tenant: undefined,
       roots: [
@@ -664,7 +774,13 @@ describe('OrgManagementService', () => {
       ]
     })
 
-    await expect(service.getOrgUnitDetail('tenant-1', 'org-root-1', tenantSource as any)).resolves.toEqual({
+    await expect(
+      service.getOrgUnitDetailByVerifiedTarget(
+        verifiedTarget('tenant-1'),
+        'org-root-1',
+        tenantSource as any
+      )
+    ).resolves.toEqual({
       orgUnit: {
         depth: 0,
         id: 'org-root-1',
@@ -682,7 +798,7 @@ describe('OrgManagementService', () => {
 
     await expect(
       service.createOrgUnit(
-        'tenant-1',
+        verifiedTarget('tenant-1'),
         {
           name: 'Manufacturing',
           parentOrgId: 'org-root-1',
@@ -708,7 +824,10 @@ describe('OrgManagementService', () => {
     })
 
     expect(tenantOrgQueryAdapter.getTenantById).not.toHaveBeenCalled()
-    expect(tenantOrgQueryAdapter.getOrgTreeByTenantId).toHaveBeenCalledWith('tenant-1', tenantSource)
+    expect(tenantOrgQueryAdapter.getOrgTreeByTenantId).toHaveBeenCalledWith(
+      'tenant-1',
+      tenantSource
+    )
     expect(tenantOrgManagementAdapter.createOrgUnit).toHaveBeenCalledWith(
       {
         name: 'Manufacturing',
@@ -728,11 +847,11 @@ describe('OrgManagementService', () => {
       user: { aid: 'account-1', scopeLevel: 'TENANT', tid: 'tenant-1' }
     }
 
-    await expect(service.getOrgTree('tenant-2', tenantSource as any)).rejects.toBeInstanceOf(
-      ForbiddenException
-    )
     await expect(
-      service.archiveOrgUnit('tenant-2', 'org-2', tenantSource as any)
+      service.getOrgTree(verifiedTarget('tenant-2'), tenantSource as any)
+    ).rejects.toBeInstanceOf(ForbiddenException)
+    await expect(
+      service.archiveOrgUnit(verifiedTarget('tenant-2'), 'org-2', tenantSource as any)
     ).rejects.toBeInstanceOf(ForbiddenException)
 
     expect(tenantOrgQueryAdapter.getOrgTreeByTenantId).not.toHaveBeenCalled()
@@ -745,7 +864,7 @@ describe('OrgManagementService', () => {
       traceId: 'trace-1',
       user: { aid: 'account-1', scopeLevel: 'SYSTEM' }
     }
-    tenantOrgQueryAdapter.getTenantById.mockResolvedValue({
+    tenantOrgQueryAdapter.getTenantByVerifiedTarget.mockResolvedValue({
       tenant: {
         id: 'tenant-9',
         code: 'tenant.nine',
@@ -756,7 +875,9 @@ describe('OrgManagementService', () => {
     })
     tenantOrgQueryAdapter.getOrgTreeByTenantId.mockResolvedValue({ roots: [] })
 
-    await expect(service.getOrgTree('tenant-9', systemSource as any)).resolves.toEqual({
+    await expect(
+      service.getOrgTree(verifiedTarget('tenant-9'), systemSource as any)
+    ).resolves.toEqual({
       scope: 'SYSTEM',
       tenant: {
         code: 'tenant.nine',
@@ -768,7 +889,10 @@ describe('OrgManagementService', () => {
       roots: []
     })
 
-    expect(tenantOrgQueryAdapter.getTenantById).toHaveBeenCalledWith('tenant-9', systemSource)
+    expect(tenantOrgQueryAdapter.getTenantByVerifiedTarget).toHaveBeenCalledWith(
+      'tenant-9',
+      systemSource
+    )
   })
 
   it('updates and archives org units through the dedicated management adapter', async () => {
@@ -804,7 +928,7 @@ describe('OrgManagementService', () => {
 
     await expect(
       service.updateOrgUnit(
-        'tenant-1',
+        verifiedTarget('tenant-1'),
         'org-child-1',
         {
           name: 'Manufacturing Updated',
@@ -829,7 +953,9 @@ describe('OrgManagementService', () => {
       }
     })
 
-    await expect(service.archiveOrgUnit('tenant-1', 'org-child-1', source as any)).resolves.toEqual({
+    await expect(
+      service.archiveOrgUnit(verifiedTarget('tenant-1'), 'org-child-1', source as any)
+    ).resolves.toEqual({
       orgUnit: {
         depth: 0,
         id: 'org-child-1',

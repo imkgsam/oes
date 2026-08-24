@@ -1,5 +1,13 @@
-import { BadRequestException, ForbiddenException, HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common'
+import {
+  BadRequestException,
+  ForbiddenException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  NotFoundException
+} from '@nestjs/common'
 import { DownstreamRequestSource } from '../../common/grpc/gateway-downstream-source.mapper'
+import { VerifiedTenantTarget } from '../../common/tenant-target'
 import { IdentityTenantAccountStatsGrpcAdapter } from './adapters/identity-tenant-account-stats-grpc.adapter'
 import { IdentityUserLookupGrpcAdapter } from './adapters/identity-user-lookup-grpc.adapter'
 import { TenantOrgManagementGrpcAdapter } from './adapters/tenant-org-management-grpc.adapter'
@@ -67,10 +75,9 @@ export class TenantManagementService {
     }
   }
 
-  async getTenantById(tenantId: string, source: DownstreamRequestSource) {
+  async getTenantById(tenantId: VerifiedTenantTarget, source: DownstreamRequestSource) {
     this.assertSystemScope(source)
-    const normalizedTenantId = requireNonBlank(tenantId, 'tenantId')
-    const result = await this.tenantOrgQueryAdapter.getTenantById(normalizedTenantId, source)
+    const result = await this.tenantOrgQueryAdapter.getTenantByVerifiedTarget(tenantId, source)
     const tenant = result.tenant
 
     if (!tenant?.id) {
@@ -78,16 +85,15 @@ export class TenantManagementService {
     }
 
     const rootOrgId = normalize(tenant.rootOrgId)
-    const rootOrg =
-      rootOrgId
-        ? await this.tenantOrgQueryAdapter.getOrgUnitById(
-            {
-              tenantId: normalizedTenantId,
-              orgUnitId: rootOrgId
-            },
-            source
-          )
-        : undefined
+    const rootOrg = rootOrgId
+      ? await this.tenantOrgQueryAdapter.getOrgUnitByVerifiedTarget(
+          {
+            tenantId,
+            orgUnitId: rootOrgId
+          },
+          source
+        )
+      : undefined
     const accountCounts = await this.identityTenantAccountStatsAdapter.countTenantAccounts(
       {
         scopeLevel: 'TENANT',
@@ -139,7 +145,10 @@ export class TenantManagementService {
       if (!isCompleteEmailLookupKeyword(keyword)) {
         return { items: [] }
       }
-      const result = await this.identityUserLookupAdapter.getUserByEmail(keyword.toLowerCase(), source)
+      const result = await this.identityUserLookupAdapter.getUserByEmail(
+        keyword.toLowerCase(),
+        source
+      )
       const user = result.user
 
       if (!user?.id) {
@@ -159,29 +168,32 @@ export class TenantManagementService {
     return { items: [] }
   }
 
-  async startTenantOnboarding(input: {
-    idempotencyKey: string
-    tenant: { code: string; employeeCodePrefix: string; name: string }
-    organizationTenantParty: {
-      legalName: string
-      registeredCountry?: string
-      identifiers?: Array<{
-        identifierType: string
-        rawValue?: string
-        normalizedValue?: string
-        issuerCountryOrRegion?: string
-      }>
-    }
-    rootOrg: { name: string }
-    firstAdmin: {
-      displayName: string
-      email?: string
-      existingUserId?: string
-      phone?: string
-      provisioningMode?: string
-      requirePasswordSetup?: boolean
-    }
-  }, source: DownstreamRequestSource) {
+  async startTenantOnboarding(
+    input: {
+      idempotencyKey: string
+      tenant: { code: string; employeeCodePrefix: string; name: string }
+      organizationTenantParty: {
+        legalName: string
+        registeredCountry?: string
+        identifiers?: Array<{
+          identifierType: string
+          rawValue?: string
+          normalizedValue?: string
+          issuerCountryOrRegion?: string
+        }>
+      }
+      rootOrg: { name: string }
+      firstAdmin: {
+        displayName: string
+        email?: string
+        existingUserId?: string
+        phone?: string
+        provisioningMode?: string
+        requirePasswordSetup?: boolean
+      }
+    },
+    source: DownstreamRequestSource
+  ) {
     this.assertSystemScope(source)
     const firstAdminProvisioningMode =
       input.firstAdmin.provisioningMode === 'EXISTING_USER' ? 'EXISTING_USER' : 'CREATE_NEW_USER'
@@ -198,7 +210,10 @@ export class TenantManagementService {
           name: requireNonBlank(input.tenant.name, 'tenant.name')
         },
         organizationTenantParty: {
-          legalName: requireNonBlank(input.organizationTenantParty.legalName, 'organizationTenantParty.legalName'),
+          legalName: requireNonBlank(
+            input.organizationTenantParty.legalName,
+            'organizationTenantParty.legalName'
+          ),
           registeredCountry: normalize(input.organizationTenantParty.registeredCountry),
           identifiers: normalizeOrganizationIdentifiers(
             input.organizationTenantParty.identifiers,
@@ -210,14 +225,20 @@ export class TenantManagementService {
         },
         firstAdmin: {
           displayName: requireNonBlank(input.firstAdmin.displayName, 'firstAdmin.displayName'),
-          email: firstAdminProvisioningMode === 'EXISTING_USER' ? undefined : normalize(input.firstAdmin.email),
+          email:
+            firstAdminProvisioningMode === 'EXISTING_USER'
+              ? undefined
+              : normalize(input.firstAdmin.email),
           existingUserId,
-          phone: firstAdminProvisioningMode === 'EXISTING_USER' ? undefined : normalize(input.firstAdmin.phone),
+          phone:
+            firstAdminProvisioningMode === 'EXISTING_USER'
+              ? undefined
+              : normalize(input.firstAdmin.phone),
           provisioningMode: firstAdminProvisioningMode,
           requirePasswordSetup:
             firstAdminProvisioningMode === 'EXISTING_USER'
               ? false
-              : input.firstAdmin.requirePasswordSetup ?? true
+              : (input.firstAdmin.requirePasswordSetup ?? true)
         }
       },
       source
@@ -228,10 +249,17 @@ export class TenantManagementService {
 
   async getTenantOnboarding(onboardingId: string, source: DownstreamRequestSource) {
     this.assertSystemScope(source)
-    return this.tenantOrgManagementAdapter.getTenantOnboarding(requireNonBlank(onboardingId, 'onboardingId'), source)
+    return this.tenantOrgManagementAdapter.getTenantOnboarding(
+      requireNonBlank(onboardingId, 'onboardingId'),
+      source
+    )
   }
 
-  async retryTenantOnboarding(onboardingId: string, input: { reason?: string }, source: DownstreamRequestSource) {
+  async retryTenantOnboarding(
+    onboardingId: string,
+    input: { reason?: string },
+    source: DownstreamRequestSource
+  ) {
     this.assertSystemScope(source)
     const result = await this.tenantOrgManagementAdapter.retryTenantOnboarding(
       {
@@ -245,16 +273,19 @@ export class TenantManagementService {
   }
 
   async updateTenantProfile(
-    tenantId: string,
+    tenantId: VerifiedTenantTarget,
     input: { code?: string; employeeCodePrefix?: string; name?: string; websiteUrl?: string },
     source: DownstreamRequestSource
   ) {
     this.assertSystemScope(source)
     return this.tenantOrgManagementAdapter.updateTenantProfile(
       {
-        tenantId: requireNonBlank(tenantId, 'tenantId'),
+        tenantId,
         code: normalize(input.code),
-        employeeCodePrefix: input.employeeCodePrefix === undefined ? undefined : normalizeEmployeeCodePrefix(input.employeeCodePrefix),
+        employeeCodePrefix:
+          input.employeeCodePrefix === undefined
+            ? undefined
+            : normalizeEmployeeCodePrefix(input.employeeCodePrefix),
         name: normalize(input.name),
         ...withOptionalWebsiteUrl(input.websiteUrl)
       },
@@ -263,33 +294,23 @@ export class TenantManagementService {
   }
 
   async updateTenantStatus(
-    tenantId: string,
+    tenantId: VerifiedTenantTarget,
     input: { reason?: string; status: string },
     source: DownstreamRequestSource
   ) {
     this.assertSystemScope(source)
-    const normalizedTenantId = requireNonBlank(tenantId, 'tenantId')
     const status = requireNonBlank(input.status, 'status').toUpperCase()
     const reason = normalize(input.reason)
 
     switch (status) {
       case 'ACTIVE': {
-        return this.tenantOrgManagementAdapter.reactivateTenant(
-          { tenantId: normalizedTenantId },
-          source
-        )
+        return this.tenantOrgManagementAdapter.reactivateTenant({ tenantId }, source)
       }
       case 'ARCHIVED': {
-        return this.tenantOrgManagementAdapter.archiveTenant(
-          { tenantId: normalizedTenantId, reason },
-          source
-        )
+        return this.tenantOrgManagementAdapter.archiveTenant({ tenantId, reason }, source)
       }
       case 'SUSPENDED': {
-        return this.tenantOrgManagementAdapter.suspendTenant(
-          { tenantId: normalizedTenantId, reason },
-          source
-        )
+        return this.tenantOrgManagementAdapter.suspendTenant({ tenantId, reason }, source)
       }
       default: {
         throw new ForbiddenException(`Unsupported tenant status: ${status}`)
@@ -332,12 +353,14 @@ function requireNonBlank(value: string, fieldName: string): string {
 
 // normalizeOrganizationIdentifiers validates tenant-scoped organization identifiers before forwarding to tenant-org-service.
 function normalizeOrganizationIdentifiers(
-  identifiers: Array<{
-    identifierType: string
-    rawValue?: string
-    normalizedValue?: string
-    issuerCountryOrRegion?: string
-  }> | undefined,
+  identifiers:
+    | Array<{
+        identifierType: string
+        rawValue?: string
+        normalizedValue?: string
+        issuerCountryOrRegion?: string
+      }>
+    | undefined,
   registeredCountry?: string
 ) {
   if (!identifiers?.length) {
@@ -346,14 +369,20 @@ function normalizeOrganizationIdentifiers(
 
   return identifiers.map((identifier, index) => {
     const rawValue = normalize(identifier.rawValue) ?? normalize(identifier.normalizedValue)
-    const normalizedValue = normalizeIdentifierValue(rawValue, `organizationTenantParty.identifiers[${index}].rawValue`)
+    const normalizedValue = normalizeIdentifierValue(
+      rawValue,
+      `organizationTenantParty.identifiers[${index}].rawValue`
+    )
     const issuerCountryOrRegion = requireNonBlank(
       normalize(identifier.issuerCountryOrRegion) ?? normalize(registeredCountry) ?? '',
       `organizationTenantParty.identifiers[${index}].issuerCountryOrRegion`
     )
 
     return {
-      identifierType: requireNonBlank(identifier.identifierType, `organizationTenantParty.identifiers[${index}].identifierType`),
+      identifierType: requireNonBlank(
+        identifier.identifierType,
+        `organizationTenantParty.identifiers[${index}].identifierType`
+      ),
       issuerCountryOrRegion,
       normalizedValue,
       rawValue
@@ -363,7 +392,9 @@ function normalizeOrganizationIdentifiers(
 
 // normalizeIdentifierValue creates the stable value used by party-service uniqueness checks.
 function normalizeIdentifierValue(value: string | undefined, fieldName: string): string {
-  const normalized = requireNonBlank(value ?? '', fieldName).toUpperCase().replace(/[^A-Z0-9]/g, '')
+  const normalized = requireNonBlank(value ?? '', fieldName)
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '')
   if (!normalized) {
     throw new BadRequestException(`${fieldName} is required`)
   }
@@ -470,7 +501,11 @@ function toFirstAdminUserCandidateResult(user: {
     items: [
       {
         userId: user.id,
-        displayName: normalize(user.username) ?? normalize(user.personalEmail) ?? normalize(user.personalPhone) ?? user.id,
+        displayName:
+          normalize(user.username) ??
+          normalize(user.personalEmail) ??
+          normalize(user.personalPhone) ??
+          user.id,
         maskedEmail: maskEmail(user.personalEmail),
         maskedPhone: maskPhone(user.personalPhone),
         isActive: user.isActive !== false
