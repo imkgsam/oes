@@ -12,7 +12,7 @@
 - canonical activation baseline: `40db6ceb670f5304de1951e134ae128173837a22`
 - dependency evidence: Tenant Org merge `1aa8c97b22a40ff2b6279ce1a9c625497bd99638`; Permission accepted candidate `93d9d1402e4ae668dcb93fc670c0050104967800`, both ancestors of the activation baseline
 - integration branch: `codex/feature/gateway-tenant-target-binding-runtime`
-- current state: `CANDIDATE_VALIDATION`
+- current state: `CANDIDATE_READY`
 - stop point: `PR_READY + READY_FOR_STAGE_REVIEW`
 
 ## 2. Objective
@@ -27,6 +27,7 @@
 - `src/services/api-gateway/src/common/guards/gateway-permission.guard.spec.ts` 的组合顺序/失败语义测试
 - `src/services/api-gateway/src/modules/tenant-org-service/**` 中 canonical `:tenantId` controller、consumer、adapter 与聚焦测试
 - `src/services/api-gateway/src/modules/site-management-bff/**` 中仅删除通用 opt-in、保持精确 P1 deny 与聚焦测试
+- `src/site-runtime/meilong-ceramics-site/{scripts,tests}/locale-governance-*` 中仅同步直接依赖 Gateway guard composition 的 acceptance fixture
 - 为 real Gateway matrix 所需的最小测试 fixture/artifact；不改变稳定契约
 
 ## 4. Protected Scope
@@ -45,7 +46,7 @@
 | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------- |
 | `automatic-binding-and-carrier` | canonical route recognition、shared parser、immutable request-private carrier、duplicate-field equality、generic opt-in removal | 所有 protected `:tenantId` route 自动执行；TENANT mismatch/invalid target/unknown scope fail closed；carrier 不可枚举、不可覆盖、缺失即拒绝                              | `COMPLETE`    |
 | `bounded-target-consumers`      | Tenant Org canonical routes/consumers/adapters 与 Site P1 exact exception                                                       | Tenant Org 使用 verified target 序列化 exact selector；SYSTEM 只在 target-owned dedicated RPC 成功；ordinary method 由 downstream 拒绝；Site P1 edge 提前拒绝            | `COMPLETE`    |
-| `feature-validation`            | focused unit/integration、Gateway/Common/Permission/Tenant Org build/test、proto、真实组合矩阵、rollback                        | GET/POST/PUT/PATCH/DELETE、malformed/missing/duplicate、Permission unavailable/malformed/stale、downstream admission、error order 与零 side effect 均有 literal evidence | `IN_PROGRESS` |
+| `feature-validation`            | focused unit/integration、Gateway/Common/Permission/Tenant Org build/test、proto、真实组合矩阵、rollback                        | GET/POST/PUT/PATCH/DELETE、malformed/missing/duplicate、Permission unavailable/malformed/stale、downstream admission、error order 与零 side effect 均有 literal evidence | `COMPLETE`    |
 
 ## 6. Validation Contract
 
@@ -69,11 +70,15 @@
 - exact local/remote owner ref absent before activation；Feature Packet count `0`
 - provisioned worktree clean detached at `bb3a1b9c26accb2c95089addddf90ca6d0dd1d4d`
 - owner branch created locally at exact activation baseline with no upstream
-- automatic guard/carrier and bounded Site/Tenant Org consumer implementation complete；production generic opt-in source removed
-- Gateway focused boundary/consumer/serialization tests: `11 suites / 106 tests` passed，覆盖 exact route/error order、GET/POST/PUT/PATCH/DELETE、Site P1 zero-continuation、Permission deny/unavailable/malformed、guard composition 与 exact Tenant Org RPC selector/Code
-- Site real HTTP + Auth gRPC + Permission gRPC integration: `1 suite / 14 tests` passed
+- immutable product candidate: `fd94d90f66885d8f0738f8a8c1f66928b9702923`；append-only predecessors: `4811db5eecf8135a9836587c09f2395c98aea03a`、`379b4778bc8f8cef6d25ef477061abc8005d7cf0`
+- automatic guard/carrier and bounded Site/Tenant Org consumer implementation complete；production generic opt-in source and repository acceptance references removed
+- Global RI exact candidate review: `PASS` on `fd94d90f66885d8f0738f8a8c1f66928b9702923`，no code/protected-scope findings
+- Gateway focused boundary/consumer/serialization tests: `11 suites / 109 tests` passed，覆盖 exact route/error order、GET/POST/PUT/PATCH/DELETE、Site P1 zero-continuation、Permission deny/unavailable/malformed、guard composition、Party tenant ownership recheck 与 exact Tenant Org RPC selector/Code
+- Site real HTTP + Auth gRPC + Permission gRPC integration under non-default `platform/v2`: `1 suite / 14 tests` passed
 - Common target/mTLS/ExecutionToken suites: `6 suites / 128 tests` passed
-- Permission eligibility/deny/unavailable/malformed/stale focused: `6 suites / 58 tests` passed；Tenant Org target admission/controller: `3 suites / 44 tests` passed
+- Permission eligibility/deny/unavailable/malformed/stale focused: `6 suites / 41 tests` passed；Tenant Org target admission/controller: `3 suites / 44 tests` passed
 - `pnpm proto:lint` and `pnpm proto:breaking` passed；Common/Gateway/Permission/Tenant Org builds passed
+- real combined mTLS + ES256 ExecutionToken + Permission + Gateway + Tenant Org admission matrix: `1 suite / 5 tests` passed；证明 Permission-before-STS、tenantless SYSTEM token/cache across two targets、TENANT exact selector、target-owned exact `403 APP_AUTH_002` 与 malformed early stop
+- directly related Site acceptance TypeScript compile and production guard/decorator harness: `34 / 34` passed
 - real local SPIFFE/mTLS handshake, wrong-workload rejection, leaf certificate binding and rotation: `trusted gRPC transport smoke passed`
-- immutable candidate artifacts、rollback、Global RI、push/PR/required CI: pending
+- final candidate artifacts/rollback、push/PR/required CI: pending；PR/CI 作为外部 GitHub exact-head evidence 返回 direct parent，避免 Feature Packet 自引用 commit
