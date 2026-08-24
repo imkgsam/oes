@@ -2,6 +2,7 @@
 
 import { PermissionModule } from '../enums/permission-module.enum'
 import { PermissionKind } from '../enums/permission-kind.enum'
+import { ScopeLevel } from '../enums/scope-level.enum'
 
 /** Permission is the role-assignability-aware domain representation of a stable permission code. */
 export class Permission {
@@ -11,7 +12,9 @@ export class Permission {
     public module: PermissionModule,
     public description?: string,
     public readonly kind: PermissionKind = PermissionKind.BUSINESS,
-    public readonly externalApiEligible = false
+    public readonly externalApiEligible = false,
+    public readonly allowedScopeLevels: readonly ScopeLevel[] = [],
+    public readonly definitionFingerprint = ''
   ) {}
 
   matchesModule(module: PermissionModule): boolean {

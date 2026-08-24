@@ -32,7 +32,7 @@ describe('permission service seed source', () => {
     const seed = buildPermissionServiceSeed()
 
     expect(validatePermissionServiceSeed(seed)).toEqual([])
-    expect(seed.permissionCodes).toHaveLength(279)
+    expect(seed.permissionCodes).toHaveLength(289)
     expect(Object.values(TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES)).toEqual([
       ...EXPECTED_TERMINAL_DEVICE_PERMISSION_CODES
     ])
@@ -48,17 +48,11 @@ describe('permission service seed source', () => {
         CRM_MANAGEMENT_PERMISSION_CODES.CLAIM_CRM_ACCOUNT,
         CRM_MANAGEMENT_PERMISSION_CODES.RELEASE_CRM_ACCOUNT,
         CRM_MANAGEMENT_PERMISSION_CODES.MANAGE_CRM_ACCOUNT,
-        CRM_MANAGEMENT_PERMISSION_CODES.VIEW_RESTRICTED_DUPLICATE,
         BROWSER_ACTIVITY_AUDIT_PERMISSION_CODES.POLICY_READ,
         BROWSER_ACTIVITY_AUDIT_PERMISSION_CODES.POLICY_MANAGE,
         BROWSER_ACTIVITY_AUDIT_PERMISSION_CODES.OVERVIEW_READ,
         BROWSER_ACTIVITY_AUDIT_PERMISSION_CODES.EMPLOYEE_DETAIL_READ,
         BROWSER_ACTIVITY_AUDIT_PERMISSION_CODES.URL_DETAIL_READ,
-        IDENTITY_ACCOUNT_PERMISSION_CODES.ASSIGN_CONTACT_ASSET,
-        IDENTITY_ACCOUNT_PERMISSION_CODES.UPDATE_CONTACT_ASSET,
-        IDENTITY_ACCOUNT_PERMISSION_CODES.SET_CONTACT_ASSET_STATUS,
-        IDENTITY_ACCOUNT_PERMISSION_CODES.SET_PRIMARY_CONTACT_ASSET,
-        IDENTITY_ACCOUNT_PERMISSION_CODES.RELEASE_CONTACT_ASSET,
         COLLABORATION_TASK_PERMISSION_CODES.ASSIGN
       ])
     )
@@ -74,22 +68,25 @@ describe('permission service seed source', () => {
         )
         .map((permission) => permission.module)
     ).toEqual(EXPECTED_TERMINAL_DEVICE_PERMISSION_CODES.map(() => Modules.TERMINAL_DEVICE_SERVICE))
-    expect(seed.deprecatedPermissionCodes).toEqual([
-      'permission.role.create',
-      'permission.role.update',
-      'permission.role.delete_by_id',
-      'permission.role.list',
-      'permission.role.get_by_id',
-      'permission.role_template.delete_by_id',
-      'permission.role_template.permission.assign',
-      'permission.role_template.permission.revoke',
-      'permission.role_instance.delete_by_id',
-      'permission.role_instance.permission.assign',
-      'permission.role_instance.permission.revoke',
-      'identity.org.membership.add',
-      'identity.org.membership.remove',
-      'identity.org.membership.set_primary'
-    ])
+    expect(seed.deprecatedPermissionCodes).toEqual(
+      expect.arrayContaining([
+        'permission.role.create',
+        'permission.role.update',
+        'permission.role.delete_by_id',
+        'permission.role.list',
+        'permission.role.get_by_id',
+        'permission.role_template.delete_by_id',
+        'permission.role_template.permission.assign',
+        'permission.role_template.permission.revoke',
+        'permission.role_instance.delete_by_id',
+        'permission.role_instance.permission.assign',
+        'permission.role_instance.permission.revoke',
+        'identity.org.membership.add',
+        'identity.org.membership.remove',
+        'identity.org.membership.set_primary'
+      ])
+    )
+    expect(seed.deprecatedPermissionCodes).toHaveLength(31)
     expect(seed.roles.map((role) => role.code)).toEqual([
       'system.admin',
       'tenant.admin',
@@ -101,7 +98,7 @@ describe('permission service seed source', () => {
       'crm.sales',
       'crm.sales_manager'
     ])
-    expect(seed.rolePermissions).toHaveLength(248)
+    expect(seed.rolePermissions).toHaveLength(223)
     expect(seed.navigationEntries).toHaveLength(40)
     expect(seed.roleNavigationVisibility).toHaveLength(52)
     expect(seed.roleLandingPolicies).toHaveLength(9)
@@ -111,10 +108,10 @@ describe('permission service seed source', () => {
 
   it('renders a stable dry-run summary for audit output', () => {
     expect(renderPermissionServiceSeedDryRunSummary(buildPermissionServiceSeed())).toEqual({
-      permissionCodeCount: 279,
-      deprecatedPermissionCodeCount: 14,
+      permissionCodeCount: 289,
+      deprecatedPermissionCodeCount: 31,
       roleCount: 9,
-      rolePermissionCount: 248,
+      rolePermissionCount: 223,
       navigationEntryCount: 40,
       deprecatedNavigationEntryCount: 2,
       roleNavigationVisibilityCount: 52,

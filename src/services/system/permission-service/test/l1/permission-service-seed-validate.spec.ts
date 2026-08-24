@@ -15,6 +15,35 @@ describe('permission service seed validation', () => {
     expect(result.validationErrors).toEqual([])
   })
 
+  it('accepts database scope arrays with the same ordered values and a different reference', () => {
+    const seed = buildPermissionServiceSeed()
+    const snapshot = buildMatchingSnapshot(seed)
+
+    expect(snapshot.permissions[0].allowedScopeLevels).not.toBe(
+      seed.permissionCodes[0].allowedScopeLevels
+    )
+    expect(validatePermissionServiceSeedSnapshot(seed, snapshot).validationErrors).toEqual([])
+  })
+
+  it('reports permission scope array value drift', () => {
+    const seed = buildPermissionServiceSeed()
+    const snapshot = buildMatchingSnapshot(seed)
+    snapshot.permissions[0] = {
+      ...snapshot.permissions[0],
+      allowedScopeLevels: []
+    }
+
+    const result = validatePermissionServiceSeedSnapshot(seed, snapshot)
+
+    expect(result.validationErrors).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining(
+          `Permission ${seed.permissionCodes[0].code} field allowedScopeLevels drift`
+        )
+      ])
+    )
+  })
+
   it('reports missing seed rows and field drift', () => {
     const seed = buildPermissionServiceSeed()
     const snapshot = buildMatchingSnapshot(seed)
@@ -59,7 +88,10 @@ function buildMatchingSnapshot(
 ): PermissionServiceSeedValidationSnapshot {
   return {
     navigationEntries: seed.navigationEntries.map((entry) => ({ ...entry })),
-    permissions: seed.permissionCodes.map((permission) => ({ ...permission })),
+    permissions: seed.permissionCodes.map((permission) => ({
+      ...permission,
+      allowedScopeLevels: [...permission.allowedScopeLevels]
+    })),
     roleLandingPolicies: seed.roleLandingPolicies.map((policy) => ({ ...policy })),
     roleNavigationVisibility: seed.roleNavigationVisibility.map((visibility) => ({
       ...visibility

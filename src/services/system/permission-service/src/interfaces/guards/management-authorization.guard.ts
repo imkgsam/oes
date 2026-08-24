@@ -33,7 +33,8 @@ export class ManagementAuthorizationGuard implements CanActivate {
 
     const rpcContext = context.switchToRpc()
     const authenticatedContext = getAuthenticatedGrpcRequestContext(rpcContext.getData())
-    const operatorId = authenticatedContext?.operatorContext?.operator_id
+    const operatorContext = authenticatedContext?.operatorContext
+    const operatorId = operatorContext?.operator_id
 
     if (!operatorId) {
       throw ExceptionFactory.application(AUTHORIZATION_DENIED, {
@@ -43,7 +44,8 @@ export class ManagementAuthorizationGuard implements CanActivate {
 
     const allowed = await this.accountAuthorizationService.checkPermission(
       operatorId,
-      requiredPermissionCode
+      requiredPermissionCode,
+      operatorContext.tenant_id
     )
 
     if (!allowed) {

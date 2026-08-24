@@ -124,6 +124,7 @@ message PermissionResponse {
   string code = 2;
   string module = 3;
   string description = 4;
+  repeated string allowed_scope_levels = 5;
 }
 
 message CreatePermissionResponse {
@@ -131,6 +132,7 @@ message CreatePermissionResponse {
   string code = 2;
   string module = 3;
   string description = 4;
+  repeated string allowed_scope_levels = 5;
 }
 
 message UpdatePermissionResponse {
@@ -138,6 +140,7 @@ message UpdatePermissionResponse {
   string code = 2;
   string module = 3;
   string description = 4;
+  repeated string allowed_scope_levels = 5;
 }
 
 message DeletePermissionResponse {}
@@ -147,6 +150,7 @@ message GetPermissionByIdResponse {
   string code = 2;
   string module = 3;
   string description = 4;
+  repeated string allowed_scope_levels = 5;
 }
 
 message GetPermissionByCodeResponse {
@@ -154,6 +158,7 @@ message GetPermissionByCodeResponse {
   string code = 2;
   string module = 3;
   string description = 4;
+  repeated string allowed_scope_levels = 5;
 }
 
 message ListPermissionsResponse {

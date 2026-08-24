@@ -292,26 +292,44 @@ export class PrismaRoleRepository implements RoleRepository {
     )
   }
 
-  /** Resolves current tenant-machine grants that are explicitly safe for Auth's external-token snapshot. */
-  async resolveExternalMachineAuthorizationSnapshot(input: { principalId: string; tenantId: string }) {
+  /** Resolves current tenant-machine grant rows for application-layer snapshot eligibility. */
+  async resolveExternalMachineAuthorizationSnapshot(input: {
+    principalId: string
+    tenantId: string
+  }) {
     const bindings = await this.prisma.principalRoleBinding.findMany({
       where: {
-        principalType: 'MACHINE', principalId: input.principalId, tenantId: input.tenantId,
-        scopeLevel: ScopeLevel.TENANT, ...buildActivePrincipalRoleBindingWhere(new Date()),
+        principalType: 'MACHINE',
+        principalId: input.principalId,
+        tenantId: input.tenantId,
+        scopeLevel: ScopeLevel.TENANT,
+        ...buildActivePrincipalRoleBindingWhere(new Date()),
         role: { isEnabled: true, kind: RoleKind.TENANT_INSTANCE, tenantId: input.tenantId }
       },
       include: { role: { include: { permissions: { include: { permission: true } } } } }
     })
-    const codes = [...new Set(bindings.flatMap((binding) => binding.role.permissions
-      .map((rolePermission) => rolePermission.permission)
-      .filter((permission) => permission.kind === 'BUSINESS' && permission.externalApiEligible)
-      .map((permission) => permission.code)))].sort()
-    if (codes.length === 0) return null
+    if (bindings.length === 0) return null
+    const permissionsByCode = new Map<string, Permission>()
+    for (const binding of bindings) {
+      for (const rolePermission of binding.role.permissions) {
+        const permission = PermissionMapper.toDomain(rolePermission.permission)
+        permissionsByCode.set(permission.code, permission)
+      }
+    }
     const authzVersion = bindings
-      .map((binding) => `${binding.id}:${binding.createdAt.toISOString()}:${binding.role.updatedAt.toISOString()}`)
+      .map(
+        (binding) =>
+          `${binding.id}:${binding.createdAt.toISOString()}:${binding.role.updatedAt.toISOString()}`
+      )
       .sort()
       .join('|')
-    return { permissionCodes: codes, authzVersion, decisionReference: `permission-snapshot:${input.principalId}:${authzVersion}` }
+    return {
+      permissions: [...permissionsByCode.values()].sort((left, right) =>
+        left.code.localeCompare(right.code)
+      ),
+      authzVersion,
+      decisionReference: `permission-snapshot:${input.principalId}:${authzVersion}`
+    }
   }
 
   async assignAccountRole(

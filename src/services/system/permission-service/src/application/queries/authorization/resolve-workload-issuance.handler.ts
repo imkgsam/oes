@@ -10,6 +10,7 @@ import {
   PermissionDecisionAuditPort
 } from '../../ports/permission-decision-audit.port'
 import { ResolveWorkloadIssuanceQuery } from './resolve-workload-issuance.query'
+import { toPermissionDecisionCatalogEntry } from '../../../domain/services/permission-code-eligibility'
 
 /** Resolves the exact mTLS-only workload bootstrap policy and audits the bound result. */
 @QueryHandler(ResolveWorkloadIssuanceQuery)
@@ -37,7 +38,7 @@ export class ResolveWorkloadIssuanceHandler implements IQueryHandler<ResolveWork
     ])
     const policyDecision = this.decisionPolicy.resolveWorkloadIssuance(
       query.input,
-      permissions.map((permission) => ({ code: permission.code, kind: permission.kind })),
+      permissions.map(toPermissionDecisionCatalogEntry),
       policy
     )
     const result = {

@@ -11,9 +11,10 @@ import {
 
 // BatchCheckPermissionHandler resolves pure RBAC permission decisions for multiple request items.
 @QueryHandler(BatchCheckPermissionQuery)
-export class BatchCheckPermissionHandler
-  implements IQueryHandler<BatchCheckPermissionQuery, BatchAuthorizationDecisionItemResult[]>
-{
+export class BatchCheckPermissionHandler implements IQueryHandler<
+  BatchCheckPermissionQuery,
+  BatchAuthorizationDecisionItemResult[]
+> {
   constructor(
     @Inject(ACCOUNT_AUTHORIZATION_SERVICE)
     private readonly authzService: AccountAuthorizationService
@@ -22,7 +23,11 @@ export class BatchCheckPermissionHandler
   async execute(query: BatchCheckPermissionQuery): Promise<BatchAuthorizationDecisionItemResult[]> {
     return Promise.all(
       query.items.map(async (item) => {
-        const allowed = await this.authzService.checkPermission(item.accountId, item.permissionCode)
+        const allowed = await this.authzService.checkPermission(
+          item.accountId,
+          item.permissionCode,
+          item.tenantId
+        )
 
         return {
           requestId: item.requestId,

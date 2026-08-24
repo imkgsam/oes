@@ -1,26 +1,50 @@
-import { CanActivate, ExecutionContext, Inject, Injectable, OnModuleInit } from '@nestjs/common'
+import {
+  CanActivate,
+  ExecutionContext,
+  Inject,
+  Injectable,
+  OnModuleInit,
+  ServiceUnavailableException
+} from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
 import { ClientGrpc } from '@nestjs/microservices'
-import { Observable } from 'rxjs'
+import { IS_PUBLIC_KEY } from '../../auth/decorators/is-public.decorator'
 import { SERVICE_NAMES } from '../../constants'
-import { RequirePermissionsMetadata } from '../decorators'
-import { InjectGrpcClient } from '../../transport/grpc/grpc-client.decorator'
-import { safeGrpcCall } from '../../transport/grpc/safe-grpc-call'
 import { AppLogger } from '../../logging/app-logger.service'
 import { PermissionCheckServiceClient } from '../../generated/permission_service/permission_check'
+import { InjectGrpcClient } from '../../transport/grpc/grpc-client.decorator'
+import { safeGrpcCall } from '../../transport/grpc/safe-grpc-call'
 import { GRPC_METADATA_PROPAGATION_FACTORY, REQUIRE_PERMISSIONS_METADATA_KEY } from '../constants'
+import { RequirePermissionsMetadata } from '../decorators'
+import { getPermissionCodeDefinition } from '../permission-codes'
+import type { PermissionDefinition, PermissionScopeLevel } from '../permission-codes'
 import { GrpcMetadataPropagationFactory } from '../types'
 
-/** 权限检查超时时间（毫秒） */
 const PERMISSION_CHECK_TIMEOUT_MS = 3000
 const GATEWAY_SERVICE_NAME = 'api-gateway'
+const TENANT_TARGET_ROUTE_PATTERN = /(?:^|\/):tenantId(?=\/|$)/
 
-/**
- * 网关层权限守卫。
- *
- * 通过 gRPC 调用 permission-service 检查当前用户是否拥有所需权限。
- * 采用 fail-closed 策略：下游异常时拒绝访问，确保安全。
- */
+type GatewaySubjectScope = Extract<PermissionScopeLevel, 'SYSTEM' | 'TENANT'>
+
+type ResolvedRoutePermission = {
+  code: string
+  allowedScopeLevels: readonly GatewaySubjectScope[]
+}
+
+type GatewayPermissionRequest = {
+  route?: { path?: unknown }
+  user?: {
+    holderId?: string
+    aid?: string
+    id?: string
+    sub?: string
+    scopeLevel?: unknown
+    tenantId?: unknown
+    tid?: unknown
+  }
+}
+
+/** Enforces Gateway route grants and canonical Permission Code scope eligibility. */
 @Injectable()
 export class GatewayPermissionGuard implements CanActivate, OnModuleInit {
   private permissionSvc!: PermissionCheckServiceClient
@@ -34,52 +58,94 @@ export class GatewayPermissionGuard implements CanActivate, OnModuleInit {
     private readonly metadataFactory: GrpcMetadataPropagationFactory
   ) {}
 
+  /** Resolves the generated Permission client from the deployment-owned gRPC channel. */
   onModuleInit() {
     this.permissionSvc =
       this.permissionClient.getService<PermissionCheckServiceClient>('PermissionCheckService')
   }
 
+  /** Stops missing, denied, scope-ineligible or unavailable decisions before Gateway continuation. */
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    const reflectionTargets = [context.getHandler(), context.getClass()]
     const metadata = this.reflector.getAllAndOverride<RequirePermissionsMetadata>(
       REQUIRE_PERMISSIONS_METADATA_KEY,
-      [context.getHandler(), context.getClass()]
+      reflectionTargets
     )
-    if (!metadata) return true
-
-    const mode = this.resolveMode(metadata)
-    const permissions = metadata[mode]
-    const request = context.switchToHttp().getRequest<any>()
-    const userId = this.resolveOperatorId(request.user)
-    if (!userId) return false
-
-    const results = await Promise.all(permissions.map((code) => this.checkSingle(userId, code)))
-
-    if (mode === 'all') {
-      return results.every(Boolean)
+    const request = context.switchToHttp().getRequest<GatewayPermissionRequest>()
+    if (!metadata) {
+      const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, reflectionTargets)
+      return Boolean(isPublic) || !this.isTenantTargetRoute(request)
     }
-    return results.some(Boolean)
+
+    const requirement = this.resolveRequirement(metadata)
+    if (!requirement) return false
+    const routePermissions = this.resolveRoutePermissions(requirement.permissions)
+    if (!routePermissions) return false
+    const accountId = this.resolveOperatorId(request.user)
+    const subject = this.resolveSubject(request.user)
+    if (!accountId || !subject) return false
+
+    const results = await Promise.all(
+      routePermissions.map((permission) =>
+        this.checkSingle(accountId, permission, subject.scopeLevel, subject.tenantId)
+      )
+    )
+
+    return requirement.mode === 'all' ? results.every(Boolean) : results.some(Boolean)
   }
 
-  // Resolves the permission requirement mode and fails closed for malformed metadata.
-  private resolveMode(metadata: RequirePermissionsMetadata): 'all' | 'any' {
+  /** Resolves one non-empty exact route Code set and denies malformed declarations. */
+  private resolveRequirement(
+    metadata: RequirePermissionsMetadata
+  ): { mode: 'all' | 'any'; permissions: string[] } | undefined {
     const hasAll = Array.isArray(metadata.all)
     const hasAny = Array.isArray(metadata.any)
+    if (hasAll === hasAny) return undefined
 
-    if (hasAll === hasAny) {
-      throw new Error('RequirePermissions metadata must declare exactly one of all or any')
+    const mode = hasAll ? 'all' : 'any'
+    const permissions = metadata[mode]
+    if (
+      !Array.isArray(permissions) ||
+      permissions.length === 0 ||
+      permissions.some((code) => typeof code !== 'string' || code.trim().length === 0)
+    ) {
+      return undefined
     }
 
-    return hasAll ? 'all' : 'any'
+    return { mode, permissions: permissions.map((code) => code.trim()) }
   }
 
-  /**
-   * 单个权限检查，fail-closed：异常时返回 false。
-   */
-  private async checkSingle(accountId: string, permissionCode: string): Promise<boolean> {
+  /** Reads one exact Code from the canonical Common definition lookup. */
+  private resolvePermissionDefinition(code: string): PermissionDefinition | undefined {
+    return getPermissionCodeDefinition(code)
+  }
+
+  /** Resolves the entire declared Code set before any current-grant RPC may start. */
+  private resolveRoutePermissions(codes: readonly string[]): ResolvedRoutePermission[] | undefined {
+    const resolved: ResolvedRoutePermission[] = []
+    for (const code of codes) {
+      const definition = this.resolvePermissionDefinition(code)
+      if (!definition) return undefined
+      resolved.push({
+        code,
+        allowedScopeLevels: this.resolveAllowedScopeLevels(definition.allowedScopeLevels)
+      })
+    }
+    return resolved
+  }
+
+  /** Calls Permission for one declared Code and combines its grant with local scope eligibility. */
+  private async checkSingle(
+    accountId: string,
+    permission: ResolvedRoutePermission,
+    scopeLevel: GatewaySubjectScope,
+    tenantId?: string
+  ): Promise<boolean> {
+    let response: unknown
     try {
-      const { allowed } = await safeGrpcCall(
+      response = await safeGrpcCall(
         this.permissionSvc.checkPermission(
-          { accountId, permissionCode },
+          { accountId, permissionCode: permission.code, ...(tenantId ? { tenantId } : {}) },
           this.buildInternalMetadata()
         ),
         {
@@ -88,41 +154,104 @@ export class GatewayPermissionGuard implements CanActivate, OnModuleInit {
           method: 'PermissionCheckService.checkPermission'
         }
       )
-      return allowed ?? false
     } catch (error) {
-      // fail-closed：无论业务异常还是基础设施异常，都拒绝访问
-      this.logger.warn('权限检查失败，拒绝访问（fail-closed）', {
+      this.logger.warn('Permission decision unavailable; stopping Gateway continuation', {
         accountId,
-        permissionCode,
+        permissionCode: permission.code,
         error: (error as Error)?.message ?? error
       })
-      return false
+      throw this.permissionUnavailable('RPC_FAILURE')
+    }
+
+    return (
+      this.resolvePermissionDecision(response) && permission.allowedScopeLevels.includes(scopeLevel)
+    )
+  }
+
+  /** Validates canonical static metadata without inventing a fallback scope. */
+  private resolveAllowedScopeLevels(value: unknown): readonly GatewaySubjectScope[] {
+    if (
+      !Array.isArray(value) ||
+      value.length === 0 ||
+      value.some((scope) => scope !== 'SYSTEM' && scope !== 'TENANT') ||
+      new Set(value).size !== value.length
+    ) {
+      throw this.permissionUnavailable('MALFORMED_SCOPE_METADATA')
+    }
+
+    return value
+  }
+
+  /** Requires Permission's unchanged response to carry an explicit boolean decision. */
+  private resolvePermissionDecision(response: unknown): boolean {
+    try {
+      if (typeof response !== 'object' || response === null || Array.isArray(response)) {
+        throw this.permissionUnavailable('MALFORMED_DECISION')
+      }
+
+      const descriptor = Object.getOwnPropertyDescriptor(response, 'allowed')
+      if (!descriptor || !('value' in descriptor) || typeof descriptor.value !== 'boolean') {
+        throw this.permissionUnavailable('MALFORMED_DECISION')
+      }
+
+      return descriptor.value
+    } catch (error) {
+      if (error instanceof ServiceUnavailableException) throw error
+      throw this.permissionUnavailable('MALFORMED_DECISION')
     }
   }
 
-  // Builds the internal service metadata required by permission-service for gateway permission checks.
+  /** Resolves the authenticated scope and retains only its subject tenant, never a path target. */
+  private resolveSubject(
+    user?: GatewayPermissionRequest['user']
+  ): { scopeLevel: GatewaySubjectScope; tenantId?: string } | undefined {
+    const scopeLevel = user?.scopeLevel
+    if (scopeLevel !== 'SYSTEM' && scopeLevel !== 'TENANT') return undefined
+
+    const tenantId = this.normalizeText(user.tenantId) ?? this.normalizeText(user.tid)
+    if (scopeLevel === 'SYSTEM') {
+      const hasTenantClaim = user.tenantId !== undefined || user.tid !== undefined
+      return hasTenantClaim ? undefined : { scopeLevel }
+    }
+    return tenantId ? { scopeLevel, tenantId } : undefined
+  }
+
+  /** Identifies the canonical tenant-target route shape for missing-Code denial. */
+  private isTenantTargetRoute(request: GatewayPermissionRequest): boolean {
+    const routePath = request.route?.path
+    return typeof routePath === 'string' && TENANT_TARGET_ROUTE_PATTERN.test(routePath)
+  }
+
+  /** Creates the stable HTTP 503 used for unavailable or malformed Permission decisions. */
+  private permissionUnavailable(reason: string): ServiceUnavailableException {
+    return new ServiceUnavailableException({
+      code: 'PERMISSION_DECISION_UNAVAILABLE',
+      message: 'Permission decision unavailable',
+      details: { reason }
+    })
+  }
+
+  /** Builds internal service metadata for the existing Permission check RPC. */
   private buildInternalMetadata() {
     return this.metadataFactory.createInternalCallMetadata({
       callerServiceName: GATEWAY_SERVICE_NAME
     })
   }
 
-  // Resolves the authenticated account id used for permission checks from legacy and current JWT shapes.
-  private resolveOperatorId(user?: {
-    holderId?: string
-    aid?: string
-    id?: string
-    sub?: string
-  }): string | undefined {
+  /** Resolves the authenticated account id from current and legacy verified session shapes. */
+  private resolveOperatorId(user?: GatewayPermissionRequest['user']): string | undefined {
     const candidates = [user?.holderId, user?.aid, user?.id, user?.sub]
-
     for (const candidate of candidates) {
-      const normalized = candidate?.trim()
-      if (normalized) {
-        return normalized
-      }
+      const normalized = this.normalizeText(candidate)
+      if (normalized) return normalized
     }
-
     return undefined
+  }
+
+  /** Normalizes authenticated subject text without reading a client-controlled target selector. */
+  private normalizeText(value: unknown): string | undefined {
+    if (typeof value !== 'string') return undefined
+    const normalized = value.trim()
+    return normalized || undefined
   }
 }
