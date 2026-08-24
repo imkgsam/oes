@@ -62,7 +62,7 @@
 
 ## 7. Rollback
 
-在 merge 前只保留 owner branch 与 immutable candidate；回滚以 exact baseline `40db6ceb670f5304de1951e134ae128173837a22` 对 candidate 的 inverse diff/patch 为准。禁止改写历史、force push 或清理未确认资源。
+在 merge 前只保留 owner branch 与 immutable candidate；activation baseline `40db6ceb670f5304de1951e134ae128173837a22` 保留为来源证据。pre-push merge latest main 后，可执行 inverse rollback 以 integration base `9c78b4cacc54d3f6824cba69d89f891ac642800b` 为目标，确保不撤销已进入 main 的治理更新。禁止改写历史、force push 或清理未确认资源。
 
 ## 8. Current Evidence
 
