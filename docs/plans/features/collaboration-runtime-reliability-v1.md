@@ -19,8 +19,8 @@ Deliver one repository-owned collaboration runtime that enforces effective owner
 ### execution-profile-preflight-and-telemetry
 
 state: CANDIDATE_READY
-candidate: f3cb6c9db01918432d1e819d4bc0cc6cfbcb33f9
-review: global-ri round 3 exact integration candidate pending; round 2 findings closed by the current slice candidate
+candidate: ad53ba41f438468060b4dc4d257ec91fd607f632
+review: global-ri round 4 exact integration candidate pending; round 3 findings closed by the current slice candidate
 
 - Scope: project profile template; actual-capability observation validation; approval telemetry; typed same-transition defect/repair classification.
 - Protected scope: secret values, production/shared data, unrestricted host permissions, business services and contracts.
@@ -30,8 +30,8 @@ review: global-ri round 3 exact integration candidate pending; round 2 findings 
 ### versioned-remote-driver-and-recovery
 
 state: CANDIDATE_READY
-candidate: f3cb6c9db01918432d1e819d4bc0cc6cfbcb33f9
-review: global-ri round 3 exact integration candidate pending; round 2 findings closed by the current slice candidate
+candidate: ad53ba41f438468060b4dc4d257ec91fd607f632
+review: global-ri round 4 exact integration candidate pending; round 3 findings closed by the current slice candidate
 
 - Scope: typed Node.js/TypeScript binding, checkpoint, receipt and result contracts; thin entrypoint; GitHub adapter; preflight/publish-pr/verify-pr/merge-pr/verify-main/cleanup; idempotent read-after-write recovery.
 - Protected scope: direct main push, force/history rewrite, cross-owner refs, merge/cleanup without exact authorization.
@@ -41,19 +41,20 @@ review: global-ri round 3 exact integration candidate pending; round 2 findings 
 ### merge-admission-evidence-and-cleanup
 
 state: CANDIDATE_READY
-candidate: f3cb6c9db01918432d1e819d4bc0cc6cfbcb33f9
-review: global-ri round 3 exact integration candidate pending; round 2 findings closed by the current slice candidate
+candidate: ad53ba41f438468060b4dc4d257ec91fd607f632
+review: global-ri round 4 exact integration candidate pending; round 3 findings closed by the current slice candidate
 
 - Scope: `merge_group` Baseline Checks, serialized latest-main fallback, evidence keys and affected-test matrix, Stage batch cleanup planning and partial-failure verification.
 - Protected scope: product code, Stage product branches, non-terminal packets, unknown or mismatched resources.
 - Dependencies: versioned-remote-driver-and-recovery.
-- Acceptance: latest-main/merge-group inputs are exact; evidence reuse is key-bound and risk-selective; cleanup narrows to each owner and preserves failed/unknown resources.
+- Acceptance: latest-main/merge-group inputs, lock identity, ruleset main-ref targeting, and required-check run ids are exact; evidence reuse is key-bound and risk-selective; cleanup narrows to each owner and preserves failed/unknown resources.
 
 ## Review closure
 
 - Round 1 candidate `7bb948fac24cf55ab4d1a9dbcf51672d58813aa6`: rejected; remediation ancestor `67a24365307cec8645c3d5f7dad77c8665be43d2`.
-- Round 2 candidate `527c95616c4d8008333be7860dc9b3cfb56cdf9b`: rejected; RI-002/004/008/010 remained closed, and RI-001/003/005/006/007/009 plus new RI-011 are formally fixed with targeted regressions in `f3cb6c9db01918432d1e819d4bc0cc6cfbcb33f9`.
-- Round 3 reviews the next exact integration candidate; no remote mutation is permitted before acceptance.
+- Round 2 candidate `527c95616c4d8008333be7860dc9b3cfb56cdf9b`: rejected; RI-002/004/008/010 remained closed, while RI-001/003/005/006/007/009 and the original RI-011 surface were remediated in `f3cb6c9db01918432d1e819d4bc0cc6cfbcb33f9`.
+- Round 3 candidate `ed8334789e840d09ad65678fb665c52e165d0747`: rejected; RI-001 through RI-010 are closed. RI-011 (invalid lone required-check id), RI-012 (caller-minted Stage cleanup authority), RI-013 (alternate serial lock identity), and RI-014 (ruleset targeting a non-main ref) are fixed with targeted regressions in `ad53ba41f438468060b4dc4d257ec91fd607f632`.
+- Round 4 reviews the next exact integration candidate; no remote mutation is permitted before acceptance.
 
 ## Feature acceptance
 
@@ -61,13 +62,13 @@ review: global-ri round 3 exact integration candidate pending; round 2 findings 
 2. Runtime typecheck, static checks, and focused/scenario tests pass on the exact candidate.
 3. Remote mutation crash recovery proves one mutation with read-after-write resume.
 4. Moving-main tests cover reuse, focused invalidation, full invalidation, and frozen semantic conflict.
-5. Stage cleanup tests cover exact batch binding, child narrowing, cleanup-only deletion, idempotent partial retry, and verification.
+5. Stage cleanup tests cover protected root/child authorization, profile-derived ownership, exact batch binding, child narrowing, cleanup-only deletion, idempotent partial retry, and verification.
 6. Evidence records bind candidate, dependency/input/profile/command fingerprints, literal results, and exit codes.
 7. Risk-based Global RI accepts the exact complete feature candidate before its first remote write.
 
 ## Evidence keys
 
-- candidate: exact integration HEAD assigned to Global RI; current slice ancestor `f3cb6c9db01918432d1e819d4bc0cc6cfbcb33f9`
+- candidate: exact integration HEAD assigned to Global RI; current slice ancestor `ad53ba41f438468060b4dc4d257ec91fd607f632`
 - dependency fingerprint: `pnpm-lock.yaml` plus Node/pnpm/TypeScript toolchain
 - literal inputs: truth/base/scope binding plus exact changed paths
 - execution profile fingerprint: `7eef45be1901a115668c5a2b50b878292ea2a926b9cea20598300fa621458c42`
