@@ -83,4 +83,5 @@
 - real combined mTLS + ES256 ExecutionToken + Permission + Gateway + Tenant Org admission matrix: `1 suite / 5 tests` passed；证明 Permission-before-STS、tenantless SYSTEM token/cache across two targets、TENANT exact selector、target-owned exact `403 APP_AUTH_002` 与 malformed early stop
 - directly related Site acceptance TypeScript compile and production guard/decorator harness: `34 / 34` passed
 - real local SPIFFE/mTLS handshake, wrong-workload rejection, leaf certificate binding and rotation: `trusted gRPC transport smoke passed`
-- delivery packaging gate、push/Draft PR/required CI: pending；PR/CI 作为外部 GitHub exact-head evidence 返回 direct parent，避免 Feature Packet 自引用 commit
+- delivery packaging gate verified：feature/inverse patch 重放、rollback tree、original/modified archive reopen 与 SHA256 manifest 均通过；exact external artifact paths 返回 direct parent
+- push/Draft PR/required CI: pending；PR/CI 作为外部 GitHub exact-head evidence 返回 direct parent，避免 Feature Packet 自引用 commit
