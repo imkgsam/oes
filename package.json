@@ -105,7 +105,11 @@
     "meilong:backend": "pnpm --dir src/site-runtime/meilong-ceramics-site dev:backend",
     "meilong:frontend": "pnpm --dir src/site-runtime/meilong-ceramics-site dev:frontend",
     "meilong:dev": "concurrently -k -n meilong-backend,meilong-frontend \"pnpm meilong:backend\" \"pnpm meilong:frontend\"",
-    "meilong": "pnpm meilong:dev"
+    "meilong": "pnpm meilong:dev",
+    "collaboration-runtime:typecheck": "tsc -p scripts/collaboration-runtime/tsconfig.json --noEmit",
+    "collaboration-runtime:test": "node --experimental-strip-types --test scripts/collaboration-runtime/test/*.test.ts",
+    "collaboration-runtime:static": "node scripts/collaboration-runtime/test/static-check.mjs",
+    "collaboration-runtime:check": "pnpm collaboration-runtime:typecheck && pnpm collaboration-runtime:test && pnpm collaboration-runtime:static"
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.14.3",

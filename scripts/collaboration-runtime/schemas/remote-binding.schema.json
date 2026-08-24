@@ -1,0 +1,281 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oes.local/schemas/collaboration-runtime/remote-binding-v1.json",
+  "title": "OES Remote Driver Binding V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "bindingFingerprint",
+    "authorization",
+    "action",
+    "owner",
+    "expectedState",
+    "stateVersion",
+    "transitionId",
+    "scopeFingerprint",
+    "truthBaseline",
+    "integrationBase",
+    "candidateSha",
+    "repositoryRoot",
+    "repositorySlug",
+    "artifactRoot",
+    "checkpointPath",
+    "resultPath",
+    "invalidationPath",
+    "singleUseNonce",
+    "headRef",
+    "baseRef",
+    "pullRequest",
+    "mergeMethod"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "OES_REMOTE_DRIVER_BINDING"
+    },
+    "bindingFingerprint": {
+      "$ref": "#/$defs/sha256"
+    },
+    "action": {
+      "enum": ["preflight", "publish-pr", "verify-pr", "merge-pr", "verify-main", "cleanup"]
+    },
+    "owner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "taskId"],
+      "properties": {
+        "role": {
+          "enum": ["Direct owner", "Global Unified Design", "Feature Lead", "Stage Lead"]
+        },
+        "taskId": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "expectedState": {
+      "type": "string",
+      "minLength": 1
+    },
+    "stateVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "transitionId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "scopeFingerprint": {
+      "$ref": "#/$defs/sha256"
+    },
+    "truthBaseline": {
+      "$ref": "#/$defs/gitSha"
+    },
+    "integrationBase": {
+      "$ref": "#/$defs/gitSha"
+    },
+    "candidateSha": {
+      "$ref": "#/$defs/gitSha"
+    },
+    "repositoryRoot": {
+      "type": "string",
+      "pattern": "^/"
+    },
+    "repositorySlug": {
+      "type": "string",
+      "pattern": "^[^/]+/[^/]+$"
+    },
+    "artifactRoot": {
+      "type": "string",
+      "pattern": "^/"
+    },
+    "checkpointPath": {
+      "type": "string",
+      "pattern": "^/"
+    },
+    "resultPath": {
+      "type": "string",
+      "pattern": "^/"
+    },
+    "invalidationPath": {
+      "type": "string",
+      "pattern": "^/"
+    },
+    "singleUseNonce": {
+      "type": "string",
+      "minLength": 1
+    },
+    "headRef": {
+      "type": "string",
+      "not": {
+        "const": "main"
+      },
+      "pattern": "^(?!main$)(?!HEAD$)(?!refs/)(?!-)(?!/)(?!\\.)(?!.*?/\\.)(?!.*//)(?!.*\\.\\.)(?!.*@\\{)(?!.*(?:^|/)[^/]*\\.lock(?:/|$))(?!.*[/.]$)(?!@$)[A-Za-z0-9._/@+-]+$"
+    },
+    "baseRef": {
+      "const": "main"
+    },
+    "pullRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["baseRef", "draft", "number", "requiredChecks", "title", "body"],
+      "properties": {
+        "baseRef": {
+          "const": "main"
+        },
+        "draft": {
+          "type": "boolean"
+        },
+        "number": {
+          "type": ["integer", "null"],
+          "minimum": 1
+        },
+        "requiredChecks": {
+          "type": "array",
+          "contains": {
+            "const": "Baseline Checks"
+          },
+          "items": {
+            "type": "string"
+          }
+        },
+        "title": {
+          "type": "string"
+        },
+        "body": {
+          "type": "string"
+        }
+      }
+    },
+    "mergeMethod": {
+      "const": "merge"
+    },
+    "mergeAuthorizationFingerprint": {
+      "$ref": "#/$defs/sha256"
+    },
+    "cleanupAuthorizationFingerprint": {
+      "$ref": "#/$defs/sha256"
+    },
+    "cleanupResources": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/cleanupResource"
+      },
+      "minItems": 1,
+      "maxItems": 1
+    },
+    "admission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "lockPath", "mergeGroupSha", "mergeGroupBaseSha"],
+      "properties": {
+        "mode": {
+          "enum": ["merge-queue", "serial-latest-main"]
+        },
+        "lockPath": {
+          "type": ["string", "null"]
+        },
+        "mergeGroupSha": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "mergeGroupBaseSha": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9a-f]{40}$"
+        }
+      }
+    },
+    "authorization": {
+      "$ref": "#/$defs/reference"
+    },
+    "expectedMergeSha": {
+      "$ref": "#/$defs/gitSha"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "action": {
+            "const": "merge-pr"
+          }
+        }
+      },
+      "then": {
+        "required": ["mergeAuthorizationFingerprint", "admission"]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "action": {
+            "const": "cleanup"
+          }
+        }
+      },
+      "then": {
+        "required": ["cleanupAuthorizationFingerprint", "cleanupResources"]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "action": {
+            "const": "verify-main"
+          }
+        }
+      },
+      "then": {
+        "required": ["expectedMergeSha"]
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "gitSha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "cleanupResource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "path", "expectedSha"],
+      "properties": {
+        "kind": {
+          "enum": ["remote-branch", "local-branch", "worktree", "feature-packet"]
+        },
+        "path": {
+          "type": "string"
+        },
+        "expectedSha": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9a-f]{40}$"
+        }
+      }
+    },
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "fingerprint"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^/"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "fingerprint": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    }
+  }
+}

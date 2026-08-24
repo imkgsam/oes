@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oes.local/schemas/collaboration-runtime/evidence-key-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "candidateSha",
+    "dependencyFingerprint",
+    "literalInputsFingerprint",
+    "executionProfileFingerprint",
+    "commandFingerprint",
+    "literalResultFingerprint",
+    "exitCode",
+    "coverageIds",
+    "evidenceFingerprint"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "OES_TEST_EVIDENCE_KEY" },
+    "candidateSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "dependencyFingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "literalInputsFingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "executionProfileFingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "commandFingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "literalResultFingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "exitCode": { "type": "integer" },
+    "coverageIds": { "type": "array", "uniqueItems": true, "items": { "type": "string" } },
+    "evidenceFingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  }
+}
