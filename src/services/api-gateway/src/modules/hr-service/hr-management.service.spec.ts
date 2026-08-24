@@ -44,7 +44,7 @@ describe('HrManagementService', () => {
   }
   const orgManagementService = {
     getTenantEmployeeCodePrefix: jest.fn(),
-    getOrgUnitDetail: jest.fn()
+    getOrgUnitDetailForInternalTenant: jest.fn()
   }
 
   const service = new (HrManagementService as any)(
@@ -79,7 +79,7 @@ describe('HrManagementService', () => {
     partyTenantQueryAdapter.getTenantPartyById.mockReset()
     permissionService.listAccountRoles.mockReset()
     orgManagementService.getTenantEmployeeCodePrefix.mockReset()
-    orgManagementService.getOrgUnitDetail.mockReset()
+    orgManagementService.getOrgUnitDetailForInternalTenant.mockReset()
   })
 
   it('rejects tenant-scoped operators when they request another tenant employee directory', async () => {
@@ -130,7 +130,9 @@ describe('HrManagementService', () => {
       pageSize: 20,
       total: 2
     })
-    hrQueryAdapter.getActiveEmployment.mockRejectedValueOnce(new NotFoundException('no active employment'))
+    hrQueryAdapter.getActiveEmployment.mockRejectedValueOnce(
+      new NotFoundException('no active employment')
+    )
     hrQueryAdapter.getActiveEmployment.mockResolvedValueOnce({
       id: 'employment-1',
       tenantId: 'tenant-1',
@@ -141,7 +143,7 @@ describe('HrManagementService', () => {
       effectiveTo: undefined,
       endedReason: undefined
     })
-    orgManagementService.getOrgUnitDetail.mockResolvedValue({
+    orgManagementService.getOrgUnitDetailForInternalTenant.mockResolvedValue({
       orgUnit: {
         id: 'org-1',
         tenantId: 'tenant-1',
@@ -227,10 +229,18 @@ describe('HrManagementService', () => {
       },
       source
     )
-    expect(hrQueryAdapter.getActiveEmployment).toHaveBeenNthCalledWith(1, 'employee-preboarding', source)
+    expect(hrQueryAdapter.getActiveEmployment).toHaveBeenNthCalledWith(
+      1,
+      'employee-preboarding',
+      source
+    )
     expect(hrQueryAdapter.getActiveEmployment).toHaveBeenNthCalledWith(2, 'employee-active', source)
     expect(hrQueryAdapter.getLatestOnboardingAccess).not.toHaveBeenCalled()
-    expect(orgManagementService.getOrgUnitDetail).toHaveBeenCalledWith('tenant-1', 'org-1', source)
+    expect(orgManagementService.getOrgUnitDetailForInternalTenant).toHaveBeenCalledWith(
+      'tenant-1',
+      'org-1',
+      source
+    )
   })
 
   it('loads one employee detail with history and current active employment', async () => {
@@ -268,7 +278,7 @@ describe('HrManagementService', () => {
         endedReason: 'transfer'
       }
     ])
-    orgManagementService.getOrgUnitDetail
+    orgManagementService.getOrgUnitDetailForInternalTenant
       .mockResolvedValueOnce({
         orgUnit: {
           id: 'org-1',
@@ -305,7 +315,9 @@ describe('HrManagementService', () => {
         }
       })
 
-    await expect(service.getEmployeeDetail('tenant-1', 'employee-1', source as any)).resolves.toEqual({
+    await expect(
+      service.getEmployeeDetail('tenant-1', 'employee-1', source as any)
+    ).resolves.toEqual({
       employee: {
         id: 'employee-1',
         tenantId: 'tenant-1',
@@ -368,8 +380,13 @@ describe('HrManagementService', () => {
       ]
     })
 
-    expect(orgManagementService.getOrgUnitDetail).toHaveBeenNthCalledWith(1, 'tenant-1', 'org-1', source)
-    expect(orgManagementService.getOrgUnitDetail).toHaveBeenNthCalledWith(
+    expect(orgManagementService.getOrgUnitDetailForInternalTenant).toHaveBeenNthCalledWith(
+      1,
+      'tenant-1',
+      'org-1',
+      source
+    )
+    expect(orgManagementService.getOrgUnitDetailForInternalTenant).toHaveBeenNthCalledWith(
       2,
       'tenant-1',
       'org-legacy',
@@ -992,7 +1009,10 @@ describe('HrManagementService', () => {
       employeeCode: 'EMP-0AF-0003'
     })
 
-    expect(orgManagementService.getTenantEmployeeCodePrefix).toHaveBeenCalledWith('tenant-1', source)
+    expect(orgManagementService.getTenantEmployeeCodePrefix).toHaveBeenCalledWith(
+      'tenant-1',
+      source
+    )
     expect(hrQueryAdapter.listEmployees).toHaveBeenCalledWith(
       {
         tenantId: 'tenant-1',

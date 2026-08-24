@@ -271,7 +271,7 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
       organizationTenantPartyId?: string
       parentOrgId: string
       sortOrder?: number
-      tenantId: string
+      tenantId: VerifiedTenantTarget
       type: string
     },
     source: DownstreamRequestSource
@@ -299,7 +299,7 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
       orgUnitId: string
       organizationTenantPartyId?: string | null
       sortOrder?: number
-      tenantId: string
+      tenantId: VerifiedTenantTarget
       type?: string
     },
     source: DownstreamRequestSource
@@ -325,7 +325,7 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
     input: {
       newParentOrgId: string
       orgUnitId: string
-      tenantId: string
+      tenantId: VerifiedTenantTarget
     },
     source: DownstreamRequestSource
   ): Promise<{ orgUnit?: TenantManagementMutationOrgUnit }> {
@@ -344,7 +344,7 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
   }
 
   async archiveOrgUnit(
-    input: { orgUnitId: string; tenantId: string },
+    input: { orgUnitId: string; tenantId: VerifiedTenantTarget },
     source: DownstreamRequestSource
   ): Promise<{ orgUnit?: TenantManagementMutationOrgUnit }> {
     return this.call(

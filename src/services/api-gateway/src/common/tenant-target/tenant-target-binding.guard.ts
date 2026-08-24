@@ -1,4 +1,5 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
 import { Reflector } from '@nestjs/core'
 import { IS_PUBLIC_KEY } from '@oes/common/auth'
 import { parseTenantTargetSelector } from '@oes/common/authorization'
@@ -9,16 +10,12 @@ import {
   VALIDATION_FAILED
 } from '@oes/common/exceptions'
 import { VerifiedTenantTarget } from './tenant-target-binding.types'
-import {
-  setVerifiedTenantTarget,
-  VerifiedTenantTargetRequest
-} from './verified-tenant-target.request'
 
 const TENANT_TARGET_ROUTE_PATTERN = /(?:^|\/)\:tenantId(?=\/|$)/
-const SITE_MANAGEMENT_P1_ROUTE_PATTERN =
-  /^\/?(?:api\/v1\/)?site-management\/tenants\/\:tenantId(?=\/|$)/
+const SITE_MANAGEMENT_P1_ROUTE_PATTERN = /^\/?site-management\/tenants\/\:tenantId(?=\/|$)/
+const verifiedTargets = new WeakMap<object, VerifiedTenantTarget>()
 
-type TenantTargetHttpRequest = VerifiedTenantTargetRequest & {
+type TenantTargetHttpRequest = object & {
   body?: unknown
   params?: Record<string, unknown>
   query?: unknown
@@ -33,7 +30,10 @@ type TenantTargetHttpRequest = VerifiedTenantTargetRequest & {
 /** TenantTargetBindingGuard automatically binds protected canonical :tenantId routes before permission checks. */
 @Injectable()
 export class TenantTargetBindingGuard implements CanActivate {
-  constructor(private readonly reflector: Reflector) {}
+  constructor(
+    private readonly reflector: Reflector,
+    private readonly config: ConfigService
+  ) {}
 
   /** canActivate enforces canonical recognition, duplicate equality and the frozen TENANT/SYSTEM matrix. */
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -69,7 +69,10 @@ export class TenantTargetBindingGuard implements CanActivate {
       throw unauthenticated()
     }
 
-    if (scopeLevel === 'SYSTEM' && SITE_MANAGEMENT_P1_ROUTE_PATTERN.test(routePath)) {
+    if (
+      scopeLevel === 'SYSTEM' &&
+      SITE_MANAGEMENT_P1_ROUTE_PATTERN.test(this.withoutConfiguredGlobalPrefix(routePath))
+    ) {
       throw ExceptionFactory.application(ACCESS_DENIED)
     }
     if (scopeLevel === 'TENANT' && sessionTenant !== target) {
@@ -84,6 +87,21 @@ export class TenantTargetBindingGuard implements CanActivate {
   private canonicalRoutePath(request: TenantTargetHttpRequest): string | undefined {
     const path = request.route?.path
     return typeof path === 'string' ? path : undefined
+  }
+
+  /** withoutConfiguredGlobalPrefix compares Site P1 only after stripping the exact active prefix. */
+  private withoutConfiguredGlobalPrefix(routePath: string): string {
+    const normalizedPath = routePath.startsWith('/') ? routePath : `/${routePath}`
+    const configuredPrefix = this.config
+      .get<string>('gateway.globalPrefix', 'api/v1')
+      .trim()
+      .replace(/^\/+|\/+$/g, '')
+    if (!configuredPrefix) return normalizedPath
+
+    const prefixPath = `/${configuredPrefix}`
+    return normalizedPath.startsWith(`${prefixPath}/`)
+      ? normalizedPath.slice(prefixPath.length)
+      : normalizedPath
   }
 
   /** parseSessionTenant requires every presented authenticated tenant projection to agree exactly. */
@@ -152,6 +170,23 @@ export class TenantTargetBindingGuard implements CanActivate {
       return true
     }
   }
+}
+
+/** getVerifiedTenantTarget returns the guard-produced target and fails closed if ordering is broken. */
+export function getVerifiedTenantTarget(request: object): VerifiedTenantTarget {
+  const target = verifiedTargets.get(request)
+  if (!target) {
+    throw ExceptionFactory.application(ACCESS_DENIED)
+  }
+  return target
+}
+
+/** setVerifiedTenantTarget is module-private so only this global guard can produce carrier values. */
+function setVerifiedTenantTarget(request: object, target: VerifiedTenantTarget): void {
+  if (verifiedTargets.has(request)) {
+    throw ExceptionFactory.application(ACCESS_DENIED)
+  }
+  verifiedTargets.set(request, target)
 }
 
 /** Returns the stable invalid-authenticated-context exception used before target binding. */

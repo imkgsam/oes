@@ -1,8 +1,9 @@
 import { ExecutionContext } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
 import { Reflector } from '@nestjs/core'
 import { IS_PUBLIC_KEY } from '@oes/common/auth'
-import { TenantTargetBindingGuard } from './tenant-target-binding.guard'
-import { getVerifiedTenantTarget } from './verified-tenant-target.request'
+import * as tenantTargetPublicApi from './index'
+import { getVerifiedTenantTarget, TenantTargetBindingGuard } from './tenant-target-binding.guard'
 
 type TestRequest = {
   body?: unknown
@@ -35,10 +36,13 @@ function targetRequest(overrides: Partial<TestRequest> = {}): TestRequest {
 }
 
 /** createGuard returns the production guard with optional public-route reflection. */
-function createGuard(isPublic = false): TenantTargetBindingGuard {
-  return new TenantTargetBindingGuard({
-    getAllAndOverride: jest.fn((key: string) => (key === IS_PUBLIC_KEY ? isPublic : undefined))
-  } as unknown as Reflector)
+function createGuard(isPublic = false, globalPrefix = 'api/v1'): TenantTargetBindingGuard {
+  return new TenantTargetBindingGuard(
+    {
+      getAllAndOverride: jest.fn((key: string) => (key === IS_PUBLIC_KEY ? isPublic : undefined))
+    } as unknown as Reflector,
+    { get: jest.fn(() => globalPrefix) } as unknown as ConfigService
+  )
 }
 
 /** expectHttpStatus asserts OES exceptions preserve the frozen HTTP status contract. */
@@ -60,6 +64,15 @@ async function runBeforeContinuations(
 
 /** TenantTargetBindingGuard tests lock automatic recognition and request-private handoff. */
 describe('TenantTargetBindingGuard', () => {
+  it('keeps the carrier producer and reader outside the public tenant-target surface', () => {
+    expect(Object.keys(tenantTargetPublicApi).sort()).toEqual([
+      'TenantTargetBindingGuard',
+      'VerifiedTenantTarget'
+    ])
+    expect(tenantTargetPublicApi).not.toHaveProperty('setVerifiedTenantTarget')
+    expect(tenantTargetPublicApi).not.toHaveProperty('getVerifiedTenantTarget')
+  })
+
   it('ignores routes without the exact canonical :tenantId parameter even when client fields exist', async () => {
     const request = targetRequest({
       body: { tenantId: 'body_tenant' },
@@ -88,6 +101,21 @@ describe('TenantTargetBindingGuard', () => {
       expect(getVerifiedTenantTarget(request)).toBe('tenant_a')
     }
   )
+
+  it('preserves Site P1 SYSTEM deny under the exact configured non-default global prefix', async () => {
+    const continuations = [jest.fn(), jest.fn(), jest.fn(), jest.fn(), jest.fn()]
+    const request = targetRequest({
+      route: { path: '/platform/v2/site-management/tenants/:tenantId/sites/:siteId' },
+      user: { scopeLevel: 'SYSTEM' }
+    })
+
+    await expectHttpStatus(
+      runBeforeContinuations(createGuard(false, 'platform/v2'), request, continuations),
+      403
+    )
+    continuations.forEach((continuation) => expect(continuation).not.toHaveBeenCalled())
+    expect(() => getVerifiedTenantTarget(request)).toThrow()
+  })
 
   it.each([undefined, '', '   ', 'tenant@a', ' tenant_a '])(
     'returns 400 for a malformed or non-canonical matched target %p',

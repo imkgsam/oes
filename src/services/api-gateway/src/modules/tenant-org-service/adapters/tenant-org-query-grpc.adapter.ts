@@ -11,6 +11,7 @@ import {
 } from '@oes/common/generated/tenant_org_service'
 import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
 import { DownstreamRequestSource } from '../../../common/grpc/gateway-downstream-source.mapper'
+import { VerifiedTenantTarget } from '../../../common/tenant-target'
 import {
   TENANTORG_TARGET_AUDIENCE,
   TrustedTenantOrgGrpcClient
@@ -64,6 +65,22 @@ export class TenantOrgQueryGrpcAdapter implements OnModuleInit {
   }
 
   async getTenantById(
+    tenantId: string,
+    source: DownstreamRequestSource
+  ): Promise<{ tenant?: TenantManagementQueryTenant }> {
+    return this.queryTenantById(tenantId, source)
+  }
+
+  /** getTenantByVerifiedTarget preserves the exact guard-produced selector through the target RPC. */
+  async getTenantByVerifiedTarget(
+    tenantId: VerifiedTenantTarget,
+    source: DownstreamRequestSource
+  ): Promise<{ tenant?: TenantManagementQueryTenant }> {
+    return this.queryTenantById(tenantId, source)
+  }
+
+  /** queryTenantById shares transport mapping without changing the supplied selector. */
+  private async queryTenantById(
     tenantId: string,
     source: DownstreamRequestSource
   ): Promise<{ tenant?: TenantManagementQueryTenant }> {
@@ -127,6 +144,22 @@ export class TenantOrgQueryGrpcAdapter implements OnModuleInit {
     input: { orgUnitId: string; tenantId: string },
     source: DownstreamRequestSource
   ): Promise<{ orgUnit?: TenantManagementQueryOrgUnit }> {
+    return this.queryOrgUnitById(input, source)
+  }
+
+  /** getOrgUnitByVerifiedTarget preserves a verified selector through the target-owned query. */
+  async getOrgUnitByVerifiedTarget(
+    input: { orgUnitId: string; tenantId: VerifiedTenantTarget },
+    source: DownstreamRequestSource
+  ): Promise<{ orgUnit?: TenantManagementQueryOrgUnit }> {
+    return this.queryOrgUnitById(input, source)
+  }
+
+  /** queryOrgUnitById shares transport mapping without changing the supplied selector. */
+  private async queryOrgUnitById(
+    input: { orgUnitId: string; tenantId: string },
+    source: DownstreamRequestSource
+  ): Promise<{ orgUnit?: TenantManagementQueryOrgUnit }> {
     return this.call(
       'getOrgUnitById',
       this.svc.getOrgUnitById(
@@ -158,7 +191,7 @@ export class TenantOrgQueryGrpcAdapter implements OnModuleInit {
   }
 
   async getOrgTreeByTenantId(
-    tenantId: string,
+    tenantId: VerifiedTenantTarget,
     source: DownstreamRequestSource
   ): Promise<{ roots?: TenantManagementQueryOrgNode[] }> {
     return this.call(
