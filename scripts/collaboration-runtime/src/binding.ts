@@ -27,8 +27,9 @@ import { fail } from './errors.ts'
 const SHA256 = /^[0-9a-f]{64}$/
 const GIT_SHA = /^[0-9a-f]{40}$/
 const SAFE_REF =
-  /^(?!main$)(?!refs\/)(?!-)(?!\/)(?!\.)(?!.*\/\.)(?!.*\/\/)(?!.*\.\.)(?!.*@\{)(?!.*(?:^|\/)[^/]*\.lock(?:\/|$))(?!.*[/.]$)(?!@$)[A-Za-z0-9._\/@+-]+$/
+  /^(?!main$)(?!HEAD$)(?!refs\/)(?!-)(?!\/)(?!\.)(?!.*\/\.)(?!.*\/\/)(?!.*\.\.)(?!.*@\{)(?!.*(?:^|\/)[^/]*\.lock(?:\/|$))(?!.*[/.]$)(?!@$)[A-Za-z0-9._\/@+-]+$/
 const FEATURE_KEY = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+const TASK_PATH = /^\/[A-Za-z0-9][A-Za-z0-9_-]*(?:\/[A-Za-z0-9][A-Za-z0-9_-]*)+$/
 const STAGE_BRANCH = /^codex\/feature\/[a-z0-9]+(?:-[a-z0-9]+)*$/
 const STAGE_WORKTREE = /^\/private\/tmp\/oes-fl-[a-z0-9]+(?:-[a-z0-9]+)*$/
 const STAGE_TASK_TEMP = /^\/private\/tmp\/oes-fl-[a-z0-9]+(?:-[a-z0-9]+)*-artifacts$/
@@ -549,6 +550,8 @@ export function validateStageCleanupAuthorization(
   requireString(value.stageKey, 'stageKey')
   if (!FEATURE_KEY.test(value.stageKey)) fail('INVALID_STAGE_KEY', value.stageKey)
   requireString(value.stageOwnerTaskId, 'stageOwnerTaskId')
+  if (!TASK_PATH.test(value.stageOwnerTaskId))
+    fail('INVALID_STAGE_OWNER_TASK_ID', value.stageOwnerTaskId)
   requireString(value.transitionId, 'transitionId')
   requireFingerprint(value.confirmationFingerprint, 'confirmationFingerprint')
   requireOwnerRef(value.cleanupOnlyBranch, 'cleanupOnlyBranch')
@@ -577,9 +580,11 @@ export function validateStageCleanupAuthorization(
     featureKeys.add(feature.featureKey)
     requireString(feature.ownerTaskId, 'terminalFeature.ownerTaskId')
     const directOwnerPrefix = `${value.stageOwnerTaskId}/`
+    const childSegment = feature.ownerTaskId.slice(directOwnerPrefix.length)
     if (
+      !TASK_PATH.test(feature.ownerTaskId) ||
       !feature.ownerTaskId.startsWith(directOwnerPrefix) ||
-      feature.ownerTaskId.slice(directOwnerPrefix.length).includes('/')
+      !/^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(childSegment)
     )
       fail('CLEANUP_FEATURE_OWNER_NOT_STAGE_CHILD', feature.ownerTaskId)
     if (featureOwners.has(feature.ownerTaskId))
@@ -604,6 +609,8 @@ export function validateStageCleanupAuthorization(
             : `/private/tmp/oes-fl-${feature.featureKey}-artifacts`
       if (resource.path !== expectedPath)
         fail('CLEANUP_RESOURCE_OWNER_BINDING_MISMATCH', `${feature.featureKey}:${resource.path}`)
+      if (resource.expectedSha !== null && resource.expectedSha !== feature.candidateSha)
+        fail('CLEANUP_RESOURCE_SHA_NOT_CANDIDATE', `${feature.featureKey}:${resource.kind}`)
       const key = `${resource.kind}:${resource.path}`
       if (resourceKeys.has(key)) fail('CLEANUP_RESOURCE_OWNER_AMBIGUOUS', key)
       resourceKeys.add(key)

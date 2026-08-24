@@ -45,7 +45,8 @@
     },
     "stageOwnerTaskId": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "pattern": "^/[A-Za-z0-9][A-Za-z0-9_-]*(?:/[A-Za-z0-9][A-Za-z0-9_-]*)+$"
     },
     "transitionId": {
       "type": "string",
@@ -182,7 +183,8 @@
         },
         "ownerTaskId": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "pattern": "^/[A-Za-z0-9][A-Za-z0-9_-]*(?:/[A-Za-z0-9][A-Za-z0-9_-]*)+$"
         },
         "candidateSha": {
           "$ref": "#/$defs/gitSha"

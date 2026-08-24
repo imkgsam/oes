@@ -51,7 +51,7 @@
     "repositoryRoot": { "type": "string", "pattern": "^/" },
     "repositorySlug": { "type": "string", "pattern": "^[^/]+/[^/]+$" },
     "artifactRoot": { "type": "string", "pattern": "^/" },
-    "headRef": { "type": "string", "minLength": 1, "pattern": "^(?!main$)(?!refs/)(?!-)(?!/)(?!\\.)(?!.*?/\\.)(?!.*//)(?!.*\\.\\.)(?!.*@\\{)(?!.*(?:^|/)[^/]*\\.lock(?:/|$))(?!.*[/.]$)(?!@$)[A-Za-z0-9._/@+-]+$" },
+    "headRef": { "type": "string", "minLength": 1, "pattern": "^(?!main$)(?!HEAD$)(?!refs/)(?!-)(?!/)(?!\\.)(?!.*?/\\.)(?!.*//)(?!.*\\.\\.)(?!.*@\\{)(?!.*(?:^|/)[^/]*\\.lock(?:/|$))(?!.*[/.]$)(?!@$)[A-Za-z0-9._/@+-]+$" },
     "baseRef": { "const": "main" },
     "singleUseNonce": { "type": "string", "minLength": 1 },
     "resourceSetFingerprint": { "$ref": "#/$defs/sha256" },

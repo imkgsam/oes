@@ -149,12 +149,21 @@ test('Stage schemas reject Stage-owned roots, filesystem aliases, and Git-invali
   }
 })
 
+test('Stage schemas reject empty and dot task owner segments', () => {
+  for (const ownerTaskId of ['/root/sl/', '/root/sl/.']) {
+    const root = cleanupAuthorization()
+    root.terminalFeatures[0].ownerTaskId = ownerTaskId
+    assert.throws(() => validateJsonSchema(schema('stage-cleanup-authorization.schema.json'), root))
+  }
+})
+
 test('remote binding schema rejects Git-invalid owner refs accepted by neither runtime nor Git', () => {
   for (const headRef of [
     'codex/feature/./alpha',
     'codex/feature/.alpha',
     'codex/feature/alpha.lock',
-    'codex/feature/alpha/'
+    'codex/feature/alpha/',
+    'HEAD'
   ]) {
     assert.throws(() =>
       validateJsonSchema(schema('remote-binding.schema.json'), remoteBinding({ headRef }))

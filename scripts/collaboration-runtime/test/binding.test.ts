@@ -35,6 +35,15 @@ test('remote binding rejects main as a head ref even with a recomputed fingerpri
   assert.throws(() => validateRemoteBinding(binding, remoteTrust(binding)), /INVALID_OWNER_REF/)
 })
 
+test('remote binding rejects the Git pseudo-ref HEAD', () => {
+  const binding = remoteBinding({ headRef: 'HEAD' })
+  binding.bindingFingerprint = objectFingerprint(
+    binding as unknown as Record<string, unknown>,
+    'bindingFingerprint'
+  )
+  assert.throws(() => validateRemoteBinding(binding, remoteTrust(binding)), /INVALID_OWNER_REF/)
+})
+
 test('merge binding requires exact Human authorization and Merge Commit method', () => {
   const binding = remoteBinding({
     action: 'merge-pr',
@@ -197,6 +206,12 @@ test('Stage cleanup derives every resource and cleanup ref from its exact featur
       value.terminalFeatures[0].ownerTaskId = '/root/sl/group/fl-alpha'
     },
     (value: ReturnType<typeof cleanupAuthorization>) => {
+      value.terminalFeatures[0].ownerTaskId = '/root/sl/'
+    },
+    (value: ReturnType<typeof cleanupAuthorization>) => {
+      value.terminalFeatures[0].ownerTaskId = '/root/sl/.'
+    },
+    (value: ReturnType<typeof cleanupAuthorization>) => {
       value.stageKey = '../stage-1'
     },
     (value: ReturnType<typeof cleanupAuthorization>) => {
@@ -211,6 +226,24 @@ test('Stage cleanup derives every resource and cleanup ref from its exact featur
     )
     assert.throws(() => validateStageCleanupAuthorization(authorization))
   }
+})
+
+test('Stage cleanup binds every SHA-bearing resource to the accepted feature candidate', () => {
+  const authorization = cleanupAuthorization()
+  const mismatchedSha = '9'.repeat(40)
+  authorization.terminalFeatures[0].resources = [
+    { kind: 'remote-branch', path: 'codex/feature/alpha', expectedSha: mismatchedSha },
+    { kind: 'local-branch', path: 'codex/feature/alpha', expectedSha: mismatchedSha },
+    { kind: 'worktree', path: '/private/tmp/oes-fl-alpha', expectedSha: mismatchedSha }
+  ]
+  authorization.authorizationFingerprint = objectFingerprint(
+    authorization as unknown as Record<string, unknown>,
+    'authorizationFingerprint'
+  )
+  assert.throws(
+    () => validateStageCleanupAuthorization(authorization),
+    /CLEANUP_RESOURCE_SHA_NOT_CANDIDATE/
+  )
 })
 
 test('per-command environment variables cannot replace the installed runtime trust roots', () => {
