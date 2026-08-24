@@ -327,7 +327,7 @@ export interface DriftAssessment {
 }
 
 export interface StageCleanupResource {
-  kind: CleanupResourceBinding['kind']
+  kind: 'remote-branch' | 'local-branch' | 'worktree' | 'task-temp'
   path: string
   expectedSha: string | null
 }

@@ -90,6 +90,47 @@ test('Stage schema rejects an invalid cleanup resource identity', () => {
   )
 })
 
+test('Stage root and child schemas exclude protected or Stage-owned cleanup resources', () => {
+  const invalidResources = [
+    { kind: 'local-branch', path: 'main', expectedSha: '1'.repeat(40) },
+    { kind: 'remote-branch', path: 'release/alpha', expectedSha: '1'.repeat(40) },
+    { kind: 'worktree', path: 'relative/fl-alpha', expectedSha: '1'.repeat(40) },
+    {
+      kind: 'feature-packet',
+      path: 'docs/plans/features/alpha.md',
+      expectedSha: '1'.repeat(40)
+    },
+    { kind: 'task-temp', path: '/tmp/fl-alpha-artifacts', expectedSha: '1'.repeat(40) }
+  ]
+  for (const resource of invalidResources) {
+    const root = cleanupAuthorization()
+    root.terminalFeatures[0].resources[0] = resource as never
+    assert.throws(() => validateJsonSchema(schema('stage-cleanup-authorization.schema.json'), root))
+    assert.throws(() =>
+      validateJsonSchema(schema('stage-child-cleanup-authorization.schema.json'), {
+        schemaVersion: 1,
+        kind: 'OES_STAGE_CHILD_CLEANUP_AUTHORIZATION',
+        authorizationFingerprint: 'a'.repeat(64),
+        status: 'ISSUED',
+        rootAuthorization: {
+          path: '/trusted/stage.json',
+          sha256: 'b'.repeat(64),
+          fingerprint: root.authorizationFingerprint
+        },
+        expectedState: root.expectedState,
+        stateVersion: root.stateVersion,
+        stageKey: root.stageKey,
+        stageOwnerTaskId: root.stageOwnerTaskId,
+        ownerTaskId: root.terminalFeatures[0].ownerTaskId,
+        transitionId: root.transitionId,
+        confirmationFingerprint: root.confirmationFingerprint,
+        resources: [resource],
+        postcondition: 'CHILD_SELF_CLEANUP'
+      })
+    )
+  }
+})
+
 test('effective-profile schema rejects duplicate declarations and open nested credential fields', () => {
   const value = {
     schemaVersion: 1,

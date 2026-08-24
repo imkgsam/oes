@@ -10,7 +10,7 @@ import { cleanupAuthorization } from './helpers.ts'
 
 const key = (kind: string, path: string, sha: string | null) => `${kind}:${path}:${sha ?? 'NONE'}`
 const absent = (resource: {
-  kind: 'remote-branch' | 'local-branch' | 'worktree' | 'feature-packet'
+  kind: 'remote-branch' | 'local-branch' | 'worktree' | 'task-temp'
   path: string
   expectedSha: string | null
 }) => ({ ...resource, exists: false, clean: true, actualSha: null })
@@ -56,6 +56,29 @@ test('child cleanup narrows to exact owner resources and preserves SHA mismatch'
       }),
     /STAGE_CLEANUP_PARTIAL_FAILURE/
   )
+})
+
+test('child cleanup never plans protected main or Feature Packet removal', () => {
+  for (const resource of [
+    { kind: 'local-branch', path: 'main', expectedSha: '1'.repeat(40) },
+    {
+      kind: 'feature-packet',
+      path: 'docs/plans/features/alpha.md',
+      expectedSha: '1'.repeat(40)
+    }
+  ]) {
+    const authorization = cleanupAuthorization()
+    authorization.terminalFeatures[0].resources[0] = resource as never
+    authorization.authorizationFingerprint = objectFingerprint(
+      authorization as unknown as Record<string, unknown>,
+      'authorizationFingerprint'
+    )
+    assert.throws(() =>
+      planChildSelfCleanup(authorization, '/root/sl/fl-alpha', [
+        { ...resource, exists: true, clean: true, actualSha: '1'.repeat(40) }
+      ] as never)
+    )
+  }
 })
 
 test('missing observation is a preserved failure rather than claimed absence', () => {

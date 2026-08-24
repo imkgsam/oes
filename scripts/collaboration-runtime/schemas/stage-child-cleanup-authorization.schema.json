@@ -106,7 +106,7 @@
       "required": ["kind", "path", "expectedSha"],
       "properties": {
         "kind": {
-          "enum": ["remote-branch", "local-branch", "worktree", "feature-packet"]
+          "enum": ["remote-branch", "local-branch", "worktree", "task-temp"]
         },
         "path": {
           "type": "string",
@@ -116,7 +116,78 @@
           "type": ["string", "null"],
           "pattern": "^[0-9a-f]{40}$"
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "enum": ["remote-branch", "local-branch"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "path": {
+                "pattern": "^(?!.*(?:\\.\\.|@\\{|\\\\|\\s|~|\\^|:|\\?|\\*|\\[))(?!.*//)(?!.*\\.$)codex/[A-Za-z0-9._/-]+$"
+              },
+              "expectedSha": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{40}$"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "enum": ["worktree", "task-temp"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "path": {
+                "pattern": "^(?!.*//)(?!.*(?:/\\.\\.?)(?:/|$))/(?!$).+$"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "worktree"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "expectedSha": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{40}$"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "task-temp"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "expectedSha": {
+                "const": null
+              }
+            }
+          }
+        }
+      ]
     }
   }
 }

@@ -1,5 +1,5 @@
 import { readFileSync, realpathSync } from 'node:fs'
-import { isAbsolute, join } from 'node:path'
+import { isAbsolute, join, normalize } from 'node:path'
 import {
   CAPABILITY_NAMES,
   REMOTE_ACTIONS,
@@ -480,12 +480,7 @@ export function validateProfileReportEnvelope(
   return report
 }
 
-const CLEANUP_RESOURCE_KINDS = [
-  'remote-branch',
-  'local-branch',
-  'worktree',
-  'feature-packet'
-] as const
+const CLEANUP_RESOURCE_KINDS = ['remote-branch', 'local-branch', 'worktree', 'task-temp'] as const
 const CURRENT_STAGE_CLEANUP_RECORD = 'current-stage-cleanup.json'
 
 /** Requires one positive safe state version. */
@@ -501,7 +496,16 @@ export function validateStageCleanupResource(
   requireExactKeys(value, ['kind', 'path', 'expectedSha'], field)
   if (!CLEANUP_RESOURCE_KINDS.includes(value.kind)) fail('INVALID_CLEANUP_RESOURCE_KIND', field)
   requireString(value.path, `${field}.path`)
-  if (value.expectedSha !== null) requireGitSha(value.expectedSha, `${field}.expectedSha`)
+  if (value.kind === 'remote-branch' || value.kind === 'local-branch') {
+    requireOwnerRef(value.path, `${field}.path`)
+    if (!value.path.startsWith('codex/')) fail('INVALID_CLEANUP_OWNER_REF', `${field}.path`)
+    requireGitSha(value.expectedSha, `${field}.expectedSha`)
+  } else {
+    if (!isAbsolute(value.path) || value.path === '/' || normalize(value.path) !== value.path)
+      fail('CLEANUP_RESOURCE_PATH_NOT_CANONICAL', `${field}.path`)
+    if (value.kind === 'worktree') requireGitSha(value.expectedSha, `${field}.expectedSha`)
+    else if (value.expectedSha !== null) fail('TASK_TEMP_SHA_FORBIDDEN', `${field}.expectedSha`)
+  }
   return value
 }
 

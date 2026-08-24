@@ -116,6 +116,41 @@ test('Stage cleanup runtime rejects resource identities rejected by its schema',
   )
 })
 
+test('Stage cleanup runtime enforces the child-owned resource authority ceiling', () => {
+  const invalidResources = [
+    { kind: 'local-branch', path: 'main', expectedSha: '1'.repeat(40) },
+    { kind: 'remote-branch', path: 'release/alpha', expectedSha: '1'.repeat(40) },
+    { kind: 'worktree', path: 'relative/fl-alpha', expectedSha: '1'.repeat(40) },
+    {
+      kind: 'feature-packet',
+      path: 'docs/plans/features/alpha.md',
+      expectedSha: '1'.repeat(40)
+    },
+    { kind: 'task-temp', path: '/tmp/fl-alpha-artifacts', expectedSha: '1'.repeat(40) }
+  ]
+  for (const resource of invalidResources) {
+    const authorization = cleanupAuthorization()
+    authorization.terminalFeatures[0].resources[0] = resource as never
+    authorization.authorizationFingerprint = objectFingerprint(
+      authorization as unknown as Record<string, unknown>,
+      'authorizationFingerprint'
+    )
+    assert.throws(() => validateStageCleanupAuthorization(authorization))
+  }
+
+  const authorization = cleanupAuthorization()
+  authorization.terminalFeatures[0].resources.push({
+    kind: 'task-temp',
+    path: '/tmp/fl-alpha-artifacts',
+    expectedSha: null
+  })
+  authorization.authorizationFingerprint = objectFingerprint(
+    authorization as unknown as Record<string, unknown>,
+    'authorizationFingerprint'
+  )
+  assert.equal(validateStageCleanupAuthorization(authorization).stageKey, 'stage-1')
+})
+
 test('per-command environment variables cannot replace the installed runtime trust roots', () => {
   const binding = remoteBinding()
   const trust = remoteTrust(binding)
