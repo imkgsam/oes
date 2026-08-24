@@ -37,7 +37,10 @@ export class PermissionDecisionPolicy {
       )
     }
 
-    const catalogFailure = validateCatalog(requested.values, catalog, 'BUSINESS')
+    const catalogFailure = validateCatalog(requested.values, catalog, 'BUSINESS', {
+      scopeLevel: input.scopeLevel,
+      assignee: input.principalType === 'MACHINE' ? 'MACHINE' : 'HUMAN'
+    })
     if (catalogFailure) {
       return denied(
         requested.values,
@@ -125,7 +128,10 @@ export class PermissionDecisionPolicy {
       )
     }
 
-    const catalogFailure = validateCatalog(requested.values, catalog, 'INTERNAL')
+    const catalogFailure = validateCatalog(requested.values, catalog, 'INTERNAL', {
+      scopeLevel: input.scopeLevel,
+      assignee: 'WORKLOAD_POLICY'
+    })
     if (catalogFailure) {
       return denied(
         requested.values,
@@ -194,7 +200,10 @@ export class PermissionDecisionPolicy {
       return { ...base, reasonCode: 'AUTHORIZATION_DECISION_BINDING_MISMATCH' }
     }
 
-    const catalogFailure = validateCatalog(requested.values, catalog, 'BUSINESS')
+    const catalogFailure = validateCatalog(requested.values, catalog, 'BUSINESS', {
+      scopeLevel: input.scopeLevel,
+      assignee: 'HUMAN'
+    })
     if (catalogFailure) return { ...base, reasonCode: catalogFailure }
     if (
       !humanFacts ||
@@ -399,12 +408,27 @@ function allDelegatedReferencesPresent(upperBound: DelegatedAuthorizationUpperBo
 function validateCatalog(
   requested: string[],
   catalog: PermissionDecisionCatalogEntry[],
-  expectedKind: 'BUSINESS' | 'INTERNAL'
+  expectedKind: 'BUSINESS' | 'INTERNAL',
+  eligibility: {
+    scopeLevel: 'SYSTEM' | 'TENANT'
+    assignee: 'HUMAN' | 'MACHINE' | 'WORKLOAD_POLICY'
+  }
 ): string | undefined {
   const byCode = new Map(catalog.map((entry) => [entry.code, entry]))
   if (requested.some((code) => !byCode.has(code))) return 'AUTHORIZATION_PERMISSION_UNKNOWN'
   if (requested.some((code) => byCode.get(code)?.kind !== expectedKind)) {
     return 'AUTHORIZATION_PERMISSION_KIND_MISMATCH'
+  }
+  if (requested.some((code) => byCode.get(code)?.metadataCurrent !== true)) {
+    return 'AUTHORIZATION_PERMISSION_METADATA_STALE'
+  }
+  if (
+    requested.some((code) => !byCode.get(code)?.allowedScopeLevels.includes(eligibility.scopeLevel))
+  ) {
+    return 'AUTHORIZATION_SCOPE_MISMATCH'
+  }
+  if (requested.some((code) => !byCode.get(code)?.assignableTo.includes(eligibility.assignee))) {
+    return 'AUTHORIZATION_PRINCIPAL_TYPE_MISMATCH'
   }
   return undefined
 }

@@ -71,7 +71,11 @@ export class PermissionCheckGrpcController implements PermissionCheckServiceCont
     ...rest: any
   ): Promise<AuthorizationDecisionResponse> {
     const allowed = await this.queryBus.execute(
-      new CheckPermissionQuery(request.accountId!, request.permissionCode!)
+      new CheckPermissionQuery(
+        request.accountId!,
+        request.permissionCode!,
+        request.tenantId || undefined
+      )
     )
 
     this.permissionAuditService.emitAuthorizationDecision({

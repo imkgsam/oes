@@ -4,10 +4,7 @@ import { BatchCheckPermissionQuery } from '../../src/application/queries/authori
 describe('BatchCheckPermissionHandler', () => {
   it('批量权限查询 / 当请求到达 handler 时 / 应逐项转发并保留 requestId 顺序', async () => {
     const authzService = {
-      checkPermission: jest
-        .fn()
-        .mockResolvedValueOnce(true)
-        .mockResolvedValueOnce(false)
+      checkPermission: jest.fn().mockResolvedValueOnce(true).mockResolvedValueOnce(false)
     }
 
     const handler = new BatchCheckPermissionHandler(authzService as any)
@@ -27,8 +24,18 @@ describe('BatchCheckPermissionHandler', () => {
 
     const result = await handler.execute(query)
 
-    expect(authzService.checkPermission).toHaveBeenNthCalledWith(1, 'account-1', 'permission.read')
-    expect(authzService.checkPermission).toHaveBeenNthCalledWith(2, 'account-2', 'permission.write')
+    expect(authzService.checkPermission).toHaveBeenNthCalledWith(
+      1,
+      'account-1',
+      'permission.read',
+      'tenant-1'
+    )
+    expect(authzService.checkPermission).toHaveBeenNthCalledWith(
+      2,
+      'account-2',
+      'permission.write',
+      undefined
+    )
     expect(result).toEqual([
       {
         requestId: 'item-1',

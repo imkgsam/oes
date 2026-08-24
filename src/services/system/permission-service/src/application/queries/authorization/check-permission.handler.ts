@@ -15,6 +15,6 @@ export class CheckPermissionHandler implements IQueryHandler<CheckPermissionQuer
   ) {}
 
   async execute(query: CheckPermissionQuery): Promise<boolean> {
-    return this.authzService.checkPermission(query.accountId, query.permissionCode)
+    return this.authzService.checkPermission(query.accountId, query.permissionCode, query.tenantId)
   }
 }

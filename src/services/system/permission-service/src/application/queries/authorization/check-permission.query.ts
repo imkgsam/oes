@@ -10,8 +10,11 @@ export class CheckPermissionQuery implements IQuery {
   @IsNotEmpty()
   readonly permissionCode: string
 
-  constructor(accountId: string, permissionCode: string) {
+  readonly tenantId?: string
+
+  constructor(accountId: string, permissionCode: string, tenantId?: string) {
     this.accountId = accountId
     this.permissionCode = permissionCode
+    this.tenantId = tenantId
   }
 }

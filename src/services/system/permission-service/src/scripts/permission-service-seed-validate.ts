@@ -15,7 +15,7 @@ type RoleNavigationVisibilitySeed = PermissionServiceSeed['roleNavigationVisibil
 
 export type PermissionServiceSeedValidationSnapshot = {
   navigationEntries: NavigationEntrySeed[]
-  permissions: PermissionSeedItem[]
+  permissions: Array<Omit<PermissionSeedItem, 'assignableTo'>>
   roleLandingPolicies: RoleLandingPolicySeed[]
   roleNavigationVisibility: RoleNavigationVisibilitySeed[]
   rolePermissions: Array<{
@@ -55,6 +55,8 @@ export async function collectPermissionServiceSeedValidationSnapshot(
         code: true,
         description: true,
         externalApiEligible: true,
+        allowedScopeLevels: true,
+        definitionFingerprint: true,
         kind: true,
         module: true
       }
@@ -135,6 +137,8 @@ export async function collectPermissionServiceSeedValidationSnapshot(
       code: permission.code,
       description: permission.description ?? undefined,
       externalApiEligible: permission.externalApiEligible,
+      allowedScopeLevels: permission.allowedScopeLevels,
+      definitionFingerprint: permission.definitionFingerprint,
       kind: permission.kind,
       module: permission.module
     })),
@@ -243,6 +247,20 @@ function validatePermissions(
       'externalApiEligible',
       expected.externalApiEligible,
       actual.externalApiEligible
+    )
+    pushFieldDrift(
+      errors,
+      `Permission ${expected.code}`,
+      'allowedScopeLevels',
+      expected.allowedScopeLevels,
+      actual.allowedScopeLevels
+    )
+    pushFieldDrift(
+      errors,
+      `Permission ${expected.code}`,
+      'definitionFingerprint',
+      expected.definitionFingerprint,
+      actual.definitionFingerprint
     )
   }
 
@@ -453,11 +471,25 @@ function pushFieldDrift(
   expected: unknown,
   actual: unknown
 ): void {
-  if (expected !== actual) {
+  if (!fieldValuesMatch(expected, actual)) {
     errors.push(
       `${subject} field ${field} drift: expected ${String(expected)}, got ${String(actual)}`
     )
   }
+}
+
+// Compares scalar seed fields and exact ordered array values without relying on object identity.
+function fieldValuesMatch(expected: unknown, actual: unknown): boolean {
+  if (Array.isArray(expected) || Array.isArray(actual)) {
+    return (
+      Array.isArray(expected) &&
+      Array.isArray(actual) &&
+      expected.length === actual.length &&
+      expected.every((value, index) => value === actual[index])
+    )
+  }
+
+  return expected === actual
 }
 
 function roleKey(role: Pick<BuiltInRoleSeed, 'code' | 'kind' | 'scopeKey'>): string {

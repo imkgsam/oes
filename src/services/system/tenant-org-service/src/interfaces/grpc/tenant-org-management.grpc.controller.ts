@@ -1,16 +1,16 @@
 import { Controller, UseGuards, UseInterceptors } from '@nestjs/common'
-import { AuthorizeBusinessRpc } from '@oes/common/authorization'
-import { TenantOrgFoundationTrustedExecutionGuard } from '../../modules/tenant-org-trusted-execution.module'
 import { Metadata } from '@grpc/grpc-js'
 import {
-  RequirePermissions,
-  AuthenticatedOperatorGuard,
+  AuthorizeBusinessRpc,
   GrpcRequestContextInterceptor,
-  InternalServiceGuard,
-  PermissionGuard,
-  RequireAuthenticatedOperator,
+  requireAdmittedTenantTarget,
   TENANT_ORG_MANAGEMENT_PERMISSION_CODES
 } from '@oes/common/authorization'
+import { TenantOrgFoundationTrustedExecutionGuard } from '../../modules/tenant-org-trusted-execution.module'
+import {
+  DeclareTenantOrgTargetRpc,
+  TenantOrgTenantTargetAdmissionGuard
+} from '../../modules/tenant-org-tenant-target-admission.guard'
 import {
   ArchiveOrgUnitRequest,
   ArchiveOrgUnitResponse,
@@ -136,8 +136,9 @@ export class TenantOrgManagementGrpcController implements TenantOrgManagementSer
     _request: UpdateTenantProfileRequest,
     _metadata?: Metadata
   ): Promise<UpdateTenantProfileResponse> {
+    const tenantId = requireAdmittedTenantTarget(_request).selector
     const tenant = await this.tenantOrgManagementService.updateTenantProfile({
-      tenantId: _request.tenantId ?? '',
+      tenantId,
       name: _request.name || undefined,
       code: _request.code || undefined,
       employeeCodePrefix: _request.employeeCodePrefix || undefined,
@@ -150,8 +151,9 @@ export class TenantOrgManagementGrpcController implements TenantOrgManagementSer
     _request: SuspendTenantRequest,
     _metadata?: Metadata
   ): Promise<SuspendTenantResponse> {
+    const tenantId = requireAdmittedTenantTarget(_request).selector
     const tenant = await this.tenantOrgManagementService.suspendTenant({
-      tenantId: _request.tenantId ?? '',
+      tenantId,
       reason: _request.reason || undefined
     })
     return { tenant: mapTenant(tenant) }
@@ -161,8 +163,9 @@ export class TenantOrgManagementGrpcController implements TenantOrgManagementSer
     _request: ReactivateTenantRequest,
     _metadata?: Metadata
   ): Promise<ReactivateTenantResponse> {
+    const tenantId = requireAdmittedTenantTarget(_request).selector
     const tenant = await this.tenantOrgManagementService.reactivateTenant({
-      tenantId: _request.tenantId ?? ''
+      tenantId
     })
     return { tenant: mapTenant(tenant) }
   }
@@ -171,8 +174,9 @@ export class TenantOrgManagementGrpcController implements TenantOrgManagementSer
     _request: ArchiveTenantRequest,
     _metadata?: Metadata
   ): Promise<ArchiveTenantResponse> {
+    const tenantId = requireAdmittedTenantTarget(_request).selector
     const tenant = await this.tenantOrgManagementService.archiveTenant({
-      tenantId: _request.tenantId ?? '',
+      tenantId,
       reason: _request.reason || undefined
     })
     return { tenant: mapTenant(tenant) }
@@ -182,8 +186,9 @@ export class TenantOrgManagementGrpcController implements TenantOrgManagementSer
     _request: CreateOrgUnitRequest,
     _metadata?: Metadata
   ): Promise<CreateOrgUnitResponse> {
+    const tenantId = requireAdmittedTenantTarget(_request).selector
     const orgUnit = await this.tenantOrgManagementService.createOrgUnit({
-      tenantId: _request.tenantId ?? '',
+      tenantId,
       parentOrgId: _request.parentOrgId ?? '',
       name: _request.name ?? '',
       type: _request.type ?? '',
@@ -197,12 +202,13 @@ export class TenantOrgManagementGrpcController implements TenantOrgManagementSer
     _request: UpdateOrgUnitRequest,
     _metadata?: Metadata
   ): Promise<UpdateOrgUnitResponse> {
+    const tenantId = requireAdmittedTenantTarget(_request).selector
     const hasOrganizationTenantPartyId = Object.prototype.hasOwnProperty.call(
       _request,
       'organizationTenantPartyId'
     )
     const orgUnit = await this.tenantOrgManagementService.updateOrgUnit({
-      tenantId: _request.tenantId ?? '',
+      tenantId,
       orgUnitId: _request.orgUnitId ?? '',
       name: _request.name || undefined,
       type: _request.type || undefined,
@@ -218,8 +224,9 @@ export class TenantOrgManagementGrpcController implements TenantOrgManagementSer
     _request: MoveOrgUnitRequest,
     _metadata?: Metadata
   ): Promise<MoveOrgUnitResponse> {
+    const tenantId = requireAdmittedTenantTarget(_request).selector
     const orgUnit = await this.tenantOrgManagementService.moveOrgUnit({
-      tenantId: _request.tenantId ?? '',
+      tenantId,
       orgUnitId: _request.orgUnitId ?? '',
       newParentOrgId: _request.newParentOrgId ?? ''
     })
@@ -230,8 +237,9 @@ export class TenantOrgManagementGrpcController implements TenantOrgManagementSer
     _request: ArchiveOrgUnitRequest,
     _metadata?: Metadata
   ): Promise<ArchiveOrgUnitResponse> {
+    const tenantId = requireAdmittedTenantTarget(_request).selector
     const orgUnit = await this.tenantOrgManagementService.archiveOrgUnit({
-      tenantId: _request.tenantId ?? '',
+      tenantId,
       orgUnitId: _request.orgUnitId ?? '',
       reason: _request.reason || undefined
     })
@@ -334,8 +342,8 @@ function mapOnboarding(result: TenantOnboardingResult) {
   }
 }
 
-/** Applies TenantOrg's frozen BUSINESS Code declaration to each baseline handler. */
-function applyTenantOrgDeclaration(method: string, code: string): void {
+/** Applies one exact non-target TenantOrg BUSINESS Code declaration. */
+function applyTenantOrgBusinessDeclaration(method: string, code: string): void {
   const descriptor = Object.getOwnPropertyDescriptor(
     TenantOrgManagementGrpcController.prototype,
     method
@@ -347,15 +355,56 @@ function applyTenantOrgDeclaration(method: string, code: string): void {
     descriptor
   )
 }
-applyTenantOrgDeclaration('createTenant', 'tenant_org.tenant.create')
-applyTenantOrgDeclaration('startTenantOnboarding', 'tenant_org.tenant.create')
-applyTenantOrgDeclaration('retryTenantOnboarding', 'tenant_org.tenant.create')
-applyTenantOrgDeclaration('getTenantOnboarding', 'tenant_org.tenant.get_by_id')
-applyTenantOrgDeclaration('updateTenantProfile', 'tenant_org.tenant.update_profile')
-applyTenantOrgDeclaration('suspendTenant', 'tenant_org.tenant.update_status')
-applyTenantOrgDeclaration('reactivateTenant', 'tenant_org.tenant.update_status')
-applyTenantOrgDeclaration('archiveTenant', 'tenant_org.tenant.update_status')
-applyTenantOrgDeclaration('createOrgUnit', 'tenant_org.org_unit.create')
-applyTenantOrgDeclaration('updateOrgUnit', 'tenant_org.org_unit.update')
-applyTenantOrgDeclaration('moveOrgUnit', 'tenant_org.org_unit.update')
-applyTenantOrgDeclaration('archiveOrgUnit', 'tenant_org.org_unit.archive')
+
+/** Applies exact target admission, BUSINESS Code and guard metadata to one selector RPC. */
+function applyTenantOrgTargetDeclaration(
+  method: string,
+  code: string,
+  kind: 'SYSTEM_TARGET' | 'TENANT_SYSTEM_DENY'
+): void {
+  const descriptor = Object.getOwnPropertyDescriptor(
+    TenantOrgManagementGrpcController.prototype,
+    method
+  )
+  if (!descriptor) throw new Error(`TenantOrg handler is missing: ${method}`)
+  DeclareTenantOrgTargetRpc({
+    methodReference: `tenant-org-service/TenantOrgManagementService/${toRpcMethodName(method)}`,
+    permissionCode: code,
+    systemAuthority: kind === 'SYSTEM_TARGET' ? 'DEDICATED' : 'DENY'
+  })(TenantOrgManagementGrpcController.prototype, method, descriptor)
+  UseGuards(TenantOrgTenantTargetAdmissionGuard)(
+    TenantOrgManagementGrpcController.prototype,
+    method,
+    descriptor
+  )
+}
+
+applyTenantOrgBusinessDeclaration('createTenant', 'tenant_org.tenant.create')
+applyTenantOrgBusinessDeclaration('startTenantOnboarding', 'tenant_org.tenant.create')
+applyTenantOrgBusinessDeclaration('retryTenantOnboarding', 'tenant_org.tenant.create')
+applyTenantOrgBusinessDeclaration('getTenantOnboarding', 'tenant_org.tenant.get_by_id')
+applyTenantOrgTargetDeclaration(
+  'updateTenantProfile',
+  'tenant_org.tenant.update_profile',
+  'SYSTEM_TARGET'
+)
+applyTenantOrgTargetDeclaration('suspendTenant', 'tenant_org.tenant.update_status', 'SYSTEM_TARGET')
+applyTenantOrgTargetDeclaration(
+  'reactivateTenant',
+  'tenant_org.tenant.update_status',
+  'SYSTEM_TARGET'
+)
+applyTenantOrgTargetDeclaration('archiveTenant', 'tenant_org.tenant.update_status', 'SYSTEM_TARGET')
+applyTenantOrgTargetDeclaration('createOrgUnit', 'tenant_org.org_unit.create', 'TENANT_SYSTEM_DENY')
+applyTenantOrgTargetDeclaration('updateOrgUnit', 'tenant_org.org_unit.update', 'TENANT_SYSTEM_DENY')
+applyTenantOrgTargetDeclaration('moveOrgUnit', 'tenant_org.org_unit.update', 'TENANT_SYSTEM_DENY')
+applyTenantOrgTargetDeclaration(
+  'archiveOrgUnit',
+  'tenant_org.org_unit.archive',
+  'TENANT_SYSTEM_DENY'
+)
+
+/** Converts one controller method name to its frozen protobuf RPC method name. */
+function toRpcMethodName(method: string): string {
+  return `${method.charAt(0).toUpperCase()}${method.slice(1)}`
+}

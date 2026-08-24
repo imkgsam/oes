@@ -7,6 +7,9 @@ export type DelegatedRiskClass = 'DELEGATION_ALLOWED' | 'ACTION_GRANT_REQUIRED' 
 export interface PermissionDecisionCatalogEntry {
   code: string
   kind: PermissionDecisionKind
+  allowedScopeLevels: AuthorizationScopeLevel[]
+  assignableTo: Array<'HUMAN' | 'MACHINE' | 'WORKLOAD_POLICY'>
+  metadataCurrent: boolean
 }
 
 /** Describes one enabled coarse principal policy without embedding Prisma semantics in the domain. */

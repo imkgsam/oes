@@ -1,6 +1,5 @@
 import {
   AUTH_MANAGEMENT_PERMISSION_CODES,
-  AUTH_SELF_PERMISSION_CODES,
   AUTH_SESSION_PERMISSION_CODES,
   BROWSER_ACTIVITY_AUDIT_PERMISSION_CODES,
   COLLABORATION_TASK_PERMISSION_CODES,
@@ -10,7 +9,6 @@ import {
   IDENTITY_ACCOUNT_SELF_PERMISSION_CODES,
   IDENTITY_MACHINE_PERMISSION_CODES,
   ITEM_MASTER_MANAGEMENT_PERMISSION_CODES,
-  PERMISSION_ACCOUNT_SELF_PERMISSION_CODES,
   PERMISSION_MANAGEMENT_PERMISSION_CODES,
   PUBLIC_ENTRY_BUSINESS_CARD_PERMISSION_CODES,
   PUBLIC_ENTRY_SHORT_LINK_PERMISSION_CODES,
@@ -81,7 +79,6 @@ describe('role foundation seed', () => {
           PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_ACCOUNT_ROLE,
           PERMISSION_MANAGEMENT_PERMISSION_CODES.CREATE_POLICY,
           PERMISSION_MANAGEMENT_PERMISSION_CODES.UPDATE_POLICY,
-          PERMISSION_MANAGEMENT_PERMISSION_CODES.DELETE_POLICY,
           PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_POLICY,
           AUTH_SESSION_PERMISSION_CODES.ADMIN_VIEW_USER_SESSIONS,
           AUTH_SESSION_PERMISSION_CODES.ADMIN_REVOKE_SESSION,
@@ -122,13 +119,7 @@ describe('role foundation seed', () => {
           CRM_MANAGEMENT_PERMISSION_CODES.CONVERT_CRM_ACCOUNT,
           CRM_MANAGEMENT_PERMISSION_CODES.CLAIM_CRM_ACCOUNT,
           CRM_MANAGEMENT_PERMISSION_CODES.RELEASE_CRM_ACCOUNT,
-          CRM_MANAGEMENT_PERMISSION_CODES.MANAGE_CRM_ACCOUNT,
-          CRM_MANAGEMENT_PERMISSION_CODES.VIEW_RESTRICTED_DUPLICATE,
-          CRM_MANAGEMENT_PERMISSION_CODES.MANAGE_CRM_CONTACT,
-          CRM_MANAGEMENT_PERMISSION_CODES.MANAGE_CRM_SOURCE,
-          CRM_MANAGEMENT_PERMISSION_CODES.CREATE_CRM_ACTIVITY,
-          CRM_MANAGEMENT_PERMISSION_CODES.MANAGE_CRM_OPPORTUNITY,
-          COLLABORATION_TASK_PERMISSION_CODES.ASSIGN
+          CRM_MANAGEMENT_PERMISSION_CODES.MANAGE_CRM_ACCOUNT
         ]
       }
     ])
@@ -181,7 +172,6 @@ describe('role foundation seed', () => {
         CRM_MANAGEMENT_PERMISSION_CODES.CLAIM_CRM_ACCOUNT,
         CRM_MANAGEMENT_PERMISSION_CODES.RELEASE_CRM_ACCOUNT,
         CRM_MANAGEMENT_PERMISSION_CODES.MANAGE_CRM_ACCOUNT,
-        CRM_MANAGEMENT_PERMISSION_CODES.VIEW_RESTRICTED_DUPLICATE,
         TENANT_ORG_MANAGEMENT_PERMISSION_CODES.LIST_ORG_TREE,
         TENANT_ORG_MANAGEMENT_PERMISSION_CODES.VIEW_ORG_UNIT_DETAIL,
         TENANT_ORG_MANAGEMENT_PERMISSION_CODES.CREATE_ORG_UNIT,
@@ -283,12 +273,6 @@ describe('role foundation seed', () => {
       tenantId: null,
       permissionCodes: [
         IDENTITY_ACCOUNT_SELF_PERMISSION_CODES.READ,
-        IDENTITY_ACCOUNT_SELF_PERMISSION_CODES.UPDATE_PROFILE,
-        AUTH_SELF_PERMISSION_CODES.LIST_LOGIN_METHODS,
-        AUTH_SELF_PERMISSION_CODES.MANAGE_LOGIN_METHODS,
-        AUTH_SELF_PERMISSION_CODES.LIST_SESSIONS,
-        AUTH_SELF_PERMISSION_CODES.REVOKE_SESSION,
-        PERMISSION_ACCOUNT_SELF_PERMISSION_CODES.GET_ROLES,
         TENANT_ORG_MANAGEMENT_PERMISSION_CODES.LIST_ORG_TREE,
         TENANT_ORG_MANAGEMENT_PERMISSION_CODES.VIEW_ORG_UNIT_DETAIL
       ]
@@ -298,7 +282,8 @@ describe('role foundation seed', () => {
   it('publishes the built-in CRM role templates for sales execution and sales management', () => {
     expect(BUILT_IN_ROLE_TEMPLATES).toContainEqual({
       code: 'crm.sales',
-      description: 'Built-in CRM sales template for account execution and daily customer follow-up.',
+      description:
+        'Built-in CRM sales template for account execution and daily customer follow-up.',
       id: '2cf72f72-e04a-4946-b8c0-22f120f82007',
       isEnabled: true,
       kind: RoleKind.SYSTEM_TEMPLATE,
@@ -313,15 +298,14 @@ describe('role foundation seed', () => {
         CRM_MANAGEMENT_PERMISSION_CODES.CREATE_CRM_ACCOUNT,
         CRM_MANAGEMENT_PERMISSION_CODES.UPDATE_CRM_ACCOUNT,
         CRM_MANAGEMENT_PERMISSION_CODES.CLAIM_CRM_ACCOUNT,
-        CRM_MANAGEMENT_PERMISSION_CODES.RELEASE_CRM_ACCOUNT,
-        CRM_MANAGEMENT_PERMISSION_CODES.MANAGE_CRM_CONTACT,
-        CRM_MANAGEMENT_PERMISSION_CODES.CREATE_CRM_ACTIVITY
+        CRM_MANAGEMENT_PERMISSION_CODES.RELEASE_CRM_ACCOUNT
       ]
     })
 
     expect(BUILT_IN_ROLE_TEMPLATES).toContainEqual({
       code: 'crm.sales_manager',
-      description: 'Built-in CRM sales manager template for team account governance and pipeline management.',
+      description:
+        'Built-in CRM sales manager template for team account governance and pipeline management.',
       id: '2cf72f72-e04a-4946-b8c0-22f120f82008',
       isEnabled: true,
       kind: RoleKind.SYSTEM_TEMPLATE,
@@ -338,12 +322,7 @@ describe('role foundation seed', () => {
         CRM_MANAGEMENT_PERMISSION_CODES.CLAIM_CRM_ACCOUNT,
         CRM_MANAGEMENT_PERMISSION_CODES.RELEASE_CRM_ACCOUNT,
         CRM_MANAGEMENT_PERMISSION_CODES.CONVERT_CRM_ACCOUNT,
-        CRM_MANAGEMENT_PERMISSION_CODES.MANAGE_CRM_ACCOUNT,
-        CRM_MANAGEMENT_PERMISSION_CODES.VIEW_RESTRICTED_DUPLICATE,
-        CRM_MANAGEMENT_PERMISSION_CODES.MANAGE_CRM_CONTACT,
-        CRM_MANAGEMENT_PERMISSION_CODES.MANAGE_CRM_SOURCE,
-        CRM_MANAGEMENT_PERMISSION_CODES.CREATE_CRM_ACTIVITY,
-        CRM_MANAGEMENT_PERMISSION_CODES.MANAGE_CRM_OPPORTUNITY
+        CRM_MANAGEMENT_PERMISSION_CODES.MANAGE_CRM_ACCOUNT
       ]
     })
   })
@@ -351,7 +330,8 @@ describe('role foundation seed', () => {
   it('publishes the built-in item product data manager template baseline', () => {
     expect(BUILT_IN_ROLE_TEMPLATES).toContainEqual({
       code: 'item_master.product_data_manager',
-      description: 'Built-in Item product data manager template for tenant product master data maintenance.',
+      description:
+        'Built-in Item product data manager template for tenant product master data maintenance.',
       id: '2cf72f72-e04a-4946-b8c0-22f120f82005',
       isEnabled: true,
       kind: RoleKind.SYSTEM_TEMPLATE,
@@ -387,7 +367,6 @@ describe('role foundation seed', () => {
         ITEM_MASTER_MANAGEMENT_PERMISSION_CODES.CREATE_BOM,
         ITEM_MASTER_MANAGEMENT_PERMISSION_CODES.MANAGE_BOM,
         ITEM_MASTER_MANAGEMENT_PERMISSION_CODES.SET_ITEM_CAPABILITIES,
-        ITEM_MASTER_MANAGEMENT_PERMISSION_CODES.SET_ITEM_COMPOSITION,
         ITEM_MASTER_MANAGEMENT_PERMISSION_CODES.LIST_SUPPLIER_ITEM_MAPPINGS,
         ITEM_MASTER_MANAGEMENT_PERMISSION_CODES.UPSERT_SUPPLIER_ITEM_MAPPING
       ]
@@ -399,30 +378,34 @@ describe('role foundation seed', () => {
       (role) => role.code === 'item_master.product_data_manager'
     )
 
-    expect(productDataManager?.permissionCodes).toEqual(expect.arrayContaining([
-      'item_master.item_model.list',
-      'item_master.item_model.get_by_id',
-      'item_master.item_model.create',
-      'item_master.item_model.manage'
-    ]))
+    expect(productDataManager?.permissionCodes).toEqual(
+      expect.arrayContaining([
+        'item_master.item_model.list',
+        'item_master.item_model.get_by_id',
+        'item_master.item_model.create',
+        'item_master.item_model.manage'
+      ])
+    )
   })
 
   it('grants Public Entry management permissions to the tenant admin template', () => {
     const tenantAdmin = BUILT_IN_ROLE_TEMPLATES.find((role) => role.code === 'tenant.admin')
 
-    expect(tenantAdmin?.permissionCodes).toEqual(expect.arrayContaining([
-      PUBLIC_ENTRY_SHORT_LINK_PERMISSION_CODES.READ,
-      PUBLIC_ENTRY_SHORT_LINK_PERMISSION_CODES.CREATE,
-      PUBLIC_ENTRY_SHORT_LINK_PERMISSION_CODES.UPDATE,
-      PUBLIC_ENTRY_SHORT_LINK_PERMISSION_CODES.DISABLE,
-      PUBLIC_ENTRY_SHORT_LINK_PERMISSION_CODES.ARCHIVE,
-      PUBLIC_ENTRY_SHORT_LINK_PERMISSION_CODES.STATS_READ,
-      PUBLIC_ENTRY_BUSINESS_CARD_PERMISSION_CODES.READ,
-      PUBLIC_ENTRY_BUSINESS_CARD_PERMISSION_CODES.MANAGE,
-      PUBLIC_ENTRY_BUSINESS_CARD_PERMISSION_CODES.ENABLE,
-      PUBLIC_ENTRY_BUSINESS_CARD_PERMISSION_CODES.DISABLE,
-      PUBLIC_ENTRY_BUSINESS_CARD_PERMISSION_CODES.PUBLIC_ENTRY_MANAGE,
-      PUBLIC_ENTRY_BUSINESS_CARD_PERMISSION_CODES.STATS_READ
-    ]))
+    expect(tenantAdmin?.permissionCodes).toEqual(
+      expect.arrayContaining([
+        PUBLIC_ENTRY_SHORT_LINK_PERMISSION_CODES.READ,
+        PUBLIC_ENTRY_SHORT_LINK_PERMISSION_CODES.CREATE,
+        PUBLIC_ENTRY_SHORT_LINK_PERMISSION_CODES.UPDATE,
+        PUBLIC_ENTRY_SHORT_LINK_PERMISSION_CODES.DISABLE,
+        PUBLIC_ENTRY_SHORT_LINK_PERMISSION_CODES.ARCHIVE,
+        PUBLIC_ENTRY_SHORT_LINK_PERMISSION_CODES.STATS_READ,
+        PUBLIC_ENTRY_BUSINESS_CARD_PERMISSION_CODES.READ,
+        PUBLIC_ENTRY_BUSINESS_CARD_PERMISSION_CODES.MANAGE,
+        PUBLIC_ENTRY_BUSINESS_CARD_PERMISSION_CODES.ENABLE,
+        PUBLIC_ENTRY_BUSINESS_CARD_PERMISSION_CODES.DISABLE,
+        PUBLIC_ENTRY_BUSINESS_CARD_PERMISSION_CODES.PUBLIC_ENTRY_MANAGE,
+        PUBLIC_ENTRY_BUSINESS_CARD_PERMISSION_CODES.STATS_READ
+      ])
+    )
   })
 })

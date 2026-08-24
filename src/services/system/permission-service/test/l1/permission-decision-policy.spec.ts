@@ -192,6 +192,56 @@ describe('PermissionDecisionPolicy', () => {
     })
   })
 
+  it('denies principal issuance when current metadata excludes the subject scope', () => {
+    const input = principalInput({ scopeLevel: 'SYSTEM', tenantId: undefined })
+    const decision = policy.resolvePrincipalAuthorization(
+      input,
+      principalFacts(['inventory.read'], {
+        scopeLevel: 'SYSTEM',
+        tenantId: undefined
+      }),
+      businessCatalog(['inventory.read'], { allowedScopeLevels: ['TENANT'] })
+    )
+
+    expect(decision).toMatchObject({
+      allowed: false,
+      grantedPermissionCodes: [],
+      reasonCode: 'AUTHORIZATION_SCOPE_MISMATCH'
+    })
+  })
+
+  it('denies MACHINE principal issuance when current metadata is HUMAN-only', () => {
+    const input = principalInput({ principalType: 'MACHINE', principalId: 'machine-1' })
+    const decision = policy.resolvePrincipalAuthorization(
+      input,
+      principalFacts(['inventory.read'], {
+        principalType: 'MACHINE',
+        principalId: 'machine-1'
+      }),
+      businessCatalog(['inventory.read'], { assignableTo: ['HUMAN'] })
+    )
+
+    expect(decision).toMatchObject({
+      allowed: false,
+      grantedPermissionCodes: [],
+      reasonCode: 'AUTHORIZATION_PRINCIPAL_TYPE_MISMATCH'
+    })
+  })
+
+  it('denies issuance when persisted Permission metadata is stale', () => {
+    const decision = policy.resolvePrincipalAuthorization(
+      principalInput(),
+      principalFacts(['inventory.read']),
+      businessCatalog(['inventory.read'], { metadataCurrent: false })
+    )
+
+    expect(decision).toMatchObject({
+      allowed: false,
+      grantedPermissionCodes: [],
+      reasonCode: 'AUTHORIZATION_PERMISSION_METADATA_STALE'
+    })
+  })
+
   it('allows an ACTION_GRANT_REQUIRED delegated upper bound after every restrictive snapshot intersects', () => {
     const decision = policy.resolveDelegatedAuthorization(
       delegatedInput(),
@@ -500,11 +550,31 @@ function delegatedInput(): DelegatedAuthorizationInput {
 }
 
 // Maps test Codes to BUSINESS catalog metadata.
-function businessCatalog(codes: string[]) {
-  return codes.map((code) => ({ code, kind: 'BUSINESS' as const }))
+function businessCatalog(
+  codes: string[],
+  overrides: Partial<{
+    allowedScopeLevels: Array<'SYSTEM' | 'TENANT'>
+    assignableTo: Array<'HUMAN' | 'MACHINE' | 'WORKLOAD_POLICY'>
+    metadataCurrent: boolean
+  }> = {}
+) {
+  return codes.map((code) => ({
+    code,
+    kind: 'BUSINESS' as const,
+    allowedScopeLevels: ['SYSTEM', 'TENANT'] as Array<'SYSTEM' | 'TENANT'>,
+    assignableTo: ['HUMAN', 'MACHINE'] as Array<'HUMAN' | 'MACHINE' | 'WORKLOAD_POLICY'>,
+    metadataCurrent: true,
+    ...overrides
+  }))
 }
 
 // Maps test Codes to INTERNAL catalog metadata.
 function internalCatalog(codes: string[]) {
-  return codes.map((code) => ({ code, kind: 'INTERNAL' as const }))
+  return codes.map((code) => ({
+    code,
+    kind: 'INTERNAL' as const,
+    allowedScopeLevels: ['SYSTEM', 'TENANT'] as Array<'SYSTEM' | 'TENANT'>,
+    assignableTo: ['WORKLOAD_POLICY'] as Array<'HUMAN' | 'MACHINE' | 'WORKLOAD_POLICY'>,
+    metadataCurrent: true
+  }))
 }

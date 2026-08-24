@@ -56,13 +56,17 @@ export async function applyPermissionServiceSeed(
         module: item.module,
         description: item.description,
         kind: item.kind,
-        externalApiEligible: item.externalApiEligible
+        externalApiEligible: item.externalApiEligible,
+        allowedScopeLevels: item.allowedScopeLevels,
+        definitionFingerprint: item.definitionFingerprint
       },
       update: {
         module: item.module,
         description: item.description,
         kind: item.kind,
-        externalApiEligible: item.externalApiEligible
+        externalApiEligible: item.externalApiEligible,
+        allowedScopeLevels: item.allowedScopeLevels,
+        definitionFingerprint: item.definitionFingerprint
       }
     })
     permissionIdByCode.set(permission.code, permission.id)

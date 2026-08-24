@@ -15,6 +15,7 @@ import {
 } from '../../ports/permission-decision-audit.port'
 import { principalCallerBindingMatches } from '../../authorization/permission-decision-caller-binding'
 import { ResolvePrincipalAuthorizationQuery } from './resolve-principal-authorization.query'
+import { toPermissionDecisionCatalogEntry } from '../../../domain/services/permission-code-eligibility'
 
 /** Resolves principal BUSINESS issuance from current Permission-owned facts and audits the bound result. */
 @QueryHandler(ResolvePrincipalAuthorizationQuery)
@@ -53,7 +54,7 @@ export class ResolvePrincipalAuthorizationHandler implements IQueryHandler<Resol
     const policyDecision = this.decisionPolicy.resolvePrincipalAuthorization(
       query.input,
       facts,
-      permissions.map((permission) => ({ code: permission.code, kind: permission.kind }))
+      permissions.map(toPermissionDecisionCatalogEntry)
     )
     const result = { ...policyDecision, decisionReference }
     this.emitAudit(query, result)
