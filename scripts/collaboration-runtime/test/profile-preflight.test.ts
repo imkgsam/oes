@@ -1,8 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { canonicalJson, sha256 } from '../src/canonical.ts'
 import {
   classifyCapabilityIssue,
   credentialReferenceKeys,
@@ -10,6 +11,7 @@ import {
   planProfileRepair,
   readApprovalTelemetry,
   runEffectiveProfilePreflight,
+  SystemPreflightProbeAdapter,
   verifyEffectiveProfileReport,
   type PreflightProbeAdapter
 } from '../src/profile-preflight.ts'
@@ -20,12 +22,29 @@ import type {
   EffectiveProfileReport
 } from '../src/types.ts'
 
-const fingerprint = 'a'.repeat(64)
-
 class PassingProbe implements PreflightProbeAdapter {
-  async observe(name: CapabilityName): Promise<CapabilityObservation> {
-    return { name, command: `probe ${name}`, literalOutput: 'PASS', exitCode: 0, result: 'PASS' }
+  readonly root: string
+  readonly telemetryPath: string
+
+  constructor(root: string, telemetryPath: string) {
+    this.root = root
+    this.telemetryPath = telemetryPath
   }
+
+  async observe(name: CapabilityName): Promise<CapabilityObservation> {
+    const base = {
+      name,
+      command: `probe ${name}`,
+      literalOutput: 'PASS',
+      exitCode: 0,
+      result: 'PASS' as const
+    }
+    const evidencePath = join(this.root, `${name}.json`)
+    const bytes = `${canonicalJson(base)}\n`
+    writeFileSync(evidencePath, bytes)
+    return { ...base, evidencePath, evidenceSha256: sha256(bytes) }
+  }
+
   async credentialReference(): Promise<EffectiveProfileReport['credentialReference']> {
     return {
       reference: 'git-credential:https://github.com',
@@ -33,33 +52,75 @@ class PassingProbe implements PreflightProbeAdapter {
       secretValuesRecorded: false
     }
   }
+
   async approvalTelemetry(): Promise<ApprovalTelemetry> {
-    return {
-      eventSource: '/tmp/rollout.jsonl',
-      eventSourceSha256: fingerprint,
-      approvalPolicy: 'on-request',
-      approvalsReviewer: 'auto_review',
-      approvalEventCount: 0,
-      normalPermissionPromptCount: 0
-    }
+    return readApprovalTelemetry(this.telemetryPath)
   }
+}
+
+function telemetry(root: string): string {
+  const path = join(root, 'rollout.jsonl')
+  writeFileSync(
+    path,
+    [
+      JSON.stringify({
+        type: 'turn_context',
+        payload: { approval_policy: 'on-request', approvals_reviewer: 'auto_review' }
+      }),
+      JSON.stringify({ type: 'event_msg', payload: { type: 'agent_message' } })
+    ].join('\n')
+  )
+  return path
 }
 
 test('actual probe adapter records and verifies every delivery capability with zero normal prompts', async () => {
   const root = mkdtempSync(join(tmpdir(), 'oes-profile-test-'))
+  const telemetryPath = telemetry(root)
+  const profilePath = join(root, 'profile.toml')
+  writeFileSync(profilePath, 'approval_policy="on-request"\n')
   const report = await runEffectiveProfilePreflight(
     {
       ownerTaskId: '/root/fl',
       transitionId: 'handoff:1',
       expectedState: 'HANDOFF_PENDING',
       declaredCapabilities: defaultDeliveryCapabilities(),
-      profile: { name: 'oes-profile', permission: 'oes-owner', sha256: fingerprint },
+      profile: {
+        name: 'oes-profile',
+        permission: 'oes-owner',
+        path: profilePath,
+        sha256: sha256(readFileSync(profilePath))
+      },
       resultPath: join(root, 'profile-report.json')
     },
-    new PassingProbe()
+    new PassingProbe(root, telemetryPath)
   )
   assert.equal(report.observations.length, 8)
   assert.equal(verifyEffectiveProfileReport(report).telemetry.normalPermissionPromptCount, 0)
+})
+
+test('profile verification reopens evidence, profile bytes, and telemetry', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'oes-profile-reopen-test-'))
+  const telemetryPath = telemetry(root)
+  const profilePath = join(root, 'profile.toml')
+  writeFileSync(profilePath, 'profile=true\n')
+  const report = await runEffectiveProfilePreflight(
+    {
+      ownerTaskId: '/root/fl',
+      transitionId: 'handoff:2',
+      expectedState: 'HANDOFF_PENDING',
+      declaredCapabilities: ['filesystemWrite'],
+      profile: {
+        name: 'oes-profile',
+        permission: 'oes-owner',
+        path: profilePath,
+        sha256: sha256(Buffer.from('profile=true\n'))
+      },
+      resultPath: join(root, 'report.json')
+    },
+    new PassingProbe(root, telemetryPath)
+  )
+  writeFileSync(report.telemetry.eventSource, '')
+  assert.throws(() => verifyEffectiveProfileReport(report), /APPROVAL_TELEMETRY_PROFILE_MISMATCH/)
 })
 
 test('failure routing distinguishes handoff, active-owner profile defect, and genuine expansion', () => {
@@ -121,20 +182,29 @@ test('repair plans remain bounded and preserve the active owner', () => {
 
 test('telemetry is derived from persisted context and credential output retains keys only', () => {
   const root = mkdtempSync(join(tmpdir(), 'oes-telemetry-test-'))
-  const path = join(root, 'rollout.jsonl')
-  writeFileSync(
-    path,
-    [
-      JSON.stringify({
-        type: 'turn_context',
-        payload: { approval_policy: 'on-request', approvals_reviewer: 'auto_review' }
-      }),
-      JSON.stringify({ type: 'event_msg', payload: { type: 'agent_message' } })
-    ].join('\n')
-  )
+  const path = telemetry(root)
   assert.equal(readApprovalTelemetry(path).normalPermissionPromptCount, 0)
   assert.deepEqual(credentialReferenceKeys('username=alice\npassword=sensitive\n'), [
     'password',
     'username'
   ])
+})
+
+test('system adapter performs actual filesystem, SQLite, and telemetry probes', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'oes-system-probe-test-'))
+  const adapter = new SystemPreflightProbeAdapter({
+    repositoryRoot: process.cwd(),
+    smokeRoot: root,
+    telemetryEventSource: telemetry(root)
+  })
+  for (const capability of [
+    'filesystemWrite',
+    'taskOwnedDatabase',
+    'approvalTelemetry'
+  ] as CapabilityName[]) {
+    const observation = await adapter.observe(capability)
+    assert.equal(observation.result, 'PASS')
+    assert.equal(observation.exitCode, 0)
+    assert.equal(sha256(readFileSync(observation.evidencePath)), observation.evidenceSha256)
+  }
 })

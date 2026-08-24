@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict'
 import { readFileSync, readdirSync } from 'node:fs'
-import { join } from 'node:path'
 
 const base = new URL('..', import.meta.url)
 const repo = new URL('../../..', import.meta.url)
@@ -17,5 +16,15 @@ assert.match(profile, /approval_policy = "on-request"/)
 assert.match(profile, /approvals_reviewer = "auto_review"/)
 assert.match(profile, /allow_local_binding = true/)
 assert.match(profile, /"\*\*\/\.env" = "deny"/)
-for (const file of readdirSync(new URL('schemas', base))) JSON.parse(readFileSync(new URL(`schemas/${file}`, base), 'utf8'))
+assert.match(profile, /"{{TRUSTED_AUTHORIZATION_ROOT}}" = "read"/)
+assert.match(profile, /"{{OWNER_GIT_DIRECTORY}}" = "write"/)
+assert.doesNotMatch(profile, /GIT_COMMON_DIRECTORY.*write/)
+const cli = readFileSync(new URL('src/cli.ts', base), 'utf8')
+assert.match(cli, /profile-preflight/)
+assert.match(cli, /schema-validate/)
+assert.doesNotMatch(cli, /binding-fingerprint|cleanup-fingerprint/)
+const schemaValidator = readFileSync(new URL('src/schema-validation.ts', base), 'utf8')
+assert.match(schemaValidator, /JSON_SCHEMA_VALIDATION_FAILED/)
+for (const file of readdirSync(new URL('schemas', base)))
+  JSON.parse(readFileSync(new URL(`schemas/${file}`, base), 'utf8'))
 console.log('collaboration-runtime static checks: PASS')

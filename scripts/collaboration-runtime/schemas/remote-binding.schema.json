@@ -8,6 +8,7 @@
     "schemaVersion",
     "kind",
     "bindingFingerprint",
+    "authorization",
     "action",
     "owner",
     "expectedState",
@@ -162,12 +163,14 @@
       "type": "array",
       "items": {
         "$ref": "#/$defs/cleanupResource"
-      }
+      },
+      "minItems": 1,
+      "maxItems": 1
     },
     "admission": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["mode", "lockPath", "mergeGroupSha"],
+      "required": ["mode", "lockPath", "mergeGroupSha", "mergeGroupBaseSha"],
       "properties": {
         "mode": {
           "enum": ["merge-queue", "serial-latest-main"]
@@ -178,8 +181,18 @@
         "mergeGroupSha": {
           "type": ["string", "null"],
           "pattern": "^[0-9a-f]{40}$"
+        },
+        "mergeGroupBaseSha": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9a-f]{40}$"
         }
       }
+    },
+    "authorization": {
+      "$ref": "#/$defs/reference"
+    },
+    "expectedMergeSha": {
+      "$ref": "#/$defs/gitSha"
     }
   },
   "allOf": [
@@ -206,6 +219,18 @@
       "then": {
         "required": ["cleanupAuthorizationFingerprint", "cleanupResources"]
       }
+    },
+    {
+      "if": {
+        "properties": {
+          "action": {
+            "const": "verify-main"
+          }
+        }
+      },
+      "then": {
+        "required": ["expectedMergeSha"]
+      }
     }
   ],
   "$defs": {
@@ -231,6 +256,23 @@
         "expectedSha": {
           "type": ["string", "null"],
           "pattern": "^[0-9a-f]{40}$"
+        }
+      }
+    },
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "fingerprint"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^/"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "fingerprint": {
+          "$ref": "#/$defs/sha256"
         }
       }
     }

@@ -1,7 +1,10 @@
 import { validateStageCleanupAuthorization } from './binding.ts'
+import { objectFingerprint } from './canonical.ts'
 import { fail } from './errors.ts'
 import type {
+  CleanupDiffEntry,
   CleanupResourceDecision,
+  CompletedCleanupResource,
   ObservedCleanupResource,
   StageCleanupAuthorization,
   StageCleanupResource
@@ -12,12 +15,12 @@ function resourceKey(resource: StageCleanupResource): string {
   return `${resource.kind}:${resource.path}:${resource.expectedSha ?? 'NONE'}`
 }
 
-/** Narrows one Stage cleanup batch to resources owned by the exact FL and preserves mismatches. */
+/** Narrows one Stage batch to exact-owner resources and preserves missing or mismatched evidence. */
 export function planChildSelfCleanup(
   authorizationInput: StageCleanupAuthorization,
   ownerTaskId: string,
   observations: ObservedCleanupResource[],
-  completedResourceKeys: string[] = []
+  completedResources: CompletedCleanupResource[] = []
 ): CleanupResourceDecision[] {
   const authorization = validateStageCleanupAuthorization(authorizationInput)
   const owned = authorization.terminalFeatures.filter(
@@ -27,45 +30,101 @@ export function planChildSelfCleanup(
   const allowed = new Map<string, StageCleanupResource>()
   for (const feature of owned)
     for (const resource of feature.resources) allowed.set(resourceKey(resource), resource)
-  const observed = new Map(observations.map((resource) => [resourceKey(resource), resource]))
-  const completed = new Set(completedResourceKeys)
+  const observed = new Map<string, ObservedCleanupResource>()
+  for (const resource of observations) {
+    const key = resourceKey(resource)
+    if (!allowed.has(key)) fail('UNBOUND_CLEANUP_OBSERVATION', key)
+    if (observed.has(key)) fail('DUPLICATE_CLEANUP_OBSERVATION', key)
+    observed.set(key, resource)
+  }
+  const completed = new Map<string, CompletedCleanupResource>()
+  for (const record of completedResources) {
+    const key = resourceKey(record.resource)
+    if (!allowed.has(key) || record.observedAfter.exists !== false)
+      fail('COMPLETED_CLEANUP_RESOURCE_INVALID', key)
+    const expectedFingerprint = objectFingerprint(
+      { resource: record.resource, observedAfter: record.observedAfter },
+      '__none__'
+    )
+    if (record.completionFingerprint !== expectedFingerprint)
+      fail('COMPLETED_CLEANUP_FINGERPRINT_MISMATCH', key)
+    if (completed.has(key)) fail('DUPLICATE_COMPLETED_CLEANUP_RESOURCE', key)
+    completed.set(key, record)
+  }
   return [...allowed.entries()].map(([key, resource]) => {
-    if (completed.has(key))
+    const prior = completed.get(key)
+    if (prior)
       return {
         resource,
         decision: 'SKIP_COMPLETED',
-        reason: 'prior exact cleanup result already verified'
+        reason: 'prior exact cleanup result fingerprint and absence were verified',
+        observedBefore: null,
+        observedAfter: prior.observedAfter,
+        completionFingerprint: prior.completionFingerprint
       }
     const current = observed.get(key)
-    if (!current || !current.exists)
-      return { resource, decision: 'ALREADY_ABSENT', reason: 'exact resource is already absent' }
-    if (!current.clean)
-      return { resource, decision: 'PRESERVE_FAILURE', reason: 'resource is dirty' }
-    if (resource.expectedSha !== null && current.actualSha !== resource.expectedSha) {
+    if (!current)
       return {
         resource,
         decision: 'PRESERVE_FAILURE',
-        reason: 'resource SHA does not match authorization'
+        reason: 'bound resource was not observed',
+        observedBefore: null,
+        observedAfter: null
       }
+    if (!current.exists)
+      return {
+        resource,
+        decision: 'ALREADY_ABSENT',
+        reason: 'exact resource absence was observed',
+        observedBefore: current,
+        observedAfter: current
+      }
+    if (!current.clean)
+      return {
+        resource,
+        decision: 'PRESERVE_FAILURE',
+        reason: 'resource is dirty',
+        observedBefore: current,
+        observedAfter: current
+      }
+    if (resource.expectedSha !== null && current.actualSha !== resource.expectedSha)
+      return {
+        resource,
+        decision: 'PRESERVE_FAILURE',
+        reason: 'resource SHA does not match authorization',
+        observedBefore: current,
+        observedAfter: current
+      }
+    return {
+      resource,
+      decision: 'REMOVE',
+      reason: 'exact owner, path, cleanliness, and SHA match; post-removal observation required',
+      observedBefore: current,
+      observedAfter: null
     }
-    return { resource, decision: 'REMOVE', reason: 'exact owner, path, cleanliness, and SHA match' }
   })
 }
 
-/** Verifies a cleanup-only PR deletes exactly the terminal packet allowlist. */
+/** Verifies a cleanup-only PR diff contains only exact terminal packet deletions. */
 export function verifyCleanupOnlyDeletion(
   authorizationInput: StageCleanupAuthorization,
-  deletedPaths: string[]
+  diffEntries: CleanupDiffEntry[]
 ): void {
   const authorization = validateStageCleanupAuthorization(authorizationInput)
   const expected = [...authorization.allowedDeletedFeaturePackets].sort()
-  const actual = [...new Set(deletedPaths)].sort()
-  if (expected.length !== actual.length || expected.some((path, index) => path !== actual[index])) {
-    fail('CLEANUP_ONLY_DIFF_SCOPE_MISMATCH', JSON.stringify(actual))
-  }
+  const deleted = diffEntries
+    .filter((entry) => entry.status === 'D')
+    .map((entry) => entry.path)
+    .sort()
+  if (diffEntries.some((entry) => entry.status !== 'D'))
+    fail('CLEANUP_ONLY_NON_DELETION_CHANGE', JSON.stringify(diffEntries))
+  if (new Set(deleted).size !== deleted.length)
+    fail('CLEANUP_ONLY_DUPLICATE_PATH', JSON.stringify(deleted))
+  if (expected.length !== deleted.length || expected.some((path, index) => path !== deleted[index]))
+    fail('CLEANUP_ONLY_DIFF_SCOPE_MISMATCH', JSON.stringify(deleted))
 }
 
-/** Verifies every exact child resource has one terminal result before the cleanup-only PR is allowed. */
+/** Verifies every exact child resource has a terminal, observed result before packet deletion. */
 export function verifyChildCleanupResults(
   authorizationInput: StageCleanupAuthorization,
   resultsByOwner: Record<string, CleanupResourceDecision[]>
@@ -78,9 +137,8 @@ export function verifyChildCleanupResults(
   if (
     expectedOwners.length !== actualOwners.length ||
     expectedOwners.some((owner, index) => owner !== actualOwners[index])
-  ) {
+  )
     fail('STAGE_CLEANUP_CHILD_SET_MISMATCH', JSON.stringify(actualOwners))
-  }
   for (const owner of expectedOwners) {
     const expected = authorization.terminalFeatures
       .filter((feature) => feature.ownerTaskId === owner)
@@ -89,14 +147,31 @@ export function verifyChildCleanupResults(
       .sort()
     const results = resultsByOwner[owner]
     const actual = results.map((result) => resourceKey(result.resource)).sort()
-    if (expected.length !== actual.length || expected.some((key, index) => key !== actual[index])) {
+    if (expected.length !== actual.length || expected.some((key, index) => key !== actual[index]))
       fail('STAGE_CLEANUP_RESOURCE_RESULT_SET_MISMATCH', owner)
+    for (const result of results) {
+      if (result.decision === 'PRESERVE_FAILURE')
+        fail('STAGE_CLEANUP_PARTIAL_FAILURE', result.resource.path)
+      if (result.decision === 'REMOVE') {
+        if (!result.observedBefore?.exists || result.observedAfter?.exists !== false)
+          fail('STAGE_CLEANUP_REMOVAL_NOT_VERIFIED', result.resource.path)
+      } else if (result.decision === 'ALREADY_ABSENT') {
+        if (result.observedBefore?.exists !== false || result.observedAfter?.exists !== false)
+          fail('STAGE_CLEANUP_ABSENCE_NOT_VERIFIED', result.resource.path)
+      } else if (result.decision === 'SKIP_COMPLETED') {
+        const expectedFingerprint = result.observedAfter
+          ? objectFingerprint(
+              { resource: result.resource, observedAfter: result.observedAfter },
+              '__none__'
+            )
+          : ''
+        if (
+          result.observedBefore !== null ||
+          result.observedAfter?.exists !== false ||
+          result.completionFingerprint !== expectedFingerprint
+        )
+          fail('STAGE_CLEANUP_COMPLETED_RESULT_INVALID', result.resource.path)
+      }
     }
-    const failures = results.filter((result) => result.decision === 'PRESERVE_FAILURE')
-    if (failures.length)
-      fail(
-        'STAGE_CLEANUP_PARTIAL_FAILURE',
-        failures.map((result) => result.resource.path).join(',')
-      )
   }
 }

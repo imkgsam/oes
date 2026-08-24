@@ -1,8 +1,95 @@
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { objectFingerprint } from '../src/canonical.ts'
-import type { RemoteDriverBinding, StageCleanupAuthorization } from '../src/types.ts'
+import { canonicalJson, objectFingerprint, sha256 } from '../src/canonical.ts'
+import type {
+  RemoteActionAuthorization,
+  RemoteDriverBinding,
+  StageCleanupAuthorization
+} from '../src/types.ts'
+
+/** Reissues a fixture action authorization and seals the exact binding against it. */
+export function authorizeRemoteBinding(binding: RemoteDriverBinding): RemoteDriverBinding {
+  const authorizationRoot = mkdtempSync(join(tmpdir(), 'oes-remote-authorization-test-'))
+  const admissionRoot = mkdtempSync(join(tmpdir(), 'oes-remote-admission-test-'))
+  process.env.OES_REMOTE_AUTHORIZATION_ROOT = authorizationRoot
+  process.env.OES_REMOTE_ADMISSION_ROOT = admissionRoot
+  if (binding.admission?.mode === 'serial-latest-main')
+    binding.admission.lockPath = join(admissionRoot, 'latest-main.lock')
+  const rootRecord: Record<string, unknown> = {
+    schemaVersion: 1,
+    kind: 'OES_TEST_ROOT_AUTHORIZATION',
+    ownerTaskId: binding.owner.taskId,
+    stateVersion: binding.stateVersion,
+    recordFingerprint: ''
+  }
+  rootRecord.recordFingerprint = objectFingerprint(rootRecord, 'recordFingerprint')
+  const rootPath = join(authorizationRoot, 'root-authorization.json')
+  const rootBytes = `${canonicalJson(rootRecord)}\n`
+  writeFileSync(rootPath, rootBytes)
+  const resourceSetFingerprint = objectFingerprint(
+    {
+      checkpointPath: binding.checkpointPath,
+      resultPath: binding.resultPath,
+      invalidationPath: binding.invalidationPath,
+      pullRequest: binding.pullRequest,
+      admission: binding.admission ?? null,
+      cleanupResources: binding.cleanupResources ?? [],
+      expectedMergeSha: binding.expectedMergeSha ?? null
+    },
+    '__none__'
+  )
+  const authority: RemoteActionAuthorization = {
+    schemaVersion: 1,
+    kind: 'OES_REMOTE_ACTION_AUTHORIZATION',
+    authorizationFingerprint: '',
+    status: 'ISSUED',
+    issuedBeforeRemoteMutation: true,
+    issuerTaskId: '/root/fixture-authority',
+    rootAuthorization: {
+      path: rootPath,
+      sha256: sha256(rootBytes),
+      fingerprint: String(rootRecord.recordFingerprint)
+    },
+    owner: binding.owner,
+    expectedState: binding.expectedState,
+    stateVersion: binding.stateVersion,
+    transitionId: binding.transitionId,
+    rootConfirmationFingerprint: 'e'.repeat(64),
+    scopeFingerprint: binding.scopeFingerprint,
+    truthBaseline: binding.truthBaseline,
+    integrationBase: binding.integrationBase,
+    candidateSha: binding.candidateSha,
+    allowedAction: binding.action,
+    repositoryRoot: binding.repositoryRoot,
+    repositorySlug: binding.repositorySlug,
+    artifactRoot: binding.artifactRoot,
+    headRef: binding.headRef,
+    baseRef: binding.baseRef,
+    singleUseNonce: binding.singleUseNonce,
+    resourceSetFingerprint,
+    postcondition: 'FIXTURE_POSTCONDITION',
+    mergeAuthorizationFingerprint: binding.mergeAuthorizationFingerprint,
+    cleanupAuthorizationFingerprint: binding.cleanupAuthorizationFingerprint
+  }
+  authority.authorizationFingerprint = objectFingerprint(
+    authority as unknown as Record<string, unknown>,
+    'authorizationFingerprint'
+  )
+  const authorityPath = join(authorizationRoot, 'action-authorization.json')
+  const authorityBytes = `${canonicalJson(authority)}\n`
+  writeFileSync(authorityPath, authorityBytes)
+  binding.authorization = {
+    path: authorityPath,
+    sha256: sha256(authorityBytes),
+    fingerprint: authority.authorizationFingerprint
+  }
+  binding.bindingFingerprint = objectFingerprint(
+    binding as unknown as Record<string, unknown>,
+    'bindingFingerprint'
+  )
+  return binding
+}
 
 /** Creates one valid remote binding rooted in a disposable artifact directory. */
 export function remoteBinding(overrides: Partial<RemoteDriverBinding> = {}): RemoteDriverBinding {
@@ -11,6 +98,7 @@ export function remoteBinding(overrides: Partial<RemoteDriverBinding> = {}): Rem
     schemaVersion: 1,
     kind: 'OES_REMOTE_DRIVER_BINDING',
     bindingFingerprint: '',
+    authorization: { path: '/pending', sha256: '0'.repeat(64), fingerprint: '0'.repeat(64) },
     action: 'publish-pr',
     owner: { role: 'Feature Lead', taskId: '/root/fl' },
     expectedState: 'LOCAL_REVIEW_PASSED',
@@ -40,11 +128,7 @@ export function remoteBinding(overrides: Partial<RemoteDriverBinding> = {}): Rem
     mergeMethod: 'merge',
     ...overrides
   }
-  binding.bindingFingerprint = objectFingerprint(
-    binding as unknown as Record<string, unknown>,
-    'bindingFingerprint'
-  )
-  return binding
+  return authorizeRemoteBinding(binding)
 }
 
 /** Creates one valid two-feature Stage cleanup authorization. */

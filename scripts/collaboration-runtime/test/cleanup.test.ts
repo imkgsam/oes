@@ -5,9 +5,15 @@ import {
   verifyChildCleanupResults,
   verifyCleanupOnlyDeletion
 } from '../src/cleanup.ts'
+import { objectFingerprint } from '../src/canonical.ts'
 import { cleanupAuthorization } from './helpers.ts'
 
 const key = (kind: string, path: string, sha: string | null) => `${kind}:${path}:${sha ?? 'NONE'}`
+const absent = (resource: {
+  kind: 'remote-branch' | 'local-branch' | 'worktree' | 'feature-packet'
+  path: string
+  expectedSha: string | null
+}) => ({ ...resource, exists: false, clean: true, actualSha: null })
 
 test('child cleanup narrows to exact owner resources and preserves SHA mismatch', () => {
   const authorization = cleanupAuthorization()
@@ -33,6 +39,7 @@ test('child cleanup narrows to exact owner resources and preserves SHA mismatch'
     plan.map((item) => item.decision),
     ['REMOVE', 'PRESERVE_FAILURE']
   )
+  plan[0].observedAfter = absent(plan[0].resource)
   assert.throws(
     () =>
       verifyChildCleanupResults(authorization, {
@@ -41,7 +48,9 @@ test('child cleanup narrows to exact owner resources and preserves SHA mismatch'
           {
             resource: authorization.terminalFeatures[1].resources[0],
             decision: 'ALREADY_ABSENT',
-            reason: 'absent'
+            reason: 'observed absent',
+            observedBefore: absent(authorization.terminalFeatures[1].resources[0]),
+            observedAfter: absent(authorization.terminalFeatures[1].resources[0])
           }
         ]
       }),
@@ -49,36 +58,67 @@ test('child cleanup narrows to exact owner resources and preserves SHA mismatch'
   )
 })
 
+test('missing observation is a preserved failure rather than claimed absence', () => {
+  const authorization = cleanupAuthorization()
+  const plan = planChildSelfCleanup(authorization, '/root/sl/fl-alpha', [])
+  assert.deepEqual(
+    plan.map((item) => item.decision),
+    ['PRESERVE_FAILURE', 'PRESERVE_FAILURE']
+  )
+})
+
 test('verified prior child resource is not repeated during partial retry', () => {
   const authorization = cleanupAuthorization()
-  const completed = [key('remote-branch', 'codex/feature/alpha', '1'.repeat(40))]
-  const plan = planChildSelfCleanup(authorization, '/root/sl/fl-alpha', [], completed)
-  assert.equal(plan[0].decision, 'SKIP_COMPLETED')
-  assert.equal(plan[1].decision, 'ALREADY_ABSENT')
+  const completedResource = authorization.terminalFeatures[0].resources[0]
+  const completedAfter = absent(completedResource)
+  const completed = [
+    {
+      resource: completedResource,
+      observedAfter: completedAfter,
+      completionFingerprint: objectFingerprint(
+        { resource: completedResource, observedAfter: completedAfter },
+        '__none__'
+      )
+    }
+  ]
+  const worktree = authorization.terminalFeatures[0].resources[1]
+  const plan = planChildSelfCleanup(
+    authorization,
+    '/root/sl/fl-alpha',
+    [absent(worktree)],
+    completed
+  )
+  assert.deepEqual(
+    plan.map((item) => item.decision),
+    ['SKIP_COMPLETED', 'ALREADY_ABSENT']
+  )
+  const beta = authorization.terminalFeatures[1].resources[0]
   verifyChildCleanupResults(authorization, {
     '/root/sl/fl-alpha': plan,
     '/root/sl/fl-beta': [
       {
-        resource: authorization.terminalFeatures[1].resources[0],
+        resource: beta,
         decision: 'ALREADY_ABSENT',
-        reason: 'absent'
+        reason: 'observed absent',
+        observedBefore: absent(beta),
+        observedAfter: absent(beta)
       }
     ]
   })
 })
 
-test('cleanup-only diff must delete exactly the terminal Feature Packets', () => {
+test('cleanup-only diff must contain exactly terminal Feature Packet deletions', () => {
   const authorization = cleanupAuthorization()
   verifyCleanupOnlyDeletion(authorization, [
-    'docs/plans/features/beta.md',
-    'docs/plans/features/alpha.md'
+    { status: 'D', path: 'docs/plans/features/beta.md' },
+    { status: 'D', path: 'docs/plans/features/alpha.md' }
   ])
   assert.throws(
     () =>
       verifyCleanupOnlyDeletion(authorization, [
-        'docs/plans/features/alpha.md',
-        'docs/governance/codex-execution-model.md'
+        { status: 'D', path: 'docs/plans/features/alpha.md' },
+        { status: 'M', path: 'docs/governance/codex-execution-model.md' }
       ]),
-    /CLEANUP_ONLY_DIFF_SCOPE_MISMATCH/
+    /CLEANUP_ONLY_NON_DELETION_CHANGE/
   )
 })

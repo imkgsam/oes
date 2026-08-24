@@ -69,8 +69,20 @@ function parsePull(value: Record<string, unknown>): PullRequestTruth {
     baseRef: String(base.ref),
     headRef: String(head.ref),
     headSha: String(head.sha),
-    mergeCommitSha: value.merge_commit_sha ? String(value.merge_commit_sha) : null
+    mergeCommitSha: value.merge_commit_sha ? String(value.merge_commit_sha) : null,
+    title: String(value.title ?? ''),
+    body: String(value.body ?? '')
   }
+}
+
+/** Returns whether the remote URL names the exact bound repository. */
+function remoteMatchesSlug(remote: string, slug: string): boolean {
+  const normalized = remote.trim().replace(/\.git$/, '')
+  return (
+    normalized === `https://github.com/${slug}` ||
+    normalized === `ssh://git@github.com/${slug}` ||
+    normalized === `git@github.com:${slug}`
+  )
 }
 
 /** Implements exact Git/GitHub operations for the repository remote driver. */
@@ -85,17 +97,21 @@ export class GitHubRemoteAdapter implements RemoteAdapter {
     this.gh = gh
   }
 
-  /** Runs local and latest-main guards before any bound action. */
+  /** Runs local, repository-policy, review and latest-main guards before a bound action. */
   async preflight(binding: RemoteDriverBinding, truth: RemoteTruth): Promise<void> {
     const cwd = binding.repositoryRoot
     const status = checked(this.runner, this.git, ['status', '--porcelain'], cwd).trim()
     if (status) fail('OWNER_WORKTREE_DIRTY', status)
+    const remote = checked(this.runner, this.git, ['remote', 'get-url', 'origin'], cwd)
+    if (!remoteMatchesSlug(remote, binding.repositorySlug))
+      fail('BOUND_REPOSITORY_REMOTE_MISMATCH', remote.trim())
     const head = checked(this.runner, this.git, ['rev-parse', 'HEAD'], cwd).trim()
     if (head !== binding.candidateSha && binding.action !== 'verify-main')
       fail('LOCAL_HEAD_MISMATCH', head)
     const branch = checked(this.runner, this.git, ['branch', '--show-current'], cwd).trim()
     if (binding.action !== 'verify-main' && branch !== binding.headRef)
       fail('LOCAL_BRANCH_MISMATCH', branch)
+    this.verifyRepositoryBaseline(binding)
     if (
       ['preflight', 'publish-pr', 'verify-pr'].includes(binding.action) ||
       (binding.action === 'merge-pr' && binding.admission?.mode === 'serial-latest-main')
@@ -112,29 +128,25 @@ export class GitHubRemoteAdapter implements RemoteAdapter {
     if (
       binding.action === 'merge-pr' &&
       binding.admission?.mode === 'merge-queue' &&
-      binding.admission.mergeGroupSha
+      truth.mergeQueueEntry
     ) {
-      if (!truth.requiredChecks.length)
-        fail('MERGE_GROUP_CHECKS_ABSENT', binding.admission.mergeGroupSha)
+      if (truth.mergeQueueEntry.headSha === binding.candidateSha)
+        fail('MERGE_GROUP_NOT_SYNTHESIZED', truth.mergeQueueEntry.headSha)
+      this.verifyRemoteAncestor(binding, binding.integrationBase, truth.mergeQueueEntry.baseSha)
     }
-    if (
-      binding.action === 'publish-pr' &&
-      truth.pullRequest &&
-      truth.pullRequest.state !== 'OPEN'
-    ) {
+    if (binding.action === 'publish-pr' && truth.pullRequest && truth.pullRequest.state !== 'OPEN')
       fail('PULL_REQUEST_REF_REUSED', String(truth.pullRequest.number))
-    }
     if (truth.branchHead && truth.branchHead !== binding.candidateSha)
       fail('REMOTE_OWNER_BRANCH_DIVERGED', truth.branchHead)
     if (
       binding.pullRequest.number !== null &&
       truth.pullRequest?.number !== binding.pullRequest.number
-    ) {
+    )
       fail('PULL_REQUEST_NUMBER_MISMATCH', String(truth.pullRequest?.number))
-    }
+    if (truth.pullRequest) this.requireExactPull(binding, truth.pullRequest)
   }
 
-  /** Reads exact branch, pull, check and main state without mutating it. */
+  /** Reads exact branch, pull, queue, check, review and main state without remote mutation. */
   async readTruth(binding: RemoteDriverBinding): Promise<RemoteTruth> {
     const cwd = binding.repositoryRoot
     const branchRef = `refs/heads/${binding.headRef}`
@@ -152,33 +164,56 @@ export class GitHubRemoteAdapter implements RemoteAdapter {
     const checkSha =
       binding.action === 'verify-main'
         ? mainHead
-        : (binding.admission?.mergeGroupSha ?? pullRequest?.headSha ?? branchHead)
+        : (mergeQueueEntry?.headSha ??
+          (binding.admission?.mode === 'merge-queue' && pullRequest?.state === 'MERGED'
+            ? pullRequest.mergeCommitSha
+            : (pullRequest?.headSha ?? branchHead)))
     const requiredChecks = checkSha ? this.readChecks(binding, checkSha) : []
-    checked(this.runner, this.git, ['fetch', 'origin', 'main'], cwd)
+    const pullMergeParents = pullRequest?.mergeCommitSha
+      ? this.readCommitParents(binding, pullRequest.mergeCommitSha)
+      : []
+    const reviewGate = pullRequest
+      ? this.readReviewGate(binding, pullRequest.number, requiredChecks)
+      : {
+          annotations: 0,
+          issueComments: 0,
+          reviewComments: 0,
+          blockingReviews: 0,
+          unresolvedThreads: 0
+        }
+    checked(this.runner, this.git, ['fetch', '--no-tags', 'origin', 'main'], cwd)
     const commit = checked(this.runner, this.git, ['cat-file', '-p', 'origin/main'], cwd)
     const mainParents = commit
       .split('\n')
       .filter((line) => line.startsWith('parent '))
       .map((line) => line.slice('parent '.length))
-    return { branchHead, mergeQueueEntry, mainHead, pullRequest, requiredChecks, mainParents }
+    return {
+      branchHead,
+      mergeQueueEntry,
+      mainHead,
+      pullRequest,
+      requiredChecks,
+      mainParents,
+      pullMergeParents,
+      reviewGate
+    }
   }
 
   /** Applies only the single mutation named by the binding. */
   async mutate(binding: RemoteDriverBinding, truth: RemoteTruth): Promise<RemoteReceipt> {
     const cwd = binding.repositoryRoot
     if (binding.action === 'publish-pr') {
-      if (truth.branchHead === null) {
+      if (truth.branchHead === null)
         checked(
           this.runner,
           this.git,
           ['push', 'origin', `${binding.candidateSha}:refs/heads/${binding.headRef}`],
           cwd
         )
-      } else if (truth.branchHead !== binding.candidateSha) {
+      else if (truth.branchHead !== binding.candidateSha)
         fail('REMOTE_OWNER_BRANCH_DIVERGED', truth.branchHead)
-      }
       const currentPull = this.readPull(binding)
-      if (!currentPull) {
+      if (!currentPull)
         checked(
           this.runner,
           this.gh,
@@ -200,28 +235,27 @@ export class GitHubRemoteAdapter implements RemoteAdapter {
           ],
           cwd
         )
-      }
     } else if (binding.action === 'merge-pr') {
-      if (!this.requiredChecksPass(binding, truth.requiredChecks))
-        fail('REQUIRED_CHECKS_NOT_PASSED', binding.candidateSha)
-      if (truth.mainHead !== binding.integrationBase) fail('LATEST_MAIN_DRIFT', truth.mainHead)
-      if (binding.admission?.mode === 'merge-queue') {
+      this.requireMergeGate(binding, truth)
+      if (binding.admission?.mode === 'merge-queue')
         checked(
           this.runner,
           this.gh,
           [
-            'pr',
-            'merge',
-            String(binding.pullRequest.number),
-            '--repo',
-            binding.repositorySlug,
-            '--merge',
-            '--match-head-commit',
-            binding.candidateSha
+            'api',
+            '--method',
+            'PUT',
+            `repos/${binding.repositorySlug}/pulls/${binding.pullRequest.number}/merge-async`,
+            '-f',
+            `sha=${binding.candidateSha}`,
+            '-f',
+            'merge_method=merge',
+            '-f',
+            'merge_action=merge_queue'
           ],
           cwd
         )
-      } else {
+      else
         checked(
           this.runner,
           this.gh,
@@ -237,16 +271,12 @@ export class GitHubRemoteAdapter implements RemoteAdapter {
           ],
           cwd
         )
-      }
     } else if (binding.action === 'cleanup') {
-      if (truth.branchHead !== null && truth.branchHead !== binding.candidateSha) {
+      if (truth.branchHead !== null && truth.branchHead !== binding.candidateSha)
         fail('CLEANUP_REMOTE_SHA_MISMATCH', truth.branchHead)
-      }
       if (truth.branchHead !== null)
         checked(this.runner, this.git, ['push', 'origin', `:refs/heads/${binding.headRef}`], cwd)
-    } else {
-      fail('READ_ONLY_ACTION_MUTATION_REQUESTED', binding.action)
-    }
+    } else fail('READ_ONLY_ACTION_MUTATION_REQUESTED', binding.action)
     const after = await this.readTruth(binding)
     return {
       action: binding.action,
@@ -255,12 +285,24 @@ export class GitHubRemoteAdapter implements RemoteAdapter {
       branchHead: after.branchHead,
       pullRequestNumber: after.pullRequest?.number ?? null,
       mergeCommitSha: after.pullRequest?.mergeCommitSha ?? null,
+      mergeGroupBaseSha:
+        after.mergeQueueEntry?.baseSha ??
+        (binding.admission?.mode === 'merge-queue' ? (after.pullMergeParents[0] ?? null) : null),
+      mergeGroupHeadSha:
+        after.mergeQueueEntry?.headSha ??
+        (binding.admission?.mode === 'merge-queue'
+          ? (after.pullRequest?.mergeCommitSha ?? null)
+          : null),
       cleanupResources: binding.cleanupResources
     }
   }
 
-  /** Verifies the postcondition for the exact action. */
-  async verify(binding: RemoteDriverBinding, truth: RemoteTruth): Promise<RemoteVerification> {
+  /** Verifies the postcondition for the exact action and receipt. */
+  async verify(
+    binding: RemoteDriverBinding,
+    truth: RemoteTruth,
+    receipt: RemoteReceipt
+  ): Promise<RemoteVerification> {
     if (binding.action === 'preflight')
       return {
         passed: truth.mainHead === binding.integrationBase,
@@ -273,7 +315,9 @@ export class GitHubRemoteAdapter implements RemoteAdapter {
         truth.pullRequest?.state === 'OPEN' &&
         truth.pullRequest.draft &&
         truth.pullRequest.headSha === binding.candidateSha &&
-        truth.pullRequest.baseRef === 'main'
+        truth.pullRequest.baseRef === 'main' &&
+        truth.pullRequest.title === binding.pullRequest.title &&
+        truth.pullRequest.body === binding.pullRequest.body
       return {
         passed: Boolean(passed),
         status: passed ? 'PR_READY' : 'PR_NOT_READY',
@@ -283,65 +327,211 @@ export class GitHubRemoteAdapter implements RemoteAdapter {
     if (binding.action === 'verify-pr') {
       const passed =
         truth.pullRequest?.headSha === binding.candidateSha &&
-        this.requiredChecksPass(binding, truth.requiredChecks)
+        truth.pullRequest.title === binding.pullRequest.title &&
+        truth.pullRequest.body === binding.pullRequest.body &&
+        this.requiredChecksPass(binding, truth.requiredChecks, binding.candidateSha) &&
+        this.reviewGatePasses(truth)
       return {
         passed: Boolean(passed),
         status: passed ? 'PR_CI_PASSED' : 'PR_CI_PENDING',
-        literalResult: truth.requiredChecks
+        literalResult: { checks: truth.requiredChecks, reviewGate: truth.reviewGate }
       }
     }
     if (binding.action === 'merge-pr') {
+      let groupChecksPassed = true
+      if (binding.admission?.mode === 'merge-queue') {
+        if (!receipt.mergeGroupBaseSha || !receipt.mergeGroupHeadSha)
+          return { passed: false, status: 'MERGE_GROUP_INPUTS_PENDING', literalResult: receipt }
+        this.verifyRemoteAncestor(binding, binding.integrationBase, receipt.mergeGroupBaseSha)
+        const groupChecks = this.readChecks(binding, receipt.mergeGroupHeadSha)
+        groupChecksPassed = this.requiredChecksPass(binding, groupChecks, receipt.mergeGroupHeadSha)
+      }
       const passed =
-        truth.pullRequest?.state === 'MERGED' && truth.pullRequest.headSha === binding.candidateSha
+        truth.pullRequest?.state === 'MERGED' &&
+        truth.pullRequest.headSha === binding.candidateSha &&
+        truth.pullRequest.mergeCommitSha !== null &&
+        (binding.admission?.mode !== 'merge-queue' ||
+          truth.pullRequest.mergeCommitSha === receipt.mergeGroupHeadSha) &&
+        groupChecksPassed &&
+        this.reviewGatePasses(truth)
       return {
         passed: Boolean(passed),
         status: passed ? 'MERGED' : 'MERGE_NOT_OBSERVED',
-        literalResult: truth.pullRequest
+        literalResult: { pullRequest: truth.pullRequest, receipt }
       }
     }
     if (binding.action === 'verify-main') {
+      const expectedMergeSha = binding.expectedMergeSha as string
+      const exactParents =
+        truth.mainParents.length === 2 && truth.mainParents[1] === binding.candidateSha
+      let treeMatches = false
+      if (truth.mainHead === expectedMergeSha && exactParents) {
+        checked(
+          this.runner,
+          this.git,
+          ['merge-base', '--is-ancestor', binding.candidateSha, expectedMergeSha],
+          binding.repositoryRoot
+        )
+        const expectedTreeSource =
+          binding.admission?.mode === 'merge-queue'
+            ? binding.admission.mergeGroupSha
+            : binding.candidateSha
+        if (!expectedTreeSource) fail('VERIFY_MAIN_MERGE_GROUP_REQUIRED', binding.headRef)
+        const mainTree = checked(
+          this.runner,
+          this.git,
+          ['rev-parse', `${expectedMergeSha}^{tree}`],
+          binding.repositoryRoot
+        ).trim()
+        const reviewedTree = checked(
+          this.runner,
+          this.git,
+          ['rev-parse', `${expectedTreeSource}^{tree}`],
+          binding.repositoryRoot
+        ).trim()
+        treeMatches = mainTree === reviewedTree
+      }
       const passed =
-        truth.mainHead === binding.candidateSha &&
-        truth.mainParents.length === 2 &&
-        this.requiredChecksPass(binding, truth.requiredChecks)
+        truth.mainHead === expectedMergeSha &&
+        truth.pullRequest?.mergeCommitSha === expectedMergeSha &&
+        truth.pullRequest.headSha === binding.candidateSha &&
+        exactParents &&
+        treeMatches &&
+        this.requiredChecksPass(binding, truth.requiredChecks, expectedMergeSha) &&
+        this.reviewGatePasses(truth)
       return {
-        passed,
+        passed: Boolean(passed),
         status: passed ? 'MAIN_CI_PASSED' : 'MAIN_VERIFICATION_PENDING',
         literalResult: truth
       }
     }
-    const passed = truth.branchHead === null
+    const exactResource = binding.cleanupResources?.[0]
+    const passed =
+      truth.branchHead === null &&
+      exactResource?.kind === 'remote-branch' &&
+      exactResource.path === binding.headRef &&
+      exactResource.expectedSha === binding.candidateSha
     return {
       passed,
       status: passed ? 'CLEANUP_VERIFIED' : 'CLEANUP_PENDING',
-      literalResult: truth.branchHead
+      literalResult: { branchHead: truth.branchHead, resource: exactResource }
     }
+  }
+
+  /** Requires the live pull identity and immutable presentation to match the binding. */
+  private requireExactPull(binding: RemoteDriverBinding, pull: PullRequestTruth): void {
+    if (
+      pull.baseRef !== 'main' ||
+      pull.headRef !== binding.headRef ||
+      pull.headSha !== binding.candidateSha ||
+      pull.title !== binding.pullRequest.title ||
+      pull.body !== binding.pullRequest.body
+    )
+      fail('PULL_REQUEST_BINDING_MISMATCH', String(pull.number))
+  }
+
+  /** Requires all non-Human merge gates visible before admission. */
+  private requireMergeGate(binding: RemoteDriverBinding, truth: RemoteTruth): void {
+    if (truth.mainHead !== binding.integrationBase) fail('LATEST_MAIN_DRIFT', truth.mainHead)
+    if (!truth.pullRequest || truth.pullRequest.draft)
+      fail('PULL_REQUEST_NOT_MERGE_READY', binding.headRef)
+    this.requireExactPull(binding, truth.pullRequest)
+    if (!this.requiredChecksPass(binding, truth.requiredChecks, binding.candidateSha))
+      fail('REQUIRED_CHECKS_NOT_PASSED', binding.candidateSha)
+    if (!this.reviewGatePasses(truth)) fail('PULL_REQUEST_REVIEW_GATE_BLOCKED', binding.headRef)
+  }
+
+  /** Verifies repository settings required by canonical v6. */
+  private verifyRepositoryBaseline(binding: RemoteDriverBinding): void {
+    const cwd = binding.repositoryRoot
+    const repo = JSON.parse(
+      checked(this.runner, this.gh, ['api', `repos/${binding.repositorySlug}`], cwd)
+    ) as Record<string, unknown>
+    const rulesets = JSON.parse(
+      checked(
+        this.runner,
+        this.gh,
+        ['api', `repos/${binding.repositorySlug}/rulesets?per_page=100`],
+        cwd
+      )
+    ) as Array<Record<string, unknown>>
+    const workflow = JSON.parse(
+      checked(
+        this.runner,
+        this.gh,
+        ['api', `repos/${binding.repositorySlug}/actions/permissions/workflow`],
+        cwd
+      )
+    ) as Record<string, unknown>
+    const matches = rulesets.filter(
+      (r) => r.name === 'protect-main' && r.target === 'branch' && r.enforcement === 'active'
+    )
+    if (
+      repo.default_branch !== 'main' ||
+      repo.delete_branch_on_merge !== false ||
+      repo.allow_merge_commit !== true ||
+      repo.allow_squash_merge !== false ||
+      repo.allow_rebase_merge !== false ||
+      repo.allow_auto_merge !== false ||
+      workflow.default_workflow_permissions !== 'read' ||
+      workflow.can_approve_pull_request_reviews !== false ||
+      matches.length !== 1
+    )
+      fail('REPOSITORY_BASELINE_MISMATCH', binding.repositorySlug)
+    const ruleset = JSON.parse(
+      checked(
+        this.runner,
+        this.gh,
+        ['api', `repos/${binding.repositorySlug}/rulesets/${String(matches[0].id)}`],
+        cwd
+      )
+    ) as Record<string, unknown>
+    const bypass = ruleset.bypass_actors as unknown[]
+    const rules = Object.fromEntries(
+      ((ruleset.rules as Array<Record<string, unknown>>) ?? []).map((r) => [String(r.type), r])
+    )
+    const pull = rules.pull_request?.parameters as Record<string, unknown> | undefined
+    const checks = rules.required_status_checks?.parameters as Record<string, unknown> | undefined
+    const required =
+      (checks?.required_status_checks as Array<Record<string, unknown>> | undefined) ?? []
+    if (
+      !Array.isArray(bypass) ||
+      bypass.length !== 0 ||
+      !rules.deletion ||
+      !rules.non_fast_forward ||
+      pull?.required_approving_review_count !== 0 ||
+      pull.required_review_thread_resolution !== true ||
+      canonicalSet(pull.allowed_merge_methods) !== 'merge' ||
+      checks?.strict_required_status_checks_policy !== true ||
+      !required.some((r) => r.context === 'Baseline Checks')
+    )
+      fail('REPOSITORY_RULESET_MISMATCH', binding.repositorySlug)
   }
 
   /** Finds at most one pull request for the exact head/base pair. */
   private readPull(binding: RemoteDriverBinding): PullRequestTruth | null {
     const [owner] = binding.repositorySlug.split('/')
     const query = `repos/${binding.repositorySlug}/pulls?state=all&head=${encodeURIComponent(`${owner}:${binding.headRef}`)}&base=main&per_page=20`
-    const raw = checked(this.runner, this.gh, ['api', query], binding.repositoryRoot)
-    const pulls = JSON.parse(raw) as Record<string, unknown>[]
-    const matches = pulls
-      .map(parsePull)
-      .filter(
-        (pull) => binding.pullRequest.number === null || pull.number === binding.pullRequest.number
-      )
+    const pulls = (
+      JSON.parse(checked(this.runner, this.gh, ['api', query], binding.repositoryRoot)) as Record<
+        string,
+        unknown
+      >[]
+    ).map(parsePull)
+    const matches = pulls.filter(
+      (pull) => binding.pullRequest.number === null || pull.number === binding.pullRequest.number
+    )
     if (matches.length > 1) fail('PULL_REQUEST_AMBIGUOUS', binding.headRef)
     return matches[0] ?? null
   }
 
-  /** Reads native merge-queue membership for the exact bound pull request. */
-  private readMergeQueueEntry(
-    binding: RemoteDriverBinding
-  ): { id: string; position: number | null } | null {
+  /** Reads native merge-queue membership with exact generated base/head commits. */
+  private readMergeQueueEntry(binding: RemoteDriverBinding): RemoteTruth['mergeQueueEntry'] {
     if (binding.admission?.mode !== 'merge-queue' || binding.pullRequest.number === null)
       return null
     const [owner, name] = binding.repositorySlug.split('/')
     const query =
-      'query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){mergeQueueEntry{id position}}}}'
+      'query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){mergeQueueEntry{id position state baseCommit{oid} headCommit{oid}}}}}'
     const raw = checked(
       this.runner,
       this.gh,
@@ -362,12 +552,40 @@ export class GitHubRemoteAdapter implements RemoteAdapter {
     const response = JSON.parse(raw) as {
       data?: {
         repository?: {
-          pullRequest?: { mergeQueueEntry?: { id: string; position?: number | null } | null }
+          pullRequest?: {
+            mergeQueueEntry?: {
+              id: string
+              position?: number | null
+              state: string
+              baseCommit?: { oid?: string }
+              headCommit?: { oid?: string }
+            } | null
+          }
         }
       }
     }
     const entry = response.data?.repository?.pullRequest?.mergeQueueEntry
-    return entry ? { id: entry.id, position: entry.position ?? null } : null
+    if (!entry) return null
+    const baseSha = String(entry.baseCommit?.oid ?? '')
+    const headSha = String(entry.headCommit?.oid ?? '')
+    if (!/^[0-9a-f]{40}$/.test(baseSha) || !/^[0-9a-f]{40}$/.test(headSha))
+      fail('MERGE_QUEUE_COMMIT_IDENTITY_MISSING', entry.id)
+    return { id: entry.id, position: entry.position ?? null, state: entry.state, baseSha, headSha }
+  }
+
+  /** Reads the exact parent list for a possibly non-current merge commit. */
+  private readCommitParents(binding: RemoteDriverBinding, sha: string): string[] {
+    const raw = checked(
+      this.runner,
+      this.gh,
+      ['api', `repos/${binding.repositorySlug}/git/commits/${sha}`],
+      binding.repositoryRoot
+    )
+    const commit = JSON.parse(raw) as { parents?: Array<{ sha?: string }> }
+    const parents = (commit.parents ?? []).map((parent) => String(parent.sha ?? ''))
+    if (parents.some((parent) => !/^[0-9a-f]{40}$/.test(parent)))
+      fail('REMOTE_MERGE_PARENT_INVALID', sha)
+    return parents
   }
 
   /** Reads check runs for one exact commit without changing repository state. */
@@ -375,24 +593,164 @@ export class GitHubRemoteAdapter implements RemoteAdapter {
     const raw = checked(
       this.runner,
       this.gh,
-      ['api', `repos/${binding.repositorySlug}/commits/${sha}/check-runs`],
+      ['api', `repos/${binding.repositorySlug}/commits/${sha}/check-runs?per_page=100`],
       binding.repositoryRoot
     )
     const response = JSON.parse(raw) as { check_runs?: Array<Record<string, unknown>> }
     return (response.check_runs ?? []).map((check) => ({
+      sha,
       name: String(check.name),
       status: String(check.status),
       conclusion: check.conclusion === null ? null : String(check.conclusion)
     }))
   }
 
-  /** Requires every bound check name to have one successful completed run. */
-  private requiredChecksPass(binding: RemoteDriverBinding, checks: RequiredCheckTruth[]): boolean {
+  /** Reads annotations, comments, blocking reviews and unresolved conversations. */
+  private readReviewGate(
+    binding: RemoteDriverBinding,
+    pr: number,
+    checks: RequiredCheckTruth[]
+  ): RemoteTruth['reviewGate'] {
+    const cwd = binding.repositoryRoot
+    let annotations = 0
+    const checkRaw = JSON.parse(
+      checked(
+        this.runner,
+        this.gh,
+        [
+          'api',
+          `repos/${binding.repositorySlug}/commits/${checks[0]?.sha ?? binding.candidateSha}/check-runs?per_page=100`
+        ],
+        cwd
+      )
+    ) as { check_runs?: Array<Record<string, unknown>> }
+    for (const check of checkRaw.check_runs ?? []) {
+      const values = JSON.parse(
+        checked(
+          this.runner,
+          this.gh,
+          [
+            'api',
+            `repos/${binding.repositorySlug}/check-runs/${String(check.id)}/annotations?per_page=100`
+          ],
+          cwd
+        )
+      ) as Array<Record<string, unknown>>
+      annotations += values.filter((a) =>
+        ['warning', 'failure'].includes(String(a.annotation_level))
+      ).length
+    }
+    const issueComments = (
+      JSON.parse(
+        checked(
+          this.runner,
+          this.gh,
+          ['api', `repos/${binding.repositorySlug}/issues/${pr}/comments?per_page=100`],
+          cwd
+        )
+      ) as unknown[]
+    ).length
+    const reviewComments = (
+      JSON.parse(
+        checked(
+          this.runner,
+          this.gh,
+          ['api', `repos/${binding.repositorySlug}/pulls/${pr}/comments?per_page=100`],
+          cwd
+        )
+      ) as unknown[]
+    ).length
+    const reviews = JSON.parse(
+      checked(
+        this.runner,
+        this.gh,
+        ['api', `repos/${binding.repositorySlug}/pulls/${pr}/reviews?per_page=100`],
+        cwd
+      )
+    ) as Array<Record<string, unknown>>
+    const blockingReviews = reviews.filter((r) => r.state === 'CHANGES_REQUESTED').length
+    const [owner, name] = binding.repositorySlug.split('/')
+    const query =
+      'query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){reviewThreads(first:100){pageInfo{hasNextPage} nodes{isResolved}}}}}'
+    const graph = JSON.parse(
+      checked(
+        this.runner,
+        this.gh,
+        [
+          'api',
+          'graphql',
+          '-f',
+          `query=${query}`,
+          '-f',
+          `owner=${owner}`,
+          '-f',
+          `name=${name}`,
+          '-F',
+          `number=${pr}`
+        ],
+        cwd
+      )
+    ) as {
+      data?: {
+        repository?: {
+          pullRequest?: {
+            reviewThreads?: {
+              pageInfo?: { hasNextPage?: boolean }
+              nodes?: Array<{ isResolved?: boolean }>
+            }
+          }
+        }
+      }
+    }
+    const threads = graph.data?.repository?.pullRequest?.reviewThreads
+    if (threads?.pageInfo?.hasNextPage) fail('REVIEW_THREAD_PAGINATION_REQUIRED', String(pr))
+    const unresolvedThreads = (threads?.nodes ?? []).filter(
+      (thread) => thread.isResolved !== true
+    ).length
+    return { annotations, issueComments, reviewComments, blockingReviews, unresolvedThreads }
+  }
+
+  /** Requires every bound check name to have one successful completed run on the exact SHA. */
+  private requiredChecksPass(
+    binding: RemoteDriverBinding,
+    checks: RequiredCheckTruth[],
+    sha: string
+  ): boolean {
     return binding.pullRequest.requiredChecks.every((name) =>
       checks.some(
         (check) =>
-          check.name === name && check.status === 'completed' && check.conclusion === 'success'
+          check.sha === sha &&
+          check.name === name &&
+          check.status === 'completed' &&
+          check.conclusion === 'success'
       )
     )
   }
+
+  /** Requires all review and annotation counters to be clear. */
+  private reviewGatePasses(truth: RemoteTruth): boolean {
+    return Object.values(truth.reviewGate).every((count) => count === 0)
+  }
+
+  /** Uses the remote compare API so merge-queue bases can include prior admitted results. */
+  private verifyRemoteAncestor(
+    binding: RemoteDriverBinding,
+    ancestor: string,
+    descendant: string
+  ): void {
+    const raw = checked(
+      this.runner,
+      this.gh,
+      ['api', `repos/${binding.repositorySlug}/compare/${ancestor}...${descendant}`],
+      binding.repositoryRoot
+    )
+    const comparison = JSON.parse(raw) as { status?: string }
+    if (!['identical', 'ahead'].includes(String(comparison.status)))
+      fail('MERGE_GROUP_BASE_NOT_LATEST_MAIN_DESCENDANT', `${ancestor}..${descendant}`)
+  }
+}
+
+/** Canonicalizes a string-array setting for exact comparison. */
+function canonicalSet(value: unknown): string {
+  return Array.isArray(value) ? [...value].map(String).sort().join(',') : ''
 }

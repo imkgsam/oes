@@ -18,17 +18,52 @@
   "properties": {
     "schemaVersion": { "const": 1 },
     "kind": { "const": "OES_STAGE_CLEANUP_AUTHORIZATION" },
-    "authorizationFingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-    "stageKey": { "type": "string" },
-    "stageOwnerTaskId": { "type": "string" },
-    "transitionId": { "type": "string" },
-    "confirmationFingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-    "terminalFeatures": { "type": "array", "minItems": 1, "items": { "type": "object" } },
+    "authorizationFingerprint": { "$ref": "#/$defs/sha256" },
+    "stageKey": { "type": "string", "minLength": 1 },
+    "stageOwnerTaskId": { "type": "string", "minLength": 1 },
+    "transitionId": { "type": "string", "minLength": 1 },
+    "confirmationFingerprint": { "$ref": "#/$defs/sha256" },
+    "terminalFeatures": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/feature" } },
     "cleanupOnlyBranch": { "type": "string", "pattern": "^codex/cleanup/" },
     "allowedDeletedFeaturePackets": {
       "type": "array",
+      "minItems": 1,
       "uniqueItems": true,
       "items": { "type": "string", "pattern": "^docs/plans/features/.+\\.md$" }
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "gitSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "resource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "path", "expectedSha"],
+      "properties": {
+        "kind": { "enum": ["remote-branch", "local-branch", "worktree", "feature-packet"] },
+        "path": { "type": "string", "minLength": 1 },
+        "expectedSha": { "type": ["string", "null"], "pattern": "^[0-9a-f]{40}$" }
+      }
+    },
+    "feature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "featureKey",
+        "ownerTaskId",
+        "candidateSha",
+        "mergeSha",
+        "featurePacket",
+        "resources"
+      ],
+      "properties": {
+        "featureKey": { "type": "string", "minLength": 1 },
+        "ownerTaskId": { "type": "string", "minLength": 1 },
+        "candidateSha": { "$ref": "#/$defs/gitSha" },
+        "mergeSha": { "$ref": "#/$defs/gitSha" },
+        "featurePacket": { "type": "string", "pattern": "^docs/plans/features/.+\\.md$" },
+        "resources": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/resource" } }
+      }
     }
   }
 }

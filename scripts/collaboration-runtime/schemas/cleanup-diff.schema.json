@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oes.local/schemas/collaboration-runtime/cleanup-diff-v1.json",
+  "type": "array",
+  "minItems": 1,
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["status", "path"],
+    "properties": {
+      "status": { "enum": ["A", "C", "D", "M", "R", "T", "U", "X", "B"] },
+      "path": { "type": "string", "minLength": 1 }
+    }
+  }
+}

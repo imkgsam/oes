@@ -19,11 +19,16 @@ export interface RemoteAdapter {
   preflight(binding: RemoteDriverBinding, truth: RemoteTruth): Promise<void>
   readTruth(binding: RemoteDriverBinding): Promise<RemoteTruth>
   mutate(binding: RemoteDriverBinding, truth: RemoteTruth): Promise<RemoteReceipt>
-  verify(binding: RemoteDriverBinding, truth: RemoteTruth): Promise<RemoteVerification>
+  verify(
+    binding: RemoteDriverBinding,
+    truth: RemoteTruth,
+    receipt: RemoteReceipt
+  ): Promise<RemoteVerification>
 }
 
 export interface RemoteDriverHooks {
   afterRemoteMutation?: (receipt: RemoteReceipt) => Promise<void> | void
+  afterVerifiedCheckpoint?: () => Promise<void> | void
 }
 
 /** Determines whether remote truth already proves the bound mutation occurred. */
@@ -35,20 +40,17 @@ export function remoteMutationSatisfied(binding: RemoteDriverBinding, truth: Rem
       truth.pullRequest.draft === true &&
       truth.pullRequest.baseRef === 'main' &&
       truth.pullRequest.headRef === binding.headRef &&
-      truth.pullRequest.headSha === binding.candidateSha
+      truth.pullRequest.headSha === binding.candidateSha &&
+      truth.pullRequest.title === binding.pullRequest.title &&
+      truth.pullRequest.body === binding.pullRequest.body
     )
   }
   if (binding.action === 'merge-pr') {
     const exactPull = truth.pullRequest?.headSha === binding.candidateSha
-    if (binding.admission?.mode === 'merge-queue') {
-      return Boolean(
-        exactPull && (truth.pullRequest?.state === 'MERGED' || truth.mergeQueueEntry !== null)
-      )
-    }
+    if (binding.admission?.mode === 'merge-queue')
+      return Boolean(exactPull && (truth.pullRequest?.state === 'MERGED' || truth.mergeQueueEntry))
     return Boolean(
-      exactPull &&
-      truth.pullRequest?.state === 'MERGED' &&
-      truth.pullRequest.mergeCommitSha !== null
+      exactPull && truth.pullRequest?.state === 'MERGED' && truth.pullRequest.mergeCommitSha
     )
   }
   if (binding.action === 'cleanup') return truth.branchHead === null
@@ -69,8 +71,42 @@ function receiptFromTruth(
     branchHead: truth.branchHead,
     pullRequestNumber: truth.pullRequest?.number ?? null,
     mergeCommitSha: truth.pullRequest?.mergeCommitSha ?? null,
+    mergeGroupBaseSha:
+      truth.mergeQueueEntry?.baseSha ?? binding.admission?.mergeGroupBaseSha ?? null,
+    mergeGroupHeadSha: truth.mergeQueueEntry?.headSha ?? binding.admission?.mergeGroupSha ?? null,
     cleanupResources: binding.cleanupResources
   }
+}
+
+/** Constructs and atomically persists one verified result. */
+function writeVerifiedResult(
+  binding: RemoteDriverBinding,
+  receipt: RemoteReceipt,
+  verification: RemoteVerification,
+  truth: RemoteTruth
+): RemoteDriverResult {
+  const result: RemoteDriverResult = {
+    schemaVersion: 1,
+    kind: 'OES_REMOTE_DRIVER_RESULT',
+    bindingFingerprint: binding.bindingFingerprint,
+    action: binding.action,
+    ownerTaskId: binding.owner.taskId,
+    singleUseNonce: binding.singleUseNonce,
+    status: 'REMOTE_VERIFIED',
+    stage: 'REMOTE_VERIFIED',
+    receipt,
+    verification,
+    remoteTruth: truth,
+    remoteMutation: MUTATING_ACTIONS.has(binding.action)
+  }
+  writeJsonAtomic(binding.resultPath, result)
+  const reread = readJson<RemoteDriverResult>(binding.resultPath)
+  if (
+    objectFingerprint(reread as unknown as Record<string, unknown>, '__none__') !==
+    objectFingerprint(result as unknown as Record<string, unknown>, '__none__')
+  )
+    fail('REMOTE_RESULT_READBACK_MISMATCH', binding.resultPath)
+  return result
 }
 
 /** Verifies a persisted terminal result still belongs to the exact binding. */
@@ -81,10 +117,13 @@ function readVerifiedResult(binding: RemoteDriverBinding): RemoteDriverResult {
     result.kind !== 'OES_REMOTE_DRIVER_RESULT' ||
     result.bindingFingerprint !== binding.bindingFingerprint ||
     result.singleUseNonce !== binding.singleUseNonce ||
+    result.ownerTaskId !== binding.owner.taskId ||
+    result.action !== binding.action ||
+    result.stage !== 'REMOTE_VERIFIED' ||
+    result.receipt?.action !== binding.action ||
     result.status !== 'REMOTE_VERIFIED'
-  ) {
+  )
     fail('VERIFIED_RESULT_BINDING_MISMATCH', binding.resultPath)
-  }
   return result
 }
 
@@ -106,16 +145,34 @@ export class RemoteDriver {
         ? new SerialAdmissionLock(binding)
         : null
     admission?.acquire()
-    const result = await this.runBound(binding)
-    if (result.status === 'REMOTE_VERIFIED') admission?.release()
-    return result
+    try {
+      const result = await this.runBound(binding)
+      if (result.status === 'REMOTE_VERIFIED') admission?.release()
+      return result
+    } catch (error) {
+      // A failure before the preflight checkpoint cannot conceal a mutation and must not strand
+      // latest-main admission. Once checkpointed, keep the lock for exact-binding recovery.
+      if (admission && new RemoteCheckpointStore(binding).read() === null) admission.release()
+      throw error
+    }
   }
 
   /** Runs the checkpoint transaction after any required serial admission is held. */
   private async runBound(binding: RemoteDriverBinding): Promise<RemoteDriverResult> {
     const store = new RemoteCheckpointStore(binding)
     let checkpoint = store.read()
-    if (checkpoint?.stage === 'REMOTE_VERIFIED') return readVerifiedResult(binding)
+    if (checkpoint?.stage === 'REMOTE_VERIFIED') {
+      if (existsSync(binding.resultPath)) return readVerifiedResult(binding)
+      const receipt = checkpoint.receipt
+      if (!receipt) fail('REMOTE_RECEIPT_ABSENT', binding.action)
+      const truth = await this.adapter.readTruth(binding)
+      if (MUTATING_ACTIONS.has(binding.action) && !remoteMutationSatisfied(binding, truth))
+        fail('REMOTE_TRUTH_DRIFT_AFTER_MUTATION', binding.action)
+      const verification = await this.adapter.verify(binding, truth, receipt)
+      if (!verification.passed)
+        fail('TERMINAL_CHECKPOINT_REMOTE_VERIFICATION_FAILED', binding.action)
+      return writeVerifiedResult(binding, receipt, verification, truth)
+    }
 
     let truth = await this.adapter.readTruth(binding)
     if (!checkpoint) {
@@ -136,25 +193,19 @@ export class RemoteDriver {
           if (!remoteMutationSatisfied(binding, truth))
             fail('REMOTE_MUTATION_NOT_OBSERVED', binding.action)
           receipt = receiptFromTruth(binding, truth, true, false)
-        } else {
-          receipt = receiptFromTruth(binding, truth, false, true)
-        }
-      } else {
-        receipt = receiptFromTruth(binding, truth, false, false)
-      }
+        } else receipt = receiptFromTruth(binding, truth, false, true)
+      } else receipt = receiptFromTruth(binding, truth, false, false)
       checkpoint = store.advance('REMOTE_MUTATION_RECORDED', truth, receipt)
-    } else if (mutating && !remoteMutationSatisfied(binding, truth)) {
+    } else if (mutating && !remoteMutationSatisfied(binding, truth))
       fail('REMOTE_TRUTH_DRIFT_AFTER_MUTATION', binding.action)
-    }
 
     receipt = checkpoint.receipt ?? receipt
     if (!receipt) fail('REMOTE_RECEIPT_ABSENT', binding.action)
-    if (checkpoint.stage === 'REMOTE_MUTATION_RECORDED') {
+    if (checkpoint.stage === 'REMOTE_MUTATION_RECORDED')
       checkpoint = store.advance('REMOTE_VERIFICATION_PENDING', truth, receipt)
-    }
 
     truth = await this.adapter.readTruth(binding)
-    const verification = await this.adapter.verify(binding, truth)
+    const verification = await this.adapter.verify(binding, truth, receipt)
     if (!verification.passed) {
       const pending: RemoteDriverResult = {
         schemaVersion: 1,
@@ -175,29 +226,8 @@ export class RemoteDriver {
     }
 
     checkpoint = store.advance('REMOTE_VERIFIED', truth, receipt)
-    const result: RemoteDriverResult = {
-      schemaVersion: 1,
-      kind: 'OES_REMOTE_DRIVER_RESULT',
-      bindingFingerprint: binding.bindingFingerprint,
-      action: binding.action,
-      ownerTaskId: binding.owner.taskId,
-      singleUseNonce: binding.singleUseNonce,
-      status: 'REMOTE_VERIFIED',
-      stage: checkpoint.stage,
-      receipt,
-      verification,
-      remoteTruth: truth,
-      remoteMutation: mutating
-    }
-    writeJsonAtomic(binding.resultPath, result)
-    const reread = readJson<RemoteDriverResult>(binding.resultPath)
-    if (
-      objectFingerprint(reread as unknown as Record<string, unknown>, '__none__') !==
-      objectFingerprint(result as unknown as Record<string, unknown>, '__none__')
-    ) {
-      fail('REMOTE_RESULT_READBACK_MISMATCH', binding.resultPath)
-    }
-    return result
+    await this.hooks.afterVerifiedCheckpoint?.()
+    return writeVerifiedResult(binding, receipt, verification, truth)
   }
 }
 

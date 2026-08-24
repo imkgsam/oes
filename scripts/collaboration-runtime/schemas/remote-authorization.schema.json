@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oes.local/schemas/collaboration-runtime/remote-authorization-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "authorizationFingerprint",
+    "status",
+    "issuedBeforeRemoteMutation",
+    "issuerTaskId",
+    "rootAuthorization",
+    "owner",
+    "expectedState",
+    "stateVersion",
+    "transitionId",
+    "rootConfirmationFingerprint",
+    "scopeFingerprint",
+    "truthBaseline",
+    "integrationBase",
+    "candidateSha",
+    "allowedAction",
+    "repositoryRoot",
+    "repositorySlug",
+    "artifactRoot",
+    "headRef",
+    "baseRef",
+    "singleUseNonce",
+    "resourceSetFingerprint",
+    "postcondition"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "OES_REMOTE_ACTION_AUTHORIZATION" },
+    "authorizationFingerprint": { "$ref": "#/$defs/sha256" },
+    "status": { "const": "ISSUED" },
+    "issuedBeforeRemoteMutation": { "const": true },
+    "issuerTaskId": { "type": "string", "minLength": 1 },
+    "rootAuthorization": { "$ref": "#/$defs/reference" },
+    "owner": { "$ref": "#/$defs/owner" },
+    "expectedState": { "type": "string", "minLength": 1 },
+    "stateVersion": { "type": "integer", "minimum": 1 },
+    "transitionId": { "type": "string", "minLength": 1 },
+    "rootConfirmationFingerprint": { "$ref": "#/$defs/sha256" },
+    "scopeFingerprint": { "$ref": "#/$defs/sha256" },
+    "truthBaseline": { "$ref": "#/$defs/gitSha" },
+    "integrationBase": { "$ref": "#/$defs/gitSha" },
+    "candidateSha": { "$ref": "#/$defs/gitSha" },
+    "allowedAction": { "$ref": "#/$defs/action" },
+    "repositoryRoot": { "type": "string", "pattern": "^/" },
+    "repositorySlug": { "type": "string", "pattern": "^[^/]+/[^/]+$" },
+    "artifactRoot": { "type": "string", "pattern": "^/" },
+    "headRef": { "type": "string", "minLength": 1 },
+    "baseRef": { "const": "main" },
+    "singleUseNonce": { "type": "string", "minLength": 1 },
+    "resourceSetFingerprint": { "$ref": "#/$defs/sha256" },
+    "postcondition": { "type": "string", "minLength": 1 },
+    "mergeAuthorizationFingerprint": { "$ref": "#/$defs/sha256" },
+    "cleanupAuthorizationFingerprint": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "gitSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "action": {
+      "enum": ["preflight", "publish-pr", "verify-pr", "merge-pr", "verify-main", "cleanup"]
+    },
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "fingerprint"],
+      "properties": {
+        "path": { "type": "string", "pattern": "^/" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "fingerprint": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "owner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "taskId"],
+      "properties": {
+        "role": { "enum": ["Direct owner", "Global Unified Design", "Feature Lead", "Stage Lead"] },
+        "taskId": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

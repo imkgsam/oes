@@ -25,12 +25,35 @@ export class RemoteCheckpointStore {
     if (checkpoint.kind !== 'OES_REMOTE_DRIVER_CHECKPOINT' || checkpoint.schemaVersion !== 1) {
       fail('INVALID_CHECKPOINT_KIND', this.binding.checkpointPath)
     }
+    const exactKeys = [
+      'schemaVersion',
+      'kind',
+      'bindingFingerprint',
+      'action',
+      'singleUseNonce',
+      'stage',
+      'receipt',
+      'remoteTruthFingerprint',
+      'updatedAt'
+    ]
+    if (Object.keys(checkpoint).some((key) => !exactKeys.includes(key)))
+      fail('CHECKPOINT_UNDECLARED_FIELD', this.binding.checkpointPath)
     if (
       checkpoint.bindingFingerprint !== this.binding.bindingFingerprint ||
       checkpoint.action !== this.binding.action ||
       checkpoint.singleUseNonce !== this.binding.singleUseNonce
     ) {
       fail('CHECKPOINT_BINDING_MISMATCH', this.binding.checkpointPath)
+    }
+    if (!REMOTE_STAGES.includes(checkpoint.stage))
+      fail('CHECKPOINT_STAGE_INVALID', String(checkpoint.stage))
+    if (!/^[0-9a-f]{64}$/.test(checkpoint.remoteTruthFingerprint))
+      fail('CHECKPOINT_TRUTH_FINGERPRINT_INVALID', this.binding.checkpointPath)
+    if (checkpoint.stage === 'REMOTE_PREFLIGHT_VERIFIED' && checkpoint.receipt !== null)
+      fail('CHECKPOINT_PREMATURE_RECEIPT', this.binding.checkpointPath)
+    if (checkpoint.stage !== 'REMOTE_PREFLIGHT_VERIFIED') {
+      if (!checkpoint.receipt || checkpoint.receipt.action !== this.binding.action)
+        fail('CHECKPOINT_RECEIPT_MISMATCH', this.binding.checkpointPath)
     }
     return checkpoint
   }

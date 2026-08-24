@@ -50,3 +50,28 @@ test('Stage cleanup authorization fingerprint and packet set are exact', () => {
     /CLEANUP_PACKET_SET_MISMATCH/
   )
 })
+
+test('self-hashed owner and state changes fail trusted authorization CAS', () => {
+  const binding = remoteBinding()
+  binding.owner = { role: 'Feature Lead', taskId: '/root/not-current-owner' }
+  binding.expectedState = 'UNAUTHORIZED_STATE'
+  binding.bindingFingerprint = objectFingerprint(
+    binding as unknown as Record<string, unknown>,
+    'bindingFingerprint'
+  )
+  assert.throws(() => validateRemoteBinding(binding), /REMOTE_AUTHORIZATION_CAS_MISMATCH/)
+})
+
+test('empty Stage cleanup batch is rejected consistently with schema', () => {
+  const authorization = cleanupAuthorization()
+  authorization.terminalFeatures = []
+  authorization.allowedDeletedFeaturePackets = []
+  authorization.authorizationFingerprint = objectFingerprint(
+    authorization as unknown as Record<string, unknown>,
+    'authorizationFingerprint'
+  )
+  assert.throws(
+    () => validateStageCleanupAuthorization(authorization),
+    /CLEANUP_TERMINAL_FEATURES_REQUIRED/
+  )
+})

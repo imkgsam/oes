@@ -1,10 +1,6 @@
 #!/usr/bin/env node
-import {
-  loadRemoteBinding,
-  validateRemoteBinding,
-  validateStageCleanupAuthorization
-} from './binding.ts'
-import { canonicalJson, objectFingerprint, readJson, writeJsonAtomic } from './canonical.ts'
+import { loadRemoteBinding, validateStageCleanupAuthorization } from './binding.ts'
+import { canonicalJson, readJson, writeJsonAtomic } from './canonical.ts'
 import {
   planChildSelfCleanup,
   verifyChildCleanupResults,
@@ -13,11 +9,19 @@ import {
 import { assessDrift, createEvidenceKey } from './evidence.ts'
 import { RuntimeContractError, fail } from './errors.ts'
 import { GitHubRemoteAdapter } from './github-adapter.ts'
-import { verifyEffectiveProfileReport } from './profile-preflight.ts'
+import {
+  SystemPreflightProbeAdapter,
+  runEffectiveProfilePreflight,
+  verifyEffectiveProfileReport,
+  type PreflightRequest,
+  type SystemProbeOptions
+} from './profile-preflight.ts'
+import { validateJsonSchema } from './schema-validation.ts'
 import { RemoteDriver } from './remote-driver.ts'
 import type {
-  RemoteDriverBinding,
+  CleanupDiffEntry,
   CleanupResourceDecision,
+  CompletedCleanupResource,
   DriftAssessmentInput,
   EffectiveProfileReport,
   EvidenceKeyInput,
@@ -37,41 +41,9 @@ function emit(value: unknown): void {
   process.stdout.write(`${canonicalJson(value)}\n`)
 }
 
-/** Validates an in-memory binding produced by the fingerprint command. */
-function loadRemoteBindingFromValue(binding: RemoteDriverBinding): RemoteDriverBinding {
-  const computed = objectFingerprint(
-    binding as unknown as Record<string, unknown>,
-    'bindingFingerprint'
-  )
-  if (computed !== binding.bindingFingerprint) fail('BINDING_FINGERPRINT_MISMATCH', computed)
-  return validateRemoteBinding(binding)
-}
-
 /** Runs one collaboration-runtime subcommand. */
 async function main(args: string[]): Promise<void> {
   const command = args[0]
-  if (command === 'binding-fingerprint') {
-    const binding = readJson<RemoteDriverBinding>(flag(args, '--input'))
-    binding.bindingFingerprint = objectFingerprint(
-      binding as unknown as Record<string, unknown>,
-      'bindingFingerprint'
-    )
-    const validated = loadRemoteBindingFromValue(binding)
-    writeJsonAtomic(flag(args, '--output'), validated)
-    emit(validated)
-    return
-  }
-  if (command === 'cleanup-fingerprint') {
-    const authorization = readJson<StageCleanupAuthorization>(flag(args, '--input'))
-    authorization.authorizationFingerprint = objectFingerprint(
-      authorization as unknown as Record<string, unknown>,
-      'authorizationFingerprint'
-    )
-    const validated = validateStageCleanupAuthorization(authorization)
-    writeJsonAtomic(flag(args, '--output'), validated)
-    emit(validated)
-    return
-  }
   if (command === 'validate-binding') {
     const binding = loadRemoteBinding(flag(args, '--binding'))
     emit({
@@ -84,6 +56,25 @@ async function main(args: string[]): Promise<void> {
   if (command === 'remote') {
     const binding = loadRemoteBinding(flag(args, '--binding'))
     emit(await new RemoteDriver(new GitHubRemoteAdapter()).run(binding))
+    return
+  }
+  if (command === 'profile-preflight') {
+    const input = readJson<{ request: PreflightRequest; systemProbe: SystemProbeOptions }>(
+      flag(args, '--input')
+    )
+    emit(
+      await runEffectiveProfilePreflight(
+        input.request,
+        new SystemPreflightProbeAdapter(input.systemProbe)
+      )
+    )
+    return
+  }
+  if (command === 'schema-validate') {
+    const schema = readJson<Record<string, unknown>>(flag(args, '--schema'))
+    const value = readJson<unknown>(flag(args, '--input'))
+    validateJsonSchema(schema, value)
+    emit({ status: 'SCHEMA_VALID' })
     return
   }
   if (command === 'profile-verify') {
@@ -117,7 +108,7 @@ async function main(args: string[]): Promise<void> {
     const owner = flag(args, '--owner')
     const output = flag(args, '--output')
     const completedPath = args.includes('--completed') ? flag(args, '--completed') : null
-    const completed = completedPath ? readJson<string[]>(completedPath) : []
+    const completed = completedPath ? readJson<CompletedCleanupResource[]>(completedPath) : []
     const plan = planChildSelfCleanup(authorization, owner, observations, completed)
     writeJsonAtomic(output, plan)
     emit(plan)
@@ -126,11 +117,11 @@ async function main(args: string[]): Promise<void> {
   if (command === 'cleanup-verify') {
     const authorization = readJson<StageCleanupAuthorization>(flag(args, '--authorization'))
     validateStageCleanupAuthorization(authorization)
-    const deleted = readJson<string[]>(flag(args, '--deleted-paths'))
+    const diff = readJson<CleanupDiffEntry[]>(flag(args, '--diff'))
     const childResults = readJson<Record<string, CleanupResourceDecision[]>>(
       flag(args, '--child-results')
     )
-    verifyCleanupOnlyDeletion(authorization, deleted)
+    verifyCleanupOnlyDeletion(authorization, diff)
     verifyChildCleanupResults(authorization, childResults)
     emit({ status: 'STAGE_CLEANUP_VERIFIED', stageKey: authorization.stageKey })
     return

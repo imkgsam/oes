@@ -22,8 +22,23 @@ class FakeRemote implements RemoteAdapter {
       mergeQueueEntry: null,
       mainHead: binding.integrationBase,
       pullRequest: null,
-      requiredChecks: [{ name: 'Baseline Checks', status: 'completed', conclusion: 'success' }],
-      mainParents: []
+      requiredChecks: [
+        {
+          sha: binding.candidateSha,
+          name: 'Baseline Checks',
+          status: 'completed',
+          conclusion: 'success'
+        }
+      ],
+      mainParents: [],
+      pullMergeParents: [],
+      reviewGate: {
+        annotations: 0,
+        issueComments: 0,
+        reviewComments: 0,
+        blockingReviews: 0,
+        unresolvedThreads: 0
+      }
     }
   }
 
@@ -45,7 +60,9 @@ class FakeRemote implements RemoteAdapter {
       baseRef: 'main',
       headRef: binding.headRef,
       headSha: binding.candidateSha,
-      mergeCommitSha: null
+      mergeCommitSha: null,
+      title: binding.pullRequest.title,
+      body: binding.pullRequest.body
     }
     return {
       action: binding.action,
@@ -103,6 +120,21 @@ test('verification pending resumes only verification and preserves the mutation 
   assert.equal(remote.mutationCount, 1)
 })
 
+test('terminal checkpoint reconstructs a missing result from exact remote truth', async () => {
+  const binding = remoteBinding()
+  const remote = new FakeRemote(binding)
+  const interrupted = new RemoteDriver(remote, {
+    afterVerifiedCheckpoint: () => {
+      throw new Error('simulated result-write loss')
+    }
+  })
+  await assert.rejects(interrupted.run(binding), /simulated result-write loss/)
+  assert.equal(existsSync(binding.resultPath), false)
+  const resumed = await new RemoteDriver(remote).run(binding)
+  assert.equal(resumed.status, 'REMOTE_VERIFIED')
+  assert.equal(remote.mutationCount, 1)
+})
+
 test('binding drift fails before any remote action', async () => {
   const binding = remoteBinding()
   binding.stateVersion += 1
@@ -128,10 +160,27 @@ class QueueRemote implements RemoteAdapter {
         baseRef: 'main',
         headRef: binding.headRef,
         headSha: binding.candidateSha,
-        mergeCommitSha: null
+        mergeCommitSha: null,
+        title: binding.pullRequest.title,
+        body: binding.pullRequest.body
       },
-      requiredChecks: [{ name: 'Baseline Checks', status: 'completed', conclusion: 'success' }],
-      mainParents: []
+      requiredChecks: [
+        {
+          sha: binding.candidateSha,
+          name: 'Baseline Checks',
+          status: 'completed',
+          conclusion: 'success'
+        }
+      ],
+      mainParents: [],
+      pullMergeParents: [],
+      reviewGate: {
+        annotations: 0,
+        issueComments: 0,
+        reviewComments: 0,
+        blockingReviews: 0,
+        unresolvedThreads: 0
+      }
     }
   }
 
@@ -141,7 +190,13 @@ class QueueRemote implements RemoteAdapter {
   }
   async mutate(binding: RemoteDriverBinding): Promise<RemoteReceipt> {
     this.mutationCount += 1
-    this.truth.mergeQueueEntry = { id: 'queue-entry-1', position: 1 }
+    this.truth.mergeQueueEntry = {
+      id: 'queue-entry-1',
+      position: 1,
+      state: 'AWAITING_CHECKS',
+      baseSha: binding.integrationBase,
+      headSha: '7'.repeat(40)
+    }
     return {
       action: binding.action,
       mutationPerformed: true,
@@ -173,7 +228,7 @@ test('native queue admission is recovered from queue truth without enqueueing tw
       body: ''
     },
     mergeAuthorizationFingerprint: 'f'.repeat(64),
-    admission: { mode: 'merge-queue', lockPath: null, mergeGroupSha: null }
+    admission: { mode: 'merge-queue', lockPath: null, mergeGroupSha: null, mergeGroupBaseSha: null }
   })
   const binding = base
   binding.bindingFingerprint = (await import('../src/canonical.ts')).objectFingerprint(
@@ -200,4 +255,31 @@ test('native queue admission is recovered from queue truth without enqueueing tw
   const verified = await new RemoteDriver(remote).run(binding)
   assert.equal(verified.status, 'REMOTE_VERIFIED')
   assert.equal(remote.mutationCount, 1)
+})
+
+test('serial latest-main preflight failure releases an uncheckpointed lock for refreshed admission', async () => {
+  const binding = remoteBinding({
+    action: 'merge-pr',
+    pullRequest: {
+      baseRef: 'main',
+      draft: false,
+      number: 9,
+      requiredChecks: ['Baseline Checks'],
+      title: 'Runtime',
+      body: 'Exact candidate'
+    },
+    mergeAuthorizationFingerprint: 'f'.repeat(64),
+    admission: {
+      mode: 'serial-latest-main',
+      lockPath: '/pending',
+      mergeGroupSha: null,
+      mergeGroupBaseSha: null
+    }
+  })
+  const remote = new FakeRemote(binding)
+  remote.preflight = async () => {
+    throw new Error('LATEST_MAIN_DRIFT')
+  }
+  await assert.rejects(new RemoteDriver(remote).run(binding), /LATEST_MAIN_DRIFT/)
+  assert.equal(existsSync(binding.admission?.lockPath ?? ''), false)
 })

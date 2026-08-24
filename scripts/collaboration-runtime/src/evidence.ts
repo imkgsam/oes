@@ -83,6 +83,14 @@ export function assessDrift(input: DriftAssessmentInput): DriftAssessment {
     }
   }
   const next = createEvidenceKey(input.nextEvidence)
+  if (input.nextEvidence.exitCode !== 0) {
+    return {
+      decision: 'FULL',
+      affectedCoverageIds: allCoverage,
+      reusableCoverageIds: [],
+      reason: 'next evidence contains a failing exit status'
+    }
+  }
   if (
     input.previousEvidence?.evidenceFingerprint === next.evidenceFingerprint &&
     input.changedPaths.length === 0
@@ -92,6 +100,24 @@ export function assessDrift(input: DriftAssessmentInput): DriftAssessment {
       affectedCoverageIds: [],
       reusableCoverageIds: allCoverage,
       reason: 'all evidence-key fields are identical'
+    }
+  }
+  const exactResultInputsUnchanged =
+    input.previousEvidence.literalResultFingerprint ===
+      input.nextEvidence.literalResultFingerprint &&
+    input.previousEvidence.exitCode === input.nextEvidence.exitCode &&
+    input.previousEvidence.dependencyFingerprint === input.nextEvidence.dependencyFingerprint &&
+    input.previousEvidence.executionProfileFingerprint ===
+      input.nextEvidence.executionProfileFingerprint &&
+    input.previousEvidence.commandFingerprint === input.nextEvidence.commandFingerprint &&
+    JSON.stringify([...input.previousEvidence.coverageIds].sort()) ===
+      JSON.stringify([...input.nextEvidence.coverageIds].sort())
+  if (!exactResultInputsUnchanged) {
+    return {
+      decision: 'FULL',
+      affectedCoverageIds: allCoverage,
+      reusableCoverageIds: [],
+      reason: 'result, exit status, dependency, profile, command, or coverage identity changed'
     }
   }
   const affected = affectedCoverage(input.changedPaths, input.coverage)

@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { SerialAdmissionLock } from '../src/admission.ts'
 import { objectFingerprint } from '../src/canonical.ts'
 import { validateRemoteBinding } from '../src/binding.ts'
-import { remoteBinding } from './helpers.ts'
+import { authorizeRemoteBinding, remoteBinding } from './helpers.ts'
 
 /** Creates one exact Human-authorized serial merge binding. */
 function mergeBinding() {
@@ -23,12 +23,10 @@ function mergeBinding() {
   binding.admission = {
     mode: 'serial-latest-main',
     lockPath: join(binding.artifactRoot, 'latest-main.lock'),
-    mergeGroupSha: null
+    mergeGroupSha: null,
+    mergeGroupBaseSha: null
   }
-  binding.bindingFingerprint = objectFingerprint(
-    binding as unknown as Record<string, unknown>,
-    'bindingFingerprint'
-  )
+  authorizeRemoteBinding(binding)
   return validateRemoteBinding(binding)
 }
 

@@ -78,3 +78,15 @@ test('tampered prior evidence is rejected rather than reused', () => {
   value.previousEvidence.commandFingerprint = hash('9')
   assert.throws(() => assessDrift(value), /EVIDENCE_KEY_FINGERPRINT_MISMATCH/)
 })
+
+test('changed or failing literal results invalidate all prior coverage', () => {
+  const value = base()
+  value.nextEvidence = {
+    ...input('2'.repeat(40)),
+    literalResultFingerprint: hash('9'),
+    exitCode: 1
+  }
+  const result = assessDrift(value)
+  assert.equal(result.decision, 'FULL')
+  assert.deepEqual(result.reusableCoverageIds, [])
+})

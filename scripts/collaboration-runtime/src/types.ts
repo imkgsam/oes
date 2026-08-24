@@ -40,12 +40,50 @@ export interface RemoteAdmissionBinding {
   mode: 'merge-queue' | 'serial-latest-main'
   lockPath: string | null
   mergeGroupSha: string | null
+  mergeGroupBaseSha: string | null
+}
+
+export interface TrustedAuthorizationReference {
+  path: string
+  sha256: string
+  fingerprint: string
+}
+
+export interface RemoteActionAuthorization {
+  schemaVersion: 1
+  kind: 'OES_REMOTE_ACTION_AUTHORIZATION'
+  authorizationFingerprint: string
+  status: 'ISSUED'
+  issuedBeforeRemoteMutation: true
+  issuerTaskId: string
+  rootAuthorization: TrustedAuthorizationReference
+  owner: RemoteOwner
+  expectedState: string
+  stateVersion: number
+  transitionId: string
+  rootConfirmationFingerprint: string
+  scopeFingerprint: string
+  truthBaseline: string
+  integrationBase: string
+  candidateSha: string
+  allowedAction: RemoteAction
+  repositoryRoot: string
+  repositorySlug: string
+  artifactRoot: string
+  headRef: string
+  baseRef: 'main'
+  singleUseNonce: string
+  resourceSetFingerprint: string
+  postcondition: string
+  mergeAuthorizationFingerprint?: string
+  cleanupAuthorizationFingerprint?: string
 }
 
 export interface RemoteDriverBinding {
   schemaVersion: 1
   kind: 'OES_REMOTE_DRIVER_BINDING'
   bindingFingerprint: string
+  authorization: TrustedAuthorizationReference
   action: RemoteAction
   owner: RemoteOwner
   expectedState: string
@@ -66,6 +104,7 @@ export interface RemoteDriverBinding {
   baseRef: 'main'
   pullRequest: PullRequestBinding
   mergeMethod: 'merge'
+  expectedMergeSha?: string
   admission?: RemoteAdmissionBinding
   mergeAuthorizationFingerprint?: string
   cleanupAuthorizationFingerprint?: string
@@ -80,9 +119,12 @@ export interface PullRequestTruth {
   headRef: string
   headSha: string
   mergeCommitSha: string | null
+  title: string
+  body: string
 }
 
 export interface RequiredCheckTruth {
+  sha: string
   name: string
   status: string
   conclusion: string | null
@@ -90,11 +132,25 @@ export interface RequiredCheckTruth {
 
 export interface RemoteTruth {
   branchHead: string | null
-  mergeQueueEntry: { id: string; position: number | null } | null
+  mergeQueueEntry: {
+    id: string
+    position: number | null
+    state: string
+    baseSha: string
+    headSha: string
+  } | null
   mainHead: string
   pullRequest: PullRequestTruth | null
   requiredChecks: RequiredCheckTruth[]
   mainParents: string[]
+  pullMergeParents: string[]
+  reviewGate: {
+    annotations: number
+    issueComments: number
+    reviewComments: number
+    blockingReviews: number
+    unresolvedThreads: number
+  }
 }
 
 export interface RemoteReceipt {
@@ -104,6 +160,8 @@ export interface RemoteReceipt {
   branchHead: string | null
   pullRequestNumber: number | null
   mergeCommitSha: string | null
+  mergeGroupBaseSha?: string | null
+  mergeGroupHeadSha?: string | null
   cleanupResources?: CleanupResourceBinding[]
 }
 
@@ -157,6 +215,8 @@ export interface CapabilityObservation {
   command: string
   literalOutput: string
   exitCode: number
+  evidencePath: string
+  evidenceSha256: string
   result: 'PASS' | 'FAIL'
 }
 
@@ -179,6 +239,7 @@ export interface EffectiveProfileReport {
   profile: {
     name: string
     permission: string
+    path: string
     sha256: string
   }
   observations: CapabilityObservation[]
@@ -270,4 +331,18 @@ export interface CleanupResourceDecision {
   resource: StageCleanupResource
   decision: 'REMOVE' | 'ALREADY_ABSENT' | 'PRESERVE_FAILURE' | 'SKIP_COMPLETED'
   reason: string
+  observedBefore: ObservedCleanupResource | null
+  observedAfter: ObservedCleanupResource | null
+  completionFingerprint?: string
+}
+
+export interface CompletedCleanupResource {
+  resource: StageCleanupResource
+  observedAfter: ObservedCleanupResource
+  completionFingerprint: string
+}
+
+export interface CleanupDiffEntry {
+  status: 'A' | 'C' | 'D' | 'M' | 'R' | 'T' | 'U' | 'X' | 'B'
+  path: string
 }
