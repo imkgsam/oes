@@ -12,7 +12,7 @@
 - canonical activation baseline: `40db6ceb670f5304de1951e134ae128173837a22`
 - dependency evidence: Tenant Org merge `1aa8c97b22a40ff2b6279ce1a9c625497bd99638`; Permission accepted candidate `93d9d1402e4ae668dcb93fc670c0050104967800`, both ancestors of the activation baseline
 - integration branch: `codex/feature/gateway-tenant-target-binding-runtime`
-- current state: `CANDIDATE_REVIEW`
+- current state: `CANDIDATE_READY`
 - stop point: `PR_READY + READY_FOR_STAGE_REVIEW`
 
 ## 2. Objective
@@ -74,6 +74,7 @@
 - immutable product candidate: `fd94d90f66885d8f0738f8a8c1f66928b9702923`；append-only predecessors: `4811db5eecf8135a9836587c09f2395c98aea03a`、`379b4778bc8f8cef6d25ef477061abc8005d7cf0`
 - automatic guard/carrier and bounded Site/Tenant Org consumer implementation complete；production generic opt-in source and repository acceptance references removed
 - Global RI exact candidate review: `PASS` on `fd94d90f66885d8f0738f8a8c1f66928b9702923`，no code/protected-scope findings
+- latest-main drift Global RI: `PASS` on `cee02dbc3ca44f8f185b8374234df5c7a7b677d8` against `origin/main=9c78b4cacc54d3f6824cba69d89f891ac642800b`；`fd94d90f..cee02dbc -- src` empty
 - Gateway focused boundary/consumer/serialization tests: `11 suites / 109 tests` passed，覆盖 exact route/error order、GET/POST/PUT/PATCH/DELETE、Site P1 zero-continuation、Permission deny/unavailable/malformed、guard composition、Party tenant ownership recheck 与 exact Tenant Org RPC selector/Code
 - Site real HTTP + Auth gRPC + Permission gRPC integration under non-default `platform/v2`: `1 suite / 14 tests` passed
 - Common target/mTLS/ExecutionToken suites: `6 suites / 128 tests` passed
