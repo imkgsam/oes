@@ -8,7 +8,7 @@ import type {
   RemoteTruth,
   RemoteVerification
 } from '../src/types.ts'
-import { remoteBinding } from './helpers.ts'
+import { remoteBinding, remoteTrust } from './helpers.ts'
 
 class FakeRemote implements RemoteAdapter {
   truth: RemoteTruth
@@ -24,6 +24,7 @@ class FakeRemote implements RemoteAdapter {
       pullRequest: null,
       requiredChecks: [
         {
+          id: 1,
           sha: binding.candidateSha,
           name: 'Baseline Checks',
           status: 'completed',
@@ -86,7 +87,7 @@ class FakeRemote implements RemoteAdapter {
 test('remote mutation success followed by process loss resumes from truth without repeating mutation', async () => {
   const binding = remoteBinding()
   const remote = new FakeRemote(binding)
-  const first = new RemoteDriver(remote, {
+  const first = new RemoteDriver(remote, remoteTrust(binding), {
     afterRemoteMutation: () => {
       throw new Error('simulated process loss after remote success')
     }
@@ -95,14 +96,14 @@ test('remote mutation success followed by process loss resumes from truth withou
   assert.equal(remote.mutationCount, 1)
   assert.equal(existsSync(binding.resultPath), false)
 
-  const resumed = await new RemoteDriver(remote).run(binding)
+  const resumed = await new RemoteDriver(remote, remoteTrust(binding)).run(binding)
   assert.equal(resumed.status, 'REMOTE_VERIFIED')
   assert.equal(resumed.receipt.recoveredFromRemoteTruth, true)
   assert.equal(resumed.receipt.mutationPerformed, false)
   assert.equal(remote.mutationCount, 1)
   assert.equal(remote.preflightCount, 1)
 
-  const idempotent = await new RemoteDriver(remote).run(binding)
+  const idempotent = await new RemoteDriver(remote, remoteTrust(binding)).run(binding)
   assert.deepEqual(idempotent, resumed)
   assert.equal(remote.mutationCount, 1)
 })
@@ -111,11 +112,11 @@ test('verification pending resumes only verification and preserves the mutation 
   const binding = remoteBinding()
   const remote = new FakeRemote(binding)
   remote.verificationPassed = false
-  const pending = await new RemoteDriver(remote).run(binding)
+  const pending = await new RemoteDriver(remote, remoteTrust(binding)).run(binding)
   assert.equal(pending.status, 'REMOTE_VERIFICATION_PENDING')
   assert.equal(remote.mutationCount, 1)
   remote.verificationPassed = true
-  const verified = await new RemoteDriver(remote).run(binding)
+  const verified = await new RemoteDriver(remote, remoteTrust(binding)).run(binding)
   assert.equal(verified.status, 'REMOTE_VERIFIED')
   assert.equal(remote.mutationCount, 1)
 })
@@ -123,14 +124,14 @@ test('verification pending resumes only verification and preserves the mutation 
 test('terminal checkpoint reconstructs a missing result from exact remote truth', async () => {
   const binding = remoteBinding()
   const remote = new FakeRemote(binding)
-  const interrupted = new RemoteDriver(remote, {
+  const interrupted = new RemoteDriver(remote, remoteTrust(binding), {
     afterVerifiedCheckpoint: () => {
       throw new Error('simulated result-write loss')
     }
   })
   await assert.rejects(interrupted.run(binding), /simulated result-write loss/)
   assert.equal(existsSync(binding.resultPath), false)
-  const resumed = await new RemoteDriver(remote).run(binding)
+  const resumed = await new RemoteDriver(remote, remoteTrust(binding)).run(binding)
   assert.equal(resumed.status, 'REMOTE_VERIFIED')
   assert.equal(remote.mutationCount, 1)
 })
@@ -139,7 +140,10 @@ test('binding drift fails before any remote action', async () => {
   const binding = remoteBinding()
   binding.stateVersion += 1
   const remote = new FakeRemote(binding)
-  await assert.rejects(new RemoteDriver(remote).run(binding), /BINDING_FINGERPRINT_MISMATCH/)
+  await assert.rejects(
+    new RemoteDriver(remote, remoteTrust(binding)).run(binding),
+    /BINDING_FINGERPRINT_MISMATCH/
+  )
   assert.equal(remote.preflightCount, 0)
   assert.equal(remote.mutationCount, 0)
 })
@@ -166,6 +170,7 @@ class QueueRemote implements RemoteAdapter {
       },
       requiredChecks: [
         {
+          id: 1,
           sha: binding.candidateSha,
           name: 'Baseline Checks',
           status: 'completed',
@@ -203,7 +208,9 @@ class QueueRemote implements RemoteAdapter {
       recoveredFromRemoteTruth: false,
       branchHead: binding.candidateSha,
       pullRequestNumber: 77,
-      mergeCommitSha: null
+      mergeCommitSha: null,
+      mergeGroupBaseSha: binding.integrationBase,
+      mergeGroupHeadSha: '7'.repeat(40)
     }
   }
   async verify(): Promise<RemoteVerification> {
@@ -237,14 +244,14 @@ test('native queue admission is recovered from queue truth without enqueueing tw
   )
   const remote = new QueueRemote(binding)
   await assert.rejects(
-    new RemoteDriver(remote, {
+    new RemoteDriver(remote, remoteTrust(binding), {
       afterRemoteMutation: () => {
         throw new Error('queue process loss')
       }
     }).run(binding),
     /queue process loss/
   )
-  const pending = await new RemoteDriver(remote).run(binding)
+  const pending = await new RemoteDriver(remote, remoteTrust(binding)).run(binding)
   assert.equal(pending.status, 'REMOTE_VERIFICATION_PENDING')
   assert.equal(pending.receipt.recoveredFromRemoteTruth, true)
   assert.equal(remote.mutationCount, 1)
@@ -252,8 +259,83 @@ test('native queue admission is recovered from queue truth without enqueueing tw
   remote.truth.pullRequest.state = 'MERGED'
   remote.truth.pullRequest.mergeCommitSha = '8'.repeat(40)
   remote.truth.mergeQueueEntry = null
-  const verified = await new RemoteDriver(remote).run(binding)
+  const verified = await new RemoteDriver(remote, remoteTrust(binding)).run(binding)
   assert.equal(verified.status, 'REMOTE_VERIFIED')
+  assert.equal(remote.mutationCount, 1)
+})
+
+test('a queue merge that completes during first readback preserves the mutation receipt', async () => {
+  const binding = remoteBinding({
+    action: 'merge-pr',
+    pullRequest: {
+      baseRef: 'main',
+      draft: false,
+      number: 77,
+      requiredChecks: ['Baseline Checks'],
+      title: 'Runtime',
+      body: ''
+    },
+    mergeAuthorizationFingerprint: 'f'.repeat(64),
+    admission: { mode: 'merge-queue', lockPath: null, mergeGroupSha: null, mergeGroupBaseSha: null }
+  })
+  class FastQueueRemote extends QueueRemote {
+    override async mutate(current: RemoteDriverBinding): Promise<RemoteReceipt> {
+      const receipt = await super.mutate(current)
+      if (!this.truth.pullRequest) throw new Error('test pull absent')
+      this.truth.pullRequest.state = 'MERGED'
+      this.truth.pullRequest.mergeCommitSha = '7'.repeat(40)
+      this.truth.pullMergeParents = [current.integrationBase, current.candidateSha]
+      this.truth.mergeQueueEntry = null
+      return receipt
+    }
+  }
+  const remote = new FastQueueRemote(binding)
+  const result = await new RemoteDriver(remote, remoteTrust(binding)).run(binding)
+  assert.equal(result.status, 'REMOTE_VERIFIED')
+  assert.equal(result.receipt.mergeGroupBaseSha, binding.integrationBase)
+  assert.equal(result.receipt.mergeGroupHeadSha, '7'.repeat(40))
+  assert.equal(remote.mutationCount, 1)
+})
+
+test('process loss after a fast queue merge reconstructs group inputs from merged truth', async () => {
+  const binding = remoteBinding({
+    action: 'merge-pr',
+    pullRequest: {
+      baseRef: 'main',
+      draft: false,
+      number: 77,
+      requiredChecks: ['Baseline Checks'],
+      title: 'Runtime',
+      body: ''
+    },
+    mergeAuthorizationFingerprint: 'f'.repeat(64),
+    admission: { mode: 'merge-queue', lockPath: null, mergeGroupSha: null, mergeGroupBaseSha: null }
+  })
+  class FastMergedRemote extends QueueRemote {
+    override async mutate(current: RemoteDriverBinding): Promise<RemoteReceipt> {
+      const receipt = await super.mutate(current)
+      if (!this.truth.pullRequest) throw new Error('test pull absent')
+      this.truth.pullRequest.state = 'MERGED'
+      this.truth.pullRequest.mergeCommitSha = '7'.repeat(40)
+      this.truth.pullMergeParents = [current.integrationBase, current.candidateSha]
+      this.truth.mergeQueueEntry = null
+      return receipt
+    }
+  }
+  const remote = new FastMergedRemote(binding)
+  await assert.rejects(
+    new RemoteDriver(remote, remoteTrust(binding), {
+      afterRemoteMutation: () => {
+        throw new Error('fast merge process loss')
+      }
+    }).run(binding),
+    /fast merge process loss/
+  )
+  const result = await new RemoteDriver(remote, remoteTrust(binding)).run(binding)
+  assert.equal(result.status, 'REMOTE_VERIFIED')
+  assert.equal(result.receipt.recoveredFromRemoteTruth, true)
+  assert.equal(result.receipt.mergeGroupBaseSha, binding.integrationBase)
+  assert.equal(result.receipt.mergeGroupHeadSha, '7'.repeat(40))
   assert.equal(remote.mutationCount, 1)
 })
 
@@ -280,6 +362,9 @@ test('serial latest-main preflight failure releases an uncheckpointed lock for r
   remote.preflight = async () => {
     throw new Error('LATEST_MAIN_DRIFT')
   }
-  await assert.rejects(new RemoteDriver(remote).run(binding), /LATEST_MAIN_DRIFT/)
+  await assert.rejects(
+    new RemoteDriver(remote, remoteTrust(binding)).run(binding),
+    /LATEST_MAIN_DRIFT/
+  )
   assert.equal(existsSync(binding.admission?.lockPath ?? ''), false)
 })

@@ -3,6 +3,54 @@ import { fail } from './errors.ts'
 
 type JsonSchema = Record<string, unknown>
 
+const SUPPORTED_SCHEMA_KEYS = new Set([
+  '$schema',
+  '$id',
+  '$defs',
+  '$ref',
+  'title',
+  'type',
+  'additionalProperties',
+  'required',
+  'properties',
+  'const',
+  'enum',
+  'pattern',
+  'minLength',
+  'minimum',
+  'allOf',
+  'if',
+  'then',
+  'not',
+  'items',
+  'contains',
+  'minItems',
+  'maxItems',
+  'uniqueItems'
+])
+
+/** Rejects every unsupported keyword, including definitions not reached by the input value. */
+function assertSupportedSchema(schema: JsonSchema): void {
+  const unsupported = Object.keys(schema).filter((key) => !SUPPORTED_SCHEMA_KEYS.has(key))
+  if (unsupported.length) fail('JSON_SCHEMA_KEYWORD_UNSUPPORTED', unsupported.sort().join(','))
+  for (const container of ['$defs', 'properties']) {
+    const entries = schema[container]
+    if (entries && typeof entries === 'object' && !Array.isArray(entries))
+      for (const child of Object.values(entries as Record<string, unknown>))
+        if (child && typeof child === 'object' && !Array.isArray(child))
+          assertSupportedSchema(child as JsonSchema)
+  }
+  for (const keyword of ['items', 'contains', 'not', 'if', 'then']) {
+    const child = schema[keyword]
+    if (child && typeof child === 'object' && !Array.isArray(child))
+      assertSupportedSchema(child as JsonSchema)
+  }
+  if (Array.isArray(schema.allOf))
+    for (const child of schema.allOf)
+      if (child && typeof child === 'object' && !Array.isArray(child))
+        assertSupportedSchema(child as JsonSchema)
+}
+
 /** Resolves one local JSON Pointer reference. */
 function resolveReference(root: JsonSchema, reference: string): JsonSchema {
   if (!reference.startsWith('#/')) fail('JSON_SCHEMA_EXTERNAL_REF_FORBIDDEN', reference)
@@ -32,12 +80,19 @@ function collect(
   path: string,
   errors: string[]
 ): void {
+  const unsupported = Object.keys(schema).filter((key) => !SUPPORTED_SCHEMA_KEYS.has(key))
+  if (unsupported.length) fail('JSON_SCHEMA_KEYWORD_UNSUPPORTED', unsupported.sort().join(','))
   if (typeof schema.$ref === 'string') {
     collect(resolveReference(root, schema.$ref), value, root, path, errors)
     return
   }
   if (Array.isArray(schema.allOf))
     for (const child of schema.allOf) collect(child as JsonSchema, value, root, path, errors)
+  if (schema.not && typeof schema.not === 'object') {
+    const negatedErrors: string[] = []
+    collect(schema.not as JsonSchema, value, root, path, negatedErrors)
+    if (negatedErrors.length === 0) errors.push(`${path}:not`)
+  }
   if (schema.if && typeof schema.if === 'object') {
     const conditionErrors: string[] = []
     collect(schema.if as JsonSchema, value, root, path, conditionErrors)
@@ -101,8 +156,9 @@ function collect(
   }
 }
 
-/** Validates a JSON value against the repository's executable JSON Schema subset. */
+/** Validates a JSON value against the repository's fail-closed JSON Schema subset. */
 export function validateJsonSchema(schema: JsonSchema, value: unknown): void {
+  assertSupportedSchema(schema)
   const errors: string[] = []
   collect(schema, value, schema, '$', errors)
   if (errors.length) fail('JSON_SCHEMA_VALIDATION_FAILED', errors.join(';'))

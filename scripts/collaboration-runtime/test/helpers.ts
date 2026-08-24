@@ -4,26 +4,51 @@ import { tmpdir } from 'node:os'
 import { canonicalJson, objectFingerprint, sha256 } from '../src/canonical.ts'
 import type {
   RemoteActionAuthorization,
+  RemoteAuthorizationRoot,
   RemoteDriverBinding,
+  RemoteTrustRoots,
   StageCleanupAuthorization
 } from '../src/types.ts'
+
+const trustByBinding = new WeakMap<RemoteDriverBinding, RemoteTrustRoots>()
+
+/** Returns the fixture trust context separately from the untrusted binding. */
+export function remoteTrust(binding: RemoteDriverBinding): RemoteTrustRoots {
+  const trust = trustByBinding.get(binding)
+  if (!trust) throw new Error('fixture trust context absent')
+  return trust
+}
 
 /** Reissues a fixture action authorization and seals the exact binding against it. */
 export function authorizeRemoteBinding(binding: RemoteDriverBinding): RemoteDriverBinding {
   const authorizationRoot = mkdtempSync(join(tmpdir(), 'oes-remote-authorization-test-'))
   const admissionRoot = mkdtempSync(join(tmpdir(), 'oes-remote-admission-test-'))
-  process.env.OES_REMOTE_AUTHORIZATION_ROOT = authorizationRoot
-  process.env.OES_REMOTE_ADMISSION_ROOT = admissionRoot
   if (binding.admission?.mode === 'serial-latest-main')
     binding.admission.lockPath = join(admissionRoot, 'latest-main.lock')
-  const rootRecord: Record<string, unknown> = {
+  const rootRecord: RemoteAuthorizationRoot = {
     schemaVersion: 1,
-    kind: 'OES_TEST_ROOT_AUTHORIZATION',
-    ownerTaskId: binding.owner.taskId,
+    kind: 'OES_REMOTE_AUTHORIZATION_ROOT',
+    recordFingerprint: '',
+    status: 'ACTIVE',
+    issuerTaskId: '/root/fixture-authority',
+    owner: binding.owner,
+    expectedState: binding.expectedState,
     stateVersion: binding.stateVersion,
-    recordFingerprint: ''
+    transitionId: binding.transitionId,
+    rootConfirmationFingerprint: 'e'.repeat(64),
+    scopeFingerprint: binding.scopeFingerprint,
+    truthBaseline: binding.truthBaseline,
+    repositoryRoot: binding.repositoryRoot,
+    repositorySlug: binding.repositorySlug,
+    artifactRoot: binding.artifactRoot,
+    allowedActions: [binding.action],
+    mergeAuthorizationFingerprint: binding.mergeAuthorizationFingerprint,
+    cleanupAuthorizationFingerprint: binding.cleanupAuthorizationFingerprint
   }
-  rootRecord.recordFingerprint = objectFingerprint(rootRecord, 'recordFingerprint')
+  rootRecord.recordFingerprint = objectFingerprint(
+    rootRecord as unknown as Record<string, unknown>,
+    'recordFingerprint'
+  )
   const rootPath = join(authorizationRoot, 'root-authorization.json')
   const rootBytes = `${canonicalJson(rootRecord)}\n`
   writeFileSync(rootPath, rootBytes)
@@ -88,6 +113,14 @@ export function authorizeRemoteBinding(binding: RemoteDriverBinding): RemoteDriv
     binding as unknown as Record<string, unknown>,
     'bindingFingerprint'
   )
+  trustByBinding.set(binding, {
+    authorizationRoot,
+    admissionRoot,
+    profilePath: '/fixture/installed-profile.toml',
+    profileSha256: 'a'.repeat(64),
+    ownerTaskId: binding.owner.taskId,
+    profileExpectedState: 'DELIVERY_ACTIVE'
+  })
   return binding
 }
 

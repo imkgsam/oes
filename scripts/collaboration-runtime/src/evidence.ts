@@ -105,6 +105,8 @@ export function assessDrift(input: DriftAssessmentInput): DriftAssessment {
   const exactResultInputsUnchanged =
     input.previousEvidence.literalResultFingerprint ===
       input.nextEvidence.literalResultFingerprint &&
+    input.previousEvidence.literalInputsFingerprint ===
+      input.nextEvidence.literalInputsFingerprint &&
     input.previousEvidence.exitCode === input.nextEvidence.exitCode &&
     input.previousEvidence.dependencyFingerprint === input.nextEvidence.dependencyFingerprint &&
     input.previousEvidence.executionProfileFingerprint ===
@@ -117,7 +119,8 @@ export function assessDrift(input: DriftAssessmentInput): DriftAssessment {
       decision: 'FULL',
       affectedCoverageIds: allCoverage,
       reusableCoverageIds: [],
-      reason: 'result, exit status, dependency, profile, command, or coverage identity changed'
+      reason:
+        'literal input/result, exit status, dependency, profile, command, or coverage identity changed'
     }
   }
   const affected = affectedCoverage(input.changedPaths, input.coverage)

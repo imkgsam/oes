@@ -12,7 +12,16 @@ const schema = (name: string) =>
   >
 
 test('executable schemas accept representative runtime bindings and Stage authorizations', () => {
-  validateJsonSchema(schema('remote-binding.schema.json'), remoteBinding())
+  const binding = remoteBinding()
+  const authority = JSON.parse(readFileSync(binding.authorization.path, 'utf8')) as {
+    rootAuthorization: { path: string }
+  }
+  const rootAuthorization = JSON.parse(
+    readFileSync(authority.rootAuthorization.path, 'utf8')
+  ) as Record<string, unknown>
+  validateJsonSchema(schema('remote-binding.schema.json'), binding)
+  validateJsonSchema(schema('remote-authorization.schema.json'), authority)
+  validateJsonSchema(schema('remote-authorization-root.schema.json'), rootAuthorization)
   validateJsonSchema(schema('stage-cleanup-authorization.schema.json'), cleanupAuthorization())
 })
 
@@ -64,5 +73,17 @@ test('effective-profile schema rejects duplicate declarations and open nested cr
   assert.throws(
     () => validateJsonSchema(schema('effective-profile-report.schema.json'), value),
     /uniqueItems|additionalProperties/
+  )
+})
+
+test('remote binding schema and runtime both reject main as the owner head', () => {
+  const value = remoteBinding({ headRef: 'main' })
+  assert.throws(() => validateJsonSchema(schema('remote-binding.schema.json'), value), /not/)
+})
+
+test('executable schema validation fails closed on unknown keywords', () => {
+  assert.throws(
+    () => validateJsonSchema({ type: 'string', format: 'uri' }, 'https://example.test'),
+    /JSON_SCHEMA_KEYWORD_UNSUPPORTED/
   )
 })

@@ -1,11 +1,13 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, realpathSync } from 'node:fs'
 import { isAbsolute } from 'node:path'
 import {
   CAPABILITY_NAMES,
   REMOTE_ACTIONS,
   type EffectiveProfileReport,
   type RemoteActionAuthorization,
+  type RemoteAuthorizationRoot,
   type RemoteDriverBinding,
+  type RemoteTrustRoots,
   type StageCleanupAuthorization,
   type TrustedAuthorizationReference
 } from './types.ts'
@@ -67,6 +69,7 @@ function verifyTrustedReference(
   requireExactKeys(reference, ['path', 'sha256', 'fingerprint'], 'authorizationReference')
   if (!isAbsolute(reference.path)) fail('AUTHORIZATION_PATH_NOT_ABSOLUTE', reference.path)
   assertPathWithin(authorizationRoot, reference.path)
+  assertPathWithin(realpathSync(authorizationRoot), realpathSync(reference.path))
   requireFingerprint(reference.sha256, 'authorization.sha256')
   requireFingerprint(reference.fingerprint, 'authorization.fingerprint')
   const bytes = readFileSync(reference.path)
@@ -80,10 +83,13 @@ function verifyTrustedReference(
 }
 
 /** Compares the binding to an independently stored, profile-read-only action authorization. */
-function validateTrustedAuthorization(binding: RemoteDriverBinding): RemoteActionAuthorization {
-  const authorizationRoot = process.env.OES_REMOTE_AUTHORIZATION_ROOT
+function validateTrustedAuthorization(
+  binding: RemoteDriverBinding,
+  trust: RemoteTrustRoots
+): RemoteActionAuthorization {
+  const authorizationRoot = trust.authorizationRoot
   if (!authorizationRoot || !isAbsolute(authorizationRoot))
-    fail('TRUSTED_AUTHORIZATION_ROOT_REQUIRED', 'OES_REMOTE_AUTHORIZATION_ROOT')
+    fail('TRUSTED_AUTHORIZATION_ROOT_REQUIRED', 'runtime trust context')
   const raw = verifyTrustedReference(
     binding.authorization,
     authorizationRoot,
@@ -130,9 +136,73 @@ function validateTrustedAuthorization(binding: RemoteDriverBinding): RemoteActio
     authority.issuedBeforeRemoteMutation !== true
   )
     fail('REMOTE_AUTHORIZATION_NOT_ISSUED', binding.authorization.path)
-  verifyTrustedReference(authority.rootAuthorization, authorizationRoot, 'recordFingerprint')
+  const root = verifyTrustedReference(
+    authority.rootAuthorization,
+    authorizationRoot,
+    'recordFingerprint'
+  ) as unknown as RemoteAuthorizationRoot
+  requireExactKeys(
+    root,
+    [
+      'schemaVersion',
+      'kind',
+      'recordFingerprint',
+      'status',
+      'issuerTaskId',
+      'owner',
+      'expectedState',
+      'stateVersion',
+      'transitionId',
+      'rootConfirmationFingerprint',
+      'scopeFingerprint',
+      'truthBaseline',
+      'repositoryRoot',
+      'repositorySlug',
+      'artifactRoot',
+      'allowedActions',
+      'mergeAuthorizationFingerprint',
+      'cleanupAuthorizationFingerprint'
+    ],
+    'remoteAuthorizationRoot'
+  )
+  if (
+    root.schemaVersion !== 1 ||
+    root.kind !== 'OES_REMOTE_AUTHORIZATION_ROOT' ||
+    root.status !== 'ACTIVE'
+  )
+    fail('REMOTE_AUTHORIZATION_ROOT_NOT_ACTIVE', authority.rootAuthorization.path)
+  requireExactKeys(root.owner, ['role', 'taskId'], 'remoteAuthorizationRoot.owner')
+  requireExactKeys(authority.owner, ['role', 'taskId'], 'remoteAuthorization.owner')
+  requireString(root.issuerTaskId, 'root.issuerTaskId')
+  requireString(authority.issuerTaskId, 'issuerTaskId')
+  requireString(root.owner.taskId, 'root.owner.taskId')
+  requireString(root.expectedState, 'root.expectedState')
+  requireString(root.transitionId, 'root.transitionId')
+  requireString(root.repositoryRoot, 'root.repositoryRoot')
+  requireString(root.repositorySlug, 'root.repositorySlug')
+  requireString(root.artifactRoot, 'root.artifactRoot')
+  if (!Array.isArray(root.allowedActions)) fail('REMOTE_AUTHORIZATION_ROOT_ACTIONS_INVALID', '')
+  requireFingerprint(root.rootConfirmationFingerprint, 'root.rootConfirmationFingerprint')
+  requireFingerprint(root.scopeFingerprint, 'root.scopeFingerprint')
+  requireGitSha(root.truthBaseline, 'root.truthBaseline')
   requireFingerprint(authority.rootConfirmationFingerprint, 'rootConfirmationFingerprint')
   const exactPairs: Array<[unknown, unknown, string]> = [
+    [root.issuerTaskId, authority.issuerTaskId, 'issuerTaskId'],
+    [root.owner.role, authority.owner.role, 'root.owner.role'],
+    [root.owner.taskId, authority.owner.taskId, 'root.owner.taskId'],
+    [root.expectedState, authority.expectedState, 'root.expectedState'],
+    [root.stateVersion, authority.stateVersion, 'root.stateVersion'],
+    [root.transitionId, authority.transitionId, 'root.transitionId'],
+    [
+      root.rootConfirmationFingerprint,
+      authority.rootConfirmationFingerprint,
+      'rootConfirmationFingerprint'
+    ],
+    [root.scopeFingerprint, authority.scopeFingerprint, 'root.scopeFingerprint'],
+    [root.truthBaseline, authority.truthBaseline, 'root.truthBaseline'],
+    [root.repositoryRoot, authority.repositoryRoot, 'root.repositoryRoot'],
+    [root.repositorySlug, authority.repositorySlug, 'root.repositorySlug'],
+    [root.artifactRoot, authority.artifactRoot, 'root.artifactRoot'],
     [authority.owner.role, binding.owner.role, 'owner.role'],
     [authority.owner.taskId, binding.owner.taskId, 'owner.taskId'],
     [authority.expectedState, binding.expectedState, 'expectedState'],
@@ -162,6 +232,17 @@ function validateTrustedAuthorization(binding: RemoteDriverBinding): RemoteActio
   ]
   for (const [actual, expected, field] of exactPairs)
     if (actual !== expected) fail('REMOTE_AUTHORIZATION_CAS_MISMATCH', field)
+  if (
+    !root.allowedActions.includes(authority.allowedAction) ||
+    new Set(root.allowedActions).size !== root.allowedActions.length ||
+    root.allowedActions.some((action) => !REMOTE_ACTIONS.includes(action))
+  )
+    fail('REMOTE_AUTHORIZATION_ACTION_NOT_ROOT_AUTHORIZED', authority.allowedAction)
+  if (
+    root.mergeAuthorizationFingerprint !== authority.mergeAuthorizationFingerprint ||
+    root.cleanupAuthorizationFingerprint !== authority.cleanupAuthorizationFingerprint
+  )
+    fail('REMOTE_AUTHORIZATION_HUMAN_GATE_MISMATCH', authority.allowedAction)
   const resourceSetFingerprint = objectFingerprint(
     {
       checkpointPath: binding.checkpointPath,
@@ -180,7 +261,11 @@ function validateTrustedAuthorization(binding: RemoteDriverBinding): RemoteActio
 }
 
 /** Validates and fingerprints one exact remote-driver binding. */
-export function validateRemoteBinding(binding: RemoteDriverBinding): RemoteDriverBinding {
+export function validateRemoteBinding(
+  binding: RemoteDriverBinding,
+  trust: RemoteTrustRoots
+): RemoteDriverBinding {
+  if (!trust) fail('TRUSTED_RUNTIME_CONTEXT_REQUIRED', 'installed effective profile')
   requireExactKeys(
     binding,
     [
@@ -218,6 +303,13 @@ export function validateRemoteBinding(binding: RemoteDriverBinding): RemoteDrive
   )
   if (binding.schemaVersion !== 1 || binding.kind !== 'OES_REMOTE_DRIVER_BINDING')
     fail('INVALID_BINDING_KIND', binding.kind)
+  if (
+    trust.ownerTaskId !== binding.owner.taskId ||
+    trust.profileExpectedState !== 'DELIVERY_ACTIVE'
+  )
+    fail('RUNTIME_TRUST_OWNER_STATE_MISMATCH', binding.owner.taskId)
+  requireFingerprint(trust.profileSha256, 'runtimeTrust.profileSha256')
+  if (!isAbsolute(trust.profilePath)) fail('RUNTIME_TRUST_PROFILE_PATH_INVALID', trust.profilePath)
   if (!REMOTE_ACTIONS.includes(binding.action))
     fail('INVALID_REMOTE_ACTION', String(binding.action))
   const computed = objectFingerprint(
@@ -291,9 +383,9 @@ export function validateRemoteBinding(binding: RemoteDriverBinding): RemoteDrive
     )
     if (binding.admission.mode === 'serial-latest-main') {
       if (!binding.admission.lockPath) fail('SERIAL_ADMISSION_LOCK_REQUIRED', binding.headRef)
-      const admissionRoot = process.env.OES_REMOTE_ADMISSION_ROOT
+      const admissionRoot = trust.admissionRoot
       if (!admissionRoot || !isAbsolute(admissionRoot))
-        fail('SERIAL_ADMISSION_ROOT_REQUIRED', 'OES_REMOTE_ADMISSION_ROOT')
+        fail('SERIAL_ADMISSION_ROOT_REQUIRED', 'runtime trust context')
       assertPathWithin(admissionRoot, binding.admission.lockPath)
       if (binding.admission.mergeGroupSha !== null || binding.admission.mergeGroupBaseSha !== null)
         fail('SERIAL_ADMISSION_MERGE_GROUP_FORBIDDEN', binding.headRef)
@@ -332,13 +424,13 @@ export function validateRemoteBinding(binding: RemoteDriverBinding): RemoteDrive
     if (!binding.headRef.startsWith('codex/cleanup/'))
       fail('STAGE_REMOTE_NOT_CLEANUP_ONLY', binding.headRef)
   }
-  validateTrustedAuthorization(binding)
+  validateTrustedAuthorization(binding, trust)
   return binding
 }
 
 /** Loads and validates one remote binding from disk. */
-export function loadRemoteBinding(path: string): RemoteDriverBinding {
-  return validateRemoteBinding(readJson<RemoteDriverBinding>(path))
+export function loadRemoteBinding(path: string, trust: RemoteTrustRoots): RemoteDriverBinding {
+  return validateRemoteBinding(readJson<RemoteDriverBinding>(path), trust)
 }
 
 /** Validates the structural envelope of an effective-profile report. */

@@ -1,10 +1,21 @@
-import { readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  chmodSync,
+  closeSync,
+  constants,
+  openSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  statSync,
+  unlinkSync,
+  writeFileSync
+} from 'node:fs'
 import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:net'
-import { join } from 'node:path'
+import { dirname, isAbsolute, join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { DatabaseSync } from 'node:sqlite'
-import { canonicalJson, sha256, writeJsonAtomic } from './canonical.ts'
+import { assertPathWithin, canonicalJson, sha256, writeJsonAtomic } from './canonical.ts'
 import { validateProfileReportEnvelope } from './binding.ts'
 import { fail } from './errors.ts'
 import {
@@ -12,7 +23,8 @@ import {
   type ApprovalTelemetry,
   type CapabilityName,
   type CapabilityObservation,
-  type EffectiveProfileReport
+  type EffectiveProfileReport,
+  type RemoteTrustRoots
 } from './types.ts'
 
 export type CapabilityFailureRoute =
@@ -100,12 +112,13 @@ export function planProfileRepair(
 
 /** Extracts credential field names while discarding all credential values. */
 export function credentialReferenceKeys(output: string): string[] {
+  const approved = new Set(['username', 'password'])
   return [
     ...new Set(
       output
         .split(/\r?\n/)
         .map((line) => line.split('=', 1)[0])
-        .filter(Boolean)
+        .filter((key) => approved.has(key))
     )
   ].sort()
 }
@@ -235,6 +248,125 @@ export function verifyEffectiveProfileReport(
   )
     fail('APPROVAL_TELEMETRY_INVALID', String(report.telemetry.normalPermissionPromptCount))
   return report
+}
+
+/** Proves the current owner process cannot replace the installed profile or its trust directory. */
+function requireProfileReadOnlyControl(profilePath: string, authorizationRoot: string): void {
+  assertPathWithin(dirname(profilePath), authorizationRoot)
+  assertPathWithin(realpathSync(dirname(profilePath)), realpathSync(authorizationRoot))
+  let fileWritable = false
+  try {
+    const fd = openSync(profilePath, constants.O_WRONLY | constants.O_APPEND)
+    closeSync(fd)
+    fileWritable = true
+  } catch {}
+  if (fileWritable) fail('INSTALLED_PROFILE_CALLER_WRITABLE', profilePath)
+
+  let metadataWritable = false
+  try {
+    chmodSync(profilePath, statSync(profilePath).mode)
+    metadataWritable = true
+  } catch {}
+  if (metadataWritable) fail('INSTALLED_PROFILE_CALLER_CONTROLLED', profilePath)
+
+  const probe = join(dirname(profilePath), `.oes-runtime-trust-probe-${process.pid}`)
+  let directoryWritable = false
+  try {
+    const fd = openSync(probe, constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY, 0o600)
+    closeSync(fd)
+    directoryWritable = true
+  } catch {}
+  if (directoryWritable) {
+    try {
+      unlinkSync(probe)
+    } catch {}
+    fail('INSTALLED_PROFILE_DIRECTORY_CALLER_WRITABLE', dirname(profilePath))
+  }
+
+  const authorizationProbe = join(
+    authorizationRoot,
+    `.oes-authorization-write-probe-${process.pid}`
+  )
+  let authorizationWritable = false
+  try {
+    const fd = openSync(
+      authorizationProbe,
+      constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY,
+      0o600
+    )
+    closeSync(fd)
+    authorizationWritable = true
+  } catch {}
+  if (authorizationWritable) {
+    try {
+      unlinkSync(authorizationProbe)
+    } catch {}
+    fail('AUTHORIZATION_ROOT_CALLER_WRITABLE', authorizationRoot)
+  }
+
+  let authorizationMetadataWritable = false
+  try {
+    chmodSync(authorizationRoot, statSync(authorizationRoot).mode)
+    authorizationMetadataWritable = true
+  } catch {}
+  if (authorizationMetadataWritable) fail('AUTHORIZATION_ROOT_CALLER_CONTROLLED', authorizationRoot)
+}
+
+/** Loads remote trust roots only from a hash-verified installed effective profile. */
+export function loadRemoteTrustRootsFromProfileReport(
+  input: EffectiveProfileReport
+): RemoteTrustRoots {
+  const report = verifyEffectiveProfileReport(input)
+  if (
+    report.expectedState !== 'DELIVERY_ACTIVE' ||
+    canonicalJson([...report.declaredCapabilities].sort()) !==
+      canonicalJson([...CAPABILITY_NAMES].sort())
+  )
+    fail('REMOTE_RUNTIME_PROFILE_NOT_FULLY_ACCEPTED', report.ownerTaskId)
+  const profileText = readFileSync(report.profile.path, 'utf8')
+  let section = ''
+  const collaboration = new Map<string, string>()
+  const permissions = new Map<string, string>()
+  for (const rawLine of profileText.split(/\r?\n/)) {
+    const line = rawLine.trim()
+    if (!line || line.startsWith('#')) continue
+    const sectionMatch = /^\[([^\]]+)\]$/.exec(line)
+    if (sectionMatch) {
+      section = sectionMatch[1]
+      continue
+    }
+    const assignment =
+      /^("(?:[^"\\]|\\.)*"|[A-Za-z_][A-Za-z0-9_]*)\s*=\s*("(?:[^"\\]|\\.)*")$/.exec(line)
+    if (!assignment) continue
+    const key = assignment[1].startsWith('"') ? JSON.parse(assignment[1]) : assignment[1]
+    const value = JSON.parse(assignment[2]) as string
+    if (section === 'collaboration_runtime') {
+      if (collaboration.has(key)) fail('DUPLICATE_RUNTIME_TRUST_SETTING', key)
+      collaboration.set(key, value)
+    }
+    if (section.endsWith('.filesystem')) permissions.set(key, value)
+  }
+  const authorizationRoot = collaboration.get('trusted_authorization_root') ?? ''
+  const admissionRoot = collaboration.get('serial_admission_root') ?? ''
+  if (!isAbsolute(authorizationRoot) || !isAbsolute(admissionRoot))
+    fail('INSTALLED_RUNTIME_TRUST_ROOT_INVALID', report.profile.path)
+  if (
+    authorizationRoot === admissionRoot ||
+    permissions.get(authorizationRoot) !== 'read' ||
+    permissions.get(admissionRoot) !== 'write'
+  )
+    fail('INSTALLED_RUNTIME_TRUST_PERMISSION_INVALID', report.profile.path)
+  if (profileText.includes(`${JSON.stringify(authorizationRoot)} = true`))
+    fail('AUTHORIZATION_ROOT_MUST_NOT_BE_WORKSPACE_ROOT', authorizationRoot)
+  requireProfileReadOnlyControl(report.profile.path, authorizationRoot)
+  return {
+    authorizationRoot,
+    admissionRoot,
+    profilePath: report.profile.path,
+    profileSha256: report.profile.sha256,
+    ownerTaskId: report.ownerTaskId,
+    profileExpectedState: report.expectedState
+  }
 }
 
 /** Executes every declared probe, verifies the complete report, and atomically records it. */

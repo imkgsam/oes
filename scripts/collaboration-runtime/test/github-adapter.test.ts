@@ -206,7 +206,7 @@ test('main verification rejects a merge whose second parent is not the confirmed
       body: binding.pullRequest.body
     },
     requiredChecks: [
-      { sha: mergeSha, name: 'Baseline Checks', status: 'completed', conclusion: 'success' }
+      { id: 1, sha: mergeSha, name: 'Baseline Checks', status: 'completed', conclusion: 'success' }
     ],
     mainParents: ['4'.repeat(40), '9'.repeat(40)],
     pullMergeParents: ['4'.repeat(40), binding.candidateSha],
@@ -221,4 +221,68 @@ test('main verification rejects a merge whose second parent is not the confirmed
     mergeCommitSha: mergeSha
   })
   assert.equal(result.passed, false)
+})
+
+test('a newer failing duplicate required check blocks an older success', async () => {
+  const binding = remoteBinding({
+    action: 'verify-pr',
+    pullRequest: {
+      baseRef: 'main',
+      draft: true,
+      number: 12,
+      requiredChecks: ['Baseline Checks'],
+      title: 'Runtime',
+      body: 'Exact candidate'
+    }
+  })
+  const adapter = new GitHubRemoteAdapter(new ScenarioRunner(binding.candidateSha, '8'.repeat(40)))
+  const pull = {
+    number: 12,
+    state: 'OPEN' as const,
+    draft: true,
+    baseRef: 'main',
+    headRef: binding.headRef,
+    headSha: binding.candidateSha,
+    mergeCommitSha: null,
+    title: binding.pullRequest.title,
+    body: binding.pullRequest.body
+  }
+  const result = await adapter.verify(
+    binding,
+    {
+      branchHead: binding.candidateSha,
+      mergeQueueEntry: null,
+      mainHead: binding.integrationBase,
+      pullRequest: pull,
+      requiredChecks: [
+        {
+          id: 10,
+          sha: binding.candidateSha,
+          name: 'Baseline Checks',
+          status: 'completed',
+          conclusion: 'success'
+        },
+        {
+          id: 11,
+          sha: binding.candidateSha,
+          name: 'Baseline Checks',
+          status: 'completed',
+          conclusion: 'failure'
+        }
+      ],
+      mainParents: [],
+      pullMergeParents: [],
+      reviewGate: emptyGate
+    },
+    {
+      action: 'verify-pr',
+      mutationPerformed: false,
+      recoveredFromRemoteTruth: false,
+      branchHead: binding.candidateSha,
+      pullRequestNumber: 12,
+      mergeCommitSha: null
+    }
+  )
+  assert.equal(result.passed, false)
+  assert.equal(result.status, 'PR_CI_PENDING')
 })

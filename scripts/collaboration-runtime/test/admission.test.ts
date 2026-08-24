@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { SerialAdmissionLock } from '../src/admission.ts'
 import { objectFingerprint } from '../src/canonical.ts'
 import { validateRemoteBinding } from '../src/binding.ts'
-import { authorizeRemoteBinding, remoteBinding } from './helpers.ts'
+import { authorizeRemoteBinding, remoteBinding, remoteTrust } from './helpers.ts'
 
 /** Creates one exact Human-authorized serial merge binding. */
 function mergeBinding() {
@@ -27,7 +27,7 @@ function mergeBinding() {
     mergeGroupBaseSha: null
   }
   authorizeRemoteBinding(binding)
-  return validateRemoteBinding(binding)
+  return validateRemoteBinding(binding, remoteTrust(binding))
 }
 
 test('serial latest-main admission allows only the exact binding to resume', () => {

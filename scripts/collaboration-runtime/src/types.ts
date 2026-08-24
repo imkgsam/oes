@@ -49,6 +49,36 @@ export interface TrustedAuthorizationReference {
   fingerprint: string
 }
 
+export interface RemoteTrustRoots {
+  authorizationRoot: string
+  admissionRoot: string
+  profilePath: string
+  profileSha256: string
+  ownerTaskId: string
+  profileExpectedState: EffectiveProfileReport['expectedState']
+}
+
+export interface RemoteAuthorizationRoot {
+  schemaVersion: 1
+  kind: 'OES_REMOTE_AUTHORIZATION_ROOT'
+  recordFingerprint: string
+  status: 'ACTIVE'
+  issuerTaskId: string
+  owner: RemoteOwner
+  expectedState: string
+  stateVersion: number
+  transitionId: string
+  rootConfirmationFingerprint: string
+  scopeFingerprint: string
+  truthBaseline: string
+  repositoryRoot: string
+  repositorySlug: string
+  artifactRoot: string
+  allowedActions: RemoteAction[]
+  mergeAuthorizationFingerprint?: string
+  cleanupAuthorizationFingerprint?: string
+}
+
 export interface RemoteActionAuthorization {
   schemaVersion: 1
   kind: 'OES_REMOTE_ACTION_AUTHORIZATION'
@@ -128,6 +158,9 @@ export interface RequiredCheckTruth {
   name: string
   status: string
   conclusion: string | null
+  id: number
+  startedAt?: string
+  completedAt?: string | null
 }
 
 export interface RemoteTruth {

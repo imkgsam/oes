@@ -11,6 +11,7 @@ import { RuntimeContractError, fail } from './errors.ts'
 import { GitHubRemoteAdapter } from './github-adapter.ts'
 import {
   SystemPreflightProbeAdapter,
+  loadRemoteTrustRootsFromProfileReport,
   runEffectiveProfilePreflight,
   verifyEffectiveProfileReport,
   type PreflightRequest,
@@ -45,7 +46,11 @@ function emit(value: unknown): void {
 async function main(args: string[]): Promise<void> {
   const command = args[0]
   if (command === 'validate-binding') {
-    const binding = loadRemoteBinding(flag(args, '--binding'))
+    const profileReport = verifyEffectiveProfileReport(
+      readJson<EffectiveProfileReport>(flag(args, '--profile-report'))
+    )
+    const trust = loadRemoteTrustRootsFromProfileReport(profileReport)
+    const binding = loadRemoteBinding(flag(args, '--binding'), trust)
     emit({
       status: 'BINDING_VALID',
       bindingFingerprint: binding.bindingFingerprint,
@@ -54,8 +59,12 @@ async function main(args: string[]): Promise<void> {
     return
   }
   if (command === 'remote') {
-    const binding = loadRemoteBinding(flag(args, '--binding'))
-    emit(await new RemoteDriver(new GitHubRemoteAdapter()).run(binding))
+    const profileReport = verifyEffectiveProfileReport(
+      readJson<EffectiveProfileReport>(flag(args, '--profile-report'))
+    )
+    const trust = loadRemoteTrustRootsFromProfileReport(profileReport)
+    const binding = loadRemoteBinding(flag(args, '--binding'), trust)
+    emit(await new RemoteDriver(new GitHubRemoteAdapter(), trust).run(binding))
     return
   }
   if (command === 'profile-preflight') {

@@ -122,3 +122,43 @@ test('cleanup-only diff must contain exactly terminal Feature Packet deletions',
     /CLEANUP_ONLY_NON_DELETION_CHANGE/
   )
 })
+
+test('an absence observation for another resource cannot complete the bound resource', () => {
+  const authorization = cleanupAuthorization()
+  const alpha = authorization.terminalFeatures[0].resources[0]
+  const wrong = { ...absent(alpha), path: 'codex/feature/not-alpha' }
+  const result = {
+    resource: alpha,
+    decision: 'ALREADY_ABSENT' as const,
+    reason: 'wrong observation',
+    observedBefore: wrong,
+    observedAfter: wrong
+  }
+  const worktree = authorization.terminalFeatures[0].resources[1]
+  const beta = authorization.terminalFeatures[1].resources[0]
+  assert.throws(
+    () =>
+      verifyChildCleanupResults(authorization, {
+        '/root/sl/fl-alpha': [
+          result,
+          {
+            resource: worktree,
+            decision: 'ALREADY_ABSENT',
+            reason: 'exact absence',
+            observedBefore: absent(worktree),
+            observedAfter: absent(worktree)
+          }
+        ],
+        '/root/sl/fl-beta': [
+          {
+            resource: beta,
+            decision: 'ALREADY_ABSENT',
+            reason: 'exact absence',
+            observedBefore: absent(beta),
+            observedAfter: absent(beta)
+          }
+        ]
+      }),
+    /STAGE_CLEANUP_OBSERVATION_IDENTITY_MISMATCH/
+  )
+})

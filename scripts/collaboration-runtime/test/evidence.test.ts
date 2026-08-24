@@ -90,3 +90,15 @@ test('changed or failing literal results invalidate all prior coverage', () => {
   assert.equal(result.decision, 'FULL')
   assert.deepEqual(result.reusableCoverageIds, [])
 })
+
+test('changed literal-input identity invalidates every prior coverage result', () => {
+  const value = base()
+  value.nextEvidence = {
+    ...input('2'.repeat(40)),
+    literalInputsFingerprint: hash('9')
+  }
+  value.changedPaths = ['README.md']
+  const result = assessDrift(value)
+  assert.equal(result.decision, 'FULL')
+  assert.deepEqual(result.reusableCoverageIds, [])
+})

@@ -40,7 +40,11 @@ export function planChildSelfCleanup(
   const completed = new Map<string, CompletedCleanupResource>()
   for (const record of completedResources) {
     const key = resourceKey(record.resource)
-    if (!allowed.has(key) || record.observedAfter.exists !== false)
+    if (
+      !allowed.has(key) ||
+      record.observedAfter.exists !== false ||
+      resourceKey(record.observedAfter) !== key
+    )
       fail('COMPLETED_CLEANUP_RESOURCE_INVALID', key)
     const expectedFingerprint = objectFingerprint(
       { resource: record.resource, observedAfter: record.observedAfter },
@@ -150,6 +154,12 @@ export function verifyChildCleanupResults(
     if (expected.length !== actual.length || expected.some((key, index) => key !== actual[index]))
       fail('STAGE_CLEANUP_RESOURCE_RESULT_SET_MISMATCH', owner)
     for (const result of results) {
+      const boundKey = resourceKey(result.resource)
+      if (
+        (result.observedBefore && resourceKey(result.observedBefore) !== boundKey) ||
+        (result.observedAfter && resourceKey(result.observedAfter) !== boundKey)
+      )
+        fail('STAGE_CLEANUP_OBSERVATION_IDENTITY_MISMATCH', result.resource.path)
       if (result.decision === 'PRESERVE_FAILURE')
         fail('STAGE_CLEANUP_PARTIAL_FAILURE', result.resource.path)
       if (result.decision === 'REMOVE') {

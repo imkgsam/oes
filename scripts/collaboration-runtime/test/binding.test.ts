@@ -2,11 +2,14 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { validateRemoteBinding, validateStageCleanupAuthorization } from '../src/binding.ts'
 import { objectFingerprint } from '../src/canonical.ts'
-import { cleanupAuthorization, remoteBinding } from './helpers.ts'
+import { cleanupAuthorization, remoteBinding, remoteTrust } from './helpers.ts'
 
 test('remote binding accepts exact owner-scoped Draft PR publication', () => {
   const binding = remoteBinding()
-  assert.equal(validateRemoteBinding(binding).bindingFingerprint, binding.bindingFingerprint)
+  assert.equal(
+    validateRemoteBinding(binding, remoteTrust(binding)).bindingFingerprint,
+    binding.bindingFingerprint
+  )
 })
 
 test('remote binding rejects main as a head ref even with a recomputed fingerprint', () => {
@@ -15,7 +18,7 @@ test('remote binding rejects main as a head ref even with a recomputed fingerpri
     binding as unknown as Record<string, unknown>,
     'bindingFingerprint'
   )
-  assert.throws(() => validateRemoteBinding(binding), /INVALID_OWNER_REF/)
+  assert.throws(() => validateRemoteBinding(binding, remoteTrust(binding)), /INVALID_OWNER_REF/)
 })
 
 test('merge binding requires exact Human authorization and Merge Commit method', () => {
@@ -34,7 +37,10 @@ test('merge binding requires exact Human authorization and Merge Commit method',
     binding as unknown as Record<string, unknown>,
     'bindingFingerprint'
   )
-  assert.throws(() => validateRemoteBinding(binding), /mergeAuthorizationFingerprint/)
+  assert.throws(
+    () => validateRemoteBinding(binding, remoteTrust(binding)),
+    /mergeAuthorizationFingerprint/
+  )
 })
 
 test('Stage cleanup authorization fingerprint and packet set are exact', () => {
@@ -59,7 +65,10 @@ test('self-hashed owner and state changes fail trusted authorization CAS', () =>
     binding as unknown as Record<string, unknown>,
     'bindingFingerprint'
   )
-  assert.throws(() => validateRemoteBinding(binding), /REMOTE_AUTHORIZATION_CAS_MISMATCH/)
+  assert.throws(
+    () => validateRemoteBinding(binding, remoteTrust(binding)),
+    /RUNTIME_TRUST_OWNER_STATE_MISMATCH|REMOTE_AUTHORIZATION_CAS_MISMATCH/
+  )
 })
 
 test('empty Stage cleanup batch is rejected consistently with schema', () => {
@@ -74,4 +83,24 @@ test('empty Stage cleanup batch is rejected consistently with schema', () => {
     () => validateStageCleanupAuthorization(authorization),
     /CLEANUP_TERMINAL_FEATURES_REQUIRED/
   )
+})
+
+test('per-command environment variables cannot replace the installed runtime trust roots', () => {
+  const binding = remoteBinding()
+  const trust = remoteTrust(binding)
+  process.env.OES_REMOTE_AUTHORIZATION_ROOT = binding.artifactRoot
+  process.env.OES_REMOTE_ADMISSION_ROOT = binding.artifactRoot
+  try {
+    assert.equal(
+      validateRemoteBinding(binding, trust).bindingFingerprint,
+      binding.bindingFingerprint
+    )
+    assert.throws(
+      () => validateRemoteBinding(binding, undefined as never),
+      /TRUSTED_RUNTIME_CONTEXT_REQUIRED/
+    )
+  } finally {
+    delete process.env.OES_REMOTE_AUTHORIZATION_ROOT
+    delete process.env.OES_REMOTE_ADMISSION_ROOT
+  }
 })

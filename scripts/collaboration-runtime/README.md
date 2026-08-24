@@ -22,12 +22,12 @@ node --experimental-strip-types scripts/collaboration-runtime/src/cli.ts \
   profile-preflight --input exact-profile-preflight.json
 
 node --experimental-strip-types scripts/collaboration-runtime/src/cli.ts \
-  validate-binding --binding binding.json
+  validate-binding --profile-report effective-profile.json --binding binding.json
 
-scripts/collaboration-runtime/bin/oes-remote-driver --binding binding.json
+scripts/collaboration-runtime/bin/oes-remote-driver --profile-report effective-profile.json --binding binding.json
 ```
 
-The remote driver never creates authority. A creating parent or exact Human-gate issuer writes an `OES_REMOTE_ACTION_AUTHORIZATION` beneath the profile-configured, owner-read-only authorization root before mutation. A binding references its exact bytes/fingerprint and must compare equal on owner, state/version, transition, scope, truth/base/candidate, repository, resources, action, nonce, and any merge/cleanup authorization. The CLI deliberately has no binding- or cleanup-authority sealing command.
+The remote driver loads its authorization and admission roots only from the reopened, hash-verified installed effective profile; per-command environment variables are not trust inputs. It never creates authority. A creating parent or exact Human-gate issuer writes an `OES_REMOTE_ACTION_AUTHORIZATION` beneath the profile-configured, owner-read-only authorization root beneath the installed profile directory before mutation. A binding references its exact bytes/fingerprint and must compare equal on owner, state/version, transition, scope, truth/base/candidate, repository, resources, action, nonce, and any merge/cleanup authorization. The CLI deliberately has no binding- or cleanup-authority sealing command.
 
 Publication is Draft-only. Merge requires an exact Human merge fingerprint and either the global serial-admission lock or native queue admission. Queue recovery records the generated base/head pair and validates `Baseline Checks` on that head. Main verification binds the merge SHA, confirms two parents with the PR head second, checks ancestry and reviewed/merge-group tree identity, and validates main CI. Remote cleanup accepts one exact SHA-matched remote branch; local/worktree/packet cleanup uses the Stage child protocol.
 

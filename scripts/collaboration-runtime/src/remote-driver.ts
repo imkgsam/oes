@@ -10,6 +10,7 @@ import type {
   RemoteDriverResult,
   RemoteReceipt,
   RemoteTruth,
+  RemoteTrustRoots,
   RemoteVerification
 } from './types.ts'
 
@@ -62,7 +63,8 @@ function receiptFromTruth(
   binding: RemoteDriverBinding,
   truth: RemoteTruth,
   mutationPerformed: boolean,
-  recoveredFromRemoteTruth: boolean
+  recoveredFromRemoteTruth: boolean,
+  mutationReceipt: RemoteReceipt | null = null
 ): RemoteReceipt {
   return {
     action: binding.action,
@@ -72,8 +74,17 @@ function receiptFromTruth(
     pullRequestNumber: truth.pullRequest?.number ?? null,
     mergeCommitSha: truth.pullRequest?.mergeCommitSha ?? null,
     mergeGroupBaseSha:
-      truth.mergeQueueEntry?.baseSha ?? binding.admission?.mergeGroupBaseSha ?? null,
-    mergeGroupHeadSha: truth.mergeQueueEntry?.headSha ?? binding.admission?.mergeGroupSha ?? null,
+      truth.mergeQueueEntry?.baseSha ??
+      mutationReceipt?.mergeGroupBaseSha ??
+      (binding.admission?.mode === 'merge-queue' && truth.pullRequest?.state === 'MERGED'
+        ? (truth.pullMergeParents[0] ?? null)
+        : (binding.admission?.mergeGroupBaseSha ?? null)),
+    mergeGroupHeadSha:
+      truth.mergeQueueEntry?.headSha ??
+      mutationReceipt?.mergeGroupHeadSha ??
+      (binding.admission?.mode === 'merge-queue' && truth.pullRequest?.state === 'MERGED'
+        ? truth.pullRequest.mergeCommitSha
+        : (binding.admission?.mergeGroupSha ?? null)),
     cleanupResources: binding.cleanupResources
   }
 }
@@ -131,15 +142,17 @@ function readVerifiedResult(binding: RemoteDriverBinding): RemoteDriverResult {
 export class RemoteDriver {
   readonly adapter: RemoteAdapter
   readonly hooks: RemoteDriverHooks
+  readonly trust: RemoteTrustRoots
 
-  constructor(adapter: RemoteAdapter, hooks: RemoteDriverHooks = {}) {
+  constructor(adapter: RemoteAdapter, trust: RemoteTrustRoots, hooks: RemoteDriverHooks = {}) {
     this.adapter = adapter
+    this.trust = trust
     this.hooks = hooks
   }
 
   /** Runs or idempotently resumes an exact binding. */
   async run(input: RemoteDriverBinding): Promise<RemoteDriverResult> {
-    const binding = validateRemoteBinding(input)
+    const binding = validateRemoteBinding(input, this.trust)
     const admission =
       binding.action === 'merge-pr' && binding.admission?.mode === 'serial-latest-main'
         ? new SerialAdmissionLock(binding)
@@ -187,12 +200,13 @@ export class RemoteDriver {
       if (mutating) {
         const alreadySatisfied = remoteMutationSatisfied(binding, truth)
         if (!alreadySatisfied) {
-          receipt = await this.adapter.mutate(binding, truth)
+          const mutationReceipt = await this.adapter.mutate(binding, truth)
+          receipt = mutationReceipt
           await this.hooks.afterRemoteMutation?.(receipt)
           truth = await this.adapter.readTruth(binding)
           if (!remoteMutationSatisfied(binding, truth))
             fail('REMOTE_MUTATION_NOT_OBSERVED', binding.action)
-          receipt = receiptFromTruth(binding, truth, true, false)
+          receipt = receiptFromTruth(binding, truth, true, false, mutationReceipt)
         } else receipt = receiptFromTruth(binding, truth, false, true)
       } else receipt = receiptFromTruth(binding, truth, false, false)
       checkpoint = store.advance('REMOTE_MUTATION_RECORDED', truth, receipt)
@@ -234,7 +248,8 @@ export class RemoteDriver {
 /** Loads and executes one binding through a supplied adapter. */
 export async function runRemoteBinding(
   path: string,
-  adapter: RemoteAdapter
+  adapter: RemoteAdapter,
+  trust: RemoteTrustRoots
 ): Promise<RemoteDriverResult> {
-  return new RemoteDriver(adapter).run(loadRemoteBinding(path))
+  return new RemoteDriver(adapter, trust).run(loadRemoteBinding(path, trust))
 }

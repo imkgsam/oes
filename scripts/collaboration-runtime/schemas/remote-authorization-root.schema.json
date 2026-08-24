@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oes.local/schemas/collaboration-runtime/remote-authorization-root-v1.json",
+  "title": "OES remote authorization root",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "recordFingerprint",
+    "status",
+    "issuerTaskId",
+    "owner",
+    "expectedState",
+    "stateVersion",
+    "transitionId",
+    "rootConfirmationFingerprint",
+    "scopeFingerprint",
+    "truthBaseline",
+    "repositoryRoot",
+    "repositorySlug",
+    "artifactRoot",
+    "allowedActions"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "OES_REMOTE_AUTHORIZATION_ROOT" },
+    "recordFingerprint": { "$ref": "#/$defs/sha256" },
+    "status": { "const": "ACTIVE" },
+    "issuerTaskId": { "type": "string", "minLength": 1 },
+    "owner": { "$ref": "#/$defs/owner" },
+    "expectedState": { "type": "string", "minLength": 1 },
+    "stateVersion": { "type": "integer", "minimum": 1 },
+    "transitionId": { "type": "string", "minLength": 1 },
+    "rootConfirmationFingerprint": { "$ref": "#/$defs/sha256" },
+    "scopeFingerprint": { "$ref": "#/$defs/sha256" },
+    "truthBaseline": { "$ref": "#/$defs/gitSha" },
+    "repositoryRoot": { "type": "string", "pattern": "^/" },
+    "repositorySlug": { "type": "string", "pattern": "^[^/]+/[^/]+$" },
+    "artifactRoot": { "type": "string", "pattern": "^/" },
+    "allowedActions": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/action" }
+    },
+    "mergeAuthorizationFingerprint": { "$ref": "#/$defs/sha256" },
+    "cleanupAuthorizationFingerprint": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "gitSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "action": {
+      "enum": ["preflight", "publish-pr", "verify-pr", "merge-pr", "verify-main", "cleanup"]
+    },
+    "owner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "taskId"],
+      "properties": {
+        "role": { "enum": ["Direct owner", "Global Unified Design", "Feature Lead", "Stage Lead"] },
+        "taskId": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

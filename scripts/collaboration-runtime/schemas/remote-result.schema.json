@@ -93,7 +93,7 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["sha", "name", "status", "conclusion"],
+            "required": ["id", "sha", "name", "status", "conclusion"],
             "properties": {
               "sha": {
                 "$ref": "#/$defs/gitSha"
@@ -105,6 +105,17 @@
                 "type": "string"
               },
               "conclusion": {
+                "type": ["string", "null"]
+              },
+              "id": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "startedAt": {
+                "type": "string",
+                "minLength": 1
+              },
+              "completedAt": {
                 "type": ["string", "null"]
               }
             }

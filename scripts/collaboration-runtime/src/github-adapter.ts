@@ -601,7 +601,10 @@ export class GitHubRemoteAdapter implements RemoteAdapter {
       sha,
       name: String(check.name),
       status: String(check.status),
-      conclusion: check.conclusion === null ? null : String(check.conclusion)
+      conclusion: check.conclusion === null ? null : String(check.conclusion),
+      id: Number(check.id),
+      startedAt: check.started_at ? String(check.started_at) : undefined,
+      completedAt: check.completed_at ? String(check.completed_at) : null
     }))
   }
 
@@ -710,21 +713,26 @@ export class GitHubRemoteAdapter implements RemoteAdapter {
     return { annotations, issueComments, reviewComments, blockingReviews, unresolvedThreads }
   }
 
-  /** Requires every bound check name to have one successful completed run on the exact SHA. */
+  /** Requires the authoritative newest run for every bound context to pass on the exact SHA. */
   private requiredChecksPass(
     binding: RemoteDriverBinding,
     checks: RequiredCheckTruth[],
     sha: string
   ): boolean {
-    return binding.pullRequest.requiredChecks.every((name) =>
-      checks.some(
-        (check) =>
-          check.sha === sha &&
-          check.name === name &&
-          check.status === 'completed' &&
-          check.conclusion === 'success'
-      )
-    )
+    return binding.pullRequest.requiredChecks.every((name) => {
+      const matches = checks.filter((check) => check.sha === sha && check.name === name)
+      if (matches.length === 0) return false
+      let current = matches[0]
+      if (matches.length > 1) {
+        if (
+          matches.some((check) => !Number.isSafeInteger(check.id) || Number(check.id) < 1) ||
+          new Set(matches.map((check) => check.id)).size !== matches.length
+        )
+          return false
+        current = [...matches].sort((left, right) => Number(right.id) - Number(left.id))[0]
+      }
+      return current.status === 'completed' && current.conclusion === 'success'
+    })
   }
 
   /** Requires all review and annotation counters to be clear. */

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { canonicalJson, sha256 } from '../src/canonical.ts'
@@ -8,6 +8,7 @@ import {
   classifyCapabilityIssue,
   credentialReferenceKeys,
   defaultDeliveryCapabilities,
+  loadRemoteTrustRootsFromProfileReport,
   planProfileRepair,
   readApprovalTelemetry,
   runEffectiveProfilePreflight,
@@ -206,5 +207,69 @@ test('system adapter performs actual filesystem, SQLite, and telemetry probes', 
     assert.equal(observation.result, 'PASS')
     assert.equal(observation.exitCode, 0)
     assert.equal(sha256(readFileSync(observation.evidencePath)), observation.evidenceSha256)
+  }
+})
+
+test('standard git credential fill keeps only approved reference keys', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'oes-credential-system-test-'))
+  const fakeGit = join(root, 'git')
+  writeFileSync(
+    fakeGit,
+    '#!/bin/sh\ncat >/dev/null\nprintf "protocol=https\\nhost=github.com\\nusername=fixture\\npassword=redacted\\n"\n'
+  )
+  chmodSync(fakeGit, 0o700)
+  const adapter = new SystemPreflightProbeAdapter({
+    repositoryRoot: process.cwd(),
+    smokeRoot: root,
+    telemetryEventSource: telemetry(root),
+    git: fakeGit
+  })
+  const observation = await adapter.observe('credentialReference')
+  assert.equal(observation.result, 'PASS')
+  assert.deepEqual((await adapter.credentialReference()).keys, ['password', 'username'])
+})
+
+test('caller-writable profile reports cannot select remote trust roots', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'oes-runtime-trust-profile-test-'))
+  const authorizationRoot = join(root, 'trusted-authorizations')
+  const admissionRoot = join(root, 'serial-admission')
+  mkdirSync(authorizationRoot)
+  mkdirSync(admissionRoot)
+  const telemetryPath = telemetry(root)
+  const profilePath = join(root, 'installed-profile.toml')
+  const profile = [
+    '[collaboration_runtime]',
+    `trusted_authorization_root = ${JSON.stringify(authorizationRoot)}`,
+    `serial_admission_root = ${JSON.stringify(admissionRoot)}`,
+    '[permissions.owner.filesystem]',
+    `${JSON.stringify(authorizationRoot)} = "read"`,
+    `${JSON.stringify(admissionRoot)} = "write"`,
+    ''
+  ].join('\n')
+  writeFileSync(profilePath, profile)
+  const report = await runEffectiveProfilePreflight(
+    {
+      ownerTaskId: '/root/fl',
+      transitionId: 'delivery:1',
+      expectedState: 'DELIVERY_ACTIVE',
+      declaredCapabilities: defaultDeliveryCapabilities(),
+      profile: {
+        name: 'installed',
+        permission: 'owner',
+        path: profilePath,
+        sha256: sha256(profile)
+      },
+      resultPath: join(root, 'report.json')
+    },
+    new PassingProbe(root, telemetryPath)
+  )
+  process.env.OES_REMOTE_AUTHORIZATION_ROOT = join(root, 'caller-selected')
+  try {
+    assert.throws(
+      () => loadRemoteTrustRootsFromProfileReport(report),
+      /INSTALLED_PROFILE_CALLER_WRITABLE|INSTALLED_PROFILE_CALLER_CONTROLLED/
+    )
+  } finally {
+    delete process.env.OES_REMOTE_AUTHORIZATION_ROOT
   }
 })

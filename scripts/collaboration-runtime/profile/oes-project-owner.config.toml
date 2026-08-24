@@ -4,8 +4,10 @@ default_permissions = "oes-project-owner"
 
 [shell_environment_policy.set]
 NPM_CONFIG_SHELL_EMULATOR = "true"
-OES_REMOTE_AUTHORIZATION_ROOT = "{{TRUSTED_AUTHORIZATION_ROOT}}"
-OES_REMOTE_ADMISSION_ROOT = "{{SERIAL_ADMISSION_ROOT}}"
+
+[collaboration_runtime]
+trusted_authorization_root = "{{TRUSTED_AUTHORIZATION_ROOT}}"
+serial_admission_root = "{{SERIAL_ADMISSION_ROOT}}"
 
 [features]
 network_proxy = true
