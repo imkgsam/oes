@@ -22,7 +22,26 @@ test('executable schemas accept representative runtime bindings and Stage author
   validateJsonSchema(schema('remote-binding.schema.json'), binding)
   validateJsonSchema(schema('remote-authorization.schema.json'), authority)
   validateJsonSchema(schema('remote-authorization-root.schema.json'), rootAuthorization)
-  validateJsonSchema(schema('stage-cleanup-authorization.schema.json'), cleanupAuthorization())
+  const stage = cleanupAuthorization()
+  validateJsonSchema(schema('stage-cleanup-authorization.schema.json'), stage)
+  validateJsonSchema(schema('stage-child-cleanup-authorization.schema.json'), {
+    schemaVersion: 1,
+    kind: 'OES_STAGE_CHILD_CLEANUP_AUTHORIZATION',
+    authorizationFingerprint: 'a'.repeat(64),
+    status: 'ISSUED',
+    rootAuthorization: {
+      path: '/trusted/stage.json',
+      sha256: 'b'.repeat(64),
+      fingerprint: stage.authorizationFingerprint
+    },
+    stageKey: stage.stageKey,
+    stageOwnerTaskId: stage.stageOwnerTaskId,
+    ownerTaskId: stage.terminalFeatures[0].ownerTaskId,
+    transitionId: stage.transitionId,
+    confirmationFingerprint: stage.confirmationFingerprint,
+    resources: stage.terminalFeatures[0].resources,
+    postcondition: 'CHILD_SELF_CLEANUP'
+  })
 })
 
 test('executable Stage schema and runtime both reject an empty batch', () => {

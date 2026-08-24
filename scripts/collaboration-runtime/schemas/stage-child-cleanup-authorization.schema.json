@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oes.local/schemas/collaboration-runtime/stage-child-cleanup-authorization-v1.json",
+  "title": "OES Stage child cleanup authorization",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "authorizationFingerprint",
+    "status",
+    "rootAuthorization",
+    "stageKey",
+    "stageOwnerTaskId",
+    "ownerTaskId",
+    "transitionId",
+    "confirmationFingerprint",
+    "resources",
+    "postcondition"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "OES_STAGE_CHILD_CLEANUP_AUTHORIZATION" },
+    "authorizationFingerprint": { "$ref": "#/$defs/sha256" },
+    "status": { "const": "ISSUED" },
+    "rootAuthorization": { "$ref": "#/$defs/reference" },
+    "stageKey": { "type": "string", "minLength": 1 },
+    "stageOwnerTaskId": { "type": "string", "minLength": 1 },
+    "ownerTaskId": { "type": "string", "minLength": 1 },
+    "transitionId": { "type": "string", "minLength": 1 },
+    "confirmationFingerprint": { "$ref": "#/$defs/sha256" },
+    "resources": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/resource" }
+    },
+    "postcondition": { "const": "CHILD_SELF_CLEANUP" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "gitSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "fingerprint"],
+      "properties": {
+        "path": { "type": "string", "pattern": "^/" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "fingerprint": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "resource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "path", "expectedSha"],
+      "properties": {
+        "kind": { "enum": ["remote-branch", "local-branch", "worktree", "feature-packet"] },
+        "path": { "type": "string", "minLength": 1 },
+        "expectedSha": { "type": ["string", "null"], "pattern": "^[0-9a-f]{40}$" }
+      }
+    }
+  }
+}

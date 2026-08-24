@@ -354,6 +354,21 @@ export interface StageCleanupAuthorization {
   allowedDeletedFeaturePackets: string[]
 }
 
+export interface StageChildCleanupAuthorization {
+  schemaVersion: 1
+  kind: 'OES_STAGE_CHILD_CLEANUP_AUTHORIZATION'
+  authorizationFingerprint: string
+  status: 'ISSUED'
+  rootAuthorization: TrustedAuthorizationReference
+  stageKey: string
+  stageOwnerTaskId: string
+  ownerTaskId: string
+  transitionId: string
+  confirmationFingerprint: string
+  resources: StageCleanupResource[]
+  postcondition: 'CHILD_SELF_CLEANUP'
+}
+
 export interface ObservedCleanupResource extends StageCleanupResource {
   exists: boolean
   clean: boolean

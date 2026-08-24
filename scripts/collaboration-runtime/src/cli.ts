@@ -1,5 +1,9 @@
 #!/usr/bin/env node
-import { loadRemoteBinding, validateStageCleanupAuthorization } from './binding.ts'
+import {
+  loadRemoteBinding,
+  loadTrustedStageChildCleanupAuthorization,
+  loadTrustedStageCleanupAuthorization
+} from './binding.ts'
 import { canonicalJson, readJson, writeJsonAtomic } from './canonical.ts'
 import {
   planChildSelfCleanup,
@@ -26,8 +30,7 @@ import type {
   DriftAssessmentInput,
   EffectiveProfileReport,
   EvidenceKeyInput,
-  ObservedCleanupResource,
-  StageCleanupAuthorization
+  ObservedCleanupResource
 } from './types.ts'
 
 /** Returns the value following one required command-line flag. */
@@ -112,20 +115,32 @@ async function main(args: string[]): Promise<void> {
     return
   }
   if (command === 'cleanup-plan') {
-    const authorization = readJson<StageCleanupAuthorization>(flag(args, '--authorization'))
+    const profileReport = verifyEffectiveProfileReport(
+      readJson<EffectiveProfileReport>(flag(args, '--profile-report'))
+    )
+    const trust = loadRemoteTrustRootsFromProfileReport(profileReport)
+    const { root: authorization, child } = loadTrustedStageChildCleanupAuthorization(
+      flag(args, '--authorization'),
+      flag(args, '--child-authorization'),
+      trust
+    )
     const observations = readJson<ObservedCleanupResource[]>(flag(args, '--observed'))
-    const owner = flag(args, '--owner')
     const output = flag(args, '--output')
     const completedPath = args.includes('--completed') ? flag(args, '--completed') : null
     const completed = completedPath ? readJson<CompletedCleanupResource[]>(completedPath) : []
-    const plan = planChildSelfCleanup(authorization, owner, observations, completed)
+    const plan = planChildSelfCleanup(authorization, child.ownerTaskId, observations, completed)
     writeJsonAtomic(output, plan)
     emit(plan)
     return
   }
   if (command === 'cleanup-verify') {
-    const authorization = readJson<StageCleanupAuthorization>(flag(args, '--authorization'))
-    validateStageCleanupAuthorization(authorization)
+    const profileReport = verifyEffectiveProfileReport(
+      readJson<EffectiveProfileReport>(flag(args, '--profile-report'))
+    )
+    const trust = loadRemoteTrustRootsFromProfileReport(profileReport)
+    const authorization = loadTrustedStageCleanupAuthorization(flag(args, '--authorization'), trust)
+    if (authorization.stageOwnerTaskId !== trust.ownerTaskId)
+      fail('STAGE_CLEANUP_VERIFIER_OWNER_MISMATCH', trust.ownerTaskId)
     const diff = readJson<CleanupDiffEntry[]>(flag(args, '--diff'))
     const childResults = readJson<Record<string, CleanupResourceDecision[]>>(
       flag(args, '--child-results')

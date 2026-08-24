@@ -487,6 +487,10 @@ export class GitHubRemoteAdapter implements RemoteAdapter {
       )
     ) as Record<string, unknown>
     const bypass = ruleset.bypass_actors as unknown[]
+    const conditions = ruleset.conditions as Record<string, unknown> | undefined
+    const refName = conditions?.ref_name as Record<string, unknown> | undefined
+    const includedRefs = canonicalSet(refName?.include)
+    const excludedRefs = canonicalSet(refName?.exclude)
     const rules = Object.fromEntries(
       ((ruleset.rules as Array<Record<string, unknown>>) ?? []).map((r) => [String(r.type), r])
     )
@@ -497,6 +501,8 @@ export class GitHubRemoteAdapter implements RemoteAdapter {
     if (
       !Array.isArray(bypass) ||
       bypass.length !== 0 ||
+      !['refs/heads/main', '~DEFAULT_BRANCH'].includes(includedRefs) ||
+      excludedRefs !== '' ||
       !rules.deletion ||
       !rules.non_fast_forward ||
       pull?.required_approving_review_count !== 0 ||
@@ -721,16 +727,13 @@ export class GitHubRemoteAdapter implements RemoteAdapter {
   ): boolean {
     return binding.pullRequest.requiredChecks.every((name) => {
       const matches = checks.filter((check) => check.sha === sha && check.name === name)
-      if (matches.length === 0) return false
-      let current = matches[0]
-      if (matches.length > 1) {
-        if (
-          matches.some((check) => !Number.isSafeInteger(check.id) || Number(check.id) < 1) ||
-          new Set(matches.map((check) => check.id)).size !== matches.length
-        )
-          return false
-        current = [...matches].sort((left, right) => Number(right.id) - Number(left.id))[0]
-      }
+      if (
+        matches.length === 0 ||
+        matches.some((check) => !Number.isSafeInteger(check.id) || Number(check.id) < 1) ||
+        new Set(matches.map((check) => check.id)).size !== matches.length
+      )
+        return false
+      const current = [...matches].sort((left, right) => Number(right.id) - Number(left.id))[0]
       return current.status === 'completed' && current.conclusion === 'success'
     })
   }

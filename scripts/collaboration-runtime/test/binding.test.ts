@@ -1,8 +1,17 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { validateRemoteBinding, validateStageCleanupAuthorization } from '../src/binding.ts'
-import { objectFingerprint } from '../src/canonical.ts'
+import { mkdtempSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { spawnSync } from 'node:child_process'
+import {
+  loadTrustedStageChildCleanupAuthorization,
+  validateRemoteBinding,
+  validateStageCleanupAuthorization
+} from '../src/binding.ts'
+import { canonicalJson, objectFingerprint, sha256 } from '../src/canonical.ts'
 import { cleanupAuthorization, remoteBinding, remoteTrust } from './helpers.ts'
+import type { RemoteTrustRoots, StageChildCleanupAuthorization } from '../src/types.ts'
 
 test('remote binding accepts exact owner-scoped Draft PR publication', () => {
   const binding = remoteBinding()
@@ -103,4 +112,84 @@ test('per-command environment variables cannot replace the installed runtime tru
     delete process.env.OES_REMOTE_AUTHORIZATION_ROOT
     delete process.env.OES_REMOTE_ADMISSION_ROOT
   }
+})
+
+test('protected child cleanup assignment is exact and derives the current profile owner', () => {
+  const rootDirectory = mkdtempSync(join(tmpdir(), 'oes-stage-cleanup-trust-test-'))
+  const rootAuthorization = cleanupAuthorization()
+  const rootPath = join(rootDirectory, 'stage-cleanup-authorization.json')
+  const rootBytes = `${canonicalJson(rootAuthorization)}\n`
+  writeFileSync(rootPath, rootBytes)
+  const ownerTaskId = '/root/sl/fl-alpha'
+  const child: StageChildCleanupAuthorization = {
+    schemaVersion: 1,
+    kind: 'OES_STAGE_CHILD_CLEANUP_AUTHORIZATION',
+    authorizationFingerprint: '',
+    status: 'ISSUED',
+    rootAuthorization: {
+      path: rootPath,
+      sha256: sha256(rootBytes),
+      fingerprint: rootAuthorization.authorizationFingerprint
+    },
+    stageKey: rootAuthorization.stageKey,
+    stageOwnerTaskId: rootAuthorization.stageOwnerTaskId,
+    ownerTaskId,
+    transitionId: rootAuthorization.transitionId,
+    confirmationFingerprint: rootAuthorization.confirmationFingerprint,
+    resources: rootAuthorization.terminalFeatures[0].resources,
+    postcondition: 'CHILD_SELF_CLEANUP'
+  }
+  child.authorizationFingerprint = objectFingerprint(
+    child as unknown as Record<string, unknown>,
+    'authorizationFingerprint'
+  )
+  const childPath = join(rootDirectory, 'child-cleanup-authorization.json')
+  writeFileSync(childPath, `${canonicalJson(child)}\n`)
+  const trust: RemoteTrustRoots = {
+    authorizationRoot: rootDirectory,
+    admissionRoot: join(rootDirectory, 'admission'),
+    profilePath: '/installed/profile.toml',
+    profileSha256: 'a'.repeat(64),
+    ownerTaskId,
+    profileExpectedState: 'DELIVERY_ACTIVE'
+  }
+  assert.equal(
+    loadTrustedStageChildCleanupAuthorization(rootPath, childPath, trust).child.ownerTaskId,
+    ownerTaskId
+  )
+  assert.throws(
+    () =>
+      loadTrustedStageChildCleanupAuthorization(rootPath, childPath, {
+        ...trust,
+        ownerTaskId: '/root/sl/fl-beta'
+      }),
+    /CHILD_CLEANUP_AUTHORIZATION_CAS_MISMATCH/
+  )
+})
+
+test('official cleanup plan rejects caller-minted authorization and owner arguments', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'oes-cleanup-cli-untrusted-test-'))
+  const authorizationPath = join(directory, 'caller-authorization.json')
+  const observationsPath = join(directory, 'observations.json')
+  writeFileSync(authorizationPath, `${canonicalJson(cleanupAuthorization())}\n`)
+  writeFileSync(observationsPath, '[]\n')
+  const result = spawnSync(
+    process.execPath,
+    [
+      '--experimental-strip-types',
+      'scripts/collaboration-runtime/src/cli.ts',
+      'cleanup-plan',
+      '--authorization',
+      authorizationPath,
+      '--owner',
+      '/root/sl/fl-alpha',
+      '--observed',
+      observationsPath,
+      '--output',
+      join(directory, 'plan.json')
+    ],
+    { cwd: process.cwd(), encoding: 'utf8' }
+  )
+  assert.equal(result.status, 2)
+  assert.match(result.stderr, /CLI_ARGUMENT_REQUIRED: --profile-report/)
 })

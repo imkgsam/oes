@@ -20,11 +20,13 @@ class ScenarioRunner implements CommandRunner {
   readonly commands: string[] = []
   readonly candidate: string
   readonly main: string
+  readonly ruleset: Record<string, unknown>
   pullExists = false
 
-  constructor(candidate: string, main: string) {
+  constructor(candidate: string, main: string, ruleset: Record<string, unknown> = rulesetDetail()) {
     this.candidate = candidate
     this.main = main
+    this.ruleset = ruleset
   }
 
   run(command: string, args: string[]): CommandResult {
@@ -73,7 +75,7 @@ class ScenarioRunner implements CommandRunner {
             can_approve_pull_request_reviews: false
           })
         )
-      if (endpoint.includes('/rulesets/7')) return ok(JSON.stringify(rulesetDetail()))
+      if (endpoint.includes('/rulesets/7')) return ok(JSON.stringify(this.ruleset))
       if (endpoint.includes('/rulesets?'))
         return ok(
           JSON.stringify([{ id: 7, name: 'protect-main', target: 'branch', enforcement: 'active' }])
@@ -113,6 +115,7 @@ function ok(stdout: string): CommandResult {
 function rulesetDetail(): Record<string, unknown> {
   return {
     bypass_actors: [],
+    conditions: { ref_name: { include: ['~DEFAULT_BRANCH'], exclude: [] } },
     rules: [
       { type: 'deletion' },
       { type: 'non_fast_forward' },
@@ -285,4 +288,84 @@ test('a newer failing duplicate required check blocks an older success', async (
   )
   assert.equal(result.passed, false)
   assert.equal(result.status, 'PR_CI_PENDING')
+})
+
+test('a required check without a positive authoritative run id fails closed', async () => {
+  const binding = remoteBinding({
+    action: 'verify-pr',
+    pullRequest: {
+      baseRef: 'main',
+      draft: true,
+      number: 12,
+      requiredChecks: ['Baseline Checks'],
+      title: 'Runtime',
+      body: 'Exact candidate'
+    }
+  })
+  const adapter = new GitHubRemoteAdapter(new ScenarioRunner(binding.candidateSha, '8'.repeat(40)))
+  const result = await adapter.verify(
+    binding,
+    {
+      branchHead: binding.candidateSha,
+      mergeQueueEntry: null,
+      mainHead: binding.integrationBase,
+      pullRequest: {
+        number: 12,
+        state: 'OPEN',
+        draft: true,
+        baseRef: 'main',
+        headRef: binding.headRef,
+        headSha: binding.candidateSha,
+        mergeCommitSha: null,
+        title: binding.pullRequest.title,
+        body: binding.pullRequest.body
+      },
+      requiredChecks: [
+        {
+          id: Number.NaN,
+          sha: binding.candidateSha,
+          name: 'Baseline Checks',
+          status: 'completed',
+          conclusion: 'success'
+        }
+      ],
+      mainParents: [],
+      pullMergeParents: [],
+      reviewGate: emptyGate
+    },
+    {
+      action: 'verify-pr',
+      mutationPerformed: false,
+      recoveredFromRemoteTruth: false,
+      branchHead: binding.candidateSha,
+      pullRequestNumber: 12,
+      mergeCommitSha: null
+    }
+  )
+  assert.equal(result.passed, false)
+  assert.equal(result.status, 'PR_CI_PENDING')
+})
+
+test('protect-main ruleset must target exactly the default main ref', async () => {
+  const binding = remoteBinding()
+  const wrongRuleset = rulesetDetail()
+  wrongRuleset.conditions = {
+    ref_name: { include: ['refs/heads/develop'], exclude: ['refs/heads/main'] }
+  }
+  const adapter = new GitHubRemoteAdapter(
+    new ScenarioRunner(binding.candidateSha, binding.integrationBase, wrongRuleset)
+  )
+  await assert.rejects(
+    adapter.preflight(binding, {
+      branchHead: null,
+      mergeQueueEntry: null,
+      mainHead: binding.integrationBase,
+      pullRequest: null,
+      requiredChecks: [],
+      mainParents: [],
+      pullMergeParents: [],
+      reviewGate: emptyGate
+    }),
+    /REPOSITORY_RULESET_MISMATCH/
+  )
 })

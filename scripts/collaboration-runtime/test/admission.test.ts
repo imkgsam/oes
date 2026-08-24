@@ -46,3 +46,18 @@ test('serial latest-main admission allows only the exact binding to resume', () 
   assert.equal(new SerialAdmissionLock(contender).acquire(), 'ACQUIRED')
   new SerialAdmissionLock(contender).release()
 })
+
+test('serial latest-main binding cannot select an alternate lock under the shared root', () => {
+  const binding = mergeBinding()
+  const trust = remoteTrust(binding)
+  if (!binding.admission) throw new Error('fixture admission absent')
+  binding.admission.lockPath = join(trust.admissionRoot, 'caller-selected.lock')
+  binding.bindingFingerprint = objectFingerprint(
+    binding as unknown as Record<string, unknown>,
+    'bindingFingerprint'
+  )
+  assert.throws(
+    () => validateRemoteBinding(binding, remoteTrust(binding)),
+    /SERIAL_ADMISSION_LOCK_IDENTITY_MISMATCH/
+  )
+})
