@@ -14,6 +14,12 @@ src/services/**/prisma/generated/
 nacos/
 otel/
 /docker/*
+!/docker/otel/
+!/docker/otel/**
+!/docker/grafana/
+!/docker/grafana/provisioning/
+!/docker/grafana/provisioning/datasources/
+!/docker/grafana/provisioning/datasources/**
 !/docker/grpc-trust/
 /docker/grpc-trust/*
 !/docker/grpc-trust/execution-token-signer/

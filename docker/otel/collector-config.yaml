@@ -1,0 +1,49 @@
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+  filelog/local:
+    include:
+      - /var/log/oes/*.log
+    start_at: beginning
+    include_file_name: true
+    operators:
+      - type: json_parser
+        parse_from: body
+
+processors:
+  batch:
+  transform/logs:
+    log_statements:
+      - context: log
+        statements:
+          - set(resource.attributes["service.name"], log.attributes["service"]) where log.attributes["service"] != nil
+
+exporters:
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+  otlphttp/loki:
+    endpoint: http://loki:3100/otlp
+  debug:
+    verbosity: basic
+
+service:
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp/tempo, debug]
+    logs:
+      receivers: [filelog/local]
+      processors: [transform/logs, batch]
+      exporters: [otlphttp/loki, debug]
