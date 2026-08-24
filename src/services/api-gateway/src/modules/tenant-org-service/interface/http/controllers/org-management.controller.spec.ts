@@ -9,7 +9,7 @@ describe('OrgManagementController', () => {
     archiveOrgUnit: jest.fn(),
     createOrgUnit: jest.fn(),
     getOrgTree: jest.fn(),
-    getOrgUnitDetail: jest.fn(),
+    getOrgUnitDetailByVerifiedTarget: jest.fn(),
     moveOrgUnit: jest.fn(),
     updateOrgUnit: jest.fn()
   }
@@ -42,10 +42,7 @@ describe('OrgManagementController', () => {
       )
     ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
-      reflector.get(
-        REQUIRE_PERMISSIONS_METADATA_KEY,
-        OrgManagementController.prototype.moveOrgUnit
-      )
+      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, OrgManagementController.prototype.moveOrgUnit)
     ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
       reflector.get(
@@ -62,7 +59,7 @@ describe('OrgManagementController', () => {
       tenant: { id: 'tenant-1', name: 'Alpha Tenant' },
       roots: []
     })
-    orgManagementService.getOrgUnitDetail.mockResolvedValue({
+    orgManagementService.getOrgUnitDetailByVerifiedTarget.mockResolvedValue({
       orgUnit: { id: 'org-1', name: 'Alpha Root', type: 'ROOT' }
     })
     orgManagementService.createOrgUnit.mockResolvedValue({
@@ -98,7 +95,9 @@ describe('OrgManagementController', () => {
       tenant: { id: 'tenant-1', name: 'Alpha Tenant' },
       roots: []
     })
-    await expect(controller.getOrgUnitDetail(tenantTarget, 'org-1', source as any)).resolves.toEqual({
+    await expect(
+      controller.getOrgUnitDetail(tenantTarget, 'org-1', source as any)
+    ).resolves.toEqual({
       orgUnit: { id: 'org-1', name: 'Alpha Root', type: 'ROOT' }
     })
     await expect(
@@ -162,7 +161,11 @@ describe('OrgManagementController', () => {
     })
 
     expect(orgManagementService.getOrgTree).toHaveBeenCalledWith('tenant-1', source)
-    expect(orgManagementService.getOrgUnitDetail).toHaveBeenCalledWith('tenant-1', 'org-1', source)
+    expect(orgManagementService.getOrgUnitDetailByVerifiedTarget).toHaveBeenCalledWith(
+      'tenant-1',
+      'org-1',
+      source
+    )
     expect(orgManagementService.createOrgUnit).toHaveBeenCalledWith(
       'tenant-1',
       {

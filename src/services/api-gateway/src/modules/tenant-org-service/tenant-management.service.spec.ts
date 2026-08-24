@@ -775,7 +775,11 @@ describe('OrgManagementService', () => {
     })
 
     await expect(
-      service.getOrgUnitDetail(verifiedTarget('tenant-1'), 'org-root-1', tenantSource as any)
+      service.getOrgUnitDetailByVerifiedTarget(
+        verifiedTarget('tenant-1'),
+        'org-root-1',
+        tenantSource as any
+      )
     ).resolves.toEqual({
       orgUnit: {
         depth: 0,

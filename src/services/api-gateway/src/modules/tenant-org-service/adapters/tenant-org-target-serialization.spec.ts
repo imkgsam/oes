@@ -1,6 +1,8 @@
 import { Metadata } from '@grpc/grpc-js'
+import { ForbiddenException } from '@nestjs/common'
 import { of } from 'rxjs'
 import { VerifiedTenantTarget } from '../../../common/tenant-target'
+import { PartyQueryGrpcAdapter } from './party-query-grpc.adapter'
 import { TenantOrgManagementGrpcAdapter } from './tenant-org-management-grpc.adapter'
 import { TenantOrgQueryGrpcAdapter } from './tenant-org-query-grpc.adapter'
 
@@ -108,5 +110,38 @@ describe('Tenant Org verified target serialization', () => {
       [source, 'urn:oes:service:tenant-org-service', ['tenant_org.org_unit.update']],
       [source, 'urn:oes:service:tenant-org-service', ['tenant_org.org_unit.archive']]
     ])
+  })
+
+  it('rejects cross-tenant Party hydration before returning a summary', async () => {
+    const metadata = new Metadata()
+    const service = {
+      getTenantPartyById: jest.fn(() =>
+        of({
+          tenantParty: {
+            id: 'party-1',
+            tenantId: 'Tenant-B:02',
+            type: 'ORGANIZATION',
+            status: 'ACTIVE'
+          }
+        })
+      )
+    }
+    const machine = {
+      forInternalCall: jest.fn(
+        async (
+          _audience: string,
+          _code: string,
+          _trace: unknown,
+          callback: (metadataValue: Metadata) => Promise<unknown>
+        ) => callback(metadata)
+      )
+    }
+    const adapter = new PartyQueryGrpcAdapter(machine as never, { query: () => service } as never)
+    adapter.onModuleInit()
+
+    await expect(
+      adapter.getOrganizationTenantPartyByVerifiedTarget(target, 'party-1', source)
+    ).rejects.toBeInstanceOf(ForbiddenException)
+    expect(service.getTenantPartyById).toHaveBeenCalledWith({ tenantPartyId: 'party-1' }, metadata)
   })
 })

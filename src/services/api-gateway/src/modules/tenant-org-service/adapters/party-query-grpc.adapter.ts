@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from '@nestjs/common'
+import { ForbiddenException, Injectable, OnModuleInit } from '@nestjs/common'
 import {
   PARTY_QUERY_SERVICE_NAME,
   PartyQueryServiceClient
@@ -69,6 +69,9 @@ export class PartyQueryGrpcAdapter implements OnModuleInit {
     const tenantParty = response.tenantParty
     if (!tenantParty?.id) {
       return null
+    }
+    if (tenantParty.tenantId !== tenantId) {
+      throw new ForbiddenException('Organization tenant party does not belong to tenant target')
     }
 
     return {

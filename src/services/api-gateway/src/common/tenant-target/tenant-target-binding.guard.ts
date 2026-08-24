@@ -1,5 +1,5 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common'
-import { ConfigService } from '@nestjs/config'
+import { PATH_METADATA } from '@nestjs/common/constants'
 import { Reflector } from '@nestjs/core'
 import { IS_PUBLIC_KEY } from '@oes/common/auth'
 import { parseTenantTargetSelector } from '@oes/common/authorization'
@@ -30,10 +30,7 @@ type TenantTargetHttpRequest = object & {
 /** TenantTargetBindingGuard automatically binds protected canonical :tenantId routes before permission checks. */
 @Injectable()
 export class TenantTargetBindingGuard implements CanActivate {
-  constructor(
-    private readonly reflector: Reflector,
-    private readonly config: ConfigService
-  ) {}
+  constructor(private readonly reflector: Reflector) {}
 
   /** canActivate enforces canonical recognition, duplicate equality and the frozen TENANT/SYSTEM matrix. */
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -69,10 +66,7 @@ export class TenantTargetBindingGuard implements CanActivate {
       throw unauthenticated()
     }
 
-    if (
-      scopeLevel === 'SYSTEM' &&
-      SITE_MANAGEMENT_P1_ROUTE_PATTERN.test(this.withoutConfiguredGlobalPrefix(routePath))
-    ) {
+    if (scopeLevel === 'SYSTEM' && this.isSiteManagementP1(context)) {
       throw ExceptionFactory.application(ACCESS_DENIED)
     }
     if (scopeLevel === 'TENANT' && sessionTenant !== target) {
@@ -89,19 +83,12 @@ export class TenantTargetBindingGuard implements CanActivate {
     return typeof path === 'string' ? path : undefined
   }
 
-  /** withoutConfiguredGlobalPrefix compares Site P1 only after stripping the exact active prefix. */
-  private withoutConfiguredGlobalPrefix(routePath: string): string {
-    const normalizedPath = routePath.startsWith('/') ? routePath : `/${routePath}`
-    const configuredPrefix = this.config
-      .get<string>('gateway.globalPrefix', 'api/v1')
-      .trim()
-      .replace(/^\/+|\/+$/g, '')
-    if (!configuredPrefix) return normalizedPath
-
-    const prefixPath = `/${configuredPrefix}`
-    return normalizedPath.startsWith(`${prefixPath}/`)
-      ? normalizedPath.slice(prefixPath.length)
-      : normalizedPath
+  /** isSiteManagementP1 identifies the exact controller route independently of deployment prefixes. */
+  private isSiteManagementP1(context: ExecutionContext): boolean {
+    const controllerPaths = routeMetadataPaths(
+      Reflect.getMetadata(PATH_METADATA, context.getClass()) as unknown
+    )
+    return controllerPaths.some((path) => SITE_MANAGEMENT_P1_ROUTE_PATTERN.test(path))
   }
 
   /** parseSessionTenant requires every presented authenticated tenant projection to agree exactly. */
@@ -187,6 +174,16 @@ function setVerifiedTenantTarget(request: object, target: VerifiedTenantTarget):
     throw ExceptionFactory.application(ACCESS_DENIED)
   }
   verifiedTargets.set(request, target)
+}
+
+/** routeMetadataPaths accepts only Nest controller path metadata and canonicalizes its slash boundary. */
+function routeMetadataPaths(value: unknown): string[] {
+  const candidates = Array.isArray(value) ? value : [value]
+  return candidates.flatMap((candidate) => {
+    if (typeof candidate !== 'string') return []
+    const path = candidate.replace(/^\/+|\/+$/g, '')
+    return path ? [`/${path}`] : []
+  })
 }
 
 /** Returns the stable invalid-authenticated-context exception used before target binding. */

@@ -66,7 +66,7 @@ describe('OrgManagementService', () => {
     })
 
     await expect(
-      service.getOrgUnitDetail(verifiedTarget('tenant-1'), 'org-1', source as any)
+      service.getOrgUnitDetailByVerifiedTarget(verifiedTarget('tenant-1'), 'org-1', source as any)
     ).resolves.toEqual({
       orgUnit: expect.objectContaining({
         id: 'org-1',

@@ -2,7 +2,6 @@ import { createServer } from 'node:net'
 import { Metadata } from '@grpc/grpc-js'
 import { Controller, INestApplication, INestMicroservice, Module, UseFilters } from '@nestjs/common'
 import { APP_GUARD } from '@nestjs/core'
-import { ConfigService } from '@nestjs/config'
 import { Test } from '@nestjs/testing'
 import {
   ClientGrpc,
@@ -278,13 +277,6 @@ function createTestGatewayAppModule(authPort: number, permissionPort: number) {
       { provide: SITE_MANAGEMENT_DOWNSTREAM, useValue: downstream },
       GatewayExceptionFilter,
       GatewayPermissionGuard,
-      {
-        provide: ConfigService,
-        useValue: {
-          get: (key: string, fallback: unknown) =>
-            key === 'gateway.globalPrefix' ? TEST_GLOBAL_PREFIX : fallback
-        }
-      },
       { provide: APP_GUARD, useClass: GatewaySessionAuthGuard },
       { provide: APP_GUARD, useClass: TenantTargetBindingGuard },
       { provide: APP_GUARD, useExisting: GatewayPermissionGuard }

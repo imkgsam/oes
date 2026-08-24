@@ -40,7 +40,8 @@ export class OrgManagementService {
     }
   }
 
-  async getOrgUnitDetail(
+  /** getOrgUnitDetailByVerifiedTarget preserves the bounded HTTP selector provenance. */
+  async getOrgUnitDetailByVerifiedTarget(
     tenantId: VerifiedTenantTarget,
     orgUnitId: string,
     source: DownstreamRequestSource
@@ -53,12 +54,8 @@ export class OrgManagementService {
     )
   }
 
-  /** getOrgUnitDetailForInternalTenant isolates legacy non-HTTP callers from verified-target APIs. */
-  async getOrgUnitDetailForInternalTenant(
-    tenantId: string,
-    orgUnitId: string,
-    source: DownstreamRequestSource
-  ) {
+  /** getOrgUnitDetail retains the pre-existing internal string API without fabricating a verified target. */
+  async getOrgUnitDetail(tenantId: string, orgUnitId: string, source: DownstreamRequestSource) {
     const resolvedTenantId = this.resolveInternalTenantId(tenantId, source)
     return this.loadOrgUnitDetail(
       { kind: 'INTERNAL', tenantId: resolvedTenantId },

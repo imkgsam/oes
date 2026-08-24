@@ -39,7 +39,7 @@ export class OrgManagementController {
     @Param('orgUnitId') orgUnitId: string,
     @DownstreamSource() source: DownstreamRequestSource
   ) {
-    return this.orgManagementService.getOrgUnitDetail(tenantId, orgUnitId, source)
+    return this.orgManagementService.getOrgUnitDetailByVerifiedTarget(tenantId, orgUnitId, source)
   }
 
   @Post('org-units')

@@ -1,5 +1,5 @@
 import { ExecutionContext } from '@nestjs/common'
-import { ConfigService } from '@nestjs/config'
+import { PATH_METADATA } from '@nestjs/common/constants'
 import { Reflector } from '@nestjs/core'
 import { IS_PUBLIC_KEY } from '@oes/common/auth'
 import * as tenantTargetPublicApi from './index'
@@ -7,6 +7,7 @@ import { getVerifiedTenantTarget, TenantTargetBindingGuard } from './tenant-targ
 
 type TestRequest = {
   body?: unknown
+  controllerPath?: unknown
   method?: string
   params?: Record<string, unknown>
   query?: unknown
@@ -16,8 +17,12 @@ type TestRequest = {
 
 /** createContext builds the minimal matched HTTP context consumed by the global tenant-target guard. */
 function createContext(request: TestRequest, type: string = 'http'): ExecutionContext {
+  class TestController {}
+  if (request.controllerPath !== undefined) {
+    Reflect.defineMetadata(PATH_METADATA, request.controllerPath, TestController)
+  }
   return {
-    getClass: () => class TestController {},
+    getClass: () => TestController,
     getHandler: () => function testHandler() {},
     getType: () => type,
     switchToHttp: () => ({ getRequest: () => request })
@@ -36,13 +41,10 @@ function targetRequest(overrides: Partial<TestRequest> = {}): TestRequest {
 }
 
 /** createGuard returns the production guard with optional public-route reflection. */
-function createGuard(isPublic = false, globalPrefix = 'api/v1'): TenantTargetBindingGuard {
-  return new TenantTargetBindingGuard(
-    {
-      getAllAndOverride: jest.fn((key: string) => (key === IS_PUBLIC_KEY ? isPublic : undefined))
-    } as unknown as Reflector,
-    { get: jest.fn(() => globalPrefix) } as unknown as ConfigService
-  )
+function createGuard(isPublic = false): TenantTargetBindingGuard {
+  return new TenantTargetBindingGuard({
+    getAllAndOverride: jest.fn((key: string) => (key === IS_PUBLIC_KEY ? isPublic : undefined))
+  } as unknown as Reflector)
 }
 
 /** expectHttpStatus asserts OES exceptions preserve the frozen HTTP status contract. */
@@ -102,17 +104,15 @@ describe('TenantTargetBindingGuard', () => {
     }
   )
 
-  it('preserves Site P1 SYSTEM deny under the exact configured non-default global prefix', async () => {
+  it('preserves Site P1 SYSTEM deny under a non-default deployment prefix', async () => {
     const continuations = [jest.fn(), jest.fn(), jest.fn(), jest.fn(), jest.fn()]
     const request = targetRequest({
+      controllerPath: 'site-management/tenants/:tenantId',
       route: { path: '/platform/v2/site-management/tenants/:tenantId/sites/:siteId' },
       user: { scopeLevel: 'SYSTEM' }
     })
 
-    await expectHttpStatus(
-      runBeforeContinuations(createGuard(false, 'platform/v2'), request, continuations),
-      403
-    )
+    await expectHttpStatus(runBeforeContinuations(createGuard(), request, continuations), 403)
     continuations.forEach((continuation) => expect(continuation).not.toHaveBeenCalled())
     expect(() => getVerifiedTenantTarget(request)).toThrow()
   })
@@ -204,6 +204,7 @@ describe('TenantTargetBindingGuard', () => {
     async (method) => {
       const continuations = [jest.fn(), jest.fn(), jest.fn(), jest.fn(), jest.fn()]
       const request = targetRequest({
+        controllerPath: 'site-management/tenants/:tenantId',
         method,
         route: { path: '/api/v1/site-management/tenants/:tenantId/sites/:siteId' },
         user: { scopeLevel: 'SYSTEM' }
@@ -217,6 +218,7 @@ describe('TenantTargetBindingGuard', () => {
 
   it('does not widen the Site P1 exception to a similarly named route', async () => {
     const request = targetRequest({
+      controllerPath: 'site-management-preview/tenants/:tenantId',
       route: { path: '/api/v1/site-management-preview/tenants/:tenantId/sites' },
       user: { scopeLevel: 'SYSTEM' }
     })
@@ -227,6 +229,7 @@ describe('TenantTargetBindingGuard', () => {
 
   it('does not widen the Site P1 exception to a nested non-Site route', async () => {
     const request = targetRequest({
+      controllerPath: 'admin/site-management/tenants/:tenantId',
       route: { path: '/api/v1/admin/site-management/tenants/:tenantId/sites' },
       user: { scopeLevel: 'SYSTEM' }
     })

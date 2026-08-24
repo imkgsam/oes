@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { createServer } from 'node:net'
-import { Metadata, status } from '@grpc/grpc-js'
+import { Metadata } from '@grpc/grpc-js'
 import {
   CanActivate,
   Controller,
@@ -14,16 +14,15 @@ import {
   INestMicroservice,
   Injectable,
   Module,
-  Req
+  Req,
+  UseFilters
 } from '@nestjs/common'
-import { ConfigService } from '@nestjs/config'
 import { APP_GUARD, NestFactory, Reflector } from '@nestjs/core'
 import {
   ClientGrpc,
   ClientProxyFactory,
   GrpcMethod,
   MicroserviceOptions,
-  RpcException,
   Transport
 } from '@nestjs/microservices'
 import { Test } from '@nestjs/testing'
@@ -47,6 +46,7 @@ import {
 import { resolveCommonProtoPath } from '@oes/common/contracts'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import { AppLogger } from '@oes/common/logging'
+import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
   createGrpcServerCredentials,
   createGrpcClientCredentials,
@@ -188,6 +188,7 @@ class MatrixPermissionController {
 
 /** MatrixTenantOrgController verifies mTLS, ES256 token, Code and target-owned admission. */
 @Controller()
+@UseFilters(GrpcExceptionFilter)
 class MatrixTenantOrgController {
   @GrpcMethod('TenantOrgQueryService', 'GetOrgTreeByTenantId')
   async getOrgTreeByTenantId(
@@ -195,41 +196,37 @@ class MatrixTenantOrgController {
     metadata: Metadata,
     call: { getAuthContext?: () => unknown }
   ) {
-    try {
-      const peer = await new GrpcJsVerifiedPeerAdapter().resolveVerifiedPeer(call as never)
-      if (!peer) throw new Error('mTLS peer evidence missing')
-      const workload = {
-        spiffeId: peer.spiffeId,
-        certificateThumbprint: createHash('sha256').update(peer.certificateDer).digest('base64url')
-      }
-      const authorization = metadata.get('authorization')[0]
-      if (typeof authorization !== 'string' || !authorization.startsWith('Bearer ')) {
-        throw new Error('ExecutionToken bearer missing')
-      }
-      const verified = await createExecutionTokenVerifier().verify({
-        token: authorization.slice('Bearer '.length),
-        targetAudience: TENANTORG_TARGET_AUDIENCE,
-        workloadIdentity: workload
-      })
-      const selector = input.tenantId
-      await admitTenantTargetSelector({
-        verifiedExecutionToken: verified,
-        verifiedWorkloadIdentity: workload,
-        declaration: createSystemTenantTargetMethodDeclaration({
-          selectorField: 'tenantId',
-          gatewayWorkloadIdentity: GATEWAY_SPIFFE,
-          permissionCode: CODE
-        }),
-        selector,
-        bindAudit: async () => matrix.auditAllowed
-      })
-      matrix.tenantSelectors.push(String(selector))
-      matrix.tenantTokens.push(verified as unknown as Record<string, unknown>)
-      matrix.tenantBusinessCalls += 1
-      return { roots: [] }
-    } catch (error) {
-      throw new RpcException({ code: status.PERMISSION_DENIED, message: (error as Error).message })
+    const peer = await new GrpcJsVerifiedPeerAdapter().resolveVerifiedPeer(call as never)
+    if (!peer) throw new Error('mTLS peer evidence missing')
+    const workload = {
+      spiffeId: peer.spiffeId,
+      certificateThumbprint: createHash('sha256').update(peer.certificateDer).digest('base64url')
     }
+    const authorization = metadata.get('authorization')[0]
+    if (typeof authorization !== 'string' || !authorization.startsWith('Bearer ')) {
+      throw new Error('ExecutionToken bearer missing')
+    }
+    const verified = await createExecutionTokenVerifier().verify({
+      token: authorization.slice('Bearer '.length),
+      targetAudience: TENANTORG_TARGET_AUDIENCE,
+      workloadIdentity: workload
+    })
+    const selector = input.tenantId
+    await admitTenantTargetSelector({
+      verifiedExecutionToken: verified,
+      verifiedWorkloadIdentity: workload,
+      declaration: createSystemTenantTargetMethodDeclaration({
+        selectorField: 'tenantId',
+        gatewayWorkloadIdentity: GATEWAY_SPIFFE,
+        permissionCode: CODE
+      }),
+      selector,
+      bindAudit: async () => matrix.auditAllowed
+    })
+    matrix.tenantSelectors.push(String(selector))
+    matrix.tenantTokens.push(verified as unknown as Record<string, unknown>)
+    matrix.tenantBusinessCalls += 1
+    return { roots: [] }
   }
 }
 
@@ -237,7 +234,16 @@ class MatrixTenantOrgController {
 class MatrixAuthModule {}
 @Module({ controllers: [MatrixPermissionController] })
 class MatrixPermissionModule {}
-@Module({ controllers: [MatrixTenantOrgController] })
+@Module({
+  controllers: [MatrixTenantOrgController],
+  providers: [
+    GrpcExceptionFilter,
+    {
+      provide: AppLogger,
+      useValue: { error: () => undefined, warn: () => undefined }
+    }
+  ]
+})
 class MatrixTenantOrgModule {}
 
 /** MatrixExecutionTokenExchangeClient uses the real mTLS wire contract without accepting target data. */
@@ -559,13 +565,6 @@ describe('Gateway tenant target real mTLS + ExecutionToken + Permission + Tenant
         GatewayPermissionGuard,
         GatewayExceptionFilter,
         Reflector,
-        {
-          provide: ConfigService,
-          useValue: {
-            get: (key: string, fallback: unknown) =>
-              key === 'gateway.globalPrefix' ? GLOBAL_PREFIX : fallback
-          }
-        },
         { provide: getGrpcClientToken(SERVICE_NAMES.PERMISSION), useValue: permissionClient },
         {
           provide: GRPC_METADATA_PROPAGATION_FACTORY,
@@ -677,12 +676,13 @@ describe('Gateway tenant target real mTLS + ExecutionToken + Permission + Tenant
   it('stops after a target-owned admission audit denial without downstream business execution', async () => {
     matrix.auditAllowed = false
 
-    const response = await request(app.getHttpServer()).get(
-      `/${GLOBAL_PREFIX}/tenant-management/tenants/Tenant-D:04/org-tree`
-    )
+    const response = await request(app.getHttpServer())
+      .get(`/${GLOBAL_PREFIX}/tenant-management/tenants/Tenant-D:04/org-tree`)
+      .expect(403)
 
-    expect(response.status).toBeGreaterThanOrEqual(400)
+    expect(response.body).toMatchObject({ code: 'APP_AUTH_002' })
     expect(matrix.permissionRequests).toHaveLength(1)
+    expect(matrix.stsRequests).toEqual([])
     expect(matrix.tenantBusinessCalls).toBe(0)
     expect(matrix.tenantSelectors).toEqual([])
   })
