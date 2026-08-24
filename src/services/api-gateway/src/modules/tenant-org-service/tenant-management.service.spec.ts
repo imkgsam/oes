@@ -1,6 +1,9 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common'
+import { VerifiedTenantTarget } from '../../common/tenant-target'
 import { OrgManagementService } from './org-management.service'
 import { TenantManagementService } from './tenant-management.service'
+
+const verifiedTarget = (value: string) => value as VerifiedTenantTarget
 
 // Verifies the tenant management gateway service stays system-scoped while composing tenant and root-org read models.
 describe('TenantManagementService', () => {
@@ -146,7 +149,7 @@ describe('TenantManagementService', () => {
       counts: [{ tenantId: 'tenant-1', total: 3 }]
     })
 
-    await expect(service.getTenantById('tenant-1', source as any)).resolves.toEqual({
+    await expect(service.getTenantById(verifiedTarget('tenant-1'), source as any)).resolves.toEqual({
       tenant: {
         id: 'tenant-1',
         code: 'alpha',
@@ -181,7 +184,9 @@ describe('TenantManagementService', () => {
     const source = { requestId: 'req-1', traceId: 'trace-1', user: { aid: 'account-1', scopeLevel: 'SYSTEM' } }
     tenantOrgQueryAdapter.getTenantById.mockResolvedValue({ tenant: undefined })
 
-    await expect(service.getTenantById('missing-tenant', source as any)).rejects.toBeInstanceOf(
+    await expect(
+      service.getTenantById(verifiedTarget('missing-tenant'), source as any)
+    ).rejects.toBeInstanceOf(
       NotFoundException
     )
   })
@@ -222,7 +227,7 @@ describe('TenantManagementService', () => {
 
     await expect(
       service.updateTenantProfile(
-        'tenant-1',
+        verifiedTarget('tenant-1'),
         {
           code: 'alpha-new',
           employeeCodePrefix: '0b0',
@@ -236,7 +241,7 @@ describe('TenantManagementService', () => {
 
     await expect(
       service.updateTenantStatus(
-        'tenant-1',
+        verifiedTarget('tenant-1'),
         {
           reason: 'Manual review',
           status: 'SUSPENDED'
@@ -249,7 +254,7 @@ describe('TenantManagementService', () => {
 
     await expect(
       service.updateTenantStatus(
-        'tenant-1',
+        verifiedTarget('tenant-1'),
         {
           status: 'ACTIVE'
         },
@@ -261,7 +266,7 @@ describe('TenantManagementService', () => {
 
     await expect(
       service.updateTenantStatus(
-        'tenant-1',
+        verifiedTarget('tenant-1'),
         {
           reason: 'Duplicate tenant',
           status: 'ARCHIVED'

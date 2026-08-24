@@ -1,5 +1,6 @@
 import { Reflector } from '@nestjs/core'
 import { REQUIRE_PERMISSIONS_METADATA_KEY } from '@oes/common/authorization'
+import { VerifiedTenantTarget } from '../../../../../common/tenant-target'
 import { OrgManagementController } from './org-management.controller'
 
 // Verifies the org-management gateway controller keeps org tree endpoints aligned with tenant-org management permissions.
@@ -14,6 +15,7 @@ describe('OrgManagementController', () => {
   }
 
   const controller = new OrgManagementController(orgManagementService as any)
+  const tenantTarget = 'tenant-1' as VerifiedTenantTarget
 
   it('declares the expected coarse-grained permissions on org management endpoints', () => {
     const reflector = new Reflector()
@@ -91,17 +93,17 @@ describe('OrgManagementController', () => {
       orgUnit: { id: 'org-2', name: 'Manufacturing Updated', status: 'ARCHIVED' }
     })
 
-    await expect(controller.getOrgTree('tenant-1', source as any)).resolves.toEqual({
+    await expect(controller.getOrgTree(tenantTarget, source as any)).resolves.toEqual({
       scope: 'SYSTEM',
       tenant: { id: 'tenant-1', name: 'Alpha Tenant' },
       roots: []
     })
-    await expect(controller.getOrgUnitDetail('tenant-1', 'org-1', source as any)).resolves.toEqual({
+    await expect(controller.getOrgUnitDetail(tenantTarget, 'org-1', source as any)).resolves.toEqual({
       orgUnit: { id: 'org-1', name: 'Alpha Root', type: 'ROOT' }
     })
     await expect(
       controller.createOrgUnit(
-        'tenant-1',
+        tenantTarget,
         {
           name: 'Manufacturing',
           parentOrgId: 'org-1',
@@ -121,7 +123,7 @@ describe('OrgManagementController', () => {
     })
     await expect(
       controller.updateOrgUnit(
-        'tenant-1',
+        tenantTarget,
         'org-2',
         {
           name: 'Manufacturing Updated',
@@ -140,7 +142,7 @@ describe('OrgManagementController', () => {
     })
     await expect(
       controller.moveOrgUnit(
-        'tenant-1',
+        tenantTarget,
         'org-2',
         {
           newParentOrgId: 'org-3'
@@ -155,7 +157,7 @@ describe('OrgManagementController', () => {
         type: 'BRANCH'
       }
     })
-    await expect(controller.archiveOrgUnit('tenant-1', 'org-2', source as any)).resolves.toEqual({
+    await expect(controller.archiveOrgUnit(tenantTarget, 'org-2', source as any)).resolves.toEqual({
       orgUnit: { id: 'org-2', name: 'Manufacturing Updated', status: 'ARCHIVED' }
     })
 

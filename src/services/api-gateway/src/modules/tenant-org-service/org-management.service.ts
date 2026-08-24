@@ -182,6 +182,7 @@ export class OrgManagementService {
     }
   }
 
+  /** resolveTenantId preserves the supplied target after checking TENANT subject equality. */
   private resolveTenantId(tenantId: string, source: DownstreamRequestSource): string {
     const requestedTenantId = requireNonBlank(tenantId, 'tenantId')
     const operatorTenantId = normalize(source.user?.tenantId) ?? normalize(source.user?.tid)
@@ -194,7 +195,7 @@ export class OrgManagementService {
       throw new ForbiddenException('Tenant administrators can only manage their current tenant org tree')
     }
 
-    return operatorTenantId
+    return requestedTenantId
   }
 
   private async loadOrganizationTenantPartyMap(

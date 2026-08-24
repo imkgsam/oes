@@ -3,21 +3,26 @@ import { Metadata } from '@grpc/grpc-js'
 import { Controller, INestApplication, INestMicroservice, Module, UseFilters } from '@nestjs/common'
 import { APP_GUARD } from '@nestjs/core'
 import { Test } from '@nestjs/testing'
-import { GrpcMethod, MicroserviceOptions, RpcException, Transport } from '@nestjs/microservices'
+import { ClientGrpc, GrpcMethod, MicroserviceOptions, RpcException, Transport } from '@nestjs/microservices'
 import { NestFactory } from '@nestjs/core'
 import request from 'supertest'
 import { AuthorizationModule, GatewayPermissionGuard, GRPC_METADATA_PROPAGATION_FACTORY } from '@oes/common/authorization'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import { resolveCommonContractPath, resolveCommonProtoPath } from '@oes/common/contracts'
 import { LoggingModule } from '@oes/common/logging'
-import { GrpcTransportModule } from '@oes/common/transport'
+import { getGrpcClientToken, GrpcTransportModule } from '@oes/common/transport'
 import { GrpcExceptionFilter } from '../../../../../../../../common/dist/core/filters'
 import { GatewayExceptionFilter } from '../../../../../common/filters/gateway-exception.filter'
 import { GatewaySessionAuthGuard } from '../../../../../common/guards/gateway-session-auth.guard'
 import { GatewayVerifiedSourceCredentialVault } from '../../../../../common/grpc/gateway-verified-source-credential.vault'
+import { GatewayMachineTrustedGrpcExecutionProducer } from '../../../../../common/grpc/gateway-machine-trusted-grpc-execution-producer'
 import { TenantTargetBindingGuard } from '../../../../../common/tenant-target'
 import { AuthGrpcAdapter } from '../../../../auth-bff/infrastructure/downstream/auth-service/auth-grpc.adapter'
 import { TrustedAuthApiKeyGrpcClient } from '../../../../auth-bff/infrastructure/downstream/auth-service/trusted-auth-api-key.grpc.client'
+import {
+  GatewayFoundationTrustedGrpcExecutionProducer,
+  TrustedAuthGrpcClient
+} from '../../../../../infrastructure/grpc/trusted-auth.grpc.client'
 import {
   SITE_MANAGEMENT_DOWNSTREAM,
   SiteManagementDownstream,
@@ -49,7 +54,7 @@ const sessions = new Map<string, SessionFixture>([
       accountId: 'operator_a',
       scopeLevel: 'TENANT',
       sessionId: 'session_match',
-      tenantId: ' tenant_a ',
+      tenantId: 'tenant_a',
       userId: 'user_a'
     }
   ],
@@ -221,6 +226,16 @@ function createTestGatewayAppModule(authPort: number, permissionPort: number) {
     controllers: [SiteManagementController],
     providers: [
       AuthGrpcAdapter,
+      {
+        provide: TrustedAuthGrpcClient,
+        useFactory: (client: ClientGrpc) => ({ getClient: () => client }),
+        inject: [getGrpcClientToken(SERVICE_NAMES.AUTH)]
+      },
+      {
+        provide: GatewayFoundationTrustedGrpcExecutionProducer,
+        useValue: { forAuthPublicAdmission: jest.fn(() => new Metadata()) }
+      },
+      { provide: GatewayMachineTrustedGrpcExecutionProducer, useValue: {} },
       GatewayVerifiedSourceCredentialVault,
       { provide: GRPC_METADATA_PROPAGATION_FACTORY, useValue: { createInternalCallMetadata: jest.fn(() => new Metadata()), createOperatorScopedMetadata: jest.fn(() => new Metadata()) } },
       { provide: TrustedAuthApiKeyGrpcClient, useValue: { issueExchangeToken: jest.fn(), exchangeExternalApiKey: jest.fn() } },
@@ -400,9 +415,9 @@ describe('Site Management tenant-target binding integration', () => {
     expect(downstream.listSiteCards).not.toHaveBeenCalled()
   })
 
-  it('passes the normalized verified tenant target into downstream after permission', async () => {
+  it('passes the exact verified tenant target into downstream after permission without route opt-in', async () => {
     const response = await request(app.getHttpServer())
-      .get('/api/v1/site-management/tenants/%20tenant_a%20/sites')
+      .get('/api/v1/site-management/tenants/tenant_a/sites')
       .set('Authorization', 'Bearer tenant-match')
       .expect(200)
 
@@ -458,6 +473,18 @@ describe('Site Management tenant-target binding integration', () => {
   it('returns 400 for an illegal matched target before permission and downstream', async () => {
     await request(app.getHttpServer())
       .get('/api/v1/site-management/tenants/tenant%40a/sites')
+      .set('Authorization', 'Bearer tenant-match')
+      .expect(400)
+
+    expect(observed.events).toEqual(['auth'])
+    expect(observed.permissionCalls).toEqual([])
+    expect(listSiteCardsHandler).not.toHaveBeenCalled()
+    expect(downstream.listSiteCards).not.toHaveBeenCalled()
+  })
+
+  it('returns 400 for a padded non-canonical target instead of trimming it', async () => {
+    await request(app.getHttpServer())
+      .get('/api/v1/site-management/tenants/%20tenant_a%20/sites')
       .set('Authorization', 'Bearer tenant-match')
       .expect(400)
 

@@ -12,7 +12,7 @@
 - canonical activation baseline: `40db6ceb670f5304de1951e134ae128173837a22`
 - dependency evidence: Tenant Org merge `1aa8c97b22a40ff2b6279ce1a9c625497bd99638`; Permission accepted candidate `93d9d1402e4ae668dcb93fc670c0050104967800`, both ancestors of the activation baseline
 - integration branch: `codex/feature/gateway-tenant-target-binding-runtime`
-- current state: `ACTIVE`
+- current state: `CANDIDATE_VALIDATION`
 - stop point: `PR_READY + READY_FOR_STAGE_REVIEW`
 
 ## 2. Objective
@@ -41,11 +41,11 @@
 
 ## 5. Frozen Slices
 
-| Slice | Scope | Acceptance | Status |
-| --- | --- | --- | --- |
-| `automatic-binding-and-carrier` | canonical route recognition、shared parser、immutable request-private carrier、duplicate-field equality、generic opt-in removal | 所有 protected `:tenantId` route 自动执行；TENANT mismatch/invalid target/unknown scope fail closed；carrier 不可枚举、不可覆盖、缺失即拒绝 | `IN_PROGRESS` |
-| `bounded-target-consumers` | Tenant Org canonical routes/consumers/adapters 与 Site P1 exact exception | Tenant Org 使用 verified target 序列化 exact selector；SYSTEM 只在 target-owned dedicated RPC 成功；ordinary method 由 downstream 拒绝；Site P1 edge 提前拒绝 | `PENDING` |
-| `feature-validation` | focused unit/integration、Gateway/Common/Permission/Tenant Org build/test、proto、真实组合矩阵、rollback | GET/POST/PUT/PATCH/DELETE、malformed/missing/duplicate、Permission unavailable/malformed/stale、downstream admission、error order 与零 side effect 均有 literal evidence | `PENDING` |
+| Slice                           | Scope                                                                                                                           | Acceptance                                                                                                                                                               | Status        |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------- |
+| `automatic-binding-and-carrier` | canonical route recognition、shared parser、immutable request-private carrier、duplicate-field equality、generic opt-in removal | 所有 protected `:tenantId` route 自动执行；TENANT mismatch/invalid target/unknown scope fail closed；carrier 不可枚举、不可覆盖、缺失即拒绝                              | `COMPLETE`    |
+| `bounded-target-consumers`      | Tenant Org canonical routes/consumers/adapters 与 Site P1 exact exception                                                       | Tenant Org 使用 verified target 序列化 exact selector；SYSTEM 只在 target-owned dedicated RPC 成功；ordinary method 由 downstream 拒绝；Site P1 edge 提前拒绝            | `COMPLETE`    |
+| `feature-validation`            | focused unit/integration、Gateway/Common/Permission/Tenant Org build/test、proto、真实组合矩阵、rollback                        | GET/POST/PUT/PATCH/DELETE、malformed/missing/duplicate、Permission unavailable/malformed/stale、downstream admission、error order 与零 side effect 均有 literal evidence | `IN_PROGRESS` |
 
 ## 6. Validation Contract
 
@@ -69,4 +69,11 @@
 - exact local/remote owner ref absent before activation；Feature Packet count `0`
 - provisioned worktree clean detached at `bb3a1b9c26accb2c95089addddf90ca6d0dd1d4d`
 - owner branch created locally at exact activation baseline with no upstream
-
+- automatic guard/carrier and bounded Site/Tenant Org consumer implementation complete；production generic opt-in source removed
+- Gateway focused boundary/consumer/serialization tests: `11 suites / 106 tests` passed，覆盖 exact route/error order、GET/POST/PUT/PATCH/DELETE、Site P1 zero-continuation、Permission deny/unavailable/malformed、guard composition 与 exact Tenant Org RPC selector/Code
+- Site real HTTP + Auth gRPC + Permission gRPC integration: `1 suite / 14 tests` passed
+- Common target/mTLS/ExecutionToken suites: `6 suites / 128 tests` passed
+- Permission eligibility/deny/unavailable/malformed/stale focused: `6 suites / 58 tests` passed；Tenant Org target admission/controller: `3 suites / 44 tests` passed
+- `pnpm proto:lint` and `pnpm proto:breaking` passed；Common/Gateway/Permission/Tenant Org builds passed
+- real local SPIFFE/mTLS handshake, wrong-workload rejection, leaf certificate binding and rotation: `trusted gRPC transport smoke passed`
+- immutable candidate artifacts、rollback、Global RI、push/PR/required CI: pending

@@ -6,6 +6,7 @@ import {
 } from '@oes/common/authorization'
 import { DownstreamSource } from '../../../../../common/decorators/downstream-source.decorator'
 import { DownstreamRequestSource } from '../../../../../common/grpc/gateway-downstream-source.mapper'
+import { VerifiedTenantTarget } from '../../../../../common/tenant-target'
 import { OrgManagementService } from '../../../org-management.service'
 import { CreateOrgUnitDto } from '../dtos/create-org-unit.dto'
 import { MoveOrgUnitDto } from '../dtos/move-org-unit.dto'
@@ -24,7 +25,7 @@ export class OrgManagementController {
     summary: 'Get one tenant org tree for system-admin or tenant-admin org management'
   })
   async getOrgTree(
-    @Param('tenantId') tenantId: string,
+    @VerifiedTenantTarget() tenantId: VerifiedTenantTarget,
     @DownstreamSource() source: DownstreamRequestSource
   ) {
     return this.orgManagementService.getOrgTree(tenantId, source)
@@ -34,7 +35,7 @@ export class OrgManagementController {
   @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.VIEW_ORG_UNIT_DETAIL] })
   @ApiOperation({ summary: 'Get one org unit detail inside the selected tenant org tree' })
   async getOrgUnitDetail(
-    @Param('tenantId') tenantId: string,
+    @VerifiedTenantTarget() tenantId: VerifiedTenantTarget,
     @Param('orgUnitId') orgUnitId: string,
     @DownstreamSource() source: DownstreamRequestSource
   ) {
@@ -46,7 +47,7 @@ export class OrgManagementController {
   @ApiOperation({ summary: 'Create one org unit under the selected parent node' })
   @ApiBody({ type: CreateOrgUnitDto })
   async createOrgUnit(
-    @Param('tenantId') tenantId: string,
+    @VerifiedTenantTarget() tenantId: VerifiedTenantTarget,
     @Body() body: CreateOrgUnitDto,
     @DownstreamSource() source: DownstreamRequestSource
   ) {
@@ -58,7 +59,7 @@ export class OrgManagementController {
   @ApiOperation({ summary: 'Update one org unit display metadata' })
   @ApiBody({ type: UpdateOrgUnitDto })
   async updateOrgUnit(
-    @Param('tenantId') tenantId: string,
+    @VerifiedTenantTarget() tenantId: VerifiedTenantTarget,
     @Param('orgUnitId') orgUnitId: string,
     @Body() body: UpdateOrgUnitDto,
     @DownstreamSource() source: DownstreamRequestSource
@@ -71,7 +72,7 @@ export class OrgManagementController {
   @ApiOperation({ summary: 'Move one org unit below another parent node' })
   @ApiBody({ type: MoveOrgUnitDto })
   async moveOrgUnit(
-    @Param('tenantId') tenantId: string,
+    @VerifiedTenantTarget() tenantId: VerifiedTenantTarget,
     @Param('orgUnitId') orgUnitId: string,
     @Body() body: MoveOrgUnitDto,
     @DownstreamSource() source: DownstreamRequestSource
@@ -83,7 +84,7 @@ export class OrgManagementController {
   @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.ARCHIVE_ORG_UNIT] })
   @ApiOperation({ summary: 'Archive one org unit from the current tenant org tree' })
   async archiveOrgUnit(
-    @Param('tenantId') tenantId: string,
+    @VerifiedTenantTarget() tenantId: VerifiedTenantTarget,
     @Param('orgUnitId') orgUnitId: string,
     @DownstreamSource() source: DownstreamRequestSource
   ) {

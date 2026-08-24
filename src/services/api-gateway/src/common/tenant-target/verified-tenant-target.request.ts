@@ -1,28 +1,27 @@
 import { ExceptionFactory, ACCESS_DENIED } from '@oes/common/exceptions'
 import { VerifiedTenantTarget } from './tenant-target-binding.types'
 
-export const VERIFIED_TENANT_TARGET_REQUEST_KEY: unique symbol = Symbol(
-  'gateway.verified-tenant-target'
-)
+const verifiedTargets = new WeakMap<object, VerifiedTenantTarget>()
 
-/** VerifiedTenantTargetRequest carries the guard-produced target without mutating raw route parameters. */
-export interface VerifiedTenantTargetRequest {
-  [VERIFIED_TENANT_TARGET_REQUEST_KEY]?: VerifiedTenantTarget
-}
+/** VerifiedTenantTargetRequest is the opaque object identity used by the request-private carrier. */
+export type VerifiedTenantTargetRequest = object
 
-/** setVerifiedTenantTarget stores the only tenant target that downstream gateway code may trust. */
+/** setVerifiedTenantTarget stores exactly one immutable guard-produced target outside request properties. */
 export function setVerifiedTenantTarget(
   request: VerifiedTenantTargetRequest,
   target: VerifiedTenantTarget
 ): void {
-  request[VERIFIED_TENANT_TARGET_REQUEST_KEY] = target
+  if (verifiedTargets.has(request)) {
+    throw ExceptionFactory.application(ACCESS_DENIED)
+  }
+  verifiedTargets.set(request, target)
 }
 
 /** getVerifiedTenantTarget returns the guard-produced target and fails closed if guard ordering is broken. */
 export function getVerifiedTenantTarget(
   request: VerifiedTenantTargetRequest
 ): VerifiedTenantTarget {
-  const target = request[VERIFIED_TENANT_TARGET_REQUEST_KEY]
+  const target = verifiedTargets.get(request)
   if (!target) {
     throw ExceptionFactory.application(ACCESS_DENIED)
   }

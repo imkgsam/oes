@@ -1,5 +1,6 @@
 import { Reflector } from '@nestjs/core'
 import { REQUIRE_PERMISSIONS_METADATA_KEY } from '@oes/common/authorization'
+import { VerifiedTenantTarget } from '../../../../../common/tenant-target'
 import { TenantManagementController } from './tenant-management.controller'
 
 // Verifies the tenant-management gateway controller keeps tenant admin routes system-scoped and contract-aligned.
@@ -14,6 +15,7 @@ describe('TenantManagementController', () => {
   }
 
   const controller = new TenantManagementController(tenantManagementService as any)
+  const tenantTarget = 'tenant-1' as VerifiedTenantTarget
 
   it('declares the expected coarse-grained permissions on tenant management endpoints', () => {
     const reflector = new Reflector()
@@ -92,7 +94,7 @@ describe('TenantManagementController', () => {
       total: 1
     })
 
-    await expect(controller.getTenantById('tenant-1', source as any)).resolves.toEqual({
+    await expect(controller.getTenantById(tenantTarget, source as any)).resolves.toEqual({
       tenant: {
         id: 'tenant-1',
         code: 'alpha',
@@ -142,7 +144,7 @@ describe('TenantManagementController', () => {
 
     await expect(
       controller.updateTenantProfile(
-        'tenant-1',
+        tenantTarget,
         {
           code: 'alpha-new',
           name: 'Alpha Tenant New'
@@ -155,7 +157,7 @@ describe('TenantManagementController', () => {
 
     await expect(
       controller.updateTenantStatus(
-        'tenant-1',
+        tenantTarget,
         {
           reason: 'Manual review',
           status: 'SUSPENDED'

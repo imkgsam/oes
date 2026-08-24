@@ -1,5 +1,6 @@
 import { BadRequestException, ForbiddenException, HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common'
 import { DownstreamRequestSource } from '../../common/grpc/gateway-downstream-source.mapper'
+import { VerifiedTenantTarget } from '../../common/tenant-target'
 import { IdentityTenantAccountStatsGrpcAdapter } from './adapters/identity-tenant-account-stats-grpc.adapter'
 import { IdentityUserLookupGrpcAdapter } from './adapters/identity-user-lookup-grpc.adapter'
 import { TenantOrgManagementGrpcAdapter } from './adapters/tenant-org-management-grpc.adapter'
@@ -67,10 +68,9 @@ export class TenantManagementService {
     }
   }
 
-  async getTenantById(tenantId: string, source: DownstreamRequestSource) {
+  async getTenantById(tenantId: VerifiedTenantTarget, source: DownstreamRequestSource) {
     this.assertSystemScope(source)
-    const normalizedTenantId = requireNonBlank(tenantId, 'tenantId')
-    const result = await this.tenantOrgQueryAdapter.getTenantById(normalizedTenantId, source)
+    const result = await this.tenantOrgQueryAdapter.getTenantById(tenantId, source)
     const tenant = result.tenant
 
     if (!tenant?.id) {
@@ -82,7 +82,7 @@ export class TenantManagementService {
       rootOrgId
         ? await this.tenantOrgQueryAdapter.getOrgUnitById(
             {
-              tenantId: normalizedTenantId,
+              tenantId,
               orgUnitId: rootOrgId
             },
             source
@@ -245,14 +245,14 @@ export class TenantManagementService {
   }
 
   async updateTenantProfile(
-    tenantId: string,
+    tenantId: VerifiedTenantTarget,
     input: { code?: string; employeeCodePrefix?: string; name?: string; websiteUrl?: string },
     source: DownstreamRequestSource
   ) {
     this.assertSystemScope(source)
     return this.tenantOrgManagementAdapter.updateTenantProfile(
       {
-        tenantId: requireNonBlank(tenantId, 'tenantId'),
+        tenantId,
         code: normalize(input.code),
         employeeCodePrefix: input.employeeCodePrefix === undefined ? undefined : normalizeEmployeeCodePrefix(input.employeeCodePrefix),
         name: normalize(input.name),
@@ -263,31 +263,30 @@ export class TenantManagementService {
   }
 
   async updateTenantStatus(
-    tenantId: string,
+    tenantId: VerifiedTenantTarget,
     input: { reason?: string; status: string },
     source: DownstreamRequestSource
   ) {
     this.assertSystemScope(source)
-    const normalizedTenantId = requireNonBlank(tenantId, 'tenantId')
     const status = requireNonBlank(input.status, 'status').toUpperCase()
     const reason = normalize(input.reason)
 
     switch (status) {
       case 'ACTIVE': {
         return this.tenantOrgManagementAdapter.reactivateTenant(
-          { tenantId: normalizedTenantId },
+          { tenantId },
           source
         )
       }
       case 'ARCHIVED': {
         return this.tenantOrgManagementAdapter.archiveTenant(
-          { tenantId: normalizedTenantId, reason },
+          { tenantId, reason },
           source
         )
       }
       case 'SUSPENDED': {
         return this.tenantOrgManagementAdapter.suspendTenant(
-          { tenantId: normalizedTenantId, reason },
+          { tenantId, reason },
           source
         )
       }
