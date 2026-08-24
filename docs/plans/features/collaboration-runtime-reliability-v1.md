@@ -19,7 +19,7 @@ Deliver one repository-owned collaboration runtime that enforces effective owner
 ### execution-profile-preflight-and-telemetry
 
 state: RUNNING
-candidate: pending
+candidate: 68390fc608985d9aab7f4ded4a88649576f2db7e
 review: global-ri
 
 - Scope: project profile template; actual-capability observation validation; approval telemetry; typed same-transition defect/repair classification.
@@ -30,7 +30,7 @@ review: global-ri
 ### versioned-remote-driver-and-recovery
 
 state: READY
-candidate: pending
+candidate: 68390fc608985d9aab7f4ded4a88649576f2db7e
 review: global-ri
 
 - Scope: typed Node.js/TypeScript binding, checkpoint, receipt and result contracts; thin entrypoint; GitHub adapter; preflight/publish-pr/verify-pr/merge-pr/verify-main/cleanup; idempotent read-after-write recovery.
@@ -41,7 +41,7 @@ review: global-ri
 ### merge-admission-evidence-and-cleanup
 
 state: READY
-candidate: pending
+candidate: 68390fc608985d9aab7f4ded4a88649576f2db7e
 review: global-ri
 
 - Scope: `merge_group` Baseline Checks, serialized latest-main fallback, evidence keys and affected-test matrix, Stage batch cleanup planning and partial-failure verification.
@@ -61,7 +61,7 @@ review: global-ri
 
 ## Evidence keys
 
-- candidate: pending
+- candidate: 68390fc608985d9aab7f4ded4a88649576f2db7e
 - dependency fingerprint: `pnpm-lock.yaml` plus Node/pnpm/TypeScript toolchain
 - literal inputs: truth/base/scope binding plus exact changed paths
 - execution profile fingerprint: `7eef45be1901a115668c5a2b50b878292ea2a926b9cea20598300fa621458c42`
