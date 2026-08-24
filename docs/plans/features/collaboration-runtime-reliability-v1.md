@@ -18,9 +18,9 @@ Deliver one repository-owned collaboration runtime that enforces effective owner
 
 ### execution-profile-preflight-and-telemetry
 
-state: RUNNING
-candidate: 68390fc608985d9aab7f4ded4a88649576f2db7e
-review: global-ri
+state: CANDIDATE_READY
+candidate: 67a24365307cec8645c3d5f7dad77c8665be43d2
+review: global-ri exact integration candidate pending
 
 - Scope: project profile template; actual-capability observation validation; approval telemetry; typed same-transition defect/repair classification.
 - Protected scope: secret values, production/shared data, unrestricted host permissions, business services and contracts.
@@ -29,9 +29,9 @@ review: global-ri
 
 ### versioned-remote-driver-and-recovery
 
-state: READY
-candidate: 68390fc608985d9aab7f4ded4a88649576f2db7e
-review: global-ri
+state: CANDIDATE_READY
+candidate: 67a24365307cec8645c3d5f7dad77c8665be43d2
+review: global-ri exact integration candidate pending
 
 - Scope: typed Node.js/TypeScript binding, checkpoint, receipt and result contracts; thin entrypoint; GitHub adapter; preflight/publish-pr/verify-pr/merge-pr/verify-main/cleanup; idempotent read-after-write recovery.
 - Protected scope: direct main push, force/history rewrite, cross-owner refs, merge/cleanup without exact authorization.
@@ -40,9 +40,9 @@ review: global-ri
 
 ### merge-admission-evidence-and-cleanup
 
-state: READY
-candidate: 68390fc608985d9aab7f4ded4a88649576f2db7e
-review: global-ri
+state: CANDIDATE_READY
+candidate: 67a24365307cec8645c3d5f7dad77c8665be43d2
+review: global-ri exact integration candidate pending
 
 - Scope: `merge_group` Baseline Checks, serialized latest-main fallback, evidence keys and affected-test matrix, Stage batch cleanup planning and partial-failure verification.
 - Protected scope: product code, Stage product branches, non-terminal packets, unknown or mismatched resources.
@@ -61,7 +61,7 @@ review: global-ri
 
 ## Evidence keys
 
-- candidate: 68390fc608985d9aab7f4ded4a88649576f2db7e
+- candidate: exact integration HEAD assigned to Global RI; current slice ancestor `67a24365307cec8645c3d5f7dad77c8665be43d2`
 - dependency fingerprint: `pnpm-lock.yaml` plus Node/pnpm/TypeScript toolchain
 - literal inputs: truth/base/scope binding plus exact changed paths
 - execution profile fingerprint: `7eef45be1901a115668c5a2b50b878292ea2a926b9cea20598300fa621458c42`
