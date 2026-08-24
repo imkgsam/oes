@@ -12,7 +12,7 @@
 - canonical activation baseline: `40db6ceb670f5304de1951e134ae128173837a22`
 - dependency evidence: Tenant Org merge `1aa8c97b22a40ff2b6279ce1a9c625497bd99638`; Permission accepted candidate `93d9d1402e4ae668dcb93fc670c0050104967800`, both ancestors of the activation baseline
 - integration branch: `codex/feature/gateway-tenant-target-binding-runtime`
-- current state: `CANDIDATE_READY`
+- current state: `CANDIDATE_REVIEW`
 - stop point: `PR_READY + READY_FOR_STAGE_REVIEW`
 
 ## 2. Objective
@@ -46,7 +46,7 @@
 | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------- |
 | `automatic-binding-and-carrier` | canonical route recognition、shared parser、immutable request-private carrier、duplicate-field equality、generic opt-in removal | 所有 protected `:tenantId` route 自动执行；TENANT mismatch/invalid target/unknown scope fail closed；carrier 不可枚举、不可覆盖、缺失即拒绝                              | `COMPLETE`    |
 | `bounded-target-consumers`      | Tenant Org canonical routes/consumers/adapters 与 Site P1 exact exception                                                       | Tenant Org 使用 verified target 序列化 exact selector；SYSTEM 只在 target-owned dedicated RPC 成功；ordinary method 由 downstream 拒绝；Site P1 edge 提前拒绝            | `COMPLETE`    |
-| `feature-validation`            | focused unit/integration、Gateway/Common/Permission/Tenant Org build/test、proto、真实组合矩阵、rollback                        | GET/POST/PUT/PATCH/DELETE、malformed/missing/duplicate、Permission unavailable/malformed/stale、downstream admission、error order 与零 side effect 均有 literal evidence | `COMPLETE`    |
+| `feature-validation`            | focused unit/integration、Gateway/Common/Permission/Tenant Org build/test、proto、真实组合矩阵                                 | GET/POST/PUT/PATCH/DELETE、malformed/missing/duplicate、Permission unavailable/malformed/stale、downstream admission、error order 与零 side effect 均有 literal evidence | `COMPLETE`    |
 
 ## 6. Validation Contract
 
@@ -58,6 +58,7 @@
 - Tenant Org target-admission focused tests/build；Permission focused tests/build
 - real mTLS + Execution Token + Permission + Gateway matrix，记录 exact inputs、outputs 与 exit statuses
 - Global RI 审查 immutable exact candidate SHA；finding 以追加 commit 修复后重新 review
+- delivery packaging gate 独立于 validation slice：final candidate patch/archive、inverse rollback 与 artifact verifier 均须在 remote write 前生成并执行
 
 ## 7. Rollback
 
@@ -65,7 +66,7 @@
 
 ## 8. Current Evidence
 
-- `origin/main=40db6ceb670f5304de1951e134ae128173837a22`
+- activation `origin/main=40db6ceb670f5304de1951e134ae128173837a22`；pre-push latest `origin/main=9c78b4cacc54d3f6824cba69d89f891ac642800b` 已以 merge commit 集成
 - dependency ancestry checks: both exit `0`
 - exact local/remote owner ref absent before activation；Feature Packet count `0`
 - provisioned worktree clean detached at `bb3a1b9c26accb2c95089addddf90ca6d0dd1d4d`
@@ -81,4 +82,4 @@
 - real combined mTLS + ES256 ExecutionToken + Permission + Gateway + Tenant Org admission matrix: `1 suite / 5 tests` passed；证明 Permission-before-STS、tenantless SYSTEM token/cache across two targets、TENANT exact selector、target-owned exact `403 APP_AUTH_002` 与 malformed early stop
 - directly related Site acceptance TypeScript compile and production guard/decorator harness: `34 / 34` passed
 - real local SPIFFE/mTLS handshake, wrong-workload rejection, leaf certificate binding and rotation: `trusted gRPC transport smoke passed`
-- final candidate artifacts/rollback、push/PR/required CI: pending；PR/CI 作为外部 GitHub exact-head evidence 返回 direct parent，避免 Feature Packet 自引用 commit
+- delivery packaging gate、latest-main exact candidate review、push/Draft PR/required CI: pending；PR/CI 作为外部 GitHub exact-head evidence 返回 direct parent，避免 Feature Packet 自引用 commit
