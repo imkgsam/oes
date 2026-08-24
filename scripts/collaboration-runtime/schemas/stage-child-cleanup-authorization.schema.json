@@ -45,7 +45,8 @@
     },
     "stageKey": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
     },
     "stageOwnerTaskId": {
       "type": "string",
@@ -129,27 +130,11 @@
           "then": {
             "properties": {
               "path": {
-                "pattern": "^(?!.*(?:\\.\\.|@\\{|\\\\|\\s|~|\\^|:|\\?|\\*|\\[))(?!.*//)(?!.*\\.$)codex/[A-Za-z0-9._/-]+$"
+                "pattern": "^codex/feature/[a-z0-9]+(?:-[a-z0-9]+)*$"
               },
               "expectedSha": {
                 "type": "string",
                 "pattern": "^[0-9a-f]{40}$"
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "kind": {
-                "enum": ["worktree", "task-temp"]
-              }
-            }
-          },
-          "then": {
-            "properties": {
-              "path": {
-                "pattern": "^(?!.*//)(?!.*(?:/\\.\\.?)(?:/|$))/(?!$).+$"
               }
             }
           }
@@ -164,6 +149,9 @@
           },
           "then": {
             "properties": {
+              "path": {
+                "pattern": "^/private/tmp/oes-fl-[a-z0-9]+(?:-[a-z0-9]+)*$"
+              },
               "expectedSha": {
                 "type": "string",
                 "pattern": "^[0-9a-f]{40}$"
@@ -181,6 +169,9 @@
           },
           "then": {
             "properties": {
+              "path": {
+                "pattern": "^/private/tmp/oes-fl-[a-z0-9]+(?:-[a-z0-9]+)*-artifacts$"
+              },
               "expectedSha": {
                 "const": null
               }

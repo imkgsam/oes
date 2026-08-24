@@ -126,7 +126,7 @@ test('Stage cleanup runtime enforces the child-owned resource authority ceiling'
       path: 'docs/plans/features/alpha.md',
       expectedSha: '1'.repeat(40)
     },
-    { kind: 'task-temp', path: '/tmp/fl-alpha-artifacts', expectedSha: '1'.repeat(40) }
+    { kind: 'task-temp', path: '/private/tmp/oes-fl-alpha-artifacts', expectedSha: '1'.repeat(40) }
   ]
   for (const resource of invalidResources) {
     const authorization = cleanupAuthorization()
@@ -141,7 +141,7 @@ test('Stage cleanup runtime enforces the child-owned resource authority ceiling'
   const authorization = cleanupAuthorization()
   authorization.terminalFeatures[0].resources.push({
     kind: 'task-temp',
-    path: '/tmp/fl-alpha-artifacts',
+    path: '/private/tmp/oes-fl-alpha-artifacts',
     expectedSha: null
   })
   authorization.authorizationFingerprint = objectFingerprint(
@@ -149,6 +149,68 @@ test('Stage cleanup runtime enforces the child-owned resource authority ceiling'
     'authorizationFingerprint'
   )
   assert.equal(validateStageCleanupAuthorization(authorization).stageKey, 'stage-1')
+})
+
+test('Stage cleanup rejects Stage-owned, protected, aliased, and Git-invalid child resources', () => {
+  const invalidResources = [
+    { kind: 'local-branch', path: 'codex/cleanup/other-stage', expectedSha: '1'.repeat(40) },
+    { kind: 'remote-branch', path: 'codex/feature/./alpha', expectedSha: '1'.repeat(40) },
+    { kind: 'remote-branch', path: 'codex/feature/.alpha', expectedSha: '1'.repeat(40) },
+    { kind: 'remote-branch', path: 'codex/feature/alpha.lock', expectedSha: '1'.repeat(40) },
+    { kind: 'remote-branch', path: 'codex/feature/alpha/', expectedSha: '1'.repeat(40) },
+    { kind: 'worktree', path: '/Users/acehood/Documents/GitHub/oes', expectedSha: '1'.repeat(40) },
+    { kind: 'worktree', path: '/private/tmp/oes-fl-alpha/', expectedSha: '1'.repeat(40) },
+    { kind: 'task-temp', path: '/tmp', expectedSha: null }
+  ]
+  for (const resource of invalidResources) {
+    const authorization = cleanupAuthorization()
+    authorization.terminalFeatures[0].resources[0] = resource as never
+    authorization.authorizationFingerprint = objectFingerprint(
+      authorization as unknown as Record<string, unknown>,
+      'authorizationFingerprint'
+    )
+    assert.throws(() => validateStageCleanupAuthorization(authorization))
+  }
+})
+
+test('Stage cleanup derives every resource and cleanup ref from its exact feature or Stage key', () => {
+  for (const mutate of [
+    (value: ReturnType<typeof cleanupAuthorization>) => {
+      value.terminalFeatures[0].resources[0].path = 'codex/feature/beta'
+    },
+    (value: ReturnType<typeof cleanupAuthorization>) => {
+      value.terminalFeatures[0].resources[1].path = '/private/tmp/oes-fl-beta'
+    },
+    (value: ReturnType<typeof cleanupAuthorization>) => {
+      value.terminalFeatures[0].featurePacket = 'docs/plans/features/beta.md'
+    },
+    (value: ReturnType<typeof cleanupAuthorization>) => {
+      value.cleanupOnlyBranch = 'codex/cleanup/other-stage'
+    },
+    (value: ReturnType<typeof cleanupAuthorization>) => {
+      value.terminalFeatures[1].ownerTaskId = value.terminalFeatures[0].ownerTaskId
+    },
+    (value: ReturnType<typeof cleanupAuthorization>) => {
+      value.terminalFeatures[0].ownerTaskId = '/root/other/fl-alpha'
+    },
+    (value: ReturnType<typeof cleanupAuthorization>) => {
+      value.terminalFeatures[0].ownerTaskId = '/root/sl/group/fl-alpha'
+    },
+    (value: ReturnType<typeof cleanupAuthorization>) => {
+      value.stageKey = '../stage-1'
+    },
+    (value: ReturnType<typeof cleanupAuthorization>) => {
+      value.terminalFeatures[0].featureKey = '../alpha'
+    }
+  ]) {
+    const authorization = cleanupAuthorization()
+    mutate(authorization)
+    authorization.authorizationFingerprint = objectFingerprint(
+      authorization as unknown as Record<string, unknown>,
+      'authorizationFingerprint'
+    )
+    assert.throws(() => validateStageCleanupAuthorization(authorization))
+  }
 })
 
 test('per-command environment variables cannot replace the installed runtime trust roots', () => {

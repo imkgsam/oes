@@ -28,7 +28,7 @@ test('child cleanup narrows to exact owner resources and preserves SHA mismatch'
     },
     {
       kind: 'worktree',
-      path: '/tmp/fl-alpha',
+      path: '/private/tmp/oes-fl-alpha',
       expectedSha: '1'.repeat(40),
       exists: true,
       clean: true,

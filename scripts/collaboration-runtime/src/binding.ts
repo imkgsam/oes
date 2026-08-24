@@ -1,5 +1,5 @@
 import { readFileSync, realpathSync } from 'node:fs'
-import { isAbsolute, join, normalize } from 'node:path'
+import { isAbsolute, join, resolve } from 'node:path'
 import {
   CAPABILITY_NAMES,
   REMOTE_ACTIONS,
@@ -27,7 +27,11 @@ import { fail } from './errors.ts'
 const SHA256 = /^[0-9a-f]{64}$/
 const GIT_SHA = /^[0-9a-f]{40}$/
 const SAFE_REF =
-  /^(?!.*(?:\.\.|@\{|\\|\s|~|\^|:|\?|\*|\[))(?!\/)(?!.*\/\/)(?!.*\.$)[A-Za-z0-9._/-]+$/
+  /^(?!main$)(?!refs\/)(?!-)(?!\/)(?!\.)(?!.*\/\.)(?!.*\/\/)(?!.*\.\.)(?!.*@\{)(?!.*(?:^|\/)[^/]*\.lock(?:\/|$))(?!.*[/.]$)(?!@$)[A-Za-z0-9._\/@+-]+$/
+const FEATURE_KEY = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+const STAGE_BRANCH = /^codex\/feature\/[a-z0-9]+(?:-[a-z0-9]+)*$/
+const STAGE_WORKTREE = /^\/private\/tmp\/oes-fl-[a-z0-9]+(?:-[a-z0-9]+)*$/
+const STAGE_TASK_TEMP = /^\/private\/tmp\/oes-fl-[a-z0-9]+(?:-[a-z0-9]+)*-artifacts$/
 
 /** Requires an exact non-empty string field. */
 function requireString(value: unknown, field: string): asserts value is string {
@@ -60,13 +64,7 @@ function requireExactKeys(
 /** Validates a safe non-main owner branch name. */
 function requireOwnerRef(value: unknown, field: string): asserts value is string {
   requireString(value, field)
-  if (
-    !SAFE_REF.test(value) ||
-    value === 'main' ||
-    value.startsWith('refs/') ||
-    value.startsWith('-')
-  )
-    fail('INVALID_OWNER_REF', field)
+  if (!SAFE_REF.test(value)) fail('INVALID_OWNER_REF', field)
 }
 
 /** Verifies one immutable artifact reference within the configured authorization root. */
@@ -498,11 +496,13 @@ export function validateStageCleanupResource(
   requireString(value.path, `${field}.path`)
   if (value.kind === 'remote-branch' || value.kind === 'local-branch') {
     requireOwnerRef(value.path, `${field}.path`)
-    if (!value.path.startsWith('codex/')) fail('INVALID_CLEANUP_OWNER_REF', `${field}.path`)
+    if (!STAGE_BRANCH.test(value.path)) fail('INVALID_CLEANUP_OWNER_REF', `${field}.path`)
     requireGitSha(value.expectedSha, `${field}.expectedSha`)
   } else {
-    if (!isAbsolute(value.path) || value.path === '/' || normalize(value.path) !== value.path)
+    if (!isAbsolute(value.path) || resolve(value.path) !== value.path)
       fail('CLEANUP_RESOURCE_PATH_NOT_CANONICAL', `${field}.path`)
+    const expectedPattern = value.kind === 'worktree' ? STAGE_WORKTREE : STAGE_TASK_TEMP
+    if (!expectedPattern.test(value.path)) fail('CLEANUP_RESOURCE_PATH_NOT_OWNER_BOUND', field)
     if (value.kind === 'worktree') requireGitSha(value.expectedSha, `${field}.expectedSha`)
     else if (value.expectedSha !== null) fail('TASK_TEMP_SHA_FORBIDDEN', `${field}.expectedSha`)
   }
@@ -547,11 +547,12 @@ export function validateStageCleanupAuthorization(
   if (actual !== value.authorizationFingerprint) fail('CLEANUP_FINGERPRINT_MISMATCH', actual)
   requireStateVersion(value.stateVersion, 'stateVersion')
   requireString(value.stageKey, 'stageKey')
+  if (!FEATURE_KEY.test(value.stageKey)) fail('INVALID_STAGE_KEY', value.stageKey)
   requireString(value.stageOwnerTaskId, 'stageOwnerTaskId')
   requireString(value.transitionId, 'transitionId')
   requireFingerprint(value.confirmationFingerprint, 'confirmationFingerprint')
   requireOwnerRef(value.cleanupOnlyBranch, 'cleanupOnlyBranch')
-  if (!value.cleanupOnlyBranch.startsWith('codex/cleanup/'))
+  if (value.cleanupOnlyBranch !== `codex/cleanup/${value.stageKey}`)
     fail('INVALID_CLEANUP_ONLY_BRANCH', value.cleanupOnlyBranch)
   if (!Array.isArray(value.terminalFeatures) || value.terminalFeatures.length === 0)
     fail('CLEANUP_TERMINAL_FEATURES_REQUIRED', value.stageKey)
@@ -561,6 +562,7 @@ export function validateStageCleanupAuthorization(
   )
     fail('CLEANUP_PACKETS_REQUIRED', value.stageKey)
   const featureKeys = new Set<string>()
+  const featureOwners = new Set<string>()
   const packets = new Set<string>()
   const resourceKeys = new Set<string>()
   for (const feature of value.terminalFeatures) {
@@ -570,16 +572,23 @@ export function validateStageCleanupAuthorization(
       'terminalFeature'
     )
     requireString(feature.featureKey, 'terminalFeature.featureKey')
+    if (!FEATURE_KEY.test(feature.featureKey)) fail('INVALID_FEATURE_KEY', feature.featureKey)
     if (featureKeys.has(feature.featureKey)) fail('DUPLICATE_TERMINAL_FEATURE', feature.featureKey)
     featureKeys.add(feature.featureKey)
     requireString(feature.ownerTaskId, 'terminalFeature.ownerTaskId')
+    const directOwnerPrefix = `${value.stageOwnerTaskId}/`
+    if (
+      !feature.ownerTaskId.startsWith(directOwnerPrefix) ||
+      feature.ownerTaskId.slice(directOwnerPrefix.length).includes('/')
+    )
+      fail('CLEANUP_FEATURE_OWNER_NOT_STAGE_CHILD', feature.ownerTaskId)
+    if (featureOwners.has(feature.ownerTaskId))
+      fail('DUPLICATE_CLEANUP_FEATURE_OWNER', feature.ownerTaskId)
+    featureOwners.add(feature.ownerTaskId)
     requireGitSha(feature.candidateSha, 'terminalFeature.candidateSha')
     requireGitSha(feature.mergeSha, 'terminalFeature.mergeSha')
     requireString(feature.featurePacket, 'terminalFeature.featurePacket')
-    if (
-      !feature.featurePacket.startsWith('docs/plans/features/') ||
-      !feature.featurePacket.endsWith('.md')
-    )
+    if (feature.featurePacket !== `docs/plans/features/${feature.featureKey}.md`)
       fail('INVALID_FEATURE_PACKET_PATH', feature.featurePacket)
     if (packets.has(feature.featurePacket)) fail('DUPLICATE_FEATURE_PACKET', feature.featurePacket)
     packets.add(feature.featurePacket)
@@ -587,6 +596,14 @@ export function validateStageCleanupAuthorization(
       fail('CLEANUP_FEATURE_RESOURCES_REQUIRED', feature.featureKey)
     for (const resource of feature.resources) {
       validateStageCleanupResource(resource)
+      const expectedPath =
+        resource.kind === 'remote-branch' || resource.kind === 'local-branch'
+          ? `codex/feature/${feature.featureKey}`
+          : resource.kind === 'worktree'
+            ? `/private/tmp/oes-fl-${feature.featureKey}`
+            : `/private/tmp/oes-fl-${feature.featureKey}-artifacts`
+      if (resource.path !== expectedPath)
+        fail('CLEANUP_RESOURCE_OWNER_BINDING_MISMATCH', `${feature.featureKey}:${resource.path}`)
       const key = `${resource.kind}:${resource.path}`
       if (resourceKeys.has(key)) fail('CLEANUP_RESOURCE_OWNER_AMBIGUOUS', key)
       resourceKeys.add(key)

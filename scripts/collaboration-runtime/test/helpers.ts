@@ -188,7 +188,7 @@ export function cleanupAuthorization(): StageCleanupAuthorization {
         featurePacket: 'docs/plans/features/alpha.md',
         resources: [
           { kind: 'remote-branch', path: 'codex/feature/alpha', expectedSha: '1'.repeat(40) },
-          { kind: 'worktree', path: '/tmp/fl-alpha', expectedSha: '1'.repeat(40) }
+          { kind: 'worktree', path: '/private/tmp/oes-fl-alpha', expectedSha: '1'.repeat(40) }
         ]
       },
       {

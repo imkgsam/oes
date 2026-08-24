@@ -100,7 +100,7 @@ test('Stage root and child schemas exclude protected or Stage-owned cleanup reso
       path: 'docs/plans/features/alpha.md',
       expectedSha: '1'.repeat(40)
     },
-    { kind: 'task-temp', path: '/tmp/fl-alpha-artifacts', expectedSha: '1'.repeat(40) }
+    { kind: 'task-temp', path: '/private/tmp/oes-fl-alpha-artifacts', expectedSha: '1'.repeat(40) }
   ]
   for (const resource of invalidResources) {
     const root = cleanupAuthorization()
@@ -127,6 +127,37 @@ test('Stage root and child schemas exclude protected or Stage-owned cleanup reso
         resources: [resource],
         postcondition: 'CHILD_SELF_CLEANUP'
       })
+    )
+  }
+})
+
+test('Stage schemas reject Stage-owned roots, filesystem aliases, and Git-invalid refs', () => {
+  const invalidResources = [
+    { kind: 'local-branch', path: 'codex/cleanup/other-stage', expectedSha: '1'.repeat(40) },
+    { kind: 'remote-branch', path: 'codex/feature/./alpha', expectedSha: '1'.repeat(40) },
+    { kind: 'remote-branch', path: 'codex/feature/.alpha', expectedSha: '1'.repeat(40) },
+    { kind: 'remote-branch', path: 'codex/feature/alpha.lock', expectedSha: '1'.repeat(40) },
+    { kind: 'remote-branch', path: 'codex/feature/alpha/', expectedSha: '1'.repeat(40) },
+    { kind: 'worktree', path: '/Users/acehood/Documents/GitHub/oes', expectedSha: '1'.repeat(40) },
+    { kind: 'worktree', path: '/private/tmp/oes-fl-alpha/', expectedSha: '1'.repeat(40) },
+    { kind: 'task-temp', path: '/tmp', expectedSha: null }
+  ]
+  for (const resource of invalidResources) {
+    const root = cleanupAuthorization()
+    root.terminalFeatures[0].resources[0] = resource as never
+    assert.throws(() => validateJsonSchema(schema('stage-cleanup-authorization.schema.json'), root))
+  }
+})
+
+test('remote binding schema rejects Git-invalid owner refs accepted by neither runtime nor Git', () => {
+  for (const headRef of [
+    'codex/feature/./alpha',
+    'codex/feature/.alpha',
+    'codex/feature/alpha.lock',
+    'codex/feature/alpha/'
+  ]) {
+    assert.throws(() =>
+      validateJsonSchema(schema('remote-binding.schema.json'), remoteBinding({ headRef }))
     )
   }
 })
