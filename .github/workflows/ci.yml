@@ -2,6 +2,8 @@ name: CI
 
 on:
   pull_request:
+  merge_group:
+    types: [checks_requested]
   push:
     branches:
       - main
@@ -47,3 +49,6 @@ jobs:
 
       - name: Build common package
         run: pnpm common:build
+
+      - name: Verify collaboration runtime
+        run: pnpm collaboration-runtime:check

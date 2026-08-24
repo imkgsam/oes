@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oes.local/schemas/collaboration-runtime/remote-receipt-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "action",
+    "mutationPerformed",
+    "recoveredFromRemoteTruth",
+    "branchHead",
+    "pullRequestNumber",
+    "mergeCommitSha"
+  ],
+  "properties": {
+    "action": {
+      "enum": ["preflight", "publish-pr", "verify-pr", "merge-pr", "verify-main", "cleanup"]
+    },
+    "mutationPerformed": { "type": "boolean" },
+    "recoveredFromRemoteTruth": { "type": "boolean" },
+    "branchHead": { "type": ["string", "null"], "pattern": "^[0-9a-f]{40}$" },
+    "pullRequestNumber": { "type": ["integer", "null"], "minimum": 1 },
+    "mergeCommitSha": { "type": ["string", "null"], "pattern": "^[0-9a-f]{40}$" },
+    "cleanupResources": { "type": "array", "items": { "type": "object" } }
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oes.local/schemas/collaboration-runtime/remote-result-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "bindingFingerprint",
+    "action",
+    "ownerTaskId",
+    "singleUseNonce",
+    "status",
+    "stage",
+    "receipt",
+    "verification",
+    "remoteTruth",
+    "remoteMutation"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "OES_REMOTE_DRIVER_RESULT" },
+    "bindingFingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "action": {
+      "enum": ["preflight", "publish-pr", "verify-pr", "merge-pr", "verify-main", "cleanup"]
+    },
+    "ownerTaskId": { "type": "string", "minLength": 1 },
+    "singleUseNonce": { "type": "string" },
+    "status": { "enum": ["REMOTE_VERIFICATION_PENDING", "REMOTE_VERIFIED"] },
+    "stage": { "enum": ["REMOTE_VERIFICATION_PENDING", "REMOTE_VERIFIED"] },
+    "receipt": { "type": "object" },
+    "verification": { "type": "object" },
+    "remoteTruth": { "type": "object" },
+    "remoteMutation": { "type": "boolean" }
+  }
+}

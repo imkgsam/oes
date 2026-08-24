@@ -1,0 +1,48 @@
+approval_policy = "on-request"
+approvals_reviewer = "auto_review"
+default_permissions = "oes-project-owner"
+
+[shell_environment_policy.set]
+NPM_CONFIG_SHELL_EMULATOR = "true"
+
+[features]
+network_proxy = true
+
+[permissions.oes-project-owner]
+description = "Rendered per OES owner; placeholders are replaced before fingerprinting and handoff"
+
+[permissions.oes-project-owner.workspace_roots]
+"{{OWNER_PATH}}" = true
+"{{ARTIFACT_PATH}}" = true
+"{{TASK_TEMP_PATH}}" = true
+
+[permissions.oes-project-owner.filesystem]
+":minimal" = "read"
+"{{REPOSITORY_ROOT}}" = "read"
+"{{GIT_COMMON_DIRECTORY}}" = "write"
+"{{PACKAGE_CACHE_PATH}}" = "write"
+"/Library/Developer/CommandLineTools" = "read"
+"/System/Library/OpenSSL" = "read"
+"/usr/local/bin/node" = "read"
+"/opt/homebrew/bin/buf" = "read"
+
+[permissions.oes-project-owner.filesystem.":workspace_roots"]
+"." = "write"
+"**/*.env" = "deny"
+"**/.env" = "deny"
+"**/*.key" = "deny"
+"**/*private-key*" = "deny"
+
+[permissions.oes-project-owner.network]
+enabled = true
+allow_local_binding = true
+allow_upstream_proxy = true
+
+[permissions.oes-project-owner.network.domains]
+"github.com" = "allow"
+"api.github.com" = "allow"
+"objects.githubusercontent.com" = "allow"
+"raw.githubusercontent.com" = "allow"
+"registry.npmjs.org" = "allow"
+"localhost" = "allow"
+"127.0.0.1" = "allow"

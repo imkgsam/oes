@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oes.local/schemas/collaboration-runtime/remote-checkpoint-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "bindingFingerprint",
+    "action",
+    "singleUseNonce",
+    "stage",
+    "receipt",
+    "remoteTruthFingerprint",
+    "updatedAt"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "OES_REMOTE_DRIVER_CHECKPOINT" },
+    "bindingFingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "action": {
+      "enum": ["preflight", "publish-pr", "verify-pr", "merge-pr", "verify-main", "cleanup"]
+    },
+    "singleUseNonce": { "type": "string" },
+    "stage": {
+      "enum": [
+        "REMOTE_PREFLIGHT_VERIFIED",
+        "REMOTE_MUTATION_RECORDED",
+        "REMOTE_VERIFICATION_PENDING",
+        "REMOTE_VERIFIED"
+      ]
+    },
+    "receipt": { "type": ["object", "null"] },
+    "remoteTruthFingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  }
+}
