@@ -96,6 +96,8 @@ Architecture、ADR、Contract、`AGENTS.md` 或 Governance 的语义变化始终
 
 v6 truth merge前已经确认或已经创建exact owner/task/Git resource的v5 Direct、UD、IDT/CDT、SL、FL、IT、RI、Proposal、editorial、activation、merge和cleanup继续按frozen v5 binding完成到各自terminal/cleanup边界；设计merge不得重新解释或使active card、owner、parent/callback和资源失效。边界完成后的新意图才进入v6，异常接管遵循执行模型的Human-confirmed Recovery。
 
+运行可靠性revision cutover前已确认或已创建exact v6 owner/resource/binding的work item继续按其原文档与cleanup规则到terminal；new Stage batch cleanup只用于new gate或Human明确确认的刷新卡。相同scope内补齐effective execution profile属于environment repair，不改变Feature/Stage Packet ownership或文档写者。
+
 Direct 文档验证至少包括 changed-path allowlist、`git diff --check`、相关 Markdown link/UTF-8/绝对路径检查和语义影响声明。发现分类不成立时停止写入，并根据 status 展示 Collaborative 或继续讨论选项。
 
 ## 4. Design Workspace
@@ -176,7 +178,9 @@ docs/plans/stages/<stage-key>.md
 
 Stage Packet 只存在于 SL 的本地 stage coordination branch/worktree，不 push、不创建 PR、不合入 `main`。它只记录当前 objective、scope/protected scope、exact decision owner、FL 引用与依赖、exit criteria、blocker 和 current state；状态原位覆盖，不保存聊天、时间线、task/thread registry、watcher 信息或 IT candidate 细节，也不复制 FP 内容。
 
-Stage Packet 是 active work，不是稳定真相或第二状态表。阶段在最新 `main` 完成验收、各 FL 分别完成 Human 确认的 cleanup 后，Human 在 SL task 确认 Stage Cleanup；SL 随即删除 Stage Packet 和精确本地 stage coordination/verification 资源并 archive SL。Git 不保留可达的 stage coordination 历史。
+Stage Packet 是 active work，不是稳定真相或第二状态表。阶段在最新 `main` 完成验收后，SL展示一张绑定全部terminal FL、Feature Packets、exact资源和保留项的Stage Cleanup卡；Human确认一次即形成root cleanup authorization。SL把收窄的`CLEANUP_AUTHORIZED`发送给各exact FL，各FL只清理自己的branch/worktree/temp/remote资源并返回typed result，不再分别请求Human。SL验证全部child结果后，在一个cleanup-only PR中只删除本Stage已terminal的Feature Packets，再清理Stage Packet和精确local coordination/verification/cleanup资源并archive。Git不保留可达的stage coordination历史。
+
+Stage cleanup不建立长期cleanup owner或过程账本。cleanup-only PR只允许删除卡内逐项列明且coverage已验证的terminal Feature Packets，不得修改产品代码、稳定truth、其他Stage/Feature文档或其他owner资源；它是SL产品remote local-only规则的唯一机械例外。partial failure只保留失败资源并在同一root binding下恢复，已完成child不重复执行。standalone FL仍使用自己的独立cleanup卡和cleanup PR。
 
 ## 7. Feature Packet
 
@@ -195,7 +199,7 @@ FP 完成并满足以下条件后进入 `COMPLETE_AWAITING_CLEANUP`：
 - 必要的 architecture/contract/ADR/runbook 已回写；
 - 未完成内容进入 backlog 或新 feature。
 
-Human 确认 cleanup 后删除 FP。
+standalone FL由Human在exact FL task确认cleanup后删除FP。有parent SL时，FP进入`COMPLETE_AWAITING_CLEANUP`后由Stage Cleanup卡统一授权：FL自清理自己的exact执行资源，SL只在全部terminal coverage与child cleanup结果验证后，通过一个cleanup-only PR批量删除同Stage的FP。未terminal、coverage不完整、owner不明、dirty或SHA不匹配的FP和资源保持原状。
 
 ## 8. Intake 与 Backlog
 

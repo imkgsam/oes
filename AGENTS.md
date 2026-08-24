@@ -73,13 +73,21 @@ Human 无需主动触发上述内部角色。task先读取真实status，只显�
 
 v6 truth merge前已经取得Human确认，或已经创建exact owner、task、branch/worktree、candidate、PR、activation、merge或cleanup binding的v5 work item，继续按其frozen v5 binding完成到该owner graph的terminal/cleanup边界。v6不得重命名、改派、重新解释或使这些active card、owner和资源失效；边界完成后的新意图才进入v6，异常接管只使用Human-confirmed Recovery。
 
+运行可靠性revision truth merge前已确认或已创建exact v6 owner/resource/binding的work item同样继续到自己的terminal/cleanup边界；新moving-main、queue、batch cleanup或driver规则不重新解释已发出的merge/cleanup卡。相同scope内补齐effective execution profile、auto-review和approval telemetry属于environment repair，可在原binding下自动采用。
+
 完整消息类型、owner转移、并行约束、review返工、locator、Git权限与自动/人工边界以`docs/governance/codex-execution-model.md`为准。
 
 任何remote push、PR、`main` merge、post-merge验证和Git资源清理，必须先读取并遵守该文件第9节。Direct只简化角色和过程文档，不允许direct push `main`、绕过PR/CI/Human merge gate或降低验证。Design remote mutation只能由exact UD发起，或由exact UD在mutation前绑定的一次性host transport执行；Design Owner、请求来源、parent或其他持凭据task先写remote再请UD复核，均不构成合法顺序。
 
 任何有状态work item只有一个当前owner和一个artifact owner。通知不转移owner；只有新owner校验并返回`HANDOFF_ACCEPTED`后才允许写入。SL/FL只协调预确认的有界执行拓扑，不构成长期开销；不得建立全局调度中心、watchdog、heartbeat、Pull inbox、历史thread registry或过程账本。
 
-Human确认delivery scope时同时授权该scope所需的最小充分运行能力。UD、SL或FL必须在handoff接受前为目标task绑定并验证effective execution capabilities；已绑定scope内的owner worktree写入、owner Git/PR操作、仓库标准package/build/test命令、task-owned本地进程/容器/测试数据库和approved network自动执行，不形成逐命令Human gate。执行环境未兑现已声明能力时在相同binding下修复并幂等重试；只有scope/protected scope扩大、生产或共享资源、新secret或付费外部系统、host/system privilege、cross-owner/destructive operation以及既有main merge和cleanup gate才合并请求一次Human确认。child只从Human-confirmed topology为该role绑定的delegation ceiling取得完成assignment所需的更窄能力，不继承或扩大parent自身的effective capabilities。
+Human确认delivery scope时同时授权该scope所需的最小充分运行能力。OES task必须使用实际生效的project execution profile，而不是只在消息中声明权限；profile按owner绑定exact worktree、解析后的shared Git metadata、task temp/cache、repository-declared local service/container/test database、localhost和approved network，并保护secret、生产/共享数据、host/system privilege及跨owner资源。`approval_policy=on-request`与`approvals_reviewer=auto_review`接管残余低风险platform approval；正常Direct/UD/SL/FL/IT/RI在confirmed scope内的用户权限弹窗目标值为零。
+
+UD、SL或FL在handoff接受前必须对effective capabilities执行真实smoke，包括owner file write、Git switch/add/commit、标准build/test、task-owned service/database、localhost/network和evidence root。已声明能力仍产生用户approval时属于`EXECUTION_PROFILE_DEFECT`：保持owner、candidate、state和原authorization，由creating parent或current owner自动修复、重建或迁移execution profile/host并幂等恢复，不形成Human gate。只有scope/protected scope扩大、生产或共享资源、新secret或付费外部系统、host/system privilege、cross-owner/destructive operation以及既有main merge和cleanup gate才合并请求一次Human确认。child只从Human-confirmed topology为该role绑定的delegation ceiling取得完成assignment所需的更窄能力。
+
+并行work item必须分离固定的`truthBaseline`、可自动刷新的`integrationBase`和candidate冻结时的`candidateBase`。`main`前进本身不使既有Human authorization失效：无关变化自动集成并复用仍有效证据，相关变化运行affected tests，普通冲突由artifact owner解决，只有冻结语义冲突进入`DESIGN_GAP`。candidate冻结或发布后不改写历史，只追加merge/fix commit。
+
+远端Git/GitHub mutation统一通过仓库拥有、版本化、经过测试且幂等可恢复的remote driver执行；不得为每个task临时生成新的长Shell runner。多FL仍保持独立完整PR；Stage Review与Human merge authorization通过后使用latest-main merge queue或等价串行admission。测试证据按candidate、依赖、输入、环境和命令版本复用。同一Stage cleanup只向Human展示一张精确批量卡，各FL仍清理自己的资源，SL只可为终态Feature Packet建立cleanup-only聚合PR，不获得产品remote branch或产品代码写权。
 
 ## 6. 讨论、冻结与写入
 
