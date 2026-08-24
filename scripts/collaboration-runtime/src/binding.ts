@@ -10,6 +10,8 @@ import {
   type RemoteTrustRoots,
   type StageChildCleanupAuthorization,
   type StageCleanupAuthorization,
+  type StageCleanupCurrentAuthorization,
+  type StageCleanupResource,
   type TrustedAuthorizationReference
 } from './types.ts'
 import {
@@ -43,7 +45,13 @@ function requireGitSha(value: unknown, field: string): asserts value is string {
 }
 
 /** Requires an object to contain no undeclared keys. */
-function requireExactKeys(value: object, allowed: string[], field: string): void {
+function requireExactKeys(
+  value: unknown,
+  allowed: string[],
+  field: string
+): asserts value is Record<string, unknown> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value))
+    fail('INVALID_CONTRACT_OBJECT', field)
   const unexpected = Object.keys(value).filter((key) => !allowed.includes(key))
   if (unexpected.length)
     fail('UNDECLARED_CONTRACT_FIELD', `${field}.${unexpected.sort().join(',')}`)
@@ -472,6 +480,31 @@ export function validateProfileReportEnvelope(
   return report
 }
 
+const CLEANUP_RESOURCE_KINDS = [
+  'remote-branch',
+  'local-branch',
+  'worktree',
+  'feature-packet'
+] as const
+const CURRENT_STAGE_CLEANUP_RECORD = 'current-stage-cleanup.json'
+
+/** Requires one positive safe state version. */
+function requireStateVersion(value: unknown, field: string): asserts value is number {
+  if (!Number.isSafeInteger(value) || Number(value) < 1) fail('INVALID_STATE_VERSION', field)
+}
+
+/** Enforces the executable cleanup resource contract before planning or verification. */
+export function validateStageCleanupResource(
+  value: StageCleanupResource,
+  field = 'cleanupResource'
+): StageCleanupResource {
+  requireExactKeys(value, ['kind', 'path', 'expectedSha'], field)
+  if (!CLEANUP_RESOURCE_KINDS.includes(value.kind)) fail('INVALID_CLEANUP_RESOURCE_KIND', field)
+  requireString(value.path, `${field}.path`)
+  if (value.expectedSha !== null) requireGitSha(value.expectedSha, `${field}.expectedSha`)
+  return value
+}
+
 /** Validates and fingerprints one Stage cleanup batch authorization. */
 export function validateStageCleanupAuthorization(
   value: StageCleanupAuthorization
@@ -482,6 +515,9 @@ export function validateStageCleanupAuthorization(
       'schemaVersion',
       'kind',
       'authorizationFingerprint',
+      'status',
+      'expectedState',
+      'stateVersion',
       'stageKey',
       'stageOwnerTaskId',
       'transitionId',
@@ -492,7 +528,12 @@ export function validateStageCleanupAuthorization(
     ],
     'stageCleanupAuthorization'
   )
-  if (value.schemaVersion !== 1 || value.kind !== 'OES_STAGE_CLEANUP_AUTHORIZATION')
+  if (
+    value.schemaVersion !== 1 ||
+    value.kind !== 'OES_STAGE_CLEANUP_AUTHORIZATION' ||
+    value.status !== 'ISSUED' ||
+    value.expectedState !== 'STAGE_CLEANUP_AUTHORIZED'
+  )
     fail('INVALID_CLEANUP_AUTHORIZATION_KIND', value.kind)
   requireFingerprint(value.authorizationFingerprint, 'authorizationFingerprint')
   const actual = objectFingerprint(
@@ -500,6 +541,7 @@ export function validateStageCleanupAuthorization(
     'authorizationFingerprint'
   )
   if (actual !== value.authorizationFingerprint) fail('CLEANUP_FINGERPRINT_MISMATCH', actual)
+  requireStateVersion(value.stateVersion, 'stateVersion')
   requireString(value.stageKey, 'stageKey')
   requireString(value.stageOwnerTaskId, 'stageOwnerTaskId')
   requireString(value.transitionId, 'transitionId')
@@ -507,9 +549,12 @@ export function validateStageCleanupAuthorization(
   requireOwnerRef(value.cleanupOnlyBranch, 'cleanupOnlyBranch')
   if (!value.cleanupOnlyBranch.startsWith('codex/cleanup/'))
     fail('INVALID_CLEANUP_ONLY_BRANCH', value.cleanupOnlyBranch)
-  if (value.terminalFeatures.length === 0)
+  if (!Array.isArray(value.terminalFeatures) || value.terminalFeatures.length === 0)
     fail('CLEANUP_TERMINAL_FEATURES_REQUIRED', value.stageKey)
-  if (value.allowedDeletedFeaturePackets.length === 0)
+  if (
+    !Array.isArray(value.allowedDeletedFeaturePackets) ||
+    value.allowedDeletedFeaturePackets.length === 0
+  )
     fail('CLEANUP_PACKETS_REQUIRED', value.stageKey)
   const featureKeys = new Set<string>()
   const packets = new Set<string>()
@@ -520,27 +565,33 @@ export function validateStageCleanupAuthorization(
       ['featureKey', 'ownerTaskId', 'candidateSha', 'mergeSha', 'featurePacket', 'resources'],
       'terminalFeature'
     )
+    requireString(feature.featureKey, 'terminalFeature.featureKey')
     if (featureKeys.has(feature.featureKey)) fail('DUPLICATE_TERMINAL_FEATURE', feature.featureKey)
     featureKeys.add(feature.featureKey)
     requireString(feature.ownerTaskId, 'terminalFeature.ownerTaskId')
     requireGitSha(feature.candidateSha, 'terminalFeature.candidateSha')
     requireGitSha(feature.mergeSha, 'terminalFeature.mergeSha')
+    requireString(feature.featurePacket, 'terminalFeature.featurePacket')
     if (
       !feature.featurePacket.startsWith('docs/plans/features/') ||
       !feature.featurePacket.endsWith('.md')
     )
       fail('INVALID_FEATURE_PACKET_PATH', feature.featurePacket)
+    if (packets.has(feature.featurePacket)) fail('DUPLICATE_FEATURE_PACKET', feature.featurePacket)
     packets.add(feature.featurePacket)
-    if (feature.resources.length === 0)
+    if (!Array.isArray(feature.resources) || feature.resources.length === 0)
       fail('CLEANUP_FEATURE_RESOURCES_REQUIRED', feature.featureKey)
     for (const resource of feature.resources) {
-      requireExactKeys(resource, ['kind', 'path', 'expectedSha'], 'cleanupResource')
+      validateStageCleanupResource(resource)
       const key = `${resource.kind}:${resource.path}`
       if (resourceKeys.has(key)) fail('CLEANUP_RESOURCE_OWNER_AMBIGUOUS', key)
       resourceKeys.add(key)
-      if (resource.expectedSha !== null)
-        requireGitSha(resource.expectedSha, 'cleanupResource.expectedSha')
     }
+  }
+  for (const packet of value.allowedDeletedFeaturePackets) {
+    requireString(packet, 'allowedDeletedFeaturePacket')
+    if (!packet.startsWith('docs/plans/features/') || !packet.endsWith('.md'))
+      fail('INVALID_FEATURE_PACKET_PATH', packet)
   }
   if (
     new Set(value.allowedDeletedFeaturePackets).size !== value.allowedDeletedFeaturePackets.length
@@ -553,28 +604,125 @@ export function validateStageCleanupAuthorization(
   return value
 }
 
-/** Loads one Human-gated Stage cleanup card only from the profile-protected root. */
+/** Loads the one current protected Stage cleanup CAS record at its fixed trust-root identity. */
+function loadCurrentStageCleanupAuthorization(
+  trust: RemoteTrustRoots
+): StageCleanupCurrentAuthorization {
+  if (!trust.authorizationRoot || !isAbsolute(trust.authorizationRoot))
+    fail('TRUSTED_AUTHORIZATION_ROOT_REQUIRED', 'runtime trust context')
+  const path = join(trust.authorizationRoot, CURRENT_STAGE_CLEANUP_RECORD)
+  assertPathWithin(realpathSync(trust.authorizationRoot), realpathSync(path))
+  const current = readJson<StageCleanupCurrentAuthorization>(path)
+  requireExactKeys(
+    current,
+    [
+      'schemaVersion',
+      'kind',
+      'recordFingerprint',
+      'status',
+      'purpose',
+      'rootAuthorization',
+      'childAuthorization',
+      'stageKey',
+      'stageOwnerTaskId',
+      'ownerTaskId',
+      'expectedState',
+      'stateVersion',
+      'transitionId',
+      'confirmationFingerprint',
+      'postcondition'
+    ],
+    'stageCleanupCurrentAuthorization'
+  )
+  if (
+    current.schemaVersion !== 1 ||
+    current.kind !== 'OES_STAGE_CLEANUP_CURRENT_AUTHORIZATION' ||
+    current.status !== 'ACTIVE' ||
+    !['CHILD_SELF_CLEANUP', 'STAGE_CLEANUP_VERIFY'].includes(current.purpose) ||
+    current.expectedState !== 'STAGE_CLEANUP_AUTHORIZED' ||
+    current.postcondition !== 'CURRENT_STAGE_CLEANUP'
+  )
+    fail('STAGE_CLEANUP_CURRENT_NOT_ACTIVE', path)
+  requireFingerprint(current.recordFingerprint, 'current.recordFingerprint')
+  const actual = objectFingerprint(
+    current as unknown as Record<string, unknown>,
+    'recordFingerprint'
+  )
+  if (actual !== current.recordFingerprint) fail('STAGE_CLEANUP_CURRENT_FINGERPRINT_MISMATCH', path)
+  requireStateVersion(current.stateVersion, 'current.stateVersion')
+  requireString(current.stageKey, 'current.stageKey')
+  requireString(current.stageOwnerTaskId, 'current.stageOwnerTaskId')
+  requireString(current.ownerTaskId, 'current.ownerTaskId')
+  requireString(current.transitionId, 'current.transitionId')
+  requireFingerprint(current.confirmationFingerprint, 'current.confirmationFingerprint')
+  if (current.ownerTaskId !== trust.ownerTaskId)
+    fail('STAGE_CLEANUP_CURRENT_CAS_MISMATCH', 'ownerTaskId')
+  return current
+}
+
+/** Reopens the exact root card selected by the current protected CAS record. */
+function loadCurrentStageCleanupRoot(
+  current: StageCleanupCurrentAuthorization,
+  trust: RemoteTrustRoots
+): StageCleanupAuthorization {
+  const raw = verifyTrustedReference(
+    current.rootAuthorization,
+    trust.authorizationRoot,
+    'authorizationFingerprint'
+  )
+  const root = validateStageCleanupAuthorization(raw as unknown as StageCleanupAuthorization)
+  const exactPairs: Array<[unknown, unknown, string]> = [
+    [root.stageKey, current.stageKey, 'stageKey'],
+    [root.stageOwnerTaskId, current.stageOwnerTaskId, 'stageOwnerTaskId'],
+    [root.expectedState, current.expectedState, 'expectedState'],
+    [root.stateVersion, current.stateVersion, 'stateVersion'],
+    [root.transitionId, current.transitionId, 'transitionId'],
+    [root.confirmationFingerprint, current.confirmationFingerprint, 'confirmationFingerprint']
+  ]
+  for (const [actual, expected, field] of exactPairs)
+    if (actual !== expected) fail('STAGE_CLEANUP_CURRENT_CAS_MISMATCH', field)
+  return root
+}
+
+/** Loads one current Human-gated Stage cleanup card for the exact Stage verifier profile. */
 export function loadTrustedStageCleanupAuthorization(
   path: string,
   trust: RemoteTrustRoots
 ): StageCleanupAuthorization {
   if (!isAbsolute(path)) fail('CLEANUP_AUTHORIZATION_PATH_NOT_ABSOLUTE', path)
-  assertPathWithin(trust.authorizationRoot, path)
-  assertPathWithin(realpathSync(trust.authorizationRoot), realpathSync(path))
-  return validateStageCleanupAuthorization(readJson<StageCleanupAuthorization>(path))
+  const current = loadCurrentStageCleanupAuthorization(trust)
+  if (
+    current.purpose !== 'STAGE_CLEANUP_VERIFY' ||
+    current.childAuthorization !== null ||
+    current.ownerTaskId !== current.stageOwnerTaskId ||
+    current.rootAuthorization.path !== path
+  )
+    fail('STAGE_CLEANUP_CURRENT_PURPOSE_MISMATCH', path)
+  return loadCurrentStageCleanupRoot(current, trust)
 }
 
-/** Validates one protected child assignment against its exact root card and current profile owner. */
+/** Validates one protected child assignment against the current root card and exact profile owner. */
 export function loadTrustedStageChildCleanupAuthorization(
   rootPath: string,
   childPath: string,
   trust: RemoteTrustRoots
 ): { root: StageCleanupAuthorization; child: StageChildCleanupAuthorization } {
-  const root = loadTrustedStageCleanupAuthorization(rootPath, trust)
+  if (!isAbsolute(rootPath)) fail('CLEANUP_AUTHORIZATION_PATH_NOT_ABSOLUTE', rootPath)
   if (!isAbsolute(childPath)) fail('CHILD_CLEANUP_AUTHORIZATION_PATH_NOT_ABSOLUTE', childPath)
-  assertPathWithin(trust.authorizationRoot, childPath)
-  assertPathWithin(realpathSync(trust.authorizationRoot), realpathSync(childPath))
-  const child = readJson<StageChildCleanupAuthorization>(childPath)
+  const current = loadCurrentStageCleanupAuthorization(trust)
+  if (
+    current.purpose !== 'CHILD_SELF_CLEANUP' ||
+    current.childAuthorization === null ||
+    current.rootAuthorization.path !== rootPath ||
+    current.childAuthorization.path !== childPath
+  )
+    fail('STAGE_CLEANUP_CURRENT_PURPOSE_MISMATCH', childPath)
+  const root = loadCurrentStageCleanupRoot(current, trust)
+  const child = verifyTrustedReference(
+    current.childAuthorization,
+    trust.authorizationRoot,
+    'authorizationFingerprint'
+  ) as unknown as StageChildCleanupAuthorization
   requireExactKeys(
     child,
     [
@@ -583,6 +731,8 @@ export function loadTrustedStageChildCleanupAuthorization(
       'authorizationFingerprint',
       'status',
       'rootAuthorization',
+      'expectedState',
+      'stateVersion',
       'stageKey',
       'stageOwnerTaskId',
       'ownerTaskId',
@@ -597,6 +747,7 @@ export function loadTrustedStageChildCleanupAuthorization(
     child.schemaVersion !== 1 ||
     child.kind !== 'OES_STAGE_CHILD_CLEANUP_AUTHORIZATION' ||
     child.status !== 'ISSUED' ||
+    child.expectedState !== 'STAGE_CLEANUP_AUTHORIZED' ||
     child.postcondition !== 'CHILD_SELF_CLEANUP'
   )
     fail('CHILD_CLEANUP_AUTHORIZATION_NOT_ISSUED', childPath)
@@ -607,33 +758,29 @@ export function loadTrustedStageChildCleanupAuthorization(
   )
   if (actualFingerprint !== child.authorizationFingerprint)
     fail('CHILD_CLEANUP_AUTHORIZATION_FINGERPRINT_MISMATCH', childPath)
-  const rootBytes = readFileSync(rootPath)
-  if (
-    child.rootAuthorization.path !== rootPath ||
-    child.rootAuthorization.sha256 !== sha256(rootBytes) ||
-    child.rootAuthorization.fingerprint !== root.authorizationFingerprint
-  )
+  requireStateVersion(child.stateVersion, 'child.stateVersion')
+  if (canonicalJson(child.rootAuthorization) !== canonicalJson(current.rootAuthorization))
     fail('CHILD_CLEANUP_ROOT_REFERENCE_MISMATCH', childPath)
-  verifyTrustedReference(
-    child.rootAuthorization,
-    trust.authorizationRoot,
-    'authorizationFingerprint'
-  )
   const exactPairs: Array<[unknown, unknown, string]> = [
     [child.stageKey, root.stageKey, 'stageKey'],
     [child.stageOwnerTaskId, root.stageOwnerTaskId, 'stageOwnerTaskId'],
+    [child.expectedState, root.expectedState, 'expectedState'],
+    [child.stateVersion, root.stateVersion, 'stateVersion'],
     [child.transitionId, root.transitionId, 'transitionId'],
     [child.confirmationFingerprint, root.confirmationFingerprint, 'confirmationFingerprint'],
+    [child.ownerTaskId, current.ownerTaskId, 'current.ownerTaskId'],
     [child.ownerTaskId, trust.ownerTaskId, 'ownerTaskId']
   ]
   for (const [actual, expected, field] of exactPairs)
     if (actual !== expected) fail('CHILD_CLEANUP_AUTHORIZATION_CAS_MISMATCH', field)
+  if (!Array.isArray(child.resources))
+    fail('CHILD_CLEANUP_RESOURCE_SET_MISMATCH', child.ownerTaskId)
+  for (const resource of child.resources)
+    validateStageCleanupResource(resource, 'childCleanupResource')
   const expectedResources = root.terminalFeatures
     .filter((feature) => feature.ownerTaskId === child.ownerTaskId)
     .flatMap((feature) => feature.resources)
   if (expectedResources.length === 0) fail('CLEANUP_OWNER_NOT_IN_BATCH', child.ownerTaskId)
-  for (const resource of child.resources)
-    requireExactKeys(resource, ['kind', 'path', 'expectedSha'], 'childCleanupResource')
   const sortedResources = (resources: typeof child.resources) =>
     [...resources].sort((left, right) =>
       `${left.kind}:${left.path}:${left.expectedSha ?? ''}`.localeCompare(

@@ -6,12 +6,17 @@ import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import {
   loadTrustedStageChildCleanupAuthorization,
+  loadTrustedStageCleanupAuthorization,
   validateRemoteBinding,
   validateStageCleanupAuthorization
 } from '../src/binding.ts'
 import { canonicalJson, objectFingerprint, sha256 } from '../src/canonical.ts'
 import { cleanupAuthorization, remoteBinding, remoteTrust } from './helpers.ts'
-import type { RemoteTrustRoots, StageChildCleanupAuthorization } from '../src/types.ts'
+import type {
+  RemoteTrustRoots,
+  StageChildCleanupAuthorization,
+  StageCleanupCurrentAuthorization
+} from '../src/types.ts'
 
 test('remote binding accepts exact owner-scoped Draft PR publication', () => {
   const binding = remoteBinding()
@@ -94,6 +99,23 @@ test('empty Stage cleanup batch is rejected consistently with schema', () => {
   )
 })
 
+test('Stage cleanup runtime rejects resource identities rejected by its schema', () => {
+  const authorization = cleanupAuthorization()
+  authorization.terminalFeatures[0].resources[0] = {
+    kind: 'arbitrary-resource' as never,
+    path: '',
+    expectedSha: null
+  }
+  authorization.authorizationFingerprint = objectFingerprint(
+    authorization as unknown as Record<string, unknown>,
+    'authorizationFingerprint'
+  )
+  assert.throws(
+    () => validateStageCleanupAuthorization(authorization),
+    /INVALID_CLEANUP_RESOURCE_KIND/
+  )
+})
+
 test('per-command environment variables cannot replace the installed runtime trust roots', () => {
   const binding = remoteBinding()
   const trust = remoteTrust(binding)
@@ -131,6 +153,8 @@ test('protected child cleanup assignment is exact and derives the current profil
       sha256: sha256(rootBytes),
       fingerprint: rootAuthorization.authorizationFingerprint
     },
+    expectedState: rootAuthorization.expectedState,
+    stateVersion: rootAuthorization.stateVersion,
     stageKey: rootAuthorization.stageKey,
     stageOwnerTaskId: rootAuthorization.stageOwnerTaskId,
     ownerTaskId,
@@ -144,7 +168,34 @@ test('protected child cleanup assignment is exact and derives the current profil
     'authorizationFingerprint'
   )
   const childPath = join(rootDirectory, 'child-cleanup-authorization.json')
-  writeFileSync(childPath, `${canonicalJson(child)}\n`)
+  const childBytes = `${canonicalJson(child)}\n`
+  writeFileSync(childPath, childBytes)
+  const current: StageCleanupCurrentAuthorization = {
+    schemaVersion: 1,
+    kind: 'OES_STAGE_CLEANUP_CURRENT_AUTHORIZATION',
+    recordFingerprint: '',
+    status: 'ACTIVE',
+    purpose: 'CHILD_SELF_CLEANUP',
+    rootAuthorization: child.rootAuthorization,
+    childAuthorization: {
+      path: childPath,
+      sha256: sha256(childBytes),
+      fingerprint: child.authorizationFingerprint
+    },
+    stageKey: rootAuthorization.stageKey,
+    stageOwnerTaskId: rootAuthorization.stageOwnerTaskId,
+    ownerTaskId,
+    expectedState: rootAuthorization.expectedState,
+    stateVersion: rootAuthorization.stateVersion,
+    transitionId: rootAuthorization.transitionId,
+    confirmationFingerprint: rootAuthorization.confirmationFingerprint,
+    postcondition: 'CURRENT_STAGE_CLEANUP'
+  }
+  current.recordFingerprint = objectFingerprint(
+    current as unknown as Record<string, unknown>,
+    'recordFingerprint'
+  )
+  writeFileSync(join(rootDirectory, 'current-stage-cleanup.json'), `${canonicalJson(current)}\n`)
   const trust: RemoteTrustRoots = {
     authorizationRoot: rootDirectory,
     admissionRoot: join(rootDirectory, 'admission'),
@@ -163,7 +214,91 @@ test('protected child cleanup assignment is exact and derives the current profil
         ...trust,
         ownerTaskId: '/root/sl/fl-beta'
       }),
-    /CHILD_CLEANUP_AUTHORIZATION_CAS_MISMATCH/
+    /STAGE_CLEANUP_CURRENT_CAS_MISMATCH/
+  )
+
+  const staleRoot = cleanupAuthorization()
+  staleRoot.transitionId = 'stage:cleanup:stale'
+  staleRoot.stateVersion = rootAuthorization.stateVersion + 1
+  staleRoot.authorizationFingerprint = objectFingerprint(
+    staleRoot as unknown as Record<string, unknown>,
+    'authorizationFingerprint'
+  )
+  const staleRootPath = join(rootDirectory, 'stale-stage-cleanup-authorization.json')
+  writeFileSync(staleRootPath, `${canonicalJson(staleRoot)}\n`)
+  assert.throws(
+    () => loadTrustedStageChildCleanupAuthorization(staleRootPath, childPath, trust),
+    /STAGE_CLEANUP_CURRENT_PURPOSE_MISMATCH/
+  )
+})
+
+test('fixed protected cleanup CAS rejects stale and invalidated Stage cards', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'oes-stage-cleanup-current-test-'))
+  const root = cleanupAuthorization()
+  const rootPath = join(directory, 'stage-cleanup-authorization.json')
+  const rootBytes = `${canonicalJson(root)}\n`
+  writeFileSync(rootPath, rootBytes)
+  const current: StageCleanupCurrentAuthorization = {
+    schemaVersion: 1,
+    kind: 'OES_STAGE_CLEANUP_CURRENT_AUTHORIZATION',
+    recordFingerprint: '',
+    status: 'ACTIVE',
+    purpose: 'STAGE_CLEANUP_VERIFY',
+    rootAuthorization: {
+      path: rootPath,
+      sha256: sha256(rootBytes),
+      fingerprint: root.authorizationFingerprint
+    },
+    childAuthorization: null,
+    stageKey: root.stageKey,
+    stageOwnerTaskId: root.stageOwnerTaskId,
+    ownerTaskId: root.stageOwnerTaskId,
+    expectedState: root.expectedState,
+    stateVersion: root.stateVersion,
+    transitionId: root.transitionId,
+    confirmationFingerprint: root.confirmationFingerprint,
+    postcondition: 'CURRENT_STAGE_CLEANUP'
+  }
+  const writeCurrent = () => {
+    current.recordFingerprint = objectFingerprint(
+      current as unknown as Record<string, unknown>,
+      'recordFingerprint'
+    )
+    writeFileSync(join(directory, 'current-stage-cleanup.json'), `${canonicalJson(current)}\n`)
+  }
+  writeCurrent()
+  const trust: RemoteTrustRoots = {
+    authorizationRoot: directory,
+    admissionRoot: join(directory, 'admission'),
+    profilePath: '/installed/profile.toml',
+    profileSha256: 'a'.repeat(64),
+    ownerTaskId: root.stageOwnerTaskId,
+    profileExpectedState: 'DELIVERY_ACTIVE'
+  }
+  assert.equal(
+    loadTrustedStageCleanupAuthorization(rootPath, trust).transitionId,
+    root.transitionId
+  )
+
+  const stale = cleanupAuthorization()
+  stale.transitionId = 'stage:cleanup:stale'
+  stale.stateVersion += 1
+  stale.authorizationFingerprint = objectFingerprint(
+    stale as unknown as Record<string, unknown>,
+    'authorizationFingerprint'
+  )
+  const stalePath = join(directory, 'stale-stage-cleanup-authorization.json')
+  writeFileSync(stalePath, `${canonicalJson(stale)}\n`)
+  assert.throws(
+    () => loadTrustedStageCleanupAuthorization(stalePath, trust),
+    /STAGE_CLEANUP_CURRENT_PURPOSE_MISMATCH/
+  )
+
+  current.status = 'INVALIDATED'
+  writeCurrent()
+  assert.throws(
+    () => loadTrustedStageCleanupAuthorization(rootPath, trust),
+    /STAGE_CLEANUP_CURRENT_NOT_ACTIVE/
   )
 })
 

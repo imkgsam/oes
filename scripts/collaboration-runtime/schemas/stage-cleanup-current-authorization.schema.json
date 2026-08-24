@@ -1,23 +1,24 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://oes.local/schemas/collaboration-runtime/stage-child-cleanup-authorization-v1.json",
-  "title": "OES Stage child cleanup authorization",
+  "$id": "https://oes.local/schemas/collaboration-runtime/stage-cleanup-current-authorization-v1.json",
+  "title": "OES current Stage cleanup CAS authorization",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "schemaVersion",
     "kind",
-    "authorizationFingerprint",
+    "recordFingerprint",
     "status",
+    "purpose",
     "rootAuthorization",
-    "expectedState",
-    "stateVersion",
+    "childAuthorization",
     "stageKey",
     "stageOwnerTaskId",
     "ownerTaskId",
+    "expectedState",
+    "stateVersion",
     "transitionId",
     "confirmationFingerprint",
-    "resources",
     "postcondition"
   ],
   "properties": {
@@ -25,23 +26,32 @@
       "const": 1
     },
     "kind": {
-      "const": "OES_STAGE_CHILD_CLEANUP_AUTHORIZATION"
+      "const": "OES_STAGE_CLEANUP_CURRENT_AUTHORIZATION"
     },
-    "authorizationFingerprint": {
+    "recordFingerprint": {
       "$ref": "#/$defs/sha256"
     },
     "status": {
-      "const": "ISSUED"
+      "enum": ["ACTIVE", "INVALIDATED", "COMPLETED"]
+    },
+    "purpose": {
+      "enum": ["CHILD_SELF_CLEANUP", "STAGE_CLEANUP_VERIFY"]
     },
     "rootAuthorization": {
       "$ref": "#/$defs/reference"
     },
-    "expectedState": {
-      "const": "STAGE_CLEANUP_AUTHORIZED"
-    },
-    "stateVersion": {
-      "type": "integer",
-      "minimum": 1
+    "childAuthorization": {
+      "type": ["object", "null"],
+      "allOf": [
+        {
+          "if": {
+            "type": "object"
+          },
+          "then": {
+            "$ref": "#/$defs/reference"
+          }
+        }
+      ]
     },
     "stageKey": {
       "type": "string",
@@ -55,6 +65,13 @@
       "type": "string",
       "minLength": 1
     },
+    "expectedState": {
+      "const": "STAGE_CLEANUP_AUTHORIZED"
+    },
+    "stateVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
     "transitionId": {
       "type": "string",
       "minLength": 1
@@ -62,26 +79,14 @@
     "confirmationFingerprint": {
       "$ref": "#/$defs/sha256"
     },
-    "resources": {
-      "type": "array",
-      "minItems": 1,
-      "uniqueItems": true,
-      "items": {
-        "$ref": "#/$defs/resource"
-      }
-    },
     "postcondition": {
-      "const": "CHILD_SELF_CLEANUP"
+      "const": "CURRENT_STAGE_CLEANUP"
     }
   },
   "$defs": {
     "sha256": {
       "type": "string",
       "pattern": "^[0-9a-f]{64}$"
-    },
-    "gitSha": {
-      "type": "string",
-      "pattern": "^[0-9a-f]{40}$"
     },
     "reference": {
       "type": "object",
@@ -97,24 +102,6 @@
         },
         "fingerprint": {
           "$ref": "#/$defs/sha256"
-        }
-      }
-    },
-    "resource": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["kind", "path", "expectedSha"],
-      "properties": {
-        "kind": {
-          "enum": ["remote-branch", "local-branch", "worktree", "feature-packet"]
-        },
-        "path": {
-          "type": "string",
-          "minLength": 1
-        },
-        "expectedSha": {
-          "type": ["string", "null"],
-          "pattern": "^[0-9a-f]{40}$"
         }
       }
     }

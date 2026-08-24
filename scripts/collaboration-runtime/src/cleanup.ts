@@ -1,4 +1,4 @@
-import { validateStageCleanupAuthorization } from './binding.ts'
+import { validateStageCleanupAuthorization, validateStageCleanupResource } from './binding.ts'
 import { objectFingerprint } from './canonical.ts'
 import { fail } from './errors.ts'
 import type {
@@ -13,6 +13,33 @@ import type {
 /** Builds a stable identity for one cleanup resource. */
 function resourceKey(resource: StageCleanupResource): string {
   return `${resource.kind}:${resource.path}:${resource.expectedSha ?? 'NONE'}`
+}
+
+/** Requires one raw cleanup result object to contain no undeclared fields. */
+function requireExactKeys(value: unknown, allowed: string[], field: string): void {
+  if (typeof value !== 'object' || value === null || Array.isArray(value))
+    fail('INVALID_CLEANUP_RESULT_OBJECT', field)
+  const unexpected = Object.keys(value).filter((key) => !allowed.includes(key))
+  if (unexpected.length)
+    fail('UNDECLARED_CLEANUP_RESULT_FIELD', `${field}.${unexpected.sort().join(',')}`)
+}
+
+/** Validates one exact observation before it can drive or prove cleanup. */
+function validateObservation(
+  value: ObservedCleanupResource,
+  field: string
+): ObservedCleanupResource {
+  requireExactKeys(value, ['kind', 'path', 'expectedSha', 'exists', 'clean', 'actualSha'], field)
+  validateStageCleanupResource(
+    { kind: value.kind, path: value.path, expectedSha: value.expectedSha },
+    field
+  )
+  if (typeof value.exists !== 'boolean' || typeof value.clean !== 'boolean')
+    fail('INVALID_CLEANUP_OBSERVATION_STATE', field)
+  if (value.actualSha !== null && !/^[0-9a-f]{40}$/.test(value.actualSha))
+    fail('INVALID_CLEANUP_OBSERVATION_SHA', field)
+  if (!value.exists && value.actualSha !== null) fail('ABSENT_CLEANUP_RESOURCE_HAS_SHA', field)
+  return value
 }
 
 /** Narrows one Stage batch to exact-owner resources and preserves missing or mismatched evidence. */
@@ -30,15 +57,25 @@ export function planChildSelfCleanup(
   const allowed = new Map<string, StageCleanupResource>()
   for (const feature of owned)
     for (const resource of feature.resources) allowed.set(resourceKey(resource), resource)
+  if (!Array.isArray(observations)) fail('CLEANUP_OBSERVATIONS_REQUIRED', ownerTaskId)
   const observed = new Map<string, ObservedCleanupResource>()
   for (const resource of observations) {
+    validateObservation(resource, 'cleanupObservation')
     const key = resourceKey(resource)
     if (!allowed.has(key)) fail('UNBOUND_CLEANUP_OBSERVATION', key)
     if (observed.has(key)) fail('DUPLICATE_CLEANUP_OBSERVATION', key)
     observed.set(key, resource)
   }
+  if (!Array.isArray(completedResources)) fail('CLEANUP_COMPLETIONS_INVALID', ownerTaskId)
   const completed = new Map<string, CompletedCleanupResource>()
   for (const record of completedResources) {
+    requireExactKeys(
+      record,
+      ['resource', 'observedAfter', 'completionFingerprint'],
+      'completedCleanupResource'
+    )
+    validateStageCleanupResource(record.resource, 'completedCleanupResource.resource')
+    validateObservation(record.observedAfter, 'completedCleanupResource.observedAfter')
     const key = resourceKey(record.resource)
     if (
       !allowed.has(key) ||
@@ -115,6 +152,12 @@ export function verifyCleanupOnlyDeletion(
   diffEntries: CleanupDiffEntry[]
 ): void {
   const authorization = validateStageCleanupAuthorization(authorizationInput)
+  if (!Array.isArray(diffEntries)) fail('CLEANUP_DIFF_REQUIRED', authorization.stageKey)
+  for (const entry of diffEntries) {
+    requireExactKeys(entry, ['status', 'path'], 'cleanupDiffEntry')
+    if (typeof entry.path !== 'string' || entry.path.length === 0)
+      fail('CLEANUP_DIFF_PATH_INVALID', String(entry.path))
+  }
   const expected = [...authorization.allowedDeletedFeaturePackets].sort()
   const deleted = diffEntries
     .filter((entry) => entry.status === 'D')
@@ -134,6 +177,12 @@ export function verifyChildCleanupResults(
   resultsByOwner: Record<string, CleanupResourceDecision[]>
 ): void {
   const authorization = validateStageCleanupAuthorization(authorizationInput)
+  if (
+    typeof resultsByOwner !== 'object' ||
+    resultsByOwner === null ||
+    Array.isArray(resultsByOwner)
+  )
+    fail('STAGE_CLEANUP_CHILD_RESULTS_INVALID', authorization.stageKey)
   const expectedOwners = [
     ...new Set(authorization.terminalFeatures.map((feature) => feature.ownerTaskId))
   ].sort()
@@ -150,7 +199,44 @@ export function verifyChildCleanupResults(
       .map(resourceKey)
       .sort()
     const results = resultsByOwner[owner]
-    const actual = results.map((result) => resourceKey(result.resource)).sort()
+    if (!Array.isArray(results)) fail('STAGE_CLEANUP_RESOURCE_RESULT_SET_MISMATCH', owner)
+    const actual = results
+      .map((result) => {
+        requireExactKeys(
+          result,
+          [
+            'resource',
+            'decision',
+            'reason',
+            'observedBefore',
+            'observedAfter',
+            'completionFingerprint'
+          ],
+          'cleanupResourceDecision'
+        )
+        validateStageCleanupResource(result.resource, 'cleanupResourceDecision.resource')
+        if (
+          !['REMOVE', 'ALREADY_ABSENT', 'PRESERVE_FAILURE', 'SKIP_COMPLETED'].includes(
+            result.decision
+          )
+        )
+          fail('STAGE_CLEANUP_RESULT_DECISION_INVALID', String(result.decision))
+        if (typeof result.reason !== 'string' || result.reason.length === 0)
+          fail('STAGE_CLEANUP_RESULT_REASON_INVALID', result.resource.path)
+        if (
+          result.completionFingerprint !== undefined &&
+          !/^[0-9a-f]{64}$/.test(result.completionFingerprint)
+        )
+          fail('STAGE_CLEANUP_COMPLETION_FINGERPRINT_INVALID', result.resource.path)
+        if (result.decision !== 'SKIP_COMPLETED' && result.completionFingerprint !== undefined)
+          fail('STAGE_CLEANUP_UNEXPECTED_COMPLETION_FINGERPRINT', result.resource.path)
+        if (result.observedBefore !== null)
+          validateObservation(result.observedBefore, 'cleanupResourceDecision.observedBefore')
+        if (result.observedAfter !== null)
+          validateObservation(result.observedAfter, 'cleanupResourceDecision.observedAfter')
+        return resourceKey(result.resource)
+      })
+      .sort()
     if (expected.length !== actual.length || expected.some((key, index) => key !== actual[index]))
       fail('STAGE_CLEANUP_RESOURCE_RESULT_SET_MISMATCH', owner)
     for (const result of results) {
@@ -163,7 +249,13 @@ export function verifyChildCleanupResults(
       if (result.decision === 'PRESERVE_FAILURE')
         fail('STAGE_CLEANUP_PARTIAL_FAILURE', result.resource.path)
       if (result.decision === 'REMOVE') {
-        if (!result.observedBefore?.exists || result.observedAfter?.exists !== false)
+        if (
+          !result.observedBefore?.exists ||
+          !result.observedBefore.clean ||
+          (result.resource.expectedSha !== null &&
+            result.observedBefore.actualSha !== result.resource.expectedSha) ||
+          result.observedAfter?.exists !== false
+        )
           fail('STAGE_CLEANUP_REMOVAL_NOT_VERIFIED', result.resource.path)
       } else if (result.decision === 'ALREADY_ABSENT') {
         if (result.observedBefore?.exists !== false || result.observedAfter?.exists !== false)

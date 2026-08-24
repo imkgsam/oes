@@ -34,6 +34,8 @@ test('executable schemas accept representative runtime bindings and Stage author
       sha256: 'b'.repeat(64),
       fingerprint: stage.authorizationFingerprint
     },
+    expectedState: stage.expectedState,
+    stateVersion: stage.stateVersion,
     stageKey: stage.stageKey,
     stageOwnerTaskId: stage.stageOwnerTaskId,
     ownerTaskId: stage.terminalFeatures[0].ownerTaskId,
@@ -41,6 +43,27 @@ test('executable schemas accept representative runtime bindings and Stage author
     confirmationFingerprint: stage.confirmationFingerprint,
     resources: stage.terminalFeatures[0].resources,
     postcondition: 'CHILD_SELF_CLEANUP'
+  })
+  validateJsonSchema(schema('stage-cleanup-current-authorization.schema.json'), {
+    schemaVersion: 1,
+    kind: 'OES_STAGE_CLEANUP_CURRENT_AUTHORIZATION',
+    recordFingerprint: 'c'.repeat(64),
+    status: 'ACTIVE',
+    purpose: 'STAGE_CLEANUP_VERIFY',
+    rootAuthorization: {
+      path: '/trusted/stage.json',
+      sha256: 'b'.repeat(64),
+      fingerprint: stage.authorizationFingerprint
+    },
+    childAuthorization: null,
+    stageKey: stage.stageKey,
+    stageOwnerTaskId: stage.stageOwnerTaskId,
+    ownerTaskId: stage.stageOwnerTaskId,
+    expectedState: stage.expectedState,
+    stateVersion: stage.stateVersion,
+    transitionId: stage.transitionId,
+    confirmationFingerprint: stage.confirmationFingerprint,
+    postcondition: 'CURRENT_STAGE_CLEANUP'
   })
 })
 
@@ -51,6 +74,19 @@ test('executable Stage schema and runtime both reject an empty batch', () => {
   assert.throws(
     () => validateJsonSchema(schema('stage-cleanup-authorization.schema.json'), value),
     /minItems/
+  )
+})
+
+test('Stage schema rejects an invalid cleanup resource identity', () => {
+  const value = cleanupAuthorization()
+  value.terminalFeatures[0].resources[0] = {
+    kind: 'arbitrary-resource' as never,
+    path: '',
+    expectedSha: null
+  }
+  assert.throws(
+    () => validateJsonSchema(schema('stage-cleanup-authorization.schema.json'), value),
+    /enum|minLength/
   )
 })
 

@@ -162,3 +162,48 @@ test('an absence observation for another resource cannot complete the bound reso
     /STAGE_CLEANUP_OBSERVATION_IDENTITY_MISMATCH/
   )
 })
+
+test('Stage cleanup verification rejects unknown decisions without observations', () => {
+  const authorization = cleanupAuthorization()
+  const results = Object.fromEntries(
+    authorization.terminalFeatures.map((feature) => [
+      feature.ownerTaskId,
+      feature.resources.map((resource) => ({
+        resource,
+        decision: 'UNDECLARED_SUCCESS',
+        reason: 'caller-selected terminal result',
+        observedBefore: null,
+        observedAfter: null
+      }))
+    ])
+  )
+  assert.throws(
+    () => verifyChildCleanupResults(authorization, results as never),
+    /STAGE_CLEANUP_RESULT_DECISION_INVALID/
+  )
+})
+
+test('Stage cleanup removal verification requires a clean SHA-matched before observation', () => {
+  const authorization = cleanupAuthorization()
+  const results = Object.fromEntries(
+    authorization.terminalFeatures.map((feature) => [
+      feature.ownerTaskId,
+      feature.resources.map((resource) => ({
+        resource,
+        decision: 'REMOVE',
+        reason: 'claimed removal',
+        observedBefore: {
+          ...resource,
+          exists: true,
+          clean: false,
+          actualSha: resource.expectedSha
+        },
+        observedAfter: absent(resource)
+      }))
+    ])
+  )
+  assert.throws(
+    () => verifyChildCleanupResults(authorization, results as never),
+    /STAGE_CLEANUP_REMOVAL_NOT_VERIFIED/
+  )
+})

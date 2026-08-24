@@ -345,6 +345,9 @@ export interface StageCleanupAuthorization {
   schemaVersion: 1
   kind: 'OES_STAGE_CLEANUP_AUTHORIZATION'
   authorizationFingerprint: string
+  status: 'ISSUED'
+  expectedState: 'STAGE_CLEANUP_AUTHORIZED'
+  stateVersion: number
   stageKey: string
   stageOwnerTaskId: string
   transitionId: string
@@ -360,6 +363,8 @@ export interface StageChildCleanupAuthorization {
   authorizationFingerprint: string
   status: 'ISSUED'
   rootAuthorization: TrustedAuthorizationReference
+  expectedState: 'STAGE_CLEANUP_AUTHORIZED'
+  stateVersion: number
   stageKey: string
   stageOwnerTaskId: string
   ownerTaskId: string
@@ -367,6 +372,24 @@ export interface StageChildCleanupAuthorization {
   confirmationFingerprint: string
   resources: StageCleanupResource[]
   postcondition: 'CHILD_SELF_CLEANUP'
+}
+
+export interface StageCleanupCurrentAuthorization {
+  schemaVersion: 1
+  kind: 'OES_STAGE_CLEANUP_CURRENT_AUTHORIZATION'
+  recordFingerprint: string
+  status: 'ACTIVE' | 'INVALIDATED' | 'COMPLETED'
+  purpose: 'CHILD_SELF_CLEANUP' | 'STAGE_CLEANUP_VERIFY'
+  rootAuthorization: TrustedAuthorizationReference
+  childAuthorization: TrustedAuthorizationReference | null
+  stageKey: string
+  stageOwnerTaskId: string
+  ownerTaskId: string
+  expectedState: 'STAGE_CLEANUP_AUTHORIZED'
+  stateVersion: number
+  transitionId: string
+  confirmationFingerprint: string
+  postcondition: 'CURRENT_STAGE_CLEANUP'
 }
 
 export interface ObservedCleanupResource extends StageCleanupResource {
