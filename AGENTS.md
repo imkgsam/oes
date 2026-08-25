@@ -65,6 +65,12 @@ OES 默认从普通讨论开始，不要求 Human 选择讨论角色。只有开
 - Implementation Task（IT）：实现一个slice；通常是FL的subagent。
 - Review & Integration（RI）：按风险执行局部、全局或阶段复核；默认只读精确candidate。
 
+框架role task使用统一标题契约：Design Owner为`[Design] HUMAN_READABLE_TOPIC`，UD为`[UD] Unified Design`，Direct为`[Direct] HUMAN_READABLE_CHANGE_SET`，SL为`[SL] HUMAN_READABLE_STAGE`，FL为`[FL] HUMAN_READABLE_FEATURE`，IT为`[IT] HUMAN_READABLE_FEATURE / HUMAN_READABLE_SLICE`，RI为`[RI] HUMAN_READABLE_REVIEW_SCOPE`。普通讨论、status和项目评估不要求role前缀，也不得在没有exact role binding时自称框架角色。标题只用于Human识别；routing、ownership、authorization与recovery始终使用exact task id和binding。
+
+创建或激活cutover后的role task前，creating owner必须先验证角色资格并绑定`roleType`、`expectedTitle`、`titleRuleVersion`、exact parent与transition；创建后、`HANDOFF_ACCEPTED`或任何role-owned资源写入前，creator与child都要复读task id、role、parent和actual title。任一不匹配返回`TASK_IDENTITY_INVALID`给exact creating parent并fail closed；parent只修正同一新task标题后重验，不为修正标题重复创建task。RI还必须绑定exact candidate与direct execution parent；项目级探索或评估不是RI。
+
+本规则以canonical merge为cutover。cutover前已存在的task、locator和携带exact expected title的task-creation binding继续按frozen identity运行，不改名、不重新分类、不改owner或状态；既有task在cutover后创建没有pre-cutover exact binding的新task时必须使用新规则。不得建立title-based routing、命名迁移账本或批量改名流程。
+
 Human 无需主动触发上述内部角色。task先读取真实status，只显示当前合法动作并标记一项建议：继续讨论、恢复已有Design Owner、形成设计、Direct或常规协同。判断原因只在Human请求时展示。
 
 各角色必须执行`docs/governance/codex-execution-model.md`第2节的专业标准：Design Owner以Principal Architect级能力完成边界、契约、失败模式与演进设计；UD以Chief/Enterprise Architect级能力审查全局一致性；SL/FL分别以Technical Delivery Lead与Staff Engineer级能力优化阶段和feature；Direct/IT以Senior/Principal Engineer级能力实现正确、简洁、主流且适配当前约束的方案；RI以Principal Reviewer/SDET级能力规划不重复、风险驱动且可复现的验证。角色名称本身不构成质量证据。
