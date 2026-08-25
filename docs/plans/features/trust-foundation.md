@@ -9,7 +9,7 @@ worktreeKey: trust-foundation
 pullRequest: pending
 mergeSha: pending
 cleanup: HOLD
-state: RUNNING
+state: CANDIDATE_READY
 ```
 
 ## Objective
@@ -23,8 +23,8 @@ Stable service boundaries, data ownership, internal gRPC, event transport, and t
 ### TF-1 — Executable inventory and state truth table
 
 ```text
-state: RUNNING
-candidate: pending
+state: CANDIDATE_READY
+candidate: 06161e7b513a8f04a50df3d79c0d82c9f287a2d3
 review: self
 ```
 
@@ -36,8 +36,8 @@ review: self
 ### TF-2 — Workload registry, ports, and trust bootstrap
 
 ```text
-state: READY
-candidate: pending
+state: CANDIDATE_READY
+candidate: 06161e7b513a8f04a50df3d79c0d82c9f287a2d3
 review: self
 ```
 
@@ -49,8 +49,8 @@ review: self
 ### TF-3 — mTLS-only listener and client runtime
 
 ```text
-state: READY
-candidate: pending
+state: CANDIDATE_READY
+candidate: 06161e7b513a8f04a50df3d79c0d82c9f287a2d3
 review: local-ri
 ```
 
@@ -62,8 +62,8 @@ review: local-ri
 ### TF-4 — ExecutionToken and trusted context propagation
 
 ```text
-state: READY
-candidate: pending
+state: CANDIDATE_READY
+candidate: 06161e7b513a8f04a50df3d79c0d82c9f287a2d3
 review: local-ri
 ```
 
@@ -75,8 +75,8 @@ review: local-ri
 ### TF-5 — Foundation atomic verification driver
 
 ```text
-state: READY
-candidate: pending
+state: CANDIDATE_READY
+candidate: 06161e7b513a8f04a50df3d79c0d82c9f287a2d3
 review: self
 ```
 
@@ -88,8 +88,8 @@ review: self
 ### TF-6 — Feature Review and frozen candidate
 
 ```text
-state: READY
-candidate: pending
+state: CANDIDATE_READY
+candidate: 06161e7b513a8f04a50df3d79c0d82c9f287a2d3
 review: global-ri
 ```
 
