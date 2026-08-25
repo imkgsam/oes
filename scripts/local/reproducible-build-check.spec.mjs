@@ -3,6 +3,7 @@ import test from 'node:test'
 import {
   checkReproducibleBuild,
   parseAllowBuilds,
+  validateRootTsconfigReferences,
   validateWorkspacePackageEntries
 } from './reproducible-build-check.mjs'
 
@@ -61,6 +62,18 @@ test('workspace inventory rejects duplicate package names before matching paths'
         '/repo'
       ),
     /WORKSPACE_PACKAGE_NAME_DUPLICATE name=crm-service/
+  )
+})
+
+test('root TypeScript references reject duplicate package paths', () => {
+  assert.throws(
+    () =>
+      validateRootTsconfigReferences([
+        { path: './src/common' },
+        { path: './src/services/system/auth-service' },
+        { path: './src/services/system/auth-service' }
+      ]),
+    /ROOT_TSC_REFERENCE_DUPLICATE path=src\/services\/system\/auth-service/
   )
 })
 

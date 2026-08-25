@@ -41,6 +41,23 @@ function parseJsonc(contents) {
   return JSON.parse(contents.replace(/^\s*\/\/.*$/gm, '').replace(/,\s*([}\]])/g, '$1'))
 }
 
+/** Returns normalized root project references after rejecting malformed or duplicate entries. */
+export function validateRootTsconfigReferences(references) {
+  if (!Array.isArray(references)) throw new Error('ROOT_TSC_REFERENCES_INVALID')
+  const normalized = references.map((entry, index) => {
+    if (!entry || typeof entry.path !== 'string') {
+      throw new Error(`ROOT_TSC_REFERENCE_INVALID index=${index}`)
+    }
+    return entry.path.replace(/^\.\//, '')
+  })
+  const unique = new Set(normalized)
+  if (unique.size !== normalized.length) {
+    const duplicate = normalized.find((entry, index) => normalized.indexOf(entry) !== index)
+    throw new Error(`ROOT_TSC_REFERENCE_DUPLICATE path=${duplicate}`)
+  }
+  return unique
+}
+
 /** Parses the root allowBuilds mapping and rejects any non-boolean or placeholder value. */
 export function parseAllowBuilds(workspaceContents) {
   if (/set this to true or false/i.test(workspaceContents)) {
@@ -153,9 +170,7 @@ export function checkReproducibleBuild({
   const rootTsconfig = parseJsonc(
     fs.readFileSync(path.join(repositoryRoot, 'tsconfig.json'), 'utf8')
   )
-  const actualReferences = new Set(
-    rootTsconfig.references.map((entry) => entry.path.replace(/^\.\//, ''))
-  )
+  const actualReferences = validateRootTsconfigReferences(rootTsconfig.references)
   const expectedReferences = new Set([
     'src/common',
     ...backendPackages.map((entry) => repositoryRelative(repositoryRoot, entry.directory))
