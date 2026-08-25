@@ -990,7 +990,8 @@ function seed(context, environmentPath) {
   const port = state.postgresPort ?? postgresPort(context, environmentPath)
   const permission = context.services.find((service) => service.name === 'permission-service')
   const collaboration = context.services.find((service) => service.name === 'collaboration-service')
-  run('pnpm', ['prisma:generate:all'], { cwd: context.repositoryRoot })
+  run('pnpm', ['generated:all'], { cwd: context.repositoryRoot })
+  run('pnpm', ['common:build'], { cwd: context.repositoryRoot })
   run('pnpm', ['--filter', 'permission-service', 'seed:apply', '--', '--apply'], {
     cwd: context.repositoryRoot,
     env: { ...process.env, DATABASE_URL: postgresUrl(context, permission, port) }

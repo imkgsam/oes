@@ -122,6 +122,16 @@ test('service and Gateway images generate tracked proto outputs before Common bu
   }
 })
 
+test('clean lifecycle prepares generated contracts and Common before TypeScript seed execution', () => {
+  const contents = fs.readFileSync(path.join(repositoryRoot, 'scripts/local/database-lifecycle.mjs'), 'utf8')
+  const generated = contents.indexOf("run('pnpm', ['generated:all']")
+  const common = contents.indexOf("run('pnpm', ['common:build']")
+  const permissionSeed = contents.indexOf("['--filter', 'permission-service', 'seed:apply'")
+  assert.ok(generated >= 0)
+  assert.ok(common > generated)
+  assert.ok(permissionSeed > common)
+})
+
 test('Compose image policy covers main and infra rendered references', () => {
   assert.doesNotThrow(() =>
     assertPinnedComposeImages(
