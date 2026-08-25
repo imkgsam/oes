@@ -3,7 +3,12 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
-import { discoverL2Packages, selectL2Packages, serviceDatabaseUrl } from './l2-test-runner.mjs'
+import {
+  discoverL2Packages,
+  environmentBootstrapArgs,
+  selectL2Packages,
+  serviceDatabaseUrl
+} from './l2-test-runner.mjs'
 
 test('L2 discovery binds exact specs to the closest package and rejects no tests', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'oes-l2-matrix-'))
@@ -53,4 +58,13 @@ test('focused L2 selection preserves inventory order and rejects unknown package
     () => selectL2Packages(inventory, ['missing-service']),
     /L2_PACKAGE_UNKNOWN packages=missing-service/
   )
+})
+
+test('L2 bootstrap preserves the exact task key already loaded from the owner environment', () => {
+  assert.deepEqual(environmentBootstrapArgs('ci_123_4'), [
+    'env:bootstrap',
+    '--',
+    '--task-key=ci_123_4'
+  ])
+  assert.throws(() => environmentBootstrapArgs(''), /L2_ENV_REQUIRED key=OES_TASK_KEY/)
 })

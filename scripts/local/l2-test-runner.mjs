@@ -74,7 +74,7 @@ export function runL2Matrix(repositoryRoot = defaultRepositoryRoot(), requestedN
   let totalSuites = 0
   let totalTests = 0
   try {
-    run('pnpm', ['env:bootstrap'], { cwd: repositoryRoot })
+    run('pnpm', environmentBootstrapArgs(context.taskKey), { cwd: repositoryRoot })
     run('pnpm', ['env:check'], { cwd: repositoryRoot })
     run('pnpm', ['generated:all'], { cwd: repositoryRoot })
     run('pnpm', ['common:build'], { cwd: repositoryRoot })
@@ -176,6 +176,11 @@ export function runL2Matrix(repositoryRoot = defaultRepositoryRoot(), requestedN
     }
   }
   if (primaryFailure) throw primaryFailure
+}
+
+/** Preserves the already-loaded owner key when the L2 route idempotently rechecks its environment. */
+export function environmentBootstrapArgs(taskKey) {
+  return Object.freeze(['env:bootstrap', '--', `--task-key=${required(taskKey, 'OES_TASK_KEY')}`])
 }
 
 /** Creates owner-local workload material and binds Collaboration's real mTLS client construction to it. */

@@ -165,7 +165,7 @@ Existing FL-1 through FL-4 evidence is reused only when candidate, dependency, i
 ### Literal owner-worktree results
 
 - `pnpm test:matrix:check`: `TEST_MATRIX_CHECK=PASS packages=8`; `L2_MATRIX_CHECK=PASS packages=18 suites=59`; exit 0.
-- `pnpm test:tooling`: 38 tests passed, 0 failed/skipped/todo; exit 0, including a regression that rejects repository-root certificate serial residue.
+- `pnpm test:tooling`: 39 tests passed, 0 failed/skipped/todo; exit 0, including regressions that reject repository-root certificate serial residue and preserve the explicit owner task key across the idempotent L2 bootstrap.
 - `pnpm test:unit`: `TEST_MATRIX_UNIT=PASS packages=8 suites=435 tests=1952`; exit 0.
 - `pnpm test:design-gap`: 29 tests passed, 0 failed/skipped/todo; the named lane asserted Permission `AUTHORIZATION_SCOPE_MISMATCH`, Auth `execution token exchange lacks an authoritative Permission decision`, and producer `COLLABORATION_FOUNDATION_EXECUTION_UNAVAILABLE`; exit 0.
 - `pnpm collaboration-runtime:check`: 67 tests passed and `collaboration-runtime static checks: PASS`; exit 0.
