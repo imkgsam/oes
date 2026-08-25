@@ -55,11 +55,11 @@ review: self ACCEPT
 
 ```text
 state: CANDIDATE_READY
-candidate: 90d778a8fa2851b55a01ad8049ae46c53457befe
+candidate: 8e33c4e829ab4fa1152bc96fb9ac4a47aeff6dc3
 review: self ACCEPT
 ```
 
-- Scope: replace fixed readiness content with fail-closed, timeout-bounded dependency probes; version task-owned APISIX route/upstream verification with real health transitions.
+- Scope: replace fixed readiness content with fail-closed, timeout-bounded, exact-workload mTLS gRPC channel probes; version task-owned APISIX route/upstream verification with real health transitions.
 - Dependencies: GE-1, infrastructure-databases, trust-foundation.
 - Acceptance: healthy Gateway/upstreams return ready; unavailable, slow, malformed, or misconfigured required upstreams return non-ready; APISIX routes a real request only to a healthy Gateway and reports outage/recovery without stale success.
 
@@ -79,19 +79,19 @@ review: self ACCEPT
 
 ```text
 state: CANDIDATE_READY
-candidate: 90d778a8fa2851b55a01ad8049ae46c53457befe
+candidate: 8e33c4e829ab4fa1152bc96fb9ac4a47aeff6dc3
 review: self ACCEPT
 ```
 
 - Scope: version the task-owned publish/consume path and repair only missing transport/runtime mechanics required by the frozen contracts: transactional outbox claiming, CloudEvents publication, durable consumption, inbox idempotency, retry/backoff, DLQ, and controlled replay.
 - Dependencies: GE-1, infrastructure-databases, trust-foundation.
-- Acceptance: success, duplicate, temporary failure then recovery, permanent/exhausted failure, DLQ inspection, controlled replay, and process restart are deterministic; original event identity and trusted context are preserved; duplicate/replay effects remain one.
+- Acceptance: success, duplicate, temporary failure then recovery, trusted consumer-local retry exhaustion into DLQ and controlled replay, and parseable owner/version/aggregate mismatch into DLQ without replay are deterministic; original event identity and trusted context are preserved; duplicate/replay effects remain one.
 
 ### GE-5 — Atomic task-owned verification driver
 
 ```text
 state: CANDIDATE_READY
-candidate: 90d778a8fa2851b55a01ad8049ae46c53457befe
+candidate: 8e33c4e829ab4fa1152bc96fb9ac4a47aeff6dc3
 review: self ACCEPT
 ```
 
@@ -103,8 +103,8 @@ review: self ACCEPT
 
 ```text
 state: CANDIDATE_READY
-candidate: 90d778a8fa2851b55a01ad8049ae46c53457befe
-review: global-ri pending on exact packet-freeze HEAD
+candidate: 8e33c4e829ab4fa1152bc96fb9ac4a47aeff6dc3
+review: global-ri remediation review pending on exact packet-freeze HEAD
 ```
 
 - Scope: map every acceptance criterion to static, focused unit, component, contract/integration, and failure/recovery evidence; freeze one complete candidate and immutable review bundle.
@@ -113,10 +113,10 @@ review: global-ri pending on exact packet-freeze HEAD
 
 ## Feature acceptance
 
-1. Gateway readiness is real, timeout-bounded, and fail-closed for every configured required dependency; its response and HTTP status distinguish ready from non-ready without fixed `ok`/`pending` content.
+1. Gateway readiness is a real timeout-bounded mTLS HTTP/2 gRPC channel check with exact target SPIFFE verification for every configured dependency; its response and HTTP status distinguish ready from non-ready without fixed `ok`/`pending` content.
 2. A task-owned APISIX configuration routes through the real Gateway/upstream health chain and proves healthy, outage, and recovery transitions.
 3. Collaboration production modules resolve and initialize their runtime graph with trusted gRPC clients and event components; focused tests cover missing-provider and teardown behavior.
-4. One task-owned outbox -> JetStream -> inbox route proves publish and consume, one-effect duplicate handling, bounded retry/backoff, DLQ after permanent/exhausted failure, controlled replay, restart recovery, and preserved original event/trusted context.
+4. One task-owned outbox -> JetStream -> inbox route proves publish and consume, one-effect duplicate handling, bounded retry/backoff, valid consumer-local exhaustion into DLQ and controlled replay, untrusted parseable contract mismatch into DLQ/TERM without replay, restart recovery, and preserved original event/trusted context.
 5. Stable architecture and ownership are unchanged; all modifications stay within Gateway/APISIX, Collaboration runtime wiring, event transport mechanics, task-local scripts/tests, and this Feature Packet.
 6. Every result is bound to the exact three dependency candidates and final candidate. Self-review, independent Global RI, independent Draft PR, and required CI precede Stage Review readiness.
 
@@ -131,11 +131,12 @@ review: global-ri pending on exact packet-freeze HEAD
 
 ## Reproduced failures and formal repair
 
-- Gateway readiness returned fixed `ok` and `downstream: pending`. A validated, timeout-bounded required-target inventory now probes all 20 configured gRPC sockets, returns 200 only when all are reachable, and returns 503 for missing, malformed, timed-out, or unavailable targets.
+- Gateway readiness returned fixed `ok` and `downstream: pending`. A validated, timeout-bounded required-target inventory now establishes real HTTP/2 gRPC channels with task-owned client mTLS and exact target SPIFFE verification for all 20 configured workloads; plaintext TCP, wrong workload certificates, missing/malformed configuration, timeouts, and unavailable targets all produce 503.
 - Main Compose supplied neither an operational APISIX route nor complete event topology inputs. A digest-pinned standalone APISIX config, real Gateway health checks, exact Collaboration/Notification NATS mappings, NATS bootstrap ordering, and per-workload trust subpaths now make the path reproducible without sharing private keys across workloads.
 - Collaboration had an outbox relay but no production lifecycle worker, while JSONB persistence and relay re-encoding could not preserve owner-produced CloudEvent bytes. A service-local overlap-safe worker and one bytea migration preserve exact encoded bodies from the command transaction through JetStream publication.
 - Notification delayed-NAKed even on delivery five, so max-delivery failure never produced the consumer DLQ record required before TERM. The consumer now aligns to the frozen `max_deliver=5`, transfers validated exhausted deliveries before TERM, and NAKs when DLQ persistence fails.
 - SAFE_REDELIVERY re-encoded events before Inbox digesting, validated only replay filters when resuming, and retained its three run durables after completion. The runtime now passes original bytes to the normal handler, validates the full immutable consumer definition, and deletes exactly the three completed-run consumers.
+- The first independent Global RI rejected candidate `6dfb243fc1b529583642e7a837703914c15fd22d`: missing-id JSON could fabricate DLQ identity, replay cleanup treated an already-absent durable as failure, TCP-only Gateway readiness could accept a wrong protocol/workload, and the atomic driver omitted Gateway/APISIX. Commit `8e33c4e829ab4fa1152bc96fb9ac4a47aeff6dc3` requires all original DLQ identity fields before transfer, makes three-durable deletion convergent while propagating provider failures, verifies exact SPIFFE mTLS gRPC readiness, and runs Gateway/APISIX inside the same rollback-protected driver.
 
 ## Evidence keys
 
@@ -147,17 +148,18 @@ review: global-ri pending on exact packet-freeze HEAD
 - Common transport and all-backend build: `candidate-validation/common-events-build-test.log`, `candidate-validation/build-backend.log`
 - full event route and rollback: `candidate-validation/gateway-events-runtime-smoke-final.log`
 - static, formatting, secret, ownership, and residue checks: `candidate-validation/static.log`, `candidate-validation/format-corrected.log`, `candidate-validation/final-static-and-residue.log`
+- Global RI remediation: `remediation-round1/common-build-focused.log`, `gateway-focused-build.log`, `notification-missing-id.log`, `gateway-apisix-mtls-smoke-final.log`, `compose-static.log`, `build-backend.log`, `gateway-events-unified-final.log`, `format-secret-scan.log`, `final-static-and-residue.log`
 
 ## Literal result summary
 
 - `pnpm gateway:events:config` -> `COMPOSE_CONFIG=PASS backendServices=21 totalServices=38`; JSON reports `workloadTrustBindings=22`, `gatewayReadinessTargets=20`, `apisixRoutes=2`, `eventServicesWaitingForTopology=2`, `srmPort=50061`; exit 0.
-- Gateway focused test -> 1 suite / 5 tests; healthy, unavailable, timeout, unsafe configuration, and real local socket paths pass; exit 0.
-- APISIX smoke -> Gateway `200 -> 503 -> 200`, APISIX `200 -> 503 -> 200`, request ID present; exit 0.
+- Gateway focused test -> 1 suite / 5 tests; validated exact SPIFFE target derivation, non-`grpcs`/credential/path rejection, healthy aggregation, unavailable target, and timeout paths pass; exit 0.
+- APISIX mTLS smoke -> correct workload `200`, wrong-workload certificate `503`, plaintext listener `503`, recovered exact-workload mTLS `200`; APISIX `200 -> 503 -> 200`, request ID present; exit 0.
 - Collaboration runtime focused test -> 3 suites / 6 tests; production module credentials, exact-body relay, overlap/backoff, and awaited shutdown pass; exit 0.
-- Notification focused test -> 2 suites / 7 tests; success, owner mismatch, DLQ publish failure, malformed/no-id fail-closed, transient retry, fifth-attempt DLQ-before-TERM, and replay raw-body wiring pass; exit 0.
-- Common compiled event tests -> 2 suites / 34 tests; exact stored bytes, transport mismatch rejection, full replay consumer config, original-body delivery, and exact three-consumer deletion pass; exit 0.
+- Notification remediation test -> 1 suite / 7 tests; success, owner mismatch, DLQ publish failure, valid JSON missing-id NAK/no-TERM, transient retry, fifth-attempt DLQ-before-TERM, and replay raw-body wiring pass; exit 0.
+- Common remediation tests -> 2 suites / 12 tests; exact three-consumer deletion converges for completed and partial cleanup, while provider/auth deletion failure propagates; exact target SPIFFE client credentials pass; exit 0. The earlier broader Common event suites remain valid for unchanged paths.
 - `pnpm build:backend` -> Proto generation, 21/21 Prisma clients, and root TypeScript project build pass; exit 0. `pnpm proto:lint` also exits 0.
-- `pnpm gateway:events:smoke` -> 21 database migrations, exact outbox body digest and tenant/org/operator/trace/correlation/causation/audit preservation, broker and Inbox deduplication, transient publish recovery, validated fifth-attempt `NOTIFICATION_RETRY_EXHAUSTED` DLQ-before-TERM, separate `EVENT_OWNER_MISMATCH` DLQ-before-TERM, controlled replay `COMPLETED` with one effect and original body digest, three replay durables deleted, and `DATABASE_ROLLBACK=PASS`; exit 0.
+- `pnpm gateway:events:smoke` -> 21 database migrations, exact outbox body digest and tenant/org/operator/trace/correlation/causation/audit preservation, broker and Inbox deduplication, transient publish recovery, valid fifth-attempt `NOTIFICATION_RETRY_EXHAUSTED` DLQ-before-TERM followed by controlled replay `COMPLETED` with original body/tenant and one effect, separate untrusted `EVENT_OWNER_MISMATCH` DLQ-before-TERM with zero Inbox effect and no replay, three replay durables deleted, Gateway/APISIX mTLS failure/recovery matrix, and `DATABASE_ROLLBACK=PASS`; `UNIFIED_EXIT=0`.
 - Final residue checks -> task-owned containers, volumes, and networks all absent; tracked-diff task credential scan records zero emitted values; `git diff --check` exits 0.
 
 ## Bounded design residuals
@@ -167,9 +169,9 @@ review: global-ri pending on exact packet-freeze HEAD
 
 ## Feature Review
 
-- Result: ACCEPT for implementation ancestor `90d778a8fa2851b55a01ad8049ae46c53457befe`; exact integration HEAD is the subsequent append-only moving-main merge plus packet refresh assigned to independent Global RI.
+- Result: ACCEPT for remediation implementation ancestor `8e33c4e829ab4fa1152bc96fb9ac4a47aeff6dc3`; the subsequent packet refresh will be the exact candidate assigned back to the same independent Global RI.
 - Scope: all changes stay within Gateway readiness, APISIX/main Compose integration, Collaboration runtime/outbox, Common NATS transport mechanics, Notification delivery/replay, task-local scripts/tests, and this packet. Stable service ownership, gRPC/event choices, event owner contracts, and trusted context meanings are unchanged.
-- Reliability: real healthy/outage/recovery, duplicate, transient retry, validated retry exhaustion, parseable permanent mismatch, DLQ publication failure, raw-body replay, exact durable cleanup, and exact resource teardown all have literal evidence.
+- Reliability: exact-workload mTLS healthy/wrong-workload/plaintext/recovery, duplicate, transient retry, validated retry exhaustion, parseable permanent mismatch without replay, missing-id NAK/no-TERM, DLQ publication failure, raw-body replay, convergent durable cleanup, provider cleanup failure, and exact resource teardown all have literal evidence.
 - Evidence reuse: FL-1/2/3 ancestry and unaffected evidence remain valid. Shared Common changes triggered all-backend build; Compose changes triggered config/trust/APISIX checks; event runtime changes triggered the final full live matrix and teardown. Moving main advanced from the truth baseline to `73208754c0b8323ae06dc5b901fca8f936e57c2d` through three governance-document-only paths; it was append-merged without conflict and does not invalidate product/runtime evidence.
-- Residual disposition: malformed/no-id and Asset -> Site are explicit bounded design/stage residuals and are excluded from completion claims; neither weakens the assigned representative acceptance route. Global RI must independently confirm this disposition on the exact packet-freeze HEAD.
+- Residual disposition: structurally malformed/no-id DLQ fabrication and Asset -> Site are explicit bounded design/stage residuals and are excluded from completion claims. Missing-id currently remains NAK/no-TERM as frozen fail-closed disposition. Global RI must independently confirm this disposition on the exact packet-freeze HEAD.
 - Remote: no push or PR mutation has occurred. Independent Global RI acceptance is required before the parent may issue one exact single-use remote profile/authorization.
