@@ -19,7 +19,7 @@ Make a clean worktree self-preparing and reproducibly buildable from versioned, 
 ### environment-contract
 
 state: CANDIDATE_READY
-candidate: a77cb9a5b1fdc79b1e08d3fa81579ba1f3d9780a
+candidate: ac36734fb58a4960433462fef9dd6a587753734a
 review: global-ri exact integration candidate pending
 
 - Scope: sanitized versioned environment template; deterministic `env:bootstrap` and `env:check`; task-owned worktree defaults and validation tests.
@@ -30,7 +30,7 @@ review: global-ri exact integration candidate pending
 ### generated-clients
 
 state: CANDIDATE_READY
-candidate: a77cb9a5b1fdc79b1e08d3fa81579ba1f3d9780a
+candidate: ac36734fb58a4960433462fef9dd6a587753734a
 review: global-ri exact integration candidate pending
 
 - Scope: one versioned command that generates protobuf outputs and all 21 Prisma Clients with an audited schema count.
@@ -41,7 +41,7 @@ review: global-ri exact integration candidate pending
 ### workspace-install-policy
 
 state: CANDIDATE_READY
-candidate: a77cb9a5b1fdc79b1e08d3fa81579ba1f3d9780a
+candidate: ac36734fb58a4960433462fef9dd6a587753734a
 review: global-ri exact integration candidate pending
 
 - Scope: pnpm workspace discovery, package metadata, lockfile, and explicit trusted dependency build policy.
@@ -52,7 +52,7 @@ review: global-ri exact integration candidate pending
 ### backend-build-graph
 
 state: CANDIDATE_READY
-candidate: a77cb9a5b1fdc79b1e08d3fa81579ba1f3d9780a
+candidate: ac36734fb58a4960433462fef9dd6a587753734a
 review: global-ri exact integration candidate pending
 
 - Scope: root TypeScript references and build orchestration for common, Gateway/BFF, and all 21 backend services.
@@ -63,7 +63,7 @@ review: global-ri exact integration candidate pending
 ### site-runtime-build
 
 state: CANDIDATE_READY
-candidate: a77cb9a5b1fdc79b1e08d3fa81579ba1f3d9780a
+candidate: ac36734fb58a4960433462fef9dd6a587753734a
 review: global-ri exact integration candidate pending
 
 - Scope: Site Runtime workspace links and deterministic build order for the runtime kit, template runtime/storefront, and concrete site runtime/storefront.
@@ -74,7 +74,7 @@ review: global-ri exact integration candidate pending
 ### clean-worktree-reproduction
 
 state: CANDIDATE_READY
-candidate: a77cb9a5b1fdc79b1e08d3fa81579ba1f3d9780a
+candidate: ac36734fb58a4960433462fef9dd6a587753734a
 review: global-ri exact integration candidate pending
 
 - Scope: automated positive/negative checks and clean-worktree evidence for bootstrap, generation, install policy, backend build, and Site Runtime build.
@@ -94,7 +94,7 @@ review: global-ri exact integration candidate pending
 
 ## Evidence keys
 
-- candidate: exact integration HEAD assigned to Global RI; current implementation ancestor `a77cb9a5b1fdc79b1e08d3fa81579ba1f3d9780a`
+- candidate: exact integration HEAD assigned to Global RI; current implementation ancestor `ac36734fb58a4960433462fef9dd6a587753734a`
 - dependency fingerprint: `pnpm-lock.yaml`, Node, pnpm, TypeScript, Prisma, and Nuxt tool versions
 - literal inputs: truth/base/scope binding plus exact changed paths and clean-worktree path
 - execution profile fingerprint: pending final evidence bundle; handoff evidence root is owner-local
