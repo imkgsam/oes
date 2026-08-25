@@ -34,7 +34,7 @@ Design Owner只维护一个设计主题：刷新相关canonical truth；先在�
 
 Design Owner按Principal Architect级标准工作：以业务目标和系统约束为起点，熟练运用bounded context、领域建模、数据所有权、API/event契约、分布式一致性、权限/租户、安全、可靠性、性能、可观测性、兼容演进和迁移设计。非显然决策必须检查当前代码与truth、研究适用的主流成熟实践、比较可行方案及取舍，并显式给出边界、不变量、失败模式、容量/性能假设、演进路径和可测试性。它在展示Preview前完成反例和跨边界自审，拒绝重复真相、跨库耦合、泄漏内部模型、未经验证的假设、为未来猜测而过度抽象以及只描述happy path的低质量设计。
 
-Design Owner标题为`[Design] HUMAN_READABLE_TOPIC`。标题只供识别，exact路由使用task id和active design locator。
+post-cutover新建或首次激活的Design Owner标题为`[Design] HUMAN_READABLE_TOPIC`；cutover前既有task按2.9保持frozen title。标题只供识别，exact路由使用task id和active design locator。
 
 ### 2.3 Global Unified Design（UD）
 
@@ -51,7 +51,7 @@ UD是长期全局设计审查task，也是architecture、ADR、稳定contracts�
 - Human确认启动后创建exact delivery owner，并在两阶段handoff完成前保持activation owner；
 - 发送coverage/cleanup通知不转移workflow或Git ownership。
 
-UD不实现产品代码、不拆slices、不写Feature/Stage Packet，也不在handoff后管理delivery状态。标题固定为`[UD] Unified Design`。
+UD不实现产品代码、不拆slices、不写Feature/Stage Packet，也不在handoff后管理delivery状态。post-cutover新建的UD标题固定为`[UD] Unified Design`；cutover前exact UD及其locator按2.9保持frozen title。
 
 UD按Chief/Enterprise Architect级标准审核全局一致性，而不是格式检查或rubber stamp。它必须验证Proposal与现有architecture/ADR/contracts/governance的语义兼容，检查服务边界、唯一真相、跨服务契约、权限/租户、可靠性、性能、运维、迁移和长期演进，主动寻找局部最优造成的系统级副作用、跨章节矛盾与隐含破坏性变化。事实、仓库证据和明确工程原则优先于个人偏好；存在blocking design gap时必须返回可定位、可验证的finding。
 
@@ -83,7 +83,27 @@ RI使用clean context审查exact candidate：低风险可由FL自审，中高风
 
 RI按Principal Reviewer/SDET级标准独立证明“实现符合设计且不会降低整体code health”。它先按acceptance与风险规划一次验证路线，再按静态检查、focused unit/component、contract/integration、关键journey/E2E以及按风险触发的性能、安全、并发、可靠性和rollback测试分层执行；优先复用仍对exact candidate有效的证据，不重复运行未受影响且输入未变化的测试。RI逐项检查设计、功能、边界/错误路径、复杂度、命名、可维护性、测试有效性、竞态和跨服务影响；finding必须包含严重度、精确位置、复现输入、预期/实际和归类。candidate、依赖或测试输入未变化时禁止以“更放心”为由机械重复全量测试。
 
-### 2.9 跨角色专业基线
+### 2.9 Task 角色与标题契约
+
+普通讨论、status和项目评估不是role task，没有强制role前缀；没有exact role binding时不得仅凭prompt或标题自称框架角色。新建或在cutover后首次激活的role task使用以下唯一标题格式：
+
+| role | expected title |
+| --- | --- |
+| Design Owner | `[Design] HUMAN_READABLE_TOPIC` |
+| UD | `[UD] Unified Design` |
+| Direct Owner | `[Direct] HUMAN_READABLE_CHANGE_SET` |
+| SL | `[SL] HUMAN_READABLE_STAGE` |
+| FL | `[FL] HUMAN_READABLE_FEATURE` |
+| IT | `[IT] HUMAN_READABLE_FEATURE / HUMAN_READABLE_SLICE` |
+| RI | `[RI] HUMAN_READABLE_REVIEW_SCOPE` |
+
+标题只承载Human可读身份，不授予角色，也不参与routing、ownership、authorization或recovery；这些边界只使用exact task id、parent/owner和transition binding。role-specific资格先于标题校验：尤其RI必须有exact candidate、direct execution parent和明确return target；项目整体评估、探索或没有candidate的审计保持普通task。
+
+创建或激活post-cutover role task前，creating owner绑定`roleType`、`expectedTitle`、`titleRuleVersion`、exact task/parent（task创建前为planned task identity）和transition。task创建后、`HANDOFF_ACCEPTED`或任何role-owned repository/runtime资源mutation前，creator与child分别read-after-create，验证exact task id、role、parent和actual title。任一不匹配使用typed result `TASK_IDENTITY_INVALID`返回exact creating parent，保持原owner且禁止handoff与资源创建；parent只可修正同一新task的title并重验，不因title缺陷创建replacement task或按标题搜索其他task。
+
+本契约合入canonical truth是cutover边界。cutover前已创建的task、locator和携带exact expected title的未消费task-creation binding均保持frozen identity：不改名、不重新分类、不重写locator、不改变owner/parent/callback/state，也不使existing resources或card失效。既有task在cutover后创建没有pre-cutover exact binding的新task时使用本契约；post-cutover普通task首次激活role时在role-owned资源创建前完成title normalization。不得扫描或批量迁移旧title，也不建立task registry、title routing或命名历史账本。
+
+### 2.10 跨角色专业基线
 
 “顶级”“最佳”必须由可观察证据体现，不作为自我评价。所有专业task都必须：
 
@@ -94,7 +114,7 @@ RI按Principal Reviewer/SDET级标准独立证明“实现符合设计且不会�
 - 发现自身专业能力不足以覆盖security、privacy、concurrency、performance、accessibility等高风险领域时，要求相应qualified review，不以泛化检查代替；
 - 每次变更必须改善或至少保持整体architecture/code/test health；无法证明时不得宣称完成。
 
-### 2.10 v5 in-flight 兼容
+### 2.11 v5 in-flight 兼容
 
 本v6 truth merge是唯一cutover边界。任何在cutover前已经取得Human-confirmed card/envelope，或已经创建exact owner、task、branch/worktree、candidate、PR、activation、merge或cleanup binding的work item，均为v5 in-flight work。它的exact frozen v5 binding在该work item内优先于v6；v6不得重命名、改派、重建、重新解释或使其active card、owner、parent/callback和资源失效。
 
@@ -107,7 +127,7 @@ RI按Principal Reviewer/SDET级标准独立证明“实现符合设计且不会�
 
 v5 owner graph完成terminal/cleanup后，后续独立意图从v6 status入口开始。cutover后的新增scope或独立交付物不得嫁接到v5 binding；原owner缺失或资源失配时，只能在保护原证据和资源的前提下使用Human-confirmed Recovery。新普通讨论不创建IDT；新稳定设计只使用Design Owner。兼容规则不建立迁移账本，cutover与exact Git/task/resource binding就是判定依据。
 
-### 2.11 运行可靠性 revision in-flight 兼容
+### 2.12 运行可靠性 revision in-flight 兼容
 
 本revision truth merge前已取得Human确认或已创建exact owner/task/ref/worktree/candidate/PR/merge/cleanup binding的v6 work item，继续按其frozen binding到terminal/cleanup边界；moving-main、queue、batch cleanup和remote driver不得重新解释已发出的merge/cleanup卡。相同scope内补齐effective execution profile、auto-review或approval telemetry属于environment repair，可在原binding下自动采用；任何owner、scope、remote action或cleanup resource变化仍使用原v6失效规则或new Human card。
 
@@ -266,9 +286,9 @@ scope内已绑定的能力自动执行，不产生逐文件、逐命令、逐次
 
 ### 4.5 Two-phase handoff
 
-1. UD冻结exact truth SHA、objective、scope/protected scope、recommended shape、acceptance、resources、execution capabilities和transition id；
-2. Human确认后UD创建exact Direct/FL/SL task；
-3. 新task在任何delivery写入前验证binding、truth baseline、moving integration policy、owner、resource availability、allowed topology，并用无害smoke实际预检filesystem、shared Git metadata/remote、runtime/service、test data、network、credential references、approval reviewer和event telemetry；effective set覆盖声明集合且未产生用户approval后才返回`HANDOFF_ACCEPTED`；
+1. UD冻结exact truth SHA、objective、scope/protected scope、recommended shape、acceptance、resources、execution capabilities、`roleType`、`expectedTitle`、`titleRuleVersion`和transition id；
+2. Human确认后UD按2.9的角色资格和标题契约创建exact Direct/FL/SL task，并read-after-create验证exact task id、role、parent和actual title；
+3. 新task在任何delivery写入前独立复读task identity和title，再验证binding、truth baseline、moving integration policy、owner、resource availability、allowed topology，并用无害smoke实际预检filesystem、shared Git metadata/remote、runtime/service、test data、network、credential references、approval reviewer和event telemetry；identity不匹配返回`TASK_IDENTITY_INVALID`且不创建资源，identity匹配且effective set覆盖声明集合、未产生用户approval后才返回`HANDOFF_ACCEPTED`；
 4. UD compare-and-set `HANDOFF_PENDING -> HANDOFF_VERIFIED`并转移delivery ownership；
 5. 只有此后新owner才可写文件或创建delivery Git资源。
 
@@ -789,7 +809,7 @@ UD_EDITORIAL_REVIEW
 
 `CANONICAL_MERGED`只在Proposal的`MAIN_CI_PASSED`后幂等发送给exact Design Owner；它与UD的activation分支并行且不转移owner。`CANONICAL_EDITORIAL_MERGED`只用于editorial source closure。Routine path无环；只有显式`REVISION_REQUIRED`、`CONTINUE_DESIGN`或delivery `DESIGN_GAP`创建new revision epoch。
 
-Capability preflight是`HANDOFF_ACCEPTED`的guard而非长期状态。`EXECUTION_ENVIRONMENT_NOT_READY`保持`HANDOFF_PENDING`和原activation owner；handoff后的`EXECUTION_PROFILE_DEFECT`保持current delivery owner与已授权工作，只暂停受影响operation并自动修复profile/host；`PERMISSION_EXPANSION_REQUIRED`只暂停真实越界操作。
+Task identity与Capability preflight都是`HANDOFF_ACCEPTED`的guard而非长期状态。`TASK_IDENTITY_INVALID`保持creating parent为owner，禁止role-owned资源mutation，并只允许同一新task的title修正与readback；`EXECUTION_ENVIRONMENT_NOT_READY`保持`HANDOFF_PENDING`和原activation owner；handoff后的`EXECUTION_PROFILE_DEFECT`保持current delivery owner与已授权工作，只暂停受影响operation并自动修复profile/host；`PERMISSION_EXPANSION_REQUIRED`只暂停真实越界操作。
 
 Feature与Stage继续使用：
 
