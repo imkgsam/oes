@@ -324,7 +324,10 @@ export function resourceFingerprint(context) {
           .createHash('sha256')
           .update(fs.readFileSync(path.join(context.repositoryRoot, MAIN_COMPOSE)))
           .digest('hex'),
-        resources: EXPECTED_INFRA_RESOURCES
+        resources: {
+          infra: EXPECTED_INFRA_RESOURCES,
+          mainOnly: { volume: ['grpc_trust_runtime'] }
+        }
       })
     )
     .digest('hex')
@@ -400,6 +403,33 @@ function renderedCompose(context, environmentPath, composeFile = INFRA_COMPOSE) 
   )
 }
 
+/** Lists every exact named network/volume emitted by a rendered Compose model. */
+export function renderedNamedResources(rendered) {
+  const resources = []
+  for (const [kind, definitions] of [
+    ['network', rendered.networks ?? {}],
+    ['volume', rendered.volumes ?? {}]
+  ]) {
+    for (const [logicalName, definition] of Object.entries(definitions)) {
+      if (!definition?.name) {
+        throw new Error('RESOURCE_NAME_UNRESOLVED kind=' + kind + ' logical=' + logicalName)
+      }
+      resources.push({ kind, logicalName, name: definition.name })
+    }
+  }
+  return resources
+}
+
+/** Rejects mutable image references in any rendered Compose service. */
+export function assertPinnedComposeImages(rendered, composeFile) {
+  for (const [service, definition] of Object.entries(rendered.services ?? {})) {
+    if (!definition.image) continue
+    if (!/@sha256:[a-f0-9]{64}$/.test(definition.image)) {
+      throw new Error('COMPOSE_IMAGE_MUTABLE compose=' + composeFile + ' service=' + service)
+    }
+  }
+}
+
 function projectContainerIds(context) {
   const result = spawnSync(
     'docker',
@@ -455,6 +485,22 @@ function assertNamedResourceOwnership(context, environmentPath, { requireExistin
       assertResourceOwnershipRecord(context, kind, name, record)
       process.stdout.write(`RESOURCE_OWNER kind=${kind} resource=${name} status=PASS\n`)
     }
+  }
+}
+
+/** Checks every existing named resource in main Compose, including optional main-only volumes. */
+function assertAllMainResourceOwnership(context, environmentPath) {
+  const rendered = renderedCompose(context, environmentPath, MAIN_COMPOSE)
+  for (const { kind, name } of renderedNamedResources(rendered)) {
+    const result = spawnSync('docker', [kind, 'inspect', name], { encoding: 'utf8' })
+    if (result.error) throw result.error
+    if (result.status !== 0) {
+      if (/not found|No such/i.test(result.stderr ?? '')) continue
+      throw new Error('RESOURCE_INSPECT_FAILED kind=' + kind + ' resource=' + name + ' exit=' + result.status)
+    }
+    const [record] = JSON.parse(result.stdout)
+    assertResourceOwnershipRecord(context, kind, name, record)
+    process.stdout.write('RESOURCE_OWNER kind=' + kind + ' resource=' + name + ' status=PASS\n')
   }
 }
 
@@ -643,22 +689,135 @@ function resolveMigration(context, service, databaseUrl, migrationName) {
   )
 }
 
+/** Fingerprints one exact baseline plan so a partial resolve can resume only its own intent. */
+export function baselinePlanFingerprint(service) {
+  return crypto
+    .createHash('sha256')
+    .update(
+      JSON.stringify({
+        service: service.name,
+        database: service.database,
+        plan: service.baselinePlan
+      })
+    )
+    .digest('hex')
+}
+
+/** Rejects a stale or foreign baseline-resolution checkpoint. */
+export function assertBaselineResolutionCheckpoint(checkpoint, expected) {
+  const valid =
+    checkpoint?.version === 1 &&
+    ['EMPTY_BASELINE', 'LEGACY_ADOPTION'].includes(checkpoint.mode) &&
+    checkpoint.taskKey === expected.taskKey &&
+    checkpoint.projectName === expected.projectName &&
+    checkpoint.service === expected.service &&
+    checkpoint.database === expected.database &&
+    checkpoint.databaseOid === expected.databaseOid &&
+    checkpoint.planFingerprint === expected.planFingerprint &&
+    JSON.stringify(checkpoint.targets) === JSON.stringify(expected.targets)
+  if (!valid) {
+    throw new Error('BASELINE_RESOLUTION_CHECKPOINT_MISMATCH service=' + expected.service)
+  }
+  return checkpoint
+}
+
+function databaseOid(context, environmentPath, service) {
+  return postgresExec(
+    context,
+    environmentPath,
+    service.database,
+    'SELECT oid::text FROM pg_database WHERE datname = current_database()'
+  )
+}
+
+function expectedBaselineResolution(context, service, databaseIdentity) {
+  const plan = service.baselinePlan
+  return {
+    taskKey: context.taskKey,
+    projectName: context.projectName,
+    service: service.name,
+    database: service.database,
+    databaseOid: databaseIdentity,
+    planFingerprint: baselinePlanFingerprint(service),
+    targets: [...plan.supersededMigrations.map((entry) => entry.name), plan.baselineMigration]
+  }
+}
+
+function baselineResolutionCheckpoint(context, service) {
+  return readState(context)?.baselineResolutions?.[service.name]
+}
+
+function writeBaselineResolutionCheckpoint(context, service, expected, mode) {
+  const current = readState(context)?.baselineResolutions ?? {}
+  const checkpoint = { version: 1, mode, ...expected }
+  writeState(context, {
+    baselineResolutions: {
+      ...current,
+      [service.name]: checkpoint
+    }
+  })
+  process.stdout.write(
+    'BASELINE_RESOLUTION_CHECKPOINT service=' + service.name + ' mode=' + mode + ' status=RECORDED\n'
+  )
+  return checkpoint
+}
+
+function clearBaselineResolutionCheckpoint(context, service) {
+  const current = { ...(readState(context)?.baselineResolutions ?? {}) }
+  if (!(service.name in current)) return
+  delete current[service.name]
+  writeState(context, { baselineResolutions: current })
+  process.stdout.write('BASELINE_RESOLUTION_CHECKPOINT service=' + service.name + ' status=CLEARED\n')
+}
+
+function resolveFailureAfter() {
+  const raw = process.env.OES_DB_FAIL_RESOLVE_AFTER
+  if (raw === undefined) return undefined
+  const value = Number(raw)
+  if (!Number.isInteger(value) || value < 1) {
+    throw new Error('BASELINE_RESOLVE_FAILURE_INJECTION_INVALID')
+  }
+  return value
+}
+
 /** Applies or adopts one complete baseline while preserving every legacy migration ID and byte. */
 function prepareBaseline(context, environmentPath, service, databaseUrl) {
   const plan = service.baselinePlan
   if (!plan) return
   const superseded = plan.supersededMigrations.map((entry) => entry.name)
   const applied = appliedMigrations(context, environmentPath, service)
+  const missing = superseded.filter((name) => !applied.includes(name))
   if (applied.includes(plan.baselineMigration)) {
-    const missing = superseded.filter((name) => !applied.includes(name))
     if (missing.length > 0) {
-      throw new Error(`BASELINE_HISTORY_INCOMPLETE service=${service.name} missing=${missing.join(',')}`)
+      throw new Error('BASELINE_HISTORY_INCOMPLETE service=' + service.name + ' missing=' + missing.join(','))
     }
-    process.stdout.write(`BASELINE_PRESENT service=${service.name}\n`)
+    clearBaselineResolutionCheckpoint(context, service)
+    process.stdout.write('BASELINE_PRESENT service=' + service.name + '\n')
     return
   }
+
+  const databaseIdentity = databaseOid(context, environmentPath, service)
+  const expected = expectedBaselineResolution(context, service, databaseIdentity)
+  const existingCheckpoint = baselineResolutionCheckpoint(context, service)
+  let checkpoint
+  if (existingCheckpoint) {
+    checkpoint = assertBaselineResolutionCheckpoint(existingCheckpoint, expected)
+  }
+
+  if (applied.length > 0 && missing.length > 0 && !checkpoint) {
+    throw new Error('LEGACY_HISTORY_PARTIAL service=' + service.name + ' missing=' + missing.join(','))
+  }
+
   const tables = userTableCount(context, environmentPath, service)
-  if (tables === 0) {
+  if (checkpoint) {
+    assertSchemaMatches(context, service, databaseUrl)
+    verifyDatabaseInvariants(context, environmentPath, service)
+    process.stdout.write(
+      'BASELINE_RESOLUTION_RESUMED service=' + service.name + ' applied=' + applied.length +
+        ' remaining=' + (missing.length + 1) + '\n'
+    )
+  } else if (tables === 0) {
+    checkpoint = writeBaselineResolutionCheckpoint(context, service, expected, 'EMPTY_BASELINE')
     const baselineFile = path.join(
       service.directory,
       'prisma',
@@ -680,22 +839,31 @@ function prepareBaseline(context, environmentPath, service, databaseUrl) {
       ],
       { cwd: context.repositoryRoot, env: { ...process.env, DATABASE_URL: databaseUrl } }
     )
-    process.stdout.write(`BASELINE_APPLIED_EMPTY service=${service.name}\n`)
+    process.stdout.write('BASELINE_APPLIED_EMPTY service=' + service.name + '\n')
   } else {
-    const missing = superseded.filter((name) => !applied.includes(name))
-    if (applied.length > 0 && missing.length > 0) {
-      throw new Error(`LEGACY_HISTORY_PARTIAL service=${service.name} missing=${missing.join(',')}`)
-    }
     assertSchemaMatches(context, service, databaseUrl)
     verifyDatabaseInvariants(context, environmentPath, service)
+    checkpoint = writeBaselineResolutionCheckpoint(context, service, expected, 'LEGACY_ADOPTION')
     process.stdout.write(
-      `BASELINE_ADOPTED_LEGACY service=${service.name} recordedMigrations=${applied.length} tables=${tables}\n`
+      'BASELINE_ADOPTED_LEGACY service=' + service.name + ' recordedMigrations=' + applied.length +
+        ' tables=' + tables + '\n'
     )
   }
+
+  const failureAfter = resolveFailureAfter()
+  let resolved = 0
   for (const migrationName of superseded) {
-    if (!applied.includes(migrationName)) resolveMigration(context, service, databaseUrl, migrationName)
+    if (applied.includes(migrationName)) continue
+    resolveMigration(context, service, databaseUrl, migrationName)
+    resolved += 1
+    if (failureAfter === resolved) {
+      throw new Error(
+        'BASELINE_RESOLVE_FAILURE_INJECTED service=' + service.name + ' after=' + resolved
+      )
+    }
   }
   resolveMigration(context, service, databaseUrl, plan.baselineMigration)
+  clearBaselineResolutionCheckpoint(context, service)
 }
 
 function up(context, environmentPath) {
@@ -891,6 +1059,7 @@ function rollback(context, environmentPath) {
   assertRollbackBinding(context, state)
   assertContainerOwnership(context)
   assertNamedResourceOwnership(context, environmentPath, { requireExisting: true })
+  assertAllMainResourceOwnership(context, environmentPath)
   compose(context, environmentPath, MAIN_COMPOSE, ['down', '--volumes', '--remove-orphans', '--timeout', '30'])
   const remaining = projectContainerIds(context)
   if (remaining.length !== 0) throw new Error(`ROLLBACK_CONTAINERS_REMAIN count=${remaining.length}`)
@@ -919,6 +1088,7 @@ function config(context, environmentPath) {
   }
   if (!services.includes('api-gateway')) throw new Error('COMPOSE_GATEWAY_MISSING')
   const rendered = renderedCompose(context, environmentPath, MAIN_COMPOSE)
+  assertPinnedComposeImages(rendered, MAIN_COMPOSE)
   for (const service of context.services) {
     const definition = rendered.services[service.name]
     const expectedPath = repositoryRelative(context.repositoryRoot, service.directory)
@@ -937,6 +1107,7 @@ function config(context, environmentPath) {
     }
   }
   const infra = renderedCompose(context, environmentPath)
+  assertPinnedComposeImages(infra, INFRA_COMPOSE)
   for (const [name, definition] of Object.entries(infra.services)) {
     if (definition.labels?.['oes.local.owner'] !== context.taskKey) {
       throw new Error(`COMPOSE_OWNER_LABEL_INVALID service=${name}`)

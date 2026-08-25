@@ -25,7 +25,7 @@ x-service-environment: &service-environment
 
 services:
   grpc-trust-bootstrap:
-    image: alpine:3.21
+    image: alpine:3.21@sha256:48b0309ca019d89d40f670aa1bc06e426dc0931948452e8491e3d65087abc07d
     labels:
       oes.local.owner: ${OES_TASK_KEY:?run pnpm env:bootstrap}
       oes.local.scope: infrastructure-databases
@@ -40,7 +40,7 @@ services:
     networks: [oes_network]
 
   grpc-trust-rotator:
-    image: alpine:3.21
+    image: alpine:3.21@sha256:48b0309ca019d89d40f670aa1bc06e426dc0931948452e8491e3d65087abc07d
     labels:
       oes.local.owner: ${OES_TASK_KEY:?run pnpm env:bootstrap}
       oes.local.scope: infrastructure-databases

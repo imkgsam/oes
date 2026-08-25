@@ -5,13 +5,17 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import {
+  assertBaselineResolutionCheckpoint,
   assertDatabaseInvariantDigest,
+  assertPinnedComposeImages,
   assertResourceOwnershipRecord,
   assertRollbackBinding,
+  baselinePlanFingerprint,
   composeEnvironment,
   loadBaselineResolvePlan,
   loadDatabaseContext,
   probeHttpReadiness,
+  renderedNamedResources,
   resourceFingerprint
 } from './database-lifecycle.mjs'
 
@@ -76,6 +80,73 @@ test('named Docker resource ownership rejects foreign task and project labels', 
         Labels: { ...valid.Labels, 'com.docker.compose.project': 'foreign-project' }
       }),
     /RESOURCE_PROJECT_MISMATCH/
+  )
+})
+
+test('main resource enumeration guards the optional trust volume', () => {
+  const context = loadDatabaseContext(repositoryRoot)
+  const resources = renderedNamedResources({
+    networks: { oes_network: { name: context.projectName + '_oes_network' } },
+    volumes: {
+      postgres_data: { name: context.projectName + '_postgres_data' },
+      grpc_trust_runtime: { name: context.projectName + '_grpc_trust_runtime' }
+    }
+  })
+  const trust = resources.find((entry) => entry.logicalName === 'grpc_trust_runtime')
+  assert.deepEqual(trust, {
+    kind: 'volume',
+    logicalName: 'grpc_trust_runtime',
+    name: context.projectName + '_grpc_trust_runtime'
+  })
+  assert.throws(
+    () =>
+      assertResourceOwnershipRecord(context, trust.kind, trust.name, {
+        Labels: {
+          'oes.local.owner': 'foreign-task',
+          'com.docker.compose.project': context.projectName
+        }
+      }),
+    /RESOURCE_OWNER_MISMATCH/
+  )
+})
+
+test('Compose image policy covers main and infra rendered references', () => {
+  assert.doesNotThrow(() =>
+    assertPinnedComposeImages(
+      { services: { pinned: { image: 'alpine:3.21@sha256:' + 'a'.repeat(64) }, built: {} } },
+      'fixture.yml'
+    )
+  )
+  assert.throws(
+    () => assertPinnedComposeImages({ services: { mutable: { image: 'alpine:3.21' } } }, 'fixture.yml'),
+    /COMPOSE_IMAGE_MUTABLE/
+  )
+})
+
+test('baseline resolution checkpoint binds task, database identity, plan, and exact targets', () => {
+  const context = loadDatabaseContext(repositoryRoot)
+  const service = context.services.find((entry) => entry.name === 'crm-service')
+  const expected = {
+    taskKey: context.taskKey,
+    projectName: context.projectName,
+    service: service.name,
+    database: service.database,
+    databaseOid: '4242',
+    planFingerprint: baselinePlanFingerprint(service),
+    targets: [
+      ...service.baselinePlan.supersededMigrations.map((entry) => entry.name),
+      service.baselinePlan.baselineMigration
+    ]
+  }
+  const checkpoint = { version: 1, mode: 'EMPTY_BASELINE', ...expected }
+  assert.equal(assertBaselineResolutionCheckpoint(checkpoint, expected), checkpoint)
+  assert.throws(
+    () => assertBaselineResolutionCheckpoint({ ...checkpoint, databaseOid: '9999' }, expected),
+    /CHECKPOINT_MISMATCH/
+  )
+  assert.throws(
+    () => assertBaselineResolutionCheckpoint({ ...checkpoint, targets: checkpoint.targets.slice(1) }, expected),
+    /CHECKPOINT_MISMATCH/
   )
 })
 
