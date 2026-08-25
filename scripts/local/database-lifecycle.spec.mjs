@@ -111,6 +111,8 @@ test('main resource enumeration guards the optional trust volume', () => {
 })
 
 test('service and Gateway images generate tracked proto outputs before Common build', () => {
+  const ignored = fs.readFileSync(path.join(repositoryRoot, '.dockerignore'), 'utf8').split(/\r?\n/)
+  assert.ok(ignored.includes('docs'), 'Feature Packet updates must not change runtime image inputs')
   for (const relative of ['docker/Dockerfile.service', 'docker/Dockerfile.api-gateway']) {
     const contents = fs.readFileSync(path.join(repositoryRoot, relative), 'utf8')
     const proto = contents.indexOf('pnpm proto:gen')
