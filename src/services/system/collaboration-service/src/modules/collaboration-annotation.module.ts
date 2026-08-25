@@ -3,6 +3,7 @@ import { ClientsModule, Transport } from '@nestjs/microservices'
 import type { ClientProviderOptions } from '@nestjs/microservices/module/interfaces'
 import { AuthorizationModule } from '@oes/common/authorization'
 import { resolveCommonProtoPath } from '@oes/common/contracts'
+import { createGrpcClientCredentials } from '@oes/common/transport'
 import { ANNOTATION_AUDIT_PORT } from '../application/ports/annotation-audit.port'
 import { ANNOTATION_PERMISSION_PORT } from '../application/ports/annotation-permission.port'
 import { OBJECT_REFERENCE_PORT } from '../application/ports/object-reference.port'
@@ -54,13 +55,35 @@ export function buildCollaborationAnnotationGrpcClients(): ClientProviderOptions
   ]
 }
 
+/** Adds mandatory workload credentials and rejects an unresolved Collaboration downstream URL. */
+function createMtlsClientProvider(client: ClientProviderOptions): ClientProviderOptions {
+  if (
+    !('transport' in client) ||
+    client.transport !== Transport.GRPC ||
+    !('options' in client) ||
+    !('url' in client.options) ||
+    !client.options.url
+  ) {
+    throw new Error('COLLABORATION_FOUNDATION_EXECUTION_UNAVAILABLE')
+  }
+  return {
+    ...client,
+    options: { ...client.options, credentials: createGrpcClientCredentials() }
+  } as ClientProviderOptions
+}
+
 /** CollaborationAnnotationModule wires Annotation P1 command/query, persistence, audit, and gRPC surfaces. */
 @Module({
   imports: [
     AuthorizationModule,
     CollaborationTrustedExecutionModule,
     PrismaModule,
-    ClientsModule.register(buildCollaborationAnnotationGrpcClients())
+    ClientsModule.registerAsync(
+      buildCollaborationAnnotationGrpcClients().map((client) => ({
+        name: client.name,
+        useFactory: () => createMtlsClientProvider(client)
+      }))
+    )
   ],
   controllers: [AnnotationCommandGrpcController, AnnotationQueryGrpcController],
   providers: [

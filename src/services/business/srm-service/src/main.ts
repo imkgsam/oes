@@ -15,7 +15,7 @@ async function bootstrap(): Promise<void> {
     options: {
       package: 'srm_service',
       protoPath: [resolveCommonProtoPath('srm_service/srm.proto')],
-      url: `${process.env.GRPC_LISTEN_HOST || '0.0.0.0'}:${process.env.GRPC_LISTEN_PORT || '50060'}`,
+      url: `${process.env.GRPC_LISTEN_HOST || '0.0.0.0'}:${process.env.GRPC_LISTEN_PORT || '50061'}`,
       credentials: createGrpcServerCredentials()
     }
   })
