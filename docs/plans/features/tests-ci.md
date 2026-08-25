@@ -12,7 +12,8 @@ worktreeKey: tests-ci
 pullRequest: pending
 mergeSha: pending
 cleanup: HOLD
-state: FEATURE_REVIEW_PENDING
+reviewedCodeCandidate: e2d9f8acb9012f539b2919d23e17ca41ded48f3d
+state: GLOBAL_RI_PENDING
 ```
 
 ## Objective
@@ -38,8 +39,8 @@ Stable service boundaries, service-owned data, internal gRPC, the event bus, and
 
 ```text
 state: COMPLETE
-candidate: pending
-review: pending
+candidate: e2d9f8acb9012f539b2919d23e17ca41ded48f3d
+review: FL_ACCEPT
 ```
 
 - Scope: enumerate every package/test script/configuration and reproduce Common, Gateway, Auth, Public Entry, CRM, Item Master, Permission, Browser Activity, browser UI, L2, full-build, and CI failures from the exact dependency candidate.
@@ -49,8 +50,8 @@ review: pending
 
 ```text
 state: COMPLETE
-candidate: pending
-review: pending
+candidate: e2d9f8acb9012f539b2919d23e17ca41ded48f3d
+review: FL_ACCEPT
 ```
 
 - Scope: repair the minimum production, fixture, or test-runner defect for the assigned Common, Gateway, Auth, Public Entry, CRM, Item Master, Permission, and Browser Activity suites.
@@ -60,8 +61,8 @@ review: pending
 
 ```text
 state: COMPLETE
-candidate: pending
-review: pending
+candidate: e2d9f8acb9012f539b2919d23e17ca41ded48f3d
+review: FL_ACCEPT
 ```
 
 - Scope: unify task-derived L2 database preparation and lifecycle for every database-backed suite, including collision checks, migrations/schema preparation, bounded seed/fixture application, and exact teardown.
@@ -71,8 +72,8 @@ review: pending
 
 ```text
 state: COMPLETE
-candidate: pending
-review: pending
+candidate: e2d9f8acb9012f539b2919d23e17ca41ded48f3d
+review: FL_ACCEPT
 ```
 
 - Scope: add root/package scripts and a versioned orchestrator for static, focused/unit, L2/component, contract/integration, and risk suites.
@@ -82,8 +83,8 @@ review: pending
 
 ```text
 state: COMPLETE
-candidate: pending
-review: pending
+candidate: e2d9f8acb9012f539b2919d23e17ca41ded48f3d
+review: FL_ACCEPT
 ```
 
 - Scope: extend CI after frozen install to run env-independent generation, Common/Gateway/21-service/Site Runtime builds, layered risk tests, task-owned L2, and Proto lint/gen/breaking against the exact canonical base.
@@ -93,8 +94,8 @@ review: pending
 
 ```text
 state: ACTIVE
-candidate: pending
-review: pending
+candidate: e2d9f8acb9012f539b2919d23e17ca41ded48f3d
+review: FL_ACCEPT; GLOBAL_RI_PENDING
 ```
 
 - Scope: map each acceptance criterion to reproducible evidence, freeze one candidate, and obtain independent read-only Global RI acceptance.
@@ -175,6 +176,21 @@ Existing FL-1 through FL-4 evidence is reused only when candidate, dependency, i
 - `pnpm test:l2`: `TEST_MATRIX_L2=PASS packages=18 suites=59 tests=185`, followed by `DATABASE_ROLLBACK=PASS`; exit 0.
 - Affected final Site rerun: `node scripts/local/l2-test-runner.mjs run site-service` reported 8 suites and 43 tests passed, then `DATABASE_ROLLBACK=PASS`; exit 0.
 - Final task-owned resource readback after verification: owner-local processes 0; Docker containers 0, volumes 0, networks 0; generated/cache status additions 0. Gateway certificate serial state is written under its disposable test workspace, and the complete 1,952-test unit rerun left repository-root `.srl` residue at 0.
+
+### Feature Review
+
+The FL rejected two provisional clean-review attempts instead of reclassifying them as success. The first invoked the CRM design-gap lane before its declared Common build dependency and produced `Cannot find module '@oes/common/authorization'`; the corrected dependency order is now encoded by the CI workflow. The next exposed that an explicit pre-bootstrap task key was lost when L2 re-ran bootstrap, and a later empty-environment run exposed that `test:risk` needed environment preparation before the terminal L2 step. The formal fix is the repository-owned `env:ensure` command: it bootstraps only when `.env` is absent, otherwise runs the complete check and rejects an explicitly requested key that does not match the existing binding. L2 and `test:ci` use this command without force or file deletion.
+
+Exact clean-review route at code candidate `e2d9f8acb9012f539b2919d23e17ca41ded48f3d`:
+
+- New detached worktree, empty environment, and frozen install: `INITIAL_ENV=ABSENT`, `INITIAL_ROOT_SRL=ABSENT`; `pnpm install --frozen-lockfile` exit 0.
+- `pnpm test:matrix:check`: `TEST_MATRIX_CHECK=PASS packages=8`; `L2_MATRIX_CHECK=PASS packages=18 suites=59`; exit 0.
+- `OES_PROTO_BREAKING_BASE=73208754c0b8323ae06dc5b901fca8f936e57c2d pnpm test:ci`: `ENV_ENSURE=PASS mode=bootstrap`; `PROTO_BREAKING=PASS`; complete build inventory `22/21/23/5`; tooling 40/40; assigned unit `packages=8 suites=435 tests=1952`; Collaboration Runtime 67/67; foundation atomic group 5/5; L2 `packages=18 suites=59 tests=185`; `DATABASE_ROLLBACK=PASS`; exit 0.
+- Same-worktree `pnpm test:l2` rerun: `ENV_ENSURE=PASS mode=check`; L2 `packages=18 suites=59 tests=185`; `DATABASE_ROLLBACK=PASS`; exit 0. No ignored environment file was rewritten.
+- `pnpm test:design-gap`: 29/29 and the explicitly named expected-failure lane executed; exit 0.
+- Final readback: root `.srl` residue 0, tracked generated/cache additions 0, task containers 0, volumes 0, networks 0, dependency ancestry PASS, `git diff --check` PASS.
+
+Feature Review result: `FL_ACCEPT`. All six feature acceptance statements are mapped to exact clean-worktree evidence; stable semantics remain unchanged and the CRM route remains a named Stage `DESIGN_GAP`. The next legal action is independent read-only Global RI on the frozen candidate containing this review record.
 
 ### Design gap preserved for Stage routing
 
