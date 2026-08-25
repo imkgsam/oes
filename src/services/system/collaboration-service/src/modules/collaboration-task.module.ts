@@ -4,6 +4,7 @@ import { ClientsModule, Transport } from '@nestjs/microservices'
 import type { ClientProviderOptions } from '@nestjs/microservices/module/interfaces'
 import { AuthorizationModule, GrpcRequestContextInterceptor } from '@oes/common/authorization'
 import { resolveCommonProtoPath } from '@oes/common/contracts'
+import { createGrpcClientCredentials } from '@oes/common/transport'
 import {
   NatsJetStreamModule,
   NatsJetStreamPublisher,
@@ -81,6 +82,23 @@ export function buildCollaborationTaskGrpcClients(): ClientProviderOptions[] {
   ]
 }
 
+/** Adds mandatory workload credentials and rejects an unresolved Collaboration downstream URL. */
+function createMtlsClientProvider(client: ClientProviderOptions): ClientProviderOptions {
+  if (
+    !('transport' in client) ||
+    client.transport !== Transport.GRPC ||
+    !('options' in client) ||
+    !('url' in client.options) ||
+    !client.options.url
+  ) {
+    throw new Error('COLLABORATION_FOUNDATION_EXECUTION_UNAVAILABLE')
+  }
+  return {
+    ...client,
+    options: { ...client.options, credentials: createGrpcClientCredentials() }
+  } as ClientProviderOptions
+}
+
 /** CollaborationTaskModule wires Task commands and the owner-local relay to the shared ACL-scoped JetStream runtime. */
 @Module({
   imports: [
@@ -88,7 +106,12 @@ export function buildCollaborationTaskGrpcClients(): ClientProviderOptions[] {
     CollaborationTrustedExecutionModule,
     PrismaModule,
     NatsJetStreamModule.forRoot(NatsJetStreamRuntimeConfig.fromEnvironment(process.env)),
-    ClientsModule.register(buildCollaborationTaskGrpcClients())
+    ClientsModule.registerAsync(
+      buildCollaborationTaskGrpcClients().map((client) => ({
+        name: client.name,
+        useFactory: () => createMtlsClientProvider(client)
+      }))
+    )
   ],
   controllers: [TaskCommandGrpcController, TaskQueryGrpcController],
   providers: [
