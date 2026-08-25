@@ -13,6 +13,23 @@ test('workspace policy rejects placeholder and non-boolean allowBuilds entries',
   )
 })
 
+test('workspace policy requires the Site Runtime image native build', () => {
+  const withoutSharp = `allowBuilds:
+  '@nestjs/core': false
+  '@parcel/watcher': true
+  '@prisma/client': true
+  '@prisma/engines': true
+  '@scarf/scarf': false
+  '@swc/core': true
+  bcrypt: true
+  esbuild: true
+  grpc-tools: true
+  prisma: true
+  protobufjs: false
+`
+  assert.throws(() => parseAllowBuilds(withoutSharp), /dependency=sharp expected=true/)
+})
+
 test('repository build inventory is complete and deterministic', () => {
   let output = ''
   const result = checkReproducibleBuild({

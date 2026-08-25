@@ -23,7 +23,8 @@ const REQUIRED_ALLOW_BUILDS = Object.freeze(
     ['esbuild', true],
     ['grpc-tools', true],
     ['prisma', true],
-    ['protobufjs', false]
+    ['protobufjs', false],
+    ['sharp', true]
   ])
 )
 
