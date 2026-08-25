@@ -1,29 +1,16 @@
-# File: docker/Dockerfile.api-gateway
-
-FROM node:20-alpine AS base
-RUN npm install -g pnpm
-
-FROM base AS deps
+# The Gateway uses the same reproducible workspace image strategy as every backend service.
+FROM node:20-alpine AS builder
+RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 WORKDIR /app
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY src/common/package.json ./src/common/
-COPY src/services/system/api-gateway/package.json ./src/services/system/api-gateway/
-RUN pnpm install --frozen-lockfile
-
-FROM base AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN pnpm --filter common run build
-RUN pnpm --filter api-gateway run build
+RUN pnpm install --frozen-lockfile \
+  && pnpm prisma:generate:all \
+  && pnpm common:build \
+  && pnpm --filter api-gateway build
 
 FROM node:20-alpine AS runner
+RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 WORKDIR /app
-ENV NODE_ENV=production
-
-COPY --from=builder /app/src/services/system/api-gateway/dist ./dist
-COPY --from=builder /app/src/services/system/api-gateway/node_modules ./node_modules
-COPY --from=builder /app/src/services/system/api-gateway/keys ./keys
-
-EXPOSE 9101
-CMD ["node", "dist/main.js"]
+ENV NODE_ENV=development
+COPY --from=builder /app /app
+CMD ["node", "src/services/api-gateway/dist/main.js"]

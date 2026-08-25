@@ -20,7 +20,8 @@
     "prisma:generate": "npx prisma generate --schema=./prisma/schema.prisma",
     "prisma:push": "npx prisma db push --schema=./prisma/schema.prisma",
     "clear:build": "rimraf dist && rimraf tsconfig.tsbuildinfo",
-    "clear:nm": "rimraf node_modules"
+    "clear:nm": "rimraf node_modules",
+    "prisma:migrate:deploy": "prisma migrate deploy --schema=./prisma/schema.prisma"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
