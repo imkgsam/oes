@@ -1,9 +1,0 @@
-{
-  "reason": "INCOMPLETE_FROM_EMPTY_AUDIT",
-  "preservedFragments": [
-    {
-      "name": "202608110001_terminal_device_credential",
-      "sha256": "8aa9b960554d38d5603870bc817b4aafe9fc08da239ed93a689c238382d7192d"
-    }
-  ]
-}

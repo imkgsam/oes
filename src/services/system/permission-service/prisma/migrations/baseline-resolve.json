@@ -1,6 +1,8 @@
 {
-  "reason": "INCOMPLETE_FROM_EMPTY_AUDIT",
-  "preservedFragments": [
+  "strategy": "PRISMA_BASELINE_RESOLVE",
+  "baselineMigration": "20260825000000_baseline",
+  "baselineSha256": "83733e17405d510ab359d6a7ee3305981aef0355e540d8e5ece430c8c169b3d4",
+  "supersededMigrations": [
     {
       "name": "20260729_principal_role_binding",
       "sha256": "2a2d80e9da0e9dd4cdb664c1b08009677d76e72866501e0f9378db6fea1a58eb"

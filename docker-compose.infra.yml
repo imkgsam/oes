@@ -6,7 +6,7 @@ x-owner-labels: &owner-labels
 
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:16-alpine@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685
     labels: *owner-labels
     environment:
       POSTGRES_USER: ${OES_POSTGRES_USER:?OES_POSTGRES_USER is required}
@@ -24,7 +24,7 @@ services:
     restart: unless-stopped
 
   redis:
-    image: redis:7-alpine
+    image: redis:7-alpine@sha256:8b81dd37ff027bec4e516d41acfbe9fe2460070dc6d4a4570a2ac5b9d59df065
     labels: *owner-labels
     ports: ['127.0.0.1::6379']
     volumes: [redis_data:/data]
@@ -37,7 +37,7 @@ services:
     restart: unless-stopped
 
   nats:
-    image: nats:2.10.26-alpine
+    image: nats:2.10.26-alpine@sha256:d69eb29526c1d98afdfb2e2434763bef77b5f3c83e2e24769c13a4d104be475e
     labels: *owner-labels
     command: ['-c', '/etc/nats/nats-server.conf']
     environment:
@@ -80,7 +80,7 @@ services:
     restart: unless-stopped
 
   nats-bootstrap:
-    image: natsio/nats-box:0.14.5
+    image: natsio/nats-box:0.14.5@sha256:0784ab710aefaf6ef037ed797ee7dcde613c6ad208c4dbff1945fc7c1b5b5375
     labels: *owner-labels
     environment:
       NATS_OPERATOR_USER: ${NATS_OPERATOR_USER:?generated local NATS input is required}
@@ -96,7 +96,7 @@ services:
     restart: 'no'
 
   nats-advisory-monitor:
-    image: natsio/nats-box:0.14.5
+    image: natsio/nats-box:0.14.5@sha256:0784ab710aefaf6ef037ed797ee7dcde613c6ad208c4dbff1945fc7c1b5b5375
     labels: *owner-labels
     environment:
       NATS_OPERATOR_USER: ${NATS_OPERATOR_USER:?generated local NATS input is required}
@@ -111,7 +111,7 @@ services:
     restart: unless-stopped
 
   minio:
-    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z@sha256:a1ea29fa28355559ef137d71fc570e508a214ec84ff8083e39bc5428980b015e
     labels: *owner-labels
     command: server /data --console-address ':9001'
     environment:
@@ -129,7 +129,7 @@ services:
     restart: unless-stopped
 
   minio-init:
-    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+    image: minio/mc:RELEASE.2025-04-16T18-13-26Z@sha256:aead63c77f9db9107f1696fb08ecb0faeda23729cde94b0f663edf4fe09728e3
     labels: *owner-labels
     depends_on:
       minio:
@@ -149,7 +149,7 @@ services:
     restart: 'no'
 
   tempo:
-    image: grafana/tempo:2.8.2
+    image: grafana/tempo:2.8.2@sha256:0ef775495967cd5d7a6b2e146b6ea695d624803c8db8349fb8ce4164f719f9b7
     labels: *owner-labels
     command: ['-config.file=/etc/tempo/tempo.yaml']
     volumes: [./docker/otel/tempo.yaml:/etc/tempo/tempo.yaml:ro]
@@ -159,7 +159,7 @@ services:
     restart: unless-stopped
 
   loki:
-    image: grafana/loki:3.5.3
+    image: grafana/loki:3.5.3@sha256:3165cecce301ce5b9b6e3530284b080934a05cd5cafac3d3d82edcb887b45ecd
     labels: *owner-labels
     command: ['-config.file=/etc/loki/loki.yaml']
     volumes: [./docker/otel/loki.yaml:/etc/loki/loki.yaml:ro]
@@ -169,19 +169,19 @@ services:
     restart: unless-stopped
 
   otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.137.0
+    image: otel/opentelemetry-collector-contrib:0.137.0@sha256:886722fe0f37af9d1fe24d29529253ec59fbf263b3b1df4facaf221373e19d23
     labels: *owner-labels
     command: ['--config=/etc/otelcol-contrib/config.yaml']
     volumes:
       - ./docker/otel/collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
       - otel_logs:/var/log/oes
-    ports: ['127.0.0.1::4317', '127.0.0.1::4318']
+    ports: ['127.0.0.1::4317', '127.0.0.1::4318', '127.0.0.1::13133']
     depends_on: [tempo, loki]
     networks: [oes_network]
     restart: unless-stopped
 
   grafana:
-    image: grafana/grafana:11.6.2
+    image: grafana/grafana:11.6.2@sha256:a3464c5dadc2e16aaeb813aead8c852e81cc7bbfa851c66d96f016d5257b9848
     labels: *owner-labels
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
@@ -197,7 +197,7 @@ services:
     restart: unless-stopped
 
   mysql:
-    image: mysql:8.0
+    image: mysql:8.0@sha256:a3dff78d876222746a0bacc36dd7e4bf9e673c85fb7ee0d12ed25bd32c43c19b
     command: ['--default-authentication-plugin=mysql_native_password']
     labels: *owner-labels
     environment:
@@ -219,7 +219,7 @@ services:
     restart: unless-stopped
 
   nacos:
-    image: nacos/nacos-server:v2.5.1
+    image: nacos/nacos-server:v2.5.1@sha256:8987908cb94ed5f9d30522a64493d35732a6c05f216d667a7addb022f3d92e80
     labels: *owner-labels
     environment:
       MODE: standalone

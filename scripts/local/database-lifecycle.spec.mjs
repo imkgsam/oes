@@ -1,14 +1,18 @@
 import assert from 'node:assert/strict'
+import crypto from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import {
+  assertDatabaseInvariantDigest,
+  assertResourceOwnershipRecord,
   assertRollbackBinding,
   composeEnvironment,
+  loadBaselineResolvePlan,
   loadDatabaseContext,
-  resourceFingerprint,
-  validateLegacyFragments
+  probeHttpReadiness,
+  resourceFingerprint
 } from './database-lifecycle.mjs'
 
 const repositoryRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../..')
@@ -50,6 +54,71 @@ test('rollback rejects owner and fingerprint drift', () => {
   )
 })
 
+test('named Docker resource ownership rejects foreign task and project labels', () => {
+  const context = loadDatabaseContext(repositoryRoot)
+  const valid = {
+    Labels: {
+      'oes.local.owner': context.taskKey,
+      'com.docker.compose.project': context.projectName
+    }
+  }
+  assert.doesNotThrow(() => assertResourceOwnershipRecord(context, 'volume', 'fixture', valid))
+  assert.throws(
+    () =>
+      assertResourceOwnershipRecord(context, 'volume', 'fixture', {
+        Labels: { ...valid.Labels, 'oes.local.owner': 'foreign-task' }
+      }),
+    /RESOURCE_OWNER_MISMATCH/
+  )
+  assert.throws(
+    () =>
+      assertResourceOwnershipRecord(context, 'network', 'fixture', {
+        Labels: { ...valid.Labels, 'com.docker.compose.project': 'foreign-project' }
+      }),
+    /RESOURCE_PROJECT_MISMATCH/
+  )
+})
+
+test('HTTP readiness retries concrete failures and fails closed', () => {
+  let attempts = 0
+  const ready = probeHttpReadiness('http://127.0.0.1:1/ready', {
+    attempts: 3,
+    delayMs: 0,
+    runner: () => {
+      attempts += 1
+      return attempts === 3
+        ? { status: 0, stdout: 'ready\n', stderr: '' }
+        : { status: 22, stdout: '', stderr: 'not ready' }
+    }
+  })
+  assert.deepEqual(ready, { attempt: 3, body: 'ready' })
+  assert.throws(
+    () =>
+      probeHttpReadiness('http://127.0.0.1:1/ready', {
+        attempts: 2,
+        delayMs: 0,
+        runner: () => ({ status: 22, stdout: '', stderr: 'still starting' })
+      }),
+    /HTTP_READINESS_FAILED.*still starting/
+  )
+})
+
+test('custom database invariant digests detect definition drift', () => {
+  const definition = 'CREATE UNIQUE INDEX fixture ON public.fixture_table USING btree (id)'
+  const assertion = {
+    kind: 'index',
+    name: 'fixture',
+    sha256: crypto.createHash('sha256').update(definition).digest('hex')
+  }
+  const service = { name: 'fixture-service' }
+  assert.doesNotThrow(() => assertDatabaseInvariantDigest(service, assertion, definition))
+  assert.throws(
+    () => assertDatabaseInvariantDigest(service, assertion, `${definition} WHERE active`),
+    /DATABASE_INVARIANT_DRIFT/
+  )
+  assert.throws(() => assertDatabaseInvariantDigest(service, assertion, ''), /DATABASE_INVARIANT_MISSING/)
+})
+
 test('repository lifecycle state stays under ignored task-local storage', () => {
   const context = loadDatabaseContext(repositoryRoot)
   assert.equal(context.stateDirectory.startsWith(path.join(repositoryRoot, '.tmp')), true)
@@ -57,26 +126,33 @@ test('repository lifecycle state stays under ignored task-local storage', () => 
   fs.rmSync(probe, { recursive: true, force: true })
 })
 
-test('legacy migration fragment manifests detect byte drift', () => {
+test('baseline resolve plans preserve active migration bytes and detect drift', () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'oes-db-fragment-test-'))
   const migrations = path.join(directory, 'prisma', 'migrations')
-  fs.mkdirSync(migrations, { recursive: true })
-  fs.writeFileSync(path.join(migrations, 'legacy__old.sql'), 'SELECT 1;\n')
+  const old = path.join(migrations, '20260101000000_old', 'migration.sql')
+  const baseline = path.join(migrations, '20260825000000_baseline', 'migration.sql')
+  fs.mkdirSync(path.dirname(old), { recursive: true })
+  fs.mkdirSync(path.dirname(baseline), { recursive: true })
+  fs.writeFileSync(old, 'SELECT 1;\n')
+  fs.writeFileSync(baseline, 'SELECT 2;\n')
+  const digest = (target) => crypto.createHash('sha256').update(fs.readFileSync(target)).digest('hex')
   fs.writeFileSync(
-    path.join(migrations, 'legacy-fragments.json'),
+    path.join(migrations, 'baseline-resolve.json'),
     JSON.stringify({
-      reason: 'INCOMPLETE_FROM_EMPTY_AUDIT',
-      preservedFragments: [
+      strategy: 'PRISMA_BASELINE_RESOLVE',
+      baselineMigration: '20260825000000_baseline',
+      baselineSha256: digest(baseline),
+      supersededMigrations: [
         {
-          name: 'old',
-          sha256: 'b4e0497804e46e0a0b0b8c31975b062152d551bac49c3c2e80932567b4085dcd'
+          name: '20260101000000_old',
+          sha256: digest(old)
         }
       ]
     })
   )
   const service = { directory, name: 'fixture-service' }
-  assert.doesNotThrow(() => validateLegacyFragments(service))
-  fs.appendFileSync(path.join(migrations, 'legacy__old.sql'), '-- drift\n')
-  assert.throws(() => validateLegacyFragments(service), /DIGEST_MISMATCH/)
+  assert.equal(loadBaselineResolvePlan(service).baselineMigration, '20260825000000_baseline')
+  fs.appendFileSync(old, '-- drift\n')
+  assert.throws(() => loadBaselineResolvePlan(service), /DIGEST_MISMATCH/)
   fs.rmSync(directory, { recursive: true, force: true })
 })

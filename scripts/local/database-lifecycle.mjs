@@ -20,6 +20,26 @@ const INFRA_COMPOSE = 'docker-compose.infra.yml'
 const MAIN_COMPOSE = 'docker-compose.yml'
 const COMPLETED_SERVICES = new Set(['nats-bootstrap', 'minio-init', 'grpc-trust-bootstrap'])
 const HEALTHY_SERVICES = new Set(['postgres', 'redis', 'nats', 'minio', 'mysql'])
+const HTTP_READINESS = Object.freeze({
+  tempo: { path: '/ready', port: 3200 },
+  loki: { path: '/ready', port: 3100 },
+  'otel-collector': { path: '/', port: 13133 },
+  grafana: { path: '/api/health', port: 3000 },
+  nacos: { path: '/nacos/v1/console/health/readiness', port: 8848 }
+})
+const EXPECTED_INFRA_RESOURCES = Object.freeze({
+  network: ['oes_network'],
+  volume: [
+    'grafana_data',
+    'minio_data',
+    'nacos_logs',
+    'nacos_mysql_data',
+    'nats_jetstream_data',
+    'otel_logs',
+    'postgres_data',
+    'redis_data'
+  ]
+})
 const LONG_RUNNING_INFRA_SERVICES = Object.freeze([
   'postgres',
   'redis',
@@ -139,34 +159,68 @@ export function loadDatabaseContext(repositoryRoot = defaultRepositoryRoot()) {
   }
   const databases = new Set(services.map((service) => service.database))
   if (databases.size !== services.length) throw new Error('DATABASE_INVENTORY_DUPLICATE')
-  for (const service of services) validateLegacyFragments(service)
+  for (const service of services) service.baselinePlan = loadBaselineResolvePlan(service)
   const projectName = `oes_${taskKey}`
   const stateDirectory = path.join(repositoryRoot, '.tmp', 'oes-database-lifecycle', taskKey)
   return { projectName, repositoryRoot, rootValues, services, stateDirectory, taskKey }
 }
 
-/** Validates byte-preserving audit artifacts for histories replaced by complete baselines. */
-export function validateLegacyFragments(service) {
+/** Loads and validates an auditable Prisma baseline/resolve plan without changing active history. */
+export function loadBaselineResolvePlan(service) {
   const migrationsDirectory = path.join(service.directory, 'prisma', 'migrations')
-  const manifestPath = path.join(migrationsDirectory, 'legacy-fragments.json')
-  if (!fs.existsSync(manifestPath)) return
-  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
-  if (manifest.reason !== 'INCOMPLETE_FROM_EMPTY_AUDIT' || !Array.isArray(manifest.preservedFragments)) {
-    throw new Error(`LEGACY_FRAGMENT_MANIFEST_INVALID service=${service.name}`)
+  const manifestPath = path.join(migrationsDirectory, 'baseline-resolve.json')
+  if (!fs.existsSync(manifestPath)) return undefined
+  const plan = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+  if (
+    plan.strategy !== 'PRISMA_BASELINE_RESOLVE' ||
+    !/^[0-9A-Za-z_-]+$/.test(plan.baselineMigration) ||
+    !/^[a-f0-9]{64}$/.test(plan.baselineSha256) ||
+    !Array.isArray(plan.supersededMigrations) ||
+    plan.supersededMigrations.length === 0
+  ) {
+    throw new Error(`BASELINE_RESOLVE_PLAN_INVALID service=${service.name}`)
   }
-  for (const fragment of manifest.preservedFragments) {
-    if (!/^[0-9A-Za-z_-]+$/.test(fragment.name) || !/^[a-f0-9]{64}$/.test(fragment.sha256)) {
-      throw new Error(`LEGACY_FRAGMENT_ENTRY_INVALID service=${service.name}`)
+  const entries = [
+    ...plan.supersededMigrations,
+    { name: plan.baselineMigration, sha256: plan.baselineSha256 }
+  ]
+  if (new Set(entries.map((entry) => entry.name)).size !== entries.length) {
+    throw new Error(`BASELINE_RESOLVE_PLAN_DUPLICATE service=${service.name}`)
+  }
+  for (const entry of entries) {
+    if (!/^[0-9A-Za-z_-]+$/.test(entry.name) || !/^[a-f0-9]{64}$/.test(entry.sha256)) {
+      throw new Error(`BASELINE_RESOLVE_ENTRY_INVALID service=${service.name}`)
     }
-    const fragmentPath = path.join(migrationsDirectory, `legacy__${fragment.name}.sql`)
-    if (!fs.existsSync(fragmentPath)) {
-      throw new Error(`LEGACY_FRAGMENT_MISSING service=${service.name} fragment=${fragment.name}`)
+    const migrationPath = path.join(migrationsDirectory, entry.name, 'migration.sql')
+    if (!fs.existsSync(migrationPath)) {
+      throw new Error(`BASELINE_RESOLVE_MIGRATION_MISSING service=${service.name} migration=${entry.name}`)
     }
-    const actual = crypto.createHash('sha256').update(fs.readFileSync(fragmentPath)).digest('hex')
-    if (actual !== fragment.sha256) {
-      throw new Error(`LEGACY_FRAGMENT_DIGEST_MISMATCH service=${service.name} fragment=${fragment.name}`)
+    const actual = crypto.createHash('sha256').update(fs.readFileSync(migrationPath)).digest('hex')
+    if (actual !== entry.sha256) {
+      throw new Error(`BASELINE_RESOLVE_DIGEST_MISMATCH service=${service.name} migration=${entry.name}`)
     }
   }
+  return plan
+}
+
+/** Loads versioned pg_catalog assertions for database objects Prisma cannot model. */
+export function loadDatabaseInvariantPlan(service) {
+  const target = path.join(service.directory, 'prisma', 'migrations', 'database-invariants.json')
+  if (!fs.existsSync(target)) return undefined
+  const plan = JSON.parse(fs.readFileSync(target, 'utf8'))
+  if (plan.version !== 1 || !Array.isArray(plan.assertions) || plan.assertions.length === 0) {
+    throw new Error(`DATABASE_INVARIANT_PLAN_INVALID service=${service.name}`)
+  }
+  for (const assertion of plan.assertions) {
+    if (
+      !['constraint', 'function', 'index', 'trigger'].includes(assertion.kind) ||
+      !/^[0-9A-Za-z_]+$/.test(assertion.name) ||
+      !/^[a-f0-9]{64}$/.test(assertion.sha256)
+    ) {
+      throw new Error(`DATABASE_INVARIANT_ASSERTION_INVALID service=${service.name}`)
+    }
+  }
+  return plan
 }
 
 /** Produces the ignored Compose environment for one exact local worktree. */
@@ -265,7 +319,12 @@ export function resourceFingerprint(context) {
         infraCompose: crypto
           .createHash('sha256')
           .update(fs.readFileSync(path.join(context.repositoryRoot, INFRA_COMPOSE)))
-          .digest('hex')
+          .digest('hex'),
+        mainCompose: crypto
+          .createHash('sha256')
+          .update(fs.readFileSync(path.join(context.repositoryRoot, MAIN_COMPOSE)))
+          .digest('hex'),
+        resources: EXPECTED_INFRA_RESOURCES
       })
     )
     .digest('hex')
@@ -330,6 +389,17 @@ function compose(context, environmentPath, composeFile, args) {
   })
 }
 
+/** Renders exact Compose resource names after task/project interpolation. */
+function renderedCompose(context, environmentPath, composeFile = INFRA_COMPOSE) {
+  return JSON.parse(
+    capture(
+      'docker',
+      composeArgs(context, environmentPath, composeFile, ['config', '--format', 'json']),
+      { cwd: context.repositoryRoot }
+    )
+  )
+}
+
 function projectContainerIds(context) {
   const result = spawnSync(
     'docker',
@@ -356,11 +426,68 @@ function assertContainerOwnership(context) {
   return ids
 }
 
+/** Validates an existing Docker resource against both task owner and Compose project labels. */
+export function assertResourceOwnershipRecord(context, kind, name, record) {
+  const labels = record?.Labels ?? {}
+  if (labels['oes.local.owner'] !== context.taskKey) {
+    throw new Error(`RESOURCE_OWNER_MISMATCH kind=${kind} resource=${name}`)
+  }
+  if (labels['com.docker.compose.project'] !== context.projectName) {
+    throw new Error(`RESOURCE_PROJECT_MISMATCH kind=${kind} resource=${name}`)
+  }
+}
+
+/** Checks exact named volumes/networks before creation or destructive rollback. */
+function assertNamedResourceOwnership(context, environmentPath, { requireExisting }) {
+  const rendered = renderedCompose(context, environmentPath)
+  for (const [kind, logicalNames] of Object.entries(EXPECTED_INFRA_RESOURCES)) {
+    const definitions = kind === 'volume' ? rendered.volumes : rendered.networks
+    for (const logicalName of logicalNames) {
+      const name = definitions?.[logicalName]?.name
+      if (!name) throw new Error(`RESOURCE_NAME_UNRESOLVED kind=${kind} logical=${logicalName}`)
+      const result = spawnSync('docker', [kind, 'inspect', name], { encoding: 'utf8' })
+      if (result.error) throw result.error
+      if (result.status !== 0) {
+        if (!requireExisting && /not found|No such/i.test(result.stderr ?? '')) continue
+        throw new Error(`RESOURCE_INSPECT_FAILED kind=${kind} resource=${name} exit=${result.status}`)
+      }
+      const [record] = JSON.parse(result.stdout)
+      assertResourceOwnershipRecord(context, kind, name, record)
+      process.stdout.write(`RESOURCE_OWNER kind=${kind} resource=${name} status=PASS\n`)
+    }
+  }
+}
+
 function postgresPort(context, environmentPath) {
-  const output = compose(context, environmentPath, INFRA_COMPOSE, ['port', 'postgres', '5432'])
+  return servicePort(context, environmentPath, 'postgres', 5432)
+}
+
+function servicePort(context, environmentPath, service, targetPort) {
+  const output = compose(context, environmentPath, INFRA_COMPOSE, ['port', service, String(targetPort)])
   const match = /:(\d+)$/.exec(output.split(/\r?\n/).at(-1))
-  if (!match) throw new Error(`POSTGRES_PORT_UNRESOLVED output=${output}`)
+  if (!match) throw new Error(`SERVICE_PORT_UNRESOLVED service=${service} output=${output}`)
   return Number(match[1])
+}
+
+/** Polls a concrete HTTP readiness endpoint and fails when a running process never becomes ready. */
+export function probeHttpReadiness(url, options = {}) {
+  const attempts = options.attempts ?? 60
+  const delayMs = options.delayMs ?? 1000
+  const runner = options.runner ?? spawnSync
+  let lastError = ''
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const result = runner(
+      'curl',
+      ['--fail', '--silent', '--show-error', '--max-time', '3', url],
+      { encoding: 'utf8' }
+    )
+    if (!result.error && result.status === 0) return { attempt, body: result.stdout?.trim() ?? '' }
+    lastError = result.error?.message ?? result.stderr?.trim() ?? `exit=${result.status}`
+    if (attempt < attempts && delayMs > 0) {
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delayMs)
+    }
+  }
+  throw new Error(`HTTP_READINESS_FAILED url=${url} detail=${lastError}`)
 }
 
 function postgresUrl(context, service, port) {
@@ -390,6 +517,50 @@ function postgresExec(context, environmentPath, database, sql) {
     '-c',
     sql
   ])
+}
+
+/** Compares one normalized pg_catalog definition against its versioned digest. */
+export function assertDatabaseInvariantDigest(service, assertion, definition) {
+  if (!definition) {
+    throw new Error(
+      `DATABASE_INVARIANT_MISSING service=${service.name} kind=${assertion.kind} name=${assertion.name}`
+    )
+  }
+  const normalized = definition.replace(/\s+/g, ' ').trim()
+  const actual = crypto.createHash('sha256').update(normalized).digest('hex')
+  if (actual !== assertion.sha256) {
+    throw new Error(
+      `DATABASE_INVARIANT_DRIFT service=${service.name} kind=${assertion.kind} name=${assertion.name} expected=${assertion.sha256} actual=${actual}`
+    )
+  }
+  process.stdout.write(
+    `DATABASE_INVARIANT service=${service.name} kind=${assertion.kind} name=${assertion.name} sha256=${actual} status=PASS\n`
+  )
+}
+
+/** Verifies custom indexes, constraints, functions, and triggers through pg_catalog. */
+function verifyDatabaseInvariants(context, environmentPath, service) {
+  const plan = loadDatabaseInvariantPlan(service)
+  if (!plan) return
+  const sqlByKind = {
+    constraint: (name) =>
+      `SELECT pg_get_constraintdef(oid, true) FROM pg_constraint WHERE conname = '${name}' AND connamespace = 'public'::regnamespace ORDER BY oid LIMIT 1`,
+    function: (name) =>
+      `SELECT pg_get_functiondef(oid) FROM pg_proc WHERE proname = '${name}' AND pronamespace = 'public'::regnamespace ORDER BY oid LIMIT 1`,
+    index: (name) =>
+      `SELECT pg_get_indexdef(i.indexrelid) FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid WHERE c.relname = '${name}' AND c.relnamespace = 'public'::regnamespace ORDER BY i.indexrelid LIMIT 1`,
+    trigger: (name) =>
+      `SELECT pg_get_triggerdef(t.oid, true) FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid WHERE t.tgname = '${name}' AND c.relnamespace = 'public'::regnamespace AND NOT t.tgisinternal ORDER BY t.oid LIMIT 1`
+  }
+  for (const assertion of plan.assertions) {
+    const definition = postgresExec(
+      context,
+      environmentPath,
+      service.database,
+      sqlByKind[assertion.kind](assertion.name)
+    )
+    assertDatabaseInvariantDigest(service, assertion, definition)
+  }
 }
 
 function createDatabases(context, environmentPath) {
@@ -426,7 +597,110 @@ function migrationCount(service) {
     .length
 }
 
+function appliedMigrations(context, environmentPath, service) {
+  const exists = postgresExec(
+    context,
+    environmentPath,
+    service.database,
+    `SELECT to_regclass('public."_prisma_migrations"') IS NOT NULL`
+  )
+  if (exists !== 't') return []
+  return postgresExec(
+    context,
+    environmentPath,
+    service.database,
+    'SELECT migration_name FROM "_prisma_migrations" WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL ORDER BY migration_name'
+  )
+    .split(/\r?\n/)
+    .filter(Boolean)
+}
+
+function userTableCount(context, environmentPath, service) {
+  return Number(
+    postgresExec(
+      context,
+      environmentPath,
+      service.database,
+      `SELECT count(*) FROM pg_tables WHERE schemaname = 'public' AND tablename <> '_prisma_migrations'`
+    )
+  )
+}
+
+function resolveMigration(context, service, databaseUrl, migrationName) {
+  run(
+    'pnpm',
+    [
+      'exec',
+      'prisma',
+      'migrate',
+      'resolve',
+      '--applied',
+      migrationName,
+      '--schema',
+      repositoryRelative(context.repositoryRoot, service.schema)
+    ],
+    { cwd: context.repositoryRoot, env: { ...process.env, DATABASE_URL: databaseUrl } }
+  )
+}
+
+/** Applies or adopts one complete baseline while preserving every legacy migration ID and byte. */
+function prepareBaseline(context, environmentPath, service, databaseUrl) {
+  const plan = service.baselinePlan
+  if (!plan) return
+  const superseded = plan.supersededMigrations.map((entry) => entry.name)
+  const applied = appliedMigrations(context, environmentPath, service)
+  if (applied.includes(plan.baselineMigration)) {
+    const missing = superseded.filter((name) => !applied.includes(name))
+    if (missing.length > 0) {
+      throw new Error(`BASELINE_HISTORY_INCOMPLETE service=${service.name} missing=${missing.join(',')}`)
+    }
+    process.stdout.write(`BASELINE_PRESENT service=${service.name}\n`)
+    return
+  }
+  const tables = userTableCount(context, environmentPath, service)
+  if (tables === 0) {
+    const baselineFile = path.join(
+      service.directory,
+      'prisma',
+      'migrations',
+      plan.baselineMigration,
+      'migration.sql'
+    )
+    run(
+      'pnpm',
+      [
+        'exec',
+        'prisma',
+        'db',
+        'execute',
+        '--file',
+        repositoryRelative(context.repositoryRoot, baselineFile),
+        '--schema',
+        repositoryRelative(context.repositoryRoot, service.schema)
+      ],
+      { cwd: context.repositoryRoot, env: { ...process.env, DATABASE_URL: databaseUrl } }
+    )
+    process.stdout.write(`BASELINE_APPLIED_EMPTY service=${service.name}\n`)
+  } else {
+    const missing = superseded.filter((name) => !applied.includes(name))
+    if (applied.length > 0 && missing.length > 0) {
+      throw new Error(`LEGACY_HISTORY_PARTIAL service=${service.name} missing=${missing.join(',')}`)
+    }
+    assertSchemaMatches(context, service, databaseUrl)
+    verifyDatabaseInvariants(context, environmentPath, service)
+    process.stdout.write(
+      `BASELINE_ADOPTED_LEGACY service=${service.name} recordedMigrations=${applied.length} tables=${tables}\n`
+    )
+  }
+  for (const migrationName of superseded) {
+    if (!applied.includes(migrationName)) resolveMigration(context, service, databaseUrl, migrationName)
+  }
+  resolveMigration(context, service, databaseUrl, plan.baselineMigration)
+}
+
 function up(context, environmentPath) {
+  assertContainerOwnership(context)
+  assertNamedResourceOwnership(context, environmentPath, { requireExisting: false })
   writeState(context, { phase: 'STARTING' })
   compose(context, environmentPath, INFRA_COMPOSE, [
     'up',
@@ -445,6 +719,7 @@ function up(context, environmentPath) {
     'nats-advisory-monitor'
   ])
   assertContainerOwnership(context)
+  assertNamedResourceOwnership(context, environmentPath, { requireExisting: true })
   const port = postgresPort(context, environmentPath)
   writeState(context, { phase: 'UP', postgresPort: port })
   process.stdout.write(`INFRA_UP=PASS project=${context.projectName} postgresPort=${port}\n`)
@@ -469,6 +744,12 @@ function health(context, environmentPath) {
     }
     process.stdout.write(`HEALTH service=${service} status=${status} health=${payload.State.Health?.Status ?? 'n/a'}\n`)
   }
+  for (const [service, endpoint] of Object.entries(HTTP_READINESS)) {
+    const port = servicePort(context, environmentPath, service, endpoint.port)
+    const url = `http://127.0.0.1:${port}${endpoint.path}`
+    const result = probeHttpReadiness(url)
+    process.stdout.write(`READINESS service=${service} status=PASS attempt=${result.attempt}\n`)
+  }
   writeState(context, { phase: 'HEALTHY' })
   process.stdout.write(`INFRA_HEALTH=PASS containers=${ids.length}\n`)
 }
@@ -488,12 +769,14 @@ function migrate(context, environmentPath) {
     if (failureAfter === completed) {
       throw new Error(`MIGRATION_FAILURE_INJECTED after=${completed}`)
     }
+    const databaseUrl = postgresUrl(context, service, port)
+    prepareBaseline(context, environmentPath, service, databaseUrl)
     run(
       'pnpm',
       ['exec', 'prisma', 'migrate', 'deploy', '--schema', repositoryRelative(context.repositoryRoot, service.schema)],
       {
         cwd: context.repositoryRoot,
-        env: { ...process.env, DATABASE_URL: postgresUrl(context, service, port) }
+        env: { ...process.env, DATABASE_URL: databaseUrl }
       }
     )
     completed += 1
@@ -508,14 +791,28 @@ function migrate(context, environmentPath) {
 function seedSnapshot(context, environmentPath) {
   const permission = context.services.find((service) => service.name === 'permission-service')
   const collaboration = context.services.find((service) => service.name === 'collaboration-service')
+  const digest = (database, sql) =>
+    crypto.createHash('sha256').update(postgresExec(context, environmentPath, database, sql)).digest('hex')
   return {
     collaborationTaskCount: Number(
       postgresExec(context, environmentPath, collaboration.database, 'SELECT count(*) FROM "CollaborationTask"')
     ),
+    collaborationTaskDigest: digest(
+      collaboration.database,
+      `SELECT COALESCE(jsonb_agg(to_jsonb(t) ORDER BY t."id")::text, '[]') FROM "CollaborationTask" t WHERE t."id"::text LIKE '10000000-0000-4000-8000-%'`
+    ),
     permissionCount: Number(
       postgresExec(context, environmentPath, permission.database, 'SELECT count(*) FROM "Permission"')
     ),
-    roleCount: Number(postgresExec(context, environmentPath, permission.database, 'SELECT count(*) FROM "Role"'))
+    permissionDigest: digest(
+      permission.database,
+      `SELECT COALESCE(jsonb_agg(to_jsonb(t) - 'createdAt' - 'updatedAt' ORDER BY t."id")::text, '[]') FROM "Permission" t`
+    ),
+    roleCount: Number(postgresExec(context, environmentPath, permission.database, 'SELECT count(*) FROM "Role"')),
+    roleDigest: digest(
+      permission.database,
+      `SELECT COALESCE(jsonb_agg(to_jsonb(t) - 'createdAt' - 'updatedAt' ORDER BY t."id")::text, '[]') FROM "Role" t`
+    )
   }
 }
 
@@ -574,6 +871,7 @@ function verify(context, environmentPath) {
       throw new Error(`VERIFY_MIGRATION_COUNT service=${service.name} expected=${expected} actual=${applied}`)
     }
     assertSchemaMatches(context, service, postgresUrl(context, service, state.postgresPort))
+    verifyDatabaseInvariants(context, environmentPath, service)
     process.stdout.write(
       `VERIFY service=${service.name} database=${service.database} migrations=${applied} status=PASS\n`
     )
@@ -592,6 +890,7 @@ function rollback(context, environmentPath) {
   const state = readState(context)
   assertRollbackBinding(context, state)
   assertContainerOwnership(context)
+  assertNamedResourceOwnership(context, environmentPath, { requireExisting: true })
   compose(context, environmentPath, MAIN_COMPOSE, ['down', '--volumes', '--remove-orphans', '--timeout', '30'])
   const remaining = projectContainerIds(context)
   if (remaining.length !== 0) throw new Error(`ROLLBACK_CONTAINERS_REMAIN count=${remaining.length}`)
@@ -619,11 +918,7 @@ function config(context, environmentPath) {
     throw new Error('COMPOSE_STALE_SERVICE_PRESENT')
   }
   if (!services.includes('api-gateway')) throw new Error('COMPOSE_GATEWAY_MISSING')
-  const rendered = JSON.parse(
-    capture('docker', composeArgs(context, environmentPath, MAIN_COMPOSE, ['config', '--format', 'json']), {
-      cwd: context.repositoryRoot
-    })
-  )
+  const rendered = renderedCompose(context, environmentPath, MAIN_COMPOSE)
   for (const service of context.services) {
     const definition = rendered.services[service.name]
     const expectedPath = repositoryRelative(context.repositoryRoot, service.directory)
@@ -641,11 +936,7 @@ function config(context, environmentPath) {
       throw new Error(`COMPOSE_DATABASE_BINDING_INVALID service=${service.name}`)
     }
   }
-  const infra = JSON.parse(
-    capture('docker', composeArgs(context, environmentPath, INFRA_COMPOSE, ['config', '--format', 'json']), {
-      cwd: context.repositoryRoot
-    })
-  )
+  const infra = renderedCompose(context, environmentPath)
   for (const [name, definition] of Object.entries(infra.services)) {
     if (definition.labels?.['oes.local.owner'] !== context.taskKey) {
       throw new Error(`COMPOSE_OWNER_LABEL_INVALID service=${name}`)
