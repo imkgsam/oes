@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { checkReproducibleBuild, parseAllowBuilds } from './reproducible-build-check.mjs'
+import {
+  checkReproducibleBuild,
+  parseAllowBuilds,
+  validateWorkspacePackageEntries
+} from './reproducible-build-check.mjs'
 
 test('workspace policy rejects placeholder and non-boolean allowBuilds entries', () => {
   assert.throws(
@@ -28,6 +32,36 @@ test('workspace policy requires the Site Runtime image native build', () => {
   protobufjs: false
 `
   assert.throws(() => parseAllowBuilds(withoutSharp), /dependency=sharp expected=true/)
+})
+
+test('workspace inventory rejects a missing expected package path', () => {
+  assert.throws(
+    () =>
+      validateWorkspacePackageEntries(
+        [{ name: 'api-gateway', path: '/repo/src/services/api-gateway' }],
+        [
+          { name: 'api-gateway', directory: '/repo/src/services/api-gateway' },
+          { name: 'auth-service', directory: '/repo/src/services/system/auth-service' }
+        ],
+        '/repo'
+      ),
+    /WORKSPACE_PACKAGE_MISSING name=auth-service path=src\/services\/system\/auth-service/
+  )
+})
+
+test('workspace inventory rejects duplicate package names before matching paths', () => {
+  assert.throws(
+    () =>
+      validateWorkspacePackageEntries(
+        [
+          { name: 'crm-service', path: '/repo/src/services/business/crm-service' },
+          { name: 'crm-service', path: '/repo/src/services/system/auth-service' }
+        ],
+        [{ name: 'crm-service', directory: '/repo/src/services/business/crm-service' }],
+        '/repo'
+      ),
+    /WORKSPACE_PACKAGE_NAME_DUPLICATE name=crm-service/
+  )
 })
 
 test('repository build inventory is complete and deterministic', () => {

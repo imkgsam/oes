@@ -28,6 +28,14 @@ const REQUIRED_ALLOW_BUILDS = Object.freeze(
   ])
 )
 
+const SITE_RUNTIME_LEAF_PATHS = Object.freeze([
+  'src/site-runtime/site-runtime-kit',
+  'src/site-runtime/external-site-template/runtime',
+  'src/site-runtime/meilong-ceramics-site/runtime',
+  'src/site-runtime/external-site-template/storefront',
+  'src/site-runtime/meilong-ceramics-site/storefront'
+])
+
 /** Parses repository JSONC files that use line comments and trailing commas. */
 function parseJsonc(contents) {
   return JSON.parse(contents.replace(/^\s*\/\/.*$/gm, '').replace(/,\s*([}\]])/g, '$1'))
@@ -58,8 +66,55 @@ export function parseAllowBuilds(workspaceContents) {
   return entries
 }
 
+/** Validates that pnpm reports unique package identities and every expected name/path pair once. */
+export function validateWorkspacePackageEntries(entries, expectedPackages, repositoryRoot) {
+  if (!Array.isArray(entries)) throw new Error('WORKSPACE_DISCOVERY_OUTPUT_INVALID')
+  const normalized = entries.map((entry, index) => {
+    if (!entry || typeof entry.name !== 'string' || typeof entry.path !== 'string') {
+      throw new Error(`WORKSPACE_DISCOVERY_ENTRY_INVALID index=${index}`)
+    }
+    return { name: entry.name, path: path.resolve(entry.path) }
+  })
+  const names = new Set()
+  const paths = new Set()
+  for (const entry of normalized) {
+    if (names.has(entry.name))
+      throw new Error(`WORKSPACE_PACKAGE_NAME_DUPLICATE name=${entry.name}`)
+    if (paths.has(entry.path)) {
+      throw new Error(
+        `WORKSPACE_PACKAGE_PATH_DUPLICATE path=${repositoryRelative(repositoryRoot, entry.path)}`
+      )
+    }
+    names.add(entry.name)
+    paths.add(entry.path)
+  }
+
+  const expectedPaths = new Set()
+  for (const expected of expectedPackages) {
+    const expectedPath = path.resolve(expected.directory)
+    if (expectedPaths.has(expectedPath)) {
+      throw new Error(
+        `WORKSPACE_EXPECTED_PATH_DUPLICATE path=${repositoryRelative(repositoryRoot, expectedPath)}`
+      )
+    }
+    expectedPaths.add(expectedPath)
+    const actual = normalized.find((entry) => entry.path === expectedPath)
+    if (!actual) {
+      throw new Error(
+        `WORKSPACE_PACKAGE_MISSING name=${expected.name} path=${repositoryRelative(repositoryRoot, expectedPath)}`
+      )
+    }
+    if (actual.name !== expected.name) {
+      throw new Error(
+        `WORKSPACE_PACKAGE_IDENTITY_MISMATCH path=${repositoryRelative(repositoryRoot, expectedPath)} expected=${expected.name} actual=${actual.name}`
+      )
+    }
+  }
+  return { entries: normalized, names }
+}
+
 /** Reads pnpm's actual recursive package discovery rather than trusting glob text alone. */
-export function readWorkspacePackageNames(repositoryRoot) {
+export function readWorkspacePackageEntries(repositoryRoot) {
   const result = spawnSync('pnpm', ['-r', 'list', '--depth', '-1', '--json'], {
     cwd: repositoryRoot,
     encoding: 'utf8'
@@ -70,7 +125,11 @@ export function readWorkspacePackageNames(repositoryRoot) {
       `WORKSPACE_DISCOVERY_FAILED exit=${result.status} stderr=${result.stderr.trim()}`
     )
   }
-  return new Set(JSON.parse(result.stdout).map((entry) => entry.name))
+  try {
+    return JSON.parse(result.stdout)
+  } catch {
+    throw new Error('WORKSPACE_DISCOVERY_OUTPUT_INVALID')
+  }
 }
 
 /** Validates the complete build inventory, root references, workspace links, and root scripts. */
@@ -121,13 +180,25 @@ export function checkReproducibleBuild({
     throw new Error('STRICT_DEP_BUILDS_NOT_ENABLED')
   }
   const allowBuilds = parseAllowBuilds(workspaceContents)
-  const workspacePackages = readWorkspacePackageNames(repositoryRoot)
-  const missingSitePackages = SITE_RUNTIME_LEAF_PACKAGES.filter(
-    (name) => !workspacePackages.has(name)
+  const commonDirectory = path.join(repositoryRoot, 'src/common')
+  const commonManifest = JSON.parse(
+    fs.readFileSync(path.join(commonDirectory, 'package.json'), 'utf8')
   )
-  if (missingSitePackages.length) {
-    throw new Error(`SITE_RUNTIME_WORKSPACE_MISSING packages=${missingSitePackages.join(',')}`)
-  }
+  const sitePackages = SITE_RUNTIME_LEAF_PATHS.map((relativePath, index) => ({
+    directory: path.join(repositoryRoot, relativePath),
+    name: SITE_RUNTIME_LEAF_PACKAGES[index]
+  }))
+  const expectedWorkspacePackages = [
+    { directory: commonDirectory, name: commonManifest.name },
+    ...backendPackages.map((entry) => ({ directory: entry.directory, name: entry.name })),
+    ...sitePackages
+  ]
+  const workspace = validateWorkspacePackageEntries(
+    readWorkspacePackageEntries(repositoryRoot),
+    expectedWorkspacePackages,
+    repositoryRoot
+  )
+  const workspacePackages = workspace.names
 
   const rootPackage = JSON.parse(fs.readFileSync(path.join(repositoryRoot, 'package.json'), 'utf8'))
   const requiredScripts = [
@@ -175,7 +246,8 @@ export function checkReproducibleBuild({
   output.write(`PRISMA_SCHEMA_COUNT=${prismaPackages.length}\n`)
   output.write(`ROOT_TSC_REFERENCE_COUNT=${actualReferences.size}\n`)
   output.write(`SITE_RUNTIME_LEAF_COUNT=${SITE_RUNTIME_LEAF_PACKAGES.length}\n`)
-  output.write(`WORKSPACE_PACKAGE_COUNT=${workspacePackages.size}\n`)
+  output.write(`WORKSPACE_PACKAGE_COUNT=${workspace.entries.length}\n`)
+  output.write(`WORKSPACE_REQUIRED_PACKAGE_COUNT=${expectedWorkspacePackages.length}\n`)
   output.write(`ALLOW_BUILDS_POLICY=explicit entries=${allowBuilds.size}\n`)
   output.write('REPRODUCIBLE_BUILD_CHECK=PASS\n')
   return { allowBuilds, backendPackages, prismaPackages, workspacePackages }
