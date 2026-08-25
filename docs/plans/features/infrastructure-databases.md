@@ -28,7 +28,7 @@ Make the repository-declared local infrastructure and the 21 service-owned Postg
 
 ### INFRA-DB-1 — Inventory and failure reproduction
 state: CANDIDATE_READY
-candidate: b3357fa8318bc2d0e4c8c9a5becf9cb33f56a323
+candidate: 9aa921398e960787351d4ef07be2371fa33b2ff7
 review: self ACCEPT
 
 - Scope: Inventory main/infra Compose, Dockerfiles, 21 schemas, migration histories, package scripts, and environment mapping; reproduce stale services, missing images, shared resources, credential/readiness mismatch, and migration gaps.
@@ -37,7 +37,7 @@ review: self ACCEPT
 
 ### INFRA-DB-2 — Task-owned infrastructure Compose
 state: CANDIDATE_READY
-candidate: b3357fa8318bc2d0e4c8c9a5becf9cb33f56a323
+candidate: 9aa921398e960787351d4ef07be2371fa33b2ff7
 review: self ACCEPT
 
 - Scope: Converge main and infra Compose on task-keyed project/resources, consistent local credentials, digest-pinned images, and real HTTP readiness for Tempo, Loki, OTEL Collector, Grafana, and Nacos.
@@ -46,7 +46,7 @@ review: self ACCEPT
 
 ### INFRA-DB-3 — Complete service image topology
 state: CANDIDATE_READY
-candidate: b3357fa8318bc2d0e4c8c9a5becf9cb33f56a323
+candidate: 9aa921398e960787351d4ef07be2371fa33b2ff7
 review: self ACCEPT
 
 - Scope: Remove stale Entity/Resource entries, use the reusable digest-pinned service image strategy, and include Gateway plus all 21 services.
@@ -55,7 +55,7 @@ review: self ACCEPT
 
 ### INFRA-DB-4 — Database migration lifecycle
 state: CANDIDATE_READY
-candidate: b3357fa8318bc2d0e4c8c9a5becf9cb33f56a323
+candidate: 9aa921398e960787351d4ef07be2371fa33b2ff7
 review: self ACCEPT
 
 - Scope: Create 21 service databases/URLs, deploy all schemas, add baselines for the eight zero-migration schemas, and retain original active identifiers/bytes for nine incomplete-from-empty histories through versioned baseline/resolve manifests.
@@ -64,7 +64,7 @@ review: self ACCEPT
 
 ### INFRA-DB-5 — Deterministic seed, invariants, and rollback
 state: CANDIDATE_READY
-candidate: b3357fa8318bc2d0e4c8c9a5becf9cb33f56a323
+candidate: 9aa921398e960787351d4ef07be2371fa33b2ff7
 review: self ACCEPT
 
 - Scope: Make Collaboration fixtures time-stable and create-only, make Permission fixture IDs deterministic, hash ordered fixture content, verify custom pg_catalog objects, and enforce resource-owner rollback guards.
@@ -73,7 +73,7 @@ review: self ACCEPT
 
 ### INFRA-DB-6 — Clean-worktree lifecycle verification
 state: CANDIDATE_READY
-candidate: b3357fa8318bc2d0e4c8c9a5becf9cb33f56a323
+candidate: 9aa921398e960787351d4ef07be2371fa33b2ff7
 review: global-ri pending on exact packet-freeze HEAD
 
 - Scope: Run static/unit, failure/recovery, upgrade, seed, custom-invariant, image-build, and clean-worktree lifecycle routes.
@@ -96,7 +96,7 @@ All slices protect production/shared data, secrets, host/system privilege, remot
 - Main Compose mixed static names, a shared database URL, stale Entity/Resource entries, and missing service Dockerfiles. Infra Compose duplicated resources with conflicting credentials/readiness. The repair uses one included task-keyed infrastructure definition, exact owner/project labels, random loopback ports, and digest-pinned images.
 - Eight schemas had no migration; nine other histories referenced pre-existing tables from their first migration; four deployable histories drifted from current datamodel. The repair retains each original active migration ID/SQL byte, validates SHA-256 manifests, executes an audited complete baseline on an empty database, resolves original IDs plus baseline, adopts only schema/invariant-matching legacy databases, and rejects partial histories.
 - Candidate d9f9abda76755214438656ac5a2cebf7b74570cd was rejected because it rewrote active history, compared seed counts only, treated Nacos/observability as process-only, checked resource ownership too late, omitted custom pg_catalog drift, and used mutable image tags. The first remediation closed those six root causes.
-- Candidate a8138f53f7163daf6d97f8eecdce00387b6140bc was rejected because two runtime files were still ignored, main-only grpc_trust_runtime was not guarded, baseline resolution had no same-sequence checkpoint, and two Alpine helper refs were mutable. Implementation b3357fa8318bc2d0e4c8c9a5becf9cb33f56a323 tracks both files, enumerates all main resources, binds resumable intent to task/project/database OID/plan/targets, and pins every rendered Compose image.
+- Candidate a8138f53f7163daf6d97f8eecdce00387b6140bc was rejected because two runtime files were still ignored, main-only grpc_trust_runtime was not guarded, baseline resolution had no same-sequence checkpoint, and two Alpine helper refs were mutable. Implementation 9aa921398e960787351d4ef07be2371fa33b2ff7 tracks both files, enumerates all main resources, binds resumable intent to task/project/database OID/plan/targets, pins every rendered Compose image, and excludes Feature Packet-only documentation from the verified runtime Docker context.
 - Tracked-only verification then exposed two clean-context prerequisites hidden by the owner worktree: images lacked generated Proto contracts, and lifecycle seed lacked generated/Common outputs. Digest-pinned Buf stages plus explicit generated/Common seed preparation close both clean-worktree defects.
 - The final seed route hashes ordered Collaboration/Permission/Role content. The final verification route checks Prisma diff plus seven custom objects. Rollback checks the stored resource fingerprint and exact existing network/volume labels before any deletion.
 
@@ -116,9 +116,9 @@ All slices protect production/shared data, secrets, host/system privilege, remot
 - custom-invariant negative/restoration: remediation/invariant-negative.log, remediation/verify-restored.log
 - final fresh-database seed and rollback: remediation/final-fresh-seed-cycle.log
 - focused tests/build: remediation/candidate-focused.log
-- round2 closeout focused/negative: remediation-round3/focused-exact-b335.log, remediation-round3/resolve-sequence-recovery-owner.log, remediation-round3/foreign-trust-volume-negative.log
+- round2 closeout focused/negative: remediation-round3/focused-exact-b335.log, remediation-round3/focused-exact-9aa.log, remediation-round3/resolve-sequence-recovery-owner.log, remediation-round3/foreign-trust-volume-negative.log
 - tracked-only prepare/config: remediation-round3/tracked-only-prepare.log
-- tracked-only final images: remediation-round3/tracked-only-docker-build-exact-b335.log
+- tracked-only final images: remediation-round3/tracked-only-docker-build-exact-9aa.log
 - tracked-only full lifecycle: remediation-round3/tracked-only-full-lifecycle-final.log
 - evidence root is owner-local and contains no tracked credential value.
 
@@ -129,10 +129,10 @@ All slices protect production/shared data, secrets, host/system privilege, remot
 - Legacy route -> BASELINE_ADOPTED_LEGACY service=identity-service recordedMigrations=13 tables=8, then DATABASE_MIGRATE=PASS services=21.
 - Fresh seed route -> identical collaborationTaskDigest=1c962576..., permissionDigest=bc3a1269..., roleDigest=dc574210... before/after rebuilding the Permission database; FRESH_REPEAT_EXITS migrate=0 seed=0.
 - Invariant negative route -> DATABASE_INVARIANT_MISSING and exit 1 after dropping the task-owned Identity index; restored route verifies all seven objects.
-- Focused route -> lifecycle 8/8, reproducible-build 16/16, Permission L1 76 suites/329 tests, Permission build; all exit 0.
+- Focused route -> exact 9aa lifecycle policy 13/13, reproducible-build 16/16, Permission L1 76 suites/329 tests, Permission build; all exit 0.
 - Resolve interruption route -> checkpoint recorded before baseline, injected failure after first CRM resolve exits 1, removing the checkpoint makes the same partial history exit 1, restoring the exact checkpoint resumes and completes 21 services.
 - Trust-volume route -> a foreign exact-name grpc_trust_runtime makes rollback exit 1 and remains present; after bounded fixture teardown, rollback exits 0.
-- Tracked-only route at b3357fa8318bc2d0e4c8c9a5becf9cb33f56a323 -> install/bootstrap/env-check/config, final Permission and Gateway images, and full up/health/migrate/seed/verify/rollback all exit 0.
+- Tracked-only route at 9aa921398e960787351d4ef07be2371fa33b2ff7 -> install/bootstrap/env-check/config and final Permission/Gateway image builds exit 0. The full up/health/migrate/seed/verify/rollback cycle at its runtime-equivalent ancestor b3357fa8318bc2d0e4c8c9a5becf9cb33f56a323 exits 0; the only subsequent runtime input change is `.dockerignore`, which excludes `docs`, and its policy assertion passes in the exact-candidate focused route.
 
 ## Validation route
 
@@ -145,10 +145,10 @@ All slices protect production/shared data, secrets, host/system privilege, remot
 
 ## Feature Review
 
-- Result: ACCEPT for implementation ancestor b3357fa8318bc2d0e4c8c9a5becf9cb33f56a323; exact integration HEAD is the subsequent packet-freeze commit assigned to Global RI.
+- Result: ACCEPT for implementation ancestor 9aa921398e960787351d4ef07be2371fa33b2ff7; exact integration HEAD is the subsequent packet-freeze commit assigned to Global RI.
 - Scope: all 88 paths from dependency candidate are within Compose/Docker, database lifecycle, migrations/seeds/package entry, or this Feature Packet ownership. Trust manifest, Common gRPC transport/context, proto, stable service models, and cross-owner paths are unchanged.
 - Behavior: actual task-owned cycle proves 21 isolated databases, five real HTTP readiness endpoints, deterministic seed content, schema/custom-object equality, and exact rollback.
 - Negative paths: injected orchestration failure, partial/legacy history checks, missing custom index, and foreign resource labels fail closed; recovery/repeat paths return 0.
-- Evidence reuse: dependency build evidence remains valid for untouched packages. Candidate-affected Permission source and both final Docker contexts were rebuilt after the last implementation change.
+- Evidence reuse: dependency build evidence remains valid for untouched packages. The complete tracked-only lifecycle remains valid because the subsequent `.dockerignore` change does not alter Compose, database lifecycle, schema, seed, or image runtime inputs. Focused policy tests and both final Docker contexts were rerun at 9aa921398e960787351d4ef07be2371fa33b2ff7.
 - Review history: d9f9abda and a8138f53 are immutable rejected candidates and are excluded from publication. Round3 must review the subsequent exact packet-freeze HEAD.
 - Remote: no push or PR mutation has occurred; a new exact Global RI acceptance is required before requesting parent-issued one-time remote authority.
