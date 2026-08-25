@@ -63,7 +63,7 @@ OES 默认从普通讨论开始，不要求 Human 选择讨论角色。只有开
 - Stage Lead（SL）：一个多feature交付阶段的临时owner，按依赖和WIP容量创建FL，只在本地verification worktree组合exact FL candidates并执行Stage Review；不建立remote stage product branch、总PR或stage merge。
 - Feature Lead（FL）：一个可独立验收feature的临时owner，写一个active Feature Packet并推进slices；完整feature candidate和feature review通过后才push自己的branch并创建Draft PR，有parent SL时还须exact Stage Review通过后才能进入merge-ready。
 - Implementation Task（IT）：实现一个slice；通常是FL的subagent。
-- Review & Integration（RI）：按风险执行局部、全局或阶段复核；默认只读精确candidate。
+- Review & Integration（RI）：按风险执行Focused、Feature、Stage或显式System Review；默认只读精确candidate。单个FL的独立验收称为Feature RI，阶段组合验收称为Stage RI；System Review只用于明确绑定的全系统范围，不属于普通FL流程。
 
 框架role task使用统一标题契约：Design Owner为`[Design] HUMAN_READABLE_TOPIC`，UD为`[UD] Unified Design`，Direct为`[Direct] HUMAN_READABLE_CHANGE_SET`，SL为`[SL] HUMAN_READABLE_STAGE`，FL为`[FL] HUMAN_READABLE_FEATURE`，IT为`[IT] HUMAN_READABLE_FEATURE / HUMAN_READABLE_SLICE`，RI为`[RI] HUMAN_READABLE_REVIEW_SCOPE`。普通讨论、status和项目评估不要求role前缀，也不得在没有exact role binding时自称框架角色。标题只用于Human识别；routing、ownership、authorization与recovery始终使用exact task id和binding。
 
