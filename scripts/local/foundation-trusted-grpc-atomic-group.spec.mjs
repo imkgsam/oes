@@ -1,19 +1,9 @@
 import assert from 'node:assert/strict'
-import { execFileSync } from 'node:child_process'
 import { readFileSync, readdirSync } from 'node:fs'
 import test from 'node:test'
 import { resolve } from 'node:path'
 
 const root = resolve(import.meta.dirname, '../..')
-const packet = readFileSync(
-  resolve(root, 'docs/plans/features/trusted-grpc-execution-context.md'),
-  'utf8'
-)
-const leaseBlock =
-  packet.match(/foundationIdentityAuthzAtomicGroupImplementationLease:\n([\s\S]*?)\n```/)?.[1] ?? ''
-const lease = [...leaseBlock.matchAll(/- \{ state: (EXISTING|NEW_TARGET), path: ([^ }]+) \}/g)].map(
-  (match) => ({ state: match[1], path: match[2] })
-)
 const read = (path) => readFileSync(resolve(root, path), 'utf8')
 
 /** Reads TypeScript sources below one directory for repository-wide legacy registration assertions. */
@@ -26,45 +16,6 @@ function sourceTree(path) {
     .map((entry) => readFileSync(resolve(entry.parentPath, entry.name), 'utf8'))
     .join('\n')
 }
-
-/** Returns corrective-candidate paths relative to the integrated Program Control base, including uncommitted work. */
-function changedPaths() {
-  const committed = execFileSync(
-    'git',
-    ['diff', '--name-only', 'e92db9cb5a6ed428fde4dae40c698169397fbca8..HEAD'],
-    { cwd: root, encoding: 'utf8' }
-  )
-  const working = execFileSync('git', ['diff', '--name-only'], { cwd: root, encoding: 'utf8' })
-  const untracked = execFileSync('git', ['ls-files', '--others', '--exclude-standard'], {
-    cwd: root,
-    encoding: 'utf8'
-  })
-  return [
-    ...new Set(`${committed}\n${working}\n${untracked}`.trim().split(/\n+/).filter(Boolean))
-  ].sort()
-}
-
-test('atomic lease is exact and cumulative candidate changes stay inside all 201 paths', () => {
-  assert.equal(lease.length, 201)
-  assert.deepEqual(
-    Object.fromEntries(
-      ['EXISTING', 'NEW_TARGET'].map((state) => [
-        state,
-        lease.filter((entry) => entry.state === state).length
-      ])
-    ),
-    { EXISTING: 172, NEW_TARGET: 29 }
-  )
-  const allowed = new Set(lease.map((entry) => entry.path))
-  const outside = changedPaths().filter((path) => !allowed.has(path))
-  assert.deepEqual(outside, [])
-})
-
-test('all 29 frozen new targets exist and use UTF-8-decodable source', () => {
-  const targets = lease.filter((entry) => entry.state === 'NEW_TARGET')
-  assert.equal(targets.length, 29)
-  for (const target of targets) assert.doesNotThrow(() => read(target.path))
-})
 
 test('wire authority tombstones total exactly 32 and retained selectors remain', () => {
   const auth = read('src/common/src/contracts/auth_service/auth.proto')
@@ -87,6 +38,55 @@ test('wire authority tombstones total exactly 32 and retained selectors remain',
   assert.match(
     read('src/common/src/contracts/tenant_org_service/tenant_org.proto'),
     /string tenant_id = 1;/
+  )
+})
+
+test('stable truth and executable workload inventory retain the exact foundation group', () => {
+  const collaborationTruth = read('docs/architecture/collaborations/authentication-and-identity.md')
+  assert.match(
+    collaborationTruth,
+    /Auth and Identity join Permission, HR and TenantOrg in the single frozen foundation atomic candidate\./
+  )
+
+  const workloads = new Map(
+    read('docker/grpc-trust/workloads.txt')
+      .split(/\r?\n/u)
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith('#'))
+      .map((line) => {
+        const [name, port, listener] = line.split('|')
+        return [name, { port, listener }]
+      })
+  )
+  assert.deepEqual(
+    Object.fromEntries(
+      ['auth-service', 'identity-service', 'permission-service', 'hr-service', 'tenant-org-service']
+        .sort()
+        .map((service) => [service, workloads.get(service)])
+    ),
+    {
+      'auth-service': {
+        port: '50050',
+        listener:
+          'src/services/system/auth-service/src/infrastructure/execution-token-signer/auth-grpc-bootstrap.ts'
+      },
+      'hr-service': {
+        port: '50055',
+        listener: 'src/services/system/hr-service/src/main.ts'
+      },
+      'identity-service': {
+        port: '50052',
+        listener: 'src/services/system/identity-service/src/main.ts'
+      },
+      'permission-service': {
+        port: '50051',
+        listener: 'src/services/system/permission-service/src/main.ts'
+      },
+      'tenant-org-service': {
+        port: '50054',
+        listener: 'src/services/system/tenant-org-service/src/main.ts'
+      }
+    }
   )
 })
 

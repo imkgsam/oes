@@ -16,10 +16,14 @@ jobs:
   baseline:
     name: Baseline Checks
     runs-on: ubuntu-latest
+    env:
+      OES_CI_TASK_KEY: ci_${{ github.run_id }}_${{ github.run_attempt }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v6
@@ -41,14 +45,53 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Prepare task-owned environment
+        run: |
+          pnpm env:bootstrap -- --task-key="${OES_CI_TASK_KEY}"
+          pnpm env:check
+
+      - name: Resolve immutable proto comparison base
+        env:
+          EVENT_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
+        run: |
+          base="${EVENT_BASE_SHA}"
+          if [[ ! "${base}" =~ ^[0-9a-f]{40}$ ]] || [[ "${base}" == "0000000000000000000000000000000000000000" ]]; then
+            base="origin/main"
+          fi
+          printf 'OES_PROTO_BREAKING_BASE=%s\n' "${base}" >> "${GITHUB_ENV}"
+
       - name: Lint proto contracts
         run: pnpm proto:lint
 
       - name: Generate proto TypeScript
         run: pnpm proto:gen
 
-      - name: Build common package
-        run: pnpm common:build
+      - name: Check proto compatibility
+        run: pnpm proto:breaking
 
-      - name: Verify collaboration runtime
-        run: pnpm collaboration-runtime:check
+      - name: Build Common, Gateway, 21 services, and Site Runtime
+        run: pnpm build
+
+      - name: Check non-empty test inventory
+        run: pnpm test:matrix:check
+
+      - name: Verify declared design-gap fail-closed lane
+        run: pnpm test:design-gap
+
+      - name: Run high-risk unit and contract tests
+        run: pnpm test:risk
+
+      - name: Run isolated task-owned L2 tests
+        run: pnpm test:l2
+
+      - name: Verify task-owned runtime cleanup
+        if: always()
+        run: |
+          state=".tmp/oes-database-lifecycle/${OES_CI_TASK_KEY}/state.json"
+          if [[ -f "${state}" ]]; then
+            pnpm db:rollback
+          fi
+          test -z "$(docker ps -aq --filter "label=oes.local.owner=${OES_CI_TASK_KEY}")"
+          test -z "$(docker volume ls -q --filter "label=oes.local.owner=${OES_CI_TASK_KEY}")"
+          test -z "$(docker network ls -q --filter "label=oes.local.owner=${OES_CI_TASK_KEY}")"
+          printf 'CI_TASK_RESIDUE=0 owner=%s\n' "${OES_CI_TASK_KEY}"

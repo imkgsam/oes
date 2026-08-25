@@ -4,9 +4,15 @@ import { readFileSync, readdirSync } from 'node:fs'
 const base = new URL('..', import.meta.url)
 const repo = new URL('../../..', import.meta.url)
 const workflow = readFileSync(new URL('.github/workflows/ci.yml', repo), 'utf8')
+const packageJson = JSON.parse(readFileSync(new URL('package.json', repo), 'utf8'))
 assert.match(workflow, /merge_group:/)
 assert.match(workflow, /name: Baseline Checks/)
-assert.match(workflow, /pnpm collaboration-runtime:check/)
+assert.match(workflow, /^\s*run: pnpm test:risk$/m)
+assert.match(packageJson.scripts['test:risk'], /pnpm collaboration-runtime:check/)
+assert.match(
+  packageJson.scripts['test:risk'],
+  /node --test scripts\/local\/foundation-trusted-grpc-atomic-group\.spec\.mjs/
+)
 const entry = readFileSync(new URL('bin/oes-remote-driver', base), 'utf8')
 assert.match(entry, /^#!\/bin\/sh\nset -eu\n/)
 assert.match(entry, /exec node --experimental-strip-types/)

@@ -1,4 +1,4 @@
-const { Metadata } = require('@grpc/grpc-js')
+import { Metadata } from '@grpc/grpc-js'
 const { TrustedInternalExecutionGuard } = require('./trusted-internal-execution.guard')
 
 describe('TrustedInternalExecutionGuard', () => {

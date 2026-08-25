@@ -6,6 +6,8 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
+    "test": "pnpm run test:typecheck && jest --config jest.config.js --runInBand",
+    "test:typecheck": "tsc -p tsconfig.spec.json --noEmit",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "build": "tsc -b",
@@ -67,22 +69,5 @@
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.20.0",
     "wait-on": "^8.0.5"
-  },
-  "jest": {
-    "moduleFileExtensions": [
-      "js",
-      "json",
-      "ts"
-    ],
-    "rootDir": "src",
-    "testRegex": ".*\\.spec\\.ts$",
-    "transform": {
-      "^.+\\.(t|j)s$": "ts-jest"
-    },
-    "collectCoverageFrom": [
-      "**/*.(t|j)s"
-    ],
-    "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
   }
 }

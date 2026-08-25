@@ -1,6 +1,14 @@
 import { TrustedDeviceService } from './trusted-device.service'
 
 describe('TrustedDeviceService', () => {
+  beforeEach(() => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-04-21T00:00:00.000Z'))
+  })
+
+  afterEach(() => {
+    jest.useRealTimers()
+  })
+
   it('treats browser devices with the same user, tenant, and deviceId as trusted once recorded', async () => {
     const repository = {
       findByUserScopeDevice: jest.fn().mockResolvedValue({

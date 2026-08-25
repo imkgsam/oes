@@ -38,7 +38,15 @@ test('generated Compose inputs keep secrets local and map every service to postg
     assert.equal(url.port, '5432')
     assert.equal(decodeURIComponent(url.pathname.slice(1)), service.database)
   }
-  assert.match(values.get('NATS_NOTIFICATION_PASSWORD'), /^[a-f0-9]{32}$/)
+  for (const key of [
+    'NATS_COLLABORATION_PASSWORD',
+    'NATS_NOTIFICATION_PASSWORD',
+    'NATS_NOTIFICATION_REPLAY_PASSWORD',
+    'NATS_NOTIFICATION_RECOVERY_PASSWORD',
+    'NATS_OPERATOR_PASSWORD'
+  ]) {
+    assert.match(values.get(key), /^n[a-f0-9]{31}$/)
+  }
   assert.match(values.get('NATS_NOTIFICATION_REPLAY_ASSIGNED_CREATE_SUBJECT'), /^'\$JS\.API\..*'$/)
 })
 

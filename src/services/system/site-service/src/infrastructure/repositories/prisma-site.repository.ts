@@ -1713,10 +1713,16 @@ export class PrismaSiteRepository {
     previousSlug: string | null
   } | null> {
     const client = this.prisma.getExecutionClient()
-    const ownedParent = await client.siteContentEntry.findFirst({
-      where: { siteId: input.siteId, contentId: input.contentId },
-      select: { contentId: true, contentType: true }
-    })
+    /** Serializes slug reservation and locale CAS for one stable Content identity. */
+    const ownedParents = await client.$queryRaw<Array<{ contentId: string; contentType: string }>>(
+      Prisma.sql`
+        SELECT "contentId", "contentType"
+        FROM "SiteContentEntry"
+        WHERE "siteId" = ${input.siteId} AND "contentId" = ${input.contentId}
+        FOR UPDATE
+      `
+    )
+    const ownedParent = ownedParents[0]
     if (!ownedParent) {
       return null
     }
@@ -1851,7 +1857,13 @@ export class PrismaSiteRepository {
   }) {
     const client = this.prisma.getExecutionClient()
     const category = await client.siteContentCategory.create({
-      data: input,
+      data: {
+        categoryId: input.categoryId,
+        siteId: input.siteId,
+        tenantId: input.tenantId,
+        sortOrder: input.sortOrder,
+        syncStatus: input.syncStatus
+      },
       include: { versions: true }
     })
     return mapContentCategory(category)

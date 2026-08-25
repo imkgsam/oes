@@ -17,6 +17,12 @@ function parseEnvValue(raw: string): string {
 
 // ensureIntegrationDatabaseUrl loads the service-local DATABASE_URL for L2 persistence tests.
 export function ensureIntegrationDatabaseUrl(): string {
+  const taskOwnedUrl = process.env.OES_L2_DATABASE_URL?.trim()
+  if (taskOwnedUrl) {
+    process.env.DATABASE_URL = taskOwnedUrl
+    return taskOwnedUrl
+  }
+
   const envPath = resolve(__dirname, '../../.env')
   if (!existsSync(envPath)) {
     throw new Error(`DATABASE_URL is not set and .env was not found at ${envPath}`)

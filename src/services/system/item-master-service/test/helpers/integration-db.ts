@@ -15,6 +15,9 @@ function parseEnvValue(raw: string): string {
 
 /** ensureIntegrationDatabaseUrl loads the local item-master DATABASE_URL so L2 tests use the service database. */
 export function ensureIntegrationDatabaseUrl(): string {
+  if (process.env.DATABASE_URL?.trim()) {
+    return process.env.DATABASE_URL
+  }
   const envPath = resolve(__dirname, '../../.env')
   if (!existsSync(envPath)) {
     throw new Error(`DATABASE_URL is not set and .env was not found at ${envPath}`)

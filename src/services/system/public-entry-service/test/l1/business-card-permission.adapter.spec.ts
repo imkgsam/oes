@@ -1,4 +1,6 @@
+import { Metadata } from '@grpc/grpc-js'
 import { of, throwError } from 'rxjs'
+import { PublicEntryFoundationTrustedGrpcExecutionProducer } from '../../src/infrastructure/adapters/foundation-trusted-grpc.clients'
 import { PermissionBusinessCardAuthorizationAdapter } from '../../src/infrastructure/adapters/permission-business-card-authorization.adapter'
 
 const operatorContext = {
@@ -6,6 +8,8 @@ const operatorContext = {
   operatorOrgId: 'org_001',
   traceId: 'trace_001'
 }
+
+let trustedMetadata: Metadata
 
 // buildAdapter creates a permission adapter with a fake generated gRPC client.
 function buildAdapter(allowed: boolean | Error) {
@@ -19,6 +23,17 @@ function buildAdapter(allowed: boolean | Error) {
 }
 
 describe('PermissionBusinessCardAuthorizationAdapter', () => {
+  beforeEach(() => {
+    trustedMetadata = new Metadata()
+    jest
+      .spyOn(PublicEntryFoundationTrustedGrpcExecutionProducer.prototype, 'forInternalCall')
+      .mockResolvedValue(trustedMetadata)
+  })
+
+  afterEach(() => {
+    jest.restoreAllMocks()
+  })
+
   it('delegates checkPermission to permission-service RBAC and fails closed on deny', async () => {
     const { adapter, permissionClient } = buildAdapter(false)
 
@@ -30,11 +45,14 @@ describe('PermissionBusinessCardAuthorizationAdapter', () => {
       })
     ).resolves.toBe(false)
 
-    expect(permissionClient.checkPermission).toHaveBeenCalledWith({
-      tenantId: 'tenant_001',
-      accountId: 'acc_admin',
-      permissionCode: 'public-entry.business-card.manage'
-    })
+    expect(permissionClient.checkPermission).toHaveBeenCalledWith(
+      {
+        tenantId: 'tenant_001',
+        accountId: 'acc_admin',
+        permissionCode: 'public-entry.business-card.manage'
+      },
+      trustedMetadata
+    )
   })
 
   it('uses RBAC permission checks for resource checks and never falls back to historical context RPC', async () => {
@@ -54,11 +72,14 @@ describe('PermissionBusinessCardAuthorizationAdapter', () => {
       })
     ).resolves.toBe(true)
 
-    expect(permissionClient.checkPermission).toHaveBeenCalledWith({
-      tenantId: 'tenant_001',
-      accountId: 'acc_admin',
-      permissionCode: 'public-entry.business-card.enable'
-    })
+    expect(permissionClient.checkPermission).toHaveBeenCalledWith(
+      {
+        tenantId: 'tenant_001',
+        accountId: 'acc_admin',
+        permissionCode: 'public-entry.business-card.enable'
+      },
+      trustedMetadata
+    )
   })
 
   it('allows tenant-wide resource access after RBAC allow but denies cross-tenant resource facts', async () => {

@@ -6,8 +6,10 @@ import {
   TrustedExecutionRegistry,
   TrustedGrpcMetadataProvider,
   createTrustedExecutionContext,
+  getPermissionCodeDefinition,
   getRpcAuthorizationModeDeclaration,
-  inboundExecutionTokenCredentialScope
+  inboundExecutionTokenCredentialScope,
+  permissionDefinitionFingerprint
 } from '@oes/common/authorization'
 import { Metadata } from '@grpc/grpc-js'
 import { Reflector } from '@nestjs/core'
@@ -359,10 +361,17 @@ describe('Item Master trusted gRPC security matrix L3', () => {
         policyVersion: 'policy-v1'
       })
     }
+    const definition = getPermissionCodeDefinition(internalCodes.resolveManufacturableItem)!
     const permissionRepository = {
-      findByCodes: jest
-        .fn()
-        .mockResolvedValue([{ code: internalCodes.resolveManufacturableItem, kind: 'INTERNAL' }])
+      findByCodes: jest.fn().mockResolvedValue([
+        {
+          code: internalCodes.resolveManufacturableItem,
+          kind: definition.kind,
+          externalApiEligible: definition.externalApiEligible === true,
+          allowedScopeLevels: [...definition.allowedScopeLevels],
+          definitionFingerprint: permissionDefinitionFingerprint(definition)
+        }
+      ])
     }
     const permissionAudit = { emitIssuanceDecision: jest.fn() }
     const permissionHandler = new ResolveWorkloadIssuanceHandler(

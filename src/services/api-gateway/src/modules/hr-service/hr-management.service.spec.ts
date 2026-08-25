@@ -629,12 +629,12 @@ describe('HrManagementService', () => {
     ).resolves.toEqual({ employee: updatedEmployee })
 
     expect(assetAdapter.uploadEmployeeOfficialPhoto).toHaveBeenCalledWith(
-      expect.objectContaining({
-        tenantId: 'tenant-1',
+      {
         employeeId: 'employee-1',
-        operatorId: 'admin-account-1',
-        contentType: 'image/png'
-      }),
+        contentType: 'image/png',
+        file: file.buffer,
+        fileName: 'official.png'
+      },
       source
     )
     expect(hrMutationAdapter.updateEmployeeOfficialPhoto).toHaveBeenCalledWith(
@@ -647,11 +647,11 @@ describe('HrManagementService', () => {
       source
     )
     expect(assetAdapter.bindEmployeeOfficialPhoto).toHaveBeenCalledWith(
-      expect.objectContaining({
-        tenantId: 'tenant-1',
+      {
         employeeId: 'employee-1',
-        newAssetId: 'asset-1'
-      }),
+        newAssetId: 'asset-1',
+        previousAssetId: 'asset-old'
+      },
       source
     )
     expect(hrQueryAdapter.getEmployeeById.mock.invocationCallOrder[0]).toBeLessThan(

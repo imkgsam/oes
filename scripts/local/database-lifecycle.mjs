@@ -123,6 +123,11 @@ function fixture(taskKey, purpose, length = 32) {
   return crypto.createHash('sha256').update(`oes-local:${taskKey}:${purpose}`).digest('hex').slice(0, length)
 }
 
+/** Creates a deterministic NATS password that is also a valid bare config string scalar. */
+function natsPassword(taskKey, purpose) {
+  return `n${fixture(taskKey, purpose, 31)}`
+}
+
 /** Quotes one dotenv value so Compose does not interpolate NATS `$JS` subjects. */
 function quoteEnvironment(value) {
   if (value.startsWith("'$JS.") && value.endsWith("'")) {
@@ -232,15 +237,15 @@ export function composeEnvironment(context) {
     ['OES_POSTGRES_USER', rootValues.get('OES_POSTGRES_USER')],
     ['OES_POSTGRES_PASSWORD', rootValues.get('OES_POSTGRES_PASSWORD')],
     ['NATS_COLLABORATION_USER', `collaboration_${taskKey}`],
-    ['NATS_COLLABORATION_PASSWORD', fixture(taskKey, 'nats-collaboration')],
+    ['NATS_COLLABORATION_PASSWORD', natsPassword(taskKey, 'nats-collaboration')],
     ['NATS_NOTIFICATION_USER', `notification_${taskKey}`],
-    ['NATS_NOTIFICATION_PASSWORD', fixture(taskKey, 'nats-notification')],
+    ['NATS_NOTIFICATION_PASSWORD', natsPassword(taskKey, 'nats-notification')],
     ['NATS_NOTIFICATION_REPLAY_USER', `notification_replay_${taskKey}`],
-    ['NATS_NOTIFICATION_REPLAY_PASSWORD', fixture(taskKey, 'nats-replay')],
+    ['NATS_NOTIFICATION_REPLAY_PASSWORD', natsPassword(taskKey, 'nats-replay')],
     ['NATS_NOTIFICATION_RECOVERY_USER', `notification_recovery_${taskKey}`],
-    ['NATS_NOTIFICATION_RECOVERY_PASSWORD', fixture(taskKey, 'nats-recovery')],
+    ['NATS_NOTIFICATION_RECOVERY_PASSWORD', natsPassword(taskKey, 'nats-recovery')],
     ['NATS_OPERATOR_USER', `operator_${taskKey}`],
-    ['NATS_OPERATOR_PASSWORD', fixture(taskKey, 'nats-operator')],
+    ['NATS_OPERATOR_PASSWORD', natsPassword(taskKey, 'nats-operator')],
     ['MINIO_ROOT_USER', `minio_${taskKey}`],
     ['MINIO_ROOT_PASSWORD', fixture(taskKey, 'minio', 40)],
     ['MINIO_BUCKET', `oes-${taskKey.replaceAll('_', '-')}-assets`],

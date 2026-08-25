@@ -367,7 +367,9 @@ describe('browser activity application', () => {
   })
 
   it('returns overview, employee timeline, domain aggregation, and URL search from stored visit facts', async () => {
-    const service = createInMemoryBrowserActivityApplication()
+    const service = new BrowserActivityApplication({
+      now: () => Date.parse('2026-06-25T12:00:00.000Z')
+    })
     await enableEmployeeGrant(service)
     await service.appendVisitSessions({
       operator: {

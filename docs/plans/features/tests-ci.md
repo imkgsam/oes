@@ -12,7 +12,7 @@ worktreeKey: tests-ci
 pullRequest: pending
 mergeSha: pending
 cleanup: HOLD
-state: ACTIVE
+state: FEATURE_REVIEW_PENDING
 ```
 
 ## Objective
@@ -37,7 +37,7 @@ Stable service boundaries, service-owned data, internal gRPC, the event bus, and
 ### TC-1 — Risk route and baseline red inventory
 
 ```text
-state: ACTIVE
+state: COMPLETE
 candidate: pending
 review: pending
 ```
@@ -48,7 +48,7 @@ review: pending
 ### TC-2 — Assigned red-suite formal repairs
 
 ```text
-state: BLOCKED_ON_TC_1
+state: COMPLETE
 candidate: pending
 review: pending
 ```
@@ -59,7 +59,7 @@ review: pending
 ### TC-3 — Task-owned L2 isolation
 
 ```text
-state: BLOCKED_ON_TC_1
+state: COMPLETE
 candidate: pending
 review: pending
 ```
@@ -70,7 +70,7 @@ review: pending
 ### TC-4 — Unified layered test commands
 
 ```text
-state: BLOCKED_ON_TC_2_TC_3
+state: COMPLETE
 candidate: pending
 review: pending
 ```
@@ -81,7 +81,7 @@ review: pending
 ### TC-5 — Complete CI build and risk gates
 
 ```text
-state: BLOCKED_ON_TC_4
+state: COMPLETE
 candidate: pending
 review: pending
 ```
@@ -92,7 +92,7 @@ review: pending
 ### TC-6 — Feature Review and frozen candidate
 
 ```text
-state: BLOCKED_ON_TC_5
+state: ACTIVE
 candidate: pending
 review: pending
 ```
@@ -134,6 +134,51 @@ Existing FL-1 through FL-4 evidence is reused only when candidate, dependency, i
 
 - Capability smoke: frozen install; Git switch/add/commit and rollback; environment bootstrap/check for 21 databases; generated Common build; collaboration runtime 67/67; task-owned PostgreSQL write/read; owner-local HTTP/localhost; approved origin network; evidence reopen; zero normal permission prompts.
 - Capability smoke key: `capability-smoke/` under the bound owner-local evidence root.
+
+### Baseline red inventory and disposition
+
+| Surface | Trigger and classification | Root cause | Formal disposition |
+| --- | --- | --- | --- |
+| Common | Real Common Jest/TypeScript surface; fixture | direct guard/interceptor fixtures lagged the frozen trusted-context constructor | construct the exact verified workload/token inputs; keep denial assertions intact |
+| Gateway | Real Gateway unit/integration surface; product + fixture | avatar/profile adapter results and Auth/Party request fixtures lagged current contracts | map the declared result fields, bind the Party adapter error boundary, and use current HTTP/gRPC fixtures |
+| Auth | Real Auth unit surface; fixture | Jest discovery/type roots and Redis mock names conflicted with Jest hoisting; several constructors lagged current dependencies | version explicit Jest/TypeScript configs and current constructor fixtures; use hoist-safe mock names |
+| Public Entry | Real Public Entry L1 surface; fixture | adapter doubles omitted the current trusted upstream methods and request context | complete the narrow adapter doubles and assert the real rejection/result mapping |
+| CRM | Real trusted-gRPC L3 surface; `DESIGN_GAP` | frozen Collaboration OBO scope does not satisfy Permission admission and Auth exchange authority | keep one named expected-failure lane that actually executes and asserts the three fail-closed errors; no skip or relaxed assertion |
+| Item Master | Real trusted-gRPC security surface; fixture | signing/registry fixtures used stale workload and context fields | construct certificate-bound current fixtures and retain forged/missing-context rejection assertions |
+| Permission | Real Permission L3 surface; fixture | request-context constructor and Jest roots lagged trusted admission | bind verified context and version exact discovery config |
+| Browser Activity | Real L1/L2 surfaces; fixture/environment | stale context fields and implicit service environment | use current context and task-owned service database binding |
+| L2 matrix | All repository `test/l2/**/*.spec.ts`; environment | helpers fell back to package `.env` and the repository had no owner-bound lifecycle orchestrator | honor `OES_L2_DATABASE_URL`; discover 18 non-empty package surfaces; create/migrate/run/rollback one task-owned 21-database stack in `finally` |
+| Site L2 | Slug/category concurrent writes; product + fixture | locale CAS did not serialize against the stable parent identity; Category persistence leaked obsolete input fields | lock the owned Content parent before reservation/CAS and project only current Category persistence fields |
+| Notification/SRM/Collaboration L2 | Live module boundaries; fixture | direct guard injections lacked declared String audience providers; SRM audit used unverified context | export/bind the stable audience token and run SRM through `GrpcRequestContextStore` with verified HUMAN context |
+| CI | Required workflow; infrastructure | partial build/test coverage, mutable install assumptions, and no immutable proto-breaking comparison | frozen install, task environment, Proto lint/gen/breaking, complete build, non-empty inventory, design-gap, risk, isolated L2, and unconditional residue check |
+
+### Implemented layered commands
+
+- `pnpm test:matrix:check`: discovers exactly 8 assigned unit surfaces and all 18 L2 package surfaces; rejects missing configs, empty selection, failed, skipped, or todo results.
+- `pnpm test:tooling`: validates environment, reproducible build inventory, database lifecycle, matrix selection/result gates, and immutable Proto comparison.
+- `pnpm test:unit`: runs the exact Common, Gateway, Auth, Public Entry, CRM, Item Master, Permission, and Browser Activity surfaces.
+- `pnpm test:design-gap`: executes the named CRM stable-conflict lane and all neighboring trusted-gRPC assertions.
+- `pnpm test:l2`: prepares Proto and 21 Prisma Clients, starts owner-labelled infrastructure, migrates 21 task databases, runs all discovered L2 tests on explicit database/NATS/trust inputs, and rolls back in `finally`.
+- `pnpm test:risk`: runs tooling, assigned unit/contract tests, Collaboration Runtime checks, and the stable foundation atomic-group regression.
+- `pnpm test:ci`: composes Proto lint/gen/breaking, the complete backend/Site Runtime build, risk tests, and isolated L2.
+
+### Literal owner-worktree results
+
+- `pnpm test:matrix:check`: `TEST_MATRIX_CHECK=PASS packages=8`; `L2_MATRIX_CHECK=PASS packages=18 suites=59`; exit 0.
+- `pnpm test:tooling`: 38 tests passed, 0 failed/skipped/todo; exit 0, including a regression that rejects repository-root certificate serial residue.
+- `pnpm test:unit`: `TEST_MATRIX_UNIT=PASS packages=8 suites=435 tests=1952`; exit 0.
+- `pnpm test:design-gap`: 29 tests passed, 0 failed/skipped/todo; the named lane asserted Permission `AUTHORIZATION_SCOPE_MISMATCH`, Auth `execution token exchange lacks an authoritative Permission decision`, and producer `COLLABORATION_FOUNDATION_EXECUTION_UNAVAILABLE`; exit 0.
+- `pnpm collaboration-runtime:check`: 67 tests passed and `collaboration-runtime static checks: PASS`; exit 0.
+- `node --test scripts/local/foundation-trusted-grpc-atomic-group.spec.mjs`: 5 tests passed, 0 failed/skipped/todo; exit 0. The regression reads canonical architecture truth and `docker/grpc-trust/workloads.txt`, never a cleanup-deleted process packet.
+- `pnpm proto:lint && pnpm proto:gen && OES_PROTO_BREAKING_BASE=73208754c0b8323ae06dc5b901fca8f936e57c2d pnpm proto:breaking`: pass; immutable comparison ancestry accepted; exit 0.
+- `pnpm build`: `BACKEND_PACKAGE_COUNT=22`, `PRISMA_SCHEMA_COUNT=21`, `ROOT_TSC_REFERENCE_COUNT=23`, `SITE_RUNTIME_LEAF_COUNT=5`, `REPRODUCIBLE_BUILD_CHECK=PASS`; all backend and Site Runtime builds passed; exit 0.
+- `pnpm test:l2`: `TEST_MATRIX_L2=PASS packages=18 suites=59 tests=185`, followed by `DATABASE_ROLLBACK=PASS`; exit 0.
+- Affected final Site rerun: `node scripts/local/l2-test-runner.mjs run site-service` reported 8 suites and 43 tests passed, then `DATABASE_ROLLBACK=PASS`; exit 0.
+- Final task-owned resource readback after verification: owner-local processes 0; Docker containers 0, volumes 0, networks 0; generated/cache status additions 0. Gateway certificate serial state is written under its disposable test workspace, and the complete 1,952-test unit rerun left repository-root `.srl` residue at 0.
+
+### Design gap preserved for Stage routing
+
+The CRM Collaboration delegated-write route remains a stable-semantic conflict recorded by the parent Stage Lead. This feature does not alter Permission, Auth, Collaboration, or CRM authority semantics. The candidate preserves a fail-closed, explicitly named, always-executed expected-failure lane so required CI proves the current rejection instead of hiding it. Stage business-journey selection must avoid treating that route as an accepted success path until canonical design resolves the conflict.
 
 ## Remote state
 

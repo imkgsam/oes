@@ -50,7 +50,8 @@ describe('PermissionManagementGrpcController L3', () => {
       id: 'permission-id',
       code: 'permission.create',
       module: PermissionModule.PERMISSION_SERVICE,
-      description: 'create permission'
+      description: 'create permission',
+      allowedScopeLevels: []
     })
   })
 
@@ -80,7 +81,8 @@ describe('PermissionManagementGrpcController L3', () => {
       id: 'permission-id',
       code: 'permission.read',
       module: PermissionModule.PERMISSION_SERVICE,
-      description: ''
+      description: '',
+      allowedScopeLevels: []
     })
   })
 
@@ -121,7 +123,8 @@ describe('PermissionManagementGrpcController L3', () => {
           id: 'permission-id',
           code: 'permission.read',
           module: PermissionModule.PERMISSION_SERVICE,
-          description: ''
+          description: '',
+          allowedScopeLevels: []
         }
       ],
       total: 1,
