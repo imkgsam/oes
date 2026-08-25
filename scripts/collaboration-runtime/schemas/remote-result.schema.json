@@ -1,0 +1,192 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oes.local/schemas/collaboration-runtime/remote-result-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "bindingFingerprint",
+    "action",
+    "ownerTaskId",
+    "singleUseNonce",
+    "status",
+    "stage",
+    "receipt",
+    "verification",
+    "remoteTruth",
+    "remoteMutation"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "OES_REMOTE_DRIVER_RESULT"
+    },
+    "bindingFingerprint": {
+      "$ref": "#/$defs/sha256"
+    },
+    "action": {
+      "$ref": "#/$defs/action"
+    },
+    "ownerTaskId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "singleUseNonce": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "enum": ["REMOTE_VERIFICATION_PENDING", "REMOTE_VERIFIED"]
+    },
+    "stage": {
+      "enum": ["REMOTE_VERIFICATION_PENDING", "REMOTE_VERIFIED"]
+    },
+    "receipt": {
+      "type": "object"
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["passed", "status", "literalResult"],
+      "properties": {
+        "passed": {
+          "type": "boolean"
+        },
+        "status": {
+          "type": "string",
+          "minLength": 1
+        },
+        "literalResult": {}
+      }
+    },
+    "remoteTruth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "branchHead",
+        "mergeQueueEntry",
+        "mainHead",
+        "pullRequest",
+        "requiredChecks",
+        "mainParents",
+        "pullMergeParents",
+        "reviewGate"
+      ],
+      "properties": {
+        "branchHead": {
+          "$ref": "#/$defs/nullableGitSha"
+        },
+        "mergeQueueEntry": {
+          "type": ["object", "null"]
+        },
+        "mainHead": {
+          "$ref": "#/$defs/gitSha"
+        },
+        "pullRequest": {
+          "type": ["object", "null"]
+        },
+        "requiredChecks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "sha", "name", "status", "conclusion"],
+            "properties": {
+              "sha": {
+                "$ref": "#/$defs/gitSha"
+              },
+              "name": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "conclusion": {
+                "type": ["string", "null"]
+              },
+              "id": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "startedAt": {
+                "type": "string",
+                "minLength": 1
+              },
+              "completedAt": {
+                "type": ["string", "null"]
+              }
+            }
+          }
+        },
+        "mainParents": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/gitSha"
+          }
+        },
+        "reviewGate": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "annotations",
+            "issueComments",
+            "reviewComments",
+            "blockingReviews",
+            "unresolvedThreads"
+          ],
+          "properties": {
+            "annotations": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "issueComments": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "reviewComments": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "blockingReviews": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "unresolvedThreads": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "pullMergeParents": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/gitSha"
+          }
+        }
+      }
+    },
+    "remoteMutation": {
+      "type": "boolean"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "gitSha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "nullableGitSha": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "action": {
+      "enum": ["preflight", "publish-pr", "verify-pr", "merge-pr", "verify-main", "cleanup"]
+    }
+  }
+}

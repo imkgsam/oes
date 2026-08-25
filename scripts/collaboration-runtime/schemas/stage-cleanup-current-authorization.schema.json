@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oes.local/schemas/collaboration-runtime/stage-cleanup-current-authorization-v1.json",
+  "title": "OES current Stage cleanup CAS authorization",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "recordFingerprint",
+    "status",
+    "purpose",
+    "rootAuthorization",
+    "childAuthorization",
+    "stageKey",
+    "stageOwnerTaskId",
+    "ownerTaskId",
+    "expectedState",
+    "stateVersion",
+    "transitionId",
+    "confirmationFingerprint",
+    "postcondition"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "OES_STAGE_CLEANUP_CURRENT_AUTHORIZATION"
+    },
+    "recordFingerprint": {
+      "$ref": "#/$defs/sha256"
+    },
+    "status": {
+      "enum": ["ACTIVE", "INVALIDATED", "COMPLETED"]
+    },
+    "purpose": {
+      "enum": ["CHILD_SELF_CLEANUP", "STAGE_CLEANUP_VERIFY"]
+    },
+    "rootAuthorization": {
+      "$ref": "#/$defs/reference"
+    },
+    "childAuthorization": {
+      "type": ["object", "null"],
+      "allOf": [
+        {
+          "if": {
+            "type": "object"
+          },
+          "then": {
+            "$ref": "#/$defs/reference"
+          }
+        }
+      ]
+    },
+    "stageKey": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "stageOwnerTaskId": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^/[A-Za-z0-9][A-Za-z0-9_-]*(?:/[A-Za-z0-9][A-Za-z0-9_-]*)+$"
+    },
+    "ownerTaskId": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^/[A-Za-z0-9][A-Za-z0-9_-]*(?:/[A-Za-z0-9][A-Za-z0-9_-]*)+$"
+    },
+    "expectedState": {
+      "const": "STAGE_CLEANUP_AUTHORIZED"
+    },
+    "stateVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "transitionId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "confirmationFingerprint": {
+      "$ref": "#/$defs/sha256"
+    },
+    "postcondition": {
+      "const": "CURRENT_STAGE_CLEANUP"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "fingerprint"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^/"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "fingerprint": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    }
+  }
+}

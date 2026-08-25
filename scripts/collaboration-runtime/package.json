@@ -1,0 +1,5 @@
+{
+  "name": "@oes/collaboration-runtime",
+  "private": true,
+  "type": "module"
+}
