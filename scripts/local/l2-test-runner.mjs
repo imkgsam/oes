@@ -66,7 +66,7 @@ export function selectL2Packages(inventory, requestedNames = []) {
 export function runL2Matrix(repositoryRoot = defaultRepositoryRoot(), requestedNames = []) {
   const inventory = selectL2Packages(discoverL2Packages(repositoryRoot), requestedNames)
   assertNoTestResidue(repositoryRoot)
-  run('pnpm', environmentPreparationArgs(repositoryRoot), { cwd: repositoryRoot })
+  run('pnpm', ['env:ensure'], { cwd: repositoryRoot })
   const context = loadDatabaseContext(repositoryRoot)
   const evidenceDirectory = path.join(repositoryRoot, '.tmp', 'oes-test-matrix', 'l2')
   fs.mkdirSync(evidenceDirectory, { recursive: true })
@@ -183,13 +183,6 @@ export function runL2Matrix(repositoryRoot = defaultRepositoryRoot(), requestedN
     }
   }
   if (primaryFailure) throw primaryFailure
-}
-
-/** Bootstraps a missing environment once and validates an existing owner binding without rewriting it. */
-export function environmentPreparationArgs(repositoryRoot) {
-  return Object.freeze(
-    fs.existsSync(path.join(repositoryRoot, '.env')) ? ['env:check'] : ['env:bootstrap']
-  )
 }
 
 /** Creates owner-local workload material and binds Collaboration's real mTLS client construction to it. */

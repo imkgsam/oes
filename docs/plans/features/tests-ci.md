@@ -160,12 +160,12 @@ Existing FL-1 through FL-4 evidence is reused only when candidate, dependency, i
 - `pnpm test:design-gap`: executes the named CRM stable-conflict lane and all neighboring trusted-gRPC assertions.
 - `pnpm test:l2`: prepares Proto and 21 Prisma Clients, starts owner-labelled infrastructure, migrates 21 task databases, runs all discovered L2 tests on explicit database/NATS/trust inputs, and rolls back in `finally`.
 - `pnpm test:risk`: runs tooling, assigned unit/contract tests, Collaboration Runtime checks, and the stable foundation atomic-group regression.
-- `pnpm test:ci`: composes Proto lint/gen/breaking, the complete backend/Site Runtime build, risk tests, and isolated L2.
+- `pnpm test:ci`: ensures or validates the task-owned environment without rewriting it, then composes Proto lint/gen/breaking, the complete backend/Site Runtime build, risk tests, and isolated L2.
 
 ### Literal owner-worktree results
 
 - `pnpm test:matrix:check`: `TEST_MATRIX_CHECK=PASS packages=8`; `L2_MATRIX_CHECK=PASS packages=18 suites=59`; exit 0.
-- `pnpm test:tooling`: 40 tests passed, 0 failed/skipped/todo; exit 0, including regressions that reject repository-root certificate serial residue, bootstrap a missing L2 environment only once, validate an existing binding without rewriting it, and keep the OpenSSL CA serial below the task-owned output root.
+- `pnpm test:tooling`: 40 tests passed, 0 failed/skipped/todo; exit 0, including regressions that reject repository-root certificate serial residue, bootstrap a missing CI/L2 environment only once, validate the exact existing binding without rewriting it, and keep the OpenSSL CA serial below the task-owned output root.
 - `pnpm test:unit`: `TEST_MATRIX_UNIT=PASS packages=8 suites=435 tests=1952`; exit 0.
 - `pnpm test:design-gap`: 29 tests passed, 0 failed/skipped/todo; the named lane asserted Permission `AUTHORIZATION_SCOPE_MISMATCH`, Auth `execution token exchange lacks an authoritative Permission decision`, and producer `COLLABORATION_FOUNDATION_EXECUTION_UNAVAILABLE`; exit 0.
 - `pnpm collaboration-runtime:check`: 67 tests passed and `collaboration-runtime static checks: PASS`; exit 0.

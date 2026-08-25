@@ -431,6 +431,25 @@ export function checkEnvironment({
   return { backendPackages, databases, services, taskKey }
 }
 
+/** Creates a missing task environment or validates the existing binding without rewriting any file. */
+export function ensureEnvironment(options = {}) {
+  const repositoryRoot = options.repositoryRoot ?? defaultRepositoryRoot()
+  const output = options.output ?? process.stdout
+  if (!fs.existsSync(path.join(repositoryRoot, '.env'))) {
+    const result = bootstrapEnvironment({ ...options, output, repositoryRoot })
+    output.write('ENV_ENSURE=PASS mode=bootstrap\n')
+    return { ...result, mode: 'bootstrap' }
+  }
+  const result = checkEnvironment({ ...options, output, repositoryRoot })
+  if (options.taskKey !== undefined && result.taskKey !== normalizeTaskKey(options.taskKey)) {
+    throw new Error(
+      `ENV_ENSURE_TASK_KEY_MISMATCH expected=${normalizeTaskKey(options.taskKey)} actual=${result.taskKey}`
+    )
+  }
+  output.write('ENV_ENSURE=PASS mode=check\n')
+  return { ...result, mode: 'check' }
+}
+
 /** Parses the bounded CLI accepted by the versioned environment commands. */
 function parseArguments(argv) {
   const [command, ...options] = argv
@@ -450,11 +469,14 @@ if (invokedPath === import.meta.url) {
     const arguments_ = parseArguments(process.argv.slice(2))
     if (arguments_.command === 'bootstrap') {
       bootstrapEnvironment({ force: arguments_.force, taskKey: arguments_.taskKey })
+    } else if (arguments_.command === 'ensure') {
+      if (arguments_.force) throw new Error('ENV_ENSURE_FORCE_FORBIDDEN')
+      ensureEnvironment({ taskKey: arguments_.taskKey })
     } else if (arguments_.command === 'check') {
       if (arguments_.force || arguments_.taskKey) throw new Error('ENV_CHECK_ARGUMENT_INVALID')
       checkEnvironment()
     } else {
-      throw new Error('ENV_COMMAND_REQUIRED expected=bootstrap|check')
+      throw new Error('ENV_COMMAND_REQUIRED expected=bootstrap|ensure|check')
     }
   } catch (error) {
     console.error(error instanceof Error ? error.message : error)

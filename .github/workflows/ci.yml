@@ -47,8 +47,7 @@ jobs:
 
       - name: Prepare task-owned environment
         run: |
-          pnpm env:bootstrap -- --task-key="${OES_CI_TASK_KEY}"
-          pnpm env:check
+          pnpm env:ensure -- --task-key="${OES_CI_TASK_KEY}"
 
       - name: Resolve immutable proto comparison base
         env:

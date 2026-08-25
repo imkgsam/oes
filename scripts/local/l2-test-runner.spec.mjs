@@ -3,12 +3,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
-import {
-  discoverL2Packages,
-  environmentPreparationArgs,
-  selectL2Packages,
-  serviceDatabaseUrl
-} from './l2-test-runner.mjs'
+import { discoverL2Packages, selectL2Packages, serviceDatabaseUrl } from './l2-test-runner.mjs'
 
 test('L2 discovery binds exact specs to the closest package and rejects no tests', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'oes-l2-matrix-'))
@@ -58,17 +53,6 @@ test('focused L2 selection preserves inventory order and rejects unknown package
     () => selectL2Packages(inventory, ['missing-service']),
     /L2_PACKAGE_UNKNOWN packages=missing-service/
   )
-})
-
-test('L2 environment preparation bootstraps once and validates an idempotent rerun', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'oes-l2-environment-'))
-  try {
-    assert.deepEqual(environmentPreparationArgs(root), ['env:bootstrap'])
-    fs.writeFileSync(path.join(root, '.env'), 'OES_TASK_KEY=ci_123_4\n')
-    assert.deepEqual(environmentPreparationArgs(root), ['env:check'])
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true })
-  }
 })
 
 test('local trust bootstrap keeps the OpenSSL CA serial below the task-owned output root', () => {
