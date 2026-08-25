@@ -115,6 +115,8 @@ test('service and Gateway images generate tracked proto outputs before Common bu
     const contents = fs.readFileSync(path.join(repositoryRoot, relative), 'utf8')
     const proto = contents.indexOf('pnpm proto:gen')
     const common = contents.indexOf('pnpm common:build')
+    assert.match(contents, /FROM bufbuild\/buf:1\.61\.0@sha256:[a-f0-9]{64} AS buf/)
+    assert.match(contents, /COPY --from=buf \/usr\/local\/bin\/buf \/usr\/local\/bin\/buf/)
     assert.ok(proto >= 0, relative + ' must generate proto output')
     assert.ok(common > proto, relative + ' must generate proto before Common build')
   }
