@@ -13,7 +13,9 @@ pullRequest: pending
 mergeSha: pending
 cleanup: HOLD
 reviewedCodeCandidate: e2d9f8acb9012f539b2919d23e17ca41ded48f3d
-state: GLOBAL_RI_PENDING
+globalRiCandidate: 285bfb0a81fba5c1984815afdda7c654f58b1451
+globalRiResult: GLOBAL_RI_ACCEPT findings none
+state: CANDIDATE_READY
 ```
 
 ## Objective
@@ -93,9 +95,9 @@ review: FL_ACCEPT
 ### TC-6 — Feature Review and frozen candidate
 
 ```text
-state: ACTIVE
-candidate: e2d9f8acb9012f539b2919d23e17ca41ded48f3d
-review: FL_ACCEPT; GLOBAL_RI_PENDING
+state: COMPLETE
+candidate: 285bfb0a81fba5c1984815afdda7c654f58b1451
+review: FL_ACCEPT; GLOBAL_RI_ACCEPT findings none
 ```
 
 - Scope: map each acceptance criterion to reproducible evidence, freeze one candidate, and obtain independent read-only Global RI acceptance.
@@ -190,7 +192,9 @@ Exact clean-review route at code candidate `e2d9f8acb9012f539b2919d23e17ca41ded4
 - `pnpm test:design-gap`: 29/29 and the explicitly named expected-failure lane executed; exit 0.
 - Final readback: root `.srl` residue 0, tracked generated/cache additions 0, task containers 0, volumes 0, networks 0, dependency ancestry PASS, `git diff --check` PASS.
 
-Feature Review result: `FL_ACCEPT`. All six feature acceptance statements are mapped to exact clean-worktree evidence; stable semantics remain unchanged and the CRM route remains a named Stage `DESIGN_GAP`. The next legal action is independent read-only Global RI on the frozen candidate containing this review record.
+Feature Review result: `FL_ACCEPT`. All six feature acceptance statements are mapped to exact clean-worktree evidence; stable semantics remain unchanged and the CRM route remains a named Stage `DESIGN_GAP`.
+
+Independent Global RI result on `285bfb0a81fba5c1984815afdda7c654f58b1451`: `GLOBAL_RI_ACCEPT findings none`. This append-only packet transition changes no product, test, workflow, or runtime input; the same RI performs an affected readback on the resulting packet-only candidate before publication binding.
 
 ### Design gap preserved for Stage routing
 
@@ -198,4 +202,4 @@ The CRM Collaboration delegated-write route remains a stable-semantic conflict r
 
 ## Remote state
 
-No remote mutation has occurred. Global RI acceptance on the exact frozen candidate is required before an immutable publication request can be issued to the parent.
+No remote mutation has occurred. Feature Review and independent Global RI have accepted the exact reviewed candidate; after the packet-only affected readback, the FL may issue one immutable publication request to the parent for a single-use remote profile/authorization.
