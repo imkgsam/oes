@@ -3,7 +3,7 @@
 ```text
 featureKey: gateway-events
 truthCommit: 8638401207d3d94fd3695e8d5e25deaf3e2a760a
-integrationBase: 8638401207d3d94fd3695e8d5e25deaf3e2a760a
+integrationBase: 73208754c0b8323ae06dc5b901fca8f936e57c2d
 baseSha: 6a62c15b85f252ad3cd7ea19b67886148eb12ef0
 dependencyCandidates:
   reproducible-build: 7a5df0a61315667e8966b4161f08b8fa71c7bd0c
@@ -167,9 +167,9 @@ review: global-ri pending on exact packet-freeze HEAD
 
 ## Feature Review
 
-- Result: ACCEPT for implementation ancestor `90d778a8fa2851b55a01ad8049ae46c53457befe`; exact integration HEAD is the subsequent packet-freeze commit assigned to independent Global RI.
+- Result: ACCEPT for implementation ancestor `90d778a8fa2851b55a01ad8049ae46c53457befe`; exact integration HEAD is the subsequent append-only moving-main merge plus packet refresh assigned to independent Global RI.
 - Scope: all changes stay within Gateway readiness, APISIX/main Compose integration, Collaboration runtime/outbox, Common NATS transport mechanics, Notification delivery/replay, task-local scripts/tests, and this packet. Stable service ownership, gRPC/event choices, event owner contracts, and trusted context meanings are unchanged.
 - Reliability: real healthy/outage/recovery, duplicate, transient retry, validated retry exhaustion, parseable permanent mismatch, DLQ publication failure, raw-body replay, exact durable cleanup, and exact resource teardown all have literal evidence.
-- Evidence reuse: FL-1/2/3 ancestry and unaffected evidence remain valid. Shared Common changes triggered all-backend build; Compose changes triggered config/trust/APISIX checks; event runtime changes triggered the final full live matrix and teardown.
+- Evidence reuse: FL-1/2/3 ancestry and unaffected evidence remain valid. Shared Common changes triggered all-backend build; Compose changes triggered config/trust/APISIX checks; event runtime changes triggered the final full live matrix and teardown. Moving main advanced from the truth baseline to `73208754c0b8323ae06dc5b901fca8f936e57c2d` through three governance-document-only paths; it was append-merged without conflict and does not invalidate product/runtime evidence.
 - Residual disposition: malformed/no-id and Asset -> Site are explicit bounded design/stage residuals and are excluded from completion claims; neither weakens the assigned representative acceptance route. Global RI must independently confirm this disposition on the exact packet-freeze HEAD.
 - Remote: no push or PR mutation has occurred. Independent Global RI acceptance is required before the parent may issue one exact single-use remote profile/authorization.
