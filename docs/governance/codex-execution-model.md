@@ -79,7 +79,7 @@ IT按Senior/Principal Implementation Engineer级标准编码。它必须先理�
 
 ### 2.8 Review & Integration（RI）
 
-RI使用clean context审查exact candidate：低风险可由FL自审，中高风险使用local/global RI，阶段组合使用Stage RI。RI默认只读，只向direct execution parent返回findings和结论；不调度下游、不就地修复、不push、merge或cleanup。
+RI使用clean context审查exact candidate：低风险可由FL self-review，中高风险的单feature验收使用Feature RI，阶段组合使用Stage RI，只有明确绑定全系统范围时才使用System Review。RI默认只读，只向direct execution parent返回findings和结论；不调度下游、不就地修复、不push、merge或cleanup。
 
 RI按Principal Reviewer/SDET级标准独立证明“实现符合设计且不会降低整体code health”。它先按acceptance与风险规划一次验证路线，再按静态检查、focused unit/component、contract/integration、关键journey/E2E以及按风险触发的性能、安全、并发、可靠性和rollback测试分层执行；优先复用仍对exact candidate有效的证据，不重复运行未受影响且输入未变化的测试。RI逐项检查设计、功能、边界/错误路径、复杂度、命名、可维护性、测试有效性、竞态和跨服务影响；finding必须包含严重度、精确位置、复现输入、预期/实际和归类。candidate、依赖或测试输入未变化时禁止以“更放心”为由机械重复全量测试。
 
@@ -330,7 +330,7 @@ $(git rev-parse --path-format=absolute --git-common-dir)/codex-runtime/design-ta
 
 ### 6.1 执行形状
 
-- 一个不可独立合并、需要共同原子验收的跨服务能力：一个 FL、多个 slices、一个 Global RI、一个 PR。
+- 一个不可独立合并、需要共同原子验收的跨服务能力：一个 FL、多个 slices、一个 Feature RI、一个 PR。
 - 多个可独立安全合并且共享阶段目标的 feature：一个 SL 管理多个 FL；每个 FL 独立 branch/worktree/FP/RI/PR/merge。
 - 任一 FL PR 必须独立、安全、向后兼容地进入 <code>main</code>。
 - feature 写路径或共享 contract scope 重叠时，按依赖顺序执行；无法保持独立安全时合并为一个 FL。
@@ -427,7 +427,7 @@ SL 不持续 poll/wait，不创建 watcher 或 registry。subagent 结果自动�
 
 ### 7.3 Review 与返工
 
-FL 在 required slices 达到 <code>CANDIDATE_READY</code> 后创建 Global RI，并提供：
+FL 在 required slices 达到 <code>CANDIDATE_READY</code> 后按风险创建 Feature RI，并提供：
 
 ~~~text
 featureKey
@@ -437,7 +437,15 @@ candidateShas
 featurePacket
 acceptanceCommands
 testEvidenceKeys
+directExecutionParentTaskId
+returnTargetTaskId
 ~~~
+
+Feature RI是单个FL对一个exact feature candidate的独立复核，唯一task标题为`[RI] HUMAN_READABLE_FEATURE Feature Review`。每个FL同一时刻最多一个active Feature RI assignment；`FEATURE_RI_PENDING`、`FEATURE_RI_ACCEPTED`和`FEATURE_RI_REVISION_REQUIRED`分别表示等待复核、exact candidate通过和发现需返工。被拒candidate的append-only修复继续交给同一Feature RI并递增review round，只复验受candidate、依赖、输入或环境变化影响的范围，不为每轮重复创建RI task。
+
+Feature RI的exact FL、`directExecutionParentTaskId`、feature key和return target在创建前固定，handoff后不得换绑到另一个FL、feature或candidate owner。另一个feature可复用fingerprint仍有效的测试证据，但不得复用Feature RI task身份、parent或typed-result route；跨FL复用RI task始终是`TASK_IDENTITY_INVALID`，不因旧binding或兼容规则变为有效。真正覆盖明确全系统scope的独立复核称为System Review，标题为`[RI] HUMAN_READABLE_SCOPE System Review`，不得作为普通Feature RI的共享替代者。
+
+本命名契约canonical merge前已创建并取得exact binding的`Global RI` task、路径、状态与证据按原binding完成当前owner graph，不批量改名或重写历史；merge后的新Feature RI assignment只使用本节名称和状态。兼容只保护当时有效的同feature binding，不保护跨FL换绑、错误parent或错误return target。
 
 Stage Review bundle 至少包含：
 
@@ -570,7 +578,7 @@ Remote写入只允许Direct owner push自己的Change Set branch、exact UD push
 
 禁止 direct push 到 <code>main</code> 和 force-push。PR 以 <code>main</code> 为 base，并列出 scope、protected scope、candidate SHAs、精确验证、数据/契约影响、剩余风险和 rollback。
 
-FL首次remote write之前必须同时满足：feature candidate已commit且owner worktree clean；全部feature acceptance通过；风险要求的Global RI或FL self-review对exact candidate通过；evidence记录test evidence keys、exact SHA、命令、literal result和exit code。满足后FL只push自己的branch并创建Draft PR。有parent SL时Draft保持非merge-ready，直到SL对同一candidate的Stage Review通过；无parent SL时独立PR gates通过即可进入`MERGE_READY`。candidate或dependency变化使对应Stage Review与merge-ready失效；仅integration base前进时按changed path/contract/dependency影响判断，自动merge latest `main`并只重跑受影响的feature review、required CI和Stage Review。push、Draft PR或CI成功本身都不构成merge授权。
+FL首次remote write之前必须同时满足：feature candidate已commit且owner worktree clean；全部feature acceptance通过；风险要求的Feature RI或FL self-review对exact candidate通过；evidence记录test evidence keys、exact SHA、命令、literal result和exit code。满足后FL只push自己的branch并创建Draft PR。有parent SL时Draft保持非merge-ready，直到SL对同一candidate的Stage Review通过；无parent SL时独立PR gates通过即可进入`MERGE_READY`。candidate或dependency变化使对应Stage Review与merge-ready失效；仅integration base前进时按changed path/contract/dependency影响判断，自动merge latest `main`并只重跑受影响的feature review、required CI和Stage Review。push、Draft PR或CI成功本身都不构成merge授权。
 
 remote driver把每个remote action作为可恢复事务：在mutation前写`REMOTE_PREFLIGHT_VERIFIED`，mutation成功或remote readback证明已完成后原子写`REMOTE_MUTATION_RECORDED`及PR/head/base/merge receipt，再进入`REMOTE_VERIFICATION_PENDING`等待CI，最终写`REMOTE_VERIFIED`。本地进程退出、网络中断或result缺失时，按exact owner ref、head/base、PR和merge state查询remote truth；已存在且匹配时继续验证，不重复create/push/merge。binding不匹配时保持资源并返回owner处理。
 
