@@ -61,7 +61,7 @@ function main() {
     value.trim()
   )
   assert.equal(targets.length, 20)
-  assert.ok(targets.includes('srm=tcp://srm-service:50061'))
+  assert.ok(targets.includes('srm-service=grpcs://srm-service:50061'))
   assert.deepEqual(gateway.healthcheck.test.slice(0, 2), ['CMD', 'node'])
 
   const apisix = compose.services.apisix

@@ -282,6 +282,11 @@ describe('NatsJetStreamRuntimeConfig', () => {
 
   it('deletes exactly the three completed run-scoped replay consumers', async () => {
     const deleted: string[] = []
+    const existing = new Set([
+      'notification-service__replay__run-delete-1__assigned',
+      'notification-service__replay__run-delete-1__completed',
+      'notification-service__replay__run-delete-1__cancelled'
+    ])
     const client = new NatsJetStreamClient(
       {
         servers: ['nats://127.0.0.1:4222'],
@@ -298,7 +303,76 @@ describe('NatsJetStreamRuntimeConfig', () => {
           next: async () => null,
           deleteConsumer: async (stream, consumer) => {
             deleted.push(`${stream}:${consumer}`)
-            return true
+            return existing.delete(consumer)
+          },
+          drain: async () => undefined
+        })
+      }
+    )
+    await client.onModuleInit()
+
+    const runner = new NatsSafeRedeliveryRunner(client)
+    const cleanup = {
+      stream: 'OES_BUSINESS_EVENTS',
+      request: {
+        replayRunId: 'run-delete-1',
+        requestedBy: 'operator-1',
+        approvedByConsumerOwner: 'owner-1',
+        approvedByPlatformOperator: 'platform-1',
+        platformApprovalRef: 'approval-1',
+        consumerName: 'notification-service__collaboration-task__v1',
+        tenantScope: ['tenant-1'],
+        eventFilter: {
+          eventTypes: [
+            'collaboration.task.assigned',
+            'collaboration.task.completed',
+            'collaboration.task.cancelled'
+          ],
+          fromSequence: 1
+        },
+        mode: 'SAFE_REDELIVERY' as const,
+        reason: 'completed bounded replay',
+        allowExternalSideEffects: false as const
+      }
+    }
+    const expectedConsumers = [
+      'notification-service__replay__run-delete-1__assigned',
+      'notification-service__replay__run-delete-1__completed',
+      'notification-service__replay__run-delete-1__cancelled'
+    ]
+
+    await expect(runner.deleteConsumers(cleanup)).resolves.toEqual(expectedConsumers)
+    await expect(runner.deleteConsumers(cleanup)).resolves.toEqual(expectedConsumers)
+    existing.add('notification-service__replay__run-delete-1__completed')
+    existing.add('notification-service__replay__run-delete-1__cancelled')
+    await expect(runner.deleteConsumers(cleanup)).resolves.toEqual(expectedConsumers)
+
+    expect(deleted).toEqual(
+      Array.from({ length: 3 }, () => [
+        'OES_BUSINESS_EVENTS:notification-service__replay__run-delete-1__assigned',
+        'OES_BUSINESS_EVENTS:notification-service__replay__run-delete-1__completed',
+        'OES_BUSINESS_EVENTS:notification-service__replay__run-delete-1__cancelled'
+      ]).flat()
+    )
+  })
+
+  it('propagates a replay consumer deletion provider failure instead of treating it as absence', async () => {
+    const client = new NatsJetStreamClient(
+      {
+        servers: ['nats://127.0.0.1:4222'],
+        user: 'replay-consumer',
+        password: 'runtime-secret'
+      },
+      {
+        connect: async () => ({
+          publish: async () => ({
+            stream: 'OES_BUSINESS_EVENTS',
+            sequence: 1,
+            duplicate: false
+          }),
+          next: async () => null,
+          deleteConsumer: async () => {
+            throw new Error('permissions violation')
           },
           drain: async () => undefined
         })
@@ -310,7 +384,7 @@ describe('NatsJetStreamRuntimeConfig', () => {
       new NatsSafeRedeliveryRunner(client).deleteConsumers({
         stream: 'OES_BUSINESS_EVENTS',
         request: {
-          replayRunId: 'run-delete-1',
+          replayRunId: 'run-delete-failed',
           requestedBy: 'operator-1',
           approvedByConsumerOwner: 'owner-1',
           approvedByPlatformOperator: 'platform-1',
@@ -330,16 +404,7 @@ describe('NatsJetStreamRuntimeConfig', () => {
           allowExternalSideEffects: false
         }
       })
-    ).resolves.toEqual([
-      'notification-service__replay__run-delete-1__assigned',
-      'notification-service__replay__run-delete-1__completed',
-      'notification-service__replay__run-delete-1__cancelled'
-    ])
-    expect(deleted).toEqual([
-      'OES_BUSINESS_EVENTS:notification-service__replay__run-delete-1__assigned',
-      'OES_BUSINESS_EVENTS:notification-service__replay__run-delete-1__completed',
-      'OES_BUSINESS_EVENTS:notification-service__replay__run-delete-1__cancelled'
-    ])
+    ).rejects.toThrow('permissions violation')
   })
 
   it('fails closed for a max-delivery advisory because an advisory has no source delivery TERM token', async () => {

@@ -14,11 +14,16 @@ const APISIX_IMAGE =
 async function main() {
   const root = resolve(import.meta.dirname, '../..')
   const temporaryDirectory = await mkdtemp(join(tmpdir(), 'oes-gateway-apisix-'))
+  const trustDirectory = join(temporaryDirectory, 'trust')
   const containerName = `oes-gateway-apisix-${process.pid}`
-  let fixture = await startTcpFixture()
+  bootstrapTrust(root, trustDirectory)
+  let fixture = await startGrpcFixture(trustDirectory, 'auth-service')
+  let plaintextFixture
+  let wrongWorkloadFixture
   let gateway
   try {
-    process.env.GATEWAY_READINESS_TARGETS = `fixture=tcp://127.0.0.1:${fixture.port}`
+    Object.assign(process.env, trustEnvironment(trustDirectory, 'api-gateway'))
+    process.env.GATEWAY_READINESS_TARGETS = `auth-service=grpcs://127.0.0.1:${fixture.port}`
     process.env.GATEWAY_READINESS_TIMEOUT_MS = '250'
     const [{ NestFactory }, { HealthModule }] = await Promise.all([
       import('@nestjs/core'),
@@ -60,21 +65,42 @@ async function main() {
     )
     assert.equal(apisixReady.body.ready, true)
     assert.match(apisixReady.headers.get('x-request-id') ?? '', /^[0-9a-f-]{36}$/)
+    process.stdout.write('GATEWAY_APISIX_STAGE=MTLS_READY\n')
 
-    await stopTcpFixture(fixture.server)
-    const gatewayDown = await waitForResponse(
+    await stopGrpcFixture(fixture.server)
+    wrongWorkloadFixture = await startGrpcFixture(
+      trustDirectory,
+      'permission-service',
+      fixture.port
+    )
+    const gatewayWrongWorkload = await waitForResponse(
       `http://127.0.0.1:${gatewayPort}/health/ready`,
       (response) => response.status === 503,
       5_000
     )
-    assert.equal(gatewayDown.body.ready, false)
+    assert.equal(gatewayWrongWorkload.body.ready, false)
+    process.stdout.write('GATEWAY_APISIX_STAGE=WRONG_WORKLOAD_REJECTED\n')
     const apisixDown = await waitForResponse(
       `http://127.0.0.1:${apisixPort}/health/ready`,
       (response) => response.status === 502 || response.status === 503,
       10_000
     )
+    process.stdout.write('GATEWAY_APISIX_STAGE=APISIX_UPSTREAM_REMOVED\n')
 
-    fixture = await startTcpFixture(fixture.port)
+    await stopGrpcFixture(wrongWorkloadFixture.server)
+    wrongWorkloadFixture = undefined
+    plaintextFixture = await startTcpFixture(fixture.port)
+    const gatewayPlaintext = await waitForResponse(
+      `http://127.0.0.1:${gatewayPort}/health/ready`,
+      (response) => response.status === 503,
+      5_000
+    )
+    assert.equal(gatewayPlaintext.body.ready, false)
+    process.stdout.write('GATEWAY_APISIX_STAGE=PLAINTEXT_REJECTED\n')
+    await stopTcpFixture(plaintextFixture)
+    plaintextFixture = undefined
+
+    fixture = await startGrpcFixture(trustDirectory, 'auth-service', fixture.port)
     const gatewayRecovered = await waitForResponse(
       `http://127.0.0.1:${gatewayPort}/health/ready`,
       (response) => response.status === 200,
@@ -87,6 +113,7 @@ async function main() {
     )
     assert.equal(gatewayRecovered.body.ready, true)
     assert.equal(apisixRecovered.body.ready, true)
+    process.stdout.write('GATEWAY_APISIX_STAGE=MTLS_RECOVERED\n')
 
     console.log(
       JSON.stringify(
@@ -94,7 +121,8 @@ async function main() {
           image: APISIX_IMAGE,
           gateway: {
             initial: apisixReady.status,
-            dependencyDown: gatewayDown.status,
+            wrongWorkload: gatewayWrongWorkload.status,
+            plaintextProtocol: gatewayPlaintext.status,
             recovered: gatewayRecovered.status
           },
           apisix: {
@@ -111,26 +139,84 @@ async function main() {
   } finally {
     await runDocker(['rm', '--force', containerName], true)
     if (gateway) await gateway.close()
-    await stopTcpFixture(fixture.server)
+    await stopGrpcFixture(fixture?.server)
+    await stopGrpcFixture(wrongWorkloadFixture?.server)
+    await stopTcpFixture(plaintextFixture)
     await rm(temporaryDirectory, { recursive: true, force: true })
   }
 }
 
+/** Generates task-owned CA/client/server leaves from the repository workload inventory. */
+function bootstrapTrust(root, trustDirectory) {
+  execFileSync(
+    'bash',
+    [join(root, 'docker/grpc-trust/bootstrap-local-trust.sh'), '--output', trustDirectory],
+    {
+      env: { ...process.env, OES_TRUST_ENV: 'local' },
+      stdio: ['ignore', 'pipe', 'pipe']
+    }
+  )
+}
+
+/** Resolves one workload's exact task-owned TLS bindings without emitting private material. */
+function trustEnvironment(trustDirectory, workload) {
+  const current = join(trustDirectory, workload, 'current')
+  return {
+    OES_GRPC_TLS_ENABLED: 'true',
+    OES_GRPC_TLS_MIN_VERSION: 'TLSv1.2',
+    OES_GRPC_TLS_CA_PATH: join(current, 'ca.pem'),
+    OES_GRPC_TLS_CERT_PATH: join(current, 'cert.pem'),
+    OES_GRPC_TLS_KEY_PATH: join(current, 'key.pem'),
+    OES_WORKLOAD_SPIFFE_ID: `spiffe://local.oes.internal/ns/oes/sa/${workload}`
+  }
+}
+
+/** Starts one real mTLS gRPC endpoint whose DNS and SPIFFE identities both name the workload. */
+async function startGrpcFixture(trustDirectory, workload, port = 0) {
+  const [{ Server }, { createGrpcServerCredentials }] = await Promise.all([
+    import('@grpc/grpc-js'),
+    import('../../src/common/dist/transport/grpc/grpc-js-mtls.js')
+  ])
+  const server = new Server()
+  const boundPort = await new Promise((resolvePromise, reject) =>
+    server.bindAsync(
+      `127.0.0.1:${port}`,
+      createGrpcServerCredentials(trustEnvironment(trustDirectory, workload)),
+      (error, value) => (error ? reject(error) : resolvePromise(value))
+    )
+  )
+  return { server, port: boundPort }
+}
+
+/** Force-releases one task-owned mTLS fixture so periodic health calls cannot block teardown. */
+async function stopGrpcFixture(server) {
+  if (!server) return
+  server.forceShutdown()
+  await new Promise((resolvePromise) => setTimeout(resolvePromise, 25))
+}
+
 /** Starts one task-owned TCP dependency on a random or previously released loopback port. */
 async function startTcpFixture(port = 0) {
-  const server = createServer((socket) => socket.end())
+  const sockets = new Set()
+  const server = createServer((socket) => {
+    sockets.add(socket)
+    socket.once('close', () => sockets.delete(socket))
+    socket.end()
+  })
   await new Promise((resolvePromise, reject) => {
     server.once('error', reject)
     server.listen(port, '127.0.0.1', resolvePromise)
   })
-  return { server, port: server.address().port }
+  return { server, sockets, port: server.address().port }
 }
 
 /** Closes a fixture without leaking a listener into later local validations. */
-async function stopTcpFixture(server) {
-  if (!server?.listening) return
+async function stopTcpFixture(fixture) {
+  if (!fixture) return
+  for (const socket of fixture.sockets) socket.destroy()
+  if (!fixture.server.listening) return
   await new Promise((resolvePromise, reject) =>
-    server.close((error) => (error ? reject(error) : resolvePromise()))
+    fixture.server.close((error) => (error ? reject(error) : resolvePromise()))
   )
 }
 

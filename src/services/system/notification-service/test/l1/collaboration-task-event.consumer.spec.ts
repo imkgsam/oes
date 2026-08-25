@@ -202,6 +202,42 @@ describe('CollaborationTaskEventConsumer L1', () => {
     expect(calls).toEqual(['nak:1000'])
   })
 
+  it('keeps valid JSON without an original event id out of DLQ and never terminates its source', async () => {
+    const calls: string[] = []
+    const body = Buffer.from(
+      JSON.stringify({
+        specversion: '1.0',
+        source: 'urn:oes:service:collaboration-service',
+        type: 'collaboration.task.cancelled',
+        time: '2026-07-26T08:00:00.000Z',
+        oeseventversion: 1,
+        oestenantid: 'tenant-1',
+        oestraceid: 'trace-1',
+        data: { taskId: 'task-1' }
+      }),
+      'utf8'
+    )
+    const delivery = testDelivery(body, [['Content-Type', 'application/cloudevents+json']], calls)
+    const binding = {
+      transfer: async () => {
+        calls.push('fabricated-dlq')
+        return { kind: 'TERMINATED' as const }
+      }
+    }
+
+    await expect(
+      new CollaborationTaskEventConsumer(
+        { handle: jest.fn() } as any,
+        new NotificationEventDlqTransfer(binding as any)
+      ).handleDelivery(delivery)
+    ).resolves.toEqual({
+      kind: 'RETRYABLE_FAILURE',
+      code: 'NOTIFICATION_DLQ_TRANSFER_FAILED',
+      delayMs: 1_000
+    })
+    expect(calls).toEqual(['nak:1000'])
+  })
+
   it('schedules the frozen first retry delay when the local Inbox transaction temporarily fails', async () => {
     const event = createOesCloudEvent({
       contract: COLLABORATION_TASK_CANCELLED_EVENT_CONTRACT,

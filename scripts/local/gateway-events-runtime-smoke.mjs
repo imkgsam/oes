@@ -20,6 +20,7 @@ function main() {
       ...process.env,
       ...local
     })
+    run('pnpm', ['gateway:apisix:smoke'], root)
   } finally {
     if (started) run('pnpm', ['db:rollback'], root)
   }

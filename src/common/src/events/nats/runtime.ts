@@ -298,9 +298,8 @@ export class NatsJetStreamClient implements OnModuleInit, OnModuleDestroy {
       throw new Error('NATS_REPLAY_CONSUMER_IDENTITY_REQUIRED')
     const deleteConsumer = this.requireConnection().deleteConsumer
     if (!deleteConsumer) throw new Error('NATS_REPLAY_CONSUMER_DELETE_UNSUPPORTED')
-    if (!(await deleteConsumer(stream, consumer))) {
-      throw new Error('NATS_REPLAY_CONSUMER_DELETE_FAILED')
-    }
+    // The NATS manager reports missing consumers as `false`; absence is the cleanup postcondition.
+    await deleteConsumer(stream, consumer)
   }
 
   /** Drains in-flight broker work and prevents later accidental use after Nest shutdown. */

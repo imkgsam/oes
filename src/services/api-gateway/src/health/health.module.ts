@@ -4,7 +4,7 @@ import {
   GATEWAY_READINESS_CONNECTOR,
   GATEWAY_READINESS_OPTIONS,
   GatewayReadinessService,
-  connectGatewayReadinessTarget,
+  createGatewayReadinessConnector,
   loadGatewayReadinessOptions
 } from './gateway-readiness.service'
 
@@ -17,7 +17,7 @@ import {
     },
     {
       provide: GATEWAY_READINESS_CONNECTOR,
-      useValue: connectGatewayReadinessTarget
+      useFactory: () => createGatewayReadinessConnector(process.env)
     },
     GatewayReadinessService
   ]

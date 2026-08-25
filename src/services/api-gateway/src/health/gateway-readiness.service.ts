@@ -1,11 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common'
-import { connect } from 'node:net'
+import { Client } from '@grpc/grpc-js'
+import { createGrpcClientCredentials } from '@oes/common/transport'
 
-/** Names one required downstream socket whose reachability participates in Gateway readiness. */
+/** Names one required downstream gRPC workload whose authenticated channel participates in readiness. */
 export interface GatewayReadinessTarget {
   readonly name: string
   readonly host: string
   readonly port: number
+  readonly expectedSpiffeId: string
 }
 
 /** Carries validated readiness configuration without making environment parsing a controller concern. */
@@ -15,7 +17,7 @@ export interface GatewayReadinessOptions {
   readonly configurationErrors: readonly string[]
 }
 
-/** Opens one bounded transport connection and resolves only after the socket is usable. */
+/** Opens one bounded gRPC channel and resolves only after its authenticated HTTP/2 transport is ready. */
 export type GatewayReadinessConnector = (
   target: GatewayReadinessTarget,
   timeoutMs: number
@@ -42,7 +44,7 @@ export type GatewayReadinessResult = Readonly<{
   timestamp: string
 }>
 
-/** Aggregates bounded transport probes and never reports ready for missing or invalid configuration. */
+/** Aggregates bounded authenticated gRPC probes and never reports ready for invalid configuration. */
 @Injectable()
 export class GatewayReadinessService {
   constructor(
@@ -100,6 +102,7 @@ export function loadGatewayReadinessOptions(
 ): GatewayReadinessOptions {
   const configurationErrors: string[] = []
   const timeoutMs = parseTimeout(environment.GATEWAY_READINESS_TIMEOUT_MS, configurationErrors)
+  const trustDomain = readinessTrustDomain(environment.OES_WORKLOAD_SPIFFE_ID, configurationErrors)
   const rawTargets = environment.GATEWAY_READINESS_TARGETS?.trim()
   const targets: GatewayReadinessTarget[] = []
   const names = new Set<string>()
@@ -109,7 +112,7 @@ export function loadGatewayReadinessOptions(
     const entries = rawTargets.split(',').map((value) => value.trim())
     if (entries.length > 64) configurationErrors.push('GATEWAY_READINESS_TARGET_LIMIT_EXCEEDED')
     for (const entry of entries.slice(0, 64)) {
-      const parsed = parseTarget(entry)
+      const parsed = parseTarget(entry, trustDomain)
       if (parsed.ok === false) {
         configurationErrors.push(parsed.error)
         continue
@@ -129,26 +132,44 @@ export function loadGatewayReadinessOptions(
   })
 }
 
-/** Opens and always destroys one TCP socket after connect, timeout, or transport failure. */
-export const connectGatewayReadinessTarget: GatewayReadinessConnector = (target, timeoutMs) =>
-  new Promise<void>((resolve, reject) => {
-    const socket = connect({ host: target.host, port: target.port })
-    let settled = false
-    const finish = (error?: Error) => {
-      if (settled) return
-      settled = true
-      socket.destroy()
-      if (error) reject(error)
-      else resolve()
-    }
-    socket.setTimeout(timeoutMs, () => finish(new Error('GATEWAY_READINESS_TIMEOUT')))
-    socket.once('connect', () => finish())
-    socket.once('error', () => finish(new Error('GATEWAY_READINESS_UNAVAILABLE')))
-  })
+/** Binds the readiness probe to this Gateway workload's task-owned mTLS credentials. */
+export function createGatewayReadinessConnector(
+  environment: NodeJS.ProcessEnv = process.env
+): GatewayReadinessConnector {
+  return (target, timeoutMs) => connectGatewayReadinessTarget(target, timeoutMs, environment)
+}
 
-/** Parses one `name=tcp://host:port` value without accepting credentials or hidden URL parts. */
+/** Opens one mTLS-authenticated HTTP/2 gRPC channel and verifies the exact target workload identity. */
+export async function connectGatewayReadinessTarget(
+  target: GatewayReadinessTarget,
+  timeoutMs: number,
+  environment: NodeJS.ProcessEnv = process.env
+): Promise<void> {
+  const host = target.host.includes(':') ? `[${target.host}]` : target.host
+  const client = new Client(
+    `${host}:${target.port}`,
+    createGrpcClientCredentials(environment, target.expectedSpiffeId),
+    {
+      'grpc.ssl_target_name_override': target.name,
+      'grpc.default_authority': target.name
+    }
+  )
+  try {
+    await new Promise<void>((resolve, reject) => {
+      client.waitForReady(Date.now() + timeoutMs, (error) => {
+        if (error) reject(new Error('GATEWAY_READINESS_UNAVAILABLE'))
+        else resolve()
+      })
+    })
+  } finally {
+    client.close()
+  }
+}
+
+/** Parses one `workload=grpcs://host:port` target without accepting credentials or hidden URL parts. */
 function parseTarget(
-  value: string
+  value: string,
+  trustDomain: string
 ):
   | { readonly ok: true; readonly target: GatewayReadinessTarget }
   | { readonly ok: false; readonly error: string } {
@@ -162,7 +183,7 @@ function parseTarget(
     const url = new URL(endpoint)
     const port = Number(url.port)
     if (
-      url.protocol !== 'tcp:' ||
+      url.protocol !== 'grpcs:' ||
       !url.hostname ||
       !Number.isSafeInteger(port) ||
       port < 1 ||
@@ -175,10 +196,26 @@ function parseTarget(
     ) {
       return { ok: false, error: `GATEWAY_READINESS_TARGET_INVALID:${name}` }
     }
-    return { ok: true, target: Object.freeze({ name, host: url.hostname, port }) }
+    return {
+      ok: true,
+      target: Object.freeze({
+        name,
+        host: url.hostname,
+        port,
+        expectedSpiffeId: `${trustDomain}/ns/oes/sa/${name}`
+      })
+    }
   } catch {
     return { ok: false, error: `GATEWAY_READINESS_TARGET_INVALID:${name}` }
   }
+}
+
+/** Derives only the configured local/staging/production SPIFFE trust domain from Gateway's own identity. */
+function readinessTrustDomain(value: string | undefined, errors: string[]): string {
+  const match = value?.trim().match(/^(spiffe:\/\/[^/]+)\/ns\/oes\/sa\/api-gateway$/)
+  if (match) return match[1]
+  errors.push('GATEWAY_READINESS_TRUST_IDENTITY_INVALID')
+  return 'spiffe://invalid.oes.internal'
 }
 
 /** Accepts a bounded timeout and records invalid overrides instead of silently repairing them. */

@@ -1,7 +1,5 @@
-import { createServer } from 'node:net'
 import {
   GatewayReadinessService,
-  connectGatewayReadinessTarget,
   loadGatewayReadinessOptions,
   type GatewayReadinessConnector,
   type GatewayReadinessOptions
@@ -10,7 +8,14 @@ import {
 /** Builds one explicit readiness configuration for focused behavior tests. */
 function options(overrides: Partial<GatewayReadinessOptions> = {}): GatewayReadinessOptions {
   return {
-    targets: [{ name: 'auth-service', host: '127.0.0.1', port: 50050 }],
+    targets: [
+      {
+        name: 'auth-service',
+        host: '127.0.0.1',
+        port: 50050,
+        expectedSpiffeId: 'spiffe://local.oes.internal/ns/oes/sa/auth-service'
+      }
+    ],
     timeoutMs: 50,
     configurationErrors: [],
     ...overrides
@@ -26,8 +31,18 @@ describe('GatewayReadinessService', () => {
     const service = new GatewayReadinessService(
       options({
         targets: [
-          { name: 'auth-service', host: 'auth-service', port: 50050 },
-          { name: 'permission-service', host: 'permission-service', port: 50051 }
+          {
+            name: 'auth-service',
+            host: 'auth-service',
+            port: 50050,
+            expectedSpiffeId: 'spiffe://local.oes.internal/ns/oes/sa/auth-service'
+          },
+          {
+            name: 'permission-service',
+            host: 'permission-service',
+            port: 50051,
+            expectedSpiffeId: 'spiffe://local.oes.internal/ns/oes/sa/permission-service'
+          }
         ]
       }),
       connector
@@ -85,8 +100,9 @@ describe('GatewayReadinessService', () => {
     )
     expect(
       loadGatewayReadinessOptions({
+        OES_WORKLOAD_SPIFFE_ID: 'spiffe://local.oes.internal/ns/oes/sa/api-gateway',
         GATEWAY_READINESS_TARGETS:
-          'auth-service=tcp://auth-service:50050,auth-service=tcp://permission-service:50051',
+          'auth-service=grpcs://auth-service:50050,auth-service=grpcs://permission-service:50051',
         GATEWAY_READINESS_TIMEOUT_MS: '0'
       }).configurationErrors
     ).toEqual([
@@ -95,25 +111,37 @@ describe('GatewayReadinessService', () => {
     ])
     expect(
       loadGatewayReadinessOptions({
-        GATEWAY_READINESS_TARGETS: 'auth-service=tcp://user:password@auth-service:50050/path'
+        OES_WORKLOAD_SPIFFE_ID: 'spiffe://local.oes.internal/ns/oes/sa/api-gateway',
+        GATEWAY_READINESS_TARGETS: 'auth-service=grpcs://user:password@auth-service:50050/path'
       }).configurationErrors
     ).toEqual(['GATEWAY_READINESS_TARGET_INVALID:auth-service'])
   })
 
-  it('opens and destroys a real local socket while rejecting an unavailable port', async () => {
-    const server = createServer()
-    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
-    const address = server.address()
-    if (!address || typeof address === 'string') throw new Error('test server address unavailable')
-
-    await expect(
-      connectGatewayReadinessTarget({ name: 'live', host: '127.0.0.1', port: address.port }, 100)
-    ).resolves.toBeUndefined()
-    await new Promise<void>((resolve, reject) =>
-      server.close((error) => (error ? reject(error) : resolve()))
-    )
-    await expect(
-      connectGatewayReadinessTarget({ name: 'down', host: '127.0.0.1', port: address.port }, 100)
-    ).rejects.toThrow('GATEWAY_READINESS_UNAVAILABLE')
+  it('derives the exact expected target SPIFFE identity and rejects plaintext target schemes', () => {
+    expect(
+      loadGatewayReadinessOptions({
+        OES_WORKLOAD_SPIFFE_ID: 'spiffe://local.oes.internal/ns/oes/sa/api-gateway',
+        GATEWAY_READINESS_TARGETS: 'auth-service=grpcs://127.0.0.1:50050'
+      }).targets
+    ).toEqual([
+      {
+        name: 'auth-service',
+        host: '127.0.0.1',
+        port: 50050,
+        expectedSpiffeId: 'spiffe://local.oes.internal/ns/oes/sa/auth-service'
+      }
+    ])
+    expect(
+      loadGatewayReadinessOptions({
+        OES_WORKLOAD_SPIFFE_ID: 'spiffe://local.oes.internal/ns/oes/sa/api-gateway',
+        GATEWAY_READINESS_TARGETS: 'auth-service=tcp://127.0.0.1:50050'
+      }).configurationErrors
+    ).toEqual(['GATEWAY_READINESS_TARGET_INVALID:auth-service'])
+    expect(
+      loadGatewayReadinessOptions({
+        OES_WORKLOAD_SPIFFE_ID: 'spiffe://wrong.example/ns/oes/sa/not-gateway',
+        GATEWAY_READINESS_TARGETS: 'auth-service=grpcs://127.0.0.1:50050'
+      }).configurationErrors
+    ).toContain('GATEWAY_READINESS_TRUST_IDENTITY_INVALID')
   })
 })
