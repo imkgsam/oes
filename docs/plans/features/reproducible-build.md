@@ -8,7 +8,7 @@ worktreeKey: reproducible-build
 pullRequest: pending
 mergeSha: pending
 cleanup: HOLD
-state: RUNNING
+state: CANDIDATE_READY
 
 ## Objective
 
@@ -18,9 +18,9 @@ Make a clean worktree self-preparing and reproducibly buildable from versioned, 
 
 ### environment-contract
 
-state: RUNNING
-candidate: pending
-review: self
+state: CANDIDATE_READY
+candidate: a77cb9a5b1fdc79b1e08d3fa81579ba1f3d9780a
+review: global-ri exact integration candidate pending
 
 - Scope: sanitized versioned environment template; deterministic `env:bootstrap` and `env:check`; task-owned worktree defaults and validation tests.
 - Protected scope: secret values, production/shared data, host-global configuration, business configuration semantics.
@@ -29,9 +29,9 @@ review: self
 
 ### generated-clients
 
-state: READY
-candidate: pending
-review: self
+state: CANDIDATE_READY
+candidate: a77cb9a5b1fdc79b1e08d3fa81579ba1f3d9780a
+review: global-ri exact integration candidate pending
 
 - Scope: one versioned command that generates protobuf outputs and all 21 Prisma Clients with an audited schema count.
 - Protected scope: Prisma data models, migrations, service data ownership, protobuf contracts.
@@ -40,9 +40,9 @@ review: self
 
 ### workspace-install-policy
 
-state: READY
-candidate: pending
-review: self
+state: CANDIDATE_READY
+candidate: a77cb9a5b1fdc79b1e08d3fa81579ba1f3d9780a
+review: global-ri exact integration candidate pending
 
 - Scope: pnpm workspace discovery, package metadata, lockfile, and explicit trusted dependency build policy.
 - Protected scope: dependency major-version migration, arbitrary lifecycle scripts, unrelated application workspaces.
@@ -51,9 +51,9 @@ review: self
 
 ### backend-build-graph
 
-state: READY
-candidate: pending
-review: self
+state: CANDIDATE_READY
+candidate: a77cb9a5b1fdc79b1e08d3fa81579ba1f3d9780a
+review: global-ri exact integration candidate pending
 
 - Scope: root TypeScript references and build orchestration for common, Gateway/BFF, and all 21 backend services.
 - Protected scope: stable service boundaries, runtime transport/event behavior, tenant/org/operator/trace/audit semantics.
@@ -62,9 +62,9 @@ review: self
 
 ### site-runtime-build
 
-state: READY
-candidate: pending
-review: self
+state: CANDIDATE_READY
+candidate: a77cb9a5b1fdc79b1e08d3fa81579ba1f3d9780a
+review: global-ri exact integration candidate pending
 
 - Scope: Site Runtime workspace links and deterministic build order for the runtime kit, template runtime/storefront, and concrete site runtime/storefront.
 - Protected scope: site business behavior, content, deployment, credentials, and external integrations.
@@ -73,9 +73,9 @@ review: self
 
 ### clean-worktree-reproduction
 
-state: READY
-candidate: pending
-review: global-ri
+state: CANDIDATE_READY
+candidate: a77cb9a5b1fdc79b1e08d3fa81579ba1f3d9780a
+review: global-ri exact integration candidate pending
 
 - Scope: automated positive/negative checks and clean-worktree evidence for bootstrap, generation, install policy, backend build, and Site Runtime build.
 - Protected scope: remote merge, cleanup, production/shared services or data.
@@ -94,7 +94,7 @@ review: global-ri
 
 ## Evidence keys
 
-- candidate: pending
+- candidate: exact integration HEAD assigned to Global RI; current implementation ancestor `a77cb9a5b1fdc79b1e08d3fa81579ba1f3d9780a`
 - dependency fingerprint: `pnpm-lock.yaml`, Node, pnpm, TypeScript, Prisma, and Nuxt tool versions
 - literal inputs: truth/base/scope binding plus exact changed paths and clean-worktree path
 - execution profile fingerprint: pending final evidence bundle; handoff evidence root is owner-local
