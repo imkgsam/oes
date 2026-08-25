@@ -250,7 +250,7 @@ Human确认design PR merge且exact main CI成功后，UD重新读取final truth�
 Human确认只绑定发卡task的exact state和card fingerprint。跨task分为：
 
 1. Human authorization envelope：Design Owner -> UD、Direct editorial source -> UD、UD -> Direct/FL/SL、decision owner -> Recovery Design/FL；
-2. parent assignment：SL -> FL/Stage RI、FL -> IT/RI，仅在已确认拓扑内收窄scope。
+2. parent assignment：SL -> FL/Stage RI、FL -> IT/Feature RI，仅在已确认拓扑内收窄scope；System Review只使用显式全系统scope和exact direct parent。
 
 每个Human authorization envelope至少绑定：source task、target task/role、objective、scope/protected scope、固定语义`truthBaseline`、移动`integrationBasePolicy`、candidate、allowed resources、`executionCapabilities = NONE | BOUNDED_SET`、expected state、state version、root confirmation fingerprint、transition id、stop point和typed result。Design Owner→UD Proposal envelope还必须绑定exact `previewFingerprint`、`scopeFingerprint`、base/proposal commit和intended canonical files；Direct editorial source→UD必须绑定classification fingerprint、exact files/hunks和source notice target。非delivery Proposal/editorial envelope使用`NONE`；UD→Direct/FL/SL和Recovery delivery envelope使用完成stop point所需的`BOUNDED_SET`。parent assignment至少绑定其root envelope fingerprint及收窄后的同类字段。envelope不转发，assignment不扩权；child的effective set必须落在Human-confirmed topology为该child role绑定的delegation ceiling内，而不是继承creating parent自身的effective set。
 
@@ -292,7 +292,7 @@ scope内已绑定的能力自动执行，不产生逐文件、逐命令、逐次
 4. UD compare-and-set `HANDOFF_PENDING -> HANDOFF_VERIFIED`并转移delivery ownership；
 5. 只有此后新owner才可写文件或创建delivery Git资源。
 
-创建或预检发现声明能力未兑现时，新task返回`EXECUTION_ENVIRONMENT_NOT_READY`及一次性缺口证据，UD仍是activation owner，并在相同transition下修复execution profile/host后幂等重试。handoff后confirmed operation仍触发platform approval时使用`EXECUTION_PROFILE_DEFECT`并保持current owner。真实capability/scope扩大改用一张`PERMISSION_EXPANSION_REQUIRED`卡与new stateVersion。SL→FL/Stage RI和FL→IT/RI的parent assignment执行同一preflight guard；child接受前exact creating parent保持owner。不得接受orphan或duplicate owner；merge和cleanup不属于handoff授权。
+创建或预检发现声明能力未兑现时，新task返回`EXECUTION_ENVIRONMENT_NOT_READY`及一次性缺口证据，UD仍是activation owner，并在相同transition下修复execution profile/host后幂等重试。handoff后confirmed operation仍触发platform approval时使用`EXECUTION_PROFILE_DEFECT`并保持current owner。真实capability/scope扩大改用一张`PERMISSION_EXPANSION_REQUIRED`卡与new stateVersion。SL→FL/Stage RI和FL→IT/Feature RI的parent assignment执行同一preflight guard；child接受前exact creating parent保持owner。不得接受orphan或duplicate owner；merge和cleanup不属于handoff授权。
 
 ### 4.6 Transition protocol
 
@@ -441,7 +441,20 @@ directExecutionParentTaskId
 returnTargetTaskId
 ~~~
 
-Feature RI是单个FL对一个exact feature candidate的独立复核，唯一task标题为`[RI] HUMAN_READABLE_FEATURE Feature Review`。每个FL同一时刻最多一个active Feature RI assignment；`FEATURE_RI_PENDING`、`FEATURE_RI_ACCEPTED`和`FEATURE_RI_REVISION_REQUIRED`分别表示等待复核、exact candidate通过和发现需返工。被拒candidate的append-only修复继续交给同一Feature RI并递增review round，只复验受candidate、依赖、输入或环境变化影响的范围，不为每轮重复创建RI task。
+Feature RI是单个FL对一个exact feature candidate的独立复核，唯一task标题为`[RI] HUMAN_READABLE_FEATURE Feature Review`。每个FL同一时刻最多一个active Feature RI assignment；`FEATURE_RI_PENDING`、`FEATURE_RI_ACCEPTED`和`FEATURE_RI_REVISION_REQUIRED`分别表示等待复核、exact candidate通过和发现需返工。每个round绑定`reviewRound`、exact `candidateSha`、exact FL/RI task、`directExecutionParentTaskId`、`returnTargetTaskId`、dependency/scope fingerprint、test evidence keys、affected-evidence invalidation matrix、transition id与state version；RI结论只用`ASSIGNMENT_RESULT`返回exact FL。
+
+Feature RI按以下唯一序列推进：
+
+~~~text
+CANDIDATE_READY[c]
+  -> FEATURE_RI_PENDING[reviewRound=r, candidateSha=c]
+     | FEATURE_RI_ACCEPTED[c] -> FEATURE_REVIEW_PASSED
+     | FEATURE_RI_REVISION_REQUIRED[c] -> FL_REMEDIATION
+         -> CANDIDATE_READY[c+1]
+         -> FEATURE_RI_PENDING[reviewRound=r+1, candidateSha=c+1]
+~~~
+
+被拒candidate的append-only修复继续交给同一Feature RI task并递增`reviewRound`；new candidate使旧acceptance失效，并按affected-evidence matrix只复验受candidate、依赖、literal inputs、profile或command version变化影响的范围。相同task、round、candidate、transition和binding幂等复用原结果；相同transition但binding不同则fail closed；不得为同一FL并行创建duplicate Feature RI。
 
 Feature RI的exact FL、`directExecutionParentTaskId`、feature key和return target在创建前固定，handoff后不得换绑到另一个FL、feature或candidate owner。另一个feature可复用fingerprint仍有效的测试证据，但不得复用Feature RI task身份、parent或typed-result route；跨FL复用RI task始终是`TASK_IDENTITY_INVALID`，不因旧binding或兼容规则变为有效。真正覆盖明确全系统scope的独立复核称为System Review，标题为`[RI] HUMAN_READABLE_SCOPE System Review`，不得作为普通Feature RI的共享替代者。
 
@@ -484,7 +497,7 @@ SL 可为 Stage Review 创建 clean-context Stage RI；SL 或 Stage RI 只读精
 - confirmed capability set内且由effective project profile兑现的owner worktree/file写入、owner local Git与允许的remote branch/PR操作、repository标准package/build/test、task-owned process/container/local test database和approved network操作；低风险platform approval由auto-review处理，正常用户权限弹窗为零；
 - `main`前进时自动刷新`integrationBase`，按drift/affected-test matrix集成变化并复用仍有效证据；只在冻结语义冲突时返回设计决定；
 - 所有remote mutation通过versioned remote driver执行并原子记录receipt/checkpoint；恢复先read-after-write，不重复已完成mutation；
-- confirmed topology内SL -> FL/Stage RI、FL -> IT/RI的收窄assignment；
+- confirmed topology内SL -> FL/Stage RI、FL -> IT/Feature RI的收窄assignment；
 - IT/RI typed result返回direct execution parent；
 - SL/FL只启动dependency-ready、scope不冲突且WIP容量允许的work item；
 - 完整feature candidate与feature review通过后，FL push自己的branch并创建Draft PR；无parent SL时独立gates可推进到merge-ready，有parent SL时只有exact Stage Review通过后才推进到merge-ready；Human merge授权后由merge queue或等价串行admission验证latest-main组合；
@@ -822,9 +835,16 @@ Task identity与Capability preflight都是`HANDOFF_ACCEPTED`的guard而非长期
 Feature与Stage继续使用：
 
 ```text
-FL without SL: LOCAL_REVIEW_PASSED -> PR_READY[draft] -> MERGE_READY
+Feature review:
+  CANDIDATE_READY[c] -> FEATURE_RI_PENDING[r,c]
+     | FEATURE_RI_ACCEPTED[c] -> FEATURE_REVIEW_PASSED
+     | FEATURE_RI_REVISION_REQUIRED[c] -> FL_REMEDIATION
+         -> CANDIDATE_READY[c+1] -> FEATURE_RI_PENDING[r+1,c+1]
+  low risk: FL_SELF_REVIEW_ACCEPTED[c] -> FEATURE_REVIEW_PASSED
+
+FL without SL: FEATURE_REVIEW_PASSED -> PR_READY[draft] -> MERGE_READY
                -> MERGE_AUTHORIZED -> QUEUED -> MERGE_GROUP_CI_PASSED -> MERGED
-FL with SL: LOCAL_REVIEW_PASSED -> PR_READY[draft] -> READY_FOR_STAGE_REVIEW
+FL with SL: FEATURE_REVIEW_PASSED -> PR_READY[draft] -> READY_FOR_STAGE_REVIEW
              -> STAGE_REVIEW_PASSED -> MERGE_READY -> MERGE_AUTHORIZED
              -> QUEUED -> MERGE_GROUP_CI_PASSED -> MERGED
 FL cleanup: COMPLETE_AWAITING_CLEANUP -> CLEANED
