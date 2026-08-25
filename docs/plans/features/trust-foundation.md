@@ -24,7 +24,7 @@ Stable service boundaries, data ownership, internal gRPC, event transport, and t
 
 ```text
 state: CANDIDATE_READY
-candidate: 06161e7b513a8f04a50df3d79c0d82c9f287a2d3
+candidate: 605d0ca1165461207ea9a7f4cd7e73582e664479
 review: self
 ```
 
@@ -37,7 +37,7 @@ review: self
 
 ```text
 state: CANDIDATE_READY
-candidate: 06161e7b513a8f04a50df3d79c0d82c9f287a2d3
+candidate: 605d0ca1165461207ea9a7f4cd7e73582e664479
 review: self
 ```
 
@@ -50,7 +50,7 @@ review: self
 
 ```text
 state: CANDIDATE_READY
-candidate: 06161e7b513a8f04a50df3d79c0d82c9f287a2d3
+candidate: 605d0ca1165461207ea9a7f4cd7e73582e664479
 review: local-ri
 ```
 
@@ -63,7 +63,7 @@ review: local-ri
 
 ```text
 state: CANDIDATE_READY
-candidate: 06161e7b513a8f04a50df3d79c0d82c9f287a2d3
+candidate: 605d0ca1165461207ea9a7f4cd7e73582e664479
 review: local-ri
 ```
 
@@ -76,7 +76,7 @@ review: local-ri
 
 ```text
 state: CANDIDATE_READY
-candidate: 06161e7b513a8f04a50df3d79c0d82c9f287a2d3
+candidate: 605d0ca1165461207ea9a7f4cd7e73582e664479
 review: self
 ```
 
@@ -89,7 +89,7 @@ review: self
 
 ```text
 state: CANDIDATE_READY
-candidate: 06161e7b513a8f04a50df3d79c0d82c9f287a2d3
+candidate: 605d0ca1165461207ea9a7f4cd7e73582e664479
 review: global-ri
 ```
 
@@ -105,3 +105,17 @@ review: global-ri
 - Internal calls use target-audience, certificate-bound ExecutionToken and preserve applicable trusted tenant/org/operator/trace/audit context without trusting payload copies.
 - The foundation atomic group proves successful flow plus missing token, forged token/context, wrong workload/tenant, expired certificate, rotation, and dependency outage paths.
 - Stable architecture and service ownership remain unchanged; implementation evidence is bound to the dependency candidate and the final feature candidate.
+
+## Candidate review evidence
+
+```text
+implementationCandidate: 605d0ca1165461207ea9a7f4cd7e73582e664479
+invalidatedCandidate: cbef33939d7205dbc43d077a65eb24b8d18cb0eb
+resolvedFinding: RI-TF-001
+collaborationL1: 10 suites / 35 tests / exit 0
+foundationAtomic: FOUNDATION_TRUSTED_RUNTIME_ACCEPTED / exit 0
+featureReview: PASS
+globalReview: pending exact canonical RI
+```
+
+RI-TF-001 exposed a hermetic Collaboration module test that instantiated the new fail-closed client credential factories without a task-owned trust fixture. The focused test now substitutes only the credential boundary and the unrelated request guard, exercises both production async client-provider factories, and asserts two mandatory credential constructions. Production credential creation remains unchanged and fail-closed.
