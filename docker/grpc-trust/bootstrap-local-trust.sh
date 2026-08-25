@@ -51,6 +51,7 @@ EOF
     -in "${leaf_directory}/request.pem" \
     -CA "${output_directory}/ca.pem" \
     -CAkey "${output_directory}/ca-key.pem" \
+    -CAserial "${output_directory}/ca.srl" \
     -CAcreateserial \
     -out "${leaf_directory}/cert.pem" \
     -days 1 \

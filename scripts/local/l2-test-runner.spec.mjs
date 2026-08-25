@@ -5,7 +5,7 @@ import path from 'node:path'
 import test from 'node:test'
 import {
   discoverL2Packages,
-  environmentBootstrapArgs,
+  environmentPreparationArgs,
   selectL2Packages,
   serviceDatabaseUrl
 } from './l2-test-runner.mjs'
@@ -60,11 +60,21 @@ test('focused L2 selection preserves inventory order and rejects unknown package
   )
 })
 
-test('L2 bootstrap preserves the exact task key already loaded from the owner environment', () => {
-  assert.deepEqual(environmentBootstrapArgs('ci_123_4'), [
-    'env:bootstrap',
-    '--',
-    '--task-key=ci_123_4'
-  ])
-  assert.throws(() => environmentBootstrapArgs(''), /L2_ENV_REQUIRED key=OES_TASK_KEY/)
+test('L2 environment preparation bootstraps once and validates an idempotent rerun', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'oes-l2-environment-'))
+  try {
+    assert.deepEqual(environmentPreparationArgs(root), ['env:bootstrap'])
+    fs.writeFileSync(path.join(root, '.env'), 'OES_TASK_KEY=ci_123_4\n')
+    assert.deepEqual(environmentPreparationArgs(root), ['env:check'])
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('local trust bootstrap keeps the OpenSSL CA serial below the task-owned output root', () => {
+  const script = fs.readFileSync(
+    new URL('../../docker/grpc-trust/bootstrap-local-trust.sh', import.meta.url),
+    'utf8'
+  )
+  assert.match(script, /-CAserial "\$\{output_directory\}\/ca\.srl"/)
 })

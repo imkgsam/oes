@@ -5,7 +5,7 @@ import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { loadDatabaseContext } from './database-lifecycle.mjs'
 import { parseEnvironmentFile } from './worktree-env.mjs'
-import { assertJestResult } from './test-matrix.mjs'
+import { assertJestResult, assertNoTestResidue } from './test-matrix.mjs'
 
 /** Discovers every versioned service L2 spec and binds it to its owning package. */
 export function discoverL2Packages(repositoryRoot = defaultRepositoryRoot()) {
@@ -65,6 +65,8 @@ export function selectL2Packages(inventory, requestedNames = []) {
 /** Runs all L2 specs against exact task-owned Postgres/NATS resources and always rolls them back. */
 export function runL2Matrix(repositoryRoot = defaultRepositoryRoot(), requestedNames = []) {
   const inventory = selectL2Packages(discoverL2Packages(repositoryRoot), requestedNames)
+  assertNoTestResidue(repositoryRoot)
+  run('pnpm', environmentPreparationArgs(repositoryRoot), { cwd: repositoryRoot })
   const context = loadDatabaseContext(repositoryRoot)
   const evidenceDirectory = path.join(repositoryRoot, '.tmp', 'oes-test-matrix', 'l2')
   fs.mkdirSync(evidenceDirectory, { recursive: true })
@@ -74,8 +76,6 @@ export function runL2Matrix(repositoryRoot = defaultRepositoryRoot(), requestedN
   let totalSuites = 0
   let totalTests = 0
   try {
-    run('pnpm', environmentBootstrapArgs(context.taskKey), { cwd: repositoryRoot })
-    run('pnpm', ['env:check'], { cwd: repositoryRoot })
     run('pnpm', ['generated:all'], { cwd: repositoryRoot })
     run('pnpm', ['common:build'], { cwd: repositoryRoot })
     run('pnpm', ['db:up'], { cwd: repositoryRoot })
@@ -174,13 +174,22 @@ export function runL2Matrix(repositoryRoot = defaultRepositoryRoot(), requestedN
         }
       }
     }
+    try {
+      assertNoTestResidue(repositoryRoot)
+    } catch (residueError) {
+      primaryFailure = primaryFailure
+        ? new AggregateError([primaryFailure, residueError], 'L2_AND_RESIDUE_CHECK_FAILED')
+        : residueError
+    }
   }
   if (primaryFailure) throw primaryFailure
 }
 
-/** Preserves the already-loaded owner key when the L2 route idempotently rechecks its environment. */
-export function environmentBootstrapArgs(taskKey) {
-  return Object.freeze(['env:bootstrap', '--', `--task-key=${required(taskKey, 'OES_TASK_KEY')}`])
+/** Bootstraps a missing environment once and validates an existing owner binding without rewriting it. */
+export function environmentPreparationArgs(repositoryRoot) {
+  return Object.freeze(
+    fs.existsSync(path.join(repositoryRoot, '.env')) ? ['env:check'] : ['env:bootstrap']
+  )
 }
 
 /** Creates owner-local workload material and binds Collaboration's real mTLS client construction to it. */
