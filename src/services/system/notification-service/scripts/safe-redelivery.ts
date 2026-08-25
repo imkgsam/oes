@@ -34,25 +34,31 @@ async function main(): Promise<void> {
   try {
     await prisma.$connect()
     await runtime.onModuleInit()
+    const runner = new NatsSafeRedeliveryRunner(runtime)
     const job = new NotificationSafeRedeliveryJob(
       new NotificationEventOperationsService(
         new PrismaNotificationEventOperationsRepository(prisma)
       ),
-      new NatsSafeRedeliveryRunner(runtime),
-      new CollaborationTaskNotificationHandler(
-        new PrismaNotificationInboxRepository(prisma)
-      )
+      runner,
+      new CollaborationTaskNotificationHandler(new PrismaNotificationInboxRepository(prisma))
     )
     const result = await job.execute({
       trustedOperator,
       request,
       maximumPulls: input.maximumPulls
     })
-    process.stdout.write(`${JSON.stringify({
-      replayRunId: result.replayRunId,
-      status: result.status,
-      originalSourceTermination: result.originalSourceTermination
-    })}\n`)
+    const deletedConsumers =
+      result.status === 'COMPLETED'
+        ? await runner.deleteConsumers({ stream: 'OES_BUSINESS_EVENTS', request })
+        : []
+    process.stdout.write(
+      `${JSON.stringify({
+        replayRunId: result.replayRunId,
+        status: result.status,
+        originalSourceTermination: result.originalSourceTermination,
+        deletedConsumers
+      })}\n`
+    )
   } finally {
     await runtime.onModuleDestroy()
     await prisma.$disconnect()
@@ -74,7 +80,9 @@ function readInput(path: string | undefined): {
   if (!Number.isInteger(input.maximumPulls) || (input.maximumPulls as number) < 3)
     throw new Error('SAFE_REDELIVERY_MAXIMUM_PULLS_INVALID')
   return {
-    request: input.request as Omit<SafeRedeliveryRequest, 'requestedBy'> & { readonly requestedBy?: never },
+    request: input.request as Omit<SafeRedeliveryRequest, 'requestedBy'> & {
+      readonly requestedBy?: never
+    },
     maximumPulls: input.maximumPulls as number
   }
 }
@@ -85,10 +93,10 @@ function trustedOperatorFromEnvironment(environment: NodeJS.ProcessEnv): {
   readonly authorizedTenantIds: readonly string[]
 } {
   const accountId = environment.OES_TRUSTED_OPERATOR_ID?.trim()
-  const authorizedTenantIds = environment.OES_TRUSTED_OPERATOR_TENANT_IDS
-    ?.split(',')
-    .map((value) => value.trim())
-    .filter(Boolean) ?? []
+  const authorizedTenantIds =
+    environment.OES_TRUSTED_OPERATOR_TENANT_IDS?.split(',')
+      .map((value) => value.trim())
+      .filter(Boolean) ?? []
   if (!accountId || !authorizedTenantIds.length)
     throw new Error('SAFE_REDELIVERY_TRUSTED_OPERATOR_CONTEXT_REQUIRED')
   return { accountId, authorizedTenantIds }

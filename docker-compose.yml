@@ -10,7 +10,17 @@ x-service-defaults: &service-defaults
     postgres: { condition: service_healthy }
     redis: { condition: service_healthy }
     otel-collector: { condition: service_started }
+    grpc-trust-bootstrap: { condition: service_completed_successfully }
   restart: unless-stopped
+
+x-event-service-defaults: &event-service-defaults
+  <<: *service-defaults
+  depends_on:
+    postgres: { condition: service_healthy }
+    redis: { condition: service_healthy }
+    otel-collector: { condition: service_started }
+    nats-bootstrap: { condition: service_completed_successfully }
+    grpc-trust-bootstrap: { condition: service_completed_successfully }
 
 x-service-environment: &service-environment
   NODE_ENV: development
@@ -22,6 +32,9 @@ x-service-environment: &service-environment
   AUTH_SERVICE_HOST: auth-service
   AUTH_SERVICE_PORT: 50050
   AUTH_EXECUTION_ISSUER: https://issuer.local.oes.internal
+  OES_GRPC_TLS_ENABLED: 'true'
+  OES_GRPC_TLS_MIN_VERSION: TLSv1.2
+  OES_GRPC_TLS_CA_PATH: /trust/current/ca.pem
 
 services:
   grpc-trust-bootstrap:
@@ -29,7 +42,12 @@ services:
     labels:
       oes.local.owner: ${OES_TASK_KEY:?run pnpm env:bootstrap}
       oes.local.scope: infrastructure-databases
-    command: ['/bin/sh', '-ec', 'apk add --no-cache bash openssl && exec /scripts/bootstrap-local-trust.sh --output /trust']
+    command:
+      [
+        '/bin/sh',
+        '-ec',
+        'apk add --no-cache bash openssl && exec /scripts/bootstrap-local-trust.sh --output /trust'
+      ]
     environment:
       OES_TRUST_ENV: local
       OES_TRUST_OUTPUT_DIRECTORY: /trust
@@ -44,7 +62,8 @@ services:
     labels:
       oes.local.owner: ${OES_TASK_KEY:?run pnpm env:bootstrap}
       oes.local.scope: infrastructure-databases
-    command: ['/bin/sh', '-ec', 'apk add --no-cache bash openssl && exec /scripts/rotate-local-trust.sh']
+    command:
+      ['/bin/sh', '-ec', 'apk add --no-cache bash openssl && exec /scripts/rotate-local-trust.sh']
     depends_on:
       grpc-trust-bootstrap: { condition: service_completed_successfully }
     environment:
@@ -65,6 +84,9 @@ services:
     environment:
       <<: *service-environment
       MODULE_NAME: api-gateway
+      OES_GRPC_TLS_CERT_PATH: /trust/current/cert.pem
+      OES_GRPC_TLS_KEY_PATH: /trust/current/key.pem
+      OES_WORKLOAD_SPIFFE_ID: spiffe://local.oes.internal/ns/oes/sa/api-gateway
       SERVICE_PORT: 9101
       AUTH_SERVICE_HOST: auth-service
       AUTH_SERVICE_PORT: 50050
@@ -106,7 +128,67 @@ services:
       SITE_SERVICE_PORT: 50069
       BROWSER_ACTIVITY_SERVICE_HOST: browser-activity-service
       BROWSER_ACTIVITY_SERVICE_PORT: 50070
+      GATEWAY_READINESS_TIMEOUT_MS: 1000
+      GATEWAY_READINESS_TARGETS: >-
+        auth=tcp://auth-service:50050,
+        permission=tcp://permission-service:50051,
+        identity=tcp://identity-service:50052,
+        party=tcp://party-service:50053,
+        tenant-org=tcp://tenant-org-service:50054,
+        hr=tcp://hr-service:50055,
+        asset=tcp://asset-service:50056,
+        terminal-device=tcp://terminal-device-service:50057,
+        item-master=tcp://item-master-service:50058,
+        sales=tcp://sales-service:50059,
+        crm=tcp://crm-service:50060,
+        srm=tcp://srm-service:50061,
+        procurement=tcp://procurement-service:50062,
+        finance=tcp://finance-service:50063,
+        wms=tcp://wms-service:50064,
+        mes=tcp://mes-service:50065,
+        public-entry=tcp://public-entry-service:50067,
+        collaboration=tcp://collaboration-service:50068,
+        site=tcp://site-service:50069,
+        browser-activity=tcp://browser-activity-service:50070
     ports: ['127.0.0.1::9101']
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:9101/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+        ]
+      interval: 2s
+      timeout: 3s
+      retries: 45
+      start_period: 5s
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /trust
+        read_only: true
+        volume:
+          subpath: api-gateway
+
+  apisix:
+    image: apache/apisix:3.13.0-debian@sha256:c5c7a55ebb5c07abc210dbb963a37f41030e12c91d23bacedbaa168fec633bd7
+    labels:
+      oes.local.owner: ${OES_TASK_KEY:?run pnpm env:bootstrap}
+      oes.local.scope: gateway-events
+    volumes:
+      - ./docker/apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro
+      - ./docker/apisix/apisix.yaml:/usr/local/apisix/conf/apisix.yaml:ro
+    ports: ['127.0.0.1::9080']
+    networks: [oes_network]
+    depends_on:
+      api-gateway: { condition: service_healthy }
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -fsS http://127.0.0.1:9080/health/ready >/dev/null']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
 
   asset-service:
     <<: *service-defaults
@@ -119,6 +201,9 @@ services:
     environment:
       <<: *service-environment
       MODULE_NAME: asset-service
+      OES_GRPC_TLS_CERT_PATH: /trust/current/cert.pem
+      OES_GRPC_TLS_KEY_PATH: /trust/current/key.pem
+      OES_WORKLOAD_SPIFFE_ID: spiffe://local.oes.internal/ns/oes/sa/asset-service
       DATABASE_URL: ${OES_DB_ASSET_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50056
       ASSET_S3_ENDPOINT: http://minio:9000
@@ -126,6 +211,13 @@ services:
       ASSET_S3_ACCESS_KEY_ID: ${MINIO_ROOT_USER:?run pnpm db:config}
       ASSET_S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:?run pnpm db:config}
     expose: ['50056']
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /trust
+        read_only: true
+        volume:
+          subpath: asset-service
 
   auth-service:
     <<: *service-defaults
@@ -138,10 +230,20 @@ services:
     environment:
       <<: *service-environment
       MODULE_NAME: auth-service
+      OES_GRPC_TLS_CERT_PATH: /trust/current/cert.pem
+      OES_GRPC_TLS_KEY_PATH: /trust/current/key.pem
+      OES_WORKLOAD_SPIFFE_ID: spiffe://local.oes.internal/ns/oes/sa/auth-service
       DATABASE_URL: ${OES_DB_AUTH_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50050
       AUTH_HTTP_PORT: 50051
     expose: ['50050']
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /trust
+        read_only: true
+        volume:
+          subpath: auth-service
 
   browser-activity-service:
     <<: *service-defaults
@@ -154,12 +256,22 @@ services:
     environment:
       <<: *service-environment
       MODULE_NAME: browser-activity-service
+      OES_GRPC_TLS_CERT_PATH: /trust/current/cert.pem
+      OES_GRPC_TLS_KEY_PATH: /trust/current/key.pem
+      OES_WORKLOAD_SPIFFE_ID: spiffe://local.oes.internal/ns/oes/sa/browser-activity-service
       DATABASE_URL: ${OES_DB_BROWSER_ACTIVITY_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50070
     expose: ['50070']
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /trust
+        read_only: true
+        volume:
+          subpath: browser-activity-service
 
   collaboration-service:
-    <<: *service-defaults
+    <<: *event-service-defaults
     build:
       context: .
       dockerfile: docker/Dockerfile.service
@@ -169,12 +281,24 @@ services:
     environment:
       <<: *service-environment
       MODULE_NAME: collaboration-service
+      OES_GRPC_TLS_CERT_PATH: /trust/current/cert.pem
+      OES_GRPC_TLS_KEY_PATH: /trust/current/key.pem
+      OES_WORKLOAD_SPIFFE_ID: spiffe://local.oes.internal/ns/oes/sa/collaboration-service
       DATABASE_URL: ${OES_DB_COLLABORATION_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50068
       NATS_COLLABORATION_USER: ${NATS_COLLABORATION_USER:?run pnpm db:config}
       NATS_COLLABORATION_PASSWORD: ${NATS_COLLABORATION_PASSWORD:?run pnpm db:config}
+      NATS_URL: nats://nats:4222
+      COLLABORATION_OUTBOX_INTERVAL_MS: 1000
       COLLABORATION_DATABASE_URL: ${OES_DB_COLLABORATION_SERVICE_URL:?run pnpm db:config}
     expose: ['50068']
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /trust
+        read_only: true
+        volume:
+          subpath: collaboration-service
 
   hr-service:
     <<: *service-defaults
@@ -187,9 +311,19 @@ services:
     environment:
       <<: *service-environment
       MODULE_NAME: hr-service
+      OES_GRPC_TLS_CERT_PATH: /trust/current/cert.pem
+      OES_GRPC_TLS_KEY_PATH: /trust/current/key.pem
+      OES_WORKLOAD_SPIFFE_ID: spiffe://local.oes.internal/ns/oes/sa/hr-service
       DATABASE_URL: ${OES_DB_HR_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50055
     expose: ['50055']
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /trust
+        read_only: true
+        volume:
+          subpath: hr-service
 
   identity-service:
     <<: *service-defaults
@@ -202,9 +336,19 @@ services:
     environment:
       <<: *service-environment
       MODULE_NAME: identity-service
+      OES_GRPC_TLS_CERT_PATH: /trust/current/cert.pem
+      OES_GRPC_TLS_KEY_PATH: /trust/current/key.pem
+      OES_WORKLOAD_SPIFFE_ID: spiffe://local.oes.internal/ns/oes/sa/identity-service
       DATABASE_URL: ${OES_DB_IDENTITY_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50052
     expose: ['50052']
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /trust
+        read_only: true
+        volume:
+          subpath: identity-service
 
   item-master-service:
     <<: *service-defaults
@@ -217,12 +361,22 @@ services:
     environment:
       <<: *service-environment
       MODULE_NAME: item-master-service
+      OES_GRPC_TLS_CERT_PATH: /trust/current/cert.pem
+      OES_GRPC_TLS_KEY_PATH: /trust/current/key.pem
+      OES_WORKLOAD_SPIFFE_ID: spiffe://local.oes.internal/ns/oes/sa/item-master-service
       DATABASE_URL: ${OES_DB_ITEM_MASTER_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50058
     expose: ['50058']
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /trust
+        read_only: true
+        volume:
+          subpath: item-master-service
 
   notification-service:
-    <<: *service-defaults
+    <<: *event-service-defaults
     build:
       context: .
       dockerfile: docker/Dockerfile.service
@@ -232,11 +386,22 @@ services:
     environment:
       <<: *service-environment
       MODULE_NAME: notification-service
+      OES_GRPC_TLS_CERT_PATH: /trust/current/cert.pem
+      OES_GRPC_TLS_KEY_PATH: /trust/current/key.pem
+      OES_WORKLOAD_SPIFFE_ID: spiffe://local.oes.internal/ns/oes/sa/notification-service
       DATABASE_URL: ${OES_DB_NOTIFICATION_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50066
       NATS_NOTIFICATION_USER: ${NATS_NOTIFICATION_USER:?run pnpm db:config}
       NATS_NOTIFICATION_PASSWORD: ${NATS_NOTIFICATION_PASSWORD:?run pnpm db:config}
+      NATS_URL: nats://nats:4222
     expose: ['50066']
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /trust
+        read_only: true
+        volume:
+          subpath: notification-service
 
   party-service:
     <<: *service-defaults
@@ -249,9 +414,19 @@ services:
     environment:
       <<: *service-environment
       MODULE_NAME: party-service
+      OES_GRPC_TLS_CERT_PATH: /trust/current/cert.pem
+      OES_GRPC_TLS_KEY_PATH: /trust/current/key.pem
+      OES_WORKLOAD_SPIFFE_ID: spiffe://local.oes.internal/ns/oes/sa/party-service
       DATABASE_URL: ${OES_DB_PARTY_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50053
     expose: ['50053']
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /trust
+        read_only: true
+        volume:
+          subpath: party-service
 
   permission-service:
     <<: *service-defaults
@@ -264,9 +439,19 @@ services:
     environment:
       <<: *service-environment
       MODULE_NAME: permission-service
+      OES_GRPC_TLS_CERT_PATH: /trust/current/cert.pem
+      OES_GRPC_TLS_KEY_PATH: /trust/current/key.pem
+      OES_WORKLOAD_SPIFFE_ID: spiffe://local.oes.internal/ns/oes/sa/permission-service
       DATABASE_URL: ${OES_DB_PERMISSION_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50051
     expose: ['50051']
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /trust
+        read_only: true
+        volume:
+          subpath: permission-service
 
   public-entry-service:
     <<: *service-defaults
@@ -279,9 +464,19 @@ services:
     environment:
       <<: *service-environment
       MODULE_NAME: public-entry-service
+      OES_GRPC_TLS_CERT_PATH: /trust/current/cert.pem
+      OES_GRPC_TLS_KEY_PATH: /trust/current/key.pem
+      OES_WORKLOAD_SPIFFE_ID: spiffe://local.oes.internal/ns/oes/sa/public-entry-service
       DATABASE_URL: ${OES_DB_PUBLIC_ENTRY_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50067
     expose: ['50067']
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /trust
+        read_only: true
+        volume:
+          subpath: public-entry-service
 
   site-service:
     <<: *service-defaults
@@ -294,9 +489,19 @@ services:
     environment:
       <<: *service-environment
       MODULE_NAME: site-service
+      OES_GRPC_TLS_CERT_PATH: /trust/current/cert.pem
+      OES_GRPC_TLS_KEY_PATH: /trust/current/key.pem
+      OES_WORKLOAD_SPIFFE_ID: spiffe://local.oes.internal/ns/oes/sa/site-service
       DATABASE_URL: ${OES_DB_SITE_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50069
     expose: ['50069']
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /trust
+        read_only: true
+        volume:
+          subpath: site-service
 
   tenant-org-service:
     <<: *service-defaults
@@ -309,9 +514,19 @@ services:
     environment:
       <<: *service-environment
       MODULE_NAME: tenant-org-service
+      OES_GRPC_TLS_CERT_PATH: /trust/current/cert.pem
+      OES_GRPC_TLS_KEY_PATH: /trust/current/key.pem
+      OES_WORKLOAD_SPIFFE_ID: spiffe://local.oes.internal/ns/oes/sa/tenant-org-service
       DATABASE_URL: ${OES_DB_TENANT_ORG_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50054
     expose: ['50054']
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /trust
+        read_only: true
+        volume:
+          subpath: tenant-org-service
 
   terminal-device-service:
     <<: *service-defaults
@@ -324,9 +539,19 @@ services:
     environment:
       <<: *service-environment
       MODULE_NAME: terminal-device-service
+      OES_GRPC_TLS_CERT_PATH: /trust/current/cert.pem
+      OES_GRPC_TLS_KEY_PATH: /trust/current/key.pem
+      OES_WORKLOAD_SPIFFE_ID: spiffe://local.oes.internal/ns/oes/sa/terminal-device-service
       DATABASE_URL: ${OES_DB_TERMINAL_DEVICE_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50057
     expose: ['50057']
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /trust
+        read_only: true
+        volume:
+          subpath: terminal-device-service
 
   crm-service:
     <<: *service-defaults
@@ -339,9 +564,19 @@ services:
     environment:
       <<: *service-environment
       MODULE_NAME: crm-service
+      OES_GRPC_TLS_CERT_PATH: /trust/current/cert.pem
+      OES_GRPC_TLS_KEY_PATH: /trust/current/key.pem
+      OES_WORKLOAD_SPIFFE_ID: spiffe://local.oes.internal/ns/oes/sa/crm-service
       DATABASE_URL: ${OES_DB_CRM_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50060
     expose: ['50060']
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /trust
+        read_only: true
+        volume:
+          subpath: crm-service
 
   finance-service:
     <<: *service-defaults
@@ -354,9 +589,19 @@ services:
     environment:
       <<: *service-environment
       MODULE_NAME: finance-service
+      OES_GRPC_TLS_CERT_PATH: /trust/current/cert.pem
+      OES_GRPC_TLS_KEY_PATH: /trust/current/key.pem
+      OES_WORKLOAD_SPIFFE_ID: spiffe://local.oes.internal/ns/oes/sa/finance-service
       DATABASE_URL: ${OES_DB_FINANCE_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50063
     expose: ['50063']
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /trust
+        read_only: true
+        volume:
+          subpath: finance-service
 
   mes-service:
     <<: *service-defaults
@@ -369,9 +614,19 @@ services:
     environment:
       <<: *service-environment
       MODULE_NAME: mes-service
+      OES_GRPC_TLS_CERT_PATH: /trust/current/cert.pem
+      OES_GRPC_TLS_KEY_PATH: /trust/current/key.pem
+      OES_WORKLOAD_SPIFFE_ID: spiffe://local.oes.internal/ns/oes/sa/mes-service
       DATABASE_URL: ${OES_DB_MES_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50065
     expose: ['50065']
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /trust
+        read_only: true
+        volume:
+          subpath: mes-service
 
   procurement-service:
     <<: *service-defaults
@@ -384,9 +639,19 @@ services:
     environment:
       <<: *service-environment
       MODULE_NAME: procurement-service
+      OES_GRPC_TLS_CERT_PATH: /trust/current/cert.pem
+      OES_GRPC_TLS_KEY_PATH: /trust/current/key.pem
+      OES_WORKLOAD_SPIFFE_ID: spiffe://local.oes.internal/ns/oes/sa/procurement-service
       DATABASE_URL: ${OES_DB_PROCUREMENT_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50062
     expose: ['50062']
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /trust
+        read_only: true
+        volume:
+          subpath: procurement-service
 
   sales-service:
     <<: *service-defaults
@@ -399,9 +664,19 @@ services:
     environment:
       <<: *service-environment
       MODULE_NAME: sales-service
+      OES_GRPC_TLS_CERT_PATH: /trust/current/cert.pem
+      OES_GRPC_TLS_KEY_PATH: /trust/current/key.pem
+      OES_WORKLOAD_SPIFFE_ID: spiffe://local.oes.internal/ns/oes/sa/sales-service
       DATABASE_URL: ${OES_DB_SALES_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50059
     expose: ['50059']
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /trust
+        read_only: true
+        volume:
+          subpath: sales-service
 
   srm-service:
     <<: *service-defaults
@@ -414,9 +689,19 @@ services:
     environment:
       <<: *service-environment
       MODULE_NAME: srm-service
+      OES_GRPC_TLS_CERT_PATH: /trust/current/cert.pem
+      OES_GRPC_TLS_KEY_PATH: /trust/current/key.pem
+      OES_WORKLOAD_SPIFFE_ID: spiffe://local.oes.internal/ns/oes/sa/srm-service
       DATABASE_URL: ${OES_DB_SRM_SERVICE_URL:?run pnpm db:config}
-      GRPC_LISTEN_PORT: 50060
-    expose: ['50060']
+      GRPC_LISTEN_PORT: 50061
+    expose: ['50061']
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /trust
+        read_only: true
+        volume:
+          subpath: srm-service
 
   wms-service:
     <<: *service-defaults
@@ -429,9 +714,19 @@ services:
     environment:
       <<: *service-environment
       MODULE_NAME: wms-service
+      OES_GRPC_TLS_CERT_PATH: /trust/current/cert.pem
+      OES_GRPC_TLS_KEY_PATH: /trust/current/key.pem
+      OES_WORKLOAD_SPIFFE_ID: spiffe://local.oes.internal/ns/oes/sa/wms-service
       DATABASE_URL: ${OES_DB_WMS_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50064
     expose: ['50064']
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /trust
+        read_only: true
+        volume:
+          subpath: wms-service
 
 volumes:
   grpc_trust_runtime:

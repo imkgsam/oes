@@ -34,6 +34,9 @@ export const NOTIFICATION_COLLABORATION_TASK_SUBJECTS = [
   'oes.events.collaboration.task.cancelled'
 ] as const
 
+/** Matches the exact frozen JetStream durable max_deliver value. */
+export const NOTIFICATION_COLLABORATION_TASK_MAX_DELIVERIES = 5
+
 /** Transfers a failed raw delivery durably before it terminates its source delivery. */
 export interface NotificationEventDlqPort {
   transfer(input: {
@@ -69,6 +72,14 @@ export class CollaborationTaskEventConsumer {
       return this.settle(delivery, event, outcome)
     } catch (error) {
       if (!(error instanceof EventContractError)) {
+        if (event && delivery.deliveryAttempt >= NOTIFICATION_COLLABORATION_TASK_MAX_DELIVERIES) {
+          return this.transferToDlq(
+            delivery,
+            event,
+            'NON_RETRYABLE',
+            'NOTIFICATION_RETRY_EXHAUSTED'
+          )
+        }
         await delivery.nak(retryDelayForAttempt(delivery.deliveryAttempt))
         return {
           kind: 'RETRYABLE_FAILURE',
@@ -91,6 +102,9 @@ export class CollaborationTaskEventConsumer {
       return outcome
     }
     if (outcome.kind === 'RETRYABLE_FAILURE') {
+      if (delivery.deliveryAttempt >= NOTIFICATION_COLLABORATION_TASK_MAX_DELIVERIES) {
+        return this.transferToDlq(delivery, event, 'NON_RETRYABLE', 'NOTIFICATION_RETRY_EXHAUSTED')
+      }
       const delayMs = outcome.delayMs ?? retryDelayForAttempt(delivery.deliveryAttempt)
       await delivery.nak(delayMs)
       return { ...outcome, delayMs }

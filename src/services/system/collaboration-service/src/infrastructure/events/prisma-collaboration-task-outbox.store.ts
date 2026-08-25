@@ -13,7 +13,11 @@ export class PrismaCollaborationTaskOutboxStore implements CollaborationTaskOutb
   constructor(private readonly prisma: PrismaService) {}
 
   /** claimPending acquires short owner-local leases with compare-and-set updates to reduce concurrent duplicate sends. */
-  async claimPending(input: { readonly now: Date; readonly limit: number; readonly leaseMs: number }): Promise<readonly CollaborationTaskOutboxClaim[]> {
+  async claimPending(input: {
+    readonly now: Date
+    readonly limit: number
+    readonly leaseMs: number
+  }): Promise<readonly CollaborationTaskOutboxClaim[]> {
     const candidates = await this.prisma.collaborationTaskOutbox.findMany({
       where: {
         status: CollaborationTaskOutboxStatus.PENDING,
@@ -41,7 +45,7 @@ export class PrismaCollaborationTaskOutboxStore implements CollaborationTaskOutb
         eventId: candidate.eventId,
         eventType: candidate.eventType,
         eventVersion: candidate.eventVersion,
-        cloudEventBody: candidate.cloudEventBody,
+        cloudEventBody: new Uint8Array(candidate.cloudEventBody),
         attemptCount: candidate.attemptCount,
         leaseToken
       })
@@ -50,7 +54,11 @@ export class PrismaCollaborationTaskOutboxStore implements CollaborationTaskOutb
   }
 
   /** markPublished clears an owned lease only after the JetStream adapter reports acknowledgement. */
-  async markPublished(input: { readonly eventId: string; readonly leaseToken: string; readonly publishedAt: Date }): Promise<void> {
+  async markPublished(input: {
+    readonly eventId: string
+    readonly leaseToken: string
+    readonly publishedAt: Date
+  }): Promise<void> {
     await this.prisma.collaborationTaskOutbox.updateMany({
       where: pendingLease(input.eventId, input.leaseToken),
       data: {
@@ -65,7 +73,13 @@ export class PrismaCollaborationTaskOutboxStore implements CollaborationTaskOutb
   }
 
   /** scheduleRetry returns an owned lease to pending state with capped relay retry evidence. */
-  async scheduleRetry(input: { readonly eventId: string; readonly leaseToken: string; readonly code: string; readonly message: string; readonly nextAttemptAt: Date }): Promise<void> {
+  async scheduleRetry(input: {
+    readonly eventId: string
+    readonly leaseToken: string
+    readonly code: string
+    readonly message: string
+    readonly nextAttemptAt: Date
+  }): Promise<void> {
     await this.prisma.collaborationTaskOutbox.updateMany({
       where: pendingLease(input.eventId, input.leaseToken),
       data: {
@@ -80,7 +94,13 @@ export class PrismaCollaborationTaskOutboxStore implements CollaborationTaskOutb
   }
 
   /** quarantine permanently stops deterministic publication failures and retains their operational evidence. */
-  async quarantine(input: { readonly eventId: string; readonly leaseToken: string; readonly code: string; readonly message: string; readonly quarantinedAt: Date }): Promise<void> {
+  async quarantine(input: {
+    readonly eventId: string
+    readonly leaseToken: string
+    readonly code: string
+    readonly message: string
+    readonly quarantinedAt: Date
+  }): Promise<void> {
     await this.prisma.collaborationTaskOutbox.updateMany({
       where: pendingLease(input.eventId, input.leaseToken),
       data: {
@@ -96,6 +116,9 @@ export class PrismaCollaborationTaskOutboxStore implements CollaborationTaskOutb
 }
 
 /** pendingLease keeps relay state changes scoped to the worker that successfully claimed a PENDING row. */
-function pendingLease(eventId: string, leaseToken: string): Prisma.CollaborationTaskOutboxWhereInput {
+function pendingLease(
+  eventId: string,
+  leaseToken: string
+): Prisma.CollaborationTaskOutboxWhereInput {
   return { eventId, status: CollaborationTaskOutboxStatus.PENDING, leaseToken }
 }
