@@ -82,6 +82,10 @@ ADR 解释“为什么选择当前高影响方案”，而 architecture 解释�
 - Runbook 只保存当前可执行的运维、故障处理与恢复步骤。
 - 已完成治理项目、优化收尾、线程经验和一次性复盘不作为长期治理文件。
 
+Task标题属于运行时Human识别元数据，不是architecture、ADR、contract、Workspace、Stage Packet或Feature Packet中的设计真相。新role task必须使用执行模型2.9的唯一role/title契约并在创建前绑定、创建后复读；role资格、routing、owner与authorization仍由exact task id和binding决定，标题不得成为搜索或恢复键。普通讨论、status与项目评估不冒用role前缀，RI必须有exact candidate和direct execution parent。
+
+该契约只约束canonical cutover后新建或首次激活的role task。cutover前已有task、locator和exact expected-title creation binding不改名、不重新分类、不迁移；既有task后续创建没有旧binding的新task时使用新契约。治理文档不得建立task registry、title migration ledger、批量改名清单或按标题推断owner的流程。
+
 ### 3.5 Direct 文档维护
 
 非规范语义的单一文档 Change Set 默认使用 Direct，不创建 Design Owner、SL、FL、IT、RI、Workspace 或 FP。Direct owner 只在精确允许路径内修改，使用短期 owner branch、focused verification、PR、required CI、Human merge gate 和合并后精确清理。
