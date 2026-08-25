@@ -6,6 +6,7 @@ COPY . .
 RUN pnpm install --frozen-lockfile
 ARG PACKAGE_NAME
 RUN test -n "$PACKAGE_NAME" \
+  && pnpm proto:gen \
   && pnpm prisma:generate:all \
   && pnpm common:build \
   && pnpm --filter "$PACKAGE_NAME" build

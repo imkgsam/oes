@@ -110,6 +110,16 @@ test('main resource enumeration guards the optional trust volume', () => {
   )
 })
 
+test('service and Gateway images generate tracked proto outputs before Common build', () => {
+  for (const relative of ['docker/Dockerfile.service', 'docker/Dockerfile.api-gateway']) {
+    const contents = fs.readFileSync(path.join(repositoryRoot, relative), 'utf8')
+    const proto = contents.indexOf('pnpm proto:gen')
+    const common = contents.indexOf('pnpm common:build')
+    assert.ok(proto >= 0, relative + ' must generate proto output')
+    assert.ok(common > proto, relative + ' must generate proto before Common build')
+  }
+})
+
 test('Compose image policy covers main and infra rendered references', () => {
   assert.doesNotThrow(() =>
     assertPinnedComposeImages(

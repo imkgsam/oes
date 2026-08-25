@@ -4,6 +4,7 @@ RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 WORKDIR /app
 COPY . .
 RUN pnpm install --frozen-lockfile \
+  && pnpm proto:gen \
   && pnpm prisma:generate:all \
   && pnpm common:build \
   && pnpm --filter api-gateway build
