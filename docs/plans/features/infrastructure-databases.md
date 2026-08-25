@@ -8,7 +8,7 @@ worktreeKey: infrastructure-databases
 pullRequest: pending
 mergeSha: pending
 cleanup: HOLD
-state: RUNNING
+state: CANDIDATE_READY
 
 ## Objective
 
@@ -26,9 +26,9 @@ Make the repository-declared local infrastructure and the 21 service-owned Postg
 ## Slices
 
 ### INFRA-DB-1 — Inventory and failure reproduction
-state: RUNNING
-candidate: pending
-review: self
+state: CANDIDATE_READY
+candidate: 5f63d09a6d1d71614efebf1c135bfa2a9e616b3a
+review: self ACCEPT
 
 - Scope: Inventory the main/infra Compose files, Dockerfiles, 21 schemas, migration histories, package scripts, and environment mapping; record symptom, trigger, root cause, and an acceptance-to-evidence matrix.
 - Protected scope: No product data, shared containers/databases, secrets, or stable semantic changes.
@@ -36,9 +36,9 @@ review: self
 - Acceptance: A deterministic check reproduces stale services, missing Dockerfiles, shared/static infrastructure resources, credential/readiness mismatches, missing migrations, and lifecycle-entry gaps.
 
 ### INFRA-DB-2 — Task-owned infrastructure Compose
-state: READY
-candidate: pending
-review: self
+state: CANDIDATE_READY
+candidate: 5f63d09a6d1d71614efebf1c135bfa2a9e616b3a
+review: self ACCEPT
 
 - Scope: Converge main and infra Compose infrastructure definitions on task-keyed project/container/network/volume/host-port inputs and consistent PostgreSQL, Redis, NATS, MinIO, and observability readiness.
 - Protected scope: Local proof only; production topology, production/shared data, new secrets, and event semantics remain unchanged.
@@ -46,9 +46,9 @@ review: self
 - Acceptance: Config render and up/health/down prove collision-free task-owned infrastructure, consistent credentials, and cleanup without touching foreign resources.
 
 ### INFRA-DB-3 — Complete service image topology
-state: READY
-candidate: pending
-review: self
+state: CANDIDATE_READY
+candidate: 5f63d09a6d1d71614efebf1c135bfa2a9e616b3a
+review: self ACCEPT
 
 - Scope: Remove stale Entity/Resource entries, provide the required reusable service Dockerfile strategy, and include Gateway plus all 21 existing services in the main Compose topology.
 - Protected scope: No service boundary, port contract, trust manifest, or gRPC runtime changes.
@@ -56,9 +56,9 @@ review: self
 - Acceptance: Static inventory and `docker compose config` show exactly Gateway plus the canonical 21 services, with no missing build context/Dockerfile and no Entity/Resource service.
 
 ### INFRA-DB-4 — Database migration lifecycle
-state: READY
-candidate: pending
-review: self
+state: CANDIDATE_READY
+candidate: 5f63d09a6d1d71614efebf1c135bfa2a9e616b3a
+review: self ACCEPT
 
 - Scope: Provide distinct service database creation/URL mapping, `prisma migrate deploy` for every schema, baseline migrations for the eight zero-migration schemas, and failure-safe orchestration.
 - Protected scope: Existing migration history and business models remain semantically unchanged; no `db push`, shared database, or destructive production command.
@@ -66,9 +66,9 @@ review: self
 - Acceptance: All 21 schemas deploy to distinct task-owned databases; repeat deploy is a no-op; an injected partial failure returns non-zero and resumes without corrupting completed databases.
 
 ### INFRA-DB-5 — Idempotent seed and rollback
-state: READY
-candidate: pending
-review: self
+state: CANDIDATE_READY
+candidate: 5f63d09a6d1d71614efebf1c135bfa2a9e616b3a
+review: self ACCEPT
 
 - Scope: Add a repository-owned seed contract and task-owned rollback driver; preserve existing domain seed entry points and use no fabricated cross-service data.
 - Protected scope: No production/shared data, business-policy expansion, or cross-service seed writes.
@@ -76,9 +76,9 @@ review: self
 - Acceptance: Seed runs twice with the same verified result; rollback removes only exact task-owned databases/volumes/project resources; ownership mismatch fails closed.
 
 ### INFRA-DB-6 — Clean-worktree lifecycle verification
-state: READY
-candidate: pending
-review: global-ri
+state: CANDIDATE_READY
+candidate: 5f63d09a6d1d71614efebf1c135bfa2a9e616b3a
+review: global-ri pending on exact integration HEAD
 
 - Scope: Add focused static/unit tests and run clean-worktree infra up -> health -> migrate -> seed -> verify -> rollback, including repeat, failure, and recovery paths.
 - Protected scope: Test-only local data and repository-declared containers; no remote mutation until feature/global review gates pass.
@@ -123,3 +123,12 @@ review: global-ri
 - Component: task-owned PostgreSQL/Redis/NATS readiness plus 21 database migrate/seed verification.
 - Journey: clean worktree bootstrap then infra up, health, migrate, seed, verify, rollback, and exact resource absence.
 - Review: FL self-review, Global RI on the exact frozen candidate, Draft PR required CI, then Stage Review by the parent SL.
+
+## Feature Review
+
+- Result: `ACCEPT` for implementation ancestor `5f63d09a6d1d71614efebf1c135bfa2a9e616b3a`; exact integration HEAD is the subsequent packet-freeze commit assigned to Global RI.
+- Scope review: all 115 changed paths are within Compose/Docker, database lifecycle, service migration/package entry, and this Feature Packet ownership. No trust manifest, Common gRPC transport/context, service model, proto, or cross-owner path changed.
+- Behavior review: task-owned clean cycle reports infra health, 21 successful deploys, two idempotent seed snapshots, 21 schema matches, and exact rollback with zero labeled containers/volumes/networks remaining.
+- Negative review: injected failure exits 1 after three migrations; the same databases resume and repeat with exit 0; owner/resource fingerprint mismatch is rejected by focused tests.
+- Evidence reuse: dependency candidate build evidence remains valid for untouched backend/service source. This feature additionally builds one generic service image and the Gateway image from the clean Docker context.
+- Remote state: no push or PR mutation has occurred; Global RI acceptance is required before requesting the parent-issued one-time remote binding.
