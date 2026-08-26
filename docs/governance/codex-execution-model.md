@@ -184,7 +184,7 @@ ordinary discussion
 - `CANONICAL_MERGED`：UD -> exact Design Owner，仅Proposal coverage和Design Owner cleanup eligibility；
 - `CANONICAL_EDITORIAL_MERGED`：UD -> exact source Direct owner，仅editorial coverage和source Change Set closure；
 - `ACTIVATION_DECISION_READY`：仅`NEW_DESIGN`保留在UD并询问Human；
-- `DESIGN_GAP_RESOLVED`：UD -> exact `originDeliveryOwnerTaskId`，携带exact canonical merge与resolution binding，不转移delivery owner；
+- `DESIGN_GAP_RESOLVED`：UD -> exact `originDeliveryOwnerTaskId`，携带exact canonical merge SHA、main CI结果、old truth SHA -> new truth SHA、`affectedOwnerTaskIds`与resolution fingerprint，不转移delivery owner；
 - `DELIVERY_RESUME_VALIDATED`：exact existing delivery owner -> exact `affectedOwnerTaskIds`，只恢复受影响lane；
 - `DELIVERY_REPLAN_REQUIRED`：exact existing delivery owner -> Human，仅在continuation guard失败时展示保留原owner优先的replan选项；
 - `DESIGN_CONTINUATION_REQUIRED`：UD -> exact Design Owner，开启new revisionEpoch；
@@ -284,6 +284,8 @@ Human确认design PR merge且exact main CI成功后，UD先按`proposalEntryType
 - Stage/Feature Packets及bound branch/worktree/PR/candidate/resource set精确存在；
 - design-gap resolution已Human-confirmed merge，exact canonical main CI通过，resolution覆盖`designGapFingerprint`；
 - Human没有对该delivery发出pause、defer、abandon或replacement指令。
+
+上述guards成立后，原SL必须fetch latest `origin/main`，验证resolution canonical merge是当前remote main的祖先，将Stage `integrationBase`更新到latest main，重新读取冻结truth，并从latest main刷新Stage verification worktree后形成affected-test matrix。affected FL必须fetch同一latest main，以append-only merge commit合入自己的feature branch、更新`integrationBase`并追加remediation candidate后才能继续；禁止rebase或改写旧candidate。unaffected FL不机械合并或重复测试，其candidate/evidence在exact evidence key仍有效时保留，最终merge admission仍验证latest main。
 
 全部成立时，该动作是既有Human authorization的continuation，不新增Human gate。任一失败进入`DELIVERY_REPLAN_REQUIRED`，禁止静默创建新SL/FL；Human只选择继续原owner、明确终止旧owner后创建replacement、暂缓或查看证据。
 
@@ -515,12 +517,12 @@ stageAcceptanceCommands
 reusableEvidenceKeys
 ~~~
 
-测试证据key至少绑定`candidateSha`、依赖fingerprint、literal inputs、execution profile fingerprint、command/tool version和结果；这些字段全部相同时才可复用。`main`无关前进只运行基线与影响检查；changed paths、contract/dependency、输入、环境或命令版本变化时只使覆盖该风险所需的证据失效。Stage RI先形成affected-test matrix，再决定复用、focused组合或完整验收，禁止机械重复全量测试。design-gap resolution恢复时exact owner记录old truth -> new truth、刷新`integrationBase`并形成affected-test matrix；unaffected candidates/evidence继续复用，affected evidence失效，affected FL追加remediation candidate后只重跑受影响的Feature RI与Stage Review。
+测试证据key至少绑定`candidateSha`、依赖fingerprint、literal inputs、execution profile fingerprint、command/tool version和结果；这些字段全部相同时才可复用。`main`无关前进只运行基线与影响检查；changed paths、contract/dependency、输入、环境或命令版本变化时只使覆盖该风险所需的证据失效。Stage RI先形成affected-test matrix，再决定复用、focused组合或完整验收，禁止机械重复全量测试。design-gap resolution恢复时exact owner记录old truth -> new truth、fetch latest `origin/main`、验证canonical merge ancestry、刷新Stage `integrationBase`与verification worktree并形成affected-test matrix；unaffected candidates/evidence继续复用，affected evidence失效，affected FL将latest main append-only merge进feature branch、追加remediation candidate后只重跑受影响的Feature RI、CI与Stage Review。
 
 SL 可为 Stage Review 创建 clean-context Stage RI；SL 或 Stage RI 只读精确 candidates。失败路由：
 
 - implementation finding：Stage RI → SL → corresponding FL → IT/RI；
-- design gap：Stage RI → SL → UD → exact Design Owner/Design Revision Task → UD truth merge → exact original SL验证resume binding → affected FL；原SL及所有既有FL identity/resources在design subflow期间保留，只有affected lane暂停；
+- design gap：Stage RI → SL → UD → exact Design Owner/Design Revision Task → UD truth merge → exact original SL验证resume binding、同步latest `origin/main`并刷新Stage verification baseline → affected FL合入同一latest main；原SL及所有既有FL identity/resources在design subflow期间保留，只有affected lane暂停；
 - non-design decision：SL → exact decision owner → `DECISION_RESOLVED` → SL；
 - candidate 变化：旧 Stage Review 失效，重新验证新 exact candidate；
 - 上游 merge 后：下游 FL刷新`integrationBase`并merge最新 <code>main</code>，追加 candidate commit，按affected-test matrix重跑自身 review/CI，并在 Stage Review 依赖受影响时重跑相应阶段验证；无关main前进不作废truth、scope、Human authorization或仍有效证据。
@@ -537,7 +539,7 @@ SL 可为 Stage Review 创建 clean-context Stage RI；SL 或 Stage RI 只读精
 - Proposal design merge/main CI后UD发送`CANONICAL_MERGED`；`NEW_DESIGN`进入`ACTIVATION_DECISION_READY`，`EXISTING_DELIVERY_DESIGN_GAP`自动向exact existing delivery owner发送`DESIGN_GAP_RESOLVED`并验证resume guards；editorial merge/main CI后发送`CANONICAL_EDITORIAL_MERGED`并进入`UD_CLEANUP_READY`；
 - Human确认`NEW_DESIGN` activation后，UD创建recommended Direct/FL/SL并执行两阶段handoff；existing-delivery resolution在原授权不变时不新增Human gate或owner；
 - confirmed capability set内且由effective project profile兑现的owner worktree/file写入、owner local Git与允许的remote branch/PR操作、repository标准package/build/test、task-owned process/container/local test database和approved network操作；低风险platform approval由auto-review处理，正常用户权限弹窗为零；
-- `main`前进时自动刷新`integrationBase`，按drift/affected-test matrix集成变化并复用仍有效证据；只在冻结语义冲突时返回设计决定；
+- `main`前进时自动fetch并刷新`integrationBase`，验证已绑定canonical merge仍是latest `origin/main`祖先，按drift/affected-test matrix集成变化并复用仍有效证据；普通代码冲突返回artifact owner，只有新的冻结语义冲突才再次路由`DESIGN_GAP`；
 - 所有remote mutation通过versioned remote driver执行并原子记录receipt/checkpoint；恢复先read-after-write，不重复已完成mutation；
 - confirmed topology内SL -> FL/Stage RI、FL -> IT/Feature RI的收窄assignment；
 - IT/RI typed result返回direct execution parent；
@@ -821,6 +823,7 @@ Stage完成后的批量cleanup只显示一张卡：
 - declared execution capability预检失败：保留exact owner/binding/resources，返回一次性`EXECUTION_ENVIRONMENT_NOT_READY`证据，由creating parent修复execution profile/host并对同transition幂等重试；
 - delivery中已声明能力被runtime拒绝或产生用户approval：记录approval event与effective profile并路由`EXECUTION_PROFILE_DEFECT`，保留owner/candidate/state/logs，由creating/current owner自动修复、重建或迁移profile/host后幂等恢复；同一缺口不再次展示Human，真实scope/capability新增才发一张`PERMISSION_EXPANSION_REQUIRED`卡；
 - network失败且design remote write未验证：保留exact candidate/state；由exact UD在同transition幂等重试，或在mutation前签发new single-use host binding；无pre-binding的其他task不接管remote write；
+- existing-delivery resume的fetch或remote read暂时失败：保留exact original owner、Stage/Feature resources、state和resolution binding，在同一transition幂等重试；该环境失败不进入`DELIVERY_REPLAN_REQUIRED`，不创建replacement owner；
 - remote mutation返回后进程退出、result缺失或CI等待中断：remote driver先读取exact ref/PR/head/base/merge/check state；已匹配`REMOTE_MUTATION_RECORDED`时从verification继续，不重复mutation；
 - push/merge前main前进：刷新`integrationBase`并执行drift/affected-test matrix；无关变化继续、相关变化追加集成与重验、普通冲突返回artifact owner、冻结语义冲突路由`DESIGN_GAP`，main前进本身不换Human卡；
 - conflict：只由artifact owner在clean integration worktree解决并追加commit；
@@ -889,7 +892,7 @@ UD_EDITORIAL_REVIEW
           | UD -> UD_CLEANUP_READY
 ```
 
-`CANONICAL_MERGED`只在Proposal的`MAIN_CI_PASSED`后幂等发送给exact Design Owner；它与post-merge routing并行且不转移owner。`CANONICAL_EDITORIAL_MERGED`只用于editorial source closure。`EXISTING_DELIVERY_DESIGN_GAP`的same resolution binding重复到达只复用原`DELIVERY_RESUME_VALIDATED`结果；owner、scope、merge、authorization或resource fingerprint不匹配时fail closed。Routine path无环；只有显式`REVISION_REQUIRED`、`CONTINUE_DESIGN`或delivery `DESIGN_GAP`创建new revision epoch。
+`CANONICAL_MERGED`只在Proposal的`MAIN_CI_PASSED`后幂等发送给exact Design Owner；它与post-merge routing并行且不转移owner。`CANONICAL_EDITORIAL_MERGED`只用于editorial source closure。`EXISTING_DELIVERY_DESIGN_GAP`的same resolution binding重复到达只复用原`DELIVERY_RESUME_VALIDATED`结果；owner、scope、merge、authorization或resource fingerprint不匹配时fail closed。latest main可以前进，但resolution canonical merge必须仍为其祖先；无语义冲突时刷新到latest head并增量验证，新的冻结语义冲突重新进入`DESIGN_GAP`。Routine path无环；只有显式`REVISION_REQUIRED`、`CONTINUE_DESIGN`或delivery `DESIGN_GAP`创建new revision epoch。
 
 Task identity与Capability preflight都是`HANDOFF_ACCEPTED`的guard而非长期状态。`TASK_IDENTITY_INVALID`保持creating parent为owner，禁止role-owned资源mutation，并只允许同一新task的title修正与readback；`EXECUTION_ENVIRONMENT_NOT_READY`保持`HANDOFF_PENDING`和原activation owner；handoff后的`EXECUTION_PROFILE_DEFECT`保持current delivery owner与已授权工作，只暂停受影响operation并自动修复profile/host；`PERMISSION_EXPANSION_REQUIRED`只暂停真实越界操作。
 

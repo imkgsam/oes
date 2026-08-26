@@ -87,7 +87,7 @@ v6 truth merge前已经取得Human确认，或已经创建exact owner、task、b
 
 任何有状态work item只有一个当前owner和一个artifact owner。通知不转移owner；只有新owner校验并返回`HANDOFF_ACCEPTED`后才允许写入。SL/FL只协调预确认的有界执行拓扑，不构成长期开销；不得建立全局调度中心、watchdog、heartbeat、Pull inbox、历史thread registry或过程账本。
 
-active Stage/Feature中发现design gap时，只开启Design Owner/UD设计子流程；原SL/FL继续是exact delivery owner并保留其packet、branch/worktree、PR、candidate与有效证据。truth merge后先校验并恢复该exact owner，不创建replacement SL/FL；只有owner、scope、capabilities、topology或resource binding失效时才向Human显示一次replan卡。
+active Stage/Feature中发现design gap时，只开启Design Owner/UD设计子流程；原SL/FL继续是exact delivery owner并保留其packet、branch/worktree、PR、candidate与有效证据。truth merge后先校验并恢复该exact owner，不创建replacement SL/FL；只有owner、scope、capabilities、topology或resource binding失效时才向Human显示一次replan卡。`DESIGN_GAP_RESOLVED`后原SL必须fetch latest `origin/main`、验证exact canonical merge是其祖先并刷新Stage `integrationBase`与verification worktree；affected FL必须把该latest main以append-only merge commit合入自己的feature branch后才继续remediation，unaffected candidates/evidence按影响复用。
 
 Human确认delivery scope时同时授权该scope所需的最小充分运行能力。OES task必须使用实际生效的project execution profile，而不是只在消息中声明权限；profile按owner绑定exact worktree、解析后的shared Git metadata、task temp/cache、repository-declared local service/container/test database、localhost和approved network，并保护secret、生产/共享数据、host/system privilege及跨owner资源。`approval_policy=on-request`与`approvals_reviewer=auto_review`接管残余低风险platform approval；正常Direct/UD/SL/FL/IT/RI在confirmed scope内的用户权限弹窗目标值为零。
 
