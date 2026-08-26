@@ -87,6 +87,8 @@ v6 truth merge前已经取得Human确认，或已经创建exact owner、task、b
 
 任何有状态work item只有一个当前owner和一个artifact owner。通知不转移owner；只有新owner校验并返回`HANDOFF_ACCEPTED`后才允许写入。SL/FL只协调预确认的有界执行拓扑，不构成长期开销；不得建立全局调度中心、watchdog、heartbeat、Pull inbox、历史thread registry或过程账本。
 
+active Stage/Feature中发现design gap时，只开启Design Owner/UD设计子流程；原SL/FL继续是exact delivery owner并保留其packet、branch/worktree、PR、candidate与有效证据。truth merge后先校验并恢复该exact owner，不创建replacement SL/FL；只有owner、scope、capabilities、topology或resource binding失效时才向Human显示一次replan卡。`DESIGN_GAP_RESOLVED`后原SL必须fetch latest `origin/main`、验证exact canonical merge是其祖先并刷新Stage `integrationBase`与verification worktree；affected FL必须把该latest main以append-only merge commit合入自己的feature branch后才继续remediation，unaffected candidates/evidence按影响复用。
+
 Human确认delivery scope时同时授权该scope所需的最小充分运行能力。OES task必须使用实际生效的project execution profile，而不是只在消息中声明权限；profile按owner绑定exact worktree、解析后的shared Git metadata、task temp/cache、repository-declared local service/container/test database、localhost和approved network，并保护secret、生产/共享数据、host/system privilege及跨owner资源。`approval_policy=on-request`与`approvals_reviewer=auto_review`接管残余低风险platform approval；正常Direct/UD/SL/FL/IT/RI在confirmed scope内的用户权限弹窗目标值为零。
 
 UD、SL或FL在handoff接受前必须对effective capabilities执行真实smoke，包括owner file write、Git switch/add/commit、标准build/test、task-owned service/database、localhost/network和evidence root。已声明能力仍产生用户approval时属于`EXECUTION_PROFILE_DEFECT`：保持owner、candidate、state和原authorization，由creating parent或current owner自动修复、重建或迁移execution profile/host并幂等恢复，不形成Human gate。只有scope/protected scope扩大、生产或共享资源、新secret或付费外部系统、host/system privilege、cross-owner/destructive operation以及既有main merge和cleanup gate才合并请求一次Human确认。child只从Human-confirmed topology为该role绑定的delegation ceiling取得完成assignment所需的更窄能力。
@@ -100,12 +102,12 @@ UD、SL或FL在handoff接受前必须对effective capabilities执行真实smoke�
 - 用户表达“还在讨论”“先聊想法”或同等语义时，只分析和比较，不修改项目文件。
 - 普通讨论是默认入口，不创建IDT/CDT；同一主题不因从探索进入设计而自动换线程。
 - 用户明确要求形成设计后，task先基于当前truth在会话中展示完整只读Proposal Preview，至少包含问题、结论、状态/路由、影响文件、保持不变项、验证和停止点；此时不创建task、branch/worktree、Workspace或commit。
-- Human确认的是exact Proposal Preview；确认后当前聚焦task无冲突时成为Design Owner，否则创建一个独立Design Task，并在已确认范围内创建资源、写入、验证、形成Proposal commit并提交UD。Proposal及Design Owner→UD envelope必须携带exact `previewFingerprint`、`rootConfirmationFingerprint`、`scopeFingerprint`、`transitionId`和state binding；其中任一指纹、base、scope、owner或规范结论变化时必须重新展示Preview。
+- Human确认的是exact Proposal Preview；确认后当前聚焦task无冲突时成为Design Owner，否则创建一个独立Design Task，并在已确认范围内创建资源、写入、验证、形成Proposal commit并提交UD。Proposal及Design Owner→UD envelope必须携带exact `proposalEntryType`、`previewFingerprint`、`rootConfirmationFingerprint`、`scopeFingerprint`、`transitionId`和state binding；existing-delivery design gap还必须完整继承原SL/FL、parent/return target、Stage/Feature、affected/preserved owners、authorization、resource set和gap fingerprints；其中任一指纹、base、scope、owner或规范结论变化时必须重新展示Preview。
 - 一个设计主题最多一个active Workspace和一个active Proposal；继续已有Workspace时恢复exact Design Owner，不按标题猜测或重复创建。
 - Design Owner展示Proposal Preview前必须刷新canonical truth；Proposal只承载稳定设计真相并始终提交UD。
-- Human对exact Proposal Preview的一次确认同时授权Design Owner按preview形成Proposal commit并提交UD，以及UD审核、集成、验证、push和创建design PR；停止于`DESIGN_PR_READY`。写入后的diff或验证结果偏离preview即停止并重新展示，merge、post-merge执行激活和cleanup分别确认。
-- 语义Proposal的design PR合入`main`且exact main CI通过后，UD必须在同一task主动展示动态执行建议；`NO_EXECUTION`为建议结论，Human选择暂不执行后进入`EXECUTION_DEFERRED`。UD不得把implement发给请求来源、Design Owner或祖先task。
-- Proposal入口只有在Human确认暂不执行，或Direct/FL/SL完成两阶段handoff后，UD才进入自身cleanup-ready；editorial入口在main CI和exact source notice后直接进入UD cleanup-ready。
+- Human对exact Proposal Preview的一次确认同时授权Design Owner按preview形成Proposal commit并提交UD，以及UD审核、集成、验证、push和创建design PR；停止于`DESIGN_PR_READY`。写入后的diff或验证结果偏离preview即停止并重新展示，merge、`NEW_DESIGN` post-merge执行激活、failed continuation guard的replan和cleanup分别确认；exact existing-delivery resume不重复确认。
+- `NEW_DESIGN`的design PR合入`main`且exact main CI通过后，UD必须在同一task主动展示动态执行建议；`NO_EXECUTION`为建议结论，Human选择暂不执行后进入`EXECUTION_DEFERRED`。`EXISTING_DELIVERY_DESIGN_GAP`则将resolution返回exact original SL/FL并在guard通过时自动恢复affected lane；不得进入activation或创建replacement owner。UD不得把implement发给请求来源、Design Owner或祖先task。
+- `NEW_DESIGN`只有在Human确认暂不执行，或Direct/FL/SL完成两阶段handoff后，UD才进入自身cleanup-ready；`EXISTING_DELIVERY_DESIGN_GAP`在exact original owner确认resume binding或进入replan后使UD cleanup-ready，UD不接管或清理原delivery资源；editorial入口在main CI和exact source notice后直接进入UD cleanup-ready。
 - `CANONICAL_MERGED`只通知exact Design Owner验证Proposal coverage和处理自身cleanup；`CANONICAL_EDITORIAL_MERGED`只通知exact source Direct owner验证editorial coverage并关闭无Git Change Set；两者都不转移delivery owner或Git ownership。
 - `CANONICAL_EDITORIAL_PATCH`由source Direct owner确认精确files/hunks、语义影响`NONE`和source通知目标后交UD；classification失效时UD发送`EDITORIAL_CLASSIFICATION_INVALID`给exact source，保留entry-specific资源边界且不转为隐式Proposal。
 - Direct适用于同一Change Set的明确小修改；同一目标继续修改时恢复exact owner和现场。稳定设计、新服务、跨服务契约/事件、权限/租户、共享API/抽象、AI工具协议或多feature交付必须先使用Design Owner/UD或常规协同。
