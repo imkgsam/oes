@@ -18,26 +18,26 @@ architectureTruthSource: docs/architecture/services/auth-service.md
 - tenant Integration Machine 使用 API Key 在 Gateway / Auth 入口认证并换 Token。
 - 资源服务取得 JWKS 并消费紧急撤销事实。
 
-本契约不开放外部直连 gRPC，也不定义用户登录 access / refresh token。内部 MACHINE root 的 source credential 细则以 [machine-workload-source-credential.md](./machine-workload-source-credential.md) 为准；高危 ActionGrant 的生命周期、绑定与消费规则以 [delegated-execution-and-action-grant.md](./delegated-execution-and-action-grant.md) 为准。
+本契约不开放外部直连 gRPC，也不定义用户登录 access / refresh token。内部 MACHINE root 的 exact selector 与 Identity resolution 以本文和 [machine-principal-resolution.md](../identity-service/machine-principal-resolution.md) 为准；高危 ActionGrant 的生命周期、绑定与消费规则以 [delegated-execution-and-action-grant.md](./delegated-execution-and-action-grant.md) 为准。
 
 ## 2. Trust Inputs
 
 STS 只接受平台已经验证的输入：
 
 - 直接调用方的 `VerifiedWorkloadIdentity`，来自 mTLS / SPIFFE-compatible identity。
-- HUMAN 的 Auth-verifiable active session/access source credential；MACHINE root 的 Auth-signed、15 分钟内且绑定当前 leaf certificate 的 `MachineWorkloadSourceCredential`，以及 Identity-resolved active Machine Principal / `MachineWorkloadBinding` owner facts。
+- HUMAN 的 Auth-verifiable active session/access source credential；MACHINE root 的 current verified mTLS/SPIFFE、typed exact selector，以及 Identity-resolved active Machine Principal / `MachineWorkloadBinding` owner facts。
 - 多跳时的 current signed ExecutionToken subject credential；其 exact audience 必须标识当前 verified exchanging workload service。
 - DELEGATED 的 active human session / principal、delegation grant 与 agent/tool upper bound。
 - Permission Service 返回的 principal grant / policy decision 与 workload INTERNAL issuance decision。
 - 可信 tenant / org、target audience、精确 requested Permission Code 集、request / trace correlation。
 
-Common 只在 mTLS-protected exchange channel 的 transport-private scope 携带 opaque source credential，不把 bearer 放入 `TrustedExecutionContext`、application/domain input、日志或审计。metadata 是 credential carrier，不是 authority；Auth 必须验证 session/access/subject Token、Gateway-only external credential 或 MACHINE/delegation owner reference 后才能建立 principal。调用方不能通过 request body、ordinary metadata、legacy signed operator context 自报或覆盖 subject、principal type、tenant、operator、workload identity、delegation upper bound、permission grant 或 `cnf`。
+Common 只在 mTLS-protected exchange channel 的 transport-private scope 携带 HUMAN/OBO/API Key/DELEGATED opaque credential，不把 bearer 放入 `TrustedExecutionContext`、application/domain input、日志或审计。metadata 是 credential carrier，不是 authority；MACHINE root 不携带 bearer，而由 Auth 组合 current verified transport facts、typed exact selector 与 Identity owner decision 建立 principal。调用方不能通过 request body、ordinary metadata、legacy signed operator context 或 selector 自报或覆盖 subject、principal type、tenant、operator、workload identity、delegation upper bound、permission grant 或 `cnf`。
 
 面向 tenant 的合法业务目标与 subject tenant 是两个边界。Gateway 从 canonical HTTP path `:tenantId` 建立的 verified request target 不进入 ExecutionToken claim、ordinary metadata 或 `ExchangeExecutionToken` request；downstream adapter 只可把规范化 id 序列化为 target service 自己定义的 business selector field。该 HTTP provenance 不跨 gRPC 自动成为 authority。TENANT subject 的 `tenant_id` 仍只表达已验证 principal tenant；SYSTEM subject 不因本次 request target 获得 `tenant_id`。Auth 不判断 SYSTEM 的 tenant target range，也不把 target tenant 编入 Token cache key。
 
-The exact carrier on `ExchangeExecutionToken` is `authorization: Bearer <source-credential>`. This method interprets that bearer as an Auth-verifiable source/subject credential for token exchange, not as a caller-declared target-service grant. Credential type/profile, issuer, signature, lifetime, session/security state and owner references must validate before any Permission decision. For a multi-hop ExecutionToken subject credential, Auth additionally requires the Token's exact `aud` to identify the verified exchanging workload service; its original `client_id` / `cnf` remain upstream-hop evidence and are never rewritten as proof of the new hop. The newly issued Token binds the current exchanger's SPIFFE ID and certificate thumbprint.
+For HUMAN, OBO, API Key and DELEGATED exchange, the exact bearer carrier on `ExchangeExecutionToken` remains `authorization: Bearer <source-credential>`. This method interprets that bearer as an Auth-verifiable source/subject credential, not as a caller-declared target-service grant. Credential type/profile, issuer, signature, lifetime, session/security state and owner references must validate before any Permission decision. For a multi-hop ExecutionToken subject credential, Auth additionally requires the Token's exact `aud` to identify the verified exchanging workload service; its original `client_id` / `cnf` remain upstream-hop evidence and are never rewritten as proof of the new hop. The newly issued Token binds the current exchanger's SPIFFE ID and certificate thumbprint.
 
-For a MACHINE root credential, Auth additionally requires its SPIFFE binding to equal the current `VerifiedWorkloadIdentity.spiffeId`, its certificate binding to equal the current leaf thumbprint, and its principal/binding reference/version to receive an allowed `IdentityQueryService.ResolveMachinePrincipalForAuth` owner decision. That Identity call uses Auth's own normal mTLS + target-audience INTERNAL ExecutionToken with `identity.internal.machine_principal.resolve`; it does not create another bootstrap exception. Auth derives MACHINE `sub`, scope and any tenant/org only from the owner decision. This root profile is used only when no inbound HUMAN subject Token exists.
+For MACHINE root, `authorization` must be absent and the request must contain exactly one typed `machine_execution_selector`. Auth combines its three non-authoritative references with the current `VerifiedWorkloadIdentity.spiffeId` and calls `IdentityQueryService.ResolveMachinePrincipalForAuth` through the exact Auth mTLS policy; that resolver rejects Authorization metadata and requires no Identity-audience ExecutionToken. Auth derives MACHINE `sub`, scope and any tenant/org only from the live owner decision, then obtains the applicable Permission decision. Selector, mTLS or deployment configuration alone grants nothing. This route is used only when no inbound HUMAN subject Token exists; bearer plus selector, missing selector, ambiguous binding or stale version is rejected before Permission or signing.
 
 For synchronous HUMAN OBO, Common sends exactly one current-hop subject credential through `authorization`: the Auth-issued ExecutionToken whose exact `aud` is the verified MES/WMS/Procurement/SRM exchanger itself. Auth verifies issuer/signature/time/security state, `principal_type=HUMAN`, non-empty `tenant_id`, session attribution, exact self-audience and current exchanger mTLS/SPIFFE/leaf. Auth resolves the stable actor by immutable verified-SPIFFE/self-audience registry selectors and validates the referenced Identity-owned SYSTEM Machine Principal/binding through existing `ResolveMachinePrincipalForAuth`; no new Identity RPC or caller-selected actor is introduced.
 
@@ -72,7 +72,7 @@ The frozen target shape for `MES -> Item Master` is:
 
 ### Runtime host and protected signing binding
 
-`ExecutionTokenService.ExchangeExecutionToken` and `ExecutionTokenService.GetExecutionTokenJwks` are both mounted on the existing Auth `auth_service` gRPC host. The Auth transport must load the frozen ExecutionToken proto alongside the existing Auth proto; a standalone HTTP controller is not an implementation of either RPC. `ExchangeExecutionToken` accepts only the declared target audience and requested Permission Code fields. Verified workload identity, certificate thumbprint and current execution context are injected by the trusted Common transport/runtime and cannot be reconstructed from the request body or metadata headers.
+`ExecutionTokenService.ExchangeExecutionToken` and `ExecutionTokenService.GetExecutionTokenJwks` are both mounted on the existing Auth `auth_service` gRPC host. The Auth transport must load the frozen ExecutionToken proto alongside the existing Auth proto; a standalone HTTP controller is not an implementation of either RPC. `ExchangeExecutionToken` accepts the declared target audience, requested Permission Code fields and one optional typed MACHINE selector. Verified workload identity, certificate thumbprint and current execution context are injected by the trusted Common transport/runtime and cannot be reconstructed from the request body or metadata headers.
 
 `GetExecutionTokenJwks` is the internal gRPC JWKS discovery path. Auth additionally publishes RFC 8414 authorization-server metadata on the exact configured HTTPS issuer host and the absolute `jwks_uri` advertised there. The HTTPS publisher exposes only the same public ES256 verification facts; it does not open ExecutionToken exchange over HTTP or replace the gRPC service.
 
@@ -102,7 +102,7 @@ Workload identity is the default backend credential. If a PKCS#11 backend requir
 
 `requestedPermissionCodes` is a canonical minimum-scope request, never evidence that any Code is authorized. For BUSINESS, Auth supplies the verified principal/type, tenant/org, requested Codes and applicable session/delegation/security references to Permission Service `ResolvePrincipalAuthorization`. For INTERNAL, Auth supplies verified SPIFFE workload, exact target audience, requested INTERNAL Codes and attribution to `ResolveWorkloadIssuance`. Auth may sign only when every requested Code is independently granted, the decision kind and all trusted bindings match, and the response includes an auditable decision reference plus `authzVersion`. Unknown/denied/mixed-kind Code, partial approval, stale/mismatched decision, tenant/scope/workload/audience mismatch, timeout or Permission unavailability fails the complete exchange. Auth never reads Permission storage and never constructs `authorizedPermissionCodes` from the request, legacy operator roles or a local role/permission copy.
 
-`ResolvePrincipalAuthorization` and `ResolveWorkloadIssuance` are separate Auth-only Permission Service decisions on the existing `PermissionCheckService` surface. Their request values are derived only after Auth has verified the source credential and workload; their response binds exact granted/denied Codes, tenant/scope/workload/audience as applicable, decision reference and `authzVersion`. No resolver echoes requested Codes as granted without evaluating current catalog, binding and policy truth.
+`ResolvePrincipalAuthorization` and `ResolveWorkloadIssuance` are separate Auth-only Permission Service decisions on the existing `PermissionCheckService` surface. Their request values are derived only after Auth has verified the applicable source credential or live MACHINE owner facts plus workload; their response binds exact granted/denied Codes, tenant/scope/workload/audience as applicable, decision reference and `authzVersion`. No resolver echoes requested Codes as granted without evaluating current catalog, binding and policy truth.
 
 `ResolveWorkloadIssuance` is the sole non-circular bootstrap authorization primitive and does not require a pre-existing ExecutionToken. Permission authenticates the direct caller from transport-injected mTLS / SPIFFE `VerifiedWorkloadIdentity`, accepts only the exact environment-registered `auth-service` identity for that exact method, and independently evaluates Auth's original verified workload -> target audience -> requested INTERNAL Code tuple. A valid certificate for another workload, a service-name header, network placement, wildcard policy or the same Auth identity presented to another Permission RPC grants nothing. After this decision allows the complete set, Auth may sign the requested target-audience Token.
 
@@ -112,7 +112,7 @@ The Token cache and issuance unit is the exact tuple of verified principal/type,
 
 SELF_SERVICE is the only mode that consumes an empty Code set. Auth still requires a verified HUMAN source credential; DELEGATED remains subject to the target method's explicit `allowDelegated`, and MACHINE has no implicit self-service authority. BUSINESS and INTERNAL requests are non-empty. The target server derives self targets from trusted `sub`, validates current method mode/principal compatibility and `all/any` Codes, and applies tenant/resource/domain rules. A Token with an empty set cannot invoke BUSINESS/INTERNAL; a non-empty BUSINESS/INTERNAL Token does not bypass SELF_SERVICE subject derivation or method mode checks.
 
-Successful and denied exchange audit records source-credential kind/reference, verified principal/type/workload, tenant/org, audience, canonical requested/granted Codes, Permission decision reference, `authzVersion`, session/delegation reference, certificate thumbprint, `kid`/`jti`, result/reason and trace correlation. A HUMAN OBO success additionally records subject `jti` -> target `jti` and actor attribution; Auth must await durable append before returning the target Token. It excludes bearer values, API Key material, private key material and recoverable credentials.
+Successful and denied exchange audit records route kind, applicable source-credential reference or MACHINE selector/Identity decision reference, verified principal/type/workload, tenant/org, audience, canonical requested/granted Codes, Permission decision reference, `authzVersion`, session/delegation reference, certificate thumbprint, `kid`/`jti`, result/reason and trace correlation. A HUMAN OBO success additionally records subject `jti` -> target `jti` and actor attribution; Auth must await durable append before returning the target Token. It excludes bearer values, API Key material, private key material and recoverable credentials.
 
 ### Request semantics
 
@@ -120,9 +120,10 @@ Successful and denied exchange audit records source-credential kind/reference, v
 
 - `targetAudience`：一个 registered service audience。
 - `requestedPermissionCodes`：去重、规范排序后的精确最小申请集；BUSINESS / INTERNAL 非空，SELF_SERVICE 固定为空。它不携带授权结果。
+- `machineExecutionSelector`：仅 MACHINE root 可出现的 optional typed route field，精确包含 `machinePrincipalId`、`machineWorkloadBindingId` 与 canonical positive `machineWorkloadBindingVersion`；三者均为非秘密 owner reference，不是身份或授权事实。
 - 当前可信 execution reference：由 server runtime 注入，不由业务 DTO 重建。
 
-The existing proto request keeps only `target_audience` and `requested_permission_codes`; no target RPC, tenant, subject-token, actor or caller-supplied mode field is added. The proto comment/contract test must permit an empty repeated field only for SELF_SERVICE semantics. The verified source/subject credential is carried only by `authorization`; no second bearer carrier is introduced.
+The additive proto shape keeps `target_audience = 1` and `requested_permission_codes = 2`, and adds `MachineExecutionSelector machine_execution_selector = 3`; the nested fields are `machine_principal_id = 1`, `machine_workload_binding_id = 2`, and `machine_workload_binding_version = 3`. No target RPC, tenant, subject-token, actor, SPIFFE, certificate or caller-supplied mode field is added. The proto comment/contract test must permit an empty repeated field only for SELF_SERVICE semantics. Existing verified source/subject credentials remain carried only by `authorization`; MACHINE root uses selector-only admission and introduces no second bearer carrier.
 
 这里的 `tenant` 禁止项同时包括 tenant business target：不得为 Gateway tenant-target binding 新增 Exchange target tenant field。Gateway 可把规范化 target 作为目标 RPC 自己拥有的 explicit business selector field 传播；该 selector 不是 credential 或 trusted transport context。目标服务分别验证 target-audience Token identity、exact workload、Permission Code 与 method declaration，再重新授权 selector 并用 selector 加 resource id 复核 tenant ownership。TENANT 要求 Token tenant 与 selector 相等；SYSTEM Token 保持 tenantless，只有 dedicated SYSTEM tenant-target method/interface 与平台 range 可允许 selector。request selector 不能覆盖 Token subject，Token subject 也不能替代 selector。
 
@@ -131,7 +132,7 @@ The existing proto request keeps only `target_audience` and `requested_permissio
 ### Authorization semantics
 
 - HUMAN / BUSINESS：Permission Service 必须独立确认 requested Codes 是该 principal 在当前 scope / tenant / policy 下的有效子集。
-- MACHINE / BUSINESS：Auth 必须先完成 MACHINE source credential、当前 workload/certificate binding 与 Identity principal/binding resolution；Permission Service 再独立确认 requested Codes 是该 active Machine Principal grant 的有效子集。
+- MACHINE / BUSINESS：Auth 必须先完成 current workload/certificate verification 与 exact selector 的 Identity principal/binding live resolution；Permission Service 再独立确认 requested Codes 是该 active Machine Principal grant 的有效子集。
 - DELEGATED / BUSINESS：Permission decision 必须独立计算 HUMAN grant、delegation grant、agent/tool upper bound 与 target policy 的交集。
 - INTERNAL：Permission decision 必须确认 requested Codes 是 `kind=INTERNAL`，且当前 verified actor workload → target audience issuance policy 明确允许；INTERNAL Code 不从 HUMAN / MACHINE role 继承。HUMAN OBO 保持 HUMAN subject，并在目标 Token 中记录 SYSTEM MACHINE actor；纯 MACHINE root 仅在目标契约显式允许时使用 Machine Principal subject。
 - SELF_SERVICE：STS 不把 body target 编入身份。目标服务从已验证 principal 派生 target，并按 RPC declaration 决定是否允许 DELEGATED。
@@ -210,20 +211,22 @@ Token TTL maximum is 5 minutes. Implementations may shorten it by risk but calle
 
 ## 7. Machine Workload Root Exchange
 
-实现状态：`IMPLEMENTED_VERIFIED`。本节冻结的 MACHINE source credential、Identity resolver、INTERNAL Code 与关联 proto/runtime 已由 `024579598c1293807d3f1cd5e7003aefd8e8fa0a` 验收并集成到 current main。
+实现状态：`DESIGN_FROZEN_PENDING_IMPLEMENTATION`。本节取代不可部署的递归 MACHINE source-credential path；当前 Stage fail-closed 结果继续是失败证据，直至本设计完成实现与验收。
 
-内部 Cron、Robot、worker 没有 HUMAN/session 或上游 ExecutionToken 时，使用专用 `MachineWorkloadSourceCredential` 作为 root source credential。它不是 target grant；Auth 在进入 Permission 前必须验证 dedicated profile/signature/lifetime/revocation、当前 SPIFFE/leaf certificate binding，以及 Identity-owned principal/binding/version decision。
+内部 SYSTEM service、Cron、Robot、worker 没有 HUMAN/session 或上游 ExecutionToken 时，直接以 current mTLS/SPIFFE 与 typed exact selector 建立 root MACHINE execution：
 
-- 受权管理者先通过正常 ExecutionToken-protected Identity management RPC 建立 exact Machine Principal ↔ SPIFFE binding。Workload 然后用当前 mTLS 与 principal/binding/version selector 调用 `MachineWorkloadSourceCredentialService.IssueMachineWorkloadSourceCredential`；Auth 只在 Identity owner decision 证明 active binding 精确匹配当前 SPIFFE 后签发。
-- initial issuance 和 controlled reissuance 共用 Issue RPC；每 binding 同时最多一个 active credential，新签发 transactionally supersedes 旧 credential。Revoke 是正常 BUSINESS management RPC，不是 mTLS-only bootstrap。
-- 最大 credential lifetime 为 15 分钟且不晚于当前 leaf certificate expiry；无 refresh token，证书轮换后受控重新签发。
-- credential 不含 Permission Code，不能替代 `ResolvePrincipalAuthorization` 或 `ResolveWorkloadIssuance`。
-- Machine/binding/credential disable、revoke、stale 或 mismatch 立即阻止新 exchange；已签发 Token 按 5 分钟 TTL 或既有 DG-2 selector 收敛。
-- API Key、Gateway external token、DELEGATED reference、legacy operator context 与 Auth hardcoded root mapping 不能替代该 profile。
+- 固定 SYSTEM / `INTERNAL_SERVICE` 的 Machine Principal、binding 与 selector 由 Identity-owned deployment provisioner 在 workload readiness 前按版本化 inventory 幂等建立/核对。它不创建 tenant `AUTOMATION_BOT`，也不输出 secret。
+- tenant `AUTOMATION_BOT` 仍由正常 ExecutionToken-protected management flow 创建 principal/binding；job/runtime 只携带自己的 exact selector。一个 shared runner SPIFFE 可有多个 active principal binding，停用其中一个只拒绝该 bot。
+- selector 必须由 trusted workload configuration 或 bot/job owner adapter 注入 request-local exchange input，不得直接来自 external request、prompt、ordinary metadata 或业务 body。bot/job owner 先验证 tenant/job→binding 关系；Auth 仍不把该选择当 authority，而以 Identity live owner decision 和 Permission decision 定案。
+- Auth 从 transport 取得 SPIFFE、leaf thumbprint/notAfter；selector 不携带 tenant/org、SPIFFE、certificate、Permission Code、role 或 lifetime。Auth 对 selector/version 做 strict canonical validation 后调用 Identity exact pre-context resolver。
+- Identity 只在 active principal、active unique binding、exact version、exact SPIFFE 和 scope/tenant/org invariant 全部匹配时返回 allowed owner decision。Auth 再调用 Permission；BUSINESS 使用 resolved principal，INTERNAL 使用 verified workload。只有全量 allowed 才签发最长五分钟、绑定当前 leaf 的 ExecutionToken。
+- 缺失/重复 selector、bearer 与 selector 同时存在、stale version、wrong SPIFFE、inactive principal/binding、ambiguous binding、owner/Permission dependency unavailable 或 audit failure 均在 signing 前拒绝。
+- certificate rotation 直接使用新 mTLS leaf 重新 exchange；principal/binding disable 阻止新 Token，既有 Token 由五分钟 TTL 与现有 emergency selector 收敛。
+- Auth 自身的固定 SYSTEM selector 是 login prerequisite：它先通过 direct MACHINE exchange 取得 Identity-audience ET，再执行登录所需的 Identity business lookup。该 selector/owner/Permission chain 未就绪时 Auth readiness 与真实 login journey 保持失败；不使用 local principal、body identity 或 hardcoded Token 绕过。
 
-Source credential 的 exact `typ=oes-machine-source+jwt`、Auth audience、field numbers、binding version、Prisma constraints、safe errors 与 transactional audit 以 [machine-workload-source-credential.md](./machine-workload-source-credential.md) 为准。`ExchangeExecutionTokenRequest` 仍只包含 target audience 与 requested Permission Code；不增加 principal、tenant、SPIFFE、binding 或 certificate body field。
+迁移先 additive 发布 selector wire、Identity exact guard 与 provisioner，再切换 callers 并执行 shadow/parity；随后停止新 source credential issue，最多等待其 15 分钟寿命耗尽。兼容窗口与 rollback window 完成后删除旧 Issue/Revoke RPC、JWS profile、Auth table/provider/config 与 credential-specific revoke Code。删除前可回退旧 path；删除后回退只恢复前一版本完整 schema/runtime，不保留双重权威。
 
-完整黑盒规则以 [machine-workload-source-credential.md](./machine-workload-source-credential.md) 与 Identity [machine-principal-resolution.md](../identity-service/machine-principal-resolution.md) 为准。
+完整 Identity owner、provisioning、wire 与 safe-reason 规则以 [machine-principal-resolution.md](../identity-service/machine-principal-resolution.md) 为准。
 
 ## 8. API Key Exchange
 
@@ -320,7 +323,7 @@ transport status 映射由 Gateway / common error boundary 统一处理；不得
 16. HUMAN and MACHINE BUSINESS exchange succeeds only with a current `ResolvePrincipalAuthorization` decision bound to the same principal, tenant/scope and requested set; DELEGATED additionally proves the human/delegation/tool intersection.
 17. INTERNAL exchange succeeds only with a current `ResolveWorkloadIssuance` decision for the exact SPIFFE workload, target audience and INTERNAL set; HUMAN/MACHINE business grant cannot substitute for it.
 18. SELF_SERVICE accepts the canonical empty set only from a verified eligible source principal. The target method derives its subject and rejects BUSINESS/INTERNAL or disallowed DELEGATED mode use; BUSINESS/INTERNAL exchange rejects an empty set.
-19. Missing, malformed, expired, revoked or wrong-profile source credential; legacy signed operator context; and raw subject/tenant/role metadata all fail before Permission lookup or signing.
+19. Missing, malformed, expired, revoked or wrong-profile HUMAN/OBO/API Key/DELEGATED source credential; legacy signed operator context; and raw subject/tenant/role metadata all fail before Permission lookup or signing.
 20. Multi-hop exchange rejects a subject ExecutionToken whose exact `aud` does not identify the verified exchanging workload service, and the new Token binds the exchanger's own SPIFFE ID/certificate rather than copying the prior hop `client_id`/`cnf`.
 21. Permission timeout/unavailability, decision-reference mismatch, stale/denied `authzVersion`, tenant mismatch and workload/audience mismatch fail closed and never invoke the signing port.
 22. Two target RPCs with the same principal/tenant/audience/Code/delegation/security/`cnf` tuple reuse one cached Token; changing any tuple member produces a separate cache miss/exchange. No per-RPC Token is introduced.
@@ -328,10 +331,10 @@ transport status 映射由 Gateway / common error boundary 统一处理；不得
 24. `ResolveWorkloadIssuance` succeeds without an ExecutionToken only for the exact Auth mTLS identity and exact method; another valid workload certificate, spoofed header, wildcard or attempt to reuse the bootstrap rule on another Permission RPC fails.
 25. Auth obtains `permission.internal.principal_authorization.resolve` only after an all-granted workload issuance decision, then calls `ResolvePrincipalAuthorization` with both matching mTLS and Permission-audience ExecutionToken.
 26. Principal authorization never consumes target resource/domain facts or SELF_SERVICE requests, and a denied/partial BUSINESS decision never produces a reduced-scope Token.
-27. MACHINE root exchange verifies dedicated source profile/signature/lifetime/revocation, current SPIFFE and leaf thumbprint, then obtains one matching active Identity principal/binding/version decision before Permission lookup or signing.
-28. Correct SPIFFE with another leaf certificate, correct leaf binding with another SPIFFE, disabled/stale binding, inactive principal, scope/tenant mismatch or Identity unavailable rejects the complete exchange.
-29. Certificate rotation invalidates the prior source credential; controlled reissuance against the new leaf permits exchange without introducing a refresh token or long-lived API Key.
-30. `ResolveMachinePrincipalForAuth` uses exact Auth mTLS plus an Identity-audience ExecutionToken carrying `identity.internal.machine_principal.resolve`; it cannot reuse the Permission bootstrap exception or external Integration/API-key resolver.
+27. MACHINE root accepts exactly current mTLS plus one canonical typed selector, obtains one matching active Identity principal/binding/version decision, then obtains the applicable Permission decision before signing; selector or mTLS alone never establishes authority.
+28. Correct SPIFFE with stale/wrong/ambiguous selector, disabled binding, inactive principal, scope/tenant mismatch, bearer-plus-selector, missing selector or Identity unavailable rejects the complete exchange.
+29. Certificate rotation permits a new direct exchange against the same active selector and binds the new Token to the new leaf; no source credential reissue, refresh token or long-lived API Key is introduced.
+30. `ResolveMachinePrincipalForAuth` accepts only exact Auth mTLS for that exact method, rejects Authorization metadata and validates the original workload SPIFFE plus selector against live Identity truth; another caller/method, wildcard, external Integration resolver or header identity fails.
 31. A HUMAN source credential signs `session_terminal` only from the same active Auth session as `session_id`; a caller-supplied terminal, a missing terminal on a session-bound Token, or a resource-method terminal mismatch fails closed.
 32. Token cache entries for different `session_terminal` values cannot alias, and Browser Activity acceptance proves `WEB` and `BROWSER_EXTENSION` Tokens cannot invoke each other's declared RPC group.
 33. HUMAN OBO accepts only the current service-audience inbound ET from the private request scope, preserves HUMAN `sub`/tenant/session, records the exact SYSTEM MACHINE actor, binds the next-hop workload certificate and caps target expiry by subject expiry.
@@ -341,3 +344,7 @@ transport status 映射由 Gateway / common error boundary 统一处理；不得
 37. OBO exchange rejects missing policy, wrong self/target audience, stale or mismatched Identity principal/binding/version/SPIFFE, non-SYSTEM or tenant-bearing actor, and any caller-supplied actor before Permission/signing.
 38. Gateway tenant business selector never appears in `ExchangeExecutionTokenRequest`, Token claims or Token cache key; Auth neither validates nor signs that selector.
 39. A target service rejects a TENANT selector that differs from Token `tenant_id`, and rejects a SYSTEM selector unless the exact method is a dedicated SYSTEM tenant-target interface whose workload, Code and platform range all match.
+40. Empty inventory provisioning is idempotent; exact re-run is a no-op; manifest/database mismatch or missing fixed binding blocks readiness; emitted selector contains no secret and tenant `AUTOMATION_BOT` is excluded.
+41. One shared runner with two tenant bot selectors receives distinct tenant-bound MACHINE Tokens; disabling one principal/binding rejects only that selector and leaves the other bot runnable.
+42. Mixed-version rollout supports old caller drain for at most the former 15-minute credential lifetime, proves shadow/parity before cutover, stops new issue before removal, and preserves a tested pre-removal rollback.
+43. An external/body/prompt-supplied selector is never forwarded to STS; the bot/job owner resolves it from trusted tenant-bound job state. A shared-runner compromise is contained to that SPIFFE's declared binding set, and high-risk isolation uses a dedicated workload SPIFFE.

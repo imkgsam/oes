@@ -40,8 +40,8 @@ Notification 不查询 Identity 重新解析 recipient，也不把 recipient、t
 - execution principal 是 Identity-owned、绑定该 Auth workload 的专用 SYSTEM Machine Principal；
 - HUMAN、DELEGATED、TENANT MACHINE、其他 workload、错误 audience/issuer/time/`cnf`/Code 均在 controller application data 前拒绝；
 - `notification.internal.auth.dispatch` 是 `kind=INTERNAL`、`assignableTo=WORKLOAD_POLICY`、`allowedScopeLevels=[SYSTEM]`、`externalApiEligible=false`，不得加入 HUMAN/MACHINE 业务角色或 external token；
-- Auth 使用既有 MACHINE root：active Machine Principal/workload binding -> 当前 mTLS 取得最长 15 分钟 source credential -> `ResolveWorkloadIssuance` 全量批准准确 workload/audience/Code -> 最长五分钟 certificate-bound ET；不新增 credential profile、bootstrap method 或 Permission resolver；
-- ET 仅在 Auth 进程内按 principal、SYSTEM scope、audience、精确 Code set、leaf thumbprint 与安全版本缓存。source credential 缺失/失效、证书轮换或任一 cache binding 改变时重新取得；不存在 Redis/shared bearer pool。
+- Auth 使用 direct MACHINE root：current mTLS + Identity-provisioned exact SYSTEM selector -> Identity live principal/binding decision -> `ResolveWorkloadIssuance` 全量批准准确 workload/audience/Code -> 最长五分钟 certificate-bound ET；不新增 credential profile 或 Permission resolver；
+- ET 仅在 Auth 进程内按 principal/binding version、SYSTEM scope、audience、精确 Code set、leaf thumbprint 与安全版本缓存。selector/owner decision 失效、证书轮换或任一 cache binding 改变时重新 exchange；不存在 Redis/shared bearer pool。
 
 Auth 上游即使存在 HUMAN session，也不把 HUMAN ET 传播给这两个 RPC。上游 user/admin/challenge 归因保留在 Auth 本地审计，双方只使用可信 trace/request correlation 与 Notification `dispatch_id` 关联。
 
@@ -115,7 +115,7 @@ Notification audit 至少记录 safe dispatch reference、verified Machine Princ
 
 ## 5. Runtime Separation
 
-- Auth production 与普通 local development 只使用 trusted gRPC Notification adapter；缺少 MACHINE source credential、ET producer、Notification client 或 protected configuration 时 readiness 失败。
+- Auth production 与普通 local development 只使用 trusted gRPC Notification adapter；缺少 provisioned MACHINE selector、ET producer、Notification client 或 protected configuration 时 readiness 失败。
 - Auth `LocalNotificationDispatchAdaptor`、`EmailService`、`SmsService` 不再属于 runtime composition。isolated unit test module 可以注入 fake `NotificationDispatchPort`，但 fake 不修改 OTP。
 - Notification 本地 provider adapter 只模拟 Notification-owned provider boundary，不允许 Auth 绕过 Notification。
 - Collaboration Task NATS Inbox/DLQ consumer 继续只产生 `NotificationInboxItem`；它不复用 Auth dispatch RPC、provider outbox、template variables 或 Machine ET，也不因本契约改变 Event Bus 语义。

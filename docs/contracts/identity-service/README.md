@@ -37,7 +37,7 @@ Proto 契约来源仍然是：
 - [machine-auth.md](./machine-auth.md)
   - API Key 机器认证接口
 - [machine-principal-resolution.md](./machine-principal-resolution.md)
-  - `IMPLEMENTED_VERIFIED`：Auth-only 第一方 Machine Principal / `MachineWorkloadBinding` resolution；不复用 external API-key resolver
+  - `DESIGN_FROZEN_PENDING_IMPLEMENTATION`：Auth-only exact-mTLS 第一方 Machine Principal / `MachineWorkloadBinding` resolution 与固定 SYSTEM inventory provisioning；不复用 external API-key resolver
 - [employee-binding.md](./employee-binding.md)
   - `UserAccount <-> Employee` 绑定补充契约
 
@@ -62,9 +62,9 @@ Proto 契约来源仍然是：
 - `UserAccount <-> Employee` 绑定管理
 - tenant account 创建时可通过 `CreateUserAccountRequest.tenant_party_id` 显式复用上游已解析的当前租户 `TenantParty`
 
-已实现的受控内部能力（不属于公共 runtime）：
+已冻结、待实现的受控内部能力（不属于公共 runtime）：
 
-- 第一方内部 MACHINE root execution 的 Machine Principal / workload binding resolution
+- 第一方内部 MACHINE root execution 的 Machine Principal / workload binding resolution 与固定 SYSTEM inventory provisioning
 
 说明：
 
@@ -85,4 +85,4 @@ Contact Asset contract 仅描述 `identity-service` 对账号工作上下文联�
 - 管理端统一使用 [management.md](./management.md) 中的 Contact Asset management 语义；旧 work email / work phone 接口只作为兼容口径理解。
 ## Trusted gRPC foundation-group admission
 
-The exact 41-RPC matrix, `urn:oes:service:identity-service` audience, caller shapes, 27 existing Codes and four request tombstones are owned by [identity-service.md](../../architecture/services/identity-service.md#16-trusted-grpc-41-rpc-contractfrozen). The four later integrated machine/external resolver-management methods retain their existing contracts and are not redefined by this slice.
+The exact 41-RPC matrix, `urn:oes:service:identity-service` audience, caller shapes, 27 existing Codes and four request tombstones are owned by [identity-service.md](../../architecture/services/identity-service.md#16-trusted-grpc-41-rpc-contractfrozen). External resolver-management methods retain their contracts; `ResolveMachinePrincipalForAuth` alone changes to the exact-Auth mTLS/no-Authorization pre-context policy frozen in its contract.
