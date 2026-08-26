@@ -120,10 +120,10 @@ Successful and denied exchange audit records route kind, applicable source-crede
 
 - `targetAudience`：一个 registered service audience。
 - `requestedPermissionCodes`：去重、规范排序后的精确最小申请集；BUSINESS / INTERNAL 非空，SELF_SERVICE 固定为空。它不携带授权结果。
-- `machineExecutionSelector`：仅 MACHINE root 可出现的 optional typed route field，精确包含 `machinePrincipalId`、`machineWorkloadBindingId` 与 canonical positive `machineWorkloadBindingVersion`；三者均为非秘密 owner reference，不是身份或授权事实。
+- `machineExecutionSelector`：仅 MACHINE root 可出现的 optional typed route field，精确包含 `principalId`、`bindingId` 与 canonical positive `bindingVersion`；三者均为非秘密 owner reference，不是身份或授权事实。
 - 当前可信 execution reference：由 server runtime 注入，不由业务 DTO 重建。
 
-The additive proto shape keeps `target_audience = 1` and `requested_permission_codes = 2`, and adds `MachineExecutionSelector machine_execution_selector = 3`; the nested fields are `machine_principal_id = 1`, `machine_workload_binding_id = 2`, and `machine_workload_binding_version = 3`. No target RPC, tenant, subject-token, actor, SPIFFE, certificate or caller-supplied mode field is added. The proto comment/contract test must permit an empty repeated field only for SELF_SERVICE semantics. Existing verified source/subject credentials remain carried only by `authorization`; MACHINE root uses selector-only admission and introduces no second bearer carrier.
+The additive proto shape keeps `target_audience = 1` and `requested_permission_codes = 2`, and adds `MachineExecutionSelector machine_execution_selector = 3`; the nested fields are `principal_id = 1`, `binding_id = 2`, and `binding_version = 3`. No target RPC, tenant, subject-token, actor, SPIFFE, certificate or caller-supplied mode field is added. The proto comment/contract test must permit an empty repeated field only for SELF_SERVICE semantics. Existing verified source/subject credentials remain carried only by `authorization`; MACHINE root uses selector-only admission and introduces no second bearer carrier.
 
 这里的 `tenant` 禁止项同时包括 tenant business target：不得为 Gateway tenant-target binding 新增 Exchange target tenant field。Gateway 可把规范化 target 作为目标 RPC 自己拥有的 explicit business selector field 传播；该 selector 不是 credential 或 trusted transport context。目标服务分别验证 target-audience Token identity、exact workload、Permission Code 与 method declaration，再重新授权 selector 并用 selector 加 resource id 复核 tenant ownership。TENANT 要求 Token tenant 与 selector 相等；SYSTEM Token 保持 tenantless，只有 dedicated SYSTEM tenant-target method/interface 与平台 range 可允许 selector。request selector 不能覆盖 Token subject，Token subject 也不能替代 selector。
 
@@ -290,9 +290,7 @@ Consumers must apply the Event-owned security transport contract for durable cat
 - `EXECUTION_API_KEY_INVALID`
 - `EXECUTION_API_KEY_EXPIRED`
 - `EXECUTION_API_KEY_REVOKED`
-- `EXECUTION_MACHINE_SOURCE_CREDENTIAL_INVALID`
-- `EXECUTION_MACHINE_SOURCE_CREDENTIAL_EXPIRED`
-- `EXECUTION_MACHINE_SOURCE_CREDENTIAL_REVOKED`
+- `EXECUTION_MACHINE_SELECTOR_INVALID`
 - `EXECUTION_MACHINE_PRINCIPAL_INACTIVE`
 - `EXECUTION_MACHINE_SCOPE_MISMATCH`
 - `EXECUTION_MACHINE_WORKLOAD_BINDING_MISMATCH`
@@ -300,6 +298,8 @@ Consumers must apply the Event-owned security transport contract for durable cat
 - `EXECUTION_MACHINE_BINDING_STALE`
 - `EXECUTION_MACHINE_IDENTITY_UNAVAILABLE`
 - `EXECUTION_TOKEN_REVOKED`
+
+`EXECUTION_MACHINE_SOURCE_CREDENTIAL_INVALID`、`EXECUTION_MACHINE_SOURCE_CREDENTIAL_EXPIRED` 与 `EXECUTION_MACHINE_SOURCE_CREDENTIAL_REVOKED` 只属于 additive compatibility route：停止新 issue 后最多保留到同一 15 分钟 drain 边界，且 direct selector route 不得产生这些类别。它们与旧 Issue/Revoke RPC、profile 和 persistence 在 drain/rollback window 完成后同时删除，不属于 target-state stable errors。
 
 transport status 映射由 Gateway / common error boundary 统一处理；不得向外泄露 secret、grant graph 或“哪个 key 接近匹配”等诊断信息。
 
