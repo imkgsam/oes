@@ -98,7 +98,7 @@ canonical HTTP path target 在 Gateway request 内保持 private verified value�
 
 ### MACHINE Root
 
-Machine Principal 生命周期与 workload binding 由 Identity 拥有；source credential 的签发、轮换、撤销与 STS 由 Auth 拥有；Permission 判定 workload、principal、tenant 与 target Code 的交集。业务服务不得自行签发 source credential。
+Machine Principal 生命周期、workload binding 与固定 SYSTEM inventory provisioner 由 Identity 拥有；Auth 组合 current mTLS/SPIFFE、non-secret exact selector、Identity owner decision 与 Permission decision 并签发最长五分钟的 certificate-bound ExecutionToken。selector 不提供 subject、tenant、certificate 或 grant authority；同一 SPIFFE 可按 exact selector 解析多个 tenant bot principal。业务服务不得自行映射 SPIFFE 到 principal 或建立 fallback root。
 
 ### DELEGATED
 
@@ -133,7 +133,8 @@ DELEGATED runtime 仅在 DelegationGrant/ActionGrant、ToolContract、risk class
 | --- | --- |
 | Workload certificate / SPIFFE identity | deployment/security platform |
 | Machine Principal and workload binding | identity-service |
-| Source credential, ExecutionToken, STS, DelegationGrant, ActionGrant | auth-service |
+| HUMAN/OBO/API Key/DELEGATED source credentials, ExecutionToken, STS, DelegationGrant, ActionGrant | auth-service |
+| Fixed SYSTEM inventory provisioning and non-secret MACHINE selectors | identity-service + deployment binding |
 | Permission Code catalog and authorization decision | permission-service |
 | Method declaration and business/resource enforcement | target service |
 | Transport verification, private carrier and guards | Common infrastructure |
