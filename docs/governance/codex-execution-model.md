@@ -49,7 +49,7 @@ UD是长期全局设计审查task，也是architecture、ADR、稳定contracts�
 - 接受时在自己的design integration branch集成并验证；remote push和design PR由exact UD执行，或由UD在mutation前签发的一次性精确binding交host transport执行；UD read-after-write后发布`DESIGN_PR_READY`；
 - Human确认merge后，exact UD重新验证binding并亲自执行Merge Commit；确需host transport时，由UD先签发一次性精确remote execution binding，host按binding执行，UD再read-after-write验证exact remote state与main CI；
 - `NEW_DESIGN` Proposal的main CI成功后必须在同一UD task进入`ACTIVATION_DECISION_READY`，重新评估并主动建议`Direct | SINGLE_FEATURE | DELIVERY_STAGE | NO_EXECUTION`；`EXISTING_DELIVERY_DESIGN_GAP`改为把resolution返回并恢复exact existing delivery owner；editorial入口通知exact source并进入自身cleanup-ready；
-- 只有`NEW_DESIGN`经Human确认启动后才创建exact delivery owner，并在两阶段handoff完成前保持activation owner；existing-delivery resume不得创建replacement owner；
+- 只有`NEW_DESIGN`经Human确认启动且pre-create runtime-profile launcher达到`RUNTIME_PROFILE_LAUNCH_READY`后才创建exact delivery owner，并在target-session profile验证与两阶段handoff完成前保持activation owner；existing-delivery resume不得创建replacement owner；
 - 发送coverage/cleanup通知不转移workflow或Git ownership。
 
 UD不实现产品代码、不拆slices、不写Feature/Stage Packet，也不在handoff后管理delivery状态。post-cutover新建的UD标题固定为`[UD] Unified Design`；cutover前exact UD及其locator按2.9保持frozen title。
@@ -195,8 +195,10 @@ ordinary discussion
 - `UD_REMOTE_EXECUTION_RESULT`：一次性host executor -> exact issuing UD，只返回binding id、literal command/result、exit status和remote readback；不转移owner、不自行发布`DESIGN_PR_READY`、`TRUTH_MERGED`或任何canonical状态；
 - `ASSIGNMENT_RESULT`：IT/RI/FL -> direct execution parent；
 - `FEATURE_REPLAN_REQUIRED`：FL -> exact parent SL，作为`ASSIGNMENT_RESULT`的有界结果；只证明当前scope已经包含多个可独立candidate、Feature RI、PR和安全合入`main`的交付物，保持原FL及其资源并暂停新扩围，由SL在root Stage authorization与delegation/WIP ceiling内自动重划；只有真实扩围或不可自动处理的冲突/业务决定转为相应Human gate；
+- `RUNTIME_PROFILE_LAUNCH_UNAVAILABLE`：pre-create bootstrap executor -> exact creating owner，证明bound host/launcher不能为planned child原子注入exact profile；不创建child task或delivery资源，由creating owner选择满足能力的host/launcher并对同一transition幂等恢复；
 - `EXECUTION_ENVIRONMENT_NOT_READY`：proposed delivery owner -> exact creating parent，仅报告已声明能力未被执行环境兑现的证据并保留原owner/binding；
 - `EXECUTION_PROFILE_DEFECT`：handoff后exact current owner -> exact creating parent/current owner，报告confirmed capability仍触发的platform approval、effective profile与operation category；保持owner/candidate/state并自动修复、迁移或重建profile/host，不转成Human gate；
+- `PENDING_CHILD_TERMINATION_REQUIRED`：exact creating owner -> Human，仅用于已经创建、尚未`HANDOFF_ACCEPTED`且平台不支持same-task live profile repair的child；在独立终止/归档确认和无resource readback完成前禁止replacement owner；
 - `PERMISSION_EXPANSION_REQUIRED`：root handoff前返回exact activation owner，child accept前返回exact creating delivery parent，handoff后保留在exact current delivery owner；只承载超出confirmed capability/scope的合并请求，不回退祖先task；
 - `REMOTE_DRIVER_RESULT`：versioned remote driver -> exact issuing artifact owner，只返回binding、checkpoint、remote receipt/readback和literal result；driver不成为owner，也不自行发布workflow状态；
 - `BUSINESS_DECISION_REQUIRED`：SL/FL -> exact decision owner，仅阻塞性非设计决定；
@@ -320,7 +322,7 @@ approval = profile name/fingerprint, reviewer mode, event source and zero-prompt
 delegationCeiling = allowed child roles, topology, WIP and per-role capability ceilings
 ```
 
-OES默认project profile必须按exact owner至少覆盖：当前worktree及解析后的Git common directory/worktree metadata、task temp和验证输出、必要package/build cache、repository-declared service/container/test database、localhost及批准域名；敏感文件、secret values、生产/共享数据、其他owner refs/worktrees、host/system privilege和destructive operations继续保护。残余interactive approval使用`approval_policy=on-request`与`approvals_reviewer=auto_review`；profile名称、effective roots/destinations和reviewer mode在handoff前读回验证。普通owner不得以全局unrestricted profile代替精确集合。
+OES默认project profile必须按exact owner至少覆盖：当前worktree及解析后的Git common directory/worktree metadata、task temp和验证输出、必要package/build cache、repository-declared service/container/test database、localhost及批准域名；敏感文件、secret values、生产/共享数据、其他owner refs/worktrees、host/system privilege和destructive operations继续保护。残余interactive approval使用`approval_policy=on-request`与`approvals_reviewer=auto_review`；profile名称、effective roots/destinations和reviewer mode必须由target task从自己的当前session/turn读回验证。普通owner不得以全局unrestricted profile代替精确集合；prompt、静态profile/report、其他task telemetry或parent声明均不构成effective evidence。
 
 该effective profile是`OWNER_SESSION_PROFILE`：在exact task、host、repository、owner worktree、toolchain、credential identity与permission profile未变化时持续复用，不为同一owner的每个build、service start、publish或verify重新安装、挂载或跑完整capability smoke。上述任一输入变化，或approval telemetry证明实际能力漂移时才使session profile失效并重建；action自身的SHA/ref/PR/main变化只使action binding失效，不使owner profile失效。
 
@@ -335,15 +337,17 @@ scope内已绑定的能力自动执行，不产生逐文件、逐命令、逐次
 
 执行中发现多个真实缺口时先去重并形成一张`PERMISSION_EXPANSION_REQUIRED`卡；确认后使用new stateVersion替换capability binding。若操作已经在声明集合内却产生blocked operation或用户approval，归类为`EXECUTION_PROFILE_DEFECT`：立即记录event id/category/profile、保持owner/candidate/state/logs，由creating parent或current owner自动修复、重建或迁移profile/host并对同一transition幂等恢复。相同缺口不得再次展示给Human；平台仍未兑现时保持原状并选择满足集合的execution profile/host，不以全局unrestricted权限替代精确能力。
 
-### 4.5 Two-phase handoff
+### 4.5 Pre-create profile 与 Two-phase handoff
 
-1. 对`NEW_DESIGN`，UD冻结exact truth SHA、objective、scope/protected scope、recommended shape、acceptance、resources、execution capabilities、`roleType`、`expectedTitle`、`titleRuleVersion`和transition id；
-2. Human确认后UD按2.9的角色资格和标题契约创建exact Direct/FL/SL task，并read-after-create验证exact task id、role、parent和actual title；
-3. 新task在任何delivery写入前独立复读task identity和title，再验证binding、truth baseline、moving integration policy、owner、resource availability、allowed topology，并用无害smoke实际预检filesystem、shared Git metadata/remote、runtime/service、test data、network、credential references、approval reviewer和event telemetry；identity不匹配返回`TASK_IDENTITY_INVALID`且不创建资源，identity匹配且effective set覆盖声明集合、未产生用户approval后才返回`HANDOFF_ACCEPTED`；
-4. UD compare-and-set `HANDOFF_PENDING -> HANDOFF_VERIFIED`并转移delivery ownership；
-5. 只有此后新owner才可写文件或创建delivery Git资源。
+1. 对`NEW_DESIGN`，UD冻结exact truth SHA、objective、scope/protected scope、recommended shape、acceptance、resources、execution capabilities、`roleType`、`expectedTitle`、`titleRuleVersion`、planned child identity和transition id；SL→FL/Stage RI、FL→IT/Feature RI按root envelope收窄同类字段；
+2. Human确认root activation后，或parent形成无需新增Human gate的合法child assignment后，exact creating owner进入`RUNTIME_PROFILE_BOOTSTRAP_PENDING`，绑定planned child、exact host/launcher、repository/worktree、toolchain、credential identity、profile fingerprint、approval policy/reviewer、telemetry source、state/version与single-use create nonce；
+3. launcher必须在task创建前证明支持把该exact profile原子注入planned child且禁止Full Access fallback，随后进入`RUNTIME_PROFILE_LAUNCH_READY`。不能证明时返回`RUNTIME_PROFILE_LAUNCH_UNAVAILABLE -> EXECUTION_ENVIRONMENT_NOT_READY`，保持creating owner且不创建task/resource；
+4. 只有`RUNTIME_PROFILE_LAUNCH_READY`可按2.9创建exact Direct/FL/SL/IT/RI task。创建receipt必须绑定planned identity、实际task id、role/title、parent与nonce；创建结果不明确时先read-after-create，禁止第二次创建；
+5. 新task进入`HANDOFF_PENDING`，在任何delivery写入前独立复读task identity/title与自己的当前session/turn profile，再验证binding、truth baseline、moving integration policy、owner、resource availability和allowed topology，并用无害smoke实际预检filesystem、Git metadata/remote、runtime/service、test data、network、credential references、approval reviewer和event telemetry；
+6. target-session profile与声明集合精确匹配且`normalPermissionPromptCount=0`时记录`TARGET_SESSION_PROFILE_VERIFIED`并返回`HANDOFF_ACCEPTED`；identity不匹配返回`TASK_IDENTITY_INVALID`，effective profile或smoke不匹配返回`EXECUTION_ENVIRONMENT_NOT_READY`；
+7. exact creating owner复核task identity、target-session profile fingerprint、literal smoke、approval telemetry与create receipt后compare-and-set `HANDOFF_PENDING -> HANDOFF_VERIFIED`并转移delivery ownership；只有此后新owner才可写文件或创建delivery Git资源。
 
-创建或预检发现声明能力未兑现时，新task返回`EXECUTION_ENVIRONMENT_NOT_READY`及一次性缺口证据，UD仍是activation owner，并在相同transition下修复execution profile/host后幂等重试。handoff后confirmed operation仍触发platform approval时使用`EXECUTION_PROFILE_DEFECT`并保持current owner。真实capability/scope扩大改用一张`PERMISSION_EXPANSION_REQUIRED`卡与new stateVersion。SL→FL/Stage RI和FL→IT/Feature RI的parent assignment执行同一preflight guard；child接受前exact creating parent保持owner。不得接受orphan或duplicate owner；merge和cleanup不属于handoff授权。该两阶段handoff只用于`NEW_DESIGN`创建owner；`EXISTING_DELIVERY_DESIGN_GAP`恢复原owner时不得进入`HANDOFF_PENDING`。
+pre-create launcher、create receipt或target-session验证中断时，相同transition与相同binding从最后read-after-write checkpoint恢复；planned/actual task、host、launcher、profile、worktree、toolchain、credential identity、nonce或state不匹配时fail closed。handoff前能力未兑现时creating owner选择满足集合的profile/host并幂等重试，不以全局unrestricted权限替代精确能力；已经创建但未接受的child只在平台支持same-task live profile应用且新turn实际读回成功时继续同一task。平台不支持same-task repair时返回`PENDING_CHILD_TERMINATION_REQUIRED`，Human单独确认终止/归档并验证无role-owned资源后才允许重新bootstrap replacement；不得静默创建duplicate owner。handoff后confirmed operation仍触发platform approval时使用`EXECUTION_PROFILE_DEFECT`并保持current owner。真实capability/scope扩大改用一张`PERMISSION_EXPANSION_REQUIRED`卡与new stateVersion。merge和cleanup不属于handoff授权；`EXISTING_DELIVERY_DESIGN_GAP`恢复原owner时不得进入该创建流程。
 
 ### 4.6 Transition protocol
 
@@ -351,7 +355,9 @@ scope内已绑定的能力自动执行，不产生逐文件、逐命令、逐次
 
 ### 4.7 Execution profile 与 remote driver bootstrap
 
-运行可靠性truth合并后的首个实现不能依赖尚未交付的profile/driver。UD在Human确认delivery activation后、创建FL前先使用已存在的credentialed host执行一次bounded bootstrap：安装/选择OES project execution profile，启用auto-review与approval event telemetry，并通过4.4的actual smoke；只有`RUNTIME_PROFILE_READY`后才创建实现FL。该bootstrap只兑现已确认capability set，不扩大产品scope或remote authority。
+运行可靠性truth合并后的首个实现不能依赖尚未交付的profile/driver。4.5的pre-create bootstrap适用于任何新Direct、SL、FL、IT或RI，而不是只在创建FL前执行：exact creating owner先使用已存在的credentialed host/launcher准备OES project profile、auto-review与approval telemetry，只有launcher达到`RUNTIME_PROFILE_LAUNCH_READY`后才创建task；task创建后仍必须用自身当前session完成`TARGET_SESSION_PROFILE_VERIFIED`与actual smoke。pre-create readiness只证明launcher可原子注入，不能用静态文件或无关telemetry替代target-session evidence。该bootstrap只兑现已确认capability set，不扩大产品scope或remote authority，也不形成长期profile service或registry。
+
+平台启动路径不能注入exact profile时以`RUNTIME_PROFILE_LAUNCH_UNAVAILABLE`证据进入`EXECUTION_ENVIRONMENT_NOT_READY`，不创建普通Full Access owner；creating owner可在同一binding下选择满足集合的host/launcher。已存在但未接受的pending child保持exact task、clean worktree与无resource状态；canonical修复后优先same-task live repair，unsupported时必须先通过独立Human termination/archival boundary和无resource readback，记录`PENDING_CHILD_TERMINATED_VERIFIED`后才可创建replacement。
 
 交付versioned remote driver的首个exact feature candidate可使用cutover前已经存在且由artifact owner精确绑定的v6 remote transport完成一次publish/merge；不得为bootstrap新生成另一套长runner，也不得扩展action。candidate进入main、main CI和driver self-tests通过后记录`REMOTE_DRIVER_READY`，此后所有新remote mutation必须使用versioned driver。merge-group CI未ready时先使用driver的串行latest-main admission；native queue规则只在workflow/ruleset验证后切换。bootstrap marker只保留当前readiness，不建立历史账本或长期service。
 
@@ -555,7 +561,7 @@ SL 可为 Stage Review 创建 clean-context Stage RI；SL 或 Stage RI 只读精
 - 已确认Direct scope内的修改、focused verification、push与PR创建，停止于`PR_READY`；
 - confirmed Proposal的UD串行review、integration、verification、push和design PR创建，停止于`DESIGN_PR_READY`；
 - Proposal design merge/main CI后UD发送`CANONICAL_MERGED`；`NEW_DESIGN`进入`ACTIVATION_DECISION_READY`，`EXISTING_DELIVERY_DESIGN_GAP`自动向exact existing delivery owner发送`DESIGN_GAP_RESOLVED`并验证resume guards；editorial merge/main CI后发送`CANONICAL_EDITORIAL_MERGED`并进入`UD_CLEANUP_READY`；
-- Human确认`NEW_DESIGN` activation后，UD创建recommended Direct/FL/SL并执行两阶段handoff；existing-delivery resolution在原授权不变时不新增Human gate或owner；
+- Human确认`NEW_DESIGN` activation后，UD先完成pre-create profile bootstrap，达到`RUNTIME_PROFILE_LAUNCH_READY`才创建recommended Direct/FL/SL并执行target-session验证与两阶段handoff；existing-delivery resolution在原授权不变时不新增Human gate或owner；
 - confirmed capability set内且由effective project profile兑现的owner worktree/file写入、owner local Git与允许的remote branch/PR操作、repository标准package/build/test、task-owned process/container/local test database和approved network操作；低风险platform approval由auto-review处理，正常用户权限弹窗为零；
 - `main`前进时自动fetch并刷新`integrationBase`，验证已绑定canonical merge仍是latest `origin/main`祖先，按drift/affected-test matrix集成变化并复用仍有效证据；普通代码冲突返回artifact owner，只有新的冻结语义冲突才再次路由`DESIGN_GAP`；
 - 所有remote mutation通过versioned remote driver执行并原子记录receipt/checkpoint；恢复先read-after-write，不重复已完成mutation；
@@ -898,9 +904,19 @@ UD_REVIEW -> UD_INTEGRATION_VERIFIED
    | NEW_DESIGN -> ACTIVATION_DECISION_READY
        | DEFER (recommended by NO_EXECUTION) -> EXECUTION_DEFERRED -> UD_CLEANUP_READY
        | CONTINUE_DESIGN -> DESIGN_REVISION_REQUESTED -> AWAITING_PROPOSAL[r+1]
-       | START -> HANDOFF_PENDING -> HANDOFF_VERIFIED
-           | delivery owner: DELIVERY_ACTIVE
-           | UD: UD_CLEANUP_READY
+       | START -> RUNTIME_PROFILE_BOOTSTRAP_PENDING
+           | RUNTIME_PROFILE_LAUNCH_UNAVAILABLE -> EXECUTION_ENVIRONMENT_NOT_READY
+               -> same activation owner bootstrap retry
+           | RUNTIME_PROFILE_LAUNCH_READY -> DELIVERY_OWNER_CREATION
+               -> HANDOFF_PENDING -> TARGET_SESSION_PROFILE_VERIFIED
+               -> HANDOFF_ACCEPTED -> HANDOFF_VERIFIED
+                   | delivery owner: DELIVERY_ACTIVE
+                   | UD: UD_CLEANUP_READY
+               | same-task profile mismatch -> EXECUTION_ENVIRONMENT_NOT_READY
+                   | live repair supported -> TARGET_SESSION_PROFILE_VERIFIED
+                   | unsupported -> PENDING_CHILD_TERMINATION_REQUIRED
+                       -> TERMINATION_CONFIRMED -> PENDING_CHILD_TERMINATED_VERIFIED
+                       -> RUNTIME_PROFILE_BOOTSTRAP_PENDING
    | EXISTING_DELIVERY_DESIGN_GAP -> DESIGN_GAP_RESOLVED
        | guards pass -> exact original owner -> DELIVERY_RESUME_VALIDATED
            -> AFFECTED_DELIVERY_RESUMED
@@ -924,11 +940,11 @@ UD_EDITORIAL_REVIEW
 
 `CANONICAL_MERGED`只在Proposal的`MAIN_CI_PASSED`后幂等发送给exact Design Owner；它与post-merge routing并行且不转移owner。`CANONICAL_EDITORIAL_MERGED`只用于editorial source closure。`EXISTING_DELIVERY_DESIGN_GAP`的same resolution binding重复到达只复用原`DELIVERY_RESUME_VALIDATED`结果；owner、scope、merge、authorization或resource fingerprint不匹配时fail closed。latest main可以前进，但resolution canonical merge必须仍为其祖先；无语义冲突时刷新到latest head并增量验证，新的冻结语义冲突重新进入`DESIGN_GAP`。Routine path无环；只有显式`REVISION_REQUIRED`、`CONTINUE_DESIGN`或delivery `DESIGN_GAP`创建new revision epoch。
 
-Task identity与Capability preflight都是`HANDOFF_ACCEPTED`的guard而非长期状态。`TASK_IDENTITY_INVALID`保持creating parent为owner，禁止role-owned资源mutation，并只允许同一新task的title修正与readback；`EXECUTION_ENVIRONMENT_NOT_READY`保持`HANDOFF_PENDING`和原activation owner；handoff后的`EXECUTION_PROFILE_DEFECT`保持current delivery owner与已授权工作，只暂停受影响operation并自动修复profile/host；`PERMISSION_EXPANSION_REQUIRED`只暂停真实越界操作。
+Task identity与target-session Capability preflight都是`HANDOFF_ACCEPTED`的guard而非长期owner。`RUNTIME_PROFILE_BOOTSTRAP_PENDING`与`RUNTIME_PROFILE_LAUNCH_READY`是creating owner的transition-local checkpoint，不是全局service/registry；前者不得创建child，后者只允许一次exact create且不替代target-session evidence。`TASK_IDENTITY_INVALID`保持creating parent为owner，禁止role-owned资源mutation，并只允许同一新task的title修正与readback；`EXECUTION_ENVIRONMENT_NOT_READY`保持`HANDOFF_PENDING`和原activation owner；handoff后的`EXECUTION_PROFILE_DEFECT`保持current delivery owner与已授权工作，只暂停受影响operation并自动修复profile/host；`PERMISSION_EXPANSION_REQUIRED`只暂停真实越界操作。
 
 `WAITING_ON_CHILD`是Stage/Feature Packet与current evidence manifest中的可恢复等待marker，不是额外workflow owner或长期状态；exact child result到达即退出。`OWNER_SESSION_PROFILE`是owner capability guard，remote action checkpoint只引用其fingerprint。`RESOURCE_DURABILITY_REPAIR`在cutover前只建立稳定检查点或恢复exact原路径，cutover后才按stable-owner-exclusive-v1重建exact稳定路径；它不迁移in-flight owner。`FEATURE_REPLAN_REQUIRED`保持原FL为owner并只暂停新扩围，SL在root authorization/ceiling内自动选择sibling handoff或invalidate-to-atomic continuation；只有真实扩围或既有Human typed route命中才等待Human。以上均不替代Feature/Stage完成状态。
 
-`resourceTopologyVersion=stable-owner-exclusive-v1` runtime cutover前已存在的tasks、cards、owners和resources保持原binding、原exclusive clone与原`/private/tmp/oes-*` cleanup identity，不改名、不迁移、不自动清理；cutover本身也不迁移in-flight资源。已经创建的replacement owner不自动删除。若错误activation card尚未创建任何owner/resource，exact UD可在readback确认后以`EXISTING_DELIVERY_PROVENANCE_CONFIRMED`使其失效并改走resume；已经形成Human-confirmed或resource-bearing replacement binding时只走显式replan/termination。cutover时正在等待Human的existing Stage/Feature resume card保持原样，不因本规则merge自动执行。
+`resourceTopologyVersion=stable-owner-exclusive-v1` runtime cutover前已存在的tasks、cards、owners和resources保持原binding、原exclusive clone与原`/private/tmp/oes-*` cleanup identity，不改名、不迁移、不自动清理；cutover本身也不迁移in-flight资源。已经创建的replacement owner不自动删除。已创建、仍在`HANDOFF_PENDING`、未接受且无role-owned资源的child保持exact task与clean worktree；profile-boundary truth合并后只允许same-task live repair，或在独立Human终止/归档确认及无resource readback后创建replacement。若错误activation card尚未创建任何owner/resource，exact UD可在readback确认后以`EXISTING_DELIVERY_PROVENANCE_CONFIRMED`使其失效并改走resume；已经形成Human-confirmed或resource-bearing replacement binding时只走显式replan/termination。cutover时正在等待Human的existing Stage/Feature resume card保持原样，不因本规则merge自动执行。
 
 Feature与Stage继续使用：
 
