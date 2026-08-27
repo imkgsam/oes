@@ -100,6 +100,8 @@ canonical HTTP path target 在 Gateway request 内保持 private verified value�
 
 Machine Principal 生命周期、workload binding 与固定 SYSTEM inventory provisioner 由 Identity 拥有；Auth 组合 current mTLS/SPIFFE、non-secret exact selector、Identity owner decision 与 Permission decision 并签发最长五分钟的 certificate-bound ExecutionToken。selector 不提供 subject、tenant、certificate 或 grant authority；同一 SPIFFE 可按 exact selector 解析多个 tenant bot principal。业务服务不得自行映射 SPIFFE 到 principal 或建立 fallback root。
 
+Auth 在 HUMAN 建立前取得登录事实，或在 session 建立/续期时复核 owner lifecycle，使用同一 direct MACHINE root 为 target-owned Auth-only INTERNAL Code 换取目标 Token。这些方法的 authority 来自 exact Auth workload -> audience -> INTERNAL Code workload policy，不来自固定 Machine Principal 的 BUSINESS `PrincipalRoleBinding`。目标方仅返回最小 Account/Employee/Tenant lifecycle 投影，并使用 request selector 重新验证 owner 关系；selector 仍是查询输入，不是 tenant 或 principal authority。
+
 ### DELEGATED
 
 DELEGATED runtime 仅在 DelegationGrant/ActionGrant、ToolContract、risk class、confirmation、idempotency 与 target-side consumption 全部满足对应 ADR/contract 时开放。trusted gRPC 基线本身不授予 AI mutation 权限。

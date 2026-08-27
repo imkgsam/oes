@@ -126,6 +126,8 @@ The runtime placement is fixed to the existing `PermissionCheckService` proto, `
 - SELF_SERVICE：target 从可信 HUMAN principal 派生，默认拒绝 MACHINE / DELEGATED；允许 DELEGATED 必须由方法显式声明，认证安全类操作仍禁止。
 - INTERNAL：验证 workload issuance、audience、`cnf` 与 INTERNAL Code；允许没有 human operator，但保持 machine / original principal、tenant、request 与 trace 审计归因。
 
+Auth 登录/会话安全的 Identity、HR 与 TenantOrg owner-fact reads 是 INTERNAL consumption：Permission 通过 `ResolveWorkloadIssuance` 只验证 exact Auth workload -> exact target audience -> exact Code，不查询或要求固定 Auth Machine Principal 的 `PrincipalRoleBinding`。对应 Code 为 `identity.internal.auth_login_account.resolve`、`hr.internal.auth_login_employee.resolve`、`tenant_org.internal.auth_session_tenant_lifecycle.resolve`，均为 SYSTEM / `WORKLOAD_POLICY`-only / non-external。这不影响同一 Machine Principal 在执行真实 BUSINESS 动作时仍需要 current active role/grant。
+
 Gateway HTTP `RequirePermissions` 保留。它与目标 gRPC BUSINESS authorization 是两道边界，共用 Permission Code 与可信 tenant，不以任一方替代另一方。
 
 ## 6. Machine And Integration Rules
@@ -177,3 +179,4 @@ Gateway HTTP `RequirePermissions` 保留。它与目标 gRPC BUSINESS authorizat
 19. `ResolvePrincipalAuthorization` does not accept resource facts, domain state or caller-derived roles; SELF_SERVICE and concrete resource/domain authorization remain at their existing target-service boundaries.
 20. A successful or denied issuance decision binds principal/workload, scope, tenant/org, audience, exact Code set, decision reference and `authzVersion`, and its audit contains no source credential or Token plaintext.
 21. MACHINE BUSINESS decision only consumes the active principal/scope/tenant owner result produced after Auth transport verification and Identity binding resolution; Permission never parses the selector, resolves SPIFFE identity or substitutes external API-key/hardcoded root mapping.
+22. Auth login/session INTERNAL issuance succeeds only for the exact registered Auth workload, exact target audience and one target-owned login Code; it neither reads nor creates a `PrincipalRoleBinding`, while the target resolver still rejects wrong workload/audience/Code/`cnf`, inactive owner facts and selector-owner mismatch.

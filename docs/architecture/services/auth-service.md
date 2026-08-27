@@ -278,7 +278,17 @@ HUMAN OBO exchange 必须同时满足：subject ET `aud` 精确等于 record 的
 - tenant bot principal/binding 继续由正常 ExecutionToken-protected management flow 建立。同一 shared runner SPIFFE 可关联多个不同 tenant binding；每个 job 使用自己的 exact selector，停用一个 bot 不停用 runner 或其他 bot。
 - rollout 先 additive 增加 selector wire、Identity exact guard 与 provisioner，保留旧 source path 作短暂兼容；callers shadow/parity 通过后停止新 source issue，等待最长 15 分钟 drain。
 - drain 与 rollback window 完成后删除旧 Issue/Revoke RPC、JWS profile、Auth persistence/provider/config 和 credential-specific Code。删除前 rollback 可恢复旧 caller；删除后只允许整体恢复前一 schema/runtime 版本，不保留两个 MACHINE root authority。
-- `auth-service` 自身是固定 SYSTEM inventory 的首批 entry。其 selector/readiness 就绪后，登录流程所需的 Identity business lookup 可先通过 direct MACHINE exchange 取得 Identity-audience ET，再执行既有查询；这移除当前“为取得首凭据而再次取得首凭据”的递归。selector、Identity resolver 或 Permission policy 未就绪时 Auth readiness 失败，登录入口不宣告可用，也不把现有 Stage fail-closed 结果改写为成功。
+- `auth-service` 自身是固定 SYSTEM inventory 的首批 entry。其 selector/readiness 就绪后，登录/会话安全只为 target-owned Auth-only INTERNAL Code 换取 Identity、HR 或 TenantOrg audience ET，不为固定 principal 请求 `identity.account.list`、`hr.employee.get_by_id` 或 `tenant_org.tenant.get_by_id` BUSINESS grant。这同时移除首凭据递归与登录前 BUSINESS role 耦合。selector、owner resolver、target INTERNAL policy/declaration 或 Permission 未就绪时，对应登录/session capability readiness 失败，现有 Stage fail-closed 结果仍保持失败证据。
+
+Auth 登录/会话安全的最小 downstream surface 固定为：
+
+- Identity `identity.internal.auth_login_account.resolve`：`ListAuthLoginAccountCandidates(user_id)`、`ResolveAuthLoginAccount(user_id, account_id)`、`ResolveAuthEmployeeLoginAccount(tenant_id, employee_id)`；
+- HR `hr.internal.auth_login_employee.resolve`：`ResolveAuthLoginEmployee(tenant_id, employee_code)`；
+- TenantOrg `tenant_org.internal.auth_session_tenant_lifecycle.resolve`：`ResolveAuthSessionTenantLifecycle(tenant_id)`。
+
+Web password/OTP 在 Auth-owned credential 成功后使用 Identity candidate resolver，再以 TenantOrg lifecycle 筛选；account selection 与 MFA completion 通过 `user_id + account_id` 重新验证 owner/enabled 事实。Employee PIN 先以设备边界提供的 tenant selector 解析 active employee，再解析 Identity employee/account binding，最后验证 Auth-owned PIN。Session refresh/validation 使用同一 TenantOrg minimal lifecycle resolver，因为它是 Auth 的 session safety fact，而非用户查询 Tenant 资料。
+
+密码失败审计只从 Auth-owned LoginMethod 记录获取规范化 identifier 与可用 user reference；不再为审计富化调用 Identity `GetUserByEmail` / `GetUserByPhone`。对外错误、anti-enumeration、risk throttle、MFA、terminal access、session 与 Auth-owned audit 结果保持不变。
 
 精确 direct exchange 以 [execution-token.md](../../contracts/auth-service/execution-token.md) 为准；Identity owner/provisioning 以 [machine-principal-resolution.md](../../contracts/identity-service/machine-principal-resolution.md) 为准。
 
@@ -638,7 +648,7 @@ Contract 文档只描述黑盒调用语义、字段、错误与当前接口形�
 
 ## 19. Trusted gRPC foundation-group admission（FROZEN）
 
-`auth-service` 的 70 个既有 `AuthService` RPC 与 foundation RPC 目标组参加同一个五服务原子迁移候选；audience 固定为 `urn:oes:service:auth-service`。本节的 direct MACHINE root 变更只解除登录前 Identity lookup 的基础执行递归，不改变登录、MFA、session、审计、限流或业务结果语义。
+`auth-service` 的 70 个既有 `AuthService` RPC 与 foundation RPC 目标组参加同一个五服务原子迁移候选；audience 固定为 `urn:oes:service:auth-service`。direct MACHINE root 解除首凭据递归；上述 target-owned INTERNAL login/session fact resolvers 解除固定 Auth principal 的 BUSINESS grant 耦合。两者都不改变登录、MFA、session、审计、限流或业务结果语义。
 
 ### 19.1 70-RPC 完整分类
 
