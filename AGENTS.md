@@ -87,15 +87,21 @@ v6 truth merge前已经取得Human确认，或已经创建exact owner、task、b
 
 任何有状态work item只有一个当前owner和一个artifact owner。通知不转移owner；只有新owner校验并返回`HANDOFF_ACCEPTED`后才允许写入。SL/FL只协调预确认的有界执行拓扑，不构成长期开销；不得建立全局调度中心、watchdog、heartbeat、Pull inbox、历史thread registry或过程账本。
 
+长期owner资源的目标拓扑是稳定路径中的owner-exclusive clone与task稳定artifact root，不共享其他owner的Git common directory；`/private/tmp`只承载可重建scratch。该拓扑只有在repository-owned profile、driver、cleanup schema与测试合入`main`，且effective profile读回`resourceTopologyVersion=stable-owner-exclusive-v1`后才对新owner生效。在此cutover前，现有可执行exclusive-clone与`/private/tmp/oes-*`合同继续权威，所有已存在owner保持exact path/ref/resource binding直到terminal/cleanup；只可把bundle、Packet与current evidence manifest检查点复制到稳定artifact root，资源丢失时恢复原绑定路径，不迁移或创建replacement owner。
+
+SL在启动FL前必须区分独立交付物与同一feature的实现slice：可独立candidate、RI、PR和安全合入`main`的结果拆为平级FL；必须共同原子验收的slice保持一个FL并由FL创建有界IT。执行中发现feature已分裂为多个独立交付物时返回`FEATURE_REPLAN_REQUIRED`给exact SL；SL在已确认Stage scope、protected scope、execution capabilities、delegation ceiling与WIP内自动验证、冻结提取范围并创建sibling FL，原子feature则自动继续原FL与bounded IT，不新增Human gate。只有真实扩围、越过ceiling、owner/write冲突或阻塞性业务取舍才询问Human。parent派发child后进入`WAITING_ON_CHILD`并结束当前turn，由exact typed result唤醒，禁止持续poll或占用执行槽等待。
+
 active Stage/Feature中发现design gap时，只开启Design Owner/UD设计子流程；原SL/FL继续是exact delivery owner并保留其packet、branch/worktree、PR、candidate与有效证据。truth merge后先校验并恢复该exact owner，不创建replacement SL/FL；只有owner、scope、capabilities、topology或resource binding失效时才向Human显示一次replan卡。`DESIGN_GAP_RESOLVED`后原SL必须fetch latest `origin/main`、验证exact canonical merge是其祖先并刷新Stage `integrationBase`与verification worktree；affected FL必须把该latest main以append-only merge commit合入自己的feature branch后才继续remediation，unaffected candidates/evidence按影响复用。
 
 Human确认delivery scope时同时授权该scope所需的最小充分运行能力。OES task必须使用实际生效的project execution profile，而不是只在消息中声明权限；profile按owner绑定exact worktree、解析后的shared Git metadata、task temp/cache、repository-declared local service/container/test database、localhost和approved network，并保护secret、生产/共享数据、host/system privilege及跨owner资源。`approval_policy=on-request`与`approvals_reviewer=auto_review`接管残余低风险platform approval；正常Direct/UD/SL/FL/IT/RI在confirmed scope内的用户权限弹窗目标值为零。
 
-UD、SL或FL在handoff接受前必须对effective capabilities执行真实smoke，包括owner file write、Git switch/add/commit、标准build/test、task-owned service/database、localhost/network和evidence root。已声明能力仍产生用户approval时属于`EXECUTION_PROFILE_DEFECT`：保持owner、candidate、state和原authorization，由creating parent或current owner自动修复、重建或迁移execution profile/host并幂等恢复，不形成Human gate。只有scope/protected scope扩大、生产或共享资源、新secret或付费外部系统、host/system privilege、cross-owner/destructive operation以及既有main merge和cleanup gate才合并请求一次Human确认。child只从Human-confirmed topology为该role绑定的delegation ceiling取得完成assignment所需的更窄能力。
+UD、SL或FL在handoff接受前必须对effective capabilities执行真实smoke，包括owner file write、Git switch/add/commit、标准build/test、task-owned service/database、localhost/network和evidence root。已声明能力仍产生用户approval时属于`EXECUTION_PROFILE_DEFECT`：保持owner、candidate、state和原authorization，由creating parent或current owner自动修复、重建或迁移execution profile/host并幂等恢复，不形成Human gate。只有scope/protected scope扩大、生产或共享资源、新secret或付费外部系统、host/system privilege、cross-owner/destructive operation以及既有main merge和cleanup gate才合并请求一次Human确认。child只从Human-confirmed root topology policy为该role绑定的delegation/WIP ceiling取得完成assignment所需的更窄能力。
 
 并行work item必须分离固定的`truthBaseline`、可自动刷新的`integrationBase`和candidate冻结时的`candidateBase`。`main`前进本身不使既有Human authorization失效：无关变化自动集成并复用仍有效证据，相关变化运行affected tests，普通冲突由artifact owner解决，只有冻结语义冲突进入`DESIGN_GAP`。candidate冻结或发布后不改写历史，只追加merge/fix commit。
 
 远端Git/GitHub mutation统一通过仓库拥有、版本化、经过测试且幂等可恢复的remote driver执行；不得为每个task临时生成新的长Shell runner。多FL仍保持独立完整PR；Stage Review与Human merge authorization通过后使用latest-main merge queue或等价串行admission。测试证据按candidate、依赖、输入、环境和命令版本复用。同一Stage cleanup只向Human展示一张精确批量卡，各FL仍清理自己的资源，SL只可为终态Feature Packet建立cleanup-only聚合PR，不获得产品remote branch或产品代码写权。
+
+effective execution profile按owner session建立并在task、host、repository、worktree、toolchain、credential identity与permission profile未变时复用；每次remote mutation只签发引用该profile fingerprint的single-use action binding。验证按focused development、candidate affected matrix、PR/Stage full gate三层规划，完整输入fingerprint未变的证据直接复用；RI只补验缺失或已失效风险，不重复owner已证明且输入未变的完整矩阵。
 
 ## 6. 讨论、冻结与写入
 
