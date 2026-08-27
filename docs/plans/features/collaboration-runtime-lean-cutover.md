@@ -35,7 +35,7 @@ review: `parent-created visible Feature RI after complete candidate`
 - Acceptance: exact-parent routing is idempotent; owner/topology authority is immutable; WIP and write-conflict checks fail closed.
 
 ### RISK-TIERED-VALIDATION
-state: `RUNNING`
+state: `CANDIDATE_READY`
 candidate: `pending`
 review: `parent-created visible Feature RI after complete candidate`
 
