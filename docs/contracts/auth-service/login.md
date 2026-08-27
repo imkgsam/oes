@@ -201,8 +201,8 @@
   - `device_bound_tenant_id`
 - 稳定流程：
   - `auth-service` 在 credential 校验前检查 Terminal Entry Login Policy 是否允许当前 terminal 使用 `EMPLOYEE_CODE_PIN`
-  - `auth-service` 调用 `hr-service.ResolveActiveEmployeeByCode`，按 `device_bound_tenant_id + employee_code` 获取 active employee 与 active employment
-  - `auth-service` 调用 `identity-service.ResolveEmployeeLoginAccount`，按 `tenant_id + employee_id` 获取唯一 enabled account 与 user
+  - `auth-service` 调用 `hr-service.ResolveAuthLoginEmployee`，按 `device_bound_tenant_id + employee_code` 获取 active employee 与 active employment
+  - `auth-service` 调用 `identity-service.ResolveAuthEmployeeLoginAccount`，按 `tenant_id + employee_id` 获取唯一 enabled account 与 user
   - `auth-service` 校验该 user 的 `TERMINAL_PIN`
   - `auth-service` 执行 Terminal Access Policy 准入
   - 成功后建立 terminal-aware session，记录 `terminal / loginFlow / terminalDeviceId / deviceBoundTenantId`

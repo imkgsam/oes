@@ -11,6 +11,9 @@
 - `api-gateway`
 - `auth-service`
 - `identity-service`
+- `hr-service`
+- `tenant-org-service`
+- `permission-service`
 - `notification-service`，当认证流程需要 OTP 或安全提醒时
 
 ## 3. 协同分工
@@ -45,6 +48,9 @@
 - 同步：
   - `api-gateway -> auth-service`
   - `auth-service -> identity-service`
+  - `auth-service -> hr-service`
+  - `auth-service -> tenant-org-service`
+  - `auth-service -> permission-service` 的 exact INTERNAL Code workload issuance 决策
   - `auth-service -> notification-service` 的通知请求受理
 - 异步：
   - 通知投递回执、补发、供应商状态更新等由通知平台内部治理

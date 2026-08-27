@@ -84,8 +84,8 @@
 
 - 作用：按 `tenantId + employeeCode` 精确解析当前可工作的员工事实
 - 使用场景：
-  - `auth-service` 在 `EMPLOYEE_CODE_PIN` 现场终端登录中消费 HR 真相
-  - 需要用租户内员工编号确认员工仍为 active 且存在当前 active employment
+  - 既有 BUSINESS 调用方需要用租户内员工编号确认员工仍为 active 且存在当前 active employment
+  - `auth-service` 的 pre-HUMAN `EMPLOYEE_CODE_PIN` 登录不使用本方法，只使用 INTERNAL `ResolveAuthLoginEmployee`
 - 请求关键字段：
   - `tenant_id`
   - `employee_code`

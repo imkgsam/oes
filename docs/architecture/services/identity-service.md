@@ -108,7 +108,7 @@
 - `OrgUnit`、org tree、org hierarchy 与 org reference validation 以 [tenant-org-service.md](./tenant-org-service.md) 为准。
 - `Employment -> OrgUnit` 是正式 `人 -> org` 任职真相，归 `hr-service`。
 - `UserAccount <-> Employee` binding 必须校验同 tenant，且 `UserAccount.tenantPartyId == Employee.tenantPartyId`。
-- `ResolveEmployeeLoginAccount` 可基于既有 `UserAccount <-> Employee` binding 返回某 active employee 对应的唯一 account 及其 enabled state，用于认证编排与准确审计；该能力不得把 identity-service 扩展为 HR lifecycle、terminal access 或 PIN owner。
+- `ResolveEmployeeLoginAccount` 保留为既有 BUSINESS compatibility query，不作为 Auth pre-HUMAN 登录入口；员工码现场登录只使用 Auth-only INTERNAL `ResolveAuthEmployeeLoginAccount`，由 Identity 基于既有 `UserAccount <-> Employee` binding 校验唯一 account、tenant owner 关系及 enabled state。两者都不得把 identity-service 扩展为 HR lifecycle、terminal access 或 PIN owner。
 - legacy account-org membership 或 account 视角 org 数据只能作为 compatibility / projection 口径存在，不得成为 onboarding、HR、授权或组织治理主链 owner。
 - `identity-service` 可在账号、联系资产、机器主体、审计记录中保留 `tenantId / orgId` 引用字段，但不得通过本地模型或共享数据库读取 tenant / org 真相。
 
