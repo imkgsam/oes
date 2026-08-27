@@ -17,7 +17,7 @@ Deliver the stable owner runtime, direct assignment wakeup, and risk-tiered vali
 ## Slices
 
 ### STABLE-OWNER-RUNTIME
-state: `RUNNING`
+state: `CANDIDATE_READY`
 candidate: `pending`
 review: `parent-created visible Feature RI after complete candidate`
 
@@ -26,7 +26,7 @@ review: `parent-created visible Feature RI after complete candidate`
 - Acceptance: mixed profiles, temporary-path aliases, wrong-origin recovery, and incomplete cleanup fail closed.
 
 ### EVENT-DRIVEN-ASSIGNMENT
-state: `READY`
+state: `RUNNING`
 candidate: `pending`
 review: `parent-created visible Feature RI after complete candidate`
 

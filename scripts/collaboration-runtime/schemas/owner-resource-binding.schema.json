@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oes.local/schemas/collaboration-runtime/owner-resource-binding-v1.json",
+  "title": "OES frozen owner resource binding",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "bindingFingerprint",
+    "resourceTopologyVersion",
+    "ownerTaskId",
+    "directParentTaskId",
+    "transitionId",
+    "repositoryRoot",
+    "ownerClone",
+    "ownerGitDirectory",
+    "ownerRef",
+    "artifactRoot",
+    "taskTempRoot",
+    "featurePacket",
+    "featurePacketCheckpointPath",
+    "currentEvidenceManifestPath",
+    "checkpointBundlePath",
+    "gitBundlePath"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "OES_OWNER_RESOURCE_BINDING"
+    },
+    "bindingFingerprint": {
+      "$ref": "#/$defs/sha256"
+    },
+    "resourceTopologyVersion": {
+      "$ref": "#/$defs/topologyVersion"
+    },
+    "ownerTaskId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "directParentTaskId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "transitionId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "repositoryRoot": {
+      "$ref": "#/$defs/absolutePath"
+    },
+    "repositoryRemoteUrl": {
+      "type": "string",
+      "pattern": "^https://github\\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+\\.git$"
+    },
+    "ownerClone": {
+      "$ref": "#/$defs/absolutePath"
+    },
+    "ownerGitDirectory": {
+      "$ref": "#/$defs/absolutePath"
+    },
+    "ownerRef": {
+      "type": "string",
+      "pattern": "^refs/heads/(?!main$)(?!HEAD$)(?!-)(?!/)(?!\\.)(?!.*?/\\.)(?!.*//)(?!.*\\.\\.)(?!.*@\\{)(?!.*(?:^|/)[^/]*\\.lock(?:/|$))(?!.*[/.]$)(?!@$)[A-Za-z0-9._/@+-]+$"
+    },
+    "artifactRoot": {
+      "$ref": "#/$defs/absolutePath"
+    },
+    "taskTempRoot": {
+      "$ref": "#/$defs/absolutePath"
+    },
+    "featurePacket": {
+      "type": "string",
+      "pattern": "^docs/plans/features/[a-z0-9]+(?:-[a-z0-9]+)*\\.md$"
+    },
+    "currentEvidenceManifestPath": {
+      "$ref": "#/$defs/absolutePath"
+    },
+    "checkpointBundlePath": {
+      "$ref": "#/$defs/absolutePath"
+    },
+    "gitBundlePath": {
+      "type": ["string", "null"],
+      "pattern": "^/"
+    },
+    "featurePacketCheckpointPath": {
+      "$ref": "#/$defs/absolutePath"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "resourceTopologyVersion": {
+            "const": "stable-owner-exclusive-v1"
+          }
+        }
+      },
+      "then": {
+        "required": ["repositoryRemoteUrl"],
+        "properties": {
+          "gitBundlePath": {
+            "type": "string",
+            "pattern": "^/"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "resourceTopologyVersion": {
+            "const": "pre-cutover-v1"
+          }
+        }
+      },
+      "then": {
+        "not": {
+          "required": ["repositoryRemoteUrl"]
+        },
+        "properties": {
+          "gitBundlePath": {
+            "const": null
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "topologyVersion": {
+      "enum": ["pre-cutover-v1", "stable-owner-exclusive-v1"]
+    },
+    "absolutePath": {
+      "type": "string",
+      "pattern": "^/"
+    }
+  }
+}

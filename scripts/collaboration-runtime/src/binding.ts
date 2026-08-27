@@ -23,6 +23,13 @@ import {
   sha256
 } from './canonical.ts'
 import { fail } from './errors.ts'
+import {
+  loadOwnerResourceBindingReference,
+  stableRemoteActionRoot,
+  validateOwnerResourceBinding,
+  validateOwnerResourceReference
+} from './resource-topology.ts'
+import { RESOURCE_TOPOLOGY_VERSIONS } from './resource-topology.types.ts'
 
 const SHA256 = /^[0-9a-f]{64}$/
 const GIT_SHA = /^[0-9a-f]{40}$/
@@ -30,6 +37,7 @@ const SAFE_REF =
   /^(?!main$)(?!HEAD$)(?!refs\/)(?!-)(?!\/)(?!\.)(?!.*\/\.)(?!.*\/\/)(?!.*\.\.)(?!.*@\{)(?!.*(?:^|\/)[^/]*\.lock(?:\/|$))(?!.*[/.]$)(?!@$)[A-Za-z0-9._\/@+-]+$/
 const FEATURE_KEY = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 const TASK_PATH = /^\/[A-Za-z0-9][A-Za-z0-9_-]*(?:\/[A-Za-z0-9][A-Za-z0-9_-]*)+$/
+const UUID_TASK = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const STAGE_BRANCH = /^codex\/feature\/[a-z0-9]+(?:-[a-z0-9]+)*$/
 const STAGE_WORKTREE = /^\/private\/tmp\/oes-fl-[a-z0-9]+(?:-[a-z0-9]+)*$/
 const STAGE_TASK_TEMP = /^\/private\/tmp\/oes-fl-[a-z0-9]+(?:-[a-z0-9]+)*-artifacts$/
@@ -66,6 +74,71 @@ function requireExactKeys(
 function requireOwnerRef(value: unknown, field: string): asserts value is string {
   requireString(value, field)
   if (!SAFE_REF.test(value)) fail('INVALID_OWNER_REF', field)
+}
+
+/** Returns the topology version selected by the installed effective profile. */
+function trustTopologyVersion(
+  trust: RemoteTrustRoots
+): 'pre-cutover-v1' | 'stable-owner-exclusive-v1' {
+  return trust.resourceTopologyVersion ?? 'pre-cutover-v1'
+}
+
+/** Computes the action resource set while preserving pre-cutover fingerprints byte-for-byte. */
+function remoteResourceSetFingerprint(binding: RemoteDriverBinding): string {
+  const value: Record<string, unknown> = {
+    checkpointPath: binding.checkpointPath,
+    resultPath: binding.resultPath,
+    invalidationPath: binding.invalidationPath,
+    pullRequest: binding.pullRequest,
+    admission: binding.admission ?? null,
+    cleanupResources: binding.cleanupResources ?? [],
+    expectedMergeSha: binding.expectedMergeSha ?? null
+  }
+  if (binding.resourceTopologyVersion !== undefined) {
+    value.resourceTopologyVersion = binding.resourceTopologyVersion
+    value.ownerResourceBinding = binding.ownerResourceBinding ?? null
+  }
+  return objectFingerprint(value, '__none__')
+}
+
+/** Binds stable remote artifacts to one profile-sealed owner topology and action directory. */
+function validateRemoteResourceTopology(
+  binding: RemoteDriverBinding,
+  trust: RemoteTrustRoots
+): void {
+  const version = trustTopologyVersion(trust)
+  if (version === 'pre-cutover-v1') {
+    if (binding.resourceTopologyVersion !== undefined || binding.ownerResourceBinding !== undefined)
+      fail('REMOTE_RESOURCE_TOPOLOGY_MIXED', binding.owner.taskId)
+    return
+  }
+  if (
+    binding.resourceTopologyVersion !== version ||
+    !binding.ownerResourceBinding ||
+    !trust.ownerResourceBinding ||
+    canonicalJson(binding.ownerResourceBinding) !== canonicalJson(trust.ownerResourceBinding)
+  )
+    fail('REMOTE_STABLE_RESOURCE_BINDING_MISMATCH', binding.owner.taskId)
+  const ownerResources = loadOwnerResourceBindingReference(binding.ownerResourceBinding)
+  const headRef = ownerResources.ownerRef.replace(/^refs\/heads\//, '')
+  if (
+    ownerResources.resourceTopologyVersion !== version ||
+    ownerResources.ownerTaskId !== binding.owner.taskId ||
+    ownerResources.repositoryRoot !== binding.repositoryRoot ||
+    ownerResources.repositoryRemoteUrl !== `https://github.com/${binding.repositorySlug}.git` ||
+    ownerResources.artifactRoot !== binding.artifactRoot ||
+    headRef !== binding.headRef
+  )
+    fail('REMOTE_STABLE_OWNER_IDENTITY_MISMATCH', binding.owner.taskId)
+  const actionRoot = stableRemoteActionRoot(ownerResources, binding.action, binding.singleUseNonce)
+  const expected = [
+    join(actionRoot, 'checkpoint.json'),
+    join(actionRoot, 'result.json'),
+    join(actionRoot, 'invalidated.json')
+  ]
+  const actual = [binding.checkpointPath, binding.resultPath, binding.invalidationPath]
+  if (expected.some((path, index) => path !== actual[index]))
+    fail('REMOTE_STABLE_ACTION_PATH_MISMATCH', actionRoot)
 }
 
 /** Verifies one immutable artifact reference within the configured authorization root. */
@@ -133,7 +206,9 @@ function validateTrustedAuthorization(
       'resourceSetFingerprint',
       'postcondition',
       'mergeAuthorizationFingerprint',
-      'cleanupAuthorizationFingerprint'
+      'cleanupAuthorizationFingerprint',
+      'resourceTopologyVersion',
+      'ownerResourceBinding'
     ],
     'remoteAuthorization'
   )
@@ -169,7 +244,9 @@ function validateTrustedAuthorization(
       'artifactRoot',
       'allowedActions',
       'mergeAuthorizationFingerprint',
-      'cleanupAuthorizationFingerprint'
+      'cleanupAuthorizationFingerprint',
+      'resourceTopologyVersion',
+      'ownerResourceBinding'
     ],
     'remoteAuthorizationRoot'
   )
@@ -227,6 +304,7 @@ function validateTrustedAuthorization(
     [authority.headRef, binding.headRef, 'headRef'],
     [authority.baseRef, binding.baseRef, 'baseRef'],
     [authority.singleUseNonce, binding.singleUseNonce, 'singleUseNonce'],
+    [authority.resourceTopologyVersion, binding.resourceTopologyVersion, 'resourceTopologyVersion'],
     [
       authority.mergeAuthorizationFingerprint,
       binding.mergeAuthorizationFingerprint,
@@ -251,18 +329,25 @@ function validateTrustedAuthorization(
     root.cleanupAuthorizationFingerprint !== authority.cleanupAuthorizationFingerprint
   )
     fail('REMOTE_AUTHORIZATION_HUMAN_GATE_MISMATCH', authority.allowedAction)
-  const resourceSetFingerprint = objectFingerprint(
-    {
-      checkpointPath: binding.checkpointPath,
-      resultPath: binding.resultPath,
-      invalidationPath: binding.invalidationPath,
-      pullRequest: binding.pullRequest,
-      admission: binding.admission ?? null,
-      cleanupResources: binding.cleanupResources ?? [],
-      expectedMergeSha: binding.expectedMergeSha ?? null
-    },
-    '__none__'
+  const version = trustTopologyVersion(trust)
+  if (version === 'stable-owner-exclusive-v1') {
+    if (
+      root.resourceTopologyVersion !== version ||
+      authority.resourceTopologyVersion !== version ||
+      !root.ownerResourceBinding ||
+      !authority.ownerResourceBinding ||
+      canonicalJson(root.ownerResourceBinding) !== canonicalJson(binding.ownerResourceBinding) ||
+      canonicalJson(authority.ownerResourceBinding) !== canonicalJson(binding.ownerResourceBinding)
+    )
+      fail('REMOTE_AUTHORIZATION_RESOURCE_TOPOLOGY_MISMATCH', binding.owner.taskId)
+  } else if (
+    root.resourceTopologyVersion !== undefined ||
+    authority.resourceTopologyVersion !== undefined ||
+    root.ownerResourceBinding !== undefined ||
+    authority.ownerResourceBinding !== undefined
   )
+    fail('REMOTE_AUTHORIZATION_LEGACY_TOPOLOGY_MIXED', binding.owner.taskId)
+  const resourceSetFingerprint = remoteResourceSetFingerprint(binding)
   if (authority.resourceSetFingerprint !== resourceSetFingerprint)
     fail('REMOTE_AUTHORIZATION_RESOURCE_SET_MISMATCH', resourceSetFingerprint)
   return authority
@@ -305,7 +390,9 @@ export function validateRemoteBinding(
       'admission',
       'mergeAuthorizationFingerprint',
       'cleanupAuthorizationFingerprint',
-      'cleanupResources'
+      'cleanupResources',
+      'resourceTopologyVersion',
+      'ownerResourceBinding'
     ],
     'remoteBinding'
   )
@@ -347,6 +434,7 @@ export function validateRemoteBinding(
     fail('INVALID_REPOSITORY_SLUG', binding.repositorySlug)
   if (!isAbsolute(binding.repositoryRoot) || !isAbsolute(binding.artifactRoot))
     fail('BOUND_PATH_NOT_ABSOLUTE', binding.repositoryRoot)
+  validateRemoteResourceTopology(binding, trust)
   const artifactPaths = [binding.checkpointPath, binding.resultPath, binding.invalidationPath]
   for (const path of artifactPaths) assertPathWithin(binding.artifactRoot, path)
   if (new Set(artifactPaths).size !== artifactPaths.length)
@@ -459,7 +547,8 @@ export function validateProfileReportEnvelope(
       'profile',
       'observations',
       'credentialReference',
-      'telemetry'
+      'telemetry',
+      'resourceTopology'
     ],
     'profileReport'
   )
@@ -476,6 +565,24 @@ export function validateProfileReportEnvelope(
     fail('DUPLICATE_DECLARED_CAPABILITY', report.ownerTaskId)
   for (const capability of report.declaredCapabilities)
     if (!CAPABILITY_NAMES.includes(capability)) fail('UNKNOWN_CAPABILITY', capability)
+  if (report.resourceTopology !== undefined) {
+    requireExactKeys(
+      report.resourceTopology,
+      ['resourceTopologyVersion', 'ownerResourceBinding'],
+      'profileReport.resourceTopology'
+    )
+    if (!RESOURCE_TOPOLOGY_VERSIONS.includes(report.resourceTopology.resourceTopologyVersion))
+      fail(
+        'INVALID_PROFILE_RESOURCE_TOPOLOGY_VERSION',
+        String(report.resourceTopology.resourceTopologyVersion)
+      )
+    if (report.resourceTopology.resourceTopologyVersion === 'stable-owner-exclusive-v1') {
+      if (!report.resourceTopology.ownerResourceBinding)
+        fail('STABLE_PROFILE_RESOURCE_BINDING_REQUIRED', report.ownerTaskId)
+      validateOwnerResourceReference(report.resourceTopology.ownerResourceBinding)
+    } else if (report.resourceTopology.ownerResourceBinding !== null)
+      fail('PRE_CUTOVER_PROFILE_RESOURCE_BINDING_FORBIDDEN', report.ownerTaskId)
+  }
   return report
 }
 
@@ -492,18 +599,23 @@ export function validateStageCleanupResource(
   value: StageCleanupResource,
   field = 'cleanupResource'
 ): StageCleanupResource {
-  requireExactKeys(value, ['kind', 'path', 'expectedSha'], field)
+  requireExactKeys(value, ['kind', 'path', 'expectedSha', 'resourceTopologyVersion'], field)
   if (!CLEANUP_RESOURCE_KINDS.includes(value.kind)) fail('INVALID_CLEANUP_RESOURCE_KIND', field)
   requireString(value.path, `${field}.path`)
+  const stable = value.resourceTopologyVersion === 'stable-owner-exclusive-v1'
+  if (value.resourceTopologyVersion !== undefined && !stable)
+    fail('INVALID_CLEANUP_RESOURCE_TOPOLOGY', field)
   if (value.kind === 'remote-branch' || value.kind === 'local-branch') {
     requireOwnerRef(value.path, `${field}.path`)
-    if (!STAGE_BRANCH.test(value.path)) fail('INVALID_CLEANUP_OWNER_REF', `${field}.path`)
+    if (!stable && !STAGE_BRANCH.test(value.path))
+      fail('INVALID_CLEANUP_OWNER_REF', `${field}.path`)
     requireGitSha(value.expectedSha, `${field}.expectedSha`)
   } else {
     if (!isAbsolute(value.path) || resolve(value.path) !== value.path)
       fail('CLEANUP_RESOURCE_PATH_NOT_CANONICAL', `${field}.path`)
     const expectedPattern = value.kind === 'worktree' ? STAGE_WORKTREE : STAGE_TASK_TEMP
-    if (!expectedPattern.test(value.path)) fail('CLEANUP_RESOURCE_PATH_NOT_OWNER_BOUND', field)
+    if (!stable && !expectedPattern.test(value.path))
+      fail('CLEANUP_RESOURCE_PATH_NOT_OWNER_BOUND', field)
     if (value.kind === 'worktree') requireGitSha(value.expectedSha, `${field}.expectedSha`)
     else if (value.expectedSha !== null) fail('TASK_TEMP_SHA_FORBIDDEN', `${field}.expectedSha`)
   }
@@ -550,8 +662,6 @@ export function validateStageCleanupAuthorization(
   requireString(value.stageKey, 'stageKey')
   if (!FEATURE_KEY.test(value.stageKey)) fail('INVALID_STAGE_KEY', value.stageKey)
   requireString(value.stageOwnerTaskId, 'stageOwnerTaskId')
-  if (!TASK_PATH.test(value.stageOwnerTaskId))
-    fail('INVALID_STAGE_OWNER_TASK_ID', value.stageOwnerTaskId)
   requireString(value.transitionId, 'transitionId')
   requireFingerprint(value.confirmationFingerprint, 'confirmationFingerprint')
   requireOwnerRef(value.cleanupOnlyBranch, 'cleanupOnlyBranch')
@@ -564,6 +674,9 @@ export function validateStageCleanupAuthorization(
     value.allowedDeletedFeaturePackets.length === 0
   )
     fail('CLEANUP_PACKETS_REQUIRED', value.stageKey)
+  if (!TASK_PATH.test(value.stageOwnerTaskId) && !UUID_TASK.test(value.stageOwnerTaskId))
+    fail('INVALID_STAGE_OWNER_TASK_ID', value.stageOwnerTaskId)
+  const topologyVersions = new Set<string>()
   const featureKeys = new Set<string>()
   const featureOwners = new Set<string>()
   const packets = new Set<string>()
@@ -571,7 +684,16 @@ export function validateStageCleanupAuthorization(
   for (const feature of value.terminalFeatures) {
     requireExactKeys(
       feature,
-      ['featureKey', 'ownerTaskId', 'candidateSha', 'mergeSha', 'featurePacket', 'resources'],
+      [
+        'featureKey',
+        'ownerTaskId',
+        'candidateSha',
+        'mergeSha',
+        'featurePacket',
+        'resources',
+        'resourceTopologyVersion',
+        'ownerResourceBinding'
+      ],
       'terminalFeature'
     )
     requireString(feature.featureKey, 'terminalFeature.featureKey')
@@ -579,14 +701,35 @@ export function validateStageCleanupAuthorization(
     if (featureKeys.has(feature.featureKey)) fail('DUPLICATE_TERMINAL_FEATURE', feature.featureKey)
     featureKeys.add(feature.featureKey)
     requireString(feature.ownerTaskId, 'terminalFeature.ownerTaskId')
+    if (!TASK_PATH.test(feature.ownerTaskId) && !UUID_TASK.test(feature.ownerTaskId))
+      fail('INVALID_CLEANUP_FEATURE_OWNER_TASK_ID', feature.ownerTaskId)
+    const stable = feature.resourceTopologyVersion === 'stable-owner-exclusive-v1'
+    topologyVersions.add(feature.resourceTopologyVersion ?? 'pre-cutover-v1')
+    if (feature.resourceTopologyVersion !== undefined && !stable)
+      fail('INVALID_CLEANUP_RESOURCE_TOPOLOGY', feature.ownerTaskId)
     const directOwnerPrefix = `${value.stageOwnerTaskId}/`
     const childSegment = feature.ownerTaskId.slice(directOwnerPrefix.length)
-    if (
-      !TASK_PATH.test(feature.ownerTaskId) ||
-      !feature.ownerTaskId.startsWith(directOwnerPrefix) ||
-      !/^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(childSegment)
-    )
-      fail('CLEANUP_FEATURE_OWNER_NOT_STAGE_CHILD', feature.ownerTaskId)
+    if (stable) {
+      if (!feature.ownerResourceBinding)
+        fail('STABLE_CLEANUP_RESOURCE_BINDING_REQUIRED', feature.ownerTaskId)
+      const resources = validateOwnerResourceBinding(feature.ownerResourceBinding)
+      if (
+        resources.resourceTopologyVersion !== 'stable-owner-exclusive-v1' ||
+        resources.ownerTaskId !== feature.ownerTaskId ||
+        resources.directParentTaskId !== value.stageOwnerTaskId ||
+        resources.featurePacket !== feature.featurePacket
+      )
+        fail('STABLE_CLEANUP_OWNER_BINDING_MISMATCH', feature.ownerTaskId)
+    } else {
+      if (feature.ownerResourceBinding !== undefined)
+        fail('PRE_CUTOVER_CLEANUP_RESOURCE_BINDING_FORBIDDEN', feature.ownerTaskId)
+      if (
+        !TASK_PATH.test(feature.ownerTaskId) ||
+        !feature.ownerTaskId.startsWith(directOwnerPrefix) ||
+        !/^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(childSegment)
+      )
+        fail('CLEANUP_FEATURE_OWNER_NOT_STAGE_CHILD', feature.ownerTaskId)
+    }
     if (featureOwners.has(feature.ownerTaskId))
       fail('DUPLICATE_CLEANUP_FEATURE_OWNER', feature.ownerTaskId)
     featureOwners.add(feature.ownerTaskId)
@@ -599,23 +742,42 @@ export function validateStageCleanupAuthorization(
     packets.add(feature.featurePacket)
     if (!Array.isArray(feature.resources) || feature.resources.length === 0)
       fail('CLEANUP_FEATURE_RESOURCES_REQUIRED', feature.featureKey)
+    const featureResourceKinds = new Set<StageCleanupResource['kind']>()
     for (const resource of feature.resources) {
       validateStageCleanupResource(resource)
+      if (featureResourceKinds.has(resource.kind))
+        fail('CLEANUP_RESOURCE_KIND_DUPLICATE', `${feature.featureKey}:${resource.kind}`)
+      featureResourceKinds.add(resource.kind)
+      if (stable !== (resource.resourceTopologyVersion === 'stable-owner-exclusive-v1'))
+        fail('CLEANUP_RESOURCE_TOPOLOGY_MIXED', `${feature.featureKey}:${resource.path}`)
+      const ownerResources = feature.ownerResourceBinding
       const expectedPath =
         resource.kind === 'remote-branch' || resource.kind === 'local-branch'
-          ? `codex/feature/${feature.featureKey}`
+          ? stable
+            ? ownerResources?.ownerRef.replace(/^refs\/heads\//, '')
+            : `codex/feature/${feature.featureKey}`
           : resource.kind === 'worktree'
-            ? `/private/tmp/oes-fl-${feature.featureKey}`
-            : `/private/tmp/oes-fl-${feature.featureKey}-artifacts`
+            ? stable
+              ? ownerResources?.ownerClone
+              : `/private/tmp/oes-fl-${feature.featureKey}`
+            : stable
+              ? ownerResources?.taskTempRoot
+              : `/private/tmp/oes-fl-${feature.featureKey}-artifacts`
       if (resource.path !== expectedPath)
         fail('CLEANUP_RESOURCE_OWNER_BINDING_MISMATCH', `${feature.featureKey}:${resource.path}`)
       if (resource.expectedSha !== null && resource.expectedSha !== feature.candidateSha)
         fail('CLEANUP_RESOURCE_SHA_NOT_CANDIDATE', `${feature.featureKey}:${resource.kind}`)
-      const key = `${resource.kind}:${resource.path}`
+      const key = `${resource.resourceTopologyVersion ?? 'pre-cutover-v1'}:${resource.kind}:${resource.path}`
       if (resourceKeys.has(key)) fail('CLEANUP_RESOURCE_OWNER_AMBIGUOUS', key)
       resourceKeys.add(key)
     }
+    if (
+      featureResourceKinds.size !== CLEANUP_RESOURCE_KINDS.length ||
+      CLEANUP_RESOURCE_KINDS.some((kind) => !featureResourceKinds.has(kind))
+    )
+      fail('CLEANUP_RESOURCE_KIND_SET_INCOMPLETE', feature.featureKey)
   }
+  if (topologyVersions.size !== 1) fail('CLEANUP_BATCH_TOPOLOGY_MIXED', value.stageKey)
   for (const packet of value.allowedDeletedFeaturePackets) {
     requireString(packet, 'allowedDeletedFeaturePacket')
     if (!packet.startsWith('docs/plans/features/') || !packet.endsWith('.md'))
@@ -767,7 +929,9 @@ export function loadTrustedStageChildCleanupAuthorization(
       'transitionId',
       'confirmationFingerprint',
       'resources',
-      'postcondition'
+      'postcondition',
+      'resourceTopologyVersion',
+      'ownerResourceBinding'
     ],
     'stageChildCleanupAuthorization'
   )
@@ -808,6 +972,21 @@ export function loadTrustedStageChildCleanupAuthorization(
   const expectedResources = root.terminalFeatures
     .filter((feature) => feature.ownerTaskId === child.ownerTaskId)
     .flatMap((feature) => feature.resources)
+  const ownerFeature = root.terminalFeatures.find(
+    (feature) => feature.ownerTaskId === child.ownerTaskId
+  )
+  if (ownerFeature?.resourceTopologyVersion === 'stable-owner-exclusive-v1') {
+    if (
+      child.resourceTopologyVersion !== 'stable-owner-exclusive-v1' ||
+      !child.ownerResourceBinding ||
+      canonicalJson(child.ownerResourceBinding) !== canonicalJson(ownerFeature.ownerResourceBinding)
+    )
+      fail('CHILD_CLEANUP_STABLE_RESOURCE_BINDING_MISMATCH', child.ownerTaskId)
+  } else if (
+    child.resourceTopologyVersion !== undefined ||
+    child.ownerResourceBinding !== undefined
+  )
+    fail('CHILD_CLEANUP_LEGACY_TOPOLOGY_MIXED', child.ownerTaskId)
   if (expectedResources.length === 0) fail('CLEANUP_OWNER_NOT_IN_BATCH', child.ownerTaskId)
   const sortedResources = (resources: typeof child.resources) =>
     [...resources].sort((left, right) =>

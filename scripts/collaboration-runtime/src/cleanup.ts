@@ -12,7 +12,7 @@ import type {
 
 /** Builds a stable identity for one cleanup resource. */
 function resourceKey(resource: StageCleanupResource): string {
-  return `${resource.kind}:${resource.path}:${resource.expectedSha ?? 'NONE'}`
+  return `${resource.resourceTopologyVersion ?? 'pre-cutover-v1'}:${resource.kind}:${resource.path}:${resource.expectedSha ?? 'NONE'}`
 }
 
 /** Requires one raw cleanup result object to contain no undeclared fields. */
@@ -29,9 +29,18 @@ function validateObservation(
   value: ObservedCleanupResource,
   field: string
 ): ObservedCleanupResource {
-  requireExactKeys(value, ['kind', 'path', 'expectedSha', 'exists', 'clean', 'actualSha'], field)
+  requireExactKeys(
+    value,
+    ['kind', 'path', 'expectedSha', 'resourceTopologyVersion', 'exists', 'clean', 'actualSha'],
+    field
+  )
   validateStageCleanupResource(
-    { kind: value.kind, path: value.path, expectedSha: value.expectedSha },
+    {
+      kind: value.kind,
+      path: value.path,
+      expectedSha: value.expectedSha,
+      resourceTopologyVersion: value.resourceTopologyVersion
+    },
     field
   )
   if (typeof value.exists !== 'boolean' || typeof value.clean !== 'boolean')

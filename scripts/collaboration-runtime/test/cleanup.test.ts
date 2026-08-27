@@ -1,12 +1,24 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import {
   planChildSelfCleanup,
   verifyChildCleanupResults,
   verifyCleanupOnlyDeletion
 } from '../src/cleanup.ts'
 import { objectFingerprint } from '../src/canonical.ts'
+import type { OwnerResourceBinding } from '../src/resource-topology.types.ts'
+import { validateJsonSchema } from '../src/schema-validation.ts'
+import type { StageCleanupAuthorization } from '../src/types.ts'
 import { cleanupAuthorization } from './helpers.ts'
+
+const cleanupSchema = JSON.parse(
+  readFileSync(
+    join(import.meta.dirname, '..', 'schemas', 'stage-cleanup-authorization.schema.json'),
+    'utf8'
+  )
+) as Record<string, unknown>
 
 const key = (kind: string, path: string, sha: string | null) => `${kind}:${path}:${sha ?? 'NONE'}`
 const absent = (resource: {
@@ -14,6 +26,49 @@ const absent = (resource: {
   path: string
   expectedSha: string | null
 }) => ({ ...resource, exists: false, clean: true, actualSha: null })
+
+/** Converts every bound cleanup resource into one verified absence result. */
+function absentResults(resources: StageCleanupAuthorization['terminalFeatures'][number]['resources']) {
+  return resources.map((resource) => ({
+    resource,
+    decision: 'ALREADY_ABSENT' as const,
+    reason: 'observed absent',
+    observedBefore: absent(resource),
+    observedAfter: absent(resource)
+  }))
+}
+
+/** Creates one exact stable owner identity for cleanup derivation tests. */
+function stableOwnerBinding(): OwnerResourceBinding {
+  const ownerClone = '/Users/fixture/.codex/oes/owners/11111111/oes'
+  const artifactRoot = '/Users/fixture/.codex/oes/artifacts/11111111/runtime'
+  const binding: OwnerResourceBinding = {
+    schemaVersion: 1,
+    kind: 'OES_OWNER_RESOURCE_BINDING',
+    bindingFingerprint: '',
+    resourceTopologyVersion: 'stable-owner-exclusive-v1',
+    ownerTaskId: '11111111-1111-4111-8111-111111111111',
+    directParentTaskId: '22222222-2222-4222-8222-222222222222',
+    transitionId: 'stable-owner:1',
+    repositoryRoot: ownerClone,
+    repositoryRemoteUrl: 'https://github.com/example/oes.git',
+    ownerClone,
+    ownerGitDirectory: `${ownerClone}/.git`,
+    ownerRef: 'refs/heads/codex/feature/runtime',
+    artifactRoot,
+    taskTempRoot: '/private/tmp/oes-runtime-11111111',
+    featurePacket: 'docs/plans/features/runtime.md',
+    featurePacketCheckpointPath: `${artifactRoot}/feature-packet.md`,
+    currentEvidenceManifestPath: `${artifactRoot}/current-evidence-manifest.json`,
+    checkpointBundlePath: `${artifactRoot}/checkpoint-bundle.json`,
+    gitBundlePath: `${artifactRoot}/owner.bundle`
+  }
+  binding.bindingFingerprint = objectFingerprint(
+    binding as unknown as Record<string, unknown>,
+    'bindingFingerprint'
+  )
+  return binding
+}
 
 test('child cleanup narrows to exact owner resources and preserves SHA mismatch', () => {
   const authorization = cleanupAuthorization()
@@ -37,7 +92,7 @@ test('child cleanup narrows to exact owner resources and preserves SHA mismatch'
   ])
   assert.deepEqual(
     plan.map((item) => item.decision),
-    ['REMOVE', 'PRESERVE_FAILURE']
+    ['REMOVE', 'PRESERVE_FAILURE', 'PRESERVE_FAILURE', 'PRESERVE_FAILURE']
   )
   plan[0].observedAfter = absent(plan[0].resource)
   assert.throws(
@@ -55,6 +110,96 @@ test('child cleanup narrows to exact owner resources and preserves SHA mismatch'
         ]
       }),
     /STAGE_CLEANUP_PARTIAL_FAILURE/
+  )
+})
+
+test('stable cleanup derives only exact owner binding resources and rejects mixed topology', () => {
+  const authorization = cleanupAuthorization()
+  const binding = stableOwnerBinding()
+  authorization.stageOwnerTaskId = binding.directParentTaskId
+  authorization.allowedDeletedFeaturePackets = [binding.featurePacket]
+  authorization.terminalFeatures = [
+    {
+      featureKey: 'runtime',
+      ownerTaskId: binding.ownerTaskId,
+      candidateSha: '1'.repeat(40),
+      mergeSha: '2'.repeat(40),
+      featurePacket: binding.featurePacket,
+      resourceTopologyVersion: 'stable-owner-exclusive-v1',
+      ownerResourceBinding: binding,
+      resources: [
+        {
+          kind: 'remote-branch',
+          path: 'codex/feature/runtime',
+          expectedSha: '1'.repeat(40),
+          resourceTopologyVersion: 'stable-owner-exclusive-v1'
+        },
+        {
+          kind: 'worktree',
+          path: binding.ownerClone,
+          expectedSha: '1'.repeat(40),
+          resourceTopologyVersion: 'stable-owner-exclusive-v1'
+        },
+        {
+          kind: 'local-branch',
+          path: 'codex/feature/runtime',
+          expectedSha: '1'.repeat(40),
+          resourceTopologyVersion: 'stable-owner-exclusive-v1'
+        },
+        {
+          kind: 'task-temp',
+          path: binding.taskTempRoot,
+          expectedSha: null,
+          resourceTopologyVersion: 'stable-owner-exclusive-v1'
+        }
+      ]
+    }
+  ]
+  authorization.authorizationFingerprint = objectFingerprint(
+    authorization as unknown as Record<string, unknown>,
+    'authorizationFingerprint'
+  )
+  validateJsonSchema(cleanupSchema, authorization)
+  const observations = authorization.terminalFeatures[0].resources.map((resource) => ({
+    ...resource,
+    exists: true,
+    clean: true,
+    actualSha: resource.expectedSha
+  }))
+  assert.deepEqual(
+    planChildSelfCleanup(authorization, binding.ownerTaskId, observations).map(
+      (item) => item.decision
+    ),
+    ['REMOVE', 'REMOVE', 'REMOVE', 'REMOVE']
+  )
+
+  authorization.terminalFeatures[0].resources.pop()
+  authorization.authorizationFingerprint = objectFingerprint(
+    authorization as unknown as Record<string, unknown>,
+    'authorizationFingerprint'
+  )
+  assert.throws(() => validateJsonSchema(cleanupSchema, authorization), /contains|minItems/)
+  assert.throws(
+    () => planChildSelfCleanup(authorization, binding.ownerTaskId, observations),
+    /CLEANUP_RESOURCE_KIND_SET_INCOMPLETE/
+  )
+
+  authorization.terminalFeatures[0].resources.push({
+    kind: 'task-temp',
+    path: binding.taskTempRoot,
+    expectedSha: null,
+    resourceTopologyVersion: 'stable-owner-exclusive-v1'
+  })
+
+  delete authorization.terminalFeatures[0].resources[0].resourceTopologyVersion
+  authorization.authorizationFingerprint = objectFingerprint(
+    authorization as unknown as Record<string, unknown>,
+    'authorizationFingerprint'
+  )
+  assert.throws(() => validateJsonSchema(cleanupSchema, authorization), /required/)
+  assert.throws(
+    () => planChildSelfCleanup(authorization, binding.ownerTaskId, observations),
+    /CLEANUP_RESOURCE_TOPOLOGY_MIXED/
   )
 })
 
@@ -86,7 +231,7 @@ test('missing observation is a preserved failure rather than claimed absence', (
   const plan = planChildSelfCleanup(authorization, '/root/sl/fl-alpha', [])
   assert.deepEqual(
     plan.map((item) => item.decision),
-    ['PRESERVE_FAILURE', 'PRESERVE_FAILURE']
+    ['PRESERVE_FAILURE', 'PRESERVE_FAILURE', 'PRESERVE_FAILURE', 'PRESERVE_FAILURE']
   )
 })
 
@@ -105,28 +250,20 @@ test('verified prior child resource is not repeated during partial retry', () =>
     }
   ]
   const worktree = authorization.terminalFeatures[0].resources[1]
+  const remaining = authorization.terminalFeatures[0].resources.slice(2)
   const plan = planChildSelfCleanup(
     authorization,
     '/root/sl/fl-alpha',
-    [absent(worktree)],
+    [absent(worktree), ...remaining.map(absent)],
     completed
   )
   assert.deepEqual(
     plan.map((item) => item.decision),
-    ['SKIP_COMPLETED', 'ALREADY_ABSENT']
+    ['SKIP_COMPLETED', 'ALREADY_ABSENT', 'ALREADY_ABSENT', 'ALREADY_ABSENT']
   )
-  const beta = authorization.terminalFeatures[1].resources[0]
   verifyChildCleanupResults(authorization, {
     '/root/sl/fl-alpha': plan,
-    '/root/sl/fl-beta': [
-      {
-        resource: beta,
-        decision: 'ALREADY_ABSENT',
-        reason: 'observed absent',
-        observedBefore: absent(beta),
-        observedAfter: absent(beta)
-      }
-    ]
+    '/root/sl/fl-beta': absentResults(authorization.terminalFeatures[1].resources)
   })
 })
 
@@ -157,30 +294,14 @@ test('an absence observation for another resource cannot complete the bound reso
     observedBefore: wrong,
     observedAfter: wrong
   }
-  const worktree = authorization.terminalFeatures[0].resources[1]
-  const beta = authorization.terminalFeatures[1].resources[0]
   assert.throws(
     () =>
       verifyChildCleanupResults(authorization, {
         '/root/sl/fl-alpha': [
           result,
-          {
-            resource: worktree,
-            decision: 'ALREADY_ABSENT',
-            reason: 'exact absence',
-            observedBefore: absent(worktree),
-            observedAfter: absent(worktree)
-          }
+          ...absentResults(authorization.terminalFeatures[0].resources.slice(1))
         ],
-        '/root/sl/fl-beta': [
-          {
-            resource: beta,
-            decision: 'ALREADY_ABSENT',
-            reason: 'exact absence',
-            observedBefore: absent(beta),
-            observedAfter: absent(beta)
-          }
-        ]
+        '/root/sl/fl-beta': absentResults(authorization.terminalFeatures[1].resources)
       }),
     /STAGE_CLEANUP_OBSERVATION_IDENTITY_MISMATCH/
   )
