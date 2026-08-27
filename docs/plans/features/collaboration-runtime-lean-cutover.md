@@ -8,7 +8,7 @@ worktreeKey: `collaboration-runtime-lean-cutover`
 pullRequest: `pending`
 mergeSha: `pending`
 cleanup: `HOLD`
-state: `CANDIDATE_READY_ROUND_3`
+state: `CANDIDATE_READY_ROUND_4`
 
 ## Objective
 
@@ -18,9 +18,9 @@ Deliver the stable owner runtime, direct assignment wakeup, and risk-tiered vali
 
 ### STABLE-OWNER-RUNTIME
 
-state: `CANDIDATE_READY_ROUND_3`
+state: `CANDIDATE_READY_ROUND_4`
 candidate: `a95cc6ace3e26ca4216c0f3dc9efa8ed4ad998a0`
-review: `Round 2 remediation for visible RI 01a04401-de22-74a3-8fc8-517c48ce997d`
+review: `Round 2 P1 closure independently accepted by visible RI 01a04401-de22-74a3-8fc8-517c48ce997d`
 
 - Scope: stable owner resource binding, recovery, remote/cleanup compatibility, executable schemas, focused tests, and runbook guidance.
 - Protected scope: existing tasks/resources and all pre-cutover bindings remain unchanged.
@@ -28,9 +28,9 @@ review: `Round 2 remediation for visible RI 01a04401-de22-74a3-8fc8-517c48ce997d
 
 ### EVENT-DRIVEN-ASSIGNMENT
 
-state: `CANDIDATE_READY_ROUND_3`
-candidate: `a95cc6ace3e26ca4216c0f3dc9efa8ed4ad998a0`
-review: `Round 2 remediation for visible RI 01a04401-de22-74a3-8fc8-517c48ce997d`
+state: `CANDIDATE_READY_ROUND_4`
+candidate: `a353f5f7da5c085af6b5e5302e4e05076b093dc2`
+review: `Round 3 P2 remediation for visible RI 01a04401-de22-74a3-8fc8-517c48ce997d`
 
 - Scope: persisted `WAITING_ON_CHILD`, direct `ASSIGNMENT_RESULT`, bounded feature replan, executable schemas, focused tests, and runbook guidance.
 - Protected scope: no scheduler, inbox, relay, watcher, polling loop, duplicate owner, or hidden owner transport.
@@ -38,9 +38,9 @@ review: `Round 2 remediation for visible RI 01a04401-de22-74a3-8fc8-517c48ce997d
 
 ### RISK-TIERED-VALIDATION
 
-state: `CANDIDATE_READY_ROUND_3`
+state: `CANDIDATE_READY_ROUND_4`
 candidate: `a95cc6ace3e26ca4216c0f3dc9efa8ed4ad998a0`
-review: `Round 2 remediation for visible RI 01a04401-de22-74a3-8fc8-517c48ce997d`
+review: `Prior Design Risk closure retained; Round 3 P1 closures accepted by visible RI 01a04401-de22-74a3-8fc8-517c48ce997d`
 
 - Scope: complete evidence keys, focused/affected/full validation plans, bounded design-risk scan, executable schemas, focused tests, and runbook guidance.
 - Protected scope: no product build/database/journey expansion and no new design result beyond `EXISTING_TRUTH_SUFFICIENT | DESIGN_GAP`.
@@ -67,6 +67,16 @@ review: `Round 2 remediation for visible RI 01a04401-de22-74a3-8fc8-517c48ce997d
 - Round 3 remediation implementation: `a95cc6ace3e26ca4216c0f3dc9efa8ed4ad998a0` / tree `e24dd5cce0190fbf30a714d68af98f5119bc2130`.
 - Round 2 candidate evidence is invalidated by these contract changes. The exact review reproductions remain risk-selection evidence; focused and full validation will be rerun on the final Round 3 tree.
 
+## Feature RI Round 3 remediation
+
+- Exact reviewed candidate: `ddcdbbe5ba3cc662534a0aa45cd9f69cd3296cb6` / tree `57d0fb65616a1c5ab992671fca11a9414f811246`.
+- Exact visible RI: `01a04401-de22-74a3-8fc8-517c48ce997d`.
+- Review record SHA-256: `b9618c8257c0871630c384c976e1351674c8c16fb14f695ad6cac0e720d06305`; review manifest SHA-256: `baa2bfe819c9af9ae209643eafc981503a048902bb439ca0fdba620a803b2bfc`.
+- The two Round 2 P1 findings are independently accepted as closed and their implementations remain byte-unchanged.
+- P2 identity parity: runtime now requires `device` and `inode` to be strings before applying canonical unsigned-decimal validation. Direct state validation, executable schema validation, and task-owned SQLite reload all reject independently re-sealed numeric values; large canonical decimal strings remain accepted without precision loss.
+- Round 4 remediation implementation: `a353f5f7da5c085af6b5e5302e4e05076b093dc2` / tree `e5d986da44581b8a299691c74c96fe5bf8e89534`.
+- Round 3 candidate evidence is invalidated by the runtime/test change. Exact review bytes remain immutable input and baseline evidence; affected and full validation are rerun on the final Round 4 tree.
+
 ## Evidence decision
 
 - Reuse the verified recovery bundles and Stable 10-file WIP patch as byte-exact implementation inputs.
@@ -89,4 +99,6 @@ review: `Round 2 remediation for visible RI 01a04401-de22-74a3-8fc8-517c48ce997d
 - Round 2 pre-freeze full gate: typecheck + 130 tests + static checks passed on the combined implementation tree.
 - Round 3 affected focused: typecheck + 74 tests passed across assignment, binding, cleanup, resource-topology, and schema suites; static checks passed.
 - Round 3 pre-freeze full gate: typecheck + 133 tests + static checks passed on implementation tree `e24dd5cce0190fbf30a714d68af98f5119bc2130`.
+- Round 4 affected focused: typecheck + 35 assignment/schema tests and static checks passed.
+- Round 4 pre-freeze full gate: typecheck + 134 tests + static checks passed on implementation tree `e5d986da44581b8a299691c74c96fe5bf8e89534`.
 - Prior candidate test results were not reused; only the hash-verified implementation inputs and finding reproductions were reused.
