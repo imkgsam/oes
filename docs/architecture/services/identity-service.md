@@ -108,7 +108,7 @@
 - `OrgUnit`、org tree、org hierarchy 与 org reference validation 以 [tenant-org-service.md](./tenant-org-service.md) 为准。
 - `Employment -> OrgUnit` 是正式 `人 -> org` 任职真相，归 `hr-service`。
 - `UserAccount <-> Employee` binding 必须校验同 tenant，且 `UserAccount.tenantPartyId == Employee.tenantPartyId`。
-- `ResolveEmployeeLoginAccount` 可基于既有 `UserAccount <-> Employee` binding 返回某 active employee 对应的唯一 account 及其 enabled state，用于认证编排与准确审计；该能力不得把 identity-service 扩展为 HR lifecycle、terminal access 或 PIN owner。
+- `ResolveEmployeeLoginAccount` 保留为既有 BUSINESS compatibility query，不作为 Auth pre-HUMAN 登录入口；员工码现场登录只使用 Auth-only INTERNAL `ResolveAuthEmployeeLoginAccount`，由 Identity 基于既有 `UserAccount <-> Employee` binding 校验唯一 account、tenant owner 关系及 enabled state。两者都不得把 identity-service 扩展为 HR lifecycle、terminal access 或 PIN owner。
 - legacy account-org membership 或 account 视角 org 数据只能作为 compatibility / projection 口径存在，不得成为 onboarding、HR、授权或组织治理主链 owner。
 - `identity-service` 可在账号、联系资产、机器主体、审计记录中保留 `tenantId / orgId` 引用字段，但不得通过本地模型或共享数据库读取 tenant / org 真相。
 
@@ -295,21 +295,23 @@ Contract 文档只描述黑盒调用语义、字段、错误与当前接口形�
 - 服务内旧 docs 在提炼完成后应删除；服务根目录可保留一个极短 README 指向本文与 contract 入口。
 - self-service / admin-management 拆分由 [self-service-admin-boundary-migration.md](../../plans/features/self-service-admin-boundary-migration.md) 持续推进。
 
-## 16. Trusted gRPC 41-RPC contract（FROZEN）
+## 16. Trusted gRPC 44-RPC contract（FROZEN）
 
-Identity audience 固定为 `urn:oes:service:identity-service`。本组只覆盖 2026-07-27 baseline 的 41 RPC；`ResolveIntegrationMachineForAuth`, `EnrollMachineWorkloadBinding`, `DisableMachineWorkloadBinding` 保持各自现有 contract 且不计入 41。`ResolveMachinePrincipalForAuth` 仍不计入 41，但其 admission 按 direct MACHINE root contract 改为 exact Auth mTLS/no-Authorization pre-context policy。
+Identity audience 固定为 `urn:oes:service:identity-service`。本组由 2026-07-27 baseline 的 41 RPC 加三个 Auth-only 登录 INTERNAL resolver 构成 44 RPC；`ResolveIntegrationMachineForAuth`, `EnrollMachineWorkloadBinding`, `DisableMachineWorkloadBinding` 保持各自现有 contract 且不计入 44。`ResolveMachinePrincipalForAuth` 仍不计入 44，其 admission 按 direct MACHINE root contract 为 exact Auth mTLS/no-Authorization pre-context policy。
 
 | 类别 | RPC（数量） | execution / terminal | Code 与 caller rule |
 | --- | --- | --- | --- |
 | `SELF_SERVICE` | `UpdateOwnAccountProfile`, `UpdateOwnUserBasicInfo`（2） | `HUMAN`, `WEB`, exact `sub/account_id` self binding | `identity.account.self.update_profile`; Gateway only |
 | `FOUNDATION_EXTERNAL_CREDENTIAL` | `AuthenticateApiKey`（1） | existing exact Auth/Gateway external-credential admission; no HUMAN/MACHINE ET fabrication | preserve integrated contract; external API-key expansion remains deferred |
-| `BUSINESS` | `GetAccountById`, `GetEmployeeBindingByAccountId`, `ResolveEmployeeLoginAccount`, `ListAuditEvents`, `GetApiKeyById`, `GetServiceAccountById`, `ListApiKeysByServiceAccountId`, `ListServiceAccounts`, `ResolveContactActionTargets`, `ListAccountContactAssets`, `ListAccountWorkEmailAssets`, `ListAccountWorkPhoneAssets`, `ListAccounts`, `GetUserById`, `GetUserByEmail`, `GetUserByPhone`, `GetAccountsByUserId`, `CountTenantAccounts`（18） | direct `HUMAN`, `HUMAN_OBO`, or only the statically named pre-auth/public `SYSTEM MACHINE`; `WEB` for HUMAN | existing exact read/list/self Codes; direct Gateway plus Auth, Permission, HR, Public Entry, Collaboration allowlists from the frozen manifest; no wildcard workload |
+| `INTERNAL` | `ListAuthLoginAccountCandidates`, `ResolveAuthLoginAccount`, `ResolveAuthEmployeeLoginAccount`（3） | exact Auth `SYSTEM MACHINE`; target audience and current leaf `cnf`; no HUMAN role inheritance | `identity.internal.auth_login_account.resolve`; exact registered Auth workload only |
+| `BUSINESS` | `GetAccountById`, `GetEmployeeBindingByAccountId`, `ResolveEmployeeLoginAccount`, `ListAuditEvents`, `GetApiKeyById`, `GetServiceAccountById`, `ListApiKeysByServiceAccountId`, `ListServiceAccounts`, `ResolveContactActionTargets`, `ListAccountContactAssets`, `ListAccountWorkEmailAssets`, `ListAccountWorkPhoneAssets`, `ListAccounts`, `GetUserById`, `GetUserByEmail`, `GetUserByPhone`, `GetAccountsByUserId`, `CountTenantAccounts`（18） | direct `HUMAN`, `HUMAN_OBO`, or only a statically named public/reference `SYSTEM MACHINE`; `WEB` for HUMAN | existing exact read/list/self Codes; direct Gateway plus Permission, HR, Public Entry, Collaboration allowlists from the frozen manifest; no wildcard workload and no pre-HUMAN Auth login use |
 | `BUSINESS` | `RotateApiKey`, `CreateApiKey`, `CreateServiceAccount`, `CreateUserAccount`, `GetAccountDeletionImpact`, `DeleteAccount`, `RevokeApiKey`, `SetServiceAccountEnabled`, `UpdateAccountProfile`, `UpdateUserBasicInfo`, `AssignAccountWorkEmailAsset`, `AssignAccountWorkPhoneAsset`, `RevokeAccountWorkEmailAsset`, `RevokeAccountWorkPhoneAsset`, `SetAccountWorkEmailAssetStatus`, `SetAccountWorkPhoneAssetStatus`, `SetAccountPrimaryWorkEmailAsset`, `SetAccountPrimaryWorkPhoneAsset`, `BindAccountToEmployee`, `UnbindAccountFromEmployee`（20） | direct `HUMAN` or exact HR/TenantOrg `HUMAN_OBO`, `WEB` | exact existing `identity.account.*`, `identity.contact.*`, `identity.machine.*` Code selected per method; no Code inference from request |
 
-Exact Code mapping for the 41 methods is:
+Exact Code mapping for the 44 methods is:
 
 | Code | RPCs |
 | --- | --- |
+| `identity.internal.auth_login_account.resolve` | `ListAuthLoginAccountCandidates`, `ResolveAuthLoginAccount`, `ResolveAuthEmployeeLoginAccount` |
 | `identity.account.self.update_profile` | `UpdateOwnAccountProfile`, `UpdateOwnUserBasicInfo` |
 | `identity.account.list` | `GetAccountById`, `GetEmployeeBindingByAccountId`, `ResolveEmployeeLoginAccount`, `ListAuditEvents`, `ListAccounts`, `GetUserById`, `GetUserByEmail`, `GetUserByPhone`, `GetAccountsByUserId`, `CountTenantAccounts` |
 | `identity.account.self.read` | `ListAccountContactAssets`, `ListAccountWorkEmailAssets`, `ListAccountWorkPhoneAssets`, `ResolveContactActionTargets` |
@@ -327,6 +329,8 @@ Exact Code mapping for the 41 methods is:
 | `identity.contact.asset.set_primary` | `SetAccountPrimaryWorkEmailAsset`, `SetAccountPrimaryWorkPhoneAsset` |
 | preserved external credential admission | `AuthenticateApiKey` |
 
-The more specific generated work-email/work-phone Codes remain catalog aliases for future route-level grants; this migration neither deletes them nor invents another business permission. Architecture tests require 41/41 literal coverage and reject any request-selected Code.
+The more specific generated work-email/work-phone Codes remain catalog aliases for future route-level grants; this migration neither deletes them nor invents another business permission. Architecture tests require 44/44 literal coverage and reject any request-selected Code.
 
-Four request authority tombstones are frozen: `ListAuditEvents.operator_id=5/tenant_id=6/org_id=7` and `BindAccountToEmployee.tenant_id=1`. The remaining seven request `tenant_id` fields are owner resource selectors for account/service-account/contact/login lookup; they cannot establish execution tenant. A TENANT HUMAN/HUMAN_OBO selector must equal signed tenant; an exact allowlisted SYSTEM pre-auth/public call is evaluated as a target lookup under the method Code and cannot obtain cross-tenant authority from the body. Response tenant/org projections remain owner data.
+The three Auth-only resolvers return only login/session-safety projections. `ListAuthLoginAccountCandidates` accepts an Auth-verified `user_id` and returns structurally valid available account candidates. `ResolveAuthLoginAccount` accepts `user_id + account_id`, requires Identity to verify the owner pair, and returns the minimal account identity, scope, tenant, display name and enabled state. `ResolveAuthEmployeeLoginAccount` accepts `tenant_id + employee_id`, verifies the active binding/account tenant relationship and returns the same minimal account projection. Empty, mismatched, disabled or malformed owner facts never become authority; Auth applies its existing stable login error and anti-enumeration semantics.
+
+Four request authority tombstones are frozen: `ListAuditEvents.operator_id=5/tenant_id=6/org_id=7` and `BindAccountToEmployee.tenant_id=1`. The baseline request `tenant_id` fields and new Auth login resolver selectors are owner resource selectors for account/service-account/contact/login lookup; they cannot establish execution tenant. A TENANT HUMAN/HUMAN_OBO selector must equal signed tenant; an exact allowlisted SYSTEM public/reference call or Auth-only INTERNAL login call is evaluated as a target lookup under its literal method Code and cannot obtain cross-tenant authority from the body. Response tenant/org projections remain owner data.

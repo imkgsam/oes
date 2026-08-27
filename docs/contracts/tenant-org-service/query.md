@@ -146,7 +146,19 @@
   - `org_unit.status`
 - 当前第一阶段 `GetOrgReferenceSummary` 不承诺补水 TenantParty 摘要；调用方如需要主体详情，应再通过受控链路查询 `party-service`
 
-## 5. 主要错误与返回约束
+## 5. `ResolveAuthSessionTenantLifecycle`
+
+该 additive RPC 是 Auth-only 登录/session safety resolver：
+
+- admission：exact registered `auth-service` workload、`aud=urn:oes:service:tenant-org-service`、SYSTEM MACHINE principal、current certificate `cnf`、INTERNAL Code `tenant_org.internal.auth_session_tenant_lifecycle.resolve`；Code 只可分配给 `WORKLOAD_POLICY`。
+- request：`tenant_id`，来自 Identity account owner fact 或已验证 terminal/device boundary，仅作为 TenantOrg owner lookup selector。
+- response：仅 `tenant_id`, `status`；不返回 tenant profile、org tree、onboarding、party、role 或 grant。
+- use：登录 candidate 筛选、account selection、MFA completion、session refresh/validation 的 lifecycle 复核。
+- failure：not found、status 非 `ACTIVE`、selector/owner mismatch、trust/policy/dependency failure均使 Auth 拒绝对应 TENANT session 的建立或续期。
+
+Generic `GetTenantById` remains a BUSINESS projection for its existing HUMAN/HUMAN_OBO and other declared consumers. The fixed Auth Machine Principal receives no `tenant_org.tenant.get_by_id` grant for login/session safety.
+
+## 6. 主要错误与返回约束
 
 - 输入参数非法时：
   - 返回统一 validation failure
@@ -155,7 +167,7 @@
 - 调用方不应依赖内部异常结构推断 tenant 或 org 语义
 - query 侧暴露 `organization_tenant_party_id` 不代表调用方获得了对该 party 的业务使用权；是否继续消费该主体，仍由各自业务 contract 与授权链路决定
 
-## 6. 第一阶段明确不做
+## 7. 第一阶段明确不做
 
 - 不提供 account-org membership 查询
 - 不提供 employee / employment 查询；HR 查询语义以 [hr-service.md](../../architecture/services/hr-service.md) 为准

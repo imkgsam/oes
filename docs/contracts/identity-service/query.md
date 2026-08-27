@@ -425,7 +425,31 @@ Contact Asset query shapes 只描述调用方可消费的黑盒字段，不暴�
 - 敏感信息约束：
   - 不返回 secret 明文
 
-## 6. 主要错误与返回约束
+## 6. Auth login account resolution
+
+本组三个 additive RPC 只服务 `auth-service` 的登录/会话安全流程，共享 INTERNAL Code `identity.internal.auth_login_account.resolve`。调用必须同时匹配 exact Auth workload、`aud=urn:oes:service:identity-service`、SYSTEM MACHINE principal、current certificate `cnf` 和目标方 method declaration。该 Code 只进入 `WORKLOAD_POLICY`，不进入 HUMAN/MACHINE role 或 external token。
+
+### `ListAuthLoginAccountCandidates`
+
+- request：`user_id`，由 Auth 已验证的本地 login method / OTP 结果取得。
+- response：只返回当前 available 且结构有效的 `account_id`、`tenant_id`、`scope_level`、`display_name`。SYSTEM account 要求 tenant 为空，TENANT account 要求 tenant 非空。
+- 空结果只表示 Auth 无可用 account candidate，不授予 user/account authority。
+
+### `ResolveAuthLoginAccount`
+
+- request：`user_id`, `account_id`。
+- Identity 必须从 owner storage 验证 account 存在且属于该 user；owner mismatch 返回空/safe denial，不向 Auth 泄露其他 owner。
+- response：`user_id`、`account_id`、`tenant_id`、`scope_level`、`display_name`、`account_enabled`。disabled account 可返回 `account_enabled=false` 以保持 Auth 的稳定错误/审计，但它不允许 session 建立。
+
+### `ResolveAuthEmployeeLoginAccount`
+
+- request：`tenant_id`, `employee_id`，分别来自已验证 terminal/device boundary 与 HR owner resolver。
+- Identity 必须校验 active EmployeeBinding、account scope=`TENANT`、account tenant 与 request tenant 一致。
+- response 与 `ResolveAuthLoginAccount` 的 minimal account projection 一致；另回显 `employee_id`。
+
+三个 request selector 都是 lookup input，不是 execution tenant/operator authority。Identity 不返回 profile、contact asset、login method、credential、role/grant 或通用账号目录字段。generic `GetAccountsByUserId`、`GetAccountById`、`ResolveEmployeeLoginAccount`、`GetUserByEmail`、`GetUserByPhone` 保持现有 BUSINESS contract，Auth 登录路由不再使用它们。
+
+## 7. 主要错误与返回约束
 
 - 输入参数非法时：
   - 返回统一 validation failure

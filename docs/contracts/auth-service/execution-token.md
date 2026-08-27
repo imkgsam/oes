@@ -222,7 +222,21 @@ Token TTL maximum is 5 minutes. Implementations may shorten it by risk but calle
 - Identity 只在 active principal、active unique binding、exact version、exact SPIFFE 和 scope/tenant/org invariant 全部匹配时返回 allowed owner decision。Auth 再调用 Permission；BUSINESS 使用 resolved principal，INTERNAL 使用 verified workload。只有全量 allowed 才签发最长五分钟、绑定当前 leaf 的 ExecutionToken。
 - 缺失/重复 selector、bearer 与 selector 同时存在、stale version、wrong SPIFFE、inactive principal/binding、ambiguous binding、owner/Permission dependency unavailable 或 audit failure 均在 signing 前拒绝。
 - certificate rotation 直接使用新 mTLS leaf 重新 exchange；principal/binding disable 阻止新 Token，既有 Token 由五分钟 TTL 与现有 emergency selector 收敛。
-- Auth 自身的固定 SYSTEM selector 是 login prerequisite：它先通过 direct MACHINE exchange 取得 Identity-audience ET，再执行登录所需的 Identity business lookup。该 selector/owner/Permission chain 未就绪时 Auth readiness 与真实 login journey 保持失败；不使用 local principal、body identity 或 hardcoded Token 绕过。
+- Auth 自身的固定 SYSTEM selector 是 login prerequisite：它先通过 direct MACHINE exchange 建立 owner-resolved MACHINE root，再为 Identity、HR 或 TenantOrg 的 exact Auth-only INTERNAL Code 换取 target-audience ET。固定 Auth principal 不为登录获得 BUSINESS role/`PrincipalRoleBinding`。selector/owner/workload policy/target declaration 未就绪时，对应 login/session capability readiness 与真实 journey 保持失败；不使用 local principal、body identity 或 hardcoded Token 绕过。
+
+Auth login/session INTERNAL routes are fixed as:
+
+| Audience | Code | Methods |
+| --- | --- | --- |
+| `urn:oes:service:identity-service` | `identity.internal.auth_login_account.resolve` | `ListAuthLoginAccountCandidates`, `ResolveAuthLoginAccount`, `ResolveAuthEmployeeLoginAccount` |
+| `urn:oes:service:hr-service` | `hr.internal.auth_login_employee.resolve` | `ResolveAuthLoginEmployee` |
+| `urn:oes:service:tenant-org-service` | `tenant_org.internal.auth_session_tenant_lifecycle.resolve` | `ResolveAuthSessionTenantLifecycle` |
+
+Every route requires the exact registered Auth SPIFFE workload, `principal_type=MACHINE`, owner-resolved active SYSTEM principal/binding, exact target audience, one listed INTERNAL Code, current-leaf `cnf`, short expiry and the target method declaration. Permission decides only workload issuance for these Codes; absence of a BUSINESS principal grant is not a denial reason on this route. `ResolveMachinePrincipalForAuth` and `ResolveWorkloadIssuance` remain the only pre-context primitives; all listed target RPCs consume normal target-audience ExecutionTokens.
+
+Rollout is additive and ordered: publish catalog definitions and exact workload policies; publish target proto/controller/application resolvers and method declarations; prove target and Permission readiness; then switch only Auth login/session adapters. An enabled login flow is not ready when any required selector, owner resolver, policy, target declaration/client or audit dependency is missing. Existing generic BUSINESS RPCs remain wire-compatible and are never a second Auth login authority. Rollback switches Auth back to the known baseline fail-closed route while the new Codes/RPCs remain inert, then removes policies/RPCs only after Auth rollback and maximum five-minute Token TTL plus allowed clock skew have drained. No temporary principal grant, dual read authority or wildcard fallback is introduced.
+
+Auth issuance audit records selector/Identity decision reference, verified workload/leaf, target audience, exact login Code, Permission decision/version, result/reason and trace. Target owner audit records the safe resolver outcome and owner references required for correlation. Password, OTP, PIN, employee code, bearer and recoverable credential material are excluded from Token and target audit plaintext.
 
 迁移先 additive 发布 selector wire、Identity exact guard 与 provisioner，再切换 callers 并执行 shadow/parity；随后停止新 source credential issue，最多等待其 15 分钟寿命耗尽。兼容窗口与 rollback window 完成后删除旧 Issue/Revoke RPC、JWS profile、Auth table/provider/config 与 credential-specific revoke Code。删除前可回退旧 path；删除后回退只恢复前一版本完整 schema/runtime，不保留双重权威。
 

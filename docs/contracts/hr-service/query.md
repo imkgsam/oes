@@ -84,8 +84,8 @@
 
 - 作用：按 `tenantId + employeeCode` 精确解析当前可工作的员工事实
 - 使用场景：
-  - `auth-service` 在 `EMPLOYEE_CODE_PIN` 现场终端登录中消费 HR 真相
-  - 需要用租户内员工编号确认员工仍为 active 且存在当前 active employment
+  - 既有 BUSINESS 调用方需要用租户内员工编号确认员工仍为 active 且存在当前 active employment
+  - `auth-service` 的 pre-HUMAN `EMPLOYEE_CODE_PIN` 登录不使用本方法，只使用 INTERNAL `ResolveAuthLoginEmployee`
 - 请求关键字段：
   - `tenant_id`
   - `employee_code`
@@ -135,7 +135,19 @@
   - runtime 先按 `employee_id` 找到 Employee，再使用 Employee 自身的 `tenant_id` 查询任职历史
   - 调用方如需 tenant mismatch 校验，必须在提供 tenant context 的上游入口或未来 tenant-aware query contract 中完成
 
-## 4. 主要错误语义
+## 4. `ResolveAuthLoginEmployee`
+
+该 additive RPC 是 Auth-only 登录事实 resolver：
+
+- admission：exact registered `auth-service` workload、`aud=urn:oes:service:hr-service`、SYSTEM MACHINE principal、current certificate `cnf`、INTERNAL Code `hr.internal.auth_login_employee.resolve`；Code 只可分配给 `WORKLOAD_POLICY`。
+- request：`tenant_id`, `employee_code`。tenant 由已验证 terminal/device boundary 得到，但仅是 HR owner lookup selector。
+- owner decision：HR 使用自身 repository 验证该 tenant 中的 employee 存在、`Employee.status=ACTIVE` 且存在当前 active employment。
+- response：仅 `employee_id`, `active_employment_id`；不返回人事档案、组织树、contact、account、role 或 grant。
+- failure：not found、inactive、missing active employment、tenant mismatch、trust/policy/dependency failure 返回 safe empty/denied，由 Auth 继续执行统一登录失败语义。
+
+Existing `ResolveActiveEmployeeByCode` remains a BUSINESS RPC for its existing declared consumers. Auth pre-HUMAN login uses only `ResolveAuthLoginEmployee`; the fixed Auth Machine Principal receives no `hr.employee.get_by_id` grant for this purpose.
+
+## 5. 主要错误语义
 
 - validation failure
   - 请求关键字段缺失
@@ -151,7 +163,7 @@
   - `GetEmployeeById`、`GetActiveEmployment`、`ListEmployments` 当前没有请求级或 metadata 级 tenant context，runtime 不承诺在这些 RPC 内识别 tenant mismatch
   - 若未来需要在这些 RPC 内强制 tenant mismatch 语义，应先扩展 proto / runtime 以携带 tenant context，并补充对应测试
 
-## 5. 调用方建议
+## 6. 调用方建议
 
 - 不要把 HR 查询结果反向写回 `identity-service` 作为第二真相。
 - BFF 若需要展示账号与员工合成摘要，应在上层做聚合，不应让 `hr-service` 变成账号服务。
