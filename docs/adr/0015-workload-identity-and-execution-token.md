@@ -16,7 +16,7 @@ OES 的外部请求经 API Gateway / BFF 进入，随后通过 gRPC 调用一个
 
 OES 需要一个同时覆盖 HUMAN、MACHINE、DELEGATED、多跳、外部 API Key 与纯技术调用的终态模型，并通过逐服务迁移在当前全部 gRPC RPC 中停止信任重复 body identity。
 
-2026-08-26 canonical refresh 进一步确认两个不同缺口：部署库存中没有可建立第一张 MACHINE source credential 的 provider/input/selector，这是 deployment binding 缺失；同时 `IssueMachineWorkloadSourceCredential -> ResolveMachinePrincipalForAuth -> Auth foundation MACHINE producer -> IssueMachineWorkloadSourceCredential` 构成语义调用环，即使只补 environment selector 也不能形成非递归 trust root。登录所需的 Identity business lookup 复用同一 Auth foundation MACHINE chain，因此真实 login 与代表性 Stage journey 在首跳前保持 fail closed。该结果是缺口证据，不是成功状态。
+2026-08-26 canonical refresh 确认部署库存缺少首个 MACHINE source input，且 `IssueMachineWorkloadSourceCredential -> ResolveMachinePrincipalForAuth -> Auth foundation MACHINE producer -> IssueMachineWorkloadSourceCredential` 构成语义调用环；因此冻结 current mTLS/SPIFFE + non-secret exact selector + Identity live owner resolution 的 direct MACHINE root。2026-08-27 交付验证进一步证明：root 成功后，Auth 固定 SYSTEM principal 仍会因无 `PrincipalRoleBinding` 而在登录前 `identity.account.list` BUSINESS issuance 被正确拒绝。该 fail-closed 结果是“技术 owner-fact read 被误建模为 principal BUSINESS capability”的独立证据；本 ADR 以 target-owned Auth-only INTERNAL resolver 闭合此缺口，而不为固定 Auth principal 创建登录用业务角色。
 
 ## Decision
 
@@ -152,6 +152,12 @@ Site Runtime 现有 HMAC、nonce、method/path/body hash 是独立的外部 cred
 
 拒绝。request 与 authorization upper bound 必须来自独立 source；把 `requestedPermissionCodes` 复制到 execution context、再对同一集合做 subset/equality check 是自我授权，任何实现形态都不满足 STS trust boundary。
 
+### 给 Auth 固定 SYSTEM Machine Principal 预置登录业务角色
+
+拒绝。登录与 session continuation 在 HUMAN 业务主体建立前或为了复核该主体而读取的 Account、Employee 和 Tenant lifecycle 事实，属于 Auth 的技术协作，不是固定服务主体的业务能力。为它预置 `PrincipalRoleBinding`、复用 `identity.account.list` / `hr.employee.get_by_id` / `tenant_org.tenant.get_by_id` 或建立跨 owner grant provisioner，会把宽泛 BUSINESS 目录能力授给 Auth 并引入额外 role/grant 生命周期。
+
+固定路由改为 target-owned Auth-only INTERNAL fact resolver：Identity、HR 和 TenantOrg 各自仅返回登录/会话安全所需的最小 owner 事实，Permission 仅按 exact Auth workload -> target audience -> INTERNAL Code 决定 workload issuance。该路由保留 direct MACHINE selector、Identity live owner resolution、certificate binding 与目标方 method declaration；无需为 Auth 固定 principal 创建 BUSINESS grant，也不新增 bootstrap primitive。
+
 ## Consequences
 
 正向结果：
@@ -162,6 +168,7 @@ Site Runtime 现有 HMAC、nonce、method/path/body hash 是独立的外部 cred
 - audience、Permission Code 与 workload binding 将多跳权限收敛到最小集合。
 - 所有 gRPC 服务最终不再因重复 body tenant/operator 形成 confused-deputy 边界。
 - Permission Code 继续作为 RBAC 与 Token scope 的同一能力词汇，不引入平行授权目录。
+- 登录/会话安全技术事实通过 Auth-only INTERNAL method 与 workload policy 授权；固定 Auth Machine Principal 的身份生命周期与业务角色生命周期不再因登录 prerequisite 而耦合。
 
 成本与风险：
 
@@ -184,4 +191,4 @@ Site Runtime 现有 HMAC、nonce、method/path/body hash 是独立的外部 cred
 
 Fresh static inventory at `ad131ac7e06fa01d21493b05502bd1a567318c68` proves one irreducible cycle among Auth, Identity, Permission, HR and TenantOrg: each target still receives legacy authority from another member whose own inbound edge is not yet trusted. The only allowed migration exception is therefore one single-writer, one-candidate atomic activation for these five targets. Review and focused tests remain service-by-service, but no member may enter Token-only mode, activate a prepared cross-foundation caller or delete legacy authority before all five caller preparations and server compositions are ready.
 
-Auth pre-context credential/challenge/session-source methods are not ExecutionToken-protected resource RPCs. They accept only the exact Gateway mTLS workload and their existing Auth-owned credential, challenge, grant, refresh/session proof, rate-limit and audit policy. Cross-foundation calls after a HUMAN entry use HUMAN_OBO; Auth/Public Entry pre-auth or anonymous lookups use only exact allowlisted SYSTEM MACHINE workloads and method Codes. A request tenant/resource selector is never execution authority. There is no generic service-name, body, ordinary metadata, request-id/trace-id or token-to-legacy fallback.
+Auth pre-context credential/challenge/session-source methods are not ExecutionToken-protected resource RPCs. They accept only the exact Gateway mTLS workload and their existing Auth-owned credential, challenge, grant, refresh/session proof, rate-limit and audit policy. Auth login/session owner-fact reads use only the dedicated Identity/HR/TenantOrg INTERNAL methods, exact allowlisted Auth SYSTEM MACHINE workload and target Code; Public Entry anonymous reads keep their separately declared SYSTEM MACHINE methods. Ordinary business calls after a HUMAN entry use HUMAN_OBO. A request tenant/resource selector is never execution authority. There is no generic service-name, body, ordinary metadata, request-id/trace-id or token-to-legacy fallback.

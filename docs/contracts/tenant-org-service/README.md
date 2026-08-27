@@ -66,4 +66,4 @@
 - 基于正式人员归属的 org scope 解析
 ## Trusted gRPC foundation-group admission
 
-All 20 methods remain BUSINESS with the exact ten current TenantOrg Codes, `urn:oes:service:tenant-org-service` audience and caller rules frozen by [tenant-org-service.md](../../architecture/services/tenant-org-service.md#13-trusted-grpc-20-rpc-contractfrozen). Fifteen `tenant_id=1` values remain owner resource identifiers under signed scope/resource enforcement; none is execution authority.
+The baseline 20 methods remain BUSINESS with the exact ten current TenantOrg Codes; additive `ResolveAuthSessionTenantLifecycle` is the twenty-first INTERNAL method with `tenant_org.internal.auth_session_tenant_lifecycle.resolve`. Audience and caller rules are frozen by [tenant-org-service.md](../../architecture/services/tenant-org-service.md#13-trusted-grpc-21-rpc-contractfrozen). Existing request tenant fields remain owner resource identifiers; the new resolver's `tenant_id` is likewise a lookup selector and never execution authority.

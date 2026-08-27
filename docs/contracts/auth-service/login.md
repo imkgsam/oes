@@ -620,6 +620,19 @@
 - 登录流程状态机
 - Terminal Access Policy 判定，其中策略真相归 `permission-service`
 
+### 6.1 登录/会话安全的 INTERNAL owner-fact route
+
+登录前尚未建立 HUMAN principal；MFA 完成、session refresh 与 access-token validation 也需要 Auth 独立复核 owner lifecycle。这些读取是 Auth 的认证/会话安全协作，使用固定 SYSTEM MACHINE root 与 target-owned INTERNAL Code，不使用固定 principal 的 BUSINESS role。
+
+- Web email/phone password/OTP：Auth 本地 credential/OTP 验证成功后调用 Identity `ListAuthLoginAccountCandidates(user_id)`，再通过 TenantOrg `ResolveAuthSessionTenantLifecycle(tenant_id)` 筛选 active tenant account。
+- Account selection / MFA completion：Auth 调用 Identity `ResolveAuthLoginAccount(user_id, account_id)`；Identity 必须校验 owner pair 并返回 enabled/scope/tenant 最小事实，随后 Auth 再校验 tenant lifecycle 与 terminal access。
+- Employee PIN：已验证 device-bound tenant 只作为 owner lookup selector；Auth 依次调用 HR `ResolveAuthLoginEmployee(tenant_id, employee_code)`、Identity `ResolveAuthEmployeeLoginAccount(tenant_id, employee_id)`，再验证 Auth-owned terminal PIN。
+- Session continuation：Auth 使用 `ResolveAuthSessionTenantLifecycle` 复核 TENANT account 的当前 lifecycle；SYSTEM account 继续要求 tenant 为空。
+
+密码失败审计的 optional user reference 从 Auth-owned LoginMethod 记录取得；该路由不调用 Identity `GetUserByEmail` / `GetUserByPhone`。对外失败形状仍为 uniform invalid credentials，不泄露 identifier、account、employee 或 tenant 存在性。
+
+任一 wrong workload/audience/Code/`cnf`、inactive principal/binding/account/employee/tenant、owner mismatch、stale selector、Permission/owner dependency 失败或审计失败都在 HUMAN session 建立/续期前拒绝。普通登录后业务调用继续使用 HUMAN/HUMAN_OBO 与 BUSINESS Code。
+
 ## 7. Terminal Access Policy 集成说明
 
 登录准入 terminal 由上游可信 BFF 固定：

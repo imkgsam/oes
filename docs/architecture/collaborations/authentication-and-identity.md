@@ -21,6 +21,12 @@
   - 按 `auth-service` 唯一真相源提供认证、续流与会话能力
 - `identity-service`
   - 负责用户、账号、租户、组织等身份映射与展示查询真相
+- `hr-service`
+  - 负责 Employee / Employment active 真相
+- `tenant-org-service`
+  - 负责 tenant lifecycle 真相
+- `permission-service`
+  - 负责 Auth workload 到各 target INTERNAL Code 的 issuance policy 与决策
 - `notification-service`
   - 负责通知投递，不拥有 OTP 或认证 challenge 真相
 
@@ -28,10 +34,11 @@
 
 1. 客户端通过 `api-gateway` 发起登录或 challenge 相关请求
 2. `api-gateway` 将认证意图映射到 `auth-service`
-3. `auth-service` 在需要时调用 `identity-service` 获取受控身份查询支撑
-4. 若需 OTP 或安全提醒，`auth-service` 先完成认证域判断，再用自身 SYSTEM MACHINE INTERNAL ExecutionToken 同步调用 `notification-service`
-5. `auth-service` 返回认证结果、续流状态或会话结果
-6. `api-gateway` 负责聚合为前端消费友好的 HTTP 响应
+3. `auth-service` 验证本地 login method / credential；需要 owner 事实时，以固定 SYSTEM MACHINE root 为 Identity、HR 或 TenantOrg 的 Auth-only INTERNAL Code 换取 certificate-bound ExecutionToken
+4. target service 只在 exact Auth workload、target audience、INTERNAL Code、SYSTEM scope 与 `cnf` 全部匹配时解析最小登录/会话安全事实，并自行校验 user/account、tenant/employee 和 tenant lifecycle owner 关系
+5. 若需 OTP 或安全提醒，`auth-service` 先完成认证域判断，再用自身 SYSTEM MACHINE INTERNAL ExecutionToken 同步调用 `notification-service`
+6. `auth-service` 返回认证结果、续流状态或会话结果
+7. `api-gateway` 负责聚合为前端消费友好的 HTTP 响应
 
 ## 5. 同步 / 异步边界
 
@@ -81,4 +88,12 @@
 - [0004-self-service-and-admin-authorization-boundary.md](../../adr/0004-self-service-and-admin-authorization-boundary.md)
 ## Trusted transport atomic activation
 
-Auth and Identity join Permission, HR and TenantOrg in the single frozen foundation atomic candidate. Pre-auth Auth→Identity/HR/TenantOrg calls use only the exact Auth SYSTEM MACHINE workload and target method Code; post-session work preserves the HUMAN subject through HUMAN_OBO. Login identifiers and explicitly documented tenant/resource selectors remain lookup input, never operator/tenant authority. No member activates early or retains legacy metadata fallback.
+Auth and Identity join Permission, HR and TenantOrg in the single frozen foundation atomic candidate. Auth login/session safety reads use the exact target-owned INTERNAL methods and Codes frozen below; ordinary post-login business collaboration keeps HUMAN/HUMAN_OBO. Login identifiers and explicitly documented tenant/resource selectors remain lookup input, never operator/tenant authority. No member activates early or retains legacy metadata fallback.
+
+| Target | INTERNAL Code | Exact Auth-only methods |
+| --- | --- | --- |
+| Identity | `identity.internal.auth_login_account.resolve` | `ListAuthLoginAccountCandidates`, `ResolveAuthLoginAccount`, `ResolveAuthEmployeeLoginAccount` |
+| HR | `hr.internal.auth_login_employee.resolve` | `ResolveAuthLoginEmployee` |
+| TenantOrg | `tenant_org.internal.auth_session_tenant_lifecycle.resolve` | `ResolveAuthSessionTenantLifecycle` |
+
+All three Codes are `kind=INTERNAL`, `assignableTo=[WORKLOAD_POLICY]`, `allowedScopeLevels=[SYSTEM]`, and `externalApiEligible=false`. They are issued only for the exact registered Auth workload and exact target audience. The fixed Auth Machine Principal carries no login-purpose BUSINESS role or grant; generic query RPCs and Codes remain unchanged for their existing consumers.
