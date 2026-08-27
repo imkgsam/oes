@@ -438,7 +438,7 @@ READY -> RUNNING -> CANDIDATE_READY -> ACCEPTED
 
 状态原位覆盖，不追加历史。只有 FL 写 FP；IT/RI 只返回 SHA 与结果。超过约 5–8 个 slices、FP 超过约 250–300 行、存在可独立验收波次或长期等待时，应拆为可独立 feature，并在需要共同阶段目标时由 SL 协调。
 
-若超限但所有slice仍必须共同原子验收，FL使用多个bounded IT并行而不拆FL；若至少两个结果可以独立candidate、Feature RI、PR和安全合入`main`，FL返回`FEATURE_REPLAN_REQUIRED`，由SL在新Human topology binding后拆分。该结果保持原FL与已有资源，未确认前只暂停新扩围，不丢弃已完成slice/evidence。
+若超限但所有slice仍必须共同原子验收，FL使用多个bounded IT并行而不拆FL；若至少两个结果可以独立candidate、Feature RI、PR和安全合入`main`，FL返回`FEATURE_REPLAN_REQUIRED`，由SL按9.7.2的新Human topology card处理。该结果必须绑定exact SL/FL、Stage/Feature key、old topology、建议的每个sibling FL scope/write set/dependency/acceptance、completed slices/commits/candidate/evidence、delegation ceiling、现有资源、state/version与invalidation conditions；原FL保持owner并只暂停新扩围，不丢弃已完成slice/evidence。任何提取范围在Human确认后先对原FL冻结写入，只有new FL `HANDOFF_ACCEPTED`并完成exact commit/evidence readback后才从原FL scope移除，禁止瞬时双owner。
 
 ## 7. Stage 生命周期、并行与 review
 
@@ -615,9 +615,9 @@ Git ownership与runtime capability彼此独立：capability set只让owner在本
 5. 从 exact SHA 创建 owner 约定的 branch/worktree，不从 dirty 目录派生；
 6. 重新读取 branch、HEAD、upstream 与 clean status，完全匹配才写入。
 
-owner branch/ref与worktree必须使用仓库shared Git common directory及稳定task路径；推荐worktree位于Codex管理的`~/.codex/worktrees/TASK_ID/REPOSITORY_OR_OWNER_KEY`，current evidence、bundle和rollback位于稳定task artifact root。`/private/tmp`只允许runtime scratch、可重建test data/cache与disposable verification clone。长期资源不得以临时独立clone为唯一Git object/ref来源；candidate或design-gap pause前至少验证stable owner ref与candidate bundle均可独立恢复。
+长期资源的目标拓扑是稳定task路径中的owner-exclusive clone，不共享其他owner的Git common directory；推荐clone位于`~/.codex/oes/owners/TASK_ID/REPOSITORY_OR_OWNER_KEY`，current evidence、bundle和rollback位于稳定task artifact root，`/private/tmp`只承载runtime scratch、可重建test data/cache与disposable verification clone。该目标拓扑在repository-owned effective profile、versioned driver、cleanup binding/schema及其测试全部合入`main`，并由owner preflight读回`resourceTopologyVersion=stable-owner-exclusive-v1`后才对之后创建的新owner生效；它不是本治理Proposal merge即生效的路径合同。cutover前继续以当前可执行的owner-exclusive clone、`OWNER_GIT_DIRECTORY`和`/private/tmp/oes-*`资源派生规则为权威，禁止新owner进入driver不接受的混合拓扑。
 
-active owner检测到自身资源仍位于临时目录时，可在原authorization下执行`RESOURCE_DURABILITY_REPAIR`：先冻结并验证exact branch/ref、HEAD/tree、bundle、Packet和evidence manifest，再用同一Git common directory重建稳定worktree；旧临时目录只在新资源readback、owner clean且未包含唯一数据后成为scratch。该修复不改变task、owner、scope、candidate ancestry、PR或return route，不触发replacement owner或Human gate。
+cutover前已存在owner的exact path/ref/resource binding冻结到terminal/cleanup，不迁移、不换clone、不改cleanup identity。其`RESOURCE_DURABILITY_REPAIR`只允许在稳定artifact root新增或刷新exact branch/HEAD/tree/candidate bundle、Packet与current evidence manifest检查点；不得移动worktree或Git directory。原绑定worktree丢失时只能从这些检查点恢复到exact原路径并重新验证owner/profile/resource fingerprint；原路径不可恢复或唯一ref/bundle缺失时保留owner并返回typed resource mismatch，不创建replacement owner。cutover后创建的stable owner worktree丢失时才可在同一owner-exclusive clone contract和exact稳定路径重建。该修复始终不改变task、owner、scope、candidate ancestry、PR或return route，也不触发额外Human gate。
 
 不得用 <code>git clean -fd[x]</code>、<code>git reset --hard</code>、<code>git worktree prune</code>、递归删除、force worktree removal 或 force branch deletion处理未知或既有资源。
 
@@ -777,6 +777,20 @@ scope外运行能力一次合并展示：
 
 该卡使用`PERMISSION_EXPANSION_REQUIRED`和new stateVersion，只绑定列明增量；同一缺口不拆成逐命令确认，未列明能力保持原binding。
 
+FL返回`FEATURE_REPLAN_REQUIRED`后，exact parent SL只显示一张task-local topology card；每张卡按重新验证结果恰好标记一个建议项：
+
+```text
+当前Feature出现新的独立交付边界。
+1. 按本卡列明的sibling FL topology重新拆分并继续
+2. 保持一个原子Feature，由原FL使用多个IT继续
+3. 暂缓，保留全部owner、candidate与证据
+4. 查看拆分与证据
+```
+
+实际卡只给选项1或2中的exact一个追加“（建议）”：SL证明存在两个以上独立candidate/RI/PR/main-safe acceptance时建议1；重新证明所有slice只能共享一个原子candidate/RI/PR/acceptance时建议2。选项1绑定exact SL/原FL、Stage/Feature key、old topology、每个new FL的key/scope/protected scope/write set/dependency/acceptance、已完成slices/commits/candidate与可复用evidence、delegation ceiling、branch/worktree/Packet等资源、root authorization fingerprint、scope fingerprint、expected state、new stateVersion、transition和stop point。Human确认后，SL先冻结原FL的提取范围，再按绑定创建sibling FL；每个new FL `HANDOFF_ACCEPTED`并readback exact assigned commits/evidence后，SL才原子收窄原FL scope。任一child拒绝或失败时原FL仍是未转移范围的唯一owner。
+
+选项2只在SL重新证明所有slice仍共享一个原子candidate、Feature RI、PR与main-safe acceptance时有效，继续原FL并只调整其delegation ceiling内的bounded IT；若已经存在两个独立交付物则该选项不标记建议且执行时fail closed。选项3保持全部resources与owner binding并进入`FEATURE_REPLAN_DEFERRED`，不cleanup。选项4纯只读。exact SL/FL、old/new topology、completed slice/candidate/evidence、delegation ceiling、resource fingerprint、truth/integration base、state/version中任一变化都使旧卡失效并生成new card；相同binding重复只复用原结果。
+
 Stage完成后的批量cleanup只显示一张卡：
 
 ```text
@@ -832,7 +846,7 @@ Stage完成后的批量cleanup只显示一张卡：
 
 #### 9.7.5 Typed routing
 
-`ASSIGNMENT_RESULT`只返回direct execution parent；`UD_REMOTE_EXECUTION_RESULT`只返回exact issuing UD且不发布canonical状态；`REMOTE_DRIVER_RESULT`只返回exact issuing artifact owner；`EXECUTION_ENVIRONMENT_NOT_READY`只返回exact creating parent且不转移owner；`EXECUTION_PROFILE_DEFECT`保留exact current owner并只返回creating/current owner自动修复；`PERMISSION_EXPANSION_REQUIRED`在root handoff前返回exact activation owner、child accept前返回exact creating delivery parent、handoff后保留在exact current delivery owner；`BUSINESS_DECISION_REQUIRED`只到exact decision owner；`REVISION_REQUIRED`和`DESIGN_CONTINUATION_REQUIRED`只到exact Design Owner；`EDITORIAL_CLASSIFICATION_INVALID`与`CANONICAL_EDITORIAL_MERGED`只到exact source Direct owner；`ACTIVATION_DECISION_READY`仅为`NEW_DESIGN`保留在UD；`DESIGN_GAP_RESOLVED`返回exact existing delivery owner，`DELIVERY_RESUME_VALIDATED`只到exact affected owners，`DELIVERY_REPLAN_REQUIRED`只由exact existing delivery owner询问Human；`STATUS_NOTICE/CANONICAL_MERGED/CANONICAL_EDITORIAL_MERGED`只通知，不转移owner。不存在generic callback或祖先默认路由。
+`ASSIGNMENT_RESULT`只返回direct execution parent；其中`FEATURE_REPLAN_REQUIRED`只由FL返回exact parent SL，SL保留该typed result并显示9.7.2 topology card，不返回UD、request origin或祖先task；`UD_REMOTE_EXECUTION_RESULT`只返回exact issuing UD且不发布canonical状态；`REMOTE_DRIVER_RESULT`只返回exact issuing artifact owner；`EXECUTION_ENVIRONMENT_NOT_READY`只返回exact creating parent且不转移owner；`EXECUTION_PROFILE_DEFECT`保留exact current owner并只返回creating/current owner自动修复；`PERMISSION_EXPANSION_REQUIRED`在root handoff前返回exact activation owner、child accept前返回exact creating delivery parent、handoff后保留在exact current delivery owner；`BUSINESS_DECISION_REQUIRED`只到exact decision owner；`REVISION_REQUIRED`和`DESIGN_CONTINUATION_REQUIRED`只到exact Design Owner；`EDITORIAL_CLASSIFICATION_INVALID`与`CANONICAL_EDITORIAL_MERGED`只到exact source Direct owner；`ACTIVATION_DECISION_READY`仅为`NEW_DESIGN`保留在UD；`DESIGN_GAP_RESOLVED`返回exact existing delivery owner，`DELIVERY_RESUME_VALIDATED`只到exact affected owners，`DELIVERY_REPLAN_REQUIRED`只由exact existing delivery owner询问Human；`STATUS_NOTICE/CANONICAL_MERGED/CANONICAL_EDITORIAL_MERGED`只通知，不转移owner。不存在generic callback或祖先默认路由。
 
 所有main变更继续使用artifact-owner branch、PR、required CI、Human Merge Commit和main验证。任何owner只清理自己的exact资源。
 
@@ -844,7 +858,7 @@ Stage完成后的批量cleanup只显示一张卡：
 
 ### 9.8 失败恢复
 
-- host reboot、App restart或临时目录清理：先读取稳定owner ref/worktree locator、Packet、candidate bundle与current evidence manifest；稳定worktree缺失时在同一Git common directory重建，runtime scratch按manifest重新生成。只要owner/ref/candidate/scope仍匹配即为同一transition的自动恢复，不创建replacement owner、不重跑fingerprint仍有效的证据；唯一stable ref/bundle也缺失才返回typed resource mismatch；
+- host reboot、App restart或临时目录清理：先读取effective profile的`resourceTopologyVersion`、exact frozen resource binding、stable checkpoint bundle、Packet与current evidence manifest。cutover前owner只恢复exact原路径与原exclusive Git identity；cutover后owner只在exact stable owner-exclusive clone/path重建；两者都按manifest重建scratch。只要owner/ref/candidate/scope仍匹配即为同一transition的自动恢复，不迁移、不创建replacement owner、不重跑fingerprint仍有效的证据；原绑定路径不可恢复或唯一ref/bundle也缺失才返回typed resource mismatch；
 
 - declared execution capability预检失败：保留exact owner/binding/resources，返回一次性`EXECUTION_ENVIRONMENT_NOT_READY`证据，由creating parent修复execution profile/host并对同transition幂等重试；
 - delivery中已声明能力被runtime拒绝或产生用户approval：记录approval event与effective profile并路由`EXECUTION_PROFILE_DEFECT`，保留owner/candidate/state/logs，由creating/current owner自动修复、重建或迁移profile/host后幂等恢复；同一缺口不再次展示Human，真实scope/capability新增才发一张`PERMISSION_EXPANSION_REQUIRED`卡；
@@ -922,13 +936,19 @@ UD_EDITORIAL_REVIEW
 
 Task identity与Capability preflight都是`HANDOFF_ACCEPTED`的guard而非长期状态。`TASK_IDENTITY_INVALID`保持creating parent为owner，禁止role-owned资源mutation，并只允许同一新task的title修正与readback；`EXECUTION_ENVIRONMENT_NOT_READY`保持`HANDOFF_PENDING`和原activation owner；handoff后的`EXECUTION_PROFILE_DEFECT`保持current delivery owner与已授权工作，只暂停受影响operation并自动修复profile/host；`PERMISSION_EXPANSION_REQUIRED`只暂停真实越界操作。
 
-`WAITING_ON_CHILD`是Stage/Feature Packet与current evidence manifest中的可恢复等待marker，不是额外workflow owner或长期状态；exact child result到达即退出。`OWNER_SESSION_PROFILE`是owner capability guard，remote action checkpoint只引用其fingerprint。`RESOURCE_DURABILITY_REPAIR`是同一owner、同一transition的资源恢复动作。`FEATURE_REPLAN_REQUIRED`保持原FL为owner并只暂停新扩围，直到Human确认new topology或继续原scope；以上均不替代Feature/Stage完成状态。
+`WAITING_ON_CHILD`是Stage/Feature Packet与current evidence manifest中的可恢复等待marker，不是额外workflow owner或长期状态；exact child result到达即退出。`OWNER_SESSION_PROFILE`是owner capability guard，remote action checkpoint只引用其fingerprint。`RESOURCE_DURABILITY_REPAIR`在cutover前只建立稳定检查点或恢复exact原路径，cutover后才按stable-owner-exclusive-v1重建exact稳定路径；它不迁移in-flight owner。`FEATURE_REPLAN_REQUIRED`保持原FL为owner并只暂停新扩围，直到Human确认new topology或继续原scope；以上均不替代Feature/Stage完成状态。
 
-本规则cutover前已存在的tasks、cards、owners和resources保持原binding，不改名、不迁移、不自动清理；已经创建的replacement owner不自动删除。若错误activation card尚未创建任何owner/resource，exact UD可在readback确认后以`EXISTING_DELIVERY_PROVENANCE_CONFIRMED`使其失效并改走resume；已经形成Human-confirmed或resource-bearing replacement binding时只走显式replan/termination。cutover时正在等待Human的existing Stage/Feature resume card保持原样，不因本规则merge自动执行。
+`resourceTopologyVersion=stable-owner-exclusive-v1` runtime cutover前已存在的tasks、cards、owners和resources保持原binding、原exclusive clone与原`/private/tmp/oes-*` cleanup identity，不改名、不迁移、不自动清理；cutover本身也不迁移in-flight资源。已经创建的replacement owner不自动删除。若错误activation card尚未创建任何owner/resource，exact UD可在readback确认后以`EXISTING_DELIVERY_PROVENANCE_CONFIRMED`使其失效并改走resume；已经形成Human-confirmed或resource-bearing replacement binding时只走显式replan/termination。cutover时正在等待Human的existing Stage/Feature resume card保持原样，不因本规则merge自动执行。
 
 Feature与Stage继续使用：
 
 ```text
+Feature topology replan:
+  FL_RUNNING -> FEATURE_REPLAN_REQUIRED -> SL_REPLAN_CARD_READY
+     | CONFIRM_SIBLING_TOPOLOGY -> HANDOFF_PENDING -> HANDOFF_VERIFIED -> FL_RUNNING
+     | CONTINUE_ATOMIC_FEATURE -> FL_RUNNING
+     | DEFER -> FEATURE_REPLAN_DEFERRED
+
 Feature review:
   CANDIDATE_READY[c] -> FEATURE_RI_PENDING[r,c]
      | FEATURE_RI_ACCEPTED[c] -> FEATURE_REVIEW_PASSED

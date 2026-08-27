@@ -87,7 +87,7 @@ v6 truth merge前已经取得Human确认，或已经创建exact owner、task、b
 
 任何有状态work item只有一个当前owner和一个artifact owner。通知不转移owner；只有新owner校验并返回`HANDOFF_ACCEPTED`后才允许写入。SL/FL只协调预确认的有界执行拓扑，不构成长期开销；不得建立全局调度中心、watchdog、heartbeat、Pull inbox、历史thread registry或过程账本。
 
-长期owner资源必须使用稳定存储：owner branch/ref与worktree共享仓库Git common directory，active Packet、candidate bundle和current evidence manifest保存在task稳定artifact root；`/private/tmp`只保存删除后可重建的runtime scratch、隔离测试数据和disposable verification clone。重启或worktree缺失时先按稳定ref/bundle/manifest恢复exact owner，不因临时目录消失创建replacement owner或重做已验证工作。
+长期owner资源的目标拓扑是稳定路径中的owner-exclusive clone与task稳定artifact root，不共享其他owner的Git common directory；`/private/tmp`只承载可重建scratch。该拓扑只有在repository-owned profile、driver、cleanup schema与测试合入`main`，且effective profile读回`resourceTopologyVersion=stable-owner-exclusive-v1`后才对新owner生效。在此cutover前，现有可执行exclusive-clone与`/private/tmp/oes-*`合同继续权威，所有已存在owner保持exact path/ref/resource binding直到terminal/cleanup；只可把bundle、Packet与current evidence manifest检查点复制到稳定artifact root，资源丢失时恢复原绑定路径，不迁移或创建replacement owner。
 
 SL在启动FL前必须区分独立交付物与同一feature的实现slice：可独立candidate、RI、PR和安全合入`main`的结果拆为平级FL；必须共同原子验收的slice保持一个FL并由FL创建有界IT。执行中发现feature已分裂为多个独立交付物时返回`FEATURE_REPLAN_REQUIRED`给exact SL；仍属一个feature时由FL在既有delegation ceiling内调整IT，不新增Human gate。parent派发child后进入`WAITING_ON_CHILD`并结束当前turn，由exact typed result唤醒，禁止持续poll或占用执行槽等待。
 
