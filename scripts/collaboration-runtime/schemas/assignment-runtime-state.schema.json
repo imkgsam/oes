@@ -1,0 +1,204 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oes.local/schemas/assignment-runtime-state.schema.json",
+  "title": "OES persisted assignment runtime state",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "recordFingerprint",
+    "owner",
+    "stageKey",
+    "featureKey",
+    "transitionId",
+    "scopeFingerprint",
+    "stateVersion",
+    "status",
+    "ceiling",
+    "activeAssignments",
+    "resultTombstones",
+    "wip",
+    "featureReplan",
+    "nextLegalAction"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "OES_ASSIGNMENT_RUNTIME_STATE" },
+    "recordFingerprint": { "$ref": "#/$defs/fingerprint" },
+    "owner": { "$ref": "#/$defs/owner" },
+    "stageKey": { "$ref": "#/$defs/featureKey" },
+    "featureKey": { "$ref": "#/$defs/featureKey" },
+    "transitionId": { "$ref": "#/$defs/token" },
+    "scopeFingerprint": { "$ref": "#/$defs/fingerprint" },
+    "stateVersion": { "type": "integer", "minimum": 1 },
+    "status": { "enum": ["ACTIVE", "WAITING_ON_CHILD", "FEATURE_REPLAN_REQUIRED"] },
+    "ceiling": { "$ref": "#/$defs/ceiling" },
+    "activeAssignments": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/activeAssignment" },
+      "uniqueItems": true
+    },
+    "resultTombstones": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/resultTombstone" },
+      "uniqueItems": true
+    },
+    "wip": { "$ref": "#/$defs/wip" },
+    "featureReplan": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["decision", "requestFingerprint", "decisionFingerprint"],
+      "properties": {
+        "decision": { "enum": ["FEATURE_REPLAN_REQUIRED", "ATOMIC_CONTINUATION"] },
+        "requestFingerprint": { "$ref": "#/$defs/fingerprint" },
+        "decisionFingerprint": { "$ref": "#/$defs/fingerprint" }
+      }
+    },
+    "nextLegalAction": { "$ref": "#/$defs/action" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "WAITING_ON_CHILD" } } },
+      "then": { "properties": { "activeAssignments": { "minItems": 1 } } }
+    },
+    {
+      "if": { "properties": { "status": { "const": "ACTIVE" } } },
+      "then": { "properties": { "activeAssignments": { "maxItems": 0 } } }
+    },
+    {
+      "if": { "properties": { "status": { "const": "FEATURE_REPLAN_REQUIRED" } } },
+      "then": {
+        "properties": {
+          "featureReplan": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["decision", "requestFingerprint", "decisionFingerprint"],
+            "properties": {
+              "decision": { "const": "FEATURE_REPLAN_REQUIRED" },
+              "requestFingerprint": { "$ref": "#/$defs/fingerprint" },
+              "decisionFingerprint": { "$ref": "#/$defs/fingerprint" }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "fingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "featureKey": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "token": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$" },
+    "action": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
+    "owner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "taskId", "directExecutionParentTaskId"],
+      "properties": {
+        "role": { "enum": ["STAGE_LEAD", "FEATURE_LEAD"] },
+        "taskId": { "$ref": "#/$defs/token" },
+        "directExecutionParentTaskId": { "$ref": "#/$defs/token" }
+      }
+    },
+    "ceiling": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "maxActiveFeatureLeads",
+        "maxActiveImplementationTasksPerFeature",
+        "maxActiveFeatureReviewsPerFeature"
+      ],
+      "properties": {
+        "maxActiveFeatureLeads": { "enum": [1, 2, 3] },
+        "maxActiveImplementationTasksPerFeature": { "enum": [1, 2, 3] },
+        "maxActiveFeatureReviewsPerFeature": { "const": 1 }
+      }
+    },
+    "activeAssignment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "assignmentId",
+        "requestFingerprint",
+        "directExecutionParentTaskId",
+        "childTaskId",
+        "childRole",
+        "featureKey",
+        "transitionId",
+        "dispatchStateVersion",
+        "expectedTypedResult",
+        "nextLegalActionOnResult",
+        "scopeFingerprint"
+      ],
+      "properties": {
+        "assignmentId": { "$ref": "#/$defs/fingerprint" },
+        "requestFingerprint": { "$ref": "#/$defs/fingerprint" },
+        "directExecutionParentTaskId": { "$ref": "#/$defs/token" },
+        "childTaskId": { "$ref": "#/$defs/token" },
+        "childRole": { "enum": ["FEATURE_LEAD", "IMPLEMENTATION_TASK", "FEATURE_REVIEW"] },
+        "featureKey": { "$ref": "#/$defs/featureKey" },
+        "transitionId": { "$ref": "#/$defs/token" },
+        "dispatchStateVersion": { "type": "integer", "minimum": 1 },
+        "expectedTypedResult": { "$ref": "#/$defs/token" },
+        "nextLegalActionOnResult": { "$ref": "#/$defs/action" },
+        "scopeFingerprint": { "$ref": "#/$defs/fingerprint" }
+      }
+    },
+    "featureWip": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["featureKey", "activeImplementationTasks", "activeFeatureReviews"],
+      "properties": {
+        "featureKey": { "$ref": "#/$defs/featureKey" },
+        "activeImplementationTasks": { "type": "integer", "minimum": 0 },
+        "activeFeatureReviews": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "wip": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["activeFeatureLeads", "features"],
+      "properties": {
+        "activeFeatureLeads": { "type": "integer", "minimum": 0 },
+        "features": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/featureWip" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "kind",
+        "assignmentId",
+        "resultFingerprint",
+        "appliedStateVersion",
+        "remainingAssignments",
+        "wip",
+        "nextLegalAction"
+      ],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "kind": { "const": "OES_ASSIGNMENT_RESULT_RECEIPT" },
+        "assignmentId": { "$ref": "#/$defs/fingerprint" },
+        "resultFingerprint": { "$ref": "#/$defs/fingerprint" },
+        "appliedStateVersion": { "type": "integer", "minimum": 1 },
+        "remainingAssignments": { "type": "integer", "minimum": 0 },
+        "wip": { "$ref": "#/$defs/wip" },
+        "nextLegalAction": { "$ref": "#/$defs/action" }
+      }
+    },
+    "resultTombstone": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["assignment", "resultFingerprint", "receipt"],
+      "properties": {
+        "assignment": { "$ref": "#/$defs/activeAssignment" },
+        "resultFingerprint": { "$ref": "#/$defs/fingerprint" },
+        "receipt": { "$ref": "#/$defs/receipt" }
+      }
+    }
+  }
+}
