@@ -25,6 +25,7 @@ import type {
   OwnerResourceBinding,
   OwnerResourceReference
 } from '../src/resource-topology.types.ts'
+import { stableOwnerTaskTempLeaf } from '../src/resource-topology.ts'
 
 const schema = (name: string) =>
   JSON.parse(readFileSync(join(import.meta.dirname, '..', 'schemas', name), 'utf8')) as Record<
@@ -54,7 +55,9 @@ function stableOwnerResourceFixture(): {
     ownerGitDirectory: `${ownerClone}/.git`,
     ownerRef: 'refs/heads/codex/feature/runtime',
     artifactRoot,
-    taskTempRoot: '/private/tmp/oes-runtime-11111111',
+    taskTempRoot: `/private/tmp/${stableOwnerTaskTempLeaf(
+      '11111111-1111-4111-8111-111111111111'
+    )}`,
     featurePacket: 'docs/plans/features/runtime.md',
     featurePacketCheckpointPath: `${artifactRoot}/feature-packet.md`,
     currentEvidenceManifestPath: `${artifactRoot}/current-evidence-manifest.json`,

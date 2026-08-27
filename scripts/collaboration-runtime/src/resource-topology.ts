@@ -32,7 +32,7 @@ const PROFILE_TOPOLOGY_FIELDS = new Set([
   'owner_resource_binding_sha256',
   'owner_resource_binding_fingerprint'
 ])
-const OWNER_SCRATCH_LEAF = /^oes-[A-Za-z0-9][A-Za-z0-9._-]*$/
+const OWNER_SCRATCH_LEAF = /^oes-owner-[0-9a-f]{64}$/
 
 /** Requires an exact object shape for one durable owner artifact. */
 function requireExactKeys(value: unknown, allowed: string[], field: string): void {
@@ -85,8 +85,17 @@ function isTemporaryPath(path: string): boolean {
     .some((root) => isWithin(root, physical))
 }
 
-/** Requires one physical, owner-namespaced scratch root directly below an approved temp parent. */
-export function validateStableOwnerTaskTempRoot(path: string, field = 'taskTempRoot'): string {
+/** Derives the one collision-resistant scratch leaf assigned to an exact owner task. */
+export function stableOwnerTaskTempLeaf(ownerTaskId: string): string {
+  requireString(ownerTaskId, 'ownerTaskId')
+  return `oes-owner-${sha256(ownerTaskId)}`
+}
+
+/** Requires the physical stable scratch shape directly below an approved temp parent. */
+export function validateStableOwnerTaskTempRootShape(
+  path: string,
+  field = 'taskTempRoot'
+): string {
   requireAbsolutePath(path, field)
   const physical = physicalIdentityForPotentialPath(path)
   if (physical !== path) fail('STABLE_OWNER_TASK_TEMP_PHYSICAL_ALIAS', field)
@@ -97,6 +106,18 @@ export function validateStableOwnerTaskTempRoot(path: string, field = 'taskTempR
     (root) => dirname(physical) === root && isStrictlyWithin(root, physical)
   )
   if (!approvedParent || !OWNER_SCRATCH_LEAF.test(basename(physical)))
+    fail('STABLE_OWNER_TASK_TEMP_NOT_OWNER_EXCLUSIVE', path)
+  return physical
+}
+
+/** Requires one physical stable scratch root whose leaf belongs to the exact owner task. */
+export function validateStableOwnerTaskTempRoot(
+  path: string,
+  ownerTaskId: string,
+  field = 'taskTempRoot'
+): string {
+  const physical = validateStableOwnerTaskTempRootShape(path, field)
+  if (basename(physical) !== stableOwnerTaskTempLeaf(ownerTaskId))
     fail('STABLE_OWNER_TASK_TEMP_NOT_OWNER_EXCLUSIVE', path)
   return physical
 }
@@ -271,7 +292,7 @@ export function validateOwnerResourceBinding(value: OwnerResourceBinding): Owner
       value.artifactRoot === value.taskTempRoot
     )
       fail('STABLE_OWNER_RESOURCE_USES_TEMPORARY_ROOT', value.ownerClone)
-    validateStableOwnerTaskTempRoot(value.taskTempRoot)
+    validateStableOwnerTaskTempRoot(value.taskTempRoot, value.ownerTaskId)
     for (const path of [
       value.featurePacketCheckpointPath,
       value.currentEvidenceManifestPath,

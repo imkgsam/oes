@@ -77,7 +77,7 @@ The persisted active assignment binds:
 - transition and dispatch state version;
 - expected typed result;
 - narrower scope fingerprint;
-- approved result artifact root and its dispatch-time physical directory identity;
+- approved result artifact root and its dispatch-time canonical path, decimal device/inode, and required `DIRECTORY` object identity;
 - next legal action after the result.
 
 After dispatch, persist the same marker in the Feature or Stage Packet and current evidence manifest, send the exact assignment, and end the turn. Do not keep a turn open to wait for the child.
@@ -101,7 +101,7 @@ const artifact = createAssignmentResultArtifact({
 writeJsonAtomic(RESULT_ARTIFACT_PATH, artifact)
 ```
 
-`RESULT_ARTIFACT_PATH` must be an exact, non-aliased physical file strictly below the bound root. The child then constructs a self-hashed envelope after hashing the canonical artifact bytes:
+`RESULT_ARTIFACT_PATH` must be an exact, non-aliased physical file strictly below the bound root. Before reading those bytes, the parent opens the root with no-follow/directory flags and requires its physical path plus portable device/inode identity to equal the dispatch-time object; renaming and recreating a directory at the same pathname leaves the assignment in `WAITING_ON_CHILD`. The child then constructs a self-hashed envelope after hashing the canonical artifact bytes:
 
 ```ts
 const result = createAssignmentResult({

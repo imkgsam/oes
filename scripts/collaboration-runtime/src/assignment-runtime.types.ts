@@ -65,6 +65,13 @@ export interface ChildAssignmentRequest {
   resultArtifactRoot: string
 }
 
+export interface AssignmentResultArtifactRootIdentity {
+  physicalPath: string
+  device: string
+  inode: string
+  fileType: 'DIRECTORY'
+}
+
 export interface ActiveChildAssignment {
   assignmentId: string
   requestFingerprint: string
@@ -78,7 +85,7 @@ export interface ActiveChildAssignment {
   nextLegalActionOnResult: string
   scopeFingerprint: string
   resultArtifactRoot: string
-  resultArtifactRootPhysicalPath: string
+  resultArtifactRootIdentity: AssignmentResultArtifactRootIdentity
 }
 
 export interface AssignmentResultArtifact {

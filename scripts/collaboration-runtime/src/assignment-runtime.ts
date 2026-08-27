@@ -3,6 +3,7 @@ import {
   constants,
   existsSync,
   fstatSync,
+  lstatSync,
   mkdirSync,
   openSync,
   readFileSync,
@@ -20,6 +21,7 @@ import {
   type AssignmentResult,
   type AssignmentResultArtifactPayload,
   type AssignmentResultArtifactPayloadInput,
+  type AssignmentResultArtifactRootIdentity,
   type AssignmentResultInput,
   type AssignmentResultReceipt,
   type AssignmentRuntimeInitialization,
@@ -43,6 +45,7 @@ const GIT_SHA = /^[0-9a-f]{40}$/
 const FEATURE_KEY = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 const TOKEN = /^[A-Za-z0-9][A-Za-z0-9._:/-]*$/
 const ACTION = /^[A-Z][A-Z0-9_]*$/
+const UNSIGNED_INTEGER = /^(?:0|[1-9][0-9]*)$/
 const REPOSITORY_WRITE_RANGE = /^[A-Za-z0-9._@-]+(?:\/[A-Za-z0-9._@-]+)*(?:\/\*\*)?$/
 const CANONICAL_MAXIMUMS: AssignmentWipCeiling = {
   maxActiveFeatureLeads: 3,
@@ -111,18 +114,110 @@ function isStrictlyWithin(root: string, candidate: string): boolean {
   return child !== '' && !child.startsWith(`..${sep}`) && child !== '..' && !child.startsWith(sep)
 }
 
-/** Reopens one configured result root and binds its current physical directory identity. */
-function reopenResultArtifactRoot(path: string): string {
+/** Validates one portable, persisted filesystem object identity. */
+function validateResultArtifactRootIdentity(
+  value: AssignmentResultArtifactRootIdentity,
+  field: string
+): AssignmentResultArtifactRootIdentity {
+  requireExactKeys(value, ['physicalPath', 'device', 'inode', 'fileType'], field)
+  requireCanonicalAbsolutePath(value.physicalPath, `${field}.physicalPath`)
+  if (!UNSIGNED_INTEGER.test(value.device))
+    fail('ASSIGNMENT_RESULT_ARTIFACT_ROOT_DEVICE_INVALID', field)
+  if (!UNSIGNED_INTEGER.test(value.inode))
+    fail('ASSIGNMENT_RESULT_ARTIFACT_ROOT_INODE_INVALID', field)
+  if (value.fileType !== 'DIRECTORY')
+    fail('ASSIGNMENT_RESULT_ARTIFACT_ROOT_TYPE_INVALID', field)
+  return value
+}
+
+interface OpenedResultArtifactRoot {
+  descriptor: number
+  identity: AssignmentResultArtifactRootIdentity
+}
+
+/** Opens one configured result root without following a replacement and captures its object identity. */
+function openResultArtifactRoot(path: string): OpenedResultArtifactRoot {
   requireCanonicalAbsolutePath(path, 'resultArtifactRoot')
-  let physical: string
+  let descriptor: number
   try {
-    physical = resolve(realpathSync(path))
+    descriptor = openSync(
+      path,
+      constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_DIRECTORY ?? 0)
+    )
   } catch {
     fail('ASSIGNMENT_RESULT_ARTIFACT_ROOT_ABSENT', path)
   }
-  if (physical !== path) fail('ASSIGNMENT_RESULT_ARTIFACT_ROOT_ALIAS', path)
-  if (!statSync(physical).isDirectory()) fail('ASSIGNMENT_RESULT_ARTIFACT_ROOT_NOT_DIRECTORY', path)
-  return physical
+  try {
+    const opened = fstatSync(descriptor, { bigint: true })
+    if (!opened.isDirectory()) fail('ASSIGNMENT_RESULT_ARTIFACT_ROOT_NOT_DIRECTORY', path)
+    let physical: string
+    let current
+    try {
+      physical = resolve(realpathSync(path))
+      current = lstatSync(path, { bigint: true })
+    } catch {
+      fail('ASSIGNMENT_RESULT_ARTIFACT_ROOT_IDENTITY_CHANGED', path)
+    }
+    if (
+      physical !== path ||
+      !current.isDirectory() ||
+      current.dev !== opened.dev ||
+      current.ino !== opened.ino
+    )
+      fail(
+        physical !== path
+          ? 'ASSIGNMENT_RESULT_ARTIFACT_ROOT_ALIAS'
+          : 'ASSIGNMENT_RESULT_ARTIFACT_ROOT_IDENTITY_CHANGED',
+        path
+      )
+    return {
+      descriptor,
+      identity: {
+        physicalPath: physical,
+        device: opened.dev.toString(10),
+        inode: opened.ino.toString(10),
+        fileType: 'DIRECTORY'
+      }
+    }
+  } catch (error) {
+    closeSync(descriptor)
+    throw error
+  }
+}
+
+/** Captures and closes one dispatch-time result-root identity. */
+function captureResultArtifactRootIdentity(path: string): AssignmentResultArtifactRootIdentity {
+  const opened = openResultArtifactRoot(path)
+  try {
+    return opened.identity
+  } finally {
+    closeSync(opened.descriptor)
+  }
+}
+
+/** Rechecks that the pathname and held descriptor still select the exact bound root object. */
+function requireSameResultArtifactRoot(
+  path: string,
+  opened: OpenedResultArtifactRoot,
+  expected: AssignmentResultArtifactRootIdentity
+): void {
+  let current
+  try {
+    current = lstatSync(path, { bigint: true })
+  } catch {
+    fail('ASSIGNMENT_RESULT_ARTIFACT_ROOT_IDENTITY_MISMATCH', path)
+  }
+  const held = fstatSync(opened.descriptor, { bigint: true })
+  const actual = opened.identity
+  if (
+    canonicalJson(actual) !== canonicalJson(expected) ||
+    !current.isDirectory() ||
+    current.dev !== held.dev ||
+    current.ino !== held.ino ||
+    current.dev.toString(10) !== expected.device ||
+    current.ino.toString(10) !== expected.inode
+  )
+    fail('ASSIGNMENT_RESULT_ARTIFACT_ROOT_IDENTITY_MISMATCH', path)
 }
 
 /** Normalizes a non-empty unique string list for stable fingerprints. */
@@ -236,7 +331,7 @@ function validateActiveAssignment(assignment: ActiveChildAssignment): void {
       'nextLegalActionOnResult',
       'scopeFingerprint',
       'resultArtifactRoot',
-      'resultArtifactRootPhysicalPath'
+      'resultArtifactRootIdentity'
     ],
     'activeAssignment'
   )
@@ -253,10 +348,12 @@ function validateActiveAssignment(assignment: ActiveChildAssignment): void {
   requireAction(assignment.nextLegalActionOnResult, 'activeAssignment.nextLegalActionOnResult')
   requireFingerprint(assignment.scopeFingerprint, 'activeAssignment.scopeFingerprint')
   requireCanonicalAbsolutePath(assignment.resultArtifactRoot, 'activeAssignment.resultArtifactRoot')
-  requireCanonicalAbsolutePath(
-    assignment.resultArtifactRootPhysicalPath,
-    'activeAssignment.resultArtifactRootPhysicalPath'
+  validateResultArtifactRootIdentity(
+    assignment.resultArtifactRootIdentity,
+    'activeAssignment.resultArtifactRootIdentity'
   )
+  if (assignment.resultArtifactRootIdentity.physicalPath !== assignment.resultArtifactRoot)
+    fail('ASSIGNMENT_RESULT_ARTIFACT_ROOT_PATH_MISMATCH', assignment.resultArtifactRoot)
   const actual = objectFingerprint(assignment as unknown as Record<string, unknown>, 'assignmentId')
   if (actual !== assignment.assignmentId)
     fail('ASSIGNMENT_ID_FINGERPRINT_MISMATCH', assignment.assignmentId)
@@ -625,50 +722,68 @@ function reopenAssignmentResultArtifact(
   assignment: ActiveChildAssignment,
   result: AssignmentResult
 ): AssignmentResultArtifactPayload {
-  const physicalRoot = reopenResultArtifactRoot(assignment.resultArtifactRoot)
-  if (physicalRoot !== assignment.resultArtifactRootPhysicalPath)
-    fail('ASSIGNMENT_RESULT_ARTIFACT_ROOT_IDENTITY_MISMATCH', physicalRoot)
-  let physicalPath: string
-  try {
-    physicalPath = resolve(realpathSync(result.resultArtifact.path))
-  } catch {
-    fail('ASSIGNMENT_RESULT_ARTIFACT_ABSENT', result.resultArtifact.path)
-  }
-  if (!isStrictlyWithin(physicalRoot, physicalPath))
-    fail('ASSIGNMENT_RESULT_ARTIFACT_OUTSIDE_BOUND_ROOT', physicalPath)
-  if (physicalPath !== result.resultArtifact.path)
-    fail('ASSIGNMENT_RESULT_ARTIFACT_PHYSICAL_ALIAS', result.resultArtifact.path)
-  let descriptor: number
-  try {
-    descriptor = openSync(
-      result.resultArtifact.path,
-      constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0)
-    )
-  } catch {
-    fail('ASSIGNMENT_RESULT_ARTIFACT_REOPEN_FAILED', result.resultArtifact.path)
-  }
+  const root = openResultArtifactRoot(assignment.resultArtifactRoot)
   let bytes: Buffer
   try {
-    const opened = fstatSync(descriptor)
-    if (!opened.isFile()) fail('ASSIGNMENT_RESULT_ARTIFACT_NOT_FILE', result.resultArtifact.path)
-    let reopenedPath: string
-    let current
-    try {
-      reopenedPath = resolve(realpathSync(result.resultArtifact.path))
-      current = statSync(result.resultArtifact.path)
-    } catch {
-      fail('ASSIGNMENT_RESULT_ARTIFACT_IDENTITY_CHANGED', result.resultArtifact.path)
-    }
-    if (
-      reopenedPath !== physicalPath ||
-      !isStrictlyWithin(physicalRoot, reopenedPath) ||
-      current.dev !== opened.dev ||
-      current.ino !== opened.ino
+    requireSameResultArtifactRoot(
+      assignment.resultArtifactRoot,
+      root,
+      assignment.resultArtifactRootIdentity
     )
-      fail('ASSIGNMENT_RESULT_ARTIFACT_IDENTITY_CHANGED', result.resultArtifact.path)
-    bytes = readFileSync(descriptor)
+    const physicalRoot = root.identity.physicalPath
+    let physicalPath: string
+    try {
+      physicalPath = resolve(realpathSync(result.resultArtifact.path))
+    } catch {
+      fail('ASSIGNMENT_RESULT_ARTIFACT_ABSENT', result.resultArtifact.path)
+    }
+    if (!isStrictlyWithin(physicalRoot, physicalPath))
+      fail('ASSIGNMENT_RESULT_ARTIFACT_OUTSIDE_BOUND_ROOT', physicalPath)
+    if (physicalPath !== result.resultArtifact.path)
+      fail('ASSIGNMENT_RESULT_ARTIFACT_PHYSICAL_ALIAS', result.resultArtifact.path)
+    let descriptor: number
+    try {
+      descriptor = openSync(
+        result.resultArtifact.path,
+        constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0)
+      )
+    } catch {
+      fail('ASSIGNMENT_RESULT_ARTIFACT_REOPEN_FAILED', result.resultArtifact.path)
+    }
+    try {
+      const opened = fstatSync(descriptor)
+      if (!opened.isFile()) fail('ASSIGNMENT_RESULT_ARTIFACT_NOT_FILE', result.resultArtifact.path)
+      let reopenedPath: string
+      let current
+      try {
+        reopenedPath = resolve(realpathSync(result.resultArtifact.path))
+        current = statSync(result.resultArtifact.path)
+      } catch {
+        fail('ASSIGNMENT_RESULT_ARTIFACT_IDENTITY_CHANGED', result.resultArtifact.path)
+      }
+      if (
+        reopenedPath !== physicalPath ||
+        !isStrictlyWithin(physicalRoot, reopenedPath) ||
+        current.dev !== opened.dev ||
+        current.ino !== opened.ino
+      )
+        fail('ASSIGNMENT_RESULT_ARTIFACT_IDENTITY_CHANGED', result.resultArtifact.path)
+      requireSameResultArtifactRoot(
+        assignment.resultArtifactRoot,
+        root,
+        assignment.resultArtifactRootIdentity
+      )
+      bytes = readFileSync(descriptor)
+      requireSameResultArtifactRoot(
+        assignment.resultArtifactRoot,
+        root,
+        assignment.resultArtifactRootIdentity
+      )
+    } finally {
+      closeSync(descriptor)
+    }
   } finally {
-    closeSync(descriptor)
+    closeSync(root.descriptor)
   }
   if (sha256(bytes) !== result.resultArtifact.sha256)
     fail('ASSIGNMENT_RESULT_ARTIFACT_SHA_MISMATCH', result.resultArtifact.path)
@@ -1328,7 +1443,9 @@ export class AssignmentRuntimeStore {
       )
         fail('ASSIGNMENT_DUPLICATE_ACTIVE_FEATURE_OWNER', request.featureKey)
       const dispatchStateVersion = state.stateVersion + 1
-      const resultArtifactRootPhysicalPath = reopenResultArtifactRoot(request.resultArtifactRoot)
+      const resultArtifactRootIdentity = captureResultArtifactRootIdentity(
+        request.resultArtifactRoot
+      )
       const base = {
         requestFingerprint,
         directExecutionParentTaskId: state.owner.taskId,
@@ -1341,7 +1458,7 @@ export class AssignmentRuntimeStore {
         nextLegalActionOnResult: request.nextLegalActionOnResult,
         scopeFingerprint: request.scopeFingerprint,
         resultArtifactRoot: request.resultArtifactRoot,
-        resultArtifactRootPhysicalPath
+        resultArtifactRootIdentity
       }
       const assignment: ActiveChildAssignment = {
         assignmentId: objectFingerprint(base as unknown as Record<string, unknown>, '__none__'),

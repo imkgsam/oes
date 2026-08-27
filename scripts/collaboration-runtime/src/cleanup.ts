@@ -150,7 +150,11 @@ export function planChildSelfCleanup(
       resource.kind === 'task-temp' &&
       resource.resourceTopologyVersion === 'stable-owner-exclusive-v1'
     )
-      validateStableOwnerTaskTempRoot(resource.path, 'cleanupRemoval.taskTempRoot')
+      validateStableOwnerTaskTempRoot(
+        resource.path,
+        ownerTaskId,
+        'cleanupRemoval.taskTempRoot'
+      )
     return {
       resource,
       decision: 'REMOVE',

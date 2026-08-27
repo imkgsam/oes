@@ -129,7 +129,7 @@
         "nextLegalActionOnResult",
         "scopeFingerprint",
         "resultArtifactRoot",
-        "resultArtifactRootPhysicalPath"
+        "resultArtifactRootIdentity"
       ],
       "properties": {
         "assignmentId": { "$ref": "#/$defs/fingerprint" },
@@ -144,7 +144,18 @@
         "nextLegalActionOnResult": { "$ref": "#/$defs/action" },
         "scopeFingerprint": { "$ref": "#/$defs/fingerprint" },
         "resultArtifactRoot": { "$ref": "#/$defs/absolutePath" },
-        "resultArtifactRootPhysicalPath": { "$ref": "#/$defs/absolutePath" }
+        "resultArtifactRootIdentity": { "$ref": "#/$defs/resultArtifactRootIdentity" }
+      }
+    },
+    "resultArtifactRootIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["physicalPath", "device", "inode", "fileType"],
+      "properties": {
+        "physicalPath": { "$ref": "#/$defs/absolutePath" },
+        "device": { "$ref": "#/$defs/unsignedInteger" },
+        "inode": { "$ref": "#/$defs/unsignedInteger" },
+        "fileType": { "const": "DIRECTORY" }
       }
     },
     "featureWip": {
@@ -197,6 +208,10 @@
     "absolutePath": {
       "type": "string",
       "pattern": "^/(?!.*(?:^|/)\\.\\.?(?:/|$))[^/]+(?:/[^/]+)*$"
+    },
+    "unsignedInteger": {
+      "type": "string",
+      "pattern": "^(?:0|[1-9][0-9]*)$"
     },
     "resultTombstone": {
       "type": "object",

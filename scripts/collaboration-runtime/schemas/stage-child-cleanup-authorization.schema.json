@@ -351,7 +351,7 @@
     },
     "stableTaskTempRoot": {
       "type": "string",
-      "pattern": "^/(?:tmp|private/tmp|private/var/folders/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+/T)/oes-[A-Za-z0-9][A-Za-z0-9._-]*$"
+      "pattern": "^/(?:tmp|private/tmp|private/var/folders/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+/T)/oes-owner-[0-9a-f]{64}$"
     }
   },
   "allOf": [

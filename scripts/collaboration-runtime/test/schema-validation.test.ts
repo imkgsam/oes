@@ -150,7 +150,8 @@ test('Stage schemas reject Stage-owned roots, filesystem aliases, and Git-invali
 })
 
 test('stable Stage child schema rejects a shared temp parent in binding and resource', () => {
-  const taskTempRoot = '/private/tmp/oes-runtime-owner'
+  const taskTempRoot =
+    '/private/tmp/oes-owner-bd7662a5eeb41614e720d477abfcb2272e19a8a70a93b7e3bc8560d44ad326e9'
   const ownerClone = '/Users/fixture/.codex/oes/owners/runtime/oes'
   const artifactRoot = '/Users/fixture/.codex/oes/artifacts/runtime'
   const ownerResourceBinding = {

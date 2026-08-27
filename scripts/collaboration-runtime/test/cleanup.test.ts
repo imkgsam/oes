@@ -8,6 +8,7 @@ import {
   verifyCleanupOnlyDeletion
 } from '../src/cleanup.ts'
 import { objectFingerprint } from '../src/canonical.ts'
+import { stableOwnerTaskTempLeaf } from '../src/resource-topology.ts'
 import type { OwnerResourceBinding } from '../src/resource-topology.types.ts'
 import { validateJsonSchema } from '../src/schema-validation.ts'
 import type { StageCleanupAuthorization } from '../src/types.ts'
@@ -41,15 +42,19 @@ function absentResults(
 }
 
 /** Creates one exact stable owner identity for cleanup derivation tests. */
-function stableOwnerBinding(): OwnerResourceBinding {
-  const ownerClone = '/Users/fixture/.codex/oes/owners/11111111/oes'
-  const artifactRoot = '/Users/fixture/.codex/oes/artifacts/11111111/runtime'
+function stableOwnerBinding(
+  ownerTaskId = '11111111-1111-4111-8111-111111111111',
+  taskTempRoot = `/private/tmp/${stableOwnerTaskTempLeaf(ownerTaskId)}`
+): OwnerResourceBinding {
+  const ownerKey = ownerTaskId.slice(0, 8)
+  const ownerClone = `/Users/fixture/.codex/oes/owners/${ownerKey}/oes`
+  const artifactRoot = `/Users/fixture/.codex/oes/artifacts/${ownerKey}/runtime`
   const binding: OwnerResourceBinding = {
     schemaVersion: 1,
     kind: 'OES_OWNER_RESOURCE_BINDING',
     bindingFingerprint: '',
     resourceTopologyVersion: 'stable-owner-exclusive-v1',
-    ownerTaskId: '11111111-1111-4111-8111-111111111111',
+    ownerTaskId,
     directParentTaskId: '22222222-2222-4222-8222-222222222222',
     transitionId: 'stable-owner:1',
     repositoryRoot: ownerClone,
@@ -58,7 +63,7 @@ function stableOwnerBinding(): OwnerResourceBinding {
     ownerGitDirectory: `${ownerClone}/.git`,
     ownerRef: 'refs/heads/codex/feature/runtime',
     artifactRoot,
-    taskTempRoot: '/private/tmp/oes-runtime-11111111',
+    taskTempRoot,
     featurePacket: 'docs/plans/features/runtime.md',
     featurePacketCheckpointPath: `${artifactRoot}/feature-packet.md`,
     currentEvidenceManifestPath: `${artifactRoot}/current-evidence-manifest.json`,
@@ -268,6 +273,68 @@ test('stable cleanup rejects a shared temp root before any REMOVE decision', () 
   )
   assert.throws(
     () => planChildSelfCleanup(authorization, binding.ownerTaskId, observations),
+    /STABLE_OWNER_TASK_TEMP_NOT_OWNER_EXCLUSIVE/
+  )
+})
+
+test('final stable cleanup authorization rejects a second owner claiming the first owner scratch path', () => {
+  const ownerA = stableOwnerBinding()
+  const ownerB = stableOwnerBinding(
+    '33333333-3333-4333-8333-333333333333',
+    ownerA.taskTempRoot
+  )
+  const authorization = cleanupAuthorization()
+  authorization.stageOwnerTaskId = ownerB.directParentTaskId
+  authorization.allowedDeletedFeaturePackets = [ownerB.featurePacket]
+  authorization.terminalFeatures = [
+    {
+      featureKey: 'runtime',
+      ownerTaskId: ownerB.ownerTaskId,
+      candidateSha: '1'.repeat(40),
+      mergeSha: '2'.repeat(40),
+      featurePacket: ownerB.featurePacket,
+      resourceTopologyVersion: 'stable-owner-exclusive-v1',
+      ownerResourceBinding: ownerB,
+      resources: [
+        {
+          kind: 'remote-branch',
+          path: 'codex/feature/runtime',
+          expectedSha: '1'.repeat(40),
+          resourceTopologyVersion: 'stable-owner-exclusive-v1'
+        },
+        {
+          kind: 'local-branch',
+          path: 'codex/feature/runtime',
+          expectedSha: '1'.repeat(40),
+          resourceTopologyVersion: 'stable-owner-exclusive-v1'
+        },
+        {
+          kind: 'worktree',
+          path: ownerB.ownerClone,
+          expectedSha: '1'.repeat(40),
+          resourceTopologyVersion: 'stable-owner-exclusive-v1'
+        },
+        {
+          kind: 'task-temp',
+          path: ownerB.taskTempRoot,
+          expectedSha: null,
+          resourceTopologyVersion: 'stable-owner-exclusive-v1'
+        }
+      ]
+    }
+  ]
+  authorization.authorizationFingerprint = objectFingerprint(
+    authorization as unknown as Record<string, unknown>,
+    'authorizationFingerprint'
+  )
+  const observations = authorization.terminalFeatures[0].resources.map((resource) => ({
+    ...resource,
+    exists: true,
+    clean: true,
+    actualSha: resource.expectedSha
+  }))
+  assert.throws(
+    () => planChildSelfCleanup(authorization, ownerB.ownerTaskId, observations),
     /STABLE_OWNER_TASK_TEMP_NOT_OWNER_EXCLUSIVE/
   )
 })

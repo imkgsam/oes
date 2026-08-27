@@ -17,6 +17,7 @@ import {
   readInstalledProfileResourceTopology,
   recoverOwnerResources,
   resolveOwnerTransitionBinding,
+  stableOwnerTaskTempLeaf,
   SystemOwnerRecoveryAdapter,
   validateOwnerCheckpointBundle,
   validateOwnerResourceBinding,
@@ -47,12 +48,14 @@ function git(cwd: string, args: string[]): string {
 
 /** Creates one structurally stable frozen owner binding for contract tests. */
 function stableBinding(overrides: Partial<OwnerResourceBinding> = {}): OwnerResourceBinding {
+  const ownerTaskId =
+    overrides.ownerTaskId ?? '11111111-1111-4111-8111-111111111111'
   const binding: OwnerResourceBinding = {
     schemaVersion: 1,
     kind: 'OES_OWNER_RESOURCE_BINDING',
     bindingFingerprint: '',
     resourceTopologyVersion: 'stable-owner-exclusive-v1',
-    ownerTaskId: '11111111-1111-4111-8111-111111111111',
+    ownerTaskId,
     directParentTaskId: '22222222-2222-4222-8222-222222222222',
     transitionId: 'stage:start:stable:1',
     ownerClone: '/Users/fixture/.codex/oes/owners/11111111/oes',
@@ -61,7 +64,7 @@ function stableBinding(overrides: Partial<OwnerResourceBinding> = {}): OwnerReso
     ownerGitDirectory: '/Users/fixture/.codex/oes/owners/11111111/oes/.git',
     ownerRef: 'refs/heads/codex/feature/runtime',
     artifactRoot: '/Users/fixture/.codex/oes/artifacts/11111111/runtime',
-    taskTempRoot: '/private/tmp/oes-runtime-11111111',
+    taskTempRoot: `/private/tmp/${stableOwnerTaskTempLeaf(ownerTaskId)}`,
     featurePacket: 'docs/plans/features/runtime.md',
     featurePacketCheckpointPath:
       '/Users/fixture/.codex/oes/artifacts/11111111/runtime/feature-packet.md',
@@ -323,6 +326,41 @@ test('stable topology rejects temporary and mixed pre-cutover roots', () => {
   assert.equal(validateOwnerResourceBinding(legacy).resourceTopologyVersion, 'pre-cutover-v1')
 })
 
+test('stable scratch identity is deterministically bound to the exact owner task', () => {
+  const ownerA = stableBinding()
+  const ownerBTaskId = '33333333-3333-4333-8333-333333333333'
+  const ownerBSharedPath = stableBinding({
+    ownerTaskId: ownerBTaskId,
+    ownerClone: '/Users/fixture/.codex/oes/owners/33333333/oes',
+    repositoryRoot: '/Users/fixture/.codex/oes/owners/33333333/oes',
+    ownerGitDirectory: '/Users/fixture/.codex/oes/owners/33333333/oes/.git',
+    artifactRoot: '/Users/fixture/.codex/oes/artifacts/33333333/runtime',
+    taskTempRoot: ownerA.taskTempRoot,
+    featurePacketCheckpointPath:
+      '/Users/fixture/.codex/oes/artifacts/33333333/runtime/feature-packet.md',
+    currentEvidenceManifestPath:
+      '/Users/fixture/.codex/oes/artifacts/33333333/runtime/current-evidence-manifest.json',
+    checkpointBundlePath:
+      '/Users/fixture/.codex/oes/artifacts/33333333/runtime/checkpoint-bundle.json',
+    gitBundlePath: '/Users/fixture/.codex/oes/artifacts/33333333/runtime/owner.bundle'
+  })
+  assert.equal(
+    ownerA.taskTempRoot,
+    `/private/tmp/oes-owner-${sha256(ownerA.ownerTaskId)}`
+  )
+  assert.throws(
+    () => validateOwnerResourceBinding(ownerBSharedPath),
+    /STABLE_OWNER_TASK_TEMP_NOT_OWNER_EXCLUSIVE/
+  )
+  const ownerBExact = stableBinding({
+    ...ownerBSharedPath,
+    taskTempRoot: `/private/tmp/${stableOwnerTaskTempLeaf(ownerBTaskId)}`,
+    bindingFingerprint: ''
+  })
+  assert.doesNotThrow(() => validateOwnerResourceBinding(ownerBExact))
+  assert.notEqual(ownerA.taskTempRoot, ownerBExact.taskTempRoot)
+})
+
 test('duplicate owner transition reuses exact bytes and rejects a rebound path', () => {
   const binding = stableBinding()
   assert.equal(resolveOwnerTransitionBinding(binding, structuredClone(binding)), 'REUSE_EXISTING')
@@ -417,7 +455,11 @@ test('stable reboot and temp loss restore only the exact owner and become idempo
 
 test('system recovery restores the canonical origin accepted by remote preflight', async (t) => {
   const root = mkdtempSync(join(homedir(), '.oes-stable-recovery-test-'))
-  const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'oes-stable-recovery-scratch-')))
+  const scratch = join(
+    realpathSync(tmpdir()),
+    stableOwnerTaskTempLeaf('11111111-1111-4111-8111-111111111111')
+  )
+  mkdirSync(scratch)
   t.after(() => {
     rmSync(root, { recursive: true, force: true })
     rmSync(scratch, { recursive: true, force: true })

@@ -1,9 +1,11 @@
 import test, { after, type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   realpathSync,
+  renameSync,
   rmSync,
   symlinkSync,
   writeFileSync
@@ -308,6 +310,14 @@ test('WAITING_ON_CHILD survives a fresh store instance with exact route fields',
   )
   const reopened = new AssignmentRuntimeStore(root, 'feature-alpha').load()
   assert.deepEqual(reopened, waiting)
+  assert.match(reopened.activeAssignments[0].resultArtifactRootIdentity.device, /^(?:0|[1-9][0-9]*)$/)
+  assert.match(reopened.activeAssignments[0].resultArtifactRootIdentity.inode, /^(?:0|[1-9][0-9]*)$/)
+  assert.deepEqual(reopened.activeAssignments[0].resultArtifactRootIdentity, {
+    physicalPath: reopened.activeAssignments[0].resultArtifactRoot,
+    device: reopened.activeAssignments[0].resultArtifactRootIdentity.device,
+    inode: reopened.activeAssignments[0].resultArtifactRootIdentity.inode,
+    fileType: 'DIRECTORY'
+  })
   validateJsonSchema(schema('assignment-runtime-state.schema.json'), reopened)
 })
 
@@ -440,6 +450,35 @@ test('result artifacts must exist, remain physical children, and bind exact assi
   const receipt = store.consumeResult(valid)
   assert.equal(receipt.remainingAssignments, 0)
   assert.equal(store.load().status, 'ACTIVE')
+})
+
+test('replacing the dispatch-time result root preserves exact assignment and WIP state', (t) => {
+  const { store, state } = runtime(t)
+  const resultRoot = realpathSync(mkdtempSync(join(tmpdir(), 'oes-assignment-replaced-root-')))
+  const originalRoot = `${resultRoot}-dispatch-object`
+  t.after(() => {
+    rmSync(resultRoot, { recursive: true, force: true })
+    rmSync(originalRoot, { recursive: true, force: true })
+  })
+  const waiting = store.dispatchChild(
+    child(state.stateVersion, 'task-it-replaced-root', 'IMPLEMENTATION_TASK', {
+      resultArtifactRoot: resultRoot
+    })
+  )
+  const assignment = waiting.activeAssignments[0]
+  const before = readFileSync(store.statePath)
+  renameSync(resultRoot, originalRoot)
+  mkdirSync(resultRoot)
+  const replacementResult = result(assignment)
+  assert.throws(
+    () => store.consumeResult(replacementResult),
+    /ASSIGNMENT_RESULT_ARTIFACT_ROOT_IDENTITY_MISMATCH/
+  )
+  assert.deepEqual(readFileSync(store.statePath), before)
+  const after = store.load()
+  assert.equal(after.status, 'WAITING_ON_CHILD')
+  assert.equal(after.activeAssignments.length, 1)
+  assert.deepEqual(after.wip, waiting.wip)
 })
 
 test('wrong-route, stale, unexpected, and unknown results preserve exact state bytes', (t) => {
@@ -915,6 +954,24 @@ test('schema and runtime both reject open or malformed assignment contracts', (t
         resultArtifact: traversalResult.resultArtifact
       }),
     /ASSIGNMENT_RESULT_ARTIFACT_PATH_INVALID/
+  )
+  const wrongRootType = structuredClone(waiting)
+  wrongRootType.activeAssignments[0].resultArtifactRootIdentity.fileType = 'FILE' as never
+  wrongRootType.activeAssignments[0].assignmentId = objectFingerprint(
+    wrongRootType.activeAssignments[0] as unknown as Record<string, unknown>,
+    'assignmentId'
+  )
+  wrongRootType.recordFingerprint = objectFingerprint(
+    wrongRootType as unknown as Record<string, unknown>,
+    'recordFingerprint'
+  )
+  assert.throws(
+    () => validateJsonSchema(schema('assignment-runtime-state.schema.json'), wrongRootType),
+    /JSON_SCHEMA_VALIDATION_FAILED/
+  )
+  assert.throws(
+    () => validateAssignmentRuntimeState(wrongRootType),
+    /ASSIGNMENT_RESULT_ARTIFACT_ROOT_TYPE_INVALID/
   )
   const request = replanRequest(waiting.stateVersion, [sibling()], {
     oldTopology: {
