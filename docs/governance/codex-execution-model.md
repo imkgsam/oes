@@ -23,7 +23,7 @@
 
 ### 2.1 Human Decision Owner（HDO）
 
-HDO 是人，不是 Codex task。Human 负责确认完整Proposal Preview、root delivery owner及其Stage/Feature scope/protected scope、execution capabilities、delegation/WIP ceiling与扩围、每次`main` merge、`NEW_DESIGN`的UD post-merge delivery activation、failed continuation guard的replan以及owner cleanup/abandonment；并处理跨feature业务取舍和阻塞性决定。普通讨论、status/evidence读取、exact existing-delivery resume、相同binding的幂等重试、moving-main自动集成、已确认Stage ceiling内的FL topology adjustment/child owner创建、FL内IT assignment和已声明execution capability的环境修复不重复确认。Codex platform的文件、Git、service、database、network或command approval不是业务决定；正常scope内必须由effective profile与auto-review吸收，不转嫁给HDO。
+HDO 是人，不是 Codex task。Human 负责确认完整Proposal Preview、root delivery owner及其Stage/Feature scope/protected scope、execution capabilities、delegation/WIP ceiling与扩围、每次`main` merge、`NEW_DESIGN`的UD post-merge delivery activation、failed continuation guard的replan以及owner cleanup/abandonment；并处理跨feature业务取舍和阻塞性决定。普通讨论、status/evidence读取、exact existing-delivery resume、exact active-activation revision continuation、相同binding的幂等重试、moving-main自动集成、已确认Stage ceiling内的FL topology adjustment/child owner创建、FL内IT assignment和已声明execution capability的环境修复不重复确认。Codex platform的文件、Git、service、database、network或command approval不是业务决定；正常scope内必须由effective profile与auto-review吸收，不转嫁给HDO。
 
 HDO提供业务目标、优先级、不可违反的业务约束和验收判断，不替代技术角色选择方案。技术角色必须把专业判断转化为Human可理解的取舍与证据，不把实现细节或角色调度负担转嫁给HDO。
 
@@ -48,7 +48,7 @@ UD是长期全局设计审查task，也是architecture、ADR、稳定contracts�
 - editorial分类失效时向exact source Direct owner返回`EDITORIAL_CLASSIFICATION_INVALID`；
 - 接受时在自己的design integration branch集成并验证；remote push和design PR由exact UD执行，或由UD在mutation前签发的一次性精确binding交host transport执行；UD read-after-write后发布`DESIGN_PR_READY`；
 - Human确认merge后，exact UD重新验证binding并亲自执行Merge Commit；确需host transport时，由UD先签发一次性精确remote execution binding，host按binding执行，UD再read-after-write验证exact remote state与main CI；
-- `NEW_DESIGN` Proposal的main CI成功后必须在同一UD task进入`ACTIVATION_DECISION_READY`，重新评估并主动建议`Direct | SINGLE_FEATURE | DELIVERY_STAGE | NO_EXECUTION`；`EXISTING_DELIVERY_DESIGN_GAP`改为把resolution返回并恢复exact existing delivery owner；editorial入口通知exact source并进入自身cleanup-ready；
+- `NEW_DESIGN` Proposal的main CI成功后必须在同一UD task进入`ACTIVATION_DECISION_READY`，重新评估并主动建议`Direct | SINGLE_FEATURE | DELIVERY_STAGE | NO_EXECUTION`；`EXISTING_DELIVERY_DESIGN_GAP`把resolution返回并恢复exact existing delivery owner；`ACTIVE_ACTIVATION_DESIGN_REVISION`只恢复exact原activation owner与pending child并禁止重复activation card；editorial入口通知exact source并进入自身cleanup-ready；
 - 只有`NEW_DESIGN`经Human确认启动且pre-create runtime-profile launcher达到`RUNTIME_PROFILE_LAUNCH_READY`后才创建exact delivery owner，并在target-session profile验证与两阶段handoff完成前保持activation owner；existing-delivery resume不得创建replacement owner；
 - 发送coverage/cleanup通知不转移workflow或Git ownership。
 
@@ -177,9 +177,13 @@ ordinary discussion
          -> exact existing delivery owner -> DELIVERY_RESUME_VALIDATED
          -> exact affected owner resumes
          | guard mismatch -> DELIVERY_REPLAN_REQUIRED -> Human
+     | ACTIVE_ACTIVATION_DESIGN_REVISION -> ACTIVE_ACTIVATION_REVISION_RESOLVED
+         -> exact original activation owner -> EXACT_ACTIVATION_CONTINUATION_VALIDATING
+         | guards pass -> same pending child profile repair -> HANDOFF_VERIFIED
+         | guards fail -> ACTIVATION_CONTINUATION_INVALID -> ACTIVATION_REPLAN_REQUIRED
 ```
 
-`NEW_DESIGN`的`MAIN_CI_PASSED`自动进入`ACTIVATION_DECISION_READY`，UD主动显示动态执行建议；Human不需要回到请求来源或Design Owner再次说implement。`EXISTING_DELIVERY_DESIGN_GAP`不进入activation，也不创建Direct/FL/SL：UD把exact resolution binding返回`originDeliveryOwnerTaskId`，原owner验证continuation guards后恢复受影响lane。`CANONICAL_MERGED`仍作为coverage/cleanup通知发送给exact Design Owner；通知不转移delivery ownership。Editorial入口不进入上述任一分支：main CI后UD发送`CANONICAL_EDITORIAL_MERGED`给exact source Direct owner并进入`UD_CLEANUP_READY`。
+`NEW_DESIGN`的`MAIN_CI_PASSED`自动进入`ACTIVATION_DECISION_READY`，UD主动显示动态执行建议；Human不需要回到请求来源或Design Owner再次说implement。`EXISTING_DELIVERY_DESIGN_GAP`不进入activation，也不创建Direct/FL/SL：UD把exact resolution binding返回`originDeliveryOwnerTaskId`，原owner验证continuation guards后恢复受影响lane。`ACTIVE_ACTIVATION_DESIGN_REVISION`同样不进入activation card：UD仍是exact activation owner，main CI后创建old truth -> new canonical merge的resolution overlay，复核原root authorization、handoff binding与pending child后只恢复同一handoff；guard失败进入一次`ACTIVATION_REPLAN_REQUIRED`。`CANONICAL_MERGED`仍作为coverage/cleanup通知发送给exact Design Owner；通知不转移delivery ownership。Editorial入口不进入上述任一分支：main CI后UD发送`CANONICAL_EDITORIAL_MERGED`给exact source Direct owner并进入`UD_CLEANUP_READY`。
 
 ### 3.4 Typed routing
 
@@ -188,6 +192,9 @@ ordinary discussion
 - `CANONICAL_MERGED`：UD -> exact Design Owner，仅Proposal coverage和Design Owner cleanup eligibility；
 - `CANONICAL_EDITORIAL_MERGED`：UD -> exact source Direct owner，仅editorial coverage和source Change Set closure；
 - `ACTIVATION_DECISION_READY`：仅`NEW_DESIGN`保留在UD并询问Human；
+- `ACTIVE_ACTIVATION_REVISION_RESOLVED`：UD -> exact original activation owner，绑定old truth -> new canonical merge、main CI、原activation/root/handoff/pending-child fingerprints和resolution fingerprint，不创建新owner或新activation；
+- `ACTIVATION_CONTINUATION_INVALID`：continuation validator -> exact activation owner，只列出失效guard和保留资源；
+- `ACTIVATION_REPLAN_REQUIRED`：exact activation owner -> Human，仅在active-activation continuation guard失败时显示一次保留原pending child优先的replan卡；
 - `DESIGN_GAP_RESOLVED`：UD -> exact `originDeliveryOwnerTaskId`，携带exact canonical merge SHA、main CI结果、old truth SHA -> new truth SHA、`affectedOwnerTaskIds`与resolution fingerprint，不转移delivery owner；
 - `DELIVERY_RESUME_VALIDATED`：exact existing delivery owner -> exact `affectedOwnerTaskIds`，只恢复受影响lane；
 - `DELIVERY_REPLAN_REQUIRED`：exact existing delivery owner -> Human，仅在continuation guard失败时展示保留原owner优先的replan选项；
@@ -230,7 +237,7 @@ Proposal至少绑定：
 
 ```text
 proposalId = designOwnerTaskId + proposalCommit
-proposalEntryType = NEW_DESIGN | EXISTING_DELIVERY_DESIGN_GAP
+proposalEntryType = NEW_DESIGN | EXISTING_DELIVERY_DESIGN_GAP | ACTIVE_ACTIVATION_DESIGN_REVISION
 designOwnerTaskId
 baseCommit
 proposalCommit
@@ -263,13 +270,37 @@ resourceSetFingerprint
 returnTargetTaskId
 ```
 
+`ACTIVE_ACTIVATION_DESIGN_REVISION`必须逐字段继承尚未完成handoff的原activation binding：
+
+```text
+activationOwnerTaskId
+directExecutionParentTaskId
+activationTransitionId
+rootAuthorizationSha256
+rootAuthorizationFingerprint
+rootAuthorizationStateVersion
+handoffBindingSha256
+handoffBindingFingerprint
+handoffBindingStateVersion
+pendingChildTaskId
+pendingChildExpectedTitle
+pendingChildExpectedState = HANDOFF_PENDING
+priorTruthBaseline
+activationResourceSet
+originalScopeFingerprint
+originalCapabilityFingerprint
+originalTopologyAndWipFingerprint
+```
+
+root authorization、handoff binding与pending child保持immutable；Design Revision使用独立new stateVersion。任何activation owner/parent/transition、两类SHA/fingerprint、各层stateVersion、pending child identity/state/resource、scope/capability/topology/WIP或prior truth漂移均使automatic continuation失效，不能把该entry重解释成`NEW_DESIGN`。
+
 这些字段来自发起design gap时的exact delivery owner，Design Owner只能复读和绑定，不能删除provenance、把原owner降为evidence source、选择replacement owner，或把active Stage/Feature包装成new delivery。design subflow期间原SL/FL保持delivery ownership，Stage/Feature Packets、branches/worktrees、PRs、candidates和仍有效evidence全部保留；只暂停affected lane，未受影响work可按原authorization继续，所有相关cleanup都不合格。
 
 `previewFingerprint`是Human看到的完整Preview exact UTF-8 bytes（LF换行且以一个LF结尾）的SHA-256。`scopeFingerprint`是按key排序、无多余空白的UTF-8 JSON对象`{intendedCanonicalFiles, semanticChanges, protectedScope}`的SHA-256。`rootConfirmationFingerprint`是同样规范化的JSON对象`{issuingTaskId, cardIndex, stateVersion, previewFingerprint, baseCommit, scopeFingerprint, designOwnerTaskId, stopPoint, confirmationResult}`的SHA-256，其中`confirmationResult`必须为`HUMAN_CONFIRMED`。revision必须使用new card index、new transition和new root confirmation fingerprint，并形成append-only Proposal commit。
 
 Design Owner→UD的Proposal envelope必须逐字段携带上述指纹和state/transition binding。UD先验证Proposal commit的parent/base、diff与Preview scope、source owner以及三类fingerprint；任一缺失或不一致即返回`REVISION_REQUIRED`。相同transition与完全相同binding只复用原结果；同一transition出现不同commit、fingerprint、scope、owner或state时拒绝replay，且不创建integration资源。
 
-`deliveryHint`只供post-merge评估，不预授权、禁止或固定实现；本治理Proposal可使用`NO_EXECUTION`明确表示合并本身没有delivery工作。Proposal只承载稳定设计真相；Human确认Preview后，Design Owner形成并提交exact Proposal，UD随即审核。有blocker时返回`REVISION_REQUIRED`；接受时UD拥有canonical integration branch/worktree、验证、push和design PR并停止于`DESIGN_PR_READY`。merge、`NEW_DESIGN` delivery activation、failed continuation guard的replan和cleanup是独立Human边界；exact existing-delivery resume沿用原authorization。
+`deliveryHint`只供post-merge评估，不预授权、禁止或固定实现；本治理Proposal可使用`NO_EXECUTION`明确表示合并本身没有delivery工作。Proposal只承载稳定设计真相；Human确认Preview后，Design Owner形成并提交exact Proposal，UD随即审核。有blocker时返回`REVISION_REQUIRED`；接受时UD拥有canonical integration branch/worktree、验证、push和design PR并停止于`DESIGN_PR_READY`。merge、`NEW_DESIGN` delivery activation、failed continuation guard的replan和cleanup是独立Human边界；exact existing-delivery resume与exact active-activation revision continuation沿用各自原authorization。
 
 ### 4.2 Post-merge assessment
 
@@ -296,6 +327,18 @@ Human确认design PR merge且exact main CI成功后，UD先按`proposalEntryType
 
 全部成立时，该动作是既有Human authorization的continuation，不新增Human gate。任一失败进入`DELIVERY_REPLAN_REQUIRED`，禁止静默创建新SL/FL；Human只选择继续原owner、明确终止旧owner后创建replacement、暂缓或查看证据。
 
+`ACTIVE_ACTIVATION_DESIGN_REVISION`跳过shape assessment和activation card。UD在exact design merge与main CI后创建`ACTIVATION_REVISION_RESOLUTION` overlay，保持原root authorization与handoff binding不可变，只绑定`priorTruthBaseline -> newCanonicalMerge`、exact changed canonical files、main CI、resolution fingerprint与new continuation state/version。只有以下guards全部成立时，才发布`ACTIVE_ACTIVATION_REVISION_RESOLVED`并恢复exact pending child：
+
+- exact activation owner与direct parent仍匹配，原activation transition未变；
+- root authorization与handoff binding的SHA/fingerprint/stateVersion完全匹配；
+- pending child task/title/parent仍精确，保持`HANDOFF_PENDING`，未接受、未验证、未成为delivery owner；
+- 没有Stage Packet、Stage/Feature branch/worktree、FL/IT/RI、candidate或其他role-owned resource，pending child worktree clean；
+- prior truth是new canonical main祖先，new canonical merge精确包含该Proposal且main CI通过；
+- 原objective、scope/protected scope、capabilities、topology、delegation/WIP ceiling、allowed resources与Human activation fingerprint未变；
+- Human未pause、defer、abandon、terminate、archive或authorize replacement。
+
+guards通过后，same-task live profile repair优先，且fresh target turn必须完成4.5的target-session readback/smoke；不支持时只进入`PENDING_CHILD_TERMINATION_REQUIRED`，在Human独立确认与`PENDING_CHILD_TERMINATED_VERIFIED`前禁止replacement。任一guard失败返回`ACTIVATION_CONTINUATION_INVALID -> ACTIVATION_REPLAN_REQUIRED`，保留exact pending child和可识别资源，不重新发`ACTIVATION_DECISION_READY`。
+
 ### 4.3 Authorization envelope 与 parent assignment
 
 Human确认只绑定发卡task的exact state和card fingerprint。跨task分为：
@@ -303,7 +346,7 @@ Human确认只绑定发卡task的exact state和card fingerprint。跨task分为�
 1. Human authorization envelope：Design Owner -> UD、Direct editorial source -> UD、UD -> Direct/FL/SL、decision owner -> Recovery Design/FL；
 2. parent assignment：SL -> FL/Stage RI、FL -> IT/Feature RI，仅在已确认拓扑内收窄scope；System Review只使用显式全系统scope和exact direct parent。
 
-每个Human authorization envelope至少绑定：source task、target task/role、objective、scope/protected scope、固定语义`truthBaseline`、移动`integrationBasePolicy`、candidate、allowed resources、`executionCapabilities = NONE | BOUNDED_SET`、expected state、state version、root confirmation fingerprint、transition id、stop point和typed result。Design Owner→UD Proposal envelope还必须绑定exact `proposalEntryType`、`previewFingerprint`、`scopeFingerprint`、base/proposal commit和intended canonical files；`EXISTING_DELIVERY_DESIGN_GAP`还必须携带4.1列明的完整existing-delivery provenance；Direct editorial source→UD必须绑定classification fingerprint、exact files/hunks和source notice target。非delivery Proposal/editorial envelope使用`NONE`；UD→Direct/FL/SL和Recovery delivery envelope使用完成stop point所需的`BOUNDED_SET`。Stage root envelope还绑定child role topology policy、delegation/WIP ceiling与自动partition条件；parent assignment至少绑定其root envelope fingerprint及收窄后的同类字段。envelope不转发，assignment不扩权；child的effective set必须落在Human-confirmed root topology policy为该child role绑定的delegation/WIP ceiling内，而不是继承creating parent自身的effective set。
+每个Human authorization envelope至少绑定：source task、target task/role、objective、scope/protected scope、固定语义`truthBaseline`、移动`integrationBasePolicy`、candidate、allowed resources、`executionCapabilities = NONE | BOUNDED_SET`、expected state、state version、root confirmation fingerprint、transition id、stop point和typed result。Design Owner→UD Proposal envelope还必须绑定exact `proposalEntryType`、`previewFingerprint`、`scopeFingerprint`、base/proposal commit和intended canonical files；`EXISTING_DELIVERY_DESIGN_GAP`还必须携带4.1列明的完整existing-delivery provenance；`ACTIVE_ACTIVATION_DESIGN_REVISION`必须携带4.1列明的exact activation/root/handoff/pending-child binding、各层stateVersion、prior truth与resource set；Direct editorial source→UD必须绑定classification fingerprint、exact files/hunks和source notice target。非delivery Proposal/editorial envelope使用`NONE`；UD→Direct/FL/SL和Recovery delivery envelope使用完成stop point所需的`BOUNDED_SET`。Stage root envelope还绑定child role topology policy、delegation/WIP ceiling与自动partition条件；parent assignment至少绑定其root envelope fingerprint及收窄后的同类字段。envelope不转发，assignment不扩权；child的effective set必须落在Human-confirmed root topology policy为该child role绑定的delegation/WIP ceiling内，而不是继承creating parent自身的effective set。
 
 `UD_REMOTE_EXECUTION_BINDING`只用于exact UD需要独立host transport执行design remote mutation的情形，且必须在任何remote mutation前由issuing UD创建。它至少绑定issuing UD task、entry type、exact PR或待创建PR、base ref/SHA、head ref/SHA、允许的单一action、merge method、required checks、expected remote state、transition id、single-use nonce、invalidation conditions、stop point和`UD_REMOTE_EXECUTION_RESULT`返回目标。只有issuing UD可创建或替换binding；Design Owner、request origin、parent、其他task或Human转述确认均不生成remote authority。host只执行exact binding并返回literal result；issuing UD必须read-after-write后才能发布状态。缺少pre-binding、SHA/state漂移、nonce复用或先执行后补binding均属于owner-boundary violation，立即停止；事后review不修复该顺序。
 
@@ -560,7 +603,7 @@ SL 可为 Stage Review 创建 clean-context Stage RI；SL 或 Stage RI 只读精
 - 普通讨论、status/evidence读取和exact resume；
 - 已确认Direct scope内的修改、focused verification、push与PR创建，停止于`PR_READY`；
 - confirmed Proposal的UD串行review、integration、verification、push和design PR创建，停止于`DESIGN_PR_READY`；
-- Proposal design merge/main CI后UD发送`CANONICAL_MERGED`；`NEW_DESIGN`进入`ACTIVATION_DECISION_READY`，`EXISTING_DELIVERY_DESIGN_GAP`自动向exact existing delivery owner发送`DESIGN_GAP_RESOLVED`并验证resume guards；editorial merge/main CI后发送`CANONICAL_EDITORIAL_MERGED`并进入`UD_CLEANUP_READY`；
+- Proposal design merge/main CI后UD发送`CANONICAL_MERGED`；`NEW_DESIGN`进入`ACTIVATION_DECISION_READY`，`EXISTING_DELIVERY_DESIGN_GAP`自动向exact existing delivery owner发送`DESIGN_GAP_RESOLVED`并验证resume guards，`ACTIVE_ACTIVATION_DESIGN_REVISION`自动向exact原activation owner发送`ACTIVE_ACTIVATION_REVISION_RESOLVED`并验证continuation guards；editorial merge/main CI后发送`CANONICAL_EDITORIAL_MERGED`并进入`UD_CLEANUP_READY`；
 - Human确认`NEW_DESIGN` activation后，UD先完成pre-create profile bootstrap，达到`RUNTIME_PROFILE_LAUNCH_READY`才创建recommended Direct/FL/SL并执行target-session验证与两阶段handoff；existing-delivery resolution在原授权不变时不新增Human gate或owner；
 - confirmed capability set内且由effective project profile兑现的owner worktree/file写入、owner local Git与允许的remote branch/PR操作、repository标准package/build/test、task-owned process/container/local test database和approved network操作；低风险platform approval由auto-review处理，正常用户权限弹窗为零；
 - `main`前进时自动fetch并刷新`integrationBase`，验证已绑定canonical merge仍是latest `origin/main`祖先，按drift/affected-test matrix集成变化并复用仍有效证据；普通代码冲突返回artifact owner，只有新的冻结语义冲突才再次路由`DESIGN_GAP`；
@@ -575,7 +618,7 @@ Human routine gate仅有四类：
 
 1. 确认完整Proposal Preview，或创建/扩围其他有状态Direct/Feature/Stage owner、资源和execution capabilities；
 2. 每个main merge；
-3. `NEW_DESIGN`的UD post-merge delivery activation；existing-delivery continuation guard失败时改用一次`DELIVERY_REPLAN_REQUIRED`异常卡；
+3. `NEW_DESIGN`的UD post-merge delivery activation；existing-delivery continuation guard失败时改用一次`DELIVERY_REPLAN_REQUIRED`异常卡，active-activation revision guard失败时改用一次`ACTIVATION_REPLAN_REQUIRED`异常卡；
 4. owner cleanup/abandonment；
 
 阻塞性业务/语义决定只在确有选择时请求Human；精确Recovery接管只在原owner缺失或资源失配时请求Human。二者是异常处置，不新增每步process gate。一次Proposal Preview确认覆盖Design Owner写入、Proposal提交和UD创建design PR并停止于`DESIGN_PR_READY`；其他owner启动确认覆盖预列明拓扑、execution capability summary和stop point。ordinary discussion、moving-main无语义刷新、相同binding重试、已声明能力的environment/profile repair以及预授权child assignment不重复确认。任何scope内platform approval先记为`EXECUTION_PROFILE_DEFECT`并自动修复；执行中超出binding的真实需求才合并为一张`PERMISSION_EXPANSION_REQUIRED`卡，避免按命令、文件、service或Git action连续打断。
@@ -709,7 +752,7 @@ PR CI 与 main push CI 是两个独立 gate。
 
 普通Direct在PR merge、exact main CI和main validation后进入`CLEANUP_READY`；Human确认后只清理卡中exact clean/merged/SHA-matched资源。Editorial source收到`CANONICAL_EDITORIAL_MERGED`后验证exact files/hunks coverage并关闭自己的无Git Change Set；该closure不清理UD资源，也不触发delivery activation。
 
-Proposal入口：UD在design merge与main CI后立即幂等发送`CANONICAL_MERGED`给exact Design Owner。`NEW_DESIGN`进入`ACTIVATION_DECISION_READY`；Human选择`DEFER`进入`EXECUTION_DEFERRED`，或新delivery owner达到`HANDOFF_VERIFIED`后，UD才进入`UD_CLEANUP_READY`。`EXISTING_DELIVERY_DESIGN_GAP`发送`DESIGN_GAP_RESOLVED`给exact original delivery owner；该owner返回`DELIVERY_RESUME_VALIDATED`或进入`DELIVERY_REPLAN_REQUIRED`后，UD进入自身cleanup-ready，绝不清理或接管原delivery资源。Editorial入口：main CI后UD幂等发送`CANONICAL_EDITORIAL_MERGED`给exact source Direct owner并直接进入`UD_CLEANUP_READY`；不存在Design Owner或activation card。UD cleanup只移除本次integration branch/worktree/remote branch，长期UD task和locator保留；deferred implementation以后仍可由UD从exact truth重新激活。
+Proposal入口：UD在design merge与main CI后立即幂等发送`CANONICAL_MERGED`给exact Design Owner。`NEW_DESIGN`进入`ACTIVATION_DECISION_READY`；Human选择`DEFER`进入`EXECUTION_DEFERRED`，或新delivery owner达到`HANDOFF_VERIFIED`后，UD才进入`UD_CLEANUP_READY`。`EXISTING_DELIVERY_DESIGN_GAP`发送`DESIGN_GAP_RESOLVED`给exact original delivery owner；该owner返回`DELIVERY_RESUME_VALIDATED`或进入`DELIVERY_REPLAN_REQUIRED`后，UD进入自身cleanup-ready。`ACTIVE_ACTIVATION_DESIGN_REVISION`发送`ACTIVE_ACTIVATION_REVISION_RESOLVED`给exact原activation owner；原pending child达到`HANDOFF_VERIFIED`，或guards失败进入`ACTIVATION_REPLAN_REQUIRED`后，UD进入自身cleanup-ready。两类continuation都绝不清理或接管其他owner资源。Editorial入口：main CI后UD幂等发送`CANONICAL_EDITORIAL_MERGED`给exact source Direct owner并直接进入`UD_CLEANUP_READY`；不存在Design Owner或activation card。UD cleanup只移除本次integration branch/worktree/remote branch，长期UD task和locator保留；deferred implementation以后仍可由UD从exact truth重新激活。
 
 Design Owner收到`CANONICAL_MERGED`后验证Proposal coverage。Human在Design Owner task确认后清理proposal branch/worktree和active locator；仍有开放问题则保留task/Workspace，全部冻结才删除已承接内容并archive。Design Owner和UD互不清理对方资源。
 
@@ -836,13 +879,15 @@ Stage完成后的批量cleanup只显示一张卡：
 
 选项1只更新卡中列明的binding并继续exact original owner；选项2必须先完成旧owner的独立终止/cleanup边界，再由UD用new authorization创建replacement；选项3保留全部资源。任何选项都不得把旧owner静默降为evidence source或由UD直接创建新SL/FL。
 
+`ACTIVE_ACTIVATION_DESIGN_REVISION`也不显示上述activation card。guards全部通过时UD只显示只读结果“activation设计修订已合并，正在恢复原pending owner handoff”，并优先same-task live profile repair。guards失败时exact activation owner显示一张`ACTIVATION_REPLAN_REQUIRED`卡：继续exact pending child、独立终止后replacement、暂缓、查看证据；任何选择都不得在`PENDING_CHILD_TERMINATED_VERIFIED`前创建replacement。
+
 #### 9.7.4 编号、绑定与失效
 
 卡index在task内单调递增且不复用。只有一张latest有效待确认卡时，单独`1`或`2`执行状态变更；`3/4`按卡语义只读或显式继续设计。新意图、新卡、执行、取消、binding/state变化使旧卡失效。每次执行前后校验expected state/version、owner、truth/candidate、scope fingerprint、resources和postcondition；相同transition重复只复用原结果。
 
 #### 9.7.5 Typed routing
 
-`ASSIGNMENT_RESULT`只返回direct execution parent；其中`FEATURE_REPLAN_REQUIRED`只由FL返回exact parent SL，SL在root authorization/delegation ceiling内自动处理并只发`STATUS_NOTICE`，不返回UD、request origin、祖先task或Human；真实扩围改走`PERMISSION_EXPANSION_REQUIRED`，不可消解owner/write冲突或阻塞性业务取舍走既有typed route；`UD_REMOTE_EXECUTION_RESULT`只返回exact issuing UD且不发布canonical状态；`REMOTE_DRIVER_RESULT`只返回exact issuing artifact owner；`EXECUTION_ENVIRONMENT_NOT_READY`只返回exact creating parent且不转移owner；`EXECUTION_PROFILE_DEFECT`保留exact current owner并只返回creating/current owner自动修复；`PERMISSION_EXPANSION_REQUIRED`在root handoff前返回exact activation owner、child accept前返回exact creating delivery parent，handoff后保留在exact current delivery owner；`BUSINESS_DECISION_REQUIRED`只到exact decision owner；`REVISION_REQUIRED`和`DESIGN_CONTINUATION_REQUIRED`只到exact Design Owner；`EDITORIAL_CLASSIFICATION_INVALID`与`CANONICAL_EDITORIAL_MERGED`只到exact source Direct owner；`ACTIVATION_DECISION_READY`仅为`NEW_DESIGN`保留在UD；`DESIGN_GAP_RESOLVED`返回exact existing delivery owner，`DELIVERY_RESUME_VALIDATED`只到exact affected owners，`DELIVERY_REPLAN_REQUIRED`只由exact existing delivery owner询问Human；`STATUS_NOTICE/CANONICAL_MERGED/CANONICAL_EDITORIAL_MERGED`只通知，不转移owner。不存在generic callback或祖先默认路由。
+`ASSIGNMENT_RESULT`只返回direct execution parent；其中`FEATURE_REPLAN_REQUIRED`只由FL返回exact parent SL，SL在root authorization/delegation ceiling内自动处理并只发`STATUS_NOTICE`，不返回UD、request origin、祖先task或Human；真实扩围改走`PERMISSION_EXPANSION_REQUIRED`，不可消解owner/write冲突或阻塞性业务取舍走既有typed route；`UD_REMOTE_EXECUTION_RESULT`只返回exact issuing UD且不发布canonical状态；`REMOTE_DRIVER_RESULT`只返回exact issuing artifact owner；`EXECUTION_ENVIRONMENT_NOT_READY`只返回exact creating parent且不转移owner；`EXECUTION_PROFILE_DEFECT`保留exact current owner并只返回creating/current owner自动修复；`PERMISSION_EXPANSION_REQUIRED`在root handoff前返回exact activation owner、child accept前返回exact creating delivery parent，handoff后保留在exact current delivery owner；`BUSINESS_DECISION_REQUIRED`只到exact decision owner；`REVISION_REQUIRED`和`DESIGN_CONTINUATION_REQUIRED`只到exact Design Owner；`EDITORIAL_CLASSIFICATION_INVALID`与`CANONICAL_EDITORIAL_MERGED`只到exact source Direct owner；`ACTIVATION_DECISION_READY`仅为`NEW_DESIGN`保留在UD；`DESIGN_GAP_RESOLVED`返回exact existing delivery owner，`DELIVERY_RESUME_VALIDATED`只到exact affected owners，`DELIVERY_REPLAN_REQUIRED`只由exact existing delivery owner询问Human；`ACTIVE_ACTIVATION_REVISION_RESOLVED`和`ACTIVATION_CONTINUATION_INVALID`只到exact原activation owner，`ACTIVATION_REPLAN_REQUIRED`只由该owner询问Human；`STATUS_NOTICE/CANONICAL_MERGED/CANONICAL_EDITORIAL_MERGED`只通知，不转移owner。不存在generic callback或祖先默认路由。
 
 所有main变更继续使用artifact-owner branch、PR、required CI、Human Merge Commit和main验证。任何owner只清理自己的exact资源。
 
@@ -922,6 +967,16 @@ UD_REVIEW -> UD_INTEGRATION_VERIFIED
            -> AFFECTED_DELIVERY_RESUMED
            -> UD_CLEANUP_READY
        | guards fail -> DELIVERY_REPLAN_REQUIRED -> Human decision
+   | ACTIVE_ACTIVATION_DESIGN_REVISION -> ACTIVE_ACTIVATION_REVISION_RESOLVED
+       -> EXACT_ACTIVATION_CONTINUATION_VALIDATING
+       | guards pass -> same pending child -> SAME_TASK_PROFILE_REPAIR_PENDING
+           | live repair supported -> TARGET_SESSION_PROFILE_VERIFIED
+               -> HANDOFF_ACCEPTED -> HANDOFF_VERIFIED -> UD_CLEANUP_READY
+           | unsupported -> PENDING_CHILD_TERMINATION_REQUIRED
+               -> TERMINATION_CONFIRMED -> PENDING_CHILD_TERMINATED_VERIFIED
+               -> RUNTIME_PROFILE_BOOTSTRAP_PENDING
+       | guards fail -> ACTIVATION_CONTINUATION_INVALID
+           -> ACTIVATION_REPLAN_REQUIRED -> Human decision -> UD_CLEANUP_READY
 ```
 
 Editorial integration：
@@ -938,7 +993,7 @@ UD_EDITORIAL_REVIEW
           | UD -> UD_CLEANUP_READY
 ```
 
-`CANONICAL_MERGED`只在Proposal的`MAIN_CI_PASSED`后幂等发送给exact Design Owner；它与post-merge routing并行且不转移owner。`CANONICAL_EDITORIAL_MERGED`只用于editorial source closure。`EXISTING_DELIVERY_DESIGN_GAP`的same resolution binding重复到达只复用原`DELIVERY_RESUME_VALIDATED`结果；owner、scope、merge、authorization或resource fingerprint不匹配时fail closed。latest main可以前进，但resolution canonical merge必须仍为其祖先；无语义冲突时刷新到latest head并增量验证，新的冻结语义冲突重新进入`DESIGN_GAP`。Routine path无环；只有显式`REVISION_REQUIRED`、`CONTINUE_DESIGN`或delivery `DESIGN_GAP`创建new revision epoch。
+`CANONICAL_MERGED`只在Proposal的`MAIN_CI_PASSED`后幂等发送给exact Design Owner；它与post-merge routing并行且不转移owner。`CANONICAL_EDITORIAL_MERGED`只用于editorial source closure。`EXISTING_DELIVERY_DESIGN_GAP`的same resolution binding重复到达只复用原`DELIVERY_RESUME_VALIDATED`结果；`ACTIVE_ACTIVATION_DESIGN_REVISION`的same resolution binding只复用原activation continuation结果，绝不退回`ACTIVATION_DECISION_READY`。owner、scope、merge、authorization或resource fingerprint不匹配时fail closed。latest main可以前进，但resolution canonical merge必须仍为其祖先；无语义冲突时刷新到latest head并增量验证，新的冻结语义冲突重新进入`DESIGN_GAP`。Routine path无环；只有显式`REVISION_REQUIRED`、`CONTINUE_DESIGN`或delivery `DESIGN_GAP`创建new revision epoch。
 
 Task identity与target-session Capability preflight都是`HANDOFF_ACCEPTED`的guard而非长期owner。`RUNTIME_PROFILE_BOOTSTRAP_PENDING`与`RUNTIME_PROFILE_LAUNCH_READY`是creating owner的transition-local checkpoint，不是全局service/registry；前者不得创建child，后者只允许一次exact create且不替代target-session evidence。`TASK_IDENTITY_INVALID`保持creating parent为owner，禁止role-owned资源mutation，并只允许同一新task的title修正与readback；`EXECUTION_ENVIRONMENT_NOT_READY`保持`HANDOFF_PENDING`和原activation owner；handoff后的`EXECUTION_PROFILE_DEFECT`保持current delivery owner与已授权工作，只暂停受影响operation并自动修复profile/host；`PERMISSION_EXPANSION_REQUIRED`只暂停真实越界操作。
 
