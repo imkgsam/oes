@@ -1,9 +1,15 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
-import { tmpdir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { canonicalJson, objectFingerprint, sha256 } from '../src/canonical.ts'
+import {
+  GitHubRemoteAdapter,
+  type CommandResult,
+  type CommandRunner
+} from '../src/github-adapter.ts'
 import { validateJsonSchema } from '../src/schema-validation.ts'
 import {
   planOwnerRecovery,
@@ -11,6 +17,7 @@ import {
   readInstalledProfileResourceTopology,
   recoverOwnerResources,
   resolveOwnerTransitionBinding,
+  SystemOwnerRecoveryAdapter,
   validateOwnerCheckpointBundle,
   validateOwnerResourceBinding,
   verifyStableOwnerResourceObservation
@@ -22,12 +29,21 @@ import type {
   OwnerResourceBinding,
   OwnerResourceObservation
 } from '../src/resource-topology.types.ts'
+import type { RemoteTruth } from '../src/types.ts'
+import { remoteBinding } from './helpers.ts'
 
 const schema = (name: string) =>
   JSON.parse(readFileSync(join(import.meta.dirname, '..', 'schemas', name), 'utf8')) as Record<
     string,
     unknown
   >
+
+/** Runs one local Git command and returns its literal stdout. */
+function git(cwd: string, args: string[]): string {
+  const result = spawnSync('git', args, { cwd, encoding: 'utf8' })
+  assert.equal(result.status, 0, `${args.join(' ')}: ${result.stderr}`)
+  return result.stdout.trim()
+}
 
 /** Creates one structurally stable frozen owner binding for contract tests. */
 function stableBinding(overrides: Partial<OwnerResourceBinding> = {}): OwnerResourceBinding {
@@ -371,6 +387,162 @@ test('stable reboot and temp loss restore only the exact owner and become idempo
       ),
     /OWNER_RECOVERY_DURABILITY_INPUT_MISMATCH/
   )
+})
+
+test('system recovery restores the canonical origin accepted by remote preflight', async (t) => {
+  const root = mkdtempSync(join(homedir(), '.oes-stable-recovery-test-'))
+  const scratch = mkdtempSync(join(tmpdir(), 'oes-stable-recovery-scratch-'))
+  t.after(() => {
+    rmSync(root, { recursive: true, force: true })
+    rmSync(scratch, { recursive: true, force: true })
+  })
+  const source = join(root, 'source')
+  const ownerClone = join(root, 'owner')
+  const artifactRoot = join(root, 'artifacts')
+  mkdirSync(join(source, 'docs', 'plans', 'features'), { recursive: true })
+  mkdirSync(artifactRoot, { recursive: true })
+  git(source, ['init', '-b', 'codex/feature/runtime'])
+  git(source, ['config', 'user.email', 'runtime@example.test'])
+  git(source, ['config', 'user.name', 'Runtime Test'])
+  const packetBytes = '# Runtime\n'
+  writeFileSync(join(source, 'docs', 'plans', 'features', 'runtime.md'), packetBytes)
+  git(source, ['add', 'docs/plans/features/runtime.md'])
+  git(source, ['commit', '-m', 'fixture'])
+  const headSha = git(source, ['rev-parse', 'HEAD'])
+  const gitBundlePath = join(artifactRoot, 'owner.bundle')
+  git(source, ['bundle', 'create', gitBundlePath, 'codex/feature/runtime'])
+
+  const binding = stableBinding({
+    repositoryRoot: ownerClone,
+    ownerClone,
+    ownerGitDirectory: join(ownerClone, '.git'),
+    artifactRoot,
+    taskTempRoot: scratch,
+    featurePacketCheckpointPath: join(artifactRoot, 'feature-packet.md'),
+    currentEvidenceManifestPath: join(artifactRoot, 'current-evidence-manifest.json'),
+    checkpointBundlePath: join(artifactRoot, 'checkpoint-bundle.json'),
+    gitBundlePath
+  })
+  writeFileSync(binding.featurePacketCheckpointPath, packetBytes)
+  const current = manifest(binding)
+  current.candidateSha = headSha
+  current.featurePacket.sha256 = sha256(packetBytes)
+  current.manifestFingerprint = objectFingerprint(
+    current as unknown as Record<string, unknown>,
+    'manifestFingerprint'
+  )
+  const manifestBytes = `${canonicalJson(current)}\n`
+  writeFileSync(binding.currentEvidenceManifestPath, manifestBytes)
+  const bundle = checkpoint(binding, current)
+  bundle.headSha = headSha
+  bundle.currentEvidenceManifest.sha256 = sha256(manifestBytes)
+  if (bundle.gitBundle) bundle.gitBundle.sha256 = sha256(readFileSync(gitBundlePath))
+  bundle.bundleFingerprint = objectFingerprint(
+    bundle as unknown as Record<string, unknown>,
+    'bundleFingerprint'
+  )
+  writeFileSync(binding.checkpointBundlePath, `${canonicalJson(bundle)}\n`)
+
+  rmSync(scratch, { recursive: true, force: true })
+  const adapter = new SystemOwnerRecoveryAdapter()
+  const plan = await recoverOwnerResources(
+    {
+      ownerTaskId: binding.ownerTaskId,
+      transitionId: binding.transitionId,
+      ownerRef: binding.ownerRef,
+      binding,
+      manifest: current,
+      checkpointBundle: bundle,
+      observation: adapter.observe(binding)
+    },
+    adapter
+  )
+  assert.equal(plan.decision, 'RESTORE_EXACT_OWNER_CLONE')
+  assert.equal(git(ownerClone, ['remote', 'get-url', 'origin']), binding.repositoryRemoteUrl)
+
+  const ruleset = {
+    bypass_actors: [],
+    conditions: { ref_name: { include: ['~DEFAULT_BRANCH'], exclude: [] } },
+    rules: [
+      { type: 'deletion' },
+      { type: 'non_fast_forward' },
+      {
+        type: 'pull_request',
+        parameters: {
+          required_approving_review_count: 0,
+          required_review_thread_resolution: true,
+          allowed_merge_methods: ['merge']
+        }
+      },
+      {
+        type: 'required_status_checks',
+        parameters: {
+          strict_required_status_checks_policy: true,
+          required_status_checks: [{ context: 'Baseline Checks' }]
+        }
+      }
+    ]
+  }
+  const runner: CommandRunner = {
+    run(command: string, args: string[], cwd: string): CommandResult {
+      if (command === 'git') {
+        const result = spawnSync('git', args, { cwd, encoding: 'utf8' })
+        return {
+          stdout: result.stdout ?? '',
+          stderr: result.stderr ?? '',
+          exitCode: result.status ?? 1
+        }
+      }
+      const endpoint = args[1] ?? ''
+      const value = endpoint === 'repos/example/oes'
+        ? {
+            default_branch: 'main',
+            delete_branch_on_merge: false,
+            allow_merge_commit: true,
+            allow_squash_merge: false,
+            allow_rebase_merge: false,
+            allow_auto_merge: false
+          }
+        : endpoint.includes('/rulesets?')
+          ? [{ id: 7, name: 'protect-main', target: 'branch', enforcement: 'active' }]
+          : endpoint.endsWith('/rulesets/7')
+            ? ruleset
+            : endpoint.endsWith('/actions/permissions/workflow')
+              ? {
+                  default_workflow_permissions: 'read',
+                  can_approve_pull_request_reviews: false
+                }
+              : null
+      return value === null
+        ? { stdout: '', stderr: `unexpected command: ${command} ${args.join(' ')}`, exitCode: 1 }
+        : { stdout: JSON.stringify(value), stderr: '', exitCode: 0 }
+    }
+  }
+  const remote = remoteBinding({
+    action: 'preflight',
+    repositoryRoot: ownerClone,
+    repositorySlug: 'example/oes',
+    integrationBase: headSha,
+    candidateSha: headSha,
+    headRef: 'codex/feature/runtime'
+  })
+  const truth: RemoteTruth = {
+    branchHead: headSha,
+    mergeQueueEntry: null,
+    mainHead: headSha,
+    pullRequest: null,
+    requiredChecks: [],
+    mainParents: [],
+    pullMergeParents: [],
+    reviewGate: {
+      annotations: 0,
+      issueComments: 0,
+      reviewComments: 0,
+      blockingReviews: 0,
+      unresolvedThreads: 0
+    }
+  }
+  await new GitHubRemoteAdapter(runner).preflight(remote, truth)
 })
 
 test('pre-cutover loss preserves the exact original binding instead of creating replacement owner', () => {
