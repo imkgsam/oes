@@ -23,7 +23,7 @@
 
 ### 2.1 Human Decision Owner（HDO）
 
-HDO 是人，不是 Codex task。Human 负责确认完整Proposal Preview或其他有状态owner/resource创建与扩围、每次`main` merge、`NEW_DESIGN`的UD post-merge delivery activation、failed continuation guard的replan以及owner cleanup/abandonment；并处理跨feature业务取舍和阻塞性决定。普通讨论、status/evidence读取、exact existing-delivery resume、相同binding的幂等重试、moving-main自动集成、预授权拓扑内的child assignment和已声明execution capability的环境修复不重复确认。Codex platform的文件、Git、service、database、network或command approval不是业务决定；正常scope内必须由effective profile与auto-review吸收，不转嫁给HDO。
+HDO 是人，不是 Codex task。Human 负责确认完整Proposal Preview、root delivery owner及其Stage/Feature scope/protected scope、execution capabilities、delegation/WIP ceiling与扩围、每次`main` merge、`NEW_DESIGN`的UD post-merge delivery activation、failed continuation guard的replan以及owner cleanup/abandonment；并处理跨feature业务取舍和阻塞性决定。普通讨论、status/evidence读取、exact existing-delivery resume、相同binding的幂等重试、moving-main自动集成、已确认Stage ceiling内的FL topology adjustment/child owner创建、FL内IT assignment和已声明execution capability的环境修复不重复确认。Codex platform的文件、Git、service、database、network或command approval不是业务决定；正常scope内必须由effective profile与auto-review吸收，不转嫁给HDO。
 
 HDO提供业务目标、优先级、不可违反的业务约束和验收判断，不替代技术角色选择方案。技术角色必须把专业判断转化为Human可理解的取舍与证据，不把实现细节或角色调度负担转嫁给HDO。
 
@@ -74,7 +74,7 @@ FL是一个可独立验收feature的临时delivery owner。它从exact truth com
 
 FL按Staff Engineer/Feature Owner级标准对一个完整业务结果负责。它把设计转换为可独立验证的vertical slices，明确每个slice的输入、输出、不变量、依赖、失败处理和验收证据；持续检查集成后的行为、兼容性、可维护性和用户价值，而不是只汇总child commits。它拒绝按技术层机械拆分导致长期半成品、把核心规则放入错误层、把集成问题推给SL或用局部通过冒充feature完成。
 
-FL发现当前scope仍是一个原子feature但串行slice过多时，在既有delegation ceiling内创建写范围隔离的并行IT并保持一个integration owner、candidate、Feature RI和PR；IT不得直接push或创建PR。若scope已出现多个可独立验收、独立PR和独立安全合入`main`的交付物，FL停止扩写并向exact SL返回`FEATURE_REPLAN_REQUIRED`；只有Human确认新的owner topology后，SL才创建sibling FL，FL自身不得创建平级FL。
+FL发现当前scope仍是一个原子feature但串行slice过多时，在既有delegation ceiling内创建写范围隔离的并行IT并保持一个integration owner、candidate、Feature RI和PR；IT不得直接push或创建PR。若scope已出现多个可独立验收、独立PR和独立安全合入`main`的交付物，FL停止扩写并向exact SL返回`FEATURE_REPLAN_REQUIRED`；SL在root Stage authorization与delegation/WIP ceiling内自动验证并创建sibling FL，FL自身不得创建平级FL。只有scope/protected scope/capability/ceiling扩张、不可消解owner/write冲突或阻塞性业务取舍进入Human gate。
 
 ### 2.7 Implementation Task（IT）
 
@@ -194,7 +194,7 @@ ordinary discussion
 - `DESIGN_CONTINUATION_REQUIRED`：UD -> exact Design Owner，开启new revisionEpoch；
 - `UD_REMOTE_EXECUTION_RESULT`：一次性host executor -> exact issuing UD，只返回binding id、literal command/result、exit status和remote readback；不转移owner、不自行发布`DESIGN_PR_READY`、`TRUTH_MERGED`或任何canonical状态；
 - `ASSIGNMENT_RESULT`：IT/RI/FL -> direct execution parent；
-- `FEATURE_REPLAN_REQUIRED`：FL -> exact parent SL，作为`ASSIGNMENT_RESULT`的有界结果；只证明当前scope已经包含多个可独立candidate、Feature RI、PR和安全合入`main`的交付物，保持原FL及其资源并暂停新扩围，由SL向Human展示一次新owner topology卡；
+- `FEATURE_REPLAN_REQUIRED`：FL -> exact parent SL，作为`ASSIGNMENT_RESULT`的有界结果；只证明当前scope已经包含多个可独立candidate、Feature RI、PR和安全合入`main`的交付物，保持原FL及其资源并暂停新扩围，由SL在root Stage authorization与delegation/WIP ceiling内自动重划；只有真实扩围或不可自动处理的冲突/业务决定转为相应Human gate；
 - `EXECUTION_ENVIRONMENT_NOT_READY`：proposed delivery owner -> exact creating parent，仅报告已声明能力未被执行环境兑现的证据并保留原owner/binding；
 - `EXECUTION_PROFILE_DEFECT`：handoff后exact current owner -> exact creating parent/current owner，报告confirmed capability仍触发的platform approval、effective profile与operation category；保持owner/candidate/state并自动修复、迁移或重建profile/host，不转成Human gate；
 - `PERMISSION_EXPANSION_REQUIRED`：root handoff前返回exact activation owner，child accept前返回exact creating delivery parent，handoff后保留在exact current delivery owner；只承载超出confirmed capability/scope的合并请求，不回退祖先task；
@@ -301,7 +301,7 @@ Human确认只绑定发卡task的exact state和card fingerprint。跨task分为�
 1. Human authorization envelope：Design Owner -> UD、Direct editorial source -> UD、UD -> Direct/FL/SL、decision owner -> Recovery Design/FL；
 2. parent assignment：SL -> FL/Stage RI、FL -> IT/Feature RI，仅在已确认拓扑内收窄scope；System Review只使用显式全系统scope和exact direct parent。
 
-每个Human authorization envelope至少绑定：source task、target task/role、objective、scope/protected scope、固定语义`truthBaseline`、移动`integrationBasePolicy`、candidate、allowed resources、`executionCapabilities = NONE | BOUNDED_SET`、expected state、state version、root confirmation fingerprint、transition id、stop point和typed result。Design Owner→UD Proposal envelope还必须绑定exact `proposalEntryType`、`previewFingerprint`、`scopeFingerprint`、base/proposal commit和intended canonical files；`EXISTING_DELIVERY_DESIGN_GAP`还必须携带4.1列明的完整existing-delivery provenance；Direct editorial source→UD必须绑定classification fingerprint、exact files/hunks和source notice target。非delivery Proposal/editorial envelope使用`NONE`；UD→Direct/FL/SL和Recovery delivery envelope使用完成stop point所需的`BOUNDED_SET`。parent assignment至少绑定其root envelope fingerprint及收窄后的同类字段。envelope不转发，assignment不扩权；child的effective set必须落在Human-confirmed topology为该child role绑定的delegation ceiling内，而不是继承creating parent自身的effective set。
+每个Human authorization envelope至少绑定：source task、target task/role、objective、scope/protected scope、固定语义`truthBaseline`、移动`integrationBasePolicy`、candidate、allowed resources、`executionCapabilities = NONE | BOUNDED_SET`、expected state、state version、root confirmation fingerprint、transition id、stop point和typed result。Design Owner→UD Proposal envelope还必须绑定exact `proposalEntryType`、`previewFingerprint`、`scopeFingerprint`、base/proposal commit和intended canonical files；`EXISTING_DELIVERY_DESIGN_GAP`还必须携带4.1列明的完整existing-delivery provenance；Direct editorial source→UD必须绑定classification fingerprint、exact files/hunks和source notice target。非delivery Proposal/editorial envelope使用`NONE`；UD→Direct/FL/SL和Recovery delivery envelope使用完成stop point所需的`BOUNDED_SET`。Stage root envelope还绑定child role topology policy、delegation/WIP ceiling与自动partition条件；parent assignment至少绑定其root envelope fingerprint及收窄后的同类字段。envelope不转发，assignment不扩权；child的effective set必须落在Human-confirmed root topology policy为该child role绑定的delegation/WIP ceiling内，而不是继承creating parent自身的effective set。
 
 `UD_REMOTE_EXECUTION_BINDING`只用于exact UD需要独立host transport执行design remote mutation的情形，且必须在任何remote mutation前由issuing UD创建。它至少绑定issuing UD task、entry type、exact PR或待创建PR、base ref/SHA、head ref/SHA、允许的单一action、merge method、required checks、expected remote state、transition id、single-use nonce、invalidation conditions、stop point和`UD_REMOTE_EXECUTION_RESULT`返回目标。只有issuing UD可创建或替换binding；Design Owner、request origin、parent、其他task或Human转述确认均不生成remote authority。host只执行exact binding并返回literal result；issuing UD必须read-after-write后才能发布状态。缺少pre-binding、SHA/state漂移、nonce复用或先执行后补binding均属于owner-boundary violation，立即停止；事后review不修复该顺序。
 
@@ -327,7 +327,7 @@ OES默认project profile必须按exact owner至少覆盖：当前worktree及解�
 默认能力按owner边界解析：
 
 - FL可写自己的FP、feature integration和assigned slice worktrees；可执行普通local Git操作、把latest `main` merge进owner branch、push exact feature branch并创建/更新自己的PR；可执行仓库标准package/generate/lint/build/test/E2E，启停repository-declared或task-isolated process/container，以及创建、迁移、seed和清理task-owned local/test database或schema；
-- SL可写自己的Stage Packet和coordination resources，创建confirmed topology内的FL/Stage RI，读取exact FL candidates，并为stage acceptance运行相同类型的本地build/test、task-owned service/container和isolated test data；其capability set不授予产品代码写入、产品remote branch、PR或`main` merge；
+- SL可写自己的Stage Packet和coordination resources，在confirmed root topology policy与delegation/WIP ceiling内自动创建或重划FL/Stage RI，读取exact FL candidates，并为stage acceptance运行相同类型的本地build/test、task-owned service/container和isolated test data；其capability set不授予产品代码写入、产品remote branch、PR或`main` merge；
 - IT只继承一个Frozen Slice所需的worktree、commands、services、test data和network；RI默认继承read-only candidate，加上验证输出、task-owned test dependencies和evidence所需的更窄能力；
 - repository标准服务优先使用project-local compose/script或隔离实例。共享开发、staging、production数据库和host-global service不归入默认集合。
 
@@ -438,7 +438,7 @@ READY -> RUNNING -> CANDIDATE_READY -> ACCEPTED
 
 状态原位覆盖，不追加历史。只有 FL 写 FP；IT/RI 只返回 SHA 与结果。超过约 5–8 个 slices、FP 超过约 250–300 行、存在可独立验收波次或长期等待时，应拆为可独立 feature，并在需要共同阶段目标时由 SL 协调。
 
-若超限但所有slice仍必须共同原子验收，FL使用多个bounded IT并行而不拆FL；若至少两个结果可以独立candidate、Feature RI、PR和安全合入`main`，FL返回`FEATURE_REPLAN_REQUIRED`，由SL按9.7.2的新Human topology card处理。该结果必须绑定exact SL/FL、Stage/Feature key、old topology、建议的每个sibling FL scope/write set/dependency/acceptance、completed slices/commits/candidate/evidence、delegation ceiling、现有资源、state/version与invalidation conditions；原FL保持owner并只暂停新扩围，不丢弃已完成slice/evidence。任何提取范围在Human确认后先对原FL冻结写入，只有new FL `HANDOFF_ACCEPTED`并完成exact commit/evidence readback后才从原FL scope移除，禁止瞬时双owner。
+若超限但所有slice仍必须共同原子验收，FL使用多个bounded IT并行而不拆FL；若至少两个结果可以独立candidate、Feature RI、PR和安全合入`main`，FL返回`FEATURE_REPLAN_REQUIRED`，由SL自动处理。该结果必须绑定exact SL/FL、Stage/Feature key、old topology、建议的每个sibling FL scope/write set/dependency/acceptance、completed slices/commits/candidate/evidence、delegation/WIP ceiling、现有资源、state/version与invalidation conditions；原FL保持owner并只暂停新扩围，不丢弃已完成slice/evidence。SL先复核独立交付物证明：仍成立且全部new scopes、owners、capabilities与WIP落在root Stage authorization/delegation ceiling内时，自动冻结原FL提取范围、创建sibling FL并完成handoff；只有new FL `HANDOFF_ACCEPTED`且exact commit/evidence readback通过后才从原FL scope移除，禁止瞬时双owner。复核证明仍是一个原子feature时，使该typed result失效并由原FL在既有ceiling内自动调整bounded IT。真实扩围使用`PERMISSION_EXPANSION_REQUIRED`，owner/write冲突或阻塞性业务取舍使用既有typed route；均不把常规调度本身转成Human gate。
 
 ## 7. Stage 生命周期、并行与 review
 
@@ -559,7 +559,7 @@ SL 可为 Stage Review 创建 clean-context Stage RI；SL 或 Stage RI 只读精
 - confirmed capability set内且由effective project profile兑现的owner worktree/file写入、owner local Git与允许的remote branch/PR操作、repository标准package/build/test、task-owned process/container/local test database和approved network操作；低风险platform approval由auto-review处理，正常用户权限弹窗为零；
 - `main`前进时自动fetch并刷新`integrationBase`，验证已绑定canonical merge仍是latest `origin/main`祖先，按drift/affected-test matrix集成变化并复用仍有效证据；普通代码冲突返回artifact owner，只有新的冻结语义冲突才再次路由`DESIGN_GAP`；
 - 所有remote mutation通过versioned remote driver执行并原子记录receipt/checkpoint；恢复先read-after-write，不重复已完成mutation；
-- confirmed topology内SL -> FL/Stage RI、FL -> IT/Feature RI的收窄assignment；
+- confirmed root topology policy/delegation ceiling内SL -> FL/Stage RI、FL -> IT/Feature RI的收窄assignment与自动topology adjustment；
 - IT/RI typed result返回direct execution parent；
 - SL/FL只启动dependency-ready、scope不冲突且WIP容量允许的work item；
 - 完整feature candidate与feature review通过后，FL push自己的branch并创建Draft PR；无parent SL时独立gates可推进到merge-ready，有parent SL时只有exact Stage Review通过后才推进到merge-ready；Human merge授权后由merge queue或等价串行admission验证latest-main组合；
@@ -750,6 +750,8 @@ stage coordination commits 不 push、不合入 <code>main</code>，删除 ref �
 
 对Human默认只显示“讨论中、等待设计确认、UD审核中、等待合并、准备执行、实现中、等待验收、已完成”中的当前一项和一个建议；SHAs、nonce、checkpoint、approval telemetry与恢复细节保留为按需证据，不进入普通进度提示。
 
+`FEATURE_REPLAN_REQUIRED`及其ceiling内自动topology adjustment只产生一条只读`STATUS_NOTICE`，不显示编号动作或等待确认；真实扩围或既有Human typed route命中时才显示对应合法卡。
+
 明确实现意图显示：
 
 ```text
@@ -762,7 +764,7 @@ stage coordination commits 不 push、不合入 <code>main</code>，删除 ref �
 
 稳定设计首次写入前，task先展示完整只读Proposal Preview；确认卡绑定该Preview的目的、规范结论、state/typed routes、逐文件变化、scope/protected scope、owner、验证和stop point。task内部绑定`previewFingerprint`、`rootConfirmationFingerprint`、`scopeFingerprint`、exact ids、SHAs、resources、state version和transition id；Proposal及Design Owner→UD envelope必须携带同一binding。Human确认后才创建local-only Design Owner资源、写Proposal commit并提交UD；diff与preview一致时不重复询问Proposal提交。Design remote mutation只由exact UD执行，或由UD在mutation前签发一次性精确binding的host transport执行；UD read-after-write并发布状态。
 
-非设计owner的一个确认覆盖列明拓扑、紧凑运行权限摘要到stop point；scope/owner/protected scope或独立交付物变化才换卡。摘要格式为“运行权限：owner工作区、owner Git/PR、本地服务、隔离测试数据、构建测试、approved network；越界另行确认”，并按真实role省略不适用项。Proposal Preview、每次merge、`NEW_DESIGN` post-merge activation、failed continuation guard的replan、cleanup/abandonment分别确认；exact existing-delivery resume不重复确认。technical ids由task维护，Human无需复述。
+非设计root owner的一次确认覆盖列明Stage/Feature scope、protected scope、topology policy、delegation/WIP ceiling与紧凑运行权限摘要到stop point；该ceiling内的FL topology adjustment与child owner/IT assignment自动执行，只有root scope/protected scope/capability/ceiling真实扩大才换卡。摘要格式为“运行权限：owner工作区、owner Git/PR、本地服务、隔离测试数据、构建测试、approved network；越界另行确认”，并按真实role省略不适用项。Proposal Preview、每次merge、`NEW_DESIGN` post-merge activation、failed continuation guard的replan、cleanup/abandonment分别确认；exact existing-delivery resume不重复确认。technical ids由task维护，Human无需复述。
 
 已确认scope内的Codex platform approval不向Human展示。出现时task记录`EXECUTION_PROFILE_DEFECT`并自动修复effective profile/host后恢复；只有真实新增能力使用下列扩围卡。正常任务的`normalPermissionPromptCount`验收值为`0`。
 
@@ -777,19 +779,7 @@ scope外运行能力一次合并展示：
 
 该卡使用`PERMISSION_EXPANSION_REQUIRED`和new stateVersion，只绑定列明增量；同一缺口不拆成逐命令确认，未列明能力保持原binding。
 
-FL返回`FEATURE_REPLAN_REQUIRED`后，exact parent SL只显示一张task-local topology card；每张卡按重新验证结果恰好标记一个建议项：
-
-```text
-当前Feature出现新的独立交付边界。
-1. 按本卡列明的sibling FL topology重新拆分并继续
-2. 保持一个原子Feature，由原FL使用多个IT继续
-3. 暂缓，保留全部owner、candidate与证据
-4. 查看拆分与证据
-```
-
-实际卡只给选项1或2中的exact一个追加“（建议）”：SL证明存在两个以上独立candidate/RI/PR/main-safe acceptance时建议1；重新证明所有slice只能共享一个原子candidate/RI/PR/acceptance时建议2。选项1绑定exact SL/原FL、Stage/Feature key、old topology、每个new FL的key/scope/protected scope/write set/dependency/acceptance、已完成slices/commits/candidate与可复用evidence、delegation ceiling、branch/worktree/Packet等资源、root authorization fingerprint、scope fingerprint、expected state、new stateVersion、transition和stop point。Human确认后，SL先冻结原FL的提取范围，再按绑定创建sibling FL；每个new FL `HANDOFF_ACCEPTED`并readback exact assigned commits/evidence后，SL才原子收窄原FL scope。任一child拒绝或失败时原FL仍是未转移范围的唯一owner。
-
-选项2只在SL重新证明所有slice仍共享一个原子candidate、Feature RI、PR与main-safe acceptance时有效，继续原FL并只调整其delegation ceiling内的bounded IT；若已经存在两个独立交付物则该选项不标记建议且执行时fail closed。选项3保持全部resources与owner binding并进入`FEATURE_REPLAN_DEFERRED`，不cleanup。选项4纯只读。exact SL/FL、old/new topology、completed slice/candidate/evidence、delegation ceiling、resource fingerprint、truth/integration base、state/version中任一变化都使旧卡失效并生成new card；相同binding重复只复用原结果。
+`FEATURE_REPLAN_REQUIRED`是SL内部自动调度输入，不显示Human topology card。SL重新验证后只执行当前合法分支：独立交付物证明成立且new topology完全落在root Stage scope/protected scope、execution capabilities、delegation/WIP ceiling内时自动创建sibling FL；原子性成立时使typed result失效并自动继续原FL/bounded IT。每次自动重划绑定exact SL/原FL、Stage/Feature key、old/new topology、每个new FL scope/protected scope/write set/dependency/acceptance、completed slices/commits/candidate/evidence、delegation/WIP ceiling、resources、root authorization/scope fingerprint、state/version、transition与invalidation conditions，并只向Human显示一条只读`STATUS_NOTICE`。只有真实scope/capability/ceiling扩大使用`PERMISSION_EXPANSION_REQUIRED`，不可消解owner/write冲突或阻塞性业务取舍使用既有Human route。
 
 Stage完成后的批量cleanup只显示一张卡：
 
@@ -846,7 +836,7 @@ Stage完成后的批量cleanup只显示一张卡：
 
 #### 9.7.5 Typed routing
 
-`ASSIGNMENT_RESULT`只返回direct execution parent；其中`FEATURE_REPLAN_REQUIRED`只由FL返回exact parent SL，SL保留该typed result并显示9.7.2 topology card，不返回UD、request origin或祖先task；`UD_REMOTE_EXECUTION_RESULT`只返回exact issuing UD且不发布canonical状态；`REMOTE_DRIVER_RESULT`只返回exact issuing artifact owner；`EXECUTION_ENVIRONMENT_NOT_READY`只返回exact creating parent且不转移owner；`EXECUTION_PROFILE_DEFECT`保留exact current owner并只返回creating/current owner自动修复；`PERMISSION_EXPANSION_REQUIRED`在root handoff前返回exact activation owner、child accept前返回exact creating delivery parent、handoff后保留在exact current delivery owner；`BUSINESS_DECISION_REQUIRED`只到exact decision owner；`REVISION_REQUIRED`和`DESIGN_CONTINUATION_REQUIRED`只到exact Design Owner；`EDITORIAL_CLASSIFICATION_INVALID`与`CANONICAL_EDITORIAL_MERGED`只到exact source Direct owner；`ACTIVATION_DECISION_READY`仅为`NEW_DESIGN`保留在UD；`DESIGN_GAP_RESOLVED`返回exact existing delivery owner，`DELIVERY_RESUME_VALIDATED`只到exact affected owners，`DELIVERY_REPLAN_REQUIRED`只由exact existing delivery owner询问Human；`STATUS_NOTICE/CANONICAL_MERGED/CANONICAL_EDITORIAL_MERGED`只通知，不转移owner。不存在generic callback或祖先默认路由。
+`ASSIGNMENT_RESULT`只返回direct execution parent；其中`FEATURE_REPLAN_REQUIRED`只由FL返回exact parent SL，SL在root authorization/delegation ceiling内自动处理并只发`STATUS_NOTICE`，不返回UD、request origin、祖先task或Human；真实扩围改走`PERMISSION_EXPANSION_REQUIRED`，不可消解owner/write冲突或阻塞性业务取舍走既有typed route；`UD_REMOTE_EXECUTION_RESULT`只返回exact issuing UD且不发布canonical状态；`REMOTE_DRIVER_RESULT`只返回exact issuing artifact owner；`EXECUTION_ENVIRONMENT_NOT_READY`只返回exact creating parent且不转移owner；`EXECUTION_PROFILE_DEFECT`保留exact current owner并只返回creating/current owner自动修复；`PERMISSION_EXPANSION_REQUIRED`在root handoff前返回exact activation owner、child accept前返回exact creating delivery parent，handoff后保留在exact current delivery owner；`BUSINESS_DECISION_REQUIRED`只到exact decision owner；`REVISION_REQUIRED`和`DESIGN_CONTINUATION_REQUIRED`只到exact Design Owner；`EDITORIAL_CLASSIFICATION_INVALID`与`CANONICAL_EDITORIAL_MERGED`只到exact source Direct owner；`ACTIVATION_DECISION_READY`仅为`NEW_DESIGN`保留在UD；`DESIGN_GAP_RESOLVED`返回exact existing delivery owner，`DELIVERY_RESUME_VALIDATED`只到exact affected owners，`DELIVERY_REPLAN_REQUIRED`只由exact existing delivery owner询问Human；`STATUS_NOTICE/CANONICAL_MERGED/CANONICAL_EDITORIAL_MERGED`只通知，不转移owner。不存在generic callback或祖先默认路由。
 
 所有main变更继续使用artifact-owner branch、PR、required CI、Human Merge Commit和main验证。任何owner只清理自己的exact资源。
 
@@ -936,7 +926,7 @@ UD_EDITORIAL_REVIEW
 
 Task identity与Capability preflight都是`HANDOFF_ACCEPTED`的guard而非长期状态。`TASK_IDENTITY_INVALID`保持creating parent为owner，禁止role-owned资源mutation，并只允许同一新task的title修正与readback；`EXECUTION_ENVIRONMENT_NOT_READY`保持`HANDOFF_PENDING`和原activation owner；handoff后的`EXECUTION_PROFILE_DEFECT`保持current delivery owner与已授权工作，只暂停受影响operation并自动修复profile/host；`PERMISSION_EXPANSION_REQUIRED`只暂停真实越界操作。
 
-`WAITING_ON_CHILD`是Stage/Feature Packet与current evidence manifest中的可恢复等待marker，不是额外workflow owner或长期状态；exact child result到达即退出。`OWNER_SESSION_PROFILE`是owner capability guard，remote action checkpoint只引用其fingerprint。`RESOURCE_DURABILITY_REPAIR`在cutover前只建立稳定检查点或恢复exact原路径，cutover后才按stable-owner-exclusive-v1重建exact稳定路径；它不迁移in-flight owner。`FEATURE_REPLAN_REQUIRED`保持原FL为owner并只暂停新扩围，直到Human确认new topology或继续原scope；以上均不替代Feature/Stage完成状态。
+`WAITING_ON_CHILD`是Stage/Feature Packet与current evidence manifest中的可恢复等待marker，不是额外workflow owner或长期状态；exact child result到达即退出。`OWNER_SESSION_PROFILE`是owner capability guard，remote action checkpoint只引用其fingerprint。`RESOURCE_DURABILITY_REPAIR`在cutover前只建立稳定检查点或恢复exact原路径，cutover后才按stable-owner-exclusive-v1重建exact稳定路径；它不迁移in-flight owner。`FEATURE_REPLAN_REQUIRED`保持原FL为owner并只暂停新扩围，SL在root authorization/ceiling内自动选择sibling handoff或invalidate-to-atomic continuation；只有真实扩围或既有Human typed route命中才等待Human。以上均不替代Feature/Stage完成状态。
 
 `resourceTopologyVersion=stable-owner-exclusive-v1` runtime cutover前已存在的tasks、cards、owners和resources保持原binding、原exclusive clone与原`/private/tmp/oes-*` cleanup identity，不改名、不迁移、不自动清理；cutover本身也不迁移in-flight资源。已经创建的replacement owner不自动删除。若错误activation card尚未创建任何owner/resource，exact UD可在readback确认后以`EXISTING_DELIVERY_PROVENANCE_CONFIRMED`使其失效并改走resume；已经形成Human-confirmed或resource-bearing replacement binding时只走显式replan/termination。cutover时正在等待Human的existing Stage/Feature resume card保持原样，不因本规则merge自动执行。
 
@@ -944,10 +934,12 @@ Feature与Stage继续使用：
 
 ```text
 Feature topology replan:
-  FL_RUNNING -> FEATURE_REPLAN_REQUIRED -> SL_REPLAN_CARD_READY
-     | CONFIRM_SIBLING_TOPOLOGY -> HANDOFF_PENDING -> HANDOFF_VERIFIED -> FL_RUNNING
-     | CONTINUE_ATOMIC_FEATURE -> FL_RUNNING
-     | DEFER -> FEATURE_REPLAN_DEFERRED
+  FL_RUNNING -> FEATURE_REPLAN_REQUIRED -> SL_REPLAN_VALIDATING
+     | INDEPENDENT_WITHIN_CEILING -> SIBLING_HANDOFF_PENDING
+         -> HANDOFF_VERIFIED -> FL_RUNNING
+     | ATOMIC_PROOF -> FEATURE_REPLAN_INVALIDATED_ATOMIC -> FL_RUNNING
+     | REAL_EXPANSION -> PERMISSION_EXPANSION_REQUIRED
+     | OWNER_WRITE_CONFLICT | BUSINESS_DECISION -> existing typed Human route
 
 Feature review:
   CANDIDATE_READY[c] -> FEATURE_RI_PENDING[r,c]
