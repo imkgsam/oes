@@ -752,6 +752,65 @@ test('tampered state fingerprint and recomputed but false WIP both fail on reope
   assert.throws(() => validateAssignmentRuntimeState(falseWip), /WIP_SNAPSHOT_MISMATCH/)
 })
 
+test('result-root device and inode remain canonical decimal strings across direct and SQLite validation', (t) => {
+  const { store, state } = runtime(t)
+  const waiting = store.dispatchChild(child(state.stateVersion, 'task-it-one'))
+  const reseal = (
+    field: 'device' | 'inode',
+    value: string | number
+  ): AssignmentRuntimeState => {
+    const candidate = structuredClone(waiting)
+    candidate.activeAssignments[0].resultArtifactRootIdentity[field] = value as never
+    candidate.activeAssignments[0].assignmentId = objectFingerprint(
+      candidate.activeAssignments[0] as unknown as Record<string, unknown>,
+      'assignmentId'
+    )
+    candidate.recordFingerprint = objectFingerprint(
+      candidate as unknown as Record<string, unknown>,
+      'recordFingerprint'
+    )
+    return candidate
+  }
+  const database = new DatabaseSync(store.statePath)
+  const update = database.prepare(
+    'UPDATE assignment_runtime_state SET record_json = ? WHERE feature_key = ?'
+  )
+  const largeDecimal = '18446744073709551615'
+  for (const field of ['device', 'inode'] as const) {
+    const valid = reseal(field, largeDecimal)
+    assert.equal(
+      validateAssignmentRuntimeState(valid).activeAssignments[0].resultArtifactRootIdentity[field],
+      largeDecimal
+    )
+    validateJsonSchema(schema('assignment-runtime-state.schema.json'), valid)
+    update.run(JSON.stringify(valid), 'feature-alpha')
+    assert.equal(
+      store.load().activeAssignments[0].resultArtifactRootIdentity[field],
+      largeDecimal
+    )
+
+    const numeric = reseal(field, 123)
+    assert.throws(
+      () => validateJsonSchema(schema('assignment-runtime-state.schema.json'), numeric),
+      /JSON_SCHEMA_VALIDATION_FAILED/
+    )
+    assert.throws(
+      () => validateAssignmentRuntimeState(numeric),
+      field === 'device'
+        ? /ASSIGNMENT_RESULT_ARTIFACT_ROOT_DEVICE_INVALID/
+        : /ASSIGNMENT_RESULT_ARTIFACT_ROOT_INODE_INVALID/
+    )
+    update.run(JSON.stringify(numeric), 'feature-alpha')
+    assert.throws(
+      () => store.load(),
+      field === 'device'
+        ? /ASSIGNMENT_RESULT_ARTIFACT_ROOT_DEVICE_INVALID/
+        : /ASSIGNMENT_RESULT_ARTIFACT_ROOT_INODE_INVALID/
+    )
+  }
+  database.close()
+})
+
 test('complete independent proof within the ceiling yields exact FEATURE_REPLAN_REQUIRED', () => {
   const request = replanRequest(1, [sibling()])
   const decision = decideFeatureReplan(request)

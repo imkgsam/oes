@@ -121,9 +121,9 @@ function validateResultArtifactRootIdentity(
 ): AssignmentResultArtifactRootIdentity {
   requireExactKeys(value, ['physicalPath', 'device', 'inode', 'fileType'], field)
   requireCanonicalAbsolutePath(value.physicalPath, `${field}.physicalPath`)
-  if (!UNSIGNED_INTEGER.test(value.device))
+  if (typeof value.device !== 'string' || !UNSIGNED_INTEGER.test(value.device))
     fail('ASSIGNMENT_RESULT_ARTIFACT_ROOT_DEVICE_INVALID', field)
-  if (!UNSIGNED_INTEGER.test(value.inode))
+  if (typeof value.inode !== 'string' || !UNSIGNED_INTEGER.test(value.inode))
     fail('ASSIGNMENT_RESULT_ARTIFACT_ROOT_INODE_INVALID', field)
   if (value.fileType !== 'DIRECTORY')
     fail('ASSIGNMENT_RESULT_ARTIFACT_ROOT_TYPE_INVALID', field)
