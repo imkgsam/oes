@@ -8,7 +8,7 @@ worktreeKey: `collaboration-runtime-lean-cutover`
 pullRequest: `pending`
 mergeSha: `pending`
 cleanup: `HOLD`
-state: `RUNNING`
+state: `CANDIDATE_READY`
 
 ## Objective
 
@@ -18,7 +18,7 @@ Deliver the stable owner runtime, direct assignment wakeup, and risk-tiered vali
 
 ### STABLE-OWNER-RUNTIME
 state: `CANDIDATE_READY`
-candidate: `pending`
+candidate: `a0c5cf7fff98d7059d4832554cea3f934e23c2c4`
 review: `parent-created visible Feature RI after complete candidate`
 
 - Scope: stable owner resource binding, recovery, remote/cleanup compatibility, executable schemas, focused tests, and runbook guidance.
@@ -27,7 +27,7 @@ review: `parent-created visible Feature RI after complete candidate`
 
 ### EVENT-DRIVEN-ASSIGNMENT
 state: `CANDIDATE_READY`
-candidate: `pending`
+candidate: `bd2a47ec4aa441eb6a04546f09a417953a2efc77`
 review: `parent-created visible Feature RI after complete candidate`
 
 - Scope: persisted `WAITING_ON_CHILD`, direct `ASSIGNMENT_RESULT`, bounded feature replan, executable schemas, focused tests, and runbook guidance.
@@ -36,7 +36,7 @@ review: `parent-created visible Feature RI after complete candidate`
 
 ### RISK-TIERED-VALIDATION
 state: `CANDIDATE_READY`
-candidate: `pending`
+candidate: `7b108a0e0f695a438f3a48d3a23435d8879b50d8`
 review: `parent-created visible Feature RI after complete candidate`
 
 - Scope: complete evidence keys, focused/affected/full validation plans, bounded design-risk scan, executable schemas, focused tests, and runbook guidance.
@@ -55,3 +55,11 @@ review: `parent-created visible Feature RI after complete candidate`
 2. Every known Stable, Event, and Risk review finding has an executable regression test and passes.
 3. Typecheck, focused tests, full collaboration-runtime tests, static checks, diff checks, and rollback verification pass.
 4. No push, PR, merge, old-resource mutation, cleanup, or independent review occurs before the exact parent creates the visible RI.
+
+## Current verification
+
+- Stable focused: typecheck + 45 tests + static checks passed.
+- Event focused: typecheck + 21 tests + static checks passed; Stage WIP decisions require separately authenticated exact Stage state.
+- Risk focused: typecheck + 33 tests + static checks passed.
+- Combined full gate: typecheck + 125 tests + static checks passed on the combined implementation tree.
+- Prior candidate test results were not reused; only the hash-verified implementation inputs and finding reproductions were reused.
