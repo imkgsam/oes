@@ -191,6 +191,32 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "allOf": [
+              {
+                "properties": {
+                  "kind": {
+                    "const": "task-temp"
+                  }
+                }
+              },
+              {
+                "required": ["resourceTopologyVersion"]
+              }
+            ]
+          },
+          "then": {
+            "properties": {
+              "path": {
+                "$ref": "#/$defs/stableTaskTempRoot"
+              },
+              "expectedSha": {
+                "const": null
+              }
+            }
+          }
         }
       ]
     },
@@ -379,8 +405,7 @@
           "pattern": "^/"
         },
         "taskTempRoot": {
-          "type": "string",
-          "pattern": "^/"
+          "$ref": "#/$defs/stableTaskTempRoot"
         },
         "featurePacket": {
           "type": "string",
@@ -403,6 +428,10 @@
           "pattern": "^/"
         }
       }
+    },
+    "stableTaskTempRoot": {
+      "type": "string",
+      "pattern": "^/(?:tmp|private/tmp|private/var/folders/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+/T)/oes-[A-Za-z0-9][A-Za-z0-9._-]*$"
     }
   }
 }

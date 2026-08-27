@@ -1,13 +1,25 @@
-import { existsSync, mkdirSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import {
+  closeSync,
+  constants,
+  existsSync,
+  fstatSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  realpathSync,
+  statSync
+} from 'node:fs'
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
-import { canonicalJson, objectFingerprint } from './canonical.ts'
+import { canonicalJson, objectFingerprint, sha256 } from './canonical.ts'
 import { fail } from './errors.ts'
 import {
   ASSIGNMENT_CHILD_ROLES,
   FEATURE_REPLAN_INVALIDATION_CONDITIONS,
   type ActiveChildAssignment,
   type AssignmentResult,
+  type AssignmentResultArtifactPayload,
+  type AssignmentResultArtifactPayloadInput,
   type AssignmentResultInput,
   type AssignmentResultReceipt,
   type AssignmentRuntimeInitialization,
@@ -85,6 +97,32 @@ function requireFeatureKey(value: unknown, field: string): asserts value is stri
 /** Requires one explicit next action without embedding an interpreter payload. */
 function requireAction(value: unknown, field: string): asserts value is string {
   if (typeof value !== 'string' || !ACTION.test(value)) fail('ASSIGNMENT_INVALID_ACTION', field)
+}
+
+/** Requires one normalized absolute artifact path. */
+function requireCanonicalAbsolutePath(value: unknown, field: string): asserts value is string {
+  if (typeof value !== 'string' || !isAbsolute(value) || resolve(value) !== value)
+    fail('ASSIGNMENT_RESULT_ARTIFACT_PATH_INVALID', field)
+}
+
+/** Returns whether a physical path is a strict descendant of a bound root. */
+function isStrictlyWithin(root: string, candidate: string): boolean {
+  const child = relative(root, candidate)
+  return child !== '' && !child.startsWith(`..${sep}`) && child !== '..' && !child.startsWith(sep)
+}
+
+/** Reopens one configured result root and binds its current physical directory identity. */
+function reopenResultArtifactRoot(path: string): string {
+  requireCanonicalAbsolutePath(path, 'resultArtifactRoot')
+  let physical: string
+  try {
+    physical = resolve(realpathSync(path))
+  } catch {
+    fail('ASSIGNMENT_RESULT_ARTIFACT_ROOT_ABSENT', path)
+  }
+  if (physical !== path) fail('ASSIGNMENT_RESULT_ARTIFACT_ROOT_ALIAS', path)
+  if (!statSync(physical).isDirectory()) fail('ASSIGNMENT_RESULT_ARTIFACT_ROOT_NOT_DIRECTORY', path)
+  return physical
 }
 
 /** Normalizes a non-empty unique string list for stable fingerprints. */
@@ -196,7 +234,9 @@ function validateActiveAssignment(assignment: ActiveChildAssignment): void {
       'dispatchStateVersion',
       'expectedTypedResult',
       'nextLegalActionOnResult',
-      'scopeFingerprint'
+      'scopeFingerprint',
+      'resultArtifactRoot',
+      'resultArtifactRootPhysicalPath'
     ],
     'activeAssignment'
   )
@@ -212,6 +252,11 @@ function validateActiveAssignment(assignment: ActiveChildAssignment): void {
   requireToken(assignment.expectedTypedResult, 'activeAssignment.expectedTypedResult')
   requireAction(assignment.nextLegalActionOnResult, 'activeAssignment.nextLegalActionOnResult')
   requireFingerprint(assignment.scopeFingerprint, 'activeAssignment.scopeFingerprint')
+  requireCanonicalAbsolutePath(assignment.resultArtifactRoot, 'activeAssignment.resultArtifactRoot')
+  requireCanonicalAbsolutePath(
+    assignment.resultArtifactRootPhysicalPath,
+    'activeAssignment.resultArtifactRootPhysicalPath'
+  )
   const actual = objectFingerprint(assignment as unknown as Record<string, unknown>, 'assignmentId')
   if (actual !== assignment.assignmentId)
     fail('ASSIGNMENT_ID_FINGERPRINT_MISMATCH', assignment.assignmentId)
@@ -223,7 +268,8 @@ function validateActiveAssignment(assignment: ActiveChildAssignment): void {
       featureKey: assignment.featureKey,
       expectedTypedResult: assignment.expectedTypedResult,
       nextLegalActionOnResult: assignment.nextLegalActionOnResult,
-      scopeFingerprint: assignment.scopeFingerprint
+      scopeFingerprint: assignment.scopeFingerprint,
+      resultArtifactRoot: assignment.resultArtifactRoot
     },
     '__none__'
   )
@@ -435,6 +481,79 @@ export function validateAssignmentRuntimeState(
   return state
 }
 
+/** Builds one canonical result artifact payload independently of its outer envelope. */
+export function createAssignmentResultArtifact(
+  input: AssignmentResultArtifactPayloadInput
+): AssignmentResultArtifactPayload {
+  requireExactKeys(
+    input,
+    [
+      'assignmentId',
+      'directExecutionParentTaskId',
+      'childTaskId',
+      'transitionId',
+      'dispatchStateVersion',
+      'typedResult',
+      'scopeFingerprint'
+    ],
+    'assignmentResultArtifactInput'
+  )
+  const base = {
+    schemaVersion: 1 as const,
+    kind: 'OES_ASSIGNMENT_RESULT_ARTIFACT' as const,
+    ...input
+  }
+  return validateAssignmentResultArtifact({
+    ...base,
+    artifactFingerprint: objectFingerprint(base as unknown as Record<string, unknown>, '__none__')
+  })
+}
+
+/** Validates one exact typed result artifact payload and its self-fingerprint. */
+export function validateAssignmentResultArtifact(
+  artifact: AssignmentResultArtifactPayload
+): AssignmentResultArtifactPayload {
+  requireExactKeys(
+    artifact,
+    [
+      'schemaVersion',
+      'kind',
+      'artifactFingerprint',
+      'assignmentId',
+      'directExecutionParentTaskId',
+      'childTaskId',
+      'transitionId',
+      'dispatchStateVersion',
+      'typedResult',
+      'scopeFingerprint'
+    ],
+    'assignmentResultArtifact'
+  )
+  if (artifact.schemaVersion !== 1 || artifact.kind !== 'OES_ASSIGNMENT_RESULT_ARTIFACT')
+    fail('ASSIGNMENT_RESULT_ARTIFACT_KIND_INVALID', artifact.kind)
+  requireFingerprint(artifact.artifactFingerprint, 'assignmentResultArtifact.artifactFingerprint')
+  requireFingerprint(artifact.assignmentId, 'assignmentResultArtifact.assignmentId')
+  requireToken(
+    artifact.directExecutionParentTaskId,
+    'assignmentResultArtifact.directExecutionParentTaskId'
+  )
+  requireToken(artifact.childTaskId, 'assignmentResultArtifact.childTaskId')
+  requireToken(artifact.transitionId, 'assignmentResultArtifact.transitionId')
+  requireStateVersion(
+    artifact.dispatchStateVersion,
+    'assignmentResultArtifact.dispatchStateVersion'
+  )
+  requireToken(artifact.typedResult, 'assignmentResultArtifact.typedResult')
+  requireFingerprint(artifact.scopeFingerprint, 'assignmentResultArtifact.scopeFingerprint')
+  const actual = objectFingerprint(
+    artifact as unknown as Record<string, unknown>,
+    'artifactFingerprint'
+  )
+  if (actual !== artifact.artifactFingerprint)
+    fail('ASSIGNMENT_RESULT_ARTIFACT_FINGERPRINT_MISMATCH', actual)
+  return artifact
+}
+
 /** Builds and fingerprints one direct assignment result envelope. */
 export function createAssignmentResult(input: AssignmentResultInput): AssignmentResult {
   requireExactKeys(
@@ -490,8 +609,7 @@ export function validateAssignmentResult(result: AssignmentResult): AssignmentRe
   requireStateVersion(result.dispatchStateVersion, 'assignmentResult.dispatchStateVersion')
   requireToken(result.typedResult, 'assignmentResult.typedResult')
   requireExactKeys(result.resultArtifact, ['path', 'sha256', 'fingerprint'], 'resultArtifact')
-  if (typeof result.resultArtifact.path !== 'string' || result.resultArtifact.path.length === 0)
-    fail('ASSIGNMENT_RESULT_ARTIFACT_INVALID', 'path')
+  requireCanonicalAbsolutePath(result.resultArtifact.path, 'resultArtifact.path')
   requireFingerprint(result.resultArtifact.sha256, 'resultArtifact.sha256')
   requireFingerprint(result.resultArtifact.fingerprint, 'resultArtifact.fingerprint')
   const actual = objectFingerprint(
@@ -500,6 +618,110 @@ export function validateAssignmentResult(result: AssignmentResult): AssignmentRe
   )
   if (actual !== result.resultFingerprint) fail('ASSIGNMENT_RESULT_FINGERPRINT_MISMATCH', actual)
   return result
+}
+
+/** Reopens and authenticates the bound result bytes before an assignment may release WIP. */
+function reopenAssignmentResultArtifact(
+  assignment: ActiveChildAssignment,
+  result: AssignmentResult
+): AssignmentResultArtifactPayload {
+  const physicalRoot = reopenResultArtifactRoot(assignment.resultArtifactRoot)
+  if (physicalRoot !== assignment.resultArtifactRootPhysicalPath)
+    fail('ASSIGNMENT_RESULT_ARTIFACT_ROOT_IDENTITY_MISMATCH', physicalRoot)
+  let physicalPath: string
+  try {
+    physicalPath = resolve(realpathSync(result.resultArtifact.path))
+  } catch {
+    fail('ASSIGNMENT_RESULT_ARTIFACT_ABSENT', result.resultArtifact.path)
+  }
+  if (!isStrictlyWithin(physicalRoot, physicalPath))
+    fail('ASSIGNMENT_RESULT_ARTIFACT_OUTSIDE_BOUND_ROOT', physicalPath)
+  if (physicalPath !== result.resultArtifact.path)
+    fail('ASSIGNMENT_RESULT_ARTIFACT_PHYSICAL_ALIAS', result.resultArtifact.path)
+  let descriptor: number
+  try {
+    descriptor = openSync(
+      result.resultArtifact.path,
+      constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0)
+    )
+  } catch {
+    fail('ASSIGNMENT_RESULT_ARTIFACT_REOPEN_FAILED', result.resultArtifact.path)
+  }
+  let bytes: Buffer
+  try {
+    const opened = fstatSync(descriptor)
+    if (!opened.isFile()) fail('ASSIGNMENT_RESULT_ARTIFACT_NOT_FILE', result.resultArtifact.path)
+    let reopenedPath: string
+    let current
+    try {
+      reopenedPath = resolve(realpathSync(result.resultArtifact.path))
+      current = statSync(result.resultArtifact.path)
+    } catch {
+      fail('ASSIGNMENT_RESULT_ARTIFACT_IDENTITY_CHANGED', result.resultArtifact.path)
+    }
+    if (
+      reopenedPath !== physicalPath ||
+      !isStrictlyWithin(physicalRoot, reopenedPath) ||
+      current.dev !== opened.dev ||
+      current.ino !== opened.ino
+    )
+      fail('ASSIGNMENT_RESULT_ARTIFACT_IDENTITY_CHANGED', result.resultArtifact.path)
+    bytes = readFileSync(descriptor)
+  } finally {
+    closeSync(descriptor)
+  }
+  if (sha256(bytes) !== result.resultArtifact.sha256)
+    fail('ASSIGNMENT_RESULT_ARTIFACT_SHA_MISMATCH', result.resultArtifact.path)
+  let parsed: AssignmentResultArtifactPayload
+  try {
+    parsed = JSON.parse(bytes.toString('utf8')) as AssignmentResultArtifactPayload
+  } catch {
+    fail('ASSIGNMENT_RESULT_ARTIFACT_JSON_INVALID', result.resultArtifact.path)
+  }
+  const artifact = validateAssignmentResultArtifact(parsed)
+  if (bytes.toString('utf8') !== `${canonicalJson(artifact)}\n`)
+    fail('ASSIGNMENT_RESULT_ARTIFACT_BYTES_NOT_CANONICAL', result.resultArtifact.path)
+  if (artifact.artifactFingerprint !== result.resultArtifact.fingerprint)
+    fail('ASSIGNMENT_RESULT_ARTIFACT_REFERENCE_MISMATCH', result.resultArtifact.path)
+  const exactBinding = {
+    assignmentId: assignment.assignmentId,
+    directExecutionParentTaskId: assignment.directExecutionParentTaskId,
+    childTaskId: assignment.childTaskId,
+    transitionId: assignment.transitionId,
+    dispatchStateVersion: assignment.dispatchStateVersion,
+    typedResult: assignment.expectedTypedResult,
+    scopeFingerprint: assignment.scopeFingerprint
+  }
+  const artifactBinding = {
+    assignmentId: artifact.assignmentId,
+    directExecutionParentTaskId: artifact.directExecutionParentTaskId,
+    childTaskId: artifact.childTaskId,
+    transitionId: artifact.transitionId,
+    dispatchStateVersion: artifact.dispatchStateVersion,
+    typedResult: artifact.typedResult,
+    scopeFingerprint: artifact.scopeFingerprint
+  }
+  if (canonicalJson(artifactBinding) !== canonicalJson(exactBinding))
+    fail('ASSIGNMENT_RESULT_ARTIFACT_ASSIGNMENT_MISMATCH', assignment.assignmentId)
+  const envelopeBinding = {
+    assignmentId: result.assignmentId,
+    directExecutionParentTaskId: result.directExecutionParentTaskId,
+    childTaskId: result.childTaskId,
+    transitionId: result.transitionId,
+    dispatchStateVersion: result.dispatchStateVersion,
+    typedResult: result.typedResult
+  }
+  const artifactEnvelopeBinding = {
+    assignmentId: artifact.assignmentId,
+    directExecutionParentTaskId: artifact.directExecutionParentTaskId,
+    childTaskId: artifact.childTaskId,
+    transitionId: artifact.transitionId,
+    dispatchStateVersion: artifact.dispatchStateVersion,
+    typedResult: artifact.typedResult
+  }
+  if (canonicalJson(artifactEnvelopeBinding) !== canonicalJson(envelopeBinding))
+    fail('ASSIGNMENT_RESULT_ARTIFACT_ENVELOPE_MISMATCH', assignment.assignmentId)
+  return artifact
 }
 
 /** Builds a normalized sibling extraction binding and its scope fingerprint. */
@@ -1106,6 +1328,7 @@ export class AssignmentRuntimeStore {
       )
         fail('ASSIGNMENT_DUPLICATE_ACTIVE_FEATURE_OWNER', request.featureKey)
       const dispatchStateVersion = state.stateVersion + 1
+      const resultArtifactRootPhysicalPath = reopenResultArtifactRoot(request.resultArtifactRoot)
       const base = {
         requestFingerprint,
         directExecutionParentTaskId: state.owner.taskId,
@@ -1116,7 +1339,9 @@ export class AssignmentRuntimeStore {
         dispatchStateVersion,
         expectedTypedResult: request.expectedTypedResult,
         nextLegalActionOnResult: request.nextLegalActionOnResult,
-        scopeFingerprint: request.scopeFingerprint
+        scopeFingerprint: request.scopeFingerprint,
+        resultArtifactRoot: request.resultArtifactRoot,
+        resultArtifactRootPhysicalPath
       }
       const assignment: ActiveChildAssignment = {
         assignmentId: objectFingerprint(base as unknown as Record<string, unknown>, '__none__'),
@@ -1170,6 +1395,7 @@ export class AssignmentRuntimeStore {
         fail('ASSIGNMENT_RESULT_STALE_STATE', String(result.dispatchStateVersion))
       if (result.typedResult !== assignment.expectedTypedResult)
         fail('ASSIGNMENT_RESULT_UNEXPECTED_TYPE', result.typedResult)
+      reopenAssignmentResultArtifact(assignment, result)
       const activeAssignments = state.activeAssignments.filter(
         (candidate) => candidate.assignmentId !== assignment.assignmentId
       )
@@ -1340,7 +1566,8 @@ export class AssignmentRuntimeStore {
         'featureKey',
         'expectedTypedResult',
         'nextLegalActionOnResult',
-        'scopeFingerprint'
+        'scopeFingerprint',
+        'resultArtifactRoot'
       ],
       'childAssignmentRequest'
     )
@@ -1352,6 +1579,7 @@ export class AssignmentRuntimeStore {
     requireToken(request.expectedTypedResult, 'request.expectedTypedResult')
     requireAction(request.nextLegalActionOnResult, 'request.nextLegalActionOnResult')
     requireFingerprint(request.scopeFingerprint, 'request.scopeFingerprint')
+    requireCanonicalAbsolutePath(request.resultArtifactRoot, 'request.resultArtifactRoot')
   }
 
   /** Opens the single task-owned SQLite state file with immediate contention failure. */

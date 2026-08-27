@@ -1,6 +1,7 @@
 import { validateStageCleanupAuthorization, validateStageCleanupResource } from './binding.ts'
 import { objectFingerprint } from './canonical.ts'
 import { fail } from './errors.ts'
+import { validateStableOwnerTaskTempRoot } from './resource-topology.ts'
 import type {
   CleanupDiffEntry,
   CleanupResourceDecision,
@@ -145,6 +146,11 @@ export function planChildSelfCleanup(
         observedBefore: current,
         observedAfter: current
       }
+    if (
+      resource.kind === 'task-temp' &&
+      resource.resourceTopologyVersion === 'stable-owner-exclusive-v1'
+    )
+      validateStableOwnerTaskTempRoot(resource.path, 'cleanupRemoval.taskTempRoot')
     return {
       resource,
       decision: 'REMOVE',

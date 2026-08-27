@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, realpathSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
-import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { tmpdir } from 'node:os'
 import { assertPathWithin, canonicalJson, objectFingerprint, sha256 } from './canonical.ts'
 import { fail } from './errors.ts'
@@ -25,14 +25,14 @@ const OWNER_REF =
   /^refs\/heads\/(?!main$)(?!HEAD$)(?!-)(?!\/)(?!\.)(?!.*\/\.)(?!.*\/\/)(?!.*\.\.)(?!.*@\{)(?!.*(?:^|\/)[^/]*\.lock(?:\/|$))(?!.*[/.]$)(?!@$)[A-Za-z0-9._/@+-]+$/
 const FEATURE_PACKET = /^docs\/plans\/features\/[a-z0-9]+(?:-[a-z0-9]+)*\.md$/
 const SAFE_SEGMENT = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
-const CANONICAL_GITHUB_REMOTE =
-  /^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\.git$/
+const CANONICAL_GITHUB_REMOTE = /^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\.git$/
 const PROFILE_TOPOLOGY_FIELDS = new Set([
   'resource_topology_version',
   'owner_resource_binding_path',
   'owner_resource_binding_sha256',
   'owner_resource_binding_fingerprint'
 ])
+const OWNER_SCRATCH_LEAF = /^oes-[A-Za-z0-9][A-Za-z0-9._-]*$/
 
 /** Requires an exact object shape for one durable owner artifact. */
 function requireExactKeys(value: unknown, allowed: string[], field: string): void {
@@ -60,6 +60,11 @@ function isWithin(root: string, candidate: string): boolean {
   return child === '' || (!child.startsWith(`..${sep}`) && child !== '..' && !child.startsWith(sep))
 }
 
+/** Returns whether one path is a strict child of an exact root. */
+function isStrictlyWithin(root: string, candidate: string): boolean {
+  return resolve(root) !== resolve(candidate) && isWithin(root, candidate)
+}
+
 /** Resolves an absent target through its nearest existing parent to one physical identity. */
 function physicalIdentityForPotentialPath(path: string): string {
   const target = resolve(path)
@@ -78,6 +83,22 @@ function isTemporaryPath(path: string): boolean {
   return ['/tmp', '/private/tmp', resolve(tmpdir())]
     .map(physicalIdentityForPotentialPath)
     .some((root) => isWithin(root, physical))
+}
+
+/** Requires one physical, owner-namespaced scratch root directly below an approved temp parent. */
+export function validateStableOwnerTaskTempRoot(path: string, field = 'taskTempRoot'): string {
+  requireAbsolutePath(path, field)
+  const physical = physicalIdentityForPotentialPath(path)
+  if (physical !== path) fail('STABLE_OWNER_TASK_TEMP_PHYSICAL_ALIAS', field)
+  const approvedParents = [resolve(tmpdir()), '/tmp', '/private/tmp']
+    .map(physicalIdentityForPotentialPath)
+    .filter((value, index, values) => values.indexOf(value) === index)
+  const approvedParent = approvedParents.find(
+    (root) => dirname(physical) === root && isStrictlyWithin(root, physical)
+  )
+  if (!approvedParent || !OWNER_SCRATCH_LEAF.test(basename(physical)))
+    fail('STABLE_OWNER_TASK_TEMP_NOT_OWNER_EXCLUSIVE', path)
+  return physical
 }
 
 /** Reopens one existing path and rejects aliases or missing resource identities. */
@@ -250,8 +271,7 @@ export function validateOwnerResourceBinding(value: OwnerResourceBinding): Owner
       value.artifactRoot === value.taskTempRoot
     )
       fail('STABLE_OWNER_RESOURCE_USES_TEMPORARY_ROOT', value.ownerClone)
-    if (!isTemporaryPath(value.taskTempRoot))
-      fail('STABLE_OWNER_TASK_TEMP_NOT_SCRATCH', value.taskTempRoot)
+    validateStableOwnerTaskTempRoot(value.taskTempRoot)
     for (const path of [
       value.featurePacketCheckpointPath,
       value.currentEvidenceManifestPath,

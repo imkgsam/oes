@@ -1,12 +1,20 @@
-import test, { type TestContext } from 'node:test'
+import test, { after, type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import {
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import {
   AssignmentRuntimeStore,
   createAssignmentResult,
+  createAssignmentResultArtifact,
   createFeatureReplanRequest,
   createFeatureReplanSibling,
   createStageWipAuthorityBinding,
@@ -17,6 +25,7 @@ import {
 import type {
   ActiveChildAssignment,
   AssignmentResult,
+  AssignmentResultArtifactPayload,
   AssignmentRuntimeInitialization,
   AssignmentRuntimeState,
   ChildAssignmentRequest,
@@ -24,19 +33,21 @@ import type {
   FeatureReplanSibling,
   StageWipAuthorityBinding
 } from '../src/assignment-runtime.types.ts'
-import { objectFingerprint } from '../src/canonical.ts'
+import { canonicalJson, objectFingerprint, sha256 } from '../src/canonical.ts'
 import { validateJsonSchema } from '../src/schema-validation.ts'
 
 const FP = {
   scope: 'a'.repeat(64),
   childScope: 'b'.repeat(64),
   root: 'c'.repeat(64),
-  capability: 'd'.repeat(64),
-  artifactSha: 'e'.repeat(64),
-  artifactFingerprint: 'f'.repeat(64)
+  capability: 'd'.repeat(64)
 }
 
 const exactStageStates = new Map<string, AssignmentRuntimeState>()
+const defaultResultArtifactRoot = realpathSync(
+  mkdtempSync(join(tmpdir(), 'oes-assignment-result-artifacts-'))
+)
+after(() => rmSync(defaultResultArtifactRoot, { recursive: true, force: true }))
 
 const schema = (name: string) =>
   JSON.parse(readFileSync(join(import.meta.dirname, '..', 'schemas', name), 'utf8')) as Record<
@@ -46,7 +57,7 @@ const schema = (name: string) =>
 
 /** Creates one task-owned state root and removes it after the test. */
 function runtime(t: TestContext, role: 'FEATURE_LEAD' | 'STAGE_LEAD' = 'FEATURE_LEAD') {
-  const root = mkdtempSync(join(tmpdir(), 'oes-assignment-runtime-'))
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'oes-assignment-runtime-')))
   t.after(() => rmSync(root, { recursive: true, force: true }))
   const store = new AssignmentRuntimeStore(root, 'feature-alpha')
   const initialization: AssignmentRuntimeInitialization = {
@@ -85,11 +96,40 @@ function child(
     nextLegalActionOnResult:
       childRole === 'FEATURE_REVIEW' ? 'PREPARE_STAGE_REVIEW' : 'REVIEW_SLICE',
     scopeFingerprint: FP.childScope,
+    resultArtifactRoot: defaultResultArtifactRoot,
     ...overrides
   }
 }
 
-/** Creates a self-hashed result for one active assignment. */
+/** Creates the exact self-hashed payload bound to one active assignment. */
+function artifact(
+  assignment: ActiveChildAssignment,
+  overrides: Partial<AssignmentResultArtifactPayload> = {}
+): AssignmentResultArtifactPayload {
+  return createAssignmentResultArtifact({
+    assignmentId: assignment.assignmentId,
+    directExecutionParentTaskId: assignment.directExecutionParentTaskId,
+    childTaskId: assignment.childTaskId,
+    transitionId: assignment.transitionId,
+    dispatchStateVersion: assignment.dispatchStateVersion,
+    typedResult: assignment.expectedTypedResult,
+    scopeFingerprint: assignment.scopeFingerprint,
+    ...overrides
+  })
+}
+
+/** Writes one canonical result artifact and returns its exact outer reference. */
+function writeArtifact(
+  assignment: ActiveChildAssignment,
+  payload = artifact(assignment),
+  path = join(assignment.resultArtifactRoot, `${assignment.assignmentId}.json`)
+) {
+  const bytes = `${canonicalJson(payload)}\n`
+  writeFileSync(path, bytes)
+  return { path, sha256: sha256(bytes), fingerprint: payload.artifactFingerprint }
+}
+
+/** Creates a self-hashed result whose artifact already exists under the bound physical root. */
 function result(
   assignment: ActiveChildAssignment,
   overrides: Partial<Omit<AssignmentResult, 'schemaVersion' | 'kind' | 'resultFingerprint'>> = {}
@@ -101,11 +141,7 @@ function result(
     transitionId: assignment.transitionId,
     dispatchStateVersion: assignment.dispatchStateVersion,
     typedResult: assignment.expectedTypedResult,
-    resultArtifact: {
-      path: '/tmp/assignment-result.json',
-      sha256: FP.artifactSha,
-      fingerprint: FP.artifactFingerprint
-    },
+    resultArtifact: writeArtifact(assignment),
     ...overrides
   })
 }
@@ -136,7 +172,7 @@ function sibling(
 
 /** Creates one exact Stage-owned WIP authority and deletes its scratch store. */
 function stageAuthority(activeFeatureLeads = 1): StageWipAuthorityBinding {
-  const root = mkdtempSync(join(tmpdir(), 'oes-assignment-stage-authority-'))
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'oes-assignment-stage-authority-')))
   try {
     const store = new AssignmentRuntimeStore(root, 'stage-authority')
     let state = store.initialize({
@@ -299,6 +335,10 @@ test('direct result applies once and exact replay after restart returns the orig
   const waiting = store.dispatchChild(child(state.stateVersion, 'task-it-one'))
   const value = result(waiting.activeAssignments[0])
   validateJsonSchema(schema('assignment-result.schema.json'), value)
+  validateJsonSchema(
+    schema('assignment-result-artifact.schema.json'),
+    JSON.parse(readFileSync(value.resultArtifact.path, 'utf8'))
+  )
   const receipt = store.consumeResult(value)
   const after = store.load()
   assert.equal(after.status, 'ACTIVE')
@@ -310,6 +350,96 @@ test('direct result applies once and exact replay after restart returns the orig
   const replayed = new AssignmentRuntimeStore(root, 'feature-alpha').consumeResult(value)
   assert.deepEqual(replayed, receipt)
   assert.deepEqual(readFileSync(store.statePath), bytes)
+})
+
+test('result artifacts must exist, remain physical children, and bind exact assignment content', (t) => {
+  const { root, store, state } = runtime(t)
+  const waiting = store.dispatchChild(child(state.stateVersion, 'task-it-one'))
+  const assignment = waiting.activeAssignments[0]
+  const before = readFileSync(store.statePath)
+  const payload = artifact(assignment)
+  const payloadBytes = `${canonicalJson(payload)}\n`
+
+  const missingPath = join(assignment.resultArtifactRoot, 'missing-result.json')
+  const missing = createAssignmentResult({
+    assignmentId: assignment.assignmentId,
+    directExecutionParentTaskId: assignment.directExecutionParentTaskId,
+    childTaskId: assignment.childTaskId,
+    transitionId: assignment.transitionId,
+    dispatchStateVersion: assignment.dispatchStateVersion,
+    typedResult: assignment.expectedTypedResult,
+    resultArtifact: {
+      path: missingPath,
+      sha256: sha256(payloadBytes),
+      fingerprint: payload.artifactFingerprint
+    }
+  })
+  assert.throws(() => store.consumeResult(missing), /ASSIGNMENT_RESULT_ARTIFACT_ABSENT/)
+  assert.deepEqual(readFileSync(store.statePath), before)
+
+  const valid = result(assignment)
+  writeFileSync(valid.resultArtifact.path, `${payloadBytes}tampered`)
+  assert.throws(() => store.consumeResult(valid), /ASSIGNMENT_RESULT_ARTIFACT_SHA_MISMATCH/)
+  assert.deepEqual(readFileSync(store.statePath), before)
+  writeFileSync(valid.resultArtifact.path, payloadBytes)
+
+  const aliasPath = join(assignment.resultArtifactRoot, 'result-alias.json')
+  symlinkSync(valid.resultArtifact.path, aliasPath)
+  const aliased = createAssignmentResult({
+    assignmentId: assignment.assignmentId,
+    directExecutionParentTaskId: assignment.directExecutionParentTaskId,
+    childTaskId: assignment.childTaskId,
+    transitionId: assignment.transitionId,
+    dispatchStateVersion: assignment.dispatchStateVersion,
+    typedResult: assignment.expectedTypedResult,
+    resultArtifact: { ...valid.resultArtifact, path: aliasPath }
+  })
+  assert.throws(() => store.consumeResult(aliased), /ASSIGNMENT_RESULT_ARTIFACT_PHYSICAL_ALIAS/)
+  assert.deepEqual(readFileSync(store.statePath), before)
+
+  const otherRoot = realpathSync(mkdtempSync(join(tmpdir(), 'oes-assignment-other-owner-')))
+  t.after(() => rmSync(otherRoot, { recursive: true, force: true }))
+  const wrongOwnerPath = join(otherRoot, 'result.json')
+  writeFileSync(wrongOwnerPath, payloadBytes)
+  const wrongOwner = createAssignmentResult({
+    assignmentId: assignment.assignmentId,
+    directExecutionParentTaskId: assignment.directExecutionParentTaskId,
+    childTaskId: assignment.childTaskId,
+    transitionId: assignment.transitionId,
+    dispatchStateVersion: assignment.dispatchStateVersion,
+    typedResult: assignment.expectedTypedResult,
+    resultArtifact: { ...valid.resultArtifact, path: wrongOwnerPath }
+  })
+  assert.throws(
+    () => store.consumeResult(wrongOwner),
+    /ASSIGNMENT_RESULT_ARTIFACT_OUTSIDE_BOUND_ROOT/
+  )
+  assert.deepEqual(readFileSync(store.statePath), before)
+
+  const mismatchedPayload = artifact(assignment, { childTaskId: 'task-it-other' })
+  const mismatchedReference = writeArtifact(
+    assignment,
+    mismatchedPayload,
+    join(assignment.resultArtifactRoot, 'mismatched-result.json')
+  )
+  const mismatched = createAssignmentResult({
+    assignmentId: assignment.assignmentId,
+    directExecutionParentTaskId: assignment.directExecutionParentTaskId,
+    childTaskId: assignment.childTaskId,
+    transitionId: assignment.transitionId,
+    dispatchStateVersion: assignment.dispatchStateVersion,
+    typedResult: assignment.expectedTypedResult,
+    resultArtifact: mismatchedReference
+  })
+  assert.throws(
+    () => store.consumeResult(mismatched),
+    /ASSIGNMENT_RESULT_ARTIFACT_ASSIGNMENT_MISMATCH/
+  )
+  assert.deepEqual(readFileSync(store.statePath), before)
+
+  const receipt = store.consumeResult(valid)
+  assert.equal(receipt.remainingAssignments, 0)
+  assert.equal(store.load().status, 'ACTIVE')
 })
 
 test('wrong-route, stale, unexpected, and unknown results preserve exact state bytes', (t) => {
@@ -343,7 +473,7 @@ test('a conflicting duplicate result fails without replacing the accepted tombst
   const conflict = result(waiting.activeAssignments[0], {
     resultArtifact: {
       path: '/tmp/conflicting-result.json',
-      sha256: FP.artifactSha,
+      sha256: 'e'.repeat(64),
       fingerprint: '4'.repeat(64)
     }
   })
@@ -463,7 +593,8 @@ test('persisted self-routes and duplicate active Feature owners fail on reopen',
       featureKey: selfAssignment.featureKey,
       expectedTypedResult: selfAssignment.expectedTypedResult,
       nextLegalActionOnResult: selfAssignment.nextLegalActionOnResult,
-      scopeFingerprint: selfAssignment.scopeFingerprint
+      scopeFingerprint: selfAssignment.scopeFingerprint,
+      resultArtifactRoot: selfAssignment.resultArtifactRoot
     },
     '__none__'
   )
@@ -501,7 +632,8 @@ test('persisted self-routes and duplicate active Feature owners fail on reopen',
       featureKey: second.featureKey,
       expectedTypedResult: second.expectedTypedResult,
       nextLegalActionOnResult: second.nextLegalActionOnResult,
-      scopeFingerprint: second.scopeFingerprint
+      scopeFingerprint: second.scopeFingerprint,
+      resultArtifactRoot: second.resultArtifactRoot
     },
     '__none__'
   )
@@ -717,10 +849,7 @@ test('persisted replan marker is idempotent, blocks expansion, and preserves in-
   assert.equal(marked.featureReplan?.decisionFingerprint, decision.decisionFingerprint)
   validateJsonSchema(schema('assignment-runtime-state.schema.json'), marked)
   const markedBytes = readFileSync(store.statePath)
-  assert.deepEqual(
-    store.recordFeatureReplanDecision(request, exactStageState(request)),
-    decision
-  )
+  assert.deepEqual(store.recordFeatureReplanDecision(request, exactStageState(request)), decision)
   assert.deepEqual(readFileSync(store.statePath), markedBytes)
   assert.throws(
     () => store.dispatchChild(child(marked.stateVersion, 'task-it-two')),
@@ -762,6 +891,30 @@ test('schema and runtime both reject open or malformed assignment contracts', (t
   assert.throws(
     () => validateJsonSchema(schema('assignment-result.schema.json'), { ...value, extra: true }),
     /additionalProperties/
+  )
+  const traversalResult = {
+    ...value,
+    resultArtifact: {
+      ...value.resultArtifact,
+      path: `${value.resultArtifact.path}/../outside-result.json`
+    }
+  }
+  assert.throws(
+    () => validateJsonSchema(schema('assignment-result.schema.json'), traversalResult),
+    /JSON_SCHEMA_VALIDATION_FAILED/
+  )
+  assert.throws(
+    () =>
+      createAssignmentResult({
+        assignmentId: traversalResult.assignmentId,
+        directExecutionParentTaskId: traversalResult.directExecutionParentTaskId,
+        childTaskId: traversalResult.childTaskId,
+        transitionId: traversalResult.transitionId,
+        dispatchStateVersion: traversalResult.dispatchStateVersion,
+        typedResult: traversalResult.typedResult,
+        resultArtifact: traversalResult.resultArtifact
+      }),
+    /ASSIGNMENT_RESULT_ARTIFACT_PATH_INVALID/
   )
   const request = replanRequest(waiting.stateVersion, [sibling()], {
     oldTopology: {

@@ -28,7 +28,9 @@ const absent = (resource: {
 }) => ({ ...resource, exists: false, clean: true, actualSha: null })
 
 /** Converts every bound cleanup resource into one verified absence result. */
-function absentResults(resources: StageCleanupAuthorization['terminalFeatures'][number]['resources']) {
+function absentResults(
+  resources: StageCleanupAuthorization['terminalFeatures'][number]['resources']
+) {
   return resources.map((resource) => ({
     resource,
     decision: 'ALREADY_ABSENT' as const,
@@ -200,6 +202,73 @@ test('stable cleanup derives only exact owner binding resources and rejects mixe
   assert.throws(
     () => planChildSelfCleanup(authorization, binding.ownerTaskId, observations),
     /CLEANUP_RESOURCE_TOPOLOGY_MIXED/
+  )
+})
+
+test('stable cleanup rejects a shared temp root before any REMOVE decision', () => {
+  const authorization = cleanupAuthorization()
+  const binding = stableOwnerBinding()
+  binding.taskTempRoot = '/private/tmp'
+  binding.bindingFingerprint = objectFingerprint(
+    binding as unknown as Record<string, unknown>,
+    'bindingFingerprint'
+  )
+  authorization.stageOwnerTaskId = binding.directParentTaskId
+  authorization.allowedDeletedFeaturePackets = [binding.featurePacket]
+  authorization.terminalFeatures = [
+    {
+      featureKey: 'runtime',
+      ownerTaskId: binding.ownerTaskId,
+      candidateSha: '1'.repeat(40),
+      mergeSha: '2'.repeat(40),
+      featurePacket: binding.featurePacket,
+      resourceTopologyVersion: 'stable-owner-exclusive-v1',
+      ownerResourceBinding: binding,
+      resources: [
+        {
+          kind: 'remote-branch',
+          path: 'codex/feature/runtime',
+          expectedSha: '1'.repeat(40),
+          resourceTopologyVersion: 'stable-owner-exclusive-v1'
+        },
+        {
+          kind: 'local-branch',
+          path: 'codex/feature/runtime',
+          expectedSha: '1'.repeat(40),
+          resourceTopologyVersion: 'stable-owner-exclusive-v1'
+        },
+        {
+          kind: 'worktree',
+          path: binding.ownerClone,
+          expectedSha: '1'.repeat(40),
+          resourceTopologyVersion: 'stable-owner-exclusive-v1'
+        },
+        {
+          kind: 'task-temp',
+          path: binding.taskTempRoot,
+          expectedSha: null,
+          resourceTopologyVersion: 'stable-owner-exclusive-v1'
+        }
+      ]
+    }
+  ]
+  authorization.authorizationFingerprint = objectFingerprint(
+    authorization as unknown as Record<string, unknown>,
+    'authorizationFingerprint'
+  )
+  const observations = authorization.terminalFeatures[0].resources.map((resource) => ({
+    ...resource,
+    exists: true,
+    clean: true,
+    actualSha: resource.expectedSha
+  }))
+  assert.throws(
+    () => validateJsonSchema(cleanupSchema, authorization),
+    /JSON_SCHEMA_VALIDATION_FAILED/
+  )
+  assert.throws(
+    () => planChildSelfCleanup(authorization, binding.ownerTaskId, observations),
+    /STABLE_OWNER_TASK_TEMP_NOT_OWNER_EXCLUSIVE/
   )
 })
 

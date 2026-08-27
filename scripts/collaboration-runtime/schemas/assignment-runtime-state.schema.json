@@ -127,7 +127,9 @@
         "dispatchStateVersion",
         "expectedTypedResult",
         "nextLegalActionOnResult",
-        "scopeFingerprint"
+        "scopeFingerprint",
+        "resultArtifactRoot",
+        "resultArtifactRootPhysicalPath"
       ],
       "properties": {
         "assignmentId": { "$ref": "#/$defs/fingerprint" },
@@ -140,7 +142,9 @@
         "dispatchStateVersion": { "type": "integer", "minimum": 1 },
         "expectedTypedResult": { "$ref": "#/$defs/token" },
         "nextLegalActionOnResult": { "$ref": "#/$defs/action" },
-        "scopeFingerprint": { "$ref": "#/$defs/fingerprint" }
+        "scopeFingerprint": { "$ref": "#/$defs/fingerprint" },
+        "resultArtifactRoot": { "$ref": "#/$defs/absolutePath" },
+        "resultArtifactRootPhysicalPath": { "$ref": "#/$defs/absolutePath" }
       }
     },
     "featureWip": {
@@ -189,6 +193,10 @@
         "wip": { "$ref": "#/$defs/wip" },
         "nextLegalAction": { "$ref": "#/$defs/action" }
       }
+    },
+    "absolutePath": {
+      "type": "string",
+      "pattern": "^/(?!.*(?:^|/)\\.\\.?(?:/|$))[^/]+(?:/[^/]+)*$"
     },
     "resultTombstone": {
       "type": "object",

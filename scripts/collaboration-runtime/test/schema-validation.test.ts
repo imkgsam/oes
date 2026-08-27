@@ -149,6 +149,90 @@ test('Stage schemas reject Stage-owned roots, filesystem aliases, and Git-invali
   }
 })
 
+test('stable Stage child schema rejects a shared temp parent in binding and resource', () => {
+  const taskTempRoot = '/private/tmp/oes-runtime-owner'
+  const ownerClone = '/Users/fixture/.codex/oes/owners/runtime/oes'
+  const artifactRoot = '/Users/fixture/.codex/oes/artifacts/runtime'
+  const ownerResourceBinding = {
+    schemaVersion: 1,
+    kind: 'OES_OWNER_RESOURCE_BINDING',
+    bindingFingerprint: 'a'.repeat(64),
+    resourceTopologyVersion: 'stable-owner-exclusive-v1',
+    ownerTaskId: '11111111-1111-4111-8111-111111111111',
+    directParentTaskId: '22222222-2222-4222-8222-222222222222',
+    transitionId: 'stable-owner:1',
+    repositoryRoot: ownerClone,
+    repositoryRemoteUrl: 'https://github.com/example/oes.git',
+    ownerClone,
+    ownerGitDirectory: `${ownerClone}/.git`,
+    ownerRef: 'refs/heads/codex/feature/runtime',
+    artifactRoot,
+    taskTempRoot,
+    featurePacket: 'docs/plans/features/runtime.md',
+    featurePacketCheckpointPath: `${artifactRoot}/feature-packet.md`,
+    currentEvidenceManifestPath: `${artifactRoot}/current-evidence.json`,
+    checkpointBundlePath: `${artifactRoot}/checkpoint.json`,
+    gitBundlePath: `${artifactRoot}/candidate.bundle`
+  }
+  const resources = [
+    {
+      kind: 'remote-branch',
+      path: 'codex/feature/runtime',
+      expectedSha: '1'.repeat(40),
+      resourceTopologyVersion: 'stable-owner-exclusive-v1'
+    },
+    {
+      kind: 'local-branch',
+      path: 'codex/feature/runtime',
+      expectedSha: '1'.repeat(40),
+      resourceTopologyVersion: 'stable-owner-exclusive-v1'
+    },
+    {
+      kind: 'worktree',
+      path: ownerClone,
+      expectedSha: '1'.repeat(40),
+      resourceTopologyVersion: 'stable-owner-exclusive-v1'
+    },
+    {
+      kind: 'task-temp',
+      path: taskTempRoot,
+      expectedSha: null,
+      resourceTopologyVersion: 'stable-owner-exclusive-v1'
+    }
+  ]
+  const child = {
+    schemaVersion: 1,
+    kind: 'OES_STAGE_CHILD_CLEANUP_AUTHORIZATION',
+    authorizationFingerprint: 'b'.repeat(64),
+    status: 'ISSUED',
+    rootAuthorization: {
+      path: '/trusted/stage.json',
+      sha256: 'c'.repeat(64),
+      fingerprint: 'd'.repeat(64)
+    },
+    expectedState: 'STAGE_CLEANUP_AUTHORIZED',
+    stateVersion: 4,
+    stageKey: 'stage-runtime',
+    stageOwnerTaskId: ownerResourceBinding.directParentTaskId,
+    ownerTaskId: ownerResourceBinding.ownerTaskId,
+    transitionId: ownerResourceBinding.transitionId,
+    confirmationFingerprint: 'e'.repeat(64),
+    resources,
+    postcondition: 'CHILD_SELF_CLEANUP',
+    resourceTopologyVersion: 'stable-owner-exclusive-v1',
+    ownerResourceBinding
+  }
+  assert.doesNotThrow(() =>
+    validateJsonSchema(schema('stage-child-cleanup-authorization.schema.json'), child)
+  )
+  ownerResourceBinding.taskTempRoot = '/private/tmp'
+  resources[3].path = '/private/tmp'
+  assert.throws(
+    () => validateJsonSchema(schema('stage-child-cleanup-authorization.schema.json'), child),
+    /JSON_SCHEMA_VALIDATION_FAILED/
+  )
+})
+
 test('Stage schemas reject empty and dot task owner segments', () => {
   for (const ownerTaskId of ['/root/sl/', '/root/sl/.']) {
     const root = cleanupAuthorization()

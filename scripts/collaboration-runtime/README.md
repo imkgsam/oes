@@ -6,12 +6,13 @@ This directory is the repository-owned implementation of the reliability rules f
 
 - `profile/`: exact-owner project profile template. It separates the owner-exclusive Git directory from shared metadata, keeps the action-authorization root read-only, and grants only the protocol's shared serial-admission directory.
 - `src/profile-preflight.ts`: production capability probes, persisted observation readback, actual profile/telemetry hashing, zero-normal-prompt acceptance, and bounded defect/repair routing.
-- `src/resource-topology.ts`: sealed stable-owner resource bindings, private Git/common-directory observation, durable Packet/evidence/checkpoint verification, duplicate-transition detection, and exact-path recovery planning.
+- `src/resource-topology.ts`: sealed stable-owner resource bindings, physical owner-namespaced scratch roots, private Git/common-directory observation, durable Packet/evidence/checkpoint verification, duplicate-transition detection, and exact-path recovery planning.
 - `src/remote-driver.ts`: monotonic remote transaction state, result-loss reconstruction, and read-after-write recovery.
 - `src/github-adapter.ts`: exact Git/GitHub implementation for `preflight`, `publish-pr`, `verify-pr`, `merge-pr`, `verify-main`, and `cleanup`, including repository rules, review, annotation, merge-group, and merge-parent gates.
 - `src/admission.ts`: crash-resumable global lock for serialized latest-main admission. Native queue receipts bind the generated base/head commits and their exact checks.
 - `src/evidence.ts`: evidence keys and changed-path/contract/dependency/profile/command/result invalidation decisions.
 - `src/cleanup.ts`: profile-derived protected Stage/child authorization narrowing, observation-bound partial-failure preservation, post-removal verification, and complete cleanup-only diff verification.
+- `src/assignment-runtime.ts`: direct event-driven assignment state, bounded WIP/replan enforcement, and physical reopen/hash/schema verification of typed result artifacts before lane completion.
 - `src/schema-validation.ts` and `schemas/`: an executable JSON Schema subset plus versioned binding, authorization, checkpoint, receipt, result, profile, evidence, cleanup and diff contracts.
 
 ## Commands

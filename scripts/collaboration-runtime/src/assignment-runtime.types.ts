@@ -62,6 +62,7 @@ export interface ChildAssignmentRequest {
   expectedTypedResult: string
   nextLegalActionOnResult: string
   scopeFingerprint: string
+  resultArtifactRoot: string
 }
 
 export interface ActiveChildAssignment {
@@ -76,12 +77,30 @@ export interface ActiveChildAssignment {
   expectedTypedResult: string
   nextLegalActionOnResult: string
   scopeFingerprint: string
+  resultArtifactRoot: string
+  resultArtifactRootPhysicalPath: string
 }
 
 export interface AssignmentResultArtifact {
   path: string
   sha256: string
   fingerprint: string
+}
+
+export interface AssignmentResultArtifactPayloadInput {
+  assignmentId: string
+  directExecutionParentTaskId: string
+  childTaskId: string
+  transitionId: string
+  dispatchStateVersion: number
+  typedResult: string
+  scopeFingerprint: string
+}
+
+export interface AssignmentResultArtifactPayload extends AssignmentResultArtifactPayloadInput {
+  schemaVersion: 1
+  kind: 'OES_ASSIGNMENT_RESULT_ARTIFACT'
+  artifactFingerprint: string
 }
 
 export interface AssignmentResultInput {

@@ -64,7 +64,8 @@ const waiting = store.dispatchChild({
   featureKey: FEATURE_KEY,
   expectedTypedResult: 'SLICE_ACCEPTED',
   nextLegalActionOnResult: 'REVIEW_SLICE',
-  scopeFingerprint: CHILD_SCOPE_FINGERPRINT
+  scopeFingerprint: CHILD_SCOPE_FINGERPRINT,
+  resultArtifactRoot: CHILD_RESULT_ARTIFACT_ROOT
 })
 ```
 
@@ -76,6 +77,7 @@ The persisted active assignment binds:
 - transition and dispatch state version;
 - expected typed result;
 - narrower scope fingerprint;
+- approved result artifact root and its dispatch-time physical directory identity;
 - next legal action after the result.
 
 After dispatch, persist the same marker in the Feature or Stage Packet and current evidence manifest, send the exact assignment, and end the turn. Do not keep a turn open to wait for the child.
@@ -84,7 +86,22 @@ An exact retry of the same dispatch request returns the current state without in
 
 ## Return and consume a direct result
 
-The child constructs a self-hashed envelope after separately hashing its result artifact:
+The child first writes a canonical typed artifact beneath the exact `resultArtifactRoot` bound in the active assignment:
+
+```ts
+const artifact = createAssignmentResultArtifact({
+  assignmentId: ASSIGNMENT_ID,
+  directExecutionParentTaskId: PARENT_TASK_ID,
+  childTaskId: CHILD_TASK_ID,
+  transitionId: TRANSITION_ID,
+  dispatchStateVersion: DISPATCH_STATE_VERSION,
+  typedResult: EXPECTED_TYPED_RESULT,
+  scopeFingerprint: CHILD_SCOPE_FINGERPRINT
+})
+writeJsonAtomic(RESULT_ARTIFACT_PATH, artifact)
+```
+
+`RESULT_ARTIFACT_PATH` must be an exact, non-aliased physical file strictly below the bound root. The child then constructs a self-hashed envelope after hashing the canonical artifact bytes:
 
 ```ts
 const result = createAssignmentResult({
@@ -108,7 +125,7 @@ Send the envelope only to the exact direct execution parent. The parent applies 
 const receipt = store.consumeResult(result)
 ```
 
-The consumer validates the envelope self-hash and exact assignment route before changing state. It removes only the matching active lane, recomputes WIP, stores the exact result tombstone and receipt, and selects the next state:
+The consumer validates the envelope self-hash and exact assignment route, reopens the bound root and artifact through physical containment, verifies the exact bytes SHA-256, validates `assignment-result-artifact.schema.json`, checks the artifact self-fingerprint, and compares its assignment, parent, child, transition, dispatch version, typed result, and scope to both the active assignment and envelope before changing state. Missing, changed, aliased, non-canonical, wrong-root, or mismatched artifact bytes leave the assignment active and WIP unchanged. Only then does it remove the matching lane, recompute WIP, store the exact result tombstone and receipt, and select the next state:
 
 ```text
 remaining child lanes > 0  -> WAITING_ON_CHILD
@@ -120,16 +137,21 @@ The same result after restart returns the original receipt and leaves state byte
 
 ## Result failure routes
 
-| Error                                | Meaning                                          | State effect |
-| ------------------------------------ | ------------------------------------------------ | ------------ |
-| `ASSIGNMENT_RESULT_STALE_OR_UNKNOWN` | No active or completed exact assignment exists   | None         |
-| `ASSIGNMENT_RESULT_WRONG_PARENT`     | Result was routed to another parent              | None         |
-| `ASSIGNMENT_RESULT_WRONG_CHILD`      | Child differs from the active binding            | None         |
-| `ASSIGNMENT_RESULT_WRONG_TRANSITION` | Transition differs                               | None         |
-| `ASSIGNMENT_RESULT_STALE_STATE`      | Dispatch state version differs                   | None         |
-| `ASSIGNMENT_RESULT_UNEXPECTED_TYPE`  | Typed result differs                             | None         |
-| `ASSIGNMENT_RESULT_CONFLICT`         | Same assignment returned different exact bytes   | None         |
-| `ASSIGNMENT_STATE_BUSY`              | Another write transaction currently owns the row | None         |
+| Error                                            | Meaning                                          | State effect |
+| ------------------------------------------------ | ------------------------------------------------ | ------------ |
+| `ASSIGNMENT_RESULT_STALE_OR_UNKNOWN`             | No active or completed exact assignment exists   | None         |
+| `ASSIGNMENT_RESULT_WRONG_PARENT`                 | Result was routed to another parent              | None         |
+| `ASSIGNMENT_RESULT_WRONG_CHILD`                  | Child differs from the active binding            | None         |
+| `ASSIGNMENT_RESULT_WRONG_TRANSITION`             | Transition differs                               | None         |
+| `ASSIGNMENT_RESULT_STALE_STATE`                  | Dispatch state version differs                   | None         |
+| `ASSIGNMENT_RESULT_UNEXPECTED_TYPE`              | Typed result differs                             | None         |
+| `ASSIGNMENT_RESULT_CONFLICT`                     | Same assignment returned different exact bytes   | None         |
+| `ASSIGNMENT_RESULT_ARTIFACT_ABSENT`              | The bound artifact is missing                    | None         |
+| `ASSIGNMENT_RESULT_ARTIFACT_SHA_MISMATCH`        | Reopened bytes differ from the envelope digest   | None         |
+| `ASSIGNMENT_RESULT_ARTIFACT_OUTSIDE_BOUND_ROOT`  | Physical file belongs to another root            | None         |
+| `ASSIGNMENT_RESULT_ARTIFACT_PHYSICAL_ALIAS`      | Artifact path is an alias                        | None         |
+| `ASSIGNMENT_RESULT_ARTIFACT_ASSIGNMENT_MISMATCH` | Typed content differs from the assignment        | None         |
+| `ASSIGNMENT_STATE_BUSY`                          | Another write transaction currently owns the row | None         |
 
 Preserve the exact state and evidence on every failure. Correct routing or binding at the producing child or direct parent; do not substitute an ancestor task or a generic callback.
 

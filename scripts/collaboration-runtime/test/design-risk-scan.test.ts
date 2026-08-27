@@ -92,10 +92,13 @@ test('the executable schema also rejects a re-sealed sufficient surface without 
   assert.throws(() => validateJsonSchema(schema, result), /JSON_SCHEMA_VALIDATION_FAILED/)
 })
 
-test('truth references remain repository-relative and traversal-free', () => {
+test('runtime and schema reject absolute, traversal, empty-segment, and trailing truth paths', () => {
   for (const reference of [
     '/absolute/docs/governance.md',
     'docs/../secrets',
+    'docs/./governance.md',
+    'docs//governance.md',
+    'docs/governance/',
     'scripts/collaboration-runtime/src/evidence.ts'
   ]) {
     const value = input()
@@ -105,7 +108,30 @@ test('truth references remain repository-relative and traversal-free', () => {
       /DESIGN_RISK_SCAN_TRUTH_REFERENCE_INVALID/,
       reference
     )
+    const persisted = createDesignRiskScan(input())
+    persisted.surfaces[0].truthReferences = [reference]
+    persisted.scanFingerprint = objectFingerprint(
+      persisted as unknown as Record<string, unknown>,
+      'scanFingerprint'
+    )
+    assert.throws(
+      () => validateJsonSchema(schema, persisted),
+      /JSON_SCHEMA_VALIDATION_FAILED/,
+      reference
+    )
   }
+})
+
+test('runtime and schema require each of the seven distinct risk surface identities', () => {
+  const result = createDesignRiskScan(input())
+  result.surfaces[1].surface = result.surfaces[0].surface
+  result.surfaces[1].conclusion = 'Distinct bytes cannot disguise a duplicate surface identity.'
+  result.scanFingerprint = objectFingerprint(
+    result as unknown as Record<string, unknown>,
+    'scanFingerprint'
+  )
+  assert.throws(() => validateDesignRiskScan(result), /DESIGN_RISK_SCAN_SURFACE_DUPLICATE/)
+  assert.throws(() => validateJsonSchema(schema, result), /JSON_SCHEMA_VALIDATION_FAILED/)
 })
 
 test('altered persisted scan results fail their self-hash check', () => {

@@ -248,6 +248,32 @@ test('owner topology schemas accept the exact binding, manifest, and checkpoint 
 })
 
 test('stable topology rejects temporary and mixed pre-cutover roots', () => {
+  for (const sharedRoot of ['/private/tmp', realpathSync(tmpdir())]) {
+    const shared = stableBinding({ taskTempRoot: sharedRoot })
+    assert.throws(
+      () => validateOwnerResourceBinding(shared),
+      /STABLE_OWNER_TASK_TEMP_NOT_OWNER_EXCLUSIVE/
+    )
+    assert.throws(
+      () => validateJsonSchema(schema('owner-resource-binding.schema.json'), shared),
+      /JSON_SCHEMA_VALIDATION_FAILED/
+    )
+  }
+  assert.throws(
+    () => validateOwnerResourceBinding(stableBinding({ taskTempRoot: '/private/tmp/shared' })),
+    /STABLE_OWNER_TASK_TEMP_NOT_OWNER_EXCLUSIVE/
+  )
+  const nestedAncestor = stableBinding({
+    taskTempRoot: '/private/tmp/oes-shared-ancestor/oes-runtime-owner'
+  })
+  assert.throws(
+    () => validateOwnerResourceBinding(nestedAncestor),
+    /STABLE_OWNER_TASK_TEMP_NOT_OWNER_EXCLUSIVE/
+  )
+  assert.throws(
+    () => validateJsonSchema(schema('owner-resource-binding.schema.json'), nestedAncestor),
+    /JSON_SCHEMA_VALIDATION_FAILED/
+  )
   assert.throws(
     () =>
       validateOwnerResourceBinding(
@@ -391,7 +417,7 @@ test('stable reboot and temp loss restore only the exact owner and become idempo
 
 test('system recovery restores the canonical origin accepted by remote preflight', async (t) => {
   const root = mkdtempSync(join(homedir(), '.oes-stable-recovery-test-'))
-  const scratch = mkdtempSync(join(tmpdir(), 'oes-stable-recovery-scratch-'))
+  const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'oes-stable-recovery-scratch-')))
   t.after(() => {
     rmSync(root, { recursive: true, force: true })
     rmSync(scratch, { recursive: true, force: true })
@@ -494,25 +520,26 @@ test('system recovery restores the canonical origin accepted by remote preflight
         }
       }
       const endpoint = args[1] ?? ''
-      const value = endpoint === 'repos/example/oes'
-        ? {
-            default_branch: 'main',
-            delete_branch_on_merge: false,
-            allow_merge_commit: true,
-            allow_squash_merge: false,
-            allow_rebase_merge: false,
-            allow_auto_merge: false
-          }
-        : endpoint.includes('/rulesets?')
-          ? [{ id: 7, name: 'protect-main', target: 'branch', enforcement: 'active' }]
-          : endpoint.endsWith('/rulesets/7')
-            ? ruleset
-            : endpoint.endsWith('/actions/permissions/workflow')
-              ? {
-                  default_workflow_permissions: 'read',
-                  can_approve_pull_request_reviews: false
-                }
-              : null
+      const value =
+        endpoint === 'repos/example/oes'
+          ? {
+              default_branch: 'main',
+              delete_branch_on_merge: false,
+              allow_merge_commit: true,
+              allow_squash_merge: false,
+              allow_rebase_merge: false,
+              allow_auto_merge: false
+            }
+          : endpoint.includes('/rulesets?')
+            ? [{ id: 7, name: 'protect-main', target: 'branch', enforcement: 'active' }]
+            : endpoint.endsWith('/rulesets/7')
+              ? ruleset
+              : endpoint.endsWith('/actions/permissions/workflow')
+                ? {
+                    default_workflow_permissions: 'read',
+                    can_approve_pull_request_reviews: false
+                  }
+                : null
       return value === null
         ? { stdout: '', stderr: `unexpected command: ${command} ${args.join(' ')}`, exitCode: 1 }
         : { stdout: JSON.stringify(value), stderr: '', exitCode: 0 }

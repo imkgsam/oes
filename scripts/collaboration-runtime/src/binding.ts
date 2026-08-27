@@ -26,6 +26,7 @@ import { fail } from './errors.ts'
 import {
   loadOwnerResourceBindingReference,
   stableRemoteActionRoot,
+  validateStableOwnerTaskTempRoot,
   validateOwnerResourceBinding,
   validateOwnerResourceReference
 } from './resource-topology.ts'
@@ -617,7 +618,10 @@ export function validateStageCleanupResource(
     if (!stable && !expectedPattern.test(value.path))
       fail('CLEANUP_RESOURCE_PATH_NOT_OWNER_BOUND', field)
     if (value.kind === 'worktree') requireGitSha(value.expectedSha, `${field}.expectedSha`)
-    else if (value.expectedSha !== null) fail('TASK_TEMP_SHA_FORBIDDEN', `${field}.expectedSha`)
+    else {
+      if (stable) validateStableOwnerTaskTempRoot(value.path, `${field}.path`)
+      if (value.expectedSha !== null) fail('TASK_TEMP_SHA_FORBIDDEN', `${field}.expectedSha`)
+    }
   }
   return value
 }

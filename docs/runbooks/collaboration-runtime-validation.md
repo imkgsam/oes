@@ -73,7 +73,7 @@ The plan returns every command in exactly one of `runActions` or `reuseActions`,
 6. `MIGRATION_OWNERSHIP`
 7. `DEPENDENCY_CYCLES`
 
-Each sufficient surface includes at least one repository-relative canonical truth reference and a conclusion. Runtime and executable schema enforce that rule identically. A gap includes the exact surface and one non-empty pinpointed detail. Missing, duplicate or unknown surfaces fail closed. The only result values are:
+Each sufficient surface includes at least one repository-relative canonical truth reference and a conclusion. A truth reference starts beneath `docs/`, has no absolute prefix, empty segment, `.`/`..` traversal segment, or trailing separator. Runtime and executable schema enforce that path contract and the exact seven distinct surface identities identically. A gap includes the exact surface and one non-empty pinpointed detail. Missing, duplicate or unknown surfaces fail closed. The only result values are:
 
 - `EXISTING_TRUTH_SUFFICIENT`
 - `DESIGN_GAP`

@@ -29,7 +29,51 @@
       "minItems": 7,
       "maxItems": 7,
       "uniqueItems": true,
-      "items": { "$ref": "#/$defs/surface" }
+      "items": { "$ref": "#/$defs/surface" },
+      "allOf": [
+        {
+          "contains": {
+            "properties": { "surface": { "const": "CROSS_SERVICE_FACT_OWNERSHIP" } },
+            "required": ["surface"]
+          }
+        },
+        {
+          "contains": {
+            "properties": { "surface": { "const": "PRE_LOGIN_IDENTITY_AND_ACTOR_KIND" } },
+            "required": ["surface"]
+          }
+        },
+        {
+          "contains": {
+            "properties": { "surface": { "const": "PERMISSION_ROLE_GRANT_PROVISIONING" } },
+            "required": ["surface"]
+          }
+        },
+        {
+          "contains": {
+            "properties": { "surface": { "const": "TENANT_ORG_OPERATOR_TRACE_AUDIT" } },
+            "required": ["surface"]
+          }
+        },
+        {
+          "contains": {
+            "properties": { "surface": { "const": "EVENT_PUBLISHER_CONSUMER_DURABILITY_DLQ" } },
+            "required": ["surface"]
+          }
+        },
+        {
+          "contains": {
+            "properties": { "surface": { "const": "MIGRATION_OWNERSHIP" } },
+            "required": ["surface"]
+          }
+        },
+        {
+          "contains": {
+            "properties": { "surface": { "const": "DEPENDENCY_CYCLES" } },
+            "required": ["surface"]
+          }
+        }
+      ]
     },
     "gaps": {
       "type": "array",
@@ -59,7 +103,10 @@
         "truthReferences": {
           "type": "array",
           "uniqueItems": true,
-          "items": { "type": "string", "pattern": "^docs/.+" }
+          "items": {
+            "type": "string",
+            "pattern": "^(?!.*(?:^|/)\\.\\.?(?:/|$))docs/[^/]+(?:/[^/]+)*$"
+          }
         },
         "conclusion": { "type": "string", "minLength": 1 },
         "gap": { "type": ["string", "null"], "minLength": 1 }

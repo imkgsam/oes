@@ -31,12 +31,16 @@
   "$defs": {
     "fingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
     "token": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$" },
+    "absolutePath": {
+      "type": "string",
+      "pattern": "^/(?!.*(?:^|/)\\.\\.?(?:/|$))[^/]+(?:/[^/]+)*$"
+    },
     "artifact": {
       "type": "object",
       "additionalProperties": false,
       "required": ["path", "sha256", "fingerprint"],
       "properties": {
-        "path": { "type": "string", "minLength": 1 },
+        "path": { "$ref": "#/$defs/absolutePath" },
         "sha256": { "$ref": "#/$defs/fingerprint" },
         "fingerprint": { "$ref": "#/$defs/fingerprint" }
       }
