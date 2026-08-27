@@ -18,7 +18,7 @@ Deliver the stable owner runtime, direct assignment wakeup, and risk-tiered vali
 
 ### STABLE-OWNER-RUNTIME
 state: `CANDIDATE_READY`
-candidate: `a0c5cf7fff98d7059d4832554cea3f934e23c2c4`
+candidate: `f0645afb298d0ec8a1621a877963da8fda91360a`
 review: `parent-created visible Feature RI after complete candidate`
 
 - Scope: stable owner resource binding, recovery, remote/cleanup compatibility, executable schemas, focused tests, and runbook guidance.
@@ -58,8 +58,8 @@ review: `parent-created visible Feature RI after complete candidate`
 
 ## Current verification
 
-- Stable focused: typecheck + 45 tests + static checks passed.
+- Stable focused: typecheck + 46 tests + static checks passed, including real bundle recovery followed by remote preflight.
 - Event focused: typecheck + 21 tests + static checks passed; Stage WIP decisions require separately authenticated exact Stage state.
 - Risk focused: typecheck + 33 tests + static checks passed.
-- Combined full gate: typecheck + 125 tests + static checks passed on the combined implementation tree.
+- Combined full gate: typecheck + 126 tests + static checks passed on the combined implementation tree.
 - Prior candidate test results were not reused; only the hash-verified implementation inputs and finding reproductions were reused.
