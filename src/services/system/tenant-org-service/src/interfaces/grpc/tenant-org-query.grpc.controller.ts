@@ -2,6 +2,7 @@ import { Controller, UseGuards, UseInterceptors } from '@nestjs/common'
 import { Metadata } from '@grpc/grpc-js'
 import {
   AuthorizeBusinessRpc,
+  AuthorizeInternalCall,
   GrpcRequestContextInterceptor,
   requireAdmittedTenantTarget,
   TENANT_ORG_MANAGEMENT_PERMISSION_CODES
@@ -27,6 +28,8 @@ import {
   ListDescendantOrgUnitsResponse,
   ListTenantsRequest,
   ListTenantsResponse,
+  ResolveAuthSessionTenantLifecycleRequest,
+  ResolveAuthSessionTenantLifecycleResponse,
   TenantOrgQueryServiceController,
   TenantOrgQueryServiceControllerMethods,
   ValidateOrgReferenceRequest,
@@ -41,6 +44,15 @@ import { TenantOrgQueryService } from '../../application/services'
 @TenantOrgQueryServiceControllerMethods()
 export class TenantOrgQueryGrpcController implements TenantOrgQueryServiceController {
   constructor(private readonly tenantOrgQueryService: TenantOrgQueryService) {}
+
+  @AuthorizeInternalCall({ all: ['tenant_org.internal.auth_session_tenant_lifecycle.resolve'] })
+  async resolveAuthSessionTenantLifecycle(
+    request: ResolveAuthSessionTenantLifecycleRequest
+  ): Promise<ResolveAuthSessionTenantLifecycleResponse> {
+    const tenant = await this.tenantOrgQueryService.getTenantById(request.tenantId ?? '')
+    if (tenant.id !== request.tenantId) return {}
+    return { tenantId: tenant.id, lifecycleStatus: String(tenant.status) }
+  }
 
   async getTenantById(
     _request: GetTenantByIdRequest,

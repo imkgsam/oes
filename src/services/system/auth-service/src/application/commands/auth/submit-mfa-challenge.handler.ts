@@ -15,9 +15,10 @@ import { SubmitMfaChallengeCommand } from './submit-mfa-challenge.command'
 export type SubmitMfaChallengeResult = EstablishedAccountSession
 
 @CommandHandler(SubmitMfaChallengeCommand)
-export class SubmitMfaChallengeHandler
-  implements ICommandHandler<SubmitMfaChallengeCommand, SubmitMfaChallengeResult>
-{
+export class SubmitMfaChallengeHandler implements ICommandHandler<
+  SubmitMfaChallengeCommand,
+  SubmitMfaChallengeResult
+> {
   constructor(
     private readonly loginMfaOrchestrationService: LoginMfaOrchestrationService,
     @Inject(IDENTITY_SERVICE)
@@ -33,9 +34,12 @@ export class SubmitMfaChallengeHandler
       code: command.code,
       factorChallengeId: command.factorChallengeId
     })
-    const account = await this.identityService.getAccountById(flow.aid)
+    const account = await this.identityService.resolveAuthLoginAccount(flow.sub, flow.aid)
     if (!account || account.userId !== flow.sub) {
-      throw ExceptionFactory.domain(AUTH_NO_AVAILABLE_ACCOUNT, { userId: flow.sub, accountId: flow.aid })
+      throw ExceptionFactory.domain(AUTH_NO_AVAILABLE_ACCOUNT, {
+        userId: flow.sub,
+        accountId: flow.aid
+      })
     }
     if (account.scopeLevel === 'TENANT') {
       await this.tenantSessionAccessService.assertAccountCanEstablishSession({

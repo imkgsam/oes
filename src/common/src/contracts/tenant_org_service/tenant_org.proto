@@ -6,6 +6,7 @@ option java_multiple_files = true;
 option java_package = "com.oes.tenantorg.v1";
 
 service TenantOrgQueryService {
+  rpc ResolveAuthSessionTenantLifecycle(ResolveAuthSessionTenantLifecycleRequest) returns (ResolveAuthSessionTenantLifecycleResponse);
   rpc GetTenantById(GetTenantByIdRequest) returns (GetTenantByIdResponse);
   rpc ListTenants(ListTenantsRequest) returns (ListTenantsResponse);
   rpc GetOrgTreeByTenantId(GetOrgTreeByTenantIdRequest) returns (GetOrgTreeByTenantIdResponse);
@@ -14,6 +15,15 @@ service TenantOrgQueryService {
   rpc GetOrgReferenceSummary(GetOrgReferenceSummaryRequest) returns (GetOrgReferenceSummaryResponse);
   rpc ListAncestorOrgUnits(ListAncestorOrgUnitsRequest) returns (ListAncestorOrgUnitsResponse);
   rpc ListDescendantOrgUnits(ListDescendantOrgUnitsRequest) returns (ListDescendantOrgUnitsResponse);
+}
+
+message ResolveAuthSessionTenantLifecycleRequest {
+  string tenant_id = 1;
+}
+
+message ResolveAuthSessionTenantLifecycleResponse {
+  string tenant_id = 1;
+  string lifecycle_status = 2;
 }
 
 service TenantOrgManagementService {

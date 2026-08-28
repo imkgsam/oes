@@ -14,6 +14,8 @@ import {
   IdentityQueryServiceClient,
   ResolveAuthEmployeeLoginAccountRequest,
   ResolveAuthEmployeeLoginAccountResponse,
+  ResolveAuthLoginAccountRequest,
+  ResolveAuthLoginAccountResponse,
   ResolveMachinePrincipalForAuthResponse
 } from '@oes/common/generated/identity_service'
 import { safeGrpcCall } from '@oes/common/transport'
@@ -180,6 +182,37 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
       }
     } catch (error) {
       this.rethrowIfInfrastructureError(error, 'getAccountById', { accountId })
+      throw error
+    }
+  }
+
+  async resolveAuthLoginAccount(
+    userId: string,
+    accountId: string
+  ): Promise<IdentityAccountSummary | null> {
+    try {
+      const response = await safeGrpcCall<ResolveAuthLoginAccountResponse>(
+        this.identityQueryService.resolveAuthLoginAccount(
+          { userId, accountId } as ResolveAuthLoginAccountRequest,
+          await this.trusted.forInternalCall(
+            'identity-service',
+            AUTH_LOGIN_ACCOUNT_RESOLVE_PERMISSION
+          )
+        ),
+        { caller: 'auth-service', method: 'IdentityQueryService.resolveAuthLoginAccount' }
+      )
+      const account = response.account
+      if (!account?.accountId || account.userId !== userId) return null
+      return {
+        accountId: account.accountId,
+        userId: account.userId,
+        tenantId: this.normalizeTenantId(account.tenantId),
+        scopeLevel: this.normalizeScopeLevel(account.scopeLevel),
+        displayName: account.displayName ?? '',
+        isEnabled: account.accountEnabled ?? false
+      }
+    } catch (error) {
+      this.rethrowIfInfrastructureError(error, 'resolveAuthLoginAccount', { userId, accountId })
       throw error
     }
   }

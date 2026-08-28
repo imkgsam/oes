@@ -71,3 +71,9 @@ Identity now exposes the three canonical Auth-only INTERNAL login owner resolver
 Focused proto lint/generation, Common/Identity/Auth builds and Identity/Auth resolver tests passed. The initial Auth build before its generated Prisma client existed is retained as environment command-order evidence and was corrected by the standard frozen Prisma generation step.
 
 Remaining within this slice: migrate account-selection/MFA owner recheck to `ResolveAuthLoginAccount`; add HR `ResolveAuthLoginEmployee` and TenantOrg `ResolveAuthSessionTenantLifecycle`; project their exact Permission catalog/workload policies and runtime profiles; complete mTLS/audience/Code/cnf/selector/status/dependency negatives.
+
+## Reconstruction checkpoint: login owner rechecks across targets
+
+Account selection and MFA completion now recheck the exact `user_id + account_id` pair through Identity `ResolveAuthLoginAccount`. HR employee-code login uses only `ResolveAuthLoginEmployee` with `hr.internal.auth_login_employee.resolve`; TenantOrg session lifecycle uses only `ResolveAuthSessionTenantLifecycle` with `tenant_org.internal.auth_session_tenant_lifecycle.resolve`. Each target exposes a minimal INTERNAL projection and keeps its generic BUSINESS query unchanged for existing consumers. Auth rejects mismatched owner/tenant echoes and preserves its existing dependency-unavailable mapping. No business grant, role, wildcard or fallback was introduced.
+
+Focused account/MFA, target adapter, proto and affected builds passed after standard Prisma generation. Exact deployment catalog/workload profile projection and certificate/audience/selector negative matrix remain the next bounded reconstruction item before Task/event work.

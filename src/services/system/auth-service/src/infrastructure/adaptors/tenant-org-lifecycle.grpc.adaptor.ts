@@ -1,6 +1,7 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import {
+  ResolveAuthSessionTenantLifecycleResponse,
   TENANT_ORG_QUERY_SERVICE_NAME,
   TenantOrgQueryServiceClient
 } from '@oes/common/generated/tenant_org_service'
@@ -29,17 +30,21 @@ export class TenantOrgLifecycleGrpcAdaptor implements TenantLifecycleAccessPort,
   }
 
   async getTenantStatus(tenantId: string): Promise<TenantLifecycleStatus | null> {
-    const response = await safeGrpcCall(
-      this.tenantOrgQueryService.getTenantById(
+    const response = await safeGrpcCall<ResolveAuthSessionTenantLifecycleResponse>(
+      this.tenantOrgQueryService.resolveAuthSessionTenantLifecycle(
         { tenantId },
-        await this.trusted.forBusinessCall('tenant-org-service', ['tenant_org.tenant.get_by_id'])
+        await this.trusted.forInternalCall(
+          'tenant-org-service',
+          'tenant_org.internal.auth_session_tenant_lifecycle.resolve'
+        )
       ),
       {
         caller: SERVICE_NAMES.AUTH,
-        method: 'TenantOrgQueryService.getTenantById'
+        method: 'TenantOrgQueryService.resolveAuthSessionTenantLifecycle'
       }
     )
 
-    return response.tenant?.status?.trim() || null
+    if (response.tenantId !== tenantId) return null
+    return response.lifecycleStatus?.trim() || null
   }
 }
