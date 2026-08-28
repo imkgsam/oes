@@ -85,7 +85,7 @@ export class RecordHeartbeatHandler implements ICommandHandler<RecordHeartbeatCo
     @Inject(SYMBOLS.REPO.RUNTIME_SNAPSHOT)
     private readonly runtimeSnapshotRepository: TerminalDeviceRuntimeSnapshotRepository,
     private readonly deviceAccessDecisionService: DeviceAccessDecisionService,
-    private readonly credentialVerifier = new TerminalDeviceCredentialVerifierService()
+    private readonly credentialVerifier: TerminalDeviceCredentialVerifierService
   ) {}
 
   // Executes heartbeat recording with server receive time as the authoritative heartbeat timestamp.
