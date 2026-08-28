@@ -272,6 +272,15 @@ services:
       grpc-trust-bootstrap: { condition: service_completed_successfully }
       execution-token-signer: { condition: service_healthy }
     expose: ['50050']
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:50051/.well-known/jwks.json').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+      interval: 5s
+      timeout: 3s
+      retries: 30
     networks:
       oes_network:
         aliases: [issuer.local.oes.internal]
