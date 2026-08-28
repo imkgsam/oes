@@ -66,6 +66,16 @@ export class ExecutionTokenRegistry {
     }
   }
 
+  /** Allows only the workload's exact declared self audience for an empty-scope subject Token. */
+  assertSelfIssuanceAllowed(spiffeId: string, audience: string): void {
+    if (
+      !this.audiencesByWorkload.get(spiffeId)?.has(audience) &&
+      this.humanOboByWorkload.get(spiffeId)?.selfAudience !== audience
+    ) {
+      throw new Error('execution token workload self audience is not permitted')
+    }
+  }
+
   /** Resolves the sole deployment-owned SYSTEM actor selector for a verified HUMAN OBO hop. */
   resolveHumanOboActor(spiffeId: string, selfAudience: string, targetAudience: string) {
     this.assertIssuanceAllowed(spiffeId, targetAudience)
