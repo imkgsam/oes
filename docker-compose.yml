@@ -312,7 +312,7 @@ services:
     read_only: true
     security_opt: [no-new-privileges:true]
     cap_drop: [ALL]
-    cap_add: [SETGID, SETUID]
+    cap_add: [CHOWN, SETGID, SETUID]
     tmpfs:
       - '/tmp:mode=1777,size=16m'
       - '/var/cache/nginx:mode=0755,size=16m'
