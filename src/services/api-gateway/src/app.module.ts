@@ -166,6 +166,18 @@ const siteGrpcLoaderOptions = { longs: String, arrays: true }
           loader: siteGrpcLoaderOptions,
           url: resolveSiteGrpcUrl()
         },
+        [SERVICE_NAMES.PERMISSION]: {
+          serviceName: SERVICE_NAMES.PERMISSION,
+          protoPath: permissionGrpcProtoPaths,
+          packageName: 'permission_service',
+          loader: {
+            includeDirs: [resolveCommonContractPath(), resolveCommonContractPath('permission_service')]
+          },
+          url:
+            process.env.PERMISSION_SERVICE_HOST && process.env.PERMISSION_SERVICE_PORT
+              ? `${process.env.PERMISSION_SERVICE_HOST}:${process.env.PERMISSION_SERVICE_PORT}`
+              : 'permission-service:50051'
+        },
         [SERVICE_NAMES.TERMINAL_DEVICE]: {
           serviceName: SERVICE_NAMES.TERMINAL_DEVICE,
           protoPath: resolveCommonProtoPath('terminal_device_service/terminal_device.proto'),
