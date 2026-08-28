@@ -151,13 +151,11 @@ test('projects exact Gateway Web journey HUMAN_OBO targets without wildcard', as
   assert.ok(gateway.audiences.includes('urn:oes:service:identity-service'))
   assert.ok(gateway.audiences.includes('urn:oes:service:collaboration-service'))
   assert.ok(gateway.audiences.includes('urn:oes:service:tenant-org-service'))
-  assert.ok(gateway.audiences.includes('urn:oes:service:party-service'))
   assert.deepEqual(gateway.humanObo?.targetAudiences, [
     'urn:oes:service:identity-service',
     'urn:oes:service:permission-service',
     'urn:oes:service:collaboration-service',
-    'urn:oes:service:tenant-org-service',
-    'urn:oes:service:party-service'
+    'urn:oes:service:tenant-org-service'
   ])
   assert.equal(gateway.humanObo?.selfAudience, 'urn:oes:service:api-gateway')
   assert.ok(gateway.humanObo?.targetAudiences.every((audience) => !audience.includes('*')))

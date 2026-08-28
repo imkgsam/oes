@@ -287,8 +287,7 @@ async function runtimePolicyEnvironment() {
     'urn:oes:service:identity-service',
     'urn:oes:service:permission-service',
     'urn:oes:service:collaboration-service',
-    'urn:oes:service:tenant-org-service',
-    'urn:oes:service:party-service'
+    'urn:oes:service:tenant-org-service'
   ]
   gateway.audiences = [...new Set([...gateway.audiences, ...gatewayHumanOboTargetAudiences])]
   gateway.humanObo = {
