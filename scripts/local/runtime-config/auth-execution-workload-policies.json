@@ -1,7 +1,10 @@
 [
   {
     "spiffeId": "spiffe://local.oes.internal/ns/oes/sa/api-gateway",
-    "audiences": ["urn:oes:service:permission-service"]
+    "audiences": [
+      "urn:oes:service:auth-service",
+      "urn:oes:service:permission-service"
+    ]
   },
   {
     "spiffeId": "spiffe://local.oes.internal/ns/oes/sa/auth-service",
