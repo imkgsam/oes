@@ -3,7 +3,7 @@
 ## Binding
 
 - Stage / feature: `global-runnability / business-journey`
-- State: `R5_CANDIDATE_READY_FOR_FEATURE_RI`
+- State: `STAGE_RI_EVIDENCE_REMEDIATION_CANDIDATE_READY_FOR_FEATURE_RI`
 - Human-visible Feature Lead: task `01a047c6-18ff-71e0-b2cc-b1bad08fd0e8`
 - Parent and sole return target: Stage Lead task `01a036e1-7ca5-76c2-8183-64edd7e1d086`
 - Feature branch: `codex/feature/business-journey-visible-recovery`
@@ -18,9 +18,13 @@
   `af5ec4b740b33e58a61a5061cf907a871591f958`
 - Immutable accepted and published R4 candidate / R5 parent:
   `9efa1da3cf65b36f3bfb153999c0aaa50bdcb9eb`
+- Immutable accepted and published R5 candidate / evidence-remediation parent:
+  `ed07933f189ac05b6563bced82a26d4b8d833549`
 - Canonical `origin/main` observed at continuation: `51f78cc05db67d35f0129e678ad27a1034e22ad0`
 - R5 candidate identity: the append-only commit containing this Packet; the exact SHA is emitted in
   the `R5_CANDIDATE_READY_FOR_FEATURE_RI` handoff.
+- Evidence-remediation candidate identity: the append-only commit containing this Packet; the exact
+  SHA is emitted in the `EVIDENCE_REMEDIATION_READY_WITH_REPLACEMENT_CANDIDATE` handoff.
 - The superseded hidden owner is frozen read-only and owns no runtime or candidate state.
 
 ## Scope and protected boundary
@@ -89,11 +93,13 @@ Freshly revalidated:
 
 ### FL-3 — existing Web journey, event and outage acceptance
 
-The inherited 21-service, Web, event and outage evidence remains reusable only for unchanged
-fingerprints. The accepted continuation evidence index has SHA-256
-`1d5fc9ac08b4d65839866412291a5b8c98a3c21752df47cb9bbc3edf39c58589`.
-Candidate-affected shared Gateway/Auth/Permission/Terminal paths were freshly covered by the focused
-tests and builds below rather than mechanically rerunning unaffected suites.
+The former reuse hash `1d5fc9ac08b4d65839866412291a5b8c98a3c21752df47cb9bbc3edf39c58589`
+is only handoff-smoke inventory and is explicitly superseded for Web acceptance. It does not cover
+the Web journey, event, denial, duplicate or outage matrix. The evidence-remediation candidate uses
+the artifact-contained `web-business-matrix.mjs` driver and a complete replacement manifest whose
+index lists only reopened existing records. Candidate-affected Gateway, Auth, Permission, Item
+Master and signer paths are covered by the fresh live and focused evidence in FL-11; unchanged PDA,
+readiness and L2 evidence remains reusable only under the recorded input fingerprints.
 
 ### FL-4 — PDA foundation matrix
 
@@ -278,6 +284,43 @@ Fresh R5 evidence:
   high-confidence secret, protected-scope, host-runtime-down, isolated-owner-zero-residue and
   20-GiB disk-floor gates pass.
 
+### FL-11 — Stage RI Web evidence remediation
+
+The accepted and published R5 candidate `ed07933f189ac05b6563bced82a26d4b8d833549`
+remains immutable. Recreating the real Web matrix exposed four bounded runtime-composition defects
+and one protected-signer concurrency defect; all are repaired append-only without changing stable
+business semantics:
+
+- Item Master's runtime module now composes the exact execution-token verifier and workload
+  identity providers required by its two trusted guards, with an L3 module-composition regression.
+- The host-native Gateway profile admits the exact TenantOrg HUMAN OBO target used by the Web
+  org-unit read, while the broader Party route is not admitted.
+- Gateway failure responses preserve a canonical inbound W3C trace when no active OpenTelemetry
+  span exists, so denial and dependency-outage evidence remains correlated.
+- The runtime can restart one exact service from preserved manifest, environment and trust leaves;
+  Permission outage recovery does not rotate certificates or regenerate shared trust.
+- The signer Runtime serializes signing, verifier computation and close over its single leased
+  PKCS#11 session. Concurrent UDS requests therefore cannot race `EnsureSession`, lookup, sign or
+  session cleanup; the pre-fix path reproduced a SoftHSM cgo crash and the fixed runtime completes
+  128/128 concurrent signing requests.
+
+Fresh evidence:
+
+- `04-web-business-matrix.log`: real Web login, tenant/org and access-summary reads, Task write/read,
+  outbox/NATS, Notification, audit/trace, authorization denial with zero side effect,
+  broker/downstream duplicate idempotency, Permission outage fail-closed, stale-session rejection,
+  exact-service restart, fresh-login recovery, logout and zero fixture residue all pass.
+- `03-signer-concurrency-after-fix.log`: 128 concurrent signing calls pass with zero failures.
+- `09-affected-tests-builds.log`: trusted-runtime 9/9, complete signer packages plus race test,
+  Item Master 32/32, Gateway 144/144 suites and 740/740 tests, and affected builds pass.
+- `10-full-risk.log`: tooling, unit 449 suites / 2033 tests, Collaboration Runtime 140/140 plus
+  static checks and foundation invariants 5/5 pass.
+- `11-full-build.log`: exact full repository build passes.
+- `08-final-runtime-zero.log`: all host applications and APISIX are down, PID/listener/owner-process
+  counts are zero and the disk floor remains satisfied.
+- The replacement evidence manifest, SHA index, patch, verification record and executable rollback
+  are reopened and hash-verified before handoff; the invalid handoff-smoke index is not reused.
+
 ## Review state and findings
 
 - Feature Lead self-review, protected-scope check, diff check and secret scan: passed for the
@@ -299,5 +342,8 @@ Fresh R5 evidence:
   task-owned application processes.
 - Git rollback of only the R5 lifecycle repair: `git revert <r5-candidate-sha>`; this restores
   immutable accepted R4 candidate `9efa1da3cf65b36f3bfb153999c0aaa50bdcb9eb`.
-- Stop at the exact append-only R5 candidate for the same visible RI. Draft PR `#42` remains at
-  `9efa1da3`; no new remote mutation, `main` merge or Stage cleanup is part of this owner action.
+- Evidence-remediation rollback uses the artifact-contained guarded revert script to return to
+  immutable accepted R5 candidate `ed07933f189ac05b6563bced82a26d4b8d833549`.
+- Stop at the exact append-only evidence-remediation candidate for the same visible Feature RI.
+  Draft PR `#42` remains at `ed07933f`; no remote mutation, `main` merge or Stage cleanup is part of
+  this owner action.
