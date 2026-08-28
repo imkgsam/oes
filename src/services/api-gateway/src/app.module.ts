@@ -11,7 +11,7 @@ import { SERVICE_NAMES } from '@oes/common/constants'
 import { resolveCommonContractPath, resolveCommonProtoPath } from '@oes/common/contracts'
 import { LoggingModule } from '@oes/common/logging'
 import { RegistryModule } from '@oes/common/registry'
-import { GrpcTransportModule } from '@oes/common/transport'
+import { getGrpcClientToken, GrpcTransportModule } from '@oes/common/transport'
 import { gatewayConfig } from './config/gateway.config'
 import { HealthModule } from './health/health.module'
 import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware'
@@ -42,6 +42,7 @@ import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor'
 import { ExternalApiModule } from './common/external-api/external-api.module'
 import { GatewayTrustedGrpcExecutionModule } from './common/grpc/gateway-trusted-grpc-execution.module'
 import { GatewayFoundationTrustedGrpcModule } from './infrastructure/grpc/trusted-auth.grpc.client'
+import { TrustedPermissionGrpcClient } from './infrastructure/grpc/trusted-permission.grpc.client'
 
 /** resolveTenantOrgGrpcUrl avoids localhost IPv6 ambiguity for the local tenant-org fallback endpoint. */
 export function resolveTenantOrgGrpcUrl() {
@@ -192,7 +193,6 @@ const siteGrpcLoaderOptions = { longs: String, arrays: true }
       defaultPoolConfig: { minSize: 3, maxSize: 3 }
     }),
 
-    GrpcTransportModule.forFeature([SERVICE_NAMES.PERMISSION]),
 
     ThrottlerModule.forRoot({
       throttlers: [
@@ -234,6 +234,11 @@ const siteGrpcLoaderOptions = { longs: String, arrays: true }
     {
       provide: GATEWAY_PERMISSION_TRUSTED_METADATA_PROVIDER,
       useExisting: GatewayPermissionTrustedMetadata
+    },
+    {
+      provide: getGrpcClientToken(SERVICE_NAMES.PERMISSION),
+      useFactory: (client: TrustedPermissionGrpcClient) => client.getClient(),
+      inject: [TrustedPermissionGrpcClient]
     },
     GatewayPermissionGuard,
     { provide: APP_GUARD, useClass: ThrottlerGuard },

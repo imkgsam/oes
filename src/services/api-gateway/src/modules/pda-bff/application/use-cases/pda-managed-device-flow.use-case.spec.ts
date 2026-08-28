@@ -6,20 +6,22 @@ import { PdaDeviceController } from '../../interfaces/http/controllers/pda-devic
 
 describe('PDA managed device BFF flow', () => {
   it('bootstrap resolves device decision using the authenticated PDA session tenant', async () => {
-    const sessionContextUseCase = {
-      execute: jest.fn().mockResolvedValue({
-        operator: { userId: 'user-1', displayName: 'Worker One', scopeLevel: 'TENANT' },
-        account: { accountId: 'account-1', name: 'Worker One', scopeLevel: 'TENANT' },
-        tenant: { tenantId: 'tenant-1', name: 'Tenant One' },
-        access: { actionCodes: ['pda.home'] },
-        terminal: 'PDA',
-        allowedTerminals: ['PDA']
+    const identityAdapter = {
+      getAccountById: jest.fn().mockResolvedValue({
+        account: { id: 'account-1', displayName: 'Worker One', scopeLevel: 'TENANT', tenantId: 'tenant-1', isEnabled: true }
       })
+    }
+    const sessionAccessSummaryUseCase = {
+      execute: jest.fn().mockResolvedValue({ actionCodes: ['pda.home'], roleCodes: [] })
     }
     const terminalDeviceAdapter = {
       resolveDeviceAccessDecision: jest.fn().mockResolvedValue(allowDecision())
     }
-    const useCase = new PdaSessionBootstrapUseCase(sessionContextUseCase as any, terminalDeviceAdapter as any)
+    const useCase = new PdaSessionBootstrapUseCase(
+      identityAdapter as any,
+      sessionAccessSummaryUseCase as any,
+      terminalDeviceAdapter as any
+    )
 
     const result = await useCase.execute(
       {
