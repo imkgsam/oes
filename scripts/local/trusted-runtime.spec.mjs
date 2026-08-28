@@ -144,16 +144,20 @@ test('projects exact Collaboration HUMAN_OBO owner selectors and Permission uppe
   assert.ok(runtimeCollaboration?.humanObo?.actorBindingVersion)
 })
 
-test('projects exact Gateway Identity and Collaboration HUMAN_OBO targets without wildcard', async () => {
+test('projects exact Gateway Web journey HUMAN_OBO targets without wildcard', async () => {
   const runtimeAuth = await readProjectedRuntimeAuthPolicies(54250)
   const gateway = runtimeAuth.find((entry) => entry.spiffeId.endsWith('/api-gateway'))
   assert.ok(gateway)
   assert.ok(gateway.audiences.includes('urn:oes:service:identity-service'))
   assert.ok(gateway.audiences.includes('urn:oes:service:collaboration-service'))
+  assert.ok(gateway.audiences.includes('urn:oes:service:tenant-org-service'))
+  assert.ok(gateway.audiences.includes('urn:oes:service:party-service'))
   assert.deepEqual(gateway.humanObo?.targetAudiences, [
     'urn:oes:service:identity-service',
     'urn:oes:service:permission-service',
-    'urn:oes:service:collaboration-service'
+    'urn:oes:service:collaboration-service',
+    'urn:oes:service:tenant-org-service',
+    'urn:oes:service:party-service'
   ])
   assert.equal(gateway.humanObo?.selfAudience, 'urn:oes:service:api-gateway')
   assert.ok(gateway.humanObo?.targetAudiences.every((audience) => !audience.includes('*')))
