@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
+import { RequirePermissions } from '@oes/common/authorization'
 import { DownstreamSource } from '../../../../../common/decorators/downstream-source.decorator'
 import { DownstreamRequestSource } from '../../../../../common/grpc/gateway-downstream-source.mapper'
 import { TaskBffService } from '../../../application/task-bff.service'
@@ -8,6 +9,7 @@ import { CancelTaskDto, CompleteTaskDto, CreateTaskDto, ListTasksDto, ReopenTask
 /** TaskController exposes tenant Task P1 workflows through the API Gateway. */
 @ApiBearerAuth('JWT')
 @ApiTags('collaboration-tasks')
+@RequirePermissions({ all: ['collaboration.task.create'] })
 @Controller('collaboration/tenants/:tenantId/tasks')
 export class TaskController {
   constructor(private readonly taskBffService: TaskBffService) {}
