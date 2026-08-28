@@ -60,7 +60,9 @@ export function createLazyTrustedExecutionRuntime(
     } as ExecutionTokenVerifier,
     workloadIdentityProvider: {
       getVerifiedWorkloadIdentity: (call) =>
-        resolveRuntime().workloadIdentityProvider.getVerifiedWorkloadIdentity(call)
+        resolveRuntime().workloadIdentityProvider.getVerifiedWorkloadIdentity(call),
+      getVerifiedWorkloadIssuanceIdentity: (call) =>
+        resolveRuntime().workloadIdentityProvider.getVerifiedWorkloadIssuanceIdentity(call)
     } as GrpcWorkloadIdentityProvider
   })
 }
