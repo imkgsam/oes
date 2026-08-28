@@ -1,0 +1,36 @@
+{
+  "version": "business-journey-v1",
+  "preservedBase": {
+    "candidate": "ee959bce",
+    "file": "docker-compose.yml",
+    "blob": "2bb90322dbf9cb34f836a5c23bb7427d0cb1b666",
+    "sha256": "d9c4abd01e24d6f80d94570cacfaaba0154ce508e99506ad48d7d36e3bac454d",
+    "tuple": "api-gateway -> urn:oes:service:permission-service"
+  },
+  "additions": [
+    {
+      "workload": "auth-service",
+      "audience": "urn:oes:service:identity-service",
+      "code": "identity.internal.auth_login_account.resolve",
+      "source": "docs/architecture/services/permission-service.md#auth-login-session-owner-fact-resolution",
+      "selectorEntry": "auth-service",
+      "selectorVersion": "2"
+    },
+    {
+      "workload": "auth-service",
+      "audience": "urn:oes:service:hr-service",
+      "code": "hr.internal.auth_login_employee.resolve",
+      "source": "docs/architecture/services/permission-service.md#auth-login-session-owner-fact-resolution",
+      "selectorEntry": "auth-service",
+      "selectorVersion": "2"
+    },
+    {
+      "workload": "auth-service",
+      "audience": "urn:oes:service:tenant-org-service",
+      "code": "tenant_org.internal.auth_session_tenant_lifecycle.resolve",
+      "source": "docs/architecture/services/permission-service.md#auth-login-session-owner-fact-resolution",
+      "selectorEntry": "auth-service",
+      "selectorVersion": "2"
+    }
+  ]
+}

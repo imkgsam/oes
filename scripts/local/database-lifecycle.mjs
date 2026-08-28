@@ -231,11 +231,30 @@ export function loadDatabaseInvariantPlan(service) {
 /** Produces the ignored Compose environment for one exact local worktree. */
 export function composeEnvironment(context) {
   const { rootValues, services, taskKey } = context
+  const authWorkloadPolicies = JSON.stringify(
+    JSON.parse(
+      fs.readFileSync(
+        path.join(context.repositoryRoot, 'scripts/local/runtime-config/auth-execution-workload-policies.json'),
+        'utf8'
+      )
+    )
+  )
+  const permissionWorkloadPolicies = JSON.stringify(
+    JSON.parse(
+      fs.readFileSync(
+        path.join(context.repositoryRoot, 'scripts/local/runtime-config/permission-workload-issuance-policies.json'),
+        'utf8'
+      )
+    )
+  )
   const values = new Map([
     ['OES_COMPOSE_PROJECT', context.projectName],
     ['OES_TASK_KEY', taskKey],
     ['OES_POSTGRES_USER', rootValues.get('OES_POSTGRES_USER')],
     ['OES_POSTGRES_PASSWORD', rootValues.get('OES_POSTGRES_PASSWORD')],
+    ['AUTH_EXECUTION_WORKLOAD_POLICIES', authWorkloadPolicies],
+    ['PERMISSION_WORKLOAD_ISSUANCE_POLICIES', permissionWorkloadPolicies],
+    ['AUTH_PERMISSION_WORKLOAD_ISSUANCE_POLICY_VERSION', 'auth-login-owner-facts-v1'],
     ['NATS_COLLABORATION_USER', `collaboration_${taskKey}`],
     ['NATS_COLLABORATION_PASSWORD', natsPassword(taskKey, 'nats-collaboration')],
     ['NATS_NOTIFICATION_USER', `notification_${taskKey}`],

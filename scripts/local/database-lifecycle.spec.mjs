@@ -47,6 +47,11 @@ test('generated Compose inputs keep secrets local and map every service to postg
   ]) {
     assert.match(values.get(key), /^n[a-f0-9]{31}$/)
   }
+  const authPolicies = JSON.parse(values.get('AUTH_EXECUTION_WORKLOAD_POLICIES'))
+  const permissionPolicies = JSON.parse(values.get('PERMISSION_WORKLOAD_ISSUANCE_POLICIES'))
+  assert.equal(authPolicies[0].spiffeId, 'spiffe://local.oes.internal/ns/oes/sa/api-gateway')
+  assert.equal(permissionPolicies.length, 3)
+  assert.equal(values.get('AUTH_PERMISSION_WORKLOAD_ISSUANCE_POLICY_VERSION'), 'auth-login-owner-facts-v1')
   assert.match(values.get('NATS_NOTIFICATION_REPLAY_ASSIGNED_CREATE_SUBJECT'), /^'\$JS\.API\..*'$/)
 })
 

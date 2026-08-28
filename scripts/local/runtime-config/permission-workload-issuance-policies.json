@@ -1,0 +1,23 @@
+[
+  {
+    "originalWorkloadSpiffeId": "spiffe://local.oes.internal/ns/oes/sa/auth-service",
+    "targetAudience": "urn:oes:service:hr-service",
+    "permissionCodes": ["hr.internal.auth_login_employee.resolve"],
+    "scopeLevel": "SYSTEM",
+    "policyVersion": "auth-login-owner-facts-v1"
+  },
+  {
+    "originalWorkloadSpiffeId": "spiffe://local.oes.internal/ns/oes/sa/auth-service",
+    "targetAudience": "urn:oes:service:identity-service",
+    "permissionCodes": ["identity.internal.auth_login_account.resolve"],
+    "scopeLevel": "SYSTEM",
+    "policyVersion": "auth-login-owner-facts-v1"
+  },
+  {
+    "originalWorkloadSpiffeId": "spiffe://local.oes.internal/ns/oes/sa/auth-service",
+    "targetAudience": "urn:oes:service:tenant-org-service",
+    "permissionCodes": ["tenant_org.internal.auth_session_tenant_lifecycle.resolve"],
+    "scopeLevel": "SYSTEM",
+    "policyVersion": "auth-login-owner-facts-v1"
+  }
+]

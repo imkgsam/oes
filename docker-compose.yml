@@ -32,6 +32,7 @@ x-service-environment: &service-environment
   AUTH_SERVICE_HOST: auth-service
   AUTH_SERVICE_PORT: 50050
   AUTH_EXECUTION_ISSUER: https://issuer.local.oes.internal
+  AUTH_EXECUTION_WORKLOAD_POLICIES: ${AUTH_EXECUTION_WORKLOAD_POLICIES:?run node scripts/local/workload-policy-profile.mjs and project into the task-owned env}
   OES_GRPC_TLS_ENABLED: 'true'
   OES_GRPC_TLS_MIN_VERSION: TLSv1.2
   OES_GRPC_TLS_CA_PATH: /trust/current/ca.pem
@@ -444,6 +445,8 @@ services:
       OES_WORKLOAD_SPIFFE_ID: spiffe://local.oes.internal/ns/oes/sa/permission-service
       DATABASE_URL: ${OES_DB_PERMISSION_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50051
+      PERMISSION_WORKLOAD_ISSUANCE_POLICIES: ${PERMISSION_WORKLOAD_ISSUANCE_POLICIES:?run node scripts/local/workload-policy-profile.mjs and project into the task-owned env}
+      AUTH_PERMISSION_WORKLOAD_ISSUANCE_POLICY_VERSION: ${AUTH_PERMISSION_WORKLOAD_ISSUANCE_POLICY_VERSION:-auth-login-owner-facts-v1}
     expose: ['50051']
     volumes:
       - type: volume
