@@ -7,10 +7,11 @@ import { ShortLinkTargetResolverRegistry } from '../../application/services/shor
 import { ShortCodeGenerator } from '../../domain/services/short-code-generator'
 import { PrismaModule } from '../../infrastructure/prisma/prisma.module'
 import { PrismaShortLinkRepository } from '../../infrastructure/repositories/prisma-short-link.repository'
+import { PublicEntryTrustedExecutionModule } from '../public-entry-trusted-execution.module'
 
 // ShortLinkModule assembles Phase 1 ShortLink application services and transport controllers.
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, PublicEntryTrustedExecutionModule],
   controllers: [PublicEntryShortLinkGrpcController],
   providers: [
     PrismaShortLinkRepository,

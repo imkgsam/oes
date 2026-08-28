@@ -242,6 +242,9 @@ services:
       ASSET_S3_BUCKET: ${MINIO_BUCKET:-oes-local-assets}
       ASSET_S3_ACCESS_KEY_ID: ${MINIO_ROOT_USER:?run pnpm db:config}
       ASSET_S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:?run pnpm db:config}
+      NATS_URL: nats://nats:4222
+      NATS_USER: ${NATS_ASSET_USER:?run pnpm db:config}
+      NATS_PASSWORD: ${NATS_ASSET_PASSWORD:?run pnpm db:config}
     expose: ['50056']
     volumes:
       - type: volume
@@ -583,6 +586,9 @@ services:
       DATABASE_URL: ${OES_DB_SITE_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50069
       SITE_PREVIEW_TOKEN_SECRET: ${SITE_PREVIEW_TOKEN_SECRET:?run pnpm db:config}
+      NATS_URL: nats://nats:4222
+      NATS_USER: ${NATS_SITE_USER:?run pnpm db:config}
+      NATS_PASSWORD: ${NATS_SITE_PASSWORD:?run pnpm db:config}
     expose: ['50069']
     volumes:
       - type: volume

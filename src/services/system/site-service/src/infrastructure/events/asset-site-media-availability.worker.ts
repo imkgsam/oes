@@ -6,7 +6,7 @@ import { AssetSiteMediaAvailabilityConsumer, AssetSiteMediaAvailabilityEvent } f
 const EVENT_TYPE = 'asset.site-media.availability.changed'
 const EVENT_VERSION = 1
 const EVENT_SUBJECT = 'oes.events.asset.site-media.availability.changed'
-const MAX_DELIVERY_ATTEMPTS = 8
+const MAX_DELIVERY_ATTEMPTS = 5
 export const SITE_ASSET_MEDIA_AVAILABILITY_CONSUMER = 'site-service__asset-site-media__v1'
 
 const contract: OesEventContract<Record<string, unknown>> = {

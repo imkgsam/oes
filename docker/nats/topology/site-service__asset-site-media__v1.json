@@ -1,0 +1,11 @@
+{
+  "durable_name": "site-service__asset-site-media__v1",
+  "deliver_policy": "new",
+  "ack_policy": "explicit",
+  "ack_wait": 1000000000,
+  "max_deliver": 5,
+  "backoff": [1000000000, 5000000000, 30000000000, 120000000000, 600000000000],
+  "replay_policy": "instant",
+  "max_ack_pending": 100,
+  "filter_subjects": ["oes.events.asset.site-media.availability.changed"]
+}
