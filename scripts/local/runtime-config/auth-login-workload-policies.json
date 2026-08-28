@@ -1,0 +1,11 @@
+[
+  {
+    "spiffeId": "spiffe://oes/auth-service",
+    "audiences": [
+      "urn:oes:service:hr-service",
+      "urn:oes:service:identity-service",
+      "urn:oes:service:permission-service",
+      "urn:oes:service:tenant-org-service"
+    ]
+  }
+]

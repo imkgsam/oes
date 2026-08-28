@@ -77,3 +77,11 @@ Remaining within this slice: migrate account-selection/MFA owner recheck to `Res
 Account selection and MFA completion now recheck the exact `user_id + account_id` pair through Identity `ResolveAuthLoginAccount`. HR employee-code login uses only `ResolveAuthLoginEmployee` with `hr.internal.auth_login_employee.resolve`; TenantOrg session lifecycle uses only `ResolveAuthSessionTenantLifecycle` with `tenant_org.internal.auth_session_tenant_lifecycle.resolve`. Each target exposes a minimal INTERNAL projection and keeps its generic BUSINESS query unchanged for existing consumers. Auth rejects mismatched owner/tenant echoes and preserves its existing dependency-unavailable mapping. No business grant, role, wildcard or fallback was introduced.
 
 Focused account/MFA, target adapter, proto and affected builds passed after standard Prisma generation. Exact deployment catalog/workload profile projection and certificate/audience/selector negative matrix remain the next bounded reconstruction item before Task/event work.
+
+## Reconstruction checkpoint: Auth owner-fact Code and workload upper bound
+
+The three login/session owner-fact Codes are now active Common catalog entries owned by their target services. Each is `INTERNAL`, SYSTEM-only, `WORKLOAD_POLICY`-only and non-external. A versioned deployment profile binds only exact `spiffe://oes/auth-service` to the exact Identity, HR and TenantOrg audiences/Codes; it contains no tenant, role, grant or wildcard. The matching Auth audience profile is an exact target allowlist and carries no selector or credential.
+
+Common build and focused catalog/profile tests passed. The first focused path calculation failed before reading the profile and is retained as a test-command correction; the corrected candidate-bound test passed 4/4.
+
+Remaining before live activation: merge these bounded fragments into the full generated task-owned runtime profile without replacing existing exact callers, inject the single profile consistently into Auth/Permission and affected target verifiers, bind selectors from the Identity provisioner output, and execute transport/cnf/rotation/disable/dependency negative tests. Task atomic fact/event reconstruction follows that runtime-profile slice.
