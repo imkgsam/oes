@@ -247,6 +247,15 @@ export function composeEnvironment(context) {
       )
     )
   )
+  const nacosUsername = `oes_${taskKey}`
+  const nacosPassword = fixture(taskKey, 'nacos-user', 32)
+  const nacosPasswordHash = spawnSync('htpasswd', ['-niBC', '10', nacosUsername], {
+    encoding: 'utf8',
+    input: `${nacosPassword}\n`
+  })
+  if (nacosPasswordHash.error || nacosPasswordHash.status !== 0) {
+    throw new Error('NACOS_PASSWORD_HASH_GENERATION_FAILED')
+  }
   const values = new Map([
     ['OES_COMPOSE_PROJECT', context.projectName],
     ['OES_TASK_KEY', taskKey],
@@ -275,6 +284,9 @@ export function composeEnvironment(context) {
     ['NACOS_AUTH_TOKEN', Buffer.from(fixture(taskKey, 'nacos-token', 48)).toString('base64')],
     ['NACOS_AUTH_IDENTITY_KEY', 'serverIdentity'],
     ['NACOS_AUTH_IDENTITY_VALUE', fixture(taskKey, 'nacos-identity', 32)]
+    ,['NACOS_USERNAME', nacosUsername]
+    ,['NACOS_PASSWORD', nacosPassword]
+    ,['NACOS_PASSWORD_BCRYPT', nacosPasswordHash.stdout.trim().split(':').slice(1).join(':')]
   ])
   const replayConsumer = (state) => `notification-service__replay__${taskKey}__${state}`
   const subject = (state) => `oes.events.collaboration.task.${state}`
