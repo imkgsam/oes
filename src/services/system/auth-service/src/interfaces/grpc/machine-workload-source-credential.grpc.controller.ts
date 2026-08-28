@@ -1,5 +1,14 @@
-import { Controller, Inject, UseGuards } from '@nestjs/common'
+import {
+  CanActivate,
+  Controller,
+  ExecutionContext,
+  Inject,
+  Injectable,
+  UseGuards,
+  UseInterceptors
+} from '@nestjs/common'
 import { GrpcWorkloadIdentityProvider } from '@oes/common/transport'
+import { Metadata } from '@grpc/grpc-js'
 import { ValidatingCommandBus } from '@oes/common/cqrs'
 import {
   RequirePermissions,
@@ -9,7 +18,8 @@ import {
   PermissionGuard,
   getAuthenticatedGrpcRequestContext,
   getGrpcMetadataValue,
-  inboundExecutionTokenCredentialScope
+  inboundExecutionTokenCredentialScope,
+  GrpcRequestContextInterceptor
 } from '@oes/common/authorization'
 import {
   MachineWorkloadSourceCredentialServiceController,
@@ -25,9 +35,30 @@ import {
 } from '../../application/commands/auth'
 import { MachineWorkloadSourceCredentialEntity } from '../../domain/entities/machine-workload-source-credential.entity'
 
+/** Stages verified transport correlation before the interceptor opens the issuance request lifetime. */
+@Injectable()
+export class MachineWorkloadSourceCredentialAdmissionGuard implements CanActivate {
+  canActivate(context: ExecutionContext): boolean {
+    const rpc = context.switchToRpc()
+    const request = rpc.getData<object>()
+    const metadata = rpc.getContext<Metadata>()
+    const requestId = getGrpcMetadataValue(metadata, 'x-request-id')
+    const traceparent = getGrpcMetadataValue(metadata, 'traceparent')
+    if (!requestId || !traceparent) throw new Error('MACHINE_SOURCE_CORRELATION_REQUIRED')
+    const tracestate = getGrpcMetadataValue(metadata, 'tracestate')
+    inboundExecutionTokenCredentialScope.preparePublicCorrelation(request, {
+      requestId,
+      traceparent,
+      ...(tracestate ? { tracestate } : {})
+    })
+    return true
+  }
+}
+
 /** Maps only frozen non-secret selectors to Auth application commands while deriving all certificate facts from the verified transport call. */
 @Controller()
 @MachineWorkloadSourceCredentialServiceControllerMethods()
+@UseInterceptors(GrpcRequestContextInterceptor)
 export class MachineWorkloadSourceCredentialGrpcController implements MachineWorkloadSourceCredentialServiceController {
   constructor(
     private readonly commandBus: ValidatingCommandBus,
@@ -36,23 +67,14 @@ export class MachineWorkloadSourceCredentialGrpcController implements MachineWor
   ) {}
 
   /** Issues one short-lived source credential from the caller's verified mTLS leaf rather than request authority. */
+  @UseGuards(MachineWorkloadSourceCredentialAdmissionGuard)
   async issueMachineWorkloadSourceCredential(
     request: IssueMachineWorkloadSourceCredentialRequest,
-    metadata?: unknown,
+    _metadata?: unknown,
     call?: unknown
   ): Promise<IssueMachineWorkloadSourceCredentialResponse> {
     const workloadIdentity =
       await this.workloadIdentityProvider.getVerifiedWorkloadIssuanceIdentity(call)
-    const requestId = getGrpcMetadataValue(metadata, 'x-request-id')
-    const traceparent = getGrpcMetadataValue(metadata, 'traceparent')
-    if (!requestId || !traceparent) throw new Error('MACHINE_SOURCE_CORRELATION_REQUIRED')
-    inboundExecutionTokenCredentialScope.preparePublicCorrelation(request, {
-      requestId,
-      traceparent,
-      ...(getGrpcMetadataValue(metadata, 'tracestate')
-        ? { tracestate: getGrpcMetadataValue(metadata, 'tracestate') }
-        : {})
-    })
     const result = await this.commandBus.execute(
       new IssueMachineWorkloadSourceCredentialCommand({
         machinePrincipalId: request.machinePrincipalId!,

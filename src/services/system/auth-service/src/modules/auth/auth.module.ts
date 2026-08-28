@@ -99,7 +99,10 @@ import { PrismaExternalApiKeyCredentialRepository } from '../../infrastructure/r
 import { PrismaExternalApiKeyVerifierCompromiseRepository } from '../../infrastructure/repositories/prisma/prisma.external-api-key-verifier-compromise.repository'
 import { PrismaMachineWorkloadSourceCredentialRepository } from '../../infrastructure/repositories/prisma/prisma.machine-workload-source-credential.repository'
 import { MachineWorkloadSourceCredentialService } from '../../application/services/machine-workload-source-credential.service'
-import { MachineWorkloadSourceCredentialGrpcController } from '../../interfaces/grpc/machine-workload-source-credential.grpc.controller'
+import {
+  MachineWorkloadSourceCredentialAdmissionGuard,
+  MachineWorkloadSourceCredentialGrpcController
+} from '../../interfaces/grpc/machine-workload-source-credential.grpc.controller'
 import { IIdentityServicePort } from '../../application/ports/identity-service.port'
 import { ExecutionTokenSigningPort } from '../../domain/ports/execution-token-signing.port'
 import {
@@ -372,7 +375,8 @@ const AUTH_SERVICE_AUDIENCE = 'urn:oes:service:auth-service'
       ]
     },
     ...AuthCommandHandlers,
-    ...AuthQueryHandlers
+    ...AuthQueryHandlers,
+    MachineWorkloadSourceCredentialAdmissionGuard
   ],
   controllers: [
     AuthGrpcController,
