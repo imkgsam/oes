@@ -218,15 +218,7 @@ export class AuthController {
     @Headers('user-agent') userAgent?: string,
     @Ip() ipAddress?: string
   ): Promise<AuthResponseViewModel> {
-    return this.loginUseCase.execute(
-      dto,
-      {
-        requestId: source.requestId,
-        traceId: source.traceId
-      },
-      { userAgent, ipAddress },
-      'WEB'
-    )
+    return this.loginUseCase.execute(dto, source, { userAgent, ipAddress }, 'WEB')
   }
 
   @Post('challenges/email-otp')
@@ -246,10 +238,7 @@ export class AuthController {
     @Body() dto: EmailOtpChallengeDto,
     @DownstreamSource() source: DownstreamRequestSource
   ): Promise<OtpChallengeViewModel> {
-    return this.requestEmailOtpChallengeUseCase.execute(dto, {
-      requestId: source.requestId,
-      traceId: source.traceId
-    })
+    return this.requestEmailOtpChallengeUseCase.execute(dto, source)
   }
 
   @Post('challenges/phone-otp')
@@ -269,10 +258,7 @@ export class AuthController {
     @Body() dto: PhoneOtpChallengeDto,
     @DownstreamSource() source: DownstreamRequestSource
   ): Promise<OtpChallengeViewModel> {
-    return this.requestPhoneOtpChallengeUseCase.execute(dto, {
-      requestId: source.requestId,
-      traceId: source.traceId
-    })
+    return this.requestPhoneOtpChallengeUseCase.execute(dto, source)
   }
 
   @Post('mfa/complete')
@@ -293,10 +279,7 @@ export class AuthController {
     @Body() dto: CompleteMfaDto,
     @DownstreamSource() source: DownstreamRequestSource
   ): Promise<AuthResponseViewModel> {
-    return this.completeMfaUseCase.execute(dto, {
-      requestId: source.requestId,
-      traceId: source.traceId
-    })
+    return this.completeMfaUseCase.execute(dto, source)
   }
 
   @Post('mfa/challenges')
@@ -315,10 +298,7 @@ export class AuthController {
     @Body() dto: RequestMfaFactorChallengeDto,
     @DownstreamSource() source: DownstreamRequestSource
   ): Promise<OtpChallengeViewModel> {
-    return this.requestMfaFactorChallengeUseCase.execute(dto, {
-      requestId: source.requestId,
-      traceId: source.traceId
-    })
+    return this.requestMfaFactorChallengeUseCase.execute(dto, source)
   }
 
   @Post('password-recovery/options')
@@ -338,10 +318,7 @@ export class AuthController {
     @Body() dto: InspectPasswordRecoveryChannelsDto,
     @DownstreamSource() source: DownstreamRequestSource
   ): Promise<PasswordRecoveryOptionsViewModel> {
-    return this.passwordRecoveryUseCase.inspectChannels(dto, {
-      requestId: source.requestId,
-      traceId: source.traceId
-    })
+    return this.passwordRecoveryUseCase.inspectChannels(dto, source)
   }
 
   @Post('password-recovery/challenges')
@@ -361,10 +338,7 @@ export class AuthController {
     @Body() dto: RequestPasswordRecoveryChallengeDto,
     @DownstreamSource() source: DownstreamRequestSource
   ): Promise<PasswordRecoveryChallengeViewModel> {
-    return this.passwordRecoveryUseCase.requestChallenge(dto, {
-      requestId: source.requestId,
-      traceId: source.traceId
-    })
+    return this.passwordRecoveryUseCase.requestChallenge(dto, source)
   }
 
   @Post('password-recovery/challenges/:challengeId/verify')
@@ -386,10 +360,7 @@ export class AuthController {
     @Body() dto: VerifyPasswordRecoveryChallengeDto,
     @DownstreamSource() source: DownstreamRequestSource
   ): Promise<PasswordRecoveryVerificationViewModel> {
-    return this.passwordRecoveryUseCase.verifyChallenge(challengeId, dto, {
-      requestId: source.requestId,
-      traceId: source.traceId
-    })
+    return this.passwordRecoveryUseCase.verifyChallenge(challengeId, dto, source)
   }
 
   @Post('password-recovery/complete')
@@ -409,10 +380,7 @@ export class AuthController {
     @Body() dto: CompletePasswordRecoveryDto,
     @DownstreamSource() source: DownstreamRequestSource
   ): Promise<PasswordRecoveryCompletionViewModel> {
-    return this.passwordRecoveryUseCase.complete(dto, {
-      requestId: source.requestId,
-      traceId: source.traceId
-    })
+    return this.passwordRecoveryUseCase.complete(dto, source)
   }
 
   @Post('account-selection')
@@ -434,15 +402,7 @@ export class AuthController {
     @Headers('user-agent') userAgent?: string,
     @Ip() ipAddress?: string
   ): Promise<AuthResponseViewModel> {
-    return this.selectAccountUseCase.execute(
-      dto,
-      {
-        requestId: source.requestId,
-        traceId: source.traceId
-      },
-      { userAgent, ipAddress },
-      'WEB'
-    )
+    return this.selectAccountUseCase.execute(dto, source, { userAgent, ipAddress }, 'WEB')
   }
 
   @Post('first-login/password')
@@ -474,10 +434,7 @@ export class AuthController {
     @Body() dto: RefreshSessionDto,
     @DownstreamSource() source: DownstreamRequestSource
   ): Promise<RefreshSessionViewModel> {
-    return this.refreshSessionUseCase.execute(dto, {
-      requestId: source.requestId,
-      traceId: source.traceId
-    })
+    return this.refreshSessionUseCase.execute(dto, source)
   }
 
   @Get('session/context')
@@ -1485,7 +1442,8 @@ export class AuthController {
   @RequirePermissions({ all: [AUTH_MANAGEMENT_PERMISSION_CODES.MANAGE_PLATFORM_MFA_POLICY] })
   @ApiOperation({
     summary: 'Get platform default terminal MFA policy',
-    description: 'Returns platform default terminal MFA settings without treating them as tenant baselines.'
+    description:
+      'Returns platform default terminal MFA settings without treating them as tenant baselines.'
   })
   @ApiResponse({
     status: 200,
@@ -1501,7 +1459,8 @@ export class AuthController {
   @RequirePermissions({ all: [AUTH_MANAGEMENT_PERMISSION_CODES.MANAGE_PLATFORM_MFA_POLICY] })
   @ApiOperation({
     summary: 'Update platform default terminal MFA policy',
-    description: 'Updates platform default terminal MFA settings used when no tenant override exists.'
+    description:
+      'Updates platform default terminal MFA settings used when no tenant override exists.'
   })
   @ApiBody({ type: AdminPlatformTerminalMfaPolicyMutationDto })
   @ApiResponse({
