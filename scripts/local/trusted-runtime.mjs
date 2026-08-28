@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { chmod, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { statSync } from 'node:fs'
 import { spawn, spawnSync } from 'node:child_process'
 import { createConnection } from 'node:net'
 import { dirname, join, resolve } from 'node:path'
@@ -34,6 +35,11 @@ export async function generateProfile({ basePort = Number(process.env.OES_TRUSTE
   const inventory = await readInventory()
   const sourceEnvironment = parseEnv(await readFile(envSource, 'utf8'))
   const nacosPort = process.env.OES_NACOS_HOST_PORT?.trim() || sourceEnvironment.NACOS_HOST_PORT || (requireInfrastructure ? resolveInfrastructurePort('nacos', '8848') : '8848')
+  const postgresPort = requireInfrastructure ? resolveInfrastructurePort('postgres', '5432') : '5432'
+  const redisPort = requireInfrastructure ? resolveInfrastructurePort('redis', '6379') : '6379'
+  const natsPort = requireInfrastructure ? resolveInfrastructurePort('nats', '4222') : '4222'
+  const minioPort = requireInfrastructure ? resolveInfrastructurePort('minio', '9000') : '9000'
+  const composeEnvironment = requireInfrastructure ? renderComposeEnvironment() : {}
   await mkdir(join(stateRoot, 'env'), { recursive: true, mode: 0o700 })
   await mkdir(join(stateRoot, 'logs'), { recursive: true, mode: 0o700 })
   await mkdir(join(stateRoot, 'pids'), { recursive: true, mode: 0o700 })
@@ -42,7 +48,7 @@ export async function generateProfile({ basePort = Number(process.env.OES_TRUSTE
   for (const entry of inventory) {
     const packageDirectory = resolve(root, entry.source.split('/src/')[0])
     const packageJson = JSON.parse(await readFile(join(packageDirectory, 'package.json'), 'utf8'))
-    const env = { ...sourceEnvironment }
+    const env = { ...sourceEnvironment, ...(composeEnvironment[entry.workload] || {}) }
     Object.assign(env, endpointEnvironment(endpoints))
     Object.assign(env, {
       MODULE_NAME: entry.workload,
@@ -57,7 +63,11 @@ export async function generateProfile({ basePort = Number(process.env.OES_TRUSTE
       OES_GRPC_TLS_CERT_PATH: join(trustRoot, entry.workload, 'current/cert.pem'),
       OES_GRPC_TLS_KEY_PATH: join(trustRoot, entry.workload, 'current/key.pem'),
       OES_WORKLOAD_SPIFFE_ID: `spiffe://local.oes.internal/ns/oes/sa/${entry.workload}`,
-      DATABASE_URL: sourceEnvironment[`OES_DB_${entry.workload.replaceAll('-', '_').toUpperCase()}_URL`] || ''
+      DATABASE_URL: rewriteDatabaseUrl(sourceEnvironment[`OES_DB_${entry.workload.replaceAll('-', '_').toUpperCase()}_URL`] || env.DATABASE_URL || '', postgresPort),
+      REDIS_HOST: env.REDIS_HOST ? '127.0.0.1' : '',
+      REDIS_PORT: env.REDIS_PORT ? redisPort : '',
+      NATS_URL: env.NATS_URL ? `nats://127.0.0.1:${natsPort}` : '',
+      ASSET_S3_ENDPOINT: env.ASSET_S3_ENDPOINT ? `http://127.0.0.1:${minioPort}` : ''
     })
     const envPath = join(stateRoot, 'env', `${entry.workload}.env`)
     await writeFile(envPath, Object.entries(env).filter(([, value]) => value !== '').sort().map(([key, value]) => `${key}=${shellQuote(value)}`).join('\n') + '\n', { mode: 0o600 })
@@ -74,6 +84,9 @@ async function up() {
   await spawnChecked(join(root, 'docker/grpc-trust/bootstrap-local-trust.sh'), ['--output', trustRoot], { OES_TRUST_OUTPUT_DIRECTORY: trustRoot })
   const manifest = await generateProfile({ requireInfrastructure: true })
   await startSigner(manifest)
+  await spawnChecked('pnpm', ['proto:gen'])
+  await spawnChecked('pnpm', ['prisma:generate:all'])
+  await spawnChecked('pnpm', ['common:build'])
   for (const group of [...new Set(manifest.services.map((service) => service.group))].sort()) {
     const services = manifest.services.filter((service) => service.group === group)
     for (const service of services) await startService(service)
@@ -85,18 +98,68 @@ async function up() {
 async function startSigner(manifest) {
   const signer = { pidPath: join(stateRoot, 'pids/signer.pid'), logPath: join(stateRoot, 'logs/signer.log') }
   if (await livePid(signer.pidPath)) return
-  const work = join(stateRoot, 'signer')
+  // macOS limits Unix-domain socket paths to 104 bytes, so signer state uses a
+  // short task-owned root rather than the deeper generated profile directory.
+  const work = join('/private/tmp', `oes-signer-${taskKey}`)
   const ready = join(work, 'ready')
   const socket = join(work, 'signer.sock')
   await mkdir(work, { recursive: true, mode: 0o700 })
-  const child = spawn(join(root, 'docker/grpc-trust/execution-token-signer/local/softhsm2/run-host.sh'), [], { cwd: root, env: { ...process.env, EXECUTION_SIGNER_RUNTIME_MODE: '1', EXECUTION_SIGNER_HOST_WORK_DIR: work, EXECUTION_SIGNER_KEEP_HOST_WORK_DIR: '1', EXECUTION_SIGNER_READY_PATH: ready, AUTH_EXECUTION_SIGNER_SOCKET_PATH: socket }, detached: true, stdio: ['ignore', await openAppend(signer.logPath), await openAppend(signer.logPath)] })
+  const module = await ensureTaskLocalSoftHsm()
+  if (!module) return startDockerSigner(manifest, work, ready, socket)
+  spawnSync('docker', ['stop', `oes_${taskKey}-execution-token-signer-1`], { encoding: 'utf8', timeout: 15_000 })
+  const child = spawn(join(root, 'docker/grpc-trust/execution-token-signer/local/softhsm2/run-host.sh'), [], { cwd: root, env: { ...process.env, EXECUTION_SIGNER_RUNTIME_MODE: '1', EXECUTION_SIGNER_HOST_WORK_DIR: work, EXECUTION_SIGNER_KEEP_HOST_WORK_DIR: '1', EXECUTION_SIGNER_READY_PATH: ready, AUTH_EXECUTION_SIGNER_SOCKET_PATH: socket, AUTH_EXECUTION_PKCS11_MODULE: module }, detached: true, stdio: ['ignore', await openAppend(signer.logPath), await openAppend(signer.logPath)] })
   child.unref(); await writeFile(signer.pidPath, `${child.pid}\n`, { mode: 0o600 })
   for (let attempt = 0; attempt < 60; attempt += 1) { try { const keyReference = (await readFile(ready, 'utf8')).trim(); await appendEnvironment(manifest.services.find((service) => service.workload === 'auth-service').envPath, { AUTH_EXECUTION_SIGNER_SOCKET_PATH: socket, AUTH_EXECUTION_KMS_KEY_REF: keyReference }); return } catch { await new Promise((resolvePromise) => setTimeout(resolvePromise, 500)) } }
   throw new Error('TRUSTED_RUNTIME_SIGNER_NOT_READY')
 }
 
+async function startDockerSigner(manifest, work, ready, socket) {
+  const override = join(stateRoot, 'signer.compose.yml')
+  const uid = process.getuid?.() ?? 65532
+  const gid = process.getgid?.() ?? 65532
+  await writeFile(override, `services:\n  execution-token-signer:\n    user: "${uid}:${gid}"\n    volumes:\n      - type: bind\n        source: ${JSON.stringify(work)}\n        target: /execution-signer\n`, { mode: 0o600 })
+  await chmod(override, 0o600)
+  const existing = spawnSync('docker', ['inspect', '-f', '{{.State.Running}}', `oes_${taskKey}-execution-token-signer-1`], { encoding: 'utf8', timeout: 5_000 })
+  if (existing.status === 0 && existing.stdout.trim() === 'true') {
+    try { const keyReference = (await readFile(ready, 'utf8')).trim(); await appendEnvironment(manifest.services.find((service) => service.workload === 'auth-service').envPath, { AUTH_EXECUTION_SIGNER_SOCKET_PATH: socket, AUTH_EXECUTION_KMS_KEY_REF: keyReference }); return } catch { /* Recreate an unhealthy or incomplete signer below. */ }
+  }
+  await spawnChecked('docker', ['compose', '--env-file', envSource, '-p', `oes_${taskKey}`, '-f', join(root, 'docker-compose.yml'), '-f', override, 'up', '-d', '--build', '--no-deps', 'execution-token-signer'])
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    try { const keyReference = (await readFile(ready, 'utf8')).trim(); await appendEnvironment(manifest.services.find((service) => service.workload === 'auth-service').envPath, { AUTH_EXECUTION_SIGNER_SOCKET_PATH: socket, AUTH_EXECUTION_KMS_KEY_REF: keyReference }); return } catch { await new Promise((resolvePromise) => setTimeout(resolvePromise, 500)) }
+  }
+  throw new Error('TRUSTED_RUNTIME_DOCKER_SIGNER_NOT_READY')
+}
+
+function hostSoftHsmModule() {
+  for (const path of [join(stateRoot, 'softhsm/softhsm/2.7.0/lib/softhsm/libsofthsm2.so'), '/opt/homebrew/lib/softhsm/libsofthsm2.so', '/usr/local/lib/softhsm/libsofthsm2.so', '/usr/lib/softhsm/libsofthsm2.so', '/usr/lib/x86_64-linux-gnu/softhsm/libsofthsm2.so']) {
+    try { if (statSync(path).isFile()) return path } catch { /* Docker signer is the bounded fallback. */ }
+  }
+  return null
+}
+
+async function ensureTaskLocalSoftHsm() {
+  const existing = hostSoftHsmModule()
+  if (existing) {
+    const bytes = await readFile(existing)
+    if (bytes.includes(Buffer.from('@@HOMEBREW_PREFIX@@'))) {
+      await spawnChecked('install_name_tool', ['-change', '@@HOMEBREW_PREFIX@@/opt/openssl@3/lib/libcrypto.3.dylib', '/opt/homebrew/opt/openssl@3/lib/libcrypto.3.dylib', existing])
+      await spawnChecked('codesign', ['--force', '--sign', '-', existing])
+    }
+    return existing
+  }
+  if (process.platform !== 'darwin' || spawnSync('brew', ['--version'], { timeout: 5_000 }).status !== 0) return null
+  await spawnChecked('brew', ['fetch', 'softhsm'])
+  const cache = spawnSync('brew', ['--cache', 'softhsm'], { encoding: 'utf8', timeout: 5_000 })
+  if (cache.status !== 0) return null
+  const destination = join(stateRoot, 'softhsm')
+  await mkdir(destination, { recursive: true, mode: 0o700 })
+  await spawnChecked('tar', ['-xzf', cache.stdout.trim(), '-C', destination])
+  return ensureTaskLocalSoftHsm()
+}
+
 async function startService(service) {
   if (await livePid(service.pidPath)) return
+  try { await stat(join(service.packageDirectory, 'dist/main.js')) } catch { await spawnChecked('pnpm', ['--filter', service.packageName, 'build']) }
   const environment = parseEnv(await readFile(service.envPath, 'utf8'))
   const out = await openAppend(service.logPath)
   const child = spawn('pnpm', ['--filter', service.packageName, 'start'], { cwd: root, env: { ...process.env, ...environment }, detached: true, stdio: ['ignore', out, out] })
@@ -137,6 +200,7 @@ async function down() {
   const signerPid = await livePid(join(stateRoot, 'pids/signer.pid'))
   if (signerPid) process.kill(signerPid, 'SIGTERM')
   await rm(join(stateRoot, 'pids/signer.pid'), { force: true })
+  if (!hostSoftHsmModule()) await spawnChecked('docker', ['compose', '--env-file', envSource, '-p', `oes_${taskKey}`, '-f', join(root, 'docker-compose.yml'), '-f', join(stateRoot, 'signer.compose.yml'), 'stop', 'execution-token-signer'])
 }
 
 function serviceGroup(workload) {
@@ -175,6 +239,20 @@ function resolveInfrastructurePort(service, containerPort) {
   const match = result.stdout.trim().match(/:(\d+)$/u)
   if (!match) throw new Error(`TRUSTED_RUNTIME_INFRA_PORT_INVALID_${service.toUpperCase()}`)
   return match[1]
+}
+
+function renderComposeEnvironment() {
+  const result = spawnSync('docker', ['compose', '--env-file', envSource, '-p', `oes_${taskKey}`, '-f', join(root, 'docker-compose.yml'), 'config', '--format', 'json'], { encoding: 'utf8', timeout: 15_000, maxBuffer: 16 * 1024 * 1024 })
+  if (result.status !== 0) throw new Error('TRUSTED_RUNTIME_COMPOSE_PROFILE_INVALID')
+  const services = JSON.parse(result.stdout).services
+  return Object.fromEntries(Object.entries(services).map(([name, service]) => [name, service.environment || {}]))
+}
+
+function rewriteDatabaseUrl(value, hostPort) {
+  if (!value) return ''
+  const url = new URL(value)
+  url.hostname = '127.0.0.1'; url.port = hostPort
+  return url.toString()
 }
 
 function parseEnv(text) { return Object.fromEntries(text.split(/\r?\n/u).filter((line) => line && !line.startsWith('#') && line.includes('=')).map((line) => { const index = line.indexOf('='); return [line.slice(0, index), unquote(line.slice(index + 1))] })) }
