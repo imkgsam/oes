@@ -81,6 +81,24 @@ export async function generateProfile({ basePort = Number(process.env.OES_TRUSTE
     await chmod(envPath, 0o600)
     manifest.services.push({ workload: entry.workload, packageName: packageJson.name, packageDirectory, port: endpoints[entry.workload], group: serviceGroup(entry.workload), serverName: `${entry.workload}.localhost`, spiffeId: env.OES_WORKLOAD_SPIFFE_ID, envPath, certPath: env.OES_GRPC_TLS_CERT_PATH, logPath: join(stateRoot, 'logs', `${entry.workload}.log`), pidPath: join(stateRoot, 'pids', `${entry.workload}.pid`) })
   }
+  const gatewayPort = Number(process.env.OES_TRUSTED_RUNTIME_GATEWAY_PORT || 52101)
+  const gatewayDirectory = join(root, 'src/services/api-gateway')
+  const gatewayEnvironment = { ...sourceEnvironment, ...(composeEnvironment['api-gateway'] || {}), ...endpointEnvironment(endpoints) }
+  Object.assign(gatewayEnvironment, {
+    MODULE_NAME: 'api-gateway',
+    SERVICE_PORT: String(gatewayPort),
+    NACOS_SERVER: `127.0.0.1:${nacosPort}`,
+    OES_GRPC_TLS_ENABLED: 'true',
+    OES_GRPC_TLS_MIN_VERSION: 'TLSv1.2',
+    OES_GRPC_TLS_CA_PATH: join(trustRoot, 'api-gateway/current/ca.pem'),
+    OES_GRPC_TLS_CERT_PATH: join(trustRoot, 'api-gateway/current/cert.pem'),
+    OES_GRPC_TLS_KEY_PATH: join(trustRoot, 'api-gateway/current/key.pem'),
+    OES_WORKLOAD_SPIFFE_ID: 'spiffe://local.oes.internal/ns/oes/sa/api-gateway',
+    GATEWAY_READINESS_TARGETS: Object.entries(endpoints).map(([workload, port]) => `${workload}=grpcs://${workload}.localhost:${port}`).join(',')
+  })
+  const gatewayEnvPath = join(stateRoot, 'env/api-gateway.env')
+  await writeFile(gatewayEnvPath, Object.entries(gatewayEnvironment).filter(([, value]) => value !== '').sort().map(([key, value]) => `${key}=${shellQuote(value)}`).join('\n') + '\n', { mode: 0o600 })
+  manifest.gateway = { workload: 'api-gateway', packageName: 'api-gateway', packageDirectory: gatewayDirectory, port: gatewayPort, envPath: gatewayEnvPath, certPath: gatewayEnvironment.OES_GRPC_TLS_CERT_PATH, logPath: join(stateRoot, 'logs/api-gateway.log'), pidPath: join(stateRoot, 'pids/api-gateway.pid') }
   await writeFile(join(stateRoot, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n', { mode: 0o600 })
   await chmod(join(stateRoot, 'manifest.json'), 0o600)
   return manifest
@@ -99,6 +117,8 @@ async function up() {
     for (const service of services) await startService(service)
     await waitReady(services, 90_000)
   }
+  await startService(manifest.gateway)
+  await waitReady([manifest.gateway], 90_000)
   await status(true)
 }
 
@@ -191,7 +211,7 @@ async function waitReady(services, timeoutMs) {
 async function status(requireReady = false) {
   const manifest = JSON.parse(await readFile(join(stateRoot, 'manifest.json'), 'utf8'))
   let failed = false
-  for (const service of manifest.services) {
+  for (const service of [...manifest.services, ...(manifest.gateway ? [manifest.gateway] : [])]) {
     const pid = await livePid(service.pidPath)
     const reachable = await canConnect('127.0.0.1', service.port)
     process.stdout.write(`${service.workload} pid=${pid || 'DOWN'} port=${service.port} reachable=${reachable}\n`)
@@ -203,7 +223,7 @@ async function status(requireReady = false) {
 /** Stops only PIDs whose command line still belongs to the recorded package. */
 async function down() {
   const manifest = JSON.parse(await readFile(join(stateRoot, 'manifest.json'), 'utf8'))
-  for (const service of [...manifest.services].reverse()) {
+  for (const service of [...manifest.services, ...(manifest.gateway ? [manifest.gateway] : [])].reverse()) {
     const pid = await livePid(service.pidPath)
     if (pid) process.kill(pid, 'SIGTERM')
     await rm(service.pidPath, { force: true })

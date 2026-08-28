@@ -22,6 +22,8 @@ test('offline profile validation does not require live Docker infrastructure', a
   assert.equal(profile.nacos, '127.0.0.1:8848')
   assert.equal(new Set(profile.services.map((service) => service.port)).size, 21)
   assert.equal(new Set(profile.services.map((service) => service.certPath)).size, 21)
+  assert.equal(profile.gateway.workload, 'api-gateway')
+  assert.equal(profile.gateway.port, 52101)
 })
 
 test('inventory rejects duplicate workload, listener port, or source', async () => {
