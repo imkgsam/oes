@@ -36,11 +36,15 @@ issue_workload_leaf() {
   mkdir -p "${workload_directory}"
   leaf_directory="$(mktemp -d "${workload_directory}/.leaf.XXXXXX")"
   extension_file="${leaf_directory}/leaf-ext.cnf"
+  local dns_names="DNS:${workload}"
+  if [[ "${workload}" == "auth-service" ]]; then
+    dns_names="${dns_names},DNS:issuer.local.oes.internal"
+  fi
   cat >"${extension_file}" <<EOF
 basicConstraints=critical,CA:FALSE
 keyUsage=critical,digitalSignature,keyEncipherment
 extendedKeyUsage=critical,clientAuth,serverAuth
-subjectAltName=critical,URI:${spiffe_id},DNS:${workload}
+subjectAltName=critical,URI:${spiffe_id},${dns_names}
 EOF
 
   openssl req -new -newkey rsa:2048 -nodes \
