@@ -62,7 +62,7 @@ export async function generateProfile({ basePort = Number(process.env.OES_TRUSTE
     const envPath = join(stateRoot, 'env', `${entry.workload}.env`)
     await writeFile(envPath, Object.entries(env).filter(([, value]) => value !== '').sort().map(([key, value]) => `${key}=${shellQuote(value)}`).join('\n') + '\n', { mode: 0o600 })
     await chmod(envPath, 0o600)
-    manifest.services.push({ workload: entry.workload, packageName: packageJson.name, packageDirectory, port: endpoints[entry.workload], serverName: `${entry.workload}.localhost`, spiffeId: env.OES_WORKLOAD_SPIFFE_ID, envPath, certPath: env.OES_GRPC_TLS_CERT_PATH, logPath: join(stateRoot, 'logs', `${entry.workload}.log`), pidPath: join(stateRoot, 'pids', `${entry.workload}.pid`) })
+    manifest.services.push({ workload: entry.workload, packageName: packageJson.name, packageDirectory, port: endpoints[entry.workload], group: serviceGroup(entry.workload), serverName: `${entry.workload}.localhost`, spiffeId: env.OES_WORKLOAD_SPIFFE_ID, envPath, certPath: env.OES_GRPC_TLS_CERT_PATH, logPath: join(stateRoot, 'logs', `${entry.workload}.log`), pidPath: join(stateRoot, 'pids', `${entry.workload}.pid`) })
   }
   await writeFile(join(stateRoot, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n', { mode: 0o600 })
   await chmod(join(stateRoot, 'manifest.json'), 0o600)
@@ -73,14 +73,44 @@ export async function generateProfile({ basePort = Number(process.env.OES_TRUSTE
 async function up() {
   await spawnChecked(join(root, 'docker/grpc-trust/bootstrap-local-trust.sh'), ['--output', trustRoot], { OES_TRUST_OUTPUT_DIRECTORY: trustRoot })
   const manifest = await generateProfile({ requireInfrastructure: true })
-  for (const service of manifest.services) {
-    if (await livePid(service.pidPath)) continue
-    const environment = parseEnv(await readFile(service.envPath, 'utf8'))
-    const child = spawn('pnpm', ['--filter', service.packageName, 'start'], { cwd: root, env: { ...process.env, ...environment }, detached: true, stdio: ['ignore', await openAppend(service.logPath), await openAppend(service.logPath)] })
-    child.unref()
-    await writeFile(service.pidPath, `${child.pid}\n`, { mode: 0o600 })
+  await startSigner(manifest)
+  for (const group of [...new Set(manifest.services.map((service) => service.group))].sort()) {
+    const services = manifest.services.filter((service) => service.group === group)
+    for (const service of services) await startService(service)
+    await waitReady(services, 90_000)
   }
   await status(true)
+}
+
+async function startSigner(manifest) {
+  const signer = { pidPath: join(stateRoot, 'pids/signer.pid'), logPath: join(stateRoot, 'logs/signer.log') }
+  if (await livePid(signer.pidPath)) return
+  const work = join(stateRoot, 'signer')
+  const ready = join(work, 'ready')
+  const socket = join(work, 'signer.sock')
+  await mkdir(work, { recursive: true, mode: 0o700 })
+  const child = spawn(join(root, 'docker/grpc-trust/execution-token-signer/local/softhsm2/run-host.sh'), [], { cwd: root, env: { ...process.env, EXECUTION_SIGNER_RUNTIME_MODE: '1', EXECUTION_SIGNER_HOST_WORK_DIR: work, EXECUTION_SIGNER_KEEP_HOST_WORK_DIR: '1', EXECUTION_SIGNER_READY_PATH: ready, AUTH_EXECUTION_SIGNER_SOCKET_PATH: socket }, detached: true, stdio: ['ignore', await openAppend(signer.logPath), await openAppend(signer.logPath)] })
+  child.unref(); await writeFile(signer.pidPath, `${child.pid}\n`, { mode: 0o600 })
+  for (let attempt = 0; attempt < 60; attempt += 1) { try { const keyReference = (await readFile(ready, 'utf8')).trim(); await appendEnvironment(manifest.services.find((service) => service.workload === 'auth-service').envPath, { AUTH_EXECUTION_SIGNER_SOCKET_PATH: socket, AUTH_EXECUTION_KMS_KEY_REF: keyReference }); return } catch { await new Promise((resolvePromise) => setTimeout(resolvePromise, 500)) } }
+  throw new Error('TRUSTED_RUNTIME_SIGNER_NOT_READY')
+}
+
+async function startService(service) {
+  if (await livePid(service.pidPath)) return
+  const environment = parseEnv(await readFile(service.envPath, 'utf8'))
+  const out = await openAppend(service.logPath)
+  const child = spawn('pnpm', ['--filter', service.packageName, 'start'], { cwd: root, env: { ...process.env, ...environment }, detached: true, stdio: ['ignore', out, out] })
+  child.unref(); await writeFile(service.pidPath, `${child.pid}\n`, { mode: 0o600 })
+}
+
+async function waitReady(services, timeoutMs) {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    if ((await Promise.all(services.map((service) => canConnect('127.0.0.1', service.port)))).every(Boolean)) return
+    if ((await Promise.all(services.map((service) => livePid(service.pidPath)))).some((pid) => !pid)) throw new Error('TRUSTED_RUNTIME_PROCESS_EXITED')
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 500))
+  }
+  throw new Error(`TRUSTED_RUNTIME_READINESS_TIMEOUT_${services.map((service) => service.workload).join('_')}`)
 }
 
 /** Reports PID and listener state without substituting a different process. */
@@ -104,6 +134,23 @@ async function down() {
     if (pid) process.kill(pid, 'SIGTERM')
     await rm(service.pidPath, { force: true })
   }
+  const signerPid = await livePid(join(stateRoot, 'pids/signer.pid'))
+  if (signerPid) process.kill(signerPid, 'SIGTERM')
+  await rm(join(stateRoot, 'pids/signer.pid'), { force: true })
+}
+
+function serviceGroup(workload) {
+  if (['party-service', 'permission-service', 'identity-service', 'tenant-org-service', 'hr-service'].includes(workload)) return 1
+  if (workload === 'auth-service') return 2
+  if (['asset-service', 'item-master-service', 'terminal-device-service'].includes(workload)) return 3
+  if (['crm-service', 'srm-service', 'sales-service', 'procurement-service', 'finance-service', 'wms-service', 'mes-service'].includes(workload)) return 4
+  return 5
+}
+
+async function appendEnvironment(path, additions) {
+  const values = { ...parseEnv(await readFile(path, 'utf8')), ...additions }
+  await writeFile(path, Object.entries(values).sort().map(([key, value]) => `${key}=${shellQuote(value)}`).join('\n') + '\n', { mode: 0o600 })
+  await chmod(path, 0o600)
 }
 
 function endpointEnvironment(endpoints) {
