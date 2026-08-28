@@ -237,10 +237,16 @@ export class CompositeSourceCredentialVerifier implements ExecutionTokenSourceCr
   async verify(
     sourceCredential: string,
     workloadIdentity: VerifiedExecutionWorkload,
-    request?: { targetAudience: string; requestedPermissionCodes: readonly string[] }
+    request?: {
+      targetAudience: string
+      requestedPermissionCodes: readonly string[]
+      requestId?: string
+      traceparent?: string
+      tracestate?: string
+    }
   ): Promise<TrustedExecutionContext> {
     if (isMachineSourceProfile(sourceCredential))
-      return this.machine.verify(sourceCredential, workloadIdentity)
+      return this.machine.verify(sourceCredential, workloadIdentity, request)
     if (isExecutionTokenProfile(sourceCredential)) {
       if (!this.subject || !request) throw new Error('EXECUTION_HUMAN_OBO_SUBJECT_INVALID')
       return this.subject.verify(sourceCredential, workloadIdentity, request.targetAudience)

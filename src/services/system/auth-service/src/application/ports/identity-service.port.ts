@@ -39,6 +39,9 @@ export interface IIdentityServicePort {
     bindingId: string
     bindingVersion: bigint
     workloadSpiffeId: string
+    requestId?: string
+    traceparent?: string
+    tracestate?: string
   }): Promise<{
     allowed: boolean
     reasonCode?: string

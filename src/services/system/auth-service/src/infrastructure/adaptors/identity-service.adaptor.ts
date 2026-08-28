@@ -284,6 +284,9 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
     bindingId: string
     bindingVersion: bigint
     workloadSpiffeId: string
+    requestId?: string
+    traceparent?: string
+    tracestate?: string
   }): Promise<{
     allowed: boolean
     reasonCode?: string
@@ -301,7 +304,14 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
     tenantId?: string
     orgId?: string
   }> {
-    const correlation = inboundExecutionTokenCredentialScope.requireCorrelation()
+    const correlation =
+      input.requestId && input.traceparent
+        ? {
+            requestId: input.requestId,
+            traceparent: input.traceparent,
+            ...(input.tracestate ? { tracestate: input.tracestate } : {})
+          }
+        : inboundExecutionTokenCredentialScope.requireCorrelation()
     const metadata = new Metadata()
     metadata.set('x-request-id', correlation.requestId)
     metadata.set('traceparent', correlation.traceparent)
