@@ -14,6 +14,12 @@ import { ValidatingQueryBus } from '@oes/common/cqrs'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
   AccountContactAsset,
+  ListAuthLoginAccountCandidatesRequest,
+  ListAuthLoginAccountCandidatesResponse,
+  ResolveAuthLoginAccountRequest,
+  ResolveAuthLoginAccountResponse,
+  ResolveAuthEmployeeLoginAccountRequest,
+  ResolveAuthEmployeeLoginAccountResponse,
   CountTenantAccountsRequest,
   CountTenantAccountsResponse,
   ListAccountsRequest,
@@ -108,6 +114,66 @@ type ResolveEmployeeLoginAccountResponse = {
 @IdentityQueryServiceControllerMethods()
 export class IdentityQueryGrpcController implements IdentityQueryServiceController {
   constructor(private readonly queryBus: ValidatingQueryBus) {}
+
+  @AuthorizeInternalCall({ all: ['identity.internal.auth_login_account.resolve'] })
+  async listAuthLoginAccountCandidates(
+    request: ListAuthLoginAccountCandidatesRequest
+  ): Promise<ListAuthLoginAccountCandidatesResponse> {
+    const accounts = await this.queryBus.execute<GetAccountsByUserIdQuery, AccountCandidateView[]>(
+      new GetAccountsByUserIdQuery(request.userId!)
+    )
+    return {
+      accounts: accounts
+        .filter((account) => account.isEnabled)
+        .map((account) => ({
+          userId: request.userId!,
+          accountId: account.accountId,
+          tenantId: account.tenantId ?? '',
+          scopeLevel: account.scopeLevel,
+          displayName: account.displayName ?? '',
+          accountEnabled: true,
+          employeeId: ''
+        }))
+    }
+  }
+
+  @AuthorizeInternalCall({ all: ['identity.internal.auth_login_account.resolve'] })
+  async resolveAuthLoginAccount(
+    request: ResolveAuthLoginAccountRequest
+  ): Promise<ResolveAuthLoginAccountResponse> {
+    const account = await this.queryBus.execute<GetAccountByIdQuery, AccountSummaryView | null>(
+      new GetAccountByIdQuery(request.accountId!)
+    )
+    if (!account || account.userId !== request.userId) return {}
+    return { account: toAuthLoginProjection(account) }
+  }
+
+  @AuthorizeInternalCall({ all: ['identity.internal.auth_login_account.resolve'] })
+  async resolveAuthEmployeeLoginAccount(
+    request: ResolveAuthEmployeeLoginAccountRequest
+  ): Promise<ResolveAuthEmployeeLoginAccountResponse> {
+    const account = await this.queryBus.execute<
+      ResolveEmployeeLoginAccountQuery,
+      EmployeeLoginAccountView | null
+    >(
+      new ResolveEmployeeLoginAccountQuery({
+        tenantId: request.tenantId!,
+        employeeId: request.employeeId!
+      })
+    )
+    if (!account || account.tenantId !== request.tenantId) return {}
+    return {
+      account: {
+        userId: account.userId,
+        accountId: account.accountId,
+        tenantId: account.tenantId ?? '',
+        scopeLevel: account.scopeLevel,
+        displayName: account.displayName ?? '',
+        accountEnabled: account.accountEnabled,
+        employeeId: request.employeeId!
+      }
+    }
+  }
 
   async listAuditEvents(request: ListAuditEventsRequest): Promise<ListAuditEventsResponse> {
     const operatorScope = getOptionalOperatorScope(request)
@@ -504,6 +570,19 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
         isActive: user.isActive
       }
     }
+  }
+}
+
+// Maps only Identity-owned login/session facts onto the Auth-only INTERNAL projection.
+function toAuthLoginProjection(account: AccountSummaryView) {
+  return {
+    userId: account.userId,
+    accountId: account.id,
+    tenantId: account.tenantId ?? '',
+    scopeLevel: account.scopeLevel,
+    displayName: account.displayName ?? '',
+    accountEnabled: account.isEnabled,
+    employeeId: ''
   }
 }
 

@@ -6,6 +6,9 @@ option java_multiple_files = true;
 option java_package = "com.oes.identity.v1";
 
 service IdentityQueryService {
+  rpc ListAuthLoginAccountCandidates(ListAuthLoginAccountCandidatesRequest) returns (ListAuthLoginAccountCandidatesResponse);
+  rpc ResolveAuthLoginAccount(ResolveAuthLoginAccountRequest) returns (ResolveAuthLoginAccountResponse);
+  rpc ResolveAuthEmployeeLoginAccount(ResolveAuthEmployeeLoginAccountRequest) returns (ResolveAuthEmployeeLoginAccountResponse);
   rpc GetAccountById(GetAccountByIdRequest) returns (GetAccountByIdResponse);
   rpc GetEmployeeBindingByAccountId(GetEmployeeBindingByAccountIdRequest) returns (GetEmployeeBindingByAccountIdResponse);
   rpc ResolveEmployeeLoginAccount(ResolveEmployeeLoginAccountRequest) returns (ResolveEmployeeLoginAccountResponse);
@@ -28,6 +31,42 @@ service IdentityQueryService {
   rpc GetUserByPhone(GetUserByPhoneRequest) returns (GetUserByPhoneResponse);
   rpc GetAccountsByUserId(GetAccountsByUserIdRequest) returns (GetAccountsByUserIdResponse);
   rpc CountTenantAccounts(CountTenantAccountsRequest) returns (CountTenantAccountsResponse);
+}
+
+message ListAuthLoginAccountCandidatesRequest {
+  string user_id = 1;
+}
+
+message AuthLoginAccountProjection {
+  string user_id = 1;
+  string account_id = 2;
+  string tenant_id = 3;
+  string scope_level = 4;
+  string display_name = 5;
+  bool account_enabled = 6;
+  string employee_id = 7;
+}
+
+message ListAuthLoginAccountCandidatesResponse {
+  repeated AuthLoginAccountProjection accounts = 1;
+}
+
+message ResolveAuthLoginAccountRequest {
+  string user_id = 1;
+  string account_id = 2;
+}
+
+message ResolveAuthLoginAccountResponse {
+  AuthLoginAccountProjection account = 1;
+}
+
+message ResolveAuthEmployeeLoginAccountRequest {
+  string tenant_id = 1;
+  string employee_id = 2;
+}
+
+message ResolveAuthEmployeeLoginAccountResponse {
+  AuthLoginAccountProjection account = 1;
 }
 
 message ListAuditEventsRequest {

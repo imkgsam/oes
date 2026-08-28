@@ -63,3 +63,11 @@ The recovered lineage now contains a versioned Identity-owned fixed SYSTEM inven
 Checkpoint evidence is owner-local under `/private/tmp/oes-fl-business-journey-artifacts`; paths are not stable truth. State-machine tests, Prisma generation/validation, Identity build, CLI syntax and diff hygiene passed. The first validation attempt without `DATABASE_URL` is retained as a command-input correction; the exact explicit isolated-format URL input passed without making a connection.
 
 Remaining next slice: reconstruct Auth-only Identity/HR/TenantOrg INTERNAL owner resolvers, exact workload inventory/policies, and their mTLS/audience/Code/cnf/selector negatives before task/event and live journey work.
+
+## Reconstruction checkpoint: Auth-only Identity owner resolvers
+
+Identity now exposes the three canonical Auth-only INTERNAL login owner resolvers with the single exact `identity.internal.auth_login_account.resolve` method declaration. Candidate listing filters disabled accounts, account resolution verifies the user/account owner pair, and employee resolution verifies the requested tenant while returning only the frozen minimal projection. Auth candidate and employee pre-HUMAN paths now request a target-audience INTERNAL execution using that Code instead of `identity.account.list`; no role, grant, wildcard or BUSINESS fallback was added.
+
+Focused proto lint/generation, Common/Identity/Auth builds and Identity/Auth resolver tests passed. The initial Auth build before its generated Prisma client existed is retained as environment command-order evidence and was corrected by the standard frozen Prisma generation step.
+
+Remaining within this slice: migrate account-selection/MFA owner recheck to `ResolveAuthLoginAccount`; add HR `ResolveAuthLoginEmployee` and TenantOrg `ResolveAuthSessionTenantLifecycle`; project their exact Permission catalog/workload policies and runtime profiles; complete mTLS/audience/Code/cnf/selector/status/dependency negatives.

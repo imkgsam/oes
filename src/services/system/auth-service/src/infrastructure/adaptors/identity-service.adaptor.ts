@@ -3,8 +3,8 @@ import { ExceptionFactory, InfrastructureException } from '@oes/common/exception
 import {
   GetAccountByIdRequest,
   GetAccountByIdResponse,
-  GetAccountsByUserIdRequest,
-  GetAccountsByUserIdResponse,
+  ListAuthLoginAccountCandidatesRequest,
+  ListAuthLoginAccountCandidatesResponse,
   GetUserByIdRequest,
   GetUserByIdResponse,
   GetUserByEmailRequest,
@@ -12,8 +12,8 @@ import {
   GetUserByPhoneRequest,
   GetUserByPhoneResponse,
   IdentityQueryServiceClient,
-  ResolveEmployeeLoginAccountRequest,
-  ResolveEmployeeLoginAccountResponse,
+  ResolveAuthEmployeeLoginAccountRequest,
+  ResolveAuthEmployeeLoginAccountResponse,
   ResolveMachinePrincipalForAuthResponse
 } from '@oes/common/generated/identity_service'
 import { safeGrpcCall } from '@oes/common/transport'
@@ -34,6 +34,7 @@ const IDENTITY_QUERY_SERVICE_NAME = 'IdentityQueryService'
 const AUTH_SERVICE_AUDIENCE = 'urn:oes:service:identity-service'
 const AUTH_INTERNAL_PERMISSION = 'identity.internal.integration_machine.resolve'
 const MACHINE_PRINCIPAL_RESOLVE_PERMISSION = 'identity.internal.machine_principal.resolve'
+const AUTH_LOGIN_ACCOUNT_RESOLVE_PERMISSION = 'identity.internal.auth_login_account.resolve'
 
 @Injectable()
 export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleInit {
@@ -121,16 +122,19 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
 
   async getAvailableAccountsByUserId(userId: string): Promise<AccountCandidateSummary[]> {
     try {
-      const response = await safeGrpcCall<GetAccountsByUserIdResponse>(
-        this.identityQueryService.getAccountsByUserId(
+      const response = await safeGrpcCall<ListAuthLoginAccountCandidatesResponse>(
+        this.identityQueryService.listAuthLoginAccountCandidates(
           {
             userId
-          } as GetAccountsByUserIdRequest,
-          await this.trusted.forBusinessCall('identity-service', ['identity.account.list'])
+          } as ListAuthLoginAccountCandidatesRequest,
+          await this.trusted.forInternalCall(
+            'identity-service',
+            AUTH_LOGIN_ACCOUNT_RESOLVE_PERMISSION
+          )
         ),
         {
           caller: 'auth-service',
-          method: 'IdentityQueryService.getAccountsByUserId'
+          method: 'IdentityQueryService.listAuthLoginAccountCandidates'
         }
       )
 
@@ -185,17 +189,20 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
     employeeId: string
   }): Promise<EmployeeLoginAccountSummary | null> {
     try {
-      const response = await safeGrpcCall<ResolveEmployeeLoginAccountResponse>(
-        this.identityQueryService.resolveEmployeeLoginAccount(
+      const response = await safeGrpcCall<ResolveAuthEmployeeLoginAccountResponse>(
+        this.identityQueryService.resolveAuthEmployeeLoginAccount(
           {
             tenantId: input.tenantId,
             employeeId: input.employeeId
-          } as ResolveEmployeeLoginAccountRequest,
-          await this.trusted.forBusinessCall('identity-service', ['identity.account.list'])
+          } as ResolveAuthEmployeeLoginAccountRequest,
+          await this.trusted.forInternalCall(
+            'identity-service',
+            AUTH_LOGIN_ACCOUNT_RESOLVE_PERMISSION
+          )
         ),
         {
           caller: 'auth-service',
-          method: 'IdentityQueryService.resolveEmployeeLoginAccount'
+          method: 'IdentityQueryService.resolveAuthEmployeeLoginAccount'
         }
       )
 
