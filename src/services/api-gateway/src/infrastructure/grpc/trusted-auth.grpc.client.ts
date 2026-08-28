@@ -142,6 +142,7 @@ class GatewayFoundationExecutionTokenExchangeClient implements ExecutionTokenExc
           registry: new TrustedExecutionRegistry({
             issuer: required('AUTH_EXECUTION_ISSUER'),
             audiences: [
+              'urn:oes:service:api-gateway',
               AUTH_TARGET_AUDIENCE,
               IDENTITY_TARGET_AUDIENCE,
               PERMISSION_TARGET_AUDIENCE,

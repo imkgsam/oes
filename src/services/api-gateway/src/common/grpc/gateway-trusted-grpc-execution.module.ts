@@ -39,7 +39,6 @@ const PUBLIC_ENTRY_AUDIENCE = 'urn:oes:service:public-entry-service'
 const MES_AUDIENCE = 'urn:oes:service:mes-service'
 const COLLABORATION_AUDIENCE = 'urn:oes:service:collaboration-service'
 const ITEM_MASTER_AUDIENCE = 'urn:oes:service:item-master-service'
-const GATEWAY_SELF_AUDIENCE = 'urn:oes:service:api-gateway'
 
 /** Composes the sole Gateway target-token producer with the same request-private source-credential accessor. */
 @Global()
@@ -84,7 +83,6 @@ const GATEWAY_SELF_AUDIENCE = 'urn:oes:service:api-gateway'
         new TrustedExecutionRegistry({
           issuer: requireEnvironment('AUTH_EXECUTION_ISSUER'),
           audiences: [
-            GATEWAY_SELF_AUDIENCE,
             ASSET_AUDIENCE,
             SITE_AUDIENCE,
             BROWSER_ACTIVITY_AUDIENCE,
