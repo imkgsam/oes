@@ -2,6 +2,7 @@ import {
   AsyncLocalTransportPrivateSourceCredentialAccessor,
   TransportPrivateSourceCredentialIssuer
 } from '@oes/common/authorization'
+import { Metadata } from '@grpc/grpc-js'
 import { GatewayPermissionTrustedMetadata } from './gateway-permission-trusted-metadata.provider'
 import { GatewayVerifiedSourceCredentialVault } from './gateway-verified-source-credential.vault'
 
@@ -20,14 +21,21 @@ describe('GatewayPermissionTrustedMetadata', () => {
         'verified.session.token'
       )
     )
+    const forSelfServiceCall = jest.fn().mockImplementation(async () => {
+      expect(accessor.useCurrent(() => true)).toBe(true)
+      const metadata = new Metadata()
+      metadata.set('authorization', 'Bearer header.payload.signature')
+      return metadata
+    })
     const forInternalCall = jest.fn().mockImplementation(async () => {
       expect(accessor.useCurrent(() => true)).toBe(true)
       return { authorization: 'redacted' }
     })
     const provider = new GatewayPermissionTrustedMetadata(
-      { forInternalCall } as never,
+      { forSelfServiceCall, forInternalCall } as never,
       vault,
-      accessor
+      accessor,
+      new TransportPrivateSourceCredentialIssuer()
     )
 
     await expect(provider.create(request as never)).resolves.toEqual({ authorization: 'redacted' })
@@ -44,7 +52,8 @@ describe('GatewayPermissionTrustedMetadata', () => {
     const provider = new GatewayPermissionTrustedMetadata(
       { forInternalCall } as never,
       new GatewayVerifiedSourceCredentialVault(),
-      new AsyncLocalTransportPrivateSourceCredentialAccessor()
+      new AsyncLocalTransportPrivateSourceCredentialAccessor(),
+      new TransportPrivateSourceCredentialIssuer()
     )
 
     await expect(provider.create({ headers: {}, user: {} } as never)).rejects.toThrow(
@@ -62,9 +71,13 @@ describe('GatewayPermissionTrustedMetadata', () => {
       new TransportPrivateSourceCredentialIssuer().issueVerifiedSessionAccessCredential('stale')
     )
     const provider = new GatewayPermissionTrustedMetadata(
-      { forInternalCall: jest.fn().mockRejectedValue(new Error('cnf mismatch')) } as never,
+      {
+        forSelfServiceCall: jest.fn().mockRejectedValue(new Error('cnf mismatch')),
+        forInternalCall: jest.fn()
+      } as never,
       vault,
-      accessor
+      accessor,
+      new TransportPrivateSourceCredentialIssuer()
     )
 
     await expect(provider.create(request as never)).rejects.toThrow('cnf mismatch')

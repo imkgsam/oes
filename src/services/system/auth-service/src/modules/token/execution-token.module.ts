@@ -77,7 +77,6 @@ type ExecutionTokenRuntimeConfiguration = ExecutionTokenContextConfiguration &
 const PERMISSION_SERVICE_AUDIENCE = 'urn:oes:service:permission-service'
 const PRINCIPAL_AUTHORIZATION_CODE =
   PERMISSION_INTERNAL_PERMISSION_CODES.PRINCIPAL_AUTHORIZATION_RESOLVE
-const PERMISSION_CHECK_CODE = PERMISSION_INTERNAL_PERMISSION_CODES.PERMISSION_CHECK
 
 /** Assembles the fail-closed STS runtime; deployment must bind trusted context and a protected KMS/HSM client. */
 @Module({
@@ -328,22 +327,6 @@ export class PermissionDecisionGrpcResolver implements ExecutionTokenPermissionD
     const internalShape = requested.map((code) => code.includes('.internal.'))
     if (internalShape.some(Boolean) && !internalShape.every(Boolean)) {
       throw new Error('mixed BUSINESS and INTERNAL Permission request is denied')
-    }
-    if (
-      input.execution.principalType === 'HUMAN' &&
-      input.request.targetAudience === PERMISSION_SERVICE_AUDIENCE &&
-      requested.length === 1 &&
-      requested[0] === PERMISSION_CHECK_CODE
-    ) {
-      const machineExecution = await this.resolveFoundationMachine(input)
-      return this.resolveWorkload(
-        input,
-        this.localWorkloadIdentity,
-        requested,
-        PERMISSION_SERVICE_AUDIENCE,
-        machineExecution,
-        true
-      )
     }
     return internalShape.every(Boolean)
       ? this.resolveWorkload(input, input.workloadIdentity, requested)
