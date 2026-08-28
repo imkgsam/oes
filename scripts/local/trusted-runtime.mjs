@@ -35,7 +35,7 @@ export async function readInventory(text) {
 export async function generateProfile({ basePort = Number(process.env.OES_TRUSTED_RUNTIME_BASE_PORT || 52050), requireInfrastructure = false } = {}) {
   const inventory = await readInventory()
   const sourceEnvironment = parseEnv(await readFile(envSource, 'utf8'))
-  Object.assign(sourceEnvironment, await runtimePolicyEnvironment())
+  const runtimePolicies = await runtimePolicyEnvironment()
   const nacosPort = process.env.OES_NACOS_HOST_PORT?.trim() || sourceEnvironment.NACOS_HOST_PORT || (requireInfrastructure ? resolveInfrastructurePort('nacos', '8848') : '8848')
   const postgresPort = requireInfrastructure ? resolveInfrastructurePort('postgres', '5432') : '5432'
   const redisPort = requireInfrastructure ? resolveInfrastructurePort('redis', '6379') : '6379'
@@ -52,7 +52,7 @@ export async function generateProfile({ basePort = Number(process.env.OES_TRUSTE
   for (const entry of inventory) {
     const packageDirectory = resolve(root, entry.source.split('/src/')[0])
     const packageJson = JSON.parse(await readFile(join(packageDirectory, 'package.json'), 'utf8'))
-    const env = { ...sourceEnvironment, ...(composeEnvironment[entry.workload] || {}) }
+    const env = { ...sourceEnvironment, ...(composeEnvironment[entry.workload] || {}), ...runtimePolicies }
     for (const [name, value] of Object.entries(env)) {
       if (name.endsWith('DATABASE_URL') && value) env[name] = rewriteDatabaseUrl(value, postgresPort)
     }
@@ -84,7 +84,7 @@ export async function generateProfile({ basePort = Number(process.env.OES_TRUSTE
   }
   const gatewayPort = Number(process.env.OES_TRUSTED_RUNTIME_GATEWAY_PORT || 52101)
   const gatewayDirectory = join(root, 'src/services/api-gateway')
-  const gatewayEnvironment = { ...sourceEnvironment, ...(composeEnvironment['api-gateway'] || {}), ...endpointEnvironment(endpoints) }
+  const gatewayEnvironment = { ...sourceEnvironment, ...(composeEnvironment['api-gateway'] || {}), ...runtimePolicies, ...endpointEnvironment(endpoints) }
   Object.assign(gatewayEnvironment, {
     MODULE_NAME: 'api-gateway',
     SERVICE_PORT: String(gatewayPort),
