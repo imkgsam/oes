@@ -322,7 +322,7 @@ export class PermissionDecisionGrpcResolver implements ExecutionTokenPermissionD
   async resolve(
     input: Parameters<ExecutionTokenPermissionDecisionResolver['resolve']>[0]
   ): Promise<ExecutionTokenAuthorizationDecision> {
-    const requested = input.request.requestedPermissionCodes
+    const requested = input.request.requestedPermissionCodes ?? []
     if (requested.length === 0) return selfServiceDecision(input)
     const internalShape = requested.map((code) => code.includes('.internal.'))
     if (internalShape.some(Boolean) && !internalShape.every(Boolean)) {
