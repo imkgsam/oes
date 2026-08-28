@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"os"
+	"sync"
 	"time"
 
 	"oes/execution-token-signer-agent/manifest"
@@ -48,10 +49,11 @@ type resolvedKey struct {
 
 // Runtime is the manifest-derived signer backend that owns time-window enforcement and the PKCS#11 adapter.
 type Runtime struct {
-	keys      []resolvedKey
-	verifiers []resolvedVerifier
-	now       func() time.Time
-	adapter   *PKCS11Adapter
+	keys              []resolvedKey
+	verifiers         []resolvedVerifier
+	now               func() time.Time
+	adapter           *PKCS11Adapter
+	protectedProvider sync.Mutex
 }
 
 // NewRuntime creates an already-validated runtime for tests or the PKCS#11 bootstrap path.
@@ -165,6 +167,8 @@ func (r *Runtime) SignES256(kid string, input []byte) ([]byte, error) {
 	if err != nil || active.response.KID != kid || len(input) == 0 || active.sign == nil {
 		return nil, errors.New("manifest selected signing key unavailable")
 	}
+	r.protectedProvider.Lock()
+	defer r.protectedProvider.Unlock()
 	return active.sign(input)
 }
 
@@ -173,6 +177,8 @@ func (r *Runtime) Close() error {
 	if r == nil || r.adapter == nil {
 		return nil
 	}
+	r.protectedProvider.Lock()
+	defer r.protectedProvider.Unlock()
 	return r.adapter.Close()
 }
 
@@ -219,6 +225,8 @@ func (r *Runtime) ComputeExternalApiKeyVerifier(mode string, identifier string, 
 	if selected.compute == nil {
 		return ExternalApiKeyVerifierResponse{}, errors.New("verifier version unavailable")
 	}
+	r.protectedProvider.Lock()
+	defer r.protectedProvider.Unlock()
 	mac, err := selected.compute(input)
 	if err != nil || len(mac) != 32 {
 		return ExternalApiKeyVerifierResponse{}, errors.New("protected verifier computation failed")
