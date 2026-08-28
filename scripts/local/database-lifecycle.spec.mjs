@@ -3,17 +3,22 @@ import crypto from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { spawnSync } from 'node:child_process'
 import test from 'node:test'
 import {
   assertBaselineResolutionCheckpoint,
   assertDatabaseInvariantDigest,
+  assertExactLifecycleOwnerResources,
   assertPinnedComposeImages,
   assertResourceOwnershipRecord,
   assertRollbackBinding,
   baselinePlanFingerprint,
   composeEnvironment,
+  databaseLifecycleComposeArgs,
+  databaseRollbackComposeArgs,
   loadBaselineResolvePlan,
   loadDatabaseContext,
+  ownerNamedResourceListArgs,
   probeHttpReadiness,
   renderedNamedResources,
   resourceFingerprint
@@ -95,6 +100,40 @@ test('rollback rejects owner and fingerprint drift', () => {
   )
 })
 
+test('rollback command is bound to infra Compose without application interpolation or orphan deletion', () => {
+  const context = loadDatabaseContext(repositoryRoot)
+  const args = databaseRollbackComposeArgs(context, '/tmp/fixture-compose.env')
+  assert.equal(args[args.indexOf('-f') + 1], 'docker-compose.infra.yml')
+  assert.equal(args.includes('docker-compose.yml'), false)
+  assert.equal(args.includes('--remove-orphans'), false)
+  assert.deepEqual(args.slice(-4), ['down', '--volumes', '--timeout', '30'])
+  assert.deepEqual(ownerNamedResourceListArgs(context, 'network'), [
+    'network',
+    'ls',
+    '--format',
+    '{{.Name}}',
+    '--filter',
+    `label=oes.local.owner=${context.taskKey}`
+  ])
+})
+
+test('infra Compose remains renderable when application runtime selectors are missing', () => {
+  const context = loadDatabaseContext(repositoryRoot)
+  const environment = { ...process.env, ...Object.fromEntries(composeEnvironment(context)) }
+  for (const key of [
+    'SRM_PARTY_MACHINE_WORKLOAD_BINDING_ID',
+    'PUBLIC_ENTRY_FOUNDATION_MACHINE_PRINCIPAL_ID'
+  ]) {
+    delete environment[key]
+  }
+  const result = spawnSync(
+    'docker',
+    databaseLifecycleComposeArgs(context, '/dev/null', ['config', '--quiet']),
+    { cwd: repositoryRoot, env: environment, encoding: 'utf8' }
+  )
+  assert.equal(result.status, 0, result.stderr)
+})
+
 test('named Docker resource ownership rejects foreign task and project labels', () => {
   const context = loadDatabaseContext(repositoryRoot)
   const valid = {
@@ -120,7 +159,7 @@ test('named Docker resource ownership rejects foreign task and project labels', 
   )
 })
 
-test('main resource enumeration guards the optional trust volume', () => {
+test('unexpected same-owner main-only residue fails closed before lifecycle deletion', () => {
   const context = loadDatabaseContext(repositoryRoot)
   const resources = renderedNamedResources({
     networks: { oes_network: { name: context.projectName + '_oes_network' } },
@@ -135,15 +174,13 @@ test('main resource enumeration guards the optional trust volume', () => {
     logicalName: 'grpc_trust_runtime',
     name: context.projectName + '_grpc_trust_runtime'
   })
+  const infraVolume = context.projectName + '_postgres_data'
+  assert.doesNotThrow(() =>
+    assertExactLifecycleOwnerResources('volume', [infraVolume], [infraVolume])
+  )
   assert.throws(
-    () =>
-      assertResourceOwnershipRecord(context, trust.kind, trust.name, {
-        Labels: {
-          'oes.local.owner': 'foreign-task',
-          'com.docker.compose.project': context.projectName
-        }
-      }),
-    /RESOURCE_OWNER_MISMATCH/
+    () => assertExactLifecycleOwnerResources('volume', [infraVolume], [infraVolume, trust.name]),
+    /ROLLBACK_UNEXPECTED_OWNER_RESOURCE.*grpc_trust_runtime/
   )
 })
 

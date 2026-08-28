@@ -52,6 +52,12 @@ const LONG_RUNNING_INFRA_SERVICES = Object.freeze([
   'mysql',
   'nacos'
 ])
+const LIFECYCLE_INFRA_SERVICES = Object.freeze([
+  ...LONG_RUNNING_INFRA_SERVICES,
+  'nats-bootstrap',
+  'minio-init',
+  'nats-advisory-monitor'
+])
 
 /** Runs a command with literal output and fails on a non-zero exit status. */
 function run(command, args, options = {}) {
@@ -364,14 +370,8 @@ export function resourceFingerprint(context) {
           .createHash('sha256')
           .update(fs.readFileSync(path.join(context.repositoryRoot, INFRA_COMPOSE)))
           .digest('hex'),
-        mainCompose: crypto
-          .createHash('sha256')
-          .update(fs.readFileSync(path.join(context.repositoryRoot, MAIN_COMPOSE)))
-          .digest('hex'),
-        resources: {
-          infra: EXPECTED_INFRA_RESOURCES,
-          mainOnly: { volume: ['grpc_trust_runtime'] }
-        }
+        resources: EXPECTED_INFRA_RESOURCES,
+        services: LIFECYCLE_INFRA_SERVICES
       })
     )
     .digest('hex')
@@ -430,6 +430,21 @@ function composeArgs(context, environmentPath, composeFile, args) {
   ]
 }
 
+/** Builds one command bound only to the Compose model owned by the database lifecycle. */
+export function databaseLifecycleComposeArgs(context, environmentPath, args) {
+  return composeArgs(context, environmentPath, INFRA_COMPOSE, args)
+}
+
+/** Builds the exact non-orphan-deleting rollback command for lifecycle-owned infrastructure. */
+export function databaseRollbackComposeArgs(context, environmentPath) {
+  return databaseLifecycleComposeArgs(context, environmentPath, [
+    'down',
+    '--volumes',
+    '--timeout',
+    '30'
+  ])
+}
+
 function compose(context, environmentPath, composeFile, args) {
   return run('docker', composeArgs(context, environmentPath, composeFile, args), {
     cwd: context.repositoryRoot
@@ -485,6 +500,18 @@ function projectContainerIds(context) {
   return result.stdout.trim().split(/\s+/).filter(Boolean)
 }
 
+/** Lists containers carrying the exact lifecycle owner label across every Compose project. */
+function ownerContainerIds(context) {
+  const result = spawnSync(
+    'docker',
+    ['ps', '-aq', '--filter', `label=oes.local.owner=${context.taskKey}`],
+    { encoding: 'utf8' }
+  )
+  if (result.error) throw result.error
+  if (result.status !== 0) throw new Error(`DOCKER_PS_FAILED exit=${result.status}`)
+  return result.stdout.trim().split(/\s+/).filter(Boolean)
+}
+
 /** Ensures every discovered project container carries the exact owner label. */
 function assertContainerOwnership(context) {
   const ids = projectContainerIds(context)
@@ -496,6 +523,18 @@ function assertContainerOwnership(context) {
       id
     ])
     if (owner !== context.taskKey) throw new Error(`RESOURCE_OWNER_MISMATCH container=${id}`)
+  }
+  const lifecycleServices = new Set(LIFECYCLE_INFRA_SERVICES)
+  for (const id of ownerContainerIds(context)) {
+    const payload = JSON.parse(capture('docker', ['inspect', id]))[0]
+    const labels = payload?.Config?.Labels ?? {}
+    const project = labels['com.docker.compose.project']
+    const service = labels['com.docker.compose.service']
+    if (project !== context.projectName || !lifecycleServices.has(service)) {
+      throw new Error(
+        `ROLLBACK_UNEXPECTED_OWNER_CONTAINER container=${id} project=${project ?? 'NONE'} service=${service ?? 'NONE'}`
+      )
+    }
   }
   return ids
 }
@@ -511,14 +550,44 @@ export function assertResourceOwnershipRecord(context, kind, name, record) {
   }
 }
 
+/** Rejects same-owner named resources outside the exact lifecycle-owned resource set. */
+export function assertExactLifecycleOwnerResources(kind, expectedNames, actualNames) {
+  const expected = new Set(expectedNames)
+  const unexpected = [...new Set(actualNames)].filter((name) => !expected.has(name)).sort()
+  if (unexpected.length > 0) {
+    throw new Error(
+      `ROLLBACK_UNEXPECTED_OWNER_RESOURCE kind=${kind} resources=${unexpected.join(',')}`
+    )
+  }
+}
+
+/** Builds a name-preserving owner-label query for Docker volumes and networks. */
+export function ownerNamedResourceListArgs(context, kind) {
+  return [
+    kind,
+    'ls',
+    '--format',
+    '{{.Name}}',
+    '--filter',
+    `label=oes.local.owner=${context.taskKey}`
+  ]
+}
+
+/** Lists named Docker resources carrying the exact lifecycle owner label. */
+function ownerNamedResourceNames(context, kind) {
+  return capture('docker', ownerNamedResourceListArgs(context, kind)).split(/\s+/).filter(Boolean)
+}
+
 /** Checks exact named volumes/networks before creation or destructive rollback. */
 function assertNamedResourceOwnership(context, environmentPath, { requireExisting }) {
   const rendered = renderedCompose(context, environmentPath)
   for (const [kind, logicalNames] of Object.entries(EXPECTED_INFRA_RESOURCES)) {
     const definitions = kind === 'volume' ? rendered.volumes : rendered.networks
+    const expectedNames = []
     for (const logicalName of logicalNames) {
       const name = definitions?.[logicalName]?.name
       if (!name) throw new Error(`RESOURCE_NAME_UNRESOLVED kind=${kind} logical=${logicalName}`)
+      expectedNames.push(name)
       const result = spawnSync('docker', [kind, 'inspect', name], { encoding: 'utf8' })
       if (result.error) throw result.error
       if (result.status !== 0) {
@@ -529,22 +598,7 @@ function assertNamedResourceOwnership(context, environmentPath, { requireExistin
       assertResourceOwnershipRecord(context, kind, name, record)
       process.stdout.write(`RESOURCE_OWNER kind=${kind} resource=${name} status=PASS\n`)
     }
-  }
-}
-
-/** Checks every existing named resource in main Compose, including optional main-only volumes. */
-function assertAllMainResourceOwnership(context, environmentPath) {
-  const rendered = renderedCompose(context, environmentPath, MAIN_COMPOSE)
-  for (const { kind, name } of renderedNamedResources(rendered)) {
-    const result = spawnSync('docker', [kind, 'inspect', name], { encoding: 'utf8' })
-    if (result.error) throw result.error
-    if (result.status !== 0) {
-      if (/not found|No such/i.test(result.stderr ?? '')) continue
-      throw new Error('RESOURCE_INSPECT_FAILED kind=' + kind + ' resource=' + name + ' exit=' + result.status)
-    }
-    const [record] = JSON.parse(result.stdout)
-    assertResourceOwnershipRecord(context, kind, name, record)
-    process.stdout.write('RESOURCE_OWNER kind=' + kind + ' resource=' + name + ' status=PASS\n')
+    assertExactLifecycleOwnerResources(kind, expectedNames, ownerNamedResourceNames(context, kind))
   }
 }
 
@@ -1104,10 +1158,15 @@ function rollback(context, environmentPath) {
   assertRollbackBinding(context, state)
   assertContainerOwnership(context)
   assertNamedResourceOwnership(context, environmentPath, { requireExisting: true })
-  assertAllMainResourceOwnership(context, environmentPath)
-  compose(context, environmentPath, MAIN_COMPOSE, ['down', '--volumes', '--remove-orphans', '--timeout', '30'])
+  run('docker', databaseRollbackComposeArgs(context, environmentPath), {
+    cwd: context.repositoryRoot
+  })
   const remaining = projectContainerIds(context)
   if (remaining.length !== 0) throw new Error(`ROLLBACK_CONTAINERS_REMAIN count=${remaining.length}`)
+  const remainingOwnerContainers = ownerContainerIds(context)
+  if (remainingOwnerContainers.length !== 0) {
+    throw new Error(`ROLLBACK_OWNER_CONTAINERS_REMAIN count=${remainingOwnerContainers.length}`)
+  }
   const resourceQueries = [
     ['volume', 'ls', '-q', '--filter', `label=oes.local.owner=${context.taskKey}`],
     ['network', 'ls', '-q', '--filter', `label=oes.local.owner=${context.taskKey}`]

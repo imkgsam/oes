@@ -3,7 +3,7 @@
 ## Binding
 
 - Stage / feature: `global-runnability / business-journey`
-- State: `R4_CANDIDATE_READY_FOR_FEATURE_RI`
+- State: `R5_CANDIDATE_READY_FOR_FEATURE_RI`
 - Human-visible Feature Lead: task `01a047c6-18ff-71e0-b2cc-b1bad08fd0e8`
 - Parent and sole return target: Stage Lead task `01a036e1-7ca5-76c2-8183-64edd7e1d086`
 - Feature branch: `codex/feature/business-journey-visible-recovery`
@@ -16,9 +16,11 @@
   `7b289c99fb72c004513ab6e81d376e5a96d3c07d`
 - Immutable accepted R3 CI-remediation candidate / R4 parent:
   `af5ec4b740b33e58a61a5061cf907a871591f958`
+- Immutable accepted and published R4 candidate / R5 parent:
+  `9efa1da3cf65b36f3bfb153999c0aaa50bdcb9eb`
 - Canonical `origin/main` observed at continuation: `51f78cc05db67d35f0129e678ad27a1034e22ad0`
-- R4 candidate identity: the append-only commit containing this Packet; the exact SHA is emitted in
-  the `R4_CANDIDATE_READY_FOR_FEATURE_RI` handoff.
+- R5 candidate identity: the append-only commit containing this Packet; the exact SHA is emitted in
+  the `R5_CANDIDATE_READY_FOR_FEATURE_RI` handoff.
 - The superseded hidden owner is frozen read-only and owns no runtime or candidate state.
 
 ## Scope and protected boundary
@@ -244,6 +246,38 @@ Fresh R4 evidence:
   packages 8 / suites 448 / tests 2031, Collaboration Runtime 140/140 plus static checks, and
   foundation invariants 5/5.
 
+### FL-10 — database lifecycle rollback ownership remediation R5
+
+The accepted and published R4 candidate `9efa1da3cf65b36f3bfb153999c0aaa50bdcb9eb`
+remains immutable. R5 corrects the required-CI cleanup boundary without changing application or
+database contracts:
+
+- The lifecycle resource fingerprint binds only `docker-compose.infra.yml`, its exact 13 started
+  services, eight volumes and one network; application Compose and main-only resources are not
+  rollback inputs.
+- Rollback renders and downs only the infra Compose model, omits orphan deletion, and therefore
+  requires no application runtime selector projection.
+- Existing state/task/project/fingerprint CAS and owner/project label checks remain mandatory.
+  Owner-labeled containers, volumes or networks outside the exact lifecycle set fail closed before
+  deletion, leaving main-only resources untouched.
+- Post-down verification requires zero owner-labeled containers, volumes and networks before the
+  lifecycle state directory is removed.
+
+Fresh R5 evidence:
+
+- `01-r5-focused-lifecycle.log`: 15/15 focused lifecycle tests pass, including infra-only rollback
+  args, missing selector rendering, wrong owner/fingerprint and same-owner main-only residue.
+- `02-r5-real-l2-rollback.log`: isolated task-owned infra up/health, all 21 database migrations,
+  Item Master L2 1/1, exact infra rollback, state removal and zero container/volume/network residue
+  pass end-to-end.
+- `03-r5-test-tooling.log`: exact `pnpm test:tooling` passes 50/50 tests.
+- `04-r5-test-risk.log`: exact `pnpm test:risk` passes tooling 50/50, workspace unit packages
+  448 suites / 2031 tests, Collaboration Runtime 140/140 plus static checks, and foundation
+  invariants 5/5.
+- `05-r5-final-build-format-scans.log`: syntax/affected build, formatter, diff, changed-file,
+  high-confidence secret, protected-scope, host-runtime-down, isolated-owner-zero-residue and
+  20-GiB disk-floor gates pass.
+
 ## Review state and findings
 
 - Feature Lead self-review, protected-scope check, diff check and secret scan: passed for the
@@ -251,7 +285,8 @@ Fresh R4 evidence:
 - Independent Feature RI: all five findings against immutable candidate `1b4abcad` are closed on
   immutable first replacement `6904b45e`; its bounded route-scope regression is closed and R2
   candidate `7b289c99` is accepted with no open P0/P1/P2 findings. R3 `af5ec4b7` closes the composed
-  CI drift. Only the changed repository-driver scope in R4 returns to the same visible RI task.
+  CI drift, and R4 `9efa1da3` closes the repository-driver amendment. Only the changed lifecycle and
+  Packet scope in R5 returns to the same visible RI task.
 - Candidate finding: repository ESLint configuration enables both `project` and `projectService`,
   so candidate-only lint stops before rule execution on all 39 changed TypeScript files. The
   config, package manifest and lockfile are byte-identical to the candidate base; evidence is in
@@ -262,7 +297,7 @@ Fresh R4 evidence:
 - Runtime rollback: `OES_TASK_KEY=tmp_31d7ce4d pnpm local:trusted-runtime:down`.
 - The PDA fixture rollback leaves zero rows; owner process verification leaves zero live
   task-owned application processes.
-- Git rollback of only the R4 repository-driver repair: `git revert <r4-candidate-sha>`; this
-  restores immutable accepted R3 candidate `af5ec4b740b33e58a61a5061cf907a871591f958`.
-- Stop at the exact append-only R4 candidate for the same visible RI. Draft PR `#42` remains at
-  `7b289c99`; no remote mutation, `main` merge or cleanup is part of this owner action.
+- Git rollback of only the R5 lifecycle repair: `git revert <r5-candidate-sha>`; this restores
+  immutable accepted R4 candidate `9efa1da3cf65b36f3bfb153999c0aaa50bdcb9eb`.
+- Stop at the exact append-only R5 candidate for the same visible RI. Draft PR `#42` remains at
+  `9efa1da3`; no new remote mutation, `main` merge or Stage cleanup is part of this owner action.
