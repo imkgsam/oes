@@ -58,12 +58,18 @@ describe('TaskCommandService side effects L2', () => {
       where: { taskId: task.id },
       orderBy: { occurredAt: 'asc' }
     })
+    const localEvents = await prisma.collaborationTaskEventEnvelope.findMany({
+      where: { taskId: task.id },
+      orderBy: { occurredAt: 'asc' }
+    })
     const outbox = await prisma.collaborationTaskOutbox.findMany({
       where: { aggregateId: task.id },
       orderBy: { occurredAt: 'asc' }
     })
 
     expect(audits).toHaveLength(1)
+    expect(localEvents.map((event) => event.eventType)).toEqual(['TaskCreated', 'TaskAssigned'])
+    expect(localEvents.every((event) => event.traceId === `${prefix}_trace`)).toBe(true)
     expect(audits[0]).toMatchObject({
       tenantId: `${prefix}_tenant`,
       action: 'TASK_CREATED',

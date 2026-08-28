@@ -118,7 +118,11 @@ describe('TaskCommandService', () => {
     expect(transaction.commit).toHaveBeenCalledWith(
       expect.objectContaining({
         operation: 'CREATE',
-        publicEvent: expect.objectContaining({ type: 'collaboration.task.assigned' })
+        localEvents: [
+          expect.objectContaining({ eventType: 'TaskCreated' }),
+          expect.objectContaining({ eventType: 'TaskAssigned' })
+        ],
+        publicEvents: [expect.objectContaining({ type: 'collaboration.task.assigned' })]
       })
     )
   })

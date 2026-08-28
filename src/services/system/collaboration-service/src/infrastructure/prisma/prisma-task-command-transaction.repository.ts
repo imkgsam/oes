@@ -36,18 +36,39 @@ export class PrismaTaskCommandTransaction implements TaskCommandTransactionPort 
           payload: input.audit.payload as Prisma.InputJsonValue | undefined
         }
       })
-      if (input.publicEvent) {
+      if (input.localEvents.length > 0) {
+        await transaction.collaborationTaskEventEnvelope.createMany({
+          data: input.localEvents.map((event) => ({
+            id: event.eventId,
+            eventType: event.eventType,
+            occurredAt: new Date(event.occurredAt),
+            tenantId: event.tenantId,
+            taskId: event.taskId,
+            actorAccountId: event.actorAccountId,
+            createdByAccountId: event.createdByAccountId,
+            assigneeAccountId: event.assigneeAccountId,
+            status: event.status,
+            previousStatus: event.previousStatus,
+            priority: event.priority,
+            dueAt: event.dueAt ? new Date(event.dueAt) : null,
+            titleSnapshot: event.titleSnapshot,
+            traceId: event.traceId,
+            payload: event as unknown as Prisma.InputJsonValue
+          }))
+        })
+      }
+      for (const publicEvent of input.publicEvents ?? []) {
         await transaction.collaborationTaskOutbox.create({
           data: {
-            eventId: input.publicEvent.id,
-            eventType: input.publicEvent.type,
-            eventVersion: input.publicEvent.oeseventversion,
-            ownerService: ownerFromSource(input.publicEvent.source),
-            tenantId: input.publicEvent.oestenantid,
-            aggregateType: input.publicEvent.oesaggregatetype,
-            aggregateId: input.publicEvent.oesaggregateid,
-            occurredAt: new Date(input.publicEvent.time),
-            cloudEventBody: Buffer.from(encodeCloudEvent(input.publicEvent).body)
+            eventId: publicEvent.id,
+            eventType: publicEvent.type,
+            eventVersion: publicEvent.oeseventversion,
+            ownerService: ownerFromSource(publicEvent.source),
+            tenantId: publicEvent.oestenantid,
+            aggregateType: publicEvent.oesaggregatetype,
+            aggregateId: publicEvent.oesaggregateid,
+            occurredAt: new Date(publicEvent.time),
+            cloudEventBody: Buffer.from(encodeCloudEvent(publicEvent).body)
           }
         })
       }
