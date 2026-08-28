@@ -11,7 +11,7 @@ import {
   TrustedExecutionRegistry,
   TrustedGrpcMetadataProvider
 } from '@oes/common/authorization'
-import { resolveCommonProtoPath } from '@oes/common/contracts'
+import { resolveCommonContractPath, resolveCommonProtoPath } from '@oes/common/contracts'
 import {
   EXECUTION_TOKEN_SERVICE_NAME,
   ExecutionTokenServiceClient
@@ -50,6 +50,7 @@ export class TrustedAuthGrpcClient {
           resolveCommonProtoPath('auth_service/auth.proto'),
           resolveCommonProtoPath('auth_service/external_api_key.proto')
         ],
+        loader: { includeDirs: [resolveCommonContractPath()] },
         url: resolveUrl(),
         credentials: createGrpcClientCredentials()
       }
@@ -108,6 +109,7 @@ class GatewayFoundationExecutionTokenExchangeClient implements ExecutionTokenExc
       options: {
         package: 'auth_service',
         protoPath: resolveCommonProtoPath('auth_service/execution_token.proto'),
+        loader: { includeDirs: [resolveCommonContractPath()] },
         url: resolveUrl(),
         credentials: createGrpcClientCredentials()
       }

@@ -1,5 +1,5 @@
 import { ClientGrpc, ClientProxyFactory, Transport } from '@nestjs/microservices'
-import { resolveCommonProtoPath } from '@oes/common/contracts'
+import { resolveCommonContractPath, resolveCommonProtoPath } from '@oes/common/contracts'
 import { createGrpcClientCredentials } from '@oes/common/transport'
 
 export const IDENTITY_TARGET_AUDIENCE = 'urn:oes:service:identity-service'
@@ -18,6 +18,7 @@ export class TrustedIdentityGrpcClient {
           resolveCommonProtoPath('identity_service/identity_query.proto'),
           resolveCommonProtoPath('identity_service/identity_management.proto')
         ],
+        loader: { includeDirs: [resolveCommonContractPath()] },
         url: resolveUrl(),
         credentials: createGrpcClientCredentials()
       }
