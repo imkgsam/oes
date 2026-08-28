@@ -52,6 +52,9 @@ export async function generateProfile({ basePort = Number(process.env.OES_TRUSTE
     const packageDirectory = resolve(root, entry.source.split('/src/')[0])
     const packageJson = JSON.parse(await readFile(join(packageDirectory, 'package.json'), 'utf8'))
     const env = { ...sourceEnvironment, ...(composeEnvironment[entry.workload] || {}) }
+    for (const [name, value] of Object.entries(env)) {
+      if (name.endsWith('DATABASE_URL') && value) env[name] = rewriteDatabaseUrl(value, postgresPort)
+    }
     Object.assign(env, endpointEnvironment(endpoints))
     Object.assign(env, {
       MODULE_NAME: entry.workload,

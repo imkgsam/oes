@@ -2,6 +2,7 @@ import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common'
 import { createHash } from 'node:crypto'
 import { assertNatsTransport, decodeCloudEvent, NatsDurablePullRunner, NatsDurablePullWorker, type NatsPullDelivery, type OesEventContract } from '@oes/common'
 import { AssetSiteMediaAvailabilityConsumer, AssetSiteMediaAvailabilityEvent } from './asset-site-media-availability.consumer'
+import { PrismaAssetSiteMediaInboxRepository } from '../repositories/prisma-asset-site-media-inbox.repository'
 
 const EVENT_TYPE = 'asset.site-media.availability.changed'
 const EVENT_VERSION = 1
@@ -20,7 +21,7 @@ const contract: OesEventContract<Record<string, unknown>> = {
 @Injectable()
 export class AssetSiteMediaAvailabilityWorker implements OnModuleInit, OnModuleDestroy {
   private worker: NatsDurablePullWorker | undefined
-  constructor(private readonly runner: NatsDurablePullRunner, private readonly consumer: AssetSiteMediaAvailabilityConsumer, private readonly inbox: import('../repositories/prisma-asset-site-media-inbox.repository').PrismaAssetSiteMediaInboxRepository) {}
+  constructor(private readonly runner: NatsDurablePullRunner, private readonly consumer: AssetSiteMediaAvailabilityConsumer, private readonly inbox: PrismaAssetSiteMediaInboxRepository) {}
   onModuleInit(): void {
     this.worker = this.runner.start({ stream: 'OES_BUSINESS_EVENTS', consumer: SITE_ASSET_MEDIA_AVAILABILITY_CONSUMER, expiresMs: 1_000, handle: (delivery) => this.handle(delivery) })
   }
