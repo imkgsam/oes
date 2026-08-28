@@ -106,7 +106,7 @@ const siteTrustedRuntime = createLazyTrustedExecutionRuntime(SITE_AUDIENCE)
     { provide: SITE_RUNTIME_APPLICATION, useExisting: SiteRuntimeApplicationService }
     , AsyncLocalTransportPrivateSourceCredentialAccessor
     , AsyncLocalTrustedExecutionContextAccessor
-    , CertificateBoundExecutionTokenCache
+    , { provide: CertificateBoundExecutionTokenCache, useFactory: () => new CertificateBoundExecutionTokenCache({ refreshMarginSeconds: 15 }) }
     , SiteAuthExecutionTokenExchangeClient
     , {
       provide: TrustedExecutionRegistry,
