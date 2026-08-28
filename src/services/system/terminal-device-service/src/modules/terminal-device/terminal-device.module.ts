@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
-import { createLazyTrustedExecutionRuntime, TrustedExecutionGuard } from '@oes/common/authorization'
+import { createLazyTrustedExecutionRuntime } from '@oes/common/authorization'
 import { CqrsModule } from '@nestjs/cqrs'
 import { DeviceCommandHandlers } from '../../application/commands/device'
 import { EnrollmentCommandHandlers } from '../../application/commands/enrollment'
@@ -23,6 +23,7 @@ import {
   PrismaTerminalDeviceVersionPolicyRepository
 } from '../../infrastructure/repositories/prisma'
 import { TerminalDeviceGrpcController } from '../../interfaces/grpc/terminal-device.grpc.controller'
+import { TerminalDeviceTrustedExecutionGuard } from './terminal-device-trusted-execution.guard'
 
 const TERMINAL_DEVICE_AUDIENCE = 'urn:oes:service:terminal-device-service'
 const trustedExecutionRuntime = createLazyTrustedExecutionRuntime(TERMINAL_DEVICE_AUDIENCE)
@@ -31,8 +32,8 @@ const trustedExecutionRuntime = createLazyTrustedExecutionRuntime(TERMINAL_DEVIC
   imports: [CqrsModule, PrismaModule],
   providers: [
     {
-      provide: TrustedExecutionGuard,
-      useFactory: (reflector: Reflector) => new TrustedExecutionGuard(reflector, trustedExecutionRuntime.verifier, trustedExecutionRuntime.workloadIdentityProvider, TERMINAL_DEVICE_AUDIENCE),
+      provide: TerminalDeviceTrustedExecutionGuard,
+      useFactory: (reflector: Reflector) => new TerminalDeviceTrustedExecutionGuard(reflector, trustedExecutionRuntime.verifier, trustedExecutionRuntime.workloadIdentityProvider, TERMINAL_DEVICE_AUDIENCE),
       inject: [Reflector]
     },
     {

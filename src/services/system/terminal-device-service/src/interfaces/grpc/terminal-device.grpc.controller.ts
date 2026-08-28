@@ -4,8 +4,7 @@ import {
   AuthorizeInternalCall,
   getAuthenticatedGrpcRequestContext,
   TERMINAL_DEVICE_INTERNAL_PERMISSION_CODES,
-  TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES,
-  TrustedExecutionGuard
+  TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES
 } from '@oes/common/authorization'
 import {
   ActivateEnrollmentRequest,
@@ -106,9 +105,10 @@ import { SYMBOLS } from '../../common/constants/symbols'
 import { TerminalDeviceRepository } from '../../domain/repositories/terminal-device.repository'
 import { TerminalDeviceError } from '../../domain/errors/terminal-device.error'
 import { TerminalDeviceGrpcPresenter } from './terminal-device-grpc.presenter'
+import { TerminalDeviceTrustedExecutionGuard } from '../../modules/terminal-device/terminal-device-trusted-execution.guard'
 
 @Controller()
-@UseGuards(TrustedExecutionGuard)
+@UseGuards(TerminalDeviceTrustedExecutionGuard)
 @TerminalDeviceEnrollmentServiceControllerMethods()
 @TerminalDeviceAccessDecisionServiceControllerMethods()
 @TerminalDeviceManagementServiceControllerMethods()
