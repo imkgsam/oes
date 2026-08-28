@@ -3,7 +3,10 @@ import { APP_GUARD } from '@nestjs/core'
 import { ConfigModule } from '@nestjs/config'
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler'
 import { CommonJwtModule } from '@oes/common/auth'
-import { GatewayPermissionGuard } from '@oes/common/authorization'
+import {
+  GATEWAY_PERMISSION_TRUSTED_METADATA_PROVIDER,
+  GatewayPermissionGuard
+} from '@oes/common/authorization'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import { resolveCommonContractPath, resolveCommonProtoPath } from '@oes/common/contracts'
 import { LoggingModule } from '@oes/common/logging'
@@ -13,6 +16,7 @@ import { gatewayConfig } from './config/gateway.config'
 import { HealthModule } from './health/health.module'
 import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware'
 import { createGatewayGuardProviders, createGatewaySourceCredentialProviders } from './security'
+import { GatewayPermissionTrustedMetadata } from './common/grpc/gateway-permission-trusted-metadata.provider'
 import { AuthBffModule } from './modules/auth-bff/auth-bff.module'
 import { BrowserActivityBffModule } from './modules/browser-activity-bff/browser-activity-bff.module'
 import { PdaBffModule } from './modules/pda-bff/pda-bff.module'
@@ -226,6 +230,11 @@ const siteGrpcLoaderOptions = { longs: String, arrays: true }
   ],
   providers: [
     ...createGatewaySourceCredentialProviders(),
+    GatewayPermissionTrustedMetadata,
+    {
+      provide: GATEWAY_PERMISSION_TRUSTED_METADATA_PROVIDER,
+      useExisting: GatewayPermissionTrustedMetadata
+    },
     GatewayPermissionGuard,
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     ...createGatewayGuardProviders(),

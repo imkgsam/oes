@@ -50,7 +50,7 @@ function createContext(
 function createGuard(options: GuardFixtureOptions = {}) {
   const internalMetadata = { internal: 'metadata' }
   const metadataFactory = {
-    createInternalCallMetadata: jest.fn().mockReturnValue(internalMetadata)
+    create: jest.fn().mockResolvedValue(internalMetadata)
   }
   const definitions =
     options.definitions ??
