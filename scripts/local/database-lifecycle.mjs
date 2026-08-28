@@ -286,7 +286,10 @@ export function composeEnvironment(context) {
     ['NACOS_AUTH_IDENTITY_VALUE', fixture(taskKey, 'nacos-identity', 32)]
     ,['NACOS_USERNAME', nacosUsername]
     ,['NACOS_PASSWORD', nacosPassword]
-    ,['NACOS_PASSWORD_BCRYPT', nacosPasswordHash.stdout.trim().split(':').slice(1).join(':')]
+    ,[
+      'NACOS_PASSWORD_BCRYPT',
+      nacosPasswordHash.stdout.trim().split(':').slice(1).join(':').replace(/^\$2y\$/, '$2a$')
+    ]
   ])
   const replayConsumer = (state) => `notification-service__replay__${taskKey}__${state}`
   const subject = (state) => `oes.events.collaboration.task.${state}`
