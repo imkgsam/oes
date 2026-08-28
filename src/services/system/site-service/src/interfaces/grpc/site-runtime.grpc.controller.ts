@@ -1,5 +1,6 @@
 import { Controller, Inject, UseFilters, UseGuards } from '@nestjs/common'
-import { AuthorizeInternalCall, SITE_MANAGEMENT_INTERNAL_PERMISSION_CODES, TrustedInternalExecutionGuard } from '@oes/common/authorization'
+import { AuthorizeInternalCall, SITE_MANAGEMENT_INTERNAL_PERMISSION_CODES } from '@oes/common/authorization'
+import { SiteTrustedInternalExecutionGuard } from './site-trusted-execution.guards'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
   BatchGetPublicViewsRequest,
@@ -39,7 +40,7 @@ export const SITE_RUNTIME_APPLICATION = Symbol('SITE_RUNTIME_APPLICATION')
 
 /** SiteRuntimeGrpcController exposes signed Site Runtime sync APIs as a thin protocol adapter. */
 @UseFilters(GrpcExceptionFilter)
-@UseGuards(TrustedInternalExecutionGuard)
+@UseGuards(SiteTrustedInternalExecutionGuard)
 @Controller()
 @SiteRuntimeSyncServiceControllerMethods()
 export class SiteRuntimeGrpcController implements SiteRuntimeSyncServiceController {

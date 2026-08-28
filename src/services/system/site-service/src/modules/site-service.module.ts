@@ -9,8 +9,7 @@ import { SERVICE_NAMES } from '@oes/common/constants'
 import { resolveCommonProtoPath } from '@oes/common/contracts'
 import { AssetSiteMediaAvailabilityConsumer } from '../infrastructure/events/asset-site-media-availability.consumer'
 import { PrismaAssetSiteMediaInboxRepository } from '../infrastructure/repositories/prisma-asset-site-media-inbox.repository'
-import { createLazyTrustedExecutionRuntime, TrustedExecutionGuard, TrustedInternalExecutionGuard } from '@oes/common/authorization'
-import { Reflector } from '@nestjs/core'
+import { SiteTrustedExecutionGuard, SiteTrustedInternalExecutionGuard } from '../interfaces/grpc/site-trusted-execution.guards'
 import {
   SITE_ADMIN_APPLICATION_REPOSITORY,
   SiteAdminApplicationService
@@ -45,7 +44,6 @@ import { SiteAuthExecutionTokenExchangeClient } from '../infrastructure/grpc/sit
 import { AssetSiteMediaAvailabilityWorker } from '../infrastructure/events/asset-site-media-availability.worker'
 
 const SITE_AUDIENCE = 'urn:oes:service:site-service'
-const siteTrustedRuntime = createLazyTrustedExecutionRuntime(SITE_AUDIENCE)
 
 /** SiteServiceModule assembles site-service application, persistence, and gRPC interface adapters. */
 @Module({
@@ -73,16 +71,8 @@ const siteTrustedRuntime = createLazyTrustedExecutionRuntime(SITE_AUDIENCE)
   providers: [
     PrismaAssetSiteMediaInboxRepository, AssetSiteMediaAvailabilityWorker,
     { provide: AssetSiteMediaAvailabilityConsumer, useFactory: (inbox: PrismaAssetSiteMediaInboxRepository) => new AssetSiteMediaAvailabilityConsumer(inbox), inject: [PrismaAssetSiteMediaInboxRepository] },
-    {
-      provide: TrustedExecutionGuard,
-      useFactory: (reflector: Reflector) => new TrustedExecutionGuard(reflector, siteTrustedRuntime.verifier, siteTrustedRuntime.workloadIdentityProvider, SITE_AUDIENCE),
-      inject: [Reflector]
-    },
-    {
-      provide: TrustedInternalExecutionGuard,
-      useFactory: (reflector: Reflector) => new TrustedInternalExecutionGuard(reflector, siteTrustedRuntime.verifier, siteTrustedRuntime.workloadIdentityProvider, SITE_AUDIENCE),
-      inject: [Reflector]
-    },
+    SiteTrustedExecutionGuard,
+    SiteTrustedInternalExecutionGuard,
     PrismaService,
     PrismaSiteRepository,
     PrismaSiteTransactionRunner,
