@@ -84,6 +84,11 @@ import { PersonalCenterSummaryAdapter } from './infrastructure/downstream/person
     SelfContactBindingUseCase,
     StepUpMfaUseCase
   ],
-  exports: [AuthGrpcAdapter, SessionContextUseCase]
+  exports: [
+    AuthGrpcAdapter,
+    IdentityQueryGrpcAdapter,
+    SessionAccessSummaryUseCase,
+    SessionContextUseCase
+  ]
 })
 export class AuthBffModule {}

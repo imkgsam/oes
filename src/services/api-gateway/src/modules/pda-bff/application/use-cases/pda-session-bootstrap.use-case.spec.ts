@@ -2,31 +2,21 @@ import { PdaSessionBootstrapUseCase } from './pda-session-bootstrap.use-case'
 
 describe('PdaSessionBootstrapUseCase', () => {
   it('builds the managed PDA bootstrap payload from session context and device decision', async () => {
-    const sessionContextUseCase = {
-      execute: jest.fn().mockResolvedValue({
-        operator: {
-          userId: 'user-1',
-          displayName: 'Worker One',
-          scopeLevel: 'TENANT'
-        },
+    const identityAdapter = {
+      getAccountById: jest.fn().mockResolvedValue({
         account: {
-          accountId: 'account-1',
-          name: 'Worker One',
-          scopeLevel: 'TENANT'
-        },
-        tenant: {
+          id: 'account-1',
           tenantId: 'tenant-1',
-          name: 'Tenant One'
-        },
-        navigation: {
-          defaultEntry: 'pda.home',
-          visibleEntries: ['pda.home']
-        },
-        access: {
-          actionCodes: ['pda.home']
-        },
-        terminal: 'PDA',
-        allowedTerminals: ['PDA']
+          scopeLevel: 'TENANT',
+          displayName: 'Worker One',
+          isEnabled: true
+        }
+      })
+    }
+    const sessionAccessSummaryUseCase = {
+      execute: jest.fn().mockResolvedValue({
+        roles: [{ code: 'tenant.worker' }],
+        actionCodes: ['pda.home']
       })
     }
     const terminalDeviceAdapter = {
@@ -49,11 +39,19 @@ describe('PdaSessionBootstrapUseCase', () => {
         }
       })
     }
-    const useCase = new PdaSessionBootstrapUseCase(sessionContextUseCase as any, terminalDeviceAdapter as any)
+    const useCase = new PdaSessionBootstrapUseCase(
+      identityAdapter as any,
+      sessionAccessSummaryUseCase as any,
+      terminalDeviceAdapter as any
+    )
 
     const result = await useCase.execute(
       {
         user: {
+          userId: 'user-1',
+          holderId: 'account-1',
+          tenantId: 'tenant-1',
+          scopeLevel: 'TENANT',
           sid: 'session-1',
           terminal: 'PDA'
         }
@@ -89,7 +87,7 @@ describe('PdaSessionBootstrapUseCase', () => {
           idleTimeoutSeconds: 900
         }),
         access: {
-          roles: [],
+          roles: ['tenant.worker'],
           actionCodes: ['pda.home']
         },
         device: expect.objectContaining({
@@ -105,11 +103,66 @@ describe('PdaSessionBootstrapUseCase', () => {
           })
         }),
         workbench: {
-          mode: 'PDA_MANAGED_DEVICE',
+          mode: 'FOUNDATION_ACCEPTANCE',
           enabledCards: ['SESSION', 'DEVICE', 'NETWORK', 'SCAN', 'CAMERA', 'LOGS']
         },
         serverTime: expect.any(String)
       })
     )
+  })
+
+  it.each([
+    ['non-PDA terminal', { terminal: 'WEB', tenantId: 'tenant-1' }, 'tenant-1'],
+    ['signed tenant mismatch', { terminal: 'PDA', tenantId: 'tenant-2' }, 'tenant-1'],
+    ['device tenant mismatch', { terminal: 'PDA', tenantId: 'tenant-1' }, 'tenant-2']
+  ])('fails closed for %s', async (_label, userOverrides, resolvedTenantId) => {
+    const identityAdapter = {
+      getAccountById: jest.fn().mockResolvedValue({
+        account: { id: 'account-1', tenantId: 'tenant-1', scopeLevel: 'TENANT', isEnabled: true }
+      })
+    }
+    const access = { execute: jest.fn().mockResolvedValue({ roles: [], actionCodes: [] }) }
+    const device = {
+      resolveDeviceAccessDecision: jest.fn().mockResolvedValue({
+        allowed: true,
+        resolvedTenantId,
+        terminalDeviceId: 'terminal-device-1',
+        deviceStatus: 'ACTIVE'
+      })
+    }
+    const useCase = new PdaSessionBootstrapUseCase(
+      identityAdapter as any,
+      access as any,
+      device as any
+    )
+
+    await expect(
+      useCase.execute(
+        {
+          user: {
+            userId: 'user-1',
+            holderId: 'account-1',
+            scopeLevel: 'TENANT',
+            ...userOverrides
+          }
+        } as any,
+        'terminal-device-1',
+        'credential-1'
+      )
+    ).rejects.toThrow()
+  })
+
+  it('does not invoke Identity, Permission or Terminal dependencies for a non-PDA session', async () => {
+    const identity = { getAccountById: jest.fn() }
+    const access = { execute: jest.fn() }
+    const device = { resolveDeviceAccessDecision: jest.fn() }
+    const useCase = new PdaSessionBootstrapUseCase(identity as any, access as any, device as any)
+
+    await expect(
+      useCase.execute({ user: { terminal: 'WEB' } } as any, 'device-1', 'credential-1')
+    ).rejects.toThrow('PDA bootstrap requires a PDA terminal session')
+    expect(identity.getAccountById).not.toHaveBeenCalled()
+    expect(access.execute).not.toHaveBeenCalled()
+    expect(device.resolveDeviceAccessDecision).not.toHaveBeenCalled()
   })
 })
