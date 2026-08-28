@@ -1,25 +1,35 @@
 import { Injectable } from '@nestjs/common'
-import type { GatewayPermissionTrustedMetadataProvider } from '@oes/common/authorization'
+import {
+  AsyncLocalTransportPrivateSourceCredentialAccessor,
+  type GatewayPermissionTrustedMetadataProvider
+} from '@oes/common/authorization'
 import { GatewayFoundationTrustedGrpcExecutionProducer } from '../../infrastructure/grpc/trusted-auth.grpc.client'
+import { GatewayVerifiedSourceCredentialVault } from './gateway-verified-source-credential.vault'
 
 type PermissionRequest = Parameters<GatewayPermissionTrustedMetadataProvider['create']>[0]
 
 /** Produces the exact Gateway HUMAN_OBO carrier for Permission CheckPermission. */
 @Injectable()
 export class GatewayPermissionTrustedMetadata implements GatewayPermissionTrustedMetadataProvider {
-  constructor(private readonly trustedExecution: GatewayFoundationTrustedGrpcExecutionProducer) {}
+  constructor(
+    private readonly trustedExecution: GatewayFoundationTrustedGrpcExecutionProducer,
+    private readonly vault: GatewayVerifiedSourceCredentialVault,
+    private readonly accessor: AsyncLocalTransportPrivateSourceCredentialAccessor
+  ) {}
 
   async create(request: PermissionRequest) {
     const headers = request.headers ?? {}
-    return this.trustedExecution.forInternalCall(
-      {
-        requestId: exact(request.requestId) ?? exact(headers['x-request-id']),
-        traceparent: exact(headers.traceparent),
-        tracestate: exact(headers.tracestate),
-        user: request.user as any
-      },
-      'urn:oes:service:permission-service',
-      ['permission.internal.permission.check']
+    return this.vault.run(request, this.accessor, () =>
+      this.trustedExecution.forInternalCall(
+        {
+          requestId: exact(request.requestId) ?? exact(headers['x-request-id']),
+          traceparent: exact(headers.traceparent),
+          tracestate: exact(headers.tracestate),
+          user: request.user as any
+        },
+        'urn:oes:service:permission-service',
+        ['permission.internal.permission.check']
+      )
     )
   }
 }
