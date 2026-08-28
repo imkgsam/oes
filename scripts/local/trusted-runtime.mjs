@@ -172,6 +172,8 @@ export async function generateProfile({
     OES_GRPC_TLS_CERT_PATH: join(trustRoot, 'api-gateway/current/cert.pem'),
     OES_GRPC_TLS_KEY_PATH: join(trustRoot, 'api-gateway/current/key.pem'),
     OES_WORKLOAD_SPIFFE_ID: 'spiffe://local.oes.internal/ns/oes/sa/api-gateway',
+    GATEWAY_TERMINAL_DEVICE_PEER_SPIFFE_ID:
+      'spiffe://local.oes.internal/ns/oes/sa/terminal-device-service',
     GATEWAY_READINESS_TARGETS: Object.entries(endpoints)
       .map(([workload, port]) => `${workload}=grpcs://${workload}.localhost:${port}`)
       .join(',')

@@ -43,6 +43,7 @@ type GatewayPermissionRequest = {
     sub?: string
     scopeLevel?: unknown
     tenantId?: unknown
+    terminal?: unknown
     tid?: unknown
   }
 }
@@ -83,6 +84,8 @@ export class GatewayPermissionGuard implements CanActivate, OnModuleInit {
       const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, reflectionTargets)
       return Boolean(isPublic) || !this.isTenantTargetRoute(request)
     }
+
+    if (request.user?.terminal !== 'WEB') return false
 
     const requirement = this.resolveRequirement(metadata)
     if (!requirement) return false
@@ -175,7 +178,6 @@ export class GatewayPermissionGuard implements CanActivate, OnModuleInit {
       this.resolvePermissionDecision(response) && permission.allowedScopeLevels.includes(scopeLevel)
     )
   }
-
 
   /** Validates canonical static metadata without inventing a fallback scope. */
   private resolveAllowedScopeLevels(value: unknown): readonly GatewaySubjectScope[] {

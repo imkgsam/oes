@@ -1,8 +1,10 @@
-import { readFileSync } from 'node:fs'
+import { assertGrpcServerWorkloadIdentity } from '@oes/common/transport'
 import {
   GatewayTerminalDeviceGrpcClient,
   resolveTerminalDeviceGrpcChannelOptions,
-  resolveTerminalDeviceGrpcUrl
+  resolveTerminalDeviceGrpcUrl,
+  resolveTerminalDevicePeerSpiffeId,
+  TERMINAL_DEVICE_PEER_SPIFFE_ENV
 } from './gateway-terminal-device-grpc.client'
 
 /** Verifies the Terminal Device channel remains a Gateway-owned mTLS transport seam. */
@@ -11,10 +13,46 @@ describe('GatewayTerminalDeviceGrpcClient', () => {
     expect(new GatewayTerminalDeviceGrpcClient()).toBeInstanceOf(GatewayTerminalDeviceGrpcClient)
   })
 
-  it('pins the dedicated mTLS channel to the exact Terminal Device SPIFFE peer', () => {
-    const source = readFileSync(__filename.replace(/\.spec\.ts$/u, '.ts'), 'utf8')
-    expect(source).toContain('createGrpcClientCredentials(process.env, TERMINAL_DEVICE_SPIFFE_ID)')
-    expect(source).toContain('spiffe://local.oes.internal/ns/oes/sa/terminal-device-service')
+  it.each([
+    'spiffe://local.oes.internal/ns/oes/sa/terminal-device-service',
+    'spiffe://prod.example.internal/ns/platform/sa/terminal-device-service'
+  ])('accepts one exact deployment-projected Terminal Device peer: %s', (expectedPeer) => {
+    expect(
+      resolveTerminalDevicePeerSpiffeId({
+        [TERMINAL_DEVICE_PEER_SPIFFE_ENV]: expectedPeer
+      })
+    ).toBe(expectedPeer)
+    expect(() =>
+      assertGrpcServerWorkloadIdentity(`DNS:terminal-device, URI:${expectedPeer}`, expectedPeer)
+    ).not.toThrow()
+  })
+
+  it.each([
+    undefined,
+    '',
+    'https://prod.example.internal/terminal-device-service',
+    'spiffe://*/ns/oes/sa/terminal-device-service',
+    'spiffe://prod.example.internal/ns/oes/sa/*',
+    'spiffe://prod.example.internal'
+  ])('fails closed for an absent, malformed, or wildcard peer value: %s', (value) => {
+    expect(() =>
+      resolveTerminalDevicePeerSpiffeId({
+        ...(value === undefined ? {} : { [TERMINAL_DEVICE_PEER_SPIFFE_ENV]: value })
+      })
+    ).toThrow(`${TERMINAL_DEVICE_PEER_SPIFFE_ENV} must be an exact SPIFFE ID`)
+  })
+
+  it('fails closed when the authenticated peer does not match the projected non-local value', () => {
+    const expectedPeer = resolveTerminalDevicePeerSpiffeId({
+      [TERMINAL_DEVICE_PEER_SPIFFE_ENV]:
+        'spiffe://prod.example.internal/ns/platform/sa/terminal-device-service'
+    })
+    expect(() =>
+      assertGrpcServerWorkloadIdentity(
+        'URI:spiffe://local.oes.internal/ns/oes/sa/terminal-device-service',
+        expectedPeer
+      )
+    ).toThrow('gRPC TLS server SPIFFE identity does not match the expected workload')
   })
 
   it('keeps task-owned service.localhost recovery channels on IPv4 loopback', () => {

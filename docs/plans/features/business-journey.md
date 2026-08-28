@@ -3,14 +3,16 @@
 ## Binding
 
 - Stage / feature: `global-runnability / business-journey`
-- State: `CANDIDATE_READY_FOR_FEATURE_RI`
+- State: `REPLACEMENT_CANDIDATE_READY_FOR_FEATURE_RI`
 - Human-visible Feature Lead: task `01a047c6-18ff-71e0-b2cc-b1bad08fd0e8`
 - Parent and sole return target: Stage Lead task `01a036e1-7ca5-76c2-8183-64edd7e1d086`
 - Feature branch: `codex/feature/business-journey-visible-recovery`
-- Candidate base and parent: `49e5090b565985e42e63a378370edecc794881c2`
+- Feature base: `49e5090b565985e42e63a378370edecc794881c2`
+- Immutable rejected candidate and replacement parent:
+  `1b4abcad40f2f305bfc981ead59a2e053029e464`
 - Canonical `origin/main` observed at continuation: `51f78cc05db67d35f0129e678ad27a1034e22ad0`
-- Candidate identity: the commit containing this Packet; the exact SHA is emitted in the
-  `CANDIDATE_READY_FOR_FEATURE_RI` handoff.
+- Replacement candidate identity: the append-only commit containing this Packet; the exact SHA is
+  emitted in the `REPLACEMENT_CANDIDATE_READY_FOR_FEATURE_RI` handoff.
 - The superseded hidden owner is frozen read-only and owns no runtime or candidate state.
 
 ## Scope and protected boundary
@@ -39,9 +41,15 @@ The completed candidate keeps the accepted split:
   execution.
 - PDA session context and bootstrap consume the Auth-validated signed session snapshot instead of
   invoking Web-only Identity or TenantOrg business reads.
-- Auth rechecks the exact owner-bound `userId + accountId` pair, admits PDA on the explicitly
-  declared logout path, and continues to reject undeclared terminal/method combinations.
-- Permission admits only WEB and PDA HUMAN session terminals; other HUMAN terminals remain denied.
+- Auth keeps every BUSINESS RPC `HUMAN, WEB` through exact method declarations, admits PDA only on
+  the authenticated-session Logout path, and rejects PDA on representative audit, MFA and session
+  administration methods.
+- Permission keeps BUSINESS management RPCs WEB-only and admits PDA only on the two exact INTERNAL
+  foundation routes for account access summary and navigation resolution.
+- Gateway requires the opaque Terminal Device credential during employee-code preflight before
+  invoking Auth, and keeps protected Item routes Web-only before any Permission BUSINESS RPC.
+- Gateway-to-Terminal Device requires an exact deployment-projected peer SPIFFE ID and fails closed
+  for absent, malformed, wildcard or mismatched identities without a trust-domain fallback.
 - Terminal Device maps domain credential failures into the standardized fail-closed gRPC envelope.
 - Response trace resolution prefers a valid active OpenTelemetry trace and otherwise accepts only a
   canonical non-zero W3C trace identifier.
@@ -90,6 +98,16 @@ Fresh `128-pda-foundation-matrix.log` proves:
 - logout followed by stale-session rejection;
 - zero rows remaining in all six fixture tables and `scope=PDA_FOUNDATION_ONLY`.
 
+Replacement live evidence `44-pda-foundation-remediation-live.log` revalidates only the affected
+subset after the RI remediation:
+
+- missing preflight credential is denied locally before Auth, a wrong credential is rejected by
+  Terminal Device, and a correct credential reaches the existing Auth policy stop;
+- managed-device login, access summary, bootstrap and signed trace remain valid;
+- Item is rejected with HTTP `403` at the Gateway Web-only boundary before Permission;
+- dependency outage/recovery is `500 -> 200`, logout makes the session stale, and all six fixture
+  tables return to zero rows.
+
 ### FL-5 — candidate-focused static and build gates
 
 Freshly revalidated after formatting:
@@ -107,10 +125,43 @@ Freshly revalidated after formatting:
 - Final diff-check, secret scan, changed-file hashes, disk result and rollback are recorded in the
   candidate evidence manifest emitted with the exact candidate SHA.
 
+### FL-6 — independent RI remediation
+
+The rejected candidate `1b4abcad40f2f305bfc981ead59a2e053029e464` remains immutable. The
+append-only replacement closes the five independent RI findings:
+
+1. Auth global terminal widening is removed; BUSINESS RPCs are exact WEB-only declarations and
+   only Logout admits PDA.
+2. Permission global PDA admission is removed; only the two accepted INTERNAL foundation routes
+   admit PDA, while representative Permission/Role/Navigation/Terminal-policy BUSINESS methods
+   have PDA-negative coverage.
+3. Employee-code preflight forwards the opaque Terminal Device credential controller -> use case
+   -> owner proto field and stops before Auth for missing or invalid credentials.
+4. Runtime policy validation parses the generated policy semantics rather than matching source
+   formatting.
+5. Terminal Device peer identity is deployment-projected and exact, with local/non-local positive
+   cases and absent/malformed/wildcard/mismatch negatives.
+
+Fresh replacement evidence after final formatting:
+
+- `49-final-prettier-check-corrected.log`: all 16 remediation source/test files formatted.
+- `50-final-post-format-security-focused.log`: runtime/profile 10/10, Common mTLS 3/3, Gateway
+  57/57, Auth 8/8 and Permission 11/11.
+- `51-final-affected-typecheck-build.log`: Common, Gateway and Auth typechecks plus Common, Gateway,
+  Auth and Permission builds all pass.
+- `52-final-ci-inputs.log`: trusted-runtime profile, Proto lint/breaking and both test-matrix checks
+  pass.
+- `44-pda-foundation-remediation-live.log`: affected PDA live matrix passes with Item `403`,
+  outage/recovery, logout/stale-session and zero fixture residue.
+- `45-post-live-runtime-down.log` and `47-runtime-down-settled.log`: launcher shutdown succeeds,
+  PID files are absent and all application listeners settle closed.
+
 ## Review state and findings
 
-- Feature Lead self-review, protected-scope check, diff check and secret scan: passed.
-- Independent Feature RI: pending exact candidate.
+- Feature Lead self-review, protected-scope check, diff check and secret scan: passed for the
+  replacement delta.
+- Independent Feature RI: changes requested for immutable candidate `1b4abcad`; all five findings
+  are remediated in the append-only replacement and await re-review by the same visible RI task.
 - Candidate finding: repository ESLint configuration enables both `project` and `projectService`,
   so candidate-only lint stops before rule execution on all 39 changed TypeScript files. The
   config, package manifest and lockfile are byte-identical to the candidate base; evidence is in
@@ -122,8 +173,8 @@ Freshly revalidated after formatting:
 ## Rollback and stop point
 
 - Runtime rollback: `OES_TASK_KEY=tmp_31d7ce4d pnpm local:trusted-runtime:down`.
-- Git rollback after any later integration: `git revert <candidate-sha>`.
 - The PDA fixture rollback leaves zero rows; owner process verification leaves zero live
   task-owned application processes.
-- Stop at exact candidate. No push, PR, `main` merge, cleanup or RI creation is part of this
-  owner action.
+- Git rollback of only the append-only remediation: `git revert <replacement-candidate-sha>`.
+- Stop at the exact replacement candidate. No push, PR, `main` merge, cleanup or RI creation is
+  part of this owner action.

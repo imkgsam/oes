@@ -10,6 +10,8 @@ import {
   createLazyTrustedExecutionRuntime,
   ExecutionTokenVerifier,
   getAuthenticatedGrpcRequestContext,
+  RPC_AUTHORIZATION_MODE_METADATA_KEY,
+  type RpcAuthorizationModeDeclaration,
   TrustedExecutionGuard,
   TrustedInternalExecutionGuard
 } from '@oes/common/authorization'
@@ -26,7 +28,10 @@ const ALLOWED_CALLERS = new Set([
   'collaboration-service',
   'public-entry-service'
 ])
-const ALLOWED_HUMAN_SESSION_TERMINALS = new Set(['WEB', 'PDA'])
+const PDA_FOUNDATION_INTERNAL_PERMISSIONS = new Set([
+  'permission.internal.account_access_summary.resolve',
+  'permission.internal.account_navigation.resolve'
+])
 
 /** Enforces Permission BUSINESS/INTERNAL caller shape after Common verifies audience, Code, time and certificate binding. */
 @Injectable()
@@ -40,7 +45,10 @@ export class PermissionFoundationTrustedExecutionGuard
     identity: GrpcWorkloadIdentityProvider
   ) {
     super(reflector, verifier, identity, PERMISSION_AUDIENCE)
+    this.permissionReflector = reflector
   }
+
+  private readonly permissionReflector: Reflector
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     await super.canActivate(context)
@@ -50,11 +58,20 @@ export class PermissionFoundationTrustedExecutionGuard
     const workload = readWorkloadName(token?.clientId ?? '')
     if (!ALLOWED_CALLERS.has(workload))
       throw new ForbiddenException('Permission caller workload is not permitted')
-    if (
-      token?.principalType === 'HUMAN' &&
-      !ALLOWED_HUMAN_SESSION_TERMINALS.has(token.sessionTerminal ?? '')
-    )
-      throw new ForbiddenException('Permission HUMAN execution terminal is not permitted')
+    if (token?.principalType === 'HUMAN') {
+      const declaration =
+        this.permissionReflector.getAllAndOverride<RpcAuthorizationModeDeclaration>(
+          RPC_AUTHORIZATION_MODE_METADATA_KEY,
+          [context.getHandler(), context.getClass()]
+        )
+      const terminal = token.sessionTerminal ?? ''
+      const pdaFoundationAdmission =
+        terminal === 'PDA' &&
+        workload === 'api-gateway' &&
+        isExactPdaFoundationInternalDeclaration(declaration)
+      if (terminal !== 'WEB' && !pdaFoundationAdmission)
+        throw new ForbiddenException('Permission HUMAN execution terminal is not permitted')
+    }
     if (
       token?.principalType === 'MACHINE' &&
       !['auth-service', 'public-entry-service'].includes(workload)
@@ -62,6 +79,15 @@ export class PermissionFoundationTrustedExecutionGuard
       throw new ForbiddenException('Permission SYSTEM MACHINE caller is not permitted')
     return true
   }
+}
+
+/** Admits PDA only to one of the two exact read-only foundation INTERNAL permissions. */
+function isExactPdaFoundationInternalDeclaration(
+  declaration: RpcAuthorizationModeDeclaration | undefined
+): boolean {
+  if (declaration?.mode !== 'INTERNAL') return false
+  const permissions = declaration.permissions.all
+  return permissions.length === 1 && PDA_FOUNDATION_INTERNAL_PERMISSIONS.has(permissions[0] ?? '')
 }
 
 /** Supplies Permission's exact audience verifier for all baseline RPCs while preserving the bootstrap guard. */

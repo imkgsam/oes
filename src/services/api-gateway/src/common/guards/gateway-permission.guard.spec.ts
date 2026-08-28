@@ -40,7 +40,7 @@ function createContext(
       getRequest: () => ({
         params: { tenantId: pathTenantId },
         route: { path: routePath },
-        user
+        user: user ? { terminal: 'WEB', ...user } : undefined
       })
     })
   } as unknown as ExecutionContext
@@ -179,6 +179,28 @@ describe('GatewayPermissionGuard', () => {
     expect(publicFixture.checkPermission).not.toHaveBeenCalled()
     expect(selfServiceFixture.checkPermission).not.toHaveBeenCalled()
   })
+
+  it.each(['PDA', 'BROWSER_EXTENSION', 'KIOSK', undefined])(
+    'denies protected BUSINESS route terminal %s before Permission RPC',
+    async (terminal) => {
+      const { guard, checkPermission, metadataFactory } = createGuard({
+        requiredPermissions: { all: [TENANT_CODE] }
+      })
+
+      await expect(
+        guard.canActivate(
+          createContext({
+            id: 'account-1',
+            scopeLevel: 'TENANT',
+            tenantId: 'tenant-1',
+            terminal
+          })
+        )
+      ).resolves.toBe(false)
+      expect(checkPermission).not.toHaveBeenCalled()
+      expect(metadataFactory.create).not.toHaveBeenCalled()
+    }
+  )
 
   it('admits TENANT scope and sends only the authenticated subject tenant to Permission', async () => {
     const { guard, checkPermission, internalMetadata } = createGuard({

@@ -82,13 +82,15 @@ abstract class TerminalAuthControllerBase {
     @Body() dto: EmployeeCodePinPreflightDto,
     @DownstreamSource() source: DownstreamRequestSource,
     @Headers('user-agent') userAgent?: string,
-    @Ip() ipAddress?: string
+    @Ip() ipAddress?: string,
+    @Headers('x-oes-terminal-device-credential') deviceCredential?: string
   ): Promise<EmployeeCodePinPreflightViewModel> {
     return this.loginUseCase.preflightEmployeeCodePin(
       dto,
       source,
       { userAgent, ipAddress },
-      this.terminal
+      this.terminal,
+      deviceCredential
     )
   }
 

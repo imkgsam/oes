@@ -27,7 +27,6 @@ import {
 export const AUTH_AUDIENCE = 'urn:oes:service:auth-service'
 export const AUTH_PUBLIC_ADMISSION_KEY = 'oes:auth:public-admission'
 const runtime = createLazyTrustedExecutionRuntime(AUTH_AUDIENCE)
-const AUTH_PROTECTED_HUMAN_SESSION_TERMINALS = new Set(['WEB', 'PDA'])
 
 /** Declares one Auth-owned pre-execution admission without manufacturing an ExecutionToken. */
 export const AuthorizeAuthPublicAdmission = (
@@ -81,12 +80,8 @@ export class AuthTrustedExecutionGuard extends TrustedExecutionGuard implements 
       context.switchToRpc().getData()
     )?.verifiedExecutionToken
     const workload = readWorkloadName(verified?.clientId ?? '')
-    if (
-      verified?.principalType !== 'HUMAN' ||
-      !AUTH_PROTECTED_HUMAN_SESSION_TERMINALS.has(verified.sessionTerminal ?? '')
-    ) {
-      throw new ForbiddenException('Auth protected execution requires an admitted HUMAN terminal')
-    }
+    if (verified?.principalType !== 'HUMAN')
+      throw new ForbiddenException('Auth protected execution requires a HUMAN principal')
     const allowed = verified.actor
       ? ['hr-service', 'tenant-org-service'].includes(workload)
       : workload === 'api-gateway'

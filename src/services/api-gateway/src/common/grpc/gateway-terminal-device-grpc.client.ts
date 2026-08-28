@@ -3,7 +3,7 @@ import type { ChannelOptions } from '@grpc/grpc-js'
 import { resolveCommonProtoPath } from '@oes/common/contracts'
 import { createGrpcClientCredentials } from '@oes/common/transport'
 
-const TERMINAL_DEVICE_SPIFFE_ID = 'spiffe://local.oes.internal/ns/oes/sa/terminal-device-service'
+export const TERMINAL_DEVICE_PEER_SPIFFE_ENV = 'GATEWAY_TERMINAL_DEVICE_PEER_SPIFFE_ID'
 
 /** Owns Gateway's mTLS channel for the token-only Terminal Device server. */
 export class GatewayTerminalDeviceGrpcClient {
@@ -17,11 +17,37 @@ export class GatewayTerminalDeviceGrpcClient {
         package: 'terminal_device_service',
         protoPath: resolveCommonProtoPath('terminal_device_service/terminal_device.proto'),
         url: resolveTerminalDeviceGrpcUrl(),
-        credentials: createGrpcClientCredentials(process.env, TERMINAL_DEVICE_SPIFFE_ID),
+        credentials: createGrpcClientCredentials(process.env, resolveTerminalDevicePeerSpiffeId()),
         channelOptions: resolveTerminalDeviceGrpcChannelOptions()
       }
     }) as unknown as ClientGrpc
     return this.client
+  }
+}
+
+/** Requires the deployment-projected exact Terminal Device peer SPIFFE URI. */
+export function resolveTerminalDevicePeerSpiffeId(
+  environment: NodeJS.ProcessEnv = process.env
+): string {
+  const value = environment[TERMINAL_DEVICE_PEER_SPIFFE_ENV]?.trim()
+  try {
+    if (!value || value.includes('*') || decodeURIComponent(value).includes('*')) throw new Error()
+    const parsed = new URL(value)
+    if (
+      parsed.protocol !== 'spiffe:' ||
+      !parsed.hostname ||
+      parsed.port ||
+      parsed.username ||
+      parsed.password ||
+      parsed.search ||
+      parsed.hash ||
+      !/^\/(?:[A-Za-z0-9._~-]+\/)*[A-Za-z0-9._~-]+$/u.test(parsed.pathname) ||
+      parsed.href !== value
+    )
+      throw new Error()
+    return value
+  } catch {
+    throw new Error(`${TERMINAL_DEVICE_PEER_SPIFFE_ENV} must be an exact SPIFFE ID`)
   }
 }
 

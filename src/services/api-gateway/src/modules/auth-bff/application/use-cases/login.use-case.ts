@@ -174,13 +174,21 @@ export class LoginUseCase {
     dto: EmployeeCodePinPreflightDto,
     source: DownstreamRequestSource,
     clientContext: LoginClientContext,
-    terminal: LoginTerminal = 'WEB'
+    terminal: LoginTerminal = 'WEB',
+    deviceCredential?: string
   ): Promise<EmployeeCodePinPreflightViewModel> {
+    if (terminal === 'PDA' && !deviceCredential) {
+      return {
+        allowed: false,
+        reasonCode: 'TERMINAL_ACCESS_DENIED',
+        message: 'DEVICE_CREDENTIAL_REQUIRED'
+      }
+    }
     const pdaDeviceContext = await this.resolvePdaDeviceContextIfNeeded(
       dto,
       clientContext,
       terminal,
-      undefined,
+      deviceCredential,
       source
     )
     if (pdaDeviceContext && !pdaDeviceContext.allowed) {
@@ -347,7 +355,7 @@ export class LoginUseCase {
     return this.terminalDeviceAdapter.resolveLoginDeviceContext({
       terminalDeviceId,
       deviceMetadata: this.toPdaDeviceMetadata(dto, { deviceName, userAgent, ipAddress }),
-      deviceCredential: deviceCredential?.trim() ?? '',
+      deviceCredential: deviceCredential ?? '',
       source
     })
   }

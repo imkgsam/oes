@@ -28,6 +28,10 @@ test('offline profile validation does not require live Docker infrastructure', a
   assert.equal(profile.gateway.workload, 'api-gateway')
   assert.equal(profile.gateway.port, 52101)
   const gatewayEnvironment = await readFile(profile.gateway.envPath, 'utf8')
+  assert.equal(
+    readProjectedEnvironmentValue(gatewayEnvironment, 'GATEWAY_TERMINAL_DEVICE_PEER_SPIFFE_ID'),
+    'spiffe://local.oes.internal/ns/oes/sa/terminal-device-service'
+  )
   assert.match(gatewayEnvironment, /GATEWAY_MACHINE_PRINCIPAL_ID=/u)
   assert.match(gatewayEnvironment, /GATEWAY_MACHINE_WORKLOAD_BINDING_ID=/u)
   assert.match(gatewayEnvironment, /GATEWAY_MACHINE_WORKLOAD_BINDING_VERSION=/u)
@@ -102,7 +106,6 @@ test('projects exact Collaboration HUMAN_OBO owner selectors and Permission uppe
       'utf8'
     )
   )
-  const source = await readFile('scripts/local/trusted-runtime.mjs', 'utf8')
   assert.deepEqual(
     auth.find((entry) => entry.spiffeId.endsWith('/collaboration-service')),
     {
@@ -124,19 +127,52 @@ test('projects exact Collaboration HUMAN_OBO owner selectors and Permission uppe
       policyVersion: 'auth-login-owner-facts-v1'
     }
   )
-  assert.match(source, /TRUSTED_RUNTIME_SELECTOR_MISSING_COLLABORATION/)
-  assert.match(source, /selfAudience: 'urn:oes:service:collaboration-service'/)
+  const runtimeAuth = await readProjectedRuntimeAuthPolicies(54150)
+  const runtimeCollaboration = runtimeAuth.find((entry) =>
+    entry.spiffeId.endsWith('/collaboration-service')
+  )
+  assert.equal(
+    runtimeCollaboration?.humanObo?.selfAudience,
+    'urn:oes:service:collaboration-service'
+  )
+  assert.deepEqual(runtimeCollaboration?.humanObo?.targetAudiences, [
+    'urn:oes:service:identity-service',
+    'urn:oes:service:permission-service'
+  ])
+  assert.ok(runtimeCollaboration?.humanObo?.actorMachinePrincipalId)
+  assert.ok(runtimeCollaboration?.humanObo?.actorBindingId)
+  assert.ok(runtimeCollaboration?.humanObo?.actorBindingVersion)
 })
 
 test('projects exact Gateway Identity and Collaboration HUMAN_OBO targets without wildcard', async () => {
-  const source = await readFile('scripts/local/trusted-runtime.mjs', 'utf8')
-  assert.match(
-    source,
-    /'urn:oes:service:identity-service', 'urn:oes:service:collaboration-service'/
-  )
-  assert.match(
-    source,
-    /targetAudiences: \['urn:oes:service:identity-service', 'urn:oes:service:permission-service', 'urn:oes:service:collaboration-service'\]/
-  )
-  assert.doesNotMatch(source, /targetAudiences: \[[^\]]*['"]\*['"]/)
+  const runtimeAuth = await readProjectedRuntimeAuthPolicies(54250)
+  const gateway = runtimeAuth.find((entry) => entry.spiffeId.endsWith('/api-gateway'))
+  assert.ok(gateway)
+  assert.ok(gateway.audiences.includes('urn:oes:service:identity-service'))
+  assert.ok(gateway.audiences.includes('urn:oes:service:collaboration-service'))
+  assert.deepEqual(gateway.humanObo?.targetAudiences, [
+    'urn:oes:service:identity-service',
+    'urn:oes:service:permission-service',
+    'urn:oes:service:collaboration-service'
+  ])
+  assert.equal(gateway.humanObo?.selfAudience, 'urn:oes:service:api-gateway')
+  assert.ok(gateway.humanObo?.targetAudiences.every((audience) => !audience.includes('*')))
 })
+
+/** Reads the semantic projected Auth policy instead of coupling tests to source formatting. */
+async function readProjectedRuntimeAuthPolicies(basePort) {
+  const profile = await generateProfile({ basePort, requireInfrastructure: false })
+  const environment = await readFile(profile.gateway.envPath, 'utf8')
+  return JSON.parse(readProjectedEnvironmentValue(environment, 'AUTH_EXECUTION_WORKLOAD_POLICIES'))
+}
+
+/** Parses one shell-quoted generated environment value without depending on line formatting. */
+function readProjectedEnvironmentValue(environment, name) {
+  const prefix = `${name}=`
+  const line = environment.split(/\r?\n/u).find((candidate) => candidate.startsWith(prefix))
+  assert.ok(line, `${name} must be projected`)
+  const value = line.slice(prefix.length)
+  return value.startsWith("'") && value.endsWith("'")
+    ? value.slice(1, -1).replaceAll("'\\''", "'")
+    : value
+}
